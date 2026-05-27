@@ -1,0 +1,4 @@
+kokoro>=0.9.4
+misaki[en,ja,zh]>=0.9.4
+numpy>=1.24.0
+torch>=2.2.0

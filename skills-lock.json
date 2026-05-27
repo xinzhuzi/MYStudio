@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "skills": {
+    "electron": {
+      "source": "teachingai/full-stack-skills",
+      "sourceType": "github",
+      "skillPath": "skills/electron-skills/electron/SKILL.md",
+      "computedHash": "9d82126e6c46dd626fc6b1d2e259687d1b64ad61900166b8fc5a3b661c243cf4"
+    },
+    "lsp-code-analysis": {
+      "source": "lsp-client/lsp-skill",
+      "sourceType": "github",
+      "skillPath": "skills/lsp-code-analysis/SKILL.md",
+      "computedHash": "b9e9b7fe4129e71fc2403ae86113b6292533e54ffe8484aeff46e94603d22b78"
+    },
+    "lsp-setup": {
+      "source": "github/awesome-copilot",
+      "sourceType": "github",
+      "skillPath": "skills/lsp-setup/SKILL.md",
+      "computedHash": "f5e42d0c6c1dca6f93f1adc7ffa44321bd1461ea36a2a9e48d269c277ff1e885"
+    },
+    "react-vite-best-practices": {
+      "source": "asyrafhussin/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/react-vite-best-practices/SKILL.md",
+      "computedHash": "82994934665a490b227fabdfec3d148b1fa291d77d82ccf978e761b9e1ff6e4c"
+    },
+    "security-review": {
+      "source": "github/awesome-copilot",
+      "sourceType": "github",
+      "skillPath": "skills/security-review/SKILL.md",
+      "computedHash": "9b1791054c648b84ca424fc1342dede2e04759dc73436bb91d21675d5a4c13ea"
+    },
+    "typescript-lsp": {
+      "source": "plaited/development-skills",
+      "sourceType": "github",
+      "skillPath": "skills/typescript-lsp/SKILL.md",
+      "computedHash": "fc701e63c4905021a54a44c6aac73f2125a954edb3727b0c9611cde0500d2e77"
+    },
+    "typescript-react-reviewer": {
+      "source": "dotneet/claude-code-marketplace",
+      "sourceType": "github",
+      "skillPath": "review-tool/skills/typescript-react-reviewer/SKILL.md",
+      "computedHash": "7f86cd28e11d2b4b120b635d18814b82cd655a2b9d9ba8a105b3ee06c478cf38"
+    },
+    "web-design-reviewer": {
+      "source": "github/awesome-copilot",
+      "sourceType": "github",
+      "skillPath": "skills/web-design-reviewer/SKILL.md",
+      "computedHash": "10c6fad8b4f01dbeae969009d81d6c306c8a96d56077cad9bfe2a73a38f5dcbe"
+    },
+    "webapp-testing": {
+      "source": "anthropics/skills",
+      "sourceType": "github",
+      "skillPath": "skills/webapp-testing/SKILL.md",
+      "computedHash": "ad5b1fc52807e9afa4635e59218a026b164dc58b6c3f41b0f7c644dcd6ccf572"
+    }
+  }
+}

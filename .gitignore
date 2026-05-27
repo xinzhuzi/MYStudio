@@ -1,0 +1,95 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+dist-electron
+*.local
+
+# Build outputs
+.cache/
+out/
+release/
+
+# Local workspace artifacts
+.changes/
+.codex-backups/
+.oz-backups/
+.spec-workflow/
+.tmp/
+.tmp-*
+.backup-assets-panel/
+backups/
+
+# Environment & secrets
+*.env
+*.env.*
+activation.json
+
+# Backup files
+backup*/
+*.bak
+*.backup-*
+
+# Reference / internal docs
+reference/
+nami-reference/
+docs/*
+!docs/images/
+!docs/WORKFLOW_GUIDE.md
+!docs/SCRIPT_FORMAT_EXAMPLE.md
+
+# Next.js cache (not used)
+.next/
+
+# Script files (internal tools)
+*.ps1
+!scripts/prebuild-cleanup.ps1
+
+# Story/script content
+沪商通途*
+第*集*
+
+# Internal analysis docs
+S级*
+*修复方案*
+*分析报告*
+
+# Local notes / screenshots
+02260305图片合并生成修复.md
+20260226101148.png
+20260228215145.png
+20260304单图生成修复日志.md
+20260305持久化回归修复日志.md
+BUGFIX-LOG.md
+CHANGELOG-P3-episode-architecture.md
+CHANGELOG-assets-panel.md
+CHANGELOG-v0.1.8.md
+SYNC-CHECKLIST-P3P4.md
+screenshot-*.png
+memefast_pricing_md_real/
+_encoding_test.txt
+uuu.txt
+cdp-test.cjs
+version.json
+
+# Apifox / API debug files
+*.apifox.json
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

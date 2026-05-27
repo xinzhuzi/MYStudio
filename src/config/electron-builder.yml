@@ -1,0 +1,60 @@
+appId: com.manju2026.manying-studio
+productName: 漫影工作室
+directories:
+  buildResources: src/assets/brand
+  output: release/build
+files:
+  - out/**/*
+  - package.json
+  # Desktop-only packaging guard: exclude web/image-toolchain heavy deps
+  - "!node_modules/next/**"
+  - "!node_modules/@next/**"
+  - "!node_modules/sharp/**"
+  - "!node_modules/@img/**"
+
+extraResources:
+  - from: src/sidecars/voicebox_tts_backend
+    to: sidecars/voicebox_tts_backend
+    filter:
+      - "**/*"
+      - "!**/__pycache__/**"
+      - "!**/*.pyc"
+  - from: src/assets/studio-manuals
+    to: studio-manuals
+
+asar: true
+asarUnpack:
+  - "**/*.node"
+
+# 图标配置
+icon: src/assets/brand/manying-studio-icon.ico
+
+mac:
+  icon: src/assets/brand/manying-studio-icon.icns
+  artifactName: ${name}-${version}-${arch}-mac.${ext}
+  target:
+    - dmg
+    - zip
+
+win:
+  executableName: manying-studio
+  icon: src/assets/brand/manying-studio-icon.ico
+  forceCodeSigning: false
+  target:
+    - target: nsis
+      arch:
+        - x64
+
+# NSIS 安装包配置
+nsis:
+  include: src/config/installer.nsh
+  artifactName: ${name}-${version}-setup.${ext}
+  shortcutName: 漫影工作室
+  uninstallDisplayName: ${productName}
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  installerIcon: src/assets/brand/manying-studio-icon.ico
+  uninstallerIcon: src/assets/brand/manying-studio-icon.ico
+  installerHeaderIcon: src/assets/brand/manying-studio-icon.ico

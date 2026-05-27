@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>漫影工作室</title>
+    <script>
+      (() => {
+        try {
+          const raw = localStorage.getItem("moyin-theme");
+          const state = raw ? JSON.parse(raw).state : null;
+          const theme = state?.theme === "light" ? "light" : "dark";
+          const preset = state?.colorPreset || (theme === "dark" ? "cinema" : "eyeCare");
+          document.documentElement.classList.add(theme, `theme-preset-${preset}`);
+        } catch {
+          document.documentElement.classList.add("dark", "theme-preset-cinema");
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
