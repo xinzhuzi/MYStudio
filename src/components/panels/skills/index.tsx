@@ -131,6 +131,11 @@ export function SkillsView({
     });
   }, [activeCategory, files, query]);
 
+  const [visibleCount, setVisibleCount] = useState(50);
+  // 切换分类或搜索时重置显示数量
+  useEffect(() => { setVisibleCount(50); }, [activeCategory, query]);
+  const visibleFiles = useMemo(() => filteredFiles.slice(0, visibleCount), [filteredFiles, visibleCount]);
+
   const loadFile = useCallback(async (file: EditableSkillFile) => {
     setSelectedPath(file.relativePath);
     setIsLoading(true);
@@ -441,7 +446,7 @@ export function SkillsView({
 
             <ScrollArea className="min-h-0 flex-1">
               <div className="space-y-1 p-3">
-                {filteredFiles.map((file) => {
+                {visibleFiles.map((file) => {
                   const active = file.relativePath === selectedPath;
                   return (
                     <button
@@ -464,6 +469,15 @@ export function SkillsView({
                     </button>
                   );
                 })}
+                {visibleCount < filteredFiles.length ? (
+                  <button
+                    type="button"
+                    className="w-full py-2 text-center text-xs text-muted-foreground hover:text-foreground"
+                    onClick={() => setVisibleCount((c) => c + 50)}
+                  >
+                    显示更多（{filteredFiles.length - visibleCount} 个）
+                  </button>
+                ) : null}
                 {filteredFiles.length === 0 ? (
                   <div className="px-3 py-10 text-center text-sm text-muted-foreground">没有匹配的技能文件</div>
                 ) : null}

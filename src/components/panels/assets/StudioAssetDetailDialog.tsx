@@ -100,11 +100,19 @@ export function StudioAssetDetailDialog({
 
   const [images, setImages] = useState<AssetImage[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [fullAsset, setFullAsset] = useState<StudioAssetSummary | null>(null);
 
-  // 当 asset 变化时初始化 images
+  // 打开弹窗时获取完整数据
   const prevAssetId = useRef<string | null>(null);
   if (asset && asset.id !== prevAssetId.current) {
     prevAssetId.current = asset.id;
+    setFullAsset(null);
+    // 异步加载完整数据
+    if (window.studioAssets?.get) {
+      window.studioAssets.get(asset.id).then((result) => {
+        if (result) setFullAsset(result);
+      });
+    }
     const imgs: AssetImage[] = [];
     // 主图作为第一张
     if (asset.previewUrl || asset.thumbnailUrl) {
@@ -120,6 +128,7 @@ export function StudioAssetDetailDialog({
 
   if (!asset) return null;
 
+  const detail = fullAsset || asset;
   const Icon = TYPE_ICON[asset.type];
   const displayName = getAssetDisplayName(asset);
   const spokenText = getAssetSpokenText(asset);
@@ -430,8 +439,9 @@ export function StudioAssetDetailDialog({
               <section className="space-y-1.5">
                 <div className="text-xs font-medium text-muted-foreground">{asset.type === "audio" ? "说话内容" : "描述"}</div>
                 <Textarea
+                  key={`desc-${detail.id}-${detail.description?.length ?? 0}`}
                   ref={descRef}
-                  defaultValue={(asset.type === "audio" ? spokenText : asset.description?.trim()) || ""}
+                  defaultValue={(asset.type === "audio" ? spokenText : detail.description?.trim()) || ""}
                   placeholder={asset.type === "audio" ? "暂无口播词句" : "暂无描述"}
                   className="min-h-[80px] resize-none bg-muted/20 text-xs leading-5"
                 />
@@ -441,8 +451,9 @@ export function StudioAssetDetailDialog({
                   <section className="space-y-1.5">
                     <div className="text-xs font-medium text-muted-foreground">出图提示词</div>
                     <Textarea
+                      key={`prompt-${detail.id}-${detail.prompt?.length ?? 0}`}
                       ref={promptRef}
-                      defaultValue={asset.prompt?.trim() || ""}
+                      defaultValue={detail.prompt?.trim() || ""}
                       placeholder="暂无出图提示词"
                       className="min-h-[80px] resize-none bg-muted/20 text-xs leading-5"
                     />
@@ -450,8 +461,9 @@ export function StudioAssetDetailDialog({
                   <section className="space-y-1.5">
                     <div className="text-xs font-medium text-muted-foreground">设定</div>
                     <Textarea
+                      key={`setting-${detail.id}-${detail.setting?.length ?? 0}`}
                       ref={settingRef}
-                      defaultValue={asset.setting?.trim() || ""}
+                      defaultValue={detail.setting?.trim() || ""}
                       placeholder="暂无设定"
                       className="min-h-[200px] resize-none bg-muted/20 text-xs leading-5"
                     />

@@ -946,6 +946,32 @@
   position: relative;
 }
 
+.dashboard-content-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--foreground) / 0.22) transparent;
+}
+
+.dashboard-content-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.dashboard-content-scroll::-webkit-scrollbar-track,
+.dashboard-content-scroll::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+.dashboard-content-scroll::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: hsl(var(--foreground) / 0.2);
+  background-clip: content-box;
+}
+
+.dashboard-content-scroll::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--primary) / 0.42);
+  background-clip: content-box;
+}
+
 .project-chrome {
   position: relative;
   isolation: isolate;

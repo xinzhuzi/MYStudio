@@ -341,7 +341,7 @@ export function Dashboard({
       </div>
 
       {/* Content */}
-      <div className="dashboard-content flex-1 overflow-y-auto p-8">
+      <div className="dashboard-content dashboard-content-scroll flex-1 overflow-y-auto p-8">
         <div className="w-full max-w-7xl mx-auto">
           <div className="dashboard-hero mb-8">
             <div className="dashboard-hero-copy min-w-0">

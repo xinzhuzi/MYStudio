@@ -126,7 +126,7 @@ export function VirtualGrid<T>({
   return (
     <div
       ref={scrollRef}
-      className={cn("h-full overflow-y-auto overflow-x-hidden", className)}
+      className={cn("h-full overflow-y-auto overflow-x-hidden scrollbar-thin", className)}
       onScroll={handleScroll}
     >
       {items.length === 0 ? (

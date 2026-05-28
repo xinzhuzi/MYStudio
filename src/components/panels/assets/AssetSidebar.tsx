@@ -17,7 +17,6 @@ import {
   ChevronRight,
   FolderOpen,
   Box,
-  Film,
   Map,
   Music2,
 } from "lucide-react";
@@ -64,7 +63,6 @@ const NAV_MODULES: NavModule[] = [
       { id: "asset-role", label: "角色", icon: UserCircle },
       { id: "asset-scene", label: "场景", icon: Map },
       { id: "asset-tool", label: "道具", icon: Box },
-      { id: "asset-clip", label: "素材", icon: Film },
       { id: "asset-audio", label: "音频", icon: Music2 },
     ],
   },

@@ -113,7 +113,21 @@ function runSqliteExec(dbPath: string, sql: string) {
 }
 
 function escapeSql(value: string): string {
+  // 转义单引号，并将换行替换为 char(10) 拼接方式不可行，
+  // 所以用 replace 保留换行（sqlite3 stdin 模式支持多行字符串）
   return value.replace(/'/g, "''");
+}
+
+/** 通过临时文件执行 SQL（避免命令行参数长度限制和特殊字符问题） */
+function runSqliteExecSafe(dbPath: string, sql: string) {
+  const tmpFile = path.join(getAssetsDir(), ".tmp_sql_" + Date.now() + ".sql");
+  try {
+    fs.writeFileSync(tmpFile, sql, "utf-8");
+    const { execFileSync } = require("node:child_process");
+    execFileSync("sqlite3", [dbPath, `.read ${tmpFile}`], { maxBuffer: 50 * 1024 * 1024 });
+  } finally {
+    try { fs.unlinkSync(tmpFile); } catch {}
+  }
 }
 
 function runSqliteJsonSync<T>(dbPath: string, query: string): T {
@@ -205,7 +219,7 @@ export function updateAsset(id: string, updates: Partial<{ name: string; descrip
   if (updates.tags !== undefined) sets.push(`tags='${escapeSql(JSON.stringify(updates.tags))}'`);
   if (!sets.length) return null;
   sets.push(`updatedAt='${new Date().toISOString()}'`);
-  runSqliteExec(dbPath, `UPDATE assets SET ${sets.join(",")} WHERE id='${escapeSql(id)}';`);
+  runSqliteExecSafe(dbPath, `UPDATE assets SET ${sets.join(",")} WHERE id='${escapeSql(id)}';`);
 
   // 同步返回
   const rows = runSqliteJsonSync<any[]>(dbPath, `SELECT * FROM assets WHERE id='${escapeSql(id)}' LIMIT 1;`);
@@ -236,7 +250,7 @@ export function addAsset(input: {
 
   const now = new Date().toISOString();
   const tags = JSON.stringify(input.tags || []);
-  runSqliteExec(dbPath, `INSERT INTO assets (id,type,name,description,prompt,setting,remark,tags,filePath,images,source,createdAt,updatedAt) VALUES ('${escapeSql(id)}','${escapeSql(input.type)}','${escapeSql(input.name || "")}','${escapeSql(input.description || "")}','${escapeSql(input.prompt || "")}','${escapeSql(input.setting || "")}','${escapeSql(input.remark || "")}','${escapeSql(tags)}','${escapeSql(filePath)}','[]','manying-local','${now}','${now}');`);
+  runSqliteExecSafe(dbPath, `INSERT INTO assets (id,type,name,description,prompt,setting,remark,tags,filePath,images,source,createdAt,updatedAt) VALUES ('${escapeSql(id)}','${escapeSql(input.type)}','${escapeSql(input.name || "")}','${escapeSql(input.description || "")}','${escapeSql(input.prompt || "")}','${escapeSql(input.setting || "")}','${escapeSql(input.remark || "")}','${escapeSql(tags)}','${escapeSql(filePath)}','[]','manying-local','${now}','${now}');`);
 
   const absPath = filePath ? path.join(getFilesDir(), filePath) : undefined;
   return {
@@ -297,7 +311,7 @@ export function addAssetImage(assetId: string, imageName: string, sourceFilePath
   const images = JSON.parse(asset.images || "[]");
   images.push({ name: imageName, filePath: relPath });
   const now = new Date().toISOString();
-  runSqliteExec(dbPath, `UPDATE assets SET images='${escapeSql(JSON.stringify(images))}', updatedAt='${now}' WHERE id='${escapeSql(assetId)}';`);
+  runSqliteExecSafe(dbPath, `UPDATE assets SET images='${escapeSql(JSON.stringify(images))}', updatedAt='${now}' WHERE id='${escapeSql(assetId)}';`);
 
   return getAssetSync(assetId);
 }
@@ -317,7 +331,7 @@ export function removeAssetImage(assetId: string, imageFilePath: string): Studio
   images.splice(idx, 1);
 
   const now = new Date().toISOString();
-  runSqliteExec(dbPath, `UPDATE assets SET images='${escapeSql(JSON.stringify(images))}', updatedAt='${now}' WHERE id='${escapeSql(assetId)}';`);
+  runSqliteExecSafe(dbPath, `UPDATE assets SET images='${escapeSql(JSON.stringify(images))}', updatedAt='${now}' WHERE id='${escapeSql(assetId)}';`);
   return getAssetSync(assetId);
 }
 
@@ -333,7 +347,7 @@ export function renameAssetImage(assetId: string, imageFilePath: string, newName
   img.name = newName;
 
   const now = new Date().toISOString();
-  runSqliteExec(dbPath, `UPDATE assets SET images='${escapeSql(JSON.stringify(images))}', updatedAt='${now}' WHERE id='${escapeSql(assetId)}';`);
+  runSqliteExecSafe(dbPath, `UPDATE assets SET images='${escapeSql(JSON.stringify(images))}', updatedAt='${now}' WHERE id='${escapeSql(assetId)}';`);
   return getAssetSync(assetId);
 }
 
@@ -361,7 +375,7 @@ export function importFromToonflow(toonflowItems: StudioAssetSummary[]): number 
       filePath = `${item.type}/${destName}`;
     }
 
-    runSqliteExec(dbPath, `INSERT INTO assets (id,type,name,description,prompt,setting,remark,tags,filePath,images,source,createdAt,updatedAt) VALUES ('${escapeSql(id)}','${escapeSql(item.type)}','${escapeSql(item.name || "")}','${escapeSql(item.description || "")}','${escapeSql(item.prompt || "")}','${escapeSql(item.setting || "")}','${escapeSql(item.remark || "")}','${escapeSql(JSON.stringify(item.tags || []))}','${escapeSql(filePath)}','[]','manying-local','${now}','${now}');`);
+    runSqliteExecSafe(dbPath, `INSERT INTO assets (id,type,name,description,prompt,setting,remark,tags,filePath,images,source,createdAt,updatedAt) VALUES ('${escapeSql(id)}','${escapeSql(item.type)}','${escapeSql(item.name || "")}','${escapeSql(item.description || "")}','${escapeSql(item.prompt || "")}','${escapeSql(item.setting || "")}','${escapeSql(item.remark || "")}','${escapeSql(JSON.stringify(item.tags || []))}','${escapeSql(filePath)}','[]','manying-local','${now}','${now}');`);
     imported++;
   }
   return imported;

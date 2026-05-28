@@ -54,7 +54,6 @@ export function AssetsView() {
             {mounted.has("asset-role") && <div className={activeSection === "asset-role" ? "h-full" : "hidden"}><StudioAssetLibrary type="role" /></div>}
             {mounted.has("asset-scene") && <div className={activeSection === "asset-scene" ? "h-full" : "hidden"}><StudioAssetLibrary type="scene" /></div>}
             {mounted.has("asset-tool") && <div className={activeSection === "asset-tool" ? "h-full" : "hidden"}><StudioAssetLibrary type="tool" /></div>}
-            {mounted.has("asset-clip") && <div className={activeSection === "asset-clip" ? "h-full" : "hidden"}><StudioAssetLibrary type="clip" /></div>}
             {mounted.has("asset-audio") && <div className={activeSection === "asset-audio" ? "h-full" : "hidden"}><StudioAssetLibrary type="audio" /></div>}
           </div>
         </ResizablePanel>
