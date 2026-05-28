@@ -4,6 +4,7 @@ import path from "node:path";
 
 type StudioSkillSyncOptions = {
   sourceRoot: string;
+  fallbackSourceRoots?: string[];
   storageRoot: string;
 };
 
@@ -21,6 +22,8 @@ export type StoredStudioSkillFile = {
   size: number;
   updatedAt: number;
   isCustomized: boolean;
+  isDeleted?: boolean;
+  deletedAt?: number;
   sourceExists: boolean;
 };
 
@@ -38,31 +41,31 @@ export function resolveStoredStudioSkillPath(storageRoot: string, relativePath: 
   return { storageRoot, targetPath, normalizedPath };
 }
 
-export async function ensureStudioSkillsSynced({ sourceRoot, storageRoot }: StudioSkillSyncOptions) {
+export async function ensureStudioSkillsSynced(options: StudioSkillSyncOptions) {
+  const { storageRoot } = options;
   await fs.promises.mkdir(storageRoot, { recursive: true });
 
   const manifest = await readManifest(storageRoot);
   await migrateLegacyRootAgentSkills(storageRoot, manifest);
-  if (!fs.existsSync(sourceRoot)) {
-    await writeManifest(storageRoot, manifest);
-    return;
+  for (const root of getSourceRoots(options)) {
+    await syncSeedDirectory(root, root, storageRoot, manifest);
   }
-  await syncSeedDirectory(sourceRoot, sourceRoot, storageRoot, manifest);
   await writeManifest(storageRoot, manifest);
 }
 
-export async function listStoredStudioSkillFiles({ sourceRoot, storageRoot }: StudioSkillSyncOptions): Promise<StoredStudioSkillFile[]> {
-  await ensureStudioSkillsSynced({ sourceRoot, storageRoot });
+export async function listStoredStudioSkillFiles(options: StudioSkillSyncOptions): Promise<StoredStudioSkillFile[]> {
+  const { storageRoot } = options;
+  await ensureStudioSkillsSynced(options);
   if (!fs.existsSync(storageRoot)) return [];
 
+  const manifest = await readManifest(storageRoot);
   const files = await collectMarkdownFiles(storageRoot);
-  const records = await Promise.all(files.map(async (filePath) => {
+  const records: StoredStudioSkillFile[] = await Promise.all(files.map(async (filePath) => {
     const relativePath = path.relative(storageRoot, filePath).replace(/\\/g, "/");
     const stat = await fs.promises.stat(filePath);
     const sourceRelativePath = getSourceStudioSkillRelativePath(relativePath);
-    const sourcePath = path.join(sourceRoot, sourceRelativePath);
-    const sourceExists = fs.existsSync(sourcePath);
-    const isCustomized = sourceExists
+    const sourcePath = findSourcePath(options, sourceRelativePath);
+    const isCustomized = sourcePath
       ? await hashFile(filePath) !== await hashFile(sourcePath)
       : true;
 
@@ -70,13 +73,39 @@ export async function listStoredStudioSkillFiles({ sourceRoot, storageRoot }: St
       relativePath,
       filePath,
       storagePath: filePath,
-      sourcePath: sourceExists ? sourcePath : undefined,
+      sourcePath: sourcePath,
       size: stat.size,
       updatedAt: stat.mtimeMs,
       isCustomized,
-      sourceExists,
+      isDeleted: false,
+      sourceExists: Boolean(sourcePath),
     };
   }));
+
+  const existingPaths = new Set(records.map((record) => record.relativePath));
+  for (const root of getSourceRoots(options)) {
+    const sourceFiles = await collectMarkdownFiles(root);
+    for (const sourcePath of sourceFiles) {
+      const sourceRelativePath = path.relative(root, sourcePath).replace(/\\/g, "/");
+      const storageRelativePath = getStoredStudioSkillRelativePath(sourceRelativePath);
+      const deleted = manifest.deleted[storageRelativePath];
+      if (!deleted || existingPaths.has(storageRelativePath)) continue;
+      const targetPath = path.join(storageRoot, storageRelativePath);
+      records.push({
+        relativePath: storageRelativePath,
+        filePath: targetPath,
+        storagePath: targetPath,
+        sourcePath,
+        size: 0,
+        updatedAt: deleted.deletedAt,
+        isCustomized: false,
+        isDeleted: true,
+        deletedAt: deleted.deletedAt,
+        sourceExists: true,
+      });
+      existingPaths.add(storageRelativePath);
+    }
+  }
 
   return records.sort((left, right) => left.relativePath.localeCompare(right.relativePath));
 }
@@ -126,6 +155,41 @@ export async function deleteStoredStudioSkillFile(storageRoot: string, relativeP
   return true;
 }
 
+export async function restoreStoredStudioSkillFile(options: StudioSkillSyncOptions, relativePath: string) {
+  const { storageRoot } = options;
+  await fs.promises.mkdir(storageRoot, { recursive: true });
+  const { targetPath, normalizedPath } = resolveStoredStudioSkillPath(storageRoot, relativePath);
+  const sourceRelativePath = getSourceStudioSkillRelativePath(normalizedPath);
+  const sourcePath = findSourcePath(options, sourceRelativePath);
+  if (!sourcePath) {
+    throw new Error("Bundled studio skill does not exist");
+  }
+
+  await fs.promises.mkdir(path.dirname(targetPath), { recursive: true });
+  await fs.promises.copyFile(sourcePath, targetPath);
+
+  const manifest = await readManifest(storageRoot);
+  delete manifest.deleted[normalizedPath];
+  manifest.files[normalizedPath] = {
+    seedHash: await hashFile(sourcePath),
+    syncedAt: Date.now(),
+  };
+  await writeManifest(storageRoot, manifest);
+
+  const stat = await fs.promises.stat(targetPath);
+  return {
+    relativePath: normalizedPath,
+    filePath: targetPath,
+    storagePath: targetPath,
+    sourcePath,
+    size: stat.size,
+    updatedAt: stat.mtimeMs,
+    isCustomized: false,
+    isDeleted: false,
+    sourceExists: true,
+  } satisfies StoredStudioSkillFile;
+}
+
 export async function markStoredStudioSkillPathDeleted(storageRoot: string, relativePath: string) {
   const normalizedPath = normalizeStoredSkillAssetPath(relativePath);
   const targetPath = path.resolve(storageRoot, normalizedPath);
@@ -154,18 +218,12 @@ async function syncSeedDirectory(root: string, current: string, storageRoot: str
 
     await fs.promises.mkdir(path.dirname(targetPath), { recursive: true });
     const sourceHash = await hashFile(sourcePath);
-    const previous = manifest.files[storageRelativePath];
     if (manifest.deleted[storageRelativePath]) return;
 
     if (!fs.existsSync(targetPath)) {
       await fs.promises.copyFile(sourcePath, targetPath);
       manifest.files[storageRelativePath] = { seedHash: sourceHash, syncedAt: Date.now() };
       return;
-    }
-
-    const targetHash = await hashFile(targetPath);
-    if (previous && targetHash === previous.seedHash && sourceHash !== previous.seedHash) {
-      await fs.promises.copyFile(sourcePath, targetPath);
     }
 
     manifest.files[storageRelativePath] = { seedHash: sourceHash, syncedAt: Date.now() };
@@ -198,6 +256,22 @@ async function readManifest(storageRoot: string): Promise<StudioSkillManifest> {
   } catch {
   }
   return { version: 1, files: {}, deleted: {} };
+}
+
+function getSourceRoots(options: StudioSkillSyncOptions) {
+  const roots = [options.sourceRoot, ...(options.fallbackSourceRoots ?? [])]
+    .map((root) => path.resolve(root))
+    .filter((root) => fs.existsSync(root));
+  return [...new Set(roots)];
+}
+
+function findSourcePath(options: StudioSkillSyncOptions, relativePath: string) {
+  for (const root of getSourceRoots(options)) {
+    const sourcePath = path.resolve(root, relativePath);
+    assertInsideRoot(root, sourcePath);
+    if (fs.existsSync(sourcePath)) return sourcePath;
+  }
+  return undefined;
 }
 
 async function writeManifest(storageRoot: string, manifest: StudioSkillManifest) {

@@ -5,9 +5,11 @@ import type { OpenExternalResult, UpdateCheckResult } from "./update";
 import type { ModelTestRequest, ModelTestResult } from "../lib/api-manager/model-test";
 import type { TextCompletionRequest, TextCompletionResult } from "../lib/api-manager/text-completion";
 import type { EpisodeMergePlan, TrackRenderPlan } from "./studio";
+import type { StudioAssetListRequest, StudioAssetListResponse, StudioAssetSummary } from "./studio-assets";
 import type {
   StudioVisualManualCreatePayload,
   StudioVisualManualDetail,
+  StudioVisualManualImagesWritePayload,
   StudioVisualManualSummary,
   StudioVisualManualWritePayload,
 } from "./studio-visual-manual";
@@ -52,6 +54,8 @@ declare global {
         size: number;
         updatedAt: number;
         isCustomized: boolean;
+        isDeleted?: boolean;
+        deletedAt?: number;
         sourceExists: boolean;
       }>>;
       readText: (relativePath: string) => Promise<{ success: boolean; content?: string; filePath?: string; storagePath?: string; error?: string }>;
@@ -68,6 +72,19 @@ declare global {
         error?: string;
       }>;
       deleteText: (relativePath: string) => Promise<{ success: boolean; deleted?: boolean; error?: string }>;
+      restoreText: (relativePath: string) => Promise<{
+        success: boolean;
+        relativePath?: string;
+        filePath?: string;
+        storagePath?: string;
+        sourcePath?: string;
+        size?: number;
+        updatedAt?: number;
+        isCustomized?: boolean;
+        isDeleted?: boolean;
+        sourceExists?: boolean;
+        error?: string;
+      }>;
     };
     studioVisualManuals?: {
       list: () => Promise<StudioVisualManualSummary[]>;
@@ -77,7 +94,17 @@ declare global {
         manual?: StudioVisualManualDetail;
         error?: string;
       }>;
+      writeImages: (stylePath: string, payload: StudioVisualManualImagesWritePayload) => Promise<{
+        success: boolean;
+        manual?: StudioVisualManualDetail;
+        error?: string;
+      }>;
       create: (payload: StudioVisualManualCreatePayload) => Promise<{
+        success: boolean;
+        manual?: StudioVisualManualDetail;
+        error?: string;
+      }>;
+      duplicate: (payload: { sourceStylePath: string; name: string; stylePath: string; projectId?: string }) => Promise<{
         success: boolean;
         manual?: StudioVisualManualDetail;
         error?: string;
@@ -166,11 +193,20 @@ declare global {
         size?: number;
         error?: string;
       }>;
+      list: (payload: StudioAssetListRequest) => Promise<{ items: StudioAssetSummary[]; total: number }>;
+      get: (id: string) => Promise<StudioAssetSummary | null>;
+      update: (payload: { id: string; updates: Record<string, unknown> }) => Promise<StudioAssetSummary | null>;
+      addImage: (payload: { assetId: string; imageName: string; sourceFilePath: string }) => Promise<StudioAssetSummary | null>;
+      removeImage: (payload: { assetId: string; imageFilePath: string }) => Promise<StudioAssetSummary | null>;
+      renameImage: (payload: { assetId: string; imageFilePath: string; newName: string }) => Promise<StudioAssetSummary | null>;
+      selectImageFile: () => Promise<string | null>;
+      importFromToonflow: (payload: { type: string }) => Promise<{ success: boolean; imported: number }>;
     };
     ttsRuntime?: {
       status: () => Promise<TtsRuntimeStatus>;
       start: () => Promise<TtsRuntimeCommandResult>;
       stop: () => Promise<TtsRuntimeCommandResult>;
+      setModelCacheDir: (dirPath: string) => Promise<TtsRuntimeCommandResult>;
       request: (payload: { method: string; path: string; body?: unknown }) => Promise<unknown>;
     };
   }

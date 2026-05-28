@@ -17,4 +17,42 @@ describe("LocalTtsPanel select controls", () => {
     expect(source).not.toContain("Object.values(state.voiceProfiles)");
     expect(source).toContain("Object.values(voiceProfilesById)");
   });
+
+  it("does not offer download actions for already cached models", () => {
+    const source = readFileSync(new URL("./LocalTtsPanel.tsx", import.meta.url), "utf8");
+    const downloadedCheckIndex = source.indexOf('if (row.downloaded) return "downloaded";');
+    const progressErrorIndex = source.indexOf('if (progress?.status === "error") return "failed";');
+
+    expect(source).toContain('state === "missing" || state === "failed"');
+    expect(source).toContain("ModelStateLabel");
+    expect(source).toContain("PendingScanLabel");
+    expect(source).not.toContain("重新下载");
+    expect(source).not.toContain("更新");
+    expect(downloadedCheckIndex).toBeGreaterThan(-1);
+    expect(progressErrorIndex).toBeGreaterThan(-1);
+    expect(downloadedCheckIndex).toBeLessThan(progressErrorIndex);
+    expect(source).toContain("rows.find((row) => row.modelName === current.modelName)");
+  });
+
+  it("renders runtime status as full-width rows without a duplicate port field", () => {
+    const source = readFileSync(new URL("./LocalTtsPanel.tsx", import.meta.url), "utf8");
+
+    expect(source).toContain("function RuntimeStatusLine");
+    expect(source).toContain("break-all");
+    expect(source).toContain("handleManualRefresh");
+    expect(source).toContain("已刷新");
+    expect(source).toContain("运行中（残留进程）");
+    expect(source).toContain("delete next.runtime");
+    expect(source).toContain('label="后端"');
+    expect(source).toContain('label="扫描路径"');
+    expect(source).not.toContain("端口：");
+  });
+
+  it("shows the selected model cache location in the details dialog", () => {
+    const source = readFileSync(new URL("./LocalTtsPanel.tsx", import.meta.url), "utf8");
+
+    expect(source).toContain("模型位置");
+    expect(source).toContain("selectedModel.modelRepoPath");
+    expect(source).toContain("selectedModel.modelCacheDir");
+  });
 });

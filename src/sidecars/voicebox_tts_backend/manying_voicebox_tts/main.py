@@ -14,6 +14,7 @@ from urllib.parse import unquote, urlparse
 from . import __version__
 from .catalog import TTS_MODELS, get_model, model_to_dict
 from .engine import is_engine_loaded, synthesize_to_wav, unload_engine
+from .model_cache import download_hf_cache_dir, find_cached_model, hf_cache_dirs, is_model_downloaded, primary_hf_cache_dir, repo_cache_dir
 from .storage import RuntimeStore
 
 
@@ -68,31 +69,6 @@ class RuntimeState:
 
 
 STATE: RuntimeState | None = None
-
-
-def hf_cache_dir() -> Path:
-    try:
-        from huggingface_hub import constants as hf_constants
-
-        return Path(hf_constants.HF_HUB_CACHE)
-    except Exception:
-        return Path.home() / ".cache" / "huggingface" / "hub"
-
-
-def repo_cache_dir(repo_id: str) -> Path:
-    return hf_cache_dir() / ("models--" + repo_id.replace("/", "--"))
-
-
-def is_model_downloaded(repo_id: str) -> tuple[bool, float | None]:
-    cache = repo_cache_dir(repo_id)
-    if not cache.exists():
-        return False, None
-    has_snapshot = (cache / "snapshots").exists()
-    incomplete = list((cache / "blobs").glob("*.incomplete")) if (cache / "blobs").exists() else []
-    if not has_snapshot or incomplete:
-        return False, None
-    size = sum(file.stat().st_size for file in cache.rglob("*") if file.is_file() and not file.name.endswith(".incomplete"))
-    return True, round(size / 1024 / 1024, 2)
 
 
 def json_bytes(payload) -> bytes:
@@ -156,7 +132,13 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json({"models": [self.model_status(model) for model in TTS_MODELS]})
             return
         if route == "/models/cache-dir":
-            self.send_json({"path": str(hf_cache_dir())})
+            self.send_json(
+                {
+                    "path": str(primary_hf_cache_dir()),
+                    "download_path": str(download_hf_cache_dir()),
+                    "scan_paths": [str(path) for path in hf_cache_dirs()],
+                }
+            )
             return
         if route.startswith("/models/progress/"):
             self.send_sse(unquote(route.removeprefix("/models/progress/")))
@@ -186,6 +168,9 @@ class Handler(BaseHTTPRequestHandler):
         route = parsed.path
         try:
             payload = self.read_json()
+            if route == "/shutdown":
+                self.handle_shutdown(payload)
+                return
             if route == "/models/download":
                 self.handle_download(payload)
                 return
@@ -227,7 +212,8 @@ class Handler(BaseHTTPRequestHandler):
             if not model:
                 self.send_error_json(HTTPStatus.BAD_REQUEST, f"Unknown model: {model_name}")
                 return
-            cache = repo_cache_dir(model.hf_repo_id)
+            cached = find_cached_model(model)
+            cache = cached.repo_cache_dir if cached else repo_cache_dir(model.hf_repo_id)
             if not cache.exists():
                 self.send_error_json(HTTPStatus.NOT_FOUND, f"Model {model_name} not found in cache")
                 return
@@ -237,7 +223,9 @@ class Handler(BaseHTTPRequestHandler):
         self.send_error_json(HTTPStatus.NOT_FOUND, "Route not found")
 
     def model_status(self, model):
-        downloaded, size_mb = is_model_downloaded(model.hf_repo_id)
+        cached = find_cached_model(model)
+        downloaded = cached is not None
+        size_mb = cached.size_mb if cached else None
         progress = self.state.get_progress(model.model_name)
         downloading = progress is not None and progress.get("status") == "downloading"
         return {
@@ -247,6 +235,8 @@ class Handler(BaseHTTPRequestHandler):
             "downloaded": downloaded and not downloading,
             "downloading": downloading,
             "size_mb": size_mb,
+            "model_cache_dir": str(cached.cache_dir) if cached else None,
+            "model_repo_path": str(cached.repo_cache_dir) if cached else None,
             "loaded": is_engine_loaded(model.engine),
             "engine": model.engine,
             "model_size": model.model_size,
@@ -254,6 +244,15 @@ class Handler(BaseHTTPRequestHandler):
             "purpose": model.purpose,
             "description": model.description,
         }
+
+    def handle_shutdown(self, payload: dict):
+        expected = os.environ.get("MANYING_TTS_CONTROL_TOKEN")
+        provided = self.headers.get("X-Manying-TTS-Token") or payload.get("token")
+        if not expected or provided != expected:
+            self.send_error_json(HTTPStatus.FORBIDDEN, "Shutdown token is invalid")
+            return
+        self.send_json({"message": "TTS backend shutting down"})
+        threading.Thread(target=self.server.shutdown, daemon=True).start()
 
     def handle_download(self, payload: dict):
         model_name = payload.get("model_name") or payload.get("modelName")
@@ -304,7 +303,7 @@ class Handler(BaseHTTPRequestHandler):
                     filename=model.hf_repo_id,
                     status="downloading",
                 )
-                snapshot_download(repo_id=model.hf_repo_id)
+                snapshot_download(repo_id=model.hf_repo_id, cache_dir=str(download_hf_cache_dir()))
             self.state.set_progress(
                 model_name,
                 current=model.size_mb * 1024 * 1024,

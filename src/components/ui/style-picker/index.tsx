@@ -15,7 +15,7 @@
 import React, { useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Check } from "lucide-react";
+import { Check, X } from "lucide-react";
 import {
   Popover,
   PopoverContent,
@@ -91,14 +91,23 @@ export function StylePicker({
   const selectedStyle = useMemo(() => getStyleById(value), [value]);
 
   // 预览的风格（悬停优先，否则显示选中的）
-  const previewStyle = hoveredStyle || selectedStyle || VISUAL_STYLE_PRESETS[0];
-  const previewThumbnail = previewStyle.id.startsWith('custom_style_')
+  const previewStyle = hoveredStyle || selectedStyle || null;
+  const previewThumbnail = previewStyle?.id.startsWith('custom_style_')
     ? previewStyle.thumbnail
-    : getStyleThumbnailSource(previewStyle);
+    : previewStyle
+      ? getStyleThumbnailSource(previewStyle)
+      : "";
 
   // 处理选择
   const handleSelect = (style: StylePreset) => {
     onChange(style.id as VisualStyleId);
+    if (popover) {
+      setIsOpen(false);
+    }
+  };
+
+  const handleClear = () => {
+    onChange("");
     if (popover) {
       setIsOpen(false);
     }
@@ -110,6 +119,21 @@ export function StylePicker({
       {/* 左侧：风格列表 */}
       <ScrollArea className="w-[240px] border-r border-border">
         <div className="p-2">
+          <button
+            className={cn(
+              "mb-3 flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-accent",
+              !value && "bg-accent",
+            )}
+            onClick={handleClear}
+            onMouseEnter={() => setHoveredStyle(null)}
+          >
+            <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded bg-muted text-muted-foreground">
+              <X className="h-4 w-4" />
+            </span>
+            <span className="flex-1 truncate text-left">未选择</span>
+            {!value ? <Check className="h-4 w-4 flex-shrink-0 text-primary" /> : null}
+          </button>
+
           {STYLE_CATEGORIES.map((category) => (
             <div key={category.id} className="mb-4">
               {/* 分类标题 */}
@@ -160,7 +184,12 @@ export function StylePicker({
       <div className="flex-1 p-4 flex flex-col">
         {/* 预览图 + 风格名称 */}
         <div className="relative flex-1 overflow-hidden rounded-lg bg-muted mb-3">
-          {previewThumbnail ? (
+          {!previewStyle ? (
+            <div className="flex h-full w-full flex-col items-center justify-center text-muted-foreground">
+              <X className="mb-2 h-8 w-8" />
+              <div className="text-sm font-medium">未选择视觉风格</div>
+            </div>
+          ) : previewThumbnail ? (
             <img
               src={previewThumbnail}
               alt={previewStyle.name}
@@ -177,15 +206,17 @@ export function StylePicker({
             </div>
           )}
           <div className="absolute inset-x-0 bottom-0 bg-black/45 p-3 text-white">
-            <div className="text-sm font-medium">{previewStyle.name}</div>
-            <div className="text-[11px] opacity-80">{previewStyle.category.toUpperCase()} · {previewStyle.mediaType}</div>
+            <div className="text-sm font-medium">{previewStyle?.name ?? "未选择"}</div>
+            <div className="text-[11px] opacity-80">
+              {previewStyle ? `${previewStyle.category.toUpperCase()} · ${previewStyle.mediaType}` : "不自动套用风格提示词"}
+            </div>
           </div>
         </div>
         {/* 风格信息 */}
         <div className="text-center">
-          <div className="font-medium text-sm mb-1">{previewStyle.name}</div>
+          <div className="font-medium text-sm mb-1">{previewStyle?.name ?? "未选择"}</div>
           <div className="text-xs text-muted-foreground line-clamp-2">
-            {previewStyle.description}
+            {previewStyle?.description ?? "新项目不会自动套用任何视觉风格。"}
           </div>
         </div>
       </div>

@@ -78,7 +78,7 @@ export function DirectorContextPanel() {
 
   const scriptData = scriptProject?.scriptData || null;
   const shots = scriptProject?.shots || [];
-  const styleId = scriptProject?.styleId || DEFAULT_STYLE_ID;
+  const styleId = scriptProject?.styleId ?? DEFAULT_STYLE_ID;
 
   // 从剧本添加分镜时，同步剧本风格到导演面板的 storyboardConfig
   const addScenesAndSyncStyle: typeof addScenesFromScript = useCallback((scenes) => {

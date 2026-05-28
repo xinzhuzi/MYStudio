@@ -1,0 +1,74 @@
+- generic [ref=e4]:
+  - generic [ref=e5]:
+    - generic [ref=e133]:
+      - generic [ref=e134]:
+        - button "显示侧栏" [ref=e135]:
+          - img [ref=e136]
+        - generic [ref=e139]:
+          - button "返回" [ref=e140]:
+            - img [ref=e141]
+          - button "前进" [disabled] [ref=e143]:
+            - img [ref=e144]
+        - generic [ref=e147]: 漫影工作室项目
+        - generic [ref=e148]: /
+        - generic [ref=e149]: 当前工作区：资产库
+      - generic [ref=e151]:
+        - img [ref=e152]
+        - generic [ref=e154]: 已保存
+    - generic [ref=e222]:
+      - generic [ref=e224]:
+        - generic [ref=e226]:
+          - img [ref=e227]
+          - generic [ref=e229]: 个人资产库
+        - generic [ref=e230]:
+          - generic [ref=e231]:
+            - button "风格库" [ref=e232]:
+              - img [ref=e233]
+              - img [ref=e235]
+              - text: 风格库
+            - generic [ref=e241]:
+              - button "默认风格" [ref=e242]:
+                - img [ref=e243]
+                - text: 默认风格
+              - button "我的风格" [ref=e247]:
+                - img [ref=e248]
+                - text: 我的风格
+          - generic [ref=e252]:
+            - button "制作资产" [ref=e253]:
+              - img [ref=e254]
+              - img [ref=e256]
+              - text: 制作资产
+            - generic [ref=e259]:
+              - button "角色" [ref=e260]:
+                - img [ref=e261]
+                - text: 角色
+              - button "场景" [ref=e265]:
+                - img [ref=e266]
+                - text: 场景
+              - button "道具" [ref=e268]:
+                - img [ref=e269]
+                - text: 道具
+              - button "素材" [ref=e272]:
+                - img [ref=e273]
+                - text: 素材
+              - button "音频" [ref=e275]:
+                - img [ref=e276]
+                - text: 音频
+      - separator [ref=e279]
+      - generic [ref=e283]:
+        - generic [ref=e284]:
+          - heading "默认风格" [level=2] [ref=e286]
+          - generic [ref=e287]:
+            - generic [ref=e288]: 0 个
+            - button "刷新" [ref=e289] [cursor=pointer]:
+              - img
+              - text: 刷新
+        - generic [ref=e292]: 暂无默认风格
+  - region "Notifications alt+T":
+    - list:
+      - listitem [ref=e293]:
+        - img [ref=e295]
+        - generic [ref=e298]: 当前环境不支持读取默认风格，请在 Electron 中打开
+      - listitem [ref=e299]:
+        - img [ref=e301]
+        - generic [ref=e304]: 当前环境不支持读取默认风格，请在 Electron 中打开

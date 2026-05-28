@@ -19,20 +19,35 @@ import {
   getStudioSkillStorageRoot,
   listStoredStudioSkillFiles,
   readStoredStudioSkillText,
+  restoreStoredStudioSkillFile,
   resolveStoredStudioSkillPath,
   writeStoredStudioSkillText,
 } from './studio-skills-storage'
 import {
   createStoredVisualManual,
+  duplicateStoredVisualManual,
   listStoredVisualManuals,
   readStoredVisualManual,
+  writeStoredVisualManualImages,
   writeStoredVisualManual,
 } from './studio-visual-manuals-storage'
+import {
+  listStudioRuntimeAssets,
+  resolveToonflowAssetPath,
+} from './studio-runtime-assets'
+import * as assetsStorage from './studio-assets-storage'
 import { runModelTestRequest, type ModelTestRequest, type ModelTestResult } from '../lib/api-manager/model-test'
 import { runTextCompletionRequest, type TextCompletionRequest, type TextCompletionResult } from '../lib/api-manager/text-completion'
-import type { StudioVisualManualCreatePayload, StudioVisualManualWritePayload } from '../types/studio-visual-manual'
+import type { StudioAssetListRequest } from '../types/studio-assets'
+import type { StudioVisualManualCreatePayload, StudioVisualManualImagesWritePayload, StudioVisualManualWritePayload } from '../types/studio-visual-manual'
 import type { EpisodeMergePlan, TrackRenderInput, TrackRenderPlan } from '../types/studio'
 import type { AvailableUpdateInfo, OpenExternalResult, UpdateCheckResult, UpdateManifest } from '../types/update'
+import {
+  createBeforeQuitCleanup,
+  createWindowAllClosedHandler,
+  shouldCreateWindowOnActivate,
+  shouldCreateWindowOnSecondInstance,
+} from './app-lifecycle'
 
 // electron-vite 构建后的目录结构
 //
@@ -55,6 +70,11 @@ process.env.VITE_PUBLIC = RENDERER_DIST
 
 let win: BrowserWindow | null
 const execFileAsync = promisify(execFile)
+const hasSingleInstanceLock = app.requestSingleInstanceLock()
+
+if (!hasSingleInstanceLock) {
+  app.exit(0)
+}
 
 type PackageUpdateConfig = {
   manifestUrl?: string
@@ -77,6 +97,21 @@ const ttsRuntimeController = createTtsRuntimeController({
   appRoot: process.env.APP_ROOT ?? path.join(__dirname, '../..'),
   userDataPath: app.getPath('userData'),
 })
+let stopLocalSidecarsPromise: Promise<void> | null = null
+
+function stopLocalSidecars() {
+  if (!stopLocalSidecarsPromise) {
+    stopLocalSidecarsPromise = (async () => {
+      const result = await ttsRuntimeController.stop()
+      if (!result.success) {
+        console.warn('Failed to stop local TTS backend:', result.error)
+      }
+    })().finally(() => {
+      stopLocalSidecarsPromise = null
+    })
+  }
+  return stopLocalSidecarsPromise
+}
 
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0
@@ -233,20 +268,53 @@ function createWindow() {
   }
 }
 
+app.on('second-instance', () => {
+  if (win && !win.isDestroyed()) {
+    if (win.isMinimized()) {
+      win.restore()
+    }
+    win.focus()
+    return
+  }
+
+  if (shouldCreateWindowOnSecondInstance({
+    isAppReady: app.isReady(),
+    hasUsableWindow: false,
+  })) {
+    createWindow()
+  }
+})
+
 // Quit when all windows are closed, except on macOS. There, it's common
 // for applications and their menu bar to stay active until the user quits
 // explicitly with Cmd + Q.
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
+app.on('window-all-closed', createWindowAllClosedHandler({
+  platform: process.platform,
+  stopLocalServices: stopLocalSidecars,
+  quit: () => {
     app.quit()
     win = null
-  }
-})
+  },
+  onError: (error) => {
+    console.warn('Failed to stop local services after all windows closed:', error)
+  },
+}))
+
+app.on('before-quit', createBeforeQuitCleanup({
+  stopLocalServices: stopLocalSidecars,
+  quit: () => app.quit(),
+  onError: (error) => {
+    console.warn('Failed to stop local services before quit:', error)
+  },
+}))
 
 app.on('activate', () => {
   // On OS X it's common to re-create a window in the app when the
   // dock icon is clicked and there are no other windows open.
-  if (BrowserWindow.getAllWindows().length === 0) {
+  if (shouldCreateWindowOnActivate({
+    isAppReady: app.isReady(),
+    openWindowCount: BrowserWindow.getAllWindows().length,
+  })) {
     createWindow()
   }
 })
@@ -1112,12 +1180,39 @@ function getStudioManualsSourceRoot() {
   return candidates.find((candidate) => fs.existsSync(candidate)) ?? candidates[0]
 }
 
+function getToonflowRuntimeStudioManualsSourceRoot() {
+  return path.join(os.homedir(), 'Library', 'Application Support', 'toonflow', 'data', 'skills')
+}
+
+function getStudioManualsFallbackSourceRoots() {
+  const primaryRoot = path.resolve(getStudioManualsSourceRoot())
+  return [getToonflowRuntimeStudioManualsSourceRoot()]
+    .map((candidate) => path.resolve(candidate))
+    .filter((candidate) => candidate !== primaryRoot && fs.existsSync(candidate))
+}
+
+function getStudioSkillSyncOptions() {
+  return {
+    sourceRoot: getStudioManualsSourceRoot(),
+    fallbackSourceRoots: getStudioManualsFallbackSourceRoots(),
+    storageRoot: getSkillsRoot(),
+  }
+}
+
 function encodePathForProtocol(relativePath: string) {
   return relativePath.split('/').map((part) => encodeURIComponent(part)).join('/')
 }
 
 function makeStudioSkillFileUrl(relativePath: string) {
   return `studio-skill://${encodePathForProtocol(relativePath)}`
+}
+
+async function ensureStudioSkillsAvailableAtStartup() {
+  try {
+    await ensureStudioSkillsSynced(getStudioSkillSyncOptions())
+  } catch (error) {
+    console.warn('Failed to sync studio skills at startup:', error)
+  }
 }
 
 ipcMain.handle('project-file-write-text', async (_event, key: string, value: string) => {
@@ -1145,10 +1240,7 @@ ipcMain.handle('project-file-remove-text', async (_event, key: string) => {
 
 ipcMain.handle('studio-skill-list', async () => {
   try {
-    return await listStoredStudioSkillFiles({
-      sourceRoot: getStudioManualsSourceRoot(),
-      storageRoot: getSkillsRoot(),
-    })
+    return await listStoredStudioSkillFiles(getStudioSkillSyncOptions())
   } catch (error) {
     console.warn('Failed to list studio skills:', error)
     return []
@@ -1158,10 +1250,7 @@ ipcMain.handle('studio-skill-list', async () => {
 ipcMain.handle('studio-skill-read-text', async (_event, relativePath: string) => {
   try {
     const skillsRoot = getSkillsRoot()
-    await ensureStudioSkillsSynced({
-      sourceRoot: getStudioManualsSourceRoot(),
-      storageRoot: skillsRoot,
-    })
+    await ensureStudioSkillsSynced(getStudioSkillSyncOptions())
     const { targetPath } = resolveStoredStudioSkillPath(skillsRoot, relativePath)
     const content = await readStoredStudioSkillText(skillsRoot, relativePath)
     const filePath = targetPath
@@ -1174,10 +1263,7 @@ ipcMain.handle('studio-skill-read-text', async (_event, relativePath: string) =>
 ipcMain.handle('studio-skill-write-text', async (_event, relativePath: string, value: string) => {
   try {
     const skillsRoot = getSkillsRoot()
-    await ensureStudioSkillsSynced({
-      sourceRoot: getStudioManualsSourceRoot(),
-      storageRoot: skillsRoot,
-    })
+    await ensureStudioSkillsSynced(getStudioSkillSyncOptions())
     const { targetPath } = resolveStoredStudioSkillPath(skillsRoot, relativePath)
     const stat = await writeStoredStudioSkillText(skillsRoot, relativePath, value)
     const filePath = targetPath
@@ -1190,10 +1276,7 @@ ipcMain.handle('studio-skill-write-text', async (_event, relativePath: string, v
 ipcMain.handle('studio-skill-create-text', async (_event, relativePath: string, value: string) => {
   try {
     const skillsRoot = getSkillsRoot()
-    await ensureStudioSkillsSynced({
-      sourceRoot: getStudioManualsSourceRoot(),
-      storageRoot: skillsRoot,
-    })
+    await ensureStudioSkillsSynced(getStudioSkillSyncOptions())
     const created = await createStoredStudioSkillFile(skillsRoot, relativePath, value)
     return { success: true, ...created }
   } catch (error) {
@@ -1210,11 +1293,19 @@ ipcMain.handle('studio-skill-delete-text', async (_event, relativePath: string) 
   }
 })
 
+ipcMain.handle('studio-skill-restore-text', async (_event, relativePath: string) => {
+  try {
+    const restored = await restoreStoredStudioSkillFile(getStudioSkillSyncOptions(), relativePath)
+    return { success: true, ...restored }
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) }
+  }
+})
+
 ipcMain.handle('studio-visual-manual-list', async () => {
   try {
     return await listStoredVisualManuals({
-      sourceRoot: getStudioManualsSourceRoot(),
-      storageRoot: getSkillsRoot(),
+      ...getStudioSkillSyncOptions(),
       makeFileUrl: makeStudioSkillFileUrl,
     })
   } catch (error) {
@@ -1226,8 +1317,7 @@ ipcMain.handle('studio-visual-manual-list', async () => {
 ipcMain.handle('studio-visual-manual-read', async (_event, stylePath: string) => {
   try {
     const manual = await readStoredVisualManual({
-      sourceRoot: getStudioManualsSourceRoot(),
-      storageRoot: getSkillsRoot(),
+      ...getStudioSkillSyncOptions(),
       makeFileUrl: makeStudioSkillFileUrl,
     }, stylePath)
     return { success: true, manual }
@@ -1238,14 +1328,24 @@ ipcMain.handle('studio-visual-manual-read', async (_event, stylePath: string) =>
 
 ipcMain.handle('studio-visual-manual-write', async (_event, stylePath: string, payload: StudioVisualManualWritePayload) => {
   try {
-    await ensureStudioSkillsSynced({
-      sourceRoot: getStudioManualsSourceRoot(),
-      storageRoot: getSkillsRoot(),
-    })
+    await ensureStudioSkillsSynced(getStudioSkillSyncOptions())
     await writeStoredVisualManual(getSkillsRoot(), stylePath, payload)
     const manual = await readStoredVisualManual({
-      sourceRoot: getStudioManualsSourceRoot(),
-      storageRoot: getSkillsRoot(),
+      ...getStudioSkillSyncOptions(),
+      makeFileUrl: makeStudioSkillFileUrl,
+    }, stylePath)
+    return { success: true, manual }
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) }
+  }
+})
+
+ipcMain.handle('studio-visual-manual-write-images', async (_event, stylePath: string, payload: StudioVisualManualImagesWritePayload) => {
+  try {
+    await ensureStudioSkillsSynced(getStudioSkillSyncOptions())
+    await writeStoredVisualManualImages(getSkillsRoot(), stylePath, payload)
+    const manual = await readStoredVisualManual({
+      ...getStudioSkillSyncOptions(),
       makeFileUrl: makeStudioSkillFileUrl,
     }, stylePath)
     return { success: true, manual }
@@ -1256,14 +1356,24 @@ ipcMain.handle('studio-visual-manual-write', async (_event, stylePath: string, p
 
 ipcMain.handle('studio-visual-manual-create', async (_event, payload: StudioVisualManualCreatePayload) => {
   try {
-    await ensureStudioSkillsSynced({
-      sourceRoot: getStudioManualsSourceRoot(),
-      storageRoot: getSkillsRoot(),
-    })
+    await ensureStudioSkillsSynced(getStudioSkillSyncOptions())
     const stylePath = await createStoredVisualManual(getSkillsRoot(), payload)
     const manual = await readStoredVisualManual({
-      sourceRoot: getStudioManualsSourceRoot(),
-      storageRoot: getSkillsRoot(),
+      ...getStudioSkillSyncOptions(),
+      makeFileUrl: makeStudioSkillFileUrl,
+    }, stylePath)
+    return { success: true, manual }
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) }
+  }
+})
+
+ipcMain.handle('studio-visual-manual-duplicate', async (_event, payload: { sourceStylePath: string; name: string; stylePath: string; projectId?: string }) => {
+  try {
+    await ensureStudioSkillsSynced(getStudioSkillSyncOptions())
+    const stylePath = await duplicateStoredVisualManual(getSkillsRoot(), payload.sourceStylePath, payload)
+    const manual = await readStoredVisualManual({
+      ...getStudioSkillSyncOptions(),
       makeFileUrl: makeStudioSkillFileUrl,
     }, stylePath)
     return { success: true, manual }
@@ -2124,11 +2234,62 @@ ipcMain.handle('studio-save-material', async (_event, payload: StudioSaveMateria
   }
 })
 
+ipcMain.handle('studio-list-assets', async (_event, payload: StudioAssetListRequest) => (
+  listStudioRuntimeAssets(payload)
+))
+
+// === 漫影独立资产存储 ===
+ipcMain.handle('assets:list', async (_event, payload: { type: string; search?: string; offset?: number; limit?: number }) => {
+  return assetsStorage.listAssets(payload.type as any, payload.search, payload.offset, payload.limit);
+})
+
+ipcMain.handle('assets:get', async (_event, id: string) => {
+  return assetsStorage.getAsset(id);
+})
+
+ipcMain.handle('assets:update', async (_event, payload: { id: string; updates: Record<string, unknown> }) => {
+  return assetsStorage.updateAsset(payload.id, payload.updates as any);
+})
+
+ipcMain.handle('assets:add-image', async (_event, payload: { assetId: string; imageName: string; sourceFilePath: string }) => {
+  return assetsStorage.addAssetImage(payload.assetId, payload.imageName, payload.sourceFilePath);
+})
+
+ipcMain.handle('assets:remove-image', async (_event, payload: { assetId: string; imageFilePath: string }) => {
+  return assetsStorage.removeAssetImage(payload.assetId, payload.imageFilePath);
+})
+
+ipcMain.handle('assets:rename-image', async (_event, payload: { assetId: string; imageFilePath: string; newName: string }) => {
+  return assetsStorage.renameAssetImage(payload.assetId, payload.imageFilePath, payload.newName);
+})
+
+ipcMain.handle('assets:select-image-file', async () => {
+  const result = await dialog.showOpenDialog({
+    properties: ['openFile'],
+    filters: [{ name: '图片', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif'] }],
+  });
+  if (result.canceled || !result.filePaths[0]) return null;
+  return result.filePaths[0];
+})
+
+ipcMain.handle('assets:import-from-toonflow', async (_event, payload: { type: string }) => {
+  const toonflowResult = await listStudioRuntimeAssets({ type: payload.type as any, offset: 0, limit: 9999 });
+  if (!toonflowResult.success || !toonflowResult.items.length) {
+    return { success: true, imported: 0 };
+  }
+  const imported = assetsStorage.importFromToonflow(toonflowResult.items);
+  return { success: true, imported };
+})
+
 ipcMain.handle('tts-runtime-status', async () => ttsRuntimeController.status())
 
 ipcMain.handle('tts-runtime-start', async () => ttsRuntimeController.start())
 
 ipcMain.handle('tts-runtime-stop', async () => ttsRuntimeController.stop())
+
+ipcMain.handle('tts-runtime-set-model-cache-dir', async (_event, dirPath: string) => (
+  ttsRuntimeController.setModelCacheDir(dirPath)
+))
 
 ipcMain.handle('tts-runtime-request', async (_event, payload: { method: string; path: string; body?: unknown }) => (
   ttsRuntimeController.request(payload.method, payload.path, payload.body)
@@ -2179,10 +2340,22 @@ protocol.registerSchemesAsPrivileged([
       stream: true,
     }
   },
+  {
+    scheme: 'toonflow-asset',
+    privileges: {
+      secure: true,
+      supportFetchAPI: true,
+      bypassCSP: true,
+      stream: true,
+    }
+  },
 ])
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  assetsStorage.initAssetsStorage(getStorageBasePath())
   scheduleAutoClean()
+  await stopLocalSidecars()
+  await ensureStudioSkillsAvailableAtStartup()
   // Handle local-image:// protocol
   protocol.handle('local-image', async (request) => {
     try {
@@ -2250,6 +2423,19 @@ app.whenReady().then(() => {
       })
     } catch (error) {
       console.error('Failed to load studio skill file:', error)
+      return new Response('File not found', { status: 404 })
+    }
+  })
+
+  protocol.handle('toonflow-asset', async (request) => {
+    try {
+      const filePath = resolveToonflowAssetPath(request.url)
+      const data = fs.readFileSync(filePath)
+      return new Response(data, {
+        headers: { 'Content-Type': getMimeType(filePath) },
+      })
+    } catch (error) {
+      console.error('Failed to load Toonflow asset:', error)
       return new Response('File not found', { status: 404 })
     }
   })

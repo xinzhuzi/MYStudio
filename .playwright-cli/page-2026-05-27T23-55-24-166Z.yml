@@ -1,0 +1,98 @@
+- generic [ref=e4]:
+  - generic [ref=e5]:
+    - generic [ref=e133]:
+      - generic [ref=e134]:
+        - button "显示侧栏" [ref=e135]:
+          - img [ref=e136]
+        - generic [ref=e139]:
+          - button "返回" [ref=e140]:
+            - img [ref=e141]
+          - button "前进" [disabled] [ref=e143]:
+            - img [ref=e144]
+        - generic [ref=e147]: 漫影工作室项目
+        - generic [ref=e148]: /
+        - generic [ref=e149]: 当前工作区：项目概览
+      - generic [ref=e151]:
+        - img [ref=e152]
+        - generic [ref=e154]: 已保存
+    - generic [ref=e158]:
+      - generic [ref=e159]:
+        - generic [ref=e160]:
+          - img [ref=e161]
+          - text: 新手引导
+        - generic [ref=e163]:
+          - generic [ref=e164]:
+            - heading "漫影工作室基础工作流" [level=3] [ref=e165]
+            - paragraph [ref=e166]: 从小说导入开始，把原文整理成上下文、剧本、分镜、素材和制作轨道，最后通过本地 FFmpeg 合成为成片。V1 不依赖大模型也能跑通主流程，模型配置只作为后续接入位置保留。
+          - generic [ref=e167]:
+            - button "导入小说" [ref=e168] [cursor=pointer]:
+              - text: 导入小说
+              - img
+            - button "查看完整工作流" [ref=e169] [cursor=pointer]:
+              - text: 查看完整工作流
+              - img
+      - generic [ref=e170]:
+        - generic [ref=e171]:
+          - generic [ref=e172]:
+            - generic [ref=e173]:
+              - generic [ref=e174]: "1"
+              - heading "小说导入" [level=4] [ref=e175]
+            - button "去导入" [ref=e176] [cursor=pointer]:
+              - text: 去导入
+              - img
+          - paragraph [ref=e177]: 导入 TXT/Markdown 小说，按章节拆分，保留原文并可手动补充事件摘要。
+        - generic [ref=e178]:
+          - generic [ref=e179]:
+            - generic [ref=e180]:
+              - generic [ref=e181]: "2"
+              - heading "上下文整理" [level=4] [ref=e182]
+            - button "去整理" [ref=e183] [cursor=pointer]:
+              - text: 去整理
+              - img
+          - paragraph [ref=e184]: 把章节原文、事件摘要、项目设定整理成 Skill/任务上下文包，当前版本仅保存整理结果，后续版本将接入 AI 自动处理。
+        - generic [ref=e185]:
+          - generic [ref=e186]:
+            - generic [ref=e187]:
+              - generic [ref=e188]: "3"
+              - heading "剧本策划" [level=4] [ref=e189]
+            - button "去策划" [ref=e190] [cursor=pointer]:
+              - text: 去策划
+              - img
+          - paragraph [ref=e191]: 基于小说和上下文设计故事骨架、改编策略、剧本草稿和制作计划。
+        - generic [ref=e192]:
+          - generic [ref=e193]:
+            - generic [ref=e194]:
+              - generic [ref=e195]: "4"
+              - heading "分镜设计" [level=4] [ref=e196]
+            - button "去分镜" [ref=e197] [cursor=pointer]:
+              - text: 去分镜
+              - img
+          - paragraph [ref=e198]: 把剧本片段拆成分镜表，维护镜头顺序、时长、画面描述、prompt 和素材引用。
+        - generic [ref=e199]:
+          - generic [ref=e200]:
+            - generic [ref=e201]:
+              - generic [ref=e202]: "5"
+              - heading "素材管理" [level=4] [ref=e203]
+            - button "去素材" [ref=e204] [cursor=pointer]:
+              - text: 去素材
+              - img
+          - paragraph [ref=e205]: 管理角色、场景、道具、音频、图片和视频片段，并绑定到分镜或制作轨道。
+        - generic [ref=e206]:
+          - generic [ref=e207]:
+            - generic [ref=e208]:
+              - generic [ref=e209]: "6"
+              - heading "制作剪辑" [level=4] [ref=e210]
+            - button "去剪辑" [ref=e211] [cursor=pointer]:
+              - text: 去剪辑
+              - img
+          - paragraph [ref=e212]: 按 track 聚合分镜，生成本地 FFmpeg 候选片段，选择最终片段进入剪辑工作台。
+        - generic [ref=e213]:
+          - generic [ref=e214]:
+            - generic [ref=e215]:
+              - generic [ref=e216]: "7"
+              - heading "合成导出" [level=4] [ref=e217]
+            - button "去导出" [ref=e218] [cursor=pointer]:
+              - text: 去导出
+              - img
+          - paragraph [ref=e219]: 只拼接已选候选视频，处理字幕、音频和片段 concat，输出 episode 成片。
+  - region "Notifications alt+T"

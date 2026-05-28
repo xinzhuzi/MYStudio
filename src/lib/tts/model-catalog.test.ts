@@ -40,6 +40,8 @@ describe("TTS model catalog", () => {
         downloading: false,
         loaded: true,
         size_mb: 355,
+        model_cache_dir: "/Users/test/.cache/huggingface/hub",
+        model_repo_path: "/Users/test/.cache/huggingface/hub/models--hexgrad--Kokoro-82M",
       },
     ]);
 
@@ -52,6 +54,8 @@ describe("TTS model catalog", () => {
       loaded: true,
       sizeMb: 355,
       purpose: "presetVoice",
+      modelCacheDir: "/Users/test/.cache/huggingface/hub",
+      modelRepoPath: "/Users/test/.cache/huggingface/hub/models--hexgrad--Kokoro-82M",
     });
   });
 

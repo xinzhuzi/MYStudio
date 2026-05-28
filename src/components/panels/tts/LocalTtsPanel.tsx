@@ -7,6 +7,7 @@ import {
   CircleX,
   Download,
   ExternalLink,
+  FolderOpen,
   HardDrive,
   Loader2,
   Play,
@@ -43,14 +44,16 @@ import {
   deleteModel,
   downloadModel,
   getActiveTasks,
+  getModelCacheDir,
   getModelStatus,
   getTtsRuntimeStatus,
+  setTtsModelCacheDir,
   startTtsRuntime,
   stopTtsRuntime,
   subscribeModelProgress,
   unloadModel,
 } from "@/lib/tts/client";
-import type { TtsActiveTasksResponse, TtsEngine, TtsModelRow, TtsRuntimeStatus } from "@/types/tts";
+import type { TtsActiveTasksResponse, TtsEngine, TtsModelCacheInfo, TtsModelRow, TtsRuntimeStatus } from "@/types/tts";
 import { useTtsStore } from "@/stores/tts-store";
 import { cn } from "@/lib/utils";
 
@@ -105,10 +108,12 @@ function formatBytes(bytes?: number) {
 }
 
 function getModelState(row: TtsModelRow, progress?: ModelProgressEvent) {
-  if (progress?.status === "error") return "failed";
-  if (progress?.status === "downloading" || row.downloading) return "downloading";
   if (row.loaded) return "loaded";
-  if (row.downloaded || progress?.status === "complete") return "downloaded";
+  if (row.downloading) return "downloading";
+  if (row.downloaded) return "downloaded";
+  if (progress?.status === "downloading") return "downloading";
+  if (progress?.status === "complete") return "downloaded";
+  if (progress?.status === "error") return "failed";
   return "missing";
 }
 
@@ -120,15 +125,38 @@ function ModelStateIcon({ state }: { state: string }) {
   return <Download className="h-4 w-4 text-muted-foreground" />;
 }
 
+function ModelStateLabel({ state }: { state: string }) {
+  if (state === "loaded") return <span className="text-xs font-medium text-emerald-500">已加载</span>;
+  if (state === "downloaded") return <span className="text-xs font-medium text-emerald-500">已下载</span>;
+  if (state === "failed") return <span className="text-xs font-medium text-destructive">失败</span>;
+  if (state === "downloading") return <span className="text-xs font-medium text-blue-500">下载中</span>;
+  return <span className="text-xs text-muted-foreground">未下载</span>;
+}
+
+function PendingScanLabel() {
+  return <span className="text-xs text-muted-foreground">启动后扫描</span>;
+}
+
+function RuntimeStatusLine({ label, value }: { label: string; value: ReactNode }) {
+  return (
+    <div className="flex min-w-0 gap-2 leading-6">
+      <span className="shrink-0 text-muted-foreground">{label}：</span>
+      <span className="min-w-0 break-all text-muted-foreground">{value}</span>
+    </div>
+  );
+}
+
 function ModelRow({
   row,
   progress,
+  canDownload,
   onOpen,
   onDownload,
   onCancel,
 }: {
   row: TtsModelRow;
   progress?: ModelProgressEvent;
+  canDownload: boolean;
   onOpen: (row: TtsModelRow) => void;
   onDownload: (row: TtsModelRow) => void;
   onCancel: (row: TtsModelRow) => void;
@@ -154,11 +182,15 @@ function ModelRow({
             <Square className="mr-1 h-3.5 w-3.5" />
             停止
           </Button>
-        ) : (
-          <Button size="sm" variant={state === "missing" || state === "failed" ? "default" : "outline"} onClick={() => onDownload(row)}>
+        ) : !canDownload && (state === "missing" || state === "failed") ? (
+          <PendingScanLabel />
+        ) : state === "missing" || state === "failed" ? (
+          <Button size="sm" variant={state === "failed" ? "outline" : "default"} onClick={() => onDownload(row)}>
             <Download className="mr-1 h-3.5 w-3.5" />
-            {state === "failed" ? "重试" : state === "missing" ? "下载" : "更新"}
+            {state === "failed" ? "重试" : "下载"}
           </Button>
+        ) : (
+          <ModelStateLabel state={state} />
         )}
         <Button size="sm" variant="ghost" onClick={() => onOpen(row)}>
           详情
@@ -183,12 +215,16 @@ function ModelRow({
 
 export function LocalTtsPanel() {
   const [runtimeStatus, setRuntimeStatus] = useState<TtsRuntimeStatus | null>(null);
+  const [modelCacheInfo, setModelCacheInfo] = useState<TtsModelCacheInfo | null>(null);
   const [rows, setRows] = useState<TtsModelRow[]>(() => applyModelStatuses([]));
   const [activeTasks, setActiveTasks] = useState<TtsActiveTasksResponse>({ downloads: [], generations: [] });
   const [progressByModel, setProgressByModel] = useState<Record<string, ModelProgressEvent>>({});
   const [selectedModel, setSelectedModel] = useState<TtsModelRow | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [starting, setStarting] = useState(false);
+  const [applyingModelCacheDir, setApplyingModelCacheDir] = useState(false);
+  const [draftModelCacheDir, setDraftModelCacheDir] = useState("");
+  const [modelCacheDirty, setModelCacheDirty] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [newProfileName, setNewProfileName] = useState("旁白声线");
   const [newProfileEngine, setNewProfileEngine] = useState<TtsEngine>("qwen");
@@ -273,26 +309,44 @@ export function LocalTtsPanel() {
     try {
       const status = await getTtsRuntimeStatus();
       setRuntimeStatus(status);
+      if (!modelCacheDirty) {
+        setDraftModelCacheDir(status.modelCacheDir || "");
+      }
       if (!status.running) {
+        setModelCacheInfo(null);
         setRows(applyModelStatuses([]));
         setActiveTasks({ downloads: [], generations: [] });
-        return;
+        setErrors((prev) => {
+          const next = { ...prev };
+          delete next.runtime;
+          return next;
+        });
+        return status;
       }
-      const [modelStatus, tasks] = await Promise.all([
+      const [modelStatus, tasks, cacheInfo] = await Promise.all([
         getModelStatus(),
         getActiveTasks(),
+        getModelCacheDir(),
       ]);
+      setModelCacheInfo(cacheInfo);
       setRows(applyModelStatuses(modelStatus.models));
       setActiveTasks(tasks);
       tasks.downloads.forEach((task) => {
         if (task.model_name) void attachProgress(task.model_name);
       });
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next.runtime;
+        return next;
+      });
+      return status;
     } catch (error) {
       setErrors((prev) => ({ ...prev, runtime: error instanceof Error ? error.message : "刷新本地 TTS 状态失败" }));
+      return null;
     } finally {
       setRefreshing(false);
     }
-  }, [attachProgress]);
+  }, [attachProgress, modelCacheDirty]);
 
   useEffect(() => {
     void refresh();
@@ -303,6 +357,13 @@ export function LocalTtsPanel() {
       subscriptions.current = {};
     };
   }, [refresh]);
+
+  useEffect(() => {
+    setSelectedModel((current) => {
+      if (!current) return current;
+      return rows.find((row) => row.modelName === current.modelName) ?? current;
+    });
+  }, [rows]);
 
   const handleStart = async () => {
     setStarting(true);
@@ -321,6 +382,15 @@ export function LocalTtsPanel() {
     }
   };
 
+  const handleManualRefresh = async () => {
+    const status = await refresh();
+    if (!status) {
+      toast.error("本地 TTS 状态刷新失败");
+      return;
+    }
+    toast.success(`已刷新：${status.running ? (status.managed === false ? "运行中（残留进程）" : "运行中") : "未运行"}`);
+  };
+
   const handleStop = async () => {
     const result = await stopTtsRuntime();
     if (result.success) {
@@ -329,6 +399,48 @@ export function LocalTtsPanel() {
       toast.error(result.error || "本地 TTS 后端停止失败");
     }
     await refresh();
+  };
+
+  const handleModelCacheInputChange = (value: string) => {
+    setDraftModelCacheDir(value);
+    setModelCacheDirty(true);
+  };
+
+  const handleApplyModelCacheDir = async (dirPath = draftModelCacheDir) => {
+    const nextDir = dirPath.trim();
+    if (!nextDir) {
+      toast.error("请输入模型缓存路径");
+      return;
+    }
+    setApplyingModelCacheDir(true);
+    try {
+      const result = await setTtsModelCacheDir(nextDir);
+      if (!result.success) {
+        toast.error(result.error || "模型缓存路径切换失败");
+        await refresh();
+        return;
+      }
+      setModelCacheDirty(false);
+      setDraftModelCacheDir(result.status?.modelCacheDir || nextDir);
+      toast.success("模型缓存路径已切换");
+      await refresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "模型缓存路径切换失败");
+    } finally {
+      setApplyingModelCacheDir(false);
+    }
+  };
+
+  const handleSelectModelCacheDir = async () => {
+    if (!window.storageManager?.selectDirectory) {
+      toast.error("选择文件夹仅在桌面应用中可用");
+      return;
+    }
+    const dir = await window.storageManager.selectDirectory();
+    if (!dir) return;
+    setDraftModelCacheDir(dir);
+    setModelCacheDirty(true);
+    await handleApplyModelCacheDir(dir);
   };
 
   const handleDownload = async (row: TtsModelRow) => {
@@ -439,40 +551,85 @@ export function LocalTtsPanel() {
   const selectedProgress = selectedModel ? progressByModel[selectedModel.modelName] : undefined;
   const selectedState = selectedModel ? getModelState(selectedModel, selectedProgress) : "missing";
   const errorEntries = Object.entries(errors);
+  const scanPaths = modelCacheInfo?.scan_paths?.filter(Boolean) ?? [];
 
   return (
     <ScrollArea className="h-full">
       <div className="p-8 max-w-6xl mx-auto space-y-6">
         <div className="rounded-lg border border-border bg-card p-5">
           <div className="flex flex-wrap items-center justify-between gap-4">
-            <div>
+            <div className="min-w-0 flex-1">
               <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
                 <Server className="h-5 w-5 text-primary" />
                 本地 TTS
               </h3>
-              <div className="mt-2 grid grid-cols-1 gap-2 text-sm text-muted-foreground md:grid-cols-2">
-                <span>状态：{runtimeStatus?.running ? "运行中" : runtimeStatus?.installed ? "已安装，未运行" : "未安装"}</span>
-                <span>端口：{runtimeStatus?.port ?? 17593}</span>
-                <span className="truncate">后端：{runtimeStatus?.baseUrl ?? "http://127.0.0.1:17593"}</span>
-                <span className="truncate">缓存：{runtimeStatus?.cacheDir || "tts-runtime"}</span>
+              <div className="mt-2 space-y-1 text-sm">
+                <RuntimeStatusLine
+                  label="状态"
+                  value={runtimeStatus?.running
+                    ? (runtimeStatus.managed === false ? "运行中（残留进程）" : "运行中")
+                    : runtimeStatus?.installed
+                      ? "已安装，未运行"
+                      : "未安装"}
+                />
+                <RuntimeStatusLine label="后端" value={runtimeStatus?.baseUrl ?? "http://127.0.0.1:17593"} />
+                <RuntimeStatusLine label="运行数据" value={runtimeStatus?.cacheDir || "tts-runtime"} />
+                <RuntimeStatusLine label="模型缓存" value={modelCacheInfo?.path || "启动后读取"} />
+                <RuntimeStatusLine label="下载写入" value={modelCacheInfo?.download_path || "启动后读取"} />
+                <RuntimeStatusLine label="扫描路径" value={scanPaths.length ? scanPaths.join("；") : "启动后读取"} />
               </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" onClick={() => void refresh()} disabled={refreshing}>
-                <RefreshCw className={cn("mr-2 h-4 w-4", refreshing && "animate-spin")} />
-                刷新
-              </Button>
-              {runtimeStatus?.running ? (
-                <Button variant="outline" onClick={() => void handleStop()}>
-                  <Unplug className="mr-2 h-4 w-4" />
-                  停止
+              <div className="mt-4 grid grid-cols-1 gap-2 md:grid-cols-[1fr_auto_auto_auto_auto]">
+                <Input
+                  value={draftModelCacheDir}
+                  onChange={(event) => handleModelCacheInputChange(event.target.value)}
+                  placeholder={runtimeStatus?.defaultModelCacheDir || "模型缓存路径"}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => runtimeStatus?.defaultModelCacheDir && void handleApplyModelCacheDir(runtimeStatus.defaultModelCacheDir)}
+                  disabled={!runtimeStatus?.defaultModelCacheDir || applyingModelCacheDir || runtimeStatus?.running}
+                >
+                  <HardDrive className="mr-2 h-4 w-4" />
+                  项目路径
                 </Button>
-              ) : (
-                <Button onClick={() => void handleStart()} disabled={starting || runtimeStatus?.installed === false}>
-                  {starting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}
-                  启动
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => runtimeStatus?.systemModelCacheDir && void handleApplyModelCacheDir(runtimeStatus.systemModelCacheDir)}
+                  disabled={!runtimeStatus?.systemModelCacheDir || applyingModelCacheDir || runtimeStatus?.running}
+                >
+                  HF 路径
                 </Button>
+                <Button type="button" variant="outline" onClick={() => void handleSelectModelCacheDir()} disabled={applyingModelCacheDir || runtimeStatus?.running}>
+                  <FolderOpen className="mr-2 h-4 w-4" />
+                  选择
+                </Button>
+                <Button type="button" onClick={() => void handleApplyModelCacheDir()} disabled={applyingModelCacheDir || !modelCacheDirty || runtimeStatus?.running}>
+                  {applyingModelCacheDir ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  应用
+                </Button>
+              </div>
+              {runtimeStatus?.running && (
+                <div className="mt-2 text-xs text-muted-foreground">切换模型缓存路径前需要先停止本地 TTS 后端。</div>
               )}
+              <div className="mt-4 flex flex-wrap items-center gap-2">
+                <Button variant="outline" onClick={() => void handleManualRefresh()} disabled={refreshing}>
+                  <RefreshCw className={cn("mr-2 h-4 w-4", refreshing && "animate-spin")} />
+                  刷新
+                </Button>
+                {runtimeStatus?.running ? (
+                  <Button variant="outline" onClick={() => void handleStop()}>
+                    <Unplug className="mr-2 h-4 w-4" />
+                    停止
+                  </Button>
+                ) : (
+                  <Button onClick={() => void handleStart()} disabled={starting || runtimeStatus?.installed === false}>
+                    {starting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}
+                    启动
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -525,6 +682,7 @@ export function LocalTtsPanel() {
                 key={row.modelName}
                 row={row}
                 progress={progressByModel[row.modelName]}
+                canDownload={runtimeStatus?.running === true}
                 onOpen={setSelectedModel}
                 onDownload={handleDownload}
                 onCancel={handleCancel}
@@ -693,6 +851,15 @@ export function LocalTtsPanel() {
                   </div>
                 </div>
                 <p className="text-sm text-muted-foreground">{selectedModel.description}</p>
+                <div className="rounded-md border border-border p-3">
+                  <div className="text-xs text-muted-foreground">模型位置</div>
+                  <div className="mt-1 break-all font-mono text-xs text-foreground">
+                    {selectedModel.modelRepoPath || selectedModel.modelCacheDir || (selectedState === "missing" ? "未下载，未找到本地路径" : "启动后扫描")}
+                  </div>
+                  {selectedModel.modelRepoPath && selectedModel.modelCacheDir && (
+                    <div className="mt-2 break-all text-xs text-muted-foreground">缓存目录：{selectedModel.modelCacheDir}</div>
+                  )}
+                </div>
                 <div className="rounded-md bg-muted p-3 text-xs text-muted-foreground">
                   License 以 HuggingFace 模型页为准；MYStudio 仅管理本地缓存和运行入口。
                 </div>
@@ -711,11 +878,21 @@ export function LocalTtsPanel() {
                       <Square className="mr-2 h-4 w-4" />
                       取消
                     </Button>
+                  ) : selectedState === "missing" || selectedState === "failed" ? (
+                    runtimeStatus?.running ? (
+                      <Button onClick={() => void handleDownload(selectedModel)}>
+                        <Download className="mr-2 h-4 w-4" />
+                        {selectedState === "failed" ? "重试下载" : "下载"}
+                      </Button>
+                    ) : (
+                      <div className="flex h-9 items-center px-2">
+                        <PendingScanLabel />
+                      </div>
+                    )
                   ) : (
-                    <Button onClick={() => void handleDownload(selectedModel)}>
-                      <Download className="mr-2 h-4 w-4" />
-                      {selectedState === "missing" || selectedState === "failed" ? "下载" : "重新下载"}
-                    </Button>
+                    <div className="flex h-9 items-center px-2">
+                      <ModelStateLabel state={selectedState} />
+                    </div>
                   )}
                   <Button variant="outline" onClick={() => void handleUnload(selectedModel)}>
                     <Unplug className="mr-2 h-4 w-4" />

@@ -4,6 +4,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { createProjectScopedStorage } from "@/lib/project-storage";
+import { DEFAULT_STYLE_ID } from "@/lib/constants/visual-styles";
 import type { ScriptData, Shot, Episode, ScriptScene, ScriptCharacter, EpisodeRawScript, ProjectBackground, PromptLanguage, CalibrationStrictness, FilteredCharacterRecord, SeriesMeta } from "@/types/script";
 
 export type ParseStatus = "idle" | "parsing" | "ready" | "error";
@@ -155,7 +156,7 @@ const defaultProjectData = (): ScriptProjectData => ({
   rawScript: "",
   language: "涓枃",
   targetDuration: "60s",
-  styleId: "2d_ghibli",
+  styleId: DEFAULT_STYLE_ID,
   inputDraft: { ...defaultInputDraft },
   sceneCount: undefined,
   shotCount: undefined,

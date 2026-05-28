@@ -23,6 +23,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import type { IProvider } from "@/lib/api-key-manager";
 import { getApiKeyCount } from "@/lib/api-key-manager";
+import { LOCAL_TTS_BASE_URL } from "@/lib/tts/client";
 
 interface EditProviderDialogProps {
   open: boolean;
@@ -46,7 +47,7 @@ export function EditProviderDialog({
   useEffect(() => {
     if (provider) {
       setName(provider.name);
-      setBaseUrl(provider.baseUrl);
+      setBaseUrl(provider.baseUrl || (provider.platform === "manying-local-tts" || provider.platform === "tts-compatible" ? LOCAL_TTS_BASE_URL : ""));
       setApiKey(provider.apiKey);
       // 加载已有模型
       setModel(provider.model?.join(', ') || '');
@@ -80,6 +81,7 @@ export function EditProviderDialog({
   };
 
   const keyCount = getApiKeyCount(apiKey);
+  const apiKeyOptional = provider?.platform === "manying-local-tts" || provider?.platform === "tts-compatible";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -118,7 +120,7 @@ export function EditProviderDialog({
           {/* API Keys */}
           <div className="space-y-2 md:col-span-2">
             <div className="flex items-center justify-between">
-              <Label>API Keys</Label>
+              <Label>API Keys{apiKeyOptional ? "（可选）" : ""}</Label>
               <span className="text-xs text-muted-foreground">
                 {keyCount} 个 Key
               </span>
@@ -126,11 +128,11 @@ export function EditProviderDialog({
             <Textarea
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
-              placeholder="输入 API Keys（每行一个，或用逗号分隔）"
+              placeholder={apiKeyOptional ? "本地后端无需填写" : "输入 API Keys（每行一个，或用逗号分隔）"}
               className="font-mono text-sm min-h-[150px]"
             />
             <p className="text-xs text-muted-foreground">
-              💡 支持多个 Key 轮换使用，失败时自动切换到下一个
+              {apiKeyOptional ? "本地 TTS 后端不需要 API Key" : "支持多个 Key 轮换使用，失败时自动切换到下一个"}
             </p>
           </div>
 

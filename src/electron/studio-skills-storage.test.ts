@@ -9,6 +9,7 @@ import {
   getStudioSkillStorageRoot,
   listStoredStudioSkillFiles,
   readStoredStudioSkillText,
+  restoreStoredStudioSkillFile,
   resolveStoredStudioSkillPath,
   writeStoredStudioSkillText,
 } from "./studio-skills-storage";
@@ -53,7 +54,45 @@ describe("studio skills storage", () => {
     await expect(fs.access(path.join(storageRoot, "script_agent_decision.md"))).rejects.toThrow();
   });
 
-  it("updates unmodified storage files from new bundled seeds but preserves user edits", async () => {
+  it("fills missing local skills from a Toonflow runtime fallback source", async () => {
+    const root = await createTempRoot();
+    const sourceRoot = path.join(root, "source");
+    const runtimeRoot = path.join(root, "toonflow-runtime");
+    const storageRoot = getStudioSkillStorageRoot(path.join(root, "storage"));
+
+    await writeText(path.join(sourceRoot, "script_agent_decision.md"), "# Bundled\n");
+    await writeText(path.join(runtimeRoot, "art_skills/daojie_ink_guofeng/README.md"), "# Daojie Runtime\n");
+
+    await ensureStudioSkillsSynced({
+      sourceRoot,
+      fallbackSourceRoots: [runtimeRoot],
+      storageRoot,
+    });
+
+    await expect(readStoredStudioSkillText(storageRoot, "art_skills/daojie_ink_guofeng/README.md")).resolves.toBe("# Daojie Runtime\n");
+
+    const files = await listStoredStudioSkillFiles({
+      sourceRoot,
+      fallbackSourceRoots: [runtimeRoot],
+      storageRoot,
+    });
+    expect(files.find((file) => file.relativePath === "art_skills/daojie_ink_guofeng/README.md")).toMatchObject({
+      isCustomized: false,
+      sourceExists: true,
+      sourcePath: path.join(runtimeRoot, "art_skills/daojie_ink_guofeng/README.md"),
+    });
+
+    await deleteStoredStudioSkillFile(storageRoot, "art_skills/daojie_ink_guofeng/README.md");
+    const restored = await restoreStoredStudioSkillFile({
+      sourceRoot,
+      fallbackSourceRoots: [runtimeRoot],
+      storageRoot,
+    }, "art_skills/daojie_ink_guofeng/README.md");
+    expect(restored.sourcePath).toBe(path.join(runtimeRoot, "art_skills/daojie_ink_guofeng/README.md"));
+    await expect(readStoredStudioSkillText(storageRoot, "art_skills/daojie_ink_guofeng/README.md")).resolves.toBe("# Daojie Runtime\n");
+  });
+
+  it("keeps existing storage files when bundled seeds change and only fills missing seeds", async () => {
     const root = await createTempRoot();
     const sourceRoot = path.join(root, "source");
     const storageRoot = getStudioSkillStorageRoot(path.join(root, "storage"));
@@ -69,7 +108,7 @@ describe("studio skills storage", () => {
 
     await ensureStudioSkillsSynced({ sourceRoot, storageRoot });
 
-    await expect(readStoredStudioSkillText(storageRoot, "agent_skills/script_execution_skeleton.md")).resolves.toBe("seed v2\n");
+    await expect(readStoredStudioSkillText(storageRoot, "agent_skills/script_execution_skeleton.md")).resolves.toBe("seed v1\n");
     await expect(readStoredStudioSkillText(storageRoot, "agent_skills/script_execution_script.md")).resolves.toBe("user edit\n");
     await expect(readStoredStudioSkillText(storageRoot, "production_skills/storyboard_table_techniques.md")).resolves.toBe("new seed\n");
   });
@@ -101,7 +140,7 @@ describe("studio skills storage", () => {
     await expect(readStoredStudioSkillText(storageRoot, "art_skills/custom-style/README.md")).rejects.toThrow();
   });
 
-  it("keeps deleted bundled skills deleted across later syncs", async () => {
+  it("keeps deleted bundled skills unreadable across later syncs but lists them as restorable", async () => {
     const root = await createTempRoot();
     const sourceRoot = path.join(root, "source");
     const storageRoot = getStudioSkillStorageRoot(path.join(root, "storage"));
@@ -114,7 +153,48 @@ describe("studio skills storage", () => {
 
     await expect(readStoredStudioSkillText(storageRoot, "agent_skills/script_agent_decision.md")).rejects.toThrow();
     const files = await listStoredStudioSkillFiles({ sourceRoot, storageRoot });
-    expect(files.map((file) => file.relativePath)).not.toContain("agent_skills/script_agent_decision.md");
+    expect(files.find((file) => file.relativePath === "agent_skills/script_agent_decision.md")).toMatchObject({
+      isDeleted: true,
+      sourceExists: true,
+    });
+  });
+
+  it("lists deleted bundled skills so they can be restored from the bundled seed", async () => {
+    const root = await createTempRoot();
+    const sourceRoot = path.join(root, "source");
+    const storageRoot = getStudioSkillStorageRoot(path.join(root, "storage"));
+
+    await writeText(path.join(sourceRoot, "script_agent_decision.md"), "seed\n");
+    await ensureStudioSkillsSynced({ sourceRoot, storageRoot });
+    await deleteStoredStudioSkillFile(storageRoot, "agent_skills/script_agent_decision.md");
+
+    const files = await listStoredStudioSkillFiles({ sourceRoot, storageRoot });
+
+    expect(files.find((file) => file.relativePath === "agent_skills/script_agent_decision.md")).toMatchObject({
+      isDeleted: true,
+      sourceExists: true,
+    });
+  });
+
+  it("restores a deleted bundled skill from the bundled seed", async () => {
+    const root = await createTempRoot();
+    const sourceRoot = path.join(root, "source");
+    const storageRoot = getStudioSkillStorageRoot(path.join(root, "storage"));
+
+    await writeText(path.join(sourceRoot, "script_agent_decision.md"), "seed\n");
+    await ensureStudioSkillsSynced({ sourceRoot, storageRoot });
+    await writeStoredStudioSkillText(storageRoot, "agent_skills/script_agent_decision.md", "user edit\n");
+    await deleteStoredStudioSkillFile(storageRoot, "agent_skills/script_agent_decision.md");
+
+    const restored = await restoreStoredStudioSkillFile({ sourceRoot, storageRoot }, "agent_skills/script_agent_decision.md");
+
+    expect(restored).toMatchObject({
+      relativePath: "agent_skills/script_agent_decision.md",
+      isCustomized: false,
+      isDeleted: false,
+      sourceExists: true,
+    });
+    await expect(readStoredStudioSkillText(storageRoot, "agent_skills/script_agent_decision.md")).resolves.toBe("seed\n");
   });
 
   it("rejects unsafe editable skill paths", async () => {

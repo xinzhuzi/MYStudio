@@ -175,13 +175,13 @@ export function ExportView() {
             <Film className="w-5 h-5 text-primary" />
             成片与导出
             <span className="text-xs text-muted-foreground font-mono font-normal uppercase tracking-wider bg-muted px-2 py-1 rounded">
-              Rendering & Export
+              渲染与导出
             </span>
           </h2>
         </div>
         <div className="flex items-center gap-2">
           <span className="text-[10px] text-muted-foreground font-mono uppercase bg-muted border border-border px-2 py-1 rounded">
-            Status: {progress === 100 ? "READY" : "IN PROGRESS"}
+            状态: {progress === 100 ? "就绪" : "进行中"}
           </span>
         </div>
       </div>
@@ -202,27 +202,27 @@ export function ExportView() {
                       {scriptData?.title || activeProject?.name || "未命名项目"}
                     </h3>
                     <span className="px-2 py-0.5 bg-muted border border-border text-muted-foreground text-[10px] rounded uppercase font-mono tracking-wider">
-                      Master Sequence
+                      主序列
                     </span>
                   </div>
                   <div className="flex items-center gap-6 mt-3">
                     <div className="flex flex-col">
                       <span className="text-[9px] text-muted-foreground uppercase tracking-widest font-bold mb-0.5">
-                        {hasSplitScenes ? 'Split Scenes' : 'Shots'}
+                        {hasSplitScenes ? '分镜数' : '镜头数'}
                       </span>
                       <span className="text-sm font-mono text-foreground/80">{totalItems}</span>
                     </div>
                     <div className="w-px h-6 bg-border" />
                     <div className="flex flex-col">
                       <span className="text-[9px] text-muted-foreground uppercase tracking-widest font-bold mb-0.5">
-                        Est. Duration
+                        预估时长
                       </span>
                       <span className="text-sm font-mono text-foreground/80">~{estimatedDuration}s</span>
                     </div>
                     <div className="w-px h-6 bg-border" />
                     <div className="flex flex-col">
                       <span className="text-[9px] text-muted-foreground uppercase tracking-widest font-bold mb-0.5">
-                        Target
+                        目标时长
                       </span>
                       <span className="text-sm font-mono text-foreground/80">{targetDuration}</span>
                     </div>
@@ -240,7 +240,7 @@ export function ExportView() {
                     ) : (
                       <BarChart3 className="w-3 h-3" />
                     )}
-                    Render Status
+                    渲染状态
                   </div>
                 </div>
               </div>
@@ -248,14 +248,14 @@ export function ExportView() {
               {/* Timeline Visualizer Strip */}
               <div className="mb-10">
                 <div className="flex justify-between text-[10px] text-muted-foreground font-mono uppercase tracking-widest mb-2 px-1">
-                  <span>Sequence Map{hasSplitScenes ? ' (Director)' : ''}</span>
+                  <span>序列图{hasSplitScenes ? '（导演）' : ''}</span>
                   <span>TC 00:00:00:00</span>
                 </div>
                 <div className="h-20 bg-muted/30 rounded-lg border border-border flex items-center px-2 gap-1 overflow-x-auto relative shadow-inner">
                   {totalItems === 0 ? (
                     <div className="w-full flex items-center justify-center text-muted-foreground/50 text-xs font-mono uppercase tracking-widest">
                       <Film className="w-4 h-4 mr-2" />
-                      No Shots Available
+                      暂无可用镜头
                     </div>
                   ) : hasSplitScenes ? (
                     splitScenes.map((scene, idx) => {
@@ -272,7 +272,7 @@ export function ExportView() {
                               ? "bg-primary/40 border border-primary/30 hover:bg-primary/50"
                               : "bg-muted border border-border hover:bg-muted/80"
                           )}
-                          title={`Scene ${idx + 1}: ${scene.actionSummary || scene.sceneName || ''}`}
+                          title={`分镜 ${idx + 1}: ${scene.actionSummary || scene.sceneName || ''}`}
                         >
                           {hasVideo && <div className="h-full w-full bg-green-500/20" />}
                           {hasImage && !hasVideo && <div className="h-full w-full bg-primary/20" />}
@@ -280,7 +280,7 @@ export function ExportView() {
                           {/* Hover Tooltip */}
                           <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-20 whitespace-nowrap">
                             <div className="bg-popover text-popover-foreground text-[10px] px-2 py-1 rounded border border-border shadow-xl">
-                              Scene {idx + 1}{hasVideo ? ' ✓视频' : hasImage ? ' ✓图片' : ''}
+                              分镜 {idx + 1}{hasVideo ? ' ✓视频' : hasImage ? ' ✓图片' : ''}
                             </div>
                           </div>
                         </div>
@@ -298,14 +298,14 @@ export function ExportView() {
                               ? "bg-primary/40 border border-primary/30 hover:bg-primary/50"
                               : "bg-muted border border-border hover:bg-muted/80"
                           )}
-                          title={`Shot ${idx + 1}: ${shot.actionSummary}`}
+                          title={`镜头 ${idx + 1}: ${shot.actionSummary}`}
                         >
                           {isDone && <div className="h-full w-full bg-primary/20" />}
                           
                           {/* Hover Tooltip */}
                           <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-20 whitespace-nowrap">
                             <div className="bg-popover text-popover-foreground text-[10px] px-2 py-1 rounded border border-border shadow-xl">
-                              Shot {idx + 1}
+                              镜头 {idx + 1}
                             </div>
                           </div>
                         </div>
@@ -396,18 +396,18 @@ export function ExportView() {
               <div className="p-5 bg-card border border-border rounded-xl hover:border-primary/50 transition-colors group cursor-pointer flex flex-col justify-between h-32">
                 <Share2 className="w-5 h-5 text-muted-foreground group-hover:text-primary mb-4 transition-colors" />
                 <div>
-                  <h4 className="text-sm font-bold text-foreground mb-1">Share Project</h4>
+                  <h4 className="text-sm font-bold text-foreground mb-1">分享项目</h4>
                   <p className="text-[10px] text-muted-foreground">
-                    Create a view-only link for client review.
+                    生成只读链接，供客户预览审阅。
                   </p>
                 </div>
               </div>
               <div className="p-5 bg-card border border-border rounded-xl hover:border-primary/50 transition-colors group cursor-pointer flex flex-col justify-between h-32">
                 <Clock className="w-5 h-5 text-muted-foreground group-hover:text-primary mb-4 transition-colors" />
                 <div>
-                  <h4 className="text-sm font-bold text-foreground mb-1">Render Logs</h4>
+                  <h4 className="text-sm font-bold text-foreground mb-1">渲染日志</h4>
                   <p className="text-[10px] text-muted-foreground">
-                    View generation history and token usage.
+                    查看生成历史和 Token 用量。
                   </p>
                 </div>
               </div>

@@ -9,13 +9,13 @@ declare namespace NodeJS {
      * The built directory structure
      *
      * ```tree
-     * ├─┬─┬ dist
-     * │ │ └── index.html
-     * │ │
-     * │ ├─┬ dist-electron
-     * │ │ ├── main.js
-     * │ │ └── preload.js
-     * │
+     * ├─┬ out
+     * │ ├─┬ main
+     * │ │ └── index.cjs
+     * │ ├─┬ preload
+     * │ │ └── index.cjs
+     * │ └─┬ renderer
+     * │   └── index.html
      * ```
      */
     APP_ROOT: string

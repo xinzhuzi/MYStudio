@@ -1,10 +1,17 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import {
+  API_AGENT_DEPLOYMENT_GROUPS,
   API_AGENT_DEPLOYMENT_DEFAULTS,
+  DEFAULT_LOCAL_TTS_MODEL,
+  DEFAULT_LOCAL_TTS_PROVIDER_ID,
+  createDefaultFeatureBindings,
+  createDefaultLocalTtsProvider,
   createDefaultAgentDeployments,
+  getAgentDeploymentModelType,
   useAPIConfigStore,
   validateProviderAdapterCodeText,
 } from "./api-config-store";
+import { LOCAL_TTS_BASE_URL } from "@/lib/tts/constants";
 
 describe("useAPIConfigStore unified model configuration", () => {
   beforeEach(() => {
@@ -16,8 +23,8 @@ describe("useAPIConfigStore unified model configuration", () => {
           name: "OpenAI 兼容中转站",
           baseUrl: "https://relay.example.com/v1",
           apiKey: "sk-test",
-          model: ["gpt-4o-mini", "veo-test"],
-          capabilities: ["text", "video_generation"],
+          model: ["gpt-4o-mini", "flux-test", "veo-test", "voice-test"],
+          capabilities: ["text", "image_generation", "video_generation"],
         },
       ],
       agentUseMode: "advanced",
@@ -32,12 +39,49 @@ describe("useAPIConfigStore unified model configuration", () => {
       "universalAi",
       "eventAnalysisAgent",
       "scriptAgent",
+      "scriptAgent:decisionAgent",
+      "scriptAgent:storySkeletonAgent",
+      "scriptAgent:adaptationStrategyAgent",
+      "scriptAgent:scriptAgent",
+      "scriptAgent:supervisionAgent",
+      "productionAgent:decisionAgent",
+      "productionAgent:directorPlanAgent",
+      "productionAgent:storyboardGenAgent",
+      "productionAgent:storyboardPanelAgent",
+      "productionAgent:storyboardTableAgent",
+      "productionAgent:deriveAssetsAgent",
+      "productionAgent:generateAssetsAgent",
+      "productionAgent:supervisionAgent",
       "storySkeletonAgent",
       "adaptationStrategyAgent",
       "scriptDraft",
+      "storyboardImage",
       "videoTrack",
       "tts",
     ]);
+  });
+
+  it("groups Toonflow-style agent deployments by workflow stage", () => {
+    expect(API_AGENT_DEPLOYMENT_GROUPS.map((group) => group.label)).toEqual([
+      "通用与兜底",
+      "小说理解",
+      "剧本策划",
+      "制作规划",
+      "多模态执行",
+    ]);
+    const groupedKeys = API_AGENT_DEPLOYMENT_GROUPS.flatMap((group) => group.keys);
+    const defaultKeys = API_AGENT_DEPLOYMENT_DEFAULTS.map((item) => item.key);
+    expect(new Set(groupedKeys)).toEqual(new Set(defaultKeys));
+    expect(groupedKeys).toHaveLength(defaultKeys.length);
+  });
+
+  it("declares the required model type for each agent deployment", () => {
+    expect(getAgentDeploymentModelType("eventAnalysisAgent")).toBe("text");
+    expect(getAgentDeploymentModelType("scriptAgent:storySkeletonAgent")).toBe("text");
+    expect(getAgentDeploymentModelType("productionAgent:storyboardTableAgent")).toBe("text");
+    expect(getAgentDeploymentModelType("storyboardImage")).toBe("image");
+    expect(getAgentDeploymentModelType("videoTrack")).toBe("video");
+    expect(getAgentDeploymentModelType("tts")).toBe("tts");
   });
 
   it("resolves task bindings from the unified API provider store", () => {
@@ -67,6 +111,61 @@ describe("useAPIConfigStore unified model configuration", () => {
 
     expect(resolved?.deployment.key).toBe("universalAi");
     expect(resolved?.model).toBe("gpt-4o-mini");
+  });
+
+  it("does not use a text universal fallback for multimodal execution agents", () => {
+    useAPIConfigStore.getState().setAgentDeployment({
+      key: "universalAi",
+      modelId: "gpt-4o-mini",
+      vendorId: "provider-1",
+    });
+    useAPIConfigStore.getState().setAgentUseMode("simple");
+
+    expect(useAPIConfigStore.getState().getResolvedAgentModel("storyboardImage")).toBeNull();
+    expect(useAPIConfigStore.getState().getResolvedAgentModel("videoTrack")).toBeNull();
+    expect(useAPIConfigStore.getState().getResolvedAgentModel("tts")).toBeNull();
+  });
+
+  it("ships the TTS agent deployment on the built-in local backend", () => {
+    useAPIConfigStore.setState({
+      providers: [createDefaultLocalTtsProvider()],
+      agentDeployments: createDefaultAgentDeployments(),
+      agentUseMode: "advanced",
+    });
+
+    const resolved = useAPIConfigStore.getState().getResolvedAgentModel("tts");
+
+    expect(resolved).toMatchObject({
+      provider: {
+        id: DEFAULT_LOCAL_TTS_PROVIDER_ID,
+        baseUrl: LOCAL_TTS_BASE_URL,
+      },
+      model: DEFAULT_LOCAL_TTS_MODEL,
+    });
+  });
+
+  it("binds TTS to the built-in local backend by default without requiring an API key", () => {
+    useAPIConfigStore.setState({
+      providers: [createDefaultLocalTtsProvider()],
+      featureBindings: createDefaultFeatureBindings(),
+    });
+
+    const ttsProviders = useAPIConfigStore.getState().getProvidersForFeature("tts");
+
+    expect(useAPIConfigStore.getState().getFeatureBindings("tts")).toEqual([
+      `${DEFAULT_LOCAL_TTS_PROVIDER_ID}:${DEFAULT_LOCAL_TTS_MODEL}`,
+    ]);
+    expect(ttsProviders).toEqual([
+      {
+        provider: expect.objectContaining({
+          id: DEFAULT_LOCAL_TTS_PROVIDER_ID,
+          platform: "manying-local-tts",
+          baseUrl: LOCAL_TTS_BASE_URL,
+          apiKey: "",
+        }),
+        model: DEFAULT_LOCAL_TTS_MODEL,
+      },
+    ]);
   });
 
   it("migrates old studio workflow bindings into agentDeployments once", () => {

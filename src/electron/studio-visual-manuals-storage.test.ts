@@ -6,6 +6,7 @@ import {
   createStoredVisualManual,
   listStoredVisualManuals,
   readStoredVisualManual,
+  writeStoredVisualManualImages,
   writeStoredVisualManual,
 } from "./studio-visual-manuals-storage";
 
@@ -45,6 +46,26 @@ describe("studio visual manuals storage", () => {
       isCustomized: false,
     });
     expect(manuals[0]?.images[0]?.url).toBe("studio-skill://art_skills/daojie_ink_guofeng/images/style_ref.png");
+  });
+
+  it("falls back to runtime Toonflow visual manuals when bundled source is missing", async () => {
+    const primaryRoot = path.join(tempRoot, "empty-source");
+    const runtimeRoot = path.join(tempRoot, "toonflow-runtime");
+    await seedVisualManual(runtimeRoot);
+
+    const manuals = await listStoredVisualManuals({
+      sourceRoot: primaryRoot,
+      fallbackSourceRoots: [runtimeRoot],
+      storageRoot,
+      makeFileUrl: (relativePath) => `studio-skill://${relativePath}`,
+    });
+
+    expect(manuals).toHaveLength(1);
+    expect(manuals[0]).toMatchObject({
+      stylePath: "daojie_ink_guofeng",
+      sourceExists: true,
+    });
+    expect(manuals[0]?.sourcePath).toBe(path.join(runtimeRoot, "art_skills", "daojie_ink_guofeng"));
   });
 
   it("writes edits to storage without changing the bundled seed", async () => {
@@ -125,6 +146,43 @@ describe("studio visual manuals storage", () => {
     expect(detail.images[0]?.name.endsWith(".png")).toBe(true);
     expect(detail.isCustomized).toBe(true);
     expect(fs.existsSync(path.join(storageRoot, "art_skills", "daojie_ink_guofeng", "images", "style_ref.png"))).toBe(false);
+  });
+
+  it("updates visual manual images without overwriting manual text drafts", async () => {
+    await listStoredVisualManuals({
+      sourceRoot,
+      storageRoot,
+      makeFileUrl: (relativePath) => `studio-skill://${relativePath}`,
+    });
+
+    await fs.promises.writeFile(
+      path.join(storageRoot, "art_skills", "daojie_ink_guofeng", "prefix.md"),
+      "用户正在编辑的前缀",
+      "utf-8",
+    );
+    await writeStoredVisualManualImages(storageRoot, "daojie_ink_guofeng", {
+      images: [
+        {
+          relativePath: "art_skills/daojie_ink_guofeng/images/style_ref.png",
+          name: "style_ref.png",
+        },
+        {
+          name: "added.png",
+          dataUrl: `data:image/png;base64,${Buffer.from("added image").toString("base64")}`,
+        },
+      ],
+    });
+
+    const detail = await readStoredVisualManual({
+      sourceRoot,
+      storageRoot,
+      makeFileUrl: (relativePath) => `studio-skill://${relativePath}`,
+    }, "daojie_ink_guofeng");
+
+    expect(detail.imageCount).toBe(2);
+    expect(detail.images.map((image) => image.name)).toContain("style_ref.png");
+    expect(detail.images.some((image) => image.name.startsWith("added-") && image.name.endsWith(".png"))).toBe(true);
+    expect(detail.modules.find((module) => module.value === "prefix")?.content).toBe("用户正在编辑的前缀");
   });
 });
 

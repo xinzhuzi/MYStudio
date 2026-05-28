@@ -1260,7 +1260,7 @@ function buildCharacterSheetPrompt(
   // 修复：自定义风格 prompt 为空时用风格名称兜底，而不是回退到 anime
   const styleTokens = stylePreset
     ? (stylePreset.prompt || `${stylePreset.name} style, professional quality`)
-    : 'anime style, professional quality';
+    : 'professional quality';
   const isRealistic = stylePreset?.category === 'real';
   
   // 根据语言偏好选择主视觉提示词

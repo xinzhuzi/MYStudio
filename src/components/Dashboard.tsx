@@ -37,12 +37,17 @@ import {
   Clock,
   Clapperboard,
   Film,
+  Layers3,
+  MonitorPlay,
+  Scissors,
+  Sparkles,
   X,
   MoreVertical,
   Pencil,
   Copy,
   CheckSquare,
   Wand2,
+  Waves,
 } from "lucide-react";
 import { cn, generateUUID } from "@/lib/utils";
 import { toast } from "sonner";
@@ -52,6 +57,20 @@ interface DashboardProps {
   sidebarCollapsed?: boolean;
   onToggleSidebar?: () => void;
 }
+
+const dashboardStages = [
+  { label: "小说", detail: "故事核", icon: Layers3 },
+  { label: "剧本", detail: "场次", icon: Film },
+  { label: "分镜", detail: "镜头", icon: Clapperboard },
+  { label: "素材", detail: "资产", icon: Sparkles },
+  { label: "剪辑", detail: "成片", icon: Scissors },
+];
+
+const timelineLanes = [
+  { label: "画面", width: "78%", tone: "cyan" },
+  { label: "角色", width: "54%", tone: "amber" },
+  { label: "声音", width: "68%", tone: "green" },
+];
 
 export function Dashboard({
   sidebarCollapsed = false,
@@ -296,7 +315,7 @@ export function Dashboard({
           )}
           <div className="dashboard-topbar-title">
             <span className="text-sm font-semibold text-foreground">漫影工作室</span>
-            <span className="text-xs text-muted-foreground">Manying Studio</span>
+            <span className="text-xs text-muted-foreground">影像制片工作台</span>
           </div>
         </div>
         
@@ -326,26 +345,64 @@ export function Dashboard({
         <div className="w-full max-w-7xl mx-auto">
           <div className="dashboard-hero mb-8">
             <div className="dashboard-hero-copy min-w-0">
+              <div className="dashboard-kicker">
+                <span className="dashboard-kicker-line" />
+                <span>电影级 AI 漫剧工作流</span>
+              </div>
               <h2 className="dashboard-title text-3xl font-bold text-foreground">漫影工作室</h2>
-              <div className="dashboard-stage-row mt-5 flex flex-wrap gap-2">
-                {["小说", "剧本", "分镜", "素材", "剪辑"].map((stage) => (
-                  <span key={stage} className="dashboard-stage-chip">
-                    {stage}
+              <div className="dashboard-title-rule" />
+              <div className="dashboard-stage-row mt-5">
+                {dashboardStages.map(({ label, detail, icon: StageIcon }) => (
+                  <span key={label} className="dashboard-stage-chip">
+                    <StageIcon className="h-3.5 w-3.5" />
+                    <span className="dashboard-stage-label">{label}</span>
+                    <span className="dashboard-stage-detail">{detail}</span>
                   </span>
                 ))}
               </div>
             </div>
 
-            <div className="dashboard-reel" aria-hidden="true">
-              <div className="dashboard-reel-strip" />
-              <div className="dashboard-reel-frame is-primary">
-                <Clapperboard className="h-6 w-6" />
+            <div className="dashboard-cinema-board" aria-hidden="true">
+              <div className="dashboard-board-header">
+                <div className="dashboard-board-title">
+                  <span className="dashboard-board-led" />
+                  <span>制片画布</span>
+                </div>
+                <div className="dashboard-board-meters">
+                  <span />
+                  <span />
+                  <span />
+                </div>
               </div>
-              <div className="dashboard-reel-frame">
-                <Film className="h-6 w-6" />
+              <div className="dashboard-monitor">
+                <div className="dashboard-monitor-screen">
+                  <div className="dashboard-monitor-vignette" />
+                  <div className="dashboard-monitor-scene is-wide">
+                    <Clapperboard className="h-5 w-5" />
+                  </div>
+                  <div className="dashboard-monitor-scene">
+                    <MonitorPlay className="h-5 w-5" />
+                  </div>
+                  <div className="dashboard-monitor-scene is-warm">
+                    <Wand2 className="h-5 w-5" />
+                  </div>
+                </div>
               </div>
-              <div className="dashboard-reel-frame is-accent">
-                <Wand2 className="h-6 w-6" />
+              <div className="dashboard-console">
+                <div className="dashboard-console-preview">
+                  <Waves className="h-5 w-5" />
+                </div>
+                <div className="dashboard-console-timeline">
+                  {timelineLanes.map((lane) => (
+                    <div key={lane.label} className="dashboard-lane">
+                      <span>{lane.label}</span>
+                      <i
+                        className={`dashboard-lane-bar is-${lane.tone}`}
+                        style={{ width: lane.width }}
+                      />
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
@@ -449,7 +506,14 @@ export function Dashboard({
 
                   {/* Project Thumbnail */}
                   <div className="dashboard-project-thumb aspect-video bg-muted flex items-center justify-center">
-                    <Film className="w-12 h-12 text-muted-foreground/30" />
+                    <div className="dashboard-project-thumb-mark">
+                      <Film className="w-9 h-9" />
+                    </div>
+                    <div className="dashboard-project-thumb-timeline" aria-hidden="true">
+                      <span />
+                      <span />
+                      <span />
+                    </div>
                     {isDuplicating && (
                       <div className="absolute inset-0 bg-background/60 flex items-center justify-center">
                         <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />

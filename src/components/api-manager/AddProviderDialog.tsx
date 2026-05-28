@@ -28,7 +28,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import type { IProvider } from "@/lib/api-key-manager";
+import type { IProvider, ModelCapability } from "@/lib/api-key-manager";
+import { TTS_MODEL_GROUPS } from "@/lib/tts/model-catalog";
+import { LOCAL_TTS_BASE_URL } from "@/lib/tts/client";
+
+const LOCAL_TTS_MODELS = TTS_MODEL_GROUPS.flatMap((group) => group.models.map((model) => model.modelName));
 
 /**
  * Toonflow-style 供应商预设。
@@ -41,6 +45,8 @@ export const API_PROVIDER_PRESETS: Array<{
   description: string;
   services: string[];
   models: string[];
+  capabilities?: ModelCapability[];
+  apiKeyOptional?: boolean;
 }> = [
   {
     platform: "openai-compatible",
@@ -49,14 +55,16 @@ export const API_PROVIDER_PRESETS: Array<{
     description: "适用于自建网关或 OpenAI-compatible 中转服务",
     services: ["文本", "图片", "视频", "TTS"],
     models: ["gpt-4o-mini"],
+    capabilities: ["text", "vision", "image_generation", "video_generation", "tts"],
   },
   {
     platform: "anthropic-compatible",
     name: "Anthropic 兼容接口",
     baseUrl: "https://open.bigmodel.cn/api/anthropic/",
     description: "适用于 Anthropic Messages 格式接口，可填写智谱或其他兼容地址",
-    services: ["文本"],
+    services: ["文本", "视觉"],
     models: ["glm-5.1"],
+    capabilities: ["text", "vision"],
   },
   {
     platform: "gemini-compatible",
@@ -65,6 +73,7 @@ export const API_PROVIDER_PRESETS: Array<{
     description: "适用于 Gemini generateContent 格式接口",
     services: ["文本", "视觉"],
     models: ["gemini-2.5-flash"],
+    capabilities: ["text", "vision", "image_generation"],
   },
   {
     platform: "openai",
@@ -73,6 +82,7 @@ export const API_PROVIDER_PRESETS: Array<{
     description: "OpenAI 官方兼容接口",
     services: ["文本", "图片", "视频", "TTS"],
     models: ["gpt-4o", "gpt-4.1", "gpt-5.1"],
+    capabilities: ["text", "vision", "image_generation", "video_generation", "tts"],
   },
   {
     platform: "deepseek",
@@ -81,6 +91,7 @@ export const API_PROVIDER_PRESETS: Array<{
     description: "DeepSeek 文本与推理模型接口",
     services: ["文本"],
     models: ["deepseek-chat", "deepseek-reasoner"],
+    capabilities: ["text", "reasoning"],
   },
   {
     platform: "volcengine",
@@ -89,6 +100,7 @@ export const API_PROVIDER_PRESETS: Array<{
     description: "火山引擎模型接口，按实际服务地址填写 Base URL",
     services: ["文本", "图片", "视频"],
     models: [],
+    capabilities: ["text", "vision", "image_generation", "video_generation"],
   },
   {
     platform: "klingai",
@@ -97,6 +109,7 @@ export const API_PROVIDER_PRESETS: Array<{
     description: "可灵图片与视频模型接口，按实际服务地址填写 Base URL",
     services: ["图片", "视频"],
     models: [],
+    capabilities: ["image_generation", "video_generation"],
   },
   {
     platform: "minimax",
@@ -105,6 +118,17 @@ export const API_PROVIDER_PRESETS: Array<{
     description: "MiniMax 文本、视频与 TTS 模型接口",
     services: ["文本", "视频", "TTS"],
     models: [],
+    capabilities: ["text", "video_generation", "tts"],
+  },
+  {
+    platform: "tts-compatible",
+    name: "TTS 后端",
+    baseUrl: LOCAL_TTS_BASE_URL,
+    description: "默认使用本地 TTS 后端；改成第三方或自建地址时可填写 API Key",
+    services: ["TTS"],
+    models: [...LOCAL_TTS_MODELS, "tts-1", "gpt-4o-mini-tts"],
+    capabilities: ["tts"],
+    apiKeyOptional: true,
   },
   {
     platform: "vidu",
@@ -113,6 +137,7 @@ export const API_PROVIDER_PRESETS: Array<{
     description: "Vidu 视频模型接口，按实际服务地址填写 Base URL",
     services: ["视频"],
     models: [],
+    capabilities: ["video_generation"],
   },
   {
     platform: "runninghub",
@@ -121,6 +146,7 @@ export const API_PROVIDER_PRESETS: Array<{
     description: "Qwen 视角切换 / 多角度生成",
     services: ["视角切换", "图生图"],
     models: ["2009613632530812930"],
+    capabilities: ["image_generation"],
   },
   {
     platform: "custom",
@@ -154,6 +180,7 @@ export function AddProviderDialog({
   // Get selected preset
   const selectedPreset = API_PROVIDER_PRESETS.find((p) => p.platform === platform);
   const isCustom = platform === "custom";
+  const apiKeyOptional = selectedPreset?.apiKeyOptional === true;
 
   // Reset form when dialog opens
   useEffect(() => {
@@ -191,7 +218,7 @@ export function AddProviderDialog({
       toast.error("自定义平台需要输入 Base URL");
       return;
     }
-    if (!apiKey.trim()) {
+    if (!apiKeyOptional && !apiKey.trim()) {
       toast.error("请输入 API Key");
       return;
     }
@@ -208,6 +235,7 @@ export function AddProviderDialog({
       baseUrl: baseUrl.trim(),
       apiKey: apiKey.trim(),
       model: modelArray,
+      capabilities: selectedPreset?.capabilities,
     });
 
     onOpenChange(false);
@@ -269,16 +297,16 @@ export function AddProviderDialog({
 
           {/* API Key */}
           <div className="space-y-2 md:col-span-2">
-            <Label>API Key</Label>
+            <Label>API Key{apiKeyOptional ? "（可选）" : ""}</Label>
             <Input
               type="password"
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
-              placeholder="输入 API Key"
+              placeholder={apiKeyOptional ? "本地后端无需填写" : "输入 API Key"}
               className="font-mono"
             />
             <p className="text-xs text-muted-foreground">
-              支持多个 Key，用逗号分隔
+              {apiKeyOptional ? "本地 TTS 后端不需要 API Key" : "支持多个 Key，用逗号分隔"}
             </p>
           </div>
 

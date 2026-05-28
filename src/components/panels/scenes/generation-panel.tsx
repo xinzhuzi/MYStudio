@@ -225,7 +225,7 @@ export function GenerationPanel({ selectedScene, onSceneCreated }: GenerationPan
       setVisualPrompt(selectedScene.visualPrompt || "");
       setTags(selectedScene.tags || []);
       setNotes(selectedScene.notes || "");
-      setStyleId(selectedScene.styleId || DEFAULT_STYLE_ID);
+      setStyleId(selectedScene.styleId ?? DEFAULT_STYLE_ID);
     }
   }, [selectedScene]);
 
@@ -284,7 +284,7 @@ export function GenerationPanel({ selectedScene, onSceneCreated }: GenerationPan
         visualPrompt: data.visualPrompt?.trim() || undefined,
         tags: data.tags?.length ? data.tags : undefined,
         notes: data.notes?.trim() || undefined,
-        styleId: parsedStyleId,
+        styleId: parsedStyleId || undefined,
         folderId: currentFolderId,
         projectId: resourceProjectId || undefined,
       // 专业场景设计字段
@@ -1250,7 +1250,7 @@ ${gridItemsZh}
         location: sceneLocation,
         time: time || 'day',
         atmosphere: atmosphere || 'peaceful',
-        styleId: styleId || DEFAULT_STYLE_ID,
+        styleId: styleId || undefined,
         folderId: currentFolderId,
         projectId: resourceProjectId ?? undefined,
       });
@@ -1503,7 +1503,7 @@ ${gridItemsZh}
         location: snapshotLocation,
         time: snapshotTime,
         atmosphere: snapshotAtmosphere,
-        styleId: snapshotStyleId || DEFAULT_STYLE_ID,
+        styleId: snapshotStyleId || undefined,
         folderId: snapshotFolderId,
         projectId: snapshotProjectId ?? undefined,
         visualPrompt: snapshotVisualPrompt,
@@ -3399,7 +3399,7 @@ function buildScenePrompt(
   actionDescriptions?: string[]
 ): string {
   const stylePreset = scene.styleId ? getStyleById(scene.styleId) : null;
-  const styleTokens = stylePreset?.prompt || 'anime style';
+  const styleTokens = stylePreset?.prompt || 'professional quality';
 
   const timePreset = TIME_PRESETS.find(t => t.id === scene.time);
   const timePrompt = timePreset?.prompt || 'daytime';

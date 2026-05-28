@@ -29,12 +29,14 @@ import {
   Search,
   Sparkles,
   Clapperboard,
+  Mic2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ReactNode } from "react";
 import { extractBrandFromModel, getBrandInfo } from "@/lib/brand-mapping";
 import { getBrandIcon } from "./brand-icons";
 import { getModelDisplayName } from "@/lib/freedom/model-display-names";
+import { LOCAL_TTS_BASE_URL } from "@/lib/tts/client";
 
 /**
  * 供应商选项 - 每个功能可选的平台 + 模型
@@ -44,6 +46,7 @@ interface ProviderOption {
   platform: string;
   name: string;
   model: string;
+  configured: boolean;
 }
 
 interface FeatureMeta {
@@ -81,7 +84,7 @@ export const FEATURE_CONFIGS: FeatureMeta[] = [
   {
     key: "image_understanding",
     name: "图片理解",
-    description: "分析图片内容生成描述",
+    description: "读取图片并生成文字描述，可使用支持图片输入的文本模型",
     icon: <ScanEye className="h-4 w-4" />,
     requiredCapability: "vision",
   },
@@ -98,6 +101,13 @@ export const FEATURE_CONFIGS: FeatureMeta[] = [
     description: "自由板块独立的视频生成配置（未配置时回退到「视频生成」）",
     icon: <Clapperboard className="h-4 w-4" />,
     requiredCapability: "video_generation",
+  },
+  {
+    key: "tts",
+    name: "TTS 口播",
+    description: "旁白、对白和音频生成模型配置",
+    icon: <Mic2 className="h-4 w-4" />,
+    requiredCapability: "tts",
   },
 ];
 
@@ -116,9 +126,49 @@ function parseOptionKey(key: string): { providerIdOrPlatform: string; model: str
 
 const DEFAULT_PLATFORM_CAPABILITIES: Record<string, ModelCapability[]> = {
   memefast: ["text", "vision", "image_generation", "video_generation"],
+  "openai-compatible": ["text", "vision", "image_generation", "video_generation", "tts"],
+  "anthropic-compatible": ["text", "vision"],
+  "gemini-compatible": ["text", "vision", "image_generation"],
+  openai: ["text", "vision", "image_generation", "video_generation", "tts"],
+  minimax: ["text", "video_generation", "tts"],
+  "tts-compatible": ["tts"],
+  "manying-local-tts": ["tts"],
   // RunningHub is used for specialized tools; do not expose it as a default vision/chat provider.
   runninghub: ["image_generation"],
 };
+
+const VISION_TEXT_MARKERS = [
+  "vision",
+  "image_input",
+  "image-input",
+  "image input",
+  "image_understanding",
+  "image-understanding",
+  "multimodal",
+  "multi_modal",
+  "multi-modal",
+  "omni",
+  "识图",
+  "图片输入",
+  "图片理解",
+  "图像理解",
+  "多模态",
+];
+
+function hasVisionMarker(values?: string[]): boolean {
+  return values?.some((value) => {
+    const normalized = value.toLowerCase();
+    return VISION_TEXT_MARKERS.some((marker) => normalized.includes(marker));
+  }) ?? false;
+}
+
+function modelNameImpliesVision(modelName: string): boolean {
+  const name = modelName.toLowerCase();
+  if (/vision|qwen.*vl|glm.*v|doubao.*vision/.test(name)) return true;
+  if (/^gpt-4o/.test(name) || /^gpt-4\.1/.test(name) || /^gpt-5/.test(name)) return true;
+  if (/claude|gemini/.test(name) && !/imagen|image[-_ ]?preview/.test(name)) return true;
+  return false;
+}
 
 /**
  * 模型级别能力映射
@@ -136,10 +186,14 @@ const MODEL_CAPABILITIES: Record<string, ModelCapability[]> = {
   'MiniMax-M2.1': ['text'],
   'qwen3-max': ['text'],
   'qwen3-max-preview': ['text'],
-  'gemini-2.0-flash': ['text'],
-  'gemini-3-flash-preview': ['text'],
-  'gemini-3-pro-preview': ['text'],
+  'gemini-2.0-flash': ['text', 'vision'],
+  'gemini-3-flash-preview': ['text', 'vision'],
+  'gemini-3-pro-preview': ['text', 'vision'],
   'claude-haiku-4-5-20251001': ['text', 'vision'],
+  'gpt-4o-mini': ['text', 'vision'],
+  'gpt-4o': ['text', 'vision'],
+  'gpt-4.1': ['text', 'vision'],
+  'gpt-5.1': ['text', 'vision'],
 
   // ---- 图片生成模型 ----
   'cogview-3-plus': ['image_generation'],
@@ -185,11 +239,40 @@ function providerSupportsCapability(
   return caps.includes(required);
 }
 
+function providerHasKnownCapability(
+  provider: { platform: string; capabilities?: ModelCapability[] },
+  required: ModelCapability,
+): boolean {
+  const explicitCaps = provider.capabilities && provider.capabilities.length > 0
+    ? provider.capabilities
+    : undefined;
+  const caps = explicitCaps || DEFAULT_PLATFORM_CAPABILITIES[provider.platform];
+  return caps?.includes(required) ?? false;
+}
+
+function isLocalTtsEndpointProvider(provider: { platform: string; baseUrl?: string }): boolean {
+  return (
+    provider.platform === "manying-local-tts"
+    || (
+      provider.platform === "tts-compatible"
+      && (provider.baseUrl || "").trim().replace(/\/+$/, "") === LOCAL_TTS_BASE_URL
+    )
+  );
+}
+
+function isProviderConfiguredForFeature(
+  provider: { platform: string; apiKey: string; baseUrl?: string },
+  feature: FeatureMeta,
+): boolean {
+  if (parseApiKeys(provider.apiKey).length > 0) return true;
+  return feature.requiredCapability === "tts" && isLocalTtsEndpointProvider(provider);
+}
+
 /**
  * 检查特定模型是否支持所需能力
  * 优先级：硬编码映射 → 平台元数据(model_type/tags) → 模型名称推断 → 平台级别 fallback
  */
-function modelSupportsCapability(
+export function modelSupportsCapability(
   modelName: string,
   provider: { platform: string; capabilities?: ModelCapability[] },
   required?: ModelCapability,
@@ -197,6 +280,15 @@ function modelSupportsCapability(
   modelTagsList?: string[] // ["对话","识图","工具"]
 ): boolean {
   if (!required) return true;
+
+  if (required === 'vision') {
+    if (hasVisionMarker(provider.capabilities) || hasVisionMarker(modelTagsList) || modelNameImpliesVision(modelName)) {
+      return true;
+    }
+    if (providerHasKnownCapability(provider, 'vision')) {
+      return true;
+    }
+  }
 
   // 1. 硬编码映射（精确控制少量预设模型）
   const modelCaps = MODEL_CAPABILITIES[modelName];
@@ -215,8 +307,8 @@ function modelSupportsCapability(
         // 音视频类中只筛选带“视频”标签的（排除纯音频/TTS/音乐）
         return modelType === '音视频' && (modelTagsList?.some(t => t.includes('视频')) ?? false);
       case 'vision':
-        // 识图能力跨 model_type，只看 tags 是否含“识图”或“多模态”
-        return modelTagsList?.some(t => t.includes('识图') || t.includes('多模态')) ?? false;
+        // 支持图片输入的文本模型仍属于文本输出模型，不能只按“视觉模型”类型判断。
+        return hasVisionMarker(modelTagsList) || modelNameImpliesVision(modelName);
       case 'embedding':
         return modelType === '检索';
       default:
@@ -253,22 +345,6 @@ export function FeatureBindingPanel() {
     [providers],
   );
 
-  const configuredProviderIds = useMemo(() => {
-    const set = new Set<string>();
-    for (const p of visibleProviders) {
-      if (parseApiKeys(p.apiKey).length > 0) {
-        set.add(p.id);
-        // 也把 platform 加进去，以兼容旧数据检查
-        set.add(p.platform);
-      }
-    }
-    return set;
-  }, [visibleProviders]);
-
-  const isProviderConfigured = (providerIdOrPlatform: string): boolean => {
-    return configuredProviderIds.has(providerIdOrPlatform);
-  };
-
   const optionsByFeature = useMemo(() => {
     const map: Partial<Record<AIFeature, ProviderOption[]>> = {};
 
@@ -290,14 +366,15 @@ export function FeatureBindingPanel() {
             platform: provider.platform,
             name: provider.name,
             model,
+            configured: isProviderConfiguredForFeature(provider, feature),
           });
         }
       }
 
       // Prefer configured providers first for better UX.
       opts.sort((a, b) => {
-        const aConfigured = isProviderConfigured(a.providerId);
-        const bConfigured = isProviderConfigured(b.providerId);
+        const aConfigured = a.configured;
+        const bConfigured = b.configured;
         if (aConfigured !== bConfigured) return aConfigured ? -1 : 1;
         if (a.name !== b.name) return a.name.localeCompare(b.name);
         return a.model.localeCompare(b.model);
@@ -307,7 +384,7 @@ export function FeatureBindingPanel() {
     }
 
     return map;
-  }, [visibleProviders, configuredProviderIds, modelTypes, modelTags]);
+  }, [visibleProviders, modelTypes, modelTags]);
 
   // 计算已配置的功能数（至少有一个有效绑定）
   const configuredCount = useMemo(() => {
@@ -320,11 +397,11 @@ export function FeatureBindingPanel() {
       return bindings.some(binding => {
         const parsed = parseOptionKey(binding);
         if (!parsed) return false;
-        const existsInOptions = options.some((o) => getOptionKey(o) === binding || (`${o.platform}:${o.model}` === binding));
-        return existsInOptions && isProviderConfigured(parsed.providerIdOrPlatform);
+        const option = options.find((o) => getOptionKey(o) === binding || (`${o.platform}:${o.model}` === binding));
+        return Boolean(option?.configured);
       });
     }).length;
-  }, [optionsByFeature, configuredProviderIds, getFeatureBindings]);
+  }, [optionsByFeature, getFeatureBindings]);
 
   // 切换单个模型的选中状态
   const handleToggleBinding = (feature: FeatureMeta, optionKey: string) => {
@@ -395,7 +472,7 @@ export function FeatureBindingPanel() {
           const currentBindings = getFeatureBindings(feature.key);
           const isExpanded = expandedFeatures.has(feature.key);
           const selectableOptionKeys = options
-            .filter((o) => isProviderConfigured(o.providerId))
+            .filter((o) => o.configured)
             .map((o) => getOptionKey(o));
           const selectedSelectableCount = selectableOptionKeys.filter((k) => currentBindings.includes(k) || currentBindings.includes(`${options.find(o => getOptionKey(o) === k)?.platform}:${options.find(o => getOptionKey(o) === k)?.model}`)).length;
           const isAllSelected =
@@ -422,8 +499,8 @@ export function FeatureBindingPanel() {
               invalidBindings.push(binding);
               continue;
             }
-            const existsInOptions = options.some((o) => getOptionKey(o) === binding || (`${o.platform}:${o.model}` === binding));
-            if (existsInOptions && isProviderConfigured(parsed.providerIdOrPlatform)) {
+            const option = options.find((o) => getOptionKey(o) === binding || (`${o.platform}:${o.model}` === binding));
+            if (option?.configured) {
               validBindings.push(binding);
             } else {
               invalidBindings.push(binding);
@@ -633,7 +710,7 @@ export function FeatureBindingPanel() {
                               ) : (
                                 filteredOptions.map((option) => {
                                   const optionKey = getOptionKey(option);
-                                  const optionConfigured = isProviderConfigured(option.providerId);
+                                  const optionConfigured = option.configured;
                                   const legacyKey = `${option.platform}:${option.model}`;
                                   const isSelected = currentBindings.includes(optionKey) || currentBindings.includes(legacyKey);
                                   const brandId = extractBrandFromModel(option.model);
@@ -687,7 +764,7 @@ export function FeatureBindingPanel() {
               部分服务未配置
             </p>
             <p className="text-muted-foreground mt-1">
-              请在上方为每个功能选择「供应商/模型」，并确保对应供应商已填写 API Key。
+              请在上方为每个功能选择「供应商/模型」，并确保对应供应商已填写 Base URL；外部服务还需要 API Key。
             </p>
           </div>
         </div>

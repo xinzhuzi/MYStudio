@@ -124,6 +124,28 @@ scene design sheet，environment concept art，no people，no characters，no hu
 
 ---
 
+## 提示词质量增强
+
+> 生成最终提示词时，必须把本节融合进现有提示词模板；不要另起说明文字。支持 negative prompt 的模型，把“反向规避提示词”单独放入负面提示词；不支持 negative prompt 的模型，改写成正向规避要求。
+
+### 正向质量锚点
+
+真人古风写实摄影，live-action ancient Chinese cinematic still，35mm full-frame photography，real skin texture，natural fabric folds，period accurate costume，clear hair strands，strong contrast，best quality，ultra detailed。
+场景类提示词必须强化前景/中景/后景、空间纵深、主光源方向、材质痕迹和情绪色调；补充 layered environment, atmospheric perspective, coherent lighting, detailed material surface。
+
+### 反向规避提示词
+
+low quality, 3D render, CGI, anime, illustration, cartoon, modern clothing, modern object, neon color, plastic skin, over-smoothing, bad anatomy, extra fingers, watermark, text, signature。
+no depth, flat lighting, empty white background, people, human silhouette, character, cropped architecture, inconsistent season, overclean material, text, watermark。
+
+### 输出净化规则
+
+- 正向提示词只写画面主体、风格、构图、光影、材质、动作和质量锚点；不要把“不要/禁止/严禁”混入正向主体。
+- 反向提示词只写低质量、错媒介、错风格、结构错误、身份漂移、文字水印、裁切和画面伪影等排除项。
+- 若调用方要求中文输出，保留中文风格术语；若调用方要求英文输出，可翻译锚点，但不得改变本风格的媒介边界。
+
+---
+
 ## 七、约束规则
 
 ### 必守

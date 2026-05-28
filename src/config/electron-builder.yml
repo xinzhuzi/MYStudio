@@ -4,7 +4,10 @@ directories:
   buildResources: src/assets/brand
   output: release/build
 files:
-  - out/**/*
+  - from: release/.electron-vite
+    to: out
+    filter:
+      - "**/*"
   - package.json
   # Desktop-only packaging guard: exclude web/image-toolchain heavy deps
   - "!node_modules/next/**"
@@ -21,6 +24,9 @@ extraResources:
       - "!**/*.pyc"
   - from: src/assets/studio-manuals
     to: studio-manuals
+    filter:
+      - "**/*"
+      - "!art_skills/daojie_ink_guofeng/**"
 
 asar: true
 asarUnpack:

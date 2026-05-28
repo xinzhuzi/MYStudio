@@ -34,11 +34,11 @@ export interface NavItem {
 export const mainNavItems: NavItem[] = [
   { id: "overview", label: "概览", icon: LayoutDashboardIcon },
   { id: "studio", label: "工作流", icon: WorkflowIcon },
-  { id: "assets", label: "资产", icon: FolderOpenIcon },
-  { id: "media", label: "素材", icon: VideoIcon },
   { id: "skills", label: "技能", icon: BookOpenTextIcon },
+  { id: "assets", label: "资产", icon: FolderOpenIcon },
   { id: "tts", label: "TTS", icon: Mic2Icon },
   { id: "export", label: "导出", icon: FilmIcon },
+  { id: "media", label: "视频", icon: VideoIcon },
 ];
 
 // Bottom navigation items
@@ -72,7 +72,7 @@ export const tabs: { [key in Tab]: { icon: LucideIcon; label: string; stage?: St
   director: { icon: ClapperboardIcon, label: "导演", stage: "director" },
   sclass: { icon: SparklesIcon, label: "S级", stage: "director" },
   assets: { icon: FolderOpenIcon, label: "资产" },
-  media: { icon: VideoIcon, label: "素材" },
+  media: { icon: VideoIcon, label: "视频" },
   skills: { icon: BookOpenTextIcon, label: "技能" },
   tts: { icon: Mic2Icon, label: "TTS" },
   export: { icon: FilmIcon, label: "导出", stage: "export" },

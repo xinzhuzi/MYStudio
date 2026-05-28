@@ -109,6 +109,28 @@ minimalist，clean lines，solid colors，
 
 ---
 
+## 提示词质量增强
+
+> 生成最终提示词时，必须把本节融合进现有提示词模板；不要另起说明文字。支持 negative prompt 的模型，把“反向规避提示词”单独放入负面提示词；不支持 negative prompt 的模型，改写成正向规避要求。
+
+### 正向质量锚点
+
+高完成度扁平矢量插画，flat vector illustration，clean geometric shapes，solid color blocks，balanced negative space，crisp edges，consistent icon-like design，best quality，clean composition。
+道具类提示词必须明确道具类型、材质、工艺、磨损痕迹、陈列方式和多角度/细节特写；补充 crisp silhouette, readable material, fine craftsmanship, isolated prop display。
+
+### 反向规避提示词
+
+low quality, messy layout, 3D render, PBR material, photorealistic texture, complex lighting, heavy shadow, gradient overuse, noisy texture, sketchy line, watermark, text, signature。
+hands, fingers, human body, worn by character, held by character, floating without support, unclear silhouette, wrong material, modern item mismatch, text, watermark。
+
+### 输出净化规则
+
+- 正向提示词只写画面主体、风格、构图、光影、材质、动作和质量锚点；不要把“不要/禁止/严禁”混入正向主体。
+- 反向提示词只写低质量、错媒介、错风格、结构错误、身份漂移、文字水印、裁切和画面伪影等排除项。
+- 若调用方要求中文输出，保留中文风格术语；若调用方要求英文输出，可翻译锚点，但不得改变本风格的媒介边界。
+
+---
+
 ## 六、约束规则
 
 ### 必守

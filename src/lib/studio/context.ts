@@ -1,4 +1,4 @@
-import { buildStudioManualContext } from "@/lib/studio/manuals";
+import { buildStudioManualContext, type StudioManualCatalog } from "@/lib/studio/manuals";
 import type {
   AgentWorkData,
   AgentWorkKey,
@@ -13,6 +13,7 @@ export interface BuildSkillContextPackageInput {
   chapters: NovelChapter[];
   agentWorkData: AgentWorkData[];
   workflowConfig?: Partial<StudioWorkflowConfig>;
+  manualCatalog?: StudioManualCatalog;
   createdAt?: number;
 }
 
@@ -45,7 +46,7 @@ export function buildSkillContextPackage(input: BuildSkillContextPackageInput): 
       `任务: ${input.taskKey}`,
       "模型执行: disabled",
       "",
-      buildStudioManualContext(input.workflowConfig ?? {}),
+      buildStudioManualContext(input.workflowConfig ?? {}, input.manualCatalog),
       "",
       "# 小说上下文",
       chapterBlocks.join("\n\n") || "无",

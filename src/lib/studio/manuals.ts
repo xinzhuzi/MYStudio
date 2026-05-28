@@ -2,7 +2,21 @@ import type { AgentSkillPreset, StudioManualKind, StudioManualPreset, StudioWork
 
 type MarkdownMap = Record<string, string>;
 
-const visualMarkdown = import.meta.glob("/src/assets/studio-manuals/art_skills/**/*.md", {
+export interface StudioManualSkillOverrideFile {
+  relativePath: string;
+  content: string;
+}
+
+export type StudioManualCatalog = Partial<Record<StudioManualKind, StudioManualPreset[]>>;
+
+export interface BuildStoredStudioManualsOptions {
+  imagesByManualId?: Record<string, string[]>;
+}
+
+const visualMarkdown = import.meta.glob([
+  "/src/assets/studio-manuals/art_skills/**/*.md",
+  "!/src/assets/studio-manuals/art_skills/daojie_ink_guofeng/**",
+], {
   eager: true,
   query: "?raw",
   import: "default",
@@ -26,7 +40,10 @@ const agentSkillMarkdown = import.meta.glob("/src/assets/studio-manuals/*.md", {
   import: "default",
 }) as MarkdownMap;
 
-const visualImages = import.meta.glob("/src/assets/studio-manuals/art_skills/**/*.{png,jpg,jpeg,webp,gif,svg}", {
+const visualImages = import.meta.glob([
+  "/src/assets/studio-manuals/art_skills/**/*.{png,jpg,jpeg,webp,gif,svg}",
+  "!/src/assets/studio-manuals/art_skills/daojie_ink_guofeng/**",
+], {
   eager: true,
   query: "?url",
   import: "default",
@@ -64,8 +81,10 @@ const productionModuleKeys = [
   "storyboard_table_techniques",
 ] as const;
 
-export const DEFAULT_VISUAL_MANUAL_ID = "daojie_ink_guofeng";
-export const DEFAULT_DIRECTOR_MANUAL_ID = "Daojie_xianxia";
+export const DAOJIE_VISUAL_MANUAL_ID = "daojie_ink_guofeng";
+export const DAOJIE_DIRECTOR_MANUAL_ID = "Daojie_xianxia";
+export const DEFAULT_VISUAL_MANUAL_ID = "";
+export const DEFAULT_DIRECTOR_MANUAL_ID = "";
 
 export function listStudioManualPresets(kind: StudioManualKind): StudioManualPreset[] {
   if (kind === "visual") return buildManuals("visual", visualMarkdown, visualImages, visualModuleKeys);
@@ -78,9 +97,12 @@ export function getStudioManualPreset(kind: StudioManualKind, id: string | undef
   return listStudioManualPresets(kind).find((item) => item.id === id) ?? null;
 }
 
-export function buildStudioManualContext(config: Partial<StudioWorkflowConfig>): string {
-  const visualManual = getStudioManualPreset("visual", config.visualManualId ?? DEFAULT_VISUAL_MANUAL_ID);
-  const directorManual = getStudioManualPreset("director", config.directorManualId ?? DEFAULT_DIRECTOR_MANUAL_ID);
+export function buildStudioManualContext(
+  config: Partial<StudioWorkflowConfig>,
+  catalog: StudioManualCatalog = {},
+): string {
+  const visualManual = resolveStudioManualPreset("visual", config.visualManualId, catalog);
+  const directorManual = resolveStudioManualPreset("director", config.directorManualId, catalog);
 
   return [
     "# 视觉手册",
@@ -93,6 +115,40 @@ export function buildStudioManualContext(config: Partial<StudioWorkflowConfig>):
 
 export function getManualModuleText(kind: StudioManualKind, id: string | undefined | null, moduleKey: string): string {
   return getStudioManualPreset(kind, id)?.modules[moduleKey] ?? "";
+}
+
+export function buildStudioManualsFromSkillFiles(
+  kind: Extract<StudioManualKind, "visual" | "director">,
+  files: StudioManualSkillOverrideFile[],
+  options: BuildStoredStudioManualsOptions = {},
+): StudioManualPreset[] {
+  const source = getManualSkillSource(kind);
+  const moduleKeys = getManualModuleKeys(kind);
+  const groupedFiles = groupManualOverrideFiles(files, source);
+
+  return [...groupedFiles.keys()].sort().map((id) => {
+    const overrides = groupedFiles.get(id) ?? new Map<string, string>();
+    const modules = Object.fromEntries(moduleKeys.map((key) => {
+      const relativePath = getManualModuleRelativePath(kind, key);
+      return [key, overrides.get(relativePath) ?? ""];
+    }));
+    const images = options.imagesByManualId?.[id] ?? [];
+    const moduleCount = countFilledModules(modules);
+
+    return {
+      id,
+      kind,
+      name: getManualName(modules.README, id),
+      modules,
+      images,
+      builtin: false,
+      source: "stored-copy",
+      completenessScore: moduleCount + images.length,
+      moduleCount,
+      imageCount: images.length,
+      basePresetId: getBasePresetId(id),
+    };
+  });
 }
 
 export function listAgentSkillPresets(): AgentSkillPreset[] {
@@ -162,7 +218,7 @@ function buildProductionManuals(): StudioManualPreset[] {
     {
       id: "toonflow-production",
       kind: "production",
-      name: "Toonflow 制作技法",
+      name: "漫影制作技法",
       modules,
       images: [],
       builtin: true,
@@ -186,6 +242,74 @@ function findManualMarkdown(markdown: MarkdownMap, source: "art_skills" | "story
 
 function findProductionMarkdown(key: string): string {
   return productionMarkdown[`/src/assets/studio-manuals/production_skills/${key}.md`] ?? "";
+}
+
+function resolveStudioManualPreset(
+  kind: StudioManualKind,
+  id: string | undefined | null,
+  catalog: StudioManualCatalog,
+) {
+  if (!id) return null;
+  const manuals = catalog[kind] ?? listStudioManualPresets(kind);
+  return manuals.find((item) => item.id === id) ?? null;
+}
+
+function getManualSkillSource(kind: Extract<StudioManualKind, "visual" | "director">) {
+  return kind === "visual" ? "art_skills" : "story_skills";
+}
+
+function getManualModuleKeys(kind: Extract<StudioManualKind, "visual" | "director">) {
+  return kind === "visual" ? visualModuleKeys : directorModuleKeys;
+}
+
+function getManualModuleRelativePath(kind: Extract<StudioManualKind, "visual" | "director">, key: string) {
+  const direct = key === "README" ? "README.md" : `${key}.md`;
+  if (kind === "visual") {
+    return findVisualModuleRelativePath(key) ?? direct;
+  }
+  return findDirectorModuleRelativePath(key) ?? direct;
+}
+
+function findVisualModuleRelativePath(key: string) {
+  const mapping: Record<string, string> = {
+    README: "README.md",
+    prefix: "prefix.md",
+    art_character: "art_prompt/art_character.md",
+    art_character_derivative: "art_prompt/art_character_derivative.md",
+    art_prop: "art_prompt/art_prop.md",
+    art_prop_derivative: "art_prompt/art_prop_derivative.md",
+    art_scene: "art_prompt/art_scene.md",
+    art_scene_derivative: "art_prompt/art_scene_derivative.md",
+    director_storyboard: "driector_skills/director_storyboard.md",
+    art_storyboard_video: "art_prompt/art_storyboard_video.md",
+    director_planning_style: "driector_skills/director_planning_style.md",
+    director_storyboard_table_style: "driector_skills/director_storyboard_table_style.md",
+  };
+  return mapping[key];
+}
+
+function findDirectorModuleRelativePath(key: string) {
+  const mapping: Record<string, string> = {
+    README: "README.md",
+    director_planning_narrative: "driector_skills/director_planning_narrative.md",
+    director_storyboard_table_narrative: "driector_skills/director_storyboard_table_narrative.md",
+  };
+  return mapping[key];
+}
+
+function groupManualOverrideFiles(files: StudioManualSkillOverrideFile[], source: "art_skills" | "story_skills") {
+  const groups = new Map<string, Map<string, string>>();
+  const prefix = `${source}/`;
+  for (const file of files) {
+    if (!file.relativePath.startsWith(prefix) || !file.relativePath.endsWith(".md")) continue;
+    const parts = file.relativePath.slice(prefix.length).split("/");
+    const id = parts.shift();
+    if (!id || parts.length === 0) continue;
+    const relativeModulePath = parts.join("/");
+    if (!groups.has(id)) groups.set(id, new Map());
+    groups.get(id)?.set(relativeModulePath, file.content);
+  }
+  return groups;
 }
 
 function getManualId(filePath: string, source: "art_skills" | "story_skills") {

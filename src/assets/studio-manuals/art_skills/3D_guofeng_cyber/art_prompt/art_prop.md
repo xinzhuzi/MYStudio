@@ -134,6 +134,28 @@ metaData: art_skills
 
 ---
 
+## 提示词质量增强
+
+> 生成最终提示词时，必须把本节融合进现有提示词模板；不要另起说明文字。支持 negative prompt 的模型，把“反向规避提示词”单独放入负面提示词；不支持 negative prompt 的模型，改写成正向规避要求。
+
+### 正向质量锚点
+
+国风赛博3D渲染，Chinese cyber fantasy 3D，traditional silhouette with controlled futuristic accents，cinematic neon rim light，iridescent material，high precision model，layered atmosphere，best quality，high detail。
+道具类提示词必须明确道具类型、材质、工艺、磨损痕迹、陈列方式和多角度/细节特写；补充 crisp silhouette, readable material, fine craftsmanship, isolated prop display。
+
+### 反向规避提示词
+
+low quality, generic western sci-fi, pure cyberpunk without Chinese design, flat 2D, photorealistic photography, neon overexposure, chaotic colors, cluttered detail, bad anatomy, watermark, text。
+hands, fingers, human body, worn by character, held by character, floating without support, unclear silhouette, wrong material, modern item mismatch, text, watermark。
+
+### 输出净化规则
+
+- 正向提示词只写画面主体、风格、构图、光影、材质、动作和质量锚点；不要把“不要/禁止/严禁”混入正向主体。
+- 反向提示词只写低质量、错媒介、错风格、结构错误、身份漂移、文字水印、裁切和画面伪影等排除项。
+- 若调用方要求中文输出，保留中文风格术语；若调用方要求英文输出，可翻译锚点，但不得改变本风格的媒介边界。
+
+---
+
 ## 六、约束规则（双场景必守+严禁红线）
 ### 必守规则（违反即不合格）
 | 编号 | 强制规则 |

@@ -43,8 +43,10 @@ import {
 } from "@/lib/studio/event-analysis";
 import {
   buildStudioManualContext,
-  getStudioManualPreset,
+  buildStudioManualsFromSkillFiles,
   listStudioManualPresets,
+  type StudioManualCatalog,
+  type StudioManualSkillOverrideFile,
 } from "@/lib/studio/manuals";
 import { createEpisodeMergePlan, createTrackRenderPlan } from "@/lib/studio/production";
 import { useAPIConfigStore } from "@/stores/api-config-store";
@@ -54,6 +56,7 @@ import type {
   AgentWorkKey,
   NovelChapter,
   StoryboardMediaRef,
+  StudioManualPreset,
   StudioMaterial,
   StudioWorkflowConfig,
   VideoCandidate,
@@ -136,6 +139,14 @@ export function StudioView() {
   const [mergeOutput, setMergeOutput] = useState<string | null>(null);
   const [activeWorkflowTab, setActiveWorkflowTab] = useState("novel");
   const [novelHeaderActions, setNovelHeaderActions] = useState<ReactNode>(null);
+  const bundledManualCatalog = useMemo<StudioManualCatalog>(() => ({
+    visual: listStudioManualPresets("visual"),
+    director: listStudioManualPresets("director"),
+  }), []);
+  const [storedManualCatalog, setStoredManualCatalog] = useState<StudioManualCatalog | null>(null);
+  const usesStoredManualCatalog = typeof window !== "undefined" && Boolean(window.studioSkills?.list);
+  const manualCatalog = storedManualCatalog ?? (usesStoredManualCatalog ? {} : bundledManualCatalog);
+  const manualCatalogReady = !usesStoredManualCatalog || storedManualCatalog !== null;
 
   const projectName = activeProject?.name ?? "漫影工作室";
 
@@ -150,9 +161,52 @@ export function StudioView() {
   };
 
   const handleBuildContext = () => {
-    buildContext(projectName, selectedTask);
+    if (!manualCatalogReady) {
+      toast.error("手册副本正在同步，请稍后再生成上下文包");
+      return;
+    }
+    buildContext(projectName, selectedTask, manualCatalog);
     toast.success("上下文包已生成，模型执行保持关闭");
   };
+
+  useEffect(() => {
+    const studioSkills = window.studioSkills;
+    if (!studioSkills?.list || !studioSkills.readText) return;
+    let cancelled = false;
+    const loadStoredManualCatalog = async () => {
+      try {
+        const [files, visualManuals] = await Promise.all([
+          studioSkills.list(),
+          window.studioVisualManuals?.list?.() ?? Promise.resolve([]),
+        ]);
+        const manualFiles = files.filter((file) => isManualSkillMarkdownPath(file.relativePath));
+        const loaded = await Promise.all(manualFiles.map(async (file) => {
+          const result = await studioSkills.readText(file.relativePath);
+          if (!result.success) return null;
+          return {
+            relativePath: file.relativePath,
+            content: result.content ?? "",
+          } satisfies StudioManualSkillOverrideFile;
+        }));
+        const skillFiles = loaded.filter((file): file is StudioManualSkillOverrideFile => Boolean(file));
+        const imagesByManualId = Object.fromEntries(
+          visualManuals.map((manual) => [manual.stylePath, manual.images.map((image) => image.url)]),
+        );
+        if (!cancelled) {
+          setStoredManualCatalog({
+            visual: buildStudioManualsFromSkillFiles("visual", skillFiles, { imagesByManualId }),
+            director: buildStudioManualsFromSkillFiles("director", skillFiles),
+          });
+        }
+      } catch (error) {
+        console.warn("[StudioView] Failed to load stored manual catalog:", error);
+      }
+    };
+    void loadStoredManualCatalog();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleSaveAgentWork = () => {
     if (!agentDraft.trim()) return;
@@ -353,6 +407,7 @@ export function StudioView() {
               <ManualsTab
                 workflowConfig={workflowConfig}
                 setWorkflowConfig={setWorkflowConfig}
+                manualCatalog={manualCatalog}
               />
             </TabsContent>
 
@@ -812,12 +867,20 @@ function NovelTab(props: {
 function ManualsTab(props: {
   workflowConfig: StudioWorkflowConfig;
   setWorkflowConfig: (updates: Partial<StudioWorkflowConfig>) => void;
+  manualCatalog: StudioManualCatalog;
 }) {
-  const visualManuals = useMemo(() => listStudioManualPresets("visual"), []);
-  const directorManuals = useMemo(() => listStudioManualPresets("director"), []);
-  const visualManual = getStudioManualPreset("visual", props.workflowConfig.visualManualId) ?? visualManuals[0] ?? null;
-  const directorManual = getStudioManualPreset("director", props.workflowConfig.directorManualId) ?? directorManuals[0] ?? null;
-  const manualContext = buildStudioManualContext(props.workflowConfig);
+  const visualManuals = props.manualCatalog.visual ?? [];
+  const directorManuals = props.manualCatalog.director ?? [];
+  const visualManual = props.workflowConfig.visualManualId
+    ? visualManuals.find((manual) => manual.id === props.workflowConfig.visualManualId) ?? null
+    : null;
+  const directorManual = props.workflowConfig.directorManualId
+    ? directorManuals.find((manual) => manual.id === props.workflowConfig.directorManualId) ?? null
+    : null;
+  const manualContext = buildStudioManualContext(props.workflowConfig, {
+    visual: visualManuals,
+    director: directorManuals,
+  });
 
   return (
     <div className="grid grid-cols-[360px_1fr] gap-4">
@@ -831,9 +894,10 @@ function ManualsTab(props: {
         <CardContent className="space-y-3">
           <select
             className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-            value={props.workflowConfig.visualManualId}
-            onChange={(event) => props.setWorkflowConfig({ visualManualId: event.target.value })}
+            value={props.workflowConfig.visualManualId ?? ""}
+            onChange={(event) => props.setWorkflowConfig({ visualManualId: event.target.value || undefined })}
           >
+            <option value="">未选择</option>
             {visualManuals.map((manual) => (
               <option key={manual.id} value={manual.id}>{manual.name}</option>
             ))}
@@ -864,9 +928,10 @@ function ManualsTab(props: {
           <CardContent className="space-y-3">
             <select
               className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-              value={props.workflowConfig.directorManualId}
-              onChange={(event) => props.setWorkflowConfig({ directorManualId: event.target.value })}
+              value={props.workflowConfig.directorManualId ?? ""}
+              onChange={(event) => props.setWorkflowConfig({ directorManualId: event.target.value || undefined })}
             >
+              <option value="">未选择</option>
               {directorManuals.map((manual) => (
                 <option key={manual.id} value={manual.id}>{manual.name}</option>
               ))}
@@ -896,15 +961,29 @@ function ManualsTab(props: {
   );
 }
 
+function isManualSkillMarkdownPath(relativePath: string) {
+  return (
+    relativePath.endsWith(".md")
+    && (
+      relativePath.startsWith("art_skills/")
+      || relativePath.startsWith("story_skills/")
+    )
+  );
+}
+
 function ManualMetadata(props: {
-  manual: NonNullable<ReturnType<typeof getStudioManualPreset>>;
+  manual: StudioManualPreset;
 }) {
-  const sourceLabel = props.manual.source === "toonflow-runtime" ? "Toonflow runtime" : "内置";
+  const sourceLabel = props.manual.source === "stored-copy"
+    ? "漫影副本"
+    : props.manual.source === "toonflow-runtime"
+      ? "漫影手册"
+      : "漫影内置";
   const isDaojie = props.manual.id === "daojie_ink_guofeng" || props.manual.id === "Daojie_xianxia";
 
   return (
     <div className="flex flex-wrap gap-2">
-      {isDaojie ? <Badge>道劫专属</Badge> : null}
+      {isDaojie ? <Badge>新建风格</Badge> : null}
       <Badge variant="outline">{sourceLabel}</Badge>
       <Badge variant="secondary">模块 {props.manual.moduleCount}</Badge>
       <Badge variant="secondary">图片 {props.manual.imageCount}</Badge>

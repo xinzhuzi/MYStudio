@@ -1,6 +1,7 @@
 // Copyright (c) 2025 hotflow2024
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
+import * as React from "react";
 import { ArrowLeft, ArrowRight, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -16,25 +17,25 @@ interface ChromeControlsProps {
   className?: string;
 }
 
-export function SidebarToggleButton({
-  sidebarCollapsed,
-  onToggleSidebar,
-  className,
-}: SidebarToggleButtonProps) {
-  const SidebarIcon = sidebarCollapsed ? PanelLeftOpen : PanelLeftClose;
+export const SidebarToggleButton = React.forwardRef<HTMLButtonElement, SidebarToggleButtonProps>(
+  ({ sidebarCollapsed, onToggleSidebar, className }, ref) => {
+    const SidebarIcon = sidebarCollapsed ? PanelLeftOpen : PanelLeftClose;
 
-  return (
-    <button
-      type="button"
-      className={cn("chrome-control-button", className)}
-      onClick={onToggleSidebar}
-      aria-label={sidebarCollapsed ? "显示侧栏" : "隐藏侧栏"}
-      title={sidebarCollapsed ? "显示侧栏" : "隐藏侧栏"}
-    >
-      <SidebarIcon className="h-4 w-4" />
-    </button>
-  );
-}
+    return (
+      <button
+        ref={ref}
+        type="button"
+        className={cn("chrome-control-button", className)}
+        onClick={onToggleSidebar}
+        aria-label={sidebarCollapsed ? "显示侧栏" : "隐藏侧栏"}
+        title={sidebarCollapsed ? "显示侧栏" : "隐藏侧栏"}
+      >
+        <SidebarIcon className="h-4 w-4" />
+      </button>
+    );
+  },
+);
+SidebarToggleButton.displayName = "SidebarToggleButton";
 
 export function ChromeControls({
   onBack,

@@ -132,7 +132,8 @@ function buildTextModelTestAttempts(baseUrl: string, apiKey: string, model: stri
 
 export function prepareModelTestRequest(payload: ModelTestRequest): PreparedModelTest {
   const keys = parseApiKeys(payload.provider.apiKey);
-  if (keys.length === 0) {
+  const isLocalTtsProvider = payload.provider.platform === "manying-local-tts" || payload.provider.platform === "tts-compatible";
+  if (keys.length === 0 && (!isLocalTtsProvider || payload.type === "text")) {
     return { success: false, error: "缺少 API Key" };
   }
 

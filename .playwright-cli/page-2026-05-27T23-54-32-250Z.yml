@@ -1,0 +1,99 @@
+- generic [ref=e4]:
+  - generic [ref=e5]:
+    - generic [ref=e133]:
+      - generic [ref=e134]:
+        - generic [ref=e139]:
+          - button "返回" [ref=e140]:
+            - img [ref=e141]
+          - button "前进" [disabled] [ref=e143]:
+            - img [ref=e144]
+        - generic [ref=e147]: 漫影工作室项目
+        - generic [ref=e148]: /
+        - generic [ref=e149]: 当前工作区：资产库
+      - generic [ref=e151]:
+        - img [ref=e152]
+        - generic [ref=e154]: 已保存
+    - generic [ref=e6]:
+      - generic [ref=e305]:
+        - button "隐藏侧栏" [ref=e307]:
+          - img [ref=e308]
+        - navigation [ref=e311]:
+          - button "概览" [ref=e312]:
+            - img [ref=e313]
+            - generic [ref=e318]: 概览
+          - button "工作流" [ref=e319]:
+            - img [ref=e320]
+            - generic [ref=e324]: 工作流
+          - button "技能" [ref=e325]:
+            - img [ref=e326]
+            - generic [ref=e328]: 技能
+          - button "资产" [ref=e329]:
+            - img [ref=e330]
+            - generic [ref=e332]: 资产
+          - button "TTS" [ref=e333]:
+            - img [ref=e334]
+            - generic [ref=e338]: TTS
+          - button "导出" [ref=e339]:
+            - img [ref=e340]
+            - generic [ref=e342]: 导出
+          - button "视频" [ref=e343]:
+            - img [ref=e344]
+            - generic [ref=e347]: 视频
+        - generic [ref=e348]:
+          - link "帮助" [ref=e349] [cursor=pointer]:
+            - /url: https://github.com/xinzhuzi/MYStudio
+            - img [ref=e350]
+            - generic [ref=e353]: 帮助
+          - button "设置" [ref=e354]:
+            - img [ref=e355]
+            - generic [ref=e358]: 设置
+      - generic [ref=e222]:
+        - generic [ref=e224]:
+          - generic [ref=e226]:
+            - img [ref=e227]
+            - generic [ref=e229]: 个人资产库
+          - generic [ref=e230]:
+            - generic [ref=e231]:
+              - button "风格库" [ref=e232]:
+                - img [ref=e233]
+                - img [ref=e235]
+                - text: 风格库
+              - generic [ref=e241]:
+                - button "默认风格" [ref=e242]:
+                  - img [ref=e243]
+                  - text: 默认风格
+                - button "我的风格" [ref=e247]:
+                  - img [ref=e248]
+                  - text: 我的风格
+            - generic [ref=e252]:
+              - button "制作资产" [ref=e253]:
+                - img [ref=e254]
+                - img [ref=e256]
+                - text: 制作资产
+              - generic [ref=e259]:
+                - button "角色" [ref=e260]:
+                  - img [ref=e261]
+                  - text: 角色
+                - button "场景" [ref=e265]:
+                  - img [ref=e266]
+                  - text: 场景
+                - button "道具" [ref=e268]:
+                  - img [ref=e269]
+                  - text: 道具
+                - button "素材" [ref=e272]:
+                  - img [ref=e273]
+                  - text: 素材
+                - button "音频" [ref=e275]:
+                  - img [ref=e276]
+                  - text: 音频
+        - separator [ref=e279]
+        - generic [ref=e283]:
+          - generic [ref=e284]:
+            - heading "默认风格" [level=2] [ref=e286]
+            - generic [ref=e287]:
+              - generic [ref=e288]: 0 个
+              - button "刷新" [ref=e289] [cursor=pointer]:
+                - img
+                - text: 刷新
+          - generic [ref=e292]: 暂无默认风格
+  - region "Notifications alt+T"

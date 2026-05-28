@@ -82,6 +82,14 @@ export interface BackendModelStatus {
   downloading: boolean;
   loaded: boolean;
   size_mb?: number | null;
+  model_cache_dir?: string | null;
+  model_repo_path?: string | null;
+}
+
+export interface TtsModelCacheInfo {
+  path: string;
+  download_path?: string;
+  scan_paths?: string[];
 }
 
 export interface TtsModelRow extends TtsModelDefinition {
@@ -91,14 +99,20 @@ export interface TtsModelRow extends TtsModelDefinition {
   sizeMb: number;
   backendDisplayName?: string;
   backendRepoId?: string;
+  modelCacheDir?: string;
+  modelRepoPath?: string;
 }
 
 export interface TtsRuntimeStatus {
   installed: boolean;
   running: boolean;
+  managed?: boolean;
   port: number;
   baseUrl: string;
   cacheDir?: string;
+  modelCacheDir?: string;
+  defaultModelCacheDir?: string;
+  systemModelCacheDir?: string;
   pid?: number;
   error?: string;
 }

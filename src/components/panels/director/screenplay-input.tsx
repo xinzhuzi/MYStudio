@@ -90,7 +90,7 @@ export function ScreenplayInput({ onGenerateStoryboard }: ScreenplayInputProps) 
   const savedStyleId = savedConfig?.visualStyleId;
   const initialStyleId: StyleId = VISUAL_STYLE_PRESETS.some((s) => s.id === savedStyleId)
     ? (savedStyleId as StyleId)
-    : (DEFAULT_STYLE_ID as StyleId);
+    : "";
   const initialResolution: Resolution = savedConfig?.resolution === '4K' ? '4K' : '2K';
 
   const [prompt, setPrompt] = useState(savedDraft?.prompt || "");

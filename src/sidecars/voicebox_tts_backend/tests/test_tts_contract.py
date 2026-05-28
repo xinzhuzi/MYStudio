@@ -5,8 +5,10 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from manying_voicebox_tts.catalog import TTS_MODELS, get_model
+import manying_voicebox_tts.main as main_module
 import manying_voicebox_tts.engine as engine_module
 from manying_voicebox_tts.engine import is_engine_loaded, synthesize_to_wav, unload_engine
+from manying_voicebox_tts.model_cache import download_hf_cache_dir, find_cached_model, is_model_downloaded
 from manying_voicebox_tts.storage import RuntimeStore
 from manying_voicebox_tts.tts import generate_mock_wav
 
@@ -52,6 +54,85 @@ class TtsContractTest(unittest.TestCase):
             self.assertEqual(store.list_profiles()[0]["name"], "旁白")
             self.assertEqual(store.list_profiles()[0]["instruct"], "压低声线，语速平缓。")
             self.assertEqual(store.get_generation(generation["id"])["status"], "generating")
+
+    def test_model_cache_detects_voicebox_and_hf_cli_downloads(self):
+        with tempfile.TemporaryDirectory() as tmp, patch("manying_voicebox_tts.model_cache.hf_cache_dirs", return_value=[Path(tmp)]):
+            repo_cache = Path(tmp) / "models--Qwen--Qwen3-TTS-12Hz-1.7B-Base"
+            snapshot = repo_cache / "snapshots" / "main"
+            snapshot.mkdir(parents=True)
+            (repo_cache / "blobs").mkdir()
+            (snapshot / "model.safetensors").write_bytes(b"weights")
+
+            downloaded, size_mb = is_model_downloaded(get_model("qwen-tts-1.7B"))
+            cached = find_cached_model(get_model("qwen-tts-1.7B"))
+
+            self.assertTrue(downloaded)
+            self.assertEqual(size_mb, 0.0)
+            self.assertEqual(cached.repo_id, "Qwen/Qwen3-TTS-12Hz-1.7B-Base")
+            self.assertEqual(cached.cache_dir, Path(tmp))
+            self.assertEqual(cached.repo_cache_dir, repo_cache)
+
+    def test_model_cache_exposes_display_paths_for_frontend(self):
+        with tempfile.TemporaryDirectory() as tmp, patch("manying_voicebox_tts.model_cache.hf_cache_dirs", return_value=[Path(tmp)]):
+            repo_cache = Path(tmp) / "models--hexgrad--Kokoro-82M"
+            snapshot = repo_cache / "snapshots" / "main"
+            snapshot.mkdir(parents=True)
+            (repo_cache / "blobs").mkdir()
+            (snapshot / "model.safetensors").write_bytes(b"weights")
+
+            cached = find_cached_model(get_model("kokoro"))
+
+            self.assertEqual(str(cached.cache_dir), tmp)
+            self.assertEqual(str(cached.repo_cache_dir), str(repo_cache))
+
+    def test_model_status_includes_model_paths(self):
+        with tempfile.TemporaryDirectory() as tmp, patch("manying_voicebox_tts.model_cache.hf_cache_dirs", return_value=[Path(tmp)]):
+            repo_cache = Path(tmp) / "models--hexgrad--Kokoro-82M"
+            snapshot = repo_cache / "snapshots" / "main"
+            snapshot.mkdir(parents=True)
+            (repo_cache / "blobs").mkdir()
+            (snapshot / "model.safetensors").write_bytes(b"weights")
+
+            handler = types.SimpleNamespace(state=types.SimpleNamespace(get_progress=lambda _name: None))
+            status = main_module.Handler.model_status(handler, get_model("kokoro"))
+
+            self.assertEqual(status["model_cache_dir"], str(Path(tmp)))
+            self.assertEqual(status["model_repo_path"], str(repo_cache))
+
+    def test_model_cache_expands_huggingface_root_to_hub_dir(self):
+        with tempfile.TemporaryDirectory() as tmp, patch.dict("os.environ", {"MANYING_TTS_MODELS_DIR": str(Path(tmp) / "huggingface")}):
+            hf_root = Path(tmp) / "huggingface"
+            repo_cache = hf_root / "hub" / "models--mlx-community--Qwen3-TTS-12Hz-0.6B-Base-bf16"
+            snapshot = repo_cache / "snapshots" / "main"
+            snapshot.mkdir(parents=True)
+            (repo_cache / "blobs").mkdir()
+            (snapshot / "model.safetensors").write_bytes(b"weights")
+
+            downloaded, _size_mb = is_model_downloaded(get_model("qwen-tts-0.6B"))
+            cached = find_cached_model(get_model("qwen-tts-0.6B"))
+
+            self.assertTrue(downloaded)
+            self.assertEqual(cached.cache_dir, hf_root / "hub")
+            self.assertEqual(cached.repo_cache_dir, repo_cache)
+
+    def test_download_cache_uses_hub_child_for_huggingface_root(self):
+        with tempfile.TemporaryDirectory() as tmp, patch.dict("os.environ", {"MANYING_TTS_MODELS_DIR": str(Path(tmp) / "huggingface")}):
+            self.assertEqual(download_hf_cache_dir(), Path(tmp) / "huggingface" / "hub")
+
+    def test_model_cache_rejects_incomplete_hf_downloads(self):
+        with tempfile.TemporaryDirectory() as tmp, patch("manying_voicebox_tts.model_cache.hf_cache_dirs", return_value=[Path(tmp)]):
+            repo_cache = Path(tmp) / "models--hexgrad--Kokoro-82M"
+            snapshot = repo_cache / "snapshots" / "main"
+            blobs = repo_cache / "blobs"
+            snapshot.mkdir(parents=True)
+            blobs.mkdir()
+            (snapshot / "model.safetensors").write_bytes(b"weights")
+            (blobs / "abc.incomplete").write_bytes(b"partial")
+
+            downloaded, size_mb = is_model_downloaded(get_model("kokoro"))
+
+            self.assertFalse(downloaded)
+            self.assertIsNone(size_mb)
 
     def test_mock_generation_writes_valid_wav(self):
         with tempfile.TemporaryDirectory() as tmp:

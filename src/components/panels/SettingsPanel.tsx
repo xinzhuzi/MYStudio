@@ -10,13 +10,18 @@
  */
 
 import { useState, useMemo, useEffect, useCallback } from "react";
+import type { CSSProperties } from "react";
 import {
+  API_AGENT_DEPLOYMENT_GROUPS,
+  getAgentDeploymentModelType,
   isVisibleImageHostProvider,
   useAPIConfigStore,
   type IProvider,
   type ImageHostProvider,
+  type AgentDeploymentConfig,
   type AgentDeploymentKey,
   type AgentUseMode,
+  type ProviderAdapterModelType,
 } from "@/stores/api-config-store";
 import { useStudioConfigStore } from "@/stores/studio-config-store";
 import { useAppSettingsStore } from "@/stores/app-settings-store";
@@ -79,6 +84,8 @@ export const SETTINGS_TABS = [
   { value: "development", label: "开发" },
 ] as const;
 
+export const DEFAULT_SETTINGS_TAB = "appearance";
+
 export const API_MANAGER_SECTIONS = [
   { value: "service", label: "模型服务", desc: "供应商、API Key、Base URL、模型列表与测试" },
   { value: "mapping", label: "模型映射", desc: "按文本、图片、视频、TTS、视觉能力绑定模型" },
@@ -89,6 +96,7 @@ export const API_SERVICE_SUMMARY_FIELDS = ["Base URL", "接口协议", "API Key"
 
 type SettingsTabId = typeof SETTINGS_TABS[number]["value"];
 type APIManagerSectionId = typeof API_MANAGER_SECTIONS[number]["value"];
+type PresetCardStyle = CSSProperties & { "--preset-color": string };
 
 function renderSettingsTabIcon(value: SettingsTabId) {
   switch (value) {
@@ -118,7 +126,40 @@ function renderAPISectionIcon(value: APIManagerSectionId) {
   }
 }
 
-type AdapterModelType = "text" | "image" | "video" | "tts" | "vision";
+function getPresetUsageTone(presetId: string): string {
+  switch (presetId) {
+    case "eyeCare":
+      return "长写作";
+    case "warmPaper":
+      return "剧本文档";
+    case "sageInk":
+      return "素材归档";
+    case "neutral":
+      return "白天剪辑";
+    case "blueprint":
+      return "流程配置";
+    case "mist":
+      return "参数表格";
+    case "porcelain":
+      return "展示概览";
+    case "lavender":
+      return "创意资产";
+    case "cinema":
+      return "暗场制片";
+    case "graphite":
+      return "多轨剪辑";
+    case "midnight":
+      return "夜间预览";
+    case "ink":
+      return "沉浸分镜";
+    case "ember":
+      return "氛围概念";
+    default:
+      return "工作台";
+  }
+}
+
+type AdapterModelType = ProviderAdapterModelType;
 
 function uniqueStrings(values: string[]): string[] {
   return [...new Set(values.filter(Boolean))];
@@ -126,7 +167,7 @@ function uniqueStrings(values: string[]): string[] {
 
 export function inferProviderAdapterModelType(modelName: string): AdapterModelType {
   const lowerName = modelName.toLowerCase();
-  if (/tts|voice|speech|audio/.test(lowerName)) return "tts";
+  if (/tts|voice|speech|audio|kokoro|chatterbox|luxtts|tada/.test(lowerName)) return "tts";
 
   const capabilities = classifyModelByName(modelName);
   if (capabilities.includes("video_generation")) return "video";
@@ -368,6 +409,7 @@ export function SettingsPanel({
     )),
     [providers],
   );
+  const activeColorPreset = COLOR_PRESETS.find((preset) => preset.id === colorPreset);
   const selectedProvider = useMemo(
     () => visibleProviders.find((provider) => provider.id === selectedProviderId) || visibleProviders[0] || null,
     [visibleProviders, selectedProviderId],
@@ -453,10 +495,10 @@ export function SettingsPanel({
   };
 
   const inferModelTestType = (model: string): ModelTestType => {
+    if (inferProviderAdapterModelType(model) === "tts") return "tts";
     const capabilities = classifyModelByName(model);
     if (capabilities.includes("video_generation")) return "video";
     if (capabilities.includes("image_generation")) return "image";
-    if (model.toLowerCase().includes("tts")) return "tts";
     if (capabilities.includes("vision") && !capabilities.includes("text")) return "vision";
     return "text";
   };
@@ -564,11 +606,21 @@ export function SettingsPanel({
     () => visibleProviders.flatMap((provider) => provider.model.map((model) => ({
       providerId: provider.id,
       model,
+      type: inferProviderAdapterModelType(model),
       value: `${provider.id}:${model}`,
       label: `${getProviderDisplayName(provider)} / ${model}`,
     }))),
     [visibleProviders],
   );
+
+  const isAgentModelTypeCompatible = (requiredType: AdapterModelType, modelType: AdapterModelType) => (
+    requiredType === modelType || (requiredType === "text" && modelType === "vision")
+  );
+
+  const getAgentModelOptions = (key: AgentDeploymentKey) => {
+    const requiredType = getAgentDeploymentModelType(key);
+    return apiModelOptions.filter((option) => isAgentModelTypeCompatible(requiredType, option.type));
+  };
 
   const getAgentModelValue = (deployment: { vendorId?: string; modelId?: string }) => {
     if (!deployment.modelId) return "";
@@ -585,7 +637,62 @@ export function SettingsPanel({
     });
   };
 
-  const [activeTab, setActiveTab] = useState<SettingsTabId>("api");
+  const handleAutoAssignAgents = () => {
+    let assignedCount = 0;
+    let skippedCount = 0;
+
+    for (const deployment of agentDeployments) {
+      if (deployment.disabled) continue;
+      const requiredType = getAgentDeploymentModelType(deployment.key);
+      const options = getAgentModelOptions(deployment.key);
+      const currentValue = getAgentModelValue(deployment);
+      const currentOption = apiModelOptions.find((option) => option.value === currentValue);
+
+      if (currentOption && isAgentModelTypeCompatible(requiredType, currentOption.type)) {
+        continue;
+      }
+
+      const nextOption = options[0];
+      if (!nextOption) {
+        skippedCount += 1;
+        continue;
+      }
+
+      setAgentDeployment({
+        key: deployment.key,
+        vendorId: nextOption.providerId,
+        modelId: nextOption.model,
+      });
+      assignedCount += 1;
+    }
+
+    if (assignedCount > 0) {
+      toast.success(`已自动分配 ${assignedCount} 个 Agent`);
+      return;
+    }
+    if (skippedCount > 0) {
+      toast.warning("没有找到可用于部分 Agent 的匹配模型");
+      return;
+    }
+    toast.info("当前 Agent 绑定已经匹配模型能力");
+  };
+
+  const agentDeploymentByKey = useMemo(
+    () => new Map(agentDeployments.map((deployment) => [deployment.key, deployment])),
+    [agentDeployments],
+  );
+
+  const groupedAgentKeySet = useMemo(
+    () => new Set(API_AGENT_DEPLOYMENT_GROUPS.flatMap((group) => group.keys)),
+    [],
+  );
+
+  const extraAgentDeployments = useMemo(
+    () => agentDeployments.filter((deployment) => !groupedAgentKeySet.has(deployment.key)),
+    [agentDeployments, groupedAgentKeySet],
+  );
+
+  const [activeTab, setActiveTab] = useState<SettingsTabId>(DEFAULT_SETTINGS_TAB);
   const hasStorageManager = typeof window !== "undefined" && !!window.storageManager;
   const hasAppUpdater = typeof window !== "undefined" && !!window.appUpdater;
   const hasElectronDevTools = typeof window !== "undefined" && !!window.electronAPI?.openDevTools;
@@ -919,57 +1026,89 @@ export function SettingsPanel({
 
         <TabsContent value="appearance" className="flex-1 overflow-hidden mt-0">
           <ScrollArea className="h-full">
-            <div className="p-8 max-w-5xl mx-auto space-y-6">
-              <div>
-                <h3 className="text-lg font-semibold text-foreground">配色模板</h3>
-                <p className="text-sm text-muted-foreground mt-1">
-                  按 WCAG 对比度、设计系统色彩层级和长时间屏幕阅读场景整理。
-                </p>
+            <div className="appearance-panel p-8 max-w-6xl mx-auto space-y-7">
+              <div className="appearance-hero">
+                <div className="appearance-hero-copy">
+                  <div className="appearance-kicker">
+                    <span />
+                    <span>Studio Look</span>
+                  </div>
+                  <h3 className="appearance-title">外观皮肤</h3>
+                  <p className="appearance-subtitle">
+                    用电影调色台的方式选择工作台质感；每套皮肤只保留一个标准主色，背景、面板和文字层级自动跟随。
+                  </p>
+                </div>
+                <div className="appearance-current-card">
+                  <span className="appearance-current-label">当前皮肤</span>
+                  <strong>{activeColorPreset?.name}</strong>
+                  <p>{theme === "dark" ? "暗场工作台" : "护眼浅场"} · {activeColorPreset?.description}</p>
+                  <i
+                    className="appearance-current-swatch"
+                    style={{ backgroundColor: activeColorPreset?.color }}
+                  />
+                </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="appearance-preset-grid">
                 {COLOR_PRESETS.map((preset) => {
                   const isActive = colorPreset === preset.id;
+                  const presetStyle = { "--preset-color": preset.color } as PresetCardStyle;
                   return (
                     <button
                       key={preset.id}
                       type="button"
                       onClick={() => setColorPreset(preset.id)}
                       className={cn(
-                        "settings-preset-card group text-left rounded-xl border p-4 bg-card transition-all",
-                        "hover:border-primary/60 hover:shadow-lg hover:shadow-primary/10",
-                        isActive ? "border-primary shadow-lg shadow-primary/10" : "border-border"
+                        "settings-preset-card appearance-preset-card group text-left rounded-xl border bg-card transition-all",
+                        isActive && "is-active"
                       )}
+                      data-mode={preset.mode}
+                      style={presetStyle}
                     >
-                      <div className="flex items-start justify-between gap-4">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium text-foreground">{preset.name}</span>
-                            <span className="rounded bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">
-                              {preset.mode === "dark" ? "暗色" : "浅色"}
-                            </span>
-                          </div>
-                          <p className="mt-2 text-xs leading-5 text-muted-foreground">
-                            {preset.description}
-                          </p>
+                      <div className="appearance-preset-preview" aria-hidden="true">
+                        <div className="appearance-preview-topline">
+                          <span />
+                          <span />
                         </div>
-                        {isActive && <Check className="h-4 w-4 shrink-0 text-primary" />}
+                        <div className="appearance-preview-stage">
+                          <i />
+                          <i />
+                          <i />
+                        </div>
+                        <div className="appearance-preview-timeline">
+                          <span />
+                          <span />
+                        </div>
                       </div>
 
-                      <div className="mt-4">
-                        <span
-                          className="block h-9 w-full rounded-md border border-border/70"
-                          style={{ backgroundColor: preset.color }}
-                        />
+                      <div className="appearance-preset-body">
+                        <div className="appearance-preset-title-row">
+                          <div>
+                            <span className="appearance-preset-name">{preset.name}</span>
+                            <span className="appearance-preset-tone">{getPresetUsageTone(preset.id)}</span>
+                          </div>
+                          {isActive && <Check className="h-4 w-4 shrink-0" />}
+                        </div>
+                        <p>{preset.description}</p>
+                        <div className="appearance-preset-footer">
+                          <span className="appearance-mode-pill">
+                            {preset.mode === "dark" ? "暗色" : "浅色"}
+                          </span>
+                          <span
+                            className="appearance-single-swatch"
+                            style={{ backgroundColor: preset.color }}
+                            aria-label={`${preset.name} 标准主色`}
+                          />
+                        </div>
                       </div>
                     </button>
                   );
                 })}
               </div>
 
-              <div className="p-4 border border-border rounded-xl bg-muted/40 text-xs text-muted-foreground">
+              <div className="appearance-note">
                 当前：{theme === "dark" ? "暗色" : "浅色"} ·{" "}
-                {COLOR_PRESETS.find((preset) => preset.id === colorPreset)?.name}
+                {activeColorPreset?.name}
               </div>
             </div>
           </ScrollArea>
@@ -1073,48 +1212,113 @@ export function SettingsPanel({
                         Agent 配置
                       </h3>
                       <p className="mt-1 text-sm text-muted-foreground">
-                        逻辑任务绑定到统一 API 模型；简单模式会优先复用通用AI。
+                        按 Toonflow 工作流分类绑定模型；简单模式只会用通用AI兜底文本类任务。
                       </p>
                     </div>
-                    <select
-                      className="h-9 rounded-md border border-input bg-background px-3 text-sm"
-                      value={agentUseMode}
-                      onChange={(event) => setAgentUseMode(event.target.value as AgentUseMode)}
-                    >
-                      <option value="simple">简单模式</option>
-                      <option value="advanced">高级模式</option>
-                    </select>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleAutoAssignAgents}
+                        disabled={apiModelOptions.length === 0}
+                      >
+                        <Zap className="h-4 w-4 mr-1" />
+                        自动分配
+                      </Button>
+                      <select
+                        className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                        value={agentUseMode}
+                        onChange={(event) => setAgentUseMode(event.target.value as AgentUseMode)}
+                      >
+                        <option value="simple">简单模式</option>
+                        <option value="advanced">高级模式</option>
+                      </select>
+                    </div>
                   </div>
 
-                  <div className="space-y-2">
-                    {agentDeployments.map((deployment) => (
-                      <div key={deployment.key} className="grid grid-cols-[180px_minmax(0,1fr)_120px] items-center gap-3 rounded-xl border border-border bg-card p-4">
-                        <div>
-                          <div className="text-sm font-medium text-foreground">{deployment.name}</div>
-                          <div className="mt-1 text-xs text-muted-foreground">{deployment.desc}</div>
+                  <div className="space-y-4">
+                    {[...API_AGENT_DEPLOYMENT_GROUPS, ...(extraAgentDeployments.length > 0
+                      ? [{
+                          id: "extra",
+                          label: "其他",
+                          desc: "历史配置或插件扩展留下的自定义 Agent",
+                          keys: extraAgentDeployments.map((deployment) => deployment.key),
+                        }]
+                      : [])].map((group) => {
+                      const deployments = group.keys
+                        .map((key) => agentDeploymentByKey.get(key))
+                        .filter((deployment): deployment is AgentDeploymentConfig => Boolean(deployment));
+                      if (deployments.length === 0) return null;
+
+                      return (
+                        <div key={group.id} className="overflow-hidden rounded-xl border border-border bg-card">
+                          <div className="border-b border-border px-4 py-3">
+                            <div className="text-sm font-semibold text-foreground">{group.label}</div>
+                            <div className="mt-1 text-xs text-muted-foreground">{group.desc}</div>
+                          </div>
+                          <div className="divide-y divide-border">
+                            {deployments.map((deployment) => {
+                              const requiredType = getAgentDeploymentModelType(deployment.key);
+                              const options = getAgentModelOptions(deployment.key);
+                              const currentValue = getAgentModelValue(deployment);
+                              const currentOption = apiModelOptions.find((option) => option.value === currentValue);
+                              const currentMatches = currentOption
+                                ? isAgentModelTypeCompatible(requiredType, currentOption.type)
+                                : !currentValue;
+
+                              return (
+                                <div
+                                  key={deployment.key}
+                                  className="grid gap-3 px-4 py-3 lg:grid-cols-[minmax(180px,240px)_minmax(0,1fr)_96px] lg:items-center"
+                                >
+                                  <div className="min-w-0">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      <div className="text-sm font-medium text-foreground">{deployment.name}</div>
+                                      <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
+                                        {MODEL_TYPE_LABELS[requiredType]}
+                                      </span>
+                                    </div>
+                                    <div className="mt-1 text-xs text-muted-foreground">{deployment.desc}</div>
+                                  </div>
+                                  <div className="min-w-0">
+                                    <select
+                                      className="h-9 w-full min-w-0 rounded-md border border-input bg-background px-3 text-sm"
+                                      value={currentValue}
+                                      onChange={(event) => handleAgentModelChange(deployment.key, event.target.value)}
+                                      disabled={deployment.disabled}
+                                    >
+                                      <option value="">未绑定（需要 {MODEL_TYPE_LABELS[requiredType]} 模型）</option>
+                                      {!currentMatches && currentValue && (
+                                        <option value={currentValue}>
+                                          当前绑定类型不匹配：{currentValue}
+                                        </option>
+                                      )}
+                                      {options.map((option) => (
+                                        <option key={`${deployment.key}:${option.value}`} value={option.value}>
+                                          {option.label}（{MODEL_TYPE_LABELS[option.type]}）
+                                        </option>
+                                      ))}
+                                    </select>
+                                    {options.length === 0 && (
+                                      <div className="mt-1 text-xs text-muted-foreground">
+                                        没有可用的 {MODEL_TYPE_LABELS[requiredType]} 模型
+                                      </div>
+                                    )}
+                                  </div>
+                                  <Button
+                                    variant={deployment.disabled ? "secondary" : "outline"}
+                                    size="sm"
+                                    onClick={() => setAgentDeployment({ key: deployment.key, disabled: !deployment.disabled })}
+                                  >
+                                    {deployment.disabled ? "已停用" : "启用中"}
+                                  </Button>
+                                </div>
+                              );
+                            })}
+                          </div>
                         </div>
-                        <select
-                          className="h-9 min-w-0 rounded-md border border-input bg-background px-3 text-sm"
-                          value={getAgentModelValue(deployment)}
-                          onChange={(event) => handleAgentModelChange(deployment.key, event.target.value)}
-                          disabled={deployment.disabled}
-                        >
-                          <option value="">未绑定</option>
-                          {apiModelOptions.map((option) => (
-                            <option key={`${deployment.key}:${option.value}`} value={option.value}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </select>
-                        <Button
-                          variant={deployment.disabled ? "secondary" : "outline"}
-                          size="sm"
-                          onClick={() => setAgentDeployment({ key: deployment.key, disabled: !deployment.disabled })}
-                        >
-                          {deployment.disabled ? "已停用" : "启用中"}
-                        </Button>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -1886,7 +2090,7 @@ export function SettingsPanel({
           const provider = addProvider(providerData);
           const defaultCode = buildProviderAdapterTemplate(provider);
           upsertProviderAdapterCode(provider.id, defaultCode);
-          if (parseApiKeys(providerData.apiKey).length > 0) {
+          if (parseApiKeys(providerData.apiKey).length > 0 || provider.platform === "manying-local-tts" || provider.platform === "tts-compatible") {
             const firstModel = provider.model[0];
             if (!firstModel) {
               toast.message("供应商已添加，请填写模型后再测试连接");
@@ -1924,7 +2128,7 @@ export function SettingsPanel({
         provider={editingProvider}
         onSave={(provider) => {
           updateProvider(provider);
-          if (parseApiKeys(provider.apiKey).length > 0) {
+          if (parseApiKeys(provider.apiKey).length > 0 || provider.platform === "manying-local-tts" || provider.platform === "tts-compatible") {
             const firstModel = provider.model[0];
             if (!firstModel) {
               toast.message("供应商已保存，请填写模型后再测试连接");

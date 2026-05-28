@@ -7,8 +7,16 @@ const scriptDir = dirname(fileURLToPath(import.meta.url));
 const projectRoot = resolve(scriptDir, '..', '..');
 const releaseDir = resolve(projectRoot, 'release');
 const defaultBuildOutputDir = resolve(releaseDir, 'build');
-const electronViteOutDir = resolve(projectRoot, 'out');
-const cacheRoot = resolve(projectRoot, '.cache');
+const electronViteOutDir = resolve(releaseDir, '.electron-vite');
+const legacyElectronViteOutDirs = [
+  resolve(projectRoot, 'out'),
+  resolve(projectRoot, 'dist-electron'),
+];
+const cacheRoot = resolve(releaseDir, '.cache');
+const legacyBuildCacheDirs = [
+  resolve(projectRoot, '.cache', 'electron'),
+  resolve(projectRoot, '.cache', 'electron-builder'),
+];
 const tempDir = resolve(cacheRoot, 'tmp');
 const electronCacheDir = resolve(cacheRoot, 'electron');
 const electronBuilderCacheDir = resolve(cacheRoot, 'electron-builder');
@@ -178,18 +186,28 @@ function buildForArch(arch) {
   finalizeBuildOutput(stagingBuildOutputDir, finalBuildOutputDir);
 }
 
-function cleanIntermediateOutput() {
-  if (!existsSync(electronViteOutDir)) {
-    return;
-  }
+function cleanDirectory(directory, label) {
+  if (!existsSync(directory)) return;
 
   try {
-    rmSync(electronViteOutDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 500 });
-    console.log(`Cleaned intermediate build output at ${electronViteOutDir}`);
+    rmSync(directory, { recursive: true, force: true, maxRetries: 5, retryDelay: 500 });
+    console.log(`Cleaned ${label} at ${directory}`);
   } catch (error) {
     console.warn(
-      `Could not clean intermediate build output at ${electronViteOutDir}: ${error instanceof Error ? error.message : String(error)}`,
+      `Could not clean ${label} at ${directory}: ${error instanceof Error ? error.message : String(error)}`,
     );
+  }
+}
+
+function cleanIntermediateOutput() {
+  cleanDirectory(electronViteOutDir, 'Electron Vite intermediate build output');
+
+  for (const directory of legacyElectronViteOutDirs) {
+    cleanDirectory(directory, 'legacy Electron Vite root output');
+  }
+
+  for (const directory of legacyBuildCacheDirs) {
+    cleanDirectory(directory, 'legacy Electron build cache root output');
   }
 }
 
@@ -198,6 +216,8 @@ if (shouldGenerateIcons()) {
 }
 
 const buildArchs = resolveBuildArchs();
+
+cleanIntermediateOutput();
 
 run('npx', ['electron-vite', 'build', '--config', resolve(projectRoot, 'src', 'config', 'electron-vite.config.ts')]);
 

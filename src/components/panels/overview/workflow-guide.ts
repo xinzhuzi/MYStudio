@@ -31,7 +31,7 @@ export const OVERVIEW_WORKFLOW_GUIDE = {
     {
       id: 2,
       title: "上下文整理",
-      description: "把章节原文、事件摘要、项目设定整理成 Skill/任务上下文包，V1 先 dry-run 保存记录。",
+      description: "把章节原文、事件摘要、项目设定整理成 Skill/任务上下文包，当前版本仅保存整理结果，后续版本将接入 AI 自动处理。",
       targetTab: "studio",
       actionLabel: "去整理",
     },

@@ -7,6 +7,7 @@ import {
   type StudioVisualManualCreatePayload,
   type StudioVisualManualDetail,
   type StudioVisualManualImage,
+  type StudioVisualManualImagesWritePayload,
   type StudioVisualManualModule,
   type StudioVisualManualSummary,
   type StudioVisualManualWritePayload,
@@ -15,6 +16,7 @@ import { ensureStudioSkillsSynced, markStoredStudioSkillPathDeleted } from "./st
 
 type VisualManualStorageOptions = {
   sourceRoot: string;
+  fallbackSourceRoots?: string[];
   storageRoot: string;
   makeFileUrl: (relativePath: string) => string;
 };
@@ -81,6 +83,20 @@ export async function writeStoredVisualManual(
   }
 }
 
+export async function writeStoredVisualManualImages(
+  storageRoot: string,
+  stylePath: string,
+  payload: StudioVisualManualImagesWritePayload,
+) {
+  const normalizedStylePath = normalizeStylePath(stylePath);
+  const manualRoot = resolveVisualManualDirectory(storageRoot, normalizedStylePath);
+  if (!fs.existsSync(manualRoot)) {
+    throw new Error("视觉风格不存在");
+  }
+
+  await writeVisualManualImages(storageRoot, normalizedStylePath, payload.images);
+}
+
 export async function createStoredVisualManual(storageRoot: string, payload: StudioVisualManualCreatePayload) {
   const normalizedStylePath = normalizeStylePath(payload.stylePath);
   const manualRoot = resolveVisualManualDirectory(storageRoot, normalizedStylePath);
@@ -101,6 +117,54 @@ export async function createStoredVisualManual(storageRoot: string, payload: Stu
   return normalizedStylePath;
 }
 
+/** 从已有风格复制创建新风格 */
+export async function duplicateStoredVisualManual(
+  sourceStorageRoot: string,
+  sourceStylePath: string,
+  payload: StudioVisualManualCreatePayload,
+  targetStorageRoot?: string,
+) {
+  const normalizedSource = normalizeStylePath(sourceStylePath);
+  const normalizedTarget = normalizeStylePath(payload.stylePath);
+  const sourceRoot = resolveVisualManualDirectory(sourceStorageRoot, normalizedSource);
+  const destRoot = targetStorageRoot || sourceStorageRoot;
+  const targetRoot = path.resolve(destRoot, "art_skills", normalizedTarget);
+
+  if (!fs.existsSync(sourceRoot)) {
+    throw new Error(`源风格目录不存在: ${normalizedSource}`);
+  }
+  if (fs.existsSync(targetRoot)) {
+    throw new Error("目标风格目录已存在");
+  }
+
+  // 递归复制整个目录
+  await copyDirRecursive(sourceRoot, targetRoot);
+
+  // 覆写 README.md 中的名称
+  const readmePath = path.join(targetRoot, "README.md");
+  if (fs.existsSync(readmePath)) {
+    const content = await fs.promises.readFile(readmePath, "utf-8");
+    const newContent = content.replace(/^#\s+.*/m, `# ${payload.name.trim() || normalizedTarget}`);
+    await fs.promises.writeFile(readmePath, newContent, "utf-8");
+  }
+
+  return normalizedTarget;
+}
+
+async function copyDirRecursive(src: string, dest: string) {
+  await fs.promises.mkdir(dest, { recursive: true });
+  const entries = await fs.promises.readdir(src, { withFileTypes: true });
+  for (const entry of entries) {
+    const srcPath = path.join(src, entry.name);
+    const destPath = path.join(dest, entry.name);
+    if (entry.isDirectory()) {
+      await copyDirRecursive(srcPath, destPath);
+    } else {
+      await fs.promises.copyFile(srcPath, destPath);
+    }
+  }
+}
+
 async function readStoredVisualManualSummary(
   options: VisualManualStorageOptions,
   stylePath: string,
@@ -109,8 +173,8 @@ async function readStoredVisualManualSummary(
   const manualRoot = resolveVisualManualDirectory(options.storageRoot, normalizedStylePath);
   const readme = await readOptionalText(path.join(manualRoot, "README.md"));
   const modules = await readVisualManualModules(options.storageRoot, normalizedStylePath);
-  const sourcePath = path.join(options.sourceRoot, "art_skills", normalizedStylePath);
-  const sourceExists = fs.existsSync(sourcePath);
+  const sourcePath = findVisualManualSourcePath(options, normalizedStylePath);
+  const sourceExists = Boolean(sourcePath);
   const moduleCount = modules.filter((module) => module.content.trim()).length;
   const images = await collectVisualManualImages(options.storageRoot, normalizedStylePath, options.makeFileUrl);
 
@@ -121,9 +185,9 @@ async function readStoredVisualManualSummary(
     description: getManualDescription(readme),
     category: getManualCategory(normalizedStylePath),
     storagePath: manualRoot,
-    sourcePath: sourceExists ? sourcePath : undefined,
+    sourcePath: sourcePath,
     sourceExists,
-    isCustomized: sourceExists ? await hasCustomizedManualFiles(options.sourceRoot, options.storageRoot, normalizedStylePath) : true,
+    isCustomized: sourceExists ? await hasCustomizedManualFiles(options, normalizedStylePath) : true,
     moduleCount,
     imageCount: images.length,
     images,
@@ -240,24 +304,23 @@ function makeUniqueImageFilename(imagesRoot: string, originalName: string | unde
   return filename;
 }
 
-async function hasCustomizedManualFiles(sourceRoot: string, storageRoot: string, stylePath: string) {
+async function hasCustomizedManualFiles(options: VisualManualStorageOptions, stylePath: string) {
   for (const definition of STUDIO_VISUAL_MANUAL_MODULES) {
-    const storedPath = resolveVisualManualFile(storageRoot, stylePath, definition.relativePath);
-    const sourcePath = path.join(sourceRoot, "art_skills", stylePath, definition.relativePath);
+    const storedPath = resolveVisualManualFile(options.storageRoot, stylePath, definition.relativePath);
+    const sourcePath = findVisualManualSourceFilePath(options, stylePath, definition.relativePath);
     const storedExists = fs.existsSync(storedPath);
-    const sourceExists = fs.existsSync(sourcePath);
-    if (!storedExists && !sourceExists) continue;
-    if (!storedExists || !sourceExists) return true;
+    if (!storedExists && !sourcePath) continue;
+    if (!storedExists || !sourcePath) return true;
     if (await hashFile(storedPath) !== await hashFile(sourcePath)) return true;
   }
-  if (await hasCustomizedManualImages(sourceRoot, storageRoot, stylePath)) return true;
+  if (await hasCustomizedManualImages(options, stylePath)) return true;
   return false;
 }
 
-async function hasCustomizedManualImages(sourceRoot: string, storageRoot: string, stylePath: string) {
-  const sourceImagesRoot = path.join(sourceRoot, "art_skills", stylePath, "images");
-  const storedImagesRoot = resolveVisualManualDirectory(storageRoot, path.posix.join(stylePath, "images"));
-  const sourceImages = await collectImageHashes(sourceImagesRoot);
+async function hasCustomizedManualImages(options: VisualManualStorageOptions, stylePath: string) {
+  const sourceImagesRoot = findVisualManualSourceDirectory(options, path.posix.join(stylePath, "images"));
+  const storedImagesRoot = resolveVisualManualDirectory(options.storageRoot, path.posix.join(stylePath, "images"));
+  const sourceImages = sourceImagesRoot ? await collectImageHashes(sourceImagesRoot) : new Map<string, string>();
   const storedImages = await collectImageHashes(storedImagesRoot);
   if (sourceImages.size !== storedImages.size) return true;
   for (const [filename, hash] of sourceImages) {
@@ -320,6 +383,7 @@ function getManualCategory(stylePath: string): StudioVisualManualCategory {
   if (lower.startsWith("2d") || lower.includes("_2d")) return "2d";
   if (lower.startsWith("3d") || lower.includes("_3d")) return "3d";
   if (lower.includes("realpeople") || lower.includes("real")) return "real";
+  if (lower.includes("stop_motion") || lower.includes("stopmotion")) return "stop_motion";
   return "other";
 }
 
@@ -329,8 +393,37 @@ function getCategorySortIndex(category: StudioVisualManualCategory) {
     "2d": 1,
     "3d": 2,
     real: 3,
-    other: 4,
+    stop_motion: 4,
+    other: 5,
   }[category];
+}
+
+function getSourceRoots(options: VisualManualStorageOptions) {
+  return [options.sourceRoot, ...(options.fallbackSourceRoots ?? [])]
+    .map((root) => path.resolve(root))
+    .filter((root) => fs.existsSync(root));
+}
+
+function findVisualManualSourcePath(options: VisualManualStorageOptions, stylePath: string) {
+  return findVisualManualSourceDirectory(options, stylePath);
+}
+
+function findVisualManualSourceDirectory(options: VisualManualStorageOptions, relativePath: string) {
+  for (const root of getSourceRoots(options)) {
+    const sourcePath = path.resolve(root, "art_skills", relativePath);
+    assertInsideRoot(path.join(root, "art_skills"), sourcePath);
+    if (fs.existsSync(sourcePath)) return sourcePath;
+  }
+  return undefined;
+}
+
+function findVisualManualSourceFilePath(options: VisualManualStorageOptions, stylePath: string, relativePath: string) {
+  for (const root of getSourceRoots(options)) {
+    const sourcePath = path.resolve(root, "art_skills", stylePath, relativePath);
+    assertInsideRoot(path.join(root, "art_skills", stylePath), sourcePath);
+    if (fs.existsSync(sourcePath)) return sourcePath;
+  }
+  return undefined;
 }
 
 function normalizeStylePath(stylePath: string) {

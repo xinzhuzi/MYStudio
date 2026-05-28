@@ -12,6 +12,8 @@ import {
 } from "@/components/ui/tooltip";
 import { LayoutDashboard, Settings, HelpCircle } from "lucide-react";
 
+export const HELP_REPOSITORY_URL = "https://github.com/xinzhuzi/MYStudio";
+
 interface TabBarProps {
   sidebarCollapsed: boolean;
   onToggleSidebar: () => void;
@@ -81,7 +83,7 @@ export function TabBar({ sidebarCollapsed, onToggleSidebar }: TabBarProps) {
             <Tooltip>
               <TooltipTrigger asChild>
                 <a
-                  href="https://github.com/zhengbingjin/MYStudio"
+                  href={HELP_REPOSITORY_URL}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="studio-nav-button w-full flex flex-col items-center py-2 text-muted-foreground hover:text-foreground transition-colors"
@@ -157,7 +159,7 @@ export function TabBar({ sidebarCollapsed, onToggleSidebar }: TabBarProps) {
           <Tooltip>
             <TooltipTrigger asChild>
               <a
-                href="https://github.com/zhengbingjin/MYStudio"
+                href={HELP_REPOSITORY_URL}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="studio-nav-button w-full flex flex-col items-center py-2 text-muted-foreground hover:text-foreground transition-colors"

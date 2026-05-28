@@ -3,10 +3,13 @@ import type {
   TtsActiveTasksResponse,
   TtsGenerateRequest,
   TtsGenerateResponse,
+  TtsModelCacheInfo,
   TtsRuntimeCommandResult,
   TtsRuntimeStatus,
   VoiceProfile,
 } from "@/types/tts";
+
+export { LOCAL_TTS_BASE_URL } from "./constants";
 
 export interface ModelStatusResponse {
   models: BackendModelStatus[];
@@ -35,8 +38,16 @@ export function stopTtsRuntime(): Promise<TtsRuntimeCommandResult> {
   return assertTtsRuntime().stop();
 }
 
+export function setTtsModelCacheDir(dirPath: string): Promise<TtsRuntimeCommandResult> {
+  return assertTtsRuntime().setModelCacheDir(dirPath);
+}
+
 export function getModelStatus(): Promise<ModelStatusResponse> {
   return request<ModelStatusResponse>("GET", "/models/status");
+}
+
+export function getModelCacheDir(): Promise<TtsModelCacheInfo> {
+  return request<TtsModelCacheInfo>("GET", "/models/cache-dir");
 }
 
 export function downloadModel(modelName: string) {

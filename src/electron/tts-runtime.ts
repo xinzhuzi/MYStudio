@@ -1,17 +1,31 @@
 import fs from "node:fs";
+import crypto from "node:crypto";
+import os from "node:os";
 import path from "node:path";
-import { spawn, type ChildProcessWithoutNullStreams, type SpawnOptionsWithoutStdio } from "node:child_process";
+import { execFile, spawn, type ChildProcessWithoutNullStreams, type SpawnOptionsWithoutStdio } from "node:child_process";
+import { promisify } from "node:util";
+import { LOCAL_TTS_HOST, LOCAL_TTS_PORT } from "../lib/tts/constants";
 import type { TtsRuntimeCommandResult, TtsRuntimeStatus } from "@/types/tts";
 
-const DEFAULT_TTS_PORT = 17593;
-const DEFAULT_TTS_HOST = "127.0.0.1";
+const DEFAULT_TTS_PORT = LOCAL_TTS_PORT;
+const DEFAULT_TTS_HOST = LOCAL_TTS_HOST;
 
 type SpawnedProcess = Pick<ChildProcessWithoutNullStreams, "pid" | "kill">;
+type BackendHealth = {
+  healthy: boolean;
+  service?: string;
+  error?: string;
+};
 
 interface FetchJsonOptions {
   method: string;
   headers?: Record<string, string>;
   body?: string;
+}
+
+interface RuntimeConfig {
+  modelCacheDir?: string;
+  controlToken?: string;
 }
 
 export interface TtsRuntimeControllerDeps {
@@ -23,14 +37,19 @@ export interface TtsRuntimeControllerDeps {
   sidecarRoots?: string[];
   fileExists?: (filePath: string) => boolean;
   ensureDir?: (dirPath: string) => void;
+  readTextFile?: (filePath: string) => string | null;
+  writeTextFile?: (filePath: string, value: string) => void;
   spawnProcess?: (command: string, args: string[], options: SpawnOptionsWithoutStdio) => SpawnedProcess;
   fetchJson?: (url: string, options: FetchJsonOptions) => Promise<unknown>;
+  findListeningPids?: (port: number, host: string) => Promise<number[]>;
+  killProcess?: (pid: number) => boolean;
 }
 
 export interface TtsRuntimeController {
   status: () => Promise<TtsRuntimeStatus>;
   start: () => Promise<TtsRuntimeCommandResult>;
   stop: () => Promise<TtsRuntimeCommandResult>;
+  setModelCacheDir: (dirPath: string) => Promise<TtsRuntimeCommandResult>;
   request: (method: string, routePath: string, body?: unknown) => Promise<unknown>;
 }
 
@@ -48,6 +67,33 @@ function defaultFetchJson(url: string, options: FetchJsonOptions) {
   });
 }
 
+const execFileAsync = promisify(execFile);
+
+async function defaultFindListeningPids(port: number) {
+  try {
+    const { stdout } = await execFileAsync("lsof", [`-tiTCP:${port}`, "-sTCP:LISTEN", "-nP"]);
+    return stdout
+      .split(/\s+/)
+      .map((value) => Number(value))
+      .filter((pid) => Number.isInteger(pid) && pid > 0);
+  } catch {
+    return [];
+  }
+}
+
+function defaultKillProcess(pid: number) {
+  try {
+    process.kill(pid, "SIGTERM");
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : String(error);
+}
+
 function normalizeRoutePath(routePath: string) {
   return routePath.startsWith("/") ? routePath : `/${routePath}`;
 }
@@ -60,12 +106,36 @@ function uniquePaths(paths: string[]) {
   return [...new Set(paths.filter(Boolean))];
 }
 
+function expandHome(inputPath: string) {
+  if (inputPath === "~") return os.homedir();
+  if (inputPath.startsWith("~/")) return path.join(os.homedir(), inputPath.slice(2));
+  return inputPath;
+}
+
+function normalizeUserPath(inputPath: string) {
+  return path.resolve(expandHome(inputPath.trim()));
+}
+
+function resolveHfHubCacheDir(modelCacheDir: string, fileExists: (filePath: string) => boolean) {
+  if (path.basename(modelCacheDir) === "huggingface") {
+    return path.join(modelCacheDir, "hub");
+  }
+  if (path.basename(modelCacheDir) !== "hub" && fileExists(path.join(modelCacheDir, "hub"))) {
+    return path.join(modelCacheDir, "hub");
+  }
+  return modelCacheDir;
+}
+
 function makeStatus(params: {
   installed: boolean;
   running: boolean;
   port: number;
   baseUrl: string;
   cacheDir: string;
+  modelCacheDir: string;
+  defaultModelCacheDir: string;
+  systemModelCacheDir: string;
+  managed: boolean;
   pid?: number;
   error?: string;
 }): TtsRuntimeStatus {
@@ -75,6 +145,10 @@ function makeStatus(params: {
     port: params.port,
     baseUrl: params.baseUrl,
     cacheDir: params.cacheDir,
+    modelCacheDir: params.modelCacheDir,
+    defaultModelCacheDir: params.defaultModelCacheDir,
+    systemModelCacheDir: params.systemModelCacheDir,
+    managed: params.managed,
     pid: params.pid,
     error: params.error,
   };
@@ -87,27 +161,84 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
   const pythonBinary = deps.pythonBinary ?? process.env.MANYING_TTS_PYTHON ?? "python3";
   const fileExists = deps.fileExists ?? fs.existsSync;
   const ensureDir = deps.ensureDir ?? ((dirPath: string) => fs.mkdirSync(dirPath, { recursive: true }));
+  const readTextFile = deps.readTextFile ?? ((filePath: string) => {
+    try {
+      return fs.readFileSync(filePath, "utf8");
+    } catch {
+      return null;
+    }
+  });
+  const writeTextFile = deps.writeTextFile ?? ((filePath: string, value: string) => fs.writeFileSync(filePath, value));
   const spawnProcess = deps.spawnProcess ?? ((command, args, options) => spawn(command, args, options));
   const fetchJson = deps.fetchJson ?? defaultFetchJson;
+  const findListeningPids = deps.findListeningPids ?? defaultFindListeningPids;
+  const killProcess = deps.killProcess ?? defaultKillProcess;
   const sidecarRoots = uniquePaths([
     ...(deps.sidecarRoots ?? []),
     path.join(deps.appRoot, "src", "sidecars", "voicebox_tts_backend"),
     typeof process.resourcesPath === "string" ? path.join(process.resourcesPath, "sidecars", "voicebox_tts_backend") : "",
   ]);
   const cacheDir = path.join(deps.userDataPath, "tts-runtime");
+  const configPath = path.join(cacheDir, "config.json");
+  const defaultModelCacheDir = path.join(deps.userDataPath, "tts-models");
+  const systemModelCacheDir = path.join(os.homedir(), ".cache", "huggingface");
   let child: SpawnedProcess | null = null;
+
+  const readConfig = (): RuntimeConfig => {
+    const raw = readTextFile(configPath);
+    if (!raw) return {};
+    try {
+      return JSON.parse(raw) as RuntimeConfig;
+    } catch {
+      return {};
+    }
+  };
+
+  const writeConfig = (config: RuntimeConfig) => {
+    ensureDir(cacheDir);
+    writeTextFile(configPath, JSON.stringify(config, null, 2));
+  };
+
+  const getModelCacheDir = () => {
+    const config = readConfig();
+    return config.modelCacheDir ? normalizeUserPath(config.modelCacheDir) : defaultModelCacheDir;
+  };
+
+  const getControlToken = () => {
+    const config = readConfig();
+    if (config.controlToken) return config.controlToken;
+    const controlToken = crypto.randomUUID();
+    writeConfig({ ...config, controlToken });
+    return controlToken;
+  };
+
+  const saveModelCacheDir = (dirPath: string) => {
+    const modelCacheDir = dirPath.trim() ? normalizeUserPath(dirPath) : defaultModelCacheDir;
+    ensureDir(cacheDir);
+    ensureDir(modelCacheDir);
+    const config = readConfig();
+    writeConfig({ ...config, modelCacheDir });
+    return modelCacheDir;
+  };
 
   const resolveSidecarRoot = () => sidecarRoots.find((sidecarRoot) => fileExists(sidecarMainPath(sidecarRoot)));
 
   const isInstalled = () => resolveSidecarRoot() !== undefined;
 
-  async function isBackendHealthy() {
+  async function getBackendHealth(): Promise<BackendHealth> {
     try {
-      await fetchJson(`${baseUrl}/health`, { method: "GET" });
-      return true;
-    } catch {
-      return false;
+      const payload = await fetchJson(`${baseUrl}/health`, { method: "GET" });
+      const service = typeof payload === "object" && payload && "service" in payload
+        ? String((payload as { service?: unknown }).service)
+        : undefined;
+      return { healthy: true, service, error: undefined };
+    } catch (error) {
+      return { healthy: false, error: getErrorMessage(error) };
     }
+  }
+
+  async function isBackendHealthy() {
+    return (await getBackendHealth()).healthy;
   }
 
   async function waitUntilHealthy() {
@@ -128,15 +259,42 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
 
   async function status(): Promise<TtsRuntimeStatus> {
     const installed = isInstalled();
-    const running = child !== null || await isBackendHealthy();
+    const health = await getBackendHealth();
+    const running = health.healthy;
     return makeStatus({
       installed,
       running,
       port,
       baseUrl,
       cacheDir,
+      modelCacheDir: getModelCacheDir(),
+      defaultModelCacheDir,
+      systemModelCacheDir,
+      managed: child !== null,
       pid: child?.pid,
+      error: !running && child ? `TTS 后端进程存在但 HTTP 不可达: ${health.error ?? baseUrl}` : undefined,
     });
+  }
+
+  async function requestBackendShutdown() {
+    const controlToken = getControlToken();
+    return fetchJson(`${baseUrl}/shutdown`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Manying-TTS-Token": controlToken,
+      },
+      body: JSON.stringify({ token: controlToken }),
+    });
+  }
+
+  async function stopStaleBackendProcess(health: BackendHealth) {
+    if (health.service !== "manying-voicebox-tts") return false;
+    const pids = await findListeningPids(port, host);
+    if (pids.length === 0) return false;
+    const killed = pids.some((pid) => killProcess(pid));
+    if (!killed) return false;
+    return waitUntilStopped();
   }
 
   async function start(): Promise<TtsRuntimeCommandResult> {
@@ -149,11 +307,32 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
       };
     }
 
-    if (child || await isBackendHealthy()) {
-      return { success: true, status: await status() };
+    if (child) {
+      if (await isBackendHealthy()) {
+        return { success: true, status: await status() };
+      }
+      child.kill();
+      child = null;
+    }
+
+    const existingHealth = await getBackendHealth();
+    if (existingHealth.healthy) {
+      const stopped = await stopStaleBackendProcess(existingHealth);
+      if (!stopped) {
+        return {
+          success: false,
+          status: await status(),
+          error: "本地 TTS 端口已被本地 TTS 残留进程占用，自动清理失败",
+        };
+      }
     }
 
     ensureDir(cacheDir);
+    const modelCacheDir = getModelCacheDir();
+    const hfHubCacheDir = resolveHfHubCacheDir(modelCacheDir, fileExists);
+    const controlToken = getControlToken();
+    ensureDir(modelCacheDir);
+    ensureDir(hfHubCacheDir);
     child = spawnProcess(
       pythonBinary,
       [
@@ -172,6 +351,10 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
           ...process.env,
           PYTHONPATH: sidecarRoot,
           MANYING_TTS_DATA_DIR: cacheDir,
+          MANYING_TTS_MODELS_DIR: modelCacheDir,
+          VOICEBOX_MODELS_DIR: modelCacheDir,
+          HF_HUB_CACHE: hfHubCacheDir,
+          MANYING_TTS_CONTROL_TOKEN: controlToken,
         },
       },
     );
@@ -189,6 +372,18 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
     return { success: true, status: await status() };
   }
 
+  async function setModelCacheDir(dirPath: string): Promise<TtsRuntimeCommandResult> {
+    if (await isBackendHealthy()) {
+      return {
+        success: false,
+        status: await status(),
+        error: "请先停止本地 TTS 后端，再切换模型缓存路径",
+      };
+    }
+    saveModelCacheDir(dirPath);
+    return { success: true, status: await status() };
+  }
+
   async function stop(): Promise<TtsRuntimeCommandResult> {
     if (child) {
       child.kill();
@@ -203,29 +398,51 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
       }
       return { success: true, status: await status() };
     }
-    if (await isBackendHealthy()) {
-      return {
-        success: false,
-        status: await status(),
-        error: "当前 TTS 后端不是由 MYStudio 启动，不能从这里停止",
-      };
+    const health = await getBackendHealth();
+    if (health.healthy) {
+      try {
+        await requestBackendShutdown();
+        const stopped = await waitUntilStopped();
+        if (stopped) return { success: true, status: await status() };
+        const staleStopped = await stopStaleBackendProcess(health);
+        if (staleStopped) return { success: true, status: await status() };
+        return {
+          success: false,
+          status: await status(),
+          error: "已发送停止请求，但本地 TTS 后端仍在运行",
+        };
+      } catch (error) {
+        const staleStopped = await stopStaleBackendProcess(health);
+        if (staleStopped) return { success: true, status: await status() };
+        return {
+          success: false,
+          status: await status(),
+          error: `检测到本地 TTS 残留进程，但自动清理失败；请关闭对应 Python 进程后再刷新。原始错误：${getErrorMessage(error)}`,
+        };
+      }
     }
     return { success: true, status: await status() };
   }
 
   async function request(method: string, routePath: string, body?: unknown) {
     const hasBody = body !== undefined && method.toUpperCase() !== "GET";
-    return fetchJson(`${baseUrl}${normalizeRoutePath(routePath)}`, {
-      method,
-      headers: hasBody ? { "Content-Type": "application/json" } : undefined,
-      body: hasBody ? JSON.stringify(body) : undefined,
-    });
+    const requestUrl = `${baseUrl}${normalizeRoutePath(routePath)}`;
+    try {
+      return await fetchJson(requestUrl, {
+        method,
+        headers: hasBody ? { "Content-Type": "application/json" } : undefined,
+        body: hasBody ? JSON.stringify(body) : undefined,
+      });
+    } catch (error) {
+      throw new Error(`本地 TTS 后端请求失败: ${method.toUpperCase()} ${requestUrl}: ${getErrorMessage(error)}`);
+    }
   }
 
   return {
     status,
     start,
     stop,
+    setModelCacheDir,
     request,
   };
 }

@@ -21,6 +21,8 @@ import {
 } from '@/lib/api-key-manager';
 import { injectDiscoveryCache, type DiscoveredModelLimits } from '@/lib/ai/model-registry';
 import type { ModelBinding } from '@/types/studio';
+import { LOCAL_TTS_BASE_URL } from '@/lib/tts/constants';
+import { TTS_MODEL_GROUPS } from '@/lib/tts/model-catalog';
 
 // Re-export IProvider for convenience
 export type { IProvider } from '@/lib/api-key-manager';
@@ -39,7 +41,8 @@ export type AIFeature =
   | 'image_understanding'   // 图片理解/分析
   | 'chat'                  // 通用对话
   | 'freedom_image'         // 自由板块-图片生成
-  | 'freedom_video';        // 自由板块-视频生成
+  | 'freedom_video'         // 自由板块-视频生成
+  | 'tts';                  // TTS 口播/音频生成
 
 /**
  * 功能绑定配置
@@ -70,6 +73,7 @@ export type AgentDeploymentKey =
   | 'storySkeletonAgent'
   | 'adaptationStrategyAgent'
   | 'scriptDraft'
+  | 'storyboardImage'
   | 'videoTrack'
   | 'tts';
 
@@ -82,6 +86,13 @@ export interface AgentDeploymentConfig {
   temperature?: number;
   maxOutputTokens?: number;
   disabled?: boolean;
+}
+
+export interface AgentDeploymentGroup {
+  id: string;
+  label: string;
+  desc: string;
+  keys: AgentDeploymentKey[];
 }
 
 export interface ResolvedAgentModel {
@@ -114,6 +125,21 @@ export interface ProviderAdapterCode {
   validationReason?: string;
 }
 
+export const DEFAULT_LOCAL_TTS_PROVIDER_ID = 'manying-local-tts';
+export const DEFAULT_LOCAL_TTS_MODEL = 'qwen-tts-1.7B';
+
+export function createDefaultLocalTtsProvider(): IProvider {
+  return {
+    id: DEFAULT_LOCAL_TTS_PROVIDER_ID,
+    platform: 'manying-local-tts',
+    name: '本地 TTS',
+    baseUrl: LOCAL_TTS_BASE_URL,
+    apiKey: '',
+    model: TTS_MODEL_GROUPS.flatMap((group) => group.models.map((model) => model.modelName)),
+    capabilities: ['tts'],
+  };
+}
+
 /**
  * 功能信息定义
  */
@@ -126,10 +152,11 @@ export const AI_FEATURES: Array<{
   { key: 'character_generation', name: '角色生成', description: '生成角色参考图和变体服装' },
   { key: 'scene_generation', name: '场景生成', description: '生成场景环境参考图' },
   { key: 'video_generation', name: '视频生成', description: '将图片转换为视频' },
-  { key: 'image_understanding', name: '图片理解', description: '分析图片内容' },
+  { key: 'image_understanding', name: '图片理解', description: '读取图片并生成文字描述，可使用支持图片输入的文本模型' },
   { key: 'chat', name: '通用对话', description: 'AI 对话和文本生成' },
   { key: 'freedom_image', name: '自由板块-图片', description: '自由板块独立的图片生成配置' },
   { key: 'freedom_video', name: '自由板块-视频', description: '自由板块独立的视频生成配置' },
+  { key: 'tts', name: 'TTS 口播', description: '旁白、对白和音频生成模型配置' },
 ];
 
 export const API_AGENT_DEPLOYMENT_DEFAULTS: AgentDeploymentConfig[] = [
@@ -155,25 +182,123 @@ export const API_AGENT_DEPLOYMENT_DEFAULTS: AgentDeploymentConfig[] = [
     maxOutputTokens: 4096,
   },
   {
-    key: 'storySkeletonAgent',
+    key: 'scriptAgent:decisionAgent',
+    name: '剧本决策Agent',
+    desc: '负责判断剧本阶段下一步执行骨架、策略、草稿或监督',
+    temperature: 0.2,
+    maxOutputTokens: 2048,
+  },
+  {
+    key: 'scriptAgent:storySkeletonAgent',
     name: '故事骨架Agent',
-    desc: '负责从小说章节和事件摘要整理故事骨架',
+    desc: '负责从小说章节、事件摘要和项目设定整理故事骨架',
     temperature: 0.6,
     maxOutputTokens: 4096,
   },
   {
-    key: 'adaptationStrategyAgent',
+    key: 'scriptAgent:adaptationStrategyAgent',
     name: '改编策略Agent',
     desc: '负责将小说内容转成漫剧/短剧改编策略',
     temperature: 0.7,
     maxOutputTokens: 4096,
   },
   {
-    key: 'scriptDraft',
-    name: '剧本草稿Agent',
-    desc: '负责单集剧本草稿生成与修订',
+    key: 'scriptAgent:scriptAgent',
+    name: '剧本执行Agent',
+    desc: '负责分场剧本、对白和镜头文字草稿生成',
     temperature: 0.7,
     maxOutputTokens: 8192,
+  },
+  {
+    key: 'scriptAgent:supervisionAgent',
+    name: '剧本监督Agent',
+    desc: '负责检查剧本输出与小说事件、风格手册和任务目标的一致性',
+    temperature: 0.2,
+    maxOutputTokens: 4096,
+  },
+  {
+    key: 'productionAgent:decisionAgent',
+    name: '制作决策Agent',
+    desc: '负责判断制作阶段下一步执行资产拆解、导演计划或分镜表',
+    temperature: 0.2,
+    maxOutputTokens: 2048,
+  },
+  {
+    key: 'productionAgent:directorPlanAgent',
+    name: '导演计划Agent',
+    desc: '负责根据导演手册整理单集镜头调度、节奏和画面方案',
+    temperature: 0.5,
+    maxOutputTokens: 4096,
+  },
+  {
+    key: 'productionAgent:storyboardGenAgent',
+    name: '分镜生成Agent',
+    desc: '负责把剧本片段转换成可制作的分镜草案',
+    temperature: 0.6,
+    maxOutputTokens: 8192,
+  },
+  {
+    key: 'productionAgent:storyboardPanelAgent',
+    name: '分镜画面Agent',
+    desc: '负责补充分镜画面描述、构图、角色动作和镜头提示',
+    temperature: 0.6,
+    maxOutputTokens: 4096,
+  },
+  {
+    key: 'productionAgent:storyboardTableAgent',
+    name: '分镜表Agent',
+    desc: '负责输出结构化分镜表、trackKey、时长和素材引用建议',
+    temperature: 0.4,
+    maxOutputTokens: 8192,
+  },
+  {
+    key: 'productionAgent:deriveAssetsAgent',
+    name: '资产拆解Agent',
+    desc: '负责从剧本和分镜中拆解角色、场景、道具、音频等资产需求',
+    temperature: 0.5,
+    maxOutputTokens: 4096,
+  },
+  {
+    key: 'productionAgent:generateAssetsAgent',
+    name: '资产生成计划Agent',
+    desc: '负责整理资产生成提示词、参考图需求和批量生产计划',
+    temperature: 0.6,
+    maxOutputTokens: 4096,
+  },
+  {
+    key: 'productionAgent:supervisionAgent',
+    name: '制作监督Agent',
+    desc: '负责检查分镜、素材和制作计划是否符合视觉/导演手册',
+    temperature: 0.2,
+    maxOutputTokens: 4096,
+  },
+  {
+    key: 'storySkeletonAgent',
+    name: '故事骨架兼容入口',
+    desc: '兼容旧版绑定；新流程优先使用剧本策划下的故事骨架Agent',
+    temperature: 0.6,
+    maxOutputTokens: 4096,
+  },
+  {
+    key: 'adaptationStrategyAgent',
+    name: '改编策略兼容入口',
+    desc: '兼容旧版绑定；新流程优先使用剧本策划下的改编策略Agent',
+    temperature: 0.7,
+    maxOutputTokens: 4096,
+  },
+  {
+    key: 'scriptDraft',
+    name: '剧本草稿兼容入口',
+    desc: '兼容旧版绑定；新流程优先使用剧本策划下的剧本执行Agent',
+    temperature: 0.7,
+    maxOutputTokens: 8192,
+  },
+  {
+    key: 'storyboardImage',
+    name: '分镜图片模型',
+    desc: '负责分镜参考图、角色/场景参考图和关键帧图片生成',
+    temperature: 0.5,
+    maxOutputTokens: 2048,
   },
   {
     key: 'videoTrack',
@@ -186,10 +311,93 @@ export const API_AGENT_DEPLOYMENT_DEFAULTS: AgentDeploymentConfig[] = [
     key: 'tts',
     name: 'TTS',
     desc: '负责旁白、对白和音频生成任务绑定',
+    vendorId: DEFAULT_LOCAL_TTS_PROVIDER_ID,
+    modelId: DEFAULT_LOCAL_TTS_MODEL,
     temperature: 0.3,
     maxOutputTokens: 2048,
   },
 ];
+
+export const API_AGENT_DEPLOYMENT_GROUPS: AgentDeploymentGroup[] = [
+  {
+    id: 'fallback',
+    label: '通用与兜底',
+    desc: '简单模式下复用的文本模型，只兜底文本类 Agent',
+    keys: ['universalAi'],
+  },
+  {
+    id: 'novel',
+    label: '小说理解',
+    desc: '章节事件、事件状态和小说上下文理解',
+    keys: ['eventAnalysisAgent'],
+  },
+  {
+    id: 'script',
+    label: '剧本策划',
+    desc: '对应 Toonflow 剧本 Agent 的决策、执行和监督链路',
+    keys: [
+      'scriptAgent',
+      'scriptAgent:decisionAgent',
+      'scriptAgent:storySkeletonAgent',
+      'scriptAgent:adaptationStrategyAgent',
+      'scriptAgent:scriptAgent',
+      'scriptAgent:supervisionAgent',
+      'storySkeletonAgent',
+      'adaptationStrategyAgent',
+      'scriptDraft',
+    ],
+  },
+  {
+    id: 'production',
+    label: '制作规划',
+    desc: '对应 Toonflow 制作 Agent 的导演计划、分镜、资产拆解和监督',
+    keys: [
+      'productionAgent:decisionAgent',
+      'productionAgent:directorPlanAgent',
+      'productionAgent:storyboardGenAgent',
+      'productionAgent:storyboardPanelAgent',
+      'productionAgent:storyboardTableAgent',
+      'productionAgent:deriveAssetsAgent',
+      'productionAgent:generateAssetsAgent',
+      'productionAgent:supervisionAgent',
+    ],
+  },
+  {
+    id: 'multimodal',
+    label: '多模态执行',
+    desc: '图片、视频和 TTS 等真实执行模型，不能用文本模型兜底',
+    keys: ['storyboardImage', 'videoTrack', 'tts'],
+  },
+];
+
+const AGENT_DEPLOYMENT_MODEL_TYPES: Record<AgentDeploymentKey, ProviderAdapterModelType> = {
+  universalAi: 'text',
+  eventAnalysisAgent: 'text',
+  scriptAgent: 'text',
+  'scriptAgent:decisionAgent': 'text',
+  'scriptAgent:supervisionAgent': 'text',
+  'scriptAgent:storySkeletonAgent': 'text',
+  'scriptAgent:adaptationStrategyAgent': 'text',
+  'scriptAgent:scriptAgent': 'text',
+  'productionAgent:decisionAgent': 'text',
+  'productionAgent:supervisionAgent': 'text',
+  'productionAgent:deriveAssetsAgent': 'text',
+  'productionAgent:generateAssetsAgent': 'text',
+  'productionAgent:directorPlanAgent': 'text',
+  'productionAgent:storyboardGenAgent': 'text',
+  'productionAgent:storyboardPanelAgent': 'text',
+  'productionAgent:storyboardTableAgent': 'text',
+  storySkeletonAgent: 'text',
+  adaptationStrategyAgent: 'text',
+  scriptDraft: 'text',
+  storyboardImage: 'image',
+  videoTrack: 'video',
+  tts: 'tts',
+};
+
+export function getAgentDeploymentModelType(key: AgentDeploymentKey): ProviderAdapterModelType {
+  return AGENT_DEPLOYMENT_MODEL_TYPES[key];
+}
 
 const VALID_ADAPTER_MODEL_TYPES = new Set<ProviderAdapterModelType>([
   'text',
@@ -723,17 +931,21 @@ const PROVIDER_INFO: Record<ProviderId, { name: string; services: ServiceType[] 
 
 // ==================== Initial State ====================
 
-// Default feature bindings (all null)
-const defaultFeatureBindings: FeatureBindings = {
-  script_analysis: null,
-  character_generation: null,
-  scene_generation: null,
-  video_generation: null,
-  image_understanding: null,
-  chat: null,
-  freedom_image: null,
-  freedom_video: null,
-};
+export function createDefaultFeatureBindings(): FeatureBindings {
+  return {
+    script_analysis: null,
+    character_generation: null,
+    scene_generation: null,
+    video_generation: null,
+    image_understanding: null,
+    chat: null,
+    freedom_image: null,
+    freedom_video: null,
+    tts: [`${DEFAULT_LOCAL_TTS_PROVIDER_ID}:${DEFAULT_LOCAL_TTS_MODEL}`],
+  };
+}
+
+const defaultFeatureBindings = createDefaultFeatureBindings();
 const defaultImageHostProviders: ImageHostProvider[] = createDefaultImageHostProviders();
 
 function omitRecordKeys<T>(record: Record<string, T>, keys: Iterable<string>): Record<string, T> {
@@ -744,8 +956,26 @@ function omitRecordKeys<T>(record: Record<string, T>, keys: Iterable<string>): R
   return next;
 }
 
+function ensureDefaultLocalTtsProvider(providers: IProvider[] | undefined | null): IProvider[] {
+  const existing = providers || [];
+  if (existing.some((provider) => provider.id === DEFAULT_LOCAL_TTS_PROVIDER_ID)) {
+    return existing;
+  }
+  return [createDefaultLocalTtsProvider(), ...existing];
+}
+
+function isLocalTtsProvider(provider: IProvider) {
+  return (
+    provider.platform === 'manying-local-tts'
+    || (
+      provider.platform === 'tts-compatible'
+      && provider.baseUrl.trim().replace(/\/+$/, '') === LOCAL_TTS_BASE_URL
+    )
+  );
+}
+
 const initialState: APIConfigState = {
-  providers: [],
+  providers: [createDefaultLocalTtsProvider()],
   agentUseMode: 'simple',
   agentDeployments: createDefaultAgentDeployments(),
   providerAdapterCodes: [],
@@ -814,7 +1044,8 @@ export const useAPIConfigStore = create<APIConfigStore>()(
         const deployments = normalizeAgentDeployments(state.agentDeployments);
         const universal = deployments.find((item) => item.key === 'universalAi');
         const exact = deployments.find((item) => item.key === key);
-        const deployment = state.agentUseMode === 'simple' && key !== 'universalAi' && universal?.modelId && !universal.disabled
+        const canUseTextFallback = getAgentDeploymentModelType(key) === 'text';
+        const deployment = state.agentUseMode === 'simple' && key !== 'universalAi' && canUseTextFallback && universal?.modelId && !universal.disabled
           ? universal
           : exact;
 
@@ -1270,7 +1501,10 @@ export const useAPIConfigStore = create<APIConfigStore>()(
               console.warn(`[APIConfig] Ambiguous platform binding "${binding}" matches ${platformMatches.length} providers, skipping`);
             }
           }
-          if (!provider || parseApiKeys(provider.apiKey).length === 0) {
+          if (!provider) {
+            continue;
+          }
+          if (parseApiKeys(provider.apiKey).length === 0 && !isLocalTtsProvider(provider)) {
             continue;
           }
 
@@ -1545,12 +1779,12 @@ export const useAPIConfigStore = create<APIConfigStore>()(
     {
       name: 'opencut-api-config',  // localStorage key
       storage: createJSONStorage(getAPIConfigStorage),
-      version: 15,  // v15: remove empty MemeFast placeholder from defaults
+      version: 16,  // v16: add built-in local TTS provider and default Qwen3-TTS 1.7B binding
       migrate: (persistedState: unknown, version: number) => {
         // Use mutable result object for chained migration
          
         const result = { ...(persistedState as any) } as Partial<APIConfigState> & { imageHostConfig?: LegacyImageHostConfig };
-        console.log(`[APIConfig] Chained migration: v${version} → v15`);
+        console.log(`[APIConfig] Chained migration: v${version} → v16`);
         
         // Default feature bindings for migration
         const defaultBindings: FeatureBindings = {
@@ -1562,6 +1796,7 @@ export const useAPIConfigStore = create<APIConfigStore>()(
           chat: null,
           freedom_image: null,
           freedom_video: null,
+          tts: null,
         };
         const resolveImageHostProviders = (): ImageHostProvider[] => {
           const legacyConfig = result?.imageHostConfig;
@@ -1854,6 +2089,11 @@ export const useAPIConfigStore = create<APIConfigStore>()(
           version = 15;
         }
 
+        // v15 → v16: built-in local TTS provider and Qwen3-TTS 1.7B defaults are applied in final normalization.
+        if (version <= 15) {
+          version = 16;
+        }
+
         // ========== Final normalization (always runs) ==========
 
         // Ensure all feature binding keys exist and normalize string → string[]
@@ -1870,12 +2110,16 @@ export const useAPIConfigStore = create<APIConfigStore>()(
             }
           }
         }
+        if (!finalBindings.tts || finalBindings.tts.length === 0) {
+          finalBindings.tts = [`${DEFAULT_LOCAL_TTS_PROVIDER_ID}:${DEFAULT_LOCAL_TTS_MODEL}`];
+        }
         result.featureBindings = finalBindings;
 
         result.agentUseMode = result.agentUseMode || 'simple';
         result.agentDeployments = normalizeAgentDeployments(result.agentDeployments);
         result.providerAdapterCodes = result.providerAdapterCodes || [];
         result.studioBindingsMigrated = Boolean(result.studioBindingsMigrated);
+        result.providers = ensureDefaultLocalTtsProvider(result.providers as IProvider[] | undefined | null);
 
         // Resolve image host providers (handles all legacy formats)
         result.imageHostProviders = resolveImageHostProviders();

@@ -14,6 +14,7 @@ export type ModelCapability =
   | 'function_calling' 
   | 'image_generation' 
   | 'video_generation'
+  | 'tts'
   | 'web_search' 
   | 'reasoning' 
   | 'embedding';
@@ -46,7 +47,7 @@ export const DEFAULT_PROVIDERS: Omit<IProvider, 'id' | 'apiKey'>[] = [
     model: [
       'gpt-4o-mini',
     ],
-    capabilities: ['text', 'vision', 'image_generation', 'video_generation'],
+    capabilities: ['text', 'vision', 'image_generation', 'video_generation', 'tts'],
   },
   {
     platform: 'runninghub',
@@ -87,10 +88,13 @@ export function classifyModelByName(modelName: string): ModelCapability[] {
   if (/image[- ]?preview/.test(name)) return ['image_generation'];
 
   // ---- 视觉/识图模型 ----
-  if (/vision/.test(name)) return ['text', 'vision'];
+  if (/vision|qwen.*vl|glm.*v|doubao.*vision/.test(name)) return ['text', 'vision'];
+  if (/^gpt-4o/.test(name) || /^gpt-4\.1/.test(name) || /^gpt-5/.test(name)) return ['text', 'vision'];
+  if (/claude|gemini/.test(name) && !/imagen|image[-_ ]?preview/.test(name)) return ['text', 'vision'];
 
-  // ---- TTS / Audio 模型（不归入任何主分类）----
-  if (/tts|whisper|audio/.test(name)) return ['text'];
+  // ---- TTS / Audio 模型 ----
+  if (/tts|voice|speech|kokoro|chatterbox|luxtts|tada/.test(name)) return ['tts'];
+  if (/whisper|audio/.test(name)) return ['text'];
 
   // ---- Embedding 模型 ----
   if (/embed/.test(name)) return ['embedding'];

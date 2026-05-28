@@ -441,6 +441,11 @@ export function SplitScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
 
   // Update style
   const handleStyleChange = useCallback((styleId: string) => {
+    if (!styleId) {
+      setStoryboardConfig({ visualStyleId: undefined, styleTokens: [] });
+      toast.success('已清除视觉风格');
+      return;
+    }
     const style = getStyleById(styleId);
     if (style) {
       // 直接存储风格 ID，同时保留 styleTokens（完整 prompt）兼容旧逻辑

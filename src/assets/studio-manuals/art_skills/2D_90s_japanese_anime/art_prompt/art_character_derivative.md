@@ -257,6 +257,28 @@ character design sheet，character turnaround，
 
 ---
 
+## 提示词质量增强
+
+> 生成最终提示词时，必须把本节融合进现有提示词模板；不要另起说明文字。支持 negative prompt 的模型，把“反向规避提示词”单独放入负面提示词；不支持 negative prompt 的模型，改写成正向规避要求。
+
+### 正向质量锚点
+
+90年代日式动画电影质感，hand-drawn cel animation，clean lineart，painted background，soft rim light，subtle film grain，nostalgic warm palette，best quality，high detail，sharp but not digital-glossy。
+人物衍生提示词必须保持底模面容、体态、发型识别点不变，只叠加服化妆造与局部风格升级；补充 same character identity, face consistency, outfit detail clarity。
+
+### 反向规避提示词
+
+low quality, worst quality, blurry, muddy colors, modern glossy digital painting, 3D render, CGI, photorealistic, western cartoon, over-sharpened HDR, noisy artifacts, watermark, text, signature。
+face drift, identity changed, different person, pose changed, added scene, added handheld prop, inconsistent costume between views, cropped body, extra fingers。
+
+### 输出净化规则
+
+- 正向提示词只写画面主体、风格、构图、光影、材质、动作和质量锚点；不要把“不要/禁止/严禁”混入正向主体。
+- 反向提示词只写低质量、错媒介、错风格、结构错误、身份漂移、文字水印、裁切和画面伪影等排除项。
+- 若调用方要求中文输出，保留中文风格术语；若调用方要求英文输出，可翻译锚点，但不得改变本风格的媒介边界。
+
+---
+
 ## 九、约束规则
 
 ### 必守

@@ -31,6 +31,7 @@ import { toast } from "sonner";
 interface VisualManualEditorDialogProps {
   open: boolean;
   manual: StudioVisualManualDetail | null;
+  manualKind?: "default" | "custom";
   onOpenChange: (open: boolean) => void;
   onSaved: (manual: StudioVisualManualDetail) => void;
 }
@@ -43,6 +44,7 @@ type EditableVisualManualImage = StudioVisualManualImage & {
 export function VisualManualEditorDialog({
   open,
   manual,
+  manualKind = "custom",
   onOpenChange,
   onSaved,
 }: VisualManualEditorDialogProps) {
@@ -52,11 +54,20 @@ export function VisualManualEditorDialog({
   const [savedDrafts, setSavedDrafts] = useState<Record<string, string>>({});
   const [images, setImages] = useState<EditableVisualManualImage[]>([]);
   const [savedImageKeys, setSavedImageKeys] = useState<string[]>([]);
+  const [previewImage, setPreviewImage] = useState<EditableVisualManualImage | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isAddingImages, setIsAddingImages] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const initializedManualKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!manual) return;
+    if (!open || !manual) {
+      initializedManualKeyRef.current = null;
+      return;
+    }
+    if (initializedManualKeyRef.current === manual.stylePath) return;
+    initializedManualKeyRef.current = manual.stylePath;
+
     const nextDrafts = Object.fromEntries(manual.modules.map((module) => [module.value, module.content]));
     const nextImages = manual.images.map((image) => ({ ...image }));
     setName(manual.name);
@@ -65,7 +76,7 @@ export function VisualManualEditorDialog({
     setSavedDrafts(nextDrafts);
     setImages(nextImages);
     setSavedImageKeys(nextImages.map(getImageDirtyKey));
-  }, [manual]);
+  }, [manual, open]);
 
   const selectedModule = useMemo(
     () => manual?.modules.find((module) => module.value === activeModule) ?? manual?.modules[0] ?? null,
@@ -129,6 +140,8 @@ export function VisualManualEditorDialog({
     const selectedFiles = Array.from(event.target.files ?? []);
     if (selectedFiles.length === 0) return;
 
+    if (!manual) return;
+    setIsAddingImages(true);
     try {
       const newImages = await Promise.all(selectedFiles.map(async (file) => {
         const dataUrl = await fileToDataUrl(file);
@@ -141,22 +154,52 @@ export function VisualManualEditorDialog({
           isNew: true,
         };
       }));
-      setImages((current) => [...current, ...newImages]);
+
+      if (!window.studioVisualManuals?.writeImages) {
+        setImages((current) => [...current, ...newImages]);
+        return;
+      }
+
+      const result = await window.studioVisualManuals.writeImages(manual.stylePath, {
+        images: [
+          ...images.map((image) => ({
+            relativePath: image.isNew ? undefined : image.relativePath,
+            name: image.name,
+            dataUrl: image.dataUrl,
+          })),
+          ...newImages.map((image) => ({
+            name: image.name,
+            dataUrl: image.dataUrl,
+          })),
+        ],
+      });
+      if (!result.success || !result.manual) throw new Error(result.error || "新增参考图失败");
+
+      const nextImages = result.manual.images.map((image) => ({ ...image }));
+      setImages(nextImages);
+      setSavedImageKeys(nextImages.map(getImageDirtyKey));
+      setPreviewImage((current) => current
+        ? nextImages.find((image) => image.relativePath === current.relativePath) ?? null
+        : null);
+      onSaved(result.manual);
+      toast.success("参考图已保存");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "读取参考图失败");
+      toast.error(error instanceof Error ? error.message : "新增参考图失败");
     } finally {
+      setIsAddingImages(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
   const removeImage = (relativePath: string) => {
     setImages((current) => current.filter((image) => image.relativePath !== relativePath));
+    setPreviewImage((current) => current?.relativePath === relativePath ? null : current);
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex h-[min(820px,calc(100vh-32px))] w-[min(1180px,calc(100vw-32px))] max-w-none flex-col p-0">
-        <DialogHeader className="border-b border-border px-5 py-4">
+      <DialogContent className="flex h-[calc(100vh-48px)] w-[calc(100vw-48px)] max-w-none flex-col p-0">
+        <DialogHeader className="border-b border-border px-7 py-5">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0 space-y-1">
               <DialogTitle>视觉风格编辑</DialogTitle>
@@ -165,7 +208,7 @@ export function VisualManualEditorDialog({
               </DialogDescription>
             </div>
             <div className="flex shrink-0 items-center gap-2">
-              {manual?.sourceExists ? <Badge variant="outline">Toonflow 副本</Badge> : <Badge variant="outline">新增</Badge>}
+              <Badge variant="outline">{manualKind === "default" ? "默认风格" : "我的风格"}</Badge>
               {manual?.isCustomized ? <Badge variant="secondary">已改</Badge> : null}
               <Button variant="outline" size="sm" onClick={openStoragePath} disabled={!manual?.storagePath}>
                 <FolderOpen className="mr-2 h-4 w-4" />
@@ -176,9 +219,9 @@ export function VisualManualEditorDialog({
         </DialogHeader>
 
         {manual ? (
-          <div className="grid min-h-0 flex-1 grid-cols-[270px_minmax(0,1fr)]">
+          <div className="grid min-h-0 flex-1 grid-cols-[360px_minmax(0,1fr)]">
             <aside className="flex min-h-0 flex-col border-r border-border bg-panel/60">
-              <div className="space-y-3 border-b border-border p-4">
+              <div className="space-y-4 border-b border-border p-5">
                 <div className="space-y-1.5">
                   <Label htmlFor="visual-manual-name">风格名称</Label>
                   <Input
@@ -187,7 +230,7 @@ export function VisualManualEditorDialog({
                     onChange={(event) => setName(event.target.value)}
                   />
                 </div>
-                <div className="grid grid-cols-3 gap-2 text-xs text-muted-foreground">
+                <div className="grid grid-cols-3 gap-3 text-sm text-muted-foreground">
                   <div>
                     <div className="font-medium text-foreground">{manual.moduleCount}</div>
                     <div>模块</div>
@@ -204,7 +247,7 @@ export function VisualManualEditorDialog({
               </div>
 
               <ScrollArea className="min-h-0 flex-1">
-                <div className="space-y-1 p-3">
+                <div className="space-y-1.5 p-4">
                   {manual.modules.map((module) => {
                     const active = selectedModule?.value === module.value;
                     return (
@@ -213,14 +256,14 @@ export function VisualManualEditorDialog({
                         type="button"
                         onClick={() => setActiveModule(module.value)}
                         className={cn(
-                          "w-full rounded-md border px-3 py-2 text-left transition-colors",
+                          "w-full rounded-md border px-4 py-3 text-left transition-colors",
                           active
                             ? "border-primary bg-primary/10 text-foreground"
                             : "border-transparent text-muted-foreground hover:border-border hover:bg-muted/60 hover:text-foreground",
                         )}
                       >
-                        <div className="truncate text-sm font-medium">{module.label}</div>
-                        <div className="mt-1 truncate text-[11px]">{module.relativePath}</div>
+                        <div className="truncate text-base font-medium">{module.label}</div>
+                        <div className="mt-1.5 truncate text-xs">{module.relativePath}</div>
                       </button>
                     );
                   })}
@@ -229,16 +272,26 @@ export function VisualManualEditorDialog({
             </aside>
 
             <div className="flex min-h-0 min-w-0 flex-col">
-              <div className="border-b border-border p-4">
+              <div className="border-b border-border p-5">
                 {images.length > 0 ? (
-                  <div className="flex gap-3 overflow-x-auto pb-1">
+                  <div className="flex gap-4 overflow-x-auto pb-1">
                     {images.map((image) => (
-                      <div key={image.relativePath} className="group relative h-24 w-32 shrink-0 overflow-hidden rounded-md border border-border bg-muted">
-                        <LocalImage src={image.url} alt={image.name} className="h-full w-full object-cover" />
+                      <div key={image.relativePath} className="group relative h-36 w-48 shrink-0 overflow-hidden rounded-md border border-border bg-muted">
+                        <button
+                          type="button"
+                          className="h-full w-full cursor-zoom-in"
+                          onClick={() => setPreviewImage(image)}
+                          aria-label={`预览 ${image.name}`}
+                        >
+                          <LocalImage src={image.url} alt={image.name} className="h-full w-full object-cover" />
+                        </button>
                         <button
                           type="button"
                           className="absolute right-1 top-1 rounded bg-black/60 p-1 text-white opacity-0 transition-opacity group-hover:opacity-100"
-                          onClick={() => removeImage(image.relativePath)}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            removeImage(image.relativePath);
+                          }}
                           aria-label={`删除 ${image.name}`}
                         >
                           <Trash2 className="h-3.5 w-3.5" />
@@ -250,7 +303,7 @@ export function VisualManualEditorDialog({
                     ))}
                   </div>
                 ) : (
-                  <div className="flex h-20 items-center justify-center gap-2 rounded-md border border-dashed text-sm text-muted-foreground">
+                  <div className="flex h-32 items-center justify-center gap-2 rounded-md border border-dashed text-sm text-muted-foreground">
                     <ImageIcon className="h-4 w-4" />
                     暂无参考图
                   </div>
@@ -264,16 +317,16 @@ export function VisualManualEditorDialog({
                     className="hidden"
                     onChange={handleImageUpload}
                   />
-                  <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
+                  <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={isAddingImages}>
                     <ImagePlus className="mr-2 h-4 w-4" />
-                    新增参考图
+                    {isAddingImages ? "添加中" : "新增参考图"}
                   </Button>
                 </div>
               </div>
 
               <ResizablePanelGroup direction="horizontal" className="min-h-0 flex-1">
                 <ResizablePanel defaultSize={52} minSize={34}>
-                  <div className="flex h-full min-w-0 flex-col p-4 pr-2">
+                  <div className="flex h-full min-w-0 flex-col p-5 pr-2.5">
                     <div className="mb-2 flex items-center justify-between gap-3 text-xs text-muted-foreground">
                       <span>{selectedModule?.label ?? "模块"} 编辑</span>
                       <span className="truncate">{selectedModule?.relativePath}</span>
@@ -281,22 +334,22 @@ export function VisualManualEditorDialog({
                     <Textarea
                       value={selectedModule ? drafts[selectedModule.value] ?? "" : ""}
                       onChange={(event) => updateDraft(event.target.value)}
-                      className="h-full min-h-0 flex-1 resize-none font-mono text-xs leading-5"
+                      className="markdown-editor-textarea h-full min-h-0 flex-1 resize-none font-mono text-sm leading-6"
                     />
                   </div>
                 </ResizablePanel>
                 <ResizableHandle withHandle />
                 <ResizablePanel defaultSize={48} minSize={32}>
-                  <div className="flex h-full min-w-0 flex-col p-4 pl-2">
+                  <div className="flex h-full min-w-0 flex-col p-5 pl-2.5">
                     <div className="mb-2 text-xs font-medium text-muted-foreground">Markdown 预览</div>
                     <ScrollArea className="min-h-0 flex-1 rounded-md border bg-background">
-                      <article className="max-w-none space-y-3 p-5 text-sm leading-7 text-foreground">
+                      <article className="max-w-none space-y-4 p-7 text-base leading-8 text-foreground">
                         <ReactMarkdown
                           remarkPlugins={[remarkGfm]}
                           components={{
-                            h1: ({ children }) => <h1 className="text-xl font-semibold">{children}</h1>,
-                            h2: ({ children }) => <h2 className="mt-5 text-lg font-semibold">{children}</h2>,
-                            h3: ({ children }) => <h3 className="mt-4 text-base font-semibold">{children}</h3>,
+                            h1: ({ children }) => <h1 className="text-2xl font-semibold">{children}</h1>,
+                            h2: ({ children }) => <h2 className="mt-6 text-xl font-semibold">{children}</h2>,
+                            h3: ({ children }) => <h3 className="mt-5 text-lg font-semibold">{children}</h3>,
                             p: ({ children }) => <p className="text-foreground/90">{children}</p>,
                             ul: ({ children }) => <ul className="list-disc space-y-1 pl-5">{children}</ul>,
                             ol: ({ children }) => <ol className="list-decimal space-y-1 pl-5">{children}</ol>,
@@ -321,7 +374,7 @@ export function VisualManualEditorDialog({
           <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">请选择视觉风格</div>
         )}
 
-        <DialogFooter className="border-t border-border px-5 py-3">
+        <DialogFooter className="border-t border-border px-7 py-4">
           <Button variant="outline" onClick={() => onOpenChange(false)}>关闭</Button>
           <Button onClick={handleSave} disabled={!manual || !isDirty || isSaving}>
             <Save className="mr-2 h-4 w-4" />
@@ -329,6 +382,23 @@ export function VisualManualEditorDialog({
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      {previewImage ? (
+        <button
+          type="button"
+          className="fixed inset-0 z-[300] flex cursor-zoom-out items-center justify-center bg-black/80 p-8"
+          onClick={() => setPreviewImage(null)}
+          aria-label="关闭图片预览"
+        >
+          <LocalImage
+            src={previewImage.url}
+            alt={previewImage.name}
+            className="max-h-[calc(100vh-80px)] max-w-[calc(100vw-80px)] rounded-md object-contain shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+            draggable={false}
+          />
+        </button>
+      ) : null}
     </Dialog>
   );
 }

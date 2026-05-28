@@ -135,4 +135,23 @@ describe("prepareModelTestRequest", () => {
       message: "配置 dry-run 通过，V1 暂不调用 video 模型",
     });
   });
+
+  it("allows the default local TTS backend to dry-run without an API key", () => {
+    expect(prepareModelTestRequest({
+      provider: {
+        id: "provider-tts",
+        platform: "tts-compatible",
+        name: "TTS 后端",
+        baseUrl: "http://127.0.0.1:17593",
+        apiKey: "",
+        model: ["qwen-tts-0.6B"],
+      },
+      model: "qwen-tts-0.6B",
+      type: "tts",
+    })).toMatchObject({
+      success: true,
+      dryRun: true,
+      message: "配置 dry-run 通过，V1 暂不调用 tts 模型",
+    });
+  });
 });

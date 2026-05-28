@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildSkillContextPackage } from "@/lib/studio/context";
+import { DAOJIE_VISUAL_MANUAL_ID, buildStudioManualsFromSkillFiles } from "@/lib/studio/manuals";
 import { buildMediaRefFromMaterial, createMaterialRecord, inferMaterialKind } from "@/lib/studio/material";
 import { validateVendorConfig, resolveModelBinding } from "@/lib/studio/model-config";
 import {
@@ -134,18 +135,81 @@ describe("Manying Studio workflow core", () => {
     expect(context.modelExecution).toBe("disabled");
   });
 
-  it("uses Daojie manuals in the default skill context package", () => {
+  it("uses Daojie manuals from the stored skill catalog in the skill context package", () => {
     const context = buildSkillContextPackage({
       projectName: "道劫",
       taskKey: "storySkeleton",
       chapters: [],
       agentWorkData: [],
       createdAt: 1710000000000,
+      workflowConfig: {
+        visualManualId: DAOJIE_VISUAL_MANUAL_ID,
+      },
+      manualCatalog: {
+        visual: buildStudioManualsFromSkillFiles("visual", [
+          {
+            relativePath: "art_skills/daojie_ink_guofeng/README.md",
+            content: "# 水墨国风修仙\n\n三族灵气",
+          },
+          {
+            relativePath: "art_skills/daojie_ink_guofeng/prefix.md",
+            content: "万道归真",
+          },
+        ]),
+      },
     });
 
     expect(context.markdown).toContain("水墨国风修仙");
     expect(context.markdown).toContain("三族灵气");
     expect(context.markdown).toContain("万道归真");
+  });
+
+  it("builds skill context packages from stored manual catalogs when provided", () => {
+    const context = buildSkillContextPackage({
+      projectName: "道劫",
+      taskKey: "storySkeleton",
+      chapters: [],
+      agentWorkData: [],
+      createdAt: 1710000000000,
+      workflowConfig: {
+        visualManualId: "local_visual",
+        directorManualId: "local_director",
+      },
+      manualCatalog: {
+        visual: [{
+          id: "local_visual",
+          kind: "visual",
+          name: "本地视觉",
+          modules: { README: "# 本地视觉", prefix: "本地视觉前缀" },
+          images: [],
+          builtin: false,
+          source: "stored-copy",
+          completenessScore: 2,
+          moduleCount: 2,
+          imageCount: 0,
+        }],
+        director: [{
+          id: "local_director",
+          kind: "director",
+          name: "本地导演",
+          modules: {
+            README: "# 本地导演",
+            director_planning_narrative: "本地导演规划规则",
+            director_storyboard_table_narrative: "",
+          },
+          images: [],
+          builtin: false,
+          source: "stored-copy",
+          completenessScore: 2,
+          moduleCount: 2,
+          imageCount: 0,
+        }],
+      },
+    });
+
+    expect(context.markdown).toContain("本地视觉前缀");
+    expect(context.markdown).toContain("本地导演规划规则");
+    expect(context.markdown).not.toContain("三族灵气");
   });
 
   it("groups storyboards into Toonflow-style production tracks", () => {

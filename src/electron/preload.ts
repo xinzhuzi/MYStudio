@@ -4,7 +4,7 @@
 import { ipcRenderer, contextBridge } from 'electron'
 import type { ModelTestRequest, ModelTestResult } from '../lib/api-manager/model-test'
 import type { TextCompletionRequest, TextCompletionResult } from '../lib/api-manager/text-completion'
-import type { StudioVisualManualCreatePayload, StudioVisualManualWritePayload } from '../types/studio-visual-manual'
+import type { StudioVisualManualCreatePayload, StudioVisualManualImagesWritePayload, StudioVisualManualWritePayload } from '../types/studio-visual-manual'
 import type { TtsRuntimeCommandResult, TtsRuntimeStatus } from '../types/tts'
 
 // --------- Expose some API to the Renderer process ---------
@@ -72,6 +72,7 @@ contextBridge.exposeInMainWorld('studioSkills', {
   writeText: (relativePath: string, value: string) => ipcRenderer.invoke('studio-skill-write-text', relativePath, value),
   createText: (relativePath: string, value: string) => ipcRenderer.invoke('studio-skill-create-text', relativePath, value),
   deleteText: (relativePath: string) => ipcRenderer.invoke('studio-skill-delete-text', relativePath),
+  restoreText: (relativePath: string) => ipcRenderer.invoke('studio-skill-restore-text', relativePath),
 })
 
 contextBridge.exposeInMainWorld('studioVisualManuals', {
@@ -79,8 +80,12 @@ contextBridge.exposeInMainWorld('studioVisualManuals', {
   read: (stylePath: string) => ipcRenderer.invoke('studio-visual-manual-read', stylePath),
   write: (stylePath: string, payload: StudioVisualManualWritePayload) =>
     ipcRenderer.invoke('studio-visual-manual-write', stylePath, payload),
+  writeImages: (stylePath: string, payload: StudioVisualManualImagesWritePayload) =>
+    ipcRenderer.invoke('studio-visual-manual-write-images', stylePath, payload),
   create: (payload: StudioVisualManualCreatePayload) =>
     ipcRenderer.invoke('studio-visual-manual-create', payload),
+  duplicate: (payload: { sourceStylePath: string; name: string; stylePath: string; projectId?: string }) =>
+    ipcRenderer.invoke('studio-visual-manual-duplicate', payload),
 })
 // Storage manager API for paths, cache, import/export
 contextBridge.exposeInMainWorld('storageManager', {
@@ -149,12 +154,22 @@ contextBridge.exposeInMainWorld('studioRenderer', {
 
 contextBridge.exposeInMainWorld('studioAssets', {
   saveMaterial: (payload: { name: string; bytes: ArrayBuffer }) => ipcRenderer.invoke('studio-save-material', payload),
+  list: (payload: unknown) => ipcRenderer.invoke('assets:list', payload),
+  get: (id: string) => ipcRenderer.invoke('assets:get', id),
+  update: (payload: { id: string; updates: Record<string, unknown> }) => ipcRenderer.invoke('assets:update', payload),
+  addImage: (payload: { assetId: string; imageName: string; sourceFilePath: string }) => ipcRenderer.invoke('assets:add-image', payload),
+  removeImage: (payload: { assetId: string; imageFilePath: string }) => ipcRenderer.invoke('assets:remove-image', payload),
+  renameImage: (payload: { assetId: string; imageFilePath: string; newName: string }) => ipcRenderer.invoke('assets:rename-image', payload),
+  selectImageFile: () => ipcRenderer.invoke('assets:select-image-file'),
+  importFromToonflow: (payload: { type: string }) => ipcRenderer.invoke('assets:import-from-toonflow', payload),
 })
 
 contextBridge.exposeInMainWorld('ttsRuntime', {
   status: (): Promise<TtsRuntimeStatus> => ipcRenderer.invoke('tts-runtime-status'),
   start: (): Promise<TtsRuntimeCommandResult> => ipcRenderer.invoke('tts-runtime-start'),
   stop: (): Promise<TtsRuntimeCommandResult> => ipcRenderer.invoke('tts-runtime-stop'),
+  setModelCacheDir: (dirPath: string): Promise<TtsRuntimeCommandResult> =>
+    ipcRenderer.invoke('tts-runtime-set-model-cache-dir', dirPath),
   request: (payload: { method: string; path: string; body?: unknown }): Promise<unknown> =>
     ipcRenderer.invoke('tts-runtime-request', payload),
 })

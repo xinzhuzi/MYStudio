@@ -179,6 +179,8 @@ export function applyModelStatuses(statuses: BackendModelStatus[] = []): TtsMode
       sizeMb: status?.size_mb ?? model.sizeMb,
       backendDisplayName: status?.display_name,
       backendRepoId: status?.hf_repo_id,
+      modelCacheDir: status?.model_cache_dir ?? undefined,
+      modelRepoPath: status?.model_repo_path ?? undefined,
     };
   });
 }

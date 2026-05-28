@@ -121,7 +121,7 @@ no modern anime style, no digital 3D rendering, no CG animation, no cel-shading,
 
 以下词汇/风格不得出现于输出提示词中：
 
-- ❌ 现代日系动画风格（如新海诚后期、MAPPA风格）
+- ❌ 现代高精度数字动画风格、近年商业番剧式高饱和摄影风格
 - ❌ 3D渲染/CG动画/数字绘画相关词
 - ❌ 高饱和荧光色/霓虹色系
 - ❌ 现代服饰/现代建筑元素

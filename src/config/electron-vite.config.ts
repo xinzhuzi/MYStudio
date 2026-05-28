@@ -7,10 +7,12 @@ import { apiCorsProxyPlugin } from './api-cors-proxy';
 
 const configDir = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(configDir, '..', '..');
+const electronViteOutDir = path.resolve(projectRoot, 'release', '.electron-vite');
 
 export default defineConfig({
   main: {
     build: {
+      outDir: path.resolve(electronViteOutDir, 'main'),
       rollupOptions: {
         input: {
           index: path.resolve(projectRoot, 'src/electron/main.ts'),
@@ -23,6 +25,7 @@ export default defineConfig({
   },
   preload: {
     build: {
+      outDir: path.resolve(electronViteOutDir, 'preload'),
       rollupOptions: {
         input: {
           index: path.resolve(projectRoot, 'src/electron/preload.ts'),
@@ -42,6 +45,7 @@ export default defineConfig({
       },
     },
     build: {
+      outDir: path.resolve(electronViteOutDir, 'renderer'),
       rollupOptions: {
         input: {
           index: path.resolve(projectRoot, 'src/renderer/index.html'),

@@ -2,11 +2,17 @@ import { describe, expect, it } from "vitest";
 import {
   API_MANAGER_SECTIONS,
   API_SERVICE_SUMMARY_FIELDS,
+  DEFAULT_SETTINGS_TAB,
   SETTINGS_TABS,
   buildProviderAdapterTemplate,
 } from "./SettingsPanel";
 
 describe("SettingsPanel navigation", () => {
+  it("opens settings on the appearance tab by default", () => {
+    expect(DEFAULT_SETTINGS_TAB).toBe("appearance");
+    expect(SETTINGS_TABS[0]?.value).toBe("appearance");
+  });
+
   it("keeps workflow configuration inside API management instead of a top-level tab", () => {
     const labels = SETTINGS_TABS.map((tab) => tab.label);
     expect(labels).not.toContain("工作流配置");

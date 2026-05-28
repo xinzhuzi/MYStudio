@@ -1,4 +1,4 @@
-export type StudioVisualManualCategory = "daojie" | "2d" | "3d" | "real" | "other";
+export type StudioVisualManualCategory = "daojie" | "2d" | "3d" | "real" | "stop_motion" | "other";
 
 export interface StudioVisualManualModuleDefinition {
   label: string;
@@ -49,10 +49,16 @@ export interface StudioVisualManualWritePayload {
   }>;
 }
 
+export interface StudioVisualManualImagesWritePayload {
+  images: NonNullable<StudioVisualManualWritePayload["images"]>;
+}
+
 export interface StudioVisualManualCreatePayload {
   stylePath: string;
   name: string;
   description?: string;
+  /** 如果指定，风格存储到项目目录下 */
+  projectId?: string;
 }
 
 export const STUDIO_VISUAL_MANUAL_MODULES: StudioVisualManualModuleDefinition[] = [

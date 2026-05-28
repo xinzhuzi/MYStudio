@@ -278,7 +278,7 @@ export function ScriptView() {
   const rawScript = scriptProject?.rawScript || "";
   const language = scriptProject?.language || "中文";
   const targetDuration = scriptProject?.targetDuration || "60s";
-  const styleId = scriptProject?.styleId || DEFAULT_STYLE_ID;
+  const styleId = scriptProject?.styleId ?? DEFAULT_STYLE_ID;
   const sceneCount = scriptProject?.sceneCount;
   const shotCount = scriptProject?.shotCount;
   const scriptData = scriptProject?.scriptData || null;

@@ -35,7 +35,7 @@ const WORKSPACE_LABELS: Partial<Record<Tab, string>> = {
   director: "导演工作台",
   sclass: "S级镜头",
   assets: "资产库",
-  media: "素材管理",
+  media: "视频管理",
   skills: "技能编辑",
   tts: "TTS 口播",
   export: "成片与导出",
@@ -112,7 +112,7 @@ export function ProjectHeader({
   const workspaceLabel = getProjectWorkspaceLabel(activeTab, activeStage);
 
   return (
-    <div className="project-chrome h-11 bg-[#0f0f0f] border-b border-zinc-800 px-4 flex items-center justify-between shrink-0">
+    <div className="project-chrome h-11 border-b px-4 flex items-center justify-between shrink-0">
       {/* Left: Project Name + Stage + Episode Breadcrumb */}
       <div className="flex min-w-0 items-center gap-4">
         {sidebarCollapsed && onToggleSidebar && (
@@ -126,15 +126,15 @@ export function ProjectHeader({
           canGoBack
         />
         <div className="project-breadcrumb min-w-0">
-          <span className="text-sm font-medium text-white truncate max-w-[220px]">
+          <span className="project-chrome-title text-sm font-medium text-white truncate max-w-[220px]">
             {activeProject?.name || "未命名项目"}
           </span>
         </div>
         {activeEpisodeIndex != null && (
           <>
-            <ChevronRight className="h-3 w-3 text-zinc-600" />
+            <ChevronRight className="project-chrome-separator h-3 w-3" />
             <button
-              className="text-xs text-primary hover:text-primary/80 font-medium transition-colors"
+              className="project-chrome-episode text-xs text-primary hover:text-primary/80 font-medium transition-colors"
               onClick={backToSeries}
               title="返回全剧视图"
             >
@@ -142,8 +142,8 @@ export function ProjectHeader({
             </button>
           </>
         )}
-        <span className="text-zinc-700">/</span>
-        <span className="text-xs text-zinc-400">
+        <span className="project-chrome-divider">/</span>
+        <span className="project-chrome-workspace text-xs">
           {workspaceLabel}
         </span>
       </div>
@@ -160,7 +160,7 @@ function SaveStatusIndicator({ status }: { status: SaveStatus }) {
   return (
     <div
       className={cn(
-        "flex items-center gap-1.5 px-2 py-1 rounded text-[10px] transition-colors",
+        "save-status-pill flex items-center gap-1.5 px-2 py-1 rounded text-[10px] transition-colors",
         status === "saved" && "text-green-500/70 bg-green-500/5",
         status === "saving" && "text-yellow-500/70 bg-yellow-500/5",
         status === "unsaved" && "text-zinc-500 bg-zinc-800/50"

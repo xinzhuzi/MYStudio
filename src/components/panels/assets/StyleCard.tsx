@@ -8,6 +8,7 @@
  * 默认风格和自定义风格共用
  */
 
+import { memo, useEffect, useRef, useState, type CSSProperties } from "react";
 import { cn } from "@/lib/utils";
 import { LocalImage } from "@/components/ui/local-image";
 import type { StyleCategory } from "@/lib/constants/visual-styles";
@@ -39,7 +40,12 @@ interface StyleCardProps {
   onDoubleClick?: () => void;
 }
 
-export function StyleCard({
+const styleCardVisibilityStyle = {
+  contentVisibility: "auto",
+  containIntrinsicSize: "260px 220px",
+} satisfies CSSProperties;
+
+function StyleCardComponent({
   name,
   description,
   category,
@@ -53,26 +59,59 @@ export function StyleCard({
   // 自定义风格用第一张参考图
   const customImage = isCustom ? referenceImages?.[0] : undefined;
   const displayImage = customImage || thumbnailSrc;
+  const cardRef = useRef<HTMLDivElement | null>(null);
+  const [shouldLoadImage, setShouldLoadImage] = useState(!displayImage);
+
+  useEffect(() => {
+    if (!displayImage) {
+      setShouldLoadImage(true);
+      return;
+    }
+    if (shouldLoadImage) return;
+    const element = cardRef.current;
+    if (!element || typeof IntersectionObserver === "undefined") {
+      setShouldLoadImage(true);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry?.isIntersecting) return;
+        setShouldLoadImage(true);
+        observer.disconnect();
+      },
+      { rootMargin: "320px" },
+    );
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [displayImage, shouldLoadImage]);
 
   return (
     <div
+      ref={cardRef}
       className={cn(
-        "group relative flex flex-col rounded-lg border bg-card overflow-hidden cursor-pointer transition-all hover:shadow-md",
+        "group relative flex flex-col rounded-lg border bg-card overflow-hidden cursor-pointer transition-[border-color,box-shadow] hover:shadow-md",
         isSelected
           ? "border-primary ring-1 ring-primary/30"
           : "border-border hover:border-primary/50"
       )}
+      style={styleCardVisibilityStyle}
       onClick={onClick}
       onDoubleClick={onDoubleClick}
     >
       {/* 缩略图区域 */}
       <div className="relative aspect-[4/3] bg-muted overflow-hidden">
-        {displayImage ? (
+        {displayImage && shouldLoadImage ? (
           <LocalImage
             src={displayImage}
             alt={name}
             className="w-full h-full object-cover"
+            loading="lazy"
+            decoding="async"
+            draggable={false}
           />
+        ) : displayImage ? (
+          <div className="h-full w-full bg-muted/70" />
         ) : category ? (
           /* 内置风格：色块占位 + 分类标签 */
           <div className={cn(
@@ -106,3 +145,5 @@ export function StyleCard({
     </div>
   );
 }
+
+export const StyleCard = memo(StyleCardComponent);

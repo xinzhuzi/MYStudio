@@ -2,10 +2,7 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { createProjectScopedStorage } from "@/lib/project-storage";
 import { buildSkillContextPackage } from "@/lib/studio/context";
-import {
-  DEFAULT_DIRECTOR_MANUAL_ID,
-  DEFAULT_VISUAL_MANUAL_ID,
-} from "@/lib/studio/manuals";
+import { type StudioManualCatalog } from "@/lib/studio/manuals";
 import { buildMediaRefFromMaterial, createMaterialRecord } from "@/lib/studio/material";
 import {
   appendNovelChapters,
@@ -51,7 +48,7 @@ interface StudioWorkflowActions {
   deleteNovelChapters: (ids: string[]) => void;
   setWorkflowConfig: (updates: Partial<StudioWorkflowConfig>) => void;
   saveAgentWorkData: (key: AgentWorkKey, data: string, episodeId?: string) => string;
-  buildContext: (projectName: string, taskKey: AgentWorkKey) => SkillContextPackage;
+  buildContext: (projectName: string, taskKey: AgentWorkKey, manualCatalog?: StudioManualCatalog) => SkillContextPackage;
   addStoryboard: (item?: Partial<StoryboardItem>) => string;
   updateStoryboard: (id: string, updates: Partial<StoryboardItem>) => void;
   bindStoryboardMedia: (id: string, mediaRef: StoryboardMediaRef) => void;
@@ -75,8 +72,6 @@ const initialState: StudioWorkflowState = {
   productionTracks: [],
   videoCandidates: [],
   workflowConfig: {
-    visualManualId: DEFAULT_VISUAL_MANUAL_ID,
-    directorManualId: DEFAULT_DIRECTOR_MANUAL_ID,
     autoAnalyzeEventsOnImport: false,
   },
   lastContextPackage: null,
@@ -182,13 +177,14 @@ export const useStudioStore = create<StudioWorkflowStore>()(
         return id;
       },
 
-      buildContext: (projectName, taskKey) => {
+      buildContext: (projectName, taskKey, manualCatalog) => {
         const context = buildSkillContextPackage({
           projectName,
           taskKey,
           chapters: get().novelChapters,
           agentWorkData: get().agentWorkData,
           workflowConfig: get().workflowConfig,
+          manualCatalog,
         });
         set({ lastContextPackage: context });
         return context;
@@ -335,12 +331,12 @@ function migrateStudioWorkflowState(persistedState: unknown) {
 function normalizeWorkflowConfig(config: Partial<StudioWorkflowConfig> | undefined): StudioWorkflowConfig {
   return {
     ...config,
-    visualManualId: !config?.visualManualId || config.visualManualId === LEGACY_VISUAL_MANUAL_ID
-      ? DEFAULT_VISUAL_MANUAL_ID
-      : config.visualManualId,
-    directorManualId: !config?.directorManualId || config.directorManualId === LEGACY_DIRECTOR_MANUAL_ID
-      ? DEFAULT_DIRECTOR_MANUAL_ID
-      : config.directorManualId,
+    visualManualId: config?.visualManualId === LEGACY_VISUAL_MANUAL_ID
+      ? undefined
+      : config?.visualManualId,
+    directorManualId: config?.directorManualId === LEGACY_DIRECTOR_MANUAL_ID
+      ? undefined
+      : config?.directorManualId,
   };
 }
 

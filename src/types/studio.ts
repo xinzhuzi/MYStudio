@@ -164,7 +164,7 @@ export interface StudioManualPreset {
   modules: Record<string, string>;
   images: string[];
   builtin: boolean;
-  source: "bundled" | "toonflow-runtime";
+  source: "bundled" | "toonflow-runtime" | "stored-copy";
   completenessScore: number;
   moduleCount: number;
   imageCount: number;
@@ -181,8 +181,8 @@ export interface AgentSkillPreset {
 }
 
 export interface StudioWorkflowConfig {
-  visualManualId: string;
-  directorManualId: string;
+  visualManualId?: string;
+  directorManualId?: string;
   episodeCount?: number;
   episodeDurationMin?: number;
   chapterRange?: string;

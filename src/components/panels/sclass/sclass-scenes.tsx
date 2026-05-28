@@ -314,9 +314,9 @@ export function SClassScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
     if (storyboardConfig.styleTokens && storyboardConfig.styleTokens.length > 0) {
       const joinedTokens = storyboardConfig.styleTokens.join(', ');
       const found = VISUAL_STYLE_PRESETS.find(s => s.prompt.startsWith(joinedTokens));
-      return found?.id || DEFAULT_STYLE_ID;
+      return found?.id || "";
     }
-    return DEFAULT_STYLE_ID;
+    return "";
   }, [storyboardConfig.visualStyleId, storyboardConfig.styleTokens]);
 
   // 读取当前摄影风格档案（未设置时使用默认经典电影摄影风格）
@@ -330,6 +330,11 @@ export function SClassScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
 
   // Update style
   const handleStyleChange = useCallback((styleId: string) => {
+    if (!styleId) {
+      setStoryboardConfig({ visualStyleId: undefined, styleTokens: [] });
+      toast.success('已清除视觉风格');
+      return;
+    }
     const style = getStyleById(styleId);
     if (style) {
       // 直接存储风格 ID，同时保留 styleTokens（完整 prompt）兼容旧逻辑
@@ -3087,7 +3092,7 @@ export function SClassScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-muted-foreground whitespace-nowrap">视觉风格:</span>
                   <StylePicker
-                    value={currentStyleId}
+                    value={currentStyleId || ""}
                     onChange={handleStyleChange}
                     disabled={isGenerating}
                   />
@@ -3283,7 +3288,7 @@ export function SClassScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
         <div className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground whitespace-nowrap">视觉风格:</span>
           <StylePicker
-            value={currentStyleId}
+            value={currentStyleId || ""}
             onChange={handleStyleChange}
             disabled={isGenerating}
           />

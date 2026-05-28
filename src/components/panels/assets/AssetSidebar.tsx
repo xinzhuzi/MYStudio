@@ -17,11 +17,21 @@ import {
   ChevronRight,
   FolderOpen,
   Box,
+  Film,
+  Map,
+  Music2,
 } from "lucide-react";
 import { useState } from "react";
 
 // 导航节点类型
-export type AssetSection = "style-default" | "style-custom" | "props-library";
+export type AssetSection =
+  | "style-default"
+  | "style-custom"
+  | "asset-role"
+  | "asset-scene"
+  | "asset-tool"
+  | "asset-clip"
+  | "asset-audio";
 
 interface AssetSidebarProps {
   activeSection: AssetSection;
@@ -47,11 +57,15 @@ const NAV_MODULES: NavModule[] = [
     ],
   },
   {
-    id: "props",
-    label: "道具库",
+    id: "assets",
+    label: "制作资产",
     icon: Box,
     children: [
-      { id: "props-library", label: "我的道具", icon: Box },
+      { id: "asset-role", label: "角色", icon: UserCircle },
+      { id: "asset-scene", label: "场景", icon: Map },
+      { id: "asset-tool", label: "道具", icon: Box },
+      { id: "asset-clip", label: "素材", icon: Film },
+      { id: "asset-audio", label: "音频", icon: Music2 },
     ],
   },
 ];
@@ -71,9 +85,9 @@ export function AssetSidebar({ activeSection, onSectionChange }: AssetSidebarPro
   };
 
   return (
-    <div className="h-full flex flex-col bg-panel border-r border-border">
+    <div className="asset-sidebar-console h-full flex flex-col bg-panel border-r border-border">
       {/* 标题 */}
-      <div className="px-3 py-3 border-b border-border shrink-0">
+      <div className="asset-sidebar-header px-3 py-3 border-b border-border shrink-0">
         <div className="flex items-center gap-2">
           <FolderOpen className="w-4 h-4 text-primary" />
           <span className="text-sm font-semibold">个人资产库</span>
@@ -86,7 +100,7 @@ export function AssetSidebar({ activeSection, onSectionChange }: AssetSidebarPro
           <div key={mod.id} className="mb-1">
             {/* 模块标题 */}
             <button
-              className="flex items-center gap-1.5 w-full px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+              className="asset-sidebar-module flex items-center gap-1.5 w-full px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
               onClick={() => toggleModule(mod.id)}
             >
               {expanded.has(mod.id) ? (
@@ -105,9 +119,9 @@ export function AssetSidebar({ activeSection, onSectionChange }: AssetSidebarPro
                   <button
                     key={child.id}
                     className={cn(
-                      "flex items-center gap-2 w-full px-3 py-1.5 text-xs rounded-md transition-colors",
+                      "asset-sidebar-item flex items-center gap-2 w-full px-3 py-1.5 text-xs rounded-md transition-colors",
                       activeSection === child.id
-                        ? "bg-primary/10 text-primary font-medium"
+                        ? "is-active bg-primary/10 text-primary font-medium"
                         : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                     )}
                     onClick={() => onSectionChange(child.id)}

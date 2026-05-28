@@ -39,6 +39,7 @@ import {
   Save,
   Search,
   Trash2,
+  Undo2,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -56,6 +57,8 @@ type EditableSkillFile = StudioSkillFile & {
   size?: number;
   updatedAt?: number;
   isCustomized?: boolean;
+  isDeleted?: boolean;
+  deletedAt?: number;
   sourceExists?: boolean;
 };
 
@@ -96,6 +99,7 @@ export function SkillsView({
     [files, selectedPath],
   );
   const isDirty = draft !== savedContent;
+  const canRestore = Boolean(selectedFile?.sourceExists && (selectedFile.isDeleted || selectedFile.isCustomized));
   const createRelativePath = useMemo(
     () => buildSkillCreatePath(createCategory, createPath),
     [createCategory, createPath],
@@ -131,6 +135,11 @@ export function SkillsView({
     setSelectedPath(file.relativePath);
     setIsLoading(true);
     try {
+      if (file.isDeleted) {
+        setDraft("");
+        setSavedContent("");
+        return;
+      }
       if (window.studioSkills?.readText) {
         const result = await window.studioSkills.readText(file.relativePath);
         if (!result.success) throw new Error(result.error || "读取技能文件失败");
@@ -185,6 +194,8 @@ export function SkillsView({
             size: remote.size,
             updatedAt: remote.updatedAt,
             isCustomized: remote.isCustomized,
+            isDeleted: remote.isDeleted,
+            deletedAt: remote.deletedAt,
             sourceExists: remote.sourceExists,
           };
         });
@@ -308,6 +319,49 @@ export function SkillsView({
     }
   };
 
+  const handleRestore = async () => {
+    if (!selectedFile) return;
+    if (!window.studioSkills?.restoreText) {
+      toast.error("当前环境不支持恢复技能文件，请在 Electron 中打开");
+      return;
+    }
+    if (!selectedFile.sourceExists) {
+      toast.error("这个技能没有内置副本，无法恢复");
+      return;
+    }
+    const confirmMessage = selectedFile.isDeleted
+      ? `从内置副本恢复技能文件：${selectedFile.relativePath}`
+      : `用内置副本覆盖当前技能文件：${selectedFile.relativePath}`;
+    if (!window.confirm(`${confirmMessage}\n继续？`)) return;
+    setIsSaving(true);
+    try {
+      const result = await window.studioSkills.restoreText(selectedFile.relativePath);
+      if (!result.success || !result.relativePath) throw new Error(result.error || "恢复技能文件失败");
+      const nextFile = {
+        ...selectedFile,
+        relativePath: result.relativePath,
+        id: result.relativePath,
+        filePath: result.filePath ?? selectedFile.filePath,
+        storagePath: result.storagePath ?? selectedFile.storagePath,
+        sourcePath: result.sourcePath ?? selectedFile.sourcePath,
+        size: result.size ?? selectedFile.size,
+        updatedAt: result.updatedAt ?? selectedFile.updatedAt,
+        isCustomized: result.isCustomized ?? false,
+        isDeleted: result.isDeleted ?? false,
+        sourceExists: result.sourceExists ?? true,
+      } satisfies EditableSkillFile;
+      setFiles((current) => current.map((item) => (
+        item.relativePath === selectedFile.relativePath ? nextFile : item
+      )));
+      await loadFile(nextFile);
+      toast.success("已从内置副本恢复");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "恢复技能文件失败");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
     <div className="skills-workspace flex h-full flex-col overflow-hidden bg-background">
       <div className="h-16 shrink-0 border-b border-border bg-panel px-6 flex items-center justify-between">
@@ -324,23 +378,33 @@ export function SkillsView({
           </h2>
           <Badge variant="outline">{files.length} 个 Markdown</Badge>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => setIsCreateOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            新增
-          </Button>
-          <Button variant="outline" size="sm" onClick={handleDelete} disabled={!selectedFile || isSaving}>
-            <Trash2 className="mr-2 h-4 w-4" />
-            删除
-          </Button>
-          <Button variant="outline" size="sm" onClick={handleReload} disabled={!selectedFile || isLoading}>
-            <RefreshCw className={cn("mr-2 h-4 w-4", isLoading && "animate-spin")} />
-            重载
-          </Button>
-          <Button size="sm" onClick={handleSave} disabled={!selectedFile || !isDirty || isSaving}>
-            <Save className="mr-2 h-4 w-4" />
-            {isSaving ? "保存中" : "保存"}
-          </Button>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center rounded-md border border-border bg-background/60 p-1">
+            <Button variant="ghost" size="sm" onClick={() => setIsCreateOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              新增
+            </Button>
+          </div>
+          <div className="flex items-center rounded-md border border-border bg-background/60 p-1">
+            <Button variant="ghost" size="sm" onClick={handleRestore} disabled={!canRestore || isSaving}>
+              <Undo2 className="mr-2 h-4 w-4" />
+              恢复
+            </Button>
+            <Button variant="destructive" size="sm" onClick={handleDelete} disabled={!selectedFile || selectedFile.isDeleted || isSaving}>
+              <Trash2 className="mr-2 h-4 w-4" />
+              删除
+            </Button>
+          </div>
+          <div className="flex items-center rounded-md border border-border bg-background/60 p-1">
+            <Button variant="ghost" size="sm" onClick={handleReload} disabled={!selectedFile || selectedFile.isDeleted || isLoading}>
+              <RefreshCw className={cn("mr-2 h-4 w-4", isLoading && "animate-spin")} />
+              重载
+            </Button>
+            <Button size="sm" onClick={handleSave} disabled={!selectedFile || selectedFile.isDeleted || !isDirty || isSaving}>
+              <Save className="mr-2 h-4 w-4" />
+              {isSaving ? "保存中" : "保存"}
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -394,6 +458,7 @@ export function SkillsView({
                       <div className="flex items-center gap-2">
                         <CategoryIcon category={file.category} />
                         <span className="min-w-0 flex-1 truncate text-sm font-medium">{file.title}</span>
+                        {file.isDeleted ? <Badge variant="outline" className="shrink-0 text-[10px]">已删除</Badge> : null}
                       </div>
                       <div className="mt-1 truncate text-[11px]">{file.relativePath}</div>
                     </button>
@@ -414,7 +479,8 @@ export function SkillsView({
             <div className="border-b border-border px-5 py-3">
               <div className="flex items-center gap-2">
                 <Badge variant="secondary">{selectedFile ? STUDIO_SKILL_CATEGORY_LABELS[selectedFile.category] : "未选择"}</Badge>
-                {selectedFile?.sourceExists ? <Badge variant="outline">存储副本</Badge> : null}
+                {selectedFile?.isDeleted ? <Badge variant="outline">已删除</Badge> : null}
+                {selectedFile?.sourceExists ? <Badge variant="outline">可编辑</Badge> : null}
                 {selectedFile?.isCustomized ? <Badge variant="outline">已改</Badge> : null}
                 {isDirty ? <Badge variant="outline">未保存</Badge> : <Badge variant="outline">已保存</Badge>}
               </div>
@@ -432,9 +498,9 @@ export function SkillsView({
                   <Textarea
                     value={draft}
                     onChange={(event) => setDraft(event.target.value)}
-                    readOnly={!selectedFile || isLoading}
-                    className="h-full min-h-0 flex-1 resize-none font-mono text-xs leading-5"
-                    placeholder="选择左侧技能文件后编辑 Markdown"
+                    readOnly={!selectedFile || selectedFile.isDeleted || isLoading}
+                    className="markdown-editor-textarea h-full min-h-0 flex-1 resize-none font-mono text-xs leading-5"
+                    placeholder={selectedFile?.isDeleted ? "这个技能已删除，点击恢复从内置副本补回" : "选择左侧技能文件后编辑 Markdown"}
                   />
                 </div>
               </ResizablePanel>
