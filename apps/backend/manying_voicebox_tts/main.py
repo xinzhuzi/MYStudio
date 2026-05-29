@@ -17,6 +17,22 @@ from .engine import is_engine_loaded, synthesize_to_wav, unload_engine
 from .model_cache import download_hf_cache_dir, find_cached_model, hf_cache_dirs, is_model_downloaded, primary_hf_cache_dir, repo_cache_dir
 from .storage import RuntimeStore
 
+import queue
+
+
+def _inference_worker(task_queue: queue.Queue):
+    """Dedicated thread for all MLX/TTS inference (MLX is not thread-safe)."""
+    while True:
+        task = task_queue.get()
+        if task is None:
+            break
+        fn, args = task
+        try:
+            fn(*args)
+        except Exception:
+            pass
+        task_queue.task_done()
+
 
 class RuntimeState:
     def __init__(self, store: RuntimeStore):
@@ -25,6 +41,9 @@ class RuntimeState:
         self.progress: dict[str, dict] = {}
         self.download_threads: dict[str, threading.Thread] = {}
         self.generations: dict[str, dict] = {}
+        self.inference_queue: queue.Queue = queue.Queue()
+        self._inference_thread = threading.Thread(target=_inference_worker, args=(self.inference_queue,), daemon=True)
+        self._inference_thread.start()
 
     def set_progress(self, model_name: str, **updates):
         with self.lock:
@@ -333,8 +352,7 @@ class Handler(BaseHTTPRequestHandler):
         language = payload.get("language") or profile.get("language") or "zh"
         generation = self.state.store.create_generation(profile_id, text, engine, model_size, language)
         self.state.start_generation(generation["id"], profile_id, text)
-        thread = threading.Thread(target=self.generate_audio, args=(generation["id"], text, profile, engine, model_size, language, payload.get("seed")), daemon=True)
-        thread.start()
+        self.state.inference_queue.put((self.generate_audio, (generation["id"], text, profile, engine, model_size, language, payload.get("seed"))))
         self.send_json(generation, status=HTTPStatus.CREATED)
 
     def generate_audio(self, generation_id: str, text: str, profile: dict, engine: str, model_size: str | None, language: str, seed: int | None):

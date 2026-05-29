@@ -16,13 +16,13 @@ files:
   - "!node_modules/@img/**"
 
 extraResources:
-  - from: ../backend
+  - from: backend
     to: backend
     filter:
       - "**/*"
       - "!**/__pycache__/**"
       - "!**/*.pyc"
-      - "!**/venv/**"
+      - "!venv/**"
       - "!**/.DS_Store"
   - from: frontend/assets/studio-manuals
     to: studio-manuals
