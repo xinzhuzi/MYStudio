@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { usePropsLibraryStore } from "@/stores/props-library-store";
 import { useStudioStore } from "@/stores/studio-store";
 import type { StudioAssetKind, StudioAssetSummary } from "@/types/studio-assets";
-import { Box, CheckSquare, Film, Loader2, Map, Music2, Plus, RefreshCw, Search, Square, Trash2, UserCircle } from "lucide-react";
+import { Box, CheckSquare, ChevronDown, ChevronRight, Film, Loader2, Map, Music2, Plus, RefreshCw, Search, Square, Trash2, UserCircle } from "lucide-react";
 import { toast } from "sonner";
 import { StudioAssetCard } from "./StudioAssetCard";
 import { StudioAssetDetailDialog } from "./StudioAssetDetailDialog";
@@ -303,44 +303,21 @@ export function StudioAssetLibrary({ type }: { type: StudioAssetKind }) {
       </div>
 
       <div className="min-h-0 flex-1">
-        <VirtualGrid
+        <AudioGroupedGrid
+          type={type}
           items={items}
-          minColumnWidth={172}
-          rowHeight={232}
-          gap={14}
-          getKey={(item) => item.id}
-          renderItem={(item) => <StudioAssetCard asset={item} onOpen={setSelectedAsset} selected={selectedIds.has(item.id)} selectMode={selectMode} onToggleSelect={toggleSelect} />}
-          empty={
-            <div className="flex h-full flex-col items-center justify-center gap-3 text-muted-foreground">
-              {isLoading ? (
-                <>
-                  <Loader2 className="h-8 w-8 animate-spin opacity-50" />
-                  <div className="text-sm">正在读取素材</div>
-                </>
-              ) : (
-                <>
-                  <Icon className="h-14 w-14 opacity-20" />
-                  <div className="text-sm">{error || config.empty}</div>
-                </>
-              )}
-            </div>
-          }
-          footer={
-            items.length > 0 ? (
-              <div className="flex items-center justify-center px-4 pb-5">
-                {canLoadMore ? (
-                  <Button variant="outline" size="sm" onClick={() => loadAssets(runtimeItems.length, "append")} disabled={isLoadingMore}>
-                    {isLoadingMore ? (
-                      <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-                    ) : null}
-                    加载更多
-                  </Button>
-                ) : (
-                  <span className="text-xs text-muted-foreground">已显示全部</span>
-                )}
-              </div>
-            ) : null
-          }
+          isLoading={isLoading}
+          Icon={Icon}
+          error={error}
+          emptyText={config.empty}
+          selectedIds={selectedIds}
+          selectMode={selectMode}
+          onToggleSelect={toggleSelect}
+          onOpen={setSelectedAsset}
+          canLoadMore={canLoadMore}
+          isLoadingMore={isLoadingMore}
+          onLoadMore={() => loadAssets(runtimeItems.length, "append")}
+          onRefresh={() => { delete assetCache[getCacheKey(type, search)]; void loadAssets(0, "replace", true); }}
         />
       </div>
       <StudioAssetDetailDialog
@@ -349,8 +326,6 @@ export function StudioAssetLibrary({ type }: { type: StudioAssetKind }) {
         onOpenChange={(open) => {
           if (!open) {
             setSelectedAsset(null);
-            delete assetCache[getCacheKey(type, search)];
-            void loadAssets(0, "replace", true);
           }
         }}
       />
@@ -379,4 +354,202 @@ function mergeAssetItems(current: StudioAssetSummary[], next: StudioAssetSummary
       return true;
     }),
   ];
+}
+
+const TTS_GENERATED_PATTERN = /^scene-\d+-voice-|^tts-clone-/;
+
+function isLocalMade(asset: StudioAssetSummary): boolean {
+  const name = asset.name || "";
+  const filePath = asset.filePath || "";
+  return TTS_GENERATED_PATTERN.test(name) || TTS_GENERATED_PATTERN.test(filePath);
+}
+
+function AudioGroupedGrid({
+  type,
+  items,
+  isLoading,
+  Icon,
+  error,
+  emptyText,
+  selectedIds,
+  selectMode,
+  onToggleSelect,
+  onOpen,
+  canLoadMore,
+  isLoadingMore,
+  onLoadMore,
+  onRefresh,
+}: {
+  type: string;
+  items: StudioAssetSummary[];
+  isLoading: boolean;
+  Icon: React.ElementType;
+  error: string;
+  emptyText: string;
+  selectedIds: Set<string>;
+  selectMode: boolean;
+  onToggleSelect: (id: string) => void;
+  onOpen: (asset: StudioAssetSummary) => void;
+  canLoadMore: boolean;
+  isLoadingMore: boolean;
+  onLoadMore: () => void;
+  onRefresh: () => void;
+}) {
+  const [voiceExpanded, setVoiceExpanded] = useState(true);
+  const [localExpanded, setLocalExpanded] = useState(false);
+  const [batchRunning, setBatchRunning] = useState(false);
+  const [batchProgress, setBatchProgress] = useState({ done: 0, total: 0 });
+
+  // 批量识别：对 description 为空的音色音频逐个识别
+  const handleBatchTranscribe = async (targets: StudioAssetSummary[]) => {
+    if (!window.ttsRuntime?.request || !window.studioAssets?.get || !window.studioAssets?.update) {
+      toast.error("TTS 后端未就绪");
+      return;
+    }
+    setBatchRunning(true);
+    let done = 0;
+    let success = 0;
+    const pending: { id: string; audioPath: string }[] = [];
+    for (const item of targets) {
+      const detail = await window.studioAssets.get(item.id).catch(() => null);
+      const audioPath = detail?.sourcePath || detail?.filePath;
+      if (!detail?.description?.trim() && audioPath) pending.push({ id: item.id, audioPath });
+    }
+    setBatchProgress({ done: 0, total: pending.length });
+    if (pending.length === 0) {
+      toast.info("没有需要识别的音频（都已有说话内容）");
+      setBatchRunning(false);
+      return;
+    }
+    for (const { id, audioPath } of pending) {
+      try {
+        const res = await window.ttsRuntime.request({ method: "POST", path: "/transcribe", body: { audio_path: audioPath } }) as { text?: string };
+        if (res?.text?.trim()) {
+          await window.studioAssets.update({ id, updates: { description: res.text.trim() } });
+          success++;
+        }
+      } catch { /* 单个失败跳过 */ }
+      done++;
+      setBatchProgress({ done, total: pending.length });
+    }
+    setBatchRunning(false);
+    toast.success(`批量识别完成：${success}/${pending.length} 成功`);
+    if (success > 0) onRefresh();
+  };
+
+  // 非音频类型直接渲染
+  if (type !== "audio") {
+    return (
+      <VirtualGrid
+        items={items}
+        minColumnWidth={172}
+        rowHeight={232}
+        gap={14}
+        getKey={(item) => item.id}
+        renderItem={(item) => <StudioAssetCard asset={item} onOpen={onOpen} selected={selectedIds.has(item.id)} selectMode={selectMode} onToggleSelect={onToggleSelect} />}
+        empty={
+          <div className="flex h-full flex-col items-center justify-center gap-3 text-muted-foreground">
+            {isLoading ? (
+              <><Loader2 className="h-8 w-8 animate-spin opacity-50" /><div className="text-sm">正在读取素材</div></>
+            ) : (
+              <><Icon className="h-14 w-14 opacity-20" /><div className="text-sm">{error || emptyText}</div></>
+            )}
+          </div>
+        }
+        footer={canLoadMore ? (
+          <div className="flex items-center justify-center px-4 pb-5">
+            <Button variant="outline" size="sm" onClick={onLoadMore} disabled={isLoadingMore}>
+              {isLoadingMore ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : null}
+              加载更多
+            </Button>
+          </div>
+        ) : items.length > 0 ? (
+          <div className="flex items-center justify-center px-4 pb-5">
+            <span className="text-xs text-muted-foreground">已显示全部</span>
+          </div>
+        ) : null}
+      />
+    );
+  }
+
+  // 音频类型：分组
+  const voiceItems = items.filter((item) => !isLocalMade(item));
+  const localItems = items.filter((item) => isLocalMade(item));
+
+  if (isLoading && items.length === 0) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-3 text-muted-foreground">
+        <Loader2 className="h-8 w-8 animate-spin opacity-50" />
+        <div className="text-sm">正在读取素材</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-full overflow-y-auto">
+      {/* 音色分组 */}
+      <div className="sticky top-0 z-10 flex items-center gap-2 px-4 py-2.5 text-sm font-medium bg-background border-b border-border">
+        <button
+          type="button"
+          onClick={() => setVoiceExpanded(!voiceExpanded)}
+          className="flex items-center gap-2 flex-1 hover:opacity-80"
+        >
+          {voiceExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+          音色
+          <Badge variant="outline" className="ml-1">{voiceItems.length}</Badge>
+        </button>
+        {selectMode && (
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={batchRunning || selectedIds.size === 0}
+            onClick={() => void handleBatchTranscribe(voiceItems.filter((v) => selectedIds.has(v.id)))}
+          >
+            {batchRunning ? (
+              <><Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />{batchProgress.done}/{batchProgress.total}</>
+            ) : (
+              <>✨ 批量生成说话内容（{selectedIds.size}）</>
+            )}
+          </Button>
+        )}
+      </div>
+      {voiceExpanded && (
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(172px,1fr))] gap-3.5 p-3.5">
+          {voiceItems.map((item) => (
+            <StudioAssetCard key={item.id} asset={item} onOpen={onOpen} selected={selectedIds.has(item.id)} selectMode={selectMode} onToggleSelect={onToggleSelect} />
+          ))}
+        </div>
+      )}
+
+      {/* 本地制作分组 */}
+      <button
+        type="button"
+        onClick={() => setLocalExpanded(!localExpanded)}
+        className="sticky top-0 z-10 w-full flex items-center gap-2 px-4 py-2.5 text-sm font-medium bg-background border-b border-border hover:bg-muted/40"
+      >
+        {localExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+        本地制作
+        <Badge variant="outline" className="ml-1">{localItems.length}</Badge>
+      </button>
+      {localExpanded && (
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(172px,1fr))] gap-3.5 p-3.5">
+          {localItems.length === 0 ? (
+            <div className="col-span-full py-4 text-center text-xs text-muted-foreground">暂无本地制作音频</div>
+          ) : localItems.map((item) => (
+            <StudioAssetCard key={item.id} asset={item} onOpen={onOpen} selected={selectedIds.has(item.id)} selectMode={selectMode} onToggleSelect={onToggleSelect} />
+          ))}
+        </div>
+      )}
+
+      {/* 加载更多 */}
+      {canLoadMore && (
+        <div className="flex items-center justify-center px-4 py-4">
+          <Button variant="outline" size="sm" onClick={onLoadMore} disabled={isLoadingMore}>
+            {isLoadingMore ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : null}
+            加载更多
+          </Button>
+        </div>
+      )}
+    </div>
+  );
 }

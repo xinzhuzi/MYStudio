@@ -1,7 +1,7 @@
 appId: com.manju2026.manying-studio
 productName: 漫影工作室
 directories:
-  buildResources: assets/brand
+  buildResources: frontend/assets/brand
   output: release/build
 files:
   - from: release/.electron-vite
@@ -35,10 +35,10 @@ asarUnpack:
   - "**/*.node"
 
 # 图标配置
-icon: assets/brand/manying-studio-icon.ico
+icon: frontend/assets/brand/manying-studio-icon.ico
 
 mac:
-  icon: assets/brand/manying-studio-icon.icns
+  icon: frontend/assets/brand/manying-studio-icon.icns
   artifactName: ${name}-${version}-${arch}-mac.${ext}
   target:
     - dmg
@@ -46,7 +46,7 @@ mac:
 
 win:
   executableName: manying-studio
-  icon: assets/brand/manying-studio-icon.ico
+  icon: frontend/assets/brand/manying-studio-icon.ico
   forceCodeSigning: false
   target:
     - target: nsis
@@ -63,6 +63,6 @@ nsis:
   createStartMenuShortcut: true
   oneClick: false
   allowToChangeInstallationDirectory: true
-  installerIcon: assets/brand/manying-studio-icon.ico
-  uninstallerIcon: assets/brand/manying-studio-icon.ico
-  installerHeaderIcon: assets/brand/manying-studio-icon.ico
+  installerIcon: frontend/assets/brand/manying-studio-icon.ico
+  uninstallerIcon: frontend/assets/brand/manying-studio-icon.ico
+  installerHeaderIcon: frontend/assets/brand/manying-studio-icon.ico

@@ -99,6 +99,7 @@ export function StudioAssetDetailDialog({
   const [images, setImages] = useState<AssetImage[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [fullAsset, setFullAsset] = useState<StudioAssetSummary | null>(null);
+  const [recognizedText, setRecognizedText] = useState<string | null>(null);
   const regenerationPrompt = useMemo(() => buildAssetRegenerationPrompt(fullAsset || asset), [fullAsset, asset]);
 
   // 打开弹窗时获取完整数据
@@ -106,6 +107,7 @@ export function StudioAssetDetailDialog({
   if (asset && asset.id !== prevAssetId.current) {
     prevAssetId.current = asset.id;
     setFullAsset(null);
+    setRecognizedText(null);
     // 异步加载完整数据
     if (window.studioAssets?.get) {
       window.studioAssets.get(asset.id).then((result) => {
@@ -141,7 +143,7 @@ export function StudioAssetDetailDialog({
   const detail = fullAsset || asset;
   const Icon = TYPE_ICON[asset.type];
   const displayName = getAssetDisplayName(asset);
-  const spokenText = getAssetSpokenText(asset);
+  const spokenText = recognizedText ?? (detail.description?.trim() || "");
   const audioSrc = asset.previewUrl || asset.filePath || "";
   const hasImagePreview = asset.type !== "audio" && images.length > 0;
 
@@ -394,13 +396,36 @@ export function StudioAssetDetailDialog({
                     )}
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-[11px] text-muted-foreground">
-                    <div className="rounded-md border border-border bg-background/70 px-2 py-2">
-                      <div className="text-[10px] uppercase text-muted-foreground/80">来源</div>
-                      <div className="mt-1 truncate text-foreground">{asset.sourcePath || asset.filePath || "本地素材"}</div>
-                    </div>
-                    <div className="rounded-md border border-border bg-background/70 px-2 py-2">
-                      <div className="text-[10px] uppercase text-muted-foreground/80">标题</div>
-                      <div className="mt-1 truncate text-foreground">{displayName}</div>
+                    <div className="col-span-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full"
+                        onClick={async () => {
+                          const filePath = asset.sourcePath || asset.filePath;
+                          if (!filePath) { toast.error("无音频文件路径"); return; }
+                          if (!window.ttsRuntime?.request) { toast.error("TTS 后端未就绪"); return; }
+                          toast.info("正在识别说话内容...");
+                          try {
+                            const res = await window.ttsRuntime.request({ method: "POST", path: "/transcribe", body: { audio_path: filePath } }) as { text?: string };
+                            if (res?.text && descRef.current) {
+                              descRef.current.value = res.text;
+                              setRecognizedText(res.text);
+                              // 自动保存到资产库
+                              if (window.studioAssets?.update) {
+                                await window.studioAssets.update({ id: asset.id, updates: { description: res.text } });
+                              }
+                              toast.success("识别完成并已保存");
+                            } else {
+                              toast.error("未识别到内容");
+                            }
+                          } catch (err) {
+                            toast.error(err instanceof Error ? err.message : "识别失败");
+                          }
+                        }}
+                      >
+                        ✨ 智能生成说话内容
+                      </Button>
                     </div>
                   </div>
                 </div>

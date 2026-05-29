@@ -5,9 +5,11 @@ export type TtsEngine =
   | "chatterbox"
   | "chatterbox_turbo"
   | "tada"
-  | "kokoro";
+  | "kokoro"
+  | "whisper"
+  | "sensevoice";
 
-export type TtsModelPurpose = "voiceClone" | "presetVoice" | "longAudio";
+export type TtsModelPurpose = "voiceClone" | "presetVoice" | "longAudio" | "stt";
 
 export type TtsSpeakerId = "narrator" | `character:${string}`;
 

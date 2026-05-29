@@ -125,6 +125,39 @@ const longAudioModels: TtsModelDefinition[] = [
   },
 ];
 
+const sttModels: TtsModelDefinition[] = [
+  {
+    modelName: "sensevoice-small",
+    displayName: "SenseVoice Small",
+    engine: "sensevoice",
+    hfRepoId: "mlx-community/SenseVoiceSmall",
+    sizeMb: 200,
+    languages: ["zh", "en", "ja", "ko"],
+    purpose: "stt",
+    description: "阿里达摩院短音频识别模型，5秒内音频识别极准，中文效果最佳。",
+  },
+  {
+    modelName: "whisper-large-v3-turbo",
+    displayName: "Whisper Large V3 Turbo",
+    engine: "whisper",
+    hfRepoId: "mlx-community/whisper-large-v3-turbo",
+    sizeMb: 1600,
+    languages: ["zh", "en", "ja", "ko", "de", "fr", "ru", "pt", "es", "it"],
+    purpose: "stt",
+    description: "OpenAI Whisper 最强语音识别模型，用于智能识别音频说话内容。",
+  },
+  {
+    modelName: "whisper-small",
+    displayName: "Whisper Small",
+    engine: "whisper",
+    hfRepoId: "mlx-community/whisper-small",
+    sizeMb: 500,
+    languages: ["zh", "en", "ja", "ko", "de", "fr", "ru", "pt", "es", "it"],
+    purpose: "stt",
+    description: "轻量 Whisper 模型，识别速度快，适合短音频。",
+  },
+];
+
 export const TTS_MODEL_GROUPS: TtsModelGroup[] = [
   {
     id: "voiceClone",
@@ -143,6 +176,12 @@ export const TTS_MODEL_GROUPS: TtsModelGroup[] = [
     title: "情绪/长音频",
     description: "面向长文本口播和更强连续性。",
     models: longAudioModels,
+  },
+  {
+    id: "stt",
+    title: "语音识别",
+    description: "识别音频中的说话内容，用于声音克隆参考文本。",
+    models: sttModels,
   },
 ];
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AlertCircle, Loader2, Mic, Play, Square } from "lucide-react";
+import { AlertCircle, ChevronDown, ChevronRight, Loader2, Mic, Play, Square } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -16,7 +16,6 @@ import {
   startTtsRuntime,
 } from "@/lib/tts/client";
 import { TTS_MODEL_GROUPS } from "@/lib/tts/model-catalog";
-import { getAssetSpokenText } from "@/components/panels/assets/StudioAssetDetailDialog";
 import type { TtsModelDefinition } from "@/types/tts";
 import type { StudioAssetSummary } from "@/types/studio-assets";
 
@@ -25,9 +24,30 @@ const VOICE_CLONE_MODELS: TtsModelDefinition[] =
 
 const MAX_POLL_ATTEMPTS = 120; // 2 分钟超时
 
+interface LocalAudioItem {
+  id: string;
+  name: string;
+  filePath: string;
+  createdAt: number;
+}
+
+const LOCAL_AUDIO_KEY = "moyin-tts-local-audio";
+
+function loadLocalAudio(): LocalAudioItem[] {
+  try {
+    return JSON.parse(localStorage.getItem(LOCAL_AUDIO_KEY) || "[]");
+  } catch { return []; }
+}
+
+function saveLocalAudio(items: LocalAudioItem[]) {
+  localStorage.setItem(LOCAL_AUDIO_KEY, JSON.stringify(items.slice(0, 100)));
+}
+
 export function TtsStudio() {
   const [audioAssets, setAudioAssets] = useState<StudioAssetSummary[]>([]);
+  const [localAudio, setLocalAudio] = useState<LocalAudioItem[]>(loadLocalAudio);
   const [selectedAssetId, setSelectedAssetId] = useState("");
+  const [selectedSource, setSelectedSource] = useState<"voice" | "local" | "">("");
   const [text, setText] = useState("");
   const [referenceText, setReferenceText] = useState("");
   const [selectedModelName, setSelectedModelName] = useState(VOICE_CLONE_MODELS[0]?.modelName ?? "");
@@ -36,6 +56,8 @@ export function TtsStudio() {
   const [playing, setPlaying] = useState(false);
   const [backendRunning, setBackendRunning] = useState<boolean | null>(null);
   const [starting, setStarting] = useState(false);
+  const [voiceExpanded, setVoiceExpanded] = useState(false);
+  const [localExpanded, setLocalExpanded] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioUrlRef = useRef<string | null>(null);
 
@@ -61,28 +83,26 @@ export function TtsStudio() {
     }
   };
 
-  // 加载资产库音频
+  // 加载资产库音频（展开音色时才加载）
   useEffect(() => {
+    if (!voiceExpanded || audioAssets.length > 0) return;
     if (!window.studioAssets?.list) return;
-    window.studioAssets.list({ type: "audio", limit: 200 }).then((res) => {
+    window.studioAssets.list({ type: "audio", limit: 1000 }).then((res) => {
       setAudioAssets(res.items);
     }).catch(() => {});
-  }, []);
+  }, [voiceExpanded, audioAssets.length]);
 
-  // 选中音频时自动获取说话内容作为参考文本
+  // 选中音频时严格读取数据库 description 字段作为参考文本
   useEffect(() => {
-    if (!selectedAssetId) { setReferenceText(""); return; }
-    const asset = audioAssets.find((a) => a.id === selectedAssetId);
-    if (!asset) { setReferenceText(""); return; }
-    // 先尝试从详情获取 description，否则用名称推导
-    if (window.studioAssets?.get) {
-      window.studioAssets.get(selectedAssetId).then((detail) => {
-        setReferenceText(getAssetSpokenText(detail));
-      }).catch(() => setReferenceText(getAssetSpokenText(asset)));
-    } else {
-      setReferenceText(getAssetSpokenText(asset));
-    }
-  }, [selectedAssetId, audioAssets]);
+    if (!selectedAssetId || selectedSource !== "voice") { setReferenceText(""); return; }
+    if (!window.studioAssets?.get) { setReferenceText(""); return; }
+    let cancelled = false;
+    window.studioAssets.get(selectedAssetId).then((detail) => {
+      if (cancelled) return;
+      setReferenceText(detail?.description?.trim() || "");
+    }).catch(() => { if (!cancelled) setReferenceText(""); });
+    return () => { cancelled = true; };
+  }, [selectedAssetId, selectedSource]);
 
   // 组件卸载时释放 blob URL
   useEffect(() => {
@@ -92,7 +112,10 @@ export function TtsStudio() {
   }, []);
 
   const selectedAsset = audioAssets.find((a) => a.id === selectedAssetId);
-  const selectedAssetPath = selectedAsset?.sourcePath || selectedAsset?.filePath;
+  const selectedLocalItem = localAudio.find((a) => a.id === selectedAssetId);
+  const selectedAssetPath = selectedSource === "local"
+    ? selectedLocalItem?.filePath
+    : (selectedAsset?.sourcePath || selectedAsset?.filePath);
   const selectedModel = VOICE_CLONE_MODELS.find((m) => m.modelName === selectedModelName);
 
   const handleGenerate = useCallback(async () => {
@@ -111,7 +134,7 @@ export function TtsStudio() {
 
     setGenerating(true);
     try {
-      // 1. 创建临时 profile
+      // 1. 创建临时 profile（referenceText 用于声音特征对齐，不会出现在合成音频中）
       const profile = await createBackendVoiceProfile({
         name: `tts-clone-${Date.now()}`,
         type: "reference",
@@ -155,13 +178,28 @@ export function TtsStudio() {
       const url = URL.createObjectURL(blob);
       audioUrlRef.current = url;
       setAudioUrl(url);
+
+      // 5. 保存到本地制作列表
+      const audioPath = status.audioPath || (status as unknown as Record<string, string>).audio_path;
+      if (audioPath) {
+        const newItem: LocalAudioItem = {
+          id: generation.id,
+          name: text.trim().slice(0, 20) + (text.trim().length > 20 ? "..." : ""),
+          filePath: audioPath,
+          createdAt: Date.now(),
+        };
+        const updated = [newItem, ...localAudio].slice(0, 100);
+        setLocalAudio(updated);
+        saveLocalAudio(updated);
+      }
+
       toast.success("语音生成完成");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "语音生成失败");
     } finally {
       setGenerating(false);
     }
-  }, [selectedAssetPath, text, selectedModel]);
+  }, [selectedAssetPath, text, selectedModel, localAudio]);
 
   const handlePlay = () => {
     if (!audioRef.current || !audioUrl) return;
@@ -196,35 +234,74 @@ export function TtsStudio() {
           </div>
         )}
 
-        {/* 选择参考音频 */}
+        {/* 选择参考音频 - 分组折叠 */}
         <div className="space-y-2">
-          <Label className="text-sm">参考音频（资产库）</Label>
-          <select
-            value={selectedAssetId}
-            onChange={(e) => setSelectedAssetId(e.target.value)}
-            className="h-9 w-full rounded-md border border-border bg-background px-3 text-sm outline-hidden focus:ring-1 focus:ring-ring"
-          >
-            <option value="">选择音频素材...</option>
-            {audioAssets.map((asset) => (
-              <option key={asset.id} value={asset.id}>
-                {asset.name}
-              </option>
-            ))}
-          </select>
-          {selectedAsset?.filePath && (
+          <Label className="text-sm">参考音频</Label>
+          <div className="rounded-md border border-border overflow-hidden">
+            {/* 音色分组 */}
+            <button
+              type="button"
+              onClick={() => setVoiceExpanded(!voiceExpanded)}
+              className="w-full flex items-center gap-2 px-3 py-2 text-sm font-medium bg-muted/40 hover:bg-muted/60"
+            >
+              {voiceExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+              音色（{audioAssets.length}）
+            </button>
+            {voiceExpanded && (
+              <div className="max-h-60 overflow-y-auto border-t border-border [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                {audioAssets.map((asset) => (
+                  <button
+                    key={asset.id}
+                    type="button"
+                    onClick={() => { setSelectedAssetId(asset.id); setSelectedSource("voice"); }}
+                    className={`w-full text-left px-4 py-1.5 text-sm hover:bg-muted/40 ${selectedAssetId === asset.id && selectedSource === "voice" ? "bg-primary/10 text-primary" : ""}`}
+                  >
+                    {asset.name}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* 本地制作分组 */}
+            <button
+              type="button"
+              onClick={() => setLocalExpanded(!localExpanded)}
+              className="w-full flex items-center gap-2 px-3 py-2 text-sm font-medium bg-muted/40 hover:bg-muted/60 border-t border-border"
+            >
+              {localExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+              本地制作（{localAudio.length}）
+            </button>
+            {localExpanded && (
+              <div className="max-h-60 overflow-y-auto border-t border-border [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                {localAudio.length === 0 ? (
+                  <div className="px-4 py-2 text-xs text-muted-foreground">暂无，生成后自动添加</div>
+                ) : localAudio.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => { setSelectedAssetId(item.id); setSelectedSource("local"); }}
+                    className={`w-full text-left px-4 py-1.5 text-sm hover:bg-muted/40 ${selectedAssetId === item.id && selectedSource === "local" ? "bg-primary/10 text-primary" : ""}`}
+                  >
+                    {item.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          {selectedAssetPath && (
             <p className="text-xs text-muted-foreground truncate">{selectedAssetPath}</p>
           )}
         </div>
 
-        {/* 参考文本（自动从资产库获取） */}
-        <div className="space-y-2">
-          <Label className="text-sm">参考文本（音频中说的话）</Label>
+        {/* 参考文本（音频中实际说的话，用于声音特征对齐） */}
+        <div className="space-y-1">
+          <Label className="text-sm text-muted-foreground">参考文本（音频中说的话，可选）</Label>
           <Textarea
             value={referenceText}
             onChange={(e) => setReferenceText(e.target.value)}
             rows={2}
-            placeholder="选择音频后自动填入..."
-            className="resize-none"
+            placeholder="输入参考音频中实际说的话，帮助模型更好地克隆声音..."
+            className="resize-none text-sm"
           />
         </div>
 
@@ -257,7 +334,7 @@ export function TtsStudio() {
         {/* 生成按钮 */}
         <Button
           onClick={() => void handleGenerate()}
-          disabled={generating || !selectedAssetId || !text.trim()}
+          disabled={generating || !selectedAssetPath || !text.trim()}
           className="w-full"
         >
           {generating ? (

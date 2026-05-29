@@ -362,6 +362,9 @@ def _generate_qwen(
 ) -> SynthesisResult:
     ref_audio = profile.get("reference_audio_path") or profile.get("referenceAudioPath")
     ref_text = profile.get("reference_text") or profile.get("referenceText") or ""
+    # 确保 ref_text 非空以帮助模型锁定语言
+    if not ref_text and language in ("zh", "chinese"):
+        ref_text = "这是一段参考音频。"
     if not ref_audio:
         raise RuntimeError("Qwen voice cloning requires reference_audio_path")
     if not Path(str(ref_audio)).exists():

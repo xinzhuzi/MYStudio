@@ -62,3 +62,35 @@
 - 如果你希望将本项目集成到闭源商业产品、闭源 SaaS 服务或不公开修改内容的商业场景中，需要获取商业许可。
 
 商业授权、闭源使用和企业支持说明见 [COMMERCIAL_LICENSE.md](./COMMERCIAL_LICENSE.md)。
+
+## 开发环境配置
+
+### 前置要求
+
+- Node.js >= 18
+- macOS (Apple Silicon) / Linux x86_64
+
+### 一键配置
+
+```bash
+git clone https://github.com/xinzhuzi/MYStudio.git
+cd MYStudio
+bash apps/build/setup.sh
+```
+
+脚本会自动：
+1. 下载 Python 3.12（python-build-standalone，项目专用，不影响系统）
+2. 安装 Python 后端依赖（MLX、transformers 等）
+3. 安装 Node.js 依赖
+
+### 启动
+
+```bash
+cd apps && npm run dev
+```
+
+### 打包
+
+```bash
+cd apps && npm run build
+```

@@ -21,7 +21,7 @@ import { DirectorView } from "@/components/panels/director";
 import { SClassView } from "@/components/panels/sclass";
 import { CharactersView } from "@/components/panels/characters";
 import { ScenesView } from "@/components/panels/scenes";
-import { FreedomView } from "@/components/panels/freedom";
+import { FreedomView } from "@/components/panels/assist";
 import { MediaView } from "@/components/panels/media";
 import { SettingsPanel } from "@/components/panels/SettingsPanel";
 import { ExportView } from "@/components/panels/export";

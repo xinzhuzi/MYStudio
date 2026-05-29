@@ -1,8 +1,13 @@
 from __future__ import annotations
+from __future__ import annotations
 
 import argparse
 import json
 import os
+
+# 默认使用 ModelScope 作为 HuggingFace 镜像（国内全量支持 mlx-community）
+if not os.environ.get("HF_ENDPOINT"):
+    os.environ["HF_ENDPOINT"] = "https://modelscope.cn"
 import shutil
 import threading
 import time
@@ -215,6 +220,9 @@ class Handler(BaseHTTPRequestHandler):
             if route == "/generate":
                 self.handle_generate(payload)
                 return
+            if route == "/transcribe":
+                self.handle_transcribe(payload)
+                return
         except json.JSONDecodeError:
             self.send_error_json(HTTPStatus.BAD_REQUEST, "Invalid JSON body")
             return
@@ -314,15 +322,49 @@ class Handler(BaseHTTPRequestHandler):
             else:
                 from huggingface_hub import snapshot_download
 
+                total_bytes = model.size_mb * 1024 * 1024
                 self.state.set_progress(
                     model_name,
                     current=0,
-                    total=model.size_mb * 1024 * 1024,
+                    total=total_bytes,
                     progress=0,
                     filename=model.hf_repo_id,
                     status="downloading",
                 )
-                snapshot_download(repo_id=model.hf_repo_id, cache_dir=str(download_hf_cache_dir()))
+                cache_dir = str(download_hf_cache_dir())
+                repo_dir = repo_cache_dir(model.hf_repo_id, Path(cache_dir))
+
+                # 后台线程监控下载进度（通过缓存目录大小）
+                stop_monitor = threading.Event()
+
+                def _monitor_progress():
+                    while not stop_monitor.is_set():
+                        try:
+                            if repo_dir.exists():
+                                downloaded = sum(f.stat().st_size for f in repo_dir.rglob("*") if f.is_file())
+                                pct = min(99, int(downloaded / total_bytes * 100)) if total_bytes else 0
+                                self.state.set_progress(
+                                    model_name,
+                                    current=downloaded,
+                                    total=total_bytes,
+                                    progress=pct,
+                                    filename=model.hf_repo_id,
+                                    status="downloading",
+                                )
+                        except Exception:
+                            pass
+                        stop_monitor.wait(1.0)
+
+                monitor = threading.Thread(target=_monitor_progress, daemon=True)
+                monitor.start()
+                try:
+                    # 尝试下载：先用 ModelScope 镜像，失败则直连 HF
+                    try:
+                        snapshot_download(repo_id=model.hf_repo_id, cache_dir=cache_dir, endpoint="https://modelscope.cn")
+                    except Exception:
+                        snapshot_download(repo_id=model.hf_repo_id, cache_dir=cache_dir, endpoint="https://huggingface.co")
+                finally:
+                    stop_monitor.set()
             self.state.set_progress(
                 model_name,
                 current=model.size_mb * 1024 * 1024,
@@ -381,6 +423,69 @@ class Handler(BaseHTTPRequestHandler):
         except Exception as exc:
             self.state.store.update_generation(generation_id, status="failed", error=str(exc))
             self.state.finish_generation(generation_id, str(exc))
+
+    def handle_transcribe(self, payload: dict):
+        audio_path = payload.get("audio_path") or payload.get("audioPath")
+        if not audio_path:
+            self.send_error_json(HTTPStatus.BAD_REQUEST, "audio_path is required")
+            return
+        if not Path(str(audio_path)).exists():
+            self.send_error_json(HTTPStatus.NOT_FOUND, f"Audio file not found: {audio_path}")
+            return
+        # 同步执行转录（在推理线程中）
+        import queue as _queue
+        result_queue: _queue.Queue = _queue.Queue()
+
+        def _do_transcribe():
+            try:
+                import wave
+                import contextlib
+                # 获取音频时长（仅 wav 精确，其他格式按 SenseVoice 处理）
+                duration = 0.0
+                try:
+                    with contextlib.closing(wave.open(str(audio_path), 'r')) as wf:
+                        duration = wf.getnframes() / float(wf.getframerate())
+                except Exception:
+                    duration = 0.0  # 非 wav，默认走 SenseVoice
+
+                from mlx_audio.stt import load as load_stt
+                # ≤30秒优先用 SenseVoice（带标点，短音频更准）
+                sensevoice_model = get_model("sensevoice-small")
+                use_sensevoice = duration <= 30 and sensevoice_model and find_cached_model(sensevoice_model)
+                if use_sensevoice:
+                    if not hasattr(self.state, '_sensevoice') or self.state._sensevoice is None:
+                        self.state._sensevoice = load_stt("mlx-community/SenseVoiceSmall")
+                    result = self.state._sensevoice.generate(str(audio_path), language="zh", use_itn=True)
+                else:
+                    if not hasattr(self.state, '_stt_model') or self.state._stt_model is None:
+                        model = load_stt("mlx-community/whisper-large-v3-turbo")
+                        if model._processor is None:
+                            from transformers import WhisperProcessor
+                            model._processor = WhisperProcessor.from_pretrained("openai/whisper-large-v3-turbo")
+                        self.state._stt_model = model
+                    result = self.state._stt_model.generate(str(audio_path), language="zh")
+                if isinstance(result, str):
+                    text = result.strip()
+                elif isinstance(result, dict):
+                    text = result.get("text", "").strip()
+                elif hasattr(result, "text"):
+                    text = result.text.strip()
+                else:
+                    text = str(result).strip()
+                result_queue.put(("ok", text))
+            except Exception as exc:
+                result_queue.put(("error", str(exc)))
+
+        self.state.inference_queue.put((_do_transcribe, ()))
+        # 等待结果（最多 60 秒）
+        try:
+            status, value = result_queue.get(timeout=60)
+            if status == "ok":
+                self.send_json({"text": value})
+            else:
+                self.send_error_json(HTTPStatus.INTERNAL_SERVER_ERROR, f"转录失败: {value}")
+        except Exception:
+            self.send_error_json(HTTPStatus.INTERNAL_SERVER_ERROR, "转录超时")
 
     def send_audio(self, generation_id: str):
         generation = self.state.store.get_generation(generation_id)
