@@ -93,8 +93,8 @@ version.json
 *.njsproj
 *.sln
 *.sw?
-
 # Python
 __pycache__/
 *.pyc
 *.pyo
+apps/backend/python/

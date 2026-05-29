@@ -237,36 +237,22 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
 
   const isInstalled = () => resolveSidecarRoot() !== undefined;
 
-  const venvDir = path.join(cacheDir, "venv");
-  const venvPython = process.platform === "win32"
-    ? path.join(venvDir, "Scripts", "python.exe")
-    : path.join(venvDir, "bin", "python");
-  const venvPip = process.platform === "win32"
-    ? path.join(venvDir, "Scripts", "pip.exe")
-    : path.join(venvDir, "bin", "pip");
+  function getBundledPython(sidecarRoot: string): string | null {
+    const bundled = path.join(sidecarRoot, "python", "bin", "python3");
+    return fileExists(bundled) ? bundled : null;
+  }
 
-  async function ensureVenv(sidecarRoot: string): Promise<{ success: boolean; error?: string }> {
-    // Use bundled Python if available
-    const bundledPython = path.join(sidecarRoot, "python", "bin", "python3");
-    const venvCreator = fileExists(bundledPython) ? bundledPython : pythonBinary;
-    // 1. Create venv if not exists
-    if (!fileExists(venvPython)) {
-      try {
-        await execFileAsync(venvCreator, ["-m", "venv", venvDir]);
-      } catch (error) {
-        return { success: false, error: `创建 venv 失败: ${getErrorMessage(error)}` };
-      }
-    }
-    // 2. Install dependencies if requirements changed
+  async function ensureDeps(sidecarRoot: string, python: string): Promise<{ success: boolean; error?: string }> {
     const reqPath = path.join(sidecarRoot, "requirements.txt");
     if (!fileExists(reqPath)) return { success: true };
-    const markerPath = path.join(venvDir, ".deps-hash");
+    const markerPath = path.join(cacheDir, ".deps-hash");
     const reqContent = readTextFile(reqPath) ?? "";
     const reqHash = crypto.createHash("md5").update(reqContent).digest("hex");
     const installedHash = readTextFile(markerPath);
     if (installedHash?.trim() === reqHash) return { success: true };
     try {
-      await execFileAsync(venvPip, ["install", "-r", reqPath], { timeout: 300_000, maxBuffer: 10 * 1024 * 1024 });
+      await execFileAsync(python, ["-m", "pip", "install", "--quiet", "-r", reqPath], { timeout: 300_000, maxBuffer: 10 * 1024 * 1024 });
+      ensureDir(cacheDir);
       writeTextFile(markerPath, reqHash);
     } catch (error) {
       return { success: false, error: `安装依赖失败: ${getErrorMessage(error)}` };
@@ -383,13 +369,13 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
     ensureDir(modelCacheDir);
     ensureDir(hfHubCacheDir);
 
-    // Ensure venv and dependencies
-    const venvResult = await ensureVenv(sidecarRoot);
-    if (!venvResult.success) {
-      return { success: false, status: await status(), error: venvResult.error };
+    // Use bundled Python directly (no venv needed)
+    const backendPython = getBundledPython(sidecarRoot) ?? pythonBinary;
+    const depsResult = await ensureDeps(sidecarRoot, backendPython);
+    if (!depsResult.success) {
+      return { success: false, status: await status(), error: depsResult.error };
     }
 
-    const backendPython = fileExists(venvPython) ? venvPython : pythonBinary;
     const systemHfCache = path.join(os.homedir(), ".cache", "huggingface", "hub");
     child = spawnProcess(
       backendPython,
