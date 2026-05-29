@@ -1,6 +1,25 @@
-# 漫影工作室
+<div align="center">
 
-本地优先的 AI 漫剧与短剧制作工作台。
+<img src="./apps/frontend/assets/brand/manying-studio-icon.png" alt="漫影工作室" width="140" height="140" />
+
+# 漫影工作室 · MYStudio
+
+**本地优先的 AI 漫剧与短剧制作工作台**
+
+从小说到成片，把剧本、分镜、素材、配音和剪辑放进同一条可追踪的工作流。
+
+<p>
+  <img src="https://img.shields.io/badge/license-AGPL--3.0-blue.svg" alt="License: AGPL-3.0" />
+  <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows-lightgrey.svg" alt="Platform" />
+  <img src="https://img.shields.io/badge/Electron-React%20%2B%20TypeScript-47848F.svg" alt="Electron" />
+  <img src="https://img.shields.io/badge/AI-MLX%20%7C%20Qwen%20%7C%20SenseVoice-ff6f00.svg" alt="AI" />
+</p>
+
+[简体中文](./README.md) · [English](./docs/README.en.md) · [商业授权](./COMMERCIAL_LICENSE.md)
+
+</div>
+
+---
 
 ## 项目介绍
 
@@ -41,6 +60,21 @@
 - 让短剧生产需要的角色、场景、音色、字幕和镜头状态逐步结构化。
 - 让普通用户可以按工作流顺序完成成片，高级用户可以进入更细的分镜、剪辑和配置环节。
 - 让后续扩展到 TTS、字幕样式、多轨导出、Agent/Skill 编排时，不破坏当前项目数据。
+
+## 内置艺术风格
+
+内置 **60 种**美术风格，覆盖 2D 动画、3D 渲染、定格动画和真人影像，分镜生产时一键套用。
+
+<table>
+  <tr>
+    <td align="center" width="25%"><img src="./apps/frontend/assets/studio-manuals/art_skills/2d_ghibli/images/1.png" width="180" /><br/><sub><b>2D自然手绘动画</b></sub></td>
+    <td align="center" width="25%"><img src="./apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/images/style_ref.png" width="180" /><br/><sub><b>水墨国风修仙</b></sub></td>
+    <td align="center" width="25%"><img src="./apps/frontend/assets/studio-manuals/art_skills/3D_clay_stopmotion/images/1.png" width="180" /><br/><sub><b>定格动画黏土</b></sub></td>
+    <td align="center" width="25%"><img src="./apps/frontend/assets/studio-manuals/art_skills/real_wuxia/images/1.png" width="180" /><br/><sub><b>真人复古武侠</b></sub></td>
+  </tr>
+</table>
+
+👉 [查看全部 60 种艺术风格 →](./docs/art-styles.md)
 
 ## 当前入口
 
