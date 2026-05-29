@@ -133,9 +133,11 @@
 ### 前置要求
 
 - Node.js >= 18
-- macOS (Apple Silicon) / Linux x86_64
+- macOS (Apple Silicon) / Windows 10+ (NVIDIA GPU) / Linux x86_64
 
 ### 一键配置
+
+**macOS / Linux：**
 
 ```bash
 git clone https://github.com/xinzhuzi/MYStudio.git
@@ -143,9 +145,17 @@ cd MYStudio
 bash apps/build/setup.sh
 ```
 
+**Windows（PowerShell）：**
+
+```powershell
+git clone https://github.com/xinzhuzi/MYStudio.git
+cd MYStudio
+powershell -ExecutionPolicy Bypass -File apps\build\setup-win.ps1
+```
+
 脚本会自动：
 1. 下载 Python 3.12（python-build-standalone，项目专用，不影响系统）
-2. 安装 Python 后端依赖（MLX、transformers 等）
+2. 安装 Python 后端依赖（macOS 装 MLX，Windows 装 CUDA 版 PyTorch + qwen-tts）
 3. 安装 Node.js 依赖
 
 ### 启动
@@ -157,5 +167,8 @@ cd apps && npm run dev
 ### 打包
 
 ```bash
-cd apps && npm run build
+# macOS
+cd apps && npm run build:mac
+# Windows
+cd apps && npm run build:win
 ```

@@ -133,9 +133,11 @@ The project's AI features (TTS voice cloning, speech recognition, image/video ge
 ### Prerequisites
 
 - Node.js >= 18
-- macOS (Apple Silicon) / Linux x86_64
+- macOS (Apple Silicon) / Windows 10+ (NVIDIA GPU) / Linux x86_64
 
 ### One-Click Setup
+
+**macOS / Linux:**
 
 ```bash
 git clone https://github.com/xinzhuzi/MYStudio.git
@@ -143,9 +145,17 @@ cd MYStudio
 bash apps/build/setup.sh
 ```
 
+**Windows (PowerShell):**
+
+```powershell
+git clone https://github.com/xinzhuzi/MYStudio.git
+cd MYStudio
+powershell -ExecutionPolicy Bypass -File apps\build\setup-win.ps1
+```
+
 The script automatically:
 1. Downloads Python 3.12 (python-build-standalone, project-local, does not affect the system)
-2. Installs Python backend dependencies (MLX, transformers, etc.)
+2. Installs Python backend dependencies (MLX on macOS; CUDA PyTorch + qwen-tts on Windows)
 3. Installs Node.js dependencies
 
 ### Run
@@ -157,5 +167,8 @@ cd apps && npm run dev
 ### Build
 
 ```bash
-cd apps && npm run build
+# macOS
+cd apps && npm run build:mac
+# Windows
+cd apps && npm run build:win
 ```
