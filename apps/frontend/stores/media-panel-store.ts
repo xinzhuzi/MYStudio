@@ -38,7 +38,7 @@ export const mainNavItems: NavItem[] = [
   { id: "assets", label: "资产", icon: FolderOpenIcon },
   { id: "freedom", label: "辅助", icon: PaletteIcon },
   { id: "export", label: "导出", icon: FilmIcon },
-  { id: "media", label: "视频", icon: VideoIcon },
+  { id: "media", label: "产物", icon: VideoIcon },
 ];
 
 // Bottom navigation items
@@ -72,7 +72,7 @@ export const tabs: { [key in Tab]: { icon: LucideIcon; label: string; stage?: St
   director: { icon: ClapperboardIcon, label: "导演", stage: "director" },
   sclass: { icon: SparklesIcon, label: "S级", stage: "director" },
   assets: { icon: FolderOpenIcon, label: "资产" },
-  media: { icon: VideoIcon, label: "视频" },
+  media: { icon: VideoIcon, label: "产物" },
   skills: { icon: BookOpenTextIcon, label: "技能" },
   tts: { icon: Mic2Icon, label: "TTS" },
   export: { icon: FilmIcon, label: "导出", stage: "export" },

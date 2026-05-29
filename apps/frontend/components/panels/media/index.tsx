@@ -678,8 +678,7 @@ export function MediaView() {
 
       {/* Header */}
       <div className="p-3 pb-2 bg-panel">
-        <div className="flex items-center justify-between mb-2">
-          <h2 className="font-semibold text-sm">素材库</h2>
+        <div className="flex items-center justify-end mb-2">
           <span className="text-xs text-muted-foreground">
             {currentFolders.length} 文件夹, {filteredMediaItems.length} 文件
           </span>
