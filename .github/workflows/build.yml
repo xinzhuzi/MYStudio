@@ -1,0 +1,82 @@
+name: Build Desktop
+
+# 推送 v* 标签（如 v0.1.0）或手动触发时打包
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  # ─── macOS (Apple Silicon) → dmg，含完整 AI 后端 ───
+  build-mac:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: 配置 Python 后端 + Node 依赖
+        run: bash apps/build/setup.sh
+
+      - name: 构建渲染进程
+        working-directory: apps
+        run: npx electron-vite build --config frontend/config/electron-vite.config.ts
+
+      - name: 打包 dmg
+        working-directory: apps
+        run: npx electron-builder --config frontend/config/electron-builder.yml --mac --arm64
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-arm64-dmg
+          path: apps/release/build/*.dmg
+
+      - name: 发布到 Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: apps/release/build/*.dmg
+
+  # ─── Windows → exe 安装包（Electron 外壳；AI 后端依赖 Apple Silicon MLX，暂不可用） ───
+  build-win:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: 安装 Node 依赖
+        working-directory: apps
+        run: npm ci
+
+      - name: 构建渲染进程
+        working-directory: apps
+        run: npx electron-vite build --config frontend/config/electron-vite.config.ts
+
+      - name: 打包 exe
+        working-directory: apps
+        run: npx electron-builder --config frontend/config/electron-builder.yml --win
+        env:
+          CSC_LINK: ""
+          CSC_KEY_PASSWORD: ""
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-x64-exe
+          path: apps/release/build/*setup.exe
+
+      - name: 发布到 Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: apps/release/build/*setup.exe
