@@ -448,22 +448,41 @@ class Handler(BaseHTTPRequestHandler):
                 except Exception:
                     duration = 0.0  # 非 wav，默认走 SenseVoice
 
-                from mlx_audio.stt import load as load_stt
-                # ≤30秒优先用 SenseVoice（带标点，短音频更准）
-                sensevoice_model = get_model("sensevoice-small")
-                use_sensevoice = duration <= 30 and sensevoice_model and find_cached_model(sensevoice_model)
-                if use_sensevoice:
-                    if not hasattr(self.state, '_sensevoice') or self.state._sensevoice is None:
-                        self.state._sensevoice = load_stt("mlx-community/SenseVoiceSmall")
-                    result = self.state._sensevoice.generate(str(audio_path), language="zh", use_itn=True)
+                try:
+                    from mlx_audio.stt import load as load_stt
+                    _has_mlx = True
+                except Exception:
+                    _has_mlx = False
+
+                if _has_mlx:
+                    # ≤30秒优先用 SenseVoice（带标点，短音频更准）
+                    sensevoice_model = get_model("sensevoice-small")
+                    use_sensevoice = duration <= 30 and sensevoice_model and find_cached_model(sensevoice_model)
+                    if use_sensevoice:
+                        if not hasattr(self.state, '_sensevoice') or self.state._sensevoice is None:
+                            self.state._sensevoice = load_stt("mlx-community/SenseVoiceSmall")
+                        result = self.state._sensevoice.generate(str(audio_path), language="zh", use_itn=True)
+                    else:
+                        if not hasattr(self.state, '_stt_model') or self.state._stt_model is None:
+                            model = load_stt("mlx-community/whisper-large-v3-turbo")
+                            if model._processor is None:
+                                from transformers import WhisperProcessor
+                                model._processor = WhisperProcessor.from_pretrained("openai/whisper-large-v3-turbo")
+                            self.state._stt_model = model
+                        result = self.state._stt_model.generate(str(audio_path), language="zh")
                 else:
-                    if not hasattr(self.state, '_stt_model') or self.state._stt_model is None:
-                        model = load_stt("mlx-community/whisper-large-v3-turbo")
-                        if model._processor is None:
-                            from transformers import WhisperProcessor
-                            model._processor = WhisperProcessor.from_pretrained("openai/whisper-large-v3-turbo")
-                        self.state._stt_model = model
-                    result = self.state._stt_model.generate(str(audio_path), language="zh")
+                    # 非 Apple 平台（Windows/Linux）：用 transformers Whisper（CUDA/CPU）
+                    import torch
+                    from transformers import pipeline
+                    if not hasattr(self.state, '_stt_pipe') or self.state._stt_pipe is None:
+                        device = 0 if torch.cuda.is_available() else -1
+                        self.state._stt_pipe = pipeline(
+                            "automatic-speech-recognition",
+                            model="openai/whisper-large-v3-turbo",
+                            device=device,
+                            chunk_length_s=30,
+                        )
+                    result = self.state._stt_pipe(str(audio_path), generate_kwargs={"language": "chinese"})
                 if isinstance(result, str):
                     text = result.strip()
                 elif isinstance(result, dict):

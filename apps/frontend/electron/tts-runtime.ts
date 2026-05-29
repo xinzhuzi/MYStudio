@@ -238,7 +238,9 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
   const isInstalled = () => resolveSidecarRoot() !== undefined;
 
   function getBundledPython(sidecarRoot: string): string | null {
-    const bundled = path.join(sidecarRoot, "python", "bin", "python3");
+    const bundled = process.platform === "win32"
+      ? path.join(sidecarRoot, "python", "python.exe")
+      : path.join(sidecarRoot, "python", "bin", "python3");
     return fileExists(bundled) ? bundled : null;
   }
 
