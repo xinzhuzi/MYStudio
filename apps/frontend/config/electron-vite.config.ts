@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { apiCorsProxyPlugin } from './api-cors-proxy';
 
 const configDir = path.dirname(fileURLToPath(import.meta.url));
+const frontendRoot = path.resolve(configDir, '..');
 const projectRoot = path.resolve(configDir, '..', '..');
 const electronViteOutDir = path.resolve(projectRoot, 'release', '.electron-vite');
 
@@ -15,7 +16,7 @@ export default defineConfig({
       outDir: path.resolve(electronViteOutDir, 'main'),
       rollupOptions: {
         input: {
-          index: path.resolve(projectRoot, 'src/electron/main.ts'),
+          index: path.resolve(frontendRoot, 'electron/main.ts'),
         },
         output: {
           format: 'cjs',
@@ -28,7 +29,7 @@ export default defineConfig({
       outDir: path.resolve(electronViteOutDir, 'preload'),
       rollupOptions: {
         input: {
-          index: path.resolve(projectRoot, 'src/electron/preload.ts'),
+          index: path.resolve(frontendRoot, 'electron/preload.ts'),
         },
         output: {
           format: 'cjs',
@@ -37,7 +38,7 @@ export default defineConfig({
     },
   },
   renderer: {
-    root: projectRoot,
+    root: frontendRoot,
     publicDir: false,
     css: {
       postcss: {
@@ -48,17 +49,17 @@ export default defineConfig({
       outDir: path.resolve(electronViteOutDir, 'renderer'),
       rollupOptions: {
         input: {
-          index: path.resolve(projectRoot, 'src/renderer/index.html'),
+          index: path.resolve(frontendRoot, 'renderer/index.html'),
         },
       },
     },
     resolve: {
       alias: {
-        '@': path.resolve(projectRoot, 'src'),
-        '@opencut/ai-core/services/prompt-compiler': path.resolve(projectRoot, 'src/packages/ai-core/services/prompt-compiler.ts'),
-        '@opencut/ai-core/api/task-poller': path.resolve(projectRoot, 'src/packages/ai-core/api/task-poller.ts'),
-        '@opencut/ai-core/protocol': path.resolve(projectRoot, 'src/packages/ai-core/protocol/index.ts'),
-        '@opencut/ai-core': path.resolve(projectRoot, 'src/packages/ai-core/index.ts'),
+        '@': frontendRoot,
+        '@opencut/ai-core/services/prompt-compiler': path.resolve(frontendRoot, 'packages/ai-core/services/prompt-compiler.ts'),
+        '@opencut/ai-core/api/task-poller': path.resolve(frontendRoot, 'packages/ai-core/api/task-poller.ts'),
+        '@opencut/ai-core/protocol': path.resolve(frontendRoot, 'packages/ai-core/protocol/index.ts'),
+        '@opencut/ai-core': path.resolve(frontendRoot, 'packages/ai-core/index.ts'),
       },
     },
     plugins: [

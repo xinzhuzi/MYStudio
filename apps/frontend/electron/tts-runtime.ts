@@ -187,7 +187,7 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
   const killProcess = deps.killProcess ?? defaultKillProcess;
   const sidecarRoots = uniquePaths([
     ...(deps.sidecarRoots ?? []),
-    path.join(deps.appRoot, "src", "backend"),
+    path.join(deps.appRoot, "..", "backend"),
     typeof process.resourcesPath === "string" ? path.join(process.resourcesPath, "backend") : "",
   ]);
   const cacheDir = path.join(deps.userDataPath, "tts-runtime");

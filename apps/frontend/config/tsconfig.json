@@ -15,11 +15,11 @@
     "jsx": "react-jsx",
 
     /* Path aliases */
-    "baseUrl": "../..",
+    "baseUrl": "..",
     "paths": {
-      "@/*": ["src/*"],
-      "@opencut/ai-core": ["src/packages/ai-core/index.ts"],
-      "@opencut/ai-core/*": ["src/packages/ai-core/*"]
+      "@/*": ["./*"],
+      "@opencut/ai-core": ["./packages/ai-core/index.ts"],
+      "@opencut/ai-core/*": ["./packages/ai-core/*"]
     },
 
     /* Linting */
