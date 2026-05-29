@@ -45,7 +45,7 @@ jobs:
         with:
           files: apps/release/build/*.dmg
 
-  # ─── Windows → exe 安装包（Electron 外壳；AI 后端依赖 Apple Silicon MLX，暂不可用） ───
+  # ─── Windows → exe 安装包（外壳，首次启动时自动下载 Python+依赖到用户目录） ───
   build-win:
     runs-on: windows-latest
     steps:

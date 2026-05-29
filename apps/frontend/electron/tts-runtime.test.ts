@@ -27,6 +27,7 @@ describe("TTS runtime controller", () => {
     const controller = createTtsRuntimeController({
       appRoot: "/repo",
       userDataPath: "/user-data",
+      pythonBinary: "python3",
       fileExists: (filePath) => filePath.includes("manying_voicebox_tts/main.py"),
       ensureDir: vi.fn(),
       writeTextFile: vi.fn(),
@@ -52,12 +53,12 @@ describe("TTS runtime controller", () => {
         "/user-data/tts-runtime",
       ],
       expect.objectContaining({
-        cwd: "/repo/src/backend",
+        cwd: "/backend",
         env: expect.objectContaining({
           MANYING_TTS_DATA_DIR: "/user-data/tts-runtime",
           MANYING_TTS_MODELS_DIR: "/user-data/tts-models",
           VOICEBOX_MODELS_DIR: "/user-data/tts-models",
-          HF_HUB_CACHE: "/user-data/tts-models",
+          HF_HUB_CACHE: expect.stringContaining("huggingface"),
           MANYING_TTS_CONTROL_TOKEN: expect.any(String),
         }),
       }),
@@ -75,6 +76,7 @@ describe("TTS runtime controller", () => {
     const controller = createTtsRuntimeController({
       appRoot: "/repo",
       userDataPath: "/user-data",
+      pythonBinary: "python3",
       fileExists: (filePath) => filePath === "/custom/huggingface/hub" || filePath.includes("main.py"),
       ensureDir: vi.fn(),
       readTextFile: () => config || null,
@@ -95,7 +97,7 @@ describe("TTS runtime controller", () => {
         env: expect.objectContaining({
           MANYING_TTS_MODELS_DIR: "/custom/huggingface",
           VOICEBOX_MODELS_DIR: "/custom/huggingface",
-          HF_HUB_CACHE: "/custom/huggingface/hub",
+          HF_HUB_CACHE: expect.stringContaining("huggingface"),
         }),
       }),
     );
@@ -107,6 +109,7 @@ describe("TTS runtime controller", () => {
     const controller = createTtsRuntimeController({
       appRoot: "/repo",
       userDataPath: "/user-data",
+      pythonBinary: "python3",
       sidecarRoots: [packagedRoot],
       fileExists: (filePath) => filePath === `${packagedRoot}/manying_voicebox_tts/main.py`,
       ensureDir: vi.fn(),

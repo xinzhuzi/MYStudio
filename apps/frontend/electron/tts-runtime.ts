@@ -191,6 +191,7 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
     typeof process.resourcesPath === "string" ? path.join(process.resourcesPath, "backend") : "",
   ]);
   const cacheDir = path.join(deps.userDataPath, "tts-runtime");
+  const runtimePythonDir = path.join(deps.userDataPath, "python-runtime");
   const configPath = path.join(cacheDir, "config.json");
   const defaultModelCacheDir = path.join(deps.userDataPath, "tts-models");
   const systemModelCacheDir = path.join(os.homedir(), ".cache", "huggingface");
@@ -244,6 +245,43 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
     return fileExists(bundled) ? bundled : null;
   }
 
+  function pythonDownloadUrl(): string | null {
+    const base = "https://github.com/indygreg/python-build-standalone/releases/download/20241016/cpython-3.12.7+20241016-";
+    const suffix = "-install_only.tar.gz";
+    if (process.platform === "darwin") return `${base}${process.arch === "arm64" ? "aarch64-apple-darwin" : "x86_64-apple-darwin"}${suffix}`;
+    if (process.platform === "win32") return `${base}x86_64-pc-windows-msvc${suffix}`;
+    if (process.platform === "linux") return `${base}${process.arch === "arm64" ? "aarch64-unknown-linux-gnu" : "x86_64-unknown-linux-gnu"}${suffix}`;
+    return null;
+  }
+
+  // 方案 A：自带 Python 不存在时（如 Windows 打包后），首启动下载到用户目录
+  async function ensurePython(sidecarRoot: string): Promise<{ python?: string; error?: string }> {
+    const bundled = getBundledPython(sidecarRoot);
+    if (bundled) return { python: bundled };
+    const existing = getBundledPython(runtimePythonDir);
+    if (existing) return { python: existing };
+    // 系统已有可用 Python（开发机）则直接用，避免重复下载
+    try {
+      execFileSync(pythonBinary, ["--version"], { stdio: "pipe" });
+      return { python: pythonBinary };
+    } catch { /* 无系统 Python，继续下载 */ }
+    const url = pythonDownloadUrl();
+    if (!url) return { error: `不支持的平台: ${process.platform} ${process.arch}` };
+    try {
+      ensureDir(runtimePythonDir);
+      const tmp = path.join(runtimePythonDir, "python-runtime.tar.gz");
+      const res = await fetch(url);
+      if (!res.ok) return { error: `下载 Python 失败 (${res.status})` };
+      fs.writeFileSync(tmp, Buffer.from(await res.arrayBuffer()));
+      await execFileAsync("tar", ["-xzf", tmp, "-C", runtimePythonDir], { timeout: 600_000, maxBuffer: 64 * 1024 * 1024 });
+      fs.rmSync(tmp, { force: true });
+      const py = getBundledPython(runtimePythonDir);
+      return py ? { python: py } : { error: "Python 解压后未找到可执行文件" };
+    } catch (error) {
+      return { error: `Python 下载失败: ${getErrorMessage(error)}` };
+    }
+  }
+
   async function ensureDeps(sidecarRoot: string, python: string): Promise<{ success: boolean; error?: string }> {
     const reqPath = path.join(sidecarRoot, "requirements.txt");
     if (!fileExists(reqPath)) return { success: true };
@@ -253,7 +291,11 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
     const installedHash = readTextFile(markerPath);
     if (installedHash?.trim() === reqHash) return { success: true };
     try {
-      await execFileAsync(python, ["-m", "pip", "install", "--quiet", "-r", reqPath], { timeout: 300_000, maxBuffer: 10 * 1024 * 1024 });
+      if (process.platform === "win32") {
+        // PyPI 默认是 CPU 版 torch，Windows 需从 CUDA 专用 index 安装
+        await execFileAsync(python, ["-m", "pip", "install", "torch", "--index-url", "https://download.pytorch.org/whl/cu121"], { timeout: 1_800_000, maxBuffer: 32 * 1024 * 1024 });
+      }
+      await execFileAsync(python, ["-m", "pip", "install", "-r", reqPath], { timeout: 1_800_000, maxBuffer: 32 * 1024 * 1024 });
       ensureDir(cacheDir);
       writeTextFile(markerPath, reqHash);
     } catch (error) {
@@ -371,8 +413,12 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
     ensureDir(modelCacheDir);
     ensureDir(hfHubCacheDir);
 
-    // Use bundled Python directly (no venv needed)
-    const backendPython = getBundledPython(sidecarRoot) ?? pythonBinary;
+    // 自带 Python 不存在时首启动下载（方案 A）
+    const pyResult = await ensurePython(sidecarRoot);
+    if (!pyResult.python) {
+      return { success: false, status: await status(), error: pyResult.error };
+    }
+    const backendPython = pyResult.python;
     const depsResult = await ensureDeps(sidecarRoot, backendPython);
     if (!depsResult.success) {
       return { success: false, status: await status(), error: depsResult.error };
