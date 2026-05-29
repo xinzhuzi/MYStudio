@@ -13,6 +13,9 @@ import { useState, useMemo, useEffect, useCallback, lazy, Suspense } from "react
 import type { CSSProperties } from "react";
 
 const LocalTtsPanelLazy = lazy(() => import("@/components/panels/tts/LocalTtsPanel").then((m) => ({ default: m.LocalTtsPanel })));
+import wechatPayImg from "@/assets/donate/wechat-pay.jpg";
+import alipayPayImg from "@/assets/donate/alipay-pay.jpg";
+import wechatFriendImg from "@/assets/donate/wechat-friend.jpg";
 import {
   API_AGENT_DEPLOYMENT_GROUPS,
   getAgentDeploymentModelType,
@@ -70,6 +73,7 @@ import {
   Terminal,
   Mic2,
   Workflow,
+  Coffee,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -86,6 +90,7 @@ export const SETTINGS_TABS = [
   { value: "imagehost", label: "图床配置" },
   { value: "storage", label: "存储" },
   { value: "development", label: "开发" },
+  { value: "support", label: "请作者喝杯咖啡" },
 ] as const;
 
 export const DEFAULT_SETTINGS_TAB = "appearance";
@@ -118,6 +123,8 @@ function renderSettingsTabIcon(value: SettingsTabId) {
       return <HardDrive className="h-4 w-4 mr-2" />;
     case "development":
       return <Terminal className="h-4 w-4 mr-2" />;
+    case "support":
+      return <Coffee className="h-4 w-4 mr-2" />;
   }
 }
 
@@ -2089,6 +2096,45 @@ export function SettingsPanel({
                     控制台入口仅在桌面应用窗口中可用。
                   </p>
                 )}
+              </div>
+            </div>
+          </ScrollArea>
+        </TabsContent>
+
+        <TabsContent value="support" className="flex-1 overflow-hidden mt-0">
+          <ScrollArea className="h-full">
+            <div className="p-8 max-w-3xl mx-auto space-y-8">
+              <div className="text-center space-y-2">
+                <h3 className="text-2xl font-bold text-foreground flex items-center justify-center gap-2">
+                  <Coffee className="h-6 w-6 text-amber-500" />
+                  请作者喝杯咖啡
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  漫影工作室是免费开源项目，如果它对你有帮助，欢迎扫码请作者喝杯咖啡 ☕，你的支持是持续更新的动力。
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div className="rounded-xl border border-border bg-card p-5 text-center space-y-3">
+                  <p className="text-sm font-medium text-foreground">微信支付</p>
+                  <div className="bg-white rounded-lg p-3 inline-block">
+                    <img src={wechatPayImg} alt="微信收款码" className="w-full max-w-[240px] h-auto rounded" />
+                  </div>
+                </div>
+                <div className="rounded-xl border border-border bg-card p-5 text-center space-y-3">
+                  <p className="text-sm font-medium text-foreground">支付宝</p>
+                  <div className="bg-white rounded-lg p-3 inline-block">
+                    <img src={alipayPayImg} alt="支付宝收款码" className="w-full max-w-[240px] h-auto rounded" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-border bg-card p-5 text-center space-y-3">
+                <p className="text-sm font-medium text-foreground">联系作者</p>
+                <p className="text-xs text-muted-foreground">竹海晨金 · 提需求、交流合作、反馈 Bug</p>
+                <div className="bg-white rounded-lg p-3 inline-block">
+                  <img src={wechatFriendImg} alt="作者微信" className="w-full max-w-[240px] h-auto rounded" />
+                </div>
               </div>
             </div>
           </ScrollArea>

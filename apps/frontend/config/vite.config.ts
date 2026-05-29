@@ -18,11 +18,11 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '@': path.resolve(projectRoot, 'src'),
-      '@opencut/ai-core/services/prompt-compiler': path.resolve(projectRoot, 'src/packages/ai-core/services/prompt-compiler.ts'),
-      '@opencut/ai-core/api/task-poller': path.resolve(projectRoot, 'src/packages/ai-core/api/task-poller.ts'),
-      '@opencut/ai-core/protocol': path.resolve(projectRoot, 'src/packages/ai-core/protocol/index.ts'),
-      '@opencut/ai-core': path.resolve(projectRoot, 'src/packages/ai-core/index.ts'),
+      '@': path.resolve(projectRoot, 'frontend'),
+      '@opencut/ai-core/services/prompt-compiler': path.resolve(projectRoot, 'frontend/packages/ai-core/services/prompt-compiler.ts'),
+      '@opencut/ai-core/api/task-poller': path.resolve(projectRoot, 'frontend/packages/ai-core/api/task-poller.ts'),
+      '@opencut/ai-core/protocol': path.resolve(projectRoot, 'frontend/packages/ai-core/protocol/index.ts'),
+      '@opencut/ai-core': path.resolve(projectRoot, 'frontend/packages/ai-core/index.ts'),
     },
   },
   plugins: [
@@ -30,10 +30,10 @@ export default defineConfig({
     react(),
     electron({
       main: {
-        entry: 'src/electron/main.ts',
+        entry: 'frontend/electron/main.ts',
       },
       preload: {
-        input: path.join(projectRoot, 'src/electron/preload.ts'),
+        input: path.join(projectRoot, 'frontend/electron/preload.ts'),
       },
       renderer: process.env.NODE_ENV === 'test' ? undefined : {},
     }),
