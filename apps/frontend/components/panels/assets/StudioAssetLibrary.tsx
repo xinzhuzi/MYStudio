@@ -423,12 +423,14 @@ function AudioGroupedGrid({
     }
     for (const { id, audioPath } of pending) {
       try {
-        const res = await window.ttsRuntime.request({ method: "POST", path: "/transcribe", body: { audio_path: audioPath } }) as { text?: string };
+        const reqPromise = window.ttsRuntime.request({ method: "POST", path: "/transcribe", body: { audio_path: audioPath } }) as Promise<{ text?: string }>;
+        const timeoutPromise = new Promise<{ text?: string }>((_, reject) => setTimeout(() => reject(new Error("timeout")), 90000));
+        const res = await Promise.race([reqPromise, timeoutPromise]);
         if (res?.text?.trim()) {
           await window.studioAssets.update({ id, updates: { description: res.text.trim() } });
           success++;
         }
-      } catch { /* 单个失败跳过 */ }
+      } catch { /* 单个失败或超时跳过 */ }
       done++;
       setBatchProgress({ done, total: pending.length });
     }

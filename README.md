@@ -63,6 +63,37 @@
 
 商业授权、闭源使用和企业支持说明见 [COMMERCIAL_LICENSE.md](./COMMERCIAL_LICENSE.md)。
 
+## 最低系统要求
+
+本项目的 AI 能力（TTS 声音克隆、语音识别、图像/视频生成等）依赖本地模型推理，**必须配备独立显卡（GPU）**，集成显卡无法满足算力需求。
+
+### macOS（Apple Silicon）
+
+| 项目 | 最低要求 | 推荐配置 |
+|------|---------|---------|
+| 芯片 | **Apple Silicon M1**（自带 GPU） | M2 Pro / M3 及以上 |
+| 系统 | macOS 13 Ventura | macOS 14 Sonoma+ |
+| 统一内存 | 16 GB | 32 GB+ |
+| 磁盘 | 20 GB 可用空间 | 50 GB+ SSD |
+
+> ⚠️ **不支持 Intel 芯片的 Mac**（无 MLX GPU 加速）。
+
+### Windows
+
+| 项目 | 最低要求 | 推荐配置 |
+|------|---------|---------|
+| 系统 | Windows 10 64 位 | Windows 11 |
+| 显卡 | **NVIDIA 独立显卡，8 GB 显存**（支持 CUDA） | NVIDIA RTX 系列，16 GB+ 显存 |
+| 内存 | 16 GB | 32 GB+ |
+| 磁盘 | 20 GB 可用空间 | 50 GB+ SSD |
+
+> ⚠️ **必须 NVIDIA 独立显卡**。集成显卡（Intel UHD / AMD 核显）和无 CUDA 的显卡无法运行本地 AI 推理。
+
+### 通用
+
+- Node.js >= 18（推荐 LTS 最新版）
+- Python 3.12（项目自带，无需手动安装）
+
 ## 开发环境配置
 
 ### 前置要求
