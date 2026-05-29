@@ -1,0 +1,8 @@
+# MYStudio TTS Backend Dependencies
+huggingface_hub>=0.23.0
+
+# MLX (Apple Silicon)
+mlx>=0.30.0
+mlx-audio==0.4.1
+miniaudio>=1.59
+numpy>=1.24.0
