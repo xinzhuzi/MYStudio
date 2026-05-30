@@ -48,7 +48,6 @@ docs/*
 !docs/README.en.md
 !docs/art-styles.md
 !docs/art-styles.en.md
-!docs/融合/
 
 # Next.js cache (not used)
 .next/
