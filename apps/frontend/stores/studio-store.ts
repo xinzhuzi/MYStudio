@@ -73,6 +73,7 @@ const initialState: StudioWorkflowState = {
   videoCandidates: [],
   workflowConfig: {
     autoAnalyzeEventsOnImport: false,
+    episodeDurationMin: 3,
   },
   lastContextPackage: null,
 };

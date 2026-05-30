@@ -13,6 +13,7 @@ import { StudioAssetCard } from "./StudioAssetCard";
 import { StudioAssetDetailDialog } from "./StudioAssetDetailDialog";
 import { AddAssetDialog } from "./AddAssetDialog";
 import { VirtualGrid } from "./VirtualGrid";
+import { cn } from "@/lib/utils";
 
 const PAGE_SIZE = 60;
 
@@ -20,8 +21,8 @@ const PAGE_SIZE = 60;
 const assetCache: Record<string, { items: StudioAssetSummary[]; total: number; timestamp: number }> = {};
 const CACHE_TTL = 60_000; // 60秒内不重新请求
 
-function getCacheKey(type: StudioAssetKind, search: string) {
-  return `${type}:${search}`;
+function getCacheKey(type: StudioAssetKind, search: string, category = "") {
+  return `${type}:${search}:${category}`;
 }
 
 const ASSET_KIND_CONFIG = {
@@ -65,6 +66,7 @@ export function StudioAssetLibrary({ type }: { type: StudioAssetKind }) {
   const [selectedAsset, setSelectedAsset] = useState<StudioAssetSummary | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [selectMode, setSelectMode] = useState(false);
+  const [category, setCategory] = useState<string>(type === "tool" ? TOOL_CATEGORIES[0] : "");
   const requestIdRef = useRef(0);
 
   const props = usePropsLibraryStore((state) => state.items);
@@ -79,7 +81,9 @@ export function StudioAssetLibrary({ type }: { type: StudioAssetKind }) {
     const keyword = search.toLocaleLowerCase("zh-Hans-CN");
     const entries: StudioAssetSummary[] = [];
     if (type === "tool") {
-      entries.push(...props.map((item) => ({
+      // 道具库的本地 props 没有经济资源分类，仅在"其他"分类下展示，避免污染 11 个分类
+      if (!category || category === "其他") {
+        entries.push(...props.map((item) => ({
         id: `manying-prop:${item.id}`,
         source: "manying-local" as const,
         type,
@@ -91,6 +95,7 @@ export function StudioAssetLibrary({ type }: { type: StudioAssetKind }) {
         previewUrl: item.imageUrl,
         filePath: item.imageUrl,
       })));
+      }
     }
     if (type === "clip") {
       entries.push(...materials.filter((item) => item.kind !== "audio").map((item) => ({
@@ -121,7 +126,7 @@ export function StudioAssetLibrary({ type }: { type: StudioAssetKind }) {
     }
     if (!keyword) return entries;
     return entries.filter((item) => `${item.name} ${item.description ?? ""} ${item.filePath ?? ""}`.toLocaleLowerCase("zh-Hans-CN").includes(keyword));
-  }, [materials, props, search, type]);
+  }, [materials, props, search, type, category]);
 
   const items = useMemo(() => {
     const seen = new Set<string>();
@@ -143,7 +148,7 @@ export function StudioAssetLibrary({ type }: { type: StudioAssetKind }) {
 
     // 首次加载时检查缓存
     if (mode === "replace" && offset === 0 && !refresh) {
-      const cacheKey = getCacheKey(type, search);
+      const cacheKey = getCacheKey(type, search, category);
       const cached = assetCache[cacheKey];
       if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
         setRuntimeItems(cached.items);
@@ -164,6 +169,7 @@ export function StudioAssetLibrary({ type }: { type: StudioAssetKind }) {
         search,
         offset,
         limit: PAGE_SIZE,
+        category: category || undefined,
         refresh,
       });
       if (requestIdRef.current !== requestId) return;
@@ -174,7 +180,7 @@ export function StudioAssetLibrary({ type }: { type: StudioAssetKind }) {
 
       // 更新缓存
       if (mode === "replace") {
-        assetCache[getCacheKey(type, search)] = { items: newItems, total: response.total, timestamp: Date.now() };
+        assetCache[getCacheKey(type, search, category)] = { items: newItems, total: response.total, timestamp: Date.now() };
       }
     } catch (loadError) {
       const message = loadError instanceof Error ? loadError.message : "读取素材失败";
@@ -186,11 +192,11 @@ export function StudioAssetLibrary({ type }: { type: StudioAssetKind }) {
         setIsLoadingMore(false);
       }
     }
-  }, [search, type]);
+  }, [search, type, category]);
 
   useEffect(() => {
     // 有缓存时不清空，避免闪烁
-    const cacheKey = getCacheKey(type, search);
+    const cacheKey = getCacheKey(type, search, category);
     const cached = assetCache[cacheKey];
     if (!cached || Date.now() - cached.timestamp >= CACHE_TTL) {
       setRuntimeItems([]);
@@ -204,7 +210,7 @@ export function StudioAssetLibrary({ type }: { type: StudioAssetKind }) {
     let unsub: (() => void) | undefined;
     import("@/lib/event-bus").then(({ eventBus }) => {
       unsub = eventBus.on("asset:deleted", () => {
-        delete assetCache[getCacheKey(type, search)];
+        delete assetCache[getCacheKey(type, search, category)];
         setRuntimeItems([]);
         void loadAssets(0, "replace", true);
       });
@@ -237,7 +243,7 @@ export function StudioAssetLibrary({ type }: { type: StudioAssetKind }) {
     toast.success(`已删除 ${deleted} 个素材`);
     setSelectedIds(new Set());
     setSelectMode(false);
-    delete assetCache[getCacheKey(type, search)];
+    delete assetCache[getCacheKey(type, search, category)];
     void loadAssets(0, "replace", true);
   };
 
@@ -279,7 +285,7 @@ export function StudioAssetLibrary({ type }: { type: StudioAssetKind }) {
                 </Button>
               </>
             )}
-            <Button variant="outline" size="sm" onClick={() => { delete assetCache[getCacheKey(type, search)]; loadAssets(0, "replace", true); }} disabled={isLoading}>
+            <Button variant="outline" size="sm" onClick={() => { delete assetCache[getCacheKey(type, search, category)]; loadAssets(0, "replace", true); }} disabled={isLoading}>
               <RefreshCw className={isLoading ? "h-3.5 w-3.5 animate-spin" : "h-3.5 w-3.5"} />
             </Button>
           </div>
@@ -300,6 +306,23 @@ export function StudioAssetLibrary({ type }: { type: StudioAssetKind }) {
             {error}
           </div>
         ) : null}
+        {type === "tool" ? (
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {TOOL_CATEGORIES.map((cat) => (
+              <button
+                key={cat}
+                type="button"
+                onClick={() => setCategory(cat)}
+                className={cn(
+                  "px-2.5 py-1 rounded-md text-xs border transition-colors",
+                  category === cat ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:bg-muted"
+                )}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+        ) : null}
       </div>
 
       <div className="min-h-0 flex-1">
@@ -317,7 +340,7 @@ export function StudioAssetLibrary({ type }: { type: StudioAssetKind }) {
           canLoadMore={canLoadMore}
           isLoadingMore={isLoadingMore}
           onLoadMore={() => loadAssets(runtimeItems.length, "append")}
-          onRefresh={() => { delete assetCache[getCacheKey(type, search)]; void loadAssets(0, "replace", true); }}
+          onRefresh={() => { delete assetCache[getCacheKey(type, search, category)]; void loadAssets(0, "replace", true); }}
         />
       </div>
       <StudioAssetDetailDialog
@@ -335,7 +358,7 @@ export function StudioAssetLibrary({ type }: { type: StudioAssetKind }) {
         onOpenChange={(open) => {
           setIsAddOpen(open);
           if (!open) {
-            delete assetCache[getCacheKey(type, search)];
+            delete assetCache[getCacheKey(type, search, category)];
             void loadAssets(0, "replace", true);
           }
         }}
@@ -439,6 +462,7 @@ function AudioGroupedGrid({
     if (success > 0) onRefresh();
   };
 
+  // 道具类型由 ToolCategoryView 处理（按分类懒加载），此处不再走分组
   // 非音频类型直接渲染
   if (type !== "audio") {
     return (
@@ -555,3 +579,7 @@ function AudioGroupedGrid({
     </div>
   );
 }
+
+
+const TOOL_CATEGORIES = ["货币", "灵草", "灵矿", "灵兽", "灵材", "灵气", "灵食", "丹药", "法宝", "丹药配方", "炼器配方", "其他"];
+

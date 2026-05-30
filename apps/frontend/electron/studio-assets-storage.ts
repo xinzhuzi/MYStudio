@@ -46,17 +46,41 @@ function getThumbsDir() {
   return path.join(getAssetsDir(), "thumbs");
 }
 
+/** 缩略图生成队列：限制并发，避免一次性 spawn 数千个 sips 进程导致主进程卡死 */
+let thumbActive = 0;
+const thumbQueue: Array<() => void> = [];
+const thumbQueued = new Set<string>();
+function pumpThumbQueue() {
+  while (thumbActive < 4 && thumbQueue.length > 0) {
+    const job = thumbQueue.shift()!;
+    thumbActive++;
+    job();
+  }
+}
+function enqueueThumb(srcPath: string, thumbPath: string) {
+  if (thumbQueued.has(thumbPath)) return;
+  thumbQueued.add(thumbPath);
+  thumbQueue.push(() => {
+    execFile("sips", ["-z", "200", "200", srcPath, "--out", thumbPath], () => {
+      thumbActive--;
+      thumbQueued.delete(thumbPath);
+      pumpThumbQueue();
+    });
+  });
+  pumpThumbQueue();
+}
+
 /** 获取缩略图路径，不存在则异步生成 */
 function getThumbUrl(filePath: string | undefined, type: string): string | undefined {
   if (!filePath) return undefined;
   const thumbPath = path.join(getThumbsDir(), filePath);
   if (fs.existsSync(thumbPath)) return `file://${thumbPath}`;
-  // 异步生成缩略图（不阻塞返回）
+  // 异步生成缩略图（限流，不阻塞返回）
   const srcPath = path.join(getFilesDir(), filePath);
   if (!fs.existsSync(srcPath)) return undefined;
   const thumbDir = path.dirname(thumbPath);
   fs.mkdirSync(thumbDir, { recursive: true });
-  execFile("sips", ["-z", "200", "200", srcPath, "--out", thumbPath], () => {});
+  enqueueThumb(srcPath, thumbPath);
   // 首次返回原图 URL，下次就有缩略图了
   return `file://${srcPath}`;
 }
@@ -118,6 +142,14 @@ function escapeSql(value: string): string {
   return value.replace(/'/g, "''");
 }
 
+/** 构建 assets 查询的 WHERE 子句（按类型/搜索/分类标签过滤）。导出以便单测。 */
+export function buildAssetWhere(type: string, search?: string, category?: string): string {
+  const conds = [`type='${escapeSql(type)}'`];
+  if (search) conds.push(`(name LIKE '%${escapeSql(search)}%' OR prompt LIKE '%${escapeSql(search)}%')`);
+  if (category) conds.push(`tags LIKE '%"${escapeSql(category)}"%'`);
+  return `WHERE ${conds.join(" AND ")}`;
+}
+
 /** 执行可能包含长文本的 SQL */
 function runSqliteExecSafe(dbPath: string, sql: string) {
   const { execFileSync } = require("node:child_process");
@@ -161,27 +193,28 @@ function migrateFromJson(jsonPath: string, dbPath: string) {
 
 // === CRUD ===
 
-export async function listAssets(type: StudioAssetKind, search?: string, offset = 0, limit = 60): Promise<{ items: StudioAssetSummary[]; total: number }> {
+export async function listAssets(type: StudioAssetKind, search?: string, offset = 0, limit = 60, category?: string): Promise<{ items: StudioAssetSummary[]; total: number }> {
   const dbPath = getDbPath();
-  const where = search
-    ? `WHERE type='${escapeSql(type)}' AND (name LIKE '%${escapeSql(search)}%' OR prompt LIKE '%${escapeSql(search)}%')`
-    : `WHERE type='${escapeSql(type)}'`;
+  const where = buildAssetWhere(type, search, category);
 
   const countResult = await runSqliteJson<{ cnt: number }[]>(dbPath, `SELECT count(*) as cnt FROM assets ${where};`);
   const total = countResult[0]?.cnt ?? 0;
 
   const rows = await runSqliteJson<any[]>(dbPath,
-    `SELECT id, type, name, filePath FROM assets ${where} ORDER BY rowid DESC LIMIT ${limit} OFFSET ${offset};`
+    `SELECT id, type, name, filePath, tags FROM assets ${where} ORDER BY rowid DESC LIMIT ${limit} OFFSET ${offset};`
   );
 
   const items: StudioAssetSummary[] = rows.map((row) => {
     const absPath = row.filePath ? path.join(getFilesDir(), row.filePath) : undefined;
     const previewUrl = absPath ? `file://${absPath}` : undefined;
+    let tags: string[] = [];
+    try { tags = row.tags ? JSON.parse(row.tags) : []; } catch { tags = []; }
     return {
       id: row.id,
       source: "manying-local" as const,
       type: row.type,
       name: row.name,
+      tags,
       thumbnailUrl: getThumbUrl(row.filePath, row.type),
       previewUrl,
       filePath: row.filePath,

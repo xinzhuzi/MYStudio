@@ -34,6 +34,7 @@ export interface StudioAssetListRequest {
   offset?: number;
   limit?: number;
   refresh?: boolean;
+  category?: string;
 }
 
 export interface StudioAssetListResponse {

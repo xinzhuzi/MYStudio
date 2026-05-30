@@ -2259,8 +2259,8 @@ ipcMain.handle('studio-list-assets', async (_event, payload: StudioAssetListRequ
 ))
 
 // === 漫影独立资产存储 ===
-ipcMain.handle('assets:list', async (_event, payload: { type: string; search?: string; offset?: number; limit?: number }) => {
-  return assetsStorage.listAssets(payload.type as any, payload.search, payload.offset, payload.limit);
+ipcMain.handle('assets:list', async (_event, payload: { type: string; search?: string; offset?: number; limit?: number; category?: string }) => {
+  return assetsStorage.listAssets(payload.type as any, payload.search, payload.offset, payload.limit, payload.category);
 })
 
 ipcMain.handle('assets:get', async (_event, id: string) => {

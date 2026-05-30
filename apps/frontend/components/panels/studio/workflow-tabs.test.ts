@@ -4,8 +4,8 @@ import { WORKFLOW_TABS } from "./index";
 describe("studio workflow tabs", () => {
   it("keeps model configuration out of the workflow navigation", () => {
     expect(WORKFLOW_TABS.map((tab) => tab.value)).toEqual([
-      "novel",
       "manuals",
+      "novel",
       "skill",
       "script",
       "storyboard",

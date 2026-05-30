@@ -254,15 +254,15 @@ function resolveStudioManualPreset(
   return manuals.find((item) => item.id === id) ?? null;
 }
 
-function getManualSkillSource(kind: Extract<StudioManualKind, "visual" | "director">) {
+export function getManualSkillSource(kind: Extract<StudioManualKind, "visual" | "director">) {
   return kind === "visual" ? "art_skills" : "story_skills";
 }
 
-function getManualModuleKeys(kind: Extract<StudioManualKind, "visual" | "director">) {
+export function getManualModuleKeys(kind: Extract<StudioManualKind, "visual" | "director">) {
   return kind === "visual" ? visualModuleKeys : directorModuleKeys;
 }
 
-function getManualModuleRelativePath(kind: Extract<StudioManualKind, "visual" | "director">, key: string) {
+export function getManualModuleRelativePath(kind: Extract<StudioManualKind, "visual" | "director">, key: string) {
   const direct = key === "README" ? "README.md" : `${key}.md`;
   if (kind === "visual") {
     return findVisualModuleRelativePath(key) ?? direct;

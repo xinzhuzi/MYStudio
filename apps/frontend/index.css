@@ -468,6 +468,26 @@
 }
 
 /* Custom scrollbar */
+/* 全局：所有滚动条去掉背景（轨道透明），仅保留细滑块 */
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-track,
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border-radius: 4px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground));
+}
+* {
+  scrollbar-color: hsl(var(--border)) transparent;
+}
+
 .scrollbar-thin::-webkit-scrollbar {
   width: 6px;
   height: 8px;

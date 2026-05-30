@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useRef } from 'react';
 import { ImageIcon, Loader2, Download, Save, Sparkles, Archive } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -36,6 +36,14 @@ export function ImageStudio() {
   } = useFreedomStore();
 
   const model = useMemo(() => getT2IModelById(selectedImageModel), [selectedImageModel]);
+  const abortRef = useRef<AbortController | null>(null);
+
+  const handleStop = useCallback(() => {
+    abortRef.current?.abort();
+    abortRef.current = null;
+    setImageGenerating(false);
+    toast.info('已停止生成');
+  }, [setImageGenerating]);
 
   // Dynamic capabilities based on selected model
   const aspectRatios = useMemo(() => getAspectRatiosForT2IModel(selectedImageModel), [selectedImageModel]);
@@ -62,6 +70,8 @@ export function ImageStudio() {
 
     setImageGenerating(true);
     setImageResult(null);
+    const controller = new AbortController();
+    abortRef.current = controller;
 
     try {
       const result = await generateFreedomImage({
@@ -70,6 +80,7 @@ export function ImageStudio() {
         aspectRatio: imageAspectRatio,
         resolution: imageResolution || undefined,
         extraParams: Object.keys(imageExtraParams).length > 0 ? imageExtraParams : undefined,
+        signal: controller.signal,
       });
 
       setImageResult(result.url);
@@ -92,8 +103,13 @@ export function ImageStudio() {
 
       toast.success('图片生成成功！已保存到素材库');
     } catch (err: any) {
-      toast.error(`生成失败: ${err.message}`);
+      if (err?.name === 'AbortError' || abortRef.current === null) {
+        // 用户主动停止，不报错
+      } else {
+        toast.error(`生成失败: ${err.message}`);
+      }
     } finally {
+      abortRef.current = null;
       setImageGenerating(false);
     }
   }, [imagePrompt, selectedImageModel, imageAspectRatio, imageResolution, imageExtraParams]);
@@ -249,17 +265,15 @@ export function ImageStudio() {
             </div>
 
             {/* Generate Button */}
-            <Button
-              className="w-full h-11"
-              onClick={handleGenerate}
-              disabled={imageGenerating || !imagePrompt.trim()}
-            >
-              {imageGenerating ? (
-                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> 生成中...</>
-              ) : (
-                <><Sparkles className="mr-2 h-4 w-4" /> 生成图片</>
-              )}
-            </Button>
+            {imageGenerating ? (
+              <Button variant="destructive" className="w-full h-11" onClick={handleStop}>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> 停止生成
+              </Button>
+            ) : (
+              <Button className="w-full h-11" onClick={handleGenerate} disabled={!imagePrompt.trim()}>
+                <Sparkles className="mr-2 h-4 w-4" /> 生成图片
+              </Button>
+            )}
           </div>
         </ScrollArea>
       </div>
@@ -270,6 +284,7 @@ export function ImageStudio() {
           <div className="flex flex-col items-center gap-4">
             <Loader2 className="h-12 w-12 animate-spin text-primary" />
             <p className="text-sm text-muted-foreground">图片生成中，请稍候...</p>
+            <Button variant="outline" size="sm" onClick={handleStop}>停止生成</Button>
           </div>
         ) : imageResult ? (
           <div className="max-w-full max-h-full relative group">

@@ -14,6 +14,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -22,9 +23,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -42,7 +42,6 @@ import {
   parseNovelEventAnalysisLine,
 } from "@/lib/studio/event-analysis";
 import {
-  buildStudioManualContext,
   buildStudioManualsFromSkillFiles,
   listStudioManualPresets,
   type StudioManualCatalog,
@@ -82,6 +81,8 @@ import {
   WandSparkles,
 } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+import { ManualEditDialog } from "./ManualEditDialog";
 
 const taskOptions: Array<{ key: AgentWorkKey; label: string }> = [
   { key: "eventAnalysis", label: "事件分析" },
@@ -92,8 +93,8 @@ const taskOptions: Array<{ key: AgentWorkKey; label: string }> = [
 ];
 
 export const WORKFLOW_TABS = [
+  { value: "manuals", label: "风格与导演选择", Icon: BookMarked },
   { value: "novel", label: "小说库", Icon: BookOpen },
-  { value: "manuals", label: "手册设定", Icon: BookMarked },
   { value: "skill", label: "Skill 对话", Icon: WandSparkles },
   { value: "script", label: "剧本策划", Icon: FileText },
   { value: "storyboard", label: "分镜表", Icon: Split },
@@ -137,7 +138,20 @@ export function StudioView() {
   const [renderingTrackId, setRenderingTrackId] = useState<string | null>(null);
   const [merging, setMerging] = useState(false);
   const [mergeOutput, setMergeOutput] = useState<string | null>(null);
-  const [activeWorkflowTab, setActiveWorkflowTab] = useState("novel");
+  const [activeWorkflowTab, setActiveWorkflowTab] = useState(workflowConfig.workflowStage ?? "manuals");
+  const handleStageChange = useCallback((value: string) => {
+    const cfg = useStudioStore.getState().workflowConfig;
+    if (value !== "manuals" && (!cfg.visualManualId || !cfg.directorManualId)) {
+      toast.error("请先选择视觉风格与导演手册，才能进入下一步");
+      return;
+    }
+    setActiveWorkflowTab(value);
+    setWorkflowConfig({ workflowStage: value });
+  }, [setWorkflowConfig]);
+  // 切换项目时，自动恢复到该项目保存的工作流阶段
+  useEffect(() => {
+    setActiveWorkflowTab(useStudioStore.getState().workflowConfig.workflowStage ?? "manuals");
+  }, [activeProject?.id]);
   const [novelHeaderActions, setNovelHeaderActions] = useState<ReactNode>(null);
   const bundledManualCatalog = useMemo<StudioManualCatalog>(() => ({
     visual: listStudioManualPresets("visual"),
@@ -359,30 +373,28 @@ export function StudioView() {
 
   return (
     <div className="studio-workspace studio-workspace-workflow h-full bg-background">
-      <Tabs value={activeWorkflowTab} onValueChange={setActiveWorkflowTab} className="flex h-full flex-col">
+      <Tabs value={activeWorkflowTab} onValueChange={handleStageChange} className="flex h-full flex-col">
         <div className="border-b border-border bg-panel px-6 py-3">
           <div className="flex items-center justify-between gap-4">
             <div className="min-w-0 flex-1">
               {activeWorkflowTab === "novel" ? novelHeaderActions : null}
             </div>
-            <TooltipProvider delayDuration={200}>
-              <TabsList className="gap-3">
-                {WORKFLOW_TABS.map(({ value, label, Icon }) => (
-                  <Tooltip key={value}>
-                    <TooltipTrigger asChild>
-                      <TabsTrigger
-                        value={value}
-                        aria-label={label}
-                        className="h-11 w-11 rounded-xl border border-transparent p-0 data-[state=active]:border-primary/30 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-                      >
-                        <Icon className="h-5 w-5" />
-                      </TabsTrigger>
-                    </TooltipTrigger>
-                    <TooltipContent>{label}</TooltipContent>
-                  </Tooltip>
+            <Select value={activeWorkflowTab} onValueChange={handleStageChange}>
+              <SelectTrigger className="h-10 w-[220px] gap-2 border-primary/40">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {WORKFLOW_TABS.map(({ value, label, Icon }, index) => (
+                  <SelectItem key={value} value={value}>
+                    <span className="flex items-center gap-2">
+                      <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-muted px-1 text-[10px] font-semibold">{index + 1}</span>
+                      <Icon className="h-4 w-4" />
+                      {label}
+                    </span>
+                  </SelectItem>
                 ))}
-              </TabsList>
-            </TooltipProvider>
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
@@ -871,92 +883,137 @@ function ManualsTab(props: {
 }) {
   const visualManuals = props.manualCatalog.visual ?? [];
   const directorManuals = props.manualCatalog.director ?? [];
-  const visualManual = props.workflowConfig.visualManualId
-    ? visualManuals.find((manual) => manual.id === props.workflowConfig.visualManualId) ?? null
-    : null;
-  const directorManual = props.workflowConfig.directorManualId
-    ? directorManuals.find((manual) => manual.id === props.workflowConfig.directorManualId) ?? null
-    : null;
-  const manualContext = buildStudioManualContext(props.workflowConfig, {
-    visual: visualManuals,
-    director: directorManuals,
-  });
+  const [editing, setEditing] = useState<{ kind: "visual" | "director"; manual: StudioManualPreset } | null>(null);
 
   return (
-    <div className="grid grid-cols-[360px_1fr] gap-4">
-      <Card className="rounded-lg">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-sm">
-            <Palette className="h-4 w-4" />
-            视觉手册
-          </CardTitle>
-        </CardHeader>
+    <div className="grid grid-cols-[320px_1fr] gap-5">
+      {/* 左：项目配置（ToonFlow 风格）*/}
+      <Card className="h-fit rounded-lg">
+        <CardHeader><CardTitle className="text-sm">项目配置</CardTitle></CardHeader>
         <CardContent className="space-y-3">
-          <select
-            className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-            value={props.workflowConfig.visualManualId ?? ""}
-            onChange={(event) => props.setWorkflowConfig({ visualManualId: event.target.value || undefined })}
-          >
-            <option value="">未选择</option>
-            {visualManuals.map((manual) => (
-              <option key={manual.id} value={manual.id}>{manual.name}</option>
-            ))}
-          </select>
-          {visualManual ? <ManualMetadata manual={visualManual} /> : null}
-          {visualManual?.images?.[0] ? (
-            <img src={visualManual.images[0]} alt={visualManual.name} className="aspect-video w-full rounded-md border object-cover" />
-          ) : null}
-          <ManualModulePreview
-            title={visualManual?.name ?? "未选择"}
-            modules={[
-              visualManual?.modules.README,
-              visualManual?.modules.director_planning_style,
-              visualManual?.modules.art_storyboard_video,
-            ]}
-          />
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">项目类型</Label>
+            <select className="h-8 w-full rounded-md border border-input bg-background px-2 text-sm" value={props.workflowConfig.projectType ?? "novel"} onChange={(e) => props.setWorkflowConfig({ projectType: e.target.value })}>
+              <option value="novel">基于小说原文</option>
+              <option value="script">基于剧本</option>
+            </select>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">单集时长（分钟）</Label>
+            <Input type="number" min={1} value={props.workflowConfig.episodeDurationMin ?? 3} onChange={(e) => props.setWorkflowConfig({ episodeDurationMin: e.target.value ? Number(e.target.value) : undefined })} className="h-8" placeholder="例如 3" />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">小说类型</Label>
+            <Input value={props.workflowConfig.novelGenre ?? ""} onChange={(e) => props.setWorkflowConfig({ novelGenre: e.target.value || undefined })} className="h-8" placeholder="例如 玄幻、科幻、言情" />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">平台规格</Label>
+            <select className="h-8 w-full rounded-md border border-input bg-background px-2 text-sm" value={props.workflowConfig.platformSpec ?? ""} onChange={(e) => props.setWorkflowConfig({ platformSpec: e.target.value || undefined })}>
+              <option value="">未选择</option>
+              <option value="16:9">16:9 横屏</option>
+              <option value="9:16">9:16 竖屏</option>
+              <option value="1:1">1:1 方形</option>
+            </select>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">小说简介</Label>
+            <Textarea value={props.workflowConfig.novelSynopsis ?? ""} onChange={(e) => props.setWorkflowConfig({ novelSynopsis: e.target.value || undefined })} className="min-h-[120px] text-sm" placeholder="请输入小说简介" />
+          </div>
         </CardContent>
       </Card>
 
-      <div className="grid grid-rows-[auto_1fr] gap-4">
-        <Card className="rounded-lg">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-sm">
-              <BookMarked className="h-4 w-4" />
-              导演手册
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <select
-              className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-              value={props.workflowConfig.directorManualId ?? ""}
-              onChange={(event) => props.setWorkflowConfig({ directorManualId: event.target.value || undefined })}
-            >
-              <option value="">未选择</option>
-              {directorManuals.map((manual) => (
-                <option key={manual.id} value={manual.id}>{manual.name}</option>
-              ))}
-            </select>
-            {directorManual ? <ManualMetadata manual={directorManual} /> : null}
-            <ManualModulePreview
-              title={directorManual?.name ?? "未选择"}
-              modules={[
-                directorManual?.modules.README,
-                directorManual?.modules.director_planning_narrative,
-                directorManual?.modules.director_storyboard_table_narrative,
-              ]}
-            />
-          </CardContent>
-        </Card>
+      {/* 右：视觉手册 + 导演手册 */}
+      <div className="space-y-5">
+      {/* 视觉手册网格 */}
+      <section>
+        <div className="mb-2 flex items-center gap-2 text-sm font-medium">
+          <Palette className="h-4 w-4" /> 视觉手册（画风）
+          <span className="text-xs font-normal text-muted-foreground">{visualManuals.length} 个 · 点击选择</span>
+        </div>
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3">
+          {visualManuals.map((manual) => {
+            const active = manual.id === props.workflowConfig.visualManualId;
+            return (
+              <div
+                key={manual.id}
+                role="button"
+                tabIndex={0}
+                onClick={() => props.setWorkflowConfig({ visualManualId: active ? undefined : manual.id })}
+                className={cn(
+                  "group relative cursor-pointer overflow-hidden rounded-lg border bg-card text-left transition-colors",
+                  active ? "border-primary ring-2 ring-primary/30" : "border-border hover:border-primary/40",
+                )}
+              >
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); setEditing({ kind: "visual", manual }); }}
+                  className="absolute right-1.5 top-1.5 z-10 hidden rounded-md bg-background/90 p-1 shadow group-hover:block hover:text-primary"
+                  title="编辑文档"
+                >
+                  <Edit3 className="h-3.5 w-3.5" />
+                </button>
+                <div className="aspect-video overflow-hidden bg-muted">
+                  {manual.images?.[0] ? (
+                    <img src={manual.images[0]} alt={manual.name} className="h-full w-full object-cover" />
+                  ) : (
+                    <div className="flex h-full items-center justify-center"><Palette className="h-6 w-6 opacity-30" /></div>
+                  )}
+                </div>
+                <div className="flex items-center justify-between gap-1 px-2 py-1.5">
+                  <span className="truncate text-xs font-medium">{manual.name}</span>
+                  {active ? <Check className="h-3.5 w-3.5 shrink-0 text-primary" /> : null}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
 
-        <Card className="rounded-lg">
-          <CardHeader>
-            <CardTitle className="text-sm">工作流注入预览</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Textarea value={manualContext} readOnly className="min-h-[300px] font-mono text-xs" />
-          </CardContent>
-        </Card>
+      {/* 导演手册网格 */}
+      <section>
+        <div className="mb-2 flex items-center gap-2 text-sm font-medium">
+          <BookMarked className="h-4 w-4" /> 导演手册
+          <span className="text-xs font-normal text-muted-foreground">{directorManuals.length} 个 · 点击选择</span>
+        </div>
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3">
+          {directorManuals.map((manual) => {
+            const active = manual.id === props.workflowConfig.directorManualId;
+            return (
+              <div
+                key={manual.id}
+                role="button"
+                tabIndex={0}
+                onClick={() => props.setWorkflowConfig({ directorManualId: active ? undefined : manual.id })}
+                className={cn(
+                  "group relative cursor-pointer rounded-lg border p-3 text-left transition-colors",
+                  active ? "border-primary bg-primary/5 ring-2 ring-primary/30" : "border-border hover:border-primary/40",
+                )}
+              >
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); setEditing({ kind: "director", manual }); }}
+                  className="absolute right-1.5 top-1.5 z-10 hidden rounded-md bg-background/90 p-1 shadow group-hover:block hover:text-primary"
+                  title="编辑文档"
+                >
+                  <Edit3 className="h-3.5 w-3.5" />
+                </button>
+                <div className="flex items-center justify-between gap-1">
+                  <span className="truncate text-sm font-medium">{manual.name}</span>
+                  {active ? <Check className="h-3.5 w-3.5 shrink-0 text-primary" /> : null}
+                </div>
+                <p className="mt-1 text-[11px] text-muted-foreground">导演叙事手法技能包</p>
+              </div>
+            );
+          })}
+        </div>
+      </section>
       </div>
+      <ManualEditDialog
+        open={!!editing}
+        kind={editing?.kind ?? "visual"}
+        manual={editing?.manual ?? null}
+        onOpenChange={(o) => { if (!o) setEditing(null); }}
+      />
     </div>
   );
 }
@@ -968,41 +1025,6 @@ function isManualSkillMarkdownPath(relativePath: string) {
       relativePath.startsWith("art_skills/")
       || relativePath.startsWith("story_skills/")
     )
-  );
-}
-
-function ManualMetadata(props: {
-  manual: StudioManualPreset;
-}) {
-  const sourceLabel = props.manual.source === "stored-copy"
-    ? "漫影副本"
-    : props.manual.source === "toonflow-runtime"
-      ? "漫影手册"
-      : "漫影内置";
-  const isDaojie = props.manual.id === "daojie_ink_guofeng" || props.manual.id === "Daojie_xianxia";
-
-  return (
-    <div className="flex flex-wrap gap-2">
-      {isDaojie ? <Badge>新建风格</Badge> : null}
-      <Badge variant="outline">{sourceLabel}</Badge>
-      <Badge variant="secondary">模块 {props.manual.moduleCount}</Badge>
-      <Badge variant="secondary">图片 {props.manual.imageCount}</Badge>
-      <Badge variant="outline">完整度 {props.manual.completenessScore}</Badge>
-      {props.manual.basePresetId ? <Badge variant="outline">补充参考 {props.manual.basePresetId}</Badge> : null}
-    </div>
-  );
-}
-
-function ManualModulePreview(props: {
-  title: string;
-  modules: Array<string | undefined>;
-}) {
-  const content = props.modules.filter(Boolean).join("\n\n---\n\n");
-  return (
-    <ScrollArea className="h-[280px] rounded-md border bg-muted/30 p-3">
-      <div className="mb-2 text-xs font-medium text-muted-foreground">{props.title}</div>
-      <pre className="whitespace-pre-wrap text-xs leading-5">{content || "暂无手册内容"}</pre>
-    </ScrollArea>
   );
 }
 

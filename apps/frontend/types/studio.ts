@@ -190,6 +190,11 @@ export interface StudioWorkflowConfig {
   stylePositioning?: string;
   paywallPolicy?: string;
   autoAnalyzeEventsOnImport?: boolean;
+  /** 当前所处的工作流阶段（tab value），随项目保存，下次进入自动恢复 */
+  workflowStage?: string;
+  projectType?: string;
+  novelGenre?: string;
+  novelSynopsis?: string;
 }
 
 export interface StudioAgentRun {

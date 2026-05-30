@@ -33,6 +33,7 @@ export interface FreedomImageParams {
   height?: number;
   negativePrompt?: string;
   extraParams?: Record<string, any>;
+  signal?: AbortSignal;
 }
 
 export type FreedomVideoUploadRole = 'single' | 'first' | 'last' | 'reference';
@@ -78,6 +79,7 @@ const RETRY_BASE_DELAY = 3000;
 function isRetryableError(error: unknown): boolean {
   if (!error) return false;
   const err = error as any;
+  if (err.name === 'AbortError') return false;
   if (err.status === 429 || err.status === 500 || err.status === 502 || err.status === 503 || err.status === 529) return true;
   if (err.code === 429 || err.code === 500 || err.code === 502 || err.code === 503 || err.code === 529) return true;
   const message = (err.message || '').toLowerCase();
@@ -452,6 +454,7 @@ async function generateViaChatCompletions(
       'Authorization': `Bearer ${apiKey}`,
     },
     body: JSON.stringify(requestBody),
+    signal: params.signal,
   });
 
   if (!response.ok) {
@@ -541,6 +544,7 @@ async function generateViaImagesEndpoint(
       'Authorization': `Bearer ${apiKey}`,
     },
     body: JSON.stringify(body),
+    signal: params.signal,
   });
 
   if (!response.ok) {
@@ -608,6 +612,7 @@ async function generateViaKlingImagesEndpoint(
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
       body: JSON.stringify(body),
+      signal: params.signal,
     });
   } catch {
     return generateViaImagesEndpoint(params, model, apiKey, baseUrl);

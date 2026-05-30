@@ -7,6 +7,7 @@ describe("overview workflow guide", () => {
     expect(OVERVIEW_WORKFLOW_GUIDE.summary).toContain("小说");
     expect(OVERVIEW_WORKFLOW_GUIDE.summary).toContain("成片");
     expect(OVERVIEW_WORKFLOW_GUIDE.steps.map((step) => step.title)).toEqual([
+      "风格与导演选择",
       "小说导入",
       "上下文整理",
       "剧本策划",
@@ -17,10 +18,10 @@ describe("overview workflow guide", () => {
     ]);
   });
 
-  it("starts users in the studio workflow instead of the old script import flow", () => {
+  it("lets users browse all art styles in assets (default style library)", () => {
     expect(OVERVIEW_WORKFLOW_GUIDE.primaryAction).toMatchObject({
-      label: "导入小说",
-      targetTab: "studio",
+      label: "查看所有风格",
+      targetTab: "assets",
     });
   });
 });
