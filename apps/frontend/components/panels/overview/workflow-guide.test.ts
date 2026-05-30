@@ -3,18 +3,20 @@ import { OVERVIEW_WORKFLOW_GUIDE } from "./workflow-guide";
 
 describe("overview workflow guide", () => {
   it("introduces the full Manying workflow from novel import to export", () => {
-    expect(OVERVIEW_WORKFLOW_GUIDE.title).toBe("漫影工作室基础工作流");
+    expect(OVERVIEW_WORKFLOW_GUIDE.title).toBe("漫影工作室标准工作流");
     expect(OVERVIEW_WORKFLOW_GUIDE.summary).toContain("小说");
     expect(OVERVIEW_WORKFLOW_GUIDE.summary).toContain("成片");
     expect(OVERVIEW_WORKFLOW_GUIDE.steps.map((step) => step.title)).toEqual([
       "风格与导演选择",
       "小说导入",
-      "上下文整理",
+      "事件分析",
       "剧本策划",
-      "分镜设计",
-      "素材管理",
-      "制作剪辑",
-      "合成导出",
+      "实体提取",
+      "分镜拆解",
+      "一致性资产",
+      "音色分配",
+      "生图与生视频",
+      "剪辑成片",
     ]);
   });
 
