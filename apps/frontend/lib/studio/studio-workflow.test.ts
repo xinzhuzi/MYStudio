@@ -212,6 +212,22 @@ describe("Manying Studio workflow core", () => {
     expect(context.markdown).not.toContain("三族灵气");
   });
 
+  it("injects series bible summary at the head of every skill context package (§2.2 global injection)", () => {
+    const context = buildSkillContextPackage({
+      projectName: "道劫",
+      taskKey: "storyboardTable",
+      chapters: [],
+      agentWorkData: [],
+      createdAt: 1710000000000,
+      seriesBibleSummary: "# 剧集圣经（全局锁定）\n画幅：9:16\n角色外貌/音色锁定：\n- char-001：玄色长袍束发冷面",
+    });
+
+    expect(context.markdown).toContain("剧集圣经");
+    expect(context.markdown).toContain("玄色长袍束发冷面");
+    // 圣经须出现在小说上下文之前（头部注入）
+    expect(context.markdown.indexOf("剧集圣经")).toBeLessThan(context.markdown.indexOf("# 小说上下文"));
+  });
+
   it("groups storyboards into Toonflow-style production tracks", () => {
     const storyboards: StoryboardItem[] = [
       storyboard("sb-2", 2, "opening", 4),

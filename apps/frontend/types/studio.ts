@@ -10,7 +10,10 @@ export type AgentWorkKey =
   | "storyboardTable"
   | "storyboardPanel"
   | "storyboardImage"
-  | "supervisionReport";
+  | "supervisionReport"
+  | "entityExtraction"
+  | "episodeOutline"
+  | "voiceAssign";
 
 export interface NovelEventAnalysis {
   chapterLabel: string;
@@ -79,6 +82,11 @@ export interface StoryboardItem {
   mediaRef?: StoryboardMediaRef;
   state: StoryboardState;
   reason?: string;
+  /** ToonFlow 一致性字段（对齐统一工作流计划 §3.2）。可选：旧数据/精简流程无需提供 */
+  emotion?: string;
+  orientation?: string;
+  spatialRelation?: string;
+  associateAssetsNames?: string[];
 }
 
 export interface ProductionTrack {
@@ -229,4 +237,61 @@ export interface EpisodeMergePlan {
   kind: "episode-merge";
   inputs: string[];
   ffmpegProfile: "concat-h264-aac";
+}
+
+/** ===== 编剧深度实体（对齐统一工作流计划 M1–M7 / 数据模型规范 §3.12）===== */
+
+export interface StorySkeleton {
+  id: string;
+  projectId: string;
+  coreHook: string;
+  protagonistArc: string;
+  threeActs: { setup: string; confrontation: string; resolution: string };
+  episodePlan: { episodeIndex: number; title: string; summary: string }[];
+  payWalls: number[];
+}
+
+export interface EntityExtractionResult {
+  id: string;
+  episodeId: string;
+  characters: { characterId: string; name: string; aliases: string[] }[];
+  scenes: { sceneId: string; name: string }[];
+  props: { assetId: string; name: string }[];
+}
+
+export interface ScriptPlan {
+  id: string;
+  episodeId: string;
+  theme: string;
+  visualStyle: string;
+  narrativeRhythm: string;
+  sceneIntents: { sceneId: string; emotion: string; shotIntent: string; spatial: string }[];
+  soundDirection: string;
+  transitions: string;
+  derivedAssetPlan: { parentAssetId: string; state: string; reason: string }[];
+}
+
+export interface DerivedAsset {
+  id: string;
+  parentAssetId: string;
+  state: string;
+  desc: string;
+  imageRef: string | null;
+}
+
+export interface SeriesBible {
+  id: string;
+  projectId: string;
+  characterLocks: { characterId: string; appearance: string; voiceId: string | null }[];
+  sceneLocks: string[];
+  visualManualId: string;
+  directorManualId: string;
+  aspectRatio: string;
+  stylePositioning: string;
+}
+
+export interface EpisodeOutline {
+  id: string;
+  episodeId: string;
+  beats: { sceneIndex: number; location: string; beat: string; durationSec: number }[];
 }

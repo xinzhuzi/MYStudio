@@ -9,9 +9,13 @@ import {
 
 describe("TTS model catalog", () => {
   it("keeps all Voicebox TTS engines in the MYStudio download catalog", () => {
-    const engines = new Set(TTS_MODEL_GROUPS.flatMap((group) => group.models.map((model) => model.engine)));
+    const ttsEngines = new Set(
+      TTS_MODEL_GROUPS.filter((group) => group.id !== "stt").flatMap((group) =>
+        group.models.map((model) => model.engine),
+      ),
+    );
 
-    expect(engines).toEqual(new Set([
+    expect(ttsEngines).toEqual(new Set([
       "qwen",
       "qwen_custom_voice",
       "luxtts",
@@ -20,6 +24,13 @@ describe("TTS model catalog", () => {
       "tada",
       "kokoro",
     ]));
+  });
+
+  it("keeps speech-to-text engines in a dedicated catalog group for clone reference text", () => {
+    const sttGroup = TTS_MODEL_GROUPS.find((group) => group.id === "stt");
+    const sttEngines = new Set(sttGroup?.models.map((model) => model.engine));
+
+    expect(sttEngines).toEqual(new Set(["sensevoice", "whisper"]));
   });
 
   it("groups models by MYStudio narration use case", () => {

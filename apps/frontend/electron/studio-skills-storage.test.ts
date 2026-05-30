@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   createStoredStudioSkillFile,
   deleteStoredStudioSkillFile,
@@ -9,6 +9,7 @@ import {
   getStudioSkillStorageRoot,
   listStoredStudioSkillFiles,
   readStoredStudioSkillText,
+  resetStudioSkillsSyncState,
   restoreStoredStudioSkillFile,
   resolveStoredStudioSkillPath,
   writeStoredStudioSkillText,
@@ -26,6 +27,10 @@ async function writeText(filePath: string, value: string) {
   await fs.mkdir(path.dirname(filePath), { recursive: true });
   await fs.writeFile(filePath, value, "utf-8");
 }
+
+beforeEach(() => {
+  resetStudioSkillsSyncState();
+});
 
 afterEach(async () => {
   await Promise.all(tempRoots.splice(0).map((root) => fs.rm(root, { recursive: true, force: true })));
@@ -106,6 +111,7 @@ describe("studio skills storage", () => {
     await writeText(path.join(sourceRoot, "script_execution_script.md"), "seed script v2\n");
     await writeText(path.join(sourceRoot, "production_skills/storyboard_table_techniques.md"), "new seed\n");
 
+    resetStudioSkillsSyncState();
     await ensureStudioSkillsSynced({ sourceRoot, storageRoot });
 
     await expect(readStoredStudioSkillText(storageRoot, "agent_skills/script_execution_skeleton.md")).resolves.toBe("seed v1\n");
@@ -149,6 +155,7 @@ describe("studio skills storage", () => {
     await ensureStudioSkillsSynced({ sourceRoot, storageRoot });
 
     expect(await deleteStoredStudioSkillFile(storageRoot, "agent_skills/script_agent_decision.md")).toBe(true);
+    resetStudioSkillsSyncState();
     await ensureStudioSkillsSynced({ sourceRoot, storageRoot });
 
     await expect(readStoredStudioSkillText(storageRoot, "agent_skills/script_agent_decision.md")).rejects.toThrow();

@@ -38,6 +38,8 @@ describe("useAPIConfigStore unified model configuration", () => {
     expect(API_AGENT_DEPLOYMENT_DEFAULTS.map((item) => item.key)).toEqual([
       "universalAi",
       "eventAnalysisAgent",
+      "entityExtraction",
+      "episodeOutline",
       "scriptAgent",
       "scriptAgent:decisionAgent",
       "scriptAgent:storySkeletonAgent",

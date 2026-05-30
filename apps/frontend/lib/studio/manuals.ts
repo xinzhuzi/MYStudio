@@ -14,42 +14,42 @@ export interface BuildStoredStudioManualsOptions {
 }
 
 const visualMarkdown = import.meta.glob([
-  "/src/assets/studio-manuals/art_skills/**/*.md",
-  "!/src/assets/studio-manuals/art_skills/daojie_ink_guofeng/**",
+  "../../assets/studio-manuals/art_skills/**/*.md",
+  "!../../assets/studio-manuals/art_skills/daojie_ink_guofeng/**",
 ], {
   eager: true,
   query: "?raw",
   import: "default",
 }) as MarkdownMap;
 
-const directorMarkdown = import.meta.glob("/src/assets/studio-manuals/story_skills/**/*.md", {
+const directorMarkdown = import.meta.glob("../../assets/studio-manuals/story_skills/**/*.md", {
   eager: true,
   query: "?raw",
   import: "default",
 }) as MarkdownMap;
 
-const productionMarkdown = import.meta.glob("/src/assets/studio-manuals/production_skills/**/*.md", {
+const productionMarkdown = import.meta.glob("../../assets/studio-manuals/production_skills/**/*.md", {
   eager: true,
   query: "?raw",
   import: "default",
 }) as MarkdownMap;
 
-const agentSkillMarkdown = import.meta.glob("/src/assets/studio-manuals/*.md", {
+const agentSkillMarkdown = import.meta.glob("../../assets/studio-manuals/*.md", {
   eager: true,
   query: "?raw",
   import: "default",
 }) as MarkdownMap;
 
 const visualImages = import.meta.glob([
-  "/src/assets/studio-manuals/art_skills/**/*.{png,jpg,jpeg,webp,gif,svg}",
-  "!/src/assets/studio-manuals/art_skills/daojie_ink_guofeng/**",
+  "../../assets/studio-manuals/art_skills/**/*.{png,jpg,jpeg,webp,gif,svg}",
+  "!../../assets/studio-manuals/art_skills/daojie_ink_guofeng/**",
 ], {
   eager: true,
   query: "?url",
   import: "default",
 }) as Record<string, string>;
 
-const directorImages = import.meta.glob("/src/assets/studio-manuals/story_skills/**/*.{png,jpg,jpeg,webp,gif,svg}", {
+const directorImages = import.meta.glob("../../assets/studio-manuals/story_skills/**/*.{png,jpg,jpeg,webp,gif,svg}", {
   eager: true,
   query: "?url",
   import: "default",
@@ -231,7 +231,7 @@ function buildProductionManuals(): StudioManualPreset[] {
 }
 
 function findManualMarkdown(markdown: MarkdownMap, source: "art_skills" | "story_skills", id: string, key: string): string {
-  const direct = `/src/assets/studio-manuals/${source}/${id}/${key}.md`;
+  const direct = `../../assets/studio-manuals/${source}/${id}/${key}.md`;
   if (markdown[direct]) return markdown[direct];
 
   const suffix = `/${source}/${id}/`;
@@ -241,7 +241,7 @@ function findManualMarkdown(markdown: MarkdownMap, source: "art_skills" | "story
 }
 
 function findProductionMarkdown(key: string): string {
-  return productionMarkdown[`/src/assets/studio-manuals/production_skills/${key}.md`] ?? "";
+  return productionMarkdown[`../../assets/studio-manuals/production_skills/${key}.md`] ?? "";
 }
 
 function resolveStudioManualPreset(

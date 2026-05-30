@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { createProjectScopedStorage } from "@/lib/project-storage";
 import { buildSkillContextPackage } from "@/lib/studio/context";
+import { formatSeriesBibleSummary } from "@/lib/studio/series-bible";
 import { type StudioManualCatalog } from "@/lib/studio/manuals";
 import { buildMediaRefFromMaterial, createMaterialRecord } from "@/lib/studio/material";
 import {
@@ -15,8 +16,12 @@ import { useProjectStore } from "@/stores/project-store";
 import type {
   AgentWorkData,
   AgentWorkKey,
+  EntityExtractionResult,
+  EpisodeOutline,
   NovelChapter,
   ProductionTrack,
+  ScriptPlan,
+  SeriesBible,
   SkillContextPackage,
   StudioWorkflowConfig,
   StoryboardItem,
@@ -29,6 +34,10 @@ interface StudioWorkflowState {
   materials: StudioMaterial[];
   novelChapters: NovelChapter[];
   agentWorkData: AgentWorkData[];
+  entityExtractions: EntityExtractionResult[];
+  scriptPlans: ScriptPlan[];
+  seriesBible: SeriesBible | null;
+  episodeOutlines: EpisodeOutline[];
   storyboards: StoryboardItem[];
   productionTracks: ProductionTrack[];
   videoCandidates: VideoCandidate[];
@@ -48,6 +57,10 @@ interface StudioWorkflowActions {
   deleteNovelChapters: (ids: string[]) => void;
   setWorkflowConfig: (updates: Partial<StudioWorkflowConfig>) => void;
   saveAgentWorkData: (key: AgentWorkKey, data: string, episodeId?: string) => string;
+  saveEntityExtraction: (result: EntityExtractionResult) => void;
+  saveScriptPlan: (plan: ScriptPlan) => void;
+  saveSeriesBible: (bible: SeriesBible) => void;
+  saveEpisodeOutline: (outline: EpisodeOutline) => void;
   buildContext: (projectName: string, taskKey: AgentWorkKey, manualCatalog?: StudioManualCatalog) => SkillContextPackage;
   addStoryboard: (item?: Partial<StoryboardItem>) => string;
   updateStoryboard: (id: string, updates: Partial<StoryboardItem>) => void;
@@ -68,6 +81,10 @@ const initialState: StudioWorkflowState = {
   materials: [],
   novelChapters: [],
   agentWorkData: [],
+  entityExtractions: [],
+  scriptPlans: [],
+  seriesBible: null,
+  episodeOutlines: [],
   storyboards: [],
   productionTracks: [],
   videoCandidates: [],
@@ -178,6 +195,37 @@ export const useStudioStore = create<StudioWorkflowStore>()(
         return id;
       },
 
+      saveEntityExtraction: (result) => {
+        set((state) => ({
+          entityExtractions: [
+            ...state.entityExtractions.filter((item) => item.episodeId !== result.episodeId),
+            result,
+          ],
+        }));
+      },
+
+      saveScriptPlan: (plan) => {
+        set((state) => ({
+          scriptPlans: [
+            ...state.scriptPlans.filter((item) => item.episodeId !== plan.episodeId),
+            plan,
+          ],
+        }));
+      },
+
+      saveSeriesBible: (bible) => {
+        set({ seriesBible: bible });
+      },
+
+      saveEpisodeOutline: (outline) => {
+        set((state) => ({
+          episodeOutlines: [
+            ...state.episodeOutlines.filter((item) => item.episodeId !== outline.episodeId),
+            outline,
+          ],
+        }));
+      },
+
       buildContext: (projectName, taskKey, manualCatalog) => {
         const context = buildSkillContextPackage({
           projectName,
@@ -185,6 +233,7 @@ export const useStudioStore = create<StudioWorkflowStore>()(
           chapters: get().novelChapters,
           agentWorkData: get().agentWorkData,
           workflowConfig: get().workflowConfig,
+          seriesBibleSummary: formatSeriesBibleSummary(get().seriesBible),
           manualCatalog,
         });
         set({ lastContextPackage: context });
@@ -310,7 +359,7 @@ export const useStudioStore = create<StudioWorkflowStore>()(
     {
       name: "studio-workflow-store",
       storage: createJSONStorage(() => createProjectScopedStorage("studio-workflow-store")),
-      version: 2,
+      version: 6,
       migrate: (persistedState) => migrateStudioWorkflowState(persistedState),
     },
   ),
@@ -325,6 +374,10 @@ function migrateStudioWorkflowState(persistedState: unknown) {
   const state = persistedState as Partial<StudioWorkflowState>;
   return {
     ...state,
+    entityExtractions: state.entityExtractions ?? [],
+    scriptPlans: state.scriptPlans ?? [],
+    seriesBible: state.seriesBible ?? null,
+    episodeOutlines: state.episodeOutlines ?? [],
     workflowConfig: normalizeWorkflowConfig(state.workflowConfig),
   };
 }

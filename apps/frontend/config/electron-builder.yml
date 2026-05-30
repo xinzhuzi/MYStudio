@@ -4,7 +4,7 @@ directories:
   buildResources: frontend/assets/brand
   output: release/build
 files:
-  - from: release/.electron-vite
+  - from: out
     to: out
     filter:
       - "**/*"

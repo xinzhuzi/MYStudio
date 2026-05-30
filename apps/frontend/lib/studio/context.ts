@@ -14,6 +14,8 @@ export interface BuildSkillContextPackageInput {
   agentWorkData: AgentWorkData[];
   workflowConfig?: Partial<StudioWorkflowConfig>;
   manualCatalog?: StudioManualCatalog;
+  /** §2.2 剧集圣经摘要（formatSeriesBibleSummary 产出），头部全局注入；空则跳过。 */
+  seriesBibleSummary?: string;
   createdAt?: number;
 }
 
@@ -38,6 +40,8 @@ export function buildSkillContextPackage(input: BuildSkillContextPackageInput): 
     item.data,
   ].join("\n"));
 
+  const seriesBibleBlock = input.seriesBibleSummary?.trim();
+
   return {
     title: `${input.projectName} / ${input.taskKey}`,
     taskKey: input.taskKey,
@@ -46,6 +50,7 @@ export function buildSkillContextPackage(input: BuildSkillContextPackageInput): 
       `任务: ${input.taskKey}`,
       "模型执行: disabled",
       "",
+      ...(seriesBibleBlock ? [seriesBibleBlock, ""] : []),
       buildStudioManualContext(input.workflowConfig ?? {}, input.manualCatalog),
       "",
       "# 小说上下文",

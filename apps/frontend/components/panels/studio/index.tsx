@@ -42,6 +42,36 @@ import {
   parseNovelEventAnalysisLine,
 } from "@/lib/studio/event-analysis";
 import {
+  buildEntityExtractionMessages,
+  dedupeEntities,
+  parseEntityExtraction,
+  type KnownEntity,
+} from "@/lib/studio/entity-extraction";
+import { createMoyinSinks, syncExtractedEntities } from "@/lib/studio/entity-sync";
+import { buildDirectorPlanMessages, parseDirectorPlan } from "@/lib/studio/director-plan";
+import {
+  buildEntityResolver,
+  createMoyinDerivedSinks,
+  syncDerivedAssets,
+} from "@/lib/studio/derived-asset-sync";
+import {
+  buildStoryboardTableMessages,
+  parseStoryboardTable,
+  toStoryboardItems,
+} from "@/lib/studio/storyboard-table";
+import { buildSeriesBible } from "@/lib/studio/series-bible";
+import {
+  buildEpisodeOutlineMessages,
+  parseEpisodeOutline,
+} from "@/lib/studio/episode-outline";
+import {
+  assignVoicesForCharacters,
+  type VoiceAssignment,
+} from "@/lib/studio/voice-assigner";
+import { createMoyinTtsSink, syncCharacterVoices } from "@/lib/studio/voice-sync";
+import { resolveWorkflowDepth } from "@/lib/studio/workflow-depth";
+import {
+  buildStudioManualContext,
   buildStudioManualsFromSkillFiles,
   listStudioManualPresets,
   type StudioManualCatalog,
@@ -49,11 +79,15 @@ import {
 } from "@/lib/studio/manuals";
 import { createEpisodeMergePlan, createTrackRenderPlan } from "@/lib/studio/production";
 import { useAPIConfigStore } from "@/stores/api-config-store";
+import { useCharacterLibraryStore } from "@/stores/character-library-store";
 import { useProjectStore } from "@/stores/project-store";
+import { useSceneStore } from "@/stores/scene-store";
 import { useStudioStore } from "@/stores/studio-store";
+import { useTtsStore } from "@/stores/tts-store";
 import type {
   AgentWorkKey,
   NovelChapter,
+  ScriptPlan,
   StoryboardMediaRef,
   StudioManualPreset,
   StudioMaterial,
@@ -88,7 +122,13 @@ const taskOptions: Array<{ key: AgentWorkKey; label: string }> = [
   { key: "eventAnalysis", label: "事件分析" },
   { key: "storySkeleton", label: "故事骨架" },
   { key: "adaptationStrategy", label: "改编策略" },
+  { key: "episodeOutline", label: "分集细纲" },
   { key: "scriptDraft", label: "剧本草稿" },
+  { key: "entityExtraction", label: "实体提取" },
+  { key: "directorPlan", label: "导演规划" },
+  { key: "deriveAssets", label: "衍生资产" },
+  { key: "storyboardTable", label: "分镜表" },
+  { key: "voiceAssign", label: "音色分配" },
   { key: "productionPlan", label: "制作计划" },
 ];
 
@@ -101,12 +141,26 @@ export const WORKFLOW_TABS = [
   { value: "workbench", label: "剪辑工作台", Icon: Film },
 ];
 
+/** 把导演规划 ScriptPlan 关键维度压成分镜表的节奏/情绪基准文本。 */
+function formatScriptPlanContext(plan: ScriptPlan): string {
+  return [
+    plan.theme && `①主题立意：${plan.theme}`,
+    plan.visualStyle && `②视觉风格：${plan.visualStyle}`,
+    plan.narrativeRhythm && `③叙事节奏：${plan.narrativeRhythm}`,
+    plan.soundDirection && `⑤声音方向：${plan.soundDirection}`,
+    plan.transitions && `⑥转场设计：${plan.transitions}`,
+  ].filter(Boolean).join("\n");
+}
+
 export function StudioView() {
   const activeProject = useProjectStore((state) => state.activeProject);
   const {
     materials,
     novelChapters,
     agentWorkData,
+    entityExtractions,
+    scriptPlans,
+    episodeOutlines,
     storyboards,
     productionTracks,
     videoCandidates,
@@ -121,6 +175,10 @@ export function StudioView() {
     updateNovelChapter,
     setWorkflowConfig,
     saveAgentWorkData,
+    saveEntityExtraction,
+    saveScriptPlan,
+    saveSeriesBible,
+    saveEpisodeOutline,
     buildContext,
     addStoryboard,
     updateStoryboard,
@@ -158,6 +216,7 @@ export function StudioView() {
     director: listStudioManualPresets("director"),
   }), []);
   const [storedManualCatalog, setStoredManualCatalog] = useState<StudioManualCatalog | null>(null);
+  const [voiceAssignments, setVoiceAssignments] = useState<VoiceAssignment[]>([]);
   const usesStoredManualCatalog = typeof window !== "undefined" && Boolean(window.studioSkills?.list);
   const manualCatalog = storedManualCatalog ?? (usesStoredManualCatalog ? {} : bundledManualCatalog);
   const manualCatalogReady = !usesStoredManualCatalog || storedManualCatalog !== null;
@@ -294,6 +353,380 @@ export function StudioView() {
       toast.success(`事件分析完成，共 ${successCount} 章`);
     }
   }, [getResolvedAgentModel, saveAgentWorkData, updateNovelChapter]);
+
+  const handleEntityExtraction = useCallback(async (episodeId = "episode-1") => {
+    if (!window.electronAPI?.textCompletion) {
+      toast.error("当前环境不支持模型调用");
+      return;
+    }
+
+    const store = useStudioStore.getState();
+    const scriptText =
+      [...store.agentWorkData].reverse().find((item) => item.key === "scriptDraft")?.data
+      ?? store.novelChapters.map((chapter) => chapter.sourceText).join("\n\n");
+    if (!scriptText.trim()) {
+      toast.error("没有可提取的剧本：请先保存剧本草稿或导入小说正文");
+      return;
+    }
+
+    const resolved = getResolvedAgentModel("entityExtraction") ?? getResolvedAgentModel("universalAi");
+    if (!resolved) {
+      toast.error("未配置实体提取模型，请先到设置的 API 管理中绑定实体提取Agent或通用AI");
+      return;
+    }
+
+    const knownEntities: KnownEntity[] = store.entityExtractions.flatMap((batch) => [
+      ...batch.characters.map((item) => ({
+        id: item.characterId,
+        kind: "character" as const,
+        name: item.name,
+        aliases: item.aliases,
+      })),
+      ...batch.scenes.map((item) => ({
+        id: item.sceneId,
+        kind: "scene" as const,
+        name: item.name,
+        aliases: [],
+      })),
+      ...batch.props.map((item) => ({
+        id: item.assetId,
+        kind: "prop" as const,
+        name: item.name,
+        aliases: [],
+      })),
+    ]);
+
+    const messages = buildEntityExtractionMessages({ episodeId, scriptText, knownEntities });
+    try {
+      const result = await window.electronAPI.textCompletion({
+        provider: resolved.provider,
+        model: resolved.model,
+        messages: [
+          { role: "system", content: messages.system },
+          { role: "user", content: messages.user },
+        ],
+        temperature: resolved.deployment.temperature ?? 0.2,
+        maxTokens: resolved.deployment.maxOutputTokens ?? 2048,
+      });
+      if (!result.success || !result.text) {
+        throw new Error(result.error || "实体提取失败");
+      }
+
+      const parsed = parseEntityExtraction(result.text, episodeId);
+      const { entities } = dedupeEntities(parsed.entities, knownEntities);
+      if (!entities.length) {
+        toast.error("未解析出任何实体，请检查模型输出格式");
+        return;
+      }
+
+      const projectId = activeProject?.id;
+      if (!projectId) {
+        toast.error("未选择项目，无法写入角色库/场景库");
+        return;
+      }
+
+      const { result: batch, summary } = syncExtractedEntities(
+        { episodeId, entities, projectId, projectName },
+        createMoyinSinks(),
+      );
+      saveEntityExtraction(batch);
+
+      const detail = `角色 ${batch.characters.length} / 场景 ${batch.scenes.length} / 道具 ${batch.props.length}`;
+      if (parsed.errors.length) {
+        toast.warning(`实体提取完成（新增 ${summary.created}，合并 ${summary.merged}，忽略非法行 ${parsed.errors.length}）：${detail}`);
+      } else {
+        toast.success(`实体提取完成（新增 ${summary.created}，合并 ${summary.merged}）：${detail}`);
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : String(error));
+    }
+  }, [activeProject?.id, getResolvedAgentModel, projectName, saveEntityExtraction]);
+
+  const handleDirectorPlan = useCallback(async (episodeId = "episode-1") => {
+    if (!window.electronAPI?.textCompletion) {
+      toast.error("当前环境不支持模型调用");
+      return;
+    }
+
+    const store = useStudioStore.getState();
+    const scriptText =
+      [...store.agentWorkData].reverse().find((item) => item.key === "scriptDraft")?.data
+      ?? store.novelChapters.map((chapter) => chapter.sourceText).join("\n\n");
+    if (!scriptText.trim()) {
+      toast.error("没有可规划的剧本：请先保存剧本草稿或导入小说正文");
+      return;
+    }
+
+    const resolved =
+      getResolvedAgentModel("productionAgent:directorPlanAgent") ?? getResolvedAgentModel("universalAi");
+    if (!resolved) {
+      toast.error("未配置导演规划模型，请先到设置的 API 管理中绑定导演规划Agent或通用AI");
+      return;
+    }
+
+    const manualContext = buildStudioManualContext(store.workflowConfig, manualCatalog);
+    const messages = buildDirectorPlanMessages({ episodeId, scriptText, manualContext });
+    try {
+      const result = await window.electronAPI.textCompletion({
+        provider: resolved.provider,
+        model: resolved.model,
+        messages: [
+          { role: "system", content: messages.system },
+          { role: "user", content: messages.user },
+        ],
+        temperature: resolved.deployment.temperature ?? 0.4,
+        maxTokens: resolved.deployment.maxOutputTokens ?? 4096,
+      });
+      if (!result.success || !result.text) {
+        throw new Error(result.error || "导演规划失败");
+      }
+
+      const { plan, warnings } = parseDirectorPlan(result.text, episodeId);
+      saveScriptPlan(plan);
+
+      const detail = `衍生预划 ${plan.derivedAssetPlan.length} 条`;
+      if (warnings.length) {
+        toast.warning(`导演规划完成（${detail}；光影提示 ${warnings.length} 处已剔除）`);
+      } else {
+        toast.success(`导演规划完成（${detail}）`);
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : String(error));
+    }
+  }, [getResolvedAgentModel, manualCatalog, saveScriptPlan]);
+
+  const handleDeriveAssets = useCallback((episodeId = "episode-1") => {
+    const store = useStudioStore.getState();
+    const plan = store.scriptPlans.find((item) => item.episodeId === episodeId);
+    if (!plan) {
+      toast.error("尚无导演规划：请先运行导演规划，生成⑦衍生预划清单");
+      return;
+    }
+    if (!plan.derivedAssetPlan.length) {
+      toast.info("本集导演规划判定无需衍生资产");
+      return;
+    }
+
+    const projectId = activeProject?.id;
+    if (!projectId) {
+      toast.error("未选择项目，无法写入衍生资产");
+      return;
+    }
+
+    const batch = store.entityExtractions.find((item) => item.episodeId === episodeId)
+      ?? store.entityExtractions[store.entityExtractions.length - 1];
+    if (!batch) {
+      toast.error("尚无实体库：请先运行实体提取，衍生资产需绑定父资产");
+      return;
+    }
+
+    const resolver = buildEntityResolver(
+      batch.characters.map((c) => ({ id: c.characterId, name: c.name, aliases: c.aliases })),
+      batch.scenes.map((s) => ({ id: s.sceneId, name: s.name })),
+    );
+    const { summary } = syncDerivedAssets(plan.derivedAssetPlan, {
+      projectId,
+      resolver,
+      ...createMoyinDerivedSinks(),
+    });
+
+    if (summary.skipped) {
+      toast.warning(`衍生资产落地 ${summary.created} 条，跳过 ${summary.skipped} 条（父资产未匹配）`);
+    } else {
+      toast.success(`衍生资产落地 ${summary.created} 条`);
+    }
+  }, [activeProject?.id]);
+
+  const handleStoryboardTable = useCallback(async (episodeId = "episode-1") => {
+    if (!window.electronAPI?.textCompletion) {
+      toast.error("当前环境不支持模型调用");
+      return;
+    }
+
+    const store = useStudioStore.getState();
+    const scriptText =
+      [...store.agentWorkData].reverse().find((item) => item.key === "scriptDraft")?.data
+      ?? store.novelChapters.map((chapter) => chapter.sourceText).join("\n\n");
+    if (!scriptText.trim()) {
+      toast.error("没有可分镜的剧本：请先保存剧本草稿或导入小说正文");
+      return;
+    }
+
+    const resolved =
+      getResolvedAgentModel("productionAgent:storyboardTableAgent") ?? getResolvedAgentModel("universalAi");
+    if (!resolved) {
+      toast.error("未配置分镜表模型，请先到设置的 API 管理中绑定分镜表Agent或通用AI");
+      return;
+    }
+
+    const plan = store.scriptPlans.find((item) => item.episodeId === episodeId);
+    const scriptPlanContext = plan ? formatScriptPlanContext(plan) : undefined;
+    const messages = buildStoryboardTableMessages({ episodeId, scriptText, scriptPlanContext });
+    try {
+      const result = await window.electronAPI.textCompletion({
+        provider: resolved.provider,
+        model: resolved.model,
+        messages: [
+          { role: "system", content: messages.system },
+          { role: "user", content: messages.user },
+        ],
+        temperature: resolved.deployment.temperature ?? 0.4,
+        maxTokens: resolved.deployment.maxOutputTokens ?? 4096,
+      });
+      if (!result.success || !result.text) {
+        throw new Error(result.error || "分镜表生成失败");
+      }
+
+      const { rows, errors, warnings } = parseStoryboardTable(result.text, episodeId);
+      if (!rows.length) {
+        toast.error(`未解析到分镜行${errors.length ? `（非法行 ${errors.length}）` : ""}`);
+        return;
+      }
+
+      const items = toStoryboardItems(rows, episodeId);
+      const existingIds = new Set(useStudioStore.getState().storyboards.map((item) => item.id));
+      for (const item of items) {
+        if (existingIds.has(item.id)) {
+          updateStoryboard(item.id, item);
+        } else {
+          addStoryboard(item);
+        }
+      }
+
+      const tail = [
+        errors.length ? `非法行 ${errors.length}` : "",
+        warnings.length ? `光影提示 ${warnings.length} 处已剔除` : "",
+      ].filter(Boolean).join("；");
+      toast.success(`分镜表落地 ${items.length} 镜${tail ? `（${tail}）` : ""}`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : String(error));
+    }
+  }, [getResolvedAgentModel, addStoryboard, updateStoryboard]);
+
+  const handleEpisodeOutline = useCallback(async (episodeId = "episode-1") => {
+    if (!window.electronAPI?.textCompletion) {
+      toast.error("当前环境不支持模型调用");
+      return;
+    }
+
+    const store = useStudioStore.getState();
+    const latest = (key: AgentWorkKey) =>
+      [...store.agentWorkData].reverse().find((item) => item.key === key)?.data;
+    const skeletonContext = latest("storySkeleton");
+    const strategyContext = latest("adaptationStrategy");
+    if (!skeletonContext && !strategyContext) {
+      toast.error("尚无骨架/改编策略：请先保存故事骨架或改编策略");
+      return;
+    }
+
+    const resolved =
+      getResolvedAgentModel("episodeOutline") ?? getResolvedAgentModel("universalAi");
+    if (!resolved) {
+      toast.error("未配置分集细纲模型，请先到设置的 API 管理中绑定分集细纲Agent或通用AI");
+      return;
+    }
+
+    const messages = buildEpisodeOutlineMessages({ episodeId, skeletonContext, strategyContext });
+    try {
+      const result = await window.electronAPI.textCompletion({
+        provider: resolved.provider,
+        model: resolved.model,
+        messages: [
+          { role: "system", content: messages.system },
+          { role: "user", content: messages.user },
+        ],
+        temperature: resolved.deployment.temperature ?? 0.5,
+        maxTokens: resolved.deployment.maxOutputTokens ?? 4096,
+      });
+      if (!result.success || !result.text) {
+        throw new Error(result.error || "分集细纲生成失败");
+      }
+
+      const { outline, errors, warnings } = parseEpisodeOutline(result.text, episodeId);
+      if (!outline.beats.length) {
+        toast.error(`未解析到 beat${errors.length ? `（非法行 ${errors.length}）` : ""}`);
+        return;
+      }
+
+      saveEpisodeOutline(outline);
+      const totalSec = outline.beats.reduce((sum, beat) => sum + beat.durationSec, 0);
+      const tail = [
+        errors.length ? `非法行 ${errors.length}` : "",
+        warnings.length ? `光影提示 ${warnings.length} 处已剔除` : "",
+      ].filter(Boolean).join("；");
+      toast.success(`分集细纲完成（${outline.beats.length} beat / ${totalSec}s${tail ? `；${tail}` : ""}）`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : String(error));
+    }
+  }, [getResolvedAgentModel, saveEpisodeOutline]);
+
+  const handleAssignVoices = useCallback(() => {
+    const projectId = activeProject?.id;
+    if (!projectId) {
+      toast.error("未选择项目，无法分配音色");
+      return;
+    }
+
+    const characters = useCharacterLibraryStore
+      .getState()
+      .characters.filter((item) => !item.projectId || item.projectId === projectId);
+    if (!characters.length) {
+      toast.error("角色库为空：请先运行实体提取或手动建角色");
+      return;
+    }
+
+    const assignments = assignVoicesForCharacters(
+      characters.map((item) => ({
+        id: item.id,
+        name: item.name,
+        gender: item.gender,
+        age: item.age,
+        personality: item.personality,
+      })),
+    );
+
+    useTtsStore.getState().setActiveProjectId(projectId);
+    const { bound } = syncCharacterVoices(assignments, { projectId, sink: createMoyinTtsSink() });
+    setVoiceAssignments(assignments);
+    toast.success(`音色分配完成（${bound} 个角色已绑定音色）`);
+  }, [activeProject?.id]);
+
+  const handleBuildSeriesBible = useCallback(() => {
+    const projectId = activeProject?.id;
+    if (!projectId) {
+      toast.error("未选择项目，无法锁定剧集圣经");
+      return;
+    }
+
+    const characters = useCharacterLibraryStore
+      .getState()
+      .characters.filter((item) => !item.projectId || item.projectId === projectId);
+    const scenes = useSceneStore
+      .getState()
+      .scenes.filter((item) => !item.projectId || item.projectId === projectId);
+
+    const config = useStudioStore.getState().workflowConfig;
+    const bible = buildSeriesBible({
+      projectId,
+      characters: characters.map((item) => ({
+        id: item.id,
+        appearance: item.appearance,
+        description: item.description,
+      })),
+      scenes: scenes.map((item) => ({ name: item.name })),
+      config: {
+        visualManualId: config.visualManualId,
+        directorManualId: config.directorManualId,
+        platformSpec: config.platformSpec,
+        stylePositioning: config.stylePositioning,
+      },
+    });
+
+    saveSeriesBible(bible);
+    toast.success(
+      `剧集圣经已锁定（角色 ${bible.characterLocks.length} / 场景 ${bible.sceneLocks.length}，画幅 ${bible.aspectRatio}）`,
+    );
+  }, [activeProject?.id, saveSeriesBible]);
 
   const handleMaterialFiles = async (files?: FileList | null) => {
     if (!files?.length) return;
@@ -433,6 +866,18 @@ export function StudioView() {
                 agentDraft={agentDraft}
                 setAgentDraft={setAgentDraft}
                 handleSaveAgentWork={handleSaveAgentWork}
+                handleEntityExtraction={handleEntityExtraction}
+                entityExtractions={entityExtractions}
+                handleDirectorPlan={handleDirectorPlan}
+                handleDeriveAssets={handleDeriveAssets}
+                handleStoryboardTable={handleStoryboardTable}
+                handleBuildSeriesBible={handleBuildSeriesBible}
+                handleEpisodeOutline={handleEpisodeOutline}
+                episodeOutlines={episodeOutlines}
+                handleAssignVoices={handleAssignVoices}
+                voiceAssignments={voiceAssignments}
+                scriptPlans={scriptPlans}
+                storyboards={storyboards}
               />
             </TabsContent>
 
@@ -876,6 +1321,36 @@ function NovelTab(props: {
   );
 }
 
+function WorkflowDepthHint(props: { workflowConfig: StudioWorkflowConfig }) {
+  const depth = resolveWorkflowDepth({
+    episodeCount: props.workflowConfig.episodeCount,
+    episodeDurationMin: props.workflowConfig.episodeDurationMin,
+  });
+  const labelOf = (key: AgentWorkKey) =>
+    taskOptions.find((item) => item.key === key)?.label
+    ?? (key === "eventAnalysis" ? "事件分析" : key);
+
+  return (
+    <div className="space-y-1 rounded-md border border-border bg-muted/30 p-2">
+      <div className="flex items-center gap-2">
+        <Label className="text-xs text-muted-foreground">推荐链路</Label>
+        <Badge variant={depth.mode === "deep" ? "default" : "secondary"}>
+          {depth.mode === "deep" ? "深链" : "扁平"}
+        </Badge>
+      </div>
+      <p className="text-[11px] leading-relaxed text-muted-foreground">{depth.reason}</p>
+      <div className="flex flex-wrap items-center gap-1 text-[11px]">
+        {depth.stages.map((stage, idx) => (
+          <span key={stage} className="flex items-center gap-1">
+            {idx > 0 && <span className="text-muted-foreground">→</span>}
+            <span className="rounded bg-background px-1.5 py-0.5">{labelOf(stage)}</span>
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function ManualsTab(props: {
   workflowConfig: StudioWorkflowConfig;
   setWorkflowConfig: (updates: Partial<StudioWorkflowConfig>) => void;
@@ -902,6 +1377,11 @@ function ManualsTab(props: {
             <Label className="text-xs text-muted-foreground">单集时长（分钟）</Label>
             <Input type="number" min={1} value={props.workflowConfig.episodeDurationMin ?? 3} onChange={(e) => props.setWorkflowConfig({ episodeDurationMin: e.target.value ? Number(e.target.value) : undefined })} className="h-8" placeholder="例如 3" />
           </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">集数</Label>
+            <Input type="number" min={1} value={props.workflowConfig.episodeCount ?? ""} onChange={(e) => props.setWorkflowConfig({ episodeCount: e.target.value ? Number(e.target.value) : undefined })} className="h-8" placeholder="例如 12" />
+          </div>
+          <WorkflowDepthHint workflowConfig={props.workflowConfig} />
           <div className="space-y-1">
             <Label className="text-xs text-muted-foreground">小说类型</Label>
             <Input value={props.workflowConfig.novelGenre ?? ""} onChange={(e) => props.setWorkflowConfig({ novelGenre: e.target.value || undefined })} className="h-8" placeholder="例如 玄幻、科幻、言情" />
@@ -1037,6 +1517,18 @@ function SkillTab(props: {
   agentDraft: string;
   setAgentDraft: (value: string) => void;
   handleSaveAgentWork: () => void;
+  handleEntityExtraction: (episodeId?: string) => void;
+  entityExtractions: ReturnType<typeof useStudioStore.getState>["entityExtractions"];
+  handleDirectorPlan: (episodeId?: string) => void;
+  handleDeriveAssets: (episodeId?: string) => void;
+  handleStoryboardTable: (episodeId?: string) => void;
+  handleBuildSeriesBible: () => void;
+  handleEpisodeOutline: (episodeId?: string) => void;
+  episodeOutlines: ReturnType<typeof useStudioStore.getState>["episodeOutlines"];
+  handleAssignVoices: () => void;
+  voiceAssignments: VoiceAssignment[];
+  scriptPlans: ReturnType<typeof useStudioStore.getState>["scriptPlans"];
+  storyboards: ReturnType<typeof useStudioStore.getState>["storyboards"];
 }) {
   return (
     <div className="grid grid-cols-[340px_1fr] gap-4">
@@ -1053,6 +1545,46 @@ function SkillTab(props: {
             <WandSparkles className="h-4 w-4" />
             生成上下文包
           </Button>
+          <Button variant="secondary" onClick={props.handleBuildSeriesBible} className="w-full">
+            <BookMarked className="h-4 w-4" />
+            锁定剧集圣经
+          </Button>
+          {props.selectedTask === "entityExtraction" && (
+            <Button variant="default" onClick={() => props.handleEntityExtraction("episode-1")} className="w-full">
+              <Boxes className="h-4 w-4" />
+              运行实体提取
+            </Button>
+          )}
+          {props.selectedTask === "directorPlan" && (
+            <Button variant="default" onClick={() => props.handleDirectorPlan("episode-1")} className="w-full">
+              <ClipboardList className="h-4 w-4" />
+              运行导演规划
+            </Button>
+          )}
+          {props.selectedTask === "deriveAssets" && (
+            <Button variant="default" onClick={() => props.handleDeriveAssets("episode-1")} className="w-full">
+              <Boxes className="h-4 w-4" />
+              落地衍生资产
+            </Button>
+          )}
+          {props.selectedTask === "storyboardTable" && (
+            <Button variant="default" onClick={() => props.handleStoryboardTable("episode-1")} className="w-full">
+              <Split className="h-4 w-4" />
+              运行分镜表
+            </Button>
+          )}
+          {props.selectedTask === "episodeOutline" && (
+            <Button variant="default" onClick={() => props.handleEpisodeOutline("episode-1")} className="w-full">
+              <ClipboardList className="h-4 w-4" />
+              运行分集细纲
+            </Button>
+          )}
+          {props.selectedTask === "voiceAssign" && (
+            <Button variant="default" onClick={() => props.handleAssignVoices()} className="w-full">
+              <WandSparkles className="h-4 w-4" />
+              分配角色音色
+            </Button>
+          )}
           <Textarea value={props.agentDraft} onChange={(event) => props.setAgentDraft(event.target.value)} className="min-h-[160px]" placeholder="保存人工整理的骨架、策略、剧本草稿或制作计划" />
           <Button variant="secondary" onClick={props.handleSaveAgentWork} className="w-full">
             <Check className="h-4 w-4" />
@@ -1069,15 +1601,239 @@ function SkillTab(props: {
         </CardContent>
       </Card>
 
-      <Card className="rounded-lg">
-        <CardHeader>
-          <CardTitle className="text-sm">上下文包预览</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Textarea value={props.lastContextPackage?.markdown ?? ""} readOnly className="min-h-[560px] font-mono text-xs" />
-        </CardContent>
-      </Card>
+      {props.selectedTask === "entityExtraction" ? (
+        <EntityExtractionPreview entityExtractions={props.entityExtractions} />
+      ) : props.selectedTask === "directorPlan" || props.selectedTask === "deriveAssets" ? (
+        <ScriptPlanPreview scriptPlans={props.scriptPlans} />
+      ) : props.selectedTask === "storyboardTable" ? (
+        <StoryboardTablePreview storyboards={props.storyboards} />
+      ) : props.selectedTask === "episodeOutline" ? (
+        <EpisodeOutlinePreview episodeOutlines={props.episodeOutlines} />
+      ) : props.selectedTask === "voiceAssign" ? (
+        <VoiceAssignPreview voiceAssignments={props.voiceAssignments} />
+      ) : (
+        <Card className="rounded-lg">
+          <CardHeader>
+            <CardTitle className="text-sm">上下文包预览</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Textarea value={props.lastContextPackage?.markdown ?? ""} readOnly className="min-h-[560px] font-mono text-xs" />
+          </CardContent>
+        </Card>
+      )}
     </div>
+  );
+}
+
+function EntityExtractionPreview(props: {
+  entityExtractions: ReturnType<typeof useStudioStore.getState>["entityExtractions"];
+}) {
+  return (
+    <Card className="rounded-lg">
+      <CardHeader>
+        <CardTitle className="text-sm">实体提取结果</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {props.entityExtractions.length === 0 ? (
+          <p className="text-xs text-muted-foreground">尚未提取实体。选择剧本来源后点击「运行实体提取」。</p>
+        ) : (
+          props.entityExtractions.map((batch) => (
+            <div key={batch.id} className="space-y-2 rounded-md border border-border p-3 text-xs">
+              <div className="flex items-center gap-2">
+                <Badge variant="outline">{batch.episodeId}</Badge>
+                <span className="text-muted-foreground">
+                  角色 {batch.characters.length} / 场景 {batch.scenes.length} / 道具 {batch.props.length}
+                </span>
+              </div>
+              {batch.characters.length > 0 && (
+                <div>
+                  <div className="font-medium">角色</div>
+                  <ul className="mt-1 space-y-0.5 text-muted-foreground">
+                    {batch.characters.map((item) => (
+                      <li key={item.characterId}>
+                        {item.name}
+                        {item.aliases.length ? `（别名：${item.aliases.join("、")}）` : ""}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {batch.scenes.length > 0 && (
+                <div>
+                  <div className="font-medium">场景</div>
+                  <ul className="mt-1 space-y-0.5 text-muted-foreground">
+                    {batch.scenes.map((item) => <li key={item.sceneId}>{item.name}</li>)}
+                  </ul>
+                </div>
+              )}
+              {batch.props.length > 0 && (
+                <div>
+                  <div className="font-medium">道具</div>
+                  <ul className="mt-1 space-y-0.5 text-muted-foreground">
+                    {batch.props.map((item) => <li key={item.assetId}>{item.name}</li>)}
+                  </ul>
+                </div>
+              )}
+            </div>
+          ))
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function ScriptPlanPreview(props: {
+  scriptPlans: ReturnType<typeof useStudioStore.getState>["scriptPlans"];
+}) {
+  return (
+    <Card className="rounded-lg">
+      <CardHeader>
+        <CardTitle className="text-sm">导演规划结果</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {props.scriptPlans.length === 0 ? (
+          <p className="text-xs text-muted-foreground">尚无导演规划。选择剧本来源后点击「运行导演规划」。</p>
+        ) : (
+          props.scriptPlans.map((plan) => (
+            <div key={plan.id} className="space-y-2 rounded-md border border-border p-3 text-xs">
+              <div className="flex items-center gap-2">
+                <Badge variant="outline">{plan.episodeId}</Badge>
+                <span className="text-muted-foreground">衍生预划 {plan.derivedAssetPlan.length} 条</span>
+              </div>
+              {plan.theme && <PlanField label="① 主题立意" value={plan.theme} />}
+              {plan.visualStyle && <PlanField label="② 视觉风格" value={plan.visualStyle} />}
+              {plan.narrativeRhythm && <PlanField label="③ 叙事节奏" value={plan.narrativeRhythm} />}
+              {plan.soundDirection && <PlanField label="⑤ 声音方向" value={plan.soundDirection} />}
+              {plan.transitions && <PlanField label="⑥ 转场连续性" value={plan.transitions} />}
+              {plan.derivedAssetPlan.length > 0 && (
+                <div>
+                  <div className="font-medium">⑦ 衍生资产预划</div>
+                  <ul className="mt-1 space-y-0.5 text-muted-foreground">
+                    {plan.derivedAssetPlan.map((row, idx) => (
+                      <li key={`${plan.id}-${idx}`}>
+                        {row.parentAssetId} · {row.state}
+                        {row.reason ? ` — ${row.reason}` : ""}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          ))
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function PlanField(props: { label: string; value: string }) {
+  return (
+    <div>
+      <div className="font-medium">{props.label}</div>
+      <p className="mt-1 whitespace-pre-wrap text-muted-foreground">{props.value}</p>
+    </div>
+  );
+}
+
+function StoryboardTablePreview(props: {
+  storyboards: ReturnType<typeof useStudioStore.getState>["storyboards"];
+}) {
+  const rows = [...props.storyboards].sort((a, b) => a.index - b.index);
+  return (
+    <Card className="rounded-lg">
+      <CardHeader>
+        <CardTitle className="text-sm">分镜表结果</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {rows.length === 0 ? (
+          <p className="text-xs text-muted-foreground">尚无分镜。选择剧本来源后点击「运行分镜表」。</p>
+        ) : (
+          rows.map((shot) => (
+            <div key={shot.id} className="space-y-1 rounded-md border border-border p-3 text-xs">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="outline">#{shot.index}</Badge>
+                <span className="text-muted-foreground">{shot.duration}s</span>
+                {shot.emotion && <Badge variant="secondary">{shot.emotion}</Badge>}
+                {shot.orientation && <span className="text-muted-foreground">{shot.orientation}</span>}
+              </div>
+              <p className="whitespace-pre-wrap">{shot.prompt}</p>
+              {shot.spatialRelation && (
+                <p className="text-muted-foreground">空间：{shot.spatialRelation}</p>
+              )}
+              {shot.associateAssetsNames?.length ? (
+                <p className="text-muted-foreground">资产：{shot.associateAssetsNames.join("、")}</p>
+              ) : null}
+            </div>
+          ))
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function EpisodeOutlinePreview(props: {
+  episodeOutlines: ReturnType<typeof useStudioStore.getState>["episodeOutlines"];
+}) {
+  return (
+    <Card className="rounded-lg">
+      <CardHeader>
+        <CardTitle className="text-sm">分集细纲结果</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {props.episodeOutlines.length === 0 ? (
+          <p className="text-xs text-muted-foreground">尚无细纲。选择骨架/改编来源后点击「运行分集细纲」。</p>
+        ) : (
+          props.episodeOutlines.map((outline) => {
+            const totalSec = outline.beats.reduce((sum, beat) => sum + beat.durationSec, 0);
+            return (
+              <div key={outline.id} className="space-y-2 rounded-md border border-border p-3 text-xs">
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline">{outline.episodeId}</Badge>
+                  <span className="text-muted-foreground">{outline.beats.length} beat / {totalSec}s</span>
+                </div>
+                <ol className="space-y-1 text-muted-foreground">
+                  {outline.beats.map((beat) => (
+                    <li key={`${outline.id}-${beat.sceneIndex}`}>
+                      <span className="font-medium text-foreground">#{beat.sceneIndex} {beat.location}</span>
+                      <span className="ml-1">（{beat.durationSec}s）</span>
+                      <p className="mt-0.5 whitespace-pre-wrap">{beat.beat}</p>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            );
+          })
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function VoiceAssignPreview(props: { voiceAssignments: VoiceAssignment[] }) {
+  return (
+    <Card className="rounded-lg">
+      <CardHeader>
+        <CardTitle className="text-sm">音色分配结果</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {props.voiceAssignments.length === 0 ? (
+          <p className="text-xs text-muted-foreground">尚未分配音色。点击「分配角色音色」按角色性别/年龄/性格自动匹配中文预设音色。</p>
+        ) : (
+          <ul className="space-y-2 text-xs">
+            {props.voiceAssignments.map((assignment) => (
+              <li key={assignment.characterId} className="rounded-md border border-border p-2">
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline">{assignment.characterId}</Badge>
+                  <Badge variant="secondary">{assignment.presetVoiceId}</Badge>
+                  <span className="text-muted-foreground">{assignment.engine}</span>
+                </div>
+                <p className="mt-1 text-muted-foreground">{assignment.reason}</p>
+              </li>
+            ))}
+          </ul>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 

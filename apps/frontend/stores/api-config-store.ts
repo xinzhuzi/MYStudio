@@ -73,6 +73,8 @@ export type AgentDeploymentKey =
   | 'storySkeletonAgent'
   | 'adaptationStrategyAgent'
   | 'scriptDraft'
+  | 'entityExtraction'
+  | 'episodeOutline'
   | 'storyboardImage'
   | 'videoTrack'
   | 'tts';
@@ -173,6 +175,20 @@ export const API_AGENT_DEPLOYMENT_DEFAULTS: AgentDeploymentConfig[] = [
     desc: '负责按 Toonflow 事件表格式提取章节事件摘要',
     temperature: 0.2,
     maxOutputTokens: 1024,
+  },
+  {
+    key: 'entityExtraction',
+    name: '实体提取Agent',
+    desc: '负责从剧本提取角色/场景/道具并去重、归并别名、按集关联',
+    temperature: 0.2,
+    maxOutputTokens: 2048,
+  },
+  {
+    key: 'episodeOutline',
+    name: '分集细纲Agent',
+    desc: '负责把骨架+改编策略逐集落到每场 beat，降低骨架→剧本跨度',
+    temperature: 0.5,
+    maxOutputTokens: 4096,
   },
   {
     key: 'scriptAgent',
@@ -345,6 +361,8 @@ export const API_AGENT_DEPLOYMENT_GROUPS: AgentDeploymentGroup[] = [
       'storySkeletonAgent',
       'adaptationStrategyAgent',
       'scriptDraft',
+      'entityExtraction',
+      'episodeOutline',
     ],
   },
   {
@@ -390,6 +408,8 @@ const AGENT_DEPLOYMENT_MODEL_TYPES: Record<AgentDeploymentKey, ProviderAdapterMo
   storySkeletonAgent: 'text',
   adaptationStrategyAgent: 'text',
   scriptDraft: 'text',
+  entityExtraction: 'text',
+  episodeOutline: 'text',
   storyboardImage: 'image',
   videoTrack: 'video',
   tts: 'tts',

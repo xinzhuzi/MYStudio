@@ -37,6 +37,7 @@ export const mainNavItems: NavItem[] = [
   { id: "skills", label: "技能", icon: BookOpenTextIcon },
   { id: "assets", label: "资产", icon: FolderOpenIcon },
   { id: "freedom", label: "辅助", icon: PaletteIcon },
+  { id: "tts", label: "TTS", icon: Mic2Icon },
   { id: "export", label: "导出", icon: FilmIcon },
   { id: "media", label: "产物", icon: VideoIcon },
 ];

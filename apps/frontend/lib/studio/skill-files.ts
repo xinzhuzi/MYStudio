@@ -22,8 +22,8 @@ export const STUDIO_SKILL_CATEGORY_LABELS: Record<StudioSkillFileCategory, strin
 };
 
 const skillMarkdown = import.meta.glob([
-  "/src/assets/studio-manuals/**/*.md",
-  "!/src/assets/studio-manuals/art_skills/daojie_ink_guofeng/**",
+  "../../assets/studio-manuals/**/*.md",
+  "!../../assets/studio-manuals/art_skills/daojie_ink_guofeng/**",
 ], {
   eager: true,
   query: "?raw",

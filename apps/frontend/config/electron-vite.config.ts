@@ -8,7 +8,7 @@ import { apiCorsProxyPlugin } from './api-cors-proxy';
 const configDir = path.dirname(fileURLToPath(import.meta.url));
 const frontendRoot = path.resolve(configDir, '..');
 const projectRoot = path.resolve(configDir, '..', '..');
-const electronViteOutDir = path.resolve(projectRoot, 'release', '.electron-vite');
+const electronViteOutDir = path.resolve(projectRoot, 'out');
 
 export default defineConfig({
   main: {

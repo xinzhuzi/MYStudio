@@ -9,6 +9,7 @@ import {
   writeStoredVisualManualImages,
   writeStoredVisualManual,
 } from "./studio-visual-manuals-storage";
+import { resetStudioSkillsSyncState } from "./studio-skills-storage";
 
 let tempRoot = "";
 let sourceRoot = "";
@@ -16,6 +17,7 @@ let storageRoot = "";
 
 describe("studio visual manuals storage", () => {
   beforeEach(async () => {
+    resetStudioSkillsSyncState();
     tempRoot = await fs.promises.mkdtemp(path.join(os.tmpdir(), "mystudio-visual-manuals-"));
     sourceRoot = path.join(tempRoot, "source");
     storageRoot = path.join(tempRoot, "storage");
