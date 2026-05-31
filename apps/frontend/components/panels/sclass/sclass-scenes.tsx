@@ -65,7 +65,7 @@ import { aiManager } from "@/lib/ai/ai-manager";
 import { uploadToImageHost, isImageHostConfigured } from "@/lib/image-host";
 import { saveVideoToLocal, readImageAsBase64 } from '@/lib/image-storage';
 import { persistSceneImage } from '@/lib/utils/image-persist';
-import { callVideoGenerationApi, convertToHttpUrl, extractLastFrameFromVideo, isContentModerationError } from '../director/use-video-generation';
+import { convertToHttpUrl, extractLastFrameFromVideo, isContentModerationError } from '../director/use-video-generation';
 import {
   Select,
   SelectContent,
@@ -1610,7 +1610,7 @@ export function SClassScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
       console.log('[SplitScenes] image_with_roles:', imageWithRoles.length, 'images', imageWithRoles.map(i => i.role));
 
       // 调用统一视频生成 API（自动路由到正确的 MemeFast 端点）
-      const videoUrl = await callVideoGenerationApi(
+      const videoUrl = await aiManager.video(
         apiKey,
         fullPrompt,
         videoDuration,

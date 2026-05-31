@@ -11,7 +11,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useCustomStyleStore, type CustomStyle } from "@/stores/custom-style-store";
 import { saveImageToLocal } from "@/lib/image-storage";
-import { extractStyleTokens } from "@/lib/ai/style-extractor";
+import { aiManager } from "@/lib/ai/ai-manager";
 import { LocalImage } from "@/components/ui/local-image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -135,7 +135,7 @@ export function StyleEditor({ styleId, onClose }: StyleEditorProps) {
     }
     setExtracting(true);
     try {
-      const result = await extractStyleTokens(form.prompt, form.referenceImages);
+      const result = await aiManager.vision(form.prompt, form.referenceImages);
       setForm((prev) => ({
         ...prev,
         styleTokens: result.styleTokens,

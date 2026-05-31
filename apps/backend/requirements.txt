@@ -9,6 +9,6 @@ mlx>=0.30.0; sys_platform == "darwin" and platform_machine == "arm64"
 mlx-audio==0.4.1; sys_platform == "darwin" and platform_machine == "arm64"
 
 # ─── Windows / Linux: PyTorch 推理（TTS + STT） ───
-# GPU 加速需安装 CUDA 版 torch，由 apps/build/setup-win.ps1 处理
+# GPU 加速需安装 CUDA 版 torch，由应用设置 > Python 配置的运行时安装流程处理
 torch>=2.5.1; sys_platform != "darwin"
 qwen-tts; sys_platform != "darwin"

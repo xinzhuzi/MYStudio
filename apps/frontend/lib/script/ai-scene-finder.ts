@@ -13,7 +13,7 @@
  */
 
 import type { ScriptScene, ProjectBackground, EpisodeRawScript, SceneRawContent } from '@/types/script';
-import { callFeatureAPI } from '@/lib/ai/feature-router';
+import { aiManager } from '@/lib/ai/ai-manager';
 
 // ==================== 类型定义 ====================
 
@@ -222,7 +222,7 @@ ${contexts.slice(0, 3).join('\n\n')}
 
   try {
     // 统一从服务映射获取配置
-    const result = await callFeatureAPI('script_analysis', systemPrompt, userPrompt);
+    const result = await aiManager.featureText('script_analysis', systemPrompt, userPrompt);
     
     // 解析 JSON
     let cleaned = result.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();

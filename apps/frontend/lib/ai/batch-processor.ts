@@ -17,7 +17,8 @@
 
 import type { AIFeature } from '@/stores/api-config-store';
 import { useAPIConfigStore } from '@/stores/api-config-store';
-import { callFeatureAPI, type CallFeatureAPIOptions } from '@/lib/ai/feature-router';
+import { type CallFeatureAPIOptions } from '@/lib/ai/feature-router';
+import { aiManager } from '@/lib/ai/ai-manager';
 import { getModelLimits, estimateTokens } from '@/lib/ai/model-registry';
 import { runStaggered } from '@/lib/utils/concurrency';
 
@@ -301,7 +302,7 @@ async function executeBatchWithRetry<TItem, TResult>(
   for (let attempt = 0; attempt <= MAX_BATCH_RETRIES; attempt++) {
     try {
       const { system, user } = buildPrompts(batch);
-      const raw = await callFeatureAPI(feature, system, user, apiOptions);
+      const raw = await aiManager.featureText(feature, system, user, apiOptions);
       return parseResult(raw, batch);
     } catch (err) {
       lastError = err instanceof Error ? err : new Error(String(err));

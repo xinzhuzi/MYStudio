@@ -55,4 +55,28 @@ describe("LocalTtsPanel select controls", () => {
     expect(source).toContain("selectedModel.modelRepoPath");
     expect(source).toContain("selectedModel.modelCacheDir");
   });
+
+  it("separates Python runtime setup progress from model downloads", () => {
+    const source = readFileSync(new URL("./LocalTtsPanel.tsx", import.meta.url), "utf8");
+
+    expect(source).toContain("RuntimeSetupProgress");
+    expect(source).toContain("正在下载 Python 运行环境");
+    expect(source).toContain("正在配置 Python 仓库");
+    expect(source).toContain("正在安装 TTS 依赖");
+    expect(source).toContain("本地 TTS 后端启动中");
+    expect(source).toContain("runtimeSetupActive");
+    expect(source).toContain("disabled={starting || runtimeSetupActive || runtimeStatus?.installed === false}");
+  });
+
+  it("keeps Python runtime configuration available in settings", () => {
+    const source = readFileSync(new URL("../SettingsPanel.tsx", import.meta.url), "utf8");
+
+    expect(source).toContain("Python 运行环境");
+    expect(source).toContain('value: "python"');
+    expect(source).toContain("开始配置");
+    expect(source).toContain("安装明细");
+    expect(source).toContain("pythonRuntimeUrlDraft");
+    expect(source).toContain("setTtsRuntimeConfig");
+    expect(source).toContain("恢复默认下载源");
+  });
 });

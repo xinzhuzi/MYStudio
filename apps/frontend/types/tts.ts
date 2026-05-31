@@ -111,13 +111,40 @@ export interface TtsRuntimeStatus {
   managed?: boolean;
   port: number;
   baseUrl: string;
+  setupStage?: TtsRuntimeSetupStage;
+  setupMessage?: string;
+  setupProgress?: number;
   cacheDir?: string;
   modelCacheDir?: string;
   defaultModelCacheDir?: string;
   systemModelCacheDir?: string;
+  pythonRuntimeDir?: string;
   pid?: number;
   error?: string;
 }
+
+export interface TtsRuntimeConfig {
+  pythonRuntimeUrl?: string;
+  defaultPythonRuntimeUrl?: string;
+  pythonRuntimeDir?: string;
+  installedItems?: TtsRuntimeInstalledItem[];
+}
+
+export interface TtsRuntimeInstalledItem {
+  label: string;
+  detail: string;
+  status: "pending" | "installed" | "skipped" | "failed";
+}
+
+export type TtsRuntimeSetupStage =
+  | "idle"
+  | "checking"
+  | "downloading-python"
+  | "extracting-python"
+  | "installing-deps"
+  | "starting-backend"
+  | "ready"
+  | "failed";
 
 export interface TtsRuntimeCommandResult {
   success: boolean;

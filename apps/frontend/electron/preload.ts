@@ -5,7 +5,7 @@ import { ipcRenderer, contextBridge, type IpcRendererEvent } from 'electron'
 import type { ModelTestRequest, ModelTestResult } from '../lib/api-manager/model-test'
 import type { TextCompletionRequest, TextCompletionResult } from '../lib/api-manager/text-completion'
 import type { StudioVisualManualCreatePayload, StudioVisualManualImagesWritePayload, StudioVisualManualWritePayload } from '../types/studio-visual-manual'
-import type { TtsRuntimeCommandResult, TtsRuntimeStatus } from '../types/tts'
+import type { TtsRuntimeCommandResult, TtsRuntimeConfig, TtsRuntimeStatus } from '../types/tts'
 
 contextBridge.exposeInMainWorld('appEvents', {
   onMainProcessMessage(listener: (message: string) => void) {
@@ -167,7 +167,11 @@ contextBridge.exposeInMainWorld('studioAssets', {
 contextBridge.exposeInMainWorld('ttsRuntime', {
   status: (): Promise<TtsRuntimeStatus> => ipcRenderer.invoke('tts-runtime-status'),
   start: (): Promise<TtsRuntimeCommandResult> => ipcRenderer.invoke('tts-runtime-start'),
+  setup: (): Promise<TtsRuntimeCommandResult> => ipcRenderer.invoke('tts-runtime-setup'),
   stop: (): Promise<TtsRuntimeCommandResult> => ipcRenderer.invoke('tts-runtime-stop'),
+  getConfig: (): Promise<TtsRuntimeConfig> => ipcRenderer.invoke('tts-runtime-get-config'),
+  setConfig: (config: Partial<TtsRuntimeConfig>): Promise<TtsRuntimeCommandResult> =>
+    ipcRenderer.invoke('tts-runtime-set-config', config),
   setModelCacheDir: (dirPath: string): Promise<TtsRuntimeCommandResult> =>
     ipcRenderer.invoke('tts-runtime-set-model-cache-dir', dirPath),
   request: (payload: { method: string; path: string; body?: unknown }): Promise<unknown> =>

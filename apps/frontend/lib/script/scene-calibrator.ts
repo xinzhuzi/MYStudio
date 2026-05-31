@@ -15,7 +15,7 @@
  */
 
 import type { ScriptScene, ProjectBackground, EpisodeRawScript, SceneRawContent, PromptLanguage } from '@/types/script';
-import { callFeatureAPI } from '@/lib/ai/feature-router';
+import { aiManager } from '@/lib/ai/ai-manager';
 import { processBatched } from '@/lib/ai/batch-processor';
 import { estimateTokens, safeTruncate } from '@/lib/ai/model-registry';
 import { useScriptStore } from '@/stores/script-store';
@@ -604,7 +604,7 @@ ${promptLanguage !== 'zh' ? '- 英文视觉提示词（50-80词，适合AI图像
 
   try {
     // 统一从服务映射获取配置
-    const result = await callFeatureAPI('script_analysis', systemPrompt, '请为以上场景生成专业视觉提示词');
+    const result = await aiManager.featureText('script_analysis', systemPrompt, '请为以上场景生成专业视觉提示词');
     
     // 解析结果
     let cleaned = result.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();

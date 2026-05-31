@@ -5,7 +5,7 @@ import path from "node:path";
 import { execFile, execFileSync, spawn, type ChildProcessWithoutNullStreams, type SpawnOptionsWithoutStdio } from "node:child_process";
 import { promisify } from "node:util";
 import { LOCAL_TTS_HOST, LOCAL_TTS_PORT } from "../lib/tts/constants";
-import type { TtsRuntimeCommandResult, TtsRuntimeStatus } from "@/types/tts";
+import type { TtsRuntimeCommandResult, TtsRuntimeConfig, TtsRuntimeInstalledItem, TtsRuntimeStatus } from "@/types/tts";
 
 const DEFAULT_TTS_PORT = LOCAL_TTS_PORT;
 const DEFAULT_TTS_HOST = LOCAL_TTS_HOST;
@@ -31,11 +31,27 @@ interface FetchBytesResult {
 interface RuntimeConfig {
   modelCacheDir?: string;
   controlToken?: string;
+  pythonRuntimeUrl?: string;
+  installedItems?: TtsRuntimeInstalledItem[];
+}
+
+interface RuntimeArchiveProgress {
+  downloadedBytes: number;
+  totalBytes?: number;
+  progress?: number;
+}
+
+interface RuntimeArchiveResult {
+  ok: boolean;
+  status: number;
+  data?: ArrayBuffer | Uint8Array;
+  totalBytes?: number;
 }
 
 export interface TtsRuntimeControllerDeps {
   appRoot: string;
   userDataPath: string;
+  storageBasePath?: string | (() => string);
   port?: number;
   host?: string;
   pythonBinary?: string;
@@ -44,9 +60,19 @@ export interface TtsRuntimeControllerDeps {
   ensureDir?: (dirPath: string) => void;
   readTextFile?: (filePath: string) => string | null;
   writeTextFile?: (filePath: string, value: string) => void;
+  writeBinaryFile?: (filePath: string, value: Uint8Array) => void;
+  renameFile?: (from: string, to: string) => void;
+  removeFile?: (filePath: string) => void;
+  extractArchive?: (archivePath: string, destinationDir: string) => Promise<void>;
+  runPython?: (command: string, args: string[], options?: Parameters<typeof execFileAsync>[2]) => Promise<unknown>;
   spawnProcess?: (command: string, args: string[], options: SpawnOptionsWithoutStdio) => SpawnedProcess;
   fetchJson?: (url: string, options: FetchJsonOptions) => Promise<unknown>;
   fetchBytes?: (url: string, options: FetchJsonOptions) => Promise<FetchBytesResult>;
+  fetchRuntimeArchive?: (
+    url: string,
+    destinationPath: string,
+    onProgress?: (progress: RuntimeArchiveProgress) => void,
+  ) => Promise<RuntimeArchiveResult>;
   findListeningPids?: (port: number, host: string) => Promise<number[]>;
   killProcess?: (pid: number) => boolean;
 }
@@ -54,7 +80,10 @@ export interface TtsRuntimeControllerDeps {
 export interface TtsRuntimeController {
   status: () => Promise<TtsRuntimeStatus>;
   start: () => Promise<TtsRuntimeCommandResult>;
+  setup: () => Promise<TtsRuntimeCommandResult>;
   stop: () => Promise<TtsRuntimeCommandResult>;
+  getConfig: () => Promise<TtsRuntimeConfig>;
+  setConfig: (config: Partial<TtsRuntimeConfig>) => Promise<TtsRuntimeCommandResult>;
   setModelCacheDir: (dirPath: string) => Promise<TtsRuntimeCommandResult>;
   request: (method: string, routePath: string, body?: unknown) => Promise<unknown>;
   requestBytes: (method: string, routePath: string, body?: unknown) => Promise<FetchBytesResult>;
@@ -88,6 +117,56 @@ function defaultFetchBytes(url: string, options: FetchJsonOptions) {
 }
 
 const execFileAsync = promisify(execFile);
+
+async function defaultFetchRuntimeArchive(
+  url: string,
+  _destinationPath: string,
+  onProgress?: (progress: RuntimeArchiveProgress) => void,
+): Promise<RuntimeArchiveResult> {
+  const response = await fetch(url);
+  const totalHeader = response.headers.get("content-length");
+  const totalBytes = totalHeader ? Number(totalHeader) : undefined;
+  if (!response.ok) {
+    return { ok: false, status: response.status, totalBytes };
+  }
+  if (!response.body) {
+    const data = new Uint8Array(await response.arrayBuffer());
+    onProgress?.({
+      downloadedBytes: data.byteLength,
+      totalBytes: totalBytes || data.byteLength,
+      progress: totalBytes ? Math.round((data.byteLength / totalBytes) * 100) : undefined,
+    });
+    return { ok: true, status: response.status, data, totalBytes };
+  }
+
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let downloadedBytes = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    if (!value) continue;
+    chunks.push(value);
+    downloadedBytes += value.byteLength;
+    onProgress?.({
+      downloadedBytes,
+      totalBytes,
+      progress: totalBytes ? Math.min(99, Math.round((downloadedBytes / totalBytes) * 100)) : undefined,
+    });
+  }
+  const data = new Uint8Array(downloadedBytes);
+  let offset = 0;
+  for (const chunk of chunks) {
+    data.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  onProgress?.({
+    downloadedBytes,
+    totalBytes: totalBytes || downloadedBytes,
+    progress: 100,
+  });
+  return { ok: true, status: response.status, data, totalBytes: totalBytes || downloadedBytes };
+}
 
 async function defaultFindListeningPids(port: number) {
   try {
@@ -151,10 +230,14 @@ function makeStatus(params: {
   running: boolean;
   port: number;
   baseUrl: string;
+  setupStage: TtsRuntimeStatus["setupStage"];
+  setupMessage?: string;
+  setupProgress?: number;
   cacheDir: string;
   modelCacheDir: string;
   defaultModelCacheDir: string;
   systemModelCacheDir: string;
+  pythonRuntimeDir: string;
   managed: boolean;
   pid?: number;
   error?: string;
@@ -164,10 +247,14 @@ function makeStatus(params: {
     running: params.running,
     port: params.port,
     baseUrl: params.baseUrl,
+    setupStage: params.setupStage,
+    setupMessage: params.setupMessage,
+    setupProgress: params.setupProgress,
     cacheDir: params.cacheDir,
     modelCacheDir: params.modelCacheDir,
     defaultModelCacheDir: params.defaultModelCacheDir,
     systemModelCacheDir: params.systemModelCacheDir,
+    pythonRuntimeDir: params.pythonRuntimeDir,
     managed: params.managed,
     pid: params.pid,
     error: params.error,
@@ -186,6 +273,15 @@ function findCompatiblePython(): string {
   return "python3";
 }
 
+function defaultPythonDownloadUrl(): string | null {
+  const base = "https://github.com/indygreg/python-build-standalone/releases/download/20241016/cpython-3.12.7+20241016-";
+  const suffix = "-install_only.tar.gz";
+  if (process.platform === "darwin") return `${base}${process.arch === "arm64" ? "aarch64-apple-darwin" : "x86_64-apple-darwin"}${suffix}`;
+  if (process.platform === "win32") return `${base}x86_64-pc-windows-msvc${suffix}`;
+  if (process.platform === "linux") return `${base}${process.arch === "arm64" ? "aarch64-unknown-linux-gnu" : "x86_64-unknown-linux-gnu"}${suffix}`;
+  return null;
+}
+
 export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsRuntimeController {
   const port = deps.port ?? DEFAULT_TTS_PORT;
   const host = deps.host ?? DEFAULT_TTS_HOST;
@@ -201,9 +297,17 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
     }
   });
   const writeTextFile = deps.writeTextFile ?? ((filePath: string, value: string) => fs.writeFileSync(filePath, value));
+  const writeBinaryFile = deps.writeBinaryFile ?? ((filePath: string, value: Uint8Array) => fs.writeFileSync(filePath, value));
+  const renameFile = deps.renameFile ?? ((from: string, to: string) => fs.renameSync(from, to));
+  const removeFile = deps.removeFile ?? ((filePath: string) => fs.rmSync(filePath, { force: true }));
+  const extractArchive = deps.extractArchive ?? ((archivePath: string, destinationDir: string) => (
+    execFileAsync("tar", ["-xzf", archivePath, "-C", destinationDir], { timeout: 600_000, maxBuffer: 64 * 1024 * 1024 }).then(() => undefined)
+  ));
+  const runPython = deps.runPython ?? ((command: string, args: string[], options?: Parameters<typeof execFileAsync>[2]) => execFileAsync(command, args, options));
   const spawnProcess = deps.spawnProcess ?? ((command, args, options) => spawn(command, args, options));
   const fetchJson = deps.fetchJson ?? defaultFetchJson;
   const fetchBytes = deps.fetchBytes ?? defaultFetchBytes;
+  const fetchRuntimeArchive = deps.fetchRuntimeArchive ?? defaultFetchRuntimeArchive;
   const findListeningPids = deps.findListeningPids ?? defaultFindListeningPids;
   const killProcess = deps.killProcess ?? defaultKillProcess;
   const sidecarRoots = uniquePaths([
@@ -211,12 +315,22 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
     path.join(deps.appRoot, "..", "backend"),
     typeof process.resourcesPath === "string" ? path.join(process.resourcesPath, "backend") : "",
   ]);
+  const storageBasePath = () => {
+    if (typeof deps.storageBasePath === "function") return deps.storageBasePath();
+    return deps.storageBasePath || deps.userDataPath;
+  };
+  const runtimeRoot = () => path.join(storageBasePath(), "runtime");
   const cacheDir = path.join(deps.userDataPath, "tts-runtime");
-  const runtimePythonDir = path.join(deps.userDataPath, "python-runtime");
+  const runtimePythonDir = () => path.join(runtimeRoot(), "python");
   const configPath = path.join(cacheDir, "config.json");
-  const defaultModelCacheDir = path.join(deps.userDataPath, "tts-models");
+  const defaultModelCacheDir = () => path.join(storageBasePath(), "tts-models");
   const systemModelCacheDir = path.join(os.homedir(), ".cache", "huggingface");
   let child: SpawnedProcess | null = null;
+  let setupState: Pick<TtsRuntimeStatus, "setupStage" | "setupMessage" | "setupProgress"> = {
+    setupStage: "idle",
+    setupMessage: undefined,
+    setupProgress: undefined,
+  };
 
   const readConfig = (): RuntimeConfig => {
     const raw = readTextFile(configPath);
@@ -235,7 +349,7 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
 
   const getModelCacheDir = () => {
     const config = readConfig();
-    return config.modelCacheDir ? normalizeUserPath(config.modelCacheDir) : defaultModelCacheDir;
+    return config.modelCacheDir ? normalizeUserPath(config.modelCacheDir) : defaultModelCacheDir();
   };
 
   const getControlToken = () => {
@@ -247,7 +361,7 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
   };
 
   const saveModelCacheDir = (dirPath: string) => {
-    const modelCacheDir = dirPath.trim() ? normalizeUserPath(dirPath) : defaultModelCacheDir;
+    const modelCacheDir = dirPath.trim() ? normalizeUserPath(dirPath) : defaultModelCacheDir();
     ensureDir(cacheDir);
     ensureDir(modelCacheDir);
     const config = readConfig();
@@ -255,71 +369,198 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
     return modelCacheDir;
   };
 
+  const getRuntimeConfig = (): TtsRuntimeConfig => {
+    const config = readConfig();
+    const envUrl = process.env.MANYING_TTS_PYTHON_RUNTIME_URL?.trim();
+    return {
+      pythonRuntimeUrl: config.pythonRuntimeUrl || envUrl || "",
+      defaultPythonRuntimeUrl: defaultPythonDownloadUrl() ?? undefined,
+      pythonRuntimeDir: runtimePythonDir(),
+      installedItems: config.installedItems ?? [],
+    };
+  };
+
+  const saveRuntimeConfig = (nextConfig: Partial<TtsRuntimeConfig>) => {
+    const config = readConfig();
+    const pythonRuntimeUrl = nextConfig.pythonRuntimeUrl?.trim();
+    writeConfig({
+      ...config,
+      pythonRuntimeUrl: pythonRuntimeUrl || undefined,
+    });
+  };
+
+  const setInstalledItem = (item: TtsRuntimeInstalledItem) => {
+    const config = readConfig();
+    const existing = config.installedItems ?? [];
+    const nextItems = [
+      ...existing.filter((existingItem) => existingItem.label !== item.label),
+      item,
+    ];
+    writeConfig({ ...config, installedItems: nextItems });
+  };
+
+  const updateSetupState = (next: Pick<TtsRuntimeStatus, "setupStage" | "setupMessage" | "setupProgress">) => {
+    setupState = {
+      setupStage: next.setupStage,
+      setupMessage: next.setupMessage,
+      setupProgress: next.setupProgress,
+    };
+  };
+
   const resolveSidecarRoot = () => sidecarRoots.find((sidecarRoot) => fileExists(sidecarMainPath(sidecarRoot)));
 
   const isInstalled = () => resolveSidecarRoot() !== undefined;
 
   function getBundledPython(sidecarRoot: string): string | null {
-    const bundled = process.platform === "win32"
-      ? path.join(sidecarRoot, "python", "python.exe")
-      : path.join(sidecarRoot, "python", "bin", "python3");
-    return fileExists(bundled) ? bundled : null;
+    const candidates = process.platform === "win32"
+      ? [
+          path.join(sidecarRoot, "python.exe"),
+          path.join(sidecarRoot, "python", "python.exe"),
+        ]
+      : [
+          path.join(sidecarRoot, "bin", "python3"),
+          path.join(sidecarRoot, "python", "bin", "python3"),
+        ];
+    return candidates.find((candidate) => fileExists(candidate)) ?? null;
   }
 
   function pythonDownloadUrl(): string | null {
-    const base = "https://github.com/indygreg/python-build-standalone/releases/download/20241016/cpython-3.12.7+20241016-";
-    const suffix = "-install_only.tar.gz";
-    if (process.platform === "darwin") return `${base}${process.arch === "arm64" ? "aarch64-apple-darwin" : "x86_64-apple-darwin"}${suffix}`;
-    if (process.platform === "win32") return `${base}x86_64-pc-windows-msvc${suffix}`;
-    if (process.platform === "linux") return `${base}${process.arch === "arm64" ? "aarch64-unknown-linux-gnu" : "x86_64-unknown-linux-gnu"}${suffix}`;
-    return null;
+    const config = readConfig();
+    const configuredUrl = config.pythonRuntimeUrl?.trim();
+    if (configuredUrl) return configuredUrl;
+    const override = process.env.MANYING_TTS_PYTHON_RUNTIME_URL?.trim();
+    if (override) return override;
+    return defaultPythonDownloadUrl();
   }
 
-  // 方案 A：自带 Python 不存在时（如 Windows 打包后），首启动下载到用户目录
-  async function ensurePython(sidecarRoot: string): Promise<{ python?: string; error?: string }> {
+  function findManagedPython(sidecarRoot: string): string | null {
     const bundled = getBundledPython(sidecarRoot);
-    if (bundled) return { python: bundled };
-    const existing = getBundledPython(runtimePythonDir);
-    if (existing) return { python: existing };
+    if (bundled) return bundled;
+    return getBundledPython(runtimePythonDir());
+  }
+
+  async function findReadyPython(sidecarRoot: string, options: { allowSystemPython?: boolean } = {}): Promise<{ python?: string; error?: string }> {
+    updateSetupState({ setupStage: "checking", setupMessage: "正在检查 Python 运行环境", setupProgress: 0 });
+    const managedPython = findManagedPython(sidecarRoot);
+    if (managedPython) {
+      updateSetupState({
+        setupStage: "checking",
+        setupMessage: managedPython.startsWith(sidecarRoot)
+          ? "已找到随包 Python 运行环境"
+          : "已找到项目存储中的 Python 运行环境",
+        setupProgress: 100,
+      });
+      return { python: managedPython };
+    }
+    if (!options.allowSystemPython) {
+      updateSetupState({ setupStage: "failed", setupMessage: "Python 3.12 运行环境未配置", setupProgress: 0 });
+      return { error: "请先到设置里的 Python 配置页完成配置" };
+    }
     // 系统已有可用 Python（开发机）则直接用，避免重复下载
     try {
-      execFileSync(pythonBinary, ["--version"], { stdio: "pipe" });
+      await runPython(pythonBinary, ["--version"], { timeout: 30_000, maxBuffer: 1024 * 1024 });
+      updateSetupState({ setupStage: "checking", setupMessage: "已找到系统 Python 运行环境", setupProgress: 100 });
       return { python: pythonBinary };
     } catch { /* 无系统 Python，继续下载 */ }
+    updateSetupState({ setupStage: "failed", setupMessage: "Python 运行环境未配置", setupProgress: 0 });
+    return { error: "请先到设置里的 Python 配置页完成配置" };
+  }
+
+  async function ensurePython(sidecarRoot: string): Promise<{ python?: string; error?: string }> {
+    updateSetupState({ setupStage: "checking", setupMessage: "正在检查 Python 3.12 运行环境", setupProgress: 0 });
+    const managedPython = findManagedPython(sidecarRoot);
+    if (managedPython) {
+      setInstalledItem({
+        label: "Python 运行环境",
+        detail: managedPython,
+        status: "skipped",
+      });
+      return { python: managedPython };
+    }
+    const runtimeDir = runtimePythonDir();
     const url = pythonDownloadUrl();
-    if (!url) return { error: `不支持的平台: ${process.platform} ${process.arch}` };
+    if (!url) {
+      updateSetupState({ setupStage: "failed", setupMessage: "当前平台不支持自动下载 Python", setupProgress: 0 });
+      return { error: `不支持的平台: ${process.platform} ${process.arch}` };
+    }
+    const partialArchive = path.join(runtimeDir, "python-runtime.tar.gz.partial");
+    const archivePath = path.join(runtimeDir, "python-runtime.tar.gz");
     try {
-      ensureDir(runtimePythonDir);
-      const tmp = path.join(runtimePythonDir, "python-runtime.tar.gz");
-      const res = await fetch(url);
-      if (!res.ok) return { error: `下载 Python 失败 (${res.status})` };
-      fs.writeFileSync(tmp, Buffer.from(await res.arrayBuffer()));
-      await execFileAsync("tar", ["-xzf", tmp, "-C", runtimePythonDir], { timeout: 600_000, maxBuffer: 64 * 1024 * 1024 });
-      fs.rmSync(tmp, { force: true });
-      const py = getBundledPython(runtimePythonDir);
-      return py ? { python: py } : { error: "Python 解压后未找到可执行文件" };
+      ensureDir(runtimeDir);
+      updateSetupState({ setupStage: "downloading-python", setupMessage: "正在下载 Python 运行环境", setupProgress: 0 });
+      const res = await fetchRuntimeArchive(url, partialArchive, (progress) => {
+        updateSetupState({
+          setupStage: "downloading-python",
+          setupMessage: "正在下载 Python 运行环境",
+          setupProgress: progress.progress,
+        });
+      });
+      if (!res.ok || !res.data) {
+        removeFile(partialArchive);
+        updateSetupState({ setupStage: "failed", setupMessage: "Python 下载失败", setupProgress: setupState.setupProgress });
+        return { error: `下载 Python 失败 (${res.status})` };
+      }
+      writeBinaryFile(partialArchive, res.data instanceof Uint8Array ? res.data : new Uint8Array(res.data));
+      renameFile(partialArchive, archivePath);
+      updateSetupState({ setupStage: "extracting-python", setupMessage: "正在配置 Python 仓库", setupProgress: 100 });
+      await extractArchive(archivePath, runtimeDir);
+      removeFile(archivePath);
+      const py = getBundledPython(runtimeDir);
+      if (!py) {
+        updateSetupState({ setupStage: "failed", setupMessage: "Python 解压后未找到可执行文件", setupProgress: 100 });
+        setInstalledItem({ label: "Python 运行环境", detail: runtimeDir, status: "failed" });
+        return { error: "Python 解压后未找到可执行文件" };
+      }
+      setInstalledItem({ label: "Python 运行环境", detail: py, status: "installed" });
+      return { python: py };
     } catch (error) {
+      removeFile(partialArchive);
+      updateSetupState({ setupStage: "failed", setupMessage: "Python 下载失败", setupProgress: setupState.setupProgress });
+      setInstalledItem({ label: "Python 运行环境", detail: runtimeDir, status: "failed" });
       return { error: `Python 下载失败: ${getErrorMessage(error)}` };
     }
   }
 
-  async function ensureDeps(sidecarRoot: string, python: string): Promise<{ success: boolean; error?: string }> {
+  function getDepsPlan(sidecarRoot: string, python: string): {
+    reqPath?: string;
+    markerPath?: string;
+    reqHash?: string;
+  } {
     const reqPath = path.join(sidecarRoot, "requirements.txt");
-    if (!fileExists(reqPath)) return { success: true };
+    if (!fileExists(reqPath)) return {};
     const markerPath = path.join(cacheDir, ".deps-hash");
     const reqContent = readTextFile(reqPath) ?? "";
-    const reqHash = crypto.createHash("md5").update(reqContent).digest("hex");
+    const reqHash = crypto.createHash("md5").update(`${python}\n${reqContent}`).digest("hex");
+    return { reqPath, markerPath, reqHash };
+  }
+
+  function depsAreReady(sidecarRoot: string, python: string) {
+    const depsPlan = getDepsPlan(sidecarRoot, python);
+    if (!depsPlan.markerPath || !depsPlan.reqHash) return true;
+    return readTextFile(depsPlan.markerPath)?.trim() === depsPlan.reqHash;
+  }
+
+  async function ensureDeps(sidecarRoot: string, python: string): Promise<{ success: boolean; error?: string }> {
+    const { reqPath, markerPath, reqHash } = getDepsPlan(sidecarRoot, python);
+    if (!reqPath || !markerPath || !reqHash) return { success: true };
     const installedHash = readTextFile(markerPath);
-    if (installedHash?.trim() === reqHash) return { success: true };
+    if (installedHash?.trim() === reqHash) {
+      setInstalledItem({ label: "TTS Python 依赖", detail: reqPath, status: "skipped" });
+      return { success: true };
+    }
     try {
+      updateSetupState({ setupStage: "installing-deps", setupMessage: "正在安装 TTS 依赖", setupProgress: undefined });
       if (process.platform === "win32") {
         // PyPI 默认是 CPU 版 torch，Windows 需从 CUDA 专用 index 安装
-        await execFileAsync(python, ["-m", "pip", "install", "torch", "--index-url", "https://download.pytorch.org/whl/cu121"], { timeout: 1_800_000, maxBuffer: 32 * 1024 * 1024 });
+        await runPython(python, ["-m", "pip", "install", "torch", "--index-url", "https://download.pytorch.org/whl/cu121"], { timeout: 1_800_000, maxBuffer: 32 * 1024 * 1024 });
       }
-      await execFileAsync(python, ["-m", "pip", "install", "-r", reqPath], { timeout: 1_800_000, maxBuffer: 32 * 1024 * 1024 });
+      await runPython(python, ["-m", "pip", "install", "-r", reqPath], { timeout: 1_800_000, maxBuffer: 32 * 1024 * 1024 });
       ensureDir(cacheDir);
       writeTextFile(markerPath, reqHash);
+      setInstalledItem({ label: "TTS Python 依赖", detail: reqPath, status: "installed" });
     } catch (error) {
+      updateSetupState({ setupStage: "failed", setupMessage: "安装 TTS 依赖失败", setupProgress: undefined });
+      setInstalledItem({ label: "TTS Python 依赖", detail: reqPath, status: "failed" });
       return { success: false, error: `安装依赖失败: ${getErrorMessage(error)}` };
     }
     return { success: true };
@@ -366,10 +607,14 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
       running,
       port,
       baseUrl,
+      setupStage: setupState.setupStage ?? "idle",
+      setupMessage: setupState.setupMessage,
+      setupProgress: setupState.setupProgress,
       cacheDir,
       modelCacheDir: getModelCacheDir(),
-      defaultModelCacheDir,
+      defaultModelCacheDir: defaultModelCacheDir(),
       systemModelCacheDir,
+      pythonRuntimeDir: runtimePythonDir(),
       managed: child !== null,
       pid: child?.pid,
       error: !running && child ? `TTS 后端进程存在但 HTTP 不可达: ${health.error ?? baseUrl}` : undefined,
@@ -398,8 +643,10 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
   }
 
   async function start(): Promise<TtsRuntimeCommandResult> {
+    updateSetupState({ setupStage: "checking", setupMessage: "正在检查本地 TTS 后端", setupProgress: 0 });
     const sidecarRoot = resolveSidecarRoot();
     if (!sidecarRoot) {
+      updateSetupState({ setupStage: "failed", setupMessage: "未找到本地 TTS 后端", setupProgress: 0 });
       return {
         success: false,
         status: await status(),
@@ -409,6 +656,7 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
 
     if (child) {
       if (await isBackendHealthy()) {
+        updateSetupState({ setupStage: "ready", setupMessage: "本地 TTS 后端已就绪", setupProgress: 100 });
         return { success: true, status: await status() };
       }
       child.kill();
@@ -419,6 +667,7 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
     if (existingHealth.healthy) {
       const stopped = await stopStaleBackendProcess(existingHealth);
       if (!stopped) {
+        updateSetupState({ setupStage: "failed", setupMessage: "本地 TTS 端口清理失败", setupProgress: 0 });
         return {
           success: false,
           status: await status(),
@@ -430,21 +679,25 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
     ensureDir(cacheDir);
     const modelCacheDir = getModelCacheDir();
     const hfHubCacheDir = resolveHfHubCacheDir(modelCacheDir, fileExists);
-    const controlToken = getControlToken();
     ensureDir(modelCacheDir);
     ensureDir(hfHubCacheDir);
 
-    // 自带 Python 不存在时首启动下载（方案 A）
-    const pyResult = await ensurePython(sidecarRoot);
+    const pyResult = await findReadyPython(sidecarRoot, { allowSystemPython: true });
     if (!pyResult.python) {
       return { success: false, status: await status(), error: pyResult.error };
     }
-    const backendPython = pyResult.python;
-    const depsResult = await ensureDeps(sidecarRoot, backendPython);
-    if (!depsResult.success) {
-      return { success: false, status: await status(), error: depsResult.error };
+    if (!depsAreReady(sidecarRoot, pyResult.python)) {
+      updateSetupState({ setupStage: "failed", setupMessage: "TTS Python 依赖未配置", setupProgress: 0 });
+      return {
+        success: false,
+        status: await status(),
+        error: "请先到设置里的 Python 配置页点击开始配置，完成 TTS 依赖安装",
+      };
     }
+    const controlToken = getControlToken();
+    const backendPython = pyResult.python;
 
+    updateSetupState({ setupStage: "starting-backend", setupMessage: "本地 TTS 后端启动中", setupProgress: undefined });
     const systemHfCache = path.join(os.homedir(), ".cache", "huggingface", "hub");
     child = spawnProcess(
       backendPython,
@@ -476,12 +729,36 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
     if (!healthy) {
       child?.kill();
       child = null;
+      updateSetupState({ setupStage: "failed", setupMessage: "本地 TTS 后端启动失败", setupProgress: undefined });
       return {
         success: false,
         status: await status(),
         error: `TTS backend did not become healthy on ${baseUrl}`,
       };
     }
+    updateSetupState({ setupStage: "ready", setupMessage: "本地 TTS 后端已就绪", setupProgress: 100 });
+    return { success: true, status: await status() };
+  }
+
+  async function setup(): Promise<TtsRuntimeCommandResult> {
+    const sidecarRoot = resolveSidecarRoot();
+    if (!sidecarRoot) {
+      updateSetupState({ setupStage: "failed", setupMessage: "未找到本地 TTS 后端", setupProgress: 0 });
+      return {
+        success: false,
+        status: await status(),
+        error: `TTS sidecar not found. Checked: ${sidecarRoots.map(sidecarMainPath).join(", ")}`,
+      };
+    }
+    const pyResult = await ensurePython(sidecarRoot);
+    if (!pyResult.python) {
+      return { success: false, status: await status(), error: pyResult.error };
+    }
+    const depsResult = await ensureDeps(sidecarRoot, pyResult.python);
+    if (!depsResult.success) {
+      return { success: false, status: await status(), error: depsResult.error };
+    }
+    updateSetupState({ setupStage: "ready", setupMessage: "Python 运行环境已配置", setupProgress: 100 });
     return { success: true, status: await status() };
   }
 
@@ -494,6 +771,22 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
       };
     }
     saveModelCacheDir(dirPath);
+    return { success: true, status: await status() };
+  }
+
+  async function getConfig(): Promise<TtsRuntimeConfig> {
+    return getRuntimeConfig();
+  }
+
+  async function setConfig(config: Partial<TtsRuntimeConfig>): Promise<TtsRuntimeCommandResult> {
+    if (await isBackendHealthy()) {
+      return {
+        success: false,
+        status: await status(),
+        error: "请先停止本地 TTS 后端，再修改 Python 运行环境配置",
+      };
+    }
+    saveRuntimeConfig(config);
     return { success: true, status: await status() };
   }
 
@@ -571,7 +864,10 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
   return {
     status,
     start,
+    setup,
     stop,
+    getConfig,
+    setConfig,
     setModelCacheDir,
     request,
     requestBytes,

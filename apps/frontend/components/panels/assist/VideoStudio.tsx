@@ -12,7 +12,8 @@ import { useFreedomStore } from '@/stores/freedom-store';
 import { useAPIConfigStore } from '@/stores/api-config-store';
 import { ModelSelector } from './ModelSelector';
 import { GenerationHistory } from './GenerationHistory';
-import { generateFreedomVideo, type FreedomVideoUploadFile } from '@/lib/freedom/freedom-api';
+import { type FreedomVideoUploadFile } from '@/lib/freedom/freedom-api';
+import { aiManager } from '@/lib/ai/ai-manager';
 import {
   getAspectRatiosForT2VModel,
   getDurationsForModel,
@@ -361,7 +362,7 @@ export function VideoStudio() {
     setVideoResult(null);
 
     try {
-      const result = await generateFreedomVideo({
+      const result = await aiManager.freedomVideo({
         prompt: videoPrompt,
         model: selectedVideoModel,
         aspectRatio: videoAspectRatio,

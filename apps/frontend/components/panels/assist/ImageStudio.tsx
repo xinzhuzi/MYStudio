@@ -15,7 +15,7 @@ import { useFreedomStore } from '@/stores/freedom-store';
 import { ModelSelector } from './ModelSelector';
 import { GenerationHistory } from './GenerationHistory';
 import { SaveToPropsDialog } from './SaveToPropsDialog';
-import { generateFreedomImage } from '@/lib/freedom/freedom-api';
+import { aiManager } from '@/lib/ai/ai-manager';
 import {
   getT2IModelById,
   getAspectRatiosForT2IModel,
@@ -74,7 +74,7 @@ export function ImageStudio() {
     abortRef.current = controller;
 
     try {
-      const result = await generateFreedomImage({
+      const result = await aiManager.freedomImage({
         prompt: imagePrompt,
         model: selectedImageModel,
         aspectRatio: imageAspectRatio,

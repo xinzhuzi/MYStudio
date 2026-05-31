@@ -18,6 +18,7 @@
 
 import { useAPIConfigStore, type AIFeature, type IProvider, AI_FEATURES } from '@/stores/api-config-store';
 import { parseApiKeys, getProviderKeyManager, ApiKeyManager } from '@/lib/api-key-manager';
+import { retryOperation } from '@/lib/utils/retry';
 
 export interface FeatureConfig {
   feature: AIFeature;
@@ -350,4 +351,49 @@ export function getAllFeatureStatuses(): Array<{
       providerName: configured ? provider?.name : undefined,
     };
   });
+}
+
+
+/**
+ * 功能绑定的多模态 chat 调用（文本+图片），含 key 轮换/重试。
+ * 调用方自行构建 messages（content 可含 image_url）与解析返回；返回 message content 字符串。
+ */
+export async function callFeatureMultimodalAPI(
+  feature: AIFeature,
+  messages: Array<{ role: string; content: unknown }>,
+  opts?: { temperature?: number; responseFormat?: 'json_object'; signal?: AbortSignal },
+): Promise<string> {
+  const config = getFeatureConfig(feature);
+  if (!config) {
+    throw new Error(getFeatureNotConfiguredMessage(feature));
+  }
+  const model = config.model || config.models?.[0];
+  const baseUrl = config.baseUrl?.replace(/\/+$/, '');
+  if (!baseUrl) throw new Error('请先在设置中配置 Base URL');
+  if (!model) throw new Error('请先在设置中配置模型');
+  const endpoint = /\/v\d+$/.test(baseUrl) ? `${baseUrl}/chat/completions` : `${baseUrl}/v1/chat/completions`;
+  const body: Record<string, unknown> = { model, messages, stream: false };
+  if (opts?.temperature != null) body.temperature = opts.temperature;
+  if (opts?.responseFormat) body.response_format = { type: opts.responseFormat };
+
+  const response = await retryOperation(async () => {
+    const apiKey = config.keyManager.getCurrentKey() || config.apiKey;
+    const resp = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify(body),
+      signal: opts?.signal,
+    });
+    if (!resp.ok) {
+      const errorText = await resp.text();
+      config.keyManager.handleError(resp.status, errorText);
+      const err = new Error(`多模态调用失败 (${resp.status}) ${errorText.slice(0, 200)}`) as Error & { status?: number };
+      err.status = resp.status;
+      throw err;
+    }
+    return resp;
+  }, { maxRetries: 3, baseDelay: 3000, retryOn429: true });
+
+  const data = await response.json();
+  return (data?.choices?.[0]?.message?.content ?? data?.content ?? '') as string;
 }

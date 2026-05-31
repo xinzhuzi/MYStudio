@@ -15,7 +15,7 @@
  */
 
 import type { ScriptCharacter, ProjectBackground, EpisodeRawScript, CharacterIdentityAnchors, CharacterNegativePrompt, PromptLanguage, CalibrationStrictness, FilteredCharacterRecord } from '@/types/script';
-import { callFeatureAPI } from '@/lib/ai/feature-router';
+import { aiManager } from '@/lib/ai/ai-manager';
 import { processBatched } from '@/lib/ai/batch-processor';
 import { estimateTokens, safeTruncate } from '@/lib/ai/model-registry';
 import { useScriptStore } from '@/stores/script-store';
@@ -1165,7 +1165,7 @@ ${c.name}（${c.importance === 'protagonist' ? '主角' : '重要配角'}）
 - 出场：${c.appearanceCount}次`;
     
     try {
-      const result = await callFeatureAPI('script_analysis', systemPrompt, userPrompt, {
+      const result = await aiManager.featureText('script_analysis', systemPrompt, userPrompt, {
         maxTokens: 4096, // 单角色输出 4096 足够
       });
       

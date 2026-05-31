@@ -4,6 +4,7 @@ import type {
   TtsGenerateRequest,
   TtsGenerateResponse,
   TtsModelCacheInfo,
+  TtsRuntimeConfig,
   TtsRuntimeCommandResult,
   TtsRuntimeStatus,
   VoiceProfile,
@@ -34,8 +35,20 @@ export function startTtsRuntime(): Promise<TtsRuntimeCommandResult> {
   return assertTtsRuntime().start();
 }
 
+export function setupTtsRuntime(): Promise<TtsRuntimeCommandResult> {
+  return assertTtsRuntime().setup();
+}
+
 export function stopTtsRuntime(): Promise<TtsRuntimeCommandResult> {
   return assertTtsRuntime().stop();
+}
+
+export function getTtsRuntimeConfig(): Promise<TtsRuntimeConfig> {
+  return assertTtsRuntime().getConfig();
+}
+
+export function setTtsRuntimeConfig(config: Partial<TtsRuntimeConfig>): Promise<TtsRuntimeCommandResult> {
+  return assertTtsRuntime().setConfig(config);
 }
 
 export function setTtsModelCacheDir(dirPath: string): Promise<TtsRuntimeCommandResult> {

@@ -154,9 +154,9 @@ powershell -ExecutionPolicy Bypass -File apps\build\setup-win.ps1
 ```
 
 脚本会自动：
-1. 下载 Python 3.12（python-build-standalone，项目专用，不影响系统）
-2. 安装 Python 后端依赖（macOS 装 MLX，Windows 装 CUDA 版 PyTorch + qwen-tts）
-3. 安装 Node.js 依赖
+1. 安装 Node.js 依赖
+2. 保持 Python runtime 延迟安装，不写入后端源码目录
+3. 首次使用本地 TTS 前，在应用设置 > Python 配置中点击“开始配置”
 
 ### 启动
 

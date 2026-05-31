@@ -2,9 +2,8 @@
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 
-import { getFeatureConfig } from '@/lib/ai/feature-router';
+import { callFeatureMultimodalAPI } from '@/lib/ai/feature-router';
 import { readImageAsBase64 } from '@/lib/image-storage';
-import { retryOperation } from '@/lib/utils/retry';
 
 export interface StyleExtractionResult {
   styleTokens: string;
@@ -60,72 +59,16 @@ Return RAW JSON (no markdown):
   "summaryZh": "中文简述"
 }`;
 
-function buildEndpoint(baseUrl: string, path: string): string {
-  const normalized = baseUrl.replace(/\/+$/, '');
-  return /\/v\d+$/.test(normalized) ? `${normalized}/${path}` : `${normalized}/v1/${path}`;
-}
-
 async function resolveImageUrl(src: string): Promise<string> {
   if (src.startsWith('data:')) return src;
   const dataUrl = await readImageAsBase64(src);
   return dataUrl || src;
 }
 
-function extractErrorMessage(status: number, errorText: string): string {
-  let message = `API 请求失败: ${status}`;
-
-  try {
-    const errorJson = JSON.parse(errorText);
-    message = errorJson.error?.message || errorJson.message || message;
-  } catch {
-    if (errorText && errorText.length < 200) {
-      message = errorText;
-    }
-  }
-
-  if (status === 401 || status === 403) {
-    return 'API Key 无效或已过期，请检查“图片理解”服务的 Key 配置';
-  }
-
-  if (status >= 500) {
-    return message || `上游服务暂时不可用 (${status})`;
-  }
-
-  return message;
-}
-
-function getMessageContent(data: any): string {
-  const rawContent = data?.choices?.[0]?.message?.content;
-  if (typeof rawContent === 'string') {
-    return rawContent;
-  }
-  if (Array.isArray(rawContent)) {
-    return rawContent
-      .map((item) => {
-        if (typeof item === 'string') return item;
-        if (typeof item?.text === 'string') return item.text;
-        return '';
-      })
-      .join('\n');
-  }
-  return '';
-}
-
 export async function extractStyleTokens(
   textPrompt: string,
   imageUrls: string[] = [],
 ): Promise<StyleExtractionResult> {
-  const config = getFeatureConfig('image_understanding');
-  if (!config) {
-    throw new Error('请先在设置中为“图片理解”功能绑定 API 提供商');
-  }
-
-  const baseUrl = config.baseUrl?.replace(/\/+$/, '');
-  const model = config.model || config.models?.[0];
-  if (!baseUrl || !model) {
-    throw new Error('图片理解服务缺少 Base URL 或模型配置');
-  }
-
   const contentParts: Array<{ type: string; text?: string; image_url?: { url: string } }> = [];
 
   const userText = textPrompt.trim()
@@ -144,58 +87,10 @@ export async function extractStyleTokens(
     }
   }
 
-  const hasImages = contentParts.some((part) => part.type === 'image_url');
-  console.log(
-    `[StyleExtractor] Calling ${model} with text=${!!textPrompt.trim()}, images=${hasImages ? imageUrls.length : 0}`,
-  );
-
-  const endpoint = buildEndpoint(baseUrl, 'chat/completions');
-  const requestBody = {
-    model,
-    messages: [
-      { role: 'system', content: SYSTEM_PROMPT },
-      { role: 'user', content: contentParts },
-    ],
-    stream: false,
-    temperature: 0.3,
-    response_format: { type: 'json_object' as const },
-  };
-
-  const response = await retryOperation(async () => {
-    const currentApiKey = config.keyManager.getCurrentKey() || config.apiKey;
-    const resp = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${currentApiKey}`,
-      },
-      body: JSON.stringify(requestBody),
-    });
-
-    if (!resp.ok) {
-      const errorText = await resp.text();
-      console.error('[StyleExtractor] API error:', resp.status, errorText);
-      config.keyManager.handleError(resp.status, errorText);
-
-      const error = new Error(extractErrorMessage(resp.status, errorText)) as Error & {
-        status?: number;
-      };
-      error.status = resp.status;
-      throw error;
-    }
-
-    return resp;
-  }, {
-    maxRetries: 3,
-    baseDelay: 3000,
-    retryOn429: true,
-    onRetry: (attempt, delay, error) => {
-      console.warn(`[StyleExtractor] Retry ${attempt}, delay ${delay}ms, error: ${error.message}`);
-    },
-  });
-
-  const data = await response.json();
-  const content = getMessageContent(data);
+  const content = await callFeatureMultimodalAPI('image_understanding', [
+    { role: 'system', content: SYSTEM_PROMPT },
+    { role: 'user', content: contentParts },
+  ], { temperature: 0.3, responseFormat: 'json_object' });
   const cleanContent = content.replace(/```json\s*|\s*```/g, '').trim();
 
   let parsed: any;

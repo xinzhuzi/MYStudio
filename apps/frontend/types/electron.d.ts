@@ -13,7 +13,7 @@ import type {
   StudioVisualManualSummary,
   StudioVisualManualWritePayload,
 } from "./studio-visual-manual";
-import type { TtsRuntimeCommandResult, TtsRuntimeStatus } from "./tts";
+import type { TtsRuntimeCommandResult, TtsRuntimeConfig, TtsRuntimeStatus } from "./tts";
 
 export {};
 
@@ -206,7 +206,10 @@ declare global {
     ttsRuntime?: {
       status: () => Promise<TtsRuntimeStatus>;
       start: () => Promise<TtsRuntimeCommandResult>;
+      setup: () => Promise<TtsRuntimeCommandResult>;
       stop: () => Promise<TtsRuntimeCommandResult>;
+      getConfig: () => Promise<TtsRuntimeConfig>;
+      setConfig: (config: Partial<TtsRuntimeConfig>) => Promise<TtsRuntimeCommandResult>;
       setModelCacheDir: (dirPath: string) => Promise<TtsRuntimeCommandResult>;
       request: (payload: { method: string; path: string; body?: unknown }) => Promise<unknown>;
       requestBytes: (payload: { method: string; path: string; body?: unknown }) => Promise<{ data: ArrayBuffer; mimeType?: string }>;

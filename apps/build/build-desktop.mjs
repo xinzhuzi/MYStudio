@@ -4,7 +4,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
-const projectRoot = resolve(scriptDir, '..', '..');
+const projectRoot = resolve(scriptDir, '..');
 const releaseDir = resolve(projectRoot, 'release');
 const defaultBuildOutputDir = resolve(releaseDir, 'build');
 const electronViteOutDir = resolve(releaseDir, '.electron-vite');
@@ -20,8 +20,8 @@ const legacyBuildCacheDirs = [
 const tempDir = resolve(cacheRoot, 'tmp');
 const electronCacheDir = resolve(cacheRoot, 'electron');
 const electronBuilderCacheDir = resolve(cacheRoot, 'electron-builder');
-const desktopBuilderConfigPath = resolve(projectRoot, 'src', 'config', 'electron-builder.yml');
-const brandDir = resolve(projectRoot, 'src', 'assets', 'brand');
+const desktopBuilderConfigPath = resolve(projectRoot, 'frontend', 'config', 'electron-builder.yml');
+const brandDir = resolve(projectRoot, 'frontend', 'assets', 'brand');
 const cliArgs = process.argv.slice(2);
 const supportedTargets = ['mac', 'win', 'linux'];
 const supportedArchs = ['x64', 'arm64', 'universal', 'ia32', 'armv7l'];
@@ -212,14 +212,14 @@ function cleanIntermediateOutput() {
 }
 
 if (shouldGenerateIcons()) {
-  run('node', [resolve(projectRoot, 'src', 'scripts', 'generate-icon.mjs')]);
+  run('node', [resolve(projectRoot, 'frontend', 'scripts', 'generate-icon.mjs')]);
 }
 
 const buildArchs = resolveBuildArchs();
 
 cleanIntermediateOutput();
 
-run('npx', ['electron-vite', 'build', '--config', resolve(projectRoot, 'src', 'config', 'electron-vite.config.ts')]);
+run('npx', ['electron-vite', 'build', '--config', resolve(projectRoot, 'frontend', 'config', 'electron-vite.config.ts')]);
 
 for (const arch of buildArchs) {
   buildForArch(arch);

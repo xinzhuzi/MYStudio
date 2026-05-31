@@ -14,7 +14,7 @@
 
 import type { Shot, ProjectBackground } from '@/types/script';
 import type { SplitScene, TrailerDuration } from '@/stores/director-store';
-import { callFeatureAPI } from '@/lib/ai/feature-router';
+import { aiManager } from '@/lib/ai/ai-manager';
 
 // 时长对应的分镜数量
 const DURATION_TO_SHOT_COUNT: Record<TrailerDuration, number> = {
@@ -124,7 +124,7 @@ ${shotSummaries.map(s =>
 请从以上分镜中挑选 ${targetCount} 个最适合做预告片的镜头，返回 JSON 格式的序号列表。`;
 
     // 统一从服务映射获取配置
-    const result = await callFeatureAPI('script_analysis', systemPrompt, userPrompt);
+    const result = await aiManager.featureText('script_analysis', systemPrompt, userPrompt);
 
     // 解析 AI 返回的 JSON - 支持多种格式
     let selectedIndices: number[] = [];

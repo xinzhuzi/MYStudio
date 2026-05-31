@@ -7,8 +7,8 @@ import { spawnSync } from 'child_process'
 import { fileURLToPath } from 'url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const projectDir = path.join(__dirname, '..', '..')
-const brandDir = path.join(projectDir, 'src', 'assets', 'brand')
+const projectDir = path.join(__dirname, '..')
+const brandDir = path.join(projectDir, 'assets', 'brand')
 const brandLogoPath = path.join(brandDir, 'manying-studio-logo.png')
 const logoPath = path.join(brandDir, 'logo.png')
 const logoSize = 1024
@@ -19,10 +19,10 @@ if (!fs.existsSync(brandDir)) {
 }
 
 async function generateIcons() {
-  console.log('🎨 从 src/assets/brand/manying-studio-logo.png 生成漫影工作室图标中...')
+  console.log('🎨 从 frontend/assets/brand/manying-studio-logo.png 生成漫影工作室图标中...')
 
   if (!fs.existsSync(brandLogoPath)) {
-    console.error('❌ 找不到 src/assets/brand/manying-studio-logo.png')
+    console.error('❌ 找不到 frontend/assets/brand/manying-studio-logo.png')
     process.exit(1)
   }
 

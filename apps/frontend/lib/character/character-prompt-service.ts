@@ -16,7 +16,7 @@
  */
 
 import { useScriptStore } from '@/stores/script-store';
-import { callFeatureAPI } from '@/lib/ai/feature-router';
+import { aiManager } from '@/lib/ai/ai-manager';
 import type { CharacterVariation } from '@/stores/character-library-store';
 
 // ==================== 类型定义 ====================
@@ -278,7 +278,7 @@ ${context.characterAppearances.length > 0
   const userPrompt = `请为角色「${character.name}」设计多阶段视觉形象。`;
   
   // 统一从服务映射获取配置
-  const result = await callFeatureAPI('script_analysis', systemPrompt, userPrompt);
+  const result = await aiManager.featureText('script_analysis', systemPrompt, userPrompt);
   
   // 解析结果
   try {

@@ -17,7 +17,7 @@
  * - 幂等：已有标准格式的文本不受影响
  */
 
-import { callFeatureAPI } from '@/lib/ai/feature-router';
+import { aiManager } from '@/lib/ai/ai-manager';
 import { getFeatureConfig } from '@/lib/ai/feature-router';
 
 /**
@@ -267,7 +267,7 @@ export async function analyzeScriptStructureWithAI(text: string): Promise<Script
         } else {
           console.log('[scriptNormalizer] 调用 AI 分析剧本结构...');
         }
-        result = await callFeatureAPI('script_analysis', systemPrompt, analysisText, {
+        result = await aiManager.featureText('script_analysis', systemPrompt, analysisText, {
           temperature: 0.1,
           maxTokens: 1024,
         });

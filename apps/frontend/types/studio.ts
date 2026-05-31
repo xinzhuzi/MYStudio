@@ -13,8 +13,7 @@ export type AgentWorkKey =
   | "supervisionReport"
   | "entityExtraction"
   | "episodeOutline"
-  | "voiceAssign"
-  | "scriptFinal";
+  | "voiceAssign";
 
 export interface NovelEventAnalysis {
   chapterLabel: string;

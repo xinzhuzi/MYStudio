@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 import { useFreedomStore } from '@/stores/freedom-store';
 import { CameraControls } from './CameraControls';
 import { GenerationHistory } from './GenerationHistory';
-import { generateFreedomImage } from '@/lib/freedom/freedom-api';
+import { aiManager } from '@/lib/ai/ai-manager';
 import {
   buildCinemaPrompt,
   CAMERA_MAP,
@@ -60,7 +60,7 @@ export function CinemaStudio() {
         selectedAperture
       );
 
-      const result = await generateFreedomImage({
+      const result = await aiManager.freedomImage({
         prompt: fullPrompt,
         aspectRatio: '16:9',
       });

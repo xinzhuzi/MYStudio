@@ -32,12 +32,12 @@ import {
   getFeatureNotConfiguredMessage,
 } from "@/lib/ai/feature-router";
 import {
-  callVideoGenerationApi,
   buildImageWithRoles,
   convertToHttpUrl,
   saveVideoLocally,
   isContentModerationError,
 } from "../director/use-video-generation";
+import { aiManager } from "@/lib/ai/ai-manager";
 import {
   buildGroupPrompt,
   collectAllRefs,
@@ -358,7 +358,7 @@ export function useSClassGeneration() {
           if (!currentApiKey) break;
 
           try {
-            videoUrl = await callVideoGenerationApi(
+            videoUrl = await aiManager.video(
               currentApiKey,
               prompt,
               duration,
@@ -652,7 +652,7 @@ export function useSClassGeneration() {
           if (!currentApiKey) break;
 
           try {
-            videoUrl = await callVideoGenerationApi(
+            videoUrl = await aiManager.video(
               currentApiKey,
               prompt,
               duration,

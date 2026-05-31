@@ -363,7 +363,7 @@ export function DirectorContextPanel() {
   
   // 异步版本：关键词 + AI 匹配（用于批量添加）
   const findMatchingSceneAndViewpointWithAI = async (sceneName: string, actionSummary: string): Promise<ViewpointMatchResult | null> => {
-    return matchSceneAndViewpoint(sceneName, actionSummary, sceneLibraryScenes, true);
+    return matchSceneAndViewpoint(sceneName, actionSummary, sceneLibraryScenes);
   };
 
   // 添加单个分镜到分镜编辑（模式二）

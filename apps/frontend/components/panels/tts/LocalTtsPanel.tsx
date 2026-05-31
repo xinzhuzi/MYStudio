@@ -146,6 +146,50 @@ function RuntimeStatusLine({ label, value }: { label: string; value: ReactNode }
   );
 }
 
+const runtimeSetupMessages: Record<NonNullable<TtsRuntimeStatus["setupStage"]>, string> = {
+  idle: "本地 TTS 后端未启动",
+  checking: "正在检查 Python 运行环境",
+  "downloading-python": "正在下载 Python 运行环境",
+  "extracting-python": "正在配置 Python 仓库",
+  "installing-deps": "正在安装 TTS 依赖",
+  "starting-backend": "本地 TTS 后端启动中",
+  ready: "本地 TTS 后端已就绪",
+  failed: "本地 TTS 后端启动失败",
+};
+
+function RuntimeSetupProgress({ status, starting }: { status: TtsRuntimeStatus | null; starting: boolean }) {
+  const setupStage = status?.setupStage ?? "idle";
+  const active = starting || ["checking", "downloading-python", "extracting-python", "installing-deps", "starting-backend"].includes(setupStage);
+  const failed = setupStage === "failed";
+  if (!active && !failed) return null;
+
+  const progress = typeof status?.setupProgress === "number" ? Math.max(0, Math.min(100, status.setupProgress)) : undefined;
+  const message = status?.setupMessage || runtimeSetupMessages[setupStage];
+
+  return (
+    <div className={cn(
+      "mt-4 rounded-md border p-3",
+      failed ? "border-destructive/30 bg-destructive/5" : "border-primary/25 bg-primary/5",
+    )}>
+      <div className="flex items-center justify-between gap-3 text-sm">
+        <div className={cn("flex min-w-0 items-center gap-2 font-medium", failed ? "text-destructive" : "text-foreground")}>
+          {failed ? <AlertCircle className="h-4 w-4 shrink-0" /> : <Loader2 className="h-4 w-4 shrink-0 animate-spin text-primary" />}
+          <span className="truncate">{message}</span>
+        </div>
+        {typeof progress === "number" && (
+          <span className="shrink-0 text-xs text-muted-foreground">{Math.round(progress)}%</span>
+        )}
+      </div>
+      <Progress value={progress ?? (active ? 35 : 0)} className={cn("mt-3 h-1.5", progress === undefined && active && "opacity-60")} />
+      {status?.pythonRuntimeDir && (
+        <div className="mt-2 break-all text-xs text-muted-foreground">
+          Python 路径：{status.pythonRuntimeDir}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ModelRow({
   row,
   progress,
@@ -376,7 +420,13 @@ export function LocalTtsPanel() {
 
   const handleStart = async () => {
     setStarting(true);
+    let setupPoll: number | undefined;
     try {
+      setupPoll = window.setInterval(() => {
+        void getTtsRuntimeStatus()
+          .then(setRuntimeStatus)
+          .catch(() => {});
+      }, 500);
       const result = await startTtsRuntime();
       if (result.success) {
         toast.success("本地 TTS 后端已启动");
@@ -387,6 +437,7 @@ export function LocalTtsPanel() {
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "启动失败");
     } finally {
+      if (setupPoll) window.clearInterval(setupPoll);
       setStarting(false);
     }
   };
@@ -561,6 +612,8 @@ export function LocalTtsPanel() {
   const selectedState = selectedModel ? getModelState(selectedModel, selectedProgress) : "missing";
   const errorEntries = Object.entries(errors);
   const scanPaths = modelCacheInfo?.scan_paths?.filter(Boolean) ?? [];
+  const runtimeSetupStage = runtimeStatus?.setupStage ?? "idle";
+  const runtimeSetupActive = ["checking", "downloading-python", "extracting-python", "installing-deps", "starting-backend"].includes(runtimeSetupStage);
 
   return (
     <ScrollArea className="h-full">
@@ -583,10 +636,12 @@ export function LocalTtsPanel() {
                 />
                 <RuntimeStatusLine label="后端" value={runtimeStatus?.baseUrl ?? "http://127.0.0.1:17593"} />
                 <RuntimeStatusLine label="运行数据" value={runtimeStatus?.cacheDir || "tts-runtime"} />
+                <RuntimeStatusLine label="Python" value={runtimeStatus?.pythonRuntimeDir || "启动时配置"} />
                 <RuntimeStatusLine label="模型缓存" value={modelCacheInfo?.path || "启动后读取"} />
                 <RuntimeStatusLine label="下载写入" value={modelCacheInfo?.download_path || "启动后读取"} />
                 <RuntimeStatusLine label="扫描路径" value={scanPaths.length ? scanPaths.join("；") : "启动后读取"} />
               </div>
+              <RuntimeSetupProgress status={runtimeStatus} starting={starting} />
               <div className="mt-4 grid grid-cols-1 gap-2 md:grid-cols-[1fr_auto_auto_auto_auto]">
                 <Button type="button" variant="outline" onClick={() => void handleSelectModelCacheDir()} disabled={applyingModelCacheDir || runtimeStatus?.running}>
                   <FolderOpen className="mr-2 h-4 w-4" />
@@ -622,8 +677,8 @@ export function LocalTtsPanel() {
                     停止
                   </Button>
                 ) : (
-                  <Button onClick={() => void handleStart()} disabled={starting || runtimeStatus?.installed === false}>
-                    {starting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}
+                  <Button onClick={() => void handleStart()} disabled={starting || runtimeSetupActive || runtimeStatus?.installed === false}>
+                    {starting || runtimeSetupActive ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}
                     启动
                   </Button>
                 )}

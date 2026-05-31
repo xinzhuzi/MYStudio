@@ -102,6 +102,7 @@ type StudioSaveMaterialPayload = {
 const ttsRuntimeController = createTtsRuntimeController({
   appRoot: process.env.APP_ROOT ?? path.join(__dirname, '../..'),
   userDataPath: app.getPath('userData'),
+  storageBasePath: () => getStorageBasePath(),
 })
 let stopLocalSidecarsPromise: Promise<void> | null = null
 
@@ -2303,7 +2304,15 @@ ipcMain.handle('tts-runtime-status', async () => ttsRuntimeController.status())
 
 ipcMain.handle('tts-runtime-start', async () => ttsRuntimeController.start())
 
+ipcMain.handle('tts-runtime-setup', async () => ttsRuntimeController.setup())
+
 ipcMain.handle('tts-runtime-stop', async () => ttsRuntimeController.stop())
+
+ipcMain.handle('tts-runtime-get-config', async () => ttsRuntimeController.getConfig())
+
+ipcMain.handle('tts-runtime-set-config', async (_event, config) => (
+  ttsRuntimeController.setConfig(config)
+))
 
 ipcMain.handle('tts-runtime-set-model-cache-dir', async (_event, dirPath: string) => (
   ttsRuntimeController.setModelCacheDir(dirPath)

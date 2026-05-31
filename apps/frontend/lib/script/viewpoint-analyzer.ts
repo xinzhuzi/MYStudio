@@ -9,7 +9,7 @@
  */
 
 import type { Shot, ScriptScene } from '@/types/script';
-import { callFeatureAPI } from '@/lib/ai/feature-router';
+import { aiManager } from '@/lib/ai/ai-manager';
 
 export interface AnalyzedViewpoint {
   id: string;
@@ -151,7 +151,7 @@ ${shotSummaries}
     console.log('[analyzeSceneViewpoints] 分镜数量:', shots.length);
     
     // 统一从服务映射获取配置
-    const result = await callFeatureAPI('script_analysis', systemPrompt, userPrompt);
+    const result = await aiManager.featureText('script_analysis', systemPrompt, userPrompt);
     
     console.log('[analyzeSceneViewpoints] ✅ AI API 调用成功，返回内容长度:', result.length);
     console.log('[analyzeSceneViewpoints] 原始响应前 200 字符:', result.slice(0, 200));

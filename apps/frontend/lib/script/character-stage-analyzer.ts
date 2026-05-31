@@ -14,7 +14,7 @@
 
 import type { ProjectBackground, ScriptCharacter, PromptLanguage } from '@/types/script';
 import type { CharacterVariation } from '@/stores/character-library-store';
-import { callFeatureAPI } from '@/lib/ai/feature-router';
+import { aiManager } from '@/lib/ai/ai-manager';
 
 // ==================== 类型定义 ====================
 
@@ -144,7 +144,7 @@ ${promptLanguage !== 'en' ? '          "visualPromptZh": "35-40岁中国男性�
 
   try {
     // 统一从服务映射获取配置
-    const result = await callFeatureAPI('script_analysis', systemPrompt, userPrompt);
+    const result = await aiManager.featureText('script_analysis', systemPrompt, userPrompt);
     
     // 解析JSON结果
     let cleaned = result.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();

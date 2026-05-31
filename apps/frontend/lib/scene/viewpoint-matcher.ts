@@ -8,7 +8,6 @@
  * 策略：先用关键词快速匹配，匹配不到才调用 AI
  */
 
-import { getFeatureConfig } from '@/lib/ai/feature-router';
 import type { Scene } from '@/stores/scene-store';
 
 // ==================== 类型定义 ====================
@@ -85,9 +84,6 @@ for (const [viewpointId, keywords] of Object.entries(VIEWPOINT_KEYWORDS)) {
 
 // ==================== 缓存 ====================
 
-// AI 匹配结果缓存（避免重复调用）
-const aiMatchCache = new Map<string, { viewpointId: string | null; timestamp: number }>();
-const CACHE_TTL = 1000 * 60 * 30; // 30分钟缓存
 
 // ==================== 核心函数 ====================
 
@@ -106,82 +102,7 @@ function matchByKeyword(actionSummary: string): string | null {
 /**
  * 使用 AI 匹配视角
  */
-async function matchByAI(
-  actionSummary: string,
-  availableViewpoints: Array<{ id: string; name: string }>
-): Promise<string | null> {
-  // 检查缓存
-  const cacheKey = `${actionSummary}:${availableViewpoints.map(v => v.id).join(',')}`;
-  const cached = aiMatchCache.get(cacheKey);
-  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-    return cached.viewpointId;
-  }
-
-  // 获取 AI 配置
-  const config = getFeatureConfig('chat');
-  if (!config) {
-    console.warn('[ViewpointMatcher] No chat API configured for AI matching');
-    return null;
-  }
-  const model = config.models?.[0];
-  if (!model) {
-    console.warn('[ViewpointMatcher] No chat model configured for AI matching');
-    return null;
-  }
-  const apiKey = config.apiKey;
-  if (!apiKey) {
-    console.warn('[ViewpointMatcher] No chat API key configured for AI matching');
-    return null;
-  }
-
-  try {
-    const viewpointList = availableViewpoints
-      .map(v => `- ${v.id}: ${v.name}`)
-      .join('\n');
-
-    const prompt = `根据以下动作描述，判断最匹配的场景视角。
-
-【动作描述】
-${actionSummary}
-
-【可选视角】
-${viewpointList}
-
-请只返回最匹配的视角ID（如 dining、sofa、window 等），不要任何解释。
-如果没有合适的视角，返回 null。`;
-
-    const response = await fetch('/api/ai/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        messages: [{ role: 'user', content: prompt }],
-        provider: config.platform,
-        apiKey,
-        model,
-        temperature: 0.1, // 低温度，更确定性的输出
-        maxTokens: 50,
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`AI API error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    const result = data.content?.trim().toLowerCase();
-    
-    // 验证返回的是有效的视角ID
-    const viewpointId = availableViewpoints.find(v => v.id === result)?.id || null;
-    
-    // 缓存结果
-    aiMatchCache.set(cacheKey, { viewpointId, timestamp: Date.now() });
-    
-    return viewpointId;
-  } catch (error) {
-    console.error('[ViewpointMatcher] AI matching failed:', error);
-    return null;
-  }
-}
+// matchByAI 已移除（/api/ai/chat 为失效端点，AI 视角匹配走死代码，统一保留 sync 关键词匹配）
 
 /**
  * 查找匹配的场景库场景（父场景）
@@ -298,13 +219,11 @@ function extractKeywords(name: string): string[] {
  * @param sceneName 剧本场景名（如"张家客厅"）
  * @param actionSummary 分镜动作描述（如"饭桌上，张明与父母吃饭"）
  * @param sceneLibraryScenes 场景库中的所有场景
- * @param useAI 是否启用 AI 兜底（默认 true）
  */
 export async function matchSceneAndViewpoint(
   sceneName: string,
   actionSummary: string,
-  sceneLibraryScenes: Scene[],
-  useAI: boolean = true
+  sceneLibraryScenes: Scene[]
 ): Promise<ViewpointMatchResult | null> {
   // 1. 找匹配的父场景
   const parentScenes = findMatchingParentScenes(sceneName, sceneLibraryScenes);
@@ -353,35 +272,7 @@ export async function matchSceneAndViewpoint(
   }
 
   // 3. 关键词匹配失败，尝试 AI 匹配
-  if (useAI) {
-    for (const parent of parentScenes) {
-      const variants = getViewpointVariants(parent.id, sceneLibraryScenes);
-      
-      if (variants.length > 0) {
-        const availableViewpoints = variants
-          .filter(v => v.viewpointId && v.viewpointName)
-          .map(v => ({ id: v.viewpointId!, name: v.viewpointName! }));
-        
-        if (availableViewpoints.length > 0) {
-          const aiViewpointId = await matchByAI(actionSummary, availableViewpoints);
-          
-          if (aiViewpointId) {
-            const matchedVariant = variants.find(v => v.viewpointId === aiViewpointId);
-            if (matchedVariant) {
-              return {
-                sceneLibraryId: matchedVariant.id,
-                viewpointId: matchedVariant.viewpointId,
-                sceneReferenceImage: matchedVariant.referenceImage || matchedVariant.referenceImageBase64,
-                matchedSceneName: matchedVariant.name,
-                matchMethod: 'ai',
-                confidence: 0.7,
-              };
-            }
-          }
-        }
-      }
-    }
-  }
+  // AI 视角匹配已移除（关键词匹配失败直接走 fallback）
 
   // 4. 都匹配不到，返回第一个父场景作为 fallback
   const bestParent = parentScenes[0];
@@ -464,6 +355,3 @@ export function matchSceneAndViewpointSync(
 /**
  * 清除 AI 匹配缓存
  */
-export function clearAIMatchCache(): void {
-  aiMatchCache.clear();
-}

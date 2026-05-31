@@ -26,7 +26,7 @@ import {
 } from "./episode-parser";
 import { normalizeScriptFormat, analyzeScriptStructureWithAI, applyAIAnalysis, preprocessLineBreaks } from "./script-normalizer";
 import { populateSeriesMetaFromImport } from "./series-meta-sync";
-import { callFeatureAPI } from "@/lib/ai/feature-router";
+import { aiManager } from "@/lib/ai/ai-manager";
 import { processBatched } from "@/lib/ai/batch-processor";
 import { useScriptStore } from "@/stores/script-store";
 import { useCharacterLibraryStore } from "@/stores/character-library-store";
@@ -324,7 +324,7 @@ ${background?.era ? `时代：${background.era}` : ''}
   const user = `第${episodeIndex}集内容：\n${contentSummary}`;
 
   try {
-    const result = await callFeatureAPI('script_analysis', system, user, {
+    const result = await aiManager.featureText('script_analysis', system, user, {
       temperature: 0.3,
       maxTokens: 512,
     });
@@ -2191,7 +2191,7 @@ ${sourceText}
 ${shotDescriptions}`;
   
   // 统一从服务映射获取配置（单个分镜校准用更大 token 预算）
-  const result = await callFeatureAPI('script_analysis', systemPrompt, userPrompt, { maxTokens: 16384 });
+  const result = await aiManager.featureText('script_analysis', systemPrompt, userPrompt, { maxTokens: 16384 });
   
   // 解析 JSON 结果（增强版）
   try {

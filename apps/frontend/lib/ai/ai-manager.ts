@@ -14,7 +14,11 @@ import {
   type ImageGenerationResult,
 } from "@/lib/ai/image-generator";
 import { getWorkerBridge, initializeWorkerBridge, type AIWorkerBridge } from "@/lib/ai/worker-bridge";
+import { extractStyleTokens } from "@/lib/ai/style-extractor";
+import { generateFreedomImage, generateFreedomVideo } from "@/lib/freedom/freedom-api";
+import { callVideoGenerationApi } from "@/components/panels/director/use-video-generation";
 import { generateSpeech } from "@/lib/tts/client";
+import { callFeatureAPI, callFeatureMultimodalAPI, getFeatureConfig } from "@/lib/ai/feature-router";
 import type { TtsGenerateRequest, TtsGenerateResponse } from "@/types/tts";
 
 /** 绑定：可来自 studio 的 Agent 部署，或 ai-core 的功能绑定。 */
@@ -42,24 +46,16 @@ export interface AITextResult {
   error?: string;
 }
 
-/** 统一绑定解析：Agent → getResolvedAgentModel；Feature → featureBindings 首选项 `vendorId:model`。 */
+/** 统一绑定解析：Agent → getResolvedAgentModel；Feature → feature-router（含多模型轮询/key 轮换/兼容旧配置）。 */
 export function resolve(binding: AIBinding): ResolvedModel | null {
-  const state = useAPIConfigStore.getState();
   if ("agent" in binding) {
-    const r = state.getResolvedAgentModel(binding.agent);
+    const r = useAPIConfigStore.getState().getResolvedAgentModel(binding.agent);
     if (!r) return null;
     return { provider: r.provider, model: r.model, temperature: r.deployment.temperature, maxTokens: r.deployment.maxOutputTokens };
   }
-  const first = state.featureBindings[binding.feature]?.[0];
-  if (!first) return null;
-  const idx = first.indexOf(":");
-  if (idx <= 0) return null;
-  const vendorId = first.slice(0, idx);
-  const model = first.slice(idx + 1);
-  if (!model) return null;
-  const provider = state.providers.find((p) => p.id === vendorId || p.platform === vendorId);
-  if (!provider) return null;
-  return { provider, model };
+  const cfg = getFeatureConfig(binding.feature);
+  if (!cfg) return null;
+  return { provider: cfg.provider, model: cfg.model };
 }
 
 function resolveOrFallback(binding: AIBinding, fallback: boolean): ResolvedModel | null {
@@ -124,4 +120,34 @@ function tts(payload: TtsGenerateRequest): Promise<TtsGenerateResponse> {
   return generateSpeech(payload);
 }
 
-export const aiManager = { resolve, text, textStream, image, imageGrid, worker, initWorker, tts };
+/** 功能绑定的一次性文本调用（feature-router，含多 key 轮换/思考模式）。 */
+function featureText(...args: Parameters<typeof callFeatureAPI>): Promise<string> {
+  return callFeatureAPI(...args);
+}
+
+/** 功能绑定的多模态 chat（文本+图片），返回内容字符串；调用方自行构建 messages 与解析。 */
+function chatMultimodal(...args: Parameters<typeof callFeatureMultimodalAPI>): Promise<string> {
+  return callFeatureMultimodalAPI(...args);
+}
+
+/** 视觉/图片理解：从文本+参考图提取风格 tokens（image_understanding 功能）。 */
+function vision(...args: Parameters<typeof extractStyleTokens>) {
+  return extractStyleTokens(...args);
+}
+
+/** 自由板块图片生成。 */
+function freedomImage(...args: Parameters<typeof generateFreedomImage>) {
+  return generateFreedomImage(...args);
+}
+
+/** 自由板块视频生成。 */
+function freedomVideo(...args: Parameters<typeof generateFreedomVideo>) {
+  return generateFreedomVideo(...args);
+}
+
+/** 视频生成（统一直连视频 API：提交+轮询，支持 kling/grok/minimax/luma/runway/wan/vidu 等）。 */
+function video(...args: Parameters<typeof callVideoGenerationApi>) {
+  return callVideoGenerationApi(...args);
+}
+
+export const aiManager = { resolve, text, textStream, image, imageGrid, worker, initWorker, tts, featureText, chatMultimodal, vision, freedomImage, freedomVideo, video };
