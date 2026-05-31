@@ -23,6 +23,7 @@
  */
 
 import { type SplitScene } from '@/stores/director-store';
+import { aiManager } from '@/lib/ai/ai-manager';
 
 
 export interface ScenePromptRequest {
@@ -192,7 +193,7 @@ function generatePromptFromText(scene: ScenePromptRequest['scenes'][0], storyCon
 export async function generateScenePrompts(
   config: ScenePromptRequest
 ): Promise<GeneratedPrompt[]> {
-  const { storyboardImage, storyPrompt, scenes, apiKey, provider = 'unknown', baseUrl, model } = config;
+  const { storyboardImage, storyPrompt, scenes, baseUrl, model } = config;
 
   console.log(`[ScenePromptGenerator] Generating three-tier prompts for ${scenes.length} scenes`);
   
@@ -257,11 +258,7 @@ export async function generateScenePrompts(
       const visionResults = await generatePromptsViaVisionAPI(
         storyboardImage,
         storyPrompt,
-        scenesWithoutText,
-        apiKey,
-        provider,
-        normalizedBaseUrl,
-        model
+        scenesWithoutText
       );
       return [...textResults, ...visionResults].sort((a, b) => a.id - b.id);
     } catch (error) {
@@ -292,17 +289,9 @@ async function generatePromptsViaVisionAPI(
   storyboardImage: string,
   storyPrompt: string,
   scenes: ScenePromptRequest['scenes'],
-  apiKey: string,
-  provider: string,
-  baseUrl: string,
-  model: string
 ): Promise<GeneratedPrompt[]> {
-  console.log(`[ScenePromptGenerator] Calling Vision API for ${scenes.length} scenes using ${provider}`);
-  
-  const buildEndpoint = (root: string, path: string) => {
-    const normalized = root.replace(/\/+$/, '');
-    return /\/v\d+$/.test(normalized) ? `${normalized}/${path}` : `${normalized}/v1/${path}`;
-  };
+  console.log(`[ScenePromptGenerator] Calling Vision API for ${scenes.length} scenes`);
+
 
   // Build the scene list with optional context
   const sceneList = scenes.map(s => {
@@ -396,35 +385,6 @@ Return a RAW JSON array (no markdown code block). BILINGUAL output required.
 ]
 `;
 
-  // Mock mode for testing without API
-  if (apiKey === 'mock' || !apiKey) {
-    console.log('[ScenePromptGenerator] Using mock response');
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    return scenes.map((s, index) => {
-      // Simulate that every 3rd scene needs an end frame
-      const needsEndFrame = index % 3 === 0;
-      return {
-        id: s.id,
-        // First frame (static)
-        imagePrompt: `(Mock) A character in scene ${s.id}, composition based on "${storyPrompt}".`,
-        imagePromptZh: `(测试) 场景 ${s.id} 的角色，基于“${storyPrompt}”的构图。`,
-        // End frame (static, only if needed)
-        needsEndFrame,
-        endFramePrompt: needsEndFrame ? `(Mock) Same character after action, new position in scene ${s.id}.` : '',
-        endFramePromptZh: needsEndFrame ? `(测试) 动作后的同一角色，场景 ${s.id} 中的新位置。` : '',
-        endFrameReason: needsEndFrame ? 'Mock: position change' : undefined,
-        // Video action (dynamic)
-        videoPrompt: `(Mock) Slow zoom in. Scene ${s.id} action based on "${storyPrompt}".`,
-        videoPromptZh: `(测试) 缓慢推进。场景 ${s.id} 基于“${storyPrompt}”的动作。`,
-        // Legacy compatibility
-        prompt: `(Mock) Slow zoom in. Scene ${s.id} action based on "${storyPrompt}".`,
-        promptZh: `(测试) 缓慢推进。场景 ${s.id} 基于“${storyPrompt}”的动作。`,
-        action: 'Mock action',
-        camera: 'Zoom In'
-      };
-    });
-  }
-
   try {
     const formattedMessages = [
       {
@@ -436,47 +396,7 @@ Return a RAW JSON array (no markdown code block). BILINGUAL output required.
       }
     ];
 
-    const endpoint = buildEndpoint(baseUrl, 'chat/completions');
-    console.log('[ScenePromptGenerator] Calling chat completion:', { model, hasImage: true, endpoint });
-
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model,
-        messages: formattedMessages,
-        stream: false,
-        response_format: { type: 'json_object' },
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('[ScenePromptGenerator] API error:', response.status, errorText);
-      
-      let errorMessage = `API request failed: ${response.status}`;
-      try {
-        const errorJson = JSON.parse(errorText);
-        errorMessage = errorJson.error?.message || errorJson.message || errorMessage;
-      } catch {
-        if (errorText && errorText.length < 200) {
-          errorMessage = errorText;
-        }
-      }
-      
-      if (response.status === 401 || response.status === 403) {
-        throw new Error('API Key 无效或已过期');
-      }
-      throw new Error(errorMessage);
-    }
-
-    const data = await response.json();
-    console.log('[ScenePromptGenerator] API response received');
-    
-    const content = data.choices?.[0]?.message?.content || data.content || '';
+    const content = await aiManager.chatMultimodal('image_understanding', formattedMessages, { responseFormat: 'json_object' });
     
     // Parse JSON from content
     // Handle markdown code blocks if present

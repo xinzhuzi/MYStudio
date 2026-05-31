@@ -43,6 +43,7 @@ contextBridge.exposeInMainWorld('fileStorage', {
   getItem: (key: string) => ipcRenderer.invoke('file-storage-get', key),
   setItem: (key: string, value: string) => ipcRenderer.invoke('file-storage-set', key, value),
   removeItem: (key: string) => ipcRenderer.invoke('file-storage-remove', key),
+  renameItem: (fromKey: string, toKey: string) => ipcRenderer.invoke('file-storage-rename', fromKey, toKey),
   exists: (key: string) => ipcRenderer.invoke('file-storage-exists', key),
   listKeys: (prefix: string) => ipcRenderer.invoke('file-storage-list', prefix),
   listDirs: (prefix: string) => ipcRenderer.invoke('file-storage-list-dirs', prefix),

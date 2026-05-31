@@ -111,6 +111,19 @@ type SettingsTabId = typeof SETTINGS_TABS[number]["value"];
 type APIManagerSectionId = typeof API_MANAGER_SECTIONS[number]["value"];
 type PresetCardStyle = CSSProperties & { "--preset-color": string };
 
+export function getPythonExecutableDisplayPath(config?: Pick<TtsRuntimeConfig, "pythonRuntimeDir" | "installedItems"> | null) {
+  if (!config?.pythonRuntimeDir) return "配置完成后显示实际 Python 路径";
+  const expectedPath = config.pythonRuntimeDir.includes("\\")
+    ? `${config.pythonRuntimeDir}\\python.exe`
+    : `${config.pythonRuntimeDir}/bin/python3`;
+  const runtimeItem = config.installedItems?.find((item) => (
+    item.label === "Python 运行环境"
+    && item.detail === expectedPath
+  ));
+  if (runtimeItem?.detail) return runtimeItem.detail;
+  return expectedPath;
+}
+
 function renderSettingsTabIcon(value: SettingsTabId) {
   switch (value) {
     case "appearance":
@@ -731,6 +744,7 @@ export function SettingsPanel({
   const pythonSetupStage = ttsRuntimeStatus?.setupStage ?? "idle";
   const pythonSetupActive = ["checking", "downloading-python", "extracting-python", "installing-deps"].includes(pythonSetupStage);
   const pythonInstalledItems = ttsRuntimeConfig?.installedItems ?? [];
+  const pythonExecutablePath = getPythonExecutableDisplayPath(ttsRuntimeConfig);
 
   const formatBytes = useCallback((bytes: number) => {
     if (!bytes) return "0 B";
@@ -1738,6 +1752,11 @@ export function SettingsPanel({
                   </Button>
                 </div>
                 <div className="mt-5 overflow-hidden rounded-lg border border-border">
+                  <div className="grid gap-2 border-b border-border bg-muted/30 px-4 py-3 text-sm md:grid-cols-[160px_96px_minmax(0,1fr)] md:items-center">
+                    <span className="font-medium text-foreground">Python 使用路径</span>
+                    <span className="w-fit rounded px-2 py-0.5 text-xs bg-primary/10 text-primary">当前</span>
+                    <span className="break-all font-mono text-xs text-foreground">{pythonExecutablePath}</span>
+                  </div>
                   {pythonInstalledItems.length > 0 ? (
                     <div className="divide-y divide-border">
                       {pythonInstalledItems.map((item) => (

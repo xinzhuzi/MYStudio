@@ -640,7 +640,7 @@ export const useMediaStore = create<MediaStore>()(
   },
     }),
     {
-      name: 'moyin-media-store',
+      name: 'mystudio-media-store',
       storage: createJSONStorage(() => createSplitStorage<MediaPersistedState>(
         'media', splitMediaData, mergeMediaData, 'shareMedia'
       )),

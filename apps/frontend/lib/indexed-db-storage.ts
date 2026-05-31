@@ -28,6 +28,16 @@ const isElectron = (): boolean => {
   return typeof window !== 'undefined' && !!window.fileStorage;
 };
 
+const LEGACY_STORAGE_KEYS: Record<string, string> = {
+  "mystudio-app-settings": "moyin-app-settings",
+  "mystudio-media-store": "moyin-media-store",
+  "mystudio-project-store": "moyin-project-store",
+};
+
+function getLegacyStorageKey(name: string): string | undefined {
+  return LEGACY_STORAGE_KEYS[name];
+}
+
 // Check if data has meaningful content (not just empty state)
 const hasRichData = (jsonStr: string | null): boolean => {
   if (!jsonStr) return false;
@@ -66,20 +76,29 @@ export const fileStorage: StateStorage = {
       try {
         // Get data from all sources
         const fileData = await window.fileStorage!.getItem(name);
+        const legacyName = getLegacyStorageKey(name);
+        const legacyFileData = !fileData && legacyName ? await window.fileStorage!.getItem(legacyName) : null;
         const localData = localStorage.getItem(name);
+        const legacyLocalData = legacyName ? localStorage.getItem(legacyName) : null;
         let idbData: string | null = null;
+        let legacyIdbData: string | null = null;
         try {
           idbData = await getFromIndexedDB(name);
+          legacyIdbData = legacyName ? await getFromIndexedDB(legacyName) : null;
         } catch (e) {
           // IndexedDB not available
         }
         
-        console.log(`[Storage] Data sizes for ${name}: file=${fileData?.length || 0}, local=${localData?.length || 0}, idb=${idbData?.length || 0}`);
+        const resolvedFileData = fileData || legacyFileData;
+        const resolvedLocalData = localData || legacyLocalData;
+        const resolvedIdbData = idbData || legacyIdbData;
+
+        console.log(`[Storage] Data sizes for ${name}: file=${resolvedFileData?.length || 0}, local=${resolvedLocalData?.length || 0}, idb=${resolvedIdbData?.length || 0}`);
         
         // Determine which data source has the richest data
-        const fileHasData = hasRichData(fileData);
-        const localHasData = hasRichData(localData);
-        const idbHasData = hasRichData(idbData);
+        const fileHasData = hasRichData(resolvedFileData);
+        const localHasData = hasRichData(resolvedLocalData);
+        const idbHasData = hasRichData(resolvedIdbData);
         
         console.log(`[Storage] Rich data check for ${name}: file=${fileHasData}, local=${localHasData}, idb=${idbHasData}`);
         
@@ -87,18 +106,20 @@ export const fileStorage: StateStorage = {
         // If localStorage or IndexedDB has richer data, migrate it
         if (localHasData && !fileHasData) {
           console.log(`[Storage] Migrating ${name} from localStorage to file storage (richer data)...`);
-          await window.fileStorage!.setItem(name, localData!);
+          await window.fileStorage!.setItem(name, resolvedLocalData!);
           localStorage.removeItem(name);
+          if (legacyName) localStorage.removeItem(legacyName);
           console.log(`[Storage] Migration complete for ${name}`);
-          return localData;
+          return resolvedLocalData;
         }
         
         if (idbHasData && !fileHasData && !localHasData) {
           console.log(`[Storage] Migrating ${name} from IndexedDB to file storage (richer data)...`);
-          await window.fileStorage!.setItem(name, idbData!);
+          await window.fileStorage!.setItem(name, resolvedIdbData!);
           await removeFromIndexedDB(name);
+          if (legacyName) await removeFromIndexedDB(legacyName);
           console.log(`[Storage] Migration complete for ${name}`);
-          return idbData;
+          return resolvedIdbData;
         }
         
         // Clean up old data if file storage has the data
@@ -111,11 +132,16 @@ export const fileStorage: StateStorage = {
             console.log(`[Storage] Cleaning up IndexedDB for ${name}`);
             await removeFromIndexedDB(name);
           }
-          return fileData;
+          if (legacyFileData && !fileData && legacyName) {
+            console.log(`[Storage] Migrating legacy file ${legacyName} to ${name}`);
+            const renamed = await window.fileStorage!.renameItem?.(legacyName, name);
+            if (!renamed) await window.fileStorage!.setItem(name, legacyFileData);
+          }
+          return resolvedFileData;
         }
         
         // Return whatever we have
-        return fileData || localData || idbData || null;
+        return resolvedFileData || resolvedLocalData || resolvedIdbData || null;
       } catch (error) {
         console.error('File storage getItem error:', error);
       }

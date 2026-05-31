@@ -1,12 +1,20 @@
 import { describe, expect, it, vi } from "vitest";
 import { createTtsRuntimeController } from "./tts-runtime";
 
+const mockPython312 = () => vi.fn(async (_command: string, args: string[]) => {
+  if (args[0] === "--version") return { stdout: "Python 3.12.7\n", stderr: "" };
+  return undefined;
+});
+
 describe("TTS runtime controller", () => {
   it("reports the MYStudio Voicebox sidecar on port 17593", async () => {
     const controller = createTtsRuntimeController({
       appRoot: "/repo",
       userDataPath: "/user-data",
-      fileExists: (filePath) => filePath.includes("manying_voicebox_tts/main.py"),
+      fileExists: (filePath) => (
+        filePath.includes("manying_voicebox_tts/main.py")
+        || filePath === "/project-storage/python/bin/python3"
+      ),
       spawnProcess: vi.fn(),
       fetchJson: vi.fn().mockRejectedValue(new Error("offline")),
     });
@@ -27,10 +35,15 @@ describe("TTS runtime controller", () => {
     const controller = createTtsRuntimeController({
       appRoot: "/repo",
       userDataPath: "/user-data",
-      pythonBinary: "python3",
-      fileExists: (filePath) => filePath.includes("manying_voicebox_tts/main.py"),
+      storageBasePath: () => "/project-storage",
+      fileExists: (filePath) => (
+        filePath.includes("manying_voicebox_tts/main.py")
+        || filePath === "/project-storage/python/bin/python3"
+      ),
       ensureDir: vi.fn(),
+      readTextFile: (filePath) => (filePath.endsWith(".deps-hash") ? "ready" : null),
       writeTextFile: vi.fn(),
+      runPython: mockPython312(),
       spawnProcess,
       fetchJson: vi.fn()
         .mockRejectedValueOnce(new Error("offline"))
@@ -41,7 +54,7 @@ describe("TTS runtime controller", () => {
 
     expect(result.success).toBe(true);
     expect(spawnProcess).toHaveBeenCalledWith(
-      "python3",
+      "/project-storage/python/bin/python3",
       [
         "-m",
         "manying_voicebox_tts.main",
@@ -56,8 +69,8 @@ describe("TTS runtime controller", () => {
         cwd: "/backend",
         env: expect.objectContaining({
           MANYING_TTS_DATA_DIR: "/user-data/tts-runtime",
-          MANYING_TTS_MODELS_DIR: "/user-data/tts-models",
-          VOICEBOX_MODELS_DIR: "/user-data/tts-models",
+          MANYING_TTS_MODELS_DIR: "/project-storage/tts-models",
+          VOICEBOX_MODELS_DIR: "/project-storage/tts-models",
           HF_HUB_CACHE: expect.stringContaining("huggingface"),
           MANYING_TTS_CONTROL_TOKEN: expect.any(String),
         }),
@@ -70,14 +83,16 @@ describe("TTS runtime controller", () => {
       appRoot: "/repo",
       userDataPath: "/user-data",
       storageBasePath: () => "/project-storage",
-      pythonBinary: "python3",
-      fileExists: (filePath) => filePath.includes("manying_voicebox_tts/main.py"),
+      fileExists: (filePath) => (
+        filePath.includes("manying_voicebox_tts/main.py")
+        || filePath === "/project-storage/python/bin/python3"
+      ),
       spawnProcess: vi.fn(),
       fetchJson: vi.fn().mockRejectedValue(new Error("offline")),
     });
 
     await expect(controller.status()).resolves.toMatchObject({
-      pythonRuntimeDir: "/project-storage/runtime/python",
+      pythonRuntimeDir: "/project-storage/python",
     });
   });
 
@@ -87,7 +102,10 @@ describe("TTS runtime controller", () => {
       appRoot: "/repo",
       userDataPath: "/user-data",
       storageBasePath: () => "/project-storage",
-      fileExists: (filePath) => filePath.includes("manying_voicebox_tts/main.py"),
+      fileExists: (filePath) => (
+        filePath.includes("manying_voicebox_tts/main.py")
+        || filePath === "/project-storage/python/bin/python3"
+      ),
       ensureDir: vi.fn(),
       readTextFile: () => config || null,
       writeTextFile: (_filePath, value) => {
@@ -102,7 +120,7 @@ describe("TTS runtime controller", () => {
     });
     await expect(controller.getConfig()).resolves.toMatchObject({
       pythonRuntimeUrl: "https://mirror.example/python.tar.gz",
-      pythonRuntimeDir: "/project-storage/runtime/python",
+      pythonRuntimeDir: "/project-storage/python",
       defaultPythonRuntimeUrl: expect.stringContaining("python-build-standalone"),
     });
   });
@@ -118,13 +136,21 @@ describe("TTS runtime controller", () => {
     const controller = createTtsRuntimeController({
       appRoot: "/repo",
       userDataPath: "/user-data",
-      pythonBinary: "python3",
-      fileExists: (filePath) => filePath === "/custom/huggingface/hub" || filePath.includes("main.py"),
+      storageBasePath: () => "/project-storage",
+      fileExists: (filePath) => (
+        filePath === "/custom/huggingface/hub"
+        || filePath.includes("main.py")
+        || filePath === "/project-storage/python/bin/python3"
+      ),
       ensureDir: vi.fn(),
-      readTextFile: () => config || null,
+      readTextFile: (filePath) => {
+        if (filePath.endsWith(".deps-hash")) return "ready";
+        return config || null;
+      },
       writeTextFile: (_filePath, value) => {
         config = value;
       },
+      runPython: mockPython312(),
       spawnProcess,
       fetchJson,
     });
@@ -133,7 +159,7 @@ describe("TTS runtime controller", () => {
     await expect(controller.start()).resolves.toMatchObject({ success: true });
 
     expect(spawnProcess).toHaveBeenCalledWith(
-      "python3",
+      "/project-storage/python/bin/python3",
       expect.any(Array),
       expect.objectContaining({
         env: expect.objectContaining({
@@ -151,11 +177,16 @@ describe("TTS runtime controller", () => {
     const controller = createTtsRuntimeController({
       appRoot: "/repo",
       userDataPath: "/user-data",
-      pythonBinary: "python3",
+      storageBasePath: () => "/project-storage",
       sidecarRoots: [packagedRoot],
-      fileExists: (filePath) => filePath === `${packagedRoot}/manying_voicebox_tts/main.py`,
+      fileExists: (filePath) => (
+        filePath === `${packagedRoot}/manying_voicebox_tts/main.py`
+        || filePath === "/project-storage/python/bin/python3"
+      ),
       ensureDir: vi.fn(),
+      readTextFile: (filePath) => (filePath.endsWith(".deps-hash") ? "ready" : null),
       writeTextFile: vi.fn(),
+      runPython: mockPython312(),
       spawnProcess,
       fetchJson: vi.fn()
         .mockRejectedValueOnce(new Error("offline"))
@@ -166,7 +197,7 @@ describe("TTS runtime controller", () => {
 
     expect(result.success).toBe(true);
     expect(spawnProcess).toHaveBeenCalledWith(
-      "python3",
+      "/project-storage/python/bin/python3",
       expect.any(Array),
       expect.objectContaining({
         cwd: packagedRoot,
@@ -183,7 +214,7 @@ describe("TTS runtime controller", () => {
     const extractArchive = vi.fn().mockImplementation(async () => {
       extracted = true;
     });
-    const runPython = vi.fn().mockResolvedValue(undefined);
+    const runPython = mockPython312();
     const fetchRuntimeArchive = vi.fn().mockResolvedValue({
       ok: true,
       status: 200,
@@ -194,10 +225,9 @@ describe("TTS runtime controller", () => {
       appRoot: "/repo",
       userDataPath: "/user-data",
       storageBasePath: () => "/project-storage",
-      pythonBinary: "python3",
       fileExists: (filePath) => (
         filePath.includes("manying_voicebox_tts/main.py")
-        || (extracted && filePath === "/project-storage/runtime/python/bin/python3")
+        || (extracted && filePath === "/project-storage/python/bin/python3")
         || filePath.endsWith("requirements.txt")
       ),
       ensureDir,
@@ -218,17 +248,17 @@ describe("TTS runtime controller", () => {
     const result = await controller.setup();
 
     expect(result.success).toBe(true);
-    expect(ensureDir).toHaveBeenCalledWith("/project-storage/runtime/python");
-    expect(writeFile).toHaveBeenCalledWith("/project-storage/runtime/python/python-runtime.tar.gz.partial", expect.any(Uint8Array));
+    expect(ensureDir).toHaveBeenCalledWith("/project-storage");
+    expect(writeFile).toHaveBeenCalledWith("/project-storage/python-runtime.tar.gz.partial", expect.any(Uint8Array));
     expect(renameFile).toHaveBeenCalledWith(
-      "/project-storage/runtime/python/python-runtime.tar.gz.partial",
-      "/project-storage/runtime/python/python-runtime.tar.gz",
+      "/project-storage/python-runtime.tar.gz.partial",
+      "/project-storage/python-runtime.tar.gz",
     );
     expect(extractArchive).toHaveBeenCalledWith(
-      "/project-storage/runtime/python/python-runtime.tar.gz",
-      "/project-storage/runtime/python",
+      "/project-storage/python-runtime.tar.gz",
+      "/project-storage",
     );
-    expect(removeFile).toHaveBeenCalledWith("/project-storage/runtime/python/python-runtime.tar.gz");
+    expect(removeFile).toHaveBeenCalledWith("/project-storage/python-runtime.tar.gz");
     await expect(controller.status()).resolves.toMatchObject({
       setupStage: "ready",
       setupMessage: "Python 运行环境已配置",
@@ -243,7 +273,6 @@ describe("TTS runtime controller", () => {
       appRoot: "/repo",
       userDataPath: "/user-data",
       storageBasePath: () => "/project-storage",
-      pythonBinary: "python3",
       fileExists: (filePath) => filePath.includes("manying_voicebox_tts/main.py"),
       ensureDir: vi.fn(),
       runPython: vi.fn().mockRejectedValue(new Error("missing system python")),
@@ -267,7 +296,6 @@ describe("TTS runtime controller", () => {
       appRoot: "/repo",
       userDataPath: "/user-data",
       storageBasePath: () => "/project-storage",
-      pythonBinary: "python3",
       fileExists: (filePath) => (
         filePath.includes("manying_voicebox_tts/main.py")
         || filePath.endsWith("requirements.txt")
@@ -283,9 +311,76 @@ describe("TTS runtime controller", () => {
     const result = await controller.start();
 
     expect(result.success).toBe(false);
-    expect(result.error).toContain("点击开始配置");
-    expect(runPython).toHaveBeenCalledWith("python3", ["--version"], expect.any(Object));
+    expect(result.error).toContain("Python 配置页完成配置");
+    expect(runPython).not.toHaveBeenCalledWith("python3", ["--version"], expect.any(Object));
     expect(spawnProcess).not.toHaveBeenCalled();
+  });
+
+  it("rejects a managed Python runtime that is not Python 3.12", async () => {
+    const spawnProcess = vi.fn(() => ({ pid: 44, kill: vi.fn() }));
+    const runPython = vi.fn().mockResolvedValue({ stdout: "Python 3.9.6\n" });
+    const controller = createTtsRuntimeController({
+      appRoot: "/repo",
+      userDataPath: "/user-data",
+      storageBasePath: () => "/project-storage",
+      fileExists: (filePath) => (
+        filePath.includes("manying_voicebox_tts/main.py")
+        || filePath === "/project-storage/python/bin/python3"
+      ),
+      ensureDir: vi.fn(),
+      readTextFile: (filePath) => (filePath.endsWith(".deps-hash") ? "ready" : null),
+      writeTextFile: vi.fn(),
+      runPython,
+      spawnProcess,
+      fetchJson: vi.fn()
+        .mockRejectedValueOnce(new Error("offline"))
+        .mockResolvedValue({ ok: true }),
+    });
+
+    const result = await controller.start();
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("Python 3.12");
+    expect(runPython).toHaveBeenCalledWith(
+      "/project-storage/python/bin/python3",
+      ["--version"],
+      expect.any(Object),
+    );
+    expect(spawnProcess).not.toHaveBeenCalled();
+  });
+
+  it("filters legacy system Python install records from runtime config", async () => {
+    const controller = createTtsRuntimeController({
+      appRoot: "/repo",
+      userDataPath: "/user-data",
+      storageBasePath: () => "/project-storage",
+      fileExists: (filePath) => filePath.includes("manying_voicebox_tts/main.py"),
+      readTextFile: (filePath) => (
+        filePath.endsWith("config.json")
+          ? JSON.stringify({
+              installedItems: [
+                { label: "Python 运行环境", detail: "python3", status: "skipped" },
+                { label: "Python 运行环境", detail: "/project-storage/runtime/python/python/bin/python3", status: "installed" },
+                { label: "TTS Python 依赖", detail: "/backend/requirements.txt", status: "failed" },
+              ],
+            })
+          : null
+      ),
+      spawnProcess: vi.fn(),
+      fetchJson: vi.fn().mockRejectedValue(new Error("offline")),
+    });
+
+    await expect(controller.getConfig()).resolves.toMatchObject({
+      installedItems: [
+        expect.objectContaining({ label: "TTS Python 依赖", status: "failed" }),
+      ],
+    });
+    await expect(controller.getConfig()).resolves.not.toMatchObject({
+      installedItems: expect.arrayContaining([
+        expect.objectContaining({ label: "Python 运行环境", detail: "python3" }),
+        expect.objectContaining({ label: "Python 运行环境", detail: "/project-storage/runtime/python/python/bin/python3" }),
+      ]),
+    });
   });
 
   it("configures Python only through the explicit setup command", async () => {
@@ -295,10 +390,9 @@ describe("TTS runtime controller", () => {
       appRoot: "/repo",
       userDataPath: "/user-data",
       storageBasePath: () => "/project-storage",
-      pythonBinary: "python3",
       fileExists: (filePath) => (
         filePath.includes("manying_voicebox_tts/main.py")
-        || (extracted && filePath === "/project-storage/runtime/python/bin/python3")
+        || (extracted && filePath === "/project-storage/python/bin/python3")
         || filePath.endsWith("requirements.txt")
       ),
       ensureDir: vi.fn(),
@@ -316,7 +410,7 @@ describe("TTS runtime controller", () => {
       extractArchive: vi.fn().mockImplementation(async () => {
         extracted = true;
       }),
-      runPython: vi.fn().mockResolvedValue(undefined),
+      runPython: mockPython312(),
       fetchRuntimeArchive: vi.fn().mockResolvedValue({
         ok: true,
         status: 200,
@@ -336,7 +430,7 @@ describe("TTS runtime controller", () => {
 
   it("uses managed Python 3.12 runtime during explicit setup even when system Python exists", async () => {
     let extracted = false;
-    const runPython = vi.fn().mockResolvedValue(undefined);
+    const runPython = mockPython312();
     const fetchRuntimeArchive = vi.fn().mockResolvedValue({
       ok: true,
       status: 200,
@@ -346,10 +440,9 @@ describe("TTS runtime controller", () => {
       appRoot: "/repo",
       userDataPath: "/user-data",
       storageBasePath: () => "/project-storage",
-      pythonBinary: "python3",
       fileExists: (filePath) => (
         filePath.includes("manying_voicebox_tts/main.py")
-        || (extracted && filePath === "/project-storage/runtime/python/bin/python3")
+        || (extracted && filePath === "/project-storage/python/bin/python3")
         || filePath.endsWith("requirements.txt")
       ),
       ensureDir: vi.fn(),
@@ -371,7 +464,7 @@ describe("TTS runtime controller", () => {
     expect(fetchRuntimeArchive).toHaveBeenCalled();
     expect(runPython).not.toHaveBeenCalledWith("python3", ["-m", "pip", "install", "-r", "/backend/requirements.txt"], expect.any(Object));
     expect(runPython).toHaveBeenCalledWith(
-      "/project-storage/runtime/python/bin/python3",
+      "/project-storage/python/bin/python3",
       ["-m", "pip", "install", "-r", "/backend/requirements.txt"],
       expect.any(Object),
     );
@@ -384,7 +477,6 @@ describe("TTS runtime controller", () => {
       appRoot: "/repo",
       userDataPath: "/user-data",
       storageBasePath: () => "/project-storage",
-      pythonBinary: "python3",
       fileExists: (filePath) => filePath.includes("manying_voicebox_tts/main.py"),
       ensureDir: vi.fn(),
       writeTextFile: vi.fn(),
@@ -406,22 +498,22 @@ describe("TTS runtime controller", () => {
       setupStage: "failed",
       setupMessage: "Python 下载失败",
       setupProgress: 25,
-      pythonRuntimeDir: "/project-storage/runtime/python",
+      pythonRuntimeDir: "/project-storage/python",
     });
     expect(result.error).toContain("下载 Python 失败");
-    expect(removeFile).toHaveBeenCalledWith("/project-storage/runtime/python/python-runtime.tar.gz.partial");
+    expect(removeFile).toHaveBeenCalledWith("/project-storage/python-runtime.tar.gz.partial");
   });
 
   it("reports dependency installation while configuring the Python repository", async () => {
     const spawnProcess = vi.fn(() => ({ pid: 80, kill: vi.fn() }));
-    const runPython = vi.fn().mockResolvedValue(undefined);
+    const runPython = mockPython312();
     const controller = createTtsRuntimeController({
       appRoot: "/repo",
       userDataPath: "/user-data",
       storageBasePath: () => "/project-storage",
       fileExists: (filePath) => (
         filePath.includes("manying_voicebox_tts/main.py")
-        || filePath === "/project-storage/runtime/python/bin/python3"
+        || filePath === "/project-storage/python/bin/python3"
         || filePath.endsWith("requirements.txt")
       ),
       readTextFile: (filePath) => (filePath.endsWith("requirements.txt") ? "fastapi\n" : null),
@@ -438,7 +530,7 @@ describe("TTS runtime controller", () => {
 
     expect(result.success).toBe(true);
     expect(runPython).toHaveBeenCalledWith(
-      "/project-storage/runtime/python/bin/python3",
+      "/project-storage/python/bin/python3",
       ["-m", "pip", "install", "-r", "/backend/requirements.txt"],
       expect.any(Object),
     );
@@ -450,14 +542,14 @@ describe("TTS runtime controller", () => {
 
   it("reinstalls dependencies when the Python runtime path changes", async () => {
     const writes: Array<[string, string]> = [];
-    const runPython = vi.fn().mockResolvedValue(undefined);
+    const runPython = mockPython312();
     const controller = createTtsRuntimeController({
       appRoot: "/repo",
       userDataPath: "/user-data",
       storageBasePath: () => "/project-storage",
       fileExists: (filePath) => (
         filePath.includes("manying_voicebox_tts/main.py")
-        || filePath === "/project-storage/runtime/python/bin/python3"
+        || filePath === "/project-storage/python/bin/python3"
         || filePath.endsWith("requirements.txt")
       ),
       readTextFile: (filePath) => {
@@ -477,7 +569,7 @@ describe("TTS runtime controller", () => {
     await expect(controller.setup()).resolves.toMatchObject({ success: true });
 
     expect(runPython).toHaveBeenCalledWith(
-      "/project-storage/runtime/python/bin/python3",
+      "/project-storage/python/bin/python3",
       ["-m", "pip", "install", "-r", "/backend/requirements.txt"],
       expect.any(Object),
     );
@@ -496,9 +588,15 @@ describe("TTS runtime controller", () => {
     const controller = createTtsRuntimeController({
       appRoot: "/repo",
       userDataPath: "/user-data",
-      fileExists: (filePath) => filePath.includes("manying_voicebox_tts/main.py"),
+      storageBasePath: () => "/project-storage",
+      fileExists: (filePath) => (
+        filePath.includes("manying_voicebox_tts/main.py")
+        || filePath === "/project-storage/python/bin/python3"
+      ),
       ensureDir: vi.fn(),
+      readTextFile: (filePath) => (filePath.endsWith(".deps-hash") ? "ready" : null),
       writeTextFile: vi.fn(),
+      runPython: mockPython312(),
       spawnProcess,
       fetchJson,
       findListeningPids,
@@ -517,6 +615,7 @@ describe("TTS runtime controller", () => {
     const controller = createTtsRuntimeController({
       appRoot: "/repo",
       userDataPath: "/user-data",
+      storageBasePath: () => "/project-storage",
       fileExists: (filePath) => filePath.includes("manying_voicebox_tts/main.py"),
       ensureDir: vi.fn(),
       writeTextFile: vi.fn(),
@@ -596,9 +695,15 @@ describe("TTS runtime controller", () => {
     const controller = createTtsRuntimeController({
       appRoot: "/repo",
       userDataPath: "/user-data",
-      fileExists: (filePath) => filePath.includes("manying_voicebox_tts/main.py"),
+      storageBasePath: () => "/project-storage",
+      fileExists: (filePath) => (
+        filePath.includes("manying_voicebox_tts/main.py")
+        || filePath === "/project-storage/python/bin/python3"
+      ),
       ensureDir: vi.fn(),
+      readTextFile: (filePath) => (filePath.endsWith(".deps-hash") ? "ready" : null),
       writeTextFile: vi.fn(),
+      runPython: mockPython312(),
       spawnProcess,
       fetchJson,
     });

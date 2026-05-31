@@ -7,6 +7,7 @@
  */
 
 import type { Shot } from "@/types/script";
+import { aiManager } from "@/lib/ai/ai-manager";
 import { retryOperation } from "@/lib/utils/retry";
 import { delay, RATE_LIMITS } from "@/lib/utils/rate-limiter";
 
@@ -161,72 +162,25 @@ export async function generateShotImage(
 
   console.log('[ShotGenerator] Generating image for shot:', shot.id, prompt.substring(0, 100));
 
-  const requestData: Record<string, unknown> = {
-    model,
-    prompt,
-    n: 1,
-    size: aspectRatio,
-    resolution: config.imageResolution || '2K',
-  };
-
-  // Add reference images for character consistency
-  if (referenceImages.length > 0) {
-    requestData.image_urls = referenceImages;
-  }
-
   onProgress?.(10);
 
-  // Use retry wrapper for 429 rate limit handling
-  const data = await retryOperation(async () => {
-    const response = await fetch(buildEndpoint(baseUrl, 'images/generations'), {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify(requestData),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      let errorMessage = `API error: ${response.status}`;
-      try {
-        const errorJson = JSON.parse(errorText);
-        errorMessage = errorJson.error?.message || errorJson.message || errorMessage;
-      } catch {}
-      
-      // Create error with status code for retry logic
-      const error = new Error(errorMessage) as Error & { status?: number };
-      error.status = response.status;
-      throw error;
-    }
-
-    return response.json();
-  }, {
-    maxRetries: 3,
-    baseDelay: 3000,
+  const result = await aiManager.imageGrid({
+    model,
+    prompt,
+    apiKey,
+    baseUrl,
+    aspectRatio,
+    resolution: config.imageResolution || '2K',
+    referenceImages,
   });
 
-  onProgress?.(30);
+  onProgress?.(100);
 
-  // Check for direct URL
-  const directUrl = data.data?.[0]?.url || data.url;
-  if (directUrl) {
-    onProgress?.(100);
-    return directUrl;
-  }
-
-  // Get task ID and poll
-  const taskId = data.data?.[0]?.task_id?.toString() || data.task_id?.toString();
-  if (!taskId) {
+  if (!result.imageUrl) {
     throw new Error('No task_id or image URL in response');
   }
 
-  const imageUrl = await pollTaskStatus(taskId, apiKey, baseUrl, 'image', (p) => {
-    onProgress?.(30 + Math.floor(p * 0.7));
-  });
-
-  return imageUrl;
+  return result.imageUrl;
 }
 
 /**

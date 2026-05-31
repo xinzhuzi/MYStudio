@@ -32,7 +32,7 @@ setup_node() {
 show_python_runtime_note() {
   info "Python 运行环境不在 setup 阶段安装，也不会写入后端源码目录"
   info "首次使用本地 TTS 前，请在应用设置 > Python 配置中点击“开始配置”"
-  info "Python runtime 会安装到项目存储路径下的 runtime/python"
+  info "Python runtime 会安装到项目存储路径下的 python"
 }
 
 # ─── 执行 ───

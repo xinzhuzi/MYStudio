@@ -1087,6 +1087,20 @@ ipcMain.handle('file-storage-remove', async (_event, key: string) => {
   }
 })
 
+ipcMain.handle('file-storage-rename', async (_event, fromKey: string, toKey: string) => {
+  try {
+    const fromPath = resolveDataFilePath(getDataDir(), fromKey)
+    const toPath = resolveDataFilePath(getDataDir(), toKey)
+    if (!fs.existsSync(fromPath) || fs.existsSync(toPath)) return false
+    ensureDir(path.dirname(toPath))
+    fs.renameSync(fromPath, toPath)
+    return true
+  } catch (error) {
+    console.error('Failed to rename file storage:', error)
+    return false
+  }
+})
+
 // Check if a storage key exists
 ipcMain.handle('file-storage-exists', async (_event, key: string) => {
   try {

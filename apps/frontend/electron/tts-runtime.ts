@@ -2,7 +2,7 @@ import fs from "node:fs";
 import crypto from "node:crypto";
 import os from "node:os";
 import path from "node:path";
-import { execFile, execFileSync, spawn, type ChildProcessWithoutNullStreams, type SpawnOptionsWithoutStdio } from "node:child_process";
+import { execFile, spawn, type ChildProcessWithoutNullStreams, type SpawnOptionsWithoutStdio } from "node:child_process";
 import { promisify } from "node:util";
 import { LOCAL_TTS_HOST, LOCAL_TTS_PORT } from "../lib/tts/constants";
 import type { TtsRuntimeCommandResult, TtsRuntimeConfig, TtsRuntimeInstalledItem, TtsRuntimeStatus } from "@/types/tts";
@@ -54,7 +54,6 @@ export interface TtsRuntimeControllerDeps {
   storageBasePath?: string | (() => string);
   port?: number;
   host?: string;
-  pythonBinary?: string;
   sidecarRoots?: string[];
   fileExists?: (filePath: string) => boolean;
   ensureDir?: (dirPath: string) => void;
@@ -261,18 +260,6 @@ function makeStatus(params: {
   };
 }
 
-function findCompatiblePython(): string {
-  // Fallback: system python
-  const candidates = ["python3.12", "python3.13", "python3"];
-  for (const candidate of candidates) {
-    try {
-      execFileSync("which", [candidate], { stdio: "pipe" });
-      return candidate;
-    } catch { /* not found */ }
-  }
-  return "python3";
-}
-
 function defaultPythonDownloadUrl(): string | null {
   const base = "https://github.com/indygreg/python-build-standalone/releases/download/20241016/cpython-3.12.7+20241016-";
   const suffix = "-install_only.tar.gz";
@@ -286,7 +273,6 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
   const port = deps.port ?? DEFAULT_TTS_PORT;
   const host = deps.host ?? DEFAULT_TTS_HOST;
   const baseUrl = `http://${host}:${port}`;
-  const pythonBinary = deps.pythonBinary ?? process.env.MANYING_TTS_PYTHON ?? findCompatiblePython();
   const fileExists = deps.fileExists ?? fs.existsSync;
   const ensureDir = deps.ensureDir ?? ((dirPath: string) => fs.mkdirSync(dirPath, { recursive: true }));
   const readTextFile = deps.readTextFile ?? ((filePath: string) => {
@@ -319,9 +305,9 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
     if (typeof deps.storageBasePath === "function") return deps.storageBasePath();
     return deps.storageBasePath || deps.userDataPath;
   };
-  const runtimeRoot = () => path.join(storageBasePath(), "runtime");
   const cacheDir = path.join(deps.userDataPath, "tts-runtime");
-  const runtimePythonDir = () => path.join(runtimeRoot(), "python");
+  const runtimePythonDir = () => path.join(storageBasePath(), "python");
+  const runtimeArchiveDir = () => storageBasePath();
   const configPath = path.join(cacheDir, "config.json");
   const defaultModelCacheDir = () => path.join(storageBasePath(), "tts-models");
   const systemModelCacheDir = path.join(os.homedir(), ".cache", "huggingface");
@@ -369,6 +355,15 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
     return modelCacheDir;
   };
 
+  const isManagedPythonInstallItem = (item: TtsRuntimeInstalledItem) => {
+    if (item.label !== "Python 运行环境") return true;
+    if (!item.detail || !path.isAbsolute(item.detail)) return false;
+    const normalizedDetail = path.resolve(expandHome(item.detail));
+    const runtimeDir = path.resolve(expandHome(runtimePythonDir()));
+    const pythonPath = path.resolve(managedPythonExecutablePath(runtimeDir));
+    return normalizedDetail === runtimeDir || normalizedDetail === pythonPath;
+  };
+
   const getRuntimeConfig = (): TtsRuntimeConfig => {
     const config = readConfig();
     const envUrl = process.env.MANYING_TTS_PYTHON_RUNTIME_URL?.trim();
@@ -376,7 +371,7 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
       pythonRuntimeUrl: config.pythonRuntimeUrl || envUrl || "",
       defaultPythonRuntimeUrl: defaultPythonDownloadUrl() ?? undefined,
       pythonRuntimeDir: runtimePythonDir(),
-      installedItems: config.installedItems ?? [],
+      installedItems: (config.installedItems ?? []).filter(isManagedPythonInstallItem),
     };
   };
 
@@ -411,17 +406,15 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
 
   const isInstalled = () => resolveSidecarRoot() !== undefined;
 
+  function managedPythonExecutablePath(runtimeDir: string) {
+    return process.platform === "win32"
+      ? path.join(runtimeDir, "python.exe")
+      : path.join(runtimeDir, "bin", "python3");
+  }
+
   function getBundledPython(sidecarRoot: string): string | null {
-    const candidates = process.platform === "win32"
-      ? [
-          path.join(sidecarRoot, "python.exe"),
-          path.join(sidecarRoot, "python", "python.exe"),
-        ]
-      : [
-          path.join(sidecarRoot, "bin", "python3"),
-          path.join(sidecarRoot, "python", "bin", "python3"),
-        ];
-    return candidates.find((candidate) => fileExists(candidate)) ?? null;
+    const pythonPath = managedPythonExecutablePath(sidecarRoot);
+    return fileExists(pythonPath) ? pythonPath : null;
   }
 
   function pythonDownloadUrl(): string | null {
@@ -433,43 +426,54 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
     return defaultPythonDownloadUrl();
   }
 
-  function findManagedPython(sidecarRoot: string): string | null {
-    const bundled = getBundledPython(sidecarRoot);
-    if (bundled) return bundled;
+  function findManagedPython(): string | null {
     return getBundledPython(runtimePythonDir());
   }
 
-  async function findReadyPython(sidecarRoot: string, options: { allowSystemPython?: boolean } = {}): Promise<{ python?: string; error?: string }> {
+  async function validateManagedPython(python: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      const versionResult = await runPython(python, ["--version"], { timeout: 30_000, maxBuffer: 1024 * 1024 }) as {
+        stdout?: string;
+        stderr?: string;
+      };
+      const versionText = `${versionResult.stdout ?? ""}${versionResult.stderr ?? ""}`.trim();
+      if (/Python\s+3\.12\./.test(versionText)) return { success: true };
+      return { success: false, error: `当前 Python 运行环境不是 Python 3.12: ${versionText || python}` };
+    } catch (error) {
+      return { success: false, error: `Python 3.12 运行环境校验失败: ${getErrorMessage(error)}` };
+    }
+  }
+
+  async function findReadyPython(): Promise<{ python?: string; error?: string }> {
     updateSetupState({ setupStage: "checking", setupMessage: "正在检查 Python 运行环境", setupProgress: 0 });
-    const managedPython = findManagedPython(sidecarRoot);
+    const managedPython = findManagedPython();
     if (managedPython) {
+      const validation = await validateManagedPython(managedPython);
+      if (!validation.success) {
+        updateSetupState({ setupStage: "failed", setupMessage: "Python 3.12 运行环境校验失败", setupProgress: 0 });
+        return { error: validation.error };
+      }
       updateSetupState({
         setupStage: "checking",
-        setupMessage: managedPython.startsWith(sidecarRoot)
-          ? "已找到随包 Python 运行环境"
-          : "已找到项目存储中的 Python 运行环境",
+        setupMessage: "已找到项目存储中的 Python 运行环境",
         setupProgress: 100,
       });
       return { python: managedPython };
     }
-    if (!options.allowSystemPython) {
-      updateSetupState({ setupStage: "failed", setupMessage: "Python 3.12 运行环境未配置", setupProgress: 0 });
-      return { error: "请先到设置里的 Python 配置页完成配置" };
-    }
-    // 系统已有可用 Python（开发机）则直接用，避免重复下载
-    try {
-      await runPython(pythonBinary, ["--version"], { timeout: 30_000, maxBuffer: 1024 * 1024 });
-      updateSetupState({ setupStage: "checking", setupMessage: "已找到系统 Python 运行环境", setupProgress: 100 });
-      return { python: pythonBinary };
-    } catch { /* 无系统 Python，继续下载 */ }
-    updateSetupState({ setupStage: "failed", setupMessage: "Python 运行环境未配置", setupProgress: 0 });
+    updateSetupState({ setupStage: "failed", setupMessage: "Python 3.12 运行环境未配置", setupProgress: 0 });
     return { error: "请先到设置里的 Python 配置页完成配置" };
   }
 
-  async function ensurePython(sidecarRoot: string): Promise<{ python?: string; error?: string }> {
+  async function ensurePython(): Promise<{ python?: string; error?: string }> {
     updateSetupState({ setupStage: "checking", setupMessage: "正在检查 Python 3.12 运行环境", setupProgress: 0 });
-    const managedPython = findManagedPython(sidecarRoot);
+    const managedPython = findManagedPython();
     if (managedPython) {
+      const validation = await validateManagedPython(managedPython);
+      if (!validation.success) {
+        updateSetupState({ setupStage: "failed", setupMessage: "Python 3.12 运行环境校验失败", setupProgress: 0 });
+        setInstalledItem({ label: "Python 运行环境", detail: managedPython, status: "failed" });
+        return { error: validation.error };
+      }
       setInstalledItem({
         label: "Python 运行环境",
         detail: managedPython,
@@ -483,10 +487,11 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
       updateSetupState({ setupStage: "failed", setupMessage: "当前平台不支持自动下载 Python", setupProgress: 0 });
       return { error: `不支持的平台: ${process.platform} ${process.arch}` };
     }
-    const partialArchive = path.join(runtimeDir, "python-runtime.tar.gz.partial");
-    const archivePath = path.join(runtimeDir, "python-runtime.tar.gz");
+    const archiveDir = runtimeArchiveDir();
+    const partialArchive = path.join(archiveDir, "python-runtime.tar.gz.partial");
+    const archivePath = path.join(archiveDir, "python-runtime.tar.gz");
     try {
-      ensureDir(runtimeDir);
+      ensureDir(archiveDir);
       updateSetupState({ setupStage: "downloading-python", setupMessage: "正在下载 Python 运行环境", setupProgress: 0 });
       const res = await fetchRuntimeArchive(url, partialArchive, (progress) => {
         updateSetupState({
@@ -503,13 +508,19 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
       writeBinaryFile(partialArchive, res.data instanceof Uint8Array ? res.data : new Uint8Array(res.data));
       renameFile(partialArchive, archivePath);
       updateSetupState({ setupStage: "extracting-python", setupMessage: "正在配置 Python 仓库", setupProgress: 100 });
-      await extractArchive(archivePath, runtimeDir);
+      await extractArchive(archivePath, archiveDir);
       removeFile(archivePath);
       const py = getBundledPython(runtimeDir);
       if (!py) {
         updateSetupState({ setupStage: "failed", setupMessage: "Python 解压后未找到可执行文件", setupProgress: 100 });
         setInstalledItem({ label: "Python 运行环境", detail: runtimeDir, status: "failed" });
         return { error: "Python 解压后未找到可执行文件" };
+      }
+      const validation = await validateManagedPython(py);
+      if (!validation.success) {
+        updateSetupState({ setupStage: "failed", setupMessage: "Python 3.12 运行环境校验失败", setupProgress: 100 });
+        setInstalledItem({ label: "Python 运行环境", detail: py, status: "failed" });
+        return { error: validation.error };
       }
       setInstalledItem({ label: "Python 运行环境", detail: py, status: "installed" });
       return { python: py };
@@ -682,7 +693,7 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
     ensureDir(modelCacheDir);
     ensureDir(hfHubCacheDir);
 
-    const pyResult = await findReadyPython(sidecarRoot, { allowSystemPython: true });
+    const pyResult = await findReadyPython();
     if (!pyResult.python) {
       return { success: false, status: await status(), error: pyResult.error };
     }
@@ -750,7 +761,7 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
         error: `TTS sidecar not found. Checked: ${sidecarRoots.map(sidecarMainPath).join(", ")}`,
       };
     }
-    const pyResult = await ensurePython(sidecarRoot);
+    const pyResult = await ensurePython();
     if (!pyResult.python) {
       return { success: false, status: await status(), error: pyResult.error };
     }

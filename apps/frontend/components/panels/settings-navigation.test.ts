@@ -5,6 +5,7 @@ import {
   DEFAULT_SETTINGS_TAB,
   SETTINGS_TABS,
   buildProviderAdapterTemplate,
+  getPythonExecutableDisplayPath,
 } from "./SettingsPanel";
 
 describe("SettingsPanel navigation", () => {
@@ -32,6 +33,27 @@ describe("SettingsPanel navigation", () => {
       "模型映射",
       "Agent 配置",
     ]);
+  });
+
+  it("shows the Python executable path from the runtime install details", () => {
+    expect(getPythonExecutableDisplayPath({
+      pythonRuntimeDir: "/project-storage/python",
+      installedItems: [
+        { label: "Python 运行环境", detail: "/project-storage/python/bin/python3", status: "installed" },
+      ],
+    })).toBe("/project-storage/python/bin/python3");
+
+    expect(getPythonExecutableDisplayPath({
+      pythonRuntimeDir: "/project-storage/python",
+      installedItems: [],
+    })).toBe("/project-storage/python/bin/python3");
+
+    expect(getPythonExecutableDisplayPath({
+      pythonRuntimeDir: "/project-storage/python",
+      installedItems: [
+        { label: "Python 运行环境", detail: "/project-storage/runtime/python/python/bin/python3", status: "installed" },
+      ],
+    })).toBe("/project-storage/python/bin/python3");
   });
 
   it("keeps low-level provider internals out of the service workspace", () => {

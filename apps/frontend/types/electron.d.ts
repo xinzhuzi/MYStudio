@@ -33,6 +33,7 @@ declare global {
       getItem: (key: string) => Promise<string | null>;
       setItem: (key: string, value: string) => Promise<boolean>;
       removeItem: (key: string) => Promise<boolean>;
+      renameItem?: (fromKey: string, toKey: string) => Promise<boolean>;
       exists: (key: string) => Promise<boolean>;
       listKeys: (prefix: string) => Promise<string[]>;
       listDirs: (prefix: string) => Promise<string[]>;
