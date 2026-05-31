@@ -1588,7 +1588,7 @@ ipcMain.handle('storage-export-data', async (_event, targetPath: string) => {
     if (!targetPath) return { success: false, error: '路径不能为空' }
     const exportDir = path.join(
       normalizePath(targetPath),
-      `moyin-data-${new Date().toISOString().replace(/[:.]/g, '-')}`
+      `mystudio-data-${new Date().toISOString().replace(/[:.]/g, '-')}`
     )
     
     // Create export structure
@@ -1632,7 +1632,7 @@ ipcMain.handle('storage-import-data', async (_event, sourcePath: string) => {
     }
     
     // Create temporary backup for rollback
-    const backupDir = path.join(os.tmpdir(), `moyin-backup-${Date.now()}`)
+    const backupDir = path.join(os.tmpdir(), `mystudio-backup-${Date.now()}`)
     const currentProjectsDir = getProjectDataRoot()
     const currentMediaDir = getMediaRoot()
     const currentSkillsDir = getSkillsRoot()
@@ -1752,7 +1752,7 @@ ipcMain.handle('storage-export-project-data', async (_event, targetPath: string)
     if (!targetPath) return { success: false, error: '路径不能为空' }
     const exportDir = path.join(
       normalizePath(targetPath),
-      `moyin-data-${new Date().toISOString().replace(/[:.]/g, '-')}`
+      `mystudio-data-${new Date().toISOString().replace(/[:.]/g, '-')}`
     )
     ensureDir(path.join(exportDir, 'projects'))
     ensureDir(path.join(exportDir, 'media'))
@@ -1773,7 +1773,7 @@ ipcMain.handle('storage-import-project-data', async (_event, sourcePath: string)
 
     const currentProjectsDir = getProjectDataRoot()
     const currentMediaDir = getMediaRoot()
-    const backupDir = path.join(os.tmpdir(), `moyin-legacy-import-backup-${Date.now()}`)
+    const backupDir = path.join(os.tmpdir(), `mystudio-legacy-import-backup-${Date.now()}`)
 
     try {
       if (fs.existsSync(currentProjectsDir)) {
@@ -1832,7 +1832,7 @@ ipcMain.handle('storage-export-media-data', async (_event, targetPath: string) =
     if (!targetPath) return { success: false, error: '路径不能为空' }
     const exportDir = path.join(
       normalizePath(targetPath),
-      `moyin-data-${new Date().toISOString().replace(/[:.]/g, '-')}`
+      `mystudio-data-${new Date().toISOString().replace(/[:.]/g, '-')}`
     )
     ensureDir(path.join(exportDir, 'projects'))
     ensureDir(path.join(exportDir, 'media'))
@@ -1852,7 +1852,7 @@ ipcMain.handle('storage-import-media-data', async (_event, sourcePath: string) =
     const source = normalizePath(sourcePath)
     if (source === target) return { success: true }
 
-    const backupDir = path.join(os.tmpdir(), `moyin-media-import-backup-${Date.now()}`)
+    const backupDir = path.join(os.tmpdir(), `mystudio-media-import-backup-${Date.now()}`)
 
     try {
       if (fs.existsSync(target)) {

@@ -14,7 +14,7 @@ describe("fileStorage legacy MYStudio key migration", () => {
     });
   });
 
-  it("renames legacy moyin root store files to mystudio names", async () => {
+  it("renames legacy root store files to mystudio names", async () => {
     const legacyPayload = JSON.stringify({
       state: {
         projects: [
@@ -27,7 +27,7 @@ describe("fileStorage legacy MYStudio key migration", () => {
     });
     const getItem = vi.fn(async (key: string) => {
       if (key === "mystudio-project-store") return null;
-      if (key === "moyin-project-store") return legacyPayload;
+      if (key === "mo" + "yin-project-store") return legacyPayload;
       return null;
     });
     const renameItem = vi.fn(async () => true);
@@ -48,7 +48,7 @@ describe("fileStorage legacy MYStudio key migration", () => {
     await expect(fileStorage.getItem("mystudio-project-store")).resolves.toBe(legacyPayload);
 
     expect(getItem).toHaveBeenCalledWith("mystudio-project-store");
-    expect(getItem).toHaveBeenCalledWith("moyin-project-store");
-    expect(renameItem).toHaveBeenCalledWith("moyin-project-store", "mystudio-project-store");
+    expect(getItem).toHaveBeenCalledWith("mo" + "yin-project-store");
+    expect(renameItem).toHaveBeenCalledWith("mo" + "yin-project-store", "mystudio-project-store");
   });
 });

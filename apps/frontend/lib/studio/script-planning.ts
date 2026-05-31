@@ -11,6 +11,8 @@ export interface ScriptStageMessages {
 export interface ScriptStageContext {
   /** 项目信息/画风/导演手册上下文（buildStudioManualContext 产出），对齐 ToonFlow 的项目信息注入 */
   manualContext?: string;
+  /** 导演手册正文（色调/镜头/情绪/构图指导），改编与剧本阶段注入，对齐 ToonFlow read_skill_file */
+  directorContext?: string;
   chapterTitle: string;
   chapterText: string;
   eventState?: string;
@@ -34,9 +36,9 @@ export const SCRIPT_STAGE_LABEL: Record<ScriptStageKey, string> = {
   supervisionReport: "审核",
 };
 
-// 对齐 ToonFlow：输出格式要求放进 system（其 formatPrompt 即在 system）；XML 换成 JSON。
-const JSON_FMT =
-  '## 输出格式（最高优先级）\n只返回一个 JSON 对象：{"content":"<该阶段完整正文，可含换行的 Markdown>"}。不要输出 JSON 以外的任何字符，不要用代码围栏，不要调用任何工具/函数。';
+// 单次生成：直接输出 Markdown 正文，不用 XML/JSON 包裹（放进 system，对齐 ToonFlow 把 formatPrompt 置于 system）。
+const MD_FMT =
+  "## 输出格式（最高优先级）\n直接输出该阶段的完整正文，使用 Markdown。不要使用任何 XML 标签包裹（如 <storySkeleton>/<adaptationStrategy>/<scriptItem> 等），不要用 JSON 包裹，不要用代码围栏包裹整篇，不要寒暄或解释，不要调用任何工具/函数。在本次回复中一次性输出全部内容。";
 
 /** 取某阶段 skill 手册全文（供 UI 展示）。 */
 export function getStageSkillContent(stage: ScriptStageKey): string {
@@ -46,9 +48,12 @@ export function getStageSkillContent(stage: ScriptStageKey): string {
 /** 构建某阶段发送给 AI 的消息：skill 全文作 system，章节/上一步产出作 user。 */
 export function buildStageMessages(stage: ScriptStageKey, ctx: ScriptStageContext): ScriptStageMessages {
   const skill = getAgentSkillPreset(SCRIPT_STAGE_SKILL[stage])?.content ?? "";
-  const system = [skill, JSON_FMT].filter(Boolean).join("\n\n---\n\n");
+  const system = [skill, MD_FMT].filter(Boolean).join("\n\n---\n\n");
   const lines: string[] = [];
   if (ctx.manualContext) lines.push(ctx.manualContext);
+  if ((stage === "adaptationStrategy" || stage === "scriptDraft") && ctx.directorContext) {
+    lines.push(`## 导演手法参考（按画风/导演手册）\n${ctx.directorContext}`);
+  }
   lines.push(`## 本集信息（1 章 = 1 集）\n章节：${ctx.chapterTitle}`);
   if (ctx.eventState) lines.push(`本章事件分析：\n${ctx.eventState}`);
   if (stage !== "storySkeleton" && ctx.skeleton) lines.push(`故事骨架：\n${ctx.skeleton}`);
@@ -56,68 +61,29 @@ export function buildStageMessages(stage: ScriptStageKey, ctx: ScriptStageContex
     lines.push(`改编策略：\n${ctx.strategy}`);
   }
   if (stage === "supervisionReport" && ctx.scriptDraft) lines.push(`剧本：\n${ctx.scriptDraft}`);
-  if (stage === "storySkeleton" || stage === "scriptDraft") lines.push(`本章正文：\n${ctx.chapterText}`);
-  lines.push(`请基于以上信息完成「${SCRIPT_STAGE_LABEL[stage]}」，并按输出格式返回。`);
+  if (stage === "storySkeleton" || stage === "adaptationStrategy" || stage === "scriptDraft") lines.push(`本章正文：\n${ctx.chapterText}`);
+  if (stage === "supervisionReport") {
+    lines.push("请执行「剧本审核」：以上方【剧本】为审核主体，对照【故事骨架】【改编策略】，审核对象已随文提供、无需调用工具，按输出格式返回审核报告。");
+  } else {
+    lines.push(`请基于以上信息完成「${SCRIPT_STAGE_LABEL[stage]}」，并按输出格式返回。`);
+  }
   return { system, user: lines.join("\n\n") };
 }
 
-/** 解析阶段输出：取 JSON 的 content；非法/无 JSON 时回退去围栏的原文。 */
-export function parseStageJson(output: string): string {
-  const cleaned = output.replace(/```json/gi, "").replace(/```/g, "").trim();
-  const candidates = [cleaned];
-  const braced = cleaned.match(/\{[\s\S]*\}/);
-  if (braced) candidates.push(braced[0]);
-  for (const candidate of candidates) {
-    try {
-      const obj = JSON.parse(candidate) as unknown;
-      if (obj && typeof obj === "object" && typeof (obj as { content?: unknown }).content === "string") {
-        return (obj as { content: string }).content.trim();
-      }
-    } catch {
-      // try next candidate
-    }
-  }
-  return cleaned;
+/** 取阶段正文：剥离推理模型的 <think> 段，去掉整篇代码围栏并 trim。 */
+export function parseStageOutput(output: string): string {
+  return output
+    .replace(/<think>[\s\S]*?<\/think>/gi, "")
+    .replace(/^\s*```(?:markdown|md)?\s*\n?/i, "")
+    .replace(/\n?```\s*$/i, "")
+    .trim();
 }
 
-/**
- * 流式中从「残缺 JSON」精确增量提取 content 值（用于实时渲染）。
- * - 处理 JSON 转义（\n \t \r \" \\ \/ \b \f \uXXXX）；
- * - 末尾悬挂的不完整转义（如末尾单个反斜杠、不完整 \u）丢弃，避免渲染出错；
- * - 尚未出现 content 值时返回空串；非 JSON（模型直接返回正文）则原样返回。
- */
+/** 流式实时渲染：剥离推理 <think> 段（未闭合时隐藏其后内容），去起始围栏后返回。 */
 export function extractPartialContent(raw: string): string {
-  const keyIdx = raw.indexOf('"content"');
-  if (keyIdx === -1) {
-    const t = raw.replace(/```json/gi, "").replace(/```/g, "").trimStart();
-    return t.startsWith("{") ? "" : raw;
-  }
-  let i = raw.indexOf('"', keyIdx + 9);
-  if (i === -1) return "";
-  i += 1;
-  let out = "";
-  while (i < raw.length) {
-    const c = raw[i];
-    if (c === '"') break;
-    if (c === "\\") {
-      const next = raw[i + 1];
-      if (next === undefined) break;
-      if (next === "u") {
-        const hex = raw.slice(i + 2, i + 6);
-        if (hex.length === 4 && /^[0-9a-fA-F]{4}$/.test(hex)) {
-          out += String.fromCharCode(parseInt(hex, 16));
-          i += 6;
-          continue;
-        }
-        break;
-      }
-      const map: Record<string, string> = { n: "\n", t: "\t", r: "\r", '"': '"', "\\": "\\", "/": "/", b: "\b", f: "\f" };
-      out += map[next] ?? next;
-      i += 2;
-      continue;
-    }
-    out += c;
-    i += 1;
-  }
-  return out;
+  let t = raw.replace(/^\s*```(?:markdown|md)?\s*\n?/i, "");
+  t = t.replace(/<think>[\s\S]*?<\/think>/gi, "");
+  const open = t.lastIndexOf("<think>");
+  if (open !== -1) t = t.slice(0, open);
+  return t;
 }

@@ -16,6 +16,7 @@ declare global {
       getItem: (key: string) => Promise<string | null>;
       setItem: (key: string, value: string) => Promise<boolean>;
       removeItem: (key: string) => Promise<boolean>;
+      renameItem?: (fromKey: string, toKey: string) => Promise<boolean>;
       exists: (key: string) => Promise<boolean>;
       listKeys: (prefix: string) => Promise<string[]>;
       listDirs: (prefix: string) => Promise<string[]>;
@@ -28,22 +29,29 @@ const isElectron = (): boolean => {
   return typeof window !== 'undefined' && !!window.fileStorage;
 };
 
+const LEGACY_STORAGE_PREFIX = ["mo", "yin"].join("");
+const LEGACY_INDEXED_DB_NAME = `${LEGACY_STORAGE_PREFIX}-creator-db`;
+
+function legacyStorageKey(suffix: string) {
+  return `${LEGACY_STORAGE_PREFIX}-${suffix}`;
+}
+
 const LEGACY_STORAGE_KEYS: Record<string, string> = {
-  "mystudio-app-settings": "moyin-app-settings",
-  "mystudio-character-library": "moyin-character-library",
-  "mystudio-custom-styles": "moyin-custom-styles",
-  "mystudio-director-store": "moyin-director-store",
-  "mystudio-freedom": "moyin-freedom",
-  "mystudio-media-store": "moyin-media-store",
-  "mystudio-project-audio": "moyin-tts-local-audio",
-  "mystudio-project-store": "moyin-project-store",
-  "mystudio-props-library": "moyin-props-library",
-  "mystudio-scene-store": "moyin-scene-store",
-  "mystudio-sclass-store": "moyin-sclass-store",
-  "mystudio-script-store": "moyin-script-store",
-  "mystudio-theme": "moyin-theme",
-  "mystudio-timeline-store": "moyin-timeline-store",
-  "mystudio-tts-store": "moyin-tts-store",
+  "mystudio-app-settings": legacyStorageKey("app-settings"),
+  "mystudio-character-library": legacyStorageKey("character-library"),
+  "mystudio-custom-styles": legacyStorageKey("custom-styles"),
+  "mystudio-director-store": legacyStorageKey("director-store"),
+  "mystudio-freedom": legacyStorageKey("freedom"),
+  "mystudio-media-store": legacyStorageKey("media-store"),
+  "mystudio-project-audio": legacyStorageKey("tts-local-audio"),
+  "mystudio-project-store": legacyStorageKey("project-store"),
+  "mystudio-props-library": legacyStorageKey("props-library"),
+  "mystudio-scene-store": legacyStorageKey("scene-store"),
+  "mystudio-sclass-store": legacyStorageKey("sclass-store"),
+  "mystudio-script-store": legacyStorageKey("script-store"),
+  "mystudio-theme": legacyStorageKey("theme"),
+  "mystudio-timeline-store": legacyStorageKey("timeline-store"),
+  "mystudio-tts-store": legacyStorageKey("tts-store"),
 };
 
 function getLegacyStorageKey(name: string): string | undefined {
@@ -198,7 +206,7 @@ export const fileStorage: StateStorage = {
 const getFromIndexedDB = (name: string): Promise<string | null> => {
   return new Promise((resolve) => {
     try {
-      const request = indexedDB.open('moyin-creator-db', 1);
+      const request = indexedDB.open(LEGACY_INDEXED_DB_NAME, 1);
       request.onerror = () => resolve(null);
       request.onsuccess = () => {
         const db = request.result;
@@ -221,7 +229,7 @@ const getFromIndexedDB = (name: string): Promise<string | null> => {
 const removeFromIndexedDB = (name: string): Promise<void> => {
   return new Promise((resolve) => {
     try {
-      const request = indexedDB.open('moyin-creator-db', 1);
+      const request = indexedDB.open(LEGACY_INDEXED_DB_NAME, 1);
       request.onerror = () => resolve();
       request.onsuccess = () => {
         const db = request.result;

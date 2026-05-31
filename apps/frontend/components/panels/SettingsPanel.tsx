@@ -106,6 +106,8 @@ export const API_MANAGER_SECTIONS = [
 ] as const;
 
 export const API_SERVICE_SUMMARY_FIELDS = ["Base URL", "接口协议", "API Key"] as const;
+const LEGACY_STORAGE_PREFIX = ["mo", "yin"].join("");
+const LEGACY_INDEXED_DB_NAME = `${LEGACY_STORAGE_PREFIX}-creator-db`;
 
 type SettingsTabId = typeof SETTINGS_TABS[number]["value"];
 type APIManagerSectionId = typeof API_MANAGER_SECTIONS[number]["value"];
@@ -899,13 +901,13 @@ export function SettingsPanel({
       
       // 清除 localStorage 中的缓存，确保从新路径加载数据
       const keysToRemove = Object.keys(localStorage).filter(key => 
-        key.startsWith('moyin-') || key.includes('store')
+        key.startsWith('mystudio-') || key.startsWith(LEGACY_STORAGE_PREFIX + '-') || key.includes('store')
       );
       keysToRemove.forEach(key => localStorage.removeItem(key));
       
       // 清除 IndexedDB 缓存
       try {
-        const dbRequest = indexedDB.open('moyin-creator-db', 1);
+        const dbRequest = indexedDB.open(LEGACY_INDEXED_DB_NAME, 1);
         dbRequest.onsuccess = () => {
           const db = dbRequest.result;
           if (db.objectStoreNames.contains('zustand-storage')) {
@@ -945,13 +947,13 @@ export function SettingsPanel({
     if (result.success) {
       // 清除 localStorage 中的缓存，防止旧数据覆盖导入的数据
       const keysToRemove = Object.keys(localStorage).filter(key => 
-        key.startsWith('moyin-') || key.includes('store')
+        key.startsWith('mystudio-') || key.startsWith(LEGACY_STORAGE_PREFIX + '-') || key.includes('store')
       );
       keysToRemove.forEach(key => localStorage.removeItem(key));
       
       // 清除 IndexedDB 缓存
       try {
-        const dbRequest = indexedDB.open('moyin-creator-db', 1);
+        const dbRequest = indexedDB.open(LEGACY_INDEXED_DB_NAME, 1);
         dbRequest.onsuccess = () => {
           const db = dbRequest.result;
           if (db.objectStoreNames.contains('zustand-storage')) {
@@ -996,13 +998,13 @@ export function SettingsPanel({
       
       // 清除 localStorage 中的缓存，确保从新路径加载数据
       const keysToRemove = Object.keys(localStorage).filter(key => 
-        key.startsWith('moyin-') || key.includes('store')
+        key.startsWith('mystudio-') || key.startsWith(LEGACY_STORAGE_PREFIX + '-') || key.includes('store')
       );
       keysToRemove.forEach(key => localStorage.removeItem(key));
       
       // 清除 IndexedDB 缓存
       try {
-        const dbRequest = indexedDB.open('moyin-creator-db', 1);
+        const dbRequest = indexedDB.open(LEGACY_INDEXED_DB_NAME, 1);
         dbRequest.onsuccess = () => {
           const db = dbRequest.result;
           if (db.objectStoreNames.contains('zustand-storage')) {

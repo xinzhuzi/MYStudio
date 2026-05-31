@@ -47,11 +47,11 @@ import {
   parseEntityExtraction,
   type KnownEntity,
 } from "@/lib/studio/entity-extraction";
-import { createMoyinSinks, syncExtractedEntities } from "@/lib/studio/entity-sync";
+import { createMystudioSinks, syncExtractedEntities } from "@/lib/studio/entity-sync";
 import { buildDirectorPlanMessages, parseDirectorPlan } from "@/lib/studio/director-plan";
 import {
   buildEntityResolver,
-  createMoyinDerivedSinks,
+  createMystudioDerivedSinks,
   syncDerivedAssets,
 } from "@/lib/studio/derived-asset-sync";
 import {
@@ -68,7 +68,7 @@ import {
   buildStageMessages,
   extractPartialContent,
   getStageSkillContent,
-  parseStageJson,
+  parseStageOutput,
   SCRIPT_STAGE_LABEL,
   type ScriptStageKey,
 } from "@/lib/studio/script-planning";
@@ -77,7 +77,7 @@ import {
   assignVoicesForCharacters,
   type VoiceAssignment,
 } from "@/lib/studio/voice-assigner";
-import { createMoyinTtsSink, syncCharacterVoices } from "@/lib/studio/voice-sync";
+import { createMystudioTtsSink, syncCharacterVoices } from "@/lib/studio/voice-sync";
 import {
   buildStudioManualContext,
   buildStudioManualsFromSkillFiles,
@@ -433,7 +433,7 @@ export function StudioView() {
 
       const { result: batch, summary } = syncExtractedEntities(
         { episodeId, entities, projectId, projectName },
-        createMoyinSinks(),
+        createMystudioSinks(),
       );
       saveEntityExtraction(batch);
 
@@ -525,7 +525,7 @@ export function StudioView() {
     const { summary } = syncDerivedAssets(plan.derivedAssetPlan, {
       projectId,
       resolver,
-      ...createMoyinDerivedSinks(),
+      ...createMystudioDerivedSinks(),
     });
 
     if (summary.skipped) {
@@ -668,7 +668,7 @@ export function StudioView() {
     );
 
     useTtsStore.getState().setActiveProjectId(projectId);
-    const { bound } = syncCharacterVoices(assignments, { projectId, sink: createMoyinTtsSink() });
+    const { bound } = syncCharacterVoices(assignments, { projectId, sink: createMystudioTtsSink() });
     setVoiceAssignments(assignments);
     toast.success(`音色分配完成（${bound} 个角色已绑定音色）`);
   }, [activeProject?.id]);
@@ -711,10 +711,23 @@ export function StudioView() {
   }, [activeProject?.id, saveSeriesBible]);
 
   const scriptStyleSummary = useMemo(() => {
-    const v = manualCatalog.visual?.find((p) => p.id === workflowConfig.visualManualId)?.name;
-    const d = manualCatalog.director?.find((p) => p.id === workflowConfig.directorManualId)?.name;
-    return [v ? `视觉风格：${v}` : "", d ? `导演风格：${d}` : "", workflowConfig.platformSpec ? `画幅：${workflowConfig.platformSpec}` : ""].filter(Boolean).join(" · ");
-  }, [manualCatalog, workflowConfig.visualManualId, workflowConfig.directorManualId, workflowConfig.platformSpec]);
+    const visual = manualCatalog.visual?.find((p) => p.id === workflowConfig.visualManualId)?.name;
+    return [
+      "## 项目信息",
+      `小说名称：${projectName}`,
+      workflowConfig.novelGenre ? `小说类型：${workflowConfig.novelGenre}` : "",
+      `目标画风：${visual || workflowConfig.stylePositioning || "未设"}`,
+      `目标画幅：${workflowConfig.platformSpec || "16:9"}`,
+      workflowConfig.episodeCount ? `集数：${workflowConfig.episodeCount}集` : "",
+      `单集时长：${workflowConfig.episodeDurationMin ?? 3}分钟`,
+      `章节数量：${novelChapters.length}章`,
+    ].filter(Boolean).join("\n");
+  }, [projectName, workflowConfig.visualManualId, workflowConfig.novelGenre, workflowConfig.stylePositioning, workflowConfig.platformSpec, workflowConfig.episodeCount, workflowConfig.episodeDurationMin, manualCatalog, novelChapters.length]);
+
+  const scriptDirectorContext = useMemo(
+    () => buildStudioManualContext(workflowConfig, manualCatalog),
+    [workflowConfig, manualCatalog],
+  );
 
   const latestScriptStage = useCallback(
     (key: AgentWorkKey, scopeId: string) =>
@@ -751,7 +764,7 @@ export function StudioView() {
         toast.error(result.error || `${opts.label}生成失败`);
         return;
       }
-      saveAgentWorkData(opts.stageKey, parseStageJson(result.text), opts.scopeId);
+      saveAgentWorkData(opts.stageKey, parseStageOutput(result.text), opts.scopeId);
       toast.success(`${opts.label}已生成`);
     },
     [saveAgentWorkData],
@@ -776,6 +789,7 @@ export function StudioView() {
       }
       const built = buildStageMessages(stage, {
         manualContext: scriptStyleSummary,
+        directorContext: scriptDirectorContext,
         chapterTitle: chapter.title,
         chapterText: chapter.sourceText,
         eventState: chapter.eventState,
@@ -796,7 +810,7 @@ export function StudioView() {
         label: SCRIPT_STAGE_LABEL[stage],
       });
     },
-    [runScriptStage, latestScriptStage, scriptStyleSummary],
+    [runScriptStage, latestScriptStage, scriptStyleSummary, scriptDirectorContext],
   );
 
   const handleMaterialFiles = async (files?: FileList | null) => {
@@ -959,6 +973,7 @@ export function StudioView() {
                 saveAgentWorkData={saveAgentWorkData}
                 runStage={handleScriptStage}
                 manualContext={scriptStyleSummary}
+                directorContext={scriptDirectorContext}
                 styleSummary={scriptStyleSummary}
                 setHeaderActions={setScriptHeaderActions}
                 scriptStreaming={scriptStreaming}
@@ -1856,6 +1871,7 @@ function ScriptTab(props: {
   saveAgentWorkData: ReturnType<typeof useStudioStore.getState>["saveAgentWorkData"];
   runStage: (stage: ScriptStageKey, chapter: NovelChapter, userOverride?: string) => void;
   manualContext: string;
+  directorContext: string;
   styleSummary: string;
   setHeaderActions: (actions: ReactNode) => void;
   scriptStreaming: { key: AgentWorkKey; scopeId: string; text: string } | null;
@@ -1933,6 +1949,7 @@ function ScriptTab(props: {
   const messages = chapter
     ? buildStageMessages(activeStage, {
         manualContext: props.manualContext,
+        directorContext: props.directorContext,
         chapterTitle: chapter.title,
         chapterText: chapter.sourceText,
         eventState: chapter.eventState,
@@ -1943,13 +1960,14 @@ function ScriptTab(props: {
     : { system: "", user: "" };
   const skill = getStageSkillContent(activeStage);
   const sentSummary = [
-    props.styleSummary,
+    "项目信息",
+    activeStage === "adaptationStrategy" || activeStage === "scriptDraft" ? "导演手法" : "",
     chapter ? `章节：${chapter.title}` : "",
     chapter?.eventState ? "事件分析" : "",
     activeStage !== "storySkeleton" && stageData("storySkeleton") ? "故事骨架" : "",
     (activeStage === "scriptDraft" || activeStage === "supervisionReport") && stageData("adaptationStrategy") ? "改编策略" : "",
     activeStage === "supervisionReport" && stageData("scriptDraft") ? "剧本" : "",
-    activeStage === "storySkeleton" || activeStage === "scriptDraft" ? "本章正文" : "",
+    activeStage === "storySkeleton" || activeStage === "adaptationStrategy" || activeStage === "scriptDraft" ? "本章正文" : "",
   ].filter(Boolean).join(" · ");
 
   return (

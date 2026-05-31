@@ -104,7 +104,7 @@ describe("studio storyboard table messages", () => {
       scriptText: "苏晚卿冷笑。",
       scriptPlanContext: "③节奏：高潮段快切",
     });
-    expect(messages.system).toContain("storyboardTable");
+    expect(messages.system).toContain("分镜表");
     expect(messages.user).toContain("苏晚卿冷笑");
     expect(messages.user).toContain("高潮段快切");
   });

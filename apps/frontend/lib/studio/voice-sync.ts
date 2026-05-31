@@ -60,8 +60,8 @@ export function syncCharacterVoices(
   return { bound, profileIdByCharacter };
 }
 
-/** 真实 moyin tts store 适配 sink；调用前请确保 setActiveProjectId 已指向目标项目。 */
-export function createMoyinTtsSink(): VoiceProfileSink {
+/** 真实 MYStudio TTS store 适配 sink；调用前请确保 setActiveProjectId 已指向目标项目。 */
+export function createMystudioTtsSink(): VoiceProfileSink {
   return {
     createVoiceProfile: (profile) => useTtsStore.getState().createVoiceProfile(profile).id,
     bindSpeaker: (binding) => useTtsStore.getState().bindSpeaker(binding),

@@ -101,7 +101,7 @@ describe("studio director plan messages", () => {
       manualContext: "## 视觉手册\n写意国风",
     });
 
-    expect(messages.system).toContain("scriptPlan");
+    expect(messages.system).toContain("导演规划");
     expect(messages.system).toContain("写意国风");
     expect(messages.user).toContain("林逸走进客栈大堂");
   });

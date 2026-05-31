@@ -119,8 +119,8 @@ export function buildEntityResolver(
   return (name) => map.get(name) ?? null;
 }
 
-/** 真实 moyin store 适配 sink。 */
-export function createMoyinDerivedSinks(): { characterSink: DerivedCharacterSink; sceneSink: DerivedSceneSink } {
+/** 真实 MYStudio store 适配 sink。 */
+export function createMystudioDerivedSinks(): { characterSink: DerivedCharacterSink; sceneSink: DerivedSceneSink } {
   return {
     characterSink: {
       addVariation: (characterId, variation) =>

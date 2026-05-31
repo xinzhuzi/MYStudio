@@ -29,7 +29,7 @@ export function buildEpisodeOutlineMessages(input: BuildEpisodeOutlineInput): Ep
       `当前集ID：${input.episodeId}`,
       input.skeletonContext ? `故事骨架：\n${input.skeletonContext}` : "",
       input.strategyContext ? `改编策略：\n${input.strategyContext}` : "",
-      "请按【输出格式规范】用 <episodeOutline> 分段写出本集 beat 序列（4列：场次序号|地点|beat内容|预估时长秒）。",
+      "请按【输出格式规范】直接输出本集 beat 序列的 Markdown 表格（4列：场次序号|地点|beat内容|预估时长秒），不要用 XML 标签包裹。",
     ]
       .filter(Boolean)
       .join("\n"),

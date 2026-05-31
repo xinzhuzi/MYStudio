@@ -155,8 +155,8 @@ export function syncExtractedEntities(
   return { result, summary: { created, merged } };
 }
 
-/** Build sinks backed by the live moyin stores (character/scene libraries). */
-export function createMoyinSinks(): SyncSinks {
+/** Build sinks backed by the live MYStudio stores (character/scene libraries). */
+export function createMystudioSinks(): SyncSinks {
   return {
     characterSink: {
       addCharacter: (data) =>
