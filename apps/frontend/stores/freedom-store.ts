@@ -96,6 +96,14 @@ interface FreedomActions {
 
 type FreedomStore = FreedomState & FreedomActions;
 
+/** 复位瞬时生成标志（image/video/cinema）。供 persist rehydrate 调用，避免上次生成被进程中断后卡在"生成中"。 */
+export function resetTransientGenerating(state?: Partial<FreedomState>): void {
+  if (!state) return;
+  state.imageGenerating = false;
+  state.videoGenerating = false;
+  state.cinemaGenerating = false;
+}
+
 // ==================== Constants ====================
 
 const MAX_HISTORY = 50;
@@ -202,6 +210,8 @@ export const useFreedomStore = create<FreedomStore>()(
     {
       name: 'moyin-freedom',
       version: 1,
+      // 瞬时生成标志不应跨会话恢复：重启时若上次生成被进程中断会卡在"生成中"，rehydrate 时强制复位。
+      onRehydrateStorage: () => (state) => resetTransientGenerating(state),
     }
   )
 );

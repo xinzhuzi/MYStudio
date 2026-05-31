@@ -101,7 +101,6 @@ import {
   Check,
   ClipboardList,
   Edit3,
-  Eye,
   FileText,
   Film,
   Palette,
@@ -954,7 +953,7 @@ export function NovelEmptyState({
   );
 }
 
-function NovelTab(props: {
+export function NovelTab(props: {
   novelDraft: string;
   setNovelDraft: (value: string) => void;
   handleNovelFile: (file?: File) => void | Promise<void>;
@@ -972,7 +971,6 @@ function NovelTab(props: {
   const [importSourceName, setImportSourceName] = useState("");
   const [searchText, setSearchText] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [detailChapter, setDetailChapter] = useState<NovelChapter | null>(null);
   const [editingChapter, setEditingChapter] = useState<NovelChapter | null>(null);
   const [deletingChapter, setDeletingChapter] = useState<NovelChapter | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -1185,10 +1183,6 @@ function NovelTab(props: {
                 </TableCell>
                 <TableCell>
                   <div className="flex justify-end gap-1">
-                    <Button size="sm" variant="text" onClick={() => setDetailChapter(chapter)}>
-                      <Eye className="h-4 w-4" />
-                      查看详情
-                    </Button>
                     <Button size="sm" variant="text" onClick={() => openEdit(chapter)}>
                       <Edit3 className="h-4 w-4" />
                       编辑
@@ -1254,30 +1248,6 @@ function NovelTab(props: {
             <Button variant="outline" onClick={() => setImportOpen(false)}>取消</Button>
             <Button onClick={handleConfirmImport} disabled={!props.novelDraft.trim()}>确认导入</Button>
           </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={Boolean(detailChapter)} onOpenChange={(open) => !open && setDetailChapter(null)}>
-        <DialogContent className="max-w-4xl">
-          <DialogHeader>
-            <DialogTitle>{detailChapter?.index}. {detailChapter?.title}</DialogTitle>
-            <DialogDescription>{detailChapter?.volume ?? "正文卷"}</DialogDescription>
-          </DialogHeader>
-          <div className="grid max-h-[70vh] grid-cols-[1fr_280px] gap-3 overflow-hidden">
-            <ScrollArea className="rounded-md border bg-muted/30 p-3">
-              <pre className="whitespace-pre-wrap text-sm leading-7">{detailChapter?.sourceText}</pre>
-            </ScrollArea>
-            <div className="space-y-3">
-              <div className="rounded-md border p-3">
-                <div className="text-xs font-medium text-muted-foreground">事件摘要</div>
-                <p className="mt-2 whitespace-pre-wrap text-sm">{detailChapter?.eventSummary || "未填写"}</p>
-              </div>
-              <div className="rounded-md border p-3">
-                <div className="text-xs font-medium text-muted-foreground">事件状态</div>
-                <p className="mt-2 whitespace-pre-wrap text-sm">{detailChapter?.eventState || "未填写"}</p>
-              </div>
-            </div>
-          </div>
         </DialogContent>
       </Dialog>
 
