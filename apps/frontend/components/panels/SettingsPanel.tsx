@@ -36,6 +36,7 @@ import { useCharacterLibraryStore } from "@/stores/character-library-store";
 import { useSceneStore } from "@/stores/scene-store";
 import { useMediaStore } from "@/stores/media-store";
 import { classifyModelByName, getApiKeyCount, parseApiKeys } from "@/lib/api-key-manager";
+import { resolveThinkingEnabled } from "@/lib/ai/thinking-mode";
 import { prepareModelTestRequest, type ModelTestResult, type ModelTestType } from "@/lib/api-manager/model-test";
 import { AddProviderDialog, EditProviderDialog, FeatureBindingPanel } from "@/components/api-manager";
 import { AddImageHostDialog } from "@/components/image-host-manager/AddImageHostDialog";
@@ -372,7 +373,11 @@ export function SettingsPanel({
     setAgentDeployment,
     migrateStudioBindings,
     upsertProviderAdapterCode,
+    getModelThinkingOverride,
+    setModelThinkingOverride,
   } = useAPIConfigStore();
+  // 订阅覆盖表，保证开关切换后行内即时重渲染
+  const modelThinkingOverrides = useAPIConfigStore((state) => state.modelThinkingOverrides);
   const studioConfigBindings = useStudioConfigStore((state) => state.bindings);
   const {
     resourceSharing,
@@ -526,7 +531,9 @@ export function SettingsPanel({
     const showToast = options.showToast ?? true;
     const type = inferModelTestType(model);
     const testKey = getModelTestKey(provider.id, model);
-    const prepared = prepareModelTestRequest({ provider, model, type });
+    // 思考模式：用户显式配置优先，否则按模型名自动判断
+    const thinkingEnabled = resolveThinkingEnabled(model, getModelThinkingOverride(model));
+    const prepared = prepareModelTestRequest({ provider, model, type, thinkingEnabled });
 
     setTestingProvider(provider.id);
     setModelTestMessages((prev) => ({ ...prev, [testKey]: "" }));
@@ -564,6 +571,7 @@ export function SettingsPanel({
         },
         model,
         type,
+        thinkingEnabled,
       });
       setModelTestMessages((prev) => ({
         ...prev,
@@ -1225,7 +1233,7 @@ export function SettingsPanel({
                         Agent 配置
                       </h3>
                       <p className="mt-1 text-sm text-muted-foreground">
-                        按 Toonflow 工作流分类绑定模型；简单模式只会用通用AI兜底文本类任务。
+                        「自动分配」一键为每个 Agent 绑定能力匹配的可用模型。简单模式：文本类任务统一复用「通用AI」模型，无需逐个配置；高级模式：每个 Agent 各自绑定独立模型，便于按任务精细调优（图像 / 视频 / 语音类始终按各自绑定）。
                       </p>
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
@@ -1420,20 +1428,23 @@ export function SettingsPanel({
                             </div>
                           ) : (
                             <div className="overflow-hidden rounded-lg border border-border">
-                              <div className="hidden gap-3 border-b border-border bg-muted/40 px-3 py-2 text-xs font-medium text-muted-foreground md:grid md:grid-cols-[minmax(0,1fr)_96px_minmax(140px,180px)_88px]">
+                              <div className="hidden gap-3 border-b border-border bg-muted/40 px-3 py-2 text-xs font-medium text-muted-foreground md:grid md:grid-cols-[minmax(0,1fr)_88px_minmax(120px,160px)_64px_88px]">
                                 <span>模型名</span>
                                 <span>类型</span>
                                 <span>能力</span>
+                                <span>思考</span>
                                 <span className="text-right">操作</span>
                               </div>
                               <div className="divide-y divide-border">
                                 {selectedProvider.model.map((model) => {
                                   const modelType = inferProviderAdapterModelType(model);
                                   const modelKey = getModelTestKey(selectedProvider.id, model);
+                                  const supportsThinkingModel = modelType === "text" || modelType === "vision";
+                                  const thinkingOn = resolveThinkingEnabled(model, modelThinkingOverrides[model]);
                                   return (
                                     <div
                                       key={modelKey}
-                                      className="grid grid-cols-1 gap-2 px-3 py-3 text-sm md:grid-cols-[minmax(0,1fr)_96px_minmax(140px,180px)_88px] md:items-center md:gap-3 md:py-2"
+                                      className="grid grid-cols-1 gap-2 px-3 py-3 text-sm md:grid-cols-[minmax(0,1fr)_88px_minmax(120px,160px)_64px_88px] md:items-center md:gap-3 md:py-2"
                                     >
                                       <span className="truncate font-mono text-xs text-foreground">{model}</span>
                                       <span className="w-fit rounded bg-primary/10 px-2 py-0.5 text-xs text-primary">
@@ -1442,6 +1453,17 @@ export function SettingsPanel({
                                       <span className="truncate text-xs text-muted-foreground">
                                         {formatModelCapabilities(model)}
                                       </span>
+                                      {supportsThinkingModel ? (
+                                        <Switch
+                                          checked={thinkingOn}
+                                          onCheckedChange={(checked) => setModelThinkingOverride(model, checked)}
+                                          aria-label={`${model} 思考模式`}
+                                          title="开启后，调用该模型时自动启用最高深度思考"
+                                          className="w-fit"
+                                        />
+                                      ) : (
+                                        <span className="text-xs text-muted-foreground">—</span>
+                                      )}
                                       <Button
                                         variant="outline"
                                         size="sm"
@@ -1456,7 +1478,7 @@ export function SettingsPanel({
                                         )}
                                       </Button>
                                       {modelTestMessages[modelKey] && (
-                                        <div className="rounded-md bg-muted px-2 py-1 text-xs text-muted-foreground md:col-span-4">
+                                        <div className="rounded-md bg-muted px-2 py-1 text-xs text-muted-foreground md:col-span-5">
                                           {modelTestMessages[modelKey]}
                                         </div>
                                       )}

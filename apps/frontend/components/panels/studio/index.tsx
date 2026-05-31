@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -65,11 +65,19 @@ import {
   parseEpisodeOutline,
 } from "@/lib/studio/episode-outline";
 import {
+  buildStageMessages,
+  extractPartialContent,
+  getStageSkillContent,
+  parseStageJson,
+  SCRIPT_STAGE_LABEL,
+  type ScriptStageKey,
+} from "@/lib/studio/script-planning";
+import { aiManager } from "@/lib/ai/ai-manager";
+import {
   assignVoicesForCharacters,
   type VoiceAssignment,
 } from "@/lib/studio/voice-assigner";
 import { createMoyinTtsSink, syncCharacterVoices } from "@/lib/studio/voice-sync";
-import { resolveWorkflowDepth } from "@/lib/studio/workflow-depth";
 import {
   buildStudioManualContext,
   buildStudioManualsFromSkillFiles,
@@ -114,6 +122,8 @@ import {
   WandSparkles,
 } from "lucide-react";
 import { toast } from "sonner";
+import { MdEditor, MdPreview } from "md-editor-rt";
+import "md-editor-rt/lib/style.css";
 import { cn } from "@/lib/utils";
 import { ManualEditDialog } from "./ManualEditDialog";
 
@@ -133,12 +143,18 @@ const taskOptions: Array<{ key: AgentWorkKey; label: string }> = [
 
 export const WORKFLOW_TABS = [
   { value: "manuals", label: "风格与导演选择", Icon: BookMarked },
-  { value: "novel", label: "小说库", Icon: BookOpen },
-  { value: "skill", label: "Skill 对话", Icon: WandSparkles },
+  { value: "novel", label: "小说导入", Icon: BookOpen },
   { value: "script", label: "剧本策划", Icon: FileText },
   { value: "storyboard", label: "分镜表", Icon: Split },
   { value: "workbench", label: "剪辑工作台", Icon: Film },
 ];
+
+// Skill 对话暂时从工作流导航屏蔽（功能代码与 TabsContent 保留，未删除）；
+// 恢复：把 { value: "skill", ... } 加回 WORKFLOW_TABS 并从下方集合移除即可。
+const HIDDEN_WORKFLOW_STAGES = new Set(["skill"]);
+function resolveVisibleWorkflowStage(stage?: string): string {
+  return stage && !HIDDEN_WORKFLOW_STAGES.has(stage) ? stage : "manuals";
+}
 
 /** 把导演规划 ScriptPlan 关键维度压成分镜表的节奏/情绪基准文本。 */
 function formatScriptPlanContext(plan: ScriptPlan): string {
@@ -188,14 +204,13 @@ export function StudioView() {
     selectVideoCandidate,
     deleteVideoCandidate,
   } = useStudioStore();
-  const getResolvedAgentModel = useAPIConfigStore((state) => state.getResolvedAgentModel);
   const [novelDraft, setNovelDraft] = useState("");
   const [selectedTask, setSelectedTask] = useState<AgentWorkKey>("scriptDraft");
   const [agentDraft, setAgentDraft] = useState("");
   const [renderingTrackId, setRenderingTrackId] = useState<string | null>(null);
   const [merging, setMerging] = useState(false);
   const [mergeOutput, setMergeOutput] = useState<string | null>(null);
-  const [activeWorkflowTab, setActiveWorkflowTab] = useState(workflowConfig.workflowStage ?? "manuals");
+  const [activeWorkflowTab, setActiveWorkflowTab] = useState(resolveVisibleWorkflowStage(workflowConfig.workflowStage));
   const handleStageChange = useCallback((value: string) => {
     const cfg = useStudioStore.getState().workflowConfig;
     if (value !== "manuals" && (!cfg.visualManualId || !cfg.directorManualId)) {
@@ -207,9 +222,10 @@ export function StudioView() {
   }, [setWorkflowConfig]);
   // 切换项目时，自动恢复到该项目保存的工作流阶段
   useEffect(() => {
-    setActiveWorkflowTab(useStudioStore.getState().workflowConfig.workflowStage ?? "manuals");
+    setActiveWorkflowTab(resolveVisibleWorkflowStage(useStudioStore.getState().workflowConfig.workflowStage));
   }, [activeProject?.id]);
   const [novelHeaderActions, setNovelHeaderActions] = useState<ReactNode>(null);
+  const [scriptHeaderActions, setScriptHeaderActions] = useState<ReactNode>(null);
   const bundledManualCatalog = useMemo<StudioManualCatalog>(() => ({
     visual: listStudioManualPresets("visual"),
     director: listStudioManualPresets("director"),
@@ -294,8 +310,7 @@ export function StudioView() {
       return;
     }
 
-    const resolved = getResolvedAgentModel("eventAnalysisAgent") ?? getResolvedAgentModel("universalAi");
-    if (!resolved) {
+    if (!aiManager.resolve({ agent: "eventAnalysisAgent" }) && !aiManager.resolve({ agent: "universalAi" })) {
       toast.error("未配置事件分析模型，请先到设置的 API 管理中绑定事件分析Agent或通用AI");
       return;
     }
@@ -309,15 +324,14 @@ export function StudioView() {
       });
       const messages = buildNovelEventAnalysisMessages(chapter);
       try {
-        const result = await window.electronAPI.textCompletion({
-          provider: resolved.provider,
-          model: resolved.model,
+        const result = await aiManager.text({
+          binding: { agent: "eventAnalysisAgent" },
           messages: [
             { role: "system", content: messages.system },
             { role: "user", content: messages.user },
           ],
-          temperature: resolved.deployment.temperature ?? 0.2,
-          maxTokens: resolved.deployment.maxOutputTokens ?? 1024,
+          temperature: 0.2,
+          maxTokens: 1024,
         });
         if (!result.success || !result.text) {
           throw new Error(result.error || "事件分析失败");
@@ -351,7 +365,7 @@ export function StudioView() {
     } else {
       toast.success(`事件分析完成，共 ${successCount} 章`);
     }
-  }, [getResolvedAgentModel, saveAgentWorkData, updateNovelChapter]);
+  }, [saveAgentWorkData, updateNovelChapter]);
 
   const handleEntityExtraction = useCallback(async (episodeId = "episode-1") => {
     if (!window.electronAPI?.textCompletion) {
@@ -365,12 +379,6 @@ export function StudioView() {
       ?? store.novelChapters.map((chapter) => chapter.sourceText).join("\n\n");
     if (!scriptText.trim()) {
       toast.error("没有可提取的剧本：请先保存剧本草稿或导入小说正文");
-      return;
-    }
-
-    const resolved = getResolvedAgentModel("entityExtraction") ?? getResolvedAgentModel("universalAi");
-    if (!resolved) {
-      toast.error("未配置实体提取模型，请先到设置的 API 管理中绑定实体提取Agent或通用AI");
       return;
     }
 
@@ -397,15 +405,14 @@ export function StudioView() {
 
     const messages = buildEntityExtractionMessages({ episodeId, scriptText, knownEntities });
     try {
-      const result = await window.electronAPI.textCompletion({
-        provider: resolved.provider,
-        model: resolved.model,
+      const result = await aiManager.text({
+        binding: { agent: "entityExtraction" },
         messages: [
           { role: "system", content: messages.system },
           { role: "user", content: messages.user },
         ],
-        temperature: resolved.deployment.temperature ?? 0.2,
-        maxTokens: resolved.deployment.maxOutputTokens ?? 2048,
+        temperature: 0.2,
+        maxTokens: 2048,
       });
       if (!result.success || !result.text) {
         throw new Error(result.error || "实体提取失败");
@@ -439,7 +446,7 @@ export function StudioView() {
     } catch (error) {
       toast.error(error instanceof Error ? error.message : String(error));
     }
-  }, [activeProject?.id, getResolvedAgentModel, projectName, saveEntityExtraction]);
+  }, [activeProject?.id, projectName, saveEntityExtraction]);
 
   const handleDirectorPlan = useCallback(async (episodeId = "episode-1") => {
     if (!window.electronAPI?.textCompletion) {
@@ -456,25 +463,17 @@ export function StudioView() {
       return;
     }
 
-    const resolved =
-      getResolvedAgentModel("productionAgent:directorPlanAgent") ?? getResolvedAgentModel("universalAi");
-    if (!resolved) {
-      toast.error("未配置导演规划模型，请先到设置的 API 管理中绑定导演规划Agent或通用AI");
-      return;
-    }
-
     const manualContext = buildStudioManualContext(store.workflowConfig, manualCatalog);
     const messages = buildDirectorPlanMessages({ episodeId, scriptText, manualContext });
     try {
-      const result = await window.electronAPI.textCompletion({
-        provider: resolved.provider,
-        model: resolved.model,
+      const result = await aiManager.text({
+        binding: { agent: "productionAgent:directorPlanAgent" },
         messages: [
           { role: "system", content: messages.system },
           { role: "user", content: messages.user },
         ],
-        temperature: resolved.deployment.temperature ?? 0.4,
-        maxTokens: resolved.deployment.maxOutputTokens ?? 4096,
+        temperature: 0.4,
+        maxTokens: 4096,
       });
       if (!result.success || !result.text) {
         throw new Error(result.error || "导演规划失败");
@@ -492,7 +491,7 @@ export function StudioView() {
     } catch (error) {
       toast.error(error instanceof Error ? error.message : String(error));
     }
-  }, [getResolvedAgentModel, manualCatalog, saveScriptPlan]);
+  }, [manualCatalog, saveScriptPlan]);
 
   const handleDeriveAssets = useCallback((episodeId = "episode-1") => {
     const store = useStudioStore.getState();
@@ -551,26 +550,18 @@ export function StudioView() {
       return;
     }
 
-    const resolved =
-      getResolvedAgentModel("productionAgent:storyboardTableAgent") ?? getResolvedAgentModel("universalAi");
-    if (!resolved) {
-      toast.error("未配置分镜表模型，请先到设置的 API 管理中绑定分镜表Agent或通用AI");
-      return;
-    }
-
     const plan = store.scriptPlans.find((item) => item.episodeId === episodeId);
     const scriptPlanContext = plan ? formatScriptPlanContext(plan) : undefined;
     const messages = buildStoryboardTableMessages({ episodeId, scriptText, scriptPlanContext });
     try {
-      const result = await window.electronAPI.textCompletion({
-        provider: resolved.provider,
-        model: resolved.model,
+      const result = await aiManager.text({
+        binding: { agent: "productionAgent:storyboardTableAgent" },
         messages: [
           { role: "system", content: messages.system },
           { role: "user", content: messages.user },
         ],
-        temperature: resolved.deployment.temperature ?? 0.4,
-        maxTokens: resolved.deployment.maxOutputTokens ?? 4096,
+        temperature: 0.4,
+        maxTokens: 4096,
       });
       if (!result.success || !result.text) {
         throw new Error(result.error || "分镜表生成失败");
@@ -600,7 +591,7 @@ export function StudioView() {
     } catch (error) {
       toast.error(error instanceof Error ? error.message : String(error));
     }
-  }, [getResolvedAgentModel, addStoryboard, updateStoryboard]);
+  }, [addStoryboard, updateStoryboard]);
 
   const handleEpisodeOutline = useCallback(async (episodeId = "episode-1") => {
     if (!window.electronAPI?.textCompletion) {
@@ -618,24 +609,16 @@ export function StudioView() {
       return;
     }
 
-    const resolved =
-      getResolvedAgentModel("episodeOutline") ?? getResolvedAgentModel("universalAi");
-    if (!resolved) {
-      toast.error("未配置分集细纲模型，请先到设置的 API 管理中绑定分集细纲Agent或通用AI");
-      return;
-    }
-
     const messages = buildEpisodeOutlineMessages({ episodeId, skeletonContext, strategyContext });
     try {
-      const result = await window.electronAPI.textCompletion({
-        provider: resolved.provider,
-        model: resolved.model,
+      const result = await aiManager.text({
+        binding: { agent: "episodeOutline" },
         messages: [
           { role: "system", content: messages.system },
           { role: "user", content: messages.user },
         ],
-        temperature: resolved.deployment.temperature ?? 0.5,
-        maxTokens: resolved.deployment.maxOutputTokens ?? 4096,
+        temperature: 0.5,
+        maxTokens: 4096,
       });
       if (!result.success || !result.text) {
         throw new Error(result.error || "分集细纲生成失败");
@@ -657,7 +640,7 @@ export function StudioView() {
     } catch (error) {
       toast.error(error instanceof Error ? error.message : String(error));
     }
-  }, [getResolvedAgentModel, saveEpisodeOutline]);
+  }, [saveEpisodeOutline]);
 
   const handleAssignVoices = useCallback(() => {
     const projectId = activeProject?.id;
@@ -726,6 +709,100 @@ export function StudioView() {
       `剧集圣经已锁定（角色 ${bible.characterLocks.length} / 场景 ${bible.sceneLocks.length}，画幅 ${bible.aspectRatio}）`,
     );
   }, [activeProject?.id, saveSeriesBible]);
+
+  const scriptManualContext = useMemo(
+    () => buildStudioManualContext(workflowConfig, manualCatalog),
+    [workflowConfig, manualCatalog],
+  );
+
+  const scriptStyleSummary = useMemo(() => {
+    const v = manualCatalog.visual?.find((p) => p.id === workflowConfig.visualManualId)?.name;
+    const d = manualCatalog.director?.find((p) => p.id === workflowConfig.directorManualId)?.name;
+    return [v ? `视觉风格：${v}` : "", d ? `导演风格：${d}` : "", workflowConfig.platformSpec ? `画幅：${workflowConfig.platformSpec}` : ""].filter(Boolean).join(" · ");
+  }, [manualCatalog, workflowConfig.visualManualId, workflowConfig.directorManualId, workflowConfig.platformSpec]);
+
+  const latestScriptStage = useCallback(
+    (key: AgentWorkKey, scopeId: string) =>
+      [...agentWorkData].reverse().find((item) => item.key === key && item.episodeId === scopeId)?.data ?? "",
+    [agentWorkData],
+  );
+
+  const [scriptStreaming, setScriptStreaming] = useState<{ key: AgentWorkKey; scopeId: string; text: string } | null>(null);
+
+  const runScriptStage = useCallback(
+    async (opts: {
+      agentKey: "storySkeletonAgent" | "adaptationStrategyAgent" | "scriptDraft";
+      messages: { system: string; user: string };
+      stageKey: AgentWorkKey;
+      scopeId: string;
+      label: string;
+    }) => {
+      setScriptStreaming({ key: opts.stageKey, scopeId: opts.scopeId, text: "" });
+      const result = await aiManager.textStream(
+        {
+          binding: { agent: opts.agentKey },
+          messages: [
+            { role: "system", content: opts.messages.system },
+            { role: "user", content: opts.messages.user },
+          ],
+        },
+        (delta) =>
+          setScriptStreaming((s) =>
+            s && s.key === opts.stageKey && s.scopeId === opts.scopeId ? { ...s, text: s.text + delta } : s,
+          ),
+      );
+      setScriptStreaming(null);
+      if (!result.success || !result.text) {
+        toast.error(result.error || `${opts.label}生成失败`);
+        return;
+      }
+      saveAgentWorkData(opts.stageKey, parseStageJson(result.text), opts.scopeId);
+      toast.success(`${opts.label}已生成`);
+    },
+    [saveAgentWorkData],
+  );
+
+  const handleScriptStage = useCallback(
+    (stage: ScriptStageKey, chapter: NovelChapter, userOverride?: string) => {
+      const skeleton = latestScriptStage("storySkeleton", chapter.id);
+      const strategy = latestScriptStage("adaptationStrategy", chapter.id);
+      const scriptDraft = latestScriptStage("scriptDraft", chapter.id);
+      if (stage === "adaptationStrategy" && !skeleton) {
+        toast.error("请先生成故事骨架");
+        return;
+      }
+      if (stage === "scriptDraft" && (!skeleton || !strategy)) {
+        toast.error("请先生成故事骨架与改编策略");
+        return;
+      }
+      if (stage === "supervisionReport" && !scriptDraft) {
+        toast.error("请先生成剧本");
+        return;
+      }
+      const built = buildStageMessages(stage, {
+        manualContext: scriptManualContext,
+        chapterTitle: chapter.title,
+        chapterText: chapter.sourceText,
+        eventState: chapter.eventState,
+        skeleton,
+        strategy,
+        scriptDraft,
+      });
+      return runScriptStage({
+        agentKey:
+          stage === "storySkeleton"
+            ? "storySkeletonAgent"
+            : stage === "adaptationStrategy"
+              ? "adaptationStrategyAgent"
+              : "scriptDraft",
+        messages: { system: built.system, user: userOverride || built.user },
+        stageKey: stage,
+        scopeId: chapter.id,
+        label: SCRIPT_STAGE_LABEL[stage],
+      });
+    },
+    [runScriptStage, latestScriptStage, scriptManualContext],
+  );
 
   const handleMaterialFiles = async (files?: FileList | null) => {
     if (!files?.length) return;
@@ -809,7 +886,7 @@ export function StudioView() {
         <div className="border-b border-border bg-panel px-6 py-3">
           <div className="flex items-center justify-between gap-4">
             <div className="min-w-0 flex-1">
-              {activeWorkflowTab === "novel" ? novelHeaderActions : null}
+              {activeWorkflowTab === "novel" ? novelHeaderActions : activeWorkflowTab === "script" ? scriptHeaderActions : null}
             </div>
             <Select value={activeWorkflowTab} onValueChange={handleStageChange}>
               <SelectTrigger className="h-10 w-[220px] gap-2 border-primary/40">
@@ -882,12 +959,14 @@ export function StudioView() {
 
             <TabsContent value="script" className="m-0">
               <ScriptTab
+                novelChapters={novelChapters}
                 agentWorkData={agentWorkData}
-                agentDraft={agentDraft}
-                setAgentDraft={setAgentDraft}
-                handleSaveAgentWork={handleSaveAgentWork}
-                selectedTask={selectedTask}
-                setSelectedTask={setSelectedTask}
+                saveAgentWorkData={saveAgentWorkData}
+                runStage={handleScriptStage}
+                manualContext={scriptManualContext}
+                styleSummary={scriptStyleSummary}
+                setHeaderActions={setScriptHeaderActions}
+                scriptStreaming={scriptStreaming}
               />
             </TabsContent>
 
@@ -1023,7 +1102,7 @@ export function NovelTab(props: {
     props.setNovelDraft("");
     setImportSourceName("");
     setImportOpen(false);
-    toast.success(importMode === "replace" ? "小说库已覆盖导入" : "小说章节已追加导入");
+    toast.success(importMode === "replace" ? "小说章节已覆盖导入" : "小说章节已追加导入");
   };
 
   const toggleChapter = (id: string, checked: boolean) => {
@@ -1235,7 +1314,7 @@ export function NovelTab(props: {
             </Label>
             <div className="flex gap-2">
               <Button variant={importMode === "append" ? "default" : "secondary"} onClick={() => setImportMode("append")}>追加导入</Button>
-              <Button variant={importMode === "replace" ? "default" : "secondary"} onClick={() => setImportMode("replace")}>覆盖小说库</Button>
+              <Button variant={importMode === "replace" ? "default" : "secondary"} onClick={() => setImportMode("replace")}>覆盖导入</Button>
             </div>
             <Textarea
               value={props.novelDraft}
@@ -1291,36 +1370,6 @@ export function NovelTab(props: {
   );
 }
 
-function WorkflowDepthHint(props: { workflowConfig: StudioWorkflowConfig }) {
-  const depth = resolveWorkflowDepth({
-    episodeCount: props.workflowConfig.episodeCount,
-    episodeDurationMin: props.workflowConfig.episodeDurationMin,
-  });
-  const labelOf = (key: AgentWorkKey) =>
-    taskOptions.find((item) => item.key === key)?.label
-    ?? (key === "eventAnalysis" ? "事件分析" : key);
-
-  return (
-    <div className="space-y-1 rounded-md border border-border bg-muted/30 p-2">
-      <div className="flex items-center gap-2">
-        <Label className="text-xs text-muted-foreground">推荐链路</Label>
-        <Badge variant={depth.mode === "deep" ? "default" : "secondary"}>
-          {depth.mode === "deep" ? "深链" : "扁平"}
-        </Badge>
-      </div>
-      <p className="text-[11px] leading-relaxed text-muted-foreground">{depth.reason}</p>
-      <div className="flex flex-wrap items-center gap-1 text-[11px]">
-        {depth.stages.map((stage, idx) => (
-          <span key={stage} className="flex items-center gap-1">
-            {idx > 0 && <span className="text-muted-foreground">→</span>}
-            <span className="rounded bg-background px-1.5 py-0.5">{labelOf(stage)}</span>
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 function ManualsTab(props: {
   workflowConfig: StudioWorkflowConfig;
   setWorkflowConfig: (updates: Partial<StudioWorkflowConfig>) => void;
@@ -1351,7 +1400,6 @@ function ManualsTab(props: {
             <Label className="text-xs text-muted-foreground">集数</Label>
             <Input type="number" min={1} value={props.workflowConfig.episodeCount ?? ""} onChange={(e) => props.setWorkflowConfig({ episodeCount: e.target.value ? Number(e.target.value) : undefined })} className="h-8" placeholder="例如 12" />
           </div>
-          <WorkflowDepthHint workflowConfig={props.workflowConfig} />
           <div className="space-y-1">
             <Label className="text-xs text-muted-foreground">小说类型</Label>
             <Input value={props.workflowConfig.novelGenre ?? ""} onChange={(e) => props.setWorkflowConfig({ novelGenre: e.target.value || undefined })} className="h-8" placeholder="例如 玄幻、科幻、言情" />
@@ -1509,7 +1557,7 @@ function SkillTab(props: {
         <CardContent className="space-y-3">
           <Label>任务类型</Label>
           <select className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm" value={props.selectedTask} onChange={(event) => props.setSelectedTask(event.target.value as AgentWorkKey)}>
-            {taskOptions.map((item) => <option key={item.key} value={item.key}>{item.label}</option>)}
+            {taskOptions.filter((item) => item.key !== "eventAnalysis").map((item) => <option key={item.key} value={item.key}>{item.label}</option>)}
           </select>
           <Button onClick={props.handleBuildContext} className="w-full">
             <WandSparkles className="h-4 w-4" />
@@ -1808,40 +1856,199 @@ function VoiceAssignPreview(props: { voiceAssignments: VoiceAssignment[] }) {
 }
 
 function ScriptTab(props: {
+  novelChapters: ReturnType<typeof useStudioStore.getState>["novelChapters"];
   agentWorkData: ReturnType<typeof useStudioStore.getState>["agentWorkData"];
-  agentDraft: string;
-  setAgentDraft: (value: string) => void;
-  handleSaveAgentWork: () => void;
-  selectedTask: AgentWorkKey;
-  setSelectedTask: (value: AgentWorkKey) => void;
+  saveAgentWorkData: ReturnType<typeof useStudioStore.getState>["saveAgentWorkData"];
+  runStage: (stage: ScriptStageKey, chapter: NovelChapter, userOverride?: string) => void;
+  manualContext: string;
+  styleSummary: string;
+  setHeaderActions: (actions: ReactNode) => void;
+  scriptStreaming: { key: AgentWorkKey; scopeId: string; text: string } | null;
 }) {
-  const drafts = props.agentWorkData.filter((item) => item.key === "scriptDraft");
+  const SCRIPT_STAGES: ScriptStageKey[] = ["storySkeleton", "adaptationStrategy", "scriptDraft", "supervisionReport"];
+  const PREREQ: Partial<Record<ScriptStageKey, ScriptStageKey>> = {
+    adaptationStrategy: "storySkeleton",
+    scriptDraft: "adaptationStrategy",
+    supervisionReport: "scriptDraft",
+  };
+
+  const [chapterId, setChapterId] = useState(props.novelChapters[0]?.id ?? "");
+  const [activeStage, setActiveStage] = useState<ScriptStageKey>("storySkeleton");
+  const [editor, setEditor] = useState<{ target: "output" | "context"; value: string } | null>(null);
+  const [userDraft, setUserDraft] = useState<string | undefined>(undefined);
+  useEffect(() => {
+    setEditor(null);
+    setUserDraft(undefined);
+  }, [chapterId, activeStage]);
+
+  const chapter = props.novelChapters.find((item) => item.id === chapterId) ?? props.novelChapters[0];
+  const stageData = (key: ScriptStageKey) =>
+    chapter ? [...props.agentWorkData].reverse().find((item) => item.key === key && item.episodeId === chapter.id) : undefined;
+
+  const setHeaderActions = props.setHeaderActions;
+  useEffect(() => {
+    if (!props.novelChapters.length) {
+      setHeaderActions(null);
+      return;
+    }
+    setHeaderActions(
+      <div className="flex flex-wrap items-center gap-3">
+        <Label className="text-sm">章节（1 章 = 1 集）</Label>
+        <select
+          className="h-9 min-w-[280px] rounded-md border border-input bg-background px-3 text-sm"
+          value={chapterId || props.novelChapters[0]?.id || ""}
+          onChange={(event) => setChapterId(event.target.value)}
+        >
+          {props.novelChapters.map((item) => (
+            <option key={item.id} value={item.id}>{item.index}. {item.title}</option>
+          ))}
+        </select>
+      </div>,
+    );
+    return () => setHeaderActions(null);
+  }, [setHeaderActions, props.novelChapters, chapterId]);
+
+  const streamingText =
+    props.scriptStreaming && props.scriptStreaming.key === activeStage && props.scriptStreaming.scopeId === (chapter?.id ?? "")
+      ? props.scriptStreaming.text
+      : null;
+  const isStreaming = streamingText !== null;
+  const streamRef = useRef("");
+  streamRef.current = streamingText ?? "";
+  const [liveMd, setLiveMd] = useState("");
+  useEffect(() => {
+    if (!isStreaming) {
+      setLiveMd("");
+      return;
+    }
+    setLiveMd(extractPartialContent(streamRef.current));
+    const id = setInterval(() => setLiveMd(extractPartialContent(streamRef.current)), 300);
+    return () => clearInterval(id);
+  }, [isStreaming]);
+  const livePreview = useMemo(() => <MdPreview modelValue={liveMd} theme="dark" language="zh-CN" />, [liveMd]);
+
+  if (!props.novelChapters.length) {
+    return <div className="p-6 text-sm text-muted-foreground">请先在「小说导入」导入章节（建议先做事件分析），再来这里逐章生成剧本。</div>;
+  }
+
+  const prereq = PREREQ[activeStage];
+  const hasPrereq = !prereq || Boolean(stageData(prereq));
+  const data = stageData(activeStage);
+  const output = data?.data ?? "";
+  const messages = chapter
+    ? buildStageMessages(activeStage, {
+        manualContext: props.manualContext,
+        chapterTitle: chapter.title,
+        chapterText: chapter.sourceText,
+        eventState: chapter.eventState,
+        skeleton: stageData("storySkeleton")?.data,
+        strategy: stageData("adaptationStrategy")?.data,
+        scriptDraft: stageData("scriptDraft")?.data,
+      })
+    : { system: "", user: "" };
+  const skill = getStageSkillContent(activeStage);
+  const sentSummary = [
+    props.styleSummary,
+    chapter ? `章节：${chapter.title}` : "",
+    chapter?.eventState ? "事件分析" : "",
+    activeStage !== "storySkeleton" && stageData("storySkeleton") ? "故事骨架" : "",
+    (activeStage === "scriptDraft" || activeStage === "supervisionReport") && stageData("adaptationStrategy") ? "改编策略" : "",
+    activeStage === "supervisionReport" && stageData("scriptDraft") ? "剧本" : "",
+    activeStage === "storySkeleton" || activeStage === "scriptDraft" ? "本章正文" : "",
+  ].filter(Boolean).join(" · ");
+
   return (
-    <div className="grid grid-cols-[minmax(360px,520px)_1fr] gap-4">
-      <Card className="rounded-lg">
-        <CardHeader>
-          <CardTitle className="text-sm">剧本草稿</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <Button variant={props.selectedTask === "scriptDraft" ? "default" : "secondary"} onClick={() => props.setSelectedTask("scriptDraft")}>切到剧本任务</Button>
-          <Textarea value={props.agentDraft} onChange={(event) => props.setAgentDraft(event.target.value)} className="min-h-[420px]" placeholder="这里先保存人工剧本草稿，后续接模型后由 scriptAgent 写入" />
-          <Button onClick={props.handleSaveAgentWork}>
-            <FileText className="h-4 w-4" />
-            保存剧本草稿
-          </Button>
-        </CardContent>
-      </Card>
-      <div className="space-y-3">
-        {drafts.map((draft) => (
-          <Card key={draft.id} className="rounded-lg">
-            <CardHeader className="py-4">
-              <CardTitle className="text-sm">剧本记录</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <pre className="whitespace-pre-wrap rounded-md bg-muted p-3 text-xs">{draft.data}</pre>
-            </CardContent>
-          </Card>
+    <div className="space-y-4">
+      <div className="flex gap-1 border-b border-border">
+        {SCRIPT_STAGES.map((stage) => (
+          <button
+            key={stage}
+            type="button"
+            onClick={() => setActiveStage(stage)}
+            className={`px-4 py-2 text-sm ${activeStage === stage ? "border-b-2 border-primary font-medium text-primary" : "text-muted-foreground"}`}
+          >
+            {SCRIPT_STAGE_LABEL[stage]}{stageData(stage) ? " ✓" : ""}
+          </button>
         ))}
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <div className="space-y-2">
+          <details className="rounded-md border border-border p-2 text-xs" open>
+            <summary className="cursor-pointer font-medium">事件（本章）</summary>
+            <pre className="mt-2 h-40 min-h-[80px] resize-y overflow-auto whitespace-pre-wrap leading-5">{[`章节：${chapter?.title ?? ""}`, chapter?.eventSummary ? `事件摘要：${chapter.eventSummary}` : "", chapter?.eventState ? `事件状态：\n${chapter.eventState}` : ""].filter(Boolean).join("\n\n")}</pre>
+          </details>
+          <details className="rounded-md border border-border p-2 text-xs">
+            <summary className="cursor-pointer font-medium">Skill 手册</summary>
+            <pre className="mt-2 h-40 min-h-[80px] resize-y overflow-auto whitespace-pre-wrap leading-5">{skill || "（未找到该阶段 skill 手册）"}</pre>
+          </details>
+          <details className="rounded-md border border-border p-2 text-xs">
+            <summary className="cursor-pointer font-medium">发送内容（上下文）</summary>
+            <div className="mt-2 flex items-start justify-between gap-2">
+              <p className="text-muted-foreground">含：{sentSummary}</p>
+              <Button size="sm" variant="secondary" className="shrink-0" onClick={() => setEditor({ target: "context", value: userDraft ?? messages.user })}>
+                <Edit3 className="h-4 w-4" />
+                可编辑
+              </Button>
+            </div>
+            <pre className="mt-2 h-40 min-h-[80px] resize-y overflow-auto whitespace-pre-wrap leading-5">{userDraft ?? messages.user}</pre>
+          </details>
+          <Button className="w-full" disabled={!chapter || !hasPrereq || streamingText !== null} onClick={() => chapter && props.runStage(activeStage, chapter, userDraft)}>
+            <WandSparkles className="h-4 w-4" />
+            {streamingText !== null ? "生成中…" : `一键生成${SCRIPT_STAGE_LABEL[activeStage]}`}
+          </Button>
+          {!hasPrereq && prereq ? (
+            <p className="text-xs text-muted-foreground">请先完成「{SCRIPT_STAGE_LABEL[prereq]}」</p>
+          ) : null}
+        </div>
+
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label className="text-sm">输出结果</Label>
+            <div className="flex items-center gap-2">
+              {data ? <Badge variant="outline">已生成</Badge> : <Badge variant="secondary">未生成</Badge>}
+              <Button size="sm" variant="secondary" disabled={!output} onClick={() => setEditor({ target: "output", value: output })}>
+                <Edit3 className="h-4 w-4" />
+                可编辑
+              </Button>
+            </div>
+          </div>
+          <div className="min-h-[460px] rounded-md border border-border p-3 text-sm">
+            {streamingText !== null ? (
+              liveMd ? livePreview : <p className="text-muted-foreground">生成中…</p>
+            ) : output ? (
+              <MdPreview modelValue={output} theme="dark" language="zh-CN" />
+            ) : (
+              <p className="text-muted-foreground">{hasPrereq ? "点左侧「一键生成」由 AI 产出" : "请先完成前置阶段"}</p>
+            )}
+          </div>
+          <Dialog open={!!editor} onOpenChange={(open) => !open && setEditor(null)}>
+            <DialogContent className="flex h-[88vh] max-w-[92vw] flex-col gap-3 sm:max-w-[92vw]">
+              <DialogHeader>
+                <DialogTitle>编辑 · {editor?.target === "context" ? "发送内容" : SCRIPT_STAGE_LABEL[activeStage]}</DialogTitle>
+              </DialogHeader>
+              <div className="min-h-0 flex-1">
+                <MdEditor modelValue={editor?.value ?? ""} onChange={(value) => setEditor((prev) => (prev ? { ...prev, value } : prev))} theme="dark" language="zh-CN" style={{ height: "100%" }} />
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setEditor(null)}>取消</Button>
+                <Button
+                  onClick={() => {
+                    if (!editor) return;
+                    if (editor.target === "output") {
+                      if (chapter) props.saveAgentWorkData(activeStage, editor.value, chapter.id);
+                    } else {
+                      setUserDraft(editor.value);
+                    }
+                    setEditor(null);
+                  }}
+                >
+                  保存
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
     </div>
   );

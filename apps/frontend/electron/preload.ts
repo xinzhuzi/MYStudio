@@ -1,7 +1,7 @@
 // Copyright (c) 2025 hotflow2024
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
-import { ipcRenderer, contextBridge } from 'electron'
+import { ipcRenderer, contextBridge, type IpcRendererEvent } from 'electron'
 import type { ModelTestRequest, ModelTestResult } from '../lib/api-manager/model-test'
 import type { TextCompletionRequest, TextCompletionResult } from '../lib/api-manager/text-completion'
 import type { StudioVisualManualCreatePayload, StudioVisualManualImagesWritePayload, StudioVisualManualWritePayload } from '../types/studio-visual-manual'
@@ -112,6 +112,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openDevTools: () => ipcRenderer.invoke('app-devtools-open'),
   testModel: (payload: ModelTestRequest): Promise<ModelTestResult> => ipcRenderer.invoke('api-model-test', payload),
   textCompletion: (payload: TextCompletionRequest): Promise<TextCompletionResult> => ipcRenderer.invoke('api-text-completion', payload),
+  textCompletionStream: (payload: TextCompletionRequest, onChunk: (delta: string) => void): Promise<TextCompletionResult> => {
+    const streamId = `${Date.now()}-${Math.random().toString(36).slice(2)}`
+    const channel = `api-text-stream:${streamId}`
+    const listener = (_event: IpcRendererEvent, delta: string) => onChunk(delta)
+    ipcRenderer.on(channel, listener)
+    return ipcRenderer.invoke('api-text-completion-stream', { payload, streamId }).finally(() => {
+      ipcRenderer.removeListener(channel, listener)
+    })
+  },
 })
 
 contextBridge.exposeInMainWorld('appUpdater', {

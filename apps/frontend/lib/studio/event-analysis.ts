@@ -88,6 +88,7 @@ export function formatNovelEventSummary(analysis: NovelEventAnalysis): string {
 
 export function formatNovelEventState(analysis: NovelEventAnalysis): string {
   return [
+    `涉及角色：${analysis.characters.join("、") || "未标注"}`,
     `主线关系：${analysis.mainlineRelation}`,
     `信息密度：${analysis.informationDensity}`,
     `预估集长：${analysis.estimatedDurationSec}秒`,

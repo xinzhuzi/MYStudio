@@ -134,6 +134,7 @@ declare global {
       openDevTools: () => Promise<{ success: boolean; error?: string }>;
       testModel: (payload: ModelTestRequest) => Promise<ModelTestResult>;
       textCompletion: (payload: TextCompletionRequest) => Promise<TextCompletionResult>;
+      textCompletionStream: (payload: TextCompletionRequest, onChunk: (delta: string) => void) => Promise<TextCompletionResult>;
     };
     appUpdater?: {
       getCurrentVersion: () => Promise<string>;

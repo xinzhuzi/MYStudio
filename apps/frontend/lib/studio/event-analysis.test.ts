@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildNovelEventAnalysisMessages,
+  formatNovelEventState,
   parseNovelEventAnalysisLine,
 } from "./event-analysis";
 
@@ -37,5 +38,21 @@ describe("studio novel event analysis", () => {
     expect(messages.user).toContain("小说章节数：1");
     expect(messages.user).toContain("小说章节名称：第1章 雨夜");
     expect(messages.user).toContain("王离在雨夜进城");
+  });
+
+  it("formats event state with 涉及角色 first line", () => {
+    const state = formatNovelEventState({
+      chapterLabel: "第1章",
+      characters: ["独孤剑尘", "晏燎", "李先生"],
+      coreEvent: "x",
+      mainlineRelation: "强（传承启动）",
+      informationDensity: "高",
+      estimatedDurationSec: 60,
+      emotionTags: ["冲突", "悬疑"],
+      rawLine: "",
+    });
+    expect(state).toContain("涉及角色：独孤剑尘、晏燎、李先生");
+    expect(state).toContain("主线关系：强（传承启动）");
+    expect(state).toContain("预估集长：60秒");
   });
 });

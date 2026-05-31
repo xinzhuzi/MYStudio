@@ -117,6 +117,96 @@ describe("prepareModelTestRequest", () => {
     );
   });
 
+  it("auto-enables highest thinking for reasoning models with a raised token budget", () => {
+    const prepared = prepareModelTestRequest({
+      provider: {
+        id: "provider-1",
+        platform: "custom",
+        name: "Relay",
+        baseUrl: "https://relay.example.com/v1",
+        apiKey: "sk-test",
+        model: ["glm-4.6"],
+      },
+      model: "glm-4.6",
+      type: "text",
+    });
+    if (!prepared.success || prepared.dryRun) {
+      throw new Error("expected prepared text request");
+    }
+    const openai = prepared.attempts[0].body as { thinking?: unknown; max_tokens?: number };
+    expect(openai.thinking).toEqual({ type: "enabled" });
+    expect(openai.max_tokens).toBeGreaterThanOrEqual(1024);
+  });
+
+  it("leaves non-reasoning model tests without thinking params", () => {
+    const prepared = prepareModelTestRequest({
+      provider: {
+        id: "provider-1",
+        platform: "custom",
+        name: "Relay",
+        baseUrl: "https://relay.example.com/v1",
+        apiKey: "sk-test",
+        model: ["gpt-4o-mini"],
+      },
+      model: "gpt-4o-mini",
+      type: "text",
+    });
+    if (!prepared.success || prepared.dryRun) {
+      throw new Error("expected prepared text request");
+    }
+    const openai = prepared.attempts[0].body as Record<string, unknown>;
+    expect(openai.thinking).toBeUndefined();
+    expect(openai.reasoning_effort).toBeUndefined();
+    expect(openai.enable_thinking).toBeUndefined();
+    expect(openai.max_tokens).toBe(32);
+  });
+
+  it("forces thinking on when the request explicitly enables it for an unrecognized model", () => {
+    const prepared = prepareModelTestRequest({
+      provider: {
+        id: "provider-1",
+        platform: "custom",
+        name: "Relay",
+        baseUrl: "https://relay.example.com/v1",
+        apiKey: "sk-test",
+        model: ["house-llm-7b"],
+      },
+      model: "house-llm-7b",
+      type: "text",
+      thinkingEnabled: true,
+    });
+    if (!prepared.success || prepared.dryRun) {
+      throw new Error("expected prepared text request");
+    }
+    const openai = prepared.attempts[0].body as { thinking?: unknown; max_tokens?: number };
+    expect(openai.thinking).toEqual({ type: "enabled" });
+    expect(openai.max_tokens).toBeGreaterThanOrEqual(1024);
+  });
+
+  it("forces thinking off when the request explicitly disables it for a reasoning model", () => {
+    const prepared = prepareModelTestRequest({
+      provider: {
+        id: "provider-1",
+        platform: "custom",
+        name: "Relay",
+        baseUrl: "https://relay.example.com/v1",
+        apiKey: "sk-test",
+        model: ["glm-4.6"],
+      },
+      model: "glm-4.6",
+      type: "text",
+      thinkingEnabled: false,
+    });
+    if (!prepared.success || prepared.dryRun) {
+      throw new Error("expected prepared text request");
+    }
+    const openai = prepared.attempts[0].body as Record<string, unknown>;
+    expect(openai.thinking).toBeUndefined();
+    expect(openai.reasoning_effort).toBeUndefined();
+    expect(openai.enable_thinking).toBeUndefined();
+    expect(openai.max_tokens).toBe(32);
+  });
+
   it("dry-runs non-text model tests in V1", () => {
     expect(prepareModelTestRequest({
       provider: {

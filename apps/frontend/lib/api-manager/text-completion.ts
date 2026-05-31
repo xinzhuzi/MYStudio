@@ -282,3 +282,88 @@ function parseTextCompletionSuccess(protocol: ModelTestProtocol, text: string): 
   }
   return data.choices?.[0]?.message?.content?.trim();
 }
+
+/**
+ * 流式文本补全（OpenAI 兼容 SSE）。每收到一段增量调用 onDelta；返回完整文本。
+ * 非 OpenAI 兼容协议（anthropic/gemini）回退到一次性，并把整段作为一个增量回调。
+ */
+export async function runTextCompletionStreamRequest(
+  payload: TextCompletionRequest,
+  onDelta: (delta: string) => void,
+  fetcher: TextCompletionFetch = fetch,
+  timeoutMs = 120000,
+): Promise<TextCompletionResult> {
+  if (payload.provider.apiProtocol && payload.provider.apiProtocol !== "openai-compatible") {
+    const result = await runTextCompletionRequest(payload, fetcher, timeoutMs);
+    if (result.success && result.text) onDelta(result.text);
+    return result;
+  }
+
+  const keys = parseApiKeys(payload.provider.apiKey);
+  if (keys.length === 0) return { success: false, error: "缺少 API Key" };
+  const baseUrl = payload.provider.baseUrl?.trim();
+  if (!baseUrl) return { success: false, error: "缺少 Base URL" };
+  const model = payload.model?.trim();
+  if (!model) return { success: false, error: "缺少模型" };
+  const messages = payload.messages.filter((message) => message.content.trim());
+  if (!messages.length) return { success: false, error: "缺少消息内容" };
+
+  const endpoint = buildOpenAICompatibleEndpoint(baseUrl, "chat/completions");
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const startedAt = Date.now();
+  try {
+    const response = await fetcher(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${keys[0]!}` },
+      body: JSON.stringify({
+        model,
+        messages,
+        max_tokens: payload.maxTokens ?? 2048,
+        temperature: payload.temperature ?? 0.2,
+        stream: true,
+      }),
+      signal: controller.signal,
+    });
+    if (!response.ok) {
+      const errText = await response.text();
+      return { success: false, status: response.status, error: `文本模型调用失败 (${response.status}) ${errText.slice(0, 240)}` };
+    }
+    const body = response.body as ReadableStream<Uint8Array> | null;
+    if (!body) return { success: false, error: "模型响应缺少数据流" };
+
+    const reader = body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let full = "";
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed.startsWith("data:")) continue;
+        const data = trimmed.slice(5).trim();
+        if (!data || data === "[DONE]") continue;
+        try {
+          const json = JSON.parse(data) as { choices?: Array<{ delta?: { content?: string } }> };
+          const delta = json.choices?.[0]?.delta?.content;
+          if (typeof delta === "string" && delta) {
+            full += delta;
+            onDelta(delta);
+          }
+        } catch {
+          // 跳过不完整/非 JSON 片段
+        }
+      }
+    }
+    if (!full.trim()) return { success: false, status: response.status, error: "模型响应中缺少文本内容" };
+    return { success: true, text: full, status: response.status, elapsedMs: Date.now() - startedAt };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : String(error), elapsedMs: Date.now() - startedAt };
+  } finally {
+    clearTimeout(timer);
+  }
+}

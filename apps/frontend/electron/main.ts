@@ -38,7 +38,7 @@ import {
 } from './studio-runtime-assets'
 import * as assetsStorage from './studio-assets-storage'
 import { runModelTestRequest, type ModelTestRequest, type ModelTestResult } from '../lib/api-manager/model-test'
-import { runTextCompletionRequest, type TextCompletionRequest, type TextCompletionResult } from '../lib/api-manager/text-completion'
+import { runTextCompletionRequest, runTextCompletionStreamRequest, type TextCompletionRequest, type TextCompletionResult } from '../lib/api-manager/text-completion'
 import type { StudioAssetListRequest } from '../types/studio-assets'
 import type { StudioVisualManualCreatePayload, StudioVisualManualImagesWritePayload, StudioVisualManualWritePayload } from '../types/studio-visual-manual'
 import type { EpisodeMergePlan, TrackRenderInput, TrackRenderPlan } from '../types/studio'
@@ -1996,6 +1996,12 @@ ipcMain.handle('api-model-test', async (_event, payload: ModelTestRequest): Prom
 
 ipcMain.handle('api-text-completion', async (_event, payload: TextCompletionRequest): Promise<TextCompletionResult> => {
   return runTextCompletionRequest(payload, fetch)
+})
+
+ipcMain.handle('api-text-completion-stream', async (event, args: { payload: TextCompletionRequest; streamId: string }): Promise<TextCompletionResult> => {
+  return runTextCompletionStreamRequest(args.payload, (delta) => {
+    if (!event.sender.isDestroyed()) event.sender.send(`api-text-stream:${args.streamId}`, delta)
+  }, fetch)
 })
 
 // ==================== File Export (Save Dialog) ====================

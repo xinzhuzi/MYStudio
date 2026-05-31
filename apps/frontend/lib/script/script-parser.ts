@@ -14,6 +14,7 @@ import { delay, RATE_LIMITS } from "@/lib/utils/rate-limiter";
 import { ApiKeyManager } from "@/lib/api-key-manager";
 import { getModelLimits, parseModelLimitsFromError, cacheDiscoveredLimits, estimateTokens } from "@/lib/ai/model-registry";
 import { corsFetch } from "@/lib/cors-fetch";
+import { buildThinkingParams, resolveThinkingEnabled } from "@/lib/ai/thinking-mode";
 
 /**
  * Normalize time value to match scene-store TIME_PRESETS
@@ -192,6 +193,11 @@ interface ParseOptions {
   maxTokens?: number; // 自定义最大输出 token 数，默认 4096
   /** 关闭推理模型深度思考（智谱 GLM-4.7/4.5 等），避免 reasoning 耗尽 token */
   disableThinking?: boolean;
+  /**
+   * 用户在设置里为该模型显式配置的「思考模式」开关。
+   * true 强制开、false 强制关；省略则按模型名自动判断。优先级低于 disableThinking。
+   */
+  thinkingEnabled?: boolean;
 }
 
 interface ShotGenerationOptions extends ParseOptions {
@@ -314,10 +320,21 @@ export async function callChatAPI(
       max_tokens: effectiveMaxTokens,
     };
 
-    // 智谱推理模型 (GLM-4.7/4.5 等) 支持通过 thinking.type 关闭深度思考
+    // 深度思考：显式 disableThinking 时强制关闭；否则按「显式 thinkingEnabled 配置 → 模型名自动判断」决定。
     if (options.disableThinking) {
       body.thinking = { type: 'disabled' };
       console.log('[callChatAPI] 已关闭深度思考 (thinking: disabled)');
+    } else if (resolveThinkingEnabled(model, options.thinkingEnabled)) {
+      const thinkingParams = buildThinkingParams({
+        model,
+        protocol: 'openai-compatible',
+        maxTokens: effectiveMaxTokens,
+        enabled: options.thinkingEnabled,
+      });
+      Object.assign(body, thinkingParams);
+      if (Object.keys(thinkingParams).length > 0) {
+        console.log('[callChatAPI] 已开启最高深度思考:', JSON.stringify(thinkingParams));
+      }
     }
 
     const response = await corsFetch(url, {

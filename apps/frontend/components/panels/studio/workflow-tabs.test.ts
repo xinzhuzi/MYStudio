@@ -6,11 +6,11 @@ describe("studio workflow tabs", () => {
     expect(WORKFLOW_TABS.map((tab) => tab.value)).toEqual([
       "manuals",
       "novel",
-      "skill",
       "script",
       "storyboard",
       "workbench",
     ]);
     expect(WORKFLOW_TABS.some((tab) => tab.label === "配置中心")).toBe(false);
+    expect(WORKFLOW_TABS.some((tab) => tab.value === "skill")).toBe(false);
   });
 });

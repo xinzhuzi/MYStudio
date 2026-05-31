@@ -1,4 +1,5 @@
 import { parseApiKeys, type IProvider } from "../api-key-manager";
+import { THINKING_TEST_MAX_TOKENS, buildThinkingParams, resolveThinkingEnabled } from "../ai/thinking-mode";
 
 export type ModelTestType = "text" | "image" | "video" | "tts" | "vision";
 export type ModelTestProtocol =
@@ -10,6 +11,11 @@ export interface ModelTestRequest {
   provider: Pick<IProvider, "id" | "platform" | "name" | "baseUrl" | "apiKey" | "model">;
   model: string;
   type: ModelTestType;
+  /**
+   * 用户在设置里为该模型显式配置的「思考模式」开关。
+   * true 强制开、false 强制关；省略则按模型名自动判断。
+   */
+  thinkingEnabled?: boolean;
 }
 
 export interface ModelTestResult {
@@ -78,8 +84,14 @@ export function buildGeminiCompatibleEndpoint(baseUrl: string, model: string): s
   return `${versioned}/models/${encodeURIComponent(model)}:generateContent`;
 }
 
-function buildTextModelTestAttempts(baseUrl: string, apiKey: string, model: string): PreparedTextModelTestAttempt[] {
+function buildTextModelTestAttempts(baseUrl: string, apiKey: string, model: string, thinkingOverride?: boolean): PreparedTextModelTestAttempt[] {
   const prompt = "回复 OK 和模型名称";
+  const thinking = resolveThinkingEnabled(model, thinkingOverride);
+  const tokenBudget = thinking ? THINKING_TEST_MAX_TOKENS : 32;
+  const openaiThinking = buildThinkingParams({ model, protocol: "openai-compatible", maxTokens: tokenBudget, enabled: thinkingOverride });
+  const anthropicThinking = buildThinkingParams({ model, protocol: "anthropic-compatible", maxTokens: tokenBudget, enabled: thinkingOverride });
+  const geminiThinking = buildThinkingParams({ model, protocol: "gemini-compatible", maxTokens: tokenBudget, enabled: thinkingOverride });
+  const geminiThinkingConfig = (geminiThinking.generationConfig as { thinkingConfig?: unknown } | undefined)?.thinkingConfig;
   return [
     {
       protocol: "openai-compatible",
@@ -92,8 +104,9 @@ function buildTextModelTestAttempts(baseUrl: string, apiKey: string, model: stri
       body: {
         model,
         messages: [{ role: "user", content: prompt }],
-        max_tokens: 32,
+        max_tokens: tokenBudget,
         temperature: 0,
+        ...openaiThinking,
       },
     },
     {
@@ -107,8 +120,9 @@ function buildTextModelTestAttempts(baseUrl: string, apiKey: string, model: stri
       },
       body: {
         model,
-        max_tokens: 32,
+        max_tokens: tokenBudget,
         messages: [{ role: "user", content: prompt }],
+        ...anthropicThinking,
       },
     },
     {
@@ -122,8 +136,9 @@ function buildTextModelTestAttempts(baseUrl: string, apiKey: string, model: stri
       body: {
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         generationConfig: {
-          maxOutputTokens: 32,
+          maxOutputTokens: tokenBudget,
           temperature: 0,
+          ...(geminiThinkingConfig ? { thinkingConfig: geminiThinkingConfig } : {}),
         },
       },
     },
@@ -155,7 +170,7 @@ export function prepareModelTestRequest(payload: ModelTestRequest): PreparedMode
     };
   }
 
-  const attempts = buildTextModelTestAttempts(baseUrl, keys[0], model);
+  const attempts = buildTextModelTestAttempts(baseUrl, keys[0], model, payload.thinkingEnabled);
   const firstAttempt = attempts[0];
   return {
     success: true,

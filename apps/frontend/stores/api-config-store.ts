@@ -853,6 +853,10 @@ interface APIConfigState {
   // Discovered model limits (Error-driven Discovery)
   // model_name -> { maxOutput?, contextWindow?, discoveredAt }
   discoveredModelLimits: Record<string, DiscoveredModelLimits>;
+
+  // 用户为每个模型显式配置的「思考模式」开关（覆盖按名字的自动判断）
+  // model_name -> true(强制开) | false(强制关)；未配置则回退到 supportsThinking(model)
+  modelThinkingOverrides: Record<string, boolean>;
 }
 
 interface APIConfigActions {
@@ -923,6 +927,10 @@ interface APIConfigActions {
   // Model limits discovery
   getDiscoveredModelLimits: (model: string) => DiscoveredModelLimits | undefined;
   setDiscoveredModelLimits: (model: string, limits: Partial<DiscoveredModelLimits>) => void;
+
+  // Per-model thinking-mode override（设置里手动标记「思考模式」）
+  getModelThinkingOverride: (model: string) => boolean | undefined;
+  setModelThinkingOverride: (model: string, enabled: boolean | undefined) => void;
 }
 
 type APIConfigStore = APIConfigState & APIConfigActions;
@@ -1012,6 +1020,7 @@ const initialState: APIConfigState = {
   modelTags: {},
   modelEnableGroups: {},
   discoveredModelLimits: {},
+  modelThinkingOverrides: {},
 };
 
 const fallbackAPIConfigStorage: StateStorage = {
@@ -1795,11 +1804,27 @@ export const useAPIConfigStore = create<APIConfigStore>()(
         }));
         console.log(`[APIConfig] Discovered model limits for ${model}:`, limits);
       },
+
+      getModelThinkingOverride: (model) => {
+        return get().modelThinkingOverrides[model];
+      },
+
+      setModelThinkingOverride: (model, enabled) => {
+        set((state) => {
+          const next = { ...state.modelThinkingOverrides };
+          if (typeof enabled === 'boolean') {
+            next[model] = enabled;
+          } else {
+            delete next[model];
+          }
+          return { modelThinkingOverrides: next };
+        });
+      },
     }),
     {
       name: 'opencut-api-config',  // localStorage key
       storage: createJSONStorage(getAPIConfigStorage),
-      version: 16,  // v16: add built-in local TTS provider and default Qwen3-TTS 1.7B binding
+      version: 17,  // v17: add per-model thinking-mode overrides (modelThinkingOverrides)
       migrate: (persistedState: unknown, version: number) => {
         // Use mutable result object for chained migration
          
@@ -2114,6 +2139,14 @@ export const useAPIConfigStore = create<APIConfigStore>()(
           version = 16;
         }
 
+        // v16 → v17: 新增 per-model 思考模式覆盖表（默认空，未配置则按名字自动判断）
+        if (version <= 16) {
+          if (!result.modelThinkingOverrides || typeof result.modelThinkingOverrides !== 'object') {
+            result.modelThinkingOverrides = {};
+          }
+          version = 17;
+        }
+
         // ========== Final normalization (always runs) ==========
 
         // Ensure all feature binding keys exist and normalize string → string[]
@@ -2141,6 +2174,10 @@ export const useAPIConfigStore = create<APIConfigStore>()(
         result.studioBindingsMigrated = Boolean(result.studioBindingsMigrated);
         result.providers = ensureDefaultLocalTtsProvider(result.providers as IProvider[] | undefined | null);
 
+        if (!result.modelThinkingOverrides || typeof result.modelThinkingOverrides !== 'object') {
+          result.modelThinkingOverrides = {};
+        }
+
         // Resolve image host providers (handles all legacy formats)
         result.imageHostProviders = resolveImageHostProviders();
 
@@ -2166,6 +2203,7 @@ export const useAPIConfigStore = create<APIConfigStore>()(
         modelTags: state.modelTags,
         modelEnableGroups: state.modelEnableGroups,
         discoveredModelLimits: state.discoveredModelLimits,
+        modelThinkingOverrides: state.modelThinkingOverrides,
       }),
     }
   )

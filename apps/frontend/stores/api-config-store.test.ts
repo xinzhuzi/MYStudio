@@ -257,3 +257,27 @@ describe("useAPIConfigStore unified model configuration", () => {
     });
   });
 });
+
+describe("per-model thinking-mode overrides", () => {
+  beforeEach(() => {
+    useAPIConfigStore.setState({ modelThinkingOverrides: {} });
+  });
+
+  it("returns undefined when no override is configured", () => {
+    expect(useAPIConfigStore.getState().getModelThinkingOverride("glm-4.6")).toBeUndefined();
+  });
+
+  it("persists an explicit per-model thinking override", () => {
+    useAPIConfigStore.getState().setModelThinkingOverride("glm-4.6", false);
+    expect(useAPIConfigStore.getState().getModelThinkingOverride("glm-4.6")).toBe(false);
+
+    useAPIConfigStore.getState().setModelThinkingOverride("house-llm", true);
+    expect(useAPIConfigStore.getState().getModelThinkingOverride("house-llm")).toBe(true);
+  });
+
+  it("clears an override when set to undefined (reverts to auto-detection)", () => {
+    useAPIConfigStore.getState().setModelThinkingOverride("glm-4.6", false);
+    useAPIConfigStore.getState().setModelThinkingOverride("glm-4.6", undefined);
+    expect(useAPIConfigStore.getState().getModelThinkingOverride("glm-4.6")).toBeUndefined();
+  });
+});
