@@ -338,7 +338,7 @@ export function createTtsStore(options: CreateTtsStoreOptions = {}) {
   if (options.persist) {
     return create<TtsStore>()(
       persist(createStoreState, {
-        name: "moyin-tts-store",
+        name: "mystudio-tts-store",
         storage: createJSONStorage(getBrowserStorage),
       }),
     );

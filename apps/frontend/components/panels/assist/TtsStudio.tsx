@@ -31,7 +31,7 @@ interface LocalAudioItem {
   createdAt: number;
 }
 
-const LOCAL_AUDIO_KEY = "moyin-tts-local-audio";
+const LOCAL_AUDIO_KEY = "mystudio-project-audio";
 
 function loadLocalAudio(): LocalAudioItem[] {
   try {

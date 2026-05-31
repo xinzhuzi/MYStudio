@@ -454,7 +454,7 @@ export const useCharacterLibraryStore = create<CharacterLibraryStore>()(
       reset: () => set(initialState),
     }),
     {
-      name: 'moyin-character-library',
+      name: 'mystudio-character-library',
       storage: createJSONStorage(() => createSplitStorage<CharPersistedState>(
         'characters', splitCharData, mergeCharData, 'shareCharacters'
       )),
@@ -523,7 +523,7 @@ export const useCharacterLibraryStore = create<CharacterLibraryStore>()(
           console.log(`[CharStore] rehydrated: ${state.characters?.length || 0} chars →`, JSON.stringify(varSummary));
         }
         // Migrate old data from localStorage to IndexedDB
-        migrateFromLocalStorage('moyin-character-library');
+        migrateFromLocalStorage('mystudio-character-library');
       },
     }
   )

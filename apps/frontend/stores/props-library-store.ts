@@ -149,7 +149,7 @@ export const usePropsLibraryStore = create<PropsLibraryStore>()(
       },
     }),
     {
-      name: 'moyin-props-library',
+      name: 'mystudio-props-library',
       partialize: (state) => ({
         items: state.items,
         folders: state.folders,

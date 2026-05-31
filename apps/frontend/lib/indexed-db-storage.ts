@@ -30,8 +30,20 @@ const isElectron = (): boolean => {
 
 const LEGACY_STORAGE_KEYS: Record<string, string> = {
   "mystudio-app-settings": "moyin-app-settings",
+  "mystudio-character-library": "moyin-character-library",
+  "mystudio-custom-styles": "moyin-custom-styles",
+  "mystudio-director-store": "moyin-director-store",
+  "mystudio-freedom": "moyin-freedom",
   "mystudio-media-store": "moyin-media-store",
+  "mystudio-project-audio": "moyin-tts-local-audio",
   "mystudio-project-store": "moyin-project-store",
+  "mystudio-props-library": "moyin-props-library",
+  "mystudio-scene-store": "moyin-scene-store",
+  "mystudio-sclass-store": "moyin-sclass-store",
+  "mystudio-script-store": "moyin-script-store",
+  "mystudio-theme": "moyin-theme",
+  "mystudio-timeline-store": "moyin-timeline-store",
+  "mystudio-tts-store": "moyin-tts-store",
 };
 
 function getLegacyStorageKey(name: string): string | undefined {

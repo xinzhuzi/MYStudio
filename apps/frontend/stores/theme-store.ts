@@ -149,7 +149,7 @@ export const useThemeStore = create<ThemeState>()(
       },
     }),
     {
-      name: "moyin-theme",
+      name: "mystudio-theme",
     }
   )
 );

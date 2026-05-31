@@ -4,8 +4,14 @@ import { fileStorage } from "./indexed-db-storage";
 
 describe("fileStorage legacy MYStudio key migration", () => {
   beforeEach(() => {
-    vi.spyOn(Storage.prototype, "getItem").mockReturnValue(null);
-    vi.spyOn(Storage.prototype, "removeItem").mockImplementation(() => undefined);
+    Object.defineProperty(globalThis, "localStorage", {
+      configurable: true,
+      value: {
+        getItem: vi.fn(() => null),
+        setItem: vi.fn(),
+        removeItem: vi.fn(),
+      },
+    });
   });
 
   it("renames legacy moyin root store files to mystudio names", async () => {

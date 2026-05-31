@@ -150,7 +150,7 @@ export const useSimpleTimelineStore = create<SimpleTimelineStore>()(
   },
     }),
     {
-      name: 'moyin-timeline-store',
+      name: 'mystudio-timeline-store',
       storage: createJSONStorage(() => createProjectScopedStorage('timeline')),
       partialize: (state) => ({
         // Only persist clips, not playback state

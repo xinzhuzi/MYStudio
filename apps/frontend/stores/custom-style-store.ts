@@ -182,7 +182,7 @@ export const useCustomStyleStore = create<CustomStyleStore>()(
       reset: () => set(initialState),
     }),
     {
-      name: 'moyin-custom-styles',
+      name: 'mystudio-custom-styles',
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
         styles: state.styles,

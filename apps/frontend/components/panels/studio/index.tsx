@@ -710,11 +710,6 @@ export function StudioView() {
     );
   }, [activeProject?.id, saveSeriesBible]);
 
-  const scriptManualContext = useMemo(
-    () => buildStudioManualContext(workflowConfig, manualCatalog),
-    [workflowConfig, manualCatalog],
-  );
-
   const scriptStyleSummary = useMemo(() => {
     const v = manualCatalog.visual?.find((p) => p.id === workflowConfig.visualManualId)?.name;
     const d = manualCatalog.director?.find((p) => p.id === workflowConfig.directorManualId)?.name;
@@ -780,7 +775,7 @@ export function StudioView() {
         return;
       }
       const built = buildStageMessages(stage, {
-        manualContext: scriptManualContext,
+        manualContext: scriptStyleSummary,
         chapterTitle: chapter.title,
         chapterText: chapter.sourceText,
         eventState: chapter.eventState,
@@ -801,7 +796,7 @@ export function StudioView() {
         label: SCRIPT_STAGE_LABEL[stage],
       });
     },
-    [runScriptStage, latestScriptStage, scriptManualContext],
+    [runScriptStage, latestScriptStage, scriptStyleSummary],
   );
 
   const handleMaterialFiles = async (files?: FileList | null) => {
@@ -963,7 +958,7 @@ export function StudioView() {
                 agentWorkData={agentWorkData}
                 saveAgentWorkData={saveAgentWorkData}
                 runStage={handleScriptStage}
-                manualContext={scriptManualContext}
+                manualContext={scriptStyleSummary}
                 styleSummary={scriptStyleSummary}
                 setHeaderActions={setScriptHeaderActions}
                 scriptStreaming={scriptStreaming}
