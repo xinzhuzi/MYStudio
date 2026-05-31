@@ -46,6 +46,23 @@ function getThumbsDir() {
   return path.join(getAssetsDir(), "thumbs");
 }
 
+export function resolveAssetManagedPath(root: string, relativePath: string) {
+  const normalizedRoot = path.resolve(root);
+  const normalizedRelativePath = relativePath.replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!normalizedRelativePath || normalizedRelativePath.includes("\0") || normalizedRelativePath.split("/").includes("..")) {
+    throw new Error("Asset path escapes managed root");
+  }
+  const targetPath = path.resolve(normalizedRoot, normalizedRelativePath);
+  if (targetPath !== normalizedRoot && !targetPath.startsWith(normalizedRoot + path.sep)) {
+    throw new Error("Asset path escapes managed root");
+  }
+  return targetPath;
+}
+
+export function shouldCreateAssetThumbnail(type: string) {
+  return type !== "audio" && type !== "clip";
+}
+
 /** 缩略图生成队列：限制并发，避免一次性 spawn 数千个 sips 进程导致主进程卡死 */
 let thumbActive = 0;
 const thumbQueue: Array<() => void> = [];
@@ -73,10 +90,14 @@ function enqueueThumb(srcPath: string, thumbPath: string) {
 /** 获取缩略图路径，不存在则异步生成 */
 function getThumbUrl(filePath: string | undefined, type: string): string | undefined {
   if (!filePath) return undefined;
-  const thumbPath = path.join(getThumbsDir(), filePath);
+  if (!shouldCreateAssetThumbnail(type)) {
+    const srcPath = resolveAssetManagedPath(getFilesDir(), filePath);
+    return fs.existsSync(srcPath) ? `file://${srcPath}` : undefined;
+  }
+  const thumbPath = resolveAssetManagedPath(getThumbsDir(), filePath);
   if (fs.existsSync(thumbPath)) return `file://${thumbPath}`;
   // 异步生成缩略图（限流，不阻塞返回）
-  const srcPath = path.join(getFilesDir(), filePath);
+  const srcPath = resolveAssetManagedPath(getFilesDir(), filePath);
   if (!fs.existsSync(srcPath)) return undefined;
   const thumbDir = path.dirname(thumbPath);
   fs.mkdirSync(thumbDir, { recursive: true });
@@ -152,7 +173,6 @@ export function buildAssetWhere(type: string, search?: string, category?: string
 
 /** 执行可能包含长文本的 SQL */
 function runSqliteExecSafe(dbPath: string, sql: string) {
-  const { execFileSync } = require("node:child_process");
   execFileSync("sqlite3", [dbPath], { input: sql, maxBuffer: 50 * 1024 * 1024, stdio: ["pipe", "pipe", "pipe"] });
 }
 
@@ -300,20 +320,19 @@ export function deleteAsset(id: string): boolean {
 
   const row = rows[0];
   if (row.filePath) {
-    const fullPath = path.join(getFilesDir(), row.filePath);
+    const fullPath = resolveAssetManagedPath(getFilesDir(), row.filePath);
     if (fs.existsSync(fullPath)) fs.unlinkSync(fullPath);
-    const thumbPath = path.join(getThumbsDir(), row.filePath);
+    const thumbPath = resolveAssetManagedPath(getThumbsDir(), row.filePath);
     if (fs.existsSync(thumbPath)) fs.unlinkSync(thumbPath);
   }
   try {
     const images = JSON.parse(row.images || "[]");
     for (const img of images) {
-      const imgPath = path.join(getFilesDir(), img.filePath);
+      const imgPath = resolveAssetManagedPath(getFilesDir(), img.filePath);
       if (fs.existsSync(imgPath)) fs.unlinkSync(imgPath);
     }
   } catch {}
 
-  const { execFileSync } = require("node:child_process");
   execFileSync("sqlite3", [dbPath, `DELETE FROM assets WHERE id='${escapeSql(id)}';`], { maxBuffer: 1024 * 1024 });
   return true;
 }
@@ -369,7 +388,6 @@ export function addAssetImage(assetId: string, imageName: string, sourceFilePath
   images.push({ name: imageName, filePath: relPath });
   const now = new Date().toISOString();
   const imagesJson = JSON.stringify(images);
-  const { execFileSync } = require("node:child_process");
   execFileSync("sqlite3", [dbPath, `UPDATE assets SET images='${escapeSql(imagesJson)}', updatedAt='${now}' WHERE id='${escapeSql(assetId)}';`], { maxBuffer: 5 * 1024 * 1024 });
 
   return getAssetSync(assetId);
@@ -385,12 +403,12 @@ export function removeAssetImage(assetId: string, imageFilePath: string): Studio
   const idx = images.findIndex((img) => img.filePath === imageFilePath);
   if (idx === -1) return null;
 
-  const fullPath = path.join(getFilesDir(), imageFilePath);
+  const fullPath = resolveAssetManagedPath(getFilesDir(), imageFilePath);
   if (fs.existsSync(fullPath)) fs.unlinkSync(fullPath);
   images.splice(idx, 1);
 
   const now = new Date().toISOString();
-  const { execFileSync: _exec } = require("node:child_process"); _exec("sqlite3", [dbPath, `UPDATE assets SET images='${escapeSql(JSON.stringify(images))}', updatedAt='${now}' WHERE id='${escapeSql(assetId)}';`], { maxBuffer: 5 * 1024 * 1024 });
+  execFileSync("sqlite3", [dbPath, `UPDATE assets SET images='${escapeSql(JSON.stringify(images))}', updatedAt='${now}' WHERE id='${escapeSql(assetId)}';`], { maxBuffer: 5 * 1024 * 1024 });
   return getAssetSync(assetId);
 }
 
@@ -406,7 +424,7 @@ export function renameAssetImage(assetId: string, imageFilePath: string, newName
   img.name = newName;
 
   const now = new Date().toISOString();
-  const { execFileSync: _exec } = require("node:child_process"); _exec("sqlite3", [dbPath, `UPDATE assets SET images='${escapeSql(JSON.stringify(images))}', updatedAt='${now}' WHERE id='${escapeSql(assetId)}';`], { maxBuffer: 5 * 1024 * 1024 });
+  execFileSync("sqlite3", [dbPath, `UPDATE assets SET images='${escapeSql(JSON.stringify(images))}', updatedAt='${now}' WHERE id='${escapeSql(assetId)}';`], { maxBuffer: 5 * 1024 * 1024 });
   return getAssetSync(assetId);
 }
 

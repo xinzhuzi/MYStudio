@@ -63,7 +63,7 @@ import { generateScenePrompts } from "@/lib/storyboard/scene-prompt-generator";
 import { useAPIConfigStore } from "@/stores/api-config-store";
 import { parseApiKeys } from "@/lib/api-key-manager";
 import { getFeatureConfig, getFeatureNotConfiguredMessage } from "@/lib/ai/feature-router";
-import { submitGridImageRequest } from "@/lib/ai/image-generator";
+import { aiManager } from "@/lib/ai/ai-manager";
 import { uploadToImageHost, isImageHostConfigured } from "@/lib/image-host";
 import { saveVideoToLocal, readImageAsBase64 } from '@/lib/image-storage';
 import { callVideoGenerationApi, extractLastFrameFromVideo, isContentModerationError } from './use-video-generation';
@@ -1132,7 +1132,7 @@ export function SplitScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
 
       // 调用 API - 使用智能路由（自动选择 chat completions 或 images/generations）
       console.log('[QuadGrid] Calling API, model:', model);
-      const apiResult = await submitGridImageRequest({
+      const apiResult = await aiManager.imageGrid({
         model,
         prompt: gridPrompt,
         apiKey,
@@ -2052,7 +2052,7 @@ export function SplitScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
       }
 
       // Call image generation API with smart routing (auto-selects chat/completions or images/generations)
-      const apiResult = await submitGridImageRequest({
+      const apiResult = await aiManager.imageGrid({
         model,
         prompt: enhancedPrompt,
         apiKey,
@@ -2691,7 +2691,7 @@ export function SplitScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
       
       // 调用 API 生成九宫格图片 - 使用智能路由（自动选择 chat completions 或 images/generations）
       console.log('[MergedGen] Calling API with', apiReferenceImages.length, 'reference images, model:', model);
-      const apiResult = await submitGridImageRequest({
+      const apiResult = await aiManager.imageGrid({
         model,
         prompt: gridPrompt,
         apiKey,
@@ -2976,7 +2976,7 @@ export function SplitScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
 
     // Call image generation API with smart routing
     const mergedKeyManager = featureConfig.keyManager;
-    const apiResult = await submitGridImageRequest({
+    const apiResult = await aiManager.imageGrid({
       model,
       prompt,
       apiKey: apiKeyToUse,
@@ -2994,7 +2994,7 @@ export function SplitScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
     if (!taskId && !directUrl) {
       // 对非常规响应：尝试一次"无参考"重试（保持合并模式，不降级到单图通道）
       if (refUrls.length > 0 && strategy !== 'none') {
-        const retryResult = await submitGridImageRequest({
+        const retryResult = await aiManager.imageGrid({
           model,
           prompt,
           apiKey: apiKeyToUse,
@@ -3172,7 +3172,7 @@ export function SplitScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
       }
 
       // Call image generation API with smart routing
-      const apiResult = await submitGridImageRequest({
+      const apiResult = await aiManager.imageGrid({
         model,
         prompt: enhancedPrompt,
         apiKey,

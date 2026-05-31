@@ -15,7 +15,7 @@ from manying_voicebox_tts.tts import generate_mock_wav
 
 class TtsContractTest(unittest.TestCase):
     def test_catalog_keeps_voicebox_tts_engines_only(self):
-        engines = {model.engine for model in TTS_MODELS}
+        engines = {model.engine for model in TTS_MODELS if model.purpose != "stt"}
 
         self.assertEqual(
             engines,
@@ -29,7 +29,28 @@ class TtsContractTest(unittest.TestCase):
                 "kokoro",
             },
         )
+        stt_engines = {model.engine for model in TTS_MODELS if model.purpose == "stt"}
+        self.assertEqual(stt_engines, {"sensevoice", "whisper"})
         self.assertIsNone(get_model("whisper-base"))
+
+    def test_tts_sidecar_requires_control_token_for_stateful_routes(self):
+        handler = types.SimpleNamespace(
+            headers={},
+            send_error_json=MagicMock(),
+        )
+
+        self.assertFalse(main_module.Handler.authorize_control(handler))
+        handler.send_error_json.assert_called_once()
+
+    def test_tts_sidecar_allows_valid_control_token(self):
+        handler = types.SimpleNamespace(
+            headers={"X-Manying-TTS-Token": "token-1"},
+            send_error_json=MagicMock(),
+        )
+
+        with patch.dict("os.environ", {"MANYING_TTS_CONTROL_TOKEN": "token-1"}):
+            self.assertTrue(main_module.Handler.authorize_control(handler))
+        handler.send_error_json.assert_not_called()
 
     def test_runtime_store_creates_profiles_and_generations(self):
         with tempfile.TemporaryDirectory() as tmp:

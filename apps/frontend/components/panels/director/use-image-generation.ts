@@ -3,7 +3,8 @@
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 import { useCharacterLibraryStore } from "@/stores/character-library-store";
 import { getFeatureConfig } from "@/lib/ai/feature-router";
-import { imageUrlToBase64, submitGridImageRequest } from "@/lib/ai/image-generator";
+import { imageUrlToBase64 } from "@/lib/ai/image-generator";
+import { aiManager } from "@/lib/ai/ai-manager";
 import { readImageAsBase64 } from "@/lib/image-storage";
 import type { SplitScene, ShotSizeType } from "@/stores/director-store";
 
@@ -114,7 +115,7 @@ export async function callImageGenerationApi(
   }
   // Call image generation API with smart routing (auto-selects chat/completions or images/generations)
   const imageKeyManager = featureConfig.keyManager;
-  const apiResult = await submitGridImageRequest({
+  const apiResult = await aiManager.imageGrid({
     model,
     prompt,
     apiKey: apiKeyToUse,

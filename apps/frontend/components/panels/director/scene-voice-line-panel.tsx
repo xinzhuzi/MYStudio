@@ -16,10 +16,10 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   createBackendVoiceProfile,
   fetchGenerationAudio,
-  generateSpeech,
   getGenerationStatus,
   startTtsRuntime,
 } from "@/lib/tts/client";
+import { aiManager } from "@/lib/ai/ai-manager";
 import { getDefaultPresetVoiceId, validateVoiceProfileForGeneration } from "@/lib/tts/voice-profile-capabilities";
 import { useCharacterLibraryStore } from "@/stores/character-library-store";
 import type { SplitScene } from "@/stores/director-store";
@@ -207,7 +207,7 @@ export function SceneVoiceLinePanel({ scene }: SceneVoiceLinePanelProps) {
       const runtime = await startTtsRuntime();
       if (!runtime.success) throw new Error(runtime.error || "TTS 后端启动失败");
       await syncProfileToBackend(selectedProfile);
-      const generation = await generateSpeech({
+      const generation = await aiManager.tts({
         text: currentLine.text.trim(),
         profileId: selectedProfile.id,
         engine: currentLine.engine,

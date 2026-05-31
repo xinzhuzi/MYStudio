@@ -7,10 +7,10 @@ import { Button } from "@/components/ui/button";
 import {
   createBackendVoiceProfile,
   fetchGenerationAudio,
-  generateSpeech,
   getGenerationStatus,
   startTtsRuntime,
 } from "@/lib/tts/client";
+import { aiManager } from "@/lib/ai/ai-manager";
 import { validateVoiceProfileForGeneration } from "@/lib/tts/voice-profile-capabilities";
 import type { SplitScene } from "@/stores/director-store";
 import { useProjectStore } from "@/stores/project-store";
@@ -93,7 +93,7 @@ export function SceneVoiceBatchToolbar({ scenes }: SceneVoiceBatchToolbarProps) 
         }
         try {
           await createBackendVoiceProfile(profile);
-          const generation = await generateSpeech({
+          const generation = await aiManager.tts({
             text: line.text || scene.dialogue || "",
             profileId: profile.id,
             engine: line.engine,

@@ -10,11 +10,11 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   createBackendVoiceProfile,
   fetchGenerationAudio,
-  generateSpeech,
   getGenerationStatus,
   getTtsRuntimeStatus,
   startTtsRuntime,
 } from "@/lib/tts/client";
+import { aiManager } from "@/lib/ai/ai-manager";
 import { TTS_MODEL_GROUPS } from "@/lib/tts/model-catalog";
 import type { TtsModelDefinition } from "@/types/tts";
 import type { StudioAssetSummary } from "@/types/studio-assets";
@@ -146,7 +146,7 @@ export function TtsStudio() {
       });
 
       // 2. 生成语音
-      const generation = await generateSpeech({
+      const generation = await aiManager.tts({
         text: text.trim(),
         profileId: profile.id,
         engine: selectedModel.engine,

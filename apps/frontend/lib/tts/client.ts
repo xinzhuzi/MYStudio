@@ -99,12 +99,11 @@ export async function getTtsBaseUrl() {
 }
 
 export async function fetchGenerationAudio(generationId: string): Promise<ArrayBuffer> {
-  const baseUrl = await getTtsBaseUrl();
-  const response = await fetch(`${baseUrl}/audio/${encodeURIComponent(generationId)}`);
-  if (!response.ok) {
-    throw new Error(`音频下载失败 (${response.status})`);
-  }
-  return response.arrayBuffer();
+  const result = await assertTtsRuntime().requestBytes({
+    method: "GET",
+    path: `/audio/${encodeURIComponent(generationId)}`,
+  });
+  return result.data;
 }
 
 export async function subscribeModelProgress(
@@ -112,15 +111,22 @@ export async function subscribeModelProgress(
   onProgress: (event: unknown) => void,
   onError?: (error: Event) => void,
 ) {
-  const baseUrl = await getTtsBaseUrl();
-  const source = new EventSource(`${baseUrl}/models/progress/${encodeURIComponent(modelName)}`);
-  source.onmessage = (event) => {
+  let cancelled = false;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const poll = async () => {
+    if (cancelled) return;
     try {
-      onProgress(JSON.parse(event.data));
-    } catch {
-      onProgress(event.data);
+      const response = await request<{ model_name: string; status: string; error?: string }>("GET", `/models/progress-json/${encodeURIComponent(modelName)}`);
+      onProgress(response);
+      if (response.status === "complete" || response.status === "error" || response.status === "idle") return;
+      timer = setTimeout(poll, 500);
+    } catch (error) {
+      onError?.(error instanceof Event ? error : new Event("error"));
     }
   };
-  if (onError) source.onerror = onError;
-  return () => source.close();
+  await poll();
+  return () => {
+    cancelled = true;
+    if (timer) clearTimeout(timer);
+  };
 }

@@ -12,7 +12,7 @@ import { buildStoryboardPrompt, getDefaultNegativePrompt, type StoryboardPromptC
 import { calculateGrid, type AspectRatio, type Resolution, RESOLUTION_PRESETS } from './grid-calculator';
 import { retryOperation } from "@/lib/utils/retry";
 import { delay, RATE_LIMITS } from "@/lib/utils/rate-limiter";
-import { submitGridImageRequest } from '@/lib/ai/image-generator';
+import { aiManager } from '@/lib/ai/ai-manager';
 
 export interface StoryboardGenerationConfig {
   storyPrompt: string;
@@ -445,7 +445,7 @@ export async function generateStoryboardImage(
   }
 
   // Use submitGridImageRequest for smart routing (auto-detects chat/completions vs images/generations)
-  const apiResult = await submitGridImageRequest({
+  const apiResult = await aiManager.imageGrid({
     model,
     prompt,
     apiKey,

@@ -264,6 +264,7 @@ describe("TTS runtime controller", () => {
       appRoot: "/repo",
       userDataPath: "/user-data",
       fileExists: () => true,
+      readTextFile: () => JSON.stringify({ controlToken: "token-1" }),
       spawnProcess: vi.fn(),
       fetchJson,
     });
@@ -271,7 +272,9 @@ describe("TTS runtime controller", () => {
     await expect(controller.request("GET", "/models/status")).resolves.toEqual({ models: [] });
     expect(fetchJson).toHaveBeenCalledWith("http://127.0.0.1:17593/models/status", {
       method: "GET",
-      headers: undefined,
+      headers: {
+        "X-Manying-TTS-Token": "token-1",
+      },
       body: undefined,
     });
   });
@@ -281,6 +284,7 @@ describe("TTS runtime controller", () => {
       appRoot: "/repo",
       userDataPath: "/user-data",
       fileExists: () => true,
+      readTextFile: () => JSON.stringify({ controlToken: "token-1" }),
       spawnProcess: vi.fn(),
       fetchJson: vi.fn().mockRejectedValue(new TypeError("fetch failed")),
     });

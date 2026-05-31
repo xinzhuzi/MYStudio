@@ -21,7 +21,7 @@ import type { PromptLanguage } from "@/types/script";
 import { useProjectStore } from "@/stores/project-store";
 import { useMediaStore } from "@/stores/media-store";
 import { getFeatureConfig, getFeatureNotConfiguredMessage } from "@/lib/ai/feature-router";
-import { generateSceneImage as generateSceneImageAPI, submitGridImageRequest } from "@/lib/ai/image-generator";
+import { aiManager } from "@/lib/ai/ai-manager";
 import { generateContactSheetPrompt, generateMultiPageContactSheetData, type SceneViewpoint } from "@/lib/script/scene-viewpoint-generator";
 import type { PendingViewpointData, ContactSheetPromptSet } from "@/stores/media-panel-store";
 import { splitStoryboardImage } from "@/lib/storyboard/image-splitter";
@@ -669,7 +669,7 @@ ${gridItemsZh}
         ? 'blurry, low quality, watermark, text, people, characters, anime, cartoon'
         : 'blurry, low quality, watermark, text, people, characters';
 
-      const result = await generateSceneImageAPI({
+      const result = await aiManager.image({
         prompt,
         negativePrompt,
         aspectRatio: '16:9',
@@ -910,7 +910,7 @@ ${gridItemsZh}
 
       setContactSheetProgress(20);
 
-      const result = await submitGridImageRequest({
+      const result = await aiManager.imageGrid({
         model,
         prompt: finalPrompt,
         apiKey,
@@ -1592,7 +1592,7 @@ ${gridItemsZh}
         setContactSheetTask(parentSceneId, { status: 'generating', progress: 30, message: '正在调用 AI 生成...' });
 
         // 使用 submitGridImageRequest — 与导演面板保持一致
-        const result = await submitGridImageRequest({
+        const result = await aiManager.imageGrid({
           model,
           prompt: finalPrompt,
           apiKey,
@@ -2001,7 +2001,7 @@ No characters, empty environment.`;
         }
 
         // 生成图片
-        const result = await generateSceneImageAPI({
+        const result = await aiManager.image({
           prompt: promptEn,
           negativePrompt,
           aspectRatio: orthographicAspectRatio,
@@ -2259,7 +2259,7 @@ ${anchor} 的背面直视镜头。展示后部结构。背景是物体面向的�
         }
       }
 
-      const result = await generateSceneImageAPI({
+      const result = await aiManager.image({
         prompt: orthographicPrompt,
         negativePrompt,
         aspectRatio: orthographicAspectRatio,

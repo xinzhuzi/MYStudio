@@ -7,23 +7,11 @@ import type { TextCompletionRequest, TextCompletionResult } from '../lib/api-man
 import type { StudioVisualManualCreatePayload, StudioVisualManualImagesWritePayload, StudioVisualManualWritePayload } from '../types/studio-visual-manual'
 import type { TtsRuntimeCommandResult, TtsRuntimeStatus } from '../types/tts'
 
-// --------- Expose some API to the Renderer process ---------
-contextBridge.exposeInMainWorld('ipcRenderer', {
-  on(...args: Parameters<typeof ipcRenderer.on>) {
-    const [channel, listener] = args
-    return ipcRenderer.on(channel, (event, ...args) => listener(event, ...args))
-  },
-  off(...args: Parameters<typeof ipcRenderer.off>) {
-    const [channel, ...omit] = args
-    return ipcRenderer.off(channel, ...omit)
-  },
-  send(...args: Parameters<typeof ipcRenderer.send>) {
-    const [channel, ...omit] = args
-    return ipcRenderer.send(channel, ...omit)
-  },
-  invoke(...args: Parameters<typeof ipcRenderer.invoke>) {
-    const [channel, ...omit] = args
-    return ipcRenderer.invoke(channel, ...omit)
+contextBridge.exposeInMainWorld('appEvents', {
+  onMainProcessMessage(listener: (message: string) => void) {
+    const wrapped = (_event: IpcRendererEvent, message: string) => listener(message)
+    ipcRenderer.on('main-process-message', wrapped)
+    return () => ipcRenderer.removeListener('main-process-message', wrapped)
   },
 })
 
@@ -184,4 +172,6 @@ contextBridge.exposeInMainWorld('ttsRuntime', {
     ipcRenderer.invoke('tts-runtime-set-model-cache-dir', dirPath),
   request: (payload: { method: string; path: string; body?: unknown }): Promise<unknown> =>
     ipcRenderer.invoke('tts-runtime-request', payload),
+  requestBytes: (payload: { method: string; path: string; body?: unknown }): Promise<{ data: ArrayBuffer; mimeType?: string }> =>
+    ipcRenderer.invoke('tts-runtime-request-bytes', payload),
 })

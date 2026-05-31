@@ -123,8 +123,8 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(data)))
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Headers", "content-type")
+        self.send_header("Access-Control-Allow-Origin", "app://manying-studio")
+        self.send_header("Access-Control-Allow-Headers", "content-type,x-manying-tts-token")
         self.send_header("Access-Control-Allow-Methods", "GET,POST,DELETE,OPTIONS")
         self.end_headers()
         self.wfile.write(data)
@@ -134,10 +134,18 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_OPTIONS(self):
         self.send_response(HTTPStatus.NO_CONTENT)
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Headers", "content-type")
+        self.send_header("Access-Control-Allow-Origin", "app://manying-studio")
+        self.send_header("Access-Control-Allow-Headers", "content-type,x-manying-tts-token")
         self.send_header("Access-Control-Allow-Methods", "GET,POST,DELETE,OPTIONS")
         self.end_headers()
+
+    def authorize_control(self) -> bool:
+        expected = os.environ.get("MANYING_TTS_CONTROL_TOKEN")
+        provided = self.headers.get("X-Manying-TTS-Token")
+        if not expected or provided != expected:
+            self.send_error_json(HTTPStatus.FORBIDDEN, "TTS control token is invalid")
+            return False
+        return True
 
     def do_GET(self):
         parsed = urlparse(self.path)
@@ -152,6 +160,8 @@ class Handler(BaseHTTPRequestHandler):
                 }
             )
             return
+        if not self.authorize_control():
+            return
         if route == "/models/status":
             self.send_json({"models": [self.model_status(model) for model in TTS_MODELS]})
             return
@@ -163,6 +173,10 @@ class Handler(BaseHTTPRequestHandler):
                     "scan_paths": [str(path) for path in hf_cache_dirs()],
                 }
             )
+            return
+        if route.startswith("/models/progress-json/"):
+            model_name = unquote(route.removeprefix("/models/progress-json/"))
+            self.send_json(self.model_progress(model_name))
             return
         if route.startswith("/models/progress/"):
             self.send_sse(unquote(route.removeprefix("/models/progress/")))
@@ -192,6 +206,8 @@ class Handler(BaseHTTPRequestHandler):
         route = parsed.path
         try:
             payload = self.read_json()
+            if not self.authorize_control():
+                return
             if route == "/shutdown":
                 self.handle_shutdown(payload)
                 return
@@ -233,6 +249,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_DELETE(self):
         route = urlparse(self.path).path
+        if not self.authorize_control():
+            return
         if route.startswith("/models/"):
             model_name = unquote(route.removeprefix("/models/"))
             model = get_model(model_name)
@@ -272,12 +290,16 @@ class Handler(BaseHTTPRequestHandler):
             "description": model.description,
         }
 
+    def model_progress(self, model_name: str):
+        return self.state.get_progress(model_name) or {
+            "model_name": model_name,
+            "current": 0,
+            "total": 0,
+            "progress": 0,
+            "status": "idle",
+        }
+
     def handle_shutdown(self, payload: dict):
-        expected = os.environ.get("MANYING_TTS_CONTROL_TOKEN")
-        provided = self.headers.get("X-Manying-TTS-Token") or payload.get("token")
-        if not expected or provided != expected:
-            self.send_error_json(HTTPStatus.FORBIDDEN, "Shutdown token is invalid")
-            return
         self.send_json({"message": "TTS backend shutting down"})
         threading.Thread(target=self.server.shutdown, daemon=True).start()
 
@@ -519,7 +541,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(HTTPStatus.OK)
         self.send_header("Content-Type", "audio/wav")
         self.send_header("Content-Length", str(len(data)))
-        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Origin", "app://manying-studio")
         self.end_headers()
         self.wfile.write(data)
 
@@ -528,7 +550,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", "text/event-stream")
         self.send_header("Cache-Control", "no-cache")
         self.send_header("Connection", "keep-alive")
-        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Origin", "app://manying-studio")
         self.end_headers()
         last_payload = None
         for _ in range(7200):

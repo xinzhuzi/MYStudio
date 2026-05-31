@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -91,10 +91,10 @@ export function StudioAssetDetailDialog({
   const setImagePrompt = useFreedomStore((state) => state.setImagePrompt);
   const setImageResult = useFreedomStore((state) => state.setImageResult);
 
-  const nameRef = useRef<HTMLInputElement>(null);
-  const descRef = useRef<HTMLTextAreaElement>(null);
-  const promptRef = useRef<HTMLTextAreaElement>(null);
-  const settingRef = useRef<HTMLTextAreaElement>(null);
+  const [draftName, setDraftName] = useState("");
+  const [draftDescription, setDraftDescription] = useState("");
+  const [draftPrompt, setDraftPrompt] = useState("");
+  const [draftSetting, setDraftSetting] = useState("");
 
   const [images, setImages] = useState<AssetImage[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -102,48 +102,62 @@ export function StudioAssetDetailDialog({
   const [recognizedText, setRecognizedText] = useState<string | null>(null);
   const regenerationPrompt = useMemo(() => buildAssetRegenerationPrompt(fullAsset || asset), [fullAsset, asset]);
 
-  // 打开弹窗时获取完整数据
-  const prevAssetId = useRef<string | null>(null);
-  if (asset && asset.id !== prevAssetId.current) {
-    prevAssetId.current = asset.id;
+  useEffect(() => {
+    if (!asset) {
+      setFullAsset(null);
+      setImages([]);
+      setCurrentIndex(0);
+      setRecognizedText(null);
+      return;
+    }
+
+    let cancelled = false;
+    const initialImages: AssetImage[] = [];
+    if (asset.previewUrl || asset.thumbnailUrl) {
+      initialImages.push({ name: "主图", filePath: asset.filePath || "", url: asset.previewUrl || asset.thumbnailUrl });
+    }
+    if (asset.images?.length) {
+      initialImages.push(...asset.images);
+    }
     setFullAsset(null);
     setRecognizedText(null);
-    // 异步加载完整数据
+    setImages(initialImages);
+    setCurrentIndex(0);
+    setDraftName(asset.name || "");
+    setDraftDescription(asset.description || "");
+    setDraftPrompt(asset.prompt || "");
+    setDraftSetting(asset.setting || "");
+
     if (window.studioAssets?.get) {
       window.studioAssets.get(asset.id).then((result) => {
-        if (result) {
-          setFullAsset(result);
-          // 更新多图列表
-          const updatedImgs: AssetImage[] = [];
-          if (result.previewUrl || result.thumbnailUrl) {
-            updatedImgs.push({ name: "主图", filePath: result.filePath || "", url: result.previewUrl || result.thumbnailUrl });
-          }
-          if (result.images?.length) {
-            updatedImgs.push(...result.images);
-          }
-          if (updatedImgs.length > 0) setImages(updatedImgs);
+        if (!result || cancelled) return;
+        setFullAsset(result);
+        setDraftName(result.name || "");
+        setDraftDescription(result.description || "");
+        setDraftPrompt(result.prompt || "");
+        setDraftSetting(result.setting || "");
+        const updatedImgs: AssetImage[] = [];
+        if (result.previewUrl || result.thumbnailUrl) {
+          updatedImgs.push({ name: "主图", filePath: result.filePath || "", url: result.previewUrl || result.thumbnailUrl });
         }
+        if (result.images?.length) {
+          updatedImgs.push(...result.images);
+        }
+        setImages(updatedImgs);
       });
     }
-    const imgs: AssetImage[] = [];
-    // 主图作为第一张
-    if (asset.previewUrl || asset.thumbnailUrl) {
-      imgs.push({ name: "主图", filePath: asset.filePath || "", url: asset.previewUrl || asset.thumbnailUrl });
-    }
-    // 追加多图
-    if (asset.images?.length) {
-      imgs.push(...asset.images);
-    }
-    setImages(imgs);
-    setCurrentIndex(0);
-  }
+
+    return () => {
+      cancelled = true;
+    };
+  }, [asset?.id]);
 
   if (!asset) return null;
 
   const detail = fullAsset || asset;
   const Icon = TYPE_ICON[asset.type];
   const displayName = getAssetDisplayName(asset);
-  const spokenText = recognizedText ?? (detail.description?.trim() || "");
+  const spokenText = recognizedText ?? (draftDescription.trim() || "");
   const audioSrc = asset.previewUrl || asset.filePath || "";
   const hasImagePreview = asset.type !== "audio" && images.length > 0;
 
@@ -153,10 +167,10 @@ export function StudioAssetDetailDialog({
       return;
     }
     const updates: Record<string, unknown> = {};
-    if (nameRef.current) updates.name = nameRef.current.value;
-    if (descRef.current) updates.description = descRef.current.value;
-    if (promptRef.current) updates.prompt = promptRef.current.value;
-    if (settingRef.current) updates.setting = settingRef.current.value;
+    updates.name = draftName;
+    updates.description = draftDescription;
+    updates.prompt = draftPrompt;
+    updates.setting = draftSetting;
     const result = await window.studioAssets.update({ id: asset.id, updates });
     if (result) {
       toast.success("已保存");
@@ -203,8 +217,8 @@ export function StudioAssetDetailDialog({
   };
 
   const handleRegenerate = async () => {
-    const currentPrompt = promptRef.current?.value?.trim()
-      || descRef.current?.value?.trim()
+    const currentPrompt = draftPrompt.trim()
+      || draftDescription.trim()
       || detail.prompt?.trim()
       || detail.description?.trim()
       || "";
@@ -359,8 +373,8 @@ export function StudioAssetDetailDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="studio-asset-detail-dialog h-[92vh] !w-[90vw] !max-w-[90vw] overflow-hidden p-0">
-        <DialogHeader className="studio-asset-detail-header border-b border-border px-5 py-4">
-          <DialogTitle className="flex min-w-0 items-center gap-2 text-base">
+        <DialogHeader className={asset.type === "audio" ? "sr-only" : "studio-asset-detail-header border-b border-border px-5 py-4"}>
+          <DialogTitle className={asset.type === "audio" ? "sr-only" : "flex min-w-0 items-center gap-2 text-base"}>
             <Icon className="h-4 w-4 text-primary" />
             <span className="truncate">{displayName}</span>
             <Badge variant="outline" className="ml-1">{TYPE_LABEL[asset.type]}</Badge>
@@ -378,8 +392,7 @@ export function StudioAssetDetailDialog({
                       <Music2 className="h-5 w-5 text-primary" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className="text-sm font-semibold text-foreground">{displayName}</div>
-                      <div className="mt-1 text-[11px] text-muted-foreground">说话内容</div>
+                      <div className="text-[11px] text-muted-foreground">说话内容</div>
                       <div className="mt-0.5 text-sm leading-6 text-foreground">{spokenText || "暂无口播词句"}</div>
                     </div>
                   </div>
@@ -408,8 +421,8 @@ export function StudioAssetDetailDialog({
                           toast.info("正在识别说话内容...");
                           try {
                             const res = await window.ttsRuntime.request({ method: "POST", path: "/transcribe", body: { audio_path: filePath } }) as { text?: string };
-                            if (res?.text && descRef.current) {
-                              descRef.current.value = res.text;
+                            if (res?.text) {
+                              setDraftDescription(res.text);
                               setRecognizedText(res.text);
                               // 自动保存到资产库
                               if (window.studioAssets?.update) {
@@ -505,7 +518,7 @@ export function StudioAssetDetailDialog({
                     <Sparkles className="mr-2 h-3.5 w-3.5" />
                     重新出图
                   </Button>
-                  <Button variant="outline" size="sm" onClick={() => copyText("出图提示词", promptRef.current?.value || descRef.current?.value || regenerationPrompt)}>
+                  <Button variant="outline" size="sm" onClick={() => copyText("出图提示词", draftPrompt || draftDescription || regenerationPrompt)}>
                     <Clipboard className="mr-2 h-3.5 w-3.5" />
                     复制出图提示词
                   </Button>
@@ -528,17 +541,19 @@ export function StudioAssetDetailDialog({
               <section className="space-y-1.5">
                 <div className="text-xs font-medium text-muted-foreground">名字</div>
                 <input
-                  ref={nameRef}
                   className="w-full rounded-md border border-border bg-muted/20 px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
-                  defaultValue={displayName}
+                  value={draftName}
+                  onChange={(event) => setDraftName(event.target.value)}
                 />
               </section>
               <section className="space-y-1.5">
                 <div className="text-xs font-medium text-muted-foreground">{asset.type === "audio" ? "说话内容" : "描述"}</div>
                 <Textarea
-                  key={`desc-${detail.id}-${detail.description?.length ?? 0}`}
-                  ref={descRef}
-                  defaultValue={(asset.type === "audio" ? spokenText : detail.description?.trim()) || ""}
+                  value={asset.type === "audio" ? spokenText : draftDescription}
+                  onChange={(event) => {
+                    setDraftDescription(event.target.value);
+                    setRecognizedText(null);
+                  }}
                   placeholder={asset.type === "audio" ? "暂无口播词句" : "暂无描述"}
                   className="min-h-[80px] resize-none bg-muted/20 text-xs leading-5"
                 />
@@ -548,9 +563,8 @@ export function StudioAssetDetailDialog({
                   <section className="space-y-1.5">
                     <div className="text-xs font-medium text-muted-foreground">出图提示词</div>
                     <Textarea
-                      key={`prompt-${detail.id}-${detail.prompt?.length ?? 0}`}
-                      ref={promptRef}
-                      defaultValue={detail.prompt?.trim() || ""}
+                      value={draftPrompt}
+                      onChange={(event) => setDraftPrompt(event.target.value)}
                       placeholder="暂无出图提示词"
                       className="min-h-[80px] resize-none bg-muted/20 text-xs leading-5"
                     />
@@ -558,21 +572,15 @@ export function StudioAssetDetailDialog({
                   <section className="space-y-1.5">
                     <div className="text-xs font-medium text-muted-foreground">设定</div>
                     <Textarea
-                      key={`setting-${detail.id}-${detail.setting?.length ?? 0}`}
-                      ref={settingRef}
-                      defaultValue={detail.setting?.trim() || ""}
+                      value={draftSetting}
+                      onChange={(event) => setDraftSetting(event.target.value)}
                       placeholder="暂无设定"
                       className="min-h-[200px] resize-none bg-muted/20 text-xs leading-5"
                     />
                   </section>
                 </>
               ) : (
-                <section className="space-y-1.5">
-                  <div className="text-xs font-medium text-muted-foreground">来源</div>
-                  <div className="min-h-[96px] break-all rounded-md border border-border bg-muted/20 px-3 py-2 text-xs leading-5 text-muted-foreground">
-                    {asset.sourcePath || asset.filePath || "暂无来源路径"}
-                  </div>
-                </section>
+                null
               )}
               <Button className="w-full" onClick={handleSave}>保存</Button>
               <Button variant="destructive" className="w-full" onClick={handleDelete}>删除</Button>

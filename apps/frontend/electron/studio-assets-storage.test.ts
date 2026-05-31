@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { buildAssetWhere } from "./studio-assets-storage";
+import {
+  buildAssetWhere,
+  resolveAssetManagedPath,
+  shouldCreateAssetThumbnail,
+} from "./studio-assets-storage";
 
 describe("buildAssetWhere", () => {
   it("只按类型过滤", () => {
@@ -26,5 +30,17 @@ describe("buildAssetWhere", () => {
 
   it("转义单引号防注入", () => {
     expect(buildAssetWhere("tool", "a'b")).toContain("a''b");
+  });
+});
+
+describe("asset file safety", () => {
+  it("does not generate image thumbnails for audio assets", () => {
+    expect(shouldCreateAssetThumbnail("audio")).toBe(false);
+    expect(shouldCreateAssetThumbnail("role")).toBe(true);
+  });
+
+  it("rejects asset file paths that escape the managed asset root", () => {
+    expect(() => resolveAssetManagedPath("/assets/files", "../outside.png")).toThrow("escapes");
+    expect(resolveAssetManagedPath("/assets/files", "audio/voice.wav")).toBe("/assets/files/audio/voice.wav");
   });
 });

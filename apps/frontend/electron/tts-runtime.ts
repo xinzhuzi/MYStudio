@@ -23,6 +23,11 @@ interface FetchJsonOptions {
   body?: string;
 }
 
+interface FetchBytesResult {
+  data: ArrayBuffer;
+  mimeType?: string;
+}
+
 interface RuntimeConfig {
   modelCacheDir?: string;
   controlToken?: string;
@@ -41,6 +46,7 @@ export interface TtsRuntimeControllerDeps {
   writeTextFile?: (filePath: string, value: string) => void;
   spawnProcess?: (command: string, args: string[], options: SpawnOptionsWithoutStdio) => SpawnedProcess;
   fetchJson?: (url: string, options: FetchJsonOptions) => Promise<unknown>;
+  fetchBytes?: (url: string, options: FetchJsonOptions) => Promise<FetchBytesResult>;
   findListeningPids?: (port: number, host: string) => Promise<number[]>;
   killProcess?: (pid: number) => boolean;
 }
@@ -51,6 +57,7 @@ export interface TtsRuntimeController {
   stop: () => Promise<TtsRuntimeCommandResult>;
   setModelCacheDir: (dirPath: string) => Promise<TtsRuntimeCommandResult>;
   request: (method: string, routePath: string, body?: unknown) => Promise<unknown>;
+  requestBytes: (method: string, routePath: string, body?: unknown) => Promise<FetchBytesResult>;
 }
 
 function defaultFetchJson(url: string, options: FetchJsonOptions) {
@@ -64,6 +71,19 @@ function defaultFetchJson(url: string, options: FetchJsonOptions) {
       return response.text();
     }
     return response.json();
+  });
+}
+
+function defaultFetchBytes(url: string, options: FetchJsonOptions) {
+  return fetch(url, options).then(async (response) => {
+    if (!response.ok) {
+      const text = await response.text().catch(() => "");
+      throw new Error(text || `TTS backend request failed (${response.status})`);
+    }
+    return {
+      data: await response.arrayBuffer(),
+      mimeType: response.headers.get("content-type") ?? undefined,
+    };
   });
 }
 
@@ -183,6 +203,7 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
   const writeTextFile = deps.writeTextFile ?? ((filePath: string, value: string) => fs.writeFileSync(filePath, value));
   const spawnProcess = deps.spawnProcess ?? ((command, args, options) => spawn(command, args, options));
   const fetchJson = deps.fetchJson ?? defaultFetchJson;
+  const fetchBytes = deps.fetchBytes ?? defaultFetchBytes;
   const findListeningPids = deps.findListeningPids ?? defaultFindListeningPids;
   const killProcess = deps.killProcess ?? defaultKillProcess;
   const sidecarRoots = uniquePaths([
@@ -516,15 +537,32 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
     return { success: true, status: await status() };
   }
 
-  async function request(method: string, routePath: string, body?: unknown) {
+  function buildRequestOptions(method: string, body?: unknown): FetchJsonOptions {
     const hasBody = body !== undefined && method.toUpperCase() !== "GET";
+    const headers: Record<string, string> = {
+      "X-Manying-TTS-Token": getControlToken(),
+    };
+    if (hasBody) headers["Content-Type"] = "application/json";
+    return {
+      method,
+      headers,
+      body: hasBody ? JSON.stringify(body) : undefined,
+    };
+  }
+
+  async function request(method: string, routePath: string, body?: unknown) {
     const requestUrl = `${baseUrl}${normalizeRoutePath(routePath)}`;
     try {
-      return await fetchJson(requestUrl, {
-        method,
-        headers: hasBody ? { "Content-Type": "application/json" } : undefined,
-        body: hasBody ? JSON.stringify(body) : undefined,
-      });
+      return await fetchJson(requestUrl, buildRequestOptions(method, body));
+    } catch (error) {
+      throw new Error(`本地 TTS 后端请求失败: ${method.toUpperCase()} ${requestUrl}: ${getErrorMessage(error)}`);
+    }
+  }
+
+  async function requestBytes(method: string, routePath: string, body?: unknown) {
+    const requestUrl = `${baseUrl}${normalizeRoutePath(routePath)}`;
+    try {
+      return await fetchBytes(requestUrl, buildRequestOptions(method, body));
     } catch (error) {
       throw new Error(`本地 TTS 后端请求失败: ${method.toUpperCase()} ${requestUrl}: ${getErrorMessage(error)}`);
     }
@@ -536,5 +574,6 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
     stop,
     setModelCacheDir,
     request,
+    requestBytes,
   };
 }

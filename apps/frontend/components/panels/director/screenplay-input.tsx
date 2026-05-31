@@ -16,7 +16,7 @@ import { useAPIConfigStore } from "@/stores/api-config-store";
 import { useCharacterLibraryStore, type Character } from "@/stores/character-library-store";
 import { useAppSettingsStore } from "@/stores/app-settings-store";
 import { useProjectStore } from "@/stores/project-store";
-import { getWorkerBridge, initializeWorkerBridge } from "@/lib/ai/worker-bridge";
+import { aiManager } from "@/lib/ai/ai-manager";
 import { Wand2, ImagePlus, X, Settings, AlertCircle, Shuffle, ChevronDown, User, Users, Plus, Check, Monitor, Smartphone } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -473,7 +473,7 @@ export function ScreenplayInput({ onGenerateStoryboard }: ScreenplayInputProps) 
 
     try {
       // Initialize worker and generate screenplay
-      const bridge = await initializeWorkerBridge();
+      const bridge = await aiManager.initWorker();
       
       // Get API key and provider
       const chatApiKey = getApiKey('memefast');

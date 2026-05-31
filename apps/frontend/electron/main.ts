@@ -49,6 +49,11 @@ import {
   shouldCreateWindowOnActivate,
   shouldCreateWindowOnSecondInstance,
 } from './app-lifecycle'
+import {
+  resolveDataDirPath,
+  resolveDataFilePath,
+  resolveLocalMediaPath,
+} from './storage-paths'
 
 // electron-vite 构建后的目录结构
 //
@@ -690,10 +695,8 @@ function parseDataUrl(dataUrl: string): { buffer: Buffer, mimeType: string } | n
 }
 
 function resolveImageSourcePath(imagePath: string): string | null {
-  const localImageMatch = imagePath.match(/^local-image:\/\/(.+)\/(.+)$/)
-  if (localImageMatch) {
-    const [, category, filename] = localImageMatch
-    return path.join(getMediaRoot(), category, decodeURIComponent(filename))
+  if (imagePath.startsWith('local-image://')) {
+    return resolveLocalMediaPath(getMediaRoot(), imagePath)
   }
 
   if (imagePath.startsWith('file://')) {
@@ -964,28 +967,20 @@ ipcMain.handle('save-image', async (_event, { url, category, filename }) => {
 })
 
 ipcMain.handle('get-image-path', async (_event, localPath: string) => {
-  // Convert local-image://category/filename to actual file path
-  const match = localPath.match(/^local-image:\/\/(.+)\/(.+)$/)
-  if (!match) return null
-  
-  const [, category, filename] = match
-  const filePath = path.join(getMediaRoot(), category, filename)
-  
-  if (fs.existsSync(filePath)) {
-    // Windows: file:///H:/path/to/file.png (三斜杠 + 正斜杠)
-    return `file:///${filePath.replace(/\\/g, '/')}`
+  try {
+    const filePath = resolveLocalMediaPath(getMediaRoot(), localPath)
+    if (fs.existsSync(filePath)) {
+      return `file:///${filePath.replace(/\\/g, '/')}`
+    }
+  } catch {
+    return null
   }
   return null
 })
 
 ipcMain.handle('delete-image', async (_event, localPath: string) => {
-  const match = localPath.match(/^local-image:\/\/(.+)\/(.+)$/)
-  if (!match) return false
-  
-  const [, category, filename] = match
-  const filePath = path.join(getMediaRoot(), category, filename)
-  
   try {
+    const filePath = resolveLocalMediaPath(getMediaRoot(), localPath)
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath)
     }
@@ -998,18 +993,7 @@ ipcMain.handle('delete-image', async (_event, localPath: string) => {
 // Read local image as base64 (for AI API calls)
 ipcMain.handle('read-image-base64', async (_event, localPath: string) => {
   try {
-    let filePath: string
-    
-    // Handle local-image:// protocol
-    const match = localPath.match(/^local-image:\/\/(.+)\/(.+)$/)
-    if (match) {
-      const [, category, filename] = match
-      filePath = path.join(getMediaRoot(), category, decodeURIComponent(filename))
-    } else if (localPath.startsWith('file://')) {
-      filePath = localPath.replace('file://', '')
-    } else {
-      filePath = localPath
-    }
+    const filePath = resolveLocalMediaPath(getMediaRoot(), localPath)
     
     if (!fs.existsSync(filePath)) {
       return { success: false, error: 'File not found' }
@@ -1036,14 +1020,13 @@ ipcMain.handle('read-image-base64', async (_event, localPath: string) => {
 
 // Get absolute file path for a local-image:// URL
 ipcMain.handle('get-absolute-path', async (_event, localPath: string) => {
-  const match = localPath.match(/^local-image:\/\/(.+)\/(.+)$/)
-  if (!match) return null
-  
-  const [, category, filename] = match
-  const filePath = path.join(getMediaRoot(), category, decodeURIComponent(filename))
-  
-  if (fs.existsSync(filePath)) {
-    return filePath
+  try {
+    const filePath = resolveLocalMediaPath(getMediaRoot(), localPath)
+    if (fs.existsSync(filePath)) {
+      return filePath
+    }
+  } catch {
+    return null
   }
   return null
 })
@@ -1063,7 +1046,7 @@ const getDataDir = () => {
 
 ipcMain.handle('file-storage-get', async (_event, key: string) => {
   try {
-    const filePath = path.join(getDataDir(), `${key}.json`)
+    const filePath = resolveDataFilePath(getDataDir(), key)
     if (fs.existsSync(filePath)) {
       const data = fs.readFileSync(filePath, 'utf-8')
       return data
@@ -1077,7 +1060,7 @@ ipcMain.handle('file-storage-get', async (_event, key: string) => {
 
 ipcMain.handle('file-storage-set', async (_event, key: string, value: string) => {
   try {
-    const filePath = path.join(getDataDir(), `${key}.json`)
+    const filePath = resolveDataFilePath(getDataDir(), key)
     // Ensure parent directory exists (supports nested keys like _p/xxx/script)
     const parentDir = path.dirname(filePath)
     ensureDir(parentDir)
@@ -1092,7 +1075,7 @@ ipcMain.handle('file-storage-set', async (_event, key: string, value: string) =>
 
 ipcMain.handle('file-storage-remove', async (_event, key: string) => {
   try {
-    const filePath = path.join(getDataDir(), `${key}.json`)
+    const filePath = resolveDataFilePath(getDataDir(), key)
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath)
     }
@@ -1106,7 +1089,7 @@ ipcMain.handle('file-storage-remove', async (_event, key: string) => {
 // Check if a storage key exists
 ipcMain.handle('file-storage-exists', async (_event, key: string) => {
   try {
-    const filePath = path.join(getDataDir(), `${key}.json`)
+    const filePath = resolveDataFilePath(getDataDir(), key)
     return fs.existsSync(filePath)
   } catch {
     return false
@@ -1116,7 +1099,7 @@ ipcMain.handle('file-storage-exists', async (_event, key: string) => {
 // List sub-directories under a directory prefix (used to discover project IDs under _p/)
 ipcMain.handle('file-storage-list-dirs', async (_event, prefix: string) => {
   try {
-    const dirPath = path.join(getDataDir(), prefix)
+    const dirPath = resolveDataDirPath(getDataDir(), prefix)
     if (!fs.existsSync(dirPath)) return []
     const entries = await fs.promises.readdir(dirPath, { withFileTypes: true })
     return entries
@@ -1130,7 +1113,7 @@ ipcMain.handle('file-storage-list-dirs', async (_event, prefix: string) => {
 // List all JSON keys under a directory prefix
 ipcMain.handle('file-storage-list', async (_event, prefix: string) => {
   try {
-    const dirPath = path.join(getDataDir(), prefix)
+    const dirPath = resolveDataDirPath(getDataDir(), prefix)
     if (!fs.existsSync(dirPath)) return []
     const entries = await fs.promises.readdir(dirPath, { withFileTypes: true })
     return entries
@@ -1144,7 +1127,7 @@ ipcMain.handle('file-storage-list', async (_event, prefix: string) => {
 // Remove an entire directory (for project deletion)
 ipcMain.handle('file-storage-remove-dir', async (_event, prefix: string) => {
   try {
-    const dirPath = path.join(getDataDir(), prefix)
+    const dirPath = resolveDataDirPath(getDataDir(), prefix)
     if (fs.existsSync(dirPath)) {
       await fs.promises.rm(dirPath, { recursive: true, force: true })
     }
@@ -2015,11 +1998,9 @@ ipcMain.handle('save-file-dialog', async (_event, { localPath, defaultPath, filt
     const videoMatch = localPath.match(/^local-video:\/\/(.+)\/(.+)$/)
     
     if (imageMatch) {
-      const [, category, filename] = imageMatch
-      sourcePath = path.join(getMediaRoot(), category, decodeURIComponent(filename))
+      sourcePath = resolveLocalMediaPath(getMediaRoot(), localPath)
     } else if (videoMatch) {
-      const [, category, filename] = videoMatch
-      sourcePath = path.join(getMediaRoot(), category, decodeURIComponent(filename))
+      sourcePath = resolveLocalMediaPath(getMediaRoot(), localPath)
     } else if (localPath.startsWith('file://')) {
       sourcePath = localPath.replace('file://', '')
     } else {
@@ -2080,9 +2061,8 @@ function sanitizeStudioFilename(name: string) {
 
 function resolveStudioSourcePath(sourcePath: string) {
   if (sourcePath.startsWith('file://')) return sourcePath.replace('file://', '')
-  const localMatch = sourcePath.match(/^local-image:\/\/([^/]+)\/(.+)$/)
-  if (localMatch) {
-    return path.join(getMediaRoot(), localMatch[1], decodeURIComponent(localMatch[2]))
+  if (sourcePath.startsWith('local-image://')) {
+    return resolveLocalMediaPath(getMediaRoot(), sourcePath)
   }
   return sourcePath
 }
@@ -2333,6 +2313,10 @@ ipcMain.handle('tts-runtime-request', async (_event, payload: { method: string; 
   ttsRuntimeController.request(payload.method, payload.path, payload.body)
 ))
 
+ipcMain.handle('tts-runtime-request-bytes', async (_event, payload: { method: string; path: string; body?: unknown }) => (
+  ttsRuntimeController.requestBytes(payload.method, payload.path, payload.body)
+))
+
 ipcMain.handle('studio-merge-episode', async (_event, plan: EpisodeMergePlan) => {
   const tmpDir = path.join(getStudioRenderRoot(), `tmp-${crypto.randomUUID()}`)
   await fs.promises.mkdir(tmpDir, { recursive: true })
@@ -2393,31 +2377,18 @@ app.whenReady().then(async () => {
   assetsStorage.initAssetsStorage(getStorageBasePath())
   scheduleAutoClean()
   await stopLocalSidecars()
-  // 应用启动时自动启动 TTS 后端
-  ttsRuntimeController.start().then((result) => {
-    if (result.success) {
-      console.log('[main] TTS backend started successfully')
-    } else {
-      console.warn('[main] TTS backend auto-start failed:', result.error)
-    }
-  }).catch((err) => {
-    console.warn('[main] TTS backend auto-start error:', err)
-  })
   await ensureStudioSkillsAvailableAtStartup()
   // Handle local-image:// protocol
   protocol.handle('local-image', async (request) => {
     try {
       // URL format: local-image://category/filename
-      const url = new URL(request.url)
-      const category = url.hostname
-      const filename = decodeURIComponent(url.pathname.slice(1)) // Remove leading / and decode
-      const filePath = path.join(getMediaRoot(), category, filename)
+      const filePath = resolveLocalMediaPath(getMediaRoot(), request.url)
       
       // Read file directly
       const data = fs.readFileSync(filePath)
       
       // Determine MIME type based on extension
-      const ext = path.extname(filename).toLowerCase()
+      const ext = path.extname(filePath).toLowerCase()
       const mimeTypes: Record<string, string> = {
         // Images
         '.png': 'image/png',

@@ -6,6 +6,16 @@
 import { useAPIConfigStore, type AgentDeploymentKey, type AIFeature } from "@/stores/api-config-store";
 import type { IProvider } from "@/lib/api-key-manager";
 import type { TextCompletionMessage } from "@/lib/api-manager/text-completion";
+import {
+  generateCharacterImage,
+  generateSceneImage,
+  submitGridImageRequest,
+  type ImageGenerationParams,
+  type ImageGenerationResult,
+} from "@/lib/ai/image-generator";
+import { getWorkerBridge, initializeWorkerBridge, type AIWorkerBridge } from "@/lib/ai/worker-bridge";
+import { generateSpeech } from "@/lib/tts/client";
+import type { TtsGenerateRequest, TtsGenerateResponse } from "@/types/tts";
 
 /** 绑定：可来自 studio 的 Agent 部署，或 ai-core 的功能绑定。 */
 export type AIBinding = { agent: AgentDeploymentKey } | { feature: AIFeature };
@@ -89,4 +99,29 @@ async function textStream(req: AITextRequest, onChunk: (delta: string) => void):
   return { success: result.success, text: result.text, error: result.error };
 }
 
-export const aiManager = { resolve, text, textStream };
+/** 图像生成（角色/场景）：委托 image-generator（内部按功能绑定解析）；出错抛异常，返回 {imageUrl,taskId?}。 */
+async function image(params: ImageGenerationParams, kind: "character" | "scene" = "character"): Promise<ImageGenerationResult> {
+  return kind === "scene" ? generateSceneImage(params) : generateCharacterImage(params);
+}
+
+/** 网格/多图生成：调用方已解析好 model/apiKey/baseUrl。 */
+async function imageGrid(params: Parameters<typeof submitGridImageRequest>[0]) {
+  return submitGridImageRequest(params);
+}
+
+/** ai-core 工作线程（导演 剧本→场景→图像→视频 流水线，事件式长任务）。同步取单例。 */
+function worker(): AIWorkerBridge {
+  return getWorkerBridge();
+}
+
+/** 确保 ai-core 工作线程已初始化后返回（异步）。 */
+function initWorker(): Promise<AIWorkerBridge> {
+  return initializeWorkerBridge();
+}
+
+/** 语音合成（本地 TTS sidecar）：提交生成任务，返回任务信息。 */
+function tts(payload: TtsGenerateRequest): Promise<TtsGenerateResponse> {
+  return generateSpeech(payload);
+}
+
+export const aiManager = { resolve, text, textStream, image, imageGrid, worker, initWorker, tts };

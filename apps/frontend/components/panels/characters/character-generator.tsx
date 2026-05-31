@@ -16,7 +16,7 @@
 
 import { useState } from "react";
 import { type Character, type CharacterView, useCharacterLibraryStore } from "@/stores/character-library-store";
-import { generateCharacterImage as generateCharacterImageAPI } from "@/lib/ai/image-generator";
+import { aiManager } from "@/lib/ai/ai-manager";
 import { saveImageToLocal } from "@/lib/image-storage";
 import { useMediaStore } from "@/stores/media-store";
 import { Button } from "@/components/ui/button";
@@ -121,7 +121,7 @@ export function CharacterGenerator({ character }: CharacterGeneratorProps) {
         : 'blurry, low quality, watermark, text, cropped';
 
       // Generate character sheet using unified image-generator module
-      const result = await generateCharacterImageAPI({
+      const result = await aiManager.image({
         prompt: sheetPrompt,
         negativePrompt,
         aspectRatio: '1:1',

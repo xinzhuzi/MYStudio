@@ -21,7 +21,7 @@ import {
 import { useMediaStore } from "@/stores/media-store";
 import { useProjectStore } from "@/stores/project-store";
 import { getFeatureConfig, getFeatureNotConfiguredMessage } from "@/lib/ai/feature-router";
-import { submitGridImageRequest } from "@/lib/ai/image-generator";
+import { aiManager } from "@/lib/ai/ai-manager";
 import { readImageAsBase64, saveImageToLocal } from "@/lib/image-storage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -761,7 +761,7 @@ async function generateVariationImage(params: {
 
   // ---- Call API via unified image generator ----
   // Use 1:1 aspect ratio to match base character sheet format
-  const result = await submitGridImageRequest({
+  const result = await aiManager.imageGrid({
     model,
     prompt,
     apiKey,

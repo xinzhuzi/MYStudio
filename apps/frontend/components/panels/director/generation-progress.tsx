@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useMemo, useCallback, useEffect, useRef } from "react";
-import { getWorkerBridge } from "@/lib/ai/worker-bridge";
+import { aiManager } from "@/lib/ai/ai-manager";
 import { useAPIConfigStore } from "@/stores/api-config-store";
 
 export function GenerationProgress() {
@@ -102,7 +102,7 @@ export function GenerationProgress() {
     if (!screenplay) return;
     
     try {
-      const workerBridge = getWorkerBridge();
+      const workerBridge = aiManager.worker();
       
       // Register event handlers
       workerBridge.on('SCENE_PROGRESS', (event) => {

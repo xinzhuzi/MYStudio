@@ -19,11 +19,8 @@ export {};
 
 declare global {
   interface Window {
-    ipcRenderer?: {
-      on: (channel: string, listener: (event: unknown, ...args: unknown[]) => void) => void;
-      off: (channel: string, listener: (event: unknown, ...args: unknown[]) => void) => void;
-      send: (channel: string, ...args: unknown[]) => void;
-      invoke: (channel: string, ...args: unknown[]) => Promise<unknown>;
+    appEvents?: {
+      onMainProcessMessage: (listener: (message: string) => void) => () => void;
     };
     imageStorage?: {
       saveImage: (url: string, category: string, filename: string) => Promise<{ success: boolean; localPath?: string; error?: string }>;
@@ -212,6 +209,7 @@ declare global {
       stop: () => Promise<TtsRuntimeCommandResult>;
       setModelCacheDir: (dirPath: string) => Promise<TtsRuntimeCommandResult>;
       request: (payload: { method: string; path: string; body?: unknown }) => Promise<unknown>;
+      requestBytes: (payload: { method: string; path: string; body?: unknown }) => Promise<{ data: ArrayBuffer; mimeType?: string }>;
     };
   }
 }

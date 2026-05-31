@@ -12,9 +12,8 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
   </React.StrictMode>,
 )
 
-// Use contextBridge (only available in Electron)
-if (window.ipcRenderer) {
-  window.ipcRenderer.on('main-process-message', (_event, message) => {
+if (window.appEvents) {
+  window.appEvents.onMainProcessMessage((message) => {
     console.log(message)
   })
 }

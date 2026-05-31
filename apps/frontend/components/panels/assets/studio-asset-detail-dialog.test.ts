@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   buildAssetRegenerationPrompt,
@@ -60,5 +61,11 @@ describe("buildAssetRegenerationPrompt", () => {
     };
 
     expect(getAssetSpokenText(asset)).toBe("你终于回来了，风雪已经等了你三年。");
+  });
+
+  it("loads full asset data from an effect instead of mutating state during render", () => {
+    const source = readFileSync(new URL("./StudioAssetDetailDialog.tsx", import.meta.url), "utf8");
+    expect(source).not.toContain("if (asset && asset.id !== prevAssetId.current)");
+    expect(source).toContain("useEffect(() =>");
   });
 });

@@ -15,7 +15,7 @@ import type { CharacterIdentityAnchors, CharacterNegativePrompt, PromptLanguage 
 import { useActiveScriptProject } from "@/stores/script-store";
 import { useMediaPanelStore } from "@/stores/media-panel-store";
 import { useMediaStore } from "@/stores/media-store";
-import { generateCharacterImage as generateCharacterImageAPI } from "@/lib/ai/image-generator";
+import { aiManager } from "@/lib/ai/ai-manager";
 import { saveImageToLocal } from "@/lib/image-storage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -412,7 +412,7 @@ export function GenerationPanel({ selectedCharacter, onCharacterCreated }: Gener
         }
       }
 
-      const result = await generateCharacterImageAPI({
+      const result = await aiManager.image({
         prompt,
         negativePrompt,
         aspectRatio: '1:1',

@@ -22,6 +22,7 @@ extraResources:
       - "**/*"
       - "!**/__pycache__/**"
       - "!**/*.pyc"
+      - "!python/**"
       - "!venv/**"
       - "!**/.DS_Store"
   - from: frontend/assets/studio-manuals
