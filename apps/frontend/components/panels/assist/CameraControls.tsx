@@ -147,7 +147,7 @@ function ScrollColumn({ items, value, onChange, label }: ScrollColumnProps) {
               className={cn(
                 'flex items-center justify-center h-12 px-2 snap-center cursor-pointer transition-all duration-200 rounded-lg mx-1',
                 item === value
-                  ? 'border border-primary/50 bg-primary/5 shadow-sm'
+                  ? 'border border-primary/50 bg-primary/5'
                   : 'border border-transparent hover:bg-muted/50'
               )}
               onClick={() => onChange(item)}

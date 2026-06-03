@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { StudioAssetCard } from "./StudioAssetCard";
 import { StudioAssetDetailDialog } from "./StudioAssetDetailDialog";
 import { AddAssetDialog } from "./AddAssetDialog";
+import { AssetGenerationBar } from "./AssetGenerationBar";
 import { VirtualGrid } from "./VirtualGrid";
 import { cn } from "@/lib/utils";
 
@@ -88,9 +89,9 @@ export function StudioAssetLibrary({ type }: { type: StudioAssetKind }) {
         source: "manying-local" as const,
         type,
         name: item.name,
-        description: item.prompt,
-        setting: item.prompt,
-        prompt: item.prompt,
+        description: item.description || item.visualPrompt || "",
+        setting: item.description || item.visualPrompt || "",
+        prompt: item.visualPrompt || item.description || "",
         thumbnailUrl: item.imageUrl,
         previewUrl: item.imageUrl,
         filePath: item.imageUrl,
@@ -301,6 +302,12 @@ export function StudioAssetLibrary({ type }: { type: StudioAssetKind }) {
             />
           </div>
         </div>
+        {/* 资产润色操作栏 — 仅角色/场景/道具显示 */}
+        {(type === "role" || type === "scene" || type === "tool") && (
+          <AssetGenerationBar
+            assetType={type === "tool" ? "prop" : type === "role" ? "character" : type}
+          />
+        )}
         {error ? (
           <div className="mt-2 truncate text-[11px] text-destructive" title={error}>
             {error}

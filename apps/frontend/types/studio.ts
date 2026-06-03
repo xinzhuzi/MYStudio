@@ -11,6 +11,9 @@ export type AgentWorkKey =
   | "storyboardPanel"
   | "storyboardImage"
   | "supervisionReport"
+  | "storySkeletonReview"
+  | "adaptationStrategyReview"
+  | "scriptDraftReview"
   | "entityExtraction"
   | "episodeOutline"
   | "voiceAssign";
@@ -254,9 +257,9 @@ export interface StorySkeleton {
 export interface EntityExtractionResult {
   id: string;
   episodeId: string;
-  characters: { characterId: string; name: string; aliases: string[] }[];
-  scenes: { sceneId: string; name: string }[];
-  props: { assetId: string; name: string }[];
+  characters: { characterId: string; name: string; aliases: string[]; note?: string }[];
+  scenes: { sceneId: string; name: string; note?: string }[];
+  props: { assetId: string; name: string; note?: string }[];
 }
 
 export interface ScriptPlan {

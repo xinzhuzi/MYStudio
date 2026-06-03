@@ -97,7 +97,7 @@ export function syncExtractedEntities(
           status: "linked",
           linkedEpisodeId: episodeId,
         });
-        characters.push({ characterId, name: entity.name, aliases: entity.aliases });
+        characters.push({ characterId, name: entity.name, aliases: entity.aliases, note: entity.note });
         created += 1;
       } else {
         characterSink.updateCharacter(entity.id, {
@@ -105,7 +105,7 @@ export function syncExtractedEntities(
           status: "linked",
           linkedEpisodeId: episodeId,
         });
-        characters.push({ characterId: entity.id, name: entity.name, aliases: entity.aliases });
+        characters.push({ characterId: entity.id, name: entity.name, aliases: entity.aliases, note: entity.note });
         merged += 1;
       }
       continue;
@@ -124,14 +124,14 @@ export function syncExtractedEntities(
           status: "linked",
           linkedEpisodeId: episodeId,
         });
-        scenes.push({ sceneId, name: entity.name });
+        scenes.push({ sceneId, name: entity.name, note: entity.note });
         created += 1;
       } else {
         sceneSink.updateScene(entity.id, {
           status: "linked",
           linkedEpisodeId: episodeId,
         });
-        scenes.push({ sceneId: entity.id, name: entity.name });
+        scenes.push({ sceneId: entity.id, name: entity.name, note: entity.note });
         merged += 1;
       }
       continue;
@@ -139,7 +139,7 @@ export function syncExtractedEntities(
 
     // prop: lightweight, no dedicated store (plan §二 待确认点)
     const assetId = entity.id ?? `prop-${episodeId}-${props.length + 1}`;
-    props.push({ assetId, name: entity.name });
+    props.push({ assetId, name: entity.name, note: entity.note });
     if (entity.isNew || !entity.id) created += 1;
     else merged += 1;
   }

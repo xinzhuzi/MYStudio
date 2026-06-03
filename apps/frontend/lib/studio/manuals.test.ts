@@ -165,24 +165,23 @@ describe("studio manual presets", () => {
     expect(agentExports.getAgentSkillPreset?.("production_execution_storyboard_table")?.content).toContain("分镜");
   });
 
-  it("keeps long-running agent skills incremental instead of single-shot XML output", () => {
+  it("script/production 文本类 skill 为单次 Markdown 输出（不再 XML 增量；storyboard_panel 属结构化属性 XML、未被代码引用，不在此列）", () => {
     const agentExports = manuals as typeof manuals & {
       getAgentSkillPreset?: (id: string) => { content: string } | null;
     };
-    const incrementalSkillIds = [
+    const markdownSkillIds = [
       "script_execution_skeleton",
       "script_execution_adaptation",
       "script_execution_script",
       "production_execution_director_plan",
-      "production_execution_storyboard_panel",
       "production_execution_storyboard_table",
     ];
 
-    for (const id of incrementalSkillIds) {
+    for (const id of markdownSkillIds) {
       const content = agentExports.getAgentSkillPreset?.(id)?.content ?? "";
-      expect(content, id).not.toContain("一次性完整输出");
-      expect(content, id).not.toContain("禁止拆分为多次 XML 输出");
-      expect(content, id).toContain("自动继续");
+      expect(content, id).not.toMatch(/<storySkeleton>|<adaptationStrategy>|<scriptItem|<scriptPlan>|<storyboardTable>/);
+      expect(content, id).not.toContain("自动继续");
+      expect(content, id).toContain("一次性输出全部");
     }
   });
 });

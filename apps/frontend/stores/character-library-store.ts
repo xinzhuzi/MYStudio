@@ -89,6 +89,11 @@ export interface Character {
   // === 6层身份锚点（角色一致性）===
   identityAnchors?: CharacterIdentityAnchors;  // 身份锚点 - 6层特征锁定
   negativePrompt?: CharacterNegativePrompt;    // 负面提示词
+
+  /** 提示词润色状态 */
+  promptState?: "none" | "polishing" | "ready" | "failed";
+  /** 提示词润色错误信息 */
+  promptError?: string;
   
   createdAt: number;
   updatedAt: number;

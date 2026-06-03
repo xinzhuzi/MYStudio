@@ -39,6 +39,7 @@ import {
 import * as assetsStorage from './studio-assets-storage'
 import { runModelTestRequest, type ModelTestRequest, type ModelTestResult } from '../lib/api-manager/model-test'
 import { runTextCompletionRequest, runTextCompletionStreamRequest, type TextCompletionRequest, type TextCompletionResult } from '../lib/api-manager/text-completion'
+import { sdkGenerateText, sdkStreamText } from '../lib/ai/ai-sdk-bridge'
 import type { StudioAssetListRequest } from '../types/studio-assets'
 import type { StudioVisualManualCreatePayload, StudioVisualManualImagesWritePayload, StudioVisualManualWritePayload } from '../types/studio-visual-manual'
 import type { EpisodeMergePlan, TrackRenderInput, TrackRenderPlan } from '../types/studio'
@@ -241,6 +242,8 @@ function createWindow() {
     height: 900,
     minWidth: 1200,
     minHeight: 700,
+    titleBarStyle: 'hiddenInset',
+    trafficLightPosition: { x: 16, y: 14 },
     webPreferences: {
       preload: path.join(__dirname, '../preload/index.cjs'),
     },
@@ -1993,10 +1996,53 @@ ipcMain.handle('api-model-test', async (_event, payload: ModelTestRequest): Prom
 })
 
 ipcMain.handle('api-text-completion', async (_event, payload: TextCompletionRequest): Promise<TextCompletionResult> => {
+  // 优先使用 Vercel AI SDK
+  const provider = payload.provider as any
+  if (provider?.platform && provider?.apiKey) {
+    try {
+      const result = await sdkGenerateText({
+        provider: { baseUrl: provider.baseUrl, apiKey: provider.apiKey, platform: provider.platform, name: provider.name },
+        model: provider.model?.[0] || payload.model || '',
+        messages: payload.messages,
+        temperature: payload.temperature,
+        maxTokens: payload.maxTokens,
+      })
+      if (result.success) {
+        return { success: true, text: result.text }
+      }
+    } catch (_e) {
+      // AI SDK 失败，回退到手写 HTTP
+    }
+  }
   return runTextCompletionRequest(payload, fetch)
 })
 
 ipcMain.handle('api-text-completion-stream', async (event, args: { payload: TextCompletionRequest; streamId: string }): Promise<TextCompletionResult> => {
+  // 优先使用 Vercel AI SDK 流式
+  const provider = args.payload.provider as any
+  if (provider?.platform && provider?.apiKey) {
+    try {
+      const stream = await sdkStreamText({
+        provider: { baseUrl: provider.baseUrl, apiKey: provider.apiKey, platform: provider.platform, name: provider.name },
+        model: provider.model?.[0] || args.payload.model || '',
+        messages: args.payload.messages,
+        temperature: args.payload.temperature,
+        maxTokens: args.payload.maxTokens,
+      })
+      let fullText = ''
+      for await (const chunk of stream.fullStream) {
+        if (chunk.type === 'text-delta') {
+          fullText += chunk.text
+          if (!event.sender.isDestroyed()) {
+            event.sender.send(`api-text-stream:${args.streamId}`, { delta: chunk.text })
+          }
+        }
+      }
+      return { success: true, text: fullText }
+    } catch (_e) {
+      // AI SDK 流式失败，回退到手写 HTTP
+    }
+  }
   return runTextCompletionStreamRequest(args.payload, (delta) => {
     if (!event.sender.isDestroyed()) event.sender.send(`api-text-stream:${args.streamId}`, delta)
   }, fetch)

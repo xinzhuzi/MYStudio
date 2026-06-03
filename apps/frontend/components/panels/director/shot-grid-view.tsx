@@ -474,7 +474,7 @@ export function ShotGridView({ onGenerateImage, onGenerateVideo }: ShotGridViewP
                   className={cn(
                     "group relative flex flex-col bg-[#1A1A1A] border rounded-lg overflow-hidden cursor-pointer transition-all",
                     isActive
-                      ? "border-indigo-500 ring-1 ring-indigo-500/50 shadow-xl"
+                      ? "border-indigo-500 ring-1 ring-indigo-500/50"
                       : "border-zinc-800 hover:border-zinc-600"
                   )}
                 >
@@ -522,7 +522,7 @@ export function ShotGridView({ onGenerateImage, onGenerateVideo }: ShotGridViewP
 
         {/* Right Detail Panel */}
         {activeShotId && activeShot && (
-          <div className="w-[380px] bg-[#0F0F0F] flex flex-col h-full shadow-2xl animate-in slide-in-from-right-5">
+          <div className="w-[380px] bg-[#0F0F0F] flex flex-col h-full animate-in slide-in-from-right-5">
             {/* Panel Header */}
             <div className="h-14 px-4 border-b border-zinc-800 flex items-center justify-between bg-[#141414] shrink-0">
               <div className="flex items-center gap-2">

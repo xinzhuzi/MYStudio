@@ -145,7 +145,7 @@ export function QuadGridDialog({
 
           {/* 预览4格内容 */}
           {selectedOption && (
-            <div className="p-3 rounded bg-zinc-800/50 border border-zinc-700">
+            <div className="p-3 rounded bg-muted/50 border border-border">
               <div className="text-[10px] text-zinc-500 mb-2">
                 将生成 2×2 四宫格：
               </div>

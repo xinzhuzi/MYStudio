@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildStageMessages, extractPartialContent, parseStageOutput } from "./script-planning";
+import { buildStageMessages, buildStageReviewMessages, extractPartialContent, parseStageOutput } from "./script-planning";
 
 describe("studio script-planning 逐章编剧链（Markdown）", () => {
   it("parseStageOutput：去整篇代码围栏并 trim，Markdown 原样返回", () => {
@@ -8,6 +8,7 @@ describe("studio script-planning 逐章编剧链（Markdown）", () => {
     expect(parseStageOutput("```\nS01 内景\n```")).toBe("S01 内景");
     expect(parseStageOutput("  纯文本  ")).toBe("纯文本");
     expect(parseStageOutput("<think>推理过程</think>\n# 骨架\n正文")).toBe("# 骨架\n正文");
+    expect(parseStageOutput("正文在前<think>未闭合的思考被截断")).toBe("正文在前");
   });
 
   it("骨架消息：skill+Markdown 格式作 system，项目信息/本章正文/事件入 user", () => {
@@ -43,14 +44,36 @@ describe("studio script-planning 逐章编剧链（Markdown）", () => {
     expect(draft.user).toContain("改编B");
     expect(draft.user).toContain("正文内容");
 
-    const review = buildStageMessages("supervisionReport", {
+    const revise = buildStageMessages("scriptDraft", {
+      chapterTitle: "第1章",
+      chapterText: "正文",
+      skeleton: "骨架A",
+      strategy: "改编B",
+      previousOutput: "上一版剧本X",
+      reviewFeedback: "审核：场1台词太长",
+    });
+    expect(revise.user).toContain("上一版剧本X");
+    expect(revise.user).toContain("审核：场1台词太长");
+    expect(revise.user).toContain("逐条修复");
+
+    const skeletonReview = buildStageReviewMessages("storySkeleton", {
+      chapterTitle: "第1章",
+      chapterText: "正文",
+      skeleton: "骨架A",
+      eventState: "事件E",
+    });
+    expect(skeletonReview.user).toContain("骨架A");
+    expect(skeletonReview.user).toContain("故事骨架审核");
+
+    const scriptReview = buildStageReviewMessages("scriptDraft", {
       chapterTitle: "第1章",
       chapterText: "正文",
       skeleton: "骨架A",
       strategy: "改编B",
       scriptDraft: "剧本C",
     });
-    expect(review.user).toContain("剧本C");
+    expect(scriptReview.user).toContain("剧本C");
+    expect(scriptReview.user).toContain("剧本审核");
   });
 });
 

@@ -372,7 +372,7 @@ export function AngleController({
                 
                 {/* 玻璃反光效果 */}
                 <div 
-                  className="absolute inset-0 rounded-[8px] bg-gradient-to-tr from-white/10 via-transparent to-transparent pointer-events-none mix-blend-overlay"
+                  className="absolute inset-0 rounded-[8px] bg-gradient-to-tr from-white/5 via-transparent to-transparent pointer-events-none mix-blend-overlay"
                   style={{
                     opacity: Math.max(0, Math.sin(theta * Math.PI / 180)) * 0.5
                   }} 
@@ -443,7 +443,7 @@ export function AngleController({
           }}
         >
           <div
-            className="w-5 h-5 rounded-sm bg-[#ccff00] shadow-[0_0_15px_rgba(204,255,0,0.6)]"
+            className="w-5 h-5 rounded-sm bg-[#ccff00]"
             style={{
               transform: `rotateX(${(phi - 90) * 0.5}deg) rotateY(${(theta - 45) * 0.5}deg)`,
             }}
@@ -461,7 +461,7 @@ export function AngleController({
       </div>
 
       {/* 底部信息栏 */}
-      <div className="flex items-center gap-2 px-3 py-1.5 bg-[#1a1a1a] rounded-full border border-white/5 shadow-lg">
+      <div className="flex items-center gap-2 px-3 py-1.5 bg-[#1a1a1a] rounded-full border border-white/5">
         <span className="text-[10px] text-[#ccff00] font-mono">
           {getAngleLabel(direction, elevation, shotSize)}
         </span>

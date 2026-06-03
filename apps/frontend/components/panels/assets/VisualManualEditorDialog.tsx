@@ -393,7 +393,7 @@ export function VisualManualEditorDialog({
           <LocalImage
             src={previewImage.url}
             alt={previewImage.name}
-            className="max-h-[calc(100vh-80px)] max-w-[calc(100vw-80px)] rounded-md object-contain shadow-2xl"
+            className="max-h-[calc(100vh-80px)] max-w-[calc(100vw-80px)] rounded-md object-contain"
             onClick={(event) => event.stopPropagation()}
             draggable={false}
           />

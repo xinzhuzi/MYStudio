@@ -639,7 +639,7 @@ export function VideoStudio() {
               controls
               autoPlay
               loop
-              className="max-w-full max-h-[calc(100vh-200px)] rounded-lg shadow-lg"
+              className="max-w-full max-h-[calc(100vh-200px)] rounded-lg"
             />
             <div className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
               <Button size="sm" variant="secondary" asChild>

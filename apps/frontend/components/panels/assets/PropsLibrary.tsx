@@ -92,7 +92,7 @@ function PropCard({ item }: { item: PropItem }) {
                 <Button
                   size="icon"
                   variant="secondary"
-                  className="h-7 w-7 rounded-md shadow-md"
+                  className="h-7 w-7 rounded-md"
                 >
                   <MoreHorizontal className="h-3.5 w-3.5" />
                 </Button>

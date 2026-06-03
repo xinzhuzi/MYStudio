@@ -23,6 +23,8 @@ export interface StudioAssetSummary {
   filePath?: string;
   sourcePath?: string;
   state?: string;
+  /** 提示词润色状态（由前端资产管理注入） */
+  promptState?: "none" | "polishing" | "ready" | "failed";
   childrenCount?: number;
   tags?: string[];
   images?: AssetImage[];

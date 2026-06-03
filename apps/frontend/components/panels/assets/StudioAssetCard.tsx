@@ -75,13 +75,28 @@ function StudioAssetCardComponent({
           {selected && <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
         </div>
       )}
+
+      {/* 提示词润色状态标签 */}
+      {asset.promptState && asset.promptState !== "none" && (
+        <span className={`absolute right-1.5 top-1.5 z-10 rounded px-1.5 py-0.5 text-[10px] font-medium ${
+          asset.promptState === "polishing" ? "bg-blue-500/70 text-blue-100"
+          : asset.promptState === "ready" ? "bg-green-500/70 text-green-100"
+          : asset.promptState === "failed" ? "bg-red-500/70 text-red-100"
+          : ""
+        }`}>
+          {asset.promptState === "polishing" && <>● 润色中</>}
+          {asset.promptState === "ready" && "✓ 已就绪"}
+          {asset.promptState === "failed" && "✗ 失败"}
+        </span>
+      )}
+
       {asset.type === "audio" ? (
         <div className="studio-asset-preview studio-asset-audio-preview flex h-[132px] flex-col justify-between overflow-hidden">
           <div className="flex items-center justify-between gap-3">
             <span className="rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold tracking-[0.12em] text-primary">
               音频素材
             </span>
-            <span className="grid h-8 w-8 place-items-center rounded-full border border-foreground/10 bg-background/45 shadow-inner">
+            <span className="grid h-8 w-8 place-items-center rounded-full border border-foreground/10 bg-background/45">
               <Music2 className="h-4 w-4 text-primary" />
             </span>
           </div>

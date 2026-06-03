@@ -22,7 +22,7 @@ export function SponsorButton({
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className={`inline-flex items-center gap-2 px-3 py-2 rounded-md border border-border bg-background/5 backdrop-blur-xs hover:bg-background/10 transition-all duration-200 group shadow-lg ${className}`}
+      className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-border bg-background/5 backdrop-blur-xs hover:bg-background/10 transition-all duration-200 group ${className}`}
     >
       <span className="text-xs font-medium text-muted-foreground group-hover:text-foreground transition-colors">
         Sponsored by

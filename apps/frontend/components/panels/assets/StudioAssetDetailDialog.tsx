@@ -24,9 +24,11 @@ import type { AssetImage, StudioAssetSummary } from "@/types/studio-assets";
 import {
   Box,
   Clipboard,
+  Copy,
   ExternalLink,
   FolderOpen,
   ImageIcon,
+  Loader2,
   Map,
   Music2,
   Pencil,
@@ -36,6 +38,8 @@ import {
   UserCircle,
 } from "lucide-react";
 import { toast } from "sonner";
+import { polishAssetPrompt } from "@/lib/ai/prompt-polisher";
+import { useStudioStore } from "@/stores/studio-store";
 
 const TYPE_ICON = {
   role: UserCircle,
@@ -95,6 +99,10 @@ export function StudioAssetDetailDialog({
   const [draftDescription, setDraftDescription] = useState("");
   const [draftPrompt, setDraftPrompt] = useState("");
   const [draftSetting, setDraftSetting] = useState("");
+  const [isPolishingPrompt, setIsPolishingPrompt] = useState(false);
+
+  // 获取当前项目的视觉手册 ID
+  const visualManualId = useStudioStore((s) => s.workflowConfig?.visualManualId);
 
   const [images, setImages] = useState<AssetImage[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -160,6 +168,42 @@ export function StudioAssetDetailDialog({
   const spokenText = recognizedText ?? (draftDescription.trim() || "");
   const audioSrc = asset.previewUrl || asset.filePath || "";
   const hasImagePreview = asset.type !== "audio" && images.length > 0;
+
+  /** 润色当前资产的提示词 */
+  const handlePolishPrompt = async () => {
+    if (!asset || !visualManualId) {
+      toast.error(!visualManualId ? "请先选择视觉手册" : "无资产信息");
+      return;
+    }
+
+    setIsPolishingPrompt(true);
+    try {
+      const assetType = asset.type === "tool" ? "prop" as const
+        : asset.type === "role" ? "character" as const
+        : asset.type === "scene" ? "scene" as const
+        : "prop" as const;
+
+      const result = await polishAssetPrompt({
+        assetType,
+        name: asset.name,
+        description: draftDescription || asset.description || "",
+        isDerivative: false,
+        visualManualId,
+      });
+
+      if (result.status === "success") {
+        setDraftPrompt(result.prompt);
+        toast.success("提示词润色完成");
+      } else {
+        toast.error(`润色失败: ${result.error}`);
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      toast.error(`润色出错: ${message}`);
+    } finally {
+      setIsPolishingPrompt(false);
+    }
+  };
 
   const handleSave = async () => {
     if (!window.studioAssets?.update) {
@@ -386,7 +430,7 @@ export function StudioAssetDetailDialog({
           <div className="studio-asset-detail-preview border-r border-border bg-muted/20 p-4">
             <div className="relative">
               {asset.type === "audio" ? (
-                <div className="space-y-3 rounded-lg border border-border bg-background/80 p-4 shadow-inner">
+                <div className="space-y-3 rounded-lg border border-border bg-background/80 p-4">
                   <div className="flex items-start gap-3">
                     <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-primary/20 bg-primary/10">
                       <Music2 className="h-5 w-5 text-primary" />
@@ -568,6 +612,33 @@ export function StudioAssetDetailDialog({
                       placeholder="暂无出图提示词"
                       className="min-h-[80px] resize-none bg-muted/20 text-xs leading-5"
                     />
+                    {/* 润色提示词按钮 */}
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 gap-1 text-[11px]"
+                        onClick={handlePolishPrompt}
+                        disabled={isPolishingPrompt || !visualManualId}
+                      >
+                        {isPolishingPrompt ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <Sparkles className="h-3 w-3" />
+                        )}
+                        {isPolishingPrompt ? "润色中..." : "润色提示词"}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 gap-1 text-[11px]"
+                        onClick={() => draftPrompt && navigator.clipboard.writeText(draftPrompt).then(() => toast.success("已复制"))}
+                        disabled={!draftPrompt}
+                      >
+                        <Copy className="h-3 w-3" />
+                        复制
+                      </Button>
+                    </div>
                   </section>
                   <section className="space-y-1.5">
                     <div className="text-xs font-medium text-muted-foreground">设定</div>

@@ -117,10 +117,6 @@ export async function runTextCompletionRequest(
       });
       const elapsedMs = Date.now() - startedAt;
       const text = await response.text();
-      try {
-        const dbg = JSON.parse(text) as { choices?: Array<{ finish_reason?: string }>; usage?: unknown };
-        console.log(`[text-oneshot] finish_reason=${dbg.choices?.[0]?.finish_reason ?? "-"} usage=${JSON.stringify(dbg.usage ?? {})}`);
-      } catch { /* 非 JSON 跳过 */ }
       if (!response.ok) {
         attempts.push({
           protocol: attempt.protocol,
@@ -317,16 +313,13 @@ export async function runTextCompletionStreamRequest(
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   const startedAt = Date.now();
   let full = "";
-  // 流式失败（服务器拒绝 stream / 找不到请求 / 空响应 / 网络中断等）时回退到一次性请求，保证可用。
-  // 仅当尚未流出任何内容时才补发整段，避免与已流出的增量重复。
+  // 流式失败（服务器拒绝 stream / 空响应 / 网络中断等）时回退到一次性请求；仅当尚未流出任何内容时才补发整段，避免重复。
   const fallbackOneShot = async (reason: string): Promise<TextCompletionResult> => {
-    console.warn(`[text-stream] 流式失败(${reason}) → 回退一次性, 已耗时 ${Date.now() - startedAt}ms`);
+    console.warn(`[text-stream] 流式失败(${reason}) → 回退一次性`);
     const r = await runTextCompletionRequest(payload, fetcher, timeoutMs);
-    console.warn(`[text-stream] 一次性结果 success=${r.success} status=${r.status ?? "-"} err=${r.error ?? "-"} 总耗时 ${Date.now() - startedAt}ms`);
     if (r.success && r.text && !full) onDelta(r.text);
     return r;
   };
-  console.log(`[text-stream] → ${model} | mt=${payload.maxTokens ?? 2048} | ${messages.length} 条消息 | ${endpoint}`);
   try {
     const response = await fetcher(endpoint, {
       method: "POST",
@@ -342,8 +335,7 @@ export async function runTextCompletionStreamRequest(
     });
     if (!response.ok) {
       const errText = await response.text().catch(() => "");
-      console.error(`[text-stream] 非 2xx status=${response.status} body=${errText.slice(0, 200)}`);
-      return await fallbackOneShot(`status ${response.status}`);
+      return await fallbackOneShot(`status ${response.status}: ${errText.slice(0, 120)}`);
     }
     const body = response.body as ReadableStream<Uint8Array> | null;
     if (!body) return await fallbackOneShot("无数据流");
@@ -352,32 +344,14 @@ export async function runTextCompletionStreamRequest(
     const decoder = new TextDecoder();
     let buffer = "";
     let firstByteAt = 0;
-    let rawBytes = 0;
-    let reasoningChars = 0;
-    let sampled = false;
-    // 首字节看门狗：30s 内一个字节都没有，判定该供应商流式不通，立即中止→回退一次性（避免干等满 120s）。
-    const fbTimer = setTimeout(() => {
-      if (!firstByteAt) {
-        console.warn(`[text-stream] 首字节看门狗：30s 无任何字节 → 判定流式不通，中止回退`);
-        controller.abort();
-      }
-    }, 30000);
+    // 首字节看门狗：30s 内无任何字节则判定流式不通，中止→回退一次性。
+    const fbTimer = setTimeout(() => { if (!firstByteAt) controller.abort(); }, 30000);
     try {
       for (;;) {
         const { done, value } = await reader.read();
         if (done) break;
-        if (!firstByteAt && (value?.length ?? 0) > 0) {
-          firstByteAt = Date.now();
-          clearTimeout(fbTimer);
-          console.log(`[text-stream] 首字节 ${firstByteAt - startedAt}ms`);
-        }
-        rawBytes += value?.length ?? 0;
-        const chunk = decoder.decode(value, { stream: true });
-        if (!sampled && chunk.trim()) {
-          sampled = true;
-          console.log(`[text-stream] 首块样本: ${chunk.replace(/\s+/g, " ").slice(0, 300)}`);
-        }
-        buffer += chunk;
+        if (!firstByteAt && (value?.length ?? 0) > 0) { firstByteAt = Date.now(); clearTimeout(fbTimer); }
+        buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split("\n");
         buffer = lines.pop() ?? "";
         for (const line of lines) {
@@ -386,13 +360,9 @@ export async function runTextCompletionStreamRequest(
           const data = trimmed.slice(5).trim();
           if (!data || data === "[DONE]") continue;
           try {
-            const json = JSON.parse(data) as { choices?: Array<{ delta?: { content?: string; reasoning_content?: string } }> };
-            const d = json.choices?.[0]?.delta;
-            if (typeof d?.reasoning_content === "string") reasoningChars += d.reasoning_content.length;
-            if (typeof d?.content === "string" && d.content) {
-              full += d.content;
-              onDelta(d.content);
-            }
+            const json = JSON.parse(data) as { choices?: Array<{ delta?: { content?: string } }> };
+            const delta = json.choices?.[0]?.delta?.content;
+            if (typeof delta === "string" && delta) { full += delta; onDelta(delta); }
           } catch {
             // 跳过不完整/非 JSON 片段
           }
@@ -401,12 +371,9 @@ export async function runTextCompletionStreamRequest(
     } finally {
       clearTimeout(fbTimer);
     }
-    console.log(`[text-stream] 流结束 原始字节=${rawBytes} content=${full.length}字 reasoning=${reasoningChars}字 首字节=${firstByteAt ? firstByteAt - startedAt + "ms" : "无"}`);
-    if (!full.trim()) return await fallbackOneShot(`流式空响应(原始字节${rawBytes},reasoning${reasoningChars})`);
-    console.log(`[text-stream] ✓ 流式完成 ${Date.now() - startedAt}ms ${full.length} 字`);
+    if (!full.trim()) return await fallbackOneShot("流式空响应");
     return { success: true, text: full, status: response.status, elapsedMs: Date.now() - startedAt };
   } catch (error) {
-    console.error(`[text-stream] 异常:`, error instanceof Error ? error.message : error);
     return await fallbackOneShot(error instanceof Error ? error.message : String(error));
   } finally {
     clearTimeout(timer);

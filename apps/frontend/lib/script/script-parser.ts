@@ -15,6 +15,8 @@ import { ApiKeyManager } from "@/lib/api-key-manager";
 import { getModelLimits, parseModelLimitsFromError, cacheDiscoveredLimits, estimateTokens } from "@/lib/ai/model-registry";
 import { corsFetch } from "@/lib/cors-fetch";
 import { buildThinkingParams, resolveThinkingEnabled } from "@/lib/ai/thinking-mode";
+import { getLanguageModel } from "@/lib/ai/ai-sdk-bridge";
+import { generateText } from "ai";
 
 /**
  * Normalize time value to match scene-store TIME_PRESETS
@@ -290,6 +292,34 @@ export async function callChatAPI(
   }
   
   console.log('[callChatAPI] 请求 URL:', url);
+
+  // 优先使用 Vercel AI SDK（简化调用，跳过复杂的手写 HTTP 逻辑）
+  try {
+    const currentKey = keyManager.getCurrentKey();
+    if (currentKey) {
+      const platform = provider === 'openai' ? 'openai-compatible' : (provider || 'openai-compatible');
+      const sdkModel = getLanguageModel(
+        { baseUrl: normalizedBaseUrl, apiKey: currentKey, platform, name: provider || 'default' },
+        model,
+      );
+      const result = await generateText({
+        model: sdkModel,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+        temperature: options.temperature ?? 0.7,
+        maxOutputTokens: effectiveMaxTokens,
+      });
+      if (result.text) {
+        if (totalKeys > 1) keyManager.rotateKey();
+        return result.text;
+      }
+    }
+  } catch (_e) {
+    // AI SDK 失败，回退到手写 HTTP（保留 token 预算、thinking、错误发现等高级逻辑）
+    console.log('[callChatAPI] AI SDK 回退到手写 HTTP');
+  }
 
   // Use retryOperation with key rotation on rate limit
   return await retryOperation(async () => {

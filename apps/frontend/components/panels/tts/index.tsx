@@ -16,12 +16,12 @@ export function TTSView({
   onToggleSidebar,
 }: TTSViewProps) {
   return (
-    <div className="tts-workspace flex h-full flex-col overflow-hidden bg-background">
-      <div className="h-16 shrink-0 border-b border-border bg-panel px-6 flex items-center justify-between">
+    <div className="tts-workspace flex h-full flex-col overflow-hidden">
+      <div className="tts-topbar h-16 shrink-0 border-b border-border px-6 flex items-center justify-between">
         <div className="flex items-center gap-4">
-          {sidebarCollapsed && onToggleSidebar && (
+          {onToggleSidebar && (
             <SidebarToggleButton
-              sidebarCollapsed
+              sidebarCollapsed={sidebarCollapsed}
               onToggleSidebar={onToggleSidebar}
             />
           )}

@@ -112,12 +112,12 @@ export function ProjectHeader({
   const workspaceLabel = getProjectWorkspaceLabel(activeTab, activeStage);
 
   return (
-    <div className="project-chrome h-11 border-b px-4 flex items-center justify-between shrink-0">
+    <div className="project-chrome h-14 border-b pr-4 pl-20 flex items-center justify-between shrink-0">
       {/* Left: Project Name + Stage + Episode Breadcrumb */}
       <div className="flex min-w-0 items-center gap-4">
-        {sidebarCollapsed && onToggleSidebar && (
+        {onToggleSidebar && (
           <SidebarToggleButton
-            sidebarCollapsed
+            sidebarCollapsed={sidebarCollapsed}
             onToggleSidebar={onToggleSidebar}
           />
         )}

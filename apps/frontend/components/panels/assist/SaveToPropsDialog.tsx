@@ -72,7 +72,7 @@ export function SaveToPropsDialog({
       addProp({
         name,
         imageUrl: localPath,
-        prompt,
+        description: prompt,
         folderId: selectedFolderId,
       });
       // 同步道具库侧边栏选中状态（跳转到目标目录）

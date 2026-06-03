@@ -71,7 +71,7 @@ async function text(req: AITextRequest): Promise<AITextResult> {
     model: resolved.model,
     messages: req.messages,
     temperature: resolved.temperature ?? req.temperature ?? 0.6,
-    maxTokens: resolved.maxTokens ?? req.maxTokens ?? 32000,
+    maxTokens: Math.max(resolved.maxTokens ?? 0, req.maxTokens ?? 0) || 32000,
   });
   return { success: result.success, text: result.text, error: result.error };
 }
@@ -90,7 +90,7 @@ async function textStream(req: AITextRequest, onChunk: (delta: string) => void):
     model: resolved.model,
     messages: req.messages,
     temperature: resolved.temperature ?? req.temperature ?? 0.6,
-    maxTokens: resolved.maxTokens ?? req.maxTokens ?? 32000,
+    maxTokens: Math.max(resolved.maxTokens ?? 0, req.maxTokens ?? 0) || 32000,
   }, onChunk);
   return { success: result.success, text: result.text, error: result.error };
 }

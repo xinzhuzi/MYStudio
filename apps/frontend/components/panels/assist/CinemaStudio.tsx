@@ -170,7 +170,7 @@ export function CinemaStudio() {
             <img
               src={cinemaResult}
               alt="Cinema shot"
-              className="max-w-full max-h-[calc(100vh-200px)] rounded-lg shadow-lg object-contain"
+              className="max-w-full max-h-[calc(100vh-200px)] rounded-lg object-contain"
             />
             <div className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
               <Button size="sm" variant="secondary" asChild>

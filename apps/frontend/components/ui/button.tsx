@@ -8,30 +8,30 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "../../lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center cursor-pointer justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transform-gpu transition-[background-color,color,border-color,box-shadow,opacity,transform] duration-150 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  "inline-flex items-center cursor-pointer justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium transition-all duration-200 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring/40 disabled:pointer-events-none disabled:opacity-40 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
         default:
-          "bg-foreground text-background shadow-sm hover:bg-foreground/90",
+          "bg-foreground/[0.08] backdrop-blur-[2px] text-foreground/90 hover:bg-foreground/[0.14] hover:text-foreground active:bg-foreground/[0.18] border border-foreground/[0.06]",
         primary:
-          "bg-primary text-primary-foreground shadow-sm hover:bg-primary/90",
+          "bg-primary text-primary-foreground hover:brightness-110 active:brightness-90 font-medium",
         "primary-gradient":
-          "bg-gradient-to-r from-cyan-400 to-blue-500 text-white hover:opacity-85 transition-opacity",
+          "bg-primary text-primary-foreground hover:brightness-110 active:brightness-90 font-medium",
         destructive:
-          "bg-destructive/0 border border-destructive/25 text-destructive shadow-xs hover:bg-destructive hover:text-destructive-foreground",
+          "border border-destructive/25 text-destructive/90 hover:bg-destructive/[0.08] hover:text-destructive active:bg-destructive/[0.14]",
         outline:
-          "border border-input bg-transparent shadow-xs hover:opacity-75 transition-opacity hover:text-accent-foreground",
+          "border border-foreground/[0.12] bg-transparent text-foreground/85 hover:bg-foreground/[0.06] hover:text-foreground active:bg-foreground/[0.10]",
         secondary:
-          "bg-secondary text-secondary-foreground shadow-xs hover:bg-foreground/15 border border-input",
-        ghost: "hover:bg-accent hover:text-accent-foreground",
-        text: "bg-transparent p-0 rounded-none opacity-100 hover:opacity-50 transition-opacity",
-        link: "text-primary underline-offset-4 hover:underline",
+          "bg-secondary/60 backdrop-blur-[2px] text-secondary-foreground border border-foreground/[0.06] hover:bg-secondary/80 active:bg-secondary",
+        ghost: "text-foreground/75 hover:bg-foreground/[0.06] hover:text-foreground active:bg-foreground/[0.10]",
+        text: "bg-transparent p-0 rounded-none text-foreground/80 hover:text-foreground transition-colors",
+        link: "text-primary/80 hover:text-primary underline-offset-4 hover:underline",
       },
       size: {
-        default: "h-9 px-4 py-2",
-        sm: "h-8 rounded-sm px-3 text-xs",
-        lg: "h-10 rounded-md px-8",
+        default: "h-8 px-3.5 py-1.5 text-[13px]",
+        sm: "h-7 rounded-md px-3 text-xs",
+        lg: "h-10 rounded-xl px-8",
         icon: "h-7 w-7",
       },
     },

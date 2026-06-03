@@ -32,6 +32,12 @@
     "preview": "electron-vite preview --config frontend/config/electron-vite.config.ts"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "^3.0.35",
+    "@ai-sdk/deepseek": "^2.0.17",
+    "@ai-sdk/google": "^3.0.20",
+    "@ai-sdk/openai": "^3.0.25",
+    "@ai-sdk/openai-compatible": "^2.0.27",
+    "@ai-sdk/xai": "^3.0.47",
     "@radix-ui/react-context-menu": "^2.2.16",
     "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-dropdown-menu": "^2.1.16",
@@ -44,6 +50,7 @@
     "@radix-ui/react-switch": "^1.2.6",
     "@radix-ui/react-tabs": "^1.1.13",
     "@radix-ui/react-tooltip": "^1.2.8",
+    "ai": "^6.0.67",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
@@ -55,6 +62,7 @@
     "motion": "^12.35.0",
     "nanoid": "^5.1.6",
     "next-themes": "^0.4.6",
+    "qwen-ai-provider-v5": "^2.1.0",
     "radix-ui": "^1.4.3",
     "react": "^18.2.0",
     "react-day-picker": "^9.14.0",
@@ -68,6 +76,9 @@
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.4.0",
     "vaul": "^1.1.2",
+    "vercel-minimax-ai-provider": "^0.0.2",
+    "zhipu-ai-provider": "^0.2.2",
+    "zod": "^4.3.5",
     "zustand": "^5.0.10"
   },
   "devDependencies": {

@@ -115,8 +115,8 @@ export function WardrobeModal({
       <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col bg-zinc-900 border-zinc-800">
         <DialogHeader className="shrink-0">
           <DialogTitle className="flex items-center gap-3 text-white">
-            <div className="w-8 h-8 rounded-full bg-indigo-500/20 flex items-center justify-center">
-              <Shirt className="w-4 h-4 text-indigo-400" />
+            <div className="w-8 h-8 rounded-full bg-primary/15 flex items-center justify-center">
+              <Shirt className="w-4 h-4 text-primary" />
             </div>
             {character.name} - 造型管理
           </DialogTitle>

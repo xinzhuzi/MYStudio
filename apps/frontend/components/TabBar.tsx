@@ -3,7 +3,6 @@
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 import { mainNavItems, bottomNavItems, useMediaPanelStore } from "@/stores/media-panel-store";
 import { cn } from "@/lib/utils";
-import { SidebarToggleButton } from "@/components/ChromeControls";
 import {
   Tooltip,
   TooltipContent,
@@ -22,46 +21,28 @@ interface TabBarProps {
 export function TabBar({ sidebarCollapsed, onToggleSidebar }: TabBarProps) {
   const { activeTab, inProject, setActiveTab } = useMediaPanelStore();
 
-  if (sidebarCollapsed) {
-    return null;
-  }
-
   const sidebarClassName = cn(
-    "studio-sidebar flex flex-col bg-panel border-r border-border",
+    "studio-sidebar flex flex-col bg-panel/90 backdrop-blur-xl border-r border-border/50",
     inProject ? "studio-sidebar-project" : "studio-sidebar-dashboard",
-    "studio-sidebar-expanded w-14"
+    "studio-sidebar-drawer w-14",
+    !sidebarCollapsed && "studio-sidebar-open"
   );
 
-  const sidebarToggle = (
-    <div className="studio-sidebar-toggle">
-      <TooltipProvider delayDuration={300}>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <SidebarToggleButton
-              sidebarCollapsed={sidebarCollapsed}
-              onToggleSidebar={onToggleSidebar}
-            />
-          </TooltipTrigger>
-          <TooltipContent side="right">
-            {sidebarCollapsed ? "显示侧栏" : "隐藏侧栏"}
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-    </div>
+  const sidebarSpacer = (
+    <div style={{ paddingTop: '48px' }} />
   );
 
   // Dashboard mode
   if (!inProject) {
     return (
-      <div className={cn(sidebarClassName, "py-0")}>
-        {sidebarToggle}
-        {/* Dashboard nav */}
+      <div className={sidebarClassName}>
+        {sidebarSpacer}
         <nav className="flex-1 py-1">
           <TooltipProvider delayDuration={300}>
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
-                  onClick={() => setActiveTab("dashboard")}
+                  onClick={() => { setActiveTab("dashboard"); }}
                   className={cn(
                     "studio-nav-button w-full flex flex-col items-center py-2.5 transition-colors",
                     activeTab === "dashboard"
@@ -77,7 +58,6 @@ export function TabBar({ sidebarCollapsed, onToggleSidebar }: TabBarProps) {
             </Tooltip>
           </TooltipProvider>
         </nav>
-        {/* Bottom: Help + Settings */}
         <div className="studio-sidebar-bottom mt-auto py-1">
           <TooltipProvider delayDuration={300}>
             <Tooltip>
@@ -99,7 +79,7 @@ export function TabBar({ sidebarCollapsed, onToggleSidebar }: TabBarProps) {
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
-                  onClick={() => setActiveTab("settings")}
+                  onClick={() => { setActiveTab("settings"); }}
                   className={cn(
                     "studio-nav-button w-full flex flex-col items-center py-2 transition-colors",
                     activeTab === "settings" ? "is-active text-primary" : "text-muted-foreground hover:text-foreground"
@@ -117,22 +97,21 @@ export function TabBar({ sidebarCollapsed, onToggleSidebar }: TabBarProps) {
     );
   }
 
-  // Project mode - flat navigation
+  // Project mode
   return (
     <div className={sidebarClassName}>
-      {sidebarToggle}
-      {/* Main Navigation */}
+      {sidebarSpacer}
       <nav className="flex-1 py-1">
         {mainNavItems.map((item) => {
           const isActive = activeTab === item.id;
           const Icon = item.icon;
-          
+
           return (
             <TooltipProvider key={item.id} delayDuration={300}>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
-                    onClick={() => setActiveTab(item.id)}
+                    onClick={() => { setActiveTab(item.id); }}
                     className={cn(
                       "studio-nav-button w-full flex flex-col items-center py-2.5 transition-colors",
                       isActive
@@ -144,16 +123,13 @@ export function TabBar({ sidebarCollapsed, onToggleSidebar }: TabBarProps) {
                     <span className="text-[9px]">{item.label}</span>
                   </button>
                 </TooltipTrigger>
-                <TooltipContent side="right">
-                  {item.label}
-                </TooltipContent>
+                <TooltipContent side="right">{item.label}</TooltipContent>
               </Tooltip>
             </TooltipProvider>
           );
         })}
       </nav>
 
-      {/* Bottom: Help + Settings */}
       <div className="studio-sidebar-bottom mt-auto py-1">
         <TooltipProvider delayDuration={300}>
           <Tooltip>
@@ -174,13 +150,13 @@ export function TabBar({ sidebarCollapsed, onToggleSidebar }: TabBarProps) {
         {bottomNavItems.map((item) => {
           const isActive = activeTab === item.id;
           const Icon = item.icon;
-          
+
           return (
             <TooltipProvider key={item.id} delayDuration={300}>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
-                    onClick={() => setActiveTab(item.id)}
+                    onClick={() => { setActiveTab(item.id); }}
                     className={cn(
                       "studio-nav-button w-full flex flex-col items-center py-2 transition-colors",
                       isActive ? "is-active text-primary" : "text-muted-foreground hover:text-foreground"

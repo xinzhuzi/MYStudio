@@ -7,6 +7,7 @@ describe("studio workflow tabs", () => {
       "manuals",
       "novel",
       "script",
+      "assets",
       "storyboard",
       "workbench",
     ]);

@@ -47,7 +47,7 @@ import {
   parseEntityExtraction,
   type KnownEntity,
 } from "@/lib/studio/entity-extraction";
-import { createMystudioSinks, syncExtractedEntities } from "@/lib/studio/entity-sync";
+import { syncExtractedEntities } from "@/lib/studio/entity-sync";
 import { buildDirectorPlanMessages, parseDirectorPlan } from "@/lib/studio/director-plan";
 import {
   buildEntityResolver,
@@ -66,18 +66,30 @@ import {
 } from "@/lib/studio/episode-outline";
 import {
   buildStageMessages,
+  buildStageReviewMessages,
+  SCRIPT_STAGE_REVIEW_KEY,
   extractPartialContent,
   getStageSkillContent,
+  hasReviewIssues,
   parseStageOutput,
   SCRIPT_STAGE_LABEL,
   type ScriptStageKey,
+  type ReviewableStage,
 } from "@/lib/studio/script-planning";
 import { aiManager } from "@/lib/ai/ai-manager";
 import {
   assignVoicesForCharacters,
   type VoiceAssignment,
+  type VoiceAssignerCharacter,
 } from "@/lib/studio/voice-assigner";
 import { createMystudioTtsSink, syncCharacterVoices } from "@/lib/studio/voice-sync";
+import {
+  createBackendVoiceProfile,
+  getTtsRuntimeStatus,
+} from "@/lib/tts/client";
+import {
+  QWEN_CUSTOM_VOICES,
+} from "@/lib/tts/voice-profile-capabilities";
 import {
   buildStudioManualContext,
   buildStudioManualsFromSkillFiles,
@@ -90,8 +102,15 @@ import { useAPIConfigStore } from "@/stores/api-config-store";
 import { useCharacterLibraryStore } from "@/stores/character-library-store";
 import { useProjectStore } from "@/stores/project-store";
 import { useSceneStore } from "@/stores/scene-store";
+import { usePropsLibraryStore } from "@/stores/props-library-store";
 import { useStudioStore } from "@/stores/studio-store";
 import { useTtsStore } from "@/stores/tts-store";
+import type {
+  ProjectVoiceBinding,
+  TtsEngine,
+  TtsSpeakerId,
+  VoiceProfile,
+} from "@/types/tts";
 import type {
   AgentWorkKey,
   NovelChapter,
@@ -106,11 +125,15 @@ import {
   BookOpen,
   BookMarked,
   Boxes,
+  ChevronDown,
   Check,
   ClipboardList,
   Edit3,
   FileText,
   Film,
+  Gem,
+  MapPin,
+  Mic,
   Palette,
   Play,
   Plus,
@@ -119,6 +142,8 @@ import {
   Split,
   Trash2,
   Upload,
+  Users,
+  Volume2,
   WandSparkles,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -145,6 +170,8 @@ export const WORKFLOW_TABS = [
   { value: "manuals", label: "风格与导演选择", Icon: BookMarked },
   { value: "novel", label: "小说导入", Icon: BookOpen },
   { value: "script", label: "剧本策划", Icon: FileText },
+  { value: "assets", label: "剧本资产管理", Icon: Boxes },
+  { value: "generation", label: "剧情产物生成", Icon: WandSparkles },
   { value: "storyboard", label: "分镜表", Icon: Split },
   { value: "workbench", label: "剪辑工作台", Icon: Film },
 ];
@@ -226,6 +253,7 @@ export function StudioView() {
   }, [activeProject?.id]);
   const [novelHeaderActions, setNovelHeaderActions] = useState<ReactNode>(null);
   const [scriptHeaderActions, setScriptHeaderActions] = useState<ReactNode>(null);
+  const [assetsHeaderActions, setAssetsHeaderActions] = useState<ReactNode>(null);
   const bundledManualCatalog = useMemo<StudioManualCatalog>(() => ({
     visual: listStudioManualPresets("visual"),
     director: listStudioManualPresets("director"),
@@ -375,33 +403,64 @@ export function StudioView() {
 
     const store = useStudioStore.getState();
     const scriptText =
-      [...store.agentWorkData].reverse().find((item) => item.key === "scriptDraft")?.data
+      [...store.agentWorkData].reverse().find((item) => item.key === "scriptDraft" && item.episodeId === episodeId)?.data
+      ?? store.novelChapters.find((chapter) => chapter.id === episodeId)?.sourceText
+      ?? [...store.agentWorkData].reverse().find((item) => item.key === "scriptDraft")?.data
       ?? store.novelChapters.map((chapter) => chapter.sourceText).join("\n\n");
     if (!scriptText.trim()) {
       toast.error("没有可提取的剧本：请先保存剧本草稿或导入小说正文");
       return;
     }
 
-    const knownEntities: KnownEntity[] = store.entityExtractions.flatMap((batch) => [
-      ...batch.characters.map((item) => ({
-        id: item.characterId,
+    // 合并已有提取结果 + 资产库里已有的角色/场景/道具
+    const libChars = useCharacterLibraryStore.getState().characters;
+    const libScenes = useSceneStore.getState().scenes;
+    const libProps = usePropsLibraryStore.getState().items;
+
+    const knownEntities: KnownEntity[] = [
+      // 先收集已提取的实体
+      ...store.entityExtractions.flatMap((batch) => [
+        ...batch.characters.map((item) => ({
+          id: item.characterId,
+          kind: "character" as const,
+          name: item.name,
+          aliases: item.aliases,
+        })),
+        ...batch.scenes.map((item) => ({
+          id: item.sceneId,
+          kind: "scene" as const,
+          name: item.name,
+          aliases: [],
+        })),
+        ...batch.props.map((item) => ({
+          id: item.assetId,
+          kind: "prop" as const,
+          name: item.name,
+          aliases: [],
+        })),
+      ]),
+      // 补充资产库里已有的角色（按 ID 去重）
+      ...libChars.filter((c) => !store.entityExtractions.some((b) => b.characters.some((bc) => bc.characterId === c.id))).map((c) => ({
+        id: c.id,
         kind: "character" as const,
-        name: item.name,
-        aliases: item.aliases,
+        name: c.name,
+        aliases: (c as unknown as Record<string, unknown>).aliases as string[] ?? [],
       })),
-      ...batch.scenes.map((item) => ({
-        id: item.sceneId,
+      // 补充资产库里已有的场景
+      ...libScenes.filter((s) => !store.entityExtractions.some((b) => b.scenes.some((bs) => bs.sceneId === s.id))).map((s) => ({
+        id: s.id,
         kind: "scene" as const,
-        name: item.name,
+        name: s.name,
         aliases: [],
       })),
-      ...batch.props.map((item) => ({
-        id: item.assetId,
+      // 补充资产库里已有的道具
+      ...libProps.filter((p) => !store.entityExtractions.some((b) => b.props.some((bp) => bp.assetId === p.id))).map((p) => ({
+        id: p.id,
         kind: "prop" as const,
-        name: item.name,
+        name: p.name,
         aliases: [],
       })),
-    ]);
+    ];
 
     const messages = buildEntityExtractionMessages({ episodeId, scriptText, knownEntities });
     try {
@@ -425,23 +484,22 @@ export function StudioView() {
         return;
       }
 
-      const projectId = activeProject?.id;
-      if (!projectId) {
-        toast.error("未选择项目，无法写入角色库/场景库");
-        return;
-      }
-
-      const { result: batch, summary } = syncExtractedEntities(
-        { episodeId, entities, projectId, projectName },
-        createMystudioSinks(),
+      // 不写入资产库（剧本资产仅供匹配/展示）；用空操作 sinks 仅生成 batch 结构与 ID
+      const noopSinks = {
+        characterSink: { addCharacter: () => `char-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`, updateCharacter: () => {}, getOrCreateProjectFolder: () => "" },
+        sceneSink: { addScene: () => `scene-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`, updateScene: () => {}, getOrCreateProjectFolder: () => "" },
+      };
+      const { result: batch } = syncExtractedEntities(
+        { episodeId, entities, projectId: activeProject?.id ?? "", projectName },
+        noopSinks,
       );
       saveEntityExtraction(batch);
 
       const detail = `角色 ${batch.characters.length} / 场景 ${batch.scenes.length} / 道具 ${batch.props.length}`;
       if (parsed.errors.length) {
-        toast.warning(`实体提取完成（新增 ${summary.created}，合并 ${summary.merged}，忽略非法行 ${parsed.errors.length}）：${detail}`);
+        toast.warning(`资产提取完成（忽略非法行 ${parsed.errors.length}）：${detail}`);
       } else {
-        toast.success(`实体提取完成（新增 ${summary.created}，合并 ${summary.merged}）：${detail}`);
+        toast.success(`资产提取完成：${detail}`);
       }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : String(error));
@@ -744,11 +802,13 @@ export function StudioView() {
       stageKey: AgentWorkKey;
       scopeId: string;
       label: string;
+      revised?: boolean;
     }) => {
       setScriptStreaming({ key: opts.stageKey, scopeId: opts.scopeId, text: "" });
       const result = await aiManager.textStream(
         {
           binding: { agent: opts.agentKey },
+          maxTokens: 32000,
           messages: [
             { role: "system", content: opts.messages.system },
             { role: "user", content: opts.messages.user },
@@ -765,7 +825,7 @@ export function StudioView() {
         return;
       }
       saveAgentWorkData(opts.stageKey, parseStageOutput(result.text), opts.scopeId);
-      toast.success(`${opts.label}已生成`);
+      toast.success(opts.revised ? `已按审核修订「${opts.label}」，请重新审核确认` : `${opts.label}已生成`);
     },
     [saveAgentWorkData],
   );
@@ -775,16 +835,14 @@ export function StudioView() {
       const skeleton = latestScriptStage("storySkeleton", chapter.id);
       const strategy = latestScriptStage("adaptationStrategy", chapter.id);
       const scriptDraft = latestScriptStage("scriptDraft", chapter.id);
+      const reviewKey = SCRIPT_STAGE_REVIEW_KEY[stage as ReviewableStage];
+      const review = reviewKey ? latestScriptStage(reviewKey, chapter.id) : "";
       if (stage === "adaptationStrategy" && !skeleton) {
         toast.error("请先生成故事骨架");
         return;
       }
       if (stage === "scriptDraft" && (!skeleton || !strategy)) {
         toast.error("请先生成故事骨架与改编策略");
-        return;
-      }
-      if (stage === "supervisionReport" && !scriptDraft) {
-        toast.error("请先生成剧本");
         return;
       }
       const built = buildStageMessages(stage, {
@@ -796,6 +854,8 @@ export function StudioView() {
         skeleton,
         strategy,
         scriptDraft,
+        reviewFeedback: hasReviewIssues(review) ? review : undefined,
+        previousOutput: latestScriptStage(stage, chapter.id),
       });
       return runScriptStage({
         agentKey:
@@ -808,9 +868,37 @@ export function StudioView() {
         stageKey: stage,
         scopeId: chapter.id,
         label: SCRIPT_STAGE_LABEL[stage],
+        revised: hasReviewIssues(review),
       });
     },
     [runScriptStage, latestScriptStage, scriptStyleSummary, scriptDirectorContext],
+  );
+
+  const handleStageReview = useCallback(
+    (stage: ReviewableStage, chapter: NovelChapter) => {
+      const target = latestScriptStage(stage, chapter.id);
+      if (!target) {
+        toast.error(`请先生成${SCRIPT_STAGE_LABEL[stage]}`);
+        return;
+      }
+      const built = buildStageReviewMessages(stage, {
+        manualContext: scriptStyleSummary,
+        chapterTitle: chapter.title,
+        chapterText: chapter.sourceText,
+        eventState: chapter.eventState,
+        skeleton: latestScriptStage("storySkeleton", chapter.id),
+        strategy: latestScriptStage("adaptationStrategy", chapter.id),
+        scriptDraft: latestScriptStage("scriptDraft", chapter.id),
+      });
+      return runScriptStage({
+        agentKey: "scriptDraft",
+        messages: { system: built.system, user: built.user },
+        stageKey: SCRIPT_STAGE_REVIEW_KEY[stage],
+        scopeId: chapter.id,
+        label: `${SCRIPT_STAGE_LABEL[stage]}审核`,
+      });
+    },
+    [runScriptStage, latestScriptStage, scriptStyleSummary],
   );
 
   const handleMaterialFiles = async (files?: FileList | null) => {
@@ -895,7 +983,7 @@ export function StudioView() {
         <div className="border-b border-border bg-panel px-6 py-3">
           <div className="flex items-center justify-between gap-4">
             <div className="min-w-0 flex-1">
-              {activeWorkflowTab === "novel" ? novelHeaderActions : activeWorkflowTab === "script" ? scriptHeaderActions : null}
+              {activeWorkflowTab === "novel" ? novelHeaderActions : activeWorkflowTab === "script" ? scriptHeaderActions : activeWorkflowTab === "assets" ? assetsHeaderActions : null}
             </div>
             <Select value={activeWorkflowTab} onValueChange={handleStageChange}>
               <SelectTrigger className="h-10 w-[220px] gap-2 border-primary/40">
@@ -972,12 +1060,28 @@ export function StudioView() {
                 agentWorkData={agentWorkData}
                 saveAgentWorkData={saveAgentWorkData}
                 runStage={handleScriptStage}
+                runReview={handleStageReview}
                 manualContext={scriptStyleSummary}
                 directorContext={scriptDirectorContext}
                 styleSummary={scriptStyleSummary}
                 setHeaderActions={setScriptHeaderActions}
                 scriptStreaming={scriptStreaming}
               />
+            </TabsContent>
+
+            <TabsContent value="assets" className="m-0">
+              <AssetsTab
+                novelChapters={novelChapters}
+                agentWorkData={agentWorkData}
+                entityExtractions={entityExtractions}
+                extractAssets={handleEntityExtraction}
+                updateExtraction={saveEntityExtraction}
+                setHeaderActions={setAssetsHeaderActions}
+              />
+            </TabsContent>
+
+            <TabsContent value="generation" className="m-0">
+              <GenerationTab />
             </TabsContent>
 
             <TabsContent value="storyboard" className="m-0">
@@ -1034,7 +1138,7 @@ export function NovelEmptyState({
       className="mx-auto flex flex-col items-center gap-3 rounded-lg px-6 py-4 text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
     >
       <span>还没有导入小说。</span>
-      <span className="inline-flex items-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground shadow-sm">
+      <span className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground">
         <Plus className="h-4 w-4" />
         导入原文
       </span>
@@ -1870,17 +1974,17 @@ function ScriptTab(props: {
   agentWorkData: ReturnType<typeof useStudioStore.getState>["agentWorkData"];
   saveAgentWorkData: ReturnType<typeof useStudioStore.getState>["saveAgentWorkData"];
   runStage: (stage: ScriptStageKey, chapter: NovelChapter, userOverride?: string) => void;
+  runReview: (stage: ReviewableStage, chapter: NovelChapter) => void;
   manualContext: string;
   directorContext: string;
   styleSummary: string;
   setHeaderActions: (actions: ReactNode) => void;
   scriptStreaming: { key: AgentWorkKey; scopeId: string; text: string } | null;
 }) {
-  const SCRIPT_STAGES: ScriptStageKey[] = ["storySkeleton", "adaptationStrategy", "scriptDraft", "supervisionReport"];
+  const SCRIPT_STAGES: ScriptStageKey[] = ["storySkeleton", "adaptationStrategy", "scriptDraft"];
   const PREREQ: Partial<Record<ScriptStageKey, ScriptStageKey>> = {
     adaptationStrategy: "storySkeleton",
     scriptDraft: "adaptationStrategy",
-    supervisionReport: "scriptDraft",
   };
 
   const [chapterId, setChapterId] = useState(props.novelChapters[0]?.id ?? "");
@@ -1893,8 +1997,12 @@ function ScriptTab(props: {
   }, [chapterId, activeStage]);
 
   const chapter = props.novelChapters.find((item) => item.id === chapterId) ?? props.novelChapters[0];
-  const stageData = (key: ScriptStageKey) =>
+  const stageData = (key: AgentWorkKey) =>
     chapter ? [...props.agentWorkData].reverse().find((item) => item.key === key && item.episodeId === chapter.id) : undefined;
+
+  const reviewKey = SCRIPT_STAGE_REVIEW_KEY[activeStage as ReviewableStage];
+  const reviewData = reviewKey ? stageData(reviewKey)?.data : undefined;
+  const reviseMode = hasReviewIssues(reviewData);
 
   const setHeaderActions = props.setHeaderActions;
   useEffect(() => {
@@ -1924,6 +2032,10 @@ function ScriptTab(props: {
       ? props.scriptStreaming.text
       : null;
   const isStreaming = streamingText !== null;
+  const reviewStreaming =
+    props.scriptStreaming && reviewKey && props.scriptStreaming.key === reviewKey && props.scriptStreaming.scopeId === (chapter?.id ?? "")
+      ? props.scriptStreaming.text
+      : null;
   const streamRef = useRef("");
   streamRef.current = streamingText ?? "";
   const [liveMd, setLiveMd] = useState("");
@@ -1956,6 +2068,8 @@ function ScriptTab(props: {
         skeleton: stageData("storySkeleton")?.data,
         strategy: stageData("adaptationStrategy")?.data,
         scriptDraft: stageData("scriptDraft")?.data,
+        reviewFeedback: reviseMode ? reviewData : undefined,
+        previousOutput: output,
       })
     : { system: "", user: "" };
   const skill = getStageSkillContent(activeStage);
@@ -1965,27 +2079,27 @@ function ScriptTab(props: {
     chapter ? `章节：${chapter.title}` : "",
     chapter?.eventState ? "事件分析" : "",
     activeStage !== "storySkeleton" && stageData("storySkeleton") ? "故事骨架" : "",
-    (activeStage === "scriptDraft" || activeStage === "supervisionReport") && stageData("adaptationStrategy") ? "改编策略" : "",
-    activeStage === "supervisionReport" && stageData("scriptDraft") ? "剧本" : "",
-    activeStage === "storySkeleton" || activeStage === "adaptationStrategy" || activeStage === "scriptDraft" ? "本章正文" : "",
+    activeStage === "scriptDraft" && stageData("adaptationStrategy") ? "改编策略" : "",
+    reviseMode ? "审核意见(修订模式)" : "",
+    "本章正文",
   ].filter(Boolean).join(" · ");
 
   return (
     <div className="space-y-4">
       <div className="flex gap-1 border-b border-border">
-        {SCRIPT_STAGES.map((stage) => (
+        {SCRIPT_STAGES.map((stage, idx) => (
           <button
             key={stage}
             type="button"
             onClick={() => setActiveStage(stage)}
             className={`px-4 py-2 text-sm ${activeStage === stage ? "border-b-2 border-primary font-medium text-primary" : "text-muted-foreground"}`}
           >
-            {SCRIPT_STAGE_LABEL[stage]}{stageData(stage) ? " ✓" : ""}
+            {idx + 1}. {SCRIPT_STAGE_LABEL[stage]}{stageData(stage) ? " ✓" : ""}
           </button>
         ))}
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="space-y-4">
         <div className="space-y-2">
           <details className="rounded-md border border-border p-2 text-xs" open>
             <summary className="cursor-pointer font-medium">事件（本章）</summary>
@@ -2006,9 +2120,13 @@ function ScriptTab(props: {
             </div>
             <pre className="mt-2 h-40 min-h-[80px] resize-y overflow-auto whitespace-pre-wrap leading-5">{userDraft ?? messages.user}</pre>
           </details>
-          <Button className="w-full" disabled={!chapter || !hasPrereq || streamingText !== null} onClick={() => chapter && props.runStage(activeStage, chapter, userDraft)}>
+          <Button className="w-full" disabled={!chapter || !hasPrereq || props.scriptStreaming !== null} onClick={() => chapter && props.runStage(activeStage, chapter, userDraft)}>
             <WandSparkles className="h-4 w-4" />
-            {streamingText !== null ? "生成中…" : `一键生成${SCRIPT_STAGE_LABEL[activeStage]}`}
+            {streamingText !== null ? "生成中…" : reviseMode ? "根据审核报告一键修复" : `一键生成${SCRIPT_STAGE_LABEL[activeStage]}`}
+          </Button>
+          <Button variant="secondary" className="w-full" disabled={!chapter || !output || props.scriptStreaming !== null} onClick={() => chapter && props.runReview(activeStage as ReviewableStage, chapter)}>
+            <ClipboardList className="h-4 w-4" />
+            {reviewStreaming !== null ? "审核中…" : `审核${SCRIPT_STAGE_LABEL[activeStage]}`}
           </Button>
           {!hasPrereq && prereq ? (
             <p className="text-xs text-muted-foreground">请先完成「{SCRIPT_STAGE_LABEL[prereq]}」</p>
@@ -2032,16 +2150,28 @@ function ScriptTab(props: {
             ) : output ? (
               <MdPreview modelValue={output} theme="dark" language="zh-CN" />
             ) : (
-              <p className="text-muted-foreground">{hasPrereq ? "点左侧「一键生成」由 AI 产出" : "请先完成前置阶段"}</p>
+              <p className="text-muted-foreground">{hasPrereq ? "点上方「一键生成」由 AI 产出" : "请先完成前置阶段"}</p>
             )}
           </div>
+          {(reviewStreaming !== null || reviewData) && (
+            <div className="space-y-1">
+              <Label className="text-sm">审核报告（{SCRIPT_STAGE_LABEL[activeStage]}）{reviseMode ? " · 有待修复问题" : ""}</Label>
+              <div className="rounded-md border border-border p-3 text-sm">
+                {reviewStreaming !== null ? (
+                  <pre className="max-h-[320px] overflow-auto whitespace-pre-wrap text-xs leading-5">{extractPartialContent(reviewStreaming) || "审核中…"}</pre>
+                ) : (
+                  <MdPreview modelValue={reviewData ?? ""} theme="dark" language="zh-CN" />
+                )}
+              </div>
+            </div>
+          )}
           <Dialog open={!!editor} onOpenChange={(open) => !open && setEditor(null)}>
             <DialogContent className="flex h-[88vh] max-w-[92vw] flex-col gap-3 sm:max-w-[92vw]">
               <DialogHeader>
                 <DialogTitle>编辑 · {editor?.target === "context" ? "发送内容" : SCRIPT_STAGE_LABEL[activeStage]}</DialogTitle>
               </DialogHeader>
               <div className="min-h-0 flex-1">
-                <MdEditor modelValue={editor?.value ?? ""} onChange={(value) => setEditor((prev) => (prev ? { ...prev, value } : prev))} theme="dark" language="zh-CN" style={{ height: "100%" }} />
+                <MdEditor modelValue={editor?.value ?? ""} onChange={(value) => setEditor((prev) => (prev ? { ...prev, value } : prev))} theme="dark" language="zh-CN" toolbarsExclude={["github"]} style={{ height: "100%" }} />
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setEditor(null)}>取消</Button>
@@ -2063,6 +2193,262 @@ function ScriptTab(props: {
           </Dialog>
         </div>
       </div>
+    </div>
+  );
+}
+
+function AssetsTab(props: {
+  novelChapters: ReturnType<typeof useStudioStore.getState>["novelChapters"];
+  agentWorkData: ReturnType<typeof useStudioStore.getState>["agentWorkData"];
+  entityExtractions: ReturnType<typeof useStudioStore.getState>["entityExtractions"];
+  extractAssets: (episodeId: string) => Promise<void> | void;
+  updateExtraction: (batch: ReturnType<typeof useStudioStore.getState>["entityExtractions"][number]) => void;
+  setHeaderActions: (actions: ReactNode) => void;
+}) {
+  type Batch = ReturnType<typeof useStudioStore.getState>["entityExtractions"][number];
+  type AssetType = "character" | "scene" | "prop";
+  const [extractingId, setExtractingId] = useState<string | null>(null);
+  const [adding, setAdding] = useState<{ episodeId: string; type: AssetType } | null>(null);
+  const [addValue, setAddValue] = useState("");
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const toggle = (id: string) => setCollapsed((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+
+  // 对接资产中心（assets.db）+ 本地轻量库：按名字 + 别名 + 模糊匹配 + 描述相似匹配
+  const libChars = useCharacterLibraryStore((s) => s.characters);
+  const libScenes = useSceneStore((s) => s.scenes);
+  const libProps = usePropsLibraryStore((s) => s.items);
+
+  // 资产中心缓存（异步加载，一次全取）
+  const [assetCenterNames, setAssetCenterNames] = useState<Record<string, { name: string; desc: string }[]>>({ role: [], scene: [], tool: [] });
+  useEffect(() => {
+    if (typeof window === "undefined" || !(window as unknown as Record<string, unknown>).studioAssets) return;
+    const sa = (window as unknown as Record<string, unknown>).studioAssets as { list: (p: Record<string, unknown>) => Promise<{ items: Record<string, unknown>[] }> };
+    for (const t of ["role", "scene", "tool"]) {
+      sa.list({ type: t, limit: 99999 }).then((res) => {
+        setAssetCenterNames((prev) => ({
+          ...prev,
+          [t]: (res.items || []).map((it) => ({ name: String(it.name ?? ""), desc: String(it.description ?? "") })),
+        }));
+      }).catch(() => {});
+    }
+  }, []);
+
+  /** 规范化名字：去空白、标点，统一比较 */
+  const normalize = (s: string) => s.replace(/[\s\u3000·•\-—\-\(\)（）\[\]【】]/g, "").toLowerCase();
+
+  /** 检查提取名是否匹配资产库名（精确 or 规范化 or 包含） */
+  const nameMatches = (extractedName: string, libName: string, aliases: string[] = []): boolean => {
+    const en = normalize(extractedName);
+    const ln = normalize(libName);
+    if (en === ln) return true;
+    if (en.includes(ln) || ln.includes(en)) return true;
+    for (const alias of aliases) {
+      const an = normalize(alias);
+      if (an === ln || an.includes(ln) || ln.includes(an)) return true;
+    }
+    return false;
+  };
+
+  /** 描述关键词相似匹配：提取 note 中的关键词在资产库描述中出现 >= threshold 个则认为匹配 */
+  const descMatches = (note: string | undefined, libDesc: string, threshold = 2): boolean => {
+    if (!note || !libDesc) return false;
+    const keywords = note.split(/[,，、\s;；。！？!?·]+/).filter((w) => w.length >= 2);
+    if (keywords.length === 0) return false;
+    const normLib = normalize(libDesc);
+    let hits = 0;
+    for (const kw of keywords) {
+      if (normLib.includes(normalize(kw))) hits++;
+      if (hits >= threshold) return true;
+    }
+    return false;
+  };
+
+  /** 判断是否为不记名NPC（泛称角色，如"孩童甲""丫头""老苦力"） */
+  const isGenericNPC = (name: string): boolean => {
+    // 以甲/乙/丙/丁/若干/若干人/群众结尾
+    if (/[甲乙丙丁戊己]$/.test(name)) return true;
+    // 常见泛称关键词
+    const genericKws = ["孩童", "丫头", "丫鬟", "苦力", "杂役", "小厮", "路人", "村民", "仆人", "仆从", "侍女", "侍者", "守卫", "卫兵", "弟子", "门人", "长老", "执事", "掌柜"];
+    return genericKws.some((kw) => name.includes(kw));
+  };
+
+  /** 资产匹配状态：不存在(爆红) / 已有但无图(黄) / 已制作(绿)
+   *  匹配策略：先查本地轻量库，再查资产中心（assets.db），按名字+别名+描述+泛称NPC兜底 */
+  const getAssetStatus = (type: AssetType, name: string, note?: string): "missing" | "exists" | "made" => {
+    // 规范化匹配辅助
+    const findMatch = (
+      localItems: { name: string; aliases?: string[]; desc?: string }[],
+      centerItems: { name: string; desc: string }[],
+      fallbackGeneric?: boolean,
+    ): boolean => {
+      // 先查本地库
+      if (localItems.some((it) => nameMatches(name, it.name, it.aliases ?? []))) return true;
+      // 再查资产中心
+      if (centerItems.some((it) => nameMatches(name, it.name))) return true;
+      // 名字都不匹配，尝试描述匹配
+      if (note) {
+        const allDescs = [
+          ...localItems.map((it) => it.desc ?? "").filter(Boolean),
+          ...centerItems.map((it) => it.desc).filter(Boolean),
+        ];
+        if (allDescs.some((d) => descMatches(note, d))) return true;
+      }
+      // 兜底：不记名NPC 匹配 "全体NPC" / "NPC" 等通用资产
+      if (fallbackGeneric && isGenericNPC(name)) {
+        const genericNames = ["全体NPC", "NPC", "通用NPC", "群众", "路人"];
+        if (centerItems.some((it) => genericNames.some((gn) => normalize(it.name).includes(normalize(gn))))) return true;
+      }
+      return false;
+    };
+
+    if (type === "character") {
+      const localItems = libChars.map((c) => ({ name: c.name, aliases: (c as unknown as Record<string, unknown>).aliases as string[] ?? [], desc: [c.description, c.role, c.personality, c.traits].filter(Boolean).join(" ") }));
+      const found = findMatch(localItems, assetCenterNames.role, true);
+      if (!found) return "missing";
+      const hasImg = libChars.some((c) => nameMatches(name, c.name) && (!!c.thumbnailUrl || (c.views?.length ?? 0) > 0));
+      return hasImg ? "made" : "exists";
+    }
+    if (type === "scene") {
+      const localItems = libScenes.map((s) => ({ name: s.name, desc: [(s as unknown as Record<string, unknown>).atmosphere as string, (s as unknown as Record<string, unknown>).location as string, s.name].filter(Boolean).join(" ") }));
+      const found = findMatch(localItems, assetCenterNames.scene);
+      if (!found) return "missing";
+      const hasImg = libScenes.some((s) => nameMatches(name, s.name) && (!!s.referenceImage || !!s.referenceImageBase64));
+      return hasImg ? "made" : "exists";
+    }
+    // prop
+    const localItems = libProps.map((p) => ({ name: p.name, desc: (p as unknown as Record<string, unknown>).description as string ?? "" }));
+    const found = findMatch(localItems, assetCenterNames.tool);
+    if (!found) return "missing";
+    const hasImg = libProps.some((p) => nameMatches(name, p.name) && !!((p as unknown as Record<string, unknown>).imageUrl));
+    return hasImg ? "made" : "exists";
+  };
+
+  const scriptChapters = useMemo(
+    () => props.novelChapters.filter((ch) => props.agentWorkData.some((w) => w.key === "scriptDraft" && w.episodeId === ch.id)),
+    [props.novelChapters, props.agentWorkData],
+  );
+
+  const run = async (id: string) => {
+    setExtractingId(id);
+    try { await props.extractAssets(id); } finally { setExtractingId(null); }
+  };
+
+  const setHeaderActions = props.setHeaderActions;
+  const extractAssets = props.extractAssets;
+  useEffect(() => {
+    setHeaderActions(
+      <div className="flex items-center gap-3">
+        <span className="text-xs text-muted-foreground">从剧本提取资产（角色 / 场景 / 道具），与资产库匹配；<span className="text-destructive">红色=未制作</span>，需到「塑造角色与场景」生成。</span>
+        <Button size="sm" disabled={extractingId !== null || scriptChapters.length === 0} onClick={async () => { for (const ch of scriptChapters) { setExtractingId(ch.id); try { await extractAssets(ch.id); } finally { setExtractingId(null); } } }}>
+          <Boxes className="h-4 w-4" />
+          {extractingId !== null ? "提取中…" : "批量提取全部"}
+        </Button>
+      </div>,
+    );
+    return () => setHeaderActions(null);
+  }, [setHeaderActions, extractAssets, scriptChapters, extractingId]);
+
+  const genId = (p: string) => `${p}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+  const removeAsset = (batch: Batch, type: AssetType, id: string) => {
+    const next: Batch =
+      type === "character" ? { ...batch, characters: batch.characters.filter((c) => c.characterId !== id) }
+        : type === "scene" ? { ...batch, scenes: batch.scenes.filter((s) => s.sceneId !== id) }
+          : { ...batch, props: batch.props.filter((p) => p.assetId !== id) };
+    props.updateExtraction(next);
+  };
+  const submitAdd = (batch: Batch) => {
+    const name = addValue.trim();
+    if (!adding || !name) { setAdding(null); setAddValue(""); return; }
+    const next: Batch =
+      adding.type === "character" ? { ...batch, characters: [...batch.characters, { characterId: genId("char"), name, aliases: [] }] }
+        : adding.type === "scene" ? { ...batch, scenes: [...batch.scenes, { sceneId: genId("scene"), name }] }
+          : { ...batch, props: [...batch.props, { assetId: genId("asset"), name }] };
+    props.updateExtraction(next);
+    setAdding(null);
+    setAddValue("");
+  };
+
+  if (!scriptChapters.length) {
+    return <div className="p-6 text-sm text-muted-foreground">还没有剧本：请先在「剧本策划」生成各章剧本，再来提取资产（角色/场景/道具）。</div>;
+  }
+
+  const renderCat = (batch: Batch, type: AssetType, label: string, items: { id: string; name: string; note?: string }[]) => (
+    <div className="flex flex-wrap items-center gap-2">
+      <span className="mr-1 font-medium">{label}：</span>
+      {items.map(({ id, name, note }) => {
+        const status = getAssetStatus(type, name, note);
+        const badgeClass = cn(
+          "font-normal",
+          status === "missing" && "border-destructive text-destructive",
+          status === "exists" && "border-yellow-500 text-yellow-600 dark:text-yellow-400",
+        );
+        const title = status === "made" ? "已制作" : status === "exists" ? "资产库已有，尚未生成图片" : "资产库中不存在，请先创建";
+        return (
+          <span key={id} className="group relative inline-flex">
+            <Badge variant={status === "made" ? "secondary" : "outline"} className={badgeClass} title={title}>{name}</Badge>
+            <button
+              type="button"
+              title="删除"
+              onClick={() => removeAsset(batch, type, id)}
+              className="absolute -right-1.5 -top-1.5 hidden h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold leading-none text-destructive-foreground shadow group-hover:flex"
+            >×</button>
+          </span>
+        );
+      })}
+      {adding?.episodeId === batch.episodeId && adding.type === type ? (
+        <span className="inline-flex items-center gap-1">
+          <Input autoFocus value={addValue} onChange={(e) => setAddValue(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") submitAdd(batch); if (e.key === "Escape") { setAdding(null); setAddValue(""); } }} className="h-6 w-28 text-xs" placeholder={`新${label}`} />
+          <Button size="sm" variant="secondary" className="h-6 px-2" onClick={() => submitAdd(batch)}>确定</Button>
+        </span>
+      ) : (
+        <button type="button" className="text-xs text-primary hover:underline" onClick={() => { setAdding({ episodeId: batch.episodeId, type }); setAddValue(""); }}>+ 添加</button>
+      )}
+    </div>
+  );
+
+  return (
+    <div className="space-y-4">
+      {scriptChapters.map((ch) => {
+        const batch = props.entityExtractions.find((b) => b.episodeId === ch.id);
+        const script = [...props.agentWorkData].reverse().find((w) => w.key === "scriptDraft" && w.episodeId === ch.id)?.data;
+        const open = !collapsed.has(ch.id);
+        return (
+          <Card key={ch.id} className="rounded-lg">
+            <CardHeader className="flex-row items-center justify-between space-y-0 py-3">
+              <button type="button" className="flex min-w-0 items-center gap-2 text-left" onClick={() => toggle(ch.id)}>
+                <ChevronDown className={cn("h-4 w-4 shrink-0 transition-transform", !open && "-rotate-90")} />
+                <CardTitle className="truncate text-sm">{ch.index}. {ch.title}</CardTitle>
+                {batch ? (
+                  <span className="shrink-0 text-xs text-muted-foreground">（角色 {batch.characters.length} / 场景 {batch.scenes.length} / 道具 {batch.props.length}）</span>
+                ) : !script ? (
+                  <span className="shrink-0 text-xs text-muted-foreground">（暂无剧本）</span>
+                ) : null}
+              </button>
+              <Button size="sm" disabled={!script || extractingId !== null} onClick={() => run(ch.id)}>
+                <Boxes className="h-4 w-4" />
+                {extractingId === ch.id ? "提取中…" : batch ? "重新提取资产" : "提取资产"}
+              </Button>
+            </CardHeader>
+            {open && (
+              <CardContent className="space-y-3 text-xs">
+                <details className="rounded-md border border-border p-2">
+                  <summary className="cursor-pointer font-medium">剧本内容</summary>
+                  <pre className="mt-2 max-h-[320px] overflow-auto whitespace-pre-wrap leading-5">{script || "本章暂无剧本：请先在「剧本策划」生成本章剧本。"}</pre>
+                </details>
+                {!batch ? (
+                  <p className="text-muted-foreground">{script ? "尚未提取。点「提取资产」从本章剧本抽取角色/场景/道具。" : "本章暂无剧本，无法提取资产。"}</p>
+                ) : (
+                  <>
+                    {renderCat(batch, "character", "角色", batch.characters.map((c) => ({ id: c.characterId, name: c.name, note: c.note })))}
+                    {renderCat(batch, "scene", "场景", batch.scenes.map((s) => ({ id: s.sceneId, name: s.name, note: s.note })))}
+                    {renderCat(batch, "prop", "道具", batch.props.map((p) => ({ id: p.assetId, name: p.name, note: p.note })))}
+                  </>
+                )}
+              </CardContent>
+            )}
+          </Card>
+        );
+      })}
     </div>
   );
 }
@@ -2281,4 +2667,706 @@ function WorkbenchTab(props: {
 function toPreviewSrc(filePath: string) {
   if (filePath.startsWith("local-image://") || filePath.startsWith("file://")) return filePath;
   return `file://${filePath}`;
+}
+
+// ==================== 剧情产物生成 Tab ====================
+
+function GenerationTab() {
+  const visualManualId = useStudioStore((s) => s.workflowConfig?.visualManualId);
+  const [activeType, setActiveType] = useState<"character" | "scene" | "prop">("character");
+  const [isPolishing, setIsPolishing] = useState(false);
+  const [progress, setProgress] = useState({ done: 0, total: 0 });
+  const [isCancelled, setIsCancelled] = useState(false);
+
+  // 音色分配状态
+  const [voiceDialogChar, setVoiceDialogChar] = useState<{
+    id: string; name: string; gender?: string; age?: string; personality?: string;
+  } | null>(null);
+  const [isBatchVoiceAssigning, setIsBatchVoiceAssigning] = useState(false);
+  const [batchVoiceProgress, setBatchVoiceProgress] = useState(0);
+
+  // 从各 Store 获取资产统计
+  const characters = useCharacterLibraryStore((s) => s.characters);
+  const scenes = useSceneStore((s) => s.scenes);
+  const props = usePropsLibraryStore((s) => s.items);
+
+  // 统计音色分配情况
+  const voiceStats = useMemo(() => {
+    const ttsState = useTtsStore.getState();
+    const pid = ttsState.activeProjectId;
+    const bindings = pid ? (ttsState.projects[pid]?.bindings ?? {}) : {};
+    const voiceProfiles = ttsState.voiceProfiles;
+    let assigned = 0;
+    for (const c of characters) {
+      const speakerId = `character:${c.id}` as TtsSpeakerId;
+      const binding = bindings[speakerId];
+      if (binding && voiceProfiles[binding.profileId]) assigned++;
+    }
+    return { total: characters.length, assigned, unassigned: characters.length - assigned };
+  }, [characters]);
+
+  // 统计各类型的润色状态
+  const stats = useMemo(() => {
+    const countStatus = (items: Array<{ promptState?: string }>) => ({
+      total: items.length,
+      none: items.filter((i) => !i.promptState || i.promptState === "none").length,
+      polishing: items.filter((i) => i.promptState === "polishing").length,
+      ready: items.filter((i) => i.promptState === "ready").length,
+      failed: items.filter((i) => i.promptState === "failed").length,
+    });
+    return {
+      character: countStatus(characters),
+      scene: countStatus(scenes),
+      prop: countStatus(props),
+    };
+  }, [characters, scenes, props]);
+
+  const currentStats = stats[activeType];
+
+  const handlePolishAll = useCallback(async () => {
+    if (!visualManualId) {
+      toast.error("请先在「风格与导演选择」中选择视觉手册");
+      return;
+    }
+    setIsPolishing(true);
+    setIsCancelled(false);
+    setProgress({ done: 0, total: 0 });
+
+    const { polishAssetsAndUpdateStore } = await import("@/lib/studio/asset-generation-orchestrator");
+    const result = await polishAssetsAndUpdateStore(activeType, visualManualId, {
+      concurrency: 3,
+      onProgress: (done, total) => setProgress({ done, total }),
+      onCancel: () => isCancelled,
+    });
+
+    setIsPolishing(false);
+    if (result.failed > 0) {
+      toast.warning(`润色完成：${result.success} 成功，${result.failed} 失败`);
+    } else {
+      toast.success(`润色完成：${result.success} 个资产已就绪`);
+    }
+  }, [activeType, visualManualId, isCancelled]);
+
+  /** 批量自动分配音色（仅处理未分配的角色） */
+  const handleBatchVoiceAssign = useCallback(async () => {
+    const ttsState = useTtsStore.getState();
+    const pid = ttsState.activeProjectId;
+    if (!pid) {
+      toast.error("请先打开一个项目");
+      return;
+    }
+    const bindings = ttsState.projects[pid]?.bindings ?? {};
+    const voiceProfiles = ttsState.voiceProfiles;
+
+    // 筛选未分配的角色
+    const unassigned = characters.filter((c) => {
+      const speakerId = `character:${c.id}` as TtsSpeakerId;
+      const binding = bindings[speakerId];
+      return !binding || !voiceProfiles[binding.profileId];
+    });
+    if (unassigned.length === 0) {
+      toast.info("所有角色已分配音色");
+      return;
+    }
+
+    setIsBatchVoiceAssigning(true);
+    setBatchVoiceProgress(0);
+    try {
+      const charInputs: VoiceAssignerCharacter[] = unassigned.map((c) => ({
+        id: c.id,
+        name: c.name,
+        gender: c.gender,
+        age: c.age,
+        personality: c.personality,
+      }));
+      const assignments = assignVoicesForCharacters(charInputs);
+      const sink = createMystudioTtsSink();
+      syncCharacterVoices(assignments, { projectId: pid, sink });
+
+      for (let i = 0; i < assignments.length; i++) {
+        setBatchVoiceProgress(i + 1);
+      }
+      toast.success(`已为 ${assignments.length} 个角色自动分配音色`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "批量分配失败");
+    } finally {
+      setIsBatchVoiceAssigning(false);
+      setBatchVoiceProgress(0);
+    }
+  }, [characters]);
+
+  const typeConfig = [
+    { key: "character" as const, label: "角色", icon: Users },
+    { key: "scene" as const, label: "场景", icon: MapPin },
+    { key: "prop" as const, label: "道具", icon: Gem },
+  ];
+
+  return (
+    <div className="h-full flex flex-col">
+      {/* 类型选择 */}
+      <div className="flex items-center gap-1 border-b px-3 py-2 bg-panel">
+        {typeConfig.map(({ key, label, icon: Icon }) => (
+          <button
+            key={key}
+            onClick={() => setActiveType(key)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-sm transition-colors ${
+              activeType === key
+                ? "bg-primary/15 text-primary font-medium"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+            }`}
+          >
+            <Icon className="h-3.5 w-3.5" />
+            {label}
+            <span className="text-xs opacity-70">({stats[key].ready}/{stats[key].total})</span>
+          </button>
+        ))}
+
+        <div className="flex-1" />
+
+        {!visualManualId && (
+          <span className="text-xs text-amber-500 mr-2">⚠ 未选择视觉手册</span>
+        )}
+
+        {/* 批量润色按钮 */}
+        <button
+          onClick={handlePolishAll}
+          disabled={isPolishing || !visualManualId || currentStats.none === 0}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-primary/20 text-primary text-sm hover:bg-primary/30 disabled:opacity-40 transition-colors"
+        >
+          <WandSparkles className="h-3.5 w-3.5" />
+          {isPolishing ? `润色中 ${progress.done}/${progress.total}` : `全部润色提示词 (${currentStats.none})`}
+        </button>
+
+        {/* 图片生成按钮（Phase 2） */}
+        <button
+          disabled
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-primary/20 text-primary text-sm opacity-40 cursor-not-allowed"
+        >
+          全部生成图片
+        </button>
+
+        {/* 批量分配音色按钮（仅角色 tab 显示） */}
+        {activeType === "character" && voiceStats.total > 0 && (
+          <button
+            onClick={handleBatchVoiceAssign}
+            disabled={isBatchVoiceAssigning || voiceStats.unassigned === 0}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-primary/20 text-primary text-sm hover:bg-primary/30 disabled:opacity-40 transition-colors"
+          >
+            <Mic className="h-3.5 w-3.5" />
+            {isBatchVoiceAssigning
+              ? `分配中 ${batchVoiceProgress}/${voiceStats.unassigned}`
+              : `批量分配音色 (${voiceStats.unassigned})`}
+          </button>
+        )}
+
+        {isPolishing && (
+          <button onClick={() => setIsCancelled(true)} className="text-xs text-red-400 hover:text-red-300">
+            取消
+          </button>
+        )}
+      </div>
+
+      {/* 进度条 */}
+      {isPolishing && progress.total > 0 && (
+        <div className="h-1.5 bg-muted">
+          <div
+            className="h-full bg-primary transition-all duration-300"
+            style={{ width: `${(progress.done / progress.total) * 100}%` }}
+          />
+        </div>
+      )}
+
+      {/* 统计概览 */}
+      <div className="flex items-center gap-4 px-4 py-2 border-b text-xs text-muted-foreground">
+        <span>总计 {currentStats.total} 项</span>
+        <span className="text-foreground">已就绪 {currentStats.ready}</span>
+        <span>待润色 {currentStats.none}</span>
+        {currentStats.failed > 0 && <span className="text-red-400">失败 {currentStats.failed}</span>}
+        {activeType === "character" && voiceStats.total > 0 && (
+          <>
+            <span className="flex-1" />
+            <span className="text-primary">已分配音色 {voiceStats.assigned}/{voiceStats.total}</span>
+          </>
+        )}
+      </div>
+
+      {/* 资产列表 */}
+      <div className="flex-1 overflow-auto p-4">
+        <AssetListByType
+          type={activeType}
+          onVoiceAssign={activeType === "character" ? (char) => setVoiceDialogChar(char) : undefined}
+        />
+      </div>
+
+      {/* 音色分配弹窗 */}
+      {voiceDialogChar && (
+        <VoiceAssignDialog
+          character={voiceDialogChar}
+          open={!!voiceDialogChar}
+          onOpenChange={(open) => { if (!open) setVoiceDialogChar(null); }}
+        />
+      )}
+    </div>
+  );
+}
+
+/** 按类型展示资产列表（含润色状态标签） */
+function AssetListByType({ type, onVoiceAssign }: {
+  type: "character" | "scene" | "prop";
+  onVoiceAssign?: (char: { id: string; name: string; gender?: string; age?: string; personality?: string }) => void;
+}) {
+  // Hooks 必须在条件语句之前调用
+  const characters = useCharacterLibraryStore((s) => s.characters);
+  const scenes = useSceneStore((s) => s.scenes);
+  const propsItems = usePropsLibraryStore((s) => s.items);
+
+  if (type === "character") {
+    if (characters.length === 0) return <p className="text-sm text-muted-foreground italic">暂无角色资产，请先在「剧本资产管理」中提取。</p>;
+    return (
+      <div className="grid gap-2">
+        {characters.map((c) => (
+          <div key={c.id} className="flex items-center gap-3 rounded-lg border p-3 hover:bg-muted/30">
+            {/* 缩略图 */}
+            <div className="h-10 w-10 rounded bg-muted flex items-center justify-center overflow-hidden shrink-0">
+              {c.thumbnailUrl ? (
+                <img src={c.thumbnailUrl} alt={c.name} className="h-full w-full object-cover" />
+              ) : (
+                <Users className="h-4 w-4 text-muted-foreground" />
+              )}
+            </div>
+            {/* 名称 + 描述 */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium truncate">{c.name}</span>
+                <StatusBadge state={c.promptState} />
+              </div>
+              <p className="text-xs text-muted-foreground truncate">{c.description || c.role || "无描述"}</p>
+            </div>
+            {/* 提示词预览 */}
+            {c.visualTraits && (
+              <span className="text-[10px] text-muted-foreground max-w-[200px] truncate" title={c.visualTraits}>
+                {c.visualTraits.slice(0, 60)}...
+              </span>
+            )}
+            {/* 音色状态 + 分配按钮 */}
+            {onVoiceAssign && (
+              <button
+                onClick={() => onVoiceAssign({
+                  id: c.id,
+                  name: c.name,
+                  gender: c.gender,
+                  age: c.age,
+                  personality: c.personality,
+                })}
+                className="flex items-center gap-1.5 px-2 py-1 rounded text-xs hover:bg-primary/10 transition-colors shrink-0"
+              >
+                <VoiceBadge characterId={c.id} />
+                <Mic className="h-3 w-3 text-muted-foreground" />
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (type === "scene") {
+    if (scenes.length === 0) return <p className="text-sm text-muted-foreground italic">暂无场景资产，请先在「剧本资产管理」中提取。</p>;
+    return (
+      <div className="grid gap-2">
+        {scenes.map((s) => (
+          <div key={s.id} className="flex items-center gap-3 rounded-lg border p-3 hover:bg-muted/30">
+            <div className="h-10 w-10 rounded bg-muted flex items-center justify-center overflow-hidden shrink-0">
+              {s.referenceImage ? (
+                <img src={s.referenceImage} alt={s.name} className="h-full w-full object-cover" />
+              ) : (
+                <MapPin className="h-4 w-4 text-muted-foreground" />
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium truncate">{s.name}</span>
+                <StatusBadge state={s.promptState} />
+              </div>
+              <p className="text-xs text-muted-foreground truncate">{s.location || s.notes || "无描述"}</p>
+            </div>
+            {s.visualPrompt && (
+              <span className="text-[10px] text-muted-foreground max-w-[200px] truncate" title={s.visualPrompt}>
+                {s.visualPrompt.slice(0, 60)}...
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  // prop
+  if (propsItems.length === 0) return <p className="text-sm text-muted-foreground italic">暂无道具资产，请先在「剧本资产管理」中提取。</p>;
+  return (
+    <div className="grid gap-2">
+      {propsItems.map((p) => (
+        <div key={p.id} className="flex items-center gap-3 rounded-lg border p-3 hover:bg-muted/30">
+          <div className="h-10 w-10 rounded bg-muted flex items-center justify-center overflow-hidden shrink-0">
+            {p.imageUrl ? (
+              <img src={p.imageUrl} alt={p.name} className="h-full w-full object-cover" />
+            ) : (
+              <Gem className="h-4 w-4 text-muted-foreground" />
+            )}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium truncate">{p.name}</span>
+              <StatusBadge state={p.promptState} />
+            </div>
+            <p className="text-xs text-muted-foreground truncate">{p.description || "无描述"}</p>
+          </div>
+          {p.visualPrompt && (
+            <span className="text-[10px] text-muted-foreground max-w-[200px] truncate" title={p.visualPrompt}>
+              {p.visualPrompt.slice(0, 60)}...
+            </span>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** 润色状态标签 */
+function StatusBadge({ state }: { state?: string }) {
+  if (!state || state === "none") return null;
+  const config: Record<string, { label: string; color: string }> = {
+    polishing: { label: "润色中", color: "text-blue-400" },
+    ready: { label: "已就绪", color: "text-green-400" },
+    failed: { label: "失败", color: "text-red-400" },
+  };
+  const c = config[state];
+  if (!c) return null;
+  return (
+    <span className={`text-[10px] ${c.color}`}>
+      {state === "polishing" && "● "}
+      {c.label}
+    </span>
+  );
+}
+
+// ==================== 音色分配 Dialog ====================
+
+/** 获取角色当前的音色绑定状态 */
+function getCharacterVoiceStatus(
+  characterId: string,
+  bindings: Record<string, ProjectVoiceBinding>,
+  voiceProfiles: Record<string, VoiceProfile>,
+): { assigned: boolean; type?: "preset" | "reference"; label?: string } {
+  const speakerId = `character:${characterId}` as TtsSpeakerId;
+  const binding = bindings[speakerId];
+  if (!binding) return { assigned: false };
+  const profile = voiceProfiles[binding.profileId];
+  if (!profile) return { assigned: false };
+  return {
+    assigned: true,
+    type: profile.type,
+    label: profile.type === "preset"
+      ? profile.presetVoiceId ?? "预设"
+      : "克隆音色",
+  };
+}
+
+/** 音色状态标签 */
+function VoiceBadge({ characterId }: { characterId: string }) {
+  const bindings = useTtsStore((s) => {
+    const pid = s.activeProjectId;
+    return pid ? (s.projects[pid]?.bindings ?? {}) : {};
+  });
+  const voiceProfiles = useTtsStore((s) => s.voiceProfiles);
+  const status = getCharacterVoiceStatus(characterId, bindings, voiceProfiles);
+
+  if (!status.assigned) {
+    return (
+      <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+        <Volume2 className="h-3 w-3" />
+        未分配
+      </span>
+    );
+  }
+
+  return (
+    <span className="text-[10px] text-primary flex items-center gap-1">
+      <Volume2 className="h-3 w-3" />
+      {status.label}
+    </span>
+  );
+}
+
+/** 音色分配弹窗 */
+function VoiceAssignDialog({
+  character,
+  open,
+  onOpenChange,
+}: {
+  character: { id: string; name: string; gender?: string; age?: string; personality?: string };
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const [mode, setMode] = useState<"preset" | "reference">("preset");
+  const [selectedPreset, setSelectedPreset] = useState("");
+  const [audioPath, setAudioPath] = useState("");
+  const [referenceText, setReferenceText] = useState("");
+  const [selectedEngine, setSelectedEngine] = useState<string>("qwen");
+  const [assigning, setAssigning] = useState(false);
+
+  const handleAssignPreset = useCallback(async () => {
+    if (!selectedPreset) {
+      toast.error("请选择预设音色");
+      return;
+    }
+    setAssigning(true);
+    try {
+      const speakerId = `character:${character.id}` as TtsSpeakerId;
+      const sink = createMystudioTtsSink();
+      const profileId = sink.createVoiceProfile({
+        name: `音色·${character.name}`,
+        type: "preset",
+        language: "zh",
+        defaultEngine: "qwen_custom_voice",
+        defaultModelSize: "0.6B",
+        presetVoiceId: selectedPreset,
+      });
+      sink.bindSpeaker({
+        speakerId,
+        profileId,
+        defaultEngine: "qwen_custom_voice",
+        defaultModelSize: "0.6B",
+      });
+      toast.success(`${character.name} 已分配预设音色 ${selectedPreset}`);
+      onOpenChange(false);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "分配失败");
+    } finally {
+      setAssigning(false);
+    }
+  }, [character, selectedPreset, onOpenChange]);
+
+  const handleAutoAssign = useCallback(async () => {
+    setAssigning(true);
+    try {
+      const charInput: VoiceAssignerCharacter = {
+        id: character.id,
+        name: character.name,
+        gender: character.gender,
+        age: character.age,
+        personality: character.personality,
+      };
+      const assignment = assignVoicesForCharacters([charInput])[0];
+      const sink = createMystudioTtsSink();
+      syncCharacterVoices([assignment], {
+        projectId: useTtsStore.getState().activeProjectId ?? "",
+        sink,
+      });
+      toast.success(`${character.name} → ${assignment.presetVoiceId}（${assignment.reason}）`);
+      onOpenChange(false);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "自动分配失败");
+    } finally {
+      setAssigning(false);
+    }
+  }, [character, onOpenChange]);
+
+  const handleAssignReference = useCallback(async () => {
+    if (!audioPath.trim()) {
+      toast.error("请输入或选择音频文件路径");
+      return;
+    }
+    setAssigning(true);
+    try {
+      const runtimeStatus = await getTtsRuntimeStatus();
+      if (!runtimeStatus.running) {
+        toast.error("TTS 后端未运行，请先在「配音」面板启动");
+        setAssigning(false);
+        return;
+      }
+
+      const backendProfile = await createBackendVoiceProfile({
+        name: `音色·${character.name}`,
+        type: "reference",
+        language: "zh",
+        defaultEngine: selectedEngine as TtsEngine,
+        referenceAudioPath: audioPath.trim(),
+        referenceText: referenceText.trim() || undefined,
+      });
+
+      const speakerId = `character:${character.id}` as TtsSpeakerId;
+      const sink = createMystudioTtsSink();
+      const localProfileId = sink.createVoiceProfile({
+        name: `音色·${character.name}`,
+        type: "reference",
+        language: "zh",
+        defaultEngine: selectedEngine as TtsEngine,
+        defaultModelSize: "0.6B",
+        referenceAudioPath: audioPath.trim(),
+        referenceText: referenceText.trim() || undefined,
+      });
+      sink.bindSpeaker({
+        speakerId,
+        profileId: localProfileId,
+        defaultEngine: selectedEngine as TtsEngine,
+        defaultModelSize: "0.6B",
+      });
+
+      toast.success(`${character.name} 已分配克隆音色`);
+      onOpenChange(false);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "分配失败");
+    } finally {
+      setAssigning(false);
+    }
+  }, [character, audioPath, referenceText, selectedEngine, onOpenChange]);
+
+  const presetVoices = QWEN_CUSTOM_VOICES.filter((v) => v.language === "zh");
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md bg-background border border-border">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Volume2 className="h-4 w-4" />
+            分配音色 · {character.name}
+          </DialogTitle>
+          <DialogDescription>
+            为角色选择预设音色或上传原始音频进行声音克隆
+          </DialogDescription>
+        </DialogHeader>
+
+        {/* 模式切换 */}
+        <div className="flex gap-1 rounded-lg bg-muted/50 p-1">
+          <button
+            onClick={() => setMode("preset")}
+            className={`flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+              mode === "preset"
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            预设音色
+          </button>
+          <button
+            onClick={() => setMode("reference")}
+            className={`flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+              mode === "reference"
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            原始音频克隆
+          </button>
+        </div>
+
+        {mode === "preset" && (
+          <div className="space-y-3">
+            {/* 自动分配 */}
+            <div className="rounded-lg border border-border p-3">
+              <p className="text-xs text-muted-foreground mb-2">
+                根据角色性别/年龄/性格自动匹配最佳音色
+              </p>
+              <button
+                onClick={handleAutoAssign}
+                disabled={assigning}
+                className="w-full rounded-md bg-primary/15 text-primary px-3 py-1.5 text-xs font-medium hover:bg-primary/25 disabled:opacity-40 transition-colors"
+              >
+                {assigning ? "分配中..." : "智能匹配"}
+              </button>
+            </div>
+
+            {/* 手动选择 */}
+            <div className="space-y-2">
+              <Label className="text-xs">或手动选择预设音色</Label>
+              <div className="grid gap-1.5 max-h-48 overflow-auto">
+                {presetVoices.map((voice) => (
+                  <button
+                    key={voice.id}
+                    onClick={() => setSelectedPreset(voice.id)}
+                    className={`flex items-center gap-2 rounded-md px-3 py-2 text-left text-xs transition-colors ${
+                      selectedPreset === voice.id
+                        ? "bg-primary/15 text-primary border border-primary/30"
+                        : "border border-transparent hover:bg-muted/50"
+                    }`}
+                  >
+                    <Volume2 className="h-3 w-3 shrink-0" />
+                    <div>
+                      <span className="font-medium">{voice.name}</span>
+                      <span className="text-muted-foreground ml-1.5">
+                        {voice.description} · {voice.gender === "female" ? "女" : "男"}
+                      </span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button
+                onClick={handleAssignPreset}
+                disabled={assigning || !selectedPreset}
+                size="sm"
+                className="w-full"
+              >
+                {assigning ? "分配中..." : "确认分配"}
+              </Button>
+            </DialogFooter>
+          </div>
+        )}
+
+        {mode === "reference" && (
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <Label className="text-xs">音频文件路径</Label>
+              <Input
+                value={audioPath}
+                onChange={(e) => setAudioPath(e.target.value)}
+                placeholder="例如: /path/to/voice_sample.wav"
+                className="text-xs"
+              />
+              <p className="text-[10px] text-muted-foreground">
+                支持 WAV/MP3，建议 10-30 秒清晰语音
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-xs">参考文本（可选）</Label>
+              <Textarea
+                value={referenceText}
+                onChange={(e) => setReferenceText(e.target.value)}
+                placeholder="音频对应的文字内容，有助于提升克隆质量"
+                className="text-xs min-h-[60px]"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-xs">克隆引擎</Label>
+              <select
+                value={selectedEngine}
+                onChange={(e) => setSelectedEngine(e.target.value)}
+                className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
+              >
+                <option value="qwen">Qwen3-TTS（推荐中文）</option>
+                <option value="chatterbox">Chatterbox（多语言）</option>
+                <option value="tada">TADA（长音频）</option>
+              </select>
+            </div>
+
+            <DialogFooter>
+              <Button
+                onClick={handleAssignReference}
+                disabled={assigning || !audioPath.trim()}
+                size="sm"
+                className="w-full"
+              >
+                {assigning ? "分配中..." : "确认克隆分配"}
+              </Button>
+            </DialogFooter>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
 }

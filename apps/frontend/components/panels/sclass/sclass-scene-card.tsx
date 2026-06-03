@@ -429,7 +429,7 @@ export function SClassSceneCard({
                   <button
                     onClick={(e) => { e.stopPropagation(); onQuadGrid?.(scene.id, "start"); }}
                     disabled={isQuadGridGenerating}
-                    className="text-[9px] px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-600 hover:bg-cyan-500/30 disabled:opacity-50 flex items-center gap-0.5"
+                    className="text-[9px] px-1.5 py-0.5 rounded bg-primary/15 text-primary hover:bg-primary/25 disabled:opacity-50 flex items-center gap-0.5"
                   >
                     <Grid2X2 className="h-2.5 w-2.5" />
                     四宫格
@@ -476,7 +476,7 @@ export function SClassSceneCard({
                       type="button"
                       onClick={(e) => { e.stopPropagation(); e.preventDefault(); onQuadGrid?.(scene.id, "start"); }}
                       disabled={isQuadGridGenerating}
-                      className="p-0.5 rounded bg-black/50 text-white hover:bg-cyan-600 disabled:opacity-50"
+                      className="p-0.5 rounded bg-foreground/20 text-foreground hover:bg-primary/60 disabled:opacity-50"
                       title="四宫格生成"
                     >
                       <Grid2X2 className="h-3 w-3" />
@@ -484,7 +484,7 @@ export function SClassSceneCard({
                     <button
                       type="button"
                       onClick={(e) => { e.stopPropagation(); e.preventDefault(); handleDownloadImage(resolvedImageUrl || scene.imageDataUrl, `分镜${scene.id + 1}_首帧.png`); }}
-                      className="p-0.5 rounded bg-black/50 text-white hover:bg-blue-600"
+                      className="p-0.5 rounded bg-foreground/20 text-foreground hover:bg-primary/60"
                       title="下载首帧"
                     >
                       <Download className="h-3 w-3" />
@@ -567,7 +567,7 @@ export function SClassSceneCard({
                     <button
                       onClick={(e) => { e.stopPropagation(); onQuadGrid?.(scene.id, "end"); }}
                       disabled={isQuadGridGenerating}
-                      className="text-[9px] px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-600 hover:bg-cyan-500/30 disabled:opacity-50 flex items-center gap-0.5"
+                      className="text-[9px] px-1.5 py-0.5 rounded bg-primary/15 text-primary hover:bg-primary/25 disabled:opacity-50 flex items-center gap-0.5"
                     >
                       <Grid2X2 className="h-2.5 w-2.5" />
                       四宫格
@@ -636,7 +636,7 @@ export function SClassSceneCard({
                       type="button"
                       onClick={(e) => { e.stopPropagation(); e.preventDefault(); onQuadGrid?.(scene.id, "end"); }}
                       disabled={isQuadGridGenerating}
-                      className="p-0.5 rounded bg-black/50 text-white hover:bg-cyan-600 disabled:opacity-50"
+                      className="p-0.5 rounded bg-foreground/20 text-foreground hover:bg-primary/60 disabled:opacity-50"
                       title="四宫格生成"
                     >
                       <Grid2X2 className="h-3 w-3" />
@@ -644,7 +644,7 @@ export function SClassSceneCard({
                     <button
                       type="button"
                       onClick={(e) => { e.stopPropagation(); e.preventDefault(); handleDownloadImage(resolvedEndFrameUrl || scene.endFrameImageUrl!, `分镜${scene.id + 1}_尾帧.png`); }}
-                      className="p-0.5 rounded bg-black/50 text-white hover:bg-blue-600"
+                      className="p-0.5 rounded bg-foreground/20 text-foreground hover:bg-primary/60"
                       title="下载尾帧"
                     >
                       <Download className="h-3 w-3" />
@@ -843,7 +843,7 @@ export function SClassSceneCard({
                         onExtractVideoLastFrame?.(scene.id);
                       }}
                       disabled={isExtractingFrame || isGeneratingAny}
-                      className="p-1.5 rounded bg-cyan-500/20 text-cyan-600 hover:bg-cyan-500/30 disabled:opacity-50 transition-colors"
+                      className="p-1.5 rounded bg-primary/15 text-primary hover:bg-primary/25 disabled:opacity-50 transition-colors"
                     >
                       {isExtractingFrame ? (
                         <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -969,7 +969,7 @@ export function SClassSceneCard({
                   </>
                 ) : (
                   <div 
-                    className="flex items-start gap-2 cursor-pointer p-1.5 rounded bg-blue-500/5 hover:bg-blue-500/10 transition-colors border border-blue-500/10"
+                    className="flex items-start gap-2 cursor-pointer p-1.5 rounded bg-primary/5 hover:bg-primary/10 transition-colors border border-primary/10"
                     onClick={() => !isGeneratingAny && startEditing('image')}
                   >
                     <p className="text-[11px] text-muted-foreground flex-1 line-clamp-2 min-h-[1.5em]">

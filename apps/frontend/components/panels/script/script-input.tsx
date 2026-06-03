@@ -279,7 +279,7 @@ export function ScriptInput({
               viewpointAnalysisStatus === 'analyzing' || 
               characterCalibrationStatus === 'calibrating' ||
               sceneCalibrationStatus === 'calibrating') && (
-              <div className="p-4 rounded-xl bg-primary/10 border-2 border-primary/30 space-y-3 shadow-lg">
+              <div className="p-4 rounded-xl bg-primary/10 border-2 border-primary/30 space-y-3">
                 {/* 标题：根据是否二次校准显示不同文案 */}
                 <div className="flex items-center gap-3 text-primary">
                   <Loader2 className="h-6 w-6 animate-spin" />

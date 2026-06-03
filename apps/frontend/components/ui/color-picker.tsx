@@ -271,7 +271,7 @@ const ColorPicker = React.forwardRef<HTMLDivElement, ColorPickerProps>(
           createPortal(
             <div
               ref={pickerRef}
-              className="fixed z-50 p-4 bg-popover border border-border rounded-lg shadow-lg select-none"
+              className="fixed z-50 p-4 bg-popover border border-border rounded-lg select-none"
               style={{
                 right: pickerPosition.right,
                 bottom: pickerPosition.bottom,
@@ -324,7 +324,7 @@ const ColorCircle = ({
   color: string;
 }) => (
   <div
-    className={`absolute border-3 border-white rounded-full shadow-lg pointer-events-none ${
+    className={`absolute border-3 border-white rounded-full pointer-events-none ${
       size === "sm" ? "w-3 h-3" : "w-4 h-4"
     }`}
     style={{

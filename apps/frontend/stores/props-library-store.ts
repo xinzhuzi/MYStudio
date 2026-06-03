@@ -14,10 +14,26 @@ import { persist } from 'zustand/middleware';
 export interface PropItem {
   id: string;
   name: string;           // 道具名称（可编辑）
+  /** 原始描述（来自实体提取） */
+  description: string;
+  /** 润色后的视觉提示词 */
+  visualPrompt?: string;
+  /** 提示词润色状态 */
+  promptState?: "none" | "polishing" | "ready" | "failed";
+  /** 提示词错误信息 */
+  promptError?: string;
   imageUrl: string;       // local-image://props/... 或远程URL
-  prompt: string;         // 生成时的提示词（供参考）
+  /** 参考图（base64，不持久化） */
+  referenceImages?: string[];
+  /** 是否衍生资产 */
+  isDerivative?: boolean;
+  /** 父资产 ID */
+  parentId?: string;
+  /** 分类 */
+  category?: string;
   folderId: string | null; // 所属目录，null = 根目录
   createdAt: number;
+  updatedAt?: number;
 }
 
 // 自定义目录
@@ -151,7 +167,10 @@ export const usePropsLibraryStore = create<PropsLibraryStore>()(
     {
       name: 'mystudio-props-library',
       partialize: (state) => ({
-        items: state.items,
+        items: state.items.map(item => ({
+          ...item,
+          referenceImages: undefined, // base64 不持久化
+        })),
         folders: state.folders,
       }),
     }

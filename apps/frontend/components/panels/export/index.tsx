@@ -190,7 +190,7 @@ export function ExportView() {
         <div className="p-8 md:p-12">
           <div className="max-w-6xl mx-auto space-y-8">
             {/* Main Status Panel */}
-            <div className="bg-card border border-border rounded-xl p-8 shadow-2xl relative overflow-hidden">
+            <div className="bg-card border border-border rounded-xl p-8 relative overflow-hidden">
               {/* Background Decoration */}
               <div className="absolute top-0 right-0 p-48 bg-primary/5 blur-[120px] rounded-full pointer-events-none" />
               <div className="absolute bottom-0 left-0 p-32 bg-green-500/5 blur-[100px] rounded-full pointer-events-none" />
@@ -251,7 +251,7 @@ export function ExportView() {
                   <span>序列图{hasSplitScenes ? '（导演）' : ''}</span>
                   <span>TC 00:00:00:00</span>
                 </div>
-                <div className="h-20 bg-muted/30 rounded-lg border border-border flex items-center px-2 gap-1 overflow-x-auto relative shadow-inner">
+                <div className="h-20 bg-muted/30 rounded-lg border border-border flex items-center px-2 gap-1 overflow-x-auto relative">
                   {totalItems === 0 ? (
                     <div className="w-full flex items-center justify-center text-muted-foreground/50 text-xs font-mono uppercase tracking-widest">
                       <Film className="w-4 h-4 mr-2" />
@@ -279,7 +279,7 @@ export function ExportView() {
                           
                           {/* Hover Tooltip */}
                           <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-20 whitespace-nowrap">
-                            <div className="bg-popover text-popover-foreground text-[10px] px-2 py-1 rounded border border-border shadow-xl">
+                            <div className="bg-popover text-popover-foreground text-[10px] px-2 py-1 rounded border border-border">
                               分镜 {idx + 1}{hasVideo ? ' ✓视频' : hasImage ? ' ✓图片' : ''}
                             </div>
                           </div>
@@ -304,7 +304,7 @@ export function ExportView() {
                           
                           {/* Hover Tooltip */}
                           <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-20 whitespace-nowrap">
-                            <div className="bg-popover text-popover-foreground text-[10px] px-2 py-1 rounded border border-border shadow-xl">
+                            <div className="bg-popover text-popover-foreground text-[10px] px-2 py-1 rounded border border-border">
                               镜头 {idx + 1}
                             </div>
                           </div>

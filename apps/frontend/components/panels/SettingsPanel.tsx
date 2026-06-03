@@ -41,7 +41,6 @@ import { prepareModelTestRequest, type ModelTestResult, type ModelTestType } fro
 import { AddProviderDialog, EditProviderDialog, FeatureBindingPanel } from "@/components/api-manager";
 import { AddImageHostDialog } from "@/components/image-host-manager/AddImageHostDialog";
 import { EditImageHostDialog } from "@/components/image-host-manager/EditImageHostDialog";
-import { SidebarToggleButton } from "@/components/ChromeControls";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -1098,33 +1097,6 @@ export function SettingsPanel({
 
   return (
     <div className="settings-workspace flex flex-col h-full bg-background overflow-hidden">
-      {/* Header */}
-      <div className="settings-topbar h-16 border-b border-border bg-panel px-6 flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-4">
-          {sidebarCollapsed && onToggleSidebar && (
-            <SidebarToggleButton
-              sidebarCollapsed
-              onToggleSidebar={onToggleSidebar}
-            />
-          )}
-          <h2 className="text-lg font-bold text-foreground flex items-center gap-3">
-            <Settings className="w-5 h-5 text-primary" />
-            设置
-          </h2>
-        </div>
-        {activeTab === "api" && (
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-muted-foreground font-mono bg-muted border border-border px-2 py-1 rounded">
-              已配置: {configuredCount}/{visibleProviders.length}
-            </span>
-            <Button onClick={() => setAddDialogOpen(true)} size="sm">
-              <Plus className="h-4 w-4 mr-1" />
-              添加供应商
-            </Button>
-          </div>
-        )}
-      </div>
-
       <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as SettingsTabId)} className="flex-1 flex flex-col overflow-hidden">
         <div className="settings-tabs-bar border-b border-border px-6">
           <TabsList className="h-12 bg-transparent p-0 gap-4">
@@ -1146,7 +1118,7 @@ export function SettingsPanel({
 
         <TabsContent value="appearance" className="flex-1 overflow-hidden mt-0">
           <ScrollArea className="h-full">
-            <div className="appearance-panel p-8 max-w-6xl mx-auto space-y-7">
+            <div className="appearance-panel p-8 w-full space-y-7">
               <div className="appearance-hero">
                 <div className="appearance-hero-copy">
                   <div className="appearance-kicker">
@@ -1237,7 +1209,20 @@ export function SettingsPanel({
         {/* API Management Tab */}
         <TabsContent value="api" className="flex-1 overflow-hidden mt-0">
           <ScrollArea className="h-full">
-            <div className="p-8 max-w-5xl mx-auto space-y-8">
+            <div className="p-8 w-full space-y-8">
+          {/* API Header: count + add button */}
+          <div className="flex items-center justify-between">
+            <div />
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-muted-foreground font-mono bg-muted border border-border px-2 py-1 rounded">
+                已配置: {configuredCount}/{visibleProviders.length}
+              </span>
+              <Button onClick={() => setAddDialogOpen(true)} size="sm">
+                <Plus className="h-4 w-4 mr-1" />
+                添加供应商
+              </Button>
+            </div>
+          </div>
           {/* Security Notice */}
           <div className="flex items-start gap-3 p-4 bg-muted/50 border border-border rounded-lg">
             <Shield className="h-5 w-5 text-primary mt-0.5 shrink-0" />
@@ -1633,7 +1618,7 @@ export function SettingsPanel({
         {/* Python Config Tab */}
         <TabsContent value="python" className="flex-1 overflow-hidden mt-0">
           <ScrollArea className="h-full">
-            <div className="p-8 max-w-4xl mx-auto space-y-6">
+            <div className="p-8 w-full space-y-6">
               <div className="rounded-xl border border-border bg-card p-5">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                   <div>
@@ -1790,19 +1775,15 @@ export function SettingsPanel({
 
         {/* TTS Config Tab */}
         <TabsContent value="tts" className="flex-1 overflow-hidden mt-0">
-          <ScrollArea className="h-full">
-            <div className="p-8 max-w-6xl mx-auto space-y-6">
-              <Suspense fallback={<div className="flex h-40 items-center justify-center text-muted-foreground text-sm">加载中...</div>}>
-                <LocalTtsPanelLazy />
-              </Suspense>
-            </div>
-          </ScrollArea>
+          <Suspense fallback={<div className="flex h-40 items-center justify-center text-muted-foreground text-sm">加载中...</div>}>
+            <LocalTtsPanelLazy />
+          </Suspense>
         </TabsContent>
 
         {/* Advanced Options Tab */}
         <TabsContent value="advanced" className="flex-1 overflow-hidden mt-0">
           <ScrollArea className="h-full">
-            <div className="p-8 max-w-3xl mx-auto space-y-8">
+            <div className="p-8 w-full space-y-8">
               {/* Header */}
               <div className="flex items-start justify-between">
                 <div>
@@ -1943,7 +1924,7 @@ export function SettingsPanel({
         {/* Image Host Config Tab */}
         <TabsContent value="imagehost" className="flex-1 overflow-hidden mt-0">
           <ScrollArea className="h-full">
-            <div className="p-8 max-w-3xl mx-auto space-y-8">
+            <div className="p-8 w-full space-y-8">
               {/* Header */}
               <div>
                 <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
@@ -2058,7 +2039,7 @@ export function SettingsPanel({
         {/* Storage Tab */}
         <TabsContent value="storage" className="flex-1 overflow-hidden mt-0">
           <ScrollArea className="h-full">
-            <div className="p-8 max-w-3xl mx-auto space-y-8">
+            <div className="p-8 w-full space-y-8">
               {/* Header */}
               <div>
                 <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
@@ -2321,7 +2302,7 @@ export function SettingsPanel({
 
         <TabsContent value="development" className="flex-1 overflow-hidden mt-0">
           <ScrollArea className="h-full">
-            <div className="p-8 max-w-5xl mx-auto space-y-6">
+            <div className="p-8 w-full space-y-6">
               <div>
                 <h3 className="text-lg font-semibold text-foreground">开发模式</h3>
                 <p className="text-sm text-muted-foreground mt-1">
@@ -2386,7 +2367,7 @@ export function SettingsPanel({
 
         <TabsContent value="support" className="flex-1 overflow-hidden mt-0">
           <ScrollArea className="h-full">
-            <div className="p-8 max-w-3xl mx-auto space-y-8">
+            <div className="p-8 w-full space-y-8">
               <div className="text-center space-y-2">
                 <h3 className="text-2xl font-bold text-foreground flex items-center justify-center gap-2">
                   <Coffee className="h-6 w-6 text-amber-500" />

@@ -718,7 +718,7 @@ export function ScreenplayInput({ onGenerateStoryboard }: ScreenplayInputProps) 
                               className="w-8 h-8 rounded-full object-cover"
                             />
                           ) : (
-                            <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+                            <div className="w-8 h-8 rounded-full bg-primary/15 flex items-center justify-center">
                               <User className="h-4 w-4" />
                             </div>
                           )}
@@ -747,7 +747,7 @@ export function ScreenplayInput({ onGenerateStoryboard }: ScreenplayInputProps) 
                       className="w-6 h-6 rounded-full object-cover"
                     />
                   ) : (
-                    <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center">
+                    <div className="w-6 h-6 rounded-full bg-primary/15 flex items-center justify-center">
                       <User className="h-3 w-3" />
                     </div>
                   )}
@@ -802,7 +802,7 @@ export function ScreenplayInput({ onGenerateStoryboard }: ScreenplayInputProps) 
                                 className="w-8 h-8 rounded-full object-cover"
                               />
                             ) : (
-                              <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+                              <div className="w-8 h-8 rounded-full bg-primary/15 flex items-center justify-center">
                                 <User className="h-4 w-4" />
                               </div>
                             )}

@@ -90,7 +90,7 @@ function StyleCardComponent({
     <div
       ref={cardRef}
       className={cn(
-        "group relative flex flex-col rounded-lg border bg-card overflow-hidden cursor-pointer transition-[border-color,box-shadow] hover:shadow-md",
+        "group relative flex flex-col rounded-lg border bg-card overflow-hidden cursor-pointer transition-[border-color] hover:border-primary/30",
         isSelected
           ? "border-primary ring-1 ring-primary/30"
           : "border-border hover:border-primary/50"

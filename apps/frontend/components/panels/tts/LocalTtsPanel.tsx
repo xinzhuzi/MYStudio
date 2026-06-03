@@ -168,8 +168,8 @@ function RuntimeSetupProgress({ status, starting }: { status: TtsRuntimeStatus |
 
   return (
     <div className={cn(
-      "mt-4 rounded-md border p-3",
-      failed ? "border-destructive/30 bg-destructive/5" : "border-primary/25 bg-primary/5",
+      "mt-4 rounded-xl border p-3",
+      failed ? "border-red-400/20 bg-red-500/[0.06]" : "border-primary/20 bg-primary/[0.04]",
     )}>
       <div className="flex items-center justify-between gap-3 text-sm">
         <div className={cn("flex min-w-0 items-center gap-2 font-medium", failed ? "text-destructive" : "text-foreground")}>
@@ -209,7 +209,7 @@ function ModelRow({
   const progressValue = progress?.progress ?? (state === "downloaded" || state === "loaded" ? 100 : 0);
 
   return (
-    <div className="grid grid-cols-[minmax(220px,1.4fr)_120px_160px_120px_180px] gap-3 items-center border-b border-border px-4 py-3 last:border-b-0">
+    <div className="grid grid-cols-[minmax(220px,1.4fr)_120px_160px_120px_180px] gap-3 items-center border-b border-white/[0.06] px-4 py-3 last:border-b-0 transition-colors hover:bg-white/[0.02]">
       <button type="button" onClick={() => onOpen(row)} className="min-w-0 text-left">
         <div className="flex items-center gap-2">
           <ModelStateIcon state={state} />
@@ -618,7 +618,7 @@ export function LocalTtsPanel() {
   return (
     <ScrollArea className="h-full">
       <div className="p-8 max-w-6xl mx-auto space-y-6">
-        <div className="rounded-lg border border-border bg-card p-5">
+        <div className="tts-glass-card rounded-2xl border border-border bg-card/50 backdrop-blur-xl p-5">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="min-w-0 flex-1">
               <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
@@ -688,13 +688,13 @@ export function LocalTtsPanel() {
         </div>
 
         {activeTasks.downloads.length > 0 && (
-          <div className="rounded-lg border border-blue-500/30 bg-blue-500/5 p-4 text-sm text-blue-700 dark:text-blue-300">
+          <div className="rounded-2xl border border-primary/20 bg-primary/5 backdrop-blur-lg p-4 text-sm text-primary">
             {activeTasks.downloads.length} 个模型正在下载，离开此页后后端任务仍会继续，可回到本页恢复进度。
           </div>
         )}
 
         {errorEntries.length > 0 && (
-          <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4">
+          <div className="rounded-2xl border border-destructive/20 bg-destructive/5 backdrop-blur-lg p-4">
             <div className="mb-3 flex items-center justify-between gap-3">
               <div className="flex items-center gap-2 text-sm font-medium text-destructive">
                 <AlertCircle className="h-4 w-4" />
@@ -713,7 +713,7 @@ export function LocalTtsPanel() {
         )}
 
         {groupedRows.map((group) => (
-          <section key={group.id} className="rounded-lg border border-border bg-card overflow-hidden">
+          <section key={group.id} className="tts-glass-card rounded-2xl border border-border bg-card/50 backdrop-blur-xl overflow-hidden">
             <div className="border-b border-border px-4 py-3">
               <div className="flex items-center justify-between gap-3">
                 <div>
@@ -723,7 +723,7 @@ export function LocalTtsPanel() {
                 <span className="text-xs text-muted-foreground">{group.models.length} 个模型</span>
               </div>
             </div>
-            <div className="grid grid-cols-[minmax(220px,1.4fr)_120px_160px_120px_180px] gap-3 border-b border-border bg-muted/40 px-4 py-2 text-xs font-medium text-muted-foreground">
+            <div className="grid grid-cols-[minmax(220px,1.4fr)_120px_160px_120px_180px] gap-3 border-b border-white/[0.06] bg-white/[0.02] px-4 py-2 text-xs font-medium text-muted-foreground">
               <span>模型</span>
               <span>引擎</span>
               <span>语言</span>
@@ -744,7 +744,7 @@ export function LocalTtsPanel() {
           </section>
         ))}
 
-        <section className="rounded-lg border border-border bg-card p-5">
+        <section className="tts-glass-card rounded-2xl border border-border bg-card/50 backdrop-blur-xl p-5">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div>
               <h4 className="text-sm font-semibold text-foreground">声线库</h4>
@@ -860,7 +860,7 @@ export function LocalTtsPanel() {
             <Button onClick={handleCreateProfile}>创建声线</Button>
           </div>
           {voiceProfiles.length > 0 && (
-            <div className="mt-4 divide-y divide-border rounded-md border border-border">
+            <div className="mt-4 divide-y divide-white/[0.06] rounded-xl border border-white/[0.08] bg-white/[0.02]">
               {voiceProfiles.map((profile) => (
                 <div key={profile.id} className="grid grid-cols-[1fr_120px_140px_120px] gap-3 px-3 py-2 text-sm">
                   <span className="truncate text-foreground">{profile.name}</span>
@@ -875,7 +875,7 @@ export function LocalTtsPanel() {
       </div>
 
       <Dialog open={!!selectedModel} onOpenChange={(open) => !open && setSelectedModel(null)}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="tts-glass-dialog max-w-2xl border-white/[0.08] bg-background/80 backdrop-blur-2xl shadow-2xl shadow-black/[0.2]">
           {selectedModel && (
             <>
               <DialogHeader>
@@ -886,7 +886,7 @@ export function LocalTtsPanel() {
               </DialogHeader>
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div className="rounded-md border border-border p-3">
+                  <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-3">
                     <div className="text-xs text-muted-foreground">HuggingFace Repo</div>
                     <div className="mt-1 flex items-center gap-2 truncate font-mono text-xs">
                       {selectedModel.hfRepoId}
@@ -895,7 +895,7 @@ export function LocalTtsPanel() {
                       </a>
                     </div>
                   </div>
-                  <div className="rounded-md border border-border p-3">
+                  <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-3">
                     <div className="text-xs text-muted-foreground">磁盘大小</div>
                     <div className="mt-1 flex items-center gap-2 text-sm">
                       <HardDrive className="h-4 w-4 text-muted-foreground" />
@@ -904,7 +904,7 @@ export function LocalTtsPanel() {
                   </div>
                 </div>
                 <p className="text-sm text-muted-foreground">{selectedModel.description}</p>
-                <div className="rounded-md border border-border p-3">
+                <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-3">
                   <div className="text-xs text-muted-foreground">模型位置</div>
                   <div className="mt-1 break-all font-mono text-xs text-foreground">
                     {selectedModel.modelRepoPath || selectedModel.modelCacheDir || (selectedState === "missing" ? "未下载，未找到本地路径" : "启动后扫描")}
@@ -913,7 +913,7 @@ export function LocalTtsPanel() {
                     <div className="mt-2 break-all text-xs text-muted-foreground">缓存目录：{selectedModel.modelCacheDir}</div>
                   )}
                 </div>
-                <div className="rounded-md bg-muted p-3 text-xs text-muted-foreground">
+                <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3 text-xs text-muted-foreground">
                   License 以 HuggingFace 模型页为准；MYStudio 仅管理本地缓存和运行入口。
                 </div>
                 {selectedProgress && (

@@ -629,7 +629,7 @@ export function MediaView() {
               loading="lazy"
             />
             <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded">
-              <Video className="h-6 w-6 text-white drop-shadow-md" />
+              <Video className="h-6 w-6 text-white" />
             </div>
             {item.duration && (
               <div className="absolute bottom-1 right-1 bg-black/70 text-white text-xs px-1 rounded">

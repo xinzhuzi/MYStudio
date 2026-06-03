@@ -60,22 +60,24 @@ export function Layout() {
   // Dashboard mode - show full-screen dashboard or settings
   if (!inProject) {
     return (
-      <div className="studio-shell h-full flex bg-background">
+      <>
         <TabBar sidebarCollapsed={sidebarCollapsed} onToggleSidebar={toggleSidebar} />
-        <div className="studio-main flex-1">
-          {activeTab === "settings" ? (
-            <SettingsPanel
-              sidebarCollapsed={sidebarCollapsed}
-              onToggleSidebar={toggleSidebar}
-            />
-          ) : (
-            <Dashboard
-              sidebarCollapsed={sidebarCollapsed}
-              onToggleSidebar={toggleSidebar}
-            />
-          )}
+        <div className="studio-shell h-full bg-background">
+          <div className="studio-main h-full">
+            {activeTab === "settings" ? (
+              <SettingsPanel
+                sidebarCollapsed={sidebarCollapsed}
+                onToggleSidebar={toggleSidebar}
+              />
+            ) : (
+              <Dashboard
+                sidebarCollapsed={sidebarCollapsed}
+                onToggleSidebar={toggleSidebar}
+              />
+            )}
+          </div>
         </div>
-      </div>
+      </>
     );
   }
 
@@ -84,16 +86,17 @@ export function Layout() {
   const fullScreenTabs = ["export", "settings", "overview", "studio", "script", "characters", "scenes", "freedom", "assets", "skills", "tts"];
   if (fullScreenTabs.includes(activeTab)) {
     return (
-      <div className="studio-shell h-full flex flex-col bg-background">
-        <ProjectHeader
-          onBack={() => setInProject(false)}
-          sidebarCollapsed={sidebarCollapsed}
-          onToggleSidebar={toggleSidebar}
-        />
-        <div className="flex flex-1 min-h-0">
-          <TabBar sidebarCollapsed={sidebarCollapsed} onToggleSidebar={toggleSidebar} />
-          <div className="studio-main flex-1 min-w-0 flex flex-col overflow-hidden">
-            <div key={activeTab} className="cinematic-route flex-1 h-full min-h-0 overflow-hidden">
+      <>
+        <TabBar sidebarCollapsed={sidebarCollapsed} onToggleSidebar={toggleSidebar} />
+        <div className="studio-shell h-full flex flex-col bg-background">
+          <ProjectHeader
+            onBack={() => setInProject(false)}
+            sidebarCollapsed={sidebarCollapsed}
+            onToggleSidebar={toggleSidebar}
+          />
+          <div className="flex flex-1 min-h-0">
+            <div className="studio-main flex-1 min-w-0 flex flex-col overflow-hidden">
+              <div key={activeTab} className="cinematic-route flex-1 h-full min-h-0 overflow-hidden">
               {activeTab === "export" && <ExportView />}
               {activeTab === "settings" && (
                 <SettingsPanel
@@ -115,6 +118,7 @@ export function Layout() {
           </div>
         </div>
       </div>
+      </>
     );
   }
 
@@ -150,6 +154,8 @@ export function Layout() {
   };
 
   return (
+    <>
+    <TabBar sidebarCollapsed={sidebarCollapsed} onToggleSidebar={toggleSidebar} />
     <div className="studio-shell h-full flex flex-col bg-background">
         <ProjectHeader
           onBack={() => setInProject(false)}
@@ -158,9 +164,6 @@ export function Layout() {
         />
 
       <div className="flex flex-1 min-h-0">
-        {/* Left: TabBar - below the app chrome */}
-        <TabBar sidebarCollapsed={sidebarCollapsed} onToggleSidebar={toggleSidebar} />
-
         {/* Right content area */}
         <div className="studio-main flex-1 min-w-0 flex flex-col">
           {/* Main content with resizable panels */}
@@ -210,5 +213,6 @@ export function Layout() {
         </div>
       </div>
     </div>
+    </>
   );
 }

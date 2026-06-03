@@ -227,6 +227,8 @@ export function getFeatureNotConfiguredMessage(feature: AIFeature): string {
 // ==================== 统一 API 调用入口 ====================
 
 import { callChatAPI } from '@/lib/script/script-parser';
+import { sdkGenerateText, getLanguageModel } from '@/lib/ai/ai-sdk-bridge';
+import { generateText } from 'ai';
 
 export interface CallFeatureAPIOptions {
   /** 自定义温度，默认 0.7 */
@@ -278,11 +280,29 @@ export async function callFeatureAPI(
   console.log(`[callFeatureAPI] 供应商: ${config.provider.name} (${config.platform})`);
   console.log(`[callFeatureAPI] 模型: ${model}`);
   console.log(`[callFeatureAPI] BaseURL: ${baseUrl}`);
-  
-  // 调用底层 API
-  // 深度思考：默认按模型自动判断（支持就开最高思考），仅在调用方显式传入时才强制开/关。
+
+  // 优先使用 Vercel AI SDK
+  try {
+    const apiKey = config.keyManager.getCurrentKey() || config.apiKey;
+    const result = await sdkGenerateText({
+      provider: { baseUrl, apiKey, platform: config.platform, name: config.provider.name },
+      model,
+      messages: [
+        ...(systemPrompt ? [{ role: 'system' as const, content: systemPrompt }] : []),
+        { role: 'user' as const, content: userPrompt },
+      ],
+      temperature: options?.temperature,
+      maxTokens: options?.maxTokens,
+    });
+    if (result.success && result.text) {
+      return result.text;
+    }
+  } catch (_e) {
+    // AI SDK 失败，回退到手写 HTTP
+  }
+
+  // 回退：原有 callChatAPI 路径
   const disableThinking = options?.disableThinking;
-  // 用户在设置里为该模型显式配置的「思考模式」开关（优先于按名字自动判断）。
   const thinkingEnabled = useAPIConfigStore.getState().getModelThinkingOverride(model);
   return await callChatAPI(systemPrompt, userPrompt, {
     apiKey: config.allApiKeys.join(','),
@@ -371,6 +391,31 @@ export async function callFeatureMultimodalAPI(
   const baseUrl = config.baseUrl?.replace(/\/+$/, '');
   if (!baseUrl) throw new Error('请先在设置中配置 Base URL');
   if (!model) throw new Error('请先在设置中配置模型');
+
+  // 优先使用 Vercel AI SDK 多模态调用
+  try {
+    const apiKey = config.keyManager.getCurrentKey() || config.apiKey;
+    const sdkModel = getLanguageModel(
+      { baseUrl, apiKey, platform: config.platform, name: config.provider.name },
+      model,
+    );
+    // 将 MYStudio 消息格式转为 AI SDK 格式
+    const sdkMessages = messages.map((m) => ({
+      role: m.role as 'system' | 'user' | 'assistant',
+      content: m.content as any,
+    }));
+    const result = await generateText({
+      model: sdkModel,
+      messages: sdkMessages,
+      ...(opts?.temperature != null && { temperature: opts.temperature }),
+      ...(opts?.signal && { abortSignal: opts.signal }),
+    });
+    return result.text;
+  } catch (_e) {
+    // AI SDK 失败，回退到手写 HTTP
+  }
+
+  // 回退：原始 fetch 路径
   const endpoint = /\/v\d+$/.test(baseUrl) ? `${baseUrl}/chat/completions` : `${baseUrl}/v1/chat/completions`;
   const body: Record<string, unknown> = { model, messages, stream: false };
   if (opts?.temperature != null) body.temperature = opts.temperature;

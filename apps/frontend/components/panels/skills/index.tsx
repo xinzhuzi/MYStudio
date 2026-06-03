@@ -371,9 +371,9 @@ export function SkillsView({
     <div className="skills-workspace flex h-full flex-col overflow-hidden bg-background">
       <div className="h-16 shrink-0 border-b border-border bg-panel px-6 flex items-center justify-between">
         <div className="flex items-center gap-4">
-          {sidebarCollapsed && onToggleSidebar && (
+          {onToggleSidebar && (
             <SidebarToggleButton
-              sidebarCollapsed
+              sidebarCollapsed={sidebarCollapsed}
               onToggleSidebar={onToggleSidebar}
             />
           )}

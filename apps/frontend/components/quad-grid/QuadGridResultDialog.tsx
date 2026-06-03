@@ -157,7 +157,7 @@ export function QuadGridResultDialog({
                           e.stopPropagation();
                           handleDownload(img, index);
                         }}
-                        className="p-1 rounded bg-black/60 text-white hover:bg-blue-600"
+                        className="p-1 rounded bg-foreground/20 text-foreground hover:bg-primary/60"
                         title="下载"
                       >
                         <Download className="h-3 w-3" />
@@ -171,7 +171,7 @@ export function QuadGridResultDialog({
 
           {/* 复制到其他分镜 */}
           {otherScenes.length > 0 && (
-            <div className="flex items-center gap-2 p-3 rounded bg-zinc-800/50 border border-zinc-700">
+            <div className="flex items-center gap-2 p-3 rounded bg-muted/50 border border-border">
               <span className="text-xs text-zinc-400 whitespace-nowrap">
                 复制到:
               </span>

@@ -305,11 +305,11 @@ export function Dashboard({
   return (
     <div className="dashboard-shell flex flex-col h-full bg-background overflow-hidden">
       {/* Header */}
-      <div className="dashboard-topbar h-16 border-b border-border bg-panel px-8 flex items-center justify-between shrink-0">
+      <div className="dashboard-topbar h-14 border-b border-border bg-panel pr-8 pl-20 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-4">
-          {sidebarCollapsed && onToggleSidebar && (
+          {onToggleSidebar && (
             <SidebarToggleButton
-              sidebarCollapsed
+              sidebarCollapsed={sidebarCollapsed}
               onToggleSidebar={onToggleSidebar}
             />
           )}
@@ -574,15 +574,7 @@ export function Dashboard({
 
                   {/* Hover Overlay (not in selection mode) */}
                   {!selectionMode && (
-                    <>
-                      <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                        <div className="bg-primary text-primary-foreground px-4 py-2 rounded-lg font-medium text-sm flex items-center gap-2">
-                          <FolderOpen className="w-4 h-4" />
-                          打开项目
-                        </div>
-                      </div>
-                    </>
+                    <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
                   )}
                 </div>
               );

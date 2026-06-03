@@ -59,6 +59,11 @@ export interface Scene {
   lightingDesign?: string;     // 光影设计
   keyProps?: string[];         // 关键道具
   spatialLayout?: string;      // 空间布局
+
+  /** 提示词润色状态 */
+  promptState?: "none" | "polishing" | "ready" | "failed";
+  /** 提示词润色错误信息 */
+  promptError?: string;
 }
 
 export type SceneGenerationStatus = 'idle' | 'generating' | 'completed' | 'error';
