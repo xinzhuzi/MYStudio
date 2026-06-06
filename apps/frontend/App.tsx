@@ -9,6 +9,7 @@ import { UpdateDialog } from "@/components/UpdateDialog";
 import { COLOR_PRESETS, useThemeStore } from "@/stores/theme-store";
 import { useAppSettingsStore } from "@/stores/app-settings-store";
 import { migrateToProjectStorage, recoverFromLegacy } from "@/lib/storage-migration";
+import { initSound, playSound } from "@/lib/sound";
 import type { AvailableUpdateInfo } from "@/types/update";
 
 let hasTriggeredStartupUpdateCheck = false;
@@ -58,6 +59,30 @@ function App() {
     root.classList.add(theme);
     root.classList.add(`theme-preset-${colorPreset}`);
   }, [theme, colorPreset]);
+
+  // 全局按钮音效：捕获所有 button[role=button] / button 点击，播放高大上激活音
+  useEffect(() => {
+    const isInteractive = (el: HTMLElement | null): boolean => {
+      if (!el) return false;
+      const tag = el.tagName;
+      if (tag === "BUTTON") return true;
+      const role = el.getAttribute("role");
+      if (role === "button") return true;
+      return false;
+    };
+    const onClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!isInteractive(target) && !isInteractive(target.closest("button, [role=button]"))) return;
+      if (target.closest("[data-no-sound]")) return;
+      // 首次用户交互时初始化音频上下文
+      initSound();
+      // 区分音效：tab 切换/普通按钮 = activate；取消/关闭按钮 = cancel
+      const isCancel = target.closest("[data-sound=cancel]") || (target.getAttribute("aria-label") || "").match(/取消|关闭|删除|删除|失败/i);
+      playSound(isCancel ? "cancel" : "activate");
+    };
+    document.addEventListener("click", onClick, { capture: true });
+    return () => document.removeEventListener("click", onClick, true);
+  }, []);
 
   useEffect(() => {
     if (

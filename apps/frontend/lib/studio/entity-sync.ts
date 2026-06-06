@@ -2,6 +2,7 @@ import type { DedupedEntity, EntityKind } from "@/lib/studio/entity-extraction";
 import type { EntityExtractionResult } from "@/types/studio";
 import { useCharacterLibraryStore } from "@/stores/character-library-store";
 import { useSceneStore } from "@/stores/scene-store";
+import { usePropsLibraryStore } from "@/stores/props-library-store";
 
 export interface CharacterSink {
   addCharacter: (input: {
@@ -34,6 +35,15 @@ export interface SceneSink {
   getOrCreateProjectFolder: (projectId: string, projectName: string) => string;
 }
 
+export interface PropSink {
+  addProp: (input: {
+    name: string;
+    description: string;
+    folderId?: string | null;
+    category?: string;
+  }) => string;
+}
+
 export interface SyncExtractedEntitiesInput {
   episodeId: string;
   entities: DedupedEntity[];
@@ -44,6 +54,7 @@ export interface SyncExtractedEntitiesInput {
 export interface SyncSinks {
   characterSink: CharacterSink;
   sceneSink: SceneSink;
+  propSink?: PropSink;
 }
 
 export interface SyncSummary {
@@ -137,11 +148,20 @@ export function syncExtractedEntities(
       continue;
     }
 
-    // prop: lightweight, no dedicated store (plan §二 待确认点)
-    const assetId = entity.id ?? `prop-${episodeId}-${props.length + 1}`;
-    props.push({ assetId, name: entity.name, note: entity.note });
-    if (entity.isNew || !entity.id) created += 1;
-    else merged += 1;
+    // prop: 写入 propsLibraryStore + assets.db
+    if (sinks.propSink && (entity.isNew || !entity.id)) {
+      const propId = sinks.propSink.addProp({
+        name: entity.name,
+        description: entity.note ?? "",
+      });
+      props.push({ assetId: propId, name: entity.name, note: entity.note });
+      created += 1;
+    } else {
+      const assetId = entity.id ?? `prop-${episodeId}-${props.length + 1}`;
+      props.push({ assetId, name: entity.name, note: entity.note });
+      if (entity.isNew || !entity.id) created += 1;
+      else merged += 1;
+    }
   }
 
   const result: EntityExtractionResult = {
@@ -155,21 +175,76 @@ export function syncExtractedEntities(
   return { result, summary: { created, merged } };
 }
 
-/** Build sinks backed by the live MYStudio stores (character/scene libraries). */
+/** Build sinks backed by the live MYStudio stores (character/scene libraries) + assets.db. */
 export function createMystudioSinks(): SyncSinks {
   return {
     characterSink: {
-      addCharacter: (data) =>
-        useCharacterLibraryStore.getState().addCharacter({ ...data, views: [] }),
+      addCharacter: (data) => {
+        const id = useCharacterLibraryStore.getState().addCharacter({ ...data, views: [] });
+        // 同步写入 assets.db（如果不存在）
+        try {
+          window.studioAssets?.getByName({ type: 'role', name: data.name }).then((existing) => {
+            if (!existing) {
+              window.studioAssets?.add({
+                type: 'role',
+                name: data.name,
+                description: data.description || '',
+                setting: data.notes || '',
+              });
+            }
+          });
+        } catch { /* non-blocking */ }
+        return id;
+      },
       updateCharacter: (id, updates) => useCharacterLibraryStore.getState().updateCharacter(id, updates),
       getOrCreateProjectFolder: (projectId, projectName) =>
         useCharacterLibraryStore.getState().getOrCreateProjectFolder(projectId, projectName),
     },
     sceneSink: {
-      addScene: (data) => useSceneStore.getState().addScene(data),
+      addScene: (data) => {
+        const id = useSceneStore.getState().addScene(data);
+        // 同步写入 assets.db（如果不存在）
+        try {
+          window.studioAssets?.getByName({ type: 'scene', name: data.name }).then((existing) => {
+            if (!existing) {
+              window.studioAssets?.add({
+                type: 'scene',
+                name: data.name,
+                description: data.atmosphere || data.location || '',
+                setting: data.notes || '',
+              });
+            }
+          });
+        } catch { /* non-blocking */ }
+        return id;
+      },
       updateScene: (id, updates) => useSceneStore.getState().updateScene(id, updates),
       getOrCreateProjectFolder: (projectId, projectName) =>
         useSceneStore.getState().getOrCreateProjectFolder(projectId, projectName),
+    },
+    propSink: {
+      addProp: (data) => {
+        const newProp = usePropsLibraryStore.getState().addProp({
+          name: data.name,
+          description: data.description || "",
+          imageUrl: "",
+          folderId: data.folderId ?? null,
+          category: data.category,
+        });
+        // 同步写入 assets.db（如果不存在）
+        try {
+          window.studioAssets?.getByName({ type: 'tool', name: data.name }).then((existing) => {
+            if (!existing) {
+              window.studioAssets?.add({
+                type: 'tool',
+                name: data.name,
+                description: data.description || '',
+              });
+            }
+          });
+        } catch { /* non-blocking */ }
+        return newProp.id;
+      },
     },
   };
 }

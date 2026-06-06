@@ -2314,6 +2314,16 @@ ipcMain.handle('assets:get', async (_event, id: string) => {
   return assetsStorage.getAsset(id);
 })
 
+ipcMain.handle('assets:get-by-name', async (_event, payload: { type: string; name: string }) => {
+  return assetsStorage.getAssetByName(payload.type as any, payload.name);
+})
+
+ipcMain.handle('assets:batch-match', async (_event, payload: { type: string; names: string[] }) => {
+  const map = await assetsStorage.batchMatchAssets(payload.type as any, payload.names);
+  // Map 不能跨 IPC 序列化，转为数组
+  return Array.from(map.entries()).map(([name, asset]) => ({ name, asset }));
+})
+
 ipcMain.handle('assets:update', async (_event, payload: { id: string; updates: Record<string, unknown> }) => {
   return assetsStorage.updateAsset(payload.id, payload.updates as any);
 })
@@ -2384,6 +2394,10 @@ ipcMain.handle('tts-runtime-request', async (_event, payload: { method: string; 
 
 ipcMain.handle('tts-runtime-request-bytes', async (_event, payload: { method: string; path: string; body?: unknown }) => (
   ttsRuntimeController.requestBytes(payload.method, payload.path, payload.body)
+))
+
+ipcMain.handle('tts-runtime-request-formdata', async (_event, payload: { path: string; audioFilePath: string; referenceText?: string }) => (
+  ttsRuntimeController.requestFormData(payload.path, payload.audioFilePath, payload.referenceText)
 ))
 
 ipcMain.handle('studio-merge-episode', async (_event, plan: EpisodeMergePlan) => {

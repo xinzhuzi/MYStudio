@@ -203,6 +203,8 @@ declare global {
       renameImage: (payload: { assetId: string; imageFilePath: string; newName: string }) => Promise<StudioAssetSummary | null>;
       selectImageFile: () => Promise<string | null>;
       importFromToonflow: (payload: { type: string }) => Promise<{ success: boolean; imported: number }>;
+      getByName: (payload: { type: string; name: string }) => Promise<StudioAssetSummary | null>;
+      batchMatch: (payload: { type: string; names: string[] }) => Promise<Array<{ name: string; asset: StudioAssetSummary | null }>>;
     };
     ttsRuntime?: {
       status: () => Promise<TtsRuntimeStatus>;
@@ -214,6 +216,7 @@ declare global {
       setModelCacheDir: (dirPath: string) => Promise<TtsRuntimeCommandResult>;
       request: (payload: { method: string; path: string; body?: unknown }) => Promise<unknown>;
       requestBytes: (payload: { method: string; path: string; body?: unknown }) => Promise<{ data: ArrayBuffer; mimeType?: string }>;
+      requestFormData: (payload: { path: string; audioFilePath: string; referenceText?: string }) => Promise<unknown>;
     };
   }
 }

@@ -210,6 +210,18 @@ export const useCharacterLibraryStore = create<CharacterLibraryStore>()(
 
       // Character CRUD
       addCharacter: (characterData) => {
+        // 按名称去重：同名+同项目角色已存在时返回已有 ID
+        const existing = get().characters.find(
+          (c) => c.name === characterData.name && (
+            c.projectId === characterData.projectId ||
+            (!c.projectId && !characterData.projectId)
+          )
+        );
+        if (existing) {
+          console.log(`Character already exists: ${existing.name} (${existing.id}), skipping duplicate`);
+          return existing.id;
+        }
+
         const id = `char_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
         const now = Date.now();
         

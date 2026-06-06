@@ -158,15 +158,16 @@ function runSqliteExec(dbPath: string, sql: string) {
 }
 
 function escapeSql(value: string): string {
-  // 转义单引号，并将换行替换为 char(10) 拼接方式不可行，
-  // 所以用 replace 保留换行（sqlite3 stdin 模式支持多行字符串）
   return value.replace(/'/g, "''");
+}
+function escapeSqlLike(value: string): string {
+  return escapeSql(value).replace(/%/g, '\\%').replace(/_/g, '\\_');
 }
 
 /** 构建 assets 查询的 WHERE 子句（按类型/搜索/分类标签过滤）。导出以便单测。 */
 export function buildAssetWhere(type: string, search?: string, category?: string): string {
   const conds = [`type='${escapeSql(type)}'`];
-  if (search) conds.push(`(name LIKE '%${escapeSql(search)}%' OR prompt LIKE '%${escapeSql(search)}%')`);
+  if (search) conds.push(`(name LIKE '%${escapeSqlLike(search)}%' ESCAPE '\\' OR prompt LIKE '%${escapeSqlLike(search)}%' ESCAPE '\\')`);
   if (category) conds.push(`tags LIKE '%"${escapeSql(category)}"%'`);
   return `WHERE ${conds.join(" AND ")}`;
 }
@@ -221,7 +222,7 @@ export async function listAssets(type: StudioAssetKind, search?: string, offset 
   const total = countResult[0]?.cnt ?? 0;
 
   const rows = await runSqliteJson<any[]>(dbPath,
-    `SELECT id, type, name, filePath, tags FROM assets ${where} ORDER BY rowid DESC LIMIT ${limit} OFFSET ${offset};`
+    `SELECT id, type, name, filePath, tags FROM assets ${where} ORDER BY rowid ASC LIMIT ${limit} OFFSET ${offset};`
   );
 
   const items: StudioAssetSummary[] = rows.map((row) => {
@@ -253,6 +254,38 @@ export async function getAsset(id: string): Promise<StudioAssetSummary | null> {
   );
   if (!rows.length) return null;
   return rowToSummary(rows[0]);
+}
+
+export async function getAssetByName(type: StudioAssetKind, name: string): Promise<StudioAssetSummary | null> {
+  const dbPath = getDbPath();
+  // 精确匹配名称，或匹配备注中的别名
+  const rows = await runSqliteJson<any[]>(dbPath,
+    `SELECT * FROM assets WHERE type='${escapeSql(type)}' AND (name='${escapeSql(name)}' OR remark LIKE '%${escapeSqlLike(name)}%' ESCAPE '\\') LIMIT 1;`
+  );
+  if (!rows.length) return null;
+  return rowToSummary(rows[0]);
+}
+
+export async function batchMatchAssets(type: StudioAssetKind, names: string[]): Promise<Map<string, StudioAssetSummary>> {
+  const dbPath = getDbPath();
+  const result = new Map<string, StudioAssetSummary>();
+  if (!names.length) return result;
+
+  const conditions = names.map(n => {
+    const escaped = escapeSql(n);
+    return `(name='${escaped}' OR remark LIKE '%${escaped}%')`;
+  }).join(' OR ');
+  const query = `SELECT * FROM assets WHERE type='${escapeSql(type)}' AND (${conditions});`;
+  const rows = await runSqliteJson<any[]>(dbPath, query);
+
+  // 为每个 name 找到最佳匹配
+  for (const name of names) {
+    const match = rows.find(r => r.name === name) || rows.find(r => r.remark?.includes(name));
+    if (match) {
+      result.set(name, rowToSummary(match));
+    }
+  }
+  return result;
 }
 
 export function updateAsset(id: string, updates: Partial<{ name: string; description: string; prompt: string; setting: string; remark: string; tags: string[] }>): StudioAssetSummary | null {

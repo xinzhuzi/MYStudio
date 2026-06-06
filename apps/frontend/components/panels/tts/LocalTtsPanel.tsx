@@ -32,10 +32,12 @@ import {
   groupTtsModelsByPurpose,
 } from "@/lib/tts/model-catalog";
 import {
+  getAllPresetVoices,
   getDefaultModelSizeForEngine,
   getDefaultPresetVoiceId,
   getPresetVoiceOptions,
   getVoiceProfileType,
+  resolvePresetVoiceSelection,
   supportsVoiceInstruction,
   validateVoiceProfileForGeneration,
 } from "@/lib/tts/voice-profile-capabilities";
@@ -272,12 +274,16 @@ export function LocalTtsPanel() {
   const modelCacheDirtyRef = useRef(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [newProfileName, setNewProfileName] = useState("旁白声线");
+  // 隐藏引擎方向：用户只看到"音色"或"克隆"两个来源；
+  // preset 模式下引擎由音色 ID 自动 derive，clone 模式才需要用户显式选引擎
+  const [newProfileMode, setNewProfileMode] = useState<"preset" | "clone">("preset");
   const [newProfileEngine, setNewProfileEngine] = useState<TtsEngine>("qwen");
   const [newProfileLanguage, setNewProfileLanguage] = useState("zh");
   const [newProfileModelSize, setNewProfileModelSize] = useState("0.6B");
   const [newProfileReferencePath, setNewProfileReferencePath] = useState("");
   const [newProfileReferenceText, setNewProfileReferenceText] = useState("");
-  const [newProfilePresetVoiceId, setNewProfilePresetVoiceId] = useState("");
+  // 统一音色 ID，格式 `${engine}:${voiceId}`；空串 = 未选
+  const [newProfileVoiceId, setNewProfileVoiceId] = useState<string>("");
   const [newProfileInstruct, setNewProfileInstruct] = useState("");
   const [uploadingReference, setUploadingReference] = useState(false);
   const referenceInputRef = useRef<HTMLInputElement>(null);
@@ -294,20 +300,22 @@ export function LocalTtsPanel() {
     }));
   }, [rows]);
 
-  const newProfileType = getVoiceProfileType(newProfileEngine);
-  const presetVoiceOptions = useMemo(
-    () => getPresetVoiceOptions(newProfileEngine, newProfileLanguage),
-    [newProfileEngine, newProfileLanguage],
+  // 统一音色库：所有引擎的预设音色合并展示
+  const unifiedPresetVoices = useMemo(
+    () => getAllPresetVoices(newProfileLanguage),
+    [newProfileLanguage],
   );
+
+  // preset 模式：引擎从音色 ID 派生
+  const presetSelection = useMemo(
+    () => (newProfileMode === "preset" ? resolvePresetVoiceSelection(newProfileVoiceId, newProfileLanguage) : null),
+    [newProfileMode, newProfileVoiceId, newProfileLanguage],
+  );
+  const newProfileType: "reference" | "preset" = newProfileMode === "preset" ? "preset" : "reference";
 
   const handleEngineChange = (engine: TtsEngine) => {
     setNewProfileEngine(engine);
     setNewProfileModelSize(getDefaultModelSizeForEngine(engine) || "default");
-    setNewProfilePresetVoiceId(getDefaultPresetVoiceId(engine, newProfileLanguage) || "");
-    if (getVoiceProfileType(engine) === "preset") {
-      setNewProfileReferencePath("");
-      setNewProfileReferenceText("");
-    }
     if (!supportsVoiceInstruction(engine)) {
       setNewProfileInstruct("");
     }
@@ -315,9 +323,15 @@ export function LocalTtsPanel() {
 
   const handleLanguageChange = (language: string) => {
     setNewProfileLanguage(language);
-    if (newProfileType === "preset") {
-      setNewProfilePresetVoiceId(getDefaultPresetVoiceId(newProfileEngine, language) || "");
-    }
+    // 切语言时清空已选音色（语言不再匹配）
+    setNewProfileVoiceId("");
+  };
+
+  const handleModeChange = (mode: "preset" | "clone") => {
+    setNewProfileMode(mode);
+    setNewProfileVoiceId("");
+    setNewProfileReferencePath("");
+    setNewProfileReferenceText("");
   };
 
   const attachProgress = useCallback(async (modelName: string) => {
@@ -543,17 +557,35 @@ export function LocalTtsPanel() {
       toast.error("请输入声线名称");
       return;
     }
-    const selectedModelSize = newProfileModelSize === "default" ? undefined : newProfileModelSize;
+    // preset 模式：从统一音色 ID 派生 engine / voiceId
+    // clone 模式：用户显式选的 engine
+    let resolvedEngine: TtsEngine;
+    let resolvedPresetVoiceId: string | undefined;
+    let resolvedModelSize: string | undefined;
+    if (newProfileMode === "preset") {
+      if (!presetSelection) {
+        toast.error("请先从音色库选择预设音色");
+        return;
+      }
+      resolvedEngine = presetSelection.engine;
+      resolvedPresetVoiceId = presetSelection.voiceId;
+      resolvedModelSize = newProfileModelSize === "default" || !newProfileModelSize
+        ? presetSelection.modelSize
+        : newProfileModelSize;
+    } else {
+      resolvedEngine = newProfileEngine;
+      resolvedModelSize = newProfileModelSize === "default" ? undefined : newProfileModelSize;
+    }
     const candidate = {
       id: "new-profile",
       name: newProfileName.trim(),
       type: newProfileType,
       language: newProfileLanguage,
-      defaultEngine: newProfileEngine,
-      defaultModelSize: selectedModelSize,
+      defaultEngine: resolvedEngine,
+      defaultModelSize: resolvedModelSize,
       referenceAudioPath: newProfileReferencePath.trim() || undefined,
       referenceText: newProfileReferenceText.trim() || undefined,
-      presetVoiceId: newProfilePresetVoiceId || undefined,
+      presetVoiceId: resolvedPresetVoiceId,
       instruct: newProfileInstruct.trim() || undefined,
       createdAt: Date.now(),
       updatedAt: Date.now(),
@@ -567,18 +599,19 @@ export function LocalTtsPanel() {
       name: newProfileName.trim(),
       type: newProfileType,
       language: newProfileLanguage,
-      defaultEngine: newProfileEngine,
-      defaultModelSize: selectedModelSize,
+      defaultEngine: resolvedEngine,
+      defaultModelSize: resolvedModelSize,
       referenceAudioPath: newProfileReferencePath.trim() || undefined,
       referenceText: newProfileReferenceText.trim() || undefined,
-      presetVoiceId: newProfilePresetVoiceId || undefined,
+      presetVoiceId: resolvedPresetVoiceId,
       instruct: newProfileInstruct.trim() || undefined,
     });
     setNewProfileName("旁白声线");
     setNewProfileReferencePath("");
     setNewProfileReferenceText("");
     setNewProfileInstruct("");
-    toast.success("声线 profile 已创建");
+    setNewProfileVoiceId("");
+    toast.success(newProfileMode === "preset" ? "声线 profile 已创建（基于预设音色）" : "克隆声线已创建");
   };
 
   const handleReferenceAudioUpload = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -752,7 +785,7 @@ export function LocalTtsPanel() {
             </div>
             <span className="text-xs text-muted-foreground">{voiceProfiles.length} 个 profile</span>
           </div>
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_150px_160px_120px]">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_150px_160px]">
             <div>
               <Label className="text-xs text-muted-foreground">名称</Label>
               <Input value={newProfileName} onChange={(event) => setNewProfileName(event.target.value)} className="mt-1" />
@@ -769,44 +802,59 @@ export function LocalTtsPanel() {
               </NativeTtsSelect>
             </div>
             <div>
-              <Label className="text-xs text-muted-foreground">默认引擎</Label>
-              <NativeTtsSelect value={newProfileEngine} onValueChange={(value) => handleEngineChange(value as TtsEngine)} className="mt-1">
-                <option value="qwen">Qwen</option>
-                <option value="qwen_custom_voice">Qwen CustomVoice</option>
-                <option value="luxtts">LuxTTS</option>
-                <option value="chatterbox">Chatterbox</option>
-                <option value="chatterbox_turbo">Chatterbox Turbo</option>
-                <option value="tada">TADA</option>
-                <option value="kokoro">Kokoro</option>
+              <Label className="text-xs text-muted-foreground">音色来源</Label>
+              <NativeTtsSelect
+                value={newProfileMode}
+                onValueChange={(v) => handleModeChange(v as "preset" | "clone")}
+                className="mt-1"
+              >
+                <option value="preset">从音色库选</option>
+                <option value="clone">上传参考音频克隆</option>
               </NativeTtsSelect>
             </div>
-            <div>
-              <Label className="text-xs text-muted-foreground">模型</Label>
-              <NativeTtsSelect value={newProfileModelSize} onValueChange={setNewProfileModelSize} className="mt-1">
-                <option value="default">默认</option>
-                <option value="0.6B">0.6B</option>
-                <option value="1.7B">1.7B</option>
-                <option value="1B">1B</option>
-                <option value="3B">3B</option>
-              </NativeTtsSelect>
-            </div>
-            {newProfileType === "preset" ? (
-              <div className="md:col-span-4">
-                <Label className="text-xs text-muted-foreground">预设音色</Label>
-                <NativeTtsSelect value={newProfilePresetVoiceId} onValueChange={setNewProfilePresetVoiceId} className="mt-1">
-                  <option value="" disabled>
-                    选择预设音色
-                  </option>
-                  {presetVoiceOptions.map((voice) => (
-                    <option key={voice.id} value={voice.id}>
-                      {voice.name} · {voice.language} · {voice.gender}
+            {newProfileMode === "preset" ? (
+              <>
+                <div className="md:col-span-3">
+                  <Label className="text-xs text-muted-foreground">音色</Label>
+                  <NativeTtsSelect
+                    value={newProfileVoiceId}
+                    onValueChange={setNewProfileVoiceId}
+                    className="mt-1"
+                  >
+                    <option value="" disabled>
+                      {unifiedPresetVoices.length > 0
+                        ? "选择音色（引擎自动确定）"
+                        : "当前语言下没有可用音色"}
                     </option>
-                  ))}
-                </NativeTtsSelect>
-              </div>
+                    {unifiedPresetVoices.map((voice) => (
+                      <option key={voice.id} value={voice.id}>
+                        {voice.name} · {voice.gender === "female" ? "女" : "男"} · {voice.engineLabel}
+                      </option>
+                    ))}
+                  </NativeTtsSelect>
+                  {unifiedPresetVoices.length === 0 && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      切换到「上传参考音频克隆」可创建自定义音色。
+                    </p>
+                  )}
+                </div>
+              </>
             ) : (
               <>
-                <div className="md:col-span-4">
+                <div className="md:col-span-3">
+                  <Label className="text-xs text-muted-foreground">克隆引擎</Label>
+                  <NativeTtsSelect value={newProfileEngine} onValueChange={(value) => handleEngineChange(value as TtsEngine)} className="mt-1">
+                    <option value="qwen">Qwen（中文最佳）</option>
+                    <option value="chatterbox">Chatterbox（多语种）</option>
+                    <option value="chatterbox_turbo">Chatterbox 极速版（英文）</option>
+                    <option value="luxtts">LuxTTS（高速英文）</option>
+                    <option value="tada">TADA 1B（英文长文本）</option>
+                  </NativeTtsSelect>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    引擎仅在克隆音色时可见；生成时系统按音色元数据自动选引擎。
+                  </p>
+                </div>
+                <div className="md:col-span-3">
                   <Label className="text-xs text-muted-foreground">参考音频路径</Label>
                   <div className="mt-1 flex gap-2">
                     <Input
@@ -832,7 +880,7 @@ export function LocalTtsPanel() {
                     </Button>
                   </div>
                 </div>
-                <div className="md:col-span-4">
+                <div className="md:col-span-3">
                   <Label className="text-xs text-muted-foreground">参考文本</Label>
                   <Textarea
                     value={newProfileReferenceText}
@@ -843,8 +891,10 @@ export function LocalTtsPanel() {
                 </div>
               </>
             )}
-            {supportsVoiceInstruction(newProfileEngine) && (
-              <div className="md:col-span-4">
+            {(newProfileMode === "preset"
+              ? presetSelection?.engine === "qwen_custom_voice"
+              : supportsVoiceInstruction(newProfileEngine)) && (
+              <div className="md:col-span-3">
                 <Label className="text-xs text-muted-foreground">风格指令</Label>
                 <Textarea
                   value={newProfileInstruct}
@@ -861,14 +911,29 @@ export function LocalTtsPanel() {
           </div>
           {voiceProfiles.length > 0 && (
             <div className="mt-4 divide-y divide-white/[0.06] rounded-xl border border-white/[0.08] bg-white/[0.02]">
-              {voiceProfiles.map((profile) => (
-                <div key={profile.id} className="grid grid-cols-[1fr_120px_140px_120px] gap-3 px-3 py-2 text-sm">
-                  <span className="truncate text-foreground">{profile.name}</span>
-                  <span className="text-xs text-muted-foreground">{profile.type === "preset" ? "预设" : "参考"}</span>
-                  <span className="text-xs text-muted-foreground">{profile.defaultEngine}</span>
-                  <span className="truncate text-xs text-muted-foreground">{profile.presetVoiceId || profile.defaultModelSize || "-"}</span>
-                </div>
-              ))}
+              {voiceProfiles.map((profile) => {
+                // 列表视图：用户只看到音色名（通过音色元数据反查中文展示名），引擎作为 tooltip
+                const voiceLabel = profile.presetVoiceId
+                  ? (() => {
+                      const options = getPresetVoiceOptions(profile.defaultEngine, profile.language);
+                      const match = options.find((v) => v.id === profile.presetVoiceId);
+                      return match ? match.name : profile.presetVoiceId;
+                    })()
+                  : profile.referenceAudioPath
+                    ? "克隆音色"
+                    : "—";
+                return (
+                  <div
+                    key={profile.id}
+                    className="grid grid-cols-[1fr_120px_140px] gap-3 px-3 py-2 text-sm"
+                    title={profile.defaultEngine ? `内部引擎：${profile.defaultEngine}` : undefined}
+                  >
+                    <span className="truncate text-foreground">{profile.name}</span>
+                    <span className="text-xs text-muted-foreground">{profile.type === "preset" ? "预设" : "克隆"}</span>
+                    <span className="truncate text-xs text-muted-foreground">{voiceLabel}</span>
+                  </div>
+                );
+              })}
             </div>
           )}
         </section>

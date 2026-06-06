@@ -15,6 +15,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Sheet, SheetClose, SheetContent, SheetOverlay, SheetPortal } from "@/components/ui/sheet";
+import { LocalImage } from "@/components/ui/local-image";
+import { StudioAssetDetailDialog } from "@/components/panels/assets/StudioAssetDetailDialog";
 import {
   Table,
   TableBody,
@@ -86,9 +89,14 @@ import { createMystudioTtsSink, syncCharacterVoices } from "@/lib/studio/voice-s
 import {
   createBackendVoiceProfile,
   getTtsRuntimeStatus,
+  listVoiceProfiles,
+  uploadProfileSample,
 } from "@/lib/tts/client";
 import {
+  KOKORO_VOICES,
   QWEN_CUSTOM_VOICES,
+  TTS_ENGINE_CATALOG,
+  type TtsPresetVoiceOption,
 } from "@/lib/tts/voice-profile-capabilities";
 import {
   buildStudioManualContext,
@@ -99,7 +107,7 @@ import {
 } from "@/lib/studio/manuals";
 import { createEpisodeMergePlan, createTrackRenderPlan } from "@/lib/studio/production";
 import { useAPIConfigStore } from "@/stores/api-config-store";
-import { useCharacterLibraryStore } from "@/stores/character-library-store";
+import { useCharacterLibraryStore, type Character } from "@/stores/character-library-store";
 import { useProjectStore } from "@/stores/project-store";
 import { useSceneStore } from "@/stores/scene-store";
 import { usePropsLibraryStore } from "@/stores/props-library-store";
@@ -121,6 +129,7 @@ import type {
   StudioWorkflowConfig,
   VideoCandidate,
 } from "@/types/studio";
+import type { StudioAssetSummary } from "@/types/studio-assets";
 import {
   BookOpen,
   BookMarked,
@@ -132,6 +141,8 @@ import {
   FileText,
   Film,
   Gem,
+  Download,
+  Loader2,
   MapPin,
   Mic,
   Palette,
@@ -140,10 +151,12 @@ import {
   RefreshCw,
   Search,
   Split,
+  Square,
   Trash2,
   Upload,
   Users,
   Volume2,
+  X,
   WandSparkles,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -248,8 +261,12 @@ export function StudioView() {
     setWorkflowConfig({ workflowStage: value });
   }, [setWorkflowConfig]);
   // 切换项目时，自动恢复到该项目保存的工作流阶段
+  const prevProjectIdRef = useRef<string | undefined>(activeProject?.id);
   useEffect(() => {
-    setActiveWorkflowTab(resolveVisibleWorkflowStage(useStudioStore.getState().workflowConfig.workflowStage));
+    if (activeProject?.id !== prevProjectIdRef.current) {
+      prevProjectIdRef.current = activeProject?.id;
+      setActiveWorkflowTab(resolveVisibleWorkflowStage(useStudioStore.getState().workflowConfig.workflowStage));
+    }
   }, [activeProject?.id]);
   const [novelHeaderActions, setNovelHeaderActions] = useState<ReactNode>(null);
   const [scriptHeaderActions, setScriptHeaderActions] = useState<ReactNode>(null);
@@ -484,14 +501,12 @@ export function StudioView() {
         return;
       }
 
-      // 不写入资产库（剧本资产仅供匹配/展示）；用空操作 sinks 仅生成 batch 结构与 ID
-      const noopSinks = {
-        characterSink: { addCharacter: () => `char-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`, updateCharacter: () => {}, getOrCreateProjectFolder: () => "" },
-        sceneSink: { addScene: () => `scene-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`, updateScene: () => {}, getOrCreateProjectFolder: () => "" },
-      };
+      // 写入 characters.json + assets.db，走完整管线
+      const { createMystudioSinks } = await import("@/lib/studio/entity-sync");
+      const sinks = createMystudioSinks();
       const { result: batch } = syncExtractedEntities(
         { episodeId, entities, projectId: activeProject?.id ?? "", projectName },
-        noopSinks,
+        sinks,
       );
       saveEntityExtraction(batch);
 
@@ -2688,7 +2703,30 @@ function GenerationTab() {
   // 从各 Store 获取资产统计
   const characters = useCharacterLibraryStore((s) => s.characters);
   const scenes = useSceneStore((s) => s.scenes);
-  const props = usePropsLibraryStore((s) => s.items);
+  const allProps = usePropsLibraryStore((s) => s.items);
+  const entityExtractions = useStudioStore((s) => s.entityExtractions);
+
+  // 从 entityExtractions 提取各类型的名字集合（用于统计总数）
+  const extractedCharNames = useMemo(() => {
+    const names = new Set<string>();
+    for (const batch of entityExtractions) for (const c of batch.characters) names.add(c.name);
+    return names;
+  }, [entityExtractions]);
+  const extractedSceneNames = useMemo(() => {
+    const names = new Set<string>();
+    for (const batch of entityExtractions) for (const s of batch.scenes) names.add(s.name);
+    return names;
+  }, [entityExtractions]);
+  const extractedPropNames = useMemo(() => {
+    const names = new Set<string>();
+    for (const batch of entityExtractions) {
+      for (const p of batch.props) names.add(p.name);
+    }
+    return names;
+  }, [entityExtractions]);
+
+  // 只保留提取结果中出现的道具
+  const props = useMemo(() => allProps.filter((p) => extractedPropNames.has(p.name)), [allProps, extractedPropNames]);
 
   // 统计音色分配情况
   const voiceStats = useMemo(() => {
@@ -2705,21 +2743,21 @@ function GenerationTab() {
     return { total: characters.length, assigned, unassigned: characters.length - assigned };
   }, [characters]);
 
-  // 统计各类型的润色状态
+  // 统计各类型的润色状态（total 统一用 entityExtractions 的数量）
   const stats = useMemo(() => {
-    const countStatus = (items: Array<{ promptState?: string }>) => ({
-      total: items.length,
+    const countStatus = (items: Array<{ promptState?: string }>, extractedTotal: number) => ({
+      total: extractedTotal > 0 ? extractedTotal : items.length,
       none: items.filter((i) => !i.promptState || i.promptState === "none").length,
       polishing: items.filter((i) => i.promptState === "polishing").length,
       ready: items.filter((i) => i.promptState === "ready").length,
       failed: items.filter((i) => i.promptState === "failed").length,
     });
     return {
-      character: countStatus(characters),
-      scene: countStatus(scenes),
-      prop: countStatus(props),
+      character: countStatus(characters, extractedCharNames.size),
+      scene: countStatus(scenes, extractedSceneNames.size),
+      prop: countStatus(props, extractedPropNames.size),
     };
-  }, [characters, scenes, props]);
+  }, [characters, scenes, props, extractedCharNames, extractedSceneNames, extractedPropNames]);
 
   const currentStats = stats[activeType];
 
@@ -2741,9 +2779,9 @@ function GenerationTab() {
 
     setIsPolishing(false);
     if (result.failed > 0) {
-      toast.warning(`润色完成：${result.success} 成功，${result.failed} 失败`);
+      toast.warning(`处理完成：${result.success} 成功（含资产库复用），${result.failed} 失败`);
     } else {
-      toast.success(`润色完成：${result.success} 个资产已就绪`);
+      toast.success(`处理完成：${result.success} 个资产已就绪（含资产库复用）`);
     }
   }, [activeType, visualManualId, isCancelled]);
 
@@ -2802,7 +2840,7 @@ function GenerationTab() {
   ];
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col bg-background/90">
       {/* 类型选择 */}
       <div className="flex items-center gap-1 border-b px-3 py-2 bg-panel">
         {typeConfig.map(({ key, label, icon: Icon }) => (
@@ -2847,16 +2885,19 @@ function GenerationTab() {
 
         {/* 批量分配音色按钮（仅角色 tab 显示） */}
         {activeType === "character" && voiceStats.total > 0 && (
-          <button
-            onClick={handleBatchVoiceAssign}
-            disabled={isBatchVoiceAssigning || voiceStats.unassigned === 0}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-primary/20 text-primary text-sm hover:bg-primary/30 disabled:opacity-40 transition-colors"
-          >
-            <Mic className="h-3.5 w-3.5" />
-            {isBatchVoiceAssigning
-              ? `分配中 ${batchVoiceProgress}/${voiceStats.unassigned}`
-              : `批量分配音色 (${voiceStats.unassigned})`}
-          </button>
+          <>
+            <span className="text-xs text-primary">已分配 {voiceStats.assigned}/{voiceStats.total}</span>
+            <button
+              onClick={handleBatchVoiceAssign}
+              disabled={isBatchVoiceAssigning || voiceStats.unassigned === 0}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-primary/20 text-primary text-sm hover:bg-primary/30 disabled:opacity-40 transition-colors"
+            >
+              <Mic className="h-3.5 w-3.5" />
+              {isBatchVoiceAssigning
+                ? `分配中 ${batchVoiceProgress}/${voiceStats.unassigned}`
+                : `批量分配音色 (${voiceStats.unassigned})`}
+            </button>
+          </>
         )}
 
         {isPolishing && (
@@ -2876,21 +2917,7 @@ function GenerationTab() {
         </div>
       )}
 
-      {/* 统计概览 */}
-      <div className="flex items-center gap-4 px-4 py-2 border-b text-xs text-muted-foreground">
-        <span>总计 {currentStats.total} 项</span>
-        <span className="text-foreground">已就绪 {currentStats.ready}</span>
-        <span>待润色 {currentStats.none}</span>
-        {currentStats.failed > 0 && <span className="text-red-400">失败 {currentStats.failed}</span>}
-        {activeType === "character" && voiceStats.total > 0 && (
-          <>
-            <span className="flex-1" />
-            <span className="text-primary">已分配音色 {voiceStats.assigned}/{voiceStats.total}</span>
-          </>
-        )}
-      </div>
-
-      {/* 资产列表 */}
+      {/* 资产列表 — 仅展示当前章节提取出的资产 */}
       <div className="flex-1 overflow-auto p-4">
         <AssetListByType
           type={activeType}
@@ -2916,119 +2943,334 @@ function AssetListByType({ type, onVoiceAssign }: {
   onVoiceAssign?: (char: { id: string; name: string; gender?: string; age?: string; personality?: string }) => void;
 }) {
   // Hooks 必须在条件语句之前调用
-  const characters = useCharacterLibraryStore((s) => s.characters);
-  const scenes = useSceneStore((s) => s.scenes);
-  const propsItems = usePropsLibraryStore((s) => s.items);
+  const allCharacters = useCharacterLibraryStore((s) => s.characters);
+  const allScenes = useSceneStore((s) => s.scenes);
+  const allPropsItems = usePropsLibraryStore((s) => s.items);
+  const entityExtractions = useStudioStore((s) => s.entityExtractions);
+
+  // 从 entityExtractions 提取当前章节的角色/场景/道具名集合
+  const extractedNames = useMemo(() => {
+    const names = new Set<string>();
+    for (const batch of entityExtractions) {
+      if (type === "character") for (const c of batch.characters) names.add(c.name);
+      else if (type === "scene") for (const s of batch.scenes) names.add(s.name);
+      else for (const p of batch.props) names.add(p.name);
+    }
+    return names;
+  }, [entityExtractions, type]);
+
+  // 按名称去重 + 仅保留 entityExtractions 中出现的资产
+  const characters = useMemo(() => {
+    const seen = new Set<string>();
+    return allCharacters.filter((c) => {
+      if (!extractedNames.has(c.name)) return false;
+      const key = `${c.name}::${c.projectId ?? ''}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [allCharacters, extractedNames]);
+  const scenes = useMemo(() => {
+    const seen = new Set<string>();
+    return allScenes.filter((s) => {
+      if (!extractedNames.has(s.name)) return false;
+      const key = `${s.name}::${s.projectId ?? ''}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [allScenes, extractedNames]);
+  const propsItems = useMemo(() => {
+    const seen = new Set<string>();
+    return allPropsItems.filter((p) => {
+      if (!extractedNames.has(p.name)) return false;
+      if (seen.has(p.name)) return false;
+      seen.add(p.name);
+      return true;
+    });
+  }, [allPropsItems, extractedNames]);
+
+  // assets.db fallback：当 propsLibraryStore 为空时从 assets.db 加载道具（仅提取结果中的）
+  const [dbPropsFallback, setDbPropsFallback] = useState<Array<{ id: string; name: string; description: string; imageUrl: string; promptState?: string }>>([]);
+  useEffect(() => {
+    if (type !== "prop" || propsItems.length > 0 || extractedNames.size === 0) return;
+    window.studioAssets?.list({ type: "tool", limit: 9999 }).then((res) => {
+      const items = (res.items || [])
+        .filter((it) => extractedNames.has(it.name))
+        .map((it) => ({
+        id: String(it.id ?? ""),
+        name: String(it.name ?? ""),
+        description: String(it.description ?? ""),
+        imageUrl: it.thumbnailUrl ?? it.previewUrl ?? "",
+        promptState: it.prompt ? "ready" as const : "none" as const,
+      }));
+      setDbPropsFallback(items);
+    }).catch(() => {});
+  }, [type, propsItems.length, extractedNames]);
+
+  // 资产库弹窗状态
+  const [selectedAsset, setSelectedAsset] = useState<StudioAssetSummary | null>(null);
+  const [assetDialogOpen, setAssetDialogOpen] = useState(false);
+  // 未找到资产时的生成弹窗
+  const [notFoundDialog, setNotFoundDialog] = useState<{ name: string; kind: "character" | "scene" | "prop" } | null>(null);
+  const [isGeneratingSingle, setIsGeneratingSingle] = useState(false);
+
+  /** 为单个未匹配的资产生成图片 */
+  const handleGenerateSingle = useCallback(async (name: string, kind: "character" | "scene" | "prop") => {
+    const manualId = useStudioStore.getState().workflowConfig?.visualManualId;
+    if (!manualId) {
+      toast.error("请先在「风格与导演选择」中选择视觉手册");
+      return;
+    }
+    setIsGeneratingSingle(true);
+    try {
+      const dbType = kind === "prop" ? "tool" : kind === "character" ? "role" : kind;
+      const { generateAsset } = await import("@/lib/studio/asset-generation-orchestrator");
+      const result = await generateAsset({
+        assetId: `single_${Date.now()}`,
+        name,
+        assetType: kind,
+        description: "",
+        isDerivative: false,
+        visualManualId: manualId,
+        skipPolish: false,
+      });
+      if (result.phase === "done") {
+        toast.success(`「${name}」资产生成成功`);
+        setNotFoundDialog(null);
+        // 重新查询并打开详情弹窗
+        const asset = await window.studioAssets?.getByName({ type: dbType, name });
+        if (asset) {
+          setSelectedAsset(asset);
+          setAssetDialogOpen(true);
+        }
+      } else {
+        toast.error(`「${name}」资产生成失败: ${result.error ?? "未知错误"}`);
+      }
+    } catch (err: any) {
+      toast.error(`生成失败: ${err.message ?? err}`);
+    } finally {
+      setIsGeneratingSingle(false);
+    }
+  }, []);
+
+  /** 点击角色/场景/道具 → 匹配资产库 → 弹出资产详情 */
+  const handleItemClick = useCallback(async (name: string, assetKind: "character" | "scene" | "prop") => {
+    try {
+      const dbType = assetKind === "prop" ? "tool" : assetKind === "character" ? "role" : assetKind;
+      const asset = await window.studioAssets?.getByName({ type: dbType, name });
+      if (asset) {
+        setSelectedAsset(asset);
+        setAssetDialogOpen(true);
+      } else {
+        setNotFoundDialog({ name, kind: assetKind });
+      }
+    } catch {
+      toast.error("查询资产库失败");
+    }
+  }, []);
 
   if (type === "character") {
     if (characters.length === 0) return <p className="text-sm text-muted-foreground italic">暂无角色资产，请先在「剧本资产管理」中提取。</p>;
     return (
-      <div className="grid gap-2">
-        {characters.map((c) => (
-          <div key={c.id} className="flex items-center gap-3 rounded-lg border p-3 hover:bg-muted/30">
-            {/* 缩略图 */}
-            <div className="h-10 w-10 rounded bg-muted flex items-center justify-center overflow-hidden shrink-0">
-              {c.thumbnailUrl ? (
-                <img src={c.thumbnailUrl} alt={c.name} className="h-full w-full object-cover" />
-              ) : (
-                <Users className="h-4 w-4 text-muted-foreground" />
+      <>
+        <div className="grid gap-2 overflow-hidden">
+          {characters.map((c) => (
+            <div
+              key={c.id}
+              className="flex items-center gap-3 rounded-lg border p-3 hover:bg-muted/30 cursor-pointer transition-colors overflow-hidden min-w-0"
+              onClick={() => handleItemClick(c.name, "character")}
+            >
+              {/* 缩略图 */}
+              <div className="h-10 w-10 rounded bg-muted flex items-center justify-center overflow-hidden shrink-0">
+                {c.thumbnailUrl ? (
+                  <LocalImage src={c.thumbnailUrl} alt={c.name} className="h-full w-full object-cover" />
+                ) : c.views?.length > 0 && c.views[0].imageUrl ? (
+                  <LocalImage src={c.views[0].imageUrl} alt={c.name} className="h-full w-full object-cover" />
+                ) : (
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                )}
+              </div>
+              {/* 名称 + 描述 */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-sm font-medium truncate">{c.name}</span>
+                  <StatusBadge state={c.promptState} />
+                </div>
+                <p className="text-xs text-muted-foreground truncate">{c.description || c.role || "无描述"}</p>
+              </div>
+              {/* 提示词预览 */}
+              {c.visualTraits && (
+                <span className="text-[10px] text-muted-foreground truncate flex-1 min-w-0 hidden sm:inline-block" title={c.visualTraits}>
+                  {c.visualTraits.slice(0, 60)}...
+                </span>
+              )}
+              {/* 音色状态 + 试听按钮 */}
+              {onVoiceAssign && (
+                <div className="flex items-center gap-1 shrink-0">
+                  <VoicePreviewButton characterId={c.id} characterName={c.name} />
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onVoiceAssign({ id: c.id, name: c.name, gender: c.gender, age: c.age, personality: c.personality }); }}
+                    className="flex items-center gap-1.5 px-2 py-1 rounded text-xs hover:bg-primary/10 transition-colors"
+                  >
+                    <VoiceBadge characterId={c.id} />
+                    <Mic className="h-3 w-3 text-muted-foreground" />
+                  </button>
+                </div>
               )}
             </div>
-            {/* 名称 + 描述 */}
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium truncate">{c.name}</span>
-                <StatusBadge state={c.promptState} />
-              </div>
-              <p className="text-xs text-muted-foreground truncate">{c.description || c.role || "无描述"}</p>
-            </div>
-            {/* 提示词预览 */}
-            {c.visualTraits && (
-              <span className="text-[10px] text-muted-foreground max-w-[200px] truncate" title={c.visualTraits}>
-                {c.visualTraits.slice(0, 60)}...
-              </span>
-            )}
-            {/* 音色状态 + 分配按钮 */}
-            {onVoiceAssign && (
-              <button
-                onClick={() => onVoiceAssign({
-                  id: c.id,
-                  name: c.name,
-                  gender: c.gender,
-                  age: c.age,
-                  personality: c.personality,
-                })}
-                className="flex items-center gap-1.5 px-2 py-1 rounded text-xs hover:bg-primary/10 transition-colors shrink-0"
+          ))}
+        </div>
+
+        {/* 资产库详情弹窗 */}
+        <StudioAssetDetailDialog
+          asset={selectedAsset}
+          open={assetDialogOpen}
+          onOpenChange={(o) => { setAssetDialogOpen(o); if (!o) setSelectedAsset(null); }}
+        />
+        {/* 未找到资产 → 生成弹窗 */}
+        <AlertDialog open={!!notFoundDialog} onOpenChange={(o) => { if (!o) setNotFoundDialog(null); }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>资产未找到</AlertDialogTitle>
+              <AlertDialogDescription>
+                「{notFoundDialog?.name}」在资产库中不存在。是否立即生成？
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isGeneratingSingle}>取消</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => notFoundDialog && handleGenerateSingle(notFoundDialog.name, notFoundDialog.kind)}
+                disabled={isGeneratingSingle}
               >
-                <VoiceBadge characterId={c.id} />
-                <Mic className="h-3 w-3 text-muted-foreground" />
-              </button>
-            )}
-          </div>
-        ))}
-      </div>
+                {isGeneratingSingle ? "生成中..." : "立即生成"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </>
     );
   }
 
   if (type === "scene") {
     if (scenes.length === 0) return <p className="text-sm text-muted-foreground italic">暂无场景资产，请先在「剧本资产管理」中提取。</p>;
     return (
-      <div className="grid gap-2">
-        {scenes.map((s) => (
-          <div key={s.id} className="flex items-center gap-3 rounded-lg border p-3 hover:bg-muted/30">
+      <>
+        <div className="grid gap-2 overflow-hidden">
+          {scenes.map((s) => (
+            <div
+              key={s.id}
+              className="flex items-center gap-3 rounded-lg border p-3 hover:bg-muted/30 cursor-pointer transition-colors overflow-hidden min-w-0"
+              onClick={() => handleItemClick(s.name, "scene")}
+            >
+              <div className="h-10 w-10 rounded bg-muted flex items-center justify-center overflow-hidden shrink-0">
+                {s.referenceImage ? (
+                  <LocalImage src={s.referenceImage} alt={s.name} className="h-full w-full object-cover" />
+                ) : (
+                  <MapPin className="h-4 w-4 text-muted-foreground" />
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-sm font-medium truncate">{s.name}</span>
+                  <StatusBadge state={s.promptState} />
+                </div>
+                <p className="text-xs text-muted-foreground truncate">{s.location || s.notes || "无描述"}</p>
+              </div>
+              {s.visualPrompt && (
+                <span className="text-[10px] text-muted-foreground truncate flex-1 min-w-0 hidden sm:inline-block" title={s.visualPrompt}>
+                  {s.visualPrompt.slice(0, 60)}...
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+
+        <StudioAssetDetailDialog
+          asset={selectedAsset}
+          open={assetDialogOpen}
+          onOpenChange={(o) => { setAssetDialogOpen(o); if (!o) setSelectedAsset(null); }}
+        />
+        {/* 未找到资产 → 生成弹窗 */}
+        <AlertDialog open={!!notFoundDialog} onOpenChange={(o) => { if (!o) setNotFoundDialog(null); }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>资产未找到</AlertDialogTitle>
+              <AlertDialogDescription>
+                「{notFoundDialog?.name}」在资产库中不存在。是否立即生成？
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isGeneratingSingle}>取消</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => notFoundDialog && handleGenerateSingle(notFoundDialog.name, notFoundDialog.kind)}
+                disabled={isGeneratingSingle}
+              >
+                {isGeneratingSingle ? "生成中..." : "立即生成"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </>
+    );
+  }
+
+  // prop：优先用 propsLibraryStore，为空时用 assets.db fallback
+  const displayProps = propsItems.length > 0 ? propsItems : dbPropsFallback;
+  if (displayProps.length === 0) return <p className="text-sm text-muted-foreground italic">暂无道具资产，请先在「剧本资产管理」中提取。</p>;
+  return (
+    <>
+      <div className="grid gap-2 overflow-hidden">
+        {displayProps.map((p) => (
+          <div
+            key={p.id}
+            className="flex items-center gap-3 rounded-lg border p-3 hover:bg-muted/30 cursor-pointer transition-colors overflow-hidden min-w-0"
+            onClick={() => handleItemClick(p.name, "prop")}
+          >
             <div className="h-10 w-10 rounded bg-muted flex items-center justify-center overflow-hidden shrink-0">
-              {s.referenceImage ? (
-                <img src={s.referenceImage} alt={s.name} className="h-full w-full object-cover" />
+              {p.imageUrl ? (
+                <LocalImage src={p.imageUrl} alt={p.name} className="h-full w-full object-cover" />
               ) : (
-                <MapPin className="h-4 w-4 text-muted-foreground" />
+                <Gem className="h-4 w-4 text-muted-foreground" />
               )}
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
-                <span className="text-sm font-medium truncate">{s.name}</span>
-                <StatusBadge state={s.promptState} />
+                <span className="text-sm font-medium truncate">{p.name}</span>
+                <StatusBadge state={p.promptState} />
               </div>
-              <p className="text-xs text-muted-foreground truncate">{s.location || s.notes || "无描述"}</p>
+              <p className="text-xs text-muted-foreground truncate">{p.description || "无描述"}</p>
             </div>
-            {s.visualPrompt && (
-              <span className="text-[10px] text-muted-foreground max-w-[200px] truncate" title={s.visualPrompt}>
-                {s.visualPrompt.slice(0, 60)}...
-              </span>
-            )}
           </div>
         ))}
       </div>
-    );
-  }
 
-  // prop
-  if (propsItems.length === 0) return <p className="text-sm text-muted-foreground italic">暂无道具资产，请先在「剧本资产管理」中提取。</p>;
-  return (
-    <div className="grid gap-2">
-      {propsItems.map((p) => (
-        <div key={p.id} className="flex items-center gap-3 rounded-lg border p-3 hover:bg-muted/30">
-          <div className="h-10 w-10 rounded bg-muted flex items-center justify-center overflow-hidden shrink-0">
-            {p.imageUrl ? (
-              <img src={p.imageUrl} alt={p.name} className="h-full w-full object-cover" />
-            ) : (
-              <Gem className="h-4 w-4 text-muted-foreground" />
-            )}
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium truncate">{p.name}</span>
-              <StatusBadge state={p.promptState} />
-            </div>
-            <p className="text-xs text-muted-foreground truncate">{p.description || "无描述"}</p>
-          </div>
-          {p.visualPrompt && (
-            <span className="text-[10px] text-muted-foreground max-w-[200px] truncate" title={p.visualPrompt}>
-              {p.visualPrompt.slice(0, 60)}...
-            </span>
-          )}
-        </div>
-      ))}
-    </div>
+      <StudioAssetDetailDialog
+        asset={selectedAsset}
+        open={assetDialogOpen}
+        onOpenChange={(o) => { setAssetDialogOpen(o); if (!o) setSelectedAsset(null); }}
+      />
+      {/* 未找到资产 → 生成弹窗 */}
+      <AlertDialog open={!!notFoundDialog} onOpenChange={(o) => { if (!o) setNotFoundDialog(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>资产未找到</AlertDialogTitle>
+            <AlertDialogDescription>
+              「{notFoundDialog?.name}」在资产库中不存在。是否立即生成？
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isGeneratingSingle}>取消</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => notFoundDialog && handleGenerateSingle(notFoundDialog.name, notFoundDialog.kind)}
+              disabled={isGeneratingSingle}
+            >
+              {isGeneratingSingle ? "生成中..." : "立即生成"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
 
@@ -3073,10 +3315,145 @@ function getCharacterVoiceStatus(
 }
 
 /** 音色状态标签 */
+const EMPTY_BINDINGS: Record<string, ProjectVoiceBinding> = {};
+
+/** 音色试听按钮：用角色绑定的音色生成并播放一段语音 */
+function VoicePreviewButton({ characterId, characterName }: { characterId: string; characterName: string }) {
+  const [playing, setPlaying] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const bindings = useTtsStore((s) => {
+    const pid = s.activeProjectId;
+    return pid ? (s.projects[pid]?.bindings ?? EMPTY_BINDINGS) : EMPTY_BINDINGS;
+  });
+  const voiceProfiles = useTtsStore((s) => s.voiceProfiles);
+  const status = getCharacterVoiceStatus(characterId, bindings, voiceProfiles);
+
+  const handlePreview = useCallback(async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!status.assigned) {
+      toast.info("请先为该角色分配音色");
+      return;
+    }
+    if (playing && audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+      setPlaying(false);
+      return;
+    }
+    if (!window.ttsRuntime) {
+      toast.error("TTS 后端未就绪，请在设置中启动 TTS 服务");
+      return;
+    }
+    const speakerId = `character:${characterId}` as TtsSpeakerId;
+    const binding = bindings[speakerId];
+    if (!binding) return;
+
+    setLoading(true);
+    try {
+      // 启动 TTS 运行时（如果还没启动）
+      const ttsStatus = await window.ttsRuntime.status();
+      if (!ttsStatus.running) {
+        const startRes = await window.ttsRuntime.start();
+        if (!startRes.success) {
+          toast.error(`TTS 启动失败: ${startRes.error || "未知错误"}`);
+          return;
+        }
+      }
+
+      // 调用 TTS 后端生成语音
+      const text = `大家好，我是${characterName}，很高兴认识你们。`;
+      const genRes = await window.ttsRuntime.request({
+        method: "POST",
+        path: "/generate",
+        body: {
+          profile_id: binding.profileId,
+          text,
+          engine: binding.defaultEngine,
+          model_size: binding.defaultModelSize,
+          language: "zh",
+        },
+      }) as { id?: string; status?: string; error?: string };
+
+      if (!genRes.id) {
+        toast.error(genRes.error || "生成失败");
+        return;
+      }
+
+      // 轮询等待生成完成
+      const generationId = genRes.id;
+      let attempts = 0;
+      let audioPath: string | null = null;
+      while (attempts < 60) {
+        await new Promise((r) => setTimeout(r, 500));
+        const statusRes = await window.ttsRuntime.request({
+          method: "GET",
+          path: `/generate/${generationId}/status`,
+        }) as { status?: string; audio_path?: string; error?: string };
+        if (statusRes.status === "completed" && statusRes.audio_path) {
+          audioPath = statusRes.audio_path;
+          break;
+        }
+        if (statusRes.status === "failed") {
+          toast.error(statusRes.error || "语音生成失败");
+          return;
+        }
+        attempts++;
+      }
+      if (!audioPath) {
+        toast.error("语音生成超时");
+        return;
+      }
+
+      // 通过后端获取音频文件
+      const audioRes = await window.ttsRuntime.requestBytes({
+        method: "GET",
+        path: `/audio/${generationId}`,
+      });
+      const blob = new Blob([audioRes.data], { type: audioRes.mimeType || "audio/wav" });
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      audioRef.current = audio;
+      audio.onended = () => { setPlaying(false); URL.revokeObjectURL(url); audioRef.current = null; };
+      audio.onerror = () => { setPlaying(false); toast.error("播放失败"); };
+      await audio.play();
+      setPlaying(true);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "试听失败");
+    } finally {
+      setLoading(false);
+    }
+  }, [status.assigned, characterId, characterName, bindings, playing]);
+
+  if (!status.assigned) return null;
+
+  return (
+    <button
+      onClick={handlePreview}
+      disabled={loading}
+      className="flex items-center justify-center h-7 w-7 rounded hover:bg-primary/15 transition-colors disabled:opacity-40"
+      title={playing ? "停止播放" : "试听音色"}
+    >
+      {loading ? (
+        <Loader2 className="h-3.5 w-3.5 text-primary animate-spin" />
+      ) : playing ? (
+        <span className="flex items-center justify-center gap-0.5 h-3.5">
+          <span className="w-0.5 h-3 bg-primary rounded-full animate-pulse" style={{ animationDelay: "0ms" }} />
+          <span className="w-0.5 h-2.5 bg-primary rounded-full animate-pulse" style={{ animationDelay: "150ms" }} />
+          <span className="w-0.5 h-3 bg-primary rounded-full animate-pulse" style={{ animationDelay: "300ms" }} />
+        </span>
+      ) : (
+        <Play className="h-3 w-3 text-primary" />
+      )}
+    </button>
+  );
+}
+
 function VoiceBadge({ characterId }: { characterId: string }) {
   const bindings = useTtsStore((s) => {
     const pid = s.activeProjectId;
-    return pid ? (s.projects[pid]?.bindings ?? {}) : {};
+    return pid ? (s.projects[pid]?.bindings ?? EMPTY_BINDINGS) : EMPTY_BINDINGS;
   });
   const voiceProfiles = useTtsStore((s) => s.voiceProfiles);
   const status = getCharacterVoiceStatus(characterId, bindings, voiceProfiles);
@@ -3095,6 +3472,155 @@ function VoiceBadge({ characterId }: { characterId: string }) {
       <Volume2 className="h-3 w-3" />
       {status.label}
     </span>
+  );
+}
+
+/** 引擎加载器 - 逐步加载 TTS 模型 */
+function EngineLoader({ onClose }: { onClose: () => void }) {
+  const [modelStatus, setModelStatus] = useState<Record<string, { downloaded: boolean; loading: boolean; progress: number; error?: string }>>({});
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchModelStatus = useCallback(async () => {
+    if (!window.ttsRuntime) return;
+    try {
+      const res = await window.ttsRuntime.request({ method: "GET", path: "/models/status" }) as { models: Array<{ model_name: string; downloaded?: boolean; size_mb?: number }> };
+      const map: Record<string, { downloaded: boolean; loading: boolean; progress: number; error?: string }> = {};
+      for (const m of res.models) {
+        map[m.model_name] = { downloaded: !!m.downloaded, loading: false, progress: m.downloaded ? 100 : 0 };
+      }
+      setModelStatus(map);
+    } catch (err) {
+      console.error("Failed to fetch model status", err);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchModelStatus();
+  }, [fetchModelStatus]);
+
+  const handleLoad = useCallback(async (engine: TtsEngine, modelSize?: string) => {
+    if (!window.ttsRuntime) {
+      toast.error("TTS 后端未就绪");
+      return;
+    }
+    // 映射 engine + modelSize 到后端 model_name
+    const modelName = `${engine}-tts${modelSize ? `-${modelSize.toLowerCase()}` : ""}`.replace("qwen_custom_voice", "qwen-custom-voice");
+    const key = `${engine}-${modelSize || "default"}`;
+    setModelStatus((prev) => ({ ...prev, [key]: { downloaded: false, loading: true, progress: 0 } }));
+    try {
+      // 启动 TTS 运行时（如未启动）
+      const ttsStatus = await window.ttsRuntime.status();
+      if (!ttsStatus.running) {
+        const startRes = await window.ttsRuntime.start();
+        if (!startRes.success) {
+          toast.error(`TTS 启动失败: ${startRes.error}`);
+          setModelStatus((prev) => ({ ...prev, [key]: { downloaded: false, loading: false, progress: 0, error: startRes.error } }));
+          return;
+        }
+      }
+      // 调后端下载/加载
+      await window.ttsRuntime.request({
+        method: "POST",
+        path: "/models/download",
+        body: { model_name: modelName },
+      });
+      toast.success(`${modelName} 加载完成`);
+      setModelStatus((prev) => ({ ...prev, [key]: { downloaded: true, loading: false, progress: 100 } }));
+      // 重新拉取最新状态
+      setTimeout(fetchModelStatus, 1500);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "加载失败";
+      toast.error(`${modelName}: ${msg}`);
+      setModelStatus((prev) => ({ ...prev, [key]: { downloaded: false, loading: false, progress: 0, error: msg } }));
+    }
+  }, [fetchModelStatus]);
+
+  const totalMb = TTS_ENGINE_CATALOG.reduce((sum, e) => {
+    // 从后端状态拿 size_mb，没有则估算
+    return sum;
+  }, 0);
+
+  return (
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-lg bg-card border border-border max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-base">
+            <Download className="h-4 w-4 text-primary" />
+            逐步加载 TTS 引擎
+          </DialogTitle>
+          <DialogDescription className="text-xs">
+            按需加载 TTS 模型，避免一次性占用磁盘空间（每个模型几百 MB 到几 GB）
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="flex items-center justify-between rounded-md bg-muted/40 px-3 py-2 text-xs">
+          <span className="text-muted-foreground">引擎数</span>
+          <span className="font-medium">{TTS_ENGINE_CATALOG.length} 个 TTS 引擎</span>
+        </div>
+
+        <div className="grid gap-2">
+          {TTS_ENGINE_CATALOG.map((engine) => {
+            const key = `${engine.engine}-${engine.modelSize || "default"}`;
+            const status = modelStatus[key] || { downloaded: false, loading: false, progress: 0 };
+            return (
+              <div
+                key={key}
+                className="flex items-center gap-3 rounded-lg border border-border p-3 bg-background"
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-sm">{engine.displayName}</span>
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded shrink-0 ${
+                      engine.purpose === "presetVoice"
+                        ? "bg-primary/15 text-primary"
+                        : "bg-blue-500/15 text-blue-500"
+                    }`}>
+                      {engine.purpose === "presetVoice" ? "预设" : "克隆"}
+                    </span>
+                    {engine.modelSize && (
+                      <span className="text-[10px] text-muted-foreground shrink-0">{engine.modelSize}</span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
+                    {engine.description}
+                  </p>
+                  {status.loading && (
+                    <div className="mt-1.5 h-1 rounded-full bg-muted overflow-hidden">
+                      <div
+                        className="h-full bg-primary transition-all"
+                        style={{ width: `${status.progress}%` }}
+                      />
+                    </div>
+                  )}
+                </div>
+                <Button
+                  size="sm"
+                  variant={status.downloaded ? "outline" : "default"}
+                  onClick={() => handleLoad(engine.engine, engine.modelSize)}
+                  disabled={status.loading}
+                  className="h-8 text-xs shrink-0"
+                >
+                  {status.loading ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : status.downloaded ? (
+                    "已加载"
+                  ) : (
+                    "加载"
+                  )}
+                </Button>
+              </div>
+            );
+          })}
+        </div>
+
+        <DialogFooter className="flex-row justify-between sm:justify-between">
+          <Button variant="ghost" size="sm" onClick={fetchModelStatus} disabled={refreshing}>
+            {refreshing ? <Loader2 className="h-3 w-3 animate-spin" /> : "刷新状态"}
+          </Button>
+          <Button size="sm" onClick={onClose}>完成</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -3186,18 +3712,10 @@ function VoiceAssignDialog({
         return;
       }
 
-      const backendProfile = await createBackendVoiceProfile({
-        name: `音色·${character.name}`,
-        type: "reference",
-        language: "zh",
-        defaultEngine: selectedEngine as TtsEngine,
-        referenceAudioPath: audioPath.trim(),
-        referenceText: referenceText.trim() || undefined,
-      });
-
+      // Step 1: 创建前端本地 VoiceProfile
       const speakerId = `character:${character.id}` as TtsSpeakerId;
       const sink = createMystudioTtsSink();
-      const localProfileId = sink.createVoiceProfile({
+      const localProfile = sink.createVoiceProfile({
         name: `音色·${character.name}`,
         type: "reference",
         language: "zh",
@@ -3206,14 +3724,49 @@ function VoiceAssignDialog({
         referenceAudioPath: audioPath.trim(),
         referenceText: referenceText.trim() || undefined,
       });
+
+      // Step 2: 在 voicebox 后端创建 profile（仅元数据）
+      let backendProfileId: string;
+      try {
+        const backendProfile = await createBackendVoiceProfile({
+          id: localProfile,
+          name: localProfile,
+          type: "reference",
+          language: "zh",
+          defaultEngine: selectedEngine as TtsEngine,
+        } as any);
+        backendProfileId = (backendProfile as any).id ?? localProfile;
+      } catch (err: any) {
+        // 如果已存在，查找现有 profile
+        if (err?.message?.includes("already exists") || err?.message?.includes("400")) {
+          const profiles = await listVoiceProfiles();
+          const existing = profiles.find((p: any) => p.name === localProfile);
+          if (existing) {
+            backendProfileId = (existing as any).id;
+          } else {
+            throw err;
+          }
+        } else {
+          throw err;
+        }
+      }
+
+      // Step 3: 上传原始音频到后端 profile（关键步骤！）
+      await uploadProfileSample(
+        backendProfileId,
+        audioPath.trim(),
+        referenceText.trim() || undefined,
+      );
+
+      // Step 4: 绑定 profile 到角色
       sink.bindSpeaker({
         speakerId,
-        profileId: localProfileId,
+        profileId: localProfile,
         defaultEngine: selectedEngine as TtsEngine,
         defaultModelSize: "0.6B",
       });
 
-      toast.success(`${character.name} 已分配克隆音色`);
+      toast.success(`${character.name} 已分配克隆音色（音频已上传）`);
       onOpenChange(false);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "分配失败");
@@ -3222,19 +3775,77 @@ function VoiceAssignDialog({
     }
   }, [character, audioPath, referenceText, selectedEngine, onOpenChange]);
 
-  const presetVoices = QWEN_CUSTOM_VOICES.filter((v) => v.language === "zh");
+  // 从资产库加载所有音色 profile（QWEN 预设 + 用户上传克隆）
+  const voiceProfiles = useTtsStore((s) => s.voiceProfiles);
+  const createVoiceProfile = useTtsStore((s) => s.createVoiceProfile);
+  const [engineLoaderOpen, setEngineLoaderOpen] = useState(false);
+
+  // 首次打开时：清理非中文预设音色 + seed 中文预设音色
+  useEffect(() => {
+    const state = useTtsStore.getState();
+    const profiles = Object.values(state.voiceProfiles);
+    const existingNames = new Set(profiles.map((p) => p.name));
+
+    // 清理非中文预设音色（保留克隆音色）
+    const toRemove = profiles.filter((p) => p.type === "preset" && p.language !== "zh");
+    if (toRemove.length > 0) {
+      const newProfiles = { ...state.voiceProfiles };
+      toRemove.forEach((p) => { delete newProfiles[p.id]; });
+      useTtsStore.setState({ voiceProfiles: newProfiles });
+    }
+
+    // Seed 中文预设音色（QWEN 9 + Kokoro 4 = 13 个预设音色）
+    const presetEngines = [
+      { engine: "qwen_custom_voice" as TtsEngine, voices: QWEN_CUSTOM_VOICES.filter((v) => v.language === "zh"), modelSize: "0.6B" },
+      { engine: "kokoro" as TtsEngine, voices: KOKORO_VOICES.filter((v) => v.language === "zh"), modelSize: undefined as unknown as string },
+    ];
+    for (const { engine, voices, modelSize } of presetEngines) {
+      for (const v of voices) {
+        if (existingNames.has(`${v.name}·${engine}`)) continue;
+        createVoiceProfile({
+          name: `${v.name}·${engine}`,
+          type: "preset",
+          language: v.language,
+          defaultEngine: engine,
+          defaultModelSize: modelSize,
+          presetVoiceId: v.id,
+        });
+      }
+    }
+  }, [voiceProfiles, createVoiceProfile]);
+
+  const voiceProfileList = useMemo(() => {
+    // 只显示中文音色 + 用户克隆音色
+    return Object.values(voiceProfiles)
+      .filter((p) => p.language === "zh" || p.type === "reference")
+      .sort((a, b) => b.updatedAt - a.updatedAt);
+  }, [voiceProfiles]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md bg-background border border-border">
+      <DialogContent className="sm:max-w-md bg-card border border-border max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Volume2 className="h-4 w-4" />
-            分配音色 · {character.name}
-          </DialogTitle>
-          <DialogDescription>
-            为角色选择预设音色或上传原始音频进行声音克隆
-          </DialogDescription>
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <DialogTitle className="flex items-center gap-2 text-base">
+                <Volume2 className="h-4 w-4 text-primary" />
+                为角色「{character.name}」分配音色
+              </DialogTitle>
+              <DialogDescription className="text-xs mt-1">
+                从资产库选择预设音色，或上传参考音频进行声音克隆
+              </DialogDescription>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setEngineLoaderOpen(true)}
+              className="h-7 text-xs shrink-0"
+              title="逐步加载 TTS 引擎"
+            >
+              <Download className="h-3 w-3 mr-1" />
+              加载引擎
+            </Button>
+          </div>
         </DialogHeader>
 
         {/* 模式切换 */}
@@ -3279,23 +3890,39 @@ function VoiceAssignDialog({
 
             {/* 手动选择 */}
             <div className="space-y-2">
-              <Label className="text-xs">或手动选择预设音色</Label>
-              <div className="grid gap-1.5 max-h-48 overflow-auto">
-                {presetVoices.map((voice) => (
+              <div className="flex items-center justify-between">
+                <Label className="text-xs">从资产库选择音色</Label>
+                <span className="text-[10px] text-muted-foreground">共 {voiceProfileList.length} 个</span>
+              </div>
+              <div className="grid gap-1.5 max-h-64 overflow-auto pr-1">
+                {voiceProfileList.length === 0 && (
+                  <p className="text-xs text-muted-foreground text-center py-6">资产库中暂无音色</p>
+                )}
+                {voiceProfileList.map((profile) => (
                   <button
-                    key={voice.id}
-                    onClick={() => setSelectedPreset(voice.id)}
+                    key={profile.id}
+                    onClick={() => setSelectedPreset(profile.id)}
                     className={`flex items-center gap-2 rounded-md px-3 py-2 text-left text-xs transition-colors ${
-                      selectedPreset === voice.id
+                      selectedPreset === profile.id
                         ? "bg-primary/15 text-primary border border-primary/30"
                         : "border border-transparent hover:bg-muted/50"
                     }`}
                   >
-                    <Volume2 className="h-3 w-3 shrink-0" />
-                    <div>
-                      <span className="font-medium">{voice.name}</span>
-                      <span className="text-muted-foreground ml-1.5">
-                        {voice.description} · {voice.gender === "female" ? "女" : "男"}
+                    {profile.type === "preset" ? (
+                      <Volume2 className="h-3 w-3 shrink-0" />
+                    ) : (
+                      <Mic className="h-3 w-3 shrink-0" />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-medium truncate">{profile.name}</span>
+                        <span className="text-[10px] px-1 rounded bg-muted text-muted-foreground shrink-0">
+                          {profile.type === "preset" ? "预设" : "克隆"}
+                        </span>
+                      </div>
+                      <span className="text-muted-foreground text-[10px] block truncate">
+                        {profile.presetVoiceId ? `${profile.presetVoiceId} · ` : ""}{profile.defaultEngine}
+                        {profile.referenceAudioPath ? " · 自定义克隆" : ""}
                       </span>
                     </div>
                   </button>
@@ -3367,6 +3994,7 @@ function VoiceAssignDialog({
           </div>
         )}
       </DialogContent>
+      {engineLoaderOpen && <EngineLoader onClose={() => setEngineLoaderOpen(false)} />}
     </Dialog>
   );
 }

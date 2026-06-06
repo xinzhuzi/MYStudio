@@ -86,6 +86,7 @@ export interface TtsRuntimeController {
   setModelCacheDir: (dirPath: string) => Promise<TtsRuntimeCommandResult>;
   request: (method: string, routePath: string, body?: unknown) => Promise<unknown>;
   requestBytes: (method: string, routePath: string, body?: unknown) => Promise<FetchBytesResult>;
+  requestFormData: (routePath: string, audioFilePath: string, referenceText?: string) => Promise<unknown>;
 }
 
 function defaultFetchJson(url: string, options: FetchJsonOptions) {
@@ -872,6 +873,56 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
     }
   }
 
+  /** Upload audio file as FormData (for voice sample upload). */
+  async function requestFormData(routePath: string, audioFilePath: string, referenceText?: string) {
+    const requestUrl = `${baseUrl}${normalizeRoutePath(routePath)}`;
+    try {
+      // Read file from disk
+      const fileBuffer = fs.readFileSync(audioFilePath);
+      const fileName = routePath.split("/").pop() ?? "audio.wav";
+      // Build multipart form-data manually
+      const boundary = `----FormBoundary${crypto.randomUUID().replace(/-/g, "")}`;
+      const parts: Buffer[] = [];
+
+      // file part
+      parts.push(Buffer.from(
+        `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${fileName}"\r\nContent-Type: application/octet-stream\r\n\r\n`,
+      ));
+      parts.push(fileBuffer);
+      parts.push(Buffer.from("\r\n"));
+
+      // reference_text part
+      if (referenceText) {
+        parts.push(Buffer.from(
+          `--${boundary}\r\nContent-Disposition: form-data; name="reference_text"\r\n\r\n${referenceText}\r\n`,
+        ));
+      }
+
+      parts.push(Buffer.from(`--${boundary}--\r\n`));
+
+      const response = await fetch(requestUrl, {
+        method: "POST",
+        headers: {
+          "X-Manying-TTS-Token": getControlToken(),
+          "Content-Type": `multipart/form-data; boundary=${boundary}`,
+        },
+        body: Buffer.concat(parts),
+      });
+
+      if (!response.ok) {
+        const text = await response.text().catch(() => "");
+        throw new Error(text || `TTS backend request failed (${response.status})`);
+      }
+      const contentType = response.headers.get("content-type") ?? "";
+      if (contentType.includes("application/json")) {
+        return response.json();
+      }
+      return response.text();
+    } catch (error) {
+      throw new Error(`本地 TTS 后端请求失败: POST ${requestUrl}: ${getErrorMessage(error)}`);
+    }
+  }
+
   return {
     status,
     start,
@@ -882,5 +933,7 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
     setModelCacheDir,
     request,
     requestBytes,
+    requestFormData,
+
   };
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -30,16 +30,22 @@ import {
   ImageIcon,
   Loader2,
   Map,
+  Mic,
   Music2,
   Pencil,
+  Play,
   Plus,
   Sparkles,
+  Square,
   Trash2,
   UserCircle,
+  Volume2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { polishAssetPrompt } from "@/lib/ai/prompt-polisher";
 import { useStudioStore } from "@/stores/studio-store";
+import { useTtsStore } from "@/stores/tts-store";
+import type { ProjectVoiceBinding, TtsSpeakerId, VoiceProfile } from "@/types/tts";
 
 const TYPE_ICON = {
   role: UserCircle,
@@ -100,6 +106,8 @@ export function StudioAssetDetailDialog({
   const [draftPrompt, setDraftPrompt] = useState("");
   const [draftSetting, setDraftSetting] = useState("");
   const [isPolishingPrompt, setIsPolishingPrompt] = useState(false);
+  const [generatePhase, setGeneratePhase] = useState<"polishing" | "generating" | "saving" | "done" | "failed" | null>(null);
+  const [generateMessage, setGenerateMessage] = useState("");
 
   // 获取当前项目的视觉手册 ID
   const visualManualId = useStudioStore((s) => s.workflowConfig?.visualManualId);
@@ -425,7 +433,7 @@ export function StudioAssetDetailDialog({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="grid min-h-0 flex-1 grid-cols-[minmax(280px,420px)_1fr] gap-0">
+        <div className="grid min-h-0 flex-1 grid-cols-[minmax(280px,420px)_1fr] gap-0 overflow-hidden">
           {/* 左侧：图片/音频预览 */}
           <div className="studio-asset-detail-preview border-r border-border bg-muted/20 p-4">
             <div className="relative">
@@ -580,8 +588,108 @@ export function StudioAssetDetailDialog({
           </div>
 
           {/* 右侧：表单 */}
-          <ScrollArea className="max-h-[calc(92vh-72px)] [&>[data-radix-scroll-area-viewport]>div]:!block [&_[data-orientation=vertical]]:bg-transparent">
-            <div className="space-y-3 p-5">
+          <ScrollArea className="max-h-[calc(92vh-72px)] min-w-0 overflow-x-hidden [&>[data-radix-scroll-area-viewport]>div]:!block [&_[data-orientation=vertical]]:bg-transparent">
+            <div className="space-y-3 p-5 min-w-0 overflow-hidden">
+              {/* 空壳资产生成引导 */}
+              {asset.type !== "audio" && !draftDescription.trim() && !draftPrompt.trim() && !draftSetting.trim() && !hasImagePreview && (
+                <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-3">
+                  <div className="text-sm font-medium text-foreground">此角色尚无详细数据</div>
+                  <p className="text-xs text-muted-foreground">
+                    「{displayName}」在资产库中仅有名称记录，缺少描述、设定和图片。
+                    点击下方按钮将走完整生成流程：润色提示词 → 生成图片 → 保存。
+                  </p>
+                  {generatePhase && (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      <span>{generateMessage}</span>
+                    </div>
+                  )}
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      onClick={async () => {
+                        if (!visualManualId) {
+                          toast.error("请先在「风格与导演选择」中选择视觉手册");
+                          return;
+                        }
+                        setGeneratePhase("polishing");
+                        setGenerateMessage(`正在润色 ${asset.name} 的提示词...`);
+                        try {
+                          const assetType = asset.type === "role" ? "character" as const : asset.type === "scene" ? "scene" as const : "prop" as const;
+                          const { generateAsset } = await import("@/lib/studio/asset-generation-orchestrator");
+                          const result = await generateAsset(
+                            {
+                              assetId: asset.id,
+                              assetType,
+                              name: asset.name,
+                              description: draftDescription || asset.name,
+                              isDerivative: false,
+                              visualManualId,
+                            },
+                            (progress) => {
+                              if (progress.phase === "polishing") {
+                                setGeneratePhase("polishing");
+                                setGenerateMessage(`正在润色 ${asset.name} 的提示词...`);
+                              } else if (progress.phase === "generating") {
+                                setGeneratePhase("generating");
+                                setGenerateMessage(`正在生成 ${asset.name} 的图片...`);
+                              } else if (progress.phase === "saving") {
+                                setGeneratePhase("saving");
+                                setGenerateMessage(`正在保存 ${asset.name} 的图片...`);
+                              }
+                            },
+                          );
+                          if (result.phase === "done") {
+                            setGeneratePhase("done");
+                            setGenerateMessage("生成完成！");
+                            // 刷新弹窗数据
+                            if (result.polishResult) {
+                              setDraftPrompt(result.polishResult.prompt);
+                              setDraftDescription(result.polishResult.prompt);
+                            }
+                            // 重新加载完整资产数据
+                            if (window.studioAssets?.get) {
+                              const updated = await window.studioAssets.get(asset.id);
+                              if (updated) {
+                                setDraftName(updated.name || "");
+                                setDraftDescription(updated.description || "");
+                                setDraftPrompt(updated.prompt || "");
+                                setDraftSetting(updated.setting || "");
+                                const newImgs: AssetImage[] = [];
+                                if (updated.previewUrl || updated.thumbnailUrl) {
+                                  newImgs.push({ name: "主图", filePath: updated.filePath || "", url: updated.previewUrl || updated.thumbnailUrl });
+                                }
+                                if (updated.images?.length) {
+                                  newImgs.push(...updated.images);
+                                }
+                                setImages(newImgs);
+                              }
+                            }
+                            toast.success(`「${asset.name}」资产生成完成`);
+                          } else {
+                            setGeneratePhase("failed");
+                            setGenerateMessage(`生成失败: ${result.error || "未知错误"}`);
+                            toast.error(`生成失败: ${result.error || "未知错误"}`);
+                          }
+                        } catch (err: unknown) {
+                          setGeneratePhase("failed");
+                          setGenerateMessage(err instanceof Error ? err.message : String(err));
+                          toast.error(err instanceof Error ? err.message : String(err));
+                        } finally {
+                          setTimeout(() => {
+                            setGeneratePhase(null);
+                            setGenerateMessage("");
+                          }, 3000);
+                        }
+                      }}
+                      disabled={!!generatePhase || !visualManualId}
+                    >
+                      {generatePhase ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <Sparkles className="mr-2 h-3 w-3" />}
+                      {generatePhase === "polishing" ? "润色提示词中..." : generatePhase === "generating" ? "生成图片中..." : generatePhase === "saving" ? "保存中..." : generatePhase === "done" ? "生成完成！" : "一键生成资产生图"}
+                    </Button>
+                  </div>
+                </div>
+              )}
               <section className="space-y-1.5">
                 <div className="text-xs font-medium text-muted-foreground">名字</div>
                 <input
@@ -602,6 +710,73 @@ export function StudioAssetDetailDialog({
                   className="min-h-[80px] resize-none bg-muted/20 text-xs leading-5"
                 />
               </section>
+              {/* 人物属性 — 从 setting 中解析 */}
+              {asset?.type === "role" && (() => {
+                const source = draftSetting || asset?.setting || "";
+                const fields: { label: string; value: string }[] = [];
+                // 匹配 - **标签**：值 格式
+                const regex = /[-*]\s*\*\*(.+?)\*\*[：:]\s*(.+)/g;
+                let m;
+                while ((m = regex.exec(source)) !== null) {
+                  const label = m[1].trim();
+                  const value = m[2].trim();
+                  // 只提取关键属性，跳过"姓名"等冗余字段
+                  if (["性别", "年龄", "身份", "出身背景", "出生地", "尊号", "境界", "势力", "组织归属"].includes(label)) {
+                    fields.push({ label, value });
+                  }
+                }
+                if (fields.length === 0) return null;
+                return (
+                  <section className="space-y-2 rounded-lg border border-border bg-muted/70 p-3 overflow-hidden">
+                    <div className="text-xs font-semibold text-foreground">人物属性</div>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+                      {fields.map((f, i) => (
+                        <div key={i} className={`truncate ${["出身背景", "出生地", "身份", "组织归属", "势力"].includes(f.label) ? "col-span-2" : ""}`} title={`${f.label}：${f.value}`}>
+                          <span className="text-muted-foreground">{f.label}：</span>{f.value}
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                );
+              })()}
+              {/* 音色信息 — 仅角色类型显示 */}
+              {asset.type === "role" && (() => {
+                const bindings = useTtsStore.getState().projects[useTtsStore.getState().activeProjectId ?? ""]?.bindings ?? {};
+                const voiceProfiles = useTtsStore.getState().voiceProfiles;
+                const speakerId = `character:${asset.id}` as TtsSpeakerId;
+                const binding = bindings[speakerId];
+                const profile = binding ? voiceProfiles[binding.profileId] : undefined;
+                if (!binding || !profile) {
+                  return (
+                    <section className="space-y-2 rounded-lg border border-border bg-muted/70 p-3">
+                      <div className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                        <Volume2 className="h-3.5 w-3.5" /> 音色
+                      </div>
+                      <p className="text-xs text-muted-foreground">尚未分配音色。请在「剧情产物生成」中为该角色分配音色。</p>
+                    </section>
+                  );
+                }
+                return (
+                  <section className="space-y-2 rounded-lg border border-border bg-muted/70 p-3">
+                    <div className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                      <Volume2 className="h-3.5 w-3.5" /> 音色信息
+                    </div>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs overflow-hidden">
+                      <div className="truncate" title={profile.type === "preset" ? "预设音色" : "克隆音色"}><span className="text-muted-foreground">类型：</span>{profile.type === "preset" ? "预设音色" : "克隆音色"}</div>
+                      <div className="truncate" title={profile.defaultEngine}><span className="text-muted-foreground">引擎：</span>{profile.defaultEngine}</div>
+                      {profile.presetVoiceId && <div className="truncate" title={profile.presetVoiceId}><span className="text-muted-foreground">预设：</span>{profile.presetVoiceId}</div>}
+                      {profile.referenceAudioPath && <div className="col-span-2 truncate" title={profile.referenceAudioPath}><span className="text-muted-foreground">参考音频：</span>{profile.referenceAudioPath}</div>}
+                      <div className="truncate" title={profile.id}><span className="text-muted-foreground">Profile：</span>{profile.id}</div>
+                    </div>
+                    <RoleVoicePreviewButton
+                      profileId={profile.id}
+                      characterName={asset.name}
+                      defaultEngine={binding.defaultEngine}
+                      defaultModelSize={binding.defaultModelSize}
+                    />
+                  </section>
+                );
+              })()}
               {asset.type !== "audio" ? (
                 <>
                   <section className="space-y-1.5">
@@ -669,4 +844,74 @@ export function buildAssetRegenerationPrompt(asset: StudioAssetSummary | null) {
     .map((part) => part?.trim())
     .filter(Boolean)
     .join("\n\n");
+}
+
+/** 详情弹窗内的音色试听按钮 */
+function RoleVoicePreviewButton({ profileId, characterName, defaultEngine, defaultModelSize }: {
+  profileId: string; characterName: string; defaultEngine?: string; defaultModelSize?: string;
+}) {
+  const [playing, setPlaying] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const audioRef = useState<HTMLAudioElement | null>(null)[0];
+  const [, forceUpdate] = useState(0);
+  const audioRefStable = useMemo(() => ({ current: null as HTMLAudioElement | null }), []);
+
+  const handlePreview = useCallback(async () => {
+    if (playing && audioRefStable.current) {
+      audioRefStable.current.pause();
+      audioRefStable.current = null;
+      setPlaying(false);
+      return;
+    }
+    if (!window.ttsRuntime) {
+      toast.error("TTS 后端未就绪");
+      return;
+    }
+    setLoading(true);
+    try {
+      const text = `大家好，我是${characterName}，很高兴认识你们。`;
+      const genRes = await window.ttsRuntime.request({
+        method: "POST", path: "/generate",
+        body: { profile_id: profileId, text, engine: defaultEngine, model_size: defaultModelSize, language: "zh" },
+      }) as { id?: string; error?: string };
+      if (!genRes.id) { toast.error(genRes.error || "生成失败"); return; }
+
+      let attempts = 0;
+      while (attempts < 60) {
+        await new Promise((r) => setTimeout(r, 500));
+        const s = await window.ttsRuntime!.request({ method: "GET", path: `/generate/${genRes.id}/status` }) as { status?: string; audio_path?: string; error?: string };
+        if (s.status === "completed" && s.audio_path) break;
+        if (s.status === "failed") { toast.error(s.error || "语音生成失败"); return; }
+        attempts++;
+      }
+      if (attempts >= 60) { toast.error("语音生成超时"); return; }
+
+      const audioRes = await window.ttsRuntime.requestBytes({ method: "GET", path: `/audio/${genRes.id}` });
+      const blob = new Blob([audioRes.data], { type: audioRes.mimeType || "audio/wav" });
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      audioRefStable.current = audio;
+      audio.onended = () => { setPlaying(false); URL.revokeObjectURL(url); audioRefStable.current = null; };
+      audio.onerror = () => { setPlaying(false); toast.error("播放失败"); };
+      await audio.play();
+      setPlaying(true);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "试听失败");
+    } finally {
+      setLoading(false);
+    }
+  }, [profileId, characterName, defaultEngine, defaultModelSize, playing, audioRefStable]);
+
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      className="mt-2 w-full gap-1.5 text-xs"
+      onClick={handlePreview}
+      disabled={loading}
+    >
+      {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : playing ? <Square className="h-3 w-3" /> : <Play className="h-3 w-3" />}
+      {loading ? "生成中..." : playing ? "停止播放" : "试听音色"}
+    </Button>
+  );
 }

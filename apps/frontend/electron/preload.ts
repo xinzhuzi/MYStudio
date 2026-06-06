@@ -163,6 +163,8 @@ contextBridge.exposeInMainWorld('studioAssets', {
   renameImage: (payload: { assetId: string; imageFilePath: string; newName: string }) => ipcRenderer.invoke('assets:rename-image', payload),
   selectImageFile: () => ipcRenderer.invoke('assets:select-image-file'),
   importFromToonflow: (payload: { type: string }) => ipcRenderer.invoke('assets:import-from-toonflow', payload),
+  getByName: (payload: { type: string; name: string }) => ipcRenderer.invoke('assets:get-by-name', payload),
+  batchMatch: (payload: { type: string; names: string[] }) => ipcRenderer.invoke('assets:batch-match', payload),
 })
 
 contextBridge.exposeInMainWorld('ttsRuntime', {
@@ -179,4 +181,6 @@ contextBridge.exposeInMainWorld('ttsRuntime', {
     ipcRenderer.invoke('tts-runtime-request', payload),
   requestBytes: (payload: { method: string; path: string; body?: unknown }): Promise<{ data: ArrayBuffer; mimeType?: string }> =>
     ipcRenderer.invoke('tts-runtime-request-bytes', payload),
+  requestFormData: (payload: { path: string; audioFilePath: string; referenceText?: string }): Promise<unknown> =>
+    ipcRenderer.invoke('tts-runtime-request-formdata', payload),
 })

@@ -235,16 +235,25 @@ export async function polishAssetsAndUpdateStore(
 ): Promise<{ success: number; failed: number }> {
   const { batchPolishAssetPrompts } = await import("@/lib/ai/prompt-polisher");
 
-  // 收集待润色资产
-  const assets = collectPendingAssets(assetType);
+  // 先匹配资产库，复用已有数据
+  const { pending, matched } = await collectAndMatchAssets(assetType);
 
-  if (assets.length === 0) return { success: 0, failed: 0 };
+  let reusedCount = 0;
+  if (matched.length > 0) {
+    reusedCount = applyMatchedAssets(assetType, matched);
+    console.log(`[asset-orchestrator] 从资产库复用了 ${reusedCount} 个${assetType === "character" ? "角色" : assetType === "scene" ? "场景" : "道具"}`);
+  }
 
-  // 标记为 polishing
-  markAssetsPolishing(assetType, assets);
+  if (pending.length === 0) {
+    // 全部从资产库复用了
+    return { success: reusedCount, failed: 0 };
+  }
+
+  // 标记为 polishing（仅未匹配的）
+  markAssetsPolishing(assetType, pending);
 
   // 构建润色请求
-  const requests: PolishRequest[] = assets.map((a) => ({
+  const requests: PolishRequest[] = pending.map((a) => ({
     assetType,
     name: a.name,
     description: a.description,
@@ -261,12 +270,12 @@ export async function polishAssetsAndUpdateStore(
   });
 
   // 写回 Store
-  let success = 0;
+  let success = reusedCount;
   let failed = 0;
 
   for (const [key, result] of results) {
     const assetName = key.split(":")[1];
-    const asset = assets.find((a) => a.name === assetName);
+    const asset = pending.find((a) => a.name === assetName);
     if (!asset) continue;
 
     if (result.status === "success") {
@@ -399,6 +408,94 @@ function collectPendingAssets(assetType: AssetType): PendingAsset[] {
       }));
   }
   return [];
+}
+
+/**
+ * 从项目级 store 收集待润色资产，同时批量匹配资产库。
+ * 匹配到的资产直接从资产库复用（prompt / 图片），不再重新润色/生成。
+ * 返回 { pending: 需要润色的, matched: 已复用的 }
+ */
+export async function collectAndMatchAssets(
+  assetType: AssetType,
+): Promise<{ pending: PendingAsset[]; matched: Array<{ id: string; name: string; assetDbData: any }> }> {
+  const all = collectPendingAssets(assetType);
+  if (all.length === 0) return { pending: [], matched: [] };
+
+  // 调 IPC 批量匹配资产库
+  let matchedEntries: Array<{ name: string; asset: any }> = [];
+  try {
+    const dbType = assetType === "prop" ? "tool" : assetType === "character" ? "role" : assetType;
+    matchedEntries = await window.studioAssets?.batchMatch({
+      type: dbType,
+      names: all.map(a => a.name),
+    }) ?? [];
+  } catch {
+    matchedEntries = [];
+  }
+
+  const matchedMap = new Map<string, any>();
+  for (const entry of matchedEntries) {
+    if (entry?.name && entry?.asset) {
+      matchedMap.set(entry.name, entry.asset);
+    }
+  }
+
+  const matched: Array<{ id: string; name: string; assetDbData: any }> = [];
+  const pending: PendingAsset[] = [];
+
+  for (const asset of all) {
+    const dbMatch = matchedMap.get(asset.name);
+    if (dbMatch && dbMatch.filePath) {
+      matched.push({ id: asset.id, name: asset.name, assetDbData: dbMatch });
+    } else {
+      pending.push(asset);
+    }
+  }
+
+  return { pending, matched };
+}
+
+/**
+ * 将资产库中匹配到的数据写入项目级 store（复用）
+ */
+export function applyMatchedAssets(
+  assetType: AssetType,
+  matched: Array<{ id: string; name: string; assetDbData: any }>,
+): number {
+  let applied = 0;
+  for (const m of matched) {
+    try {
+      if (assetType === "character") {
+        const store = useCharacterLibraryStore.getState();
+        // 从资产库的 filePath 构造缩略图路径
+        const thumbPath = m.assetDbData.thumbnailUrl || m.assetDbData.filePath;
+        store.updateCharacter(m.id, {
+          thumbnailUrl: thumbPath ? `local-image://${thumbPath}` : undefined,
+          promptState: "ready",
+          visualTraits: m.assetDbData.prompt || m.assetDbData.description || "",
+        });
+        if (thumbPath) {
+          store.addCharacterView(m.id, {
+            viewType: "front",
+            imageUrl: `local-image://${thumbPath}`,
+          });
+        }
+        applied++;
+      } else if (assetType === "scene") {
+        const store = useSceneStore.getState();
+        const thumbPath = m.assetDbData.thumbnailUrl || m.assetDbData.filePath;
+        store.updateScene(m.id, {
+          referenceImage: thumbPath ? `local-image://${thumbPath}` : undefined,
+          visualPrompt: m.assetDbData.prompt || m.assetDbData.description || "",
+          promptState: "ready",
+        });
+        applied++;
+      }
+    } catch {
+      // 跳过单个失败
+    }
+  }
+  return applied;
 }
 
 function markAssetsPolishing(assetType: AssetType, assets: PendingAsset[]) {

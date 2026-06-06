@@ -88,7 +88,39 @@ export function listVoiceProfiles(): Promise<VoiceProfile[]> {
 }
 
 export function createBackendVoiceProfile(payload: Partial<VoiceProfile>) {
-  return request<VoiceProfile>("POST", "/profiles", payload);
+  // Map frontend camelCase to backend snake_case
+  const body: Record<string, unknown> = {
+    name: payload.id ?? payload.name,
+    language: payload.language ?? "zh",
+    voice_type: payload.type === "reference" ? "cloned" : (payload.type ?? "cloned"),
+    default_engine: payload.defaultEngine,
+  };
+  if (payload.type === "preset" || payload.type === undefined) {
+    if (payload.presetVoiceId) {
+      body.preset_engine = payload.defaultEngine ?? "qwen_custom_voice";
+      body.preset_voice_id = payload.presetVoiceId;
+    }
+  }
+  return request<VoiceProfile>("POST", "/profiles", body);
+}
+
+/** Upload an audio sample to a backend voice profile (for cloning). */
+export async function uploadProfileSample(
+  backendProfileId: string,
+  audioFilePath: string,
+  referenceText?: string,
+): Promise<unknown> {
+  return assertTtsRuntime().requestFormData({
+    path: `/profiles/${encodeURIComponent(backendProfileId)}/samples`,
+    audioFilePath,
+    referenceText,
+  });
+}
+
+/** List backend profiles and find one by name. */
+export async function findBackendProfileByName(name: string): Promise<VoiceProfile | undefined> {
+  const profiles = await listVoiceProfiles();
+  return profiles.find((p) => p.name === name);
 }
 
 export function generateSpeech(payload: TtsGenerateRequest): Promise<TtsGenerateResponse> {
