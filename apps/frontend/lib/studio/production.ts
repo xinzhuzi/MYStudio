@@ -40,6 +40,7 @@ export function createTrackRenderPlan(track: ProductionTrack, storyboards: Story
       sourcePath: item.mediaRef!.path,
       sourceKind: item.mediaRef!.kind === "video" ? "video" as const : "image" as const,
       duration: item.duration,
+      audioPath: item.audioRef?.kind === "audio" ? item.audioRef.path : undefined,
     }));
 
   if (inputs.length === 0) {

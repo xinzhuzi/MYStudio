@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   cancelModelDownload,
+  createBackendVoiceProfile,
   deleteModel,
   downloadModel,
   getActiveTasks,
@@ -36,5 +37,40 @@ describe("TTS client", () => {
     expect(request).toHaveBeenNthCalledWith(5, { method: "DELETE", path: "/models/kokoro" });
     expect(request).toHaveBeenNthCalledWith(6, { method: "POST", path: "/models/kokoro/unload" });
     expect(request).toHaveBeenNthCalledWith(7, { method: "GET", path: "/tasks/active" });
+  });
+
+  it("sends reference voice profile fields required by the local backend", async () => {
+    const request = vi.fn().mockResolvedValue({ id: "voice-profile-1" });
+    (globalThis as { window?: unknown }).window = {
+      ttsRuntime: { request },
+    };
+
+    await createBackendVoiceProfile({
+      id: "voice-profile-1",
+      name: "角色音色",
+      type: "reference",
+      language: "zh",
+      defaultEngine: "qwen",
+      defaultModelSize: "1.7B",
+      referenceAudioPath: "/tmp/voice.wav",
+      referenceText: "这是参考音频内容。",
+      instruct: "克制、低沉",
+    });
+
+    expect(request).toHaveBeenCalledWith({
+      method: "POST",
+      path: "/profiles",
+      body: {
+        id: "voice-profile-1",
+        name: "角色音色",
+        voice_type: "reference",
+        language: "zh",
+        default_engine: "qwen",
+        default_model_size: "1.7B",
+        reference_audio_path: "/tmp/voice.wav",
+        reference_text: "这是参考音频内容。",
+        instruct: "克制、低沉",
+      },
+    });
   });
 });

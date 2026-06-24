@@ -1,6 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { callChatAPI } from "./script-parser";
 
+vi.mock("@/lib/ai/ai-sdk-bridge", () => ({
+  getLanguageModel: vi.fn(() => ({})),
+}));
+
+vi.mock("ai", () => ({
+  generateText: vi.fn(() => {
+    throw new Error("force fallback");
+  }),
+}));
+
 function jsonResponse(content: string) {
   return new Response(
     JSON.stringify({

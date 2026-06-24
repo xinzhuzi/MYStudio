@@ -80,6 +80,10 @@ export function buildDirectorPlanMessages(input: BuildDirectorPlanInput): Direct
 
 export function parseDirectorPlan(output: string, episodeId: string): ParseDirectorPlanResult {
   const body = extractScriptPlanSegments(output);
+  if (!hasLegacySections(body) && isToonflowScriptPlan(body)) {
+    return parseToonflowDirectorPlan(body, episodeId);
+  }
+
   const sections = splitSections(body);
   const warnings: string[] = [];
 
@@ -110,6 +114,82 @@ export function parseDirectorPlan(output: string, episodeId: string): ParseDirec
   };
 
   return { plan, warnings };
+}
+
+function hasLegacySections(body: string): boolean {
+  return SECTION_MARKERS.some((marker) => body.includes(marker));
+}
+
+function isToonflowScriptPlan(body: string): boolean {
+  return body.includes("分场汇总表") || body.includes("逐场注意事项") || body.includes("场间过渡");
+}
+
+function parseToonflowDirectorPlan(body: string, episodeId: string): ParseDirectorPlanResult {
+  const warnings: string[] = [];
+  const sceneSummary = extractToonflowSection(body, "分场汇总表", ["逐场注意事项", "场间过渡"]);
+  const sceneNotes = extractToonflowSection(body, "逐场注意事项", ["场间过渡"]);
+  const transitions = extractToonflowSection(body, "场间过渡", []);
+
+  for (const [label, text] of [
+    ["分场汇总表", sceneSummary],
+    ["逐场注意事项", sceneNotes],
+    ["场间过渡", transitions],
+  ] as const) {
+    const hits = detectLightingTerms(text);
+    if (hits.length) warnings.push(`${label}含光影词，已剔除：${hits.join("、")}`);
+  }
+
+  return {
+    plan: {
+      id: `script-plan-${episodeId}-${Date.now()}`,
+      episodeId,
+      theme: stripLightingTerms(sceneSummary),
+      visualStyle: "",
+      narrativeRhythm: stripLightingTerms(sceneNotes),
+      sceneIntents: parseToonflowSceneIntents(sceneSummary),
+      soundDirection: extractEnvironmentSounds(sceneNotes),
+      transitions: stripLightingTerms(transitions),
+      derivedAssetPlan: [],
+    },
+    warnings,
+  };
+}
+
+function extractToonflowSection(body: string, title: string, stopTitles: string[]): string {
+  const start = body.indexOf(title);
+  if (start < 0) return "";
+  const rest = body.slice(start);
+  const stopIndexes = stopTitles
+    .map((stop) => rest.indexOf(stop))
+    .filter((index) => index > 0);
+  const end = stopIndexes.length ? Math.min(...stopIndexes) : rest.length;
+  return rest.slice(0, end).trim();
+}
+
+function parseToonflowSceneIntents(section: string): ScriptPlan["sceneIntents"] {
+  const rows: ScriptPlan["sceneIntents"] = [];
+  for (const raw of section.split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line.startsWith("|") || !line.endsWith("|")) continue;
+    if (isSeparatorRow(line) || line.includes("场次 | 场景名")) continue;
+    const fields = line.slice(1, -1).split("|").map((item) => item.trim());
+    if (fields.length < 6) continue;
+    rows.push({
+      sceneId: fields[0]!,
+      emotion: fields[5]!,
+      shotIntent: fields[1]!,
+      spatial: "",
+    });
+  }
+  return rows;
+}
+
+function extractEnvironmentSounds(section: string): string {
+  return section
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.includes("环境音"))
+    .join("\n");
 }
 
 /** 取出所有 <scriptPlan>…</scriptPlan> 段并按出现顺序拼接；若无标签则回退整段。 */

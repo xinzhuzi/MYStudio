@@ -40,7 +40,7 @@ export interface AssetGenerationTask {
   /** 视觉手册 ID */
   visualManualId: string;
   /** 身份锚点（仅角色） */
-  identityAnchors?: any; // eslint-disable-line @typescript-eslint/no-explicit-any
+  identityAnchors?: any;
   /** 现有负面提示词 */
   negativePrompt?: string;
 
@@ -383,7 +383,7 @@ interface PendingAsset {
   id: string;
   name: string;
   description: string;
-  identityAnchors?: any; // eslint-disable-line @typescript-eslint/no-explicit-any
+  identityAnchors?: any;
 }
 
 function collectPendingAssets(assetType: AssetType): PendingAsset[] {

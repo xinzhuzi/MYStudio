@@ -6,6 +6,7 @@ import type { ModelTestRequest, ModelTestResult } from '../lib/api-manager/model
 import type { TextCompletionRequest, TextCompletionResult } from '../lib/api-manager/text-completion'
 import type { StudioVisualManualCreatePayload, StudioVisualManualImagesWritePayload, StudioVisualManualWritePayload } from '../types/studio-visual-manual'
 import type { TtsRuntimeCommandResult, TtsRuntimeConfig, TtsRuntimeStatus } from '../types/tts'
+import type { UpdateCheckOptions } from '../types/update'
 
 contextBridge.exposeInMainWorld('appEvents', {
   onMainProcessMessage(listener: (message: string) => void) {
@@ -13,6 +14,11 @@ contextBridge.exposeInMainWorld('appEvents', {
     ipcRenderer.on('main-process-message', wrapped)
     return () => ipcRenderer.removeListener('main-process-message', wrapped)
   },
+})
+
+contextBridge.exposeInMainWorld('mystudioSmoke', {
+  enabled: process.env.MYSTUDIO_SMOKE === '1',
+  userDataDir: process.argv.find((arg) => arg.startsWith('--user-data-dir='))?.slice('--user-data-dir='.length) ?? '',
 })
 
 // Image storage API
@@ -114,7 +120,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
 contextBridge.exposeInMainWorld('appUpdater', {
   getCurrentVersion: () => ipcRenderer.invoke('app-updater-get-current-version'),
-  checkForUpdates: () => ipcRenderer.invoke('app-updater-check'),
+  checkForUpdates: (options?: UpdateCheckOptions) => ipcRenderer.invoke('app-updater-check', options),
   openExternalLink: (url: string) => ipcRenderer.invoke('app-updater-open-link', url),
 })
 

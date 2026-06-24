@@ -298,6 +298,7 @@ describe("Manying Studio workflow core", () => {
       {
         ...storyboard("sb-1", 1, "opening", 3),
         mediaRef: { kind: "image", path: "/tmp/opening.png" },
+        audioRef: { kind: "audio", path: "/tmp/opening.wav" },
         videoDesc: "王离：账本少了一页",
       },
     ])[0]!;
@@ -306,6 +307,7 @@ describe("Manying Studio workflow core", () => {
       {
         ...storyboard("sb-1", 1, "opening", 3),
         mediaRef: { kind: "image", path: "/tmp/opening.png" },
+        audioRef: { kind: "audio", path: "/tmp/opening.wav" },
         videoDesc: "王离：账本少了一页",
       },
     ]);
@@ -315,6 +317,7 @@ describe("Manying Studio workflow core", () => {
 
     expect(candidatePlan.kind).toBe("track-candidate");
     expect(candidatePlan.inputs[0]?.sourcePath).toBe("/tmp/opening.png");
+    expect(candidatePlan.inputs[0]?.audioPath).toBe("/tmp/opening.wav");
     expect(candidatePlan.subtitleText).toBe("账本少了一页");
     expect(mergePlan.inputs).toEqual(["/tmp/opening.mp4"]);
   });

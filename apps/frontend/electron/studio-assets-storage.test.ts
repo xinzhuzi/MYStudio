@@ -25,7 +25,7 @@ describe("buildAssetWhere", () => {
 
   it("同时按搜索 + 分类过滤", () => {
     const where = buildAssetWhere("tool", "剑", "法宝");
-    expect(where).toBe(`WHERE type='tool' AND (name LIKE '%剑%' OR prompt LIKE '%剑%') AND tags LIKE '%"法宝"%'`);
+    expect(where).toBe(`WHERE type='tool' AND (name LIKE '%剑%' ESCAPE '\\' OR prompt LIKE '%剑%' ESCAPE '\\') AND tags LIKE '%"法宝"%'`);
   });
 
   it("转义单引号防注入", () => {

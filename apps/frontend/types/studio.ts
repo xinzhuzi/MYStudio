@@ -83,6 +83,7 @@ export interface StoryboardItem {
   videoDesc: string;
   assetIds: string[];
   mediaRef?: StoryboardMediaRef;
+  audioRef?: StoryboardMediaRef;
   state: StoryboardState;
   reason?: string;
   /** ToonFlow 一致性字段（对齐统一工作流计划 §3.2）。可选：旧数据/精简流程无需提供 */
@@ -90,6 +91,9 @@ export interface StoryboardItem {
   orientation?: string;
   spatialRelation?: string;
   associateAssetsNames?: string[];
+  lines?: string;
+  speakerId?: string;
+  sound?: string;
 }
 
 export interface ProductionTrack {
@@ -225,6 +229,7 @@ export interface TrackRenderInput {
   sourcePath: string;
   sourceKind: "image" | "video";
   duration: number;
+  audioPath?: string;
 }
 
 export interface TrackRenderPlan {

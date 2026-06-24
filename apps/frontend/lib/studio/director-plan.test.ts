@@ -22,6 +22,40 @@ describe("studio director plan — lighting separation (§2.4)", () => {
 });
 
 describe("studio director plan parsing", () => {
+  it("parses Toonflow-style <scriptPlan> into structured downstream fields", () => {
+    const output = [
+      "<scriptPlan>",
+      "### 分场汇总表（核心）",
+      "| 场次 | 场景名 | 台词条数 | 台词字数 | 情绪浓度 | 情绪基调（含 X→Y） |",
+      "|---|---|---|---|---|---|",
+      "| Sc1 | 金水河码头·苦力受鞭 | 6 | 42 | 8 | 压迫→隐忍救人 |",
+      "| Sc2 | 悦来客栈·断剑露出 | 8 | 38 | 6 | 冷静→旧痛翻涌 |",
+      "",
+      "### 逐场注意事项",
+      "- **Sc1**：",
+      "  - 情感砸点：鞭梢将落未落，小杂役缩肩护头。",
+      "  - 环境音：铁链拖石声、藤筐炸裂声。",
+      "- **Sc2**：",
+      "  - 一致性锚点：油布剑包始终压住独孤背脊。",
+      "",
+      "### 场间过渡",
+      "| 场间 | 过渡方式 | 说明 |",
+      "|---|---|---|",
+      "| Sc1 → Sc2 | 叠化 | 鞭痕墨色晕开，化作顺风街灰雾 |",
+      "</scriptPlan>",
+    ].join("\n");
+
+    const { plan } = parseDirectorPlan(output, "chapter-001");
+
+    expect(plan.episodeId).toBe("chapter-001");
+    expect(plan.theme).toContain("Sc1");
+    expect(plan.theme).toContain("金水河码头");
+    expect(plan.narrativeRhythm).toContain("情感砸点");
+    expect(plan.narrativeRhythm).toContain("油布剑包");
+    expect(plan.transitions).toContain("Sc1 → Sc2");
+    expect(plan.transitions).toContain("顺风街灰雾");
+  });
+
   it("merges multiple <scriptPlan> segments, maps sections to prose fields, parses ⑦ table to derivedAssetPlan, collects lighting warnings", () => {
     const output = [
       "好的，以下是规划：",

@@ -102,3 +102,4 @@ __pycache__/
 *.pyc
 *.pyo
 apps/backend/python/
+apps/output/*

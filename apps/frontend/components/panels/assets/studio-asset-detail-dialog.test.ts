@@ -68,4 +68,26 @@ describe("buildAssetRegenerationPrompt", () => {
     expect(source).not.toContain("if (asset && asset.id !== prevAssetId.current)");
     expect(source).toContain("useEffect(() =>");
   });
+
+  it("opens the reusable voice assignment dialog from role details", () => {
+    const source = readFileSync(new URL("./StudioAssetDetailDialog.tsx", import.meta.url), "utf8");
+    expect(source).toContain('import { RoleVoiceAssignDialog } from "./RoleVoiceAssignDialog";');
+    expect(source).toContain("setVoiceAssignOpen(true)");
+    expect(source).toContain("<RoleVoiceAssignDialog");
+    expect(source).not.toContain("请在「剧情产物生成」中为该角色分配音色");
+  });
+
+  it("keeps workflow voice assignment on the shared role dialog", () => {
+    const source = readFileSync(new URL("../studio/index.tsx", import.meta.url), "utf8");
+    expect(source).toContain('import { RoleVoiceAssignDialog } from "@/components/panels/assets/RoleVoiceAssignDialog";');
+    expect(source).not.toContain("function VoiceAssignDialog(");
+    expect(source).toContain("<RoleVoiceAssignDialog");
+  });
+
+  it("syncs the active project before binding a role voice", () => {
+    const source = readFileSync(new URL("./RoleVoiceAssignDialog.tsx", import.meta.url), "utf8");
+    expect(source).toContain('import { useProjectStore } from "@/stores/project-store";');
+    expect(source).toContain("setTtsActiveProjectId(activeProjectId)");
+    expect(source).toContain("ensureTtsProject(activeProjectId)");
+  });
 });

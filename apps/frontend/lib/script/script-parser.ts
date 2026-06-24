@@ -14,7 +14,7 @@ import { delay, RATE_LIMITS } from "@/lib/utils/rate-limiter";
 import { ApiKeyManager } from "@/lib/api-key-manager";
 import { getModelLimits, parseModelLimitsFromError, cacheDiscoveredLimits, estimateTokens } from "@/lib/ai/model-registry";
 import { corsFetch } from "@/lib/cors-fetch";
-import { buildThinkingParams, resolveThinkingEnabled } from "@/lib/ai/thinking-mode";
+import { buildThinkingParams, buildThinkingProviderOptions, resolveThinkingEnabled } from "@/lib/ai/thinking-mode";
 import { getLanguageModel } from "@/lib/ai/ai-sdk-bridge";
 import { generateText } from "ai";
 
@@ -293,6 +293,18 @@ export async function callChatAPI(
   
   console.log('[callChatAPI] 请求 URL:', url);
 
+  let thinkingParams: Record<string, unknown> = {};
+  if (options.disableThinking) {
+    thinkingParams = { thinking: { type: 'disabled' } };
+  } else if (resolveThinkingEnabled(model, options.thinkingEnabled)) {
+    thinkingParams = buildThinkingParams({
+      model,
+      protocol: 'openai-compatible',
+      maxTokens: effectiveMaxTokens,
+      enabled: options.thinkingEnabled,
+    });
+  }
+
   // 优先使用 Vercel AI SDK（简化调用，跳过复杂的手写 HTTP 逻辑）
   try {
     const currentKey = keyManager.getCurrentKey();
@@ -310,6 +322,7 @@ export async function callChatAPI(
         ],
         temperature: options.temperature ?? 0.7,
         maxOutputTokens: effectiveMaxTokens,
+        providerOptions: buildThinkingProviderOptions('openai-compatible', model, thinkingParams),
       });
       if (result.text) {
         if (totalKeys > 1) keyManager.rotateKey();
@@ -352,19 +365,11 @@ export async function callChatAPI(
 
     // 深度思考：显式 disableThinking 时强制关闭；否则按「显式 thinkingEnabled 配置 → 模型名自动判断」决定。
     if (options.disableThinking) {
-      body.thinking = { type: 'disabled' };
-      console.log('[callChatAPI] 已关闭深度思考 (thinking: disabled)');
-    } else if (resolveThinkingEnabled(model, options.thinkingEnabled)) {
-      const thinkingParams = buildThinkingParams({
-        model,
-        protocol: 'openai-compatible',
-        maxTokens: effectiveMaxTokens,
-        enabled: options.thinkingEnabled,
-      });
       Object.assign(body, thinkingParams);
-      if (Object.keys(thinkingParams).length > 0) {
-        console.log('[callChatAPI] 已开启最高深度思考:', JSON.stringify(thinkingParams));
-      }
+      console.log('[callChatAPI] 已关闭深度思考 (thinking: disabled)');
+    } else if (Object.keys(thinkingParams).length > 0) {
+      Object.assign(body, thinkingParams);
+      console.log('[callChatAPI] 已开启最高深度思考:', JSON.stringify(thinkingParams));
     }
 
     const response = await corsFetch(url, {

@@ -1411,7 +1411,7 @@
   border-color: hsl(var(--foreground) / 0.08);
   background:
     linear-gradient(110deg, hsl(var(--primary) / 0.06), transparent 28%),
-    linear-gradient(180deg, hsl(var(--popover) / 0.98), hsl(var(--panel) / 0.98));
+    linear-gradient(180deg, hsl(var(--popover) / 0.9), hsl(var(--panel) / 0.9));
   box-shadow:
     inset 0 1px 0 hsl(var(--foreground) / 0.08),
     0 34px 110px hsl(220 45% 3% / 0.44);
@@ -1420,7 +1420,7 @@
 .studio-asset-detail-header {
   background:
     linear-gradient(180deg, hsl(var(--foreground) / 0.04), transparent),
-    hsl(var(--panel-elevated) / 0.72);
+    hsl(var(--panel-elevated) / 0.9);
   box-shadow: inset 0 -1px 0 hsl(var(--primary) / 0.12);
 }
 
@@ -1428,7 +1428,7 @@
   background:
     linear-gradient(180deg, hsl(var(--foreground) / 0.035), transparent 84px),
     linear-gradient(135deg, hsl(var(--primary) / 0.05), transparent 54%),
-    hsl(var(--background) / 0.42);
+    hsl(var(--background) / 0.9);
   box-shadow: inset -1px 0 0 hsl(var(--foreground) / 0.045);
 }
 

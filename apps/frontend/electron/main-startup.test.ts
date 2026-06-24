@@ -12,4 +12,28 @@ describe("main process startup", () => {
 
     expect(readyBlock).not.toContain("ttsRuntimeController.start()");
   });
+
+  it("keeps the window hidden on a dark background until the first render is ready", () => {
+    const windowBlock = mainSource.slice(
+      mainSource.indexOf("win = new BrowserWindow"),
+      mainSource.indexOf("// Open external links in system browser"),
+    );
+
+    expect(windowBlock).toContain("show: false");
+    expect(windowBlock).toContain("backgroundColor: '#17191c'");
+    expect(windowBlock).toContain("ready-to-show");
+    expect(windowBlock).toContain("did-finish-load");
+    expect(windowBlock).toContain("showWindow()");
+  });
+
+  it("keeps automatic update checks quiet while preserving manual check errors", () => {
+    const updaterBlock = mainSource.slice(
+      mainSource.indexOf("ipcMain.handle('app-updater-check'"),
+      mainSource.indexOf("ipcMain.handle('app-updater-open-link'"),
+    );
+
+    expect(updaterBlock).toContain("options?: UpdateCheckOptions");
+    expect(updaterBlock).toContain("if (!options?.silent)");
+    expect(updaterBlock).toContain("console.error('Failed to check updates:'");
+  });
 });

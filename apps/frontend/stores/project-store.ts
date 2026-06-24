@@ -26,6 +26,11 @@ interface ProjectStore {
   ensureDefaultProject: () => void;
 }
 
+type FileStorageLike = {
+  getItem: (key: string) => Promise<string | null>;
+  listDirs?: (prefix: string) => Promise<string[]>;
+};
+
 // Default project for desktop app
 const DEFAULT_PROJECT: Project = {
   id: "default-project",
@@ -161,7 +166,50 @@ export const useProjectStore = create<ProjectStore>()(
  * - 导入数据后 mystudio-project-store.json 缺失或不含新项目
  * - 换电脑后指向旧数据目录，projects 列表为空
  */
-async function discoverProjectsFromDisk(): Promise<void> {
+export async function recoverProjectFromDisk(pid: string, storage: FileStorageLike): Promise<Project> {
+  let name = `恢复的项目 (${pid.substring(0, 8)})`;
+  const createdAt = Date.now();
+
+  // Prefer current per-project keys, then fall back to older key names.
+  for (const key of [`_p/${pid}/script`, `_p/${pid}/script-store`]) {
+    try {
+      const scriptRaw = await storage.getItem(key);
+      if (!scriptRaw) continue;
+      const parsed = JSON.parse(scriptRaw);
+      const state = parsed?.state ?? parsed;
+      if (state?.projects?.[pid]?.title) {
+        name = state.projects[pid].title;
+        break;
+      }
+    } catch { /* ignore */ }
+  }
+
+  for (const key of [`_p/${pid}/director`, `_p/${pid}/director-store`]) {
+    try {
+      const directorRaw = await storage.getItem(key);
+      if (!directorRaw) continue;
+      const parsed = JSON.parse(directorRaw);
+      const state = parsed?.state ?? parsed;
+      if (state?.projects?.[pid]?.screenplay) {
+        const screenplay = state.projects[pid].screenplay;
+        if (name.includes('恢复的项目') && screenplay) {
+          const preview = screenplay.substring(0, 20).replace(/\n/g, ' ').trim();
+          if (preview) name = preview + '...';
+        }
+        break;
+      }
+    } catch { /* ignore */ }
+  }
+
+  return {
+    id: pid,
+    name,
+    createdAt,
+    updatedAt: Date.now(),
+  };
+}
+
+export async function discoverProjectsFromDisk(): Promise<void> {
   if (!window.fileStorage?.listDirs) return;
 
   try {
@@ -180,56 +228,19 @@ async function discoverProjectsFromDisk(): Promise<void> {
       missingIds.map((id) => id.substring(0, 8))
     );
 
-    // 尝试从每个遗漏项目的 director / script store 文件中提取项目名
-    const recoveredProjects: Project[] = [];
-    for (const pid of missingIds) {
-      let name = `恢复的项目 (${pid.substring(0, 8)})`;
-      const createdAt = Date.now();
-
-      // 尝试从 script store 获取名称
-      try {
-        const scriptRaw = await window.fileStorage.getItem(`_p/${pid}/script-store`);
-        if (scriptRaw) {
-          const parsed = JSON.parse(scriptRaw);
-          const state = parsed?.state ?? parsed;
-          // script-store 的 projects 字段中可能有项目信息
-          if (state?.projects?.[pid]?.title) {
-            name = state.projects[pid].title;
-          }
-        }
-      } catch { /* ignore */ }
-
-      // 尝试从 director store 获取创建时间等信息
-      try {
-        const directorRaw = await window.fileStorage.getItem(`_p/${pid}/director-store`);
-        if (directorRaw) {
-          const parsed = JSON.parse(directorRaw);
-          const state = parsed?.state ?? parsed;
-          if (state?.projects?.[pid]?.screenplay) {
-            // 有剧本内容，说明确实是有效项目
-            const screenplay = state.projects[pid].screenplay;
-            if (!name.includes('恢复的项目')) {
-              // 已经有名称了，不覆盖
-            } else if (screenplay) {
-              // 用剧本前几个字做临时名称
-              const preview = screenplay.substring(0, 20).replace(/\n/g, ' ').trim();
-              if (preview) name = preview + '...';
-            }
-          }
-        }
-      } catch { /* ignore */ }
-
-      recoveredProjects.push({
-        id: pid,
-        name,
-        createdAt,
-        updatedAt: Date.now(),
-      });
-    }
+    const recoveredProjects = await Promise.all(
+      missingIds.map((pid) => recoverProjectFromDisk(pid, window.fileStorage!))
+    );
 
     if (recoveredProjects.length > 0) {
       useProjectStore.setState((state) => ({
         projects: [...state.projects, ...recoveredProjects],
+        ...(state.projects.length === 1 && state.projects[0]?.id === DEFAULT_PROJECT.id
+          ? {
+              activeProjectId: recoveredProjects[0]?.id ?? state.activeProjectId,
+              activeProject: recoveredProjects[0] ?? state.activeProject,
+            }
+          : {}),
       }));
       console.log(
         `[ProjectStore] Recovered ${recoveredProjects.length} projects from disk:`,

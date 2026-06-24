@@ -4,6 +4,30 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>漫影工作室</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        background: #17191c;
+      }
+
+      :root.light {
+        color-scheme: light;
+        background: #f2efe3;
+      }
+
+      html,
+      body,
+      #root {
+        min-height: 100%;
+        margin: 0;
+        background: #17191c;
+      }
+
+      :root.light body,
+      :root.light #root {
+        background: #f2efe3;
+      }
+    </style>
     <script>
       (() => {
         try {
@@ -19,8 +43,8 @@
       })();
     </script>
   </head>
-  <body>
-    <div id="root"></div>
+  <body style="margin: 0; background: #17191c;">
+    <div id="root" style="min-height: 100vh; background: #17191c;"></div>
     <script type="module" src="../main.tsx"></script>
   </body>
 </html>

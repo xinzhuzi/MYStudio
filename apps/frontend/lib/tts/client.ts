@@ -90,10 +90,15 @@ export function listVoiceProfiles(): Promise<VoiceProfile[]> {
 export function createBackendVoiceProfile(payload: Partial<VoiceProfile>) {
   // Map frontend camelCase to backend snake_case
   const body: Record<string, unknown> = {
-    name: payload.id ?? payload.name,
+    id: payload.id,
+    name: payload.name ?? payload.id,
     language: payload.language ?? "zh",
-    voice_type: payload.type === "reference" ? "cloned" : (payload.type ?? "cloned"),
+    voice_type: payload.type ?? "reference",
     default_engine: payload.defaultEngine,
+    default_model_size: payload.defaultModelSize,
+    reference_audio_path: payload.referenceAudioPath,
+    reference_text: payload.referenceText,
+    instruct: payload.instruct,
   };
   if (payload.type === "preset" || payload.type === undefined) {
     if (payload.presetVoiceId) {
@@ -101,7 +106,25 @@ export function createBackendVoiceProfile(payload: Partial<VoiceProfile>) {
       body.preset_voice_id = payload.presetVoiceId;
     }
   }
+  Object.keys(body).forEach((key) => {
+    if (body[key] === undefined) delete body[key];
+  });
   return request<VoiceProfile>("POST", "/profiles", body);
+}
+
+export function ensureBackendVoiceProfile(profile: VoiceProfile) {
+  return createBackendVoiceProfile({
+    id: profile.id,
+    name: profile.name,
+    type: profile.type,
+    language: profile.language,
+    defaultEngine: profile.defaultEngine,
+    defaultModelSize: profile.defaultModelSize,
+    referenceAudioPath: profile.referenceAudioPath,
+    referenceText: profile.referenceText,
+    presetVoiceId: profile.presetVoiceId,
+    instruct: profile.instruct,
+  });
 }
 
 /** Upload an audio sample to a backend voice profile (for cloning). */

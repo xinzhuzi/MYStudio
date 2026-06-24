@@ -1,9 +1,6 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { createProjectScopedStorage } from "@/lib/project-storage";
-import { buildSkillContextPackage } from "@/lib/studio/context";
-import { formatSeriesBibleSummary } from "@/lib/studio/series-bible";
-import { type StudioManualCatalog } from "@/lib/studio/manuals";
 import { buildMediaRefFromMaterial, createMaterialRecord } from "@/lib/studio/material";
 import {
   appendNovelChapters,
@@ -22,7 +19,6 @@ import type {
   ProductionTrack,
   ScriptPlan,
   SeriesBible,
-  SkillContextPackage,
   StudioWorkflowConfig,
   StoryboardItem,
   StoryboardMediaRef,
@@ -42,7 +38,6 @@ interface StudioWorkflowState {
   productionTracks: ProductionTrack[];
   videoCandidates: VideoCandidate[];
   workflowConfig: StudioWorkflowConfig;
-  lastContextPackage: SkillContextPackage | null;
 }
 
 interface StudioWorkflowActions {
@@ -61,7 +56,6 @@ interface StudioWorkflowActions {
   saveScriptPlan: (plan: ScriptPlan) => void;
   saveSeriesBible: (bible: SeriesBible) => void;
   saveEpisodeOutline: (outline: EpisodeOutline) => void;
-  buildContext: (projectName: string, taskKey: AgentWorkKey, manualCatalog?: StudioManualCatalog) => SkillContextPackage;
   addStoryboard: (item?: Partial<StoryboardItem>) => string;
   updateStoryboard: (id: string, updates: Partial<StoryboardItem>) => void;
   bindStoryboardMedia: (id: string, mediaRef: StoryboardMediaRef) => void;
@@ -92,7 +86,6 @@ const initialState: StudioWorkflowState = {
     autoAnalyzeEventsOnImport: false,
     episodeDurationMin: 3,
   },
-  lastContextPackage: null,
 };
 
 const LEGACY_VISUAL_MANUAL_ID = "2D_chinese_guofeng";
@@ -226,20 +219,6 @@ export const useStudioStore = create<StudioWorkflowStore>()(
         }));
       },
 
-      buildContext: (projectName, taskKey, manualCatalog) => {
-        const context = buildSkillContextPackage({
-          projectName,
-          taskKey,
-          chapters: get().novelChapters,
-          agentWorkData: get().agentWorkData,
-          workflowConfig: get().workflowConfig,
-          seriesBibleSummary: formatSeriesBibleSummary(get().seriesBible),
-          manualCatalog,
-        });
-        set({ lastContextPackage: context });
-        return context;
-      },
-
       addStoryboard: (item = {}) => {
         const id = item.id ?? createId("sb");
         const storyboard: StoryboardItem = {
@@ -253,8 +232,16 @@ export const useStudioStore = create<StudioWorkflowStore>()(
           videoDesc: item.videoDesc ?? "",
           assetIds: item.assetIds ?? [],
           mediaRef: item.mediaRef,
+          audioRef: item.audioRef,
           state: item.state ?? "idle",
           reason: item.reason,
+          emotion: item.emotion,
+          orientation: item.orientation,
+          spatialRelation: item.spatialRelation,
+          associateAssetsNames: item.associateAssetsNames,
+          lines: item.lines,
+          speakerId: item.speakerId,
+          sound: item.sound,
         };
         set((state) => ({ storyboards: [...state.storyboards, storyboard] }));
         get().rebuildTracks();
@@ -277,7 +264,7 @@ export const useStudioStore = create<StudioWorkflowStore>()(
         if (!chapters.length) return;
         const storyboards = chapters.map<StoryboardItem>((chapter) => ({
           id: createId("sb"),
-          episodeId: "episode-1",
+          episodeId: chapter.id,
           index: chapter.index,
           trackKey: `chapter-${String(chapter.index).padStart(3, "0")}`,
           trackId: "",

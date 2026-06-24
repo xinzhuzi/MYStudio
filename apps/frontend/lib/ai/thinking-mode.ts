@@ -1,4 +1,6 @@
 import type { ModelTestProtocol } from "@/lib/api-manager/model-test";
+import type { JSONValue } from "@ai-sdk/provider";
+import type { ProviderOptions } from "@ai-sdk/provider-utils";
 
 /** 连接测试在开启深度思考时使用的输出预算：必须远高于普通 32，否则推理 token 会耗尽导致空回复。 */
 export const THINKING_TEST_MAX_TOKENS = 2048;
@@ -98,4 +100,83 @@ export function buildThinkingParams(input: BuildThinkingParamsInput): Record<str
   }
   // DeepSeek-R1 等（按名字推断命中）：思考为模型固有行为，无需显式参数。
   return {};
+}
+
+type ProviderThinkingParams = NonNullable<ProviderOptions[string]>;
+type RawProviderThinkingParams = Record<string, unknown>;
+
+function toProviderJsonValue(value: unknown): JSONValue | undefined {
+  if (value == null) return value as null | undefined;
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    return value;
+  }
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => toProviderJsonValue(item))
+      .filter((item): item is JSONValue => item !== undefined);
+  }
+  if (typeof value === "object") {
+    const jsonObject: ProviderThinkingParams = {};
+    for (const [key, entry] of Object.entries(value)) {
+      const jsonValue = toProviderJsonValue(entry);
+      if (jsonValue !== undefined) {
+        jsonObject[key] = jsonValue;
+      }
+    }
+    return jsonObject;
+  }
+  return undefined;
+}
+
+function setProviderOption(options: ProviderThinkingParams, key: string, value: unknown) {
+  const jsonValue = toProviderJsonValue(value);
+  if (jsonValue !== undefined) {
+    options[key] = jsonValue;
+  }
+}
+
+function mapOpenAICompatibleProviderOptions(rawParams: RawProviderThinkingParams): ProviderThinkingParams {
+  const options: ProviderThinkingParams = {};
+  if ("thinking" in rawParams) {
+    setProviderOption(options, "thinking", rawParams.thinking);
+  }
+  if ("enable_thinking" in rawParams) {
+    setProviderOption(options, "enable_thinking", rawParams.enable_thinking);
+  }
+  if ("reasoning_effort" in rawParams) {
+    setProviderOption(options, "reasoningEffort", rawParams.reasoning_effort);
+  }
+  return options;
+}
+
+export function buildThinkingProviderOptions(
+  protocol: ThinkingProtocol,
+  _model: string,
+  rawParams: RawProviderThinkingParams,
+): ProviderOptions | undefined {
+  if (Object.keys(rawParams).length === 0) return undefined;
+
+  if (protocol === "openai-compatible") {
+    const openaiCompatible = mapOpenAICompatibleProviderOptions(rawParams);
+    if (Object.keys(openaiCompatible).length === 0) return undefined;
+    return {
+      openaiCompatible,
+      "openai-compatible": openaiCompatible,
+    };
+  }
+
+  if (protocol === "anthropic-compatible" && "thinking" in rawParams) {
+    const anthropic: ProviderThinkingParams = {};
+    setProviderOption(anthropic, "thinking", rawParams.thinking);
+    return Object.keys(anthropic).length > 0 ? { anthropic } : undefined;
+  }
+
+  if (protocol === "gemini-compatible" && "generationConfig" in rawParams) {
+    const google = toProviderJsonValue(rawParams.generationConfig);
+    return google && typeof google === "object" && !Array.isArray(google)
+      ? { google: google as ProviderThinkingParams }
+      : undefined;
+  }
+
+  return undefined;
 }

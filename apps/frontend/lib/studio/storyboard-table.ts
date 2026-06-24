@@ -57,8 +57,12 @@ export function computeDurationSec(text: string, speed: number): number {
 
 export function buildStoryboardTableMessages(input: BuildStoryboardTableInput): StoryboardTableMessages {
   const skill = getAgentSkillPreset("production_execution_storyboard_table")?.content ?? "storyboardTable";
+  const voiceoverGuard = [
+    "分镜配音硬约束：每条分镜必须填写台词/旁白字段，作为后续配音、TTS 和角色音色绑定的输入。",
+    "角色台词保留 `角色名：台词内容`，无角色台词时必须写 `旁白：解说内容`，不要留空或写无台词。",
+  ].join("\n");
   return {
-    system: [skill, input.scriptPlanContext].filter(Boolean).join("\n\n---\n\n"),
+    system: [skill, voiceoverGuard, input.scriptPlanContext].filter(Boolean).join("\n\n---\n\n"),
     user: [
       `当前集ID：${input.episodeId}`,
       input.scriptPlanContext ? `导演规划要点：\n${input.scriptPlanContext}` : "",
@@ -121,8 +125,21 @@ export function toStoryboardItems(rows: StoryboardTableRow[], episodeId: string)
       orientation: row.orientation,
       spatialRelation: row.spatialRelation,
       associateAssetsNames: row.associateAssetsNames,
+      lines: row.lines,
+      speakerId: resolveSpeakerId(row.lines),
+      sound: row.sound,
     };
   });
+}
+
+function resolveSpeakerId(lines: string): string | undefined {
+  const text = (lines ?? "").trim();
+  if (!text || text === "无台词" || text === "—") return undefined;
+  const colonIdx = text.search(/[:：]/);
+  if (colonIdx < 0) return "narrator";
+  const speaker = text.slice(0, colonIdx).trim();
+  if (!speaker || /^(旁白|VO|画外音|解说)$/i.test(speaker)) return "narrator";
+  return `character:${speaker}`;
 }
 
 /** 取出所有 <storyboardTable>…</storyboardTable> 段并拼接；无标签则回退整段。 */

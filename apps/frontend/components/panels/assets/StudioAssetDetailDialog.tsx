@@ -13,6 +13,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -21,6 +22,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useFreedomStore } from "@/stores/freedom-store";
 import { useMediaPanelStore } from "@/stores/media-panel-store";
 import type { AssetImage, StudioAssetSummary } from "@/types/studio-assets";
+import { RoleVoiceAssignDialog } from "./RoleVoiceAssignDialog";
 import {
   Box,
   Clipboard,
@@ -43,6 +45,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { polishAssetPrompt } from "@/lib/ai/prompt-polisher";
+import { ensureBackendVoiceProfile } from "@/lib/tts/client";
 import { useStudioStore } from "@/stores/studio-store";
 import { useTtsStore } from "@/stores/tts-store";
 import type { ProjectVoiceBinding, TtsSpeakerId, VoiceProfile } from "@/types/tts";
@@ -108,9 +111,13 @@ export function StudioAssetDetailDialog({
   const [isPolishingPrompt, setIsPolishingPrompt] = useState(false);
   const [generatePhase, setGeneratePhase] = useState<"polishing" | "generating" | "saving" | "done" | "failed" | null>(null);
   const [generateMessage, setGenerateMessage] = useState("");
+  const [voiceAssignOpen, setVoiceAssignOpen] = useState(false);
 
   // 获取当前项目的视觉手册 ID
   const visualManualId = useStudioStore((s) => s.workflowConfig?.visualManualId);
+  const activeTtsProjectId = useTtsStore((s) => s.activeProjectId);
+  const ttsProjects = useTtsStore((s) => s.projects);
+  const voiceProfiles = useTtsStore((s) => s.voiceProfiles);
 
   const [images, setImages] = useState<AssetImage[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -124,6 +131,7 @@ export function StudioAssetDetailDialog({
       setImages([]);
       setCurrentIndex(0);
       setRecognizedText(null);
+      setVoiceAssignOpen(false);
       return;
     }
 
@@ -176,6 +184,10 @@ export function StudioAssetDetailDialog({
   const spokenText = recognizedText ?? (draftDescription.trim() || "");
   const audioSrc = asset.previewUrl || asset.filePath || "";
   const hasImagePreview = asset.type !== "audio" && images.length > 0;
+  const roleSpeakerId = `character:${asset.id}` as TtsSpeakerId;
+  const roleVoiceBindings = activeTtsProjectId ? (ttsProjects[activeTtsProjectId]?.bindings ?? {}) : {};
+  const roleVoiceBinding = asset.type === "role" ? roleVoiceBindings[roleSpeakerId] : undefined;
+  const roleVoiceProfile = roleVoiceBinding ? voiceProfiles[roleVoiceBinding.profileId] : undefined;
 
   /** 润色当前资产的提示词 */
   const handlePolishPrompt = async () => {
@@ -423,22 +435,26 @@ export function StudioAssetDetailDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="studio-asset-detail-dialog h-[92vh] !w-[90vw] !max-w-[90vw] overflow-hidden p-0">
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="studio-asset-detail-dialog h-[92vh] !w-[90vw] !max-w-[90vw] overflow-hidden p-0">
         <DialogHeader className={asset.type === "audio" ? "sr-only" : "studio-asset-detail-header border-b border-border px-5 py-4"}>
           <DialogTitle className={asset.type === "audio" ? "sr-only" : "flex min-w-0 items-center gap-2 text-base"}>
             <Icon className="h-4 w-4 text-primary" />
             <span className="truncate">{displayName}</span>
             <Badge variant="outline" className="ml-1">{TYPE_LABEL[asset.type]}</Badge>
           </DialogTitle>
+          <DialogDescription className="sr-only">
+            查看和编辑资产详情，包括预览、提示词、设定和角色音色绑定。
+          </DialogDescription>
         </DialogHeader>
 
         <div className="grid min-h-0 flex-1 grid-cols-[minmax(280px,420px)_1fr] gap-0 overflow-hidden">
           {/* 左侧：图片/音频预览 */}
-          <div className="studio-asset-detail-preview border-r border-border bg-muted/20 p-4">
+          <div className="studio-asset-detail-preview border-r border-border bg-muted/90 p-4">
             <div className="relative">
               {asset.type === "audio" ? (
-                <div className="space-y-3 rounded-lg border border-border bg-background/80 p-4">
+                <div className="space-y-3 rounded-lg border border-border bg-background/90 p-4">
                   <div className="flex items-start gap-3">
                     <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-primary/20 bg-primary/10">
                       <Music2 className="h-5 w-5 text-primary" />
@@ -453,7 +469,7 @@ export function StudioAssetDetailDialog({
                       <span key={index} style={{ "--bar-height": `${height}%` } as CSSProperties} />
                     ))}
                   </div>
-                  <div className="rounded-md border border-border bg-muted/30 p-3">
+                  <div className="rounded-md border border-border bg-muted/90 p-3">
                     {audioSrc ? (
                       <audio controls src={audioSrc} className="w-full" />
                     ) : (
@@ -693,7 +709,7 @@ export function StudioAssetDetailDialog({
               <section className="space-y-1.5">
                 <div className="text-xs font-medium text-muted-foreground">名字</div>
                 <input
-                  className="w-full rounded-md border border-border bg-muted/20 px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
+                  className="w-full rounded-md border border-border bg-muted/90 px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
                   value={draftName}
                   onChange={(event) => setDraftName(event.target.value)}
                 />
@@ -707,7 +723,7 @@ export function StudioAssetDetailDialog({
                     setRecognizedText(null);
                   }}
                   placeholder={asset.type === "audio" ? "暂无口播词句" : "暂无描述"}
-                  className="min-h-[80px] resize-none bg-muted/20 text-xs leading-5"
+                  className="min-h-[80px] resize-none bg-muted/90 text-xs leading-5"
                 />
               </section>
               {/* 人物属性 — 从 setting 中解析 */}
@@ -727,7 +743,7 @@ export function StudioAssetDetailDialog({
                 }
                 if (fields.length === 0) return null;
                 return (
-                  <section className="space-y-2 rounded-lg border border-border bg-muted/70 p-3 overflow-hidden">
+                  <section className="space-y-2 rounded-lg border border-border bg-muted/90 p-3 overflow-hidden">
                     <div className="text-xs font-semibold text-foreground">人物属性</div>
                     <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
                       {fields.map((f, i) => (
@@ -741,38 +757,51 @@ export function StudioAssetDetailDialog({
               })()}
               {/* 音色信息 — 仅角色类型显示 */}
               {asset.type === "role" && (() => {
-                const bindings = useTtsStore.getState().projects[useTtsStore.getState().activeProjectId ?? ""]?.bindings ?? {};
-                const voiceProfiles = useTtsStore.getState().voiceProfiles;
-                const speakerId = `character:${asset.id}` as TtsSpeakerId;
-                const binding = bindings[speakerId];
-                const profile = binding ? voiceProfiles[binding.profileId] : undefined;
-                if (!binding || !profile) {
+                if (!roleVoiceBinding || !roleVoiceProfile) {
                   return (
-                    <section className="space-y-2 rounded-lg border border-border bg-muted/70 p-3">
+                    <button
+                      type="button"
+                      onClick={() => setVoiceAssignOpen(true)}
+                      className="w-full space-y-2 rounded-lg border border-border bg-muted/90 p-3 text-left transition-colors hover:border-primary/45 hover:bg-primary/10"
+                    >
                       <div className="text-xs font-semibold text-foreground flex items-center gap-1.5">
                         <Volume2 className="h-3.5 w-3.5" /> 音色
                       </div>
-                      <p className="text-xs text-muted-foreground">尚未分配音色。请在「剧情产物生成」中为该角色分配音色。</p>
-                    </section>
+                      <p className="text-xs text-muted-foreground">尚未分配音色。点击选择资产库音频。</p>
+                    </button>
                   );
                 }
                 return (
-                  <section className="space-y-2 rounded-lg border border-border bg-muted/70 p-3">
-                    <div className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                      <Volume2 className="h-3.5 w-3.5" /> 音色信息
-                    </div>
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs overflow-hidden">
-                      <div className="truncate" title={profile.type === "preset" ? "预设音色" : "克隆音色"}><span className="text-muted-foreground">类型：</span>{profile.type === "preset" ? "预设音色" : "克隆音色"}</div>
-                      <div className="truncate" title={profile.defaultEngine}><span className="text-muted-foreground">引擎：</span>{profile.defaultEngine}</div>
-                      {profile.presetVoiceId && <div className="truncate" title={profile.presetVoiceId}><span className="text-muted-foreground">预设：</span>{profile.presetVoiceId}</div>}
-                      {profile.referenceAudioPath && <div className="col-span-2 truncate" title={profile.referenceAudioPath}><span className="text-muted-foreground">参考音频：</span>{profile.referenceAudioPath}</div>}
-                      <div className="truncate" title={profile.id}><span className="text-muted-foreground">Profile：</span>{profile.id}</div>
-                    </div>
+                  <section className="space-y-2 rounded-lg border border-border bg-muted/90 p-3">
+                    <button
+                      type="button"
+                      onClick={() => setVoiceAssignOpen(true)}
+                      className="w-full rounded-md text-left transition-colors hover:bg-primary/10"
+                    >
+                      <div className="flex items-center justify-between gap-2 p-2">
+                        <div className="min-w-0">
+                          <div className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                            <Volume2 className="h-3.5 w-3.5" /> 音色信息
+                          </div>
+                          <div className="mt-1 text-[11px] text-muted-foreground">点击更换资产库音频</div>
+                        </div>
+                        <span className="shrink-0 rounded border border-primary/30 bg-primary/10 px-2 py-1 text-[11px] text-primary">
+                          更换音色
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-1 overflow-hidden p-2 pt-0 text-xs">
+                        <div className="truncate" title={roleVoiceProfile.type === "preset" ? "预设音色" : "克隆音色"}><span className="text-muted-foreground">类型：</span>{roleVoiceProfile.type === "preset" ? "预设音色" : "克隆音色"}</div>
+                        <div className="truncate" title={roleVoiceProfile.defaultEngine}><span className="text-muted-foreground">引擎：</span>{roleVoiceProfile.defaultEngine}</div>
+                        {roleVoiceProfile.presetVoiceId && <div className="truncate" title={roleVoiceProfile.presetVoiceId}><span className="text-muted-foreground">预设：</span>{roleVoiceProfile.presetVoiceId}</div>}
+                        {roleVoiceProfile.referenceAudioPath && <div className="col-span-2 truncate" title={roleVoiceProfile.referenceAudioPath}><span className="text-muted-foreground">参考音频：</span>{roleVoiceProfile.referenceAudioPath}</div>}
+                        <div className="truncate" title={roleVoiceProfile.id}><span className="text-muted-foreground">Profile：</span>{roleVoiceProfile.id}</div>
+                      </div>
+                    </button>
                     <RoleVoicePreviewButton
-                      profileId={profile.id}
+                      profileId={roleVoiceProfile.id}
                       characterName={asset.name}
-                      defaultEngine={binding.defaultEngine}
-                      defaultModelSize={binding.defaultModelSize}
+                      defaultEngine={roleVoiceBinding.defaultEngine}
+                      defaultModelSize={roleVoiceBinding.defaultModelSize}
                     />
                   </section>
                 );
@@ -785,7 +814,7 @@ export function StudioAssetDetailDialog({
                       value={draftPrompt}
                       onChange={(event) => setDraftPrompt(event.target.value)}
                       placeholder="暂无出图提示词"
-                      className="min-h-[80px] resize-none bg-muted/20 text-xs leading-5"
+                      className="min-h-[80px] resize-none bg-muted/90 text-xs leading-5"
                     />
                     {/* 润色提示词按钮 */}
                     <div className="flex items-center gap-2">
@@ -821,7 +850,7 @@ export function StudioAssetDetailDialog({
                       value={draftSetting}
                       onChange={(event) => setDraftSetting(event.target.value)}
                       placeholder="暂无设定"
-                      className="min-h-[200px] resize-none bg-muted/20 text-xs leading-5"
+                      className="min-h-[200px] resize-none bg-muted/90 text-xs leading-5"
                     />
                   </section>
                 </>
@@ -833,8 +862,16 @@ export function StudioAssetDetailDialog({
             </div>
           </ScrollArea>
         </div>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+      {asset.type === "role" && (
+        <RoleVoiceAssignDialog
+          character={{ id: asset.id, name: asset.name }}
+          open={voiceAssignOpen}
+          onOpenChange={setVoiceAssignOpen}
+        />
+      )}
+    </>
   );
 }
 
@@ -852,6 +889,7 @@ function RoleVoicePreviewButton({ profileId, characterName, defaultEngine, defau
 }) {
   const [playing, setPlaying] = useState(false);
   const [loading, setLoading] = useState(false);
+  const profile = useTtsStore((state) => state.voiceProfiles[profileId]);
   const audioRef = useState<HTMLAudioElement | null>(null)[0];
   const [, forceUpdate] = useState(0);
   const audioRefStable = useMemo(() => ({ current: null as HTMLAudioElement | null }), []);
@@ -867,8 +905,21 @@ function RoleVoicePreviewButton({ profileId, characterName, defaultEngine, defau
       toast.error("TTS 后端未就绪");
       return;
     }
+    if (!profile) {
+      toast.error("音色 profile 不存在，请重新分配音色");
+      return;
+    }
     setLoading(true);
     try {
+      const ttsStatus = await window.ttsRuntime.status();
+      if (!ttsStatus.running) {
+        const startRes = await window.ttsRuntime.start();
+        if (!startRes.success) {
+          toast.error(`TTS 启动失败: ${startRes.error || "未知错误"}`);
+          return;
+        }
+      }
+      await ensureBackendVoiceProfile(profile);
       const text = `大家好，我是${characterName}，很高兴认识你们。`;
       const genRes = await window.ttsRuntime.request({
         method: "POST", path: "/generate",
@@ -900,7 +951,7 @@ function RoleVoicePreviewButton({ profileId, characterName, defaultEngine, defau
     } finally {
       setLoading(false);
     }
-  }, [profileId, characterName, defaultEngine, defaultModelSize, playing, audioRefStable]);
+  }, [profileId, profile, characterName, defaultEngine, defaultModelSize, playing, audioRefStable]);
 
   return (
     <Button

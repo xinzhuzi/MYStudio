@@ -1,7 +1,7 @@
 // Copyright (c) 2025 hotflow2024
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
-import type { OpenExternalResult, UpdateCheckResult } from "./update";
+import type { OpenExternalResult, UpdateCheckOptions, UpdateCheckResult } from "./update";
 import type { ModelTestRequest, ModelTestResult } from "../lib/api-manager/model-test";
 import type { TextCompletionRequest, TextCompletionResult } from "../lib/api-manager/text-completion";
 import type { EpisodeMergePlan, TrackRenderPlan } from "./studio";
@@ -21,6 +21,10 @@ declare global {
   interface Window {
     appEvents?: {
       onMainProcessMessage: (listener: (message: string) => void) => () => void;
+    };
+    mystudioSmoke?: {
+      enabled: boolean;
+      userDataDir?: string;
     };
     imageStorage?: {
       saveImage: (url: string, category: string, filename: string) => Promise<{ success: boolean; localPath?: string; error?: string }>;
@@ -136,7 +140,7 @@ declare global {
     };
     appUpdater?: {
       getCurrentVersion: () => Promise<string>;
-      checkForUpdates: () => Promise<UpdateCheckResult>;
+      checkForUpdates: (options?: UpdateCheckOptions) => Promise<UpdateCheckResult>;
       openExternalLink: (url: string) => Promise<OpenExternalResult>;
     };
     imageHostUploader?: {

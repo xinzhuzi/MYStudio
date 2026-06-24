@@ -23,12 +23,15 @@
   "scripts": {
     "dev": "electron-vite dev --config frontend/config/electron-vite.config.ts",
     "build": "npm run build:mac",
-    "build:mac": "electron-vite build --config frontend/config/electron-vite.config.ts && electron-builder --config frontend/config/electron-builder.yml --mac --arm64",
+    "build:mac": "sh ./build/build-mac.sh --arm64",
     "build:win": "electron-vite build --config frontend/config/electron-vite.config.ts && electron-builder --config frontend/config/electron-builder.yml --win",
     "build:linux": "electron-vite build --config frontend/config/electron-vite.config.ts && electron-builder --config frontend/config/electron-builder.yml --linux",
     "typecheck": "tsc --noEmit -p frontend/config/tsconfig.json",
     "lint": "eslint . --config frontend/config/eslint.cjs --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "test": "vitest run --config frontend/config/vite.config.ts",
+    "smoke:desktop": "node ./build/smoke-desktop.mjs",
+    "smoke:installed": "node ./build/install-and-smoke.mjs",
+    "video:daojie:chapter001": "node ./build/automate-daojie-chapter001-video.mjs",
     "preview": "electron-vite preview --config frontend/config/electron-vite.config.ts"
   },
   "dependencies": {
@@ -99,6 +102,7 @@
     "eslint-plugin-react-refresh": "^0.4.5",
     "jsdom": "^29.1.1",
     "png-to-ico": "^3.0.1",
+    "pngjs": "^7.0.0",
     "postcss": "^8.5.6",
     "sharp": "^0.34.5",
     "tailwindcss": "^4.1.18",

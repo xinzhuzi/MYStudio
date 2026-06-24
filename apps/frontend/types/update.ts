@@ -21,6 +21,10 @@ export interface AvailableUpdateInfo {
   baiduCode?: string;
 }
 
+export interface UpdateCheckOptions {
+  silent?: boolean;
+}
+
 export type UpdateCheckResult =
   | {
       success: true;

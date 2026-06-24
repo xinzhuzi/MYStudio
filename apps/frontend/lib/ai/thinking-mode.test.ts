@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   THINKING_TEST_MAX_TOKENS,
+  buildThinkingProviderOptions,
   buildThinkingParams,
   resolveThinkingEnabled,
   supportsThinking,
@@ -140,5 +141,27 @@ describe("buildThinkingParams explicit enabled override", () => {
     expect(
       buildThinkingParams({ model: "o3-mini", protocol: "openai-compatible", maxTokens: 4096, enabled: true }),
     ).toEqual({ reasoning_effort: "high" });
+  });
+});
+
+describe("buildThinkingProviderOptions", () => {
+  it("maps raw OpenAI-compatible thinking params to AI SDK provider options", () => {
+    expect(
+      buildThinkingProviderOptions("openai-compatible", "glm-4.6", {
+        thinking: { type: "enabled" },
+      }),
+    ).toEqual({
+      openaiCompatible: { thinking: { type: "enabled" } },
+      "openai-compatible": { thinking: { type: "enabled" } },
+    });
+
+    expect(
+      buildThinkingProviderOptions("openai-compatible", "o3-mini", {
+        reasoning_effort: "high",
+      }),
+    ).toEqual({
+      openaiCompatible: { reasoningEffort: "high" },
+      "openai-compatible": { reasoningEffort: "high" },
+    });
   });
 });

@@ -43,7 +43,7 @@ import { sdkGenerateText, sdkStreamText } from '../lib/ai/ai-sdk-bridge'
 import type { StudioAssetListRequest } from '../types/studio-assets'
 import type { StudioVisualManualCreatePayload, StudioVisualManualImagesWritePayload, StudioVisualManualWritePayload } from '../types/studio-visual-manual'
 import type { EpisodeMergePlan, TrackRenderInput, TrackRenderPlan } from '../types/studio'
-import type { AvailableUpdateInfo, OpenExternalResult, UpdateCheckResult, UpdateManifest } from '../types/update'
+import type { AvailableUpdateInfo, OpenExternalResult, UpdateCheckOptions, UpdateCheckResult, UpdateManifest } from '../types/update'
 import {
   createBeforeQuitCleanup,
   createWindowAllClosedHandler,
@@ -242,6 +242,8 @@ function createWindow() {
     height: 900,
     minWidth: 1200,
     minHeight: 700,
+    show: false,
+    backgroundColor: '#17191c',
     titleBarStyle: 'hiddenInset',
     trafficLightPosition: { x: 16, y: 14 },
     webPreferences: {
@@ -249,9 +251,24 @@ function createWindow() {
     },
   })
 
+  let hasShownWindow = false
+  const showWindow = () => {
+    if (!win || win.isDestroyed() || hasShownWindow) return
+    hasShownWindow = true
+    win.show()
+  }
+
+  win.once('ready-to-show', showWindow)
+
   // Test active push message to Renderer-process.
   win.webContents.on('did-finish-load', () => {
     win?.webContents.send('main-process-message', (new Date).toLocaleString())
+    showWindow()
+  })
+
+  win.webContents.once('did-fail-load', (_event, errorCode, errorDescription) => {
+    console.error(`Renderer failed to load (${errorCode}): ${errorDescription}`)
+    showWindow()
   })
 
   // Open external links in system browser instead of inside Electron
@@ -1918,7 +1935,7 @@ ipcMain.handle('app-updater-get-current-version', async () => {
   return app.getVersion()
 })
 
-ipcMain.handle('app-updater-check', async (): Promise<UpdateCheckResult> => {
+ipcMain.handle('app-updater-check', async (_event, options?: UpdateCheckOptions): Promise<UpdateCheckResult> => {
   const currentVersion = app.getVersion()
   try {
     const update = await resolveAvailableUpdate(currentVersion)
@@ -1929,7 +1946,9 @@ ipcMain.handle('app-updater-check', async (): Promise<UpdateCheckResult> => {
       update,
     }
   } catch (error) {
-    console.error('Failed to check updates:', error)
+    if (!options?.silent) {
+      console.error('Failed to check updates:', error)
+    }
     return {
       success: false,
       currentVersion,
@@ -2159,17 +2178,19 @@ async function assertFfmpegAvailable() {
 
 async function renderStudioSegment(input: TrackRenderInput, outputPath: string) {
   const sourcePath = ensureReadableStudioSource(input.sourcePath)
+  const audioPath = input.audioPath ? ensureReadableStudioSource(input.audioPath) : null
   const duration = Math.max(0.2, Number(input.duration) || 5)
   const videoFilter = 'scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2,format=yuv420p'
+  const audioInputArgs = audioPath
+    ? ['-i', audioPath]
+    : ['-f', 'lavfi', '-t', String(duration), '-i', 'anullsrc=r=44100:cl=stereo']
 
   if (input.sourceKind === 'image') {
     await execFileAsync('ffmpeg', [
       '-loop', '1',
       '-t', String(duration),
       '-i', sourcePath,
-      '-f', 'lavfi',
-      '-t', String(duration),
-      '-i', 'anullsrc=r=44100:cl=stereo',
+      ...audioInputArgs,
       '-vf', videoFilter,
       '-c:v', 'libx264',
       '-preset', 'fast',
@@ -2184,9 +2205,7 @@ async function renderStudioSegment(input: TrackRenderInput, outputPath: string) 
 
   await execFileAsync('ffmpeg', [
     '-i', sourcePath,
-    '-f', 'lavfi',
-    '-t', String(duration),
-    '-i', 'anullsrc=r=44100:cl=stereo',
+    ...audioInputArgs,
     '-map', '0:v:0',
     '-map', '1:a:0',
     '-t', String(duration),

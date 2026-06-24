@@ -5,7 +5,7 @@ import { Loader2, Mic2, RotateCcw, Square, Volume2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
-  createBackendVoiceProfile,
+  ensureBackendVoiceProfile,
   fetchGenerationAudio,
   getGenerationStatus,
   startTtsRuntime,
@@ -92,7 +92,7 @@ export function SceneVoiceBatchToolbar({ scenes }: SceneVoiceBatchToolbarProps) 
           continue;
         }
         try {
-          await createBackendVoiceProfile(profile);
+          await ensureBackendVoiceProfile(profile);
           const generation = await aiManager.tts({
             text: line.text || scene.dialogue || "",
             profileId: profile.id,

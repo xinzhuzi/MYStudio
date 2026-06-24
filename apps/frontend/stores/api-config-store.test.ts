@@ -67,7 +67,7 @@ describe("useAPIConfigStore unified model configuration", () => {
     expect(API_AGENT_DEPLOYMENT_GROUPS.map((group) => group.label)).toEqual([
       "通用与兜底",
       "小说理解",
-      "剧本策划",
+      "策划编剧",
       "制作规划",
       "多模态执行",
     ]);

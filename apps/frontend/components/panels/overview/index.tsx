@@ -221,7 +221,7 @@ export function OverviewPanel() {
           <div className="border-b px-5 py-4">
             <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
               <BookOpen className="h-3.5 w-3.5" />
-              新手引导
+              项目入口
             </div>
             <div className="mt-2 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
               <div>
@@ -241,30 +241,6 @@ export function OverviewPanel() {
                 </Button>
               </div>
             </div>
-          </div>
-          <div className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-3">
-            {OVERVIEW_WORKFLOW_GUIDE.steps.map((step) => (
-              <div key={step.id} className="rounded-lg border bg-background/50 p-4">
-                <div className="mb-3 flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2">
-                    <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
-                      {step.id}
-                    </span>
-                    <h4 className="text-sm font-semibold text-foreground">{step.title}</h4>
-                  </div>
-                  <Button
-                    size="sm"
-                    variant={step.id === 1 ? "default" : "outline"}
-                    onClick={() => setActiveTab(step.targetTab)}
-                    className="h-8 gap-1.5"
-                  >
-                    {step.actionLabel}
-                    <ArrowRight className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-                <p className="text-sm leading-6 text-muted-foreground">{step.description}</p>
-              </div>
-            ))}
           </div>
         </div>
       </div>

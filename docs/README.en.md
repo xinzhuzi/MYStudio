@@ -15,7 +15,7 @@ From novel to final cut — scripts, storyboards, assets, voice-over, and editin
   <img src="https://img.shields.io/badge/AI-MLX%20%7C%20Qwen%20%7C%20SenseVoice-ff6f00.svg" alt="AI" />
 </p>
 
-[简体中文](../README.md) · [English](./README.en.md) · [Commercial License](../COMMERCIAL_LICENSE.md)
+[简体中文](../README.md) · [文档中心](./README.md) · [Commercial License](../COMMERCIAL_LICENSE.md)
 
 </div>
 
@@ -40,7 +40,7 @@ The project emphasizes a local-first approach with creator control: assets, proj
 The core pipeline is:
 
 ```text
-Novel/Script Import -> Skill Context -> Script Draft -> Storyboard -> Production Track -> Candidate Clips -> Editing/Compositing -> Config Validation
+Novel Import -> Script Planning -> Asset Extraction -> Production Generation -> Storyboard Table -> Editing Workbench
 ```
 
 The pipeline supports phased progress: you can stop at scripts and storyboards, or continue to bind assets, generate candidate clips, and produce a full video via local compositing. Each stage keeps a manual revision entry point, so creators retain control when AI output quality is unstable.
@@ -51,6 +51,7 @@ The pipeline supports phased progress: you can stop at scripts and storyboards, 
 - Frontend workbench: built with React and TypeScript.
 - State management: Zustand manages project workflow, assets, storyboards, candidates, and configuration state.
 - File-based storage: aimed at personal creative projects, reducing database deployment and backend maintenance cost.
+- Asset library storage: production assets use a separate SQLite-backed library under `<storageBasePath>/assets`, while project JSON data stays under `<storageBasePath>/projects`.
 - Local compositing: the Electron main process invokes FFmpeg for candidate clip rendering, subtitle burn-in, and stitched output.
 
 ### Design Goals
@@ -80,12 +81,64 @@ The pipeline supports phased progress: you can stop at scripts and storyboards, 
 
 After opening a project, open `Workflow` on the left:
 
-1. `Novel`: import `.txt/.md` or paste the body text.
-2. `Skill`: generate a context bundle and save manual work data.
-3. `Script`: save the screenplay draft.
-4. `Storyboard`: maintain tracks, durations, asset paths, and dialogue.
-5. `Editing`: generate candidate clips with local FFmpeg, then stitch the selected ones into a final cut.
-6. `Config`: save relay endpoints, model definitions, and task bindings.
+1. `Novel Import`: import `.txt/.md` files or paste the source text.
+2. `Script Planning`: generate the story skeleton, adaptation strategy, script draft, and review report.
+3. `Script Asset Management`: extract characters, scenes, and props from scripts and match them with the asset library.
+4. `Production Generation`: run director planning and fill missing character, scene, and prop images.
+5. `Storyboard Table`: generate storyboard rows and maintain duration, dialogue, and visual assets.
+6. `Editing Workbench`: render candidate clips with local FFmpeg and stitch selected clips into a final cut.
+
+## Current Documentation Map
+
+Most detailed guides are currently maintained in Chinese. Use these entry points for the current product surface:
+
+| Guide | Scope |
+|---|---|
+| [Documentation Center](./README.md) | Full Chinese docs index |
+| [App Shell Operations](./APP_SHELL_OPERATIONS.md) | Chinese guide for sidebar collapse, project header, back button, episode breadcrumb, and save status |
+| [Navigation](./NAVIGATION_GUIDE.md) | Main navigation, settings tabs, workflow tabs, and internal compatibility workspaces |
+| [Skills Editor Operations](./SKILLS_EDITOR_OPERATIONS.md) | Chinese guide for skill editor buttons, file states, create/delete/restore behavior |
+| [Project Dashboard](./PROJECT_DASHBOARD_GUIDE.md) | Create, open, duplicate, rename, and delete projects |
+| [Project Dashboard Operations](./PROJECT_DASHBOARD_OPERATIONS.md) | Chinese guide for sidebar toggle, selection mode, inline create, card menu, dialogs, and batch delete |
+| [Project Overview](./OVERVIEW_PANEL_GUIDE.md) | Story core, worldbuilding, production settings, and episode list |
+| [Project Overview Operations](./OVERVIEW_PANEL_OPERATIONS.md) | Chinese guide for workflow cards, inline editing, episode catalog, and right-side metadata summaries |
+| [Workflow Guide](./WORKFLOW_GUIDE.md) | Novel import, script planning, asset generation, storyboard, and editing workflow |
+| [Workflow Stage Operations](./WORKFLOW_STAGE_OPERATIONS.md) | Detailed Chinese reference for workflow stage buttons, status, dialogs, and data flow |
+| [Novel Import and Script Planning Operations](./WORKFLOW_NOVEL_SCRIPT_OPERATIONS.md) | Chinese reference for manual selection, chapter import, event analysis, staged script generation, review, and repair |
+| [Script Asset and Generation Operations](./WORKFLOW_ASSET_GENERATION_OPERATIONS.md) | Chinese reference for script asset extraction, asset matching, prompt polishing, missing asset generation, and role voice entry points |
+| [Storyboard and Editing Operations](./WORKFLOW_STORYBOARD_EDITING_OPERATIONS.md) | Chinese reference for material binding, storyboard fields, AI storyboard table protocol, track grouping, local rendering, and final stitching |
+| [Assist Workbench Operations](./ASSIST_WORKBENCH_OPERATIONS.md) | Chinese guide for image/video/cinema/TTS assist workbench controls and history |
+| [Assist Workbench Parameter Reference](./ASSIST_WORKBENCH_PARAMETER_REFERENCE.md) | Chinese reference for image/video/Veo upload/cinema/TTS assist workbench fields |
+| [Media Outputs Operations](./MEDIA_OUTPUTS_OPERATIONS.md) | Chinese guide for media upload, folders, context menus, export, and director shortcuts |
+| [Export Operations](./EXPORT_OPERATIONS.md) | Chinese guide for export source selection, sequence strip, progress display, disabled states, and secondary cards |
+| [Visual Style Management](./VISUAL_STYLE_MANAGEMENT.md) | Default styles, custom styles, visual manual editing, and AI style-token extraction |
+| [Visual Manual Editor Operations](./VISUAL_MANUAL_EDITOR_OPERATIONS.md) | Chinese guide for visual manual Markdown modules, reference images, directory access, preview, and save behavior |
+| [Legacy Script Workspace](./LEGACY_SCRIPT_WORKSPACE_GUIDE.md) | Internal three-column script editor, AI calibration, trailer shot selection, and compatibility jumps |
+| [Trailer Storyboard Reuse Reference](./TRAILER_STORYBOARD_REUSE_REFERENCE.md) | Chinese reference for trailer shot selection, Shot-to-director-scene reuse, S-Class trailer generation, and clearing behavior |
+| [Character Generation and Wardrobe](./CHARACTER_GENERATION_GUIDE.md) | Internal character generation, character sheets, AI calibration data, and outfit variations |
+| [Advanced Director Tools](./ADVANCED_DIRECTOR_TOOLS.md) | Internal director workspace, S-level group generation, angle switching, and quad-grid variants |
+| [Director Shot Card Reference](./DIRECTOR_SHOT_CARD_REFERENCE.md) | Chinese reference for director shot card fields, first/end frames, references, prompts, video generation, and audio controls |
+| [Director Voiceover Reference](./DIRECTOR_VOICEOVER_REFERENCE.md) | Chinese reference for shot voice-over lines, voice profiles, single-shot generation, and batch retry/missing generation |
+| [Angle and Quad Grid Operations](./ANGLE_AND_QUAD_GRID_OPERATIONS.md) | Chinese guide for start/end-frame angle switching, quad-grid generation, result application, copying to other shots, and failures |
+| [S-Class Group Video Operations](./SCLASS_GROUP_VIDEO_OPERATIONS.md) | Chinese guide for Seedance 2.0 grouped generation, single-shot generation, @references, AI calibration, extension, and editing |
+| [Scene Multi-view and Orthographic Views](./SCENE_MULTIVIEW_GUIDE.md) | Scene single-image, contact-sheet, orthographic-view, splitting, and batch generation workflows |
+| [Asset Library](./ASSET_LIBRARY_GUIDE.md) | Roles, scenes, props, audio assets, styles, and storage |
+| [Asset Import and Management](./ASSET_IMPORT_AND_MANAGEMENT.md) | Add roles/scenes/props, batch manage assets, edit detail data, manage multiple images, and transcribe audio samples |
+| [Asset Detail Operations](./ASSET_DETAIL_OPERATIONS.md) | Chinese guide for asset preview, image actions, prompt polish, one-click generation, audio transcription, role voices, and deletion |
+| [Props Library Operations](./PROPS_LIBRARY_OPERATIONS.md) | Chinese guide for local prop folders, folder create/rename/delete, and prop move/rename/delete behavior |
+| [Voice Assignment](./ASSET_AUDIO_ASSIGNMENT.md) | Assign asset audio samples to roles for local voice cloning |
+| [Role Audio Assignment Reference](./ROLE_AUDIO_ASSIGNMENT_REFERENCE.md) | Chinese reference for role voice dialog fields, automatic matching rules, AI semantic matching, preview playback, and transcription failures |
+| [Settings Panel Operations](./SETTINGS_PANEL_OPERATIONS.md) | Chinese guide for settings tabs, desktop-only controls, storage/update/development/support actions |
+| [Python and Local TTS](./PYTHON_TTS_SETUP.md) | Manual Python 3.12 setup, dependency installation, and TTS backend startup |
+| [API Manager Operations](./API_MANAGER_OPERATIONS.md) | Chinese guide for providers, model sync/test, thinking mode, feature mapping, and Agent bindings |
+| [API Provider and Model Test Reference](./API_PROVIDER_MODEL_TEST_REFERENCE.md) | Chinese reference for provider add/edit fields, model sync behavior, model test protocols, and errors |
+| [TTS Configuration](./TTS_CONFIG_GUIDE.md) | Local TTS backend status, model cache, model downloads, and voice profiles |
+| [TTS Panel Operations](./TTS_PANEL_OPERATIONS.md) | Chinese guide for local TTS status, model folders, download tasks, model detail dialog, and voice profiles |
+| [Storage and Migration](./STORAGE_AND_DATA.md) | Storage base path, import/export, recovery, and legacy migration |
+| [App Updates](./APP_UPDATE_GUIDE.md) | Manual update checks, startup checks, ignored versions, and manifest fields |
+| [Packaging and Smoke Testing](./PACKAGING_AND_SMOKE_TESTING.md) | macOS build, no-backup install, app hash check, and desktop smoke |
+| [Troubleshooting](./TROUBLESHOOTING.md) | White screen, Python, TTS, API, image host, storage, and build issues |
+| [Documentation Coverage Audit](./DOCS_COVERAGE_AUDIT.md) | Chinese maintenance map from current UI/source entry points to user docs and remaining priorities |
 
 ## License
 
@@ -126,7 +179,7 @@ The project's AI features (TTS voice cloning, speech recognition, image/video ge
 ### Common
 
 - Node.js >= 18 (latest LTS recommended)
-- Python 3.12 (bundled with the project, no manual install needed)
+- Python 3.12 (configured on demand from the desktop app before using local TTS)
 
 ## Development Setup
 
@@ -154,9 +207,11 @@ powershell -ExecutionPolicy Bypass -File apps\build\setup-win.ps1
 ```
 
 The script automatically:
-1. Downloads Python 3.12 (python-build-standalone, project-local, does not affect the system)
-2. Installs Python backend dependencies (MLX on macOS; CUDA PyTorch + qwen-tts on Windows)
-3. Installs Node.js dependencies
+1. Installs Node.js dependencies
+2. Keeps the Python runtime out of the installer and backend source directory
+3. Lets users manually configure Python later from `Settings -> Python Configuration`
+
+Python 3.12 and TTS dependencies are configured on demand from the desktop app. The app does not download Python or start the local TTS backend during startup. See [Python and local TTS setup](./PYTHON_TTS_SETUP.md) for the current Chinese guide.
 
 ### Run
 

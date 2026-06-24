@@ -9,6 +9,7 @@ import { UpdateDialog } from "@/components/UpdateDialog";
 import { COLOR_PRESETS, useThemeStore } from "@/stores/theme-store";
 import { useAppSettingsStore } from "@/stores/app-settings-store";
 import { migrateToProjectStorage, recoverFromLegacy } from "@/lib/storage-migration";
+import { installWorkflowSmokeBridge } from "@/lib/studio/workflow-smoke-bridge";
 import { initSound, playSound } from "@/lib/sound";
 import type { AvailableUpdateInfo } from "@/types/update";
 
@@ -20,6 +21,10 @@ function App() {
   const [startupMaintenanceDone, setStartupMaintenanceDone] = useState(false);
   const [startupUpdate, setStartupUpdate] = useState<AvailableUpdateInfo | null>(null);
   const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
+
+  useEffect(() => {
+    if (window.mystudioSmoke?.enabled) installWorkflowSmokeBridge();
+  }, []);
 
   // 首屏先渲染，存储迁移和数据恢复延后到后台执行。
   useEffect(() => {
@@ -98,7 +103,7 @@ function App() {
     let cancelled = false;
 
     (async () => {
-      const result = await window.appUpdater?.checkForUpdates();
+      const result = await window.appUpdater?.checkForUpdates({ silent: true });
       if (
         cancelled ||
         !result ||

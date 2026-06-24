@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  createBackendVoiceProfile,
+  ensureBackendVoiceProfile,
   fetchGenerationAudio,
   getGenerationStatus,
   startTtsRuntime,
@@ -25,7 +25,7 @@ import { useCharacterLibraryStore } from "@/stores/character-library-store";
 import type { SplitScene } from "@/stores/director-store";
 import { useProjectStore } from "@/stores/project-store";
 import { useTtsStore } from "@/stores/tts-store";
-import type { TtsSpeakerId, VoiceProfile } from "@/types/tts";
+import type { TtsSpeakerId } from "@/types/tts";
 
 interface SceneVoiceLinePanelProps {
   scene: SplitScene;
@@ -171,18 +171,6 @@ export function SceneVoiceLinePanel({ scene }: SceneVoiceLinePanelProps) {
     });
   };
 
-  const syncProfileToBackend = async (profile: VoiceProfile) => {
-    await createBackendVoiceProfile({
-      ...profile,
-      defaultEngine: profile.defaultEngine,
-      defaultModelSize: profile.defaultModelSize,
-      referenceAudioPath: profile.referenceAudioPath,
-      referenceText: profile.referenceText,
-      presetVoiceId: profile.presetVoiceId,
-      instruct: profile.instruct,
-    });
-  };
-
   const handleGenerate = async () => {
     if (!currentLine.text.trim()) {
       toast.error("口播文本为空");
@@ -206,7 +194,7 @@ export function SceneVoiceLinePanel({ scene }: SceneVoiceLinePanelProps) {
     try {
       const runtime = await startTtsRuntime();
       if (!runtime.success) throw new Error(runtime.error || "TTS 后端启动失败");
-      await syncProfileToBackend(selectedProfile);
+      await ensureBackendVoiceProfile(selectedProfile);
       const generation = await aiManager.tts({
         text: currentLine.text.trim(),
         profileId: selectedProfile.id,

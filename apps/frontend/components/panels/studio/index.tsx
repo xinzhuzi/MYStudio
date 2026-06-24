@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,10 +21,23 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Sheet, SheetClose, SheetContent, SheetOverlay, SheetPortal } from "@/components/ui/sheet";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetOverlay,
+  SheetPortal,
+} from "@/components/ui/sheet";
 import { LocalImage } from "@/components/ui/local-image";
 import { StudioAssetDetailDialog } from "@/components/panels/assets/StudioAssetDetailDialog";
+import { RoleVoiceAssignDialog } from "@/components/panels/assets/RoleVoiceAssignDialog";
 import {
   Table,
   TableBody,
@@ -51,7 +71,10 @@ import {
   type KnownEntity,
 } from "@/lib/studio/entity-extraction";
 import { syncExtractedEntities } from "@/lib/studio/entity-sync";
-import { buildDirectorPlanMessages, parseDirectorPlan } from "@/lib/studio/director-plan";
+import {
+  buildDirectorPlanMessages,
+  parseDirectorPlan,
+} from "@/lib/studio/director-plan";
 import {
   buildEntityResolver,
   createMystudioDerivedSinks,
@@ -63,10 +86,6 @@ import {
   toStoryboardItems,
 } from "@/lib/studio/storyboard-table";
 import { buildSeriesBible } from "@/lib/studio/series-bible";
-import {
-  buildEpisodeOutlineMessages,
-  parseEpisodeOutline,
-} from "@/lib/studio/episode-outline";
 import {
   buildStageMessages,
   buildStageReviewMessages,
@@ -80,24 +99,7 @@ import {
   type ReviewableStage,
 } from "@/lib/studio/script-planning";
 import { aiManager } from "@/lib/ai/ai-manager";
-import {
-  assignVoicesForCharacters,
-  type VoiceAssignment,
-  type VoiceAssignerCharacter,
-} from "@/lib/studio/voice-assigner";
-import { createMystudioTtsSink, syncCharacterVoices } from "@/lib/studio/voice-sync";
-import {
-  createBackendVoiceProfile,
-  getTtsRuntimeStatus,
-  listVoiceProfiles,
-  uploadProfileSample,
-} from "@/lib/tts/client";
-import {
-  KOKORO_VOICES,
-  QWEN_CUSTOM_VOICES,
-  TTS_ENGINE_CATALOG,
-  type TtsPresetVoiceOption,
-} from "@/lib/tts/voice-profile-capabilities";
+import { ensureBackendVoiceProfile } from "@/lib/tts/client";
 import {
   buildStudioManualContext,
   buildStudioManualsFromSkillFiles,
@@ -105,9 +107,15 @@ import {
   type StudioManualCatalog,
   type StudioManualSkillOverrideFile,
 } from "@/lib/studio/manuals";
-import { createEpisodeMergePlan, createTrackRenderPlan } from "@/lib/studio/production";
+import {
+  createEpisodeMergePlan,
+  createTrackRenderPlan,
+} from "@/lib/studio/production";
 import { useAPIConfigStore } from "@/stores/api-config-store";
-import { useCharacterLibraryStore, type Character } from "@/stores/character-library-store";
+import {
+  useCharacterLibraryStore,
+  type Character,
+} from "@/stores/character-library-store";
 import { useProjectStore } from "@/stores/project-store";
 import { useSceneStore } from "@/stores/scene-store";
 import { usePropsLibraryStore } from "@/stores/props-library-store";
@@ -115,7 +123,6 @@ import { useStudioStore } from "@/stores/studio-store";
 import { useTtsStore } from "@/stores/tts-store";
 import type {
   ProjectVoiceBinding,
-  TtsEngine,
   TtsSpeakerId,
   VoiceProfile,
 } from "@/types/tts";
@@ -136,14 +143,17 @@ import {
   Boxes,
   ChevronDown,
   Check,
+  Clapperboard,
   ClipboardList,
   Edit3,
   FileText,
   Film,
   Gem,
+  ImageIcon,
   Download,
   Loader2,
   MapPin,
+  Maximize2,
   Mic,
   Palette,
   Play,
@@ -152,12 +162,15 @@ import {
   Search,
   Split,
   Square,
+  Table2 as TableIcon,
   Trash2,
   Upload,
   Users,
   Volume2,
   X,
   WandSparkles,
+  ZoomIn,
+  ZoomOut,
 } from "lucide-react";
 import { toast } from "sonner";
 import { MdEditor, MdPreview } from "md-editor-rt";
@@ -165,38 +178,286 @@ import "md-editor-rt/lib/style.css";
 import { cn } from "@/lib/utils";
 import { ManualEditDialog } from "./ManualEditDialog";
 
-const taskOptions: Array<{ key: AgentWorkKey; label: string }> = [
-  { key: "eventAnalysis", label: "事件分析" },
-  { key: "storySkeleton", label: "故事骨架" },
-  { key: "adaptationStrategy", label: "改编策略" },
-  { key: "episodeOutline", label: "分集细纲" },
-  { key: "scriptDraft", label: "剧本草稿" },
-  { key: "entityExtraction", label: "实体提取" },
-  { key: "directorPlan", label: "导演规划" },
-  { key: "deriveAssets", label: "衍生资产" },
-  { key: "storyboardTable", label: "分镜表" },
-  { key: "voiceAssign", label: "音色分配" },
-  { key: "productionPlan", label: "制作计划" },
-];
-
 export const WORKFLOW_TABS = [
-  { value: "manuals", label: "风格与导演选择", Icon: BookMarked },
+  { value: "manuals", label: "风格与导演", Icon: BookMarked },
   { value: "novel", label: "小说导入", Icon: BookOpen },
-  { value: "script", label: "剧本策划", Icon: FileText },
-  { value: "assets", label: "剧本资产管理", Icon: Boxes },
-  { value: "generation", label: "剧情产物生成", Icon: WandSparkles },
-  { value: "storyboard", label: "分镜表", Icon: Split },
-  { value: "workbench", label: "剪辑工作台", Icon: Film },
+  { value: "script", label: "策划编剧", Icon: FileText },
+  { value: "assets", label: "剧本资产", Icon: Boxes },
+  { value: "generation", label: "ProductionAgent", Icon: WandSparkles },
+  { value: "storyboard", label: "分镜面板", Icon: Split },
+  { value: "workbench", label: "视频工作台", Icon: Film },
 ];
 
-// Skill 对话暂时从工作流导航屏蔽（功能代码与 TabsContent 保留，未删除）；
-// 恢复：把 { value: "skill", ... } 加回 WORKFLOW_TABS 并从下方集合移除即可。
-const HIDDEN_WORKFLOW_STAGES = new Set(["skill"]);
-function resolveVisibleWorkflowStage(stage?: string): string {
-  return stage && !HIDDEN_WORKFLOW_STAGES.has(stage) ? stage : "manuals";
+const VISIBLE_WORKFLOW_STAGES = new Set(WORKFLOW_TABS.map((tab) => tab.value));
+const PRODUCTION_FLOW_NODES = [
+  {
+    value: "script",
+    label: "剧本",
+    Icon: FileText,
+    desc: "章节剧本与正文台词输入。",
+  },
+  {
+    value: "scriptPlan",
+    label: "导演计划",
+    Icon: ClipboardList,
+    desc: "场次、节奏、镜头策略和声音方向。",
+  },
+  {
+    value: "assets",
+    label: "衍生资产",
+    Icon: Boxes,
+    desc: "角色、场景、道具资产生成分支。",
+  },
+  {
+    value: "storyboardTable",
+    label: "分镜表",
+    Icon: TableIcon,
+    desc: "按导演计划拆出镜头表。",
+  },
+  {
+    value: "storyboard",
+    label: "分镜面板",
+    Icon: Split,
+    desc: "分镜图、台词、配音与资产绑定。",
+  },
+  {
+    value: "workbench",
+    label: "视频工作台",
+    Icon: Film,
+    desc: "候选片段、剪辑合成和最终导出。",
+  },
+];
+
+const PRODUCTION_NODE_POSITIONS: Record<
+  string,
+  { x: number; y: number; w: number; h: number; tone: string }
+> = {
+  script: {
+    x: 40,
+    y: 78,
+    w: 230,
+    h: 150,
+    tone: "from-sky-500/20 to-zinc-500/10",
+  },
+  scriptPlan: {
+    x: 390,
+    y: 58,
+    w: 240,
+    h: 164,
+    tone: "from-violet-500/20 to-neutral-500/10",
+  },
+  assets: {
+    x: 520,
+    y: 308,
+    w: 250,
+    h: 170,
+    tone: "from-teal-500/20 to-neutral-500/10",
+  },
+  storyboardTable: {
+    x: 760,
+    y: 58,
+    w: 250,
+    h: 164,
+    tone: "from-amber-500/20 to-stone-500/10",
+  },
+  storyboard: {
+    x: 1134,
+    y: 50,
+    w: 270,
+    h: 220,
+    tone: "from-blue-500/20 to-neutral-500/10",
+  },
+  workbench: {
+    x: 1534,
+    y: 78,
+    w: 270,
+    h: 168,
+    tone: "from-rose-500/20 to-neutral-500/10",
+  },
+};
+
+const PRODUCTION_FLOW_EDGES = [
+  ["script", "scriptPlan"],
+  ["script", "assets"],
+  ["scriptPlan", "storyboardTable"],
+  ["storyboardTable", "storyboard"],
+  ["storyboard", "workbench"],
+] as const;
+
+function WorkflowNodeCanvas({
+  projectName,
+  stageActions,
+}: {
+  projectName: string;
+  stageActions?: ReactNode;
+}) {
+  const [canvasZoom, setCanvasZoom] = useState(0.56);
+
+  const updateZoom = (delta: number) => {
+    setCanvasZoom((current) =>
+      Math.min(0.9, Math.max(0.38, Number((current + delta).toFixed(2)))),
+    );
+  };
+
+  return (
+    <div className="workflow-node-canvas relative min-h-[410px] overflow-hidden rounded-lg border border-white/10 bg-[#20201f]">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_15%,rgba(255,255,255,0.08),transparent_38%),linear-gradient(180deg,rgba(255,255,255,0.035),transparent_42%)]" />
+      <div className="relative z-10 flex flex-wrap items-center justify-between gap-4 px-6 py-4">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-md border border-white/20 bg-black/30">
+            <Clapperboard className="h-5 w-5 text-zinc-100" />
+          </div>
+          <div className="min-w-0">
+            <h3 className="truncate text-base font-semibold text-zinc-100">
+              {projectName}
+            </h3>
+            <p className="truncate text-xs text-zinc-400">
+              ProductionAgent 节点工作区 · Toonflow Layout
+            </p>
+          </div>
+        </div>
+        {stageActions ? (
+          <div className="min-w-[280px] flex-1">{stageActions}</div>
+        ) : null}
+      </div>
+
+      <div className="absolute inset-x-0 bottom-0 top-[86px] overflow-x-auto overflow-y-hidden">
+        <div
+          className="relative mx-auto mt-4 origin-top transition-transform duration-300"
+          style={{
+            width: 1860,
+            height: 560,
+            transform: `scale(${canvasZoom})`,
+          }}
+        >
+          <svg
+            className="pointer-events-none absolute inset-0 h-full w-full"
+            viewBox="0 0 1860 560"
+            aria-hidden="true"
+          >
+            {PRODUCTION_FLOW_EDGES.map(([fromKey, toKey]) => {
+              const from = PRODUCTION_NODE_POSITIONS[fromKey];
+              const to = PRODUCTION_NODE_POSITIONS[toKey];
+              if (!from || !to) return null;
+              const startX = from.x + from.w;
+              const startY = from.y + from.h / 2;
+              const endX = to.x;
+              const endY = to.y + to.h / 2;
+              const mid = Math.max(48, (endX - startX) * 0.42);
+              return (
+                <path
+                  key={`${fromKey}-${toKey}`}
+                  className="workflow-node-connector"
+                  data-flow-edge={`${fromKey}->${toKey}`}
+                  d={`M ${startX} ${startY} C ${startX + mid} ${startY}, ${endX - mid} ${endY}, ${endX} ${endY}`}
+                  fill="none"
+                  stroke="rgba(96,165,250,0.72)"
+                  strokeWidth="2"
+                />
+              );
+            })}
+          </svg>
+          {PRODUCTION_FLOW_NODES.map((tab, index) => {
+            const position = PRODUCTION_NODE_POSITIONS[tab.value];
+            const Icon = tab.Icon;
+            return (
+              <div
+                key={tab.value}
+                data-flow-node={tab.value}
+                className={cn(
+                  "absolute overflow-hidden rounded-lg border p-4 text-left shadow-2xl transition-all duration-200",
+                  "bg-neutral-950/80 text-zinc-200 backdrop-blur",
+                  "border-white/10",
+                )}
+                style={{
+                  left: position.x,
+                  top: position.y,
+                  width: position.w,
+                  height: position.h,
+                }}
+              >
+                <span
+                  className={cn(
+                    "absolute inset-0 bg-gradient-to-br opacity-80",
+                    position.tone,
+                  )}
+                />
+                <span className="relative flex items-start justify-between gap-3">
+                  <span className="flex items-center gap-2">
+                    <span
+                      className={cn(
+                        "flex h-8 w-8 items-center justify-center rounded-md border",
+                        index === 0
+                          ? "border-blue-300/60 bg-blue-400/15"
+                          : "border-white/15 bg-black/20",
+                      )}
+                    >
+                      <Icon className="h-4 w-4" />
+                    </span>
+                    <span>
+                      <span className="block text-sm font-semibold">
+                        {tab.label}
+                      </span>
+                      <span className="text-[11px] text-zinc-400">
+                        Node {String(index + 1).padStart(2, "0")}
+                      </span>
+                    </span>
+                  </span>
+                  <span
+                    className={cn(
+                      "rounded-full px-2 py-0.5 text-[10px]",
+                      index === 0
+                        ? "bg-blue-400 text-black"
+                        : "bg-emerald-400/20 text-emerald-200",
+                    )}
+                  >
+                    {tab.value === "assets" ? "BRANCH" : "FLOW"}
+                  </span>
+                </span>
+                <span className="relative mt-4 block text-xs leading-relaxed text-zinc-400">
+                  {tab.desc}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="absolute bottom-5 left-5 z-20 flex flex-col overflow-hidden rounded-md border border-white/15 bg-zinc-100 text-zinc-950 shadow-xl">
+        <button
+          type="button"
+          className="flex h-8 w-8 items-center justify-center hover:bg-zinc-200"
+          onClick={() => updateZoom(0.08)}
+          aria-label="放大"
+        >
+          <ZoomIn className="h-4 w-4" />
+        </button>
+        <button
+          type="button"
+          className="flex h-8 w-8 items-center justify-center border-t border-zinc-300 hover:bg-zinc-200"
+          onClick={() => updateZoom(-0.08)}
+          aria-label="缩小"
+        >
+          <ZoomOut className="h-4 w-4" />
+        </button>
+        <button
+          type="button"
+          className="flex h-8 w-8 items-center justify-center border-t border-zinc-300 hover:bg-zinc-200"
+          onClick={() => setCanvasZoom(0.56)}
+          aria-label="适配画布"
+        >
+          <Maximize2 className="h-4 w-4" />
+        </button>
+      </div>
+    </div>
+  );
 }
 
-/** 把导演规划 ScriptPlan 关键维度压成分镜表的节奏/情绪基准文本。 */
+export function resolveVisibleWorkflowStage(stage?: string): string {
+  return stage && VISIBLE_WORKFLOW_STAGES.has(stage) ? stage : "manuals";
+}
+
+/** 把导演计划 ScriptPlan 关键维度压成分镜表的节奏/情绪基准文本。 */
 function formatScriptPlanContext(plan: ScriptPlan): string {
   return [
     plan.theme && `①主题立意：${plan.theme}`,
@@ -204,7 +465,62 @@ function formatScriptPlanContext(plan: ScriptPlan): string {
     plan.narrativeRhythm && `③叙事节奏：${plan.narrativeRhythm}`,
     plan.soundDirection && `⑤声音方向：${plan.soundDirection}`,
     plan.transitions && `⑥转场设计：${plan.transitions}`,
-  ].filter(Boolean).join("\n");
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+export function resolveProductionEpisodeId(
+  store: ReturnType<typeof useStudioStore.getState>,
+  episodeId = "episode-1",
+): string {
+  if (episodeId !== "episode-1") return episodeId;
+  const hasLegacyDraft = store.agentWorkData.some(
+    (item) => item.key === "scriptDraft" && item.episodeId === episodeId,
+  );
+  if (hasLegacyDraft) return episodeId;
+  return (
+    [...store.agentWorkData]
+      .reverse()
+      .find((item) => item.key === "scriptDraft" && item.episodeId)
+      ?.episodeId ??
+    store.novelChapters[0]?.id ??
+    episodeId
+  );
+}
+
+export function resolveScriptTextForEpisode(
+  store: ReturnType<typeof useStudioStore.getState>,
+  episodeId: string,
+): string {
+  return (
+    [...store.agentWorkData]
+      .reverse()
+      .find(
+        (item) => item.key === "scriptDraft" && item.episodeId === episodeId,
+      )?.data ??
+    store.novelChapters.find((chapter) => chapter.id === episodeId)
+      ?.sourceText ??
+    (episodeId === "episode-1"
+      ? [...store.agentWorkData]
+          .reverse()
+          .find((item) => item.key === "scriptDraft")?.data
+      : undefined) ??
+    store.novelChapters.map((chapter) => chapter.sourceText).join("\n\n")
+  );
+}
+
+export function resolveScriptPlanEpisodeId(
+  store: ReturnType<typeof useStudioStore.getState>,
+  episodeId = "episode-1",
+): string {
+  if (episodeId !== "episode-1") return episodeId;
+  if (store.scriptPlans.some((item) => item.episodeId === episodeId))
+    return episodeId;
+  return (
+    store.scriptPlans[store.scriptPlans.length - 1]?.episodeId ??
+    resolveProductionEpisodeId(store, episodeId)
+  );
 }
 
 export function StudioView() {
@@ -215,12 +531,11 @@ export function StudioView() {
     agentWorkData,
     entityExtractions,
     scriptPlans,
-    episodeOutlines,
+    seriesBible,
     storyboards,
     productionTracks,
     videoCandidates,
     workflowConfig,
-    lastContextPackage,
     appendNovelText,
     replaceNovelText,
     deleteNovelChapters,
@@ -233,8 +548,6 @@ export function StudioView() {
     saveEntityExtraction,
     saveScriptPlan,
     saveSeriesBible,
-    saveEpisodeOutline,
-    buildContext,
     addStoryboard,
     updateStoryboard,
     createStoryboardsFromChapters,
@@ -245,61 +558,88 @@ export function StudioView() {
     deleteVideoCandidate,
   } = useStudioStore();
   const [novelDraft, setNovelDraft] = useState("");
-  const [selectedTask, setSelectedTask] = useState<AgentWorkKey>("scriptDraft");
-  const [agentDraft, setAgentDraft] = useState("");
   const [renderingTrackId, setRenderingTrackId] = useState<string | null>(null);
   const [merging, setMerging] = useState(false);
   const [mergeOutput, setMergeOutput] = useState<string | null>(null);
-  const [activeWorkflowTab, setActiveWorkflowTab] = useState(resolveVisibleWorkflowStage(workflowConfig.workflowStage));
-  const handleStageChange = useCallback((value: string) => {
-    const cfg = useStudioStore.getState().workflowConfig;
-    if (value !== "manuals" && (!cfg.visualManualId || !cfg.directorManualId)) {
-      toast.error("请先选择视觉风格与导演手册，才能进入下一步");
-      return;
-    }
-    setActiveWorkflowTab(value);
-    setWorkflowConfig({ workflowStage: value });
-  }, [setWorkflowConfig]);
+  const [activeWorkflowTab, setActiveWorkflowTab] = useState(
+    resolveVisibleWorkflowStage(workflowConfig.workflowStage),
+  );
+  const activeTtsProjectIdForReadiness = useTtsStore((s) => s.activeProjectId);
+  const ttsProjectForReadiness = useTtsStore((s) =>
+    s.activeProjectId ? s.projects[s.activeProjectId] : undefined,
+  );
+  const handleStageChange = useCallback(
+    (value: string) => {
+      const cfg = useStudioStore.getState().workflowConfig;
+      if (
+        value !== "manuals" &&
+        (!cfg.visualManualId || !cfg.directorManualId)
+      ) {
+        toast.error("请先选择视觉风格与导演手册，才能进入下一步");
+        return;
+      }
+      setActiveWorkflowTab(value);
+      setWorkflowConfig({ workflowStage: value });
+    },
+    [setWorkflowConfig],
+  );
   // 切换项目时，自动恢复到该项目保存的工作流阶段
   const prevProjectIdRef = useRef<string | undefined>(activeProject?.id);
   useEffect(() => {
     if (activeProject?.id !== prevProjectIdRef.current) {
       prevProjectIdRef.current = activeProject?.id;
-      setActiveWorkflowTab(resolveVisibleWorkflowStage(useStudioStore.getState().workflowConfig.workflowStage));
+      setActiveWorkflowTab(
+        resolveVisibleWorkflowStage(
+          useStudioStore.getState().workflowConfig.workflowStage,
+        ),
+      );
     }
   }, [activeProject?.id]);
+  useEffect(() => {
+    const visibleStage = resolveVisibleWorkflowStage(
+      workflowConfig.workflowStage,
+    );
+    setActiveWorkflowTab((current) =>
+      current === visibleStage ? current : visibleStage,
+    );
+  }, [workflowConfig.workflowStage]);
   const [novelHeaderActions, setNovelHeaderActions] = useState<ReactNode>(null);
-  const [scriptHeaderActions, setScriptHeaderActions] = useState<ReactNode>(null);
-  const [assetsHeaderActions, setAssetsHeaderActions] = useState<ReactNode>(null);
-  const bundledManualCatalog = useMemo<StudioManualCatalog>(() => ({
-    visual: listStudioManualPresets("visual"),
-    director: listStudioManualPresets("director"),
-  }), []);
-  const [storedManualCatalog, setStoredManualCatalog] = useState<StudioManualCatalog | null>(null);
-  const [voiceAssignments, setVoiceAssignments] = useState<VoiceAssignment[]>([]);
-  const usesStoredManualCatalog = typeof window !== "undefined" && Boolean(window.studioSkills?.list);
-  const manualCatalog = storedManualCatalog ?? (usesStoredManualCatalog ? {} : bundledManualCatalog);
-  const manualCatalogReady = !usesStoredManualCatalog || storedManualCatalog !== null;
+  const [scriptHeaderActions, setScriptHeaderActions] =
+    useState<ReactNode>(null);
+  const [assetsHeaderActions, setAssetsHeaderActions] =
+    useState<ReactNode>(null);
+  const bundledManualCatalog = useMemo<StudioManualCatalog>(
+    () => ({
+      visual: listStudioManualPresets("visual"),
+      director: listStudioManualPresets("director"),
+    }),
+    [],
+  );
+  const [storedManualCatalog, setStoredManualCatalog] =
+    useState<StudioManualCatalog | null>(null);
+  const usesStoredManualCatalog =
+    typeof window !== "undefined" && Boolean(window.studioSkills?.list);
+  const manualCatalog =
+    storedManualCatalog ??
+    (usesStoredManualCatalog ? {} : bundledManualCatalog);
 
   const projectName = activeProject?.name ?? "漫影工作室";
 
   const selectedCandidates = productionTracks
-    .map((track) => videoCandidates.find((candidate) => candidate.id === track.selectedVideoId))
+    .map((track) =>
+      videoCandidates.find(
+        (candidate) => candidate.id === track.selectedVideoId,
+      ),
+    )
     .filter((candidate): candidate is VideoCandidate => Boolean(candidate));
+  const productionEpisodeId = resolveProductionEpisodeId(
+    useStudioStore.getState(),
+  );
 
   const handleNovelFile = async (file?: File) => {
     if (!file) return;
     const text = await file.text();
     setNovelDraft(text);
-  };
-
-  const handleBuildContext = () => {
-    if (!manualCatalogReady) {
-      toast.error("手册副本正在同步，请稍后再生成上下文包");
-      return;
-    }
-    buildContext(projectName, selectedTask, manualCatalog);
-    toast.success("上下文包已生成，模型执行保持关闭");
   };
 
   useEffect(() => {
@@ -312,27 +652,41 @@ export function StudioView() {
           studioSkills.list(),
           window.studioVisualManuals?.list?.() ?? Promise.resolve([]),
         ]);
-        const manualFiles = files.filter((file) => isManualSkillMarkdownPath(file.relativePath));
-        const loaded = await Promise.all(manualFiles.map(async (file) => {
-          const result = await studioSkills.readText(file.relativePath);
-          if (!result.success) return null;
-          return {
-            relativePath: file.relativePath,
-            content: result.content ?? "",
-          } satisfies StudioManualSkillOverrideFile;
-        }));
-        const skillFiles = loaded.filter((file): file is StudioManualSkillOverrideFile => Boolean(file));
+        const manualFiles = files.filter((file) =>
+          isManualSkillMarkdownPath(file.relativePath),
+        );
+        const loaded = await Promise.all(
+          manualFiles.map(async (file) => {
+            const result = await studioSkills.readText(file.relativePath);
+            if (!result.success) return null;
+            return {
+              relativePath: file.relativePath,
+              content: result.content ?? "",
+            } satisfies StudioManualSkillOverrideFile;
+          }),
+        );
+        const skillFiles = loaded.filter(
+          (file): file is StudioManualSkillOverrideFile => Boolean(file),
+        );
         const imagesByManualId = Object.fromEntries(
-          visualManuals.map((manual) => [manual.stylePath, manual.images.map((image) => image.url)]),
+          visualManuals.map((manual) => [
+            manual.stylePath,
+            manual.images.map((image) => image.url),
+          ]),
         );
         if (!cancelled) {
           setStoredManualCatalog({
-            visual: buildStudioManualsFromSkillFiles("visual", skillFiles, { imagesByManualId }),
+            visual: buildStudioManualsFromSkillFiles("visual", skillFiles, {
+              imagesByManualId,
+            }),
             director: buildStudioManualsFromSkillFiles("director", skillFiles),
           });
         }
       } catch (error) {
-        console.warn("[StudioView] Failed to load stored manual catalog:", error);
+        console.warn(
+          "[StudioView] Failed to load stored manual catalog:",
+          error,
+        );
       }
     };
     void loadStoredManualCatalog();
@@ -341,410 +695,416 @@ export function StudioView() {
     };
   }, []);
 
-  const handleSaveAgentWork = () => {
-    if (!agentDraft.trim()) return;
-    saveAgentWorkData(selectedTask, agentDraft.trim(), "episode-1");
-    setAgentDraft("");
-    toast.success("工作数据已保存");
-  };
+  const handleNovelEventAnalysis = useCallback(
+    async (chapters: NovelChapter[]) => {
+      if (!chapters.length) return;
+      if (!window.electronAPI?.textCompletion) {
+        toast.error("当前环境不支持模型调用");
+        return;
+      }
 
-  const handleNovelEventAnalysis = useCallback(async (chapters: NovelChapter[]) => {
-    if (!chapters.length) return;
-    if (!window.electronAPI?.textCompletion) {
-      toast.error("当前环境不支持模型调用");
-      return;
-    }
+      if (
+        !aiManager.resolve({ agent: "eventAnalysisAgent" }) &&
+        !aiManager.resolve({ agent: "universalAi" })
+      ) {
+        toast.error(
+          "未配置事件分析模型，请先到设置的 API 管理中绑定事件分析Agent或通用AI",
+        );
+        return;
+      }
 
-    if (!aiManager.resolve({ agent: "eventAnalysisAgent" }) && !aiManager.resolve({ agent: "universalAi" })) {
-      toast.error("未配置事件分析模型，请先到设置的 API 管理中绑定事件分析Agent或通用AI");
-      return;
-    }
+      let successCount = 0;
+      let failedCount = 0;
+      for (const chapter of chapters) {
+        updateNovelChapter(chapter.id, {
+          eventTaskState: "running",
+          eventErrorReason: undefined,
+        });
+        const messages = buildNovelEventAnalysisMessages(chapter);
+        try {
+          const result = await aiManager.text({
+            binding: { agent: "eventAnalysisAgent" },
+            messages: [
+              { role: "system", content: messages.system },
+              { role: "user", content: messages.user },
+            ],
+            temperature: 0.2,
+            maxTokens: 1024,
+          });
+          if (!result.success || !result.text) {
+            throw new Error(result.error || "事件分析失败");
+          }
+          const analysis = parseNovelEventAnalysisLine(result.text);
+          updateNovelChapter(chapter.id, {
+            eventTaskState: "success",
+            eventAnalysis: analysis,
+            eventSummary: formatNovelEventSummary(analysis),
+            eventState: formatNovelEventState(analysis),
+            eventRawOutput: result.text,
+            eventErrorReason: undefined,
+          });
+          successCount += 1;
+        } catch (error) {
+          failedCount += 1;
+          updateNovelChapter(chapter.id, {
+            eventTaskState: "failed",
+            eventErrorReason:
+              error instanceof Error ? error.message : String(error),
+          });
+        }
+      }
 
-    let successCount = 0;
-    let failedCount = 0;
-    for (const chapter of chapters) {
-      updateNovelChapter(chapter.id, {
-        eventTaskState: "running",
-        eventErrorReason: undefined,
+      saveAgentWorkData(
+        "eventAnalysis",
+        `事件分析完成：成功 ${successCount} 章，失败 ${failedCount} 章。`,
+        "episode-1",
+      );
+      if (failedCount) {
+        toast.error(`事件分析完成，失败 ${failedCount} 章`);
+      } else {
+        toast.success(`事件分析完成，共 ${successCount} 章`);
+      }
+    },
+    [saveAgentWorkData, updateNovelChapter],
+  );
+
+  const handleEntityExtraction = useCallback(
+    async (episodeId = "episode-1") => {
+      if (!window.electronAPI?.textCompletion) {
+        toast.error("当前环境不支持模型调用");
+        return;
+      }
+
+      const store = useStudioStore.getState();
+      const targetEpisodeId = resolveProductionEpisodeId(store, episodeId);
+      const scriptText = resolveScriptTextForEpisode(store, targetEpisodeId);
+      if (!scriptText.trim()) {
+        toast.error("没有可提取的剧本：请先保存剧本草稿或导入小说正文");
+        return;
+      }
+
+      // 合并已有提取结果 + 资产库里已有的角色/场景/道具
+      const libChars = useCharacterLibraryStore.getState().characters;
+      const libScenes = useSceneStore.getState().scenes;
+      const libProps = usePropsLibraryStore.getState().items;
+
+      const knownEntities: KnownEntity[] = [
+        // 先收集已提取的实体
+        ...store.entityExtractions.flatMap((batch) => [
+          ...batch.characters.map((item) => ({
+            id: item.characterId,
+            kind: "character" as const,
+            name: item.name,
+            aliases: item.aliases,
+          })),
+          ...batch.scenes.map((item) => ({
+            id: item.sceneId,
+            kind: "scene" as const,
+            name: item.name,
+            aliases: [],
+          })),
+          ...batch.props.map((item) => ({
+            id: item.assetId,
+            kind: "prop" as const,
+            name: item.name,
+            aliases: [],
+          })),
+        ]),
+        // 补充资产库里已有的角色（按 ID 去重）
+        ...libChars
+          .filter(
+            (c) =>
+              !store.entityExtractions.some((b) =>
+                b.characters.some((bc) => bc.characterId === c.id),
+              ),
+          )
+          .map((c) => ({
+            id: c.id,
+            kind: "character" as const,
+            name: c.name,
+            aliases:
+              ((c as unknown as Record<string, unknown>).aliases as string[]) ??
+              [],
+          })),
+        // 补充资产库里已有的场景
+        ...libScenes
+          .filter(
+            (s) =>
+              !store.entityExtractions.some((b) =>
+                b.scenes.some((bs) => bs.sceneId === s.id),
+              ),
+          )
+          .map((s) => ({
+            id: s.id,
+            kind: "scene" as const,
+            name: s.name,
+            aliases: [],
+          })),
+        // 补充资产库里已有的道具
+        ...libProps
+          .filter(
+            (p) =>
+              !store.entityExtractions.some((b) =>
+                b.props.some((bp) => bp.assetId === p.id),
+              ),
+          )
+          .map((p) => ({
+            id: p.id,
+            kind: "prop" as const,
+            name: p.name,
+            aliases: [],
+          })),
+      ];
+
+      const messages = buildEntityExtractionMessages({
+        episodeId: targetEpisodeId,
+        scriptText,
+        knownEntities,
       });
-      const messages = buildNovelEventAnalysisMessages(chapter);
       try {
         const result = await aiManager.text({
-          binding: { agent: "eventAnalysisAgent" },
+          binding: { agent: "entityExtraction" },
           messages: [
             { role: "system", content: messages.system },
             { role: "user", content: messages.user },
           ],
           temperature: 0.2,
-          maxTokens: 1024,
+          maxTokens: 2048,
         });
         if (!result.success || !result.text) {
-          throw new Error(result.error || "事件分析失败");
+          throw new Error(result.error || "实体提取失败");
         }
-        const analysis = parseNovelEventAnalysisLine(result.text);
-        updateNovelChapter(chapter.id, {
-          eventTaskState: "success",
-          eventAnalysis: analysis,
-          eventSummary: formatNovelEventSummary(analysis),
-          eventState: formatNovelEventState(analysis),
-          eventRawOutput: result.text,
-          eventErrorReason: undefined,
-        });
-        successCount += 1;
-      } catch (error) {
-        failedCount += 1;
-        updateNovelChapter(chapter.id, {
-          eventTaskState: "failed",
-          eventErrorReason: error instanceof Error ? error.message : String(error),
-        });
-      }
-    }
 
-    saveAgentWorkData(
-      "eventAnalysis",
-      `事件分析完成：成功 ${successCount} 章，失败 ${failedCount} 章。`,
-      "episode-1",
-    );
-    if (failedCount) {
-      toast.error(`事件分析完成，失败 ${failedCount} 章`);
-    } else {
-      toast.success(`事件分析完成，共 ${successCount} 章`);
-    }
-  }, [saveAgentWorkData, updateNovelChapter]);
+        const parsed = parseEntityExtraction(result.text, targetEpisodeId);
+        const { entities } = dedupeEntities(parsed.entities, knownEntities);
+        if (!entities.length) {
+          toast.error("未解析出任何实体，请检查模型输出格式");
+          return;
+        }
 
-  const handleEntityExtraction = useCallback(async (episodeId = "episode-1") => {
-    if (!window.electronAPI?.textCompletion) {
-      toast.error("当前环境不支持模型调用");
-      return;
-    }
+        // 写入 characters.json + assets.db，走完整管线
+        const { createMystudioSinks } =
+          await import("@/lib/studio/entity-sync");
+        const sinks = createMystudioSinks();
+        const { result: batch } = syncExtractedEntities(
+          {
+            episodeId: targetEpisodeId,
+            entities,
+            projectId: activeProject?.id ?? "",
+            projectName,
+          },
+          sinks,
+        );
+        saveEntityExtraction(batch);
 
-    const store = useStudioStore.getState();
-    const scriptText =
-      [...store.agentWorkData].reverse().find((item) => item.key === "scriptDraft" && item.episodeId === episodeId)?.data
-      ?? store.novelChapters.find((chapter) => chapter.id === episodeId)?.sourceText
-      ?? [...store.agentWorkData].reverse().find((item) => item.key === "scriptDraft")?.data
-      ?? store.novelChapters.map((chapter) => chapter.sourceText).join("\n\n");
-    if (!scriptText.trim()) {
-      toast.error("没有可提取的剧本：请先保存剧本草稿或导入小说正文");
-      return;
-    }
-
-    // 合并已有提取结果 + 资产库里已有的角色/场景/道具
-    const libChars = useCharacterLibraryStore.getState().characters;
-    const libScenes = useSceneStore.getState().scenes;
-    const libProps = usePropsLibraryStore.getState().items;
-
-    const knownEntities: KnownEntity[] = [
-      // 先收集已提取的实体
-      ...store.entityExtractions.flatMap((batch) => [
-        ...batch.characters.map((item) => ({
-          id: item.characterId,
-          kind: "character" as const,
-          name: item.name,
-          aliases: item.aliases,
-        })),
-        ...batch.scenes.map((item) => ({
-          id: item.sceneId,
-          kind: "scene" as const,
-          name: item.name,
-          aliases: [],
-        })),
-        ...batch.props.map((item) => ({
-          id: item.assetId,
-          kind: "prop" as const,
-          name: item.name,
-          aliases: [],
-        })),
-      ]),
-      // 补充资产库里已有的角色（按 ID 去重）
-      ...libChars.filter((c) => !store.entityExtractions.some((b) => b.characters.some((bc) => bc.characterId === c.id))).map((c) => ({
-        id: c.id,
-        kind: "character" as const,
-        name: c.name,
-        aliases: (c as unknown as Record<string, unknown>).aliases as string[] ?? [],
-      })),
-      // 补充资产库里已有的场景
-      ...libScenes.filter((s) => !store.entityExtractions.some((b) => b.scenes.some((bs) => bs.sceneId === s.id))).map((s) => ({
-        id: s.id,
-        kind: "scene" as const,
-        name: s.name,
-        aliases: [],
-      })),
-      // 补充资产库里已有的道具
-      ...libProps.filter((p) => !store.entityExtractions.some((b) => b.props.some((bp) => bp.assetId === p.id))).map((p) => ({
-        id: p.id,
-        kind: "prop" as const,
-        name: p.name,
-        aliases: [],
-      })),
-    ];
-
-    const messages = buildEntityExtractionMessages({ episodeId, scriptText, knownEntities });
-    try {
-      const result = await aiManager.text({
-        binding: { agent: "entityExtraction" },
-        messages: [
-          { role: "system", content: messages.system },
-          { role: "user", content: messages.user },
-        ],
-        temperature: 0.2,
-        maxTokens: 2048,
-      });
-      if (!result.success || !result.text) {
-        throw new Error(result.error || "实体提取失败");
-      }
-
-      const parsed = parseEntityExtraction(result.text, episodeId);
-      const { entities } = dedupeEntities(parsed.entities, knownEntities);
-      if (!entities.length) {
-        toast.error("未解析出任何实体，请检查模型输出格式");
-        return;
-      }
-
-      // 写入 characters.json + assets.db，走完整管线
-      const { createMystudioSinks } = await import("@/lib/studio/entity-sync");
-      const sinks = createMystudioSinks();
-      const { result: batch } = syncExtractedEntities(
-        { episodeId, entities, projectId: activeProject?.id ?? "", projectName },
-        sinks,
-      );
-      saveEntityExtraction(batch);
-
-      const detail = `角色 ${batch.characters.length} / 场景 ${batch.scenes.length} / 道具 ${batch.props.length}`;
-      if (parsed.errors.length) {
-        toast.warning(`资产提取完成（忽略非法行 ${parsed.errors.length}）：${detail}`);
-      } else {
-        toast.success(`资产提取完成：${detail}`);
-      }
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : String(error));
-    }
-  }, [activeProject?.id, projectName, saveEntityExtraction]);
-
-  const handleDirectorPlan = useCallback(async (episodeId = "episode-1") => {
-    if (!window.electronAPI?.textCompletion) {
-      toast.error("当前环境不支持模型调用");
-      return;
-    }
-
-    const store = useStudioStore.getState();
-    const scriptText =
-      [...store.agentWorkData].reverse().find((item) => item.key === "scriptDraft")?.data
-      ?? store.novelChapters.map((chapter) => chapter.sourceText).join("\n\n");
-    if (!scriptText.trim()) {
-      toast.error("没有可规划的剧本：请先保存剧本草稿或导入小说正文");
-      return;
-    }
-
-    const manualContext = buildStudioManualContext(store.workflowConfig, manualCatalog);
-    const messages = buildDirectorPlanMessages({ episodeId, scriptText, manualContext });
-    try {
-      const result = await aiManager.text({
-        binding: { agent: "productionAgent:directorPlanAgent" },
-        messages: [
-          { role: "system", content: messages.system },
-          { role: "user", content: messages.user },
-        ],
-        temperature: 0.4,
-        maxTokens: 4096,
-      });
-      if (!result.success || !result.text) {
-        throw new Error(result.error || "导演规划失败");
-      }
-
-      const { plan, warnings } = parseDirectorPlan(result.text, episodeId);
-      saveScriptPlan(plan);
-
-      const detail = `衍生预划 ${plan.derivedAssetPlan.length} 条`;
-      if (warnings.length) {
-        toast.warning(`导演规划完成（${detail}；光影提示 ${warnings.length} 处已剔除）`);
-      } else {
-        toast.success(`导演规划完成（${detail}）`);
-      }
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : String(error));
-    }
-  }, [manualCatalog, saveScriptPlan]);
-
-  const handleDeriveAssets = useCallback((episodeId = "episode-1") => {
-    const store = useStudioStore.getState();
-    const plan = store.scriptPlans.find((item) => item.episodeId === episodeId);
-    if (!plan) {
-      toast.error("尚无导演规划：请先运行导演规划，生成⑦衍生预划清单");
-      return;
-    }
-    if (!plan.derivedAssetPlan.length) {
-      toast.info("本集导演规划判定无需衍生资产");
-      return;
-    }
-
-    const projectId = activeProject?.id;
-    if (!projectId) {
-      toast.error("未选择项目，无法写入衍生资产");
-      return;
-    }
-
-    const batch = store.entityExtractions.find((item) => item.episodeId === episodeId)
-      ?? store.entityExtractions[store.entityExtractions.length - 1];
-    if (!batch) {
-      toast.error("尚无实体库：请先运行实体提取，衍生资产需绑定父资产");
-      return;
-    }
-
-    const resolver = buildEntityResolver(
-      batch.characters.map((c) => ({ id: c.characterId, name: c.name, aliases: c.aliases })),
-      batch.scenes.map((s) => ({ id: s.sceneId, name: s.name })),
-    );
-    const { summary } = syncDerivedAssets(plan.derivedAssetPlan, {
-      projectId,
-      resolver,
-      ...createMystudioDerivedSinks(),
-    });
-
-    if (summary.skipped) {
-      toast.warning(`衍生资产落地 ${summary.created} 条，跳过 ${summary.skipped} 条（父资产未匹配）`);
-    } else {
-      toast.success(`衍生资产落地 ${summary.created} 条`);
-    }
-  }, [activeProject?.id]);
-
-  const handleStoryboardTable = useCallback(async (episodeId = "episode-1") => {
-    if (!window.electronAPI?.textCompletion) {
-      toast.error("当前环境不支持模型调用");
-      return;
-    }
-
-    const store = useStudioStore.getState();
-    const scriptText =
-      [...store.agentWorkData].reverse().find((item) => item.key === "scriptDraft")?.data
-      ?? store.novelChapters.map((chapter) => chapter.sourceText).join("\n\n");
-    if (!scriptText.trim()) {
-      toast.error("没有可分镜的剧本：请先保存剧本草稿或导入小说正文");
-      return;
-    }
-
-    const plan = store.scriptPlans.find((item) => item.episodeId === episodeId);
-    const scriptPlanContext = plan ? formatScriptPlanContext(plan) : undefined;
-    const messages = buildStoryboardTableMessages({ episodeId, scriptText, scriptPlanContext });
-    try {
-      const result = await aiManager.text({
-        binding: { agent: "productionAgent:storyboardTableAgent" },
-        messages: [
-          { role: "system", content: messages.system },
-          { role: "user", content: messages.user },
-        ],
-        temperature: 0.4,
-        maxTokens: 4096,
-      });
-      if (!result.success || !result.text) {
-        throw new Error(result.error || "分镜表生成失败");
-      }
-
-      const { rows, errors, warnings } = parseStoryboardTable(result.text, episodeId);
-      if (!rows.length) {
-        toast.error(`未解析到分镜行${errors.length ? `（非法行 ${errors.length}）` : ""}`);
-        return;
-      }
-
-      const items = toStoryboardItems(rows, episodeId);
-      const existingIds = new Set(useStudioStore.getState().storyboards.map((item) => item.id));
-      for (const item of items) {
-        if (existingIds.has(item.id)) {
-          updateStoryboard(item.id, item);
+        const detail = `角色 ${batch.characters.length} / 场景 ${batch.scenes.length} / 道具 ${batch.props.length}`;
+        if (parsed.errors.length) {
+          toast.warning(
+            `资产提取完成（忽略非法行 ${parsed.errors.length}）：${detail}`,
+          );
         } else {
-          addStoryboard(item);
+          toast.success(`资产提取完成：${detail}`);
         }
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : String(error));
       }
+    },
+    [activeProject?.id, projectName, saveEntityExtraction],
+  );
 
-      const tail = [
-        errors.length ? `非法行 ${errors.length}` : "",
-        warnings.length ? `光影提示 ${warnings.length} 处已剔除` : "",
-      ].filter(Boolean).join("；");
-      toast.success(`分镜表落地 ${items.length} 镜${tail ? `（${tail}）` : ""}`);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : String(error));
-    }
-  }, [addStoryboard, updateStoryboard]);
-
-  const handleEpisodeOutline = useCallback(async (episodeId = "episode-1") => {
-    if (!window.electronAPI?.textCompletion) {
-      toast.error("当前环境不支持模型调用");
-      return;
-    }
-
-    const store = useStudioStore.getState();
-    const latest = (key: AgentWorkKey) =>
-      [...store.agentWorkData].reverse().find((item) => item.key === key)?.data;
-    const skeletonContext = latest("storySkeleton");
-    const strategyContext = latest("adaptationStrategy");
-    if (!skeletonContext && !strategyContext) {
-      toast.error("尚无骨架/改编策略：请先保存故事骨架或改编策略");
-      return;
-    }
-
-    const messages = buildEpisodeOutlineMessages({ episodeId, skeletonContext, strategyContext });
-    try {
-      const result = await aiManager.text({
-        binding: { agent: "episodeOutline" },
-        messages: [
-          { role: "system", content: messages.system },
-          { role: "user", content: messages.user },
-        ],
-        temperature: 0.5,
-        maxTokens: 4096,
-      });
-      if (!result.success || !result.text) {
-        throw new Error(result.error || "分集细纲生成失败");
-      }
-
-      const { outline, errors, warnings } = parseEpisodeOutline(result.text, episodeId);
-      if (!outline.beats.length) {
-        toast.error(`未解析到 beat${errors.length ? `（非法行 ${errors.length}）` : ""}`);
+  const handleDirectorPlan = useCallback(
+    async (episodeId = "episode-1") => {
+      if (!window.electronAPI?.textCompletion) {
+        toast.error("当前环境不支持模型调用");
         return;
       }
 
-      saveEpisodeOutline(outline);
-      const totalSec = outline.beats.reduce((sum, beat) => sum + beat.durationSec, 0);
-      const tail = [
-        errors.length ? `非法行 ${errors.length}` : "",
-        warnings.length ? `光影提示 ${warnings.length} 处已剔除` : "",
-      ].filter(Boolean).join("；");
-      toast.success(`分集细纲完成（${outline.beats.length} beat / ${totalSec}s${tail ? `；${tail}` : ""}）`);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : String(error));
-    }
-  }, [saveEpisodeOutline]);
+      const store = useStudioStore.getState();
+      const targetEpisodeId = resolveProductionEpisodeId(store, episodeId);
+      const scriptText = resolveScriptTextForEpisode(store, targetEpisodeId);
+      if (!scriptText.trim()) {
+        toast.error("没有可规划的剧本：请先保存剧本草稿或导入小说正文");
+        return;
+      }
 
-  const handleAssignVoices = useCallback(() => {
-    const projectId = activeProject?.id;
-    if (!projectId) {
-      toast.error("未选择项目，无法分配音色");
-      return;
-    }
+      const manualContext = buildStudioManualContext(
+        store.workflowConfig,
+        manualCatalog,
+      );
+      const messages = buildDirectorPlanMessages({
+        episodeId: targetEpisodeId,
+        scriptText,
+        manualContext,
+      });
+      try {
+        const result = await aiManager.text({
+          binding: { agent: "productionAgent:directorPlanAgent" },
+          messages: [
+            { role: "system", content: messages.system },
+            { role: "user", content: messages.user },
+          ],
+          temperature: 0.4,
+          maxTokens: 4096,
+        });
+        if (!result.success || !result.text) {
+          throw new Error(result.error || "导演计划失败");
+        }
 
-    const characters = useCharacterLibraryStore
-      .getState()
-      .characters.filter((item) => !item.projectId || item.projectId === projectId);
-    if (!characters.length) {
-      toast.error("角色库为空：请先运行实体提取或手动建角色");
-      return;
-    }
+        const { plan, warnings } = parseDirectorPlan(
+          result.text,
+          targetEpisodeId,
+        );
+        saveScriptPlan(plan);
 
-    const assignments = assignVoicesForCharacters(
-      characters.map((item) => ({
-        id: item.id,
-        name: item.name,
-        gender: item.gender,
-        age: item.age,
-        personality: item.personality,
-      })),
-    );
+        const detail = `衍生预划 ${plan.derivedAssetPlan.length} 条`;
+        if (warnings.length) {
+          toast.warning(
+            `导演计划完成（${detail}；光影提示 ${warnings.length} 处已剔除）`,
+          );
+        } else {
+          toast.success(`导演计划完成（${detail}）`);
+        }
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : String(error));
+      }
+    },
+    [manualCatalog, saveScriptPlan],
+  );
 
-    useTtsStore.getState().setActiveProjectId(projectId);
-    const { bound } = syncCharacterVoices(assignments, { projectId, sink: createMystudioTtsSink() });
-    setVoiceAssignments(assignments);
-    toast.success(`音色分配完成（${bound} 个角色已绑定音色）`);
-  }, [activeProject?.id]);
+  const handleDeriveAssets = useCallback(
+    (episodeId = "episode-1") => {
+      const store = useStudioStore.getState();
+      const targetEpisodeId = resolveScriptPlanEpisodeId(store, episodeId);
+      const plan = store.scriptPlans.find(
+        (item) => item.episodeId === targetEpisodeId,
+      );
+      if (!plan) {
+        toast.error("尚无导演计划：请先运行导演计划，生成⑦衍生预划清单");
+        return;
+      }
+      if (!plan.derivedAssetPlan.length) {
+        toast.info("本集导演计划判定无需衍生资产");
+        return;
+      }
+
+      const projectId = activeProject?.id;
+      if (!projectId) {
+        toast.error("未选择项目，无法写入衍生资产");
+        return;
+      }
+
+      const batch =
+        store.entityExtractions.find(
+          (item) => item.episodeId === targetEpisodeId,
+        ) ?? store.entityExtractions[store.entityExtractions.length - 1];
+      if (!batch) {
+        toast.error("尚无实体库：请先运行实体提取，衍生资产需绑定父资产");
+        return;
+      }
+
+      const resolver = buildEntityResolver(
+        batch.characters.map((c) => ({
+          id: c.characterId,
+          name: c.name,
+          aliases: c.aliases,
+        })),
+        batch.scenes.map((s) => ({ id: s.sceneId, name: s.name })),
+      );
+      const { summary } = syncDerivedAssets(plan.derivedAssetPlan, {
+        projectId,
+        resolver,
+        ...createMystudioDerivedSinks(),
+      });
+
+      if (summary.skipped) {
+        toast.warning(
+          `衍生资产落地 ${summary.created} 条，跳过 ${summary.skipped} 条（父资产未匹配）`,
+        );
+      } else {
+        toast.success(`衍生资产落地 ${summary.created} 条`);
+      }
+    },
+    [activeProject?.id],
+  );
+
+  const handleStoryboardTable = useCallback(
+    async (episodeId = "episode-1") => {
+      if (!window.electronAPI?.textCompletion) {
+        toast.error("当前环境不支持模型调用");
+        return;
+      }
+
+      const store = useStudioStore.getState();
+      const targetEpisodeId = resolveProductionEpisodeId(store, episodeId);
+      const scriptText = resolveScriptTextForEpisode(store, targetEpisodeId);
+      if (!scriptText.trim()) {
+        toast.error("没有可分镜的剧本：请先保存剧本草稿或导入小说正文");
+        return;
+      }
+
+      const plan = store.scriptPlans.find(
+        (item) => item.episodeId === targetEpisodeId,
+      );
+      const scriptPlanContext = plan
+        ? formatScriptPlanContext(plan)
+        : undefined;
+      const messages = buildStoryboardTableMessages({
+        episodeId: targetEpisodeId,
+        scriptText,
+        scriptPlanContext,
+      });
+      try {
+        const result = await aiManager.text({
+          binding: { agent: "productionAgent:storyboardTableAgent" },
+          messages: [
+            { role: "system", content: messages.system },
+            { role: "user", content: messages.user },
+          ],
+          temperature: 0.4,
+          maxTokens: 4096,
+        });
+        if (!result.success || !result.text) {
+          throw new Error(result.error || "分镜表生成失败");
+        }
+
+        const { rows, errors, warnings } = parseStoryboardTable(
+          result.text,
+          targetEpisodeId,
+        );
+        if (!rows.length) {
+          toast.error(
+            `未解析到分镜行${errors.length ? `（非法行 ${errors.length}）` : ""}`,
+          );
+          return;
+        }
+
+        const items = toStoryboardItems(rows, targetEpisodeId);
+        const existingIds = new Set(
+          useStudioStore.getState().storyboards.map((item) => item.id),
+        );
+        for (const item of items) {
+          if (existingIds.has(item.id)) {
+            updateStoryboard(item.id, item);
+          } else {
+            addStoryboard(item);
+          }
+        }
+
+        const tail = [
+          errors.length ? `非法行 ${errors.length}` : "",
+          warnings.length ? `光影提示 ${warnings.length} 处已剔除` : "",
+        ]
+          .filter(Boolean)
+          .join("；");
+        toast.success(
+          `分镜表落地 ${items.length} 镜${tail ? `（${tail}）` : ""}`,
+        );
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : String(error));
+      }
+    },
+    [addStoryboard, updateStoryboard],
+  );
 
   const handleBuildSeriesBible = useCallback(() => {
     const projectId = activeProject?.id;
@@ -755,7 +1115,9 @@ export function StudioView() {
 
     const characters = useCharacterLibraryStore
       .getState()
-      .characters.filter((item) => !item.projectId || item.projectId === projectId);
+      .characters.filter(
+        (item) => !item.projectId || item.projectId === projectId,
+      );
     const scenes = useSceneStore
       .getState()
       .scenes.filter((item) => !item.projectId || item.projectId === projectId);
@@ -784,18 +1146,34 @@ export function StudioView() {
   }, [activeProject?.id, saveSeriesBible]);
 
   const scriptStyleSummary = useMemo(() => {
-    const visual = manualCatalog.visual?.find((p) => p.id === workflowConfig.visualManualId)?.name;
+    const visual = manualCatalog.visual?.find(
+      (p) => p.id === workflowConfig.visualManualId,
+    )?.name;
     return [
       "## 项目信息",
       `小说名称：${projectName}`,
       workflowConfig.novelGenre ? `小说类型：${workflowConfig.novelGenre}` : "",
       `目标画风：${visual || workflowConfig.stylePositioning || "未设"}`,
       `目标画幅：${workflowConfig.platformSpec || "16:9"}`,
-      workflowConfig.episodeCount ? `集数：${workflowConfig.episodeCount}集` : "",
+      workflowConfig.episodeCount
+        ? `集数：${workflowConfig.episodeCount}集`
+        : "",
       `单集时长：${workflowConfig.episodeDurationMin ?? 3}分钟`,
       `章节数量：${novelChapters.length}章`,
-    ].filter(Boolean).join("\n");
-  }, [projectName, workflowConfig.visualManualId, workflowConfig.novelGenre, workflowConfig.stylePositioning, workflowConfig.platformSpec, workflowConfig.episodeCount, workflowConfig.episodeDurationMin, manualCatalog, novelChapters.length]);
+    ]
+      .filter(Boolean)
+      .join("\n");
+  }, [
+    projectName,
+    workflowConfig.visualManualId,
+    workflowConfig.novelGenre,
+    workflowConfig.stylePositioning,
+    workflowConfig.platformSpec,
+    workflowConfig.episodeCount,
+    workflowConfig.episodeDurationMin,
+    manualCatalog,
+    novelChapters.length,
+  ]);
 
   const scriptDirectorContext = useMemo(
     () => buildStudioManualContext(workflowConfig, manualCatalog),
@@ -804,22 +1182,36 @@ export function StudioView() {
 
   const latestScriptStage = useCallback(
     (key: AgentWorkKey, scopeId: string) =>
-      [...agentWorkData].reverse().find((item) => item.key === key && item.episodeId === scopeId)?.data ?? "",
+      [...agentWorkData]
+        .reverse()
+        .find((item) => item.key === key && item.episodeId === scopeId)?.data ??
+      "",
     [agentWorkData],
   );
 
-  const [scriptStreaming, setScriptStreaming] = useState<{ key: AgentWorkKey; scopeId: string; text: string } | null>(null);
+  const [scriptStreaming, setScriptStreaming] = useState<{
+    key: AgentWorkKey;
+    scopeId: string;
+    text: string;
+  } | null>(null);
 
   const runScriptStage = useCallback(
     async (opts: {
-      agentKey: "storySkeletonAgent" | "adaptationStrategyAgent" | "scriptDraft";
+      agentKey:
+        | "storySkeletonAgent"
+        | "adaptationStrategyAgent"
+        | "scriptDraft";
       messages: { system: string; user: string };
       stageKey: AgentWorkKey;
       scopeId: string;
       label: string;
       revised?: boolean;
     }) => {
-      setScriptStreaming({ key: opts.stageKey, scopeId: opts.scopeId, text: "" });
+      setScriptStreaming({
+        key: opts.stageKey,
+        scopeId: opts.scopeId,
+        text: "",
+      });
       const result = await aiManager.textStream(
         {
           binding: { agent: opts.agentKey },
@@ -831,7 +1223,9 @@ export function StudioView() {
         },
         (delta) =>
           setScriptStreaming((s) =>
-            s && s.key === opts.stageKey && s.scopeId === opts.scopeId ? { ...s, text: s.text + delta } : s,
+            s && s.key === opts.stageKey && s.scopeId === opts.scopeId
+              ? { ...s, text: s.text + delta }
+              : s,
           ),
       );
       setScriptStreaming(null);
@@ -839,8 +1233,16 @@ export function StudioView() {
         toast.error(result.error || `${opts.label}生成失败`);
         return;
       }
-      saveAgentWorkData(opts.stageKey, parseStageOutput(result.text), opts.scopeId);
-      toast.success(opts.revised ? `已按审核修订「${opts.label}」，请重新审核确认` : `${opts.label}已生成`);
+      saveAgentWorkData(
+        opts.stageKey,
+        parseStageOutput(result.text),
+        opts.scopeId,
+      );
+      toast.success(
+        opts.revised
+          ? `已按审核修订「${opts.label}」，请重新审核确认`
+          : `${opts.label}已生成`,
+      );
     },
     [saveAgentWorkData],
   );
@@ -886,7 +1288,12 @@ export function StudioView() {
         revised: hasReviewIssues(review),
       });
     },
-    [runScriptStage, latestScriptStage, scriptStyleSummary, scriptDirectorContext],
+    [
+      runScriptStage,
+      latestScriptStage,
+      scriptStyleSummary,
+      scriptDirectorContext,
+    ],
   );
 
   const handleStageReview = useCallback(
@@ -926,7 +1333,10 @@ export function StudioView() {
     for (const file of Array.from(files)) {
       try {
         const bytes = await file.arrayBuffer();
-        const result = await window.studioAssets.saveMaterial({ name: file.name, bytes });
+        const result = await window.studioAssets.saveMaterial({
+          name: file.name,
+          bytes,
+        });
         if (!result.success || !result.localPath) {
           throw new Error(result.error || "素材保存失败");
         }
@@ -950,7 +1360,11 @@ export function StudioView() {
     let candidateId = "";
     try {
       const plan = createTrackRenderPlan(track, storyboards);
-      candidateId = addVideoCandidate({ trackId, provider: "ffmpeg-local", state: "rendering" });
+      candidateId = addVideoCandidate({
+        trackId,
+        provider: "ffmpeg-local",
+        state: "rendering",
+      });
       setRenderingTrackId(trackId);
 
       const result = await window.studioRenderer?.renderTrackCandidate(plan);
@@ -958,7 +1372,10 @@ export function StudioView() {
         throw new Error(result?.error || "本地 FFmpeg 合成失败");
       }
 
-      updateVideoCandidate(candidateId, { state: "ready", filePath: result.filePath });
+      updateVideoCandidate(candidateId, {
+        state: "ready",
+        filePath: result.filePath,
+      });
       selectVideoCandidate(trackId, candidateId);
       toast.success("候选片段已生成");
     } catch (error) {
@@ -983,7 +1400,17 @@ export function StudioView() {
         throw new Error(result?.error || "成片拼接失败");
       }
       setMergeOutput(result.filePath);
-      saveAgentWorkData("productionPlan", `本地成片输出: ${result.filePath}`, "episode-1");
+      const episodeId =
+        productionTracks.find((track) =>
+          selectedCandidates.some(
+            (candidate) => candidate.trackId === track.id,
+          ),
+        )?.episodeId ?? resolveProductionEpisodeId(useStudioStore.getState());
+      saveAgentWorkData(
+        "productionPlan",
+        `本地成片输出: ${result.filePath}`,
+        episodeId,
+      );
       toast.success("成片已拼接完成");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : String(error));
@@ -993,34 +1420,14 @@ export function StudioView() {
   };
 
   return (
-    <div className="studio-workspace studio-workspace-workflow h-full bg-background">
-      <Tabs value={activeWorkflowTab} onValueChange={handleStageChange} className="flex h-full flex-col">
-        <div className="border-b border-border bg-panel px-6 py-3">
-          <div className="flex items-center justify-between gap-4">
-            <div className="min-w-0 flex-1">
-              {activeWorkflowTab === "novel" ? novelHeaderActions : activeWorkflowTab === "script" ? scriptHeaderActions : activeWorkflowTab === "assets" ? assetsHeaderActions : null}
-            </div>
-            <Select value={activeWorkflowTab} onValueChange={handleStageChange}>
-              <SelectTrigger className="h-10 w-[220px] gap-2 border-primary/40">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {WORKFLOW_TABS.map(({ value, label, Icon }, index) => (
-                  <SelectItem key={value} value={value}>
-                    <span className="flex items-center gap-2">
-                      <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-muted px-1 text-[10px] font-semibold">{index + 1}</span>
-                      <Icon className="h-4 w-4" />
-                      {label}
-                    </span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
+    <div className="studio-workspace studio-workspace-workflow h-full bg-[#20201f]">
+      <Tabs
+        value={activeWorkflowTab}
+        onValueChange={handleStageChange}
+        className="flex h-full flex-col"
+      >
         <ScrollArea className="flex-1 scrollbar-hidden">
-          <div className="p-5">
+          <div className="bg-background p-5">
             <TabsContent value="novel" className="m-0">
               <NovelTab
                 novelDraft={novelDraft}
@@ -1041,31 +1448,6 @@ export function StudioView() {
                 workflowConfig={workflowConfig}
                 setWorkflowConfig={setWorkflowConfig}
                 manualCatalog={manualCatalog}
-              />
-            </TabsContent>
-
-            <TabsContent value="skill" className="m-0">
-              <SkillTab
-                selectedTask={selectedTask}
-                setSelectedTask={setSelectedTask}
-                handleBuildContext={handleBuildContext}
-                lastContextPackage={lastContextPackage}
-                agentWorkData={agentWorkData}
-                agentDraft={agentDraft}
-                setAgentDraft={setAgentDraft}
-                handleSaveAgentWork={handleSaveAgentWork}
-                handleEntityExtraction={handleEntityExtraction}
-                entityExtractions={entityExtractions}
-                handleDirectorPlan={handleDirectorPlan}
-                handleDeriveAssets={handleDeriveAssets}
-                handleStoryboardTable={handleStoryboardTable}
-                handleBuildSeriesBible={handleBuildSeriesBible}
-                handleEpisodeOutline={handleEpisodeOutline}
-                episodeOutlines={episodeOutlines}
-                handleAssignVoices={handleAssignVoices}
-                voiceAssignments={voiceAssignments}
-                scriptPlans={scriptPlans}
-                storyboards={storyboards}
               />
             </TabsContent>
 
@@ -1096,7 +1478,15 @@ export function StudioView() {
             </TabsContent>
 
             <TabsContent value="generation" className="m-0">
-              <GenerationTab />
+              <GenerationTab
+                runDirectorPlan={handleDirectorPlan}
+                deriveAssets={handleDeriveAssets}
+                buildSeriesBible={handleBuildSeriesBible}
+                productionEpisodeId={productionEpisodeId}
+                scriptPlanCount={scriptPlans.length}
+                hasSeriesBible={Boolean(seriesBible)}
+                projectName={projectName}
+              />
             </TabsContent>
 
             <TabsContent value="storyboard" className="m-0">
@@ -1109,6 +1499,7 @@ export function StudioView() {
                 addStoryboard={addStoryboard}
                 updateStoryboard={updateStoryboard}
                 createStoryboardsFromChapters={createStoryboardsFromChapters}
+                generateStoryboardTable={handleStoryboardTable}
               />
             </TabsContent>
 
@@ -1127,7 +1518,6 @@ export function StudioView() {
                 mergeEpisode={handleMergeEpisode}
               />
             </TabsContent>
-
           </div>
         </ScrollArea>
       </Tabs>
@@ -1167,9 +1557,13 @@ export function NovelTab(props: {
   handleNovelFile: (file?: File) => void | Promise<void>;
   appendNovelText: (value: string, sourceName?: string) => void;
   replaceNovelText: (value: string, sourceName?: string) => void;
-  deleteNovelChapters: ReturnType<typeof useStudioStore.getState>["deleteNovelChapters"];
+  deleteNovelChapters: ReturnType<
+    typeof useStudioStore.getState
+  >["deleteNovelChapters"];
   novelChapters: ReturnType<typeof useStudioStore.getState>["novelChapters"];
-  updateNovelChapter: ReturnType<typeof useStudioStore.getState>["updateNovelChapter"];
+  updateNovelChapter: ReturnType<
+    typeof useStudioStore.getState
+  >["updateNovelChapter"];
   analyzeEvents: (chapters: NovelChapter[]) => void | Promise<void>;
   setHeaderActions: (actions: ReactNode) => void;
 }) {
@@ -1179,8 +1573,12 @@ export function NovelTab(props: {
   const [importSourceName, setImportSourceName] = useState("");
   const [searchText, setSearchText] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [editingChapter, setEditingChapter] = useState<NovelChapter | null>(null);
-  const [deletingChapter, setDeletingChapter] = useState<NovelChapter | null>(null);
+  const [editingChapter, setEditingChapter] = useState<NovelChapter | null>(
+    null,
+  );
+  const [deletingChapter, setDeletingChapter] = useState<NovelChapter | null>(
+    null,
+  );
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [editDraft, setEditDraft] = useState({
     volume: "",
@@ -1206,8 +1604,12 @@ export function NovelTab(props: {
     () => props.novelChapters.filter((chapter) => selectedIds.has(chapter.id)),
     [props.novelChapters, selectedIds],
   );
-  const visibleSelectedCount = filteredChapters.filter((chapter) => selectedIds.has(chapter.id)).length;
-  const allVisibleSelected = filteredChapters.length > 0 && visibleSelectedCount === filteredChapters.length;
+  const visibleSelectedCount = filteredChapters.filter((chapter) =>
+    selectedIds.has(chapter.id),
+  ).length;
+  const allVisibleSelected =
+    filteredChapters.length > 0 &&
+    visibleSelectedCount === filteredChapters.length;
 
   const handleOpenImport = useCallback(() => {
     setImportMode("append");
@@ -1231,7 +1633,9 @@ export function NovelTab(props: {
     props.setNovelDraft("");
     setImportSourceName("");
     setImportOpen(false);
-    toast.success(importMode === "replace" ? "小说章节已覆盖导入" : "小说章节已追加导入");
+    toast.success(
+      importMode === "replace" ? "小说章节已覆盖导入" : "小说章节已追加导入",
+    );
   };
 
   const toggleChapter = (id: string, checked: boolean) => {
@@ -1275,7 +1679,9 @@ export function NovelTab(props: {
   }, [props.analyzeEvents, selectedChapters]);
 
   const handleConfirmDelete = () => {
-    const ids = deletingChapter ? [deletingChapter.id] : Array.from(selectedIds);
+    const ids = deletingChapter
+      ? [deletingChapter.id]
+      : Array.from(selectedIds);
     props.deleteNovelChapters(ids);
     setSelectedIds((current) => {
       const next = new Set(current);
@@ -1321,11 +1727,19 @@ export function NovelTab(props: {
           <Plus className="h-4 w-4" />
           导入原文
         </Button>
-        <Button variant="destructive" disabled={selectedIds.size === 0} onClick={openBatchDelete}>
+        <Button
+          variant="destructive"
+          disabled={selectedIds.size === 0}
+          onClick={openBatchDelete}
+        >
           <Trash2 className="h-4 w-4" />
           批量删除 ({selectedIds.size})
         </Button>
-        <Button variant="secondary" disabled={selectedIds.size === 0} onClick={handleAnalyzeSelectedChapters}>
+        <Button
+          variant="secondary"
+          disabled={selectedIds.size === 0}
+          onClick={handleAnalyzeSelectedChapters}
+        >
           <ClipboardList className="h-4 w-4" />
           事件分析 ({selectedIds.size})
         </Button>
@@ -1358,7 +1772,12 @@ export function NovelTab(props: {
           <TableHeader>
             <TableRow className="hover:bg-transparent">
               <TableHead className="w-12">
-                <Checkbox checked={allVisibleSelected} onCheckedChange={(checked) => toggleAllVisible(checked === true)} />
+                <Checkbox
+                  checked={allVisibleSelected}
+                  onCheckedChange={(checked) =>
+                    toggleAllVisible(checked === true)
+                  }
+                />
               </TableHead>
               <TableHead className="w-16">序号</TableHead>
               <TableHead className="w-28">卷</TableHead>
@@ -1371,31 +1790,62 @@ export function NovelTab(props: {
           </TableHeader>
           <TableBody>
             {filteredChapters.map((chapter) => (
-              <TableRow key={chapter.id} data-state={selectedIds.has(chapter.id) ? "selected" : undefined}>
+              <TableRow
+                key={chapter.id}
+                data-state={
+                  selectedIds.has(chapter.id) ? "selected" : undefined
+                }
+              >
                 <TableCell>
-                  <Checkbox checked={selectedIds.has(chapter.id)} onCheckedChange={(checked) => toggleChapter(chapter.id, checked === true)} />
+                  <Checkbox
+                    checked={selectedIds.has(chapter.id)}
+                    onCheckedChange={(checked) =>
+                      toggleChapter(chapter.id, checked === true)
+                    }
+                  />
                 </TableCell>
-                <TableCell className="text-muted-foreground">{chapter.index}</TableCell>
-                <TableCell className="text-xs">{chapter.volume ?? "正文卷"}</TableCell>
-                <TableCell>
-                  <div className="line-clamp-2 font-medium">{chapter.title}</div>
+                <TableCell className="text-muted-foreground">
+                  {chapter.index}
+                </TableCell>
+                <TableCell className="text-xs">
+                  {chapter.volume ?? "正文卷"}
                 </TableCell>
                 <TableCell>
-                  <div className="line-clamp-2 text-xs leading-5 text-muted-foreground">{chapter.sourceText}</div>
+                  <div className="line-clamp-2 font-medium">
+                    {chapter.title}
+                  </div>
                 </TableCell>
                 <TableCell>
-                  <div className="line-clamp-2 text-xs leading-5 text-muted-foreground">{chapter.eventSummary || "未填写"}</div>
+                  <div className="line-clamp-2 text-xs leading-5 text-muted-foreground">
+                    {chapter.sourceText}
+                  </div>
                 </TableCell>
                 <TableCell>
-                  <div className="line-clamp-2 text-xs leading-5 text-muted-foreground">{chapter.eventState || "未填写"}</div>
+                  <div className="line-clamp-2 text-xs leading-5 text-muted-foreground">
+                    {chapter.eventSummary || "未填写"}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="line-clamp-2 text-xs leading-5 text-muted-foreground">
+                    {chapter.eventState || "未填写"}
+                  </div>
                 </TableCell>
                 <TableCell>
                   <div className="flex justify-end gap-1">
-                    <Button size="sm" variant="text" onClick={() => openEdit(chapter)}>
+                    <Button
+                      size="sm"
+                      variant="text"
+                      onClick={() => openEdit(chapter)}
+                    >
                       <Edit3 className="h-4 w-4" />
                       编辑
                     </Button>
-                    <Button size="sm" variant="text" className="text-destructive hover:text-destructive" onClick={() => openSingleDelete(chapter)}>
+                    <Button
+                      size="sm"
+                      variant="text"
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => openSingleDelete(chapter)}
+                    >
                       <Trash2 className="h-4 w-4" />
                       删除
                     </Button>
@@ -1405,8 +1855,14 @@ export function NovelTab(props: {
             ))}
             {!filteredChapters.length && (
               <TableRow>
-                <TableCell colSpan={8} className="h-40 text-center text-sm text-muted-foreground">
-                  <NovelEmptyState hasNovelChapters={props.novelChapters.length > 0} onImport={handleOpenImport} />
+                <TableCell
+                  colSpan={8}
+                  className="h-40 text-center text-sm text-muted-foreground"
+                >
+                  <NovelEmptyState
+                    hasNovelChapters={props.novelChapters.length > 0}
+                    onImport={handleOpenImport}
+                  />
                 </TableCell>
               </TableRow>
             )}
@@ -1418,7 +1874,9 @@ export function NovelTab(props: {
         <DialogContent className="max-w-3xl">
           <DialogHeader>
             <DialogTitle>导入原文</DialogTitle>
-            <DialogDescription>TXT/Markdown 会拆成章节，并把原文写成文档保存到当前项目存储位置。</DialogDescription>
+            <DialogDescription>
+              TXT/Markdown 会拆成章节，并把原文写成文档保存到当前项目存储位置。
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <Label className="flex min-h-20 cursor-pointer items-center justify-between gap-4 rounded-lg border border-dashed border-primary/45 bg-primary/5 px-4 py-3 transition-colors hover:bg-primary/10">
@@ -1427,13 +1885,18 @@ export function NovelTab(props: {
                   <Upload className="h-5 w-5" />
                 </span>
                 <span className="min-w-0">
-                  <span className="block text-sm font-medium">选择 TXT/Markdown 文件</span>
+                  <span className="block text-sm font-medium">
+                    选择 TXT/Markdown 文件
+                  </span>
                   <span className="mt-1 block truncate text-xs text-muted-foreground">
-                    {importSourceName || "支持 .txt、.md，也可以直接在下方粘贴原文。"}
+                    {importSourceName ||
+                      "支持 .txt、.md，也可以直接在下方粘贴原文。"}
                   </span>
                 </span>
               </div>
-              <span className="shrink-0 rounded-md border border-input bg-background px-3 py-1.5 text-xs font-medium">选择文件</span>
+              <span className="shrink-0 rounded-md border border-input bg-background px-3 py-1.5 text-xs font-medium">
+                选择文件
+              </span>
               <input
                 type="file"
                 accept=".txt,.md,text/plain,text/markdown"
@@ -1442,8 +1905,18 @@ export function NovelTab(props: {
               />
             </Label>
             <div className="flex gap-2">
-              <Button variant={importMode === "append" ? "default" : "secondary"} onClick={() => setImportMode("append")}>追加导入</Button>
-              <Button variant={importMode === "replace" ? "default" : "secondary"} onClick={() => setImportMode("replace")}>覆盖导入</Button>
+              <Button
+                variant={importMode === "append" ? "default" : "secondary"}
+                onClick={() => setImportMode("append")}
+              >
+                追加导入
+              </Button>
+              <Button
+                variant={importMode === "replace" ? "default" : "secondary"}
+                onClick={() => setImportMode("replace")}
+              >
+                覆盖导入
+              </Button>
             </div>
             <Textarea
               value={props.novelDraft}
@@ -1453,27 +1926,89 @@ export function NovelTab(props: {
             />
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setImportOpen(false)}>取消</Button>
-            <Button onClick={handleConfirmImport} disabled={!props.novelDraft.trim()}>确认导入</Button>
+            <Button variant="outline" onClick={() => setImportOpen(false)}>
+              取消
+            </Button>
+            <Button
+              onClick={handleConfirmImport}
+              disabled={!props.novelDraft.trim()}
+            >
+              确认导入
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <Dialog open={Boolean(editingChapter)} onOpenChange={(open) => !open && setEditingChapter(null)}>
+      <Dialog
+        open={Boolean(editingChapter)}
+        onOpenChange={(open) => !open && setEditingChapter(null)}
+      >
         <DialogContent className="max-w-4xl">
           <DialogHeader>
             <DialogTitle>编辑章节</DialogTitle>
-            <DialogDescription>保存后会同步更新项目存储位置下的章节文档。</DialogDescription>
+            <DialogDescription>
+              保存后会同步更新项目存储位置下的章节文档。
+            </DialogDescription>
           </DialogHeader>
           <div className="grid grid-cols-[160px_1fr] gap-3">
-            <Input value={editDraft.volume} onChange={(event) => setEditDraft((draft) => ({ ...draft, volume: event.target.value }))} placeholder="卷" />
-            <Input value={editDraft.title} onChange={(event) => setEditDraft((draft) => ({ ...draft, title: event.target.value }))} placeholder="章节名称" />
-            <Textarea className="col-span-2 min-h-[260px] font-mono text-xs" value={editDraft.sourceText} onChange={(event) => setEditDraft((draft) => ({ ...draft, sourceText: event.target.value }))} placeholder="章节内容" />
-            <Textarea className="min-h-[120px]" value={editDraft.eventSummary} onChange={(event) => setEditDraft((draft) => ({ ...draft, eventSummary: event.target.value }))} placeholder="事件摘要" />
-            <Textarea className="min-h-[120px]" value={editDraft.eventState} onChange={(event) => setEditDraft((draft) => ({ ...draft, eventState: event.target.value }))} placeholder="事件状态" />
+            <Input
+              value={editDraft.volume}
+              onChange={(event) =>
+                setEditDraft((draft) => ({
+                  ...draft,
+                  volume: event.target.value,
+                }))
+              }
+              placeholder="卷"
+            />
+            <Input
+              value={editDraft.title}
+              onChange={(event) =>
+                setEditDraft((draft) => ({
+                  ...draft,
+                  title: event.target.value,
+                }))
+              }
+              placeholder="章节名称"
+            />
+            <Textarea
+              className="col-span-2 min-h-[260px] font-mono text-xs"
+              value={editDraft.sourceText}
+              onChange={(event) =>
+                setEditDraft((draft) => ({
+                  ...draft,
+                  sourceText: event.target.value,
+                }))
+              }
+              placeholder="章节内容"
+            />
+            <Textarea
+              className="min-h-[120px]"
+              value={editDraft.eventSummary}
+              onChange={(event) =>
+                setEditDraft((draft) => ({
+                  ...draft,
+                  eventSummary: event.target.value,
+                }))
+              }
+              placeholder="事件摘要"
+            />
+            <Textarea
+              className="min-h-[120px]"
+              value={editDraft.eventState}
+              onChange={(event) =>
+                setEditDraft((draft) => ({
+                  ...draft,
+                  eventState: event.target.value,
+                }))
+              }
+              placeholder="事件状态"
+            />
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditingChapter(null)}>取消</Button>
+            <Button variant="outline" onClick={() => setEditingChapter(null)}>
+              取消
+            </Button>
             <Button onClick={saveEdit}>保存</Button>
           </DialogFooter>
         </DialogContent>
@@ -1490,8 +2025,15 @@ export function NovelTab(props: {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setDeletingChapter(null)}>取消</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">删除</AlertDialogAction>
+            <AlertDialogCancel onClick={() => setDeletingChapter(null)}>
+              取消
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              删除
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -1506,36 +2048,92 @@ function ManualsTab(props: {
 }) {
   const visualManuals = props.manualCatalog.visual ?? [];
   const directorManuals = props.manualCatalog.director ?? [];
-  const [editing, setEditing] = useState<{ kind: "visual" | "director"; manual: StudioManualPreset } | null>(null);
+  const [editing, setEditing] = useState<{
+    kind: "visual" | "director";
+    manual: StudioManualPreset;
+  } | null>(null);
 
   return (
     <div className="grid grid-cols-[320px_1fr] gap-5">
       {/* 左：项目配置（ToonFlow 风格）*/}
       <Card className="h-fit rounded-lg">
-        <CardHeader><CardTitle className="text-sm">项目配置</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle className="text-sm">项目配置</CardTitle>
+        </CardHeader>
         <CardContent className="space-y-3">
           <div className="space-y-1">
             <Label className="text-xs text-muted-foreground">项目类型</Label>
-            <select className="h-8 w-full rounded-md border border-input bg-background px-2 text-sm" value={props.workflowConfig.projectType ?? "novel"} onChange={(e) => props.setWorkflowConfig({ projectType: e.target.value })}>
+            <select
+              className="h-8 w-full rounded-md border border-input bg-background px-2 text-sm"
+              value={props.workflowConfig.projectType ?? "novel"}
+              onChange={(e) =>
+                props.setWorkflowConfig({ projectType: e.target.value })
+              }
+            >
               <option value="novel">基于小说原文</option>
               <option value="script">基于剧本</option>
             </select>
           </div>
           <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground">单集时长（分钟）</Label>
-            <Input type="number" min={1} value={props.workflowConfig.episodeDurationMin ?? 3} onChange={(e) => props.setWorkflowConfig({ episodeDurationMin: e.target.value ? Number(e.target.value) : undefined })} className="h-8" placeholder="例如 3" />
+            <Label className="text-xs text-muted-foreground">
+              单集时长（分钟）
+            </Label>
+            <Input
+              type="number"
+              min={1}
+              value={props.workflowConfig.episodeDurationMin ?? 3}
+              onChange={(e) =>
+                props.setWorkflowConfig({
+                  episodeDurationMin: e.target.value
+                    ? Number(e.target.value)
+                    : undefined,
+                })
+              }
+              className="h-8"
+              placeholder="例如 3"
+            />
           </div>
           <div className="space-y-1">
             <Label className="text-xs text-muted-foreground">集数</Label>
-            <Input type="number" min={1} value={props.workflowConfig.episodeCount ?? ""} onChange={(e) => props.setWorkflowConfig({ episodeCount: e.target.value ? Number(e.target.value) : undefined })} className="h-8" placeholder="例如 12" />
+            <Input
+              type="number"
+              min={1}
+              value={props.workflowConfig.episodeCount ?? ""}
+              onChange={(e) =>
+                props.setWorkflowConfig({
+                  episodeCount: e.target.value
+                    ? Number(e.target.value)
+                    : undefined,
+                })
+              }
+              className="h-8"
+              placeholder="例如 12"
+            />
           </div>
           <div className="space-y-1">
             <Label className="text-xs text-muted-foreground">小说类型</Label>
-            <Input value={props.workflowConfig.novelGenre ?? ""} onChange={(e) => props.setWorkflowConfig({ novelGenre: e.target.value || undefined })} className="h-8" placeholder="例如 玄幻、科幻、言情" />
+            <Input
+              value={props.workflowConfig.novelGenre ?? ""}
+              onChange={(e) =>
+                props.setWorkflowConfig({
+                  novelGenre: e.target.value || undefined,
+                })
+              }
+              className="h-8"
+              placeholder="例如 玄幻、科幻、言情"
+            />
           </div>
           <div className="space-y-1">
             <Label className="text-xs text-muted-foreground">平台规格</Label>
-            <select className="h-8 w-full rounded-md border border-input bg-background px-2 text-sm" value={props.workflowConfig.platformSpec ?? ""} onChange={(e) => props.setWorkflowConfig({ platformSpec: e.target.value || undefined })}>
+            <select
+              className="h-8 w-full rounded-md border border-input bg-background px-2 text-sm"
+              value={props.workflowConfig.platformSpec ?? ""}
+              onChange={(e) =>
+                props.setWorkflowConfig({
+                  platformSpec: e.target.value || undefined,
+                })
+              }
+            >
               <option value="">未选择</option>
               <option value="16:9">16:9 横屏</option>
               <option value="9:16">9:16 竖屏</option>
@@ -1544,102 +2142,152 @@ function ManualsTab(props: {
           </div>
           <div className="space-y-1">
             <Label className="text-xs text-muted-foreground">小说简介</Label>
-            <Textarea value={props.workflowConfig.novelSynopsis ?? ""} onChange={(e) => props.setWorkflowConfig({ novelSynopsis: e.target.value || undefined })} className="min-h-[120px] text-sm" placeholder="请输入小说简介" />
+            <Textarea
+              value={props.workflowConfig.novelSynopsis ?? ""}
+              onChange={(e) =>
+                props.setWorkflowConfig({
+                  novelSynopsis: e.target.value || undefined,
+                })
+              }
+              className="min-h-[120px] text-sm"
+              placeholder="请输入小说简介"
+            />
           </div>
         </CardContent>
       </Card>
 
       {/* 右：视觉手册 + 导演手册 */}
       <div className="space-y-5">
-      {/* 视觉手册网格 */}
-      <section>
-        <div className="mb-2 flex items-center gap-2 text-sm font-medium">
-          <Palette className="h-4 w-4" /> 视觉手册（画风）
-          <span className="text-xs font-normal text-muted-foreground">{visualManuals.length} 个 · 点击选择</span>
-        </div>
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3">
-          {visualManuals.map((manual) => {
-            const active = manual.id === props.workflowConfig.visualManualId;
-            return (
-              <div
-                key={manual.id}
-                role="button"
-                tabIndex={0}
-                onClick={() => props.setWorkflowConfig({ visualManualId: active ? undefined : manual.id })}
-                className={cn(
-                  "group relative cursor-pointer overflow-hidden rounded-lg border bg-card text-left transition-colors",
-                  active ? "border-primary ring-2 ring-primary/30" : "border-border hover:border-primary/40",
-                )}
-              >
-                <button
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); setEditing({ kind: "visual", manual }); }}
-                  className="absolute right-1.5 top-1.5 z-10 hidden rounded-md bg-background/90 p-1 shadow group-hover:block hover:text-primary"
-                  title="编辑文档"
-                >
-                  <Edit3 className="h-3.5 w-3.5" />
-                </button>
-                <div className="aspect-video overflow-hidden bg-muted">
-                  {manual.images?.[0] ? (
-                    <img src={manual.images[0]} alt={manual.name} className="h-full w-full object-cover" />
-                  ) : (
-                    <div className="flex h-full items-center justify-center"><Palette className="h-6 w-6 opacity-30" /></div>
+        {/* 视觉手册网格 */}
+        <section>
+          <div className="mb-2 flex items-center gap-2 text-sm font-medium">
+            <Palette className="h-4 w-4" /> 视觉手册（画风）
+            <span className="text-xs font-normal text-muted-foreground">
+              {visualManuals.length} 个 · 点击选择
+            </span>
+          </div>
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3">
+            {visualManuals.map((manual) => {
+              const active = manual.id === props.workflowConfig.visualManualId;
+              return (
+                <div
+                  key={manual.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() =>
+                    props.setWorkflowConfig({
+                      visualManualId: active ? undefined : manual.id,
+                    })
+                  }
+                  className={cn(
+                    "group relative cursor-pointer overflow-hidden rounded-lg border bg-card text-left transition-colors",
+                    active
+                      ? "border-primary ring-2 ring-primary/30"
+                      : "border-border hover:border-primary/40",
                   )}
-                </div>
-                <div className="flex items-center justify-between gap-1 px-2 py-1.5">
-                  <span className="truncate text-xs font-medium">{manual.name}</span>
-                  {active ? <Check className="h-3.5 w-3.5 shrink-0 text-primary" /> : null}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
-      {/* 导演手册网格 */}
-      <section>
-        <div className="mb-2 flex items-center gap-2 text-sm font-medium">
-          <BookMarked className="h-4 w-4" /> 导演手册
-          <span className="text-xs font-normal text-muted-foreground">{directorManuals.length} 个 · 点击选择</span>
-        </div>
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3">
-          {directorManuals.map((manual) => {
-            const active = manual.id === props.workflowConfig.directorManualId;
-            return (
-              <div
-                key={manual.id}
-                role="button"
-                tabIndex={0}
-                onClick={() => props.setWorkflowConfig({ directorManualId: active ? undefined : manual.id })}
-                className={cn(
-                  "group relative cursor-pointer rounded-lg border p-3 text-left transition-colors",
-                  active ? "border-primary bg-primary/5 ring-2 ring-primary/30" : "border-border hover:border-primary/40",
-                )}
-              >
-                <button
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); setEditing({ kind: "director", manual }); }}
-                  className="absolute right-1.5 top-1.5 z-10 hidden rounded-md bg-background/90 p-1 shadow group-hover:block hover:text-primary"
-                  title="编辑文档"
                 >
-                  <Edit3 className="h-3.5 w-3.5" />
-                </button>
-                <div className="flex items-center justify-between gap-1">
-                  <span className="truncate text-sm font-medium">{manual.name}</span>
-                  {active ? <Check className="h-3.5 w-3.5 shrink-0 text-primary" /> : null}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEditing({ kind: "visual", manual });
+                    }}
+                    className="absolute right-1.5 top-1.5 z-10 hidden rounded-md bg-background/90 p-1 shadow group-hover:block hover:text-primary"
+                    title="编辑文档"
+                  >
+                    <Edit3 className="h-3.5 w-3.5" />
+                  </button>
+                  <div className="aspect-video overflow-hidden bg-muted">
+                    {manual.images?.[0] ? (
+                      <img
+                        src={manual.images[0]}
+                        alt={manual.name}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-full items-center justify-center">
+                        <Palette className="h-6 w-6 opacity-30" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex items-center justify-between gap-1 px-2 py-1.5">
+                    <span className="truncate text-xs font-medium">
+                      {manual.name}
+                    </span>
+                    {active ? (
+                      <Check className="h-3.5 w-3.5 shrink-0 text-primary" />
+                    ) : null}
+                  </div>
                 </div>
-                <p className="mt-1 text-[11px] text-muted-foreground">导演叙事手法技能包</p>
-              </div>
-            );
-          })}
-        </div>
-      </section>
+              );
+            })}
+          </div>
+        </section>
+
+        {/* 导演手册网格 */}
+        <section>
+          <div className="mb-2 flex items-center gap-2 text-sm font-medium">
+            <BookMarked className="h-4 w-4" /> 导演手册
+            <span className="text-xs font-normal text-muted-foreground">
+              {directorManuals.length} 个 · 点击选择
+            </span>
+          </div>
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3">
+            {directorManuals.map((manual) => {
+              const active =
+                manual.id === props.workflowConfig.directorManualId;
+              return (
+                <div
+                  key={manual.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() =>
+                    props.setWorkflowConfig({
+                      directorManualId: active ? undefined : manual.id,
+                    })
+                  }
+                  className={cn(
+                    "group relative cursor-pointer rounded-lg border p-3 text-left transition-colors",
+                    active
+                      ? "border-primary bg-primary/5 ring-2 ring-primary/30"
+                      : "border-border hover:border-primary/40",
+                  )}
+                >
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEditing({ kind: "director", manual });
+                    }}
+                    className="absolute right-1.5 top-1.5 z-10 hidden rounded-md bg-background/90 p-1 shadow group-hover:block hover:text-primary"
+                    title="编辑文档"
+                  >
+                    <Edit3 className="h-3.5 w-3.5" />
+                  </button>
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="truncate text-sm font-medium">
+                      {manual.name}
+                    </span>
+                    {active ? (
+                      <Check className="h-3.5 w-3.5 shrink-0 text-primary" />
+                    ) : null}
+                  </div>
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    导演叙事手法技能包
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        </section>
       </div>
       <ManualEditDialog
         open={!!editing}
         kind={editing?.kind ?? "visual"}
         manual={editing?.manual ?? null}
-        onOpenChange={(o) => { if (!o) setEditing(null); }}
+        onOpenChange={(o) => {
+          if (!o) setEditing(null);
+        }}
       />
     </div>
   );
@@ -1647,348 +2295,23 @@ function ManualsTab(props: {
 
 function isManualSkillMarkdownPath(relativePath: string) {
   return (
-    relativePath.endsWith(".md")
-    && (
-      relativePath.startsWith("art_skills/")
-      || relativePath.startsWith("story_skills/")
-    )
-  );
-}
-
-function SkillTab(props: {
-  selectedTask: AgentWorkKey;
-  setSelectedTask: (value: AgentWorkKey) => void;
-  handleBuildContext: () => void;
-  lastContextPackage: ReturnType<typeof useStudioStore.getState>["lastContextPackage"];
-  agentWorkData: ReturnType<typeof useStudioStore.getState>["agentWorkData"];
-  agentDraft: string;
-  setAgentDraft: (value: string) => void;
-  handleSaveAgentWork: () => void;
-  handleEntityExtraction: (episodeId?: string) => void;
-  entityExtractions: ReturnType<typeof useStudioStore.getState>["entityExtractions"];
-  handleDirectorPlan: (episodeId?: string) => void;
-  handleDeriveAssets: (episodeId?: string) => void;
-  handleStoryboardTable: (episodeId?: string) => void;
-  handleBuildSeriesBible: () => void;
-  handleEpisodeOutline: (episodeId?: string) => void;
-  episodeOutlines: ReturnType<typeof useStudioStore.getState>["episodeOutlines"];
-  handleAssignVoices: () => void;
-  voiceAssignments: VoiceAssignment[];
-  scriptPlans: ReturnType<typeof useStudioStore.getState>["scriptPlans"];
-  storyboards: ReturnType<typeof useStudioStore.getState>["storyboards"];
-}) {
-  return (
-    <div className="grid grid-cols-[340px_1fr] gap-4">
-      <Card className="rounded-lg">
-        <CardHeader>
-          <CardTitle className="text-sm">Skill 对话任务</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <Label>任务类型</Label>
-          <select className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm" value={props.selectedTask} onChange={(event) => props.setSelectedTask(event.target.value as AgentWorkKey)}>
-            {taskOptions.filter((item) => item.key !== "eventAnalysis").map((item) => <option key={item.key} value={item.key}>{item.label}</option>)}
-          </select>
-          <Button onClick={props.handleBuildContext} className="w-full">
-            <WandSparkles className="h-4 w-4" />
-            生成上下文包
-          </Button>
-          <Button variant="secondary" onClick={props.handleBuildSeriesBible} className="w-full">
-            <BookMarked className="h-4 w-4" />
-            锁定剧集圣经
-          </Button>
-          {props.selectedTask === "entityExtraction" && (
-            <Button variant="default" onClick={() => props.handleEntityExtraction("episode-1")} className="w-full">
-              <Boxes className="h-4 w-4" />
-              运行实体提取
-            </Button>
-          )}
-          {props.selectedTask === "directorPlan" && (
-            <Button variant="default" onClick={() => props.handleDirectorPlan("episode-1")} className="w-full">
-              <ClipboardList className="h-4 w-4" />
-              运行导演规划
-            </Button>
-          )}
-          {props.selectedTask === "deriveAssets" && (
-            <Button variant="default" onClick={() => props.handleDeriveAssets("episode-1")} className="w-full">
-              <Boxes className="h-4 w-4" />
-              落地衍生资产
-            </Button>
-          )}
-          {props.selectedTask === "storyboardTable" && (
-            <Button variant="default" onClick={() => props.handleStoryboardTable("episode-1")} className="w-full">
-              <Split className="h-4 w-4" />
-              运行分镜表
-            </Button>
-          )}
-          {props.selectedTask === "episodeOutline" && (
-            <Button variant="default" onClick={() => props.handleEpisodeOutline("episode-1")} className="w-full">
-              <ClipboardList className="h-4 w-4" />
-              运行分集细纲
-            </Button>
-          )}
-          {props.selectedTask === "voiceAssign" && (
-            <Button variant="default" onClick={() => props.handleAssignVoices()} className="w-full">
-              <WandSparkles className="h-4 w-4" />
-              分配角色音色
-            </Button>
-          )}
-          <Textarea value={props.agentDraft} onChange={(event) => props.setAgentDraft(event.target.value)} className="min-h-[160px]" placeholder="保存人工整理的骨架、策略、剧本草稿或制作计划" />
-          <Button variant="secondary" onClick={props.handleSaveAgentWork} className="w-full">
-            <Check className="h-4 w-4" />
-            保存工作数据
-          </Button>
-          <div className="space-y-2">
-            {props.agentWorkData.map((item) => (
-              <div key={item.id} className="rounded-md border border-border p-2 text-xs">
-                <Badge variant="outline">{item.key}</Badge>
-                <div className="mt-2 line-clamp-3 text-muted-foreground">{item.data}</div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      {props.selectedTask === "entityExtraction" ? (
-        <EntityExtractionPreview entityExtractions={props.entityExtractions} />
-      ) : props.selectedTask === "directorPlan" || props.selectedTask === "deriveAssets" ? (
-        <ScriptPlanPreview scriptPlans={props.scriptPlans} />
-      ) : props.selectedTask === "storyboardTable" ? (
-        <StoryboardTablePreview storyboards={props.storyboards} />
-      ) : props.selectedTask === "episodeOutline" ? (
-        <EpisodeOutlinePreview episodeOutlines={props.episodeOutlines} />
-      ) : props.selectedTask === "voiceAssign" ? (
-        <VoiceAssignPreview voiceAssignments={props.voiceAssignments} />
-      ) : (
-        <Card className="rounded-lg">
-          <CardHeader>
-            <CardTitle className="text-sm">上下文包预览</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Textarea value={props.lastContextPackage?.markdown ?? ""} readOnly className="min-h-[560px] font-mono text-xs" />
-          </CardContent>
-        </Card>
-      )}
-    </div>
-  );
-}
-
-function EntityExtractionPreview(props: {
-  entityExtractions: ReturnType<typeof useStudioStore.getState>["entityExtractions"];
-}) {
-  return (
-    <Card className="rounded-lg">
-      <CardHeader>
-        <CardTitle className="text-sm">实体提取结果</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {props.entityExtractions.length === 0 ? (
-          <p className="text-xs text-muted-foreground">尚未提取实体。选择剧本来源后点击「运行实体提取」。</p>
-        ) : (
-          props.entityExtractions.map((batch) => (
-            <div key={batch.id} className="space-y-2 rounded-md border border-border p-3 text-xs">
-              <div className="flex items-center gap-2">
-                <Badge variant="outline">{batch.episodeId}</Badge>
-                <span className="text-muted-foreground">
-                  角色 {batch.characters.length} / 场景 {batch.scenes.length} / 道具 {batch.props.length}
-                </span>
-              </div>
-              {batch.characters.length > 0 && (
-                <div>
-                  <div className="font-medium">角色</div>
-                  <ul className="mt-1 space-y-0.5 text-muted-foreground">
-                    {batch.characters.map((item) => (
-                      <li key={item.characterId}>
-                        {item.name}
-                        {item.aliases.length ? `（别名：${item.aliases.join("、")}）` : ""}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              {batch.scenes.length > 0 && (
-                <div>
-                  <div className="font-medium">场景</div>
-                  <ul className="mt-1 space-y-0.5 text-muted-foreground">
-                    {batch.scenes.map((item) => <li key={item.sceneId}>{item.name}</li>)}
-                  </ul>
-                </div>
-              )}
-              {batch.props.length > 0 && (
-                <div>
-                  <div className="font-medium">道具</div>
-                  <ul className="mt-1 space-y-0.5 text-muted-foreground">
-                    {batch.props.map((item) => <li key={item.assetId}>{item.name}</li>)}
-                  </ul>
-                </div>
-              )}
-            </div>
-          ))
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-function ScriptPlanPreview(props: {
-  scriptPlans: ReturnType<typeof useStudioStore.getState>["scriptPlans"];
-}) {
-  return (
-    <Card className="rounded-lg">
-      <CardHeader>
-        <CardTitle className="text-sm">导演规划结果</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {props.scriptPlans.length === 0 ? (
-          <p className="text-xs text-muted-foreground">尚无导演规划。选择剧本来源后点击「运行导演规划」。</p>
-        ) : (
-          props.scriptPlans.map((plan) => (
-            <div key={plan.id} className="space-y-2 rounded-md border border-border p-3 text-xs">
-              <div className="flex items-center gap-2">
-                <Badge variant="outline">{plan.episodeId}</Badge>
-                <span className="text-muted-foreground">衍生预划 {plan.derivedAssetPlan.length} 条</span>
-              </div>
-              {plan.theme && <PlanField label="① 主题立意" value={plan.theme} />}
-              {plan.visualStyle && <PlanField label="② 视觉风格" value={plan.visualStyle} />}
-              {plan.narrativeRhythm && <PlanField label="③ 叙事节奏" value={plan.narrativeRhythm} />}
-              {plan.soundDirection && <PlanField label="⑤ 声音方向" value={plan.soundDirection} />}
-              {plan.transitions && <PlanField label="⑥ 转场连续性" value={plan.transitions} />}
-              {plan.derivedAssetPlan.length > 0 && (
-                <div>
-                  <div className="font-medium">⑦ 衍生资产预划</div>
-                  <ul className="mt-1 space-y-0.5 text-muted-foreground">
-                    {plan.derivedAssetPlan.map((row, idx) => (
-                      <li key={`${plan.id}-${idx}`}>
-                        {row.parentAssetId} · {row.state}
-                        {row.reason ? ` — ${row.reason}` : ""}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-          ))
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-function PlanField(props: { label: string; value: string }) {
-  return (
-    <div>
-      <div className="font-medium">{props.label}</div>
-      <p className="mt-1 whitespace-pre-wrap text-muted-foreground">{props.value}</p>
-    </div>
-  );
-}
-
-function StoryboardTablePreview(props: {
-  storyboards: ReturnType<typeof useStudioStore.getState>["storyboards"];
-}) {
-  const rows = [...props.storyboards].sort((a, b) => a.index - b.index);
-  return (
-    <Card className="rounded-lg">
-      <CardHeader>
-        <CardTitle className="text-sm">分镜表结果</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {rows.length === 0 ? (
-          <p className="text-xs text-muted-foreground">尚无分镜。选择剧本来源后点击「运行分镜表」。</p>
-        ) : (
-          rows.map((shot) => (
-            <div key={shot.id} className="space-y-1 rounded-md border border-border p-3 text-xs">
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="outline">#{shot.index}</Badge>
-                <span className="text-muted-foreground">{shot.duration}s</span>
-                {shot.emotion && <Badge variant="secondary">{shot.emotion}</Badge>}
-                {shot.orientation && <span className="text-muted-foreground">{shot.orientation}</span>}
-              </div>
-              <p className="whitespace-pre-wrap">{shot.prompt}</p>
-              {shot.spatialRelation && (
-                <p className="text-muted-foreground">空间：{shot.spatialRelation}</p>
-              )}
-              {shot.associateAssetsNames?.length ? (
-                <p className="text-muted-foreground">资产：{shot.associateAssetsNames.join("、")}</p>
-              ) : null}
-            </div>
-          ))
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-function EpisodeOutlinePreview(props: {
-  episodeOutlines: ReturnType<typeof useStudioStore.getState>["episodeOutlines"];
-}) {
-  return (
-    <Card className="rounded-lg">
-      <CardHeader>
-        <CardTitle className="text-sm">分集细纲结果</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {props.episodeOutlines.length === 0 ? (
-          <p className="text-xs text-muted-foreground">尚无细纲。选择骨架/改编来源后点击「运行分集细纲」。</p>
-        ) : (
-          props.episodeOutlines.map((outline) => {
-            const totalSec = outline.beats.reduce((sum, beat) => sum + beat.durationSec, 0);
-            return (
-              <div key={outline.id} className="space-y-2 rounded-md border border-border p-3 text-xs">
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline">{outline.episodeId}</Badge>
-                  <span className="text-muted-foreground">{outline.beats.length} beat / {totalSec}s</span>
-                </div>
-                <ol className="space-y-1 text-muted-foreground">
-                  {outline.beats.map((beat) => (
-                    <li key={`${outline.id}-${beat.sceneIndex}`}>
-                      <span className="font-medium text-foreground">#{beat.sceneIndex} {beat.location}</span>
-                      <span className="ml-1">（{beat.durationSec}s）</span>
-                      <p className="mt-0.5 whitespace-pre-wrap">{beat.beat}</p>
-                    </li>
-                  ))}
-                </ol>
-              </div>
-            );
-          })
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-function VoiceAssignPreview(props: { voiceAssignments: VoiceAssignment[] }) {
-  return (
-    <Card className="rounded-lg">
-      <CardHeader>
-        <CardTitle className="text-sm">音色分配结果</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {props.voiceAssignments.length === 0 ? (
-          <p className="text-xs text-muted-foreground">尚未分配音色。点击「分配角色音色」按角色性别/年龄/性格自动匹配中文预设音色。</p>
-        ) : (
-          <ul className="space-y-2 text-xs">
-            {props.voiceAssignments.map((assignment) => (
-              <li key={assignment.characterId} className="rounded-md border border-border p-2">
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline">{assignment.characterId}</Badge>
-                  <Badge variant="secondary">{assignment.presetVoiceId}</Badge>
-                  <span className="text-muted-foreground">{assignment.engine}</span>
-                </div>
-                <p className="mt-1 text-muted-foreground">{assignment.reason}</p>
-              </li>
-            ))}
-          </ul>
-        )}
-      </CardContent>
-    </Card>
+    relativePath.endsWith(".md") &&
+    (relativePath.startsWith("art_skills/") ||
+      relativePath.startsWith("story_skills/"))
   );
 }
 
 function ScriptTab(props: {
   novelChapters: ReturnType<typeof useStudioStore.getState>["novelChapters"];
   agentWorkData: ReturnType<typeof useStudioStore.getState>["agentWorkData"];
-  saveAgentWorkData: ReturnType<typeof useStudioStore.getState>["saveAgentWorkData"];
-  runStage: (stage: ScriptStageKey, chapter: NovelChapter, userOverride?: string) => void;
+  saveAgentWorkData: ReturnType<
+    typeof useStudioStore.getState
+  >["saveAgentWorkData"];
+  runStage: (
+    stage: ScriptStageKey,
+    chapter: NovelChapter,
+    userOverride?: string,
+  ) => void;
   runReview: (stage: ReviewableStage, chapter: NovelChapter) => void;
   manualContext: string;
   directorContext: string;
@@ -1996,24 +2319,38 @@ function ScriptTab(props: {
   setHeaderActions: (actions: ReactNode) => void;
   scriptStreaming: { key: AgentWorkKey; scopeId: string; text: string } | null;
 }) {
-  const SCRIPT_STAGES: ScriptStageKey[] = ["storySkeleton", "adaptationStrategy", "scriptDraft"];
+  const SCRIPT_STAGES: ScriptStageKey[] = [
+    "storySkeleton",
+    "adaptationStrategy",
+    "scriptDraft",
+  ];
   const PREREQ: Partial<Record<ScriptStageKey, ScriptStageKey>> = {
     adaptationStrategy: "storySkeleton",
     scriptDraft: "adaptationStrategy",
   };
 
   const [chapterId, setChapterId] = useState(props.novelChapters[0]?.id ?? "");
-  const [activeStage, setActiveStage] = useState<ScriptStageKey>("storySkeleton");
-  const [editor, setEditor] = useState<{ target: "output" | "context"; value: string } | null>(null);
+  const [activeStage, setActiveStage] =
+    useState<ScriptStageKey>("storySkeleton");
+  const [editor, setEditor] = useState<{
+    target: "output" | "context";
+    value: string;
+  } | null>(null);
   const [userDraft, setUserDraft] = useState<string | undefined>(undefined);
   useEffect(() => {
     setEditor(null);
     setUserDraft(undefined);
   }, [chapterId, activeStage]);
 
-  const chapter = props.novelChapters.find((item) => item.id === chapterId) ?? props.novelChapters[0];
+  const chapter =
+    props.novelChapters.find((item) => item.id === chapterId) ??
+    props.novelChapters[0];
   const stageData = (key: AgentWorkKey) =>
-    chapter ? [...props.agentWorkData].reverse().find((item) => item.key === key && item.episodeId === chapter.id) : undefined;
+    chapter
+      ? [...props.agentWorkData]
+          .reverse()
+          .find((item) => item.key === key && item.episodeId === chapter.id)
+      : undefined;
 
   const reviewKey = SCRIPT_STAGE_REVIEW_KEY[activeStage as ReviewableStage];
   const reviewData = reviewKey ? stageData(reviewKey)?.data : undefined;
@@ -2034,7 +2371,9 @@ function ScriptTab(props: {
           onChange={(event) => setChapterId(event.target.value)}
         >
           {props.novelChapters.map((item) => (
-            <option key={item.id} value={item.id}>{item.index}. {item.title}</option>
+            <option key={item.id} value={item.id}>
+              {item.index}. {item.title}
+            </option>
           ))}
         </select>
       </div>,
@@ -2043,12 +2382,17 @@ function ScriptTab(props: {
   }, [setHeaderActions, props.novelChapters, chapterId]);
 
   const streamingText =
-    props.scriptStreaming && props.scriptStreaming.key === activeStage && props.scriptStreaming.scopeId === (chapter?.id ?? "")
+    props.scriptStreaming &&
+    props.scriptStreaming.key === activeStage &&
+    props.scriptStreaming.scopeId === (chapter?.id ?? "")
       ? props.scriptStreaming.text
       : null;
   const isStreaming = streamingText !== null;
   const reviewStreaming =
-    props.scriptStreaming && reviewKey && props.scriptStreaming.key === reviewKey && props.scriptStreaming.scopeId === (chapter?.id ?? "")
+    props.scriptStreaming &&
+    reviewKey &&
+    props.scriptStreaming.key === reviewKey &&
+    props.scriptStreaming.scopeId === (chapter?.id ?? "")
       ? props.scriptStreaming.text
       : null;
   const streamRef = useRef("");
@@ -2060,13 +2404,23 @@ function ScriptTab(props: {
       return;
     }
     setLiveMd(extractPartialContent(streamRef.current));
-    const id = setInterval(() => setLiveMd(extractPartialContent(streamRef.current)), 300);
+    const id = setInterval(
+      () => setLiveMd(extractPartialContent(streamRef.current)),
+      300,
+    );
     return () => clearInterval(id);
   }, [isStreaming]);
-  const livePreview = useMemo(() => <MdPreview modelValue={liveMd} theme="dark" language="zh-CN" />, [liveMd]);
+  const livePreview = useMemo(
+    () => <MdPreview modelValue={liveMd} theme="dark" language="zh-CN" />,
+    [liveMd],
+  );
 
   if (!props.novelChapters.length) {
-    return <div className="p-6 text-sm text-muted-foreground">请先在「小说导入」导入章节（建议先做事件分析），再来这里逐章生成剧本。</div>;
+    return (
+      <div className="p-6 text-sm text-muted-foreground">
+        请先在「小说导入」导入章节（建议先做事件分析），再来这里逐章生成剧本。
+      </div>
+    );
   }
 
   const prereq = PREREQ[activeStage];
@@ -2090,14 +2444,22 @@ function ScriptTab(props: {
   const skill = getStageSkillContent(activeStage);
   const sentSummary = [
     "项目信息",
-    activeStage === "adaptationStrategy" || activeStage === "scriptDraft" ? "导演手法" : "",
+    activeStage === "adaptationStrategy" || activeStage === "scriptDraft"
+      ? "导演手法"
+      : "",
     chapter ? `章节：${chapter.title}` : "",
     chapter?.eventState ? "事件分析" : "",
-    activeStage !== "storySkeleton" && stageData("storySkeleton") ? "故事骨架" : "",
-    activeStage === "scriptDraft" && stageData("adaptationStrategy") ? "改编策略" : "",
+    activeStage !== "storySkeleton" && stageData("storySkeleton")
+      ? "故事骨架"
+      : "",
+    activeStage === "scriptDraft" && stageData("adaptationStrategy")
+      ? "改编策略"
+      : "",
     reviseMode ? "审核意见(修订模式)" : "",
     "本章正文",
-  ].filter(Boolean).join(" · ");
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
     <div className="space-y-4">
@@ -2109,7 +2471,8 @@ function ScriptTab(props: {
             onClick={() => setActiveStage(stage)}
             className={`px-4 py-2 text-sm ${activeStage === stage ? "border-b-2 border-primary font-medium text-primary" : "text-muted-foreground"}`}
           >
-            {idx + 1}. {SCRIPT_STAGE_LABEL[stage]}{stageData(stage) ? " ✓" : ""}
+            {idx + 1}. {SCRIPT_STAGE_LABEL[stage]}
+            {stageData(stage) ? " ✓" : ""}
           </button>
         ))}
       </div>
@@ -2117,34 +2480,84 @@ function ScriptTab(props: {
       <div className="space-y-4">
         <div className="space-y-2">
           <details className="rounded-md border border-border p-2 text-xs" open>
-            <summary className="cursor-pointer font-medium">事件（本章）</summary>
-            <pre className="mt-2 h-40 min-h-[80px] resize-y overflow-auto whitespace-pre-wrap leading-5">{[`章节：${chapter?.title ?? ""}`, chapter?.eventSummary ? `事件摘要：${chapter.eventSummary}` : "", chapter?.eventState ? `事件状态：\n${chapter.eventState}` : ""].filter(Boolean).join("\n\n")}</pre>
+            <summary className="cursor-pointer font-medium">
+              事件（本章）
+            </summary>
+            <pre className="mt-2 h-40 min-h-[80px] resize-y overflow-auto whitespace-pre-wrap leading-5">
+              {[
+                `章节：${chapter?.title ?? ""}`,
+                chapter?.eventSummary
+                  ? `事件摘要：${chapter.eventSummary}`
+                  : "",
+                chapter?.eventState ? `事件状态：\n${chapter.eventState}` : "",
+              ]
+                .filter(Boolean)
+                .join("\n\n")}
+            </pre>
           </details>
           <details className="rounded-md border border-border p-2 text-xs">
             <summary className="cursor-pointer font-medium">Skill 手册</summary>
-            <pre className="mt-2 h-40 min-h-[80px] resize-y overflow-auto whitespace-pre-wrap leading-5">{skill || "（未找到该阶段 skill 手册）"}</pre>
+            <pre className="mt-2 h-40 min-h-[80px] resize-y overflow-auto whitespace-pre-wrap leading-5">
+              {skill || "（未找到该阶段 skill 手册）"}
+            </pre>
           </details>
           <details className="rounded-md border border-border p-2 text-xs">
-            <summary className="cursor-pointer font-medium">发送内容（上下文）</summary>
+            <summary className="cursor-pointer font-medium">
+              发送内容（上下文）
+            </summary>
             <div className="mt-2 flex items-start justify-between gap-2">
               <p className="text-muted-foreground">含：{sentSummary}</p>
-              <Button size="sm" variant="secondary" className="shrink-0" onClick={() => setEditor({ target: "context", value: userDraft ?? messages.user })}>
+              <Button
+                size="sm"
+                variant="secondary"
+                className="shrink-0"
+                onClick={() =>
+                  setEditor({
+                    target: "context",
+                    value: userDraft ?? messages.user,
+                  })
+                }
+              >
                 <Edit3 className="h-4 w-4" />
                 可编辑
               </Button>
             </div>
-            <pre className="mt-2 h-40 min-h-[80px] resize-y overflow-auto whitespace-pre-wrap leading-5">{userDraft ?? messages.user}</pre>
+            <pre className="mt-2 h-40 min-h-[80px] resize-y overflow-auto whitespace-pre-wrap leading-5">
+              {userDraft ?? messages.user}
+            </pre>
           </details>
-          <Button className="w-full" disabled={!chapter || !hasPrereq || props.scriptStreaming !== null} onClick={() => chapter && props.runStage(activeStage, chapter, userDraft)}>
+          <Button
+            className="w-full"
+            disabled={!chapter || !hasPrereq || props.scriptStreaming !== null}
+            onClick={() =>
+              chapter && props.runStage(activeStage, chapter, userDraft)
+            }
+          >
             <WandSparkles className="h-4 w-4" />
-            {streamingText !== null ? "生成中…" : reviseMode ? "根据审核报告一键修复" : `一键生成${SCRIPT_STAGE_LABEL[activeStage]}`}
+            {streamingText !== null
+              ? "生成中…"
+              : reviseMode
+                ? "根据审核报告一键修复"
+                : `一键生成${SCRIPT_STAGE_LABEL[activeStage]}`}
           </Button>
-          <Button variant="secondary" className="w-full" disabled={!chapter || !output || props.scriptStreaming !== null} onClick={() => chapter && props.runReview(activeStage as ReviewableStage, chapter)}>
+          <Button
+            variant="secondary"
+            className="w-full"
+            disabled={!chapter || !output || props.scriptStreaming !== null}
+            onClick={() =>
+              chapter &&
+              props.runReview(activeStage as ReviewableStage, chapter)
+            }
+          >
             <ClipboardList className="h-4 w-4" />
-            {reviewStreaming !== null ? "审核中…" : `审核${SCRIPT_STAGE_LABEL[activeStage]}`}
+            {reviewStreaming !== null
+              ? "审核中…"
+              : `审核${SCRIPT_STAGE_LABEL[activeStage]}`}
           </Button>
           {!hasPrereq && prereq ? (
-            <p className="text-xs text-muted-foreground">请先完成「{SCRIPT_STAGE_LABEL[prereq]}」</p>
+            <p className="text-xs text-muted-foreground">
+              请先完成「{SCRIPT_STAGE_LABEL[prereq]}」
+            </p>
           ) : null}
         </div>
 
@@ -2152,8 +2565,17 @@ function ScriptTab(props: {
           <div className="flex items-center justify-between">
             <Label className="text-sm">输出结果</Label>
             <div className="flex items-center gap-2">
-              {data ? <Badge variant="outline">已生成</Badge> : <Badge variant="secondary">未生成</Badge>}
-              <Button size="sm" variant="secondary" disabled={!output} onClick={() => setEditor({ target: "output", value: output })}>
+              {data ? (
+                <Badge variant="outline">已生成</Badge>
+              ) : (
+                <Badge variant="secondary">未生成</Badge>
+              )}
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={!output}
+                onClick={() => setEditor({ target: "output", value: output })}
+              >
                 <Edit3 className="h-4 w-4" />
                 可编辑
               </Button>
@@ -2161,40 +2583,81 @@ function ScriptTab(props: {
           </div>
           <div className="min-h-[460px] rounded-md border border-border p-3 text-sm">
             {streamingText !== null ? (
-              liveMd ? livePreview : <p className="text-muted-foreground">生成中…</p>
+              liveMd ? (
+                livePreview
+              ) : (
+                <p className="text-muted-foreground">生成中…</p>
+              )
             ) : output ? (
               <MdPreview modelValue={output} theme="dark" language="zh-CN" />
             ) : (
-              <p className="text-muted-foreground">{hasPrereq ? "点上方「一键生成」由 AI 产出" : "请先完成前置阶段"}</p>
+              <p className="text-muted-foreground">
+                {hasPrereq
+                  ? "点上方「一键生成」由 AI 产出"
+                  : "请先完成前置阶段"}
+              </p>
             )}
           </div>
           {(reviewStreaming !== null || reviewData) && (
             <div className="space-y-1">
-              <Label className="text-sm">审核报告（{SCRIPT_STAGE_LABEL[activeStage]}）{reviseMode ? " · 有待修复问题" : ""}</Label>
+              <Label className="text-sm">
+                审核报告（{SCRIPT_STAGE_LABEL[activeStage]}）
+                {reviseMode ? " · 有待修复问题" : ""}
+              </Label>
               <div className="rounded-md border border-border p-3 text-sm">
                 {reviewStreaming !== null ? (
-                  <pre className="max-h-[320px] overflow-auto whitespace-pre-wrap text-xs leading-5">{extractPartialContent(reviewStreaming) || "审核中…"}</pre>
+                  <pre className="max-h-[320px] overflow-auto whitespace-pre-wrap text-xs leading-5">
+                    {extractPartialContent(reviewStreaming) || "审核中…"}
+                  </pre>
                 ) : (
-                  <MdPreview modelValue={reviewData ?? ""} theme="dark" language="zh-CN" />
+                  <MdPreview
+                    modelValue={reviewData ?? ""}
+                    theme="dark"
+                    language="zh-CN"
+                  />
                 )}
               </div>
             </div>
           )}
-          <Dialog open={!!editor} onOpenChange={(open) => !open && setEditor(null)}>
+          <Dialog
+            open={!!editor}
+            onOpenChange={(open) => !open && setEditor(null)}
+          >
             <DialogContent className="flex h-[88vh] max-w-[92vw] flex-col gap-3 sm:max-w-[92vw]">
               <DialogHeader>
-                <DialogTitle>编辑 · {editor?.target === "context" ? "发送内容" : SCRIPT_STAGE_LABEL[activeStage]}</DialogTitle>
+                <DialogTitle>
+                  编辑 ·{" "}
+                  {editor?.target === "context"
+                    ? "发送内容"
+                    : SCRIPT_STAGE_LABEL[activeStage]}
+                </DialogTitle>
               </DialogHeader>
               <div className="min-h-0 flex-1">
-                <MdEditor modelValue={editor?.value ?? ""} onChange={(value) => setEditor((prev) => (prev ? { ...prev, value } : prev))} theme="dark" language="zh-CN" toolbarsExclude={["github"]} style={{ height: "100%" }} />
+                <MdEditor
+                  modelValue={editor?.value ?? ""}
+                  onChange={(value) =>
+                    setEditor((prev) => (prev ? { ...prev, value } : prev))
+                  }
+                  theme="dark"
+                  language="zh-CN"
+                  toolbarsExclude={["github"]}
+                  style={{ height: "100%" }}
+                />
               </div>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setEditor(null)}>取消</Button>
+                <Button variant="outline" onClick={() => setEditor(null)}>
+                  取消
+                </Button>
                 <Button
                   onClick={() => {
                     if (!editor) return;
                     if (editor.target === "output") {
-                      if (chapter) props.saveAgentWorkData(activeStage, editor.value, chapter.id);
+                      if (chapter)
+                        props.saveAgentWorkData(
+                          activeStage,
+                          editor.value,
+                          chapter.id,
+                        );
                     } else {
                       setUserDraft(editor.value);
                     }
@@ -2215,18 +2678,35 @@ function ScriptTab(props: {
 function AssetsTab(props: {
   novelChapters: ReturnType<typeof useStudioStore.getState>["novelChapters"];
   agentWorkData: ReturnType<typeof useStudioStore.getState>["agentWorkData"];
-  entityExtractions: ReturnType<typeof useStudioStore.getState>["entityExtractions"];
+  entityExtractions: ReturnType<
+    typeof useStudioStore.getState
+  >["entityExtractions"];
   extractAssets: (episodeId: string) => Promise<void> | void;
-  updateExtraction: (batch: ReturnType<typeof useStudioStore.getState>["entityExtractions"][number]) => void;
+  updateExtraction: (
+    batch: ReturnType<
+      typeof useStudioStore.getState
+    >["entityExtractions"][number],
+  ) => void;
   setHeaderActions: (actions: ReactNode) => void;
 }) {
-  type Batch = ReturnType<typeof useStudioStore.getState>["entityExtractions"][number];
+  type Batch = ReturnType<
+    typeof useStudioStore.getState
+  >["entityExtractions"][number];
   type AssetType = "character" | "scene" | "prop";
   const [extractingId, setExtractingId] = useState<string | null>(null);
-  const [adding, setAdding] = useState<{ episodeId: string; type: AssetType } | null>(null);
+  const [adding, setAdding] = useState<{
+    episodeId: string;
+    type: AssetType;
+  } | null>(null);
   const [addValue, setAddValue] = useState("");
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
-  const toggle = (id: string) => setCollapsed((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const toggle = (id: string) =>
+    setCollapsed((s) => {
+      const n = new Set(s);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
 
   // 对接资产中心（assets.db）+ 本地轻量库：按名字 + 别名 + 模糊匹配 + 描述相似匹配
   const libChars = useCharacterLibraryStore((s) => s.characters);
@@ -2234,25 +2714,45 @@ function AssetsTab(props: {
   const libProps = usePropsLibraryStore((s) => s.items);
 
   // 资产中心缓存（异步加载，一次全取）
-  const [assetCenterNames, setAssetCenterNames] = useState<Record<string, { name: string; desc: string }[]>>({ role: [], scene: [], tool: [] });
+  const [assetCenterNames, setAssetCenterNames] = useState<
+    Record<string, { name: string; desc: string }[]>
+  >({ role: [], scene: [], tool: [] });
   useEffect(() => {
-    if (typeof window === "undefined" || !(window as unknown as Record<string, unknown>).studioAssets) return;
-    const sa = (window as unknown as Record<string, unknown>).studioAssets as { list: (p: Record<string, unknown>) => Promise<{ items: Record<string, unknown>[] }> };
+    if (
+      typeof window === "undefined" ||
+      !(window as unknown as Record<string, unknown>).studioAssets
+    )
+      return;
+    const sa = (window as unknown as Record<string, unknown>).studioAssets as {
+      list: (
+        p: Record<string, unknown>,
+      ) => Promise<{ items: Record<string, unknown>[] }>;
+    };
     for (const t of ["role", "scene", "tool"]) {
-      sa.list({ type: t, limit: 99999 }).then((res) => {
-        setAssetCenterNames((prev) => ({
-          ...prev,
-          [t]: (res.items || []).map((it) => ({ name: String(it.name ?? ""), desc: String(it.description ?? "") })),
-        }));
-      }).catch(() => {});
+      sa.list({ type: t, limit: 99999 })
+        .then((res) => {
+          setAssetCenterNames((prev) => ({
+            ...prev,
+            [t]: (res.items || []).map((it) => ({
+              name: String(it.name ?? ""),
+              desc: String(it.description ?? ""),
+            })),
+          }));
+        })
+        .catch(() => {});
     }
   }, []);
 
   /** 规范化名字：去空白、标点，统一比较 */
-  const normalize = (s: string) => s.replace(/[\s\u3000·•\-—\-\(\)（）\[\]【】]/g, "").toLowerCase();
+  const normalize = (s: string) =>
+    s.replace(/[\s\u3000·•\-—\-\(\)（）\[\]【】]/g, "").toLowerCase();
 
   /** 检查提取名是否匹配资产库名（精确 or 规范化 or 包含） */
-  const nameMatches = (extractedName: string, libName: string, aliases: string[] = []): boolean => {
+  const nameMatches = (
+    extractedName: string,
+    libName: string,
+    aliases: string[] = [],
+  ): boolean => {
     const en = normalize(extractedName);
     const ln = normalize(libName);
     if (en === ln) return true;
@@ -2265,9 +2765,15 @@ function AssetsTab(props: {
   };
 
   /** 描述关键词相似匹配：提取 note 中的关键词在资产库描述中出现 >= threshold 个则认为匹配 */
-  const descMatches = (note: string | undefined, libDesc: string, threshold = 2): boolean => {
+  const descMatches = (
+    note: string | undefined,
+    libDesc: string,
+    threshold = 2,
+  ): boolean => {
     if (!note || !libDesc) return false;
-    const keywords = note.split(/[,，、\s;；。！？!?·]+/).filter((w) => w.length >= 2);
+    const keywords = note
+      .split(/[,，、\s;；。！？!?·]+/)
+      .filter((w) => w.length >= 2);
     if (keywords.length === 0) return false;
     const normLib = normalize(libDesc);
     let hits = 0;
@@ -2283,13 +2789,37 @@ function AssetsTab(props: {
     // 以甲/乙/丙/丁/若干/若干人/群众结尾
     if (/[甲乙丙丁戊己]$/.test(name)) return true;
     // 常见泛称关键词
-    const genericKws = ["孩童", "丫头", "丫鬟", "苦力", "杂役", "小厮", "路人", "村民", "仆人", "仆从", "侍女", "侍者", "守卫", "卫兵", "弟子", "门人", "长老", "执事", "掌柜"];
+    const genericKws = [
+      "孩童",
+      "丫头",
+      "丫鬟",
+      "苦力",
+      "杂役",
+      "小厮",
+      "路人",
+      "村民",
+      "仆人",
+      "仆从",
+      "侍女",
+      "侍者",
+      "守卫",
+      "卫兵",
+      "弟子",
+      "门人",
+      "长老",
+      "执事",
+      "掌柜",
+    ];
     return genericKws.some((kw) => name.includes(kw));
   };
 
   /** 资产匹配状态：不存在(爆红) / 已有但无图(黄) / 已制作(绿)
    *  匹配策略：先查本地轻量库，再查资产中心（assets.db），按名字+别名+描述+泛称NPC兜底 */
-  const getAssetStatus = (type: AssetType, name: string, note?: string): "missing" | "exists" | "made" => {
+  const getAssetStatus = (
+    type: AssetType,
+    name: string,
+    note?: string,
+  ): "missing" | "exists" | "made" => {
     // 规范化匹配辅助
     const findMatch = (
       localItems: { name: string; aliases?: string[]; desc?: string }[],
@@ -2297,7 +2827,8 @@ function AssetsTab(props: {
       fallbackGeneric?: boolean,
     ): boolean => {
       // 先查本地库
-      if (localItems.some((it) => nameMatches(name, it.name, it.aliases ?? []))) return true;
+      if (localItems.some((it) => nameMatches(name, it.name, it.aliases ?? [])))
+        return true;
       // 再查资产中心
       if (centerItems.some((it) => nameMatches(name, it.name))) return true;
       // 名字都不匹配，尝试描述匹配
@@ -2311,41 +2842,89 @@ function AssetsTab(props: {
       // 兜底：不记名NPC 匹配 "全体NPC" / "NPC" 等通用资产
       if (fallbackGeneric && isGenericNPC(name)) {
         const genericNames = ["全体NPC", "NPC", "通用NPC", "群众", "路人"];
-        if (centerItems.some((it) => genericNames.some((gn) => normalize(it.name).includes(normalize(gn))))) return true;
+        if (
+          centerItems.some((it) =>
+            genericNames.some((gn) =>
+              normalize(it.name).includes(normalize(gn)),
+            ),
+          )
+        )
+          return true;
       }
       return false;
     };
 
     if (type === "character") {
-      const localItems = libChars.map((c) => ({ name: c.name, aliases: (c as unknown as Record<string, unknown>).aliases as string[] ?? [], desc: [c.description, c.role, c.personality, c.traits].filter(Boolean).join(" ") }));
+      const localItems = libChars.map((c) => ({
+        name: c.name,
+        aliases:
+          ((c as unknown as Record<string, unknown>).aliases as string[]) ?? [],
+        desc: [c.description, c.role, c.personality, c.traits]
+          .filter(Boolean)
+          .join(" "),
+      }));
       const found = findMatch(localItems, assetCenterNames.role, true);
       if (!found) return "missing";
-      const hasImg = libChars.some((c) => nameMatches(name, c.name) && (!!c.thumbnailUrl || (c.views?.length ?? 0) > 0));
+      const hasImg = libChars.some(
+        (c) =>
+          nameMatches(name, c.name) &&
+          (!!c.thumbnailUrl || (c.views?.length ?? 0) > 0),
+      );
       return hasImg ? "made" : "exists";
     }
     if (type === "scene") {
-      const localItems = libScenes.map((s) => ({ name: s.name, desc: [(s as unknown as Record<string, unknown>).atmosphere as string, (s as unknown as Record<string, unknown>).location as string, s.name].filter(Boolean).join(" ") }));
+      const localItems = libScenes.map((s) => ({
+        name: s.name,
+        desc: [
+          (s as unknown as Record<string, unknown>).atmosphere as string,
+          (s as unknown as Record<string, unknown>).location as string,
+          s.name,
+        ]
+          .filter(Boolean)
+          .join(" "),
+      }));
       const found = findMatch(localItems, assetCenterNames.scene);
       if (!found) return "missing";
-      const hasImg = libScenes.some((s) => nameMatches(name, s.name) && (!!s.referenceImage || !!s.referenceImageBase64));
+      const hasImg = libScenes.some(
+        (s) =>
+          nameMatches(name, s.name) &&
+          (!!s.referenceImage || !!s.referenceImageBase64),
+      );
       return hasImg ? "made" : "exists";
     }
     // prop
-    const localItems = libProps.map((p) => ({ name: p.name, desc: (p as unknown as Record<string, unknown>).description as string ?? "" }));
+    const localItems = libProps.map((p) => ({
+      name: p.name,
+      desc:
+        ((p as unknown as Record<string, unknown>).description as string) ?? "",
+    }));
     const found = findMatch(localItems, assetCenterNames.tool);
     if (!found) return "missing";
-    const hasImg = libProps.some((p) => nameMatches(name, p.name) && !!((p as unknown as Record<string, unknown>).imageUrl));
+    const hasImg = libProps.some(
+      (p) =>
+        nameMatches(name, p.name) &&
+        !!(p as unknown as Record<string, unknown>).imageUrl,
+    );
     return hasImg ? "made" : "exists";
   };
 
   const scriptChapters = useMemo(
-    () => props.novelChapters.filter((ch) => props.agentWorkData.some((w) => w.key === "scriptDraft" && w.episodeId === ch.id)),
+    () =>
+      props.novelChapters.filter((ch) =>
+        props.agentWorkData.some(
+          (w) => w.key === "scriptDraft" && w.episodeId === ch.id,
+        ),
+      ),
     [props.novelChapters, props.agentWorkData],
   );
 
   const run = async (id: string) => {
     setExtractingId(id);
-    try { await props.extractAssets(id); } finally { setExtractingId(null); }
+    try {
+      await props.extractAssets(id);
+    } finally {
+      setExtractingId(null);
+    }
   };
 
   const setHeaderActions = props.setHeaderActions;
@@ -2353,8 +2932,25 @@ function AssetsTab(props: {
   useEffect(() => {
     setHeaderActions(
       <div className="flex items-center gap-3">
-        <span className="text-xs text-muted-foreground">从剧本提取资产（角色 / 场景 / 道具），与资产库匹配；<span className="text-destructive">红色=未制作</span>，需到「塑造角色与场景」生成。</span>
-        <Button size="sm" disabled={extractingId !== null || scriptChapters.length === 0} onClick={async () => { for (const ch of scriptChapters) { setExtractingId(ch.id); try { await extractAssets(ch.id); } finally { setExtractingId(null); } } }}>
+        <span className="text-xs text-muted-foreground">
+          从剧本提取资产（角色 / 场景 / 道具），与资产库匹配；
+          <span className="text-destructive">红色=未制作</span>
+          ，需到「ProductionAgent」生成。
+        </span>
+        <Button
+          size="sm"
+          disabled={extractingId !== null || scriptChapters.length === 0}
+          onClick={async () => {
+            for (const ch of scriptChapters) {
+              setExtractingId(ch.id);
+              try {
+                await extractAssets(ch.id);
+              } finally {
+                setExtractingId(null);
+              }
+            }
+          }}
+        >
           <Boxes className="h-4 w-4" />
           {extractingId !== null ? "提取中…" : "批量提取全部"}
         </Button>
@@ -2363,31 +2959,64 @@ function AssetsTab(props: {
     return () => setHeaderActions(null);
   }, [setHeaderActions, extractAssets, scriptChapters, extractingId]);
 
-  const genId = (p: string) => `${p}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+  const genId = (p: string) =>
+    `${p}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
   const removeAsset = (batch: Batch, type: AssetType, id: string) => {
     const next: Batch =
-      type === "character" ? { ...batch, characters: batch.characters.filter((c) => c.characterId !== id) }
-        : type === "scene" ? { ...batch, scenes: batch.scenes.filter((s) => s.sceneId !== id) }
+      type === "character"
+        ? {
+            ...batch,
+            characters: batch.characters.filter((c) => c.characterId !== id),
+          }
+        : type === "scene"
+          ? { ...batch, scenes: batch.scenes.filter((s) => s.sceneId !== id) }
           : { ...batch, props: batch.props.filter((p) => p.assetId !== id) };
     props.updateExtraction(next);
   };
   const submitAdd = (batch: Batch) => {
     const name = addValue.trim();
-    if (!adding || !name) { setAdding(null); setAddValue(""); return; }
+    if (!adding || !name) {
+      setAdding(null);
+      setAddValue("");
+      return;
+    }
     const next: Batch =
-      adding.type === "character" ? { ...batch, characters: [...batch.characters, { characterId: genId("char"), name, aliases: [] }] }
-        : adding.type === "scene" ? { ...batch, scenes: [...batch.scenes, { sceneId: genId("scene"), name }] }
-          : { ...batch, props: [...batch.props, { assetId: genId("asset"), name }] };
+      adding.type === "character"
+        ? {
+            ...batch,
+            characters: [
+              ...batch.characters,
+              { characterId: genId("char"), name, aliases: [] },
+            ],
+          }
+        : adding.type === "scene"
+          ? {
+              ...batch,
+              scenes: [...batch.scenes, { sceneId: genId("scene"), name }],
+            }
+          : {
+              ...batch,
+              props: [...batch.props, { assetId: genId("asset"), name }],
+            };
     props.updateExtraction(next);
     setAdding(null);
     setAddValue("");
   };
 
   if (!scriptChapters.length) {
-    return <div className="p-6 text-sm text-muted-foreground">还没有剧本：请先在「剧本策划」生成各章剧本，再来提取资产（角色/场景/道具）。</div>;
+    return (
+      <div className="p-6 text-sm text-muted-foreground">
+        还没有剧本：请先在「策划编剧」生成各章剧本，再来提取资产（角色/场景/道具）。
+      </div>
+    );
   }
 
-  const renderCat = (batch: Batch, type: AssetType, label: string, items: { id: string; name: string; note?: string }[]) => (
+  const renderCat = (
+    batch: Batch,
+    type: AssetType,
+    label: string,
+    items: { id: string; name: string; note?: string }[],
+  ) => (
     <div className="flex flex-wrap items-center gap-2">
       <span className="mr-1 font-medium">{label}：</span>
       {items.map(({ id, name, note }) => {
@@ -2395,28 +3024,71 @@ function AssetsTab(props: {
         const badgeClass = cn(
           "font-normal",
           status === "missing" && "border-destructive text-destructive",
-          status === "exists" && "border-yellow-500 text-yellow-600 dark:text-yellow-400",
+          status === "exists" &&
+            "border-yellow-500 text-yellow-600 dark:text-yellow-400",
         );
-        const title = status === "made" ? "已制作" : status === "exists" ? "资产库已有，尚未生成图片" : "资产库中不存在，请先创建";
+        const title =
+          status === "made"
+            ? "已制作"
+            : status === "exists"
+              ? "资产库已有，尚未生成图片"
+              : "资产库中不存在，请先创建";
         return (
           <span key={id} className="group relative inline-flex">
-            <Badge variant={status === "made" ? "secondary" : "outline"} className={badgeClass} title={title}>{name}</Badge>
+            <Badge
+              variant={status === "made" ? "secondary" : "outline"}
+              className={badgeClass}
+              title={title}
+            >
+              {name}
+            </Badge>
             <button
               type="button"
               title="删除"
               onClick={() => removeAsset(batch, type, id)}
               className="absolute -right-1.5 -top-1.5 hidden h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold leading-none text-destructive-foreground shadow group-hover:flex"
-            >×</button>
+            >
+              ×
+            </button>
           </span>
         );
       })}
       {adding?.episodeId === batch.episodeId && adding.type === type ? (
         <span className="inline-flex items-center gap-1">
-          <Input autoFocus value={addValue} onChange={(e) => setAddValue(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") submitAdd(batch); if (e.key === "Escape") { setAdding(null); setAddValue(""); } }} className="h-6 w-28 text-xs" placeholder={`新${label}`} />
-          <Button size="sm" variant="secondary" className="h-6 px-2" onClick={() => submitAdd(batch)}>确定</Button>
+          <Input
+            autoFocus
+            value={addValue}
+            onChange={(e) => setAddValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") submitAdd(batch);
+              if (e.key === "Escape") {
+                setAdding(null);
+                setAddValue("");
+              }
+            }}
+            className="h-6 w-28 text-xs"
+            placeholder={`新${label}`}
+          />
+          <Button
+            size="sm"
+            variant="secondary"
+            className="h-6 px-2"
+            onClick={() => submitAdd(batch)}
+          >
+            确定
+          </Button>
         </span>
       ) : (
-        <button type="button" className="text-xs text-primary hover:underline" onClick={() => { setAdding({ episodeId: batch.episodeId, type }); setAddValue(""); }}>+ 添加</button>
+        <button
+          type="button"
+          className="text-xs text-primary hover:underline"
+          onClick={() => {
+            setAdding({ episodeId: batch.episodeId, type });
+            setAddValue("");
+          }}
+        >
+          + 添加
+        </button>
       )}
     </div>
   );
@@ -2424,39 +3096,102 @@ function AssetsTab(props: {
   return (
     <div className="space-y-4">
       {scriptChapters.map((ch) => {
-        const batch = props.entityExtractions.find((b) => b.episodeId === ch.id);
-        const script = [...props.agentWorkData].reverse().find((w) => w.key === "scriptDraft" && w.episodeId === ch.id)?.data;
+        const batch = props.entityExtractions.find(
+          (b) => b.episodeId === ch.id,
+        );
+        const script = [...props.agentWorkData]
+          .reverse()
+          .find((w) => w.key === "scriptDraft" && w.episodeId === ch.id)?.data;
         const open = !collapsed.has(ch.id);
         return (
           <Card key={ch.id} className="rounded-lg">
             <CardHeader className="flex-row items-center justify-between space-y-0 py-3">
-              <button type="button" className="flex min-w-0 items-center gap-2 text-left" onClick={() => toggle(ch.id)}>
-                <ChevronDown className={cn("h-4 w-4 shrink-0 transition-transform", !open && "-rotate-90")} />
-                <CardTitle className="truncate text-sm">{ch.index}. {ch.title}</CardTitle>
+              <button
+                type="button"
+                className="flex min-w-0 items-center gap-2 text-left"
+                onClick={() => toggle(ch.id)}
+              >
+                <ChevronDown
+                  className={cn(
+                    "h-4 w-4 shrink-0 transition-transform",
+                    !open && "-rotate-90",
+                  )}
+                />
+                <CardTitle className="truncate text-sm">
+                  {ch.index}. {ch.title}
+                </CardTitle>
                 {batch ? (
-                  <span className="shrink-0 text-xs text-muted-foreground">（角色 {batch.characters.length} / 场景 {batch.scenes.length} / 道具 {batch.props.length}）</span>
+                  <span className="shrink-0 text-xs text-muted-foreground">
+                    （角色 {batch.characters.length} / 场景{" "}
+                    {batch.scenes.length} / 道具 {batch.props.length}）
+                  </span>
                 ) : !script ? (
-                  <span className="shrink-0 text-xs text-muted-foreground">（暂无剧本）</span>
+                  <span className="shrink-0 text-xs text-muted-foreground">
+                    （暂无剧本）
+                  </span>
                 ) : null}
               </button>
-              <Button size="sm" disabled={!script || extractingId !== null} onClick={() => run(ch.id)}>
+              <Button
+                size="sm"
+                disabled={!script || extractingId !== null}
+                onClick={() => run(ch.id)}
+              >
                 <Boxes className="h-4 w-4" />
-                {extractingId === ch.id ? "提取中…" : batch ? "重新提取资产" : "提取资产"}
+                {extractingId === ch.id
+                  ? "提取中…"
+                  : batch
+                    ? "重新提取资产"
+                    : "提取资产"}
               </Button>
             </CardHeader>
             {open && (
               <CardContent className="space-y-3 text-xs">
                 <details className="rounded-md border border-border p-2">
-                  <summary className="cursor-pointer font-medium">剧本内容</summary>
-                  <pre className="mt-2 max-h-[320px] overflow-auto whitespace-pre-wrap leading-5">{script || "本章暂无剧本：请先在「剧本策划」生成本章剧本。"}</pre>
+                  <summary className="cursor-pointer font-medium">
+                    剧本内容
+                  </summary>
+                  <pre className="mt-2 max-h-[320px] overflow-auto whitespace-pre-wrap leading-5">
+                    {script || "本章暂无剧本：请先在「策划编剧」生成本章剧本。"}
+                  </pre>
                 </details>
                 {!batch ? (
-                  <p className="text-muted-foreground">{script ? "尚未提取。点「提取资产」从本章剧本抽取角色/场景/道具。" : "本章暂无剧本，无法提取资产。"}</p>
+                  <p className="text-muted-foreground">
+                    {script
+                      ? "尚未提取。点「提取资产」从本章剧本抽取角色/场景/道具。"
+                      : "本章暂无剧本，无法提取资产。"}
+                  </p>
                 ) : (
                   <>
-                    {renderCat(batch, "character", "角色", batch.characters.map((c) => ({ id: c.characterId, name: c.name, note: c.note })))}
-                    {renderCat(batch, "scene", "场景", batch.scenes.map((s) => ({ id: s.sceneId, name: s.name, note: s.note })))}
-                    {renderCat(batch, "prop", "道具", batch.props.map((p) => ({ id: p.assetId, name: p.name, note: p.note })))}
+                    {renderCat(
+                      batch,
+                      "character",
+                      "角色",
+                      batch.characters.map((c) => ({
+                        id: c.characterId,
+                        name: c.name,
+                        note: c.note,
+                      })),
+                    )}
+                    {renderCat(
+                      batch,
+                      "scene",
+                      "场景",
+                      batch.scenes.map((s) => ({
+                        id: s.sceneId,
+                        name: s.name,
+                        note: s.note,
+                      })),
+                    )}
+                    {renderCat(
+                      batch,
+                      "prop",
+                      "道具",
+                      batch.props.map((p) => ({
+                        id: p.assetId,
+                        name: p.name,
+                        note: p.note,
+                      })),
+                    )}
                   </>
                 )}
               </CardContent>
@@ -2468,25 +3203,59 @@ function AssetsTab(props: {
   );
 }
 
-function StoryboardTab(props: {
+export function StoryboardTab(props: {
   storyboards: ReturnType<typeof useStudioStore.getState>["storyboards"];
   materials: ReturnType<typeof useStudioStore.getState>["materials"];
   importMaterials: (files?: FileList | null) => void;
   deleteMaterial: ReturnType<typeof useStudioStore.getState>["deleteMaterial"];
-  bindMaterialToStoryboard: ReturnType<typeof useStudioStore.getState>["bindMaterialToStoryboard"];
+  bindMaterialToStoryboard: ReturnType<
+    typeof useStudioStore.getState
+  >["bindMaterialToStoryboard"];
   addStoryboard: ReturnType<typeof useStudioStore.getState>["addStoryboard"];
-  updateStoryboard: ReturnType<typeof useStudioStore.getState>["updateStoryboard"];
-  createStoryboardsFromChapters: ReturnType<typeof useStudioStore.getState>["createStoryboardsFromChapters"];
+  updateStoryboard: ReturnType<
+    typeof useStudioStore.getState
+  >["updateStoryboard"];
+  createStoryboardsFromChapters: ReturnType<
+    typeof useStudioStore.getState
+  >["createStoryboardsFromChapters"];
+  generateStoryboardTable: (episodeId?: string) => void;
 }) {
   return (
     <div className="grid grid-cols-[280px_1fr] gap-4">
-      <MaterialLibrary materials={props.materials} importMaterials={props.importMaterials} deleteMaterial={props.deleteMaterial} />
+      <MaterialLibrary
+        materials={props.materials}
+        importMaterials={props.importMaterials}
+        deleteMaterial={props.deleteMaterial}
+      />
 
       <Card className="rounded-lg">
         <CardHeader className="flex-row items-center justify-between space-y-0">
-          <CardTitle className="text-sm">分镜表</CardTitle>
-          <div className="flex gap-2">
-            <Button variant="secondary" onClick={props.createStoryboardsFromChapters}>
+          <div>
+            <CardTitle className="text-sm">分镜表与分镜面板</CardTitle>
+            <p className="mt-1 text-xs text-muted-foreground">
+              分镜表落地后进入分镜面板，绑定画面素材并生成分镜图/配音。
+            </p>
+          </div>
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button
+              variant="secondary"
+              onClick={() => props.generateStoryboardTable()}
+            >
+              <WandSparkles className="h-4 w-4" />
+              运行 AI 分镜计划
+            </Button>
+            <Button variant="secondary" type="button">
+              <Volume2 className="h-4 w-4" />
+              生成配音
+            </Button>
+            <Button variant="secondary" type="button">
+              <Play className="h-4 w-4" />
+              试听配音
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={props.createStoryboardsFromChapters}
+            >
               <Split className="h-4 w-4" />
               从章节生成
             </Button>
@@ -2498,12 +3267,54 @@ function StoryboardTab(props: {
         </CardHeader>
         <CardContent className="space-y-3">
           {props.storyboards.map((item) => (
-            <div key={item.id} className="grid grid-cols-[56px_130px_80px_1fr_1fr_1.2fr] gap-2 rounded-md border border-border p-2">
-              <Input type="number" value={item.index} onChange={(event) => props.updateStoryboard(item.id, { index: Number(event.target.value) })} />
-              <Input value={item.trackKey} onChange={(event) => props.updateStoryboard(item.id, { trackKey: event.target.value })} />
-              <Input type="number" value={item.duration} onChange={(event) => props.updateStoryboard(item.id, { duration: Number(event.target.value) })} />
-              <Textarea value={item.prompt} onChange={(event) => props.updateStoryboard(item.id, { prompt: event.target.value })} placeholder="画面提示" />
-              <Textarea value={item.videoDesc} onChange={(event) => props.updateStoryboard(item.id, { videoDesc: event.target.value })} placeholder="视频描述/台词" />
+            <div
+              key={item.id}
+              className="grid grid-cols-[56px_130px_80px_1fr_1fr_1.2fr] gap-2 rounded-md border border-border p-2"
+            >
+              <Input
+                type="number"
+                value={item.index}
+                onChange={(event) =>
+                  props.updateStoryboard(item.id, {
+                    index: Number(event.target.value),
+                  })
+                }
+              />
+              <Input
+                value={item.trackKey}
+                onChange={(event) =>
+                  props.updateStoryboard(item.id, {
+                    trackKey: event.target.value,
+                  })
+                }
+              />
+              <Input
+                type="number"
+                value={item.duration}
+                onChange={(event) =>
+                  props.updateStoryboard(item.id, {
+                    duration: Number(event.target.value),
+                  })
+                }
+              />
+              <Textarea
+                value={item.prompt}
+                onChange={(event) =>
+                  props.updateStoryboard(item.id, {
+                    prompt: event.target.value,
+                  })
+                }
+                placeholder="画面提示"
+              />
+              <Textarea
+                value={item.videoDesc}
+                onChange={(event) =>
+                  props.updateStoryboard(item.id, {
+                    videoDesc: event.target.value,
+                  })
+                }
+                placeholder="视频描述/台词"
+              />
               <MediaRefEditor
                 itemId={item.id}
                 mediaRef={item.mediaRef}
@@ -2543,31 +3354,52 @@ function MaterialLibrary(props: {
         </Label>
         <div className="space-y-2">
           {props.materials.map((material) => (
-            <div key={material.id} className="rounded-md border border-border p-2">
+            <div
+              key={material.id}
+              className="rounded-md border border-border p-2"
+            >
               <div className="flex items-center justify-between gap-2">
                 <div className="min-w-0">
-                  <div className="truncate text-xs font-medium">{material.name}</div>
+                  <div className="truncate text-xs font-medium">
+                    {material.name}
+                  </div>
                   <div className="mt-1 flex items-center gap-2 text-[10px] text-muted-foreground">
                     <Badge variant="outline">{material.kind}</Badge>
                     <span>{Math.round(material.size / 1024)} KB</span>
                   </div>
                 </div>
-                <Button size="icon" variant="destructive" onClick={() => props.deleteMaterial(material.id)}>
+                <Button
+                  size="icon"
+                  variant="destructive"
+                  onClick={() => props.deleteMaterial(material.id)}
+                >
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </div>
               {material.kind !== "audio" && (
                 <div className="mt-2 overflow-hidden rounded bg-muted">
                   {material.kind === "image" ? (
-                    <img src={material.localPath} alt={material.name} className="aspect-video w-full object-cover" />
+                    <img
+                      src={material.localPath}
+                      alt={material.name}
+                      className="aspect-video w-full object-cover"
+                    />
                   ) : (
-                    <video src={material.localPath} className="aspect-video w-full bg-black" controls />
+                    <video
+                      src={material.localPath}
+                      className="aspect-video w-full bg-black"
+                      controls
+                    />
                   )}
                 </div>
               )}
             </div>
           ))}
-          {!props.materials.length && <div className="rounded-md bg-muted p-3 text-xs text-muted-foreground">还没有导入素材。</div>}
+          {!props.materials.length && (
+            <div className="rounded-md bg-muted p-3 text-xs text-muted-foreground">
+              还没有导入素材。
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>
@@ -2578,14 +3410,29 @@ function MediaRefEditor(props: {
   itemId: string;
   mediaRef?: StoryboardMediaRef;
   materials: StudioMaterial[];
-  bindMaterialToStoryboard: ReturnType<typeof useStudioStore.getState>["bindMaterialToStoryboard"];
-  updateStoryboard: ReturnType<typeof useStudioStore.getState>["updateStoryboard"];
+  bindMaterialToStoryboard: ReturnType<
+    typeof useStudioStore.getState
+  >["bindMaterialToStoryboard"];
+  updateStoryboard: ReturnType<
+    typeof useStudioStore.getState
+  >["updateStoryboard"];
 }) {
-  const [kind, setKind] = useState<StoryboardMediaRef["kind"]>(props.mediaRef?.kind ?? "image");
-  const selectedMaterialId = props.materials.find((material) => material.localPath === props.mediaRef?.path)?.id ?? "";
+  const [kind, setKind] = useState<StoryboardMediaRef["kind"]>(
+    props.mediaRef?.kind ?? "image",
+  );
+  const selectedMaterialId =
+    props.materials.find(
+      (material) => material.localPath === props.mediaRef?.path,
+    )?.id ?? "";
   return (
     <div className="grid grid-cols-[88px_1fr] gap-2">
-      <select className="h-9 rounded-md border border-input bg-background px-2 text-sm" value={kind} onChange={(event) => setKind(event.target.value as StoryboardMediaRef["kind"])}>
+      <select
+        className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+        value={kind}
+        onChange={(event) =>
+          setKind(event.target.value as StoryboardMediaRef["kind"])
+        }
+      >
         <option value="image">图片</option>
         <option value="video">视频</option>
         <option value="audio">音频</option>
@@ -2594,25 +3441,32 @@ function MediaRefEditor(props: {
         className="h-9 rounded-md border border-input bg-background px-2 text-sm"
         value={selectedMaterialId}
         onChange={(event) => {
-          if (event.target.value) props.bindMaterialToStoryboard(props.itemId, event.target.value);
+          if (event.target.value)
+            props.bindMaterialToStoryboard(props.itemId, event.target.value);
         }}
       >
         <option value="">从素材库绑定</option>
         {props.materials.map((material) => (
-          <option key={material.id} value={material.id}>{material.kind} / {material.name}</option>
+          <option key={material.id} value={material.id}>
+            {material.kind} / {material.name}
+          </option>
         ))}
       </select>
       <Input
         className="col-span-2"
         value={props.mediaRef?.path ?? ""}
-        onChange={(event) => props.updateStoryboard(props.itemId, { mediaRef: { kind, path: event.target.value } })}
+        onChange={(event) =>
+          props.updateStoryboard(props.itemId, {
+            mediaRef: { kind, path: event.target.value },
+          })
+        }
         placeholder="/absolute/path 或 local-image://..."
       />
     </div>
   );
 }
 
-function WorkbenchTab(props: {
+export function WorkbenchTab(props: {
   storyboards: ReturnType<typeof useStudioStore.getState>["storyboards"];
   tracks: ReturnType<typeof useStudioStore.getState>["productionTracks"];
   candidates: ReturnType<typeof useStudioStore.getState>["videoCandidates"];
@@ -2621,52 +3475,134 @@ function WorkbenchTab(props: {
   mergeOutput: string | null;
   rebuildTracks: () => void;
   renderTrack: (trackId: string) => void;
-  selectVideoCandidate: ReturnType<typeof useStudioStore.getState>["selectVideoCandidate"];
-  deleteVideoCandidate: ReturnType<typeof useStudioStore.getState>["deleteVideoCandidate"];
+  selectVideoCandidate: ReturnType<
+    typeof useStudioStore.getState
+  >["selectVideoCandidate"];
+  deleteVideoCandidate: ReturnType<
+    typeof useStudioStore.getState
+  >["deleteVideoCandidate"];
   mergeEpisode: () => void;
 }) {
+  const selectedReadyCandidateCount = props.tracks.filter((track) => {
+    if (!track.selectedVideoId) return false;
+    const candidate = props.candidates.find(
+      (item) => item.id === track.selectedVideoId,
+    );
+    return Boolean(candidate?.filePath && candidate.state === "ready");
+  }).length;
+  const canMergeEpisode =
+    props.tracks.length > 0 &&
+    selectedReadyCandidateCount === props.tracks.length;
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Boxes className="h-4 w-4" />
-          {props.tracks.length} 条 track / {props.storyboards.length} 个分镜
+          {props.tracks.length} 条 track / {props.storyboards.length} 个分镜 /{" "}
+          {selectedReadyCandidateCount} 条已选候选片段
         </div>
         <div className="flex gap-2">
-          <Button variant="secondary" onClick={props.rebuildTracks}><RefreshCw className="h-4 w-4" />重建轨道</Button>
-          <Button onClick={props.mergeEpisode} disabled={props.merging}><Film className="h-4 w-4" />拼接成片</Button>
+          <Button variant="secondary" onClick={props.rebuildTracks}>
+            <RefreshCw className="h-4 w-4" />
+            重建轨道
+          </Button>
+          <Button
+            onClick={props.mergeEpisode}
+            disabled={props.merging || !canMergeEpisode}
+          >
+            <Film className="h-4 w-4" />
+            导出成片
+          </Button>
         </div>
       </div>
-      {props.mergeOutput && <div className="rounded-md border border-border bg-muted p-3 text-xs">成片输出: {props.mergeOutput}</div>}
+      {props.mergeOutput && (
+        <div className="rounded-md border border-border bg-muted p-3 text-xs">
+          导出文件: {props.mergeOutput}
+        </div>
+      )}
       <div className="grid grid-cols-1 gap-3">
         {props.tracks.map((track) => {
-          const trackCandidates = props.candidates.filter((candidate) => candidate.trackId === track.id);
+          const trackCandidates = props.candidates.filter(
+            (candidate) => candidate.trackId === track.id,
+          );
           return (
             <Card key={track.id} className="rounded-lg">
               <CardHeader className="flex-row items-center justify-between space-y-0 py-4">
                 <div>
                   <CardTitle className="text-sm">{track.trackKey}</CardTitle>
-                  <div className="mt-1 text-xs text-muted-foreground">{track.storyboardIds.length} 分镜 / {track.duration}s</div>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    {track.storyboardIds.length} 分镜 / {track.duration}s
+                  </div>
                 </div>
-                <Button onClick={() => props.renderTrack(track.id)} disabled={props.renderingTrackId === track.id}>
+                <Button
+                  onClick={() => props.renderTrack(track.id)}
+                  disabled={props.renderingTrackId === track.id}
+                >
                   <Play className="h-4 w-4" />
-                  {props.renderingTrackId === track.id ? "合成中" : "本地合成"}
+                  {props.renderingTrackId === track.id
+                    ? "生成中"
+                    : "生成候选片段"}
                 </Button>
               </CardHeader>
               <CardContent className="grid grid-cols-[1fr_280px] gap-3">
-                <pre className="min-h-[120px] whitespace-pre-wrap rounded-md bg-muted p-3 text-xs">{track.prompt || "未设置 track prompt"}</pre>
+                <pre className="min-h-[120px] whitespace-pre-wrap rounded-md bg-muted p-3 text-xs">
+                  {track.prompt || "未设置 track prompt"}
+                </pre>
                 <div className="space-y-2">
                   {trackCandidates.map((candidate) => (
-                    <div key={candidate.id} className="rounded-md border border-border p-2">
+                    <div
+                      key={candidate.id}
+                      className="rounded-md border border-border p-2"
+                    >
                       <div className="flex items-center justify-between gap-2">
-                        <Badge variant={candidate.state === "ready" ? "default" : candidate.state === "failed" ? "destructive" : "outline"}>{candidate.state}</Badge>
+                        <Badge
+                          variant={
+                            candidate.state === "ready"
+                              ? "default"
+                              : candidate.state === "failed"
+                                ? "destructive"
+                                : "outline"
+                          }
+                        >
+                          {candidate.state}
+                        </Badge>
                         <div className="flex gap-1">
-                          <Button size="sm" variant={track.selectedVideoId === candidate.id ? "default" : "secondary"} onClick={() => props.selectVideoCandidate(track.id, candidate.id)}>选择</Button>
-                          <Button size="sm" variant="destructive" onClick={() => props.deleteVideoCandidate(candidate.id)}>删除</Button>
+                          <Button
+                            size="sm"
+                            variant={
+                              track.selectedVideoId === candidate.id
+                                ? "default"
+                                : "secondary"
+                            }
+                            onClick={() =>
+                              props.selectVideoCandidate(track.id, candidate.id)
+                            }
+                          >
+                            选择
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() =>
+                              props.deleteVideoCandidate(candidate.id)
+                            }
+                          >
+                            删除
+                          </Button>
                         </div>
                       </div>
-                      {candidate.filePath && <video className="mt-2 aspect-video w-full rounded bg-black" src={toPreviewSrc(candidate.filePath)} controls />}
-                      {candidate.errorReason && <div className="mt-2 text-xs text-destructive">{candidate.errorReason}</div>}
+                      {candidate.filePath && (
+                        <video
+                          className="mt-2 aspect-video w-full rounded bg-black"
+                          src={toPreviewSrc(candidate.filePath)}
+                          controls
+                        />
+                      )}
+                      {candidate.errorReason && (
+                        <div className="mt-2 text-xs text-destructive">
+                          {candidate.errorReason}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -2680,41 +3616,68 @@ function WorkbenchTab(props: {
 }
 
 function toPreviewSrc(filePath: string) {
-  if (filePath.startsWith("local-image://") || filePath.startsWith("file://")) return filePath;
+  if (filePath.startsWith("local-image://") || filePath.startsWith("file://"))
+    return filePath;
   return `file://${filePath}`;
 }
 
-// ==================== 剧情产物生成 Tab ====================
+// ==================== ProductionAgent Tab ====================
 
-function GenerationTab() {
-  const visualManualId = useStudioStore((s) => s.workflowConfig?.visualManualId);
-  const [activeType, setActiveType] = useState<"character" | "scene" | "prop">("character");
+export function GenerationTab({
+  runDirectorPlan,
+  deriveAssets,
+  buildSeriesBible,
+  productionEpisodeId,
+  scriptPlanCount,
+  hasSeriesBible,
+  projectName,
+}: {
+  runDirectorPlan: (episodeId?: string) => void;
+  deriveAssets: (episodeId?: string) => void;
+  buildSeriesBible: () => void;
+  productionEpisodeId: string;
+  scriptPlanCount: number;
+  hasSeriesBible: boolean;
+  projectName: string;
+}) {
+  const visualManualId = useStudioStore(
+    (s) => s.workflowConfig?.visualManualId,
+  );
+  const [activeType, setActiveType] = useState<"character" | "scene" | "prop">(
+    "character",
+  );
   const [isPolishing, setIsPolishing] = useState(false);
   const [progress, setProgress] = useState({ done: 0, total: 0 });
   const [isCancelled, setIsCancelled] = useState(false);
 
   // 音色分配状态
   const [voiceDialogChar, setVoiceDialogChar] = useState<{
-    id: string; name: string; gender?: string; age?: string; personality?: string;
+    id: string;
+    name: string;
+    gender?: string;
+    age?: string;
+    personality?: string;
   } | null>(null);
-  const [isBatchVoiceAssigning, setIsBatchVoiceAssigning] = useState(false);
-  const [batchVoiceProgress, setBatchVoiceProgress] = useState(0);
-
   // 从各 Store 获取资产统计
   const characters = useCharacterLibraryStore((s) => s.characters);
   const scenes = useSceneStore((s) => s.scenes);
   const allProps = usePropsLibraryStore((s) => s.items);
   const entityExtractions = useStudioStore((s) => s.entityExtractions);
+  const activeTtsProjectId = useTtsStore((s) => s.activeProjectId);
+  const ttsProjects = useTtsStore((s) => s.projects);
+  const voiceProfiles = useTtsStore((s) => s.voiceProfiles);
 
   // 从 entityExtractions 提取各类型的名字集合（用于统计总数）
   const extractedCharNames = useMemo(() => {
     const names = new Set<string>();
-    for (const batch of entityExtractions) for (const c of batch.characters) names.add(c.name);
+    for (const batch of entityExtractions)
+      for (const c of batch.characters) names.add(c.name);
     return names;
   }, [entityExtractions]);
   const extractedSceneNames = useMemo(() => {
     const names = new Set<string>();
-    for (const batch of entityExtractions) for (const s of batch.scenes) names.add(s.name);
+    for (const batch of entityExtractions)
+      for (const s of batch.scenes) names.add(s.name);
     return names;
   }, [entityExtractions]);
   const extractedPropNames = useMemo(() => {
@@ -2726,28 +3689,38 @@ function GenerationTab() {
   }, [entityExtractions]);
 
   // 只保留提取结果中出现的道具
-  const props = useMemo(() => allProps.filter((p) => extractedPropNames.has(p.name)), [allProps, extractedPropNames]);
+  const props = useMemo(
+    () => allProps.filter((p) => extractedPropNames.has(p.name)),
+    [allProps, extractedPropNames],
+  );
 
   // 统计音色分配情况
   const voiceStats = useMemo(() => {
-    const ttsState = useTtsStore.getState();
-    const pid = ttsState.activeProjectId;
-    const bindings = pid ? (ttsState.projects[pid]?.bindings ?? {}) : {};
-    const voiceProfiles = ttsState.voiceProfiles;
+    const bindings = activeTtsProjectId
+      ? (ttsProjects[activeTtsProjectId]?.bindings ?? {})
+      : {};
     let assigned = 0;
     for (const c of characters) {
       const speakerId = `character:${c.id}` as TtsSpeakerId;
       const binding = bindings[speakerId];
       if (binding && voiceProfiles[binding.profileId]) assigned++;
     }
-    return { total: characters.length, assigned, unassigned: characters.length - assigned };
-  }, [characters]);
+    return {
+      total: characters.length,
+      assigned,
+      unassigned: characters.length - assigned,
+    };
+  }, [activeTtsProjectId, characters, ttsProjects, voiceProfiles]);
 
   // 统计各类型的润色状态（total 统一用 entityExtractions 的数量）
   const stats = useMemo(() => {
-    const countStatus = (items: Array<{ promptState?: string }>, extractedTotal: number) => ({
+    const countStatus = (
+      items: Array<{ promptState?: string }>,
+      extractedTotal: number,
+    ) => ({
       total: extractedTotal > 0 ? extractedTotal : items.length,
-      none: items.filter((i) => !i.promptState || i.promptState === "none").length,
+      none: items.filter((i) => !i.promptState || i.promptState === "none")
+        .length,
       polishing: items.filter((i) => i.promptState === "polishing").length,
       ready: items.filter((i) => i.promptState === "ready").length,
       failed: items.filter((i) => i.promptState === "failed").length,
@@ -2757,81 +3730,47 @@ function GenerationTab() {
       scene: countStatus(scenes, extractedSceneNames.size),
       prop: countStatus(props, extractedPropNames.size),
     };
-  }, [characters, scenes, props, extractedCharNames, extractedSceneNames, extractedPropNames]);
+  }, [
+    characters,
+    scenes,
+    props,
+    extractedCharNames,
+    extractedSceneNames,
+    extractedPropNames,
+  ]);
 
   const currentStats = stats[activeType];
 
   const handlePolishAll = useCallback(async () => {
     if (!visualManualId) {
-      toast.error("请先在「风格与导演选择」中选择视觉手册");
+      toast.error("请先在「风格与导演」中选择视觉手册");
       return;
     }
     setIsPolishing(true);
     setIsCancelled(false);
     setProgress({ done: 0, total: 0 });
 
-    const { polishAssetsAndUpdateStore } = await import("@/lib/studio/asset-generation-orchestrator");
-    const result = await polishAssetsAndUpdateStore(activeType, visualManualId, {
-      concurrency: 3,
-      onProgress: (done, total) => setProgress({ done, total }),
-      onCancel: () => isCancelled,
-    });
+    const { polishAssetsAndUpdateStore } =
+      await import("@/lib/studio/asset-generation-orchestrator");
+    const result = await polishAssetsAndUpdateStore(
+      activeType,
+      visualManualId,
+      {
+        concurrency: 3,
+        onProgress: (done, total) => setProgress({ done, total }),
+        onCancel: () => isCancelled,
+      },
+    );
 
     setIsPolishing(false);
     if (result.failed > 0) {
-      toast.warning(`处理完成：${result.success} 成功（含资产库复用），${result.failed} 失败`);
+      toast.warning(
+        `处理完成：${result.success} 成功（含资产库复用），${result.failed} 失败`,
+      );
     } else {
       toast.success(`处理完成：${result.success} 个资产已就绪（含资产库复用）`);
     }
   }, [activeType, visualManualId, isCancelled]);
-
-  /** 批量自动分配音色（仅处理未分配的角色） */
-  const handleBatchVoiceAssign = useCallback(async () => {
-    const ttsState = useTtsStore.getState();
-    const pid = ttsState.activeProjectId;
-    if (!pid) {
-      toast.error("请先打开一个项目");
-      return;
-    }
-    const bindings = ttsState.projects[pid]?.bindings ?? {};
-    const voiceProfiles = ttsState.voiceProfiles;
-
-    // 筛选未分配的角色
-    const unassigned = characters.filter((c) => {
-      const speakerId = `character:${c.id}` as TtsSpeakerId;
-      const binding = bindings[speakerId];
-      return !binding || !voiceProfiles[binding.profileId];
-    });
-    if (unassigned.length === 0) {
-      toast.info("所有角色已分配音色");
-      return;
-    }
-
-    setIsBatchVoiceAssigning(true);
-    setBatchVoiceProgress(0);
-    try {
-      const charInputs: VoiceAssignerCharacter[] = unassigned.map((c) => ({
-        id: c.id,
-        name: c.name,
-        gender: c.gender,
-        age: c.age,
-        personality: c.personality,
-      }));
-      const assignments = assignVoicesForCharacters(charInputs);
-      const sink = createMystudioTtsSink();
-      syncCharacterVoices(assignments, { projectId: pid, sink });
-
-      for (let i = 0; i < assignments.length; i++) {
-        setBatchVoiceProgress(i + 1);
-      }
-      toast.success(`已为 ${assignments.length} 个角色自动分配音色`);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "批量分配失败");
-    } finally {
-      setIsBatchVoiceAssigning(false);
-      setBatchVoiceProgress(0);
-    }
-  }, [characters]);
 
   const typeConfig = [
     { key: "character" as const, label: "角色", icon: Users },
@@ -2840,7 +3779,54 @@ function GenerationTab() {
   ];
 
   return (
-    <div className="h-full flex flex-col bg-background/90">
+    <div className="production-agent-workspace h-full flex flex-col bg-background/90">
+      <div className="border-b border-border/70 bg-panel/80 px-4 py-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="text-sm font-semibold">
+                ProductionAgent：导演规划与衍生资产
+              </h3>
+              <Badge variant={scriptPlanCount > 0 ? "secondary" : "outline"}>
+                导演计划 {scriptPlanCount}
+              </Badge>
+              <Badge variant={hasSeriesBible ? "secondary" : "outline"}>
+                {hasSeriesBible ? "剧集圣经已锁定" : "剧集圣经未锁定"}
+              </Badge>
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              按 Toonflow 的 ProductionAgent
+              顺序推进：导演规划、衍生资产分析/生成、分镜表、分镜面板、分镜图，再进入视频工作台。
+            </p>
+          </div>
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => runDirectorPlan(productionEpisodeId)}
+            >
+              <ClipboardList className="h-4 w-4" />
+              运行导演计划
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => deriveAssets(productionEpisodeId)}
+              disabled={scriptPlanCount === 0}
+            >
+              <Boxes className="h-4 w-4" />
+              落地衍生资产
+            </Button>
+            <Button size="sm" onClick={buildSeriesBible}>
+              <BookMarked className="h-4 w-4" />
+              锁定剧集圣经
+            </Button>
+          </div>
+        </div>
+      </div>
+      <div className="border-b border-border/70 bg-background p-4">
+        <WorkflowNodeCanvas projectName={projectName} />
+      </div>
       {/* 类型选择 */}
       <div className="flex items-center gap-1 border-b px-3 py-2 bg-panel">
         {typeConfig.map(({ key, label, icon: Icon }) => (
@@ -2855,7 +3841,9 @@ function GenerationTab() {
           >
             <Icon className="h-3.5 w-3.5" />
             {label}
-            <span className="text-xs opacity-70">({stats[key].ready}/{stats[key].total})</span>
+            <span className="text-xs opacity-70">
+              ({stats[key].ready}/{stats[key].total})
+            </span>
           </button>
         ))}
 
@@ -2872,36 +3860,38 @@ function GenerationTab() {
           className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-primary/20 text-primary text-sm hover:bg-primary/30 disabled:opacity-40 transition-colors"
         >
           <WandSparkles className="h-3.5 w-3.5" />
-          {isPolishing ? `润色中 ${progress.done}/${progress.total}` : `全部润色提示词 (${currentStats.none})`}
+          {isPolishing
+            ? `润色中 ${progress.done}/${progress.total}`
+            : `全部润色提示词 (${currentStats.none})`}
         </button>
 
-        {/* 图片生成按钮（Phase 2） */}
         <button
-          disabled
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-primary/20 text-primary text-sm opacity-40 cursor-not-allowed"
+          type="button"
+          className="flex items-center gap-1.5 rounded bg-primary/20 px-3 py-1.5 text-sm text-primary transition-colors hover:bg-primary/30"
         >
-          全部生成图片
+          <ImageIcon className="h-3.5 w-3.5" />
+          生成图片
+        </button>
+        <button
+          type="button"
+          className="flex items-center gap-1.5 rounded bg-primary/20 px-3 py-1.5 text-sm text-primary transition-colors hover:bg-primary/30"
+        >
+          <Clapperboard className="h-3.5 w-3.5" />
+          生成视频预览
         </button>
 
-        {/* 批量分配音色按钮（仅角色 tab 显示） */}
+        {/* 音色样本绑定状态（仅角色 tab 显示） */}
         {activeType === "character" && voiceStats.total > 0 && (
-          <>
-            <span className="text-xs text-primary">已分配 {voiceStats.assigned}/{voiceStats.total}</span>
-            <button
-              onClick={handleBatchVoiceAssign}
-              disabled={isBatchVoiceAssigning || voiceStats.unassigned === 0}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-primary/20 text-primary text-sm hover:bg-primary/30 disabled:opacity-40 transition-colors"
-            >
-              <Mic className="h-3.5 w-3.5" />
-              {isBatchVoiceAssigning
-                ? `分配中 ${batchVoiceProgress}/${voiceStats.unassigned}`
-                : `批量分配音色 (${voiceStats.unassigned})`}
-            </button>
-          </>
+          <span className="text-xs text-primary">
+            音频样本 {voiceStats.assigned}/{voiceStats.total}
+          </span>
         )}
 
         {isPolishing && (
-          <button onClick={() => setIsCancelled(true)} className="text-xs text-red-400 hover:text-red-300">
+          <button
+            onClick={() => setIsCancelled(true)}
+            className="text-xs text-red-400 hover:text-red-300"
+          >
             取消
           </button>
         )}
@@ -2921,16 +3911,22 @@ function GenerationTab() {
       <div className="flex-1 overflow-auto p-4">
         <AssetListByType
           type={activeType}
-          onVoiceAssign={activeType === "character" ? (char) => setVoiceDialogChar(char) : undefined}
+          onVoiceAssign={
+            activeType === "character"
+              ? (char) => setVoiceDialogChar(char)
+              : undefined
+          }
         />
       </div>
 
       {/* 音色分配弹窗 */}
       {voiceDialogChar && (
-        <VoiceAssignDialog
+        <RoleVoiceAssignDialog
           character={voiceDialogChar}
           open={!!voiceDialogChar}
-          onOpenChange={(open) => { if (!open) setVoiceDialogChar(null); }}
+          onOpenChange={(open) => {
+            if (!open) setVoiceDialogChar(null);
+          }}
         />
       )}
     </div>
@@ -2938,9 +3934,18 @@ function GenerationTab() {
 }
 
 /** 按类型展示资产列表（含润色状态标签） */
-function AssetListByType({ type, onVoiceAssign }: {
+function AssetListByType({
+  type,
+  onVoiceAssign,
+}: {
   type: "character" | "scene" | "prop";
-  onVoiceAssign?: (char: { id: string; name: string; gender?: string; age?: string; personality?: string }) => void;
+  onVoiceAssign?: (char: {
+    id: string;
+    name: string;
+    gender?: string;
+    age?: string;
+    personality?: string;
+  }) => void;
 }) {
   // Hooks 必须在条件语句之前调用
   const allCharacters = useCharacterLibraryStore((s) => s.characters);
@@ -2952,8 +3957,10 @@ function AssetListByType({ type, onVoiceAssign }: {
   const extractedNames = useMemo(() => {
     const names = new Set<string>();
     for (const batch of entityExtractions) {
-      if (type === "character") for (const c of batch.characters) names.add(c.name);
-      else if (type === "scene") for (const s of batch.scenes) names.add(s.name);
+      if (type === "character")
+        for (const c of batch.characters) names.add(c.name);
+      else if (type === "scene")
+        for (const s of batch.scenes) names.add(s.name);
       else for (const p of batch.props) names.add(p.name);
     }
     return names;
@@ -2964,7 +3971,7 @@ function AssetListByType({ type, onVoiceAssign }: {
     const seen = new Set<string>();
     return allCharacters.filter((c) => {
       if (!extractedNames.has(c.name)) return false;
-      const key = `${c.name}::${c.projectId ?? ''}`;
+      const key = `${c.name}::${c.projectId ?? ""}`;
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
@@ -2974,7 +3981,7 @@ function AssetListByType({ type, onVoiceAssign }: {
     const seen = new Set<string>();
     return allScenes.filter((s) => {
       if (!extractedNames.has(s.name)) return false;
-      const key = `${s.name}::${s.projectId ?? ''}`;
+      const key = `${s.name}::${s.projectId ?? ""}`;
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
@@ -2991,87 +3998,128 @@ function AssetListByType({ type, onVoiceAssign }: {
   }, [allPropsItems, extractedNames]);
 
   // assets.db fallback：当 propsLibraryStore 为空时从 assets.db 加载道具（仅提取结果中的）
-  const [dbPropsFallback, setDbPropsFallback] = useState<Array<{ id: string; name: string; description: string; imageUrl: string; promptState?: string }>>([]);
+  const [dbPropsFallback, setDbPropsFallback] = useState<
+    Array<{
+      id: string;
+      name: string;
+      description: string;
+      imageUrl: string;
+      promptState?: string;
+    }>
+  >([]);
   useEffect(() => {
-    if (type !== "prop" || propsItems.length > 0 || extractedNames.size === 0) return;
-    window.studioAssets?.list({ type: "tool", limit: 9999 }).then((res) => {
-      const items = (res.items || [])
-        .filter((it) => extractedNames.has(it.name))
-        .map((it) => ({
-        id: String(it.id ?? ""),
-        name: String(it.name ?? ""),
-        description: String(it.description ?? ""),
-        imageUrl: it.thumbnailUrl ?? it.previewUrl ?? "",
-        promptState: it.prompt ? "ready" as const : "none" as const,
-      }));
-      setDbPropsFallback(items);
-    }).catch(() => {});
+    if (type !== "prop" || propsItems.length > 0 || extractedNames.size === 0)
+      return;
+    window.studioAssets
+      ?.list({ type: "tool", limit: 9999 })
+      .then((res) => {
+        const items = (res.items || [])
+          .filter((it) => extractedNames.has(it.name))
+          .map((it) => ({
+            id: String(it.id ?? ""),
+            name: String(it.name ?? ""),
+            description: String(it.description ?? ""),
+            imageUrl: it.thumbnailUrl ?? it.previewUrl ?? "",
+            promptState: it.prompt ? ("ready" as const) : ("none" as const),
+          }));
+        setDbPropsFallback(items);
+      })
+      .catch(() => {});
   }, [type, propsItems.length, extractedNames]);
 
   // 资产库弹窗状态
-  const [selectedAsset, setSelectedAsset] = useState<StudioAssetSummary | null>(null);
+  const [selectedAsset, setSelectedAsset] = useState<StudioAssetSummary | null>(
+    null,
+  );
   const [assetDialogOpen, setAssetDialogOpen] = useState(false);
   // 未找到资产时的生成弹窗
-  const [notFoundDialog, setNotFoundDialog] = useState<{ name: string; kind: "character" | "scene" | "prop" } | null>(null);
+  const [notFoundDialog, setNotFoundDialog] = useState<{
+    name: string;
+    kind: "character" | "scene" | "prop";
+  } | null>(null);
   const [isGeneratingSingle, setIsGeneratingSingle] = useState(false);
 
   /** 为单个未匹配的资产生成图片 */
-  const handleGenerateSingle = useCallback(async (name: string, kind: "character" | "scene" | "prop") => {
-    const manualId = useStudioStore.getState().workflowConfig?.visualManualId;
-    if (!manualId) {
-      toast.error("请先在「风格与导演选择」中选择视觉手册");
-      return;
-    }
-    setIsGeneratingSingle(true);
-    try {
-      const dbType = kind === "prop" ? "tool" : kind === "character" ? "role" : kind;
-      const { generateAsset } = await import("@/lib/studio/asset-generation-orchestrator");
-      const result = await generateAsset({
-        assetId: `single_${Date.now()}`,
-        name,
-        assetType: kind,
-        description: "",
-        isDerivative: false,
-        visualManualId: manualId,
-        skipPolish: false,
-      });
-      if (result.phase === "done") {
-        toast.success(`「${name}」资产生成成功`);
-        setNotFoundDialog(null);
-        // 重新查询并打开详情弹窗
-        const asset = await window.studioAssets?.getByName({ type: dbType, name });
+  const handleGenerateSingle = useCallback(
+    async (name: string, kind: "character" | "scene" | "prop") => {
+      const manualId = useStudioStore.getState().workflowConfig?.visualManualId;
+      if (!manualId) {
+        toast.error("请先在「风格与导演」中选择视觉手册");
+        return;
+      }
+      setIsGeneratingSingle(true);
+      try {
+        const dbType =
+          kind === "prop" ? "tool" : kind === "character" ? "role" : kind;
+        const { generateAsset } =
+          await import("@/lib/studio/asset-generation-orchestrator");
+        const result = await generateAsset({
+          assetId: `single_${Date.now()}`,
+          name,
+          assetType: kind,
+          description: "",
+          isDerivative: false,
+          visualManualId: manualId,
+          skipPolish: false,
+        });
+        if (result.phase === "done") {
+          toast.success(`「${name}」资产生成成功`);
+          setNotFoundDialog(null);
+          // 重新查询并打开详情弹窗
+          const asset = await window.studioAssets?.getByName({
+            type: dbType,
+            name,
+          });
+          if (asset) {
+            setSelectedAsset(asset);
+            setAssetDialogOpen(true);
+          }
+        } else {
+          toast.error(`「${name}」资产生成失败: ${result.error ?? "未知错误"}`);
+        }
+      } catch (err: any) {
+        toast.error(`生成失败: ${err.message ?? err}`);
+      } finally {
+        setIsGeneratingSingle(false);
+      }
+    },
+    [],
+  );
+
+  /** 点击角色/场景/道具 → 匹配资产库 → 弹出资产详情 */
+  const handleItemClick = useCallback(
+    async (name: string, assetKind: "character" | "scene" | "prop") => {
+      try {
+        const dbType =
+          assetKind === "prop"
+            ? "tool"
+            : assetKind === "character"
+              ? "role"
+              : assetKind;
+        const asset = await window.studioAssets?.getByName({
+          type: dbType,
+          name,
+        });
         if (asset) {
           setSelectedAsset(asset);
           setAssetDialogOpen(true);
+        } else {
+          setNotFoundDialog({ name, kind: assetKind });
         }
-      } else {
-        toast.error(`「${name}」资产生成失败: ${result.error ?? "未知错误"}`);
+      } catch {
+        toast.error("查询资产库失败");
       }
-    } catch (err: any) {
-      toast.error(`生成失败: ${err.message ?? err}`);
-    } finally {
-      setIsGeneratingSingle(false);
-    }
-  }, []);
-
-  /** 点击角色/场景/道具 → 匹配资产库 → 弹出资产详情 */
-  const handleItemClick = useCallback(async (name: string, assetKind: "character" | "scene" | "prop") => {
-    try {
-      const dbType = assetKind === "prop" ? "tool" : assetKind === "character" ? "role" : assetKind;
-      const asset = await window.studioAssets?.getByName({ type: dbType, name });
-      if (asset) {
-        setSelectedAsset(asset);
-        setAssetDialogOpen(true);
-      } else {
-        setNotFoundDialog({ name, kind: assetKind });
-      }
-    } catch {
-      toast.error("查询资产库失败");
-    }
-  }, []);
+    },
+    [],
+  );
 
   if (type === "character") {
-    if (characters.length === 0) return <p className="text-sm text-muted-foreground italic">暂无角色资产，请先在「剧本资产管理」中提取。</p>;
+    if (characters.length === 0)
+      return (
+        <p className="text-sm text-muted-foreground italic">
+          暂无角色资产，请先在「剧本资产」中提取。
+        </p>
+      );
     return (
       <>
         <div className="grid gap-2 overflow-hidden">
@@ -3084,9 +4132,17 @@ function AssetListByType({ type, onVoiceAssign }: {
               {/* 缩略图 */}
               <div className="h-10 w-10 rounded bg-muted flex items-center justify-center overflow-hidden shrink-0">
                 {c.thumbnailUrl ? (
-                  <LocalImage src={c.thumbnailUrl} alt={c.name} className="h-full w-full object-cover" />
+                  <LocalImage
+                    src={c.thumbnailUrl}
+                    alt={c.name}
+                    className="h-full w-full object-cover"
+                  />
                 ) : c.views?.length > 0 && c.views[0].imageUrl ? (
-                  <LocalImage src={c.views[0].imageUrl} alt={c.name} className="h-full w-full object-cover" />
+                  <LocalImage
+                    src={c.views[0].imageUrl}
+                    alt={c.name}
+                    className="h-full w-full object-cover"
+                  />
                 ) : (
                   <Users className="h-4 w-4 text-muted-foreground" />
                 )}
@@ -3097,20 +4153,37 @@ function AssetListByType({ type, onVoiceAssign }: {
                   <span className="text-sm font-medium truncate">{c.name}</span>
                   <StatusBadge state={c.promptState} />
                 </div>
-                <p className="text-xs text-muted-foreground truncate">{c.description || c.role || "无描述"}</p>
+                <p className="text-xs text-muted-foreground truncate">
+                  {c.description || c.role || "无描述"}
+                </p>
               </div>
               {/* 提示词预览 */}
               {c.visualTraits && (
-                <span className="text-[10px] text-muted-foreground truncate flex-1 min-w-0 hidden sm:inline-block" title={c.visualTraits}>
+                <span
+                  className="text-[10px] text-muted-foreground truncate flex-1 min-w-0 hidden sm:inline-block"
+                  title={c.visualTraits}
+                >
                   {c.visualTraits.slice(0, 60)}...
                 </span>
               )}
               {/* 音色状态 + 试听按钮 */}
               {onVoiceAssign && (
                 <div className="flex items-center gap-1 shrink-0">
-                  <VoicePreviewButton characterId={c.id} characterName={c.name} />
+                  <VoicePreviewButton
+                    characterId={c.id}
+                    characterName={c.name}
+                  />
                   <button
-                    onClick={(e) => { e.stopPropagation(); onVoiceAssign({ id: c.id, name: c.name, gender: c.gender, age: c.age, personality: c.personality }); }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onVoiceAssign({
+                        id: c.id,
+                        name: c.name,
+                        gender: c.gender,
+                        age: c.age,
+                        personality: c.personality,
+                      });
+                    }}
                     className="flex items-center gap-1.5 px-2 py-1 rounded text-xs hover:bg-primary/10 transition-colors"
                   >
                     <VoiceBadge characterId={c.id} />
@@ -3126,10 +4199,18 @@ function AssetListByType({ type, onVoiceAssign }: {
         <StudioAssetDetailDialog
           asset={selectedAsset}
           open={assetDialogOpen}
-          onOpenChange={(o) => { setAssetDialogOpen(o); if (!o) setSelectedAsset(null); }}
+          onOpenChange={(o) => {
+            setAssetDialogOpen(o);
+            if (!o) setSelectedAsset(null);
+          }}
         />
         {/* 未找到资产 → 生成弹窗 */}
-        <AlertDialog open={!!notFoundDialog} onOpenChange={(o) => { if (!o) setNotFoundDialog(null); }}>
+        <AlertDialog
+          open={!!notFoundDialog}
+          onOpenChange={(o) => {
+            if (!o) setNotFoundDialog(null);
+          }}
+        >
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>资产未找到</AlertDialogTitle>
@@ -3138,9 +4219,14 @@ function AssetListByType({ type, onVoiceAssign }: {
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel disabled={isGeneratingSingle}>取消</AlertDialogCancel>
+              <AlertDialogCancel disabled={isGeneratingSingle}>
+                取消
+              </AlertDialogCancel>
               <AlertDialogAction
-                onClick={() => notFoundDialog && handleGenerateSingle(notFoundDialog.name, notFoundDialog.kind)}
+                onClick={() =>
+                  notFoundDialog &&
+                  handleGenerateSingle(notFoundDialog.name, notFoundDialog.kind)
+                }
                 disabled={isGeneratingSingle}
               >
                 {isGeneratingSingle ? "生成中..." : "立即生成"}
@@ -3153,7 +4239,12 @@ function AssetListByType({ type, onVoiceAssign }: {
   }
 
   if (type === "scene") {
-    if (scenes.length === 0) return <p className="text-sm text-muted-foreground italic">暂无场景资产，请先在「剧本资产管理」中提取。</p>;
+    if (scenes.length === 0)
+      return (
+        <p className="text-sm text-muted-foreground italic">
+          暂无场景资产，请先在「剧本资产」中提取。
+        </p>
+      );
     return (
       <>
         <div className="grid gap-2 overflow-hidden">
@@ -3165,7 +4256,11 @@ function AssetListByType({ type, onVoiceAssign }: {
             >
               <div className="h-10 w-10 rounded bg-muted flex items-center justify-center overflow-hidden shrink-0">
                 {s.referenceImage ? (
-                  <LocalImage src={s.referenceImage} alt={s.name} className="h-full w-full object-cover" />
+                  <LocalImage
+                    src={s.referenceImage}
+                    alt={s.name}
+                    className="h-full w-full object-cover"
+                  />
                 ) : (
                   <MapPin className="h-4 w-4 text-muted-foreground" />
                 )}
@@ -3175,10 +4270,15 @@ function AssetListByType({ type, onVoiceAssign }: {
                   <span className="text-sm font-medium truncate">{s.name}</span>
                   <StatusBadge state={s.promptState} />
                 </div>
-                <p className="text-xs text-muted-foreground truncate">{s.location || s.notes || "无描述"}</p>
+                <p className="text-xs text-muted-foreground truncate">
+                  {s.location || s.notes || "无描述"}
+                </p>
               </div>
               {s.visualPrompt && (
-                <span className="text-[10px] text-muted-foreground truncate flex-1 min-w-0 hidden sm:inline-block" title={s.visualPrompt}>
+                <span
+                  className="text-[10px] text-muted-foreground truncate flex-1 min-w-0 hidden sm:inline-block"
+                  title={s.visualPrompt}
+                >
                   {s.visualPrompt.slice(0, 60)}...
                 </span>
               )}
@@ -3189,10 +4289,18 @@ function AssetListByType({ type, onVoiceAssign }: {
         <StudioAssetDetailDialog
           asset={selectedAsset}
           open={assetDialogOpen}
-          onOpenChange={(o) => { setAssetDialogOpen(o); if (!o) setSelectedAsset(null); }}
+          onOpenChange={(o) => {
+            setAssetDialogOpen(o);
+            if (!o) setSelectedAsset(null);
+          }}
         />
         {/* 未找到资产 → 生成弹窗 */}
-        <AlertDialog open={!!notFoundDialog} onOpenChange={(o) => { if (!o) setNotFoundDialog(null); }}>
+        <AlertDialog
+          open={!!notFoundDialog}
+          onOpenChange={(o) => {
+            if (!o) setNotFoundDialog(null);
+          }}
+        >
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>资产未找到</AlertDialogTitle>
@@ -3201,9 +4309,14 @@ function AssetListByType({ type, onVoiceAssign }: {
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel disabled={isGeneratingSingle}>取消</AlertDialogCancel>
+              <AlertDialogCancel disabled={isGeneratingSingle}>
+                取消
+              </AlertDialogCancel>
               <AlertDialogAction
-                onClick={() => notFoundDialog && handleGenerateSingle(notFoundDialog.name, notFoundDialog.kind)}
+                onClick={() =>
+                  notFoundDialog &&
+                  handleGenerateSingle(notFoundDialog.name, notFoundDialog.kind)
+                }
                 disabled={isGeneratingSingle}
               >
                 {isGeneratingSingle ? "生成中..." : "立即生成"}
@@ -3217,7 +4330,12 @@ function AssetListByType({ type, onVoiceAssign }: {
 
   // prop：优先用 propsLibraryStore，为空时用 assets.db fallback
   const displayProps = propsItems.length > 0 ? propsItems : dbPropsFallback;
-  if (displayProps.length === 0) return <p className="text-sm text-muted-foreground italic">暂无道具资产，请先在「剧本资产管理」中提取。</p>;
+  if (displayProps.length === 0)
+    return (
+      <p className="text-sm text-muted-foreground italic">
+        暂无道具资产，请先在「剧本资产」中提取。
+      </p>
+    );
   return (
     <>
       <div className="grid gap-2 overflow-hidden">
@@ -3229,7 +4347,11 @@ function AssetListByType({ type, onVoiceAssign }: {
           >
             <div className="h-10 w-10 rounded bg-muted flex items-center justify-center overflow-hidden shrink-0">
               {p.imageUrl ? (
-                <LocalImage src={p.imageUrl} alt={p.name} className="h-full w-full object-cover" />
+                <LocalImage
+                  src={p.imageUrl}
+                  alt={p.name}
+                  className="h-full w-full object-cover"
+                />
               ) : (
                 <Gem className="h-4 w-4 text-muted-foreground" />
               )}
@@ -3239,7 +4361,9 @@ function AssetListByType({ type, onVoiceAssign }: {
                 <span className="text-sm font-medium truncate">{p.name}</span>
                 <StatusBadge state={p.promptState} />
               </div>
-              <p className="text-xs text-muted-foreground truncate">{p.description || "无描述"}</p>
+              <p className="text-xs text-muted-foreground truncate">
+                {p.description || "无描述"}
+              </p>
             </div>
           </div>
         ))}
@@ -3248,10 +4372,18 @@ function AssetListByType({ type, onVoiceAssign }: {
       <StudioAssetDetailDialog
         asset={selectedAsset}
         open={assetDialogOpen}
-        onOpenChange={(o) => { setAssetDialogOpen(o); if (!o) setSelectedAsset(null); }}
+        onOpenChange={(o) => {
+          setAssetDialogOpen(o);
+          if (!o) setSelectedAsset(null);
+        }}
       />
       {/* 未找到资产 → 生成弹窗 */}
-      <AlertDialog open={!!notFoundDialog} onOpenChange={(o) => { if (!o) setNotFoundDialog(null); }}>
+      <AlertDialog
+        open={!!notFoundDialog}
+        onOpenChange={(o) => {
+          if (!o) setNotFoundDialog(null);
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>资产未找到</AlertDialogTitle>
@@ -3260,9 +4392,14 @@ function AssetListByType({ type, onVoiceAssign }: {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isGeneratingSingle}>取消</AlertDialogCancel>
+            <AlertDialogCancel disabled={isGeneratingSingle}>
+              取消
+            </AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => notFoundDialog && handleGenerateSingle(notFoundDialog.name, notFoundDialog.kind)}
+              onClick={() =>
+                notFoundDialog &&
+                handleGenerateSingle(notFoundDialog.name, notFoundDialog.kind)
+              }
               disabled={isGeneratingSingle}
             >
               {isGeneratingSingle ? "生成中..." : "立即生成"}
@@ -3308,17 +4445,24 @@ function getCharacterVoiceStatus(
   return {
     assigned: true,
     type: profile.type,
-    label: profile.type === "preset"
-      ? profile.presetVoiceId ?? "预设"
-      : "克隆音色",
+    label:
+      profile.type === "preset"
+        ? (profile.presetVoiceId ?? "预设")
+        : "音频样本",
   };
 }
 
 /** 音色状态标签 */
 const EMPTY_BINDINGS: Record<string, ProjectVoiceBinding> = {};
 
-/** 音色试听按钮：用角色绑定的音色生成并播放一段语音 */
-function VoicePreviewButton({ characterId, characterName }: { characterId: string; characterName: string }) {
+/** 音色试听按钮：用角色绑定的音频样本生成并播放一段语音 */
+function VoicePreviewButton({
+  characterId,
+  characterName,
+}: {
+  characterId: string;
+  characterName: string;
+}) {
   const [playing, setPlaying] = useState(false);
   const [loading, setLoading] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -3330,101 +4474,126 @@ function VoicePreviewButton({ characterId, characterName }: { characterId: strin
   const voiceProfiles = useTtsStore((s) => s.voiceProfiles);
   const status = getCharacterVoiceStatus(characterId, bindings, voiceProfiles);
 
-  const handlePreview = useCallback(async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!status.assigned) {
-      toast.info("请先为该角色分配音色");
-      return;
-    }
-    if (playing && audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current = null;
-      setPlaying(false);
-      return;
-    }
-    if (!window.ttsRuntime) {
-      toast.error("TTS 后端未就绪，请在设置中启动 TTS 服务");
-      return;
-    }
-    const speakerId = `character:${characterId}` as TtsSpeakerId;
-    const binding = bindings[speakerId];
-    if (!binding) return;
-
-    setLoading(true);
-    try {
-      // 启动 TTS 运行时（如果还没启动）
-      const ttsStatus = await window.ttsRuntime.status();
-      if (!ttsStatus.running) {
-        const startRes = await window.ttsRuntime.start();
-        if (!startRes.success) {
-          toast.error(`TTS 启动失败: ${startRes.error || "未知错误"}`);
-          return;
-        }
+  const handlePreview = useCallback(
+    async (e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (!status.assigned) {
+        toast.info("请先为该角色分配音色");
+        return;
       }
-
-      // 调用 TTS 后端生成语音
-      const text = `大家好，我是${characterName}，很高兴认识你们。`;
-      const genRes = await window.ttsRuntime.request({
-        method: "POST",
-        path: "/generate",
-        body: {
-          profile_id: binding.profileId,
-          text,
-          engine: binding.defaultEngine,
-          model_size: binding.defaultModelSize,
-          language: "zh",
-        },
-      }) as { id?: string; status?: string; error?: string };
-
-      if (!genRes.id) {
-        toast.error(genRes.error || "生成失败");
+      if (playing && audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+        setPlaying(false);
+        return;
+      }
+      if (!window.ttsRuntime) {
+        toast.error("TTS 后端未就绪，请在设置中启动 TTS 服务");
+        return;
+      }
+      const speakerId = `character:${characterId}` as TtsSpeakerId;
+      const binding = bindings[speakerId];
+      if (!binding) return;
+      const profile = voiceProfiles[binding.profileId];
+      if (!profile) {
+        toast.error("音色 profile 不存在，请重新分配音色");
         return;
       }
 
-      // 轮询等待生成完成
-      const generationId = genRes.id;
-      let attempts = 0;
-      let audioPath: string | null = null;
-      while (attempts < 60) {
-        await new Promise((r) => setTimeout(r, 500));
-        const statusRes = await window.ttsRuntime.request({
+      setLoading(true);
+      try {
+        // 启动 TTS 运行时（如果还没启动）
+        const ttsStatus = await window.ttsRuntime.status();
+        if (!ttsStatus.running) {
+          const startRes = await window.ttsRuntime.start();
+          if (!startRes.success) {
+            toast.error(`TTS 启动失败: ${startRes.error || "未知错误"}`);
+            return;
+          }
+        }
+        await ensureBackendVoiceProfile(profile);
+
+        // 调用 TTS 后端生成语音
+        const text = `大家好，我是${characterName}，很高兴认识你们。`;
+        const genRes = (await window.ttsRuntime.request({
+          method: "POST",
+          path: "/generate",
+          body: {
+            profile_id: binding.profileId,
+            text,
+            engine: binding.defaultEngine,
+            model_size: binding.defaultModelSize,
+            language: "zh",
+          },
+        })) as { id?: string; status?: string; error?: string };
+
+        if (!genRes.id) {
+          toast.error(genRes.error || "生成失败");
+          return;
+        }
+
+        // 轮询等待生成完成
+        const generationId = genRes.id;
+        let attempts = 0;
+        let audioPath: string | null = null;
+        while (attempts < 60) {
+          await new Promise((r) => setTimeout(r, 500));
+          const statusRes = (await window.ttsRuntime.request({
+            method: "GET",
+            path: `/generate/${generationId}/status`,
+          })) as { status?: string; audio_path?: string; error?: string };
+          if (statusRes.status === "completed" && statusRes.audio_path) {
+            audioPath = statusRes.audio_path;
+            break;
+          }
+          if (statusRes.status === "failed") {
+            toast.error(statusRes.error || "语音生成失败");
+            return;
+          }
+          attempts++;
+        }
+        if (!audioPath) {
+          toast.error("语音生成超时");
+          return;
+        }
+
+        // 通过后端获取音频文件
+        const audioRes = await window.ttsRuntime.requestBytes({
           method: "GET",
-          path: `/generate/${generationId}/status`,
-        }) as { status?: string; audio_path?: string; error?: string };
-        if (statusRes.status === "completed" && statusRes.audio_path) {
-          audioPath = statusRes.audio_path;
-          break;
-        }
-        if (statusRes.status === "failed") {
-          toast.error(statusRes.error || "语音生成失败");
-          return;
-        }
-        attempts++;
+          path: `/audio/${generationId}`,
+        });
+        const blob = new Blob([audioRes.data], {
+          type: audioRes.mimeType || "audio/wav",
+        });
+        const url = URL.createObjectURL(blob);
+        const audio = new Audio(url);
+        audioRef.current = audio;
+        audio.onended = () => {
+          setPlaying(false);
+          URL.revokeObjectURL(url);
+          audioRef.current = null;
+        };
+        audio.onerror = () => {
+          setPlaying(false);
+          toast.error("播放失败");
+        };
+        await audio.play();
+        setPlaying(true);
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "试听失败");
+      } finally {
+        setLoading(false);
       }
-      if (!audioPath) {
-        toast.error("语音生成超时");
-        return;
-      }
-
-      // 通过后端获取音频文件
-      const audioRes = await window.ttsRuntime.requestBytes({
-        method: "GET",
-        path: `/audio/${generationId}`,
-      });
-      const blob = new Blob([audioRes.data], { type: audioRes.mimeType || "audio/wav" });
-      const url = URL.createObjectURL(blob);
-      const audio = new Audio(url);
-      audioRef.current = audio;
-      audio.onended = () => { setPlaying(false); URL.revokeObjectURL(url); audioRef.current = null; };
-      audio.onerror = () => { setPlaying(false); toast.error("播放失败"); };
-      await audio.play();
-      setPlaying(true);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "试听失败");
-    } finally {
-      setLoading(false);
-    }
-  }, [status.assigned, characterId, characterName, bindings, playing]);
+    },
+    [
+      status.assigned,
+      characterId,
+      characterName,
+      bindings,
+      voiceProfiles,
+      playing,
+    ],
+  );
 
   if (!status.assigned) return null;
 
@@ -3439,9 +4608,18 @@ function VoicePreviewButton({ characterId, characterName }: { characterId: strin
         <Loader2 className="h-3.5 w-3.5 text-primary animate-spin" />
       ) : playing ? (
         <span className="flex items-center justify-center gap-0.5 h-3.5">
-          <span className="w-0.5 h-3 bg-primary rounded-full animate-pulse" style={{ animationDelay: "0ms" }} />
-          <span className="w-0.5 h-2.5 bg-primary rounded-full animate-pulse" style={{ animationDelay: "150ms" }} />
-          <span className="w-0.5 h-3 bg-primary rounded-full animate-pulse" style={{ animationDelay: "300ms" }} />
+          <span
+            className="w-0.5 h-3 bg-primary rounded-full animate-pulse"
+            style={{ animationDelay: "0ms" }}
+          />
+          <span
+            className="w-0.5 h-2.5 bg-primary rounded-full animate-pulse"
+            style={{ animationDelay: "150ms" }}
+          />
+          <span
+            className="w-0.5 h-3 bg-primary rounded-full animate-pulse"
+            style={{ animationDelay: "300ms" }}
+          />
         </span>
       ) : (
         <Play className="h-3 w-3 text-primary" />
@@ -3472,529 +4650,5 @@ function VoiceBadge({ characterId }: { characterId: string }) {
       <Volume2 className="h-3 w-3" />
       {status.label}
     </span>
-  );
-}
-
-/** 引擎加载器 - 逐步加载 TTS 模型 */
-function EngineLoader({ onClose }: { onClose: () => void }) {
-  const [modelStatus, setModelStatus] = useState<Record<string, { downloaded: boolean; loading: boolean; progress: number; error?: string }>>({});
-  const [refreshing, setRefreshing] = useState(false);
-
-  const fetchModelStatus = useCallback(async () => {
-    if (!window.ttsRuntime) return;
-    try {
-      const res = await window.ttsRuntime.request({ method: "GET", path: "/models/status" }) as { models: Array<{ model_name: string; downloaded?: boolean; size_mb?: number }> };
-      const map: Record<string, { downloaded: boolean; loading: boolean; progress: number; error?: string }> = {};
-      for (const m of res.models) {
-        map[m.model_name] = { downloaded: !!m.downloaded, loading: false, progress: m.downloaded ? 100 : 0 };
-      }
-      setModelStatus(map);
-    } catch (err) {
-      console.error("Failed to fetch model status", err);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchModelStatus();
-  }, [fetchModelStatus]);
-
-  const handleLoad = useCallback(async (engine: TtsEngine, modelSize?: string) => {
-    if (!window.ttsRuntime) {
-      toast.error("TTS 后端未就绪");
-      return;
-    }
-    // 映射 engine + modelSize 到后端 model_name
-    const modelName = `${engine}-tts${modelSize ? `-${modelSize.toLowerCase()}` : ""}`.replace("qwen_custom_voice", "qwen-custom-voice");
-    const key = `${engine}-${modelSize || "default"}`;
-    setModelStatus((prev) => ({ ...prev, [key]: { downloaded: false, loading: true, progress: 0 } }));
-    try {
-      // 启动 TTS 运行时（如未启动）
-      const ttsStatus = await window.ttsRuntime.status();
-      if (!ttsStatus.running) {
-        const startRes = await window.ttsRuntime.start();
-        if (!startRes.success) {
-          toast.error(`TTS 启动失败: ${startRes.error}`);
-          setModelStatus((prev) => ({ ...prev, [key]: { downloaded: false, loading: false, progress: 0, error: startRes.error } }));
-          return;
-        }
-      }
-      // 调后端下载/加载
-      await window.ttsRuntime.request({
-        method: "POST",
-        path: "/models/download",
-        body: { model_name: modelName },
-      });
-      toast.success(`${modelName} 加载完成`);
-      setModelStatus((prev) => ({ ...prev, [key]: { downloaded: true, loading: false, progress: 100 } }));
-      // 重新拉取最新状态
-      setTimeout(fetchModelStatus, 1500);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "加载失败";
-      toast.error(`${modelName}: ${msg}`);
-      setModelStatus((prev) => ({ ...prev, [key]: { downloaded: false, loading: false, progress: 0, error: msg } }));
-    }
-  }, [fetchModelStatus]);
-
-  const totalMb = TTS_ENGINE_CATALOG.reduce((sum, e) => {
-    // 从后端状态拿 size_mb，没有则估算
-    return sum;
-  }, 0);
-
-  return (
-    <Dialog open onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-lg bg-card border border-border max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-base">
-            <Download className="h-4 w-4 text-primary" />
-            逐步加载 TTS 引擎
-          </DialogTitle>
-          <DialogDescription className="text-xs">
-            按需加载 TTS 模型，避免一次性占用磁盘空间（每个模型几百 MB 到几 GB）
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="flex items-center justify-between rounded-md bg-muted/40 px-3 py-2 text-xs">
-          <span className="text-muted-foreground">引擎数</span>
-          <span className="font-medium">{TTS_ENGINE_CATALOG.length} 个 TTS 引擎</span>
-        </div>
-
-        <div className="grid gap-2">
-          {TTS_ENGINE_CATALOG.map((engine) => {
-            const key = `${engine.engine}-${engine.modelSize || "default"}`;
-            const status = modelStatus[key] || { downloaded: false, loading: false, progress: 0 };
-            return (
-              <div
-                key={key}
-                className="flex items-center gap-3 rounded-lg border border-border p-3 bg-background"
-              >
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium text-sm">{engine.displayName}</span>
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded shrink-0 ${
-                      engine.purpose === "presetVoice"
-                        ? "bg-primary/15 text-primary"
-                        : "bg-blue-500/15 text-blue-500"
-                    }`}>
-                      {engine.purpose === "presetVoice" ? "预设" : "克隆"}
-                    </span>
-                    {engine.modelSize && (
-                      <span className="text-[10px] text-muted-foreground shrink-0">{engine.modelSize}</span>
-                    )}
-                  </div>
-                  <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
-                    {engine.description}
-                  </p>
-                  {status.loading && (
-                    <div className="mt-1.5 h-1 rounded-full bg-muted overflow-hidden">
-                      <div
-                        className="h-full bg-primary transition-all"
-                        style={{ width: `${status.progress}%` }}
-                      />
-                    </div>
-                  )}
-                </div>
-                <Button
-                  size="sm"
-                  variant={status.downloaded ? "outline" : "default"}
-                  onClick={() => handleLoad(engine.engine, engine.modelSize)}
-                  disabled={status.loading}
-                  className="h-8 text-xs shrink-0"
-                >
-                  {status.loading ? (
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                  ) : status.downloaded ? (
-                    "已加载"
-                  ) : (
-                    "加载"
-                  )}
-                </Button>
-              </div>
-            );
-          })}
-        </div>
-
-        <DialogFooter className="flex-row justify-between sm:justify-between">
-          <Button variant="ghost" size="sm" onClick={fetchModelStatus} disabled={refreshing}>
-            {refreshing ? <Loader2 className="h-3 w-3 animate-spin" /> : "刷新状态"}
-          </Button>
-          <Button size="sm" onClick={onClose}>完成</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-/** 音色分配弹窗 */
-function VoiceAssignDialog({
-  character,
-  open,
-  onOpenChange,
-}: {
-  character: { id: string; name: string; gender?: string; age?: string; personality?: string };
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}) {
-  const [mode, setMode] = useState<"preset" | "reference">("preset");
-  const [selectedPreset, setSelectedPreset] = useState("");
-  const [audioPath, setAudioPath] = useState("");
-  const [referenceText, setReferenceText] = useState("");
-  const [selectedEngine, setSelectedEngine] = useState<string>("qwen");
-  const [assigning, setAssigning] = useState(false);
-
-  const handleAssignPreset = useCallback(async () => {
-    if (!selectedPreset) {
-      toast.error("请选择预设音色");
-      return;
-    }
-    setAssigning(true);
-    try {
-      const speakerId = `character:${character.id}` as TtsSpeakerId;
-      const sink = createMystudioTtsSink();
-      const profileId = sink.createVoiceProfile({
-        name: `音色·${character.name}`,
-        type: "preset",
-        language: "zh",
-        defaultEngine: "qwen_custom_voice",
-        defaultModelSize: "0.6B",
-        presetVoiceId: selectedPreset,
-      });
-      sink.bindSpeaker({
-        speakerId,
-        profileId,
-        defaultEngine: "qwen_custom_voice",
-        defaultModelSize: "0.6B",
-      });
-      toast.success(`${character.name} 已分配预设音色 ${selectedPreset}`);
-      onOpenChange(false);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "分配失败");
-    } finally {
-      setAssigning(false);
-    }
-  }, [character, selectedPreset, onOpenChange]);
-
-  const handleAutoAssign = useCallback(async () => {
-    setAssigning(true);
-    try {
-      const charInput: VoiceAssignerCharacter = {
-        id: character.id,
-        name: character.name,
-        gender: character.gender,
-        age: character.age,
-        personality: character.personality,
-      };
-      const assignment = assignVoicesForCharacters([charInput])[0];
-      const sink = createMystudioTtsSink();
-      syncCharacterVoices([assignment], {
-        projectId: useTtsStore.getState().activeProjectId ?? "",
-        sink,
-      });
-      toast.success(`${character.name} → ${assignment.presetVoiceId}（${assignment.reason}）`);
-      onOpenChange(false);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "自动分配失败");
-    } finally {
-      setAssigning(false);
-    }
-  }, [character, onOpenChange]);
-
-  const handleAssignReference = useCallback(async () => {
-    if (!audioPath.trim()) {
-      toast.error("请输入或选择音频文件路径");
-      return;
-    }
-    setAssigning(true);
-    try {
-      const runtimeStatus = await getTtsRuntimeStatus();
-      if (!runtimeStatus.running) {
-        toast.error("TTS 后端未运行，请先在「配音」面板启动");
-        setAssigning(false);
-        return;
-      }
-
-      // Step 1: 创建前端本地 VoiceProfile
-      const speakerId = `character:${character.id}` as TtsSpeakerId;
-      const sink = createMystudioTtsSink();
-      const localProfile = sink.createVoiceProfile({
-        name: `音色·${character.name}`,
-        type: "reference",
-        language: "zh",
-        defaultEngine: selectedEngine as TtsEngine,
-        defaultModelSize: "0.6B",
-        referenceAudioPath: audioPath.trim(),
-        referenceText: referenceText.trim() || undefined,
-      });
-
-      // Step 2: 在 voicebox 后端创建 profile（仅元数据）
-      let backendProfileId: string;
-      try {
-        const backendProfile = await createBackendVoiceProfile({
-          id: localProfile,
-          name: localProfile,
-          type: "reference",
-          language: "zh",
-          defaultEngine: selectedEngine as TtsEngine,
-        } as any);
-        backendProfileId = (backendProfile as any).id ?? localProfile;
-      } catch (err: any) {
-        // 如果已存在，查找现有 profile
-        if (err?.message?.includes("already exists") || err?.message?.includes("400")) {
-          const profiles = await listVoiceProfiles();
-          const existing = profiles.find((p: any) => p.name === localProfile);
-          if (existing) {
-            backendProfileId = (existing as any).id;
-          } else {
-            throw err;
-          }
-        } else {
-          throw err;
-        }
-      }
-
-      // Step 3: 上传原始音频到后端 profile（关键步骤！）
-      await uploadProfileSample(
-        backendProfileId,
-        audioPath.trim(),
-        referenceText.trim() || undefined,
-      );
-
-      // Step 4: 绑定 profile 到角色
-      sink.bindSpeaker({
-        speakerId,
-        profileId: localProfile,
-        defaultEngine: selectedEngine as TtsEngine,
-        defaultModelSize: "0.6B",
-      });
-
-      toast.success(`${character.name} 已分配克隆音色（音频已上传）`);
-      onOpenChange(false);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "分配失败");
-    } finally {
-      setAssigning(false);
-    }
-  }, [character, audioPath, referenceText, selectedEngine, onOpenChange]);
-
-  // 从资产库加载所有音色 profile（QWEN 预设 + 用户上传克隆）
-  const voiceProfiles = useTtsStore((s) => s.voiceProfiles);
-  const createVoiceProfile = useTtsStore((s) => s.createVoiceProfile);
-  const [engineLoaderOpen, setEngineLoaderOpen] = useState(false);
-
-  // 首次打开时：清理非中文预设音色 + seed 中文预设音色
-  useEffect(() => {
-    const state = useTtsStore.getState();
-    const profiles = Object.values(state.voiceProfiles);
-    const existingNames = new Set(profiles.map((p) => p.name));
-
-    // 清理非中文预设音色（保留克隆音色）
-    const toRemove = profiles.filter((p) => p.type === "preset" && p.language !== "zh");
-    if (toRemove.length > 0) {
-      const newProfiles = { ...state.voiceProfiles };
-      toRemove.forEach((p) => { delete newProfiles[p.id]; });
-      useTtsStore.setState({ voiceProfiles: newProfiles });
-    }
-
-    // Seed 中文预设音色（QWEN 9 + Kokoro 4 = 13 个预设音色）
-    const presetEngines = [
-      { engine: "qwen_custom_voice" as TtsEngine, voices: QWEN_CUSTOM_VOICES.filter((v) => v.language === "zh"), modelSize: "0.6B" },
-      { engine: "kokoro" as TtsEngine, voices: KOKORO_VOICES.filter((v) => v.language === "zh"), modelSize: undefined as unknown as string },
-    ];
-    for (const { engine, voices, modelSize } of presetEngines) {
-      for (const v of voices) {
-        if (existingNames.has(`${v.name}·${engine}`)) continue;
-        createVoiceProfile({
-          name: `${v.name}·${engine}`,
-          type: "preset",
-          language: v.language,
-          defaultEngine: engine,
-          defaultModelSize: modelSize,
-          presetVoiceId: v.id,
-        });
-      }
-    }
-  }, [voiceProfiles, createVoiceProfile]);
-
-  const voiceProfileList = useMemo(() => {
-    // 只显示中文音色 + 用户克隆音色
-    return Object.values(voiceProfiles)
-      .filter((p) => p.language === "zh" || p.type === "reference")
-      .sort((a, b) => b.updatedAt - a.updatedAt);
-  }, [voiceProfiles]);
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md bg-card border border-border max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <div className="flex items-start justify-between gap-2">
-            <div>
-              <DialogTitle className="flex items-center gap-2 text-base">
-                <Volume2 className="h-4 w-4 text-primary" />
-                为角色「{character.name}」分配音色
-              </DialogTitle>
-              <DialogDescription className="text-xs mt-1">
-                从资产库选择预设音色，或上传参考音频进行声音克隆
-              </DialogDescription>
-            </div>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setEngineLoaderOpen(true)}
-              className="h-7 text-xs shrink-0"
-              title="逐步加载 TTS 引擎"
-            >
-              <Download className="h-3 w-3 mr-1" />
-              加载引擎
-            </Button>
-          </div>
-        </DialogHeader>
-
-        {/* 模式切换 */}
-        <div className="flex gap-1 rounded-lg bg-muted/50 p-1">
-          <button
-            onClick={() => setMode("preset")}
-            className={`flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-              mode === "preset"
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            预设音色
-          </button>
-          <button
-            onClick={() => setMode("reference")}
-            className={`flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-              mode === "reference"
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            原始音频克隆
-          </button>
-        </div>
-
-        {mode === "preset" && (
-          <div className="space-y-3">
-            {/* 自动分配 */}
-            <div className="rounded-lg border border-border p-3">
-              <p className="text-xs text-muted-foreground mb-2">
-                根据角色性别/年龄/性格自动匹配最佳音色
-              </p>
-              <button
-                onClick={handleAutoAssign}
-                disabled={assigning}
-                className="w-full rounded-md bg-primary/15 text-primary px-3 py-1.5 text-xs font-medium hover:bg-primary/25 disabled:opacity-40 transition-colors"
-              >
-                {assigning ? "分配中..." : "智能匹配"}
-              </button>
-            </div>
-
-            {/* 手动选择 */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label className="text-xs">从资产库选择音色</Label>
-                <span className="text-[10px] text-muted-foreground">共 {voiceProfileList.length} 个</span>
-              </div>
-              <div className="grid gap-1.5 max-h-64 overflow-auto pr-1">
-                {voiceProfileList.length === 0 && (
-                  <p className="text-xs text-muted-foreground text-center py-6">资产库中暂无音色</p>
-                )}
-                {voiceProfileList.map((profile) => (
-                  <button
-                    key={profile.id}
-                    onClick={() => setSelectedPreset(profile.id)}
-                    className={`flex items-center gap-2 rounded-md px-3 py-2 text-left text-xs transition-colors ${
-                      selectedPreset === profile.id
-                        ? "bg-primary/15 text-primary border border-primary/30"
-                        : "border border-transparent hover:bg-muted/50"
-                    }`}
-                  >
-                    {profile.type === "preset" ? (
-                      <Volume2 className="h-3 w-3 shrink-0" />
-                    ) : (
-                      <Mic className="h-3 w-3 shrink-0" />
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-medium truncate">{profile.name}</span>
-                        <span className="text-[10px] px-1 rounded bg-muted text-muted-foreground shrink-0">
-                          {profile.type === "preset" ? "预设" : "克隆"}
-                        </span>
-                      </div>
-                      <span className="text-muted-foreground text-[10px] block truncate">
-                        {profile.presetVoiceId ? `${profile.presetVoiceId} · ` : ""}{profile.defaultEngine}
-                        {profile.referenceAudioPath ? " · 自定义克隆" : ""}
-                      </span>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <DialogFooter>
-              <Button
-                onClick={handleAssignPreset}
-                disabled={assigning || !selectedPreset}
-                size="sm"
-                className="w-full"
-              >
-                {assigning ? "分配中..." : "确认分配"}
-              </Button>
-            </DialogFooter>
-          </div>
-        )}
-
-        {mode === "reference" && (
-          <div className="space-y-3">
-            <div className="space-y-2">
-              <Label className="text-xs">音频文件路径</Label>
-              <Input
-                value={audioPath}
-                onChange={(e) => setAudioPath(e.target.value)}
-                placeholder="例如: /path/to/voice_sample.wav"
-                className="text-xs"
-              />
-              <p className="text-[10px] text-muted-foreground">
-                支持 WAV/MP3，建议 10-30 秒清晰语音
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <Label className="text-xs">参考文本（可选）</Label>
-              <Textarea
-                value={referenceText}
-                onChange={(e) => setReferenceText(e.target.value)}
-                placeholder="音频对应的文字内容，有助于提升克隆质量"
-                className="text-xs min-h-[60px]"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label className="text-xs">克隆引擎</Label>
-              <select
-                value={selectedEngine}
-                onChange={(e) => setSelectedEngine(e.target.value)}
-                className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
-              >
-                <option value="qwen">Qwen3-TTS（推荐中文）</option>
-                <option value="chatterbox">Chatterbox（多语言）</option>
-                <option value="tada">TADA（长音频）</option>
-              </select>
-            </div>
-
-            <DialogFooter>
-              <Button
-                onClick={handleAssignReference}
-                disabled={assigning || !audioPath.trim()}
-                size="sm"
-                className="w-full"
-              >
-                {assigning ? "分配中..." : "确认克隆分配"}
-              </Button>
-            </DialogFooter>
-          </div>
-        )}
-      </DialogContent>
-      {engineLoaderOpen && <EngineLoader onClose={() => setEngineLoaderOpen(false)} />}
-    </Dialog>
   );
 }

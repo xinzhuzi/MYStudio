@@ -13,6 +13,7 @@ import { createZhipu } from "zhipu-ai-provider";
 import { createMinimax } from "vercel-minimax-ai-provider";
 import { generateText, streamText } from "ai";
 import type { IProvider } from "@/lib/api-key-manager";
+import type { ProviderOptions } from "@ai-sdk/provider-utils";
 
 export interface ProviderInstanceParams {
   baseUrl?: string;
@@ -94,6 +95,7 @@ export async function sdkGenerateText(options: {
   messages: Array<{ role: "system" | "user" | "assistant"; content: string }>;
   temperature?: number;
   maxTokens?: number;
+  providerOptions?: ProviderOptions;
 }): Promise<{ success: boolean; text?: string; error?: string }> {
   try {
     const model = getLanguageModel(options.provider, options.model);
@@ -102,6 +104,7 @@ export async function sdkGenerateText(options: {
       messages: options.messages,
       ...(options.temperature != null && { temperature: options.temperature }),
       ...(options.maxTokens != null && { maxOutputTokens: options.maxTokens }),
+      ...(options.providerOptions && { providerOptions: options.providerOptions }),
     });
     return { success: true, text: result.text };
   } catch (e: any) {

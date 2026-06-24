@@ -228,6 +228,7 @@ export function getFeatureNotConfiguredMessage(feature: AIFeature): string {
 
 import { callChatAPI } from '@/lib/script/script-parser';
 import { sdkGenerateText, getLanguageModel } from '@/lib/ai/ai-sdk-bridge';
+import { buildThinkingParams, buildThinkingProviderOptions } from '@/lib/ai/thinking-mode';
 import { generateText } from 'ai';
 
 export interface CallFeatureAPIOptions {
@@ -281,6 +282,17 @@ export async function callFeatureAPI(
   console.log(`[callFeatureAPI] 模型: ${model}`);
   console.log(`[callFeatureAPI] BaseURL: ${baseUrl}`);
 
+  const disableThinking = options?.disableThinking;
+  const thinkingEnabled = useAPIConfigStore.getState().getModelThinkingOverride(model);
+  const thinkingParams = disableThinking
+    ? { thinking: { type: 'disabled' } }
+    : buildThinkingParams({
+      model,
+      protocol: 'openai-compatible',
+      maxTokens: options?.maxTokens ?? 4096,
+      enabled: thinkingEnabled,
+    });
+
   // 优先使用 Vercel AI SDK
   try {
     const apiKey = config.keyManager.getCurrentKey() || config.apiKey;
@@ -293,6 +305,7 @@ export async function callFeatureAPI(
       ],
       temperature: options?.temperature,
       maxTokens: options?.maxTokens,
+      providerOptions: buildThinkingProviderOptions('openai-compatible', model, thinkingParams),
     });
     if (result.success && result.text) {
       return result.text;
@@ -302,8 +315,6 @@ export async function callFeatureAPI(
   }
 
   // 回退：原有 callChatAPI 路径
-  const disableThinking = options?.disableThinking;
-  const thinkingEnabled = useAPIConfigStore.getState().getModelThinkingOverride(model);
   return await callChatAPI(systemPrompt, userPrompt, {
     apiKey: config.allApiKeys.join(','),
     provider: 'openai',

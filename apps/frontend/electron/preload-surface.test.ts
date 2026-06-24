@@ -8,4 +8,9 @@ describe("preload IPC surface", () => {
     expect(preloadSource).not.toContain("exposeInMainWorld('ipcRenderer'");
     expect(preloadSource).toContain("exposeInMainWorld('appEvents'");
   });
+
+  it("passes update check options through the safe updater API", () => {
+    expect(preloadSource).toContain("checkForUpdates: (options?: UpdateCheckOptions)");
+    expect(preloadSource).toContain("ipcRenderer.invoke('app-updater-check', options)");
+  });
 });

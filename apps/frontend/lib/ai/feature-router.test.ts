@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const callChatAPI = vi.fn().mockResolvedValue("OK");
+const sdkGenerateText = vi.fn().mockResolvedValue({ success: true, text: "OK" });
+const callChatAPI = vi.fn().mockResolvedValue("FALLBACK_OK");
+vi.mock("@/lib/ai/ai-sdk-bridge", () => ({
+  sdkGenerateText: (...args: unknown[]) => sdkGenerateText(...args),
+  getLanguageModel: vi.fn(),
+}));
 vi.mock("@/lib/script/script-parser", () => ({
   callChatAPI: (...args: unknown[]) => callChatAPI(...args),
 }));
@@ -34,6 +39,7 @@ function configOverride(model: string): FeatureConfig {
 describe("callFeatureAPI thinking default", () => {
   afterEach(() => {
     callChatAPI.mockClear();
+    sdkGenerateText.mockClear();
     useAPIConfigStore.setState({ modelThinkingOverrides: {} });
   });
 
@@ -42,8 +48,12 @@ describe("callFeatureAPI thinking default", () => {
       configOverride: configOverride("glm-4.6"),
     });
 
-    const opts = callChatAPI.mock.calls.at(-1)![2] as { disableThinking?: boolean };
-    expect(opts.disableThinking).not.toBe(true);
+    const opts = sdkGenerateText.mock.calls.at(-1)![0] as { providerOptions?: Record<string, unknown> };
+    expect(opts.providerOptions).toEqual({
+      openaiCompatible: { thinking: { type: "enabled" } },
+      "openai-compatible": { thinking: { type: "enabled" } },
+    });
+    expect(callChatAPI).not.toHaveBeenCalled();
   });
 
   it("still honors an explicit disableThinking override", async () => {
@@ -52,8 +62,11 @@ describe("callFeatureAPI thinking default", () => {
       disableThinking: true,
     });
 
-    const opts = callChatAPI.mock.calls.at(-1)![2] as { disableThinking?: boolean };
-    expect(opts.disableThinking).toBe(true);
+    const opts = sdkGenerateText.mock.calls.at(-1)![0] as { providerOptions?: Record<string, unknown> };
+    expect(opts.providerOptions).toEqual({
+      openaiCompatible: { thinking: { type: "disabled" } },
+      "openai-compatible": { thinking: { type: "disabled" } },
+    });
   });
 
   it("passes the per-model thinking override from the store into callChatAPI", async () => {
@@ -63,8 +76,11 @@ describe("callFeatureAPI thinking default", () => {
       configOverride: configOverride("house-llm-7b"),
     });
 
-    const opts = callChatAPI.mock.calls.at(-1)![2] as { thinkingEnabled?: boolean };
-    expect(opts.thinkingEnabled).toBe(true);
+    const opts = sdkGenerateText.mock.calls.at(-1)![0] as { providerOptions?: Record<string, unknown> };
+    expect(opts.providerOptions).toEqual({
+      openaiCompatible: { thinking: { type: "enabled" } },
+      "openai-compatible": { thinking: { type: "enabled" } },
+    });
   });
 
   it("leaves thinkingEnabled undefined when no override is configured", async () => {
@@ -72,7 +88,10 @@ describe("callFeatureAPI thinking default", () => {
       configOverride: configOverride("glm-4.6"),
     });
 
-    const opts = callChatAPI.mock.calls.at(-1)![2] as { thinkingEnabled?: boolean };
-    expect(opts.thinkingEnabled).toBeUndefined();
+    const opts = sdkGenerateText.mock.calls.at(-1)![0] as { providerOptions?: Record<string, unknown> };
+    expect(opts.providerOptions).toEqual({
+      openaiCompatible: { thinking: { type: "enabled" } },
+      "openai-compatible": { thinking: { type: "enabled" } },
+    });
   });
 });

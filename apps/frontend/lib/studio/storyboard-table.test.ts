@@ -92,8 +92,26 @@ describe("studio storyboard items mapping", () => {
     expect(items[0]?.prompt).toBe("描述");
     expect(items[0]?.emotion).toBe("正常陈述");
     expect(items[0]?.orientation).toBe("面朝右");
+    expect(items[0]?.lines).toBe("甲：这是一句很长的台词需要更多时间念完");
+    expect(items[0]?.sound).toBe("风声");
+    expect(items[0]?.speakerId).toBe("character:甲");
     // computed duration for the long line should exceed the table's 2
     expect(items[0]?.duration).toBeGreaterThan(2);
+  });
+
+  it("keeps narration as a narrator speaker for TTS voice line generation", () => {
+    const { rows } = parseStoryboardTable(
+      [
+        "<storyboardTable>",
+        "| 1 | 灵舟压雾逼近道口镇 | 金水河 | [宗门灵舟] | 4 | 远景 | 缓推 | 雾中船影压近 | — | — | 危机逼近 | 旁白：宗门灵舟压雾而来 | 船桨破水声 | [ship-1] |",
+        "</storyboardTable>",
+      ].join("\n"),
+      "chapter-001",
+    );
+
+    const items = toStoryboardItems(rows, "chapter-001");
+    expect(items[0]?.lines).toBe("旁白：宗门灵舟压雾而来");
+    expect(items[0]?.speakerId).toBe("narrator");
   });
 });
 
@@ -107,5 +125,16 @@ describe("studio storyboard table messages", () => {
     expect(messages.system).toContain("分镜表");
     expect(messages.user).toContain("苏晚卿冷笑");
     expect(messages.user).toContain("高潮段快切");
+  });
+
+  it("requires dialogue and narration fields for later voice assignment", () => {
+    const messages = buildStoryboardTableMessages({
+      episodeId: "ep1",
+      scriptText: "旁白：风雪压城。苏晚卿：还有你当宝贝的青云令。",
+    });
+
+    expect(`${messages.system}\n${messages.user}`).toContain("台词/旁白");
+    expect(`${messages.system}\n${messages.user}`).toContain("配音");
+    expect(`${messages.system}\n${messages.user}`).toContain("角色音色");
   });
 });

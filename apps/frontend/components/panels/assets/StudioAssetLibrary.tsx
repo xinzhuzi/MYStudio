@@ -6,8 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { usePropsLibraryStore } from "@/stores/props-library-store";
 import { useStudioStore } from "@/stores/studio-store";
+import { useProjectStore } from "@/stores/project-store";
+import { useTtsStore } from "@/stores/tts-store";
 import type { StudioAssetKind, StudioAssetSummary } from "@/types/studio-assets";
-import { Box, CheckSquare, ChevronDown, ChevronRight, Film, Loader2, Map, Music2, Plus, RefreshCw, Search, Square, Trash2, UserCircle } from "lucide-react";
+import { Box, CheckSquare, ChevronDown, ChevronRight, Film, Loader2, Map, Mic2, Music2, Plus, RefreshCw, Search, Square, Trash2, UserCircle } from "lucide-react";
 import { toast } from "sonner";
 import { StudioAssetCard } from "./StudioAssetCard";
 import { StudioAssetDetailDialog } from "./StudioAssetDetailDialog";
@@ -15,6 +17,15 @@ import { AddAssetDialog } from "./AddAssetDialog";
 import { AssetGenerationBar } from "./AssetGenerationBar";
 import { VirtualGrid } from "./VirtualGrid";
 import { cn } from "@/lib/utils";
+import {
+  assignAudioToRoles,
+  assignAudioToRolesWithAi,
+  buildRoleAudioCandidates,
+  createRoleAudioVoiceProfileInput,
+  parseRoleAudioAiMatchResult,
+  type RoleAudioAiMatchRequest,
+} from "./role-audio-auto-assign";
+import { aiManager } from "@/lib/ai/ai-manager";
 
 const PAGE_SIZE = 60;
 
@@ -68,10 +79,15 @@ export function StudioAssetLibrary({ type }: { type: StudioAssetKind }) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [selectMode, setSelectMode] = useState(false);
   const [category, setCategory] = useState<string>(type === "tool" ? TOOL_CATEGORIES[0] : "");
+  const [isAutoAssigningAudio, setIsAutoAssigningAudio] = useState(false);
   const requestIdRef = useRef(0);
 
   const props = usePropsLibraryStore((state) => state.items);
   const materials = useStudioStore((state) => state.materials);
+  const activeProjectId = useProjectStore((state) => state.activeProjectId);
+  const setTtsActiveProjectId = useTtsStore((state) => state.setActiveProjectId);
+  const createVoiceProfile = useTtsStore((state) => state.createVoiceProfile);
+  const bindSpeaker = useTtsStore((state) => state.bindSpeaker);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setSearch(searchInput.trim()), 180);
@@ -252,6 +268,64 @@ export function StudioAssetLibrary({ type }: { type: StudioAssetKind }) {
 
   const handleAdd = () => setIsAddOpen(true);
 
+  const handleAutoAssignAudio = async () => {
+    if (type !== "role") return;
+    if (!activeProjectId) {
+      toast.error("当前没有项目，无法写入音色绑定");
+      return;
+    }
+    if (!window.studioAssets?.list) {
+      toast.error("素材读取接口仅在桌面应用中可用");
+      return;
+    }
+    const roleResult = await window.studioAssets.list({ type: "role", limit: 9999 });
+    const roleItems = mergeAssetItems(
+      localItems.filter((item) => item.type === "role"),
+      roleResult.items ?? items.filter((item) => item.type === "role"),
+    ).filter((item) => item.type === "role");
+    if (roleItems.length === 0) {
+      toast.info("角色库暂无可分配的角色");
+      return;
+    }
+
+    setIsAutoAssigningAudio(true);
+    try {
+      const audioResult = await window.studioAssets.list({ type: "audio", limit: 9999 });
+      const candidates = buildRoleAudioCandidates(materials, audioResult.items ?? []);
+      if (candidates.length === 0) {
+        toast.error("音频库暂无可用于克隆的音色音频");
+        return;
+      }
+      const canUseAiMatcher = Boolean(aiManager.resolve({ agent: "universalAi" }));
+      const assignments = canUseAiMatcher
+        ? await assignAudioToRolesWithAi(roleItems, candidates, {
+          maxCandidatesPerRole: 8,
+          match: matchRoleAudioWithAi,
+        })
+        : assignAudioToRoles(roleItems, candidates);
+      if (assignments.length === 0) {
+        toast.error("没有生成可写入的音色分配");
+        return;
+      }
+
+      setTtsActiveProjectId(activeProjectId);
+      for (const assignment of assignments) {
+        const draft = createRoleAudioVoiceProfileInput(assignment);
+        const profile = createVoiceProfile(draft.profile);
+        bindSpeaker({
+          ...draft.binding,
+          profileId: profile.id,
+        });
+      }
+
+      toast.success(`已为 ${assignments.length} 个角色自动分配音频${canUseAiMatcher ? "（AI语义匹配）" : "（本地规则）"}`);
+    } catch (assignError) {
+      toast.error(assignError instanceof Error ? assignError.message : "自动分配音频失败");
+    } finally {
+      setIsAutoAssigningAudio(false);
+    }
+  };
+
   return (
     <div className="studio-asset-library flex h-full flex-col">
       <div className="studio-asset-library-header shrink-0 border-b border-border px-4 py-3">
@@ -276,6 +350,16 @@ export function StudioAssetLibrary({ type }: { type: StudioAssetKind }) {
               </>
             ) : (
               <>
+                {type === "role" ? (
+                  <Button variant="outline" size="sm" onClick={() => void handleAutoAssignAudio()} disabled={isAutoAssigningAudio || isLoading}>
+                    {isAutoAssigningAudio ? (
+                      <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Mic2 className="mr-1.5 h-3.5 w-3.5" />
+                    )}
+                    自动分配音频
+                  </Button>
+                ) : null}
                 <Button variant="outline" size="sm" onClick={() => setSelectMode(true)}>
                   <Square className="mr-1.5 h-3.5 w-3.5" />
                   多选
@@ -384,6 +468,64 @@ function mergeAssetItems(current: StudioAssetSummary[], next: StudioAssetSummary
       return true;
     }),
   ];
+}
+
+async function matchRoleAudioWithAi(request: RoleAudioAiMatchRequest) {
+  const result = await aiManager.text({
+    binding: { agent: "universalAi" },
+    messages: [
+      {
+        role: "system",
+        content: [
+          "你是一个音色匹配助手。",
+          "根据角色性别、年龄、身份、性格、气质和音频样本名称/说话内容，从候选音色中选择最适合角色克隆的一个。",
+          "只能选择候选列表里出现的 audioId；没有合适音色时返回 null。",
+          "只返回 JSON，不要解释，不要 Markdown。",
+          "格式：{\"audioId\":\"候选ID或null\",\"reason\":\"一句中文理由\"}",
+        ].join("\n"),
+      },
+      {
+        role: "user",
+        content: buildRoleAudioAiPrompt(request),
+      },
+    ],
+    temperature: 0.2,
+    maxTokens: 1000,
+    fallbackToUniversal: false,
+  });
+  if (!result.success || !result.text) return null;
+  return parseRoleAudioAiMatchResult(result.text);
+}
+
+function buildRoleAudioAiPrompt({ role, candidates, localAssignment }: RoleAudioAiMatchRequest) {
+  const roleLines = [
+    `角色ID：${role.id}`,
+    `角色名：${role.name || "未命名角色"}`,
+    `描述：${role.description || "无"}`,
+    `设定：${role.setting || "无"}`,
+    `提示词：${role.prompt || "无"}`,
+    `标签：${role.tags?.join("、") || "无"}`,
+  ];
+  const candidateLines = candidates.map((candidate, index) => [
+    `${index + 1}. audioId：${candidate.id}`,
+    `名称：${candidate.name}`,
+    `说话内容：${candidate.referenceText || "无识别文本"}`,
+    `本地路径：${candidate.filePath}`,
+  ].join("\n"));
+
+  return [
+    "请为下面角色选择最适合的克隆音色。",
+    "",
+    "角色信息：",
+    roleLines.join("\n"),
+    "",
+    `本地规则当前推荐：${localAssignment.audio.id}（${localAssignment.audio.name}），理由：${localAssignment.reason}`,
+    "",
+    "候选音色：",
+    candidateLines.join("\n\n"),
+    "",
+    "输出 JSON 示例：{\"audioId\":\"audio-123\",\"reason\":\"声音年龄、性别和气质更贴合角色\"}",
+  ].join("\n");
 }
 
 const TTS_GENERATED_PATTERN = /^scene-\d+-voice-|^tts-clone-/;
@@ -589,4 +731,3 @@ function AudioGroupedGrid({
 
 
 const TOOL_CATEGORIES = ["货币", "灵草", "灵矿", "灵兽", "灵材", "灵气", "灵食", "丹药", "法宝", "丹药配方", "炼器配方", "其他"];
-

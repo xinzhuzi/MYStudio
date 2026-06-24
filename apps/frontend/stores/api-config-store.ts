@@ -291,21 +291,21 @@ export const API_AGENT_DEPLOYMENT_DEFAULTS: AgentDeploymentConfig[] = [
   {
     key: 'storySkeletonAgent',
     name: '故事骨架兼容入口',
-    desc: '兼容旧版绑定；新流程优先使用剧本策划下的故事骨架Agent',
+    desc: '兼容旧版绑定；新流程优先使用策划编剧下的故事骨架Agent',
     temperature: 0.6,
     maxOutputTokens: 4096,
   },
   {
     key: 'adaptationStrategyAgent',
     name: '改编策略兼容入口',
-    desc: '兼容旧版绑定；新流程优先使用剧本策划下的改编策略Agent',
+    desc: '兼容旧版绑定；新流程优先使用策划编剧下的改编策略Agent',
     temperature: 0.7,
     maxOutputTokens: 4096,
   },
   {
     key: 'scriptDraft',
     name: '剧本草稿兼容入口',
-    desc: '兼容旧版绑定；新流程优先使用剧本策划下的剧本执行Agent',
+    desc: '兼容旧版绑定；新流程优先使用策划编剧下的剧本执行Agent',
     temperature: 0.7,
     maxOutputTokens: 8192,
   },
@@ -349,7 +349,7 @@ export const API_AGENT_DEPLOYMENT_GROUPS: AgentDeploymentGroup[] = [
   },
   {
     id: 'script',
-    label: '剧本策划',
+    label: '策划编剧',
     desc: '对应 Toonflow 剧本 Agent 的决策、执行和监督链路',
     keys: [
       'scriptAgent',

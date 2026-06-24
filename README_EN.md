@@ -1,11 +1,11 @@
 <p align="center">
-  <img src="src/assets/brand/manying-studio-icon.png" width="120" alt="Manying Studio Logo" />
+  <img src="apps/frontend/assets/brand/manying-studio-icon.png" width="120" alt="MYStudio Logo" />
 </p>
 
-<h1 align="center">Manying Studio 漫影工作室</h1>
+<h1 align="center">MYStudio · 漫影工作室</h1>
 
 <p align="center">
-  <strong>🎬 AI-Powered Film & Anime Production Tool · Seedance 2.0 · Script-to-Film Batch Pipeline</strong>
+  <strong>Local-first AI animated drama and short-film production workbench</strong>
 </p>
 
 <p align="center">
@@ -15,7 +15,7 @@
 </p>
 
 <p align="center">
-  <a href="README.md">🇨🇳 中文</a> | <strong>🇬🇧 English</strong>
+  <a href="README.md">中文</a> | <a href="docs/README.en.md">Current English Docs</a> | <a href="docs/README.md">Docs Center</a>
 </p>
 
 <p align="center">
@@ -30,61 +30,39 @@
 
 ## Overview
 
-**Manying Studio** is a production-grade tool for AI film & anime creators. Five interconnected modules cover the entire pipeline from script to final video:
+**MYStudio** is a local-first desktop production tool for AI animated dramas, short films, and novel-to-film adaptation. It keeps scripts, storyboards, assets, voice-over, video candidates, and local compositing in one traceable workflow.
 
-> **📝 Script → 🎭 Characters → 🌄 Scenes → 🎬 Director → ⭐ S-Class (Seedance 2.0)**
+> **Novel Import → Script Planning → Asset Extraction → Production Generation → Storyboard Table → Editing Workbench**
 
-Each stage's output automatically flows into the next — no manual glue required. Supports multiple mainstream AI models, ideal for batch production of short dramas, anime series, trailers, and more.
+The current documentation is maintained under [docs/README.en.md](docs/README.en.md). This root English README is kept as a compatibility entry.
 
 ## Features
 
-### ⭐ S-Class Module — Seedance 2.0 Multimodal Creation
-- **Multi-shot merged narrative video generation**: group storyboard scenes into coherent narrative videos
-- @Image / @Video / @Audio multimodal references (character refs, scene images, first-frame auto-collection)
-- Smart prompt builder: automatic 3-layer fusion (action + cinematography + dialogue lip-sync)
-- First-frame grid stitching (N×N strategy)
-- Seedance 2.0 constraint auto-validation (≤9 images + ≤3 videos + ≤3 audio, prompt ≤5000 chars)
+### Workflow Workbench
+- Novel import for `.txt` / `.md` source text and chapter-level adaptation.
+- Script planning for story skeletons, adaptation strategy, script drafts, and review output.
+- Script asset management for extracting characters, scenes, and props from scripts.
+- Production generation for director planning and missing character, scene, and prop images.
+- Storyboard table for duration, dialogue, visual asset, and shot-level review.
+- Editing workbench for local FFmpeg candidate rendering and final stitching.
 
-<img width="578" height="801" alt="S-Class Module 1" src="https://github.com/user-attachments/assets/34b623a3-9be9-4eb5-ae52-a6a9553598ea" />
-<img width="584" height="802" alt="S-Class Module 2" src="https://github.com/user-attachments/assets/54c6036b-c545-45c0-a32b-de71b8138484" />
-<img width="1602" height="835" alt="S-Class Module 3" src="https://github.com/user-attachments/assets/2b5af973-98c9-4708-bf53-02d11321d86d" />
+### Asset Library
+- Production assets include roles, scenes, props, audio, and compatible clip records.
+- The asset library uses a separate SQLite-backed store under `<storageBasePath>/assets`.
+- Audio assets can be assigned to roles as cloneable voice references for local TTS.
+- Built-in and custom art styles are available from the asset page.
 
-### 🎬 Script Parsing Engine
-- Intelligently breaks scripts into scenes, storyboards, and dialogue
-- Auto-detects characters, locations, emotions, and camera language
-- Supports multi-episode / multi-act script structures
+### Local TTS And Voice
+- Python 3.12 and TTS dependencies are configured manually from `Settings -> Python Configuration`.
+- The app does not download Python or start the local TTS backend during startup.
+- Local TTS is exposed as the built-in `manying-local-tts` provider.
+- The default TTS feature binding is `qwen-tts-1.7B`.
 
-<img width="1384" height="835" alt="Script Parsing" src="https://github.com/user-attachments/assets/e42266c2-aaeb-4cc3-a734-65516774d495" />
-
-### 🎭 Character Consistency System
-- **6-layer identity anchoring**: ensures consistent character appearance across different shots
-- Character Bible management
-- Character reference image binding
-
-<img width="1384" height="835" alt="Character System" src="https://github.com/user-attachments/assets/763e6ced-43e2-4c7b-a5ea-b13535af5b2e" />
-
-### 🖼️ Scene Generation
-- Multi-viewpoint joint image generation
-- Auto-conversion from scene descriptions to visual prompts
-
-<img width="1384" height="835" alt="Scene Generation" src="https://github.com/user-attachments/assets/f301d91e-c826-499f-b3dd-79e69613a5e8" />
-
-### 🎞️ Professional Storyboard System
-- Cinematic camera parameters (shot size, angle, movement)
-- Auto layout and export
-- One-click visual style switching (2D / 3D / realistic / stop-motion, etc.)
-
-<img width="1602" height="835" alt="Storyboard System" src="https://github.com/user-attachments/assets/94562cee-3827-4645-82fe-2123fdd86897" />
-
-### 🚀 Batch Production Workflow
-- **One-click full pipeline**: script parsing → character/scene generation → storyboard splitting → batch image generation → batch video generation
-- Multi-task parallel queue with automatic retry on failure
-- Designed for short drama / anime series batch production
-
-### 🤖 Multi-Provider AI Orchestration
-- Supports multiple AI image/video generation providers
-- API key rotation with load balancing
-- Task queue management with automatic retry
+### Multi-Provider AI Configuration
+- Model services manage provider names, Base URLs, API keys, and model lists.
+- Model mappings bind text, image, video, TTS, and vision capabilities to models.
+- Agent configuration binds workflow tasks such as universal AI, event analysis, script generation, and prompt polishing.
+- Image host configuration supports video providers that require public image URLs.
 
 ## Quick Start
 
@@ -92,33 +70,37 @@ Each stage's output automatically flows into the next — no manual glue require
 
 - **Node.js** >= 18
 - **npm** >= 9
+- macOS Apple Silicon or Windows with a CUDA-capable NVIDIA GPU for local AI features
 
 ### Install & Run
 
 ```bash
 # Clone the repository
-git clone https://github.com/zhengbingjin/MYStudio.git
+git clone https://github.com/xinzhuzi/MYStudio.git
 cd MYStudio
 
-# Install dependencies
-npm install
+# Install dependencies and desktop setup helpers
+bash apps/build/setup.sh
 
 # Start development mode
+cd apps
 npm run dev
 ```
 
 ### Configure API Key
 
-After launching, go to **Settings → API Configuration** and enter your AI provider API key to start using the tool.
+After launching, go to **Settings → API Management** and configure model services, model mappings, and Agent bindings. See the current documentation entry at [docs/README.en.md](docs/README.en.md).
+
+Python 3.12 and local TTS dependencies are configured on demand from **Settings → Python Configuration**. The app does not download Python or start the local TTS backend during startup.
 
 ### Build
 
 ```bash
-# Compile + package Windows installer
-npm run build
+# macOS
+cd apps && npm run build:mac
 
-# Compile only (no packaging)
-npx electron-vite build
+# Windows
+cd apps && npm run build:win
 ```
 
 ## Architecture
@@ -136,22 +118,19 @@ npx electron-vite build
 
 ```
 manying-studio/
-├── src/
-│   ├── electron/          # Electron main process + Preload
-│   │   ├── main.ts        # Main process (storage, file system, protocol handling)
-│   │   └── preload.ts     # Security bridge layer
-│   ├── components/        # React UI components
-│   │   ├── panels/        # Main panels (Script, Character, Scene, Storyboard, Director)
-│   │   └── ui/            # Base UI component library
-│   ├── stores/            # Zustand global state
-│   ├── lib/               # Utilities (AI orchestration, image management, routing)
-│   ├── packages/          # Internal packages
-│   │   └── ai-core/       # AI core engine
-│   ├── scripts/           # Build and utility scripts
-│   ├── config/            # Build, packaging, and tool configs
-│   ├── renderer/          # Renderer HTML entry
-│   ├── assets/brand/      # Brand logo and app icons
-│   └── types/             # TypeScript type definitions
+├── apps/
+│   ├── build/             # Desktop build, setup, and smoke scripts
+│   ├── backend/           # Local backend and TTS sidecar source
+│   └── frontend/
+│       ├── electron/      # Electron main process and preload bridge
+│       ├── components/    # React UI components and panels
+│       ├── stores/        # Zustand state stores
+│       ├── lib/           # AI, TTS, storage, and workflow utilities
+│       ├── config/        # Vite, Electron Builder, TypeScript, ESLint config
+│       ├── assets/        # Brand, manuals, style references, images
+│       └── types/         # Shared TypeScript types
+├── docs/                  # User docs, setup guides, and fusion plans
+└── README.md
 ```
 
 ## License
@@ -172,9 +151,9 @@ Contributions are welcome! Please read the [Contributing Guide](CONTRIBUTING.md)
 
 ## Contact
 
-- 📧 Email: [memecalculate@gmail.com](mailto:memecalculate@gmail.com)
+- 📧 Email: [1487842110@qq.com](mailto:1487842110@qq.com)
 - 🐙 GitHub: [https://github.com/zhengbingjin/MYStudio](https://github.com/zhengbingjin/MYStudio)
 
 ---
 
-<p align="center">Made with ❤️ by <a href="https://github.com/MemeCalculate">MemeCalculate</a></p>
+<p align="center">MYStudio · 漫影工作室</p>
