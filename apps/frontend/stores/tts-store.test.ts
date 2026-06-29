@@ -52,6 +52,29 @@ describe("TTS store", () => {
     });
   });
 
+  it("updates a cloned voice profile after its reference text is recovered", () => {
+    const store = createTtsStore();
+    const profile = store.getState().createVoiceProfile({
+      name: "角色音色",
+      type: "reference",
+      language: "zh",
+      defaultEngine: "qwen",
+      defaultModelSize: "1.7B",
+      referenceAudioPath: "/tmp/ref.wav",
+    });
+
+    store.getState().updateVoiceProfile(profile.id, {
+      referenceText: "吾等身披战甲，手握利剑。",
+    });
+
+    expect(store.getState().voiceProfiles[profile.id]).toMatchObject({
+      referenceText: "吾等身披战甲，手握利剑。",
+    });
+    expect(store.getState().voiceProfiles[profile.id].updatedAt).toBeGreaterThanOrEqual(
+      profile.updatedAt,
+    );
+  });
+
   it("tracks generation lifecycle and skips completed lines during missing-only batches", () => {
     const store = createTtsStore();
 

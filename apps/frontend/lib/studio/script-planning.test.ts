@@ -21,6 +21,12 @@ describe("studio script-planning 逐章编剧链（Markdown）", () => {
     expect(m.user).toContain("独孤剑尘夜访道口镇");
     expect(m.user).toContain("主线关系：强");
     expect(m.user).toContain("视觉风格：日式3D渲染2D");
+    expect(m.user).toContain("## 本章正文（重点原文）");
+    expect(m.user).toContain("> 独孤剑尘夜访道口镇。");
+    expect(m.user).toContain("> 【重点执行要求】");
+    expect(m.user).toContain("> 请基于以上信息完成「故事骨架」，并按输出格式返回。");
+    expect(m.user).not.toContain("[!IMPORTANT]");
+    expect(m.user).not.toContain("本章正文：\n独孤剑尘夜访道口镇。");
     expect(m.system).toContain("Markdown");
     expect(m.system).not.toContain('{"content"');
   });

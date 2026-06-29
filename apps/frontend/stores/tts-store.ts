@@ -35,6 +35,7 @@ export interface TtsStore {
   setActiveProjectId: (projectId: string | null) => void;
   ensureProject: (projectId: string) => void;
   createVoiceProfile: (profile: VoiceProfileInput) => VoiceProfile;
+  updateVoiceProfile: (profileId: string, updates: Partial<VoiceProfileInput>) => void;
   bindSpeaker: (binding: ProjectVoiceBinding) => void;
   getBinding: (speakerId: TtsSpeakerId) => ProjectVoiceBinding | undefined;
   ensureSceneVoiceLine: (input: EnsureSceneVoiceLineInput) => SceneVoiceLine | undefined;
@@ -165,6 +166,25 @@ function createStoreState(set: (partial: Partial<TtsStore> | ((state: TtsStore) 
         },
       }));
       return profile;
+    },
+
+    updateVoiceProfile: (profileId, updates) => {
+      set((state) => {
+        const profile = state.voiceProfiles[profileId];
+        if (!profile) return {};
+        return {
+          voiceProfiles: {
+            ...state.voiceProfiles,
+            [profileId]: {
+              ...profile,
+              ...updates,
+              id: profile.id,
+              createdAt: profile.createdAt,
+              updatedAt: Date.now(),
+            },
+          },
+        };
+      });
     },
 
     bindSpeaker: (binding) => {

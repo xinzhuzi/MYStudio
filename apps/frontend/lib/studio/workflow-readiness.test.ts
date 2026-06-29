@@ -55,7 +55,7 @@ describe("studio workflow readiness", () => {
     expect(readiness.nextAction).toMatchObject({
       kind: "open-stage",
       stageId: "script",
-      label: "进入策划编剧",
+      label: "进入剧本生产阶段",
       enabled: true,
     });
     expect(
@@ -70,8 +70,7 @@ describe("studio workflow readiness", () => {
     expect(readiness.stages.map((stage) => stage.label)).toEqual([
       "风格与导演",
       "小说导入",
-      "策划编剧",
-      "剧本资产提取",
+      "剧本生产阶段",
       "剧本资产管理",
       "分镜视频生成",
       "视频工作台",
@@ -309,12 +308,15 @@ describe("studio workflow readiness", () => {
 
     expect(readiness.nextStageId).toBe("storyboard");
     expect(
-      readiness.stages.find((stage) => stage.id === "generation"),
+      readiness.stages.find((stage) => stage.id === "assets"),
     ).toMatchObject({
       status: "ready",
-      completed: ["已管理 1 批剧本资产"],
+      completed: ["已提取 1 批剧本资产"],
       missing: [],
     });
+    expect(readiness.stages.some((stage) => stage.id === "generation")).toBe(
+      false,
+    );
     expect(readiness.nextAction).toMatchObject({
       kind: "open-stage",
       label: "打开视频生产节点",

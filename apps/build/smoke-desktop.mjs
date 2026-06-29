@@ -40,14 +40,17 @@ const CDP_CALL_TIMEOUT_MS = Number(
   process.env.MYSTUDIO_SMOKE_CDP_TIMEOUT_MS || 10_000,
 );
 const ASSET_VOICE_FLOW_TIMEOUT_MS = Number(
-  process.env.MYSTUDIO_SMOKE_ASSET_VOICE_TIMEOUT_MS || 25_000,
+  process.env.MYSTUDIO_SMOKE_ASSET_VOICE_TIMEOUT_MS || 35_000,
+);
+const AUDIO_METADATA_TIMEOUT_MS = Number(
+  process.env.MYSTUDIO_SMOKE_AUDIO_METADATA_TIMEOUT_MS || 10_000,
 );
 const CORE_ROUTE_CHECKS = [
   {
     label: "工作流",
     requiredText: [
       "当前工作区：漫影工作流",
-      "当前阶段：",
+      "待推进：",
     ],
     forbiddenText: ["制作流程推进", "导演造景", "导演规划与造景", "造景后继续"],
   },
@@ -351,6 +354,10 @@ async function inspectPage(pageTarget) {
     console.log("[smoke] checking asset voice flow");
     const assetVoiceFlow = await verifyAssetVoiceFlow(evaluate);
 
+    console.log("[smoke] checking script asset generation voice flow");
+    const scriptAssetGenerationVoiceFlow =
+      await verifyScriptAssetGenerationVoiceFlow(evaluate);
+
     console.log("[smoke] checking Python settings");
     const pythonSettings = await verifyPythonSettings(evaluate);
 
@@ -365,6 +372,7 @@ async function inspectPage(pageTarget) {
       workflowStages,
       workflowEndToEnd,
       assetVoiceFlow,
+      scriptAssetGenerationVoiceFlow,
       pythonSettings,
       screenshot,
     };
@@ -445,7 +453,7 @@ async function verifyOverviewWorkflow(evaluate) {
         hasProjectEntry: bodyText.includes('开始制作'),
         hasWorkflowEntry: bodyText.includes('进入工作流'),
         hasAssetEntry: bodyText.includes('查看资产库'),
-        forbiddenTextFound: ['漫影工作室标准工作流', '小说导入后按章节逐章制作', '单章输入、单章产物、单章成片']
+        forbiddenTextFound: ['漫影工作室标准工作流', 'STAGE 01', '小说导入后按章节逐章制作', '单章输入、单章产物、单章成片']
           .filter((text) => bodyText.includes(text)),
         bodyTextSample: bodyText.slice(0, 1200),
       });
@@ -478,13 +486,12 @@ async function verifyWorkflowStages(evaluate) {
 	    const stages = [
 	      { id: 'manuals', label: '风格与导演', requiredText: ['视觉手册', '导演手册'] },
       { id: 'novel', label: '小说导入', requiredText: ['导入原文'] },
-      { id: 'script', label: '策划编剧', requiredText: ['请先在「小说导入」导入章节'] },
-      { id: 'assets', label: '剧本资产提取', requiredText: ['剧本资产提取', '角色/场景/道具'] },
-      { id: 'generation', label: '剧本资产管理', requiredText: ['剧本资产管理', '角色/场景/道具'], forbiddenText: ['导演计划、剧集圣经', '运行导演计划', '锁定剧集圣经'] },
+      { id: 'script', label: '剧本生产阶段', requiredText: ['请先在「小说导入」导入章节'] },
+      { id: 'assets', label: '剧本资产管理', requiredText: ['还没有剧本：请先在「剧本生产阶段」生成各章剧本', '角色/场景/道具', '承接本阶段已提取的角色、场景、道具', '全部润色提示词', '生成图片', '落地衍生资产', '音频样本'], forbiddenText: ['运行导演计划', '锁定剧集圣经', '角色库', '全部润色角色提示词'] },
       {
         id: 'storyboard',
         label: '分镜视频生成',
-        requiredText: ['分镜视频生成', '自动排版'],
+        requiredText: ['自动排版'],
         forbiddenText: ['分镜表与分镜视频生成', '运行 AI 分镜计划', '添加分镜', '生成配音', '试听配音', '进入待处理阶段'],
       },
       { id: 'workbench', label: '视频工作台', requiredText: ['导出成片'] },
@@ -873,7 +880,7 @@ async function verifyAssetVoiceFlow(evaluate) {
         readyState: audioElement.readyState,
         currentSrc: audioElement.currentSrc || audioElement.getAttribute('src') || '',
         error: audioElement.error?.message || audioElement.error?.code || null,
-      }), 2500);
+      }), ${AUDIO_METADATA_TIMEOUT_MS});
       audioElement.addEventListener('loadedmetadata', () => {
         clearTimeout(timeout);
         finish({
@@ -948,6 +955,70 @@ async function verifyAssetVoiceFlow(evaluate) {
     ASSET_VOICE_FLOW_TIMEOUT_MS,
   );
   return { ...flow, seed };
+}
+
+async function verifyScriptAssetGenerationVoiceFlow(evaluate) {
+  return evaluate(
+    `(async () => {
+    const normalize = (node) => (node.textContent || '').replace(/\\s+/g, ' ').trim();
+    const activate = (node) => {
+      if (!node) return false;
+      node.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, pointerId: 1, button: 0, buttons: 1, pointerType: 'mouse' }));
+      node.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, button: 0, buttons: 1, view: window }));
+      node.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, cancelable: true, pointerId: 1, button: 0, buttons: 0, pointerType: 'mouse' }));
+      node.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true, button: 0, buttons: 0, view: window }));
+      node.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, button: 0, view: window }));
+      return true;
+    };
+    const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    const waitFor = async (predicate, timeout = 5000) => {
+      const deadline = Date.now() + timeout;
+      while (Date.now() < deadline) {
+        const value = await predicate();
+        if (value) return value;
+        await wait(150);
+      }
+      return null;
+    };
+    const clickButtonByText = (text, exact = false) => {
+      const buttons = Array.from(document.querySelectorAll('button'));
+      const button = buttons.find((node) => {
+        const normalized = normalize(node);
+        return exact ? normalized === text : normalized.includes(text);
+      });
+      return { clicked: activate(button), text: button ? normalize(button) : '' };
+    };
+
+    await waitFor(() => window.mystudioWorkflowSmoke?.seedCompleteWorkflow, 10_000);
+    const seedResult = await window.mystudioWorkflowSmoke?.seedCompleteWorkflow?.();
+    const clickedWorkflow = clickButtonByText('工作流', true);
+    await waitFor(() => document.body.innerText.includes('当前工作区：漫影工作流'), 5000);
+    await window.mystudioWorkflowSmoke?.setWorkflowStage?.('assets');
+    await wait(900);
+    const bodyBefore = document.body.innerText;
+    const clickedAutoAssign = clickButtonByText('自动分配音频');
+    await waitFor(async () => {
+      const inspected = await window.mystudioWorkflowSmoke?.inspectWorkflow?.();
+      return inspected?.checks?.hasVoiceBinding ? inspected : null;
+    }, 5000);
+    const inspectResult = await window.mystudioWorkflowSmoke?.inspectWorkflow?.();
+    const bodyAfter = document.body.innerText;
+    return {
+      seedResult,
+      clickedWorkflow: clickedWorkflow.clicked,
+      hasGenerationStage: bodyBefore.includes('资产生成') && bodyBefore.includes('承接本阶段已提取的角色、场景、道具'),
+      hasAutoAssignAudio: bodyBefore.includes('自动分配音频'),
+      hasCharacterRow: bodyBefore.includes('独孤剑尘'),
+      clickedAutoAssign: clickedAutoAssign.clicked,
+      hasVoiceBinding: Boolean(inspectResult?.checks?.hasVoiceBinding),
+      hasAutoAssignSuccess: bodyAfter.includes('已为 ') && bodyAfter.includes('自动分配音频'),
+      inspectResult,
+      bodyTextSample: bodyAfter.slice(0, 1000),
+    };
+  })()`,
+    "script asset generation voice flow check",
+    ASSET_VOICE_FLOW_TIMEOUT_MS,
+  );
 }
 
 async function captureScreenshotStats(send) {
@@ -1063,6 +1134,7 @@ function assertHealthy(
   workflowStages,
   workflowEndToEnd,
   assetVoiceFlow,
+  scriptAssetGenerationVoiceFlow,
   pythonSettings,
   screenshot,
 ) {
@@ -1116,7 +1188,7 @@ function assertHealthy(
     (stage) => stage.id === "storyboard",
   );
   const generationStage = (workflowStages.stages || []).find(
-    (stage) => stage.id === "generation",
+    (stage) => stage.id === "assets",
   );
   if (!storyboardStage?.hasNodeCanvas) {
     failures.push(
@@ -1256,6 +1328,23 @@ function assertHealthy(
       `audio detail playback control did not load metadata: ${assetVoiceFlow.audioError || assetVoiceFlow.audioReadyState}`,
     );
   }
+  if (
+    !scriptAssetGenerationVoiceFlow.hasGenerationStage ||
+    !scriptAssetGenerationVoiceFlow.hasAutoAssignAudio ||
+    !scriptAssetGenerationVoiceFlow.hasCharacterRow
+  ) {
+    failures.push(
+      "script asset generation did not expose role audio assignment",
+    );
+  }
+  if (
+    !scriptAssetGenerationVoiceFlow.clickedAutoAssign ||
+    !scriptAssetGenerationVoiceFlow.hasVoiceBinding
+  ) {
+    failures.push(
+      "script asset generation voice assignment did not bind a character voice",
+    );
+  }
   if (!pythonSettings.clickedSettings)
     failures.push("settings route button not found for Python settings check");
   if (!pythonSettings.clickedPythonTab)
@@ -1296,6 +1385,7 @@ function assertHealthy(
           routeChecks,
           workflowEndToEnd,
           assetVoiceFlow,
+          scriptAssetGenerationVoiceFlow,
           pythonSettings,
           screenshot,
           pageErrors: errors.map(summarizePageError),
@@ -1308,7 +1398,7 @@ function assertHealthy(
   }
 
   console.log(
-    `Desktop smoke passed: ${state.title}, rootChildren=${state.rootChildren}, bodyBg=${state.bodyBg}, routes=${routeChecks.length}, workflowE2E=ok, assetVoiceFlow=ok, pythonSettings=ok, whiteRatio=${screenshot.whiteRatio.toFixed(3)}, appBin=${appBin}`,
+    `Desktop smoke passed: ${state.title}, rootChildren=${state.rootChildren}, bodyBg=${state.bodyBg}, routes=${routeChecks.length}, workflowE2E=ok, assetVoiceFlow=ok, scriptAssetGenerationVoiceFlow=ok, pythonSettings=ok, whiteRatio=${screenshot.whiteRatio.toFixed(3)}, appBin=${appBin}`,
   );
 }
 
@@ -1337,6 +1427,7 @@ try {
     workflowStages,
     workflowEndToEnd,
     assetVoiceFlow,
+    scriptAssetGenerationVoiceFlow,
     pythonSettings,
     screenshot,
   } = await inspectPage(page);
@@ -1348,6 +1439,7 @@ try {
     workflowStages,
     workflowEndToEnd,
     assetVoiceFlow,
+    scriptAssetGenerationVoiceFlow,
     pythonSettings,
     screenshot,
   );

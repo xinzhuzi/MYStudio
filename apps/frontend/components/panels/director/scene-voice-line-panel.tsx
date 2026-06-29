@@ -20,6 +20,7 @@ import {
   startTtsRuntime,
 } from "@/lib/tts/client";
 import { aiManager } from "@/lib/ai/ai-manager";
+import { recoverVoiceProfileReferenceText } from "@/lib/tts/voice-profile-reference-recovery";
 import { getDefaultPresetVoiceId, validateVoiceProfileForGeneration } from "@/lib/tts/voice-profile-capabilities";
 import { useCharacterLibraryStore } from "@/stores/character-library-store";
 import type { SplitScene } from "@/stores/director-store";
@@ -76,6 +77,7 @@ export function SceneVoiceLinePanel({ scene }: SceneVoiceLinePanelProps) {
   const upsertSceneVoiceLine = useTtsStore((state) => state.upsertSceneVoiceLine);
   const line = useTtsStore((state) => state.getSceneVoiceLine(scene.id));
   const voiceProfilesById = useTtsStore((state) => state.voiceProfiles);
+  const updateVoiceProfile = useTtsStore((state) => state.updateVoiceProfile);
   const createVoiceProfile = useTtsStore((state) => state.createVoiceProfile);
   const bindSpeaker = useTtsStore((state) => state.bindSpeaker);
   const getBinding = useTtsStore((state) => state.getBinding);
@@ -180,7 +182,11 @@ export function SceneVoiceLinePanel({ scene }: SceneVoiceLinePanelProps) {
       toast.error("请先选择或创建声线 profile");
       return;
     }
-    const validationError = validateVoiceProfileForGeneration(selectedProfile);
+    const generationProfile = await recoverVoiceProfileReferenceText(
+      selectedProfile,
+      updateVoiceProfile,
+    );
+    const validationError = validateVoiceProfileForGeneration(generationProfile);
     if (validationError) {
       toast.error(validationError);
       return;
@@ -194,13 +200,13 @@ export function SceneVoiceLinePanel({ scene }: SceneVoiceLinePanelProps) {
     try {
       const runtime = await startTtsRuntime();
       if (!runtime.success) throw new Error(runtime.error || "TTS 后端启动失败");
-      await ensureBackendVoiceProfile(selectedProfile);
+      await ensureBackendVoiceProfile(generationProfile);
       const generation = await aiManager.tts({
         text: currentLine.text.trim(),
-        profileId: selectedProfile.id,
+        profileId: generationProfile.id,
         engine: currentLine.engine,
         modelSize: currentLine.modelSize,
-        language: selectedProfile.language,
+        language: generationProfile.language,
       });
       markGenerating(scene.id, generation.id);
       const completed = await waitForGeneration(generation.id);

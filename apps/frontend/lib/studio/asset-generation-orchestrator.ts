@@ -13,6 +13,7 @@
 
 import { aiManager, type AIBinding } from "@/lib/ai/ai-manager";
 import {
+  batchPolishAssetPrompts,
   polishAssetPrompt,
   type PolishRequest,
   type PolishResult,
@@ -22,6 +23,7 @@ import {
 export type { AssetType };
 import { saveImageToLocal, type ImageCategory } from "@/lib/image-storage";
 import { useCharacterLibraryStore } from "@/stores/character-library-store";
+import { usePropsLibraryStore, type PropItem } from "@/stores/props-library-store";
 import { useSceneStore } from "@/stores/scene-store";
 
 // ─── 类型定义 ───
@@ -233,8 +235,6 @@ export async function polishAssetsAndUpdateStore(
     onCancel?: () => boolean;
   },
 ): Promise<{ success: number; failed: number }> {
-  const { batchPolishAssetPrompts } = await import("@/lib/ai/prompt-polisher");
-
   // 先匹配资产库，复用已有数据
   const { pending, matched } = await collectAndMatchAssets(assetType);
 
@@ -334,8 +334,20 @@ function updateStoreWithResult(
     store.updateScene(assetId, {
       referenceImage: data.imageLocalPath,
     });
+  } else if (assetType === "prop") {
+    const promptUpdates =
+      data.polishResult?.status === "success"
+        ? {
+            visualPrompt: data.polishResult.prompt,
+            promptState: "ready" as const,
+            promptError: undefined,
+          }
+        : {};
+    updateProp(assetId, {
+      ...promptUpdates,
+      imageUrl: data.imageLocalPath,
+    });
   }
-  // prop 待 Phase 3 实现
 }
 
 function writePolishResultToStore(
@@ -356,6 +368,12 @@ function writePolishResultToStore(
       visualPrompt: result.prompt,
       promptState: "ready",
     });
+  } else if (assetType === "prop") {
+    updateProp(assetId, {
+      visualPrompt: result.prompt,
+      promptState: "ready",
+      promptError: undefined,
+    });
   }
 }
 
@@ -371,6 +389,11 @@ function writePolishErrorToStore(
     });
   } else if (assetType === "scene") {
     useSceneStore.getState().updateScene(assetId, {
+      promptState: "failed",
+      promptError: error,
+    });
+  } else if (assetType === "prop") {
+    updateProp(assetId, {
       promptState: "failed",
       promptError: error,
     });
@@ -405,6 +428,15 @@ function collectPendingAssets(assetType: AssetType): PendingAsset[] {
         id: s.id,
         name: s.name,
         description: [s.location, s.time, s.atmosphere, s.notes].filter(Boolean).join(", "),
+      }));
+  } else if (assetType === "prop") {
+    const store = usePropsLibraryStore.getState();
+    return store.items
+      .filter((p) => !p.promptState || p.promptState === "none")
+      .map((p) => ({
+        id: p.id,
+        name: p.name,
+        description: p.description,
       }));
   }
   return [];
@@ -490,6 +522,15 @@ export function applyMatchedAssets(
           promptState: "ready",
         });
         applied++;
+      } else if (assetType === "prop") {
+        const thumbPath = m.assetDbData.thumbnailUrl || m.assetDbData.filePath;
+        updateProp(m.id, {
+          imageUrl: thumbPath ? `local-image://${thumbPath}` : "",
+          visualPrompt: m.assetDbData.prompt || m.assetDbData.description || "",
+          promptState: "ready",
+          promptError: undefined,
+        });
+        applied++;
       }
     } catch {
       // 跳过单个失败
@@ -509,5 +550,19 @@ function markAssetsPolishing(assetType: AssetType, assets: PendingAsset[]) {
     for (const a of assets) {
       store.updateScene(a.id, { promptState: "polishing" });
     }
+  } else if (assetType === "prop") {
+    for (const a of assets) {
+      updateProp(a.id, { promptState: "polishing" });
+    }
   }
+}
+
+function updateProp(assetId: string, updates: Partial<PropItem>) {
+  usePropsLibraryStore.setState((state) => ({
+    items: state.items.map((item) =>
+      item.id === assetId
+        ? { ...item, ...updates, updatedAt: Date.now() }
+        : item,
+    ),
+  }));
 }

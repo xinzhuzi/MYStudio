@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { NovelEmptyState } from "./index";
+import { NovelEmptyState } from "./NovelTab";
 
 describe("NovelEmptyState", () => {
   it("renders an import button when the novel library is empty", () => {

@@ -52,7 +52,6 @@ import type {
 } from "@/types/script";
 import { getStyleName } from "@/lib/constants/visual-styles";
 import { OVERVIEW_WORKFLOW_GUIDE } from "./workflow-guide";
-import { useStudioStore } from "@/stores/studio-store";
 
 // ==================== Inline Editable Field ====================
 
@@ -231,7 +230,6 @@ export function OverviewPanel() {
     updateEpisodeBundle,
   } = useScriptStore();
   const { enterEpisode, setActiveTab } = useMediaPanelStore();
-  const setWorkflowConfig = useStudioStore((state) => state.setWorkflowConfig);
 
   const projectId = activeProjectId || "default";
   const meta: SeriesMeta | null = scriptProject?.seriesMeta || null;
@@ -249,14 +247,6 @@ export function OverviewPanel() {
       updateSeriesMeta(projectId, updates);
     },
     [projectId, updateSeriesMeta],
-  );
-
-  const openWorkflowStage = useCallback(
-    (stageId: string) => {
-      setWorkflowConfig({ workflowStage: stageId });
-      setActiveTab(OVERVIEW_WORKFLOW_GUIDE.primaryAction.targetTab);
-    },
-    [setActiveTab, setWorkflowConfig],
   );
 
   if (!meta) {
@@ -303,29 +293,6 @@ export function OverviewPanel() {
                 </Button>
               </div>
             </div>
-          </div>
-          <div className="grid gap-3 p-5 sm:grid-cols-2 xl:grid-cols-4">
-            {OVERVIEW_WORKFLOW_GUIDE.stages.map((stage, index) => (
-              <button
-                type="button"
-                key={stage.title}
-                onClick={() => openWorkflowStage(stage.targetStage)}
-                className="group rounded-lg border border-border/70 bg-background/70 p-4 text-left transition-colors hover:border-primary/45 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
-              >
-                <div className="mb-3 flex items-center justify-between gap-3">
-                  <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                    Stage {String(index + 1).padStart(2, "0")}
-                  </span>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary" />
-                </div>
-                <h4 className="text-sm font-semibold text-foreground">
-                  {stage.title}
-                </h4>
-                <p className="mt-2 text-xs leading-5 text-muted-foreground">
-                  {stage.summary}
-                </p>
-              </button>
-            ))}
           </div>
         </div>
       </div>

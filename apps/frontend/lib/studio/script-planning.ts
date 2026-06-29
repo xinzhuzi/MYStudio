@@ -64,6 +64,13 @@ export function hasReviewIssues(report?: string): boolean {
   return !!report && /🔴|🟡|⚪/.test(report);
 }
 
+function toMarkdownQuote(content: string): string {
+  return content
+    .split(/\r?\n/)
+    .map((line) => (line ? `> ${line}` : ">"))
+    .join("\n");
+}
+
 /** 构建某阶段发送给 AI 的消息：skill 全文作 system，章节/上一步产出作 user。 */
 export function buildStageMessages(stage: ScriptStageKey, ctx: ScriptStageContext): ScriptStageMessages {
   const skill = getAgentSkillPreset(SCRIPT_STAGE_SKILL[stage])?.content ?? "";
@@ -77,12 +84,12 @@ export function buildStageMessages(stage: ScriptStageKey, ctx: ScriptStageContex
   if (ctx.eventState) lines.push(`本章事件分析：\n${ctx.eventState}`);
   if (stage !== "storySkeleton" && ctx.skeleton) lines.push(`故事骨架：\n${ctx.skeleton}`);
   if (stage === "scriptDraft" && ctx.strategy) lines.push(`改编策略：\n${ctx.strategy}`);
-  lines.push(`本章正文：\n${ctx.chapterText}`);
+  lines.push(`## 本章正文（重点原文）\n\n${toMarkdownQuote(ctx.chapterText)}`);
   if (ctx.reviewFeedback) {
     if (ctx.previousOutput) lines.push(`## 上一版${SCRIPT_STAGE_LABEL[stage]}（在此基础上修订，保留已合格内容）\n${ctx.previousOutput}`);
     lines.push(`## 审核意见（逐条修复以下问题，不要重写已合格部分）\n${ctx.reviewFeedback}`);
   }
-  lines.push(`请基于以上信息完成「${SCRIPT_STAGE_LABEL[stage]}」，并按输出格式返回。`);
+  lines.push(`> 【重点执行要求】\n> 请基于以上信息完成「${SCRIPT_STAGE_LABEL[stage]}」，并按输出格式返回。`);
   return { system, user: lines.join("\n\n") };
 }
 

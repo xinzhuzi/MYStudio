@@ -25,32 +25,7 @@ describe("overview workflow guide", () => {
     });
   });
 
-  it("keeps the overview stage cards available outside the node canvas", () => {
-    expect(OVERVIEW_WORKFLOW_GUIDE.stages.map((stage) => stage.title)).toEqual([
-      "风格与导演",
-      "小说导入",
-      "策划编剧",
-      "剧本资产提取",
-      "剧本资产管理",
-      "分镜视频生成",
-      "视频工作台",
-    ]);
-    expect(
-      OVERVIEW_WORKFLOW_GUIDE.stages.every((stage) => stage.summary.length > 0),
-    ).toBe(true);
-  });
-
-  it("maps each overview stage card to a workflow tab", () => {
-    expect(
-      OVERVIEW_WORKFLOW_GUIDE.stages.map((stage) => stage.targetStage),
-    ).toEqual([
-      "manuals",
-      "novel",
-      "script",
-      "assets",
-      "generation",
-      "storyboard",
-      "workbench",
-    ]);
+  it("does not maintain a second workflow stage list on project overview", () => {
+    expect("stages" in OVERVIEW_WORKFLOW_GUIDE).toBe(false);
   });
 });

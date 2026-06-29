@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { WORKFLOW_TABS, resolveVisibleWorkflowStage } from "./index";
+import { WORKFLOW_TABS, resolveVisibleWorkflowStage } from "./workflow-tabs";
 
 describe("studio workflow tabs", () => {
   it("keeps model configuration out of the workflow navigation", () => {
@@ -10,29 +10,76 @@ describe("studio workflow tabs", () => {
       "novel",
       "script",
       "assets",
-      "generation",
       "storyboard",
       "workbench",
     ]);
     expect(WORKFLOW_TABS.map((tab) => tab.label)).toEqual([
       "风格与导演",
       "小说导入",
-      "策划编剧",
-      "剧本资产提取",
+      "剧本生产阶段",
       "剧本资产管理",
       "分镜视频生成",
       "视频工作台",
     ]);
     expect(WORKFLOW_TABS.some((tab) => tab.label === "配置中心")).toBe(false);
+    expect(WORKFLOW_TABS.some((tab) => tab.label === "策划编剧")).toBe(false);
     expect(WORKFLOW_TABS.some((tab) => tab.value === "skill")).toBe(false);
   });
 
   it("falls back to the first visible workflow tab for hidden or stale persisted stages", () => {
-    expect(resolveVisibleWorkflowStage("generation")).toBe("generation");
+    expect(resolveVisibleWorkflowStage("generation")).toBe("assets");
     expect(resolveVisibleWorkflowStage("flow")).toBe("storyboard");
     expect(resolveVisibleWorkflowStage("skill")).toBe("manuals");
     expect(resolveVisibleWorkflowStage("unknown-stage")).toBe("manuals");
     expect(resolveVisibleWorkflowStage(undefined)).toBe("manuals");
+  });
+
+  it("routes workflow orchestration through the studio view model hook", () => {
+    const indexSource = readFileSync(
+      fileURLToPath(new URL("./index.tsx", import.meta.url)),
+      "utf8",
+    );
+    const viewModelSource = readFileSync(
+      fileURLToPath(
+        new URL("./useStudioViewModel.ts", import.meta.url),
+      ),
+      "utf8",
+    );
+    const hookSource = readFileSync(
+      fileURLToPath(new URL("./useWorkflowStageState.ts", import.meta.url)),
+      "utf8",
+    );
+
+    expect(indexSource).toContain("useStudioViewModel");
+    expect(indexSource).not.toContain("useWorkflowStageState");
+    expect(indexSource).not.toContain("useStudioStore");
+    expect(indexSource).not.toContain("useProjectStore");
+    expect(indexSource).not.toContain("setActiveWorkflowTab");
+    expect(indexSource).not.toContain("prevProjectIdRef");
+    expect(viewModelSource).toContain("useWorkflowStageState");
+    expect(viewModelSource).toContain("useStudioStore");
+    expect(viewModelSource).toContain("useProjectStore");
+    expect(hookSource).toContain("setActiveWorkflowTab");
+    expect(hookSource).toContain("prevProjectIdRef");
+    expect(hookSource).toContain("请先选择视觉风格与导演手册");
+  });
+
+  it("builds the production flow model through the split hook", () => {
+    const indexSource = readFileSync(
+      fileURLToPath(new URL("./index.tsx", import.meta.url)),
+      "utf8",
+    );
+    const hookSource = readFileSync(
+      fileURLToPath(new URL("./useProductionFlowModel.ts", import.meta.url)),
+      "utf8",
+    );
+
+    expect(indexSource).toContain("useStudioViewModel");
+    expect(indexSource).not.toContain("useProductionFlowModel");
+    expect(indexSource).not.toContain("buildWorkbenchAssetMediaMap");
+    expect(indexSource).not.toContain("buildProductionFlowModel({");
+    expect(hookSource).toContain("buildWorkbenchAssetMediaMap");
+    expect(hookSource).toContain("buildProductionFlowModel({");
   });
 
   it("does not keep the removed Skill conversation implementation mounted", () => {
@@ -67,12 +114,43 @@ describe("studio workflow tabs", () => {
       fileURLToPath(new URL("./index.tsx", import.meta.url)),
       "utf8",
     );
+    const viewModelSource = readFileSync(
+      fileURLToPath(
+        new URL("./useStudioViewModel.ts", import.meta.url),
+      ),
+      "utf8",
+    );
     const canvasSource = readFileSync(
       fileURLToPath(new URL("./WorkflowNodeCanvas.tsx", import.meta.url)),
       "utf8",
     );
+    const productionNodeSource = readFileSync(
+      fileURLToPath(new URL("./WorkflowProductionNode.tsx", import.meta.url)),
+      "utf8",
+    );
+    const previewSource = readFileSync(
+      fileURLToPath(new URL("./WorkflowNodePreviews.tsx", import.meta.url)),
+      "utf8",
+    );
+    const flowUiSource = [canvasSource, productionNodeSource, previewSource].join("\n");
     const modelSource = readFileSync(
       fileURLToPath(new URL("./workflow-node-model.ts", import.meta.url)),
+      "utf8",
+    );
+    const editDialogSource = readFileSync(
+      fileURLToPath(
+        new URL("./WorkflowNodeEditDialog.tsx", import.meta.url),
+      ),
+      "utf8",
+    );
+    const nodeEditorHookSource = readFileSync(
+      fileURLToPath(new URL("./useWorkflowNodeEditor.ts", import.meta.url)),
+      "utf8",
+    );
+    const productionPlanningHookSource = readFileSync(
+      fileURLToPath(
+        new URL("./useProductionPlanningActions.ts", import.meta.url),
+      ),
       "utf8",
     );
 
@@ -105,24 +183,24 @@ describe("studio workflow tabs", () => {
     expect(canvasSource).toContain("pointer-events-auto inline-flex h-9");
     expect(canvasSource).toContain("production-flow-reactflow");
     expect(canvasSource).toContain("production-flow-reactflow absolute inset-0");
-    expect(canvasSource).toContain("data-flow-node-id={data.node.id}");
-    expect(canvasSource).toContain("script: \"w-[1040px]\"");
-    expect(canvasSource).toContain("script: \"max-h-[560px]\"");
+    expect(productionNodeSource).toContain("data-flow-node-id={data.node.id}");
+    expect(productionNodeSource).toContain("script: \"w-[1040px]\"");
+    expect(previewSource).toContain("script: \"max-h-[560px]\"");
     expect(canvasSource).toContain("assets: { x: 0, y: 660 }");
     expect(canvasSource).toContain("fitCanvasAfterLayout");
     expect(canvasSource).toContain("onInit={(instance)");
-    expect(canvasSource).toContain('id="script-assets-source"');
+    expect(productionNodeSource).toContain('id="script-assets-source"');
     expect(canvasSource).toContain('sourceHandle:');
     expect(canvasSource).toContain('targetHandle: `${target}-target`');
     expect(canvasSource).toContain('source === "script" && target === "assets"');
-    expect(canvasSource).not.toContain('role="button"');
-    expect(canvasSource).not.toContain("onClick={() => data.onStageChange(data.node.targetStage)}");
-    expect(canvasSource).toContain("进入");
-    expect(canvasSource).toContain("编辑");
-    expect(canvasSource).toContain("Edit3");
+    expect(flowUiSource).not.toContain('role="button"');
+    expect(flowUiSource).not.toContain("onClick={() => data.onStageChange(data.node.targetStage)}");
+    expect(productionNodeSource).toContain("进入");
+    expect(productionNodeSource).toContain("编辑");
+    expect(productionNodeSource).toContain("Edit3");
     expect(canvasSource).toContain("onNodeEdit?: (nodeId: ProductionFlowNodeId) => void");
-    expect(canvasSource).toContain("data.onNodeEdit?.(data.node.id)");
-    expect(canvasSource).toContain("data.onStageChange(data.node.targetStage)");
+    expect(productionNodeSource).toContain("data.onNodeEdit?.(data.node.id)");
+    expect(productionNodeSource).toContain("data.onStageChange(data.node.targetStage)");
     expect(canvasSource).not.toContain("workflow-node-connector");
     for (const node of [
       "script",
@@ -146,58 +224,61 @@ describe("studio workflow tabs", () => {
     expect(canvasSource).toContain("production-video-stage");
     expect(canvasSource).not.toContain("production-agent-panel");
     expect(canvasSource).not.toContain("ProductionAgent");
-    expect(canvasSource).toContain("data.node.previewTitle");
-    expect(canvasSource).toContain("StoryboardTablePreview");
-    expect(canvasSource).toContain("StoryboardGridPreview");
-    expect(canvasSource).not.toContain("max-h-[calc(100vh-210px)] overflow-y-auto");
-    expect(canvasSource).toContain("workflow-node-titlebar");
-    expect(canvasSource).toContain("nowheel");
-    expect(canvasSource).toContain("space-y-1.5 overflow-y-auto");
-    expect(canvasSource).toContain("nodrag nopan nowheel space-y-1.5 overflow-y-auto");
-    expect(canvasSource).toContain('scriptPlan: "h-[520px]"');
-    expect(canvasSource).toContain('node.id === "scriptPlan"');
-    expect(canvasSource).toContain("max-h-[430px] overflow-auto");
-    expect(canvasSource).toContain("nodrag nowheel max-h-[430px] overflow-auto");
-    expect(canvasSource).toContain("min-w-[1920px]");
-    expect(canvasSource).toContain("关联资产名称");
-    expect(canvasSource).toContain("角色动作");
-    expect(canvasSource).toContain("空间关系");
-    expect(canvasSource).toContain("关联资产ID");
-    expect(canvasSource).toContain("row.title");
-    expect(canvasSource).toContain("row.titleEn");
-    expect(canvasSource).toContain("sticky top-0");
-    expect(canvasSource).toContain("max-h-[320px] overflow-y-auto");
-    expect(canvasSource).toContain("nodrag nowheel max-h-[320px] overflow-y-auto");
-    expect(canvasSource).not.toContain("min-h-0 flex-1 space-y-4 overflow-y-auto");
-    expect(canvasSource).not.toContain("space-y-1.5 overflow-hidden text-[11px]");
-    expect(canvasSource).not.toContain("max-h-[430px] overflow-hidden rounded");
-    expect(canvasSource).toContain("data.node.actions?.length");
-    expect(canvasSource).toContain("data.onNodeAction?.({");
-    expect(canvasSource).toContain("runningActionId");
-    expect(canvasSource).toContain("正在提交本节点 AI 任务");
-    expect(canvasSource).toContain("生成中");
-    expect(canvasSource).toContain("<textarea");
-    expect(canvasSource).toContain("action.promptPlaceholder");
-    expect(canvasSource).toContain("userInstruction");
-    expect(canvasSource).toContain("输入内容会附加到本次 AI 任务");
-    expect(canvasSource).toContain("nodrag nopan nowheel");
-    expect(canvasSource).toContain("onPointerDown={(event) => event.stopPropagation()}");
+    expect(productionNodeSource).toContain("data.node.previewTitle");
+    expect(productionNodeSource).toContain("StoryboardTablePreview");
+    expect(productionNodeSource).toContain("StoryboardGridPreview");
+    expect(flowUiSource).not.toContain("max-h-[calc(100vh-210px)] overflow-y-auto");
+    expect(productionNodeSource).toContain("workflow-node-titlebar");
+    expect(flowUiSource).toContain("nowheel");
+    expect(previewSource).toContain("space-y-1.5 overflow-y-auto");
+    expect(previewSource).toContain("nodrag nopan nowheel space-y-1.5 overflow-y-auto");
+    expect(previewSource).toContain('scriptPlan: "h-[520px]"');
+    expect(previewSource).toContain('node.id === "scriptPlan"');
+    expect(previewSource).toContain("max-h-[430px] overflow-auto");
+    expect(previewSource).toContain("nodrag nowheel max-h-[430px] overflow-auto");
+    expect(previewSource).toContain("min-w-[1920px]");
+    expect(previewSource).toContain("关联资产名称");
+    expect(previewSource).toContain("角色动作");
+    expect(previewSource).toContain("空间关系");
+    expect(previewSource).toContain("关联资产ID");
+    expect(previewSource).toContain("row.title");
+    expect(previewSource).toContain("row.titleEn");
+    expect(previewSource).toContain("sticky top-0");
+    expect(previewSource).toContain("max-h-[320px] overflow-y-auto");
+    expect(previewSource).toContain("nodrag nowheel max-h-[320px] overflow-y-auto");
+    expect(flowUiSource).not.toContain("min-h-0 flex-1 space-y-4 overflow-y-auto");
+    expect(flowUiSource).not.toContain("space-y-1.5 overflow-hidden text-[11px]");
+    expect(flowUiSource).not.toContain("max-h-[430px] overflow-hidden rounded");
+    expect(productionNodeSource).toContain("data.node.actions?.length");
+    expect(productionNodeSource).toContain("data.onNodeAction?.({");
+    expect(productionNodeSource).toContain("runningActionId");
+    expect(productionNodeSource).toContain("正在提交本节点 AI 任务");
+    expect(productionNodeSource).toContain("生成中");
+    expect(productionNodeSource).toContain("<textarea");
+    expect(productionNodeSource).toContain("action.promptPlaceholder");
+    expect(productionNodeSource).toContain("userInstruction");
+    expect(productionNodeSource).toContain("输入内容会附加到本次 AI 任务");
+    expect(productionNodeSource).toContain("nodrag nopan nowheel");
+    expect(productionNodeSource).toContain("onPointerDown={(event) => event.stopPropagation()}");
     expect(modelSource).toContain("generate-director-plan");
     expect(modelSource).toContain("generate-storyboard-table");
-    expect(indexSource).toContain("handleDirectorPlan(productionEpisodeId, action.userInstruction");
-    expect(indexSource).toContain("handleStoryboardTable");
-    expect(indexSource).toContain("【本次节点补充要求】");
-    expect(indexSource).toContain("buildStoryboardTableMessages");
-    expect(indexSource).toContain("parseStoryboardTable");
-    expect(indexSource).toContain("toStoryboardItems");
+    expect(viewModelSource).toContain("useProductionPlanningActions");
+    expect(productionPlanningHookSource).toContain("handleDirectorPlan");
+    expect(productionPlanningHookSource).toContain("handleStoryboardTable");
+    expect(productionPlanningHookSource).toContain("【本次节点补充要求】");
+    expect(productionPlanningHookSource).toContain("buildStoryboardTableMessages");
+    expect(productionPlanningHookSource).toContain("parseStoryboardTable");
+    expect(productionPlanningHookSource).toContain("toStoryboardItems");
     expect(indexSource).toContain("editingWorkflowNodeId");
     expect(indexSource).toContain("workflowNodeDraft");
-    expect(indexSource).toContain("handleWorkflowNodeEditSave");
-    expect(indexSource).toContain("saveAgentWorkData(\"storyboardTable\"");
-    expect(indexSource).toContain("MdEditor");
-    expect(indexSource).toContain("readOnly={!workflowNodeEditWritable}");
-    expect(indexSource).toContain("编辑当前节点 FlowData Markdown");
-    expect(canvasSource).toContain("node.previewLines.map");
+    expect(indexSource).toContain("saveWorkflowNodeEdit");
+    expect(nodeEditorHookSource).toContain("saveWorkflowNodeEdit");
+    expect(nodeEditorHookSource).toContain("saveAgentWorkData(\"storyboardTable\"");
+    expect(indexSource).toContain("<WorkflowNodeEditDialog");
+    expect(editDialogSource).toContain("MdEditor");
+    expect(editDialogSource).toContain("readOnly={!writable}");
+    expect(editDialogSource).toContain("编辑当前节点 FlowData Markdown");
+    expect(previewSource).toContain("node.previewLines.map");
     expect(modelSource).toContain("previewTextLines");
     expect(modelSource).toContain('previewTextLines(flowData.script, "暂无剧本内容", 220)');
     expect(modelSource).toContain('previewKind: "table"');
@@ -230,28 +311,49 @@ describe("studio workflow tabs", () => {
   });
 
   it("keeps the workflow status and stage entry surface above stage content", () => {
-    const source = readFileSync(
+    const indexSource = readFileSync(
       fileURLToPath(new URL("./index.tsx", import.meta.url)),
       "utf8",
     );
+    const viewModelSource = readFileSync(
+      fileURLToPath(
+        new URL("./useStudioViewModel.ts", import.meta.url),
+      ),
+      "utf8",
+    );
+    const statusSource = readFileSync(
+      fileURLToPath(
+        new URL("./WorkflowStageStatusBar.tsx", import.meta.url),
+      ),
+      "utf8",
+    );
+    const readinessHookSource = readFileSync(
+      fileURLToPath(new URL("./useWorkflowReadiness.ts", import.meta.url)),
+      "utf8",
+    );
 
-    expect(source).toContain("WorkflowStageStatusBar");
-    expect(source).toContain("buildWorkflowReadiness");
-    expect(source).toContain("当前所在：");
-    expect(source).toContain("待推进：");
-    expect(source).toContain("DropdownMenu");
-    expect(source).toContain("当前阶段：");
-    expect(source).toContain("选择工作流阶段");
-    expect(source).not.toContain("进入待处理阶段");
-    expect(source).toContain("bg-emerald-500/8");
-    expect(source).toContain("bg-amber-500/12");
-    expect(source).not.toContain("点击当前阶段按钮可展开全部阶段");
-    expect(source).toContain("onStageChange={handleStageChange}");
-    expect(source).not.toContain('onClick={() => onStageChange("flow")}');
-    expect(source).toContain("readiness.stages.map");
-    expect(source).toContain("onClick={() => onStageChange(stage.id)}");
-    expect(source).not.toContain("WorkflowStageCard");
-    expect(source).not.toContain("StageCard");
-    expect(source).not.toContain("TabsTrigger");
+    expect(indexSource).toContain("WorkflowStageStatusBar");
+    expect(viewModelSource).toContain("useWorkflowReadiness");
+    expect(readinessHookSource).toContain("buildWorkflowReadiness");
+    expect(statusSource).toContain("待推进：");
+    expect(statusSource).toContain("切换阶段");
+    expect(statusSource).toContain("DropdownMenu");
+    expect(statusSource).toContain("选择工作流阶段");
+    expect(statusSource).not.toContain("当前所在：");
+    expect(statusSource).not.toContain("当前阶段：");
+    expect(statusSource).not.toContain("activeStageReadiness");
+    expect(statusSource).not.toContain("进度 {readiness.progress}%");
+    expect(statusSource).not.toContain("flex-col gap-3 lg:flex-row");
+    expect(statusSource).not.toContain("进入待处理阶段");
+    expect(statusSource).toContain("bg-emerald-500/8");
+    expect(statusSource).toContain("bg-amber-500/12");
+    expect(statusSource).not.toContain("点击当前阶段按钮可展开全部阶段");
+    expect(indexSource).toContain("onStageChange={viewModel.handleStageChange}");
+    expect(statusSource).not.toContain('onClick={() => onStageChange("flow")}');
+    expect(statusSource).toContain("readiness.stages.map");
+    expect(statusSource).toContain("onClick={() => onStageChange(stage.id)}");
+    expect(statusSource).not.toContain("WorkflowStageCard");
+    expect(statusSource).not.toContain("StageCard");
+    expect(statusSource).not.toContain("TabsTrigger");
   });
 });

@@ -108,7 +108,8 @@ describe("buildAssetRegenerationPrompt", () => {
   it("uses normal Chinese audition text and blocks qwen previews without reference text", () => {
     const source = readFileSync(new URL("./StudioAssetDetailDialog.tsx", import.meta.url), "utf8");
     expect(source).toContain('from "@/lib/tts/voice-preview-text"');
-    expect(source).toContain("getVoicePreviewBlockReason(profile)");
+    expect(source).toContain("recoverVoiceProfileReferenceText");
+    expect(source).toContain("getVoicePreviewBlockReason(previewProfile)");
     expect(source).toContain("buildRoleVoicePreviewText(characterName)");
     expect(source).not.toContain("大家好，我是${characterName}，很高兴认识你们。");
   });

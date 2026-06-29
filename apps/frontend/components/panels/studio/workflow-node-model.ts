@@ -29,7 +29,6 @@ export type ProductionFlowNodeId = (typeof PRODUCTION_FLOW_NODE_IDS)[number];
 export type ProductionFlowStage =
   | "script"
   | "assets"
-  | "generation"
   | "storyboard"
   | "workbench";
 export type ProductionFlowNodeStatus =

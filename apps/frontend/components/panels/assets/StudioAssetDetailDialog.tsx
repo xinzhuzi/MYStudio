@@ -45,8 +45,14 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { polishAssetPrompt } from "@/lib/ai/prompt-polisher";
+import { generateAsset } from "@/lib/studio/asset-generation-orchestrator";
 import { ensureBackendVoiceProfile } from "@/lib/tts/client";
-import { buildRoleVoicePreviewText, getVoicePreviewBlockReason } from "@/lib/tts/voice-preview-text";
+import {
+  buildRoleVoicePreviewText,
+  getVoicePreviewBlockReason,
+} from "@/lib/tts/voice-preview-text";
+import { recoverVoiceProfileReferenceText } from "@/lib/tts/voice-profile-reference-recovery";
+import { usePropsLibraryStore } from "@/stores/props-library-store";
 import { useStudioStore } from "@/stores/studio-store";
 import { useTtsStore } from "@/stores/tts-store";
 import type { ProjectVoiceBinding, TtsSpeakerId, VoiceProfile } from "@/types/tts";
@@ -250,7 +256,6 @@ export function StudioAssetDetailDialog({
     let success = false;
     if (asset.id.startsWith("manying-prop:")) {
       // 本地道具库数据，从 localStorage store 删除
-      const { usePropsLibraryStore } = await import("@/stores/props-library-store");
       const realId = asset.id.replace("manying-prop:", "");
       usePropsLibraryStore.getState().deleteProp(realId);
       success = true;
@@ -633,7 +638,6 @@ export function StudioAssetDetailDialog({
                         setGenerateMessage(`正在润色 ${asset.name} 的提示词...`);
                         try {
                           const assetType = asset.type === "role" ? "character" as const : asset.type === "scene" ? "scene" as const : "prop" as const;
-                          const { generateAsset } = await import("@/lib/studio/asset-generation-orchestrator");
                           const result = await generateAsset(
                             {
                               assetId: asset.id,
@@ -891,6 +895,7 @@ function RoleVoicePreviewButton({ profileId, characterName, defaultEngine, defau
   const [playing, setPlaying] = useState(false);
   const [loading, setLoading] = useState(false);
   const profile = useTtsStore((state) => state.voiceProfiles[profileId]);
+  const updateVoiceProfile = useTtsStore((state) => state.updateVoiceProfile);
   const audioRef = useState<HTMLAudioElement | null>(null)[0];
   const [, forceUpdate] = useState(0);
   const audioRefStable = useMemo(() => ({ current: null as HTMLAudioElement | null }), []);
@@ -910,7 +915,11 @@ function RoleVoicePreviewButton({ profileId, characterName, defaultEngine, defau
         toast.error("音色 profile 不存在，请重新分配音色");
         return;
       }
-      const blockReason = getVoicePreviewBlockReason(profile);
+      const previewProfile = await recoverVoiceProfileReferenceText(
+        profile,
+        updateVoiceProfile,
+      );
+      const blockReason = getVoicePreviewBlockReason(previewProfile);
       if (blockReason) {
         toast.error(blockReason);
         return;
@@ -925,7 +934,7 @@ function RoleVoicePreviewButton({ profileId, characterName, defaultEngine, defau
           return;
         }
       }
-      await ensureBackendVoiceProfile(profile);
+      await ensureBackendVoiceProfile(previewProfile);
       const text = buildRoleVoicePreviewText(characterName);
       const genRes = await window.ttsRuntime.request({
         method: "POST", path: "/generate",
@@ -957,7 +966,7 @@ function RoleVoicePreviewButton({ profileId, characterName, defaultEngine, defau
     } finally {
       setLoading(false);
     }
-  }, [profileId, profile, characterName, defaultEngine, defaultModelSize, playing, audioRefStable]);
+  }, [profileId, profile, updateVoiceProfile, characterName, defaultEngine, defaultModelSize, playing, audioRefStable]);
 
   return (
     <Button

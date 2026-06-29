@@ -1,0 +1,5 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="AI event analysis">
+  <rect x="8" y="8" width="48" height="48" rx="14" fill="#16181B"/>
+  <path d="M46 14L48.1 19.9L54 22L48.1 24.1L46 30L43.9 24.1L38 22L43.9 19.9L46 14Z" fill="#F4D06F"/>
+  <text x="31" y="40" fill="#F7FAFC" font-family="Inter, Arial, sans-serif" font-size="21" font-weight="800" letter-spacing=".4" text-anchor="middle">AI</text>
+</svg>

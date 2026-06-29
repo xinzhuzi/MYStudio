@@ -50,13 +50,6 @@ export type WorkflowNextAction = WorkflowActionMeta &
         targetId: string;
       }
     | {
-        kind: "run-director-plan";
-        stageId: "generation";
-        label: string;
-        targetId: string;
-      }
-    | { kind: "build-series-bible"; stageId: "generation"; label: string }
-    | {
         kind: "run-storyboard-table";
         stageId: "storyboard";
         label: string;
@@ -99,14 +92,13 @@ const STAGE_DEFS = [
   { id: "novel", label: "小说导入", actionLabel: "导入原文并完成事件分析" },
   {
     id: "script",
-    label: "策划编剧",
+    label: "剧本生产阶段",
     actionLabel: "生成故事骨架、改编策略和结构化剧本",
   },
-  { id: "assets", label: "剧本资产提取", actionLabel: "提取角色、场景、道具" },
   {
-    id: "generation",
+    id: "assets",
     label: "剧本资产管理",
-    actionLabel: "管理角色、场景、道具和衍生资产",
+    actionLabel: "提取角色、场景、道具后手动生成资产",
   },
   {
     id: "storyboard",
@@ -146,7 +138,6 @@ export function buildWorkflowReadiness(
     (batch) =>
       batch.characters.length + batch.scenes.length + batch.props.length > 0,
   );
-  const generationReady = assetReady;
   const visualStoryboardCount = input.storyboards.filter(
     (item) =>
       item.mediaRef &&
@@ -241,13 +232,6 @@ export function buildWorkflowReadiness(
         ? [`已提取 ${input.entityExtractions.length} 批剧本资产`]
         : [],
       missing: assetReady ? [] : ["提取角色/场景/道具"],
-    },
-    generation: {
-      ready: generationReady,
-      completed: assetReady
-        ? [`已管理 ${input.entityExtractions.length} 批剧本资产`]
-        : [],
-      missing: assetReady ? [] : ["补全角色/场景/道具资产"],
     },
     storyboard: {
       ready: storyboardReady,
@@ -360,7 +344,7 @@ function resolveNextAction(
     return {
       kind: "open-stage",
       stageId,
-      label: "进入策划编剧",
+      label: "进入剧本生产阶段",
       enabled: true,
     };
   }
@@ -372,14 +356,6 @@ function resolveNextAction(
       label: "提取剧本资产",
       targetId,
       ...textActionMeta,
-    };
-  }
-  if (stageId === "generation") {
-    return {
-      kind: "open-stage",
-      stageId,
-      label: "管理剧本资产",
-      enabled: true,
     };
   }
   if (stageId === "storyboard") {
@@ -440,26 +416,4 @@ function findScriptTarget(items: AgentWorkData[]) {
   return [...items]
     .reverse()
     .find((item) => item.key === "scriptDraft" && item.episodeId)?.episodeId;
-}
-
-function findLatestEntityExtractionTarget(input: WorkflowReadinessInput) {
-  const scriptedTarget = findScriptTarget(input.agentWorkData);
-  if (
-    scriptedTarget &&
-    input.entityExtractions.some((item) => item.episodeId === scriptedTarget)
-  ) {
-    return scriptedTarget;
-  }
-  return input.entityExtractions[input.entityExtractions.length - 1]?.episodeId;
-}
-
-function findLatestScriptPlanTarget(input: WorkflowReadinessInput) {
-  const scriptedTarget = findScriptTarget(input.agentWorkData);
-  if (
-    scriptedTarget &&
-    input.scriptPlans.some((item) => item.episodeId === scriptedTarget)
-  ) {
-    return scriptedTarget;
-  }
-  return input.scriptPlans[input.scriptPlans.length - 1]?.episodeId;
 }

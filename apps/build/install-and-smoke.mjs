@@ -30,6 +30,23 @@ function run(command, args, options = {}) {
   }
 }
 
+function runOptional(command, args) {
+  spawnSync(command, args, {
+    cwd: process.cwd(),
+    env: process.env,
+    encoding: 'utf8',
+    stdio: 'ignore',
+  });
+}
+
+function stopInstalledAppIfRunning() {
+  runOptional('osascript', [
+    '-e',
+    'tell application id "com.manju2026.manying-studio" to quit',
+  ]);
+  runOptional('pkill', ['-x', '漫影工作室']);
+}
+
 function assertNoBackupApps() {
   const backups = readdirSync('/Applications')
     .filter((name) => /^漫影工作室\.app\.(?:backup-|backup$)/.test(name));
@@ -43,6 +60,7 @@ if (!existsSync(packagedAsar)) {
 }
 
 assertNoBackupApps();
+stopInstalledAppIfRunning();
 run('ditto', [packagedApp, installedApp]);
 assertNoBackupApps();
 

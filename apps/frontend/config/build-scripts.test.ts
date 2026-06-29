@@ -87,6 +87,19 @@ describe("desktop build scripts", () => {
     expect(smokeScript).toContain("workflowE2E=ok");
     expect(smokeScript).toContain("MYSTUDIO_SMOKE");
     expect(smokeScript).toContain("verifyAssetVoiceFlow");
+    expect(smokeScript).toContain("verifyScriptAssetGenerationVoiceFlow");
+    const generationVoiceFlowStart = smokeScript.indexOf(
+      "async function verifyScriptAssetGenerationVoiceFlow",
+    );
+    const generationVoiceFlowEnd = smokeScript.indexOf(
+      "async function captureScreenshotStats",
+    );
+    const generationVoiceFlow = smokeScript.slice(
+      generationVoiceFlowStart,
+      generationVoiceFlowEnd,
+    );
+    expect(generationVoiceFlow).toContain("clickButtonByText('工作流', true)");
+    expect(generationVoiceFlow).toContain("当前工作区：漫影工作流");
     expect(smokeScript).toContain("ASSET_VOICE_FLOW_TIMEOUT_MS");
     expect(smokeScript).toContain('"Runtime.evaluate"');
     expect(smokeScript).toContain("withTimeout(");
@@ -108,13 +121,19 @@ describe("desktop build scripts", () => {
     expect(smokeScript).toContain("openDialogCountBeforeAudio");
     expect(smokeScript).toContain("audio[controls]");
     expect(smokeScript).toContain("loadedmetadata");
+    expect(smokeScript).toContain("AUDIO_METADATA_TIMEOUT_MS");
+    expect(smokeScript).toContain("scriptAssetGenerationVoiceFlow=ok");
+    expect(smokeScript).toContain(
+      "script asset generation did not expose role audio assignment",
+    );
     expect(smokeScript).toContain("音色");
     expect(smokeScript).toContain("开始制作");
     expect(smokeScript).toContain("进入工作流");
     expect(smokeScript).toContain("查看资产库");
-    expect(smokeScript).toContain("策划编剧");
-    expect(smokeScript).toContain("剧本资产提取");
+    expect(smokeScript).toContain("剧本生产阶段");
     expect(smokeScript).toContain("剧本资产管理");
+    expect(smokeScript).not.toContain("label: '剧本资产提取'");
+    expect(smokeScript).not.toContain("label: '剧本资产生成'");
     expect(smokeScript).toContain("分镜视频生成");
     expect(smokeScript).toContain("自动排版");
     expect(smokeScript).toContain("角色/场景/道具");
@@ -159,6 +178,65 @@ describe("desktop build scripts", () => {
     expect(smokeScript).toContain("captureError");
   });
 
+  it("does not mix static and runtime dynamic imports for shared studio modules", () => {
+    const novelActions = readBuildFile(
+      "frontend/components/panels/studio/useNovelPipelineActions.ts",
+    );
+    const scriptAssetActions = readBuildFile(
+      "frontend/components/panels/studio/useScriptAssetGenerationActions.ts",
+    );
+    const assetDialog = readBuildFile(
+      "frontend/components/panels/assets/StudioAssetDetailDialog.tsx",
+    );
+    const assetOrchestrator = readBuildFile(
+      "frontend/lib/studio/asset-generation-orchestrator.ts",
+    );
+    const smokeBridge = readBuildFile("frontend/lib/studio/workflow-smoke-bridge.ts");
+
+    expect(novelActions).not.toContain('await import("@/lib/studio/entity-sync")');
+    expect(scriptAssetActions).not.toContain(
+      'await import("@/lib/studio/asset-generation-orchestrator")',
+    );
+    expect(assetDialog).not.toContain('await import("@/stores/props-library-store")');
+    expect(assetDialog).not.toContain(
+      'await import("@/lib/studio/asset-generation-orchestrator")',
+    );
+    expect(assetOrchestrator).not.toContain('await import("@/lib/ai/prompt-polisher")');
+    expect(smokeBridge).not.toContain('await import("@/lib/studio/workflow-readiness")');
+  });
+
+  it("keeps the packaged workflow smoke aligned with script asset generation", () => {
+    const smokeScript = readBuildFile("build/smoke-desktop.mjs");
+    const assetsStart = smokeScript.indexOf("id: 'assets'");
+    const assetsEnd = smokeScript.indexOf("id: 'storyboard'");
+    const generationStart = smokeScript.indexOf("id: 'generation'");
+    const storyboardStart = smokeScript.indexOf("id: 'storyboard'");
+    const storyboardEnd = smokeScript.indexOf("id: 'workbench'");
+    const assetsStage = smokeScript.slice(assetsStart, assetsEnd);
+    const storyboardStage = smokeScript.slice(storyboardStart, storyboardEnd);
+
+    expect(assetsStart).toBeGreaterThan(-1);
+    expect(assetsEnd).toBeGreaterThan(assetsStart);
+    expect(generationStart).toBe(-1);
+    expect(storyboardStart).toBeGreaterThan(-1);
+    expect(storyboardEnd).toBeGreaterThan(storyboardStart);
+    expect(assetsStage).toContain("还没有剧本：请先在「剧本生产阶段」生成各章剧本");
+    expect(assetsStage).toContain("承接本阶段已提取的角色、场景、道具");
+    expect(assetsStage).toContain("全部润色提示词");
+    expect(assetsStage).toContain("生成图片");
+    expect(assetsStage).toContain("落地衍生资产");
+    expect(assetsStage).toContain("音频样本");
+    expect(assetsStage).not.toContain("requiredText: ['剧本资产提取'");
+    expect(assetsStage).not.toContain("requiredText: ['剧本资产生成'");
+    expect(assetsStage).toContain("'角色/场景/道具'");
+    expect(storyboardStage).toContain("自动排版");
+    expect(storyboardStage).not.toContain("requiredText: ['分镜视频生成'");
+    expect(assetsStage).toContain("forbiddenText");
+    expect(assetsStage).toContain("运行导演计划");
+    expect(assetsStage).toContain("锁定剧集圣经");
+    expect(assetsStage).not.toContain("创建缺失资产");
+  });
+
   it("exposes a no-backup installed app smoke flow", () => {
     const packageJson = readBuildFile("package.json");
     const installSmokeScript = readBuildFile("build/install-and-smoke.mjs");
@@ -167,6 +245,10 @@ describe("desktop build scripts", () => {
       '"smoke:installed": "node ./build/install-and-smoke.mjs"',
     );
     expect(installSmokeScript).toContain("/Applications/漫影工作室.app");
+    expect(installSmokeScript).toContain("stopInstalledAppIfRunning");
+    expect(installSmokeScript).toContain("tell application id \"com.manju2026.manying-studio\" to quit");
+    expect(installSmokeScript).toContain("pkill");
+    expect(installSmokeScript).toContain("漫影工作室");
     expect(installSmokeScript).toContain("ditto");
     expect(installSmokeScript).toContain("app.asar");
     expect(installSmokeScript).toContain("createHash");

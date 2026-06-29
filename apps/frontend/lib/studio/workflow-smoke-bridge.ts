@@ -1,5 +1,6 @@
 import { useStudioStore } from "@/stores/studio-store";
 import { useTtsStore } from "@/stores/tts-store";
+import { buildWorkflowReadiness } from "@/lib/studio/workflow-readiness";
 import type { AgentWorkKey } from "@/types/studio";
 import type { ProjectVoiceBinding, SceneVoiceLine, VoiceProfile } from "@/types/tts";
 
@@ -215,7 +216,6 @@ async function seedCompleteWorkflow(): Promise<WorkflowSmokeResult> {
 }
 
 async function inspectWorkflow(): Promise<WorkflowSmokeResult> {
-  const { buildWorkflowReadiness } = await import("@/lib/studio/workflow-readiness");
   const studio = useStudioStore.getState();
   const tts = useTtsStore.getState();
   const project = tts.projects[tts.activeProjectId ?? "default-project"];
@@ -243,9 +243,9 @@ async function inspectWorkflow(): Promise<WorkflowSmokeResult> {
       novelReady: readiness.stages[1]?.status === "ready",
       scriptReady: readiness.stages[2]?.status === "ready",
       assetsReady: readiness.stages[3]?.status === "ready",
-      generationReady: readiness.stages[4]?.status === "ready",
-      storyboardReady: readiness.stages[5]?.status === "ready",
-      workbenchReady: readiness.stages[6]?.status === "ready",
+      generationReady: readiness.stages[3]?.status === "ready",
+      storyboardReady: readiness.stages[4]?.status === "ready",
+      workbenchReady: readiness.stages[5]?.status === "ready",
       hasFinalExport: studio.agentWorkData.some((item) => item.key === "productionPlan" && item.data.includes("本地成片输出:")),
       hasSelectedCandidate: studio.productionTracks.some((track) => Boolean(track.selectedVideoId)),
       hasVoiceBinding: Object.keys(project?.bindings ?? {}).some((speakerId) => speakerId.startsWith("character:")),

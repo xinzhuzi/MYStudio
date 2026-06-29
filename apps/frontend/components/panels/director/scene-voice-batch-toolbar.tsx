@@ -11,6 +11,7 @@ import {
   startTtsRuntime,
 } from "@/lib/tts/client";
 import { aiManager } from "@/lib/ai/ai-manager";
+import { recoverVoiceProfileReferenceText } from "@/lib/tts/voice-profile-reference-recovery";
 import { validateVoiceProfileForGeneration } from "@/lib/tts/voice-profile-capabilities";
 import type { SplitScene } from "@/stores/director-store";
 import { useProjectStore } from "@/stores/project-store";
@@ -42,6 +43,7 @@ export function SceneVoiceBatchToolbar({ scenes }: SceneVoiceBatchToolbarProps) 
   const markCompleted = useTtsStore((state) => state.markCompleted);
   const markFailed = useTtsStore((state) => state.markFailed);
   const voiceProfiles = useTtsStore((state) => state.voiceProfiles);
+  const updateVoiceProfile = useTtsStore((state) => state.updateVoiceProfile);
   const [running, setRunning] = useState<"missing" | "failed" | null>(null);
   const cancelRef = useRef(false);
 
@@ -85,20 +87,24 @@ export function SceneVoiceBatchToolbar({ scenes }: SceneVoiceBatchToolbarProps) 
           failed += 1;
           continue;
         }
-        const validationError = validateVoiceProfileForGeneration(profile);
+        const generationProfile = await recoverVoiceProfileReferenceText(
+          profile,
+          updateVoiceProfile,
+        );
+        const validationError = validateVoiceProfileForGeneration(generationProfile);
         if (validationError) {
           markFailed(sceneId, validationError);
           failed += 1;
           continue;
         }
         try {
-          await ensureBackendVoiceProfile(profile);
+          await ensureBackendVoiceProfile(generationProfile);
           const generation = await aiManager.tts({
             text: line.text || scene.dialogue || "",
-            profileId: profile.id,
+            profileId: generationProfile.id,
             engine: line.engine,
             modelSize: line.modelSize,
-            language: profile.language,
+            language: generationProfile.language,
           });
           markGenerating(sceneId, generation.id);
           const completed = await waitForBatchGeneration(generation.id);
