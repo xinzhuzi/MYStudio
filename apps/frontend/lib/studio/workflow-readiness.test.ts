@@ -58,18 +58,22 @@ describe("studio workflow readiness", () => {
       label: "进入策划编剧",
       enabled: true,
     });
-    expect(readiness.stages.find((stage) => stage.id === "novel")).toMatchObject({
+    expect(
+      readiness.stages.find((stage) => stage.id === "novel"),
+    ).toMatchObject({
       status: "ready",
       completed: ["已导入 1 章原文", "1 章已完成事件分析"],
     });
-    expect(readiness.stages.find((stage) => stage.id === "script")?.missing).toContain("生成剧本草稿");
+    expect(
+      readiness.stages.find((stage) => stage.id === "script")?.missing,
+    ).toContain("生成剧本草稿");
     expect(readiness.stages.map((stage) => stage.label)).toEqual([
       "风格与导演",
       "小说导入",
       "策划编剧",
-      "剧本资产",
-      "ProductionAgent",
-      "分镜面板",
+      "剧本资产提取",
+      "剧本资产管理",
+      "分镜视频生成",
       "视频工作台",
     ]);
   });
@@ -77,7 +81,15 @@ describe("studio workflow readiness", () => {
   it("keeps novel import active until imported chapters have event analysis", () => {
     const readiness = buildWorkflowReadiness({
       workflowConfig: readyManuals(),
-      novelChapters: [{ id: "chapter-1", index: 1, title: "第一章", sourceText: "入局", importedAt: 1 }],
+      novelChapters: [
+        {
+          id: "chapter-1",
+          index: 1,
+          title: "第一章",
+          sourceText: "入局",
+          importedAt: 1,
+        },
+      ],
       agentWorkData: [],
       entityExtractions: [],
       scriptPlans: [],
@@ -88,7 +100,9 @@ describe("studio workflow readiness", () => {
     });
 
     expect(readiness.nextStageId).toBe("novel");
-    expect(readiness.stages.find((stage) => stage.id === "novel")).toMatchObject({
+    expect(
+      readiness.stages.find((stage) => stage.id === "novel"),
+    ).toMatchObject({
       status: "active",
       completed: ["已导入 1 章原文"],
       missing: ["完成事件分析"],
@@ -99,7 +113,16 @@ describe("studio workflow readiness", () => {
     const readiness = buildWorkflowReadiness({
       workflowConfig: readyManuals(),
       novelChapters: [analyzedChapter()],
-      agentWorkData: [{ id: "work-1", key: "scriptDraft", episodeId: "chapter-1", data: "## S01", createdAt: 1, updatedAt: 1 }],
+      agentWorkData: [
+        {
+          id: "work-1",
+          key: "scriptDraft",
+          episodeId: "chapter-1",
+          data: "## S01",
+          createdAt: 1,
+          updatedAt: 1,
+        },
+      ],
       entityExtractions: [],
       scriptPlans: [],
       seriesBible: null,
@@ -123,7 +146,16 @@ describe("studio workflow readiness", () => {
     const readiness = buildWorkflowReadiness({
       workflowConfig: readyManuals(),
       novelChapters: [analyzedChapter()],
-      agentWorkData: [{ id: "work-1", key: "scriptDraft", episodeId: "chapter-1", data: "## S01", createdAt: 1, updatedAt: 1 }],
+      agentWorkData: [
+        {
+          id: "work-1",
+          key: "scriptDraft",
+          episodeId: "chapter-1",
+          data: "## S01",
+          createdAt: 1,
+          updatedAt: 1,
+        },
+      ],
       entityExtractions: [],
       scriptPlans: [],
       seriesBible: null,
@@ -142,13 +174,30 @@ describe("studio workflow readiness", () => {
     });
   });
 
-  it("targets the latest scripted chapter for generation instead of an older extraction batch", () => {
+  it("moves from managed script assets to storyboard video generation", () => {
     const readiness = buildWorkflowReadiness({
       workflowConfig: readyManuals(),
-      novelChapters: [analyzedChapter(), analyzedChapter("chapter-2", 2, "第二章")],
+      novelChapters: [
+        analyzedChapter(),
+        analyzedChapter("chapter-2", 2, "第二章"),
+      ],
       agentWorkData: [
-        { id: "work-1", key: "scriptDraft", episodeId: "chapter-1", data: "第一章剧本", createdAt: 1, updatedAt: 1 },
-        { id: "work-2", key: "scriptDraft", episodeId: "chapter-2", data: "第二章剧本", createdAt: 2, updatedAt: 2 },
+        {
+          id: "work-1",
+          key: "scriptDraft",
+          episodeId: "chapter-1",
+          data: "第一章剧本",
+          createdAt: 1,
+          updatedAt: 1,
+        },
+        {
+          id: "work-2",
+          key: "scriptDraft",
+          episodeId: "chapter-2",
+          data: "第二章剧本",
+          createdAt: 2,
+          updatedAt: 2,
+        },
       ],
       entityExtractions: [
         { ...entityBatch(), id: "entity-old", episodeId: "chapter-1" },
@@ -162,20 +211,45 @@ describe("studio workflow readiness", () => {
       capabilities: { textCompletion: true, studioRenderer: false },
     });
 
-    expect(readiness.nextStageId).toBe("generation");
+    expect(readiness.nextStageId).toBe("storyboard");
     expect(readiness.nextAction).toMatchObject({
-      kind: "run-director-plan",
-      targetId: "chapter-2",
+      kind: "open-stage",
+      label: "打开视频生产节点",
     });
+    expect(
+      readiness.stages.find((stage) => stage.id === "script")?.completed,
+    ).toContain("当前剧本已就绪");
+    expect(
+      readiness.stages
+        .find((stage) => stage.id === "script")
+        ?.completed.join("\n"),
+    ).not.toContain("份剧本");
   });
 
-  it("targets the matching latest script plan for storyboard generation", () => {
+  it("opens the storyboard node workspace after director planning", () => {
     const readiness = buildWorkflowReadiness({
       workflowConfig: readyManuals(),
-      novelChapters: [analyzedChapter(), analyzedChapter("chapter-2", 2, "第二章")],
+      novelChapters: [
+        analyzedChapter(),
+        analyzedChapter("chapter-2", 2, "第二章"),
+      ],
       agentWorkData: [
-        { id: "work-1", key: "scriptDraft", episodeId: "chapter-1", data: "第一章剧本", createdAt: 1, updatedAt: 1 },
-        { id: "work-2", key: "scriptDraft", episodeId: "chapter-2", data: "第二章剧本", createdAt: 2, updatedAt: 2 },
+        {
+          id: "work-1",
+          key: "scriptDraft",
+          episodeId: "chapter-1",
+          data: "第一章剧本",
+          createdAt: 1,
+          updatedAt: 1,
+        },
+        {
+          id: "work-2",
+          key: "scriptDraft",
+          episodeId: "chapter-2",
+          data: "第二章剧本",
+          createdAt: 2,
+          updatedAt: 2,
+        },
       ],
       entityExtractions: [
         { ...entityBatch(), id: "entity-old", episodeId: "chapter-1" },
@@ -194,18 +268,38 @@ describe("studio workflow readiness", () => {
 
     expect(readiness.nextStageId).toBe("storyboard");
     expect(readiness.nextAction).toMatchObject({
-      kind: "run-storyboard-table",
-      targetId: "chapter-2",
+      kind: "open-stage",
+      label: "打开视频生产节点",
     });
   });
 
-  it("does not mark director generation ready until the series bible is locked", () => {
+  it("keeps script asset management focused on extracted assets", () => {
     const readiness = buildWorkflowReadiness({
       workflowConfig: readyManuals(),
       novelChapters: [analyzedChapter()],
-      agentWorkData: [{ id: "work-1", key: "scriptDraft", data: "## S01", createdAt: 1, updatedAt: 1 }],
+      agentWorkData: [
+        {
+          id: "work-1",
+          key: "scriptDraft",
+          data: "## S01",
+          createdAt: 1,
+          updatedAt: 1,
+        },
+      ],
       entityExtractions: [entityBatch()],
-      scriptPlans: [{ id: "plan-1", episodeId: "episode-1", theme: "入局", visualStyle: "水墨", narrativeRhythm: "紧", sceneIntents: [], soundDirection: "低声", transitions: "硬切", derivedAssetPlan: [] }],
+      scriptPlans: [
+        {
+          id: "plan-1",
+          episodeId: "episode-1",
+          theme: "入局",
+          visualStyle: "水墨",
+          narrativeRhythm: "紧",
+          sceneIntents: [],
+          soundDirection: "低声",
+          transitions: "硬切",
+          derivedAssetPlan: [],
+        },
+      ],
       seriesBible: null,
       storyboards: [],
       productionTracks: [],
@@ -213,15 +307,17 @@ describe("studio workflow readiness", () => {
       capabilities: { textCompletion: true, studioRenderer: false },
     });
 
-    expect(readiness.nextStageId).toBe("generation");
-    expect(readiness.stages.find((stage) => stage.id === "generation")).toMatchObject({
-      status: "active",
-      completed: ["已生成 1 份导演计划"],
-      missing: ["锁定剧集圣经"],
+    expect(readiness.nextStageId).toBe("storyboard");
+    expect(
+      readiness.stages.find((stage) => stage.id === "generation"),
+    ).toMatchObject({
+      status: "ready",
+      completed: ["已管理 1 批剧本资产"],
+      missing: [],
     });
     expect(readiness.nextAction).toMatchObject({
-      kind: "build-series-bible",
-      label: "锁定剧集圣经",
+      kind: "open-stage",
+      label: "打开视频生产节点",
       enabled: true,
     });
   });
@@ -230,11 +326,21 @@ describe("studio workflow readiness", () => {
     const readiness = buildWorkflowReadiness({
       workflowConfig: readyManuals(),
       novelChapters: [analyzedChapter()],
-      agentWorkData: [{ id: "work-1", key: "scriptDraft", data: "## S01", createdAt: 1, updatedAt: 1 }],
+      agentWorkData: [
+        {
+          id: "work-1",
+          key: "scriptDraft",
+          data: "## S01",
+          createdAt: 1,
+          updatedAt: 1,
+        },
+      ],
       entityExtractions: [entityBatch()],
       scriptPlans: [scriptPlan()],
       seriesBible: seriesBible(),
-      storyboards: [storyboard("sb-1", { kind: "image", path: "/tmp/sb-1.png" })],
+      storyboards: [
+        storyboard("sb-1", { kind: "image", path: "/tmp/sb-1.png" }),
+      ],
       productionTracks: [],
       videoCandidates: [],
       voiceBindings: [voiceBinding()],
@@ -270,13 +376,28 @@ describe("studio workflow readiness", () => {
       },
     ];
     const candidates: VideoCandidate[] = [
-      { id: "video-1", trackId: "track-1", provider: "ffmpeg-local", state: "ready", filePath: "/tmp/opening.mp4", createdAt: 1 },
+      {
+        id: "video-1",
+        trackId: "track-1",
+        provider: "ffmpeg-local",
+        state: "ready",
+        filePath: "/tmp/opening.mp4",
+        createdAt: 1,
+      },
     ];
 
     const readiness = buildWorkflowReadiness({
       workflowConfig: readyManuals(),
       novelChapters: [analyzedChapter()],
-      agentWorkData: [{ id: "work-1", key: "scriptDraft", data: "## S01", createdAt: 1, updatedAt: 1 }],
+      agentWorkData: [
+        {
+          id: "work-1",
+          key: "scriptDraft",
+          data: "## S01",
+          createdAt: 1,
+          updatedAt: 1,
+        },
+      ],
       entityExtractions: [entityBatch()],
       scriptPlans: [scriptPlan()],
       seriesBible: seriesBible(),
@@ -284,11 +405,16 @@ describe("studio workflow readiness", () => {
       productionTracks: tracks,
       videoCandidates: candidates,
       voiceBindings: [voiceBinding()],
-      sceneVoiceLines: [voiceLine(1, "/tmp/sb-1.wav"), voiceLine(2, "/tmp/sb-2.wav")],
+      sceneVoiceLines: [
+        voiceLine(1, "/tmp/sb-1.wav"),
+        voiceLine(2, "/tmp/sb-2.wav"),
+      ],
     });
 
     expect(readiness.nextStageId).toBe("workbench");
-    expect(readiness.stages.find((stage) => stage.id === "workbench")?.status).toBe("active");
+    expect(
+      readiness.stages.find((stage) => stage.id === "workbench")?.status,
+    ).toBe("active");
     expect(readiness.nextAction).toEqual({
       kind: "merge-episode",
       stageId: "workbench",
@@ -296,29 +422,125 @@ describe("studio workflow readiness", () => {
       enabled: false,
       disabledReason: "当前环境不支持本地渲染",
     });
-    expect(readiness.stages.find((stage) => stage.id === "storyboard")).toMatchObject({
+    expect(
+      readiness.stages.find((stage) => stage.id === "storyboard"),
+    ).toMatchObject({
       status: "ready",
-      completed: ["已落地 2 条分镜", "2 条分镜已绑定画面素材", "已分配角色音色", "2 条分镜配音已生成"],
+      completed: [
+        "已落地 2 条分镜",
+        "2 条分镜已绑定画面素材",
+        "已分配角色音色",
+        "2 条分镜配音已生成",
+      ],
     });
-    expect(readiness.stages.find((stage) => stage.id === "workbench")?.missing).toContain("导出最终成片");
+    expect(
+      readiness.stages.find((stage) => stage.id === "workbench")?.missing,
+    ).toContain("导出最终成片");
+  });
+
+  it("does not count missing local files as ready workflow outputs", () => {
+    const existingFiles = new Set(["/tmp/sb-1.png", "/tmp/sb-1.wav"]);
+    const storyboards: StoryboardItem[] = [
+      storyboard("sb-1", { kind: "image", path: "/tmp/sb-1.png" }),
+      storyboard("sb-2", { kind: "video", path: "/tmp/missing-sb-2.mp4" }),
+    ];
+    const tracks: ProductionTrack[] = [
+      {
+        id: "track-1",
+        episodeId: "episode-1",
+        trackKey: "opening",
+        storyboardIds: ["sb-1", "sb-2"],
+        prompt: "opening",
+        duration: 8,
+        candidateVideoIds: ["video-1"],
+        selectedVideoId: "video-1",
+        state: "ready",
+      },
+    ];
+    const candidates: VideoCandidate[] = [
+      {
+        id: "video-1",
+        trackId: "track-1",
+        provider: "ffmpeg-local",
+        state: "ready",
+        filePath: "/tmp/missing-opening.mp4",
+        createdAt: 1,
+      },
+    ];
+
+    const readiness = buildWorkflowReadiness({
+      workflowConfig: readyManuals(),
+      novelChapters: [analyzedChapter()],
+      agentWorkData: [
+        {
+          id: "work-1",
+          key: "scriptDraft",
+          data: "## S01",
+          createdAt: 1,
+          updatedAt: 1,
+        },
+        {
+          id: "work-export",
+          key: "productionPlan",
+          data: "本地成片输出: /tmp/missing-final.mp4",
+          createdAt: 2,
+          updatedAt: 2,
+        },
+      ],
+      entityExtractions: [entityBatch()],
+      scriptPlans: [scriptPlan()],
+      seriesBible: seriesBible(),
+      storyboards,
+      productionTracks: tracks,
+      videoCandidates: candidates,
+      voiceBindings: [voiceBinding()],
+      sceneVoiceLines: [
+        voiceLine(1, "/tmp/sb-1.wav"),
+        voiceLine(2, "/tmp/missing-sb-2.wav"),
+      ],
+      fileExists: (filePath) => existingFiles.has(filePath),
+    });
+
+    expect(readiness.nextStageId).toBe("storyboard");
+    expect(
+      readiness.stages.find((stage) => stage.id === "storyboard"),
+    ).toMatchObject({
+      status: "active",
+      missing: ["为所有分镜绑定画面素材", "生成分镜配音音频"],
+    });
+    expect(
+      readiness.stages.find((stage) => stage.id === "workbench")?.status,
+    ).toBe("blocked");
   });
 
   it("keeps storyboard active when visual media exists but role voice is not assigned", () => {
     const readiness = buildWorkflowReadiness({
       workflowConfig: readyManuals(),
       novelChapters: [analyzedChapter()],
-      agentWorkData: [{ id: "work-1", key: "scriptDraft", data: "## S01", createdAt: 1, updatedAt: 1 }],
+      agentWorkData: [
+        {
+          id: "work-1",
+          key: "scriptDraft",
+          data: "## S01",
+          createdAt: 1,
+          updatedAt: 1,
+        },
+      ],
       entityExtractions: [entityBatch()],
       scriptPlans: [scriptPlan()],
       seriesBible: seriesBible(),
-      storyboards: [storyboard("sb-1", { kind: "image", path: "/tmp/sb-1.png" })],
+      storyboards: [
+        storyboard("sb-1", { kind: "image", path: "/tmp/sb-1.png" }),
+      ],
       productionTracks: [],
       videoCandidates: [],
       sceneVoiceLines: [voiceLine(1, "/tmp/sb-1.wav")],
     });
 
     expect(readiness.nextStageId).toBe("storyboard");
-    expect(readiness.stages.find((stage) => stage.id === "storyboard")).toMatchObject({
+    expect(
+      readiness.stages.find((stage) => stage.id === "storyboard"),
+    ).toMatchObject({
       status: "active",
       missing: ["分配角色音色"],
     });
@@ -328,11 +550,21 @@ describe("studio workflow readiness", () => {
     const readiness = buildWorkflowReadiness({
       workflowConfig: readyManuals(),
       novelChapters: [analyzedChapter()],
-      agentWorkData: [{ id: "work-1", key: "scriptDraft", data: "## S01", createdAt: 1, updatedAt: 1 }],
+      agentWorkData: [
+        {
+          id: "work-1",
+          key: "scriptDraft",
+          data: "## S01",
+          createdAt: 1,
+          updatedAt: 1,
+        },
+      ],
       entityExtractions: [entityBatch()],
       scriptPlans: [scriptPlan()],
       seriesBible: seriesBible(),
-      storyboards: [storyboard("sb-1", { kind: "image", path: "/tmp/sb-1.png" })],
+      storyboards: [
+        storyboard("sb-1", { kind: "image", path: "/tmp/sb-1.png" }),
+      ],
       productionTracks: [],
       videoCandidates: [],
       voiceBindings: [voiceBinding()],
@@ -340,7 +572,9 @@ describe("studio workflow readiness", () => {
     });
 
     expect(readiness.nextStageId).toBe("storyboard");
-    expect(readiness.stages.find((stage) => stage.id === "storyboard")).toMatchObject({
+    expect(
+      readiness.stages.find((stage) => stage.id === "storyboard"),
+    ).toMatchObject({
       status: "active",
       missing: ["生成分镜配音音频"],
     });
@@ -366,7 +600,10 @@ function analyzedChapter(id = "chapter-1", index = 1, title = "第一章") {
   };
 }
 
-function storyboard(id: string, mediaRef: StoryboardItem["mediaRef"]): StoryboardItem {
+function storyboard(
+  id: string,
+  mediaRef: StoryboardItem["mediaRef"],
+): StoryboardItem {
   return {
     id,
     episodeId: "episode-1",

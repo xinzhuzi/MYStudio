@@ -53,18 +53,25 @@ export function getProjectWorkspaceLabel(activeTab: Tab, activeStage: Stage): st
 }
 
 interface ProjectHeaderProps {
-  onBack: () => void;
   sidebarCollapsed?: boolean;
   onToggleSidebar?: () => void;
 }
 
 export function ProjectHeader({
-  onBack,
   sidebarCollapsed = false,
   onToggleSidebar,
 }: ProjectHeaderProps) {
   const { activeProject } = useProjectStore();
-  const { activeTab, activeStage, activeEpisodeIndex, backToSeries } = useMediaPanelStore();
+  const {
+    activeTab,
+    activeStage,
+    activeEpisodeIndex,
+    backToSeries,
+    canGoBack,
+    canGoForward,
+    goBack,
+    goForward,
+  } = useMediaPanelStore();
   const scriptStore = useScriptStore();
   
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("saved");
@@ -122,8 +129,10 @@ export function ProjectHeader({
           />
         )}
         <ChromeControls
-          onBack={onBack}
-          canGoBack
+          onBack={goBack}
+          onForward={goForward}
+          canGoBack={canGoBack()}
+          canGoForward={canGoForward()}
         />
         <div className="project-breadcrumb min-w-0">
           <span className="project-chrome-title text-sm font-medium text-white truncate max-w-[220px]">

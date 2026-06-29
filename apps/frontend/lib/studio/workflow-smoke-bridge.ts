@@ -35,6 +35,10 @@ export function isIsolatedSmokeUserDataDir(userDataDir?: string): boolean {
   return /(?:^|[/\\])mystudio-(?:installed-)?smoke-[^/\\]+$/.test(userDataDir);
 }
 
+export function getSmokeStoryboardFramePath() {
+  return "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADtgGOSHzRgQAAAABJRU5ErkJggg==";
+}
+
 async function setWorkflowStage(stage: string): Promise<boolean> {
   useStudioStore.getState().setWorkflowConfig({ workflowStage: stage });
   return true;
@@ -52,6 +56,7 @@ async function seedCompleteWorkflow(): Promise<WorkflowSmokeResult> {
   const trackId = "smoke-track-1";
   const videoId = "smoke-video-1";
   const audioPath = "/tmp/mystudio-smoke-voice.wav";
+  const framePath = getSmokeStoryboardFramePath();
   const videoPath = "/tmp/mystudio-smoke-final.mp4";
 
   studio.setWorkflowConfig({
@@ -82,6 +87,7 @@ async function seedCompleteWorkflow(): Promise<WorkflowSmokeResult> {
       work("storySkeleton", "故事骨架：矿场觉醒、断剑牵引、逃出生天。", chapterId, now),
       work("adaptationStrategy", "改编策略：压缩背景，强化动作和悬念。", chapterId, now),
       work("scriptDraft", "## S01\n独孤剑尘睁眼，尘土和铁链声压下来。", chapterId, now),
+      work("storyboardTable", "|镜头|画面|台词|\n|1|水墨矿场醒来|他在尘土里醒来。|", chapterId, now),
       work("productionPlan", `本地成片输出: ${videoPath}`, "episode-1", now),
     ],
     entityExtractions: [
@@ -127,7 +133,7 @@ async function seedCompleteWorkflow(): Promise<WorkflowSmokeResult> {
         prompt: "水墨矿场，青年剑修睁眼，铁链震动。",
         videoDesc: "旁白：他在尘土里醒来。",
         assetIds: [roleId, sceneId],
-        mediaRef: { kind: "image", path: "/tmp/mystudio-smoke-frame.png" },
+        mediaRef: { kind: "image", path: framePath },
         state: "ready",
       },
     ],

@@ -27,6 +27,50 @@ describe("studio storyboard duration math", () => {
 });
 
 describe("studio storyboard table parsing", () => {
+  it("parses Toonflow grouped scene/segment storyboard tables", () => {
+    const output = [
+      "<storyboardTable>",
+      "## 场1：道口镇客栈 ｜ 参演角色：独孤剑尘、掌柜",
+      "",
+      "### 片段一（约10s）",
+      "**引用资产名称**：[独孤剑尘, 掌柜, 道口镇客栈]",
+      "**引用资产ID**：[role-001, role-002, scene-001]",
+      "| 序号 | 画面描述 | 时长 | 景别 | 运镜 | 台词 | 音效 |",
+      "|------|------|------|------|------|------|------|",
+      "| 1 | 独孤剑尘推门停在门槛前，掌柜抬眼收住拨算盘的手。 | 5 | 中景 | 缓推 | 掌柜：客官，外头雨大。 | 音效：木门吱呀声、算盘珠停顿声 |",
+      "| 2 | 独孤剑尘侧身避开滴水，将断剑往怀里压紧。 | 5 | 近景 | 静止 | 独孤剑尘：借一盏灯。 | 音效：雨水滴落声 |",
+      "</storyboardTable>",
+    ].join("\n");
+
+    const { rows, errors } = parseStoryboardTable(output, "chapter-001");
+
+    expect(errors).toHaveLength(0);
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toMatchObject({
+      index: 1,
+      sceneIndex: 1,
+      scene: "道口镇客栈",
+      segmentTitle: "片段一（约10s）",
+      shotSize: "中景",
+      cameraMove: "缓推",
+      lines: "掌柜：客官，外头雨大。",
+    });
+    expect(rows[0]?.associateAssetsNames).toEqual([
+      "独孤剑尘",
+      "掌柜",
+      "道口镇客栈",
+    ]);
+    expect(rows[0]?.associateAssetsIds).toEqual([
+      "role-001",
+      "role-002",
+      "scene-001",
+    ]);
+    const items = toStoryboardItems(rows, "chapter-001");
+    expect(items[0]?.speakerId).toBe("character:掌柜");
+    expect(items[1]?.speakerId).toBe("character:独孤剑尘");
+    expect(items[0]?.assetIds).toEqual(["role-001", "role-002", "scene-001"]);
+  });
+
   it("merges multiple <storyboardTable> segments, parses 14 columns, splits [a,b] names/ids, skips header/separator/illegal", () => {
     const output = [
       "<storyboardTable>",

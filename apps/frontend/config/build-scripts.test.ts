@@ -37,6 +37,19 @@ describe("desktop build scripts", () => {
     const source = readBuildFile("build/build-mac.sh");
 
     expect(source).toContain("node ./build/build-desktop.mjs --mac");
+    expect(source).toContain("HAS_ARCH=0");
+    expect(source).toContain("BUILD_ARGS=\"${BUILD_ARGS} --arm64\"");
+    expect(source).toContain("Command: node ./build/build-desktop.mjs --mac$BUILD_ARGS");
+    expect(source).toContain("--install|--smoke-installed");
+    expect(source).toContain("INSTALL_AFTER_BUILD=1");
+    expect(source).toContain("node ./build/install-and-smoke.mjs");
+    expect(source).not.toContain("ditto");
+    expect(source).not.toContain("/Applications/漫影工作室.app");
+    expect(source).not.toContain("backup-");
+    expect(source).not.toContain(".backup");
+    expect(source).not.toContain("cp -R");
+    expect(source).not.toContain("mv ");
+    expect(source).not.toContain("rsync");
     expect(source).not.toContain("./src/build/build-desktop.mjs");
     expect(source).not.toContain("SCRIPT_DIR/../..");
   });
@@ -45,14 +58,20 @@ describe("desktop build scripts", () => {
     const source = readBuildFile("package.json");
 
     expect(source).toContain('"build:mac": "sh ./build/build-mac.sh --arm64"');
-    expect(source).not.toContain("electron-builder --config frontend/config/electron-builder.yml --mac --arm64");
+    expect(source).toContain('"build:mac:install": "sh ./build/build-mac.sh --arm64 --install"');
+    expect(source).not.toContain('"build:mac:install": "node ./build/install-and-smoke.mjs"');
+    expect(source).not.toContain(
+      "electron-builder --config frontend/config/electron-builder.yml --mac --arm64",
+    );
   });
 
   it("exposes a packaged desktop smoke test for white-screen regressions", () => {
     const packageJson = readBuildFile("package.json");
     const smokeScript = readBuildFile("build/smoke-desktop.mjs");
 
-    expect(packageJson).toContain('"smoke:desktop": "node ./build/smoke-desktop.mjs"');
+    expect(packageJson).toContain(
+      '"smoke:desktop": "node ./build/smoke-desktop.mjs"',
+    );
     expect(smokeScript).toContain("dashboard-project-card");
     expect(smokeScript).toContain("项目概览");
     expect(smokeScript).toContain("bodyBg");
@@ -69,8 +88,9 @@ describe("desktop build scripts", () => {
     expect(smokeScript).toContain("MYSTUDIO_SMOKE");
     expect(smokeScript).toContain("verifyAssetVoiceFlow");
     expect(smokeScript).toContain("ASSET_VOICE_FLOW_TIMEOUT_MS");
-    expect(smokeScript).toContain("send('Runtime.evaluate', {");
-    expect(smokeScript).toContain("}, timeoutMs)");
+    expect(smokeScript).toContain('"Runtime.evaluate"');
+    expect(smokeScript).toContain("withTimeout(");
+    expect(smokeScript).toContain("CDP_CALL_TIMEOUT_MS");
     expect(smokeScript).toContain("Smoke测试剑修");
     expect(smokeScript).toContain("searchAssetLibrary");
     expect(smokeScript).toContain("Smoke青年男声");
@@ -78,6 +98,8 @@ describe("desktop build scripts", () => {
     expect(smokeScript).toContain("自动分配音频");
     expect(smokeScript).toContain("为角色「");
     expect(smokeScript).toContain("资产库音频");
+    expect(smokeScript).toContain("searchVoiceAssignDialog");
+    expect(smokeScript).toContain("搜索音频名称或文件名");
     expect(smokeScript).toContain("确认分配");
     expect(smokeScript).toContain("已绑定音色音频");
     expect(smokeScript).toContain("克隆音色");
@@ -91,17 +113,36 @@ describe("desktop build scripts", () => {
     expect(smokeScript).toContain("进入工作流");
     expect(smokeScript).toContain("查看资产库");
     expect(smokeScript).toContain("策划编剧");
-    expect(smokeScript).toContain("剧本资产");
-    expect(smokeScript).toContain("ProductionAgent");
-    expect(smokeScript).toContain("分镜面板");
+    expect(smokeScript).toContain("剧本资产提取");
+    expect(smokeScript).toContain("剧本资产管理");
+    expect(smokeScript).toContain("分镜视频生成");
+    expect(smokeScript).toContain("自动排版");
+    expect(smokeScript).toContain("角色/场景/道具");
     expect(smokeScript).toContain("视频工作台");
+    expect(smokeScript).toContain("forbiddenText");
+    expect(smokeScript).toContain("workflow stage rendered removed content");
+    expect(smokeScript).toContain("运行 AI 分镜计划");
+    expect(smokeScript).toContain("添加分镜");
     expect(smokeScript).toContain("verifyWorkflowStages");
     expect(smokeScript).toContain("workflow stage missing required content");
     expect(smokeScript).toContain("workflow-node-canvas");
-    expect(smokeScript).toContain("workflow-node-connector");
+    expect(smokeScript).toContain("react-flow");
+    expect(smokeScript).toContain("react-flow__edge");
+    expect(smokeScript).toContain("data-flow-node-id");
     expect(smokeScript).toContain("hasTopNodeCanvas");
-    expect(smokeScript).toContain("production-agent-workspace .workflow-node-canvas");
-    expect(smokeScript).toContain("ProductionAgent node canvas did not render");
+    expect(smokeScript).toContain("storyboardStage");
+    expect(smokeScript).toContain("nodeCardTexts");
+    expect(smokeScript).toContain("requiredNodePreviewText");
+    expect(smokeScript).toContain("hasNodeFlowDataPreview");
+    expect(smokeScript).toContain(
+      "workflow node cards did not show Toonflow FlowData previews",
+    );
+    expect(smokeScript).toContain(
+      "storyboard video generation React Flow workflow canvas did not render",
+    );
+    expect(smokeScript).toContain(
+      "workflow node canvas rendered inside 剧本资产管理 instead of 分镜视频生成",
+    );
     expect(smokeScript).toContain("Python 运行环境");
     expect(smokeScript).toContain("不随应用启动自动配置");
     expect(smokeScript).toContain("开始配置");
@@ -122,7 +163,9 @@ describe("desktop build scripts", () => {
     const packageJson = readBuildFile("package.json");
     const installSmokeScript = readBuildFile("build/install-and-smoke.mjs");
 
-    expect(packageJson).toContain('"smoke:installed": "node ./build/install-and-smoke.mjs"');
+    expect(packageJson).toContain(
+      '"smoke:installed": "node ./build/install-and-smoke.mjs"',
+    );
     expect(installSmokeScript).toContain("/Applications/漫影工作室.app");
     expect(installSmokeScript).toContain("ditto");
     expect(installSmokeScript).toContain("app.asar");
@@ -130,22 +173,37 @@ describe("desktop build scripts", () => {
     expect(installSmokeScript).toContain("forbidden backup app copies");
     expect(installSmokeScript).toMatch(/漫影工作室\\\.app/);
     expect(installSmokeScript).not.toContain("name.includes('backup-*')");
-    expect(installSmokeScript).toContain("mkdtempSync(resolve(tmpdir(), 'mystudio-installed-smoke-'))");
+    expect(installSmokeScript).toContain(
+      "mkdtempSync(resolve(tmpdir(), 'mystudio-installed-smoke-'))",
+    );
     expect(installSmokeScript).toContain("MYSTUDIO_SMOKE_APP_BIN");
     expect(installSmokeScript).toContain("MYSTUDIO_SMOKE_USER_DATA_DIR");
     expect(installSmokeScript).toContain("npm run smoke:desktop");
-    expect(installSmokeScript).not.toMatch(/spawnSync\(['\"](?:mv|cp|rsync)['\"]/);
-    expect(installSmokeScript).not.toMatch(/['\"](?:mv|cp|rsync)['\"],\s*\[[^\]]*backup/);
+    expect(installSmokeScript).not.toMatch(
+      /spawnSync\(['\"](?:mv|cp|rsync)['\"]/,
+    );
+    expect(installSmokeScript).not.toMatch(
+      /['\"](?:mv|cp|rsync)['\"],\s*\[[^\]]*backup/,
+    );
     expect(installSmokeScript).not.toContain("mv /Applications/漫影工作室.app");
-    expect(installSmokeScript).not.toContain("cp -R /Applications/漫影工作室.app");
+    expect(installSmokeScript).not.toContain(
+      "cp -R /Applications/漫影工作室.app",
+    );
   });
 
   it("exposes an automated Daojie chapter 001 video output flow", () => {
     const packageJson = readBuildFile("package.json");
-    const videoScript = readBuildFile("build/automate-daojie-chapter001-video.mjs");
-    const generatorScript = readFileSync(resolve(appsRoot, "..", "Library", "build_daojie_chapter001_workflow.py"), "utf8");
+    const videoScript = readBuildFile(
+      "build/automate-daojie-chapter001-video.mjs",
+    );
+    const generatorScript = readFileSync(
+      resolve(appsRoot, "..", "Library", "build_daojie_chapter001_workflow.py"),
+      "utf8",
+    );
 
-    expect(packageJson).toContain('"video:daojie:chapter001": "node ./build/automate-daojie-chapter001-video.mjs"');
+    expect(packageJson).toContain(
+      '"video:daojie:chapter001": "node ./build/automate-daojie-chapter001-video.mjs"',
+    );
     expect(videoScript).toContain("Library");
     expect(videoScript).toContain("build_daojie_chapter001_workflow.py");
     expect(videoScript).toContain("daojie-chapter001-video-report.json");

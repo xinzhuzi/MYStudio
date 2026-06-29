@@ -16,6 +16,7 @@ describe("buildVoiceReferenceAssets", () => {
         source: "toonflow-runtime",
         type: "audio",
         name: "女声旁白",
+        description: "这是一段资产库识别出的中文台词。",
         previewUrl: "file:///project/audio/girl.wav",
         filePath: "audio/girl.wav",
         sourcePath: "/project/audio/girl.wav",
@@ -47,6 +48,7 @@ describe("buildVoiceReferenceAssets", () => {
         id: "runtime-audio",
         name: "女声旁白",
         filePath: "/project/audio/girl.wav",
+        referenceText: "这是一段资产库识别出的中文台词。",
         sourceLabel: "girl.wav",
       },
     ]);

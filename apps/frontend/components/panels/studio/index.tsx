@@ -11,6 +11,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -36,8 +44,6 @@ import {
   SheetPortal,
 } from "@/components/ui/sheet";
 import { LocalImage } from "@/components/ui/local-image";
-import { StudioAssetDetailDialog } from "@/components/panels/assets/StudioAssetDetailDialog";
-import { RoleVoiceAssignDialog } from "@/components/panels/assets/RoleVoiceAssignDialog";
 import {
   Table,
   TableBody,
@@ -76,11 +82,6 @@ import {
   parseDirectorPlan,
 } from "@/lib/studio/director-plan";
 import {
-  buildEntityResolver,
-  createMystudioDerivedSinks,
-  syncDerivedAssets,
-} from "@/lib/studio/derived-asset-sync";
-import {
   buildStoryboardTableMessages,
   parseStoryboardTable,
   toStoryboardItems,
@@ -99,7 +100,6 @@ import {
   type ReviewableStage,
 } from "@/lib/studio/script-planning";
 import { aiManager } from "@/lib/ai/ai-manager";
-import { ensureBackendVoiceProfile } from "@/lib/tts/client";
 import {
   buildStudioManualContext,
   buildStudioManualsFromSkillFiles,
@@ -111,6 +111,13 @@ import {
   createEpisodeMergePlan,
   createTrackRenderPlan,
 } from "@/lib/studio/production";
+import { buildToonflowWorkbenchModel } from "@/lib/studio/workbench-view-model";
+import type { ToonflowWorkbenchAssetMedia } from "@/lib/studio/workbench-view-model";
+import {
+  buildWorkflowReadiness,
+  type WorkflowReadiness,
+  type WorkflowStageReadiness,
+} from "@/lib/studio/workflow-readiness";
 import { useAPIConfigStore } from "@/stores/api-config-store";
 import {
   useCharacterLibraryStore,
@@ -122,11 +129,6 @@ import { usePropsLibraryStore } from "@/stores/props-library-store";
 import { useStudioStore } from "@/stores/studio-store";
 import { useTtsStore } from "@/stores/tts-store";
 import type {
-  ProjectVoiceBinding,
-  TtsSpeakerId,
-  VoiceProfile,
-} from "@/types/tts";
-import type {
   AgentWorkKey,
   NovelChapter,
   ScriptPlan,
@@ -136,25 +138,22 @@ import type {
   StudioWorkflowConfig,
   VideoCandidate,
 } from "@/types/studio";
-import type { StudioAssetSummary } from "@/types/studio-assets";
 import {
   BookOpen,
   BookMarked,
   Boxes,
+  AlertCircle,
   ChevronDown,
   Check,
+  CheckCircle2,
   Clapperboard,
   ClipboardList,
+  Clock,
   Edit3,
   FileText,
   Film,
-  Gem,
-  ImageIcon,
+  GitBranch,
   Download,
-  Loader2,
-  MapPin,
-  Maximize2,
-  Mic,
   Palette,
   Play,
   Plus,
@@ -162,302 +161,166 @@ import {
   Search,
   Split,
   Square,
-  Table2 as TableIcon,
   Trash2,
   Upload,
-  Users,
   Volume2,
   X,
   WandSparkles,
-  ZoomIn,
-  ZoomOut,
 } from "lucide-react";
 import { toast } from "sonner";
 import { MdEditor, MdPreview } from "md-editor-rt";
 import "md-editor-rt/lib/style.css";
 import { cn } from "@/lib/utils";
 import { ManualEditDialog } from "./ManualEditDialog";
+import { WorkflowNodeCanvas } from "./WorkflowNodeCanvas";
+import {
+  buildProductionFlowModel,
+  type ProductionFlowNodeId,
+} from "./workflow-node-model";
 
 export const WORKFLOW_TABS = [
   { value: "manuals", label: "风格与导演", Icon: BookMarked },
   { value: "novel", label: "小说导入", Icon: BookOpen },
   { value: "script", label: "策划编剧", Icon: FileText },
-  { value: "assets", label: "剧本资产", Icon: Boxes },
-  { value: "generation", label: "ProductionAgent", Icon: WandSparkles },
-  { value: "storyboard", label: "分镜面板", Icon: Split },
+  { value: "assets", label: "剧本资产提取", Icon: Boxes },
+  { value: "generation", label: "剧本资产管理", Icon: WandSparkles },
+  { value: "storyboard", label: "分镜视频生成", Icon: Split },
   { value: "workbench", label: "视频工作台", Icon: Film },
 ];
 
 const VISIBLE_WORKFLOW_STAGES = new Set(WORKFLOW_TABS.map((tab) => tab.value));
-const PRODUCTION_FLOW_NODES = [
-  {
-    value: "script",
-    label: "剧本",
-    Icon: FileText,
-    desc: "章节剧本与正文台词输入。",
-  },
-  {
-    value: "scriptPlan",
-    label: "导演计划",
-    Icon: ClipboardList,
-    desc: "场次、节奏、镜头策略和声音方向。",
-  },
-  {
-    value: "assets",
-    label: "衍生资产",
-    Icon: Boxes,
-    desc: "角色、场景、道具资产生成分支。",
-  },
-  {
-    value: "storyboardTable",
-    label: "分镜表",
-    Icon: TableIcon,
-    desc: "按导演计划拆出镜头表。",
-  },
-  {
-    value: "storyboard",
-    label: "分镜面板",
-    Icon: Split,
-    desc: "分镜图、台词、配音与资产绑定。",
-  },
-  {
-    value: "workbench",
-    label: "视频工作台",
-    Icon: Film,
-    desc: "候选片段、剪辑合成和最终导出。",
-  },
-];
 
-const PRODUCTION_NODE_POSITIONS: Record<
-  string,
-  { x: number; y: number; w: number; h: number; tone: string }
-> = {
-  script: {
-    x: 40,
-    y: 78,
-    w: 230,
-    h: 150,
-    tone: "from-sky-500/20 to-zinc-500/10",
-  },
-  scriptPlan: {
-    x: 390,
-    y: 58,
-    w: 240,
-    h: 164,
-    tone: "from-violet-500/20 to-neutral-500/10",
-  },
-  assets: {
-    x: 520,
-    y: 308,
-    w: 250,
-    h: 170,
-    tone: "from-teal-500/20 to-neutral-500/10",
-  },
-  storyboardTable: {
-    x: 760,
-    y: 58,
-    w: 250,
-    h: 164,
-    tone: "from-amber-500/20 to-stone-500/10",
-  },
-  storyboard: {
-    x: 1134,
-    y: 50,
-    w: 270,
-    h: 220,
-    tone: "from-blue-500/20 to-neutral-500/10",
-  },
-  workbench: {
-    x: 1534,
-    y: 78,
-    w: 270,
-    h: 168,
-    tone: "from-rose-500/20 to-neutral-500/10",
-  },
-};
+export function resolveVisibleWorkflowStage(stage?: string): string {
+  if (stage === "flow") return "storyboard";
+  return stage && VISIBLE_WORKFLOW_STAGES.has(stage) ? stage : "manuals";
+}
 
-const PRODUCTION_FLOW_EDGES = [
-  ["script", "scriptPlan"],
-  ["script", "assets"],
-  ["scriptPlan", "storyboardTable"],
-  ["storyboardTable", "storyboard"],
-  ["storyboard", "workbench"],
-] as const;
-
-function WorkflowNodeCanvas({
-  projectName,
-  stageActions,
+function WorkflowStageStatusBar({
+  readiness,
+  activeStage,
+  onStageChange,
 }: {
-  projectName: string;
-  stageActions?: ReactNode;
+  readiness: WorkflowReadiness;
+  activeStage: string;
+  onStageChange: (stageId: string) => void;
 }) {
-  const [canvasZoom, setCanvasZoom] = useState(0.56);
-
-  const updateZoom = (delta: number) => {
-    setCanvasZoom((current) =>
-      Math.min(0.9, Math.max(0.38, Number((current + delta).toFixed(2)))),
-    );
-  };
+  const currentStage =
+    readiness.stages.find((stage) => stage.id === readiness.nextStageId) ??
+    readiness.stages[0];
+  const activeLabel =
+    WORKFLOW_TABS.find((tab) => tab.value === activeStage)?.label ??
+    "风格与导演";
+  const activeStageReadiness = readiness.stages.find(
+    (stage) => stage.id === activeStage,
+  );
 
   return (
-    <div className="workflow-node-canvas relative min-h-[410px] overflow-hidden rounded-lg border border-white/10 bg-[#20201f]">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_15%,rgba(255,255,255,0.08),transparent_38%),linear-gradient(180deg,rgba(255,255,255,0.035),transparent_42%)]" />
-      <div className="relative z-10 flex flex-wrap items-center justify-between gap-4 px-6 py-4">
-        <div className="flex min-w-0 items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-md border border-white/20 bg-black/30">
-            <Clapperboard className="h-5 w-5 text-zinc-100" />
+    <div className="mb-4 rounded-lg border border-border/70 bg-card/80 p-4 shadow-sm">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <Badge variant="outline" className="gap-1">
+              <Clock className="h-3 w-3" />
+              当前所在：{activeLabel}
+            </Badge>
+            <span>进度 {readiness.progress}%</span>
           </div>
-          <div className="min-w-0">
-            <h3 className="truncate text-base font-semibold text-zinc-100">
-              {projectName}
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <h3 className="text-base font-semibold text-foreground">
+              待推进：{currentStage?.label ?? "工作流"}
             </h3>
-            <p className="truncate text-xs text-zinc-400">
-              ProductionAgent 节点工作区 · Toonflow Layout
-            </p>
+            <span className="text-sm text-muted-foreground">
+              {readiness.nextActionLabel}
+            </span>
           </div>
         </div>
-        {stageActions ? (
-          <div className="min-w-[280px] flex-1">{stageActions}</div>
-        ) : null}
-      </div>
-
-      <div className="absolute inset-x-0 bottom-0 top-[86px] overflow-x-auto overflow-y-hidden">
-        <div
-          className="relative mx-auto mt-4 origin-top transition-transform duration-300"
-          style={{
-            width: 1860,
-            height: 560,
-            transform: `scale(${canvasZoom})`,
-          }}
-        >
-          <svg
-            className="pointer-events-none absolute inset-0 h-full w-full"
-            viewBox="0 0 1860 560"
-            aria-hidden="true"
-          >
-            {PRODUCTION_FLOW_EDGES.map(([fromKey, toKey]) => {
-              const from = PRODUCTION_NODE_POSITIONS[fromKey];
-              const to = PRODUCTION_NODE_POSITIONS[toKey];
-              if (!from || !to) return null;
-              const startX = from.x + from.w;
-              const startY = from.y + from.h / 2;
-              const endX = to.x;
-              const endY = to.y + to.h / 2;
-              const mid = Math.max(48, (endX - startX) * 0.42);
-              return (
-                <path
-                  key={`${fromKey}-${toKey}`}
-                  className="workflow-node-connector"
-                  data-flow-edge={`${fromKey}->${toKey}`}
-                  d={`M ${startX} ${startY} C ${startX + mid} ${startY}, ${endX - mid} ${endY}, ${endX} ${endY}`}
-                  fill="none"
-                  stroke="rgba(96,165,250,0.72)"
-                  strokeWidth="2"
+        <div className="flex flex-wrap items-center gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button type="button" variant="outline" className="gap-2">
+                当前阶段：{activeLabel}
+                <ChevronDown className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-80">
+              <DropdownMenuLabel>选择工作流阶段</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {readiness.stages.map((stage) => (
+                <WorkflowStageMenuItem
+                  key={stage.id}
+                  stage={stage}
+                  active={stage.id === activeStage}
+                  onClick={() => onStageChange(stage.id)}
                 />
-              );
-            })}
-          </svg>
-          {PRODUCTION_FLOW_NODES.map((tab, index) => {
-            const position = PRODUCTION_NODE_POSITIONS[tab.value];
-            const Icon = tab.Icon;
-            return (
-              <div
-                key={tab.value}
-                data-flow-node={tab.value}
-                className={cn(
-                  "absolute overflow-hidden rounded-lg border p-4 text-left shadow-2xl transition-all duration-200",
-                  "bg-neutral-950/80 text-zinc-200 backdrop-blur",
-                  "border-white/10",
-                )}
-                style={{
-                  left: position.x,
-                  top: position.y,
-                  width: position.w,
-                  height: position.h,
-                }}
-              >
-                <span
-                  className={cn(
-                    "absolute inset-0 bg-gradient-to-br opacity-80",
-                    position.tone,
-                  )}
-                />
-                <span className="relative flex items-start justify-between gap-3">
-                  <span className="flex items-center gap-2">
-                    <span
-                      className={cn(
-                        "flex h-8 w-8 items-center justify-center rounded-md border",
-                        index === 0
-                          ? "border-blue-300/60 bg-blue-400/15"
-                          : "border-white/15 bg-black/20",
-                      )}
-                    >
-                      <Icon className="h-4 w-4" />
-                    </span>
-                    <span>
-                      <span className="block text-sm font-semibold">
-                        {tab.label}
-                      </span>
-                      <span className="text-[11px] text-zinc-400">
-                        Node {String(index + 1).padStart(2, "0")}
-                      </span>
-                    </span>
-                  </span>
-                  <span
-                    className={cn(
-                      "rounded-full px-2 py-0.5 text-[10px]",
-                      index === 0
-                        ? "bg-blue-400 text-black"
-                        : "bg-emerald-400/20 text-emerald-200",
-                    )}
-                  >
-                    {tab.value === "assets" ? "BRANCH" : "FLOW"}
-                  </span>
-                </span>
-                <span className="relative mt-4 block text-xs leading-relaxed text-zinc-400">
-                  {tab.desc}
-                </span>
-              </div>
-            );
-          })}
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
-
-      <div className="absolute bottom-5 left-5 z-20 flex flex-col overflow-hidden rounded-md border border-white/15 bg-zinc-100 text-zinc-950 shadow-xl">
-        <button
-          type="button"
-          className="flex h-8 w-8 items-center justify-center hover:bg-zinc-200"
-          onClick={() => updateZoom(0.08)}
-          aria-label="放大"
-        >
-          <ZoomIn className="h-4 w-4" />
-        </button>
-        <button
-          type="button"
-          className="flex h-8 w-8 items-center justify-center border-t border-zinc-300 hover:bg-zinc-200"
-          onClick={() => updateZoom(-0.08)}
-          aria-label="缩小"
-        >
-          <ZoomOut className="h-4 w-4" />
-        </button>
-        <button
-          type="button"
-          className="flex h-8 w-8 items-center justify-center border-t border-zinc-300 hover:bg-zinc-200"
-          onClick={() => setCanvasZoom(0.56)}
-          aria-label="适配画布"
-        >
-          <Maximize2 className="h-4 w-4" />
-        </button>
-      </div>
+      {activeStageReadiness ? (
+        <div className="mt-3 rounded-md border border-border/60 bg-background/55 px-3 py-2 text-xs text-muted-foreground">
+          {activeStageReadiness.status === "ready"
+            ? (activeStageReadiness.completed[0] ?? "当前阶段已完成")
+            : (activeStageReadiness.missing[0] ??
+              activeStageReadiness.actionLabel)}
+        </div>
+      ) : null}
     </div>
   );
 }
 
-export function resolveVisibleWorkflowStage(stage?: string): string {
-  return stage && VISIBLE_WORKFLOW_STAGES.has(stage) ? stage : "manuals";
+function WorkflowStageMenuItem({
+  stage,
+  active,
+  onClick,
+}: {
+  stage: WorkflowStageReadiness;
+  active: boolean;
+  onClick: () => void;
+}) {
+  const Icon =
+    stage.status === "ready"
+      ? CheckCircle2
+      : stage.status === "active"
+        ? Clock
+        : AlertCircle;
+  return (
+    <DropdownMenuItem
+      onClick={onClick}
+      className={cn(
+        "items-start gap-3 py-2",
+        stage.status === "ready" && "bg-emerald-500/8 text-emerald-900",
+        stage.status === "active" && "bg-amber-500/12 text-amber-950",
+      )}
+    >
+      <Icon
+        className={cn(
+          "mt-0.5 h-4 w-4",
+          stage.status === "ready"
+            ? "text-emerald-500"
+            : stage.status === "active"
+              ? "text-amber-500"
+              : "text-muted-foreground",
+        )}
+      />
+      <span className="min-w-0">
+        <span className="block text-sm font-medium text-foreground">
+          {stage.label}
+        </span>
+        <span className="block text-xs text-muted-foreground">
+          {stage.status === "ready"
+            ? (stage.completed[0] ?? "已完成")
+            : (stage.missing[0] ?? stage.actionLabel)}
+        </span>
+      </span>
+      {active ? (
+        <Check className="ml-auto mt-0.5 h-4 w-4 text-primary" />
+      ) : null}
+    </DropdownMenuItem>
+  );
 }
 
-/** 把导演计划 ScriptPlan 关键维度压成分镜表的节奏/情绪基准文本。 */
+/** 把导演规划 ScriptPlan 关键维度压成分镜表的节奏/情绪基准文本。 */
 function formatScriptPlanContext(plan: ScriptPlan): string {
   return [
     plan.theme && `①主题立意：${plan.theme}`,
@@ -468,6 +331,23 @@ function formatScriptPlanContext(plan: ScriptPlan): string {
   ]
     .filter(Boolean)
     .join("\n");
+}
+
+function latestAgentWork(
+  items: { key: AgentWorkKey; episodeId?: string; data: string; updatedAt: number }[],
+  key: AgentWorkKey,
+  episodeId?: string,
+): string {
+  const scoped = items
+    .filter((item) => item.key === key && item.data.trim())
+    .filter((item) => !episodeId || item.episodeId === episodeId);
+  const candidates = scoped.length
+    ? scoped
+    : items.filter((item) => item.key === key && item.data.trim());
+  return (
+    candidates.slice().sort((left, right) => right.updatedAt - left.updatedAt)[0]
+      ?.data ?? ""
+  );
 }
 
 export function resolveProductionEpisodeId(
@@ -526,7 +406,6 @@ export function resolveScriptPlanEpisodeId(
 export function StudioView() {
   const activeProject = useProjectStore((state) => state.activeProject);
   const {
-    materials,
     novelChapters,
     agentWorkData,
     entityExtractions,
@@ -539,18 +418,12 @@ export function StudioView() {
     appendNovelText,
     replaceNovelText,
     deleteNovelChapters,
-    addMaterial,
-    deleteMaterial,
-    bindMaterialToStoryboard,
     updateNovelChapter,
     setWorkflowConfig,
     saveAgentWorkData,
     saveEntityExtraction,
     saveScriptPlan,
     saveSeriesBible,
-    addStoryboard,
-    updateStoryboard,
-    createStoryboardsFromChapters,
     rebuildTracks,
     addVideoCandidate,
     updateVideoCandidate,
@@ -561,10 +434,12 @@ export function StudioView() {
   const [renderingTrackId, setRenderingTrackId] = useState<string | null>(null);
   const [merging, setMerging] = useState(false);
   const [mergeOutput, setMergeOutput] = useState<string | null>(null);
+  const [editingWorkflowNodeId, setEditingWorkflowNodeId] =
+    useState<ProductionFlowNodeId | null>(null);
+  const [workflowNodeDraft, setWorkflowNodeDraft] = useState("");
   const [activeWorkflowTab, setActiveWorkflowTab] = useState(
     resolveVisibleWorkflowStage(workflowConfig.workflowStage),
   );
-  const activeTtsProjectIdForReadiness = useTtsStore((s) => s.activeProjectId);
   const ttsProjectForReadiness = useTtsStore((s) =>
     s.activeProjectId ? s.projects[s.activeProjectId] : undefined,
   );
@@ -635,7 +510,217 @@ export function StudioView() {
   const productionEpisodeId = resolveProductionEpisodeId(
     useStudioStore.getState(),
   );
-
+  const workflowReadiness = useMemo(
+    () =>
+      buildWorkflowReadiness({
+        workflowConfig,
+        novelChapters,
+        agentWorkData,
+        entityExtractions,
+        scriptPlans,
+        seriesBible,
+        storyboards,
+        productionTracks,
+        videoCandidates,
+        voiceBindings: Object.values(
+          ttsProjectForReadiness?.bindings ?? {},
+        ),
+        sceneVoiceLines: Object.values(
+          ttsProjectForReadiness?.voiceLines ?? {},
+        ),
+        capabilities: {
+          textCompletion: Boolean(window.electronAPI?.textCompletion),
+          studioRenderer: Boolean(window.studioRenderer),
+        },
+      }),
+    [
+      agentWorkData,
+      entityExtractions,
+      novelChapters,
+      productionTracks,
+      scriptPlans,
+      seriesBible,
+      storyboards,
+      ttsProjectForReadiness?.bindings,
+      ttsProjectForReadiness?.voiceLines,
+      videoCandidates,
+      workflowConfig,
+    ],
+  );
+  const productionFlowCharacters = useCharacterLibraryStore(
+    (state) => state.characters,
+  );
+  const productionFlowScenes = useSceneStore((state) => state.scenes);
+  const productionFlowProps = usePropsLibraryStore((state) => state.items);
+  const productionFlowAssetMediaById = useMemo(
+    () =>
+      buildWorkbenchAssetMediaMap(
+        productionFlowCharacters,
+        productionFlowScenes,
+        productionFlowProps,
+      ),
+    [productionFlowCharacters, productionFlowProps, productionFlowScenes],
+  );
+  const productionFlowModel = useMemo(
+    () =>
+      buildProductionFlowModel({
+        agentWorkData,
+        entityExtractions,
+        scriptPlans,
+        storyboards,
+        productionTracks,
+        videoCandidates,
+        workflowConfig,
+        manualCatalog,
+        assetMediaById: productionFlowAssetMediaById,
+      }),
+    [
+      agentWorkData,
+      entityExtractions,
+      productionFlowAssetMediaById,
+      productionTracks,
+      scriptPlans,
+      storyboards,
+      videoCandidates,
+      workflowConfig,
+      manualCatalog,
+    ],
+  );
+  const workflowNodeEditTitle = useMemo(() => {
+    const node = productionFlowModel.nodes.find(
+      (item) => item.id === editingWorkflowNodeId,
+    );
+    return node ? `编辑${node.label}` : "编辑节点";
+  }, [editingWorkflowNodeId, productionFlowModel.nodes]);
+  const workflowNodeEditWritable =
+    editingWorkflowNodeId === "script" ||
+    editingWorkflowNodeId === "scriptPlan" ||
+    editingWorkflowNodeId === "storyboardTable";
+  const buildWorkflowNodeDraft = useCallback(
+    (nodeId: ProductionFlowNodeId) => {
+      const store = useStudioStore.getState();
+      const episodeId = resolveProductionEpisodeId(store, productionEpisodeId);
+      if (nodeId === "script") {
+        return (
+          latestAgentWork(store.agentWorkData, "scriptDraft", episodeId) ||
+          resolveScriptTextForEpisode(store, episodeId)
+        );
+      }
+      if (nodeId === "scriptPlan") {
+        const plan = store.scriptPlans.find((item) => item.episodeId === episodeId);
+        return plan
+          ? formatScriptPlanContext(plan)
+          : latestAgentWork(store.agentWorkData, "directorPlan", episodeId);
+      }
+      if (nodeId === "storyboardTable") {
+        return latestAgentWork(store.agentWorkData, "storyboardTable", episodeId);
+      }
+      if (nodeId === "assets") {
+        return store.entityExtractions
+          .flatMap((batch) => [
+            `# ${batch.episodeId} 衍生资产`,
+            "",
+            "## 角色",
+            ...batch.characters.map((item) => `- ${item.name} (${item.characterId})${item.note ? `：${item.note}` : ""}`),
+            "",
+            "## 场景",
+            ...batch.scenes.map((item) => `- ${item.name} (${item.sceneId})${item.note ? `：${item.note}` : ""}`),
+            "",
+            "## 道具",
+            ...batch.props.map((item) => `- ${item.name} (${item.assetId})${item.note ? `：${item.note}` : ""}`),
+            "",
+          ])
+          .join("\n");
+      }
+      if (nodeId === "storyboard") {
+        return [
+          "| 序号 | 分镜 | 时长 | 台词 | 音效 | 资产 |",
+          "| --- | --- | ---: | --- | --- | --- |",
+          ...store.storyboards
+            .slice()
+            .sort((left, right) => left.index - right.index)
+            .map((item) =>
+              [
+                item.index,
+                item.videoDesc || item.prompt || item.id,
+                item.duration,
+                item.lines ?? "",
+                item.sound ?? "",
+                item.assetIds.join(", "),
+              ]
+                .map((cell) => String(cell).replace(/\|/g, "\\|"))
+                .join(" | "),
+            )
+            .map((row) => `| ${row} |`),
+        ].join("\n");
+      }
+      return [
+        "| Track | 时长 | 状态 | 分镜 | 候选 |",
+        "| --- | ---: | --- | --- | --- |",
+        ...store.productionTracks.map((track) =>
+          `| ${track.trackKey || track.id} | ${track.duration} | ${track.state} | ${track.storyboardIds.length} | ${track.candidateVideoIds.length} |`,
+        ),
+      ].join("\n");
+    },
+    [productionEpisodeId],
+  );
+  const handleWorkflowNodeEdit = useCallback(
+    (nodeId: ProductionFlowNodeId) => {
+      setEditingWorkflowNodeId(nodeId);
+      setWorkflowNodeDraft(buildWorkflowNodeDraft(nodeId));
+    },
+    [buildWorkflowNodeDraft],
+  );
+  const handleWorkflowNodeEditSave = useCallback(() => {
+    if (!editingWorkflowNodeId) return;
+    const store = useStudioStore.getState();
+    const episodeId = resolveProductionEpisodeId(store, productionEpisodeId);
+    const text = workflowNodeDraft.trim();
+    if (editingWorkflowNodeId === "script") {
+      saveAgentWorkData("scriptDraft", workflowNodeDraft, episodeId);
+      toast.success("剧本已保存");
+      setEditingWorkflowNodeId(null);
+      return;
+    }
+    if (editingWorkflowNodeId === "scriptPlan") {
+      try {
+        const { plan, warnings } = parseDirectorPlan(workflowNodeDraft, episodeId);
+        saveScriptPlan(plan);
+        toast.success(warnings.length ? `导演规划已保存（提示 ${warnings.length} 条）` : "导演规划已保存");
+        setEditingWorkflowNodeId(null);
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "导演规划保存失败");
+      }
+      return;
+    }
+    if (editingWorkflowNodeId === "storyboardTable") {
+      saveAgentWorkData("storyboardTable", workflowNodeDraft, episodeId);
+      const parsed = parseStoryboardTable(text, episodeId);
+      const items = toStoryboardItems(parsed.rows, episodeId);
+      const workflowStore = useStudioStore.getState();
+      for (const item of items) {
+        if (workflowStore.storyboards.some((current) => current.id === item.id)) {
+          workflowStore.updateStoryboard(item.id, item);
+        } else {
+          workflowStore.addStoryboard(item);
+        }
+      }
+      workflowStore.rebuildTracks();
+      const warningText = parsed.errors.length
+        ? `，忽略非法行 ${parsed.errors.length} 条`
+        : "";
+      toast.success(`分镜表已保存：${items.length} 条分镜${warningText}`);
+      setEditingWorkflowNodeId(null);
+      return;
+    }
+    toast.info("该节点是结构化数据，请进入对应阶段编辑。");
+  }, [
+    editingWorkflowNodeId,
+    productionEpisodeId,
+    saveAgentWorkData,
+    saveScriptPlan,
+    workflowNodeDraft,
+  ]);
   const handleNovelFile = async (file?: File) => {
     if (!file) return;
     const text = await file.text();
@@ -913,7 +998,7 @@ export function StudioView() {
   );
 
   const handleDirectorPlan = useCallback(
-    async (episodeId = "episode-1") => {
+    async (episodeId = "episode-1", userInstruction = "") => {
       if (!window.electronAPI?.textCompletion) {
         toast.error("当前环境不支持模型调用");
         return;
@@ -936,18 +1021,21 @@ export function StudioView() {
         scriptText,
         manualContext,
       });
+      const userContent = userInstruction.trim()
+        ? `${messages.user}\n\n【本次节点补充要求】\n${userInstruction.trim()}`
+        : messages.user;
       try {
         const result = await aiManager.text({
           binding: { agent: "productionAgent:directorPlanAgent" },
           messages: [
             { role: "system", content: messages.system },
-            { role: "user", content: messages.user },
+            { role: "user", content: userContent },
           ],
           temperature: 0.4,
           maxTokens: 4096,
         });
         if (!result.success || !result.text) {
-          throw new Error(result.error || "导演计划失败");
+          throw new Error(result.error || "导演规划失败");
         }
 
         const { plan, warnings } = parseDirectorPlan(
@@ -959,10 +1047,10 @@ export function StudioView() {
         const detail = `衍生预划 ${plan.derivedAssetPlan.length} 条`;
         if (warnings.length) {
           toast.warning(
-            `导演计划完成（${detail}；光影提示 ${warnings.length} 处已剔除）`,
+            `导演规划完成（${detail}；光影提示 ${warnings.length} 处已剔除）`,
           );
         } else {
-          toast.success(`导演计划完成（${detail}）`);
+          toast.success(`导演规划完成（${detail}）`);
         }
       } catch (error) {
         toast.error(error instanceof Error ? error.message : String(error));
@@ -971,139 +1059,89 @@ export function StudioView() {
     [manualCatalog, saveScriptPlan],
   );
 
-  const handleDeriveAssets = useCallback(
-    (episodeId = "episode-1") => {
-      const store = useStudioStore.getState();
-      const targetEpisodeId = resolveScriptPlanEpisodeId(store, episodeId);
-      const plan = store.scriptPlans.find(
-        (item) => item.episodeId === targetEpisodeId,
-      );
-      if (!plan) {
-        toast.error("尚无导演计划：请先运行导演计划，生成⑦衍生预划清单");
-        return;
-      }
-      if (!plan.derivedAssetPlan.length) {
-        toast.info("本集导演计划判定无需衍生资产");
-        return;
-      }
-
-      const projectId = activeProject?.id;
-      if (!projectId) {
-        toast.error("未选择项目，无法写入衍生资产");
-        return;
-      }
-
-      const batch =
-        store.entityExtractions.find(
-          (item) => item.episodeId === targetEpisodeId,
-        ) ?? store.entityExtractions[store.entityExtractions.length - 1];
-      if (!batch) {
-        toast.error("尚无实体库：请先运行实体提取，衍生资产需绑定父资产");
-        return;
-      }
-
-      const resolver = buildEntityResolver(
-        batch.characters.map((c) => ({
-          id: c.characterId,
-          name: c.name,
-          aliases: c.aliases,
-        })),
-        batch.scenes.map((s) => ({ id: s.sceneId, name: s.name })),
-      );
-      const { summary } = syncDerivedAssets(plan.derivedAssetPlan, {
-        projectId,
-        resolver,
-        ...createMystudioDerivedSinks(),
-      });
-
-      if (summary.skipped) {
-        toast.warning(
-          `衍生资产落地 ${summary.created} 条，跳过 ${summary.skipped} 条（父资产未匹配）`,
-        );
-      } else {
-        toast.success(`衍生资产落地 ${summary.created} 条`);
-      }
-    },
-    [activeProject?.id],
-  );
-
   const handleStoryboardTable = useCallback(
-    async (episodeId = "episode-1") => {
+    async (episodeId = "episode-1", userInstruction = "") => {
       if (!window.electronAPI?.textCompletion) {
         toast.error("当前环境不支持模型调用");
         return;
       }
 
       const store = useStudioStore.getState();
-      const targetEpisodeId = resolveProductionEpisodeId(store, episodeId);
+      const targetEpisodeId = resolveScriptPlanEpisodeId(store, episodeId);
       const scriptText = resolveScriptTextForEpisode(store, targetEpisodeId);
       if (!scriptText.trim()) {
-        toast.error("没有可分镜的剧本：请先保存剧本草稿或导入小说正文");
+        toast.error("没有可生成分镜表的剧本：请先保存剧本草稿或导入小说正文");
         return;
       }
 
       const plan = store.scriptPlans.find(
         (item) => item.episodeId === targetEpisodeId,
       );
-      const scriptPlanContext = plan
-        ? formatScriptPlanContext(plan)
-        : undefined;
+      if (!plan) {
+        toast.error("尚无导演规划：请先在分镜视频生成节点中生成导演规划");
+        return;
+      }
+
       const messages = buildStoryboardTableMessages({
         episodeId: targetEpisodeId,
         scriptText,
-        scriptPlanContext,
+        scriptPlanContext: formatScriptPlanContext(plan),
       });
+      const userContent = userInstruction.trim()
+        ? `${messages.user}\n\n【本次节点补充要求】\n${userInstruction.trim()}`
+        : messages.user;
+
       try {
         const result = await aiManager.text({
           binding: { agent: "productionAgent:storyboardTableAgent" },
           messages: [
             { role: "system", content: messages.system },
-            { role: "user", content: messages.user },
+            { role: "user", content: userContent },
           ],
-          temperature: 0.4,
-          maxTokens: 4096,
+          temperature: 0.35,
+          maxTokens: 8192,
         });
         if (!result.success || !result.text) {
           throw new Error(result.error || "分镜表生成失败");
         }
 
-        const { rows, errors, warnings } = parseStoryboardTable(
-          result.text,
-          targetEpisodeId,
-        );
-        if (!rows.length) {
-          toast.error(
-            `未解析到分镜行${errors.length ? `（非法行 ${errors.length}）` : ""}`,
-          );
-          return;
-        }
-
-        const items = toStoryboardItems(rows, targetEpisodeId);
-        const existingIds = new Set(
-          useStudioStore.getState().storyboards.map((item) => item.id),
-        );
+        saveAgentWorkData("storyboardTable", result.text, targetEpisodeId);
+        const parsed = parseStoryboardTable(result.text, targetEpisodeId);
+        const items = toStoryboardItems(parsed.rows, targetEpisodeId);
+        const workflowStore = useStudioStore.getState();
         for (const item of items) {
-          if (existingIds.has(item.id)) {
-            updateStoryboard(item.id, item);
+          if (workflowStore.storyboards.some((current) => current.id === item.id)) {
+            workflowStore.updateStoryboard(item.id, item);
           } else {
-            addStoryboard(item);
+            workflowStore.addStoryboard(item);
           }
         }
+        workflowStore.rebuildTracks();
 
-        const tail = [
-          errors.length ? `非法行 ${errors.length}` : "",
-          warnings.length ? `光影提示 ${warnings.length} 处已剔除` : "",
-        ]
-          .filter(Boolean)
-          .join("；");
-        toast.success(
-          `分镜表落地 ${items.length} 镜${tail ? `（${tail}）` : ""}`,
-        );
+        const warningText = parsed.warnings.length
+          ? `，提示 ${parsed.warnings.length} 条`
+          : "";
+        toast.success(`分镜表完成：${items.length} 条分镜${warningText}`);
       } catch (error) {
         toast.error(error instanceof Error ? error.message : String(error));
       }
     },
-    [addStoryboard, updateStoryboard],
+    [saveAgentWorkData],
+  );
+
+  const handleProductionNodeAction = useCallback(
+    async (action: { id: string; targetStage: string; userInstruction?: string }) => {
+      if (action.id === "generate-director-plan") {
+        await handleDirectorPlan(productionEpisodeId, action.userInstruction ?? "");
+        return;
+      }
+      if (action.id === "generate-storyboard-table") {
+        await handleStoryboardTable(productionEpisodeId, action.userInstruction ?? "");
+        return;
+      }
+      handleStageChange(action.targetStage);
+    },
+    [handleDirectorPlan, handleStageChange, handleStoryboardTable, productionEpisodeId],
   );
 
   const handleBuildSeriesBible = useCallback(() => {
@@ -1323,36 +1361,6 @@ export function StudioView() {
     [runScriptStage, latestScriptStage, scriptStyleSummary],
   );
 
-  const handleMaterialFiles = async (files?: FileList | null) => {
-    if (!files?.length) return;
-    if (!window.studioAssets) {
-      toast.error("当前环境无法保存本地素材");
-      return;
-    }
-
-    for (const file of Array.from(files)) {
-      try {
-        const bytes = await file.arrayBuffer();
-        const result = await window.studioAssets.saveMaterial({
-          name: file.name,
-          bytes,
-        });
-        if (!result.success || !result.localPath) {
-          throw new Error(result.error || "素材保存失败");
-        }
-        addMaterial({
-          name: file.name,
-          localPath: result.localPath,
-          size: result.size ?? file.size,
-        });
-      } catch (error) {
-        toast.error(error instanceof Error ? error.message : String(error));
-      }
-    }
-
-    toast.success("素材已导入");
-  };
-
   const handleRenderTrack = async (trackId: string) => {
     const track = productionTracks.find((item) => item.id === trackId);
     if (!track) return;
@@ -1426,8 +1434,14 @@ export function StudioView() {
         onValueChange={handleStageChange}
         className="flex h-full flex-col"
       >
-        <ScrollArea className="flex-1 scrollbar-hidden">
-          <div className="bg-background p-5">
+        <ScrollArea className="h-full min-h-0 flex-1 scrollbar-hidden">
+          <div className="flex h-full min-h-0 flex-col bg-background p-5">
+            <WorkflowStageStatusBar
+              readiness={workflowReadiness}
+              activeStage={activeWorkflowTab}
+              onStageChange={handleStageChange}
+            />
+
             <TabsContent value="novel" className="m-0">
               <NovelTab
                 novelDraft={novelDraft}
@@ -1478,28 +1492,27 @@ export function StudioView() {
             </TabsContent>
 
             <TabsContent value="generation" className="m-0">
-              <GenerationTab
-                runDirectorPlan={handleDirectorPlan}
-                deriveAssets={handleDeriveAssets}
-                buildSeriesBible={handleBuildSeriesBible}
-                productionEpisodeId={productionEpisodeId}
-                scriptPlanCount={scriptPlans.length}
-                hasSeriesBible={Boolean(seriesBible)}
-                projectName={projectName}
+              <AssetsTab
+                mode="manage"
+                novelChapters={novelChapters}
+                agentWorkData={agentWorkData}
+                entityExtractions={entityExtractions}
+                extractAssets={handleEntityExtraction}
+                updateExtraction={saveEntityExtraction}
+                setHeaderActions={setAssetsHeaderActions}
               />
             </TabsContent>
 
-            <TabsContent value="storyboard" className="m-0">
-              <StoryboardTab
-                storyboards={storyboards}
-                materials={materials}
-                importMaterials={handleMaterialFiles}
-                deleteMaterial={deleteMaterial}
-                bindMaterialToStoryboard={bindMaterialToStoryboard}
-                addStoryboard={addStoryboard}
-                updateStoryboard={updateStoryboard}
-                createStoryboardsFromChapters={createStoryboardsFromChapters}
-                generateStoryboardTable={handleStoryboardTable}
+            <TabsContent
+              value="storyboard"
+              className="m-0 min-h-0 flex-1 data-[state=active]:flex data-[state=inactive]:hidden"
+            >
+              <WorkflowNodeCanvas
+                projectName={projectName}
+                nodes={productionFlowModel.nodes}
+                onStageChange={handleStageChange}
+                onNodeEdit={handleWorkflowNodeEdit}
+                onNodeAction={handleProductionNodeAction}
               />
             </TabsContent>
 
@@ -1521,6 +1534,60 @@ export function StudioView() {
           </div>
         </ScrollArea>
       </Tabs>
+      <Dialog
+        open={Boolean(editingWorkflowNodeId)}
+        onOpenChange={(open) => {
+          if (!open) setEditingWorkflowNodeId(null);
+        }}
+      >
+        <DialogContent className="flex h-[88vh] max-w-[92vw] flex-col gap-3 border-white/10 bg-[#171817] text-zinc-100 sm:max-w-[92vw]">
+          <DialogHeader>
+            <DialogTitle>{workflowNodeEditTitle}</DialogTitle>
+            <DialogDescription className="text-zinc-500">
+              {workflowNodeEditWritable
+                ? "编辑当前节点 FlowData Markdown，保存后会回写工作流数据。"
+                : "该节点由结构化数据生成，可查看 Markdown 摘要；请进入对应阶段编辑明细。"}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="min-h-0 flex-1 overflow-hidden rounded-md border border-white/10">
+            <MdEditor
+              modelValue={workflowNodeDraft}
+              onChange={setWorkflowNodeDraft}
+              theme="dark"
+              language="zh-CN"
+              toolbarsExclude={["github"]}
+              readOnly={!workflowNodeEditWritable}
+              style={{ height: "100%" }}
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setEditingWorkflowNodeId(null)}
+            >
+              取消
+            </Button>
+            {workflowNodeEditWritable ? (
+              <Button onClick={handleWorkflowNodeEditSave}>保存</Button>
+            ) : (
+              <Button
+                type="button"
+                onClick={() => {
+                  if (editingWorkflowNodeId) {
+                    const node = productionFlowModel.nodes.find(
+                      (item) => item.id === editingWorkflowNodeId,
+                    );
+                    if (node) handleStageChange(node.targetStage);
+                  }
+                  setEditingWorkflowNodeId(null);
+                }}
+              >
+                进入阶段
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -2675,7 +2742,8 @@ function ScriptTab(props: {
   );
 }
 
-function AssetsTab(props: {
+export function AssetsTab(props: {
+  mode?: "extract" | "manage";
   novelChapters: ReturnType<typeof useStudioStore.getState>["novelChapters"];
   agentWorkData: ReturnType<typeof useStudioStore.getState>["agentWorkData"];
   entityExtractions: ReturnType<
@@ -2693,6 +2761,7 @@ function AssetsTab(props: {
     typeof useStudioStore.getState
   >["entityExtractions"][number];
   type AssetType = "character" | "scene" | "prop";
+  const mode = props.mode ?? "extract";
   const [extractingId, setExtractingId] = useState<string | null>(null);
   const [adding, setAdding] = useState<{
     episodeId: string;
@@ -2933,9 +3002,11 @@ function AssetsTab(props: {
     setHeaderActions(
       <div className="flex items-center gap-3">
         <span className="text-xs text-muted-foreground">
-          从剧本提取资产（角色 / 场景 / 道具），与资产库匹配；
+          {mode === "manage"
+            ? "管理本章剧本资产（角色 / 场景 / 道具）与资产库制作状态；"
+            : "从剧本提取资产（角色 / 场景 / 道具），与资产库匹配；"}
           <span className="text-destructive">红色=未制作</span>
-          ，需到「ProductionAgent」生成。
+          {mode === "manage" ? "。" : "，需到「剧本资产管理」生成。"}
         </span>
         <Button
           size="sm"
@@ -2957,7 +3028,7 @@ function AssetsTab(props: {
       </div>,
     );
     return () => setHeaderActions(null);
-  }, [setHeaderActions, extractAssets, scriptChapters, extractingId]);
+  }, [setHeaderActions, extractAssets, scriptChapters, extractingId, mode]);
 
   const genId = (p: string) =>
     `${p}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
@@ -3006,7 +3077,7 @@ function AssetsTab(props: {
   if (!scriptChapters.length) {
     return (
       <div className="p-6 text-sm text-muted-foreground">
-        还没有剧本：请先在「策划编剧」生成各章剧本，再来提取资产（角色/场景/道具）。
+        还没有剧本：请先在「策划编剧」生成各章剧本，再来管理资产（角色/场景/道具）。
       </div>
     );
   }
@@ -3095,6 +3166,23 @@ function AssetsTab(props: {
 
   return (
     <div className="space-y-4">
+      {mode === "manage" ? (
+        <div className="rounded-lg border border-border/70 bg-panel/80 px-4 py-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="text-sm font-semibold">剧本资产管理</h3>
+                <Badge variant="secondary">
+                  资产批次 {props.entityExtractions.length}
+                </Badge>
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                管理从剧本抽取出的角色、场景、道具，并检查资产库制作状态。
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : null}
       {scriptChapters.map((ch) => {
         const batch = props.entityExtractions.find(
           (b) => b.episodeId === ch.id,
@@ -3221,19 +3309,19 @@ export function StoryboardTab(props: {
   generateStoryboardTable: (episodeId?: string) => void;
 }) {
   return (
-    <div className="grid grid-cols-[280px_1fr] gap-4">
+    <div className="grid grid-cols-[340px_1fr] gap-4">
       <MaterialLibrary
         materials={props.materials}
         importMaterials={props.importMaterials}
         deleteMaterial={props.deleteMaterial}
       />
 
-      <Card className="rounded-lg">
+      <Card className="rounded-lg border-border/80 bg-card/95">
         <CardHeader className="flex-row items-center justify-between space-y-0">
           <div>
-            <CardTitle className="text-sm">分镜表与分镜面板</CardTitle>
+            <CardTitle className="text-sm">分镜表与分镜视频生成</CardTitle>
             <p className="mt-1 text-xs text-muted-foreground">
-              分镜表落地后进入分镜面板，绑定画面素材并生成分镜图/配音。
+              按 Toonflow 的 storyboard 面板组织镜头、资产引用、画面提示、台词和音频。
             </p>
           </div>
           <div className="flex flex-wrap justify-end gap-2">
@@ -3269,52 +3357,95 @@ export function StoryboardTab(props: {
           {props.storyboards.map((item) => (
             <div
               key={item.id}
-              className="grid grid-cols-[56px_130px_80px_1fr_1fr_1.2fr] gap-2 rounded-md border border-border p-2"
+              className="grid grid-cols-[160px_1fr_260px] gap-3 rounded-lg border border-border/80 bg-background/65 p-3"
             >
-              <Input
-                type="number"
-                value={item.index}
-                onChange={(event) =>
-                  props.updateStoryboard(item.id, {
-                    index: Number(event.target.value),
-                  })
-                }
-              />
-              <Input
-                value={item.trackKey}
-                onChange={(event) =>
-                  props.updateStoryboard(item.id, {
-                    trackKey: event.target.value,
-                  })
-                }
-              />
-              <Input
-                type="number"
-                value={item.duration}
-                onChange={(event) =>
-                  props.updateStoryboard(item.id, {
-                    duration: Number(event.target.value),
-                  })
-                }
-              />
-              <Textarea
-                value={item.prompt}
-                onChange={(event) =>
-                  props.updateStoryboard(item.id, {
-                    prompt: event.target.value,
-                  })
-                }
-                placeholder="画面提示"
-              />
-              <Textarea
-                value={item.videoDesc}
-                onChange={(event) =>
-                  props.updateStoryboard(item.id, {
-                    videoDesc: event.target.value,
-                  })
-                }
-                placeholder="视频描述/台词"
-              />
+              <div className="overflow-hidden rounded-md border border-border bg-muted/45">
+                {item.mediaRef?.kind === "image" ? (
+                  <LocalImage
+                    src={item.mediaRef.path}
+                    alt={`分镜 ${item.index}`}
+                    className="aspect-video w-full object-cover"
+                  />
+                ) : item.mediaRef?.kind === "video" ? (
+                  <video
+                    src={item.mediaRef.path}
+                    className="aspect-video w-full bg-black object-cover"
+                    controls
+                  />
+                ) : (
+                  <div className="flex aspect-video items-center justify-center text-xs text-muted-foreground">
+                    storyboard / image
+                  </div>
+                )}
+                <div className="flex items-center justify-between gap-2 border-t border-border/70 px-2 py-1.5 text-[11px] text-muted-foreground">
+                  <span>#{item.index}</span>
+                  <span>{item.duration}s</span>
+                  <Badge variant="outline">{item.state}</Badge>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <div className="grid grid-cols-[72px_1fr_82px] gap-2">
+                  <Input
+                    type="number"
+                    value={item.index}
+                    onChange={(event) =>
+                      props.updateStoryboard(item.id, {
+                        index: Number(event.target.value),
+                      })
+                    }
+                  />
+                  <Input
+                    value={item.trackKey}
+                    onChange={(event) =>
+                      props.updateStoryboard(item.id, {
+                        trackKey: event.target.value,
+                      })
+                    }
+                    placeholder="track"
+                  />
+                  <Input
+                    type="number"
+                    value={item.duration}
+                    onChange={(event) =>
+                      props.updateStoryboard(item.id, {
+                        duration: Number(event.target.value),
+                      })
+                    }
+                  />
+                </div>
+                <Textarea
+                  value={item.prompt}
+                  onChange={(event) =>
+                    props.updateStoryboard(item.id, {
+                      prompt: event.target.value,
+                    })
+                  }
+                  placeholder="画面提示"
+                  className="min-h-[74px]"
+                />
+                <Textarea
+                  value={item.videoDesc}
+                  onChange={(event) =>
+                    props.updateStoryboard(item.id, {
+                      videoDesc: event.target.value,
+                    })
+                  }
+                  placeholder="视频描述/台词"
+                  className="min-h-[74px]"
+                />
+                <div className="flex flex-wrap gap-1.5">
+                  {item.assetIds.map((assetId) => (
+                    <Badge key={assetId} variant="secondary">
+                      asset · {assetId}
+                    </Badge>
+                  ))}
+                  {item.audioRef?.path && (
+                    <Badge variant="outline">audio · 已绑定</Badge>
+                  )}
+                </div>
+              </div>
+
               <MediaRefEditor
                 itemId={item.id}
                 mediaRef={item.mediaRef}
@@ -3324,6 +3455,11 @@ export function StoryboardTab(props: {
               />
             </div>
           ))}
+          {!props.storyboards.length && (
+            <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+              暂无分镜。先生成分镜表，再写入分镜视频生成面板。
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
@@ -3335,10 +3471,20 @@ function MaterialLibrary(props: {
   importMaterials: (files?: FileList | null) => void;
   deleteMaterial: (id: string) => void;
 }) {
+  const materialCounts = props.materials.reduce(
+    (counts, material) => ({
+      ...counts,
+      [material.kind]: counts[material.kind] + 1,
+    }),
+    { image: 0, video: 0, audio: 0 },
+  );
   return (
-    <Card className="rounded-lg">
+    <Card className="rounded-lg border-border/80 bg-card/95">
       <CardHeader>
         <CardTitle className="text-sm">素材管理</CardTitle>
+        <p className="text-xs text-muted-foreground">
+          作为分镜的 image / video / audio 引用源。
+        </p>
       </CardHeader>
       <CardContent className="space-y-3">
         <Label className="flex h-9 cursor-pointer items-center justify-center gap-2 rounded-md border border-input text-sm">
@@ -3352,11 +3498,25 @@ function MaterialLibrary(props: {
             onChange={(event) => props.importMaterials(event.target.files)}
           />
         </Label>
+        <div className="grid grid-cols-3 gap-2">
+          <div className="rounded-md border border-border bg-background/60 p-2 text-center">
+            <div className="text-sm font-semibold">{materialCounts.image}</div>
+            <div className="text-[10px] text-muted-foreground">image</div>
+          </div>
+          <div className="rounded-md border border-border bg-background/60 p-2 text-center">
+            <div className="text-sm font-semibold">{materialCounts.video}</div>
+            <div className="text-[10px] text-muted-foreground">video</div>
+          </div>
+          <div className="rounded-md border border-border bg-background/60 p-2 text-center">
+            <div className="text-sm font-semibold">{materialCounts.audio}</div>
+            <div className="text-[10px] text-muted-foreground">audio</div>
+          </div>
+        </div>
         <div className="space-y-2">
           {props.materials.map((material) => (
             <div
               key={material.id}
-              className="rounded-md border border-border p-2"
+              className="rounded-md border border-border bg-background/65 p-2"
             >
               <div className="flex items-center justify-between gap-2">
                 <div className="min-w-0">
@@ -3483,32 +3643,52 @@ export function WorkbenchTab(props: {
   >["deleteVideoCandidate"];
   mergeEpisode: () => void;
 }) {
-  const selectedReadyCandidateCount = props.tracks.filter((track) => {
-    if (!track.selectedVideoId) return false;
-    const candidate = props.candidates.find(
-      (item) => item.id === track.selectedVideoId,
-    );
-    return Boolean(candidate?.filePath && candidate.state === "ready");
-  }).length;
-  const canMergeEpisode =
-    props.tracks.length > 0 &&
-    selectedReadyCandidateCount === props.tracks.length;
+  const characters = useCharacterLibraryStore((state) => state.characters);
+  const scenes = useSceneStore((state) => state.scenes);
+  const propsItems = usePropsLibraryStore((state) => state.items);
+  const assetMediaById = useMemo(
+    () => buildWorkbenchAssetMediaMap(characters, scenes, propsItems),
+    [characters, scenes, propsItems],
+  );
+  const workbench = buildToonflowWorkbenchModel({
+    tracks: props.tracks,
+    storyboards: props.storyboards,
+    candidates: props.candidates,
+    assetMediaById,
+  });
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Boxes className="h-4 w-4" />
-          {props.tracks.length} 条 track / {props.storyboards.length} 个分镜 /{" "}
-          {selectedReadyCandidateCount} 条已选候选片段
+    <div className="space-y-3">
+      <div className="grid gap-3 rounded-lg border border-border bg-card p-3 lg:grid-cols-[1fr_auto]">
+        <div className="grid gap-2 md:grid-cols-4">
+          <div className="rounded-md border border-border bg-background px-3 py-2">
+            <div className="text-[11px] text-muted-foreground">model</div>
+            <div className="text-sm font-medium">ffmpeg-local</div>
+          </div>
+          <div className="rounded-md border border-border bg-background px-3 py-2">
+            <div className="text-[11px] text-muted-foreground">mode</div>
+            <div className="text-sm font-medium">track-candidate</div>
+          </div>
+          <div className="rounded-md border border-border bg-background px-3 py-2">
+            <div className="text-[11px] text-muted-foreground">resolution</div>
+            <div className="text-sm font-medium">16:9</div>
+          </div>
+          <label className="flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-sm">
+            <Checkbox checked disabled />
+            audio
+          </label>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
           <Button variant="secondary" onClick={props.rebuildTracks}>
             <RefreshCw className="h-4 w-4" />
-            重建轨道
+            添加 track
+          </Button>
+          <Button type="button" variant="outline" disabled>
+            <WandSparkles className="h-4 w-4" />
+            生成提示词
           </Button>
           <Button
             onClick={props.mergeEpisode}
-            disabled={props.merging || !canMergeEpisode}
+            disabled={props.merging || !workbench.canMergeEpisode}
           >
             <Film className="h-4 w-4" />
             导出成片
@@ -3520,62 +3700,115 @@ export function WorkbenchTab(props: {
           导出文件: {props.mergeOutput}
         </div>
       )}
-      <div className="grid grid-cols-1 gap-3">
-        {props.tracks.map((track) => {
-          const trackCandidates = props.candidates.filter(
-            (candidate) => candidate.trackId === track.id,
-          );
-          return (
-            <Card key={track.id} className="rounded-lg">
-              <CardHeader className="flex-row items-center justify-between space-y-0 py-4">
-                <div>
-                  <CardTitle className="text-sm">{track.trackKey}</CardTitle>
-                  <div className="mt-1 text-xs text-muted-foreground">
-                    {track.storyboardIds.length} 分镜 / {track.duration}s
-                  </div>
+      <div className="space-y-3">
+        {workbench.trackList.map((track) => (
+          <Card key={track.id} className="overflow-hidden rounded-lg">
+            <CardHeader className="grid gap-3 border-b border-border bg-muted/35 py-3 lg:grid-cols-[180px_1fr_auto]">
+              <div>
+                <CardTitle className="text-sm">{track.name}</CardTitle>
+                <div className="mt-1 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                  <span>{track.duration}s</span>
+                  <span>{track.state}</span>
+                  <span>{track.medias.length} medias</span>
                 </div>
+              </div>
+              <div className="min-w-0">
+                <Textarea
+                  readOnly
+                  value={track.prompt || ""}
+                  placeholder="prompt"
+                  className="min-h-[70px] resize-none bg-background text-xs"
+                />
+                {track.reason ? (
+                  <div className="mt-1 text-xs text-destructive">
+                    {track.reason}
+                  </div>
+                ) : null}
+              </div>
+              <div className="flex items-start justify-end gap-2">
+                <Button type="button" variant="outline" size="sm" disabled>
+                  检查提示词
+                </Button>
                 <Button
+                  size="sm"
                   onClick={() => props.renderTrack(track.id)}
                   disabled={props.renderingTrackId === track.id}
                 >
                   <Play className="h-4 w-4" />
                   {props.renderingTrackId === track.id
                     ? "生成中"
-                    : "生成候选片段"}
+                    : "生成视频"}
                 </Button>
-              </CardHeader>
-              <CardContent className="grid grid-cols-[1fr_280px] gap-3">
-                <pre className="min-h-[120px] whitespace-pre-wrap rounded-md bg-muted p-3 text-xs">
-                  {track.prompt || "未设置 track prompt"}
-                </pre>
-                <div className="space-y-2">
-                  {trackCandidates.map((candidate) => (
+              </div>
+            </CardHeader>
+            <CardContent className="grid gap-3 p-3 lg:grid-cols-[1fr_360px]">
+              <div className="space-y-2">
+                <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+                  {track.medias.map((media, index) => (
                     <div
-                      key={candidate.id}
-                      className="rounded-md border border-border p-2"
+                      key={`${media.sources}-${media.id}-${media.fileType}-${index}`}
+                      className="overflow-hidden rounded-md border border-border bg-background"
                     >
-                      <div className="flex items-center justify-between gap-2">
-                        <Badge
-                          variant={
-                            candidate.state === "ready"
-                              ? "default"
-                              : candidate.state === "failed"
-                                ? "destructive"
-                                : "outline"
-                          }
-                        >
-                          {candidate.state}
+                      <div className="aspect-video bg-black">
+                        {media.fileType === "audio" ? (
+                          <div className="flex h-full items-center justify-center text-xs text-zinc-300">
+                            audio
+                          </div>
+                        ) : media.fileType === "video" ? (
+                          <video
+                            className="h-full w-full object-cover"
+                            src={toPreviewSrc(media.src)}
+                            muted
+                          />
+                        ) : (
+                          <img
+                            className="h-full w-full object-cover"
+                            src={toPreviewSrc(media.src)}
+                            alt={media.name ?? media.id}
+                          />
+                        )}
+                      </div>
+                      <div className="space-y-1 p-2">
+                        <Badge variant="outline">
+                          {media.sources}/{media.fileType}
                         </Badge>
-                        <div className="flex gap-1">
+                        <div className="truncate text-xs">
+                          {media.name ?? media.id}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  {track.medias.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-border bg-background p-3 text-xs text-muted-foreground">
+                      no media
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+              <div className="grid gap-2">
+                {track.videoList.map((video) => (
+                  <div
+                    key={video.id}
+                    className="rounded-md border border-border bg-background p-2"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <Badge
+                        variant={
+                          video.state === "ready"
+                            ? "default"
+                            : video.state === "failed"
+                              ? "destructive"
+                              : "outline"
+                        }
+                      >
+                        {video.state}
+                      </Badge>
+                      <div className="flex gap-1">
                           <Button
                             size="sm"
-                            variant={
-                              track.selectedVideoId === candidate.id
-                                ? "default"
-                                : "secondary"
-                            }
+                          variant={video.selected ? "default" : "secondary"}
                             onClick={() =>
-                              props.selectVideoCandidate(track.id, candidate.id)
+                            props.selectVideoCandidate(track.id, video.id)
                             }
                           >
                             选择
@@ -3583,1072 +3816,113 @@ export function WorkbenchTab(props: {
                           <Button
                             size="sm"
                             variant="destructive"
-                            onClick={() =>
-                              props.deleteVideoCandidate(candidate.id)
-                            }
+                          onClick={() => props.deleteVideoCandidate(video.id)}
                           >
                             删除
                           </Button>
-                        </div>
                       </div>
-                      {candidate.filePath && (
-                        <video
-                          className="mt-2 aspect-video w-full rounded bg-black"
-                          src={toPreviewSrc(candidate.filePath)}
-                          controls
-                        />
-                      )}
-                      {candidate.errorReason && (
-                        <div className="mt-2 text-xs text-destructive">
-                          {candidate.errorReason}
-                        </div>
-                      )}
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
+                    {video.path ? (
+                      <video
+                        className="mt-2 aspect-video w-full rounded bg-black"
+                        src={toPreviewSrc(video.path)}
+                        controls
+                      />
+                    ) : null}
+                    {video.errorReason ? (
+                      <div className="mt-2 text-xs text-destructive">
+                        {video.errorReason}
+                      </div>
+                    ) : null}
+                  </div>
+                ))}
+                {track.videoList.length === 0 ? (
+                  <div className="rounded-md border border-dashed border-border bg-background p-3 text-xs text-muted-foreground">
+                    no video
+                  </div>
+                ) : null}
+              </div>
+            </CardContent>
+          </Card>
+        ))}
       </div>
     </div>
   );
 }
 
 function toPreviewSrc(filePath: string) {
-  if (filePath.startsWith("local-image://") || filePath.startsWith("file://"))
+  if (
+    filePath.startsWith("local-image://") ||
+    filePath.startsWith("file://") ||
+    filePath.startsWith("data:") ||
+    filePath.startsWith("blob:") ||
+    filePath.startsWith("http://") ||
+    filePath.startsWith("https://")
+  )
     return filePath;
   return `file://${filePath}`;
 }
 
-// ==================== ProductionAgent Tab ====================
-
-export function GenerationTab({
-  runDirectorPlan,
-  deriveAssets,
-  buildSeriesBible,
-  productionEpisodeId,
-  scriptPlanCount,
-  hasSeriesBible,
-  projectName,
-}: {
-  runDirectorPlan: (episodeId?: string) => void;
-  deriveAssets: (episodeId?: string) => void;
-  buildSeriesBible: () => void;
-  productionEpisodeId: string;
-  scriptPlanCount: number;
-  hasSeriesBible: boolean;
-  projectName: string;
-}) {
-  const visualManualId = useStudioStore(
-    (s) => s.workflowConfig?.visualManualId,
-  );
-  const [activeType, setActiveType] = useState<"character" | "scene" | "prop">(
-    "character",
-  );
-  const [isPolishing, setIsPolishing] = useState(false);
-  const [progress, setProgress] = useState({ done: 0, total: 0 });
-  const [isCancelled, setIsCancelled] = useState(false);
-
-  // 音色分配状态
-  const [voiceDialogChar, setVoiceDialogChar] = useState<{
-    id: string;
-    name: string;
-    gender?: string;
-    age?: string;
-    personality?: string;
-  } | null>(null);
-  // 从各 Store 获取资产统计
-  const characters = useCharacterLibraryStore((s) => s.characters);
-  const scenes = useSceneStore((s) => s.scenes);
-  const allProps = usePropsLibraryStore((s) => s.items);
-  const entityExtractions = useStudioStore((s) => s.entityExtractions);
-  const activeTtsProjectId = useTtsStore((s) => s.activeProjectId);
-  const ttsProjects = useTtsStore((s) => s.projects);
-  const voiceProfiles = useTtsStore((s) => s.voiceProfiles);
-
-  // 从 entityExtractions 提取各类型的名字集合（用于统计总数）
-  const extractedCharNames = useMemo(() => {
-    const names = new Set<string>();
-    for (const batch of entityExtractions)
-      for (const c of batch.characters) names.add(c.name);
-    return names;
-  }, [entityExtractions]);
-  const extractedSceneNames = useMemo(() => {
-    const names = new Set<string>();
-    for (const batch of entityExtractions)
-      for (const s of batch.scenes) names.add(s.name);
-    return names;
-  }, [entityExtractions]);
-  const extractedPropNames = useMemo(() => {
-    const names = new Set<string>();
-    for (const batch of entityExtractions) {
-      for (const p of batch.props) names.add(p.name);
+function buildWorkbenchAssetMediaMap(
+  characters: ReturnType<typeof useCharacterLibraryStore.getState>["characters"],
+  scenes: ReturnType<typeof useSceneStore.getState>["scenes"],
+  propsItems: ReturnType<typeof usePropsLibraryStore.getState>["items"],
+): Record<string, ToonflowWorkbenchAssetMedia> {
+  const entries: Record<string, ToonflowWorkbenchAssetMedia> = {};
+  for (const character of characters) {
+    const path =
+      character.thumbnailUrl ??
+      character.views.find((view) => view.imageUrl)?.imageUrl ??
+      character.referenceImages?.[0];
+    if (path) {
+      entries[character.id] = {
+        id: character.id,
+        name: character.name,
+        fileType: "image",
+        path,
+        prompt: character.visualTraits || character.description,
+      };
     }
-    return names;
-  }, [entityExtractions]);
-
-  // 只保留提取结果中出现的道具
-  const props = useMemo(
-    () => allProps.filter((p) => extractedPropNames.has(p.name)),
-    [allProps, extractedPropNames],
-  );
-
-  // 统计音色分配情况
-  const voiceStats = useMemo(() => {
-    const bindings = activeTtsProjectId
-      ? (ttsProjects[activeTtsProjectId]?.bindings ?? {})
-      : {};
-    let assigned = 0;
-    for (const c of characters) {
-      const speakerId = `character:${c.id}` as TtsSpeakerId;
-      const binding = bindings[speakerId];
-      if (binding && voiceProfiles[binding.profileId]) assigned++;
+    for (const variation of character.variations ?? []) {
+      if (!variation.referenceImage) continue;
+      entries[variation.id] = {
+        id: variation.id,
+        name: variation.name,
+        fileType: "image",
+        path: variation.referenceImage,
+        prompt: variation.visualPromptZh || variation.visualPrompt,
+      };
     }
-    return {
-      total: characters.length,
-      assigned,
-      unassigned: characters.length - assigned,
+  }
+  for (const scene of scenes) {
+    const path =
+      scene.referenceImage ??
+      scene.referenceImageBase64 ??
+      getOptionalStringField(scene, "contactSheetImage");
+    if (!path) continue;
+    entries[scene.id] = {
+      id: scene.id,
+      name: scene.name,
+      fileType: "image",
+      path,
+      prompt: scene.visualPrompt || scene.location || scene.atmosphere,
     };
-  }, [activeTtsProjectId, characters, ttsProjects, voiceProfiles]);
-
-  // 统计各类型的润色状态（total 统一用 entityExtractions 的数量）
-  const stats = useMemo(() => {
-    const countStatus = (
-      items: Array<{ promptState?: string }>,
-      extractedTotal: number,
-    ) => ({
-      total: extractedTotal > 0 ? extractedTotal : items.length,
-      none: items.filter((i) => !i.promptState || i.promptState === "none")
-        .length,
-      polishing: items.filter((i) => i.promptState === "polishing").length,
-      ready: items.filter((i) => i.promptState === "ready").length,
-      failed: items.filter((i) => i.promptState === "failed").length,
-    });
-    return {
-      character: countStatus(characters, extractedCharNames.size),
-      scene: countStatus(scenes, extractedSceneNames.size),
-      prop: countStatus(props, extractedPropNames.size),
+  }
+  for (const item of propsItems) {
+    if (!item.imageUrl) continue;
+    entries[item.id] = {
+      id: item.id,
+      name: item.name,
+      fileType: "image",
+      path: item.imageUrl,
+      prompt: item.visualPrompt || item.description,
     };
-  }, [
-    characters,
-    scenes,
-    props,
-    extractedCharNames,
-    extractedSceneNames,
-    extractedPropNames,
-  ]);
-
-  const currentStats = stats[activeType];
-
-  const handlePolishAll = useCallback(async () => {
-    if (!visualManualId) {
-      toast.error("请先在「风格与导演」中选择视觉手册");
-      return;
-    }
-    setIsPolishing(true);
-    setIsCancelled(false);
-    setProgress({ done: 0, total: 0 });
-
-    const { polishAssetsAndUpdateStore } =
-      await import("@/lib/studio/asset-generation-orchestrator");
-    const result = await polishAssetsAndUpdateStore(
-      activeType,
-      visualManualId,
-      {
-        concurrency: 3,
-        onProgress: (done, total) => setProgress({ done, total }),
-        onCancel: () => isCancelled,
-      },
-    );
-
-    setIsPolishing(false);
-    if (result.failed > 0) {
-      toast.warning(
-        `处理完成：${result.success} 成功（含资产库复用），${result.failed} 失败`,
-      );
-    } else {
-      toast.success(`处理完成：${result.success} 个资产已就绪（含资产库复用）`);
-    }
-  }, [activeType, visualManualId, isCancelled]);
-
-  const typeConfig = [
-    { key: "character" as const, label: "角色", icon: Users },
-    { key: "scene" as const, label: "场景", icon: MapPin },
-    { key: "prop" as const, label: "道具", icon: Gem },
-  ];
-
-  return (
-    <div className="production-agent-workspace h-full flex flex-col bg-background/90">
-      <div className="border-b border-border/70 bg-panel/80 px-4 py-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <h3 className="text-sm font-semibold">
-                ProductionAgent：导演规划与衍生资产
-              </h3>
-              <Badge variant={scriptPlanCount > 0 ? "secondary" : "outline"}>
-                导演计划 {scriptPlanCount}
-              </Badge>
-              <Badge variant={hasSeriesBible ? "secondary" : "outline"}>
-                {hasSeriesBible ? "剧集圣经已锁定" : "剧集圣经未锁定"}
-              </Badge>
-            </div>
-            <p className="mt-1 text-xs text-muted-foreground">
-              按 Toonflow 的 ProductionAgent
-              顺序推进：导演规划、衍生资产分析/生成、分镜表、分镜面板、分镜图，再进入视频工作台。
-            </p>
-          </div>
-          <div className="flex flex-wrap justify-end gap-2">
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() => runDirectorPlan(productionEpisodeId)}
-            >
-              <ClipboardList className="h-4 w-4" />
-              运行导演计划
-            </Button>
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() => deriveAssets(productionEpisodeId)}
-              disabled={scriptPlanCount === 0}
-            >
-              <Boxes className="h-4 w-4" />
-              落地衍生资产
-            </Button>
-            <Button size="sm" onClick={buildSeriesBible}>
-              <BookMarked className="h-4 w-4" />
-              锁定剧集圣经
-            </Button>
-          </div>
-        </div>
-      </div>
-      <div className="border-b border-border/70 bg-background p-4">
-        <WorkflowNodeCanvas projectName={projectName} />
-      </div>
-      {/* 类型选择 */}
-      <div className="flex items-center gap-1 border-b px-3 py-2 bg-panel">
-        {typeConfig.map(({ key, label, icon: Icon }) => (
-          <button
-            key={key}
-            onClick={() => setActiveType(key)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-sm transition-colors ${
-              activeType === key
-                ? "bg-primary/15 text-primary font-medium"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-            }`}
-          >
-            <Icon className="h-3.5 w-3.5" />
-            {label}
-            <span className="text-xs opacity-70">
-              ({stats[key].ready}/{stats[key].total})
-            </span>
-          </button>
-        ))}
-
-        <div className="flex-1" />
-
-        {!visualManualId && (
-          <span className="text-xs text-amber-500 mr-2">⚠ 未选择视觉手册</span>
-        )}
-
-        {/* 批量润色按钮 */}
-        <button
-          onClick={handlePolishAll}
-          disabled={isPolishing || !visualManualId || currentStats.none === 0}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-primary/20 text-primary text-sm hover:bg-primary/30 disabled:opacity-40 transition-colors"
-        >
-          <WandSparkles className="h-3.5 w-3.5" />
-          {isPolishing
-            ? `润色中 ${progress.done}/${progress.total}`
-            : `全部润色提示词 (${currentStats.none})`}
-        </button>
-
-        <button
-          type="button"
-          className="flex items-center gap-1.5 rounded bg-primary/20 px-3 py-1.5 text-sm text-primary transition-colors hover:bg-primary/30"
-        >
-          <ImageIcon className="h-3.5 w-3.5" />
-          生成图片
-        </button>
-        <button
-          type="button"
-          className="flex items-center gap-1.5 rounded bg-primary/20 px-3 py-1.5 text-sm text-primary transition-colors hover:bg-primary/30"
-        >
-          <Clapperboard className="h-3.5 w-3.5" />
-          生成视频预览
-        </button>
-
-        {/* 音色样本绑定状态（仅角色 tab 显示） */}
-        {activeType === "character" && voiceStats.total > 0 && (
-          <span className="text-xs text-primary">
-            音频样本 {voiceStats.assigned}/{voiceStats.total}
-          </span>
-        )}
-
-        {isPolishing && (
-          <button
-            onClick={() => setIsCancelled(true)}
-            className="text-xs text-red-400 hover:text-red-300"
-          >
-            取消
-          </button>
-        )}
-      </div>
-
-      {/* 进度条 */}
-      {isPolishing && progress.total > 0 && (
-        <div className="h-1.5 bg-muted">
-          <div
-            className="h-full bg-primary transition-all duration-300"
-            style={{ width: `${(progress.done / progress.total) * 100}%` }}
-          />
-        </div>
-      )}
-
-      {/* 资产列表 — 仅展示当前章节提取出的资产 */}
-      <div className="flex-1 overflow-auto p-4">
-        <AssetListByType
-          type={activeType}
-          onVoiceAssign={
-            activeType === "character"
-              ? (char) => setVoiceDialogChar(char)
-              : undefined
-          }
-        />
-      </div>
-
-      {/* 音色分配弹窗 */}
-      {voiceDialogChar && (
-        <RoleVoiceAssignDialog
-          character={voiceDialogChar}
-          open={!!voiceDialogChar}
-          onOpenChange={(open) => {
-            if (!open) setVoiceDialogChar(null);
-          }}
-        />
-      )}
-    </div>
-  );
-}
-
-/** 按类型展示资产列表（含润色状态标签） */
-function AssetListByType({
-  type,
-  onVoiceAssign,
-}: {
-  type: "character" | "scene" | "prop";
-  onVoiceAssign?: (char: {
-    id: string;
-    name: string;
-    gender?: string;
-    age?: string;
-    personality?: string;
-  }) => void;
-}) {
-  // Hooks 必须在条件语句之前调用
-  const allCharacters = useCharacterLibraryStore((s) => s.characters);
-  const allScenes = useSceneStore((s) => s.scenes);
-  const allPropsItems = usePropsLibraryStore((s) => s.items);
-  const entityExtractions = useStudioStore((s) => s.entityExtractions);
-
-  // 从 entityExtractions 提取当前章节的角色/场景/道具名集合
-  const extractedNames = useMemo(() => {
-    const names = new Set<string>();
-    for (const batch of entityExtractions) {
-      if (type === "character")
-        for (const c of batch.characters) names.add(c.name);
-      else if (type === "scene")
-        for (const s of batch.scenes) names.add(s.name);
-      else for (const p of batch.props) names.add(p.name);
-    }
-    return names;
-  }, [entityExtractions, type]);
-
-  // 按名称去重 + 仅保留 entityExtractions 中出现的资产
-  const characters = useMemo(() => {
-    const seen = new Set<string>();
-    return allCharacters.filter((c) => {
-      if (!extractedNames.has(c.name)) return false;
-      const key = `${c.name}::${c.projectId ?? ""}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-  }, [allCharacters, extractedNames]);
-  const scenes = useMemo(() => {
-    const seen = new Set<string>();
-    return allScenes.filter((s) => {
-      if (!extractedNames.has(s.name)) return false;
-      const key = `${s.name}::${s.projectId ?? ""}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-  }, [allScenes, extractedNames]);
-  const propsItems = useMemo(() => {
-    const seen = new Set<string>();
-    return allPropsItems.filter((p) => {
-      if (!extractedNames.has(p.name)) return false;
-      if (seen.has(p.name)) return false;
-      seen.add(p.name);
-      return true;
-    });
-  }, [allPropsItems, extractedNames]);
-
-  // assets.db fallback：当 propsLibraryStore 为空时从 assets.db 加载道具（仅提取结果中的）
-  const [dbPropsFallback, setDbPropsFallback] = useState<
-    Array<{
-      id: string;
-      name: string;
-      description: string;
-      imageUrl: string;
-      promptState?: string;
-    }>
-  >([]);
-  useEffect(() => {
-    if (type !== "prop" || propsItems.length > 0 || extractedNames.size === 0)
-      return;
-    window.studioAssets
-      ?.list({ type: "tool", limit: 9999 })
-      .then((res) => {
-        const items = (res.items || [])
-          .filter((it) => extractedNames.has(it.name))
-          .map((it) => ({
-            id: String(it.id ?? ""),
-            name: String(it.name ?? ""),
-            description: String(it.description ?? ""),
-            imageUrl: it.thumbnailUrl ?? it.previewUrl ?? "",
-            promptState: it.prompt ? ("ready" as const) : ("none" as const),
-          }));
-        setDbPropsFallback(items);
-      })
-      .catch(() => {});
-  }, [type, propsItems.length, extractedNames]);
-
-  // 资产库弹窗状态
-  const [selectedAsset, setSelectedAsset] = useState<StudioAssetSummary | null>(
-    null,
-  );
-  const [assetDialogOpen, setAssetDialogOpen] = useState(false);
-  // 未找到资产时的生成弹窗
-  const [notFoundDialog, setNotFoundDialog] = useState<{
-    name: string;
-    kind: "character" | "scene" | "prop";
-  } | null>(null);
-  const [isGeneratingSingle, setIsGeneratingSingle] = useState(false);
-
-  /** 为单个未匹配的资产生成图片 */
-  const handleGenerateSingle = useCallback(
-    async (name: string, kind: "character" | "scene" | "prop") => {
-      const manualId = useStudioStore.getState().workflowConfig?.visualManualId;
-      if (!manualId) {
-        toast.error("请先在「风格与导演」中选择视觉手册");
-        return;
-      }
-      setIsGeneratingSingle(true);
-      try {
-        const dbType =
-          kind === "prop" ? "tool" : kind === "character" ? "role" : kind;
-        const { generateAsset } =
-          await import("@/lib/studio/asset-generation-orchestrator");
-        const result = await generateAsset({
-          assetId: `single_${Date.now()}`,
-          name,
-          assetType: kind,
-          description: "",
-          isDerivative: false,
-          visualManualId: manualId,
-          skipPolish: false,
-        });
-        if (result.phase === "done") {
-          toast.success(`「${name}」资产生成成功`);
-          setNotFoundDialog(null);
-          // 重新查询并打开详情弹窗
-          const asset = await window.studioAssets?.getByName({
-            type: dbType,
-            name,
-          });
-          if (asset) {
-            setSelectedAsset(asset);
-            setAssetDialogOpen(true);
-          }
-        } else {
-          toast.error(`「${name}」资产生成失败: ${result.error ?? "未知错误"}`);
-        }
-      } catch (err: any) {
-        toast.error(`生成失败: ${err.message ?? err}`);
-      } finally {
-        setIsGeneratingSingle(false);
-      }
-    },
-    [],
-  );
-
-  /** 点击角色/场景/道具 → 匹配资产库 → 弹出资产详情 */
-  const handleItemClick = useCallback(
-    async (name: string, assetKind: "character" | "scene" | "prop") => {
-      try {
-        const dbType =
-          assetKind === "prop"
-            ? "tool"
-            : assetKind === "character"
-              ? "role"
-              : assetKind;
-        const asset = await window.studioAssets?.getByName({
-          type: dbType,
-          name,
-        });
-        if (asset) {
-          setSelectedAsset(asset);
-          setAssetDialogOpen(true);
-        } else {
-          setNotFoundDialog({ name, kind: assetKind });
-        }
-      } catch {
-        toast.error("查询资产库失败");
-      }
-    },
-    [],
-  );
-
-  if (type === "character") {
-    if (characters.length === 0)
-      return (
-        <p className="text-sm text-muted-foreground italic">
-          暂无角色资产，请先在「剧本资产」中提取。
-        </p>
-      );
-    return (
-      <>
-        <div className="grid gap-2 overflow-hidden">
-          {characters.map((c) => (
-            <div
-              key={c.id}
-              className="flex items-center gap-3 rounded-lg border p-3 hover:bg-muted/30 cursor-pointer transition-colors overflow-hidden min-w-0"
-              onClick={() => handleItemClick(c.name, "character")}
-            >
-              {/* 缩略图 */}
-              <div className="h-10 w-10 rounded bg-muted flex items-center justify-center overflow-hidden shrink-0">
-                {c.thumbnailUrl ? (
-                  <LocalImage
-                    src={c.thumbnailUrl}
-                    alt={c.name}
-                    className="h-full w-full object-cover"
-                  />
-                ) : c.views?.length > 0 && c.views[0].imageUrl ? (
-                  <LocalImage
-                    src={c.views[0].imageUrl}
-                    alt={c.name}
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <Users className="h-4 w-4 text-muted-foreground" />
-                )}
-              </div>
-              {/* 名称 + 描述 */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-sm font-medium truncate">{c.name}</span>
-                  <StatusBadge state={c.promptState} />
-                </div>
-                <p className="text-xs text-muted-foreground truncate">
-                  {c.description || c.role || "无描述"}
-                </p>
-              </div>
-              {/* 提示词预览 */}
-              {c.visualTraits && (
-                <span
-                  className="text-[10px] text-muted-foreground truncate flex-1 min-w-0 hidden sm:inline-block"
-                  title={c.visualTraits}
-                >
-                  {c.visualTraits.slice(0, 60)}...
-                </span>
-              )}
-              {/* 音色状态 + 试听按钮 */}
-              {onVoiceAssign && (
-                <div className="flex items-center gap-1 shrink-0">
-                  <VoicePreviewButton
-                    characterId={c.id}
-                    characterName={c.name}
-                  />
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onVoiceAssign({
-                        id: c.id,
-                        name: c.name,
-                        gender: c.gender,
-                        age: c.age,
-                        personality: c.personality,
-                      });
-                    }}
-                    className="flex items-center gap-1.5 px-2 py-1 rounded text-xs hover:bg-primary/10 transition-colors"
-                  >
-                    <VoiceBadge characterId={c.id} />
-                    <Mic className="h-3 w-3 text-muted-foreground" />
-                  </button>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-
-        {/* 资产库详情弹窗 */}
-        <StudioAssetDetailDialog
-          asset={selectedAsset}
-          open={assetDialogOpen}
-          onOpenChange={(o) => {
-            setAssetDialogOpen(o);
-            if (!o) setSelectedAsset(null);
-          }}
-        />
-        {/* 未找到资产 → 生成弹窗 */}
-        <AlertDialog
-          open={!!notFoundDialog}
-          onOpenChange={(o) => {
-            if (!o) setNotFoundDialog(null);
-          }}
-        >
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>资产未找到</AlertDialogTitle>
-              <AlertDialogDescription>
-                「{notFoundDialog?.name}」在资产库中不存在。是否立即生成？
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel disabled={isGeneratingSingle}>
-                取消
-              </AlertDialogCancel>
-              <AlertDialogAction
-                onClick={() =>
-                  notFoundDialog &&
-                  handleGenerateSingle(notFoundDialog.name, notFoundDialog.kind)
-                }
-                disabled={isGeneratingSingle}
-              >
-                {isGeneratingSingle ? "生成中..." : "立即生成"}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      </>
-    );
   }
-
-  if (type === "scene") {
-    if (scenes.length === 0)
-      return (
-        <p className="text-sm text-muted-foreground italic">
-          暂无场景资产，请先在「剧本资产」中提取。
-        </p>
-      );
-    return (
-      <>
-        <div className="grid gap-2 overflow-hidden">
-          {scenes.map((s) => (
-            <div
-              key={s.id}
-              className="flex items-center gap-3 rounded-lg border p-3 hover:bg-muted/30 cursor-pointer transition-colors overflow-hidden min-w-0"
-              onClick={() => handleItemClick(s.name, "scene")}
-            >
-              <div className="h-10 w-10 rounded bg-muted flex items-center justify-center overflow-hidden shrink-0">
-                {s.referenceImage ? (
-                  <LocalImage
-                    src={s.referenceImage}
-                    alt={s.name}
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <MapPin className="h-4 w-4 text-muted-foreground" />
-                )}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-sm font-medium truncate">{s.name}</span>
-                  <StatusBadge state={s.promptState} />
-                </div>
-                <p className="text-xs text-muted-foreground truncate">
-                  {s.location || s.notes || "无描述"}
-                </p>
-              </div>
-              {s.visualPrompt && (
-                <span
-                  className="text-[10px] text-muted-foreground truncate flex-1 min-w-0 hidden sm:inline-block"
-                  title={s.visualPrompt}
-                >
-                  {s.visualPrompt.slice(0, 60)}...
-                </span>
-              )}
-            </div>
-          ))}
-        </div>
-
-        <StudioAssetDetailDialog
-          asset={selectedAsset}
-          open={assetDialogOpen}
-          onOpenChange={(o) => {
-            setAssetDialogOpen(o);
-            if (!o) setSelectedAsset(null);
-          }}
-        />
-        {/* 未找到资产 → 生成弹窗 */}
-        <AlertDialog
-          open={!!notFoundDialog}
-          onOpenChange={(o) => {
-            if (!o) setNotFoundDialog(null);
-          }}
-        >
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>资产未找到</AlertDialogTitle>
-              <AlertDialogDescription>
-                「{notFoundDialog?.name}」在资产库中不存在。是否立即生成？
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel disabled={isGeneratingSingle}>
-                取消
-              </AlertDialogCancel>
-              <AlertDialogAction
-                onClick={() =>
-                  notFoundDialog &&
-                  handleGenerateSingle(notFoundDialog.name, notFoundDialog.kind)
-                }
-                disabled={isGeneratingSingle}
-              >
-                {isGeneratingSingle ? "生成中..." : "立即生成"}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      </>
-    );
-  }
-
-  // prop：优先用 propsLibraryStore，为空时用 assets.db fallback
-  const displayProps = propsItems.length > 0 ? propsItems : dbPropsFallback;
-  if (displayProps.length === 0)
-    return (
-      <p className="text-sm text-muted-foreground italic">
-        暂无道具资产，请先在「剧本资产」中提取。
-      </p>
-    );
-  return (
-    <>
-      <div className="grid gap-2 overflow-hidden">
-        {displayProps.map((p) => (
-          <div
-            key={p.id}
-            className="flex items-center gap-3 rounded-lg border p-3 hover:bg-muted/30 cursor-pointer transition-colors overflow-hidden min-w-0"
-            onClick={() => handleItemClick(p.name, "prop")}
-          >
-            <div className="h-10 w-10 rounded bg-muted flex items-center justify-center overflow-hidden shrink-0">
-              {p.imageUrl ? (
-                <LocalImage
-                  src={p.imageUrl}
-                  alt={p.name}
-                  className="h-full w-full object-cover"
-                />
-              ) : (
-                <Gem className="h-4 w-4 text-muted-foreground" />
-              )}
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium truncate">{p.name}</span>
-                <StatusBadge state={p.promptState} />
-              </div>
-              <p className="text-xs text-muted-foreground truncate">
-                {p.description || "无描述"}
-              </p>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <StudioAssetDetailDialog
-        asset={selectedAsset}
-        open={assetDialogOpen}
-        onOpenChange={(o) => {
-          setAssetDialogOpen(o);
-          if (!o) setSelectedAsset(null);
-        }}
-      />
-      {/* 未找到资产 → 生成弹窗 */}
-      <AlertDialog
-        open={!!notFoundDialog}
-        onOpenChange={(o) => {
-          if (!o) setNotFoundDialog(null);
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>资产未找到</AlertDialogTitle>
-            <AlertDialogDescription>
-              「{notFoundDialog?.name}」在资产库中不存在。是否立即生成？
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isGeneratingSingle}>
-              取消
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() =>
-                notFoundDialog &&
-                handleGenerateSingle(notFoundDialog.name, notFoundDialog.kind)
-              }
-              disabled={isGeneratingSingle}
-            >
-              {isGeneratingSingle ? "生成中..." : "立即生成"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </>
-  );
+  return entries;
 }
 
-/** 润色状态标签 */
-function StatusBadge({ state }: { state?: string }) {
-  if (!state || state === "none") return null;
-  const config: Record<string, { label: string; color: string }> = {
-    polishing: { label: "润色中", color: "text-blue-400" },
-    ready: { label: "已就绪", color: "text-green-400" },
-    failed: { label: "失败", color: "text-red-400" },
-  };
-  const c = config[state];
-  if (!c) return null;
-  return (
-    <span className={`text-[10px] ${c.color}`}>
-      {state === "polishing" && "● "}
-      {c.label}
-    </span>
-  );
-}
-
-// ==================== 音色分配 Dialog ====================
-
-/** 获取角色当前的音色绑定状态 */
-function getCharacterVoiceStatus(
-  characterId: string,
-  bindings: Record<string, ProjectVoiceBinding>,
-  voiceProfiles: Record<string, VoiceProfile>,
-): { assigned: boolean; type?: "preset" | "reference"; label?: string } {
-  const speakerId = `character:${characterId}` as TtsSpeakerId;
-  const binding = bindings[speakerId];
-  if (!binding) return { assigned: false };
-  const profile = voiceProfiles[binding.profileId];
-  if (!profile) return { assigned: false };
-  return {
-    assigned: true,
-    type: profile.type,
-    label:
-      profile.type === "preset"
-        ? (profile.presetVoiceId ?? "预设")
-        : "音频样本",
-  };
-}
-
-/** 音色状态标签 */
-const EMPTY_BINDINGS: Record<string, ProjectVoiceBinding> = {};
-
-/** 音色试听按钮：用角色绑定的音频样本生成并播放一段语音 */
-function VoicePreviewButton({
-  characterId,
-  characterName,
-}: {
-  characterId: string;
-  characterName: string;
-}) {
-  const [playing, setPlaying] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-
-  const bindings = useTtsStore((s) => {
-    const pid = s.activeProjectId;
-    return pid ? (s.projects[pid]?.bindings ?? EMPTY_BINDINGS) : EMPTY_BINDINGS;
-  });
-  const voiceProfiles = useTtsStore((s) => s.voiceProfiles);
-  const status = getCharacterVoiceStatus(characterId, bindings, voiceProfiles);
-
-  const handlePreview = useCallback(
-    async (e: React.MouseEvent) => {
-      e.stopPropagation();
-      if (!status.assigned) {
-        toast.info("请先为该角色分配音色");
-        return;
-      }
-      if (playing && audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
-        setPlaying(false);
-        return;
-      }
-      if (!window.ttsRuntime) {
-        toast.error("TTS 后端未就绪，请在设置中启动 TTS 服务");
-        return;
-      }
-      const speakerId = `character:${characterId}` as TtsSpeakerId;
-      const binding = bindings[speakerId];
-      if (!binding) return;
-      const profile = voiceProfiles[binding.profileId];
-      if (!profile) {
-        toast.error("音色 profile 不存在，请重新分配音色");
-        return;
-      }
-
-      setLoading(true);
-      try {
-        // 启动 TTS 运行时（如果还没启动）
-        const ttsStatus = await window.ttsRuntime.status();
-        if (!ttsStatus.running) {
-          const startRes = await window.ttsRuntime.start();
-          if (!startRes.success) {
-            toast.error(`TTS 启动失败: ${startRes.error || "未知错误"}`);
-            return;
-          }
-        }
-        await ensureBackendVoiceProfile(profile);
-
-        // 调用 TTS 后端生成语音
-        const text = `大家好，我是${characterName}，很高兴认识你们。`;
-        const genRes = (await window.ttsRuntime.request({
-          method: "POST",
-          path: "/generate",
-          body: {
-            profile_id: binding.profileId,
-            text,
-            engine: binding.defaultEngine,
-            model_size: binding.defaultModelSize,
-            language: "zh",
-          },
-        })) as { id?: string; status?: string; error?: string };
-
-        if (!genRes.id) {
-          toast.error(genRes.error || "生成失败");
-          return;
-        }
-
-        // 轮询等待生成完成
-        const generationId = genRes.id;
-        let attempts = 0;
-        let audioPath: string | null = null;
-        while (attempts < 60) {
-          await new Promise((r) => setTimeout(r, 500));
-          const statusRes = (await window.ttsRuntime.request({
-            method: "GET",
-            path: `/generate/${generationId}/status`,
-          })) as { status?: string; audio_path?: string; error?: string };
-          if (statusRes.status === "completed" && statusRes.audio_path) {
-            audioPath = statusRes.audio_path;
-            break;
-          }
-          if (statusRes.status === "failed") {
-            toast.error(statusRes.error || "语音生成失败");
-            return;
-          }
-          attempts++;
-        }
-        if (!audioPath) {
-          toast.error("语音生成超时");
-          return;
-        }
-
-        // 通过后端获取音频文件
-        const audioRes = await window.ttsRuntime.requestBytes({
-          method: "GET",
-          path: `/audio/${generationId}`,
-        });
-        const blob = new Blob([audioRes.data], {
-          type: audioRes.mimeType || "audio/wav",
-        });
-        const url = URL.createObjectURL(blob);
-        const audio = new Audio(url);
-        audioRef.current = audio;
-        audio.onended = () => {
-          setPlaying(false);
-          URL.revokeObjectURL(url);
-          audioRef.current = null;
-        };
-        audio.onerror = () => {
-          setPlaying(false);
-          toast.error("播放失败");
-        };
-        await audio.play();
-        setPlaying(true);
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : "试听失败");
-      } finally {
-        setLoading(false);
-      }
-    },
-    [
-      status.assigned,
-      characterId,
-      characterName,
-      bindings,
-      voiceProfiles,
-      playing,
-    ],
-  );
-
-  if (!status.assigned) return null;
-
-  return (
-    <button
-      onClick={handlePreview}
-      disabled={loading}
-      className="flex items-center justify-center h-7 w-7 rounded hover:bg-primary/15 transition-colors disabled:opacity-40"
-      title={playing ? "停止播放" : "试听音色"}
-    >
-      {loading ? (
-        <Loader2 className="h-3.5 w-3.5 text-primary animate-spin" />
-      ) : playing ? (
-        <span className="flex items-center justify-center gap-0.5 h-3.5">
-          <span
-            className="w-0.5 h-3 bg-primary rounded-full animate-pulse"
-            style={{ animationDelay: "0ms" }}
-          />
-          <span
-            className="w-0.5 h-2.5 bg-primary rounded-full animate-pulse"
-            style={{ animationDelay: "150ms" }}
-          />
-          <span
-            className="w-0.5 h-3 bg-primary rounded-full animate-pulse"
-            style={{ animationDelay: "300ms" }}
-          />
-        </span>
-      ) : (
-        <Play className="h-3 w-3 text-primary" />
-      )}
-    </button>
-  );
-}
-
-function VoiceBadge({ characterId }: { characterId: string }) {
-  const bindings = useTtsStore((s) => {
-    const pid = s.activeProjectId;
-    return pid ? (s.projects[pid]?.bindings ?? EMPTY_BINDINGS) : EMPTY_BINDINGS;
-  });
-  const voiceProfiles = useTtsStore((s) => s.voiceProfiles);
-  const status = getCharacterVoiceStatus(characterId, bindings, voiceProfiles);
-
-  if (!status.assigned) {
-    return (
-      <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-        <Volume2 className="h-3 w-3" />
-        未分配
-      </span>
-    );
-  }
-
-  return (
-    <span className="text-[10px] text-primary flex items-center gap-1">
-      <Volume2 className="h-3 w-3" />
-      {status.label}
-    </span>
-  );
+function getOptionalStringField(value: unknown, key: string) {
+  if (!value || typeof value !== "object") return undefined;
+  const field = (value as Record<string, unknown>)[key];
+  return typeof field === "string" && field.trim() ? field : undefined;
 }

@@ -80,6 +80,95 @@ export const tabs: { [key in Tab]: { icon: LucideIcon; label: string; stage?: St
   settings: { icon: SettingsIcon, label: "设置" },
 };
 
+interface NavigationSnapshot {
+  activeTab: Tab;
+  activeStage: Stage;
+  inProject: boolean;
+  activeEpisodeIndex: number | null;
+  activeEpisodeScopeKey: string | null;
+}
+
+const projectLevelTabs = new Set<Tab>([
+  "overview",
+  "studio",
+  "freedom",
+  "assets",
+  "media",
+  "skills",
+  "tts",
+]);
+
+function toNavigationSnapshot(state: Pick<MediaPanelStore, keyof NavigationSnapshot>): NavigationSnapshot {
+  return {
+    activeTab: state.activeTab,
+    activeStage: state.activeStage,
+    inProject: state.inProject,
+    activeEpisodeIndex: state.activeEpisodeIndex,
+    activeEpisodeScopeKey: state.activeEpisodeScopeKey,
+  };
+}
+
+function sameNavigationSnapshot(a: NavigationSnapshot, b: NavigationSnapshot): boolean {
+  return (
+    a.activeTab === b.activeTab &&
+    a.activeStage === b.activeStage &&
+    a.inProject === b.inProject &&
+    a.activeEpisodeIndex === b.activeEpisodeIndex &&
+    a.activeEpisodeScopeKey === b.activeEpisodeScopeKey
+  );
+}
+
+function pushNavigation(
+  state: MediaPanelStore,
+  next: NavigationSnapshot,
+): Partial<MediaPanelStore> {
+  const current = toNavigationSnapshot(state);
+  if (sameNavigationSnapshot(current, next)) {
+    return next;
+  }
+
+  return {
+    ...next,
+    navigationBackStack: [...state.navigationBackStack, current],
+    navigationForwardStack: [],
+  };
+}
+
+function resolveTabNavigation(state: MediaPanelStore, tab: Tab): NavigationSnapshot {
+  const tabConfig = tabs[tab];
+  if (tabConfig?.stage) {
+    return {
+      ...toNavigationSnapshot(state),
+      activeTab: tab,
+      activeStage: tabConfig.stage,
+      inProject: true,
+    };
+  }
+
+  if (tab === "dashboard") {
+    return {
+      activeTab: tab,
+      activeStage: state.activeStage,
+      inProject: false,
+      activeEpisodeIndex: null,
+      activeEpisodeScopeKey: null,
+    };
+  }
+
+  if (projectLevelTabs.has(tab)) {
+    return {
+      ...toNavigationSnapshot(state),
+      activeTab: tab,
+      inProject: true,
+    };
+  }
+
+  return {
+    ...toNavigationSnapshot(state),
+    activeTab: tab,
+  };
+}
+
 // Data passed from script panel to director
 export interface PendingDirectorData {
   storyPrompt: string; // Combined action + dialogue
@@ -195,9 +284,15 @@ interface MediaPanelStore {
   activeTab: Tab;
   activeStage: Stage;
   inProject: boolean; // Whether viewing a project or dashboard
+  navigationBackStack: NavigationSnapshot[];
+  navigationForwardStack: NavigationSnapshot[];
   setActiveTab: (tab: Tab) => void;
   setActiveStage: (stage: Stage) => void;
   setInProject: (inProject: boolean) => void;
+  canGoBack: () => boolean;
+  canGoForward: () => boolean;
+  goBack: () => void;
+  goForward: () => void;
   // Episode scope (子项目作用域)
   activeEpisodeIndex: number | null;
   activeEpisodeScopeKey: string | null; // `${projectId}::ep-${episodeIndex}`
@@ -224,78 +319,130 @@ export const useMediaPanelStore = create<MediaPanelStore>((set) => ({
   activeTab: "dashboard",
   activeStage: "script",
   inProject: false,
+  navigationBackStack: [],
+  navigationForwardStack: [],
   setActiveTab: (tab) => {
-    // Auto-update stage based on tab
-    const tabConfig = tabs[tab];
-    if (tabConfig?.stage) {
-      set({ activeTab: tab, activeStage: tabConfig.stage, inProject: true });
-    } else if (tab === "dashboard") {
-      set({ activeTab: tab, inProject: false, activeEpisodeIndex: null, activeEpisodeScopeKey: null });
-    } else if (tab === "overview" || tab === "studio" || tab === "freedom" || tab === "assets" || tab === "media" || tab === "skills" || tab === "tts") {
-      // 项目级 tab（无 stage 但属于项目内）
-      set({ activeTab: tab, inProject: true });
-    } else {
-      set({ activeTab: tab });
-    }
+    set((state) => pushNavigation(state, resolveTabNavigation(state, tab)));
   },
   setActiveStage: (stage) => {
     // Switch to first tab of the stage
     const stageConfig = stages.find(s => s.id === stage);
     if (stageConfig && stageConfig.tabs.length > 0) {
-      set({ activeStage: stage, activeTab: stageConfig.tabs[0], inProject: true });
+      set((state) =>
+        pushNavigation(state, {
+          ...toNavigationSnapshot(state),
+          activeStage: stage,
+          activeTab: stageConfig.tabs[0],
+          inProject: true,
+        }),
+      );
     }
   },
   setInProject: (inProject) => {
-    if (!inProject) {
-      set({ inProject: false, activeTab: "dashboard", activeEpisodeIndex: null, activeEpisodeScopeKey: null });
-    } else {
-      set({ inProject: true });
-    }
+    set((state) =>
+      pushNavigation(state, {
+        ...toNavigationSnapshot(state),
+        inProject,
+        activeTab: inProject ? state.activeTab : "dashboard",
+        activeEpisodeIndex: inProject ? state.activeEpisodeIndex : null,
+        activeEpisodeScopeKey: inProject ? state.activeEpisodeScopeKey : null,
+      }),
+    );
+  },
+  canGoBack: () => useMediaPanelStore.getState().navigationBackStack.length > 0,
+  canGoForward: () => useMediaPanelStore.getState().navigationForwardStack.length > 0,
+  goBack: () => {
+    set((state) => {
+      const previous = state.navigationBackStack.at(-1);
+      if (!previous) return {};
+      return {
+        ...previous,
+        navigationBackStack: state.navigationBackStack.slice(0, -1),
+        navigationForwardStack: [toNavigationSnapshot(state), ...state.navigationForwardStack],
+      };
+    });
+  },
+  goForward: () => {
+    set((state) => {
+      const next = state.navigationForwardStack[0];
+      if (!next) return {};
+      return {
+        ...next,
+        navigationBackStack: [...state.navigationBackStack, toNavigationSnapshot(state)],
+        navigationForwardStack: state.navigationForwardStack.slice(1),
+      };
+    });
   },
   // Episode scope
   activeEpisodeIndex: null,
   activeEpisodeScopeKey: null,
-  enterEpisode: (index, projectId) => set({
-    activeEpisodeIndex: index,
-    activeEpisodeScopeKey: projectId ? `${projectId}::ep-${index}` : `default::ep-${index}`,
-    activeTab: "script",
-    activeStage: "script",
-    inProject: true,
-  }),
-  backToSeries: () => set({
-    activeEpisodeIndex: null,
-    activeEpisodeScopeKey: null,
-    activeTab: "overview",
-  }),
+  enterEpisode: (index, projectId) =>
+    set((state) =>
+      pushNavigation(state, {
+        activeEpisodeIndex: index,
+        activeEpisodeScopeKey: projectId ? `${projectId}::ep-${index}` : `default::ep-${index}`,
+        activeTab: "script",
+        activeStage: "script",
+        inProject: true,
+      }),
+    ),
+  backToSeries: () =>
+    set((state) =>
+      pushNavigation(state, {
+        ...toNavigationSnapshot(state),
+        activeEpisodeIndex: null,
+        activeEpisodeScopeKey: null,
+        activeTab: "overview",
+      }),
+    ),
   highlightMediaId: null,
   requestRevealMedia: (mediaId) =>
-    set({ activeTab: "media", highlightMediaId: mediaId }),
+    set((state) => ({
+      ...pushNavigation(state, {
+        ...toNavigationSnapshot(state),
+        activeTab: "media",
+        inProject: true,
+      }),
+      highlightMediaId: mediaId,
+    })),
   clearHighlight: () => set({ highlightMediaId: null }),
   // Cross-panel data passing
   pendingDirectorData: null,
   setPendingDirectorData: (data) => set({ pendingDirectorData: data }),
-  goToDirectorWithData: (data) => set({
-    pendingDirectorData: data,
-    activeTab: "director",
-    activeStage: "director",
-    inProject: true,
-  }),
+  goToDirectorWithData: (data) =>
+    set((state) => ({
+      ...pushNavigation(state, {
+        ...toNavigationSnapshot(state),
+        activeTab: "director",
+        activeStage: "director",
+        inProject: true,
+      }),
+      pendingDirectorData: data,
+    })),
   // Character library data passing
   pendingCharacterData: null,
   setPendingCharacterData: (data) => set({ pendingCharacterData: data }),
-  goToCharacterWithData: (data) => set({
-    pendingCharacterData: data,
-    activeTab: "characters",
-    activeStage: "assets",
-    inProject: true,
-  }),
+  goToCharacterWithData: (data) =>
+    set((state) => ({
+      ...pushNavigation(state, {
+        ...toNavigationSnapshot(state),
+        activeTab: "characters",
+        activeStage: "assets",
+        inProject: true,
+      }),
+      pendingCharacterData: data,
+    })),
   // Scene library data passing
   pendingSceneData: null,
   setPendingSceneData: (data) => set({ pendingSceneData: data }),
-  goToSceneWithData: (data) => set({
-    pendingSceneData: data,
-    activeTab: "scenes",
-    activeStage: "assets",
-    inProject: true,
-  }),
+  goToSceneWithData: (data) =>
+    set((state) => ({
+      ...pushNavigation(state, {
+        ...toNavigationSnapshot(state),
+        activeTab: "scenes",
+        activeStage: "assets",
+        inProject: true,
+      }),
+      pendingSceneData: data,
+    })),
 }));

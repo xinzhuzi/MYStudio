@@ -5,6 +5,7 @@ export interface VoiceReferenceAsset {
   id: string;
   name: string;
   filePath: string;
+  referenceText?: string;
   sourceLabel?: string;
 }
 
@@ -27,6 +28,7 @@ export function buildVoiceReferenceAssets(
         id: item.id,
         name: item.name,
         filePath: getRuntimeAudioPath(item)!,
+        referenceText: normalizeReferenceText(item.description),
         sourceLabel: getFileName(getRuntimeAudioPath(item)) || item.description,
       })),
   ];
@@ -38,6 +40,16 @@ export function buildVoiceReferenceAssets(
     seen.add(key);
     return true;
   });
+}
+
+function normalizeReferenceText(value?: string) {
+  const text = value?.trim();
+  if (!text || looksLikePath(text)) return undefined;
+  return text;
+}
+
+function looksLikePath(value: string) {
+  return /[\\/]/.test(value) || /\.(mp3|wav|m4a|aac|flac|ogg|opus)$/i.test(value);
 }
 
 function getRuntimeAudioPath(item: StudioAssetSummary) {

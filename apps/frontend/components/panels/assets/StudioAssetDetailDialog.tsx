@@ -46,6 +46,7 @@ import {
 import { toast } from "sonner";
 import { polishAssetPrompt } from "@/lib/ai/prompt-polisher";
 import { ensureBackendVoiceProfile } from "@/lib/tts/client";
+import { buildRoleVoicePreviewText, getVoicePreviewBlockReason } from "@/lib/tts/voice-preview-text";
 import { useStudioStore } from "@/stores/studio-store";
 import { useTtsStore } from "@/stores/tts-store";
 import type { ProjectVoiceBinding, TtsSpeakerId, VoiceProfile } from "@/types/tts";
@@ -905,12 +906,17 @@ function RoleVoicePreviewButton({ profileId, characterName, defaultEngine, defau
       toast.error("TTS 后端未就绪");
       return;
     }
-    if (!profile) {
-      toast.error("音色 profile 不存在，请重新分配音色");
-      return;
-    }
-    setLoading(true);
-    try {
+      if (!profile) {
+        toast.error("音色 profile 不存在，请重新分配音色");
+        return;
+      }
+      const blockReason = getVoicePreviewBlockReason(profile);
+      if (blockReason) {
+        toast.error(blockReason);
+        return;
+      }
+      setLoading(true);
+      try {
       const ttsStatus = await window.ttsRuntime.status();
       if (!ttsStatus.running) {
         const startRes = await window.ttsRuntime.start();
@@ -920,7 +926,7 @@ function RoleVoicePreviewButton({ profileId, characterName, defaultEngine, defau
         }
       }
       await ensureBackendVoiceProfile(profile);
-      const text = `大家好，我是${characterName}，很高兴认识你们。`;
+      const text = buildRoleVoicePreviewText(characterName);
       const genRes = await window.ttsRuntime.request({
         method: "POST", path: "/generate",
         body: { profile_id: profileId, text, engine: defaultEngine, model_size: defaultModelSize, language: "zh" },

@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { isIsolatedSmokeUserDataDir } from "./workflow-smoke-bridge";
+import {
+  getSmokeStoryboardFramePath,
+  isIsolatedSmokeUserDataDir,
+} from "./workflow-smoke-bridge";
 
 describe("workflow smoke bridge isolation", () => {
   it("allows only temp smoke user data directories", () => {
@@ -11,5 +14,9 @@ describe("workflow smoke bridge isolation", () => {
     expect(isIsolatedSmokeUserDataDir("")).toBe(false);
     expect(isIsolatedSmokeUserDataDir("/Users/me/Library/Application Support/漫影工作室")).toBe(false);
     expect(isIsolatedSmokeUserDataDir("/Users/me/Library/Application Support/MYStudio")).toBe(false);
+  });
+
+  it("uses an inline storyboard frame so installed smoke has no missing temp image", () => {
+    expect(getSmokeStoryboardFramePath()).toMatch(/^data:image\/png;base64,/);
   });
 });

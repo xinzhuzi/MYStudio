@@ -13,7 +13,9 @@ interface SidebarToggleButtonProps {
 
 interface ChromeControlsProps {
   onBack?: () => void;
+  onForward?: () => void;
   canGoBack?: boolean;
+  canGoForward?: boolean;
   className?: string;
 }
 
@@ -39,7 +41,9 @@ SidebarToggleButton.displayName = "SidebarToggleButton";
 
 export function ChromeControls({
   onBack,
+  onForward,
   canGoBack = false,
+  canGoForward = false,
   className,
 }: ChromeControlsProps) {
   return (
@@ -57,7 +61,8 @@ export function ChromeControls({
       <button
         type="button"
         className="chrome-control-button"
-        disabled
+        onClick={onForward}
+        disabled={!canGoForward}
         aria-label="前进"
         title="前进"
       >

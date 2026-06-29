@@ -77,11 +77,11 @@ describe("buildAssetRegenerationPrompt", () => {
     expect(source).not.toContain("请在「剧情产物生成」中为该角色分配音色");
   });
 
-  it("keeps workflow voice assignment on the shared role dialog", () => {
+  it("keeps workflow generation free of the role voice assignment editor", () => {
     const source = readFileSync(new URL("../studio/index.tsx", import.meta.url), "utf8");
-    expect(source).toContain('import { RoleVoiceAssignDialog } from "@/components/panels/assets/RoleVoiceAssignDialog";');
     expect(source).not.toContain("function VoiceAssignDialog(");
-    expect(source).toContain("<RoleVoiceAssignDialog");
+    expect(source).not.toContain("<RoleVoiceAssignDialog");
+    expect(source).not.toContain('import { RoleVoiceAssignDialog } from "@/components/panels/assets/RoleVoiceAssignDialog";');
   });
 
   it("syncs the active project before binding a role voice", () => {
@@ -89,5 +89,27 @@ describe("buildAssetRegenerationPrompt", () => {
     expect(source).toContain('import { useProjectStore } from "@/stores/project-store";');
     expect(source).toContain("setTtsActiveProjectId(activeProjectId)");
     expect(source).toContain("ensureTtsProject(activeProjectId)");
+  });
+
+  it("lets role voice assignment search audio assets before selection", () => {
+    const source = readFileSync(new URL("./RoleVoiceAssignDialog.tsx", import.meta.url), "utf8");
+    expect(source).toContain("audioSearch");
+    expect(source).toContain("filteredAudioAssets");
+    expect(source).toContain('placeholder="搜索音频名称或文件名"');
+    expect(source).toContain("filteredAudioAssets.map");
+  });
+
+  it("keeps reference text when binding an asset audio as a cloned role voice", () => {
+    const source = readFileSync(new URL("./RoleVoiceAssignDialog.tsx", import.meta.url), "utf8");
+    expect(source).toContain("referenceText: selectedAsset.referenceText");
+    expect(source).toContain("buildRoleVoicePreviewInstruction(character)");
+  });
+
+  it("uses normal Chinese audition text and blocks qwen previews without reference text", () => {
+    const source = readFileSync(new URL("./StudioAssetDetailDialog.tsx", import.meta.url), "utf8");
+    expect(source).toContain('from "@/lib/tts/voice-preview-text"');
+    expect(source).toContain("getVoicePreviewBlockReason(profile)");
+    expect(source).toContain("buildRoleVoicePreviewText(characterName)");
+    expect(source).not.toContain("大家好，我是${characterName}，很高兴认识你们。");
   });
 });

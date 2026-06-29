@@ -165,7 +165,7 @@ describe("studio manual presets", () => {
     expect(agentExports.getAgentSkillPreset?.("production_execution_storyboard_table")?.content).toContain("分镜");
   });
 
-  it("script/production 文本类 skill 为单次 Markdown 输出（不再 XML 增量；storyboard_panel 属结构化属性 XML、未被代码引用，不在此列）", () => {
+  it("script 文本类 skill 为单次 Markdown 输出，production 工作区 skill 保留 Toonflow XML 写入契约", () => {
     const agentExports = manuals as typeof manuals & {
       getAgentSkillPreset?: (id: string) => { content: string } | null;
     };
@@ -173,8 +173,6 @@ describe("studio manual presets", () => {
       "script_execution_skeleton",
       "script_execution_adaptation",
       "script_execution_script",
-      "production_execution_director_plan",
-      "production_execution_storyboard_table",
     ];
 
     for (const id of markdownSkillIds) {
@@ -183,5 +181,22 @@ describe("studio manual presets", () => {
       expect(content, id).not.toContain("自动继续");
       expect(content, id).toContain("一次性输出全部");
     }
+
+    expect(
+      agentExports.getAgentSkillPreset?.("production_execution_director_plan")
+        ?.content,
+    ).toContain("<scriptPlan>");
+    expect(
+      agentExports.getAgentSkillPreset?.("production_execution_storyboard_table")
+        ?.content,
+    ).toContain("<storyboardTable>");
+    expect(
+      agentExports.getAgentSkillPreset?.("production_execution_storyboard_table")
+        ?.content,
+    ).toContain("## 场N：场景名");
+    expect(
+      agentExports.getAgentSkillPreset?.("production_execution_storyboard_table")
+        ?.content,
+    ).toContain("引用资产ID");
   });
 });

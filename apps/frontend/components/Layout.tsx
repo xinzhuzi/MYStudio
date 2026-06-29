@@ -32,7 +32,7 @@ import { SkillsView } from "@/components/panels/skills";
 import { TTSView } from "@/components/panels/tts";
 
 export function Layout() {
-  const { activeTab, inProject, setInProject } = useMediaPanelStore();
+  const { activeTab, inProject } = useMediaPanelStore();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const previousInProjectRef = useRef(inProject);
   const toggleSidebar = () => setSidebarCollapsed((collapsed) => !collapsed);
@@ -90,7 +90,6 @@ export function Layout() {
         <TabBar sidebarCollapsed={sidebarCollapsed} onToggleSidebar={toggleSidebar} />
         <div className="studio-shell h-full flex flex-col bg-background">
           <ProjectHeader
-            onBack={() => setInProject(false)}
             sidebarCollapsed={sidebarCollapsed}
             onToggleSidebar={toggleSidebar}
           />
@@ -158,7 +157,6 @@ export function Layout() {
     <TabBar sidebarCollapsed={sidebarCollapsed} onToggleSidebar={toggleSidebar} />
     <div className="studio-shell h-full flex flex-col bg-background">
         <ProjectHeader
-          onBack={() => setInProject(false)}
           sidebarCollapsed={sidebarCollapsed}
           onToggleSidebar={toggleSidebar}
         />

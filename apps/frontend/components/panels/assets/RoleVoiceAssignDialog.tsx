@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -17,7 +18,7 @@ import { useTtsStore } from "@/stores/tts-store";
 import type { StudioAssetSummary } from "@/types/studio-assets";
 import type { TtsSpeakerId } from "@/types/tts";
 import { cn } from "@/lib/utils";
-import { Volume2 } from "lucide-react";
+import { Search, Volume2 } from "lucide-react";
 import { toast } from "sonner";
 import { buildVoiceReferenceAssets } from "../studio/voice-reference-assets";
 
@@ -44,12 +45,14 @@ export function RoleVoiceAssignDialog({
   const ensureTtsProject = useTtsStore((state) => state.ensureProject);
   const [runtimeAudioAssets, setRuntimeAudioAssets] = useState<StudioAssetSummary[]>([]);
   const [selectedAssetId, setSelectedAssetId] = useState("");
+  const [audioSearch, setAudioSearch] = useState("");
   const [assigning, setAssigning] = useState(false);
   const [loadingAssets, setLoadingAssets] = useState(false);
 
   useEffect(() => {
     if (!open) {
       setSelectedAssetId("");
+      setAudioSearch("");
       return;
     }
     if (!window.studioAssets?.list) return;
@@ -80,6 +83,15 @@ export function RoleVoiceAssignDialog({
     () => buildVoiceReferenceAssets(materials, runtimeAudioAssets),
     [materials, runtimeAudioAssets],
   );
+  const filteredAudioAssets = useMemo(() => {
+    const keyword = audioSearch.trim().toLowerCase();
+    if (!keyword) return referenceAssets;
+    return referenceAssets.filter((asset) =>
+      [asset.name, asset.sourceLabel, asset.filePath]
+        .filter(Boolean)
+        .some((value) => value!.toLowerCase().includes(keyword)),
+    );
+  }, [audioSearch, referenceAssets]);
   const selectedAsset = referenceAssets.find((item) => item.id === selectedAssetId);
 
   const handleAssignReferenceAsset = useCallback(async () => {
@@ -103,6 +115,8 @@ export function RoleVoiceAssignDialog({
         defaultEngine: "qwen",
         defaultModelSize: "1.7B",
         referenceAudioPath: selectedAsset.filePath,
+        referenceText: selectedAsset.referenceText,
+        instruct: buildRoleVoicePreviewInstruction(character),
       });
       sink.bindSpeaker({
         speakerId,
@@ -142,8 +156,23 @@ export function RoleVoiceAssignDialog({
                 </div>
               </div>
               <span className="text-[11px] text-muted-foreground">
-                {loadingAssets ? "加载中" : `共 ${referenceAssets.length} 个`}
+                {loadingAssets
+                  ? "加载中"
+                  : audioSearch.trim()
+                    ? `${filteredAudioAssets.length} / ${referenceAssets.length}`
+                    : `共 ${referenceAssets.length} 个`}
               </span>
+            </div>
+            <div className="relative mt-3">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={audioSearch}
+                onChange={(event) => setAudioSearch(event.target.value)}
+                placeholder="搜索音频名称或文件名"
+                showClearIcon
+                onClear={() => setAudioSearch("")}
+                className="h-9 border-border/80 bg-background/70 pl-9 text-sm"
+              />
             </div>
           </div>
 
@@ -153,7 +182,12 @@ export function RoleVoiceAssignDialog({
                 资产库中暂无可用音频。请先在资产库导入 WAV/MP3 音色样本。
               </div>
             )}
-            {referenceAssets.map((asset) => (
+            {referenceAssets.length > 0 && filteredAudioAssets.length === 0 && (
+              <div className="rounded-lg border border-dashed border-border px-4 py-8 text-center text-xs text-muted-foreground">
+                没有匹配的音频。请换一个关键词。
+              </div>
+            )}
+            {filteredAudioAssets.map((asset) => (
               <button
                 key={asset.id}
                 type="button"
@@ -193,4 +227,16 @@ export function RoleVoiceAssignDialog({
       </DialogContent>
     </Dialog>
   );
+}
+
+function buildRoleVoicePreviewInstruction(character: RoleVoiceAssignableCharacter) {
+  return [
+    character.gender,
+    character.age,
+    character.personality,
+    `${character.name}角色试音，保持中文自然口语，情绪克制但清晰。`,
+  ]
+    .map((part) => part?.trim())
+    .filter(Boolean)
+    .join("，");
 }

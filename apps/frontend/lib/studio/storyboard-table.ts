@@ -14,9 +14,11 @@ export interface StoryboardTableMessages {
   user: string;
 }
 
-/** 解析出的一行分镜（14 列协议，§3.2）。所有流向生图的文本字段已剔除光影词。 */
+/** 解析出的一行分镜。兼容旧 14 列协议与 Toonflow 新版「场头 -> 片段 -> 7 列镜表」协议。 */
 export interface StoryboardTableRow {
   index: number;
+  sceneIndex?: number;
+  segmentTitle?: string;
   description: string;
   scene: string;
   associateAssetsNames: string[];
@@ -80,17 +82,42 @@ export function parseStoryboardTable(output: string, episodeId: string): ParseSt
   const rows: StoryboardTableRow[] = [];
   const errors: string[] = [];
   const warnings: string[] = [];
+  let currentScene = "";
+  let currentSceneIndex: number | undefined;
+  let currentSegmentTitle = "";
+  let currentAssetNames: string[] = [];
+  let currentAssetIds: string[] = [];
 
   for (const raw of body.split(/\r?\n/)) {
     const line = stripCodeFence(raw).trim();
+    const sceneMeta = parseSceneHeading(line);
+    if (sceneMeta) {
+      currentScene = sceneMeta.scene;
+      currentSceneIndex = sceneMeta.index;
+      currentSegmentTitle = "";
+      currentAssetNames = sceneMeta.roles;
+      currentAssetIds = [];
+      continue;
+    }
+    const segmentTitle = parseSegmentHeading(line);
+    if (segmentTitle) {
+      currentSegmentTitle = segmentTitle;
+      continue;
+    }
+    const assetNames = parseAssetLine(line, "引用资产名称");
+    if (assetNames) {
+      currentAssetNames = assetNames;
+      continue;
+    }
+    const assetIds = parseAssetLine(line, "引用资产ID");
+    if (assetIds) {
+      currentAssetIds = assetIds;
+      continue;
+    }
     if (!line.startsWith("|") || !line.endsWith("|")) continue;
     if (isSeparatorRow(line)) continue;
 
     const fields = line.slice(1, -1).split("|").map((item) => item.trim());
-    if (fields.length !== 14) {
-      errors.push(`列数不符（应为14列，实为${fields.length}）：${line}`);
-      continue;
-    }
     if (isHeaderRow(fields)) continue;
 
     const index = Number.parseInt(fields[0]!, 10);
@@ -99,7 +126,27 @@ export function parseStoryboardTable(output: string, episodeId: string): ParseSt
       continue;
     }
 
-    const row = buildRow(index, fields, warnings);
+    const row =
+      fields.length === 14
+        ? buildLegacyRow(index, fields, warnings)
+        : fields.length === 7
+          ? buildGroupedRow(
+              index,
+              fields,
+              {
+                scene: currentScene,
+                sceneIndex: currentSceneIndex,
+                segmentTitle: currentSegmentTitle,
+                assetNames: currentAssetNames,
+                assetIds: currentAssetIds,
+              },
+              warnings,
+            )
+          : null;
+    if (!row) {
+      errors.push(`列数不符（应为14列或7列，实为${fields.length}）：${line}`);
+      continue;
+    }
     rows.push(row);
   }
 
@@ -149,7 +196,7 @@ function extractStoryboardSegments(output: string): string {
   return output.trim();
 }
 
-function buildRow(index: number, fields: string[], warnings: string[]): StoryboardTableRow {
+function buildLegacyRow(index: number, fields: string[], warnings: string[]): StoryboardTableRow {
   const descriptionRaw = fields[1]!;
   const actionRaw = fields[7]!;
   const emotionRaw = fields[10]!;
@@ -174,6 +221,66 @@ function buildRow(index: number, fields: string[], warnings: string[]): Storyboa
     sound: fields[12]!,
     associateAssetsIds: splitBracketList(fields[13]!),
   };
+}
+
+function buildGroupedRow(
+  index: number,
+  fields: string[],
+  context: {
+    scene: string;
+    sceneIndex?: number;
+    segmentTitle: string;
+    assetNames: string[];
+    assetIds: string[];
+  },
+  warnings: string[],
+): StoryboardTableRow {
+  const descriptionRaw = fields[1]!;
+  const soundRaw = fields[6]!;
+
+  collectLightingWarnings(descriptionRaw, "画面描述", warnings);
+  collectLightingWarnings(soundRaw, "音效", warnings);
+
+  const description = stripLightingTerms(descriptionRaw);
+  return {
+    index,
+    sceneIndex: context.sceneIndex,
+    segmentTitle: context.segmentTitle,
+    description,
+    scene: context.scene,
+    associateAssetsNames: context.assetNames,
+    duration: parseDuration(fields[2]!),
+    shotSize: fields[3]!,
+    cameraMove: fields[4]!,
+    action: description,
+    orientation: "",
+    spatialRelation: "",
+    emotion: "",
+    lines: fields[5]!,
+    sound: stripLightingTerms(soundRaw),
+    associateAssetsIds: context.assetIds,
+  };
+}
+
+function parseSceneHeading(line: string): { index?: number; scene: string; roles: string[] } | null {
+  const match = line.match(/^##\s*场\s*(\d+)?[：:]\s*(.+?)(?:\s*[｜|]\s*参演角色[：:]\s*(.+))?$/);
+  if (!match) return null;
+  return {
+    index: match[1] ? Number.parseInt(match[1], 10) : undefined,
+    scene: (match[2] ?? "").trim(),
+    roles: splitBracketList(match[3] ?? ""),
+  };
+}
+
+function parseSegmentHeading(line: string): string | null {
+  const match = line.match(/^###\s*(片段.+|第.+组.+)$/);
+  return match?.[1]?.trim() ?? null;
+}
+
+function parseAssetLine(line: string, label: string): string[] | null {
+  const normalized = line.replace(/\*\*/g, "").trim();
+  const match = normalized.match(new RegExp(`^${label}[：:]\\s*(.+)$`));
+  return match?.[1] ? splitBracketList(match[1]) : null;
 }
 
 function collectLightingWarnings(text: string, fieldName: string, warnings: string[]): void {

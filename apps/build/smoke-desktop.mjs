@@ -1,91 +1,113 @@
-import { spawn, spawnSync } from 'node:child_process';
-import http from 'node:http';
-import { existsSync, mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { resolve } from 'node:path';
-import { PNG } from 'pngjs';
+import { spawn, spawnSync } from "node:child_process";
+import http from "node:http";
+import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { resolve } from "node:path";
+import { PNG } from "pngjs";
 
 const appBinCandidates = [
   process.env.MYSTUDIO_SMOKE_APP_BIN,
   resolve(
     process.cwd(),
-    'release',
-    'build',
-    'mac-arm64',
-    'mac-arm64',
-    '漫影工作室.app',
-    'Contents',
-    'MacOS',
-    '漫影工作室',
+    "release",
+    "build",
+    "mac-arm64",
+    "mac-arm64",
+    "漫影工作室.app",
+    "Contents",
+    "MacOS",
+    "漫影工作室",
   ),
   resolve(
     process.cwd(),
-    'release',
-    'build',
-    'mac-arm64',
-    '漫影工作室.app',
-    'Contents',
-    'MacOS',
-    '漫影工作室',
+    "release",
+    "build",
+    "mac-arm64",
+    "漫影工作室.app",
+    "Contents",
+    "MacOS",
+    "漫影工作室",
   ),
 ].filter(Boolean);
-const appBin = appBinCandidates.find((candidate) => existsSync(candidate)) ?? appBinCandidates[0];
+const appBin =
+  appBinCandidates.find((candidate) => existsSync(candidate)) ??
+  appBinCandidates[0];
 const debugPort = Number(process.env.MYSTUDIO_SMOKE_DEBUG_PORT || 9342);
 const userDataDir =
-  process.env.MYSTUDIO_SMOKE_USER_DATA_DIR || mkdtempSync(resolve(tmpdir(), 'mystudio-smoke-'));
-const CDP_CALL_TIMEOUT_MS = Number(process.env.MYSTUDIO_SMOKE_CDP_TIMEOUT_MS || 10_000);
-const ASSET_VOICE_FLOW_TIMEOUT_MS = Number(process.env.MYSTUDIO_SMOKE_ASSET_VOICE_TIMEOUT_MS || 25_000);
+  process.env.MYSTUDIO_SMOKE_USER_DATA_DIR ||
+  mkdtempSync(resolve(tmpdir(), "mystudio-smoke-"));
+const CDP_CALL_TIMEOUT_MS = Number(
+  process.env.MYSTUDIO_SMOKE_CDP_TIMEOUT_MS || 10_000,
+);
+const ASSET_VOICE_FLOW_TIMEOUT_MS = Number(
+  process.env.MYSTUDIO_SMOKE_ASSET_VOICE_TIMEOUT_MS || 25_000,
+);
 const CORE_ROUTE_CHECKS = [
   {
-    label: '工作流',
-    requiredText: ['当前工作区：漫影工作流', '项目配置'],
-    forbiddenText: ['制作流程推进', '导演造景', '导演规划与造景', '造景后继续'],
+    label: "工作流",
+    requiredText: [
+      "当前工作区：漫影工作流",
+      "当前阶段：",
+    ],
+    forbiddenText: ["制作流程推进", "导演造景", "导演规划与造景", "造景后继续"],
   },
   {
-    label: '资产',
-    requiredText: ['个人资产库', '默认风格'],
+    label: "资产",
+    requiredText: ["个人资产库", "默认风格"],
   },
   {
-    label: 'TTS',
-    requiredText: ['TTS 口播', '本地 TTS'],
+    label: "TTS",
+    requiredText: ["TTS 口播", "本地 TTS"],
     waitMs: 2_500,
   },
   {
-    label: '设置',
-    requiredText: ['系统设置', '外观', 'Python 配置'],
+    label: "设置",
+    requiredText: ["系统设置", "外观", "Python 配置"],
   },
 ];
-const SMOKE_VIDEO_PATH = '/tmp/mystudio-smoke-final.mp4';
+const SMOKE_VIDEO_PATH = "/tmp/mystudio-smoke-final.mp4";
 
 if (!existsSync(appBin)) {
-  console.error(`Packaged app was not found. Checked:\n${appBinCandidates.join('\n')}`);
+  console.error(
+    `Packaged app was not found. Checked:\n${appBinCandidates.join("\n")}`,
+  );
   process.exit(1);
 }
 
 function prepareSmokeMedia() {
   rmSync(SMOKE_VIDEO_PATH, { force: true });
-  const result = spawnSync('ffmpeg', [
-    '-f', 'lavfi',
-    '-i', 'color=c=black:s=320x180:d=0.2',
-    '-pix_fmt', 'yuv420p',
-    '-movflags', '+faststart',
-    '-y',
-    SMOKE_VIDEO_PATH,
-  ], { stdio: 'ignore' });
+  const result = spawnSync(
+    "ffmpeg",
+    [
+      "-f",
+      "lavfi",
+      "-i",
+      "color=c=black:s=320x180:d=0.2",
+      "-pix_fmt",
+      "yuv420p",
+      "-movflags",
+      "+faststart",
+      "-y",
+      SMOKE_VIDEO_PATH,
+    ],
+    { stdio: "ignore" },
+  );
   if (result.status !== 0 || !existsSync(SMOKE_VIDEO_PATH)) {
-    console.warn('[smoke] failed to create smoke mp4 fixture; video preview check may fall back to DOM state');
+    console.warn(
+      "[smoke] failed to create smoke mp4 fixture; video preview check may fall back to DOM state",
+    );
   }
 }
 
 function readJson(url) {
   return new Promise((resolveJson, reject) => {
     const req = http.get(url, (response) => {
-      let data = '';
-      response.setEncoding('utf8');
-      response.on('data', (chunk) => {
+      let data = "";
+      response.setEncoding("utf8");
+      response.on("data", (chunk) => {
         data += chunk;
       });
-      response.on('end', () => {
+      response.on("end", () => {
         try {
           resolveJson(JSON.parse(data));
         } catch (error) {
@@ -93,7 +115,7 @@ function readJson(url) {
         }
       });
     });
-    req.on('error', reject);
+    req.on("error", reject);
   });
 }
 
@@ -102,7 +124,9 @@ async function waitForPageTarget() {
   while (Date.now() < deadline) {
     try {
       const targets = await readJson(`http://127.0.0.1:${debugPort}/json/list`);
-      const page = Array.isArray(targets) ? targets.find((target) => target.type === 'page') : null;
+      const page = Array.isArray(targets)
+        ? targets.find((target) => target.type === "page")
+        : null;
       if (page?.webSocketDebuggerUrl) {
         return page;
       }
@@ -111,56 +135,65 @@ async function waitForPageTarget() {
     }
     await new Promise((resolveDelay) => setTimeout(resolveDelay, 250));
   }
-  throw new Error('No Electron page target appeared on the debugging port.');
+  throw new Error("No Electron page target appeared on the debugging port.");
 }
 
 function connectWebSocket(url) {
   return new Promise((resolveSocket, reject) => {
     const socket = new WebSocket(url);
-    socket.addEventListener('open', () => resolveSocket(socket));
-    socket.addEventListener('error', reject);
+    socket.addEventListener("open", () => resolveSocket(socket));
+    socket.addEventListener("error", reject);
   });
 }
 
 function withTimeout(promise, label, timeoutMs = CDP_CALL_TIMEOUT_MS) {
   let timer;
   const timeout = new Promise((_, reject) => {
-    timer = setTimeout(() => reject(new Error(`${label} timed out after ${timeoutMs}ms`)), timeoutMs);
+    timer = setTimeout(
+      () => reject(new Error(`${label} timed out after ${timeoutMs}ms`)),
+      timeoutMs,
+    );
   });
   return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
 
 function summarizePageError(error) {
-  if (error?.method === 'Runtime.consoleAPICalled') {
+  if (error?.method === "Runtime.consoleAPICalled") {
     const args = error.params?.args || [];
     return {
       method: error.method,
       type: error.params?.type,
-      text: args.map((arg) => arg.value || arg.description || arg.unserializableValue || '').filter(Boolean).join(' '),
+      text: args
+        .map(
+          (arg) =>
+            arg.value || arg.description || arg.unserializableValue || "",
+        )
+        .filter(Boolean)
+        .join(" "),
     };
   }
-  if (error?.method === 'Runtime.exceptionThrown') {
+  if (error?.method === "Runtime.exceptionThrown") {
     return {
       method: error.method,
-      text: error.params?.exceptionDetails?.text || '',
-      exception: error.params?.exceptionDetails?.exception?.description || '',
+      text: error.params?.exceptionDetails?.text || "",
+      exception: error.params?.exceptionDetails?.exception?.description || "",
     };
   }
-  if (error?.method === 'Log.entryAdded') {
+  if (error?.method === "Log.entryAdded") {
     return {
       method: error.method,
       level: error.params?.entry?.level,
-      text: error.params?.entry?.text || '',
-      source: error.params?.entry?.source || '',
-      url: error.params?.entry?.url || '',
+      text: error.params?.entry?.text || "",
+      source: error.params?.entry?.source || "",
+      url: error.params?.entry?.url || "",
     };
   }
-  if (error?.method === 'Network.loadingFailed') {
+  if (error?.method === "Network.loadingFailed") {
     return {
       method: error.method,
-      text: error.params?.errorText || '',
-      url: error.params?.url || '',
-      type: error.params?.type || '',
+      text: error.params?.errorText || "",
+      url: error.params?.url || "",
+      type: error.params?.type || "",
     };
   }
   return error;
@@ -173,7 +206,7 @@ async function inspectPage(pageTarget) {
   const errors = [];
   const networkRequests = new Map();
 
-  socket.addEventListener('message', (event) => {
+  socket.addEventListener("message", (event) => {
     const message = JSON.parse(event.data);
     if (message.id && pending.has(message.id)) {
       const callback = pending.get(message.id);
@@ -186,30 +219,39 @@ async function inspectPage(pageTarget) {
       return;
     }
 
-    if (message.method === 'Runtime.exceptionThrown') {
+    if (message.method === "Runtime.exceptionThrown") {
       errors.push(message);
       return;
     }
-    if (message.method === 'Runtime.consoleAPICalled' && message.params?.type === 'error') {
+    if (
+      message.method === "Runtime.consoleAPICalled" &&
+      message.params?.type === "error"
+    ) {
       errors.push(message);
       return;
     }
-    if (message.method === 'Log.entryAdded' && message.params?.entry?.level === 'error') {
+    if (
+      message.method === "Log.entryAdded" &&
+      message.params?.entry?.level === "error"
+    ) {
       errors.push(message);
       return;
     }
-    if (message.method === 'Network.requestWillBeSent') {
-      networkRequests.set(message.params?.requestId, message.params?.request?.url || '');
+    if (message.method === "Network.requestWillBeSent") {
+      networkRequests.set(
+        message.params?.requestId,
+        message.params?.request?.url || "",
+      );
       return;
     }
-    if (message.method === 'Network.loadingFailed') {
-      const text = message.params?.errorText || '';
-      if (text.includes('ERR_FILE_NOT_FOUND')) {
+    if (message.method === "Network.loadingFailed") {
+      const text = message.params?.errorText || "";
+      if (text.includes("ERR_FILE_NOT_FOUND")) {
         errors.push({
-          method: 'Network.loadingFailed',
+          method: "Network.loadingFailed",
           params: {
             ...message.params,
-            url: networkRequests.get(message.params?.requestId) || '',
+            url: networkRequests.get(message.params?.requestId) || "",
           },
         });
       }
@@ -224,7 +266,11 @@ async function inspectPage(pageTarget) {
     });
     return withTimeout(request, method, timeoutMs).catch((error) => {
       for (const [id, callback] of pending.entries()) {
-        callback.reject(new Error(`Cancelled pending CDP request ${id} after ${method} failed`));
+        callback.reject(
+          new Error(
+            `Cancelled pending CDP request ${id} after ${method} failed`,
+          ),
+        );
         pending.delete(id);
       }
       throw error;
@@ -232,28 +278,37 @@ async function inspectPage(pageTarget) {
   };
 
   try {
-    await send('Runtime.enable');
-    await send('Log.enable');
-    await send('Network.enable');
-    await send('Page.enable');
-    await send('Page.bringToFront');
+    await send("Runtime.enable");
+    await send("Log.enable");
+    await send("Network.enable");
+    await send("Page.enable");
+    await send("Page.bringToFront");
     await new Promise((resolveDelay) => setTimeout(resolveDelay, 4_000));
 
-    const evaluate = async (expression, label = 'Runtime.evaluate', timeoutMs = CDP_CALL_TIMEOUT_MS) => {
+    const evaluate = async (
+      expression,
+      label = "Runtime.evaluate",
+      timeoutMs = CDP_CALL_TIMEOUT_MS,
+    ) => {
       const evaluated = await withTimeout(
-        send('Runtime.evaluate', {
-          awaitPromise: true,
-          returnByValue: true,
-          expression,
-        }, timeoutMs),
+        send(
+          "Runtime.evaluate",
+          {
+            awaitPromise: true,
+            returnByValue: true,
+            expression,
+          },
+          timeoutMs,
+        ),
         label,
         timeoutMs,
       );
       return evaluated.result.value;
     };
 
-    console.log('[smoke] checking dashboard/project entry');
-    const state = await evaluate(`(() => {
+    console.log("[smoke] checking dashboard/project entry");
+    const state = await evaluate(
+      `(() => {
     const root = document.getElementById('root');
     const bodyBg = getComputedStyle(document.body).backgroundColor;
     const dashboardCard = document.querySelector('.dashboard-project-card');
@@ -274,9 +329,11 @@ async function inspectPage(pageTarget) {
         document.body.innerText.includes('风格与导演选择'),
       hasWhiteBody: bodyBg === 'rgb(255, 255, 255)' || bodyBg === 'white',
     }), 1500));
-  })()`, 'initial project entry check');
+  })()`,
+      "initial project entry check",
+    );
 
-    console.log('[smoke] checking overview workflow steps');
+    console.log("[smoke] checking overview workflow steps");
     const overviewWorkflow = await verifyOverviewWorkflow(evaluate);
 
     const routeChecks = [];
@@ -285,25 +342,35 @@ async function inspectPage(pageTarget) {
       routeChecks.push(await verifyRoute(evaluate, route));
     }
 
-    console.log('[smoke] checking workflow stages');
+    console.log("[smoke] checking workflow stages");
     const workflowStages = await verifyWorkflowStages(evaluate);
 
-    console.log('[smoke] checking end-to-end workflow data');
+    console.log("[smoke] checking end-to-end workflow data");
     const workflowEndToEnd = await verifyWorkflowEndToEnd(evaluate);
 
-    console.log('[smoke] checking asset voice flow');
+    console.log("[smoke] checking asset voice flow");
     const assetVoiceFlow = await verifyAssetVoiceFlow(evaluate);
 
-    console.log('[smoke] checking Python settings');
+    console.log("[smoke] checking Python settings");
     const pythonSettings = await verifyPythonSettings(evaluate);
 
     const domVisualStats = await captureDomVisualStats(evaluate);
-    console.log('[smoke] capturing screenshot');
+    console.log("[smoke] capturing screenshot");
     const screenshot = await captureVisualStats(send, domVisualStats);
-    return { state, errors, overviewWorkflow, routeChecks, workflowStages, workflowEndToEnd, assetVoiceFlow, pythonSettings, screenshot };
+    return {
+      state,
+      errors,
+      overviewWorkflow,
+      routeChecks,
+      workflowStages,
+      workflowEndToEnd,
+      assetVoiceFlow,
+      pythonSettings,
+      screenshot,
+    };
   } finally {
     for (const [, callback] of pending.entries()) {
-      callback.reject(new Error('CDP socket closed during smoke cleanup'));
+      callback.reject(new Error("CDP socket closed during smoke cleanup"));
     }
     pending.clear();
     socket.close();
@@ -315,7 +382,8 @@ async function verifyRoute(evaluate, route) {
   const requiredText = JSON.stringify(route.requiredText);
   const forbiddenText = JSON.stringify(route.forbiddenText || []);
   const waitMs = Number(route.waitMs || 1_500);
-  return evaluate(`(() => {
+  return evaluate(
+    `(() => {
     const routeLabel = ${label};
     const requiredText = ${requiredText};
     const forbiddenText = ${forbiddenText};
@@ -355,11 +423,14 @@ async function verifyRoute(evaluate, route) {
         bodyTextSample: bodyText.slice(0, 800),
       });
     }, ${waitMs}));
-  })()`, `route check: ${route.label}`);
+  })()`,
+    `route check: ${route.label}`,
+  );
 }
 
 async function verifyOverviewWorkflow(evaluate) {
-  return evaluate(`(() => {
+  return evaluate(
+    `(() => {
     const navButtons = Array.from(document.querySelectorAll('.studio-nav-button'))
       .filter((node) => node.tagName === 'BUTTON');
     const overviewButton = navButtons.find((node) => {
@@ -379,11 +450,14 @@ async function verifyOverviewWorkflow(evaluate) {
         bodyTextSample: bodyText.slice(0, 1200),
       });
     }, 1000));
-  })()`, 'overview workflow check');
+  })()`,
+    "overview workflow check",
+  );
 }
 
 async function verifyWorkflowStages(evaluate) {
-  return evaluate(`(async () => {
+  return evaluate(
+    `(async () => {
     const normalize = (node) => (node.textContent || '').replace(/\\s+/g, ' ').trim();
     const activate = (node) => {
       if (!node) return false;
@@ -399,32 +473,41 @@ async function verifyWorkflowStages(evaluate) {
     const workflowButton = navButtons.find((node) => normalize(node).includes('工作流'));
     const clickedWorkflow = activate(workflowButton);
     await wait(800);
-    const hasTopNodeCanvas = Boolean(document.querySelector('.studio-workspace-workflow > .workflow-node-canvas'));
+	    const hasTopNodeCanvas = Boolean(document.querySelector('.studio-workspace-workflow > .workflow-node-canvas'));
 
-    const stages = [
-      { id: 'manuals', label: '风格与导演', requiredText: ['视觉手册', '导演手册'] },
+	    const stages = [
+	      { id: 'manuals', label: '风格与导演', requiredText: ['视觉手册', '导演手册'] },
       { id: 'novel', label: '小说导入', requiredText: ['导入原文'] },
       { id: 'script', label: '策划编剧', requiredText: ['请先在「小说导入」导入章节'] },
-      { id: 'assets', label: '剧本资产', requiredText: ['提取资产'] },
-      { id: 'generation', label: 'ProductionAgent', requiredText: ['ProductionAgent：导演规划与衍生资产', '运行导演计划'] },
-      { id: 'storyboard', label: '分镜面板', requiredText: ['分镜表与分镜面板', '运行 AI 分镜计划'] },
+      { id: 'assets', label: '剧本资产提取', requiredText: ['剧本资产提取', '角色/场景/道具'] },
+      { id: 'generation', label: '剧本资产管理', requiredText: ['剧本资产管理', '角色/场景/道具'], forbiddenText: ['导演计划、剧集圣经', '运行导演计划', '锁定剧集圣经'] },
+      {
+        id: 'storyboard',
+        label: '分镜视频生成',
+        requiredText: ['分镜视频生成', '自动排版'],
+        forbiddenText: ['分镜表与分镜视频生成', '运行 AI 分镜计划', '添加分镜', '生成配音', '试听配音', '进入待处理阶段'],
+      },
       { id: 'workbench', label: '视频工作台', requiredText: ['导出成片'] },
     ];
 
     const results = [];
     for (const stage of stages) {
       const clicked = await window.mystudioWorkflowSmoke?.setWorkflowStage?.(stage.id);
-      await wait(450);
-      const bodyText = document.body.innerText;
-      const missingRequiredText = stage.requiredText.filter((text) => !bodyText.includes(text));
-	      const productionCanvas = document.querySelector('.production-agent-workspace .workflow-node-canvas');
-	      const hasNodeCanvas = Boolean(productionCanvas);
-	      const connectorCount = productionCanvas ? productionCanvas.querySelectorAll('.workflow-node-connector').length : 0;
-	      const productionNodes = productionCanvas
-	        ? Array.from(productionCanvas.querySelectorAll('[data-flow-node]')).map((node) => node.getAttribute('data-flow-node'))
+	      await wait(450);
+	      const bodyText = document.body.innerText;
+	      const missingRequiredText = stage.requiredText.filter((text) => !bodyText.includes(text));
+	      const presentForbiddenText = (stage.forbiddenText || []).filter((text) => bodyText.includes(text));
+	      const stageRoot = document.querySelector('[data-state="active"]');
+	      const flowCanvas = stageRoot?.querySelector('.workflow-node-canvas');
+	      const reactFlowCanvas = stageRoot?.querySelector('.react-flow');
+	      const generationCanvas = document.querySelector('.production-agent-workspace .workflow-node-canvas');
+	      const hasNodeCanvas = Boolean(flowCanvas && reactFlowCanvas);
+	      const connectorCount = flowCanvas ? flowCanvas.querySelectorAll('.react-flow__edge').length : 0;
+	      const productionNodes = flowCanvas
+	        ? Array.from(flowCanvas.querySelectorAll('[data-flow-node-id]')).map((node) => node.getAttribute('data-flow-node-id'))
 	        : [];
-	      const productionEdges = productionCanvas
-	        ? Array.from(productionCanvas.querySelectorAll('[data-flow-edge]')).map((node) => node.getAttribute('data-flow-edge'))
+	      const productionEdges = flowCanvas
+	        ? Array.from(flowCanvas.querySelectorAll('.react-flow__edge')).map((node) => node.getAttribute('data-id') || node.id)
 	        : [];
 	      results.push({
 	        label: stage.label,
@@ -432,7 +515,10 @@ async function verifyWorkflowStages(evaluate) {
 	        clicked: Boolean(clicked),
 	        hasRequiredText: missingRequiredText.length === 0,
 	        missingRequiredText,
+	        hasForbiddenText: presentForbiddenText.length > 0,
+	        presentForbiddenText,
 	        hasNodeCanvas,
+	        hasGenerationNodeCanvas: Boolean(generationCanvas),
 	        connectorCount,
 	        productionNodes,
 	        productionEdges,
@@ -445,11 +531,15 @@ async function verifyWorkflowStages(evaluate) {
       hasTopNodeCanvas,
       stages: results,
     };
-  })()`, 'workflow stages check', 12_000);
+  })()`,
+    "workflow stages check",
+    12_000,
+  );
 }
 
 async function verifyPythonSettings(evaluate) {
-  return evaluate(`(() => {
+  return evaluate(
+    `(() => {
     const normalize = (node) => (node.textContent || '').replace(/\\s+/g, ' ').trim();
     const activate = (node) => {
       if (!node) return false;
@@ -497,11 +587,14 @@ async function verifyPythonSettings(evaluate) {
         });
       }, 1200);
     }, 800));
-  })()`, 'Python settings check');
+  })()`,
+    "Python settings check",
+  );
 }
 
 async function verifyWorkflowEndToEnd(evaluate) {
-  return evaluate(`(async () => {
+  return evaluate(
+    `(async () => {
     const normalize = (node) => (node.textContent || '').replace(/\\s+/g, ' ').trim();
     const activate = (node) => {
       if (!node) return false;
@@ -532,6 +625,21 @@ async function verifyWorkflowEndToEnd(evaluate) {
     await wait(500);
     const clickedWorkflow = clickButtonByText('工作流');
     await waitFor(() => document.body.innerText.includes('100%') || document.body.innerText.includes('已导出最终成片'), 8000);
+    await window.mystudioWorkflowSmoke?.setWorkflowStage?.('storyboard');
+    await wait(800);
+    const nodeCardTexts = Array.from(document.querySelectorAll('[data-flow-node-id]'))
+      .map((node) => ({ id: node.getAttribute('data-flow-node-id'), text: normalize(node) }));
+    const requiredNodePreviewText = [
+      ['独孤剑尘睁眼'],
+      ['矿场入局'],
+      ['独孤剑尘'],
+      ['序号', '画面描述', '台词'],
+      ['旁白：他在尘土里醒来。'],
+      ['mystudio-smoke-final.mp4'],
+    ];
+    const missingNodePreviewText = requiredNodePreviewText
+      .filter((texts) => !nodeCardTexts.some((node) => texts.every((text) => node.text.includes(text))))
+      .map((texts) => texts.join(' / '));
     const bodyText = document.body.innerText;
     const inspectResult = await window.mystudioWorkflowSmoke?.inspectWorkflow?.();
     return {
@@ -544,13 +652,20 @@ async function verifyWorkflowEndToEnd(evaluate) {
       hasSelectedCandidate: bodyText.includes('已选候选片段') || Boolean(inspectResult?.checks?.hasSelectedCandidate),
       hasVoiceFlow: bodyText.includes('已分配角色音色') || Boolean(inspectResult?.checks?.hasVoiceBinding),
       hasVoiceAudio: bodyText.includes('分镜配音已生成') || Boolean(inspectResult?.checks?.hasVoiceAudio),
+      hasNodeFlowDataPreview: missingNodePreviewText.length === 0,
+      missingNodePreviewText,
+      nodeCardTexts,
       bodyTextSample: bodyText.slice(0, 1200),
     };
-  })()`, 'workflow end-to-end check', 20_000);
+  })()`,
+    "workflow end-to-end check",
+    20_000,
+  );
 }
 
 async function verifyAssetVoiceFlow(evaluate) {
-  const seed = await evaluate(`(async () => {
+  const seed = await evaluate(
+    `(async () => {
     const waitFor = async (predicate, timeout = 5000) => {
       const deadline = Date.now() + timeout;
       while (Date.now() < deadline) {
@@ -620,9 +735,12 @@ async function verifyAssetVoiceFlow(evaluate) {
       audioListCount: audioList?.items?.length || 0,
       audioListFirst: audioList?.items?.[0]?.name || '',
     };
-  })()`, 'asset voice seed');
+  })()`,
+    "asset voice seed",
+  );
 
-  const flow = await evaluate(`(async () => {
+  const flow = await evaluate(
+    `(async () => {
     const normalize = (node) => (node.textContent || '').replace(/\\s+/g, ' ').trim();
     const activate = (node) => {
       if (!node) return false;
@@ -661,6 +779,21 @@ async function verifyAssetVoiceFlow(evaluate) {
       input.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: text }));
       input.dispatchEvent(new Event('change', { bubbles: true }));
       await wait(900);
+      return true;
+    };
+    const searchVoiceAssignDialog = async (text) => {
+      const dialog = Array.from(document.querySelectorAll('[role="dialog"]')).at(-1);
+      const input = dialog
+        ? Array.from(dialog.querySelectorAll('input'))
+          .find((node) => node.getAttribute('placeholder') === '搜索音频名称或文件名')
+        : null;
+      if (!input) return false;
+      input.focus();
+      const valueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
+      valueSetter?.call(input, text);
+      input.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: text }));
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+      await wait(500);
       return true;
     };
     const closeTopDialog = async () => {
@@ -703,6 +836,7 @@ async function verifyAssetVoiceFlow(evaluate) {
     }, 5000);
     const clickedVoicePanel = activate(audioPanelButton);
     await waitFor(() => document.body.innerText.includes('资产库音频'));
+    const searchedVoiceDialog = await searchVoiceAssignDialog('Smoke青年男声');
     const voiceCandidate = await waitFor(() => Array.from(document.querySelectorAll('[role="dialog"] button[title], .studio-asset-detail-dialog button[title], button[title]'))
       .find((node) => (node.getAttribute('title') || '').includes('Smoke青年男声') || normalize(node).includes('Smoke青年男声')), 8000);
     const dialogText = document.body.innerText;
@@ -781,6 +915,7 @@ async function verifyAssetVoiceFlow(evaluate) {
       clickedRoleCard,
       hasRoleDetail: detailText.includes('名字') && detailText.includes('音色'),
       clickedVoicePanel,
+      searchedVoiceDialog,
       hasVoiceDialog: dialogText.includes('为角色「') && dialogText.includes('分配音色'),
       hasVoiceDialogAudioSection: dialogText.includes('资产库音频'),
       hasConfirmAssign: dialogText.includes('确认分配'),
@@ -790,6 +925,9 @@ async function verifyAssetVoiceFlow(evaluate) {
       hasBoundVoiceDetail: afterBindingText.includes('音色信息') && afterBindingText.includes('克隆音色'),
       voiceDialogShowsAudioOrEmptyState:
         dialogText.includes('共 ') ||
+        dialogText.includes(' / ') ||
+        dialogText.includes('搜索音频名称或文件名') ||
+        dialogText.includes('Smoke青年男声') ||
         dialogText.includes('资产库中暂无可用音频。请先在资产库导入 WAV/MP3 音色样本。'),
       closedVoiceDialog,
       closedRoleDetailDialog,
@@ -805,20 +943,26 @@ async function verifyAssetVoiceFlow(evaluate) {
       audioError: audioLoadResult.error,
       bodyTextSample: dialogText.slice(0, 1000),
     };
-  })()`, 'asset voice flow check', ASSET_VOICE_FLOW_TIMEOUT_MS);
+  })()`,
+    "asset voice flow check",
+    ASSET_VOICE_FLOW_TIMEOUT_MS,
+  );
   return { ...flow, seed };
 }
 
 async function captureScreenshotStats(send) {
-  const screenshot = await send('Page.captureScreenshot', {
-    format: 'png',
+  const screenshot = await send("Page.captureScreenshot", {
+    format: "png",
     captureBeyondViewport: false,
   });
-  const png = PNG.sync.read(Buffer.from(screenshot.data, 'base64'));
+  const png = PNG.sync.read(Buffer.from(screenshot.data, "base64"));
   let sampled = 0;
   let white = 0;
   let transparent = 0;
-  const pixelStride = Math.max(1, Math.floor((png.width * png.height) / 80_000));
+  const pixelStride = Math.max(
+    1,
+    Math.floor((png.width * png.height) / 80_000),
+  );
 
   for (let y = 0; y < png.height; y += pixelStride) {
     for (let x = 0; x < png.width; x += pixelStride) {
@@ -834,7 +978,7 @@ async function captureScreenshotStats(send) {
   }
 
   return {
-    source: 'screenshot',
+    source: "screenshot",
     width: png.width,
     height: png.height,
     sampled,
@@ -849,13 +993,16 @@ async function captureVisualStats(send, domVisualStats) {
     return await captureScreenshotStats(send);
   } catch (error) {
     const captureError = error instanceof Error ? error.message : String(error);
-    console.warn(`[smoke] screenshot capture failed, falling back to DOM visual stats: ${captureError}`);
+    console.warn(
+      `[smoke] screenshot capture failed, falling back to DOM visual stats: ${captureError}`,
+    );
     return { ...domVisualStats, captureError };
   }
 }
 
 async function captureDomVisualStats(evaluate) {
-  return evaluate(`(() => {
+  return evaluate(
+    `(() => {
     const parseColor = (color) => {
       const match = color.match(/rgba?\\((\\d+),\\s*(\\d+),\\s*(\\d+)(?:,\\s*([\\d.]+))?\\)/);
       if (!match) return null;
@@ -903,135 +1050,260 @@ async function captureDomVisualStats(evaluate) {
       transparentRatio: points.length > 0 ? transparent / points.length : 1,
       bodyTextLength: document.body.innerText.trim().length,
     };
-  })()`, 'DOM visual stats fallback');
+  })()`,
+    "DOM visual stats fallback",
+  );
 }
 
-function assertHealthy(state, errors, overviewWorkflow, routeChecks, workflowStages, workflowEndToEnd, assetVoiceFlow, pythonSettings, screenshot) {
+function assertHealthy(
+  state,
+  errors,
+  overviewWorkflow,
+  routeChecks,
+  workflowStages,
+  workflowEndToEnd,
+  assetVoiceFlow,
+  pythonSettings,
+  screenshot,
+) {
   const failures = [];
-  if (state.readyState !== 'complete') failures.push(`document not complete: ${state.readyState}`);
-  if (state.rootChildren < 1) failures.push('React root has no children');
-  if (state.hasWhiteBody) failures.push(`body background is white: ${state.bodyBg}`);
-  if (state.bodyTextLength < 20) failures.push(`body text is too short: ${state.bodyTextLength}`);
+  if (state.readyState !== "complete")
+    failures.push(`document not complete: ${state.readyState}`);
+  if (state.rootChildren < 1) failures.push("React root has no children");
+  if (state.hasWhiteBody)
+    failures.push(`body background is white: ${state.bodyBg}`);
+  if (state.bodyTextLength < 20)
+    failures.push(`body text is too short: ${state.bodyTextLength}`);
   if (!state.hasProjectOverview && !state.hasWorkspaceContent) {
-    failures.push('neither project dashboard nor workspace content was rendered');
+    failures.push(
+      "neither project dashboard nor workspace content was rendered",
+    );
   }
   if (!overviewWorkflow.clickedOverview || !overviewWorkflow.hasProjectEntry) {
-    failures.push('project overview entry did not render');
+    failures.push("project overview entry did not render");
   }
   if (!overviewWorkflow.hasWorkflowEntry || !overviewWorkflow.hasAssetEntry) {
-    failures.push('project overview is missing workflow or asset entry actions');
+    failures.push(
+      "project overview is missing workflow or asset entry actions",
+    );
   }
   if (overviewWorkflow.forbiddenTextFound.length > 0) {
-    failures.push(`project overview rendered removed workflow guide copy: ${overviewWorkflow.forbiddenTextFound.join(', ')}`);
+    failures.push(
+      `project overview rendered removed workflow guide copy: ${overviewWorkflow.forbiddenTextFound.join(", ")}`,
+    );
   }
   for (const route of routeChecks) {
     if (!route.clicked) failures.push(`route button not found: ${route.label}`);
     if (route.clicked && !route.hasRequiredText) {
-      failures.push(`route missing required content: ${route.label} (${route.missingRequiredText.join(', ')})`);
+      failures.push(
+        `route missing required content: ${route.label} (${route.missingRequiredText.join(", ")})`,
+      );
     }
     if (route.clicked && route.forbiddenTextFound.length > 0) {
-      failures.push(`route rendered forbidden content: ${route.label} (${route.forbiddenTextFound.join(', ')})`);
+      failures.push(
+        `route rendered forbidden content: ${route.label} (${route.forbiddenTextFound.join(", ")})`,
+      );
     }
   }
-  if (!workflowStages.clickedWorkflow) failures.push('workflow route button not found for stage checks');
+  if (!workflowStages.clickedWorkflow)
+    failures.push("workflow route button not found for stage checks");
   if (workflowStages.hasTopNodeCanvas) {
-    failures.push('workflow node canvas rendered above the workflow stages instead of inside ProductionAgent');
+    failures.push(
+      "workflow node canvas rendered above the workflow stage content",
+    );
   }
-	  const generationStage = (workflowStages.stages || []).find((stage) => stage.id === 'generation');
-	  if (!generationStage?.hasNodeCanvas || generationStage.connectorCount < 1) {
-	    failures.push(`ProductionAgent node canvas did not render: canvas=${generationStage?.hasNodeCanvas}, connectors=${generationStage?.connectorCount ?? 0}`);
-	  }
-	  const expectedProductionNodes = ['script', 'scriptPlan', 'assets', 'storyboardTable', 'storyboard', 'workbench'];
-	  const expectedProductionEdges = ['script->scriptPlan', 'script->assets', 'scriptPlan->storyboardTable', 'storyboardTable->storyboard', 'storyboard->workbench'];
-	  const missingProductionNodes = expectedProductionNodes.filter((node) => !generationStage?.productionNodes?.includes(node));
-	  const missingProductionEdges = expectedProductionEdges.filter((edge) => !generationStage?.productionEdges?.includes(edge));
-	  if (missingProductionNodes.length > 0) {
-	    failures.push(`ProductionAgent node layout missing nodes: ${missingProductionNodes.join(', ')}`);
-	  }
-	  if (missingProductionEdges.length > 0) {
-	    failures.push(`ProductionAgent node layout missing edges: ${missingProductionEdges.join(', ')}`);
-	  }
+  const storyboardStage = (workflowStages.stages || []).find(
+    (stage) => stage.id === "storyboard",
+  );
+  const generationStage = (workflowStages.stages || []).find(
+    (stage) => stage.id === "generation",
+  );
+  if (!storyboardStage?.hasNodeCanvas) {
+    failures.push(
+      `storyboard video generation React Flow workflow canvas did not render: canvas=${storyboardStage?.hasNodeCanvas}`,
+    );
+  }
+  if (generationStage?.hasGenerationNodeCanvas) {
+    failures.push(
+      "workflow node canvas rendered inside 剧本资产管理 instead of 分镜视频生成",
+    );
+  }
+  const expectedProductionNodes = [
+    "script",
+    "scriptPlan",
+    "storyboardTable",
+    "storyboard",
+    "workbench",
+  ];
+  const missingProductionNodes = expectedProductionNodes.filter(
+    (node) => !storyboardStage?.productionNodes?.includes(node),
+  );
+  if (missingProductionNodes.length > 0) {
+    failures.push(
+      `storyboard workflow node layout missing nodes: ${missingProductionNodes.join(", ")}`,
+    );
+  }
   for (const stage of workflowStages.stages || []) {
-    if (!stage.clicked) failures.push(`workflow stage button not found: ${stage.label}`);
+    if (!stage.clicked)
+      failures.push(`workflow stage button not found: ${stage.label}`);
     if (stage.clicked && !stage.hasRequiredText) {
-      failures.push(`workflow stage missing required content: ${stage.label} (${stage.missingRequiredText.join(', ')})`);
+      failures.push(
+        `workflow stage missing required content: ${stage.label} (${stage.missingRequiredText.join(", ")})`,
+      );
+    }
+    if (stage.clicked && stage.hasForbiddenText) {
+      failures.push(
+        `workflow stage rendered removed content: ${stage.label} (${stage.presentForbiddenText.join(", ")})`,
+      );
     }
   }
-  if (!workflowEndToEnd.bridgeAvailable) failures.push('workflow smoke bridge was not available');
-  if (!workflowEndToEnd.clickedWorkflow) failures.push('workflow route button not found for end-to-end check');
-  if (!workflowEndToEnd.inspectResult || workflowEndToEnd.inspectResult.progress !== 100) {
-    failures.push(`workflow end-to-end readiness did not reach 100%: ${workflowEndToEnd.inspectResult?.progress ?? 'missing'}`);
+  if (!workflowEndToEnd.bridgeAvailable)
+    failures.push("workflow smoke bridge was not available");
+  if (!workflowEndToEnd.clickedWorkflow)
+    failures.push("workflow route button not found for end-to-end check");
+  if (
+    !workflowEndToEnd.inspectResult ||
+    workflowEndToEnd.inspectResult.progress !== 100
+  ) {
+    failures.push(
+      `workflow end-to-end readiness did not reach 100%: ${workflowEndToEnd.inspectResult?.progress ?? "missing"}`,
+    );
   }
   const workflowChecks = workflowEndToEnd.inspectResult?.checks ?? {};
   for (const [key, ok] of Object.entries(workflowChecks)) {
     if (!ok) failures.push(`workflow end-to-end check failed: ${key}`);
   }
-  if (!workflowEndToEnd.hasCompletedExport || !workflowEndToEnd.hasSelectedCandidate || !workflowEndToEnd.hasVoiceFlow || !workflowEndToEnd.hasVoiceAudio) {
-    failures.push('workflow end-to-end UI did not show export, selected candidate, voice binding, and voice audio completion');
+  if (
+    !workflowEndToEnd.hasCompletedExport ||
+    !workflowEndToEnd.hasSelectedCandidate ||
+    !workflowEndToEnd.hasVoiceFlow ||
+    !workflowEndToEnd.hasVoiceAudio
+  ) {
+    failures.push(
+      "workflow end-to-end UI did not show export, selected candidate, voice binding, and voice audio completion",
+    );
   }
-  if (!assetVoiceFlow.clickedAssets) failures.push('assets route button not found for asset voice flow check');
-  if (!assetVoiceFlow.clickedRole) failures.push('role asset sidebar item not found');
+  if (!workflowEndToEnd.hasNodeFlowDataPreview) {
+    failures.push(
+      `workflow node cards did not show Toonflow FlowData previews: ${(workflowEndToEnd.missingNodePreviewText || []).join(", ")}`,
+    );
+  }
+  if (!assetVoiceFlow.clickedAssets)
+    failures.push("assets route button not found for asset voice flow check");
+  if (!assetVoiceFlow.clickedRole)
+    failures.push("role asset sidebar item not found");
   if (!assetVoiceFlow.hasRoleLibrary || !assetVoiceFlow.hasAutoAssignAudio) {
-    failures.push('role asset library did not render role voice actions');
+    failures.push("role asset library did not render role voice actions");
   }
   if (assetVoiceFlow.roleCardCount < 1 || !assetVoiceFlow.clickedRoleCard) {
-    failures.push(`no role asset card could be opened: ${assetVoiceFlow.roleCardCount}`);
+    failures.push(
+      `no role asset card could be opened: ${assetVoiceFlow.roleCardCount}`,
+    );
   }
   if (!assetVoiceFlow.hasRoleDetail || !assetVoiceFlow.clickedVoicePanel) {
-    failures.push('role asset detail did not expose the voice assignment entry');
+    failures.push(
+      "role asset detail did not expose the voice assignment entry",
+    );
   }
-  if (!assetVoiceFlow.hasVoiceDialog || !assetVoiceFlow.hasVoiceDialogAudioSection || !assetVoiceFlow.hasConfirmAssign) {
-    failures.push('role voice assignment dialog did not render required controls');
+  if (
+    !assetVoiceFlow.hasVoiceDialog ||
+    !assetVoiceFlow.hasVoiceDialogAudioSection ||
+    !assetVoiceFlow.hasConfirmAssign
+  ) {
+    failures.push(
+      "role voice assignment dialog did not render required controls",
+    );
   }
-  if (!assetVoiceFlow.clickedVoiceCandidate || !assetVoiceFlow.clickedConfirmAssign || !assetVoiceFlow.hasAssignSuccess) {
-    failures.push('role voice assignment did not select and bind the seeded audio');
+  if (
+    !assetVoiceFlow.clickedVoiceCandidate ||
+    !assetVoiceFlow.searchedVoiceDialog ||
+    !assetVoiceFlow.clickedConfirmAssign ||
+    !assetVoiceFlow.hasAssignSuccess
+  ) {
+    failures.push(
+      "role voice assignment did not select and bind the seeded audio",
+    );
   }
   if (!assetVoiceFlow.hasBoundVoiceDetail) {
-    failures.push('role detail did not show the bound cloned voice after assignment');
+    failures.push(
+      "role detail did not show the bound cloned voice after assignment",
+    );
   }
   if (!assetVoiceFlow.voiceDialogShowsAudioOrEmptyState) {
-    failures.push('role voice assignment dialog did not show audio options or empty state');
+    failures.push(
+      "role voice assignment dialog did not show audio options or empty state",
+    );
   }
-  if (!assetVoiceFlow.closedVoiceDialog || assetVoiceFlow.openDialogCountBeforeAudio > 0) {
-    failures.push(`asset voice flow left dialogs open before opening the audio library: ${assetVoiceFlow.openDialogCountBeforeAudio}`);
+  if (
+    !assetVoiceFlow.closedVoiceDialog ||
+    assetVoiceFlow.openDialogCountBeforeAudio > 0
+  ) {
+    failures.push(
+      `asset voice flow left dialogs open before opening the audio library: ${assetVoiceFlow.openDialogCountBeforeAudio}`,
+    );
   }
   if (!assetVoiceFlow.clickedAudio || !assetVoiceFlow.hasAudioLibrary) {
-    failures.push('audio asset library could not be reached for playback entry check');
+    failures.push(
+      "audio asset library could not be reached for playback entry check",
+    );
   }
-  if (!assetVoiceFlow.clickedAudioCard || !assetVoiceFlow.hasAudioControls || !assetVoiceFlow.audioLoadedMetadata) {
-    failures.push(`audio detail playback control did not load metadata: ${assetVoiceFlow.audioError || assetVoiceFlow.audioReadyState}`);
+  if (
+    !assetVoiceFlow.clickedAudioCard ||
+    !assetVoiceFlow.hasAudioControls ||
+    !assetVoiceFlow.audioLoadedMetadata
+  ) {
+    failures.push(
+      `audio detail playback control did not load metadata: ${assetVoiceFlow.audioError || assetVoiceFlow.audioReadyState}`,
+    );
   }
-  if (!pythonSettings.clickedSettings) failures.push('settings route button not found for Python settings check');
-  if (!pythonSettings.clickedPythonTab) failures.push('Python settings tab was not found');
+  if (!pythonSettings.clickedSettings)
+    failures.push("settings route button not found for Python settings check");
+  if (!pythonSettings.clickedPythonTab)
+    failures.push("Python settings tab was not found");
   if (!pythonSettings.hasRequiredText) {
-    failures.push(`Python settings missing required content: ${pythonSettings.missingRequiredText.join(', ')}`);
+    failures.push(
+      `Python settings missing required content: ${pythonSettings.missingRequiredText.join(", ")}`,
+    );
   }
   if (pythonSettings.forbiddenTextFound.length > 0) {
-    failures.push(`Python settings appears to auto-configure before user action: ${pythonSettings.forbiddenTextFound.join(', ')}`);
+    failures.push(
+      `Python settings appears to auto-configure before user action: ${pythonSettings.forbiddenTextFound.join(", ")}`,
+    );
   }
   if (!screenshot || screenshot.whiteRatio > 0.75) {
-    failures.push(`screenshot is too white: ${screenshot ? screenshot.whiteRatio.toFixed(3) : 'missing'}`);
+    failures.push(
+      `screenshot is too white: ${screenshot ? screenshot.whiteRatio.toFixed(3) : "missing"}`,
+    );
   }
   if (!screenshot || screenshot.transparentRatio > 0.1) {
-    failures.push(`screenshot is unexpectedly transparent: ${screenshot ? screenshot.transparentRatio.toFixed(3) : 'missing'}`);
+    failures.push(
+      `screenshot is unexpectedly transparent: ${screenshot ? screenshot.transparentRatio.toFixed(3) : "missing"}`,
+    );
   }
-  if (errors.length > 0) failures.push(`page reported ${errors.length} runtime/log error(s)`);
+  if (errors.length > 0)
+    failures.push(`page reported ${errors.length} runtime/log error(s)`);
 
   if (failures.length > 0) {
-    console.error('Desktop smoke failed:');
+    console.error("Desktop smoke failed:");
     for (const failure of failures) {
       console.error(`- ${failure}`);
     }
     console.error(JSON.stringify(state, null, 2));
-    console.error(JSON.stringify({
-      overviewWorkflow,
-      routeChecks,
-      workflowEndToEnd,
-      assetVoiceFlow,
-      pythonSettings,
-      screenshot,
-      pageErrors: errors.map(summarizePageError),
-    }, null, 2));
+    console.error(
+      JSON.stringify(
+        {
+          overviewWorkflow,
+          routeChecks,
+          workflowEndToEnd,
+          assetVoiceFlow,
+          pythonSettings,
+          screenshot,
+          pageErrors: errors.map(summarizePageError),
+        },
+        null,
+        2,
+      ),
+    );
     process.exit(1);
   }
 
@@ -1042,23 +1314,47 @@ function assertHealthy(state, errors, overviewWorkflow, routeChecks, workflowSta
 
 prepareSmokeMedia();
 
-const child = spawn(appBin, [`--remote-debugging-port=${debugPort}`, `--user-data-dir=${userDataDir}`], {
-  cwd: process.cwd(),
-  env: { ...process.env, ELECTRON_ENABLE_LOGGING: '1', MYSTUDIO_SMOKE: '1' },
-  stdio: ['ignore', 'pipe', 'pipe'],
-});
+const child = spawn(
+  appBin,
+  [`--remote-debugging-port=${debugPort}`, `--user-data-dir=${userDataDir}`],
+  {
+    cwd: process.cwd(),
+    env: { ...process.env, ELECTRON_ENABLE_LOGGING: "1", MYSTUDIO_SMOKE: "1" },
+    stdio: ["ignore", "pipe", "pipe"],
+  },
+);
 
-child.stdout.on('data', (data) => process.stdout.write(data));
-child.stderr.on('data', (data) => process.stderr.write(data));
+child.stdout.on("data", (data) => process.stdout.write(data));
+child.stderr.on("data", (data) => process.stderr.write(data));
 
 try {
   const page = await waitForPageTarget();
-  const { state, errors, overviewWorkflow, routeChecks, workflowStages, workflowEndToEnd, assetVoiceFlow, pythonSettings, screenshot } = await inspectPage(page);
-  assertHealthy(state, errors, overviewWorkflow, routeChecks, workflowStages, workflowEndToEnd, assetVoiceFlow, pythonSettings, screenshot);
+  const {
+    state,
+    errors,
+    overviewWorkflow,
+    routeChecks,
+    workflowStages,
+    workflowEndToEnd,
+    assetVoiceFlow,
+    pythonSettings,
+    screenshot,
+  } = await inspectPage(page);
+  assertHealthy(
+    state,
+    errors,
+    overviewWorkflow,
+    routeChecks,
+    workflowStages,
+    workflowEndToEnd,
+    assetVoiceFlow,
+    pythonSettings,
+    screenshot,
+  );
 } catch (error) {
   console.error(error instanceof Error ? error.message : String(error));
   process.exitCode = 1;
 } finally {
-  child.kill('SIGTERM');
+  child.kill("SIGTERM");
   rmSync(SMOKE_VIDEO_PATH, { force: true });
 }
