@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,9 +13,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { StudioAssetDetailDialog } from "@/components/panels/assets/StudioAssetDetailDialog";
 import {
-  RoleVoiceAssignDialog,
-} from "@/components/panels/assets/RoleVoiceAssignDialog";
-import {
   Boxes,
   ImageIcon,
   Loader2,
@@ -25,15 +22,20 @@ import {
 import { AssetGenerationRow } from "./ScriptAssetGenerationRow";
 import {
   ASSET_TYPES,
+  assetLibraryRowKey,
+  summarizeImageRows,
+  summarizeRows,
   typeLabel,
+  type AssetRow,
   type AssetGenerationType,
 } from "./script-asset-generation-model";
 import { useScriptAssetGenerationActions } from "./useScriptAssetGenerationActions";
 import { useScriptAssetGenerationData } from "./useScriptAssetGenerationData";
+import type { StudioAssetSummary } from "@/types/studio-assets";
 
 export function ScriptAssetGenerationTab({
   title = "资产生成",
-  description = "承接本阶段已提取的角色、场景、道具，推进提示词、图片资产、衍生资产和角色音频样本。",
+  description = "承接本阶段已提取的角色、场景、道具，推进提示词、图片资产、衍生资产和角色参考音频。",
   emptyExtractStageLabel = "剧本资产管理",
   productionEpisodeId,
   scriptPlanCount,
@@ -47,17 +49,42 @@ export function ScriptAssetGenerationTab({
   hasSeriesBible: boolean;
 }) {
   const [activeType, setActiveType] = useState<AssetGenerationType>("character");
+  const [storedAssetOverrides, setStoredAssetOverrides] = useState<Record<string, StudioAssetSummary>>({});
   const {
     activeProjectId,
-    currentImageStats,
     currentRows,
-    currentStats,
     entityExtractions,
     scriptPlans,
     stats,
     visualManualId,
     voiceStats,
   } = useScriptAssetGenerationData(activeType);
+  const currentRowsWithStoredAssets = useMemo(
+    () =>
+      currentRows.map((row) => {
+        if (row.assetLibrary) return row;
+        const assetLibrary = storedAssetOverrides[assetLibraryRowKey(row)];
+        return assetLibrary
+          ? { ...row, assetLibrary, assetLibraryId: assetLibrary.id }
+          : row;
+      }),
+    [currentRows, storedAssetOverrides],
+  );
+  const displayCurrentStats = useMemo(
+    () => summarizeRows(currentRowsWithStoredAssets),
+    [currentRowsWithStoredAssets],
+  );
+  const displayCurrentImageStats = useMemo(
+    () => summarizeImageRows(currentRowsWithStoredAssets),
+    [currentRowsWithStoredAssets],
+  );
+  const displayStats = useMemo(
+    () => ({
+      ...stats,
+      [activeType]: displayCurrentStats,
+    }),
+    [activeType, displayCurrentStats, stats],
+  );
 
   const {
     isPolishing,
@@ -69,8 +96,6 @@ export function ScriptAssetGenerationTab({
     setSelectedAsset,
     assetDialogOpen,
     setAssetDialogOpen,
-    voiceDialogChar,
-    setVoiceDialogChar,
     notFoundAsset,
     setNotFoundAsset,
     handlePolishAll,
@@ -79,14 +104,22 @@ export function ScriptAssetGenerationTab({
     handleAutoAssignAudio,
     handleOpenAsset,
     handleGenerateSingle,
+    handleStoreInAssetLibrary,
+    storingAssetKey,
   } = useScriptAssetGenerationActions({
     activeType,
     visualManualId,
-    currentRows,
+    currentRows: currentRowsWithStoredAssets,
     activeProjectId,
     scriptPlans,
     productionEpisodeId,
     entityExtractions,
+    onAssetStored: (row, asset) => {
+      setStoredAssetOverrides((current) => ({
+        ...current,
+        [assetLibraryRowKey(row)]: asset,
+      }));
+    },
   });
 
   return (
@@ -131,14 +164,22 @@ export function ScriptAssetGenerationTab({
             <Icon className="h-3.5 w-3.5" />
             {label}
             <span className="text-xs opacity-70">
-              ({stats[key].ready}/{stats[key].total})
+              ({displayStats[key].ready}/{displayStats[key].total})
             </span>
           </button>
         ))}
         <div className="flex-1" />
+        {displayCurrentImageStats.missingAsset > 0 ? (
+          <Badge
+            variant="outline"
+            className="border-destructive/60 bg-destructive/10 text-destructive"
+          >
+            缺少{typeLabel(activeType)}资产 {displayCurrentImageStats.missingAsset}
+          </Badge>
+        ) : null}
         {activeType === "character" && voiceStats.total > 0 ? (
           <span className="text-xs text-primary">
-            音频样本 {voiceStats.assigned}/{voiceStats.total}
+            参考音频 {voiceStats.assigned}/{voiceStats.total}
           </span>
         ) : null}
         {activeType === "character" ? (
@@ -161,7 +202,7 @@ export function ScriptAssetGenerationTab({
           type="button"
           size="sm"
           variant="secondary"
-          disabled={isPolishing || !visualManualId || currentStats.todo === 0}
+            disabled={isPolishing || !visualManualId || displayCurrentStats.todo === 0}
           onClick={handlePolishAll}
         >
           {isPolishing ? (
@@ -169,9 +210,9 @@ export function ScriptAssetGenerationTab({
           ) : (
             <WandSparkles className="h-4 w-4" />
           )}
-          {isPolishing
-             ? `润色中 ${progress.done}/${progress.total}`
-            : `全部润色提示词 (${currentStats.todo})`}
+            {isPolishing
+               ? `润色中 ${progress.done}/${progress.total}`
+              : `全部润色提示词 (${displayCurrentStats.todo})`}
         </Button>
         <Button
           type="button"
@@ -181,7 +222,7 @@ export function ScriptAssetGenerationTab({
             isGeneratingImages ||
             isPolishing ||
             !visualManualId ||
-            currentImageStats.todo === 0
+            displayCurrentImageStats.todo === 0
           }
           onClick={handleGenerateImages}
         >
@@ -190,9 +231,9 @@ export function ScriptAssetGenerationTab({
           ) : (
             <ImageIcon className="h-4 w-4" />
           )}
-          {isGeneratingImages
-            ? `生成中 ${progress.done}/${progress.total}`
-            : `生成图片 (${currentImageStats.todo})`}
+            {isGeneratingImages
+              ? `生成中 ${progress.done}/${progress.total}`
+            : `生成图片 (${displayCurrentImageStats.todo})`}
         </Button>
       </div>
 
@@ -212,12 +253,13 @@ export function ScriptAssetGenerationTab({
           </p>
         ) : (
           <div className="grid gap-2">
-            {currentRows.map((row) => (
+            {currentRowsWithStoredAssets.map((row) => (
               <AssetGenerationRow
                 key={`${row.type}-${row.id}-${row.name}`}
                 row={row}
                 onOpenAsset={handleOpenAsset}
-                onVoiceAssign={setVoiceDialogChar}
+                onStoreAsset={handleStoreInAssetLibrary}
+                isStoringAssetLibrary={storingAssetKey === assetLibraryRowKey(row)}
               />
             ))}
           </div>
@@ -232,15 +274,6 @@ export function ScriptAssetGenerationTab({
           if (!open) setSelectedAsset(null);
         }}
       />
-      {voiceDialogChar ? (
-        <RoleVoiceAssignDialog
-          character={voiceDialogChar}
-          open={Boolean(voiceDialogChar)}
-          onOpenChange={(open) => {
-            if (!open) setVoiceDialogChar(null);
-          }}
-        />
-      ) : null}
       <AlertDialog
         open={Boolean(notFoundAsset)}
         onOpenChange={(open) => {

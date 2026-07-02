@@ -78,6 +78,7 @@ _qwen_backend: str | None = None
 _qwen_model_size: str | None = None
 _qwen_custom_voice_model: Any | None = None
 _qwen_custom_voice_model_size: str | None = None
+_RETRYABLE_REAL_ENGINES = {"qwen", "qwen_custom_voice", "kokoro"}
 
 
 def synthesize_to_wav(
@@ -132,7 +133,7 @@ def _synthesize_single(
     if mode == "mock":
         return _generate_mock(output, text)
 
-    try:
+    def generate_real_once() -> SynthesisResult:
         if engine == "qwen":
             return _generate_qwen(output, text, profile, model_size, language, seed)
         if engine == "qwen_custom_voice":
@@ -140,15 +141,26 @@ def _synthesize_single(
         if engine == "kokoro":
             return _generate_kokoro(output, text, profile, language, seed)
         raise RuntimeError(f"No real TTS adapter for engine: {engine}")
+
+    try:
+        return generate_real_once()
     except Exception as exc:
+        unload_engine(engine)
+        final_exc = exc
+        if engine in _RETRYABLE_REAL_ENGINES:
+            try:
+                return generate_real_once()
+            except Exception as retry_exc:
+                unload_engine(engine)
+                final_exc = retry_exc
         if mode == "real":
-            raise
+            raise final_exc
         result = _generate_mock(output, text)
         return SynthesisResult(
             duration=result.duration,
             backend=result.backend,
             mocked=True,
-            warning=f"Real {engine} adapter unavailable, used mock audio: {exc}",
+            warning=f"Real {engine} adapter unavailable, used mock audio: {final_exc}",
         )
 
 

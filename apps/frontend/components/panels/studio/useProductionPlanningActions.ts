@@ -10,11 +10,23 @@ import {
   toStoryboardItems,
 } from "@/lib/studio/storyboard-table";
 import { aiManager } from "@/lib/ai/ai-manager";
+import { saveImageToLocal } from "@/lib/image-storage";
 import {
   buildStudioManualContext,
   type StudioManualCatalog,
 } from "@/lib/studio/manuals";
+import {
+  batchGenerateAssets,
+  type AssetGenerationTask,
+} from "@/lib/studio/asset-generation-orchestrator";
+import {
+  buildEntityResolver,
+  createMystudioDerivedSinks,
+  syncDerivedAssets,
+  type EntityResolver,
+} from "@/lib/studio/derived-asset-sync";
 import { useCharacterLibraryStore } from "@/stores/character-library-store";
+import { usePropsLibraryStore } from "@/stores/props-library-store";
 import { useSceneStore } from "@/stores/scene-store";
 import { useStudioStore } from "@/stores/studio-store";
 import { toast } from "sonner";
@@ -24,6 +36,7 @@ import {
   resolveScriptPlanEpisodeId,
   resolveScriptTextForEpisode,
 } from "./workflow-helpers";
+import type { EntityExtractionResult, ScriptPlan, StoryboardItem } from "@/types/studio";
 
 type StudioStore = ReturnType<typeof useStudioStore.getState>;
 
@@ -89,6 +102,7 @@ export function useProductionPlanningActions({
           result.text,
           targetEpisodeId,
         );
+        saveAgentWorkData("directorPlan", result.text, targetEpisodeId);
         saveScriptPlan(plan);
 
         const detail = `衍生预划 ${plan.derivedAssetPlan.length} 条`;
@@ -103,7 +117,7 @@ export function useProductionPlanningActions({
         toast.error(error instanceof Error ? error.message : String(error));
       }
     },
-    [manualCatalog, saveScriptPlan],
+    [manualCatalog, saveAgentWorkData, saveScriptPlan],
   );
 
   const handleStoryboardTable = useCallback(
@@ -178,6 +192,201 @@ export function useProductionPlanningActions({
     [saveAgentWorkData],
   );
 
+  const handleSyncDerivedAssets = useCallback((options?: { silent?: boolean }) => {
+    const projectId = activeProjectId;
+    if (!projectId) {
+      toast.error("未选择项目，无法落地衍生资产");
+      return null;
+    }
+    const store = useStudioStore.getState();
+    const context = resolveDerivedAssetActionContext(store, productionEpisodeId);
+    if (!context) return null;
+
+    const { plan, batch } = context;
+    const resolver = buildEntityResolver(
+      batch.characters.map((item) => ({
+        id: item.characterId,
+        name: item.name,
+        aliases: item.aliases,
+      })),
+      batch.scenes.map((item) => ({ id: item.sceneId, name: item.name })),
+      batch.props.map((item) => ({ id: item.assetId, name: item.name })),
+    );
+    const { summary } = syncDerivedAssets(plan.derivedAssetPlan, {
+      projectId,
+      resolver,
+      ...createMystudioDerivedSinks(),
+    });
+    if (options?.silent) {
+      return { plan, batch, resolver };
+    }
+    if (summary.skipped) {
+      toast.warning(
+        `衍生资产落地 ${summary.created} 条，跳过 ${summary.skipped} 条（父资产未匹配）`,
+      );
+    } else {
+      toast.success(`衍生资产已落地 ${summary.created} 条`);
+    }
+    return { plan, batch, resolver };
+  }, [activeProjectId, productionEpisodeId]);
+
+  const handleGenerateDerivedAssets = useCallback(async () => {
+    const visualManualId = useStudioStore.getState().workflowConfig.visualManualId;
+    if (!visualManualId) {
+      toast.error("请先在「风格与导演」中选择视觉手册");
+      return;
+    }
+    const synced = handleSyncDerivedAssets({ silent: true });
+    if (!synced) return;
+
+    const tasks = collectDerivedAssetGenerationTasks(
+      synced.plan.derivedAssetPlan,
+      synced.resolver,
+      visualManualId,
+    );
+    if (tasks.total === 0) {
+      toast.info("没有待生成图片的衍生资产");
+      return;
+    }
+
+    let success = 0;
+    let failed = 0;
+    for (const task of tasks.characterVariationTasks) {
+      const result = await generateCharacterVariationAsset(task);
+      if (result) success += 1;
+      else failed += 1;
+    }
+    if (tasks.storeTasks.length) {
+      const results = await batchGenerateAssets(tasks.storeTasks, {
+        concurrency: 1,
+      });
+      const done = [...results.values()].filter(
+        (result) => result.phase === "done",
+      ).length;
+      success += done;
+      failed += results.size - done;
+    }
+
+    if (failed) {
+      toast.warning(`衍生图片生成完成：${success} 成功，${failed} 失败`);
+    } else {
+      toast.success(`衍生图片生成完成：${success} 个资产已就绪`);
+    }
+  }, [handleSyncDerivedAssets]);
+
+  const handleGenerateStoryboardImages = useCallback(
+    async (userInstruction = "") => {
+      const projectId = activeProjectId;
+      if (!projectId) {
+        toast.error("未选择项目，无法保存分镜图");
+        return;
+      }
+      if (!window.projectFiles?.saveImage) {
+        toast.error("当前环境不支持项目内图片保存");
+        return;
+      }
+
+      const store = useStudioStore.getState();
+      if (!store.workflowConfig.visualManualId) {
+        toast.error("请先在「风格与导演」中选择视觉手册");
+        return;
+      }
+
+      const targetEpisodeId = resolveScriptPlanEpisodeId(
+        store,
+        productionEpisodeId,
+      );
+      const targets = collectStoryboardsNeedingImages(
+        store.storyboards,
+        targetEpisodeId,
+      );
+      if (!store.storyboards.length) {
+        toast.error("尚无分镜：请先生成分镜表");
+        return;
+      }
+      if (!targets.length) {
+        toast.info("当前分镜图已齐全");
+        return;
+      }
+
+      const manualContext = buildStudioManualContext(
+        store.workflowConfig,
+        manualCatalog,
+      );
+      let success = 0;
+      let failed = 0;
+
+      for (const storyboard of targets) {
+        try {
+          const result = await aiManager.freedomImage({
+            prompt: buildStoryboardImagePrompt({
+              storyboard,
+              manualContext,
+              userInstruction,
+            }),
+            aspectRatio: "16:9",
+            resolution: "2K",
+          });
+          if (!result.url) throw new Error("图片生成未返回地址");
+
+          const filename = createStoryboardImageFilename(storyboard);
+          const saved = await window.projectFiles.saveImage({
+            projectId,
+            relativePath: storyboardImageRelativePath(
+              storyboard.episodeId,
+              filename,
+            ),
+            source: result.url,
+          });
+          if (!saved.success || !saved.url) {
+            throw new Error(saved.error || "项目内分镜图保存失败");
+          }
+
+          const workflowStore = useStudioStore.getState();
+          workflowStore.addMaterial({
+            name: filename,
+            localPath: saved.url,
+            size: saved.size ?? 0,
+          });
+          workflowStore.updateStoryboard(storyboard.id, {
+            mediaRef: { kind: "image", path: saved.url },
+            state: "ready",
+          });
+          saveAgentWorkData(
+            "storyboardImage",
+            `分镜 ${storyboard.index} 图片已保存：${saved.url}`,
+            storyboard.episodeId,
+          );
+          success += 1;
+        } catch (error) {
+          failed += 1;
+          useStudioStore.getState().updateStoryboard(storyboard.id, {
+            state: "failed",
+            reason: error instanceof Error ? error.message : "分镜图生成失败",
+          });
+        }
+      }
+
+      if (failed) {
+        toast.warning(`分镜图生成完成：${success} 成功，${failed} 失败`);
+      } else {
+        toast.success(`分镜图生成完成：${success} 张图片已保存到当前项目`);
+      }
+    },
+    [activeProjectId, manualCatalog, productionEpisodeId, saveAgentWorkData],
+  );
+
+  const handleRebuildWorkbenchTracks = useCallback(() => {
+    const store = useStudioStore.getState();
+    if (!store.storyboards.length) {
+      toast.error("尚无分镜：请先生成分镜表");
+      return;
+    }
+    store.rebuildTracks();
+    handleStageChange("workbench");
+    toast.success(`视频轨道已重建：${store.storyboards.length} 个分镜`);
+  }, [handleStageChange]);
+
   const handleProductionNodeAction = useCallback(
     async (action: {
       id: string;
@@ -198,12 +407,32 @@ export function useProductionPlanningActions({
         );
         return;
       }
+      if (action.id === "sync-derived-assets") {
+        handleSyncDerivedAssets();
+        return;
+      }
+      if (action.id === "generate-derived-assets") {
+        await handleGenerateDerivedAssets();
+        return;
+      }
+      if (action.id === "generate-storyboard-images") {
+        await handleGenerateStoryboardImages(action.userInstruction ?? "");
+        return;
+      }
+      if (action.id === "rebuild-workbench-tracks") {
+        handleRebuildWorkbenchTracks();
+        return;
+      }
       handleStageChange(action.targetStage);
     },
     [
       handleDirectorPlan,
+      handleGenerateDerivedAssets,
+      handleGenerateStoryboardImages,
       handleStageChange,
+      handleRebuildWorkbenchTracks,
       handleStoryboardTable,
+      handleSyncDerivedAssets,
       productionEpisodeId,
     ],
   );
@@ -253,4 +482,225 @@ export function useProductionPlanningActions({
     handleProductionNodeAction,
     handleBuildSeriesBible,
   };
+}
+
+function resolveDerivedAssetActionContext(
+  store: StudioStore,
+  episodeId: string,
+): { plan: ScriptPlan; batch: EntityExtractionResult } | null {
+  const targetEpisodeId = resolveScriptPlanEpisodeId(store, episodeId);
+  const plan =
+    store.scriptPlans.find((item) => item.episodeId === targetEpisodeId) ??
+    store.scriptPlans[store.scriptPlans.length - 1];
+  if (!plan) {
+    toast.error("尚无导演规划：请先生成导演规划");
+    return null;
+  }
+  if (!plan.derivedAssetPlan.length) {
+    toast.info("当前导演规划没有衍生资产预划");
+    return null;
+  }
+  const batch =
+    store.entityExtractions.find((item) => item.episodeId === plan.episodeId) ??
+    store.entityExtractions[0];
+  if (!batch) {
+    toast.error("尚无实体库：请先在「剧本资产管理」完成资产提取");
+    return null;
+  }
+  return { plan, batch };
+}
+
+type CharacterVariationGenerationTask = {
+  characterId: string;
+  variationId: string;
+  name: string;
+  prompt: string;
+  referenceImages?: string[];
+};
+
+function collectDerivedAssetGenerationTasks(
+  plan: ScriptPlan["derivedAssetPlan"],
+  resolver: EntityResolver,
+  visualManualId: string,
+): {
+  characterVariationTasks: CharacterVariationGenerationTask[];
+  storeTasks: AssetGenerationTask[];
+  total: number;
+} {
+  const characters = useCharacterLibraryStore.getState().characters;
+  const scenes = useSceneStore.getState().scenes;
+  const props = usePropsLibraryStore.getState().items;
+  const characterVariationTasks: CharacterVariationGenerationTask[] = [];
+  const storeTasks: AssetGenerationTask[] = [];
+
+  for (const item of plan) {
+    const target = resolver(item.parentAssetId);
+    if (!target) continue;
+
+    if (target.kind === "character") {
+      const character = characters.find((current) => current.id === target.id);
+      const variation = character?.variations.find(
+        (current) => current.name === item.state,
+      );
+      if (!character || !variation || variation.referenceImage) continue;
+      characterVariationTasks.push({
+        characterId: character.id,
+        variationId: variation.id,
+        name: `${character.name}-${variation.name}`,
+        prompt:
+          variation.visualPromptZh ||
+          variation.visualPrompt ||
+          `${variation.name}：${item.reason}`,
+        referenceImages: [
+          character.thumbnailUrl,
+          character.views[0]?.imageUrl,
+        ].filter((image): image is string => Boolean(image)),
+      });
+      continue;
+    }
+
+    if (target.kind === "scene") {
+      const scene = scenes.find(
+        (current) =>
+          current.parentSceneId === target.id &&
+          current.viewpointName === item.state,
+      );
+      if (!scene || scene.referenceImage) continue;
+      const existingPrompt = scene.visualPrompt || `${item.state}：${item.reason}`;
+      storeTasks.push({
+        assetId: scene.id,
+        assetType: "scene",
+        name: scene.name,
+        description:
+          [scene.location, scene.time, scene.atmosphere, scene.notes]
+            .filter(Boolean)
+            .join("，") || item.reason,
+        isDerivative: true,
+        visualManualId,
+        skipPolish: Boolean(scene.visualPrompt),
+        existingPrompt,
+      });
+      continue;
+    }
+
+    const prop = props.find(
+      (current) =>
+        current.parentId === target.id && current.category === item.state,
+    );
+    if (!prop || prop.imageUrl) continue;
+    const existingPrompt = prop.visualPrompt || `${item.state}：${item.reason}`;
+    storeTasks.push({
+      assetId: prop.id,
+      assetType: "prop",
+      name: prop.name,
+      description: prop.description || item.reason,
+      isDerivative: true,
+      visualManualId,
+      skipPolish: Boolean(prop.visualPrompt),
+      existingPrompt,
+    });
+  }
+
+  return {
+    characterVariationTasks,
+    storeTasks,
+    total: characterVariationTasks.length + storeTasks.length,
+  };
+}
+
+async function generateCharacterVariationAsset(
+  task: CharacterVariationGenerationTask,
+): Promise<boolean> {
+  const result = await aiManager.image(
+    {
+      prompt: task.prompt,
+      resolution: "2K",
+      aspectRatio: "1:1",
+      referenceImages: task.referenceImages?.length
+        ? task.referenceImages
+        : undefined,
+    },
+    "character",
+  );
+  if (!result.imageUrl) return false;
+
+  const localPath = await saveImageToLocal(
+    result.imageUrl,
+    "wardrobe",
+    `${task.name}-${Date.now()}`,
+  );
+  useCharacterLibraryStore.getState().updateVariation(
+    task.characterId,
+    task.variationId,
+    {
+      referenceImage: localPath,
+      generatedAt: Date.now(),
+    },
+  );
+  return true;
+}
+
+function collectStoryboardsNeedingImages(
+  storyboards: StoryboardItem[],
+  episodeId: string,
+): StoryboardItem[] {
+  const scoped = storyboards.filter((item) => item.episodeId === episodeId);
+  const candidates = scoped.length ? scoped : storyboards;
+  return candidates
+    .filter((item) => !item.mediaRef || item.mediaRef.kind === "audio")
+    .sort((a, b) => a.index - b.index);
+}
+
+function buildStoryboardImagePrompt({
+  storyboard,
+  manualContext,
+  userInstruction,
+}: {
+  storyboard: StoryboardItem;
+  manualContext: string;
+  userInstruction: string;
+}) {
+  return [
+    "为分镜视频生成可直接作为首帧/分镜图的单张画面。",
+    manualContext && `【视觉与制作手册】\n${manualContext}`,
+    [
+      "【分镜信息】",
+      `镜头：${storyboard.index}`,
+      storyboard.videoDesc && `画面描述：${storyboard.videoDesc}`,
+      storyboard.prompt && `生成提示词：${storyboard.prompt}`,
+      storyboard.lines && `台词：${storyboard.lines}`,
+      storyboard.emotion && `情绪：${storyboard.emotion}`,
+      storyboard.orientation && `调度：${storyboard.orientation}`,
+      storyboard.spatialRelation && `空间关系：${storyboard.spatialRelation}`,
+      storyboard.associateAssetsNames?.length
+        ? `关联资产：${storyboard.associateAssetsNames.join("、")}`
+        : "",
+      storyboard.sound && `声音：${storyboard.sound}`,
+    ]
+      .filter(Boolean)
+      .join("\n"),
+    userInstruction.trim() &&
+      `【本次节点补充要求】\n${userInstruction.trim()}`,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+function storyboardImageRelativePath(episodeId: string, filename: string) {
+  return `storyboard-images/${safePathSegment(episodeId)}/${safePathSegment(filename)}`;
+}
+
+function createStoryboardImageFilename(storyboard: StoryboardItem) {
+  return `shot-${String(storyboard.index).padStart(3, "0")}-${safePathSegment(storyboard.id)}-${Date.now()}.png`;
+}
+
+function safePathSegment(value: string) {
+  return (
+    value
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9\u4e00-\u9fa5._-]+/gi, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 96) || "file"
+  );
 }

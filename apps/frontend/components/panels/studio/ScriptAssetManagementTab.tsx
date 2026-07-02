@@ -54,7 +54,7 @@ export function ScriptAssetManagementTab({
       <section className="min-h-[520px] overflow-hidden rounded-lg border border-border/70">
         <ScriptAssetGenerationTab
           title="资产生成"
-          description="承接本阶段已提取的角色、场景、道具，手动推进提示词、图片资产、衍生资产和角色音频样本。"
+          description="承接本阶段已提取的角色、场景、道具，手动推进提示词、图片资产、衍生资产和角色参考音频。"
           emptyExtractStageLabel="本阶段"
           productionEpisodeId={productionEpisodeId}
           scriptPlanCount={scriptPlanCount}

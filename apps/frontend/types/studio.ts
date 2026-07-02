@@ -60,6 +60,8 @@ export type StoryboardState = "idle" | "queued" | "rendering" | "ready" | "faile
 export interface StoryboardMediaRef {
   kind: "image" | "video" | "audio";
   path: string;
+  imageWorkflowId?: string;
+  imageWorkflowNodeId?: string;
 }
 
 export interface StudioMaterial {
@@ -70,6 +72,8 @@ export interface StudioMaterial {
   sourceName: string;
   size: number;
   importedAt: number;
+  imageWorkflowId?: string;
+  imageWorkflowNodeId?: string;
 }
 
 export interface StoryboardItem {
@@ -83,6 +87,8 @@ export interface StoryboardItem {
   videoDesc: string;
   assetIds: string[];
   mediaRef?: StoryboardMediaRef;
+  imageWorkflowId?: string;
+  imageWorkflowNodeId?: string;
   audioRef?: StoryboardMediaRef;
   state: StoryboardState;
   reason?: string;
@@ -245,6 +251,78 @@ export interface EpisodeMergePlan {
   kind: "episode-merge";
   inputs: string[];
   ffmpegProfile: "concat-h264-aac";
+}
+
+export type ImageWorkflowTargetKind = "free" | "material" | "storyboard";
+
+export interface ImageWorkflowTarget {
+  kind: ImageWorkflowTargetKind;
+  id?: string;
+}
+
+export type ImageWorkflowNodeType = "reference" | "generated";
+export type ImageWorkflowGenerationStatus = "idle" | "queued" | "generating" | "ready" | "failed";
+
+export interface ImageWorkflowNodePosition {
+  x: number;
+  y: number;
+}
+
+interface ImageWorkflowNodeBase {
+  id: string;
+  type: ImageWorkflowNodeType;
+  title: string;
+  position: ImageWorkflowNodePosition;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface ImageWorkflowReferenceNode extends ImageWorkflowNodeBase {
+  type: "reference";
+  imageUrl: string;
+  source?: ImageWorkflowTarget;
+  notes?: string;
+}
+
+export interface ImageWorkflowGeneratedNode extends ImageWorkflowNodeBase {
+  type: "generated";
+  prompt: string;
+  negativePrompt?: string;
+  model?: string;
+  aspectRatio: string;
+  quality: "draft" | "standard" | "hd";
+  resolution?: string;
+  resultUrl?: string;
+  resultMediaId?: string;
+  status: ImageWorkflowGenerationStatus;
+  errorReason?: string;
+  generatedAt?: number;
+}
+
+export type ImageWorkflowNode = ImageWorkflowReferenceNode | ImageWorkflowGeneratedNode;
+
+export interface ImageWorkflowEdge {
+  id: string;
+  source: string;
+  target: string;
+  label?: string;
+}
+
+export interface ImageWorkflowViewport {
+  x: number;
+  y: number;
+  zoom: number;
+}
+
+export interface ImageWorkflowGraph {
+  id: string;
+  name: string;
+  target: ImageWorkflowTarget;
+  nodes: ImageWorkflowNode[];
+  edges: ImageWorkflowEdge[];
+  viewport?: ImageWorkflowViewport;
+  createdAt: number;
+  updatedAt: number;
 }
 
 /** ===== 编剧深度实体（对齐统一工作流计划 M1–M7 / 数据模型规范 §3.12）===== */

@@ -45,6 +45,28 @@ declare global {
     };
     projectFiles?: {
       writeText: (key: string, value: string) => Promise<{ success: boolean; filePath?: string; error?: string }>;
+      writeBinary: (payload: { projectId: string; relativePath: string; bytes: ArrayBuffer }) => Promise<{
+        success: boolean;
+        url?: string;
+        filePath?: string;
+        size?: number;
+        error?: string;
+      }>;
+      saveImage: (payload: { projectId: string; relativePath: string; source: string }) => Promise<{
+        success: boolean;
+        url?: string;
+        filePath?: string;
+        size?: number;
+        error?: string;
+      }>;
+      readAsBase64: (url: string) => Promise<{
+        success: boolean;
+        base64?: string;
+        mimeType?: string;
+        size?: number;
+        error?: string;
+      }>;
+      getAbsolutePath: (url: string) => Promise<string | null>;
       removeText: (key: string) => Promise<{ success: boolean; error?: string }>;
     };
     studioSkills?: {

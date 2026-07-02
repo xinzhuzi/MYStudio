@@ -89,7 +89,9 @@ export function buildStudioFlowData(
   const candidatesByTrack = groupVideoCandidates(input.videoCandidates);
   return {
     script: latestWork(input.agentWorkData, "scriptDraft"),
-    scriptPlan: input.scriptPlans.map(formatScriptPlan).join("\n\n"),
+    scriptPlan:
+      latestWork(input.agentWorkData, "directorPlan") ||
+      input.scriptPlans.map(formatScriptPlan).join("\n\n"),
     assets: input.entityExtractions.flatMap(formatAssets),
     storyboardTable: latestWork(input.agentWorkData, "storyboardTable"),
     storyboard: input.storyboards
@@ -200,14 +202,58 @@ function latestWork(items: AgentWorkData[], key: AgentWorkData["key"]): string {
 
 function formatScriptPlan(plan: ScriptPlan): string {
   return [
-    plan.theme && `主题：${plan.theme}`,
-    plan.visualStyle && `视觉：${plan.visualStyle}`,
-    plan.narrativeRhythm && `节奏：${plan.narrativeRhythm}`,
-    plan.soundDirection && `声音：${plan.soundDirection}`,
-    plan.transitions && `转场：${plan.transitions}`,
+    `## 导演规划 · ${plan.episodeId}`,
+    plan.theme && `### ① 主题立意\n${plan.theme}`,
+    plan.visualStyle && `### ② 视觉风格\n${plan.visualStyle}`,
+    plan.narrativeRhythm && `### ③ 叙事结构与节奏\n${plan.narrativeRhythm}`,
+    formatSceneIntents(plan.sceneIntents),
+    plan.soundDirection && `### ⑤ 声音方向\n${plan.soundDirection}`,
+    plan.transitions && `### ⑥ 转场与视觉连续性\n${plan.transitions}`,
+    formatDerivedAssetPlan(plan.derivedAssetPlan),
   ]
     .filter(Boolean)
-    .join("\n");
+    .join("\n\n");
+}
+
+function formatSceneIntents(plan: ScriptPlan["sceneIntents"]): string {
+  if (!plan.length) return "";
+  return [
+    "### ④ 分场景意图",
+    "| 场景 | 情绪 | 镜头意图 | 空间关系 |",
+    "| --- | --- | --- | --- |",
+    ...plan.map((item) =>
+      [
+        item.sceneId,
+        item.emotion,
+        item.shotIntent,
+        item.spatial,
+      ]
+        .map(escapeMarkdownTableCell)
+        .join(" | "),
+    ).map((row) => `| ${row} |`),
+  ].join("\n");
+}
+
+function formatDerivedAssetPlan(plan: ScriptPlan["derivedAssetPlan"]): string {
+  if (!plan.length) return "";
+  return [
+    "### ⑦ 衍生资产预划清单",
+    "| 父资产 | 衍生状态 | 原因/出现段落 |",
+    "| --- | --- | --- |",
+    ...plan.map((item) =>
+      [
+        item.parentAssetId,
+        item.state,
+        item.reason,
+      ]
+        .map(escapeMarkdownTableCell)
+        .join(" | "),
+    ).map((row) => `| ${row} |`),
+  ].join("\n");
+}
+
+function escapeMarkdownTableCell(value: string): string {
+  return value.replace(/\|/g, "\\|").replace(/\r?\n/g, "<br />");
 }
 
 function formatAssets(batch: EntityExtractionResult): StudioFlowAssetItem[] {

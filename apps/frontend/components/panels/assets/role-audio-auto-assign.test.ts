@@ -112,6 +112,7 @@ describe("role audio auto assign", () => {
     expect(candidates[0]).toMatchObject({
       id: "material:mat-1",
       filePath: "/voices/same.wav",
+      referenceText: "女声样本",
     });
     expect(candidates[1]).toMatchObject({
       id: "runtime-2",

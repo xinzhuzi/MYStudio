@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,6 +23,7 @@ import { useFreedomStore } from "@/stores/freedom-store";
 import { useMediaPanelStore } from "@/stores/media-panel-store";
 import type { AssetImage, StudioAssetSummary } from "@/types/studio-assets";
 import { RoleVoiceAssignDialog } from "./RoleVoiceAssignDialog";
+import { RoleVoicePreviewButton } from "./RoleVoicePreviewButton";
 import {
   Box,
   Clipboard,
@@ -32,13 +33,10 @@ import {
   ImageIcon,
   Loader2,
   Map,
-  Mic,
   Music2,
   Pencil,
-  Play,
   Plus,
   Sparkles,
-  Square,
   Trash2,
   UserCircle,
   Volume2,
@@ -46,16 +44,11 @@ import {
 import { toast } from "sonner";
 import { polishAssetPrompt } from "@/lib/ai/prompt-polisher";
 import { generateAsset } from "@/lib/studio/asset-generation-orchestrator";
-import { ensureBackendVoiceProfile } from "@/lib/tts/client";
-import {
-  buildRoleVoicePreviewText,
-  getVoicePreviewBlockReason,
-} from "@/lib/tts/voice-preview-text";
-import { recoverVoiceProfileReferenceText } from "@/lib/tts/voice-profile-reference-recovery";
+import { getPrimaryAssetName, parseAssetNames } from "@/lib/studio/asset-names";
+import { toRoleSpeakerId } from "@/lib/tts/role-speaker-id";
 import { usePropsLibraryStore } from "@/stores/props-library-store";
 import { useStudioStore } from "@/stores/studio-store";
 import { useTtsStore } from "@/stores/tts-store";
-import type { ProjectVoiceBinding, TtsSpeakerId, VoiceProfile } from "@/types/tts";
 
 const TYPE_ICON = {
   role: UserCircle,
@@ -78,9 +71,7 @@ const waveformBars = [42, 68, 50, 84, 46, 72, 58, 92, 54, 76, 48, 66, 40, 60, 36
 
 export function getAssetDisplayName(asset: StudioAssetSummary | null) {
   if (!asset) return "";
-  const rawName = asset.name || asset.sourcePath || asset.filePath || "未命名素材";
-  const fileName = rawName.split(/[\\/]/).filter(Boolean).pop() || rawName;
-  return fileName.replace(MEDIA_EXT_PATTERN, "").trim() || fileName;
+  return getPrimaryAssetName(asset.name || asset.sourcePath || asset.filePath, "未命名素材");
 }
 
 export function getAssetSpokenText(asset: StudioAssetSummary | null) {
@@ -188,10 +179,11 @@ export function StudioAssetDetailDialog({
   const detail = fullAsset || asset;
   const Icon = TYPE_ICON[asset.type];
   const displayName = getAssetDisplayName(asset);
+  const parsedDraftName = parseAssetNames(draftName || detail.name || asset.name);
   const spokenText = recognizedText ?? (draftDescription.trim() || "");
   const audioSrc = asset.previewUrl || asset.filePath || "";
   const hasImagePreview = asset.type !== "audio" && images.length > 0;
-  const roleSpeakerId = `character:${asset.id}` as TtsSpeakerId;
+  const roleSpeakerId = toRoleSpeakerId(asset.id);
   const roleVoiceBindings = activeTtsProjectId ? (ttsProjects[activeTtsProjectId]?.bindings ?? {}) : {};
   const roleVoiceBinding = asset.type === "role" ? roleVoiceBindings[roleSpeakerId] : undefined;
   const roleVoiceProfile = roleVoiceBinding ? voiceProfiles[roleVoiceBinding.profileId] : undefined;
@@ -717,7 +709,23 @@ export function StudioAssetDetailDialog({
                   className="w-full rounded-md border border-border bg-muted/90 px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
                   value={draftName}
                   onChange={(event) => setDraftName(event.target.value)}
+                  placeholder="主名字;副名字1;副名字2"
                 />
+                <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
+                  <span>主名字：{parsedDraftName.primaryName}</span>
+                  {parsedDraftName.secondaryNames.length > 0 ? (
+                    <>
+                      <span className="mx-0.5">副名字</span>
+                      {parsedDraftName.secondaryNames.map((name) => (
+                        <Badge key={name} variant="outline" className="px-1.5 py-0 text-[10px] font-medium">
+                          {name}
+                        </Badge>
+                      ))}
+                    </>
+                  ) : (
+                    <span>用英文分号 ; 添加副名字</span>
+                  )}
+                </div>
               </section>
               <section className="space-y-1.5">
                 <div className="text-xs font-medium text-muted-foreground">{asset.type === "audio" ? "说话内容" : "描述"}</div>
@@ -804,7 +812,7 @@ export function StudioAssetDetailDialog({
                     </button>
                     <RoleVoicePreviewButton
                       profileId={roleVoiceProfile.id}
-                      characterName={asset.name}
+                      characterName={parsedDraftName.primaryName}
                       defaultEngine={roleVoiceBinding.defaultEngine}
                       defaultModelSize={roleVoiceBinding.defaultModelSize}
                     />
@@ -871,7 +879,7 @@ export function StudioAssetDetailDialog({
       </Dialog>
       {asset.type === "role" && (
         <RoleVoiceAssignDialog
-          character={{ id: asset.id, name: asset.name }}
+          character={{ id: asset.id, name: parsedDraftName.primaryName }}
           open={voiceAssignOpen}
           onOpenChange={setVoiceAssignOpen}
         />
@@ -886,98 +894,4 @@ export function buildAssetRegenerationPrompt(asset: StudioAssetSummary | null) {
     .map((part) => part?.trim())
     .filter(Boolean)
     .join("\n\n");
-}
-
-/** 详情弹窗内的音色试听按钮 */
-function RoleVoicePreviewButton({ profileId, characterName, defaultEngine, defaultModelSize }: {
-  profileId: string; characterName: string; defaultEngine?: string; defaultModelSize?: string;
-}) {
-  const [playing, setPlaying] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const profile = useTtsStore((state) => state.voiceProfiles[profileId]);
-  const updateVoiceProfile = useTtsStore((state) => state.updateVoiceProfile);
-  const audioRef = useState<HTMLAudioElement | null>(null)[0];
-  const [, forceUpdate] = useState(0);
-  const audioRefStable = useMemo(() => ({ current: null as HTMLAudioElement | null }), []);
-
-  const handlePreview = useCallback(async () => {
-    if (playing && audioRefStable.current) {
-      audioRefStable.current.pause();
-      audioRefStable.current = null;
-      setPlaying(false);
-      return;
-    }
-    if (!window.ttsRuntime) {
-      toast.error("TTS 后端未就绪");
-      return;
-    }
-      if (!profile) {
-        toast.error("音色 profile 不存在，请重新分配音色");
-        return;
-      }
-      const previewProfile = await recoverVoiceProfileReferenceText(
-        profile,
-        updateVoiceProfile,
-      );
-      const blockReason = getVoicePreviewBlockReason(previewProfile);
-      if (blockReason) {
-        toast.error(blockReason);
-        return;
-      }
-      setLoading(true);
-      try {
-      const ttsStatus = await window.ttsRuntime.status();
-      if (!ttsStatus.running) {
-        const startRes = await window.ttsRuntime.start();
-        if (!startRes.success) {
-          toast.error(`TTS 启动失败: ${startRes.error || "未知错误"}`);
-          return;
-        }
-      }
-      await ensureBackendVoiceProfile(previewProfile);
-      const text = buildRoleVoicePreviewText(characterName);
-      const genRes = await window.ttsRuntime.request({
-        method: "POST", path: "/generate",
-        body: { profile_id: profileId, text, engine: defaultEngine, model_size: defaultModelSize, language: "zh" },
-      }) as { id?: string; error?: string };
-      if (!genRes.id) { toast.error(genRes.error || "生成失败"); return; }
-
-      let attempts = 0;
-      while (attempts < 60) {
-        await new Promise((r) => setTimeout(r, 500));
-        const s = await window.ttsRuntime!.request({ method: "GET", path: `/generate/${genRes.id}/status` }) as { status?: string; audio_path?: string; error?: string };
-        if (s.status === "completed" && s.audio_path) break;
-        if (s.status === "failed") { toast.error(s.error || "语音生成失败"); return; }
-        attempts++;
-      }
-      if (attempts >= 60) { toast.error("语音生成超时"); return; }
-
-      const audioRes = await window.ttsRuntime.requestBytes({ method: "GET", path: `/audio/${genRes.id}` });
-      const blob = new Blob([audioRes.data], { type: audioRes.mimeType || "audio/wav" });
-      const url = URL.createObjectURL(blob);
-      const audio = new Audio(url);
-      audioRefStable.current = audio;
-      audio.onended = () => { setPlaying(false); URL.revokeObjectURL(url); audioRefStable.current = null; };
-      audio.onerror = () => { setPlaying(false); toast.error("播放失败"); };
-      await audio.play();
-      setPlaying(true);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "试听失败");
-    } finally {
-      setLoading(false);
-    }
-  }, [profileId, profile, updateVoiceProfile, characterName, defaultEngine, defaultModelSize, playing, audioRefStable]);
-
-  return (
-    <Button
-      variant="outline"
-      size="sm"
-      className="mt-2 w-full gap-1.5 text-xs"
-      onClick={handlePreview}
-      disabled={loading}
-    >
-      {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : playing ? <Square className="h-3 w-3" /> : <Play className="h-3 w-3" />}
-      {loading ? "生成中..." : playing ? "停止播放" : "试听音色"}
-    </Button>
-  );
 }

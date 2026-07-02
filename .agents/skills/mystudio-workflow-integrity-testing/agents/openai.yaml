@@ -1,0 +1,4 @@
+interface:
+  display_name: "MYStudio Workflow Integrity Testing"
+  short_description: "Verify MYStudio workflow graph completeness"
+  default_prompt: "Use $mystudio-workflow-integrity-testing to verify MYStudio step-by-step workflow execution, graph previews, asset links, and packaged smoke coverage."

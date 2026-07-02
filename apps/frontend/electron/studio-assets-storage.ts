@@ -8,6 +8,7 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { promisify } from "node:util";
 import type { AssetImage, StudioAssetKind, StudioAssetSummary } from "../types/studio-assets";
+import { assetNameMatchesQuery } from "../lib/studio/asset-names";
 
 const execFileAsync = promisify(execFile);
 
@@ -172,6 +173,12 @@ export function buildAssetWhere(type: string, search?: string, category?: string
   return `WHERE ${conds.join(" AND ")}`;
 }
 
+export function buildAssetNameCandidateCondition(name: string): string {
+  const exact = escapeSql(name);
+  const like = escapeSqlLike(name);
+  return `(name='${exact}' OR name LIKE '%${like}%' ESCAPE '\\' OR remark LIKE '%${like}%' ESCAPE '\\')`;
+}
+
 /** 执行可能包含长文本的 SQL */
 function runSqliteExecSafe(dbPath: string, sql: string) {
   execFileSync("sqlite3", [dbPath], { input: sql, maxBuffer: 50 * 1024 * 1024, stdio: ["pipe", "pipe", "pipe"] });
@@ -222,7 +229,7 @@ export async function listAssets(type: StudioAssetKind, search?: string, offset 
   const total = countResult[0]?.cnt ?? 0;
 
   const rows = await runSqliteJson<any[]>(dbPath,
-    `SELECT id, type, name, filePath, tags FROM assets ${where} ORDER BY rowid ASC LIMIT ${limit} OFFSET ${offset};`
+    `SELECT id, type, name, description, filePath, tags FROM assets ${where} ORDER BY rowid ASC LIMIT ${limit} OFFSET ${offset};`
   );
 
   const items: StudioAssetSummary[] = rows.map((row) => {
@@ -235,6 +242,7 @@ export async function listAssets(type: StudioAssetKind, search?: string, offset 
       source: "manying-local" as const,
       type: row.type,
       name: row.name,
+      description: row.description,
       tags,
       thumbnailUrl: getThumbUrl(row.filePath, row.type),
       previewUrl,
@@ -258,12 +266,12 @@ export async function getAsset(id: string): Promise<StudioAssetSummary | null> {
 
 export async function getAssetByName(type: StudioAssetKind, name: string): Promise<StudioAssetSummary | null> {
   const dbPath = getDbPath();
-  // 精确匹配名称，或匹配备注中的别名
   const rows = await runSqliteJson<any[]>(dbPath,
-    `SELECT * FROM assets WHERE type='${escapeSql(type)}' AND (name='${escapeSql(name)}' OR remark LIKE '%${escapeSqlLike(name)}%' ESCAPE '\\') LIMIT 1;`
+    `SELECT * FROM assets WHERE type='${escapeSql(type)}' AND ${buildAssetNameCandidateCondition(name)} LIMIT 50;`
   );
-  if (!rows.length) return null;
-  return rowToSummary(rows[0]);
+  const match = pickBestAssetNameMatch(rows, name)
+    || pickBestAssetRow(rows.filter((row) => row.remark?.includes(name)));
+  return match ? rowToSummary(match) : null;
 }
 
 export async function batchMatchAssets(type: StudioAssetKind, names: string[]): Promise<Map<string, StudioAssetSummary>> {
@@ -271,21 +279,59 @@ export async function batchMatchAssets(type: StudioAssetKind, names: string[]): 
   const result = new Map<string, StudioAssetSummary>();
   if (!names.length) return result;
 
-  const conditions = names.map(n => {
-    const escaped = escapeSql(n);
-    return `(name='${escaped}' OR remark LIKE '%${escaped}%')`;
-  }).join(' OR ');
+  const conditions = names.map(buildAssetNameCandidateCondition).join(' OR ');
   const query = `SELECT * FROM assets WHERE type='${escapeSql(type)}' AND (${conditions});`;
   const rows = await runSqliteJson<any[]>(dbPath, query);
 
-  // 为每个 name 找到最佳匹配
   for (const name of names) {
-    const match = rows.find(r => r.name === name) || rows.find(r => r.remark?.includes(name));
+    const match = pickBestAssetNameMatch(rows, name)
+      || pickBestAssetRow(rows.filter((row) => row.remark?.includes(name)));
     if (match) {
       result.set(name, rowToSummary(match));
     }
   }
   return result;
+}
+
+function pickBestAssetNameMatch(rows: any[], name: string) {
+  const matches = rows.filter((row) => assetNameMatchesQuery(row.name, name));
+  if (!matches.length) return null;
+  return pickBestAssetRow(matches);
+}
+
+function pickBestAssetRow(rows: any[]) {
+  const usableRows = rows.filter(isUsableAssetRow);
+  if (!usableRows.length) return null;
+  return [...usableRows].sort((a, b) => assetCompletenessScore(b) - assetCompletenessScore(a))[0];
+}
+
+function assetCompletenessScore(row: any) {
+  return (
+    (hasStoredText(row.filePath) ? 100 : 0) +
+    (assetImagesCount(row.images) > 0 ? 80 : 0) +
+    (hasStoredText(row.prompt) ? 20 : 0) +
+    (hasStoredText(row.description) ? 10 : 0) +
+    (hasStoredText(row.setting) ? 5 : 0) +
+    (hasStoredText(row.remark) ? 1 : 0)
+  );
+}
+
+function isUsableAssetRow(row: any) {
+  return assetCompletenessScore(row) > 0;
+}
+
+function hasStoredText(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function assetImagesCount(value: string | undefined) {
+  if (!value) return 0;
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed.length : 0;
+  } catch {
+    return 0;
+  }
 }
 
 export function updateAsset(id: string, updates: Partial<{ name: string; description: string; prompt: string; setting: string; remark: string; tags: string[] }>): StudioAssetSummary | null {
@@ -465,30 +511,83 @@ export function renameAssetImage(assetId: string, imageFilePath: string, newName
 
 export function importFromToonflow(toonflowItems: StudioAssetSummary[]): number {
   const dbPath = getDbPath();
-  let imported = 0;
+  let changed = 0;
   const now = new Date().toISOString();
 
   for (const item of toonflowItems) {
-    // 检查是否已存在
-    const existing = runSqliteJsonSync<any[]>(dbPath, `SELECT id FROM assets WHERE type='${escapeSql(item.type)}' AND name='${escapeSql(item.name)}' LIMIT 1;`);
-    if (existing.length) continue;
+    const existing = runSqliteJsonSync<any[]>(
+      dbPath,
+      `SELECT * FROM assets WHERE type='${escapeSql(item.type)}' AND name='${escapeSql(item.name)}' LIMIT 1;`,
+    );
+    if (existing.length) {
+      if (backfillAssetFromToonflow(existing[0], item, now)) changed++;
+      continue;
+    }
 
     const id = randomUUID();
     let filePath = "";
     const sourceFile = item.sourcePath;
     if (sourceFile && fs.existsSync(sourceFile)) {
-      const ext = path.extname(sourceFile);
-      const destName = `${id}${ext}`;
-      const destDir = path.join(getFilesDir(), item.type);
-      fs.mkdirSync(destDir, { recursive: true });
-      fs.copyFileSync(sourceFile, path.join(destDir, destName));
-      filePath = `${item.type}/${destName}`;
+      filePath = copyAssetSourceFile(item.type, id, sourceFile);
     }
 
     runSqliteExecSafe(dbPath, `INSERT INTO assets (id,type,name,description,prompt,setting,remark,tags,filePath,images,source,createdAt,updatedAt) VALUES ('${escapeSql(id)}','${escapeSql(item.type)}','${escapeSql(item.name || "")}','${escapeSql(item.description || "")}','${escapeSql(item.prompt || "")}','${escapeSql(item.setting || "")}','${escapeSql(item.remark || "")}','${escapeSql(JSON.stringify(item.tags || []))}','${escapeSql(filePath)}','[]','manying-local','${now}','${now}');`);
-    imported++;
+    changed++;
   }
-  return imported;
+  return changed;
+}
+
+function backfillAssetFromToonflow(row: any, item: StudioAssetSummary, now: string) {
+  const sets: string[] = [];
+
+  if (!hasStoredText(row.description) && hasStoredText(item.description)) {
+    sets.push(`description='${escapeSql(item.description)}'`);
+  }
+  if (!hasStoredText(row.prompt) && hasStoredText(item.prompt)) {
+    sets.push(`prompt='${escapeSql(item.prompt)}'`);
+  }
+  if (!hasStoredText(row.setting) && hasStoredText(item.setting)) {
+    sets.push(`setting='${escapeSql(item.setting)}'`);
+  }
+  if (!hasStoredText(row.remark) && hasStoredText(item.remark)) {
+    sets.push(`remark='${escapeSql(item.remark)}'`);
+  }
+  if (assetTagsCount(row.tags) === 0 && item.tags?.length) {
+    sets.push(`tags='${escapeSql(JSON.stringify(item.tags))}'`);
+  }
+  if (!hasStoredText(row.filePath) && item.sourcePath && fs.existsSync(item.sourcePath)) {
+    const filePath = copyAssetSourceFile(row.type, row.id, item.sourcePath);
+    sets.push(`filePath='${escapeSql(filePath)}'`);
+  }
+
+  if (!sets.length) return false;
+  sets.push(`updatedAt='${now}'`);
+  runSqliteExecSafe(getDbPath(), `UPDATE assets SET ${sets.join(",")} WHERE id='${escapeSql(row.id)}';`);
+  return true;
+}
+
+function copyAssetSourceFile(type: StudioAssetKind, id: string, sourceFile: string) {
+  const ext = path.extname(sourceFile);
+  const destDir = path.join(getFilesDir(), type);
+  fs.mkdirSync(destDir, { recursive: true });
+  let destName = `${id}${ext}`;
+  let destPath = path.join(destDir, destName);
+  if (fs.existsSync(destPath)) {
+    destName = `${id}_${Date.now()}${ext}`;
+    destPath = path.join(destDir, destName);
+  }
+  fs.copyFileSync(sourceFile, destPath);
+  return `${type}/${destName}`;
+}
+
+function assetTagsCount(value: string | undefined) {
+  if (!value) return 0;
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed.length : 0;
+  } catch {
+    return 0;
+  }
 }
 
 // === 辅助 ===

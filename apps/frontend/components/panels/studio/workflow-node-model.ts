@@ -45,10 +45,18 @@ export interface ProductionFlowNodeModel {
   metrics: string[];
   previewTitle: string;
   previewLines: string[];
-  previewKind?: "text" | "table" | "storyboard-grid" | "asset-derivation";
+  previewKind?:
+    | "text"
+    | "table"
+    | "storyboard-grid"
+    | "asset-derivation"
+    | "workbench-lanes";
   tableRows?: ProductionFlowTableRow[];
   storyboardTiles?: ProductionFlowStoryboardTile[];
   assetGroups?: ProductionFlowAssetGroup[];
+  assetSummary?: ProductionFlowAssetSummary;
+  workbenchTracks?: ProductionFlowWorkbenchTrack[];
+  finalExportPath?: string;
   skills?: ProductionFlowNodeSkill[];
   skill?: ProductionFlowNodeSkill;
   actions?: ProductionFlowNodeAction[];
@@ -56,7 +64,13 @@ export interface ProductionFlowNodeModel {
 }
 
 export interface ProductionFlowNodeAction {
-  id: "generate-director-plan" | "generate-storyboard-table";
+  id:
+    | "generate-director-plan"
+    | "sync-derived-assets"
+    | "generate-derived-assets"
+    | "generate-storyboard-images"
+    | "rebuild-workbench-tracks"
+    | "generate-storyboard-table";
   label: string;
   targetStage: ProductionFlowStage;
   disabled?: boolean;
@@ -112,16 +126,50 @@ export interface ProductionFlowAssetCard {
   id: string;
   name: string;
   typeLabel: string;
+  runtimeType: "role" | "tool" | "scene" | "clip";
   mediaPath?: string;
   note?: string;
   state?: string;
   reason?: string;
+  parentAssetId?: string;
+  prompt?: string;
+  generationState?: "未生成" | "生成中" | "已完成" | "生成失败";
   isDerived: boolean;
 }
 
 export interface ProductionFlowAssetGroup {
   source: ProductionFlowAssetCard;
   derived: ProductionFlowAssetCard[];
+}
+
+export interface ProductionFlowAssetSummary {
+  planned: number;
+  linked: number;
+  completed: number;
+  missingParent: number;
+}
+
+export interface ProductionFlowAssetMedia {
+  id: string;
+  name: string;
+  path: string;
+  prompt?: string;
+  parentAssetId?: string;
+  parentAssetName?: string;
+  state?: string;
+  reason?: string;
+}
+
+export interface ProductionFlowWorkbenchTrack {
+  id: string;
+  duration: number;
+  state: ProductionTrack["state"];
+  storyboardCount: number;
+  mediaCount: number;
+  videoCount: number;
+  selectedVideoPath?: string;
+  prompt?: string;
+  reason?: string;
 }
 
 export const PRODUCTION_FLOW_EDGES = [
@@ -144,7 +192,7 @@ export interface ProductionFlowModelInput {
   videoCandidates: VideoCandidate[];
   workflowConfig?: Pick<StudioWorkflowConfig, "visualManualId" | "directorManualId">;
   manualCatalog?: StudioManualCatalog;
-  assetMediaById?: Record<string, { id: string; name: string; path: string; prompt?: string } | undefined>;
+  assetMediaById?: Record<string, ProductionFlowAssetMedia | undefined>;
   fileExists?: (filePath: string) => boolean;
 }
 
@@ -185,11 +233,28 @@ export function buildProductionFlowModel(
     },
     { total: 0, character: 0, scene: 0, prop: 0 },
   );
-  const assetGroups = buildAssetGroups(
+  const assetDerivation = buildAssetDerivationModel(
     flowData.assets,
     input.scriptPlans,
     input.assetMediaById,
   );
+  const assetGroups = assetDerivation.groups;
+  const assetMetrics = assetCounts.total
+    ? [
+        `${assetCounts.total} 个资产`,
+        `${assetCounts.character} 角色`,
+        `${assetCounts.scene} 场景`,
+        `${assetCounts.prop} 道具`,
+        ...(assetDerivation.summary.planned
+          ? [
+              `衍生 ${assetDerivation.summary.completed}/${assetDerivation.summary.linked} 已完成`,
+            ]
+          : []),
+        ...(assetDerivation.summary.missingParent
+          ? [`缺父资产 ${assetDerivation.summary.missingParent}`]
+          : []),
+      ]
+    : ["待提取资产"];
   const assetPreviewLines = assetGroups.slice(0, 18).flatMap((group) => [
     `${group.source.typeLabel} · ${group.source.name}${group.source.note ? ` · ${group.source.note}` : ""}`,
     ...group.derived.map((item) => `衍生 · ${item.name}${item.reason ? ` · ${item.reason}` : ""}`),
@@ -241,6 +306,19 @@ export function buildProductionFlowModel(
       ? [`成片 · ${flowData.workbench.finalExportPath}`]
       : []),
   ];
+  const workbenchTracks = flowData.workbench.tracks
+    .slice(0, 8)
+    .map<ProductionFlowWorkbenchTrack>((track) => ({
+      id: track.id,
+      duration: track.duration,
+      state: track.state,
+      storyboardCount: track.storyboardIds.length,
+      mediaCount: track.medias.length,
+      videoCount: track.videoList.length,
+      selectedVideoPath: track.selectedVideoPath,
+      prompt: track.prompt,
+      reason: track.reason,
+    }));
   return {
     nodes: [
       {
@@ -284,20 +362,36 @@ export function buildProductionFlowModel(
         label: "衍生资产",
         description: "从剧本抽取角色、场景、道具，并作为分镜画面引用。",
         status: assetCounts.total > 0 ? "ready" : "empty",
-        metrics: assetCounts.total
-          ? [
-              `${assetCounts.total} 个资产`,
-              `${assetCounts.character} 角色`,
-              `${assetCounts.scene} 场景`,
-              `${assetCounts.prop} 道具`,
-            ]
-          : ["待提取资产"],
+        metrics: assetMetrics,
         previewTitle: "剧本资产",
         previewLines: assetPreviewLines.length
           ? assetPreviewLines
           : ["暂无角色、场景、道具资产"],
         previewKind: "asset-derivation",
         assetGroups,
+        assetSummary: assetDerivation.summary,
+        actions: [
+          {
+            id: "sync-derived-assets",
+            label: "落地衍生资产",
+            targetStage: "assets",
+            disabled:
+              input.scriptPlans.length === 0 ||
+              assetDerivation.summary.planned === 0 ||
+              assetCounts.total === 0,
+          },
+          {
+            id: "generate-derived-assets",
+            label: "生成衍生图片",
+            targetStage: "assets",
+            disabled:
+              input.scriptPlans.length === 0 ||
+              assetDerivation.summary.linked === 0 ||
+              !input.workflowConfig?.visualManualId,
+            promptPlaceholder:
+              "给衍生资产图片补充要求，例如：优先生成角色状态和道具破损版本。",
+          },
+        ],
         targetStage: "assets",
       },
       {
@@ -343,6 +437,24 @@ export function buildProductionFlowModel(
         previewKind: "storyboard-grid",
         storyboardTiles,
         skills: storyboardSkills,
+        actions: [
+          {
+            id: "generate-storyboard-images",
+            label: visualStoryboardCount > 0 ? "补生成分镜图" : "生成分镜图",
+            targetStage: "storyboard",
+            disabled:
+              input.storyboards.length === 0 ||
+              !input.workflowConfig?.visualManualId,
+            promptPlaceholder:
+              "给分镜图补充要求，例如：首帧更像水墨电影分镜、保留角色站位和关键道具。",
+          },
+          {
+            id: "rebuild-workbench-tracks",
+            label: "重建视频轨道",
+            targetStage: "workbench",
+            disabled: input.storyboards.length === 0,
+          },
+        ],
         targetStage: "storyboard",
       },
       {
@@ -365,6 +477,9 @@ export function buildProductionFlowModel(
         previewLines: workbenchPreviewLines.length
           ? workbenchPreviewLines
           : ["暂无 track、候选视频和导出成片"],
+        previewKind: "workbench-lanes",
+        workbenchTracks,
+        finalExportPath: flowData.workbench.finalExportPath,
         targetStage: "workbench",
       },
     ],
@@ -550,59 +665,218 @@ function previewTextLines(
   return lines.length ? lines : [fallback];
 }
 
-function buildAssetGroups(
+function buildAssetDerivationModel(
   assets: ReturnType<typeof buildStudioFlowData>["assets"],
   scriptPlans: ScriptPlan[],
   assetMediaById: ProductionFlowModelInput["assetMediaById"] = {},
-): ProductionFlowAssetGroup[] {
+): { groups: ProductionFlowAssetGroup[]; summary: ProductionFlowAssetSummary } {
   const assetLookup = new Map<string, (typeof assets)[number]>();
-  const mediaLookup = new Map<string, NonNullable<ProductionFlowModelInput["assetMediaById"]>[string]>();
+  const mediaLookup = new Map<string, ProductionFlowAssetMedia>();
   for (const asset of assets) {
     assetLookup.set(asset.id, asset);
     assetLookup.set(asset.name, asset);
   }
   for (const media of Object.values(assetMediaById)) {
     if (!media) continue;
-    mediaLookup.set(media.id, media);
-    mediaLookup.set(media.name, media);
+    indexAssetMedia(mediaLookup, media);
   }
 
   const derivedByParent = new Map<string, ProductionFlowAssetCard[]>();
+  const derivedKeys = new Set<string>();
+  const summary: ProductionFlowAssetSummary = {
+    planned: 0,
+    linked: 0,
+    completed: 0,
+    missingParent: 0,
+  };
   for (const plan of scriptPlans) {
     for (const item of plan.derivedAssetPlan) {
+      summary.planned += 1;
       const parent = assetLookup.get(item.parentAssetId);
-      if (!parent) continue;
+      if (!parent) {
+        summary.missingParent += 1;
+        continue;
+      }
+      summary.linked += 1;
+      const mediaPath = resolveDerivedAssetMediaPath(item, parent, mediaLookup);
+      if (mediaPath) summary.completed += 1;
       const derived: ProductionFlowAssetCard = {
         id: `${parent.id}:${item.state}`,
         name: item.state,
         typeLabel: typeLabelForAsset(parent.type),
-        mediaPath: mediaLookup.get(item.state)?.path,
+        runtimeType: runtimeTypeForAsset(parent.type),
+        mediaPath,
         state: item.state,
         reason: item.reason,
+        parentAssetId: parent.id,
+        prompt: `${item.state}：${item.reason}`.trim(),
+        generationState: mediaPath ? "已完成" : "未生成",
         isDerived: true,
       };
-      derivedByParent.set(parent.id, [
-        ...(derivedByParent.get(parent.id) ?? []),
-        derived,
-      ]);
+      addDerivedAssetCard(derivedByParent, derivedKeys, parent.id, derived);
     }
   }
 
-  return assets.slice(0, 12).map((asset) => ({
-    source: {
-      id: asset.id,
-      name: asset.name,
-      typeLabel: typeLabelForAsset(asset.type),
-      mediaPath: mediaLookup.get(asset.id)?.path ?? mediaLookup.get(asset.name)?.path,
-      note: asset.note,
-      isDerived: false,
-    },
-    derived: derivedByParent.get(asset.id) ?? [],
-  }));
+  for (const media of uniqueAssetMedia(Object.values(assetMediaById))) {
+    if (!media.parentAssetId && !media.parentAssetName) continue;
+    const parent = resolveParentAssetForMedia(media, assets, mediaLookup);
+    if (!parent) continue;
+    const derived: ProductionFlowAssetCard = {
+      id: media.id,
+      name: media.state || media.name,
+      typeLabel: typeLabelForAsset(parent.type),
+      runtimeType: runtimeTypeForAsset(parent.type),
+      mediaPath: media.path,
+      state: media.state || media.name,
+      reason: media.reason || media.prompt,
+      parentAssetId: parent.id,
+      prompt: media.prompt,
+      generationState: media.path ? "已完成" : "未生成",
+      isDerived: true,
+    };
+    if (addDerivedAssetCard(derivedByParent, derivedKeys, parent.id, derived)) {
+      summary.planned += 1;
+      summary.linked += 1;
+      if (media.path) summary.completed += 1;
+    }
+  }
+
+  const groups = assets.slice(0, 12).map<ProductionFlowAssetGroup>((asset) => {
+    const media = resolveAssetMedia(asset, mediaLookup);
+    const mediaPath = media?.path;
+    return {
+      source: {
+        id: asset.id,
+        name: asset.name,
+        typeLabel: typeLabelForAsset(asset.type),
+        runtimeType: runtimeTypeForAsset(asset.type),
+        mediaPath,
+        note: asset.note,
+        generationState: mediaPath ? "已完成" : "未生成",
+        isDerived: false,
+      },
+      derived: derivedByParent.get(asset.id) ?? [],
+    };
+  });
+  return { groups, summary };
+}
+
+function indexAssetMedia(
+  mediaLookup: Map<string, ProductionFlowAssetMedia>,
+  media: ProductionFlowAssetMedia,
+) {
+  const aliases = [
+    media.id,
+    media.name,
+    media.state,
+    media.parentAssetId && media.state
+      ? `${media.parentAssetId}:${media.state}`
+      : undefined,
+    media.parentAssetId && media.name
+      ? `${media.parentAssetId}:${media.name}`
+      : undefined,
+    media.parentAssetId && media.state
+      ? `${media.parentAssetId}·${media.state}`
+      : undefined,
+    media.parentAssetId && media.name
+      ? `${media.parentAssetId}·${media.name}`
+      : undefined,
+    media.parentAssetName && media.state
+      ? `${media.parentAssetName}:${media.state}`
+      : undefined,
+    media.parentAssetName && media.name
+      ? `${media.parentAssetName}:${media.name}`
+      : undefined,
+    media.parentAssetName && media.state
+      ? `${media.parentAssetName}·${media.state}`
+      : undefined,
+    media.parentAssetName && media.name
+      ? `${media.parentAssetName}·${media.name}`
+      : undefined,
+  ].filter((alias): alias is string => Boolean(alias?.trim()));
+  for (const alias of aliases) {
+    mediaLookup.set(alias, media);
+  }
+}
+
+function uniqueAssetMedia(
+  values: Array<ProductionFlowAssetMedia | undefined>,
+): ProductionFlowAssetMedia[] {
+  const seen = new Set<string>();
+  const unique: ProductionFlowAssetMedia[] = [];
+  for (const media of values) {
+    if (!media || seen.has(media.id)) continue;
+    seen.add(media.id);
+    unique.push(media);
+  }
+  return unique;
+}
+
+function addDerivedAssetCard(
+  derivedByParent: Map<string, ProductionFlowAssetCard[]>,
+  derivedKeys: Set<string>,
+  parentId: string,
+  derived: ProductionFlowAssetCard,
+) {
+  const key = `${parentId}:${derived.id}:${derived.name}`;
+  const stateKey = `${parentId}:${derived.name}`;
+  if (derivedKeys.has(key) || derivedKeys.has(stateKey)) return false;
+  derivedKeys.add(key);
+  derivedKeys.add(stateKey);
+  derivedByParent.set(parentId, [
+    ...(derivedByParent.get(parentId) ?? []),
+    derived,
+  ]);
+  return true;
+}
+
+function resolveAssetMedia(
+  asset: ReturnType<typeof buildStudioFlowData>["assets"][number],
+  mediaLookup: Map<string, ProductionFlowAssetMedia>,
+) {
+  return mediaLookup.get(asset.id) ?? mediaLookup.get(asset.name);
+}
+
+function resolveParentAssetForMedia(
+  media: ProductionFlowAssetMedia,
+  assets: ReturnType<typeof buildStudioFlowData>["assets"],
+  mediaLookup: Map<string, ProductionFlowAssetMedia>,
+) {
+  return assets.find((asset) => {
+    const parentMedia = resolveAssetMedia(asset, mediaLookup);
+    return [
+      asset.id,
+      asset.name,
+      parentMedia?.id,
+      parentMedia?.name,
+    ].includes(media.parentAssetId) || [
+      asset.id,
+      asset.name,
+      parentMedia?.id,
+      parentMedia?.name,
+    ].includes(media.parentAssetName);
+  });
 }
 
 function typeLabelForAsset(type: ReturnType<typeof buildStudioFlowData>["assets"][number]["type"]) {
   return type === "character" ? "角色" : type === "scene" ? "场景" : "道具";
+}
+
+function runtimeTypeForAsset(type: ReturnType<typeof buildStudioFlowData>["assets"][number]["type"]) {
+  return type === "character" ? "role" : type === "scene" ? "scene" : "tool";
+}
+
+function resolveDerivedAssetMediaPath(
+  item: ScriptPlan["derivedAssetPlan"][number],
+  parent: ReturnType<typeof buildStudioFlowData>["assets"][number],
+  mediaLookup: Map<string, ProductionFlowAssetMedia>,
+) {
+  return (
+    mediaLookup.get(item.state)?.path ??
+    mediaLookup.get(`${parent.id}:${item.state}`)?.path ??
+    mediaLookup.get(`${parent.id}·${item.state}`)?.path ??
+    mediaLookup.get(`${parent.name}·${item.state}`)?.path
+  );
 }
 
 function parseStoryboardPreviewRows(text: string): ProductionFlowTableRow[] {

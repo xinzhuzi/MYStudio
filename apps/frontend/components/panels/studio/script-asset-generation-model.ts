@@ -3,14 +3,23 @@ import type { Character } from "@/stores/character-library-store";
 import type { PropItem } from "@/stores/props-library-store";
 import type { Scene } from "@/stores/scene-store";
 import type { ScriptPlan } from "@/types/studio";
+import type { StudioAssetSummary } from "@/types/studio-assets";
 import { Gem, MapPin, UserRound, type LucideIcon } from "lucide-react";
 
 export type AssetGenerationType = "character" | "scene" | "prop";
 
+type AssetRowBase = {
+  id: string;
+  name: string;
+  note?: string;
+  assetLibrary?: StudioAssetSummary;
+  assetLibraryId?: string;
+};
+
 export type AssetRow =
-  | { type: "character"; id: string; name: string; note?: string; asset?: Character }
-  | { type: "scene"; id: string; name: string; note?: string; asset?: Scene }
-  | { type: "prop"; id: string; name: string; note?: string; asset?: PropItem };
+  | ({ type: "character"; asset?: Character } & AssetRowBase)
+  | ({ type: "scene"; asset?: Scene } & AssetRowBase)
+  | ({ type: "prop"; asset?: PropItem } & AssetRowBase);
 
 export const ASSET_TYPES: Array<{
   key: AssetGenerationType;
@@ -46,11 +55,11 @@ export function summarizeImageRows(rows: AssetRow[]) {
   let todo = 0;
   let missingAsset = 0;
   for (const row of rows) {
-    if (!row.asset) {
+    if (!hasRowAsset(row)) {
       missingAsset += 1;
       continue;
     }
-    if (getRowImage(row)) ready += 1;
+    if (getRowImage(row) || (!row.asset && row.assetLibrary)) ready += 1;
     else todo += 1;
   }
   return { total: rows.length, ready, todo, missingAsset };
@@ -84,18 +93,18 @@ export function toGenerationTask(
 
 export function getRowImage(row: AssetRow) {
   if (row.type === "character") {
-    return row.asset?.thumbnailUrl || row.asset?.views?.[0]?.imageUrl;
+    return row.asset?.thumbnailUrl || row.asset?.views?.[0]?.imageUrl || getAssetLibraryImage(row);
   }
   if (row.type === "scene") {
-    return row.asset?.referenceImage || row.asset?.referenceImageBase64;
+    return row.asset?.referenceImage || row.asset?.referenceImageBase64 || getAssetLibraryImage(row);
   }
-  return row.asset?.imageUrl;
+  return row.asset?.imageUrl || getAssetLibraryImage(row);
 }
 
 export function getRowPrompt(row: AssetRow) {
-  if (row.type === "character") return row.asset?.visualTraits;
-  if (row.type === "scene") return row.asset?.visualPrompt;
-  return row.asset?.visualPrompt;
+  if (row.type === "character") return row.asset?.visualTraits || row.assetLibrary?.prompt;
+  if (row.type === "scene") return row.asset?.visualPrompt || row.assetLibrary?.prompt;
+  return row.asset?.visualPrompt || row.assetLibrary?.prompt;
 }
 
 export function getRowReferenceImages(row: AssetRow) {
@@ -110,12 +119,12 @@ export function getRowReferenceImages(row: AssetRow) {
 
 export function getRowDescription(row: AssetRow) {
   if (row.type === "character") {
-    return row.asset?.description || row.asset?.role || row.asset?.traits;
+    return row.asset?.description || row.asset?.role || row.asset?.traits || getAssetLibraryDescription(row);
   }
   if (row.type === "scene") {
-    return row.asset?.location || row.asset?.atmosphere || row.asset?.notes;
+    return row.asset?.location || row.asset?.atmosphere || row.asset?.notes || getAssetLibraryDescription(row);
   }
-  return row.asset?.description || row.asset?.visualPrompt;
+  return row.asset?.description || row.asset?.visualPrompt || getAssetLibraryDescription(row);
 }
 
 export function toRuntimeAssetType(type: AssetGenerationType) {
@@ -124,6 +133,22 @@ export function toRuntimeAssetType(type: AssetGenerationType) {
 
 export function typeLabel(type: AssetGenerationType) {
   return type === "character" ? "角色" : type === "scene" ? "场景" : "道具";
+}
+
+export function hasRowAsset(row: AssetRow) {
+  return Boolean(row.asset || row.assetLibrary);
+}
+
+export function assetLibraryRowKey(row: Pick<AssetRow, "type" | "name">) {
+  return `${row.type}:${row.name}`;
+}
+
+function getAssetLibraryImage(row: AssetRow) {
+  return row.assetLibrary?.thumbnailUrl || row.assetLibrary?.previewUrl || row.assetLibrary?.images?.[0]?.url;
+}
+
+function getAssetLibraryDescription(row: AssetRow) {
+  return row.assetLibrary?.description || row.assetLibrary?.setting || row.assetLibrary?.prompt || row.assetLibrary?.remark;
 }
 
 export function findPlanForEpisode(plans: ScriptPlan[], episodeId: string) {

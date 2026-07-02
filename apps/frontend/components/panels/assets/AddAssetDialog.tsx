@@ -114,8 +114,11 @@ export function AddAssetDialog({
             <input
               ref={nameRef}
               className="w-full rounded-md border border-border bg-muted/20 px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
-              placeholder={`输入${TYPE_LABEL[type]}名称`}
+              placeholder={`输入${TYPE_LABEL[type]}名称，如：主名字;副名字1;副名字2`}
             />
+            <div className="text-[11px] text-muted-foreground">
+              第一个名字作为主名字，后续名字作为副名字，用英文分号 ; 分开。
+            </div>
           </div>
 
           {/* 描述 */}

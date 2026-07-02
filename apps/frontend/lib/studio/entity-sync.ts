@@ -3,6 +3,7 @@ import type { EntityExtractionResult } from "@/types/studio";
 import { useCharacterLibraryStore } from "@/stores/character-library-store";
 import { useSceneStore } from "@/stores/scene-store";
 import { usePropsLibraryStore } from "@/stores/props-library-store";
+import { formatAssetName } from "@/lib/studio/asset-names";
 
 export interface CharacterSink {
   addCharacter: (input: {
@@ -14,6 +15,7 @@ export interface CharacterSink {
     notes?: string;
     status?: "draft" | "linked";
     linkedEpisodeId?: string;
+    assetName?: string;
   }) => string;
   updateCharacter: (id: string, updates: Record<string, unknown>) => void;
   getOrCreateProjectFolder: (projectId: string, projectName: string) => string;
@@ -30,6 +32,7 @@ export interface SceneSink {
     notes?: string;
     status?: "draft" | "linked";
     linkedEpisodeId?: string;
+    assetName?: string;
   }) => string;
   updateScene: (id: string, updates: Record<string, unknown>) => void;
   getOrCreateProjectFolder: (projectId: string, projectName: string) => string;
@@ -41,6 +44,7 @@ export interface PropSink {
     description: string;
     folderId?: string | null;
     category?: string;
+    assetName?: string;
   }) => string;
 }
 
@@ -107,6 +111,7 @@ export function syncExtractedEntities(
           notes: notesFromAliases(entity.aliases),
           status: "linked",
           linkedEpisodeId: episodeId,
+          assetName: formatAssetName(entity.name, entity.aliases),
         });
         characters.push({ characterId, name: entity.name, aliases: entity.aliases, note: entity.note });
         created += 1;
@@ -134,6 +139,7 @@ export function syncExtractedEntities(
           notes: entity.note ?? notesFromAliases(entity.aliases),
           status: "linked",
           linkedEpisodeId: episodeId,
+          assetName: formatAssetName(entity.name, entity.aliases),
         });
         scenes.push({ sceneId, name: entity.name, note: entity.note });
         created += 1;
@@ -153,6 +159,7 @@ export function syncExtractedEntities(
       const propId = sinks.propSink.addProp({
         name: entity.name,
         description: entity.note ?? "",
+        assetName: formatAssetName(entity.name, entity.aliases),
       });
       props.push({ assetId: propId, name: entity.name, note: entity.note });
       created += 1;
@@ -180,14 +187,16 @@ export function createMystudioSinks(): SyncSinks {
   return {
     characterSink: {
       addCharacter: (data) => {
-        const id = useCharacterLibraryStore.getState().addCharacter({ ...data, views: [] });
+        const { assetName: syncedAssetName, ...characterData } = data;
+        const id = useCharacterLibraryStore.getState().addCharacter({ ...characterData, views: [] });
+        const assetName = syncedAssetName ?? data.name;
         // 同步写入 assets.db（如果不存在）
         try {
           window.studioAssets?.getByName({ type: 'role', name: data.name }).then((existing) => {
             if (!existing) {
               window.studioAssets?.add({
                 type: 'role',
-                name: data.name,
+                name: assetName,
                 description: data.description || '',
                 setting: data.notes || '',
               });
@@ -202,14 +211,16 @@ export function createMystudioSinks(): SyncSinks {
     },
     sceneSink: {
       addScene: (data) => {
-        const id = useSceneStore.getState().addScene(data);
+        const { assetName: syncedAssetName, ...sceneData } = data;
+        const id = useSceneStore.getState().addScene(sceneData);
+        const assetName = syncedAssetName ?? data.name;
         // 同步写入 assets.db（如果不存在）
         try {
           window.studioAssets?.getByName({ type: 'scene', name: data.name }).then((existing) => {
             if (!existing) {
               window.studioAssets?.add({
                 type: 'scene',
-                name: data.name,
+                name: assetName,
                 description: data.atmosphere || data.location || '',
                 setting: data.notes || '',
               });
@@ -224,6 +235,7 @@ export function createMystudioSinks(): SyncSinks {
     },
     propSink: {
       addProp: (data) => {
+        const assetName = data.assetName ?? data.name;
         const newProp = usePropsLibraryStore.getState().addProp({
           name: data.name,
           description: data.description || "",
@@ -237,7 +249,7 @@ export function createMystudioSinks(): SyncSinks {
             if (!existing) {
               window.studioAssets?.add({
                 type: 'tool',
-                name: data.name,
+                name: assetName,
                 description: data.description || '',
               });
             }

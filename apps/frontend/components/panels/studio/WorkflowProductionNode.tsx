@@ -23,6 +23,7 @@ import {
   StoryboardGridPreview,
   StoryboardTablePreview,
   TextPreview,
+  WorkbenchLanePreview,
 } from "./WorkflowNodePreviews";
 
 export interface ProductionNodeData extends Record<string, unknown> {
@@ -47,7 +48,7 @@ const NODE_SIZE_CLASS = {
   assets: "w-[760px]",
   storyboardTable: "w-[700px]",
   storyboard: "w-[640px]",
-  workbench: "w-[420px]",
+  workbench: "w-[680px]",
 } satisfies Record<ProductionFlowNodeId, string>;
 
 export function ProductionFlowNode({ data }: NodeProps<Node<ProductionNodeData>>) {
@@ -181,6 +182,8 @@ export function ProductionFlowNode({ data }: NodeProps<Node<ProductionNodeData>>
           <StoryboardGridPreview node={data.node} />
         ) : data.node.previewKind === "asset-derivation" ? (
           <AssetDerivationPreview node={data.node} />
+        ) : data.node.previewKind === "workbench-lanes" ? (
+          <WorkbenchLanePreview node={data.node} />
         ) : (
           <TextPreview node={data.node} />
         )}

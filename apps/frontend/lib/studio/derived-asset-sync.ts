@@ -1,5 +1,6 @@
 import type { DerivedAsset, ScriptPlan } from "@/types/studio";
 import { useCharacterLibraryStore } from "@/stores/character-library-store";
+import { usePropsLibraryStore, type PropItem } from "@/stores/props-library-store";
 import { useSceneStore } from "@/stores/scene-store";
 
 export interface DerivedCharacterSink {
@@ -29,15 +30,20 @@ export interface DerivedSceneSink {
   }) => string;
 }
 
+export interface DerivedPropSink {
+  addProp: (input: Omit<PropItem, "id" | "createdAt">) => string;
+}
+
 export type EntityResolver = (
   name: string,
-) => { kind: "character" | "scene"; id: string } | null;
+) => { kind: "character" | "scene" | "prop"; id: string } | null;
 
 export interface SyncDerivedAssetsDeps {
   projectId: string;
   resolver: EntityResolver;
   characterSink: DerivedCharacterSink;
   sceneSink: DerivedSceneSink;
+  propSink: DerivedPropSink;
 }
 
 export interface SyncDerivedAssetsResult {
@@ -49,7 +55,7 @@ export function syncDerivedAssets(
   plan: ScriptPlan["derivedAssetPlan"],
   deps: SyncDerivedAssetsDeps,
 ): SyncDerivedAssetsResult {
-  const { projectId, resolver, characterSink, sceneSink } = deps;
+  const { projectId, resolver, characterSink, sceneSink, propSink } = deps;
   const created: DerivedAsset[] = [];
   let skipped = 0;
 
@@ -76,21 +82,42 @@ export function syncDerivedAssets(
       continue;
     }
 
-    // scene: 角度/时段/天候/破坏 衍生统一落为视角变体场景行
-    const sceneId = sceneSink.addScene({
+    if (target.kind === "scene") {
+      // scene: 角度/时段/天候/破坏 衍生统一落为视角变体场景行
+      const sceneId = sceneSink.addScene({
+        name: `${item.parentAssetId}·${item.state}`,
+        location: item.parentAssetId,
+        time: "",
+        atmosphere: "",
+        projectId,
+        parentSceneId: target.id,
+        isViewpointVariant: true,
+        viewpointName: item.state,
+        notes: item.reason,
+        status: "linked",
+      });
+      created.push({
+        id: sceneId,
+        parentAssetId: target.id,
+        state: item.state,
+        desc: item.reason,
+        imageRef: null,
+      });
+      continue;
+    }
+
+    const propId = propSink.addProp({
       name: `${item.parentAssetId}·${item.state}`,
-      location: item.parentAssetId,
-      time: "",
-      atmosphere: "",
-      projectId,
-      parentSceneId: target.id,
-      isViewpointVariant: true,
-      viewpointName: item.state,
-      notes: item.reason,
-      status: "linked",
+      description: item.reason,
+      visualPrompt: `${item.state}：${item.reason}`.trim(),
+      imageUrl: "",
+      isDerivative: true,
+      parentId: target.id,
+      category: item.state,
+      folderId: null,
     });
     created.push({
-      id: sceneId,
+      id: propId,
       parentAssetId: target.id,
       state: item.state,
       desc: item.reason,
@@ -105,8 +132,9 @@ export function syncDerivedAssets(
 export function buildEntityResolver(
   characters: { id: string; name: string; aliases?: string[] }[],
   scenes: { id: string; name: string }[],
+  props: { id: string; name: string }[] = [],
 ): EntityResolver {
-  const map = new Map<string, { kind: "character" | "scene"; id: string }>();
+  const map = new Map<string, { kind: "character" | "scene" | "prop"; id: string }>();
   for (const c of characters) {
     map.set(c.name, { kind: "character", id: c.id });
     map.set(c.id, { kind: "character", id: c.id });
@@ -116,18 +144,50 @@ export function buildEntityResolver(
     map.set(s.name, { kind: "scene", id: s.id });
     map.set(s.id, { kind: "scene", id: s.id });
   }
+  for (const p of props) {
+    map.set(p.name, { kind: "prop", id: p.id });
+    map.set(p.id, { kind: "prop", id: p.id });
+  }
   return (name) => map.get(name) ?? null;
 }
 
 /** 真实 MYStudio store 适配 sink。 */
-export function createMystudioDerivedSinks(): { characterSink: DerivedCharacterSink; sceneSink: DerivedSceneSink } {
+export function createMystudioDerivedSinks(): {
+  characterSink: DerivedCharacterSink;
+  sceneSink: DerivedSceneSink;
+  propSink: DerivedPropSink;
+} {
   return {
     characterSink: {
-      addVariation: (characterId, variation) =>
-        useCharacterLibraryStore.getState().addVariation(characterId, variation),
+      addVariation: (characterId, variation) => {
+        const store = useCharacterLibraryStore.getState();
+        const existing = store
+          .getCharacterById(characterId)
+          ?.variations.find((item) => item.name === variation.name);
+        return existing?.id ?? store.addVariation(characterId, variation);
+      },
     },
     sceneSink: {
-      addScene: (input) => useSceneStore.getState().addScene(input),
+      addScene: (input) => {
+        const store = useSceneStore.getState();
+        const existing = store.scenes.find(
+          (scene) =>
+            scene.parentSceneId === input.parentSceneId &&
+            scene.viewpointName === input.viewpointName,
+        );
+        return existing?.id ?? store.addScene(input);
+      },
+    },
+    propSink: {
+      addProp: (input) => {
+        const store = usePropsLibraryStore.getState();
+        const existing = store.items.find(
+          (item) =>
+            item.parentId === input.parentId &&
+            item.category === input.category,
+        );
+        return existing?.id ?? store.addProp(input).id;
+      },
     },
   };
 }

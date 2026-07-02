@@ -1,8 +1,36 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
+import { useCharacterLibraryStore } from "@/stores/character-library-store";
+import { usePropsLibraryStore } from "@/stores/props-library-store";
+import { useSceneStore } from "@/stores/scene-store";
+import { useStudioStore } from "@/stores/studio-store";
+import { useTtsStore } from "@/stores/tts-store";
 import {
   getSmokeStoryboardFramePath,
+  installWorkflowSmokeBridge,
   isIsolatedSmokeUserDataDir,
 } from "./workflow-smoke-bridge";
+
+type BrowserMockGlobal = Partial<{
+  window: Window & typeof globalThis;
+  localStorage: Storage;
+}>;
+
+const browserGlobal = globalThis as BrowserMockGlobal;
+const previousWindow = browserGlobal.window;
+const previousLocalStorage = browserGlobal.localStorage;
+
+afterEach(() => {
+  if (previousWindow) {
+    browserGlobal.window = previousWindow;
+  } else {
+    delete browserGlobal.window;
+  }
+  if (previousLocalStorage) {
+    browserGlobal.localStorage = previousLocalStorage;
+  } else {
+    delete browserGlobal.localStorage;
+  }
+});
 
 describe("workflow smoke bridge isolation", () => {
   it("allows only temp smoke user data directories", () => {
@@ -18,5 +46,165 @@ describe("workflow smoke bridge isolation", () => {
 
   it("uses an inline storyboard frame so installed smoke has no missing temp image", () => {
     expect(getSmokeStoryboardFramePath()).toMatch(/^data:image\/png;base64,/);
+  });
+
+  it("exposes isolated stepwise execution with stage evidence", async () => {
+    const localStorageItems = new Map<string, string>();
+    browserGlobal.localStorage = {
+      getItem: (key: string) => localStorageItems.get(key) ?? null,
+      setItem: (key: string, value: string) => {
+        localStorageItems.set(key, value);
+      },
+      removeItem: (key: string) => {
+        localStorageItems.delete(key);
+      },
+      clear: () => {
+        localStorageItems.clear();
+      },
+      key: (index: number) => Array.from(localStorageItems.keys())[index] ?? null,
+      get length() {
+        return localStorageItems.size;
+      },
+    } as Storage;
+    browserGlobal.window = {
+      mystudioSmoke: {
+        enabled: true,
+        userDataDir: "/var/folders/tmp/mystudio-smoke-stepwise-test",
+      },
+      setTimeout: globalThis.setTimeout,
+    } as Window &
+      typeof globalThis & {
+        mystudioSmoke: { enabled: boolean; userDataDir: string };
+      };
+
+    installWorkflowSmokeBridge();
+    const reset = await window.mystudioWorkflowSmoke?.resetForStepwiseExecution();
+    expect(reset?.progress).toBe(0);
+    expect(reset?.source).toBe("isolated-smoke-project");
+
+    const manuals = await window.mystudioWorkflowSmoke?.runStepwiseWorkflowStage("manuals");
+    expect(manuals?.stageId).toBe("manuals");
+    expect(manuals?.ready).toBe(true);
+    expect(manuals?.evidenceText).toContain("visualManualId");
+
+    const inspected = await window.mystudioWorkflowSmoke?.inspectWorkflowStages();
+    expect(inspected?.source).toBe("isolated-smoke-project");
+    expect(inspected?.stages.find((stage) => stage.id === "manuals")).toMatchObject({
+      id: "manuals",
+      status: "ready",
+    });
+    expect(inspected?.evidence).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          stageId: "manuals",
+          ready: true,
+          evidence: expect.stringContaining("directorManualId"),
+        }),
+      ]),
+    );
+  });
+
+  it("does not expose the stepwise bridge outside isolated smoke directories", () => {
+    browserGlobal.window = {
+      mystudioSmoke: {
+        enabled: true,
+        userDataDir: "/Users/me/Library/Application Support/漫影工作室",
+      },
+    } as Window &
+      typeof globalThis & {
+        mystudioSmoke: { enabled: boolean; userDataDir: string };
+      };
+
+    installWorkflowSmokeBridge();
+
+    expect(window.mystudioWorkflowSmoke).toBeUndefined();
+  });
+
+  it("seeds a complete project-scoped workflow for every node preview", async () => {
+    const localStorageItems = new Map<string, string>();
+    browserGlobal.localStorage = {
+      getItem: (key: string) => localStorageItems.get(key) ?? null,
+      setItem: (key: string, value: string) => {
+        localStorageItems.set(key, value);
+      },
+      removeItem: (key: string) => {
+        localStorageItems.delete(key);
+      },
+      clear: () => {
+        localStorageItems.clear();
+      },
+      key: (index: number) => Array.from(localStorageItems.keys())[index] ?? null,
+      get length() {
+        return localStorageItems.size;
+      },
+    } as Storage;
+    browserGlobal.window = {
+      mystudioSmoke: {
+        enabled: true,
+        userDataDir: "/var/folders/tmp/mystudio-smoke-workflow-test",
+      },
+      setTimeout: globalThis.setTimeout,
+    } as Window &
+      typeof globalThis & {
+        mystudioSmoke: { enabled: boolean; userDataDir: string };
+      };
+
+    installWorkflowSmokeBridge();
+    const result = await window.mystudioWorkflowSmoke?.seedCompleteWorkflow();
+
+    expect(result?.progress).toBe(100);
+    expect(result?.checks).toMatchObject({
+      manualsReady: true,
+      novelReady: true,
+      scriptReady: true,
+      assetsReady: true,
+      generationReady: true,
+      storyboardReady: true,
+      workbenchReady: true,
+      hasFinalExport: true,
+      hasSelectedCandidate: true,
+      hasVoiceBinding: true,
+      hasVoiceAudio: true,
+    });
+
+    const studio = useStudioStore.getState();
+    expect(studio.scriptPlans[0]?.derivedAssetPlan).toEqual([
+      expect.objectContaining({ parentAssetId: "smoke-role-sword" }),
+      expect.objectContaining({ parentAssetId: "smoke-scene-mine" }),
+      expect.objectContaining({ parentAssetId: "smoke-prop-sword" }),
+    ]);
+    expect(studio.storyboards[0]?.mediaRef?.path).toMatch(/^data:image\/png;base64,/);
+    expect(studio.productionTracks[0]?.selectedVideoId).toBe("smoke-video-1");
+    expect(studio.videoCandidates[0]?.filePath).toBe("/tmp/mystudio-smoke-final.mp4");
+    expect(studio.scriptPlans[0]).toMatchObject({
+      theme: "矿场入局",
+      visualStyle: "水墨漫剧",
+    });
+
+    expect(useCharacterLibraryStore.getState().characters[0]).toMatchObject({
+      id: "smoke-role-sword",
+      projectId: "default-project",
+      thumbnailUrl: expect.stringMatching(/^data:image\/png;base64,/),
+    });
+    expect(useSceneStore.getState().scenes[0]).toMatchObject({
+      id: "smoke-scene-mine",
+      projectId: "default-project",
+      referenceImage: expect.stringMatching(/^data:image\/png;base64,/),
+    });
+    expect(usePropsLibraryStore.getState().items[1]).toMatchObject({
+      id: "smoke-prop-sword-broken",
+      parentId: "smoke-prop-sword",
+      imageUrl: expect.stringMatching(/^data:image\/png;base64,/),
+    });
+
+    const tts = useTtsStore.getState();
+    const project = tts.projects["default-project"];
+    expect(project?.bindings["character:smoke-role-sword"]).toMatchObject({
+      profileId: "smoke-voice-profile",
+    });
+    expect(project?.voiceLines["1"]).toMatchObject({
+      status: "completed",
+      audioLocalPath: "/tmp/mystudio-smoke-voice.wav",
+    });
   });
 });

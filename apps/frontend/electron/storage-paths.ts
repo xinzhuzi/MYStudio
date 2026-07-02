@@ -23,6 +23,18 @@ function normalizeRelativePath(value: string, label: string) {
   return normalized;
 }
 
+function normalizePathSegment(value: string, label: string) {
+  const normalized = normalizeRelativePath(value, label);
+  if (normalized.includes("/")) {
+    throw new Error(`${label} escapes storage root`);
+  }
+  return normalized;
+}
+
+function encodeRelativePath(value: string) {
+  return value.split("/").map((part) => encodeURIComponent(part)).join("/");
+}
+
 export function resolveDataFilePath(dataRoot: string, key: string) {
   const normalizedKey = normalizeRelativePath(key, "storage key");
   return assertInsideRoot(dataRoot, path.resolve(dataRoot, `${normalizedKey}.json`), "Storage key");
@@ -48,4 +60,37 @@ export function resolveLocalMediaPath(mediaRoot: string, localPath: string) {
   const parsed = parseLocalMediaPath(localPath);
   if (!parsed) throw new Error("Invalid local media path");
   return assertInsideRoot(mediaRoot, path.resolve(mediaRoot, parsed.category, parsed.filename), "Local media path");
+}
+
+export function createProjectFileUrl(projectId: string, relativePath: string) {
+  const normalizedProjectId = normalizePathSegment(projectId, "project id");
+  const normalizedRelativePath = normalizeRelativePath(relativePath, "project file path");
+  return `project-file://${encodeURIComponent(normalizedProjectId)}/${encodeRelativePath(normalizedRelativePath)}`;
+}
+
+export function parseProjectFileUrl(projectFileUrl: string) {
+  const match = projectFileUrl.match(/^project-file:\/\/([^/]+)\/(.+)$/);
+  if (!match) return null;
+  const projectId = normalizePathSegment(decodeURIComponent(match[1]), "project id");
+  const relativePath = normalizeRelativePath(
+    match[2].split("/").map((part) => decodeURIComponent(part)).join("/"),
+    "project file path",
+  );
+  return { projectId, relativePath };
+}
+
+export function resolveProjectScopedFilePath(dataRoot: string, projectId: string, relativePath: string) {
+  const normalizedProjectId = normalizePathSegment(projectId, "project id");
+  const normalizedRelativePath = normalizeRelativePath(relativePath, "project file path");
+  return assertInsideRoot(
+    dataRoot,
+    path.resolve(dataRoot, "_p", normalizedProjectId, normalizedRelativePath),
+    "Project file path",
+  );
+}
+
+export function resolveProjectFileUrl(dataRoot: string, projectFileUrl: string) {
+  const parsed = parseProjectFileUrl(projectFileUrl);
+  if (!parsed) throw new Error("Invalid project file URL");
+  return resolveProjectScopedFilePath(dataRoot, parsed.projectId, parsed.relativePath);
 }

@@ -4,6 +4,7 @@ import { ManualsTab } from "./ManualsTab";
 import { NovelTab } from "./NovelTab";
 import { ScriptTab } from "./ScriptTab";
 import { WorkbenchTab } from "./WorkbenchTab";
+import { ImageWorkflowCanvas } from "./ImageWorkflowCanvas";
 import { ScriptAssetManagementTab } from "./ScriptAssetManagementTab";
 import { WorkflowNodeCanvas } from "./WorkflowNodeCanvas";
 import { WorkflowNodeEditDialog } from "./WorkflowNodeEditDialog";
@@ -24,6 +25,7 @@ export { WORKFLOW_TABS, resolveVisibleWorkflowStage } from "./workflow-tabs";
 export { AssetsTab } from "./AssetsTab";
 export { ScriptAssetManagementTab } from "./ScriptAssetManagementTab";
 export { WorkbenchTab } from "./WorkbenchTab";
+export { ImageWorkflowCanvas } from "./ImageWorkflowCanvas";
 export { NovelEmptyState, NovelTab } from "./NovelTab";
 export { ScriptTab } from "./ScriptTab";
 export { ManualsTab } from "./ManualsTab";
@@ -112,6 +114,13 @@ export function StudioView() {
                 onNodeEdit={viewModel.openNodeEditor}
                 onNodeAction={viewModel.handleProductionNodeAction}
               />
+            </TabsContent>
+
+            <TabsContent
+              value="imageWorkflow"
+              className="m-0 min-h-0 flex-1 data-[state=active]:flex data-[state=inactive]:hidden"
+            >
+              <ImageWorkflowCanvas projectName={viewModel.projectName} />
             </TabsContent>
 
             <TabsContent value="workbench" className="m-0">

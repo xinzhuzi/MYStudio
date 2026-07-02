@@ -83,6 +83,7 @@ describe("studio entity sync bridge", () => {
     // created entities carry the episode link + project folder
     expect(calls.addCharacter[0]?.linkedEpisodeId).toBe("ep1");
     expect(calls.addCharacter[0]?.folderId).toBe("char_folder_1");
+    expect(calls.addCharacter[0]?.assetName).toBe("小红;红儿");
     expect(calls.updateCharacter[0]?.updates.linkedEpisodeId).toBe("ep1");
 
     // scene created

@@ -65,6 +65,38 @@ describe("desktop build scripts", () => {
     );
   });
 
+  it("keeps non-runtime docs, tests, and caches out without removing package runtime entrypoints", () => {
+    const source = readBuildFile("frontend/config/electron-builder.yml");
+
+    expect(source).not.toContain("!node_modules/**/src/**");
+
+    for (const pattern of [
+      "!node_modules/**/docs/**",
+      "!node_modules/**/test/**",
+      "!node_modules/**/tests/**",
+      "!node_modules/**/__tests__/**",
+      "!node_modules/**/coverage/**",
+      "!node_modules/**/example/**",
+      "!node_modules/**/examples/**",
+      "!node_modules/**/*.map",
+      "!node_modules/**/*.ts",
+      "!node_modules/**/*.tsx",
+    ]) {
+      expect(source).toContain(pattern);
+    }
+
+    const backendResourcesStart = source.indexOf("  - from: backend");
+    const studioManualResourcesStart = source.indexOf("  - from: frontend/assets/studio-manuals");
+    const backendResources = source.slice(backendResourcesStart, studioManualResourcesStart);
+
+    expect(backendResources).toContain("!tests/**");
+    expect(backendResources).toContain("!**/tests/**");
+    expect(backendResources).toContain("!README.md");
+    expect(backendResources).toContain("!**/*.md");
+    expect(source).toContain("!**/.cache/**");
+    expect(source).toContain("!**/coverage/**");
+  });
+
   it("exposes a packaged desktop smoke test for white-screen regressions", () => {
     const packageJson = readBuildFile("package.json");
     const smokeScript = readBuildFile("build/smoke-desktop.mjs");
@@ -153,8 +185,28 @@ describe("desktop build scripts", () => {
     expect(smokeScript).toContain("nodeCardTexts");
     expect(smokeScript).toContain("requiredNodePreviewText");
     expect(smokeScript).toContain("hasNodeFlowDataPreview");
+    expect(smokeScript).toContain("hasDirectorPlanPreview");
+    expect(smokeScript).toContain("hasToonflowDerivativeLinks");
+    expect(smokeScript).toContain("hasStoryboardImagePreview");
+    expect(smokeScript).toContain("hasNoDefaultReactFlowControls");
+    expect(smokeScript).toContain("hasThemeViewportControls");
     expect(smokeScript).toContain(
       "workflow node cards did not show Toonflow FlowData previews",
+    );
+    expect(smokeScript).toContain(
+      "workflow node cards did not show director plan markdown content",
+    );
+    expect(smokeScript).toContain(
+      "workflow node cards did not show Toonflow derivative asset links",
+    );
+    expect(smokeScript).toContain(
+      "storyboard workflow node did not show generated image previews",
+    );
+    expect(smokeScript).toContain(
+      "storyboard workflow node rendered default white React Flow controls",
+    );
+    expect(smokeScript).toContain(
+      "storyboard workflow node did not render themed viewport controls",
     );
     expect(smokeScript).toContain(
       "storyboard video generation React Flow workflow canvas did not render",
@@ -176,6 +228,140 @@ describe("desktop build scripts", () => {
     expect(smokeScript).toContain("socket.close");
     expect(smokeScript).toContain("captureDomVisualStats");
     expect(smokeScript).toContain("captureError");
+  });
+
+  it("keeps the workflow integrity skill stepwise instead of relying only on smoke", () => {
+    const skill = readFileSync(
+      resolve(
+        appsRoot,
+        "../.agents/skills/mystudio-workflow-integrity-testing/SKILL.md",
+      ),
+      "utf8",
+    );
+
+    for (const requiredText of [
+      "## Step-by-Step Review And Test Flow",
+      "Review evidence before running the matching test",
+      "Do not collapse the checklist into only `npm run smoke:desktop`",
+      "Step 1 - Skill contract review",
+      "Step 2 - Model contract test",
+      "Step 3 - Preview contract test",
+      "Step 4 - Smoke bridge seed test",
+      "Step 5 - Step-by-step app execution smoke",
+      "Step 6 - Build and packaged smoke test",
+      "Step 7 - Visual inspection",
+    ]) {
+      expect(skill).toContain(requiredText);
+    }
+  });
+
+  it("requires real step-by-step workflow execution instead of seed-only evidence", () => {
+    const skill = readFileSync(
+      resolve(
+        appsRoot,
+        "../.agents/skills/mystudio-workflow-integrity-testing/SKILL.md",
+      ),
+      "utf8",
+    );
+    const openaiYaml = readFileSync(
+      resolve(
+        appsRoot,
+        "../.agents/skills/mystudio-workflow-integrity-testing/agents/openai.yaml",
+      ),
+      "utf8",
+    );
+
+    for (const requiredText of [
+      "seedCompleteWorkflow() is only a seeded preview regression",
+      "Step-by-step app execution is the only proof of workflow auto-run",
+      "MYSTUDIO_SMOKE_WORKFLOW_STEPWISE=1 npm run smoke:desktop",
+      "isolated smoke project",
+      "真实用户项目",
+      "真实《道劫》项目",
+      "_p/{projectId}/...",
+      "{basePath}/assets/assets.db",
+      "assets/files/...",
+    ]) {
+      expect(skill).toContain(requiredText);
+    }
+    expect(openaiYaml).toContain("step-by-step workflow execution");
+  });
+
+  it("exposes a packaged stepwise workflow smoke that does not seed complete state", () => {
+    const smokeScript = readBuildFile("build/smoke-desktop.mjs");
+    const stepwiseStart = smokeScript.indexOf(
+      "async function verifyWorkflowStepByStepExecution",
+    );
+    const stepwiseEnd = smokeScript.indexOf(
+      "async function verifyAssetVoiceFlow",
+    );
+    const stepwise = smokeScript.slice(stepwiseStart, stepwiseEnd);
+
+    expect(stepwiseStart).toBeGreaterThan(-1);
+    expect(stepwiseEnd).toBeGreaterThan(stepwiseStart);
+    expect(smokeScript).toContain("MYSTUDIO_SMOKE_WORKFLOW_STEPWISE");
+    expect(smokeScript).toContain("workflowStepwise=ok");
+    expect(stepwise).toContain("resetForStepwiseExecution");
+    expect(stepwise).toContain("runStepwiseWorkflowStage");
+    expect(stepwise).toContain("inspectWorkflowStages");
+    expect(stepwise).toContain("clickButtonByText('工作流', true)");
+    expect(stepwise).toContain("clickButtonByText('风格与导演')");
+    expect(stepwise).toContain("clickButtonByText('小说导入')");
+    expect(stepwise).toContain("clickButtonByText('剧本生产阶段')");
+    expect(stepwise).toContain("clickButtonByText('剧本资产管理')");
+    expect(stepwise).toContain("clickButtonByText('分镜视频生成')");
+    expect(stepwise).toContain("clickButtonByText('视频工作台')");
+    expect(stepwise).toContain("waitForStageReady");
+    expect(stepwise).not.toContain("seedCompleteWorkflow");
+  });
+
+  it("exposes a foreground packaged smoke mode for visible app startup", () => {
+    const smokeScript = readBuildFile("build/smoke-desktop.mjs");
+    const skill = readFileSync(
+      resolve(
+        appsRoot,
+        "../.agents/skills/mystudio-workflow-integrity-testing/SKILL.md",
+      ),
+      "utf8",
+    );
+
+    expect(smokeScript).toContain("MYSTUDIO_SMOKE_FOREGROUND");
+    expect(smokeScript).toContain("MYSTUDIO_SMOKE_HOLD_MS");
+    expect(smokeScript).toContain("bringSmokeAppToForeground");
+    expect(smokeScript).toContain("foreground smoke hold");
+    expect(smokeScript).toContain("osascript");
+    expect(smokeScript).toContain("System Events");
+    expect(skill).toContain("MYSTUDIO_SMOKE_FOREGROUND=1");
+    expect(skill).toContain("MYSTUDIO_SMOKE_HOLD_MS=15000");
+  });
+
+  it("keeps the workflow integrity skill discoverable by trigger wording", () => {
+    const skill = readFileSync(
+      resolve(
+        appsRoot,
+        "../.agents/skills/mystudio-workflow-integrity-testing/SKILL.md",
+      ),
+      "utf8",
+    );
+    const frontmatter = skill.match(/^---\n([\s\S]*?)\n---/)?.[1] ?? "";
+    const name = frontmatter.match(/^name:\s*(.+)$/m)?.[1] ?? "";
+    const description = frontmatter.match(/^description:\s*(.+)$/m)?.[1] ?? "";
+
+    expect(name).toBe("mystudio-workflow-integrity-testing");
+    expect(description).toMatch(/^Use when /);
+    expect(description.length).toBeLessThanOrEqual(500);
+    for (const trigger of [
+      "workflow completeness",
+      "storyboard/video workflow node graph",
+      "Toonflow-style node parity",
+      "project-scoped persistence",
+      "packaged Electron smoke coverage",
+      "工作流自动运行",
+      "有没有自动化测试这个工作流?",
+      "资产保存路径有没有分清楚?",
+    ]) {
+      expect(description).toContain(trigger);
+    }
   });
 
   it("does not mix static and runtime dynamic imports for shared studio modules", () => {
@@ -225,7 +411,7 @@ describe("desktop build scripts", () => {
     expect(assetsStage).toContain("全部润色提示词");
     expect(assetsStage).toContain("生成图片");
     expect(assetsStage).toContain("落地衍生资产");
-    expect(assetsStage).toContain("音频样本");
+    expect(assetsStage).toContain("参考音频");
     expect(assetsStage).not.toContain("requiredText: ['剧本资产提取'");
     expect(assetsStage).not.toContain("requiredText: ['剧本资产生成'");
     expect(assetsStage).toContain("'角色/场景/道具'");
@@ -291,12 +477,16 @@ describe("desktop build scripts", () => {
     expect(videoScript).toContain("daojie-chapter001-video-report.json");
     expect(videoScript).toContain("ffprobe");
     expect(videoScript).toContain("storyboardsWithAssetLinks");
+    expect(videoScript).toContain("REQUIRED_WORKFLOW_STEPS");
+    expect(videoScript).toContain("requireWorkflowSteps(generated)");
+    expect(videoScript).toContain("工作流步骤未完成");
     expect(videoScript).toContain("分镜资产链接不完整");
     expect(videoScript).toContain("分镜未关联塑角/造景/道具资产");
     expect(videoScript).toContain("MIN_DAOJIE_STORYBOARDS");
     expect(videoScript).toContain("道劫第一章分镜过少");
     expect(videoScript).toContain("framesWithRealAssetImages");
     expect(videoScript).toContain("assetImagePaths");
+    expect(videoScript).toContain("存在未命中的图片资产");
     expect(videoScript).toContain("voiceReferenceAudioPath");
     expect(videoScript).toContain("未绑定资产库音色参考");
     expect(videoScript).toContain("speakerVoiceMap");
@@ -330,7 +520,15 @@ describe("desktop build scripts", () => {
     expect(generatorScript).toContain("MIN_SHOT_DURATION = 5.0");
     expect(generatorScript).toContain("MAX_SHOT_DURATION = 5.4");
     expect(generatorScript).toContain("MYSTUDIO_DAOJIE_REUSE_AUDIO_DIR");
+    expect(generatorScript).toContain("build_workflow_steps(");
+    expect(generatorScript).toContain('"novel_import"');
+    expect(generatorScript).toContain('"project_writeback"');
+    expect(generatorScript).toContain('"赵四": ["赵四", "监工赵四"]');
+    expect(generatorScript).toContain("attach_asset_alias_catalog_entries(by_name)");
     expect(generatorScript).toContain("reused-local-tts-audio");
+    expect(generatorScript).toContain("复用音频缺失，改走真实 TTS");
+    expect(generatorScript).toContain("reused.resolve() != path.resolve()");
+    expect(generatorScript).not.toContain("raise RuntimeError(f\"复用音频不存在或为空");
     expect(generatorScript).toContain("alimiter=limit=0.98");
     expect(generatorScript).toContain("aresample=48000");
     expect(generatorScript).toContain('"-ac", "2"');

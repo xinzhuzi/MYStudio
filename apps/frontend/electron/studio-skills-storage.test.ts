@@ -59,6 +59,28 @@ describe("studio skills storage", () => {
     await expect(fs.access(path.join(storageRoot, "script_agent_decision.md"))).rejects.toThrow();
   });
 
+  it("syncs editable markdown and visual images while ignoring package junk files", async () => {
+    const root = await createTempRoot();
+    const sourceRoot = path.join(root, "source");
+    const storageRoot = getStudioSkillStorageRoot(path.join(root, "storage"));
+
+    await writeText(path.join(sourceRoot, "script_agent_decision.md"), "# Bundled\n");
+    await writeText(path.join(sourceRoot, ".DS_Store"), "desktop metadata\n");
+    await writeText(path.join(sourceRoot, "art_skills/default/images/preview.png"), "png bytes\n");
+    await writeText(path.join(sourceRoot, "art_skills/default/prompt.tmp"), "temp\n");
+    await writeText(path.join(sourceRoot, "art_skills/default/prompt.md.map"), "source map\n");
+    await writeText(path.join(sourceRoot, "art_skills/default/README.md"), "# Default\n");
+
+    await ensureStudioSkillsSynced({ sourceRoot, storageRoot });
+
+    await expect(readStoredStudioSkillText(storageRoot, "agent_skills/script_agent_decision.md")).resolves.toBe("# Bundled\n");
+    await expect(readStoredStudioSkillText(storageRoot, "art_skills/default/README.md")).resolves.toBe("# Default\n");
+    await expect(fs.access(path.join(storageRoot, "art_skills/default/images/preview.png"))).resolves.toBeUndefined();
+    await expect(fs.access(path.join(storageRoot, ".DS_Store"))).rejects.toThrow();
+    await expect(fs.access(path.join(storageRoot, "art_skills/default/prompt.tmp"))).rejects.toThrow();
+    await expect(fs.access(path.join(storageRoot, "art_skills/default/prompt.md.map"))).rejects.toThrow();
+  });
+
   it("fills missing local skills from a Toonflow runtime fallback source", async () => {
     const root = await createTempRoot();
     const sourceRoot = path.join(root, "source");

@@ -22,14 +22,17 @@ export function findReferenceTextForVoiceProfile(
 ) {
   const referenceAudioPath = normalizePath(profile.referenceAudioPath);
   if (!referenceAudioPath) return undefined;
+  const fallbackText = normalizeReferenceLabel(getFileBaseName(referenceAudioPath));
 
   const matchedAsset = audioAssets.find((asset) => {
     if (asset.type !== "audio") return false;
-    return [asset.sourcePath, asset.filePath]
+    return [asset.sourcePath, asset.filePath, asset.previewUrl]
       .map(normalizePath)
-      .some((path) => path === referenceAudioPath);
+      .some((path) => pathsMatch(path, referenceAudioPath));
   });
-  return normalizeReferenceText(matchedAsset?.description);
+  return normalizeReferenceText(matchedAsset?.description)
+    ?? normalizeReferenceLabel(matchedAsset?.name)
+    ?? fallbackText;
 }
 
 function normalizeReferenceText(value?: string) {
@@ -39,7 +42,51 @@ function normalizeReferenceText(value?: string) {
 }
 
 function normalizePath(value?: string) {
-  return value?.trim() || undefined;
+  const text = value?.trim();
+  if (!text) return undefined;
+  const withoutScheme = text.startsWith("file://") ? text.slice("file://".length) : text;
+  try {
+    return decodeURIComponent(withoutScheme).replace(/\\/g, "/");
+  } catch {
+    return withoutScheme.replace(/\\/g, "/");
+  }
+}
+
+function pathsMatch(left?: string, right?: string) {
+  if (!left || !right) return false;
+  if (left === right) return true;
+  if (left.endsWith(`/${right}`) || right.endsWith(`/${left}`)) return true;
+  const leftName = getFileName(left);
+  const rightName = getFileName(right);
+  return Boolean(leftName && rightName && leftName === rightName);
+}
+
+function normalizeReferenceLabel(value?: string) {
+  const text = value?.trim();
+  if (!text) return undefined;
+  const label = text
+    .replace(/\.(mp3|wav|m4a|aac|flac|ogg|opus)$/i, "")
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!label || !isMeaningfulReferenceLabel(label)) return undefined;
+  return label;
+}
+
+function getFileBaseName(value: string) {
+  const fileName = getFileName(value);
+  return fileName?.replace(/\.(mp3|wav|m4a|aac|flac|ogg|opus)$/i, "");
+}
+
+function getFileName(value?: string) {
+  return value?.split("/").filter(Boolean).pop();
+}
+
+function isMeaningfulReferenceLabel(value: string) {
+  if (/[\u4e00-\u9fff]/.test(value)) return true;
+  if (/^[0-9a-f]{8}(?: [0-9a-f]{4}){3} [0-9a-f]{12}$/i.test(value)) return false;
+  if (/^(ref|reference|voice|audio|sample|test)$/i.test(value)) return false;
+  return value.length >= 4;
 }
 
 function looksLikePath(value: string) {

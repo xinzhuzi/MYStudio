@@ -12,11 +12,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { createMystudioTtsSink } from "@/lib/studio/voice-sync";
+import { toRoleSpeakerId } from "@/lib/tts/role-speaker-id";
 import { useProjectStore } from "@/stores/project-store";
 import { useStudioStore } from "@/stores/studio-store";
 import { useTtsStore } from "@/stores/tts-store";
 import type { StudioAssetSummary } from "@/types/studio-assets";
-import type { TtsSpeakerId } from "@/types/tts";
 import { cn } from "@/lib/utils";
 import { Search, Volume2 } from "lucide-react";
 import { toast } from "sonner";
@@ -106,7 +106,7 @@ export function RoleVoiceAssignDialog({
       }
       setTtsActiveProjectId(activeProjectId);
       ensureTtsProject(activeProjectId);
-      const speakerId = `character:${character.id}` as TtsSpeakerId;
+      const speakerId = toRoleSpeakerId(character.id);
       const sink = createMystudioTtsSink();
       const profileId = sink.createVoiceProfile({
         name: `音色·${character.name}·${selectedAsset.name}`,
@@ -142,7 +142,7 @@ export function RoleVoiceAssignDialog({
             <span className="min-w-0 truncate">为角色「{character.name}」分配音色</span>
           </DialogTitle>
           <DialogDescription className="mt-1 px-6 text-xs">
-            从资产库选择一段可被后续 TTS 生成流程克隆的音频样本，角色这里只负责绑定参考音频。
+            从资产库选择一段可被后续 TTS 生成流程克隆的参考音频，角色这里只负责绑定音色来源。
           </DialogDescription>
         </DialogHeader>
 

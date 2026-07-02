@@ -32,6 +32,7 @@ export interface FreedomImageParams {
   width?: number;
   height?: number;
   negativePrompt?: string;
+  referenceImages?: string[];
   extraParams?: Record<string, any>;
   signal?: AbortSignal;
 }
@@ -435,9 +436,12 @@ async function generateViaChatCompletions(
   const endpoint = buildEndpoint(baseUrl, 'chat/completions');
   const aspectRatio = params.aspectRatio || '1:1';
 
-  const userContent: Array<{ type: string; text?: string }> = [
+  const userContent: Array<{ type: string; text?: string; image_url?: { url: string } }> = [
     { type: 'text', text: `Generate an image with aspect ratio ${aspectRatio}: ${params.prompt}` },
   ];
+  for (const image of params.referenceImages ?? []) {
+    userContent.push({ type: 'image_url', image_url: { url: image } });
+  }
 
   const requestBody = {
     model,
@@ -530,6 +534,7 @@ async function generateViaImagesEndpoint(
   if (params.width) body.width = params.width;
   if (params.height) body.height = params.height;
   if (params.negativePrompt) body.negative_prompt = params.negativePrompt;
+  if (params.referenceImages?.length) body.image_urls = params.referenceImages;
   if (params.extraParams) {
     Object.assign(body, params.extraParams);
   }
@@ -604,6 +609,7 @@ async function generateViaKlingImagesEndpoint(
   const body: Record<string, any> = { prompt: params.prompt, model: resolveKlingModelName(model) };
   if (params.aspectRatio) body.aspect_ratio = params.aspectRatio;
   if (params.negativePrompt) body.negative_prompt = params.negativePrompt;
+  if (params.referenceImages?.length) body.image_urls = params.referenceImages;
   if (params.extraParams) Object.assign(body, params.extraParams);
 
   let response: Response;

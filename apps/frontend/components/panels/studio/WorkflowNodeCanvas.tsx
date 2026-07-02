@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Background,
-  Controls,
   MarkerType,
   Panel,
   Position,
@@ -81,23 +80,26 @@ function CanvasViewportControls() {
   });
 
   return (
-    <Panel position="bottom-left" className="nodrag nopan">
-      <div className="flex items-center gap-1 rounded-md border border-white/14 bg-[#151615]/92 p-1 text-xs text-zinc-200 shadow-[0_18px_48px_rgba(0,0,0,0.36)] backdrop-blur">
+    <Panel
+      position="bottom-left"
+      className="workflow-node-viewport-controls nodrag nopan"
+    >
+      <div className="flex max-w-[calc(100vw-3rem)] items-center gap-1 rounded-lg border border-border/80 bg-card/95 p-1 text-xs text-card-foreground shadow-[0_18px_48px_rgba(0,0,0,0.34)] backdrop-blur-md">
         <button
           type="button"
           aria-label="缩小画布"
-          className="inline-flex h-8 w-8 items-center justify-center rounded border border-white/10 bg-white/[0.045] text-zinc-200 hover:bg-white/[0.09]"
+          className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border/70 bg-muted/70 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
           onClick={() => reactFlow.zoomOut({ duration: 180 })}
         >
           <ZoomOut className="h-4 w-4" />
         </button>
-        <span className="min-w-14 px-2 text-center tabular-nums text-zinc-100">
+        <span className="min-w-16 px-2 text-center text-sm font-semibold tabular-nums text-foreground">
           {zoomPercent}%
         </span>
         <button
           type="button"
           aria-label="放大画布"
-          className="inline-flex h-8 w-8 items-center justify-center rounded border border-white/10 bg-white/[0.045] text-zinc-200 hover:bg-white/[0.09]"
+          className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border/70 bg-muted/70 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
           onClick={() => reactFlow.zoomIn({ duration: 180 })}
         >
           <ZoomIn className="h-4 w-4" />
@@ -105,7 +107,7 @@ function CanvasViewportControls() {
         <button
           type="button"
           aria-label="适配画布"
-          className="inline-flex h-8 items-center gap-1.5 rounded border border-white/10 bg-white/[0.045] px-2.5 text-zinc-200 hover:bg-white/[0.09]"
+          className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border/70 bg-muted/70 px-3 text-foreground hover:bg-accent hover:text-accent-foreground"
           onClick={() => reactFlow.fitView({ padding: 0.22, duration: 220 })}
         >
           <Maximize2 className="h-3.5 w-3.5" />
@@ -247,7 +249,6 @@ export function WorkflowNodeCanvas({
         >
           <Background color="rgba(255,255,255,0.055)" gap={30} size={1} />
           <CanvasViewportControls />
-          <Controls showInteractive={false} />
         </ReactFlow>
       </div>
     </section>

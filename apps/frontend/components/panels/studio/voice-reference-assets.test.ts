@@ -42,6 +42,7 @@ describe("buildVoiceReferenceAssets", () => {
         id: "material:a1",
         name: "少年独白",
         filePath: "/project/audio/boy.wav",
+        referenceText: "少年独白",
         sourceLabel: "少年独白.wav",
       },
       {
@@ -64,6 +65,7 @@ describe("buildVoiceReferenceAssets", () => {
         id: "material:a1",
         name: "深路径音色",
         filePath: "/project/audio/deep/path/voice.wav",
+        referenceText: "深路径音色",
         sourceLabel: "voice.wav",
       },
     ]);
@@ -85,6 +87,7 @@ describe("buildVoiceReferenceAssets", () => {
         id: "file-path-audio",
         name: "青年男声",
         filePath: "/project/audio/voice.wav",
+        referenceText: "青年男声",
         sourceLabel: "voice.wav",
       },
     ]);

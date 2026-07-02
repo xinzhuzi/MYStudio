@@ -478,7 +478,7 @@ async function matchRoleAudioWithAi(request: RoleAudioAiMatchRequest) {
         role: "system",
         content: [
           "你是一个音色匹配助手。",
-          "根据角色性别、年龄、身份、性格、气质和音频样本名称/说话内容，从候选音色中选择最适合角色克隆的一个。",
+          "根据角色性别、年龄、身份、性格、气质和参考音频名称/说话内容，从候选音色中选择最适合角色克隆的一个。",
           "只能选择候选列表里出现的 audioId；没有合适音色时返回 null。",
           "只返回 JSON，不要解释，不要 Markdown。",
           "格式：{\"audioId\":\"候选ID或null\",\"reason\":\"一句中文理由\"}",

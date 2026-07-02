@@ -4,6 +4,7 @@ import {
   PRODUCTION_FLOW_NODE_IDS,
   buildProductionFlowModel,
 } from "./workflow-node-model";
+import { buildWorkbenchAssetMediaMap } from "./WorkbenchTab";
 import type { StudioManualCatalog } from "@/lib/studio/manuals";
 
 const manualCatalog: StudioManualCatalog = {
@@ -117,6 +118,16 @@ describe("production workflow node model", () => {
               state: "雨夜破衣",
               reason: "第一场受伤状态",
             },
+            {
+              parentAssetId: "scene-1",
+              state: "雪夜视角",
+              reason: "第二场转入雪夜远景",
+            },
+            {
+              parentAssetId: "missing-parent",
+              state: "缺父资产状态",
+              reason: "应标记缺父资产",
+            },
           ],
         },
       ],
@@ -197,18 +208,47 @@ describe("production workflow node model", () => {
       "1 角色",
       "1 场景",
       "1 道具",
+      "衍生 1/2 已完成",
+      "缺父资产 1",
     ]);
     expect(
       model.nodes.find((node) => node.id === "assets")?.previewLines.join("\n"),
     ).toContain("角色 · Smoke角色");
     const assetNode = model.nodes.find((node) => node.id === "assets");
     expect(assetNode?.previewKind).toBe("asset-derivation");
+    expect(assetNode?.actions).toEqual([
+      expect.objectContaining({
+        id: "sync-derived-assets",
+        label: "落地衍生资产",
+        disabled: false,
+      }),
+      expect.objectContaining({
+        id: "generate-derived-assets",
+        label: "生成衍生图片",
+        disabled: false,
+      }),
+    ]);
     expect(assetNode?.assetGroups?.[0]?.source.mediaPath).toBe("/tmp/char.png");
     expect(assetNode?.assetGroups?.[0]?.derived[0]).toMatchObject({
       name: "雨夜破衣",
       mediaPath: "/tmp/char-rain.png",
       reason: "第一场受伤状态",
       isDerived: true,
+      parentAssetId: "char-1",
+      runtimeType: "role",
+      generationState: "已完成",
+    });
+    expect(assetNode?.assetGroups?.[1]?.derived[0]).toMatchObject({
+      name: "雪夜视角",
+      parentAssetId: "scene-1",
+      runtimeType: "scene",
+      generationState: "未生成",
+    });
+    expect(assetNode?.assetSummary).toMatchObject({
+      planned: 3,
+      linked: 2,
+      completed: 1,
+      missingParent: 1,
     });
     expect(
       model.nodes
@@ -234,7 +274,12 @@ describe("production workflow node model", () => {
       model.nodes
         .find((node) => node.id === "scriptPlan")
         ?.previewLines.join("\n"),
-    ).toContain("主题：断剑夜访道口镇");
+    ).toContain("### ① 主题立意\n断剑夜访道口镇");
+    expect(
+      model.nodes
+        .find((node) => node.id === "scriptPlan")
+        ?.previewLines.join("\n"),
+    ).toContain("雨夜破衣");
     expect(model.nodes.find((node) => node.id === "scriptPlan")?.actions).toEqual([
       expect.objectContaining({
         id: "generate-director-plan",
@@ -328,11 +373,46 @@ describe("production workflow node model", () => {
         .find((node) => node.id === "storyboard")
         ?.previewLines.join("\n"),
     ).toContain("镜头推进");
+    expect(model.nodes.find((node) => node.id === "storyboard")?.actions).toEqual([
+      expect.objectContaining({
+        id: "generate-storyboard-images",
+        label: "补生成分镜图",
+        disabled: false,
+      }),
+      expect.objectContaining({
+        id: "rebuild-workbench-tracks",
+        label: "重建视频轨道",
+        disabled: false,
+      }),
+    ]);
     expect(
       model.nodes
         .find((node) => node.id === "workbench")
         ?.previewLines.join("\n"),
     ).toContain("SMOKE_FINAL_EXPORT.mp4");
+    const workbench = model.nodes.find((node) => node.id === "workbench") as
+      | (NonNullable<(typeof model.nodes)[number]> & {
+          workbenchTracks?: Array<{
+            id: string;
+            duration: number;
+            storyboardCount: number;
+            mediaCount: number;
+            videoCount: number;
+            selectedVideoPath?: string;
+          }>;
+          finalExportPath?: string;
+        })
+      | undefined;
+    expect(workbench?.previewKind).toBe("workbench-lanes");
+    expect(workbench?.workbenchTracks?.[0]).toMatchObject({
+      id: "track-1",
+      duration: 5,
+      storyboardCount: 1,
+      mediaCount: 1,
+      videoCount: 1,
+      selectedVideoPath: "/tmp/final.mp4",
+    });
+    expect(workbench?.finalExportPath).toContain("SMOKE_FINAL_EXPORT.mp4");
   });
 
   it("does not mark the workbench ready before final export exists", () => {
@@ -418,5 +498,148 @@ describe("production workflow node model", () => {
         promptPlaceholder: expect.stringContaining("给分镜表补充要求"),
       }),
     ]);
+    expect(model.nodes.find((node) => node.id === "storyboard")?.actions).toEqual([
+      expect.objectContaining({
+        id: "generate-storyboard-images",
+        label: "生成分镜图",
+        disabled: true,
+      }),
+      expect.objectContaining({
+        id: "rebuild-workbench-tracks",
+        label: "重建视频轨道",
+        disabled: true,
+      }),
+    ]);
+    expect(model.nodes.find((node) => node.id === "assets")?.actions).toEqual([
+      expect.objectContaining({
+        id: "sync-derived-assets",
+        label: "落地衍生资产",
+        disabled: true,
+      }),
+      expect.objectContaining({
+        id: "generate-derived-assets",
+        label: "生成衍生图片",
+        disabled: true,
+      }),
+    ]);
+  });
+
+  it("keeps Toonflow-style existing derivative links from the asset library", () => {
+    const assetMediaById = buildWorkbenchAssetMediaMap(
+      [
+        {
+          id: "char-1",
+          name: "独孤剑尘",
+          description: "白衣剑修",
+          visualTraits: "white robe swordsman",
+          views: [],
+          variations: [
+            {
+              id: "var-1",
+              name: "落魄江湖客",
+              visualPrompt: "damaged robe",
+              referenceImage: "project-file://daojie/assets/char-1-var-1.png",
+            },
+          ],
+          thumbnailUrl: "project-file://daojie/assets/char-1.png",
+          createdAt: 1,
+          updatedAt: 1,
+        },
+      ],
+      [
+        {
+          id: "scene-1",
+          name: "道口镇",
+          location: "山道小镇",
+          time: "夜",
+          atmosphere: "冷雨",
+          referenceImage: "project-file://daojie/assets/scene-1.png",
+          createdAt: 1,
+          updatedAt: 1,
+        },
+        {
+          id: "scene-1-night",
+          name: "道口镇夜雨视角",
+          location: "山道小镇",
+          time: "夜",
+          atmosphere: "雨雾",
+          parentSceneId: "scene-1",
+          viewpointName: "夜雨视角",
+          referenceImage: "project-file://daojie/assets/scene-1-night.png",
+          createdAt: 1,
+          updatedAt: 1,
+        },
+      ],
+      [
+        {
+          id: "prop-1",
+          name: "断剑",
+          description: "旧剑",
+          imageUrl: "project-file://daojie/assets/prop-1.png",
+          folderId: null,
+          createdAt: 1,
+        },
+        {
+          id: "prop-1-broken",
+          name: "断剑·裂纹版",
+          description: "裂纹更明显",
+          imageUrl: "project-file://daojie/assets/prop-1-broken.png",
+          parentId: "prop-1",
+          category: "裂纹版",
+          folderId: null,
+          createdAt: 1,
+        },
+      ],
+    );
+    const model = buildProductionFlowModel({
+      agentWorkData: [],
+      entityExtractions: [
+        {
+          id: "extract-1",
+          episodeId: "chapter-001",
+          characters: [
+            { characterId: "char-1", name: "独孤剑尘", aliases: [] },
+          ],
+          scenes: [{ sceneId: "scene-1", name: "道口镇" }],
+          props: [{ assetId: "prop-1", name: "断剑" }],
+        },
+      ],
+      scriptPlans: [],
+      storyboards: [],
+      productionTracks: [],
+      videoCandidates: [],
+      assetMediaById,
+    });
+
+    const assetNode = model.nodes.find((node) => node.id === "assets");
+    const groups = assetNode?.assetGroups ?? [];
+    expect(groups.find((group) => group.source.id === "char-1")?.source.mediaPath).toBe(
+      "project-file://daojie/assets/char-1.png",
+    );
+    expect(groups.find((group) => group.source.id === "char-1")?.derived[0]).toMatchObject({
+      id: "var-1",
+      name: "落魄江湖客",
+      parentAssetId: "char-1",
+      mediaPath: "project-file://daojie/assets/char-1-var-1.png",
+      generationState: "已完成",
+    });
+    expect(groups.find((group) => group.source.id === "scene-1")?.derived[0]).toMatchObject({
+      id: "scene-1-night",
+      name: "夜雨视角",
+      parentAssetId: "scene-1",
+      mediaPath: "project-file://daojie/assets/scene-1-night.png",
+    });
+    expect(groups.find((group) => group.source.id === "prop-1")?.derived[0]).toMatchObject({
+      id: "prop-1-broken",
+      name: "裂纹版",
+      parentAssetId: "prop-1",
+      mediaPath: "project-file://daojie/assets/prop-1-broken.png",
+    });
+    expect(assetNode?.assetSummary).toMatchObject({
+      planned: 3,
+      linked: 3,
+      completed: 3,
+      missingParent: 0,
+    });
   });
 });

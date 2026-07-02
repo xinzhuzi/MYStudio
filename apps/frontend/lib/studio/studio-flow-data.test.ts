@@ -46,10 +46,23 @@ describe("studio Toonflow FlowData projection", () => {
           theme: "夜访道口镇",
           visualStyle: "水墨暗夜",
           narrativeRhythm: "缓慢压迫",
-          sceneIntents: [],
+          sceneIntents: [
+            {
+              sceneId: "Sc1",
+              emotion: "压迫→隐忍",
+              shotIntent: "低机位推进独孤剑尘入场",
+              spatial: "道口镇街巷纵深",
+            },
+          ],
           soundDirection: "低频雨声",
           transitions: "雨声转场",
-          derivedAssetPlan: [],
+          derivedAssetPlan: [
+            {
+              parentAssetId: "c1",
+              state: "雨夜湿衣",
+              reason: "夜访道口镇多镜复用",
+            },
+          ],
         },
       ],
       storyboards: [
@@ -96,6 +109,8 @@ describe("studio Toonflow FlowData projection", () => {
 
     expect(flowData.script).toBe("第一章剧本");
     expect(flowData.scriptPlan).toContain("夜访道口镇");
+    expect(flowData.scriptPlan).toContain("低机位推进独孤剑尘入场");
+    expect(flowData.scriptPlan).toContain("雨夜湿衣");
     expect(flowData.assets).toHaveLength(3);
     expect(flowData.storyboardTable).toContain("|镜头|画面|台词|");
     expect(flowData.storyboard).toMatchObject([
@@ -137,6 +152,42 @@ describe("studio Toonflow FlowData projection", () => {
         },
       ],
     });
+  });
+
+  it("prefers the saved raw director plan text when it exists", () => {
+    const flowData = buildStudioFlowData({
+      agentWorkData: [
+        {
+          id: "director-raw",
+          key: "directorPlan",
+          episodeId: "chapter-001",
+          data: "<scriptPlan>\n### 完整导演规划原文\n- 保留逐场注意事项和 Toonflow 表格。\n</scriptPlan>",
+          createdAt: 1,
+          updatedAt: 2,
+        },
+      ],
+      entityExtractions: [],
+      scriptPlans: [
+        {
+          id: "plan-1",
+          episodeId: "chapter-001",
+          theme: "结构化摘要",
+          visualStyle: "",
+          narrativeRhythm: "",
+          sceneIntents: [],
+          soundDirection: "",
+          transitions: "",
+          derivedAssetPlan: [],
+        },
+      ],
+      storyboards: [],
+      productionTracks: [],
+      videoCandidates: [],
+    });
+
+    expect(flowData.scriptPlan).toContain("完整导演规划原文");
+    expect(flowData.scriptPlan).toContain("逐场注意事项");
+    expect(flowData.scriptPlan).not.toContain("结构化摘要");
   });
 
   it("uses latest non-empty work data and marks storyboard image generation needs", () => {

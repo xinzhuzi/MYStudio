@@ -48,4 +48,31 @@ describe("voice preview text", () => {
       ]),
     ).toBe("吾等身披战甲，手握利剑，誓死捍卫国土，不辱使命。");
   });
+
+  it("falls back to the matched audio asset name when transcribed text is absent", () => {
+    expect(
+      findReferenceTextForVoiceProfile(profile(), [
+        {
+          id: "audio-1",
+          source: "manying-local",
+          type: "audio",
+          name: "军士-男-低音、厚实、强壮",
+          sourcePath: "/voices/ref.wav",
+          description: "",
+        },
+      ]),
+    ).toBe("军士 男 低音、厚实、强壮");
+  });
+
+  it("falls back to the reference audio file name for material-only bindings", () => {
+    expect(
+      findReferenceTextForVoiceProfile(
+        {
+          ...profile(),
+          referenceAudioPath: "/Users/me/assets/files/audio/军士-男-低音、厚实、强壮.wav",
+        },
+        [],
+      ),
+    ).toBe("军士 男 低音、厚实、强壮");
+  });
 });

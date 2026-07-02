@@ -2,6 +2,7 @@
 
 import { memo, useEffect, useRef, useState, type CSSProperties } from "react";
 import { cn } from "@/lib/utils";
+import { getPrimaryAssetName } from "@/lib/studio/asset-names";
 import type { StudioAssetSummary } from "@/types/studio-assets";
 import { Box, Film, Map, Music2, UserCircle } from "lucide-react";
 
@@ -18,13 +19,10 @@ const TYPE_ICON = {
   audio: Music2,
 } as const;
 
-const MEDIA_EXT_PATTERN = /\.(mp3|wav|m4a|aac|flac|ogg|opus|png|jpe?g|webp|gif|mp4|mov|webm|mkv)$/i;
 const AUDIO_WAVEFORM_BARS = [42, 72, 54, 86, 48, 64, 92, 58, 76, 44, 68, 52] as const;
 
 function getDisplayName(asset: StudioAssetSummary) {
-  const rawName = asset.name || asset.sourcePath || asset.filePath || "未命名";
-  const fileName = rawName.split(/[\\/]/).filter(Boolean).pop() || rawName;
-  return fileName.replace(MEDIA_EXT_PATTERN, "").trim() || fileName;
+  return getPrimaryAssetName(asset.name || asset.sourcePath || asset.filePath, "未命名");
 }
 
 function getAudioLine(asset: StudioAssetSummary) {

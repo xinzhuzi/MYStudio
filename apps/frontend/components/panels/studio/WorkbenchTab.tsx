@@ -128,6 +128,10 @@ export function buildWorkbenchAssetMediaMap(
         fileType: "image",
         path: variation.referenceImage,
         prompt: variation.visualPromptZh || variation.visualPrompt,
+        parentAssetId: character.id,
+        parentAssetName: character.name,
+        state: variation.name,
+        reason: variation.stageDescription || variation.ageDescription,
       };
     }
   }
@@ -139,20 +143,32 @@ export function buildWorkbenchAssetMediaMap(
     if (!path) continue;
     entries[scene.id] = {
       id: scene.id,
-      name: scene.name,
+      name: scene.viewpointName || scene.name,
       fileType: "image",
       path,
       prompt: scene.visualPrompt || scene.location || scene.atmosphere,
+      parentAssetId: scene.parentSceneId,
+      parentAssetName: scene.parentSceneId
+        ? scenes.find((item) => item.id === scene.parentSceneId)?.name
+        : undefined,
+      state: scene.viewpointName,
+      reason: scene.notes || scene.spatialLayout,
     };
   }
   for (const item of propsItems) {
     if (!item.imageUrl) continue;
     entries[item.id] = {
       id: item.id,
-      name: item.name,
+      name: item.category || item.name,
       fileType: "image",
       path: item.imageUrl,
       prompt: item.visualPrompt || item.description,
+      parentAssetId: item.parentId,
+      parentAssetName: item.parentId
+        ? propsItems.find((prop) => prop.id === item.parentId)?.name
+        : undefined,
+      state: item.category,
+      reason: item.description,
     };
   }
   return entries;

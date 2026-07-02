@@ -29,6 +29,17 @@ export type StoredStudioSkillFile = {
 
 const manifestFilename = ".studio-skills-manifest.json";
 const agentSkillsDirectory = "agent_skills";
+const seedImageFilePattern = /\.(png|jpe?g|gif|webp|svg)$/i;
+const blockedSeedDirectoryNames = new Set([
+  ".cache",
+  "__MACOSX",
+  "__pycache__",
+  "coverage",
+  "node_modules",
+]);
+const blockedSeedFileNames = new Set([
+  ".DS_Store",
+]);
 
 export function getStudioSkillStorageRoot(storageBasePath: string) {
   return path.join(storageBasePath, "skills");
@@ -225,12 +236,14 @@ async function syncSeedDirectory(root: string, current: string, storageRoot: str
     const targetPath = path.join(storageRoot, storageRelativePath);
 
     if (entry.isDirectory()) {
+      if (!shouldWalkStudioSkillSeedDirectory(sourceRelativePath)) return;
       await fs.promises.mkdir(targetPath, { recursive: true });
       await syncSeedDirectory(root, sourcePath, storageRoot, manifest);
       return;
     }
 
     if (!entry.isFile()) return;
+    if (!shouldSyncStudioSkillSeedFile(sourceRelativePath)) return;
 
     await fs.promises.mkdir(path.dirname(targetPath), { recursive: true });
     const sourceHash = await hashFile(sourcePath);
@@ -255,6 +268,18 @@ async function collectMarkdownFiles(current: string): Promise<string[]> {
     return [entryPath];
   }));
   return files.flat();
+}
+
+function shouldWalkStudioSkillSeedDirectory(relativePath: string) {
+  return !relativePath.split("/").some((part) => blockedSeedDirectoryNames.has(part));
+}
+
+function shouldSyncStudioSkillSeedFile(relativePath: string) {
+  const filename = path.posix.basename(relativePath);
+  if (blockedSeedFileNames.has(filename)) return false;
+  if (filename.endsWith(".tmp") || filename.endsWith(".bak")) return false;
+  if (filename.endsWith(".map") || filename.endsWith(".tsbuildinfo")) return false;
+  return filename.endsWith(".md") || seedImageFilePattern.test(filename);
 }
 
 async function readManifest(storageRoot: string): Promise<StudioSkillManifest> {

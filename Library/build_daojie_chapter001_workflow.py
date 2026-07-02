@@ -70,6 +70,7 @@ ASSET_IMAGE_ALIASES = {
     "年轻苦力": ["年轻苦力", "道口镇凡人"],
     "孩童甲": ["孩童甲", "道口镇凡人"],
     "丫头": ["丫头", "道口镇凡人"],
+    "赵四": ["赵四", "监工赵四"],
     "宗门弟子甲": ["宗门弟子甲", "中小宗门", "监工赵四"],
     "宗门弟子乙": ["宗门弟子乙", "中小宗门", "监工赵四"],
 }
@@ -452,6 +453,7 @@ def build_asset_catalog(state):
                 "desc": item.get("note") or "剧本策划已抽取道具。",
             }
     attach_asset_images(by_name)
+    attach_asset_alias_catalog_entries(by_name)
     return by_name
 
 
@@ -614,6 +616,33 @@ def attach_asset_images(asset_catalog):
         item["imagePath"] = match["imagePath"]
         item["imageAssetName"] = match.get("name") or name
         item["imageAssetType"] = match.get("type") or ""
+
+
+def attach_asset_alias_catalog_entries(asset_catalog):
+    for alias_name, candidates in ASSET_IMAGE_ALIASES.items():
+        current = asset_catalog.get(alias_name)
+        if current and current.get("imagePath"):
+            continue
+        source_name = next(
+            (
+                candidate
+                for candidate in candidates
+                if candidate != alias_name and asset_catalog.get(candidate, {}).get("imagePath")
+            ),
+            "",
+        )
+        if not source_name:
+            continue
+        source = asset_catalog[source_name]
+        item = dict(current or source)
+        item["kind"] = item.get("kind") or source.get("kind") or "提取物"
+        item["id"] = item.get("id") or source.get("id", "")
+        item["desc"] = item.get("desc") or source.get("desc") or f"{alias_name} 使用 {source_name} 的资产图。"
+        item["imagePath"] = source["imagePath"]
+        item["imageAssetName"] = source.get("imageAssetName") or source_name
+        item["imageAssetType"] = source.get("imageAssetType") or ""
+        item["imageAliasOf"] = source_name
+        asset_catalog[alias_name] = item
 
 
 def resolve_asset_ids(scene, names, asset_index):
@@ -1103,34 +1132,40 @@ def create_frame(path, index, scene, desc, speaker, text, sound, assets, asset_i
 
 def create_audio(path, speaker, text, voice_profile, seed):
     spoken_text = spoken_text_for(speaker, text)
+    reuse_audio_warning = ""
     if REUSE_AUDIO_DIR:
         reused = Path(REUSE_AUDIO_DIR) / path.name
-        if not reused.exists() or reused.stat().st_size <= 0:
-            raise RuntimeError(f"复用音频不存在或为空: {reused}")
-        path.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(reused, path)
-        return {
-            "mode": "reused-local-tts-audio",
-            "backend": "qwen-mlx",
-            "mocked": False,
-            "warning": "",
-            "generationId": "",
-        }
+        if reused.exists() and reused.stat().st_size > 0:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            if reused.resolve() != path.resolve():
+                shutil.copy2(reused, path)
+            return {
+                "mode": "reused-local-tts-audio",
+                "backend": "qwen-mlx",
+                "mocked": False,
+                "warning": "",
+                "generationId": "",
+            }
+        reuse_audio_warning = f"复用音频缺失，改走真实 TTS: {reused}"
     if SILENT_PREVIEW:
         run(["ffmpeg", "-y", "-f", "lavfi", "-i", "anullsrc=r=24000:cl=mono", "-t", "1.0", str(path)])
         return {
             "mode": "silent-visual-preview",
             "backend": "ffmpeg-anullsrc",
             "mocked": False,
-            "warning": "视觉验证用静音音轨，不是最终配音",
+            "warning": "; ".join(filter(None, [reuse_audio_warning, "视觉验证用静音音轨，不是最终配音"])),
             "generationId": "",
         }
+    generation_error = None
     try:
         result = create_tts_audio(path, spoken_text, voice_profile, seed)
+        if reuse_audio_warning:
+            result["warning"] = "; ".join(filter(None, [reuse_audio_warning, result.get("warning")]))
         if REQUIRE_REAL_TTS and result.get("mocked"):
             raise RuntimeError(f"TTS 返回 mock 音频: {result.get('warning') or result.get('backend')}")
         return result
     except Exception as exc:
+        generation_error = exc
         if REQUIRE_REAL_TTS and not ALLOW_TTS_FALLBACK:
             raise RuntimeError(f"真实 TTS 生成失败，已阻止系统朗读 fallback: {exc}") from exc
     voice = "Reed (中文（中国大陆）)"
@@ -1142,7 +1177,7 @@ def create_audio(path, speaker, text, voice_profile, seed):
         "mode": "fallback-system-voice",
         "backend": "macos-say",
         "mocked": False,
-        "warning": str(exc),
+        "warning": "; ".join(filter(None, [reuse_audio_warning, str(generation_error or "")])),
         "generationId": "",
     }
 
@@ -1221,6 +1256,128 @@ def concat_segments(segments, output):
         "-c:a", "aac", "-ar", "48000", "-ac", "2", "-b:a", "192k", "-movflags", "+faststart", str(temp_output),
     ])
     temp_output.replace(output)
+
+
+def workflow_step(step_id, label, ok, evidence):
+    return {
+        "id": step_id,
+        "label": label,
+        "ok": bool(ok),
+        "evidence": evidence,
+    }
+
+
+def build_workflow_steps(
+    state,
+    script_text,
+    shots,
+    asset_catalog,
+    script_plan_xml,
+    storyboard_table,
+    storyboards,
+    frame_paths,
+    audio_paths,
+    segment_paths,
+    production_tracks,
+    video_candidates,
+    final_path,
+    missing_image_assets,
+    speaker_audio_stats,
+    tts_modes,
+    tts_mocked_values,
+    streams,
+    final_audio_mean_volume_db,
+):
+    episode_chapter = next((item for item in state.get("novelChapters", []) if item.get("id") == EPISODE_ID), None)
+    episode_extraction = next(
+        (item for item in state.get("entityExtractions", []) if item.get("episodeId") == EPISODE_ID),
+        None,
+    )
+    extracted_count = 0
+    if episode_extraction:
+        extracted_count = (
+            len(episode_extraction.get("characters", []))
+            + len(episode_extraction.get("scenes", []))
+            + len(episode_extraction.get("props", []))
+        )
+    image_asset_count = sum(1 for item in asset_catalog.values() if item.get("imagePath"))
+    frame_count = sum(1 for path in frame_paths if Path(path).exists())
+    audio_count = sum(1 for path in audio_paths if Path(path).exists())
+    segment_count = sum(1 for path in segment_paths if Path(path).exists())
+    return [
+        workflow_step(
+            "novel_import",
+            "小说导入",
+            bool(episode_chapter and episode_chapter.get("sourceText")),
+            f"chapter={EPISODE_ID}, chars={len(episode_chapter.get('sourceText', '')) if episode_chapter else 0}",
+        ),
+        workflow_step(
+            "script_generation",
+            "剧本生成",
+            bool(script_text and shots),
+            f"scriptChars={len(script_text or '')}, shots={len(shots)}",
+        ),
+        workflow_step(
+            "asset_extraction",
+            "剧本资产提取",
+            bool(extracted_count > 0),
+            f"extractedAssets={extracted_count}",
+        ),
+        workflow_step(
+            "asset_catalog",
+            "资产库匹配",
+            image_asset_count > 0 and not missing_image_assets,
+            f"imageAssets={image_asset_count}, missing={len(missing_image_assets)}",
+        ),
+        workflow_step(
+            "script_plan",
+            "导演计划",
+            "<scriptPlan>" in script_plan_xml,
+            f"chars={len(script_plan_xml)}",
+        ),
+        workflow_step(
+            "storyboard_table",
+            "分镜表",
+            "<storyboardTable>" in storyboard_table,
+            f"chars={len(storyboard_table)}",
+        ),
+        workflow_step(
+            "frame_generation",
+            "分镜画面",
+            frame_count == len(storyboards) and len(storyboards) > 0,
+            f"frames={frame_count}/{len(storyboards)}",
+        ),
+        workflow_step(
+            "tts_generation",
+            "本地 TTS 音频",
+            audio_count == len(storyboards) and len(speaker_audio_stats) > 0 and not any(tts_mocked_values),
+            f"audio={audio_count}/{len(storyboards)}, speakers={len(speaker_audio_stats)}, modes={'+'.join(sorted(tts_modes))}",
+        ),
+        workflow_step(
+            "segment_render",
+            "分段视频渲染",
+            segment_count == len(storyboards) and len(storyboards) > 0,
+            f"segments={segment_count}/{len(storyboards)}",
+        ),
+        workflow_step(
+            "track_candidates",
+            "生产轨道候选",
+            len(production_tracks) >= 4 and len(video_candidates) >= 5,
+            f"tracks={len(production_tracks)}, candidates={len(video_candidates)}",
+        ),
+        workflow_step(
+            "final_merge",
+            "整集合成",
+            Path(final_path).exists() and {"video", "audio"}.issubset(streams) and final_audio_mean_volume_db is not None,
+            f"final={final_path}, streams={','.join(sorted(streams))}, meanVolume={final_audio_mean_volume_db}",
+        ),
+        workflow_step(
+            "project_writeback",
+            "工作流写回",
+            not SKIP_PROJECT_WRITE and STORE.exists() and SCRIPT_JSON.exists(),
+            f"skipProjectWrite={SKIP_PROJECT_WRITE}",
+        ),
+    ]
 
 
 def main():
@@ -1466,6 +1623,27 @@ def main():
         for speaker, profile in sorted(voice_profiles.items())
     }
     first_frame = Image.open(frame_paths[0])
+    workflow_steps = build_workflow_steps(
+        state,
+        script_text,
+        shots,
+        asset_catalog,
+        script_plan_xml,
+        storyboard_table,
+        storyboards,
+        frame_paths,
+        audio_paths,
+        segment_paths,
+        production_tracks,
+        video_candidates,
+        final_path,
+        missing_image_assets,
+        speaker_audio_stats,
+        tts_modes,
+        tts_mocked_values,
+        streams,
+        final_audio_mean_volume_db,
+    )
     report = {
         "storyboards": len(storyboards),
         "scriptTextChars": source_dialogue_chars,
@@ -1477,6 +1655,7 @@ def main():
         "framesWithRealAssetImages": image_backed_storyboards,
         "assetImagePaths": sorted(used_image_paths),
         "missingImageAssets": sorted(missing_image_assets),
+        "workflowSteps": workflow_steps,
         "voiceReferenceName": speaker_voice_map.get("旁白", {}).get("voiceReferenceName", ""),
         "voiceReferenceAudioPath": speaker_voice_map.get("旁白", {}).get("voiceReferenceAudioPath", ""),
         "speakerVoiceMap": speaker_voice_map,

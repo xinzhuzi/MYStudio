@@ -24,6 +24,10 @@ export interface ToonflowWorkbenchAssetMedia {
   fileType: ToonflowWorkbenchMediaType;
   path: string;
   prompt?: string;
+  parentAssetId?: string;
+  parentAssetName?: string;
+  state?: string;
+  reason?: string;
 }
 
 export interface ToonflowWorkbenchVideo {

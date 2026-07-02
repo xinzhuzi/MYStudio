@@ -46,6 +46,19 @@ describe("studio entity extraction parsing", () => {
     expect(entities[2]?.note).toBeUndefined();
     expect(errors).toHaveLength(1);
   });
+
+  it("parses semicolon secondary names from the entity name column", () => {
+    const { entities } = parseEntityExtraction(
+      "| prop | 铜钱;铜币;古钱 | 孔方兄 | ep1 | 圆形方孔钱 |",
+      "ep0",
+    );
+
+    expect(entities[0]).toMatchObject({
+      kind: "prop",
+      name: "铜钱",
+      aliases: ["铜币", "古钱", "孔方兄"],
+    });
+  });
 });
 
 describe("studio entity dedup", () => {
@@ -94,6 +107,7 @@ describe("studio entity extraction messages", () => {
     });
 
     expect(messages.system).toContain("character | scene | prop");
+    expect(messages.system).toContain("主名字;副名字1;副名字2");
     expect(messages.user).toContain("小红走进咖啡厅");
     expect(messages.user).toContain("小明");
   });

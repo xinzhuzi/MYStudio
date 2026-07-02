@@ -47,6 +47,7 @@ import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { SidebarToggleButton } from "@/components/ChromeControls";
 import {
   Settings,
   Key,
@@ -364,11 +365,13 @@ ${JSON.stringify(vendorConfig, null, 2)}
 interface SettingsPanelProps {
   sidebarCollapsed?: boolean;
   onToggleSidebar?: () => void;
+  showHomeChrome?: boolean;
 }
 
 export function SettingsPanel({
   sidebarCollapsed = false,
   onToggleSidebar,
+  showHomeChrome = false,
 }: SettingsPanelProps) {
   const {
     providers,
@@ -1097,6 +1100,22 @@ export function SettingsPanel({
 
   return (
     <div className="settings-workspace flex flex-col h-full bg-background overflow-hidden">
+      {showHomeChrome ? (
+        <div className="dashboard-topbar h-14 border-b border-border bg-panel pr-8 pl-20 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-4">
+            {onToggleSidebar && (
+              <SidebarToggleButton
+                sidebarCollapsed={sidebarCollapsed}
+                onToggleSidebar={onToggleSidebar}
+              />
+            )}
+            <div className="dashboard-topbar-title">
+              <span className="text-sm font-semibold text-foreground">漫影工作室</span>
+              <span className="text-xs text-muted-foreground">影像制片工作台</span>
+            </div>
+          </div>
+        </div>
+      ) : null}
       <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as SettingsTabId)} className="flex-1 flex flex-col overflow-hidden">
         <div className="settings-tabs-bar border-b border-border px-6">
           <TabsList className="h-12 bg-transparent p-0 gap-4">

@@ -11,6 +11,7 @@ describe("studio workflow tabs", () => {
       "script",
       "assets",
       "storyboard",
+      "imageWorkflow",
       "workbench",
     ]);
     expect(WORKFLOW_TABS.map((tab) => tab.label)).toEqual([
@@ -19,6 +20,7 @@ describe("studio workflow tabs", () => {
       "剧本生产阶段",
       "剧本资产管理",
       "分镜视频生成",
+      "图像节点图",
       "视频工作台",
     ]);
     expect(WORKFLOW_TABS.some((tab) => tab.label === "配置中心")).toBe(false);
@@ -80,6 +82,19 @@ describe("studio workflow tabs", () => {
     expect(indexSource).not.toContain("buildProductionFlowModel({");
     expect(hookSource).toContain("buildWorkbenchAssetMediaMap");
     expect(hookSource).toContain("buildProductionFlowModel({");
+  });
+
+  it("keeps image workflow files in project-scoped storage instead of the asset library", () => {
+    const canvasSource = readFileSync(
+      fileURLToPath(new URL("./ImageWorkflowCanvas.tsx", import.meta.url)),
+      "utf8",
+    );
+
+    expect(canvasSource).toContain("window.projectFiles?.writeBinary");
+    expect(canvasSource).toContain("window.projectFiles?.saveImage");
+    expect(canvasSource).toContain("project-file://");
+    expect(canvasSource).not.toContain("saveImageToLocal");
+    expect(canvasSource).not.toContain("window.studioAssets?.saveMaterial");
   });
 
   it("does not keep the removed Skill conversation implementation mounted", () => {
@@ -167,8 +182,10 @@ describe("studio workflow tabs", () => {
     );
     expect(canvasSource).toContain('@xyflow/react');
     expect(canvasSource).toContain("ReactFlow");
-    expect(canvasSource).toContain("Controls");
+    expect(canvasSource).not.toContain("<Controls");
     expect(canvasSource).toContain("CanvasViewportControls");
+    expect(canvasSource).toContain("workflow-node-viewport-controls");
+    expect(canvasSource).toContain("bg-card/95");
     expect(canvasSource).toContain("useNodesState");
     expect(canvasSource).toContain("useReactFlow");
     expect(canvasSource).toContain("useOnViewportChange");
@@ -230,8 +247,9 @@ describe("studio workflow tabs", () => {
     expect(flowUiSource).not.toContain("max-h-[calc(100vh-210px)] overflow-y-auto");
     expect(productionNodeSource).toContain("workflow-node-titlebar");
     expect(flowUiSource).toContain("nowheel");
-    expect(previewSource).toContain("space-y-1.5 overflow-y-auto");
-    expect(previewSource).toContain("nodrag nopan nowheel space-y-1.5 overflow-y-auto");
+    expect(previewSource).toContain("workflow-node-markdown-preview nodrag nopan nowheel overflow-y-auto");
+    expect(previewSource).toContain("modelValue={buildPreviewMarkdown(node)}");
+    expect(previewSource).toContain("md-editor-preview-transparent");
     expect(previewSource).toContain('scriptPlan: "h-[520px]"');
     expect(previewSource).toContain('node.id === "scriptPlan"');
     expect(previewSource).toContain("max-h-[430px] overflow-auto");
@@ -273,12 +291,13 @@ describe("studio workflow tabs", () => {
     expect(indexSource).toContain("workflowNodeDraft");
     expect(indexSource).toContain("saveWorkflowNodeEdit");
     expect(nodeEditorHookSource).toContain("saveWorkflowNodeEdit");
+    expect(nodeEditorHookSource).toContain('saveAgentWorkData("directorPlan"');
     expect(nodeEditorHookSource).toContain("saveAgentWorkData(\"storyboardTable\"");
     expect(indexSource).toContain("<WorkflowNodeEditDialog");
     expect(editDialogSource).toContain("MdEditor");
     expect(editDialogSource).toContain("readOnly={!writable}");
     expect(editDialogSource).toContain("编辑当前节点 FlowData Markdown");
-    expect(previewSource).toContain("node.previewLines.map");
+    expect(previewSource).toContain("buildPreviewMarkdown");
     expect(modelSource).toContain("previewTextLines");
     expect(modelSource).toContain('previewTextLines(flowData.script, "暂无剧本内容", 220)');
     expect(modelSource).toContain('previewKind: "table"');

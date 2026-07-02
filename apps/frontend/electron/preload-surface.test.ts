@@ -13,4 +13,15 @@ describe("preload IPC surface", () => {
     expect(preloadSource).toContain("checkForUpdates: (options?: UpdateCheckOptions)");
     expect(preloadSource).toContain("ipcRenderer.invoke('app-updater-check', options)");
   });
+
+  it("exposes project-scoped binary file APIs without raw IPC", () => {
+    expect(preloadSource).toContain("writeBinary: (payload:");
+    expect(preloadSource).toContain("saveImage: (payload:");
+    expect(preloadSource).toContain("readAsBase64: (url: string)");
+    expect(preloadSource).toContain("getAbsolutePath: (url: string)");
+    expect(preloadSource).toContain("ipcRenderer.invoke('project-file-write-binary', payload)");
+    expect(preloadSource).toContain("ipcRenderer.invoke('project-file-save-image', payload)");
+    expect(preloadSource).toContain("ipcRenderer.invoke('project-file-read-base64', url)");
+    expect(preloadSource).toContain("ipcRenderer.invoke('project-file-get-absolute-path', url)");
+  });
 });

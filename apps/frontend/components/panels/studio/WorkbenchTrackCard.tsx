@@ -159,6 +159,7 @@ function toPreviewSrc(filePath: string) {
   if (
     filePath.startsWith("local-image://") ||
     filePath.startsWith("file://") ||
+    filePath.startsWith("project-file://") ||
     filePath.startsWith("data:") ||
     filePath.startsWith("blob:") ||
     filePath.startsWith("http://") ||

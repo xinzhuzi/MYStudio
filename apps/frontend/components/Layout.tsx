@@ -68,6 +68,7 @@ export function Layout() {
               <SettingsPanel
                 sidebarCollapsed={sidebarCollapsed}
                 onToggleSidebar={toggleSidebar}
+                showHomeChrome
               />
             ) : (
               <Dashboard

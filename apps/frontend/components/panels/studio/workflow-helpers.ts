@@ -17,11 +17,35 @@ export function formatScriptPlanContext(plan: ScriptPlan): string {
     plan.theme && `①主题立意：${plan.theme}`,
     plan.visualStyle && `②视觉风格：${plan.visualStyle}`,
     plan.narrativeRhythm && `③叙事节奏：${plan.narrativeRhythm}`,
+    formatSceneIntentContext(plan.sceneIntents),
     plan.soundDirection && `⑤声音方向：${plan.soundDirection}`,
     plan.transitions && `⑥转场设计：${plan.transitions}`,
+    formatDerivedAssetContext(plan.derivedAssetPlan),
   ]
     .filter(Boolean)
     .join("\n");
+}
+
+function formatSceneIntentContext(sceneIntents: ScriptPlan["sceneIntents"]): string {
+  if (!sceneIntents.length) return "";
+  return [
+    "④分场景意图：",
+    ...sceneIntents.map(
+      (item) =>
+        `- ${item.sceneId}｜情绪：${item.emotion}｜镜头：${item.shotIntent}｜空间：${item.spatial}`,
+    ),
+  ].join("\n");
+}
+
+function formatDerivedAssetContext(derivedAssetPlan: ScriptPlan["derivedAssetPlan"]): string {
+  if (!derivedAssetPlan.length) return "";
+  return [
+    "⑦衍生资产预划：",
+    ...derivedAssetPlan.map(
+      (item) =>
+        `- ${item.parentAssetId}｜${item.state}｜${item.reason}`,
+    ),
+  ].join("\n");
 }
 
 export function latestAgentWork(

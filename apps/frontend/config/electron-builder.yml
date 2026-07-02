@@ -14,14 +14,31 @@ files:
   - "!node_modules/@next/**"
   - "!node_modules/sharp/**"
   - "!node_modules/@img/**"
+  # Runtime package hygiene: keep docs/test artifacts out of app.asar without pruning package export entrypoints
+  - "!node_modules/**/docs/**"
+  - "!node_modules/**/test/**"
+  - "!node_modules/**/tests/**"
+  - "!node_modules/**/__tests__/**"
+  - "!node_modules/**/coverage/**"
+  - "!node_modules/**/example/**"
+  - "!node_modules/**/examples/**"
+  - "!node_modules/**/*.map"
+  - "!node_modules/**/*.ts"
+  - "!node_modules/**/*.tsx"
+  - "!**/.cache/**"
+  - "!**/coverage/**"
 
 extraResources:
   - from: backend
     to: backend
     filter:
       - "**/*"
+      - "!tests/**"
+      - "!**/tests/**"
       - "!**/__pycache__/**"
       - "!**/*.pyc"
+      - "!README.md"
+      - "!**/*.md"
       - "!python/**"
       - "!venv/**"
       - "!**/.DS_Store"
@@ -30,6 +47,22 @@ extraResources:
     filter:
       - "**/*"
       - "!art_skills/daojie_ink_guofeng/**"
+      - "!**/.DS_Store"
+      - "!**/__MACOSX/**"
+      - "!**/.cache/**"
+      - "!**/__pycache__/**"
+      - "!**/coverage/**"
+      - "!**/node_modules/**"
+      - "!**/tests/**"
+      - "!**/__tests__/**"
+      - "!**/*.pyc"
+      - "!**/*.pyo"
+      - "!**/*.tmp"
+      - "!**/*.bak"
+      - "!**/*.map"
+      - "!**/*.tsbuildinfo"
+      - "!**/*.psd"
+      - "!**/*.zip"
 
 asar: true
 asarUnpack:

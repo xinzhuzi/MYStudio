@@ -4,6 +4,7 @@ import {
   Boxes,
   FileText,
   Film,
+  Image,
   Split,
 } from "lucide-react";
 
@@ -13,6 +14,7 @@ export const WORKFLOW_TABS = [
   { value: "script", label: "剧本生产阶段", Icon: FileText },
   { value: "assets", label: "剧本资产管理", Icon: Boxes },
   { value: "storyboard", label: "分镜视频生成", Icon: Split },
+  { value: "imageWorkflow", label: "图像节点图", Icon: Image },
   { value: "workbench", label: "视频工作台", Icon: Film },
 ];
 

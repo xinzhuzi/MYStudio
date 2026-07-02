@@ -51,6 +51,20 @@ describe("buildAssetRegenerationPrompt", () => {
     expect(getAssetSpokenText(asset)).toBe("少年旁白 穿过雨夜");
   });
 
+  it("uses semicolon-separated names as primary and secondary asset names", () => {
+    const asset: StudioAssetSummary = {
+      id: "asset-tool-1",
+      source: "manying-local",
+      type: "tool",
+      name: "铜钱;铜币;古钱",
+    };
+
+    expect(getAssetDisplayName(asset)).toBe("铜钱");
+    const source = readFileSync(new URL("./StudioAssetDetailDialog.tsx", import.meta.url), "utf8");
+    expect(source).toContain("secondaryNames");
+    expect(source).toContain("副名字");
+  });
+
   it("keeps a real spoken description ahead of the file path", () => {
     const asset: StudioAssetSummary = {
       id: "asset-audio-2",
@@ -106,11 +120,19 @@ describe("buildAssetRegenerationPrompt", () => {
   });
 
   it("uses normal Chinese audition text and blocks qwen previews without reference text", () => {
-    const source = readFileSync(new URL("./StudioAssetDetailDialog.tsx", import.meta.url), "utf8");
+    const source = readFileSync(new URL("./RoleVoicePreviewButton.tsx", import.meta.url), "utf8");
     expect(source).toContain('from "@/lib/tts/voice-preview-text"');
     expect(source).toContain("recoverVoiceProfileReferenceText");
     expect(source).toContain("getVoicePreviewBlockReason(previewProfile)");
     expect(source).toContain("buildRoleVoicePreviewText(characterName)");
     expect(source).not.toContain("大家好，我是${characterName}，很高兴认识你们。");
+  });
+
+  it("reuses the shared role voice preview button instead of owning a duplicate chain", () => {
+    const source = readFileSync(new URL("./StudioAssetDetailDialog.tsx", import.meta.url), "utf8");
+    expect(source).toContain('import { RoleVoicePreviewButton } from "./RoleVoicePreviewButton";');
+    expect(source).toContain('from "@/lib/tts/role-speaker-id"');
+    expect(source).toContain("toRoleSpeakerId(asset.id)");
+    expect(source).not.toContain("function RoleVoicePreviewButton(");
   });
 });

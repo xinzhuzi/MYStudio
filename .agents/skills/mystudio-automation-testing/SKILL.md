@@ -13,6 +13,7 @@ Use this skill for MYStudio release confidence after code changes, especially wh
 - Do not run git commands unless the user explicitly asks.
 - Use `apps/` as the command working directory for npm commands.
 - Do not create `/Applications/*.backup-*` app backups. Install by overwriting `/Applications/漫影工作室.app`.
+- For "自动打包后安装" requests, delegate the full package/install/smoke chain to a worker sub-agent when sub-agents are available. The main agent should supervise, avoid duplicating the same long-running commands, and verify or summarize the worker's evidence before reporting.
 - Treat old command output as stale; rerun the relevant check before claiming it passes.
 - If a command starts a long-running Electron process, wait for it to exit before ending the turn.
 - Report exact failing command, exit code, and the highest-signal error line when a gate fails.
@@ -22,7 +23,7 @@ Use this skill for MYStudio release confidence after code changes, especially wh
 - Pure logic or store change: run the focused Vitest file first, then `typecheck`, `lint`, and full `test`.
 - Electron main/preload/build config change: run `typecheck`, `lint`, full `test`, `build:mac`, and packaged `smoke:desktop`.
 - UI route, startup, settings, TTS, workflow, asset, or shell change: run full gate through packaged `smoke:desktop`.
-- Release/install request: run full gate, overwrite `/Applications/漫影工作室.app`, compare `app.asar` hashes, then run installed app smoke with an isolated temp user data dir.
+- Release/install request: use a worker sub-agent to run the full gate, overwrite `/Applications/漫影工作室.app`, compare `app.asar` hashes, then run installed app smoke with an isolated temp user data dir. If sub-agents are unavailable, run the same chain locally.
 - White-screen or packaged-only bug: do not rely on dev server. Run packaged or installed `smoke:desktop` and inspect console output from that run.
 
 ## Standard Gate

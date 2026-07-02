@@ -1,18 +1,24 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useCharacterLibraryStore } from "@/stores/character-library-store";
 import { useProjectStore } from "@/stores/project-store";
 import { usePropsLibraryStore } from "@/stores/props-library-store";
 import { useSceneStore } from "@/stores/scene-store";
 import { useStudioStore } from "@/stores/studio-store";
 import { useTtsStore } from "@/stores/tts-store";
-import type { TtsSpeakerId } from "@/types/tts";
+import type { StudioAssetSummary } from "@/types/studio-assets";
 import {
+  ASSET_TYPES,
   summarizeImageRows,
   summarizeRows,
+  toRuntimeAssetType,
   uniqueByName,
   type AssetGenerationType,
   type AssetRow,
 } from "./script-asset-generation-model";
+import {
+  getRoleVoiceSpeakerIds,
+  resolveRoleVoiceBinding,
+} from "./script-asset-voice-binding";
 
 export function useScriptAssetGenerationData(activeType: AssetGenerationType) {
   const visualManualId = useStudioStore((state) => state.workflowConfig.visualManualId);
@@ -25,6 +31,13 @@ export function useScriptAssetGenerationData(activeType: AssetGenerationType) {
   const activeTtsProjectId = useTtsStore((state) => state.activeProjectId);
   const ttsProjects = useTtsStore((state) => state.projects);
   const voiceProfiles = useTtsStore((state) => state.voiceProfiles);
+  const [assetMatchesByType, setAssetMatchesByType] = useState<
+    Record<AssetGenerationType, Record<string, StudioAssetSummary>>
+  >({
+    character: {},
+    scene: {},
+    prop: {},
+  });
 
   const rows = useMemo(() => {
     const characterByName = uniqueByName(characters);
@@ -79,15 +92,80 @@ export function useScriptAssetGenerationData(activeType: AssetGenerationType) {
     return next;
   }, [characters, entityExtractions, props, scenes]);
 
+  useEffect(() => {
+    const requests = ASSET_TYPES.map(({ key }) => ({
+      key,
+      names: rows[key].map((row) => row.name).filter(Boolean),
+    })).filter((request) => request.names.length > 0);
+
+    if (!requests.length || typeof window === "undefined" || !window.studioAssets?.batchMatch) {
+      setAssetMatchesByType({ character: {}, scene: {}, prop: {} });
+      return;
+    }
+
+    let cancelled = false;
+    Promise.all(
+      requests.map(async ({ key, names }) => {
+        const matches = await window.studioAssets?.batchMatch({
+          type: toRuntimeAssetType(key),
+          names,
+        });
+        return { key, matches: matches ?? [] };
+      }),
+    )
+      .then((results) => {
+        if (cancelled) return;
+        const next: Record<AssetGenerationType, Record<string, StudioAssetSummary>> = {
+          character: {},
+          scene: {},
+          prop: {},
+        };
+        for (const { key, matches } of results) {
+          for (const match of matches) {
+            if (match.asset?.id) next[key][match.name] = match.asset;
+          }
+        }
+        setAssetMatchesByType(next);
+      })
+      .catch(() => {
+        if (!cancelled) setAssetMatchesByType({ character: {}, scene: {}, prop: {} });
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [rows]);
+
+  const resolvedRows = useMemo<Record<AssetGenerationType, AssetRow[]>>(
+    () => ({
+      character: rows.character.map((row) => ({
+        ...row,
+        assetLibrary: assetMatchesByType.character[row.name],
+        assetLibraryId: assetMatchesByType.character[row.name]?.id,
+      })),
+      scene: rows.scene.map((row) => ({
+        ...row,
+        assetLibrary: assetMatchesByType.scene[row.name],
+        assetLibraryId: assetMatchesByType.scene[row.name]?.id,
+      })),
+      prop: rows.prop.map((row) => ({
+        ...row,
+        assetLibrary: assetMatchesByType.prop[row.name],
+        assetLibraryId: assetMatchesByType.prop[row.name]?.id,
+      })),
+    }),
+    [assetMatchesByType, rows],
+  );
+
   const stats = useMemo(
     () => ({
-      character: summarizeRows(rows.character),
-      scene: summarizeRows(rows.scene),
-      prop: summarizeRows(rows.prop),
+      character: summarizeRows(resolvedRows.character),
+      scene: summarizeRows(resolvedRows.scene),
+      prop: summarizeRows(resolvedRows.prop),
     }),
-    [rows],
+    [resolvedRows],
   );
-  const currentRows = rows[activeType];
+  const currentRows = resolvedRows[activeType];
   const currentStats = stats[activeType];
   const currentImageStats = useMemo(
     () => summarizeImageRows(currentRows),
@@ -98,14 +176,16 @@ export function useScriptAssetGenerationData(activeType: AssetGenerationType) {
       ? (ttsProjects[activeTtsProjectId]?.bindings ?? {})
       : {};
     let assigned = 0;
-    for (const row of rows.character) {
-      const assetId = row.asset?.id ?? row.id;
-      const speakerId = `character:${assetId}` as TtsSpeakerId;
-      const binding = bindings[speakerId];
-      if (binding && voiceProfiles[binding.profileId]) assigned += 1;
+    for (const row of resolvedRows.character) {
+      const resolution = resolveRoleVoiceBinding(
+        getRoleVoiceSpeakerIds(row),
+        bindings,
+        voiceProfiles,
+      );
+      if (resolution.state === "assigned") assigned += 1;
     }
-    return { assigned, total: rows.character.length };
-  }, [activeTtsProjectId, rows.character, ttsProjects, voiceProfiles]);
+    return { assigned, total: resolvedRows.character.length };
+  }, [activeTtsProjectId, resolvedRows.character, ttsProjects, voiceProfiles]);
 
   return {
     activeProjectId,
@@ -113,7 +193,7 @@ export function useScriptAssetGenerationData(activeType: AssetGenerationType) {
     currentRows,
     currentStats,
     entityExtractions,
-    rows,
+    rows: resolvedRows,
     scriptPlans,
     stats,
     visualManualId,

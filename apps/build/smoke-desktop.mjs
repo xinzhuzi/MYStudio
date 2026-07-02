@@ -45,6 +45,15 @@ const ASSET_VOICE_FLOW_TIMEOUT_MS = Number(
 const AUDIO_METADATA_TIMEOUT_MS = Number(
   process.env.MYSTUDIO_SMOKE_AUDIO_METADATA_TIMEOUT_MS || 10_000,
 );
+const runStepwiseWorkflowSmoke =
+  process.env.MYSTUDIO_SMOKE_WORKFLOW_STEPWISE === "1";
+const foregroundSmoke = process.env.MYSTUDIO_SMOKE_FOREGROUND === "1";
+const parsedForegroundHoldMs = Number(
+  process.env.MYSTUDIO_SMOKE_HOLD_MS || (foregroundSmoke ? 5_000 : 0),
+);
+const foregroundHoldMs = Number.isFinite(parsedForegroundHoldMs)
+  ? Math.max(0, parsedForegroundHoldMs)
+  : 0;
 const CORE_ROUTE_CHECKS = [
   {
     label: "工作流",
@@ -100,6 +109,36 @@ function prepareSmokeMedia() {
       "[smoke] failed to create smoke mp4 fixture; video preview check may fall back to DOM state",
     );
   }
+}
+
+function sleep(ms) {
+  return new Promise((resolveSleep) => setTimeout(resolveSleep, ms));
+}
+
+function bringSmokeAppToForeground(childProcess) {
+  if (!foregroundSmoke) return;
+  if (process.platform !== "darwin") {
+    console.warn("[smoke] foreground mode is only implemented for macOS");
+    return;
+  }
+  if (!childProcess.pid) {
+    console.warn("[smoke] cannot foreground app because child pid is missing");
+    return;
+  }
+
+  const script = `tell application "System Events" to set frontmost of first process whose unix id is ${childProcess.pid} to true`;
+  const result = spawnSync("osascript", ["-e", script], { stdio: "ignore" });
+  if (result.status !== 0) {
+    console.warn(
+      "[smoke] failed to bring app to foreground; macOS may require Automation or Accessibility permission",
+    );
+  }
+}
+
+async function holdForegroundSmokeWindow() {
+  if (!foregroundSmoke || foregroundHoldMs <= 0) return;
+  console.log(`[smoke] foreground smoke hold ${foregroundHoldMs}ms`);
+  await sleep(foregroundHoldMs);
 }
 
 function readJson(url) {
@@ -351,6 +390,10 @@ async function inspectPage(pageTarget) {
     console.log("[smoke] checking end-to-end workflow data");
     const workflowEndToEnd = await verifyWorkflowEndToEnd(evaluate);
 
+    const workflowStepwise = runStepwiseWorkflowSmoke
+      ? await verifyWorkflowStepByStepExecution(evaluate)
+      : null;
+
     console.log("[smoke] checking asset voice flow");
     const assetVoiceFlow = await verifyAssetVoiceFlow(evaluate);
 
@@ -371,6 +414,7 @@ async function inspectPage(pageTarget) {
       routeChecks,
       workflowStages,
       workflowEndToEnd,
+      workflowStepwise,
       assetVoiceFlow,
       scriptAssetGenerationVoiceFlow,
       pythonSettings,
@@ -487,7 +531,7 @@ async function verifyWorkflowStages(evaluate) {
 	      { id: 'manuals', label: '风格与导演', requiredText: ['视觉手册', '导演手册'] },
       { id: 'novel', label: '小说导入', requiredText: ['导入原文'] },
       { id: 'script', label: '剧本生产阶段', requiredText: ['请先在「小说导入」导入章节'] },
-      { id: 'assets', label: '剧本资产管理', requiredText: ['还没有剧本：请先在「剧本生产阶段」生成各章剧本', '角色/场景/道具', '承接本阶段已提取的角色、场景、道具', '全部润色提示词', '生成图片', '落地衍生资产', '音频样本'], forbiddenText: ['运行导演计划', '锁定剧集圣经', '角色库', '全部润色角色提示词'] },
+      { id: 'assets', label: '剧本资产管理', requiredText: ['还没有剧本：请先在「剧本生产阶段」生成各章剧本', '角色/场景/道具', '承接本阶段已提取的角色、场景、道具', '全部润色提示词', '生成图片', '落地衍生资产', '参考音频'], forbiddenText: ['运行导演计划', '锁定剧集圣经', '角色库', '全部润色角色提示词'] },
       {
         id: 'storyboard',
         label: '分镜视频生成',
@@ -634,8 +678,17 @@ async function verifyWorkflowEndToEnd(evaluate) {
     await waitFor(() => document.body.innerText.includes('100%') || document.body.innerText.includes('已导出最终成片'), 8000);
     await window.mystudioWorkflowSmoke?.setWorkflowStage?.('storyboard');
     await wait(800);
+    const flowCanvas = document.querySelector('.workflow-node-canvas');
     const nodeCardTexts = Array.from(document.querySelectorAll('[data-flow-node-id]'))
       .map((node) => ({ id: node.getAttribute('data-flow-node-id'), text: normalize(node) }));
+    const nodeById = (id) => document.querySelector('[data-flow-node-id="' + id + '"]');
+    const scriptPlanNode = nodeById('scriptPlan');
+    const assetsNode = nodeById('assets');
+    const storyboardNode = nodeById('storyboard');
+    const themeControls = flowCanvas?.querySelector('.workflow-node-viewport-controls');
+    const scriptPlanText = scriptPlanNode ? normalize(scriptPlanNode) : '';
+    const assetsText = assetsNode ? normalize(assetsNode) : '';
+    const storyboardText = storyboardNode ? normalize(storyboardNode) : '';
     const requiredNodePreviewText = [
       ['独孤剑尘睁眼'],
       ['矿场入局'],
@@ -660,6 +713,21 @@ async function verifyWorkflowEndToEnd(evaluate) {
       hasVoiceFlow: bodyText.includes('已分配角色音色') || Boolean(inspectResult?.checks?.hasVoiceBinding),
       hasVoiceAudio: bodyText.includes('分镜配音已生成') || Boolean(inspectResult?.checks?.hasVoiceAudio),
       hasNodeFlowDataPreview: missingNodePreviewText.length === 0,
+      hasDirectorPlanPreview: Boolean(scriptPlanNode)
+        && ['矿场入局', '水墨漫剧', '低机位推进'].every((text) => scriptPlanText.includes(text))
+        && Boolean(scriptPlanNode.querySelector('.md-editor-preview')),
+      hasToonflowDerivativeLinks: Boolean(assetsNode)
+        && ['独孤剑尘', '落魄江湖客', '矿场', '低机位推进', '断剑', '断剑破损版', 'parentAssetId: smoke-role-sword', 'parentAssetId: smoke-scene-mine', 'parentAssetId: smoke-prop-sword']
+          .every((text) => assetsText.includes(text))
+        && assetsNode.querySelectorAll('img[src^="data:image"]').length >= 4,
+      hasStoryboardImagePreview: Boolean(storyboardNode)
+        && storyboardText.includes('旁白：他在尘土里醒来。')
+        && Boolean(storyboardNode.querySelector('img[src^="data:image"]')),
+      hasNoDefaultReactFlowControls: Boolean(flowCanvas)
+        && !Boolean(flowCanvas.querySelector('.react-flow__controls')),
+      hasThemeViewportControls: Boolean(themeControls)
+        && normalize(themeControls).includes('适配')
+        && themeControls.querySelectorAll('button[aria-label]').length === 3,
       missingNodePreviewText,
       nodeCardTexts,
       bodyTextSample: bodyText.slice(0, 1200),
@@ -667,6 +735,110 @@ async function verifyWorkflowEndToEnd(evaluate) {
   })()`,
     "workflow end-to-end check",
     20_000,
+  );
+}
+
+async function verifyWorkflowStepByStepExecution(evaluate) {
+  console.log("[smoke] checking step-by-step workflow execution");
+  return evaluate(
+    `(async () => {
+    const normalize = (node) => (node.textContent || '').replace(/\\s+/g, ' ').trim();
+    const activate = (node) => {
+      if (!node) return false;
+      node.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, pointerId: 1, button: 0, buttons: 1, pointerType: 'mouse' }));
+      node.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, button: 0, buttons: 1, view: window }));
+      node.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, cancelable: true, pointerId: 1, button: 0, buttons: 0, pointerType: 'mouse' }));
+      node.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true, button: 0, view: window }));
+      node.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, button: 0, view: window }));
+      return true;
+    };
+    const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    const waitFor = async (predicate, timeout = 8000) => {
+      const deadline = Date.now() + timeout;
+      let lastValue = null;
+      while (Date.now() < deadline) {
+        const value = await predicate();
+        if (value) return value;
+        lastValue = value;
+        await wait(150);
+      }
+      return lastValue;
+    };
+    const clickButtonByText = (text, exact = false) => {
+      const candidates = Array.from(document.querySelectorAll('button, [role="menuitem"], [cmdk-item]'));
+      const button = candidates.find((node) => {
+        const normalized = normalize(node);
+        return exact ? normalized === text : normalized.includes(text);
+      });
+      return { clicked: activate(button), text: button ? normalize(button) : '' };
+    };
+    const clickStageById = async (stageId) => {
+      clickButtonByText('切换阶段');
+      await wait(150);
+      const result =
+        stageId === 'manuals' ? clickButtonByText('风格与导演') :
+        stageId === 'novel' ? clickButtonByText('小说导入') :
+        stageId === 'script' ? clickButtonByText('剧本生产阶段') :
+        stageId === 'assets' ? clickButtonByText('剧本资产管理') :
+        stageId === 'storyboard' ? clickButtonByText('分镜视频生成') :
+        stageId === 'workbench' ? clickButtonByText('视频工作台') :
+        { clicked: false, text: '' };
+      await window.mystudioWorkflowSmoke?.setWorkflowStage?.(stageId);
+      await wait(250);
+      return result;
+    };
+    const waitForStageReady = async (stageId) => waitFor(async () => {
+      const inspected = await window.mystudioWorkflowSmoke?.inspectWorkflowStages?.();
+      const stage = inspected?.stages?.find((item) => item.id === stageId);
+      return stage?.status === 'ready' ? inspected : null;
+    }, 5000);
+
+    const clickedWorkflow = clickButtonByText('工作流', true);
+    await waitFor(() => window.mystudioWorkflowSmoke?.resetForStepwiseExecution, 10_000);
+    const reset = await window.mystudioWorkflowSmoke?.resetForStepwiseExecution?.();
+    await wait(300);
+    const stages = [
+      { id: 'manuals', label: '风格与导演' },
+      { id: 'novel', label: '小说导入' },
+      { id: 'script', label: '剧本生产阶段' },
+      { id: 'assets', label: '剧本资产管理' },
+      { id: 'storyboard', label: '分镜视频生成' },
+      { id: 'workbench', label: '视频工作台' },
+    ];
+    const results = [];
+    for (const stage of stages) {
+      const stageClick = await clickStageById(stage.id);
+      const before = await window.mystudioWorkflowSmoke?.inspectWorkflowStages?.();
+      const run = await window.mystudioWorkflowSmoke?.runStepwiseWorkflowStage?.(stage.id);
+      const ready = await waitForStageReady(stage.id);
+      results.push({
+        id: stage.id,
+        label: stage.label,
+        clicked: Boolean(stageClick.clicked),
+        clickedText: stageClick.text,
+        beforeProgress: before?.progress ?? null,
+        afterProgress: ready?.progress ?? run?.progress ?? null,
+        ready: Boolean(run?.ready && ready),
+        evidence: run?.evidenceText || '',
+        nextStageId: ready?.nextStageId || run?.nextStageId || '',
+      });
+    }
+    const finalInspection = await window.mystudioWorkflowSmoke?.inspectWorkflowStages?.();
+    return {
+      bridgeAvailable: Boolean(window.mystudioWorkflowSmoke?.resetForStepwiseExecution),
+      clickedWorkflow: clickedWorkflow.clicked,
+      reset,
+      source: finalInspection?.source || reset?.source || '',
+      completed: Boolean(finalInspection?.progress === 100 && results.every((item) => item.ready)),
+      progress: finalInspection?.progress ?? 0,
+      results,
+      evidence: finalInspection?.evidence || [],
+      checks: finalInspection?.checks || {},
+      bodyTextSample: document.body.innerText.slice(0, 1200),
+    };
+  })()`,
+    "workflow step-by-step execution check",
+    30_000,
   );
 }
 
@@ -1133,6 +1305,7 @@ function assertHealthy(
   routeChecks,
   workflowStages,
   workflowEndToEnd,
+  workflowStepwise,
   assetVoiceFlow,
   scriptAssetGenerationVoiceFlow,
   pythonSettings,
@@ -1260,6 +1433,57 @@ function assertHealthy(
       `workflow node cards did not show Toonflow FlowData previews: ${(workflowEndToEnd.missingNodePreviewText || []).join(", ")}`,
     );
   }
+  if (!workflowEndToEnd.hasDirectorPlanPreview) {
+    failures.push(
+      "workflow node cards did not show director plan markdown content",
+    );
+  }
+  if (!workflowEndToEnd.hasToonflowDerivativeLinks) {
+    failures.push(
+      "workflow node cards did not show Toonflow derivative asset links",
+    );
+  }
+  if (!workflowEndToEnd.hasStoryboardImagePreview) {
+    failures.push(
+      "storyboard workflow node did not show generated image previews",
+    );
+  }
+  if (!workflowEndToEnd.hasNoDefaultReactFlowControls) {
+    failures.push(
+      "storyboard workflow node rendered default white React Flow controls",
+    );
+  }
+  if (!workflowEndToEnd.hasThemeViewportControls) {
+    failures.push(
+      "storyboard workflow node did not render themed viewport controls",
+    );
+  }
+  if (runStepwiseWorkflowSmoke) {
+    if (!workflowStepwise?.bridgeAvailable) {
+      failures.push("workflow step-by-step smoke bridge was not available");
+    }
+    if (!workflowStepwise?.clickedWorkflow) {
+      failures.push("workflow route button not found for step-by-step execution");
+    }
+    if (workflowStepwise?.source !== "isolated-smoke-project") {
+      failures.push(
+        `workflow step-by-step smoke used unexpected data source: ${workflowStepwise?.source || "missing"}`,
+      );
+    }
+    if (!workflowStepwise?.completed || workflowStepwise?.progress !== 100) {
+      failures.push(
+        `workflow step-by-step execution did not reach 100%: ${workflowStepwise?.progress ?? "missing"}`,
+      );
+    }
+    const failedStepwiseStages = (workflowStepwise?.results || [])
+      .filter((stage) => !stage.ready)
+      .map((stage) => `${stage.id}:${stage.evidence || "no evidence"}`);
+    if (failedStepwiseStages.length > 0) {
+      failures.push(
+        `workflow step-by-step stages failed: ${failedStepwiseStages.join(", ")}`,
+      );
+    }
+  }
   if (!assetVoiceFlow.clickedAssets)
     failures.push("assets route button not found for asset voice flow check");
   if (!assetVoiceFlow.clickedRole)
@@ -1384,6 +1608,7 @@ function assertHealthy(
           overviewWorkflow,
           routeChecks,
           workflowEndToEnd,
+          workflowStepwise,
           assetVoiceFlow,
           scriptAssetGenerationVoiceFlow,
           pythonSettings,
@@ -1397,8 +1622,11 @@ function assertHealthy(
     process.exit(1);
   }
 
+  const workflowStepwiseSummary = runStepwiseWorkflowSmoke
+    ? ", workflowStepwise=ok"
+    : "";
   console.log(
-    `Desktop smoke passed: ${state.title}, rootChildren=${state.rootChildren}, bodyBg=${state.bodyBg}, routes=${routeChecks.length}, workflowE2E=ok, assetVoiceFlow=ok, scriptAssetGenerationVoiceFlow=ok, pythonSettings=ok, whiteRatio=${screenshot.whiteRatio.toFixed(3)}, appBin=${appBin}`,
+    `Desktop smoke passed: ${state.title}, rootChildren=${state.rootChildren}, bodyBg=${state.bodyBg}, routes=${routeChecks.length}, workflowE2E=ok${workflowStepwiseSummary}, assetVoiceFlow=ok, scriptAssetGenerationVoiceFlow=ok, pythonSettings=ok, whiteRatio=${screenshot.whiteRatio.toFixed(3)}, appBin=${appBin}`,
   );
 }
 
@@ -1419,6 +1647,7 @@ child.stderr.on("data", (data) => process.stderr.write(data));
 
 try {
   const page = await waitForPageTarget();
+  bringSmokeAppToForeground(child);
   const {
     state,
     errors,
@@ -1426,6 +1655,7 @@ try {
     routeChecks,
     workflowStages,
     workflowEndToEnd,
+    workflowStepwise,
     assetVoiceFlow,
     scriptAssetGenerationVoiceFlow,
     pythonSettings,
@@ -1438,6 +1668,7 @@ try {
     routeChecks,
     workflowStages,
     workflowEndToEnd,
+    workflowStepwise,
     assetVoiceFlow,
     scriptAssetGenerationVoiceFlow,
     pythonSettings,
@@ -1447,6 +1678,7 @@ try {
   console.error(error instanceof Error ? error.message : String(error));
   process.exitCode = 1;
 } finally {
+  await holdForegroundSmokeWindow();
   child.kill("SIGTERM");
   rmSync(SMOKE_VIDEO_PATH, { force: true });
 }

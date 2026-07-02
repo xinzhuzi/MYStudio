@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import {
   API_MANAGER_SECTIONS,
   API_SERVICE_SUMMARY_FIELDS,
@@ -9,6 +11,23 @@ import {
 } from "./SettingsPanel";
 
 describe("SettingsPanel navigation", () => {
+  it("keeps the dashboard-style brand chrome available for standalone settings", () => {
+    const settingsSource = readFileSync(
+      fileURLToPath(new URL("./SettingsPanel.tsx", import.meta.url)),
+      "utf8",
+    );
+    const layoutSource = readFileSync(
+      fileURLToPath(new URL("../Layout.tsx", import.meta.url)),
+      "utf8",
+    );
+
+    expect(settingsSource).toContain("showHomeChrome");
+    expect(settingsSource).toContain("dashboard-topbar");
+    expect(settingsSource).toContain("漫影工作室");
+    expect(settingsSource).toContain("影像制片工作台");
+    expect(layoutSource).toContain("showHomeChrome");
+  });
+
   it("opens settings on the appearance tab by default", () => {
     expect(DEFAULT_SETTINGS_TAB).toBe("appearance");
     expect(SETTINGS_TABS[0]?.value).toBe("appearance");

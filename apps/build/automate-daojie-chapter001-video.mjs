@@ -10,6 +10,20 @@ const MIN_DAOJIE_STORYBOARDS = 40;
 const MIN_DIALOGUE_COVERAGE_RATIO = 0.92;
 const MIN_DISTINCT_VOICE_REFERENCES = 5;
 const MIN_AUDIO_MEAN_VOLUME_DB = -55;
+const REQUIRED_WORKFLOW_STEPS = [
+  'novel_import',
+  'script_generation',
+  'asset_extraction',
+  'asset_catalog',
+  'script_plan',
+  'storyboard_table',
+  'frame_generation',
+  'tts_generation',
+  'segment_render',
+  'track_candidates',
+  'final_merge',
+  'project_writeback',
+];
 
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, {
@@ -63,6 +77,23 @@ function meanVolumeDb(filePath) {
   return Number(match[1]);
 }
 
+function requireWorkflowSteps(generated) {
+  const steps = Array.isArray(generated.workflowSteps) ? generated.workflowSteps : [];
+  const stepIds = new Set(steps.map((step) => step?.id).filter(Boolean));
+  const missing = REQUIRED_WORKFLOW_STEPS.filter((step) => !stepIds.has(step));
+  if (missing.length > 0) {
+    throw new Error(`工作流步骤未完成: ${missing.join(', ')}`);
+  }
+  const failed = steps.filter((step) => REQUIRED_WORKFLOW_STEPS.includes(step?.id) && step.ok !== true);
+  if (failed.length > 0) {
+    throw new Error(
+      `工作流步骤未完成: ${failed
+        .map((step) => `${step.id}${step.evidence ? `(${step.evidence})` : ''}`)
+        .join(', ')}`,
+    );
+  }
+}
+
 if (!existsSync(generatorScript)) {
   throw new Error(`视频生成脚本不存在: ${generatorScript}`);
 }
@@ -74,6 +105,7 @@ const finalVideo = generated.final;
 if (!finalVideo || !existsSync(finalVideo)) {
   throw new Error(`最终视频不存在: ${finalVideo || 'missing'}`);
 }
+requireWorkflowSteps(generated);
 if (generated.storyboardsWithAssetLinks !== generated.storyboards) {
   throw new Error(`分镜资产链接不完整: ${generated.storyboardsWithAssetLinks ?? 0}/${generated.storyboards ?? 0}`);
 }
@@ -85,6 +117,9 @@ if (!(Number(generated.storyboards) >= MIN_DAOJIE_STORYBOARDS)) {
 }
 if (generated.framesWithRealAssetImages !== generated.storyboards) {
   throw new Error(`分镜真实资产图片不完整: ${generated.framesWithRealAssetImages ?? 0}/${generated.storyboards ?? 0}`);
+}
+if (Array.isArray(generated.missingImageAssets) && generated.missingImageAssets.length > 0) {
+  throw new Error(`存在未命中的图片资产: ${generated.missingImageAssets.join(', ')}`);
 }
 if (!generated.voiceReferenceAudioPath || !existsSync(generated.voiceReferenceAudioPath)) {
   throw new Error(`未绑定资产库音色参考: ${generated.voiceReferenceAudioPath || 'missing'}`);
@@ -187,6 +222,7 @@ const report = {
   framesWithRealAssetImages: generated.framesWithRealAssetImages,
   assetImagePaths: generated.assetImagePaths,
   missingImageAssets: generated.missingImageAssets,
+  workflowSteps: generated.workflowSteps,
   voiceReferenceAudioPath: generated.voiceReferenceAudioPath,
   speakerVoiceMap: generated.speakerVoiceMap,
   speakerAudioStats: generated.speakerAudioStats,

@@ -70,6 +70,22 @@ describe("studio visual manuals storage", () => {
     expect(manuals[0]?.sourcePath).toBe(path.join(runtimeRoot, "art_skills", "daojie_ink_guofeng"));
   });
 
+  it("reads visual prompt modules from the synced runtime storage copy", async () => {
+    await listStoredVisualManuals({
+      sourceRoot,
+      storageRoot,
+      makeFileUrl: (relativePath) => `studio-skill://${relativePath}`,
+    });
+
+    const detail = await readStoredVisualManual({
+      sourceRoot,
+      storageRoot,
+      makeFileUrl: (relativePath) => `studio-skill://${relativePath}`,
+    }, "daojie_ink_guofeng");
+
+    expect(detail.modules.find((module) => module.value === "art_character")?.content).toBe("角色提示词");
+  });
+
   it("writes edits to storage without changing the bundled seed", async () => {
     await listStoredVisualManuals({
       sourceRoot,

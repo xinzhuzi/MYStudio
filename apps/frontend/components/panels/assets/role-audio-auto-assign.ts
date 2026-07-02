@@ -1,6 +1,7 @@
 import type { StudioMaterial } from "@/types/studio";
 import type { StudioAssetSummary } from "@/types/studio-assets";
 import type { ProjectVoiceBinding, TtsSpeakerId, VoiceProfile } from "@/types/tts";
+import { toRoleSpeakerId } from "@/lib/tts/role-speaker-id";
 
 type VoiceProfileInput = Omit<VoiceProfile, "id" | "createdAt" | "updatedAt">;
 
@@ -131,6 +132,7 @@ export function buildRoleAudioCandidates(
       id: `material:${item.id}`,
       name: getFileName(item.sourceName || item.localPath),
       filePath: item.localPath.trim(),
+      referenceText: normalizeReferenceText(item.sourceName) ?? normalizeReferenceText(item.name) ?? normalizeReferenceText(item.localPath),
       sourceLabel: getFileName(item.sourceName || item.localPath),
     }));
 
@@ -143,7 +145,9 @@ export function buildRoleAudioCandidates(
         id: item.id,
         name: getFileName(item.name || filePath),
         filePath,
-        referenceText: normalizeReferenceText(item.description),
+        referenceText: normalizeReferenceText(item.description)
+          ?? normalizeReferenceText(item.name)
+          ?? normalizeReferenceText(filePath),
         sourceLabel: getFileName(item.sourcePath || item.filePath || item.name),
       }];
     });
@@ -239,7 +243,7 @@ export async function assignAudioToRolesWithAi(
 }
 
 export function createRoleAudioVoiceProfileInput(assignment: RoleAudioAssignment): RoleAudioVoiceProfileDraft {
-  const speakerId = `character:${assignment.role.id}` as TtsSpeakerId;
+  const speakerId = toRoleSpeakerId(assignment.role.id);
   return {
     speakerId,
     profile: {

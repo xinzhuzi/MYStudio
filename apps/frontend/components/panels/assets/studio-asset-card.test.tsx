@@ -20,4 +20,19 @@ describe("StudioAssetCard", () => {
     expect(html).toContain("少年旁白_穿过雨夜");
     expect(html).toContain("studio-audio-waveform");
   });
+
+  it("shows only the primary asset name on cards", () => {
+    const asset: StudioAssetSummary = {
+      id: "tool-1",
+      source: "manying-local",
+      type: "tool",
+      name: "铜钱;铜币;古钱",
+    };
+
+    const html = renderToStaticMarkup(<StudioAssetCard asset={asset} />);
+
+    expect(html).toContain("铜钱");
+    expect(html).not.toContain("铜币");
+    expect(html).not.toContain("古钱");
+  });
 });

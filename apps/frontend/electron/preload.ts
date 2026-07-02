@@ -58,6 +58,12 @@ contextBridge.exposeInMainWorld('fileStorage', {
 
 contextBridge.exposeInMainWorld('projectFiles', {
   writeText: (key: string, value: string) => ipcRenderer.invoke('project-file-write-text', key, value),
+  writeBinary: (payload: { projectId: string; relativePath: string; bytes: ArrayBuffer }) =>
+    ipcRenderer.invoke('project-file-write-binary', payload),
+  saveImage: (payload: { projectId: string; relativePath: string; source: string }) =>
+    ipcRenderer.invoke('project-file-save-image', payload),
+  readAsBase64: (url: string) => ipcRenderer.invoke('project-file-read-base64', url),
+  getAbsolutePath: (url: string) => ipcRenderer.invoke('project-file-get-absolute-path', url),
   removeText: (key: string) => ipcRenderer.invoke('project-file-remove-text', key),
 })
 

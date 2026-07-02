@@ -36,4 +36,13 @@ describe("main process startup", () => {
     expect(updaterBlock).toContain("if (!options?.silent)");
     expect(updaterBlock).toContain("console.error('Failed to check updates:'");
   });
+
+  it("registers project-file protocol for project-scoped workflow assets", () => {
+    expect(mainSource).toContain("scheme: 'project-file'");
+    expect(mainSource).toContain("protocol.handle('project-file'");
+    expect(mainSource).toContain("ipcMain.handle('project-file-write-binary'");
+    expect(mainSource).toContain("ipcMain.handle('project-file-save-image'");
+    expect(mainSource).toContain("ipcMain.handle('project-file-read-base64'");
+    expect(mainSource).toContain("ipcMain.handle('project-file-get-absolute-path'");
+  });
 });

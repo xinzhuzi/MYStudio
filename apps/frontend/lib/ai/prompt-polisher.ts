@@ -10,9 +10,10 @@
  * - 魔因漫创: src/lib/character/character-prompt-service.ts
  */
 
-import { getManualModuleText } from "@/lib/studio/manuals";
+import { getManualModuleText as getBundledManualModuleText } from "@/lib/studio/manuals";
 import { aiManager, type AIBinding, type AITextResult } from "@/lib/ai/ai-manager";
 import type { CharacterIdentityAnchors } from "@/types/script";
+import type { StudioVisualManualDetail } from "@/types/studio-visual-manual";
 
 // ─── 类型定义 ───
 
@@ -81,8 +82,9 @@ export async function polishAssetPrompt(
     const moduleKey = getModuleKey(assetType, isDerivative);
 
     // Step 2: 加载视觉手册内容
-    const prefixContent = getManualModuleText("visual", visualManualId, "prefix");
-    const templateContent = getManualModuleText("visual", visualManualId, moduleKey);
+    const runtimeManual = await readRuntimeVisualManual(visualManualId);
+    const prefixContent = getVisualManualModuleText(visualManualId, "prefix", runtimeManual);
+    const templateContent = getVisualManualModuleText(visualManualId, moduleKey, runtimeManual);
 
     if (!templateContent) {
       return {
@@ -202,6 +204,25 @@ function getModuleKey(assetType: AssetType, isDerivative: boolean): string {
   };
   const map = keyMap[assetType];
   return isDerivative ? map.derivative : map.base;
+}
+
+async function readRuntimeVisualManual(visualManualId: string): Promise<StudioVisualManualDetail | null> {
+  if (typeof window === "undefined" || !window.studioVisualManuals?.read) return null;
+  try {
+    const result = await window.studioVisualManuals.read(visualManualId);
+    return result.success && result.manual ? result.manual : null;
+  } catch {
+    return null;
+  }
+}
+
+function getVisualManualModuleText(
+  visualManualId: string,
+  moduleKey: string,
+  runtimeManual: StudioVisualManualDetail | null,
+) {
+  const runtimeContent = runtimeManual?.modules.find((module) => module.value === moduleKey)?.content ?? "";
+  return runtimeContent || getBundledManualModuleText("visual", visualManualId, moduleKey);
 }
 
 /**

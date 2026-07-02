@@ -1,9 +1,17 @@
 import {
+  CheckCircle2,
   ChevronRight,
+  CircleDot,
+  Clock3,
+  Film,
   ImageOff,
+  Layers3,
   PackageOpen,
   RefreshCw,
 } from "lucide-react";
+import type { ReactNode } from "react";
+import { MdPreview } from "md-editor-rt";
+import "md-editor-rt/lib/style.css";
 import { cn } from "@/lib/utils";
 import type {
   ProductionFlowAssetCard,
@@ -17,26 +25,41 @@ const NODE_PREVIEW_CLASS = {
   assets: "max-h-[560px]",
   storyboardTable: "max-h-[430px]",
   storyboard: "max-h-[320px]",
-  workbench: "max-h-[220px]",
+  workbench: "max-h-[320px]",
 } satisfies Record<ProductionFlowNodeId, string>;
 
 export function TextPreview({ node }: { node: ProductionFlowNodeModel }) {
   return (
     <div
       className={cn(
-        "nodrag nopan nowheel space-y-1.5 overflow-y-auto overscroll-contain pr-1 text-[11px] leading-5 text-zinc-400",
+        "workflow-node-markdown-preview nodrag nopan nowheel overflow-y-auto overscroll-contain pr-1 text-[11px] leading-5 text-zinc-400",
         node.id === "scriptPlan" &&
           "rounded border border-white/5 bg-black/15 px-2 py-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar]:w-1.5",
         NODE_PREVIEW_CLASS[node.id],
       )}
     >
-      {node.previewLines.map((line, index) => (
-        <p key={`${node.id}-${index}`} className="whitespace-pre-wrap break-words">
-          {line}
-        </p>
-      ))}
+      <MdPreview
+        className={cn(
+          "md-editor-preview-transparent !bg-transparent text-zinc-300",
+          "[&_.md-editor]:!bg-transparent [&_.md-editor-preview]:!bg-transparent [&_.md-editor-preview-wrapper]:!bg-transparent",
+          "[&_.md-editor-preview]:!p-0 [&_.md-editor-preview]:text-[11px] [&_.md-editor-preview]:leading-5",
+          "[&_.md-editor-preview_h1]:mb-2 [&_.md-editor-preview_h1]:text-base [&_.md-editor-preview_h1]:leading-6",
+          "[&_.md-editor-preview_h2]:mb-1.5 [&_.md-editor-preview_h2]:text-sm [&_.md-editor-preview_h2]:leading-5",
+          "[&_.md-editor-preview_h3]:mb-1 [&_.md-editor-preview_h3]:text-xs [&_.md-editor-preview_h3]:leading-5",
+          "[&_.md-editor-preview_p]:my-1 [&_.md-editor-preview_li]:my-0.5",
+          "[&_.md-editor-preview_table]:my-2 [&_.md-editor-preview_table]:text-[10px]",
+          "[&_.md-editor-preview_pre]:my-2 [&_.md-editor-preview_pre]:max-w-full [&_.md-editor-preview_pre]:overflow-auto",
+        )}
+        modelValue={buildPreviewMarkdown(node)}
+        theme="dark"
+        language="zh-CN"
+      />
     </div>
   );
+}
+
+function buildPreviewMarkdown(node: ProductionFlowNodeModel) {
+  return node.previewLines.join("\n").trim() || "暂无内容";
 }
 
 export function AssetDerivationPreview({
@@ -46,8 +69,21 @@ export function AssetDerivationPreview({
 }) {
   const groups = node.assetGroups ?? [];
   if (!groups.length) return <TextPreview node={node} />;
+  const summary = node.assetSummary;
   return (
     <div className="nodrag nopan nowheel max-h-[560px] space-y-4 overflow-y-auto overscroll-contain pr-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar]:w-1.5">
+      {summary ? (
+        <div className="asset-derive-summary grid grid-cols-4 gap-2 rounded-md border border-white/10 bg-[#202120] p-2">
+          <AssetSummaryCell label="预划" value={summary.planned} />
+          <AssetSummaryCell label="已关联父资产" value={summary.linked} />
+          <AssetSummaryCell label="已完成图片" value={summary.completed} />
+          <AssetSummaryCell
+            label="缺父资产"
+            value={summary.missingParent}
+            warn={summary.missingParent > 0}
+          />
+        </div>
+      ) : null}
       {groups.map((group) => (
         <div
           key={group.source.id}
@@ -73,6 +109,7 @@ export function AssetDerivationPreview({
 }
 
 export function AssetFlowCard({ card }: { card: ProductionFlowAssetCard }) {
+  const status = card.generationState ?? (card.mediaPath ? "已完成" : "未生成");
   return (
     <div className="min-h-[214px] rounded-md border border-white/14 bg-[#202120] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.035)]">
       <div className="flex h-[112px] items-center justify-center overflow-hidden rounded bg-black/22">
@@ -83,7 +120,7 @@ export function AssetFlowCard({ card }: { card: ProductionFlowAssetCard }) {
             className="h-full w-full object-contain"
             loading="lazy"
           />
-        ) : card.state === "生成中" ? (
+        ) : status === "生成中" ? (
           <RefreshCw className="h-8 w-8 animate-spin text-sky-300/70" />
         ) : (
           <PackageOpen className="h-9 w-9 text-zinc-600" />
@@ -91,7 +128,7 @@ export function AssetFlowCard({ card }: { card: ProductionFlowAssetCard }) {
       </div>
       <div className="mt-2 flex items-center justify-between gap-2">
         <span className="min-w-0 truncate text-[10px] text-zinc-500">
-          {card.typeLabel}
+          {card.typeLabel} / {card.runtimeType}
         </span>
         <span
           className={cn(
@@ -104,12 +141,68 @@ export function AssetFlowCard({ card }: { card: ProductionFlowAssetCard }) {
           {card.isDerived ? "衍生" : "原资产"}
         </span>
       </div>
+      <div className="mt-2 flex flex-wrap items-center gap-1.5">
+        <span
+          className={cn(
+            "rounded border px-1.5 py-0.5 text-[9px] font-semibold",
+            status === "已完成" &&
+              "border-emerald-300/30 bg-emerald-300/12 text-emerald-200",
+            status === "生成中" &&
+              "border-sky-300/30 bg-sky-300/12 text-sky-200",
+            status === "生成失败" &&
+              "border-red-300/30 bg-red-300/12 text-red-200",
+            status === "未生成" &&
+              "border-white/10 bg-black/20 text-zinc-400",
+          )}
+        >
+          {status}
+        </span>
+        {card.parentAssetId ? (
+          <span className="max-w-full truncate rounded border border-white/10 bg-black/20 px-1.5 py-0.5 text-[9px] text-zinc-500">
+            parentAssetId: {card.parentAssetId}
+          </span>
+        ) : null}
+      </div>
       <p className="mt-1 line-clamp-1 text-[11px] font-medium text-zinc-300">
         {card.name}
       </p>
       <p className="mt-1 line-clamp-2 text-[10px] leading-4 text-zinc-500">
         {card.reason || card.note || "等待补充资产描述。"}
       </p>
+      {card.prompt ? (
+        <p className="mt-1 line-clamp-2 text-[10px] leading-4 text-zinc-500">
+          生成提示：{card.prompt}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+function AssetSummaryCell({
+  label,
+  value,
+  warn,
+}: {
+  label: string;
+  value: number;
+  warn?: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        "min-w-0 rounded border border-white/10 bg-black/20 px-2 py-1.5",
+        warn && "border-amber-300/35 bg-amber-300/10",
+      )}
+    >
+      <div className="truncate text-[9px] text-zinc-500">{label}</div>
+      <div
+        className={cn(
+          "mt-0.5 text-[13px] font-semibold text-zinc-200",
+          warn && "text-amber-200",
+        )}
+      >
+        {value}
+      </div>
     </div>
   );
 }
@@ -226,8 +319,116 @@ export function StoryboardGridPreview({
   );
 }
 
+export function WorkbenchLanePreview({
+  node,
+}: {
+  node: ProductionFlowNodeModel;
+}) {
+  const tracks = node.workbenchTracks ?? [];
+  if (!tracks.length) return <TextPreview node={node} />;
+  return (
+    <div className="workbench-lane-preview nodrag nowheel max-h-[320px] space-y-3 overflow-y-auto overscroll-contain pr-1">
+      <div className="grid grid-cols-[1fr_auto] items-center gap-3 rounded-md border border-white/10 bg-[#202120] px-3 py-2">
+        <div className="min-w-0">
+          <div className="text-[10px] uppercase tracking-[0.18em] text-zinc-500">
+            最终导出
+          </div>
+          <div className="mt-1 truncate text-[11px] text-zinc-300">
+            {node.finalExportPath || "等待候选片段全部选中后导出"}
+          </div>
+        </div>
+        <span className="inline-flex h-7 items-center gap-1.5 rounded-md border border-white/10 bg-black/25 px-2 text-[10px] font-medium text-zinc-300">
+          {node.finalExportPath ? (
+            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-300" />
+          ) : (
+            <CircleDot className="h-3.5 w-3.5 text-zinc-500" />
+          )}
+          {node.finalExportPath ? "READY" : "PENDING"}
+        </span>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        {tracks.map((track, index) => (
+          <div
+            key={track.id}
+            className="min-w-0 rounded-md border border-white/10 bg-[#1f201f] p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.035)]"
+          >
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <span className="rounded bg-sky-300 px-1.5 py-0.5 text-[9px] font-semibold text-zinc-950">
+                    T{String(index + 1).padStart(2, "0")}
+                  </span>
+                  <span className="truncate text-[11px] font-medium text-zinc-200">
+                    {track.id}
+                  </span>
+                </div>
+                <p className="mt-1 line-clamp-2 text-[10px] leading-4 text-zinc-500">
+                  {track.prompt || track.reason || "等待生成视频提示词"}
+                </p>
+              </div>
+              <span className="shrink-0 rounded border border-white/10 bg-black/25 px-1.5 py-0.5 text-[9px] uppercase text-zinc-400">
+                {track.state}
+              </span>
+            </div>
+            <div className="mt-2 grid grid-cols-4 gap-1.5">
+              <WorkbenchStat
+                icon={<Layers3 className="h-3 w-3" />}
+                label="分镜"
+                value={track.storyboardCount}
+              />
+              <WorkbenchStat
+                icon={<ImageOff className="h-3 w-3" />}
+                label="素材"
+                value={track.mediaCount}
+              />
+              <WorkbenchStat
+                icon={<Clock3 className="h-3 w-3" />}
+                label="时长"
+                value={`${track.duration}s`}
+              />
+              <WorkbenchStat
+                icon={<Film className="h-3 w-3" />}
+                label="候选"
+                value={track.videoCount}
+              />
+            </div>
+            <div className="mt-2 truncate rounded border border-white/10 bg-black/20 px-2 py-1.5 text-[10px] text-zinc-500">
+              selectedVideoPath:{" "}
+              <span className="text-zinc-300">
+                {track.selectedVideoPath || "未选择候选片段"}
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function WorkbenchStat({
+  icon,
+  label,
+  value,
+}: {
+  icon: ReactNode;
+  label: string;
+  value: number | string;
+}) {
+  return (
+    <div className="min-w-0 rounded border border-white/10 bg-black/18 px-2 py-1.5">
+      <div className="flex items-center gap-1 text-[9px] text-zinc-500">
+        {icon}
+        <span className="truncate">{label}</span>
+      </div>
+      <div className="mt-0.5 text-[12px] font-semibold text-zinc-200">
+        {value}
+      </div>
+    </div>
+  );
+}
+
 export function toPreviewSrc(path: string) {
-  if (/^(https?:|data:|blob:|file:|local-image:\/\/)/.test(path)) return path;
+  if (/^(https?:|data:|blob:|file:|local-image:\/\/|project-file:\/\/)/.test(path)) return path;
   if (path.startsWith("/")) return `file://${encodeURI(path)}`;
   return path;
 }

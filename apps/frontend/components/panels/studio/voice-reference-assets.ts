@@ -20,6 +20,7 @@ export function buildVoiceReferenceAssets(
         id: `material:${item.id}`,
         name: item.name,
         filePath: item.localPath,
+        referenceText: normalizeReferenceText(item.name) ?? normalizeReferenceText(getFileName(item.sourceName || item.localPath)),
         sourceLabel: getFileName(item.sourceName || item.localPath),
       })),
     ...runtimeAssets
@@ -28,7 +29,9 @@ export function buildVoiceReferenceAssets(
         id: item.id,
         name: item.name,
         filePath: getRuntimeAudioPath(item)!,
-        referenceText: normalizeReferenceText(item.description),
+        referenceText: normalizeReferenceText(item.description)
+          ?? normalizeReferenceText(item.name)
+          ?? normalizeReferenceText(getFileName(getRuntimeAudioPath(item))),
         sourceLabel: getFileName(getRuntimeAudioPath(item)) || item.description,
       })),
   ];

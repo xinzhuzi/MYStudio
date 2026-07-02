@@ -1,6 +1,10 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { createProjectScopedStorage } from "@/lib/project-storage";
+import {
+  buildStoryboardImageWorkflowPatch,
+  createImageWorkflowGraph,
+} from "@/lib/studio/image-workflow";
 import { buildMediaRefFromMaterial, createMaterialRecord } from "@/lib/studio/material";
 import {
   appendNovelChapters,
@@ -15,6 +19,7 @@ import type {
   AgentWorkKey,
   EntityExtractionResult,
   EpisodeOutline,
+  ImageWorkflowGraph,
   NovelChapter,
   ProductionTrack,
   ScriptPlan,
@@ -37,6 +42,7 @@ interface StudioWorkflowState {
   storyboards: StoryboardItem[];
   productionTracks: ProductionTrack[];
   videoCandidates: VideoCandidate[];
+  imageWorkflows: ImageWorkflowGraph[];
   workflowConfig: StudioWorkflowConfig;
 }
 
@@ -59,6 +65,11 @@ interface StudioWorkflowActions {
   addStoryboard: (item?: Partial<StoryboardItem>) => string;
   updateStoryboard: (id: string, updates: Partial<StoryboardItem>) => void;
   bindStoryboardMedia: (id: string, mediaRef: StoryboardMediaRef) => void;
+  createImageWorkflow: (input?: Parameters<typeof createImageWorkflowGraph>[0]) => string;
+  upsertImageWorkflow: (graph: ImageWorkflowGraph) => void;
+  updateImageWorkflow: (id: string, updates: Partial<ImageWorkflowGraph>) => void;
+  deleteImageWorkflow: (id: string) => void;
+  applyImageWorkflowResultToStoryboard: (storyboardId: string, workflowId: string, nodeId: string) => void;
   createStoryboardsFromChapters: () => void;
   rebuildTracks: () => void;
   updateTrack: (id: string, updates: Partial<ProductionTrack>) => void;
@@ -82,6 +93,7 @@ const initialState: StudioWorkflowState = {
   storyboards: [],
   productionTracks: [],
   videoCandidates: [],
+  imageWorkflows: [],
   workflowConfig: {
     autoAnalyzeEventsOnImport: false,
     episodeDurationMin: 3,
@@ -232,6 +244,8 @@ export const useStudioStore = create<StudioWorkflowStore>()(
           videoDesc: item.videoDesc ?? "",
           assetIds: item.assetIds ?? [],
           mediaRef: item.mediaRef,
+          imageWorkflowId: item.imageWorkflowId,
+          imageWorkflowNodeId: item.imageWorkflowNodeId,
           audioRef: item.audioRef,
           state: item.state ?? "idle",
           reason: item.reason,
@@ -257,6 +271,48 @@ export const useStudioStore = create<StudioWorkflowStore>()(
 
       bindStoryboardMedia: (id, mediaRef) => {
         get().updateStoryboard(id, { mediaRef });
+      },
+
+      createImageWorkflow: (input = {}) => {
+        const graph = createImageWorkflowGraph(input);
+        set((state) => ({
+          imageWorkflows: [
+            graph,
+            ...state.imageWorkflows.filter((item) => item.id !== graph.id),
+          ],
+        }));
+        return graph.id;
+      },
+
+      upsertImageWorkflow: (graph) => {
+        set((state) => ({
+          imageWorkflows: [
+            graph,
+            ...state.imageWorkflows.filter((item) => item.id !== graph.id),
+          ],
+        }));
+      },
+
+      updateImageWorkflow: (id, updates) => {
+        set((state) => ({
+          imageWorkflows: state.imageWorkflows.map((item) =>
+            item.id === id
+              ? { ...item, ...updates, id: item.id, updatedAt: updates.updatedAt ?? Date.now() }
+              : item,
+          ),
+        }));
+      },
+
+      deleteImageWorkflow: (id) => {
+        set((state) => ({
+          imageWorkflows: state.imageWorkflows.filter((item) => item.id !== id),
+        }));
+      },
+
+      applyImageWorkflowResultToStoryboard: (storyboardId, workflowId, nodeId) => {
+        const graph = get().imageWorkflows.find((item) => item.id === workflowId);
+        if (!graph) return;
+        get().updateStoryboard(storyboardId, buildStoryboardImageWorkflowPatch(graph, nodeId));
       },
 
       createStoryboardsFromChapters: () => {
@@ -346,7 +402,7 @@ export const useStudioStore = create<StudioWorkflowStore>()(
     {
       name: "studio-workflow-store",
       storage: createJSONStorage(() => createProjectScopedStorage("studio-workflow-store")),
-      version: 6,
+      version: 7,
       migrate: (persistedState) => migrateStudioWorkflowState(persistedState),
     },
   ),
@@ -365,6 +421,7 @@ function migrateStudioWorkflowState(persistedState: unknown) {
     scriptPlans: state.scriptPlans ?? [],
     seriesBible: state.seriesBible ?? null,
     episodeOutlines: state.episodeOutlines ?? [],
+    imageWorkflows: state.imageWorkflows ?? [],
     workflowConfig: normalizeWorkflowConfig(state.workflowConfig),
   };
 }

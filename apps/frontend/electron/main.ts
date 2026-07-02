@@ -51,9 +51,12 @@ import {
   shouldCreateWindowOnSecondInstance,
 } from './app-lifecycle'
 import {
+  createProjectFileUrl,
   resolveDataDirPath,
   resolveDataFilePath,
   resolveLocalMediaPath,
+  resolveProjectFileUrl,
+  resolveProjectScopedFilePath,
 } from './storage-paths'
 
 // electron-vite 构建后的目录结构
@@ -98,6 +101,18 @@ const packageUpdateConfig = (packageMetadata as PackageMetadata).updateConfig ??
 type StudioSaveMaterialPayload = {
   name: string
   bytes: ArrayBuffer | Uint8Array
+}
+
+type ProjectFileWriteBinaryPayload = {
+  projectId: string
+  relativePath: string
+  bytes: ArrayBuffer | Uint8Array
+}
+
+type ProjectFileSaveImagePayload = {
+  projectId: string
+  relativePath: string
+  source: string
 }
 
 const ttsRuntimeController = createTtsRuntimeController({
@@ -716,6 +731,10 @@ function parseDataUrl(dataUrl: string): { buffer: Buffer, mimeType: string } | n
 }
 
 function resolveImageSourcePath(imagePath: string): string | null {
+  if (imagePath.startsWith('project-file://')) {
+    return resolveProjectFileUrl(getDataDir(), imagePath)
+  }
+
   if (imagePath.startsWith('local-image://')) {
     return resolveLocalMediaPath(getMediaRoot(), imagePath)
   }
@@ -823,7 +842,7 @@ async function toBase64Payload(imageData: string) {
     return parsed.buffer.toString('base64')
   }
 
-  if (isHttpUrl(imageData) || imageData.startsWith('local-image://') || imageData.startsWith('file://') || path.isAbsolute(imageData)) {
+  if (isHttpUrl(imageData) || imageData.startsWith('project-file://') || imageData.startsWith('local-image://') || imageData.startsWith('file://') || path.isAbsolute(imageData)) {
     const { buffer } = await readImageSource(imageData)
     return buffer.toString('base64')
   }
@@ -1242,6 +1261,66 @@ ipcMain.handle('project-file-write-text', async (_event, key: string, value: str
     return { success: true, filePath }
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : String(error) }
+  }
+})
+
+function toProjectFileBuffer(bytes: ArrayBuffer | Uint8Array) {
+  return Buffer.from(bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes))
+}
+
+async function writeProjectBinaryFile(payload: Omit<ProjectFileWriteBinaryPayload, 'bytes'>, buffer: Buffer) {
+  if (buffer.length === 0) {
+    return { success: false, error: '项目文件为空' }
+  }
+  const filePath = resolveProjectScopedFilePath(getDataDir(), payload.projectId, payload.relativePath)
+  ensureDir(path.dirname(filePath))
+  await fs.promises.writeFile(filePath, buffer)
+  return {
+    success: true,
+    url: createProjectFileUrl(payload.projectId, payload.relativePath),
+    filePath,
+    size: buffer.length,
+  }
+}
+
+ipcMain.handle('project-file-write-binary', async (_event, payload: ProjectFileWriteBinaryPayload) => {
+  try {
+    return await writeProjectBinaryFile(payload, toProjectFileBuffer(payload.bytes))
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) }
+  }
+})
+
+ipcMain.handle('project-file-save-image', async (_event, payload: ProjectFileSaveImagePayload) => {
+  try {
+    const { buffer } = await readImageSource(payload.source)
+    return await writeProjectBinaryFile(payload, buffer)
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) }
+  }
+})
+
+ipcMain.handle('project-file-read-base64', async (_event, projectFileUrl: string) => {
+  try {
+    const filePath = resolveProjectFileUrl(getDataDir(), projectFileUrl)
+    const data = await fs.promises.readFile(filePath)
+    return {
+      success: true,
+      base64: `data:${getMimeType(filePath)};base64,${data.toString('base64')}`,
+      mimeType: getMimeType(filePath),
+      size: data.length,
+    }
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) }
+  }
+})
+
+ipcMain.handle('project-file-get-absolute-path', async (_event, projectFileUrl: string) => {
+  try {
+    const filePath = resolveProjectFileUrl(getDataDir(), projectFileUrl)
+    return fs.existsSync(filePath) ? filePath : null
+  } catch {
+    return null
   }
 })
 
@@ -2077,7 +2156,9 @@ ipcMain.handle('save-file-dialog', async (_event, { localPath, defaultPath, filt
     const imageMatch = localPath.match(/^local-image:\/\/(.+)\/(.+)$/)
     const videoMatch = localPath.match(/^local-video:\/\/(.+)\/(.+)$/)
     
-    if (imageMatch) {
+    if (localPath.startsWith('project-file://')) {
+      sourcePath = resolveProjectFileUrl(getDataDir(), localPath)
+    } else if (imageMatch) {
       sourcePath = resolveLocalMediaPath(getMediaRoot(), localPath)
     } else if (videoMatch) {
       sourcePath = resolveLocalMediaPath(getMediaRoot(), localPath)
@@ -2141,6 +2222,9 @@ function sanitizeStudioFilename(name: string) {
 
 function resolveStudioSourcePath(sourcePath: string) {
   if (sourcePath.startsWith('file://')) return sourcePath.replace('file://', '')
+  if (sourcePath.startsWith('project-file://')) {
+    return resolveProjectFileUrl(getDataDir(), sourcePath)
+  }
   if (sourcePath.startsWith('local-image://')) {
     return resolveLocalMediaPath(getMediaRoot(), sourcePath)
   }
@@ -2456,6 +2540,15 @@ protocol.registerSchemesAsPrivileged([
     }
   },
   {
+    scheme: 'project-file',
+    privileges: {
+      secure: true,
+      supportFetchAPI: true,
+      bypassCSP: true,
+      stream: true,
+    }
+  },
+  {
     scheme: 'studio-skill',
     privileges: {
       secure: true,
@@ -2522,6 +2615,19 @@ app.whenReady().then(async () => {
     } catch (error) {
       console.error('Failed to load local image:', error)
       return new Response('Image not found', { status: 404 })
+    }
+  })
+
+  protocol.handle('project-file', async (request) => {
+    try {
+      const filePath = resolveProjectFileUrl(getDataDir(), request.url)
+      const data = fs.readFileSync(filePath)
+      return new Response(data, {
+        headers: { 'Content-Type': getMimeType(filePath) },
+      })
+    } catch (error) {
+      console.error('Failed to load project file:', error)
+      return new Response('File not found', { status: 404 })
     }
   })
 

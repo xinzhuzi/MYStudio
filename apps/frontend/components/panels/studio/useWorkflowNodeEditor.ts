@@ -58,12 +58,16 @@ export function useWorkflowNodeEditor({
         );
       }
       if (nodeId === "scriptPlan") {
+        const rawDirectorPlan = latestAgentWork(
+          store.agentWorkData,
+          "directorPlan",
+          episodeId,
+        );
+        if (rawDirectorPlan) return rawDirectorPlan;
         const plan = store.scriptPlans.find(
           (item) => item.episodeId === episodeId,
         );
-        return plan
-          ? formatScriptPlanContext(plan)
-          : latestAgentWork(store.agentWorkData, "directorPlan", episodeId);
+        return plan ? formatScriptPlanContext(plan) : "";
       }
       if (nodeId === "storyboardTable") {
         return latestAgentWork(
@@ -161,6 +165,7 @@ export function useWorkflowNodeEditor({
           workflowNodeDraft,
           episodeId,
         );
+        saveAgentWorkData("directorPlan", workflowNodeDraft, episodeId);
         saveScriptPlan(plan);
         toast.success(
           warnings.length

@@ -1,4 +1,5 @@
 import { getAgentSkillPreset } from "@/lib/studio/manuals";
+import { parseAssetNames } from "@/lib/studio/asset-names";
 
 export type EntityKind = "character" | "scene" | "prop";
 
@@ -57,8 +58,8 @@ const outputSpec = `
 | KIND | 名称 | 别名 | 集ID | 备注 |
 
 - KIND 取值仅限：character | scene | prop（角色/场景/道具）
-- 名称：实体最常用规范称呼
-- 别名：顿号分隔，无则留空
+- 名称：实体最常用规范称呼；如有自然副名，可写成「主名字;副名字1;副名字2」
+- 别名：顿号分隔，无则留空；若名称列已包含副名，别名列可留空
 - 集ID：逗号分隔，无则留空（默认归当前集）
 - 备注：必填。角色写外貌特征/身份/性格（一句话），场景写环境特征，道具写外观/用途
 - 不输出表头行、分隔线、解释、代码块围栏；只输出数据行
@@ -99,7 +100,8 @@ export function parseEntityExtraction(output: string, defaultEpisodeId: string):
     }
 
     const kind = fields[0]!.toLowerCase();
-    const name = fields[1]!;
+    const parsedName = parseAssetNames(fields[1]!, "");
+    const name = parsedName.primaryName;
     if (!isEntityKind(kind) || !name) {
       errors.push(line);
       continue;
@@ -109,7 +111,7 @@ export function parseEntityExtraction(output: string, defaultEpisodeId: string):
     entities.push({
       kind,
       name,
-      aliases: splitList(fields[2]!),
+      aliases: uniqueList([...parsedName.secondaryNames, ...splitList(fields[2]!)]),
       episodeIds: episodeIds.length ? episodeIds : [defaultEpisodeId],
       ...(fields[4] ? { note: fields[4] } : {}),
     });

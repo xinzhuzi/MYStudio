@@ -1,3 +1,5 @@
+import importlib
+import os
 import tempfile
 import types
 import unittest
@@ -14,6 +16,25 @@ from manying_voicebox_tts.tts import generate_mock_wav
 
 
 class TtsContractTest(unittest.TestCase):
+    def test_sidecar_main_stays_a_thin_entrypoint(self):
+        main_source = Path(main_module.__file__).read_text(encoding="utf-8")
+
+        self.assertIn("from .server import Handler, main, run", main_source)
+        self.assertNotIn("class Handler", main_source)
+        self.assertNotIn("class RuntimeState", main_source)
+
+    def test_sidecar_import_does_not_force_hf_endpoint_for_qwen_mlx(self):
+        previous_endpoint = os.environ.pop("HF_ENDPOINT", None)
+        try:
+            importlib.reload(main_module)
+            self.assertIsNone(os.environ.get("HF_ENDPOINT"))
+        finally:
+            if previous_endpoint is not None:
+                os.environ["HF_ENDPOINT"] = previous_endpoint
+            else:
+                os.environ.pop("HF_ENDPOINT", None)
+            importlib.reload(main_module)
+
     def test_catalog_keeps_voicebox_tts_engines_only(self):
         engines = {model.engine for model in TTS_MODELS if model.purpose != "stt"}
 
@@ -182,6 +203,68 @@ class TtsContractTest(unittest.TestCase):
             self.assertEqual(result.backend, "mock")
             self.assertGreater(result.duration, 0)
 
+    def test_qwen_adapter_failure_unloads_cached_model_before_mock_fallback(self):
+        with tempfile.TemporaryDirectory() as tmp, patch.dict("os.environ", {"MANYING_TTS_ENGINE_MODE": "auto"}):
+            output = Path(tmp) / "line.wav"
+            ref_audio = Path(tmp) / "ref.wav"
+            generate_mock_wav(ref_audio, "参考音频")
+            engine_module._qwen_model = object()
+            engine_module._qwen_backend = "mlx"
+            engine_module._qwen_model_size = "1.7B"
+
+            with patch.object(engine_module, "_generate_qwen", side_effect=RuntimeError("bad cached qwen state")) as generate_qwen:
+                result = synthesize_to_wav(
+                    output=output,
+                    text="这一句用于试听。",
+                    profile={
+                        "id": "profile-1",
+                        "reference_audio_path": str(ref_audio),
+                        "reference_text": "参考音频",
+                    },
+                    engine="qwen",
+                    model_size="1.7B",
+                    language="zh",
+                )
+
+            self.assertTrue(result.mocked)
+            self.assertEqual(generate_qwen.call_count, 2)
+            self.assertFalse(is_engine_loaded("qwen"))
+
+    def test_qwen_adapter_transient_failure_retries_after_unloading_cache(self):
+        with tempfile.TemporaryDirectory() as tmp, patch.dict("os.environ", {"MANYING_TTS_ENGINE_MODE": "auto"}):
+            output = Path(tmp) / "line.wav"
+            ref_audio = Path(tmp) / "ref.wav"
+            generate_mock_wav(ref_audio, "参考音频")
+            engine_module._qwen_model = object()
+            engine_module._qwen_backend = "mlx"
+            engine_module._qwen_model_size = "1.7B"
+            loaded_before_attempts: list[bool] = []
+
+            def generate_qwen_once_recovered(output, text, *_args, **_kwargs):
+                loaded_before_attempts.append(is_engine_loaded("qwen"))
+                if len(loaded_before_attempts) == 1:
+                    raise RuntimeError("bad cached qwen state")
+                generate_mock_wav(output, text)
+                return engine_module.SynthesisResult(duration=0.5, backend="qwen-mlx", mocked=False)
+
+            with patch.object(engine_module, "_generate_qwen", side_effect=generate_qwen_once_recovered):
+                result = synthesize_to_wav(
+                    output=output,
+                    text="这一句用于试听。",
+                    profile={
+                        "id": "profile-1",
+                        "reference_audio_path": str(ref_audio),
+                        "reference_text": "参考音频",
+                    },
+                    engine="qwen",
+                    model_size="1.7B",
+                    language="zh",
+                )
+
+            self.assertFalse(result.mocked)
+            self.assertEqual(result.backend, "qwen-mlx")
+            self.assertEqual(loaded_before_attempts, [True, False])
+
     def test_engine_adapter_real_mode_rejects_unimplemented_engines(self):
         with tempfile.TemporaryDirectory() as tmp, patch.dict("os.environ", {"MANYING_TTS_ENGINE_MODE": "real"}):
             output = Path(tmp) / "line.wav"
@@ -214,10 +297,19 @@ class TtsContractTest(unittest.TestCase):
         fake_qwen_module = types.SimpleNamespace(
             Qwen3TTSModel=types.SimpleNamespace(from_pretrained=MagicMock(return_value=fake_model))
         )
+        fake_torch_module = types.SimpleNamespace(
+            float32="float32",
+            bfloat16="bfloat16",
+            manual_seed=MagicMock(),
+            cuda=types.SimpleNamespace(
+                is_available=MagicMock(return_value=False),
+                manual_seed=MagicMock(),
+            ),
+        )
         with (
             tempfile.TemporaryDirectory() as tmp,
             patch.dict("os.environ", {"MANYING_TTS_ENGINE_MODE": "real"}),
-            patch.dict("sys.modules", {"qwen_tts": fake_qwen_module}),
+            patch.dict("sys.modules", {"qwen_tts": fake_qwen_module, "torch": fake_torch_module}),
             patch.object(engine_module, "_qwen_custom_voice_model", None, create=True),
             patch.object(engine_module, "_qwen_custom_voice_model_size", None, create=True),
         ):
