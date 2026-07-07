@@ -31,6 +31,9 @@
     "lint": "eslint . --config frontend/config/eslint.cjs --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "test": "vitest run --config frontend/config/vite.config.ts",
     "smoke:desktop": "node ./build/smoke-desktop.mjs",
+    "smoke:workflow:open": "node ./build/open-workflow-smoke-app.mjs",
+    "smoke:workflow:run": "node ./build/run-visible-workflow-smoke.mjs",
+    "smoke:workflow:run:daojie": "node ./build/run-visible-workflow-smoke.mjs --daojie",
     "smoke:installed": "node ./build/install-and-smoke.mjs",
     "video:daojie:chapter001": "node ./build/automate-daojie-chapter001-video.mjs",
     "preview": "electron-vite preview --config frontend/config/electron-vite.config.ts"

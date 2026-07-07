@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   PRODUCTION_FLOW_EDGES,
   PRODUCTION_FLOW_NODE_IDS,
+  buildAssetLibraryMatchNamesForProductionFlow,
+  buildAssetLibraryMediaMapForProductionFlow,
   buildProductionFlowModel,
 } from "./workflow-node-model";
 import { buildWorkbenchAssetMediaMap } from "./WorkbenchTab";
@@ -539,6 +541,7 @@ describe("production workflow node model", () => {
               name: "落魄江湖客",
               visualPrompt: "damaged robe",
               referenceImage: "project-file://daojie/assets/char-1-var-1.png",
+              imageWorkflowId: "asset-flow-char-1-var-1",
             },
           ],
           thumbnailUrl: "project-file://daojie/assets/char-1.png",
@@ -566,6 +569,7 @@ describe("production workflow node model", () => {
           parentSceneId: "scene-1",
           viewpointName: "夜雨视角",
           referenceImage: "project-file://daojie/assets/scene-1-night.png",
+          imageWorkflowId: "asset-flow-scene-1-night",
           createdAt: 1,
           updatedAt: 1,
         },
@@ -586,6 +590,7 @@ describe("production workflow node model", () => {
           imageUrl: "project-file://daojie/assets/prop-1-broken.png",
           parentId: "prop-1",
           category: "裂纹版",
+          imageWorkflowId: "asset-flow-prop-1-broken",
           folderId: null,
           createdAt: 1,
         },
@@ -622,18 +627,21 @@ describe("production workflow node model", () => {
       parentAssetId: "char-1",
       mediaPath: "project-file://daojie/assets/char-1-var-1.png",
       generationState: "已完成",
+      imageWorkflowId: "asset-flow-char-1-var-1",
     });
     expect(groups.find((group) => group.source.id === "scene-1")?.derived[0]).toMatchObject({
       id: "scene-1-night",
       name: "夜雨视角",
       parentAssetId: "scene-1",
       mediaPath: "project-file://daojie/assets/scene-1-night.png",
+      imageWorkflowId: "asset-flow-scene-1-night",
     });
     expect(groups.find((group) => group.source.id === "prop-1")?.derived[0]).toMatchObject({
       id: "prop-1-broken",
       name: "裂纹版",
       parentAssetId: "prop-1",
       mediaPath: "project-file://daojie/assets/prop-1-broken.png",
+      imageWorkflowId: "asset-flow-prop-1-broken",
     });
     expect(assetNode?.assetSummary).toMatchObject({
       planned: 3,
@@ -641,5 +649,338 @@ describe("production workflow node model", () => {
       completed: 3,
       missingParent: 0,
     });
+  });
+
+  it("syncs script asset management library matches into the derived asset node", () => {
+    const entityExtractions = [
+      {
+        id: "extract-1",
+        episodeId: "chapter-001",
+        characters: [
+          { characterId: "char-1", name: "独孤剑尘", aliases: [] },
+        ],
+        scenes: [{ sceneId: "scene-1", name: "矿场" }],
+        props: [{ assetId: "prop-1", name: "断剑" }],
+      },
+    ];
+    const scriptPlans = [
+      {
+        id: "plan-1",
+        episodeId: "chapter-001",
+        theme: "",
+        visualStyle: "",
+        narrativeRhythm: "",
+        sceneIntents: [],
+        soundDirection: "",
+        transitions: "",
+        derivedAssetPlan: [
+          {
+            parentAssetId: "char-1",
+            state: "雨夜破衣",
+            reason: "剧本资产管理中已有衍生图",
+          },
+          {
+            parentAssetId: "scene-1",
+            state: "低机位推进",
+            reason: "剧本资产管理中已有场景衍生图",
+          },
+          {
+            parentAssetId: "prop-1",
+            state: "断剑破损版",
+            reason: "剧本资产管理中已有道具衍生图",
+          },
+        ],
+      },
+    ];
+    const assetMediaById = buildAssetLibraryMediaMapForProductionFlow({
+      entityExtractions,
+      scriptPlans,
+      matchesByType: {
+        role: {
+          "独孤剑尘": {
+            id: "asset-role-1",
+            source: "manying-local",
+            type: "role",
+            name: "独孤剑尘",
+            thumbnailUrl: "project-file://daojie/assets/dugu.png",
+            prompt: "白衣剑修基础形象",
+          },
+          "雨夜破衣": {
+            id: "asset-role-1-rain",
+            source: "manying-local",
+            type: "role",
+            name: "雨夜破衣",
+            previewUrl: "project-file://daojie/assets/dugu-rain.png",
+            prompt: "雨夜破衣状态",
+            imageWorkflowId: "asset-flow-dugu-rain",
+          },
+        },
+        scene: {
+          "矿场": {
+            id: "asset-scene-1",
+            source: "manying-local",
+            type: "scene",
+            name: "矿场",
+            thumbnailUrl: "project-file://daojie/assets/mine.png",
+          },
+          "低机位推进": {
+            id: "asset-scene-1-low",
+            source: "manying-local",
+            type: "scene",
+            name: "低机位推进",
+            previewUrl: "project-file://daojie/assets/mine-low.png",
+            imageWorkflowId: "asset-flow-mine-low",
+          },
+        },
+        tool: {
+          "断剑": {
+            id: "asset-prop-1",
+            source: "manying-local",
+            type: "tool",
+            name: "断剑",
+            thumbnailUrl: "project-file://daojie/assets/sword.png",
+          },
+          "断剑破损版": {
+            id: "asset-prop-1-broken",
+            source: "manying-local",
+            type: "tool",
+            name: "断剑破损版",
+            previewUrl: "project-file://daojie/assets/sword-broken.png",
+            imageWorkflowId: "asset-flow-sword-broken",
+          },
+        },
+      },
+    });
+
+    const model = buildProductionFlowModel({
+      agentWorkData: [],
+      entityExtractions,
+      scriptPlans,
+      storyboards: [],
+      productionTracks: [],
+      videoCandidates: [],
+      assetMediaById,
+    });
+
+    const assetNode = model.nodes.find((node) => node.id === "assets");
+    const sourceGroup = assetNode?.assetGroups?.find(
+      (group) => group.source.id === "char-1",
+    );
+    expect(sourceGroup?.source.mediaPath).toBe(
+      "project-file://daojie/assets/dugu.png",
+    );
+    expect(sourceGroup?.source.prompt).toBe("白衣剑修基础形象");
+    expect(sourceGroup?.derived[0]).toMatchObject({
+      name: "雨夜破衣",
+      mediaPath: "project-file://daojie/assets/dugu-rain.png",
+      prompt: "雨夜破衣状态",
+      parentAssetId: "char-1",
+      generationState: "已完成",
+      imageWorkflowId: "asset-flow-dugu-rain",
+      imageWorkflowTarget: {
+        kind: "asset",
+        assetType: "character",
+        parentId: "char-1",
+        id: "asset-role-1-rain",
+      },
+    });
+    expect(assetNode?.assetGroups?.find((group) => group.source.id === "scene-1")?.derived[0]).toMatchObject({
+      name: "低机位推进",
+      mediaPath: "project-file://daojie/assets/mine-low.png",
+      imageWorkflowId: "asset-flow-mine-low",
+      imageWorkflowTarget: {
+        kind: "asset",
+        assetType: "scene",
+        parentId: "scene-1",
+        id: "asset-scene-1-low",
+      },
+    });
+    expect(assetNode?.assetGroups?.find((group) => group.source.id === "prop-1")?.derived[0]).toMatchObject({
+      name: "断剑破损版",
+      mediaPath: "project-file://daojie/assets/sword-broken.png",
+      imageWorkflowId: "asset-flow-sword-broken",
+      imageWorkflowTarget: {
+        kind: "asset",
+        assetType: "prop",
+        parentId: "prop-1",
+        id: "asset-prop-1-broken",
+      },
+    });
+    expect(assetNode?.assetSummary).toMatchObject({
+      planned: 3,
+      linked: 3,
+      completed: 3,
+      missingParent: 0,
+    });
+  });
+
+  it("adds an image workflow target for direct derived media without one", () => {
+    const entityExtractions = [
+      {
+        id: "extract-1",
+        episodeId: "chapter-001",
+        characters: [
+          { characterId: "char-1", name: "独孤剑尘", aliases: [] },
+        ],
+        scenes: [],
+        props: [],
+      },
+    ];
+
+    const model = buildProductionFlowModel({
+      agentWorkData: [],
+      entityExtractions,
+      scriptPlans: [],
+      storyboards: [],
+      productionTracks: [],
+      videoCandidates: [],
+      assetMediaById: {
+        "char-1": {
+          id: "char-1",
+          name: "独孤剑尘",
+          path: "project-file://daojie/assets/dugu.png",
+        },
+        "char-1-grey": {
+          id: "char-1-grey",
+          name: "灰衫入镇态",
+          path: "project-file://daojie/assets/dugu-grey.png",
+          parentAssetId: "char-1",
+          state: "灰衫入镇态",
+          imageWorkflowId: "asset-flow-char-1-grey",
+        },
+      },
+    });
+
+    const assetNode = model.nodes.find((node) => node.id === "assets");
+    const derived = assetNode?.assetGroups?.find((group) => group.source.id === "char-1")?.derived[0];
+    expect(derived).toMatchObject({
+      id: "char-1-grey",
+      imageWorkflowId: "asset-flow-char-1-grey",
+      sourceImagePath: "project-file://daojie/assets/dugu.png",
+      imageWorkflowTarget: {
+        kind: "asset",
+        assetType: "character",
+        parentId: "char-1",
+        id: "char-1-grey",
+      },
+    });
+  });
+
+  it("links Toonflow numeric assetsId derivatives back to MYStudio parent assets", () => {
+    const entityExtractions = [
+      {
+        id: "extract-1",
+        episodeId: "chapter-001",
+        characters: [],
+        scenes: [{ sceneId: "scene-1", name: "道口镇街口" }],
+        props: [],
+      },
+    ];
+    const scriptPlans = [
+      {
+        id: "plan-1",
+        episodeId: "chapter-001",
+        theme: "",
+        visualStyle: "",
+        narrativeRhythm: "",
+        sceneIntents: [],
+        soundDirection: "",
+        transitions: "",
+        derivedAssetPlan: [
+          {
+            parentAssetId: "2521",
+            toonflowAssetsId: 2521,
+            state: "晨雾版",
+            reason: "Toonflow 衍生资产已有父资产数字 ID",
+          },
+        ],
+      },
+    ];
+
+    const model = buildProductionFlowModel({
+      agentWorkData: [],
+      entityExtractions,
+      scriptPlans,
+      storyboards: [],
+      productionTracks: [],
+      videoCandidates: [],
+      assetMediaById: {
+        "toonflow-db:2521": {
+          id: "toonflow-db:2521",
+          name: "道口镇街口",
+          path: "toonflow-asset://oss/1/assets/scene/base.png",
+          toonflowAssetId: 2521,
+        },
+        "toonflow-db:3230": {
+          id: "toonflow-db:3230",
+          name: "晨雾版",
+          path: "toonflow-asset://oss/1/assets/scene/fog.png",
+          state: "晨雾版",
+          reason: "已有 Toonflow 子资产",
+          parentAssetId: "toonflow-db:2521",
+          toonflowAssetId: 3230,
+          toonflowParentAssetId: 2521,
+          imageWorkflowId: "1",
+        },
+      },
+    });
+
+    const assetNode = model.nodes.find((node) => node.id === "assets");
+    const group = assetNode?.assetGroups?.find((item) => item.source.id === "scene-1");
+    expect(group?.source.mediaPath).toBe("toonflow-asset://oss/1/assets/scene/base.png");
+    expect(group?.derived[0]).toMatchObject({
+      id: "scene-1:晨雾版",
+      name: "晨雾版",
+      parentAssetId: "scene-1",
+      mediaPath: "toonflow-asset://oss/1/assets/scene/fog.png",
+      imageWorkflowId: "1",
+      sourceImagePath: "toonflow-asset://oss/1/assets/scene/base.png",
+    });
+    expect(assetNode?.assetSummary).toMatchObject({
+      planned: 1,
+      linked: 1,
+      completed: 1,
+      missingParent: 0,
+    });
+  });
+
+  it("includes Toonflow numeric derived states in asset library match names", () => {
+    const entityExtractions = [
+      {
+        id: "extract-1",
+        episodeId: "chapter-001",
+        characters: [],
+        scenes: [{ sceneId: "scene-1", name: "道口镇街口" }],
+        props: [],
+      },
+    ];
+    const scriptPlans = [
+      {
+        id: "plan-1",
+        episodeId: "chapter-001",
+        theme: "",
+        visualStyle: "",
+        narrativeRhythm: "",
+        sceneIntents: [],
+        soundDirection: "",
+        transitions: "",
+        derivedAssetPlan: [
+          {
+            parentAssetId: "2521",
+            toonflowAssetsId: 2521,
+            state: "晨雾版",
+            reason: "Toonflow 衍生资产已有父资产数字 ID",
+          },
+        ],
+      },
+    ];
+
+    const matchNames = buildAssetLibraryMatchNamesForProductionFlow({
+      entityExtractions,
+      scriptPlans,
+    });
+
+    expect(matchNames.scene).toContain("道口镇街口");
+    expect(matchNames.scene).toContain("晨雾版");
   });
 });

@@ -27,4 +27,14 @@ describe("electron-builder TTS packaging", () => {
     expect(studioManualsResource).toContain('"!**/*.map"');
     expect(studioManualsResource).toContain('"!**/*.tsbuildinfo"');
   });
+
+  it("does not bundle Daojie-specific content manuals into the desktop app", () => {
+    const source = readFileSync(new URL("./electron-builder.yml", import.meta.url), "utf8");
+    const studioManualsStart = source.indexOf("  - from: frontend/assets/studio-manuals");
+    const asarStart = source.indexOf("\nasar:");
+    const studioManualsResource = source.slice(studioManualsStart, asarStart);
+
+    expect(studioManualsResource).toContain('"!art_skills/daojie_ink_guofeng/**"');
+    expect(studioManualsResource).toContain('"!story_skills/Daojie_xianxia/**"');
+  });
 });

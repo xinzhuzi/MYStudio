@@ -47,6 +47,8 @@ export interface CharacterVariation {
   visualPrompt: string;   // Prompt describing this variation
   visualPromptZh?: string; // 中文提示词
   referenceImage?: string; // Generated reference image for this variation
+  imageWorkflowId?: string;
+  imageWorkflowNodeId?: string;
   clothingReferenceImages?: string[]; // User-uploaded clothing/outfit reference images (base64)
   generatedAt?: number;
   
@@ -498,6 +500,8 @@ export const useCharacterLibraryStore = create<CharacterLibraryStore>()(
             visualPrompt: v.visualPrompt,
             visualPromptZh: v.visualPromptZh,
             referenceImage: v.referenceImage,
+            imageWorkflowId: v.imageWorkflowId,
+            imageWorkflowNodeId: v.imageWorkflowNodeId,
             generatedAt: v.generatedAt,
             // Stage variation fields
             isStageVariation: v.isStageVariation,

@@ -1,8 +1,8 @@
 import { spawn, spawnSync } from "node:child_process";
 import http from "node:http";
-import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 import { PNG } from "pngjs";
 
 const appBinCandidates = [
@@ -48,11 +48,16 @@ const AUDIO_METADATA_TIMEOUT_MS = Number(
 const runStepwiseWorkflowSmoke =
   process.env.MYSTUDIO_SMOKE_WORKFLOW_STEPWISE === "1";
 const foregroundSmoke = process.env.MYSTUDIO_SMOKE_FOREGROUND === "1";
+const keepSmokeAppOpen = process.env.MYSTUDIO_SMOKE_KEEP_OPEN === "1";
 const parsedForegroundHoldMs = Number(
   process.env.MYSTUDIO_SMOKE_HOLD_MS || (foregroundSmoke ? 5_000 : 0),
 );
 const foregroundHoldMs = Number.isFinite(parsedForegroundHoldMs)
   ? Math.max(0, parsedForegroundHoldMs)
+  : 0;
+const parsedStepDelayMs = Number(process.env.MYSTUDIO_SMOKE_STEP_DELAY_MS || 0);
+const stepDelayMs = Number.isFinite(parsedStepDelayMs)
+  ? Math.max(0, parsedStepDelayMs)
   : 0;
 const CORE_ROUTE_CHECKS = [
   {
@@ -78,6 +83,9 @@ const CORE_ROUTE_CHECKS = [
   },
 ];
 const SMOKE_VIDEO_PATH = "/tmp/mystudio-smoke-final.mp4";
+const smokeReportPath =
+  process.env.MYSTUDIO_SMOKE_REPORT_PATH ||
+  resolve(process.cwd(), "output", "automation", "desktop-smoke-report.json");
 
 if (!existsSync(appBin)) {
   console.error(
@@ -113,6 +121,31 @@ function prepareSmokeMedia() {
 
 function sleep(ms) {
   return new Promise((resolveSleep) => setTimeout(resolveSleep, ms));
+}
+
+function writeSmokeReport(report) {
+  mkdirSync(dirname(smokeReportPath), { recursive: true });
+  writeFileSync(
+    smokeReportPath,
+    `${JSON.stringify(
+      {
+        generatedAt: new Date().toISOString(),
+        command: runStepwiseWorkflowSmoke
+          ? "MYSTUDIO_SMOKE_WORKFLOW_STEPWISE=1 npm run smoke:desktop"
+          : "npm run smoke:desktop",
+        reportPath: smokeReportPath,
+        appBin,
+        userDataDir,
+        debugPort,
+        runStepwiseWorkflowSmoke,
+        ...report,
+      },
+      null,
+      2,
+    )}\n`,
+    "utf8",
+  );
+  console.log(`[smoke] report written: ${smokeReportPath}`);
 }
 
 function bringSmokeAppToForeground(childProcess) {
@@ -531,7 +564,7 @@ async function verifyWorkflowStages(evaluate) {
 	      { id: 'manuals', label: '风格与导演', requiredText: ['视觉手册', '导演手册'] },
       { id: 'novel', label: '小说导入', requiredText: ['导入原文'] },
       { id: 'script', label: '剧本生产阶段', requiredText: ['请先在「小说导入」导入章节'] },
-      { id: 'assets', label: '剧本资产管理', requiredText: ['还没有剧本：请先在「剧本生产阶段」生成各章剧本', '角色/场景/道具', '承接本阶段已提取的角色、场景、道具', '全部润色提示词', '生成图片', '落地衍生资产', '参考音频'], forbiddenText: ['运行导演计划', '锁定剧集圣经', '角色库', '全部润色角色提示词'] },
+      { id: 'assets', label: '剧本资产管理', requiredText: ['还没有剧本：请先在「剧本生产阶段」生成各章剧本', '角色/场景/道具', '承接本阶段已提取的角色、场景、道具', '落地衍生资产', '参考音频'], forbiddenText: ['运行导演计划', '锁定剧集圣经', '角色库', '全部润色角色提示词', '全部润色提示词', '生成图片 ('] },
       {
         id: 'storyboard',
         label: '分镜视频生成',
@@ -689,6 +722,146 @@ async function verifyWorkflowEndToEnd(evaluate) {
     const scriptPlanText = scriptPlanNode ? normalize(scriptPlanNode) : '';
     const assetsText = assetsNode ? normalize(assetsNode) : '';
     const storyboardText = storyboardNode ? normalize(storyboardNode) : '';
+    const openDerivativeImageWorkflowDetail = async (workflowId, generatedTitle, writebackTarget) => {
+      clickButtonByText('工作流');
+      await window.mystudioWorkflowSmoke?.setWorkflowStage?.('storyboard');
+      await wait(500);
+      const currentAssetsNode = nodeById('assets');
+      const workflowButton = currentAssetsNode?.querySelector('[data-asset-workflow-id="' + workflowId + '"]');
+      const clicked = activate(workflowButton);
+      if (!clicked) return { workflowId, ready: false, clicked: false, missingChecks: ['clicked'] };
+      const captureDetail = () => {
+        const text = document.body.innerText;
+        const visibleRect = (node) => {
+          if (!node) return null;
+          const rect = node.getBoundingClientRect();
+          const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
+          const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
+          return {
+            x: Math.round(rect.x),
+            y: Math.round(rect.y),
+            width: Math.round(rect.width),
+            height: Math.round(rect.height),
+            visible:
+              rect.width > 0 &&
+              rect.height > 0 &&
+              rect.right > 0 &&
+              rect.bottom > 0 &&
+              rect.left < viewportWidth &&
+              rect.top < viewportHeight,
+          };
+        };
+        const inputValues = Array.from(document.querySelectorAll('input'))
+          .map((node) => node.value || '');
+        const referenceNode = document.querySelector('[data-image-workflow-node-kind="reference"]');
+        const generatedNode = document.querySelector('[data-image-workflow-node-kind="generated"]');
+        const referenceNodeText = referenceNode ? normalize(referenceNode) : '';
+        const generatedNodeText = generatedNode ? normalize(generatedNode) : '';
+        const referenceInputValues = referenceNode
+          ? Array.from(referenceNode.querySelectorAll('input')).map((node) => node.value || '')
+          : [];
+        const generatedInputValues = generatedNode
+          ? Array.from(generatedNode.querySelectorAll('input')).map((node) => node.value || '')
+          : [];
+        const hasReferenceNode = Boolean(referenceNode) && (
+          referenceNodeText.includes('参考') ||
+          referenceInputValues.some((value) => value.trim().length > 0) ||
+          Boolean(referenceNode.querySelector('img'))
+        );
+        const hasGeneratedNode = Boolean(generatedNode) && (
+          generatedNodeText.includes(generatedTitle) ||
+          generatedNodeText.includes('生成结果') ||
+          generatedNodeText.includes('成图') ||
+          generatedInputValues.includes(generatedTitle) ||
+          generatedInputValues.some((value) => value.includes('生成结果') || value.includes('成图'))
+        );
+        const hasAssetWritebackTarget = text.includes('回写目标') && text.includes(writebackTarget);
+        const hasImageWorkflowCanvas = Boolean(document.querySelector('.react-flow'));
+        const imageWorkflowNodeCount = document.querySelectorAll('.react-flow__node').length;
+        const hasImageWorkflowNodes = imageWorkflowNodeCount >= 3;
+        const hasImageWorkflowPromptNode = Boolean(document.querySelector('[data-image-workflow-node-kind="prompt"]'));
+        const generatedPromptPanel = generatedNode?.querySelector('[data-toonflow-generated-prompt-panel]');
+        const canvasRect = visibleRect(document.querySelector('.react-flow'));
+        const generatedNodeRect = visibleRect(generatedNode);
+        const generatedPromptPanelRect = visibleRect(generatedPromptPanel);
+        const hasVisibleImageWorkflowCanvas = Boolean(canvasRect?.visible && canvasRect.width >= 480 && canvasRect.height >= 320);
+        const hasVisibleGeneratedNode = Boolean(generatedNodeRect?.visible && generatedNodeRect.width >= 180 && generatedNodeRect.height >= 120);
+        const hasVisibleGeneratedPromptPanel = Boolean(generatedPromptPanelRect?.visible && generatedPromptPanelRect.width >= 180 && generatedPromptPanelRect.height >= 80);
+        const generatedPromptTextValues = generatedPromptPanel
+          ? Array.from(generatedPromptPanel.querySelectorAll('textarea')).map((node) => node.value || '')
+          : [];
+        const promptTextValues = [
+          ...Array.from(document.querySelectorAll('[data-image-workflow-node-kind="prompt"] textarea')).map((node) => node.value || ''),
+          ...generatedPromptTextValues,
+        ];
+        const hasToonflowGeneratedPromptPanel = Boolean(generatedPromptPanel);
+        const hasEditableImageWorkflowPrompt = promptTextValues.some((value) => value.trim().length > 0);
+        const hasImageWorkflowSource = text.includes('来源') && text.includes('分镜视频生成') && text.includes('衍生资产');
+        const imageWorkflowScope = document.querySelector('[data-scoped-image-workflow-summary]')?.closest('section') || document;
+        const scopedButtonTexts = Array.from(imageWorkflowScope.querySelectorAll('button')).map((node) => normalize(node));
+        const scopedText = imageWorkflowScope.innerText || '';
+        const hasScopedImageWorkflowSummary = Boolean(imageWorkflowScope.querySelector('[data-scoped-image-workflow-summary]'));
+        const hasNoGlobalImageWorkflowControls =
+          !imageWorkflowScope.querySelector('[data-image-workflow-selector]') &&
+          !imageWorkflowScope.querySelector('[data-image-workflow-global-action]');
+        const hasNoGlobalImageWorkflowPalettes = !scopedText.includes('项目参考图');
+        const hasImageWorkflowBackButton = scopedButtonTexts.some((buttonText) => buttonText.includes('返回工作流'));
+        const checks = {
+          clicked: true,
+          hasReferenceNode,
+          hasGeneratedNode,
+          hasAssetWritebackTarget,
+          hasImageWorkflowCanvas,
+          hasVisibleImageWorkflowCanvas,
+          hasImageWorkflowNodes,
+          hasImageWorkflowPromptNode,
+          hasToonflowGeneratedPromptPanel,
+          hasVisibleGeneratedNode,
+          hasVisibleGeneratedPromptPanel,
+          hasEditableImageWorkflowPrompt,
+          hasImageWorkflowSource,
+          hasScopedImageWorkflowSummary,
+          hasNoGlobalImageWorkflowControls,
+          hasNoGlobalImageWorkflowPalettes,
+          hasImageWorkflowBackButton,
+        };
+        const missingChecks = Object.entries(checks)
+          .filter(([, passed]) => !passed)
+          .map(([name]) => name);
+        return {
+          workflowId,
+          ready: missingChecks.length === 0,
+          ...checks,
+          missingChecks,
+          imageWorkflowNodeCount,
+          canvasRect,
+          generatedNodeRect,
+          generatedPromptPanelRect,
+          inputValues,
+          promptTextValues,
+          referenceInputValues,
+          generatedInputValues,
+          referenceNodeText,
+          generatedNodeText,
+          bodyTextSample: text.slice(0, 800),
+        };
+      };
+      const detail = await waitFor(() => {
+        const evidence = captureDetail();
+        return evidence.ready ? evidence : null;
+      }, 8000);
+      return detail || captureDetail();
+    };
+    const derivativeImageWorkflowDetails = [
+      await openDerivativeImageWorkflowDetail('smoke-flow-role-wanderer', '落魄江湖客 成图', '角色衍生 · 落魄江湖客'),
+      await openDerivativeImageWorkflowDetail('smoke-flow-scene-low-angle', '低机位推进 成图', '场景衍生 · 低机位推进'),
+      await openDerivativeImageWorkflowDetail('smoke-flow-prop-broken', '断剑破损版 成图', '道具衍生 · 断剑破损版'),
+    ];
+    const clickedDerivativeImageWorkflow = derivativeImageWorkflowDetails.every((detail) => detail?.ready);
+    const derivativeImageWorkflowDetail = {
+      checkedWorkflowIds: derivativeImageWorkflowDetails.map((detail) => detail.workflowId),
+      details: derivativeImageWorkflowDetails,
+    };
     const requiredNodePreviewText = [
       ['独孤剑尘睁眼'],
       ['矿场入局'],
@@ -717,9 +890,12 @@ async function verifyWorkflowEndToEnd(evaluate) {
         && ['矿场入局', '水墨漫剧', '低机位推进'].every((text) => scriptPlanText.includes(text))
         && Boolean(scriptPlanNode.querySelector('.md-editor-preview')),
       hasToonflowDerivativeLinks: Boolean(assetsNode)
-        && ['独孤剑尘', '落魄江湖客', '矿场', '低机位推进', '断剑', '断剑破损版', 'parentAssetId: smoke-role-sword', 'parentAssetId: smoke-scene-mine', 'parentAssetId: smoke-prop-sword']
+        && ['独孤剑尘', '落魄江湖客', '矿场', '低机位推进', '断剑', '断剑破损版', 'parentAssetId: smoke-role-sword', 'parentAssetId: smoke-scene-mine', 'parentAssetId: smoke-prop-sword', 'flowId: smoke-flow-role-wanderer', 'flowId: smoke-flow-scene-low-angle', 'flowId: smoke-flow-prop-broken']
           .every((text) => assetsText.includes(text))
         && assetsNode.querySelectorAll('img[src^="data:image"]').length >= 4,
+      clickedDerivativeImageWorkflow,
+      hasDerivativeImageWorkflowDetail: Boolean(derivativeImageWorkflowDetail),
+      derivativeImageWorkflowDetail,
       hasStoryboardImagePreview: Boolean(storyboardNode)
         && storyboardText.includes('旁白：他在尘土里醒来。')
         && Boolean(storyboardNode.querySelector('img[src^="data:image"]')),
@@ -734,12 +910,15 @@ async function verifyWorkflowEndToEnd(evaluate) {
     };
   })()`,
     "workflow end-to-end check",
-    20_000,
+    45_000,
   );
 }
 
 async function verifyWorkflowStepByStepExecution(evaluate) {
   console.log("[smoke] checking step-by-step workflow execution");
+  if (stepDelayMs > 0) {
+    console.log(`[smoke] visible step-by-step delay ${stepDelayMs}ms`);
+  }
   return evaluate(
     `(async () => {
     const normalize = (node) => (node.textContent || '').replace(/\\s+/g, ' ').trim();
@@ -753,6 +932,10 @@ async function verifyWorkflowStepByStepExecution(evaluate) {
       return true;
     };
     const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    const visibleStepDelayMs = ${stepDelayMs};
+    const visibleStepDelay = async () => {
+      if (visibleStepDelayMs > 0) await wait(visibleStepDelayMs);
+    };
     const waitFor = async (predicate, timeout = 8000) => {
       const deadline = Date.now() + timeout;
       let lastValue = null;
@@ -794,9 +977,10 @@ async function verifyWorkflowStepByStepExecution(evaluate) {
     }, 5000);
 
     const clickedWorkflow = clickButtonByText('工作流', true);
+    await visibleStepDelay();
     await waitFor(() => window.mystudioWorkflowSmoke?.resetForStepwiseExecution, 10_000);
     const reset = await window.mystudioWorkflowSmoke?.resetForStepwiseExecution?.();
-    await wait(300);
+    await visibleStepDelay();
     const stages = [
       { id: 'manuals', label: '风格与导演' },
       { id: 'novel', label: '小说导入' },
@@ -808,9 +992,13 @@ async function verifyWorkflowStepByStepExecution(evaluate) {
     const results = [];
     for (const stage of stages) {
       const stageClick = await clickStageById(stage.id);
+      console.info('[workflow-stepwise-visible] clicked ' + stage.label);
+      await visibleStepDelay();
       const before = await window.mystudioWorkflowSmoke?.inspectWorkflowStages?.();
       const run = await window.mystudioWorkflowSmoke?.runStepwiseWorkflowStage?.(stage.id);
+      await visibleStepDelay();
       const ready = await waitForStageReady(stage.id);
+      await visibleStepDelay();
       results.push({
         id: stage.id,
         label: stage.label,
@@ -1443,6 +1631,14 @@ function assertHealthy(
       "workflow node cards did not show Toonflow derivative asset links",
     );
   }
+  if (
+    !workflowEndToEnd.clickedDerivativeImageWorkflow ||
+    !workflowEndToEnd.hasDerivativeImageWorkflowDetail
+  ) {
+    failures.push(
+      "workflow derivative asset card did not open Toonflow image workflow detail",
+    );
+  }
   if (!workflowEndToEnd.hasStoryboardImagePreview) {
     failures.push(
       "storyboard workflow node did not show generated image previews",
@@ -1482,6 +1678,17 @@ function assertHealthy(
       failures.push(
         `workflow step-by-step stages failed: ${failedStepwiseStages.join(", ")}`,
       );
+    }
+    const scriptStep = (workflowStepwise?.results || []).find((stage) => stage.id === "script");
+    const scriptEvidence = scriptStep?.evidence || "";
+    for (const reviewKey of [
+      "storySkeletonReview=1",
+      "adaptationStrategyReview=1",
+      "scriptDraftReview=1",
+    ]) {
+      if (!scriptEvidence.includes(reviewKey)) {
+        failures.push(`workflow step-by-step script review evidence missing: ${reviewKey}`);
+      }
     }
   }
   if (!assetVoiceFlow.clickedAssets)
@@ -1619,7 +1826,7 @@ function assertHealthy(
         2,
       ),
     );
-    process.exit(1);
+    throw new Error(`Desktop smoke failed with ${failures.length} failure(s)`);
   }
 
   const workflowStepwiseSummary = runStepwiseWorkflowSmoke
@@ -1632,18 +1839,23 @@ function assertHealthy(
 
 prepareSmokeMedia();
 
+let smokeReport = null;
+
 const child = spawn(
   appBin,
   [`--remote-debugging-port=${debugPort}`, `--user-data-dir=${userDataDir}`],
   {
     cwd: process.cwd(),
+    detached: keepSmokeAppOpen,
     env: { ...process.env, ELECTRON_ENABLE_LOGGING: "1", MYSTUDIO_SMOKE: "1" },
     stdio: ["ignore", "pipe", "pipe"],
   },
 );
 
-child.stdout.on("data", (data) => process.stdout.write(data));
-child.stderr.on("data", (data) => process.stderr.write(data));
+const forwardStdout = (data) => process.stdout.write(data);
+const forwardStderr = (data) => process.stderr.write(data);
+child.stdout.on("data", forwardStdout);
+child.stderr.on("data", forwardStderr);
 
 try {
   const page = await waitForPageTarget();
@@ -1661,6 +1873,20 @@ try {
     pythonSettings,
     screenshot,
   } = await inspectPage(page);
+  smokeReport = {
+    ok: true,
+    state,
+    overviewWorkflow,
+    routeChecks,
+    workflowStages,
+    workflowEndToEnd,
+    workflowStepwise,
+    assetVoiceFlow,
+    scriptAssetGenerationVoiceFlow,
+    pythonSettings,
+    screenshot,
+    pageErrors: errors.map(summarizePageError),
+  };
   assertHealthy(
     state,
     errors,
@@ -1675,10 +1901,25 @@ try {
     screenshot,
   );
 } catch (error) {
+  smokeReport = {
+    ...(smokeReport ?? {}),
+    ok: false,
+    error: error instanceof Error ? error.message : String(error),
+  };
   console.error(error instanceof Error ? error.message : String(error));
   process.exitCode = 1;
 } finally {
+  if (smokeReport) {
+    writeSmokeReport(smokeReport);
+  }
   await holdForegroundSmokeWindow();
-  child.kill("SIGTERM");
+  if (keepSmokeAppOpen) {
+    child.stdout.off("data", forwardStdout);
+    child.stderr.off("data", forwardStderr);
+    child.unref();
+    console.log(`[smoke] leaving app open: pid=${child.pid}, userDataDir=${userDataDir}`);
+  } else {
+    child.kill("SIGTERM");
+  }
   rmSync(SMOKE_VIDEO_PATH, { force: true });
 }

@@ -19,6 +19,38 @@ describe("image workflow reference images", () => {
     ]);
   });
 
+  it("preserves reference order while converting only project-file values", async () => {
+    const readProjectFileAsBase64 = vi
+      .fn()
+      .mockResolvedValueOnce({
+        success: true,
+        base64: "data:image/png;base64,CHAR",
+      })
+      .mockResolvedValueOnce({
+        success: true,
+        base64: "data:image/png;base64,SCENE",
+      });
+
+    await expect(
+      prepareImageWorkflowReferenceImages(
+        [
+          "project-file://dao/assets/char.png",
+          "https://example.test/variation.png",
+          "project-file://dao/assets/scene.png",
+          "data:image/png;base64,PROP",
+        ],
+        { readProjectFileAsBase64 },
+      ),
+    ).resolves.toEqual([
+      "data:image/png;base64,CHAR",
+      "https://example.test/variation.png",
+      "data:image/png;base64,SCENE",
+      "data:image/png;base64,PROP",
+    ]);
+    expect(readProjectFileAsBase64).toHaveBeenNthCalledWith(1, "project-file://dao/assets/char.png");
+    expect(readProjectFileAsBase64).toHaveBeenNthCalledWith(2, "project-file://dao/assets/scene.png");
+  });
+
   it("throws instead of sending unreadable project-file URLs to external image APIs", async () => {
     await expect(
       prepareImageWorkflowReferenceImages(

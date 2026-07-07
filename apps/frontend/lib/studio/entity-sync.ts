@@ -42,6 +42,7 @@ export interface PropSink {
   addProp: (input: {
     name: string;
     description: string;
+    projectId?: string;
     folderId?: string | null;
     category?: string;
     assetName?: string;
@@ -154,10 +155,11 @@ export function syncExtractedEntities(
       continue;
     }
 
-    // prop: 写入 propsLibraryStore + assets.db
+    // prop: 写入 propsLibraryStore；独立资产库只由资产库功能显式写入。
     if (sinks.propSink && (entity.isNew || !entity.id)) {
       const propId = sinks.propSink.addProp({
         name: entity.name,
+        projectId,
         description: entity.note ?? "",
         assetName: formatAssetName(entity.name, entity.aliases),
       });
@@ -182,27 +184,22 @@ export function syncExtractedEntities(
   return { result, summary: { created, merged } };
 }
 
-/** Build sinks backed by the live MYStudio stores (character/scene libraries) + assets.db. */
+/** Build sinks backed by the live MYStudio project stores. */
 export function createMystudioSinks(): SyncSinks {
   return {
     characterSink: {
       addCharacter: (data) => {
-        const { assetName: syncedAssetName, ...characterData } = data;
-        const id = useCharacterLibraryStore.getState().addCharacter({ ...characterData, views: [] });
-        const assetName = syncedAssetName ?? data.name;
-        // 同步写入 assets.db（如果不存在）
-        try {
-          window.studioAssets?.getByName({ type: 'role', name: data.name }).then((existing) => {
-            if (!existing) {
-              window.studioAssets?.add({
-                type: 'role',
-                name: assetName,
-                description: data.description || '',
-                setting: data.notes || '',
-              });
-            }
-          });
-        } catch { /* non-blocking */ }
+        const id = useCharacterLibraryStore.getState().addCharacter({
+          name: data.name,
+          description: data.description,
+          visualTraits: data.visualTraits,
+          projectId: data.projectId,
+          folderId: data.folderId,
+          notes: data.notes,
+          status: data.status,
+          linkedEpisodeId: data.linkedEpisodeId,
+          views: [],
+        });
         return id;
       },
       updateCharacter: (id, updates) => useCharacterLibraryStore.getState().updateCharacter(id, updates),
@@ -211,22 +208,17 @@ export function createMystudioSinks(): SyncSinks {
     },
     sceneSink: {
       addScene: (data) => {
-        const { assetName: syncedAssetName, ...sceneData } = data;
-        const id = useSceneStore.getState().addScene(sceneData);
-        const assetName = syncedAssetName ?? data.name;
-        // 同步写入 assets.db（如果不存在）
-        try {
-          window.studioAssets?.getByName({ type: 'scene', name: data.name }).then((existing) => {
-            if (!existing) {
-              window.studioAssets?.add({
-                type: 'scene',
-                name: assetName,
-                description: data.atmosphere || data.location || '',
-                setting: data.notes || '',
-              });
-            }
-          });
-        } catch { /* non-blocking */ }
+        const id = useSceneStore.getState().addScene({
+          name: data.name,
+          location: data.location,
+          time: data.time,
+          atmosphere: data.atmosphere,
+          projectId: data.projectId,
+          folderId: data.folderId,
+          notes: data.notes,
+          status: data.status,
+          linkedEpisodeId: data.linkedEpisodeId,
+        });
         return id;
       },
       updateScene: (id, updates) => useSceneStore.getState().updateScene(id, updates),
@@ -235,26 +227,14 @@ export function createMystudioSinks(): SyncSinks {
     },
     propSink: {
       addProp: (data) => {
-        const assetName = data.assetName ?? data.name;
         const newProp = usePropsLibraryStore.getState().addProp({
           name: data.name,
+          projectId: data.projectId,
           description: data.description || "",
           imageUrl: "",
           folderId: data.folderId ?? null,
           category: data.category,
         });
-        // 同步写入 assets.db（如果不存在）
-        try {
-          window.studioAssets?.getByName({ type: 'tool', name: data.name }).then((existing) => {
-            if (!existing) {
-              window.studioAssets?.add({
-                type: 'tool',
-                name: assetName,
-                description: data.description || '',
-              });
-            }
-          });
-        } catch { /* non-blocking */ }
         return newProp.id;
       },
     },

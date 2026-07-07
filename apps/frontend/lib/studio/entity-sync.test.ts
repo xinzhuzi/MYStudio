@@ -1,5 +1,14 @@
-import { describe, expect, it } from "vitest";
-import { syncExtractedEntities, type CharacterSink, type SceneSink } from "./entity-sync";
+// @vitest-environment jsdom
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { useCharacterLibraryStore } from "@/stores/character-library-store";
+import { usePropsLibraryStore } from "@/stores/props-library-store";
+import { useSceneStore } from "@/stores/scene-store";
+import {
+  createMystudioSinks,
+  syncExtractedEntities,
+  type CharacterSink,
+  type SceneSink,
+} from "./entity-sync";
 import type { DedupedEntity } from "./entity-extraction";
 
 function makeSinks() {
@@ -46,6 +55,25 @@ function makeSinks() {
 }
 
 describe("studio entity sync bridge", () => {
+  beforeEach(() => {
+    delete (window as any).studioAssets;
+    useCharacterLibraryStore.setState({
+      characters: [],
+      folders: [],
+      currentFolderId: null,
+    });
+    useSceneStore.setState({
+      scenes: [],
+      folders: [],
+      currentFolderId: null,
+    });
+    usePropsLibraryStore.setState({
+      items: [],
+      folders: [],
+      selectedFolderId: "all",
+    });
+  });
+
   it("creates new entities, reuses known ids, routes props to the batch record, returns mapping + counts", () => {
     const entities: DedupedEntity[] = [
       { id: null, isNew: true, kind: "character", name: "小红", aliases: ["红儿"], episodeIds: ["ep1"] },
@@ -99,5 +127,38 @@ describe("studio entity sync bridge", () => {
     // counts
     expect(summary.created).toBe(3); // 小红 + 咖啡厅 + 账册
     expect(summary.merged).toBe(1); // 小明
+  });
+
+  it("keeps workflow entity sync project-scoped and does not write the independent asset library", () => {
+    (window as any).studioAssets = {
+      getByName: vi.fn(),
+      add: vi.fn(),
+    };
+    const sinks = createMystudioSinks();
+
+    sinks.characterSink.addCharacter({
+      name: "独孤剑尘",
+      description: "白衣剑修",
+      visualTraits: "",
+      projectId: "dao-project",
+    });
+    sinks.sceneSink.addScene({
+      name: "矿场",
+      location: "矿场",
+      time: "夜",
+      atmosphere: "冷雨",
+      projectId: "dao-project",
+    });
+    sinks.propSink?.addProp({
+      name: "断剑",
+      description: "一柄断裂的古剑",
+      projectId: "dao-project",
+    });
+
+    expect(window.studioAssets?.getByName).not.toHaveBeenCalled();
+    expect(window.studioAssets?.add).not.toHaveBeenCalled();
+    expect(useCharacterLibraryStore.getState().characters[0]?.projectId).toBe("dao-project");
+    expect(useSceneStore.getState().scenes[0]?.projectId).toBe("dao-project");
+    expect(usePropsLibraryStore.getState().items[0]?.projectId).toBe("dao-project");
   });
 });

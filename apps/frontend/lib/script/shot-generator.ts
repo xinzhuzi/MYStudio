@@ -10,6 +10,8 @@ import type { Shot } from "@/types/script";
 import { aiManager } from "@/lib/ai/ai-manager";
 import { retryOperation } from "@/lib/utils/retry";
 import { delay, RATE_LIMITS } from "@/lib/utils/rate-limiter";
+import { useAppSettingsStore } from "@/stores/app-settings-store";
+import type { ImageAspectRatio, ImageResolution } from "@/lib/ai/image-size-presets";
 
 const buildEndpoint = (baseUrl: string, path: string) => {
   const normalized = baseUrl.replace(/\/+$/, '');
@@ -21,10 +23,10 @@ export interface ShotGenerationConfig {
   provider?: string;
   baseUrl: string;
   model: string;
-  aspectRatio?: '16:9' | '9:16';
+  aspectRatio?: ImageAspectRatio;
   styleTokens?: string[];
   referenceImages?: string[]; // Character reference images for consistency
-  imageResolution?: '1K' | '2K' | '4K';
+  imageResolution?: ImageResolution;
   videoResolution?: '480p' | '720p' | '1080p';
 }
 
@@ -137,7 +139,8 @@ export async function generateShotImage(
   config: ShotGenerationConfig,
   onProgress?: (progress: number) => void
 ): Promise<string> {
-  const { apiKey, baseUrl, model, aspectRatio = '16:9', styleTokens = [], referenceImages = [] } = config;
+  const imageSettings = useAppSettingsStore.getState().imageGenerationSettings;
+  const { apiKey, baseUrl, model, aspectRatio = imageSettings.defaultAspectRatio, styleTokens = [], referenceImages = [] } = config;
 
   if (!apiKey) {
     throw new Error('API Key is required');
@@ -170,7 +173,7 @@ export async function generateShotImage(
     apiKey,
     baseUrl,
     aspectRatio,
-    resolution: config.imageResolution || '2K',
+    resolution: config.imageResolution || imageSettings.defaultResolution,
     referenceImages,
   });
 

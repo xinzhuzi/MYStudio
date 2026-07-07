@@ -1,4 +1,6 @@
 import { readFileSync } from "node:fs";
+import { spawn, spawnSync } from "node:child_process";
+import { createServer } from "node:http";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -6,6 +8,37 @@ const appsRoot = resolve(__dirname, "../..");
 
 function readBuildFile(relativePath: string) {
   return readFileSync(resolve(appsRoot, relativePath), "utf8");
+}
+
+function runPythonSnippet(source: string) {
+  return spawnSync("python3", ["-c", source], {
+    cwd: resolve(appsRoot, ".."),
+    encoding: "utf8",
+  });
+}
+
+function runNodeHelper(payload: unknown): Promise<{ status: number | null; stdout: string; stderr: string }> {
+  return new Promise((resolveRun, rejectRun) => {
+    const child = spawn("node", ["build/generate-storyboard-image.mjs"], {
+      cwd: appsRoot,
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.setEncoding("utf8");
+    child.stderr.setEncoding("utf8");
+    child.stdout.on("data", (chunk) => {
+      stdout += chunk;
+    });
+    child.stderr.on("data", (chunk) => {
+      stderr += chunk;
+    });
+    child.on("error", rejectRun);
+    child.on("close", (status) => {
+      resolveRun({ status, stdout, stderr });
+    });
+    child.stdin.end(JSON.stringify(payload));
+  });
 }
 
 describe("desktop build scripts", () => {
@@ -100,6 +133,9 @@ describe("desktop build scripts", () => {
   it("exposes a packaged desktop smoke test for white-screen regressions", () => {
     const packageJson = readBuildFile("package.json");
     const smokeScript = readBuildFile("build/smoke-desktop.mjs");
+    const workflowPreviews = readBuildFile(
+      "frontend/components/panels/studio/WorkflowNodePreviews.tsx",
+    );
 
     expect(packageJson).toContain(
       '"smoke:desktop": "node ./build/smoke-desktop.mjs"',
@@ -187,6 +223,28 @@ describe("desktop build scripts", () => {
     expect(smokeScript).toContain("hasNodeFlowDataPreview");
     expect(smokeScript).toContain("hasDirectorPlanPreview");
     expect(smokeScript).toContain("hasToonflowDerivativeLinks");
+    expect(smokeScript).toContain("clickedDerivativeImageWorkflow");
+    expect(smokeScript).toContain("hasDerivativeImageWorkflowDetail");
+    expect(smokeScript).toContain("hasImageWorkflowNodes");
+    expect(smokeScript).toContain("hasImageWorkflowPromptNode");
+    expect(smokeScript).toContain("hasToonflowGeneratedPromptPanel");
+    expect(smokeScript).toContain("hasVisibleImageWorkflowCanvas");
+    expect(smokeScript).toContain("hasVisibleGeneratedPromptPanel");
+    expect(smokeScript).toContain("data-toonflow-generated-prompt-panel");
+    expect(smokeScript).toContain("hasEditableImageWorkflowPrompt");
+    expect(smokeScript).toContain("hasImageWorkflowSource");
+    expect(smokeScript).toContain("hasImageWorkflowBackButton");
+    expect(smokeScript).toContain("referenceInputValues.some((value) => value.trim().length > 0)");
+    expect(workflowPreviews).toContain("data-asset-workflow-id");
+    expect(smokeScript).toContain("openDerivativeImageWorkflowDetail");
+    expect(smokeScript).toContain("flowId: smoke-flow-role-wanderer");
+    expect(smokeScript).toContain("smoke-flow-scene-low-angle");
+    expect(smokeScript).toContain("smoke-flow-prop-broken");
+    expect(smokeScript).toContain('data-image-workflow-node-kind="reference"');
+    expect(smokeScript).toContain('data-image-workflow-node-kind="generated"');
+    expect(smokeScript).toContain("角色衍生 · 落魄江湖客");
+    expect(smokeScript).toContain("场景衍生 · 低机位推进");
+    expect(smokeScript).toContain("道具衍生 · 断剑破损版");
     expect(smokeScript).toContain("hasStoryboardImagePreview");
     expect(smokeScript).toContain("hasNoDefaultReactFlowControls");
     expect(smokeScript).toContain("hasThemeViewportControls");
@@ -198,6 +256,9 @@ describe("desktop build scripts", () => {
     );
     expect(smokeScript).toContain(
       "workflow node cards did not show Toonflow derivative asset links",
+    );
+    expect(smokeScript).toContain(
+      "workflow derivative asset card did not open Toonflow image workflow detail",
     );
     expect(smokeScript).toContain(
       "storyboard workflow node did not show generated image previews",
@@ -281,10 +342,33 @@ describe("desktop build scripts", () => {
       "_p/{projectId}/...",
       "{basePath}/assets/assets.db",
       "assets/files/...",
+      "Clicking a derived asset card must open the asset image workflow detail",
     ]) {
       expect(skill).toContain(requiredText);
     }
     expect(openaiYaml).toContain("step-by-step workflow execution");
+  });
+
+  it("keeps props in project split storage instead of the independent asset library", () => {
+    const propsStore = readBuildFile("frontend/stores/props-library-store.ts");
+    const migration = readBuildFile("frontend/lib/storage-migration.ts");
+
+    expect(propsStore).toContain("createSplitStorage<PropLibraryPersistedState>");
+    expect(propsStore).toContain("'props', splitPropLibraryDataForStorage, mergePropLibraryDataForStorage");
+    expect(migration).toContain("migrateFlatStore('mystudio-props-library', 'props'");
+    expect(migration).toContain("arrayKeys: ['items', 'folders']");
+    expect(propsStore).not.toContain("assets/assets.db");
+  });
+
+  it("describes derived asset sync with MYStudio project stores instead of Toonflow tool names", () => {
+    const manual = readBuildFile("frontend/assets/studio-manuals/production_execution_derive_assets.md");
+
+    expect(manual).toContain("syncDerivedAssets()");
+    expect(manual).toContain("character.variations");
+    expect(manual).toContain("parentSceneId");
+    expect(manual).toContain("parentId");
+    expect(manual).not.toContain("add_deriveAsset");
+    expect(manual).not.toContain("assetsId");
   });
 
   it("exposes a packaged stepwise workflow smoke that does not seed complete state", () => {
@@ -312,7 +396,21 @@ describe("desktop build scripts", () => {
     expect(stepwise).toContain("clickButtonByText('分镜视频生成')");
     expect(stepwise).toContain("clickButtonByText('视频工作台')");
     expect(stepwise).toContain("waitForStageReady");
+    expect(smokeScript).toContain("storySkeletonReview=1");
+    expect(smokeScript).toContain("adaptationStrategyReview=1");
+    expect(smokeScript).toContain("scriptDraftReview=1");
     expect(stepwise).not.toContain("seedCompleteWorkflow");
+  });
+
+  it("persists packaged desktop smoke evidence under output automation", () => {
+    const smokeScript = readBuildFile("build/smoke-desktop.mjs");
+
+    expect(smokeScript).toContain("MYSTUDIO_SMOKE_REPORT_PATH");
+    expect(smokeScript).toContain('"output", "automation", "desktop-smoke-report.json"');
+    expect(smokeScript).toContain("command:");
+    expect(smokeScript).toContain("reportPath: smokeReportPath");
+    expect(smokeScript).toContain("writeSmokeReport(smokeReport)");
+    expect(smokeScript).toContain("report written");
   });
 
   it("exposes a foreground packaged smoke mode for visible app startup", () => {
@@ -333,6 +431,173 @@ describe("desktop build scripts", () => {
     expect(smokeScript).toContain("System Events");
     expect(skill).toContain("MYSTUDIO_SMOKE_FOREGROUND=1");
     expect(skill).toContain("MYSTUDIO_SMOKE_HOLD_MS=15000");
+  });
+
+  it("exposes a normal visible workflow app launcher that stays open", () => {
+    const packageJson = readBuildFile("package.json");
+    const openScript = readBuildFile("build/open-workflow-smoke-app.mjs");
+    const skill = readFileSync(
+      resolve(
+        appsRoot,
+        "../.agents/skills/mystudio-workflow-integrity-testing/SKILL.md",
+      ),
+      "utf8",
+    );
+
+    expect(packageJson).toContain(
+      '"smoke:workflow:open": "node ./build/open-workflow-smoke-app.mjs"',
+    );
+    expect(openScript).toContain("mkdtempSync(resolve(tmpdir(), \"mystudio-smoke-open-\"))");
+    expect(openScript).toContain("--user-data-dir=");
+    expect(openScript).toContain("MYSTUDIO_SMOKE");
+    expect(openScript).toContain("detached: true");
+    expect(openScript).toContain("child.unref()");
+    expect(openScript).toContain("bringAppToForeground");
+    expect(openScript).toContain("System Events");
+    expect(openScript).toContain("left open");
+    expect(skill).toContain("npm run smoke:workflow:open");
+    expect(skill).toContain("normal visible app startup");
+  });
+
+  it("exposes a visible step-by-step workflow runner that clicks through and stays open", () => {
+    const packageJson = readBuildFile("package.json");
+    const runnerScript = readBuildFile("build/run-visible-workflow-smoke.mjs");
+    const smokeScript = readBuildFile("build/smoke-desktop.mjs");
+    const skill = readFileSync(
+      resolve(
+        appsRoot,
+        "../.agents/skills/mystudio-workflow-integrity-testing/SKILL.md",
+      ),
+      "utf8",
+    );
+
+    expect(packageJson).toContain(
+      '"smoke:workflow:run": "node ./build/run-visible-workflow-smoke.mjs"',
+    );
+    expect(runnerScript).toContain("MYSTUDIO_SMOKE_WORKFLOW_STEPWISE");
+    expect(runnerScript).toContain("MYSTUDIO_SMOKE_FOREGROUND");
+    expect(runnerScript).toContain("MYSTUDIO_SMOKE_KEEP_OPEN");
+    expect(runnerScript).toContain("MYSTUDIO_SMOKE_STEP_DELAY_MS");
+    expect(runnerScript).toContain("MYSTUDIO_SMOKE_STEP_DELAY_MS || 2500");
+    expect(runnerScript).toContain("ensureAppIsForeground");
+    expect(runnerScript).toContain("getFrontmostApplicationName");
+    expect(runnerScript).toContain("[visible-run] stage");
+    expect(runnerScript).toContain("frontmostApp");
+    expect(runnerScript).toContain("writeVisibleRunReport");
+    expect(runnerScript).toContain("visible-workflow-daojie-report.json");
+    expect(runnerScript).toContain("reportPath");
+    expect(runnerScript).toContain("primeVisibleStageForFirstClick");
+    expect(runnerScript).toContain('stdio: "ignore"');
+    expect(runnerScript).not.toContain("child.stdout.on");
+    expect(runnerScript).not.toContain("child.stderr.on");
+    expect(smokeScript).toContain("MYSTUDIO_SMOKE_KEEP_OPEN");
+    expect(smokeScript).toContain("MYSTUDIO_SMOKE_STEP_DELAY_MS");
+    expect(smokeScript).toContain("visible step-by-step delay");
+    expect(smokeScript).toContain("leaving app open");
+    expect(skill).toContain("npm run smoke:workflow:run");
+    expect(skill).toContain("visible step-by-step workflow runner");
+    expect(skill).toContain("[visible-run] stage");
+    expect(skill).toContain("frontmostApp=漫影工作室");
+  });
+
+  it("exposes a visible Daojie chapter 001 workflow runner that does not use an empty smoke template", () => {
+    const packageJson = readBuildFile("package.json");
+    const runnerScript = readBuildFile("build/run-visible-workflow-smoke.mjs");
+    const skill = readFileSync(
+      resolve(
+        appsRoot,
+        "../.agents/skills/mystudio-workflow-integrity-testing/SKILL.md",
+      ),
+      "utf8",
+    );
+
+    expect(packageJson).toContain(
+      '"smoke:workflow:run:daojie": "node ./build/run-visible-workflow-smoke.mjs --daojie"',
+    );
+    expect(runnerScript).toContain("MYSTUDIO_WORKFLOW_REAL_DAOJIE");
+    expect(runnerScript).toContain("cloneRealDaojieUserData");
+    expect(runnerScript).toContain("mystudio-daojie-workflow-run-");
+    expect(runnerScript).toContain("linkProjectDirectoryIfExists");
+    expect(runnerScript).toContain("sourceWorkflowImagesDir");
+    expect(runnerScript).toContain("clonedWorkflowImagesDir");
+    expect(runnerScript).toContain("chapter-001");
+    expect(runnerScript).toContain("第1章：剑主夜访道口镇");
+    expect(runnerScript).toContain("Daojie chapter001 clicked through");
+    expect(runnerScript).toContain("real-daojie-chapter001-clone");
+    expect(runnerScript).toContain("storyboards");
+    expect(runnerScript).toContain("storyboardsWithWorkflow");
+    expect(runnerScript).toContain("storyboardImageWorkflowsReady");
+    expect(runnerScript).toContain("daojieChapter001ExpectedStoryboardCount = 43");
+    expect(runnerScript).toContain("videoCandidates");
+    expect(runnerScript).toContain("derivedAssetPlan");
+    expect(runnerScript).toContain("derivedAssets");
+    expect(runnerScript).toContain("derivedImageWorkflowsReady");
+    expect(runnerScript).toContain("data.storyboards === ${expectedStoryboards}");
+    expect(runnerScript).toContain("data.storyboardsWithMediaPath === ${expectedStoryboards}");
+    expect(runnerScript).toContain("data.storyboardImageWorkflowsReady === ${expectedStoryboards}");
+    expect(runnerScript).toContain("data.derivedImageWorkflowsReady >= 3");
+    expect(runnerScript).toContain("openRealDaojieStoryboardImageWorkflowDetail");
+    expect(runnerScript).toContain("data-storyboard-workflow-image-id");
+    expect(runnerScript).toContain("data-storyboard-id");
+    expect(runnerScript).toContain("openRealDaojieDerivativeImageWorkflowDetail");
+    expect(runnerScript).toContain("data-asset-workflow-image-id");
+    expect(runnerScript).toContain("asset-flow-chapter-001");
+    expect(runnerScript).toContain('data-image-workflow-node-kind="reference"');
+    expect(runnerScript).toContain('data-image-workflow-node-kind="generated"');
+    expect(runnerScript).toContain("captureStoryboardPaletteImageEvidence");
+    expect(runnerScript).toContain("图片加载失败");
+    expect(runnerScript).toContain("naturalWidth");
+    expect(runnerScript).toContain("loadedCardCount");
+    expect(runnerScript).toContain("failedCards");
+    expect(runnerScript).toContain("scopedDerivativePaletteAbsent");
+    expect(runnerScript).toContain("storyboardPaletteImages?.sectionFound === false");
+    expect(runnerScript).toContain("hasReferenceNode");
+    expect(runnerScript).toContain("hasGeneratedNode");
+    expect(runnerScript).toContain("hasAssetWritebackTarget");
+    expect(runnerScript).toContain("hasImageWorkflowNodes");
+    expect(runnerScript).toContain("hasImageWorkflowPromptNode");
+    expect(runnerScript).toContain("hasToonflowGeneratedPromptPanel");
+    expect(runnerScript).toContain("hasVisibleImageWorkflowCanvas");
+    expect(runnerScript).toContain("hasVisibleGeneratedPromptPanel");
+    expect(runnerScript).toContain("data-toonflow-generated-prompt-panel");
+    expect(runnerScript).toContain("hasEditableImageWorkflowPrompt");
+    expect(runnerScript).toContain("hasImageWorkflowSource");
+    expect(runnerScript).toContain("hasImageWorkflowBackButton");
+    expect(runnerScript).toContain("hasImageWorkflowRunAction");
+    expect(runnerScript).toContain("hasImageWorkflowWritebackAction");
+    expect(runnerScript).toContain("referenceInputValues.some((value) => value.trim().length > 0)");
+    expect(runnerScript).toContain("!result.storyboardImageWorkflowDetail?.ready");
+    expect(runnerScript).toContain("!result.derivativeImageWorkflowDetail?.ready");
+    expect(runnerScript).toContain("!scopedDerivativePaletteAbsent");
+    expect(runnerScript).toContain("daojie.storyboards !== daojieChapter001ExpectedStoryboardCount");
+    expect(runnerScript).toContain("daojie.storyboardsWithMediaPath !== daojieChapter001ExpectedStoryboardCount");
+    expect(runnerScript).toContain("daojie.storyboardsWithWorkflow !== daojieChapter001ExpectedStoryboardCount");
+    expect(runnerScript).toContain("daojie.storyboardImageWorkflowsReady !== daojieChapter001ExpectedStoryboardCount");
+    expect(runnerScript).toContain("daojie.derivedImageWorkflowsReady < 3");
+    expect(runnerScript).toContain("productionTrackIds.has(candidate.trackId)");
+    expect(runnerScript).not.toContain("storyboards >= 100");
+    expect(runnerScript).not.toContain("storyboards < 100");
+    expect(runnerScript).not.toContain("data.storyboards > 0");
+    expect(runnerScript).not.toContain("daojie.storyboards < 1");
+    expect(runnerScript).toContain("does not use resetForStepwiseExecution");
+    expect(runnerScript).toContain("Runtime.exceptionThrown");
+    expect(runnerScript).toContain("consoleAPICalled");
+    expect(runnerScript).toContain("runtimeProblems.length > 0");
+    expect(runnerScript).toContain("arg.description");
+    expect(runnerScript).toContain("[visible-run] console.error");
+    expect(runnerScript).toContain("captureVisibleWorkflowDomEvidence");
+    expect(runnerScript).toContain("verifyRealDaojieStageEvidence");
+    expect(runnerScript).toContain("manualsReady");
+    expect(runnerScript).toContain("workbenchReady");
+    expect(runnerScript).toContain("totalStoryboardDuration");
+    expect(runnerScript).toContain("totalTrackDuration");
+    expect(runnerScript).toContain("daojie.totalStoryboardDuration > 180");
+    expect(runnerScript).toContain("daojie.totalTrackDuration > 180");
+    expect(runnerScript).toContain("buttonTexts");
+    expect(runnerScript).toContain("stage switcher was not visible");
+    expect(skill).toContain("npm run smoke:workflow:run:daojie");
+    expect(skill).toContain("真实《道劫》第一章节项目");
+    expect(skill).toContain("不是 empty smoke template");
   });
 
   it("keeps the workflow integrity skill discoverable by trigger wording", () => {
@@ -400,6 +665,8 @@ describe("desktop build scripts", () => {
     const storyboardEnd = smokeScript.indexOf("id: 'workbench'");
     const assetsStage = smokeScript.slice(assetsStart, assetsEnd);
     const storyboardStage = smokeScript.slice(storyboardStart, storyboardEnd);
+    const assetsRequiredText =
+      assetsStage.match(/requiredText: \[([^\]]+)\]/)?.[1] ?? "";
 
     expect(assetsStart).toBeGreaterThan(-1);
     expect(assetsEnd).toBeGreaterThan(assetsStart);
@@ -408,8 +675,10 @@ describe("desktop build scripts", () => {
     expect(storyboardEnd).toBeGreaterThan(storyboardStart);
     expect(assetsStage).toContain("还没有剧本：请先在「剧本生产阶段」生成各章剧本");
     expect(assetsStage).toContain("承接本阶段已提取的角色、场景、道具");
-    expect(assetsStage).toContain("全部润色提示词");
-    expect(assetsStage).toContain("生成图片");
+    expect(assetsRequiredText).not.toContain("'全部润色提示词'");
+    expect(assetsRequiredText).not.toContain("'生成图片'");
+    expect(assetsStage).toContain("'全部润色提示词'");
+    expect(assetsStage).toContain("'生成图片 ('");
     expect(assetsStage).toContain("落地衍生资产");
     expect(assetsStage).toContain("参考音频");
     expect(assetsStage).not.toContain("requiredText: ['剧本资产提取'");
@@ -477,13 +746,73 @@ describe("desktop build scripts", () => {
     expect(videoScript).toContain("daojie-chapter001-video-report.json");
     expect(videoScript).toContain("ffprobe");
     expect(videoScript).toContain("storyboardsWithAssetLinks");
+    expect(videoScript).toContain("storyboardImageGenerationMode");
+    expect(videoScript).toContain("imageGenerationProvider");
+    expect(videoScript).toContain("storyboardImageWorkflowManifest");
+    expect(videoScript).toContain("分镜图片工作流明细缺失");
+    expect(videoScript).toContain("分镜图片工作流缺少参考节点");
+    expect(videoScript).toContain("分镜图片工作流缺少参考图到生成图连线");
+    expect(videoScript).toContain("MYSTUDIO_DAOJIE_STORYBOARD_IMAGE_MODE");
+    expect(videoScript).toContain("real-ai-reference-image-workflow");
+    expect(videoScript).toContain("loadStoryboardImageProviderConfigsFromAppSettings");
+    expect(videoScript).toContain("opencut-api-config");
+    expect(videoScript).toContain("freedom_image");
+    expect(videoScript).toContain("MYSTUDIO_IMAGE_PROVIDER_CONFIGS_JSON");
+    expect(videoScript).toContain("generatedFrameImages");
+    expect(videoScript).toContain("matchedAssetImages");
+    expect(videoScript).toContain("storyboardMediaManifest");
+    expect(videoScript).toContain("assetImageManifest");
+    expect(videoScript).toContain("trackCandidateManifest");
+    expect(videoScript).toContain("derivedAssetPlan");
+    expect(videoScript).toContain("derivedAssetManifest");
+    expect(videoScript).toContain("finalVideoEvidence");
+    expect(videoScript).toContain("分镜媒体明细缺失");
+    expect(videoScript).toContain("资产图片明细缺失");
+    expect(videoScript).toContain("生产轨候选明细缺失");
+    expect(videoScript).toContain("衍生资产预划缺失");
+    expect(videoScript).toContain("衍生资产落地明细缺失");
+    expect(videoScript).toContain("衍生资产图片不存在");
     expect(videoScript).toContain("REQUIRED_WORKFLOW_STEPS");
     expect(videoScript).toContain("requireWorkflowSteps(generated)");
     expect(videoScript).toContain("工作流步骤未完成");
     expect(videoScript).toContain("分镜资产链接不完整");
     expect(videoScript).toContain("分镜未关联塑角/造景/道具资产");
-    expect(videoScript).toContain("MIN_DAOJIE_STORYBOARDS");
-    expect(videoScript).toContain("道劫第一章分镜过少");
+    expect(videoScript).toContain("storyboardSourceSegments");
+    expect(videoScript).toContain("分镜数量必须按片段生成");
+    expect(videoScript).toContain("MAX_DAOJIE_VIDEO_DURATION_SECONDS = 180");
+    expect(videoScript).toContain("最终视频时长超过3分钟规格");
+    expect(videoScript).not.toContain("MIN_DAOJIE_STORYBOARDS");
+    expect(videoScript).not.toContain("道劫第一章分镜过少");
+    expect(generatorScript).toContain("EPISODE_STORYBOARD_SPECS");
+    expect(generatorScript).toContain("episode_storyboard_spec");
+    expect(generatorScript).toContain("STORYBOARD_IMAGE_GENERATION_MODE");
+    expect(generatorScript).toContain("generate_storyboard_frame_with_references");
+    expect(generatorScript).toContain("create_storyboard_image_workflow_graph");
+    expect(generatorScript).toContain("MYSTUDIO_IMAGE_API_BASE_URL");
+    expect(generatorScript).toContain("MYSTUDIO_IMAGE_API_KEY");
+    expect(generatorScript).toContain("MYSTUDIO_IMAGE_MODEL");
+    expect(generatorScript).toContain('"storyboardImageGenerationMode": STORYBOARD_IMAGE_GENERATION_MODE');
+    expect(generatorScript).toContain('"imageGenerationMode": STORYBOARD_IMAGE_GENERATION_MODE');
+    expect(generatorScript).toContain('"imageGenerationProvider": storyboard_image_generation_provider()');
+    expect(generatorScript).toContain('"storyboardImageWorkflowManifest": storyboard_image_workflow_manifest');
+    expect(generatorScript).toContain("referenceImages");
+    expect(generatorScript).toContain('"image_urls"');
+    expect(generatorScript).toContain("canonical_storyboard_shots");
+    expect(generatorScript).toContain('EPISODE_STORYBOARD_SPECS.get(episode_id)');
+    expect(generatorScript).toContain('episode_storyboard_spec(episode_id)["shots"]');
+    expect(generatorScript).not.toContain("EXPECTED_STORYBOARD_COUNT = 43");
+    expect(generatorScript).toContain('"storyboardSourceSegments": source_segment_count');
+    expect(generatorScript).toContain('"storyboardMediaManifest": storyboard_media_manifest');
+    expect(generatorScript).toContain('"assetImageManifest": asset_image_manifest');
+    expect(generatorScript).toContain('"trackCandidateManifest": track_candidate_manifest');
+    expect(generatorScript).toContain('"derivedAssetPlan": DERIVED_ASSET_PLAN');
+    expect(generatorScript).toContain('"derivedAssetManifest": derived_asset_sync["manifest"]');
+    expect(generatorScript).toContain('"finalVideoEvidence": final_video_evidence');
+    expect(generatorScript).toContain(
+      "actual_duration = max(MIN_SHOT_DURATION, min(MAX_SHOT_DURATION, max(duration, audio_duration(audio) + 0.4)))",
+    );
+    expect(generatorScript).not.toContain("units.extend(split_long_line");
+    expect(generatorScript).not.toContain("for part in split_long_line(desc)");
     expect(videoScript).toContain("framesWithRealAssetImages");
     expect(videoScript).toContain("assetImagePaths");
     expect(videoScript).toContain("存在未命中的图片资产");
@@ -517,8 +846,11 @@ describe("desktop build scripts", () => {
     expect(videoScript).toContain("最终视频音量过低");
     expect(videoScript).toContain("speakerAudioSamples");
     expect(videoScript).toContain("角色音频样本缺失");
-    expect(generatorScript).toContain("MIN_SHOT_DURATION = 5.0");
-    expect(generatorScript).toContain("MAX_SHOT_DURATION = 5.4");
+    expect(generatorScript).toContain("MIN_SHOT_DURATION = 3.0");
+    expect(generatorScript).toContain("MAX_SHOT_DURATION = 5.0");
+    expect(generatorScript).toContain('"targetDurationSeconds": 180.0');
+    expect(generatorScript).toContain("target_chapter_duration_seconds");
+    expect(generatorScript).toContain("成片时长超过目标规格");
     expect(generatorScript).toContain("MYSTUDIO_DAOJIE_REUSE_AUDIO_DIR");
     expect(generatorScript).toContain("build_workflow_steps(");
     expect(generatorScript).toContain('"novel_import"');
@@ -549,6 +881,522 @@ describe("desktop build scripts", () => {
     expect(generatorScript).toContain("create_direct_tts_audio");
     expect(generatorScript).toContain("synthesize_to_wav");
     expect(generatorScript).toContain("本地端口绑定被当前环境阻止");
+  });
+
+  it("rejects asset-composite as Toonflow-style storyboard image generation evidence", () => {
+    const videoScript = readBuildFile("build/automate-daojie-chapter001-video.mjs");
+
+    expect(videoScript).toContain("real-ai-reference-image-workflow");
+    expect(videoScript).toContain("storyboardImageGenerationMode");
+    expect(videoScript).toContain("asset-composite");
+    expect(videoScript).toContain("不能作为 Toonflow 式分镜图生成验收");
+    expect(videoScript).toContain("writeFailureReport");
+    expect(videoScript).toContain("ok: false");
+    expect(videoScript).toContain("生成器执行失败");
+    expect(videoScript).toContain("writeFailureReport(null");
+    expect(videoScript.indexOf("writeFailureReport")).toBeLessThan(
+      videoScript.indexOf("不能作为 Toonflow 式分镜图生成验收"),
+    );
+    expect(videoScript).not.toContain("generated.imageGenerationMode !== 'asset-composite'");
+    expect(videoScript).not.toContain("generated.imageGenerationProvider !== 'local-pillow-ffmpeg'");
+  });
+
+  it("sends GPT storyboard reference images through the standard images endpoint", async () => {
+    const requests: Array<{ url: string; authorization: string; body: Record<string, unknown>; rawBody: string }> = [];
+    const server = createServer((request, response) => {
+      let body = "";
+      request.setEncoding("utf8");
+      request.on("data", (chunk) => {
+        body += chunk;
+      });
+      request.on("end", () => {
+        let parsedBody: Record<string, unknown> = {};
+        try {
+          parsedBody = JSON.parse(body);
+        } catch {
+          parsedBody = { __rawBody: body.slice(0, 120) };
+        }
+        requests.push({
+          url: request.url || "",
+          authorization: request.headers.authorization || "",
+          body: parsedBody,
+          rawBody: body,
+        });
+        response.writeHead(200, { "Content-Type": "application/json" });
+        response.end(JSON.stringify({
+          data: [{ b64_json: Buffer.from("storyboard-image").toString("base64") }],
+          output_format: "png",
+        }));
+      });
+    });
+    await new Promise<void>((resolveListen) => server.listen(0, "127.0.0.1", resolveListen));
+    try {
+      const address = server.address();
+      if (!address || typeof address === "string") throw new Error("mock server did not bind to a TCP port");
+      const result = await runNodeHelper({
+        providers: [{
+          providerName: "mock-provider",
+          baseUrl: `http://127.0.0.1:${address.port}/v1`,
+          apiKey: "key-one",
+          model: "gpt-image-2",
+          aspectRatio: "16:9",
+          resolution: "1K",
+          timeoutSeconds: 5,
+        }],
+        prompt: "赤练蛇皮鞭撕开河雾",
+        referenceImages: [
+          "data:image/png;base64,cmVmMQ==",
+          "data:image/png;base64,cmVmMg==",
+        ],
+      });
+
+      expect(result.status).toBe(0);
+      expect(result.stderr).toBe("");
+      expect(JSON.parse(result.stdout)).toEqual({
+        url: `data:image/png;base64,${Buffer.from("storyboard-image").toString("base64")}`,
+      });
+      expect(requests).toHaveLength(1);
+      expect(requests[0].url).toBe("/v1/images/generations");
+      expect(requests[0].authorization).toBe("Bearer key-one");
+      expect(requests[0].body).toMatchObject({
+        model: "gpt-image-2",
+        prompt: expect.stringContaining("赤练蛇皮鞭撕开河雾"),
+        n: 1,
+        size: "1280x720",
+        image_urls: [
+          "data:image/png;base64,cmVmMQ==",
+          "data:image/png;base64,cmVmMg==",
+        ],
+      });
+      expect(requests[0].body).not.toHaveProperty("aspect_ratio");
+      expect(requests[0].body).not.toHaveProperty("resolution");
+    } finally {
+      await new Promise<void>((resolveClose, rejectClose) => {
+        server.close((error) => (error ? rejectClose(error) : resolveClose()));
+      });
+    }
+  }, 10_000);
+
+  it("flushes large storyboard image data URLs before exiting the helper", async () => {
+    const largeBase64 = "A".repeat(2_000_000);
+    const server = createServer((request, response) => {
+      request.resume();
+      request.on("end", () => {
+        response.writeHead(200, { "Content-Type": "application/json" });
+        response.end(JSON.stringify({
+          data: [{ b64_json: largeBase64 }],
+          output_format: "png",
+        }));
+      });
+    });
+    await new Promise<void>((resolveListen) => server.listen(0, "127.0.0.1", resolveListen));
+    try {
+      const address = server.address();
+      if (!address || typeof address === "string") throw new Error("mock server did not bind to a TCP port");
+      const result = await runNodeHelper({
+        providers: [{
+          providerName: "mock-provider",
+          baseUrl: `http://127.0.0.1:${address.port}/v1`,
+          apiKey: "key-one",
+          model: "gpt-image-2",
+          aspectRatio: "16:9",
+          resolution: "1K",
+          timeoutSeconds: 5,
+        }],
+        prompt: "大图 stdout 完整性",
+        referenceImages: [],
+      });
+
+      expect(result.status).toBe(0);
+      expect(result.stderr).toBe("");
+      const parsed = JSON.parse(result.stdout);
+      expect(parsed.url).toBe(`data:image/png;base64,${largeBase64}`);
+    } finally {
+      await new Promise<void>((resolveClose, rejectClose) => {
+        server.close((error) => (error ? rejectClose(error) : resolveClose()));
+      });
+    }
+  }, 10_000);
+
+  it("reports every provider key failure for storyboard image generation", async () => {
+    const server = createServer((request, response) => {
+      request.resume();
+      request.on("end", () => {
+        const authorization = request.headers.authorization || "";
+        if (authorization === "Bearer key-one") {
+          response.writeHead(403, { "Content-Type": "application/json" });
+          response.end(JSON.stringify({ error: { message: "quota exhausted" } }));
+          return;
+        }
+        response.writeHead(400, { "Content-Type": "application/json" });
+        response.end(JSON.stringify({ error: { message: "image unsafe" } }));
+      });
+    });
+    await new Promise<void>((resolveListen) => server.listen(0, "127.0.0.1", resolveListen));
+    try {
+      const address = server.address();
+      if (!address || typeof address === "string") throw new Error("mock server did not bind to a TCP port");
+      const result = await runNodeHelper({
+        providers: [{
+          providerName: "mock-provider",
+          baseUrl: `http://127.0.0.1:${address.port}/v1`,
+          apiKeys: ["key-one", "key-two"],
+          model: "gpt-image-2",
+          aspectRatio: "16:9",
+          resolution: "1K",
+          timeoutSeconds: 5,
+        }],
+        prompt: "失败摘要",
+        referenceImages: ["data:image/png;base64,cmVm"],
+      });
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("Failed after 1 provider(s), 2 API key(s)");
+      expect(result.stderr).toContain("mock-provider key 1: Image generation failed: 403");
+      expect(result.stderr).toContain("quota exhausted");
+      expect(result.stderr).toContain("mock-provider key 2: Image generation failed: 400");
+      expect(result.stderr).toContain("image unsafe");
+    } finally {
+      await new Promise<void>((resolveClose, rejectClose) => {
+        server.close((error) => (error ? rejectClose(error) : resolveClose()));
+      });
+    }
+  }, 10_000);
+
+  it("keeps Daojie real storyboard image requests provider-compatible", () => {
+    const helperScript = readBuildFile("build/generate-storyboard-image.mjs");
+    const generatorScript = readFileSync(
+      resolve(appsRoot, "..", "Library", "build_daojie_chapter001_workflow.py"),
+      "utf8",
+    );
+
+    expect(helperScript).toContain("imageGenerationEndpoint");
+    expect(helperScript).toContain("/v1/images/generations");
+    expect(helperScript).toContain("image_urls");
+    expect(helperScript).toContain("b64_json");
+    expect(generatorScript).toContain("generate_storyboard_image_via_node_helper");
+    expect(generatorScript).toContain("generate-storyboard-image.mjs");
+
+    const result = runPythonSnippet(`
+import importlib.util
+import tempfile
+from pathlib import Path
+from PIL import Image
+
+spec = importlib.util.spec_from_file_location("dao", "Library/build_daojie_chapter001_workflow.py")
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+
+with tempfile.TemporaryDirectory() as tmp:
+    image_path = Path(tmp) / "large-ref.png"
+    Image.new("RGB", (1600, 1200), (120, 80, 40)).save(image_path)
+    original = module.image_source_to_data_url(str(image_path))
+    prepared = module.prepare_storyboard_model_reference_image(str(image_path))
+    body = module.build_storyboard_image_request_body("水墨分镜", [prepared], {
+        "model": "gpt-image-2",
+        "aspectRatio": "16:9",
+        "resolution": "1K",
+    })
+    print(len(prepared) < len(original), body.get("size"), "aspect_ratio" in body, "resolution" in body, "image_urls" in body)
+`);
+
+    expect(result.status).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(result.stdout.trim()).toBe("True 1280x720 False False True");
+  });
+
+  it("injects Daojie ink-guofeng style and reference labels into real storyboard image prompts", () => {
+    const result = runPythonSnippet(`
+import importlib.util
+
+spec = importlib.util.spec_from_file_location("dao", "Library/build_daojie_chapter001_workflow.py")
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+
+prompt = module.build_storyboard_image_prompt(
+    {"index": 1, "prompt": "赤练蛇皮鞭撕开河雾。"},
+    [
+        {"name": "金水河码头", "assetType": "scene"},
+        {"name": "赤练蛇皮鞭", "assetType": "prop"},
+    ],
+)
+
+checks = [
+    "水墨国风" in prompt,
+    "工笔线描" in prompt,
+    "宣纸质感" in prompt,
+    "水墨国风电影质感" in prompt,
+    "画面无字幕、无水印、无标题叠字" in prompt,
+    "禁止写实摄影" in prompt,
+    "禁止3D写实渲染" in prompt,
+    "@图1 为金水河码头场景" in prompt,
+    "@图2 为赤练蛇皮鞭道具" in prompt,
+    "保持所有@图N造型、结构与参考图一致" in prompt,
+    "赤练蛇皮鞭撕开河雾" in prompt,
+]
+print(all(checks), prompt.count("@图"))
+`);
+
+    expect(result.status).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(result.stdout.trim()).toBe("True 3");
+  });
+
+  it("injects Daojie ink-guofeng style and reference labels into derived asset image prompts", () => {
+    const result = runPythonSnippet(`
+import importlib.util
+
+spec = importlib.util.spec_from_file_location("dao", "Library/build_daojie_chapter001_workflow.py")
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+
+prompt = module.build_derived_asset_image_prompt(
+    "独孤剑尘",
+    "灰衫入镇态",
+    "灰衫沾矿尘、背负油布剑包，作为第一章默认出镜状态。",
+    "character",
+)
+
+checks = [
+    "水墨国风修仙" in prompt,
+    "工笔线描" in prompt,
+    "宣纸质感" in prompt,
+    "水墨国风电影质感" in prompt,
+    "画面无字幕、无水印、无标题叠字" in prompt,
+    "禁止写实摄影" in prompt,
+    "禁止3D写实渲染" in prompt,
+    "@图1 为独孤剑尘角色基准图" in prompt,
+    "保持所有@图N造型、结构与参考图一致" in prompt,
+    "灰衫入镇态" in prompt,
+]
+print(all(checks), prompt.count("@图"))
+`);
+
+    expect(result.status).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(result.stdout.trim()).toBe("True 3");
+  });
+
+  it("reuses fresh Daojie storyboard images during real provider resume", () => {
+    const result = runPythonSnippet(`
+import importlib.util
+import os
+import tempfile
+from pathlib import Path
+from PIL import Image
+
+spec = importlib.util.spec_from_file_location("dao", "Library/build_daojie_chapter001_workflow.py")
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+
+with tempfile.TemporaryDirectory() as tmp:
+    root = Path(tmp)
+    module.PROJECT = root / "project"
+    module.PROJECT.mkdir()
+    result_file = module.PROJECT / "workflow-images/storyboards/chapter-001/shot-001.png"
+    result_file.parent.mkdir(parents=True)
+    Image.new("RGB", (128, 72), (24, 96, 160)).save(result_file)
+    ref_image = root / "ref.png"
+    Image.new("RGB", (64, 64), (160, 80, 24)).save(ref_image)
+    os.environ["MYSTUDIO_DAOJIE_REUSE_STORYBOARD_IMAGES"] = "1"
+    os.environ["MYSTUDIO_DAOJIE_REUSE_STORYBOARD_IMAGES_AFTER"] = "2000-01-01T00:00:00"
+
+    def fail_provider(*args, **kwargs):
+        raise RuntimeError("provider should not be called")
+
+    module.request_storyboard_image_generation = fail_provider
+    frame = root / "frame.png"
+    result = module.generate_storyboard_frame_with_references(
+        frame,
+        {"id": "sb-chapter-001-001", "index": 1, "prompt": "赤练蛇皮鞭撕开河雾。"},
+        "赤练蛇皮鞭撕开河雾。",
+        [{"name": "金水河码头", "kind": "场景", "imagePath": str(ref_image)}],
+        {"model": "gpt-image-2", "aspectRatio": "16:9", "resolution": "1K"},
+    )
+
+    print(
+        frame.exists(),
+        result["projectImageUrl"].endswith("/workflow-images/storyboards/chapter-001/shot-001.png"),
+        result.get("reusedExistingImage") is True,
+        "水墨国风电影质感" in result["workflowGraph"]["nodes"][-1]["prompt"],
+    )
+`);
+
+    expect(result.status).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(result.stdout.trim()).toBe("True True True True");
+  });
+
+  it("does not reuse stale Daojie storyboard images during real provider resume", () => {
+    const result = runPythonSnippet(`
+import base64
+import importlib.util
+import os
+import tempfile
+from pathlib import Path
+from PIL import Image
+
+spec = importlib.util.spec_from_file_location("dao", "Library/build_daojie_chapter001_workflow.py")
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+
+with tempfile.TemporaryDirectory() as tmp:
+    root = Path(tmp)
+    module.PROJECT = root / "project"
+    module.PROJECT.mkdir()
+    result_file = module.PROJECT / "workflow-images/storyboards/chapter-001/shot-001.png"
+    result_file.parent.mkdir(parents=True)
+    Image.new("RGB", (128, 72), (24, 96, 160)).save(result_file)
+    os.utime(result_file, (946684800, 946684800))
+    ref_image = root / "ref.png"
+    Image.new("RGB", (64, 64), (160, 80, 24)).save(ref_image)
+    generated = root / "generated.png"
+    Image.new("RGB", (128, 72), (180, 40, 40)).save(generated)
+    os.environ["MYSTUDIO_DAOJIE_REUSE_STORYBOARD_IMAGES"] = "1"
+    os.environ["MYSTUDIO_DAOJIE_REUSE_STORYBOARD_IMAGES_AFTER"] = "2000-01-02T00:00:00"
+
+    def fake_provider(*args, **kwargs):
+        return "data:image/png;base64," + base64.b64encode(generated.read_bytes()).decode("ascii")
+
+    module.request_storyboard_image_generation = fake_provider
+    frame = root / "frame.png"
+    result = module.generate_storyboard_frame_with_references(
+        frame,
+        {"id": "sb-chapter-001-001", "index": 1, "prompt": "赤练蛇皮鞭撕开河雾。"},
+        "赤练蛇皮鞭撕开河雾。",
+        [{"name": "金水河码头", "kind": "场景", "imagePath": str(ref_image)}],
+        {"model": "gpt-image-2", "aspectRatio": "16:9", "resolution": "1K"},
+    )
+
+    print(
+        frame.exists(),
+        result.get("reusedExistingImage") is False,
+        Image.open(result_file).convert("RGB").getpixel((0, 0))[0] > 150,
+    )
+`);
+
+    expect(result.status).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(result.stdout.trim()).toBe("True True True");
+  });
+
+  it("splits multiline Daojie storyboard image API keys before provider calls", () => {
+    const helperScript = readBuildFile("build/generate-storyboard-image.mjs");
+
+    expect(helperScript).toContain("apiKeys");
+    expect(helperScript).toContain("parseApiKeys");
+    expect(helperScript).toContain("for (let keyIndex = 0; keyIndex < apiKeys.length; keyIndex += 1)");
+    expect(helperScript).toContain("const apiKey = apiKeys[keyIndex]");
+    expect(helperScript).toContain("timeoutSeconds");
+    expect(helperScript).toContain("AbortController");
+    expect(helperScript).toContain("signal: controller.signal");
+
+    const result = runPythonSnippet(`
+import importlib.util
+import os
+
+os.environ["MYSTUDIO_DAOJIE_STORYBOARD_IMAGE_MODE"] = "real-ai-reference-image-workflow"
+os.environ["MYSTUDIO_IMAGE_API_BASE_URL"] = "https://example.invalid/v1"
+os.environ["MYSTUDIO_IMAGE_API_KEY"] = "key-one\\nkey-two"
+os.environ["MYSTUDIO_IMAGE_MODEL"] = "gpt-image-2"
+
+spec = importlib.util.spec_from_file_location("dao", "Library/build_daojie_chapter001_workflow.py")
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+
+config = module.storyboard_image_provider_config()
+print(config["apiKey"], config["apiKeys"], config["timeoutSeconds"])
+`);
+
+    expect(result.status).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(result.stdout.trim()).toBe("key-one ['key-one', 'key-two'] 180.0");
+  });
+
+  it("keeps Daojie storyboard image provider fallback order for real-ai mode", () => {
+    const helperScript = readBuildFile("build/generate-storyboard-image.mjs");
+
+    expect(helperScript).toContain("providers");
+    expect(helperScript).toContain("for (const providerConfig of providers)");
+
+    const result = runPythonSnippet(`
+import importlib.util
+import json
+import os
+
+os.environ["MYSTUDIO_DAOJIE_STORYBOARD_IMAGE_MODE"] = "real-ai-reference-image-workflow"
+os.environ["MYSTUDIO_IMAGE_PROVIDER_CONFIGS_JSON"] = json.dumps([
+    {
+        "providerName": "first-provider",
+        "baseUrl": "https://first.example/v1",
+        "apiKey": "first-one\\nfirst-two",
+        "model": "gpt-image-2",
+        "timeoutSeconds": 45,
+    },
+    {
+        "providerName": "second-provider",
+        "baseUrl": "https://second.example/v1",
+        "apiKeys": ["second-one"],
+        "model": "gpt-image-2",
+        "timeoutSeconds": 60,
+    },
+])
+
+spec = importlib.util.spec_from_file_location("dao", "Library/build_daojie_chapter001_workflow.py")
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+
+config = module.storyboard_image_provider_config()
+print(
+    [provider["providerName"] for provider in config["providers"]],
+    [provider["apiKeys"] for provider in config["providers"]],
+    config["apiKey"],
+    config["timeoutSeconds"],
+)
+`);
+
+    expect(result.status).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(result.stdout.trim()).toBe(
+      "['first-provider', 'second-provider'] [['first-one', 'first-two'], ['second-one']] first-one 45.0",
+    );
+  });
+
+  it("keeps Daojie chapter 001 video generation to the canonical 43 storyboards and three minute runtime", () => {
+    const result = runPythonSnippet(`
+import importlib.util
+spec = importlib.util.spec_from_file_location("dao", "Library/build_daojie_chapter001_workflow.py")
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+shots = module.build_shots_from_script("this input must not explode canonical storyboard count")
+segments = module.source_segment_units("this input must not explode source segment count")
+total_duration = sum(float(module.shot_tuple(shot)[6]) for shot in shots)
+print(len(module.CHAPTER_001_SHOTS), len(shots), len(segments), round(total_duration, 1))
+`);
+
+    expect(result.status).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(result.stdout.trim()).toBe("43 43 43 169.8");
+  });
+
+  it("derives Daojie video storyboard counts from the selected episode spec instead of a global 43 constant", () => {
+    const result = runPythonSnippet(`
+import importlib.util
+spec = importlib.util.spec_from_file_location("dao", "Library/build_daojie_chapter001_workflow.py")
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+module.EPISODE_STORYBOARD_SPECS["chapter-test"] = {
+    "shots": module.CHAPTER_001_SHOTS[:2],
+    "targetDurationSeconds": 12.0,
+}
+shots = module.build_shots_from_script("ignored", "chapter-test")
+segments = module.source_segment_units("ignored", "chapter-test")
+print(len(shots), len(segments), module.target_chapter_duration_seconds("chapter-test"))
+`);
+
+    expect(result.status).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(result.stdout.trim()).toBe("2 2 12.0");
   });
 
   it("generates icons from the current frontend assets directory", () => {

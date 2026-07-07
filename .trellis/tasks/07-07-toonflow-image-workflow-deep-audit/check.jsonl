@@ -1,0 +1,5 @@
+{"_example": "Fill with {\"file\": \"<path>\", \"reason\": \"<why>\"}. Put spec/research files only — no code paths. Run `python3 .trellis/scripts/get_context.py --mode packages` to list available specs. Delete this line once real entries are added."}
+{"file": ".trellis/spec/guides/index.md", "reason": "Shared quality checklist and false-positive guard"}
+{"file": "docs/融合/Toonflow_MYStudio_分镜差异审计.md", "reason": "Audit baseline and unresolved Toonflow parity boundaries"}
+{"file": "apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/art_prompt/art_storyboard_video.md", "reason": "Daojie storyboard/video style constraints for review"}
+{"file": "apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/driector_skills/director_storyboard.md", "reason": "Daojie image storyboard prompt quality review"}

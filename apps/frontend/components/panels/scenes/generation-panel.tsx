@@ -20,7 +20,7 @@ import { useScriptStore, useActiveScriptProject } from "@/stores/script-store";
 import type { PromptLanguage } from "@/types/script";
 import { useProjectStore } from "@/stores/project-store";
 import { useMediaStore } from "@/stores/media-store";
-import { getFeatureConfig, getFeatureNotConfiguredMessage } from "@/lib/ai/feature-router";
+import { useAppSettingsStore } from "@/stores/app-settings-store";
 import { aiManager } from "@/lib/ai/ai-manager";
 import { generateContactSheetPrompt, generateMultiPageContactSheetData, type SceneViewpoint } from "@/lib/script/scene-viewpoint-generator";
 import type { PendingViewpointData, ContactSheetPromptSet } from "@/stores/media-panel-store";
@@ -623,9 +623,9 @@ ${gridItemsZh}
       return;
     }
 
-    const featureConfig = getFeatureConfig('character_generation');
+    const featureConfig = aiManager.featureConfig('character_generation');
     if (!featureConfig) {
-      toast.error(getFeatureNotConfiguredMessage('character_generation'));
+      toast.error(aiManager.featureNotConfiguredMessage('character_generation'));
       return;
     }
 
@@ -672,7 +672,6 @@ ${gridItemsZh}
       const result = await aiManager.image({
         prompt,
         negativePrompt,
-        aspectRatio: '16:9',
         referenceImages: referenceImages.length > 0 ? referenceImages : undefined,
         styleId,
       });
@@ -777,7 +776,7 @@ ${gridItemsZh}
       scene: sceneData as any,
       shots: sceneShots,
       styleTokens,
-      aspectRatio: '16:9',
+      aspectRatio: contactSheetAspectRatio,
     });
 
     setContactSheetPrompt(result.prompt);
@@ -849,9 +848,9 @@ ${gridItemsZh}
       return;
     }
 
-    const featureConfig = getFeatureConfig('character_generation');
+    const featureConfig = aiManager.featureConfig('character_generation');
     if (!featureConfig) {
-      toast.error(getFeatureNotConfiguredMessage('character_generation'));
+      toast.error(aiManager.featureNotConfiguredMessage('character_generation'));
       return;
     }
 
@@ -910,13 +909,14 @@ ${gridItemsZh}
 
       setContactSheetProgress(20);
 
+      const imageSettings = useAppSettingsStore.getState().imageGenerationSettings;
       const result = await aiManager.imageGrid({
         model,
         prompt: finalPrompt,
         apiKey,
         baseUrl,
         aspectRatio: contactSheetAspectRatio,
-        resolution: '2K',
+        resolution: imageSettings.defaultResolution,
         keyManager,
       });
 
@@ -1169,9 +1169,11 @@ ${gridItemsZh}
         }
       }
       
+      const splitSettings = useAppSettingsStore.getState().imageGenerationSettings;
+      const splitResolution = splitSettings.defaultResolution === '4K' ? '4K' : '2K';
       const splitResults = await splitStoryboardImage(imageForSplit, {
         aspectRatio: contactSheetAspectRatio,
-        resolution: '2K',
+        resolution: splitResolution,
         sceneCount: expectedCount,
         options: {
           expectedRows,
@@ -1457,9 +1459,9 @@ ${gridItemsZh}
       return;
     }
 
-    const featureConfig = getFeatureConfig('character_generation');
+    const featureConfig = aiManager.featureConfig('character_generation');
     if (!featureConfig) {
-      toast.error(getFeatureNotConfiguredMessage('character_generation'));
+      toast.error(aiManager.featureNotConfiguredMessage('character_generation'));
       return;
     }
 
@@ -1530,9 +1532,9 @@ ${gridItemsZh}
       try {
         // ==================== 阶段 1: 生成联合图 ====================
         // 获取 API 配置 — 与导演面板一致使用 submitGridImageRequest
-        const autoFeatureConfig = getFeatureConfig('character_generation');
+        const autoFeatureConfig = aiManager.featureConfig('character_generation');
         if (!autoFeatureConfig) {
-          throw new Error(getFeatureNotConfiguredMessage('character_generation'));
+          throw new Error(aiManager.featureNotConfiguredMessage('character_generation'));
         }
         const apiKey = autoFeatureConfig.apiKey;
         const baseUrl = autoFeatureConfig.baseUrl?.replace(/\/+$/, '') || '';
@@ -1592,13 +1594,14 @@ ${gridItemsZh}
         setContactSheetTask(parentSceneId, { status: 'generating', progress: 30, message: '正在调用 AI 生成...' });
 
         // 使用 submitGridImageRequest — 与导演面板保持一致
+        const imageSettings = useAppSettingsStore.getState().imageGenerationSettings;
         const result = await aiManager.imageGrid({
           model,
           prompt: finalPrompt,
           apiKey,
           baseUrl,
           aspectRatio: snapshotAspectRatio,
-          resolution: '2K',
+          resolution: imageSettings.defaultResolution,
           keyManager,
         });
 
@@ -1654,9 +1657,10 @@ ${gridItemsZh}
 
         console.log('[AutoContactSheet] 切割参数:', { expectedRows, expectedCols, expectedCount, aspectRatio: snapshotAspectRatio });
 
+        const splitResolution = imageSettings.defaultResolution === '4K' ? '4K' : '2K';
         const splitResults = await splitStoryboardImage(imageForSplit, {
           aspectRatio: snapshotAspectRatio,
-          resolution: '2K',
+          resolution: splitResolution,
           sceneCount: expectedCount,
           options: {
             expectedRows,
@@ -1912,9 +1916,9 @@ ${gridItemsZh}
       return;
     }
 
-    const featureConfig = getFeatureConfig('character_generation');
+    const featureConfig = aiManager.featureConfig('character_generation');
     if (!featureConfig) {
-      toast.error(getFeatureNotConfiguredMessage('character_generation'));
+      toast.error(aiManager.featureNotConfiguredMessage('character_generation'));
       return;
     }
 
@@ -2010,9 +2014,11 @@ No characters, empty environment.`;
         });
 
         // 切割
+        const imageSettings = useAppSettingsStore.getState().imageGenerationSettings;
+        const splitResolution = imageSettings.defaultResolution === '4K' ? '4K' : '2K';
         const splitResults = await splitStoryboardImage(result.imageUrl, {
           aspectRatio: orthographicAspectRatio,
-          resolution: '2K',
+          resolution: splitResolution,
           sceneCount: 4,
           options: { expectedRows: 2, expectedCols: 2, filterEmpty: false, edgeMarginPercent: 0.02 },
         });
@@ -2190,9 +2196,9 @@ ${anchor} 的背面直视镜头。展示后部结构。背景是物体面向的�
       return;
     }
 
-    const featureConfig = getFeatureConfig('character_generation');
+    const featureConfig = aiManager.featureConfig('character_generation');
     if (!featureConfig) {
-      toast.error(getFeatureNotConfiguredMessage('character_generation'));
+      toast.error(aiManager.featureNotConfiguredMessage('character_generation'));
       return;
     }
 
@@ -2308,9 +2314,11 @@ ${anchor} 的背面直视镜头。展示后部结构。背景是物体面向的�
     setIsSplitting(true);
     try {
       // 2x2 切割，支持 16:9 或 9:16
+      const imageSettings = useAppSettingsStore.getState().imageGenerationSettings;
+      const splitResolution = imageSettings.defaultResolution === '4K' ? '4K' : '2K';
       const splitResults = await splitStoryboardImage(orthographicImage, {
         aspectRatio: orthographicAspectRatio, // 使用用户选择的宽高比
-        resolution: '2K',
+        resolution: splitResolution,
         sceneCount: 4,
         options: {
           expectedRows: 2,

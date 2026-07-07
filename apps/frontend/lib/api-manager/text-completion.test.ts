@@ -14,7 +14,7 @@ describe("text completion request adapter", () => {
     model: ["gpt-4o-mini"],
   };
 
-  it("prepares OpenAI, Anthropic and Gemini attempts when protocol is not pinned", () => {
+  it("defaults custom runtime text completion to OpenAI-compatible protocol", () => {
     const prepared = prepareTextCompletionRequest({
       provider,
       model: "gpt-4o-mini",
@@ -26,8 +26,23 @@ describe("text completion request adapter", () => {
     expect(prepared.success).toBe(true);
     expect(prepared.success && prepared.attempts.map((attempt) => attempt.protocol)).toEqual([
       "openai-compatible",
-      "anthropic-compatible",
-      "gemini-compatible",
+    ]);
+  });
+
+  it("pins runtime OpenAI-compatible providers to the OpenAI-compatible protocol", () => {
+    const prepared = prepareTextCompletionRequest({
+      provider: {
+        ...provider,
+        platform: "openai-compatible",
+        name: "OpenAI 兼容中转站",
+      },
+      model: "gpt-4o-mini",
+      messages: [{ role: "user", content: "回复 OK" }],
+    });
+
+    expect(prepared.success).toBe(true);
+    expect(prepared.success && prepared.attempts.map((attempt) => attempt.protocol)).toEqual([
+      "openai-compatible",
     ]);
   });
 

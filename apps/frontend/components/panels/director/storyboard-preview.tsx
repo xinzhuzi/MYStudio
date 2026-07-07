@@ -12,8 +12,10 @@
 import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { useDirectorStore, useActiveDirectorProject } from "@/stores/director-store";
+import { useAppSettingsStore } from "@/stores/app-settings-store";
 import { splitStoryboardImage, type SplitResult } from "@/lib/storyboard/image-splitter";
 import { persistSceneImage } from '@/lib/utils/image-persist';
+import { normalizeHorizontalVerticalAspectRatio } from "@/lib/ai/image-size-presets";
 import { 
   RefreshCw, 
   Scissors, 
@@ -42,12 +44,13 @@ export function StoryboardPreview({ onBack, onSplitComplete }: StoryboardPreview
 
   // Get current project data
   const projectData = useActiveDirectorProject();
+  const imageGenerationSettings = useAppSettingsStore((state) => state.imageGenerationSettings);
   const storyboardImage = projectData?.storyboardImage || null;
   const storyboardStatus = projectData?.storyboardStatus || 'idle';
   const storyboardError = projectData?.storyboardError || null;
   const storyboardConfig = projectData?.storyboardConfig || {
-    aspectRatio: '9:16' as const,
-    resolution: '2K' as const,
+    aspectRatio: normalizeHorizontalVerticalAspectRatio(imageGenerationSettings.defaultAspectRatio),
+    resolution: imageGenerationSettings.defaultResolution === '4K' ? '4K' as const : '2K' as const,
     sceneCount: 5,
     storyPrompt: '',
   };

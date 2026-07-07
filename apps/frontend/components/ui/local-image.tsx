@@ -9,7 +9,7 @@
  * The local-image:// protocol is handled by Electron's custom protocol handler
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 
 interface LocalImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
@@ -19,21 +19,21 @@ interface LocalImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
 
 export function LocalImage({ src, fallback, className, alt, ...props }: LocalImageProps) {
   const [error, setError] = useState(false);
-  const [currentSrc, setCurrentSrc] = useState(src);
+  const [currentSrc, setCurrentSrc] = useState(normalizeImageSrc(src));
 
   const handleError = () => {
     if (!error && fallback) {
       setError(true);
-      setCurrentSrc(fallback);
+      setCurrentSrc(normalizeImageSrc(fallback));
     } else {
       setError(true);
     }
   };
 
-  // Reset error state when src changes
-  if (src !== currentSrc && !error) {
-    setCurrentSrc(src);
-  }
+  useEffect(() => {
+    setCurrentSrc(normalizeImageSrc(src));
+    setError(false);
+  }, [src]);
 
   if (error && !fallback) {
     return (
@@ -58,4 +58,27 @@ export function LocalImage({ src, fallback, className, alt, ...props }: LocalIma
       {...props}
     />
   );
+}
+
+function normalizeImageSrc(value: string) {
+  if (hasUrlScheme(value) || value.startsWith("//")) return value;
+  if (isWindowsAbsolutePath(value)) {
+    return `file:///${encodeURI(value.replace(/\\/g, "/"))}`;
+  }
+  if (isMacFilesystemPath(value)) {
+    return `file://${encodeURI(value)}`;
+  }
+  return value;
+}
+
+function hasUrlScheme(value: string) {
+  return /^[a-z][a-z0-9+.-]*:/i.test(value);
+}
+
+function isWindowsAbsolutePath(value: string) {
+  return /^[a-z]:[\\/]/i.test(value);
+}
+
+function isMacFilesystemPath(value: string) {
+  return /^\/(?:Users|Volumes|private|tmp|var|Applications|Library|opt)\//.test(value);
 }

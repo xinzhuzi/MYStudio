@@ -6,6 +6,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useThemeStore } from "@/stores/theme-store";
 import { MdEditor } from "md-editor-rt";
 
 export function ScriptEditorDialog(props: {
@@ -17,6 +18,7 @@ export function ScriptEditorDialog(props: {
   onCancel: () => void;
   onSave: () => void;
 }) {
+  const theme = useThemeStore((state) => state.theme);
   return (
     <Dialog open={props.open} onOpenChange={props.onOpenChange}>
       <DialogContent className="flex h-[88vh] max-w-[92vw] flex-col gap-3 sm:max-w-[92vw]">
@@ -27,7 +29,7 @@ export function ScriptEditorDialog(props: {
           <MdEditor
             modelValue={props.value}
             onChange={props.onChange}
-            theme="dark"
+            theme={theme}
             language="zh-CN"
             toolbarsExclude={["github"]}
             style={{ height: "100%" }}

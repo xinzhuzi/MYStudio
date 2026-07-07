@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
 import json
+import base64
+import hashlib
+import io
+import mimetypes
 import os
 import re
 import shutil
@@ -8,8 +12,10 @@ import subprocess
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 import uuid
+from datetime import datetime
 from pathlib import Path
 import numpy as np
 from scipy import ndimage
@@ -20,6 +26,7 @@ STORE = PROJECT / "studio-workflow-store.json"
 SCRIPT_JSON = PROJECT / "script.json"
 CHARACTERS_JSON = PROJECT / "characters.json"
 SCENES_JSON = PROJECT / "scenes.json"
+PROPS_JSON = PROJECT / "props.json"
 EXPORTS = PROJECT / "exports" / "chapter-001"
 EXPORTS = Path(os.environ.get("MYSTUDIO_DAOJIE_EXPORTS_DIR", str(EXPORTS)))
 FRAMES = EXPORTS / "toonflow_frames"
@@ -35,8 +42,8 @@ VOICE_REFERENCE_NAME = "中年男声（45岁±）"
 VOICE_REFERENCE_ENGINE = "qwen"
 VOICE_REFERENCE_MODEL_SIZE = "1.7B"
 VOICE_REFERENCE_TEXT_FALLBACK = "我早已警告过你，宗门戒律不容挑衅，你竟为私利对同门下手。今日我必须废你武功，清理门户。"
-MIN_SHOT_DURATION = 5.0
-MAX_SHOT_DURATION = 5.4
+MIN_SHOT_DURATION = 3.0
+MAX_SHOT_DURATION = 5.0
 MIN_DIALOGUE_COVERAGE_RATIO = 0.92
 MIN_AUDIO_MEAN_VOLUME_DB = -55.0
 LONG_LINE_SPLIT_CHARS = 20
@@ -51,9 +58,607 @@ SILENT_PREVIEW = os.environ.get("MYSTUDIO_DAOJIE_SILENT_PREVIEW") == "1"
 REUSE_AUDIO_DIR = os.environ.get("MYSTUDIO_DAOJIE_REUSE_AUDIO_DIR")
 REPO_ROOT = Path(__file__).resolve().parents[1]
 BACKEND_ROOT = REPO_ROOT / "apps" / "backend"
+NODE_STORYBOARD_IMAGE_HELPER = REPO_ROOT / "apps" / "build" / "generate-storyboard-image.mjs"
 APP_PYTHON = APP_SUPPORT / "python" / "bin" / "python3.12"
 SKIP_PROJECT_WRITE = os.environ.get("MYSTUDIO_DAOJIE_SKIP_PROJECT_WRITE") == "1"
 SKIP_SCENE_EXPORTS = os.environ.get("MYSTUDIO_DAOJIE_SKIP_SCENE_EXPORTS") == "1"
+REAL_STORYBOARD_IMAGE_MODE = "real-ai-reference-image-workflow"
+ASSET_COMPOSITE_IMAGE_MODE = "asset-composite"
+STORYBOARD_IMAGE_GENERATION_MODE = (
+    os.environ.get("MYSTUDIO_DAOJIE_STORYBOARD_IMAGE_MODE", ASSET_COMPOSITE_IMAGE_MODE).strip()
+    or ASSET_COMPOSITE_IMAGE_MODE
+)
+MODEL_REFERENCE_MAX_EDGE = int(os.environ.get("MYSTUDIO_IMAGE_REFERENCE_MAX_EDGE", "1024"))
+MODEL_REFERENCE_JPEG_QUALITY = int(os.environ.get("MYSTUDIO_IMAGE_REFERENCE_JPEG_QUALITY", "82"))
+GPT_IMAGE_SIZE_MAP = {
+    "1:1": {"1K": "1024x1024", "2K": "2048x2048", "4K": "2880x2880"},
+    "16:9": {"1K": "1280x720", "2K": "2048x1152", "4K": "3840x2160"},
+    "9:16": {"1K": "720x1280", "2K": "1152x2048", "4K": "2160x3840"},
+    "4:3": {"1K": "1152x864", "2K": "2048x1536", "4K": "3264x2448"},
+    "3:4": {"1K": "864x1152", "2K": "1536x2048", "4K": "2448x3264"},
+    "3:2": {"1K": "1248x832", "2K": "2016x1344", "4K": "3520x2352"},
+    "2:3": {"1K": "832x1248", "2K": "1344x2016", "4K": "2352x3520"},
+    "21:9": {"1K": "1280x544", "2K": "2048x880", "4K": "3840x1648"},
+    "9:21": {"1K": "544x1280", "2K": "880x2048", "4K": "1648x3840"},
+}
+
+
+def is_real_storyboard_image_mode():
+    return STORYBOARD_IMAGE_GENERATION_MODE == REAL_STORYBOARD_IMAGE_MODE
+
+
+def storyboard_image_generation_provider():
+    if is_real_storyboard_image_mode():
+        return os.environ.get("MYSTUDIO_IMAGE_PROVIDER_NAME", "freedom-image").strip() or "freedom-image"
+    return "local-pillow-ffmpeg"
+
+
+def storyboard_image_provider_config():
+    if not is_real_storyboard_image_mode():
+        return {}
+    provider_configs = storyboard_image_provider_configs_from_env()
+    if provider_configs:
+        first = provider_configs[0]
+        return {
+            **first,
+            "providers": provider_configs,
+        }
+    api_keys = parse_storyboard_image_api_keys(os.environ.get("MYSTUDIO_IMAGE_API_KEY", ""))
+    config = {
+        "baseUrl": os.environ.get("MYSTUDIO_IMAGE_API_BASE_URL", "").strip(),
+        "apiKey": api_keys[0] if api_keys else "",
+        "apiKeys": api_keys,
+        "model": os.environ.get("MYSTUDIO_IMAGE_MODEL", "").strip(),
+        "aspectRatio": os.environ.get("MYSTUDIO_IMAGE_ASPECT_RATIO", "16:9").strip() or "16:9",
+        "resolution": os.environ.get("MYSTUDIO_IMAGE_RESOLUTION", "1K").strip() or "1K",
+        "timeoutSeconds": float(os.environ.get("MYSTUDIO_IMAGE_TIMEOUT_SECONDS", "180")),
+    }
+    missing = [key for key in ("baseUrl", "apiKey", "model") if not config[key]]
+    if missing:
+        raise RuntimeError(
+            "真实分镜图生成缺少配置: "
+            + ", ".join(f"MYSTUDIO_IMAGE_{'API_BASE_URL' if key == 'baseUrl' else 'API_KEY' if key == 'apiKey' else 'MODEL'}" for key in missing)
+        )
+    return config
+
+
+def parse_storyboard_image_api_keys(value):
+    return [part.strip() for part in re.split(r"[,\n]", value or "") if part.strip()]
+
+
+def parse_storyboard_image_api_key_list(value):
+    if isinstance(value, list):
+        keys = []
+        for item in value:
+            keys.extend(parse_storyboard_image_api_keys(str(item or "")))
+        return keys
+    return parse_storyboard_image_api_keys(str(value or ""))
+
+
+def normalize_storyboard_image_provider_config(item, default_timeout):
+    api_keys = parse_storyboard_image_api_key_list(item.get("apiKeys"))
+    api_keys.extend(parse_storyboard_image_api_keys(item.get("apiKey", "")))
+    seen = set()
+    api_keys = [key for key in api_keys if not (key in seen or seen.add(key))]
+    config = {
+        "providerName": str(item.get("providerName") or item.get("name") or storyboard_image_generation_provider()).strip() or "freedom-image",
+        "baseUrl": str(item.get("baseUrl") or item.get("baseURL") or "").strip(),
+        "apiKey": api_keys[0] if api_keys else "",
+        "apiKeys": api_keys,
+        "model": str(item.get("model") or "").strip(),
+        "aspectRatio": str(item.get("aspectRatio") or os.environ.get("MYSTUDIO_IMAGE_ASPECT_RATIO", "16:9")).strip() or "16:9",
+        "resolution": str(item.get("resolution") or os.environ.get("MYSTUDIO_IMAGE_RESOLUTION", "1K")).strip() or "1K",
+        "timeoutSeconds": float(item.get("timeoutSeconds") or default_timeout),
+    }
+    missing = [key for key in ("baseUrl", "apiKey", "model") if not config[key]]
+    if missing:
+        raise RuntimeError(f"真实分镜图 provider 配置不完整: {config['providerName']} missing={','.join(missing)}")
+    return config
+
+
+def storyboard_image_provider_configs_from_env():
+    raw = os.environ.get("MYSTUDIO_IMAGE_PROVIDER_CONFIGS_JSON", "").strip()
+    if not raw:
+        return []
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError as error:
+        raise RuntimeError(f"MYSTUDIO_IMAGE_PROVIDER_CONFIGS_JSON 不是有效 JSON: {error}") from error
+    if not isinstance(data, list):
+        raise RuntimeError("MYSTUDIO_IMAGE_PROVIDER_CONFIGS_JSON 必须是 provider 数组")
+    default_timeout = float(os.environ.get("MYSTUDIO_IMAGE_TIMEOUT_SECONDS", "180"))
+    return [normalize_storyboard_image_provider_config(item, default_timeout) for item in data]
+
+
+def normalize_image_base_url(base_url):
+    return re.sub(r"/v\d+/?$", "", base_url.rstrip("/"))
+
+
+def image_generation_endpoint(base_url):
+    return f"{normalize_image_base_url(base_url)}/v1/images/generations"
+
+
+def image_task_poll_endpoint(base_url, task_id):
+    template = os.environ.get("MYSTUDIO_IMAGE_POLL_URL_TEMPLATE", "").strip()
+    if template:
+        return template.replace("{task_id}", urllib.parse.quote(str(task_id)))
+    return f"{image_generation_endpoint(base_url)}/{urllib.parse.quote(str(task_id))}"
+
+
+def first_string(value):
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    if isinstance(value, list) and value:
+        return first_string(value[0])
+    if isinstance(value, dict):
+        return first_string(value.get("url")) or first_string(value.get("image_url")) or first_string(value.get("output_url"))
+    return ""
+
+
+def data_image_url(raw_base64, image_format="png"):
+    if not isinstance(raw_base64, str) or not raw_base64.strip():
+        return ""
+    if raw_base64.startswith("data:image/"):
+        return raw_base64
+    safe_format = re.sub(r"[^a-zA-Z0-9.+-]", "", str(image_format or "png").lower()) or "png"
+    if safe_format == "jpg":
+        safe_format = "jpeg"
+    return f"data:image/{safe_format};base64,{raw_base64}"
+
+
+def is_gpt_image_model(model):
+    return bool(re.search(r"(^|[-_:/])gpt[-_]?image", str(model or ""), re.IGNORECASE))
+
+
+def gpt_image_size(aspect_ratio, resolution):
+    ratio = aspect_ratio if aspect_ratio in GPT_IMAGE_SIZE_MAP else "16:9"
+    normalized_resolution = str(resolution or "2K").upper()
+    if normalized_resolution not in GPT_IMAGE_SIZE_MAP[ratio]:
+        normalized_resolution = "2K"
+    return GPT_IMAGE_SIZE_MAP[ratio][normalized_resolution]
+
+
+DAOJIE_STORYBOARD_STYLE_PROMPT = (
+    "水墨国风修仙，工笔线描，写意泼墨，写意晕染，青绿淡彩，宣纸质感，"
+    "宣纸淡彩工笔，细密白描线描，低饱和青绿山水，墨色层次丰富，"
+    "传统水墨技法，工笔写意融合，连环画叙事感，水墨国风电影质感，"
+    "电影构图，水墨国风高清渲染，高细节，画面无字幕、无水印、无标题叠字"
+)
+DAOJIE_STORYBOARD_NEGATIVE_CONSTRAINTS = (
+    "禁止写实摄影，禁止3D写实渲染，禁止照片级真实感，禁止赛璐璐平涂，"
+    "禁止现代/科幻/西方奇幻元素，禁止文字水印、logo、乱码题字"
+)
+STORYBOARD_REFERENCE_TYPE_LABELS = {
+    "scene": "场景",
+    "character": "角色",
+    "role": "角色",
+    "prop": "道具",
+    "tool": "道具",
+    "场景": "场景",
+    "角色": "角色",
+    "道具": "道具",
+}
+
+
+def storyboard_reference_type_label(reference):
+    raw_type = reference.get("assetType") or reference.get("kind") or ""
+    return STORYBOARD_REFERENCE_TYPE_LABELS.get(raw_type, "资产")
+
+
+def build_storyboard_reference_intro(reference_images):
+    labels = []
+    for index, reference in enumerate(reference_images or [], 1):
+        name = reference.get("name") or reference.get("title") or reference.get("assetId") or f"参考资产{index}"
+        labels.append(f"@图{index} 为{name}{storyboard_reference_type_label(reference)}")
+    return "；".join(labels)
+
+
+def build_storyboard_image_prompt(storyboard, reference_images):
+    visual_prompt = str((storyboard or {}).get("prompt") or "").strip()
+    reference_intro = build_storyboard_reference_intro(reference_images)
+    parts = []
+    if reference_intro:
+        parts.append(reference_intro)
+    if visual_prompt:
+        parts.append(f"【画面】{visual_prompt}")
+    parts.append("【镜头】16:9横版国风漫剧关键帧，前中远景层次清楚，主体动作、角色位置和道具关系可读。")
+    parts.append(f"【风格】{DAOJIE_STORYBOARD_STYLE_PROMPT}。")
+    parts.append(f"【反向约束】{DAOJIE_STORYBOARD_NEGATIVE_CONSTRAINTS}。")
+    if reference_intro:
+        parts.append("保持所有@图N造型、结构与参考图一致。")
+    return " ".join(part for part in parts if part).strip()
+
+
+def build_derived_asset_image_prompt(parent_name, state_name, reason, asset_type):
+    type_label = STORYBOARD_REFERENCE_TYPE_LABELS.get(asset_type, "资产")
+    reference_intro = f"@图1 为{parent_name}{type_label}基准图"
+    parts = [
+        reference_intro,
+        f"【衍生目标】{state_name}：{reason}",
+        (
+            "【画面】以@图1为底图，保持父资产主体轮廓、身份识别、比例结构与核心特征不变，"
+            f"只强化{state_name}所需的服饰、光影、磨损、姿态或局部状态变化。"
+        ),
+        "【镜头】16:9横版国风漫剧资产设定图，主体完整清晰，可供后续分镜连续复用。",
+        f"【风格】{DAOJIE_STORYBOARD_STYLE_PROMPT}。",
+        f"【反向约束】{DAOJIE_STORYBOARD_NEGATIVE_CONSTRAINTS}。",
+        "保持所有@图N造型、结构与参考图一致。",
+    ]
+    return " ".join(part for part in parts if part).strip()
+
+
+def parse_storyboard_image_reuse_after_timestamp(value):
+    raw = str(value or "").strip()
+    if not raw:
+        return None
+    normalized = raw[:-1] + "+00:00" if raw.endswith("Z") else raw
+    try:
+        return datetime.fromisoformat(normalized).timestamp()
+    except ValueError as error:
+        raise RuntimeError(f"MYSTUDIO_DAOJIE_REUSE_STORYBOARD_IMAGES_AFTER 不是有效 ISO 时间: {raw}") from error
+
+
+def can_reuse_storyboard_image(image_path):
+    if os.environ.get("MYSTUDIO_DAOJIE_REUSE_STORYBOARD_IMAGES") != "1":
+        return False
+    threshold = parse_storyboard_image_reuse_after_timestamp(
+        os.environ.get("MYSTUDIO_DAOJIE_REUSE_STORYBOARD_IMAGES_AFTER", "")
+    )
+    if threshold is None or not image_path.exists():
+        return False
+    return image_path.stat().st_mtime >= threshold
+
+
+def extract_generated_image_url(data):
+    if not isinstance(data, dict):
+        return ""
+    data_field = data.get("data")
+    first_item = data_field[0] if isinstance(data_field, list) and data_field else data_field
+    first_record = first_item if isinstance(first_item, dict) else {}
+    image_url = (
+        first_string(first_record.get("url"))
+        or first_string(first_record.get("image_url"))
+        or first_string(first_record.get("output_url"))
+        or data_image_url(first_record.get("b64_json"), first_record.get("output_format") or data.get("output_format"))
+        or first_string(data.get("url"))
+        or first_string(data.get("image_url"))
+        or first_string(data.get("output_url"))
+        or data_image_url(data.get("b64_json"), data.get("output_format"))
+        or first_string(data.get("output"))
+        or first_string(data.get("outputs"))
+    )
+    if image_url:
+        return image_url
+    choices = data.get("choices")
+    if isinstance(choices, list) and choices:
+        content = ((choices[0] or {}).get("message") or {}).get("content")
+        if isinstance(content, str):
+            match = re.search(r"!\[.*?\]\((https?://[^)]+)\)", content)
+            if match:
+                return match.group(1)
+            match = re.search(r"(data:image/[^;]+;base64,[A-Za-z0-9+/=]+)", content)
+            if match:
+                return match.group(1)
+        if isinstance(content, list):
+            for part in content:
+                if not isinstance(part, dict):
+                    continue
+                direct = first_string(part.get("image_url")) or first_string(part.get("image")) or first_string(part.get("url"))
+                if direct:
+                    return direct
+                image_value = part.get("image") if isinstance(part.get("image"), dict) else {}
+                encoded = data_image_url(part.get("data") or image_value.get("data"))
+                if encoded:
+                    return encoded
+    return ""
+
+
+def extract_image_task_id(data):
+    if not isinstance(data, dict):
+        return ""
+    data_field = data.get("data")
+    first_item = data_field[0] if isinstance(data_field, list) and data_field else data_field
+    first_record = first_item if isinstance(first_item, dict) else {}
+    return (
+        first_string(first_record.get("task_id"))
+        or first_string(first_record.get("id"))
+        or first_string(data.get("task_id"))
+        or first_string(data.get("taskId"))
+        or first_string(data.get("id"))
+    )
+
+
+def fetch_json(url, api_key, payload=None, timeout_seconds=180):
+    body = None if payload is None else json.dumps(payload).encode("utf-8")
+    request = urllib.request.Request(
+        url,
+        data=body,
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api_key}",
+        },
+        method="GET" if payload is None else "POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=timeout_seconds) as response:
+            return json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as error:
+        error_text = error.read().decode("utf-8", errors="replace")
+        raise RuntimeError(f"图片生成 API 错误: {error.code} {error_text}") from error
+
+
+def build_storyboard_image_request_body(prompt, reference_images, config):
+    body = {
+        "model": config["model"],
+        "prompt": prompt,
+        "n": 1,
+    }
+    if is_gpt_image_model(config["model"]):
+        body["size"] = gpt_image_size(config["aspectRatio"], config["resolution"])
+    else:
+        body["stream"] = False
+        body["aspect_ratio"] = config["aspectRatio"]
+        body["resolution"] = config["resolution"]
+    if reference_images:
+        body["image_urls"] = reference_images
+    return body
+
+
+def generate_storyboard_image_via_node_helper(prompt, reference_images, config):
+    if not NODE_STORYBOARD_IMAGE_HELPER.exists():
+        raise RuntimeError(f"Node 分镜图生成 helper 不存在: {NODE_STORYBOARD_IMAGE_HELPER}")
+    payload = {
+        "baseUrl": config["baseUrl"],
+        "apiKey": config["apiKey"],
+        "apiKeys": config.get("apiKeys") or [config["apiKey"]],
+        "providers": config.get("providers"),
+        "model": config["model"],
+        "providerName": config.get("providerName") or storyboard_image_generation_provider(),
+        "prompt": prompt,
+        "referenceImages": reference_images,
+        "aspectRatio": config["aspectRatio"],
+        "resolution": config["resolution"],
+        "timeoutSeconds": config["timeoutSeconds"],
+    }
+    provider_timeout = 0
+    for provider in payload.get("providers") or []:
+        provider_timeout += float(provider.get("timeoutSeconds") or config["timeoutSeconds"]) * max(1, len(provider.get("apiKeys") or [provider.get("apiKey")]))
+    helper_timeout = (provider_timeout or config["timeoutSeconds"] * max(1, len(payload["apiKeys"]))) + 30
+    result = subprocess.run(
+        ["node", str(NODE_STORYBOARD_IMAGE_HELPER)],
+        cwd=str(REPO_ROOT / "apps"),
+        input=json.dumps(payload, ensure_ascii=False),
+        text=True,
+        capture_output=True,
+        timeout=helper_timeout,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(f"Node 分镜图生成失败: {(result.stderr or result.stdout).strip()[:500]}")
+    try:
+        data = json.loads(result.stdout)
+    except json.JSONDecodeError as error:
+        raise RuntimeError(f"Node 分镜图生成输出无法解析: {result.stdout[:500]}") from error
+    image_url = first_string(data.get("url")) or first_string(data.get("imageUrl"))
+    if not image_url:
+        raise RuntimeError(f"Node 分镜图生成缺少结果图: {result.stdout[:500]}")
+    return image_url
+
+
+def request_storyboard_image_generation(prompt, reference_images, config):
+    if is_gpt_image_model(config["model"]):
+        return generate_storyboard_image_via_node_helper(prompt, reference_images, config)
+    endpoint = image_generation_endpoint(config["baseUrl"])
+    payload = build_storyboard_image_request_body(prompt, reference_images, config)
+    data = fetch_json(endpoint, config["apiKey"], payload, config["timeoutSeconds"])
+    image_url = extract_generated_image_url(data)
+    if image_url:
+        return image_url
+    task_id = extract_image_task_id(data)
+    if not task_id:
+        raise RuntimeError(f"图片生成响应缺少结果图或任务 ID: {json.dumps(data, ensure_ascii=False)[:500]}")
+    poll_interval = float(os.environ.get("MYSTUDIO_IMAGE_POLL_INTERVAL_SECONDS", "3"))
+    poll_attempts = int(os.environ.get("MYSTUDIO_IMAGE_POLL_ATTEMPTS", "60"))
+    for _ in range(poll_attempts):
+        time.sleep(poll_interval)
+        poll_data = fetch_json(image_task_poll_endpoint(config["baseUrl"], task_id), config["apiKey"], None, config["timeoutSeconds"])
+        image_url = extract_generated_image_url(poll_data)
+        if image_url:
+            return image_url
+        status = str(poll_data.get("status") or poll_data.get("state") or "").lower()
+        if status in {"failed", "error", "canceled", "cancelled"}:
+            raise RuntimeError(f"图片生成任务失败: {json.dumps(poll_data, ensure_ascii=False)[:500]}")
+    raise RuntimeError(f"图片生成任务超时: {task_id}")
+
+
+def image_workflow_asset_type(kind):
+    return {
+        "角色": "character",
+        "场景": "scene",
+        "道具": "prop",
+    }.get(kind, "prop")
+
+
+def collect_storyboard_reference_images(image_assets):
+    references = []
+    for index, asset in enumerate(image_assets, 1):
+        image_url = asset.get("imagePath", "")
+        if not image_url:
+            continue
+        references.append({
+            "assetId": asset.get("assetId") or asset.get("name") or f"asset-{index}",
+            "assetType": image_workflow_asset_type(asset.get("kind", "")),
+            "title": asset.get("name") or f"参考资产 {index}",
+            "imageUrl": image_url,
+            "evidence": f"{asset.get('kind', '资产')}参考图：{asset.get('sourceName') or asset.get('name')}",
+        })
+    return references
+
+
+def create_storyboard_image_workflow_graph(storyboard, prompt, result_image_path, reference_images, config, created_at):
+    flow_id = f"storyboard-flow-{EPISODE_ID}-{storyboard['index']:03d}"
+    generated_node_id = f"gen-{flow_id}"
+    nodes = []
+    edges = []
+    for index, reference in enumerate(reference_images, 1):
+        reference_node_id = f"ref-{index}-{flow_id}"
+        nodes.append({
+            "id": reference_node_id,
+            "type": "reference",
+            "title": reference.get("title") or f"参考资产 {index}",
+            "imageUrl": reference["imageUrl"],
+            "source": {
+                "kind": "asset",
+                "assetType": reference["assetType"],
+                "id": reference["assetId"],
+            },
+            "notes": reference.get("evidence", ""),
+            "position": {"x": 80, "y": 80 + (index - 1) * 180},
+            "createdAt": created_at,
+            "updatedAt": created_at,
+        })
+        edges.append({
+            "id": f"{reference_node_id}->{generated_node_id}",
+            "source": reference_node_id,
+            "target": generated_node_id,
+        })
+    nodes.append({
+        "id": generated_node_id,
+        "type": "generated",
+        "title": f"分镜 {storyboard['index']} 成图",
+        "prompt": prompt or storyboard.get("prompt", ""),
+        "model": config["model"],
+        "aspectRatio": config["aspectRatio"],
+        "quality": "standard",
+        "resolution": config["resolution"],
+        "position": {"x": 620 if reference_images else 160, "y": 120},
+        "resultUrl": result_image_path,
+        "status": "ready",
+        "generatedAt": created_at,
+        "createdAt": created_at,
+        "updatedAt": created_at,
+    })
+    return {
+        "id": flow_id,
+        "name": f"道劫 · 分镜 {storyboard['index']} 图片工作流",
+        "target": {"kind": "storyboard", "id": storyboard["id"]},
+        "nodes": nodes,
+        "edges": edges,
+        "createdAt": created_at,
+        "updatedAt": created_at,
+    }
+
+
+def generate_storyboard_frame_with_references(frame, storyboard, prompt, image_assets, config):
+    references = collect_storyboard_reference_images(image_assets)
+    if not references:
+        raise RuntimeError(f"分镜 {storyboard['index']:02d} 缺少参考资产图片")
+    final_prompt = build_storyboard_image_prompt(
+        {**storyboard, "prompt": prompt or storyboard.get("prompt", "")},
+        references,
+    )
+    relative_path = f"workflow-images/storyboards/{EPISODE_ID}/shot-{storyboard['index']:03d}.png"
+    result_file = PROJECT / relative_path
+    reused_existing_image = can_reuse_storyboard_image(result_file)
+    if not reused_existing_image:
+        prepared_reference_images = [prepare_storyboard_model_reference_image(reference["imageUrl"]) for reference in references]
+        generated_image_url = request_storyboard_image_generation(final_prompt, prepared_reference_images, config)
+        save_generated_image_url(generated_image_url, result_file)
+    Image.open(result_file).convert("RGB").resize((1920, 1080), Image.Resampling.LANCZOS).save(frame)
+    project_url = project_file_url(relative_path)
+    graph = create_storyboard_image_workflow_graph(
+        storyboard,
+        final_prompt,
+        project_url,
+        references,
+        config,
+        1780301000000 + storyboard["index"],
+    )
+    return {
+        "framePath": str(frame),
+        "projectImageUrl": project_url,
+        "absoluteImagePath": str(result_file),
+        "workflowGraph": graph,
+        "generatedNodeId": f"gen-{graph['id']}",
+        "referenceImages": references,
+        "reusedExistingImage": reused_existing_image,
+    }
+
+
+def project_file_url(relative_path):
+    encoded_project = urllib.parse.quote(PROJECT.name, safe="")
+    encoded_relative = "/".join(urllib.parse.quote(part, safe="") for part in str(relative_path).replace("\\", "/").split("/"))
+    return f"project-file://{encoded_project}/{encoded_relative}"
+
+
+def resolve_project_file_url(value):
+    parsed = urllib.parse.urlparse(value)
+    if parsed.scheme != "project-file":
+        raise RuntimeError(f"不是项目文件 URL: {value}")
+    project_id = urllib.parse.unquote(parsed.netloc)
+    if project_id != PROJECT.name:
+        raise RuntimeError(f"项目文件不属于当前项目: {project_id}")
+    parts = [urllib.parse.unquote(part) for part in parsed.path.lstrip("/").split("/") if part]
+    if not parts or any(part == ".." for part in parts):
+        raise RuntimeError(f"项目文件路径非法: {value}")
+    return PROJECT.joinpath(*parts)
+
+
+def image_source_to_data_url(source):
+    if source.startswith("data:image/") or source.startswith("http://") or source.startswith("https://"):
+        return source
+    if source.startswith("project-file://"):
+        path = resolve_project_file_url(source)
+    elif source.startswith("file://"):
+        path = Path(urllib.parse.urlparse(source).path)
+    else:
+        path = Path(source)
+    if not path.exists():
+        raise RuntimeError(f"参考图不存在: {source}")
+    mime_type = mimetypes.guess_type(str(path))[0] or "image/png"
+    encoded = base64.b64encode(path.read_bytes()).decode("ascii")
+    return f"data:{mime_type};base64,{encoded}"
+
+
+def image_source_to_path(source):
+    if source.startswith("project-file://"):
+        return resolve_project_file_url(source)
+    if source.startswith("file://"):
+        return Path(urllib.parse.urlparse(source).path)
+    return Path(source)
+
+
+def prepare_storyboard_model_reference_image(source):
+    if source.startswith("data:image/") or source.startswith("http://") or source.startswith("https://"):
+        return source
+    path = image_source_to_path(source)
+    if not path.exists():
+        raise RuntimeError(f"参考图不存在: {source}")
+    with Image.open(path) as image:
+        normalized = ImageOps.exif_transpose(image)
+        if normalized.mode == "RGBA":
+            background = Image.new("RGB", normalized.size, (255, 255, 255))
+            background.paste(normalized, mask=normalized.getchannel("A"))
+            normalized = background
+        elif normalized.mode != "RGB":
+            normalized = normalized.convert("RGB")
+        max_edge = max(256, MODEL_REFERENCE_MAX_EDGE)
+        normalized.thumbnail((max_edge, max_edge), Image.Resampling.LANCZOS)
+        buffer = io.BytesIO()
+        quality = max(40, min(95, MODEL_REFERENCE_JPEG_QUALITY))
+        normalized.save(buffer, format="JPEG", quality=quality, optimize=True)
+    encoded = base64.b64encode(buffer.getvalue()).decode("ascii")
+    return f"data:image/jpeg;base64,{encoded}"
+
+
+def save_generated_image_url(image_url, output_path):
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    if image_url.startswith("data:image/"):
+        header, encoded = image_url.split(",", 1)
+        output_path.write_bytes(base64.b64decode(encoded))
+        return
+    request = urllib.request.Request(image_url, headers={"User-Agent": "MYStudio/DaojieStoryboardImage"})
+    with urllib.request.urlopen(request, timeout=180) as response:
+        output_path.write_bytes(response.read())
 
 ASSET_IMAGE_ALIASES = {
     "归元断剑": ["归元断剑", "斩魂剑", "归元古剑"],
@@ -73,6 +678,42 @@ ASSET_IMAGE_ALIASES = {
     "赵四": ["赵四", "监工赵四"],
     "宗门弟子甲": ["宗门弟子甲", "中小宗门", "监工赵四"],
     "宗门弟子乙": ["宗门弟子乙", "中小宗门", "监工赵四"],
+}
+
+DERIVED_ASSET_PLAN = [
+    {
+        "parentAssetId": "独孤剑尘",
+        "state": "灰衫入镇态",
+        "reason": "Sc1-Sc2 持续出镜：灰衫沾矿尘、背负油布剑包，作为第一章默认出镜状态。",
+    },
+    {
+        "parentAssetId": "悦来客栈",
+        "state": "斗室夜谈态",
+        "reason": "Sc2-Sc4 使用：从客栈大堂转入斗室，承载断剑显露与归元认人的室内状态。",
+    },
+    {
+        "parentAssetId": "归元断剑",
+        "state": "半截出鞘态",
+        "reason": "Sc2-Sc4 使用：油布解开后露出半截断剑，是后续图像工作流的衍生道具锚点。",
+    },
+]
+
+DERIVED_ASSET_IDS = {
+    ("独孤剑尘", "灰衫入镇态"): {
+        "id": "var-chapter-001-dugu-grey-town",
+        "flowId": "asset-flow-chapter-001-dugu-grey-town",
+        "assetType": "character",
+    },
+    ("悦来客栈", "斗室夜谈态"): {
+        "id": "scene-derived-chapter-001-yuelai-room-talk",
+        "flowId": "asset-flow-chapter-001-yuelai-room-talk",
+        "assetType": "scene",
+    },
+    ("归元断剑", "半截出鞘态"): {
+        "id": "prop-derived-chapter-001-guiyuan-half-drawn",
+        "flowId": "asset-flow-chapter-001-guiyuan-half-drawn",
+        "assetType": "prop",
+    },
 }
 
 ROLE_VOICE_PREFERENCES = {
@@ -108,7 +749,7 @@ ROLE_VOICE_INSTRUCTIONS = {
 }
 
 
-SHOTS = [
+CHAPTER_001_SHOTS = [
     ("金水河码头", "赤练蛇皮鞭撕开河雾，青盐水挂在鞭梢，朱红火印压在藤筐侧面。", "旁白", "傍晚，金水河码头被太一宗火印压醒。", "河雾低涌、鞭梢破风", ["赤练蛇皮鞭", "灵矿藤筐"], 4.2),
     ("金水河码头", "抱矿跪倒的小杂役缩肩护头，灵矿倒刺扎破指缝。", "赵四", "偷懒？找死！", "矿石摩擦、孩童抽气", ["监工赵四", "小杂役", "灵矿藤筐"], 3.8),
     ("金水河码头", "血珠落在湿黑木栈上，小杂役把求饶吞成发抖的气音。", "小杂役", "监工老爷，饶命！", "血滴落木、铁链拖石", ["小杂役", "灵矿藤筐"], 3.8),
@@ -153,6 +794,13 @@ SHOTS = [
     ("悦来客栈斗室", "桌上绿锈铜钱忽然立起不倒，断剑剑格一震。", "独孤剑尘", "晏燎。不是错觉。", "铜钱旋立、寒铁震动", ["绿锈铜钱", "归元断剑"], 4.0),
     ("金水河", "宗门灵舟在雾中显形，朱红火印穿破夜色；独孤反手按住归元。", "独孤剑尘", "归元，忍住。明日之前，我必须见晏燎。", "灵舟破水、断剑低鸣被压住", ["独孤剑尘", "归元断剑", "宗门灵舟", "金水河", "晏燎"], 5.0),
 ]
+
+EPISODE_STORYBOARD_SPECS = {
+    "chapter-001": {
+        "shots": CHAPTER_001_SHOTS,
+        "targetDurationSeconds": 180.0,
+    },
+}
 
 
 def load_json(path):
@@ -209,20 +857,26 @@ def source_script_body(script_text):
     return script_text[start:] if start >= 0 else script_text
 
 
-def source_dialogue_units(script_text):
-    body = source_script_body(script_text)
-    units = []
-    for raw in body.splitlines():
-        line = raw.strip()
-        if not line:
-            continue
-        if line.startswith("△"):
-            units.extend(split_long_line(line.lstrip("△").strip()))
-            continue
-        match = re.match(r"^([^：:]{1,12})[：:](.+)$", line)
-        if match and not match.group(1).startswith(("人物", "平台")):
-            units.append(match.group(2).strip())
-    return [unit for unit in units if unit]
+def episode_storyboard_spec(episode_id=EPISODE_ID):
+    spec = EPISODE_STORYBOARD_SPECS.get(episode_id)
+    if not spec:
+        raise RuntimeError(f"未配置 {episode_id} 的分镜规格")
+    shots = spec.get("shots") or []
+    if not shots:
+        raise RuntimeError(f"{episode_id} 的分镜规格为空")
+    return spec
+
+
+def target_chapter_duration_seconds(episode_id=EPISODE_ID):
+    return float(episode_storyboard_spec(episode_id).get("targetDurationSeconds", 180.0))
+
+
+def source_segment_units(script_text, episode_id=EPISODE_ID):
+    return [shot[3] for shot in episode_storyboard_spec(episode_id)["shots"]]
+
+
+def source_dialogue_units(script_text, episode_id=EPISODE_ID):
+    return source_segment_units(script_text, episode_id)
 
 
 def scene_assets_for(scene_no):
@@ -245,71 +899,36 @@ def scene_sound_for(scene_no):
     return "纸页颤动、断剑低鸣、船桨破水、灵舟压雾"
 
 
-def build_shots_from_script(script_text):
-    body = source_script_body(script_text)
-    shots = []
-    scene_no = 0
-    current_scene = ""
-    current_characters = []
-    last_assets = []
-    for raw in body.splitlines():
-        line = raw.strip()
-        if not line or line == "---" or line.startswith("["):
-            continue
-        scene_match = re.match(r"^1-(\d+)\s+(.+?)\s+(?:傍晚|夜|深夜)/", line)
-        if scene_match:
-            scene_no = int(scene_match.group(1))
-            current_scene = scene_match.group(2).strip()
-            current_characters = []
-            last_assets = scene_assets_for(scene_no)
-            continue
-        if line.startswith("人物："):
-            current_characters = [name for name in re.split(r"\s+", line.replace("人物：", "").strip()) if name and "若干" not in name]
-            continue
-        if scene_no <= 0:
-            continue
-        base_assets = [name for name in scene_assets_for(scene_no) if name in line]
-        if current_scene and current_scene not in base_assets:
-            base_assets.insert(0, current_scene)
-        if not base_assets:
-            base_assets = last_assets[:4] if last_assets else scene_assets_for(scene_no)[:4]
-        last_assets = base_assets
-        if line.startswith("△"):
-            desc = line.lstrip("△").strip()
-            for part in split_long_line(desc):
-                shots.append({
-                    "sceneNo": scene_no,
-                    "scene": current_scene,
-                    "desc": desc,
-                    "speaker": "旁白",
-                    "text": part,
-                    "sound": scene_sound_for(scene_no),
-                    "assets": base_assets[:5],
-                    "duration": MIN_SHOT_DURATION,
-                    "characters": current_characters,
-                })
-            continue
-        match = re.match(r"^([^：:]{1,12})[：:](.+)$", line)
-        if match and not match.group(1).startswith("人物"):
-            speaker = match.group(1).strip()
-            text = match.group(2).strip()
-            assets = base_assets[:]
-            if speaker not in assets and speaker != "旁白":
-                assets.insert(0, speaker)
-            shots.append({
-                "sceneNo": scene_no,
-                "scene": current_scene,
-                "desc": f"{speaker}说出关键台词，周围人物以表情和姿态承接这一句。",
-                "speaker": speaker,
-                "text": text,
-                "sound": scene_sound_for(scene_no),
-                "assets": assets[:5],
-                "duration": max(MIN_SHOT_DURATION, min(MAX_SHOT_DURATION, len(clean_script_text(text)) / 4 + 0.8)),
-                "characters": current_characters,
-            })
-    if not shots:
-        raise RuntimeError("未能从 chapter-001 剧本解析出分镜台词")
-    return shots
+def canonical_shot_scene_no(index):
+    if index <= 12:
+        return 1
+    if index <= 24:
+        return 2
+    if index <= 40:
+        return 3
+    return 4
+
+
+def canonical_storyboard_shots(episode_id=EPISODE_ID):
+    shots = episode_storyboard_spec(episode_id)["shots"]
+    return [
+        {
+            "sceneNo": canonical_shot_scene_no(index),
+            "scene": scene,
+            "desc": desc,
+            "speaker": speaker,
+            "text": text,
+            "sound": sound,
+            "assets": assets,
+            "duration": duration,
+            "characters": [],
+        }
+        for index, (scene, desc, speaker, text, sound, assets, duration) in enumerate(shots, 1)
+    ]
+
+
+def build_shots_from_script(script_text, episode_id=EPISODE_ID):
+    return canonical_storyboard_shots(episode_id)
 
 
 def shot_tuple(shot):
@@ -319,7 +938,7 @@ def shot_tuple(shot):
 
 
 def build_script_plan(shots=None):
-    shots = shots or [dict(zip(["scene", "desc", "speaker", "text", "sound", "assets", "duration"], shot_tuple(shot))) for shot in SHOTS]
+    shots = shots or canonical_storyboard_shots()
     scene_stats = {}
     for shot in shots:
         scene_no = shot.get("sceneNo") or (1 if len(scene_stats) < 1 else 1)
@@ -359,6 +978,14 @@ def build_script_plan(shots=None):
         "| Sc1 → Sc2 | 叠化 | 鞭痕墨色在空筐裂口晕开，化作顺风街灰雾 |",
         "| Sc2 → Sc3 | 叠化 | 断口寒光化作塾馆油灯 |",
         "| Sc3 → Sc4 | 叠化 | 晏燎掌心余红熄灭，化成残卷边缘裂痕 |",
+        "",
+        "### ⑦ 衍生资产预划清单",
+        "| 资产名 | 衍生状态 | 原因/出现段落 |",
+        "|---|---|---|",
+        *[
+            f"| {item['parentAssetId']} | {item['state']} | {item['reason']} |"
+            for item in DERIVED_ASSET_PLAN
+        ],
         "</scriptPlan>",
     ])
 
@@ -654,8 +1281,284 @@ def resolve_asset_ids(scene, names, asset_index):
     return ids
 
 
+def find_episode_extraction(state):
+    extractions = [item for item in state.get("entityExtractions", []) if item.get("episodeId") == EPISODE_ID]
+    return extractions[-1] if extractions else {}
+
+
+def load_project_collection(path, key, default_state):
+    data = load_json(path) if path.exists() else {"state": default_state, "version": 0}
+    state = data.setdefault("state", {})
+    state.setdefault(key, [])
+    return data, state[key]
+
+
+def find_by_id_or_name(items, asset_id, name):
+    return next(
+        (
+            item
+            for item in items
+            if item.get("id") == asset_id or (name and item.get("name") == name)
+        ),
+        None,
+    )
+
+
+def create_derived_asset_image(parent_image_path, output_path, parent_name, state_name, reason):
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    canvas = Image.new("RGB", (1280, 720), (24, 25, 23))
+    if parent_image_path and Path(parent_image_path).exists():
+        parent = Image.open(parent_image_path).convert("RGB")
+        parent.thumbnail((760, 620), Image.Resampling.LANCZOS)
+        x = 70 + (760 - parent.width) // 2
+        y = 50 + (620 - parent.height) // 2
+        canvas.paste(parent, (x, y))
+    overlay = Image.new("RGBA", canvas.size, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(overlay)
+    draw.rectangle((820, 0, 1280, 720), fill=(12, 13, 12, 218))
+    draw.rectangle((840, 52, 1240, 668), outline=(222, 188, 112, 180), width=3)
+    title_font = font(42, True)
+    state_font = font(34, True)
+    body_font = font(24)
+    draw_wrapped(draw, (868, 94), parent_name, title_font, (248, 239, 207, 255), 340, 8, 2)
+    draw_wrapped(draw, (868, 190), state_name, state_font, (255, 209, 116, 255), 340, 8, 2)
+    draw_wrapped(draw, (868, 302), reason, body_font, (218, 213, 198, 235), 330, 10, 7)
+    draw.text((868, 614), "MYStudio derived asset", font=font(18), fill=(139, 134, 120, 220))
+    canvas = Image.alpha_composite(canvas.convert("RGBA"), overlay).convert("RGB")
+    canvas.save(output_path, quality=92)
+    return str(output_path)
+
+
+def image_workflow_graph(flow_id, target, title, prompt, source_image_path, result_image_path, created_at):
+    ref_id = f"ref-{flow_id}"
+    gen_id = f"gen-{flow_id}"
+    return {
+        "id": flow_id,
+        "name": f"道劫 · {title} 图片工作流",
+        "target": target,
+        "nodes": [
+            {
+                "id": ref_id,
+                "type": "reference",
+                "title": "父资产参考图",
+                "imageUrl": source_image_path,
+                "source": {
+                    "kind": "asset",
+                    "assetType": target["assetType"],
+                    "id": target.get("parentId"),
+                },
+                "position": {"x": 80, "y": 100},
+                "createdAt": created_at,
+                "updatedAt": created_at,
+            },
+            {
+                "id": gen_id,
+                "type": "generated",
+                "title": f"{title} 成图",
+                "prompt": prompt,
+                "aspectRatio": "16:9",
+                "quality": "standard",
+                "position": {"x": 620, "y": 120},
+                "resultUrl": result_image_path,
+                "status": "ready",
+                "generatedAt": created_at,
+                "createdAt": created_at,
+                "updatedAt": created_at,
+            },
+        ],
+        "edges": [
+            {
+                "id": f"{ref_id}->{gen_id}",
+                "source": ref_id,
+                "target": gen_id,
+            }
+        ],
+        "createdAt": created_at,
+        "updatedAt": created_at,
+    }
+
+
+def sync_project_derived_assets(state, asset_catalog):
+    extraction = find_episode_extraction(state)
+    character_data, characters = load_project_collection(
+        CHARACTERS_JSON,
+        "characters",
+        {"folders": [], "characters": [], "currentFolderId": None},
+    )
+    scene_data, scenes = load_project_collection(
+        SCENES_JSON,
+        "scenes",
+        {"scenes": [], "folders": [], "generationPrefs": {}},
+    )
+    prop_data, props = load_project_collection(
+        PROPS_JSON,
+        "items",
+        {"items": [], "folders": [], "selectedFolderId": "all"},
+    )
+
+    for character in characters:
+        image_path = asset_catalog.get(character.get("name", ""), {}).get("imagePath")
+        if image_path:
+            character["thumbnailUrl"] = image_path
+    for scene in scenes:
+        image_path = asset_catalog.get(scene.get("name", ""), {}).get("imagePath")
+        if image_path:
+            scene["referenceImage"] = image_path
+    for item in extraction.get("props", []):
+        name = item.get("name", "")
+        prop_id = item.get("assetId") or f"prop-{normalize_name(name)}"
+        prop = find_by_id_or_name(props, prop_id, name)
+        image_path = asset_catalog.get(name, {}).get("imagePath", "")
+        if not prop:
+            prop = {
+                "id": prop_id,
+                "name": name,
+                "projectId": PROJECT.name,
+                "description": item.get("note") or f"{name} 剧本资产",
+                "visualPrompt": item.get("note") or f"{name} 剧本资产",
+                "imageUrl": image_path,
+                "folderId": None,
+                "createdAt": 1780298212339,
+                "updatedAt": 1780298212339,
+            }
+            props.append(prop)
+        elif image_path:
+            prop["imageUrl"] = image_path
+
+    manifest = []
+    derived_dir = EXPORTS / "toonflow_derived_assets"
+    image_workflows = [
+        graph
+        for graph in state.get("imageWorkflows", [])
+        if graph.get("id") not in {item["flowId"] for item in DERIVED_ASSET_IDS.values()}
+    ]
+    for index, item in enumerate(DERIVED_ASSET_PLAN, 1):
+        ids = DERIVED_ASSET_IDS[(item["parentAssetId"], item["state"])]
+        now = 1780300100000 + index
+        prompt = build_derived_asset_image_prompt(
+            item["parentAssetId"],
+            item["state"],
+            item["reason"],
+            ids["assetType"],
+        )
+        if ids["assetType"] == "character":
+            parent = find_by_id_or_name(characters, "", item["parentAssetId"])
+            if not parent:
+                raise RuntimeError(f"衍生资产父角色缺失: {item['parentAssetId']}")
+            parent_id = parent["id"]
+            source_image = parent.get("thumbnailUrl") or asset_catalog.get(item["parentAssetId"], {}).get("imagePath", "")
+            result_image = create_derived_asset_image(source_image, derived_dir / f"{ids['id']}.jpg", item["parentAssetId"], item["state"], item["reason"])
+            variations = parent.setdefault("variations", [])
+            variation = find_by_id_or_name(variations, ids["id"], item["state"])
+            patch = {
+                "id": ids["id"],
+                "name": item["state"],
+                "visualPrompt": prompt,
+                "visualPromptZh": prompt,
+                "referenceImage": result_image,
+                "imageWorkflowId": ids["flowId"],
+                "imageWorkflowNodeId": f"gen-{ids['flowId']}",
+                "generatedAt": now,
+                "isStageVariation": True,
+                "stageDescription": item["reason"],
+            }
+            if variation:
+                variation.update(patch)
+            else:
+                variations.append(patch)
+        elif ids["assetType"] == "scene":
+            parent = find_by_id_or_name(scenes, "", item["parentAssetId"])
+            if not parent:
+                raise RuntimeError(f"衍生资产父场景缺失: {item['parentAssetId']}")
+            parent_id = parent["id"]
+            source_image = parent.get("referenceImage") or asset_catalog.get(item["parentAssetId"], {}).get("imagePath", "")
+            result_image = create_derived_asset_image(source_image, derived_dir / f"{ids['id']}.jpg", item["parentAssetId"], item["state"], item["reason"])
+            derived = find_by_id_or_name(scenes, ids["id"], f"{item['parentAssetId']}·{item['state']}")
+            patch = {
+                "id": ids["id"],
+                "name": f"{item['parentAssetId']}·{item['state']}",
+                "location": item["parentAssetId"],
+                "time": "",
+                "atmosphere": "",
+                "visualPrompt": prompt,
+                "visualPromptZh": prompt,
+                "projectId": PROJECT.name,
+                "parentSceneId": parent_id,
+                "isViewpointVariant": True,
+                "viewpointName": item["state"],
+                "notes": item["reason"],
+                "status": "linked",
+                "referenceImage": result_image,
+                "imageWorkflowId": ids["flowId"],
+                "imageWorkflowNodeId": f"gen-{ids['flowId']}",
+                "createdAt": now,
+                "updatedAt": now,
+            }
+            if derived:
+                derived.update(patch)
+            else:
+                scenes.append(patch)
+        else:
+            parent = find_by_id_or_name(props, "", item["parentAssetId"])
+            if not parent:
+                raise RuntimeError(f"衍生资产父道具缺失: {item['parentAssetId']}")
+            parent_id = parent["id"]
+            source_image = parent.get("imageUrl") or asset_catalog.get(item["parentAssetId"], {}).get("imagePath", "")
+            result_image = create_derived_asset_image(source_image, derived_dir / f"{ids['id']}.jpg", item["parentAssetId"], item["state"], item["reason"])
+            derived = find_by_id_or_name(props, ids["id"], f"{item['parentAssetId']}·{item['state']}")
+            patch = {
+                "id": ids["id"],
+                "name": f"{item['parentAssetId']}·{item['state']}",
+                "projectId": PROJECT.name,
+                "description": item["reason"],
+                "visualPrompt": prompt,
+                "imageUrl": result_image,
+                "isDerivative": True,
+                "parentId": parent_id,
+                "category": item["state"],
+                "folderId": None,
+                "imageWorkflowId": ids["flowId"],
+                "imageWorkflowNodeId": f"gen-{ids['flowId']}",
+                "createdAt": now,
+                "updatedAt": now,
+            }
+            if derived:
+                derived.update(patch)
+            else:
+                props.append(patch)
+
+        target = {
+            "kind": "asset",
+            "assetType": ids["assetType"],
+            "parentId": parent_id,
+            "id": ids["id"],
+        }
+        image_workflows.append(image_workflow_graph(ids["flowId"], target, item["state"], prompt, source_image, result_image, now))
+        manifest.append({
+            "parentAssetId": parent_id,
+            "parentAssetName": item["parentAssetId"],
+            "derivedAssetId": ids["id"],
+            "state": item["state"],
+            "assetType": ids["assetType"],
+            "sourceImagePath": source_image,
+            "resultImagePath": result_image,
+            "imageWorkflowId": ids["flowId"],
+            "imageWorkflowNodeId": f"gen-{ids['flowId']}",
+        })
+
+    state["imageWorkflows"] = image_workflows
+    return {
+        "manifest": manifest,
+        "stores": {
+            "characters": character_data,
+            "scenes": scene_data,
+            "props": prop_data,
+        },
+    }
+
+
 def build_storyboard_table(asset_index, shots=None):
-    shots = shots or SHOTS
+    shots = shots or canonical_storyboard_shots()
     lines = [
         "<storyboardTable>",
         "## 场1：金水河码头·鞭下入镇 ｜ 参演角色：独孤剑尘、监工赵四、小杂役、老苦力、年轻苦力",
@@ -986,6 +1889,7 @@ def resolve_image_assets(scene, assets, asset_catalog):
         image_assets.append({
             "name": asset_name,
             "kind": item.get("kind", "提取物"),
+            "assetId": item.get("id", ""),
             "imagePath": image_path,
             "sourceName": item.get("imageAssetName", asset_name),
         })
@@ -1209,6 +2113,37 @@ def audio_sample_info(path):
     }
 
 
+def file_sha256(path):
+    digest = hashlib.sha256()
+    with open(path, "rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def final_video_evidence(path):
+    ffprobe_command = [
+        "ffprobe",
+        "-v",
+        "error",
+        "-show_entries",
+        "format=duration,size:stream=codec_type,duration,width,height",
+        "-of",
+        "json",
+        str(path),
+    ]
+    ffprobe_raw = subprocess.check_output(ffprobe_command, text=True)
+    stat = path.stat()
+    return {
+        "path": str(path),
+        "sizeBytes": stat.st_size,
+        "sha256": file_sha256(path),
+        "mtime": int(stat.st_mtime),
+        "ffprobeCommand": ffprobe_command,
+        "ffprobe": json.loads(ffprobe_raw),
+    }
+
+
 def motion_filter_for(index, duration):
     safe_duration = max(0.1, duration)
     progress = f"min(t/{safe_duration:.3f},1)"
@@ -1391,6 +2326,7 @@ def main():
     for path in (EXPORTS, FRAMES, AUDIO, SEGMENTS):
         path.mkdir(parents=True, exist_ok=True)
 
+    storyboard_image_config = storyboard_image_provider_config()
     tts_process = start_tts_backend() if USE_HTTP_TTS else None
     store = load_json(STORE)
     state = store.setdefault("state", {})
@@ -1399,6 +2335,7 @@ def main():
     script_text = latest_script(state)
     shots = build_shots_from_script(script_text)
     source_units = source_dialogue_units(script_text)
+    source_segment_count = len(source_segment_units(script_text))
     source_dialogue_chars = sum(len(normalize_dialogue_text(unit)) for unit in source_units)
     spoken_text_chars = sum(len(normalize_dialogue_text(shot["text"])) for shot in shots)
     dialogue_coverage_ratio = min(1.0, spoken_text_chars / source_dialogue_chars) if source_dialogue_chars else 1.0
@@ -1421,6 +2358,7 @@ def main():
     speaker_audio_samples = {}
     used_image_paths = set()
     missing_image_assets = set()
+    storyboard_image_workflows = []
     try:
         for index, shot in enumerate(shots, 1):
             scene, desc, speaker, text, sound, assets, duration = shot_tuple(shot)
@@ -1428,6 +2366,8 @@ def main():
             frame = FRAMES / f"shot-{index:03d}.png"
             audio = AUDIO / f"shot-{index:03d}.wav"
             segment = SEGMENTS / f"shot-{index:03d}.mp4"
+            storyboard_id = f"sb-chapter-001-{index:03d}"
+            track_key = track_key_for(index, scene_no)
             asset_ids = resolve_asset_ids(scene, assets, asset_index)
             associate_assets = [scene, *assets]
             image_assets = resolve_image_assets(scene, assets, asset_catalog)
@@ -1440,7 +2380,18 @@ def main():
             for asset_name in associate_assets:
                 if not asset_catalog.get(asset_name, {}).get("imagePath"):
                     missing_image_assets.add(asset_name)
-            create_frame(frame, index, scene, desc, speaker, text, sound, assets, asset_ids, asset_catalog, image_assets)
+            storyboard_image_result = None
+            if is_real_storyboard_image_mode():
+                storyboard_image_result = generate_storyboard_frame_with_references(
+                    frame,
+                    {"id": storyboard_id, "index": index, "prompt": desc},
+                    desc,
+                    image_assets,
+                    storyboard_image_config,
+                )
+                storyboard_image_workflows.append(storyboard_image_result["workflowGraph"])
+            else:
+                create_frame(frame, index, scene, desc, speaker, text, sound, assets, asset_ids, asset_catalog, image_assets)
             voice_emotion_profile = voice_emotion_for(index, speaker)
             voice_profile = dict(voice_profiles[speaker])
             voice_profile["instruct"] = f"{voice_profile['instruct']} {voice_emotion_profile}"
@@ -1459,14 +2410,25 @@ def main():
                 if not SILENT_PREVIEW and (sample["meanVolumeDb"] is None or sample["meanVolumeDb"] < MIN_AUDIO_MEAN_VOLUME_DB):
                     raise RuntimeError(f"角色音频样本音量过低: {speaker} / {sample}")
                 speaker_audio_samples[speaker] = sample
-            actual_duration = min(MAX_SHOT_DURATION, max(MIN_SHOT_DURATION, duration, audio_duration(audio) + 0.8))
+            actual_duration = max(MIN_SHOT_DURATION, min(MAX_SHOT_DURATION, max(duration, audio_duration(audio) + 0.4)))
             render_segment(index, frame, audio, segment, actual_duration)
-            track_key = track_key_for(index, scene_no)
             frame_paths.append(frame)
             audio_paths.append(audio)
             segment_paths.append(segment)
+            media_ref = {
+                "kind": "image",
+                "path": storyboard_image_result["projectImageUrl"] if storyboard_image_result else str(frame),
+            }
+            storyboard_patch = {}
+            if storyboard_image_result:
+                media_ref["imageWorkflowId"] = storyboard_image_result["workflowGraph"]["id"]
+                media_ref["imageWorkflowNodeId"] = storyboard_image_result["generatedNodeId"]
+                storyboard_patch = {
+                    "imageWorkflowId": storyboard_image_result["workflowGraph"]["id"],
+                    "imageWorkflowNodeId": storyboard_image_result["generatedNodeId"],
+                }
             storyboards.append({
-                "id": f"sb-chapter-001-{index:03d}",
+                "id": storyboard_id,
                 "episodeId": EPISODE_ID,
                 "index": index,
                 "trackKey": track_key,
@@ -1476,7 +2438,7 @@ def main():
                 "videoDesc": f"{desc}；台词：{speaker}：{text}；音效：{sound}",
                 "speaker": speaker,
                 "assetIds": asset_ids,
-                "mediaRef": {"kind": "image", "path": str(frame)},
+                "mediaRef": media_ref,
                 "audioRef": {"kind": "audio", "path": str(audio)},
                 "voiceReferenceAudioPath": voice_profile["audioPath"],
                 "voiceReferenceName": voice_profile["name"],
@@ -1507,9 +2469,15 @@ def main():
                 "lines": f"{speaker}：{text}" if speaker != "旁白" else f"旁白：{text}",
                 "speakerId": line_speaker(speaker),
                 "sound": sound,
+                **storyboard_patch,
             })
     finally:
         stop_tts_backend(tts_process)
+
+    total_storyboard_duration = sum(sb["duration"] for sb in storyboards)
+    target_duration_seconds = target_chapter_duration_seconds(EPISODE_ID)
+    if total_storyboard_duration > target_duration_seconds:
+        raise RuntimeError(f"{EPISODE_ID} 成片时长超过目标规格: {total_storyboard_duration:.1f}s/{target_duration_seconds:.1f}s")
 
     final_path = EXPORTS / FINAL_NAME
     concat_segments(segment_paths, final_path)
@@ -1569,7 +2537,7 @@ def main():
         ],
         "soundDirection": "鞭梢破风、算盘、油灯、断剑低鸣、船桨破水",
         "transitions": "Sc1→Sc2 叠化；Sc2→Sc3 叠化；Sc3→Sc4 叠化",
-        "derivedAssetPlan": [],
+        "derivedAssetPlan": DERIVED_ASSET_PLAN,
     })
 
     now = 1780300001000
@@ -1589,9 +2557,20 @@ def main():
     state["productionTracks"].extend(production_tracks)
     state["videoCandidates"] = [v for v in state.get("videoCandidates", []) if not str(v.get("id", "")).startswith("video-chapter-001")]
     state["videoCandidates"].extend(video_candidates)
+    if storyboard_image_workflows:
+        state["imageWorkflows"] = [
+            graph
+            for graph in state.get("imageWorkflows", [])
+            if not str(graph.get("id", "")).startswith(f"storyboard-flow-{EPISODE_ID}-")
+        ]
+        state["imageWorkflows"].extend(storyboard_image_workflows)
+    derived_asset_sync = sync_project_derived_assets(state, asset_catalog)
 
     if not SKIP_PROJECT_WRITE:
         save_json(STORE, store)
+        save_json(CHARACTERS_JSON, derived_asset_sync["stores"]["characters"])
+        save_json(SCENES_JSON, derived_asset_sync["stores"]["scenes"])
+        save_json(PROPS_JSON, derived_asset_sync["stores"]["props"])
         save_json(SCRIPT_JSON, {
             "rawScript": script_text,
             "scriptData": {"episodeId": EPISODE_ID, "title": "道劫 EP01：断剑夜访道口镇", "source": "latest scriptDraft"},
@@ -1609,9 +2588,98 @@ def main():
     final_audio_mean_volume_db = audio_mean_volume_db(final_path)
     if not SILENT_PREVIEW and (final_audio_mean_volume_db is None or final_audio_mean_volume_db < MIN_AUDIO_MEAN_VOLUME_DB):
         raise RuntimeError(f"最终视频音量过低: {final_audio_mean_volume_db}")
+    final_video_evidence_data = final_video_evidence(final_path)
     linked_storyboards = sum(1 for sb in storyboards if sb.get("assetIds"))
     total_asset_links = sum(len(sb.get("assetIds", [])) for sb in storyboards)
     image_backed_storyboards = sum(1 for sb in storyboards if sb.get("imageAssetPaths"))
+    generated_frame_count = sum(1 for path in frame_paths if Path(path).exists())
+    image_asset_count = sum(1 for item in asset_catalog.values() if item.get("imagePath"))
+    storyboard_media_manifest = [
+        {
+            "storyboardId": sb["id"],
+            "index": sb["index"],
+            "trackKey": sb["trackKey"],
+            "duration": sb["duration"],
+            "framePath": str(frame_paths[sb["index"] - 1]),
+            "frameExists": Path(frame_paths[sb["index"] - 1]).exists(),
+            "audioPath": str(audio_paths[sb["index"] - 1]),
+            "audioExists": Path(audio_paths[sb["index"] - 1]).exists(),
+            "segmentPath": str(segment_paths[sb["index"] - 1]),
+            "segmentExists": Path(segment_paths[sb["index"] - 1]).exists(),
+            "assetIds": sb.get("assetIds", []),
+            "assetNames": sb.get("associateAssetsNames", []),
+            "imageAssetNames": sb.get("imageAssetNames", []),
+            "imageAssetPaths": sb.get("imageAssetPaths", []),
+            "mediaRef": sb.get("mediaRef", {}),
+            "imageWorkflowId": sb.get("imageWorkflowId", ""),
+            "imageWorkflowNodeId": sb.get("imageWorkflowNodeId", ""),
+            "voiceReferenceName": sb.get("voiceReferenceName", ""),
+            "voiceReferenceAudioPath": sb.get("voiceReferenceAudioPath", ""),
+            "ttsMode": sb.get("ttsMode", ""),
+            "ttsBackend": sb.get("ttsBackend", ""),
+        }
+        for sb in storyboards
+    ]
+    storyboard_image_workflow_manifest = [
+        {
+            "flowId": graph.get("id", ""),
+            "targetStoryboardId": (graph.get("target") or {}).get("id", ""),
+            "referenceNodes": [
+                {
+                    "id": node.get("id", ""),
+                    "assetId": ((node.get("source") or {}).get("id") or ""),
+                    "assetType": ((node.get("source") or {}).get("assetType") or ""),
+                    "imageUrl": node.get("imageUrl", ""),
+                    "notes": node.get("notes", ""),
+                }
+                for node in graph.get("nodes", [])
+                if node.get("type") == "reference"
+            ],
+            "generatedNodeId": next((node.get("id", "") for node in graph.get("nodes", []) if node.get("type") == "generated"), ""),
+            "resultUrl": next((node.get("resultUrl", "") for node in graph.get("nodes", []) if node.get("type") == "generated"), ""),
+            "referenceToGeneratedEdges": [
+                {
+                    "id": edge.get("id", ""),
+                    "source": edge.get("source", ""),
+                    "target": edge.get("target", ""),
+                }
+                for edge in graph.get("edges", [])
+            ],
+        }
+        for graph in storyboard_image_workflows
+    ]
+    used_image_path_set = set(used_image_paths)
+    asset_image_manifest = [
+        {
+            "assetName": name,
+            "assetId": item.get("id", ""),
+            "kind": item.get("kind", ""),
+            "imageAssetName": item.get("imageAssetName", ""),
+            "imageAssetType": item.get("imageAssetType", ""),
+            "imagePath": item.get("imagePath", ""),
+            "exists": bool(item.get("imagePath") and Path(item["imagePath"]).exists()),
+            "usedInFrames": item.get("imagePath", "") in used_image_path_set,
+        }
+        for name, item in sorted(asset_catalog.items())
+        if item.get("imagePath")
+    ]
+    track_candidate_manifest = [
+        {
+            "trackId": track["id"],
+            "trackKey": track.get("trackKey", ""),
+            "storyboardIds": track.get("storyboardIds", []),
+            "storyboardCount": len(track.get("storyboardIds", [])),
+            "duration": track.get("duration", 0),
+            "candidateVideoIds": track.get("candidateVideoIds", []),
+            "selectedVideoId": track.get("selectedVideoId", ""),
+            "candidateFiles": [
+                candidate.get("filePath", "")
+                for candidate in video_candidates
+                if candidate.get("trackId") == track["id"]
+            ],
+        }
+        for track in production_tracks
+    ]
     missing_voice_profiles = sorted(speaker for speaker in speakers if speaker not in voice_profiles)
     speaker_voice_map = {
         speaker: {
@@ -1646,14 +2714,28 @@ def main():
     )
     report = {
         "storyboards": len(storyboards),
+        "storyboardSourceSegments": source_segment_count,
+        "totalStoryboardDuration": round(total_storyboard_duration, 2),
+        "targetDurationSeconds": round(target_duration_seconds, 2),
         "scriptTextChars": source_dialogue_chars,
         "spokenTextChars": spoken_text_chars,
         "dialogueCoverageRatio": round(dialogue_coverage_ratio, 4),
         "coverage": round(dialogue_coverage_ratio, 4),
         "storyboardsWithAssetLinks": linked_storyboards,
         "assetLinks": total_asset_links,
+        "storyboardImageGenerationMode": STORYBOARD_IMAGE_GENERATION_MODE,
+        "imageGenerationMode": STORYBOARD_IMAGE_GENERATION_MODE,
+        "imageGenerationProvider": storyboard_image_generation_provider(),
+        "generatedFrameImages": generated_frame_count,
+        "matchedAssetImages": image_asset_count,
         "framesWithRealAssetImages": image_backed_storyboards,
         "assetImagePaths": sorted(used_image_paths),
+        "storyboardMediaManifest": storyboard_media_manifest,
+        "storyboardImageWorkflowManifest": storyboard_image_workflow_manifest,
+        "assetImageManifest": asset_image_manifest,
+        "trackCandidateManifest": track_candidate_manifest,
+        "derivedAssetPlan": DERIVED_ASSET_PLAN,
+        "derivedAssetManifest": derived_asset_sync["manifest"],
         "missingImageAssets": sorted(missing_image_assets),
         "workflowSteps": workflow_steps,
         "voiceReferenceName": speaker_voice_map.get("旁白", {}).get("voiceReferenceName", ""),
@@ -1662,6 +2744,7 @@ def main():
         "speakerAudioStats": speaker_audio_stats,
         "speakerAudioSamples": speaker_audio_samples,
         "missingVoiceProfiles": missing_voice_profiles,
+        "finalVideoEvidence": final_video_evidence_data,
         "finalAudioMeanVolumeDb": None if final_audio_mean_volume_db is None else round(final_audio_mean_volume_db, 2),
         "ttsMode": "+".join(sorted(tts_modes)) if tts_modes else "",
         "ttsBackend": "+".join(sorted(backend for backend in tts_backends if backend)),

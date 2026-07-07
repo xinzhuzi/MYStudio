@@ -1,0 +1,5 @@
+{"_example": "Fill with {\"file\": \"<path>\", \"reason\": \"<why>\"}. Put spec/research files only — no code paths. Run `python3 .trellis/scripts/get_context.py --mode packages` to list available specs. Delete this line once real entries are added."}
+{"file": ".trellis/spec/guides/index.md", "reason": "Shared thinking guides for reuse and cross-layer review"}
+{"file": "docs/融合/Toonflow_MYStudio_分镜差异审计.md", "reason": "Toonflow/MYStudio storyboard and image workflow audit baseline"}
+{"file": "apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/README.md", "reason": "Daojie ink-wash xianxia style contract"}
+{"file": "apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/prefix.md", "reason": "Daojie global positive and negative prompt anchors"}

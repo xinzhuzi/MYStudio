@@ -1,6 +1,7 @@
-import { useState, type ReactNode } from "react";
+import { useCallback, useState, type ReactNode } from "react";
 import { useProjectStore } from "@/stores/project-store";
 import { useStudioStore } from "@/stores/studio-store";
+import type { ImageWorkflowOpenContext } from "@/types/studio";
 import { resolveProductionEpisodeId } from "./workflow-helpers";
 import { useNovelPipelineActions } from "./useNovelPipelineActions";
 import { useProductionFlowModel } from "./useProductionFlowModel";
@@ -49,6 +50,8 @@ export function useStudioViewModel() {
   const [scriptHeaderActions, setScriptHeaderActions] =
     useState<ReactNode>(null);
   const [, setAssetsHeaderActions] = useState<ReactNode>(null);
+  const [assetImageWorkflowContext, setAssetImageWorkflowContext] =
+    useState<ImageWorkflowOpenContext>();
   const manualCatalog = useStudioManualCatalog();
 
   const projectName = activeProject?.name ?? "漫影工作室";
@@ -157,6 +160,19 @@ export function useStudioViewModel() {
     closeNodeEditor();
   };
 
+  const openAssetImageWorkflow = useCallback(
+    (context: ImageWorkflowOpenContext) => {
+      setAssetImageWorkflowContext(context);
+      handleStageChange("imageWorkflow");
+    },
+    [handleStageChange],
+  );
+  const closeAssetImageWorkflow = useCallback(() => {
+    const returnStage = assetImageWorkflowContext?.sourceStage || "storyboard";
+    setAssetImageWorkflowContext(undefined);
+    handleStageChange(returnStage);
+  }, [assetImageWorkflowContext?.sourceStage, handleStageChange]);
+
   return {
     activeWorkflowTab,
     workflowReadiness,
@@ -194,6 +210,9 @@ export function useStudioViewModel() {
     productionFlowNodes: productionFlowModel.nodes,
     openNodeEditor,
     handleProductionNodeAction,
+    assetImageWorkflowContext,
+    openAssetImageWorkflow,
+    closeAssetImageWorkflow,
     storyboards,
     productionTracks,
     videoCandidates,

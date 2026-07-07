@@ -42,6 +42,12 @@ describe("studio director plan parsing", () => {
       "| 场间 | 过渡方式 | 说明 |",
       "|---|---|---|",
       "| Sc1 → Sc2 | 叠化 | 鞭痕墨色晕开，化作顺风街灰雾 |",
+      "",
+      "### 衍生资产预划清单",
+      "| 资产名 | 衍生状态 | 原因/出现段落 |",
+      "|---|---|---|",
+      "| 独孤剑尘 | 鞭伤破衣 | Sc1 受鞭后连续复用 |",
+      "| 油布剑包 | 露出断剑 | Sc2 关键物证特写 |",
       "</scriptPlan>",
     ].join("\n");
 
@@ -54,6 +60,19 @@ describe("studio director plan parsing", () => {
     expect(plan.narrativeRhythm).toContain("油布剑包");
     expect(plan.transitions).toContain("Sc1 → Sc2");
     expect(plan.transitions).toContain("顺风街灰雾");
+    expect(plan.transitions).not.toContain("衍生资产预划清单");
+    expect(plan.derivedAssetPlan).toEqual([
+      {
+        parentAssetId: "独孤剑尘",
+        state: "鞭伤破衣",
+        reason: "Sc1 受鞭后连续复用",
+      },
+      {
+        parentAssetId: "油布剑包",
+        state: "露出断剑",
+        reason: "Sc2 关键物证特写",
+      },
+    ]);
   });
 
   it("merges multiple <scriptPlan> segments, maps sections to prose fields, parses ⑦ table to derivedAssetPlan, collects lighting warnings", () => {
@@ -124,6 +143,35 @@ describe("studio director plan parsing", () => {
     const { plan } = parseDirectorPlan(output, "ep1");
     expect(plan.theme).toContain("日常");
     expect(plan.derivedAssetPlan).toEqual([]);
+  });
+
+  it("preserves Toonflow numeric assetsId and flowId in derived asset rows", () => {
+    const output = [
+      "<scriptPlan>",
+      "### 分场汇总表（核心）",
+      "| 场次 | 场景名 | 台词条数 | 台词字数 | 情绪浓度 | 情绪基调（含 X→Y） |",
+      "|---|---|---|---|---|---|",
+      "| Sc1 | 道口镇街口 | 4 | 28 | 7 | 压迫→反击 |",
+      "",
+      "### 衍生资产预划清单",
+      "| assetsId | id | name | desc | flowId |",
+      "|---|---|---|---|---|",
+      "| 2521 | 3230 | 晨雾版 | 既有 Toonflow 衍生资产 | 1 |",
+      "</scriptPlan>",
+    ].join("\n");
+
+    const { plan } = parseDirectorPlan(output, "chapter-001");
+
+    expect(plan.derivedAssetPlan).toEqual([
+      {
+        parentAssetId: "2521",
+        state: "晨雾版",
+        reason: "既有 Toonflow 衍生资产",
+        toonflowAssetsId: 2521,
+        toonflowDerivedAssetId: 3230,
+        imageWorkflowId: "1",
+      },
+    ]);
   });
 });
 

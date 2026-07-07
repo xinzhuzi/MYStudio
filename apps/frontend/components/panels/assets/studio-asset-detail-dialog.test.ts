@@ -1,13 +1,21 @@
 import { readFileSync } from "node:fs";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   buildAssetRegenerationPrompt,
   getAssetDisplayName,
   getAssetSpokenText,
+  persistGeneratedAssetPromptToLibrary,
+  saveGeneratedAssetImageToLibrary,
+  updateImagesAfterReplacingMainImage,
 } from "./StudioAssetDetailDialog";
 import type { StudioAssetSummary } from "@/types/studio-assets";
 
 describe("buildAssetRegenerationPrompt", () => {
+  afterEach(() => {
+    delete (globalThis as any).window;
+    vi.restoreAllMocks();
+  });
+
   it("combines prompt, setting, and description for regenerating an asset image", () => {
     const asset: StudioAssetSummary = {
       id: "asset-1",
@@ -134,5 +142,132 @@ describe("buildAssetRegenerationPrompt", () => {
     expect(source).toContain('from "@/lib/tts/role-speaker-id"');
     expect(source).toContain("toRoleSpeakerId(asset.id)");
     expect(source).not.toContain("function RoleVoicePreviewButton(");
+  });
+
+  it("writes one-click generated images and prompts back to the studio asset library", async () => {
+    const replaceImage = vi.fn().mockResolvedValue({ id: "asset-role-1" });
+    const update = vi.fn().mockResolvedValue({ id: "asset-role-1" });
+    const getAbsolutePath = vi.fn().mockResolvedValue("/tmp/generated-role.png");
+    (globalThis as any).window = {
+      studioAssets: {
+        replaceImage,
+        update,
+      },
+      imageStorage: {
+        getAbsolutePath,
+      },
+    };
+
+    const saved = await saveGeneratedAssetImageToLibrary(
+      "asset-role-1",
+      "local-image://characters/generated-role.png",
+      {
+        status: "success",
+        prompt: "polished role image prompt",
+        negativePrompt: "avoid blurry",
+      },
+    );
+
+    expect(saved).toBe(true);
+    expect(getAbsolutePath).toHaveBeenCalledWith("local-image://characters/generated-role.png");
+    expect(replaceImage).toHaveBeenCalledWith({
+      assetId: "asset-role-1",
+      sourceFilePath: "/tmp/generated-role.png",
+    });
+    expect(update).toHaveBeenCalledWith({
+      id: "asset-role-1",
+      updates: { prompt: "polished role image prompt" },
+    });
+  });
+
+  it("uses the absolute saved file path when writing generated data-url images back to the asset library", async () => {
+    const replaceImage = vi.fn().mockResolvedValue({ id: "asset-role-1" });
+    const saveMaterial = vi.fn().mockResolvedValue({
+      success: true,
+      localPath: "local-image://studio-assets/generated-role.png",
+      filePath: "/Users/zhengbingjin/Library/Application Support/漫影工作室/assets/files/generated-role.png",
+    });
+    const update = vi.fn().mockResolvedValue({ id: "asset-role-1" });
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(new Blob(["image-bytes"], { type: "image/png" }))));
+    (globalThis as any).window = {
+      studioAssets: {
+        saveMaterial,
+        replaceImage,
+        update,
+      },
+    };
+
+    const saved = await saveGeneratedAssetImageToLibrary(
+      "asset-role-1",
+      "data:image/png;base64,aW1hZ2UtYnl0ZXM=",
+      {
+        status: "success",
+        prompt: "polished role image prompt",
+        negativePrompt: "avoid blurry",
+      },
+    );
+
+    expect(saved).toBe(true);
+    expect(replaceImage).toHaveBeenCalledWith({
+      assetId: "asset-role-1",
+      sourceFilePath: "/Users/zhengbingjin/Library/Application Support/漫影工作室/assets/files/generated-role.png",
+    });
+  });
+
+  it("persists one-click generated prompts before image saving succeeds", async () => {
+    const update = vi.fn().mockResolvedValue({ id: "asset-role-1" });
+    (globalThis as any).window = {
+      studioAssets: {
+        update,
+      },
+    };
+
+    const saved = await persistGeneratedAssetPromptToLibrary("asset-role-1", {
+      status: "success",
+      prompt: "polished role prompt from one-click generation",
+      negativePrompt: "avoid blurry",
+    });
+
+    expect(saved).toBe(true);
+    expect(update).toHaveBeenCalledWith({
+      id: "asset-role-1",
+      updates: { prompt: "polished role prompt from one-click generation" },
+    });
+  });
+
+  it("inserts a main image after replacing an asset that had no preview", () => {
+    const nextImages = updateImagesAfterReplacingMainImage([], {
+      id: "asset-role-1",
+      source: "manying-local",
+      type: "role",
+      name: "老苦力",
+      filePath: "role/老苦力.png",
+      previewUrl: "file:///asset-files/role/老苦力.png",
+      thumbnailUrl: "file:///asset-thumbs/role/老苦力.png",
+    });
+
+    expect(nextImages).toEqual([
+      {
+        name: "主图",
+        filePath: "role/老苦力.png",
+        url: "file:///asset-files/role/老苦力.png",
+      },
+    ]);
+  });
+
+  it("keeps one-click asset image generation from repolishing existing prompts while generating missing prompts", () => {
+    const source = readFileSync(new URL("./StudioAssetDetailDialog.tsx", import.meta.url), "utf8");
+    expect(source).toContain("const shouldGeneratePrompt = !existingPrompt");
+    expect(source).toContain("skipPolish: !shouldGeneratePrompt");
+    expect(source).toContain("existingPrompt");
+    expect(source).toContain("正在根据风格生成 ${asset.name} 的出图提示词");
+    expect(source).toContain("生成提示词中...");
+  });
+
+  it("keeps one-click asset image generation with the prompt actions instead of the empty-data notice", () => {
+    const source = readFileSync(new URL("./StudioAssetDetailDialog.tsx", import.meta.url), "utf8");
+    expect(source).toContain("handleOneClickGenerateAssetImage");
+    expect(source).toContain("一键生成资产生图");
+    expect(source).not.toContain("点击下方按钮将走完整生成流程");
   });
 });

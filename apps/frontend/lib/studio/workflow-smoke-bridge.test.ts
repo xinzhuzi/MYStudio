@@ -8,6 +8,7 @@ import {
   getSmokeStoryboardFramePath,
   installWorkflowSmokeBridge,
   isIsolatedSmokeUserDataDir,
+  type WorkflowSmokeStageResult,
 } from "./workflow-smoke-bridge";
 
 type BrowserMockGlobal = Partial<{
@@ -82,26 +83,41 @@ describe("workflow smoke bridge isolation", () => {
     expect(reset?.progress).toBe(0);
     expect(reset?.source).toBe("isolated-smoke-project");
 
-    const manuals = await window.mystudioWorkflowSmoke?.runStepwiseWorkflowStage("manuals");
-    expect(manuals?.stageId).toBe("manuals");
-    expect(manuals?.ready).toBe(true);
-    expect(manuals?.evidenceText).toContain("visualManualId");
+    const stageIds = ["manuals", "novel", "script", "assets", "storyboard", "workbench"];
+    const results: Array<WorkflowSmokeStageResult | undefined> = [];
+    for (const stageId of stageIds) {
+      results.push(await window.mystudioWorkflowSmoke?.runStepwiseWorkflowStage(stageId));
+    }
+
+    expect(results.map((result) => result?.stageId)).toEqual(stageIds);
+    expect(results.every((result) => result?.ready)).toBe(true);
+    expect(results[0]?.evidenceText).toContain("visualManualId");
+    expect(results[2]?.evidenceText).toContain("storySkeletonReview=1");
+    expect(results[2]?.evidenceText).toContain("adaptationStrategyReview=1");
+    expect(results[2]?.evidenceText).toContain("scriptDraftReview=1");
+    expect(results.at(-1)?.progress).toBe(100);
+    expect(results.at(-1)?.checks).toMatchObject({
+      hasFinalExport: true,
+      hasSelectedCandidate: true,
+      hasVoiceBinding: true,
+      hasVoiceAudio: true,
+    });
 
     const inspected = await window.mystudioWorkflowSmoke?.inspectWorkflowStages();
     expect(inspected?.source).toBe("isolated-smoke-project");
-    expect(inspected?.stages.find((stage) => stage.id === "manuals")).toMatchObject({
-      id: "manuals",
+    expect(inspected?.progress).toBe(100);
+    expect(inspected?.stages.find((stage) => stage.id === "workbench")).toMatchObject({
+      id: "workbench",
       status: "ready",
     });
-    expect(inspected?.evidence).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          stageId: "manuals",
-          ready: true,
-          evidence: expect.stringContaining("directorManualId"),
-        }),
-      ]),
-    );
+    expect(inspected?.evidence.find((item) => item.stageId === "manuals")).toMatchObject({
+      ready: true,
+      evidence: expect.stringContaining("directorManualId"),
+    });
+    expect(inspected?.evidence.find((item) => item.stageId === "workbench")).toMatchObject({
+      ready: true,
+      evidence: expect.stringContaining("selectedCandidates"),
+    });
   });
 
   it("does not expose the stepwise bridge outside isolated smoke directories", () => {
@@ -180,6 +196,13 @@ describe("workflow smoke bridge isolation", () => {
       theme: "矿场入局",
       visualStyle: "水墨漫剧",
     });
+    expect(studio.agentWorkData).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ key: "storySkeletonReview" }),
+        expect.objectContaining({ key: "adaptationStrategyReview" }),
+        expect.objectContaining({ key: "scriptDraftReview" }),
+      ]),
+    );
 
     expect(useCharacterLibraryStore.getState().characters[0]).toMatchObject({
       id: "smoke-role-sword",

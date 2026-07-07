@@ -4,6 +4,7 @@ import {
   CircleDot,
   Clock3,
   Film,
+  Image as ImageIcon,
   ImageOff,
   Layers3,
   PackageOpen,
@@ -13,6 +14,12 @@ import type { ReactNode } from "react";
 import { MdPreview } from "md-editor-rt";
 import "md-editor-rt/lib/style.css";
 import { cn } from "@/lib/utils";
+import { useThemeStore } from "@/stores/theme-store";
+import type {
+  AssetImageWorkflowContext,
+  ImageWorkflowOpenContext,
+  ImageWorkflowTarget,
+} from "@/types/studio";
 import type {
   ProductionFlowAssetCard,
   ProductionFlowNodeId,
@@ -25,33 +32,35 @@ const NODE_PREVIEW_CLASS = {
   assets: "max-h-[560px]",
   storyboardTable: "max-h-[430px]",
   storyboard: "max-h-[320px]",
-  workbench: "max-h-[320px]",
+  workbench: "max-h-[420px]",
 } satisfies Record<ProductionFlowNodeId, string>;
 
 export function TextPreview({ node }: { node: ProductionFlowNodeModel }) {
+  const theme = useThemeStore((state) => state.theme);
   return (
     <div
       className={cn(
-        "workflow-node-markdown-preview nodrag nopan nowheel overflow-y-auto overscroll-contain pr-1 text-[11px] leading-5 text-zinc-400",
+        "workflow-node-markdown-preview nodrag nopan nowheel overflow-y-auto overscroll-contain rounded-md px-3 py-2 text-[13px] leading-6 text-muted-foreground",
         node.id === "scriptPlan" &&
-          "rounded border border-white/5 bg-black/15 px-2 py-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar]:w-1.5",
+          "border border-border bg-muted/25 py-3 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-muted-foreground/25 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar]:w-1.5",
         NODE_PREVIEW_CLASS[node.id],
       )}
     >
       <MdPreview
         className={cn(
-          "md-editor-preview-transparent !bg-transparent text-zinc-300",
+          "md-editor-preview-transparent !bg-transparent text-foreground",
           "[&_.md-editor]:!bg-transparent [&_.md-editor-preview]:!bg-transparent [&_.md-editor-preview-wrapper]:!bg-transparent",
-          "[&_.md-editor-preview]:!p-0 [&_.md-editor-preview]:text-[11px] [&_.md-editor-preview]:leading-5",
-          "[&_.md-editor-preview_h1]:mb-2 [&_.md-editor-preview_h1]:text-base [&_.md-editor-preview_h1]:leading-6",
-          "[&_.md-editor-preview_h2]:mb-1.5 [&_.md-editor-preview_h2]:text-sm [&_.md-editor-preview_h2]:leading-5",
-          "[&_.md-editor-preview_h3]:mb-1 [&_.md-editor-preview_h3]:text-xs [&_.md-editor-preview_h3]:leading-5",
-          "[&_.md-editor-preview_p]:my-1 [&_.md-editor-preview_li]:my-0.5",
-          "[&_.md-editor-preview_table]:my-2 [&_.md-editor-preview_table]:text-[10px]",
-          "[&_.md-editor-preview_pre]:my-2 [&_.md-editor-preview_pre]:max-w-full [&_.md-editor-preview_pre]:overflow-auto",
+          "[&_.md-editor-preview]:!p-0 [&_.md-editor-preview]:text-[13px] [&_.md-editor-preview]:leading-6",
+          "[&_.md-editor-preview_h1]:mb-3 [&_.md-editor-preview_h1]:text-lg [&_.md-editor-preview_h1]:leading-7",
+          "[&_.md-editor-preview_h2]:mb-2 [&_.md-editor-preview_h2]:mt-3 [&_.md-editor-preview_h2]:text-base [&_.md-editor-preview_h2]:leading-6",
+          "[&_.md-editor-preview_h3]:mb-1.5 [&_.md-editor-preview_h3]:mt-2.5 [&_.md-editor-preview_h3]:text-sm [&_.md-editor-preview_h3]:leading-6",
+          "[&_.md-editor-preview_p]:my-2 [&_.md-editor-preview_li]:my-1",
+          "[&_.md-editor-preview_ul]:my-2 [&_.md-editor-preview_ol]:my-2",
+          "[&_.md-editor-preview_table]:my-3 [&_.md-editor-preview_table]:text-[12px]",
+          "[&_.md-editor-preview_pre]:my-3 [&_.md-editor-preview_pre]:max-w-full [&_.md-editor-preview_pre]:overflow-auto",
         )}
         modelValue={buildPreviewMarkdown(node)}
-        theme="dark"
+        theme={theme}
         language="zh-CN"
       />
     </div>
@@ -64,16 +73,18 @@ function buildPreviewMarkdown(node: ProductionFlowNodeModel) {
 
 export function AssetDerivationPreview({
   node,
+  onOpenAssetImageWorkflow,
 }: {
   node: ProductionFlowNodeModel;
+  onOpenAssetImageWorkflow?: (context: AssetImageWorkflowContext) => void;
 }) {
   const groups = node.assetGroups ?? [];
   if (!groups.length) return <TextPreview node={node} />;
   const summary = node.assetSummary;
   return (
-    <div className="nodrag nopan nowheel max-h-[560px] space-y-4 overflow-y-auto overscroll-contain pr-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar]:w-1.5">
+    <div className="nodrag nopan nowheel max-h-[560px] space-y-4 overflow-y-auto overscroll-contain pr-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-muted-foreground/25 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar]:w-1.5">
       {summary ? (
-        <div className="asset-derive-summary grid grid-cols-4 gap-2 rounded-md border border-white/10 bg-[#202120] p-2">
+        <div className="asset-derive-summary grid grid-cols-4 gap-2 rounded-md border border-border bg-card p-2 text-card-foreground">
           <AssetSummaryCell label="预划" value={summary.planned} />
           <AssetSummaryCell label="已关联父资产" value={summary.linked} />
           <AssetSummaryCell label="已完成图片" value={summary.completed} />
@@ -90,13 +101,17 @@ export function AssetDerivationPreview({
           className="grid grid-cols-[188px_34px_minmax(188px,1fr)] items-stretch gap-3"
         >
           <AssetFlowCard card={group.source} />
-          <div className="flex items-center justify-center text-zinc-300">
+          <div className="flex items-center justify-center text-muted-foreground">
             <ChevronRight className="h-6 w-6" />
           </div>
           {group.derived.length ? (
             <div className="grid grid-cols-2 gap-3">
               {group.derived.slice(0, 4).map((item) => (
-                <AssetFlowCard key={item.id} card={item} />
+                <AssetFlowCard
+                  key={item.id}
+                  card={item}
+                  onOpenAssetImageWorkflow={onOpenAssetImageWorkflow}
+                />
               ))}
             </div>
           ) : (
@@ -108,26 +123,73 @@ export function AssetDerivationPreview({
   );
 }
 
-export function AssetFlowCard({ card }: { card: ProductionFlowAssetCard }) {
+export function AssetFlowCard({
+  card,
+  onOpenAssetImageWorkflow,
+}: {
+  card: ProductionFlowAssetCard;
+  onOpenAssetImageWorkflow?: (context: AssetImageWorkflowContext) => void;
+}) {
   const status = card.generationState ?? (card.mediaPath ? "已完成" : "未生成");
+  const canOpenImageWorkflow =
+    card.isDerived &&
+    Boolean(card.sourceImagePath || card.imageWorkflowId || card.mediaPath) &&
+    isAssetWorkflowTarget(card.imageWorkflowTarget);
+  const openImageWorkflow = () => {
+    if (!isAssetWorkflowTarget(card.imageWorkflowTarget)) return;
+    onOpenAssetImageWorkflow?.({
+      target: card.imageWorkflowTarget,
+      title: card.name,
+      prompt: card.prompt,
+      sourceImagePath: card.sourceImagePath,
+      resultImagePath: card.mediaPath,
+      imageWorkflowId: card.imageWorkflowId,
+      sourceStage: "storyboard",
+      sourceStageLabel: "分镜视频生成",
+      sourceLabel: `衍生资产 · ${card.name}`,
+    });
+  };
+  const previewFrame = (
+    <>
+      {card.mediaPath ? (
+        <img
+          src={toPreviewSrc(card.mediaPath)}
+          alt={card.name}
+          className="h-full w-full object-contain"
+          loading="lazy"
+        />
+      ) : status === "生成中" ? (
+        <RefreshCw className="h-8 w-8 animate-spin text-sky-300/70" />
+      ) : (
+        <PackageOpen className="h-9 w-9 text-muted-foreground/55" />
+      )}
+    </>
+  );
   return (
-    <div className="min-h-[214px] rounded-md border border-white/14 bg-[#202120] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.035)]">
-      <div className="flex h-[112px] items-center justify-center overflow-hidden rounded bg-black/22">
-        {card.mediaPath ? (
-          <img
-            src={toPreviewSrc(card.mediaPath)}
-            alt={card.name}
-            className="h-full w-full object-contain"
-            loading="lazy"
-          />
-        ) : status === "生成中" ? (
-          <RefreshCw className="h-8 w-8 animate-spin text-sky-300/70" />
-        ) : (
-          <PackageOpen className="h-9 w-9 text-zinc-600" />
-        )}
-      </div>
+    <div className="min-h-[214px] rounded-md border border-border bg-card p-3 text-card-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.035)]">
+      {canOpenImageWorkflow ? (
+        <button
+          type="button"
+          aria-label={`打开${card.name}图片工作流`}
+          data-asset-workflow-image-id={card.imageWorkflowId ?? ""}
+          data-asset-workflow-id={card.imageWorkflowId ?? ""}
+          data-asset-workflow-type={card.imageWorkflowTarget?.assetType ?? ""}
+          data-asset-workflow-name={card.name}
+          className="nodrag nopan nowheel flex h-[112px] w-full items-center justify-center overflow-hidden rounded border border-cyan-300/35 bg-muted/30 ring-offset-background hover:border-cyan-200/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 focus-visible:ring-offset-2"
+          onClick={(event) => {
+            event.stopPropagation();
+            openImageWorkflow();
+          }}
+        >
+          {previewFrame}
+        </button>
+      ) : (
+        <div className="flex h-[112px] items-center justify-center overflow-hidden rounded border border-border/60 bg-muted/30">
+          {previewFrame}
+        </div>
+      )}
       <div className="mt-2 flex items-center justify-between gap-2">
-        <span className="min-w-0 truncate text-[10px] text-zinc-500">
+        <span className="min-w-0 truncate text-[10px] text-muted-foreground">
           {card.typeLabel} / {card.runtimeType}
         </span>
         <span
@@ -152,30 +214,62 @@ export function AssetFlowCard({ card }: { card: ProductionFlowAssetCard }) {
             status === "生成失败" &&
               "border-red-300/30 bg-red-300/12 text-red-200",
             status === "未生成" &&
-              "border-white/10 bg-black/20 text-zinc-400",
+              "border-border bg-muted/30 text-muted-foreground",
           )}
         >
           {status}
         </span>
         {card.parentAssetId ? (
-          <span className="max-w-full truncate rounded border border-white/10 bg-black/20 px-1.5 py-0.5 text-[9px] text-zinc-500">
+          <span className="max-w-full truncate rounded border border-border bg-muted/30 px-1.5 py-0.5 text-[9px] text-muted-foreground">
             parentAssetId: {card.parentAssetId}
           </span>
         ) : null}
+        {card.imageWorkflowId ? (
+          <span className="max-w-full truncate rounded border border-cyan-300/20 bg-cyan-300/10 px-1.5 py-0.5 text-[9px] text-cyan-200">
+            flowId: {card.imageWorkflowId}
+          </span>
+        ) : null}
+        {card.isDerived && !card.sourceImagePath ? (
+          <span className="max-w-full truncate rounded border border-amber-300/30 bg-amber-300/10 px-1.5 py-0.5 text-[9px] text-amber-200">
+            缺父资产图
+          </span>
+        ) : null}
       </div>
-      <p className="mt-1 line-clamp-1 text-[11px] font-medium text-zinc-300">
+      <p className="mt-1 line-clamp-1 text-[11px] font-medium text-card-foreground">
         {card.name}
       </p>
-      <p className="mt-1 line-clamp-2 text-[10px] leading-4 text-zinc-500">
+      <p className="mt-1 line-clamp-2 text-[10px] leading-4 text-muted-foreground">
         {card.reason || card.note || "等待补充资产描述。"}
       </p>
       {card.prompt ? (
-        <p className="mt-1 line-clamp-2 text-[10px] leading-4 text-zinc-500">
+        <p className="mt-1 line-clamp-2 text-[10px] leading-4 text-muted-foreground">
           生成提示：{card.prompt}
         </p>
       ) : null}
+      {canOpenImageWorkflow ? (
+        <button
+          type="button"
+          data-asset-workflow-id={card.imageWorkflowId ?? ""}
+          data-asset-workflow-type={card.imageWorkflowTarget?.assetType ?? ""}
+          data-asset-workflow-name={card.name}
+          className="nodrag nopan nowheel mt-2 inline-flex h-7 w-full items-center justify-center gap-1.5 rounded-md border border-cyan-300/35 bg-cyan-300/10 px-2 text-[10px] font-medium text-cyan-100 hover:bg-cyan-300/16"
+          onClick={(event) => {
+            event.stopPropagation();
+            openImageWorkflow();
+          }}
+        >
+          <ImageIcon className="h-3.5 w-3.5" />
+          进入图片工作流
+        </button>
+      ) : null}
     </div>
   );
+}
+
+function isAssetWorkflowTarget(
+  target: ImageWorkflowTarget | undefined,
+): target is AssetImageWorkflowContext["target"] {
+  return target?.kind === "asset" && Boolean(target.assetType);
 }
 
 function AssetSummaryCell({
@@ -190,14 +284,14 @@ function AssetSummaryCell({
   return (
     <div
       className={cn(
-        "min-w-0 rounded border border-white/10 bg-black/20 px-2 py-1.5",
+        "min-w-0 rounded border border-border bg-muted/30 px-2 py-1.5",
         warn && "border-amber-300/35 bg-amber-300/10",
       )}
     >
-      <div className="truncate text-[9px] text-zinc-500">{label}</div>
+      <div className="truncate text-[9px] text-muted-foreground">{label}</div>
       <div
         className={cn(
-          "mt-0.5 text-[13px] font-semibold text-zinc-200",
+          "mt-0.5 text-[13px] font-semibold text-foreground",
           warn && "text-amber-200",
         )}
       >
@@ -209,9 +303,9 @@ function AssetSummaryCell({
 
 function EmptyDerivedAssetCard() {
   return (
-    <div className="flex min-h-[214px] flex-col items-center justify-center rounded-md border border-white/14 bg-[#202120]/82 p-3 text-center">
-      <ImageOff className="h-10 w-10 text-zinc-600" />
-      <p className="mt-3 text-[11px] text-zinc-500">无衍生资产</p>
+    <div className="flex min-h-[214px] flex-col items-center justify-center rounded-md border border-border bg-card/85 p-3 text-center">
+      <ImageOff className="h-10 w-10 text-muted-foreground/55" />
+      <p className="mt-3 text-[11px] text-muted-foreground">无衍生资产</p>
     </div>
   );
 }
@@ -224,8 +318,8 @@ export function StoryboardTablePreview({
   const rows = node.tableRows ?? [];
   if (!rows.length) return <TextPreview node={node} />;
   return (
-    <div className="nodrag nowheel max-h-[430px] overflow-auto overscroll-contain rounded border border-white/10">
-      <div className="sticky top-0 z-10 grid min-w-[1920px] grid-cols-[44px_0.82fr_0.72fr_1.5fr_0.72fr_1.05fr_54px_0.62fr_0.72fr_1.35fr_0.82fr_0.95fr_0.72fr_1.2fr_0.82fr_0.9fr] bg-[#242624] text-[10px] font-medium text-zinc-300">
+    <div className="nodrag nowheel max-h-[430px] overflow-auto overscroll-contain rounded border border-border bg-card">
+      <div className="sticky top-0 z-10 grid min-w-[1920px] grid-cols-[44px_0.82fr_0.72fr_1.5fr_0.72fr_1.05fr_54px_0.62fr_0.72fr_1.35fr_0.82fr_0.95fr_0.72fr_1.2fr_0.82fr_0.9fr] bg-muted text-[10px] font-medium text-foreground">
         <span className="px-2 py-2">序号</span>
         <span className="px-2 py-2">标题</span>
         <span className="px-2 py-2">title</span>
@@ -243,13 +337,13 @@ export function StoryboardTablePreview({
         <span className="px-2 py-2">音效</span>
         <span className="px-2 py-2">关联资产ID</span>
       </div>
-      <div className="divide-y divide-white/8">
+      <div className="divide-y divide-border">
         {rows.map((row) => (
           <div
             key={`${node.id}-row-${row.index}`}
-            className="grid min-w-[1920px] grid-cols-[44px_0.82fr_0.72fr_1.5fr_0.72fr_1.05fr_54px_0.62fr_0.72fr_1.35fr_0.82fr_0.95fr_0.72fr_1.2fr_0.82fr_0.9fr] text-[10px] leading-4 text-zinc-400 odd:bg-white/[0.025]"
+            className="grid min-w-[1920px] grid-cols-[44px_0.82fr_0.72fr_1.5fr_0.72fr_1.05fr_54px_0.62fr_0.72fr_1.35fr_0.82fr_0.95fr_0.72fr_1.2fr_0.82fr_0.9fr] text-[10px] leading-4 text-muted-foreground odd:bg-muted/35"
           >
-            <span className="px-2 py-2 text-zinc-300">{row.index}</span>
+            <span className="px-2 py-2 text-foreground">{row.index}</span>
             <span className="whitespace-pre-wrap break-words px-2 py-2">{row.title || "—"}</span>
             <span className="whitespace-pre-wrap break-words px-2 py-2">{row.titleEn || "—"}</span>
             <span className="whitespace-pre-wrap break-words px-2 py-2">{row.description || "—"}</span>
@@ -274,17 +368,33 @@ export function StoryboardTablePreview({
 
 export function StoryboardGridPreview({
   node,
+  onOpenImageWorkflow,
 }: {
   node: ProductionFlowNodeModel;
+  onOpenImageWorkflow?: (context: ImageWorkflowOpenContext) => void;
 }) {
   const tiles = node.storyboardTiles ?? [];
   if (!tiles.length) return <TextPreview node={node} />;
   return (
-    <div className="nodrag nowheel max-h-[320px] overflow-y-auto overscroll-contain pr-1">
-      <div className="grid grid-cols-4 gap-2">
-        {tiles.map((tile) => (
-          <div key={tile.id} className="min-w-0">
-            <div className="relative aspect-video overflow-hidden rounded border border-white/10 bg-zinc-900">
+    <div className="nodrag nowheel max-h-[360px] overflow-y-auto overscroll-contain pr-1">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(132px,1fr))] gap-2">
+        {tiles.map((tile) => {
+          const canOpenWorkflow = Boolean(tile.imageWorkflowId || tile.mediaPath);
+          const openStoryboardImageWorkflow = () => {
+            onOpenImageWorkflow?.({
+              target: { kind: "storyboard", id: tile.id },
+              title: `分镜 ${tile.index}`,
+              prompt: tile.title,
+              sourceImagePath: tile.mediaPath,
+              resultImagePath: tile.mediaPath,
+              imageWorkflowId: tile.imageWorkflowId,
+              sourceStage: "storyboard",
+              sourceStageLabel: "分镜视频生成",
+              sourceLabel: `分镜成图 · 分镜 ${tile.index}`,
+            });
+          };
+          const previewTile = (
+            <>
               {tile.mediaPath ? (
                 <img
                   src={toPreviewSrc(tile.mediaPath)}
@@ -293,27 +403,60 @@ export function StoryboardGridPreview({
                   loading="lazy"
                 />
               ) : (
-                <div className="flex h-full items-center justify-center text-[10px] text-zinc-600">
+                <div className="flex h-full items-center justify-center text-[10px] text-muted-foreground">
                   未生成
                 </div>
               )}
               <span className="absolute left-1 top-1 rounded bg-emerald-400 px-1.5 py-0.5 text-[9px] font-semibold text-zinc-950">
                 S{String(tile.index).padStart(2, "0")}
               </span>
-              <span className="absolute right-1 top-1 rounded bg-black/60 px-1.5 py-0.5 text-[9px] text-zinc-200">
+              <span className="absolute right-1 top-1 rounded bg-background/80 px-1.5 py-0.5 text-[9px] text-foreground">
                 {tile.state}
               </span>
-            </div>
-            <p className="mt-1 line-clamp-1 text-[10px] text-zinc-400">
+            </>
+          );
+          return (
+          <div key={tile.id} className="min-w-0">
+            {canOpenWorkflow ? (
+              <button
+                type="button"
+                aria-label={`打开分镜 ${tile.index} 图片工作流`}
+                data-storyboard-id={tile.id}
+                data-storyboard-workflow-image-id={tile.imageWorkflowId ?? ""}
+                data-storyboard-workflow-id={tile.imageWorkflowId}
+                className="nodrag nopan nowheel relative block aspect-video w-full overflow-hidden rounded border border-cyan-300/35 bg-muted/30 text-left ring-offset-background hover:border-cyan-200/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 focus-visible:ring-offset-2"
+                onClick={openStoryboardImageWorkflow}
+              >
+                {previewTile}
+              </button>
+            ) : (
+              <div className="relative aspect-video overflow-hidden rounded border border-border bg-muted/30">
+                {previewTile}
+              </div>
+            )}
+            {canOpenWorkflow ? (
+              <button
+                type="button"
+                data-storyboard-id={tile.id}
+                data-storyboard-workflow-id={tile.imageWorkflowId}
+                className="mt-1 inline-flex w-full items-center justify-center gap-1 rounded border border-border bg-muted/30 px-1.5 py-1 text-[10px] text-muted-foreground hover:border-sky-300/45 hover:text-foreground"
+                onClick={openStoryboardImageWorkflow}
+              >
+                <ImageIcon className="h-3 w-3" />
+                进入分镜图片工作流
+              </button>
+            ) : null}
+            <p className="mt-1 line-clamp-1 text-[10px] text-foreground">
               {tile.title}
             </p>
             {tile.lines ? (
-              <p className="line-clamp-1 text-[10px] text-zinc-500">
+              <p className="line-clamp-1 text-[10px] text-muted-foreground">
                 {tile.lines}
               </p>
             ) : null}
           </div>
-        ))}
+        );
+        })}
       </div>
     </div>
   );
@@ -328,20 +471,20 @@ export function WorkbenchLanePreview({
   if (!tracks.length) return <TextPreview node={node} />;
   return (
     <div className="workbench-lane-preview nodrag nowheel max-h-[320px] space-y-3 overflow-y-auto overscroll-contain pr-1">
-      <div className="grid grid-cols-[1fr_auto] items-center gap-3 rounded-md border border-white/10 bg-[#202120] px-3 py-2">
+      <div className="grid grid-cols-[1fr_auto] items-center gap-3 rounded-md border border-border bg-card px-3 py-2 text-card-foreground">
         <div className="min-w-0">
-          <div className="text-[10px] uppercase tracking-[0.18em] text-zinc-500">
+          <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
             最终导出
           </div>
-          <div className="mt-1 truncate text-[11px] text-zinc-300">
+          <div className="mt-1 truncate text-[11px] text-card-foreground">
             {node.finalExportPath || "等待候选片段全部选中后导出"}
           </div>
         </div>
-        <span className="inline-flex h-7 items-center gap-1.5 rounded-md border border-white/10 bg-black/25 px-2 text-[10px] font-medium text-zinc-300">
+        <span className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border bg-muted/30 px-2 text-[10px] font-medium text-foreground">
           {node.finalExportPath ? (
             <CheckCircle2 className="h-3.5 w-3.5 text-emerald-300" />
           ) : (
-            <CircleDot className="h-3.5 w-3.5 text-zinc-500" />
+            <CircleDot className="h-3.5 w-3.5 text-muted-foreground" />
           )}
           {node.finalExportPath ? "READY" : "PENDING"}
         </span>
@@ -350,7 +493,7 @@ export function WorkbenchLanePreview({
         {tracks.map((track, index) => (
           <div
             key={track.id}
-            className="min-w-0 rounded-md border border-white/10 bg-[#1f201f] p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.035)]"
+            className="min-w-0 rounded-md border border-border bg-card p-2.5 text-card-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.035)]"
           >
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
@@ -358,15 +501,15 @@ export function WorkbenchLanePreview({
                   <span className="rounded bg-sky-300 px-1.5 py-0.5 text-[9px] font-semibold text-zinc-950">
                     T{String(index + 1).padStart(2, "0")}
                   </span>
-                  <span className="truncate text-[11px] font-medium text-zinc-200">
+                  <span className="truncate text-[11px] font-medium text-card-foreground">
                     {track.id}
                   </span>
                 </div>
-                <p className="mt-1 line-clamp-2 text-[10px] leading-4 text-zinc-500">
+                <p className="mt-1 line-clamp-2 text-[10px] leading-4 text-muted-foreground">
                   {track.prompt || track.reason || "等待生成视频提示词"}
                 </p>
               </div>
-              <span className="shrink-0 rounded border border-white/10 bg-black/25 px-1.5 py-0.5 text-[9px] uppercase text-zinc-400">
+              <span className="shrink-0 rounded border border-border bg-muted/30 px-1.5 py-0.5 text-[9px] uppercase text-muted-foreground">
                 {track.state}
               </span>
             </div>
@@ -392,9 +535,9 @@ export function WorkbenchLanePreview({
                 value={track.videoCount}
               />
             </div>
-            <div className="mt-2 truncate rounded border border-white/10 bg-black/20 px-2 py-1.5 text-[10px] text-zinc-500">
+            <div className="mt-2 truncate rounded border border-border bg-muted/30 px-2 py-1.5 text-[10px] text-muted-foreground">
               selectedVideoPath:{" "}
-              <span className="text-zinc-300">
+              <span className="text-foreground">
                 {track.selectedVideoPath || "未选择候选片段"}
               </span>
             </div>
@@ -415,12 +558,12 @@ function WorkbenchStat({
   value: number | string;
 }) {
   return (
-    <div className="min-w-0 rounded border border-white/10 bg-black/18 px-2 py-1.5">
-      <div className="flex items-center gap-1 text-[9px] text-zinc-500">
+    <div className="min-w-0 rounded border border-border bg-muted/30 px-2 py-1.5">
+      <div className="flex items-center gap-1 text-[9px] text-muted-foreground">
         {icon}
         <span className="truncate">{label}</span>
       </div>
-      <div className="mt-0.5 text-[12px] font-semibold text-zinc-200">
+      <div className="mt-0.5 text-[12px] font-semibold text-foreground">
         {value}
       </div>
     </div>

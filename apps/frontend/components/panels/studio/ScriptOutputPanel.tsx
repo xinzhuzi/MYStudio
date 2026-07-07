@@ -8,6 +8,7 @@ import {
 } from "@/lib/studio/script-planning";
 import { Edit3 } from "lucide-react";
 import { MdPreview } from "md-editor-rt";
+import { useThemeStore } from "@/stores/theme-store";
 
 export function ScriptOutputPanel(props: {
   activeStage: ScriptStageKey;
@@ -21,6 +22,7 @@ export function ScriptOutputPanel(props: {
   reviseMode: boolean;
   onEditOutput: () => void;
 }) {
+  const theme = useThemeStore((state) => state.theme);
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
@@ -47,14 +49,14 @@ export function ScriptOutputPanel(props: {
           props.liveMd ? (
             <MdPreview
               modelValue={props.liveMd}
-              theme="dark"
+              theme={theme}
               language="zh-CN"
             />
           ) : (
             <p className="text-muted-foreground">生成中…</p>
           )
         ) : props.output ? (
-          <MdPreview modelValue={props.output} theme="dark" language="zh-CN" />
+          <MdPreview modelValue={props.output} theme={theme} language="zh-CN" />
         ) : (
           <p className="text-muted-foreground">
             {props.hasPrereq ? "点上方「一键生成」由 AI 产出" : "请先完成前置阶段"}
@@ -75,7 +77,7 @@ export function ScriptOutputPanel(props: {
             ) : (
               <MdPreview
                 modelValue={props.reviewData ?? ""}
-                theme="dark"
+                theme={theme}
                 language="zh-CN"
               />
             )}

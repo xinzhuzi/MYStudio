@@ -21,7 +21,7 @@ import {
 } from "@/stores/script-store";
 import { useProjectStore } from "@/stores/project-store";
 import { useAPIConfigStore } from "@/stores/api-config-store";
-import { getFeatureConfig, getFeatureNotConfiguredMessage } from "@/lib/ai/feature-router";
+import { aiManager } from "@/lib/ai/ai-manager";
 import { useCharacterLibraryStore } from "@/stores/character-library-store";
 import { useMediaPanelStore } from "@/stores/media-panel-store";
 import { parseScript, generateShotList, generateScriptFromIdea } from "@/lib/script/script-parser";
@@ -428,8 +428,8 @@ export function ScriptView() {
 
   // 为单集生成分镜（需要先定义，因为 handleImportFullScript 依赖它）
   const handleGenerateEpisodeShots = useCallback(async (episodeIndex: number) => {
-    // 使用 feature router 获取 API 配置
-    const featureConfig = getFeatureConfig('script_analysis');
+    // 通过统一 AI 管理入口获取 API 配置
+    const featureConfig = aiManager.featureConfig('script_analysis');
     
     console.log('[handleGenerateEpisodeShots] featureConfig:', featureConfig ? '已配置' : '未配置');
     console.log('[handleGenerateEpisodeShots] allApiKeys:', featureConfig?.allApiKeys?.length || 0);
@@ -490,7 +490,7 @@ export function ScriptView() {
       return;
     }
 
-    const featureConfig = getFeatureConfig('script_analysis');
+    const featureConfig = aiManager.featureConfig('script_analysis');
     const hasAI = !!featureConfig;
 
     setImportStatus('importing');
@@ -658,7 +658,7 @@ export function ScriptView() {
 
   // 更新全部分镜
   const handleRegenerateAllShots = useCallback(async () => {
-    const featureConfig = getFeatureConfig('script_analysis');
+    const featureConfig = aiManager.featureConfig('script_analysis');
     
     if (episodeRawScripts.length === 0) {
       toast.error("没有可生成的集");
@@ -705,9 +705,9 @@ export function ScriptView() {
 
   // AI校准：为缺失标题的集数生成标题
   const handleCalibrate = useCallback(async () => {
-    const featureConfig = getFeatureConfig('script_analysis');
+    const featureConfig = aiManager.featureConfig('script_analysis');
     if (!featureConfig) {
-      toast.error(getFeatureNotConfiguredMessage('script_analysis'));
+      toast.error(aiManager.featureNotConfiguredMessage('script_analysis'));
       return;
     }
     
@@ -751,9 +751,9 @@ export function ScriptView() {
 
   // AI校准分镜：优化中文描述、生成英文visualPrompt、优化镜头设计
   const handleCalibrateShots = useCallback(async (episodeIndex: number) => {
-    const featureConfig = getFeatureConfig('script_analysis');
+    const featureConfig = aiManager.featureConfig('script_analysis');
     if (!featureConfig) {
-      toast.error(getFeatureNotConfiguredMessage('script_analysis'));
+      toast.error(aiManager.featureNotConfiguredMessage('script_analysis'));
       return;
     }
     
@@ -814,9 +814,9 @@ export function ScriptView() {
 
   // AI校准场景分镜：只校准指定场景下的分镜
   const handleCalibrateScenesShots = useCallback(async (sceneId: string) => {
-    const featureConfig = getFeatureConfig('script_analysis');
+    const featureConfig = aiManager.featureConfig('script_analysis');
     if (!featureConfig) {
-      toast.error(getFeatureNotConfiguredMessage('script_analysis'));
+      toast.error(aiManager.featureNotConfiguredMessage('script_analysis'));
       return;
     }
 
@@ -871,9 +871,9 @@ export function ScriptView() {
 
   // AI校准单个分镜（用于预告片分镜）
   const handleCalibrateSingleShot = useCallback(async (shotId: string) => {
-    const featureConfig = getFeatureConfig('script_analysis');
+    const featureConfig = aiManager.featureConfig('script_analysis');
     if (!featureConfig) {
-      toast.error(getFeatureNotConfiguredMessage('script_analysis'));
+      toast.error(aiManager.featureNotConfiguredMessage('script_analysis'));
       return;
     }
     
@@ -923,9 +923,9 @@ export function ScriptView() {
 
   // AI生成每集大纲
   const handleGenerateSynopses = useCallback(async () => {
-    const featureConfig = getFeatureConfig('script_analysis');
+    const featureConfig = aiManager.featureConfig('script_analysis');
     if (!featureConfig) {
-      toast.error(getFeatureNotConfiguredMessage('script_analysis'));
+      toast.error(aiManager.featureNotConfiguredMessage('script_analysis'));
       return;
     }
     
@@ -964,9 +964,9 @@ export function ScriptView() {
   // 手动触发 AI 角色校准（包含多阶段变体自动生成）
   // 注意：角色校准是独立步骤，不依赖视角分析，可随时根据最新数据执行
   const handleCalibrateCharacters = useCallback(async () => {
-    const featureConfig = getFeatureConfig('script_analysis');
+    const featureConfig = aiManager.featureConfig('script_analysis');
     if (!featureConfig) {
-      toast.error(getFeatureNotConfiguredMessage('script_analysis'));
+      toast.error(aiManager.featureNotConfiguredMessage('script_analysis'));
       return;
     }
     
@@ -1327,9 +1327,9 @@ export function ScriptView() {
     }
 
     // Use feature router to get script_analysis config
-    const featureConfig = getFeatureConfig('script_analysis');
+    const featureConfig = aiManager.featureConfig('script_analysis');
     if (!featureConfig) {
-      toast.error(getFeatureNotConfiguredMessage('script_analysis'));
+      toast.error(aiManager.featureNotConfiguredMessage('script_analysis'));
       return;
     }
 
@@ -1387,9 +1387,9 @@ export function ScriptView() {
     }
 
     // Use feature router to get script_analysis config (with multi-key support)
-    const featureConfig = getFeatureConfig('script_analysis');
+    const featureConfig = aiManager.featureConfig('script_analysis');
     if (!featureConfig) {
-      toast.error(getFeatureNotConfiguredMessage('script_analysis'));
+      toast.error(aiManager.featureNotConfiguredMessage('script_analysis'));
       return;
     }
 
@@ -1463,7 +1463,7 @@ export function ScriptView() {
       }
 
       // Use feature router for script_analysis (shot generation uses same API)
-      const featureConfig = getFeatureConfig('script_analysis');
+      const featureConfig = aiManager.featureConfig('script_analysis');
       if (!featureConfig) {
         return;
       }
@@ -1909,7 +1909,7 @@ export function ScriptView() {
 
   // AI 角色查找回调
   const handleAIFindCharacter = useCallback(async (query: string) => {
-    const featureConfig = getFeatureConfig('script_analysis');
+    const featureConfig = aiManager.featureConfig('script_analysis');
     if (!featureConfig) {
       return {
         found: false,
@@ -1960,7 +1960,7 @@ export function ScriptView() {
 
   // AI 场景查找回调
   const handleAIFindScene = useCallback(async (query: string) => {
-    const featureConfig = getFeatureConfig('script_analysis');
+    const featureConfig = aiManager.featureConfig('script_analysis');
     if (!featureConfig) {
       return {
         found: false,
@@ -2007,9 +2007,9 @@ export function ScriptView() {
 
   // AI 场景校准（全局）
   const handleCalibrateScenes = useCallback(async () => {
-    const featureConfig = getFeatureConfig('script_analysis');
+    const featureConfig = aiManager.featureConfig('script_analysis');
     if (!featureConfig) {
-      toast.error(getFeatureNotConfiguredMessage('script_analysis'));
+      toast.error(aiManager.featureNotConfiguredMessage('script_analysis'));
       return;
     }
     
@@ -2122,9 +2122,9 @@ export function ScriptView() {
 
   // AI 场景校准（单集）
   const handleCalibrateEpisodeScenes = useCallback(async (episodeIndex: number) => {
-    const featureConfig = getFeatureConfig('script_analysis');
+    const featureConfig = aiManager.featureConfig('script_analysis');
     if (!featureConfig) {
-      toast.error(getFeatureNotConfiguredMessage('script_analysis'));
+      toast.error(aiManager.featureNotConfiguredMessage('script_analysis'));
       return;
     }
     
@@ -2183,9 +2183,9 @@ export function ScriptView() {
 
   // 预告片生成
   const handleGenerateTrailer = useCallback(async (duration: TrailerDuration) => {
-    const featureConfig = getFeatureConfig('script_analysis');
+    const featureConfig = aiManager.featureConfig('script_analysis');
     if (!featureConfig) {
-      toast.error(getFeatureNotConfiguredMessage('script_analysis'));
+      toast.error(aiManager.featureNotConfiguredMessage('script_analysis'));
       return;
     }
     
@@ -2332,7 +2332,7 @@ export function ScriptView() {
   
   // 获取预告片 API 配置
   const trailerApiOptions = useCallback((): TrailerGenerationOptions | null => {
-    const featureConfig = getFeatureConfig('script_analysis');
+    const featureConfig = aiManager.featureConfig('script_analysis');
     if (!featureConfig) return null;
     return {
       apiKey: featureConfig.allApiKeys.join(','),

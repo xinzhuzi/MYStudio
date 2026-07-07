@@ -23,6 +23,11 @@ export interface StudioAssetSummary {
   filePath?: string;
   sourcePath?: string;
   state?: string;
+  imageWorkflowId?: string;
+  parentAssetId?: string;
+  parentAssetName?: string;
+  toonflowAssetId?: number;
+  toonflowParentAssetId?: number;
   /** 提示词润色状态（由前端资产管理注入） */
   promptState?: "none" | "polishing" | "ready" | "failed";
   childrenCount?: number;

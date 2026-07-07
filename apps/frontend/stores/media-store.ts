@@ -7,8 +7,14 @@ import { createSplitStorage } from "@/lib/project-storage";
 import { storageService } from "@/lib/storage/storage-service";
 import { generateUUID } from "@/lib/utils";
 import { MediaType, MediaFile, MediaFolder, MediaFolderCategory } from "@/types/media";
-import { saveImageToLocal, isElectron } from "@/lib/image-storage";
+import { saveImageToLocal, isElectron, moveLocalImageToCategory } from "@/lib/image-storage";
 import type { ImageCategory } from "@/lib/image-storage";
+import {
+  getLocalMediaUrlCategory,
+  getMediaFileStorageMoveCategory,
+  getMediaStorageCategoryForNewUrl,
+  withMovedMediaUrl,
+} from "./media-file-move";
 
 // ==================== Split/Merge for per-project storage ====================
 
@@ -79,7 +85,7 @@ interface MediaStore {
   
   // File management
   renameMediaFile: (id: string, name: string) => void;
-  moveToFolder: (mediaId: string, folderId: string | null) => void;
+  moveToFolder: (mediaId: string, folderId: string | null) => Promise<void>;
   
   // AI generated content
   addMediaFromUrl: (options: {
@@ -481,10 +487,34 @@ export const useMediaStore = create<MediaStore>()(
     }));
   },
 
-  moveToFolder: (mediaId, folderId) => {
-    set((state) => ({
-      mediaFiles: state.mediaFiles.map((f) =>
-        f.id === mediaId ? { ...f, folderId } : f
+  moveToFolder: async (mediaId, folderId) => {
+    const state = get();
+    const media = state.mediaFiles.find((f) => f.id === mediaId);
+    if (!media) return;
+
+    const targetFolder = folderId ? state.folders.find((f) => f.id === folderId) : null;
+    const storageCategory = getMediaFileStorageMoveCategory(media, targetFolder);
+    let movedUrl: string | null = null;
+    let movedThumbnailUrl: string | null = null;
+
+    if (storageCategory && media.url?.startsWith("local-image://")) {
+      movedUrl = await moveLocalImageToCategory(media.url, storageCategory);
+      if (!movedUrl) {
+        throw new Error("本地文件移动失败");
+      }
+    }
+
+    if (
+      storageCategory &&
+      media.thumbnailUrl?.startsWith("local-image://") &&
+      media.thumbnailUrl !== media.url
+    ) {
+      movedThumbnailUrl = await moveLocalImageToCategory(media.thumbnailUrl, storageCategory);
+    }
+
+    set((current) => ({
+      mediaFiles: current.mediaFiles.map((f) =>
+        f.id === mediaId ? withMovedMediaUrl(f, folderId, movedUrl, movedThumbnailUrl) : f
       ),
     }));
   },
@@ -515,7 +545,8 @@ export const useMediaStore = create<MediaStore>()(
     if ((type === 'image' || type === 'video') && url && (url.startsWith('http') || url.startsWith('data:'))) {
       (async () => {
         try {
-          const category: ImageCategory = type === 'video' ? 'videos' : 'shots';
+          const targetFolder = folderId ? get().folders.find((f) => f.id === folderId) : null;
+          const category = getMediaStorageCategoryForNewUrl(type, source, targetFolder) as ImageCategory;
           const ext = type === 'video' ? '.mp4' : '.png';
           const filename = `${name.replace(/[^a-zA-Z0-9]/g, '_')}_${Date.now()}${ext}`;
           const localPath = await saveImageToLocal(url, category, filename);
@@ -686,10 +717,44 @@ export const useMediaStore = create<MediaStore>()(
         state.initSystemFolders();
         // Migrate existing data: URLs to local files on startup
         migrateMediaDataUrls(state);
+        syncSystemFolderLocalMediaPaths(state);
       },
     }
   )
 );
+
+async function syncSystemFolderLocalMediaPaths(state: MediaStore) {
+  const foldersById = new Map(state.folders.map((folder) => [folder.id, folder]));
+  const filesToMove = state.mediaFiles.filter((file) => {
+    const targetFolder = file.folderId ? foldersById.get(file.folderId) : null;
+    const targetCategory = getMediaFileStorageMoveCategory(file, targetFolder);
+    return Boolean(
+      targetCategory &&
+      file.url?.startsWith("local-image://") &&
+      getLocalMediaUrlCategory(file.url) !== targetCategory
+    );
+  });
+
+  if (filesToMove.length === 0) return;
+
+  for (const file of filesToMove) {
+    const targetFolder = file.folderId ? foldersById.get(file.folderId) : null;
+    const targetCategory = getMediaFileStorageMoveCategory(file, targetFolder);
+    if (!targetCategory || !file.url) continue;
+    try {
+      const movedUrl = await moveLocalImageToCategory(file.url, targetCategory);
+      if (movedUrl) {
+        useMediaStore.setState((current) => ({
+          mediaFiles: current.mediaFiles.map((item) =>
+            item.id === file.id ? withMovedMediaUrl(item, item.folderId ?? null, movedUrl) : item
+          ),
+        }));
+      }
+    } catch (error) {
+      console.warn("[MediaStore] Failed to sync media file storage folder:", error);
+    }
+  }
+}
 
 /**
  * Migrate data: URLs in media files to local files on startup.

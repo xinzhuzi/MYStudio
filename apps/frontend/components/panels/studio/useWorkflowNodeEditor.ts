@@ -185,16 +185,7 @@ export function useWorkflowNodeEditor({
       const parsed = parseStoryboardTable(text, episodeId);
       const items = toStoryboardItems(parsed.rows, episodeId);
       const workflowStore = useStudioStore.getState();
-      for (const item of items) {
-        if (
-          workflowStore.storyboards.some((current) => current.id === item.id)
-        ) {
-          workflowStore.updateStoryboard(item.id, item);
-        } else {
-          workflowStore.addStoryboard(item);
-        }
-      }
-      workflowStore.rebuildTracks();
+      workflowStore.replaceStoryboardsForEpisode(episodeId, items);
       const warningText = parsed.errors.length
         ? `，忽略非法行 ${parsed.errors.length} 条`
         : "";

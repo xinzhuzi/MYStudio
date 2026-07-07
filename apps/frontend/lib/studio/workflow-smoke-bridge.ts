@@ -164,8 +164,11 @@ function applyScriptStep(now: number) {
   useStudioStore.setState((state) => ({
     agentWorkData: upsertWorks(state.agentWorkData, [
       work("storySkeleton", "## 故事骨架\n矿场觉醒、断剑牵引、逃出生天。", SMOKE_CHAPTER_ID, now),
+      work("storySkeletonReview", "## 故事骨架审核\n通过：事件因果完整，无需返修。", SMOKE_CHAPTER_ID, now),
       work("adaptationStrategy", "## 改编策略\n压缩背景，强化动作和悬念。", SMOKE_CHAPTER_ID, now),
+      work("adaptationStrategyReview", "## 改编策略审核\n通过：节奏压缩符合 3 分钟规格。", SMOKE_CHAPTER_ID, now),
       work("scriptDraft", "## S01\n独孤剑尘睁眼，尘土和铁链声压下来。", SMOKE_CHAPTER_ID, now),
+      work("scriptDraftReview", "## 剧本审核\n通过：台词、动作、情绪递进完整。", SMOKE_CHAPTER_ID, now),
     ]),
   }));
 }
@@ -211,6 +214,7 @@ function applyAssetsStep(now: number) {
         name: "断剑",
         description: "主线道具，剑身断裂。",
         imageUrl: framePath,
+        projectId: SMOKE_PROJECT_ID,
         folderId: null,
         createdAt: now,
         updatedAt: now,
@@ -254,6 +258,7 @@ function applyStoryboardStep(now: number) {
             visualPrompt: "damaged robe, dust and blood, consistent face",
             visualPromptZh: "破损玄衣，尘土血痕，保持面部一致",
             referenceImage: framePath,
+            imageWorkflowId: "smoke-flow-role-wanderer",
             stageDescription: "矿场醒来后的受伤状态",
             generatedAt: now,
           },
@@ -287,6 +292,7 @@ function applyStoryboardStep(now: number) {
         parentSceneId: SMOKE_SCENE_ID,
         viewpointName: "低机位推进",
         referenceImage: framePath,
+        imageWorkflowId: "smoke-flow-scene-low-angle",
         spatialLayout: "矿道纵深，人物从画面底部抬头",
         createdAt: now,
         updatedAt: now,
@@ -311,6 +317,8 @@ function applyStoryboardStep(now: number) {
         imageUrl: framePath,
         parentId: SMOKE_PROP_ID,
         category: "断剑破损版",
+        imageWorkflowId: "smoke-flow-prop-broken",
+        projectId: SMOKE_PROJECT_ID,
         folderId: null,
         createdAt: now,
         updatedAt: now,
@@ -461,6 +469,7 @@ async function seedCompleteWorkflow(): Promise<WorkflowSmokeResult> {
             visualPrompt: "damaged robe, dust and blood, consistent face",
             visualPromptZh: "破损玄衣，尘土血痕，保持面部一致",
             referenceImage: framePath,
+            imageWorkflowId: "smoke-flow-role-wanderer",
             stageDescription: "矿场醒来后的受伤状态",
             generatedAt: now,
           },
@@ -494,6 +503,7 @@ async function seedCompleteWorkflow(): Promise<WorkflowSmokeResult> {
         parentSceneId: sceneId,
         viewpointName: "低机位推进",
         referenceImage: framePath,
+        imageWorkflowId: "smoke-flow-scene-low-angle",
         spatialLayout: "矿道纵深，人物从画面底部抬头",
         createdAt: now,
         updatedAt: now,
@@ -507,6 +517,7 @@ async function seedCompleteWorkflow(): Promise<WorkflowSmokeResult> {
         name: "断剑",
         description: "主线道具，剑身断裂。",
         imageUrl: framePath,
+        projectId: "default-project",
         folderId: null,
         createdAt: now,
         updatedAt: now,
@@ -518,6 +529,8 @@ async function seedCompleteWorkflow(): Promise<WorkflowSmokeResult> {
         imageUrl: framePath,
         parentId: propId,
         category: "断剑破损版",
+        imageWorkflowId: "smoke-flow-prop-broken",
+        projectId: "default-project",
         folderId: null,
         createdAt: now,
         updatedAt: now,
@@ -552,8 +565,11 @@ async function seedCompleteWorkflow(): Promise<WorkflowSmokeResult> {
     agentWorkData: [
       work("eventAnalysis", "事件分析完成：成功 1 章，失败 0 章。", chapterId, now),
       work("storySkeleton", "故事骨架：矿场觉醒、断剑牵引、逃出生天。", chapterId, now),
+      work("storySkeletonReview", "故事骨架审核：通过，事件因果完整。", chapterId, now),
       work("adaptationStrategy", "改编策略：压缩背景，强化动作和悬念。", chapterId, now),
+      work("adaptationStrategyReview", "改编策略审核：通过，3 分钟节奏可执行。", chapterId, now),
       work("scriptDraft", "## S01\n独孤剑尘睁眼，尘土和铁链声压下来。", chapterId, now),
+      work("scriptDraftReview", "剧本审核：通过，镜头动作和台词齐全。", chapterId, now),
       work("storyboardTable", "|镜头|画面|台词|\n|1|水墨矿场醒来|他在尘土里醒来。|", chapterId, now),
       work("productionPlan", `本地成片输出: ${videoPath}`, "episode-1", now),
     ],
@@ -761,7 +777,14 @@ function stageEvidenceText(stageId: string) {
     return `chapters=${studio.novelChapters.length}; analyzed=${studio.novelChapters.filter((chapter) => chapter.eventTaskState === "success").length}`;
   }
   if (stageId === "script") {
-    return `storySkeleton=${countWork(studio.agentWorkData, "storySkeleton")}; adaptationStrategy=${countWork(studio.agentWorkData, "adaptationStrategy")}; scriptDraft=${countWork(studio.agentWorkData, "scriptDraft")}`;
+    return [
+      `storySkeleton=${countWork(studio.agentWorkData, "storySkeleton")}`,
+      `storySkeletonReview=${countWork(studio.agentWorkData, "storySkeletonReview")}`,
+      `adaptationStrategy=${countWork(studio.agentWorkData, "adaptationStrategy")}`,
+      `adaptationStrategyReview=${countWork(studio.agentWorkData, "adaptationStrategyReview")}`,
+      `scriptDraft=${countWork(studio.agentWorkData, "scriptDraft")}`,
+      `scriptDraftReview=${countWork(studio.agentWorkData, "scriptDraftReview")}`,
+    ].join("; ");
   }
   if (stageId === "assets") {
     const batch = studio.entityExtractions[0];

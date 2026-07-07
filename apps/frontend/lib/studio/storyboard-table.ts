@@ -167,6 +167,7 @@ export function toStoryboardItems(rows: StoryboardTableRow[], episodeId: string)
       prompt: row.description,
       videoDesc: row.action,
       assetIds: row.associateAssetsIds,
+      shouldGenerateImage: true,
       state: "idle",
       emotion: row.emotion,
       orientation: row.orientation,

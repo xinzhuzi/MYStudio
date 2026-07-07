@@ -81,7 +81,26 @@ describe("studio workflow tabs", () => {
     expect(indexSource).not.toContain("buildWorkbenchAssetMediaMap");
     expect(indexSource).not.toContain("buildProductionFlowModel({");
     expect(hookSource).toContain("buildWorkbenchAssetMediaMap");
+    expect(hookSource).toContain("window.studioAssets?.batchMatch");
+    expect(hookSource).toContain("buildAssetLibraryMatchNamesForProductionFlow");
+    expect(hookSource).toContain("buildAssetLibraryMediaMapForProductionFlow");
+    expect(hookSource).not.toContain("window.studioAssets?.saveMaterial");
+    expect(hookSource).not.toContain("window.studioAssets?.add");
+    expect(hookSource).not.toContain("window.studioAssets?.addImage");
     expect(hookSource).toContain("buildProductionFlowModel({");
+  });
+
+  it("keeps workflow generation data from automatically matching the independent asset library", () => {
+    const hookSource = readFileSync(
+      fileURLToPath(
+        new URL("./useScriptAssetGenerationData.ts", import.meta.url),
+      ),
+      "utf8",
+    );
+
+    expect(hookSource).not.toContain("window.studioAssets");
+    expect(hookSource).not.toContain("batchMatch");
+    expect(hookSource).not.toContain("toRuntimeAssetType");
   });
 
   it("keeps image workflow files in project-scoped storage instead of the asset library", () => {
@@ -93,8 +112,116 @@ describe("studio workflow tabs", () => {
     expect(canvasSource).toContain("window.projectFiles?.writeBinary");
     expect(canvasSource).toContain("window.projectFiles?.saveImage");
     expect(canvasSource).toContain("project-file://");
+    expect(canvasSource).toContain("initialAssetContext.imageWorkflowId");
+    expect(canvasSource).toContain("assetWorkflowContextKey");
     expect(canvasSource).not.toContain("saveImageToLocal");
     expect(canvasSource).not.toContain("window.studioAssets?.saveMaterial");
+  });
+
+  it("keeps image workflow detail chrome theme-aware for derived asset drill-down", () => {
+    const canvasSource = readFileSync(
+      fileURLToPath(new URL("./ImageWorkflowCanvas.tsx", import.meta.url)),
+      "utf8",
+    );
+
+    expect(canvasSource).toContain("bg-background text-foreground");
+    expect(canvasSource).toContain("bg-card/96");
+    expect(canvasSource).toContain("text-card-foreground");
+    expect(canvasSource).toContain("bg-muted/20");
+    expect(canvasSource).toContain('Background color="hsl(var(--border))"');
+    expect(canvasSource).toContain("react-flow__controls-button");
+    expect(canvasSource).not.toContain("border-white/");
+    expect(canvasSource).not.toContain("bg-black/");
+    expect(canvasSource).not.toContain("bg-white/[");
+    expect(canvasSource).not.toContain("text-zinc-");
+    expect(canvasSource).not.toContain("bg-[#181917]");
+    expect(canvasSource).not.toContain("bg-[#111210]");
+  });
+
+  it("keeps image workflow drill-down navigable and non-blank", () => {
+    const canvasSource = readFileSync(
+      fileURLToPath(new URL("./ImageWorkflowCanvas.tsx", import.meta.url)),
+      "utf8",
+    );
+    const indexSource = readFileSync(
+      fileURLToPath(new URL("./index.tsx", import.meta.url)),
+      "utf8",
+    );
+    const viewModelSource = readFileSync(
+      fileURLToPath(new URL("./useStudioViewModel.ts", import.meta.url)),
+      "utf8",
+    );
+
+    expect(canvasSource).toContain("onBack");
+    expect(canvasSource).toContain("返回工作流");
+    expect(canvasSource).toContain("来源");
+    expect(canvasSource).toContain("initialAssetContext?.sourceLabel");
+    expect(canvasSource).toContain("workflowWritebackTargetLabel");
+    expect(canvasSource).toContain("运行生成");
+    expect(canvasSource).toContain("写回目标");
+    expect(canvasSource).toContain("isScopedWorkflowDetail");
+    expect(canvasSource).toContain("canUseGlobalWorkflowControls");
+    expect(canvasSource).toContain("data-scoped-image-workflow-summary");
+    expect(canvasSource).toContain("data-toonflow-generated-prompt-panel");
+    expect(canvasSource).toContain("data-toonflow-generated-prompt-textarea");
+    expect(canvasSource).toContain("findLinkedPromptNodeForGenerated");
+    expect(canvasSource).toContain("w-full flex-1 grid-cols-[minmax(0,1fr)_320px]");
+    expect(canvasSource).toContain("当前图片工作流没有节点");
+    expect(canvasSource).toContain("context.sourceImagePath || context.resultImagePath");
+    expect(canvasSource).toContain("当前分镜参考图");
+    expect(canvasSource).toContain("flowInstance?.fitView");
+    expect(canvasSource).toContain("focusNodeIdsForGenerated");
+    expect(canvasSource).toContain("focusedFitNodeKey");
+    expect(canvasSource).toContain("slice(0, 3)");
+    expect(indexSource).toContain("onBack={viewModel.closeAssetImageWorkflow}");
+    expect(viewModelSource).toContain("closeAssetImageWorkflow");
+  });
+
+  it("keeps drill-down image workflow detail scoped to the opened node", () => {
+    const canvasSource = readFileSync(
+      fileURLToPath(new URL("./ImageWorkflowCanvas.tsx", import.meta.url)),
+      "utf8",
+    );
+
+    expect(canvasSource).toContain("const canUseGlobalWorkflowControls = !isScopedWorkflowDetail;");
+    expect(canvasSource).toContain("initialAssetContext.imageWorkflowId");
+    expect(canvasSource).toContain("isSameImageWorkflowTarget(item.target, initialAssetContext.target)");
+    expect(canvasSource).toContain("selectedGraph && selectedGraph.id === scopedWorkflow?.id");
+    expect(canvasSource).toContain("scopedPendingWritebackTargetLabel");
+    expect(canvasSource).toContain("const renderScopedWorkflowPending = () => (");
+    expect(canvasSource).toContain("if (isScopedWorkflowDetail) return renderScopedWorkflowPending();");
+    expect(canvasSource).toContain("openContextTargetLabel");
+    expect(canvasSource).toContain("{canUseGlobalWorkflowControls ? (");
+    expect(canvasSource).toContain("{selectedEdgeId && canUseGlobalWorkflowControls ? (");
+    expect(canvasSource).toContain("data-scoped-image-workflow-summary");
+    expect(canvasSource).toContain("data-image-workflow-selector");
+    expect(canvasSource).toContain("data-image-workflow-global-action");
+  });
+
+  it("keeps image workflow toolbar actions bound to the opened graph target", () => {
+    const canvasSource = readFileSync(
+      fileURLToPath(new URL("./ImageWorkflowCanvas.tsx", import.meta.url)),
+      "utf8",
+    );
+
+    expect(canvasSource).toContain("preferredGeneratedNodeId");
+    expect(canvasSource).toContain("activeGraphTargetKeyRef");
+    expect(canvasSource).toContain("resolveOpenContextGeneratedNodeId");
+    expect(canvasSource).toContain("context.resultImagePath");
+    expect(canvasSource).toContain('target: { kind: "free" }');
+    expect(canvasSource).toContain("setTargetStoryboardId(");
+    expect(canvasSource).toContain("? activeGraph.target.id");
+    expect(canvasSource).toContain(": \"\"");
+  });
+
+  it("hydrates legacy image workflows with prompt nodes from every entry path", () => {
+    const canvasSource = readFileSync(
+      fileURLToPath(new URL("./ImageWorkflowCanvas.tsx", import.meta.url)),
+      "utf8",
+    );
+
+    expect(canvasSource).toContain("const ensured = ensureImageWorkflowPromptNodes(activeGraph);");
+    expect(canvasSource).toContain("if (ensured !== activeGraph) upsertImageWorkflow(ensured);");
   });
 
   it("does not keep the removed Skill conversation implementation mounted", () => {
@@ -262,8 +389,9 @@ describe("studio workflow tabs", () => {
     expect(previewSource).toContain("row.title");
     expect(previewSource).toContain("row.titleEn");
     expect(previewSource).toContain("sticky top-0");
-    expect(previewSource).toContain("max-h-[320px] overflow-y-auto");
-    expect(previewSource).toContain("nodrag nowheel max-h-[320px] overflow-y-auto");
+    expect(previewSource).toContain("max-h-[360px] overflow-y-auto");
+    expect(previewSource).toContain("nodrag nowheel max-h-[360px] overflow-y-auto");
+    expect(previewSource).toContain("grid-cols-[repeat(auto-fit,minmax(132px,1fr))]");
     expect(flowUiSource).not.toContain("min-h-0 flex-1 space-y-4 overflow-y-auto");
     expect(flowUiSource).not.toContain("space-y-1.5 overflow-hidden text-[11px]");
     expect(flowUiSource).not.toContain("max-h-[430px] overflow-hidden rounded");

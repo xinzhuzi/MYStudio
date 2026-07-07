@@ -46,6 +46,7 @@ export const API_PROVIDER_PRESETS: Array<{
   services: string[];
   models: string[];
   capabilities?: ModelCapability[];
+  apiProtocol?: IProvider["apiProtocol"];
   apiKeyOptional?: boolean;
 }> = [
   {
@@ -56,6 +57,7 @@ export const API_PROVIDER_PRESETS: Array<{
     services: ["文本", "图片", "视频", "TTS"],
     models: ["gpt-4o-mini"],
     capabilities: ["text", "vision", "image_generation", "video_generation", "tts"],
+    apiProtocol: "openai-compatible",
   },
   {
     platform: "anthropic-compatible",
@@ -65,6 +67,7 @@ export const API_PROVIDER_PRESETS: Array<{
     services: ["文本", "视觉"],
     models: ["glm-5.1"],
     capabilities: ["text", "vision"],
+    apiProtocol: "anthropic-compatible",
   },
   {
     platform: "gemini-compatible",
@@ -74,6 +77,7 @@ export const API_PROVIDER_PRESETS: Array<{
     services: ["文本", "视觉"],
     models: ["gemini-2.5-flash"],
     capabilities: ["text", "vision", "image_generation"],
+    apiProtocol: "gemini-compatible",
   },
   {
     platform: "openai",
@@ -236,6 +240,7 @@ export function AddProviderDialog({
       apiKey: apiKey.trim(),
       model: modelArray,
       capabilities: selectedPreset?.capabilities,
+      apiProtocol: selectedPreset?.apiProtocol,
     });
 
     onOpenChange(false);

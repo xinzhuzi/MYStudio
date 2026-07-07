@@ -42,7 +42,7 @@ import {
   Volume2,
 } from "lucide-react";
 import { toast } from "sonner";
-import { polishAssetPrompt } from "@/lib/ai/prompt-polisher";
+import { polishAssetPrompt, type PolishResult } from "@/lib/ai/prompt-polisher";
 import { generateAsset } from "@/lib/studio/asset-generation-orchestrator";
 import { getPrimaryAssetName, parseAssetNames } from "@/lib/studio/asset-names";
 import { toRoleSpeakerId } from "@/lib/tts/role-speaker-id";
@@ -68,6 +68,19 @@ const TYPE_LABEL = {
 
 const MEDIA_EXT_PATTERN = /\.(mp3|wav|m4a|aac|flac|ogg|opus|png|jpe?g|webp|gif|mp4|mov|webm|mkv)$/i;
 const waveformBars = [42, 68, 50, 84, 46, 72, 58, 92, 54, 76, 48, 66, 40, 60, 36, 70];
+
+export function updateImagesAfterReplacingMainImage(
+  images: AssetImage[],
+  updatedAsset: StudioAssetSummary,
+): AssetImage[] {
+  const mainImage: AssetImage = {
+    name: "主图",
+    filePath: updatedAsset.filePath || "",
+    url: updatedAsset.previewUrl || updatedAsset.thumbnailUrl,
+  };
+  const restImages = images[0]?.name === "主图" ? images.slice(1) : images;
+  return [mainImage, ...restImages];
+}
 
 export function getAssetDisplayName(asset: StudioAssetSummary | null) {
   if (!asset) return "";
@@ -278,6 +291,109 @@ export function StudioAssetDetailDialog({
     toast.success(`已复制${label}`);
   };
 
+  const handleOneClickGenerateAssetImage = async () => {
+    if (!visualManualId) {
+      toast.error("请先在「风格与导演选择」中选择视觉手册");
+      return;
+    }
+    const existingPrompt = draftPrompt.trim();
+    const shouldGeneratePrompt = !existingPrompt;
+    setGeneratePhase(shouldGeneratePrompt ? "polishing" : "generating");
+    setGenerateMessage(shouldGeneratePrompt ? `正在根据风格生成 ${asset.name} 的出图提示词...` : `正在生成 ${asset.name} 的图片...`);
+    try {
+      const assetType = asset.type === "role" ? "character" as const : asset.type === "scene" ? "scene" as const : "prop" as const;
+      let promptPersistPromise: Promise<boolean> | null = null;
+      const applyPolishedPrompt = (polishResult?: PolishResult) => {
+        const prompt = polishResult?.status === "success" ? polishResult.prompt?.trim() : "";
+        if (!prompt) return;
+        setDraftPrompt(prompt);
+        setFullAsset((current) => current ? { ...current, prompt } : current);
+      };
+      const result = await generateAsset(
+        {
+          assetId: asset.id,
+          assetType,
+          name: asset.name,
+          description: draftDescription || asset.name,
+          isDerivative: false,
+          visualManualId,
+          skipPolish: !shouldGeneratePrompt,
+          existingPrompt: shouldGeneratePrompt ? undefined : existingPrompt,
+        },
+        (progress) => {
+          if (progress.polishResult?.status === "success" && progress.polishResult.prompt?.trim()) {
+            applyPolishedPrompt(progress.polishResult);
+            promptPersistPromise ??= persistGeneratedAssetPromptToLibrary(asset.id, progress.polishResult);
+          }
+          if (progress.phase === "polishing") {
+            setGeneratePhase("polishing");
+            setGenerateMessage(`正在根据风格生成 ${asset.name} 的出图提示词...`);
+          } else if (progress.phase === "generating") {
+            setGeneratePhase("generating");
+            setGenerateMessage(`正在生成 ${asset.name} 的图片...`);
+          } else if (progress.phase === "saving") {
+            setGeneratePhase("saving");
+            setGenerateMessage(`正在保存 ${asset.name} 的图片...`);
+          }
+        },
+      );
+      if (result.phase === "done") {
+        setGeneratePhase("done");
+        setGenerateMessage("生成完成！");
+        applyPolishedPrompt(result.polishResult);
+        promptPersistPromise ??= persistGeneratedAssetPromptToLibrary(asset.id, result.polishResult);
+        if (promptPersistPromise) {
+          await promptPersistPromise;
+        }
+        const savedToLibrary = await saveGeneratedAssetImageToLibrary(
+          asset.id,
+          result.imageLocalPath,
+          result.polishResult,
+        );
+        if (window.studioAssets?.get) {
+          const updated = await window.studioAssets.get(asset.id);
+          if (updated) {
+            setDraftName(updated.name || "");
+            setDraftDescription(updated.description || "");
+            setDraftPrompt(updated.prompt || "");
+            setDraftSetting(updated.setting || "");
+            const newImgs: AssetImage[] = [];
+            if (updated.previewUrl || updated.thumbnailUrl) {
+              newImgs.push({ name: "主图", filePath: updated.filePath || "", url: updated.previewUrl || updated.thumbnailUrl });
+            }
+            if (updated.images?.length) {
+              newImgs.push(...updated.images);
+            }
+            setImages(newImgs);
+          }
+        }
+        if (!savedToLibrary) {
+          toast.warning(`「${asset.name}」图片已生成，但未能写回资产库主图`);
+        } else {
+          toast.success(`「${asset.name}」资产生成完成`);
+        }
+      } else {
+        applyPolishedPrompt(result.polishResult);
+        promptPersistPromise ??= persistGeneratedAssetPromptToLibrary(asset.id, result.polishResult);
+        if (promptPersistPromise) {
+          await promptPersistPromise;
+        }
+        setGeneratePhase("failed");
+        setGenerateMessage(`生成失败: ${result.error || "未知错误"}`);
+        toast.error(`生成失败: ${result.error || "未知错误"}`);
+      }
+    } catch (err: unknown) {
+      setGeneratePhase("failed");
+      setGenerateMessage(err instanceof Error ? err.message : String(err));
+      toast.error(err instanceof Error ? err.message : String(err));
+    } finally {
+      setTimeout(() => {
+        setGeneratePhase(null);
+        setGenerateMessage("");
+      }, 3000);
+    }
+  };
+
   const handleRegenerate = async () => {
     const currentPrompt = draftPrompt.trim()
       || draftDescription.trim()
@@ -292,15 +408,10 @@ export function StudioAssetDetailDialog({
     // 监听图片生成完成事件，自动保存回素材
     const { eventBus } = await import("@/lib/event-bus");
     eventBus.once("image:generated", async (data: { url: string }) => {
-      if (!data.url || !window.studioAssets?.replaceImage) return;
-      // 下载图片到本地临时文件再替换
+      if (!data.url) return;
       try {
-        const resp = await fetch(data.url);
-        const blob = await resp.blob();
-        const buffer = await blob.arrayBuffer();
-        const result = await window.studioAssets.saveMaterial({ name: `${asset.name}_regen.png`, bytes: buffer });
-        if (result.success && result.localPath) {
-          await window.studioAssets.replaceImage({ assetId: asset.id, sourceFilePath: result.localPath });
+        const saved = await saveGeneratedAssetImageToLibrary(asset.id, data.url);
+        if (saved) {
           toast.success("已自动保存回素材");
         }
       } catch (e) {
@@ -379,12 +490,10 @@ export function StudioAssetDetailDialog({
     if (!filePath) return;
     const result = await window.studioAssets.replaceImage({ assetId: asset.id, sourceFilePath: filePath });
     if (result) {
-      // 更新主图显示
-      const newImgs = [...images];
-      if (newImgs.length > 0 && newImgs[0].name === "主图") {
-        newImgs[0] = { name: "主图", filePath: result.filePath || "", url: result.previewUrl || result.thumbnailUrl };
-      }
+      const newImgs = updateImagesAfterReplacingMainImage(images, result);
       setImages(newImgs);
+      setFullAsset((current) => current ? { ...current, ...result } : result);
+      setCurrentIndex(0);
       toast.success("主图已更换");
     } else {
       toast.error("更换失败");
@@ -610,97 +719,8 @@ export function StudioAssetDetailDialog({
                   <div className="text-sm font-medium text-foreground">此角色尚无详细数据</div>
                   <p className="text-xs text-muted-foreground">
                     「{displayName}」在资产库中仅有名称记录，缺少描述、设定和图片。
-                    点击下方按钮将走完整生成流程：润色提示词 → 生成图片 → 保存。
+                    可在「出图提示词」区域走完整生成流程：润色提示词 → 生成图片 → 保存。
                   </p>
-                  {generatePhase && (
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                      <span>{generateMessage}</span>
-                    </div>
-                  )}
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      onClick={async () => {
-                        if (!visualManualId) {
-                          toast.error("请先在「风格与导演选择」中选择视觉手册");
-                          return;
-                        }
-                        setGeneratePhase("polishing");
-                        setGenerateMessage(`正在润色 ${asset.name} 的提示词...`);
-                        try {
-                          const assetType = asset.type === "role" ? "character" as const : asset.type === "scene" ? "scene" as const : "prop" as const;
-                          const result = await generateAsset(
-                            {
-                              assetId: asset.id,
-                              assetType,
-                              name: asset.name,
-                              description: draftDescription || asset.name,
-                              isDerivative: false,
-                              visualManualId,
-                            },
-                            (progress) => {
-                              if (progress.phase === "polishing") {
-                                setGeneratePhase("polishing");
-                                setGenerateMessage(`正在润色 ${asset.name} 的提示词...`);
-                              } else if (progress.phase === "generating") {
-                                setGeneratePhase("generating");
-                                setGenerateMessage(`正在生成 ${asset.name} 的图片...`);
-                              } else if (progress.phase === "saving") {
-                                setGeneratePhase("saving");
-                                setGenerateMessage(`正在保存 ${asset.name} 的图片...`);
-                              }
-                            },
-                          );
-                          if (result.phase === "done") {
-                            setGeneratePhase("done");
-                            setGenerateMessage("生成完成！");
-                            // 刷新弹窗数据
-                            if (result.polishResult) {
-                              setDraftPrompt(result.polishResult.prompt);
-                              setDraftDescription(result.polishResult.prompt);
-                            }
-                            // 重新加载完整资产数据
-                            if (window.studioAssets?.get) {
-                              const updated = await window.studioAssets.get(asset.id);
-                              if (updated) {
-                                setDraftName(updated.name || "");
-                                setDraftDescription(updated.description || "");
-                                setDraftPrompt(updated.prompt || "");
-                                setDraftSetting(updated.setting || "");
-                                const newImgs: AssetImage[] = [];
-                                if (updated.previewUrl || updated.thumbnailUrl) {
-                                  newImgs.push({ name: "主图", filePath: updated.filePath || "", url: updated.previewUrl || updated.thumbnailUrl });
-                                }
-                                if (updated.images?.length) {
-                                  newImgs.push(...updated.images);
-                                }
-                                setImages(newImgs);
-                              }
-                            }
-                            toast.success(`「${asset.name}」资产生成完成`);
-                          } else {
-                            setGeneratePhase("failed");
-                            setGenerateMessage(`生成失败: ${result.error || "未知错误"}`);
-                            toast.error(`生成失败: ${result.error || "未知错误"}`);
-                          }
-                        } catch (err: unknown) {
-                          setGeneratePhase("failed");
-                          setGenerateMessage(err instanceof Error ? err.message : String(err));
-                          toast.error(err instanceof Error ? err.message : String(err));
-                        } finally {
-                          setTimeout(() => {
-                            setGeneratePhase(null);
-                            setGenerateMessage("");
-                          }, 3000);
-                        }
-                      }}
-                      disabled={!!generatePhase || !visualManualId}
-                    >
-                      {generatePhase ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <Sparkles className="mr-2 h-3 w-3" />}
-                      {generatePhase === "polishing" ? "润色提示词中..." : generatePhase === "generating" ? "生成图片中..." : generatePhase === "saving" ? "保存中..." : generatePhase === "done" ? "生成完成！" : "一键生成资产生图"}
-                    </Button>
-                  </div>
                 </div>
               )}
               <section className="space-y-1.5">
@@ -829,8 +849,17 @@ export function StudioAssetDetailDialog({
                       placeholder="暂无出图提示词"
                       className="min-h-[80px] resize-none bg-muted/90 text-xs leading-5"
                     />
-                    {/* 润色提示词按钮 */}
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button
+                        variant="default"
+                        size="sm"
+                        className="h-6 gap-1 text-[11px]"
+                        onClick={handleOneClickGenerateAssetImage}
+                        disabled={!!generatePhase || !visualManualId}
+                      >
+                        {generatePhase ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                        {generatePhase === "polishing" ? "生成提示词中..." : generatePhase === "generating" ? "生成图片中..." : generatePhase === "saving" ? "保存中..." : generatePhase === "done" ? "生成完成" : "一键生成资产生图"}
+                      </Button>
                       <Button
                         variant="ghost"
                         size="sm"
@@ -855,6 +884,11 @@ export function StudioAssetDetailDialog({
                         <Copy className="h-3 w-3" />
                         复制
                       </Button>
+                      {generatePhase && (
+                        <span className="min-w-0 flex-1 truncate text-[11px] text-muted-foreground" title={generateMessage}>
+                          {generateMessage}
+                        </span>
+                      )}
                     </div>
                   </section>
                   <section className="space-y-1.5">
@@ -894,4 +928,77 @@ export function buildAssetRegenerationPrompt(asset: StudioAssetSummary | null) {
     .map((part) => part?.trim())
     .filter(Boolean)
     .join("\n\n");
+}
+
+export async function persistGeneratedAssetPromptToLibrary(
+  assetId: string,
+  polishResult?: PolishResult,
+) {
+  const prompt = polishResult?.status === "success" ? polishResult.prompt?.trim() : "";
+  if (typeof window === "undefined" || !window.studioAssets?.update || !prompt) {
+    return false;
+  }
+
+  try {
+    const result = await window.studioAssets.update({
+      id: assetId,
+      updates: { prompt },
+    });
+    return Boolean(result);
+  } catch (err) {
+    console.warn("[Asset] Persist generated prompt failed:", err);
+    return false;
+  }
+}
+
+export async function saveGeneratedAssetImageToLibrary(
+  assetId: string,
+  imagePath?: string,
+  polishResult?: PolishResult,
+) {
+  if (typeof window === "undefined" || !window.studioAssets || !imagePath) {
+    return false;
+  }
+
+  const sourceFilePath = await materializeGeneratedImageForAssetLibrary(assetId, imagePath);
+  let imageSaved = false;
+  if (sourceFilePath && window.studioAssets.replaceImage) {
+    const result = await window.studioAssets.replaceImage({ assetId, sourceFilePath });
+    imageSaved = Boolean(result);
+  }
+
+  await persistGeneratedAssetPromptToLibrary(assetId, polishResult);
+
+  return imageSaved;
+}
+
+async function materializeGeneratedImageForAssetLibrary(assetId: string, imagePath: string) {
+  if (imagePath.startsWith("local-image://")) {
+    return window.imageStorage?.getAbsolutePath?.(imagePath) ?? null;
+  }
+
+  if (imagePath.startsWith("file://")) {
+    try {
+      return decodeURIComponent(new URL(imagePath).pathname);
+    } catch {
+      return null;
+    }
+  }
+
+  if (imagePath.startsWith("/")) {
+    return imagePath;
+  }
+
+  if ((imagePath.startsWith("http://") || imagePath.startsWith("https://") || imagePath.startsWith("data:")) && window.studioAssets?.saveMaterial) {
+    const response = await fetch(imagePath);
+    const blob = await response.blob();
+    const bytes = await blob.arrayBuffer();
+    const result = await window.studioAssets.saveMaterial({
+      name: `${assetId}_generated_${Date.now()}.png`,
+      bytes,
+    });
+    return result.success ? result.filePath ?? result.localPath ?? null : null;
+  }
+
+  return null;
 }

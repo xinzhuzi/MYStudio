@@ -25,6 +25,7 @@ type FileAssetCacheEntry = {
 
 type RuntimeAssetRow = {
   id?: number | string;
+  assetsId?: number | string | null;
   name?: string;
   type?: StudioAssetKind;
   prompt?: string;
@@ -32,6 +33,7 @@ type RuntimeAssetRow = {
   remark?: string;
   filePath?: string;
   state?: string;
+  flowId?: number | string | null;
   childrenCount?: number;
   projectId?: number | string;
 };
@@ -116,16 +118,18 @@ async function listAssetsFromSqlite(input: {
   const searchCondition = input.search
     ? ` and (a.name like ${sqlString(`%${input.search}%`)} or a.describe like ${sqlString(`%${input.search}%`)})`
     : "";
-  const where = `a.assetsId is null and ${typeCondition}${searchCondition}`;
+  const where = `${typeCondition}${searchCondition}`;
   const query = `
     select
       a.id,
+      a.assetsId,
       a.name,
       a.type,
       a.prompt,
       a.describe,
       a.remark,
       a.projectId,
+      a.flowId,
       i.filePath,
       i.state,
       (
@@ -149,7 +153,7 @@ async function listAssetsFromSqlite(input: {
   return {
     success: true,
     items: itemsOutput
-      .map((row) => mapRuntimeAssetRow(row, input.type))
+      .map((row) => mapRuntimeAssetRowForTest(row, input.type))
       .filter((item): item is StudioAssetSummary => Boolean(item)),
     total: Number(countOutput[0]?.total ?? 0),
   };
@@ -257,7 +261,7 @@ function collectStaticClipAssets() {
     });
 }
 
-function mapRuntimeAssetRow(row: RuntimeAssetRow, fallbackType: StudioAssetKind): StudioAssetSummary | null {
+export function mapRuntimeAssetRowForTest(row: RuntimeAssetRow, fallbackType: StudioAssetKind): StudioAssetSummary | null {
   const type = normalizeAssetKind(row.type ?? fallbackType);
   const filePath = normalizeOssRelativePath(row.filePath);
   const thumbnailPath = filePath ? resolveThumbnailRelPath(filePath, type) : undefined;
@@ -278,8 +282,18 @@ function mapRuntimeAssetRow(row: RuntimeAssetRow, fallbackType: StudioAssetKind)
     filePath: filePath ? `/${filePath}` : undefined,
     sourcePath: filePath ? path.join(getToonflowOssRoot(), filePath) : undefined,
     state: row.state,
+    imageWorkflowId: row.flowId == null ? undefined : String(row.flowId),
+    parentAssetId: row.assetsId == null ? undefined : `toonflow-db:${row.assetsId}`,
+    toonflowAssetId: normalizeNumber(row.id),
+    toonflowParentAssetId: normalizeNumber(row.assetsId),
     childrenCount: Number(row.childrenCount ?? 0),
   };
+}
+
+function normalizeNumber(value: number | string | null | undefined) {
+  if (value == null || value === "") return undefined;
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : undefined;
 }
 
 async function runSqliteJson<T>(dbPath: string, query: string): Promise<T> {

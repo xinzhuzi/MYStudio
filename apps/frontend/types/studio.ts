@@ -89,6 +89,7 @@ export interface StoryboardItem {
   mediaRef?: StoryboardMediaRef;
   imageWorkflowId?: string;
   imageWorkflowNodeId?: string;
+  shouldGenerateImage?: boolean;
   audioRef?: StoryboardMediaRef;
   state: StoryboardState;
   reason?: string;
@@ -253,14 +254,33 @@ export interface EpisodeMergePlan {
   ffmpegProfile: "concat-h264-aac";
 }
 
-export type ImageWorkflowTargetKind = "free" | "material" | "storyboard";
+export type ImageWorkflowTargetKind = "free" | "material" | "storyboard" | "asset";
+export type ImageWorkflowAssetTargetType = "character" | "scene" | "prop";
 
 export interface ImageWorkflowTarget {
   kind: ImageWorkflowTargetKind;
   id?: string;
+  assetType?: ImageWorkflowAssetTargetType;
+  parentId?: string;
 }
 
-export type ImageWorkflowNodeType = "reference" | "generated";
+export interface ImageWorkflowOpenContext {
+  target: ImageWorkflowTarget;
+  title: string;
+  prompt?: string;
+  sourceImagePath?: string;
+  resultImagePath?: string;
+  imageWorkflowId?: string;
+  sourceStage?: string;
+  sourceStageLabel?: string;
+  sourceLabel?: string;
+}
+
+export interface AssetImageWorkflowContext extends ImageWorkflowOpenContext {
+  target: ImageWorkflowTarget & { kind: "asset"; assetType: ImageWorkflowAssetTargetType };
+}
+
+export type ImageWorkflowNodeType = "reference" | "prompt" | "generated";
 export type ImageWorkflowGenerationStatus = "idle" | "queued" | "generating" | "ready" | "failed";
 
 export interface ImageWorkflowNodePosition {
@@ -299,7 +319,18 @@ export interface ImageWorkflowGeneratedNode extends ImageWorkflowNodeBase {
   generatedAt?: number;
 }
 
-export type ImageWorkflowNode = ImageWorkflowReferenceNode | ImageWorkflowGeneratedNode;
+export interface ImageWorkflowPromptNode extends ImageWorkflowNodeBase {
+  type: "prompt";
+  prompt: string;
+  negativePrompt?: string;
+  model?: string;
+  aspectRatio: string;
+  quality: "draft" | "standard" | "hd";
+  resolution?: string;
+  targetNodeId?: string;
+}
+
+export type ImageWorkflowNode = ImageWorkflowReferenceNode | ImageWorkflowPromptNode | ImageWorkflowGeneratedNode;
 
 export interface ImageWorkflowEdge {
   id: string;
@@ -354,7 +385,14 @@ export interface ScriptPlan {
   sceneIntents: { sceneId: string; emotion: string; shotIntent: string; spatial: string }[];
   soundDirection: string;
   transitions: string;
-  derivedAssetPlan: { parentAssetId: string; state: string; reason: string }[];
+  derivedAssetPlan: {
+    parentAssetId: string;
+    state: string;
+    reason: string;
+    toonflowAssetsId?: number;
+    toonflowDerivedAssetId?: number;
+    imageWorkflowId?: string;
+  }[];
 }
 
 export interface DerivedAsset {

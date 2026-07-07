@@ -1,16 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useCharacterLibraryStore } from "@/stores/character-library-store";
 import { useProjectStore } from "@/stores/project-store";
 import { usePropsLibraryStore } from "@/stores/props-library-store";
 import { useSceneStore } from "@/stores/scene-store";
 import { useStudioStore } from "@/stores/studio-store";
 import { useTtsStore } from "@/stores/tts-store";
-import type { StudioAssetSummary } from "@/types/studio-assets";
 import {
-  ASSET_TYPES,
   summarizeImageRows,
   summarizeRows,
-  toRuntimeAssetType,
   uniqueByName,
   type AssetGenerationType,
   type AssetRow,
@@ -31,18 +28,20 @@ export function useScriptAssetGenerationData(activeType: AssetGenerationType) {
   const activeTtsProjectId = useTtsStore((state) => state.activeProjectId);
   const ttsProjects = useTtsStore((state) => state.projects);
   const voiceProfiles = useTtsStore((state) => state.voiceProfiles);
-  const [assetMatchesByType, setAssetMatchesByType] = useState<
-    Record<AssetGenerationType, Record<string, StudioAssetSummary>>
-  >({
-    character: {},
-    scene: {},
-    prop: {},
-  });
 
   const rows = useMemo(() => {
-    const characterByName = uniqueByName(characters);
-    const sceneByName = uniqueByName(scenes);
-    const propByName = uniqueByName(props);
+    const scopedCharacters = activeProjectId
+      ? characters.filter((item) => item.projectId === activeProjectId)
+      : characters;
+    const scopedScenes = activeProjectId
+      ? scenes.filter((item) => item.projectId === activeProjectId)
+      : scenes;
+    const scopedProps = activeProjectId
+      ? props.filter((item) => item.projectId === activeProjectId)
+      : props;
+    const characterByName = uniqueByName(scopedCharacters);
+    const sceneByName = uniqueByName(scopedScenes);
+    const propByName = uniqueByName(scopedProps);
     const next: Record<AssetGenerationType, AssetRow[]> = {
       character: [],
       scene: [],
@@ -90,71 +89,11 @@ export function useScriptAssetGenerationData(activeType: AssetGenerationType) {
       }
     }
     return next;
-  }, [characters, entityExtractions, props, scenes]);
-
-  useEffect(() => {
-    const requests = ASSET_TYPES.map(({ key }) => ({
-      key,
-      names: rows[key].map((row) => row.name).filter(Boolean),
-    })).filter((request) => request.names.length > 0);
-
-    if (!requests.length || typeof window === "undefined" || !window.studioAssets?.batchMatch) {
-      setAssetMatchesByType({ character: {}, scene: {}, prop: {} });
-      return;
-    }
-
-    let cancelled = false;
-    Promise.all(
-      requests.map(async ({ key, names }) => {
-        const matches = await window.studioAssets?.batchMatch({
-          type: toRuntimeAssetType(key),
-          names,
-        });
-        return { key, matches: matches ?? [] };
-      }),
-    )
-      .then((results) => {
-        if (cancelled) return;
-        const next: Record<AssetGenerationType, Record<string, StudioAssetSummary>> = {
-          character: {},
-          scene: {},
-          prop: {},
-        };
-        for (const { key, matches } of results) {
-          for (const match of matches) {
-            if (match.asset?.id) next[key][match.name] = match.asset;
-          }
-        }
-        setAssetMatchesByType(next);
-      })
-      .catch(() => {
-        if (!cancelled) setAssetMatchesByType({ character: {}, scene: {}, prop: {} });
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [rows]);
+  }, [activeProjectId, characters, entityExtractions, props, scenes]);
 
   const resolvedRows = useMemo<Record<AssetGenerationType, AssetRow[]>>(
-    () => ({
-      character: rows.character.map((row) => ({
-        ...row,
-        assetLibrary: assetMatchesByType.character[row.name],
-        assetLibraryId: assetMatchesByType.character[row.name]?.id,
-      })),
-      scene: rows.scene.map((row) => ({
-        ...row,
-        assetLibrary: assetMatchesByType.scene[row.name],
-        assetLibraryId: assetMatchesByType.scene[row.name]?.id,
-      })),
-      prop: rows.prop.map((row) => ({
-        ...row,
-        assetLibrary: assetMatchesByType.prop[row.name],
-        assetLibraryId: assetMatchesByType.prop[row.name]?.id,
-      })),
-    }),
-    [assetMatchesByType, rows],
+    () => rows,
+    [rows],
   );
 
   const stats = useMemo(

@@ -11,6 +11,8 @@ import type { AssetImage, StudioAssetKind, StudioAssetSummary } from "../types/s
 import { assetNameMatchesQuery } from "../lib/studio/asset-names";
 
 const execFileAsync = promisify(execFile);
+const SQLITE_BUSY_TIMEOUT_MS = 5000;
+const SQLITE_LOCK_RETRY_DELAYS_MS = [80, 160, 320, 640, 1000];
 
 export interface StoredAssetImage {
   name: string;
@@ -107,6 +109,15 @@ function getThumbUrl(filePath: string | undefined, type: string): string | undef
   return `file://${srcPath}`;
 }
 
+function resolveManagedAssetPathOrUndefined(relativePath: string | undefined) {
+  if (!relativePath) return undefined;
+  try {
+    return resolveAssetManagedPath(getFilesDir(), relativePath);
+  } catch {
+    return undefined;
+  }
+}
+
 // === SQLite helpers ===
 
 function ensureDb() {
@@ -142,20 +153,18 @@ CREATE INDEX IF NOT EXISTS idx_assets_name ON assets(name);
 }
 
 function runSqliteSync(dbPath: string, sql: string) {
-  execFileSync("sqlite3", [dbPath], { input: sql, maxBuffer: 50 * 1024 * 1024 });
+  runSqliteInput(dbPath, sql, { maxBuffer: 50 * 1024 * 1024 });
 }
 
 async function runSqliteJson<T>(dbPath: string, query: string): Promise<T> {
-  const { stdout } = await execFileAsync("sqlite3", ["-json", dbPath, query], {
-    maxBuffer: 20 * 1024 * 1024,
-  });
+  const { stdout } = await runSqliteJsonProcess(dbPath, query);
   const trimmed = stdout.trim();
   if (!trimmed) return [] as T;
   return JSON.parse(trimmed) as T;
 }
 
 function runSqliteExec(dbPath: string, sql: string) {
-  execFileSync("sqlite3", [dbPath], { input: sql, maxBuffer: 50 * 1024 * 1024 });
+  runSqliteInput(dbPath, sql, { maxBuffer: 50 * 1024 * 1024 });
 }
 
 function escapeSql(value: string): string {
@@ -181,13 +190,66 @@ export function buildAssetNameCandidateCondition(name: string): string {
 
 /** 执行可能包含长文本的 SQL */
 function runSqliteExecSafe(dbPath: string, sql: string) {
-  execFileSync("sqlite3", [dbPath], { input: sql, maxBuffer: 50 * 1024 * 1024, stdio: ["pipe", "pipe", "pipe"] });
+  runSqliteInput(dbPath, sql, { maxBuffer: 50 * 1024 * 1024, stdio: ["pipe", "pipe", "pipe"] });
 }
 
 function runSqliteJsonSync<T>(dbPath: string, query: string): T {
-  const stdout = execFileSync("sqlite3", ["-json", dbPath, query], { maxBuffer: 10 * 1024 * 1024 }).toString().trim();
+  const stdout = runSqliteSyncProcess(["-cmd", `.timeout ${SQLITE_BUSY_TIMEOUT_MS}`, "-json", dbPath, query], {
+    maxBuffer: 10 * 1024 * 1024,
+  }).toString().trim();
   if (!stdout) return [] as T;
   return JSON.parse(stdout) as T;
+}
+
+function runSqliteInput(dbPath: string, sql: string, options: { maxBuffer: number; stdio?: ["pipe", "pipe", "pipe"] }) {
+  return runSqliteSyncProcess([dbPath], {
+    ...options,
+    input: `.timeout ${SQLITE_BUSY_TIMEOUT_MS}\n${sql}`,
+  });
+}
+
+function runSqliteSyncProcess(args: string[], options: { input?: string; maxBuffer: number; stdio?: ["pipe", "pipe", "pipe"] }) {
+  let lastError: unknown;
+  for (let attempt = 0; attempt <= SQLITE_LOCK_RETRY_DELAYS_MS.length; attempt++) {
+    try {
+      return execFileSync("sqlite3", args, options);
+    } catch (error) {
+      lastError = error;
+      if (!isSqliteLockedError(error) || attempt === SQLITE_LOCK_RETRY_DELAYS_MS.length) break;
+      sleepSync(SQLITE_LOCK_RETRY_DELAYS_MS[attempt]);
+    }
+  }
+  throw lastError;
+}
+
+async function runSqliteJsonProcess(dbPath: string, query: string) {
+  let lastError: unknown;
+  for (let attempt = 0; attempt <= SQLITE_LOCK_RETRY_DELAYS_MS.length; attempt++) {
+    try {
+      return await execFileAsync("sqlite3", ["-cmd", `.timeout ${SQLITE_BUSY_TIMEOUT_MS}`, "-json", dbPath, query], {
+        maxBuffer: 20 * 1024 * 1024,
+      });
+    } catch (error) {
+      lastError = error;
+      if (!isSqliteLockedError(error) || attempt === SQLITE_LOCK_RETRY_DELAYS_MS.length) break;
+      await sleep(SQLITE_LOCK_RETRY_DELAYS_MS[attempt]);
+    }
+  }
+  throw lastError;
+}
+
+function isSqliteLockedError(error: unknown) {
+  const err = error as { message?: string; stderr?: Buffer | string };
+  const text = `${err?.message || ""}\n${Buffer.isBuffer(err?.stderr) ? err.stderr.toString() : err?.stderr || ""}`;
+  return /database is locked|SQLITE_BUSY|locked \(5\)/i.test(text);
+}
+
+function sleepSync(ms: number) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function migrateFromJson(jsonPath: string, dbPath: string) {
@@ -223,7 +285,7 @@ function migrateFromJson(jsonPath: string, dbPath: string) {
 
 export async function listAssets(type: StudioAssetKind, search?: string, offset = 0, limit = 60, category?: string): Promise<{ items: StudioAssetSummary[]; total: number }> {
   const dbPath = getDbPath();
-  const where = buildAssetWhere(type, search, category);
+  const where = `${buildAssetWhere(type, search, category)} AND (${buildUsableAssetSqlCondition()})`;
 
   const countResult = await runSqliteJson<{ cnt: number }[]>(dbPath, `SELECT count(*) as cnt FROM assets ${where};`);
   const total = countResult[0]?.cnt ?? 0;
@@ -233,7 +295,7 @@ export async function listAssets(type: StudioAssetKind, search?: string, offset 
   );
 
   const items: StudioAssetSummary[] = rows.map((row) => {
-    const absPath = row.filePath ? path.join(getFilesDir(), row.filePath) : undefined;
+    const absPath = resolveManagedAssetPathOrUndefined(row.filePath);
     const previewUrl = absPath ? `file://${absPath}` : undefined;
     let tags: string[] = [];
     try { tags = row.tags ? JSON.parse(row.tags) : []; } catch { tags = []; }
@@ -244,7 +306,7 @@ export async function listAssets(type: StudioAssetKind, search?: string, offset 
       name: row.name,
       description: row.description,
       tags,
-      thumbnailUrl: getThumbUrl(row.filePath, row.type),
+      thumbnailUrl: absPath ? getThumbUrl(row.filePath, row.type) : undefined,
       previewUrl,
       filePath: row.filePath,
       sourcePath: absPath,
@@ -253,6 +315,17 @@ export async function listAssets(type: StudioAssetKind, search?: string, offset 
   });
 
   return { items, total };
+}
+
+function buildUsableAssetSqlCondition() {
+  return [
+    "TRIM(COALESCE(filePath,''))<>''",
+    "TRIM(COALESCE(prompt,''))<>''",
+    "TRIM(COALESCE(description,''))<>''",
+    "TRIM(COALESCE(setting,''))<>''",
+    "TRIM(COALESCE(remark,''))<>''",
+    "COALESCE(images,'[]')<>'[]'",
+  ].join(" OR ");
 }
 
 export async function getAsset(id: string): Promise<StudioAssetSummary | null> {
@@ -363,33 +436,29 @@ export function addAsset(input: {
   sourceFilePath?: string;
 }): StudioAssetSummary {
   const dbPath = getDbPath();
+  const now = new Date().toISOString();
+  const exactRows = runSqliteJsonSync<any[]>(
+    dbPath,
+    `SELECT * FROM assets WHERE type='${escapeSql(input.type)}' AND name='${escapeSql(input.name || "")}' ORDER BY rowid ASC LIMIT 20;`,
+  );
+  if (exactRows.length) {
+    const target = pickBestAssetRow(exactRows) ?? exactRows[0];
+    backfillAssetFromLocalInput(target, input, now);
+    const existing = getAssetSync(target.id);
+    if (existing) return existing;
+  }
+
   const id = randomUUID();
   let filePath = "";
 
   if (input.sourceFilePath && fs.existsSync(input.sourceFilePath)) {
-    const ext = path.extname(input.sourceFilePath);
-    const destName = `${id}${ext}`;
-    const destPath = path.join(getFilesDir(), input.type, destName);
-    fs.copyFileSync(input.sourceFilePath, destPath);
-    filePath = `${input.type}/${destName}`;
+    filePath = copyAssetSourceFile(input.type, id, input.sourceFilePath);
   }
 
-  const now = new Date().toISOString();
   const tags = JSON.stringify(input.tags || []);
   runSqliteExecSafe(dbPath, `INSERT INTO assets (id,type,name,description,prompt,setting,remark,tags,filePath,images,source,createdAt,updatedAt) VALUES ('${escapeSql(id)}','${escapeSql(input.type)}','${escapeSql(input.name || "")}','${escapeSql(input.description || "")}','${escapeSql(input.prompt || "")}','${escapeSql(input.setting || "")}','${escapeSql(input.remark || "")}','${escapeSql(tags)}','${escapeSql(filePath)}','[]','manying-local','${now}','${now}');`);
 
-  const absPath = filePath ? path.join(getFilesDir(), filePath) : undefined;
-  return {
-    id,
-    source: "manying-local",
-    type: input.type,
-    name: input.name,
-    thumbnailUrl: absPath ? `file://${absPath}` : undefined,
-    previewUrl: absPath ? `file://${absPath}` : undefined,
-    filePath,
-    sourcePath: absPath,
-    state: "success",
-  };
+  return getAssetSync(id)!;
 }
 
 export function deleteAsset(id: string): boolean {
@@ -412,7 +481,7 @@ export function deleteAsset(id: string): boolean {
     }
   } catch {}
 
-  execFileSync("sqlite3", [dbPath, `DELETE FROM assets WHERE id='${escapeSql(id)}';`], { maxBuffer: 1024 * 1024 });
+  runSqliteExecSafe(dbPath, `DELETE FROM assets WHERE id='${escapeSql(id)}';`);
   return true;
 }
 
@@ -425,12 +494,6 @@ export function replaceAssetMainImage(assetId: string, sourceFilePath: string): 
   const rows = runSqliteJsonSync<any[]>(dbPath, `SELECT * FROM assets WHERE id='${escapeSql(assetId)}' LIMIT 1;`);
   if (!rows.length) return null;
   const asset = rows[0];
-  if (asset.filePath) {
-    const oldPath = path.join(getFilesDir(), asset.filePath);
-    if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
-    const oldThumb = path.join(getThumbsDir(), asset.filePath);
-    if (fs.existsSync(oldThumb)) fs.unlinkSync(oldThumb);
-  }
   const ext = path.extname(sourceFilePath);
   const safeName = `${asset.name}`.replace(/[/\\:*?"<>|]/g, "_");
   const destName = `${safeName}_${Date.now()}${ext}`;
@@ -442,6 +505,12 @@ export function replaceAssetMainImage(assetId: string, sourceFilePath: string): 
   execFile("sips", ["-z", "200", "200", destPath, "--out", path.join(thumbDir, destName)], () => {});
   const now = new Date().toISOString();
   runSqliteExecSafe(dbPath, `UPDATE assets SET filePath='${escapeSql(newFilePath)}', updatedAt='${now}' WHERE id='${escapeSql(assetId)}';`);
+  if (asset.filePath) {
+    const oldPath = resolveAssetManagedPath(getFilesDir(), asset.filePath);
+    if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+    const oldThumb = resolveAssetManagedPath(getThumbsDir(), asset.filePath);
+    if (fs.existsSync(oldThumb)) fs.unlinkSync(oldThumb);
+  }
   return getAssetSync(assetId);
 }
 
@@ -467,7 +536,7 @@ export function addAssetImage(assetId: string, imageName: string, sourceFilePath
   images.push({ name: imageName, filePath: relPath });
   const now = new Date().toISOString();
   const imagesJson = JSON.stringify(images);
-  execFileSync("sqlite3", [dbPath, `UPDATE assets SET images='${escapeSql(imagesJson)}', updatedAt='${now}' WHERE id='${escapeSql(assetId)}';`], { maxBuffer: 5 * 1024 * 1024 });
+  runSqliteExecSafe(dbPath, `UPDATE assets SET images='${escapeSql(imagesJson)}', updatedAt='${now}' WHERE id='${escapeSql(assetId)}';`);
 
   return getAssetSync(assetId);
 }
@@ -487,7 +556,7 @@ export function removeAssetImage(assetId: string, imageFilePath: string): Studio
   images.splice(idx, 1);
 
   const now = new Date().toISOString();
-  execFileSync("sqlite3", [dbPath, `UPDATE assets SET images='${escapeSql(JSON.stringify(images))}', updatedAt='${now}' WHERE id='${escapeSql(assetId)}';`], { maxBuffer: 5 * 1024 * 1024 });
+  runSqliteExecSafe(dbPath, `UPDATE assets SET images='${escapeSql(JSON.stringify(images))}', updatedAt='${now}' WHERE id='${escapeSql(assetId)}';`);
   return getAssetSync(assetId);
 }
 
@@ -503,7 +572,7 @@ export function renameAssetImage(assetId: string, imageFilePath: string, newName
   img.name = newName;
 
   const now = new Date().toISOString();
-  execFileSync("sqlite3", [dbPath, `UPDATE assets SET images='${escapeSql(JSON.stringify(images))}', updatedAt='${now}' WHERE id='${escapeSql(assetId)}';`], { maxBuffer: 5 * 1024 * 1024 });
+  runSqliteExecSafe(dbPath, `UPDATE assets SET images='${escapeSql(JSON.stringify(images))}', updatedAt='${now}' WHERE id='${escapeSql(assetId)}';`);
   return getAssetSync(assetId);
 }
 
@@ -566,6 +635,48 @@ function backfillAssetFromToonflow(row: any, item: StudioAssetSummary, now: stri
   return true;
 }
 
+function backfillAssetFromLocalInput(
+  row: any,
+  input: {
+    type: StudioAssetKind;
+    name: string;
+    description?: string;
+    prompt?: string;
+    setting?: string;
+    remark?: string;
+    tags?: string[];
+    sourceFilePath?: string;
+  },
+  now: string,
+) {
+  const sets: string[] = [];
+
+  if (!hasStoredText(row.description) && hasStoredText(input.description)) {
+    sets.push(`description='${escapeSql(input.description)}'`);
+  }
+  if (!hasStoredText(row.prompt) && hasStoredText(input.prompt)) {
+    sets.push(`prompt='${escapeSql(input.prompt)}'`);
+  }
+  if (!hasStoredText(row.setting) && hasStoredText(input.setting)) {
+    sets.push(`setting='${escapeSql(input.setting)}'`);
+  }
+  if (!hasStoredText(row.remark) && hasStoredText(input.remark)) {
+    sets.push(`remark='${escapeSql(input.remark)}'`);
+  }
+  if (assetTagsCount(row.tags) === 0 && input.tags?.length) {
+    sets.push(`tags='${escapeSql(JSON.stringify(input.tags))}'`);
+  }
+  if (!hasStoredText(row.filePath) && input.sourceFilePath && fs.existsSync(input.sourceFilePath)) {
+    const filePath = copyAssetSourceFile(row.type, row.id, input.sourceFilePath);
+    sets.push(`filePath='${escapeSql(filePath)}'`);
+  }
+
+  if (!sets.length) return false;
+  sets.push(`updatedAt='${now}'`);
+  runSqliteExecSafe(getDbPath(), `UPDATE assets SET ${sets.join(",")} WHERE id='${escapeSql(row.id)}';`);
+  return true;
+}
+
 function copyAssetSourceFile(type: StudioAssetKind, id: string, sourceFile: string) {
   const ext = path.extname(sourceFile);
   const destDir = path.join(getFilesDir(), type);
@@ -599,17 +710,23 @@ function getAssetSync(id: string): StudioAssetSummary | null {
 }
 
 function rowToSummary(row: any): StudioAssetSummary {
-  const absPath = row.filePath ? path.join(getFilesDir(), row.filePath) : undefined;
+  const absPath = resolveManagedAssetPathOrUndefined(row.filePath);
   const previewUrl = absPath ? `file://${absPath}` : undefined;
   let images: AssetImage[] | undefined;
   try {
     const parsed = JSON.parse(row.images || "[]");
     if (parsed.length) {
-      images = parsed.map((img: any) => ({
-        name: img.name,
-        filePath: img.filePath,
-        url: `file://${path.join(getFilesDir(), img.filePath)}`,
-      }));
+      images = parsed
+        .map((img: any) => {
+          const imagePath = resolveManagedAssetPathOrUndefined(img.filePath);
+          if (!imagePath) return null;
+          return {
+            name: img.name,
+            filePath: img.filePath,
+            url: `file://${imagePath}`,
+          };
+        })
+        .filter((img: AssetImage | null): img is AssetImage => Boolean(img));
     }
   } catch {}
 
@@ -623,7 +740,7 @@ function rowToSummary(row: any): StudioAssetSummary {
     setting: row.setting,
     remark: row.remark,
     tags: (() => { try { return JSON.parse(row.tags || "[]"); } catch { return []; } })(),
-    thumbnailUrl: previewUrl,
+    thumbnailUrl: absPath ? getThumbUrl(row.filePath, row.type) : undefined,
     previewUrl,
     filePath: row.filePath,
     sourcePath: absPath,

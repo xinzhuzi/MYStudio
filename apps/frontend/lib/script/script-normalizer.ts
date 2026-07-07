@@ -18,7 +18,6 @@
  */
 
 import { aiManager } from '@/lib/ai/ai-manager';
-import { getFeatureConfig } from '@/lib/ai/feature-router';
 
 /**
  * 预处理：为缺少换行的文本自动在结构标记前插入换行
@@ -206,7 +205,7 @@ export interface ScriptStructureAnalysis {
  */
 export async function analyzeScriptStructureWithAI(text: string): Promise<ScriptStructureAnalysis | null> {
   // 检查 AI 是否可用
-  const config = getFeatureConfig('script_analysis');
+  const config = aiManager.featureConfig('script_analysis');
   if (!config) {
     console.log('[scriptNormalizer] 无 AI 配置，跳过结构检测');
     return null;

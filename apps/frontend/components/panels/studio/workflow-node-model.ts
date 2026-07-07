@@ -1,6 +1,7 @@
 import type {
   AgentWorkData,
   EntityExtractionResult,
+  ImageWorkflowTarget,
   ProductionTrack,
   ScriptPlan,
   StudioManualPreset,
@@ -8,7 +9,11 @@ import type {
   StoryboardItem,
   VideoCandidate,
 } from "@/types/studio";
-import { buildStudioFlowData } from "@/lib/studio/studio-flow-data";
+import type { StudioAssetKind, StudioAssetSummary } from "@/types/studio-assets";
+import {
+  buildStudioFlowData,
+  type StudioFlowData,
+} from "@/lib/studio/studio-flow-data";
 import {
   type StudioManualCatalog,
   getAgentSkillPreset,
@@ -120,6 +125,9 @@ export interface ProductionFlowStoryboardTile {
   title: string;
   lines?: string;
   state: StoryboardItem["state"];
+  imageWorkflowId?: string;
+  imageWorkflowNodeId?: string;
+  shouldGenerateImage?: boolean;
 }
 
 export interface ProductionFlowAssetCard {
@@ -135,6 +143,9 @@ export interface ProductionFlowAssetCard {
   prompt?: string;
   generationState?: "未生成" | "生成中" | "已完成" | "生成失败";
   isDerived: boolean;
+  sourceImagePath?: string;
+  imageWorkflowId?: string;
+  imageWorkflowTarget?: ImageWorkflowTarget;
 }
 
 export interface ProductionFlowAssetGroup {
@@ -152,13 +163,29 @@ export interface ProductionFlowAssetSummary {
 export interface ProductionFlowAssetMedia {
   id: string;
   name: string;
-  path: string;
+  path?: string;
   prompt?: string;
   parentAssetId?: string;
   parentAssetName?: string;
   state?: string;
   reason?: string;
+  imageWorkflowId?: string;
+  imageWorkflowTarget?: ImageWorkflowTarget;
+  toonflowAssetId?: number;
+  toonflowParentAssetId?: number;
 }
+
+export type ProductionFlowRuntimeAssetKind = Extract<
+  StudioAssetKind,
+  "role" | "scene" | "tool"
+>;
+
+export type ProductionFlowAssetLibraryMatches = Partial<
+  Record<
+    ProductionFlowRuntimeAssetKind,
+    Record<string, StudioAssetSummary | null | undefined>
+  >
+>;
 
 export interface ProductionFlowWorkbenchTrack {
   id: string;
@@ -290,6 +317,9 @@ export function buildProductionFlowModel(
       title: item.videoDesc || item.prompt || `分镜 ${item.index}`,
       lines: item.lines,
       state: item.state,
+      imageWorkflowId: item.imageWorkflowId ?? item.mediaRef?.imageWorkflowId,
+      imageWorkflowNodeId: item.imageWorkflowNodeId ?? item.mediaRef?.imageWorkflowNodeId,
+      shouldGenerateImage: item.shouldGenerateImage,
     }));
   const workbenchPreview = flowData.workbench.tracks.slice(0, 4).map((track) =>
     [
@@ -692,13 +722,15 @@ function buildAssetDerivationModel(
   for (const plan of scriptPlans) {
     for (const item of plan.derivedAssetPlan) {
       summary.planned += 1;
-      const parent = assetLookup.get(item.parentAssetId);
+      const parent = resolvePlannedDerivedParent(item, assetLookup, assets, mediaLookup);
       if (!parent) {
         summary.missingParent += 1;
         continue;
       }
       summary.linked += 1;
-      const mediaPath = resolveDerivedAssetMediaPath(item, parent, mediaLookup);
+      const media = resolveDerivedAssetMedia(item, parent, mediaLookup);
+      const sourceMedia = resolveAssetMedia(parent, mediaLookup);
+      const mediaPath = media?.path;
       if (mediaPath) summary.completed += 1;
       const derived: ProductionFlowAssetCard = {
         id: `${parent.id}:${item.state}`,
@@ -707,11 +739,20 @@ function buildAssetDerivationModel(
         runtimeType: runtimeTypeForAsset(parent.type),
         mediaPath,
         state: item.state,
-        reason: item.reason,
+        reason: media?.reason || item.reason,
         parentAssetId: parent.id,
-        prompt: `${item.state}：${item.reason}`.trim(),
+        prompt: media?.prompt || `${item.state}：${item.reason}`.trim(),
         generationState: mediaPath ? "已完成" : "未生成",
         isDerived: true,
+        sourceImagePath: sourceMedia?.path,
+        imageWorkflowId: media?.imageWorkflowId || item.imageWorkflowId,
+        imageWorkflowTarget:
+          media?.imageWorkflowTarget ?? {
+            kind: "asset",
+            assetType: assetWorkflowTargetTypeForAsset(parent.type),
+            parentId: parent.id,
+            id: media?.id || `${parent.id}:${item.state}`,
+          },
       };
       addDerivedAssetCard(derivedByParent, derivedKeys, parent.id, derived);
     }
@@ -721,6 +762,7 @@ function buildAssetDerivationModel(
     if (!media.parentAssetId && !media.parentAssetName) continue;
     const parent = resolveParentAssetForMedia(media, assets, mediaLookup);
     if (!parent) continue;
+    const sourceMedia = resolveAssetMedia(parent, mediaLookup);
     const derived: ProductionFlowAssetCard = {
       id: media.id,
       name: media.state || media.name,
@@ -733,6 +775,15 @@ function buildAssetDerivationModel(
       prompt: media.prompt,
       generationState: media.path ? "已完成" : "未生成",
       isDerived: true,
+      sourceImagePath: sourceMedia?.path,
+      imageWorkflowId: media.imageWorkflowId,
+      imageWorkflowTarget:
+        media.imageWorkflowTarget ?? {
+          kind: "asset",
+          assetType: assetWorkflowTargetTypeForAsset(parent.type),
+          parentId: parent.id,
+          id: media.id,
+        },
     };
     if (addDerivedAssetCard(derivedByParent, derivedKeys, parent.id, derived)) {
       summary.planned += 1;
@@ -752,6 +803,7 @@ function buildAssetDerivationModel(
         runtimeType: runtimeTypeForAsset(asset.type),
         mediaPath,
         note: asset.note,
+        prompt: media?.prompt,
         generationState: mediaPath ? "已完成" : "未生成",
         isDerived: false,
       },
@@ -769,6 +821,8 @@ function indexAssetMedia(
     media.id,
     media.name,
     media.state,
+    media.toonflowAssetId == null ? undefined : String(media.toonflowAssetId),
+    media.toonflowAssetId == null ? undefined : `toonflow-db:${media.toonflowAssetId}`,
     media.parentAssetId && media.state
       ? `${media.parentAssetId}:${media.state}`
       : undefined,
@@ -793,10 +847,56 @@ function indexAssetMedia(
     media.parentAssetName && media.name
       ? `${media.parentAssetName}·${media.name}`
       : undefined,
+    media.toonflowParentAssetId != null && media.state
+      ? `${media.toonflowParentAssetId}:${media.state}`
+      : undefined,
+    media.toonflowParentAssetId != null && media.name
+      ? `${media.toonflowParentAssetId}:${media.name}`
+      : undefined,
+    media.toonflowParentAssetId != null && media.state
+      ? `toonflow-db:${media.toonflowParentAssetId}:${media.state}`
+      : undefined,
+    media.toonflowParentAssetId != null && media.name
+      ? `toonflow-db:${media.toonflowParentAssetId}:${media.name}`
+      : undefined,
   ].filter((alias): alias is string => Boolean(alias?.trim()));
   for (const alias of aliases) {
     mediaLookup.set(alias, media);
   }
+}
+
+function resolvePlannedDerivedParent(
+  item: ScriptPlan["derivedAssetPlan"][number],
+  assetLookup: Map<string, ReturnType<typeof buildStudioFlowData>["assets"][number]>,
+  assets: ReturnType<typeof buildStudioFlowData>["assets"],
+  mediaLookup: Map<string, ProductionFlowAssetMedia>,
+) {
+  const direct = assetLookup.get(item.parentAssetId);
+  if (direct) return direct;
+
+  const parentMedia = [
+    item.toonflowAssetsId == null ? undefined : mediaLookup.get(String(item.toonflowAssetsId)),
+    item.toonflowAssetsId == null ? undefined : mediaLookup.get(`toonflow-db:${item.toonflowAssetsId}`),
+    mediaLookup.get(item.parentAssetId),
+  ].find(Boolean);
+  if (!parentMedia) return undefined;
+
+  return assets.find((asset) => {
+    const assetMedia = resolveAssetMedia(asset, mediaLookup);
+    return [
+      asset.id,
+      asset.name,
+      assetMedia?.id,
+      assetMedia?.name,
+      assetMedia?.toonflowAssetId == null ? undefined : String(assetMedia.toonflowAssetId),
+      assetMedia?.toonflowAssetId == null ? undefined : `toonflow-db:${assetMedia.toonflowAssetId}`,
+    ].includes(parentMedia.id) || [
+      asset.id,
+      asset.name,
+      assetMedia?.id,
+      assetMedia?.name,
+    ].includes(parentMedia.name);
+  });
 }
 
 function uniqueAssetMedia(
@@ -866,16 +966,218 @@ function runtimeTypeForAsset(type: ReturnType<typeof buildStudioFlowData>["asset
   return type === "character" ? "role" : type === "scene" ? "scene" : "tool";
 }
 
-function resolveDerivedAssetMediaPath(
+function resolveDerivedAssetMedia(
   item: ScriptPlan["derivedAssetPlan"][number],
   parent: ReturnType<typeof buildStudioFlowData>["assets"][number],
   mediaLookup: Map<string, ProductionFlowAssetMedia>,
 ) {
   return (
-    mediaLookup.get(item.state)?.path ??
-    mediaLookup.get(`${parent.id}:${item.state}`)?.path ??
-    mediaLookup.get(`${parent.id}·${item.state}`)?.path ??
-    mediaLookup.get(`${parent.name}·${item.state}`)?.path
+    mediaLookup.get(`${parent.id}:${item.state}`) ??
+    mediaLookup.get(`${parent.id}·${item.state}`) ??
+    mediaLookup.get(`${parent.name}:${item.state}`) ??
+    mediaLookup.get(`${parent.name}·${item.state}`) ??
+    (item.toonflowAssetsId == null ? undefined : mediaLookup.get(`${item.toonflowAssetsId}:${item.state}`)) ??
+    (item.toonflowAssetsId == null ? undefined : mediaLookup.get(`toonflow-db:${item.toonflowAssetsId}:${item.state}`)) ??
+    mediaLookup.get(item.state)
+  );
+}
+
+export function buildAssetLibraryMatchNamesForProductionFlow(input: {
+  entityExtractions: EntityExtractionResult[];
+  scriptPlans: ScriptPlan[];
+}): Record<ProductionFlowRuntimeAssetKind, string[]> {
+  const assets = buildStudioFlowData({
+    agentWorkData: [],
+    entityExtractions: input.entityExtractions,
+    scriptPlans: [],
+    storyboards: [],
+    productionTracks: [],
+    videoCandidates: [],
+  }).assets;
+  const assetLookup = new Map<string, (typeof assets)[number]>();
+  const names: Record<ProductionFlowRuntimeAssetKind, Set<string>> = {
+    role: new Set(),
+    scene: new Set(),
+    tool: new Set(),
+  };
+
+  for (const asset of assets) {
+    assetLookup.set(asset.id, asset);
+    assetLookup.set(asset.name, asset);
+    names[runtimeTypeForAsset(asset.type)].add(asset.name);
+  }
+
+  for (const plan of input.scriptPlans) {
+    for (const item of plan.derivedAssetPlan) {
+      const parent = assetLookup.get(item.parentAssetId);
+      if (parent) {
+        names[runtimeTypeForAsset(parent.type)].add(item.state);
+        continue;
+      }
+      if (item.toonflowAssetsId == null) continue;
+      for (const asset of assets) {
+        names[runtimeTypeForAsset(asset.type)].add(item.state);
+      }
+    }
+  }
+
+  return {
+    role: [...names.role],
+    scene: [...names.scene],
+    tool: [...names.tool],
+  };
+}
+
+export function buildAssetLibraryMediaMapForProductionFlow(input: {
+  entityExtractions: EntityExtractionResult[];
+  scriptPlans: ScriptPlan[];
+  matchesByType: ProductionFlowAssetLibraryMatches;
+}): Record<string, ProductionFlowAssetMedia> {
+  const assets = buildStudioFlowData({
+    agentWorkData: [],
+    entityExtractions: input.entityExtractions,
+    scriptPlans: [],
+    storyboards: [],
+    productionTracks: [],
+    videoCandidates: [],
+  }).assets;
+  const assetLookup = new Map<string, (typeof assets)[number]>();
+  const entries: Record<string, ProductionFlowAssetMedia> = {};
+
+  for (const asset of assets) {
+    assetLookup.set(asset.id, asset);
+    assetLookup.set(asset.name, asset);
+    const media = studioAssetSummaryToMedia(
+      findAssetLibraryMatch(
+        input.matchesByType,
+        runtimeTypeForAsset(asset.type),
+        asset.name,
+      ),
+      {
+        id: asset.id,
+        name: asset.name,
+      },
+    );
+    if (!media) continue;
+    entries[asset.id] = media;
+    entries[asset.name] = media;
+  }
+
+  for (const plan of input.scriptPlans) {
+    for (const item of plan.derivedAssetPlan) {
+      const parent = assetLookup.get(item.parentAssetId);
+      if (!parent) {
+        if (item.toonflowAssetsId == null) continue;
+        for (const kind of ["role", "scene", "tool"] as const) {
+          const numericMedia = studioAssetSummaryToMedia(
+            findAssetLibraryMatch(input.matchesByType, kind, item.state),
+            {
+              id: `toonflow-db:${item.toonflowAssetsId}:${item.state}`,
+              name: item.state,
+              parentAssetId: `toonflow-db:${item.toonflowAssetsId}`,
+              state: item.state,
+              reason: item.reason,
+              imageWorkflowId: item.imageWorkflowId,
+              toonflowParentAssetId: item.toonflowAssetsId,
+              imageWorkflowTarget: {
+                kind: "asset",
+                assetType:
+                  kind === "role" ? "character" : kind === "tool" ? "prop" : "scene",
+                parentId: `toonflow-db:${item.toonflowAssetsId}`,
+              },
+            },
+          );
+          if (!numericMedia) continue;
+          entries[`${item.toonflowAssetsId}:${item.state}`] = numericMedia;
+          entries[`toonflow-db:${item.toonflowAssetsId}:${item.state}`] = numericMedia;
+        }
+        continue;
+      }
+      const media = studioAssetSummaryToMedia(
+        findAssetLibraryMatch(
+          input.matchesByType,
+          runtimeTypeForAsset(parent.type),
+          item.state,
+        ),
+        {
+          id: `${parent.id}:${item.state}`,
+          name: item.state,
+          parentAssetId: parent.id,
+          parentAssetName: parent.name,
+          state: item.state,
+          reason: item.reason,
+          imageWorkflowTarget: {
+            kind: "asset",
+            assetType: assetWorkflowTargetTypeForAsset(parent.type),
+            parentId: parent.id,
+          },
+        },
+      );
+      if (!media) continue;
+      entries[`${parent.id}:${item.state}`] = media;
+      entries[`${parent.id}·${item.state}`] = media;
+      entries[`${parent.name}:${item.state}`] = media;
+      entries[`${parent.name}·${item.state}`] = media;
+    }
+  }
+
+  return entries;
+}
+
+function assetWorkflowTargetTypeForAsset(
+  type: StudioFlowData["assets"][number]["type"],
+) {
+  return type === "character" ? "character" : type === "prop" ? "prop" : "scene";
+}
+
+function findAssetLibraryMatch(
+  matchesByType: ProductionFlowAssetLibraryMatches,
+  kind: ProductionFlowRuntimeAssetKind,
+  name: string,
+) {
+  return matchesByType[kind]?.[name.trim()] ?? null;
+}
+
+function studioAssetSummaryToMedia(
+  asset: StudioAssetSummary | null | undefined,
+  fallback: Pick<ProductionFlowAssetMedia, "id" | "name"> &
+    Partial<ProductionFlowAssetMedia>,
+): ProductionFlowAssetMedia | null {
+  if (!asset) return null;
+  const path = getStudioAssetPreviewPath(asset);
+  if (!path) return null;
+  const imageWorkflowTarget = fallback.imageWorkflowTarget
+    ? { ...fallback.imageWorkflowTarget, id: fallback.imageWorkflowTarget.id || asset.id }
+    : undefined;
+  return {
+    id: fallback.id,
+    name: fallback.name,
+    path,
+    prompt:
+      asset.prompt ||
+      asset.description ||
+      asset.setting ||
+      asset.remark ||
+      fallback.prompt,
+    parentAssetId: fallback.parentAssetId || asset.parentAssetId,
+    parentAssetName: fallback.parentAssetName || asset.parentAssetName,
+    state: fallback.state || asset.state,
+    reason: fallback.reason || asset.description || asset.remark,
+    imageWorkflowId: asset.imageWorkflowId || fallback.imageWorkflowId,
+    imageWorkflowTarget,
+    toonflowAssetId: asset.toonflowAssetId ?? fallback.toonflowAssetId,
+    toonflowParentAssetId: asset.toonflowParentAssetId ?? fallback.toonflowParentAssetId,
+  };
+}
+
+function getStudioAssetPreviewPath(asset: StudioAssetSummary) {
+  return (
+    asset.thumbnailUrl ||
+    asset.previewUrl ||
+    asset.images?.find((image) => image.url || image.filePath)?.url ||
+    asset.images?.find((image) => image.url || image.filePath)?.filePath ||
+    asset.filePath ||
+    asset.sourcePath
   );
 }
 

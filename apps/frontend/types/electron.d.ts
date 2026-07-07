@@ -4,6 +4,17 @@
 import type { OpenExternalResult, UpdateCheckOptions, UpdateCheckResult } from "./update";
 import type { ModelTestRequest, ModelTestResult } from "../lib/api-manager/model-test";
 import type { TextCompletionRequest, TextCompletionResult } from "../lib/api-manager/text-completion";
+import type { ImageRequestPayload, ImageRequestResult } from "./api-image-request";
+import type {
+  DiagnosticsLogClearResult,
+  DiagnosticsLogEntry,
+  DiagnosticsLogEntryInput,
+  DiagnosticsLogExportResult,
+  DiagnosticsLogInfo,
+  DiagnosticsLogOpenFolderResult,
+  DiagnosticsLogQuery,
+  DiagnosticsLogQueryResult,
+} from "./diagnostics";
 import type { EpisodeMergePlan, TrackRenderPlan } from "./studio";
 import type { StudioAssetListRequest, StudioAssetListResponse, StudioAssetSummary } from "./studio-assets";
 import type {
@@ -26,10 +37,19 @@ declare global {
       enabled: boolean;
       userDataDir?: string;
     };
+    diagnosticsLog?: {
+      write: (entry: DiagnosticsLogEntryInput) => Promise<DiagnosticsLogEntry>;
+      query: (query?: DiagnosticsLogQuery) => Promise<DiagnosticsLogQueryResult>;
+      getInfo: () => Promise<DiagnosticsLogInfo>;
+      openFolder: () => Promise<DiagnosticsLogOpenFolderResult>;
+      exportBundle: () => Promise<DiagnosticsLogExportResult>;
+      clear: () => Promise<DiagnosticsLogClearResult>;
+    };
     imageStorage?: {
       saveImage: (url: string, category: string, filename: string) => Promise<{ success: boolean; localPath?: string; error?: string }>;
       getImagePath: (localPath: string) => Promise<string | null>;
       deleteImage: (localPath: string) => Promise<boolean>;
+      moveImage: (localPath: string, category: string) => Promise<{ success: boolean; localPath?: string; error?: string }>;
       readAsBase64: (localPath: string) => Promise<string | null>;
       getAbsolutePath: (localPath: string) => Promise<string | null>;
     };
@@ -158,6 +178,7 @@ declare global {
       openDevTools: () => Promise<{ success: boolean; error?: string }>;
       testModel: (payload: ModelTestRequest) => Promise<ModelTestResult>;
       textCompletion: (payload: TextCompletionRequest) => Promise<TextCompletionResult>;
+      imageRequest: (payload: ImageRequestPayload) => Promise<ImageRequestResult>;
       textCompletionStream: (payload: TextCompletionRequest, onChunk: (delta: string) => void) => Promise<TextCompletionResult>;
     };
     appUpdater?: {

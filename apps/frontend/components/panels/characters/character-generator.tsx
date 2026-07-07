@@ -124,7 +124,6 @@ export function CharacterGenerator({ character }: CharacterGeneratorProps) {
       const result = await aiManager.image({
         prompt: sheetPrompt,
         negativePrompt,
-        aspectRatio: '1:1',
         referenceImages,
         styleId: character.styleId,
       });

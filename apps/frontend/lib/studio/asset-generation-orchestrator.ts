@@ -5,7 +5,8 @@
  *
  * 已有基础设施：
  * - aiManager.image(params, kind) → ImageGenerationResult { imageUrl, taskId? }
- * - saveImageToLocal(url, category, filename) → local-image://...
+ * - projectFiles.saveImage(...) → project-file://... for project workflows
+ * - saveImageToLocal(url, category, filename) → local-image://... fallback
  * - characterStore.addCharacterView(charId, { viewType, imageUrl })
  * - characterStore.updateCharacter(id, updates)
  * - sceneStore.updateScene(id, updates)
@@ -22,15 +23,22 @@ import {
 
 export type { AssetType };
 import { saveImageToLocal, type ImageCategory } from "@/lib/image-storage";
+import { createAssetImageWorkflowGraph } from "@/lib/studio/image-workflow";
 import { useCharacterLibraryStore } from "@/stores/character-library-store";
+import { useProjectStore } from "@/stores/project-store";
 import { usePropsLibraryStore, type PropItem } from "@/stores/props-library-store";
 import { useSceneStore } from "@/stores/scene-store";
+import { useAppSettingsStore } from "@/stores/app-settings-store";
+import { useStudioStore } from "@/stores/studio-store";
+import type { ImageAspectRatio, ImageResolution } from "@/lib/ai/image-size-presets";
 
 // ─── 类型定义 ───
 
 export interface AssetGenerationTask {
   /** 资产 ID（Store 中的 id） */
   assetId: string;
+  /** 当前项目 ID；存在时图片保存到 _p/{projectId}/workflow-images/... */
+  projectId?: string;
   /** 资产类型 */
   assetType: AssetType;
   /** 资产名称 */
@@ -47,12 +55,14 @@ export interface AssetGenerationTask {
   negativePrompt?: string;
 
   // ── 生成配置 ──
-  /** 分辨率，默认 "2K" */
-  resolution?: "1K" | "2K" | "4K";
-  /** 宽高比，默认 "16:9" */
-  aspectRatio?: "1:1" | "16:9" | "9:16" | "4:3" | "3:4";
+  /** 分辨率，未设置时读取全局图片规格 */
+  resolution?: ImageResolution;
+  /** 宽高比，未设置时读取全局图片规格 */
+  aspectRatio?: ImageAspectRatio;
   /** 参考图（base64 或 local-image://） */
   referenceImages?: string[];
+  /** 已有图片工作流 ID；衍生资产重新生成时复用 */
+  imageWorkflowId?: string;
   /** 是否跳过润色（已有 prompt 时） */
   skipPolish?: boolean;
   /** 已有的提示词（skipPolish=true 时使用） */
@@ -81,11 +91,11 @@ export async function generateAsset(
   task: AssetGenerationTask,
   onProgress?: (progress: AssetGenerationProgress) => void,
 ): Promise<AssetGenerationProgress> {
+  let polishResult: PolishResult | undefined;
   try {
     // Phase 1: 提示词润色
     let prompt: string;
     let negativePrompt: string | undefined;
-    let polishResult: PolishResult | undefined;
 
     if (task.skipPolish && task.existingPrompt) {
       prompt = task.existingPrompt;
@@ -120,15 +130,16 @@ export async function generateAsset(
       polishResult,
     });
 
+    const imageSettings = useAppSettingsStore.getState().imageGenerationSettings;
     const imageResult = await aiManager.image(
       {
         prompt,
         negativePrompt,
-        resolution: task.resolution ?? "2K",
-        aspectRatio: task.aspectRatio ?? "16:9",
+        resolution: task.resolution ?? imageSettings.defaultResolution,
+        aspectRatio: task.aspectRatio ?? imageSettings.defaultAspectRatio,
         referenceImages: task.referenceImages,
       },
-      task.assetType === "character" ? "character" : "scene",
+      task.assetType === "character" ? "character" : task.assetType === "prop" ? "prop" : "scene",
     );
 
     if (!imageResult.imageUrl) {
@@ -152,16 +163,21 @@ export async function generateAsset(
       prop: "props",
     };
 
-    const localPath = await saveImageToLocal(
-      imageResult.imageUrl,
-      categoryMap[task.assetType],
-      `${task.name}-${Date.now()}`,
-    );
+    const localPath = await saveGeneratedAssetImage({
+      source: imageResult.imageUrl,
+      assetType: task.assetType,
+      assetId: task.assetId,
+      assetName: task.name,
+      projectId: task.projectId,
+      isDerivative: task.isDerivative,
+      category: categoryMap[task.assetType],
+    });
 
     // Phase 4: 更新 Store
     updateStoreWithResult(task.assetId, task.assetType, {
       polishResult,
       imageLocalPath: localPath,
+      imageWorkflowId: task.imageWorkflowId,
     });
 
     return {
@@ -174,6 +190,7 @@ export async function generateAsset(
     return {
       phase: "failed",
       error: message,
+      polishResult,
     };
   }
 }
@@ -295,7 +312,7 @@ export async function polishAssetsAndUpdateStore(
 function updateStoreWithResult(
   assetId: string,
   assetType: AssetType,
-  data: { polishResult?: PolishResult; imageLocalPath: string },
+  data: { polishResult?: PolishResult; imageLocalPath: string; imageWorkflowId?: string },
 ) {
   if (assetType === "character") {
     const store = useCharacterLibraryStore.getState();
@@ -323,6 +340,7 @@ function updateStoreWithResult(
     });
   } else if (assetType === "scene") {
     const store = useSceneStore.getState();
+    const scene = store.getSceneById(assetId);
 
     if (data.polishResult?.status === "success") {
       store.updateScene(assetId, {
@@ -333,8 +351,22 @@ function updateStoreWithResult(
 
     store.updateScene(assetId, {
       referenceImage: data.imageLocalPath,
+      ...buildGeneratedDerivativeWorkflowPatch({
+        assetId,
+        assetType: "scene",
+        name: scene?.viewpointName || scene?.name || assetId,
+        prompt: data.polishResult?.prompt || scene?.visualPrompt,
+        resultImagePath: data.imageLocalPath,
+        parentId: scene?.parentSceneId,
+        sourceImagePath: scene?.parentSceneId
+          ? store.getSceneById(scene.parentSceneId)?.referenceImage
+          : undefined,
+        imageWorkflowId: data.imageWorkflowId || scene?.imageWorkflowId,
+      }),
     });
   } else if (assetType === "prop") {
+    const store = usePropsLibraryStore.getState();
+    const prop = store.getPropById(assetId);
     const promptUpdates =
       data.polishResult?.status === "success"
         ? {
@@ -346,8 +378,56 @@ function updateStoreWithResult(
     updateProp(assetId, {
       ...promptUpdates,
       imageUrl: data.imageLocalPath,
+      ...buildGeneratedDerivativeWorkflowPatch({
+        assetId,
+        assetType: "prop",
+        name: prop?.category || prop?.name || assetId,
+        prompt: data.polishResult?.prompt || prop?.visualPrompt,
+        resultImagePath: data.imageLocalPath,
+        parentId: prop?.parentId,
+        sourceImagePath: prop?.parentId
+          ? store.getPropById(prop.parentId)?.imageUrl
+          : undefined,
+        imageWorkflowId: data.imageWorkflowId || prop?.imageWorkflowId,
+      }),
     });
   }
+}
+
+function buildGeneratedDerivativeWorkflowPatch(input: {
+  assetId: string;
+  assetType: "scene" | "prop";
+  name: string;
+  prompt?: string;
+  resultImagePath: string;
+  parentId?: string;
+  sourceImagePath?: string;
+  imageWorkflowId?: string;
+}) {
+  if (!input.parentId) return {};
+  const graph = createAssetImageWorkflowGraph(
+    {
+      target: {
+        kind: "asset",
+        assetType: input.assetType,
+        parentId: input.parentId,
+        id: input.assetId,
+      },
+      title: input.name,
+      prompt: input.prompt,
+      sourceImagePath: input.sourceImagePath,
+      resultImagePath: input.resultImagePath,
+      imageWorkflowId: input.imageWorkflowId,
+    },
+    useProjectStore.getState().activeProject?.name || "MYStudio",
+  );
+  const generatedNode = graph.nodes.find((node) => node.type === "generated");
+  if (!generatedNode) return {};
+  useStudioStore.getState().upsertImageWorkflow(graph);
+  return {
+    imageWorkflowId: graph.id,
+    imageWorkflowNodeId: generatedNode.id,
+  };
 }
 
 function writePolishResultToStore(
@@ -500,32 +580,38 @@ export function applyMatchedAssets(
       if (assetType === "character") {
         const store = useCharacterLibraryStore.getState();
         // 从资产库的 filePath 构造缩略图路径
-        const thumbPath = m.assetDbData.thumbnailUrl || m.assetDbData.filePath;
+        const thumbPath = toReusableAssetImageUrl(
+          m.assetDbData.thumbnailUrl || m.assetDbData.filePath,
+        );
         store.updateCharacter(m.id, {
-          thumbnailUrl: thumbPath ? `local-image://${thumbPath}` : undefined,
+          thumbnailUrl: thumbPath,
           promptState: "ready",
           visualTraits: m.assetDbData.prompt || m.assetDbData.description || "",
         });
         if (thumbPath) {
           store.addCharacterView(m.id, {
             viewType: "front",
-            imageUrl: `local-image://${thumbPath}`,
+            imageUrl: thumbPath,
           });
         }
         applied++;
       } else if (assetType === "scene") {
         const store = useSceneStore.getState();
-        const thumbPath = m.assetDbData.thumbnailUrl || m.assetDbData.filePath;
+        const thumbPath = toReusableAssetImageUrl(
+          m.assetDbData.thumbnailUrl || m.assetDbData.filePath,
+        );
         store.updateScene(m.id, {
-          referenceImage: thumbPath ? `local-image://${thumbPath}` : undefined,
+          referenceImage: thumbPath,
           visualPrompt: m.assetDbData.prompt || m.assetDbData.description || "",
           promptState: "ready",
         });
         applied++;
       } else if (assetType === "prop") {
-        const thumbPath = m.assetDbData.thumbnailUrl || m.assetDbData.filePath;
+        const thumbPath = toReusableAssetImageUrl(
+          m.assetDbData.thumbnailUrl || m.assetDbData.filePath,
+        );
         updateProp(m.id, {
-          imageUrl: thumbPath ? `local-image://${thumbPath}` : "",
+          imageUrl: thumbPath || "",
           visualPrompt: m.assetDbData.prompt || m.assetDbData.description || "",
           promptState: "ready",
           promptError: undefined,
@@ -537,6 +623,16 @@ export function applyMatchedAssets(
     }
   }
   return applied;
+}
+
+function toReusableAssetImageUrl(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  if (/^(https?:|data:|blob:|file:|local-image:\/\/|project-file:\/\/)/.test(trimmed)) {
+    return trimmed;
+  }
+  return `local-image://${trimmed}`;
 }
 
 function markAssetsPolishing(assetType: AssetType, assets: PendingAsset[]) {
@@ -565,4 +661,52 @@ function updateProp(assetId: string, updates: Partial<PropItem>) {
         : item,
     ),
   }));
+}
+
+async function saveGeneratedAssetImage({
+  source,
+  assetType,
+  assetId,
+  assetName,
+  projectId,
+  isDerivative,
+  category,
+}: {
+  source: string;
+  assetType: AssetType;
+  assetId: string;
+  assetName: string;
+  projectId?: string;
+  isDerivative: boolean;
+  category: ImageCategory;
+}) {
+  const filename = `${safePathSegment(assetId)}-${safePathSegment(assetName)}-${Date.now()}.png`;
+  if (!projectId) {
+    if (isDerivative) {
+      throw new Error("衍生资产图片必须保存到当前项目");
+    }
+    return saveImageToLocal(source, category, `${assetName}-${Date.now()}`);
+  }
+  if (projectId && window.projectFiles?.saveImage) {
+    const saved = await window.projectFiles.saveImage({
+      projectId,
+      relativePath: `workflow-images/assets/${assetType}/${filename}`,
+      source,
+    });
+    if (!saved.success || !saved.url) {
+      throw new Error(saved.error || "项目内资产图片保存失败");
+    }
+    return saved.url;
+  }
+
+  throw new Error("当前环境不支持项目内资产图片保存");
+}
+
+function safePathSegment(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9\u4e00-\u9fa5._-]+/gi, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 96) || "asset";
 }

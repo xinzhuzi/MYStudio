@@ -10,13 +10,14 @@ import {
   syncDerivedAssets,
 } from "@/lib/studio/derived-asset-sync";
 import {
-  batchGenerateAssets,
   generateAsset,
-  polishAssetsAndUpdateStore,
-  type AssetGenerationTask,
 } from "@/lib/studio/asset-generation-orchestrator";
 import { useStudioStore } from "@/stores/studio-store";
 import { useTtsStore } from "@/stores/tts-store";
+import { useCharacterLibraryStore } from "@/stores/character-library-store";
+import { usePropsLibraryStore } from "@/stores/props-library-store";
+import { useSceneStore } from "@/stores/scene-store";
+import { eventBus } from "@/lib/event-bus";
 import type { EntityExtractionResult, ScriptPlan } from "@/types/studio";
 import type { StudioAssetSummary, StudioAssetKind } from "@/types/studio-assets";
 import { toast } from "sonner";
@@ -32,8 +33,6 @@ import {
   type AssetRow,
 } from "./script-asset-generation-model";
 import { getAbsoluteImagePath } from "@/lib/image-storage";
-
-type Progress = { done: number; total: number };
 
 export function useScriptAssetGenerationActions({
   activeType,
@@ -54,15 +53,9 @@ export function useScriptAssetGenerationActions({
   entityExtractions: EntityExtractionResult[];
   onAssetStored?: (row: AssetRow, asset: StudioAssetSummary) => void;
 }) {
-  const [isPolishing, setIsPolishing] = useState(false);
-  const [isGeneratingImages, setIsGeneratingImages] = useState(false);
-  const [progress, setProgress] = useState<Progress>({ done: 0, total: 0 });
   const [selectedAsset, setSelectedAsset] = useState<StudioAssetSummary | null>(null);
   const [assetDialogOpen, setAssetDialogOpen] = useState(false);
-  const [notFoundAsset, setNotFoundAsset] = useState<{
-    name: string;
-    type: AssetGenerationType;
-  } | null>(null);
+  const [notFoundAsset, setNotFoundAsset] = useState<AssetRow | null>(null);
   const [isGeneratingSingle, setIsGeneratingSingle] = useState(false);
   const [isAutoAssigningAudio, setIsAutoAssigningAudio] = useState(false);
   const [storingAssetKey, setStoringAssetKey] = useState<string | null>(null);
@@ -70,66 +63,6 @@ export function useScriptAssetGenerationActions({
   const setTtsActiveProjectId = useTtsStore((state) => state.setActiveProjectId);
   const createVoiceProfile = useTtsStore((state) => state.createVoiceProfile);
   const bindSpeaker = useTtsStore((state) => state.bindSpeaker);
-
-  const handlePolishAll = useCallback(async () => {
-    if (!visualManualId) {
-      toast.error("请先在「风格与导演」中选择视觉手册");
-      return;
-    }
-    setIsPolishing(true);
-    setProgress({ done: 0, total: 0 });
-    try {
-      const result = await polishAssetsAndUpdateStore(activeType, visualManualId, {
-        concurrency: 3,
-        onProgress: (done, total) => setProgress({ done, total }),
-      });
-      if (result.failed) {
-        toast.warning(`提示词处理完成：${result.success} 成功，${result.failed} 失败`);
-      } else {
-        toast.success(`提示词处理完成：${result.success} 个资产已就绪`);
-      }
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "提示词润色失败");
-    } finally {
-      setIsPolishing(false);
-    }
-  }, [activeType, visualManualId]);
-
-  const handleGenerateImages = useCallback(async () => {
-    if (!visualManualId) {
-      toast.error("请先在「风格与导演」中选择视觉手册");
-      return;
-    }
-    const tasks = currentRows
-      .map((row) => toGenerationTask(row, visualManualId))
-      .filter((task): task is AssetGenerationTask => Boolean(task));
-    if (!tasks.length) {
-      toast.info("当前分类没有可生成图片的资产");
-      return;
-    }
-
-    setIsGeneratingImages(true);
-    setProgress({ done: 0, total: tasks.length });
-    try {
-      const results = await batchGenerateAssets(tasks, {
-        concurrency: 1,
-        onProgress: (done, total) => setProgress({ done, total }),
-      });
-      const success = [...results.values()].filter(
-        (result) => result.phase === "done",
-      ).length;
-      const failed = results.size - success;
-      if (failed) {
-        toast.warning(`图片生成完成：${success} 成功，${failed} 失败`);
-      } else {
-        toast.success(`图片生成完成：${success} 个资产已就绪`);
-      }
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "图片生成失败");
-    } finally {
-      setIsGeneratingImages(false);
-    }
-  }, [currentRows, visualManualId]);
 
   const handleDeriveAssets = useCallback(() => {
     const projectId = activeProjectId;
@@ -189,7 +122,7 @@ export function useScriptAssetGenerationActions({
         setAssetDialogOpen(true);
         return;
       }
-      setNotFoundAsset({ name: row.name, type: row.type });
+      setNotFoundAsset(row);
     } catch {
       toast.error("查询资产库失败");
     }
@@ -205,23 +138,28 @@ export function useScriptAssetGenerationActions({
     const key = assetLibraryRowKey(row);
     setStoringAssetKey(key);
     try {
+      const storedAsset = await storeRowInAssetLibrary(row);
+      if (storedAsset) {
+        onAssetStored?.(row, storedAsset.asset);
+        notifyAssetLibraryUpdated(storedAsset.asset);
+        if (storedAsset.status === "existing") {
+          toast.info(`资产库已存在：${row.name}`);
+        } else {
+          toast.success(`已放入资产库：${row.name}`);
+        }
+        return;
+      }
       const existing = await window.studioAssets.getByName?.({
         type: toRuntimeAssetType(row.type),
         name: row.name,
       });
       if (existing) {
         onAssetStored?.(row, existing);
+        notifyAssetLibraryUpdated(existing);
         toast.info(`资产库已存在：${row.name}`);
         return;
       }
-
-      const created = await window.studioAssets.add(await toAssetLibraryAddPayload(row));
-      if (!created) {
-        toast.error(`「${row.name}」放入资产库失败`);
-        return;
-      }
-      onAssetStored?.(row, created);
-      toast.success(`已放入资产库：${row.name}`);
+      toast.error(`「${row.name}」放入资产库失败`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "放入资产库失败");
     } finally {
@@ -237,35 +175,28 @@ export function useScriptAssetGenerationActions({
     }
     setIsGeneratingSingle(true);
     try {
-      const result = await generateAsset({
-        assetId: `single_${Date.now()}`,
-        name: notFoundAsset.name,
-        assetType: notFoundAsset.type,
-        description: "",
-        isDerivative: false,
-        visualManualId,
-        skipPolish: false,
+      const localRow = ensureLocalAssetForRow(notFoundAsset, {
+        activeProjectId,
+        productionEpisodeId,
       });
+      const task = toGenerationTask(localRow, visualManualId, activeProjectId);
+      if (!task) {
+        toast.error(`「${notFoundAsset.name}」缺少可生成的本地资产`);
+        return;
+      }
+      const result = await generateAsset(task);
       if (result.phase !== "done") {
         toast.error(`「${notFoundAsset.name}」生成失败：${result.error ?? "未知错误"}`);
         return;
       }
       toast.success(`「${notFoundAsset.name}」资产生成成功`);
-      const asset = await window.studioAssets?.getByName({
-        type: toRuntimeAssetType(notFoundAsset.type),
-        name: notFoundAsset.name,
-      });
       setNotFoundAsset(null);
-      if (asset) {
-        setSelectedAsset(asset);
-        setAssetDialogOpen(true);
-      }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "生成失败");
     } finally {
       setIsGeneratingSingle(false);
     }
-  }, [notFoundAsset, visualManualId]);
+  }, [activeProjectId, notFoundAsset, onAssetStored, productionEpisodeId, visualManualId]);
 
   const handleAutoAssignAudio = useCallback(async () => {
     if (activeType !== "character") return;
@@ -334,26 +265,25 @@ export function useScriptAssetGenerationActions({
   ]);
 
   return {
-    isPolishing,
-    isGeneratingImages,
     isGeneratingSingle,
     isAutoAssigningAudio,
     storingAssetKey,
-    progress,
     selectedAsset,
     setSelectedAsset,
     assetDialogOpen,
     setAssetDialogOpen,
     notFoundAsset,
     setNotFoundAsset,
-    handlePolishAll,
-    handleGenerateImages,
     handleDeriveAssets,
     handleOpenAsset,
     handleGenerateSingle,
     handleAutoAssignAudio,
     handleStoreInAssetLibrary,
   };
+}
+
+function notifyAssetLibraryUpdated(asset: StudioAssetSummary) {
+  eventBus.emit("asset:updated", { id: asset.id, type: asset.type });
 }
 
 async function toAssetLibraryAddPayload(row: AssetRow) {
@@ -370,6 +300,100 @@ async function toAssetLibraryAddPayload(row: AssetRow) {
     prompt,
     setting,
   };
+}
+
+async function storeRowInAssetLibrary(
+  row: AssetRow,
+): Promise<{ status: "existing" | "created"; asset: StudioAssetSummary } | null> {
+  if (!window.studioAssets?.add) return null;
+  const existing = await window.studioAssets.getByName?.({
+    type: toRuntimeAssetType(row.type),
+    name: row.name,
+  });
+  if (existing) return { status: "existing", asset: existing };
+  const created = await window.studioAssets.add(await toAssetLibraryAddPayload(row));
+  return created ? { status: "created", asset: created } : null;
+}
+
+function ensureLocalAssetForRow(
+  row: AssetRow,
+  {
+    activeProjectId,
+    productionEpisodeId,
+  }: {
+    activeProjectId: string | null;
+    productionEpisodeId: string;
+  },
+): AssetRow {
+  if (row.asset) return row;
+
+  if (row.type === "character") {
+    const store = useCharacterLibraryStore.getState();
+    const existing = store.characters.find(
+      (item) => item.name === row.name && (!activeProjectId || item.projectId === activeProjectId),
+    );
+    const id = existing?.id ?? store.addCharacter({
+      name: row.name,
+      description: row.note || row.name,
+      visualTraits: "",
+      projectId: activeProjectId ?? undefined,
+      notes: row.note,
+      status: "linked",
+      linkedEpisodeId: productionEpisodeId,
+      views: [],
+    });
+    const asset = useCharacterLibraryStore.getState().getCharacterById(id);
+    return asset ? { ...row, id: asset.id, asset } : row;
+  }
+
+  if (row.type === "scene") {
+    const store = useSceneStore.getState();
+    const existing = store.scenes.find(
+      (item) => item.name === row.name && (!activeProjectId || item.projectId === activeProjectId),
+    );
+    const id = existing?.id ?? store.addScene({
+      name: row.name,
+      location: row.note || row.name,
+      time: "",
+      atmosphere: row.note || "",
+      projectId: activeProjectId ?? undefined,
+      notes: row.note,
+      status: "linked",
+      linkedEpisodeId: productionEpisodeId,
+    });
+    const asset = useSceneStore.getState().getSceneById(id);
+    return asset ? { ...row, id: asset.id, asset } : row;
+  }
+
+  const store = usePropsLibraryStore.getState();
+  const existing = store.items.find(
+    (item) =>
+      item.name === row.name &&
+      (!activeProjectId || item.projectId === activeProjectId),
+  );
+  const asset = existing ?? store.addProp({
+    name: row.name,
+    projectId: activeProjectId ?? undefined,
+    description: row.note || row.name,
+    visualPrompt: "",
+    imageUrl: "",
+    folderId: null,
+  });
+  return { ...row, id: asset.id, asset };
+}
+
+function resolveLatestAssetRow(row: AssetRow): AssetRow {
+  if (!row.asset) return row;
+  if (row.type === "character") {
+    const asset = useCharacterLibraryStore.getState().getCharacterById(row.asset.id);
+    return asset ? { ...row, asset } : row;
+  }
+  if (row.type === "scene") {
+    const asset = useSceneStore.getState().getSceneById(row.asset.id);
+    return asset ? { ...row, asset } : row;
+  }
+  const asset = usePropsLibraryStore.getState().getPropById(row.asset.id);
+  return asset ? { ...row, asset } : row;
 }
 
 async function resolveAssetSourceFilePath(image?: string) {

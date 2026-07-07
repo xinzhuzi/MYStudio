@@ -129,7 +129,7 @@ const IMAGE_ENDPOINT_MAP: Record<string, ModelApiFormat> = {
 };
 
 // MemeFast supported_endpoint_types 值 → 我们的视频 API 格式能力分类
-// 注意：这里统一映射为 'openai_video' 仅表示「视频生成能力」，实际 API 路由由 use-video-generation.ts 中的 VIDEO_FORMAT_MAP 决定
+// 注意：这里统一映射为 'openai_video' 仅表示「视频生成能力」，实际 API 路由由 video-generator.ts 中的 VIDEO_FORMAT_MAP 决定
 const VIDEO_ENDPOINT_MAP: Record<string, ModelApiFormat> = {
   '视频统一格式': 'openai_video',
   'openAI视频格式': 'openai_video',

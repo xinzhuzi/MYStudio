@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { createProjectScopedStorage } from "@/lib/project-storage";
 import {
+  buildAssetImageWorkflowPatch,
   buildStoryboardImageWorkflowPatch,
   createImageWorkflowGraph,
 } from "@/lib/studio/image-workflow";
@@ -13,13 +14,17 @@ import {
   replaceNovelChapters,
 } from "@/lib/studio/novel";
 import { groupStoryboardsIntoTracks } from "@/lib/studio/production";
+import { useCharacterLibraryStore } from "@/stores/character-library-store";
 import { useProjectStore } from "@/stores/project-store";
+import { usePropsLibraryStore } from "@/stores/props-library-store";
+import { useSceneStore } from "@/stores/scene-store";
 import type {
   AgentWorkData,
   AgentWorkKey,
   EntityExtractionResult,
   EpisodeOutline,
   ImageWorkflowGraph,
+  ImageWorkflowTarget,
   NovelChapter,
   ProductionTrack,
   ScriptPlan,
@@ -63,6 +68,7 @@ interface StudioWorkflowActions {
   saveSeriesBible: (bible: SeriesBible) => void;
   saveEpisodeOutline: (outline: EpisodeOutline) => void;
   addStoryboard: (item?: Partial<StoryboardItem>) => string;
+  replaceStoryboardsForEpisode: (episodeId: string, items: StoryboardItem[]) => void;
   updateStoryboard: (id: string, updates: Partial<StoryboardItem>) => void;
   bindStoryboardMedia: (id: string, mediaRef: StoryboardMediaRef) => void;
   createImageWorkflow: (input?: Parameters<typeof createImageWorkflowGraph>[0]) => string;
@@ -70,6 +76,7 @@ interface StudioWorkflowActions {
   updateImageWorkflow: (id: string, updates: Partial<ImageWorkflowGraph>) => void;
   deleteImageWorkflow: (id: string) => void;
   applyImageWorkflowResultToStoryboard: (storyboardId: string, workflowId: string, nodeId: string) => void;
+  applyImageWorkflowResultToAsset: (target: ImageWorkflowTarget, workflowId: string, nodeId: string) => void;
   createStoryboardsFromChapters: () => void;
   rebuildTracks: () => void;
   updateTrack: (id: string, updates: Partial<ProductionTrack>) => void;
@@ -246,6 +253,7 @@ export const useStudioStore = create<StudioWorkflowStore>()(
           mediaRef: item.mediaRef,
           imageWorkflowId: item.imageWorkflowId,
           imageWorkflowNodeId: item.imageWorkflowNodeId,
+          shouldGenerateImage: item.shouldGenerateImage,
           audioRef: item.audioRef,
           state: item.state ?? "idle",
           reason: item.reason,
@@ -260,6 +268,19 @@ export const useStudioStore = create<StudioWorkflowStore>()(
         set((state) => ({ storyboards: [...state.storyboards, storyboard] }));
         get().rebuildTracks();
         return id;
+      },
+
+      replaceStoryboardsForEpisode: (episodeId, items) => {
+        set((state) => ({
+          storyboards: [
+            ...state.storyboards.filter((item) => item.episodeId !== episodeId),
+            ...items.map((item) => {
+              const previous = state.storyboards.find((current) => current.id === item.id);
+              return previous ? { ...previous, ...item } : item;
+            }),
+          ],
+        }));
+        get().rebuildTracks();
       },
 
       updateStoryboard: (id, updates) => {
@@ -313,6 +334,36 @@ export const useStudioStore = create<StudioWorkflowStore>()(
         const graph = get().imageWorkflows.find((item) => item.id === workflowId);
         if (!graph) return;
         get().updateStoryboard(storyboardId, buildStoryboardImageWorkflowPatch(graph, nodeId));
+      },
+
+      applyImageWorkflowResultToAsset: (target, workflowId, nodeId) => {
+        if (target.kind !== "asset" || !target.assetType || !target.id) return;
+        const graph = get().imageWorkflows.find((item) => item.id === workflowId);
+        if (!graph) return;
+        const patch = buildAssetImageWorkflowPatch(graph, nodeId);
+        if (target.assetType === "character") {
+          if (!target.parentId) return;
+          useCharacterLibraryStore.getState().updateVariation(target.parentId, target.id, {
+            referenceImage: patch.imageUrl,
+            imageWorkflowId: patch.imageWorkflowId,
+            imageWorkflowNodeId: patch.imageWorkflowNodeId,
+            generatedAt: patch.generatedAt,
+          });
+          return;
+        }
+        if (target.assetType === "scene") {
+          useSceneStore.getState().updateScene(target.id, {
+            referenceImage: patch.imageUrl,
+            imageWorkflowId: patch.imageWorkflowId,
+            imageWorkflowNodeId: patch.imageWorkflowNodeId,
+          });
+          return;
+        }
+        usePropsLibraryStore.getState().updateProp(target.id, {
+          imageUrl: patch.imageUrl,
+          imageWorkflowId: patch.imageWorkflowId,
+          imageWorkflowNodeId: patch.imageWorkflowNodeId,
+        });
       },
 
       createStoryboardsFromChapters: () => {

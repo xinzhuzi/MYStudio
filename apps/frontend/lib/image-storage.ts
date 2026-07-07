@@ -13,6 +13,7 @@ declare global {
       saveImage: (url: string, category: string, filename: string) => Promise<{ success: boolean; localPath?: string; error?: string }>;
       getImagePath: (localPath: string) => Promise<string | null>;
       deleteImage: (localPath: string) => Promise<boolean>;
+      moveImage: (localPath: string, category: string) => Promise<{ success: boolean; localPath?: string; error?: string }>;
       readAsBase64: (localPath: string) => Promise<{ success: boolean; base64?: string; mimeType?: string; size?: number; error?: string }>;
       getAbsolutePath: (localPath: string) => Promise<string | null>;
     };
@@ -104,6 +105,28 @@ export async function deleteLocalImage(localPath: string): Promise<boolean> {
   } catch (error) {
     console.error('Error deleting image:', error);
     return false;
+  }
+}
+
+export async function moveLocalImageToCategory(localPath: string, category: string): Promise<string | null> {
+  if (!localPath.startsWith('local-image://')) {
+    return null;
+  }
+
+  if (!isElectron() || !window.imageStorage?.moveImage) {
+    return null;
+  }
+
+  try {
+    const result = await window.imageStorage.moveImage(localPath, category);
+    if (result.success && result.localPath) {
+      return result.localPath;
+    }
+    console.error('Failed to move image:', result.error);
+    return null;
+  } catch (error) {
+    console.error('Error moving image:', error);
+    return null;
   }
 }
 

@@ -87,11 +87,35 @@ export function prepareTextCompletionRequest(payload: TextCompletionRequest): Pr
     maxTokens: payload.maxTokens ?? 2048,
   });
 
-  const protocol = payload.provider.apiProtocol;
+  const protocol = resolveRuntimeTextProtocol(payload.provider);
   return {
     success: true,
     attempts: protocol ? attempts.filter((attempt) => attempt.protocol === protocol) : attempts,
   };
+}
+
+function resolveRuntimeTextProtocol(
+  provider: Pick<IProvider, "platform" | "apiProtocol">,
+): ModelTestProtocol | undefined {
+  if (provider.apiProtocol) return provider.apiProtocol;
+  if (provider.platform === "anthropic-compatible") return "anthropic-compatible";
+  if (provider.platform === "gemini-compatible") return "gemini-compatible";
+  if (
+    provider.platform === "openai"
+    || provider.platform === "openai-compatible"
+    || provider.platform === "custom"
+    || provider.platform === "memefast"
+    || provider.platform === "deepseek"
+    || provider.platform === "volcengine"
+    || provider.platform === "klingai"
+    || provider.platform === "vidu"
+    || provider.platform === "runninghub"
+    || provider.platform === "minimax"
+    || provider.platform === "tts-compatible"
+  ) {
+    return "openai-compatible";
+  }
+  return undefined;
 }
 
 export async function runTextCompletionRequest(

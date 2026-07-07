@@ -113,6 +113,7 @@ export function StudioView() {
                 onStageChange={viewModel.handleStageChange}
                 onNodeEdit={viewModel.openNodeEditor}
                 onNodeAction={viewModel.handleProductionNodeAction}
+                onOpenAssetImageWorkflow={viewModel.openAssetImageWorkflow}
               />
             </TabsContent>
 
@@ -120,7 +121,11 @@ export function StudioView() {
               value="imageWorkflow"
               className="m-0 min-h-0 flex-1 data-[state=active]:flex data-[state=inactive]:hidden"
             >
-              <ImageWorkflowCanvas projectName={viewModel.projectName} />
+              <ImageWorkflowCanvas
+                projectName={viewModel.projectName}
+                initialAssetContext={viewModel.assetImageWorkflowContext}
+                onBack={viewModel.closeAssetImageWorkflow}
+              />
             </TabsContent>
 
             <TabsContent value="workbench" className="m-0">

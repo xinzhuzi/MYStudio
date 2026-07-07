@@ -62,7 +62,6 @@ export function CinemaStudio() {
 
       const result = await aiManager.freedomImage({
         prompt: fullPrompt,
-        aspectRatio: '16:9',
       });
 
       setCinemaResult(result.url);

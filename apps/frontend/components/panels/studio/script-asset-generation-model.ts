@@ -68,12 +68,14 @@ export function summarizeImageRows(rows: AssetRow[]) {
 export function toGenerationTask(
   row: AssetRow,
   visualManualId: string,
+  projectId?: string | null,
 ): AssetGenerationTask | null {
   if (!row.asset || getRowImage(row)) return null;
   const existingPrompt = getRowPrompt(row);
   return {
     assetId: row.asset.id,
     assetType: row.type,
+    projectId: projectId ?? undefined,
     name: row.name,
     description: getRowDescription(row) || row.note || "",
     isDerivative:

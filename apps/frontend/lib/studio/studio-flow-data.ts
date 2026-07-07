@@ -104,7 +104,9 @@ export function buildStudioFlowData(
         track: item.trackKey,
         duration: item.duration,
         associateAssetsIds: item.assetIds,
-        shouldGenerateImage: !item.mediaRef || item.mediaRef.kind === "audio",
+        shouldGenerateImage:
+          item.shouldGenerateImage !== false &&
+          (!item.mediaRef || item.mediaRef.kind === "audio"),
         mediaPath:
           item.mediaRef &&
           item.mediaRef.kind !== "audio" &&

@@ -8,12 +8,14 @@
  */
 
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { createJSONStorage, persist } from 'zustand/middleware';
+import { createSplitStorage } from '@/lib/project-storage';
 
 // 道具项
 export interface PropItem {
   id: string;
   name: string;           // 道具名称（可编辑）
+  projectId?: string;
   /** 原始描述（来自实体提取） */
   description: string;
   /** 润色后的视觉提示词 */
@@ -23,6 +25,8 @@ export interface PropItem {
   /** 提示词错误信息 */
   promptError?: string;
   imageUrl: string;       // local-image://props/... 或远程URL
+  imageWorkflowId?: string;
+  imageWorkflowNodeId?: string;
   /** 参考图（base64，不持久化） */
   referenceImages?: string[];
   /** 是否衍生资产 */
@@ -41,6 +45,8 @@ export interface PropFolder {
   id: string;
   name: string;           // 目录名称
   parentId: string | null; // 预留嵌套扩展（当前UI仅用一级）
+  projectId?: string;
+  isAutoCreated?: boolean;
   createdAt: number;
 }
 
@@ -54,14 +60,16 @@ interface PropsLibraryState {
 interface PropsLibraryActions {
   // 道具操作
   addProp: (prop: Omit<PropItem, 'id' | 'createdAt'>) => PropItem;
+  updateProp: (id: string, updates: Partial<PropItem>) => void;
   renameProp: (id: string, name: string) => void;
   deleteProp: (id: string) => void;
   moveProp: (propId: string, folderId: string | null) => void;
 
   // 目录操作
-  addFolder: (name: string, parentId?: string | null) => PropFolder;
+  addFolder: (name: string, parentId?: string | null, projectId?: string) => PropFolder;
   renameFolder: (id: string, name: string) => void;
   deleteFolder: (id: string) => void; // 删除时子道具移至根目录
+  getOrCreateProjectFolder: (projectId: string, projectName: string) => string;
 
   // UI 状态
   setSelectedFolderId: (folderId: string | null | 'all') => void;
@@ -69,16 +77,63 @@ interface PropsLibraryActions {
   // 查询
   getPropsByFolder: (folderId: string | null | 'all') => PropItem[];
   getPropById: (id: string) => PropItem | undefined;
+  assignProjectToUnscoped: (projectId: string) => void;
+  reset: () => void;
 }
 
 type PropsLibraryStore = PropsLibraryState & PropsLibraryActions;
 
+type PropLibraryPersistedState = {
+  items: PropItem[];
+  folders: PropFolder[];
+  selectedFolderId: string | null | 'all';
+};
+
+const initialState: PropsLibraryState = {
+  items: [],
+  folders: [],
+  selectedFolderId: 'all',
+};
+
+export function splitPropLibraryDataForStorage(
+  state: PropLibraryPersistedState,
+  pid: string,
+) {
+  return {
+    projectData: {
+      items: state.items.filter((item) => item.projectId === pid),
+      folders: state.folders.filter((folder) => folder.projectId === pid),
+      selectedFolderId: state.selectedFolderId,
+    },
+    sharedData: {
+      items: state.items.filter((item) => !item.projectId),
+      folders: state.folders.filter((folder) => !folder.projectId),
+      selectedFolderId: 'all' as const,
+    },
+  };
+}
+
+export function mergePropLibraryDataForStorage(
+  projectData: PropLibraryPersistedState | null,
+  sharedData: PropLibraryPersistedState | null,
+): PropLibraryPersistedState {
+  return {
+    items: [
+      ...(sharedData?.items ?? []),
+      ...(projectData?.items ?? []),
+    ],
+    folders: [
+      ...(sharedData?.folders ?? []),
+      ...(projectData?.folders ?? []),
+    ],
+    selectedFolderId: projectData?.selectedFolderId ?? 'all',
+  };
+}
+
 export const usePropsLibraryStore = create<PropsLibraryStore>()(
   persist(
     (set, get) => ({
-      items: [],
-      folders: [],
-      selectedFolderId: 'all',
+      ...initialState,
 
       // ── 道具操作 ──────────────────────────────────────────────────────────
 
@@ -90,6 +145,16 @@ export const usePropsLibraryStore = create<PropsLibraryStore>()(
         };
         set((s) => ({ items: [newProp, ...s.items] }));
         return newProp;
+      },
+
+      updateProp: (id, updates) => {
+        set((s) => ({
+          items: s.items.map((item) =>
+            item.id === id
+              ? { ...item, ...updates, id: item.id, updatedAt: Date.now() }
+              : item
+          ),
+        }));
       },
 
       renameProp: (id, name) => {
@@ -114,11 +179,13 @@ export const usePropsLibraryStore = create<PropsLibraryStore>()(
 
       // ── 目录操作 ──────────────────────────────────────────────────────────
 
-      addFolder: (name, parentId = null) => {
+      addFolder: (name, parentId = null, projectId) => {
         const newFolder: PropFolder = {
           id: `folder_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
           name,
           parentId,
+          projectId,
+          isAutoCreated: !!projectId,
           createdAt: Date.now(),
         };
         set((s) => ({ folders: [...s.folders, newFolder] }));
@@ -146,6 +213,12 @@ export const usePropsLibraryStore = create<PropsLibraryStore>()(
         }));
       },
 
+      getOrCreateProjectFolder: (projectId, projectName) => {
+        const existing = get().folders.find((folder) => folder.projectId === projectId);
+        if (existing) return existing.id;
+        return get().addFolder(projectName, null, projectId).id;
+      },
+
       // ── UI 状态 ───────────────────────────────────────────────────────────
 
       setSelectedFolderId: (folderId) => {
@@ -163,15 +236,34 @@ export const usePropsLibraryStore = create<PropsLibraryStore>()(
       getPropById: (id) => {
         return get().items.find((item) => item.id === id);
       },
+
+      assignProjectToUnscoped: (projectId) => {
+        set((s) => ({
+          items: s.items.map((item) => item.projectId ? item : { ...item, projectId }),
+          folders: s.folders.map((folder) => folder.projectId ? folder : { ...folder, projectId }),
+        }));
+      },
+
+      reset: () => set(initialState),
     }),
     {
       name: 'mystudio-props-library',
+      storage: createJSONStorage(() => createSplitStorage<PropLibraryPersistedState>(
+        'props', splitPropLibraryDataForStorage, mergePropLibraryDataForStorage
+      )),
       partialize: (state) => ({
         items: state.items.map(item => ({
           ...item,
           referenceImages: undefined, // base64 不持久化
         })),
         folders: state.folders,
+        selectedFolderId: state.selectedFolderId,
+      }),
+      merge: (persisted: any, current: any) => ({
+        ...current,
+        items: persisted?.items ?? current.items,
+        folders: persisted?.folders ?? current.folders,
+        selectedFolderId: persisted?.selectedFolderId ?? current.selectedFolderId,
       }),
     }
   )

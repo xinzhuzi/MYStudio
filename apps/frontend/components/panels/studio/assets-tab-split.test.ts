@@ -19,4 +19,16 @@ describe("AssetsTab split boundaries", () => {
     expect(cardSource).toContain("创建缺失资产");
     expect(cardSource).toContain("剧本内容");
   });
+
+  it("does not list the independent asset library outside explicit management mode", () => {
+    const tabSource = readFileSync(
+      fileURLToPath(new URL("./AssetsTab.tsx", import.meta.url)),
+      "utf8",
+    );
+
+    expect(tabSource).toContain('mode?: "extract" | "manage"');
+    expect(tabSource).toContain('const mode = props.mode ?? "extract"');
+    expect(tabSource).toContain('if (mode !== "manage") return;');
+    expect(tabSource).toContain("sa.list({ type: t, limit: 99999 })");
+  });
 });

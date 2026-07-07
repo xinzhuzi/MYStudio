@@ -1,4 +1,5 @@
 import type {
+  ImageWorkflowTarget,
   ProductionTrack,
   StoryboardItem,
   VideoCandidate,
@@ -22,12 +23,14 @@ export interface ToonflowWorkbenchAssetMedia {
   id: string;
   name: string;
   fileType: ToonflowWorkbenchMediaType;
-  path: string;
+  path?: string;
   prompt?: string;
   parentAssetId?: string;
   parentAssetName?: string;
   state?: string;
   reason?: string;
+  imageWorkflowId?: string;
+  imageWorkflowTarget?: ImageWorkflowTarget;
 }
 
 export interface ToonflowWorkbenchVideo {
@@ -134,9 +137,8 @@ function toWorkbenchMedias(
   if (!storyboard) return [];
   const assetMedias = storyboard.assetIds
     .map((assetId) => assetMediaById[assetId])
-    .filter(
-      (asset): asset is ToonflowWorkbenchAssetMedia =>
-        Boolean(asset?.path && fileExists(asset.path)),
+    .filter((asset): asset is ToonflowWorkbenchAssetMedia & { path: string } =>
+      Boolean(asset?.path && fileExists(asset.path)),
     )
     .map((asset) => ({
       id: asset.id,

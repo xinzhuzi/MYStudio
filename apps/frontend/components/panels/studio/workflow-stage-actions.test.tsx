@@ -1,24 +1,46 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { AssetsTab } from "./AssetsTab";
 import { ScriptAssetManagementTab } from "./ScriptAssetManagementTab";
 import { ScriptAssetGenerationTab } from "./ScriptAssetGenerationTab";
 import { WorkbenchTab } from "./WorkbenchTab";
+import { collectDerivedAssetGenerationTasks, useProductionPlanningActions } from "./useProductionPlanningActions";
 import { useProjectStore } from "@/stores/project-store";
 import { useStudioStore } from "@/stores/studio-store";
 import { useCharacterLibraryStore } from "@/stores/character-library-store";
 import { usePropsLibraryStore } from "@/stores/props-library-store";
 import { useSceneStore } from "@/stores/scene-store";
 import { useTtsStore } from "@/stores/tts-store";
+import { useAppSettingsStore } from "@/stores/app-settings-store";
+import { useFreedomStore } from "@/stores/freedom-store";
 import {
   formatScriptPlanContext,
   resolveProductionEpisodeId,
   resolveScriptPlanEpisodeId,
   resolveScriptTextForEpisode,
 } from "./workflow-helpers";
+
+const assetOrchestratorMocks = vi.hoisted(() => ({
+  generateAsset: vi.fn(),
+}));
+
+const aiManagerMocks = vi.hoisted(() => ({
+  freedomImage: vi.fn(),
+}));
+
+vi.mock("@/lib/studio/asset-generation-orchestrator", () => ({
+  generateAsset: assetOrchestratorMocks.generateAsset,
+}));
+
+vi.mock("@/lib/ai/ai-manager", () => ({
+  aiManager: {
+    freedomImage: aiManagerMocks.freedomImage,
+    text: vi.fn(),
+  },
+}));
 
 (globalThis as any).ResizeObserver ??= class {
   observe() {}
@@ -34,8 +56,10 @@ import {
 
 afterEach(() => {
   cleanup();
+  vi.clearAllMocks();
   delete (window as any).studioAssets;
   delete (window as any).imageStorage;
+  delete (window as any).projectFiles;
 });
 
 describe("workflow stage action surfaces", () => {
@@ -117,6 +141,387 @@ describe("workflow stage action surfaces", () => {
     expect(context).toContain("雨夜湿衣");
   });
 
+  it("passes parent asset images and existing flow ids into derivative generation tasks", () => {
+    useCharacterLibraryStore.setState({
+      characters: [
+        {
+          id: "char-parent",
+          name: "独孤剑尘",
+          description: "父角色",
+          visualTraits: "",
+          thumbnailUrl: "project-file://dao/workflow-images/assets/char-parent.png",
+          views: [
+            {
+              viewType: "front",
+              imageUrl: "project-file://dao/workflow-images/assets/char-parent-front.png",
+              generatedAt: 1,
+            },
+          ],
+          variations: [
+            {
+              id: "char-derived",
+              name: "雨夜湿衣",
+              visualPrompt: "雨夜湿衣提示词",
+              imageWorkflowId: "flow-char-derived",
+            },
+          ],
+          createdAt: 1,
+          updatedAt: 1,
+        },
+      ],
+      folders: [],
+      currentFolderId: null,
+      selectedCharacterId: null,
+      generationStatus: "idle",
+      generationError: null,
+      generatingCharacterId: null,
+    });
+    useSceneStore.setState({
+      scenes: [
+        {
+          id: "scene-parent",
+          name: "道口镇",
+          location: "道口镇",
+          time: "夜",
+          atmosphere: "雨夜",
+          referenceImage: "project-file://dao/workflow-images/assets/scene-parent.png",
+          projectId: "dao-project",
+          createdAt: 1,
+          updatedAt: 1,
+        },
+        {
+          id: "scene-derived",
+          name: "道口镇",
+          location: "道口镇",
+          time: "夜",
+          atmosphere: "湿冷",
+          parentSceneId: "scene-parent",
+          viewpointName: "雨夜街口",
+          visualPrompt: "雨夜街口提示词",
+          imageWorkflowId: "flow-scene-derived",
+          projectId: "dao-project",
+          createdAt: 2,
+          updatedAt: 2,
+        },
+      ],
+      folders: [],
+      currentFolderId: null,
+      selectedSceneId: null,
+      generationStatus: "idle",
+      generationError: null,
+      generatingSceneId: null,
+      contactSheetTasks: {},
+    });
+    usePropsLibraryStore.setState({
+      items: [
+        {
+          id: "prop-parent",
+          name: "断剑",
+          description: "父道具",
+          imageUrl: "project-file://dao/workflow-images/assets/prop-parent.png",
+          folderId: null,
+          projectId: "dao-project",
+          createdAt: 1,
+        },
+        {
+          id: "prop-derived",
+          name: "断剑",
+          category: "雨夜湿剑",
+          description: "雨夜状态",
+          imageUrl: "",
+          folderId: null,
+          parentId: "prop-parent",
+          visualPrompt: "雨夜湿剑提示词",
+          imageWorkflowId: "flow-prop-derived",
+          projectId: "dao-project",
+          createdAt: 2,
+        },
+      ],
+      folders: [],
+      selectedFolderId: "all",
+    });
+
+    const tasks = collectDerivedAssetGenerationTasks(
+      [
+        { parentAssetId: "char-parent", state: "雨夜湿衣", reason: "雨夜镜头复用" },
+        { parentAssetId: "scene-parent", state: "雨夜街口", reason: "雨夜镜头复用" },
+        { parentAssetId: "prop-parent", state: "雨夜湿剑", reason: "特写复用" },
+      ],
+      (id) =>
+        id === "char-parent"
+          ? { kind: "character", id }
+          : id === "scene-parent"
+          ? { kind: "scene", id }
+          : id === "prop-parent"
+            ? { kind: "prop", id }
+            : null,
+      "manual-1",
+      "dao-project",
+    );
+
+    expect(tasks.characterVariationTasks).toEqual([
+      expect.objectContaining({
+        characterId: "char-parent",
+        variationId: "char-derived",
+        referenceImages: [
+          "project-file://dao/workflow-images/assets/char-parent.png",
+          "project-file://dao/workflow-images/assets/char-parent-front.png",
+        ],
+        imageWorkflowId: "flow-char-derived",
+      }),
+    ]);
+    expect(tasks.storeTasks).toEqual([
+      expect.objectContaining({
+        assetId: "scene-derived",
+        assetType: "scene",
+        referenceImages: ["project-file://dao/workflow-images/assets/scene-parent.png"],
+        imageWorkflowId: "flow-scene-derived",
+      }),
+      expect.objectContaining({
+        assetId: "prop-derived",
+        assetType: "prop",
+        referenceImages: ["project-file://dao/workflow-images/assets/prop-parent.png"],
+        imageWorkflowId: "flow-prop-derived",
+      }),
+    ]);
+  });
+
+  it("records storyboard image generation as an image workflow result, not only a media path", () => {
+    const source = readFileSync(
+      join(
+        process.cwd(),
+        "frontend/components/panels/studio/useProductionPlanningActions.ts",
+      ),
+      "utf8",
+    );
+    const start = source.indexOf("const handleGenerateStoryboardImages = useCallback");
+    const end = source.indexOf("const handleRebuildWorkbenchTracks", start);
+    const handler = source.slice(start, end);
+
+    expect(start).toBeGreaterThan(-1);
+    expect(end).toBeGreaterThan(start);
+    expect(handler).toContain("createStoryboardImageWorkflowGraph");
+    expect(handler).toContain("workflowStore.upsertImageWorkflow(graph)");
+    expect(handler).toContain("workflowStore.applyImageWorkflowResultToStoryboard");
+    expect(handler).not.toContain('mediaRef: { kind: "image", path: saved.url }');
+  });
+
+  it("keeps Toonflow storyboard image generation opt-out when collecting targets", () => {
+    const source = readFileSync(
+      join(
+        process.cwd(),
+        "frontend/components/panels/studio/useProductionPlanningActions.ts",
+      ),
+      "utf8",
+    );
+    const start = source.indexOf("function collectStoryboardsNeedingImages");
+    const end = source.indexOf("function buildStoryboardImagePrompt", start);
+    const collector = source.slice(start, end);
+
+    expect(start).toBeGreaterThan(-1);
+    expect(end).toBeGreaterThan(start);
+    expect(collector).toContain("item.shouldGenerateImage !== false");
+  });
+
+  it("generates storyboard images with ordered asset reference images in the current project", async () => {
+    const project = { id: "dao-project", name: "道劫", createdAt: 1, updatedAt: 1 };
+    useProjectStore.setState({
+      projects: [project],
+      activeProjectId: project.id,
+      activeProject: project,
+    });
+    useAppSettingsStore.setState({
+      imageGenerationSettings: {
+        defaultAspectRatio: "16:9",
+        defaultResolution: "2K",
+        compatibilityRetryEnabled: true,
+        compatibilityRetryAspectRatio: "1:1",
+        compatibilityRetryResolution: "1K",
+      },
+    });
+    useFreedomStore.setState({
+      selectedImageModel: "gpt-image-2",
+      imageAspectRatio: "9:16",
+      imageResolution: "1K",
+    });
+    useCharacterLibraryStore.setState({
+      characters: [
+        {
+          id: "char-1",
+          name: "独孤剑尘",
+          description: "主角",
+          visualTraits: "black robe",
+          projectId: project.id,
+          thumbnailUrl: "project-file://dao/assets/char-thumb.png",
+          variations: [
+            {
+              id: "char-1-rain",
+              name: "雨夜湿衣",
+              visualPrompt: "wet robe",
+              referenceImage: "project-file://dao/assets/char-rain.png",
+            },
+          ],
+          views: [
+            {
+              viewType: "front",
+              imageUrl: "https://cdn.test/char-front.png",
+              generatedAt: 1,
+            },
+          ],
+          createdAt: 1,
+          updatedAt: 1,
+        },
+      ],
+    });
+    useSceneStore.setState({
+      scenes: [
+        {
+          id: "scene-1",
+          name: "悦来客栈",
+          location: "客栈",
+          time: "夜",
+          atmosphere: "雨夜",
+          projectId: project.id,
+          referenceImage: "project-file://dao/assets/scene.png",
+          createdAt: 1,
+          updatedAt: 1,
+        },
+      ],
+    });
+    usePropsLibraryStore.setState({
+      items: [
+        {
+          id: "prop-1",
+          name: "归元断剑",
+          description: "断剑",
+          imageUrl: "https://cdn.test/prop.png",
+          projectId: project.id,
+          folderId: null,
+          createdAt: 1,
+        },
+      ],
+    });
+    useStudioStore.setState({
+      materials: [],
+      imageWorkflows: [],
+      agentWorkData: [],
+      workflowConfig: { visualManualId: "manual-1" },
+      storyboards: [
+        {
+          id: "shot-1",
+          episodeId: "episode-1",
+          index: 1,
+          trackKey: "track-1",
+          trackId: "",
+          duration: 4,
+          prompt: "雨夜低机位推进",
+          videoDesc: "独孤剑尘走进客栈",
+          assetIds: ["char-1", "scene-1", "prop-1"],
+          state: "idle",
+        },
+        {
+          id: "shot-skip",
+          episodeId: "episode-1",
+          index: 2,
+          trackKey: "track-1",
+          trackId: "",
+          duration: 4,
+          prompt: "仅声音过场",
+          videoDesc: "黑场听雨",
+          assetIds: ["char-1"],
+          shouldGenerateImage: false,
+          state: "idle",
+        },
+      ],
+    });
+    (window as any).projectFiles = {
+      readAsBase64: vi.fn(async (url: string) => ({
+        success: true,
+        base64: `data:image/png;base64,${url.split("/").pop()?.replace(".png", "").toUpperCase()}`,
+      })),
+      saveImage: vi.fn(async () => ({
+        success: true,
+        url: "project-file://dao-project/workflow-images/storyboards/episode-1/shot-001.png",
+        size: 123,
+      })),
+    };
+    (window as any).studioAssets = {
+      add: vi.fn(),
+      addImage: vi.fn(),
+      saveMaterial: vi.fn(),
+    };
+    aiManagerMocks.freedomImage.mockResolvedValue({
+      url: "https://model.test/generated-shot.png",
+    });
+
+    const { result } = renderHook(() =>
+      useProductionPlanningActions({
+        activeProjectId: project.id,
+        productionEpisodeId: "episode-1",
+        manualCatalog: {
+          visual: [
+            {
+              id: "manual-1",
+              kind: "visual",
+              name: "水墨手册",
+              modules: { README: "水墨", prefix: "国风", art_storyboard_video: "横版分镜" },
+              images: [],
+              builtin: true,
+              source: "bundled",
+              completenessScore: 1,
+              moduleCount: 3,
+              imageCount: 0,
+            },
+          ],
+        },
+        handleStageChange: vi.fn(),
+        saveAgentWorkData: useStudioStore.getState().saveAgentWorkData,
+        saveScriptPlan: vi.fn(),
+        saveSeriesBible: vi.fn(),
+      }),
+    );
+
+    await act(async () => {
+      await result.current.handleProductionNodeAction({
+        id: "generate-storyboard-images",
+        targetStage: "storyboard",
+        userInstruction: "保持角色和场景连续",
+      });
+    });
+
+    expect(aiManagerMocks.freedomImage).toHaveBeenCalledTimes(1);
+    expect(aiManagerMocks.freedomImage).toHaveBeenCalledWith(expect.objectContaining({
+      model: "gpt-image-2",
+      aspectRatio: "16:9",
+      resolution: "2K",
+      referenceImages: [
+        "data:image/png;base64,CHAR-THUMB",
+        "data:image/png;base64,CHAR-RAIN",
+        "https://cdn.test/char-front.png",
+        "data:image/png;base64,SCENE",
+        "https://cdn.test/prop.png",
+      ],
+    }));
+    expect(window.projectFiles?.saveImage).toHaveBeenCalledWith(expect.objectContaining({
+      projectId: project.id,
+      relativePath: expect.stringMatching(/^workflow-images\/storyboards\/episode-1\/shot-001-shot-1-/),
+      source: "https://model.test/generated-shot.png",
+    }));
+    expect(window.studioAssets?.add).not.toHaveBeenCalled();
+    expect(window.studioAssets?.addImage).not.toHaveBeenCalled();
+    expect(window.studioAssets?.saveMaterial).not.toHaveBeenCalled();
+    expect(useStudioStore.getState().storyboards.find((item) => item.id === "shot-1")).toMatchObject({
+      state: "ready",
+      mediaRef: {
+        kind: "image",
+        path: "project-file://dao-project/workflow-images/storyboards/episode-1/shot-001.png",
+      },
+    });
+    const skippedStoryboard = useStudioStore.getState().storyboards.find((item) => item.id === "shot-skip");
+    expect(skippedStoryboard).toMatchObject({ state: "idle" });
+    expect(skippedStoryboard?.mediaRef).toBeUndefined();
+  });
+
   it("routes script asset management to extraction first and manual generation second", () => {
     const indexSource = readFileSync(
       join(
@@ -165,11 +570,13 @@ describe("workflow stage action surfaces", () => {
     expect(moduleSource).toContain("道具");
     expect(moduleSource).toContain("参考音频");
     expect(moduleSource).toContain("自动分配音频");
-    expect(moduleSource).toContain("全部润色提示词");
+    expect(moduleSource).not.toContain("全部润色提示词");
+    expect(moduleSource).not.toContain("生成图片 (");
+    expect(moduleSource).not.toContain("缺少{typeLabel(activeType)}资产");
     expect(moduleSource).toContain("useScriptAssetGenerationActions");
     expect(moduleSource).not.toContain("batchGenerateAssets");
     expect(moduleSource).not.toContain("polishAssetsAndUpdateStore");
-    expect(moduleSource).toContain("onClick={handleGenerateImages}");
+    expect(moduleSource).not.toContain("onClick={handleGenerateImages}");
     expect(moduleSource).toContain('from "./ScriptAssetGenerationRow"');
     expect(moduleSource).toContain('from "./script-asset-generation-model"');
     expect(moduleSource).toContain('from "./useScriptAssetGenerationData"');
@@ -323,6 +730,55 @@ describe("workflow stage action surfaces", () => {
     expect(screen.getByText("剧本内容")).toBeTruthy();
   });
 
+  it("does not initialize the independent asset library while rendering workflow extraction assets", async () => {
+    const list = vi.fn(async () => ({ items: [] }));
+    (window as any).studioAssets = { list };
+
+    render(
+      <AssetsTab
+        novelChapters={[]}
+        agentWorkData={[]}
+        entityExtractions={[
+          {
+            id: "extract-1",
+            episodeId: "chapter-001",
+            characters: [{ characterId: "char-1", name: "独孤剑尘", aliases: [] }],
+            scenes: [{ sceneId: "scene-1", name: "道口镇" }],
+            props: [{ assetId: "prop-1", name: "断剑" }],
+          },
+        ]}
+        extractAssets={vi.fn()}
+        updateExtraction={vi.fn()}
+        setHeaderActions={vi.fn()}
+      />,
+    );
+
+    await Promise.resolve();
+    expect(list).not.toHaveBeenCalled();
+  });
+
+  it("allows explicit asset-library management mode to list asset center records", async () => {
+    const list = vi.fn(async () => ({ items: [] }));
+    (window as any).studioAssets = { list };
+
+    render(
+      <AssetsTab
+        mode="manage"
+        novelChapters={[]}
+        agentWorkData={[]}
+        entityExtractions={[]}
+        extractAssets={vi.fn()}
+        updateExtraction={vi.fn()}
+        setHeaderActions={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => expect(list).toHaveBeenCalledTimes(3));
+    expect(list).toHaveBeenCalledWith({ type: "role", limit: 99999 });
+    expect(list).toHaveBeenCalledWith({ type: "scene", limit: 99999 });
+    expect(list).toHaveBeenCalledWith({ type: "tool", limit: 99999 });
+  });
+
   it("renders script asset generation voice actions inside the asset management stage", () => {
     useStudioStore.getState().resetStudioWorkflow();
     useCharacterLibraryStore.getState().reset();
@@ -425,15 +881,13 @@ describe("workflow stage action surfaces", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: /场景/ }));
-    expect(screen.getByText("缺少场景资产 1")).toBeTruthy();
-    expect(screen.getByText("缺少场景资产")).toBeTruthy();
+    expect(screen.getByText((_, element) => element?.textContent === "缺少场景资产")).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: /道具/ }));
-    expect(screen.getByText("缺少道具资产 1")).toBeTruthy();
-    expect(screen.getByText("缺少道具资产")).toBeTruthy();
+    expect(screen.getByText((_, element) => element?.textContent === "缺少道具资产")).toBeTruthy();
   });
 
-  it("reuses matched scene and prop assets from the studio asset library", async () => {
+  it("keeps workflow asset generation project-scoped instead of auto-matching the independent asset library", async () => {
     useStudioStore.getState().resetStudioWorkflow();
     useCharacterLibraryStore.getState().reset();
     useSceneStore.getState().reset();
@@ -468,37 +922,8 @@ describe("workflow stage action surfaces", () => {
         },
       ],
     });
-    (window as any).studioAssets = {
-      batchMatch: vi.fn(async ({ type, names }: { type: string; names: string[] }) =>
-        names.map((name) => ({
-          name,
-          asset:
-            type === "scene"
-              ? {
-                  id: "asset-scene-1",
-                  source: "manying-local",
-                  type: "scene",
-                  name: "悦来客栈",
-                  description: "已有客栈场景",
-                  thumbnailUrl: "file:///tmp/scene.png",
-                  previewUrl: "file:///tmp/scene.png",
-                  filePath: "scene/scene.png",
-                }
-              : type === "tool"
-                ? {
-                    id: "asset-tool-1",
-                    source: "manying-local",
-                    type: "tool",
-                    name: "铜钱;绿锈铜钱",
-                    description: "已有铜钱道具",
-                    thumbnailUrl: "file:///tmp/coin.png",
-                    previewUrl: "file:///tmp/coin.png",
-                    filePath: "tool/coin.png",
-                  }
-                : null,
-        })),
-      ),
-    };
+    const batchMatch = vi.fn(async () => []);
+    (window as any).studioAssets = { batchMatch };
 
     render(
       <ScriptAssetGenerationTab
@@ -509,15 +934,11 @@ describe("workflow stage action surfaces", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: /场景/ }));
-    await waitFor(() => expect(screen.getByText("资产库已存在")).toBeTruthy());
-    expect(screen.queryByText("缺少场景资产")).toBeNull();
-    expect(screen.getByText("已有客栈场景")).toBeTruthy();
+    expect(await screen.findByText((_, element) => element?.textContent === "缺少场景资产")).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: /道具/ }));
-    await waitFor(() => expect(screen.getByText("已有铜钱道具")).toBeTruthy());
-    expect(screen.queryByText("缺少道具资产")).toBeNull();
-    expect(screen.queryByRole("button", { name: "放入资产库" })).toBeNull();
-    expect(screen.getByText("资产库已存在")).toBeTruthy();
+    expect(await screen.findByText((_, element) => element?.textContent === "缺少道具资产")).toBeTruthy();
+    expect(batchMatch).not.toHaveBeenCalled();
   });
 
   it("shows a store-in-asset-library action only when the script asset is missing from the asset library", async () => {
@@ -620,7 +1041,7 @@ describe("workflow stage action surfaces", () => {
     expect(screen.getByText("资产库已存在")).toBeTruthy();
   });
 
-  it("updates the missing asset count after storing an extracted script asset in the asset library", async () => {
+  it("keeps instant generation project-scoped instead of auto-storing in the asset library", async () => {
     useStudioStore.getState().resetStudioWorkflow();
     useCharacterLibraryStore.getState().reset();
     useSceneStore.getState().reset();
@@ -671,14 +1092,111 @@ describe("workflow stage action surfaces", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: /场景/ }));
-    expect(await screen.findByText("缺少场景资产 1")).toBeTruthy();
+    expect(await screen.findByText((_, element) => element?.textContent === "缺少场景资产")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "放入资产库" }));
 
-    await waitFor(() => expect(screen.queryByText("缺少场景资产 1")).toBeNull());
+    await waitFor(() =>
+      expect(screen.queryByText((_, element) => element?.textContent === "缺少场景资产")).toBeNull(),
+    );
     expect(screen.getByText("资产库已存在")).toBeTruthy();
   });
 
-  it("recognizes role voice bindings written with the asset-library role id", async () => {
+  it("generates a missing extracted scene with a real local scene id before storing it in the asset library", async () => {
+    useStudioStore.getState().resetStudioWorkflow();
+    useCharacterLibraryStore.getState().reset();
+    useSceneStore.getState().reset();
+    usePropsLibraryStore.setState({
+      items: [],
+      folders: [],
+      selectedFolderId: "all",
+    });
+    useProjectStore.setState({
+      activeProjectId: "default-project",
+      activeProject: {
+        id: "default-project",
+        name: "漫影工作室项目",
+        createdAt: 1,
+        updatedAt: 1,
+      },
+    });
+    useStudioStore.setState({
+      workflowConfig: { visualManualId: "manual-1" },
+      entityExtractions: [
+        {
+          id: "extract-1",
+          episodeId: "chapter-001",
+          characters: [],
+          scenes: [
+            {
+              sceneId: "scene-extracted-1",
+              name: "悦来客栈斗室",
+              note: "昏暗狭窄的客栈斗室",
+            },
+          ],
+          props: [],
+        },
+      ],
+    });
+    (window as any).imageStorage = {
+      getAbsolutePath: vi.fn(async () => "/tmp/yuelai.png"),
+    };
+    (window as any).studioAssets = {
+      batchMatch: vi.fn(async () => []),
+      getByName: vi.fn(async () => null),
+      add: vi.fn(async () => ({
+        id: "asset-scene-created",
+        source: "manying-local",
+        type: "scene",
+        name: "悦来客栈斗室",
+        description: "悦来客栈斗室",
+        filePath: "scene/yuelai.png",
+      })),
+    };
+    assetOrchestratorMocks.generateAsset.mockImplementation(async (task) => {
+      useSceneStore.getState().updateScene(task.assetId, {
+        visualPrompt: "悦来客栈斗室视觉提示词",
+        promptState: "ready",
+        referenceImage: "local-image://scenes/yuelai.png",
+      });
+      return {
+        phase: "done",
+        imageLocalPath: "local-image://scenes/yuelai.png",
+      };
+    });
+
+    render(
+      <ScriptAssetGenerationTab
+        productionEpisodeId="chapter-001"
+        scriptPlanCount={0}
+        hasSeriesBible={false}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /场景/ }));
+    fireEvent.click(await screen.findByRole("button", { name: "打开资产 悦来客栈斗室" }));
+    expect(await screen.findByText("资产未找到")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "立即生成" }));
+
+    await waitFor(() => expect(assetOrchestratorMocks.generateAsset).toHaveBeenCalled());
+    const createdScene = useSceneStore
+      .getState()
+      .scenes.find((scene) => scene.name === "悦来客栈斗室");
+    expect(createdScene).toBeTruthy();
+    expect(assetOrchestratorMocks.generateAsset).toHaveBeenCalledWith(
+      expect.objectContaining({
+        assetId: createdScene?.id,
+        assetType: "scene",
+        projectId: "default-project",
+        name: "悦来客栈斗室",
+        description: "昏暗狭窄的客栈斗室",
+        visualManualId: "manual-1",
+      }),
+    );
+    expect((window as any).studioAssets.add).not.toHaveBeenCalled();
+    expect(screen.queryByText("资产库已存在")).toBeNull();
+  });
+
+  it("does not auto-resolve role voice bindings through independent asset-library ids", async () => {
     useStudioStore.getState().resetStudioWorkflow();
     useCharacterLibraryStore.getState().reset();
     const localCharacterId = useCharacterLibraryStore.getState().addCharacter({
@@ -745,19 +1263,8 @@ describe("workflow stage action surfaces", () => {
         },
       ],
     });
-    (window as any).studioAssets = {
-      batchMatch: vi.fn(async () => [
-        {
-          name: "独孤剑尘",
-          asset: {
-            id: "asset-role-1",
-            source: "manying-local",
-            type: "role",
-            name: "独孤剑尘",
-          },
-        },
-      ]),
-    };
+    const batchMatch = vi.fn(async () => []);
+    (window as any).studioAssets = { batchMatch };
 
     render(
       <ScriptAssetGenerationTab
@@ -767,12 +1274,12 @@ describe("workflow stage action surfaces", () => {
       />,
     );
 
-    await waitFor(() => expect(screen.getByText("参考音频 1/1")).toBeTruthy());
-    expect(screen.getByText("参考音频")).toBeTruthy();
-    expect(screen.queryByText("未分配音色")).toBeNull();
+    expect(await screen.findByText("未分配音色")).toBeTruthy();
+    expect(screen.queryByText("参考音频")).toBeNull();
+    expect(batchMatch).not.toHaveBeenCalled();
   });
 
-  it("marks an asset-library role id binding with a missing profile as broken", async () => {
+  it("does not mark independent asset-library role id bindings as workflow voice errors", async () => {
     useStudioStore.getState().resetStudioWorkflow();
     useCharacterLibraryStore.getState().reset();
     const localCharacterId = useCharacterLibraryStore.getState().addCharacter({
@@ -826,19 +1333,8 @@ describe("workflow stage action surfaces", () => {
         },
       ],
     });
-    (window as any).studioAssets = {
-      batchMatch: vi.fn(async () => [
-        {
-          name: "独孤剑尘",
-          asset: {
-            id: "asset-role-1",
-            source: "manying-local",
-            type: "role",
-            name: "独孤剑尘",
-          },
-        },
-      ]),
-    };
+    const batchMatch = vi.fn(async () => []);
+    (window as any).studioAssets = { batchMatch };
 
     render(
       <ScriptAssetGenerationTab
@@ -848,9 +1344,64 @@ describe("workflow stage action surfaces", () => {
       />,
     );
 
-    await waitFor(() => expect(screen.getByText("音色异常")).toBeTruthy());
-    expect(screen.queryByText("未分配音色")).toBeNull();
+    expect(await screen.findByText("未分配音色")).toBeTruthy();
+    expect(screen.queryByText("音色异常")).toBeNull();
     expect(screen.queryByRole("button", { name: /试听音色/ })).toBeNull();
+    expect(batchMatch).not.toHaveBeenCalled();
+  });
+
+  it("keeps voice badges stable when the active TTS project has not been created yet", async () => {
+    useStudioStore.getState().resetStudioWorkflow();
+    useCharacterLibraryStore.getState().reset();
+    const localCharacterId = useCharacterLibraryStore.getState().addCharacter({
+      name: "独孤剑尘",
+      description: "冷静克制",
+      visualTraits: "",
+      views: [],
+    });
+    useProjectStore.setState({
+      activeProjectId: "daojie-project",
+      activeProject: {
+        id: "daojie-project",
+        name: "道劫",
+        createdAt: 1,
+        updatedAt: 1,
+      },
+    });
+    useTtsStore.setState({
+      activeProjectId: "daojie-project",
+      projects: {},
+      voiceProfiles: {},
+    });
+    useStudioStore.setState({
+      workflowConfig: { visualManualId: "manual-1" },
+      entityExtractions: [
+        {
+          id: "extract-1",
+          episodeId: "chapter-001",
+          characters: [
+            {
+              characterId: localCharacterId,
+              name: "独孤剑尘",
+              aliases: [],
+              note: "性别：男。年龄：青年。冷静克制。",
+            },
+          ],
+          scenes: [],
+          props: [],
+        },
+      ],
+    });
+
+    render(
+      <ScriptAssetGenerationTab
+        productionEpisodeId="chapter-001"
+        scriptPlanCount={0}
+        hasSeriesBible={false}
+      />,
+    );
+
+    expect(await screen.findByText("未分配音色")).toBeTruthy();
   });
 
   it("distinguishes a broken voice binding from an unassigned voice", () => {

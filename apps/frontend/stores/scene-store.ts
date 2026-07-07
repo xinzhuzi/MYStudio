@@ -34,6 +34,8 @@ export interface Scene {
   projectId?: string;     // Associated project (optional)
   visualPrompt?: string;  // 完整的视觉提示词
   referenceImage?: string; // 生成的场景概念图 URL
+  imageWorkflowId?: string;
+  imageWorkflowNodeId?: string;
   referenceImageBase64?: string; // Base64 for persistence
   styleId?: string;       // Visual style preset ID
   folderId?: string | null; // Folder ID for organization

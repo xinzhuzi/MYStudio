@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { execFileSync, spawn } from "node:child_process";
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -11,6 +12,7 @@ import {
   importFromToonflow,
   initAssetsStorage,
   listAssets,
+  replaceAssetMainImage,
   resolveAssetManagedPath,
   shouldCreateAssetThumbnail,
 } from "./studio-assets-storage";
@@ -67,7 +69,122 @@ describe("asset file safety", () => {
     expect(() => resolveAssetManagedPath("/assets/files", "../outside.png")).toThrow("escapes");
     expect(resolveAssetManagedPath("/assets/files", "audio/voice.wav")).toBe("/assets/files/audio/voice.wav");
   });
+
+  it("does not expose escaped database file paths as asset preview URLs", async () => {
+    initTempAssetsStorage();
+    const source = join(tempAssetRoot!, "source.png");
+    writeFileSync(source, "image");
+    const asset = addAsset({
+      type: "role",
+      name: "坏路径角色",
+      sourceFilePath: source,
+    });
+    execFileSync("python3", [
+      "-c",
+      [
+        "import sqlite3, sys, json",
+        "conn = sqlite3.connect(sys.argv[1])",
+        "conn.execute('UPDATE assets SET filePath=?, images=? WHERE id=?', ('../outside.png', json.dumps([{'name':'bad','filePath':'../outside-detail.png'}]), sys.argv[2]))",
+        "conn.commit()",
+        "conn.close()",
+      ].join("; "),
+      join(tempAssetRoot!, "assets", "assets.db"),
+      asset.id,
+    ]);
+
+    const listed = await listAssets("role", "坏路径角色");
+    expect(listed.items[0]?.previewUrl).toBeUndefined();
+    expect(listed.items[0]?.sourcePath).toBeUndefined();
+
+    const detail = await getAsset(asset.id);
+    expect(detail?.previewUrl).toBeUndefined();
+    expect(detail?.sourcePath).toBeUndefined();
+    expect(detail?.images).toEqual([]);
+  });
+
+  it("retries replacing the main image while the asset database is briefly locked", async () => {
+    initTempAssetsStorage();
+    const firstSource = join(tempAssetRoot!, "old.png");
+    const nextSource = join(tempAssetRoot!, "next.png");
+    writeFileSync(firstSource, "old image");
+    writeFileSync(nextSource, "next image");
+    const asset = addAsset({
+      type: "role",
+      name: "锁测试角色",
+      sourceFilePath: firstSource,
+    });
+    expect(asset.sourcePath).toBeTruthy();
+    const oldStoredPath = asset.sourcePath!;
+
+    const lockProcess = spawn("python3", [
+      "-c",
+      [
+        "import sqlite3, sys, time",
+        "conn = sqlite3.connect(sys.argv[1], timeout=5)",
+        "conn.execute('BEGIN EXCLUSIVE')",
+        "conn.execute('UPDATE assets SET updatedAt=updatedAt WHERE id=?', (sys.argv[2],))",
+        "print('READY', flush=True)",
+        "time.sleep(0.6)",
+        "conn.commit()",
+        "conn.close()",
+      ].join("; "),
+      join(tempAssetRoot!, "assets", "assets.db"),
+      asset.id,
+    ]);
+    await waitForProcessOutput(lockProcess, "READY");
+
+    const lockExit = waitForProcessExit(lockProcess);
+    const updated = replaceAssetMainImage(asset.id, nextSource);
+    const exitCode = await lockExit;
+
+    expect(exitCode).toBe(0);
+    expect(updated?.filePath).toBeTruthy();
+    expect(updated?.sourcePath).toBeTruthy();
+    expect(updated?.sourcePath).not.toBe(oldStoredPath);
+    expect(existsSync(updated!.sourcePath!)).toBe(true);
+    expect(existsSync(oldStoredPath)).toBe(false);
+  });
 });
+
+function waitForProcessOutput(proc: ReturnType<typeof spawn>, text: string) {
+  return new Promise<void>((resolve, reject) => {
+    if (!proc.stdout || !proc.stderr) {
+      reject(new Error("Process stdio is unavailable"));
+      return;
+    }
+    let output = "";
+    const timeout = setTimeout(() => {
+      reject(new Error(`Timed out waiting for ${text}. Output: ${output}`));
+    }, 3000);
+    proc.stdout.on("data", (chunk) => {
+      output += chunk.toString();
+      if (output.includes(text)) {
+        clearTimeout(timeout);
+        resolve();
+      }
+    });
+    proc.stderr.on("data", (chunk) => {
+      output += chunk.toString();
+    });
+    proc.on("error", (error) => {
+      clearTimeout(timeout);
+      reject(error);
+    });
+    proc.on("exit", (code) => {
+      if (!output.includes(text)) {
+        clearTimeout(timeout);
+        reject(new Error(`Process exited before ${text}; code=${code}; output=${output}`));
+      }
+    });
+  });
+}
+
+function waitForProcessExit(proc: ReturnType<typeof spawn>) {
+  return new Promise<number | null>((resolve, reject) => {
+    proc.on("error", reject);
+    proc.on("exit", resolve);
+  });
+}
 
 describe("asset alias matching", () => {
   it("matches assets by semicolon-separated secondary names", async () => {
@@ -114,12 +231,20 @@ describe("asset alias matching", () => {
 
   it("does not treat an empty name-only shell row as an existing asset", async () => {
     initTempAssetsStorage();
-    addAsset({
+    const shell = addAsset({
       type: "tool",
       name: "灵矿账册",
     });
 
     await expect(getAssetByName("tool", "灵矿账册")).resolves.toBeNull();
+    await expect(getAsset(shell.id)).resolves.toMatchObject({
+      id: shell.id,
+      name: "灵矿账册",
+    });
+
+    const assets = await listAssets("tool", "灵矿账册", 0, 10);
+    expect(assets.items).toHaveLength(0);
+    expect(assets.total).toBe(0);
 
     const matches = await batchMatchAssets("tool", ["灵矿账册"]);
 
@@ -163,5 +288,38 @@ describe("asset alias matching", () => {
 
     const assets = await listAssets("tool", "铜钱", 0, 10);
     expect(assets.items.filter((item) => item.name === "铜钱")).toHaveLength(1);
+  });
+
+  it("backfills an exact empty local asset shell instead of creating a duplicate", async () => {
+    initTempAssetsStorage();
+    const existing = addAsset({
+      type: "tool",
+      name: "灵矿藤筐",
+    });
+    const sourceFile = join(tempAssetRoot!, "basket.png");
+    writeFileSync(sourceFile, "fake image");
+
+    const updated = addAsset({
+      type: "tool",
+      name: "灵矿藤筐",
+      description: "矿场藤筐",
+      prompt: "水墨国风道具设定图",
+      setting: "采矿道具",
+      sourceFilePath: sourceFile,
+    });
+
+    expect(updated.id).toBe(existing.id);
+    await expect(getAsset(existing.id)).resolves.toMatchObject({
+      id: existing.id,
+      description: "矿场藤筐",
+      prompt: "水墨国风道具设定图",
+      setting: "采矿道具",
+    });
+    const refreshed = await getAsset(existing.id);
+    expect(refreshed?.filePath).toMatch(/^tool\//);
+    expect(refreshed?.sourcePath).toBeTruthy();
+
+    const assets = await listAssets("tool", "灵矿藤筐", 0, 10);
+    expect(assets.items.filter((item) => item.name === "灵矿藤筐")).toHaveLength(1);
   });
 });

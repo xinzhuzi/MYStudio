@@ -43,4 +43,13 @@ describe("API provider presets", () => {
     ]));
     expect(preset?.models).toEqual(expect.arrayContaining(["tts-1", "gpt-4o-mini-tts"]));
   });
+
+  it("pins compatible provider presets to their runtime protocol", () => {
+    expect(API_PROVIDER_PRESETS.find((item) => item.platform === "openai-compatible")?.apiProtocol)
+      .toBe("openai-compatible");
+    expect(API_PROVIDER_PRESETS.find((item) => item.platform === "anthropic-compatible")?.apiProtocol)
+      .toBe("anthropic-compatible");
+    expect(API_PROVIDER_PRESETS.find((item) => item.platform === "gemini-compatible")?.apiProtocol)
+      .toBe("gemini-compatible");
+  });
 });

@@ -14,12 +14,24 @@ import {
   getFeatureNotConfiguredMessage,
   type FeatureConfig,
 } from '@/lib/ai/feature-router';
+import {
+  buildOpenAIImageRequestBody,
+  buildProviderExtensionImageRequestBody,
+  extractImageGenerationResult,
+  isGptImageModel,
+  normalizeImagePromptForGeneration,
+  sdkGenerateImage,
+} from '@/lib/ai/ai-sdk-bridge';
+import { createOperationId, logEvent } from '@/lib/diagnostics/logger';
+import { observedFetch, type ObservedFetchMeta } from '@/lib/diagnostics/network';
 import { resolveImageApiFormat } from '@/lib/api-key-manager';
 import { uploadBase64Image } from '@/lib/utils/image-upload';
 import { isVeoModel, resolveVeoUploadCapability } from '@/lib/freedom/veo-capability';
 import { type AIFeature, useAPIConfigStore } from '@/stores/api-config-store';
+import { useAppSettingsStore } from '@/stores/app-settings-store';
 import { useMediaStore } from '@/stores/media-store';
 import { useProjectStore } from '@/stores/project-store';
+import { DEFAULT_IMAGE_ASPECT_RATIO, getImageSizeLabel } from '@/lib/ai/image-size-presets';
 import { toast } from 'sonner';
 
 // ==================== Types ====================
@@ -67,10 +79,39 @@ const IMAGE_POLL_INTERVAL = 2000;
 const IMAGE_POLL_MAX_ATTEMPTS = 60;
 const VIDEO_POLL_INTERVAL = 2000;
 const VIDEO_POLL_MAX_ATTEMPTS = 120;
+const IMAGE_COMPATIBILITY_PROMPT_LIMIT = 180;
 
 // Retry config
 const RETRY_MAX_ATTEMPTS = 3;
 const RETRY_BASE_DELAY = 3000;
+
+function inferFreedomEndpointFamily(input: RequestInfo | URL) {
+  const raw = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
+  try {
+    const parsed = new URL(raw, 'http://local');
+    const path = parsed.pathname.toLowerCase();
+    if (path.includes('chat/completions')) return 'freedom-chat-completions';
+    if (path.includes('image') || path.includes('mj/') || path.includes('replicate')) return 'freedom-image';
+    if (path.includes('video') || path.includes('generations') || path.includes('tasks')) return 'freedom-video';
+    if (path.includes('upload')) return 'freedom-upload';
+  } catch {
+    // data URLs and relative proxy URLs still get a generic family.
+  }
+  return 'freedom-network';
+}
+
+function freedomObservedFetch(
+  input: RequestInfo | URL,
+  init?: RequestInit,
+  meta?: Partial<ObservedFetchMeta>,
+) {
+  const { endpointFamily, ...restMeta } = meta ?? {};
+  return observedFetch(input, init, {
+    operationId: createOperationId('freedom-http'),
+    endpointFamily: endpointFamily ?? inferFreedomEndpointFamily(input),
+    ...restMeta,
+      });
+}
 
 // ==================== Retry Logic ====================
 
@@ -92,6 +133,13 @@ function isRetryableError(error: unknown): boolean {
     message.includes('529') ||
     message.includes('rate') ||
     message.includes('quota') ||
+    message.includes('insufficient_user_quota') ||
+    message.includes('额度不足') ||
+    message.includes('余额不足') ||
+    message.includes('未配置订阅') ||
+    message.includes('invalid token') ||
+    message.includes('unauthorized') ||
+    message.includes('api key') ||
     message.includes('too many requests') ||
     message.includes('service unavailable') ||
     message.includes('temporarily unavailable') ||
@@ -107,6 +155,47 @@ function isRetryableError(error: unknown): boolean {
     message.includes('no available channel') ||
     message.includes('server error')
   );
+}
+
+function shouldRetryImageCompatibility(result: { error?: string; status?: number }) {
+  if (typeof result.status === 'number') {
+    return [408, 502, 503, 504, 520, 522, 524].includes(result.status);
+  }
+
+  const message = (result.error || '').toLowerCase();
+  return (
+    message.includes('fetch failed') ||
+    message.includes('failed to fetch') ||
+    message.includes('socket') ||
+    message.includes('timeout') ||
+    message.includes('timed out') ||
+    message.includes('api 请求超时') ||
+    message.includes('network') ||
+    message.includes('aborted')
+  );
+}
+
+function throwImageSdkError(result: { error?: string; status?: number }, fallbackMessage: string): never {
+  const message = result.error || fallbackMessage;
+  if (typeof result.status === 'number') {
+    throw toHttpError(message, result.status, message);
+  }
+  throw new Error(message);
+}
+
+function buildCompatibilityImagePrompt(prompt: string) {
+  const normalized = prompt.replace(/\s+/g, ' ').trim();
+  if (normalized.length <= IMAGE_COMPATIBILITY_PROMPT_LIMIT) {
+    return normalizeImagePromptForGeneration({ prompt: normalized }).prompt;
+  }
+
+  const compact = normalized
+    .replace(/\s*\+\s*/g, '，')
+    .slice(0, IMAGE_COMPATIBILITY_PROMPT_LIMIT)
+    .replace(/[，,;；:：、\s]+$/, '');
+  return normalizeImagePromptForGeneration({
+    prompt: `${compact}。主体完整，构图简洁，细节清晰，避免文字和水印。`,
+  }).prompt;
 }
 
 /**
@@ -134,7 +223,7 @@ async function freedomRetry<T>(
       // 触发 key 轮换（如果有 keyManager）
       const errStatus = (error as any)?.status;
       if (keyManager && typeof errStatus === 'number') {
-        const rotated = keyManager.handleError(errStatus);
+        const rotated = keyManager.handleError(errStatus, (error as any)?.message);
         if (rotated) {
           console.log(`[Freedom] ${label}: key rotated due to ${errStatus}`);
         }
@@ -293,6 +382,15 @@ function getImageEndpointPaths(endpointTypes: string[]): { submit: string; poll:
   return DEFAULT_IMAGE_ENDPOINT;
 }
 
+function withGlobalImageSizeDefaults(params: FreedomImageParams): FreedomImageParams {
+  const imageSettings = useAppSettingsStore.getState().imageGenerationSettings;
+  return {
+    ...params,
+    aspectRatio: params.aspectRatio || imageSettings.defaultAspectRatio,
+    resolution: params.resolution || imageSettings.defaultResolution,
+  };
+}
+
 function getUnifiedEndpointPaths(endpointTypes: string[]): { submit: string; poll: (id: string) => string } {
   for (const t of endpointTypes) {
     if (UNIFIED_ENDPOINT_PATHS[t]) return UNIFIED_ENDPOINT_PATHS[t];
@@ -335,6 +433,16 @@ function detectFreedomVideoRoute(model: string, endpointTypes?: string[]): Freed
 export async function generateFreedomImage(
   params: FreedomImageParams
 ): Promise<GenerationResult> {
+  const operationId = createOperationId('freedom-image');
+  const normalizedPrompt = normalizeImagePromptForGeneration({
+    prompt: params.prompt,
+    negativePrompt: params.negativePrompt,
+  });
+  const generationParams: FreedomImageParams = {
+    ...params,
+    prompt: normalizedPrompt.prompt,
+    negativePrompt: normalizedPrompt.negativePrompt,
+  };
   // 收集所有图片相关功能绑定的 provider，合并去重
   const seen = new Set<string>();
   const fallbackConfigs: FeatureConfig[] = [];
@@ -355,7 +463,7 @@ export async function generateFreedomImage(
   for (const cfg of fallbackConfigs) {
     try {
       return await freedomRetry(
-        () => _generateFreedomImageInner(params, cfg),
+        () => _generateFreedomImageInner(generationParams, cfg, operationId),
         'Image generation',
         cfg.keyManager,
       );
@@ -371,7 +479,9 @@ export async function generateFreedomImage(
 async function _generateFreedomImageInner(
   params: FreedomImageParams,
   overrideConfig?: FeatureConfig,
+  operationId?: string,
 ): Promise<GenerationResult> {
+  params = withGlobalImageSizeDefaults(params);
   let config: FeatureConfig | null;
   let configSource: string;
   if (overrideConfig) {
@@ -413,7 +523,7 @@ async function _generateFreedomImageInner(
     return await generateViaIdeogramEndpoint(params, model, apiKey, normalizedBase);
   }
   if (route === 'openai_chat') {
-    return await generateViaChatCompletions(params, model, apiKey, normalizedBase);
+    return await generateViaChatCompletions(params, model, apiKey, normalizedBase, operationId);
   }
   if (route === 'kling_image') {
     return await generateViaKlingImagesEndpoint(params, model, apiKey, normalizedBase);
@@ -421,7 +531,7 @@ async function _generateFreedomImageInner(
   if (route === 'replicate') {
     return await generateViaReplicateImageEndpoint(params, model, apiKey, normalizedBase);
   }
-  return await generateViaImagesEndpoint(params, model, apiKey, normalizedBase, endpointTypes);
+  return await generateViaImagesEndpoint(params, model, apiKey, normalizedBase, endpointTypes, operationId, config.provider);
 }
 
 /**
@@ -432,9 +542,10 @@ async function generateViaChatCompletions(
   model: string,
   apiKey: string,
   baseUrl: string,
+  operationId?: string,
 ): Promise<GenerationResult> {
   const endpoint = buildEndpoint(baseUrl, 'chat/completions');
-  const aspectRatio = params.aspectRatio || '1:1';
+  const aspectRatio = params.aspectRatio || DEFAULT_IMAGE_ASPECT_RATIO;
 
   const userContent: Array<{ type: string; text?: string; image_url?: { url: string } }> = [
     { type: 'text', text: `Generate an image with aspect ratio ${aspectRatio}: ${params.prompt}` },
@@ -451,7 +562,7 @@ async function generateViaChatCompletions(
 
   console.log('[Freedom] Submitting via chat completions:', { model, endpoint });
 
-  const response = await fetch(endpoint, {
+  const response = await freedomObservedFetch(endpoint, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -459,7 +570,7 @@ async function generateViaChatCompletions(
     },
     body: JSON.stringify(requestBody),
     signal: params.signal,
-  });
+  }, { operationId, endpointFamily: 'freedom-chat-completions', model });
 
   if (!response.ok) {
     const errorText = await response.text();
@@ -523,26 +634,133 @@ async function generateViaImagesEndpoint(
   apiKey: string,
   baseUrl: string,
   endpointTypes?: string[],
+  operationId?: string,
+  provider?: Pick<FeatureConfig['provider'], 'id' | 'platform' | 'name' | 'baseUrl' | 'apiKey'>,
 ): Promise<GenerationResult> {
-  const body: Record<string, any> = {
-    prompt: params.prompt,
-    model,
-  };
-
-  if (params.aspectRatio) body.aspect_ratio = params.aspectRatio;
-  if (params.resolution) body.resolution = params.resolution;
-  if (params.width) body.width = params.width;
-  if (params.height) body.height = params.height;
-  if (params.negativePrompt) body.negative_prompt = params.negativePrompt;
-  if (params.referenceImages?.length) body.image_urls = params.referenceImages;
-  if (params.extraParams) {
-    Object.assign(body, params.extraParams);
-  }
-
   const imagePaths = getImageEndpointPaths(endpointTypes || []);
   const rootBase = getRootBaseUrl(baseUrl);
   const submitUrl = `${rootBase}${imagePaths.submit}`;
-  const response = await fetch(submitUrl, {
+  const usesDefaultImagesEndpoint = imagePaths.submit === DEFAULT_IMAGE_ENDPOINT.submit;
+  const builtRequest = usesDefaultImagesEndpoint
+    ? buildOpenAIImageRequestBody({
+        model,
+        prompt: params.prompt,
+        aspectRatio: params.aspectRatio,
+        resolution: params.resolution,
+        width: params.width,
+        height: params.height,
+        negativePrompt: params.negativePrompt,
+        referenceImages: params.referenceImages,
+        extraParams: params.extraParams,
+      })
+    : buildProviderExtensionImageRequestBody({
+        model,
+        prompt: params.prompt,
+        aspectRatio: params.aspectRatio,
+        resolution: params.resolution,
+        width: params.width,
+        height: params.height,
+        negativePrompt: params.negativePrompt,
+        referenceImages: params.referenceImages,
+        extraParams: params.extraParams,
+      });
+  const body = builtRequest.body;
+  const imageSettings = useAppSettingsStore.getState().imageGenerationSettings;
+  if (usesDefaultImagesEndpoint && isGptImageModel(model) && provider) {
+    const sdkResult = await sdkGenerateImage({
+      provider: { ...provider, apiKey, baseUrl },
+      model,
+      prompt: params.prompt,
+      aspectRatio: params.aspectRatio,
+      resolution: params.resolution,
+      width: params.width,
+      height: params.height,
+      negativePrompt: params.negativePrompt,
+      referenceImages: params.referenceImages,
+      extraParams: params.extraParams,
+      operationId,
+      endpointFamily: 'freedom-image',
+      abortSignal: params.signal,
+      maxRetries: 2,
+    });
+    if (!sdkResult.success || !sdkResult.imageUrl) {
+      if (imageSettings.compatibilityRetryEnabled && shouldRetryImageCompatibility(sdkResult)) {
+        const compatibilityPrompt = buildCompatibilityImagePrompt(params.prompt);
+        await logEvent({
+          level: 'warn',
+          category: 'ai',
+          operationId,
+          message: 'Image generation compatibility retry started',
+          context: {
+            endpointFamily: 'freedom-image',
+            providerId: provider.id,
+            providerName: provider.name,
+            model,
+            reason: sdkResult.error,
+            status: sdkResult.status,
+            originalSize: sdkResult.size,
+            retrySize: getImageSizeLabel({
+              aspectRatio: imageSettings.compatibilityRetryAspectRatio,
+              resolution: imageSettings.compatibilityRetryResolution,
+            }),
+            originalPromptLength: params.prompt.length,
+            retryPromptLength: compatibilityPrompt.length,
+          },
+        });
+        const compatibilityResult = await sdkGenerateImage({
+          provider: { ...provider, apiKey, baseUrl },
+          model,
+          prompt: compatibilityPrompt,
+          aspectRatio: imageSettings.compatibilityRetryAspectRatio,
+          resolution: imageSettings.compatibilityRetryResolution,
+          negativePrompt: params.negativePrompt,
+          referenceImages: params.referenceImages,
+          extraParams: params.extraParams,
+          operationId,
+          endpointFamily: 'freedom-image',
+          abortSignal: params.signal,
+          maxRetries: 0,
+        });
+        if (compatibilityResult.success && compatibilityResult.imageUrl) {
+          await logEvent({
+            level: 'info',
+            category: 'ai',
+            operationId,
+            message: 'Image generation compatibility retry completed',
+            context: {
+              endpointFamily: 'freedom-image',
+              providerId: provider.id,
+              providerName: provider.name,
+              model,
+              retrySize: compatibilityResult.size,
+              templateName: compatibilityResult.templateName,
+            },
+          });
+          const mediaId = saveToMediaLibrary(compatibilityResult.imageUrl, params.prompt, 'ai-image');
+          return { url: compatibilityResult.imageUrl, mediaId };
+        }
+        await logEvent({
+          level: 'warn',
+          category: 'ai',
+          operationId,
+          message: 'Image generation compatibility retry failed',
+          context: {
+            endpointFamily: 'freedom-image',
+            providerId: provider.id,
+            providerName: provider.name,
+            model,
+            status: compatibilityResult.status,
+            error: compatibilityResult.error,
+          },
+        });
+      }
+      throwImageSdkError(sdkResult, 'AI SDK 图片生成失败');
+    }
+    const mediaId = saveToMediaLibrary(sdkResult.imageUrl, params.prompt, 'ai-image');
+    return { url: sdkResult.imageUrl, mediaId };
+  }
+
+  const response = await freedomObservedFetch(submitUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -550,6 +768,11 @@ async function generateViaImagesEndpoint(
     },
     body: JSON.stringify(body),
     signal: params.signal,
+  }, {
+    operationId,
+    endpointFamily: 'freedom-image',
+    model,
+    templateName: builtRequest.templateName,
   });
 
   if (!response.ok) {
@@ -560,16 +783,20 @@ async function generateViaImagesEndpoint(
   const data = await response.json();
 
   // Try to get image URL directly
-  let imageUrl = extractImageUrl(data);
+  const extracted = extractImageGenerationResult(data);
+  let imageUrl = extracted.imageUrl || extractImageUrl(data);
+  const taskId = extracted.taskId || data.task_id;
 
   // If async task, poll for result
-  if (!imageUrl && data.task_id) {
-    const pollUrl = `${rootBase}${imagePaths.poll(String(data.task_id))}`;
+  if (!imageUrl && taskId) {
+    const pollUrl = `${rootBase}${imagePaths.poll(String(taskId))}`;
     imageUrl = await pollForResult(
       pollUrl,
       apiKey,
       IMAGE_POLL_INTERVAL,
-      IMAGE_POLL_MAX_ATTEMPTS
+      IMAGE_POLL_MAX_ATTEMPTS,
+      operationId,
+      String(taskId),
     );
   }
 
@@ -578,7 +805,7 @@ async function generateViaImagesEndpoint(
   }
 
   const mediaId = saveToMediaLibrary(imageUrl, params.prompt, 'ai-image');
-  return { url: imageUrl, taskId: data.task_id, mediaId };
+  return { url: imageUrl, taskId: taskId ? String(taskId) : undefined, mediaId };
 }
 
 /**
@@ -614,7 +841,7 @@ async function generateViaKlingImagesEndpoint(
 
   let response: Response;
   try {
-    response = await fetch(`${rootBase}/${nativePath}`, {
+    response = await freedomObservedFetch(`${rootBase}/${nativePath}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
       body: JSON.stringify(body),
@@ -702,7 +929,7 @@ async function generateViaMidjourneyEndpoint(
     requestBody.base64Array = extra.base64Array;
   }
 
-  const submitResp = await fetch(submitUrl, {
+  const submitResp = await freedomObservedFetch(submitUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -725,7 +952,7 @@ async function generateViaMidjourneyEndpoint(
   const pollUrl = `${rootBase}/mj/task/${taskId}/fetch`;
   for (let i = 0; i < IMAGE_POLL_MAX_ATTEMPTS; i++) {
     await new Promise((r) => setTimeout(r, 2500));
-    const pollResp = await fetch(pollUrl, {
+    const pollResp = await freedomObservedFetch(pollUrl, {
       headers: { 'Authorization': `Bearer ${apiKey}` },
     });
     if (!pollResp.ok) continue;
@@ -806,7 +1033,7 @@ async function generateViaIdeogramEndpoint(
   }
   if (typeof extra.num_images === 'number') form.append('num_images', String(extra.num_images));
 
-  const response = await fetch(endpoint, {
+  const response = await freedomObservedFetch(endpoint, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${apiKey}`,
@@ -847,7 +1074,7 @@ async function generateViaReplicateImageEndpoint(
   if (params.negativePrompt) input.negative_prompt = params.negativePrompt;
   if (params.extraParams) Object.assign(input, params.extraParams);
 
-  const submitResp = await fetch(submitUrl, {
+  const submitResp = await freedomObservedFetch(submitUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
     body: JSON.stringify({ model, input }),
@@ -869,7 +1096,7 @@ async function generateViaReplicateImageEndpoint(
   const pollUrl = `${rootBase}/replicate/v1/predictions/${predictionId}`;
   for (let i = 0; i < IMAGE_POLL_MAX_ATTEMPTS; i++) {
     await new Promise(r => setTimeout(r, IMAGE_POLL_INTERVAL));
-    const pollResp = await fetch(pollUrl, {
+    const pollResp = await freedomObservedFetch(pollUrl, {
       headers: { 'Authorization': `Bearer ${apiKey}` },
     });
     if (!pollResp.ok) continue;
@@ -1082,7 +1309,7 @@ function dataUrlToBlob(dataUrl: string, mimeHint?: string): Blob {
 
 async function toUploadBlob(file: FreedomVideoUploadFile): Promise<Blob> {
   if (/^https?:\/\//i.test(file.dataUrl)) {
-    const resp = await fetch(file.dataUrl);
+    const resp = await freedomObservedFetch(file.dataUrl);
     if (!resp.ok) throw new Error(`无法下载上传素材：${resp.status}`);
     return resp.blob();
   }
@@ -1173,7 +1400,7 @@ async function generateVideoViaOpenAIOfficial(
     await appendVeoMultipartReferences(form, model, endpointTypes, params.uploadFiles);
   }
 
-  const submitResp = await fetch(endpoint, {
+  const submitResp = await freedomObservedFetch(endpoint, {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${apiKey}` },
     body: form,
@@ -1191,7 +1418,7 @@ async function generateVideoViaOpenAIOfficial(
   const pollUrl = buildEndpoint(baseUrl, `videos/${taskId}`);
   for (let i = 0; i < VIDEO_POLL_MAX_ATTEMPTS; i++) {
     await new Promise((r) => setTimeout(r, VIDEO_POLL_INTERVAL));
-    const pollResp = await fetch(pollUrl, {
+    const pollResp = await freedomObservedFetch(pollUrl, {
       headers: { 'Authorization': `Bearer ${apiKey}` },
     });
     if (!pollResp.ok) continue;
@@ -1281,7 +1508,7 @@ async function generateVideoViaUnified(
   const rootBase = getRootBaseUrl(baseUrl);
   const submitUrl = `${rootBase}${endpointPaths.submit}`;
 
-  const resp = await fetch(submitUrl, {
+  const resp = await freedomObservedFetch(submitUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -1316,7 +1543,7 @@ async function generateVideoViaUnified(
 
   for (let i = 0; i < VIDEO_POLL_MAX_ATTEMPTS; i++) {
     await new Promise((r) => setTimeout(r, VIDEO_POLL_INTERVAL));
-    const pollResp = await fetch(pollUrl, {
+    const pollResp = await freedomObservedFetch(pollUrl, {
       headers: { 'Authorization': `Bearer ${apiKey}` },
     });
     if (!pollResp.ok) continue;
@@ -1364,7 +1591,7 @@ async function generateVideoViaVolc(
 
   const body = { model, content };
 
-  const submitResp = await fetch(`${rootBase}/volc/v1/contents/generations/tasks`, {
+  const submitResp = await freedomObservedFetch(`${rootBase}/volc/v1/contents/generations/tasks`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -1383,7 +1610,7 @@ async function generateVideoViaVolc(
   const pollUrl = `${rootBase}/volc/v1/contents/generations/tasks/${taskId}`;
   for (let i = 0; i < VIDEO_POLL_MAX_ATTEMPTS; i++) {
     await new Promise((r) => setTimeout(r, VIDEO_POLL_INTERVAL));
-    const pollResp = await fetch(pollUrl, {
+    const pollResp = await freedomObservedFetch(pollUrl, {
       headers: { 'Authorization': `Bearer ${apiKey}` },
     });
     if (!pollResp.ok) continue;
@@ -1420,7 +1647,7 @@ async function generateVideoViaWan(
   };
   if (params.duration) body.parameters.duration = Math.max(3, params.duration);
 
-  const submitResp = await fetch(
+  const submitResp = await freedomObservedFetch(
     `${rootBase}/alibailian/api/v1/services/aigc/video-generation/video-synthesis`,
     {
       method: 'POST',
@@ -1442,7 +1669,7 @@ async function generateVideoViaWan(
   const pollUrl = `${rootBase}/alibailian/api/v1/tasks/${taskId}`;
   for (let i = 0; i < VIDEO_POLL_MAX_ATTEMPTS; i++) {
     await new Promise((r) => setTimeout(r, VIDEO_POLL_INTERVAL));
-    const pollResp = await fetch(pollUrl, {
+    const pollResp = await freedomObservedFetch(pollUrl, {
       headers: { 'Authorization': `Bearer ${apiKey}` },
     });
     if (!pollResp.ok) continue;
@@ -1512,7 +1739,7 @@ async function generateVideoViaKling(
   }
 
   const submitUrl = `${rootBase}/kling/v1/videos/${endpointPath}`;
-  const submitResp = await fetch(submitUrl, {
+  const submitResp = await freedomObservedFetch(submitUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -1532,7 +1759,7 @@ async function generateVideoViaKling(
   const pollUrl = `${rootBase}/kling/v1/videos/${endpointPath}/${taskId}`;
   for (let i = 0; i < VIDEO_POLL_MAX_ATTEMPTS; i++) {
     await new Promise((r) => setTimeout(r, VIDEO_POLL_INTERVAL));
-    const pollResp = await fetch(pollUrl, {
+    const pollResp = await freedomObservedFetch(pollUrl, {
       headers: { 'Authorization': `Bearer ${apiKey}` },
     });
     if (!pollResp.ok) continue;
@@ -1579,7 +1806,7 @@ async function generateVideoViaReplicate(
   if (primaryFile) input.image = await toUploadHttpUrl(primaryFile);
   if (grouped.last) input.tail_image = await toUploadHttpUrl(grouped.last);
 
-  const submitResp = await fetch(submitUrl, {
+  const submitResp = await freedomObservedFetch(submitUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
     body: JSON.stringify({ model, input }),
@@ -1598,7 +1825,7 @@ async function generateVideoViaReplicate(
   const pollUrl = `${rootBase}/replicate/v1/predictions/${predictionId}`;
   for (let i = 0; i < VIDEO_POLL_MAX_ATTEMPTS; i++) {
     await new Promise(r => setTimeout(r, VIDEO_POLL_INTERVAL));
-    const pollResp = await fetch(pollUrl, {
+    const pollResp = await freedomObservedFetch(pollUrl, {
       headers: { 'Authorization': `Bearer ${apiKey}` },
     });
     if (!pollResp.ok) continue;
@@ -1655,14 +1882,22 @@ async function pollForResult(
   pollUrl: string,
   apiKey: string,
   interval: number,
-  maxAttempts: number
+  maxAttempts: number,
+  operationId?: string,
+  taskId?: string,
 ): Promise<string | null> {
   for (let i = 0; i < maxAttempts; i++) {
     await new Promise(resolve => setTimeout(resolve, interval));
 
     try {
-      const response = await fetch(pollUrl, {
+      const response = await freedomObservedFetch(pollUrl, {
         headers: { 'Authorization': `Bearer ${apiKey}` },
+      }, {
+        operationId,
+        endpointFamily: inferFreedomEndpointFamily(pollUrl),
+        taskId,
+        pollAttempt: i + 1,
+        maxRetries: maxAttempts,
       });
 
       if (!response.ok) continue;

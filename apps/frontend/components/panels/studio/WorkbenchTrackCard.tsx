@@ -15,7 +15,7 @@ export function WorkbenchTrackCard(props: {
   const { track } = props;
   return (
     <Card className="overflow-hidden rounded-lg">
-      <CardHeader className="grid gap-3 border-b border-border bg-muted/35 py-3 lg:grid-cols-[180px_1fr_auto]">
+      <CardHeader className="grid gap-3 border-b border-border bg-muted/35 py-3 lg:grid-cols-[180px_minmax(0,1fr)_minmax(0,auto)]">
         <div>
           <CardTitle className="text-sm">{track.name}</CardTitle>
           <div className="mt-1 flex flex-wrap gap-2 text-xs text-muted-foreground">
@@ -37,9 +37,9 @@ export function WorkbenchTrackCard(props: {
             </div>
           ) : null}
         </div>
-        <div className="flex items-start justify-end gap-2">
+        <div className="flex min-w-0 flex-wrap items-start justify-end gap-2">
           <Button type="button" variant="outline" size="sm" disabled>
-            检查提示词
+            <span className="whitespace-normal leading-tight">检查提示词</span>
           </Button>
           <Button
             size="sm"
@@ -47,12 +47,14 @@ export function WorkbenchTrackCard(props: {
             disabled={props.renderingTrackId === track.id}
           >
             <Play className="h-4 w-4" />
-            {props.renderingTrackId === track.id ? "生成中" : "生成视频"}
+            <span className="whitespace-normal leading-tight">
+              {props.renderingTrackId === track.id ? "生成中" : "生成视频"}
+            </span>
           </Button>
         </div>
       </CardHeader>
-      <CardContent className="grid gap-3 p-3 lg:grid-cols-[1fr_360px]">
-        <div className="space-y-2">
+      <CardContent className="grid gap-3 p-3 lg:grid-cols-[minmax(0,1fr)_minmax(280px,360px)]">
+        <div className="min-w-0 space-y-2">
           <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
             {track.medias.map((media, index) => (
               <div
@@ -93,7 +95,7 @@ export function WorkbenchTrackCard(props: {
             ) : null}
           </div>
         </div>
-        <div className="grid gap-2">
+        <div className="grid min-w-0 gap-2">
           {track.videoList.map((video) => (
             <div
               key={video.id}

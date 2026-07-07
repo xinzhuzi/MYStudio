@@ -1,7 +1,25 @@
-import { describe, expect, it, vi } from "vitest";
-import { prepareModelTestRequest, runModelTestRequest } from "./model-test";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  DEFAULT_MODEL_TEST_TIMEOUT_MS,
+  IMAGE_MODEL_TEST_TIMEOUT_MS,
+  getModelTestTimeoutMs,
+  prepareModelTestRequest,
+  runModelTestRequest,
+} from "./model-test";
+import { useAppSettingsStore } from "@/stores/app-settings-store";
+import type { sdkGenerateImage } from "../ai/ai-sdk-bridge";
 
 describe("prepareModelTestRequest", () => {
+  beforeEach(() => {
+    useAppSettingsStore.getState().setImageGenerationSettings({
+      defaultAspectRatio: "16:9",
+      defaultResolution: "2K",
+      compatibilityRetryEnabled: true,
+      compatibilityRetryAspectRatio: "1:1",
+      compatibilityRetryResolution: "1K",
+    });
+  });
+
   it("stops before network when API key is missing", () => {
     expect(prepareModelTestRequest({
       provider: {
@@ -207,7 +225,271 @@ describe("prepareModelTestRequest", () => {
     expect(openai.max_tokens).toBe(32);
   });
 
-  it("dry-runs non-text model tests in V1", () => {
+  it("builds a real OpenAI-compatible image model test request", () => {
+    const prepared = prepareModelTestRequest({
+      provider: {
+        id: "provider-1",
+        platform: "custom",
+        name: "Relay",
+        baseUrl: "https://relay.example.com/v1",
+        apiKey: "sk-test",
+        model: ["gpt-image-2"],
+      },
+      model: "gpt-image-2",
+      type: "image",
+    });
+
+    expect(prepared).toMatchObject({
+      success: true,
+      dryRun: false,
+      endpoint: "https://relay.example.com/v1/images/generations",
+    });
+    if (!prepared.success || prepared.dryRun) {
+      throw new Error("expected prepared image request");
+    }
+    expect(prepared.attempts).toHaveLength(2);
+    expect(prepared.body).toMatchObject({
+      model: "gpt-image-2",
+      n: 1,
+      size: "2048x1152",
+    });
+    expect(prepared.body.prompt).toEqual(expect.stringContaining("API 连通性测试图"));
+    expect(prepared.body.prompt).toEqual(expect.stringContaining("clean image"));
+    expect(prepared.body.prompt).toEqual(expect.stringContaining("low visual noise"));
+    expect(prepared.attempts[1].body).toMatchObject({
+      model: "gpt-image-2",
+      n: 1,
+      stream: false,
+      aspect_ratio: "16:9",
+      resolution: "2K",
+    });
+    expect(prepared.attempts[1].body.prompt).toEqual(expect.stringContaining("API 连通性测试图"));
+    expect(prepared.attempts[1].body.prompt).toEqual(expect.stringContaining("clean image"));
+  });
+
+  it("builds image model test requests from image size settings", () => {
+    const prepared = prepareModelTestRequest({
+      provider: {
+        id: "provider-1",
+        platform: "custom",
+        name: "Relay",
+        baseUrl: "https://relay.example.com/v1",
+        apiKey: "sk-test",
+        model: ["gpt-image-2"],
+      },
+      model: "gpt-image-2",
+      type: "image",
+      imageGenerationSettings: {
+        defaultAspectRatio: "3:2",
+        defaultResolution: "2K",
+      },
+    });
+
+    if (!prepared.success || prepared.dryRun) {
+      throw new Error("expected prepared image request");
+    }
+    expect(prepared.body).toMatchObject({ size: "2016x1344" });
+    expect(prepared.attempts[1].body).toMatchObject({
+      aspect_ratio: "3:2",
+      resolution: "2K",
+    });
+  });
+
+  it("tests gpt-image models through the AI SDK image bridge", async () => {
+    const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      data: [{ b64_json: "should-not-be-used" }],
+    }), { status: 200 }));
+    const imageSdk = vi.fn<Parameters<typeof sdkGenerateImage>, ReturnType<typeof sdkGenerateImage>>()
+      .mockResolvedValueOnce({
+        success: true,
+        imageUrl: "data:image/png;base64,iVBORw0KGgo=",
+        size: "1024x1024",
+        templateName: "openai-size",
+      });
+
+    const result = await runModelTestRequest({
+      provider: {
+        id: "provider-1",
+        platform: "custom",
+        name: "Relay",
+        baseUrl: "https://relay.example.com/v1",
+        apiKey: "sk-test",
+        model: ["gpt-image-2"],
+      },
+      model: "gpt-image-2",
+      type: "image",
+      operationId: "model-test-op",
+    }, fetcher, undefined, imageSdk);
+
+    expect(result).toMatchObject({
+      success: true,
+      status: 200,
+    });
+    expect(fetcher).not.toHaveBeenCalled();
+    expect(imageSdk).toHaveBeenCalledWith(expect.objectContaining({
+      provider: expect.objectContaining({
+        id: "provider-1",
+        platform: "custom",
+        name: "Relay",
+        baseUrl: "https://relay.example.com/v1",
+        apiKey: "sk-test",
+      }),
+      model: "gpt-image-2",
+      prompt: expect.stringContaining("API 连通性测试图"),
+      aspectRatio: "16:9",
+      resolution: "2K",
+      operationId: "model-test-op",
+      endpointFamily: "model-test",
+      maxRetries: 0,
+    }));
+    expect(imageSdk).toHaveBeenCalledWith(expect.objectContaining({
+      prompt: expect.stringContaining("clean image"),
+    }));
+  });
+
+  it("surfaces gpt-image quota failures from the AI SDK image bridge", async () => {
+    const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      error: {
+        message: "订阅额度不足或未配置订阅: subscription quota insufficient, need=5000",
+        code: "insufficient_user_quota",
+      },
+    }), { status: 403 }));
+    const imageSdk = vi.fn<Parameters<typeof sdkGenerateImage>, ReturnType<typeof sdkGenerateImage>>()
+      .mockResolvedValueOnce({
+        success: false,
+        status: 403,
+        error: "图片生成额度不足或订阅未配置：subscription quota insufficient",
+        size: "1024x1024",
+        templateName: "openai-size",
+      });
+
+    const result = await runModelTestRequest({
+      provider: {
+        id: "provider-1",
+        platform: "custom",
+        name: "Relay",
+        baseUrl: "https://relay.example.com/v1",
+        apiKey: "sk-test",
+        model: ["gpt-image-2"],
+      },
+      model: "gpt-image-2",
+      type: "image",
+    }, fetcher, undefined, imageSdk);
+
+    expect(result).toMatchObject({
+      success: false,
+      status: 403,
+    });
+    expect(result.error).toContain("subscription quota insufficient");
+  });
+
+  it("continues image model tests with the next configured key", async () => {
+    const fetcher = vi.fn();
+    const imageSdk = vi.fn<Parameters<typeof sdkGenerateImage>, ReturnType<typeof sdkGenerateImage>>()
+      .mockResolvedValueOnce({
+        success: false,
+        status: 401,
+        error: "API Key 无效或已过期",
+        size: "1024x1024",
+        templateName: "openai-size",
+      })
+      .mockResolvedValueOnce({
+        success: true,
+        imageUrl: "data:image/png;base64,iVBORw0KGgo=",
+        size: "1024x1024",
+        templateName: "openai-size",
+      });
+
+    const result = await runModelTestRequest({
+      provider: {
+        id: "provider-1",
+        platform: "custom",
+        name: "Relay",
+        baseUrl: "https://relay.example.com/v1",
+        apiKey: "sk-first\nsk-second",
+        model: ["gpt-image-2"],
+      },
+      model: "gpt-image-2",
+      type: "image",
+    }, fetcher, undefined, imageSdk);
+
+    expect(result).toMatchObject({
+      success: true,
+      status: 200,
+    });
+    expect(fetcher).not.toHaveBeenCalled();
+    expect(imageSdk).toHaveBeenCalledTimes(2);
+    expect(imageSdk.mock.calls[0][0].provider.apiKey).toBe("sk-first");
+    expect(imageSdk.mock.calls[1][0].provider.apiKey).toBe("sk-second");
+  });
+
+  it("falls back to the provider extension image template", async () => {
+    const fetcher = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        error: { message: "unsupported parameter: size" },
+      }), { status: 400 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        data: [{ url: "https://cdn.example.com/test.png" }],
+      }), { status: 200 }));
+
+    const result = await runModelTestRequest({
+      provider: {
+        id: "provider-1",
+        platform: "custom",
+        name: "Relay",
+        baseUrl: "https://relay.example.com/v1",
+        apiKey: "sk-test",
+        model: ["gpt-image-2"],
+      },
+      model: "gpt-image-2",
+      type: "image",
+    }, fetcher);
+
+    expect(result).toMatchObject({
+      success: true,
+      status: 200,
+    });
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(JSON.parse(fetcher.mock.calls[0][1].body)).toMatchObject({
+      size: "2048x1152",
+    });
+    expect(JSON.parse(fetcher.mock.calls[1][1].body)).toMatchObject({
+      aspect_ratio: "16:9",
+      resolution: "2K",
+    });
+  });
+
+  it("gives image model tests a longer timeout than text model tests", () => {
+    expect(getModelTestTimeoutMs("text")).toBe(DEFAULT_MODEL_TEST_TIMEOUT_MS);
+    expect(getModelTestTimeoutMs("image")).toBe(IMAGE_MODEL_TEST_TIMEOUT_MS);
+    expect(IMAGE_MODEL_TEST_TIMEOUT_MS).toBeGreaterThan(DEFAULT_MODEL_TEST_TIMEOUT_MS);
+  });
+
+  it("surfaces image model test aborts as a clear timeout error", async () => {
+    const fetcher = vi.fn((_input: string, init: { signal?: AbortSignal }) => new Promise<Response>((_resolve, reject) => {
+      init.signal?.addEventListener("abort", () => {
+        reject(new DOMException("This operation was aborted", "AbortError"));
+      }, { once: true });
+    }));
+
+    const result = await runModelTestRequest({
+      provider: {
+        id: "provider-1",
+        platform: "custom",
+        name: "Relay",
+        baseUrl: "https://relay.example.com/v1",
+        apiKey: "sk-test",
+        model: ["gpt-image-2"],
+      },
+      model: "gpt-image-2",
+      type: "image",
+    }, fetcher, 1);
+
+    expect(result).toMatchObject({ success: false });
+    expect(result.error).toContain("图片模型测试超时");
+  });
+
+  it("still dry-runs video model tests in V1", () => {
     expect(prepareModelTestRequest({
       provider: {
         id: "provider-1",

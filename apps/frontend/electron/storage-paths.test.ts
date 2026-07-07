@@ -50,5 +50,10 @@ describe("storage path helpers", () => {
       "/data/projects/_p/dao-project/workflow-images/flow-1/cover.png",
     );
     expect(() => resolveProjectFileUrl("/data/projects", "project-file://dao-project/../secret.png")).toThrow("escapes");
+    expect(() => createProjectFileUrl("../dao", "workflow-images/cover.png")).toThrow("escapes");
+    expect(() => createProjectFileUrl("dao/project", "workflow-images/cover.png")).toThrow("escapes");
+    expect(() => createProjectFileUrl("dao\0project", "workflow-images/cover.png")).toThrow("Invalid");
+    expect(() => parseProjectFileUrl("project-file://dao%2Fproject/workflow-images/cover.png")).toThrow("escapes");
+    expect(() => resolveProjectScopedFilePath("/data/projects", "../dao", "workflow-images/cover.png")).toThrow("escapes");
   });
 });

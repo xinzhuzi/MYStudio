@@ -127,8 +127,9 @@ function isToonflowScriptPlan(body: string): boolean {
 function parseToonflowDirectorPlan(body: string, episodeId: string): ParseDirectorPlanResult {
   const warnings: string[] = [];
   const sceneSummary = extractToonflowSection(body, "分场汇总表", ["逐场注意事项", "场间过渡"]);
-  const sceneNotes = extractToonflowSection(body, "逐场注意事项", ["场间过渡"]);
-  const transitions = extractToonflowSection(body, "场间过渡", []);
+  const sceneNotes = extractToonflowSection(body, "逐场注意事项", ["场间过渡", "衍生资产"]);
+  const transitions = extractToonflowSection(body, "场间过渡", ["衍生资产"]);
+  const derivedAssetSection = extractToonflowDerivedAssetSection(body);
 
   for (const [label, text] of [
     ["分场汇总表", sceneSummary],
@@ -149,7 +150,7 @@ function parseToonflowDirectorPlan(body: string, episodeId: string): ParseDirect
       sceneIntents: parseToonflowSceneIntents(sceneSummary),
       soundDirection: extractEnvironmentSounds(sceneNotes),
       transitions: stripLightingTerms(transitions),
-      derivedAssetPlan: [],
+      derivedAssetPlan: parseDerivedAssetTable(derivedAssetSection),
     },
     warnings,
   };
@@ -164,6 +165,22 @@ function extractToonflowSection(body: string, title: string, stopTitles: string[
     .filter((index) => index > 0);
   const end = stopIndexes.length ? Math.min(...stopIndexes) : rest.length;
   return rest.slice(0, end).trim();
+}
+
+function extractToonflowDerivedAssetSection(body: string): string {
+  const titles = ["衍生资产预划清单", "衍生资产", "derive assets", "derived assets"];
+  const starts = titles
+    .map((title) => {
+      const index = body.toLowerCase().indexOf(title.toLowerCase());
+      return index >= 0 ? index : null;
+    })
+    .filter((index): index is number => index !== null);
+  if (!starts.length) return "";
+
+  const start = Math.min(...starts);
+  const rest = body.slice(start);
+  const nextHeading = rest.slice(1).search(/\n#{1,6}\s+\S/);
+  return (nextHeading >= 0 ? rest.slice(0, nextHeading + 1) : rest).trim();
 }
 
 function parseToonflowSceneIntents(section: string): ScriptPlan["sceneIntents"] {
@@ -234,28 +251,93 @@ function parseDerivedAssetTable(section: string): ScriptPlan["derivedAssetPlan"]
   if (NO_DERIVE_MARKERS.some((marker) => section.includes(marker))) return [];
 
   const rows: ScriptPlan["derivedAssetPlan"] = [];
+  let header: string[] | null = null;
   for (const raw of section.split(/\r?\n/)) {
     const line = raw.trim();
     if (!line.startsWith("|") || !line.endsWith("|")) continue;
     if (isSeparatorRow(line) || isDerivedHeaderRow(line)) continue;
 
     const fields = line.slice(1, -1).split("|").map((item) => item.trim());
-    if (fields.length !== 3) continue;
-    const [parentAssetId, state, reason] = fields;
-    if (!parentAssetId || !state) continue;
+    if (isDerivedHeaderFields(fields)) {
+      header = fields.map(normalizeDerivedHeader);
+      continue;
+    }
 
-    rows.push({ parentAssetId, state, reason: reason ?? "" });
+    const item = header ? parseDerivedAssetRowByHeader(fields, header) : parseLegacyDerivedAssetRow(fields);
+    if (item) rows.push(item);
   }
   return rows;
 }
 
-function isSeparatorRow(line: string): boolean {
-  return /^\|[\s:|-]+\|$/.test(line);
+function parseLegacyDerivedAssetRow(fields: string[]): ScriptPlan["derivedAssetPlan"][number] | null {
+  if (fields.length !== 3) return null;
+  const [parentAssetId, state, reason] = fields;
+  if (!parentAssetId || !state) return null;
+  return { parentAssetId, state, reason: reason ?? "" };
+}
+
+function parseDerivedAssetRowByHeader(
+  fields: string[],
+  header: string[],
+): ScriptPlan["derivedAssetPlan"][number] | null {
+  const value = (key: string) => fields[header.indexOf(key)]?.trim() ?? "";
+  const assetName = value("assetName") || value("parentAssetId") || value("parent");
+  const assetsId = parseOptionalNumber(value("assetsId"));
+  const parentAssetId = assetName || (assetsId == null ? "" : String(assetsId));
+  const state = value("deriveName") || value("state");
+  const reason = value("reason") || value("desc") || value("prompt");
+  if (!parentAssetId || !state) return null;
+
+  return {
+    parentAssetId,
+    state,
+    reason,
+    ...(assetsId == null ? {} : { toonflowAssetsId: assetsId }),
+    ...optionalNumberField("toonflowDerivedAssetId", value("id")),
+    ...(value("flowId") ? { imageWorkflowId: value("flowId") } : {}),
+  };
+}
+
+function optionalNumberField<K extends string>(key: K, value: string): Partial<Record<K, number>> {
+  const numeric = parseOptionalNumber(value);
+  return numeric == null ? {} : { [key]: numeric } as Partial<Record<K, number>>;
+}
+
+function parseOptionalNumber(value: string) {
+  if (!value) return undefined;
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : undefined;
+}
+
+function isDerivedHeaderFields(fields: string[]) {
+  const normalized = fields.map(normalizeDerivedHeader);
+  return normalized.includes("assetsId") || normalized.includes("assetName");
+}
+
+function normalizeDerivedHeader(value: string) {
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "assetsid" || normalized === "assets id" || value === "父资产ID") return "assetsId";
+  if (normalized === "id" || value === "衍生资产ID") return "id";
+  if (normalized === "flowid" || normalized === "flow id") return "flowId";
+  if (normalized === "name" || value === "衍生资产名称" || value === "衍生名称") return "deriveName";
+  if (normalized === "state" || value === "衍生状态") return "state";
+  if (normalized === "desc" || normalized === "describe" || value === "原因/出现段落") return "reason";
+  if (normalized === "prompt") return "prompt";
+  if (value === "资产名") return "assetName";
+  if (normalized === "parentassetid") return "parentAssetId";
+  if (normalized === "parent") return "parent";
+  return normalized;
 }
 
 function isDerivedHeaderRow(line: string): boolean {
-  const first = line.slice(1).split("|")[0]?.trim() ?? "";
+  const fields = line.slice(1, -1).split("|").map((item) => item.trim());
+  if (isDerivedHeaderFields(fields)) return false;
+  const first = fields[0] ?? "";
   return first === "资产名" || first.toLowerCase() === "asset";
+}
+
+function isSeparatorRow(line: string): boolean {
+  return /^\|[\s:|-]+\|$/.test(line);
 }
 
 function clean(value: string | undefined): string {

@@ -37,7 +37,16 @@ import { useSceneStore } from "@/stores/scene-store";
 import { useMediaStore } from "@/stores/media-store";
 import { classifyModelByName, getApiKeyCount, parseApiKeys } from "@/lib/api-key-manager";
 import { resolveThinkingEnabled } from "@/lib/ai/thinking-mode";
+import {
+  GPT_IMAGE_SIZE_MAP,
+  IMAGE_ASPECT_RATIOS,
+  IMAGE_RESOLUTIONS,
+  getImageSizeLabel,
+  type ImageAspectRatio,
+  type ImageResolution,
+} from "@/lib/ai/image-size-presets";
 import { prepareModelTestRequest, type ModelTestResult, type ModelTestType } from "@/lib/api-manager/model-test";
+import { createOperationId, logEvent } from "@/lib/diagnostics/logger";
 import { AddProviderDialog, EditProviderDialog, FeatureBindingPanel } from "@/components/api-manager";
 import { AddImageHostDialog } from "@/components/image-host-manager/AddImageHostDialog";
 import { EditImageHostDialog } from "@/components/image-host-manager/EditImageHostDialog";
@@ -75,12 +84,14 @@ import {
   Mic2,
   Workflow,
   Coffee,
+  Image as ImageIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { uploadToImageHost } from "@/lib/image-host";
 import { getTtsRuntimeConfig, getTtsRuntimeStatus, setTtsRuntimeConfig, setupTtsRuntime } from "@/lib/tts/client";
 import { UpdateDialog } from "@/components/UpdateDialog";
+import type { DiagnosticsLogInfo } from "@/types/diagnostics";
 import type { TtsRuntimeConfig, TtsRuntimeStatus } from "@/types/tts";
 import type { AvailableUpdateInfo } from "@/types/update";
 import packageJson from "../../../package.json";
@@ -88,6 +99,7 @@ import packageJson from "../../../package.json";
 export const SETTINGS_TABS = [
   { value: "appearance", label: "外观" },
   { value: "api", label: "API 管理" },
+  { value: "imageSize", label: "图片规格" },
   { value: "python", label: "Python 配置" },
   { value: "tts", label: "TTS 配置" },
   { value: "advanced", label: "高级选项" },
@@ -132,6 +144,8 @@ function renderSettingsTabIcon(value: SettingsTabId) {
       return <Palette className="h-4 w-4 mr-2" />;
     case "api":
       return <Key className="h-4 w-4 mr-2" />;
+    case "imageSize":
+      return <ImageIcon className="h-4 w-4 mr-2" />;
     case "python":
       return <Terminal className="h-4 w-4 mr-2" />;
     case "tts":
@@ -407,11 +421,13 @@ export function SettingsPanel({
     cacheSettings,
     updateSettings,
     developmentSettings,
+    imageGenerationSettings,
     setResourceSharing,
     setStoragePaths,
     setCacheSettings,
     setUpdateSettings,
     setDevelopmentSettings,
+    setImageGenerationSettings,
   } = useAppSettingsStore();
   const { theme, colorPreset, setColorPreset } = useThemeStore();
   const { activeProjectId } = useProjectStore();
@@ -436,6 +452,10 @@ export function SettingsPanel({
   const [isClearingCache, setIsClearingCache] = useState(false);
   const [isCheckingForUpdates, setIsCheckingForUpdates] = useState(false);
   const [isOpeningDevTools, setIsOpeningDevTools] = useState(false);
+  const [diagnosticsInfo, setDiagnosticsInfo] = useState<DiagnosticsLogInfo | null>(null);
+  const [isDiagnosticsLoading, setIsDiagnosticsLoading] = useState(false);
+  const [isExportingDiagnostics, setIsExportingDiagnostics] = useState(false);
+  const [isClearingDiagnostics, setIsClearingDiagnostics] = useState(false);
   const [ttsRuntimeConfig, setTtsRuntimeConfigState] = useState<TtsRuntimeConfig | null>(null);
   const [ttsRuntimeStatus, setTtsRuntimeStatus] = useState<TtsRuntimeStatus | null>(null);
   const [pythonRuntimeUrlDraft, setPythonRuntimeUrlDraft] = useState("");
@@ -558,14 +578,52 @@ export function SettingsPanel({
     const showToast = options.showToast ?? true;
     const type = inferModelTestType(model);
     const testKey = getModelTestKey(provider.id, model);
+    const operationId = createOperationId("model-test");
     // 思考模式：用户显式配置优先，否则按模型名自动判断
     const thinkingEnabled = resolveThinkingEnabled(model, getModelThinkingOverride(model));
-    const prepared = prepareModelTestRequest({ provider, model, type, thinkingEnabled });
+    const imageTestSettings = {
+      defaultAspectRatio: imageGenerationSettings.defaultAspectRatio,
+      defaultResolution: imageGenerationSettings.defaultResolution,
+    };
+    const prepared = prepareModelTestRequest({
+      provider,
+      model,
+      type,
+      thinkingEnabled,
+      imageGenerationSettings: imageTestSettings,
+    });
+
+    void logEvent({
+      level: "info",
+      category: "action",
+      operationId,
+      message: "API model test clicked",
+      context: {
+        providerId: provider.id,
+        providerName: provider.name,
+        platform: provider.platform,
+        model,
+        type,
+      },
+    });
 
     setTestingProvider(provider.id);
     setModelTestMessages((prev) => ({ ...prev, [testKey]: "" }));
 
     if (!prepared.success) {
+      void logEvent({
+        level: "warn",
+        category: "action",
+        operationId,
+        message: "API model test preparation failed",
+        context: {
+          providerId: provider.id,
+          providerName: provider.name,
+          model,
+          type,
+          error: prepared.error,
+        },
+      });
       setTestingProvider(null);
       setModelTestMessages((prev) => ({ ...prev, [testKey]: prepared.error }));
       if (showToast) toast.error(prepared.error);
@@ -588,6 +646,7 @@ export function SettingsPanel({
 
     try {
       const result = await window.electronAPI.testModel({
+        operationId,
         provider: {
           id: provider.id,
           platform: provider.platform,
@@ -599,6 +658,7 @@ export function SettingsPanel({
         model,
         type,
         thinkingEnabled,
+        imageGenerationSettings: imageTestSettings,
       });
       setModelTestMessages((prev) => ({
         ...prev,
@@ -744,6 +804,7 @@ export function SettingsPanel({
   const hasStorageManager = typeof window !== "undefined" && !!window.storageManager;
   const hasAppUpdater = typeof window !== "undefined" && !!window.appUpdater;
   const hasElectronDevTools = typeof window !== "undefined" && !!window.electronAPI?.openDevTools;
+  const hasDiagnosticsLog = typeof window !== "undefined" && !!window.diagnosticsLog;
   const hasTtsRuntime = typeof window !== "undefined" && !!window.ttsRuntime;
   const pythonSetupStage = ttsRuntimeStatus?.setupStage ?? "idle";
   const pythonSetupActive = ["checking", "downloading-python", "extracting-python", "installing-deps"].includes(pythonSetupStage);
@@ -774,6 +835,19 @@ export function SettingsPanel({
     }
   }, []);
 
+  const refreshDiagnosticsInfo = useCallback(async () => {
+    if (!window.diagnosticsLog) return;
+    setIsDiagnosticsLoading(true);
+    try {
+      const info = await window.diagnosticsLog.getInfo();
+      setDiagnosticsInfo(info);
+    } catch (error) {
+      console.error("[SettingsPanel] Failed to load diagnostics info:", error);
+    } finally {
+      setIsDiagnosticsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (!hasStorageManager) return;
     window.storageManager
@@ -794,6 +868,11 @@ export function SettingsPanel({
       autoCleanDays: cacheSettings.autoCleanDays,
     });
   }, [cacheSettings.autoCleanEnabled, cacheSettings.autoCleanDays, hasStorageManager]);
+
+  useEffect(() => {
+    if (!hasDiagnosticsLog || activeTab !== "development") return;
+    void refreshDiagnosticsInfo();
+  }, [activeTab, hasDiagnosticsLog, refreshDiagnosticsInfo]);
 
   useEffect(() => {
     if (typeof window === "undefined" || !window.ttsRuntime) return;
@@ -1098,6 +1177,59 @@ export function SettingsPanel({
     }
   };
 
+  const handleOpenDiagnosticsFolder = async () => {
+    if (!window.diagnosticsLog) {
+      toast.error("请在桌面应用中使用此功能");
+      return;
+    }
+    const result = await window.diagnosticsLog.openFolder();
+    if (result.success) {
+      toast.success("日志文件夹已打开");
+    } else {
+      toast.error(result.error || "打开日志文件夹失败");
+    }
+  };
+
+  const handleExportDiagnostics = async () => {
+    if (!window.diagnosticsLog) {
+      toast.error("请在桌面应用中使用此功能");
+      return;
+    }
+    setIsExportingDiagnostics(true);
+    try {
+      const result = await window.diagnosticsLog.exportBundle();
+      if (result.success) {
+        toast.success("诊断包已导出");
+        await refreshDiagnosticsInfo();
+      } else {
+        toast.error(result.error || "导出诊断包失败");
+      }
+    } finally {
+      setIsExportingDiagnostics(false);
+    }
+  };
+
+  const handleClearDiagnostics = async () => {
+    if (!window.diagnosticsLog) {
+      toast.error("请在桌面应用中使用此功能");
+      return;
+    }
+    const confirmed = window.confirm("清理诊断日志？这不会影响项目资产和配置。");
+    if (!confirmed) return;
+    setIsClearingDiagnostics(true);
+    try {
+      const result = await window.diagnosticsLog.clear();
+      if (result.success) {
+        toast.success(`已清理 ${result.removedFiles} 个日志文件`);
+        await refreshDiagnosticsInfo();
+      } else {
+        toast.error(result.error || "清理诊断日志失败");
+      }
+    } finally {
+      setIsClearingDiagnostics(false);
+    }
+  };
+
   return (
     <div className="settings-workspace flex flex-col h-full bg-background overflow-hidden">
       {showHomeChrome ? (
@@ -1229,27 +1361,24 @@ export function SettingsPanel({
         <TabsContent value="api" className="flex-1 overflow-hidden mt-0">
           <ScrollArea className="h-full">
             <div className="p-8 w-full space-y-8">
-          {/* API Header: count + add button */}
-          <div className="flex items-center justify-between">
-            <div />
-            <div className="flex items-center gap-3">
-              <span className="text-xs text-muted-foreground font-mono bg-muted border border-border px-2 py-1 rounded">
+          <div className="api-manager-notice-bar flex flex-col gap-4 rounded-xl border border-border bg-muted/45 p-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex min-w-0 items-center gap-3">
+              <Shield className="h-5 w-5 text-primary shrink-0" />
+              <div className="min-w-0">
+                <h3 className="text-sm font-medium text-foreground">提示</h3>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                  所有 API Key 仅存储在您的浏览器本地存储中，不会上传到任何服务器。支持多 Key 轮换，失败时自动切换。
+                </p>
+              </div>
+            </div>
+            <div className="flex shrink-0 items-center gap-3 self-start lg:self-center">
+              <span className="rounded-md border border-border bg-muted px-2 py-1 font-mono text-xs text-muted-foreground">
                 已配置: {configuredCount}/{visibleProviders.length}
               </span>
               <Button onClick={() => setAddDialogOpen(true)} size="sm">
-                <Plus className="h-4 w-4 mr-1" />
+                <Plus className="mr-1 h-4 w-4" />
                 添加供应商
               </Button>
-            </div>
-          </div>
-          {/* Security Notice */}
-          <div className="flex items-start gap-3 p-4 bg-muted/50 border border-border rounded-lg">
-            <Shield className="h-5 w-5 text-primary mt-0.5 shrink-0" />
-            <div>
-              <h3 className="font-medium text-foreground text-sm">安全说明</h3>
-              <p className="text-xs text-muted-foreground mt-1">
-                所有 API Key 仅存储在您的浏览器本地存储中，不会上传到任何服务器。支持多 Key 轮换，失败时自动切换。
-              </p>
             </div>
           </div>
 
@@ -1630,6 +1759,182 @@ export function SettingsPanel({
             </div>
           </div>
 
+            </div>
+          </ScrollArea>
+        </TabsContent>
+
+        {/* Image Size Settings Tab */}
+        <TabsContent value="imageSize" className="flex-1 overflow-hidden mt-0">
+          <ScrollArea className="h-full">
+            <div className="p-8 w-full space-y-8">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div>
+                  <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
+                    <ImageIcon className="h-5 w-5" />
+                    图片规格
+                  </h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    统一控制资产库、剧本资产和自由生图默认规格；显式选择过比例的业务流程会优先使用自己的设置。
+                  </p>
+                </div>
+                <div className="rounded-lg border border-border bg-card px-4 py-3 text-right">
+                  <div className="text-xs text-muted-foreground">当前默认输出</div>
+                  <div className="mt-1 text-lg font-semibold text-foreground">
+                    {getImageSizeLabel({
+                      aspectRatio: imageGenerationSettings.defaultAspectRatio,
+                      resolution: imageGenerationSettings.defaultResolution,
+                    })}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {imageGenerationSettings.defaultAspectRatio} · {imageGenerationSettings.defaultResolution}
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
+                <div className="rounded-xl border border-border bg-card p-5 space-y-5">
+                  <div>
+                    <div className="text-sm font-semibold text-foreground">默认生图规格</div>
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      未传入 `aspectRatio / resolution` 的生图请求会使用这里的默认值。
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground">默认画幅比例</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {IMAGE_ASPECT_RATIOS.map((ratio) => (
+                        <Button
+                          key={ratio}
+                          type="button"
+                          variant={imageGenerationSettings.defaultAspectRatio === ratio ? "default" : "outline"}
+                          size="sm"
+                          className="h-8 px-3 text-xs"
+                          onClick={() => setImageGenerationSettings({ defaultAspectRatio: ratio as ImageAspectRatio })}
+                        >
+                          {ratio}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground">默认分辨率</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {IMAGE_RESOLUTIONS.map((resolution) => (
+                        <Button
+                          key={resolution}
+                          type="button"
+                          variant={imageGenerationSettings.defaultResolution === resolution ? "default" : "outline"}
+                          size="sm"
+                          className="h-8 px-4 text-xs"
+                          onClick={() => setImageGenerationSettings({ defaultResolution: resolution as ImageResolution })}
+                        >
+                          {resolution}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <div className="text-sm font-semibold text-foreground">兼容重试</div>
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        网络失败或供应商临时错误时，使用更保守的规格重试一次。
+                      </div>
+                    </div>
+                    <Switch
+                      checked={imageGenerationSettings.compatibilityRetryEnabled}
+                      onCheckedChange={(checked) => setImageGenerationSettings({ compatibilityRetryEnabled: checked })}
+                    />
+                  </div>
+
+                  <div className="rounded-lg border border-border/70 bg-muted/40 p-3">
+                    <div className="text-xs text-muted-foreground">重试输出</div>
+                    <div className="mt-1 text-base font-semibold text-foreground">
+                      {getImageSizeLabel({
+                        aspectRatio: imageGenerationSettings.compatibilityRetryAspectRatio,
+                        resolution: imageGenerationSettings.compatibilityRetryResolution,
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground">重试比例</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {IMAGE_ASPECT_RATIOS.map((ratio) => (
+                        <Button
+                          key={ratio}
+                          type="button"
+                          variant={imageGenerationSettings.compatibilityRetryAspectRatio === ratio ? "default" : "outline"}
+                          size="sm"
+                          className="h-7 px-2 text-[11px]"
+                          disabled={!imageGenerationSettings.compatibilityRetryEnabled}
+                          onClick={() => setImageGenerationSettings({ compatibilityRetryAspectRatio: ratio as ImageAspectRatio })}
+                        >
+                          {ratio}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground">重试分辨率</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {IMAGE_RESOLUTIONS.map((resolution) => (
+                        <Button
+                          key={resolution}
+                          type="button"
+                          variant={imageGenerationSettings.compatibilityRetryResolution === resolution ? "default" : "outline"}
+                          size="sm"
+                          className="h-7 px-3 text-[11px]"
+                          disabled={!imageGenerationSettings.compatibilityRetryEnabled}
+                          onClick={() => setImageGenerationSettings({ compatibilityRetryResolution: resolution as ImageResolution })}
+                        >
+                          {resolution}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-border bg-card p-5">
+                <div className="mb-4 flex items-center justify-between gap-4">
+                  <div>
+                    <div className="text-sm font-semibold text-foreground">GPT Image 规格矩阵</div>
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      GPT Image 请求会把比例和分辨率转换为标准 `size` 字段；其他供应商可能继续使用 `aspect_ratio / resolution`。
+                    </div>
+                  </div>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[640px] border-separate border-spacing-0 text-sm">
+                    <thead>
+                      <tr className="text-left text-xs text-muted-foreground">
+                        <th className="border-b border-border px-3 py-2 font-medium">比例</th>
+                        {IMAGE_RESOLUTIONS.map((resolution) => (
+                          <th key={resolution} className="border-b border-border px-3 py-2 font-medium">{resolution}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {IMAGE_ASPECT_RATIOS.map((ratio) => (
+                        <tr key={ratio}>
+                          <td className="border-b border-border/60 px-3 py-2 font-medium text-foreground">{ratio}</td>
+                          {IMAGE_RESOLUTIONS.map((resolution) => (
+                            <td key={resolution} className="border-b border-border/60 px-3 py-2 text-muted-foreground">
+                              {GPT_IMAGE_SIZE_MAP[ratio][resolution]}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
           </ScrollArea>
         </TabsContent>
@@ -2377,6 +2682,105 @@ export function SettingsPanel({
                 {!hasElectronDevTools && (
                   <p className="text-xs text-muted-foreground">
                     控制台入口仅在桌面应用窗口中可用。
+                  </p>
+                )}
+              </div>
+
+              <div className="p-6 border border-border rounded-xl bg-card space-y-5">
+                <div className="flex items-center justify-between gap-4">
+                  <h4 className="font-medium text-foreground flex items-center gap-2">
+                    <Terminal className="h-4 w-4" />
+                    诊断日志
+                  </h4>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={refreshDiagnosticsInfo}
+                    disabled={!hasDiagnosticsLog || isDiagnosticsLoading}
+                  >
+                    {isDiagnosticsLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                    ) : (
+                      <RefreshCw className="h-4 w-4 mr-1" />
+                    )}
+                    刷新
+                  </Button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div className="rounded-lg bg-muted/30 px-3 py-3">
+                    <p className="text-xs text-muted-foreground">日志大小</p>
+                    <p className="mt-1 text-sm font-semibold text-foreground">
+                      {diagnosticsInfo ? formatBytes(diagnosticsInfo.totalBytes) : "未读取"}
+                    </p>
+                  </div>
+                  <div className="rounded-lg bg-muted/30 px-3 py-3">
+                    <p className="text-xs text-muted-foreground">近 24 小时警告</p>
+                    <p className="mt-1 text-sm font-semibold text-foreground">
+                      {diagnosticsInfo?.recentWarnCount ?? 0}
+                    </p>
+                  </div>
+                  <div className="rounded-lg bg-muted/30 px-3 py-3">
+                    <p className="text-xs text-muted-foreground">近 24 小时错误</p>
+                    <p className="mt-1 text-sm font-semibold text-destructive">
+                      {diagnosticsInfo?.recentErrorCount ?? 0}
+                    </p>
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">目录</p>
+                  <p className="text-xs font-mono text-foreground break-all">
+                    {diagnosticsInfo?.directory || "仅桌面应用可用"}
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleOpenDiagnosticsFolder}
+                    disabled={!hasDiagnosticsLog}
+                  >
+                    <Folder className="h-4 w-4 mr-1" />
+                    打开文件夹
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleExportDiagnostics}
+                    disabled={!hasDiagnosticsLog || isExportingDiagnostics}
+                  >
+                    {isExportingDiagnostics ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                    ) : (
+                      <Download className="h-4 w-4 mr-1" />
+                    )}
+                    导出诊断包
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleClearDiagnostics}
+                    disabled={!hasDiagnosticsLog || isClearingDiagnostics}
+                  >
+                    {isClearingDiagnostics ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                    ) : (
+                      <Trash2 className="h-4 w-4 mr-1" />
+                    )}
+                    清理日志
+                  </Button>
+                </div>
+
+                <div className="rounded-lg bg-muted/30 px-3 py-3 text-xs text-muted-foreground">
+                  <span className="font-medium text-foreground">提示：</span>
+                  日志只保存在本机，默认保留 30 天；API Key、Authorization、token、base64 图片和长提示词会自动脱敏。
+                </div>
+
+                {!hasDiagnosticsLog && (
+                  <p className="text-xs text-muted-foreground">
+                    诊断日志仅在桌面应用窗口中可用。
                   </p>
                 )}
               </div>

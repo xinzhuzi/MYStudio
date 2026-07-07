@@ -8,6 +8,7 @@ import type { IProvider } from "@/lib/api-key-manager";
 import type { TextCompletionMessage } from "@/lib/api-manager/text-completion";
 import {
   generateCharacterImage,
+  generatePropImage,
   generateSceneImage,
   submitGridImageRequest,
   type ImageGenerationParams,
@@ -16,9 +17,14 @@ import {
 import { getWorkerBridge, initializeWorkerBridge, type AIWorkerBridge } from "@/lib/ai/worker-bridge";
 import { extractStyleTokens } from "@/lib/ai/style-extractor";
 import { generateFreedomImage, generateFreedomVideo } from "@/lib/freedom/freedom-api";
-import { callVideoGenerationApi } from "@/components/panels/director/use-video-generation";
+import { callVideoGenerationApi } from "@/lib/ai/video-generator";
 import { generateSpeech } from "@/lib/tts/client";
-import { callFeatureAPI, callFeatureMultimodalAPI, getFeatureConfig } from "@/lib/ai/feature-router";
+import {
+  callFeatureAPI,
+  callFeatureMultimodalAPI,
+  getFeatureConfig,
+  getFeatureNotConfiguredMessage,
+} from "@/lib/ai/feature-router";
 import type { TtsGenerateRequest, TtsGenerateResponse } from "@/types/tts";
 
 /** 绑定：可来自 studio 的 Agent 部署，或 ai-core 的功能绑定。 */
@@ -95,9 +101,11 @@ async function textStream(req: AITextRequest, onChunk: (delta: string) => void):
   return { success: result.success, text: result.text, error: result.error };
 }
 
-/** 图像生成（角色/场景）：委托 image-generator（内部按功能绑定解析）；出错抛异常，返回 {imageUrl,taskId?}。 */
-async function image(params: ImageGenerationParams, kind: "character" | "scene" = "character"): Promise<ImageGenerationResult> {
-  return kind === "scene" ? generateSceneImage(params) : generateCharacterImage(params);
+/** 图像生成（角色/场景/道具）：委托 image-generator（内部按功能绑定解析）；出错抛异常，返回 {imageUrl,taskId?}。 */
+async function image(params: ImageGenerationParams, kind: "character" | "scene" | "prop" = "character"): Promise<ImageGenerationResult> {
+  if (kind === "scene") return generateSceneImage(params);
+  if (kind === "prop") return generatePropImage(params);
+  return generateCharacterImage(params);
 }
 
 /** 网格/多图生成：调用方已解析好 model/apiKey/baseUrl。 */
@@ -125,6 +133,15 @@ function featureText(...args: Parameters<typeof callFeatureAPI>): Promise<string
   return callFeatureAPI(...args);
 }
 
+/** 功能绑定配置查询：业务层优先从 AI Manager 进入，不直接依赖 feature-router。 */
+function featureConfig(feature: AIFeature) {
+  return getFeatureConfig(feature);
+}
+
+function featureNotConfiguredMessage(feature: AIFeature) {
+  return getFeatureNotConfiguredMessage(feature);
+}
+
 /** 功能绑定的多模态 chat（文本+图片），返回内容字符串；调用方自行构建 messages 与解析。 */
 function chatMultimodal(...args: Parameters<typeof callFeatureMultimodalAPI>): Promise<string> {
   return callFeatureMultimodalAPI(...args);
@@ -150,4 +167,21 @@ function video(...args: Parameters<typeof callVideoGenerationApi>) {
   return callVideoGenerationApi(...args);
 }
 
-export const aiManager = { resolve, text, textStream, image, imageGrid, worker, initWorker, tts, featureText, chatMultimodal, vision, freedomImage, freedomVideo, video };
+export const aiManager = {
+  resolve,
+  text,
+  textStream,
+  image,
+  imageGrid,
+  worker,
+  initWorker,
+  tts,
+  featureConfig,
+  featureNotConfiguredMessage,
+  featureText,
+  chatMultimodal,
+  vision,
+  freedomImage,
+  freedomVideo,
+  video,
+};

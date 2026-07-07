@@ -5,8 +5,8 @@
  * Storage Migration: Monolithic → Per-Project Files
  * 
  * Splits old single-file stores into per-project directories:
- *   _p/{projectId}/script.json, director.json, media.json, characters.json, scenes.json
- *   _shared/media.json, characters.json, scenes.json
+ *   _p/{projectId}/script.json, director.json, media.json, characters.json, scenes.json, props.json
+ *   _shared/media.json, characters.json, scenes.json, props.json
  * 
  * Safe: creates new files first, then renames old files to .bak
  * Idempotent: checks _p/.migrated flag before running
@@ -64,7 +64,7 @@ export async function migrateToProjectStorage(): Promise<void> {
     await migrateRecordStore('mystudio-script-store', 'script', projectIds);
     await migrateRecordStore('mystudio-director-store', 'director', projectIds);
 
-    // 3. Migrate flat-array stores (media, characters, scenes)
+    // 3. Migrate flat-array stores (media, characters, scenes, props)
     await migrateFlatStore('mystudio-media-store', 'media', projectIds, {
       arrayKeys: ['mediaFiles', 'folders'],
       projectIdField: 'projectId',
@@ -82,6 +82,12 @@ export async function migrateToProjectStorage(): Promise<void> {
 
     await migrateFlatStore('mystudio-scene-store', 'scenes', projectIds, {
       arrayKeys: ['scenes', 'folders'],
+      projectIdField: 'projectId',
+      sharedFilter: (item: any) => !item.projectId,
+    });
+
+    await migrateFlatStore('mystudio-props-library', 'props', projectIds, {
+      arrayKeys: ['items', 'folders'],
       projectIdField: 'projectId',
       sharedFilter: (item: any) => !item.projectId,
     });

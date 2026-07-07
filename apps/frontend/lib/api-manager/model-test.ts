@@ -1,5 +1,20 @@
 import { parseApiKeys, type IProvider } from "../api-key-manager";
+import {
+  buildOpenAIImageRequestBody,
+  buildProviderExtensionImageRequestBody,
+  extractImageGenerationResult,
+  isGptImageModel,
+  sdkGenerateImage,
+  type SdkGenerateImageOptions,
+  type SdkGenerateImageResult,
+} from "../ai/ai-sdk-bridge";
 import { THINKING_TEST_MAX_TOKENS, buildThinkingParams, resolveThinkingEnabled } from "../ai/thinking-mode";
+import {
+  DEFAULT_IMAGE_ASPECT_RATIO,
+  DEFAULT_IMAGE_RESOLUTION,
+  type ImageAspectRatio,
+  type ImageResolution,
+} from "../ai/image-size-presets";
 
 export type ModelTestType = "text" | "image" | "video" | "tts" | "vision";
 export type ModelTestProtocol =
@@ -7,10 +22,22 @@ export type ModelTestProtocol =
   | "anthropic-compatible"
   | "gemini-compatible";
 
+export const DEFAULT_MODEL_TEST_TIMEOUT_MS = 15_000;
+export const IMAGE_MODEL_TEST_TIMEOUT_MS = 120_000;
+
+export function getModelTestTimeoutMs(type: ModelTestType) {
+  return type === "image" ? IMAGE_MODEL_TEST_TIMEOUT_MS : DEFAULT_MODEL_TEST_TIMEOUT_MS;
+}
+
 export interface ModelTestRequest {
   provider: Pick<IProvider, "id" | "platform" | "name" | "baseUrl" | "apiKey" | "model">;
   model: string;
   type: ModelTestType;
+  operationId?: string;
+  imageGenerationSettings?: {
+    defaultAspectRatio: ImageAspectRatio;
+    defaultResolution: ImageResolution;
+  };
   /**
    * 用户在设置里为该模型显式配置的「思考模式」开关。
    * true 强制开、false 强制关；省略则按模型名自动判断。
@@ -44,13 +71,38 @@ export interface PreparedTextModelTestAttempt {
   endpoint: string;
   headers: Record<string, string>;
   body: Record<string, unknown>;
+  keyIndex?: number;
+  template?: string;
+}
+
+export interface PreparedImageModelTestAttempt {
+  protocol: "openai-compatible";
+  label: string;
+  endpoint: string;
+  headers: Record<string, string>;
+  body: Record<string, unknown>;
+  keyIndex?: number;
+  template?: "aspect-resolution" | "openai-size";
 }
 
 export interface PreparedTextModelTest {
   success: true;
   dryRun: false;
+  type: "text";
   attempts: PreparedTextModelTestAttempt[];
   protocol: ModelTestProtocol;
+  label: string;
+  endpoint: string;
+  headers: Record<string, string>;
+  body: Record<string, unknown>;
+}
+
+export interface PreparedImageModelTest {
+  success: true;
+  dryRun: false;
+  type: "image";
+  attempts: PreparedImageModelTestAttempt[];
+  protocol: "openai-compatible";
   label: string;
   endpoint: string;
   headers: Record<string, string>;
@@ -70,6 +122,7 @@ export interface FailedModelTestPreparation {
 
 export type PreparedModelTest =
   | PreparedTextModelTest
+  | PreparedImageModelTest
   | PreparedDryRunModelTest
   | FailedModelTestPreparation;
 
@@ -145,6 +198,60 @@ function buildTextModelTestAttempts(baseUrl: string, apiKey: string, model: stri
   ];
 }
 
+function buildImageModelTestAttempts(
+  baseUrl: string,
+  apiKeys: string[],
+  model: string,
+  imageSettings: ModelTestRequest["imageGenerationSettings"] = {
+    defaultAspectRatio: DEFAULT_IMAGE_ASPECT_RATIO,
+    defaultResolution: DEFAULT_IMAGE_RESOLUTION,
+  },
+): PreparedImageModelTestAttempt[] {
+  const endpoint = buildOpenAICompatibleEndpoint(baseUrl, "images/generations");
+  const prompt = "API 连通性测试图";
+  const openAIImageBody = buildOpenAIImageRequestBody({
+    model,
+    prompt,
+    aspectRatio: imageSettings.defaultAspectRatio,
+    resolution: imageSettings.defaultResolution,
+  }).body;
+  const providerExtensionBody = buildProviderExtensionImageRequestBody({
+    model,
+    prompt,
+    aspectRatio: imageSettings.defaultAspectRatio,
+    resolution: imageSettings.defaultResolution,
+  }).body;
+  const templates: Array<{
+    template: PreparedImageModelTestAttempt["template"];
+    label: string;
+    body: Record<string, unknown>;
+  }> = [
+    {
+      template: "openai-size",
+      label: "标准尺寸模板",
+      body: openAIImageBody,
+    },
+    {
+      template: "aspect-resolution",
+      label: "供应商扩展模板",
+      body: providerExtensionBody,
+    },
+  ];
+
+  return templates.flatMap((template) => apiKeys.map((apiKey, index) => ({
+    protocol: "openai-compatible" as const,
+    label: `OpenAI 图片 · ${template.label} · Key ${index + 1}`,
+    endpoint,
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: template.body,
+    keyIndex: index,
+    template: template.template,
+  })));
+}
+
 export function prepareModelTestRequest(payload: ModelTestRequest): PreparedModelTest {
   const keys = parseApiKeys(payload.provider.apiKey);
   const isLocalTtsProvider = payload.provider.platform === "manying-local-tts" || payload.provider.platform === "tts-compatible";
@@ -162,6 +269,22 @@ export function prepareModelTestRequest(payload: ModelTestRequest): PreparedMode
     return { success: false, error: "缺少模型" };
   }
 
+  if (payload.type === "image") {
+    const attempts = buildImageModelTestAttempts(baseUrl, keys, model, payload.imageGenerationSettings);
+    const attempt = attempts[0];
+    return {
+      success: true,
+      dryRun: false,
+      type: "image",
+      attempts,
+      protocol: attempt.protocol,
+      label: attempt.label,
+      endpoint: attempt.endpoint,
+      headers: attempt.headers,
+      body: attempt.body,
+    };
+  }
+
   if (payload.type !== "text") {
     return {
       success: true,
@@ -175,6 +298,7 @@ export function prepareModelTestRequest(payload: ModelTestRequest): PreparedMode
   return {
     success: true,
     dryRun: false,
+    type: "text",
     attempts,
     protocol: firstAttempt.protocol,
     label: firstAttempt.label,
@@ -223,17 +347,81 @@ function parseModelTestSuccessText(protocol: ModelTestProtocol, text: string): s
   }
 }
 
+function hasImageTestResult(text: string): boolean {
+  try {
+    const result = extractImageGenerationResult(JSON.parse(text));
+    return Boolean(result.imageUrl || result.taskId);
+  } catch {
+    return false;
+  }
+}
+
+interface ModelTestFetchMeta {
+  templateName?: string;
+}
+
 type ModelTestFetch = (input: string, init: {
   method: "POST";
   headers: Record<string, string>;
   body: string;
   signal?: AbortSignal;
-}) => Promise<Response>;
+}, meta?: ModelTestFetchMeta) => Promise<Response>;
+
+type ModelTestImageSdk = (options: SdkGenerateImageOptions) => Promise<SdkGenerateImageResult>;
+
+function getBearerToken(headers: Record<string, string>): string | undefined {
+  const authorization = headers.Authorization ?? headers.authorization;
+  const match = /^Bearer\s+(.+)$/i.exec(authorization ?? "");
+  return match?.[1]?.trim();
+}
+
+function getStringField(record: Record<string, unknown>, key: string, fallback: string) {
+  const value = record[key];
+  return typeof value === "string" && value.trim() ? value : fallback;
+}
+
+function getNumberField(record: Record<string, unknown>, key: string) {
+  const value = record[key];
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+function getFetchUrl(input: RequestInfo | URL) {
+  if (typeof input === "string") return input;
+  if (input instanceof URL) return input.toString();
+  return input.url;
+}
+
+function headersToRecord(headers: HeadersInit | undefined): Record<string, string> {
+  if (!headers) return {};
+  if (headers instanceof Headers) {
+    const record: Record<string, string> = {};
+    headers.forEach((value, key) => {
+      record[key] = value;
+    });
+    return record;
+  }
+  if (Array.isArray(headers)) return Object.fromEntries(headers.map(([key, value]) => [key, value]));
+  return { ...headers };
+}
+
+function bodyToString(body: BodyInit | null | undefined) {
+  return typeof body === "string" ? body : "";
+}
+
+function createSdkTransportFetch(fetcher: ModelTestFetch, templateName?: string): typeof fetch {
+  return ((input: RequestInfo | URL, init?: RequestInit) => fetcher(getFetchUrl(input), {
+    method: "POST",
+    headers: headersToRecord(init?.headers),
+    body: bodyToString(init?.body),
+    signal: init?.signal ?? undefined,
+  }, { templateName })) as typeof fetch;
+}
 
 export async function runModelTestRequest(
   payload: ModelTestRequest,
   fetcher: ModelTestFetch = fetch,
-  timeoutMs = 15000,
+  timeoutMs = getModelTestTimeoutMs(payload.type),
+  imageSdkGenerator: ModelTestImageSdk = sdkGenerateImage,
 ): Promise<ModelTestResult> {
   const prepared = prepareModelTestRequest(payload);
   if (!prepared.success) {
@@ -245,21 +433,89 @@ export async function runModelTestRequest(
   }
 
   const attempts: ModelTestAttemptResult[] = [];
+  const skippedImageKeyIndexes = new Set<number>();
   for (const attempt of prepared.attempts) {
+    if (prepared.type === "image" && attempt.keyIndex !== undefined && skippedImageKeyIndexes.has(attempt.keyIndex)) {
+      continue;
+    }
+
     const startedAt = Date.now();
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
+      if (prepared.type === "image" && attempt.template === "openai-size" && isGptImageModel(payload.model)) {
+        const apiKey = getBearerToken(attempt.headers) ?? "";
+        const sdkResult = await imageSdkGenerator({
+          provider: {
+            id: payload.provider.id,
+            platform: payload.provider.platform,
+            name: payload.provider.name,
+            baseUrl: payload.provider.baseUrl,
+            apiKey,
+          },
+          model: payload.model,
+          prompt: getStringField(attempt.body, "prompt", "API 连通性测试图"),
+          aspectRatio: getStringField(attempt.body, "aspect_ratio", DEFAULT_IMAGE_ASPECT_RATIO),
+          resolution: getStringField(attempt.body, "resolution", DEFAULT_IMAGE_RESOLUTION),
+          width: getNumberField(attempt.body, "width"),
+          height: getNumberField(attempt.body, "height"),
+          operationId: payload.operationId,
+          timeoutMs,
+          maxRetries: 0,
+          abortSignal: controller.signal,
+          endpointFamily: "model-test",
+          fetcher: createSdkTransportFetch(fetcher, attempt.template),
+        });
+        const elapsedMs = Date.now() - startedAt;
+        if (sdkResult.success && sdkResult.imageUrl) {
+          return {
+            success: true,
+            protocol: attempt.protocol,
+            status: sdkResult.status ?? 200,
+            elapsedMs,
+            attempts: [
+              ...attempts,
+              {
+                protocol: attempt.protocol,
+                label: attempt.label,
+                endpoint: attempt.endpoint,
+                success: true,
+                status: sdkResult.status ?? 200,
+                elapsedMs,
+              },
+            ],
+            message: `图片测试通过 · ${attempt.label} · ${payload.model} · ${elapsedMs}ms`,
+          };
+        }
+
+        if (attempt.keyIndex !== undefined && (sdkResult.status === 401 || sdkResult.status === 403)) {
+          skippedImageKeyIndexes.add(attempt.keyIndex);
+        }
+        attempts.push({
+          protocol: attempt.protocol,
+          label: attempt.label,
+          endpoint: attempt.endpoint,
+          success: false,
+          status: sdkResult.status,
+          elapsedMs,
+          error: sdkResult.error || "图片模型测试未返回图片",
+        });
+        continue;
+      }
+
       const response = await fetcher(attempt.endpoint, {
         method: "POST",
         headers: attempt.headers,
         body: JSON.stringify(attempt.body),
         signal: controller.signal,
-      });
+      }, { templateName: attempt.template });
       const elapsedMs = Date.now() - startedAt;
       const text = await response.text();
 
       if (!response.ok) {
+        if (prepared.type === "image" && attempt.keyIndex !== undefined && (response.status === 401 || response.status === 403)) {
+          skippedImageKeyIndexes.add(attempt.keyIndex);
+        }
         attempts.push({
           protocol: attempt.protocol,
           label: attempt.label,
@@ -272,7 +528,21 @@ export async function runModelTestRequest(
         continue;
       }
 
-      const content = parseModelTestSuccessText(attempt.protocol, text);
+      const imageAccepted = prepared.type === "image" ? hasImageTestResult(text) : false;
+      if (prepared.type === "image" && !imageAccepted) {
+        attempts.push({
+          protocol: attempt.protocol,
+          label: attempt.label,
+          endpoint: attempt.endpoint,
+          success: false,
+          status: response.status,
+          elapsedMs,
+          error: `图片模型测试未返回图片 URL、base64 或任务 ID: ${text.slice(0, 240)}`,
+        });
+        continue;
+      }
+
+      const content = prepared.type === "text" ? parseModelTestSuccessText(attempt.protocol, text) : undefined;
       return {
         success: true,
         protocol: attempt.protocol,
@@ -289,18 +559,24 @@ export async function runModelTestRequest(
             elapsedMs,
           },
         ],
-        message: content
+        message: prepared.type === "image"
+          ? `图片测试通过 · ${attempt.label} · ${payload.model} · ${elapsedMs}ms`
+          : content
           ? `测试通过 · ${attempt.label} · ${content.slice(0, 120)} · ${elapsedMs}ms`
           : `测试通过 · ${attempt.label} · ${payload.model} · ${elapsedMs}ms`,
       };
     } catch (error) {
+      const elapsedMs = Date.now() - startedAt;
+      const isTimeout = error instanceof Error && error.name === "AbortError";
       attempts.push({
         protocol: attempt.protocol,
         label: attempt.label,
         endpoint: attempt.endpoint,
         success: false,
-        elapsedMs: Date.now() - startedAt,
-        error: error instanceof Error ? error.message : String(error),
+        elapsedMs,
+        error: isTimeout
+          ? `${payload.type === "image" ? "图片模型测试" : "模型测试"}超时 (${Math.round(timeoutMs / 1000)}s)`
+          : error instanceof Error ? error.message : String(error),
       });
     } finally {
       clearTimeout(timer);

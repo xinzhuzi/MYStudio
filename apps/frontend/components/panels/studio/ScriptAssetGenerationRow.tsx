@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { LocalImage } from "@/components/ui/local-image";
 import { RoleVoicePreviewButton } from "../assets/RoleVoicePreviewButton";
 import { useTtsStore } from "@/stores/tts-store";
+import type { ProjectVoiceBinding } from "@/types/tts";
 import { Gem, Loader2, MapPin, PackagePlus, UserRound } from "lucide-react";
 import {
   getRowDescription,
@@ -16,6 +17,8 @@ import {
   getRoleVoiceSpeakerIds,
   resolveRoleVoiceBinding,
 } from "./script-asset-voice-binding";
+
+const EMPTY_VOICE_BINDINGS: Record<string, ProjectVoiceBinding> = {};
 
 export function AssetGenerationRow({
   row,
@@ -104,7 +107,7 @@ export function AssetGenerationRow({
 function VoiceBadge({ speakerIds }: { speakerIds: ReturnType<typeof getRoleVoiceSpeakerIds> }) {
   const activeProjectId = useTtsStore((state) => state.activeProjectId);
   const bindings = useTtsStore((state) =>
-    activeProjectId ? (state.projects[activeProjectId]?.bindings ?? {}) : {},
+    activeProjectId ? (state.projects[activeProjectId]?.bindings ?? EMPTY_VOICE_BINDINGS) : EMPTY_VOICE_BINDINGS,
   );
   const voiceProfiles = useTtsStore((state) => state.voiceProfiles);
   const resolution = resolveRoleVoiceBinding(speakerIds, bindings, voiceProfiles);
@@ -141,7 +144,7 @@ function RoleVoicePreviewControl({
 }) {
   const activeProjectId = useTtsStore((state) => state.activeProjectId);
   const bindings = useTtsStore((state) =>
-    activeProjectId ? (state.projects[activeProjectId]?.bindings ?? {}) : {},
+    activeProjectId ? (state.projects[activeProjectId]?.bindings ?? EMPTY_VOICE_BINDINGS) : EMPTY_VOICE_BINDINGS,
   );
   const voiceProfiles = useTtsStore((state) => state.voiceProfiles);
   const resolution = resolveRoleVoiceBinding(speakerIds, bindings, voiceProfiles);

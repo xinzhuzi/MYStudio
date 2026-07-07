@@ -59,6 +59,11 @@ const FEATURE_DEFAULT_MODEL: Partial<Record<AIFeature, Record<string, string>>> 
   },
 };
 
+const FEATURE_BINDING_FALLBACKS: Partial<Record<AIFeature, AIFeature>> = {
+  prop_generation: 'scene_generation',
+  scene_generation: 'character_generation',
+};
+
 
 /**
  * 解析 platform:model 格式
@@ -131,6 +136,17 @@ export function getAllFeatureConfigs(feature: AIFeature): FeatureConfig[] {
       models: [model],
       model,
     });
+  }
+
+  if (configs.length === 0) {
+    const fallbackFeature = FEATURE_BINDING_FALLBACKS[feature];
+    if (fallbackFeature) {
+      return getAllFeatureConfigs(fallbackFeature).map((config) => ({
+        ...config,
+        feature,
+        featureName: featureInfo?.name || feature,
+      }));
+    }
   }
   
   return configs;
@@ -229,6 +245,8 @@ export function getFeatureNotConfiguredMessage(feature: AIFeature): string {
 import { callChatAPI } from '@/lib/script/script-parser';
 import { sdkGenerateText, getLanguageModel } from '@/lib/ai/ai-sdk-bridge';
 import { buildThinkingParams, buildThinkingProviderOptions } from '@/lib/ai/thinking-mode';
+import { createOperationId, logEvent } from '@/lib/diagnostics/logger';
+import { observedFetch } from '@/lib/diagnostics/network';
 import { generateText } from 'ai';
 
 export interface CallFeatureAPIOptions {
@@ -394,6 +412,7 @@ export async function callFeatureMultimodalAPI(
   messages: Array<{ role: string; content: unknown }>,
   opts?: { temperature?: number; responseFormat?: 'json_object'; signal?: AbortSignal },
 ): Promise<string> {
+  const operationId = createOperationId('feature-multimodal');
   const config = getFeatureConfig(feature);
   if (!config) {
     throw new Error(getFeatureNotConfiguredMessage(feature));
@@ -423,6 +442,14 @@ export async function callFeatureMultimodalAPI(
     });
     return result.text;
   } catch (_e) {
+    void logEvent({
+      level: 'warn',
+      category: 'ai',
+      operationId,
+      message: 'Feature multimodal AI SDK failed, falling back to HTTP',
+      context: { feature, providerName: config.provider.name, model },
+      error: _e,
+    });
     // AI SDK 失败，回退到手写 HTTP
   }
 
@@ -434,11 +461,17 @@ export async function callFeatureMultimodalAPI(
 
   const response = await retryOperation(async () => {
     const apiKey = config.keyManager.getCurrentKey() || config.apiKey;
-    const resp = await fetch(endpoint, {
+    const resp = await observedFetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify(body),
       signal: opts?.signal,
+    }, {
+      operationId,
+      endpointFamily: 'feature-multimodal-chat',
+      providerId: config.provider.id,
+      providerName: config.provider.name,
+      model,
     });
     if (!resp.ok) {
       const errorText = await resp.text();

@@ -74,6 +74,24 @@ describe("ScriptTab", () => {
     expect(source).not.toContain('<div className="flex gap-1 border-b border-border">');
   });
 
+  it("keeps script markdown previews tied to the active theme", () => {
+    const tabSource = readFileSync(
+      "frontend/components/panels/studio/ScriptTab.tsx",
+      "utf8",
+    );
+    const outputPanelSource = readFileSync(
+      "frontend/components/panels/studio/ScriptOutputPanel.tsx",
+      "utf8",
+    );
+
+    expect(tabSource).toContain("useThemeStore");
+    expect(tabSource).toContain("theme={theme}");
+    expect(tabSource).not.toContain('theme="dark"');
+    expect(outputPanelSource).toContain("useThemeStore");
+    expect(outputPanelSource).toContain("theme={theme}");
+    expect(outputPanelSource).not.toContain('theme="dark"');
+  });
+
   it("lays out script stage controls as horizontal buttons with one full-width detail panel", () => {
     const source = readFileSync(
       "frontend/components/panels/studio/ScriptTab.tsx",

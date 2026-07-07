@@ -26,10 +26,12 @@ import { Separator } from "@/components/ui/separator";
 // ResizablePanelGroup not needed here - using global layout
 import { useState, useCallback } from "react";
 import { useAPIConfigStore } from "@/stores/api-config-store";
+import { useAppSettingsStore } from "@/stores/app-settings-store";
 import { useMediaStore } from "@/stores/media-store";
 import { generateStoryboardImage, generateSceneVideos } from "@/lib/storyboard";
-import { getFeatureConfig } from "@/lib/ai/feature-router";
+import { aiManager } from "@/lib/ai/ai-manager";
 import { toast } from "sonner";
+import { normalizeHorizontalVerticalAspectRatio } from "@/lib/ai/image-size-presets";
 
 export function DirectorView() {
   // Sync active project ID from project-store
@@ -64,13 +66,15 @@ export function DirectorView() {
     setProjectFolderId,
   } = useDirectorStore();
   
+  const imageGenerationSettings = useAppSettingsStore((state) => state.imageGenerationSettings);
+
   // Read from project data (with defaults for when project is not yet loaded)
   const storyboardStatus = projectData?.storyboardStatus || 'editing';
   const storyboardImage = projectData?.storyboardImage || null;
   const storyboardError = projectData?.storyboardError || null;
   const storyboardConfig = projectData?.storyboardConfig || {
-    aspectRatio: '9:16' as const,
-    resolution: '2K' as const,
+    aspectRatio: normalizeHorizontalVerticalAspectRatio(imageGenerationSettings.defaultAspectRatio),
+    resolution: imageGenerationSettings.defaultResolution === '4K' ? '4K' as const : '2K' as const,
     sceneCount: 5,
     storyPrompt: '',
   };
@@ -88,7 +92,7 @@ export function DirectorView() {
   const [storyboardProgress, setStoryboardProgress] = useState(0);
 
   // Check if required APIs are configured (check image generation feature)
-  const imageGenConfig = getFeatureConfig('character_generation');
+  const imageGenConfig = aiManager.featureConfig('character_generation');
   const hasRequiredApis = !!imageGenConfig?.apiKey;
 
   // Step definitions for navigation
@@ -167,7 +171,7 @@ export function DirectorView() {
 
     try {
       // 从服务映射获取图片生成配置
-      const featureConfig = getFeatureConfig('character_generation');
+      const featureConfig = aiManager.featureConfig('character_generation');
       if (!featureConfig) {
         throw new Error('请先在设置中配置图片生成 API');
       }
@@ -227,7 +231,7 @@ export function DirectorView() {
     }
 
     // 从服务映射获取视频生成配置
-    const videoConfig = getFeatureConfig('video_generation');
+    const videoConfig = aiManager.featureConfig('video_generation');
     if (!videoConfig) {
       toast.error('请先在设置中配置视频生成 API');
       return;

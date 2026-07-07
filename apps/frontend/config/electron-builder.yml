@@ -47,6 +47,7 @@ extraResources:
     filter:
       - "**/*"
       - "!art_skills/daojie_ink_guofeng/**"
+      - "!story_skills/Daojie_xianxia/**"
       - "!**/.DS_Store"
       - "!**/__MACOSX/**"
       - "!**/.cache/**"

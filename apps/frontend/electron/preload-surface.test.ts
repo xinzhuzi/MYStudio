@@ -14,6 +14,25 @@ describe("preload IPC surface", () => {
     expect(preloadSource).toContain("ipcRenderer.invoke('app-updater-check', options)");
   });
 
+  it("exposes diagnostics logging through a narrow safe API", () => {
+    expect(preloadSource).toContain("exposeInMainWorld('diagnosticsLog'");
+    expect(preloadSource).toContain("ipcRenderer.invoke('diagnostics-log-write', entry)");
+    expect(preloadSource).toContain("ipcRenderer.invoke('diagnostics-log-query', query)");
+    expect(preloadSource).toContain("ipcRenderer.invoke('diagnostics-log-get-info')");
+    expect(preloadSource).toContain("ipcRenderer.invoke('diagnostics-log-export-bundle')");
+    expect(preloadSource).toContain("ipcRenderer.invoke('diagnostics-log-clear')");
+  });
+
+  it("exposes image API requests through electronAPI without raw IPC", () => {
+    expect(preloadSource).toContain("imageRequest: (payload: ImageRequestPayload): Promise<ImageRequestResult>");
+    expect(preloadSource).toContain("ipcRenderer.invoke('api-image-request', payload)");
+  });
+
+  it("exposes a narrow image storage move API without raw IPC", () => {
+    expect(preloadSource).toContain("moveImage: (localPath: string, category: string)");
+    expect(preloadSource).toContain("ipcRenderer.invoke('move-image'");
+  });
+
   it("exposes project-scoped binary file APIs without raw IPC", () => {
     expect(preloadSource).toContain("writeBinary: (payload:");
     expect(preloadSource).toContain("saveImage: (payload:");

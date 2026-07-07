@@ -22,6 +22,8 @@ export function isRateLimitError(error: unknown): boolean {
 
   const err = error as any;
 
+  if (err.retryable === false) return false;
+
   // Check status code: 429 rate limit, 500 server error, 502 bad gateway, 503 service unavailable, 529 overloaded
   if (err.status === 429 || err.status === 500 || err.status === 502 || err.status === 503 || err.status === 529) return true;
   if (err.code === 429 || err.code === 500 || err.code === 502 || err.code === 503 || err.code === 529) return true;

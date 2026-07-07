@@ -28,15 +28,11 @@ import { useDirectorStore, useActiveDirectorProject, type SplitScene } from "@/s
 import { useCharacterLibraryStore } from "@/stores/character-library-store";
 import { useSceneStore } from "@/stores/scene-store";
 import {
-  getFeatureConfig,
-  getFeatureNotConfiguredMessage,
-} from "@/lib/ai/feature-router";
-import {
   buildImageWithRoles,
   convertToHttpUrl,
   saveVideoLocally,
   isContentModerationError,
-} from "../director/use-video-generation";
+} from "@/lib/ai/video-generator";
 import { aiManager } from "@/lib/ai/ai-manager";
 import {
   buildGroupPrompt,
@@ -152,9 +148,9 @@ export function useSClassGeneration() {
       }
 
       // 1. 获取 API 配置
-      const featureConfig = getFeatureConfig("video_generation");
+      const featureConfig = aiManager.featureConfig("video_generation");
       if (!featureConfig) {
-        const msg = getFeatureNotConfiguredMessage("video_generation");
+        const msg = aiManager.featureNotConfiguredMessage("video_generation");
         return {
           groupId: group.id,
           success: false,
@@ -602,9 +598,9 @@ export function useSClassGeneration() {
         return false;
       }
 
-      const featureConfig = getFeatureConfig("video_generation");
+      const featureConfig = aiManager.featureConfig("video_generation");
       if (!featureConfig) {
-        toast.error(getFeatureNotConfiguredMessage("video_generation"));
+        toast.error(aiManager.featureNotConfiguredMessage("video_generation"));
         return false;
       }
 

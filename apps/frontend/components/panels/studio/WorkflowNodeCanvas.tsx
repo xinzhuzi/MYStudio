@@ -20,6 +20,7 @@ import {
   ZoomIn,
   ZoomOut,
 } from "lucide-react";
+import type { ImageWorkflowOpenContext } from "@/types/studio";
 import type {
   ProductionFlowNodeAction,
   ProductionFlowNodeId,
@@ -126,12 +127,14 @@ export function WorkflowNodeCanvas({
   onStageChange,
   onNodeEdit,
   onNodeAction,
+  onOpenAssetImageWorkflow,
 }: {
   projectName: string;
   nodes: ProductionFlowNodeModel[];
   onStageChange: (stage: ProductionFlowStage) => void;
   onNodeEdit?: (nodeId: ProductionFlowNodeId) => void;
   onNodeAction?: (action: ProductionFlowNodeAction) => void | Promise<void>;
+  onOpenAssetImageWorkflow?: (context: ImageWorkflowOpenContext) => void;
 }) {
   const [layout, setLayout] = useState<"LR" | "TB">("LR");
   const [flowInstance, setFlowInstance] =
@@ -146,9 +149,23 @@ export function WorkflowNodeCanvas({
         sourcePosition: layout === "LR" ? Position.Right : Position.Bottom,
         targetPosition:
           node.id === "assets" ? Position.Top : layout === "LR" ? Position.Left : Position.Top,
-        data: { node, onStageChange, onNodeEdit, onNodeAction },
+        data: {
+          node,
+          onStageChange,
+          onNodeEdit,
+          onNodeAction,
+          onOpenAssetImageWorkflow,
+        },
       })),
-    [layout, nodes, onNodeAction, onNodeEdit, onStageChange, positions],
+    [
+      layout,
+      nodes,
+      onNodeAction,
+      onNodeEdit,
+      onOpenAssetImageWorkflow,
+      onStageChange,
+      positions,
+    ],
   );
   const [reactFlowNodes, setReactFlowNodes, onNodesChange] =
     useNodesState<ProductionFlowReactNode>(initialReactFlowNodes);
@@ -180,8 +197,8 @@ export function WorkflowNodeCanvas({
         targetHandle: `${target}-target`,
         data: { flowEdgeId: `${source}->${target}` },
         className: "production-flow-edge",
-        markerEnd: { type: MarkerType.ArrowClosed, color: "#0f0f0f" },
-        style: { stroke: "#0f0f0f", strokeWidth: 4 },
+        markerEnd: { type: MarkerType.ArrowClosed, color: "hsl(var(--foreground))" },
+        style: { stroke: "hsl(var(--foreground))", strokeWidth: 4 },
       })),
     [],
   );
@@ -194,37 +211,37 @@ export function WorkflowNodeCanvas({
   }, [flowInstance, layout, nodes]);
 
   return (
-    <section className="workflow-node-canvas production-video-stage grid h-full min-h-[calc(100vh-190px)] w-full flex-1 grid-cols-[minmax(0,1fr)] overflow-hidden rounded-lg border border-white/10 bg-[#202120] text-zinc-100">
+    <section className="workflow-node-canvas production-video-stage grid h-full min-h-[calc(100vh-190px)] w-full flex-1 grid-cols-[minmax(0,1fr)] overflow-hidden rounded-lg border border-border bg-background text-foreground">
       <div className="relative min-w-0 overflow-hidden">
         <div className="workflow-node-toolbar pointer-events-none absolute left-5 top-5 z-30 flex flex-wrap items-center gap-2">
           <div className="mr-3 min-w-0">
-            <h3 className="truncate text-base font-semibold text-zinc-100">
+            <h3 className="truncate text-base font-semibold text-foreground">
               {projectName}
             </h3>
           </div>
           <button
             type="button"
-            className="pointer-events-auto inline-flex h-9 max-w-[320px] items-center gap-2 rounded-md border border-white/16 bg-[#151615]/88 px-3 text-xs text-zinc-200 shadow-[0_14px_34px_rgba(0,0,0,0.2)] backdrop-blur-md"
+            className="pointer-events-auto inline-flex h-9 max-w-[320px] items-center gap-2 rounded-md border border-border bg-card/88 px-3 text-xs text-card-foreground shadow-[0_14px_34px_rgba(0,0,0,0.16)] backdrop-blur-md"
           >
             <Clapperboard className="h-4 w-4" />
             <span className="truncate">{projectName} EP01</span>
           </button>
           <button
             type="button"
-            className="pointer-events-auto inline-flex h-9 items-center gap-2 rounded-md border border-white/16 bg-[#151615]/88 px-3 text-xs text-zinc-200 backdrop-blur-md hover:bg-white/[0.09]"
+            className="pointer-events-auto inline-flex h-9 items-center gap-2 rounded-md border border-border bg-card/88 px-3 text-xs text-card-foreground backdrop-blur-md hover:bg-muted"
           >
             <RefreshCw className="h-4 w-4" />
           </button>
           <button
             type="button"
-            className="pointer-events-auto inline-flex h-9 items-center gap-2 rounded-md border border-white/16 bg-[#151615]/88 px-3 text-xs text-zinc-200 backdrop-blur-md hover:bg-white/[0.09]"
+            className="pointer-events-auto inline-flex h-9 items-center gap-2 rounded-md border border-border bg-card/88 px-3 text-xs text-card-foreground backdrop-blur-md hover:bg-muted"
             onClick={toggleLayout}
           >
             自动排版 {layout}
           </button>
         </div>
         <ReactFlow
-          className="production-flow-reactflow absolute inset-0 bg-[radial-gradient(circle_at_48%_32%,rgba(125,211,252,0.11),transparent_34%),linear-gradient(180deg,rgba(255,255,255,0.035),transparent_50%)]"
+          className="production-flow-reactflow absolute inset-0 bg-background"
           nodes={reactFlowNodes}
           edges={reactFlowEdges}
           nodeTypes={nodeTypes}
@@ -247,7 +264,7 @@ export function WorkflowNodeCanvas({
           selectionOnDrag={false}
           proOptions={{ hideAttribution: true }}
         >
-          <Background color="rgba(255,255,255,0.055)" gap={30} size={1} />
+          <Background color="hsl(var(--border))" gap={30} size={1} />
           <CanvasViewportControls />
         </ReactFlow>
       </div>

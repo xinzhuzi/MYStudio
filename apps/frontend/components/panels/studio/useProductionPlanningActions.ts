@@ -10,7 +10,6 @@ import {
   toStoryboardItems,
 } from "@/lib/studio/storyboard-table";
 import { aiManager } from "@/lib/ai/ai-manager";
-import { saveImageToLocal } from "@/lib/image-storage";
 import {
   buildStudioManualContext,
   type StudioManualCatalog,
@@ -20,12 +19,21 @@ import {
   type AssetGenerationTask,
 } from "@/lib/studio/asset-generation-orchestrator";
 import {
+  createAssetImageWorkflowGraph,
+  createStoryboardImageWorkflowGraph,
+  getGeneratedNode,
+} from "@/lib/studio/image-workflow";
+import { prepareImageWorkflowReferenceImages } from "@/lib/studio/image-workflow-references";
+import {
   buildEntityResolver,
   createMystudioDerivedSinks,
   syncDerivedAssets,
   type EntityResolver,
 } from "@/lib/studio/derived-asset-sync";
 import { useCharacterLibraryStore } from "@/stores/character-library-store";
+import { useAppSettingsStore } from "@/stores/app-settings-store";
+import { useFreedomStore } from "@/stores/freedom-store";
+import { useProjectStore } from "@/stores/project-store";
 import { usePropsLibraryStore } from "@/stores/props-library-store";
 import { useSceneStore } from "@/stores/scene-store";
 import { useStudioStore } from "@/stores/studio-store";
@@ -36,7 +44,7 @@ import {
   resolveScriptPlanEpisodeId,
   resolveScriptTextForEpisode,
 } from "./workflow-helpers";
-import type { EntityExtractionResult, ScriptPlan, StoryboardItem } from "@/types/studio";
+import type { EntityExtractionResult, ImageWorkflowAssetTargetType, ScriptPlan, StoryboardItem } from "@/types/studio";
 
 type StudioStore = ReturnType<typeof useStudioStore.getState>;
 
@@ -170,16 +178,7 @@ export function useProductionPlanningActions({
         const parsed = parseStoryboardTable(result.text, targetEpisodeId);
         const items = toStoryboardItems(parsed.rows, targetEpisodeId);
         const workflowStore = useStudioStore.getState();
-        for (const item of items) {
-          if (
-            workflowStore.storyboards.some((current) => current.id === item.id)
-          ) {
-            workflowStore.updateStoryboard(item.id, item);
-          } else {
-            workflowStore.addStoryboard(item);
-          }
-        }
-        workflowStore.rebuildTracks();
+        workflowStore.replaceStoryboardsForEpisode(targetEpisodeId, items);
 
         const warningText = parsed.warnings.length
           ? `，提示 ${parsed.warnings.length} 条`
@@ -218,7 +217,7 @@ export function useProductionPlanningActions({
       ...createMystudioDerivedSinks(),
     });
     if (options?.silent) {
-      return { plan, batch, resolver };
+      return { plan, batch, resolver, projectId };
     }
     if (summary.skipped) {
       toast.warning(
@@ -227,7 +226,7 @@ export function useProductionPlanningActions({
     } else {
       toast.success(`衍生资产已落地 ${summary.created} 条`);
     }
-    return { plan, batch, resolver };
+    return { plan, batch, resolver, projectId };
   }, [activeProjectId, productionEpisodeId]);
 
   const handleGenerateDerivedAssets = useCallback(async () => {
@@ -243,6 +242,7 @@ export function useProductionPlanningActions({
       synced.plan.derivedAssetPlan,
       synced.resolver,
       visualManualId,
+      synced.projectId,
     );
     if (tasks.total === 0) {
       toast.info("没有待生成图片的衍生资产");
@@ -313,19 +313,36 @@ export function useProductionPlanningActions({
         store.workflowConfig,
         manualCatalog,
       );
+      const imageSettings = useAppSettingsStore.getState().imageGenerationSettings;
+      const freedomImage = useFreedomStore.getState();
+      const imageModel = freedomImage.selectedImageModel.trim() || undefined;
       let success = 0;
       let failed = 0;
 
       for (const storyboard of targets) {
         try {
+          useStudioStore.getState().updateStoryboard(storyboard.id, {
+            state: "rendering",
+            reason: undefined,
+          });
+          const prompt = buildStoryboardImagePrompt({
+            storyboard,
+            manualContext,
+            userInstruction,
+          });
+          const referenceImages = collectStoryboardReferenceImages(storyboard);
+          const preparedReferenceImages = await prepareImageWorkflowReferenceImages(
+            referenceImages.map((item) => item.imageUrl),
+            { readProjectFileAsBase64: window.projectFiles.readAsBase64 },
+          );
           const result = await aiManager.freedomImage({
-            prompt: buildStoryboardImagePrompt({
-              storyboard,
-              manualContext,
-              userInstruction,
-            }),
-            aspectRatio: "16:9",
-            resolution: "2K",
+            prompt,
+            model: imageModel,
+            aspectRatio: imageSettings.defaultAspectRatio,
+            resolution: imageSettings.defaultResolution,
+            referenceImages: preparedReferenceImages.length
+              ? preparedReferenceImages
+              : undefined,
           });
           if (!result.url) throw new Error("图片生成未返回地址");
 
@@ -348,10 +365,24 @@ export function useProductionPlanningActions({
             localPath: saved.url,
             size: saved.size ?? 0,
           });
-          workflowStore.updateStoryboard(storyboard.id, {
-            mediaRef: { kind: "image", path: saved.url },
-            state: "ready",
+          const graph = createStoryboardImageWorkflowGraph({
+            storyboard,
+            prompt,
+            resultImagePath: saved.url,
+            projectName: useProjectStore.getState().activeProject?.name || "MYStudio",
+            model: imageModel,
+            aspectRatio: imageSettings.defaultAspectRatio,
+            resolution: imageSettings.defaultResolution,
+            referenceImages,
           });
+          const generatedNode = graph.nodes.find((node) => node.type === "generated");
+          if (!generatedNode) throw new Error("分镜图片工作流缺少生成节点");
+          workflowStore.upsertImageWorkflow(graph);
+          workflowStore.applyImageWorkflowResultToStoryboard(
+            storyboard.id,
+            graph.id,
+            getGeneratedNode(graph, generatedNode.id).id,
+          );
           saveAgentWorkData(
             "storyboardImage",
             `分镜 ${storyboard.index} 图片已保存：${saved.url}`,
@@ -447,11 +478,11 @@ export function useProductionPlanningActions({
     const characters = useCharacterLibraryStore
       .getState()
       .characters.filter(
-        (item) => !item.projectId || item.projectId === projectId,
+        (item) => item.projectId === projectId,
       );
     const scenes = useSceneStore
       .getState()
-      .scenes.filter((item) => !item.projectId || item.projectId === projectId);
+      .scenes.filter((item) => item.projectId === projectId);
 
     const config = useStudioStore.getState().workflowConfig;
     const bible = buildSeriesBible({
@@ -513,15 +544,26 @@ function resolveDerivedAssetActionContext(
 type CharacterVariationGenerationTask = {
   characterId: string;
   variationId: string;
+  projectId: string;
   name: string;
   prompt: string;
   referenceImages?: string[];
+  imageWorkflowId?: string;
 };
 
-function collectDerivedAssetGenerationTasks(
+type StoryboardReferenceImage = {
+  assetId: string;
+  assetType: ImageWorkflowAssetTargetType;
+  title: string;
+  imageUrl: string;
+  evidence: string;
+};
+
+export function collectDerivedAssetGenerationTasks(
   plan: ScriptPlan["derivedAssetPlan"],
   resolver: EntityResolver,
   visualManualId: string,
+  projectId: string,
 ): {
   characterVariationTasks: CharacterVariationGenerationTask[];
   storeTasks: AssetGenerationTask[];
@@ -546,6 +588,7 @@ function collectDerivedAssetGenerationTasks(
       characterVariationTasks.push({
         characterId: character.id,
         variationId: variation.id,
+        projectId,
         name: `${character.name}-${variation.name}`,
         prompt:
           variation.visualPromptZh ||
@@ -555,21 +598,25 @@ function collectDerivedAssetGenerationTasks(
           character.thumbnailUrl,
           character.views[0]?.imageUrl,
         ].filter((image): image is string => Boolean(image)),
+        imageWorkflowId: variation.imageWorkflowId,
       });
       continue;
     }
 
     if (target.kind === "scene") {
+      const parentScene = scenes.find((current) => current.id === target.id);
       const scene = scenes.find(
         (current) =>
           current.parentSceneId === target.id &&
-          current.viewpointName === item.state,
+          current.viewpointName === item.state &&
+          current.projectId === projectId,
       );
       if (!scene || scene.referenceImage) continue;
       const existingPrompt = scene.visualPrompt || `${item.state}：${item.reason}`;
       storeTasks.push({
         assetId: scene.id,
         assetType: "scene",
+        projectId,
         name: scene.name,
         description:
           [scene.location, scene.time, scene.atmosphere, scene.notes]
@@ -579,25 +626,39 @@ function collectDerivedAssetGenerationTasks(
         visualManualId,
         skipPolish: Boolean(scene.visualPrompt),
         existingPrompt,
+        referenceImages: [
+          parentScene?.referenceImage,
+          parentScene?.referenceImageBase64,
+        ].filter((image): image is string => Boolean(image)),
+        imageWorkflowId: scene.imageWorkflowId,
       });
       continue;
     }
 
+    const parentProp = props.find((current) => current.id === target.id);
     const prop = props.find(
       (current) =>
-        current.parentId === target.id && current.category === item.state,
+        current.parentId === target.id &&
+        current.category === item.state &&
+        current.projectId === projectId,
     );
     if (!prop || prop.imageUrl) continue;
     const existingPrompt = prop.visualPrompt || `${item.state}：${item.reason}`;
     storeTasks.push({
       assetId: prop.id,
       assetType: "prop",
+      projectId,
       name: prop.name,
       description: prop.description || item.reason,
       isDerivative: true,
       visualManualId,
       skipPolish: Boolean(prop.visualPrompt),
       existingPrompt,
+      referenceImages: [
+        parentProp?.imageUrl,
+        ...(parentProp?.referenceImages ?? []),
+      ].filter((image): image is string => Boolean(image)),
+      imageWorkflowId: prop.imageWorkflowId,
     });
   }
 
@@ -608,14 +669,80 @@ function collectDerivedAssetGenerationTasks(
   };
 }
 
+export function collectStoryboardReferenceImages(
+  storyboard: Pick<StoryboardItem, "assetIds">,
+): StoryboardReferenceImage[] {
+  const characters = useCharacterLibraryStore.getState().characters;
+  const scenes = useSceneStore.getState().scenes;
+  const props = usePropsLibraryStore.getState().items;
+  const results: StoryboardReferenceImage[] = [];
+
+  for (const assetId of storyboard.assetIds) {
+    const character = characters.find((item) => item.id === assetId);
+    if (character) {
+      const characterImages: Array<{ title: string; imageUrl?: string; evidence: string }> = [
+        {
+          title: `角色参考：${character.name}`,
+          imageUrl: character.thumbnailUrl,
+          evidence: `${assetId}.thumbnailUrl`,
+        },
+        ...character.variations.map((variation) => ({
+          title: `角色变体参考：${character.name}·${variation.name}`,
+          imageUrl: variation.referenceImage,
+          evidence: `${assetId}.variations.${variation.id}.referenceImage`,
+        })),
+        ...character.views.map((view) => ({
+          title: `角色视图参考：${character.name}·${view.viewType}`,
+          imageUrl: view.imageUrl,
+          evidence: `${assetId}.views.${view.viewType}.imageUrl`,
+        })),
+      ];
+      for (const image of characterImages) {
+        if (!image.imageUrl) continue;
+        results.push({
+          assetId,
+          assetType: "character",
+          title: image.title,
+          imageUrl: image.imageUrl,
+          evidence: image.evidence,
+        });
+      }
+      continue;
+    }
+
+    const scene = scenes.find((item) => item.id === assetId);
+    if (scene?.referenceImage) {
+      results.push({
+        assetId,
+        assetType: "scene",
+        title: `场景参考：${scene.name}`,
+        imageUrl: scene.referenceImage,
+        evidence: `${assetId}.referenceImage`,
+      });
+      continue;
+    }
+
+    const prop = props.find((item) => item.id === assetId);
+    if (prop?.imageUrl) {
+      results.push({
+        assetId,
+        assetType: "prop",
+        title: `道具参考：${prop.name}`,
+        imageUrl: prop.imageUrl,
+        evidence: `${assetId}.imageUrl`,
+      });
+    }
+  }
+
+  return results;
+}
+
 async function generateCharacterVariationAsset(
   task: CharacterVariationGenerationTask,
 ): Promise<boolean> {
   const result = await aiManager.image(
     {
       prompt: task.prompt,
-      resolution: "2K",
-      aspectRatio: "1:1",
       referenceImages: task.referenceImages?.length
         ? task.referenceImages
         : undefined,
@@ -624,20 +751,53 @@ async function generateCharacterVariationAsset(
   );
   if (!result.imageUrl) return false;
 
-  const localPath = await saveImageToLocal(
-    result.imageUrl,
-    "wardrobe",
-    `${task.name}-${Date.now()}`,
-  );
+  if (!window.projectFiles?.saveImage) return false;
+  const saved = await window.projectFiles.saveImage({
+    projectId: task.projectId,
+    relativePath: `workflow-images/assets/character/${createAssetImageFilename(task.variationId, task.name)}`,
+    source: result.imageUrl,
+  });
+  if (!saved.success || !saved.url) return false;
+  const workflowPatch = buildCharacterVariationWorkflowPatch(task, saved.url);
   useCharacterLibraryStore.getState().updateVariation(
     task.characterId,
     task.variationId,
     {
-      referenceImage: localPath,
+      referenceImage: saved.url,
+      ...workflowPatch,
       generatedAt: Date.now(),
     },
   );
   return true;
+}
+
+function buildCharacterVariationWorkflowPatch(
+  task: CharacterVariationGenerationTask,
+  resultImagePath: string,
+) {
+  const graph = createAssetImageWorkflowGraph(
+    {
+      target: {
+        kind: "asset",
+        assetType: "character",
+        parentId: task.characterId,
+        id: task.variationId,
+      },
+      title: task.name,
+      prompt: task.prompt,
+      sourceImagePath: task.referenceImages?.[0],
+      resultImagePath,
+      imageWorkflowId: task.imageWorkflowId,
+    },
+    useProjectStore.getState().activeProject?.name || "MYStudio",
+  );
+  const generatedNode = graph.nodes.find((node) => node.type === "generated");
+  if (!generatedNode) return {};
+  useStudioStore.getState().upsertImageWorkflow(graph);
+  return {
+    imageWorkflowId: graph.id,
+    imageWorkflowNodeId: generatedNode.id,
+  };
 }
 
 function collectStoryboardsNeedingImages(
@@ -647,7 +807,11 @@ function collectStoryboardsNeedingImages(
   const scoped = storyboards.filter((item) => item.episodeId === episodeId);
   const candidates = scoped.length ? scoped : storyboards;
   return candidates
-    .filter((item) => !item.mediaRef || item.mediaRef.kind === "audio")
+    .filter(
+      (item) =>
+        item.shouldGenerateImage !== false &&
+        (!item.mediaRef || item.mediaRef.kind === "audio"),
+    )
     .sort((a, b) => a.index - b.index);
 }
 
@@ -687,11 +851,15 @@ function buildStoryboardImagePrompt({
 }
 
 function storyboardImageRelativePath(episodeId: string, filename: string) {
-  return `storyboard-images/${safePathSegment(episodeId)}/${safePathSegment(filename)}`;
+  return `workflow-images/storyboards/${safePathSegment(episodeId)}/${safePathSegment(filename)}`;
 }
 
 function createStoryboardImageFilename(storyboard: StoryboardItem) {
   return `shot-${String(storyboard.index).padStart(3, "0")}-${safePathSegment(storyboard.id)}-${Date.now()}.png`;
+}
+
+function createAssetImageFilename(assetId: string, assetName: string) {
+  return `${safePathSegment(assetId)}-${safePathSegment(assetName)}-${Date.now()}.png`;
 }
 
 function safePathSegment(value: string) {

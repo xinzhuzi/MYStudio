@@ -11,6 +11,7 @@ import crypto from 'node:crypto'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import packageMetadata from '../../package.json'
+import { createDiagnosticsLogService } from './diagnostics-log'
 import { createTtsRuntimeController } from './tts-runtime'
 import {
   createStoredStudioSkillFile,
@@ -37,10 +38,13 @@ import {
   resolveToonflowAssetPath,
 } from './studio-runtime-assets'
 import * as assetsStorage from './studio-assets-storage'
-import { runModelTestRequest, type ModelTestRequest, type ModelTestResult } from '../lib/api-manager/model-test'
+import { observedFetch, type ObservedFetchMeta } from '../lib/diagnostics/network'
+import { getModelTestTimeoutMs, runModelTestRequest, type ModelTestRequest, type ModelTestResult } from '../lib/api-manager/model-test'
 import { runTextCompletionRequest, runTextCompletionStreamRequest, type TextCompletionRequest, type TextCompletionResult } from '../lib/api-manager/text-completion'
 import { sdkGenerateText, sdkStreamText } from '../lib/ai/ai-sdk-bridge'
 import type { StudioAssetListRequest } from '../types/studio-assets'
+import type { ImageRequestPayload, ImageRequestResult } from '../types/api-image-request'
+import type { DiagnosticsLogEntryInput, DiagnosticsLogQuery } from '../types/diagnostics'
 import type { StudioVisualManualCreatePayload, StudioVisualManualImagesWritePayload, StudioVisualManualWritePayload } from '../types/studio-visual-manual'
 import type { EpisodeMergePlan, TrackRenderInput, TrackRenderPlan } from '../types/studio'
 import type { AvailableUpdateInfo, OpenExternalResult, UpdateCheckOptions, UpdateCheckResult, UpdateManifest } from '../types/update'
@@ -50,8 +54,10 @@ import {
   shouldCreateWindowOnActivate,
   shouldCreateWindowOnSecondInstance,
 } from './app-lifecycle'
+import { getAssetImagePickerDefaultPath } from './asset-image-picker'
 import {
   createProjectFileUrl,
+  parseLocalMediaPath,
   resolveDataDirPath,
   resolveDataFilePath,
   resolveLocalMediaPath,
@@ -81,6 +87,10 @@ process.env.VITE_PUBLIC = RENDERER_DIST
 let win: BrowserWindow | null
 const execFileAsync = promisify(execFile)
 const hasSingleInstanceLock = app.requestSingleInstanceLock()
+const diagnosticsLogService = createDiagnosticsLogService({
+  rootDir: path.join(app.getPath('userData'), 'logs', 'diagnostics'),
+  retentionDays: 30,
+})
 
 if (!hasSingleInstanceLock) {
   app.exit(0)
@@ -115,10 +125,100 @@ type ProjectFileSaveImagePayload = {
   source: string
 }
 
+function writeDiagnosticsLog(entry: DiagnosticsLogEntryInput) {
+  diagnosticsLogService.write(entry).catch((error) => {
+    console.warn('Failed to write diagnostics log:', error)
+  })
+}
+
+function createDiagnosticsOperationId(prefix: string) {
+  return `${prefix}-${crypto.randomUUID()}`
+}
+
+function createDiagnosticsFetch(params: {
+  operationId: string
+  endpointFamily: string
+  providerId?: string
+  providerName?: string
+  model?: string
+  timeoutMs?: number
+}) {
+  return (
+    input: RequestInfo | URL,
+    init?: RequestInit,
+    meta?: Partial<ObservedFetchMeta>,
+  ) => observedFetch(input, init, {
+    ...params,
+    ...meta,
+    requestId: createDiagnosticsOperationId('req'),
+    fetcher: fetch as typeof fetch,
+    logEvent: writeDiagnosticsLog,
+  })
+}
+
+function headersToRecord(headers: Headers): Record<string, string> {
+  const record: Record<string, string> = {}
+  headers.forEach((value, key) => {
+    record[key] = value
+  })
+  return record
+}
+
+function validateHttpRequestUrl(rawUrl: string) {
+  const parsed = new URL(rawUrl)
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    throw new Error('仅支持 http/https 图片 API 请求')
+  }
+  return parsed.toString()
+}
+
+async function diagnosticsFetchJson(url: string, options: { method: string; headers?: Record<string, string>; body?: string }) {
+  const operationId = createDiagnosticsOperationId('tts-http')
+  const response = await observedFetch(url, options, {
+    operationId,
+    requestId: createDiagnosticsOperationId('req'),
+    endpointFamily: 'tts-runtime',
+    providerName: 'Manying Local TTS',
+    fetcher: fetch as typeof fetch,
+    logEvent: writeDiagnosticsLog,
+  })
+  if (!response.ok) {
+    const text = await response.text().catch(() => '')
+    throw new Error(text || `TTS backend request failed (${response.status})`)
+  }
+  const contentType = response.headers.get('content-type') ?? ''
+  if (!contentType.includes('application/json')) {
+    return response.text()
+  }
+  return response.json()
+}
+
+async function diagnosticsFetchBytes(url: string, options: { method: string; headers?: Record<string, string>; body?: string }) {
+  const operationId = createDiagnosticsOperationId('tts-http')
+  const response = await observedFetch(url, options, {
+    operationId,
+    requestId: createDiagnosticsOperationId('req'),
+    endpointFamily: 'tts-runtime-bytes',
+    providerName: 'Manying Local TTS',
+    fetcher: fetch as typeof fetch,
+    logEvent: writeDiagnosticsLog,
+  })
+  if (!response.ok) {
+    const text = await response.text().catch(() => '')
+    throw new Error(text || `TTS backend request failed (${response.status})`)
+  }
+  return {
+    data: await response.arrayBuffer(),
+    mimeType: response.headers.get('content-type') ?? undefined,
+  }
+}
+
 const ttsRuntimeController = createTtsRuntimeController({
   appRoot: process.env.APP_ROOT ?? path.join(__dirname, '../..'),
   userDataPath: app.getPath('userData'),
   storageBasePath: () => getStorageBasePath(),
+  fetchJson: diagnosticsFetchJson,
+  fetchBytes: diagnosticsFetchBytes,
 })
 let stopLocalSidecarsPromise: Promise<void> | null = null
 
@@ -278,12 +378,51 @@ function createWindow() {
   // Test active push message to Renderer-process.
   win.webContents.on('did-finish-load', () => {
     win?.webContents.send('main-process-message', (new Date).toLocaleString())
+    writeDiagnosticsLog({
+      level: 'info',
+      category: 'runtime',
+      message: 'Renderer finished loading',
+      context: { url: win?.webContents.getURL() },
+    })
     showWindow()
   })
 
   win.webContents.once('did-fail-load', (_event, errorCode, errorDescription) => {
     console.error(`Renderer failed to load (${errorCode}): ${errorDescription}`)
+    writeDiagnosticsLog({
+      level: 'error',
+      category: 'runtime',
+      message: 'Renderer failed to load',
+      context: { errorCode, errorDescription, url: win?.webContents.getURL() },
+    })
     showWindow()
+  })
+
+  win.webContents.on('console-message', (_event, level, message, line, sourceId) => {
+    const logLevel = level >= 3 ? 'error' : level >= 2 ? 'warn' : level >= 1 ? 'info' : 'debug'
+    writeDiagnosticsLog({
+      level: logLevel,
+      category: 'runtime',
+      message: 'Renderer console message',
+      context: { consoleLevel: level, message, line, sourceId },
+    })
+  })
+
+  win.webContents.on('render-process-gone', (_event, details) => {
+    writeDiagnosticsLog({
+      level: 'error',
+      category: 'runtime',
+      message: 'Renderer process gone',
+      context: { reason: details.reason, exitCode: details.exitCode },
+    })
+  })
+
+  win.on('unresponsive', () => {
+    writeDiagnosticsLog({
+      level: 'warn',
+      category: 'runtime',
+      message: 'Main window became unresponsive',
+    })
   })
 
   // Open external links in system browser instead of inside Electron
@@ -573,6 +712,27 @@ const getImagesDir = (subDir: string) => {
     fs.mkdirSync(imagesDir, { recursive: true })
   }
   return imagesDir
+}
+
+function normalizeLocalMediaCategory(category: string) {
+  const normalized = `${category ?? ''}`.trim()
+  if (!/^[a-zA-Z0-9_-]+$/.test(normalized)) {
+    throw new Error('Invalid media category')
+  }
+  return normalized
+}
+
+function getAvailableMediaFileName(targetDir: string, filename: string) {
+  const safeName = path.basename(filename).replace(/[/\\:*?"<>|]/g, '_')
+  const ext = path.extname(safeName)
+  const baseName = path.basename(safeName, ext) || 'media'
+  let candidate = safeName || `media${ext || '.png'}`
+  let index = 1
+  while (fs.existsSync(path.join(targetDir, candidate))) {
+    candidate = `${baseName}_${index}${ext}`
+    index += 1
+  }
+  return candidate
 }
 
 // Download image from URL and save to local file
@@ -1030,6 +1190,43 @@ ipcMain.handle('delete-image', async (_event, localPath: string) => {
   }
 })
 
+ipcMain.handle('move-image', async (_event, payload: { localPath: string; category: string }) => {
+  const { localPath } = payload
+  try {
+    const parsed = parseLocalMediaPath(localPath)
+    if (!parsed) {
+      return { success: false, error: 'Invalid local media path' }
+    }
+
+    const category = normalizeLocalMediaCategory(payload.category)
+    if (parsed.category === category) {
+      return { success: true, localPath }
+    }
+
+    const sourcePath = resolveLocalMediaPath(getMediaRoot(), localPath)
+    if (!fs.existsSync(sourcePath)) {
+      return { success: false, error: 'File not found' }
+    }
+
+    const targetDir = getImagesDir(category)
+    const targetName = getAvailableMediaFileName(targetDir, parsed.filename)
+    const targetPath = path.join(targetDir, targetName)
+
+    try {
+      fs.renameSync(sourcePath, targetPath)
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'EXDEV') throw error
+      fs.copyFileSync(sourcePath, targetPath)
+      fs.unlinkSync(sourcePath)
+    }
+
+    return { success: true, localPath: `local-image://${category}/${targetName}` }
+  } catch (error) {
+    console.error('Failed to move image:', error)
+    return { success: false, error: String(error) }
+  }
+})
+
 // Read local image as base64 (for AI API calls)
 ipcMain.handle('read-image-base64', async (_event, localPath: string) => {
   try {
@@ -1072,7 +1269,48 @@ ipcMain.handle('get-absolute-path', async (_event, localPath: string) => {
 })
 
 ipcMain.handle('image-host-upload', async (_event, payload: ImageHostUploadRequest) => {
-  return uploadImageHostFromMain(payload)
+  const operationId = createDiagnosticsOperationId('image-host')
+  writeDiagnosticsLog({
+    level: 'info',
+    category: 'ipc',
+    operationId,
+    message: 'Image host upload IPC started',
+    context: {
+      providerName: payload.provider.name,
+      platform: payload.provider.platform,
+      baseUrl: payload.provider.baseUrl,
+      imageDataLength: payload.imageData.length,
+    },
+  })
+  try {
+    const result = await uploadImageHostFromMain(payload)
+    writeDiagnosticsLog({
+      level: result.success ? 'info' : 'error',
+      category: 'network',
+      operationId,
+      message: result.success ? 'Image host upload completed' : 'Image host upload failed',
+      context: {
+        providerName: payload.provider.name,
+        platform: payload.provider.platform,
+        hasUrl: Boolean(result.url),
+        error: result.error,
+      },
+    })
+    return result
+  } catch (error) {
+    writeDiagnosticsLog({
+      level: 'error',
+      category: 'network',
+      operationId,
+      message: 'Image host upload errored',
+      context: {
+        providerName: payload.provider.name,
+        platform: payload.provider.platform,
+      },
+      error,
+    })
+    throw error
+  }
 })
 
 // ==================== File Storage for App Data ====================
@@ -2089,11 +2327,180 @@ ipcMain.handle('app-open-path', async (_event, targetPath: string): Promise<{ su
   }
 })
 
+ipcMain.handle('diagnostics-log-write', async (_event, entry: DiagnosticsLogEntryInput) => {
+  return diagnosticsLogService.write(entry)
+})
+
+ipcMain.handle('diagnostics-log-query', async (_event, query?: DiagnosticsLogQuery) => {
+  return diagnosticsLogService.query(query)
+})
+
+ipcMain.handle('diagnostics-log-get-info', async () => {
+  return diagnosticsLogService.getInfo()
+})
+
+ipcMain.handle('diagnostics-log-open-folder', async () => {
+  const directory = diagnosticsLogService.getDirectory()
+  const error = await shell.openPath(directory)
+  return error ? { success: false, directory, error } : { success: true, directory }
+})
+
+ipcMain.handle('diagnostics-log-export-bundle', async () => {
+  return diagnosticsLogService.exportBundle()
+})
+
+ipcMain.handle('diagnostics-log-clear', async () => {
+  return diagnosticsLogService.clear()
+})
+
+ipcMain.handle('api-image-request', async (_event, payload: ImageRequestPayload): Promise<ImageRequestResult> => {
+  const operationId = payload.operationId?.trim() || createDiagnosticsOperationId('image-request')
+  const requestId = payload.requestId?.trim() || createDiagnosticsOperationId('req')
+  const startedAt = performance.now()
+  const timeoutMs = payload.timeoutMs ?? 180_000
+  const url = validateHttpRequestUrl(payload.url)
+  const controller = new AbortController()
+  const timeout = setTimeout(
+    () => controller.abort(new DOMException('图片生成请求超时', 'TimeoutError')),
+    timeoutMs,
+  )
+
+  writeDiagnosticsLog({
+    level: 'info',
+    category: 'ipc',
+    operationId,
+    requestId,
+    message: 'Image request IPC started',
+    context: {
+      endpointFamily: payload.endpointFamily,
+      providerId: payload.providerId,
+      providerName: payload.providerName,
+      model: payload.model,
+      timeoutMs,
+      templateName: payload.templateName,
+    },
+  })
+
+  try {
+    const response = await observedFetch(url, {
+      method: payload.method ?? 'GET',
+      headers: payload.headers,
+      body: payload.body,
+      signal: controller.signal,
+    }, {
+      operationId,
+      requestId,
+      endpointFamily: payload.endpointFamily ?? 'api-image-request',
+      providerId: payload.providerId,
+      providerName: payload.providerName,
+      model: payload.model,
+      timeoutMs,
+      attempt: payload.attempt,
+      maxRetries: payload.maxRetries,
+      retryBackoffMs: payload.retryBackoffMs,
+      templateName: payload.templateName,
+      taskId: payload.taskId,
+      pollAttempt: payload.pollAttempt,
+      pollStatus: payload.pollStatus,
+      fetcher: fetch as typeof fetch,
+      logEvent: writeDiagnosticsLog,
+    })
+    const body = await response.text()
+    const durationMs = Math.round(performance.now() - startedAt)
+
+    writeDiagnosticsLog({
+      level: response.ok ? 'info' : 'error',
+      category: 'ipc',
+      operationId,
+      requestId,
+      message: response.ok ? 'Image request IPC completed' : 'Image request IPC failed',
+      durationMs,
+      context: {
+        endpointFamily: payload.endpointFamily,
+        status: response.status,
+        statusText: response.statusText,
+        durationMs,
+      },
+    })
+
+    return {
+      ok: response.ok,
+      status: response.status,
+      statusText: response.statusText,
+      headers: headersToRecord(response.headers),
+      body,
+    }
+  } catch (error) {
+    const durationMs = Math.round(performance.now() - startedAt)
+    writeDiagnosticsLog({
+      level: 'error',
+      category: 'ipc',
+      operationId,
+      requestId,
+      message: 'Image request IPC errored',
+      durationMs,
+      context: {
+        endpointFamily: payload.endpointFamily,
+        durationMs,
+        errorName: error instanceof Error ? error.name : undefined,
+        errorMessage: error instanceof Error ? error.message : String(error),
+      },
+      error,
+    })
+    throw error
+  } finally {
+    clearTimeout(timeout)
+  }
+})
+
 ipcMain.handle('api-model-test', async (_event, payload: ModelTestRequest): Promise<ModelTestResult> => {
-  return runModelTestRequest(payload, fetch)
+  const operationId = payload.operationId?.trim() || createDiagnosticsOperationId('model-test')
+  writeDiagnosticsLog({
+    level: 'info',
+    category: 'ipc',
+    operationId,
+    message: 'Model test IPC started',
+    context: {
+      providerId: payload.provider.id,
+      providerName: payload.provider.name,
+      platform: payload.provider.platform,
+      model: payload.model,
+      type: payload.type,
+    },
+  })
+  const result = await runModelTestRequest(payload, createDiagnosticsFetch({
+    operationId,
+    endpointFamily: 'model-test',
+    providerId: payload.provider.id,
+    providerName: payload.provider.name,
+    model: payload.model,
+    timeoutMs: getModelTestTimeoutMs(payload.type),
+  }))
+  writeDiagnosticsLog({
+    level: result.success ? 'info' : 'error',
+    category: 'ipc',
+    operationId,
+    message: result.success ? 'Model test IPC completed' : 'Model test IPC failed',
+    context: { status: result.status, protocol: result.protocol, elapsedMs: result.elapsedMs, error: result.error },
+  })
+  return result
 })
 
 ipcMain.handle('api-text-completion', async (_event, payload: TextCompletionRequest): Promise<TextCompletionResult> => {
+  const operationId = createDiagnosticsOperationId('text-completion')
+  writeDiagnosticsLog({
+    level: 'info',
+    category: 'ipc',
+    operationId,
+    message: 'Text completion IPC started',
+    context: {
+      providerId: payload.provider.id,
+      providerName: payload.provider.name,
+      platform: payload.provider.platform,
+      model: payload.model,
+      messageCount: payload.messages.length,
+    },
+  })
   // 优先使用 Vercel AI SDK
   const provider = payload.provider as any
   if (provider?.platform && provider?.apiKey) {
@@ -2106,16 +2513,59 @@ ipcMain.handle('api-text-completion', async (_event, payload: TextCompletionRequ
         maxTokens: payload.maxTokens,
       })
       if (result.success) {
+        writeDiagnosticsLog({
+          level: 'info',
+          category: 'ai',
+          operationId,
+          message: 'Text completion completed through AI SDK',
+          context: { providerName: provider.name, model: provider.model?.[0] || payload.model || '' },
+        })
         return { success: true, text: result.text }
       }
     } catch (_e) {
+      writeDiagnosticsLog({
+        level: 'warn',
+        category: 'ai',
+        operationId,
+        message: 'AI SDK text completion failed, falling back to HTTP',
+        error: _e,
+      })
       // AI SDK 失败，回退到手写 HTTP
     }
   }
-  return runTextCompletionRequest(payload, fetch)
+  const result = await runTextCompletionRequest(payload, createDiagnosticsFetch({
+    operationId,
+    endpointFamily: 'text-completion',
+    providerId: payload.provider.id,
+    providerName: payload.provider.name,
+    model: payload.model,
+    timeoutMs: 300000,
+  }))
+  writeDiagnosticsLog({
+    level: result.success ? 'info' : 'error',
+    category: 'ipc',
+    operationId,
+    message: result.success ? 'Text completion IPC completed' : 'Text completion IPC failed',
+    context: { status: result.status, protocol: result.protocol, elapsedMs: result.elapsedMs, error: result.error },
+  })
+  return result
 })
 
 ipcMain.handle('api-text-completion-stream', async (event, args: { payload: TextCompletionRequest; streamId: string }): Promise<TextCompletionResult> => {
+  const operationId = createDiagnosticsOperationId('text-stream')
+  writeDiagnosticsLog({
+    level: 'info',
+    category: 'ipc',
+    operationId,
+    message: 'Text completion stream IPC started',
+    context: {
+      providerId: args.payload.provider.id,
+      providerName: args.payload.provider.name,
+      platform: args.payload.provider.platform,
+      model: args.payload.model,
+      streamId: args.streamId,
+    },
+  })
   // 优先使用 Vercel AI SDK 流式
   const provider = args.payload.provider as any
   if (provider?.platform && provider?.apiKey) {
@@ -2136,14 +2586,44 @@ ipcMain.handle('api-text-completion-stream', async (event, args: { payload: Text
           }
         }
       }
+      writeDiagnosticsLog({
+        level: 'info',
+        category: 'ai',
+        operationId,
+        message: 'Text completion stream completed through AI SDK',
+        context: { streamId: args.streamId, textLength: fullText.length },
+      })
       return { success: true, text: fullText }
     } catch (_e) {
+      writeDiagnosticsLog({
+        level: 'warn',
+        category: 'ai',
+        operationId,
+        message: 'AI SDK text stream failed, falling back to HTTP',
+        context: { streamId: args.streamId },
+        error: _e,
+      })
       // AI SDK 流式失败，回退到手写 HTTP
     }
   }
-  return runTextCompletionStreamRequest(args.payload, (delta) => {
+  const result = await runTextCompletionStreamRequest(args.payload, (delta) => {
     if (!event.sender.isDestroyed()) event.sender.send(`api-text-stream:${args.streamId}`, delta)
-  }, fetch)
+  }, createDiagnosticsFetch({
+    operationId,
+    endpointFamily: 'text-completion-stream',
+    providerId: args.payload.provider.id,
+    providerName: args.payload.provider.name,
+    model: args.payload.model,
+    timeoutMs: 300000,
+  }))
+  writeDiagnosticsLog({
+    level: result.success ? 'info' : 'error',
+    category: 'ipc',
+    operationId,
+    message: result.success ? 'Text completion stream IPC completed' : 'Text completion stream IPC failed',
+    context: { status: result.status, protocol: result.protocol, elapsedMs: result.elapsedMs, error: result.error, streamId: args.streamId },
+  })
+  return result
 })
 
 // ==================== File Export (Save Dialog) ====================
@@ -2383,16 +2863,38 @@ ipcMain.handle('studio-render-track-candidate', async (_event, plan: TrackRender
 })
 
 ipcMain.handle('studio-save-material', async (_event, payload: StudioSaveMaterialPayload) => {
+  const operationId = createDiagnosticsOperationId('studio-save-material')
   try {
     const filename = sanitizeStudioFilename(payload.name)
     const filePath = path.join(getStudioAssetsRoot(), filename)
     const buffer = Buffer.from(payload.bytes instanceof Uint8Array ? payload.bytes : new Uint8Array(payload.bytes))
+    writeDiagnosticsLog({
+      level: 'info',
+      category: 'storage',
+      operationId,
+      message: 'Studio material save started',
+      context: { name: payload.name, filename, size: buffer.length },
+    })
 
     if (buffer.length === 0) {
+      writeDiagnosticsLog({
+        level: 'error',
+        category: 'storage',
+        operationId,
+        message: 'Studio material save failed',
+        context: { name: payload.name, filename, error: '素材文件为空' },
+      })
       return { success: false, error: '素材文件为空' }
     }
 
     await fs.promises.writeFile(filePath, buffer)
+    writeDiagnosticsLog({
+      level: 'info',
+      category: 'storage',
+      operationId,
+      message: 'Studio material save completed',
+      context: { name: payload.name, filename, filePath, size: buffer.length },
+    })
     return {
       success: true,
       localPath: `local-image://studio-assets/${filename}`,
@@ -2400,6 +2902,14 @@ ipcMain.handle('studio-save-material', async (_event, payload: StudioSaveMateria
       size: buffer.length,
     }
   } catch (error) {
+    writeDiagnosticsLog({
+      level: 'error',
+      category: 'storage',
+      operationId,
+      message: 'Studio material save errored',
+      context: { name: payload.name },
+      error,
+    })
     return { success: false, error: error instanceof Error ? error.message : String(error) }
   }
 })
@@ -2409,54 +2919,136 @@ ipcMain.handle('studio-list-assets', async (_event, payload: StudioAssetListRequ
 ))
 
 // === 漫影独立资产存储 ===
+function summarizeDiagnosticsResult(result: unknown): unknown {
+  if (Array.isArray(result)) return { count: result.length }
+  if (!result || typeof result !== 'object') return result
+  const record = result as Record<string, unknown>
+  if (Array.isArray(record.items)) {
+    return { total: record.total, itemCount: record.items.length }
+  }
+  return {
+    success: record.success,
+    id: record.id,
+    name: record.name,
+    type: record.type,
+    imported: record.imported,
+    hasResult: true,
+  }
+}
+
+let assetDiagnosticsQueue: Promise<void> = Promise.resolve()
+let assetsStorageReady = false
+
+function ensureAssetsStorageReady() {
+  if (assetsStorageReady) return
+  assetsStorage.initAssetsStorage(getStorageBasePath())
+  assetsStorageReady = true
+}
+
+async function runAssetDiagnostics<T>(
+  action: string,
+  context: Record<string, unknown>,
+  run: () => Promise<T> | T,
+): Promise<T> {
+  const operationId = createDiagnosticsOperationId(`asset-${action}`)
+  const queuedAt = performance.now()
+  const previous = assetDiagnosticsQueue.catch(() => undefined)
+  const queuedRun = previous.then(async () => {
+    const startedAt = performance.now()
+    const queuedMs = Math.round(startedAt - queuedAt)
+    ensureAssetsStorageReady()
+    writeDiagnosticsLog({
+      level: 'debug',
+      category: 'asset',
+      operationId,
+      message: `Asset ${action} started`,
+      context: { ...context, queuedMs },
+    })
+    try {
+      const result = await run()
+      const durationMs = Math.round(performance.now() - startedAt)
+      writeDiagnosticsLog({
+        level: 'info',
+        category: 'asset',
+        operationId,
+        message: `Asset ${action} completed`,
+        durationMs,
+        context: { ...context, queuedMs, durationMs, result: summarizeDiagnosticsResult(result) },
+      })
+      return result
+    } catch (error) {
+      const durationMs = Math.round(performance.now() - startedAt)
+      writeDiagnosticsLog({
+        level: 'error',
+        category: 'asset',
+        operationId,
+        message: `Asset ${action} failed`,
+        durationMs,
+        context: { ...context, queuedMs, durationMs },
+        error,
+      })
+      throw error
+    }
+  })
+  assetDiagnosticsQueue = queuedRun.then(() => undefined, () => undefined)
+  return queuedRun
+}
+
 ipcMain.handle('assets:list', async (_event, payload: { type: string; search?: string; offset?: number; limit?: number; category?: string }) => {
-  return assetsStorage.listAssets(payload.type as any, payload.search, payload.offset, payload.limit, payload.category);
+  return runAssetDiagnostics('list', payload, () => assetsStorage.listAssets(payload.type as any, payload.search, payload.offset, payload.limit, payload.category));
 })
 
 ipcMain.handle('assets:get', async (_event, id: string) => {
-  return assetsStorage.getAsset(id);
+  return runAssetDiagnostics('get', { id }, () => assetsStorage.getAsset(id));
 })
 
 ipcMain.handle('assets:get-by-name', async (_event, payload: { type: string; name: string }) => {
-  return assetsStorage.getAssetByName(payload.type as any, payload.name);
+  return runAssetDiagnostics('get-by-name', payload, () => assetsStorage.getAssetByName(payload.type as any, payload.name));
 })
 
 ipcMain.handle('assets:batch-match', async (_event, payload: { type: string; names: string[] }) => {
-  const map = await assetsStorage.batchMatchAssets(payload.type as any, payload.names);
-  // Map 不能跨 IPC 序列化，转为数组
-  return Array.from(map.entries()).map(([name, asset]) => ({ name, asset }));
+  return runAssetDiagnostics('batch-match', {
+    type: payload.type,
+    namesCount: payload.names.length,
+    namesPreview: payload.names.slice(0, 20),
+  }, async () => {
+    const map = await assetsStorage.batchMatchAssets(payload.type as any, payload.names);
+    // Map 不能跨 IPC 序列化，转为数组
+    return Array.from(map.entries()).map(([name, asset]) => ({ name, asset }));
+  });
 })
 
 ipcMain.handle('assets:update', async (_event, payload: { id: string; updates: Record<string, unknown> }) => {
-  return assetsStorage.updateAsset(payload.id, payload.updates as any);
+  return runAssetDiagnostics('update', { id: payload.id, updates: payload.updates }, () => assetsStorage.updateAsset(payload.id, payload.updates as any));
 })
 
 ipcMain.handle('assets:delete', async (_event, id: string) => {
-  return assetsStorage.deleteAsset(id);
+  return runAssetDiagnostics('delete', { id }, () => assetsStorage.deleteAsset(id));
 })
 
 ipcMain.handle('assets:add', async (_event, payload: { type: string; name: string; sourceFilePath?: string; description?: string; prompt?: string; setting?: string }) => {
-  return assetsStorage.addAsset({ type: payload.type as any, name: payload.name, sourceFilePath: payload.sourceFilePath, description: payload.description, prompt: payload.prompt, setting: payload.setting });
+  return runAssetDiagnostics('add', payload, () => assetsStorage.addAsset({ type: payload.type as any, name: payload.name, sourceFilePath: payload.sourceFilePath, description: payload.description, prompt: payload.prompt, setting: payload.setting }));
 })
 
 ipcMain.handle('assets:add-image', async (_event, payload: { assetId: string; imageName: string; sourceFilePath: string }) => {
-  return assetsStorage.addAssetImage(payload.assetId, payload.imageName, payload.sourceFilePath);
+  return runAssetDiagnostics('add-image', payload, () => assetsStorage.addAssetImage(payload.assetId, payload.imageName, payload.sourceFilePath));
 })
 
 ipcMain.handle('assets:replace-image', async (_event, payload: { assetId: string; sourceFilePath: string }) => {
-  return assetsStorage.replaceAssetMainImage(payload.assetId, payload.sourceFilePath);
+  return runAssetDiagnostics('replace-image', payload, () => assetsStorage.replaceAssetMainImage(payload.assetId, payload.sourceFilePath));
 })
 
 ipcMain.handle('assets:remove-image', async (_event, payload: { assetId: string; imageFilePath: string }) => {
-  return assetsStorage.removeAssetImage(payload.assetId, payload.imageFilePath);
+  return runAssetDiagnostics('remove-image', payload, () => assetsStorage.removeAssetImage(payload.assetId, payload.imageFilePath));
 })
 
 ipcMain.handle('assets:rename-image', async (_event, payload: { assetId: string; imageFilePath: string; newName: string }) => {
-  return assetsStorage.renameAssetImage(payload.assetId, payload.imageFilePath, payload.newName);
+  return runAssetDiagnostics('rename-image', payload, () => assetsStorage.renameAssetImage(payload.assetId, payload.imageFilePath, payload.newName));
 })
 
 ipcMain.handle('assets:select-image-file', async () => {
   const result = await dialog.showOpenDialog({
+    defaultPath: getAssetImagePickerDefaultPath(getMediaRoot()),
     properties: ['openFile'],
     filters: [{ name: '图片', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif'] }],
   });
@@ -2465,42 +3057,100 @@ ipcMain.handle('assets:select-image-file', async () => {
 })
 
 ipcMain.handle('assets:import-from-toonflow', async (_event, payload: { type: string }) => {
-  const toonflowResult = await listStudioRuntimeAssets({ type: payload.type as any, offset: 0, limit: 9999 });
-  if (!toonflowResult.success || !toonflowResult.items.length) {
-    return { success: true, imported: 0 };
-  }
-  const imported = assetsStorage.importFromToonflow(toonflowResult.items);
-  return { success: true, imported };
+  return runAssetDiagnostics('import-from-toonflow', payload, async () => {
+    const toonflowResult = await listStudioRuntimeAssets({ type: payload.type as any, offset: 0, limit: 9999 });
+    if (!toonflowResult.success || !toonflowResult.items.length) {
+      return { success: true, imported: 0 };
+    }
+    const imported = assetsStorage.importFromToonflow(toonflowResult.items);
+    return { success: true, imported };
+  });
 })
 
-ipcMain.handle('tts-runtime-status', async () => ttsRuntimeController.status())
+async function runTtsRuntimeDiagnostics<T>(
+  action: string,
+  context: Record<string, unknown>,
+  run: () => Promise<T>,
+): Promise<T> {
+  const operationId = createDiagnosticsOperationId(`tts-${action}`)
+  writeDiagnosticsLog({
+    level: action === 'status' ? 'debug' : 'info',
+    category: 'tts',
+    operationId,
+    message: `TTS runtime ${action} started`,
+    context,
+  })
+  try {
+    const result = await run()
+    writeDiagnosticsLog({
+      level: 'info',
+      category: 'tts',
+      operationId,
+      message: `TTS runtime ${action} completed`,
+      context: { ...context, result },
+    })
+    return result
+  } catch (error) {
+    writeDiagnosticsLog({
+      level: 'error',
+      category: 'tts',
+      operationId,
+      message: `TTS runtime ${action} failed`,
+      context,
+      error,
+    })
+    throw error
+  }
+}
 
-ipcMain.handle('tts-runtime-start', async () => ttsRuntimeController.start())
+ipcMain.handle('tts-runtime-status', async () => (
+  runTtsRuntimeDiagnostics('status', {}, () => ttsRuntimeController.status())
+))
 
-ipcMain.handle('tts-runtime-setup', async () => ttsRuntimeController.setup())
+ipcMain.handle('tts-runtime-start', async () => (
+  runTtsRuntimeDiagnostics('start', {}, () => ttsRuntimeController.start())
+))
 
-ipcMain.handle('tts-runtime-stop', async () => ttsRuntimeController.stop())
+ipcMain.handle('tts-runtime-setup', async () => (
+  runTtsRuntimeDiagnostics('setup', {}, () => ttsRuntimeController.setup())
+))
+
+ipcMain.handle('tts-runtime-stop', async () => (
+  runTtsRuntimeDiagnostics('stop', {}, () => ttsRuntimeController.stop())
+))
 
 ipcMain.handle('tts-runtime-get-config', async () => ttsRuntimeController.getConfig())
 
 ipcMain.handle('tts-runtime-set-config', async (_event, config) => (
-  ttsRuntimeController.setConfig(config)
+  runTtsRuntimeDiagnostics('set-config', { config }, () => ttsRuntimeController.setConfig(config))
 ))
 
 ipcMain.handle('tts-runtime-set-model-cache-dir', async (_event, dirPath: string) => (
-  ttsRuntimeController.setModelCacheDir(dirPath)
+  runTtsRuntimeDiagnostics('set-model-cache-dir', { dirPath }, () => ttsRuntimeController.setModelCacheDir(dirPath))
 ))
 
 ipcMain.handle('tts-runtime-request', async (_event, payload: { method: string; path: string; body?: unknown }) => (
-  ttsRuntimeController.request(payload.method, payload.path, payload.body)
+  runTtsRuntimeDiagnostics('request', {
+    method: payload.method,
+    path: payload.path,
+    body: payload.body,
+  }, () => ttsRuntimeController.request(payload.method, payload.path, payload.body))
 ))
 
 ipcMain.handle('tts-runtime-request-bytes', async (_event, payload: { method: string; path: string; body?: unknown }) => (
-  ttsRuntimeController.requestBytes(payload.method, payload.path, payload.body)
+  runTtsRuntimeDiagnostics('request-bytes', {
+    method: payload.method,
+    path: payload.path,
+    body: payload.body,
+  }, () => ttsRuntimeController.requestBytes(payload.method, payload.path, payload.body))
 ))
 
 ipcMain.handle('tts-runtime-request-formdata', async (_event, payload: { path: string; audioFilePath: string; referenceText?: string }) => (
-  ttsRuntimeController.requestFormData(payload.path, payload.audioFilePath, payload.referenceText)
+  runTtsRuntimeDiagnostics('request-formdata', {
+    path: payload.path,
+    audioFilePath: payload.audioFilePath,
+    referenceTextLength: payload.referenceText?.length ?? 0,
+  }, () => ttsRuntimeController.requestFormData(payload.path, payload.audioFilePath, payload.referenceText))
 ))
 
 ipcMain.handle('studio-merge-episode', async (_event, plan: EpisodeMergePlan) => {
@@ -2569,7 +3219,6 @@ protocol.registerSchemesAsPrivileged([
 ])
 
 app.whenReady().then(async () => {
-  assetsStorage.initAssetsStorage(getStorageBasePath())
   scheduleAutoClean()
   await stopLocalSidecars()
   await ensureStudioSkillsAvailableAtStartup()

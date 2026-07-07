@@ -17,5 +17,8 @@ describe("ScriptTab split boundaries", () => {
     expect(tabSource).not.toContain("MdEditor");
     expect(dialogSource).toContain("export function ScriptEditorDialog");
     expect(dialogSource).toContain("MdEditor");
+    expect(dialogSource).toContain("useThemeStore");
+    expect(dialogSource).toContain("theme={theme}");
+    expect(dialogSource).not.toContain('theme="dark"');
   });
 });

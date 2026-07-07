@@ -415,7 +415,6 @@ export function GenerationPanel({ selectedCharacter, onCharacterCreated }: Gener
       const result = await aiManager.image({
         prompt,
         negativePrompt,
-        aspectRatio: '1:1',
         referenceImages,
         styleId,
       });

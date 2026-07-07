@@ -140,7 +140,7 @@ function MediaItemWithContextMenu({
   onRemove: (e: React.MouseEvent, id: string) => Promise<void>;
   onExport: (item: MediaFile) => void;
   onRename: (item: MediaFile) => void;
-  onMove: (mediaId: string, folderId: string | null) => void;
+  onMove: (mediaId: string, folderId: string | null) => Promise<void>;
   onSmartSplit?: (item: MediaFile) => void;
   onGenerateScenes?: (item: MediaFile) => void;
 }) {
@@ -589,9 +589,14 @@ export function MediaView() {
   };
 
   // Handle move to folder
-  const handleMoveToFolder = (mediaId: string, folderId: string | null) => {
-    moveToFolder(mediaId, folderId);
-    toast.success("已移动");
+  const handleMoveToFolder = async (mediaId: string, folderId: string | null) => {
+    try {
+      await moveToFolder(mediaId, folderId);
+      toast.success("已移动");
+    } catch (error) {
+      console.error("Move media file failed:", error);
+      toast.error(error instanceof Error ? error.message : "移动失败");
+    }
   };
 
   // Open rename dialog for folder

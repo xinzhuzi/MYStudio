@@ -2,7 +2,6 @@
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 import { useCharacterLibraryStore } from "@/stores/character-library-store";
-import { getFeatureConfig } from "@/lib/ai/feature-router";
 import { imageUrlToBase64 } from "@/lib/ai/image-generator";
 import { aiManager } from "@/lib/ai/ai-manager";
 import { readImageAsBase64 } from "@/lib/image-storage";
@@ -46,7 +45,7 @@ export async function processReferenceImages(urls: string[], maxCount: number = 
 
 // Get API configuration for image generation
 export function getImageApiConfig() {
-  return getFeatureConfig('character_generation');
+  return aiManager.featureConfig('character_generation');
 }
 
 // Collect character reference images (supports wardrobe variation mapping)

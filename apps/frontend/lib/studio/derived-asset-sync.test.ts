@@ -95,6 +95,7 @@ describe("studio derived asset sync", () => {
     expect(calls.addProp).toHaveLength(1);
     expect(calls.addProp[0]).toMatchObject({
       name: "青铜灯·破损版",
+      projectId: "proj-1",
       parentId: "prop-001",
       isDerivative: true,
       description: "Sc8 近景道具",

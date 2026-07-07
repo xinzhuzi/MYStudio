@@ -23,49 +23,46 @@ description: >-
 | 操作 | 调用 |
 |------|------|
 | 读取剧本、资产、导演规划 | `get_flowData("script")` / `get_flowData("assets")` / `get_flowData("plan")` |
-| 写入衍生资产 | `add_deriveAsset` |
+| 写入衍生资产 | MYStudio 当前由 `syncDerivedAssets()` 按导演规划⑦落地到项目内角色/场景/道具 store |
 
 
 ### 执行流程
 
 1. 获取 `script`、`assets`，以及阶段1产出的导演规划（`plan`）
-2. **以导演规划⑦衍生资产预划清单为硬约束**：清单中的每一条都必须落地为 `add_deriveAsset` 调用；不在清单中的状态默认不衍生
+2. **以导演规划⑦衍生资产预划清单为硬约束**：清单中的每一条都必须落地为项目内衍生资产；不在清单中的状态默认不衍生
 3. 对照预划清单，逐条按下方「desc 补全规则」与「提取规则」生成完整 `name`/`desc`/`type` 字段
 4. 简单说明本次新增的衍生资产内容（200 字以内）
 5. 如导演规划⑦明确写"无需衍生资产"或预划清单为空，返回"无需衍生资产"，流程结束
-6. 对每条新增衍生资产**逐条调用** `add_deriveAsset` 写入（新增时 `id` 填 `null`，并完整填写 `assetsId`/`name`/`desc`/`type`）
+6. 对每条新增衍生资产写入项目内 store：角色写入 `character.variations`，场景写入 `scenes` 的 `parentSceneId` 变体，道具写入 `props` 的 `parentId` 变体
 7. 全部调用完成后再返回简短确认（例如："已完成衍生资产写入，共 N 条"）
 
 ### 强制约束（防漏调用 / 防越权）
 
 - **不得超出预划**：阶段1预划清单未列出的状态，本阶段不得自行新增
-- **不得缺漏预划**：预划清单中的每一条都必须有对应 `add_deriveAsset` 调用；如发现预划不合理（已存在于父资产 derive、或与默认态无差异），需在返回消息中说明原因
-- 识别出衍生资产后，必须发生实际 `add_deriveAsset` 工具调用；仅输出分析文字视为未完成任务
-- `add_deriveAsset` 调用次数必须与"本次新增衍生资产条数"一致
+- **不得缺漏预划**：预划清单中的每一条都必须有对应项目内衍生资产记录；如发现预划不合理（已存在于父资产 derive、或与默认态无差异），需在返回消息中说明原因
+- 识别出衍生资产后，必须发生实际项目内 store 写入；仅输出分析文字视为未完成任务
+- 项目内新增/复用数量必须与"本次新增衍生资产条数"一致
 - 未调用写入工具时，不得返回"已完成"类结果
 
 
-### `add_deriveAsset` 入参要求
+### MYStudio 衍生资产落点
 ```ts
-add_deriveAsset({
-	assetsId: number,                // 关联的资产ID
-	id: number | null,               // 衍生资产ID，新增填 null
-	name: string,                    // 衍生资产名称
-	desc: string,                    // 衍生资产描述
-	type: "role" | "tool" | "scene" | "clip", // 衍生资产类型
+syncDerivedAssets(plan.derivedAssetPlan, {
+	resolver,        // 由 parentAssetId 解析角色/场景/道具父资产
+	characterSink,   // 写入 character.variations
+	sceneSink,       // 写入 parentSceneId 场景变体
+	propSink,        // 写入 parentId 道具变体
 })
 ```
 
 字段说明：
-- `assetsId`：父资产在工作区中的 ID
-- `id`：新增时必须为 `null`；更新已有衍生资产时填写已有衍生资产 ID
+- `parentAssetId`：父资产在当前项目工作区中的 ID
 - `name`：2~6 字，体现视觉外观变化
-- `desc`：`[与默认态的差异] · [视觉特征] ，1~100 字
+- `reason`：`[与默认态的差异] · [视觉特征]`，1~100 字
 - `type`：
-	- 角色资产填 `role`
-	- 道具资产填 `tool`
-	- 场景资产填 `scene`
-	- 镜头/片段类资产填 `clip`
+	- 角色资产写入 `character`
+	- 道具资产写入 `prop`
+	- 场景资产写入 `scene`
 
 
 
@@ -98,7 +95,7 @@ add_deriveAsset({
 - 若当前剧情穿着不是基础打底态，应优先补充对应服装类衍生资产；若存在持续且显著的身体/形态差异，再补充对应特征类衍生资产
 - 已存在于 `derive` 数组中的状态不重复
 - 每个资产 1~5 个衍生，宁缺勿滥
-- 提取到衍生资产后，必须逐条调用 `add_deriveAsset` 保存，禁止只分析不写入
+- 提取到衍生资产后，必须逐条写入项目内衍生资产记录，禁止只分析不写入
 - 来源优先级：剧本明确描写 > 资产描述暗示 > 合理推测
 - `name`：2~6 字，体现视觉外观变化
 - `desc`：格式为 `[与默认态的差异] · [视觉特征] `，

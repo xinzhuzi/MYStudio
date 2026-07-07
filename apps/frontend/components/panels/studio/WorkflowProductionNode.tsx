@@ -12,6 +12,7 @@ import {
   Table2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import type { ImageWorkflowOpenContext } from "@/types/studio";
 import type {
   ProductionFlowNodeAction,
   ProductionFlowNodeId,
@@ -31,6 +32,7 @@ export interface ProductionNodeData extends Record<string, unknown> {
   onStageChange: (stage: ProductionFlowStage) => void;
   onNodeEdit?: (nodeId: ProductionFlowNodeId) => void;
   onNodeAction?: (action: ProductionFlowNodeAction) => void | Promise<void>;
+  onOpenAssetImageWorkflow?: (context: ImageWorkflowOpenContext) => void;
 }
 
 const NODE_ICONS = {
@@ -44,11 +46,11 @@ const NODE_ICONS = {
 
 const NODE_SIZE_CLASS = {
   script: "w-[1040px]",
-  scriptPlan: "w-[580px]",
+  scriptPlan: "w-[680px]",
   assets: "w-[760px]",
   storyboardTable: "w-[700px]",
   storyboard: "w-[640px]",
-  workbench: "w-[680px]",
+  workbench: "w-[760px]",
 } satisfies Record<ProductionFlowNodeId, string>;
 
 export function ProductionFlowNode({ data }: NodeProps<Node<ProductionNodeData>>) {
@@ -75,13 +77,13 @@ export function ProductionFlowNode({ data }: NodeProps<Node<ProductionNodeData>>
     <div
       data-flow-node-id={data.node.id}
       className={cn(
-        "group rounded-md border bg-[#171817]/95 p-4 text-left shadow-[0_24px_64px_rgba(0,0,0,0.42)] outline-none backdrop-blur transition",
-        "hover:-translate-y-0.5 hover:border-sky-300/55 hover:shadow-[0_26px_72px_rgba(37,99,235,0.18)]",
+        "group rounded-md border bg-card/95 p-4 text-left text-card-foreground shadow-[0_24px_64px_rgba(0,0,0,0.32)] outline-none backdrop-blur transition",
+        "hover:-translate-y-0.5 hover:border-sky-300/55 hover:shadow-[0_26px_72px_rgba(37,99,235,0.16)]",
         NODE_SIZE_CLASS[data.node.id],
         data.node.status === "ready" && "border-emerald-300/30",
         data.node.status === "warning" && "border-amber-300/40",
         data.node.status === "pending" && "border-sky-300/35",
-        data.node.status === "empty" && "border-white/12",
+        data.node.status === "empty" && "border-border",
       )}
     >
       <Handle
@@ -106,14 +108,14 @@ export function ProductionFlowNode({ data }: NodeProps<Node<ProductionNodeData>>
       ) : null}
       <div className="workflow-node-titlebar flex cursor-grab items-start justify-between gap-3 active:cursor-grabbing">
         <div className="flex min-w-0 items-center gap-3">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-white/15 bg-white/[0.06] text-zinc-100">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border bg-muted/35 text-card-foreground">
             <Icon className="h-4 w-4" />
           </span>
           <span className="min-w-0">
-            <span className="block truncate text-sm font-semibold text-zinc-100">
+            <span className="block truncate text-sm font-semibold text-card-foreground">
               {data.node.label}
             </span>
-            <span className="mt-0.5 block text-[11px] uppercase tracking-[0.18em] text-zinc-500">
+            <span className="mt-0.5 block text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
               {data.node.id}
             </span>
           </span>
@@ -125,14 +127,14 @@ export function ProductionFlowNode({ data }: NodeProps<Node<ProductionNodeData>>
               data.node.status === "ready" && "bg-emerald-300/15 text-emerald-200",
               data.node.status === "warning" && "bg-amber-300/15 text-amber-200",
               data.node.status === "pending" && "bg-sky-300/15 text-sky-200",
-              data.node.status === "empty" && "bg-zinc-700/70 text-zinc-300",
+              data.node.status === "empty" && "bg-muted text-muted-foreground",
             )}
           >
             {data.node.status === "ready" ? "READY" : "TODO"}
           </span>
           <button
             type="button"
-            className="inline-flex h-7 items-center gap-1.5 rounded-md border border-white/12 bg-white/[0.055] px-2 text-[11px] font-medium text-zinc-200 hover:border-sky-300/45 hover:bg-sky-300/12"
+            className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border bg-muted/35 px-2 text-[11px] font-medium text-card-foreground hover:border-sky-300/45 hover:bg-sky-300/12"
             onClick={(event) => {
               event.stopPropagation();
               data.onNodeEdit?.(data.node.id);
@@ -143,7 +145,7 @@ export function ProductionFlowNode({ data }: NodeProps<Node<ProductionNodeData>>
           </button>
           <button
             type="button"
-            className="inline-flex h-7 items-center gap-1.5 rounded-md border border-white/12 bg-white/[0.055] px-2 text-[11px] font-medium text-zinc-200 hover:border-sky-300/45 hover:bg-sky-300/12"
+            className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border bg-muted/35 px-2 text-[11px] font-medium text-card-foreground hover:border-sky-300/45 hover:bg-sky-300/12"
             onClick={(event) => {
               event.stopPropagation();
               data.onStageChange(data.node.targetStage);
@@ -154,34 +156,40 @@ export function ProductionFlowNode({ data }: NodeProps<Node<ProductionNodeData>>
           </button>
         </div>
       </div>
-      <p className="mt-4 text-xs leading-5 text-zinc-400">
+      <p className="mt-4 text-xs leading-5 text-muted-foreground">
         {data.node.description}
       </p>
       <div className="mt-4 flex flex-wrap gap-2">
         {data.node.metrics.map((metric) => (
           <span
             key={metric}
-            className="rounded-md border border-white/10 bg-black/25 px-2 py-1 text-[11px] text-zinc-300"
+            className="rounded-md border border-border bg-muted/30 px-2 py-1 text-[11px] text-muted-foreground"
           >
             {metric}
           </span>
         ))}
       </div>
-      <div className="mt-4 rounded-md border border-white/10 bg-black/30 p-3">
+      <div className="mt-4 rounded-md border border-border bg-muted/20 p-3">
         <div className="mb-2 flex items-center justify-between gap-2">
-          <span className="text-[11px] font-medium text-zinc-300">
+          <span className="text-[11px] font-medium text-card-foreground">
             {data.node.previewTitle}
           </span>
-          <span className="text-[10px] uppercase tracking-[0.18em] text-zinc-600">
+          <span className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
             FLOWDATA
           </span>
         </div>
         {data.node.previewKind === "table" ? (
           <StoryboardTablePreview node={data.node} />
         ) : data.node.previewKind === "storyboard-grid" ? (
-          <StoryboardGridPreview node={data.node} />
+          <StoryboardGridPreview
+            node={data.node}
+            onOpenImageWorkflow={data.onOpenAssetImageWorkflow}
+          />
         ) : data.node.previewKind === "asset-derivation" ? (
-          <AssetDerivationPreview node={data.node} />
+          <AssetDerivationPreview
+            node={data.node}
+            onOpenAssetImageWorkflow={data.onOpenAssetImageWorkflow}
+          />
         ) : data.node.previewKind === "workbench-lanes" ? (
           <WorkbenchLanePreview node={data.node} />
         ) : (
@@ -213,8 +221,8 @@ export function ProductionFlowNode({ data }: NodeProps<Node<ProductionNodeData>>
                       disabled={isDisabled}
                       placeholder={action.promptPlaceholder ?? "给 AI 补充本节点生成要求..."}
                       className={cn(
-                        "min-h-[64px] w-full resize-none rounded border border-white/10 bg-black/25 px-2.5 py-2 text-xs leading-5 text-zinc-200 outline-none placeholder:text-zinc-600",
-                        "focus:border-sky-300/55 focus:bg-black/32",
+                        "min-h-[64px] w-full resize-none rounded border border-border bg-background/65 px-2.5 py-2 text-xs leading-5 text-foreground outline-none placeholder:text-muted-foreground",
+                        "focus:border-sky-300/55 focus:bg-background",
                         isDisabled && "cursor-not-allowed opacity-55",
                       )}
                       onChange={(event) =>
@@ -225,7 +233,7 @@ export function ProductionFlowNode({ data }: NodeProps<Node<ProductionNodeData>>
                       }
                     />
                     <div className="mt-2 flex items-center justify-between gap-2">
-                      <span className="text-[10px] text-zinc-500">
+                      <span className="text-[10px] text-muted-foreground">
                         {action.disabled
                           ? "请先完成上游节点"
                           : isRunning
@@ -239,7 +247,7 @@ export function ProductionFlowNode({ data }: NodeProps<Node<ProductionNodeData>>
                           "inline-flex h-8 shrink-0 items-center gap-2 rounded-md border border-sky-300/30 bg-sky-300/12 px-3 text-xs font-medium text-sky-100",
                           "hover:border-sky-200/60 hover:bg-sky-300/18",
                           isDisabled &&
-                            "cursor-not-allowed border-white/10 bg-white/[0.045] text-zinc-500 hover:border-white/10 hover:bg-white/[0.045]",
+                            "cursor-not-allowed border-border bg-muted/30 text-muted-foreground hover:border-border hover:bg-muted/30",
                         )}
                         onClick={() => void runNodeAction(action)}
                       >
@@ -262,36 +270,36 @@ function NodeSkillDisclosure({ node }: { node: ProductionFlowNodeModel }) {
   const skills = node.skills?.length ? node.skills : node.skill ? [node.skill] : [];
   if (!skills.length) return null;
   return (
-    <details className="nodrag nopan nowheel mt-3 rounded-md border border-white/10 bg-black/25">
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-xs text-zinc-300">
+    <details className="nodrag nopan nowheel mt-3 rounded-md border border-border bg-muted/20">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-xs text-card-foreground">
         <span className="min-w-0 truncate">
           生成依据 · {skills.length} 项
         </span>
-        <span className="shrink-0 rounded border border-white/10 bg-white/[0.045] px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] text-zinc-500">
+        <span className="shrink-0 rounded border border-border bg-muted/30 px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
           SKILLS
         </span>
       </summary>
-      <div className="space-y-2 border-t border-white/10 px-3 py-2">
-        <div className="text-[10px] text-zinc-500">
+      <div className="space-y-2 border-t border-border px-3 py-2">
+        <div className="text-[10px] text-muted-foreground">
           默认收起，展开查看本节点运行时使用的执行 skill、视觉风格、题材规则和通用技法。
         </div>
         {skills.map((skill) => (
           <div
             key={skill.id}
-            className="rounded border border-white/10 bg-black/20 px-2.5 py-2"
+            className="rounded border border-border bg-background/45 px-2.5 py-2"
           >
-            <div className="mb-2 flex flex-wrap items-center gap-2 text-[10px] text-zinc-500">
-              <span className="rounded bg-white/[0.045] px-1.5 py-0.5 text-zinc-300">
+            <div className="mb-2 flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground">
+              <span className="rounded bg-muted/40 px-1.5 py-0.5 text-card-foreground">
                 {skill.name}
               </span>
-              <span className="rounded bg-white/[0.045] px-1.5 py-0.5">
+              <span className="rounded bg-muted/40 px-1.5 py-0.5">
                 {skill.source}
               </span>
-              <span className="rounded bg-white/[0.045] px-1.5 py-0.5">
+              <span className="rounded bg-muted/40 px-1.5 py-0.5">
                 {skill.id}
               </span>
             </div>
-            <div className="max-h-[150px] space-y-1 overflow-y-auto pr-1 text-[11px] leading-5 text-zinc-400 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar]:w-1.5">
+            <div className="max-h-[150px] space-y-1 overflow-y-auto pr-1 text-[11px] leading-5 text-muted-foreground [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-muted-foreground/25 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar]:w-1.5">
               {skill.summaryLines.map((line, index) => (
                 <p
                   key={`${node.id}-${skill.id}-skill-${index}`}

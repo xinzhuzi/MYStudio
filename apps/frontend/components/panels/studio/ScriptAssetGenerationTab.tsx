@@ -14,16 +14,13 @@ import {
 import { StudioAssetDetailDialog } from "@/components/panels/assets/StudioAssetDetailDialog";
 import {
   Boxes,
-  ImageIcon,
   Loader2,
   Mic2,
-  WandSparkles,
 } from "lucide-react";
 import { AssetGenerationRow } from "./ScriptAssetGenerationRow";
 import {
   ASSET_TYPES,
   assetLibraryRowKey,
-  summarizeImageRows,
   summarizeRows,
   typeLabel,
   type AssetRow,
@@ -74,10 +71,6 @@ export function ScriptAssetGenerationTab({
     () => summarizeRows(currentRowsWithStoredAssets),
     [currentRowsWithStoredAssets],
   );
-  const displayCurrentImageStats = useMemo(
-    () => summarizeImageRows(currentRowsWithStoredAssets),
-    [currentRowsWithStoredAssets],
-  );
   const displayStats = useMemo(
     () => ({
       ...stats,
@@ -87,19 +80,14 @@ export function ScriptAssetGenerationTab({
   );
 
   const {
-    isPolishing,
-    isGeneratingImages,
     isGeneratingSingle,
     isAutoAssigningAudio,
-    progress,
     selectedAsset,
     setSelectedAsset,
     assetDialogOpen,
     setAssetDialogOpen,
     notFoundAsset,
     setNotFoundAsset,
-    handlePolishAll,
-    handleGenerateImages,
     handleDeriveAssets,
     handleAutoAssignAudio,
     handleOpenAsset,
@@ -169,14 +157,6 @@ export function ScriptAssetGenerationTab({
           </button>
         ))}
         <div className="flex-1" />
-        {displayCurrentImageStats.missingAsset > 0 ? (
-          <Badge
-            variant="outline"
-            className="border-destructive/60 bg-destructive/10 text-destructive"
-          >
-            缺少{typeLabel(activeType)}资产 {displayCurrentImageStats.missingAsset}
-          </Badge>
-        ) : null}
         {activeType === "character" && voiceStats.total > 0 ? (
           <span className="text-xs text-primary">
             参考音频 {voiceStats.assigned}/{voiceStats.total}
@@ -198,53 +178,7 @@ export function ScriptAssetGenerationTab({
             自动分配音频
           </Button>
         ) : null}
-        <Button
-          type="button"
-          size="sm"
-          variant="secondary"
-            disabled={isPolishing || !visualManualId || displayCurrentStats.todo === 0}
-          onClick={handlePolishAll}
-        >
-          {isPolishing ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <WandSparkles className="h-4 w-4" />
-          )}
-            {isPolishing
-               ? `润色中 ${progress.done}/${progress.total}`
-              : `全部润色提示词 (${displayCurrentStats.todo})`}
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          disabled={
-            isGeneratingImages ||
-            isPolishing ||
-            !visualManualId ||
-            displayCurrentImageStats.todo === 0
-          }
-          onClick={handleGenerateImages}
-        >
-          {isGeneratingImages ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <ImageIcon className="h-4 w-4" />
-          )}
-            {isGeneratingImages
-              ? `生成中 ${progress.done}/${progress.total}`
-            : `生成图片 (${displayCurrentImageStats.todo})`}
-        </Button>
       </div>
-
-      {(isPolishing || isGeneratingImages) && progress.total > 0 ? (
-        <div className="h-1.5 bg-muted">
-          <div
-            className="h-full bg-primary transition-all duration-300"
-            style={{ width: `${(progress.done / progress.total) * 100}%` }}
-          />
-        </div>
-      ) : null}
 
       <div className="min-h-0 flex-1 overflow-auto p-4">
         {currentRows.length === 0 ? (

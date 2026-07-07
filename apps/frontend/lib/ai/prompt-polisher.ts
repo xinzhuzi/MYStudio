@@ -12,6 +12,8 @@
 
 import { getManualModuleText as getBundledManualModuleText } from "@/lib/studio/manuals";
 import { aiManager, type AIBinding, type AITextResult } from "@/lib/ai/ai-manager";
+import { normalizeImagePromptForGeneration } from "@/lib/ai/ai-sdk-bridge";
+import type { AIFeature } from "@/stores/api-config-store";
 import type { CharacterIdentityAnchors } from "@/types/script";
 import type { StudioVisualManualDetail } from "@/types/studio-visual-manual";
 
@@ -102,31 +104,38 @@ export async function polishAssetPrompt(
     const userPrompt = buildUserPrompt(assetType, name, description, identityAnchors, isDerivative);
 
     // Step 5: 调用 LLM
-    const resolvedBinding = binding ?? { agent: "universalAi" as const };
-    const result: AITextResult = await aiManager.text({
-      binding: resolvedBinding,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      temperature: 0.7,
-      maxTokens: 2048,
+    const result: AITextResult = await callPromptPolishModel({
+      binding,
+      systemPrompt,
+      userPrompt,
     });
 
     if (!result.success || !result.text) {
+      console.warn("[prompt-polisher] 文本模型不可用，使用视觉手册本地兜底提示词:", result.error);
+      const fallback = buildLocalFallbackPolishResult({
+        assetType,
+        name,
+        description,
+        systemPrompt,
+        negativePrompt: request.negativePrompt,
+      });
       return {
-        prompt: "",
-        negativePrompt: "",
-        status: "failed",
-        error: result.error ?? "AI 调用失败",
+        ...fallback,
+        status: "success",
       };
     }
 
     // Step 6: 解析输出
     const parsed = parsePolishResult(result.text);
+    const normalizedPrompt = normalizeImagePromptForGeneration({
+      prompt: parsed.prompt,
+      negativePrompt: parsed.negativePrompt || request.negativePrompt,
+    });
 
     return {
       ...parsed,
+      prompt: normalizedPrompt.prompt,
+      negativePrompt: normalizedPrompt.negativePrompt,
       status: "success",
     };
   } catch (err: unknown) {
@@ -138,6 +147,63 @@ export async function polishAssetPrompt(
       error: message,
     };
   }
+}
+
+const PROMPT_POLISH_FEATURES: AIFeature[] = ["script_analysis", "chat"];
+
+async function callPromptPolishModel(input: {
+  binding?: AIBinding;
+  systemPrompt: string;
+  userPrompt: string;
+}): Promise<AITextResult> {
+  const messages = [
+    { role: "system" as const, content: input.systemPrompt },
+    { role: "user" as const, content: input.userPrompt },
+  ];
+
+  if (input.binding) {
+    return aiManager.text({
+      binding: input.binding,
+      messages,
+      temperature: 0.7,
+      maxTokens: 2048,
+      fallbackToUniversal: false,
+    });
+  }
+
+  const featureErrors: string[] = [];
+  for (const feature of PROMPT_POLISH_FEATURES) {
+    try {
+      const text = await aiManager.featureText(feature, input.systemPrompt, input.userPrompt, {
+        temperature: 0.7,
+        maxTokens: 2048,
+        disableThinking: true,
+      });
+      if (text.trim()) {
+        return { success: true, text };
+      }
+      featureErrors.push(`${feature}: 空响应`);
+    } catch (error) {
+      featureErrors.push(`${feature}: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  const fallback = await aiManager.text({
+    binding: { agent: "universalAi" },
+    messages,
+    temperature: 0.7,
+    maxTokens: 2048,
+    fallbackToUniversal: false,
+  });
+
+  if (!fallback.success && featureErrors.length > 0) {
+    return {
+      success: false,
+      error: [...featureErrors, fallback.error ? `universalAi: ${fallback.error}` : ""].filter(Boolean).join("；"),
+    };
+  }
+
+  return fallback;
 }
 
 // ─── 批量润色 ───
@@ -341,4 +407,58 @@ function parsePolishResult(
     promptZh: promptZh || undefined,
     negativePrompt,
   };
+}
+
+function buildLocalFallbackPolishResult(input: {
+  assetType: AssetType;
+  name: string;
+  description: string;
+  systemPrompt: string;
+  negativePrompt?: string;
+}): { prompt: string; promptZh?: string; negativePrompt: string } {
+  const styleAnchor = extractVisualStyleAnchor(input.systemPrompt);
+  const typeInstruction: Record<AssetType, string> = {
+    character: "single character concept art, clear face, full-body readable silhouette, costume and identity details",
+    scene: "environment concept art, clear spatial layout, cinematic lighting, atmospheric depth",
+    prop: "single prop concept art, isolated object, readable material, no hands, no characters",
+  };
+  const zhLabel: Record<AssetType, string> = {
+    character: "角色",
+    scene: "场景",
+    prop: "道具",
+  };
+  const description = input.description.trim() || input.name;
+  const prompt = [
+    styleAnchor,
+    typeInstruction[input.assetType],
+    `${zhLabel[input.assetType]}名称: ${input.name}`,
+    `${zhLabel[input.assetType]}描述: ${description}`,
+    "high detail, sharp focus, polished composition, no text in image",
+  ].filter(Boolean).join(", ");
+
+  const normalizedPrompt = normalizeImagePromptForGeneration({
+    prompt,
+    negativePrompt: input.negativePrompt?.trim()
+      || "low quality, blurry, watermark, logo, text, subtitle, extra limbs, distorted face, cropped subject",
+  });
+
+  return {
+    prompt: normalizedPrompt.prompt,
+    promptZh: `${zhLabel[input.assetType]}「${input.name}」：${description}`,
+    negativePrompt: normalizedPrompt.negativePrompt,
+  };
+}
+
+function extractVisualStyleAnchor(systemPrompt: string) {
+  const backtickMatches = [...systemPrompt.matchAll(/`([^`]{20,400})`/g)]
+    .map((match) => match[1]?.trim())
+    .filter((value): value is string => Boolean(value));
+  const englishAnchor = backtickMatches.find((value) => /[a-zA-Z]/.test(value));
+  if (englishAnchor) return englishAnchor;
+
+  const compactLine = systemPrompt
+    .split(/\n+/)
+    .map((line) => line.replace(/[|#>*`]/g, " ").trim())
+    .find((line) => /[a-zA-Z]/.test(line) && line.length >= 20);
+  return compactLine || "";
 }

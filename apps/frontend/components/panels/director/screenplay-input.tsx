@@ -51,6 +51,7 @@ import {
 import { uploadMultipleImages } from "@/lib/utils/image-upload";
 import { VISUAL_STYLE_PRESETS, getStyleTokens, getStylesByCategory, type VisualStyleId, DEFAULT_STYLE_ID } from "@/lib/constants/visual-styles";
 import { StylePicker } from "@/components/ui/style-picker";
+import { normalizeHorizontalVerticalAspectRatio } from "@/lib/ai/image-size-presets";
 
 const EXAMPLE_PROMPTS = [
   "一只可爱的小猫在草地上玩耍，追逐蝴蝶",
@@ -91,7 +92,11 @@ export function ScreenplayInput({ onGenerateStoryboard }: ScreenplayInputProps) 
   const initialStyleId: StyleId = VISUAL_STYLE_PRESETS.some((s) => s.id === savedStyleId)
     ? (savedStyleId as StyleId)
     : "";
-  const initialResolution: Resolution = savedConfig?.resolution === '4K' ? '4K' : '2K';
+  const { resourceSharing, imageGenerationSettings } = useAppSettingsStore();
+  const initialAspectRatio = normalizeHorizontalVerticalAspectRatio(
+    savedConfig?.aspectRatio ?? imageGenerationSettings.defaultAspectRatio,
+  );
+  const initialResolution: Resolution = savedConfig?.resolution === '4K' || imageGenerationSettings.defaultResolution === '4K' ? '4K' : '2K';
 
   const [prompt, setPrompt] = useState(savedDraft?.prompt || "");
   const [images, setImages] = useState<File[]>([]);
@@ -105,7 +110,7 @@ export function ScreenplayInput({ onGenerateStoryboard }: ScreenplayInputProps) 
   const [selectedCharacters, setSelectedCharacters] = useState<DraggedCharacter[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
   const [isCharacterPopoverOpen, setIsCharacterPopoverOpen] = useState(false);
-  const [aspectRatio, setAspectRatio] = useState<AspectRatio>(savedConfig?.aspectRatio || '9:16');
+  const [aspectRatio, setAspectRatio] = useState<AspectRatio>(initialAspectRatio);
   const [resolution, setResolution] = useState<Resolution>(initialResolution);
   const dropZoneRef = useRef<HTMLDivElement>(null);
 
@@ -116,7 +121,6 @@ export function ScreenplayInput({ onGenerateStoryboard }: ScreenplayInputProps) 
   const { startScreenplayGeneration, setScreenplayError, config, updateConfig, setScreenplayDraft } = useDirectorStore();
   const { checkVideoGenerationKeys, checkChatKeys, isFeatureConfigured, getApiKey } = useAPIConfigStore();
   const { characters } = useCharacterLibraryStore();
-  const { resourceSharing } = useAppSettingsStore();
   const { activeProjectId } = useProjectStore();
   const visibleCharacters = useMemo(() => {
     if (resourceSharing.shareCharacters) return characters;

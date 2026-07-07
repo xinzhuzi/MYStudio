@@ -4,6 +4,14 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { fileStorage } from "@/lib/indexed-db-storage";
+import {
+  DEFAULT_COMPATIBILITY_RETRY_ASPECT_RATIO,
+  DEFAULT_COMPATIBILITY_RETRY_RESOLUTION,
+  DEFAULT_IMAGE_ASPECT_RATIO,
+  DEFAULT_IMAGE_RESOLUTION,
+  type ImageAspectRatio,
+  type ImageResolution,
+} from "@/lib/ai/image-size-presets";
 
 export interface ResourceSharingSettings {
   shareCharacters: boolean;
@@ -26,6 +34,13 @@ export interface UpdateSettings {
 export interface DevelopmentSettings {
   showDevToolsControls: boolean;
 }
+export interface ImageGenerationSettings {
+  defaultAspectRatio: ImageAspectRatio;
+  defaultResolution: ImageResolution;
+  compatibilityRetryEnabled: boolean;
+  compatibilityRetryAspectRatio: ImageAspectRatio;
+  compatibilityRetryResolution: ImageResolution;
+}
 
 interface AppSettingsState {
   resourceSharing: ResourceSharingSettings;
@@ -33,6 +48,7 @@ interface AppSettingsState {
   cacheSettings: CacheSettings;
   updateSettings: UpdateSettings;
   developmentSettings: DevelopmentSettings;
+  imageGenerationSettings: ImageGenerationSettings;
 }
 
 interface AppSettingsActions {
@@ -41,6 +57,7 @@ interface AppSettingsActions {
   setCacheSettings: (settings: Partial<CacheSettings>) => void;
   setUpdateSettings: (settings: Partial<UpdateSettings>) => void;
   setDevelopmentSettings: (settings: Partial<DevelopmentSettings>) => void;
+  setImageGenerationSettings: (settings: Partial<ImageGenerationSettings>) => void;
 }
 
 const defaultState: AppSettingsState = {
@@ -62,6 +79,13 @@ const defaultState: AppSettingsState = {
   },
   developmentSettings: {
     showDevToolsControls: false,
+  },
+  imageGenerationSettings: {
+    defaultAspectRatio: DEFAULT_IMAGE_ASPECT_RATIO,
+    defaultResolution: DEFAULT_IMAGE_RESOLUTION,
+    compatibilityRetryEnabled: true,
+    compatibilityRetryAspectRatio: DEFAULT_COMPATIBILITY_RETRY_ASPECT_RATIO,
+    compatibilityRetryResolution: DEFAULT_COMPATIBILITY_RETRY_RESOLUTION,
   },
 };
 
@@ -90,6 +114,14 @@ export const useAppSettingsStore = create<AppSettingsState & AppSettingsActions>
           developmentSettings: {
             ...defaultState.developmentSettings,
             ...state.developmentSettings,
+            ...settings,
+          },
+        })),
+      setImageGenerationSettings: (settings) =>
+        set((state) => ({
+          imageGenerationSettings: {
+            ...defaultState.imageGenerationSettings,
+            ...state.imageGenerationSettings,
             ...settings,
           },
         })),

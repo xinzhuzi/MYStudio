@@ -7,18 +7,37 @@
  * Uses same API logic as storyboard-service.ts
  */
 
-import { getFeatureConfig, getFeatureNotConfiguredMessage } from '@/lib/ai/feature-router';
+import { getAllFeatureConfigs, getFeatureConfig, getFeatureNotConfiguredMessage, type FeatureConfig } from '@/lib/ai/feature-router';
+import {
+  buildOpenAIImageRequestBody,
+  buildProviderExtensionImageRequestBody,
+  extractImageGenerationResult,
+  isGptImageModel,
+  normalizeImagePromptForGeneration,
+  sdkGenerateImage,
+} from '@/lib/ai/ai-sdk-bridge';
+import { createOperationId, logEvent } from '@/lib/diagnostics/logger';
+import { observedFetch } from '@/lib/diagnostics/network';
 import { retryOperation } from '@/lib/utils/retry';
-import { resolveImageApiFormat } from '@/lib/api-key-manager';
+import { resolveImageApiFormat, type IProvider } from '@/lib/api-key-manager';
 import { useAPIConfigStore } from '@/stores/api-config-store';
+import { useAppSettingsStore } from '@/stores/app-settings-store';
+import {
+  DEFAULT_IMAGE_RESOLUTION,
+  getImageSizeLabel,
+  normalizeImageResolution,
+  resolveImageDimensions,
+  type ImageAspectRatio,
+  type ImageResolution,
+} from '@/lib/ai/image-size-presets';
 
 export interface ImageGenerationParams {
   prompt: string;
   negativePrompt?: string;
   width?: number;
   height?: number;
-  aspectRatio?: '1:1' | '16:9' | '9:16' | '4:3' | '3:4';
-  resolution?: '1K' | '2K' | '4K';
+  aspectRatio?: ImageAspectRatio;
+  resolution?: ImageResolution;
   referenceImages?: string[];  // Base64 encoded images
   styleId?: string;
 }
@@ -46,6 +65,8 @@ const IMAGE_ENDPOINT_PATHS: Record<string, { submit: string; poll: (id: string) 
   'vidu生图':   { submit: '/ent/v2/reference2image',    poll: (id) => `/ent/v2/task?task_id=${id}` },
 };
 const DEFAULT_IMAGE_ENDPOINT = { submit: '/v1/images/generations', poll: (id: string) => `/v1/images/generations/${id}` };
+const IMAGE_SUBMIT_TIMEOUT_MS = 180_000;
+const IMAGE_COMPATIBILITY_PROMPT_LIMIT = 180;
 
 function getImageEndpointPaths(endpointTypes: string[]): { submit: string; poll: (id: string) => string } {
   for (const t of endpointTypes) {
@@ -54,36 +75,126 @@ function getImageEndpointPaths(endpointTypes: string[]): { submit: string; poll:
   return DEFAULT_IMAGE_ENDPOINT;
 }
 
-// Aspect ratio to pixel dimension mapping (doubao-seedream 等模型需要像素尺寸)
-const ASPECT_RATIO_DIMS: Record<string, { width: number; height: number }> = {
-  '1:1': { width: 1024, height: 1024 },
-  '16:9': { width: 1280, height: 720 },
-  '9:16': { width: 720, height: 1280 },
-  '4:3': { width: 1152, height: 864 },
-  '3:4': { width: 864, height: 1152 },
-  '3:2': { width: 1248, height: 832 },
-  '2:3': { width: 832, height: 1248 },
-  '21:9': { width: 1512, height: 648 },
-};
+function shouldRetryImageCompatibility(result: { error?: string; status?: number }) {
+  if (typeof result.status === 'number') {
+    return [408, 502, 503, 504, 520, 522, 524].includes(result.status);
+  }
 
-/**
- * Resolution + aspect ratio → target pixel dimensions for chat completions models
- * 非 Gemini 图片模型走 prompt 文本提示；Gemini 图片模型走官方 image_size 参数。
- */
-const RESOLUTION_MULTIPLIERS: Record<string, number> = {
-  '1K': 1,
-  '2K': 2,
-  '4K': 4,
-};
+  const message = (result.error || '').toLowerCase();
+  return (
+    message.includes('fetch failed') ||
+    message.includes('failed to fetch') ||
+    message.includes('socket') ||
+    message.includes('timeout') ||
+    message.includes('timed out') ||
+    message.includes('api 请求超时') ||
+    message.includes('network') ||
+    message.includes('aborted')
+  );
+}
+
+function buildCompatibilityImagePrompt(prompt: string) {
+  const normalized = prompt.replace(/\s+/g, ' ').trim();
+  if (normalized.length <= IMAGE_COMPATIBILITY_PROMPT_LIMIT) {
+    return normalizeImagePromptForGeneration({ prompt: normalized }).prompt;
+  }
+
+  const compact = normalized
+    .replace(/\s*\+\s*/g, '，')
+    .slice(0, IMAGE_COMPATIBILITY_PROMPT_LIMIT)
+    .replace(/[，,;；:：、\s]+$/, '');
+  return normalizeImagePromptForGeneration({
+    prompt: `${compact}。主体完整，构图简洁，细节清晰，避免文字和水印。`,
+  }).prompt;
+}
+
+function normalizeResponseUrl(value: unknown): string | undefined {
+  if (Array.isArray(value)) return normalizeResponseUrl(value[0]);
+  return typeof value === 'string' && value.trim() ? value : undefined;
+}
+
+function toDataImageUrl(b64: unknown, format: unknown): string | undefined {
+  if (typeof b64 !== 'string' || !b64.trim()) return undefined;
+  if (b64.startsWith('data:image/')) return b64;
+  const rawFormat = typeof format === 'string' ? format.toLowerCase().replace(/[^a-z0-9.+-]/g, '') : '';
+  const imageFormat = rawFormat === 'jpg' ? 'jpeg' : rawFormat || 'png';
+  return `data:image/${imageFormat};base64,${b64}`;
+}
+
+function getFirstDataItem(data: any): any {
+  const dataField = data?.data;
+  return Array.isArray(dataField) ? dataField[0] : dataField;
+}
+
+function extractDirectImageUrl(data: any): string | undefined {
+  const firstItem = getFirstDataItem(data);
+  return normalizeResponseUrl(firstItem?.url)
+    || normalizeResponseUrl(firstItem?.image_url)
+    || normalizeResponseUrl(firstItem?.output_url)
+    || normalizeResponseUrl(data?.url)
+    || normalizeResponseUrl(data?.image_url)
+    || normalizeResponseUrl(data?.output_url)
+    || toDataImageUrl(firstItem?.b64_json ?? data?.b64_json, firstItem?.output_format ?? data?.output_format);
+}
+
+function sameFeatureConfig(a: FeatureConfig, b: FeatureConfig) {
+  return a.provider.id === b.provider.id && a.model === b.model;
+}
+
+type ImageGenerationFeature = 'character_generation' | 'scene_generation' | 'prop_generation';
+
+function getImageAttemptConfigs(feature: ImageGenerationFeature, selectedConfig: FeatureConfig) {
+  const allConfigs = getAllFeatureConfigs(feature);
+  if (allConfigs.length === 0) return [selectedConfig];
+  return [
+    selectedConfig,
+    ...allConfigs.filter((config) => !sameFeatureConfig(config, selectedConfig)),
+  ];
+}
+
+function parseImageApiErrorMessage(errorText: string, fallback: string) {
+  try {
+    const data = JSON.parse(errorText);
+    return data?.error?.message || data?.message || data?.msg || fallback;
+  } catch {
+    return errorText && errorText.length < 500 ? errorText : fallback;
+  }
+}
+
+function hasQuotaProblem(status: number, errorText: string, message: string) {
+  const text = `${message}\n${errorText}`.toLowerCase();
+  return status === 403 && (
+    text.includes('insufficient_user_quota')
+    || text.includes('insufficient quota')
+    || text.includes('subscription quota')
+    || text.includes('quota insufficient')
+    || text.includes('额度不足')
+    || text.includes('未配置订阅')
+  );
+}
+
+function createImageApiHttpError(status: number, errorText: string) {
+  const rawMessage = parseImageApiErrorMessage(errorText, `图片生成 API 错误: ${status}`);
+  let message = rawMessage;
+
+  if (status === 401) {
+    message = `API Key 无效或已过期，请前往「设置」检查图片生成服务的 API Key 配置（原始信息：${rawMessage}）`;
+  } else if (hasQuotaProblem(status, errorText, rawMessage)) {
+    message = `图片生成额度不足或订阅未配置：${rawMessage}`;
+  } else if (status === 403) {
+    message = `图片生成服务拒绝请求（403）：${rawMessage}`;
+  }
+
+  const error = new Error(message) as Error & { status?: number; retryable?: boolean };
+  error.status = status;
+  if (status === 401 || status === 403) {
+    error.retryable = false;
+  }
+  return error;
+}
 
 function getTargetDimensions(aspectRatio: string, resolution?: string): { width: number; height: number } | undefined {
-  const baseDims = ASPECT_RATIO_DIMS[aspectRatio];
-  if (!baseDims) return undefined;
-  const multiplier = RESOLUTION_MULTIPLIERS[resolution || '2K'] || 2;
-  return {
-    width: baseDims.width * multiplier,
-    height: baseDims.height * multiplier,
-  };
+  return resolveImageDimensions({ aspectRatio, resolution });
 }
 
 /**
@@ -118,13 +229,12 @@ function geminiSupportsImageSize(model: string): boolean {
  * 官方要求大写 K（例如 1K、2K、4K），小写会被拒绝
  */
 function normalizeResolutionForGemini(resolution?: string): string {
-  if (!resolution) return '2K';
+  if (!resolution) return DEFAULT_IMAGE_RESOLUTION;
   const upper = resolution.toUpperCase();
   // 接受 '512' 直接通过（仅 3.1 Flash Image 支持）
   if (upper === '512') return '512';
   // 确保是 '1K' / '2K' / '4K' 格式
-  if (['1K', '2K', '4K'].includes(upper)) return upper;
-  return '2K'; // 不识别的值回退到 2K
+  return normalizeImageResolution(upper);
 }
 
 /**
@@ -147,7 +257,14 @@ export async function generateCharacterImage(params: ImageGenerationParams): Pro
  * Generate image for scene
  */
 export async function generateSceneImage(params: ImageGenerationParams): Promise<ImageGenerationResult> {
-  return generateImage(params, 'character_generation');
+  return generateImage(params, 'scene_generation');
+}
+
+/**
+ * Generate image for prop/tool assets
+ */
+export async function generatePropImage(params: ImageGenerationParams): Promise<ImageGenerationResult> {
+  return generateImage(params, 'prop_generation');
 }
 
 /**
@@ -156,78 +273,157 @@ export async function generateSceneImage(params: ImageGenerationParams): Promise
  */
 async function generateImage(
   params: ImageGenerationParams,
-  feature: 'character_generation'
+  feature: ImageGenerationFeature
 ): Promise<ImageGenerationResult> {
-  const featureConfig = getFeatureConfig(feature);
-  if (!featureConfig) {
-    throw new Error(getFeatureNotConfiguredMessage(feature));
-  }
-  const apiKey = featureConfig.apiKey;
-  const baseUrl = featureConfig.baseUrl?.replace(/\/+$/, '');
-  const model = featureConfig.models?.[0];
-  if (!apiKey || !baseUrl || !model) {
+  const operationId = createOperationId('image-generation');
+  const selectedConfig = getFeatureConfig(feature);
+  if (!selectedConfig) {
     throw new Error(getFeatureNotConfiguredMessage(feature));
   }
 
-  const aspectRatio = params.aspectRatio || '1:1';
-  const resolution = params.resolution || '2K';
-
-  // 根据元数据决定图片生成 API 格式
-  const endpointTypes = useAPIConfigStore.getState().modelEndpointTypes[model];
-  const apiFormat = resolveImageApiFormat(endpointTypes, model);
-
-  console.log('[ImageGenerator] Generating image', {
-    model,
-    apiFormat,
-    endpointTypes,
-    aspectRatio,
-    resolution,
-    promptPreview: params.prompt.substring(0, 100) + '...',
+  const attemptConfigs = getImageAttemptConfigs(feature, selectedConfig);
+  const imageSettings = useAppSettingsStore.getState().imageGenerationSettings;
+  const aspectRatio = params.aspectRatio || imageSettings.defaultAspectRatio;
+  const resolution = params.resolution || imageSettings.defaultResolution;
+  const normalizedPrompt = normalizeImagePromptForGeneration({
+    prompt: params.prompt,
+    negativePrompt: params.negativePrompt,
   });
+  const generationParams = {
+    ...params,
+    prompt: normalizedPrompt.prompt,
+    negativePrompt: normalizedPrompt.negativePrompt,
+  };
+  let lastError: unknown;
 
-  // Gemini 等模型通过 chat completions 生图
-  if (apiFormat === 'openai_chat') {
-    return submitViaChatCompletions(
-      params.prompt,
+  for (let attemptIndex = 0; attemptIndex < attemptConfigs.length; attemptIndex++) {
+    const featureConfig = attemptConfigs[attemptIndex];
+    const apiKey = featureConfig.apiKey;
+    const baseUrl = featureConfig.baseUrl?.replace(/\/+$/, '');
+    const model = featureConfig.models?.[0];
+    if (!apiKey || !baseUrl || !model) {
+      lastError = new Error(getFeatureNotConfiguredMessage(feature));
+      continue;
+    }
+
+    // 根据元数据决定图片生成 API 格式
+    const endpointTypes = useAPIConfigStore.getState().modelEndpointTypes[model];
+    const apiFormat = resolveImageApiFormat(endpointTypes, model);
+
+    console.log('[ImageGenerator] Generating image', {
       model,
-      apiKey,
-      baseUrl,
+      apiFormat,
+      endpointTypes,
       aspectRatio,
-      params.referenceImages,
       resolution,
-      featureConfig.keyManager,
-    );
+      promptPreview: generationParams.prompt.substring(0, 100) + '...',
+      attempt: attemptIndex + 1,
+      attempts: attemptConfigs.length,
+    });
+    void logEvent({
+      level: 'info',
+      category: 'ai',
+      operationId,
+      message: 'Image generation started',
+      context: {
+        feature,
+        providerId: featureConfig.provider.id,
+        providerName: featureConfig.provider.name,
+        model,
+        apiFormat,
+        endpointTypes,
+        aspectRatio,
+        resolution,
+        prompt: generationParams.prompt,
+        referenceImageCount: generationParams.referenceImages?.length ?? 0,
+        attempt: attemptIndex + 1,
+        attempts: attemptConfigs.length,
+      },
+    });
+
+    try {
+      // Gemini 等模型通过 chat completions 生图
+      if (apiFormat === 'openai_chat') {
+        const result = await submitViaChatCompletions(
+          generationParams.prompt,
+          model,
+          apiKey,
+          baseUrl,
+          aspectRatio,
+          generationParams.referenceImages,
+          resolution,
+          featureConfig.keyManager,
+          undefined,
+          operationId,
+        );
+        void logEvent({ level: 'info', category: 'ai', operationId, message: 'Image generation completed', context: { model, hasImageUrl: Boolean(result.imageUrl), taskId: result.taskId, attempt: attemptIndex + 1 } });
+        return result;
+      }
+
+      // Kling image 原生端点: /kling/v1/images/generations 或 /kling/v1/images/omni-image
+      if (apiFormat === 'kling_image') {
+        const result = await submitViaKlingImages(generationParams, model, apiKey, baseUrl, aspectRatio, featureConfig.keyManager, operationId);
+        void logEvent({ level: 'info', category: 'ai', operationId, message: 'Image generation completed', context: { model, hasImageUrl: Boolean(result.imageUrl), taskId: result.taskId, attempt: attemptIndex + 1 } });
+        return result;
+      }
+
+      // 标准格式: /v1/images/generations (GPT Image, DALL-E, Flux, doubao-seedream 等)
+      // aigc-image / vidu生图 等走自定义路径
+      const result = await submitImageTask(
+        generationParams.prompt,
+        aspectRatio,
+        resolution,
+        apiKey,
+        generationParams.referenceImages,
+        model,
+        baseUrl,
+        featureConfig.keyManager,
+        endpointTypes,
+        operationId,
+        featureConfig.provider,
+        generationParams.negativePrompt,
+      );
+
+      if (result.imageUrl) {
+        void logEvent({ level: 'info', category: 'ai', operationId, message: 'Image generation completed', context: { model, hasImageUrl: true, taskId: result.taskId, attempt: attemptIndex + 1 } });
+        return { imageUrl: result.imageUrl };
+      }
+
+      if (result.taskId) {
+        const imageUrl = await pollTaskStatus(result.taskId, apiKey, baseUrl, undefined, result.pollUrl, operationId);
+        void logEvent({ level: 'info', category: 'ai', operationId, message: 'Image generation completed after polling', context: { model, taskId: result.taskId, hasImageUrl: Boolean(imageUrl), attempt: attemptIndex + 1 } });
+        return { imageUrl, taskId: result.taskId };
+      }
+
+      throw new Error('Invalid API response');
+    } catch (error) {
+      lastError = error;
+      const hasNextAttempt = attemptIndex < attemptConfigs.length - 1;
+      if (hasNextAttempt) {
+        void logEvent({
+          level: 'warn',
+          category: 'ai',
+          operationId,
+          message: 'Image generation binding failed, trying next binding',
+          context: { feature, model, apiFormat, aspectRatio, resolution, attempt: attemptIndex + 1, attempts: attemptConfigs.length },
+          error,
+        });
+        continue;
+      }
+
+      void logEvent({
+        level: 'error',
+        category: 'ai',
+        operationId,
+        message: 'Image generation failed',
+        context: { feature, model, apiFormat, aspectRatio, resolution, attempt: attemptIndex + 1, attempts: attemptConfigs.length },
+        error,
+      });
+      throw error;
+    }
   }
 
-  // Kling image 原生端点: /kling/v1/images/generations 或 /kling/v1/images/omni-image
-  if (apiFormat === 'kling_image') {
-    return submitViaKlingImages(params, model, apiKey, baseUrl, aspectRatio, featureConfig.keyManager);
-  }
-
-  // 标准格式: /v1/images/generations (GPT Image, DALL-E, Flux, doubao-seedream 等)
-  // aigc-image / vidu生图 等走自定义路径
-  const result = await submitImageTask(
-    params.prompt,
-    aspectRatio,
-    resolution,
-    apiKey,
-    params.referenceImages,
-    model,
-    baseUrl,
-    featureConfig.keyManager,
-    endpointTypes,
-  );
-
-  if (result.imageUrl) {
-    return { imageUrl: result.imageUrl };
-  }
-
-  if (result.taskId) {
-    const imageUrl = await pollTaskStatus(result.taskId, apiKey, baseUrl, undefined, result.pollUrl);
-    return { imageUrl, taskId: result.taskId };
-  }
-
-  throw new Error('Invalid API response');
+  throw lastError instanceof Error ? lastError : new Error('图片生成失败');
 }
 
 /**
@@ -281,6 +477,7 @@ async function submitViaChatCompletions(
   resolution?: string,
   keyManager?: { getCurrentKey?: () => string | null; handleError?: (status: number, errorText?: string) => boolean },
   signal?: AbortSignal,
+  operationId?: string,
 ): Promise<ImageGenerationResult> {
   const endpoint = buildEndpoint(baseUrl, 'chat/completions');
 
@@ -371,7 +568,7 @@ async function submitViaChatCompletions(
     const currentApiKey = keyManager?.getCurrentKey?.() || apiKey;
 
     try {
-      const resp = await fetch(endpoint, {
+      const resp = await observedFetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -379,6 +576,11 @@ async function submitViaChatCompletions(
         },
         body: JSON.stringify(requestBody),
         signal: controller.signal,
+      }, {
+        operationId,
+        endpointFamily: 'chat-completions',
+        model,
+        timeoutMs: 60000,
       });
 
       if (!resp.ok) {
@@ -534,52 +736,140 @@ async function submitImageTask(
   baseUrl?: string,
   keyManager?: { getCurrentKey: () => string | null; handleError: (status: number, errorText?: string) => boolean },
   endpointTypes?: string[],
+  operationId?: string,
+  provider?: Pick<IProvider, 'id' | 'platform' | 'name' | 'baseUrl' | 'apiKey'>,
+  negativePrompt?: string,
 ): Promise<{ taskId?: string; imageUrl?: string; pollUrl?: string }> {
   if (!baseUrl) {
     throw new Error('请先在设置中配置图片生成服务映射');
   }
-  // 根据模型决定 size 格式
-  let sizeValue: string = aspectRatio;
-  if (model && needsPixelSize(model)) {
-    const dims = ASPECT_RATIO_DIMS[aspectRatio];
+  const imagePaths = getImageEndpointPaths(endpointTypes || []);
+  const usesDefaultImagesEndpoint = imagePaths.submit === DEFAULT_IMAGE_ENDPOINT.submit;
+  const imageSettings = useAppSettingsStore.getState().imageGenerationSettings;
+  const builtRequest = usesDefaultImagesEndpoint
+    ? buildOpenAIImageRequestBody({ model, prompt, aspectRatio, resolution, referenceImages, negativePrompt })
+    : buildProviderExtensionImageRequestBody({ model, prompt, aspectRatio, resolution, referenceImages, negativePrompt });
+  const requestData = builtRequest.body;
+
+  if (model && !requestData.size && needsPixelSize(model)) {
+    const dims = resolveImageDimensions({ aspectRatio, resolution });
     if (dims) {
-      sizeValue = `${dims.width}x${dims.height}`;
+      requestData.size = `${dims.width}x${dims.height}`;
+      delete requestData.aspect_ratio;
+      delete requestData.resolution;
     }
   }
 
-  const requestData: Record<string, unknown> = {
-    model: model,
-    prompt,
-    n: 1,
-    size: sizeValue,
-    stream: false,
-  };
-
-  if (referenceImages && referenceImages.length > 0) {
-    console.log('[ImageGenerator] Adding reference images:', referenceImages.length);
-    requestData.image_urls = referenceImages;
-  }
-
   console.log('[ImageGenerator] Submitting image task:', {
+    templateName: builtRequest.templateName,
     model: requestData.model,
     size: requestData.size,
+    aspectRatio: requestData.aspect_ratio,
     resolution: requestData.resolution,
     hasImageUrls: !!requestData.image_urls,
   });
+
+  if (usesDefaultImagesEndpoint && model && provider && isGptImageModel(model)) {
+    const currentApiKey = keyManager?.getCurrentKey?.() || apiKey;
+    const sdkResult = await sdkGenerateImage({
+      provider: { ...provider, apiKey: currentApiKey, baseUrl },
+      model,
+      prompt,
+      aspectRatio,
+      resolution,
+      negativePrompt,
+      referenceImages,
+      operationId,
+      endpointFamily: 'images-generations',
+      timeoutMs: IMAGE_SUBMIT_TIMEOUT_MS,
+      maxRetries: 2,
+    });
+    if (sdkResult.success && sdkResult.imageUrl) {
+      return { imageUrl: sdkResult.imageUrl };
+    }
+    if (imageSettings.compatibilityRetryEnabled && shouldRetryImageCompatibility(sdkResult)) {
+      const compatibilityPrompt = buildCompatibilityImagePrompt(prompt);
+      void logEvent({
+        level: 'warn',
+        category: 'ai',
+        operationId,
+        message: 'Image generation compatibility retry started',
+        context: {
+          endpointFamily: 'images-generations',
+          providerId: provider.id,
+          providerName: provider.name,
+          model,
+          reason: sdkResult.error,
+          status: sdkResult.status,
+          originalSize: sdkResult.size,
+          retrySize: getImageSizeLabel({
+            aspectRatio: imageSettings.compatibilityRetryAspectRatio,
+            resolution: imageSettings.compatibilityRetryResolution,
+          }),
+          originalPromptLength: prompt.length,
+          retryPromptLength: compatibilityPrompt.length,
+        },
+      });
+      const compatibilityResult = await sdkGenerateImage({
+        provider: { ...provider, apiKey: currentApiKey, baseUrl },
+        model,
+        prompt: compatibilityPrompt,
+        aspectRatio: imageSettings.compatibilityRetryAspectRatio,
+        resolution: imageSettings.compatibilityRetryResolution,
+        negativePrompt,
+        referenceImages,
+        operationId,
+        endpointFamily: 'images-generations',
+        timeoutMs: IMAGE_SUBMIT_TIMEOUT_MS,
+        maxRetries: 0,
+      });
+      if (compatibilityResult.success && compatibilityResult.imageUrl) {
+        void logEvent({
+          level: 'info',
+          category: 'ai',
+          operationId,
+          message: 'Image generation compatibility retry completed',
+          context: {
+            endpointFamily: 'images-generations',
+            providerId: provider.id,
+            providerName: provider.name,
+            model,
+            retrySize: compatibilityResult.size,
+            templateName: compatibilityResult.templateName,
+          },
+        });
+        return { imageUrl: compatibilityResult.imageUrl };
+      }
+      void logEvent({
+        level: 'warn',
+        category: 'ai',
+        operationId,
+        message: 'Image generation compatibility retry failed',
+        context: {
+          endpointFamily: 'images-generations',
+          providerId: provider.id,
+          providerName: provider.name,
+          model,
+          status: compatibilityResult.status,
+          error: compatibilityResult.error,
+        },
+      });
+    }
+    throw new Error(sdkResult.error || 'AI SDK 图片生成失败');
+  }
 
   try {
     const data = await retryOperation(async () => {
       // 每次重试独立创建 AbortController，避免共享 controller 在重试时已超时
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 60000);
+      const timeoutId = setTimeout(() => controller.abort(), IMAGE_SUBMIT_TIMEOUT_MS);
 
       // 每次重试动态取当前 key（利用 keyManager rotate 后的新 key）
       const currentApiKey = keyManager?.getCurrentKey?.() || apiKey;
-      const imagePaths = getImageEndpointPaths(endpointTypes || []);
       const rootBase = getRootBaseUrl(baseUrl);
       const endpoint = `${rootBase}${imagePaths.submit}`;
       try {
-        const response = await fetch(endpoint, {
+        const response = await observedFetch(endpoint, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -587,6 +877,12 @@ async function submitImageTask(
           },
           body: JSON.stringify(requestData),
           signal: controller.signal,
+        }, {
+          operationId,
+          endpointFamily: 'images-generations',
+          model,
+          timeoutMs: IMAGE_SUBMIT_TIMEOUT_MS,
+          templateName: builtRequest.templateName,
         });
 
         if (!response.ok) {
@@ -598,16 +894,10 @@ async function submitImageTask(
             keyManager.handleError(response.status, errorText);
           }
 
-          let errorMessage = `图片生成 API 错误: ${response.status}`;
-          try {
-            const errorJson = JSON.parse(errorText);
-            errorMessage = errorJson.error?.message || errorJson.message || errorJson.msg || errorMessage;
-          } catch {
-            if (errorText && errorText.length < 200) errorMessage = errorText;
-          }
+          const errorMessage = parseImageApiErrorMessage(errorText, `图片生成 API 错误: ${response.status}`);
 
           if (response.status === 401 || response.status === 403) {
-            throw new Error('API Key 无效或已过期');
+            throw createImageApiHttpError(response.status, errorText);
           } else if (response.status === 529 || response.status === 503) {
             // 上游负载饱和/服务不可用，需要触发重试
             const err = new Error(errorMessage || `上游服务暂时不可用 (${response.status})`) as Error & { status?: number };
@@ -662,24 +952,23 @@ async function submitImageTask(
       if (urlMatch) return { imageUrl: urlMatch[1] };
     }
 
-    // 标准格式: { data: [{ url }] }
-    let taskId: string | undefined;
+    // 标准格式: { data: [{ url }] } 或 OpenAI-compatible { data: [{ b64_json }] }
+    const extracted = extractImageGenerationResult(data);
+    const directImageUrl = extracted.imageUrl || extractDirectImageUrl(data);
+    if (directImageUrl) return { imageUrl: directImageUrl };
+
+    let taskId: string | undefined = extracted.taskId;
     const dataList = data.data;
     if (Array.isArray(dataList) && dataList.length > 0) {
-      // 直接返回 URL（doubao-seedream、DALL-E 等同步模型）
-      if (dataList[0].url) return { imageUrl: dataList[0].url };
       taskId = dataList[0].task_id?.toString();
     }
     taskId = taskId || data.task_id?.toString();
 
     if (!taskId) {
-      const directUrl = data.data?.[0]?.url || data.url;
-      if (directUrl) return { imageUrl: directUrl };
       throw new Error('No task_id or image URL in response');
     }
 
     // 返回 pollUrl 供调用方使用自定义轮询路径
-    const imagePaths = getImageEndpointPaths(endpointTypes || []);
     const rootBase = getRootBaseUrl(baseUrl);
     const pollUrl = `${rootBase}${imagePaths.poll(taskId)}`;
     return { taskId, pollUrl };
@@ -701,6 +990,7 @@ async function pollTaskStatus(
   baseUrl: string,
   onProgress?: (progress: number) => void,
   customPollUrl?: string,
+  operationId?: string,
 ): Promise<string> {
   const maxAttempts = 120;
   const pollInterval = 2000;
@@ -714,12 +1004,18 @@ async function pollTaskStatus(
       const url = new URL(rawUrl);
       url.searchParams.set('_ts', Date.now().toString());
 
-      const response = await fetch(url.toString(), {
+      const response = await observedFetch(url.toString(), {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${apiKey}`,
           'Cache-Control': 'no-cache',
         },
+      }, {
+        operationId,
+        endpointFamily: 'images-generations-poll',
+        taskId,
+        pollAttempt: attempt + 1,
+        maxRetries: maxAttempts,
       });
 
       if (!response.ok) {
@@ -781,7 +1077,7 @@ export async function submitGridImageRequest(params: {
   prompt: string;
   apiKey: string;
   baseUrl: string;
-  aspectRatio: string;
+  aspectRatio?: string;
   resolution?: string;
   referenceImages?: string[];
   /** 可选：传入 keyManager 后，重试时自动用轮换后的新 key */
@@ -789,8 +1085,21 @@ export async function submitGridImageRequest(params: {
   /** 外部中止信号，用于停止生成时真正取消网络请求 */
   signal?: AbortSignal;
 }): Promise<{ imageUrl?: string; taskId?: string; pollUrl?: string }> {
-  const { model, prompt, apiKey, baseUrl, aspectRatio, resolution, referenceImages, keyManager, signal } = params;
+  const imageSettings = useAppSettingsStore.getState().imageGenerationSettings;
+  const {
+    model,
+    prompt,
+    apiKey,
+    baseUrl,
+    aspectRatio = imageSettings.defaultAspectRatio,
+    resolution = imageSettings.defaultResolution,
+    referenceImages,
+    keyManager,
+    signal,
+  } = params;
+  const normalizedPrompt = normalizeImagePromptForGeneration({ prompt });
   const normalizedBase = baseUrl.replace(/\/+$/, '');
+  const operationId = createOperationId('grid-image');
 
   // 检测 API 格式（与 generateImage 一致）
   const endpointTypes = useAPIConfigStore.getState().modelEndpointTypes[model];
@@ -799,12 +1108,12 @@ export async function submitGridImageRequest(params: {
 
   if (apiFormat === 'openai_chat') {
     // Gemini 等模型通过 chat completions 生图
-    const result = await submitViaChatCompletions(prompt, model, apiKey, normalizedBase, aspectRatio, referenceImages, resolution, keyManager, signal);
+    const result = await submitViaChatCompletions(normalizedPrompt.prompt, model, apiKey, normalizedBase, aspectRatio, referenceImages, resolution, keyManager, signal, operationId);
     return { imageUrl: result.imageUrl };
   }
 
   if (apiFormat === 'kling_image') {
-    const result = await submitViaKlingImages({ prompt, aspectRatio, negativePrompt: undefined }, model, apiKey, normalizedBase, aspectRatio, keyManager);
+    const result = await submitViaKlingImages({ prompt: normalizedPrompt.prompt, aspectRatio, negativePrompt: normalizedPrompt.negativePrompt }, model, apiKey, normalizedBase, aspectRatio, keyManager, operationId);
     return { imageUrl: result.imageUrl, taskId: result.taskId };
   }
 
@@ -812,26 +1121,46 @@ export async function submitGridImageRequest(params: {
   const imagePaths = getImageEndpointPaths(endpointTypes || []);
   const rootBase = getRootBaseUrl(normalizedBase);
   const endpoint = `${rootBase}${imagePaths.submit}`;
-  const requestBody: Record<string, unknown> = {
-    model,
-    prompt,
-    n: 1,
-    aspect_ratio: aspectRatio,
-  };
-  if (resolution) {
-    requestBody.resolution = resolution;
-  }
-  if (referenceImages && referenceImages.length > 0) {
-    requestBody.image_urls = referenceImages;
-  }
+  const usesDefaultImagesEndpoint = imagePaths.submit === DEFAULT_IMAGE_ENDPOINT.submit;
+  const builtRequest = usesDefaultImagesEndpoint
+    ? buildOpenAIImageRequestBody({ model, prompt: normalizedPrompt.prompt, aspectRatio, resolution, referenceImages, negativePrompt: normalizedPrompt.negativePrompt })
+    : buildProviderExtensionImageRequestBody({ model, prompt: normalizedPrompt.prompt, aspectRatio, resolution, referenceImages, negativePrompt: normalizedPrompt.negativePrompt });
+  const requestBody = builtRequest.body;
 
-  console.log('[GridImageAPI] Submitting to', endpoint);
+  console.log('[GridImageAPI] Submitting to', endpoint, { templateName: builtRequest.templateName });
+
+  if (usesDefaultImagesEndpoint && isGptImageModel(model)) {
+    const currentApiKey = keyManager?.getCurrentKey?.() || apiKey;
+    const sdkResult = await sdkGenerateImage({
+      provider: {
+        id: 'grid-image',
+        platform: 'openai-compatible',
+        name: 'Grid Image Provider',
+        baseUrl: normalizedBase,
+        apiKey: currentApiKey,
+      },
+      model,
+      prompt: normalizedPrompt.prompt,
+      aspectRatio,
+      resolution,
+      negativePrompt: normalizedPrompt.negativePrompt,
+      referenceImages,
+      operationId,
+      endpointFamily: 'grid-images-generations',
+      abortSignal: signal,
+      maxRetries: 2,
+    });
+    if (sdkResult.success && sdkResult.imageUrl) {
+      return { imageUrl: sdkResult.imageUrl };
+    }
+    throw new Error(sdkResult.error || 'AI SDK 图片生成失败');
+  }
 
   const data = await retryOperation(async () => {
     // 每次重试动态取当前 key（利用 keyManager rotate 后的新 key）
     const currentApiKey = keyManager?.getCurrentKey?.() || apiKey;
     if (signal?.aborted) throw new Error('用户已取消');
-    const response = await fetch(endpoint, {
+    const response = await observedFetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -839,6 +1168,11 @@ export async function submitGridImageRequest(params: {
       },
       body: JSON.stringify(requestBody),
       signal,
+    }, {
+      operationId,
+      endpointFamily: 'grid-images-generations',
+      model,
+      templateName: builtRequest.templateName,
     });
 
     if (!response.ok) {
@@ -877,25 +1211,15 @@ export async function submitGridImageRequest(params: {
     if (urlMatch) return { imageUrl: urlMatch[1] };
   }
 
-  // 标准格式: { data: [{ url, task_id }] }
-  const normalizeUrl = (url: any): string | undefined => {
-    if (!url) return undefined;
-    if (Array.isArray(url)) return url[0] || undefined;
-    if (typeof url === 'string') return url;
-    return undefined;
-  };
-
+  // 标准格式: { data: [{ url, task_id }] } 或 OpenAI-compatible { data: [{ b64_json }] }
   const dataField = data.data;
   const firstItem = Array.isArray(dataField) ? dataField[0] : dataField;
 
-  const imageUrl = normalizeUrl(firstItem?.url)
-    || normalizeUrl(firstItem?.image_url)
-    || normalizeUrl(firstItem?.output_url)
-    || normalizeUrl(data.url)
-    || normalizeUrl(data.image_url)
-    || normalizeUrl(data.output_url);
+  const extracted = extractImageGenerationResult(data);
+  const imageUrl = extracted.imageUrl || extractDirectImageUrl(data);
 
-  const taskId = firstItem?.task_id?.toString()
+  const taskId = extracted.taskId
+    || firstItem?.task_id?.toString()
     || firstItem?.id?.toString()
     || data.task_id?.toString()
     || data.id?.toString();
@@ -904,7 +1228,7 @@ export async function submitGridImageRequest(params: {
   if (!imageUrl && taskId) {
     console.log('[GridImageAPI] Got taskId without imageUrl, polling...', taskId);
     const pollUrl = `${rootBase}${imagePaths.poll(taskId)}`;
-    const polledUrl = await pollTaskStatus(taskId, params.keyManager?.getCurrentKey?.() || apiKey, normalizedBase, undefined, pollUrl);
+    const polledUrl = await pollTaskStatus(taskId, params.keyManager?.getCurrentKey?.() || apiKey, normalizedBase, undefined, pollUrl, operationId);
     return { imageUrl: polledUrl, taskId };
   }
 
@@ -929,6 +1253,7 @@ async function submitViaKlingImages(
   baseUrl: string,
   aspectRatio: string,
   keyManager?: { getCurrentKey?: () => string | null; handleError?: (status: number, errorText?: string) => boolean },
+  operationId?: string,
 ): Promise<ImageGenerationResult> {
   const rootBase = baseUrl.replace(/\/v\d+$/, '');
   const nativePath = model === 'kling-omni-image'
@@ -943,10 +1268,14 @@ async function submitViaKlingImages(
 
   const data = await retryOperation(async () => {
     const currentApiKey = keyManager?.getCurrentKey?.() || apiKey;
-    const response = await fetch(`${rootBase}/${nativePath}`, {
+    const response = await observedFetch(`${rootBase}/${nativePath}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentApiKey}` },
       body: JSON.stringify(body),
+    }, {
+      operationId,
+      endpointFamily: 'kling-image-submit',
+      model,
     });
 
     if (!response.ok) {
@@ -982,8 +1311,15 @@ async function submitViaKlingImages(
   for (let i = 0; i < maxAttempts; i++) {
     await new Promise(r => setTimeout(r, pollInterval));
     const currentApiKey = keyManager?.getCurrentKey?.() || apiKey;
-    const pollResp = await fetch(pollUrl, {
+    const pollResp = await observedFetch(pollUrl, {
       headers: { 'Authorization': `Bearer ${currentApiKey}` },
+    }, {
+      operationId,
+      endpointFamily: 'kling-image-poll',
+      model,
+      taskId: String(taskId),
+      pollAttempt: i + 1,
+      maxRetries: maxAttempts,
     });
     if (!pollResp.ok) continue;
     const pollData = await pollResp.json();
@@ -1006,6 +1342,7 @@ async function submitViaKlingImages(
  * In browser: converts to base64
  */
 export async function imageUrlToBase64(url: string): Promise<string> {
+  const operationId = createOperationId('image-download');
   // If already a local or base64 path, return as-is
   if (url.startsWith('data:image/') || url.startsWith('local-image://')) {
     return url;
@@ -1037,7 +1374,10 @@ export async function imageUrlToBase64(url: string): Promise<string> {
   
   // Try direct fetch first
   try {
-    const response = await fetch(url, { mode: 'cors' });
+    const response = await observedFetch(url, { mode: 'cors' }, {
+      operationId,
+      endpointFamily: 'image-download',
+    });
     if (response.ok) {
       const blob = await response.blob();
       return await convertBlobToBase64(blob);
@@ -1049,7 +1389,10 @@ export async function imageUrlToBase64(url: string): Promise<string> {
   // Fallback: use our API proxy to fetch the image
   try {
     const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(url)}`;
-    const response = await fetch(proxyUrl);
+    const response = await observedFetch(proxyUrl, undefined, {
+      operationId,
+      endpointFamily: 'image-download-proxy',
+    });
     if (!response.ok) {
       throw new Error(`Proxy fetch failed: ${response.status}`);
     }

@@ -130,9 +130,21 @@ export function useNovelPipelineActions({
         return;
       }
 
-      const libChars = useCharacterLibraryStore.getState().characters;
-      const libScenes = useSceneStore.getState().scenes;
-      const libProps = usePropsLibraryStore.getState().items;
+      const libChars = useCharacterLibraryStore
+        .getState()
+        .characters.filter(
+          (item) => !activeProjectId || item.projectId === activeProjectId,
+        );
+      const libScenes = useSceneStore
+        .getState()
+        .scenes.filter(
+          (item) => !activeProjectId || item.projectId === activeProjectId,
+        );
+      const libProps = usePropsLibraryStore
+        .getState()
+        .items.filter(
+          (item) => !activeProjectId || item.projectId === activeProjectId,
+        );
 
       const knownEntities: KnownEntity[] = [
         ...store.entityExtractions.flatMap((batch) => [

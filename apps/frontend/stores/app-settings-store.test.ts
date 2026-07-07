@@ -17,4 +17,28 @@ describe("useAppSettingsStore development settings", () => {
 
     expect(useAppSettingsStore.getState().developmentSettings.showDevToolsControls).toBe(true);
   });
+
+  it("stores global image generation size defaults", () => {
+    expect(useAppSettingsStore.getState().imageGenerationSettings).toMatchObject({
+      defaultAspectRatio: "16:9",
+      defaultResolution: "2K",
+      compatibilityRetryEnabled: true,
+      compatibilityRetryAspectRatio: "1:1",
+      compatibilityRetryResolution: "1K",
+    });
+
+    useAppSettingsStore.getState().setImageGenerationSettings({
+      defaultAspectRatio: "3:2",
+      defaultResolution: "4K",
+      compatibilityRetryEnabled: false,
+    });
+
+    expect(useAppSettingsStore.getState().imageGenerationSettings).toMatchObject({
+      defaultAspectRatio: "3:2",
+      defaultResolution: "4K",
+      compatibilityRetryEnabled: false,
+      compatibilityRetryAspectRatio: "1:1",
+      compatibilityRetryResolution: "1K",
+    });
+  });
 });

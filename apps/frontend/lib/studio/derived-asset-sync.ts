@@ -108,6 +108,7 @@ export function syncDerivedAssets(
 
     const propId = propSink.addProp({
       name: `${item.parentAssetId}·${item.state}`,
+      projectId,
       description: item.reason,
       visualPrompt: `${item.state}：${item.reason}`.trim(),
       imageUrl: "",
@@ -173,7 +174,8 @@ export function createMystudioDerivedSinks(): {
         const existing = store.scenes.find(
           (scene) =>
             scene.parentSceneId === input.parentSceneId &&
-            scene.viewpointName === input.viewpointName,
+            scene.viewpointName === input.viewpointName &&
+            (!input.projectId || scene.projectId === input.projectId),
         );
         return existing?.id ?? store.addScene(input);
       },
@@ -184,7 +186,8 @@ export function createMystudioDerivedSinks(): {
         const existing = store.items.find(
           (item) =>
             item.parentId === input.parentId &&
-            item.category === input.category,
+            item.category === input.category &&
+            (!input.projectId || item.projectId === input.projectId),
         );
         return existing?.id ?? store.addProp(input).id;
       },

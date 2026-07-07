@@ -4,6 +4,8 @@
 import { ipcRenderer, contextBridge, type IpcRendererEvent } from 'electron'
 import type { ModelTestRequest, ModelTestResult } from '../lib/api-manager/model-test'
 import type { TextCompletionRequest, TextCompletionResult } from '../lib/api-manager/text-completion'
+import type { ImageRequestPayload, ImageRequestResult } from '../types/api-image-request'
+import type { DiagnosticsLogEntryInput, DiagnosticsLogQuery } from '../types/diagnostics'
 import type { StudioVisualManualCreatePayload, StudioVisualManualImagesWritePayload, StudioVisualManualWritePayload } from '../types/studio-visual-manual'
 import type { TtsRuntimeCommandResult, TtsRuntimeConfig, TtsRuntimeStatus } from '../types/tts'
 import type { UpdateCheckOptions } from '../types/update'
@@ -21,6 +23,15 @@ contextBridge.exposeInMainWorld('mystudioSmoke', {
   userDataDir: process.argv.find((arg) => arg.startsWith('--user-data-dir='))?.slice('--user-data-dir='.length) ?? '',
 })
 
+contextBridge.exposeInMainWorld('diagnosticsLog', {
+  write: (entry: DiagnosticsLogEntryInput) => ipcRenderer.invoke('diagnostics-log-write', entry),
+  query: (query?: DiagnosticsLogQuery) => ipcRenderer.invoke('diagnostics-log-query', query),
+  getInfo: () => ipcRenderer.invoke('diagnostics-log-get-info'),
+  openFolder: () => ipcRenderer.invoke('diagnostics-log-open-folder'),
+  exportBundle: () => ipcRenderer.invoke('diagnostics-log-export-bundle'),
+  clear: () => ipcRenderer.invoke('diagnostics-log-clear'),
+})
+
 // Image storage API
 contextBridge.exposeInMainWorld('imageStorage', {
   // Save image from URL to local storage
@@ -34,6 +45,10 @@ contextBridge.exposeInMainWorld('imageStorage', {
   // Delete a locally stored image
   deleteImage: (localPath: string) => 
     ipcRenderer.invoke('delete-image', localPath),
+
+  // Move a local media file into another storage category
+  moveImage: (localPath: string, category: string) =>
+    ipcRenderer.invoke('move-image', { localPath, category }),
   
   // Read local image as base64 (for AI API calls like video generation)
   readAsBase64: (localPath: string) => 
@@ -113,6 +128,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openDevTools: () => ipcRenderer.invoke('app-devtools-open'),
   testModel: (payload: ModelTestRequest): Promise<ModelTestResult> => ipcRenderer.invoke('api-model-test', payload),
   textCompletion: (payload: TextCompletionRequest): Promise<TextCompletionResult> => ipcRenderer.invoke('api-text-completion', payload),
+  imageRequest: (payload: ImageRequestPayload): Promise<ImageRequestResult> => ipcRenderer.invoke('api-image-request', payload),
   textCompletionStream: (payload: TextCompletionRequest, onChunk: (delta: string) => void): Promise<TextCompletionResult> => {
     const streamId = `${Date.now()}-${Math.random().toString(36).slice(2)}`
     const channel = `api-text-stream:${streamId}`

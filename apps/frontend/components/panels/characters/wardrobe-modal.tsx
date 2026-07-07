@@ -20,7 +20,7 @@ import {
 } from "@/stores/character-library-store";
 import { useMediaStore } from "@/stores/media-store";
 import { useProjectStore } from "@/stores/project-store";
-import { getFeatureConfig, getFeatureNotConfiguredMessage } from "@/lib/ai/feature-router";
+import { useAppSettingsStore } from "@/stores/app-settings-store";
 import { aiManager } from "@/lib/ai/ai-manager";
 import { readImageAsBase64, saveImageToLocal } from "@/lib/image-storage";
 import { Button } from "@/components/ui/button";
@@ -186,9 +186,9 @@ export function WardrobeModal({ character, open, onOpenChange }: WardrobeModalPr
 
   // ---- Generate Variation Image ----
   const handleGenerateVariation = async (variation: CharacterVariation) => {
-    const featureConfig = getFeatureConfig('character_generation');
+    const featureConfig = aiManager.featureConfig('character_generation');
     if (!featureConfig) {
-      toast.error(getFeatureNotConfiguredMessage('character_generation'));
+      toast.error(aiManager.featureNotConfiguredMessage('character_generation'));
       return;
     }
 
@@ -663,7 +663,7 @@ const WARDROBE_SHEET_ELEMENTS = [
 async function generateVariationImage(params: {
   character: Character;
   variation: CharacterVariation;
-  featureConfig: NonNullable<ReturnType<typeof getFeatureConfig>>;
+  featureConfig: NonNullable<ReturnType<typeof aiManager.featureConfig>>;
 }): Promise<string> {
   const { character, variation, featureConfig } = params;
   const apiKey = featureConfig.apiKey;
@@ -761,13 +761,14 @@ async function generateVariationImage(params: {
 
   // ---- Call API via unified image generator ----
   // Use 1:1 aspect ratio to match base character sheet format
+  const imageSettings = useAppSettingsStore.getState().imageGenerationSettings;
   const result = await aiManager.imageGrid({
     model,
     prompt,
     apiKey,
     baseUrl,
-    aspectRatio: '1:1',
-    resolution: '2K',
+    aspectRatio: "1:1",
+    resolution: imageSettings.defaultResolution,
     referenceImages: referenceImages.length > 0 ? referenceImages : undefined,
   });
 

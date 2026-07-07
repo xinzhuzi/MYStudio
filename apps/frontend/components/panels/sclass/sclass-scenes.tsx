@@ -60,12 +60,11 @@ import {
 import { generateScenePrompts } from "@/lib/storyboard/scene-prompt-generator";
 import { useAPIConfigStore } from "@/stores/api-config-store";
 import { parseApiKeys } from "@/lib/api-key-manager";
-import { getFeatureConfig, getFeatureNotConfiguredMessage } from "@/lib/ai/feature-router";
 import { aiManager } from "@/lib/ai/ai-manager";
 import { uploadToImageHost, isImageHostConfigured } from "@/lib/image-host";
 import { saveVideoToLocal, readImageAsBase64 } from '@/lib/image-storage';
 import { persistSceneImage } from '@/lib/utils/image-persist';
-import { convertToHttpUrl, extractLastFrameFromVideo, isContentModerationError } from '../director/use-video-generation';
+import { convertToHttpUrl, extractLastFrameFromVideo, isContentModerationError } from '@/lib/ai/video-generator';
 import {
   Select,
   SelectContent,
@@ -83,6 +82,7 @@ import { SClassSceneCard } from "./sclass-scene-card";
 import { SceneVoiceBatchToolbar } from "../director/scene-voice-batch-toolbar";
 import { ShotGroupCard } from "./shot-group";
 import { useSClassStore, useShotGroups, type SClassAspectRatio, type ShotGroup } from "@/stores/sclass-store";
+import { useAppSettingsStore } from "@/stores/app-settings-store";
 import { autoGroupScenes, generateGroupName } from "./auto-grouping";
 import { useSClassGeneration, type BatchGenerationProgress } from "./use-sclass-generation";
 import { ExtendEditDialog, type ExtendEditMode } from "./extend-edit-dialog";
@@ -103,6 +103,7 @@ import { getCinematographyProfile, DEFAULT_CINEMATOGRAPHY_PROFILE_ID } from "@/l
 import { buildVideoPrompt, buildEmotionDescription as buildEmotionDesc } from "@/lib/generation/prompt-builder";
 import { StylePicker } from "@/components/ui/style-picker";
 import { CinematographyProfilePicker } from "@/components/ui/cinematography-profile-picker";
+import { normalizeHorizontalVerticalAspectRatio } from "@/lib/ai/image-size-presets";
 
 interface SplitScenesProps {
   onBack?: () => void;
@@ -149,17 +150,23 @@ export function SClassScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
 
   // Get current project data
   const projectData = useActiveDirectorProject();
+  const imageGenerationSettings = useAppSettingsStore((state) => state.imageGenerationSettings);
+  const defaultAspectRatio = normalizeHorizontalVerticalAspectRatio(imageGenerationSettings.defaultAspectRatio);
+  const defaultResolution = imageGenerationSettings.defaultResolution;
   
   // Read from project data (with defaults)
   const splitScenes = projectData?.splitScenes || [];
   const storyboardStatus = projectData?.storyboardStatus || 'idle';
   const storyboardImage = projectData?.storyboardImage || null;
   const storyboardConfig = projectData?.storyboardConfig || {
-    aspectRatio: '9:16' as const,
-    resolution: '2K' as const,
+    aspectRatio: defaultAspectRatio,
+    resolution: defaultResolution,
     videoResolution: '480p' as const,
     sceneCount: 5,
     storyPrompt: '',
+    styleTokens: [],
+    characterReferenceImages: [],
+    characterDescriptions: [],
   };
   const projectFolderId = projectData?.projectFolderId || null;
   // 预告片数据 - 直接从 splitScenes 筛选，保证功能一致
@@ -756,7 +763,7 @@ export function SClassScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
     }
 
     // Get API key - 使用服务映射配置
-    const featureConfig = getFeatureConfig('character_generation');
+    const featureConfig = aiManager.featureConfig('character_generation');
     if (!featureConfig) {
       toast.error('请先在设置中配置图片生成 API');
       setQuadGridOpen(false);
@@ -807,7 +814,7 @@ export function SClassScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
       // Build base prompt from scene
       const basePrompt = scene.imagePromptZh?.trim() || scene.imagePrompt?.trim() || scene.videoPromptZh?.trim() || scene.videoPrompt?.trim() || '';
       const styleTokens = storyboardConfig.styleTokens || [];
-      const aspect = storyboardConfig.aspectRatio || '9:16';
+      const aspect = storyboardConfig.aspectRatio || defaultAspectRatio;
 
       // === 人物数量约束 ===
       const charCount = scene.characterIds?.length || 0;
@@ -915,7 +922,7 @@ export function SClassScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
         apiKey,
         baseUrl: imageBaseUrl,
         aspectRatio: aspect,
-        resolution: storyboardConfig.resolution || '2K',
+        resolution: storyboardConfig.resolution || defaultResolution,
         referenceImages: processedRefs.length > 0 ? processedRefs : undefined,
         keyManager,
       });
@@ -1147,7 +1154,7 @@ export function SClassScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
     }
 
     // 尝试获取图片理解配置（仅当部分分镜缺少文字描述时才需要）
-    const featureConfig = getFeatureConfig('image_understanding');
+    const featureConfig = aiManager.featureConfig('image_understanding');
     const apiKey = featureConfig?.apiKey || '';
     const provider = featureConfig?.platform || '';
     const model = featureConfig?.models?.[0] || '';
@@ -1223,9 +1230,9 @@ export function SClassScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
       return;
     }
 
-    const featureConfig = getFeatureConfig('video_generation');
+    const featureConfig = aiManager.featureConfig('video_generation');
     if (!featureConfig) {
-      toast.error(getFeatureNotConfiguredMessage('video_generation'));
+      toast.error(aiManager.featureNotConfiguredMessage('video_generation'));
       return;
     }
     const keyManager = featureConfig.keyManager;
@@ -1422,7 +1429,7 @@ export function SClassScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
     });
 
     // Use feature router with key rotation support
-    const featureConfig = getFeatureConfig('video_generation');
+    const featureConfig = aiManager.featureConfig('video_generation');
     console.log('[SplitScenes] Feature config for video_generation:', featureConfig ? {
       platform: featureConfig.platform,
       model: featureConfig.models?.[0],
@@ -1431,7 +1438,7 @@ export function SClassScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
     } : 'null');
     
     if (!featureConfig) {
-      toast.error(getFeatureNotConfiguredMessage('video_generation'));
+      toast.error(aiManager.featureNotConfiguredMessage('video_generation'));
       return;
     }
     
@@ -1709,7 +1716,7 @@ export function SClassScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
     if (!scene) return;
 
     // 使用服务映射配置 - 不再 fallback 到硬编码
-    const featureConfig = getFeatureConfig('character_generation');
+    const featureConfig = aiManager.featureConfig('character_generation');
     if (!featureConfig) {
       toast.error('请先在设置中配置图片生成服务映射');
       return;
@@ -1818,8 +1825,8 @@ export function SClassScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
         prompt: enhancedPrompt,
         apiKey,
         baseUrl: imageBaseUrl,
-        aspectRatio: storyboardConfig.aspectRatio || '9:16',
-        resolution: storyboardConfig.resolution || '2K',
+        aspectRatio: storyboardConfig.aspectRatio || defaultAspectRatio,
+        resolution: storyboardConfig.resolution || defaultResolution,
         referenceImages: processedRefs.length > 0 ? processedRefs : undefined,
         keyManager,
       });
@@ -2020,7 +2027,7 @@ export function SClassScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
     }
 
     // 获取图像生成能力 - 使用服务映射配置
-    const featureConfig = getFeatureConfig('character_generation');
+    const featureConfig = aiManager.featureConfig('character_generation');
     if (!featureConfig) {
       toast.error('请先在设置中配置图片生成服务映射');
       return;
@@ -2050,7 +2057,7 @@ export function SClassScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
     mergedAbortRef.current = false; // 重置停止标志
     console.log('[MergedGen] 开始九宫格合并生成, mode:', mode, 'strategy:', strategy, 'exemplar:', exemplar);
 
-    const aspect = storyboardConfig.aspectRatio || '9:16';
+    const aspect = storyboardConfig.aspectRatio || defaultAspectRatio;
     const styleTokens = storyboardConfig.styleTokens || [];
     // 始终使用 getStylePrompt 获取完整风格提示词（保证有默认值，即使 styleTokens 为空）
     const fullStylePrompt = getStylePrompt(currentStyleId);
@@ -2371,7 +2378,7 @@ export function SClassScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
         apiKey,
         baseUrl: imageBaseUrl,
         aspectRatio: gridAspect,
-        resolution: storyboardConfig.resolution || '2K',
+        resolution: storyboardConfig.resolution || defaultResolution,
         referenceImages: processedRefs.length > 0 ? processedRefs : undefined,
         keyManager,
       });
@@ -2621,7 +2628,7 @@ export function SClassScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
       updateSplitSceneImageStatus(sceneId, { imageStatus: 'generating', imageProgress: 0, imageError: null });
     }
     // 使用服务映射配置
-    const featureConfig = getFeatureConfig('character_generation');
+    const featureConfig = aiManager.featureConfig('character_generation');
     if (!featureConfig) {
       throw new Error('请先在设置中配置图片生成服务映射');
     }
@@ -2647,7 +2654,7 @@ export function SClassScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
       apiKey: apiKeyToUse,
       baseUrl: imageBaseUrl,
       aspectRatio: aspect,
-      resolution: storyboardConfig.resolution || '2K',
+      resolution: storyboardConfig.resolution || defaultResolution,
       referenceImages: refUrls && refUrls.length > 0 ? refUrls.slice(0, 14) : undefined,
       keyManager: mergedKeyManager,
     });
@@ -2724,7 +2731,7 @@ export function SClassScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
     }
 
     // 使用服务映射配置
-    const featureConfig = getFeatureConfig('character_generation');
+    const featureConfig = aiManager.featureConfig('character_generation');
     if (!featureConfig) {
       toast.error('请先在设置中配置图片生成服务映射');
       return;
@@ -2820,8 +2827,8 @@ export function SClassScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
         prompt: enhancedPrompt,
         apiKey,
         baseUrl: imageBaseUrl,
-        aspectRatio: storyboardConfig.aspectRatio || '9:16',
-        resolution: storyboardConfig.resolution || '2K',
+        aspectRatio: storyboardConfig.aspectRatio || defaultAspectRatio,
+        resolution: storyboardConfig.resolution || defaultResolution,
         referenceImages: processedRefs.length > 0 ? processedRefs : undefined,
         keyManager,
       });
@@ -3128,7 +3135,7 @@ export function SClassScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
                 </div>
                 {/* Image Resolution Selector */}
                 <Select
-                  value={storyboardConfig.resolution || '2K'}
+                  value={storyboardConfig.resolution || defaultResolution}
                   onValueChange={(v: '1K' | '2K' | '4K') => {
                     setStoryboardConfig({ resolution: v });
                     toast.success(`图片分辨率已切换为 ${v}`);
@@ -3327,7 +3334,7 @@ export function SClassScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
 
         {/* Image Resolution Selector */}
         <Select
-          value={storyboardConfig.resolution || '2K'}
+          value={storyboardConfig.resolution || defaultResolution}
           onValueChange={(v: '1K' | '2K' | '4K') => {
             setStoryboardConfig({ resolution: v });
             toast.success(`图片分辨率已切换为 ${v}`);

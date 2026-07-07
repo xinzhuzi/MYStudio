@@ -61,10 +61,15 @@ export function ImageStudio() {
   const hasIdeogramParams = selectedImageModel.includes('ideogram');
   const hasImageUrl = model?.inputs?.image_url != null;
   const hasStrength = model?.inputs?.strength != null;
+  const canGenerateImage = imagePrompt.trim().length > 0 && selectedImageModel.trim().length > 0;
 
   const handleGenerate = useCallback(async () => {
     if (!imagePrompt.trim()) {
       toast.error('请输入描述文字');
+      return;
+    }
+    if (!selectedImageModel.trim()) {
+      toast.error('请先选择图片生成模型');
       return;
     }
 
@@ -270,7 +275,7 @@ export function ImageStudio() {
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" /> 停止生成
               </Button>
             ) : (
-              <Button className="w-full h-11" onClick={handleGenerate} disabled={!imagePrompt.trim()}>
+              <Button className="w-full h-11" onClick={handleGenerate} disabled={!canGenerateImage}>
                 <Sparkles className="mr-2 h-4 w-4" /> 生成图片
               </Button>
             )}

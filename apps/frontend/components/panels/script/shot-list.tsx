@@ -11,7 +11,7 @@
 import { useState, useCallback } from "react";
 import { useScriptStore } from "@/stores/script-store";
 import { useCharacterLibraryStore, type Character, type CharacterVariation } from "@/stores/character-library-store";
-import { getFeatureConfig, getFeatureNotConfiguredMessage } from "@/lib/ai/feature-router";
+import { aiManager } from "@/lib/ai/ai-manager";
 import { generateShotImage, generateShotVideo, batchGenerateShotImages } from "@/lib/script/shot-generator";
 import type { Shot } from "@/types/script";
 import { Button } from "@/components/ui/button";
@@ -95,16 +95,16 @@ export function ShotList({ projectId, shots, styleId }: ShotListProps) {
 
   // Handle single shot image generation
   const handleGenerateImage = useCallback(async (shot: Shot) => {
-    const imageConfig = getFeatureConfig('character_generation');
+    const imageConfig = aiManager.featureConfig('character_generation');
     if (!imageConfig) {
-      toast.error(getFeatureNotConfiguredMessage('character_generation'));
+      toast.error(aiManager.featureNotConfiguredMessage('character_generation'));
       return;
     }
     const apiKey = imageConfig.apiKey;
     const baseUrl = imageConfig.baseUrl?.replace(/\/+$/, '');
     const model = imageConfig.models?.[0];
     if (!apiKey || !baseUrl || !model) {
-      toast.error(getFeatureNotConfiguredMessage('character_generation'));
+      toast.error(aiManager.featureNotConfiguredMessage('character_generation'));
       return;
     }
     setGeneratingShotId(shot.id);
@@ -119,7 +119,6 @@ export function ShotList({ projectId, shots, styleId }: ShotListProps) {
           apiKey,
           baseUrl,
           model,
-          aspectRatio: '16:9',
           styleTokens: getStyleTokensLocal(),
           referenceImages,
         },
@@ -153,16 +152,16 @@ export function ShotList({ projectId, shots, styleId }: ShotListProps) {
       return;
     }
 
-    const videoConfig = getFeatureConfig('video_generation');
+    const videoConfig = aiManager.featureConfig('video_generation');
     if (!videoConfig) {
-      toast.error(getFeatureNotConfiguredMessage('video_generation'));
+      toast.error(aiManager.featureNotConfiguredMessage('video_generation'));
       return;
     }
     const apiKey = videoConfig.apiKey;
     const baseUrl = videoConfig.baseUrl?.replace(/\/+$/, '');
     const model = videoConfig.models?.[0];
     if (!apiKey || !baseUrl || !model) {
-      toast.error(getFeatureNotConfiguredMessage('video_generation'));
+      toast.error(aiManager.featureNotConfiguredMessage('video_generation'));
       return;
     }
     setGeneratingShotId(shot.id);
@@ -212,16 +211,16 @@ export function ShotList({ projectId, shots, styleId }: ShotListProps) {
       return;
     }
 
-    const imageConfig = getFeatureConfig('character_generation');
+    const imageConfig = aiManager.featureConfig('character_generation');
     if (!imageConfig) {
-      toast.error(getFeatureNotConfiguredMessage('character_generation'));
+      toast.error(aiManager.featureNotConfiguredMessage('character_generation'));
       return;
     }
     const apiKey = imageConfig.apiKey;
     const baseUrl = imageConfig.baseUrl?.replace(/\/+$/, '');
     const model = imageConfig.models?.[0];
     if (!apiKey || !baseUrl || !model) {
-      toast.error(getFeatureNotConfiguredMessage('character_generation'));
+      toast.error(aiManager.featureNotConfiguredMessage('character_generation'));
       return;
     }
     setIsGenerating(true);
@@ -239,8 +238,7 @@ export function ShotList({ projectId, shots, styleId }: ShotListProps) {
         apiKey,
         baseUrl,
         model,
-        aspectRatio: '16:9',
-      styleTokens: getStyleTokensLocal(),
+        styleTokens: getStyleTokensLocal(),
       },
       (shotId, progress) => {
         updateShot(projectId, shotId, { imageStatus: 'generating', imageProgress: progress });

@@ -13,6 +13,7 @@ import {
 } from "@/lib/studio/script-planning";
 import { cn } from "@/lib/utils";
 import { useStudioStore } from "@/stores/studio-store";
+import { useThemeStore } from "@/stores/theme-store";
 import type { AgentWorkKey, NovelChapter } from "@/types/studio";
 import { ClipboardList, Edit3, WandSparkles } from "lucide-react";
 import { MdPreview } from "md-editor-rt";
@@ -49,6 +50,7 @@ export function ScriptTab(props: {
   };
 
   const [chapterId, setChapterId] = useState(props.novelChapters[0]?.id ?? "");
+  const theme = useThemeStore((state) => state.theme);
   const [activeStage, setActiveStage] =
     useState<ScriptStageKey>("storySkeleton");
   const [editor, setEditor] = useState<{
@@ -247,7 +249,7 @@ export function ScriptTab(props: {
       <MdPreview
         className="md-editor-preview-transparent !bg-transparent [&_.md-editor-preview-wrapper]:!bg-transparent [&_.md-editor-preview]:!bg-transparent [&_.md-editor]:!bg-transparent"
         modelValue={modelValue}
-        theme="dark"
+        theme={theme}
         language="zh-CN"
       />
     </div>

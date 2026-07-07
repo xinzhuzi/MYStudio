@@ -39,6 +39,7 @@ describe("SettingsPanel navigation", () => {
     expect(labels).not.toContain("本地 TTS");
     expect(labels).toEqual(expect.arrayContaining([
       "API 管理",
+      "图片规格",
       "高级选项",
       "图床配置",
       "存储",
@@ -78,6 +79,58 @@ describe("SettingsPanel navigation", () => {
   it("keeps low-level provider internals out of the service workspace", () => {
     expect(API_SERVICE_SUMMARY_FIELDS).toEqual(["Base URL", "接口协议", "API Key"]);
     expect(API_SERVICE_SUMMARY_FIELDS).not.toContain("供应商 ID");
+  });
+
+  it("uses a single horizontal API manager notice bar", () => {
+    const settingsSource = readFileSync(
+      fileURLToPath(new URL("./SettingsPanel.tsx", import.meta.url)),
+      "utf8",
+    );
+
+    expect(settingsSource).toContain("api-manager-notice-bar");
+    expect(settingsSource).toContain("提示");
+    expect(settingsSource).toContain("添加供应商");
+    expect(settingsSource).not.toContain("安全说明");
+  });
+
+  it("keeps diagnostics log controls in the development settings tab", () => {
+    const settingsSource = readFileSync(
+      fileURLToPath(new URL("./SettingsPanel.tsx", import.meta.url)),
+      "utf8",
+    );
+
+    expect(settingsSource).toContain("诊断日志");
+    expect(settingsSource).toContain("打开文件夹");
+    expect(settingsSource).toContain("导出诊断包");
+    expect(settingsSource).toContain("清理日志");
+    expect(settingsSource).toContain("window.diagnosticsLog.getInfo");
+    expect(settingsSource).toContain("日志只保存在本机");
+  });
+
+  it("shows a dedicated image size settings tab with gpt-image presets", () => {
+    const settingsSource = readFileSync(
+      fileURLToPath(new URL("./SettingsPanel.tsx", import.meta.url)),
+      "utf8",
+    );
+
+    expect(SETTINGS_TABS.map((tab) => tab.label)).toContain("图片规格");
+    expect(settingsSource).toContain('TabsContent value="imageSize"');
+    expect(settingsSource).toContain("GPT Image 规格矩阵");
+    expect(settingsSource).toContain("GPT_IMAGE_SIZE_MAP");
+    expect(settingsSource).toContain("getImageSizeLabel");
+    expect(settingsSource).toContain("compatibilityRetryEnabled");
+  });
+
+  it("logs API model test clicks with an operation id before invoking IPC", () => {
+    const settingsSource = readFileSync(
+      fileURLToPath(new URL("./SettingsPanel.tsx", import.meta.url)),
+      "utf8",
+    );
+
+    expect(settingsSource).toContain('createOperationId("model-test")');
+    expect(settingsSource).toContain('message: "API model test clicked"');
+    expect(settingsSource).toContain("operationId,");
+    expect(settingsSource).toContain("window.electronAPI.testModel");
   });
 
   it("generates Toonflow-style safe provider adapter templates without promotional copy", () => {

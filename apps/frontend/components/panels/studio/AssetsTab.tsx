@@ -59,6 +59,7 @@ export function AssetsTab(props: {
     Record<string, { name: string; desc: string }[]>
   >({ role: [], scene: [], tool: [] });
   useEffect(() => {
+    if (mode !== "manage") return;
     if (
       typeof window === "undefined" ||
       !(window as unknown as Record<string, unknown>).studioAssets
@@ -82,7 +83,7 @@ export function AssetsTab(props: {
         })
         .catch(() => {});
     }
-  }, []);
+  }, [mode]);
 
   /** 资产匹配状态：不存在(爆红) / 已有但无图(黄) / 已制作(绿)
    *  匹配策略：先查本地轻量库，再查资产中心（assets.db），按名字+别名+描述+泛称NPC兜底 */
@@ -299,6 +300,7 @@ export function AssetsTab(props: {
       name,
       description: prompt,
       visualPrompt: prompt,
+      projectId: activeProjectId ?? undefined,
       imageUrl: "",
       folderId: null,
     });

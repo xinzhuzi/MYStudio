@@ -139,6 +139,7 @@ describe("studio storyboard items mapping", () => {
     expect(items[0]?.lines).toBe("甲：这是一句很长的台词需要更多时间念完");
     expect(items[0]?.sound).toBe("风声");
     expect(items[0]?.speakerId).toBe("character:甲");
+    expect(items[0]?.shouldGenerateImage).toBe(true);
     // computed duration for the long line should exceed the table's 2
     expect(items[0]?.duration).toBeGreaterThan(2);
   });
