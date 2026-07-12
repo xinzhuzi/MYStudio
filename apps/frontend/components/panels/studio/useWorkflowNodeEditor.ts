@@ -1,5 +1,11 @@
 import { useCallback, useMemo, useState } from "react";
-import { parseDirectorPlan } from "@/lib/studio/director-plan";
+import {
+  auditDirectorPlanStructure,
+  formatDirectorPlanAuditError,
+  parseDirectorPlan,
+  summarizeDirectorPlanAudit,
+} from "@/lib/studio/director-plan";
+import { captureError, createOperationId, logEvent } from "@/lib/diagnostics/logger";
 import {
   parseStoryboardTable,
   toStoryboardItems,
@@ -148,7 +154,7 @@ export function useWorkflowNodeEditor({
     setEditingWorkflowNodeId(null);
   }, []);
 
-  const saveWorkflowNodeEdit = useCallback(() => {
+  const saveWorkflowNodeEdit = useCallback(async () => {
     if (!editingWorkflowNodeId) return;
     const store = useStudioStore.getState();
     const episodeId = resolveProductionEpisodeId(store, productionEpisodeId);
@@ -160,13 +166,56 @@ export function useWorkflowNodeEditor({
       return;
     }
     if (editingWorkflowNodeId === "scriptPlan") {
+      const operationId = createOperationId("director-plan-edit");
+      let blockedLogged = false;
       try {
+        const audit = auditDirectorPlanStructure(workflowNodeDraft);
+        await logEvent({
+          level: audit.passed ? "info" : "warn",
+          category: "workflow",
+          operationId,
+          message: "directorPlan.audit.first",
+          context: {
+            episodeId,
+            source: "node_editor",
+            audit: summarizeDirectorPlanAudit(audit),
+          },
+        });
+        if (!audit.passed) {
+          await logEvent({
+            level: "error",
+            category: "workflow",
+            operationId,
+            message: "directorPlan.writeback.blocked",
+            context: {
+              episodeId,
+              source: "node_editor",
+              phase: "manual_edit_audit",
+              audit: summarizeDirectorPlanAudit(audit),
+            },
+          });
+          blockedLogged = true;
+          throw new Error(formatDirectorPlanAuditError(audit));
+        }
         const { plan, warnings } = parseDirectorPlan(
           workflowNodeDraft,
           episodeId,
         );
         saveAgentWorkData("directorPlan", workflowNodeDraft, episodeId);
         saveScriptPlan(plan);
+        await logEvent({
+          level: "info",
+          category: "workflow",
+          operationId,
+          message: "directorPlan.writeback.saved",
+          context: {
+            episodeId,
+            source: "node_editor",
+            audit: summarizeDirectorPlanAudit(audit),
+            derivedAssetPlanCount: plan.derivedAssetPlan.length,
+            sceneIntentCount: plan.sceneIntents.length,
+          },
+        });
         toast.success(
           warnings.length
             ? `导演规划已保存（提示 ${warnings.length} 条）`
@@ -174,6 +223,20 @@ export function useWorkflowNodeEditor({
         );
         setEditingWorkflowNodeId(null);
       } catch (error) {
+        if (!blockedLogged) {
+          await logEvent({
+            level: "error",
+            category: "workflow",
+            operationId,
+            message: "directorPlan.writeback.blocked",
+            context: {
+              episodeId,
+              source: "node_editor",
+              phase: "exception",
+              error: captureError(error),
+            },
+          });
+        }
         toast.error(
           error instanceof Error ? error.message : "导演规划保存失败",
         );
@@ -183,8 +246,11 @@ export function useWorkflowNodeEditor({
     if (editingWorkflowNodeId === "storyboardTable") {
       saveAgentWorkData("storyboardTable", workflowNodeDraft, episodeId);
       const parsed = parseStoryboardTable(text, episodeId);
-      const items = toStoryboardItems(parsed.rows, episodeId);
       const workflowStore = useStudioStore.getState();
+      const characters = workflowStore.entityExtractions.find(
+        (item) => item.episodeId === episodeId,
+      )?.characters ?? [];
+      const items = toStoryboardItems(parsed.rows, episodeId, characters);
       workflowStore.replaceStoryboardsForEpisode(episodeId, items);
       const warningText = parsed.errors.length
         ? `，忽略非法行 ${parsed.errors.length} 条`

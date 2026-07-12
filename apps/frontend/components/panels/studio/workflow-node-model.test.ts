@@ -8,6 +8,7 @@ import {
 } from "./workflow-node-model";
 import { buildWorkbenchAssetMediaMap } from "./WorkbenchTab";
 import type { StudioManualCatalog } from "@/lib/studio/manuals";
+import type { StoryboardItem } from "@/types/studio";
 
 const manualCatalog: StudioManualCatalog = {
   visual: [
@@ -210,7 +211,7 @@ describe("production workflow node model", () => {
       "1 角色",
       "1 场景",
       "1 道具",
-      "衍生 1/2 已完成",
+      "衍生图 1/2 已完成",
       "缺父资产 1",
     ]);
     expect(
@@ -218,18 +219,7 @@ describe("production workflow node model", () => {
     ).toContain("角色 · Smoke角色");
     const assetNode = model.nodes.find((node) => node.id === "assets");
     expect(assetNode?.previewKind).toBe("asset-derivation");
-    expect(assetNode?.actions).toEqual([
-      expect.objectContaining({
-        id: "sync-derived-assets",
-        label: "落地衍生资产",
-        disabled: false,
-      }),
-      expect.objectContaining({
-        id: "generate-derived-assets",
-        label: "生成衍生图片",
-        disabled: false,
-      }),
-    ]);
+    expect(assetNode?.actions).toBeUndefined();
     expect(assetNode?.assetGroups?.[0]?.source.mediaPath).toBe("/tmp/char.png");
     expect(assetNode?.assetGroups?.[0]?.derived[0]).toMatchObject({
       name: "雨夜破衣",
@@ -248,6 +238,7 @@ describe("production workflow node model", () => {
     });
     expect(assetNode?.assetSummary).toMatchObject({
       planned: 3,
+      existing: 1,
       linked: 2,
       completed: 1,
       missingParent: 1,
@@ -263,9 +254,9 @@ describe("production workflow node model", () => {
     expect(
       model.nodes.find((node) => node.id === "workbench")?.metrics,
     ).toContain("已导出成片");
-    expect(model.nodes.find((node) => node.id === "script")?.metrics).toContain(
-      "当前剧本",
-    );
+    expect(model.nodes.find((node) => node.id === "script")?.metrics).toEqual([
+      expect.stringMatching(/^\d+ 字$/),
+    ]);
     expect(
       model.nodes.find((node) => node.id === "script")?.metrics.join("\n"),
     ).not.toContain("份剧本");
@@ -377,16 +368,14 @@ describe("production workflow node model", () => {
     ).toContain("镜头推进");
     expect(model.nodes.find((node) => node.id === "storyboard")?.actions).toEqual([
       expect.objectContaining({
-        id: "generate-storyboard-images",
-        label: "补生成分镜图",
-        disabled: false,
-      }),
-      expect.objectContaining({
         id: "rebuild-workbench-tracks",
         label: "重建视频轨道",
         disabled: false,
       }),
     ]);
+    expect(
+      model.nodes.find((node) => node.id === "storyboard")?.actions?.map((action) => action.id),
+    ).not.toContain("generate-storyboard-images");
     expect(
       model.nodes
         .find((node) => node.id === "workbench")
@@ -502,28 +491,85 @@ describe("production workflow node model", () => {
     ]);
     expect(model.nodes.find((node) => node.id === "storyboard")?.actions).toEqual([
       expect.objectContaining({
-        id: "generate-storyboard-images",
-        label: "生成分镜图",
-        disabled: true,
-      }),
-      expect.objectContaining({
         id: "rebuild-workbench-tracks",
         label: "重建视频轨道",
         disabled: true,
       }),
     ]);
-    expect(model.nodes.find((node) => node.id === "assets")?.actions).toEqual([
-      expect.objectContaining({
-        id: "sync-derived-assets",
-        label: "落地衍生资产",
-        disabled: true,
+    expect(
+      model.nodes.find((node) => node.id === "storyboard")?.actions?.map((action) => action.id),
+    ).not.toContain("generate-storyboard-images");
+    expect(model.nodes.find((node) => node.id === "assets")?.actions).toBeUndefined();
+  });
+
+  it("does not truncate Toonflow-length storyboard table rows or storyboard tiles", () => {
+    const storyboardTable = [
+      "<storyboardTable>",
+      "| 序号 | 画面描述 | 场景 | 关联资产名称 | 时长 | 景别 | 运镜 | 角色动作 | 朝向 | 空间关系 | 情绪 | 台词 | 音效 | 关联资产ID |",
+      "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+      ...Array.from({ length: 43 }, (_, index) => {
+        const shot = index + 1;
+        return `| ${shot} | 第${shot}镜画面 | 道口镇 | [独孤剑尘, 道口镇] | 4 | 中景 | 缓推 | 第${shot}镜动作 | 面朝右 | 独孤在前 | 压迫 | 旁白：第${shot}镜 | 风声 | [char-dugu, scene-town] |`;
       }),
-      expect.objectContaining({
-        id: "generate-derived-assets",
-        label: "生成衍生图片",
-        disabled: true,
-      }),
-    ]);
+      "</storyboardTable>",
+    ].join("\n");
+    const storyboards = Array.from({ length: 43 }, (_, index) => {
+      const shot = index + 1;
+      return {
+        id: `sb-chapter-001-${String(shot).padStart(3, "0")}`,
+        episodeId: "chapter-001",
+        index: shot,
+        trackKey: `shot-${String(shot).padStart(3, "0")}`,
+        trackId: "track-1",
+        duration: 4,
+        prompt: `第${shot}镜提示词`,
+        videoDesc: `第${shot}镜画面`,
+        assetIds: ["char-dugu", "scene-town"],
+        mediaRef: {
+          kind: "image",
+          path: `project-file://daojie/storyboards/shot-${String(shot).padStart(3, "0")}.png`,
+          imageWorkflowId: `storyboard-flow-chapter-001-${String(shot).padStart(3, "0")}`,
+        },
+        imageWorkflowId: `storyboard-flow-chapter-001-${String(shot).padStart(3, "0")}`,
+        shouldGenerateImage: true,
+        state: "ready",
+        lines: `旁白：第${shot}镜`,
+      } satisfies StoryboardItem;
+    });
+
+    const model = buildProductionFlowModel({
+      agentWorkData: [
+        {
+          id: "work-table",
+          key: "storyboardTable",
+          data: storyboardTable,
+          createdAt: 1,
+          updatedAt: 1,
+        },
+      ],
+      entityExtractions: [],
+      scriptPlans: [],
+      storyboards,
+      productionTracks: [],
+      videoCandidates: [],
+    });
+
+    const tableNode = model.nodes.find((node) => node.id === "storyboardTable");
+    const storyboardNode = model.nodes.find((node) => node.id === "storyboard");
+    expect(tableNode?.tableRows).toHaveLength(43);
+    expect(tableNode?.tableRows?.[42]).toMatchObject({
+      index: 43,
+      description: "第43镜画面",
+      scene: "道口镇",
+      associateAssetsIds: ["char-dugu", "scene-town"],
+    });
+    expect(storyboardNode?.storyboardTiles).toHaveLength(43);
+    expect(storyboardNode?.storyboardTiles?.[42]).toMatchObject({
+      id: "sb-chapter-001-043",
+      index: 43,
+      imageWorkflowId: "storyboard-flow-chapter-001-043",
+      shouldGenerateImage: true,
+    });
   });
 
   it("keeps Toonflow-style existing derivative links from the asset library", () => {
@@ -644,11 +690,40 @@ describe("production workflow node model", () => {
       imageWorkflowId: "asset-flow-prop-1-broken",
     });
     expect(assetNode?.assetSummary).toMatchObject({
-      planned: 3,
+      planned: 0,
+      existing: 3,
       linked: 3,
       completed: 3,
       missingParent: 0,
     });
+  });
+
+  it("keeps scene and prop asset groups visible when the first twelve assets are characters", () => {
+    const model = buildProductionFlowModel({
+      agentWorkData: [],
+      entityExtractions: [
+        {
+          id: "extract-1",
+          episodeId: "chapter-001",
+          characters: Array.from({ length: 12 }, (_, index) => ({
+            characterId: `char-${index + 1}`,
+            name: `角色${index + 1}`,
+            aliases: [],
+          })),
+          scenes: [{ sceneId: "scene-1", name: "悦来客栈" }],
+          props: [{ assetId: "prop-1", name: "归元断剑" }],
+        },
+      ],
+      scriptPlans: [],
+      storyboards: [],
+      productionTracks: [],
+      videoCandidates: [],
+    });
+
+    const groups = model.nodes.find((node) => node.id === "assets")?.assetGroups ?? [];
+    expect(groups).toHaveLength(14);
+    expect(groups.find((group) => group.source.id === "scene-1")?.source.runtimeType).toBe("scene");
+    expect(groups.find((group) => group.source.id === "prop-1")?.source.runtimeType).toBe("tool");
   });
 
   it("syncs script asset management library matches into the derived asset node", () => {
@@ -808,6 +883,7 @@ describe("production workflow node model", () => {
     });
     expect(assetNode?.assetSummary).toMatchObject({
       planned: 3,
+      existing: 3,
       linked: 3,
       completed: 3,
       missingParent: 0,
@@ -938,6 +1014,7 @@ describe("production workflow node model", () => {
     });
     expect(assetNode?.assetSummary).toMatchObject({
       planned: 1,
+      existing: 1,
       linked: 1,
       completed: 1,
       missingParent: 0,

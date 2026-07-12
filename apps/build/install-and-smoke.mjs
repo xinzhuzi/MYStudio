@@ -13,6 +13,7 @@ const userDataDir =
   process.env.MYSTUDIO_SMOKE_USER_DATA_DIR || mkdtempSync(resolve(tmpdir(), 'mystudio-installed-smoke-'));
 const debugPort = process.env.MYSTUDIO_SMOKE_DEBUG_PORT || '9363';
 const smokeCommandLabel = 'npm run smoke:desktop';
+const skipPrekill = process.env.MYSTUDIO_SMOKE_SKIP_PREKILL === '1';
 
 function sha256(filePath) {
   return createHash('sha256').update(readFileSync(filePath)).digest('hex');
@@ -40,11 +41,23 @@ function runOptional(command, args) {
 }
 
 function stopInstalledAppIfRunning() {
+  if (skipPrekill) {
+    console.log('Skipping pre-run MYStudio instance cleanup');
+    return;
+  }
   runOptional('osascript', [
     '-e',
     'tell application id "com.manju2026.manying-studio" to quit',
   ]);
-  runOptional('pkill', ['-x', '漫影工作室']);
+  for (const processName of [
+    '漫影工作室',
+    '漫影工作室 Helper',
+    'manying-studio',
+  ]) {
+    runOptional('pkill', ['-x', processName]);
+  }
+  runOptional('pkill', ['-f', '漫影工作室.app/Contents']);
+  console.log('Closed existing MYStudio instances before install smoke');
 }
 
 function assertNoBackupApps() {

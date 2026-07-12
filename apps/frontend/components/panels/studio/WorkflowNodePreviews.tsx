@@ -10,6 +10,7 @@ import {
   PackageOpen,
   RefreshCw,
 } from "lucide-react";
+import { useState } from "react";
 import type { ReactNode } from "react";
 import { MdPreview } from "md-editor-rt";
 import "md-editor-rt/lib/style.css";
@@ -42,7 +43,7 @@ export function TextPreview({ node }: { node: ProductionFlowNodeModel }) {
       className={cn(
         "workflow-node-markdown-preview nodrag nopan nowheel overflow-y-auto overscroll-contain rounded-md px-3 py-2 text-[13px] leading-6 text-muted-foreground",
         node.id === "scriptPlan" &&
-          "border border-border bg-muted/25 py-3 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-muted-foreground/25 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar]:w-1.5",
+          "py-3 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-muted-foreground/25 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar]:w-1.5",
         NODE_PREVIEW_CLASS[node.id],
       )}
     >
@@ -67,8 +68,23 @@ export function TextPreview({ node }: { node: ProductionFlowNodeModel }) {
   );
 }
 
-function buildPreviewMarkdown(node: ProductionFlowNodeModel) {
-  return node.previewLines.join("\n").trim() || "暂无内容";
+export function buildPreviewMarkdown(node: ProductionFlowNodeModel) {
+  const markdown = node.previewLines.join("\n").trim() || "暂无内容";
+  return node.id === "scriptPlan"
+    ? unwrapTaggedMarkdown(markdown, "scriptPlan")
+    : markdown;
+}
+
+function unwrapTaggedMarkdown(markdown: string, tagName: string) {
+  const taggedSegments = [...markdown.matchAll(new RegExp(`<${tagName}>\\s*([\\s\\S]*?)\\s*</${tagName}>`, "g"))]
+    .map((match) => match[1]?.trim())
+    .filter((segment): segment is string => Boolean(segment));
+  if (taggedSegments.length) return taggedSegments.join("\n\n");
+
+  const withoutLooseTags = markdown
+    .replace(new RegExp(`</?${tagName}>`, "g"), "")
+    .trim();
+  return withoutLooseTags || "暂无内容";
 }
 
 export function AssetDerivationPreview({
@@ -79,14 +95,26 @@ export function AssetDerivationPreview({
   onOpenAssetImageWorkflow?: (context: AssetImageWorkflowContext) => void;
 }) {
   const groups = node.assetGroups ?? [];
+  const [activeType, setActiveType] = useState<AssetDerivationFilter>("all");
   if (!groups.length) return <TextPreview node={node} />;
   const summary = node.assetSummary;
+  const visibleGroups =
+    activeType === "all"
+      ? groups
+      : groups.filter((group) => group.source.runtimeType === activeType);
+  const filterCounts = countAssetGroupsByType(groups);
+  const filters: Array<{ id: AssetDerivationFilter; label: string; count: number }> = [
+    { id: "all", label: "全部", count: groups.length },
+    { id: "role", label: "人物", count: filterCounts.role },
+    { id: "scene", label: "场景", count: filterCounts.scene },
+    { id: "tool", label: "道具", count: filterCounts.tool },
+  ];
   return (
     <div className="nodrag nopan nowheel max-h-[560px] space-y-4 overflow-y-auto overscroll-contain pr-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-muted-foreground/25 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar]:w-1.5">
       {summary ? (
         <div className="asset-derive-summary grid grid-cols-4 gap-2 rounded-md border border-border bg-card p-2 text-card-foreground">
-          <AssetSummaryCell label="预划" value={summary.planned} />
-          <AssetSummaryCell label="已关联父资产" value={summary.linked} />
+          <AssetSummaryCell label="导演预划" value={summary.planned} />
+          <AssetSummaryCell label="已有衍生" value={summary.existing} />
           <AssetSummaryCell label="已完成图片" value={summary.completed} />
           <AssetSummaryCell
             label="缺父资产"
@@ -95,7 +123,30 @@ export function AssetDerivationPreview({
           />
         </div>
       ) : null}
-      {groups.map((group) => (
+      <div className="asset-derive-type-switch grid grid-cols-4 gap-1 rounded-md border border-border bg-muted/20 p-1">
+        {filters.map((filter) => {
+          const selected = activeType === filter.id;
+          return (
+            <button
+              key={filter.id}
+              type="button"
+              className={cn(
+                "nodrag nopan nowheel h-8 rounded px-2 text-[11px] font-medium transition-colors",
+                selected
+                  ? "bg-cyan-300 text-zinc-950"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
+              )}
+              onClick={(event) => {
+                event.stopPropagation();
+                setActiveType(filter.id);
+              }}
+            >
+              {filter.label} {filter.count}
+            </button>
+          );
+        })}
+      </div>
+      {visibleGroups.map((group) => (
         <div
           key={group.source.id}
           className="grid grid-cols-[188px_34px_minmax(188px,1fr)] items-stretch gap-3"
@@ -120,6 +171,18 @@ export function AssetDerivationPreview({
         </div>
       ))}
     </div>
+  );
+}
+
+type AssetDerivationFilter = "all" | ProductionFlowAssetCard["runtimeType"];
+
+function countAssetGroupsByType(groups: ProductionFlowNodeModel["assetGroups"]) {
+  return (groups ?? []).reduce(
+    (counts, group) => {
+      counts[group.source.runtimeType] += 1;
+      return counts;
+    },
+    { role: 0, scene: 0, tool: 0 },
   );
 }
 
@@ -149,6 +212,7 @@ export function AssetFlowCard({
       sourceLabel: `衍生资产 · ${card.name}`,
     });
   };
+  const showStatusChip = status !== "已完成";
   const previewFrame = (
     <>
       {card.mediaPath ? (
@@ -166,7 +230,11 @@ export function AssetFlowCard({
     </>
   );
   return (
-    <div className="min-h-[214px] rounded-md border border-border bg-card p-3 text-card-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.035)]">
+    <div
+      className="min-h-[214px] rounded-md border border-border bg-card p-3 text-card-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.035)]"
+      data-parent-asset-id={card.parentAssetId ?? ""}
+      data-asset-generation-state={status}
+    >
       {canOpenImageWorkflow ? (
         <button
           type="button"
@@ -203,38 +271,30 @@ export function AssetFlowCard({
           {card.isDerived ? "衍生" : "原资产"}
         </span>
       </div>
-      <div className="mt-2 flex flex-wrap items-center gap-1.5">
-        <span
-          className={cn(
-            "rounded border px-1.5 py-0.5 text-[9px] font-semibold",
-            status === "已完成" &&
-              "border-emerald-300/30 bg-emerald-300/12 text-emerald-200",
-            status === "生成中" &&
-              "border-sky-300/30 bg-sky-300/12 text-sky-200",
-            status === "生成失败" &&
-              "border-red-300/30 bg-red-300/12 text-red-200",
-            status === "未生成" &&
-              "border-border bg-muted/30 text-muted-foreground",
-          )}
-        >
-          {status}
-        </span>
-        {card.parentAssetId ? (
-          <span className="max-w-full truncate rounded border border-border bg-muted/30 px-1.5 py-0.5 text-[9px] text-muted-foreground">
-            parentAssetId: {card.parentAssetId}
-          </span>
-        ) : null}
-        {card.imageWorkflowId ? (
-          <span className="max-w-full truncate rounded border border-cyan-300/20 bg-cyan-300/10 px-1.5 py-0.5 text-[9px] text-cyan-200">
-            flowId: {card.imageWorkflowId}
-          </span>
-        ) : null}
-        {card.isDerived && !card.sourceImagePath ? (
-          <span className="max-w-full truncate rounded border border-amber-300/30 bg-amber-300/10 px-1.5 py-0.5 text-[9px] text-amber-200">
-            缺父资产图
-          </span>
-        ) : null}
-      </div>
+      {showStatusChip || (card.isDerived && !card.sourceImagePath) ? (
+        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          {showStatusChip ? (
+            <span
+              className={cn(
+                "rounded border px-1.5 py-0.5 text-[9px] font-semibold",
+                status === "生成中" &&
+                  "border-sky-300/30 bg-sky-300/12 text-sky-200",
+                status === "生成失败" &&
+                  "border-red-300/30 bg-red-300/12 text-red-200",
+                status === "未生成" &&
+                  "border-border bg-muted/30 text-muted-foreground",
+              )}
+            >
+              {status}
+            </span>
+          ) : null}
+          {card.isDerived && !card.sourceImagePath ? (
+            <span className="max-w-full truncate rounded border border-amber-300/30 bg-amber-300/10 px-1.5 py-0.5 text-[9px] text-amber-200">
+              缺父资产图
+            </span>
+          ) : null}
+        </div>
+      ) : null}
       <p className="mt-1 line-clamp-1 text-[11px] font-medium text-card-foreground">
         {card.name}
       </p>
@@ -318,7 +378,7 @@ export function StoryboardTablePreview({
   const rows = node.tableRows ?? [];
   if (!rows.length) return <TextPreview node={node} />;
   return (
-    <div className="nodrag nowheel max-h-[430px] overflow-auto overscroll-contain rounded border border-border bg-card">
+    <div className="nodrag nowheel max-h-[430px] overflow-auto overscroll-contain rounded-md bg-muted/10">
       <div className="sticky top-0 z-10 grid min-w-[1920px] grid-cols-[44px_0.82fr_0.72fr_1.5fr_0.72fr_1.05fr_54px_0.62fr_0.72fr_1.35fr_0.82fr_0.95fr_0.72fr_1.2fr_0.82fr_0.9fr] bg-muted text-[10px] font-medium text-foreground">
         <span className="px-2 py-2">序号</span>
         <span className="px-2 py-2">标题</span>

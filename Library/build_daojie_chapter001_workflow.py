@@ -3,6 +3,7 @@ import json
 import base64
 import hashlib
 import io
+import math
 import mimetypes
 import os
 import re
@@ -21,9 +22,11 @@ import numpy as np
 from scipy import ndimage
 from PIL import Image, ImageDraw, ImageFilter, ImageFont, ImageOps
 
-PROJECT = Path("/Users/zhengbingjin/Library/Application Support/漫影工作室/projects/_p/49dce4c1-64b1-42de-85c2-9f266698aec0")
+DEFAULT_PROJECT = Path("/Users/zhengbingjin/Library/Application Support/漫影工作室/projects/_p/49dce4c1-64b1-42de-85c2-9f266698aec0")
+PROJECT = Path(os.environ.get("MYSTUDIO_DAOJIE_PROJECT_DIR", str(DEFAULT_PROJECT)))
 STORE = PROJECT / "studio-workflow-store.json"
 SCRIPT_JSON = PROJECT / "script.json"
+TTS_JSON = PROJECT / "tts.json"
 CHARACTERS_JSON = PROJECT / "characters.json"
 SCENES_JSON = PROJECT / "scenes.json"
 PROPS_JSON = PROJECT / "props.json"
@@ -43,7 +46,6 @@ VOICE_REFERENCE_ENGINE = "qwen"
 VOICE_REFERENCE_MODEL_SIZE = "1.7B"
 VOICE_REFERENCE_TEXT_FALLBACK = "我早已警告过你，宗门戒律不容挑衅，你竟为私利对同门下手。今日我必须废你武功，清理门户。"
 MIN_SHOT_DURATION = 3.0
-MAX_SHOT_DURATION = 5.0
 MIN_DIALOGUE_COVERAGE_RATIO = 0.92
 MIN_AUDIO_MEAN_VOLUME_DB = -55.0
 LONG_LINE_SPLIT_CHARS = 20
@@ -62,6 +64,7 @@ NODE_STORYBOARD_IMAGE_HELPER = REPO_ROOT / "apps" / "build" / "generate-storyboa
 APP_PYTHON = APP_SUPPORT / "python" / "bin" / "python3.12"
 SKIP_PROJECT_WRITE = os.environ.get("MYSTUDIO_DAOJIE_SKIP_PROJECT_WRITE") == "1"
 SKIP_SCENE_EXPORTS = os.environ.get("MYSTUDIO_DAOJIE_SKIP_SCENE_EXPORTS") == "1"
+ALLOW_STORYBOARD_BOOTSTRAP = os.environ.get("MYSTUDIO_DAOJIE_ALLOW_STORYBOARD_BOOTSTRAP") == "1"
 REAL_STORYBOARD_IMAGE_MODE = "real-ai-reference-image-workflow"
 ASSET_COMPOSITE_IMAGE_MODE = "asset-composite"
 STORYBOARD_IMAGE_GENERATION_MODE = (
@@ -219,6 +222,14 @@ def gpt_image_size(aspect_ratio, resolution):
 
 
 DAOJIE_STORYBOARD_STYLE_PROMPT = (
+    "《道劫》默认主风格，宣纸质感，宣纸淡彩工笔，工笔线描，细密白描线描，低饱和青绿山水，"
+    "米白、墨青、灰蓝、青绿、浅褐为底，旧金只用于衣纹、发饰、卷轴轴头和器物边缘，"
+    "竹窗卷轴人物质感，淡墨山体、瀑布、竹影、木窗、画案、卷轴和纸面肌理，"
+    "水墨国风修仙，写意泼墨，写意晕染，墨色层次丰富，传统水墨技法，"
+    "工笔写意融合，连环画叙事感，水墨国风电影质感，高完成度国风漫剧关键帧，清雅、细腻、透气、贵而不艳、旧而不脏，"
+    "电影构图，水墨国风高清渲染，高细节，画面无字幕、无水印、无标题叠字"
+)
+DAOJIE_DERIVED_ASSET_STYLE_PROMPT = (
     "水墨国风修仙，工笔线描，写意泼墨，写意晕染，青绿淡彩，宣纸质感，"
     "宣纸淡彩工笔，细密白描线描，低饱和青绿山水，墨色层次丰富，"
     "传统水墨技法，工笔写意融合，连环画叙事感，水墨国风电影质感，"
@@ -227,6 +238,11 @@ DAOJIE_STORYBOARD_STYLE_PROMPT = (
 DAOJIE_STORYBOARD_NEGATIVE_CONSTRAINTS = (
     "禁止写实摄影，禁止3D写实渲染，禁止照片级真实感，禁止赛璐璐平涂，"
     "禁止现代/科幻/西方奇幻元素，禁止文字水印、logo、乱码题字"
+)
+DAOJIE_STORYBOARD_FRAME_NEGATIVE_CONSTRAINTS = (
+    f"{DAOJIE_STORYBOARD_NEGATIVE_CONSTRAINTS}，禁止偏离宣纸淡彩工笔主风格的高对比漫画动作稿，"
+    "禁止欧美厚涂奇幻，禁止高饱和荧光色，禁止大面积暗黑脏污，禁止现代摄影感，"
+    "禁止白底设定图/三视图/四视图/资料卡，禁止把剧情分镜画成角色设定页或资产设定页"
 )
 STORYBOARD_REFERENCE_TYPE_LABELS = {
     "scene": "场景",
@@ -238,6 +254,56 @@ STORYBOARD_REFERENCE_TYPE_LABELS = {
     "角色": "角色",
     "道具": "道具",
 }
+DAOJIE_REFERENCE_BINDING_ALIASES = {
+    "独孤剑尘": ["独孤剑尘", "独孤", "灰衫客"],
+    "监工赵四": ["监工赵四", "赵四"],
+    "赵四": ["赵四", "监工赵四"],
+    "小杂役": ["小杂役"],
+    "李先生": ["李先生"],
+    "晏燎": ["晏燎"],
+    "孩童甲": ["孩童甲"],
+    "丫头": ["丫头"],
+    "掌柜": ["掌柜"],
+    "宗门弟子甲": ["宗门弟子甲"],
+    "宗门弟子乙": ["宗门弟子乙"],
+    "老苦力": ["老苦力"],
+    "年轻苦力": ["年轻苦力"],
+    "金水河码头": ["金水河码头"],
+    "悦来客栈": ["悦来客栈"],
+    "悦来客栈斗室": ["悦来客栈斗室", "斗室"],
+    "金水塾馆": ["金水塾馆", "塾馆"],
+    "金水河": ["金水河"],
+    "赤练蛇皮鞭": ["赤练蛇皮鞭", "鞭梢", "鞭子"],
+    "灵矿藤筐": ["灵矿藤筐", "藤筐", "空筐"],
+    "灵矿": ["灵矿"],
+    "油布剑包": ["油布剑包", "剑包"],
+    "残卷": ["残卷"],
+    "归元断剑": ["归元断剑", "归元", "断剑"],
+    "绿锈铜钱": ["绿锈铜钱", "铜钱"],
+    "灵矿账册": ["灵矿账册", "账册"],
+    "缚神索": ["缚神索"],
+    "玄天符": ["玄天符"],
+    "宗门灵舟": ["宗门灵舟", "灵舟"],
+}
+DAOJIE_VISIBLE_ROLE_ALIASES = {
+    key: value
+    for key, value in DAOJIE_REFERENCE_BINDING_ALIASES.items()
+    if key in {
+        "独孤剑尘",
+        "监工赵四",
+        "赵四",
+        "小杂役",
+        "李先生",
+        "晏燎",
+        "孩童甲",
+        "丫头",
+        "掌柜",
+        "宗门弟子甲",
+        "宗门弟子乙",
+        "老苦力",
+        "年轻苦力",
+    }
+}
 
 
 def storyboard_reference_type_label(reference):
@@ -245,25 +311,266 @@ def storyboard_reference_type_label(reference):
     return STORYBOARD_REFERENCE_TYPE_LABELS.get(raw_type, "资产")
 
 
+def storyboard_reference_name(reference, index):
+    return reference.get("name") or reference.get("title") or reference.get("assetId") or f"参考资产{index}"
+
+
+def unique_nonempty(values):
+    result = []
+    seen = set()
+    for value in values:
+        text = str(value or "").strip()
+        if not text or text in seen:
+            continue
+        seen.add(text)
+        result.append(text)
+    return result
+
+
+def storyboard_reference_aliases(reference, index):
+    name = storyboard_reference_name(reference, index)
+    aliases = [name, reference.get("sourceName"), reference.get("title")]
+    aliases.extend(reference.get("aliases") or [])
+    for alias_name, candidates in ASSET_IMAGE_ALIASES.items():
+        if name == alias_name or name in candidates:
+            aliases.append(alias_name)
+            aliases.extend(candidates)
+    for alias_name, candidates in DAOJIE_REFERENCE_BINDING_ALIASES.items():
+        if name == alias_name or name in candidates:
+            aliases.append(alias_name)
+            aliases.extend(candidates)
+    return unique_nonempty(aliases)
+
+
 def build_storyboard_reference_intro(reference_images):
     labels = []
     for index, reference in enumerate(reference_images or [], 1):
-        name = reference.get("name") or reference.get("title") or reference.get("assetId") or f"参考资产{index}"
+        name = storyboard_reference_name(reference, index)
         labels.append(f"@图{index} 为{name}{storyboard_reference_type_label(reference)}")
     return "；".join(labels)
 
 
+def build_storyboard_reference_continuity_rules(reference_images):
+    grouped = {"角色": [], "场景": [], "道具": [], "资产": []}
+    for index, reference in enumerate(reference_images or [], 1):
+        label = storyboard_reference_type_label(reference)
+        name = storyboard_reference_name(reference, index)
+        grouped.setdefault(label, []).append(f"@图{index}({name})")
+
+    parts = []
+    if grouped.get("角色"):
+        parts.append(
+            "角色一致性："
+            + "、".join(grouped["角色"])
+            + "只继承身份、面容、体态、发型识别点、服饰层次和主色比例；只允许镜头、动作、表情按当前分镜变化。"
+        )
+    if grouped.get("场景"):
+        parts.append(
+            "场景一致性："
+            + "、".join(grouped["场景"])
+            + "只继承空间结构、建筑/地貌材质、前中远景层次和光影基调；不要换成其他时代、其他地域或西幻空间。"
+        )
+    if grouped.get("道具"):
+        parts.append(
+            "道具一致性："
+            + "、".join(grouped["道具"])
+            + "只继承轮廓、材质、符号、火印、断口或核心识别点；不要改成现代器物或西式装备。"
+        )
+    if grouped.get("资产"):
+        parts.append(
+            "资产一致性："
+            + "、".join(grouped["资产"])
+            + "继承主体轮廓、比例结构和核心识别点；只按当前分镜调整角度和光影。"
+        )
+    if not parts:
+        return ""
+    parts.append("所有参考图只服务当前剧情分镜，不生成设定页、拼贴图、海报站姿或无关新增角色。")
+    return "【参考图规则】" + " ".join(parts)
+
+
+def build_storyboard_reference_bindings(reference_images):
+    bindings = []
+    for index, reference in enumerate(reference_images or [], 1):
+        marker = f"@图{index}"
+        bindings.append({
+            "marker": marker,
+            "name": storyboard_reference_name(reference, index),
+            "typeLabel": storyboard_reference_type_label(reference),
+            "aliases": storyboard_reference_aliases(reference, index),
+        })
+    return bindings
+
+
+def apply_reference_bindings_to_visual_prompt(visual_prompt, reference_images):
+    text = str(visual_prompt or "").strip()
+    for binding in build_storyboard_reference_bindings(reference_images):
+        aliases = sorted(binding["aliases"], key=len, reverse=True)
+        for alias in aliases:
+            if len(alias) < 2 or alias.startswith("@"):
+                continue
+            text = text.replace(alias, binding["marker"])
+    scene_marker = next(
+        (binding["marker"] for binding in build_storyboard_reference_bindings(reference_images) if binding["typeLabel"] == "场景"),
+        "",
+    )
+    if scene_marker and scene_marker not in text:
+        text = f"{scene_marker}内，{text}"
+    return text
+
+
+def storyboard_light_prompt(storyboard):
+    index = int((storyboard or {}).get("index") or 0)
+    scene_no = (storyboard or {}).get("sceneNo")
+    if scene_no == 1 or (scene_no is None and index <= 12):
+        return "金水河雾冷青漫射，湿木栈反出低亮，人物脸和手保留清晰侧光，背景山水淡墨退远。"
+    if scene_no == 2 or (scene_no is None and index <= 24):
+        return "客栈枯灯偏暖，门缝夜风压暗四角，铜钱、账册、油布和断剑以局部旧金冷光提亮。"
+    if scene_no == 3 or (scene_no is None and index <= 40):
+        return "塾馆油灯与窗外冷雾交叠，孩童面部半明半暗，掌心暗红只作克制焦点光。"
+    return "深夜雾气吞没远景，断剑与残卷带旧金冷光，宗门灵舟火印穿雾但不破坏低饱和水墨基调。"
+
+
+def extract_prompt_section(prompt, section_name):
+    pattern = rf"【{re.escape(section_name)}】(.*?)(?=【[^】]+】|$)"
+    match = re.search(pattern, prompt or "", re.S)
+    return match.group(1).strip() if match else ""
+
+
+def find_visible_role_mentions(visual_prompt):
+    visible = []
+    for role_name, aliases in DAOJIE_VISIBLE_ROLE_ALIASES.items():
+        if any(alias and alias in visual_prompt for alias in aliases):
+            visible.append(role_name)
+    return unique_nonempty(visible)
+
+
+def build_storyboard_prompt_audit(storyboard, final_prompt, reference_images, raw_visual_prompt):
+    bindings = build_storyboard_reference_bindings(reference_images)
+    visual_section = extract_prompt_section(final_prompt, "画面")
+    role_reference_aliases = set()
+    raw_asset_name_leaks = []
+    for binding in bindings:
+        if binding["typeLabel"] == "角色":
+            role_reference_aliases.update(binding["aliases"])
+        for alias in binding["aliases"]:
+            if len(alias) < 2 or alias.startswith("@"):
+                continue
+            if alias in visual_section:
+                raw_asset_name_leaks.append({
+                    "marker": binding["marker"],
+                    "assetName": binding["name"],
+                    "alias": alias,
+                })
+    visible_roles = find_visible_role_mentions(str(raw_visual_prompt or ""))
+    missing_visible_role_refs = [
+        role_name
+        for role_name in visible_roles
+        if not any(alias in role_reference_aliases for alias in DAOJIE_VISIBLE_ROLE_ALIASES.get(role_name, [role_name]))
+    ]
+    reference_labels = [
+        {
+            "marker": binding["marker"],
+            "assetName": binding["name"],
+            "typeLabel": binding["typeLabel"],
+            "aliases": binding["aliases"],
+        }
+        for binding in bindings
+    ]
+    return {
+        "storyboardId": (storyboard or {}).get("id", ""),
+        "index": (storyboard or {}).get("index", 0),
+        "referenceLabels": reference_labels,
+        "visibleRoleNames": visible_roles,
+        "missingVisibleRoleReferences": missing_visible_role_refs,
+        "rawAssetNameLeaks": raw_asset_name_leaks,
+        "hasReferencePrefix": bool(reference_labels) and final_prompt.strip().startswith("@图1"),
+        "hasVisualReferenceBinding": "@图" in visual_section,
+        "hasLightSection": bool(extract_prompt_section(final_prompt, "光影")),
+        "hasDaojieStyleLock": "【风格锁】" in final_prompt and "《道劫》默认主风格" in final_prompt,
+        "hasReferenceRules": "【参考图规则】" in final_prompt and any(
+            label in final_prompt
+            for label in ("角色一致性", "场景一致性", "道具一致性", "资产一致性")
+        ),
+        "hasNegativeConstraints": "【反向约束】" in final_prompt and "禁止写实摄影" in final_prompt and "禁止3D写实渲染" in final_prompt,
+        "finalPrompt": final_prompt,
+    }
+
+
+def assert_storyboard_prompt_audit(audit):
+    errors = []
+    if not audit.get("hasReferencePrefix"):
+        errors.append("缺少@图N参考前缀")
+    if not audit.get("hasVisualReferenceBinding"):
+        errors.append("【画面】未绑定@图N")
+    if not audit.get("hasLightSection"):
+        errors.append("缺少【光影】段")
+    if not audit.get("hasDaojieStyleLock"):
+        errors.append("缺少道劫风格锁")
+    if not audit.get("hasReferenceRules"):
+        errors.append("缺少参考图一致性规则")
+    if not audit.get("hasNegativeConstraints"):
+        errors.append("缺少反向约束")
+    if audit.get("missingVisibleRoleReferences"):
+        errors.append("可见角色缺少参考图: " + "、".join(audit["missingVisibleRoleReferences"]))
+    if audit.get("rawAssetNameLeaks"):
+        leaks = [f"{item['assetName']}:{item['alias']}" for item in audit["rawAssetNameLeaks"]]
+        errors.append("【画面】仍有原始资产名: " + "、".join(leaks))
+    if errors:
+        raise RuntimeError(f"分镜 {int(audit.get('index') or 0):03d} 图片提示词绑定失败: " + "；".join(errors))
+
+
+def summarize_storyboard_prompt_manifest(manifest):
+    return {
+        "storyboardPromptsWithReferenceBindings": sum(
+            1
+            for item in manifest
+            if item.get("hasReferencePrefix")
+            and item.get("hasVisualReferenceBinding")
+            and not item.get("missingVisibleRoleReferences")
+            and not item.get("rawAssetNameLeaks")
+        ),
+        "storyboardPromptsWithDaojieStyleLock": sum(1 for item in manifest if item.get("hasDaojieStyleLock")),
+        "storyboardPromptsWithLightSection": sum(1 for item in manifest if item.get("hasLightSection")),
+        "storyboardPromptsWithMissingVisibleCharacterRefs": sum(1 for item in manifest if item.get("missingVisibleRoleReferences")),
+        "storyboardPromptsWithRawAssetNameLeaks": sum(1 for item in manifest if item.get("rawAssetNameLeaks")),
+        "storyboardPromptMissingVisibleCharacterRefs": [
+            {
+                "storyboardId": item.get("storyboardId", ""),
+                "index": item.get("index", 0),
+                "missingVisibleRoleReferences": item.get("missingVisibleRoleReferences", []),
+            }
+            for item in manifest
+            if item.get("missingVisibleRoleReferences")
+        ],
+        "storyboardPromptRawAssetNameLeaks": [
+            {
+                "storyboardId": item.get("storyboardId", ""),
+                "index": item.get("index", 0),
+                "rawAssetNameLeaks": item.get("rawAssetNameLeaks", []),
+            }
+            for item in manifest
+            if item.get("rawAssetNameLeaks")
+        ],
+    }
+
+
 def build_storyboard_image_prompt(storyboard, reference_images):
     visual_prompt = str((storyboard or {}).get("prompt") or "").strip()
+    visual_prompt = apply_reference_bindings_to_visual_prompt(visual_prompt, reference_images)
     reference_intro = build_storyboard_reference_intro(reference_images)
+    continuity_rules = build_storyboard_reference_continuity_rules(reference_images)
     parts = []
     if reference_intro:
         parts.append(reference_intro)
     if visual_prompt:
         parts.append(f"【画面】{visual_prompt}")
-    parts.append("【镜头】16:9横版国风漫剧关键帧，前中远景层次清楚，主体动作、角色位置和道具关系可读。")
-    parts.append(f"【风格】{DAOJIE_STORYBOARD_STYLE_PROMPT}。")
-    parts.append(f"【反向约束】{DAOJIE_STORYBOARD_NEGATIVE_CONSTRAINTS}。")
+    parts.append(f"【光影】{storyboard_light_prompt(storyboard)}")
+    if continuity_rules:
+        parts.append(continuity_rules)
+    parts.append("【镜头】16:9横版国风漫剧剧情关键帧，前中远景层次清楚，主体动作、角色位置和道具关系可读，不要画成资产设定页。")
+    parts.append(f"【风格锁】{DAOJIE_STORYBOARD_STYLE_PROMPT}。")
+    parts.append("【可变化项】只变化当前分镜需要的景别、动作、表情、局部光影、雾气和前景遮挡；不要改变参考图身份、场景结构、道具核心特征或道劫主风格。")
+    parts.append(f"【反向约束】{DAOJIE_STORYBOARD_FRAME_NEGATIVE_CONSTRAINTS}。")
     if reference_intro:
         parts.append("保持所有@图N造型、结构与参考图一致。")
     return " ".join(part for part in parts if part).strip()
@@ -272,6 +579,23 @@ def build_storyboard_image_prompt(storyboard, reference_images):
 def build_derived_asset_image_prompt(parent_name, state_name, reason, asset_type):
     type_label = STORYBOARD_REFERENCE_TYPE_LABELS.get(asset_type, "资产")
     reference_intro = f"@图1 为{parent_name}{type_label}基准图"
+    if asset_type == "character":
+        parts = [
+            reference_intro,
+            f"【衍生目标】{state_name}：{reason}",
+            (
+                "【画面】以@图1为底图，保持父角色身份识别、面容、体态、发型识别点与比例结构不变，"
+                f"只叠加{state_name}所需的服化妆造、衣料磨损、光影和局部状态变化。"
+            ),
+            "【输出】必须输出角色四视图设定图/三视图参考图，不要生成单张全身插画或说明卡。",
+            "【布局】同一画面左至右并排：人像特写+正视图+侧视图+后视图；portrait closeup, front view, side view, back view, character reference sheet, character turnaround。",
+            "【站姿】自然站立，宣纸白底色背景，均匀散光，无硬阴影，四视图服化妆造一致，图中不要有任何文字。",
+            f"【风格】{DAOJIE_DERIVED_ASSET_STYLE_PROMPT}。",
+            f"【反向约束】{DAOJIE_STORYBOARD_NEGATIVE_CONSTRAINTS}，face drift，identity changed，different person，pose changed，added scene，added handheld prop，inconsistent costume between views，cropped body。",
+            "保持所有@图N造型、结构与参考图一致。",
+        ]
+        return " ".join(part for part in parts if part).strip()
+
     parts = [
         reference_intro,
         f"【衍生目标】{state_name}：{reason}",
@@ -280,7 +604,7 @@ def build_derived_asset_image_prompt(parent_name, state_name, reason, asset_type
             f"只强化{state_name}所需的服饰、光影、磨损、姿态或局部状态变化。"
         ),
         "【镜头】16:9横版国风漫剧资产设定图，主体完整清晰，可供后续分镜连续复用。",
-        f"【风格】{DAOJIE_STORYBOARD_STYLE_PROMPT}。",
+        f"【风格】{DAOJIE_DERIVED_ASSET_STYLE_PROMPT}。",
         f"【反向约束】{DAOJIE_STORYBOARD_NEGATIVE_CONSTRAINTS}。",
         "保持所有@图N造型、结构与参考图一致。",
     ]
@@ -490,6 +814,8 @@ def collect_storyboard_reference_images(image_assets):
             "title": asset.get("name") or f"参考资产 {index}",
             "imageUrl": image_url,
             "evidence": f"{asset.get('kind', '资产')}参考图：{asset.get('sourceName') or asset.get('name')}",
+            "sourceName": asset.get("sourceName") or asset.get("name") or "",
+            "aliases": asset.get("aliases") or [],
         })
     return references
 
@@ -556,6 +882,13 @@ def generate_storyboard_frame_with_references(frame, storyboard, prompt, image_a
         {**storyboard, "prompt": prompt or storyboard.get("prompt", "")},
         references,
     )
+    prompt_audit = build_storyboard_prompt_audit(
+        storyboard,
+        final_prompt,
+        references,
+        prompt or storyboard.get("prompt", ""),
+    )
+    assert_storyboard_prompt_audit(prompt_audit)
     relative_path = f"workflow-images/storyboards/{EPISODE_ID}/shot-{storyboard['index']:03d}.png"
     result_file = PROJECT / relative_path
     reused_existing_image = can_reuse_storyboard_image(result_file)
@@ -581,6 +914,7 @@ def generate_storyboard_frame_with_references(frame, storyboard, prompt, image_a
         "generatedNodeId": f"gen-{graph['id']}",
         "referenceImages": references,
         "reusedExistingImage": reused_existing_image,
+        "promptAudit": prompt_audit,
     }
 
 
@@ -698,6 +1032,170 @@ DERIVED_ASSET_PLAN = [
     },
 ]
 
+DIRECTOR_PLAN_REQUIRED_SECTIONS = [
+    "## ① 主题立意与叙事核心",
+    "## ② 视觉风格与画面基调",
+    "## ③ 叙事结构与节奏规划",
+    "## ④ 分场景情绪与画面意图",
+    "## ⑤ 声音方向",
+    "## ⑥ 转场与视觉连续性",
+]
+
+DIRECTOR_PLAN_REQUIRED_SCENES = [
+    "Sc 1-1",
+    "Sc 1-2",
+    "Sc 1-3",
+    "Sc 1-4",
+    "Sc 1-5",
+]
+
+CHAPTER_001_DIRECTOR_SCENES = [
+    {
+        "sceneId": "Sc 1-1",
+        "title": "金水河码头 傍晚/外",
+        "shotStart": 1,
+        "shotEnd": 12,
+        "paragraph": "P1 苦力码头",
+        "coreEvent": "太一宗火印压住码头，赵四挥鞭逼矿，独孤剑尘以极小动作救下小杂役但不暴露实力。",
+        "emotionLevel": 8,
+        "rhythm": "沉缓压迫，动作点短促，救人瞬间只给观众半拍线索。",
+        "emotion": "压迫窒息→隐忍救人",
+        "atmosphere": "河雾低垂、湿木发黑、矿筐沉重，所有人都在低头避鞭。",
+        "emotionTarget": "观众先看见人被制度压扁，再看见灰衫客只动一寸便改变鞭落方向；英雄感必须藏在沉默里。",
+        "shotIntents": [
+            "开场先用码头全貌和苦力队列定压迫，不急着亮独孤正脸。",
+            "赵四、鞭梢、朱红火印和灵矿倒刺组成暴力链条，镜头让观众明白苦力为什么不敢反抗。",
+            "小杂役护头时镜头贴近手指和矿刺，疼痛要具体，不用抽象苦难。",
+            "独孤入场只给灰衫、草鞋、油布剑包和袖口残卷，避免把他拍成主动挑衅的侠客。",
+            "救人动作以鞋尖拨木、鞭落偏移、空筐炸裂三步完成，不给夸张打斗。",
+            "结尾让河雾吞掉独孤半边身影，把旧锋藏回镇中。",
+        ],
+        "spatial": "前景为朽木栈道和藤筐，中景是赵四、小杂役、苦力队列，背景是火印船影与金水河雾；独孤始终从边缘进入。",
+        "distance": "独孤多用中远景和背影，赵四用近景压迫，小杂役用低位近景显得更小；距离差就是阶层差。",
+        "sound": "鞭梢破风、铁链拖石、矿筐炸裂、压低的喘息。",
+        "continuity": [
+            "油布剑包第一次出现时必须压住独孤背脊，后续客栈斗室揭布才有重量。",
+            "残卷只露一角，不能提前展示完整内容。",
+            "朱红火印作为太一宗压迫符号，从码头延续到结尾灵舟。",
+        ],
+    },
+    {
+        "sceneId": "Sc 1-2",
+        "title": "悦来客栈 夜/内",
+        "shotStart": 13,
+        "shotEnd": 24,
+        "paragraph": "P2 客栈蓄压",
+        "coreEvent": "独孤以绿锈铜钱落脚，掌柜与宗门账册暴露旧案线索，归元断剑在斗室显露。",
+        "emotionLevel": 6,
+        "rhythm": "市井冷眼转入密室旧痛，算盘和楼板声让节奏从外部压迫变成内部翻涌。",
+        "emotion": "冷眼旁观→旧痛翻涌",
+        "atmosphere": "客栈灯火窄小，柜台、楼梯、斗室层层收紧，像把独孤一步步推回旧案。",
+        "emotionTarget": "让观众感到独孤不是单纯贫穷，而是背着一桩不能说的断剑旧案进入镇中。",
+        "shotIntents": [
+            "绿锈铜钱落柜要拍成物证，不只是付款动作。",
+            "掌柜看剑包的一息停顿是信息钩子，不能剪得太快。",
+            "宗门弟子和账册只表现冷漠算账，不让他们抢主线。",
+            "独孤上楼避开会响的裂缝，延续码头的克制身体语言。",
+            "斗室揭油布要一圈圈打开，让归元断剑出现成为本场最重要的视觉砸点。",
+            "旧案闪回只给缚神索、玄天符、太一宗火印等碎片，不展开完整往事。",
+        ],
+        "spatial": "大堂横向拥挤，楼梯纵向逼仄，斗室收成一盏枯灯和一张桌；空间越往后越窄，旧痛越近。",
+        "distance": "客栈众人与独孤保持柜台、楼板、门缝的隔断；斗室内才允许镜头靠近断剑与手指。",
+        "sound": "算盘珠、铜钱轻响、楼板吱呀、油布摩擦、断剑低鸣。",
+        "continuity": [
+            "绿锈铜钱在本场落柜，尾段再次立起不倒，形成因果回环。",
+            "账册与旧金镇纸只作线索，不替代人物行动。",
+            "归元断剑露出后，后续所有斗室镜头都要承认它的位置和压迫感。",
+        ],
+    },
+    {
+        "sceneId": "Sc 1-3",
+        "title": "金水塾馆 夜/内",
+        "shotStart": 25,
+        "shotEnd": 40,
+        "paragraph": "P3 烛火微光",
+        "coreEvent": "独孤借夜课讲气与命，孩童恐惧中追问凡根，晏燎掌心燃起暗红灵气又被李先生压下。",
+        "emotionLevel": 7,
+        "rhythm": "前半以课堂停顿和孩童问题蓄势，晏燎燃气瞬间收紧，随后压回寂静。",
+        "emotion": "试探引气→命数被压",
+        "atmosphere": "塾馆破旧但有人气，油灯、长凳、湿鞋、书箱把凡人求道的窄路摆在画面里。",
+        "emotionTarget": "晏燎的微光不是爽点，而是被现实立即按住的希望；独孤的震动必须靠手和枯枝表现。",
+        "shotIntents": [
+            "从断剑冷光切到塾馆油灯，完成从死物到活人的过渡。",
+            "独孤递枯枝、孩童听心跳、丫头攥衣角都要保留动作链。",
+            "李先生不能像反派，他的严厉里要有保护意味。",
+            "晏燎在最后一排出现，先用沉默和呼吸建立孤立感，再给掌心暗红。",
+            "暗红灵气只燃一息，不能画成大范围法术爆发。",
+            "独孤握裂枯枝是情绪爆点，替代所有内心独白。",
+            "李先生抓手压火后，晏燎不退，五指蜷起要成为少年倔强的视觉结尾。",
+        ],
+        "spatial": "讲台与长凳形成前后距离，晏燎在最后一排，李先生从侧面切入，独孤站在灯下看见全场。",
+        "distance": "孩童问题用中近景，晏燎燃气用特写，独孤反应用近景，李先生压手用双人中景；镜头距离跟随希望从远到近再被推远。",
+        "sound": "油灯噼啪、孩童屏息、窗外铁链远响、枯枝裂声、掌心余温被压灭的轻微嗤声。",
+        "continuity": [
+            "枯枝从李先生递出到独孤握裂必须同一根，不能变成新道具。",
+            "晏燎掌心暗红是尾段归元认人的视觉锚点。",
+            "孩童破衣湿鞋要贯穿课堂，强调凡根求道的处境。",
+        ],
+    },
+    {
+        "sceneId": "Sc 1-4",
+        "title": "悦来客栈斗室 深夜/内",
+        "shotStart": 41,
+        "shotEnd": 42,
+        "paragraph": "P4 十年首震",
+        "coreEvent": "独孤回到斗室，残卷裂痕与归元断剑确认晏燎，绿锈铜钱立起不倒。",
+        "emotionLevel": 9,
+        "rhythm": "极静的室内确认，少台词、多物证，让断剑、残卷、铜钱替人物说话。",
+        "emotion": "确认传承→旧誓苏醒",
+        "atmosphere": "斗室像被夜色压住的剑匣，所有物件都在轻微震动前保持克制。",
+        "emotionTarget": "让观众知道独孤等了十年的答案终于出现，但这个答案不会带来安全，只会带来更快的追杀。",
+        "shotIntents": [
+            "晏燎掌心余红转成残卷裂痕，用图像逻辑连接塾馆与斗室。",
+            "残卷古字只露关键字，不解释完整设定。",
+            "归元断剑低鸣要克制，像沉睡多年的物件第一次认人。",
+            "绿锈铜钱立起不倒是命数指针，必须拍得清楚。",
+            "独孤不需要大段表情，手指按剑格和喉结停顿即可。",
+        ],
+        "spatial": "斗室桌面为中心，残卷、断剑、铜钱形成三角关系；独孤坐在三角之外，像被物证审问。",
+        "distance": "本场以特写和静止近景为主，人物退到物件之后，强调不是人在决定命数，而是旧誓被唤醒。",
+        "sound": "纸页颤动、寒铁极轻嗡鸣、铜钱立起的细响、更鼓远声。",
+        "continuity": [
+            "断剑位置承接 Sc 1-2 斗室揭布后的摆放。",
+            "残卷裂痕承接 Sc 1-1 袖中残卷和 Sc 1-3 晏燎余红。",
+            "铜钱从客栈付款物件升级为命数物证。",
+        ],
+    },
+    {
+        "sceneId": "Sc 1-5",
+        "title": "悦来客栈窗前/金水河 深夜/外",
+        "shotStart": 43,
+        "shotEnd": 43,
+        "paragraph": "P5 灵舟逼近",
+        "coreEvent": "宗门灵舟在雾中显形，朱红火印穿破夜色，独孤按住归元，第一章以追杀逼近收钩。",
+        "emotionLevel": 9,
+        "rhythm": "从斗室极静切到河雾大远景，压迫突然放大，尾镜保留悬念。",
+        "emotion": "旧誓苏醒→危机逼近",
+        "atmosphere": "室内一盏灯和室外整条河形成悬殊尺度，宗门秩序像雾中巨影压向小镇。",
+        "emotionTarget": "希望刚被确认，危险就抵达门口；观众离场时应感到紧迫而不是阶段性胜利。",
+        "shotIntents": [
+            "窗前先给独孤按剑的手，再切金水河雾，完成内外压力转换。",
+            "灵舟不要拍成华丽仙舟，要像宗门刑具一样沉重、冷峻。",
+            "朱红火印必须与码头火印同源，形成首尾闭环。",
+            "晏燎可以作为远处命数锚点被提及或弱化出现，不能抢独孤和灵舟的收束关系。",
+            "最后一镜不解释追兵，只让观众看见雾被船影推开。",
+        ],
+        "spatial": "前景窗棂和独孤手，远景金水河与灵舟，二者用雾连接；室内小空间被室外巨物反向包围。",
+        "distance": "先极近后大远，镜头距离骤然拉开，表现个人旧誓面对宗门秩序的悬殊。",
+        "sound": "船桨破水、缆绳绷紧、远处更鼓、断剑被按住后的余震。",
+        "continuity": [
+            "朱红火印从码头压迫回到灵舟压迫，形成一章首尾闭环。",
+            "归元断剑从斗室物证变成下一章行动触发器。",
+            "金水河雾延续开场河雾，但意义从遮蔽苦力变成遮蔽追兵。",
+        ],
+    },
+]
+
 DERIVED_ASSET_IDS = {
     ("独孤剑尘", "灰衫入镇态"): {
         "id": "var-chapter-001-dugu-grey-town",
@@ -751,46 +1249,46 @@ ROLE_VOICE_INSTRUCTIONS = {
 
 CHAPTER_001_SHOTS = [
     ("金水河码头", "赤练蛇皮鞭撕开河雾，青盐水挂在鞭梢，朱红火印压在藤筐侧面。", "旁白", "傍晚，金水河码头被太一宗火印压醒。", "河雾低涌、鞭梢破风", ["赤练蛇皮鞭", "灵矿藤筐"], 4.2),
-    ("金水河码头", "抱矿跪倒的小杂役缩肩护头，灵矿倒刺扎破指缝。", "赵四", "偷懒？找死！", "矿石摩擦、孩童抽气", ["监工赵四", "小杂役", "灵矿藤筐"], 3.8),
-    ("金水河码头", "血珠落在湿黑木栈上，小杂役把求饶吞成发抖的气音。", "小杂役", "监工老爷，饶命！", "血滴落木、铁链拖石", ["小杂役", "灵矿藤筐"], 3.8),
-    ("金水河码头", "苦力弯腰拖筐，年轻苦力压低声音让众人低头避鞭。", "老苦力", "骨头都榨干了。", "粗重喘息、麻绳绷紧", ["老苦力", "年轻苦力", "灵矿"], 4.0),
-    ("金水河码头", "赵四靴底碾碎灵矿，青盐水顺着鞭梢滴进裂开的木纹。", "赵四", "误了宗门灵舟！", "矿石碎裂、盐水滴落", ["监工赵四", "赤练蛇皮鞭", "灵矿"], 3.8),
+    ("金水河码头", "抱矿跪倒的小杂役缩肩护头，灵矿倒刺扎破指缝。", "赵四", "偷懒？找死！再慢半步抽断你。", "矿石摩擦、孩童抽气", ["监工赵四", "小杂役", "灵矿藤筐"], 3.8),
+    ("金水河码头", "血珠落在湿黑木栈上，小杂役把求饶吞成发抖的气音。", "小杂役", "监工老爷，饶命！我再不敢了。", "血滴落木、铁链拖石", ["小杂役", "灵矿藤筐"], 3.8),
+    ("金水河码头", "苦力弯腰拖筐，年轻苦力压低声音让众人低头避鞭。", "老苦力", "骨头都榨干了，连哭都欠债。", "粗重喘息、麻绳绷紧", ["老苦力", "年轻苦力", "灵矿"], 4.0),
+    ("金水河码头", "赵四靴底碾碎灵矿，青盐水顺着鞭梢滴进裂开的木纹。", "赵四", "误了宗门灵舟，谁都别想活！", "矿石碎裂、盐水滴落", ["监工赵四", "赤练蛇皮鞭", "灵矿"], 3.8),
     ("金水河码头", "独孤剑尘从河雾边走来，灰衫发白，油布剑包压在背后。", "旁白", "灰衫客入镇，无声得像一笔淡墨。", "河雾风声、木栈轻响", ["独孤剑尘", "油布剑包"], 4.2),
     ("金水河码头", "背后油布剑包轻轻一颤，袖中残卷露出一角，古字只剩一个等。", "旁白", "残卷古字微亮，只剩一个等字。", "布料摩擦、纸页轻响", ["独孤剑尘", "油布剑包", "残卷"], 4.2),
-    ("金水河码头", "赵四冷笑抬臂，鞭梢飞白般斜劈向小杂役。", "赵四", "全填江眼！", "鞭声炸开", ["监工赵四", "小杂役", "赤练蛇皮鞭"], 3.8),
-    ("金水河码头", "独孤没有抬眼，只在错身一瞬用鞋尖轻拨半截朽木。", "旁白", "他只动了一寸，救下一条命。", "朽木轻响、脚步擦过", ["独孤剑尘", "小杂役"], 4.2),
-    ("金水河码头", "赵四一脚踩偏，鞭子抽碎空筐，藤条碎屑炸开。", "赵四", "谁绊老子？", "空筐炸裂、矿渣滚落", ["监工赵四", "灵矿藤筐"], 3.8),
+    ("金水河码头", "赵四冷笑抬臂，鞭梢飞白般斜劈向小杂役。", "赵四", "全填江眼，一个也别留！", "鞭声炸开", ["监工赵四", "小杂役", "赤练蛇皮鞭"], 3.8),
+    ("金水河码头", "独孤没有抬眼，只在错身一瞬用鞋尖轻拨半截朽木。", "旁白", "他只动了一寸，救下一条命，也藏住旧锋。", "朽木轻响、脚步擦过", ["独孤剑尘", "小杂役"], 4.2),
+    ("金水河码头", "赵四一脚踩偏，鞭子抽碎空筐，藤条碎屑炸开。", "赵四", "谁绊老子？站出来！", "空筐炸裂、矿渣滚落", ["监工赵四", "灵矿藤筐"], 3.8),
     ("金水河码头", "小杂役抱着矿渣滚进船影，活下来的人连谢字都不敢出口。", "旁白", "活下来的人，连道谢都不敢出声。", "船板晃动、压抑呼吸", ["小杂役", "灵矿"], 4.0),
     ("金水河码头", "独孤指尖压住袖口残卷，河雾吞掉他半边身影。", "旁白", "火印暗红如血，他继续向镇中走去。", "河风、远处钟声", ["独孤剑尘", "残卷"], 4.0),
     ("悦来客栈", "悦来客栈灯影赭黄，掌柜拨算盘，算珠声像冷雨落木。", "旁白", "悦来客栈里，算盘比人情更响。", "算盘声、油烟声", ["悦来客栈", "掌柜"], 4.0),
     ("悦来客栈", "独孤推门入内，灰衫沾着矿尘，油布剑包压弯衣褶。", "掌柜", "住店，还是打尖？", "门轴轻响、脚步入堂", ["独孤剑尘", "掌柜", "油布剑包"], 3.8),
     ("悦来客栈", "独孤把两枚绿锈铜钱放到柜台边，铜锈在灯下发暗。", "独孤剑尘", "住店，下房。", "铜钱轻落", ["独孤剑尘", "绿锈铜钱"], 3.6),
-    ("悦来客栈", "掌柜压住铜钱，眼神在剑包上停了一息。", "掌柜", "剑包别惹事。", "算盘停顿、布包轻响", ["掌柜", "油布剑包"], 3.8),
-    ("悦来客栈", "独孤沿朽木楼梯上行，脚步避开每一道会响的裂缝。", "独孤剑尘", "它比我安静。", "楼板轻响、风穿门缝", ["独孤剑尘", "悦来客栈"], 3.8),
-    ("悦来客栈", "虚掩房门内，两名宗门弟子衣袖干净，灵矿账册压着旧金镇纸。", "宗门弟子甲", "矿账又涨了。", "纸页翻动、低声交谈", ["宗门弟子甲", "宗门弟子乙", "灵矿账册"], 4.0),
-    ("悦来客栈", "账册边写着苦力扣损耗，独孤袖中指节骤紧又慢慢松开。", "宗门弟子乙", "苦力账上扣。", "指节收紧、木门轻晃", ["独孤剑尘", "灵矿账册"], 4.0),
+    ("悦来客栈", "掌柜压住铜钱，眼神在剑包上停了一息。", "掌柜", "剑包别惹事，本店不担命。", "算盘停顿、布包轻响", ["掌柜", "油布剑包"], 3.8),
+    ("悦来客栈", "独孤沿朽木楼梯上行，脚步避开每一道会响的裂缝。", "独孤剑尘", "它比我安静，也比你守规矩。", "楼板轻响、风穿门缝", ["独孤剑尘", "悦来客栈"], 3.8),
+    ("悦来客栈", "虚掩房门内，两名宗门弟子衣袖干净，灵矿账册压着旧金镇纸。", "宗门弟子甲", "矿账又涨了，今夜要补齐，不够就抓人。", "纸页翻动、低声交谈", ["宗门弟子甲", "宗门弟子乙", "灵矿账册"], 4.0),
+    ("悦来客栈", "账册边写着苦力扣损耗，独孤袖中指节骤紧又慢慢松开。", "宗门弟子乙", "苦力账上扣，死人也算损耗。", "指节收紧、木门轻晃", ["独孤剑尘", "灵矿账册"], 4.0),
     ("悦来客栈斗室", "斗室狭窄，枯灯豆大，独孤合门坐下。", "旁白", "一间下房，藏不住十年的旧伤。", "门闩落下、灯火噼啪", ["独孤剑尘", "悦来客栈"], 4.0),
-    ("悦来客栈斗室", "三层油布一圈圈解开，半截归元断剑露出寒光。", "独孤剑尘", "十年了。", "油布摩擦、断剑轻鸣", ["独孤剑尘", "归元断剑", "油布剑包"], 4.2),
+    ("悦来客栈斗室", "三层油布一圈圈解开，半截归元断剑露出寒光。", "独孤剑尘", "十年了，归元还没忘疼。", "油布摩擦、断剑轻鸣", ["独孤剑尘", "归元断剑", "油布剑包"], 4.2),
     ("悦来客栈斗室", "缚神索、玄天符、归元折断和太一宗火印在宣纸白光中闪过。", "旁白", "旧日一闪而过，伤口从未合上。", "闪回尖响、符纸震动", ["缚神索", "玄天符", "归元断剑"], 4.0),
     ("悦来客栈", "楼下掌柜的声音穿过木板，窗外金水塾馆一盏油灯亮起。", "掌柜", "客官，会讲引气吗？", "木板传声、远处读书声", ["掌柜", "金水塾馆"], 3.8),
     ("悦来客栈", "枯灯被风吹得一歪，独孤抬眼看向塾馆。", "独孤剑尘", "半堂，换粥。", "灯火摇晃、夜风", ["独孤剑尘", "金水塾馆"], 3.8),
     ("金水塾馆", "断口冷光化作塾馆油灯，孩童挤坐长凳，破衣湿鞋收在凳下。", "旁白", "夜课开始，穷孩子把呼吸都放轻了。", "叠化、孩童呼吸", ["金水塾馆", "孩童甲", "丫头"], 4.0),
     ("金水塾馆", "李先生收起书箱，将一根枯枝递给独孤。", "李先生", "掌柜说你会讲？", "书箱合上、枯枝递出", ["李先生", "独孤剑尘"], 3.6),
-    ("金水塾馆", "独孤握住枯枝，窗外铁链拖动声远远压来。", "独孤剑尘", "半堂引气。", "铁链远响、窗纸震动", ["独孤剑尘", "金水塾馆"], 3.6),
-    ("金水塾馆", "李先生目光扫过孩童，提醒独孤不要给他们妄念。", "李先生", "只讲气，别惹事。", "衣袖摩擦、低声警告", ["李先生", "孩童甲", "丫头"], 3.8),
+    ("金水塾馆", "独孤握住枯枝，窗外铁链拖动声远远压来。", "独孤剑尘", "半堂引气，只教活命，别问仙途。", "铁链远响、窗纸震动", ["独孤剑尘", "金水塾馆"], 3.6),
+    ("金水塾馆", "李先生目光扫过孩童，提醒独孤不要给他们妄念。", "李先生", "只讲气，别惹事。", "衣袖摩擦、低声警告", ["李先生", "独孤剑尘", "孩童甲", "丫头"], 3.8),
     ("金水塾馆", "独孤站到灯下，枯枝轻点桌面，满堂呼吸随之一停。", "独孤剑尘", "闭眼，守一息。", "枯枝点桌、油灯轻晃", ["独孤剑尘"], 3.8),
-    ("金水塾馆", "孩童甲怯怯抬头，问凡根是否也有气。", "孩童甲", "凡根也有气吗？", "孩童低语", ["孩童甲", "独孤剑尘"], 3.6),
+    ("金水塾馆", "孩童甲怯怯抬头，问凡根是否也有气。", "孩童甲", "凡根也有气吗？我们也有吗。", "孩童低语", ["孩童甲", "独孤剑尘"], 3.6),
     ("金水塾馆", "独孤看着一屋破衣湿鞋，声音压得很低。", "独孤剑尘", "喘着，就有。", "呼吸声、窗缝风", ["独孤剑尘", "金水塾馆"], 3.8),
     ("金水塾馆", "丫头攥住衣角，问穷人能不能修，孩童们屏住气等答案。", "丫头", "穷人也能修？", "衣角摩擦、孩童屏息", ["丫头", "独孤剑尘"], 3.8),
     ("金水塾馆", "独孤让众人听心跳、听掌心，油灯照出一排瘦小影子。", "独孤剑尘", "气在，命就在。", "心跳低鼓、油灯噼啪", ["独孤剑尘", "孩童甲", "丫头"], 4.0),
     ("金水塾馆", "最后一排，晏燎闭眼，双手叠在膝前，呼吸慢得像在数河水。", "旁白", "最后一排的少年，把一口气守到掌心里。", "呼吸放慢、灯火摇晃", ["晏燎", "金水塾馆"], 4.2),
     ("金水塾馆", "晏燎掌心皮肉下浮起一点暗红炭光，满堂骤静。", "晏燎", "先生，我手心发烫。", "炭火微鸣、满堂骤静", ["晏燎", "独孤剑尘"], 4.2),
     ("金水塾馆", "独孤握着枯枝的手骤然收紧，枝皮裂开露出白茬。", "旁白", "那一点暗红，撞进了独孤的眼里。", "枯枝裂声、心跳加重", ["独孤剑尘", "晏燎"], 4.0),
-    ("金水塾馆", "李先生快步走近，抓起晏燎的手，暗红余温藏入皮下。", "李先生", "摊开。", "急促脚步、衣袖摩擦", ["李先生", "晏燎"], 3.6),
+    ("金水塾馆", "李先生快步走近，抓起晏燎的手，暗红余温藏入皮下。", "李先生", "摊开，别藏，别怕。", "急促脚步、衣袖摩擦", ["李先生", "晏燎"], 3.6),
     ("金水塾馆", "晏燎盯着自己掌心，不肯退，五指慢慢蜷起。", "晏燎", "刚才真有火。", "满堂静默", ["晏燎", "李先生"], 3.8),
     ("金水塾馆", "李先生眼底掠过一丝哀色，又被严厉压住。", "李先生", "灵根驳杂，此生无缘大道。", "判词落下、油灯一暗", ["李先生", "晏燎"], 4.2),
-    ("金水塾馆", "晏燎把那点余温护进掌心，瘦削的脸被独孤牢牢记住。", "晏燎", "我不怕疼。", "指节收紧、孩童避目", ["晏燎", "独孤剑尘"], 4.0),
-    ("悦来客栈斗室", "深夜斗室内，晏燎掌心余红化成残卷边缘裂痕，末页古字渗出旧金冷光。", "独孤剑尘", "归元认人。", "纸页轻震、断剑低鸣", ["独孤剑尘", "残卷", "归元断剑"], 4.2),
+    ("金水塾馆", "晏燎把那点余温护进掌心，瘦削的脸被独孤牢牢记住。", "晏燎", "我不怕疼，我只怕一辈子跪着。", "指节收紧、孩童避目", ["晏燎", "独孤剑尘"], 4.0),
+    ("悦来客栈斗室", "深夜斗室内，晏燎掌心余红化成残卷边缘裂痕，末页古字渗出旧金冷光。", "独孤剑尘", "归元认人，残卷没有骗我。", "纸页轻震、断剑低鸣", ["独孤剑尘", "晏燎", "残卷", "归元断剑"], 4.2),
     ("悦来客栈斗室", "桌上绿锈铜钱忽然立起不倒，断剑剑格一震。", "独孤剑尘", "晏燎。不是错觉。", "铜钱旋立、寒铁震动", ["绿锈铜钱", "归元断剑"], 4.0),
     ("金水河", "宗门灵舟在雾中显形，朱红火印穿破夜色；独孤反手按住归元。", "独孤剑尘", "归元，忍住。明日之前，我必须见晏燎。", "灵舟破水、断剑低鸣被压住", ["独孤剑尘", "归元断剑", "宗门灵舟", "金水河", "晏燎"], 5.0),
 ]
@@ -931,53 +1429,420 @@ def build_shots_from_script(script_text, episode_id=EPISODE_ID):
     return canonical_storyboard_shots(episode_id)
 
 
+EMPTY_STORYBOARD_SPEECH = {"", "—", "-", "无", "无台词", "无对白"}
+NARRATOR_LABELS = {"旁白", "vo", "画外音", "解说"}
+
+
+def latest_storyboard_work(state, episode_id=EPISODE_ID):
+    works = [
+        work
+        for work in state.get("agentWorkData", [])
+        if work.get("key") == "storyboardTable"
+        and work.get("episodeId") == episode_id
+        and isinstance(work.get("data"), str)
+        and work.get("data", "").strip()
+    ]
+    if not works:
+        return None
+    return sorted(
+        works,
+        key=lambda work: (
+            work.get("updatedAt", 0) or 0,
+            work.get("createdAt", 0) or 0,
+            str(work.get("id") or ""),
+        ),
+    )[-1]
+
+
+def parse_storyboard_list(value):
+    text = (value or "").strip().strip("[]【】")
+    if not text or text in {"—", "-"}:
+        return []
+    return [item.strip() for item in re.split(r"[,，、]", text) if item.strip()]
+
+
+def parse_storyboard_duration(value):
+    match = re.search(r"\d+(?:\.\d+)?", str(value or ""))
+    if not match:
+        return 0.0
+    return float(match.group(0))
+
+
+def parse_storyboard_speech(lines, description):
+    raw = (lines or "").strip()
+    if raw in EMPTY_STORYBOARD_SPEECH:
+        compact = re.sub(r"\s+", " ", description or "").strip()
+        if not compact:
+            raise RuntimeError("无对白分镜缺少可生成旁白的画面描述")
+        match = re.match(r"^.{1,48}?[。！？]", compact)
+        sentence = match.group(0) if match else compact[:48]
+        if not sentence.endswith(("。", "！", "？")):
+            sentence = f"{sentence}。"
+        return "旁白", sentence
+    colon = re.search(r"[:：]", raw)
+    if not colon:
+        return "旁白", raw
+    speaker = raw[:colon.start()].strip()
+    line = raw[colon.end():].strip()
+    if not speaker or line in EMPTY_STORYBOARD_SPEECH:
+        return parse_storyboard_speech("", description)
+    return speaker, line
+
+
+def parse_storyboard_table(markdown, episode_id=EPISODE_ID):
+    blocks = re.findall(r"<storyboardTable>([\s\S]*?)</storyboardTable>", markdown or "")
+    body = "\n".join(block.strip() for block in blocks) if blocks else (markdown or "").strip()
+    rows = []
+    errors = []
+    current_scene = ""
+    current_scene_no = None
+    current_asset_names = []
+    current_asset_ids = []
+    scene_numbers = {}
+
+    for raw_line in body.splitlines():
+        line = raw_line.strip().strip("`").strip()
+        scene_match = re.match(r"^##\s*场\s*(\d+)[：:]\s*(.+)$", line)
+        if scene_match:
+            current_scene_no = int(scene_match.group(1))
+            current_scene = re.split(r"\s*[｜|]\s*参演角色", scene_match.group(2), maxsplit=1)[0].strip()
+            current_asset_names = []
+            current_asset_ids = []
+            continue
+        asset_name_match = re.match(r"^\*\*引用资产名称\*\*[：:]\s*(.+)$", line)
+        if asset_name_match:
+            current_asset_names = parse_storyboard_list(asset_name_match.group(1))
+            continue
+        asset_id_match = re.match(r"^\*\*引用资产ID\*\*[：:]\s*(.+)$", line)
+        if asset_id_match:
+            current_asset_ids = parse_storyboard_list(asset_id_match.group(1))
+            continue
+        if not (line.startswith("|") and line.endswith("|")):
+            continue
+        fields = [field.strip() for field in line[1:-1].split("|")]
+        if not fields or fields[0] in {"序号", "---", "------"} or set(fields[0]) <= {"-", ":"}:
+            continue
+        try:
+            index = int(fields[0])
+        except (TypeError, ValueError):
+            errors.append(f"序号非法: {line}")
+            continue
+
+        if len(fields) == 14:
+            scene = fields[2]
+            asset_names = parse_storyboard_list(fields[3])
+            asset_ids = parse_storyboard_list(fields[13])
+            row = {
+                "index": index,
+                "desc": fields[1],
+                "scene": scene,
+                "assets": [name for name in asset_names if name != scene],
+                "assetIds": asset_ids,
+                "duration": parse_storyboard_duration(fields[4]),
+                "shotSize": fields[5],
+                "cameraMove": fields[6],
+                "action": fields[7],
+                "orientation": fields[8],
+                "spatialRelation": fields[9],
+                "emotion": fields[10],
+                "lines": fields[11],
+                "sound": fields[12],
+            }
+        elif len(fields) == 7:
+            scene = current_scene
+            row = {
+                "index": index,
+                "desc": fields[1],
+                "scene": scene,
+                "assets": [name for name in current_asset_names if name != scene],
+                "assetIds": list(current_asset_ids),
+                "duration": parse_storyboard_duration(fields[2]),
+                "shotSize": fields[3],
+                "cameraMove": fields[4],
+                "action": fields[1],
+                "orientation": "—",
+                "spatialRelation": "—",
+                "emotion": "克制自然",
+                "lines": fields[5],
+                "sound": fields[6],
+            }
+        else:
+            errors.append(f"列数不符（应为14列或7列，实为{len(fields)}）: {line}")
+            continue
+
+        if not row["scene"]:
+            errors.append(f"分镜 {index} 缺少场景")
+            continue
+        if current_scene_no is not None and row["scene"] == current_scene:
+            scene_no = current_scene_no
+        else:
+            scene_no = scene_numbers.setdefault(row["scene"], len(scene_numbers) + 1)
+        speaker, spoken_line = parse_storyboard_speech(row.pop("lines"), row["desc"])
+        row.update({
+            "sceneNo": scene_no,
+            "speaker": speaker,
+            "text": spoken_line,
+            "trackKey": f"{episode_id}-scene-{scene_no}",
+            "characters": [],
+        })
+        rows.append(row)
+
+    if errors:
+        raise RuntimeError("分镜表解析失败: " + "；".join(errors))
+    if not rows:
+        raise RuntimeError(f"{episode_id} 的导演分镜表没有可用分镜")
+    expected_indexes = list(range(1, len(rows) + 1))
+    actual_indexes = [row["index"] for row in rows]
+    if actual_indexes != expected_indexes:
+        raise RuntimeError(f"分镜序号必须连续为 1..N: {actual_indexes}")
+    return rows
+
+
+def resolve_storyboard_source(state, episode_id=EPISODE_ID, allow_bootstrap=None):
+    work = latest_storyboard_work(state, episode_id)
+    if work:
+        return {
+            "kind": "project-storyboard-table",
+            "workId": work.get("id") or "",
+            "updatedAt": work.get("updatedAt") or work.get("createdAt") or 0,
+            "data": work["data"],
+            "shots": parse_storyboard_table(work["data"], episode_id),
+        }
+    use_bootstrap = ALLOW_STORYBOARD_BOOTSTRAP if allow_bootstrap is None else bool(allow_bootstrap)
+    if not use_bootstrap:
+        raise RuntimeError(f"未找到 {episode_id} 最新 storyboardTable；生产运行禁止静态 fixture 回退")
+    shots = canonical_storyboard_shots(episode_id)
+    return {
+        "kind": "bootstrap-fixture",
+        "workId": "",
+        "updatedAt": 0,
+        "data": "",
+        "shots": shots,
+    }
+
+
+def episode_character_identities(state, episode_id=EPISODE_ID):
+    by_id = {}
+    for batch in state.get("entityExtractions", []):
+        if batch.get("episodeId") != episode_id:
+            continue
+        for character in batch.get("characters", []):
+            character_id = str(character.get("characterId") or "").strip()
+            name = str(character.get("name") or "").strip()
+            if not character_id or not name:
+                continue
+            existing = by_id.get(character_id)
+            aliases = [str(alias).strip() for alias in character.get("aliases", []) if str(alias).strip()]
+            if existing:
+                existing["aliases"] = sorted(set(existing["aliases"] + aliases + ([name] if name != existing["name"] else [])))
+            else:
+                by_id[character_id] = {
+                    "characterId": character_id,
+                    "name": name,
+                    "aliases": aliases,
+                }
+    identities = list(by_id.values())
+    if not identities:
+        raise RuntimeError(f"{episode_id} 缺少角色实体，无法解析 canonical speakerId")
+    return identities
+
+
+def resolve_canonical_speaker_id(speaker, identities):
+    value = str(speaker or "").strip()
+    if value.lower() in NARRATOR_LABELS:
+        return "narrator"
+    if value.startswith("character:"):
+        character_id = value[len("character:"):]
+        matches = [item for item in identities if item["characterId"] == character_id]
+    else:
+        matches = [item for item in identities if item["name"] == value]
+        if not matches:
+            matches = [item for item in identities if value in item.get("aliases", [])]
+    if not matches:
+        raise RuntimeError(f"speaker 无法解析到角色实体: {value}")
+    if len(matches) > 1:
+        ids = ", ".join(item["characterId"] for item in matches)
+        raise RuntimeError(f"speaker 对应多个角色实体: {value} -> {ids}")
+    return f"character:{matches[0]['characterId']}"
+
+
+def normalize_tts_spoken_text(value):
+    text = re.sub(r"[`*_#]", "", str(value or ""))
+    text = re.sub(r"[\[【][^\]】]*(?:动作|画面|音效|字幕|提示)[^\]】]*[\]】]", "", text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def build_storyboard_voiceover(shot, identities, episode_id=EPISODE_ID):
+    storyboard_id = f"sb-{episode_id}-{shot['index']:03d}"
+    try:
+        speaker_id = resolve_canonical_speaker_id(shot.get("speaker"), identities)
+    except RuntimeError as error:
+        raise RuntimeError(f"分镜 {storyboard_id} speaker 解析失败: {error}") from error
+    spoken_text = spoken_text_for(
+        shot.get("speaker") or "旁白",
+        normalize_tts_spoken_text(shot.get("text")),
+    )
+    if not spoken_text:
+        raise RuntimeError(f"分镜 {storyboard_id} 的口播文本为空")
+    source_duration = float(shot.get("duration") or 0)
+    duration_target = (
+        source_duration
+        if source_duration > 0
+        else max(math.ceil(len(spoken_text) / 4) + 0.4, 1.0)
+    )
+    emotion = str(shot.get("emotion") or "克制自然").strip()
+    voice_style = (
+        f"电影级中文旁白，{emotion}，厚重克制，停顿自然。"
+        if speaker_id == "narrator"
+        else f"中文角色对白，{emotion}，贴合人物身份，停顿自然。"
+    )
+    return {
+        "storyboardId": storyboard_id,
+        "index": shot["index"],
+        "speaker": shot["speaker"],
+        "speakerId": speaker_id,
+        "line": shot["text"],
+        "ttsSpokenText": spoken_text,
+        "durationTarget": duration_target,
+        "voiceStyle": voice_style,
+        "requiresFixedVoice": True,
+    }
+
+
+def build_storyboard_voiceovers(shots, identities, episode_id=EPISODE_ID):
+    voiceovers = [build_storyboard_voiceover(shot, identities, episode_id) for shot in shots]
+    if not voiceovers or len(voiceovers) != len(shots):
+        raise RuntimeError(f"逐镜口播数量与源分镜不一致: {len(voiceovers)}/{len(shots)}")
+    return voiceovers
+
+
 def shot_tuple(shot):
     if isinstance(shot, dict):
         return shot["scene"], shot["desc"], shot["speaker"], shot["text"], shot["sound"], shot["assets"], shot["duration"]
     return shot
 
 
+def director_scene_stats(shots):
+    stats = {}
+    for scene in CHAPTER_001_DIRECTOR_SCENES:
+        selected = shots[scene["shotStart"] - 1:scene["shotEnd"]]
+        stats[scene["sceneId"]] = {
+            "lines": sum(1 for shot in selected if clean_script_text(shot.get("text", ""))),
+            "chars": sum(len(clean_script_text(shot.get("text", ""))) for shot in selected),
+            "shots": len(selected),
+        }
+    return stats
+
+
+def director_scene_block(scene, stats):
+    stat = stats.get(scene["sceneId"], {})
+    lines = [
+        f"### {scene['sceneId']} {scene['title']}",
+        "",
+        f"- **所属段落**：{scene['paragraph']}；分镜范围 {scene['shotStart']:02d}-{scene['shotEnd']:02d}；台词条数 {stat.get('lines', 0)}；台词字数 {stat.get('chars', 0)}；情绪浓度 {scene['emotionLevel']}。",
+        f"- **核心事件**：{scene['coreEvent']}",
+        f"- **情绪目标**：{scene['emotionTarget']}",
+        f"- **氛围方向**：{scene['atmosphere']}",
+        f"- **节奏策略**：{scene['rhythm']}",
+        "- **镜头意图**：",
+        *[f"  - {item}" for item in scene["shotIntents"]],
+        f"- **空间叙事**：{scene['spatial']}",
+        f"- **距离感设计**：{scene['distance']}",
+        f"- **声音锚点**：{scene['sound']}",
+        "- **连续性锚点**：",
+        *[f"  - {item}" for item in scene["continuity"]],
+        "",
+    ]
+    return lines
+
+
 def build_script_plan(shots=None):
     shots = shots or canonical_storyboard_shots()
-    scene_stats = {}
-    for shot in shots:
-        scene_no = shot.get("sceneNo") or (1 if len(scene_stats) < 1 else 1)
-        stat = scene_stats.setdefault(scene_no, {"lines": 0, "chars": 0})
-        stat["lines"] += 1
-        stat["chars"] += len(clean_script_text(shot.get("text", "")))
+    scene_stats = director_scene_stats(shots)
+    scene_rows = [
+        f"| {scene['sceneId']} | {scene['title']} | {scene_stats.get(scene['sceneId'], {}).get('lines', 0)} | {scene_stats.get(scene['sceneId'], {}).get('chars', 0)} | {scene['emotionLevel']} | {scene['emotion']} | {scene['paragraph']} |"
+        for scene in CHAPTER_001_DIRECTOR_SCENES
+    ]
+    scene_blocks = []
+    for scene in CHAPTER_001_DIRECTOR_SCENES:
+        scene_blocks.extend(director_scene_block(scene, scene_stats))
     return "\n".join([
         "<scriptPlan>",
-        "### 分场汇总表（核心）",
-        "| 场次 | 场景名 | 台词条数 | 台词字数 | 情绪浓度 | 情绪基调（含 X→Y） |",
-        "|---|---|---|---|---|---|",
-        f"| Sc1 | 金水河码头·鞭下入镇 | {scene_stats.get(1, {}).get('lines', 0)} | {scene_stats.get(1, {}).get('chars', 0)} | 8 | 压迫→隐忍救人 |",
-        f"| Sc2 | 悦来客栈·断剑显露 | {scene_stats.get(2, {}).get('lines', 0)} | {scene_stats.get(2, {}).get('chars', 0)} | 6 | 冷眼旁观→旧痛翻涌 |",
-        f"| Sc3 | 金水塾馆·晏燎燃气 | {scene_stats.get(3, {}).get('lines', 0)} | {scene_stats.get(3, {}).get('chars', 0)} | 7 | 试探引气→命数被压 |",
-        f"| Sc4 | 悦来斗室与金水河·归元认人 | {scene_stats.get(4, {}).get('lines', 0)} | {scene_stats.get(4, {}).get('chars', 0)} | 9 | 确认传承→危机逼近 |",
+        "## ① 主题立意与叙事核心",
         "",
-        "### 逐场注意事项",
-        "- **Sc1**：",
-        "  - 情感砸点：鞭梢将落、小杂役护头、独孤只用鞋尖拨木救人。",
-        "  - 一致性锚点：油布剑包和残卷只露一角，独孤始终低调隐忍。",
-        "  - 环境音：鞭梢破风、铁链拖石、藤筐炸裂。",
-        "- **Sc2**：",
-        "  - 情感砸点：两枚绿锈铜钱落柜，断剑露出后旧仇闪回。",
-        "  - 一致性锚点：绿锈铜钱、油布剑包、归元断剑贯穿本场。",
-        "  - 环境音：算盘、楼板、油布摩擦、断剑低鸣。",
-        "- **Sc3**：",
-        "  - 情感砸点：晏燎掌心暗红一息，随后被李先生否定。",
-        "  - 空间距离：晏燎在最后一排，独孤在讲台前，李先生横插压住。",
-        "  - 环境音：窗缝风、油灯、孩童呼吸、枯枝裂声。",
-        "- **Sc4**：",
-        "  - 情感砸点：归元确认晏燎，宗门灵舟压雾逼近。",
-        "  - 环境音：断剑低鸣、纸页颤动、船桨破水。",
+        "**核心主题**：一个在旧誓里沉默十年的剑修，进入被宗门火印碾压的小镇，终于在凡人孩子掌心看见值得等待的微光。",
         "",
-        "### 场间过渡",
-        "| 场间 | 过渡方式 | 说明 |",
-        "|---|---|---|",
-        "| Sc1 → Sc2 | 叠化 | 鞭痕墨色在空筐裂口晕开，化作顺风街灰雾 |",
-        "| Sc2 → Sc3 | 叠化 | 断口寒光化作塾馆油灯 |",
-        "| Sc3 → Sc4 | 叠化 | 晏燎掌心余红熄灭，化成残卷边缘裂痕 |",
+        "**情感主线（三层递进）**：",
+        "- **压**：码头苦力、矿筐、火印、赤练鞭把金水河镇压成一座活着的牢笼，独孤剑尘先以旁观者姿态进入。",
+        "- **藏**：绿锈铜钱、账册、油布剑包、归元断剑逐层揭出旧案，但独孤始终不把力量暴露给镇中人。",
+        "- **燃**：塾馆夜课里，晏燎掌心暗红灵气只亮一息，却让残卷和断剑在深夜同时回应。",
+        "- **迫**：希望刚被确认，宗门灵舟便压雾而来；第一章离场感是紧迫、苍凉、意难平。",
+        "",
+        "**表达策略**：以能拍到的身体微动作替代内心独白。独孤的鞋尖、指节、袖口、喉结和按剑的手承担心理变化；晏燎的闭眼、攥拳、护住掌心承担少年命数。",
+        "",
+        "## ② 视觉风格与画面基调",
+        "",
+        "- **主风格锁定**：宣纸淡彩工笔、青绿山水底色、低饱和蓝灰、旧金细纹、细密线描；画面是国风漫剧关键帧，不是写实摄影、3D 写实渲染或赛璐璐动画。",
+        "- **构图基调**：大量侧偏留白和前中后景层次，独孤常被放在画面边缘，留白代表他背负的十年旧誓。",
+        "- **码头段**：藤筐、鞭梢、苦力队列形成斜线压迫，前景朽木遮挡让小人物像被空间挤住。",
+        "- **客栈段**：柜台、门缝、楼梯、斗室构成层层框架，把断剑旧案从公共空间推入私人空间。",
+        "- **塾馆段**：门框、长凳、油灯和最后一排晏燎形成纵深，凡人求道的窄路要在空间里看出来。",
+        "- **尾段**：室内物证特写切向室外金水河大远景，个人旧誓与宗门巨影形成尺度悬殊。",
+        "- **反向约束**：不烧录字幕，不画标题叠字，不把分镜画成白底设定页、三视图、资料卡或海报站姿。",
+        "",
+        "## ③ 叙事结构与节奏规划",
+        "",
+        "| 段落 | 覆盖场次 | 核心事件 | 情绪浓度 | 节奏 |",
+        "|---|---|---|---|---|",
+        "| P1 苦力码头 | Sc 1-1 | 鞭下入镇，独孤暗救小杂役 | 8 | 沉缓压迫，动作砸点短促 |",
+        "| P2 客栈蓄压 | Sc 1-2 | 铜钱落柜、账册旧案、断剑显露 | 6 | 市井冷眼转入密室旧痛 |",
+        "| P3 烛火微光 | Sc 1-3 | 夜课引气、孩童追问、晏燎燃气 | 7 | 问答蓄势，燃气瞬间收紧 |",
+        "| P4 十年首震 | Sc 1-4 | 残卷裂痕、归元认人、铜钱立起 | 9 | 极静确认，以物证替台词 |",
+        "| P5 灵舟逼近 | Sc 1-5 | 金水河雾中灵舟显形 | 9 | 尺度骤放大，悬念收钩 |",
+        "",
+        "**关键转折点**：",
+        "- 码头救人：独孤只动一寸，观众意识到他有力量，但镇中人没有看懂。",
+        "- 断剑显露：油布被解开，第一章从外部压迫进入旧案内核。",
+        "- 晏燎燃气：凡根问题被暗红灵气回答，随后又被李先生压回现实。",
+        "- 归元认人：残卷、断剑、铜钱同时回应，证明晏燎不是错觉。",
+        "- 灵舟逼近：宗门秩序抵达，把希望直接推入逃亡倒计时。",
+        "",
+        "## ④ 分场景情绪与画面意图",
+        "",
+        "| 场次 | 场景名 | 台词条数 | 台词字数 | 情绪浓度 | 情绪基调（含 X→Y） | 段落 |",
+        "|---|---|---|---|---|---|---|",
+        *scene_rows,
+        "",
+        *scene_blocks,
+        "## ⑤ 声音方向",
+        "",
+        "**逐场环境音设计**：",
+        "- Sc 1-1：鞭梢破风、铁链拖石、矿筐炸裂和压低的苦力喘息，声音要让码头像一台榨人的机器。",
+        "- Sc 1-2：算盘、铜钱、楼板、油布摩擦和断剑低鸣，声音从市井算账过渡到旧案苏醒。",
+        "- Sc 1-3：油灯噼啪、孩童屏息、窗外铁链远响、枯枝裂声，塾馆的静要比喧闹更紧。",
+        "- Sc 1-4：纸页颤动、寒铁极轻嗡鸣、铜钱立起的细响、更鼓远声，所有声音都要克制。",
+        "- Sc 1-5：船桨破水、缆绳绷紧、远处更鼓、断剑余震，远声压近但不解释追兵身份。",
+        "",
+        "**沉默运用**：",
+        "- 独孤鞋尖拨木救人前后留半拍静默，让观众自己发现动作因果。",
+        "- 晏燎掌心暗红出现时，全场先停一瞬，再让李先生的脚步切入。",
+        "- 归元低鸣时不加旁白，用纸页和寒铁声让物证说话。",
+        "- 灵舟显形前先压低所有环境音，再让船桨声破雾。",
+        "",
+        "## ⑥ 转场与视觉连续性",
+        "",
+        "**场间转场策略**：",
+        "- Sc 1-1 → Sc 1-2：码头空筐裂口的墨色晕开，接客栈柜台上的绿锈铜钱；同样是被压迫者的价码。",
+        "- Sc 1-2 → Sc 1-3：归元断口的冷白化成塾馆油灯，死物旧案切入活人微光。",
+        "- Sc 1-3 → Sc 1-4：晏燎掌心余红熄下，化成残卷边缘裂痕。",
+        "- Sc 1-4 → Sc 1-5：铜钱立起的细响延续到窗外缆绳绷紧，室内命数接上室外追兵。",
+        "",
+        "**视觉连续性锚点**：",
+        "- 独孤剑尘：灰衫、草鞋、油布剑包、克制身体语言贯穿；力量只能通过细节泄露。",
+        "- 晏燎：最后一排、闭眼、掌心暗红、护住余温，构成少年命数线。",
+        "- 归元断剑：油布包裹、半截寒铁、低鸣、被按住，构成旧誓线。",
+        "- 绿锈铜钱：客栈付款物件在尾段升级为命数指针。",
+        "- 朱红火印：码头矿筐和结尾灵舟同源，首尾压迫闭环。",
         "",
         "### ⑦ 衍生资产预划清单",
         "| 资产名 | 衍生状态 | 原因/出现段落 |",
@@ -988,6 +1853,61 @@ def build_script_plan(shots=None):
         ],
         "</scriptPlan>",
     ])
+
+
+def build_structured_script_plan():
+    return {
+        "id": "script-plan-chapter-001-toonflow",
+        "episodeId": EPISODE_ID,
+        "theme": "灰衫剑修在被宗门火印碾压的小镇里守住旧誓，码头暗救不露锋芒，客栈断剑揭出旧案，塾馆晏燎燃起一息暗红，尾声以灵舟逼近把希望推进倒计时。",
+        "visualStyle": "宣纸淡彩工笔、青绿山水底色、低饱和蓝灰、旧金细纹、细密线描；侧偏留白、前中后景层次、框中框空间压迫；禁止写实摄影、3D写实渲染、赛璐璐色块和白底设定页。",
+        "narrativeRhythm": "P1 码头压迫沉缓推进；P2 客栈从市井冷眼转入密室旧痛；P3 塾馆夜课用问答蓄势，晏燎燃气瞬间收紧；P4 斗室极静确认，用残卷、断剑、铜钱替台词；P5 金水河灵舟以大远景放大危机。",
+        "sceneIntents": [
+            {
+                "sceneId": scene["sceneId"],
+                "emotion": scene["emotion"],
+                "shotIntent": "；".join(scene["shotIntents"][:3]),
+                "spatial": f"{scene['spatial']}；{scene['distance']}",
+            }
+            for scene in CHAPTER_001_DIRECTOR_SCENES
+        ],
+        "soundDirection": "Sc 1-1 鞭梢破风/铁链拖石/矿筐炸裂；Sc 1-2 算盘/铜钱/楼板/油布摩擦/断剑低鸣；Sc 1-3 油灯/孩童屏息/枯枝裂声；Sc 1-4 纸页颤动/寒铁嗡鸣/铜钱细响；Sc 1-5 船桨破水/缆绳绷紧/更鼓远声。",
+        "transitions": "Sc 1-1→Sc 1-2 空筐裂口墨色晕开接绿锈铜钱；Sc 1-2→Sc 1-3 断口冷白化作塾馆油灯；Sc 1-3→Sc 1-4 掌心余红化作残卷裂痕；Sc 1-4→Sc 1-5 铜钱细响接窗外缆绳绷紧。",
+        "derivedAssetPlan": DERIVED_ASSET_PLAN,
+    }
+
+
+def chinese_char_count(text):
+    return len(re.findall(r"[\u4e00-\u9fff]", text or ""))
+
+
+def audit_director_plan(script_plan_xml, structured_plan=None):
+    structured_plan = structured_plan or {}
+    scene_intents = structured_plan.get("sceneIntents", [])
+    required_sections = {
+        section: section in script_plan_xml
+        for section in DIRECTOR_PLAN_REQUIRED_SECTIONS
+    }
+    required_scenes = {
+        scene_id: re.search(rf"(?m)^###\s+{re.escape(scene_id)}\b", script_plan_xml) is not None
+        for scene_id in DIRECTOR_PLAN_REQUIRED_SCENES
+    }
+    complete_scene_intents = [
+        item for item in scene_intents
+        if item.get("sceneId") and item.get("emotion") and item.get("shotIntent") and item.get("spatial")
+    ]
+    return {
+        "directorPlanChars": len(script_plan_xml or ""),
+        "directorPlanChineseChars": chinese_char_count(script_plan_xml),
+        "directorPlanH2Sections": len(re.findall(r"(?m)^##\s+[①②③④⑤⑥]", script_plan_xml or "")),
+        "directorPlanSceneSections": len(re.findall(r"(?m)^###\s+Sc\s+1-\d\b", script_plan_xml or "")),
+        "directorPlanBulletCount": len(re.findall(r"(?m)^\s*-\s+", script_plan_xml or "")),
+        "directorPlanRequiredSectionsPresent": required_sections,
+        "directorPlanRequiredSceneSectionsPresent": required_scenes,
+        "directorPlanStructuredSceneIntents": len(scene_intents),
+        "directorPlanStructuredSceneIntentsComplete": len(complete_scene_intents),
+        "directorPlanHasDerivedAssetSection": "衍生资产预划清单" in (script_plan_xml or ""),
+    }
 
 
 def state_items(data, key):
@@ -1219,6 +2139,276 @@ def build_voice_profile_map(speakers):
     return {speaker: resolve_voice_profile_for_speaker(speaker, audio_rows) for speaker in sorted(speakers)}
 
 
+def load_project_tts_state(path=TTS_JSON, project_id=None):
+    project_id = project_id or PROJECT.name
+    document = load_json(path) if Path(path).exists() else {"state": {}, "version": 0}
+    if not isinstance(document, dict):
+        raise RuntimeError(f"TTS 状态格式非法: {path}")
+    state = document.setdefault("state", {})
+    if not isinstance(state, dict):
+        raise RuntimeError(f"TTS state 格式非法: {path}")
+    state["activeProjectId"] = project_id
+    projects = state.setdefault("projects", {})
+    if not isinstance(projects, dict):
+        raise RuntimeError(f"TTS projects 格式非法: {path}")
+    project = projects.setdefault(project_id, {"voiceLines": {}, "bindings": {}})
+    if not isinstance(project, dict):
+        raise RuntimeError(f"TTS project 格式非法: {project_id}")
+    project.setdefault("voiceLines", {})
+    project.setdefault("bindings", {})
+    profiles = state.setdefault("voiceProfiles", {})
+    if not isinstance(profiles, dict):
+        raise RuntimeError(f"TTS voiceProfiles 格式非法: {path}")
+    return document
+
+
+def resolve_reference_audio_file(audio_path):
+    value = str(audio_path or "").strip()
+    if not value:
+        return None
+    if value.startswith("file://"):
+        value = urllib.parse.unquote(urllib.parse.urlparse(value).path)
+    path = Path(value)
+    if not path.is_absolute() or not path.exists() or not path.is_file():
+        return None
+    try:
+        if path.stat().st_size <= 0 or not os.access(path, os.R_OK):
+            return None
+    except OSError:
+        return None
+    return str(path)
+
+
+def validate_fixed_voice_profile(speaker_id, binding, profiles):
+    profile_id = str((binding or {}).get("profileId") or "").strip()
+    if not profile_id:
+        raise RuntimeError(f"固定音色 {speaker_id} 缺少 profileId")
+    profile = profiles.get(profile_id)
+    if not isinstance(profile, dict):
+        raise RuntimeError(f"固定音色 {speaker_id} 缺少 profile {profile_id}")
+    reference_audio_path = str(profile.get("referenceAudioPath") or "").strip()
+    if not reference_audio_path:
+        raise RuntimeError(f"固定音色 {speaker_id} 缺少参考音频路径")
+    resolved_audio_path = resolve_reference_audio_file(reference_audio_path)
+    if not resolved_audio_path:
+        raise RuntimeError(f"固定音色 {speaker_id} 的参考音频不可读: {reference_audio_path}")
+    reference_text = str(profile.get("referenceText") or "").strip()
+    if not reference_text:
+        raise RuntimeError(f"固定音色 {speaker_id} 缺少参考文本")
+    return profile_id, profile, resolved_audio_path
+
+
+def legacy_storyboard_voice_profiles(storyboards, voiceovers):
+    voiceover_by_id = {item["storyboardId"]: item for item in voiceovers}
+    voiceover_by_index = {item["index"]: item for item in voiceovers}
+    imported = {}
+    for storyboard in storyboards or []:
+        voiceover = voiceover_by_id.get(storyboard.get("id")) or voiceover_by_index.get(storyboard.get("index"))
+        if not voiceover:
+            continue
+        legacy_profile = storyboard.get("voiceProfile")
+        has_voice_evidence = bool(
+            legacy_profile
+            or storyboard.get("voiceProfileId")
+            or storyboard.get("voiceReferenceAudioPath")
+        )
+        if not has_voice_evidence:
+            continue
+        legacy_profile = legacy_profile if isinstance(legacy_profile, dict) else {}
+        profile_id = str(
+            legacy_profile.get("id")
+            or storyboard.get("voiceProfileId")
+            or ""
+        ).strip()
+        reference_audio_path = str(
+            legacy_profile.get("referenceAudioPath")
+            or storyboard.get("voiceReferenceAudioPath")
+            or ""
+        ).strip()
+        reference_text = str(
+            legacy_profile.get("referenceText")
+            or storyboard.get("voiceReferenceText")
+            or ""
+        ).strip()
+        if not profile_id or not reference_audio_path or not reference_text:
+            raise RuntimeError(
+                f"旧分镜固定音色证据不完整: {voiceover['storyboardId']} / {voiceover['speakerId']}"
+            )
+        speaker_id = voiceover["speakerId"]
+        candidate = {
+            "id": profile_id,
+            "name": str(legacy_profile.get("name") or storyboard.get("voiceReferenceName") or voiceover["speaker"]),
+            "type": "reference",
+            "language": "zh",
+            "defaultEngine": VOICE_REFERENCE_ENGINE,
+            "defaultModelSize": VOICE_REFERENCE_MODEL_SIZE,
+            "referenceAudioPath": reference_audio_path,
+            "referenceText": reference_text,
+            "instruct": str(legacy_profile.get("instruct") or storyboard.get("voiceEmotionProfile") or ""),
+            "createdAt": legacy_profile.get("createdAt", 0),
+            "updatedAt": legacy_profile.get("updatedAt", 0),
+        }
+        existing = imported.get(speaker_id)
+        if existing and (
+            existing["id"] != candidate["id"]
+            or existing["referenceAudioPath"] != candidate["referenceAudioPath"]
+        ):
+            raise RuntimeError(f"旧分镜同一 speaker 存在冲突固定音色: {speaker_id}")
+        imported[speaker_id] = candidate
+    return imported
+
+
+def voice_binding_fingerprint(speaker_voice_map):
+    rows = [
+        {
+            "speakerId": speaker_id,
+            "profileId": item["profileId"],
+            "referenceAudioPath": item["voiceReferenceAudioPath"],
+        }
+        for speaker_id, item in sorted(speaker_voice_map.items())
+    ]
+    payload = json.dumps(rows, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def resolve_fixed_voice_bindings(
+    tts_document,
+    project_id,
+    speaker_descriptors,
+    audio_rows=None,
+    legacy_storyboards=None,
+    voiceovers=None,
+):
+    working = json.loads(json.dumps(tts_document, ensure_ascii=False))
+    working = load_project_tts_state_from_document(working, project_id)
+    state = working["state"]
+    project = state["projects"][project_id]
+    bindings = project["bindings"]
+    profiles = state["voiceProfiles"]
+    imported_profiles = legacy_storyboard_voice_profiles(
+        legacy_storyboards or [],
+        voiceovers or [],
+    )
+    now = int(time.time() * 1000)
+    fixed = []
+    ai_selected = []
+
+    for speaker_id, descriptor in sorted(speaker_descriptors.items()):
+        binding = bindings.get(speaker_id)
+        if not binding and speaker_id in imported_profiles:
+            imported = imported_profiles[speaker_id]
+            existing_profile = profiles.get(imported["id"])
+            if existing_profile and (
+                existing_profile.get("referenceAudioPath") != imported["referenceAudioPath"]
+                or existing_profile.get("referenceText") != imported["referenceText"]
+            ):
+                raise RuntimeError(f"导入旧分镜音色时 profile 冲突: {imported['id']}")
+            profiles.setdefault(imported["id"], imported)
+            binding = {
+                "speakerId": speaker_id,
+                "profileId": imported["id"],
+                "defaultEngine": VOICE_REFERENCE_ENGINE,
+                "defaultModelSize": VOICE_REFERENCE_MODEL_SIZE,
+            }
+            bindings[speaker_id] = binding
+
+        if binding:
+            profile_id, profile, resolved_audio_path = validate_fixed_voice_profile(speaker_id, binding, profiles)
+            fixed.append(speaker_id)
+            continue
+
+        if audio_rows is None:
+            audio_rows = load_audio_rows()
+        selected = resolve_voice_profile_for_speaker(descriptor["speaker"], audio_rows)
+        resolved_audio_path = resolve_reference_audio_file(selected.get("audioPath"))
+        if not resolved_audio_path:
+            raise RuntimeError(f"speaker {speaker_id} 选中的参考音频不可读: {selected.get('audioPath')}")
+        reference_text = str(selected.get("referenceText") or "").strip()
+        if not reference_text:
+            raise RuntimeError(f"speaker {speaker_id} 选中的音色缺少参考文本")
+        profile_id = f"daojie-{asset_key(speaker_id)}-voice-reference"
+        existing_profile = profiles.get(profile_id)
+        if existing_profile:
+            raise RuntimeError(f"未绑定 speaker {speaker_id} 的目标 profileId 已存在: {profile_id}")
+        profile = {
+            "id": profile_id,
+            "name": selected.get("name") or descriptor["speaker"],
+            "type": "reference",
+            "language": "zh",
+            "defaultEngine": VOICE_REFERENCE_ENGINE,
+            "defaultModelSize": VOICE_REFERENCE_MODEL_SIZE,
+            "referenceAudioPath": resolved_audio_path,
+            "referenceText": reference_text,
+            "instruct": selected.get("instruct") or ROLE_VOICE_INSTRUCTIONS.get(descriptor["speaker"], ROLE_VOICE_INSTRUCTIONS["旁白"]),
+            "createdAt": now,
+            "updatedAt": now,
+        }
+        profiles[profile_id] = profile
+        binding = {
+            "speakerId": speaker_id,
+            "profileId": profile_id,
+            "defaultEngine": VOICE_REFERENCE_ENGINE,
+            "defaultModelSize": VOICE_REFERENCE_MODEL_SIZE,
+        }
+        bindings[speaker_id] = binding
+        ai_selected.append(speaker_id)
+
+    speaker_voice_map = {}
+    for speaker_id, descriptor in sorted(speaker_descriptors.items()):
+        binding = bindings.get(speaker_id)
+        profile_id, profile, resolved_audio_path = validate_fixed_voice_profile(speaker_id, binding, profiles)
+        match = "ai-selected" if speaker_id in ai_selected else "fixed"
+        speaker_voice_map[speaker_id] = {
+            "speaker": descriptor["speaker"],
+            "profileId": profile_id,
+            "voiceReferenceName": profile.get("name") or descriptor["speaker"],
+            "voiceReferenceAudioPath": profile["referenceAudioPath"],
+            "resolvedVoiceReferenceAudioPath": resolved_audio_path,
+            "referenceText": profile["referenceText"],
+            "instruct": profile.get("instruct") or "",
+            "match": match,
+        }
+
+    return {
+        "document": working,
+        "speakerVoiceMap": speaker_voice_map,
+        "voiceBindingFingerprint": voice_binding_fingerprint(speaker_voice_map),
+        "fixedVoiceBindings": sorted(fixed),
+        "aiSelectedVoiceBindings": sorted(ai_selected),
+        "changed": bool(ai_selected or imported_profiles),
+    }
+
+
+def load_project_tts_state_from_document(document, project_id):
+    if not isinstance(document, dict):
+        raise RuntimeError("TTS 状态格式非法")
+    state = document.setdefault("state", {})
+    if not isinstance(state, dict):
+        raise RuntimeError("TTS state 格式非法")
+    state["activeProjectId"] = project_id
+    projects = state.setdefault("projects", {})
+    if not isinstance(projects, dict):
+        raise RuntimeError("TTS projects 格式非法")
+    project = projects.setdefault(project_id, {"voiceLines": {}, "bindings": {}})
+    project.setdefault("voiceLines", {})
+    project.setdefault("bindings", {})
+    state.setdefault("voiceProfiles", {})
+    return document
+
+
+def runtime_voice_profile(speaker_id, speaker_voice_map, voice_style=""):
+    item = speaker_voice_map[speaker_id]
+    return {
+        "profileId": item["profileId"],
+        "speaker": item["speaker"],
+        "name": item["voiceReferenceName"],
+        "audioPath": item["resolvedVoiceReferenceAudioPath"],
+        "referenceText": item["referenceText"],
+        "instruct": " ".join(part for part in [item.get("instruct", ""), voice_style] if part).strip(),
+        "matched": item["match"],
+    }
+
+
 def find_asset_image(name, image_rows):
     candidates = ASSET_IMAGE_ALIASES.get(name, [name])
     normalized_candidates = [normalize_name(candidate) for candidate in candidates]
@@ -1304,7 +2494,46 @@ def find_by_id_or_name(items, asset_id, name):
     )
 
 
-def create_derived_asset_image(parent_image_path, output_path, parent_name, state_name, reason):
+def paste_centered(canvas, image, box, fill=(245, 240, 232)):
+    x0, y0, x1, y1 = box
+    width = x1 - x0
+    height = y1 - y0
+    layer = Image.new("RGB", (width, height), fill)
+    item = image.copy().convert("RGB")
+    item.thumbnail((width, height), Image.Resampling.LANCZOS)
+    layer.paste(item, ((width - item.width) // 2, (height - item.height) // 2))
+    canvas.paste(layer, (x0, y0))
+
+
+def create_character_derived_asset_sheet(parent_image_path, output_path):
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    canvas = Image.new("RGB", (1600, 900), (245, 240, 232))
+    if parent_image_path and Path(parent_image_path).exists():
+        parent = Image.open(parent_image_path).convert("RGB")
+    else:
+        parent = Image.new("RGB", (320, 760), (224, 218, 206))
+
+    portrait_crop = parent.crop((0, 0, parent.width, max(1, int(parent.height * 0.46))))
+    side_view = ImageOps.mirror(parent)
+    back_view = ImageOps.grayscale(parent).convert("RGB").filter(ImageFilter.SMOOTH_MORE)
+    views = [portrait_crop, parent, side_view, back_view]
+    margin = 38
+    gap = 24
+    panel_width = (1600 - margin * 2 - gap * 3) // 4
+    for index, view in enumerate(views):
+        x0 = margin + index * (panel_width + gap)
+        box = (x0, margin, x0 + panel_width, 900 - margin)
+        paste_centered(canvas, view, box)
+        draw = ImageDraw.Draw(canvas)
+        draw.rectangle(box, outline=(204, 195, 175), width=2)
+    canvas.save(output_path, quality=92)
+    return str(output_path)
+
+
+def create_derived_asset_image(parent_image_path, output_path, parent_name, state_name, reason, asset_type="asset"):
+    if asset_type == "character":
+        return create_character_derived_asset_sheet(parent_image_path, output_path)
+
     output_path.parent.mkdir(parents=True, exist_ok=True)
     canvas = Image.new("RGB", (1280, 720), (24, 25, 23))
     if parent_image_path and Path(parent_image_path).exists():
@@ -1447,7 +2676,7 @@ def sync_project_derived_assets(state, asset_catalog):
                 raise RuntimeError(f"衍生资产父角色缺失: {item['parentAssetId']}")
             parent_id = parent["id"]
             source_image = parent.get("thumbnailUrl") or asset_catalog.get(item["parentAssetId"], {}).get("imagePath", "")
-            result_image = create_derived_asset_image(source_image, derived_dir / f"{ids['id']}.jpg", item["parentAssetId"], item["state"], item["reason"])
+            result_image = create_derived_asset_image(source_image, derived_dir / f"{ids['id']}.jpg", item["parentAssetId"], item["state"], item["reason"], ids["assetType"])
             variations = parent.setdefault("variations", [])
             variation = find_by_id_or_name(variations, ids["id"], item["state"])
             patch = {
@@ -1472,7 +2701,7 @@ def sync_project_derived_assets(state, asset_catalog):
                 raise RuntimeError(f"衍生资产父场景缺失: {item['parentAssetId']}")
             parent_id = parent["id"]
             source_image = parent.get("referenceImage") or asset_catalog.get(item["parentAssetId"], {}).get("imagePath", "")
-            result_image = create_derived_asset_image(source_image, derived_dir / f"{ids['id']}.jpg", item["parentAssetId"], item["state"], item["reason"])
+            result_image = create_derived_asset_image(source_image, derived_dir / f"{ids['id']}.jpg", item["parentAssetId"], item["state"], item["reason"], ids["assetType"])
             derived = find_by_id_or_name(scenes, ids["id"], f"{item['parentAssetId']}·{item['state']}")
             patch = {
                 "id": ids["id"],
@@ -1504,7 +2733,7 @@ def sync_project_derived_assets(state, asset_catalog):
                 raise RuntimeError(f"衍生资产父道具缺失: {item['parentAssetId']}")
             parent_id = parent["id"]
             source_image = parent.get("imageUrl") or asset_catalog.get(item["parentAssetId"], {}).get("imagePath", "")
-            result_image = create_derived_asset_image(source_image, derived_dir / f"{ids['id']}.jpg", item["parentAssetId"], item["state"], item["reason"])
+            result_image = create_derived_asset_image(source_image, derived_dir / f"{ids['id']}.jpg", item["parentAssetId"], item["state"], item["reason"], ids["assetType"])
             derived = find_by_id_or_name(props, ids["id"], f"{item['parentAssetId']}·{item['state']}")
             patch = {
                 "id": ids["id"],
@@ -1892,6 +3121,13 @@ def resolve_image_assets(scene, assets, asset_catalog):
             "assetId": item.get("id", ""),
             "imagePath": image_path,
             "sourceName": item.get("imageAssetName", asset_name),
+            "aliases": unique_nonempty([
+                asset_name,
+                item.get("imageAssetName"),
+                item.get("imageAliasOf"),
+                *ASSET_IMAGE_ALIASES.get(asset_name, []),
+                *DAOJIE_REFERENCE_BINDING_ALIASES.get(asset_name, []),
+            ]),
         })
     return image_assets
 
@@ -2208,6 +3444,7 @@ def build_workflow_steps(
     shots,
     asset_catalog,
     script_plan_xml,
+    director_plan_audit,
     storyboard_table,
     storyboards,
     frame_paths,
@@ -2267,8 +3504,19 @@ def build_workflow_steps(
         workflow_step(
             "script_plan",
             "导演计划",
-            "<scriptPlan>" in script_plan_xml,
-            f"chars={len(script_plan_xml)}",
+            "<scriptPlan>" in script_plan_xml
+            and director_plan_audit.get("directorPlanChars", 0) >= 4500
+            and director_plan_audit.get("directorPlanChineseChars", 0) >= 2500
+            and director_plan_audit.get("directorPlanH2Sections", 0) >= 6
+            and director_plan_audit.get("directorPlanSceneSections", 0) == 5
+            and director_plan_audit.get("directorPlanStructuredSceneIntentsComplete", 0) == 5,
+            (
+                f"chars={director_plan_audit.get('directorPlanChars', len(script_plan_xml))}, "
+                f"chinese={director_plan_audit.get('directorPlanChineseChars', 0)}, "
+                f"h2={director_plan_audit.get('directorPlanH2Sections', 0)}, "
+                f"scenes={director_plan_audit.get('directorPlanSceneSections', 0)}, "
+                f"structuredScenes={director_plan_audit.get('directorPlanStructuredSceneIntentsComplete', 0)}"
+            ),
         ),
         workflow_step(
             "storyboard_table",
@@ -2297,7 +3545,8 @@ def build_workflow_steps(
         workflow_step(
             "track_candidates",
             "生产轨道候选",
-            len(production_tracks) >= 4 and len(video_candidates) >= 5,
+            len(production_tracks) > 0
+            and len(video_candidates) == len(production_tracks) + 1,
             f"tracks={len(production_tracks)}, candidates={len(video_candidates)}",
         ),
         workflow_step(
@@ -2309,7 +3558,7 @@ def build_workflow_steps(
         workflow_step(
             "project_writeback",
             "工作流写回",
-            not SKIP_PROJECT_WRITE and STORE.exists() and SCRIPT_JSON.exists(),
+            not SKIP_PROJECT_WRITE and STORE.exists() and SCRIPT_JSON.exists() and TTS_JSON.exists(),
             f"skipProjectWrite={SKIP_PROJECT_WRITE}",
         ),
     ]
@@ -2333,18 +3582,41 @@ def main():
     asset_index = build_asset_index(state)
     asset_catalog = build_asset_catalog(state)
     script_text = latest_script(state)
-    shots = build_shots_from_script(script_text)
-    source_units = source_dialogue_units(script_text)
-    source_segment_count = len(source_segment_units(script_text))
+    storyboard_source = resolve_storyboard_source(state, EPISODE_ID)
+    shots = storyboard_source["shots"]
+    identities = episode_character_identities(state, EPISODE_ID)
+    voiceovers = build_storyboard_voiceovers(shots, identities, EPISODE_ID)
+    source_units = [item["ttsSpokenText"] for item in voiceovers]
+    source_segment_count = len(shots)
     source_dialogue_chars = sum(len(normalize_dialogue_text(unit)) for unit in source_units)
-    spoken_text_chars = sum(len(normalize_dialogue_text(shot["text"])) for shot in shots)
+    spoken_text_chars = sum(len(normalize_dialogue_text(item["ttsSpokenText"])) for item in voiceovers)
     dialogue_coverage_ratio = min(1.0, spoken_text_chars / source_dialogue_chars) if source_dialogue_chars else 1.0
     if dialogue_coverage_ratio < MIN_DIALOGUE_COVERAGE_RATIO:
         raise RuntimeError(f"台词覆盖率过低: {dialogue_coverage_ratio:.3f} / {MIN_DIALOGUE_COVERAGE_RATIO}")
-    speakers = {shot["speaker"] for shot in shots}
-    voice_profiles = build_voice_profile_map(speakers)
+    speaker_descriptors = {
+        item["speakerId"]: {"speaker": item["speaker"]}
+        for item in voiceovers
+    }
+    tts_document = load_project_tts_state(TTS_JSON, PROJECT.name)
+    fixed_voice_plan = resolve_fixed_voice_bindings(
+        tts_document,
+        PROJECT.name,
+        speaker_descriptors,
+        None,
+        legacy_storyboards=[
+            storyboard
+            for storyboard in state.get("storyboards", [])
+            if storyboard.get("episodeId") == EPISODE_ID
+        ],
+        voiceovers=voiceovers,
+    )
+    if not SKIP_PROJECT_WRITE:
+        save_json(TTS_JSON, fixed_voice_plan["document"])
+    speaker_voice_map = fixed_voice_plan["speakerVoiceMap"]
     script_plan_xml = build_script_plan(shots)
-    storyboard_table = build_storyboard_table(asset_index, shots)
+    structured_script_plan = build_structured_script_plan()
+    director_plan_audit = audit_director_plan(script_plan_xml, structured_script_plan)
+    storyboard_table = storyboard_source["data"] or build_storyboard_table(asset_index, shots)
 
     frame_paths = []
     audio_paths = []
@@ -2354,21 +3626,29 @@ def main():
     tts_backends = set()
     tts_mocked_values = set()
     tts_warnings = []
-    speaker_audio_stats = {speaker: {"lines": 0, "audioFiles": 0, "chars": 0} for speaker in speakers}
+    speaker_audio_stats = {
+        speaker_id: {"lines": 0, "audioFiles": 0, "chars": 0}
+        for speaker_id in speaker_descriptors
+    }
     speaker_audio_samples = {}
+    frame_path_by_storyboard = {}
+    audio_path_by_storyboard = {}
+    segment_path_by_storyboard = {}
     used_image_paths = set()
     missing_image_assets = set()
     storyboard_image_workflows = []
+    storyboard_prompt_manifest = []
     try:
         for index, shot in enumerate(shots, 1):
             scene, desc, speaker, text, sound, assets, duration = shot_tuple(shot)
+            voiceover = voiceovers[index - 1]
             scene_no = shot.get("sceneNo", 1)
             frame = FRAMES / f"shot-{index:03d}.png"
             audio = AUDIO / f"shot-{index:03d}.wav"
             segment = SEGMENTS / f"shot-{index:03d}.mp4"
-            storyboard_id = f"sb-chapter-001-{index:03d}"
-            track_key = track_key_for(index, scene_no)
-            asset_ids = resolve_asset_ids(scene, assets, asset_index)
+            storyboard_id = voiceover["storyboardId"]
+            track_key = shot.get("trackKey") or track_key_for(index, scene_no)
+            asset_ids = shot.get("assetIds") or resolve_asset_ids(scene, assets, asset_index)
             associate_assets = [scene, *assets]
             image_assets = resolve_image_assets(scene, assets, asset_catalog)
             if not image_assets:
@@ -2384,37 +3664,67 @@ def main():
             if is_real_storyboard_image_mode():
                 storyboard_image_result = generate_storyboard_frame_with_references(
                     frame,
-                    {"id": storyboard_id, "index": index, "prompt": desc},
+                    {"id": storyboard_id, "index": index, "sceneNo": scene_no, "prompt": desc},
                     desc,
                     image_assets,
                     storyboard_image_config,
                 )
                 storyboard_image_workflows.append(storyboard_image_result["workflowGraph"])
+                storyboard_prompt_manifest.append(storyboard_image_result["promptAudit"])
             else:
+                storyboard_references = collect_storyboard_reference_images(image_assets)
+                final_storyboard_prompt = build_storyboard_image_prompt(
+                    {"id": storyboard_id, "index": index, "sceneNo": scene_no, "prompt": desc},
+                    storyboard_references,
+                )
+                prompt_audit = build_storyboard_prompt_audit(
+                    {"id": storyboard_id, "index": index},
+                    final_storyboard_prompt,
+                    storyboard_references,
+                    desc,
+                )
+                assert_storyboard_prompt_audit(prompt_audit)
+                storyboard_prompt_manifest.append(prompt_audit)
                 create_frame(frame, index, scene, desc, speaker, text, sound, assets, asset_ids, asset_catalog, image_assets)
-            voice_emotion_profile = voice_emotion_for(index, speaker)
-            voice_profile = dict(voice_profiles[speaker])
-            voice_profile["instruct"] = f"{voice_profile['instruct']} {voice_emotion_profile}"
-            tts_result = create_audio(audio, speaker, text, voice_profile, 41001 + index)
+            voice_profile = runtime_voice_profile(
+                voiceover["speakerId"],
+                speaker_voice_map,
+                voiceover["voiceStyle"],
+            )
+            tts_result = create_audio(
+                audio,
+                speaker,
+                voiceover["ttsSpokenText"],
+                voice_profile,
+                41001 + index,
+            )
             tts_modes.add(tts_result["mode"])
             tts_backends.add(tts_result.get("backend") or "")
             tts_mocked_values.add(bool(tts_result.get("mocked")))
             if tts_result.get("warning"):
                 tts_warnings.append(f"{index:03d}: {tts_result['warning']}")
-            spoken_text = spoken_text_for(speaker, text)
-            speaker_audio_stats[speaker]["lines"] += 1
-            speaker_audio_stats[speaker]["audioFiles"] += 1
-            speaker_audio_stats[speaker]["chars"] += len(normalize_dialogue_text(spoken_text))
-            if speaker not in speaker_audio_samples:
+            spoken_text = spoken_text_for(speaker, voiceover["ttsSpokenText"])
+            speaker_id = voiceover["speakerId"]
+            speaker_audio_stats[speaker_id]["lines"] += 1
+            speaker_audio_stats[speaker_id]["audioFiles"] += 1
+            speaker_audio_stats[speaker_id]["chars"] += len(normalize_dialogue_text(spoken_text))
+            if speaker_id not in speaker_audio_samples:
                 sample = audio_sample_info(audio)
                 if not SILENT_PREVIEW and (sample["meanVolumeDb"] is None or sample["meanVolumeDb"] < MIN_AUDIO_MEAN_VOLUME_DB):
-                    raise RuntimeError(f"角色音频样本音量过低: {speaker} / {sample}")
-                speaker_audio_samples[speaker] = sample
-            actual_duration = max(MIN_SHOT_DURATION, min(MAX_SHOT_DURATION, max(duration, audio_duration(audio) + 0.4)))
+                    raise RuntimeError(f"角色音频样本音量过低: {speaker_id} / {sample}")
+                speaker_audio_samples[speaker_id] = sample
+            actual_duration = max(
+                MIN_SHOT_DURATION,
+                voiceover["durationTarget"],
+                audio_duration(audio) + 0.4,
+            )
             render_segment(index, frame, audio, segment, actual_duration)
             frame_paths.append(frame)
             audio_paths.append(audio)
             segment_paths.append(segment)
+            frame_path_by_storyboard[storyboard_id] = frame
+            audio_path_by_storyboard[storyboard_id] = audio
+            segment_path_by_storyboard[storyboard_id] = segment
             media_ref = {
                 "kind": "image",
                 "path": storyboard_image_result["projectImageUrl"] if storyboard_image_result else str(frame),
@@ -2437,6 +3747,12 @@ def main():
                 "prompt": desc,
                 "videoDesc": f"{desc}；台词：{speaker}：{text}；音效：{sound}",
                 "speaker": speaker,
+                "speakerId": speaker_id,
+                "line": voiceover["line"],
+                "ttsSpokenText": spoken_text,
+                "durationTarget": voiceover["durationTarget"],
+                "voiceStyle": voiceover["voiceStyle"],
+                "requiresFixedVoice": True,
                 "assetIds": asset_ids,
                 "mediaRef": media_ref,
                 "audioRef": {"kind": "audio", "path": str(audio)},
@@ -2444,6 +3760,7 @@ def main():
                 "voiceReferenceName": voice_profile["name"],
                 "voiceReferenceText": voice_profile["referenceText"],
                 "voiceEmotionProfile": voice_profile["instruct"],
+                "voiceMatch": speaker_voice_map[speaker_id]["match"],
                 "voiceProfile": {
                     "id": voice_profile["profileId"],
                     "name": voice_profile["name"],
@@ -2451,7 +3768,6 @@ def main():
                     "referenceText": voice_profile["referenceText"],
                     "instruct": voice_profile["instruct"],
                 },
-                "ttsSpokenText": spoken_text,
                 "ttsMode": tts_result["mode"],
                 "ttsBackend": tts_result.get("backend") or "",
                 "ttsMocked": bool(tts_result.get("mocked")),
@@ -2462,12 +3778,11 @@ def main():
                 "imageAssetPaths": [asset["imagePath"] for asset in image_assets],
                 "imageAssetNames": [asset["name"] for asset in image_assets],
                 "state": "ready",
-                "emotion": emotion_for(index, scene_no),
-                "orientation": "—",
-                "spatialRelation": "—",
+                "emotion": shot.get("emotion") or emotion_for(index, scene_no),
+                "orientation": shot.get("orientation") or "—",
+                "spatialRelation": shot.get("spatialRelation") or "—",
                 "associateAssetsNames": associate_assets,
                 "lines": f"{speaker}：{text}" if speaker != "旁白" else f"旁白：{text}",
-                "speakerId": line_speaker(speaker),
                 "sound": sound,
                 **storyboard_patch,
             })
@@ -2484,13 +3799,20 @@ def main():
 
     production_tracks = []
     video_candidates = []
-    track_keys = ["chapter-001-scene-1", "chapter-001-scene-2", "chapter-001-scene-3", "chapter-001-scene-4"]
+    track_keys = []
+    for storyboard in storyboards:
+        if storyboard["trackKey"] not in track_keys:
+            track_keys.append(storyboard["trackKey"])
     for scene_no, track_key in enumerate(track_keys, 1):
         ids = [sb["id"] for sb in storyboards if sb["trackKey"] == track_key]
         duration = sum(sb["duration"] for sb in storyboards if sb["id"] in ids)
         track_id = f"track-chapter-001-scene-{scene_no}"
         candidate_id = f"video-chapter-001-scene-{scene_no}"
-        scene_segments = [str(segment_paths[sb["index"] - 1]) for sb in storyboards if sb["trackKey"] == track_key]
+        scene_segments = [
+            str(segment_path_by_storyboard[sb["id"]])
+            for sb in storyboards
+            if sb["trackKey"] == track_key
+        ]
         scene_output = EXPORTS / f"道劫_EP01_scene_{scene_no:02d}.mp4"
         if not SKIP_SCENE_EXPORTS:
             concat_segments([Path(p) for p in scene_segments], scene_output)
@@ -2523,34 +3845,31 @@ def main():
     })
 
     state["scriptPlans"] = [p for p in state.get("scriptPlans", []) if p.get("episodeId") != EPISODE_ID]
-    state["scriptPlans"].append({
-        "id": "script-plan-chapter-001-toonflow",
-        "episodeId": EPISODE_ID,
-        "theme": "Sc1-Sc4 分场汇总表已按 Toonflow 导演规划生成",
-        "visualStyle": "",
-        "narrativeRhythm": "压迫入镇 -> 断剑显露 -> 晏燎燃气 -> 归元认人",
-        "sceneIntents": [
-            {"sceneId": "Sc1", "emotion": "压迫→隐忍救人", "shotIntent": "金水河码头·鞭下入镇", "spatial": ""},
-            {"sceneId": "Sc2", "emotion": "冷眼旁观→旧痛翻涌", "shotIntent": "悦来客栈·断剑显露", "spatial": ""},
-            {"sceneId": "Sc3", "emotion": "试探引气→命数被压", "shotIntent": "金水塾馆·晏燎燃气", "spatial": ""},
-            {"sceneId": "Sc4", "emotion": "确认传承→危机逼近", "shotIntent": "悦来斗室与金水河·归元认人", "spatial": ""},
-        ],
-        "soundDirection": "鞭梢破风、算盘、油灯、断剑低鸣、船桨破水",
-        "transitions": "Sc1→Sc2 叠化；Sc2→Sc3 叠化；Sc3→Sc4 叠化",
-        "derivedAssetPlan": DERIVED_ASSET_PLAN,
-    })
+    state["scriptPlans"].append(structured_script_plan)
 
     now = 1780300001000
     state["agentWorkData"] = [
         w for w in state.get("agentWorkData", [])
-        if not (w.get("episodeId") == EPISODE_ID and w.get("key") in {"directorPlan", "storyboardTable", "storyboardPanel", "storyboardImage", "productionPlan"})
+        if not (
+            w.get("episodeId") == EPISODE_ID
+            and w.get("key") in {"directorPlan", "storyboardPanel", "storyboardImage", "productionPlan"}
+        )
     ]
-    state["agentWorkData"].extend([
+    generated_work = [
         {"id": "work-chapter-001-director-plan", "key": "directorPlan", "episodeId": EPISODE_ID, "data": script_plan_xml, "createdAt": now, "updatedAt": now},
-        {"id": "work-chapter-001-storyboard-table", "key": "storyboardTable", "episodeId": EPISODE_ID, "data": storyboard_table, "createdAt": now + 1, "updatedAt": now + 1},
         {"id": "work-chapter-001-storyboard-panel", "key": "storyboardPanel", "episodeId": EPISODE_ID, "data": f"已写入 {len(storyboards)} 条分镜面板，全部绑定资产静帧、完整台词音频和多角色资产库音色参考。", "createdAt": now + 2, "updatedAt": now + 2},
         {"id": "work-chapter-001-production-plan", "key": "productionPlan", "episodeId": EPISODE_ID, "data": f"本地成片输出: {final_path}", "createdAt": now + 3, "updatedAt": now + 3},
-    ])
+    ]
+    if storyboard_source["kind"] == "bootstrap-fixture":
+        generated_work.insert(1, {
+            "id": "work-chapter-001-storyboard-table-bootstrap",
+            "key": "storyboardTable",
+            "episodeId": EPISODE_ID,
+            "data": storyboard_table,
+            "createdAt": now + 1,
+            "updatedAt": now + 1,
+        })
+    state["agentWorkData"].extend(generated_work)
     state["storyboards"] = [sb for sb in state.get("storyboards", []) if sb.get("episodeId") != EPISODE_ID and sb.get("episodeId") != "episode-1"]
     state["storyboards"].extend(storyboards)
     state["productionTracks"] = [t for t in state.get("productionTracks", []) if t.get("episodeId") != EPISODE_ID and t.get("episodeId") != "episode-1"]
@@ -2600,12 +3919,12 @@ def main():
             "index": sb["index"],
             "trackKey": sb["trackKey"],
             "duration": sb["duration"],
-            "framePath": str(frame_paths[sb["index"] - 1]),
-            "frameExists": Path(frame_paths[sb["index"] - 1]).exists(),
-            "audioPath": str(audio_paths[sb["index"] - 1]),
-            "audioExists": Path(audio_paths[sb["index"] - 1]).exists(),
-            "segmentPath": str(segment_paths[sb["index"] - 1]),
-            "segmentExists": Path(segment_paths[sb["index"] - 1]).exists(),
+            "framePath": str(frame_path_by_storyboard[sb["id"]]),
+            "frameExists": Path(frame_path_by_storyboard[sb["id"]]).exists(),
+            "audioPath": str(audio_path_by_storyboard[sb["id"]]),
+            "audioExists": Path(audio_path_by_storyboard[sb["id"]]).exists(),
+            "segmentPath": str(segment_path_by_storyboard[sb["id"]]),
+            "segmentExists": Path(segment_path_by_storyboard[sb["id"]]).exists(),
             "assetIds": sb.get("assetIds", []),
             "assetNames": sb.get("associateAssetsNames", []),
             "imageAssetNames": sb.get("imageAssetNames", []),
@@ -2615,6 +3934,15 @@ def main():
             "imageWorkflowNodeId": sb.get("imageWorkflowNodeId", ""),
             "voiceReferenceName": sb.get("voiceReferenceName", ""),
             "voiceReferenceAudioPath": sb.get("voiceReferenceAudioPath", ""),
+            "voiceProfileId": sb.get("voiceProfileId", ""),
+            "voiceMatch": sb.get("voiceMatch", ""),
+            "speaker": sb.get("speaker", ""),
+            "speakerId": sb.get("speakerId", ""),
+            "line": sb.get("line", ""),
+            "ttsSpokenText": sb.get("ttsSpokenText", ""),
+            "durationTarget": sb.get("durationTarget", 0),
+            "voiceStyle": sb.get("voiceStyle", ""),
+            "requiresFixedVoice": sb.get("requiresFixedVoice") is True,
             "ttsMode": sb.get("ttsMode", ""),
             "ttsBackend": sb.get("ttsBackend", ""),
         }
@@ -2637,6 +3965,7 @@ def main():
             ],
             "generatedNodeId": next((node.get("id", "") for node in graph.get("nodes", []) if node.get("type") == "generated"), ""),
             "resultUrl": next((node.get("resultUrl", "") for node in graph.get("nodes", []) if node.get("type") == "generated"), ""),
+            "prompt": next((node.get("prompt", "") for node in graph.get("nodes", []) if node.get("type") == "generated"), ""),
             "referenceToGeneratedEdges": [
                 {
                     "id": edge.get("id", ""),
@@ -2648,6 +3977,7 @@ def main():
         }
         for graph in storyboard_image_workflows
     ]
+    storyboard_prompt_summary = summarize_storyboard_prompt_manifest(storyboard_prompt_manifest)
     used_image_path_set = set(used_image_paths)
     asset_image_manifest = [
         {
@@ -2680,16 +4010,11 @@ def main():
         }
         for track in production_tracks
     ]
-    missing_voice_profiles = sorted(speaker for speaker in speakers if speaker not in voice_profiles)
-    speaker_voice_map = {
-        speaker: {
-            "profileId": profile["profileId"],
-            "voiceReferenceName": profile["name"],
-            "voiceReferenceAudioPath": profile["audioPath"],
-            "match": profile["matched"],
-        }
-        for speaker, profile in sorted(voice_profiles.items())
-    }
+    missing_voice_profiles = sorted(
+        speaker_id
+        for speaker_id in speaker_descriptors
+        if speaker_id not in speaker_voice_map
+    )
     first_frame = Image.open(frame_paths[0])
     workflow_steps = build_workflow_steps(
         state,
@@ -2697,6 +4022,7 @@ def main():
         shots,
         asset_catalog,
         script_plan_xml,
+        director_plan_audit,
         storyboard_table,
         storyboards,
         frame_paths,
@@ -2714,6 +4040,9 @@ def main():
     )
     report = {
         "storyboards": len(storyboards),
+        "storyboardSourceKind": storyboard_source["kind"],
+        "storyboardSourceWorkId": storyboard_source["workId"],
+        "storyboardSourceUpdatedAt": storyboard_source["updatedAt"],
         "storyboardSourceSegments": source_segment_count,
         "totalStoryboardDuration": round(total_storyboard_duration, 2),
         "targetDurationSeconds": round(target_duration_seconds, 2),
@@ -2730,7 +4059,20 @@ def main():
         "matchedAssetImages": image_asset_count,
         "framesWithRealAssetImages": image_backed_storyboards,
         "assetImagePaths": sorted(used_image_paths),
+        "storyboardPromptManifest": storyboard_prompt_manifest,
+        **storyboard_prompt_summary,
         "storyboardMediaManifest": storyboard_media_manifest,
+        "voiceoverManifest": [
+            {
+                **voiceover,
+                "audioPath": str(audio_path_by_storyboard[voiceover["storyboardId"]]),
+                "audioExists": Path(audio_path_by_storyboard[voiceover["storyboardId"]]).exists(),
+                "profileId": speaker_voice_map[voiceover["speakerId"]]["profileId"],
+                "voiceReferenceAudioPath": speaker_voice_map[voiceover["speakerId"]]["voiceReferenceAudioPath"],
+                "match": speaker_voice_map[voiceover["speakerId"]]["match"],
+            }
+            for voiceover in voiceovers
+        ],
         "storyboardImageWorkflowManifest": storyboard_image_workflow_manifest,
         "assetImageManifest": asset_image_manifest,
         "trackCandidateManifest": track_candidate_manifest,
@@ -2738,12 +4080,17 @@ def main():
         "derivedAssetManifest": derived_asset_sync["manifest"],
         "missingImageAssets": sorted(missing_image_assets),
         "workflowSteps": workflow_steps,
-        "voiceReferenceName": speaker_voice_map.get("旁白", {}).get("voiceReferenceName", ""),
-        "voiceReferenceAudioPath": speaker_voice_map.get("旁白", {}).get("voiceReferenceAudioPath", ""),
+        **director_plan_audit,
+        "voiceReferenceName": speaker_voice_map.get("narrator", {}).get("voiceReferenceName", ""),
+        "voiceReferenceAudioPath": speaker_voice_map.get("narrator", {}).get("voiceReferenceAudioPath", ""),
         "speakerVoiceMap": speaker_voice_map,
+        "voiceBindingFingerprint": fixed_voice_plan["voiceBindingFingerprint"],
+        "fixedVoiceBindings": fixed_voice_plan["fixedVoiceBindings"],
+        "aiSelectedVoiceBindings": fixed_voice_plan["aiSelectedVoiceBindings"],
         "speakerAudioStats": speaker_audio_stats,
         "speakerAudioSamples": speaker_audio_samples,
         "missingVoiceProfiles": missing_voice_profiles,
+        "audioCount": len(audio_paths),
         "finalVideoEvidence": final_video_evidence_data,
         "finalAudioMeanVolumeDb": None if final_audio_mean_volume_db is None else round(final_audio_mean_volume_db, 2),
         "ttsMode": "+".join(sorted(tts_modes)) if tts_modes else "",

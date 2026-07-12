@@ -2505,9 +2505,10 @@ ipcMain.handle('api-text-completion', async (_event, payload: TextCompletionRequ
   const provider = payload.provider as any
   if (provider?.platform && provider?.apiKey) {
     try {
+      const textModel = payload.model || provider.model?.[0] || ''
       const result = await sdkGenerateText({
         provider: { baseUrl: provider.baseUrl, apiKey: provider.apiKey, platform: provider.platform, name: provider.name },
-        model: provider.model?.[0] || payload.model || '',
+        model: textModel,
         messages: payload.messages,
         temperature: payload.temperature,
         maxTokens: payload.maxTokens,
@@ -2518,7 +2519,7 @@ ipcMain.handle('api-text-completion', async (_event, payload: TextCompletionRequ
           category: 'ai',
           operationId,
           message: 'Text completion completed through AI SDK',
-          context: { providerName: provider.name, model: provider.model?.[0] || payload.model || '' },
+          context: { providerName: provider.name, model: textModel },
         })
         return { success: true, text: result.text }
       }
@@ -2570,9 +2571,10 @@ ipcMain.handle('api-text-completion-stream', async (event, args: { payload: Text
   const provider = args.payload.provider as any
   if (provider?.platform && provider?.apiKey) {
     try {
+      const textModel = args.payload.model || provider.model?.[0] || ''
       const stream = await sdkStreamText({
         provider: { baseUrl: provider.baseUrl, apiKey: provider.apiKey, platform: provider.platform, name: provider.name },
-        model: provider.model?.[0] || args.payload.model || '',
+        model: textModel,
         messages: args.payload.messages,
         temperature: args.payload.temperature,
         maxTokens: args.payload.maxTokens,
@@ -2586,14 +2588,23 @@ ipcMain.handle('api-text-completion-stream', async (event, args: { payload: Text
           }
         }
       }
+      if (fullText.trim()) {
+        writeDiagnosticsLog({
+          level: 'info',
+          category: 'ai',
+          operationId,
+          message: 'Text completion stream completed through AI SDK',
+          context: { streamId: args.streamId, textLength: fullText.length },
+        })
+        return { success: true, text: fullText }
+      }
       writeDiagnosticsLog({
-        level: 'info',
+        level: 'warn',
         category: 'ai',
         operationId,
-        message: 'Text completion stream completed through AI SDK',
+        message: 'AI SDK text stream returned empty, falling back to HTTP',
         context: { streamId: args.streamId, textLength: fullText.length },
       })
-      return { success: true, text: fullText }
     } catch (_e) {
       writeDiagnosticsLog({
         level: 'warn',
@@ -3153,6 +3164,21 @@ ipcMain.handle('tts-runtime-request-formdata', async (_event, payload: { path: s
   }, () => ttsRuntimeController.requestFormData(payload.path, payload.audioFilePath, payload.referenceText))
 ))
 
+ipcMain.handle('tts-reference-audio-resolve', async (_event, audioPath: string) => {
+  try {
+    if (typeof audioPath !== 'string' || !audioPath.trim()) return null
+    const value = audioPath.trim()
+    const resolvedPath = resolveStudioSourcePath(value)
+    if (!path.isAbsolute(resolvedPath)) return null
+    const stat = await fs.promises.stat(resolvedPath)
+    if (!stat.isFile() || stat.size <= 0) return null
+    await fs.promises.access(resolvedPath, fs.constants.R_OK)
+    return resolvedPath
+  } catch {
+    return null
+  }
+})
+
 ipcMain.handle('studio-merge-episode', async (_event, plan: EpisodeMergePlan) => {
   const tmpDir = path.join(getStudioRenderRoot(), `tmp-${crypto.randomUUID()}`)
   await fs.promises.mkdir(tmpDir, { recursive: true })
@@ -3175,6 +3201,35 @@ ipcMain.handle('studio-merge-episode', async (_event, plan: EpisodeMergePlan) =>
     return { success: false, error: error instanceof Error ? error.message : String(error) }
   } finally {
     await fs.promises.rm(tmpDir, { recursive: true, force: true }).catch(() => undefined)
+  }
+})
+
+ipcMain.handle('studio-probe-media-evidence', async (_event, sourcePath: string) => {
+  const resolvedPath = ensureReadableStudioSource(sourcePath)
+  const { stdout } = await execFileAsync('ffprobe', [
+    '-v', 'error',
+    '-show_entries', 'format=duration:stream=codec_type',
+    '-of', 'json',
+    resolvedPath,
+  ], { maxBuffer: 4 * 1024 * 1024 })
+  const probe = JSON.parse(stdout || '{}') as {
+    format?: { duration?: string | number }
+    streams?: Array<{ codec_type?: string }>
+  }
+  const stat = await fs.promises.stat(resolvedPath)
+  const sha256 = crypto
+    .createHash('sha256')
+    .update(await fs.promises.readFile(resolvedPath))
+    .digest('hex')
+  return {
+    path: resolvedPath,
+    sizeBytes: stat.size,
+    mtimeMs: stat.mtimeMs,
+    sha256,
+    duration: Number(probe.format?.duration || 0),
+    streams: (probe.streams || [])
+      .map((stream) => stream.codec_type || '')
+      .filter(Boolean),
   }
 })
 

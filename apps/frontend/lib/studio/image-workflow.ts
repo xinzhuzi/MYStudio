@@ -164,10 +164,13 @@ export function ensureAssetImageWorkflowGraph(
   context: AssetImageWorkflowContext,
 ): ImageWorkflowGraph {
   let next: ImageWorkflowGraph = { ...graph, target: context.target };
+  if (context.sourceImagePath) {
+    next = collapseEquivalentReferenceNodes(next, context.sourceImagePath);
+  }
   const referenceNode = context.sourceImagePath
     ? next.nodes.find(
         (node): node is ImageWorkflowReferenceNode =>
-          node.type === "reference" && node.imageUrl === context.sourceImagePath,
+          node.type === "reference" && isSameImageReference(node.imageUrl, context.sourceImagePath),
       )
     : undefined;
   const referenceNodeId =
@@ -630,6 +633,77 @@ function findPromptNodeForGenerated(
       node.type === "prompt" &&
       (node.targetNodeId === generatedNodeId || inputNodeIds.includes(node.id)),
   );
+}
+
+function collapseEquivalentReferenceNodes(
+  graph: ImageWorkflowGraph,
+  imageUrl: string,
+): ImageWorkflowGraph {
+  const matchingReferences = graph.nodes.filter(
+    (node): node is ImageWorkflowReferenceNode =>
+      node.type === "reference" && isSameImageReference(node.imageUrl, imageUrl),
+  );
+  if (matchingReferences.length <= 1) return graph;
+
+  const [keeper, ...duplicates] = matchingReferences;
+  const duplicateIds = new Set(duplicates.map((node) => node.id));
+  const edges: ImageWorkflowEdge[] = [];
+  const edgeKeys = new Set<string>();
+
+  for (const edge of graph.edges) {
+    if (duplicateIds.has(edge.target)) continue;
+    const source = duplicateIds.has(edge.source) ? keeper.id : edge.source;
+    const key = `${source}->${edge.target}`;
+    if (edgeKeys.has(key)) continue;
+    edgeKeys.add(key);
+    edges.push({
+      ...edge,
+      id: source === edge.source ? edge.id : key,
+      source,
+    });
+  }
+
+  return touchGraph({
+    ...graph,
+    nodes: graph.nodes.filter((node) => !duplicateIds.has(node.id)),
+    edges,
+  }, Date.now());
+}
+
+function isSameImageReference(left: string | undefined, right: string | undefined) {
+  const leftKeys = imageReferenceKeys(left);
+  const rightKeys = new Set(imageReferenceKeys(right));
+  return leftKeys.some((key) => rightKeys.has(key));
+}
+
+function normalizeImageReference(value: string | undefined) {
+  const trimmed = value?.trim();
+  if (!trimmed) return "";
+  if (/^file:\/\//i.test(trimmed)) {
+    try {
+      return normalizeLocalPath(decodeURI(new URL(trimmed).pathname));
+    } catch {
+      return normalizeLocalPath(trimmed.replace(/^file:\/\//i, ""));
+    }
+  }
+  return normalizeLocalPath(trimmed);
+}
+
+function normalizeLocalPath(value: string) {
+  return value.replace(/\/+$/, "");
+}
+
+function imageReferenceKeys(value: string | undefined) {
+  const normalized = normalizeImageReference(value);
+  if (!normalized) return [];
+  const assetKey = extractProjectAssetImageKey(normalized);
+  return assetKey ? [normalized, assetKey] : [normalized];
+}
+
+function extractProjectAssetImageKey(normalizedPath: string) {
+  const match = normalizedPath.match(/\/assets\/(?:files|thumbs)\/([^/]+)\/([^/.]+)(?:\.[^/]*)?$/i);
+  if (!match) return "";
+  return `asset:${match[1]}:${match[2]}`;
 }
 
 export function createId(prefix: string, time = Date.now()) {

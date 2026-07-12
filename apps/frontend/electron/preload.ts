@@ -176,6 +176,7 @@ contextBridge.exposeInMainWorld('imageHostUploader', {
 contextBridge.exposeInMainWorld('studioRenderer', {
   renderTrackCandidate: (plan: unknown) => ipcRenderer.invoke('studio-render-track-candidate', plan),
   mergeEpisode: (plan: unknown) => ipcRenderer.invoke('studio-merge-episode', plan),
+  probeMedia: (filePath: string) => ipcRenderer.invoke('studio-probe-media-evidence', filePath),
 })
 
 contextBridge.exposeInMainWorld('studioAssets', {
@@ -211,4 +212,6 @@ contextBridge.exposeInMainWorld('ttsRuntime', {
     ipcRenderer.invoke('tts-runtime-request-bytes', payload),
   requestFormData: (payload: { path: string; audioFilePath: string; referenceText?: string }): Promise<unknown> =>
     ipcRenderer.invoke('tts-runtime-request-formdata', payload),
+  resolveReferenceAudioPath: (audioPath: string): Promise<string | null> =>
+    ipcRenderer.invoke('tts-reference-audio-resolve', audioPath),
 })

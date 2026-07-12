@@ -1,8 +1,8 @@
 import { useCallback, useState } from "react";
 import {
-  assignAudioToRoles,
   buildRoleAudioCandidates,
-  createRoleAudioVoiceProfileInput,
+  createNarratorVoiceTarget,
+  planFixedRoleVoices,
 } from "@/components/panels/assets/role-audio-auto-assign";
 import {
   buildEntityResolver,
@@ -33,6 +33,7 @@ import {
   type AssetRow,
 } from "./script-asset-generation-model";
 import { getAbsoluteImagePath } from "@/lib/image-storage";
+import { toRoleSpeakerId } from "@/lib/tts/role-speaker-id";
 
 export function useScriptAssetGenerationActions({
   activeType,
@@ -227,27 +228,35 @@ export function useScriptAssetGenerationActions({
         materials,
         audioResult.items ?? [],
       );
-      if (!candidates.length) {
-        toast.error("音频库暂无可用于克隆的音色音频");
-        return;
-      }
-      const assignments = assignAudioToRoles(roles, candidates);
-      if (!assignments.length) {
-        toast.error("没有生成可写入的音色分配");
-        return;
-      }
-
       setTtsActiveProjectId(activeProjectId);
-      for (const assignment of assignments) {
-        const draft = createRoleAudioVoiceProfileInput(assignment);
-        const profile = createVoiceProfile(draft.profile);
+      const ttsState = useTtsStore.getState();
+      const ttsProject = ttsState.projects[activeProjectId];
+      const plan = await planFixedRoleVoices({
+        targets: [
+          createNarratorVoiceTarget(),
+          ...roles.map((role) => ({
+            speakerId: toRoleSpeakerId(role.id),
+            role,
+          })),
+        ],
+        candidates,
+        bindings: ttsProject?.bindings ?? {},
+        voiceProfiles: ttsState.voiceProfiles,
+        resolveReferenceAudioPath: async (audioPath) =>
+          window.ttsRuntime?.resolveReferenceAudioPath(audioPath) ?? null,
+      });
+      if (plan.errors.length > 0) {
+        throw new Error(plan.errors.map((item) => item.message).join("；"));
+      }
+      for (const item of plan.created) {
+        const profile = createVoiceProfile(item.draft.profile);
         bindSpeaker({
-          ...draft.binding,
+          ...item.draft.binding,
           profileId: profile.id,
         });
       }
       toast.success(
-        `已为 ${assignments.length} 个角色自动分配音频（本地规则）`,
+        `固定音色校验完成：复用 ${plan.fixed.length}，新建 ${plan.created.length}`,
       );
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "自动分配音频失败");
@@ -438,7 +447,7 @@ function getAssetLibrarySetting(row: AssetRow) {
 
 function toRoleAssetSummary(row: AssetRow): StudioAssetSummary | null {
   if (row.type !== "character") return null;
-  if (row.assetLibrary?.type === "role") return row.assetLibrary;
+  const libraryRole = row.assetLibrary?.type === "role" ? row.assetLibrary : undefined;
   const character = row.asset;
   const fields = [
     character?.description,
@@ -448,17 +457,20 @@ function toRoleAssetSummary(row: AssetRow): StudioAssetSummary | null {
     character?.age ? `年龄：${character.age}` : "",
     character?.personality,
     character?.notes,
+    libraryRole?.description,
+    libraryRole?.setting,
     row.note,
   ].filter(Boolean).join("。");
   return {
-    id: character?.id ?? row.id,
-    source: "manying-local",
+    ...libraryRole,
+    id: row.id,
+    source: libraryRole?.source ?? "manying-local",
     type: "role" satisfies StudioAssetKind,
-    name: character?.name ?? row.name,
+    name: character?.name ?? libraryRole?.name ?? row.name,
     description: fields,
     setting: fields,
-    prompt: character?.visualTraits || character?.description || row.note,
-    thumbnailUrl: character?.thumbnailUrl || character?.views?.[0]?.imageUrl,
-    tags: character?.tags,
+    prompt: character?.visualTraits || character?.description || libraryRole?.prompt || row.note,
+    thumbnailUrl: character?.thumbnailUrl || character?.views?.[0]?.imageUrl || libraryRole?.thumbnailUrl,
+    tags: character?.tags ?? libraryRole?.tags,
   };
 }

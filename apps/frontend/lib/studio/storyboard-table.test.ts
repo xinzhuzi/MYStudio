@@ -65,10 +65,65 @@ describe("studio storyboard table parsing", () => {
       "role-002",
       "scene-001",
     ]);
-    const items = toStoryboardItems(rows, "chapter-001");
-    expect(items[0]?.speakerId).toBe("character:掌柜");
-    expect(items[1]?.speakerId).toBe("character:独孤剑尘");
+    const items = toStoryboardItems(rows, "chapter-001", [
+      { characterId: "char-dugu", name: "独孤剑尘", aliases: ["剑尘"] },
+      { characterId: "char-keeper", name: "掌柜", aliases: [] },
+    ]);
+    expect(items).toHaveLength(2);
+    expect(items.map(({ id, trackKey }) => ({ id, trackKey }))).toEqual([
+      { id: "sb-chapter-001-001", trackKey: "chapter-001-scene-1" },
+      { id: "sb-chapter-001-002", trackKey: "chapter-001-scene-1" },
+    ]);
+    expect(items[0]?.speakerId).toBe("character:char-keeper");
+    expect(items[1]?.speakerId).toBe("character:char-dugu");
     expect(items[0]?.assetIds).toEqual(["role-001", "role-002", "scene-001"]);
+  });
+
+  it("preserves decimal duration budgets from the source table", () => {
+    const output = [
+      "<storyboardTable>",
+      "## 场1：金水河码头",
+      "| 序号 | 画面描述 | 时长 | 景别 | 运镜 | 台词 | 音效 |",
+      "|------|------|------|------|------|------|------|",
+      "| 1 | 河雾压低 | 4.2秒 | 远景 | 缓推 | 旁白：河雾压低。 | 水声 |",
+      "| 2 | 火印亮起 | 4.8秒 | 近景 | 静止 | 旁白：火印亮起。 | 风声 |",
+      "</storyboardTable>",
+    ].join("\n");
+
+    const { rows, errors } = parseStoryboardTable(output, "chapter-001");
+    expect(errors).toHaveLength(0);
+    expect(rows.map((row) => row.duration)).toEqual([4.2, 4.8]);
+    expect(
+      toStoryboardItems(rows, "chapter-001", []).map(
+        (item) => item.durationTarget,
+      ),
+    ).toEqual([4.2, 4.8]);
+  });
+
+  it.each([
+    [1, 1],
+    [2, 1],
+    [1, 3],
+  ])("blocks non-continuous storyboard indexes %j", (...indexes) => {
+    const rows = indexes.map(
+      (index) =>
+        `| ${index} | 镜头${index} | 3 | 中景 | 静止 | 旁白：镜头${index}。 | 风声 |`,
+    );
+    const output = [
+      "<storyboardTable>",
+      "## 场1：金水河码头",
+      "| 序号 | 画面描述 | 时长 | 景别 | 运镜 | 台词 | 音效 |",
+      "|------|------|------|------|------|------|------|",
+      ...rows,
+      "</storyboardTable>",
+    ].join("\n");
+
+    const parsed = parseStoryboardTable(output, "chapter-001");
+    const expectedError = `分镜序号必须连续为 1..N: [${indexes.join(", ")}]`;
+    expect(parsed.errors).toContain(expectedError);
+    expect(() =>
+      toStoryboardItems(parsed.rows, "chapter-001", []),
+    ).toThrow(expectedError);
   });
 
   it("merges multiple <storyboardTable> segments, parses 14 columns, splits [a,b] names/ids, skips header/separator/illegal", () => {
@@ -80,7 +135,7 @@ describe("studio storyboard table parsing", () => {
       "</storyboardTable>",
       "<storyboardTable>",
       "| 序号 | 画面描述 | 场景 | 关联资产名称 | 时长 | 景别 | 运镜 | 角色动作 | 朝向 | 空间关系 | 情绪 | 台词 | 音效 | 关联资产ID |",
-      "| 2 | 青云令灵纹暗淡裂痕浮现 | 大殿 | [青云令] | 3 | 大特写 | 静止 | (承接上镜:喷血后切物件)灵纹由亮渐灭 | — | — | 紧张压迫 | 旁白：青云令表面灵纹一寸寸暗淡 | 细微玉石碎裂声 | [202] |",
+      "| 2 | 青云令灵纹暗淡裂痕浮现 | 偏殿 | [青云令] | 3 | 大特写 | 静止 | (承接上镜:喷血后切物件)灵纹由亮渐灭 | — | — | 紧张压迫 | 旁白：青云令表面灵纹一寸寸暗淡 | 细微玉石碎裂声 | [202] |",
       "| 坏行缺列 | 只有两列 |",
       "</storyboardTable>",
     ].join("\n");
@@ -101,6 +156,12 @@ describe("studio storyboard table parsing", () => {
     expect(rows[0]?.lines).toContain("还有你当宝贝的青云令");
     expect(rows[1]?.index).toBe(2);
     expect(rows[1]?.associateAssetsNames).toEqual(["青云令"]);
+    expect(rows.map((row) => row.sceneIndex)).toEqual([1, 2]);
+    expect(
+      toStoryboardItems(rows, "ep1", [
+        { characterId: "char-su", name: "苏晚卿", aliases: [] },
+      ]).map((item) => item.trackKey),
+    ).toEqual(["ep1-scene-1", "ep1-scene-2"]);
     expect(errors).toHaveLength(1);
   });
 
@@ -120,17 +181,19 @@ describe("studio storyboard table parsing", () => {
 });
 
 describe("studio storyboard items mapping", () => {
-  it("maps rows to StoryboardItem, duration = max(table value, computed from lines)", () => {
+  it("maps rows to StoryboardItem while preserving the director-table duration budget", () => {
     const { rows } = parseStoryboardTable(
       [
         "<storyboardTable>",
-        // table says 2s but 12-char line at normal speed needs more → computed wins
+        // The table duration is the chapter pacing budget; real TTS may extend it later.
         "| 1 | 描述 | 大殿 | [甲] | 2 | 近景 | 静止 | (开篇)动作 | 面朝右 | — | 正常陈述 | 甲：这是一句很长的台词需要更多时间念完 | 风声 | [1] |",
         "</storyboardTable>",
       ].join("\n"),
       "ep1",
     );
-    const items = toStoryboardItems(rows, "ep1");
+    const items = toStoryboardItems(rows, "ep1", [
+      { characterId: "char-a", name: "甲", aliases: [] },
+    ]);
     expect(items).toHaveLength(1);
     expect(items[0]?.episodeId).toBe("ep1");
     expect(items[0]?.prompt).toBe("描述");
@@ -138,10 +201,10 @@ describe("studio storyboard items mapping", () => {
     expect(items[0]?.orientation).toBe("面朝右");
     expect(items[0]?.lines).toBe("甲：这是一句很长的台词需要更多时间念完");
     expect(items[0]?.sound).toBe("风声");
-    expect(items[0]?.speakerId).toBe("character:甲");
+    expect(items[0]?.speakerId).toBe("character:char-a");
     expect(items[0]?.shouldGenerateImage).toBe(true);
-    // computed duration for the long line should exceed the table's 2
-    expect(items[0]?.duration).toBeGreaterThan(2);
+    expect(items[0]?.duration).toBe(2);
+    expect(items[0]?.durationTarget).toBe(2);
   });
 
   it("keeps narration as a narrator speaker for TTS voice line generation", () => {
@@ -154,7 +217,7 @@ describe("studio storyboard items mapping", () => {
       "chapter-001",
     );
 
-    const items = toStoryboardItems(rows, "chapter-001");
+    const items = toStoryboardItems(rows, "chapter-001", []);
     expect(items[0]?.lines).toBe("旁白：宗门灵舟压雾而来");
     expect(items[0]?.speakerId).toBe("narrator");
   });

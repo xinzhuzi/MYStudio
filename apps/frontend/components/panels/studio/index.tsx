@@ -114,6 +114,10 @@ export function StudioView() {
                 onNodeEdit={viewModel.openNodeEditor}
                 onNodeAction={viewModel.handleProductionNodeAction}
                 onOpenAssetImageWorkflow={viewModel.openAssetImageWorkflow}
+                chapterAutoVideoStatus={viewModel.chapterAutoVideoStatus}
+                chapterAutoVideoRunning={viewModel.chapterAutoVideoRunning}
+                onRunChapterAutoVideo={viewModel.handleRunChapterAutoVideo}
+                onOpenFinalVideo={viewModel.handleOpenFinalVideo}
               />
             </TabsContent>
 

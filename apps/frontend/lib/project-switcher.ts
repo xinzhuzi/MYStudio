@@ -20,6 +20,7 @@ import { useCharacterLibraryStore } from '@/stores/character-library-store';
 import { useSceneStore } from '@/stores/scene-store';
 import { useSimpleTimelineStore } from '@/stores/simple-timeline-store';
 import { useSClassStore } from '@/stores/sclass-store';
+import { useTtsStore } from '@/stores/tts-store';
 
 /**
  * Switch to a different project. Saves current project data and loads new project data.
@@ -100,17 +101,25 @@ export async function switchProject(newProjectId: string): Promise<void> {
     console.warn('[ProjectSwitcher] Failed to rehydrate sclass store:', e);
   }
 
+  try {
+    await useTtsStore.persist.rehydrate();
+  } catch (e) {
+    console.warn('[ProjectSwitcher] Failed to rehydrate TTS store:', e);
+  }
+
   // 4. NOW sync internal activeProjectId in stores that track it.
   //    By this point, per-project data is already loaded into memory via rehydrate(),
   //    so the persist write triggered here will save the correct data (not empty defaults).
   useScriptStore.getState().setActiveProjectId(newProjectId);
   useDirectorStore.getState().setActiveProjectId(newProjectId);
   useSClassStore.getState().setActiveProjectId(newProjectId);
+  useTtsStore.getState().setActiveProjectId(newProjectId);
 
   // 5. Ensure project data exists in stores that need it
   useScriptStore.getState().ensureProject(newProjectId);
   useDirectorStore.getState().ensureProject(newProjectId);
   useSClassStore.getState().ensureProject(newProjectId);
+  useTtsStore.getState().ensureProject(newProjectId);
 
   console.log(`[ProjectSwitcher] Switch complete → ${newProjectId.substring(0, 8)}`);
 }

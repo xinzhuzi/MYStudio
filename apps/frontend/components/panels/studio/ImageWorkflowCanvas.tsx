@@ -31,7 +31,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { LocalImage } from "@/components/ui/local-image";
 import { Textarea } from "@/components/ui/textarea";
-import { readImageAsBase64 } from "@/lib/image-storage";
+import { getAbsoluteImagePath, readImageAsBase64 } from "@/lib/image-storage";
 import { aiManager } from "@/lib/ai/ai-manager";
 import {
   addGeneratedImageNode,
@@ -55,9 +55,14 @@ import { prepareImageWorkflowReferenceImages } from "@/lib/studio/image-workflow
 import { useProjectStore } from "@/stores/project-store";
 import { useStudioStore } from "@/stores/studio-store";
 import { useAppSettingsStore } from "@/stores/app-settings-store";
+import { useCharacterLibraryStore } from "@/stores/character-library-store";
+import { usePropsLibraryStore } from "@/stores/props-library-store";
+import { useSceneStore } from "@/stores/scene-store";
+import { eventBus } from "@/lib/event-bus";
 import type {
   ImageWorkflowGeneratedNode,
   ImageWorkflowGraph,
+  ImageWorkflowAssetTargetType,
   ImageWorkflowNode,
   ImageWorkflowOpenContext,
   ImageWorkflowPromptNode,
@@ -66,6 +71,7 @@ import type {
   StoryboardItem,
   StudioMaterial,
 } from "@/types/studio";
+import type { StudioAssetKind, StudioAssetSummary } from "@/types/studio-assets";
 import { cn } from "@/lib/utils";
 import { ModelSelector } from "@/components/panels/assist/ModelSelector";
 import { IMAGE_ASPECT_RATIOS, IMAGE_RESOLUTIONS } from "@/lib/ai/image-size-presets";
@@ -539,6 +545,49 @@ export function ImageWorkflowCanvas({
     ],
   );
 
+  const storeGeneratedNodeInAssetLibrary = useCallback(
+    async (nodeId: string) => {
+      const graph =
+        useStudioStore.getState().imageWorkflows.find((item) => item.id === activeGraph?.id) ??
+        activeGraph;
+      if (!graph || graph.target.kind !== "asset") return;
+      const generatedNode = graph.nodes.find(
+        (item): item is ImageWorkflowGeneratedNode =>
+          item.id === nodeId && item.type === "generated",
+      );
+      if (!generatedNode?.resultUrl) {
+        toast.error("请先生成衍生图片");
+        return;
+      }
+      if (!window.studioAssets?.add) {
+        toast.error("当前环境不支持资产库写入");
+        return;
+      }
+      try {
+        const promptNode = findLinkedPromptNodeForGenerated(graph, generatedNode.id);
+        const payload = await buildAssetLibraryPayloadForImageWorkflow({
+          target: graph.target,
+          openContext: isAssetOpenContext(initialAssetContext)
+            ? initialAssetContext
+            : undefined,
+          generatedNode,
+          promptNode,
+        });
+        const existing = await window.studioAssets.getByName?.({
+          type: payload.type,
+          name: payload.name,
+        });
+        const asset = await window.studioAssets.add(payload);
+        if (!asset) throw new Error("资产库写入失败");
+        notifyAssetLibraryUpdated(asset);
+        toast.success(existing ? "资产库已更新" : "已放入资产库");
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "资产库写入失败");
+      }
+    },
+    [activeGraph, initialAssetContext],
+  );
+
   const reactFlowNodes = useMemo<ImageWorkflowReactNode[]>(
     () =>
       (activeGraph?.nodes ?? []).map((node) => ({
@@ -559,7 +608,15 @@ export function ImageWorkflowCanvas({
           onDelete: (nodeId: string) => deleteNode(nodeId),
         },
       })),
-    [activeGraph, applyNodeToStoryboard, deleteNode, generateNode, selectedNodeId, storyboards, updateNode],
+    [
+      activeGraph,
+      applyNodeToStoryboard,
+      deleteNode,
+      generateNode,
+      selectedNodeId,
+      storyboards,
+      updateNode,
+    ],
   );
   const [nodes, setNodes, onNodesChange] =
     useNodesState<ImageWorkflowReactNode>(reactFlowNodes);
@@ -592,7 +649,7 @@ export function ImageWorkflowCanvas({
           {onBack ? (
             <Button size="sm" variant="ghost" onClick={onBack}>
               <ArrowLeft className="h-3.5 w-3.5" />
-              返回工作流
+              返回
             </Button>
           ) : null}
           <div className={cn("flex min-w-[180px] flex-1 items-center text-xs", onBack ? "border-l border-border pl-2" : "")}>
@@ -719,7 +776,7 @@ export function ImageWorkflowCanvas({
           {onBack ? (
             <Button size="sm" variant="ghost" onClick={onBack}>
               <ArrowLeft className="h-3.5 w-3.5" />
-              返回工作流
+              返回
             </Button>
           ) : null}
           <div className={cn("flex min-w-[180px] flex-1 items-center text-xs", onBack ? "border-l border-border pl-2" : "")}>
@@ -800,6 +857,19 @@ export function ImageWorkflowCanvas({
             <Save className="h-3.5 w-3.5" />
             写回目标
           </Button>
+          {activeGraph.target.kind === "asset" ? (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() =>
+                activeGeneratedNode && void storeGeneratedNodeInAssetLibrary(activeGeneratedNode.id)
+              }
+              disabled={!activeGeneratedNode?.resultUrl}
+            >
+              <Save className="h-3.5 w-3.5" />
+              放入资产库
+            </Button>
+          ) : null}
           {selectedEdgeId && canUseGlobalWorkflowControls ? (
             <Button
               size="sm"
@@ -1154,97 +1224,281 @@ function GeneratedNodeEditor({
           </Button>
         </div>
       </div>
-      <div
-        data-toonflow-generated-prompt-panel
-        className="nodrag nopan space-y-3 rounded-md border border-border bg-background/80 p-3"
-      >
-        <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-          <WandSparkles className="h-3.5 w-3.5 text-cyan-200" />
-          图片生成
-        </div>
-        <Textarea
-          data-toonflow-generated-prompt-textarea
-          value={generationPrompt.prompt}
-          onChange={(event) => updateGenerationPrompt({ prompt: event.target.value })}
-          placeholder="描述要生成的图片"
-          className="min-h-[148px] resize-y border-border bg-card/80 text-sm leading-6 text-foreground"
-        />
-        <div className="grid grid-cols-[minmax(0,1fr)_104px_104px] gap-2">
-          <ModelSelector
-            type="image"
-            value={generationPrompt.model ?? ""}
-            onChange={(model) => updateGenerationPrompt({ model })}
-            className="w-full"
-          />
-          <select
-            value={generationPrompt.aspectRatio}
-            onChange={(event) => updateGenerationPrompt({ aspectRatio: event.target.value })}
-            className="h-9 rounded-md border border-border bg-card/80 px-2 text-xs text-foreground outline-none"
-            aria-label="图片比例"
-          >
-            {ASPECT_RATIOS.map((ratio) => (
-              <option key={ratio} value={ratio}>
-                {ratio}
-              </option>
-            ))}
-          </select>
-          <select
-            value={generationPrompt.resolution ?? ""}
-            onChange={(event) => updateGenerationPrompt({ resolution: event.target.value })}
-            className="h-9 rounded-md border border-border bg-card/80 px-2 text-xs text-foreground outline-none"
-            aria-label="图片分辨率"
-          >
-            {RESOLUTION_OPTIONS.map((resolution) => (
-              <option key={resolution} value={resolution}>
-                {resolution}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="grid grid-cols-[minmax(0,1fr)_104px_40px_40px] gap-2">
+      {!promptNode ? (
+        <div
+          data-toonflow-generated-prompt-panel
+          className="nodrag nopan space-y-3 rounded-md border border-border bg-background/80 p-3"
+        >
+          <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+            <WandSparkles className="h-3.5 w-3.5 text-cyan-200" />
+            图片生成
+          </div>
           <Textarea
-            value={generationPrompt.negativePrompt ?? ""}
-            onChange={(event) => updateGenerationPrompt({ negativePrompt: event.target.value })}
-            placeholder="反向提示词（可选）"
-            className="min-h-[44px] border-border bg-card/80 text-xs leading-5 text-foreground"
+            data-toonflow-generated-prompt-textarea
+            value={generationPrompt.prompt}
+            onChange={(event) => updateGenerationPrompt({ prompt: event.target.value })}
+            placeholder="描述要生成的图片"
+            className="min-h-[148px] resize-y border-border bg-card/80 text-sm leading-6 text-foreground"
           />
-          <select
-            value={generationPrompt.quality}
-            onChange={(event) =>
-              updateGenerationPrompt({ quality: event.target.value as ImageWorkflowPromptNode["quality"] })
-            }
-            className="h-9 self-end rounded-md border border-border bg-card/80 px-2 text-xs text-foreground outline-none"
-            aria-label="生成质量"
-          >
-            {QUALITY_OPTIONS.map((quality) => (
-              <option key={quality} value={quality}>
-                {quality}
-              </option>
-            ))}
-          </select>
-          <Button
-            size="icon"
-            onClick={() => onGenerate(node.id)}
-            disabled={generating}
-            aria-label="运行生成"
-            className="self-end"
-          >
-            {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <WandSparkles className="h-4 w-4" />}
-          </Button>
-          <Button
-            size="icon"
-            variant="secondary"
-            onClick={() => onApplyToStoryboard(node.id)}
-            disabled={!node.resultUrl}
-            aria-label="写回目标"
-            className="self-end"
-          >
-            <Save className="h-4 w-4" />
-          </Button>
+          <div className="grid grid-cols-[minmax(0,1fr)_104px_104px] gap-2">
+            <ModelSelector
+              type="image"
+              value={generationPrompt.model ?? ""}
+              onChange={(model) => updateGenerationPrompt({ model })}
+              className="w-full"
+            />
+            <select
+              value={generationPrompt.aspectRatio}
+              onChange={(event) => updateGenerationPrompt({ aspectRatio: event.target.value })}
+              className="h-9 rounded-md border border-border bg-card/80 px-2 text-xs text-foreground outline-none"
+              aria-label="图片比例"
+            >
+              {ASPECT_RATIOS.map((ratio) => (
+                <option key={ratio} value={ratio}>
+                  {ratio}
+                </option>
+              ))}
+            </select>
+            <select
+              value={generationPrompt.resolution ?? ""}
+              onChange={(event) => updateGenerationPrompt({ resolution: event.target.value })}
+              className="h-9 rounded-md border border-border bg-card/80 px-2 text-xs text-foreground outline-none"
+              aria-label="图片分辨率"
+            >
+              {RESOLUTION_OPTIONS.map((resolution) => (
+                <option key={resolution} value={resolution}>
+                  {resolution}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="grid grid-cols-[minmax(0,1fr)_104px_40px_40px] gap-2">
+            <Textarea
+              value={generationPrompt.negativePrompt ?? ""}
+              onChange={(event) => updateGenerationPrompt({ negativePrompt: event.target.value })}
+              placeholder="反向提示词（可选）"
+              className="min-h-[44px] border-border bg-card/80 text-xs leading-5 text-foreground"
+            />
+            <select
+              value={generationPrompt.quality}
+              onChange={(event) =>
+                updateGenerationPrompt({ quality: event.target.value as ImageWorkflowPromptNode["quality"] })
+              }
+              className="h-9 self-end rounded-md border border-border bg-card/80 px-2 text-xs text-foreground outline-none"
+              aria-label="生成质量"
+            >
+              {QUALITY_OPTIONS.map((quality) => (
+                <option key={quality} value={quality}>
+                  {quality}
+                </option>
+              ))}
+            </select>
+            <Button
+              size="icon"
+              onClick={() => onGenerate(node.id)}
+              disabled={generating}
+              aria-label="运行生成"
+              className="self-end"
+            >
+              {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <WandSparkles className="h-4 w-4" />}
+            </Button>
+            <Button
+              size="icon"
+              variant="secondary"
+              onClick={() => onApplyToStoryboard(node.id)}
+              disabled={!node.resultUrl}
+              aria-label="写回目标"
+              className="self-end"
+            >
+              <Save className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
-      </div>
+      ) : null}
     </div>
   );
+}
+
+type ImageWorkflowAssetLibraryPayload = {
+  type: StudioAssetKind;
+  name: string;
+  sourceFilePath: string;
+  description?: string;
+  prompt?: string;
+  setting?: string;
+};
+
+async function buildAssetLibraryPayloadForImageWorkflow({
+  target,
+  openContext,
+  generatedNode,
+  promptNode,
+}: {
+  target: ImageWorkflowGraph["target"];
+  openContext?: AssetImageWorkflowContext;
+  generatedNode: ImageWorkflowGeneratedNode;
+  promptNode?: ImageWorkflowPromptNode;
+}): Promise<ImageWorkflowAssetLibraryPayload> {
+  if (target.kind !== "asset") {
+    throw new Error("当前图片工作流不是衍生资产");
+  }
+  const sourceFilePath = await resolveAssetLibrarySourceFilePath(generatedNode.resultUrl);
+  if (!sourceFilePath) {
+    throw new Error("生成图片未保存为可入库文件");
+  }
+  const metadata = resolveAssetLibraryMetadata(target, openContext, generatedNode, promptNode);
+  return {
+    type: imageWorkflowAssetTypeToLibraryKind(target.assetType),
+    name: metadata.name,
+    sourceFilePath,
+    ...(metadata.description ? { description: metadata.description } : {}),
+    ...(metadata.prompt ? { prompt: metadata.prompt } : {}),
+    ...(metadata.setting ? { setting: metadata.setting } : {}),
+  };
+}
+
+function resolveAssetLibraryMetadata(
+  target: ImageWorkflowGraph["target"],
+  openContext: AssetImageWorkflowContext | undefined,
+  generatedNode: ImageWorkflowGeneratedNode,
+  promptNode?: ImageWorkflowPromptNode,
+) {
+  const fallbackTitle = openContext?.title || generatedNode.title || "衍生资产";
+  const fallbackPrompt = openContext?.prompt || promptNode?.prompt || generatedNode.prompt;
+
+  if (target.assetType === "character") {
+    const store = useCharacterLibraryStore.getState();
+    const character = target.parentId
+      ? store.getCharacterById(target.parentId)
+      : target.id
+        ? store.getCharacterById(target.id)
+        : undefined;
+    const variation =
+      target.parentId && target.id
+        ? store.getVariationById(target.parentId, target.id)
+        : undefined;
+    const variationName = variation?.name || fallbackTitle;
+    return {
+      name: compactText([character?.name, variationName], " · ") || fallbackTitle,
+      description:
+        compactText(
+          [
+            variation?.stageDescription,
+            character?.description,
+            character?.appearance,
+            character?.notes,
+          ],
+          "。",
+        ) || fallbackPrompt,
+      prompt:
+        variation?.visualPromptZh ||
+        variation?.visualPrompt ||
+        character?.visualTraits ||
+        fallbackPrompt,
+      setting: compactText(
+        [
+          character?.role,
+          character?.gender,
+          character?.age,
+          character?.traits,
+          character?.personality,
+        ],
+        "。",
+      ),
+    };
+  }
+
+  if (target.assetType === "scene") {
+    const store = useSceneStore.getState();
+    const scene = target.id ? store.getSceneById(target.id) : undefined;
+    const parentScene =
+      scene?.parentSceneId
+        ? store.getSceneById(scene.parentSceneId)
+        : target.parentId
+          ? store.getSceneById(target.parentId)
+          : undefined;
+    return {
+      name: scene?.name || fallbackTitle,
+      description:
+        compactText(
+          [scene?.location, scene?.time, scene?.atmosphere, scene?.notes],
+          "，",
+        ) || fallbackPrompt,
+      prompt: scene?.visualPrompt || fallbackPrompt,
+      setting: compactText(
+        [
+          parentScene?.name ? `父场景：${parentScene.name}` : "",
+          scene?.viewpointName,
+          scene?.architectureStyle,
+          scene?.spatialLayout,
+          scene?.lightingDesign,
+          scene?.colorPalette,
+        ],
+        "。",
+      ),
+    };
+  }
+
+  if (target.assetType === "prop") {
+    const store = usePropsLibraryStore.getState();
+    const prop = target.id ? store.getPropById(target.id) : undefined;
+    const parentProp = prop?.parentId
+      ? store.getPropById(prop.parentId)
+      : target.parentId
+        ? store.getPropById(target.parentId)
+        : undefined;
+    return {
+      name: prop?.name || fallbackTitle,
+      description: prop?.description || fallbackPrompt,
+      prompt: prop?.visualPrompt || fallbackPrompt,
+      setting: compactText(
+        [
+          parentProp?.name ? `父道具：${parentProp.name}` : "",
+          prop?.category,
+        ],
+        "。",
+      ),
+    };
+  }
+
+  throw new Error("资产工作流缺少资产类型");
+}
+
+function imageWorkflowAssetTypeToLibraryKind(assetType?: ImageWorkflowAssetTargetType): StudioAssetKind {
+  if (assetType === "character") return "role";
+  if (assetType === "scene") return "scene";
+  if (assetType === "prop") return "tool";
+  throw new Error("资产工作流缺少资产类型");
+}
+
+async function resolveAssetLibrarySourceFilePath(image?: string) {
+  if (!image) return undefined;
+  if (image.startsWith("project-file://")) {
+    return (await window.projectFiles?.getAbsolutePath?.(image)) ?? undefined;
+  }
+  if (image.startsWith("local-image://")) {
+    return (await getAbsoluteImagePath(image)) ?? undefined;
+  }
+  if (image.startsWith("file://")) {
+    try {
+      return decodeURIComponent(new URL(image).pathname);
+    } catch {
+      return undefined;
+    }
+  }
+  if (image.startsWith("/")) return image;
+  return undefined;
+}
+
+function notifyAssetLibraryUpdated(asset: StudioAssetSummary) {
+  eventBus.emit("asset:updated", { id: asset.id, type: asset.type });
+}
+
+function compactText(parts: Array<string | undefined>, separator: string) {
+  return parts
+    .map((part) => part?.trim())
+    .filter((part): part is string => Boolean(part))
+    .join(separator);
 }
 
 function PaletteSection({

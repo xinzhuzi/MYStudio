@@ -1,8 +1,8 @@
 import { useCallback, useMemo, useState } from "react";
 import {
-  createEpisodeMergePlan,
-  createTrackRenderPlan,
-} from "@/lib/studio/production";
+  runProductionEpisodeMerge,
+  runProductionTrackRender,
+} from "@/lib/studio/production-runners";
 import { useStudioStore } from "@/stores/studio-store";
 import type {
   ProductionTrack,
@@ -56,7 +56,6 @@ export function useProductionRenderActions({
 
       let candidateId = "";
       try {
-        const plan = createTrackRenderPlan(track, storyboards);
         candidateId = addVideoCandidate({
           trackId,
           provider: "ffmpeg-local",
@@ -64,10 +63,7 @@ export function useProductionRenderActions({
         });
         setRenderingTrackId(trackId);
 
-        const result = await window.studioRenderer?.renderTrackCandidate(plan);
-        if (!result?.success || !result.filePath) {
-          throw new Error(result?.error || "本地 FFmpeg 合成失败");
-        }
+        const result = await runProductionTrackRender({ track, storyboards });
 
         updateVideoCandidate(candidateId, {
           state: "ready",
@@ -99,11 +95,9 @@ export function useProductionRenderActions({
   const handleMergeEpisode = useCallback(async () => {
     try {
       setMerging(true);
-      const plan = createEpisodeMergePlan(selectedCandidates);
-      const result = await window.studioRenderer?.mergeEpisode(plan);
-      if (!result?.success || !result.filePath) {
-        throw new Error(result?.error || "成片拼接失败");
-      }
+      const result = await runProductionEpisodeMerge({
+        candidates: selectedCandidates,
+      });
       setMergeOutput(result.filePath);
       const episodeId =
         productionTracks.find((track) =>

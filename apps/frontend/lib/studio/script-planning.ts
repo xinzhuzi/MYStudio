@@ -17,6 +17,7 @@ export interface ScriptStageContext {
   chapterTitle: string;
   chapterText: string;
   eventState?: string;
+  eventMemoryContext?: string;
   skeleton?: string;
   strategy?: string;
   scriptDraft?: string;
@@ -24,6 +25,8 @@ export interface ScriptStageContext {
   reviewFeedback?: string;
   /** 修订模式下的「上一版本阶段产出」 */
   previousOutput?: string;
+  /** 项目级事件图/记忆的范围检索结果，按 project + episode 隔离后注入。 */
+  projectMemoryContext?: string;
 }
 
 /** 各阶段对应的 skill 手册（作 system，模仿 ToonFlow）。 */
@@ -82,6 +85,8 @@ export function buildStageMessages(stage: ScriptStageKey, ctx: ScriptStageContex
   }
   lines.push(`## 本集信息（1 章 = 1 集）\n章节：${ctx.chapterTitle}`);
   if (ctx.eventState) lines.push(`本章事件分析：\n${ctx.eventState}`);
+  if (ctx.projectMemoryContext) lines.push(ctx.projectMemoryContext);
+  if (ctx.eventMemoryContext) lines.push(ctx.eventMemoryContext);
   if (stage !== "storySkeleton" && ctx.skeleton) lines.push(`故事骨架：\n${ctx.skeleton}`);
   if (stage === "scriptDraft" && ctx.strategy) lines.push(`改编策略：\n${ctx.strategy}`);
   lines.push(`## 本章正文（重点原文）\n\n${toMarkdownQuote(ctx.chapterText)}`);

@@ -6,12 +6,14 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
-  symlinkSync,
+  rmSync,
   writeFileSync,
 } from "node:fs";
 import http from "node:http";
 import { homedir, tmpdir } from "node:os";
 import { dirname, resolve } from "node:path";
+import { terminateSpawnedApp } from "./smoke-process-lifecycle.mjs";
+import { auditVisibleAutoVideo } from "./visible-workflow-auto-video-audit.mjs";
 
 const appBinCandidates = [
   process.env.MYSTUDIO_SMOKE_APP_BIN,
@@ -44,16 +46,33 @@ const debugPort = Number(
   process.env.MYSTUDIO_SMOKE_DEBUG_PORT ||
     String(9400 + Math.floor(Math.random() * 400)),
 );
+const skipPrekill = process.env.MYSTUDIO_SMOKE_SKIP_PREKILL === "1";
 const stepDelayMs = Number(process.env.MYSTUDIO_SMOKE_STEP_DELAY_MS || 2500);
 const safeStepDelayMs = Number.isFinite(stepDelayMs) ? Math.max(0, stepDelayMs) : 2500;
 const appProcessName = "漫影工作室";
+const smokeAudioPath = "/tmp/mystudio-smoke-voice.wav";
+const smokeVideoPath = "/tmp/mystudio-smoke-final.mp4";
 const runRealDaojie =
   process.argv.includes("--daojie") ||
   process.env.MYSTUDIO_WORKFLOW_REAL_DAOJIE === "1";
+const runChapterAutoVideo =
+  process.argv.includes("--auto-video") ||
+  process.env.MYSTUDIO_WORKFLOW_AUTO_VIDEO === "1";
+const autoVideoTimeoutMs = Number(
+  process.env.MYSTUDIO_AUTO_VIDEO_TIMEOUT_MS || 600_000,
+);
+if (runChapterAutoVideo && !runRealDaojie) {
+  throw new Error("--auto-video requires --daojie or MYSTUDIO_WORKFLOW_REAL_DAOJIE=1");
+}
+if (runChapterAutoVideo && (!Number.isFinite(autoVideoTimeoutMs) || autoVideoTimeoutMs <= 0)) {
+  throw new Error("MYSTUDIO_AUTO_VIDEO_TIMEOUT_MS must be a positive number");
+}
+const safeAutoVideoTimeoutMs = Number.isFinite(autoVideoTimeoutMs) && autoVideoTimeoutMs > 0
+  ? Math.floor(autoVideoTimeoutMs)
+  : 600_000;
 const daojieProjectName = "道劫";
 const daojieChapterId = "chapter-001";
 const daojieChapterTitle = "第1章：剑主夜访道口镇";
-const daojieChapter001ExpectedStoryboardCount = 43;
 const daojieProjectId =
   process.env.MYSTUDIO_DAOJIE_PROJECT_ID ||
   "49dce4c1-64b1-42de-85c2-9f266698aec0";
@@ -78,6 +97,83 @@ if (!existsSync(appBin)) {
   process.exit(1);
 }
 
+function runOptional(command, args) {
+  spawnSync(command, args, {
+    cwd: process.cwd(),
+    env: process.env,
+    encoding: "utf8",
+    stdio: "ignore",
+  });
+}
+
+function stopExistingMYStudioInstances() {
+  if (skipPrekill) {
+    console.log("[visible-run] skipping pre-run MYStudio instance cleanup");
+    return;
+  }
+  if (process.platform === "darwin") {
+    runOptional("osascript", [
+      "-e",
+      'tell application id "com.manju2026.manying-studio" to quit',
+    ]);
+  }
+  for (const processName of [
+    "漫影工作室",
+    "漫影工作室 Helper",
+    "manying-studio",
+  ]) {
+    runOptional("pkill", ["-x", processName]);
+  }
+  runOptional("pkill", ["-f", "漫影工作室.app/Contents"]);
+  console.log("[visible-run] closed existing MYStudio instances before workflow run");
+}
+
+function prepareSmokeMedia() {
+  if (runRealDaojie) return;
+  rmSync(smokeAudioPath, { force: true });
+  rmSync(smokeVideoPath, { force: true });
+
+  const audio = spawnSync(
+    "ffmpeg",
+    [
+      "-f",
+      "lavfi",
+      "-i",
+      "anullsrc=r=24000:cl=mono",
+      "-t",
+      "0.2",
+      "-acodec",
+      "pcm_s16le",
+      "-y",
+      smokeAudioPath,
+    ],
+    { stdio: "ignore" },
+  );
+  if (audio.status !== 0 || !existsSync(smokeAudioPath)) {
+    console.warn("[visible-run] failed to create smoke wav fixture");
+  }
+
+  const video = spawnSync(
+    "ffmpeg",
+    [
+      "-f",
+      "lavfi",
+      "-i",
+      "color=c=black:s=320x180:d=0.2",
+      "-pix_fmt",
+      "yuv420p",
+      "-movflags",
+      "+faststart",
+      "-y",
+      smokeVideoPath,
+    ],
+    { stdio: "ignore" },
+  );
+  if (video.status !== 0 || !existsSync(smokeVideoPath)) {
+    console.warn("[visible-run] failed to create smoke mp4 fixture");
+  }
+}
+
 function readJsonFile(filePath) {
   return JSON.parse(readFileSync(filePath, "utf8"));
 }
@@ -90,7 +186,9 @@ function writeVisibleRunReport(report) {
       {
         generatedAt: new Date().toISOString(),
         command: runRealDaojie
-          ? "npm run smoke:workflow:run:daojie"
+          ? runChapterAutoVideo
+            ? "npm run smoke:workflow:run:daojie -- --auto-video"
+            : "npm run smoke:workflow:run:daojie"
           : "npm run smoke:workflow:run",
         reportPath: visibleRunReportPath,
         ...report,
@@ -108,14 +206,14 @@ function copyIfExists(sourcePath, targetPath) {
   copyFileSync(sourcePath, targetPath);
 }
 
-function linkProjectDirectoryIfExists(sourcePath, targetPath) {
+function copyProjectDirectoryIfExists(sourcePath, targetPath) {
   if (!existsSync(sourcePath) || existsSync(targetPath)) return;
   mkdirSync(dirname(targetPath), { recursive: true });
-  try {
-    symlinkSync(sourcePath, targetPath, "dir");
-  } catch {
-    cpSync(sourcePath, targetPath, { recursive: true });
-  }
+  cpSync(sourcePath, targetPath, {
+    recursive: true,
+    dereference: true,
+    preserveTimestamps: true,
+  });
 }
 
 function cloneRealDaojieUserData() {
@@ -153,9 +251,9 @@ function cloneRealDaojieUserData() {
   const chapterStoryboards = (workflowState.storyboards || []).filter(
     (candidate) => candidate.episodeId === daojieChapterId,
   );
-  if (chapterStoryboards.length !== daojieChapter001ExpectedStoryboardCount) {
+  if (!(chapterStoryboards.length > 0)) {
     throw new Error(
-      `Daojie ${daojieChapterId} expected ${daojieChapter001ExpectedStoryboardCount} storyboards but found ${chapterStoryboards.length} in ${workflowStorePath}`,
+      `Daojie ${daojieChapterId} has no source storyboards in ${workflowStorePath}`,
     );
   }
   const sourceDerivedPlans = (workflowState.scriptPlans || []).flatMap(
@@ -192,6 +290,7 @@ function cloneRealDaojieUserData() {
     "studio-workflow-store",
     "director",
     "media",
+    "tts",
   ]) {
     copyIfExists(
       resolve(projectDir, `${storeName}.json`),
@@ -208,15 +307,16 @@ function cloneRealDaojieUserData() {
 
   const sourceExportsDir = resolve(projectDir, "exports");
   const clonedExportsDir = resolve(clonedProjectDir, "exports");
-  linkProjectDirectoryIfExists(sourceExportsDir, clonedExportsDir);
+  copyProjectDirectoryIfExists(sourceExportsDir, clonedExportsDir);
 
   const sourceWorkflowImagesDir = resolve(projectDir, "workflow-images");
   const clonedWorkflowImagesDir = resolve(clonedProjectDir, "workflow-images");
-  linkProjectDirectoryIfExists(sourceWorkflowImagesDir, clonedWorkflowImagesDir);
+  copyProjectDirectoryIfExists(sourceWorkflowImagesDir, clonedWorkflowImagesDir);
 
   return {
     chapterId: chapter.id,
     chapterTitle: chapter.title,
+    expectedStoryboards: chapterStoryboards.length,
     projectId: project.id,
     projectName: project.name,
     sourceProjectsDir,
@@ -294,6 +394,9 @@ const userDataDir =
   realDaojieRun?.userDataDir ||
   process.env.MYSTUDIO_SMOKE_USER_DATA_DIR ||
   mkdtempSync(resolve(tmpdir(), "mystudio-smoke-visible-run-"));
+
+stopExistingMYStudioInstances();
+prepareSmokeMedia();
 
 function readJson(url) {
   return new Promise((resolveJson, reject) => {
@@ -479,7 +582,12 @@ async function runVisibleWorkflow(pageTarget, childPid) {
     await send("Page.bringToFront");
     await ensureAppIsForeground(childPid, "before workflow clicks");
     const expression = runRealDaojie
-      ? realDaojieWorkflowExpression(safeStepDelayMs, realDaojieRun)
+      ? realDaojieWorkflowExpression(
+          safeStepDelayMs,
+          realDaojieRun,
+          runChapterAutoVideo,
+          safeAutoVideoTimeoutMs,
+        )
       : visibleWorkflowExpression(safeStepDelayMs);
     const evaluated = await withTimeout(
       send("Runtime.evaluate", {
@@ -488,6 +596,7 @@ async function runVisibleWorkflow(pageTarget, childPid) {
         expression,
       }),
       "visible step-by-step workflow run",
+      runChapterAutoVideo ? safeAutoVideoTimeoutMs + 180_000 : 120_000,
     );
     return { ...evaluated.result.value, runtimeProblems };
   } finally {
@@ -608,18 +717,26 @@ function visibleWorkflowExpression(delayMs) {
   })()`;
 }
 
-function realDaojieWorkflowExpression(delayMs, daojieRun) {
+function realDaojieWorkflowExpression(
+  delayMs,
+  daojieRun,
+  autoVideoEnabled,
+  autoVideoTimeoutMs,
+) {
   const projectId = JSON.stringify(daojieRun.projectId);
   const projectName = JSON.stringify(daojieRun.projectName);
   const chapterId = JSON.stringify(daojieRun.chapterId);
   const chapterTitle = JSON.stringify(daojieRun.chapterTitle);
-  const expectedStoryboards = daojieChapter001ExpectedStoryboardCount;
+  const expectedStoryboards = Number(daojieRun.expectedStoryboards);
   return `(async () => {
     // Daojie mode does not use resetForStepwiseExecution or seed smoke data.
     const projectId = ${projectId};
     const projectName = ${projectName};
     const chapterId = ${chapterId};
     const chapterTitle = ${chapterTitle};
+    const expectedStoryboards = ${expectedStoryboards};
+    const autoVideoEnabled = ${Boolean(autoVideoEnabled)};
+    const autoVideoTimeoutMs = ${Number(autoVideoTimeoutMs)};
     const normalize = (node) => (node.textContent || '').replace(/\\s+/g, ' ').trim();
     const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     const visibleDelay = () => wait(${delayMs});
@@ -645,9 +762,13 @@ function realDaojieWorkflowExpression(delayMs, daojieRun) {
       const interactive = Array.from(document.querySelectorAll('button, [role="menuitem"], [cmdk-item], [role="button"], .dashboard-project-card'));
       const buttonTexts = interactive.map(normalize).filter(Boolean).slice(0, 80);
       const bodyText = normalize(document.body).slice(0, 1600);
+      const storyboardWorkflowEntries = Array.from(document.querySelectorAll('[data-storyboard-id]'));
+      const storyboardWorkflowEntryIds = [...new Set(storyboardWorkflowEntries.map((entry) => entry.getAttribute('data-storyboard-id') || '').filter(Boolean))];
       return {
         buttonTexts,
         bodyText,
+        storyboardWorkflowEntryCount: storyboardWorkflowEntryIds.length,
+        hasLastStoryboardWorkflowEntry: Boolean(document.querySelector('[aria-label="打开分镜 ' + expectedStoryboards + ' 图片工作流"]')),
         hasStageSwitcher: buttonTexts.some((text) => text.includes('切换阶段')),
         hasWorkflowTab: buttonTexts.some((text) => text === '工作流' || text.includes('工作流')),
         hasProjectCard: Boolean(document.querySelector('.dashboard-project-card')),
@@ -690,11 +811,13 @@ function realDaojieWorkflowExpression(delayMs, daojieRun) {
       const failedCards = firstCards.filter((card) => card.failureReason);
       const loadedCardCount = firstCards.filter((card) => card.loaded).length;
       const hasFailureText = Boolean(section && normalize(section).includes('图片加载失败'));
+      const requiredVisibleCards = Math.min(expectedStoryboards, 24);
       return {
-        ready: Boolean(section) && cards.length >= 24 && loadedCardCount >= 24 && failedCards.length === 0 && !hasFailureText,
+        ready: Boolean(section) && cards.length >= requiredVisibleCards && loadedCardCount >= requiredVisibleCards && failedCards.length === 0 && !hasFailureText,
         sectionFound: Boolean(section),
         cardCount: cards.length,
         loadedCardCount,
+        requiredVisibleCards,
         failedCards,
         firstCards: firstCards.slice(0, 4),
         hasFailureText,
@@ -779,6 +902,7 @@ function realDaojieWorkflowExpression(delayMs, daojieRun) {
         entityExtractions: entityExtractions.length,
         agentWorkItems: agentWorkData.length,
          storyboards: storyboards.length,
+         expectedStoryboards,
          storyboardsWithMediaPath: storyboardsWithMediaPath.length,
          storyboardsWithWorkflow: storyboardsWithWorkflow.length,
          storyboardImageWorkflows: storyboardImageWorkflows.length,
@@ -816,6 +940,8 @@ function realDaojieWorkflowExpression(delayMs, daojieRun) {
         data.storyboardsWithMediaPath === ${expectedStoryboards} &&
         data.storyboardsWithWorkflow === ${expectedStoryboards} &&
         data.storyboardImageWorkflowsReady === ${expectedStoryboards} &&
+        domEvidence.storyboardWorkflowEntryCount >= ${expectedStoryboards} &&
+        domEvidence.hasLastStoryboardWorkflowEntry &&
         Boolean(data.firstFramePath);
       const workbenchReady = data.productionTracks >= 1 && data.videoCandidates >= 1 && (body.includes('添加 track') || body.includes('导出成片') || Boolean(data.finalVideoPath));
       const ready =
@@ -844,6 +970,75 @@ function realDaojieWorkflowExpression(delayMs, daojieRun) {
       await visibleDelay();
       console.info('[visible-run] stage ' + stage.id + ' clicked ' + (clicked.text || 'missing'));
       return clicked;
+    };
+    const captureChapterAutoVideoStatus = () => {
+      const statusNode = document.querySelector('[data-auto-video-stage]');
+      const finalPathButton = Array.from(document.querySelectorAll('button[title]'))
+        .find((node) => normalize(node).includes('打开最终 MP4'));
+      return {
+        stage: statusNode?.getAttribute('data-auto-video-stage') || '',
+        statusText: statusNode ? normalize(statusNode) : '',
+        finalPath: finalPathButton?.getAttribute('title') || '',
+        hasFinalPathButton: Boolean(finalPathButton),
+      };
+    };
+    const runChapterAutoVideoFlow = async () => {
+      if (!autoVideoEnabled) return { enabled: false };
+      const storyboardClick = await clickStage({ id: 'storyboard', label: '分镜视频生成' });
+      const preClickStatus = captureChapterAutoVideoStatus();
+      const startedAtMs = Date.now();
+      const actionClick = clickText('一键第一章成片', true);
+      const stageHistory = [];
+      let lastStage = '';
+      const terminal = actionClick.clicked
+        ? await waitFor(() => {
+            const current = captureChapterAutoVideoStatus();
+            if (current.stage && current.stage !== lastStage) {
+              lastStage = current.stage;
+              stageHistory.push({
+                stage: current.stage,
+                text: current.statusText,
+                observedAt: new Date().toISOString(),
+              });
+              console.info('[visible-run] auto-video stage ' + current.stage + ' ' + current.statusText);
+            }
+            return current.stage === 'completed' || current.stage === 'failed'
+              ? current
+              : null;
+          }, autoVideoTimeoutMs)
+        : null;
+      const finalStatus = terminal || captureChapterAutoVideoStatus();
+      let finalVideoEvidence = null;
+      let finalVideoEvidenceError = '';
+      if (finalStatus.stage === 'completed' && finalStatus.finalPath) {
+        try {
+          if (!window.studioRenderer?.probeMedia) {
+            throw new Error('studioRenderer.probeMedia is unavailable');
+          }
+          finalVideoEvidence = await window.studioRenderer.probeMedia(finalStatus.finalPath);
+        } catch (error) {
+          finalVideoEvidenceError = error instanceof Error ? error.message : String(error);
+        }
+      }
+      return {
+        enabled: true,
+        stageClicked: Boolean(storyboardClick.clicked),
+        clicked: Boolean(actionClick.clicked),
+        clickedText: actionClick.text,
+        preClickStage: preClickStatus.stage,
+        startedAtMs,
+        stageHistory,
+        hasPostClickStageTransition: stageHistory.some(
+          (entry) => entry.stage && entry.stage !== preClickStatus.stage,
+        ),
+        terminalStage: finalStatus.stage,
+        statusText: finalStatus.statusText,
+        finalPath: finalStatus.finalPath,
+        hasFinalPathButton: finalStatus.hasFinalPathButton,
+        finalVideoEvidence,
+        finalVideoEvidenceError,
+        timedOut: Boolean(actionClick.clicked && !terminal),
+      };
     };
     const openRealDaojieDerivativeImageWorkflowDetail = async () => {
       const storyboardClick = await clickStage({ id: 'storyboard', label: '分镜视频生成' });
@@ -917,15 +1112,14 @@ function realDaojieWorkflowExpression(delayMs, daojieRun) {
         const generatedPromptPanelRect = visibleRect(generatedPromptPanel);
         const hasVisibleImageWorkflowCanvas = Boolean(canvasRect?.visible && canvasRect.width >= 480 && canvasRect.height >= 320);
         const hasVisibleGeneratedNode = Boolean(generatedNodeRect?.visible && generatedNodeRect.width >= 180 && generatedNodeRect.height >= 120);
-        const hasVisibleGeneratedPromptPanel = Boolean(generatedPromptPanelRect?.visible && generatedPromptPanelRect.width >= 180 && generatedPromptPanelRect.height >= 80);
+        const hasVisibleDuplicateGeneratedPromptPanel = hasImageWorkflowPromptNode && Boolean(generatedPromptPanelRect?.visible && generatedPromptPanelRect.width >= 180 && generatedPromptPanelRect.height >= 80);
         const generatedPromptTextValues = generatedPromptPanel
           ? Array.from(generatedPromptPanel.querySelectorAll('textarea')).map((node) => node.value || '')
           : [];
-        const promptTextValues = [
-          ...Array.from(document.querySelectorAll('[data-image-workflow-node-kind="prompt"] textarea')).map((node) => node.value || ''),
-          ...generatedPromptTextValues,
-        ];
-        const hasToonflowGeneratedPromptPanel = Boolean(generatedPromptPanel);
+        const promptNodeTextValues = Array.from(document.querySelectorAll('[data-image-workflow-node-kind="prompt"] textarea')).map((node) => node.value || '');
+        const promptTextValues = hasImageWorkflowPromptNode ? promptNodeTextValues : generatedPromptTextValues;
+        const hasNoDuplicateGeneratedPromptPanel = !(hasImageWorkflowPromptNode && Boolean(generatedPromptPanel));
+        const hasNoVisibleDuplicateGeneratedPromptPanel = !hasVisibleDuplicateGeneratedPromptPanel;
         const hasEditableImageWorkflowPrompt = promptTextValues.some((value) => value.trim().length > 0);
         const hasDaojieDerivativePromptStyle = promptTextValues.some((value) =>
           value.includes('水墨国风修仙') &&
@@ -942,7 +1136,7 @@ function realDaojieWorkflowExpression(delayMs, daojieRun) {
           !imageWorkflowScope.querySelector('[data-image-workflow-selector]') &&
           !imageWorkflowScope.querySelector('[data-image-workflow-global-action]');
         const hasNoGlobalImageWorkflowPalettes = !scopedText.includes('项目参考图');
-        const hasImageWorkflowBackButton = scopedButtonTexts.some((text) => text.includes('返回工作流'));
+        const hasImageWorkflowBackButton = scopedButtonTexts.some((text) => text === '返回');
         const hasImageWorkflowRunAction = scopedButtonTexts.some((text) => text.includes('运行生成'));
         const hasImageWorkflowWritebackAction = scopedButtonTexts.some((text) => text.includes('写回目标'));
         const checks = {
@@ -953,9 +1147,9 @@ function realDaojieWorkflowExpression(delayMs, daojieRun) {
           hasVisibleImageWorkflowCanvas,
           hasImageWorkflowNodes,
           hasImageWorkflowPromptNode,
-          hasToonflowGeneratedPromptPanel,
+          hasNoDuplicateGeneratedPromptPanel,
           hasVisibleGeneratedNode,
-          hasVisibleGeneratedPromptPanel,
+          hasNoVisibleDuplicateGeneratedPromptPanel,
           hasEditableImageWorkflowPrompt,
           hasDaojieDerivativePromptStyle,
           hasImageWorkflowSource,
@@ -1060,15 +1254,14 @@ function realDaojieWorkflowExpression(delayMs, daojieRun) {
         const generatedPromptPanelRect = visibleRect(generatedPromptPanel);
         const hasVisibleImageWorkflowCanvas = Boolean(canvasRect?.visible && canvasRect.width >= 480 && canvasRect.height >= 320);
         const hasVisibleGeneratedNode = Boolean(generatedNodeRect?.visible && generatedNodeRect.width >= 180 && generatedNodeRect.height >= 120);
-        const hasVisibleGeneratedPromptPanel = Boolean(generatedPromptPanelRect?.visible && generatedPromptPanelRect.width >= 180 && generatedPromptPanelRect.height >= 80);
+        const hasVisibleDuplicateGeneratedPromptPanel = hasImageWorkflowPromptNode && Boolean(generatedPromptPanelRect?.visible && generatedPromptPanelRect.width >= 180 && generatedPromptPanelRect.height >= 80);
         const generatedPromptTextValues = generatedPromptPanel
           ? Array.from(generatedPromptPanel.querySelectorAll('textarea')).map((node) => node.value || '')
           : [];
-        const promptTextValues = [
-          ...Array.from(document.querySelectorAll('[data-image-workflow-node-kind="prompt"] textarea')).map((node) => node.value || ''),
-          ...generatedPromptTextValues,
-        ];
-        const hasToonflowGeneratedPromptPanel = Boolean(generatedPromptPanel);
+        const promptNodeTextValues = Array.from(document.querySelectorAll('[data-image-workflow-node-kind="prompt"] textarea')).map((node) => node.value || '');
+        const promptTextValues = hasImageWorkflowPromptNode ? promptNodeTextValues : generatedPromptTextValues;
+        const hasNoDuplicateGeneratedPromptPanel = !(hasImageWorkflowPromptNode && Boolean(generatedPromptPanel));
+        const hasNoVisibleDuplicateGeneratedPromptPanel = !hasVisibleDuplicateGeneratedPromptPanel;
         const hasEditableImageWorkflowPrompt = promptTextValues.some((value) => value.trim().length > 0);
         const hasDaojieStoryboardPromptStyle = promptTextValues.some((value) =>
           value.includes('水墨国风修仙') &&
@@ -1085,11 +1278,11 @@ function realDaojieWorkflowExpression(delayMs, daojieRun) {
           !imageWorkflowScope.querySelector('[data-image-workflow-selector]') &&
           !imageWorkflowScope.querySelector('[data-image-workflow-global-action]');
         const hasNoGlobalImageWorkflowPalettes = !scopedText.includes('项目参考图');
-        const hasImageWorkflowBackButton = scopedButtonTexts.some((text) => text.includes('返回工作流'));
+        const hasImageWorkflowBackButton = scopedButtonTexts.some((text) => text === '返回');
         const hasImageWorkflowRunAction = scopedButtonTexts.some((text) => text.includes('运行生成'));
         const hasImageWorkflowWritebackAction = scopedButtonTexts.some((text) => text.includes('写回目标'));
-        return hasReferenceNode && hasGeneratedNode && hasStoryboardWriteback && hasImageWorkflowCanvas && hasVisibleImageWorkflowCanvas && hasImageWorkflowNodes && hasImageWorkflowPromptNode && hasToonflowGeneratedPromptPanel && hasVisibleGeneratedNode && hasVisibleGeneratedPromptPanel && hasEditableImageWorkflowPrompt && hasDaojieStoryboardPromptStyle && hasImageWorkflowSource && hasScopedImageWorkflowSummary && hasNoGlobalImageWorkflowControls && hasNoGlobalImageWorkflowPalettes && hasImageWorkflowBackButton && hasImageWorkflowRunAction && hasImageWorkflowWritebackAction
-          ? { hasReferenceNode, hasGeneratedNode, hasStoryboardWriteback, hasImageWorkflowCanvas, hasVisibleImageWorkflowCanvas, hasImageWorkflowNodes, imageWorkflowNodeCount, hasImageWorkflowPromptNode, hasToonflowGeneratedPromptPanel, hasVisibleGeneratedNode, hasVisibleGeneratedPromptPanel, hasEditableImageWorkflowPrompt, hasDaojieStoryboardPromptStyle, hasImageWorkflowSource, hasScopedImageWorkflowSummary, hasNoGlobalImageWorkflowControls, hasNoGlobalImageWorkflowPalettes, hasImageWorkflowBackButton, hasImageWorkflowRunAction, hasImageWorkflowWritebackAction, canvasRect, generatedNodeRect, generatedPromptPanelRect, inputValues, promptTextValues, generatedPromptTextValues, referenceNodeText, generatedNodeText }
+        return hasReferenceNode && hasGeneratedNode && hasStoryboardWriteback && hasImageWorkflowCanvas && hasVisibleImageWorkflowCanvas && hasImageWorkflowNodes && hasImageWorkflowPromptNode && hasNoDuplicateGeneratedPromptPanel && hasVisibleGeneratedNode && hasNoVisibleDuplicateGeneratedPromptPanel && hasEditableImageWorkflowPrompt && hasDaojieStoryboardPromptStyle && hasImageWorkflowSource && hasScopedImageWorkflowSummary && hasNoGlobalImageWorkflowControls && hasNoGlobalImageWorkflowPalettes && hasImageWorkflowBackButton && hasImageWorkflowRunAction && hasImageWorkflowWritebackAction
+          ? { hasReferenceNode, hasGeneratedNode, hasStoryboardWriteback, hasImageWorkflowCanvas, hasVisibleImageWorkflowCanvas, hasImageWorkflowNodes, imageWorkflowNodeCount, hasImageWorkflowPromptNode, hasNoDuplicateGeneratedPromptPanel, hasVisibleGeneratedNode, hasNoVisibleDuplicateGeneratedPromptPanel, hasEditableImageWorkflowPrompt, hasDaojieStoryboardPromptStyle, hasImageWorkflowSource, hasScopedImageWorkflowSummary, hasNoGlobalImageWorkflowControls, hasNoGlobalImageWorkflowPalettes, hasImageWorkflowBackButton, hasImageWorkflowRunAction, hasImageWorkflowWritebackAction, canvasRect, generatedNodeRect, generatedPromptPanelRect, inputValues, promptTextValues, generatedPromptTextValues, referenceNodeText, generatedNodeText }
           : null;
       }, 8_000);
       return {
@@ -1129,6 +1322,7 @@ function realDaojieWorkflowExpression(delayMs, daojieRun) {
         completed: false,
         progress: 0,
         results: [],
+        chapterAutoVideo: { enabled: autoVideoEnabled },
         daojie,
         error: 'stage switcher was not visible',
         domEvidence,
@@ -1164,8 +1358,19 @@ function realDaojieWorkflowExpression(delayMs, daojieRun) {
       });
     }
 
-    const storyboardImageWorkflowDetail = await openRealDaojieStoryboardImageWorkflowDetail();
-    const derivativeImageWorkflowDetail = await openRealDaojieDerivativeImageWorkflowDetail();
+    const chapterAutoVideo = await runChapterAutoVideoFlow();
+    const stopAfterAutoVideo = autoVideoEnabled && (
+      chapterAutoVideo.terminalStage !== 'completed'
+      || chapterAutoVideo.timedOut
+      || chapterAutoVideo.finalVideoEvidenceError
+      || !chapterAutoVideo.finalVideoEvidence
+    );
+    const storyboardImageWorkflowDetail = stopAfterAutoVideo
+      ? { ready: false, skippedAfterAutoVideoFailure: true }
+      : await openRealDaojieStoryboardImageWorkflowDetail();
+    const derivativeImageWorkflowDetail = stopAfterAutoVideo
+      ? { ready: false, skippedAfterAutoVideoFailure: true }
+      : await openRealDaojieDerivativeImageWorkflowDetail();
     const daojie = await inspectDaojieProjectData();
     return {
       source: daojie.source,
@@ -1174,6 +1379,7 @@ function realDaojieWorkflowExpression(delayMs, daojieRun) {
       completed: results.every((item) => item.clicked && item.ready),
       progress: results.filter((item) => item.ready).length / results.length * 100,
       results,
+      chapterAutoVideo,
       storyboardImageWorkflowDetail,
       derivativeImageWorkflowDetail,
       daojie,
@@ -1206,6 +1412,7 @@ const child = spawn(
     stdio: "ignore",
   },
 );
+let runPassed = false;
 
 try {
   const page = await waitForPageTarget();
@@ -1221,6 +1428,8 @@ try {
     userDataDir,
     debugPort,
     runRealDaojie,
+    runChapterAutoVideo,
+    chapterAutoVideo: result.chapterAutoVideo,
     frontmostApp,
     result,
     failedStages,
@@ -1229,9 +1438,16 @@ try {
   if (runRealDaojie) {
     const diskDaojie = inspectClonedDaojieProjectData(userDataDir);
     const daojie = { ...(result.daojie || {}), ...diskDaojie };
+    const expectedStoryboards = Number(realDaojieRun?.expectedStoryboards ?? daojie.expectedStoryboards);
     const storyboardPaletteImages = result.derivativeImageWorkflowDetail?.storyboardPaletteImages;
     const scopedDerivativePaletteAbsent = storyboardPaletteImages?.sectionFound === false;
+    const chapterAutoVideo = result.chapterAutoVideo || { enabled: false };
+    const autoVideoAudit = runChapterAutoVideo
+      ? auditVisibleAutoVideo({ chapterAutoVideo, userDataDir })
+      : { ok: true, expectedRoot: "", issues: [] };
+    const autoVideoFailed = runChapterAutoVideo && !autoVideoAudit.ok;
     const failed =
+      !(expectedStoryboards > 0) ||
       result.source !== "real-daojie-chapter001-clone" ||
       !result.clickedWorkflow ||
       !result.completed ||
@@ -1241,10 +1457,10 @@ try {
       daojie.chapterId !== daojieChapterId ||
       daojie.chapterTitle !== daojieChapterTitle ||
       daojie.sourceLength < 9000 ||
-      daojie.storyboards !== daojieChapter001ExpectedStoryboardCount ||
-      daojie.storyboardsWithMediaPath !== daojieChapter001ExpectedStoryboardCount ||
-      daojie.storyboardsWithWorkflow !== daojieChapter001ExpectedStoryboardCount ||
-      daojie.storyboardImageWorkflowsReady !== daojieChapter001ExpectedStoryboardCount ||
+      daojie.storyboards !== expectedStoryboards ||
+      daojie.storyboardsWithMediaPath !== expectedStoryboards ||
+      daojie.storyboardsWithWorkflow !== expectedStoryboards ||
+      daojie.storyboardImageWorkflowsReady !== expectedStoryboards ||
       daojie.totalStoryboardDuration > 180 ||
       daojie.totalTrackDuration > 180 ||
       daojie.derivedAssetPlan < 3 ||
@@ -1257,19 +1473,23 @@ try {
       daojie.productionTracks < 1 ||
       daojie.videoCandidates < 1 ||
       daojie.hasSmokeTemplate ||
+      autoVideoFailed ||
       (process.platform === "darwin" && frontmostApp !== appProcessName);
     writeVisibleRunReport({
       ...baseReport,
       source: result.source,
       ok: !failed,
-      daojie,
+      autoVideoFailed,
+      autoVideoAudit,
+      daojie: { ...daojie, expectedStoryboards },
     });
     if (failed) {
       console.error(JSON.stringify({ ...result, frontmostApp }, null, 2));
       process.exitCode = 1;
     } else {
+      runPassed = true;
       console.log(
-        `[visible-run] Daojie chapter001 clicked through and left open: pid=${child.pid}, project=${daojie.projectName}, chapter=${daojie.chapterId}, storyboards=${daojie.storyboards}, derivedAssets=${daojie.derivedAssets}, derivedImageWorkflows=${daojie.derivedImageWorkflowsReady}/${daojie.derivedImageWorkflows}, videoCandidates=${daojie.videoCandidates}, frontmostApp=${frontmostApp}, userDataDir=${userDataDir}`,
+        `[visible-run] Daojie chapter001 clicked through and left open: pid=${child.pid}, project=${daojie.projectName}, chapter=${daojie.chapterId}, storyboards=${daojie.storyboards}/${expectedStoryboards}, derivedAssets=${daojie.derivedAssets}, derivedImageWorkflows=${daojie.derivedImageWorkflowsReady}/${daojie.derivedImageWorkflows}, videoCandidates=${daojie.videoCandidates}, autoVideoStage=${chapterAutoVideo.terminalStage || "disabled"}, frontmostApp=${frontmostApp}, userDataDir=${userDataDir}`,
       );
     }
   } else if (
@@ -1293,13 +1513,34 @@ try {
       source: result.source,
       ok: true,
     });
+    runPassed = true;
     console.log(
       `[visible-run] workflow clicked through and left open: pid=${child.pid}, progress=${result.progress}, frontmostApp=${frontmostApp}, userDataDir=${userDataDir}`,
     );
   }
 } catch (error) {
-  console.error(error instanceof Error ? error.message : String(error));
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  console.error(errorMessage);
+  try {
+    writeVisibleRunReport({
+      ok: false,
+      source: runRealDaojie
+        ? "real-daojie-chapter001-clone"
+        : "isolated-smoke-project",
+      appBin,
+      userDataDir,
+      debugPort,
+      runRealDaojie,
+      runChapterAutoVideo,
+      error: errorMessage,
+    });
+  } catch (reportError) {
+    console.error(
+      `[visible-run] failed to write failure report: ${reportError instanceof Error ? reportError.message : String(reportError)}`,
+    );
+  }
   process.exitCode = 1;
 } finally {
-  child.unref();
+  if (runPassed) child.unref();
+  else await terminateSpawnedApp(child, { logPrefix: "[visible-run]" });
 }

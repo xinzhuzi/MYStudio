@@ -1,3 +1,4 @@
+/// <reference types="vitest" />
 import { defineConfig } from 'vite';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -38,4 +39,7 @@ export default defineConfig({
       renderer: process.env.NODE_ENV === 'test' ? undefined : {},
     }),
   ],
+  test: {
+    setupFiles: [path.resolve(configDir, 'vitest.setup.ts')],
+  },
 });

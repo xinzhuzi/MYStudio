@@ -7,7 +7,11 @@ import {
   buildWorkflowReadiness,
   type WorkflowStageReadiness,
 } from "@/lib/studio/workflow-readiness";
-import type { AgentWorkData, AgentWorkKey } from "@/types/studio";
+import {
+  buildWorkflowParityReport,
+  type WorkflowParityReport,
+} from "@/lib/studio/workflow-parity-report";
+import type { AgentWorkData, AgentWorkKey, StudioAgentRun } from "@/types/studio";
 import type { ProjectVoiceBinding, SceneVoiceLine, VoiceProfile } from "@/types/tts";
 
 export interface WorkflowSmokeResult {
@@ -15,6 +19,7 @@ export interface WorkflowSmokeResult {
   nextStageId: string;
   nextActionLabel: string;
   checks: Record<string, boolean>;
+  workflowParityReport?: WorkflowParityReport;
 }
 
 export interface WorkflowSmokeStageEvidence {
@@ -126,8 +131,8 @@ async function runStepwiseWorkflowStage(
 
 function applyManualsStep() {
   useStudioStore.getState().setWorkflowConfig({
-    visualManualId: "2d_ink_xianxia",
-    directorManualId: "xianxia_film_director",
+    visualManualId: "2D_chinese_guofeng",
+    directorManualId: "Xianxia_fantasy",
     episodeDurationMin: 3,
     episodeCount: 1,
     platformSpec: "9:16",
@@ -156,6 +161,7 @@ function applyNovelStep(now: number) {
     agentWorkData: [
       work("eventAnalysis", "事件分析完成：成功 1 章，失败 0 章。", SMOKE_CHAPTER_ID, now),
     ],
+    agentRuns: [run("eventAnalysis", "script", "smoke-event-analysis", now)],
   });
 }
 
@@ -169,6 +175,11 @@ function applyScriptStep(now: number) {
       work("adaptationStrategyReview", "## 改编策略审核\n通过：节奏压缩符合 3 分钟规格。", SMOKE_CHAPTER_ID, now),
       work("scriptDraft", "## S01\n独孤剑尘睁眼，尘土和铁链声压下来。", SMOKE_CHAPTER_ID, now),
       work("scriptDraftReview", "## 剧本审核\n通过：台词、动作、情绪递进完整。", SMOKE_CHAPTER_ID, now),
+    ]),
+    agentRuns: upsertRuns(state.agentRuns, [
+      run("storySkeleton", "script", "smoke-storySkeleton", now),
+      run("adaptationStrategy", "script", "smoke-adaptationStrategy", now),
+      run("scriptDraft", "script", "smoke-scriptDraft", now),
     ]),
   }));
 }
@@ -235,6 +246,10 @@ function applyAssetsStep(now: number) {
         ],
         props: [{ assetId: SMOKE_PROP_ID, name: "断剑", note: "主线道具。" }],
       },
+    ],
+    agentRuns: [
+      ...useStudioStore.getState().agentRuns.filter((item) => item.key !== "entityExtraction"),
+      run("entityExtraction", "assets", "smoke-entity-1", now),
     ],
   });
 }
@@ -343,6 +358,12 @@ function applyStoryboardStep(now: number) {
       work("storyboardImage", `分镜 1 图片已保存：${framePath}`, SMOKE_CHAPTER_ID, now),
       work("voiceAssign", "已为独孤剑尘分配 Smoke 青年男声。", SMOKE_CHAPTER_ID, now),
     ]),
+    agentRuns: upsertRuns(state.agentRuns, [
+      run("directorPlan", "scriptPlan", "smoke-plan-1", now),
+      run("storyboardTable", "storyboardTable", "smoke-storyboard-1", now),
+      run("storyboardImage", "storyboard", "smoke-storyboard-flow-1", now),
+      run("voiceAssign", "workbench", "smoke-voice-profile", now),
+    ]),
     scriptPlans: [
       {
         id: "smoke-plan-1",
@@ -382,11 +403,46 @@ function applyStoryboardStep(now: number) {
         trackKey: "opening",
         trackId: SMOKE_TRACK_ID,
         duration: 5,
-        prompt: "水墨矿场，青年剑修睁眼，铁链震动。",
+        prompt: "@图1 为独孤剑尘角色参考，@图2 为矿场场景参考。【画面】@图1 在 @图2 睁眼，铁链震动。",
         videoDesc: "旁白：他在尘土里醒来。",
         assetIds: [SMOKE_ROLE_ID, SMOKE_SCENE_ID],
-        mediaRef: { kind: "image", path: framePath },
+        mediaRef: {
+          kind: "image",
+          path: framePath,
+          imageWorkflowId: "smoke-storyboard-flow-1",
+          imageWorkflowNodeId: "smoke-generated-1",
+        },
+        imageWorkflowId: "smoke-storyboard-flow-1",
+        imageWorkflowNodeId: "smoke-generated-1",
+        shouldGenerateImage: true,
+        audioRef: { kind: "audio", path: SMOKE_AUDIO_PATH },
         state: "ready",
+        lines: "旁白：他在尘土里醒来。",
+        speakerId: "narrator",
+        sourceEvidence: {
+          source: "smoke-seed",
+          sourceProjectId: SMOKE_PROJECT_ID,
+          sourceEpisodeId: SMOKE_CHAPTER_ID,
+          sourceStoryboardId: SMOKE_STORYBOARD_ID,
+        },
+        orderedReferenceManifest: [
+          {
+            order: 1,
+            assetId: SMOKE_ROLE_ID,
+            assetName: "独孤剑尘",
+            assetKind: "character",
+            imagePath: framePath,
+            source: "smoke-project-character",
+          },
+          {
+            order: 2,
+            assetId: SMOKE_SCENE_ID,
+            assetName: "矿场",
+            assetKind: "scene",
+            imagePath: framePath,
+            source: "smoke-project-scene",
+          },
+        ],
       },
     ],
     productionTracks: [
@@ -410,6 +466,9 @@ function applyWorkbenchStep(now: number) {
   useStudioStore.setState((state) => ({
     agentWorkData: upsertWorks(state.agentWorkData, [
       work("productionPlan", `本地成片输出: ${SMOKE_VIDEO_PATH}`, SMOKE_CHAPTER_ID, now),
+    ]),
+    agentRuns: upsertRuns(state.agentRuns, [
+      run("productionPlan", "workbench", SMOKE_VIDEO_PATH, now),
     ]),
     productionTracks: [
       {
@@ -540,8 +599,8 @@ async function seedCompleteWorkflow(): Promise<WorkflowSmokeResult> {
   });
 
   studio.setWorkflowConfig({
-    visualManualId: "2d_ink_xianxia",
-    directorManualId: "xianxia_film_director",
+    visualManualId: "2D_chinese_guofeng",
+    directorManualId: "Xianxia_fantasy",
     episodeDurationMin: 3,
     episodeCount: 1,
     platformSpec: "9:16",
@@ -572,6 +631,18 @@ async function seedCompleteWorkflow(): Promise<WorkflowSmokeResult> {
       work("scriptDraftReview", "剧本审核：通过，镜头动作和台词齐全。", chapterId, now),
       work("storyboardTable", "|镜头|画面|台词|\n|1|水墨矿场醒来|他在尘土里醒来。|", chapterId, now),
       work("productionPlan", `本地成片输出: ${videoPath}`, "episode-1", now),
+    ],
+    agentRuns: [
+      run("eventAnalysis", "script", "smoke-event-analysis", now),
+      run("storySkeleton", "script", "smoke-storySkeleton", now),
+      run("adaptationStrategy", "script", "smoke-adaptationStrategy", now),
+      run("scriptDraft", "script", "smoke-scriptDraft", now),
+      run("entityExtraction", "assets", "smoke-entity-1", now),
+      run("directorPlan", "scriptPlan", "smoke-plan-1", now),
+      run("storyboardTable", "storyboardTable", storyboardId, now),
+      run("storyboardImage", "storyboard", "smoke-storyboard-flow-1", now),
+      run("voiceAssign", "workbench", "smoke-voice-profile", now),
+      run("productionPlan", "workbench", videoPath, now),
     ],
     entityExtractions: [
       {
@@ -617,11 +688,46 @@ async function seedCompleteWorkflow(): Promise<WorkflowSmokeResult> {
         trackKey: "opening",
         trackId,
         duration: 5,
-        prompt: "水墨矿场，青年剑修睁眼，铁链震动。",
+        prompt: "@图1 为独孤剑尘角色参考，@图2 为矿场场景参考。【画面】@图1 在 @图2 睁眼，铁链震动。",
         videoDesc: "旁白：他在尘土里醒来。",
         assetIds: [roleId, sceneId],
-        mediaRef: { kind: "image", path: framePath },
+        mediaRef: {
+          kind: "image",
+          path: framePath,
+          imageWorkflowId: "smoke-storyboard-flow-1",
+          imageWorkflowNodeId: "smoke-generated-1",
+        },
+        imageWorkflowId: "smoke-storyboard-flow-1",
+        imageWorkflowNodeId: "smoke-generated-1",
+        shouldGenerateImage: true,
+        audioRef: { kind: "audio", path: audioPath },
         state: "ready",
+        lines: "旁白：他在尘土里醒来。",
+        speakerId: "narrator",
+        sourceEvidence: {
+          source: "smoke-seed",
+          sourceProjectId: "default-project",
+          sourceEpisodeId: chapterId,
+          sourceStoryboardId: storyboardId,
+        },
+        orderedReferenceManifest: [
+          {
+            order: 1,
+            assetId: roleId,
+            assetName: "独孤剑尘",
+            assetKind: "character",
+            imagePath: framePath,
+            source: "smoke-project-character",
+          },
+          {
+            order: 2,
+            assetId: sceneId,
+            assetName: "矿场",
+            assetKind: "scene",
+            imagePath: framePath,
+            source: "smoke-project-scene",
+          },
+        ],
       },
     ],
     productionTracks: [
@@ -719,6 +825,23 @@ async function inspectWorkflow(): Promise<WorkflowSmokeInspection> {
     sceneVoiceLines: Object.values(project?.voiceLines ?? {}),
     capabilities: { textCompletion: true, studioRenderer: true },
   });
+  const workflowParityReport = buildWorkflowParityReport({
+    agentWorkData: studio.agentWorkData,
+    agentRuns: studio.agentRuns,
+    mediaTasks: studio.mediaTasks,
+    entityExtractions: studio.entityExtractions,
+    scriptPlans: studio.scriptPlans,
+    storyboards: studio.storyboards,
+    productionTracks: studio.productionTracks,
+    videoCandidates: studio.videoCandidates,
+    workflowConfig: studio.workflowConfig,
+    evidenceBoundary: {
+      seededUiSmoke: true,
+      visibleWorkflowSmoke: stepwiseEvidence.length > 0,
+      realDaojieVisibleSmoke: false,
+      realMediaGeneration: false,
+    },
+  });
 
   return {
     source: "isolated-smoke-project",
@@ -739,7 +862,12 @@ async function inspectWorkflow(): Promise<WorkflowSmokeInspection> {
       hasSelectedCandidate: studio.productionTracks.some((track) => Boolean(track.selectedVideoId)),
       hasVoiceBinding: Object.keys(project?.bindings ?? {}).some((speakerId) => speakerId.startsWith("character:")),
       hasVoiceAudio: Object.values(project?.voiceLines ?? {}).some((line) => line.status === "completed" && Boolean(line.audioLocalPath || line.audioFilePath)),
+      hasWorkflowParityReport: true,
+      workflowParityNoErrors: !workflowParityReport.issues.some((issue) => issue.severity === "error"),
+      workflowParityHasOrderedReferences: workflowParityReport.references.storyboardsWithOrderedManifest === studio.storyboards.length,
+      workflowParityHasSourceEvidence: workflowParityReport.storyboard.withSourceEvidence === studio.storyboards.length,
     },
+    workflowParityReport,
   };
 }
 
@@ -815,6 +943,16 @@ function upsertWorks(items: AgentWorkData[], updates: AgentWorkData[]) {
   return next;
 }
 
+function upsertRuns(items: StudioAgentRun[], updates: StudioAgentRun[]) {
+  const next = [...items];
+  for (const update of updates) {
+    const existingIndex = next.findIndex((item) => item.id === update.id);
+    if (existingIndex >= 0) next[existingIndex] = update;
+    else next.push(update);
+  }
+  return next;
+}
+
 function bindSmokeVoice(now: number) {
   const tts = useTtsStore.getState();
   tts.setActiveProjectId(SMOKE_PROJECT_ID);
@@ -873,6 +1011,20 @@ function work(key: AgentWorkKey, data: string, episodeId: string, now: number) {
     data,
     createdAt: now,
     updatedAt: now,
+  };
+}
+
+function run(key: AgentWorkKey, phase: string, outputRef: string, now: number): StudioAgentRun {
+  return {
+    id: `smoke-run-${key}`,
+    key,
+    phase,
+    status: "success",
+    inputSummary: `${key}:${SMOKE_CHAPTER_ID}`,
+    inputFingerprint: `smoke:${key}:${SMOKE_CHAPTER_ID}`,
+    outputRef,
+    startedAt: now,
+    finishedAt: now,
   };
 }
 

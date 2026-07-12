@@ -30,6 +30,7 @@ const appBinCandidates = [
 const appBin =
   appBinCandidates.find((candidate) => existsSync(candidate)) ??
   appBinCandidates[0];
+const skipPrekill = process.env.MYSTUDIO_SMOKE_SKIP_PREKILL === "1";
 const userDataDir =
   process.env.MYSTUDIO_SMOKE_USER_DATA_DIR ||
   mkdtempSync(resolve(tmpdir(), "mystudio-smoke-open-"));
@@ -39,6 +40,37 @@ if (!existsSync(appBin)) {
     `Packaged app was not found. Checked:\n${appBinCandidates.join("\n")}`,
   );
   process.exit(1);
+}
+
+function runOptional(command, args) {
+  spawnSync(command, args, {
+    cwd: process.cwd(),
+    env: process.env,
+    encoding: "utf8",
+    stdio: "ignore",
+  });
+}
+
+function stopExistingMYStudioInstances() {
+  if (skipPrekill) {
+    console.log("[open] skipping pre-run MYStudio instance cleanup");
+    return;
+  }
+  if (process.platform === "darwin") {
+    runOptional("osascript", [
+      "-e",
+      'tell application id "com.manju2026.manying-studio" to quit',
+    ]);
+  }
+  for (const processName of [
+    "漫影工作室",
+    "漫影工作室 Helper",
+    "manying-studio",
+  ]) {
+    runOptional("pkill", ["-x", processName]);
+  }
+  runOptional("pkill", ["-f", "漫影工作室.app/Contents"]);
+  console.log("[open] closed existing MYStudio instances before opening workflow app");
 }
 
 function bringAppToForeground(pid) {
@@ -51,6 +83,8 @@ function bringAppToForeground(pid) {
     );
   }
 }
+
+stopExistingMYStudioInstances();
 
 const args = [`--user-data-dir=${userDataDir}`];
 if (process.env.MYSTUDIO_SMOKE_DEBUG_PORT) {

@@ -14,7 +14,13 @@ import {
   buildStudioManualContext,
   type StudioManualCatalog,
 } from "@/lib/studio/manuals";
+import {
+  buildProjectMemoryRecords,
+  formatProjectMemoryContext,
+  retrieveProjectMemory,
+} from "@/lib/studio/project-memory";
 import { useStudioStore } from "@/stores/studio-store";
+import { useProjectStore } from "@/stores/project-store";
 import type {
   AgentWorkData,
   AgentWorkKey,
@@ -155,6 +161,19 @@ export function useScriptStageActions({
       const reviewKey = SCRIPT_STAGE_REVIEW_KEY[stage as ReviewableStage];
       const review = reviewKey ? latestScriptStage(reviewKey, chapter.id) : "";
       const useReviewFeedback = options?.useReviewFeedback;
+      const store = useStudioStore.getState();
+      const projectId = useProjectStore.getState().activeProjectId ?? "studio-current-project";
+      const eventMemoryContext = formatProjectMemoryContext(retrieveProjectMemory({
+        records: buildProjectMemoryRecords({
+          projectId,
+          chapters: store.novelChapters,
+          entityExtractions: store.entityExtractions,
+          seriesBible: store.seriesBible,
+        }),
+        projectId,
+        episodeId: chapter.id,
+        query: `${chapter.title} ${chapter.eventSummary ?? ""} ${chapter.eventState ?? ""}`,
+      }));
       if (stage === "adaptationStrategy" && !skeleton) {
         toast.error("请先生成故事骨架");
         return;
@@ -169,6 +188,7 @@ export function useScriptStageActions({
         chapterTitle: chapter.title,
         chapterText: chapter.sourceText,
         eventState: chapter.eventState,
+        eventMemoryContext,
         skeleton,
         strategy,
         scriptDraft,

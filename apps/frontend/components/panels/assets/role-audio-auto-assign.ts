@@ -2,6 +2,7 @@ import type { StudioMaterial } from "@/types/studio";
 import type { StudioAssetSummary } from "@/types/studio-assets";
 import type { ProjectVoiceBinding, TtsSpeakerId, VoiceProfile } from "@/types/tts";
 import { toRoleSpeakerId } from "@/lib/tts/role-speaker-id";
+import { validateVoiceProfileForGeneration } from "@/lib/tts/voice-profile-capabilities";
 
 type VoiceProfileInput = Omit<VoiceProfile, "id" | "createdAt" | "updatedAt">;
 
@@ -43,6 +44,53 @@ export interface RoleAudioVoiceProfileDraft {
   speakerId: TtsSpeakerId;
   profile: VoiceProfileInput;
   binding: Omit<ProjectVoiceBinding, "profileId">;
+}
+
+export interface FixedVoiceTarget {
+  speakerId: TtsSpeakerId;
+  role: StudioAssetSummary;
+}
+
+export interface FixedVoicePlanError {
+  speakerId: TtsSpeakerId;
+  code:
+    | "duplicate-speaker"
+    | "missing-profile"
+    | "missing-reference-audio"
+    | "missing-reference-text"
+    | "unreadable-reference-audio"
+    | "missing-candidate"
+    | "assignment-failed"
+    | "invalid-profile";
+  message: string;
+}
+
+export interface FixedVoicePlan {
+  fixed: Array<{
+    speakerId: TtsSpeakerId;
+    binding: ProjectVoiceBinding;
+    profile: VoiceProfile;
+    match: "fixed";
+  }>;
+  created: Array<{
+    speakerId: TtsSpeakerId;
+    assignment: RoleAudioAssignment;
+    draft: RoleAudioVoiceProfileDraft;
+    match: "ai-selected";
+  }>;
+  errors: FixedVoicePlanError[];
+}
+
+export interface PlanFixedRoleVoicesInput {
+  targets: FixedVoiceTarget[];
+  candidates: RoleAudioCandidate[];
+  bindings: Record<string, ProjectVoiceBinding>;
+  voiceProfiles: Record<string, VoiceProfile>;
+  resolveReferenceAudioPath: (audioPath: string) => Promise<string | null>;
+  assignUnbound?: (
+    roles: StudioAssetSummary[],
+    candidates: RoleAudioCandidate[],
+  ) => Promise<RoleAudioAssignment[]> | RoleAudioAssignment[];
 }
 
 const GENDER_CUES: Record<Exclude<Gender, "unknown">, string[]> = {
@@ -242,8 +290,10 @@ export async function assignAudioToRolesWithAi(
   return assignments;
 }
 
-export function createRoleAudioVoiceProfileInput(assignment: RoleAudioAssignment): RoleAudioVoiceProfileDraft {
-  const speakerId = toRoleSpeakerId(assignment.role.id);
+export function createRoleAudioVoiceProfileInput(
+  assignment: RoleAudioAssignment,
+  speakerId: TtsSpeakerId = toRoleSpeakerId(assignment.role.id),
+): RoleAudioVoiceProfileDraft {
   return {
     speakerId,
     profile: {
@@ -262,6 +312,206 @@ export function createRoleAudioVoiceProfileInput(assignment: RoleAudioAssignment
       defaultModelSize: "1.7B",
     },
   };
+}
+
+export function createNarratorVoiceTarget(): FixedVoiceTarget {
+  return {
+    speakerId: "narrator",
+    role: {
+      id: "fixed-voice-narrator",
+      source: "manying-local",
+      type: "role",
+      name: "旁白",
+      description: "电影级中文旁白，厚重克制，吐字清晰，停顿自然。",
+      setting: "成年中文旁白，稳重、克制、叙事感强。",
+    },
+  };
+}
+
+export async function planFixedRoleVoices(
+  input: PlanFixedRoleVoicesInput,
+): Promise<FixedVoicePlan> {
+  const fixed: FixedVoicePlan["fixed"] = [];
+  const created: FixedVoicePlan["created"] = [];
+  const errors: FixedVoicePlanError[] = [];
+  const uniqueTargets: FixedVoiceTarget[] = [];
+  const targetBySpeaker = new Map<TtsSpeakerId, FixedVoiceTarget>();
+
+  for (const target of input.targets) {
+    const existing = targetBySpeaker.get(target.speakerId);
+    if (existing) {
+      if (existing.role.id !== target.role.id) {
+        errors.push({
+          speakerId: target.speakerId,
+          code: "duplicate-speaker",
+          message: `speaker ${target.speakerId} 对应多个角色资产: ${existing.role.id}, ${target.role.id}`,
+        });
+      }
+      continue;
+    }
+    targetBySpeaker.set(target.speakerId, target);
+    uniqueTargets.push(target);
+  }
+
+  const unbound: FixedVoiceTarget[] = [];
+  for (const target of uniqueTargets) {
+    const binding = input.bindings[target.speakerId];
+    if (!binding) {
+      unbound.push(target);
+      continue;
+    }
+
+    const profile = input.voiceProfiles[binding.profileId];
+    if (!profile) {
+      errors.push({
+        speakerId: target.speakerId,
+        code: "missing-profile",
+        message: `固定音色 ${target.speakerId} 缺少 profile ${binding.profileId}`,
+      });
+      continue;
+    }
+    const referenceAudioPath = profile.referenceAudioPath?.trim();
+    if (!referenceAudioPath) {
+      errors.push({
+        speakerId: target.speakerId,
+        code: "missing-reference-audio",
+        message: `固定音色 ${target.speakerId} 缺少参考音频路径`,
+      });
+      continue;
+    }
+    if (!profile.referenceText?.trim()) {
+      errors.push({
+        speakerId: target.speakerId,
+        code: "missing-reference-text",
+        message: `固定音色 ${target.speakerId} 缺少参考文本`,
+      });
+      continue;
+    }
+    const profileError = validateVoiceProfileForGeneration(profile);
+    if (profileError) {
+      errors.push({
+        speakerId: target.speakerId,
+        code: "invalid-profile",
+        message: `固定音色 ${target.speakerId} 不可用于生成: ${profileError}`,
+      });
+      continue;
+    }
+    const resolvedPath = await input.resolveReferenceAudioPath(referenceAudioPath);
+    if (!resolvedPath) {
+      errors.push({
+        speakerId: target.speakerId,
+        code: "unreadable-reference-audio",
+        message: `固定音色 ${target.speakerId} 的参考音频不可读: ${referenceAudioPath}`,
+      });
+      continue;
+    }
+    fixed.push({
+      speakerId: target.speakerId,
+      binding,
+      profile,
+      match: "fixed",
+    });
+  }
+
+  if (errors.length > 0 || unbound.length === 0) {
+    return { fixed, created, errors };
+  }
+  if (input.candidates.length === 0) {
+    for (const target of unbound) {
+      errors.push({
+        speakerId: target.speakerId,
+        code: "missing-candidate",
+        message: `未绑定 speaker ${target.speakerId}，且音频库没有可用候选`,
+      });
+    }
+    return { fixed, created, errors };
+  }
+
+  const assignUnbound = input.assignUnbound ?? assignAudioToRoles;
+  let assignments: RoleAudioAssignment[];
+  try {
+    assignments = await assignUnbound(
+      unbound.map((target) => target.role),
+      input.candidates,
+    );
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    for (const target of unbound) {
+      errors.push({
+        speakerId: target.speakerId,
+        code: "assignment-failed",
+        message: `speaker ${target.speakerId} 音色匹配失败: ${reason}`,
+      });
+    }
+    return { fixed, created, errors };
+  }
+
+  const assignmentByRoleId = new Map(
+    assignments.map((assignment) => [assignment.role.id, assignment]),
+  );
+  for (const target of unbound) {
+    const assignment = assignmentByRoleId.get(target.role.id);
+    if (!assignment) {
+      errors.push({
+        speakerId: target.speakerId,
+        code: "missing-candidate",
+        message: `未给 speaker ${target.speakerId} 选出音频`,
+      });
+      continue;
+    }
+    if (!assignment.audio.referenceText?.trim()) {
+      errors.push({
+        speakerId: target.speakerId,
+        code: "missing-reference-text",
+        message: `speaker ${target.speakerId} 选中的音频缺少参考文本: ${assignment.audio.name}`,
+      });
+      continue;
+    }
+    const resolvedPath = await input.resolveReferenceAudioPath(
+      assignment.audio.filePath,
+    );
+    if (!resolvedPath) {
+      errors.push({
+        speakerId: target.speakerId,
+        code: "unreadable-reference-audio",
+        message: `speaker ${target.speakerId} 选中的音频不可读: ${assignment.audio.filePath}`,
+      });
+      continue;
+    }
+    const normalizedAssignment: RoleAudioAssignment = {
+      ...assignment,
+      audio: {
+        ...assignment.audio,
+        filePath: resolvedPath,
+      },
+    };
+    const draft = createRoleAudioVoiceProfileInput(
+      normalizedAssignment,
+      target.speakerId,
+    );
+    const draftError = validateVoiceProfileForGeneration({
+      ...draft.profile,
+      id: "pending-fixed-voice",
+      createdAt: 0,
+      updatedAt: 0,
+    });
+    if (draftError) {
+      errors.push({
+        speakerId: target.speakerId,
+        code: "invalid-profile",
+        message: `speaker ${target.speakerId} 选中的音色不可用于生成: ${draftError}`,
+      });
+      continue;
+    }
+    created.push({
+      speakerId: target.speakerId,
+      assignment: normalizedAssignment,
+      draft,
+      match: "ai-selected",
+    });
+  }
+
+  return { fixed, created, errors };
 }
 
 export function parseRoleAudioAiMatchResult(text: string): RoleAudioAiMatchResult | null {

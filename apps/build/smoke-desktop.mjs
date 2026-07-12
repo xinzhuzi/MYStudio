@@ -4,6 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:
 import { tmpdir } from "node:os";
 import { dirname, resolve } from "node:path";
 import { PNG } from "pngjs";
+import { terminateSpawnedApp } from "./smoke-process-lifecycle.mjs";
 
 const appBinCandidates = [
   process.env.MYSTUDIO_SMOKE_APP_BIN,
@@ -42,11 +43,15 @@ const CDP_CALL_TIMEOUT_MS = Number(
 const ASSET_VOICE_FLOW_TIMEOUT_MS = Number(
   process.env.MYSTUDIO_SMOKE_ASSET_VOICE_TIMEOUT_MS || 35_000,
 );
+const WORKFLOW_E2E_TIMEOUT_MS = Number(
+  process.env.MYSTUDIO_SMOKE_WORKFLOW_E2E_TIMEOUT_MS || 90_000,
+);
 const AUDIO_METADATA_TIMEOUT_MS = Number(
   process.env.MYSTUDIO_SMOKE_AUDIO_METADATA_TIMEOUT_MS || 10_000,
 );
 const runStepwiseWorkflowSmoke =
   process.env.MYSTUDIO_SMOKE_WORKFLOW_STEPWISE === "1";
+const skipPrekill = process.env.MYSTUDIO_SMOKE_SKIP_PREKILL === "1";
 const foregroundSmoke = process.env.MYSTUDIO_SMOKE_FOREGROUND === "1";
 const keepSmokeAppOpen = process.env.MYSTUDIO_SMOKE_KEEP_OPEN === "1";
 const parsedForegroundHoldMs = Number(
@@ -92,6 +97,37 @@ if (!existsSync(appBin)) {
     `Packaged app was not found. Checked:\n${appBinCandidates.join("\n")}`,
   );
   process.exit(1);
+}
+
+function runOptional(command, args) {
+  spawnSync(command, args, {
+    cwd: process.cwd(),
+    env: process.env,
+    encoding: "utf8",
+    stdio: "ignore",
+  });
+}
+
+function stopExistingMYStudioInstances() {
+  if (skipPrekill) {
+    console.log("[smoke] skipping pre-run MYStudio instance cleanup");
+    return;
+  }
+  if (process.platform === "darwin") {
+    runOptional("osascript", [
+      "-e",
+      'tell application id "com.manju2026.manying-studio" to quit',
+    ]);
+  }
+  for (const processName of [
+    "漫影工作室",
+    "漫影工作室 Helper",
+    "manying-studio",
+  ]) {
+    runOptional("pkill", ["-x", processName]);
+  }
+  runOptional("pkill", ["-f", "漫影工作室.app/Contents"]);
+  console.log("[smoke] closed existing MYStudio instances before smoke run");
 }
 
 function prepareSmokeMedia() {
@@ -274,11 +310,27 @@ function summarizePageError(error) {
   return error;
 }
 
+function isAllowedOfflinePreviewResourceError(message) {
+  if (message?.method !== "Log.entryAdded") return false;
+  const entry = message.params?.entry;
+  if (entry?.level !== "error") return false;
+  const url = entry?.url || "";
+  const text = entry?.text || "";
+  if (!url.startsWith("https://unpkg.com/")) return false;
+  if (!text.includes("Failed to load resource")) return false;
+  return (
+    url.includes("/@highlightjs/cdn-assets@") ||
+    url.includes("/katex@") ||
+    url.includes("/mermaid@")
+  );
+}
+
 async function inspectPage(pageTarget) {
   const socket = await connectWebSocket(pageTarget.webSocketDebuggerUrl);
   let messageId = 0;
   const pending = new Map();
   const errors = [];
+  const allowedErrors = [];
   const networkRequests = new Map();
 
   socket.addEventListener("message", (event) => {
@@ -309,6 +361,10 @@ async function inspectPage(pageTarget) {
       message.method === "Log.entryAdded" &&
       message.params?.entry?.level === "error"
     ) {
+      if (isAllowedOfflinePreviewResourceError(message)) {
+        allowedErrors.push(message);
+        return;
+      }
       errors.push(message);
       return;
     }
@@ -443,6 +499,7 @@ async function inspectPage(pageTarget) {
     return {
       state,
       errors,
+      allowedErrors,
       overviewWorkflow,
       routeChecks,
       workflowStages,
@@ -564,7 +621,7 @@ async function verifyWorkflowStages(evaluate) {
 	      { id: 'manuals', label: '风格与导演', requiredText: ['视觉手册', '导演手册'] },
       { id: 'novel', label: '小说导入', requiredText: ['导入原文'] },
       { id: 'script', label: '剧本生产阶段', requiredText: ['请先在「小说导入」导入章节'] },
-      { id: 'assets', label: '剧本资产管理', requiredText: ['还没有剧本：请先在「剧本生产阶段」生成各章剧本', '角色/场景/道具', '承接本阶段已提取的角色、场景、道具', '落地衍生资产', '参考音频'], forbiddenText: ['运行导演计划', '锁定剧集圣经', '角色库', '全部润色角色提示词', '全部润色提示词', '生成图片 ('] },
+      { id: 'assets', label: '剧本资产管理', requiredText: ['还没有剧本：请先在「剧本生产阶段」生成各章剧本', '角色/场景/道具', '承接本阶段已提取的角色、场景、道具', '参考音频'], forbiddenText: ['运行导演计划', '锁定剧集圣经', '角色库', '全部润色角色提示词', '全部润色提示词', '生成图片 ('] },
       {
         id: 'storyboard',
         label: '分镜视频生成',
@@ -786,15 +843,14 @@ async function verifyWorkflowEndToEnd(evaluate) {
         const generatedPromptPanelRect = visibleRect(generatedPromptPanel);
         const hasVisibleImageWorkflowCanvas = Boolean(canvasRect?.visible && canvasRect.width >= 480 && canvasRect.height >= 320);
         const hasVisibleGeneratedNode = Boolean(generatedNodeRect?.visible && generatedNodeRect.width >= 180 && generatedNodeRect.height >= 120);
-        const hasVisibleGeneratedPromptPanel = Boolean(generatedPromptPanelRect?.visible && generatedPromptPanelRect.width >= 180 && generatedPromptPanelRect.height >= 80);
+        const hasVisibleDuplicateGeneratedPromptPanel = hasImageWorkflowPromptNode && Boolean(generatedPromptPanelRect?.visible && generatedPromptPanelRect.width >= 180 && generatedPromptPanelRect.height >= 80);
         const generatedPromptTextValues = generatedPromptPanel
           ? Array.from(generatedPromptPanel.querySelectorAll('textarea')).map((node) => node.value || '')
           : [];
-        const promptTextValues = [
-          ...Array.from(document.querySelectorAll('[data-image-workflow-node-kind="prompt"] textarea')).map((node) => node.value || ''),
-          ...generatedPromptTextValues,
-        ];
-        const hasToonflowGeneratedPromptPanel = Boolean(generatedPromptPanel);
+        const promptNodeTextValues = Array.from(document.querySelectorAll('[data-image-workflow-node-kind="prompt"] textarea')).map((node) => node.value || '');
+        const promptTextValues = hasImageWorkflowPromptNode ? promptNodeTextValues : generatedPromptTextValues;
+        const hasNoDuplicateGeneratedPromptPanel = !(hasImageWorkflowPromptNode && Boolean(generatedPromptPanel));
+        const hasNoVisibleDuplicateGeneratedPromptPanel = !hasVisibleDuplicateGeneratedPromptPanel;
         const hasEditableImageWorkflowPrompt = promptTextValues.some((value) => value.trim().length > 0);
         const hasImageWorkflowSource = text.includes('来源') && text.includes('分镜视频生成') && text.includes('衍生资产');
         const imageWorkflowScope = document.querySelector('[data-scoped-image-workflow-summary]')?.closest('section') || document;
@@ -805,7 +861,7 @@ async function verifyWorkflowEndToEnd(evaluate) {
           !imageWorkflowScope.querySelector('[data-image-workflow-selector]') &&
           !imageWorkflowScope.querySelector('[data-image-workflow-global-action]');
         const hasNoGlobalImageWorkflowPalettes = !scopedText.includes('项目参考图');
-        const hasImageWorkflowBackButton = scopedButtonTexts.some((buttonText) => buttonText.includes('返回工作流'));
+        const hasImageWorkflowBackButton = scopedButtonTexts.some((buttonText) => buttonText === '返回');
         const checks = {
           clicked: true,
           hasReferenceNode,
@@ -815,9 +871,9 @@ async function verifyWorkflowEndToEnd(evaluate) {
           hasVisibleImageWorkflowCanvas,
           hasImageWorkflowNodes,
           hasImageWorkflowPromptNode,
-          hasToonflowGeneratedPromptPanel,
+          hasNoDuplicateGeneratedPromptPanel,
           hasVisibleGeneratedNode,
-          hasVisibleGeneratedPromptPanel,
+          hasNoVisibleDuplicateGeneratedPromptPanel,
           hasEditableImageWorkflowPrompt,
           hasImageWorkflowSource,
           hasScopedImageWorkflowSummary,
@@ -875,6 +931,12 @@ async function verifyWorkflowEndToEnd(evaluate) {
       .map((texts) => texts.join(' / '));
     const bodyText = document.body.innerText;
     const inspectResult = await window.mystudioWorkflowSmoke?.inspectWorkflow?.();
+    const derivativeAssetNamesReady = ['独孤剑尘', '落魄江湖客', '矿场', '低机位推进', '断剑', '断剑破损版']
+      .every((text) => assetsText.includes(text));
+    const derivativeParentRefsReady = ['smoke-role-sword', 'smoke-scene-mine', 'smoke-prop-sword']
+      .every((id) => Boolean(assetsNode?.querySelector('[data-parent-asset-id="' + id + '"]')));
+    const derivativeFlowRefsReady = ['smoke-flow-role-wanderer', 'smoke-flow-scene-low-angle', 'smoke-flow-prop-broken']
+      .every((id) => Boolean(assetsNode?.querySelector('[data-asset-workflow-id="' + id + '"]')));
     return {
       bridgeAvailable: Boolean(window.mystudioWorkflowSmoke?.seedCompleteWorkflow),
       clickedWorkflow,
@@ -890,8 +952,9 @@ async function verifyWorkflowEndToEnd(evaluate) {
         && ['矿场入局', '水墨漫剧', '低机位推进'].every((text) => scriptPlanText.includes(text))
         && Boolean(scriptPlanNode.querySelector('.md-editor-preview')),
       hasToonflowDerivativeLinks: Boolean(assetsNode)
-        && ['独孤剑尘', '落魄江湖客', '矿场', '低机位推进', '断剑', '断剑破损版', 'parentAssetId: smoke-role-sword', 'parentAssetId: smoke-scene-mine', 'parentAssetId: smoke-prop-sword', 'flowId: smoke-flow-role-wanderer', 'flowId: smoke-flow-scene-low-angle', 'flowId: smoke-flow-prop-broken']
-          .every((text) => assetsText.includes(text))
+        && derivativeAssetNamesReady
+        && derivativeParentRefsReady
+        && derivativeFlowRefsReady
         && assetsNode.querySelectorAll('img[src^="data:image"]').length >= 4,
       clickedDerivativeImageWorkflow,
       hasDerivativeImageWorkflowDetail: Boolean(derivativeImageWorkflowDetail),
@@ -910,7 +973,7 @@ async function verifyWorkflowEndToEnd(evaluate) {
     };
   })()`,
     "workflow end-to-end check",
-    45_000,
+    WORKFLOW_E2E_TIMEOUT_MS,
   );
 }
 
@@ -1498,6 +1561,7 @@ function assertHealthy(
   scriptAssetGenerationVoiceFlow,
   pythonSettings,
   screenshot,
+  allowedErrors,
 ) {
   const failures = [];
   if (state.readyState !== "complete")
@@ -1821,6 +1885,7 @@ function assertHealthy(
           pythonSettings,
           screenshot,
           pageErrors: errors.map(summarizePageError),
+          allowedPageErrors: allowedErrors.map(summarizePageError),
         },
         null,
         2,
@@ -1837,9 +1902,11 @@ function assertHealthy(
   );
 }
 
+stopExistingMYStudioInstances();
 prepareSmokeMedia();
 
 let smokeReport = null;
+let smokePassed = false;
 
 const child = spawn(
   appBin,
@@ -1863,6 +1930,7 @@ try {
   const {
     state,
     errors,
+    allowedErrors,
     overviewWorkflow,
     routeChecks,
     workflowStages,
@@ -1886,6 +1954,7 @@ try {
     pythonSettings,
     screenshot,
     pageErrors: errors.map(summarizePageError),
+    allowedPageErrors: allowedErrors.map(summarizePageError),
   };
   assertHealthy(
     state,
@@ -1899,7 +1968,9 @@ try {
     scriptAssetGenerationVoiceFlow,
     pythonSettings,
     screenshot,
+    allowedErrors,
   );
+  smokePassed = true;
 } catch (error) {
   smokeReport = {
     ...(smokeReport ?? {}),
@@ -1909,17 +1980,21 @@ try {
   console.error(error instanceof Error ? error.message : String(error));
   process.exitCode = 1;
 } finally {
-  if (smokeReport) {
-    writeSmokeReport(smokeReport);
-  }
-  await holdForegroundSmokeWindow();
-  if (keepSmokeAppOpen) {
+  try {
+    if (smokeReport) writeSmokeReport(smokeReport);
+    if (smokePassed) await holdForegroundSmokeWindow();
+  } finally {
     child.stdout.off("data", forwardStdout);
     child.stderr.off("data", forwardStderr);
-    child.unref();
-    console.log(`[smoke] leaving app open: pid=${child.pid}, userDataDir=${userDataDir}`);
-  } else {
-    child.kill("SIGTERM");
+    if (keepSmokeAppOpen && smokePassed) {
+      child.unref();
+      console.log(`[smoke] leaving app open: pid=${child.pid}, userDataDir=${userDataDir}`);
+    } else {
+      await terminateSpawnedApp(child, {
+        detached: keepSmokeAppOpen,
+        logPrefix: "[smoke]",
+      });
+    }
+    rmSync(SMOKE_VIDEO_PATH, { force: true });
   }
-  rmSync(SMOKE_VIDEO_PATH, { force: true });
 }

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, renderHook } from "@testing-library/react";
 import { useStudioStore } from "@/stores/studio-store";
 import { useWorkflowNodeEditor } from "./useWorkflowNodeEditor";
@@ -76,5 +76,44 @@ describe("useWorkflowNodeEditor", () => {
     expect(result.current.workflowNodeDraft).toBe("最新剧本");
     expect(result.current.workflowNodeEditTitle).toBe("编辑剧本");
     expect(result.current.workflowNodeEditWritable).toBe(true);
+  });
+
+  it("blocks weak three-block director plan edits before writeback", async () => {
+    const saveAgentWorkData = vi.fn();
+    const saveScriptPlan = vi.fn();
+    const { result } = renderHook(() =>
+      useWorkflowNodeEditor({
+        productionFlowModel: flowModel,
+        productionEpisodeId: "chapter-1",
+        saveAgentWorkData,
+        saveScriptPlan,
+      }),
+    );
+
+    act(() => result.current.openNodeEditor("scriptPlan"));
+    act(() =>
+      result.current.setWorkflowNodeDraft([
+        "<scriptPlan>",
+        "## 分场汇总表",
+        "| 场次 | 场景名 | 台词条数 | 台词字数 | 情绪浓度 | 情绪基调（含 X→Y） |",
+        "|---|---|---:|---:|---:|---|",
+        "| Sc1 | 金水河码头 | 7 | 35 | 7 | 压迫→隐忍 |",
+        "## 逐场注意事项",
+        "- **Sc1**：独孤救人但不暴露身份。",
+        "## 场间过渡",
+        "| 场间 | 过渡方式 | 说明 |",
+        "|---|---|---|",
+        "| Sc1 → Sc2 | 硬切 | 进入客栈 |",
+        "</scriptPlan>",
+      ].join("\n")),
+    );
+
+    await act(async () => {
+      await result.current.saveWorkflowNodeEdit();
+    });
+
+    expect(saveAgentWorkData).not.toHaveBeenCalled();
+    expect(saveScriptPlan).not.toHaveBeenCalled();
+    expect(result.current.editingWorkflowNodeId).toBe("scriptPlan");
   });
 });

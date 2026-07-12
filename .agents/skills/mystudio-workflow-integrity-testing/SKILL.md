@@ -15,6 +15,7 @@ Use this skill to prove the workflow is complete with fresh evidence, not impres
 - Treat old logs as stale. Rerun the relevant check before saying it passes.
 - Do not claim "修好了" or "完整" unless the matching verification command just passed.
 - Do not create files at repo root. Temporary screenshots or probes go under `/tmp`.
+- Before packaged, visible, installed, or real Daojie smoke tests, close all existing MYStudio app instances. The smoke scripts do this automatically by default; only set `MYSTUDIO_SMOKE_SKIP_PREKILL=1` for deliberate debugging.
 - Wait for Electron/build/smoke sessions to exit before final reporting.
 
 ## Storage Boundary
@@ -86,6 +87,7 @@ Review evidence before running the matching test. Do not collapse the checklist 
 
 5. **Step 5 - Step-by-step app execution smoke**
    - Review `apps/build/smoke-desktop.mjs` for `verifyWorkflowStepByStepExecution`.
+   - Confirm the smoke entry closes existing MYStudio instances before launching the packaged app.
    - It must use `resetForStepwiseExecution`, `runStepwiseWorkflowStage`, `inspectWorkflowStages`, and wait for each stage to become ready.
    - It must not use `seedCompleteWorkflow()` as a substitute for the execution path.
    - It must write durable evidence to `apps/output/automation/desktop-smoke-report.json`, or to `MYSTUDIO_SMOKE_REPORT_PATH` when that variable is set.
@@ -95,9 +97,12 @@ Review evidence before running the matching test. Do not collapse the checklist 
    - Visible step-by-step workflow runner: `npm run smoke:workflow:run`. This starts the packaged app with isolated smoke data, clicks through each workflow stage with a visible delay, waits for stage evidence, and leaves the app open.
    - Required visible evidence: stage logs like `[visible-run] stage script clicked ...`, final `progress=100`, and final `frontmostApp=漫影工作室`.
    - Real Daojie first-chapter visible runner: `npm run smoke:workflow:run:daojie`. This clones the real `道劫` project data into a temporary userData dir, opens `chapter-001`, clicks all workflow stages, verifies real chapter evidence such as storyboards, video candidates, derived asset project records, and asset image workflows with reference/generated nodes, then clicks at least one real `asset-flow-chapter-001*` derived asset card and waits for the image workflow detail to show the parent reference node, generated node, and writeback target.
+   - Real Daojie automatic-video runner: `npm run smoke:workflow:run:daojie -- --auto-video`. `MYSTUDIO_WORKFLOW_AUTO_VIDEO=1 npm run smoke:workflow:run:daojie` enables the same path; set `MYSTUDIO_AUTO_VIDEO_TIMEOUT_MS` to a positive millisecond value when the default `600000` is insufficient.
+   - AC6 passes only when `chapterAutoVideo.terminalStage` is `completed`, the run did not time out, and `chapterAutoVideo.finalPath` in `apps/output/automation/visible-workflow-daojie-report.json` ends in `.mp4` and exists on disk. A failed, timed-out, or missing-MP4 auto-video run must not count toward AC6.
 
 6. **Step 6 - Build and packaged smoke test**
    - Review `apps/build/smoke-desktop.mjs` for route, stage, node preview, storage, visual, and voice assertions.
+   - Confirm stale MYStudio process cleanup runs before the tested app is spawned.
    - Test: `npm run typecheck`, `npm run lint`, `npm test`, `npm run build:mac`, then `npm run smoke:desktop`.
 
 7. **Step 7 - Visual inspection**
@@ -121,6 +126,7 @@ MYSTUDIO_SMOKE_FOREGROUND=1 MYSTUDIO_SMOKE_HOLD_MS=15000 MYSTUDIO_SMOKE_WORKFLOW
 npm run smoke:workflow:open
 npm run smoke:workflow:run
 npm run smoke:workflow:run:daojie
+npm run smoke:workflow:run:daojie -- --auto-video
 ```
 
 Use a different debug port if a smoke run collides:

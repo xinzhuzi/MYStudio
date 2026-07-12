@@ -1,5 +1,9 @@
 import { getAgentSkillPreset } from "@/lib/studio/manuals";
 import { detectLightingTerms, stripLightingTerms } from "@/lib/studio/director-plan";
+import {
+  buildStoryboardVoiceoverItem,
+  type VoiceoverCharacterIdentity,
+} from "@/lib/studio/chapter-voiceover";
 import type { StoryboardItem } from "@/types/studio";
 
 export interface BuildStoryboardTableInput {
@@ -87,6 +91,7 @@ export function parseStoryboardTable(output: string, episodeId: string): ParseSt
   let currentSegmentTitle = "";
   let currentAssetNames: string[] = [];
   let currentAssetIds: string[] = [];
+  const legacySceneIndexes = new Map<string, number>();
 
   for (const raw of body.split(/\r?\n/)) {
     const line = stripCodeFence(raw).trim();
@@ -128,7 +133,7 @@ export function parseStoryboardTable(output: string, episodeId: string): ParseSt
 
     const row =
       fields.length === 14
-        ? buildLegacyRow(index, fields, warnings)
+        ? buildLegacyRow(index, fields, warnings, legacySceneIndexes)
         : fields.length === 7
           ? buildGroupedRow(
               index,
@@ -150,20 +155,41 @@ export function parseStoryboardTable(output: string, episodeId: string): ParseSt
     rows.push(row);
   }
 
+  const indexError = storyboardIndexContinuityError(rows);
+  if (indexError) errors.push(indexError);
+
   return { rows, errors, warnings };
 }
 
-export function toStoryboardItems(rows: StoryboardTableRow[], episodeId: string): StoryboardItem[] {
+export function toStoryboardItems(
+  rows: StoryboardTableRow[],
+  episodeId: string,
+  characters: VoiceoverCharacterIdentity[],
+): StoryboardItem[] {
+  const indexError = storyboardIndexContinuityError(rows);
+  if (indexError) throw new Error(indexError);
+
   return rows.map<StoryboardItem>((row) => {
-    const computed = computeDurationSec(extractSpeech(row.lines), resolveSpeed(row.emotion));
-    const duration = Math.max(row.duration, computed);
+    const sourceDuration = row.duration > 0
+      ? row.duration
+      : computeDurationSec(extractSpeech(row.lines), resolveSpeed(row.emotion));
+    const storyboardId = `sb-${episodeId}-${String(row.index).padStart(3, "0")}`;
+    const voiceover = buildStoryboardVoiceoverItem({
+      storyboardId,
+      index: row.index,
+      description: row.description,
+      lines: row.lines,
+      duration: sourceDuration,
+      emotion: row.emotion,
+      characters,
+    });
     return {
-      id: `sb-${episodeId}-${row.index}`,
+      id: storyboardId,
       episodeId,
       index: row.index,
-      trackKey: `shot-${String(row.index).padStart(3, "0")}`,
+      trackKey: `${episodeId}-scene-${row.sceneIndex ?? 1}`,
       trackId: "",
-      duration,
+      duration: voiceover.durationTarget,
       prompt: row.description,
       videoDesc: row.action,
       assetIds: row.associateAssetsIds,
@@ -173,21 +199,17 @@ export function toStoryboardItems(rows: StoryboardTableRow[], episodeId: string)
       orientation: row.orientation,
       spatialRelation: row.spatialRelation,
       associateAssetsNames: row.associateAssetsNames,
-      lines: row.lines,
-      speakerId: resolveSpeakerId(row.lines),
+      lines: `${voiceover.speaker}：${voiceover.line}`,
+      speaker: voiceover.speaker,
+      speakerId: voiceover.speakerId,
+      line: voiceover.line,
+      ttsSpokenText: voiceover.ttsSpokenText,
+      durationTarget: voiceover.durationTarget,
+      voiceStyle: voiceover.voiceStyle,
+      requiresFixedVoice: voiceover.requiresFixedVoice,
       sound: row.sound,
     };
   });
-}
-
-function resolveSpeakerId(lines: string): string | undefined {
-  const text = (lines ?? "").trim();
-  if (!text || text === "无台词" || text === "—") return undefined;
-  const colonIdx = text.search(/[:：]/);
-  if (colonIdx < 0) return "narrator";
-  const speaker = text.slice(0, colonIdx).trim();
-  if (!speaker || /^(旁白|VO|画外音|解说)$/i.test(speaker)) return "narrator";
-  return `character:${speaker}`;
 }
 
 /** 取出所有 <storyboardTable>…</storyboardTable> 段并拼接；无标签则回退整段。 */
@@ -197,10 +219,18 @@ function extractStoryboardSegments(output: string): string {
   return output.trim();
 }
 
-function buildLegacyRow(index: number, fields: string[], warnings: string[]): StoryboardTableRow {
+function buildLegacyRow(
+  index: number,
+  fields: string[],
+  warnings: string[],
+  sceneIndexes: Map<string, number>,
+): StoryboardTableRow {
   const descriptionRaw = fields[1]!;
+  const scene = fields[2]!;
   const actionRaw = fields[7]!;
   const emotionRaw = fields[10]!;
+  const sceneIndex = sceneIndexes.get(scene) ?? sceneIndexes.size + 1;
+  sceneIndexes.set(scene, sceneIndex);
 
   collectLightingWarnings(descriptionRaw, "画面描述", warnings);
   collectLightingWarnings(actionRaw, "角色动作", warnings);
@@ -208,8 +238,9 @@ function buildLegacyRow(index: number, fields: string[], warnings: string[]): St
 
   return {
     index,
+    sceneIndex,
     description: stripLightingTerms(descriptionRaw),
-    scene: fields[2]!,
+    scene,
     associateAssetsNames: splitBracketList(fields[3]!),
     duration: parseDuration(fields[4]!),
     shotSize: fields[5]!,
@@ -304,7 +335,19 @@ function splitBracketList(value: string): string[] {
 function parseDuration(value: string): number {
   const match = value.match(/(\d+(?:\.\d+)?)/);
   if (!match?.[1]) return 0;
-  return Math.round(Number(match[1]));
+  return Number(match[1]);
+}
+
+function storyboardIndexContinuityError(
+  rows: Pick<StoryboardTableRow, "index">[],
+): string | null {
+  const actualIndexes = rows.map((row) => row.index);
+  const isContinuous = actualIndexes.every(
+    (index, offset) => index === offset + 1,
+  );
+  return isContinuous
+    ? null
+    : `分镜序号必须连续为 1..N: [${actualIndexes.join(", ")}]`;
 }
 
 /** 台词字段去掉「角色：」前缀与旁白标记，仅留实际念白用于时长精算。 */

@@ -1,0 +1,3 @@
+{"file":".trellis/spec/frontend/index.md","reason":"frontend conventions for typed tool registry and React action integration"}
+{"file":".trellis/spec/guides/cross-layer-thinking-guide.md","reason":"tool boundary guidance for model response -> supervision -> writeback flow"}
+{"file":".trellis/tasks/07-10-mystudio-toolized-agents-review-loop/design.md","reason":"typed production agent tool and supervision-loop design"}

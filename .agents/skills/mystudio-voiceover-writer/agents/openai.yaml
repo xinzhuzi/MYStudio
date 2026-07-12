@@ -1,0 +1,4 @@
+interface:
+  display_name: "MYStudio Voiceover Writer"
+  short_description: "Plan fixed-voice storyboard narration for MYStudio"
+  default_prompt: "Use $mystudio-voiceover-writer to plan and validate fixed-voice narration for every storyboard."

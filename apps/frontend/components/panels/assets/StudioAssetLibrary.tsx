@@ -18,14 +18,18 @@ import { AssetGenerationBar } from "./AssetGenerationBar";
 import { VirtualGrid } from "./VirtualGrid";
 import { cn } from "@/lib/utils";
 import {
-  assignAudioToRoles,
   assignAudioToRolesWithAi,
   buildRoleAudioCandidates,
-  createRoleAudioVoiceProfileInput,
+  createNarratorVoiceTarget,
   parseRoleAudioAiMatchResult,
+  planFixedRoleVoices,
   type RoleAudioAiMatchRequest,
 } from "./role-audio-auto-assign";
 import { aiManager } from "@/lib/ai/ai-manager";
+import {
+  resolveCanonicalSpeakerId,
+  type VoiceoverCharacterIdentity,
+} from "@/lib/studio/chapter-voiceover";
 
 const PAGE_SIZE = 60;
 
@@ -84,6 +88,7 @@ export function StudioAssetLibrary({ type }: { type: StudioAssetKind }) {
 
   const props = usePropsLibraryStore((state) => state.items);
   const materials = useStudioStore((state) => state.materials);
+  const entityExtractions = useStudioStore((state) => state.entityExtractions);
   const activeProjectId = useProjectStore((state) => state.activeProjectId);
   const setTtsActiveProjectId = useTtsStore((state) => state.setActiveProjectId);
   const createVoiceProfile = useTtsStore((state) => state.createVoiceProfile);
@@ -292,33 +297,57 @@ export function StudioAssetLibrary({ type }: { type: StudioAssetKind }) {
     try {
       const audioResult = await window.studioAssets.list({ type: "audio", limit: 9999 });
       const candidates = buildRoleAudioCandidates(materials, audioResult.items ?? []);
-      if (candidates.length === 0) {
-        toast.error("音频库暂无可用于克隆的音色音频");
-        return;
-      }
       const canUseAiMatcher = Boolean(aiManager.resolve({ agent: "universalAi" }));
-      const assignments = canUseAiMatcher
-        ? await assignAudioToRolesWithAi(roleItems, candidates, {
-          maxCandidatesPerRole: 8,
-          match: matchRoleAudioWithAi,
-        })
-        : assignAudioToRoles(roleItems, candidates);
-      if (assignments.length === 0) {
-        toast.error("没有生成可写入的音色分配");
-        return;
-      }
+      const identities = buildProjectVoiceIdentities(entityExtractions);
+      const targets = [
+        createNarratorVoiceTarget(),
+        ...roleItems.map((role) => {
+          const speakerId = resolveCanonicalSpeakerId(role.name, identities);
+          return {
+            speakerId,
+            role: {
+              ...role,
+              id: speakerId.slice("character:".length),
+            },
+          };
+        }),
+      ];
 
       setTtsActiveProjectId(activeProjectId);
-      for (const assignment of assignments) {
-        const draft = createRoleAudioVoiceProfileInput(assignment);
-        const profile = createVoiceProfile(draft.profile);
+      const ttsState = useTtsStore.getState();
+      const ttsProject = ttsState.projects[activeProjectId];
+      const plan = await planFixedRoleVoices({
+        targets,
+        candidates,
+        bindings: ttsProject?.bindings ?? {},
+        voiceProfiles: ttsState.voiceProfiles,
+        resolveReferenceAudioPath: async (audioPath) =>
+          window.ttsRuntime?.resolveReferenceAudioPath(audioPath) ?? null,
+        assignUnbound: canUseAiMatcher
+          ? (roles, audioCandidates) => assignAudioToRolesWithAi(
+              roles,
+              audioCandidates,
+              {
+                maxCandidatesPerRole: 8,
+                match: matchRoleAudioWithAi,
+              },
+            )
+          : undefined,
+      });
+      if (plan.errors.length > 0) {
+        throw new Error(plan.errors.map((item) => item.message).join("；"));
+      }
+      for (const item of plan.created) {
+        const profile = createVoiceProfile(item.draft.profile);
         bindSpeaker({
-          ...draft.binding,
+          ...item.draft.binding,
           profileId: profile.id,
         });
       }
 
-      toast.success(`已为 ${assignments.length} 个角色自动分配音频${canUseAiMatcher ? "（AI语义匹配）" : "（本地规则）"}`);
+      toast.success(
+        `固定音色校验完成：复用 ${plan.fixed.length}，新建 ${plan.created.length}${canUseAiMatcher ? "（AI语义匹配）" : "（本地规则）"}`,
+      );
     } catch (assignError) {
       toast.error(assignError instanceof Error ? assignError.message : "自动分配音频失败");
     } finally {
@@ -456,6 +485,25 @@ export function StudioAssetLibrary({ type }: { type: StudioAssetKind }) {
       />
     </div>
   );
+}
+
+function buildProjectVoiceIdentities(
+  batches: ReturnType<typeof useStudioStore.getState>["entityExtractions"],
+): VoiceoverCharacterIdentity[] {
+  const byId = new globalThis.Map<string, VoiceoverCharacterIdentity>();
+  for (const character of batches.flatMap((batch) => batch.characters)) {
+    const existing = byId.get(character.characterId);
+    if (!existing) {
+      byId.set(character.characterId, {
+        characterId: character.characterId,
+        name: character.name,
+        aliases: [...character.aliases],
+      });
+      continue;
+    }
+    existing.aliases = [...new Set([...existing.aliases, ...character.aliases])];
+  }
+  return [...byId.values()];
 }
 
 function mergeAssetItems(current: StudioAssetSummary[], next: StudioAssetSummary[]) {

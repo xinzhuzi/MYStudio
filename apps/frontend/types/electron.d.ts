@@ -230,6 +230,14 @@ declare global {
         previewUrl?: string;
         error?: string;
       }>;
+      probeMedia: (filePath: string) => Promise<{
+        path: string;
+        sizeBytes: number;
+        mtimeMs: number;
+        sha256: string;
+        duration: number;
+        streams: string[];
+      }>;
     };
     studioAssets?: {
       saveMaterial: (payload: { name: string; bytes: ArrayBuffer }) => Promise<{
@@ -264,6 +272,7 @@ declare global {
       request: (payload: { method: string; path: string; body?: unknown }) => Promise<unknown>;
       requestBytes: (payload: { method: string; path: string; body?: unknown }) => Promise<{ data: ArrayBuffer; mimeType?: string }>;
       requestFormData: (payload: { path: string; audioFilePath: string; referenceText?: string }) => Promise<unknown>;
+      resolveReferenceAudioPath: (audioPath: string) => Promise<string | null>;
     };
   }
 }

@@ -17,12 +17,15 @@ export interface StudioFlowAssetItem {
 
 export interface StudioFlowStoryboardItem {
   id: string;
+  index: number;
   videoDesc: string;
   prompt: string;
   track: string;
   duration: number;
   associateAssetsIds: string[];
   shouldGenerateImage: boolean;
+  sourceEvidence?: StoryboardItem["sourceEvidence"];
+  orderedReferenceManifest?: StoryboardItem["orderedReferenceManifest"];
   mediaPath?: string;
   audioPath?: string;
   lines?: string;
@@ -99,6 +102,7 @@ export function buildStudioFlowData(
       .sort((a, b) => a.index - b.index)
       .map((item) => ({
         id: item.id,
+        index: item.index,
         videoDesc: item.videoDesc,
         prompt: item.prompt,
         track: item.trackKey,
@@ -113,6 +117,8 @@ export function buildStudioFlowData(
           fileExists(item.mediaRef.path)
             ? item.mediaRef.path
             : undefined,
+        sourceEvidence: item.sourceEvidence,
+        orderedReferenceManifest: item.orderedReferenceManifest,
         audioPath:
           item.audioRef?.kind === "audio" && fileExists(item.audioRef.path)
             ? item.audioRef.path

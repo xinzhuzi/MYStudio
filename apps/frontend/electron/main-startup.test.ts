@@ -87,6 +87,33 @@ describe("main process startup", () => {
     expect(handlerBlock).toContain("timeoutMs: getModelTestTimeoutMs(payload.type)");
   });
 
+  it("falls back from empty AI SDK text streams to the HTTP stream path", () => {
+    const handlerBlock = mainSource.slice(
+      mainSource.indexOf("ipcMain.handle('api-text-completion-stream'"),
+      mainSource.indexOf("// ==================== File Export"),
+    );
+
+    expect(handlerBlock).toContain("if (fullText.trim())");
+    expect(handlerBlock).toContain("AI SDK text stream returned empty, falling back to HTTP");
+    expect(handlerBlock).toContain("runTextCompletionStreamRequest");
+  });
+
+  it("uses the requested text model before provider defaults in AI SDK text calls", () => {
+    const textHandlerBlock = mainSource.slice(
+      mainSource.indexOf("ipcMain.handle('api-text-completion'"),
+      mainSource.indexOf("ipcMain.handle('api-text-completion-stream'"),
+    );
+    const streamHandlerBlock = mainSource.slice(
+      mainSource.indexOf("ipcMain.handle('api-text-completion-stream'"),
+      mainSource.indexOf("// ==================== File Export"),
+    );
+
+    expect(textHandlerBlock).toContain("const textModel = payload.model || provider.model?.[0] || ''");
+    expect(streamHandlerBlock).toContain("const textModel = args.payload.model || provider.model?.[0] || ''");
+    expect(textHandlerBlock).not.toContain("model: provider.model?.[0] || payload.model || ''");
+    expect(streamHandlerBlock).not.toContain("model: provider.model?.[0] || args.payload.model || ''");
+  });
+
   it("registers a main-process image API request proxy with diagnostics", () => {
     expect(mainSource).toContain("ipcMain.handle('api-image-request'");
     expect(mainSource).toContain("Image request IPC started");

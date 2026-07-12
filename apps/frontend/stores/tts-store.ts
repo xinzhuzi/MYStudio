@@ -1,6 +1,8 @@
 import { create } from "zustand";
-import { persist, createJSONStorage, type StateStorage } from "zustand/middleware";
+import { persist, createJSONStorage } from "zustand/middleware";
+import { createProjectScopedStorage } from "@/lib/project-storage";
 import { getDefaultTtsModel } from "@/lib/tts/model-catalog";
+import { useProjectStore } from "@/stores/project-store";
 import type {
   ProjectVoiceBinding,
   SceneVoiceLine,
@@ -11,13 +13,15 @@ import type {
 
 type BatchMode = "all" | "missing" | "failed";
 
-interface TtsProjectState {
+export interface TtsProjectState {
   voiceLines: Record<string, SceneVoiceLine>;
   bindings: Record<string, ProjectVoiceBinding>;
 }
 
-interface CreateTtsStoreOptions {
-  persist?: boolean;
+export interface PersistedTtsState {
+  activeProjectId: string | null;
+  projects: Record<string, TtsProjectState>;
+  voiceProfiles: Record<string, VoiceProfile>;
 }
 
 interface EnsureSceneVoiceLineInput {
@@ -55,24 +59,6 @@ function createEmptyProject(): TtsProjectState {
     voiceLines: {},
     bindings: {},
   };
-}
-
-function createFallbackStorage(): StateStorage {
-  const data = new Map<string, string>();
-  return {
-    getItem: (name) => data.get(name) ?? null,
-    setItem: (name, value) => {
-      data.set(name, value);
-    },
-    removeItem: (name) => {
-      data.delete(name);
-    },
-  };
-}
-
-function getBrowserStorage(): StateStorage {
-  if (typeof localStorage !== "undefined") return localStorage;
-  return createFallbackStorage();
 }
 
 let profileCounter = 0;
@@ -134,12 +120,7 @@ function createStoreState(set: (partial: Partial<TtsStore> | ((state: TtsStore) 
     voiceProfiles: {},
 
     setActiveProjectId: (projectId) => {
-      set((state) => ({
-        activeProjectId: projectId,
-        projects: projectId && !state.projects[projectId]
-          ? { ...state.projects, [projectId]: createEmptyProject() }
-          : state.projects,
-      }));
+      set((state) => scopeTtsStateToProject(state, projectId));
     },
 
     ensureProject: (projectId) => {
@@ -354,16 +335,105 @@ function createStoreState(set: (partial: Partial<TtsStore> | ((state: TtsStore) 
   };
 }
 
-export function createTtsStore(options: CreateTtsStoreOptions = {}) {
-  if (options.persist) {
-    return create<TtsStore>()(
-      persist(createStoreState, {
-        name: "mystudio-tts-store",
-        storage: createJSONStorage(getBrowserStorage),
-      }),
-    );
-  }
+export function createTtsStore() {
   return create<TtsStore>()(createStoreState);
 }
 
-export const useTtsStore = createTtsStore({ persist: true });
+export function partializeTtsStoreState(state: TtsStore): PersistedTtsState {
+  const scoped = scopeTtsStateToProject(state, state.activeProjectId);
+  return {
+    activeProjectId: scoped.activeProjectId ?? null,
+    projects: scoped.projects ?? {},
+    voiceProfiles: scoped.voiceProfiles ?? {},
+  };
+}
+
+export function mergeTtsStoreState(
+  persistedState: unknown,
+  currentState: TtsStore,
+): TtsStore {
+  if (!persistedState || typeof persistedState !== "object") {
+    return currentState;
+  }
+  const persisted = persistedState as Partial<PersistedTtsState>;
+  const routerProjectId = useProjectStore.getState().activeProjectId;
+  const activeProjectId = routerProjectId ?? persisted.activeProjectId ?? null;
+  const candidate: PersistedTtsState = {
+    activeProjectId,
+    projects:
+      persisted.projects && typeof persisted.projects === "object"
+        ? persisted.projects
+        : {},
+    voiceProfiles:
+      persisted.voiceProfiles && typeof persisted.voiceProfiles === "object"
+        ? persisted.voiceProfiles
+        : {},
+  };
+  const scoped = scopeTtsStateToProject(candidate, activeProjectId);
+  return {
+    ...currentState,
+    activeProjectId: scoped.activeProjectId ?? null,
+    projects: scoped.projects ?? {},
+    voiceProfiles: scoped.voiceProfiles ?? {},
+  };
+}
+
+function scopeTtsStateToProject(
+  state: Pick<TtsStore, "activeProjectId" | "projects" | "voiceProfiles">,
+  projectId: string | null,
+): Partial<TtsStore> & PersistedTtsState {
+  if (!projectId) {
+    return {
+      activeProjectId: null,
+      projects: {},
+      voiceProfiles: {},
+    };
+  }
+
+  const project = state.projects[projectId];
+  if (!project) {
+    return {
+      activeProjectId: projectId,
+      projects: { [projectId]: createEmptyProject() },
+      voiceProfiles: {},
+    };
+  }
+
+  const projectIds = Object.keys(state.projects);
+  const voiceProfiles =
+    projectIds.length === 1 && projectIds[0] === projectId
+      ? state.voiceProfiles
+      : filterVoiceProfilesForProject(project, state.voiceProfiles);
+  return {
+    activeProjectId: projectId,
+    projects: { [projectId]: project },
+    voiceProfiles,
+  };
+}
+
+function filterVoiceProfilesForProject(
+  project: TtsProjectState,
+  voiceProfiles: Record<string, VoiceProfile>,
+) {
+  const referencedProfileIds = new Set<string>();
+  for (const binding of Object.values(project.bindings)) {
+    if (binding.profileId) referencedProfileIds.add(binding.profileId);
+  }
+  for (const line of Object.values(project.voiceLines)) {
+    if (line.profileId) referencedProfileIds.add(line.profileId);
+  }
+  return Object.fromEntries(
+    Object.entries(voiceProfiles).filter(([profileId]) =>
+      referencedProfileIds.has(profileId),
+    ),
+  );
+}
+
+export const useTtsStore = create<TtsStore>()(
+  persist(createStoreState, {
+    name: "mystudio-tts-store",
+    storage: createJSONStorage(() => createProjectScopedStorage("tts")),
+    partialize: partializeTtsStoreState,
+    merge: mergeTtsStoreState,
+  }),
+);

@@ -1,0 +1,3 @@
+{"file":".trellis/spec/frontend/index.md","reason":"quality context for project-scoped store and prompt injection tests"}
+{"file":".trellis/spec/guides/cross-layer-thinking-guide.md","reason":"checked no cross-project memory leakage and bounded retrieval"}
+{"file":".trellis/tasks/07-10-mystudio-event-graph-project-memory/implement.md","reason":"validation command list for project memory, script planning, director plan, and store tests"}

@@ -101,6 +101,10 @@ describe("workflow smoke bridge isolation", () => {
       hasSelectedCandidate: true,
       hasVoiceBinding: true,
       hasVoiceAudio: true,
+      hasWorkflowParityReport: true,
+      workflowParityNoErrors: true,
+      workflowParityHasOrderedReferences: true,
+      workflowParityHasSourceEvidence: true,
     });
 
     const inspected = await window.mystudioWorkflowSmoke?.inspectWorkflowStages();
@@ -117,6 +121,11 @@ describe("workflow smoke bridge isolation", () => {
     expect(inspected?.evidence.find((item) => item.stageId === "workbench")).toMatchObject({
       ready: true,
       evidence: expect.stringContaining("selectedCandidates"),
+    });
+    expect(inspected?.workflowParityReport?.references).toMatchObject({
+      storyboardsWithOrderedManifest: 1,
+      orderedReferenceCount: 2,
+      missingReferenceCount: 0,
     });
   });
 
@@ -181,7 +190,13 @@ describe("workflow smoke bridge isolation", () => {
       hasSelectedCandidate: true,
       hasVoiceBinding: true,
       hasVoiceAudio: true,
+      hasWorkflowParityReport: true,
+      workflowParityNoErrors: true,
+      workflowParityHasOrderedReferences: true,
+      workflowParityHasSourceEvidence: true,
     });
+    expect(result?.workflowParityReport?.storyboard.withSourceEvidence).toBe(1);
+    expect(result?.workflowParityReport?.references.storyboardsWithOrderedManifest).toBe(1);
 
     const studio = useStudioStore.getState();
     expect(studio.scriptPlans[0]?.derivedAssetPlan).toEqual([

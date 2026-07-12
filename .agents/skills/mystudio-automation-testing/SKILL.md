@@ -13,6 +13,7 @@ Use this skill for MYStudio release confidence after code changes, especially wh
 - Do not run git commands unless the user explicitly asks.
 - Use `apps/` as the command working directory for npm commands.
 - Do not create `/Applications/*.backup-*` app backups. Install by overwriting `/Applications/漫影工作室.app`.
+- Before any Electron packaged, visible, or installed smoke test, close all existing MYStudio instances first. The smoke scripts do this automatically by default; do not disable it unless you are deliberately debugging with `MYSTUDIO_SMOKE_SKIP_PREKILL=1`.
 - For "自动打包后安装" requests, delegate the full package/install/smoke chain to a worker sub-agent when sub-agents are available. The main agent should supervise, avoid duplicating the same long-running commands, and verify or summarize the worker's evidence before reporting.
 - Treat old command output as stale; rerun the relevant check before claiming it passes.
 - If a command starts a long-running Electron process, wait for it to exit before ending the turn.
@@ -38,6 +39,8 @@ npm run test
 npm run build:mac
 npm run smoke:desktop
 ```
+
+`npm run smoke:desktop`, `npm run smoke:installed`, `npm run smoke:workflow:open`, and `npm run smoke:workflow:run` must start from a clean app-process state. Their scripts should quit the app by bundle id and kill stale `漫影工作室` / helper processes before launching the tested instance.
 
 For a focused regression test, use:
 

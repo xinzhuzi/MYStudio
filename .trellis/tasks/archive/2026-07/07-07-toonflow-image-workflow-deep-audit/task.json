@@ -1,0 +1,28 @@
+{
+  "id": "toonflow-image-workflow-deep-audit",
+  "name": "toonflow-image-workflow-deep-audit",
+  "title": "Toonflow image workflow deep audit",
+  "description": "",
+  "status": "completed",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P2",
+  "creator": "xinzhuzi",
+  "assignee": "xinzhuzi",
+  "createdAt": "2026-07-07",
+  "completedAt": "2026-07-10",
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [
+    "07-07-07-07-derived-asset-image-workflow-dedupe"
+  ],
+  "parent": null,
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {}
+}

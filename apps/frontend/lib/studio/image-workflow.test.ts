@@ -347,4 +347,127 @@ describe("image workflow graph", () => {
       ]),
     );
   });
+
+  it("deduplicates equivalent local parent reference paths when hydrating a derived asset workflow", () => {
+    let existing = createImageWorkflowGraph({
+      id: "flow-derived-character",
+      name: "角色衍生资产链",
+      target: { kind: "asset", assetType: "character", id: "char-derived", parentId: "char-parent" },
+    });
+    existing = addReferenceImageNode(existing, {
+      id: "ref-file-url",
+      title: "父资产参考图",
+      imageUrl: "file:///Users/zhengbingjin/Project/asset%20source.png",
+      position: { x: 80, y: 100 },
+    });
+    existing = addReferenceImageNode(existing, {
+      id: "ref-absolute-path",
+      title: "父资产参考图",
+      imageUrl: "/Users/zhengbingjin/Project/asset source.png",
+      position: { x: 80, y: 360 },
+    });
+    existing = addGeneratedImageNode(existing, {
+      id: "gen-character",
+      title: "灰衫入镇态 成图",
+      prompt: "灰衫入镇态",
+      position: { x: 620, y: 120 },
+    });
+    existing = connectImageWorkflowNodes(existing, {
+      source: "ref-file-url",
+      target: "gen-character",
+    });
+    existing = connectImageWorkflowNodes(existing, {
+      source: "ref-absolute-path",
+      target: "gen-character",
+    });
+
+    const graph = ensureAssetImageWorkflowGraph(existing, {
+      target: {
+        kind: "asset",
+        assetType: "character",
+        parentId: "char-parent",
+        id: "char-derived",
+      },
+      title: "灰衫入镇态",
+      prompt: "灰衫入镇态",
+      sourceImagePath: "/Users/zhengbingjin/Project/asset source.png",
+      resultImagePath: "project-file://dao/workflow-images/assets/character/char-derived.png",
+      imageWorkflowId: "flow-derived-character",
+    });
+
+    const references = graph.nodes.filter((node) => node.type === "reference");
+    const generated = graph.nodes.find((node) => node.type === "generated");
+
+    expect(references).toHaveLength(1);
+    expect(references[0]).toMatchObject({
+      id: "ref-file-url",
+      imageUrl: "file:///Users/zhengbingjin/Project/asset%20source.png",
+    });
+    expect(graph.edges.filter((edge) => edge.target === generated?.id && edge.source === "ref-file-url")).toHaveLength(1);
+    expect(graph.edges.some((edge) => edge.source === "ref-absolute-path")).toBe(false);
+    expect(buildImageWorkflowGenerationRequest(graph, generated?.id || "").referenceImages).toEqual([
+      "file:///Users/zhengbingjin/Project/asset%20source.png",
+    ]);
+  });
+
+  it("deduplicates MYStudio asset file and thumbnail references for the same parent asset", () => {
+    let existing = createImageWorkflowGraph({
+      id: "flow-derived-character",
+      name: "角色衍生资产链",
+      target: { kind: "asset", assetType: "character", id: "char-derived", parentId: "char-parent" },
+    });
+    existing = addReferenceImageNode(existing, {
+      id: "ref-file",
+      title: "父资产参考图",
+      imageUrl: "/Users/zhengbingjin/Library/Application Support/漫影工作室/assets/files/role/d715e3de.png",
+      source: { kind: "asset", assetType: "character", id: "char-parent" },
+      position: { x: 80, y: 100 },
+    });
+    existing = addReferenceImageNode(existing, {
+      id: "ref-thumb",
+      title: "父资产参考图",
+      imageUrl: "file:///Users/zhengbingjin/Library/Application%20Support/漫影工作室/assets/thumbs/role/d715e3de.png",
+      source: { kind: "asset", assetType: "character", id: "char-parent" },
+      position: { x: 80, y: 360 },
+    });
+    existing = addGeneratedImageNode(existing, {
+      id: "gen-character",
+      title: "灰衫入镇态 成图",
+      prompt: "灰衫入镇态",
+      position: { x: 620, y: 120 },
+    });
+    existing = connectImageWorkflowNodes(existing, {
+      source: "ref-file",
+      target: "gen-character",
+    });
+    existing = connectImageWorkflowNodes(existing, {
+      source: "ref-thumb",
+      target: "gen-character",
+    });
+
+    const graph = ensureAssetImageWorkflowGraph(existing, {
+      target: {
+        kind: "asset",
+        assetType: "character",
+        parentId: "char-parent",
+        id: "char-derived",
+      },
+      title: "灰衫入镇态",
+      prompt: "灰衫入镇态",
+      sourceImagePath: "/Users/zhengbingjin/Library/Application Support/漫影工作室/assets/files/role/d715e3de.png",
+      resultImagePath: "project-file://dao/workflow-images/assets/character/char-derived.png",
+      imageWorkflowId: "flow-derived-character",
+    });
+
+    const references = graph.nodes.filter((node) => node.type === "reference");
+    const generated = graph.nodes.find((node) => node.type === "generated");
+
+    expect(references).toHaveLength(1);
+    expect(references[0]).toMatchObject({
+      id: "ref-file",
+      imageUrl: "/Users/zhengbingjin/Library/Application Support/漫影工作室/assets/files/role/d715e3de.png",
+    });
+    expect(graph.edges.filter((edge) => edge.target === generated?.id && edge.source === "ref-file")).toHaveLength(1);
+    expect(graph.edges.some((edge) => edge.source === "ref-thumb")).toBe(false);
+  });
 });

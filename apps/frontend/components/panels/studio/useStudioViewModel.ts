@@ -12,6 +12,7 @@ import { useStudioManualCatalog } from "./useStudioManualCatalog";
 import { useWorkflowNodeEditor } from "./useWorkflowNodeEditor";
 import { useWorkflowReadiness } from "./useWorkflowReadiness";
 import { useWorkflowStageState } from "./useWorkflowStageState";
+import { useChapterAutoVideoActions } from "./useChapterAutoVideoActions";
 
 export function useStudioViewModel() {
   const activeProject = useProjectStore((state) => state.activeProject);
@@ -119,6 +120,16 @@ export function useStudioViewModel() {
     saveScriptPlan,
     saveSeriesBible,
   });
+  const {
+    chapterAutoVideoStatus,
+    chapterAutoVideoRunning,
+    handleRunChapterAutoVideo,
+    handleOpenFinalVideo,
+  } = useChapterAutoVideoActions({
+    activeProjectId: activeProject?.id,
+    productionEpisodeId,
+    handleProductionNodeAction,
+  });
 
   const {
     scriptStyleSummary,
@@ -210,6 +221,10 @@ export function useStudioViewModel() {
     productionFlowNodes: productionFlowModel.nodes,
     openNodeEditor,
     handleProductionNodeAction,
+    chapterAutoVideoStatus,
+    chapterAutoVideoRunning,
+    handleRunChapterAutoVideo,
+    handleOpenFinalVideo,
     assetImageWorkflowContext,
     openAssetImageWorkflow,
     closeAssetImageWorkflow,

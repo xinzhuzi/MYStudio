@@ -1,3 +1,5 @@
+import type { TtsSpeakerId } from "./tts";
+
 export type AgentWorkKey =
   | "eventAnalysis"
   | "storySkeleton"
@@ -46,6 +48,54 @@ export interface NovelChapter {
   updatedAt?: number;
 }
 
+export interface ProjectEventGraphRecord {
+  id: string;
+  projectId: string;
+  episodeId: string;
+  chapterIndex: number;
+  chapterTitle: string;
+  entities: string[];
+  coreEvent: string;
+  mainlineRelation: string;
+  informationDensity: string;
+  estimatedDurationSec: number;
+  emotionTags: string[];
+  timelineOrder: number;
+  retrievalText: string;
+  source: "novelEventAnalysis";
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface ProjectMemoryRecord {
+  id: string;
+  projectId: string;
+  episodeId?: string;
+  kind: "event" | "run" | "summary";
+  title: string;
+  content: string;
+  entities: string[];
+  timelineOrder?: number;
+  sourceRef?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface ProjectMemoryQuery {
+  projectId: string;
+  episodeId?: string;
+  chapterIndex?: number;
+  entities?: string[];
+  purpose?: "script" | "production" | string;
+  includePriorEpisodes?: boolean;
+  limit?: number;
+}
+
+export interface ProjectMemoryContext {
+  records: ProjectMemoryRecord[];
+  markdown: string;
+}
+
 export interface AgentWorkData {
   id: string;
   key: AgentWorkKey;
@@ -56,12 +106,44 @@ export interface AgentWorkData {
 }
 
 export type StoryboardState = "idle" | "queued" | "rendering" | "ready" | "failed";
+export type StudioRunStatus = "queued" | "running" | "success" | "failed" | "canceled" | "stale";
+
+export interface StudioStaleEvidence {
+  stale?: boolean;
+  staleReason?: string;
+  staleSince?: number;
+  sourceRunId?: string;
+  sourceFingerprint?: string;
+  outputVersion?: number;
+}
 
 export interface StoryboardMediaRef {
   kind: "image" | "video" | "audio";
   path: string;
   imageWorkflowId?: string;
   imageWorkflowNodeId?: string;
+}
+
+export interface StoryboardSourceEvidence {
+  source: string;
+  sourceProjectId?: string | number;
+  sourceEpisodeId?: string | number;
+  sourceStoryboardId?: string | number;
+  sourcePath?: string;
+  sourceTable?: string;
+  promptHash?: string;
+  note?: string;
+}
+
+export interface StoryboardOrderedReference {
+  order: number;
+  assetId: string;
+  assetName?: string;
+  assetKind?: ImageWorkflowAssetTargetType | "character" | "scene" | "prop";
+  imageId?: string | number;
+  imagePath?: string;
+  source?: string;
+  missing?: boolean;
 }
 
 export interface StudioMaterial {
@@ -76,7 +158,7 @@ export interface StudioMaterial {
   imageWorkflowNodeId?: string;
 }
 
-export interface StoryboardItem {
+export interface StoryboardItem extends StudioStaleEvidence {
   id: string;
   episodeId: string;
   index: number;
@@ -90,6 +172,8 @@ export interface StoryboardItem {
   imageWorkflowId?: string;
   imageWorkflowNodeId?: string;
   shouldGenerateImage?: boolean;
+  sourceEvidence?: StoryboardSourceEvidence;
+  orderedReferenceManifest?: StoryboardOrderedReference[];
   audioRef?: StoryboardMediaRef;
   state: StoryboardState;
   reason?: string;
@@ -99,11 +183,24 @@ export interface StoryboardItem {
   spatialRelation?: string;
   associateAssetsNames?: string[];
   lines?: string;
-  speakerId?: string;
+  speaker?: string;
+  speakerId?: TtsSpeakerId;
+  line?: string;
+  ttsSpokenText?: string;
+  durationTarget?: number;
+  voiceStyle?: string;
+  requiresFixedVoice?: true;
+  ttsGenerationId?: string;
+  ttsBackend?: string;
+  ttsMocked?: boolean;
+  ttsWarning?: string;
+  voiceProfileId?: string;
+  voiceReferenceAudioPath?: string;
+  voiceMatch?: "fixed" | "ai-selected";
   sound?: string;
 }
 
-export interface ProductionTrack {
+export interface ProductionTrack extends StudioStaleEvidence {
   id: string;
   episodeId: string;
   trackKey: string;
@@ -118,7 +215,7 @@ export interface ProductionTrack {
 
 export type VideoProvider = "ffmpeg-local" | "model-placeholder";
 
-export interface VideoCandidate {
+export interface VideoCandidate extends StudioStaleEvidence {
   id: string;
   trackId: string;
   provider: VideoProvider;
@@ -126,6 +223,36 @@ export interface VideoCandidate {
   state: StoryboardState;
   errorReason?: string;
   createdAt: number;
+}
+
+export type MediaGenerationTaskKind =
+  | "storyboardImage"
+  | "derivedAssetImage"
+  | "ttsAudio"
+  | "modelVideo"
+  | "ffmpegTrack"
+  | "finalExport";
+
+export type MediaGenerationTaskStatus = "queued" | "running" | "success" | "failed" | "canceled";
+
+export interface MediaGenerationTask {
+  id: string;
+  kind: MediaGenerationTaskKind;
+  status: MediaGenerationTaskStatus;
+  targetId: string;
+  episodeId?: string;
+  provider?: string;
+  runId?: string;
+  checkpointRef?: string;
+  inputFingerprint?: string;
+  outputRef?: string;
+  outputRefs?: string[];
+  errorReason?: string;
+  retryOf?: string;
+  retryCount?: number;
+  createdAt: number;
+  updatedAt: number;
+  finishedAt?: number;
 }
 
 export type ModelType = "text" | "image" | "video" | "tts" | "vision";
@@ -223,10 +350,15 @@ export interface StudioAgentRun {
   id: string;
   key: AgentWorkKey;
   phase: string;
-  status: "queued" | "running" | "success" | "failed";
+  status: StudioRunStatus;
   inputSummary: string;
+  inputFingerprint?: string;
   outputRef?: string;
+  outputRefs?: string[];
   errorReason?: string;
+  retryOf?: string;
+  retryCount?: number;
+  checkpointRef?: string;
   startedAt: number;
   finishedAt?: number;
 }

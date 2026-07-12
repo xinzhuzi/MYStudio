@@ -49,6 +49,59 @@ const LIGHTING_TERMS = [
 
 const NO_DERIVE_MARKERS = ["无需衍生", "不需要衍生", "无衍生"];
 
+export const REQUIRED_DIRECTOR_PLAN_SECTIONS = [
+  "① 主题立意与叙事核心",
+  "② 视觉风格与画面基调",
+  "③ 叙事结构与节奏规划",
+  "④ 分场景情绪与画面意图",
+  "⑤ 声音方向",
+  "⑥ 转场与视觉连续性",
+] as const;
+
+const MIN_DIRECTOR_PLAN_CHARS = 1000;
+const MIN_DIRECTOR_PLAN_CHINESE_CHARS = 450;
+const MIN_SCENE_INTENT_CHINESE_CHARS = 220;
+const MIN_SOUND_OR_TRANSITION_CHINESE_CHARS = 40;
+
+export interface DirectorPlanAuditMetrics {
+  hasScriptPlanWrapper: boolean;
+  chars: number;
+  chineseChars: number;
+  h2Sections: number;
+  bulletCount: number;
+  sceneSections: number;
+  structuredSceneIntents: number;
+  completeSceneIntents: number;
+  legacyThreeBlockHeadings: string[];
+  requiredSectionsPresent: Record<(typeof REQUIRED_DIRECTOR_PLAN_SECTIONS)[number], boolean>;
+  sectionChineseChars: Partial<Record<SectionMarker, number>>;
+}
+
+export interface DirectorPlanAuditResult {
+  passed: boolean;
+  issues: string[];
+  metrics: DirectorPlanAuditMetrics;
+}
+
+export interface DirectorPlanAuditSummary {
+  passed: boolean;
+  issueCodes: string[];
+  issueCount: number;
+  metrics: Pick<
+    DirectorPlanAuditMetrics,
+    | "hasScriptPlanWrapper"
+    | "chars"
+    | "chineseChars"
+    | "h2Sections"
+    | "sceneSections"
+    | "structuredSceneIntents"
+    | "completeSceneIntents"
+    | "legacyThreeBlockHeadings"
+  > & {
+    missingRequiredSections: string[];
+  };
+}
+
 export function detectLightingTerms(text: string): string[] {
   const found = new Set<string>();
   for (const term of LIGHTING_TERMS) {
@@ -76,6 +129,135 @@ export function buildDirectorPlanMessages(input: BuildDirectorPlanInput): Direct
       input.scriptText,
     ].join("\n"),
   };
+}
+
+export function buildDirectorPlanRepairUserMessage(input: {
+  originalUserContent: string;
+  invalidOutput: string;
+  issues: string[];
+}): string {
+  return [
+    input.originalUserContent,
+    "",
+    "【结构修复任务】",
+    "上一次导演规划未通过结构审计。请只基于同一份剧本重写完整导演规划，不新增剧情事实，不输出解释。",
+    "必须完整输出一个 <scriptPlan>...</scriptPlan>，内部必须使用以下六个二级标题：",
+    ...REQUIRED_DIRECTOR_PLAN_SECTIONS.map((section) => `## ${section}`),
+    "第④段必须按 ### Sc ... 逐场展开，每场至少包含：情绪目标、氛围方向、镜头意图、空间叙事、连续性锚点或距离感设计。",
+    "第⑤段必须写逐场声音方向；第⑥段必须写转场与视觉连续性锚点。",
+    "",
+    "未通过审计的问题：",
+    ...input.issues.map((issue) => `- ${issue}`),
+    "",
+    "上一次不合格输出如下，只用于修复结构，不要照抄其缺陷：",
+    input.invalidOutput,
+  ].join("\n");
+}
+
+export function auditDirectorPlanStructure(output: string): DirectorPlanAuditResult {
+  const hasScriptPlanWrapper = /<scriptPlan>[\s\S]*?<\/scriptPlan>/.test(output);
+  const body = extractScriptPlanSegments(output);
+  const sections = splitSections(body);
+  const issues: string[] = [];
+  const legacyThreeBlockHeadings = detectLegacyThreeBlockHeadings(body);
+  const requiredSectionsPresent = Object.fromEntries(
+    REQUIRED_DIRECTOR_PLAN_SECTIONS.map((section) => [
+      section,
+      new RegExp(`^##\\s+${escapeRegExp(section)}\\s*$`, "m").test(body),
+    ]),
+  ) as DirectorPlanAuditMetrics["requiredSectionsPresent"];
+  const sceneSectionMatches = [...body.matchAll(/^###\s+Sc\s*\d+(?:-\d+)?[^\n]*$/gm)];
+  const sceneIntents = parseLegacySceneIntents(sections["④"] ?? "");
+  const completeSceneIntents = sceneIntents.filter(
+    (item) => item.sceneId && item.emotion && item.shotIntent && item.spatial,
+  );
+  const sectionChineseChars: DirectorPlanAuditMetrics["sectionChineseChars"] = {};
+  for (const marker of SECTION_MARKERS) {
+    if (sections[marker]) sectionChineseChars[marker] = chineseCharCount(sections[marker]);
+  }
+
+  const metrics: DirectorPlanAuditMetrics = {
+    hasScriptPlanWrapper,
+    chars: body.length,
+    chineseChars: chineseCharCount(body),
+    h2Sections: (body.match(/^##\s+[①②③④⑤⑥]/gm) ?? []).length,
+    bulletCount: (body.match(/^\s*-\s+/gm) ?? []).length,
+    sceneSections: sceneSectionMatches.length,
+    structuredSceneIntents: sceneIntents.length,
+    completeSceneIntents: completeSceneIntents.length,
+    legacyThreeBlockHeadings,
+    requiredSectionsPresent,
+    sectionChineseChars,
+  };
+
+  if (!hasScriptPlanWrapper) issues.push("缺少完整 <scriptPlan>...</scriptPlan> 包裹");
+  if (metrics.chars < MIN_DIRECTOR_PLAN_CHARS) {
+    issues.push(`导演规划正文过短：${metrics.chars}/${MIN_DIRECTOR_PLAN_CHARS}`);
+  }
+  if (metrics.chineseChars < MIN_DIRECTOR_PLAN_CHINESE_CHARS) {
+    issues.push(`导演规划中文有效字数过少：${metrics.chineseChars}/${MIN_DIRECTOR_PLAN_CHINESE_CHARS}`);
+  }
+
+  const missingSections = REQUIRED_DIRECTOR_PLAN_SECTIONS.filter(
+    (section) => !requiredSectionsPresent[section],
+  );
+  if (missingSections.length) {
+    issues.push(`缺少固定二级标题：${missingSections.join("、")}`);
+  }
+  if (legacyThreeBlockHeadings.length && missingSections.length) {
+    issues.push(`检测到旧三段导演规划格式：${legacyThreeBlockHeadings.join("、")}`);
+  }
+
+  if (!sections["④"]?.trim()) {
+    issues.push("第④段“分场景情绪与画面意图”为空");
+  } else if ((sectionChineseChars["④"] ?? 0) < MIN_SCENE_INTENT_CHINESE_CHARS) {
+    issues.push(`第④段逐场细化不足：${sectionChineseChars["④"] ?? 0}/${MIN_SCENE_INTENT_CHINESE_CHARS}`);
+  }
+  if (metrics.sceneSections < 1) {
+    issues.push("第④段缺少 ### Sc ... 逐场小节");
+  }
+  if (metrics.sceneSections > 0 && metrics.completeSceneIntents < metrics.sceneSections) {
+    issues.push(`逐场意图字段不完整：${metrics.completeSceneIntents}/${metrics.sceneSections}`);
+  }
+
+  for (const marker of ["⑤", "⑥"] as const) {
+    if (!sections[marker]?.trim()) {
+      issues.push(`第${marker}段为空`);
+    } else if ((sectionChineseChars[marker] ?? 0) < MIN_SOUND_OR_TRANSITION_CHINESE_CHARS) {
+      issues.push(`第${marker}段内容过短：${sectionChineseChars[marker] ?? 0}/${MIN_SOUND_OR_TRANSITION_CHINESE_CHARS}`);
+    }
+  }
+
+  return {
+    passed: issues.length === 0,
+    issues,
+    metrics,
+  };
+}
+
+export function summarizeDirectorPlanAudit(audit: DirectorPlanAuditResult): DirectorPlanAuditSummary {
+  return {
+    passed: audit.passed,
+    issueCodes: audit.issues.map(toDirectorPlanIssueCode),
+    issueCount: audit.issues.length,
+    metrics: {
+      hasScriptPlanWrapper: audit.metrics.hasScriptPlanWrapper,
+      chars: audit.metrics.chars,
+      chineseChars: audit.metrics.chineseChars,
+      h2Sections: audit.metrics.h2Sections,
+      sceneSections: audit.metrics.sceneSections,
+      structuredSceneIntents: audit.metrics.structuredSceneIntents,
+      completeSceneIntents: audit.metrics.completeSceneIntents,
+      legacyThreeBlockHeadings: audit.metrics.legacyThreeBlockHeadings,
+      missingRequiredSections: REQUIRED_DIRECTOR_PLAN_SECTIONS.filter(
+        (section) => !audit.metrics.requiredSectionsPresent[section],
+      ),
+    },
+  };
+}
+
+export function formatDirectorPlanAuditError(audit: DirectorPlanAuditResult): string {
+  return `导演规划结构不合格：${audit.issues.slice(0, 4).join("；")}`;
 }
 
 export function parseDirectorPlan(output: string, episodeId: string): ParseDirectorPlanResult {
@@ -107,7 +289,7 @@ export function parseDirectorPlan(output: string, episodeId: string): ParseDirec
     theme: clean(sections["①"]),
     visualStyle: stripLightingTerms(visualRaw),
     narrativeRhythm: clean(sections["③"]),
-    sceneIntents: [],
+    sceneIntents: parseLegacySceneIntents(sceneIntentRaw),
     soundDirection: clean(sections["⑤"]),
     transitions: clean(sections["⑥"]),
     derivedAssetPlan,
@@ -207,6 +389,70 @@ function extractEnvironmentSounds(section: string): string {
     .map((line) => line.trim())
     .filter((line) => line.includes("环境音"))
     .join("\n");
+}
+
+function parseLegacySceneIntents(section: string): ScriptPlan["sceneIntents"] {
+  return splitLegacySceneBlocks(section)
+    .map(({ sceneId, body }) => {
+      const emotionTarget = extractLegacySceneField(body, ["情绪目标"]);
+      const atmosphere = extractLegacySceneField(body, ["氛围方向"]);
+      const shotIntent = extractLegacySceneField(body, ["镜头意图"]);
+      const spatial = [
+        extractLegacySceneField(body, ["空间叙事"]),
+        extractLegacySceneField(body, ["距离感设计"]),
+        extractLegacySceneField(body, ["连续性锚点"]),
+      ].filter(Boolean).join("；");
+
+      return {
+        sceneId,
+        emotion: [emotionTarget, atmosphere].filter(Boolean).join("；"),
+        shotIntent,
+        spatial,
+      };
+    })
+    .filter((item) => item.sceneId && (item.emotion || item.shotIntent || item.spatial));
+}
+
+function splitLegacySceneBlocks(section: string): Array<{ sceneId: string; body: string }> {
+  const blocks: Array<{ sceneId: string; body: string[] }> = [];
+  let current: { sceneId: string; body: string[] } | null = null;
+
+  for (const line of section.split(/\r?\n/)) {
+    const match = line.match(/^###\s+(Sc\s*\d+(?:-\d+)?)\b/);
+    if (match) {
+      current = { sceneId: match[1]!, body: [] };
+      blocks.push(current);
+      continue;
+    }
+    current?.body.push(line);
+  }
+
+  return blocks.map((block) => ({
+    sceneId: block.sceneId,
+    body: block.body.join("\n"),
+  }));
+}
+
+function extractLegacySceneField(body: string, labels: string[]): string {
+  const lines = body.split(/\r?\n/);
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index]!.trim();
+    const match = line.match(/^-\s+\*\*([^*]+)\*\*[：:]\s*(.*)$/);
+    if (!match) continue;
+
+    const label = match[1]!.trim();
+    if (!labels.includes(label)) continue;
+
+    const values = [match[2]!.trim()].filter(Boolean);
+    for (let cursor = index + 1; cursor < lines.length; cursor += 1) {
+      const next = lines[cursor]!.trim();
+      if (!next) continue;
+      if (/^-\s+\*\*[^*]+\*\*[：:]/.test(next) || /^###\s+Sc\s*\d+(?:-\d+)?\b/.test(next)) break;
+      values.push(next.replace(/^-\s+/, "").trim());
+    }
+    return stripLightingTerms(values.join("；"));
+  }
+  return "";
 }
 
 /** 取出所有 <scriptPlan>…</scriptPlan> 段并按出现顺序拼接；若无标签则回退整段。 */
@@ -338,6 +584,40 @@ function isDerivedHeaderRow(line: string): boolean {
 
 function isSeparatorRow(line: string): boolean {
   return /^\|[\s:|-]+\|$/.test(line);
+}
+
+function detectLegacyThreeBlockHeadings(body: string): string[] {
+  const headings = [
+    "分场汇总表",
+    "逐场注意事项",
+    "场间过渡",
+  ];
+  return headings.filter((heading) =>
+    new RegExp(`^#{1,6}\\s+${escapeRegExp(heading)}(?:[（(][^\\n]*[）)])?\\s*$`, "m").test(body),
+  );
+}
+
+function toDirectorPlanIssueCode(issue: string): string {
+  if (issue.includes("<scriptPlan>")) return "missing_script_plan_wrapper";
+  if (issue.includes("正文过短")) return "body_too_short";
+  if (issue.includes("中文有效字数过少")) return "chinese_chars_too_low";
+  if (issue.includes("缺少固定二级标题")) return "missing_required_sections";
+  if (issue.includes("旧三段导演规划格式")) return "legacy_three_block_format";
+  if (issue.includes("第④段") && issue.includes("为空")) return "scene_intent_section_empty";
+  if (issue.includes("第④段") && issue.includes("细化不足")) return "scene_intent_section_too_short";
+  if (issue.includes("缺少 ### Sc")) return "missing_scene_subsections";
+  if (issue.includes("逐场意图字段不完整")) return "incomplete_scene_intents";
+  if (issue.includes("第⑤段")) return "sound_section_invalid";
+  if (issue.includes("第⑥段")) return "transition_section_invalid";
+  return "unknown";
+}
+
+function chineseCharCount(text: string): number {
+  return (text.match(/[\u4e00-\u9fff]/g) ?? []).length;
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function clean(value: string | undefined): string {

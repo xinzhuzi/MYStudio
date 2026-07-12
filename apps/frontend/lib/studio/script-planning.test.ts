@@ -16,10 +16,13 @@ describe("studio script-planning 逐章编剧链（Markdown）", () => {
       chapterTitle: "第1章 剑主夜访道口镇",
       chapterText: "独孤剑尘夜访道口镇。",
       eventState: "主线关系：强",
+      projectMemoryContext: "## 项目记忆（编剧阶段范围检索）\n- [event] 第1章: 独孤入镇",
       manualContext: "## 项目信息\n视觉风格：日式3D渲染2D",
     });
     expect(m.user).toContain("独孤剑尘夜访道口镇");
     expect(m.user).toContain("主线关系：强");
+    expect(m.user).toContain("项目记忆");
+    expect(m.user).toContain("独孤入镇");
     expect(m.user).toContain("视觉风格：日式3D渲染2D");
     expect(m.user).toContain("## 本章正文（重点原文）");
     expect(m.user).toContain("> 独孤剑尘夜访道口镇。");

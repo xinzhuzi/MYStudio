@@ -22,6 +22,89 @@ afterEach(() => {
 });
 
 describe("studio workflow store", () => {
+  it("persists agent run lifecycle evidence and creates retry runs", () => {
+    const store = useStudioStore.getState();
+
+    const runId = store.startAgentRun({
+      key: "directorPlan",
+      phase: "scriptPlan",
+      inputSummary: "director plan input",
+      inputFingerprint: "fingerprint-1",
+      checkpointRef: "op-1",
+    });
+    store.failAgentRun(runId, "model timeout", "checkpoint-1");
+    const retryId = store.retryAgentRun(runId);
+    expect(retryId).toBeTruthy();
+    store.finishAgentRun(retryId!, {
+      outputRef: "work-director",
+      outputRefs: ["work-director", "plan-1"],
+      checkpointRef: "checkpoint-2",
+    });
+
+    const runs = useStudioStore.getState().agentRuns;
+    expect(runs).toHaveLength(2);
+    expect(runs[0]).toMatchObject({
+      id: runId,
+      key: "directorPlan",
+      status: "failed",
+      errorReason: "model timeout",
+      checkpointRef: "checkpoint-1",
+    });
+    expect(runs[1]).toMatchObject({
+      id: retryId,
+      retryOf: runId,
+      retryCount: 1,
+      status: "success",
+      outputRef: "work-director",
+      outputRefs: ["work-director", "plan-1"],
+    });
+  });
+
+  it("rebuilds scoped project memory from chapter events and purges it by project", () => {
+    const store = useStudioStore.getState();
+    store.replaceNovelText("第1章 雨夜入镇\n独孤剑尘救下晏燎。\n\n第2章 塾馆燃气\n晏燎掌心发热。");
+    store.updateNovelChapter("chapter-001", {
+      eventAnalysis: {
+        chapterLabel: "第1章 雨夜入镇",
+        characters: ["独孤剑尘", "晏燎"],
+        coreEvent: "独孤剑尘入镇并救下晏燎",
+        mainlineRelation: "强（传承启动）",
+        informationDensity: "高",
+        estimatedDurationSec: 50,
+        emotionTags: ["冲突", "悬疑"],
+        rawLine: "",
+      },
+    });
+    store.updateNovelChapter("chapter-002", {
+      eventAnalysis: {
+        chapterLabel: "第2章 塾馆燃气",
+        characters: ["晏燎"],
+        coreEvent: "晏燎掌心发热并牵出残卷线索",
+        mainlineRelation: "强（线索推进）",
+        informationDensity: "高",
+        estimatedDurationSec: 45,
+        emotionTags: ["转折"],
+        rawLine: "",
+      },
+    });
+
+    useStudioStore.getState().rebuildProjectMemoryFromChapters("project-a");
+    const context = useStudioStore.getState().retrieveProjectMemory({
+      projectId: "project-a",
+      episodeId: "chapter-002",
+      chapterIndex: 2,
+      entities: ["独孤剑尘"],
+      purpose: "production",
+    });
+
+    expect(context.records.map((record) => record.episodeId)).toEqual(["chapter-002", "chapter-001"]);
+    expect(context.markdown).toContain("项目记忆（制作阶段范围检索）");
+
+    useStudioStore.getState().purgeProjectMemory("project-a");
+    expect(useStudioStore.getState().eventGraph).toHaveLength(0);
+    expect(useStudioStore.getState().projectMemoryRecords).toHaveLength(0);
+  });
+
   it("keeps chapter ids when creating storyboards from imported chapters", () => {
     const store = useStudioStore.getState();
 
@@ -69,6 +152,91 @@ describe("studio workflow store", () => {
       imageWorkflowId: "flow-1",
       imageWorkflowNodeId: "gen-1",
       state: "ready",
+    });
+    expect(state.mediaTasks).toEqual([
+      expect.objectContaining({
+        kind: "storyboardImage",
+        status: "success",
+        targetId: storyboardId,
+        outputRef: "project-file://daojie/workflow-images/flow-1/shot-1.png",
+        checkpointRef: "flow-1:gen-1",
+      }),
+    ]);
+  });
+
+  it("records audio, video candidate, retry, and final export media task evidence", () => {
+    const store = useStudioStore.getState();
+    const storyboardId = store.addStoryboard({
+      id: "shot-audio",
+      episodeId: "chapter-001",
+      prompt: "雨夜街巷",
+      mediaRef: { kind: "image", path: "project-file://dao/shot.png" },
+    });
+
+    store.bindStoryboardMedia(storyboardId, {
+      kind: "audio",
+      path: "project-file://dao/audio/shot.wav",
+    });
+    store.rebuildTracks();
+    const trackId = useStudioStore.getState().productionTracks[0]!.id;
+    const failedVideoId = store.addVideoCandidate({
+      id: "video-failed",
+      trackId,
+      provider: "ffmpeg-local",
+      state: "failed",
+      errorReason: "ffmpeg crashed",
+    });
+    const retryIds = store.retryFailedMediaTasks("ffmpegTrack");
+    const videoId = store.addVideoCandidate({
+      id: "video-ready",
+      trackId,
+      provider: "ffmpeg-local",
+      state: "rendering",
+    });
+    store.updateVideoCandidate(videoId, {
+      state: "ready",
+      filePath: "project-file://dao/video/track.mp4",
+    });
+    store.saveAgentWorkData(
+      "productionPlan",
+      "本地成片输出: project-file://dao/exports/final.mp4",
+      "chapter-001",
+    );
+
+    const tasks = useStudioStore.getState().mediaTasks;
+    expect(tasks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "ttsAudio",
+          status: "success",
+          targetId: storyboardId,
+          outputRef: "project-file://dao/audio/shot.wav",
+        }),
+        expect.objectContaining({
+          kind: "ffmpegTrack",
+          status: "failed",
+          targetId: failedVideoId,
+          errorReason: "ffmpeg crashed",
+        }),
+        expect.objectContaining({
+          kind: "ffmpegTrack",
+          status: "success",
+          targetId: videoId,
+          outputRef: "project-file://dao/video/track.mp4",
+        }),
+        expect.objectContaining({
+          kind: "finalExport",
+          status: "success",
+          targetId: "chapter-001",
+        }),
+      ]),
+    );
+    expect(retryIds).toHaveLength(1);
+    expect(tasks.find((task) => task.id === retryIds[0])).toMatchObject({
+      kind: "ffmpegTrack",
+      status: "running",
+      retryOf: expect.any(String),
+      retryCount: 1,
     });
   });
 
@@ -248,9 +416,52 @@ describe("studio workflow store", () => {
       trackKey: "segment-001",
       mediaRef: { kind: "image", path: "project-file://frames/old-1.png" },
       audioRef: { kind: "audio", path: "project-file://audio/old-1.wav" },
+      stale: true,
+      staleReason: "storyboard source changed",
     });
     expect(
       state.productionTracks.flatMap((track) => track.storyboardIds),
     ).not.toContain("sb-ep1-2");
+  });
+
+  it("marks tracks and video candidates stale when storyboard source changes", () => {
+    const store = useStudioStore.getState();
+    const storyboardId = store.addStoryboard({
+      id: "shot-stale",
+      episodeId: "ep1",
+      trackKey: "track-a",
+      prompt: "旧分镜",
+      videoDesc: "旧画面",
+      mediaRef: { kind: "image", path: "project-file://frames/old.png" },
+      state: "ready",
+    });
+    const trackId = useStudioStore.getState().productionTracks[0]!.id;
+    const candidateId = store.addVideoCandidate({
+      id: "candidate-stale",
+      trackId,
+      provider: "ffmpeg-local",
+      filePath: "project-file://video/old.mp4",
+      state: "ready",
+    });
+    store.selectVideoCandidate(trackId, candidateId);
+
+    useStudioStore.getState().updateStoryboard(storyboardId, {
+      prompt: "新分镜",
+      videoDesc: "新画面",
+    });
+
+    const state = useStudioStore.getState();
+    expect(state.storyboards[0]).toMatchObject({
+      stale: true,
+      staleReason: "storyboard source changed",
+    });
+    expect(state.productionTracks[0]).toMatchObject({
+      stale: true,
+      staleReason: "storyboard source changed",
+    });
+    expect(state.videoCandidates[0]).toMatchObject({
+      stale: true,
+      staleReason: "track source changed",
+    });
   });
 });

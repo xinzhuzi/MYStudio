@@ -14,8 +14,7 @@ import { useCharacterLibraryStore } from "@/stores/character-library-store";
 import { usePropsLibraryStore } from "@/stores/props-library-store";
 import { useSceneStore } from "@/stores/scene-store";
 import { useTtsStore } from "@/stores/tts-store";
-import { useAppSettingsStore } from "@/stores/app-settings-store";
-import { useFreedomStore } from "@/stores/freedom-store";
+import { DAOJIE_VISUAL_MANUAL_ID } from "@/lib/studio/visual-manual-classification";
 import {
   formatScriptPlanContext,
   resolveProductionEpisodeId,
@@ -29,6 +28,8 @@ const assetOrchestratorMocks = vi.hoisted(() => ({
 
 const aiManagerMocks = vi.hoisted(() => ({
   freedomImage: vi.fn(),
+  text: vi.fn(),
+  textStream: vi.fn(),
 }));
 
 vi.mock("@/lib/studio/asset-generation-orchestrator", () => ({
@@ -38,7 +39,8 @@ vi.mock("@/lib/studio/asset-generation-orchestrator", () => ({
 vi.mock("@/lib/ai/ai-manager", () => ({
   aiManager: {
     freedomImage: aiManagerMocks.freedomImage,
-    text: vi.fn(),
+    text: aiManagerMocks.text,
+    textStream: aiManagerMocks.textStream,
   },
 }));
 
@@ -60,7 +62,95 @@ afterEach(() => {
   delete (window as any).studioAssets;
   delete (window as any).imageStorage;
   delete (window as any).projectFiles;
+  delete (window as any).electronAPI;
+  delete (window as any).diagnosticsLog;
 });
+
+function weakThreeBlockDirectorPlan() {
+  return [
+    "<scriptPlan>",
+    "",
+    "## 分场汇总表",
+    "| 场次 | 场景名 | 台词条数 | 台词字数 | 情绪浓度 | 情绪基调（含 X→Y） |",
+    "|---|---|---:|---:|---:|---|",
+    "| Sc1 | 金水河码头·监工逼矿与独孤入镇 | 7 | 35 | 7 | 码头压迫→隐忍相救 |",
+    "| Sc2 | 悦来客栈·落脚显剑与旧仇牵引 | 16 | 71 | 6 | 市井冷峻→旧痛压回 |",
+    "",
+    "## 逐场注意事项",
+    "- **Sc1**：独孤错身轻拨朽木救下小杂役，却不暴露身份。",
+    "- **Sc2**：断剑露出后，独孤触及旧伤却没有拔剑。",
+    "",
+    "## 场间过渡",
+    "| 场间 | 过渡方式 | 说明 |",
+    "|---|---|---|",
+    "| Sc1 → Sc2 | 硬切 | 从码头矿筐切到客栈铜钱 |",
+    "</scriptPlan>",
+  ].join("\n");
+}
+
+function validSixSectionDirectorPlan() {
+  return [
+    "<scriptPlan>",
+    "# 《道劫第一章》导演创作规划",
+    "",
+    "## ① 主题立意与叙事核心",
+    "核心主题：被宗门火印压住的小镇里，独孤剑尘以不暴露实力的方式救下弱者，并从晏燎身上看见被压制的微光。情感主线从码头的冷硬压迫，转入客栈旧案的克制疼痛，再落到塾馆少年命数的短暂燃起，最终以灵舟压境形成第一章钩子。观众离场时应记住灰衫、断剑、残卷和少年掌心的暗红一息。",
+    "",
+    "## ② 视觉风格与画面基调",
+    "画面基调遵循宣纸淡彩工笔与青绿山水的低饱和质感，人物轮廓靠细密线描和旧金纹理保持识别。构图以偏侧留白、门框压迫、栈道纵深和柜台阻隔表现阶层距离；镜头运动以定镜、缓推、轻微横移为主，禁止写实摄影、三维塑料感、赛璐璐高饱和和画面文字叠加。角色服装、剑包、铜钱、残卷的位置要跨场连续。",
+    "",
+    "## ③ 叙事结构与节奏规划",
+    "叙事按四个戏剧单元推进：Sc1 用码头劳役建立压迫和独孤隐性救人，Sc2 用客栈铜钱与断剑揭开旧案线索，Sc3 用塾馆夜课把晏燎的命数推到观众面前，Sc4 用残卷裂纹和灵舟逼近完成追杀倒计时。节奏先慢压，再短促点燃，最后收成安静而危险的钩子，不把解说塞满每个镜头。",
+    "",
+    "## ④ 分场景情绪与画面意图",
+    "",
+    "### Sc1 金水河码头 晨/外",
+    "- **情绪目标**：让观众先感到苦力被制度压扁，再看到独孤只动半寸就让灾祸偏开，救人但不显圣。",
+    "- **氛围方向**：压迫、冷硬、隐忍。",
+    "- **镜头意图**：",
+    "  - 大远景排出藤筐、矿石、苦力队列，让码头像吞人的机器。",
+    "  - 中景跟住独孤草鞋滑半寸，矿石砸空，小杂役跌入船影边缘。",
+    "  - 赵四挥鞭与独孤背影错开，强调他不和权力正面冲撞。",
+    "- **空间叙事**：前景朽木栈道，中景赵四和小杂役，背景金水河船影层层压向人物。",
+    "- **连续性锚点**：灰衫、破草鞋、油布剑包、袖中残卷和太一宗火印必须保留。",
+    "",
+    "### Sc2 悦来客栈 夜/内",
+    "- **情绪目标**：把独孤的贫困、旧伤和断剑线索收进狭窄斗室，让观众靠近他的秘密但仍不知道全貌。",
+    "- **氛围方向**：戒备、逼仄、旧痛翻涌。",
+    "- **镜头意图**：",
+    "  - 柜台正反打让掌柜隔着账册审视独孤，人物被柜台压低。",
+    "  - 两枚绿锈铜钱落下后切到油布剑包，钱与剑形成旧案关联。",
+    "  - 斗室内揭开三层油布，断剑断口进入特写但不做炫技展示。",
+    "- **空间叙事**：大堂、楼梯、走廊、斗室逐层收紧，门框像牢笼一样压住人物。",
+    "- **连续性锚点**：铜钱数量、账册位置、腕侧旧疤、断剑断口和油布折痕不能漂移。",
+    "",
+    "## ⑤ 声音方向",
+    "逐场声音要服务压迫和微光：Sc1 用铁链拖石、矿筐碎裂、鞭梢破空和苦力压低的喘息形成底噪，独孤救人瞬间收掉多余声源，只留矿石砸空；Sc2 用算盘珠、铜钱落柜、木梯轻响、油布摩擦和断剑低鸣承接旧案；Sc3 应以孩童呼吸、水缸闷响和枯枝折断突出晏燎被否定后的倔强；Sc4 用更鼓、纸页颤动、缆绳绷紧和灵舟破雾声完成倒计时。",
+    "",
+    "## ⑥ 转场与视觉连续性",
+    "Sc1 到 Sc2 用矿筐裂口的墨痕硬切到客栈账册边缘，保留被压迫的质感；Sc2 到 Sc3 用断剑断口形状接塾馆门框，暗示旧伤寻找新因；Sc3 到 Sc4 用晏燎掌心余温接残卷新裂纹，把希望和杀机并置。连续性锚点包括独孤灰衫和油布剑包、绿锈铜钱、断剑断口、残卷裂纹、晏燎湿草鞋和暗红灵气。",
+    "",
+    "## ⑦ 衍生资产预划清单",
+    "| 资产名 | 衍生状态 | 原因/出现段落 |",
+    "|---|---|---|",
+    "| 独孤剑尘 | 灰衫入镇态 | Sc1-Sc4 连续出镜 |",
+    "</scriptPlan>",
+  ].join("\n");
+}
+
+function installTextCompletionRuntime() {
+  (window as any).electronAPI = { textCompletion: vi.fn(), textCompletionStream: vi.fn() };
+}
+
+function installDiagnosticsRuntime() {
+  const write = vi.fn(async (entry: any) => ({
+    ...entry,
+    timestamp: "2026-07-09T00:00:00.000Z",
+    level: entry.level ?? "info",
+  }));
+  (window as any).diagnosticsLog = { write };
+  return write;
+}
 
 describe("workflow stage action surfaces", () => {
   it("resolves production steps to the chapter-scoped script instead of a stale default episode", () => {
@@ -139,6 +229,134 @@ describe("workflow stage action surfaces", () => {
 
     expect(context).toContain("低机位推进独孤剑尘入场");
     expect(context).toContain("雨夜湿衣");
+  });
+
+  it("repairs weak three-block director plans before writeback", async () => {
+    useStudioStore.getState().resetStudioWorkflow();
+    installTextCompletionRuntime();
+    const diagnosticsWrite = installDiagnosticsRuntime();
+    const saveAgentWorkData = vi.fn();
+    const saveScriptPlan = vi.fn();
+    const validPlan = validSixSectionDirectorPlan();
+    aiManagerMocks.textStream
+      .mockResolvedValueOnce({ success: true, text: weakThreeBlockDirectorPlan() })
+      .mockResolvedValueOnce({ success: true, text: validPlan });
+    useStudioStore.setState({
+      agentWorkData: [
+        {
+          id: "script-draft-1",
+          key: "scriptDraft",
+          episodeId: "chapter-001",
+          data: "第一场金水河码头，独孤剑尘救下小杂役。第二场悦来客栈，断剑显露。",
+          createdAt: 1,
+          updatedAt: 1,
+        },
+      ],
+      novelChapters: [],
+      scriptPlans: [],
+    });
+
+    const { result } = renderHook(() =>
+      useProductionPlanningActions({
+        activeProjectId: "dao-project",
+        productionEpisodeId: "chapter-001",
+        manualCatalog: { visual: [] } as any,
+        handleStageChange: vi.fn(),
+        saveAgentWorkData,
+        saveScriptPlan,
+        saveSeriesBible: vi.fn(),
+      }),
+    );
+
+    await act(async () => {
+      await result.current.handleProductionNodeAction({
+        id: "generate-director-plan",
+        targetStage: "storyboard",
+      });
+    });
+
+    expect(aiManagerMocks.textStream).toHaveBeenCalledTimes(2);
+    expect(String(aiManagerMocks.textStream.mock.calls[1]?.[0]?.messages?.[1]?.content)).toContain("结构修复任务");
+    expect(saveAgentWorkData).toHaveBeenCalledTimes(1);
+    expect(saveAgentWorkData).toHaveBeenCalledWith("directorPlan", validPlan, "chapter-001");
+    expect(saveScriptPlan).toHaveBeenCalledTimes(1);
+    expect(saveScriptPlan.mock.calls[0]?.[0]).toMatchObject({
+      episodeId: "chapter-001",
+      sceneIntents: expect.arrayContaining([
+        expect.objectContaining({ sceneId: "Sc1" }),
+        expect.objectContaining({ sceneId: "Sc2" }),
+      ]),
+    });
+    expect(diagnosticsWrite.mock.calls.map((call) => call[0].message)).toEqual(
+      expect.arrayContaining([
+        "directorPlan.audit.first",
+        "directorPlan.audit.repair",
+        "directorPlan.writeback.saved",
+      ]),
+    );
+    expect(diagnosticsWrite.mock.calls.find((call) => call[0].message === "directorPlan.audit.first")?.[0].context.audit.issueCodes).toContain(
+      "legacy_three_block_format",
+    );
+  });
+
+  it("blocks weak director-plan writeback when repair is still invalid", async () => {
+    useStudioStore.getState().resetStudioWorkflow();
+    installTextCompletionRuntime();
+    const diagnosticsWrite = installDiagnosticsRuntime();
+    const saveAgentWorkData = vi.fn();
+    const saveScriptPlan = vi.fn();
+    aiManagerMocks.textStream
+      .mockResolvedValueOnce({ success: true, text: weakThreeBlockDirectorPlan() })
+      .mockResolvedValueOnce({ success: true, text: weakThreeBlockDirectorPlan() });
+    useStudioStore.setState({
+      agentWorkData: [
+        {
+          id: "script-draft-1",
+          key: "scriptDraft",
+          episodeId: "chapter-001",
+          data: "第一场金水河码头，独孤剑尘救下小杂役。第二场悦来客栈，断剑显露。",
+          createdAt: 1,
+          updatedAt: 1,
+        },
+      ],
+      novelChapters: [],
+      scriptPlans: [],
+    });
+
+    const { result } = renderHook(() =>
+      useProductionPlanningActions({
+        activeProjectId: "dao-project",
+        productionEpisodeId: "chapter-001",
+        manualCatalog: { visual: [] } as any,
+        handleStageChange: vi.fn(),
+        saveAgentWorkData,
+        saveScriptPlan,
+        saveSeriesBible: vi.fn(),
+      }),
+    );
+
+    await act(async () => {
+      await result.current.handleProductionNodeAction({
+        id: "generate-director-plan",
+        targetStage: "storyboard",
+      });
+    });
+
+    expect(aiManagerMocks.textStream).toHaveBeenCalledTimes(2);
+    expect(saveAgentWorkData).not.toHaveBeenCalled();
+    expect(saveScriptPlan).not.toHaveBeenCalled();
+    expect(diagnosticsWrite.mock.calls.map((call) => call[0].message)).toEqual(
+      expect.arrayContaining([
+        "directorPlan.audit.first",
+        "directorPlan.audit.repair",
+        "directorPlan.writeback.blocked",
+      ]),
+    );
+    const blocked = diagnosticsWrite.mock.calls.find(
+      (call) => call[0].message === "directorPlan.writeback.blocked",
+    )?.[0];
+    expect(blocked?.context.phase).toBe("final_audit");
+    expect(blocked?.context.audit.issueCodes).toContain("legacy_three_block_format");
   });
 
   it("passes parent asset images and existing flow ids into derivative generation tasks", () => {
@@ -255,7 +473,7 @@ describe("workflow stage action surfaces", () => {
           : id === "prop-parent"
             ? { kind: "prop", id }
             : null,
-      "manual-1",
+      DAOJIE_VISUAL_MANUAL_ID,
       "dao-project",
     );
 
@@ -270,6 +488,19 @@ describe("workflow stage action surfaces", () => {
         imageWorkflowId: "flow-char-derived",
       }),
     ]);
+    expect(tasks.characterVariationTasks[0]?.prompt).toContain("角色衍生资产");
+    expect(tasks.characterVariationTasks[0]?.prompt).toContain("四视图");
+    expect(tasks.characterVariationTasks[0]?.prompt).toContain("三视图");
+    expect(tasks.characterVariationTasks[0]?.prompt).toContain("人像特写");
+    expect(tasks.characterVariationTasks[0]?.prompt).toContain("正视图");
+    expect(tasks.characterVariationTasks[0]?.prompt).toContain("侧视图");
+    expect(tasks.characterVariationTasks[0]?.prompt).toContain("后视图");
+    expect(tasks.characterVariationTasks[0]?.prompt).toContain("portrait closeup");
+    expect(tasks.characterVariationTasks[0]?.prompt).toContain("character reference sheet");
+    expect(tasks.characterVariationTasks[0]?.prompt).toContain("character turnaround");
+    expect(tasks.characterVariationTasks[0]?.prompt).toContain("不要生成单张全身插画");
+    expect(tasks.characterVariationTasks[0]?.prompt).toContain("禁止写实摄影");
+    expect(tasks.characterVariationTasks[0]?.prompt).toContain("禁止3D写实渲染");
     expect(tasks.storeTasks).toEqual([
       expect.objectContaining({
         assetId: "scene-derived",
@@ -284,9 +515,15 @@ describe("workflow stage action surfaces", () => {
         imageWorkflowId: "flow-prop-derived",
       }),
     ]);
+    expect(tasks.storeTasks[0]?.existingPrompt).not.toContain("三视图");
+    expect(tasks.storeTasks[1]?.existingPrompt).not.toContain("三视图");
+    expect(tasks.storeTasks[0]?.existingPrompt).not.toContain("四视图");
+    expect(tasks.storeTasks[1]?.existingPrompt).not.toContain("四视图");
+    expect(tasks.storeTasks[0]?.existingPrompt).not.toContain("character turnaround");
+    expect(tasks.storeTasks[1]?.existingPrompt).not.toContain("character turnaround");
   });
 
-  it("records storyboard image generation as an image workflow result, not only a media path", () => {
+  it("keeps storyboard image generation out of the outer production node action path", () => {
     const source = readFileSync(
       join(
         process.cwd(),
@@ -294,112 +531,20 @@ describe("workflow stage action surfaces", () => {
       ),
       "utf8",
     );
-    const start = source.indexOf("const handleGenerateStoryboardImages = useCallback");
-    const end = source.indexOf("const handleRebuildWorkbenchTracks", start);
-    const handler = source.slice(start, end);
 
-    expect(start).toBeGreaterThan(-1);
-    expect(end).toBeGreaterThan(start);
-    expect(handler).toContain("createStoryboardImageWorkflowGraph");
-    expect(handler).toContain("workflowStore.upsertImageWorkflow(graph)");
-    expect(handler).toContain("workflowStore.applyImageWorkflowResultToStoryboard");
-    expect(handler).not.toContain('mediaRef: { kind: "image", path: saved.url }');
+    expect(source).not.toContain("handleGenerateStoryboardImages");
+    expect(source).not.toContain('action.id === "generate-storyboard-images"');
+    expect(source).not.toContain("createStoryboardImageWorkflowGraph");
+    expect(source).not.toContain("applyImageWorkflowResultToStoryboard");
   });
 
-  it("keeps Toonflow storyboard image generation opt-out when collecting targets", () => {
-    const source = readFileSync(
-      join(
-        process.cwd(),
-        "frontend/components/panels/studio/useProductionPlanningActions.ts",
-      ),
-      "utf8",
-    );
-    const start = source.indexOf("function collectStoryboardsNeedingImages");
-    const end = source.indexOf("function buildStoryboardImagePrompt", start);
-    const collector = source.slice(start, end);
-
-    expect(start).toBeGreaterThan(-1);
-    expect(end).toBeGreaterThan(start);
-    expect(collector).toContain("item.shouldGenerateImage !== false");
-  });
-
-  it("generates storyboard images with ordered asset reference images in the current project", async () => {
+  it("does not generate or write back storyboard images from a legacy outer action id", async () => {
     const project = { id: "dao-project", name: "道劫", createdAt: 1, updatedAt: 1 };
+    const handleStageChange = vi.fn();
     useProjectStore.setState({
       projects: [project],
       activeProjectId: project.id,
       activeProject: project,
-    });
-    useAppSettingsStore.setState({
-      imageGenerationSettings: {
-        defaultAspectRatio: "16:9",
-        defaultResolution: "2K",
-        compatibilityRetryEnabled: true,
-        compatibilityRetryAspectRatio: "1:1",
-        compatibilityRetryResolution: "1K",
-      },
-    });
-    useFreedomStore.setState({
-      selectedImageModel: "gpt-image-2",
-      imageAspectRatio: "9:16",
-      imageResolution: "1K",
-    });
-    useCharacterLibraryStore.setState({
-      characters: [
-        {
-          id: "char-1",
-          name: "独孤剑尘",
-          description: "主角",
-          visualTraits: "black robe",
-          projectId: project.id,
-          thumbnailUrl: "project-file://dao/assets/char-thumb.png",
-          variations: [
-            {
-              id: "char-1-rain",
-              name: "雨夜湿衣",
-              visualPrompt: "wet robe",
-              referenceImage: "project-file://dao/assets/char-rain.png",
-            },
-          ],
-          views: [
-            {
-              viewType: "front",
-              imageUrl: "https://cdn.test/char-front.png",
-              generatedAt: 1,
-            },
-          ],
-          createdAt: 1,
-          updatedAt: 1,
-        },
-      ],
-    });
-    useSceneStore.setState({
-      scenes: [
-        {
-          id: "scene-1",
-          name: "悦来客栈",
-          location: "客栈",
-          time: "夜",
-          atmosphere: "雨夜",
-          projectId: project.id,
-          referenceImage: "project-file://dao/assets/scene.png",
-          createdAt: 1,
-          updatedAt: 1,
-        },
-      ],
-    });
-    usePropsLibraryStore.setState({
-      items: [
-        {
-          id: "prop-1",
-          name: "归元断剑",
-          description: "断剑",
-          imageUrl: "https://cdn.test/prop.png",
-          projectId: project.id,
-          folderId: null,
-          createdAt: 1,
-        },
-      ],
     });
     useStudioStore.setState({
       materials: [],
@@ -416,20 +561,7 @@ describe("workflow stage action surfaces", () => {
           duration: 4,
           prompt: "雨夜低机位推进",
           videoDesc: "独孤剑尘走进客栈",
-          assetIds: ["char-1", "scene-1", "prop-1"],
-          state: "idle",
-        },
-        {
-          id: "shot-skip",
-          episodeId: "episode-1",
-          index: 2,
-          trackKey: "track-1",
-          trackId: "",
-          duration: 4,
-          prompt: "仅声音过场",
-          videoDesc: "黑场听雨",
-          assetIds: ["char-1"],
-          shouldGenerateImage: false,
+          assetIds: [],
           state: "idle",
         },
       ],
@@ -459,22 +591,9 @@ describe("workflow stage action surfaces", () => {
         activeProjectId: project.id,
         productionEpisodeId: "episode-1",
         manualCatalog: {
-          visual: [
-            {
-              id: "manual-1",
-              kind: "visual",
-              name: "水墨手册",
-              modules: { README: "水墨", prefix: "国风", art_storyboard_video: "横版分镜" },
-              images: [],
-              builtin: true,
-              source: "bundled",
-              completenessScore: 1,
-              moduleCount: 3,
-              imageCount: 0,
-            },
-          ],
+          visual: [],
         },
-        handleStageChange: vi.fn(),
+        handleStageChange,
         saveAgentWorkData: useStudioStore.getState().saveAgentWorkData,
         saveScriptPlan: vi.fn(),
         saveSeriesBible: vi.fn(),
@@ -489,37 +608,15 @@ describe("workflow stage action surfaces", () => {
       });
     });
 
-    expect(aiManagerMocks.freedomImage).toHaveBeenCalledTimes(1);
-    expect(aiManagerMocks.freedomImage).toHaveBeenCalledWith(expect.objectContaining({
-      model: "gpt-image-2",
-      aspectRatio: "16:9",
-      resolution: "2K",
-      referenceImages: [
-        "data:image/png;base64,CHAR-THUMB",
-        "data:image/png;base64,CHAR-RAIN",
-        "https://cdn.test/char-front.png",
-        "data:image/png;base64,SCENE",
-        "https://cdn.test/prop.png",
-      ],
-    }));
-    expect(window.projectFiles?.saveImage).toHaveBeenCalledWith(expect.objectContaining({
-      projectId: project.id,
-      relativePath: expect.stringMatching(/^workflow-images\/storyboards\/episode-1\/shot-001-shot-1-/),
-      source: "https://model.test/generated-shot.png",
-    }));
+    expect(handleStageChange).toHaveBeenCalledWith("storyboard");
+    expect(aiManagerMocks.freedomImage).not.toHaveBeenCalled();
+    expect(window.projectFiles?.saveImage).not.toHaveBeenCalled();
     expect(window.studioAssets?.add).not.toHaveBeenCalled();
     expect(window.studioAssets?.addImage).not.toHaveBeenCalled();
     expect(window.studioAssets?.saveMaterial).not.toHaveBeenCalled();
-    expect(useStudioStore.getState().storyboards.find((item) => item.id === "shot-1")).toMatchObject({
-      state: "ready",
-      mediaRef: {
-        kind: "image",
-        path: "project-file://dao-project/workflow-images/storyboards/episode-1/shot-001.png",
-      },
-    });
-    const skippedStoryboard = useStudioStore.getState().storyboards.find((item) => item.id === "shot-skip");
-    expect(skippedStoryboard).toMatchObject({ state: "idle" });
-    expect(skippedStoryboard?.mediaRef).toBeUndefined();
+    const storyboard = useStudioStore.getState().storyboards.find((item) => item.id === "shot-1");
+    expect(storyboard).toMatchObject({ state: "idle" });
+    expect(storyboard?.mediaRef).toBeUndefined();
   });
 
   it("routes script asset management to extraction first and manual generation second", () => {
@@ -1537,10 +1634,18 @@ describe("workflow stage action surfaces", () => {
     expect(hookSource).toContain("handleStoryboardTable");
     expect(hookSource).toContain("handleProductionNodeAction");
     expect(hookSource).toContain("handleBuildSeriesBible");
-    expect(hookSource).toContain('saveAgentWorkData("directorPlan"');
-    expect(hookSource).toContain('action.id === "sync-derived-assets"');
-    expect(hookSource).toContain('action.id === "generate-derived-assets"');
-    expect(hookSource).toContain('action.id === "generate-storyboard-images"');
+    expect(hookSource).toContain("auditDirectorPlanStructure");
+    expect(hookSource).toContain("buildDirectorPlanRepairUserMessage");
+    expect(hookSource).toContain("formatDirectorPlanAuditError");
+    expect(hookSource).toContain("repairAttempted");
+    expect(hookSource).toContain("createProductionAgentToolRegistry");
+    expect(hookSource).toContain("writeDirectorPlan");
+    expect(hookSource.indexOf("auditDirectorPlanStructure")).toBeLessThan(
+      hookSource.indexOf("writeDirectorPlan"),
+    );
+    expect(hookSource).not.toContain('action.id === "sync-derived-assets"');
+    expect(hookSource).not.toContain('action.id === "generate-derived-assets"');
+    expect(hookSource).not.toContain('action.id === "generate-storyboard-images"');
     expect(hookSource).toContain('action.id === "rebuild-workbench-tracks"');
     expect(hookSource).toContain("【本次节点补充要求】");
   });
@@ -1604,14 +1709,23 @@ describe("workflow stage action surfaces", () => {
       ),
       "utf8",
     );
+    const runnerSource = readFileSync(
+      join(
+        process.cwd(),
+        "frontend/lib/studio/production-runners.ts",
+      ),
+      "utf8",
+    );
 
     expect(viewModelSource).toContain("useProductionRenderActions");
     expect(indexSource).not.toContain("createTrackRenderPlan");
     expect(indexSource).not.toContain("createEpisodeMergePlan");
     expect(indexSource).not.toContain("setRenderingTrackId");
-    expect(hookSource).toContain("renderTrackCandidate");
-    expect(hookSource).toContain("mergeEpisode");
+    expect(hookSource).toContain("runProductionTrackRender");
+    expect(hookSource).toContain("runProductionEpisodeMerge");
     expect(hookSource).toContain("selectedCandidates");
+    expect(runnerSource).toContain("renderTrackCandidate");
+    expect(runnerSource).toContain("mergeEpisode");
   });
 
   it("routes novel analysis and asset extraction through the split hook", () => {

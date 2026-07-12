@@ -1,0 +1,33 @@
+{
+  "id": "mystudio-toonflow-workflow-parity-trace",
+  "name": "mystudio-toonflow-workflow-parity-trace",
+  "title": "MYStudio Toonflow workflow parity trace",
+  "description": "Trace Toonflow workflow contracts end to end, document gaps, and absorb workflow parity mechanisms into MYStudio with explicit reports and tests.",
+  "status": "completed",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P1",
+  "creator": "xinzhuzi",
+  "assignee": "xinzhuzi",
+  "createdAt": "2026-07-08",
+  "completedAt": "2026-07-10",
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [
+    "07-10-mystudio-toonflow-current-audit-docs",
+    "07-10-mystudio-workflow-run-kernel-stale",
+    "07-10-mystudio-toolized-agents-review-loop",
+    "07-10-mystudio-event-graph-project-memory",
+    "07-10-mystudio-media-taskization",
+    "07-10-mystudio-toonflow-fixture-final-verification"
+  ],
+  "parent": null,
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {}
+}

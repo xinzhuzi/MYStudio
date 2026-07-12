@@ -1,5 +1,45 @@
 import { describe, expect, it } from "vitest";
-import { createTtsStore } from "./tts-store";
+import { useProjectStore } from "./project-store";
+import {
+  createTtsStore,
+  mergeTtsStoreState,
+  partializeTtsStoreState,
+  type PersistedTtsState,
+  type TtsProjectState,
+} from "./tts-store";
+import type { VoiceProfile } from "@/types/tts";
+
+function voiceProfile(id: string, path: string, timestamp: number): VoiceProfile {
+  return {
+    id,
+    name: id,
+    type: "reference",
+    language: "zh",
+    defaultEngine: "qwen",
+    defaultModelSize: "1.7B",
+    referenceAudioPath: path,
+    referenceText: `参考文本-${id}`,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  };
+}
+
+function projectWithBinding(
+  speakerId: `character:${string}` | "narrator",
+  profileId: string,
+): TtsProjectState {
+  return {
+    voiceLines: {},
+    bindings: {
+      [speakerId]: {
+        speakerId,
+        profileId,
+        defaultEngine: "qwen",
+        defaultModelSize: "1.7B",
+      },
+    },
+  };
+}
 
 describe("TTS store", () => {
   it("creates scene voice lines outside SplitScene and defaults text from dialogue", () => {
@@ -183,5 +223,107 @@ describe("TTS store", () => {
       presetVoiceId: "zf_xiaobei",
     });
     expect(store.getState().voiceProfiles[profile.id].referenceAudioPath).toBeUndefined();
+  });
+});
+
+describe("TTS project-scoped persistence", () => {
+  it("partializes only the active project and its referenced fixed profiles", () => {
+    const store = createTtsStore();
+    const profileA = voiceProfile("profile-a", "/voices/a.wav", 100);
+    const profileB = voiceProfile("profile-b", "/voices/b.wav", 200);
+    store.setState({
+      activeProjectId: "project-a",
+      projects: {
+        "project-a": projectWithBinding("character:a", profileA.id),
+        "project-b": projectWithBinding("character:b", profileB.id),
+      },
+      voiceProfiles: {
+        [profileA.id]: profileA,
+        [profileB.id]: profileB,
+      },
+    });
+
+    expect(partializeTtsStoreState(store.getState())).toEqual({
+      activeProjectId: "project-a",
+      projects: {
+        "project-a": projectWithBinding("character:a", profileA.id),
+      },
+      voiceProfiles: { [profileA.id]: profileA },
+    });
+  });
+
+  it("replaces project and profile state when rehydrating another project", () => {
+    const store = createTtsStore();
+    const profileA = voiceProfile("profile-a", "/voices/a.wav", 100);
+    const profileB = voiceProfile("profile-b", "/voices/b.wav", 200);
+    store.setState({
+      activeProjectId: "project-a",
+      projects: {
+        "project-a": projectWithBinding("character:a", profileA.id),
+      },
+      voiceProfiles: { [profileA.id]: profileA },
+    });
+    useProjectStore.setState({ activeProjectId: "project-b" });
+
+    const persisted: PersistedTtsState = {
+      activeProjectId: "project-b",
+      projects: {
+        "project-b": projectWithBinding("character:b", profileB.id),
+      },
+      voiceProfiles: { [profileB.id]: profileB },
+    };
+    const merged = mergeTtsStoreState(persisted, store.getState());
+
+    expect(merged.activeProjectId).toBe("project-b");
+    expect(Object.keys(merged.projects)).toEqual(["project-b"]);
+    expect(merged.voiceProfiles).toEqual({ [profileB.id]: profileB });
+    expect(merged.voiceProfiles[profileA.id]).toBeUndefined();
+  });
+
+  it("prunes a legacy multi-project payload to the routed project", () => {
+    const store = createTtsStore();
+    const profileA = voiceProfile("profile-a", "/voices/a.wav", 100);
+    const profileB = voiceProfile("profile-b", "/voices/b.wav", 200);
+    const orphan = voiceProfile("profile-orphan", "/voices/orphan.wav", 300);
+    useProjectStore.setState({ activeProjectId: "project-b" });
+
+    const merged = mergeTtsStoreState(
+      {
+        activeProjectId: "project-a",
+        projects: {
+          "project-a": projectWithBinding("character:a", profileA.id),
+          "project-b": projectWithBinding("character:b", profileB.id),
+        },
+        voiceProfiles: {
+          [profileA.id]: profileA,
+          [profileB.id]: profileB,
+          [orphan.id]: orphan,
+        },
+      },
+      store.getState(),
+    );
+
+    expect(Object.keys(merged.projects)).toEqual(["project-b"]);
+    expect(merged.voiceProfiles).toEqual({ [profileB.id]: profileB });
+  });
+
+  it("clears previous project profiles when switching to a new project with no file", () => {
+    const store = createTtsStore();
+    const profileA = voiceProfile("profile-a", "/voices/a.wav", 100);
+    store.setState({
+      activeProjectId: "project-a",
+      projects: {
+        "project-a": projectWithBinding("character:a", profileA.id),
+      },
+      voiceProfiles: { [profileA.id]: profileA },
+    });
+
+    store.getState().setActiveProjectId("project-new");
+
+    expect(store.getState().activeProjectId).toBe("project-new");
+    expect(store.getState().projects).toEqual({
+      "project-new": { voiceLines: {}, bindings: {} },
+    });
+    expect(store.getState().voiceProfiles).toEqual({});
   });
 });

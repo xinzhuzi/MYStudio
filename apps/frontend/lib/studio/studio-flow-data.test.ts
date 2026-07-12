@@ -80,6 +80,32 @@ describe("studio Toonflow FlowData projection", () => {
           audioRef: { kind: "audio", path: "/tmp/shot.wav" },
           state: "ready",
           lines: "他终于到了。",
+          sourceEvidence: {
+            source: "toonflow-import",
+            sourceProjectId: 1779271590876,
+            sourceStoryboardId: 1,
+            sourceTable: "o_storyboard",
+          },
+          orderedReferenceManifest: [
+            {
+              order: 1,
+              assetId: "c1",
+              assetName: "独孤剑尘",
+              assetKind: "character",
+              imageId: 11,
+              imagePath: "/toonflow/dugu.jpg",
+              source: "o_assets2Storyboard.rowid",
+            },
+            {
+              order: 2,
+              assetId: "s1",
+              assetName: "道口镇",
+              assetKind: "scene",
+              imageId: 12,
+              imagePath: "/toonflow/town.jpg",
+              source: "o_assets2Storyboard.rowid",
+            },
+          ],
         },
       ],
       productionTracks: [
@@ -116,11 +142,20 @@ describe("studio Toonflow FlowData projection", () => {
     expect(flowData.storyboard).toMatchObject([
       {
         id: "shot-1",
+        index: 1,
         videoDesc: "雨中推进",
         prompt: "雨夜道口镇",
         duration: 5,
         associateAssetsIds: ["c1", "s1", "p1"],
         shouldGenerateImage: false,
+        sourceEvidence: expect.objectContaining({
+          source: "toonflow-import",
+          sourceStoryboardId: 1,
+        }),
+        orderedReferenceManifest: [
+          expect.objectContaining({ order: 1, assetId: "c1", imageId: 11 }),
+          expect.objectContaining({ order: 2, assetId: "s1", imageId: 12 }),
+        ],
       },
     ]);
     expect(flowData.workbench.finalExportPath).toBe("/tmp/final.mp4");

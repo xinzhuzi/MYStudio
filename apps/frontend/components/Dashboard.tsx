@@ -12,6 +12,10 @@ import { useState, useCallback } from "react";
 import { useProjectStore } from "@/stores/project-store";
 import { useMediaPanelStore } from "@/stores/media-panel-store";
 import { switchProject } from "@/lib/project-switcher";
+import {
+  copyProjectScopedStoreFiles,
+  waitForProjectStoreFile,
+} from "@/lib/project-duplication";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -194,8 +198,7 @@ export function Dashboard({
         useProjectStore.getState().setActiveProject(null);
       }
       await switchProject(projectId);
-      // Wait for all async IPC persist writes to complete
-      await new Promise(r => setTimeout(r, 500));
+      await waitForProjectStoreFile(fs, `_p/${projectId}/tts`);
 
       // STEP 2: Generate new project ID BEFORE creating the project entry.
       // CRITICAL: Do NOT call createProject() here — it would change
@@ -207,50 +210,11 @@ export function Dashboard({
 
       // STEP 3: Copy per-project files with project ID rewriting.
       // activeProjectId still points to the source project during this step.
-      const KNOWN_STORES = [
-        'director', 'script', 'sclass', 'timeline',   // createProjectScopedStorage
-        'characters', 'media', 'scenes',               // createSplitStorage (per-project portion)
-      ];
-
-      let copiedCount = 0;
-      let keysToCopy: string[] = await fs.listKeys?.(`_p/${projectId}`) ?? [];
-      console.log(`[Duplicate] listKeys('_p/${projectId}') → ${keysToCopy.length} keys:`, keysToCopy);
-
-      if (keysToCopy.length === 0) {
-        keysToCopy = KNOWN_STORES.map(s => `_p/${projectId}/${s}`);
-        console.log('[Duplicate] Fallback to known store names');
-      }
-
-      for (const key of keysToCopy) {
-        const rawData = await fs.getItem(key);
-        if (!rawData) continue;
-
-        // Rewrite activeProjectId so the new project's merge() keys data correctly.
-        let dataToWrite = rawData;
-        try {
-          const parsed = JSON.parse(rawData);
-          const state = parsed?.state ?? parsed;
-
-          if (state && typeof state === 'object') {
-            if (state.activeProjectId === projectId) {
-              state.activeProjectId = newProjectId;
-            }
-            // Handle legacy format where projects is a dict keyed by projectId
-            if (state.projects && typeof state.projects === 'object' && state.projects[projectId]) {
-              state.projects[newProjectId] = state.projects[projectId];
-              delete state.projects[projectId];
-            }
-          }
-          dataToWrite = JSON.stringify(parsed);
-        } catch {
-          console.warn(`[Duplicate] Could not parse ${key}, copying raw`);
-        }
-
-        const newKey = key.replace(`_p/${projectId}`, `_p/${newProjectId}`);
-        await fs.setItem(newKey, dataToWrite);
-        copiedCount++;
-        console.log(`[Duplicate] Copied: ${key} → ${newKey}`);
-      }
+      const copiedCount = await copyProjectScopedStoreFiles(
+        fs,
+        projectId,
+        newProjectId,
+      );
 
       // STEP 4: NOW add the project entry to project-store (after all files are copied).
       // Use setState directly to add the project WITHOUT changing activeProjectId.

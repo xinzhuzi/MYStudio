@@ -8,6 +8,7 @@ import {
   Edit3,
   FileText,
   Film,
+  Loader2,
   Split,
   Table2,
 } from "lucide-react";
@@ -53,10 +54,65 @@ const NODE_SIZE_CLASS = {
   workbench: "w-[760px]",
 } satisfies Record<ProductionFlowNodeId, string>;
 
+const WRITABLE_NODE_IDS: readonly ProductionFlowNodeId[] = [
+  "script",
+  "scriptPlan",
+  "storyboardTable",
+];
+const COMPACT_HEADER_NODE_IDS: readonly ProductionFlowNodeId[] = [
+  "script",
+  "scriptPlan",
+  "storyboardTable",
+];
+const HIDDEN_METRIC_NODE_IDS: readonly ProductionFlowNodeId[] = [
+  "scriptPlan",
+  "storyboardTable",
+];
+const UNFRAMED_PREVIEW_NODE_IDS: readonly ProductionFlowNodeId[] = [
+  "script",
+  "scriptPlan",
+  "storyboardTable",
+];
+
 export function ProductionFlowNode({ data }: NodeProps<Node<ProductionNodeData>>) {
   const Icon = NODE_ICONS[data.node.id];
   const [actionInputs, setActionInputs] = useState<Record<string, string>>({});
   const [runningActionId, setRunningActionId] = useState<string | null>(null);
+  const canEditNode = Boolean(
+    data.onNodeEdit && WRITABLE_NODE_IDS.includes(data.node.id),
+  );
+  const useCompactHeader = COMPACT_HEADER_NODE_IDS.includes(data.node.id);
+  const titleMetrics = data.node.id === "script" ? data.node.metrics : [];
+  const bodyMetrics =
+    data.node.id === "script" || HIDDEN_METRIC_NODE_IDS.includes(data.node.id)
+      ? []
+      : data.node.metrics;
+  const showStatusChip = data.node.status !== "ready" && !useCompactHeader;
+  const statusLabel =
+    data.node.status === "warning"
+      ? "注意"
+      : data.node.status === "pending"
+        ? "处理中"
+        : "待处理";
+  const showPreviewChrome = !UNFRAMED_PREVIEW_NODE_IDS.includes(data.node.id);
+  const previewContent =
+    data.node.previewKind === "table" ? (
+      <StoryboardTablePreview node={data.node} />
+    ) : data.node.previewKind === "storyboard-grid" ? (
+      <StoryboardGridPreview
+        node={data.node}
+        onOpenImageWorkflow={data.onOpenAssetImageWorkflow}
+      />
+    ) : data.node.previewKind === "asset-derivation" ? (
+      <AssetDerivationPreview
+        node={data.node}
+        onOpenAssetImageWorkflow={data.onOpenAssetImageWorkflow}
+      />
+    ) : data.node.previewKind === "workbench-lanes" ? (
+      <WorkbenchLanePreview node={data.node} />
+    ) : (
+      <TextPreview node={data.node} />
+    );
   const runNodeAction = useCallback(
     async (action: ProductionFlowNodeAction) => {
       if (action.disabled || runningActionId) return;
@@ -64,7 +120,10 @@ export function ProductionFlowNode({ data }: NodeProps<Node<ProductionNodeData>>
       try {
         await data.onNodeAction?.({
           ...action,
-          userInstruction: (actionInputs[action.id] ?? "").trim(),
+          userInstruction:
+            action.showPromptInput === false
+              ? ""
+              : (actionInputs[action.id] ?? "").trim(),
         });
       } finally {
         setRunningActionId(null);
@@ -111,38 +170,46 @@ export function ProductionFlowNode({ data }: NodeProps<Node<ProductionNodeData>>
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border bg-muted/35 text-card-foreground">
             <Icon className="h-4 w-4" />
           </span>
-          <span className="min-w-0">
-            <span className="block truncate text-sm font-semibold text-card-foreground">
+          <span className="flex min-w-0 items-baseline gap-2">
+            <span className="truncate text-sm font-semibold text-card-foreground">
               {data.node.label}
             </span>
-            <span className="mt-0.5 block text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-              {data.node.id}
-            </span>
+            {titleMetrics.map((metric) => (
+              <span
+                key={metric}
+                className="shrink-0 text-xs font-medium text-muted-foreground"
+              >
+                {metric}
+              </span>
+            ))}
           </span>
         </div>
         <div className="nodrag nopan flex shrink-0 items-center gap-2">
-          <span
-            className={cn(
-              "rounded-full px-2 py-0.5 text-[10px] font-semibold",
-              data.node.status === "ready" && "bg-emerald-300/15 text-emerald-200",
-              data.node.status === "warning" && "bg-amber-300/15 text-amber-200",
-              data.node.status === "pending" && "bg-sky-300/15 text-sky-200",
-              data.node.status === "empty" && "bg-muted text-muted-foreground",
-            )}
-          >
-            {data.node.status === "ready" ? "READY" : "TODO"}
-          </span>
-          <button
-            type="button"
-            className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border bg-muted/35 px-2 text-[11px] font-medium text-card-foreground hover:border-sky-300/45 hover:bg-sky-300/12"
-            onClick={(event) => {
-              event.stopPropagation();
-              data.onNodeEdit?.(data.node.id);
-            }}
-          >
-            编辑
-            <Edit3 className="h-3 w-3" />
-          </button>
+          {showStatusChip ? (
+            <span
+              className={cn(
+                "rounded-full px-2 py-0.5 text-[10px] font-semibold",
+                data.node.status === "warning" && "bg-amber-300/15 text-amber-200",
+                data.node.status === "pending" && "bg-sky-300/15 text-sky-200",
+                data.node.status === "empty" && "bg-muted text-muted-foreground",
+              )}
+            >
+              {statusLabel}
+            </span>
+          ) : null}
+          {canEditNode ? (
+            <button
+              type="button"
+              className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border bg-muted/35 px-2 text-[11px] font-medium text-card-foreground hover:border-sky-300/45 hover:bg-sky-300/12"
+              onClick={(event) => {
+                event.stopPropagation();
+                data.onNodeEdit?.(data.node.id);
+              }}
+            >
+              编辑
+              <Edit3 className="h-3 w-3" />
+            </button>
+          ) : null}
           <button
             type="button"
             className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border bg-muted/35 px-2 text-[11px] font-medium text-card-foreground hover:border-sky-300/45 hover:bg-sky-300/12"
@@ -156,45 +223,40 @@ export function ProductionFlowNode({ data }: NodeProps<Node<ProductionNodeData>>
           </button>
         </div>
       </div>
-      <p className="mt-4 text-xs leading-5 text-muted-foreground">
-        {data.node.description}
-      </p>
-      <div className="mt-4 flex flex-wrap gap-2">
-        {data.node.metrics.map((metric) => (
-          <span
-            key={metric}
-            className="rounded-md border border-border bg-muted/30 px-2 py-1 text-[11px] text-muted-foreground"
-          >
-            {metric}
-          </span>
-        ))}
-      </div>
-      <div className="mt-4 rounded-md border border-border bg-muted/20 p-3">
-        <div className="mb-2 flex items-center justify-between gap-2">
-          <span className="text-[11px] font-medium text-card-foreground">
-            {data.node.previewTitle}
-          </span>
-          <span className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-            FLOWDATA
-          </span>
+      {data.node.status !== "ready" && !useCompactHeader ? (
+        <p className="mt-4 text-xs leading-5 text-muted-foreground">
+          {data.node.description}
+        </p>
+      ) : null}
+      {bodyMetrics.length ? (
+        <div className="mt-3 flex flex-wrap gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
+          {bodyMetrics.map((metric, index) => (
+            <span key={metric} className="inline-flex items-center gap-2">
+              {index > 0 ? (
+                <span className="text-muted-foreground/45">·</span>
+              ) : null}
+              <span>{metric}</span>
+            </span>
+          ))}
         </div>
-        {data.node.previewKind === "table" ? (
-          <StoryboardTablePreview node={data.node} />
-        ) : data.node.previewKind === "storyboard-grid" ? (
-          <StoryboardGridPreview
-            node={data.node}
-            onOpenImageWorkflow={data.onOpenAssetImageWorkflow}
-          />
-        ) : data.node.previewKind === "asset-derivation" ? (
-          <AssetDerivationPreview
-            node={data.node}
-            onOpenAssetImageWorkflow={data.onOpenAssetImageWorkflow}
-          />
-        ) : data.node.previewKind === "workbench-lanes" ? (
-          <WorkbenchLanePreview node={data.node} />
-        ) : (
-          <TextPreview node={data.node} />
+      ) : null}
+      <div
+        className={cn(
+          "mt-4",
+          showPreviewChrome && "rounded-md border border-border bg-muted/20 p-3",
         )}
+      >
+        {showPreviewChrome ? (
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <span className="text-[11px] font-medium text-card-foreground">
+              {data.node.previewTitle}
+            </span>
+            <span className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+              FLOWDATA
+            </span>
+          </div>
+        ) : null}
+        {previewContent}
       </div>
       {data.node.skills?.length || data.node.skill ? (
         <NodeSkillDisclosure node={data.node} />
@@ -209,52 +271,77 @@ export function ProductionFlowNode({ data }: NodeProps<Node<ProductionNodeData>>
           {data.node.actions.map((action) => (
             <div
               key={action.id}
-              className="rounded-md border border-sky-300/15 bg-sky-300/[0.055] p-2.5"
+              className={cn(
+                "rounded-md border border-sky-300/15 bg-sky-300/[0.055] p-2.5",
+                runningActionId === action.id &&
+                  "border-sky-300/45 bg-sky-300/[0.105] shadow-[0_0_0_1px_rgba(125,211,252,0.16),0_14px_40px_rgba(14,165,233,0.12)]",
+              )}
+              aria-busy={runningActionId === action.id}
             >
               {(() => {
                 const isRunning = runningActionId === action.id;
                 const isDisabled = Boolean(action.disabled || runningActionId);
+                const acceptsPromptInput = action.showPromptInput !== false;
                 return (
                   <>
-                    <textarea
-                      value={actionInputs[action.id] ?? ""}
-                      disabled={isDisabled}
-                      placeholder={action.promptPlaceholder ?? "给 AI 补充本节点生成要求..."}
-                      className={cn(
-                        "min-h-[64px] w-full resize-none rounded border border-border bg-background/65 px-2.5 py-2 text-xs leading-5 text-foreground outline-none placeholder:text-muted-foreground",
-                        "focus:border-sky-300/55 focus:bg-background",
-                        isDisabled && "cursor-not-allowed opacity-55",
-                      )}
-                      onChange={(event) =>
-                        setActionInputs((current) => ({
-                          ...current,
-                          [action.id]: event.target.value,
-                        }))
-                      }
-                    />
-                    <div className="mt-2 flex items-center justify-between gap-2">
-                      <span className="text-[10px] text-muted-foreground">
-                        {action.disabled
-                          ? "请先完成上游节点"
-                          : isRunning
-                            ? "正在提交本节点 AI 任务"
-                            : "输入内容会附加到本次 AI 任务"}
-                      </span>
-                      <button
-                        type="button"
+                    {acceptsPromptInput ? (
+                      <textarea
+                        value={actionInputs[action.id] ?? ""}
                         disabled={isDisabled}
+                        placeholder={action.promptPlaceholder ?? "给 AI 补充本节点生成要求..."}
                         className={cn(
-                          "inline-flex h-8 shrink-0 items-center gap-2 rounded-md border border-sky-300/30 bg-sky-300/12 px-3 text-xs font-medium text-sky-100",
-                          "hover:border-sky-200/60 hover:bg-sky-300/18",
-                          isDisabled &&
-                            "cursor-not-allowed border-border bg-muted/30 text-muted-foreground hover:border-border hover:bg-muted/30",
+                          "min-h-[64px] w-full resize-none rounded border border-border bg-background/65 px-2.5 py-2 text-xs leading-5 text-foreground outline-none placeholder:text-muted-foreground",
+                          "focus:border-sky-300/55 focus:bg-background",
+                          isDisabled && "cursor-not-allowed opacity-55",
                         )}
-                        onClick={() => void runNodeAction(action)}
-                      >
-                        <Clapperboard className={cn("h-3.5 w-3.5", isRunning && "animate-pulse")} />
-                        {isRunning ? "生成中" : action.label}
-                      </button>
+                        onChange={(event) =>
+                          setActionInputs((current) => ({
+                            ...current,
+                            [action.id]: event.target.value,
+                          }))
+                        }
+                      />
+                    ) : null}
+                    <div className={cn("flex items-center gap-2", acceptsPromptInput ? "mt-2 justify-between" : "justify-end")}>
+                      {acceptsPromptInput ? (
+                        <span className="text-[10px] text-muted-foreground">
+                          {action.disabled
+                            ? "请先完成上游节点"
+                            : isRunning
+                              ? "任务已提交，正在等待 AI 返回"
+                              : "输入内容会附加到本次 AI 任务"}
+                        </span>
+                      ) : null}
+                      {isRunning ? (
+                        <div
+                          role="status"
+                          className="inline-flex h-8 shrink-0 items-center gap-2 rounded-md border border-sky-300/45 bg-sky-300/18 px-3 text-xs font-semibold text-sky-50 shadow-[0_0_22px_rgba(56,189,248,0.16)]"
+                        >
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          正在生成中，请稍候
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          disabled={isDisabled}
+                          className={cn(
+                            "inline-flex h-8 shrink-0 items-center gap-2 rounded-md border border-sky-300/30 bg-sky-300/12 px-3 text-xs font-medium text-sky-100",
+                            "hover:border-sky-200/60 hover:bg-sky-300/18",
+                            isDisabled &&
+                              "cursor-not-allowed border-border bg-muted/30 text-muted-foreground hover:border-border hover:bg-muted/30",
+                          )}
+                          onClick={() => void runNodeAction(action)}
+                        >
+                          <Clapperboard className="h-3.5 w-3.5" />
+                          {action.label}
+                        </button>
+                      )}
                     </div>
+                    {isRunning ? (
+                      <div className="mt-2 rounded-md border border-sky-300/20 bg-background/45 px-2.5 py-2 text-[11px] leading-5 text-sky-100">
+                        本节点正在生成，完成后会自动写回当前节点。生成期间不能重复提交。
+                      </div>
+                    ) : null}
                   </>
                 );
               })()}

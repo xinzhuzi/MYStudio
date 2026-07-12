@@ -1,10 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   assignAudioToRoles,
   assignAudioToRolesWithAi,
   buildRoleAudioCandidates,
+  createNarratorVoiceTarget,
   createRoleAudioVoiceProfileInput,
   parseRoleAudioAiMatchResult,
+  planFixedRoleVoices,
 } from "./role-audio-auto-assign";
 import type { StudioMaterial } from "@/types/studio";
 import type { StudioAssetSummary } from "@/types/studio-assets";
@@ -193,5 +195,189 @@ describe("role audio auto assign", () => {
     });
 
     expect(parseRoleAudioAiMatchResult("没有结构化结果")).toBeNull();
+  });
+
+  it("reuses a valid fixed binding without calling the matcher or changing its profile", async () => {
+    const fixedProfile = {
+      id: "profile-fixed",
+      name: "固定主角音色",
+      type: "reference" as const,
+      language: "zh",
+      defaultEngine: "qwen" as const,
+      defaultModelSize: "1.7B",
+      referenceAudioPath: "/voices/fixed.wav",
+      referenceText: "我会走到最后。",
+      createdAt: 100,
+      updatedAt: 100,
+    };
+    const fixedBinding = {
+      speakerId: "character:hero" as const,
+      profileId: fixedProfile.id,
+      defaultEngine: "qwen" as const,
+      defaultModelSize: "1.7B",
+    };
+    const assignUnbound = vi.fn();
+
+    const result = await planFixedRoleVoices({
+      targets: [
+        {
+          speakerId: "character:hero",
+          role: role("hero", "沈砚", "青年剑修，低沉克制。"),
+        },
+      ],
+      candidates: [],
+      bindings: { [fixedBinding.speakerId]: fixedBinding },
+      voiceProfiles: { [fixedProfile.id]: fixedProfile },
+      resolveReferenceAudioPath: async (audioPath) => audioPath,
+      assignUnbound,
+    });
+
+    expect(result.errors).toEqual([]);
+    expect(result.created).toEqual([]);
+    expect(result.fixed[0]).toMatchObject({
+      speakerId: "character:hero",
+      binding: fixedBinding,
+      profile: fixedProfile,
+      match: "fixed",
+    });
+    expect(result.fixed[0]?.binding).toBe(fixedBinding);
+    expect(result.fixed[0]?.profile).toBe(fixedProfile);
+    expect(assignUnbound).not.toHaveBeenCalled();
+  });
+
+  it("creates an unbound speaker once and treats the persisted rerun as fixed", async () => {
+    const target = {
+      speakerId: "character:hero" as const,
+      role: role("hero", "沈砚", "青年剑修，低沉克制。"),
+    };
+    const candidates = buildRoleAudioCandidates([], [
+      audio("voice-hero", "青年男声.wav", "我会走到最后。", "/voices/hero.wav"),
+    ]);
+    const resolveReferenceAudioPath = vi.fn(async (audioPath: string) =>
+      audioPath === "/voices/hero.wav" ? "/absolute/voices/hero.wav" : audioPath,
+    );
+
+    const first = await planFixedRoleVoices({
+      targets: [target],
+      candidates,
+      bindings: {},
+      voiceProfiles: {},
+      resolveReferenceAudioPath,
+    });
+
+    expect(first.errors).toEqual([]);
+    expect(first.fixed).toEqual([]);
+    expect(first.created[0]).toMatchObject({
+      speakerId: "character:hero",
+      match: "ai-selected",
+      draft: {
+        speakerId: "character:hero",
+        profile: { referenceAudioPath: "/absolute/voices/hero.wav" },
+      },
+    });
+
+    const persistedProfile = {
+      ...first.created[0]!.draft.profile,
+      id: "profile-created-once",
+      createdAt: 200,
+      updatedAt: 200,
+    };
+    const persistedBinding = {
+      ...first.created[0]!.draft.binding,
+      profileId: persistedProfile.id,
+    };
+    const second = await planFixedRoleVoices({
+      targets: [target],
+      candidates: [],
+      bindings: { [target.speakerId]: persistedBinding },
+      voiceProfiles: { [persistedProfile.id]: persistedProfile },
+      resolveReferenceAudioPath: async (audioPath) => audioPath,
+      assignUnbound: vi.fn(),
+    });
+
+    expect(second.errors).toEqual([]);
+    expect(second.created).toEqual([]);
+    expect(second.fixed[0]?.binding.profileId).toBe("profile-created-once");
+    expect(second.fixed[0]?.profile.referenceAudioPath).toBe(
+      "/absolute/voices/hero.wav",
+    );
+    expect(second.fixed[0]?.profile.createdAt).toBe(200);
+    expect(second.fixed[0]?.profile.updatedAt).toBe(200);
+  });
+
+  it("hard-fails broken fixed profiles before assigning any missing speaker", async () => {
+    const assignUnbound = vi.fn();
+    const result = await planFixedRoleVoices({
+      targets: [
+        {
+          speakerId: "character:broken",
+          role: role("broken", "坏绑定", "固定音色损坏。"),
+        },
+        createNarratorVoiceTarget(),
+      ],
+      candidates: buildRoleAudioCandidates([], [
+        audio("voice", "旁白.wav", "这一夜，雨没有停。", "/voices/narrator.wav"),
+      ]),
+      bindings: {
+        "character:broken": {
+          speakerId: "character:broken",
+          profileId: "missing-profile",
+        },
+      },
+      voiceProfiles: {},
+      resolveReferenceAudioPath: async () => null,
+      assignUnbound,
+    });
+
+    expect(result.errors).toEqual([
+      {
+        speakerId: "character:broken",
+        code: "missing-profile",
+        message: "固定音色 character:broken 缺少 profile missing-profile",
+      },
+    ]);
+    expect(result.created).toEqual([]);
+    expect(assignUnbound).not.toHaveBeenCalled();
+  });
+
+  it("rejects missing reference text and unreadable selected audio", async () => {
+    const missingText = await planFixedRoleVoices({
+      targets: [
+        {
+          speakerId: "character:hero",
+          role: role("hero", "沈砚", "青年剑修。"),
+        },
+      ],
+      candidates: [
+        {
+          id: "voice-no-text",
+          name: "voice.wav",
+          filePath: "/voices/no-text.wav",
+        },
+      ],
+      bindings: {},
+      voiceProfiles: {},
+      resolveReferenceAudioPath: async (audioPath) => audioPath,
+    });
+    expect(missingText.errors[0]?.code).toBe("missing-reference-text");
+
+    const unreadable = await planFixedRoleVoices({
+      targets: [createNarratorVoiceTarget()],
+      candidates: [
+        {
+          id: "voice-narrator",
+          name: "旁白.wav",
+          filePath: "/voices/missing.wav",
+          referenceText: "这一夜，雨没有停。",
+        },
+      ],
+      bindings: {},
+      voiceProfiles: {},
+      resolveReferenceAudioPath: async () => null,
+    });
+    expect(unreadable.errors[0]).toMatchObject({
+      speakerId: "narrator",
+      code: "unreadable-reference-audio",
+    });
   });
 });

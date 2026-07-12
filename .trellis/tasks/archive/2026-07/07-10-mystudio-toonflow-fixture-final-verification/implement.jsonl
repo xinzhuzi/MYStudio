@@ -1,0 +1,3 @@
+{"file":".trellis/spec/frontend/index.md","reason":"frontend conventions for fixture adapter and parity report integration"}
+{"file":".trellis/spec/guides/cross-layer-thinking-guide.md","reason":"external fixture boundary guidance for Toonflow rows versus MYStudio projections"}
+{"file":".trellis/tasks/07-10-mystudio-toonflow-fixture-final-verification/design.md","reason":"read-only fixture comparison and golden image deferral design"}

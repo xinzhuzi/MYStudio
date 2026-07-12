@@ -1,0 +1,28 @@
+{
+  "id": "mystudio-chapter001-auto-video-fixed-voiceover",
+  "name": "mystudio-chapter001-auto-video-fixed-voiceover",
+  "title": "第一章自动成片与固定角色音色口播",
+  "description": "按计划实现动态分镜、逐镜口播、固定人物音色绑定、一键第一章真实成片与分层验收。",
+  "status": "in_progress",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P1",
+  "creator": "xinzhuzi",
+  "assignee": "xinzhuzi",
+  "createdAt": "2026-07-10",
+  "completedAt": null,
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [
+    "07-12-mystudio-chapter001-visual-continuity"
+  ],
+  "parent": null,
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {}
+}

@@ -30,6 +30,8 @@ export const PRODUCTION_FLOW_NODE_IDS = [
   "workbench",
 ] as const;
 
+const DIRECTOR_PLAN_PREVIEW_MAX_LINES = 600;
+
 export type ProductionFlowNodeId = (typeof PRODUCTION_FLOW_NODE_IDS)[number];
 export type ProductionFlowStage =
   | "script"
@@ -71,15 +73,13 @@ export interface ProductionFlowNodeModel {
 export interface ProductionFlowNodeAction {
   id:
     | "generate-director-plan"
-    | "sync-derived-assets"
-    | "generate-derived-assets"
-    | "generate-storyboard-images"
     | "rebuild-workbench-tracks"
     | "generate-storyboard-table";
   label: string;
   targetStage: ProductionFlowStage;
   disabled?: boolean;
   promptPlaceholder?: string;
+  showPromptInput?: boolean;
   userInstruction?: string;
 }
 
@@ -155,6 +155,7 @@ export interface ProductionFlowAssetGroup {
 
 export interface ProductionFlowAssetSummary {
   planned: number;
+  existing: number;
   linked: number;
   completed: number;
   missingParent: number;
@@ -272,9 +273,9 @@ export function buildProductionFlowModel(
         `${assetCounts.character} 角色`,
         `${assetCounts.scene} 场景`,
         `${assetCounts.prop} 道具`,
-        ...(assetDerivation.summary.planned
+        ...(assetDerivation.summary.planned || assetDerivation.summary.existing
           ? [
-              `衍生 ${assetDerivation.summary.completed}/${assetDerivation.summary.linked} 已完成`,
+              `衍生图 ${assetDerivation.summary.completed}/${assetDerivation.summary.linked} 已完成`,
             ]
           : []),
         ...(assetDerivation.summary.missingParent
@@ -306,7 +307,6 @@ export function buildProductionFlowModel(
   const storyboardTiles = input.storyboards
     .slice()
     .sort((a, b) => a.index - b.index)
-    .slice(0, 24)
     .map<ProductionFlowStoryboardTile>((item) => ({
       id: item.id,
       index: item.index,
@@ -356,9 +356,7 @@ export function buildProductionFlowModel(
         label: "剧本",
         description: "章节剧本与正文台词输入。",
         status: scriptDrafts.length > 0 ? "ready" : "empty",
-        metrics: scriptDrafts.length
-          ? ["当前剧本", `${scriptChars} 字`]
-          : ["待生成剧本"],
+        metrics: scriptDrafts.length ? [`${scriptChars} 字`] : [],
         previewTitle: "剧本内容",
         previewLines: previewTextLines(flowData.script, "暂无剧本内容", 220),
         targetStage: "script",
@@ -372,7 +370,11 @@ export function buildProductionFlowModel(
           ? [`${input.scriptPlans.length} 份规划`]
           : ["待运行导演规划"],
         previewTitle: "导演规划",
-        previewLines: previewTextLines(flowData.scriptPlan, "暂无导演规划", 80),
+        previewLines: previewTextLines(
+          flowData.scriptPlan,
+          "暂无导演规划",
+          DIRECTOR_PLAN_PREVIEW_MAX_LINES,
+        ),
         skill: directorPlanSkill,
         skills: directorPlanSkills,
         actions: [
@@ -400,28 +402,6 @@ export function buildProductionFlowModel(
         previewKind: "asset-derivation",
         assetGroups,
         assetSummary: assetDerivation.summary,
-        actions: [
-          {
-            id: "sync-derived-assets",
-            label: "落地衍生资产",
-            targetStage: "assets",
-            disabled:
-              input.scriptPlans.length === 0 ||
-              assetDerivation.summary.planned === 0 ||
-              assetCounts.total === 0,
-          },
-          {
-            id: "generate-derived-assets",
-            label: "生成衍生图片",
-            targetStage: "assets",
-            disabled:
-              input.scriptPlans.length === 0 ||
-              assetDerivation.summary.linked === 0 ||
-              !input.workflowConfig?.visualManualId,
-            promptPlaceholder:
-              "给衍生资产图片补充要求，例如：优先生成角色状态和道具破损版本。",
-          },
-        ],
         targetStage: "assets",
       },
       {
@@ -468,16 +448,6 @@ export function buildProductionFlowModel(
         storyboardTiles,
         skills: storyboardSkills,
         actions: [
-          {
-            id: "generate-storyboard-images",
-            label: visualStoryboardCount > 0 ? "补生成分镜图" : "生成分镜图",
-            targetStage: "storyboard",
-            disabled:
-              input.storyboards.length === 0 ||
-              !input.workflowConfig?.visualManualId,
-            promptPlaceholder:
-              "给分镜图补充要求，例如：首帧更像水墨电影分镜、保留角色站位和关键道具。",
-          },
           {
             id: "rebuild-workbench-tracks",
             label: "重建视频轨道",
@@ -715,9 +685,16 @@ function buildAssetDerivationModel(
   const derivedKeys = new Set<string>();
   const summary: ProductionFlowAssetSummary = {
     planned: 0,
+    existing: 0,
     linked: 0,
     completed: 0,
     missingParent: 0,
+  };
+  const existingMediaIds = new Set<string>();
+  const countExistingDerivedMedia = (media: ProductionFlowAssetMedia | undefined) => {
+    if (!media || existingMediaIds.has(media.id)) return;
+    existingMediaIds.add(media.id);
+    summary.existing += 1;
   };
   for (const plan of scriptPlans) {
     for (const item of plan.derivedAssetPlan) {
@@ -731,6 +708,7 @@ function buildAssetDerivationModel(
       const media = resolveDerivedAssetMedia(item, parent, mediaLookup);
       const sourceMedia = resolveAssetMedia(parent, mediaLookup);
       const mediaPath = media?.path;
+      countExistingDerivedMedia(media);
       if (mediaPath) summary.completed += 1;
       const derived: ProductionFlowAssetCard = {
         id: `${parent.id}:${item.state}`,
@@ -786,13 +764,13 @@ function buildAssetDerivationModel(
         },
     };
     if (addDerivedAssetCard(derivedByParent, derivedKeys, parent.id, derived)) {
-      summary.planned += 1;
+      countExistingDerivedMedia(media);
       summary.linked += 1;
       if (media.path) summary.completed += 1;
     }
   }
 
-  const groups = assets.slice(0, 12).map<ProductionFlowAssetGroup>((asset) => {
+  const groups = assets.map<ProductionFlowAssetGroup>((asset) => {
     const media = resolveAssetMedia(asset, mediaLookup);
     const mediaPath = media?.path;
     return {
@@ -1185,7 +1163,7 @@ function parseStoryboardPreviewRows(text: string): ProductionFlowTableRow[] {
   if (!text.trim()) return [];
   const parsed = parseStoryboardTable(text, "preview");
   if (parsed.rows.length) {
-    return parsed.rows.slice(0, 12).map((row) => ({
+    return parsed.rows.map((row) => ({
       index: row.index,
       title: buildStoryboardRowTitle(row.description, row.index),
       titleEn: `shot-${String(row.index).padStart(3, "0")}`,
@@ -1209,7 +1187,7 @@ function parseStoryboardPreviewRows(text: string): ProductionFlowTableRow[] {
     .map((line) => line.trim())
     .filter((line) => line.startsWith("|") && line.endsWith("|"))
     .filter((line) => !/^\|[\s:|-]+\|$/.test(line))
-    .slice(1, 13)
+    .slice(1)
     .map((line, index) => {
       const fields = line.slice(1, -1).split("|").map((item) => item.trim());
       return {

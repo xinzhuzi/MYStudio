@@ -69,3 +69,20 @@
 - Do not run `npm run video:daojie:chapter001` unless the user separately asks for full real media generation.
 - Do not migrate Toonflow DB storyboard data in this task.
 - Do not claim golden image parity unless Toonflow original images are compared directly.
+
+## Validation Results
+
+2026-07-10 fresh validation:
+
+- `cd apps && npm test -- frontend/config/build-scripts.test.ts` passed: 39 tests.
+- `node --check apps/build/automate-daojie-chapter001-video.mjs` passed.
+- `cd apps && npm run typecheck` passed.
+- `cd apps && npm run lint` passed.
+- `cd apps && npm test` passed: 108 files, 626 tests.
+- `cd apps && npm run build:mac` passed. Build artifacts: `apps/release/build/mac-arm64`.
+- `cd apps && npm run smoke:desktop` passed against the packaged app, report `apps/output/automation/desktop-smoke-report.json`, `ok=true`, `workflowE2E=ok`, `assetVoiceFlow=ok`, `scriptAssetGenerationVoiceFlow=ok`, `pythonSettings=ok`.
+- `cd apps && npm run smoke:installed` passed after overwriting `/Applications/漫影工作室.app`; packaged and installed `app.asar` hash matched: `ab121acb72f43f75587cd0be82918123ac1e28762a2b3ee3b1bd22e176e70ad8`.
+- `cd apps && npm run smoke:workflow:run:daojie` passed, report `apps/output/automation/visible-workflow-daojie-report.json`, `ok=true`, `source=real-daojie-chapter001-clone`, `progress=100`, `completed=true`, `storyboards=43`, `storyboardImageWorkflowsReady=43`, `derivedImageWorkflowsReady=3`, `videoCandidates=5`.
+- The full real media command was also run after explicit continuation: `cd apps && npm run video:daojie:chapter001` passed with real local TTS and final MP4 evidence. It reused existing project storyboard images because the external image provider returned fetch/502 during fresh image regeneration.
+
+Boundary: this completes MYStudio workflow/UI smoke, installed app smoke, real Daojie visible runner, and real TTS/video/writeback verification. It does not prove golden image parity against original Toonflow images, and it does not prove the external image provider was healthy for a full 43-shot fresh image regeneration on 2026-07-10.

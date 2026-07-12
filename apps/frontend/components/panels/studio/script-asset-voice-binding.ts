@@ -21,7 +21,7 @@ export type RoleVoiceBindingResolution =
 
 export function getRoleVoiceSpeakerIds(row: AssetRow): TtsSpeakerId[] {
   if (row.type !== "character") return [];
-  return uniqueIds([row.asset?.id, row.id, row.assetLibraryId]).map(toRoleSpeakerId);
+  return [toRoleSpeakerId(row.id)];
 }
 
 export function resolveRoleVoiceBinding(
@@ -47,16 +47,4 @@ export function resolveRoleVoiceBinding(
   }
 
   return missingProfile ?? { state: "unassigned" };
-}
-
-function uniqueIds(ids: Array<string | undefined>) {
-  const seen = new Set<string>();
-  const result: string[] = [];
-  for (const id of ids) {
-    const value = id?.trim();
-    if (!value || seen.has(value)) continue;
-    seen.add(value);
-    result.push(value);
-  }
-  return result;
 }

@@ -1,4 +1,5 @@
 import { existsSync, mkdirSync, statSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { dirname, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 
@@ -8,11 +9,25 @@ const generatorScript = resolve(repoRoot, 'Library', 'build_daojie_chapter001_wo
 const reportPath = resolve(appsRoot, 'output', 'automation', 'daojie-chapter001-video-report.json');
 const packagedAppBin = resolve(appsRoot, 'release', 'build', 'mac-arm64', 'mac-arm64', '漫影工作室.app', 'Contents', 'MacOS', '漫影工作室');
 const installedAppBin = '/Applications/漫影工作室.app/Contents/MacOS/漫影工作室';
+const skipPrekill = process.env.MYSTUDIO_SMOKE_SKIP_PREKILL === '1';
 const MIN_DIALOGUE_COVERAGE_RATIO = 0.92;
-const MIN_DISTINCT_VOICE_REFERENCES = 5;
 const MIN_AUDIO_MEAN_VOLUME_DB = -55;
 const MAX_DAOJIE_VIDEO_DURATION_SECONDS = 180;
+const MIN_DAOJIE_DIRECTOR_PLAN_CHARS = 4500;
+const MIN_DAOJIE_DIRECTOR_PLAN_CHINESE_CHARS = 2500;
+const MIN_DAOJIE_DIRECTOR_PLAN_H2_SECTIONS = 6;
+const EXPECTED_DAOJIE_DIRECTOR_PLAN_SCENES = 5;
+const MIN_DAOJIE_DIRECTOR_PLAN_BULLETS = 50;
 const REQUIRED_STORYBOARD_IMAGE_MODE = 'real-ai-reference-image-workflow';
+const REQUIRED_DAOJIE_DIRECTOR_PLAN_SECTIONS = [
+  '## ① 主题立意与叙事核心',
+  '## ② 视觉风格与画面基调',
+  '## ③ 叙事结构与节奏规划',
+  '## ④ 分场景情绪与画面意图',
+  '## ⑤ 声音方向',
+  '## ⑥ 转场与视觉连续性',
+];
+const REQUIRED_DAOJIE_DIRECTOR_PLAN_SCENES = ['Sc 1-1', 'Sc 1-2', 'Sc 1-3', 'Sc 1-4', 'Sc 1-5'];
 const REQUIRED_WORKFLOW_STEPS = [
   'novel_import',
   'script_generation',
@@ -44,6 +59,37 @@ function run(command, args, options = {}) {
   return result;
 }
 
+function runOptional(command, args) {
+  spawnSync(command, args, {
+    cwd: appsRoot,
+    env: process.env,
+    encoding: 'utf8',
+    stdio: 'ignore',
+  });
+}
+
+function stopExistingMYStudioInstances() {
+  if (skipPrekill) {
+    console.log('[video] skipping pre-run MYStudio instance cleanup');
+    return;
+  }
+  if (process.platform === 'darwin') {
+    runOptional('osascript', [
+      '-e',
+      'tell application id "com.manju2026.manying-studio" to quit',
+    ]);
+  }
+  for (const processName of [
+    '漫影工作室',
+    '漫影工作室 Helper',
+    'manying-studio',
+  ]) {
+    runOptional('pkill', ['-x', processName]);
+  }
+  runOptional('pkill', ['-f', '漫影工作室.app/Contents']);
+  console.log('[video] closed existing MYStudio instances before Daojie video generation');
+}
+
 function parseGeneratorOutput(stdout) {
   const trimmed = stdout.trim();
   const start = trimmed.lastIndexOf('\n{');
@@ -53,6 +99,21 @@ function parseGeneratorOutput(stdout) {
   } catch (error) {
     throw new Error(`无法解析视频生成脚本输出: ${error instanceof Error ? error.message : String(error)}\n${trimmed}`);
   }
+}
+
+function directorPlanAuditFields(generated) {
+  return {
+    directorPlanChars: generated?.directorPlanChars,
+    directorPlanChineseChars: generated?.directorPlanChineseChars,
+    directorPlanH2Sections: generated?.directorPlanH2Sections,
+    directorPlanSceneSections: generated?.directorPlanSceneSections,
+    directorPlanBulletCount: generated?.directorPlanBulletCount,
+    directorPlanRequiredSectionsPresent: generated?.directorPlanRequiredSectionsPresent,
+    directorPlanRequiredSceneSectionsPresent: generated?.directorPlanRequiredSceneSectionsPresent,
+    directorPlanStructuredSceneIntents: generated?.directorPlanStructuredSceneIntents,
+    directorPlanStructuredSceneIntentsComplete: generated?.directorPlanStructuredSceneIntentsComplete,
+    directorPlanHasDerivedAssetSection: generated?.directorPlanHasDerivedAssetSection,
+  };
 }
 
 function probeVideo(filePath) {
@@ -200,6 +261,239 @@ function requireWorkflowSteps(generated) {
   }
 }
 
+function requireStoryboardPromptIntegrity(generated) {
+  const storyboardCount = Number(generated.storyboards);
+  const manifest = Array.isArray(generated.storyboardPromptManifest) ? generated.storyboardPromptManifest : [];
+  if (manifest.length !== storyboardCount) {
+    throw new Error(`分镜提示词审计明细缺失: ${manifest.length}/${storyboardCount}`);
+  }
+  const requiredCounts = [
+    ['storyboardPromptsWithReferenceBindings', '分镜提示词参考图绑定不完整'],
+    ['storyboardPromptsWithDaojieStyleLock', '分镜提示词道劫风格锁不完整'],
+    ['storyboardPromptsWithLightSection', '分镜提示词光影段不完整'],
+  ];
+  for (const [field, message] of requiredCounts) {
+    if (Number(generated[field]) !== storyboardCount) {
+      throw new Error(`${message}: ${generated[field] ?? 'missing'}/${storyboardCount}`);
+    }
+  }
+  if (Number(generated.storyboardPromptsWithMissingVisibleCharacterRefs || 0) !== 0) {
+    throw new Error(`分镜可见角色缺少参考图: ${JSON.stringify(generated.storyboardPromptMissingVisibleCharacterRefs || [])}`);
+  }
+  if (Number(generated.storyboardPromptsWithRawAssetNameLeaks || 0) !== 0) {
+    throw new Error(`分镜画面段仍泄漏原始资产名: ${JSON.stringify(generated.storyboardPromptRawAssetNameLeaks || [])}`);
+  }
+}
+
+function requireDirectorPlanIntegrity(generated) {
+  if (Number(generated.directorPlanChars) < MIN_DAOJIE_DIRECTOR_PLAN_CHARS) {
+    throw new Error(`导演规划正文过短: ${generated.directorPlanChars ?? 'missing'}/${MIN_DAOJIE_DIRECTOR_PLAN_CHARS}`);
+  }
+  if (Number(generated.directorPlanChineseChars) < MIN_DAOJIE_DIRECTOR_PLAN_CHINESE_CHARS) {
+    throw new Error(`导演规划中文有效字数过少: ${generated.directorPlanChineseChars ?? 'missing'}/${MIN_DAOJIE_DIRECTOR_PLAN_CHINESE_CHARS}`);
+  }
+  if (Number(generated.directorPlanH2Sections) < MIN_DAOJIE_DIRECTOR_PLAN_H2_SECTIONS) {
+    throw new Error(`导演规划二级章节不足: ${generated.directorPlanH2Sections ?? 'missing'}/${MIN_DAOJIE_DIRECTOR_PLAN_H2_SECTIONS}`);
+  }
+  if (Number(generated.directorPlanSceneSections) !== EXPECTED_DAOJIE_DIRECTOR_PLAN_SCENES) {
+    throw new Error(`导演规划 Sc 场景段必须为 ${EXPECTED_DAOJIE_DIRECTOR_PLAN_SCENES}: ${generated.directorPlanSceneSections ?? 'missing'}`);
+  }
+  if (Number(generated.directorPlanBulletCount) < MIN_DAOJIE_DIRECTOR_PLAN_BULLETS) {
+    throw new Error(`导演规划 bullet 细项不足: ${generated.directorPlanBulletCount ?? 'missing'}/${MIN_DAOJIE_DIRECTOR_PLAN_BULLETS}`);
+  }
+
+  const requiredSections = generated.directorPlanRequiredSectionsPresent || {};
+  const missingSections = REQUIRED_DAOJIE_DIRECTOR_PLAN_SECTIONS.filter((section) => requiredSections[section] !== true);
+  if (missingSections.length > 0) {
+    throw new Error(`导演规划缺少必需章节: ${missingSections.join(', ')}`);
+  }
+
+  const requiredScenes = generated.directorPlanRequiredSceneSectionsPresent || {};
+  const missingScenes = REQUIRED_DAOJIE_DIRECTOR_PLAN_SCENES.filter((sceneId) => requiredScenes[sceneId] !== true);
+  if (missingScenes.length > 0) {
+    throw new Error(`导演规划缺少必需 Sc 场景段: ${missingScenes.join(', ')}`);
+  }
+
+  if (Number(generated.directorPlanStructuredSceneIntents) !== EXPECTED_DAOJIE_DIRECTOR_PLAN_SCENES) {
+    throw new Error(
+      `结构化导演规划场景意图数量异常: ${generated.directorPlanStructuredSceneIntents ?? 'missing'}/${EXPECTED_DAOJIE_DIRECTOR_PLAN_SCENES}`,
+    );
+  }
+  if (Number(generated.directorPlanStructuredSceneIntentsComplete) !== EXPECTED_DAOJIE_DIRECTOR_PLAN_SCENES) {
+    throw new Error(
+      `结构化导演规划场景意图不完整: ${generated.directorPlanStructuredSceneIntentsComplete ?? 'missing'}/${EXPECTED_DAOJIE_DIRECTOR_PLAN_SCENES}`,
+    );
+  }
+  if (generated.directorPlanHasDerivedAssetSection !== true) {
+    throw new Error('导演规划缺少衍生资产预划清单');
+  }
+}
+
+function requireStoryboardCountFollowsDirectorPlan(generated) {
+  const storyboardCount = Number(generated.storyboards);
+  const expectedStoryboardSegments = Number(generated.storyboardSourceSegments);
+  if (!(storyboardCount > 0)) {
+    throw new Error(`没有生成可用分镜: ${generated.storyboards ?? 'missing'}`);
+  }
+  if (!(expectedStoryboardSegments > 0)) {
+    throw new Error(`没有解析到导演计划可生成分镜片段: ${generated.storyboardSourceSegments ?? 'missing'}`);
+  }
+  if (storyboardCount !== expectedStoryboardSegments) {
+    throw new Error(`分镜数量必须按导演计划源片段生成: ${storyboardCount}/${expectedStoryboardSegments}`);
+  }
+  return { storyboardCount, expectedStoryboardSegments };
+}
+
+function requireDynamicStoryboardSource(generated) {
+  if (generated.storyboardSourceKind !== 'project-storyboard-table') {
+    throw new Error(
+      `真实成片必须读取项目最新 storyboardTable，禁止 bootstrap source: ${generated.storyboardSourceKind || 'missing'}`,
+    );
+  }
+  if (!generated.storyboardSourceWorkId) {
+    throw new Error('真实成片缺少 storyboardSourceWorkId');
+  }
+  if (!(Number(generated.storyboardSourceUpdatedAt) > 0)) {
+    throw new Error(`真实成片缺少 storyboardSourceUpdatedAt: ${generated.storyboardSourceUpdatedAt ?? 'missing'}`);
+  }
+}
+
+function compareUnicodeCodePoints(left, right) {
+  const leftPoints = Array.from(left, (value) => value.codePointAt(0));
+  const rightPoints = Array.from(right, (value) => value.codePointAt(0));
+  const length = Math.min(leftPoints.length, rightPoints.length);
+  for (let index = 0; index < length; index += 1) {
+    const difference = leftPoints[index] - rightPoints[index];
+    if (difference !== 0) return difference;
+  }
+  return leftPoints.length - rightPoints.length;
+}
+
+function calculateVoiceBindingFingerprint(speakerVoiceMap) {
+  const rows = Object.entries(speakerVoiceMap)
+    .sort(([left], [right]) => compareUnicodeCodePoints(left, right))
+    .map(([speakerId, voiceProfile]) => ({
+      profileId: voiceProfile?.profileId || '',
+      referenceAudioPath: voiceProfile?.voiceReferenceAudioPath || '',
+      speakerId,
+    }));
+  return createHash('sha256').update(JSON.stringify(rows), 'utf8').digest('hex');
+}
+
+function requireStoryboardVoiceoverIntegrity(generated, storyboardCount) {
+  const manifest = Array.isArray(generated.voiceoverManifest)
+    ? generated.voiceoverManifest
+    : [];
+  if (manifest.length !== storyboardCount) {
+    throw new Error(`逐镜口播明细缺失: ${manifest.length}/${storyboardCount}`);
+  }
+  if (Number(generated.audioCount) !== storyboardCount) {
+    throw new Error(`逐镜真实音频数量异常: ${generated.audioCount ?? 'missing'}/${storyboardCount}`);
+  }
+
+  const speakerIds = new Set();
+  const storyboardIds = new Set();
+  for (const [offset, item] of manifest.entries()) {
+    const storyboardId = item?.storyboardId || 'missing';
+    if (storyboardId === 'missing' || storyboardIds.has(storyboardId)) {
+      throw new Error(`逐镜口播 storyboardId 非唯一: ${storyboardId}`);
+    }
+    storyboardIds.add(storyboardId);
+    const expectedIndex = offset + 1;
+    if (Number(item?.index) !== expectedIndex) {
+      throw new Error(`逐镜口播 index 必须连续为 1..N: ${storyboardId} / ${item?.index ?? 'missing'} / ${expectedIndex}`);
+    }
+    for (const field of ['speaker', 'speakerId', 'line', 'ttsSpokenText', 'voiceStyle']) {
+      if (!String(item?.[field] ?? '').trim()) {
+        throw new Error(`逐镜口播字段缺失: ${storyboardId} / ${field}`);
+      }
+    }
+    if (item.requiresFixedVoice !== true) {
+      throw new Error(`逐镜口播未要求固定音色: ${storyboardId}`);
+    }
+    if (!(Number(item.durationTarget) > 0)) {
+      throw new Error(`逐镜口播 durationTarget 非正数: ${storyboardId}`);
+    }
+    if (
+      item.speakerId !== 'narrator'
+      && !String(item.speakerId).startsWith('character:')
+    ) {
+      throw new Error(`逐镜口播 speakerId 非 canonical: ${storyboardId} / ${item.speakerId}`);
+    }
+    for (const [field, filePath] of Object.entries({
+      audioPath: item.audioPath,
+      voiceReferenceAudioPath: item.voiceReferenceAudioPath,
+    })) {
+      if (!filePath || !existsSync(filePath) || !(statSync(filePath).size > 0)) {
+        throw new Error(`逐镜口播文件不可读: ${storyboardId} / ${field} / ${filePath || 'missing'}`);
+      }
+    }
+    if (!item.profileId || !['fixed', 'ai-selected'].includes(item.match)) {
+      throw new Error(`逐镜固定音色证据缺失: ${storyboardId} / ${JSON.stringify(item)}`);
+    }
+    speakerIds.add(item.speakerId);
+  }
+
+  const speakerVoiceMap = generated.speakerVoiceMap;
+  if (!speakerVoiceMap || typeof speakerVoiceMap !== 'object') {
+    throw new Error('缺少 speakerVoiceMap 报告字段');
+  }
+  const voiceMapKeys = Object.keys(speakerVoiceMap).sort();
+  const manifestSpeakerIds = [...speakerIds].sort();
+  if (JSON.stringify(voiceMapKeys) !== JSON.stringify(manifestSpeakerIds)) {
+    throw new Error(
+      `speakerVoiceMap 未覆盖全部 canonical speakerId: ${voiceMapKeys.join(', ')} / ${manifestSpeakerIds.join(', ')}`,
+    );
+  }
+  for (const [speakerId, voiceProfile] of Object.entries(speakerVoiceMap)) {
+    if (!voiceProfile?.profileId) {
+      throw new Error(`角色音色缺少 profileId: ${speakerId}`);
+    }
+    if (
+      !voiceProfile?.voiceReferenceAudioPath
+      || !existsSync(voiceProfile.voiceReferenceAudioPath)
+      || !(statSync(voiceProfile.voiceReferenceAudioPath).size > 0)
+    ) {
+      throw new Error(`角色音色参考不存在: ${speakerId} / ${voiceProfile?.voiceReferenceAudioPath || 'missing'}`);
+    }
+    if (!['fixed', 'ai-selected'].includes(voiceProfile.match)) {
+      throw new Error(`角色音色 match 非法: ${speakerId} / ${voiceProfile.match || 'missing'}`);
+    }
+  }
+
+  for (const item of manifest) {
+    const voiceProfile = speakerVoiceMap[item.speakerId];
+    if (
+      item.profileId !== voiceProfile.profileId
+      || item.voiceReferenceAudioPath !== voiceProfile.voiceReferenceAudioPath
+      || item.match !== voiceProfile.match
+    ) {
+      throw new Error(`逐镜固定音色与 speakerVoiceMap 不一致: ${item.storyboardId}`);
+    }
+  }
+
+  const fingerprint = String(generated.voiceBindingFingerprint || '');
+  if (!/^[a-f0-9]{64}$/.test(fingerprint)) {
+    throw new Error(`固定音色 fingerprint 异常: ${generated.voiceBindingFingerprint || 'missing'}`);
+  }
+  const calculatedFingerprint = calculateVoiceBindingFingerprint(speakerVoiceMap);
+  if (fingerprint !== calculatedFingerprint) {
+    throw new Error(`固定音色 fingerprint 与 speakerVoiceMap 不一致: ${fingerprint} / ${calculatedFingerprint}`);
+  }
+  const fixed = Array.isArray(generated.fixedVoiceBindings)
+    ? generated.fixedVoiceBindings
+    : [];
+  const selected = Array.isArray(generated.aiSelectedVoiceBindings)
+    ? generated.aiSelectedVoiceBindings
+    : [];
+  const bindingEvidence = [...new Set([...fixed, ...selected])].sort();
+  if (JSON.stringify(bindingEvidence) !== JSON.stringify(manifestSpeakerIds)) {
+    throw new Error(
+      `固定音色状态未覆盖全部 speaker: ${bindingEvidence.join(', ')} / ${manifestSpeakerIds.join(', ')}`,
+    );
+  }
+}
+
 function writeFailureReport(generated, error) {
   const storyboardImageGenerationMode =
     generated?.storyboardImageGenerationMode ||
@@ -212,8 +506,12 @@ function writeFailureReport(generated, error) {
     generatorScript,
     finalVideo: generated?.final,
     storyboards: generated?.storyboards,
+    storyboardSourceKind: generated?.storyboardSourceKind,
+    storyboardSourceWorkId: generated?.storyboardSourceWorkId,
+    storyboardSourceUpdatedAt: generated?.storyboardSourceUpdatedAt,
     storyboardSourceSegments: generated?.storyboardSourceSegments,
     totalStoryboardDuration: generated?.totalStoryboardDuration,
+    ...directorPlanAuditFields(generated),
     storyboardsWithAssetLinks: generated?.storyboardsWithAssetLinks,
     assetLinks: generated?.assetLinks,
     storyboardImageGenerationMode,
@@ -221,7 +519,21 @@ function writeFailureReport(generated, error) {
     imageGenerationProvider: generated?.imageGenerationProvider,
     generatedFrameImages: generated?.generatedFrameImages,
     framesWithRealAssetImages: generated?.framesWithRealAssetImages,
+    storyboardPromptManifest: generated?.storyboardPromptManifest,
+    storyboardPromptsWithReferenceBindings: generated?.storyboardPromptsWithReferenceBindings,
+    storyboardPromptsWithDaojieStyleLock: generated?.storyboardPromptsWithDaojieStyleLock,
+    storyboardPromptsWithLightSection: generated?.storyboardPromptsWithLightSection,
+    storyboardPromptsWithMissingVisibleCharacterRefs: generated?.storyboardPromptsWithMissingVisibleCharacterRefs,
+    storyboardPromptsWithRawAssetNameLeaks: generated?.storyboardPromptsWithRawAssetNameLeaks,
+    storyboardPromptMissingVisibleCharacterRefs: generated?.storyboardPromptMissingVisibleCharacterRefs,
+    storyboardPromptRawAssetNameLeaks: generated?.storyboardPromptRawAssetNameLeaks,
     storyboardImageWorkflowManifest: generated?.storyboardImageWorkflowManifest,
+    voiceoverManifest: generated?.voiceoverManifest,
+    audioCount: generated?.audioCount,
+    speakerVoiceMap: generated?.speakerVoiceMap,
+    voiceBindingFingerprint: generated?.voiceBindingFingerprint,
+    fixedVoiceBindings: generated?.fixedVoiceBindings,
+    aiSelectedVoiceBindings: generated?.aiSelectedVoiceBindings,
     error,
   };
   mkdirSync(dirname(reportPath), { recursive: true });
@@ -232,12 +544,15 @@ if (!existsSync(generatorScript)) {
   throw new Error(`视频生成脚本不存在: ${generatorScript}`);
 }
 
+stopExistingMYStudioInstances();
+
 let generated;
 try {
   const storyboardImageProviderConfigs = loadStoryboardImageProviderConfigsFromAppSettings();
   generated = parseGeneratorOutput(run('python3', [generatorScript], {
     env: {
       MANYING_REQUIRE_REAL_TTS: '1',
+      MYSTUDIO_DAOJIE_ALLOW_STORYBOARD_BOOTSTRAP: '0',
       MYSTUDIO_DAOJIE_STORYBOARD_IMAGE_MODE: REQUIRED_STORYBOARD_IMAGE_MODE,
       ...(storyboardImageProviderConfigs && { MYSTUDIO_IMAGE_PROVIDER_CONFIGS_JSON: storyboardImageProviderConfigs }),
     },
@@ -252,21 +567,23 @@ if (!finalVideo || !existsSync(finalVideo)) {
   throw new Error(`最终视频不存在: ${finalVideo || 'missing'}`);
 }
 requireWorkflowSteps(generated);
+requireDirectorPlanIntegrity(generated);
+const { storyboardCount } = requireStoryboardCountFollowsDirectorPlan(generated);
+requireDynamicStoryboardSource(generated);
+requireStoryboardVoiceoverIntegrity(generated, storyboardCount);
 if (generated.storyboardsWithAssetLinks !== generated.storyboards) {
   throw new Error(`分镜资产链接不完整: ${generated.storyboardsWithAssetLinks ?? 0}/${generated.storyboards ?? 0}`);
 }
 if (!(Number(generated.assetLinks) > 0)) {
   throw new Error('分镜未关联塑角/造景/道具资产');
 }
-const expectedStoryboardSegments = Number(generated.storyboardSourceSegments ?? generated.storyboards);
-if (!(expectedStoryboardSegments > 0)) {
-  throw new Error(`没有解析到可生成的分镜片段: ${generated.storyboardSourceSegments ?? 'missing'}`);
+if (!(Number(generated.scriptTextChars) > 0) || !(Number(generated.spokenTextChars) > 0)) {
+  throw new Error(
+    `第一章口播文字为空: source=${generated.scriptTextChars ?? 'missing'}, spoken=${generated.spokenTextChars ?? 'missing'}`,
+  );
 }
-if (Number(generated.storyboards) !== expectedStoryboardSegments) {
-  throw new Error(`分镜数量必须按片段生成: ${generated.storyboards ?? 0}/${expectedStoryboardSegments}`);
-}
-if (generated.framesWithRealAssetImages !== generated.storyboards) {
-  throw new Error(`分镜真实资产图片不完整: ${generated.framesWithRealAssetImages ?? 0}/${generated.storyboards ?? 0}`);
+if (generated.framesWithRealAssetImages !== storyboardCount) {
+  throw new Error(`分镜真实资产图片不完整: ${generated.framesWithRealAssetImages ?? 0}/${storyboardCount}`);
 }
 const storyboardImageGenerationMode = generated.storyboardImageGenerationMode || generated.imageGenerationMode;
 if (storyboardImageGenerationMode === 'asset-composite') {
@@ -277,6 +594,7 @@ if (storyboardImageGenerationMode === 'asset-composite') {
 if (storyboardImageGenerationMode !== 'real-ai-reference-image-workflow') {
   throw new Error(`分镜图生成模式异常: ${storyboardImageGenerationMode || 'missing'}`);
 }
+requireStoryboardPromptIntegrity(generated);
 if (!Array.isArray(generated.derivedAssetPlan) || generated.derivedAssetPlan.length === 0) {
   throw new Error(`衍生资产预划缺失: ${generated.derivedAssetPlan?.length ?? 0}`);
 }
@@ -383,18 +701,6 @@ if (!generated.voiceReferenceAudioPath || !existsSync(generated.voiceReferenceAu
 if (!(Number(generated.dialogueCoverageRatio) >= MIN_DIALOGUE_COVERAGE_RATIO)) {
   throw new Error(`台词覆盖率过低: ${generated.dialogueCoverageRatio ?? 'missing'}/${MIN_DIALOGUE_COVERAGE_RATIO}`);
 }
-if (!generated.speakerVoiceMap || typeof generated.speakerVoiceMap !== 'object') {
-  throw new Error('缺少 speakerVoiceMap 报告字段');
-}
-const voiceReferencePaths = new Set(Object.values(generated.speakerVoiceMap).map((item) => item?.voiceReferenceAudioPath).filter(Boolean));
-if (voiceReferencePaths.size < MIN_DISTINCT_VOICE_REFERENCES) {
-  throw new Error(`角色音色映射不足: ${voiceReferencePaths.size}/${MIN_DISTINCT_VOICE_REFERENCES}`);
-}
-for (const [speaker, voiceProfile] of Object.entries(generated.speakerVoiceMap)) {
-  if (!voiceProfile?.voiceReferenceAudioPath || !existsSync(voiceProfile.voiceReferenceAudioPath)) {
-    throw new Error(`角色音色参考不存在: ${speaker} / ${voiceProfile?.voiceReferenceAudioPath || 'missing'}`);
-  }
-}
 if (!generated.speakerAudioStats || typeof generated.speakerAudioStats !== 'object') {
   throw new Error('角色音频统计缺失');
 }
@@ -481,12 +787,16 @@ const report = {
   generatorScript,
   finalVideo,
   storyboards: generated.storyboards,
+  storyboardSourceKind: generated.storyboardSourceKind,
+  storyboardSourceWorkId: generated.storyboardSourceWorkId,
+  storyboardSourceUpdatedAt: generated.storyboardSourceUpdatedAt,
   storyboardSourceSegments: generated.storyboardSourceSegments,
   totalStoryboardDuration: generated.totalStoryboardDuration,
   targetDurationSeconds: generated.targetDurationSeconds,
   scriptTextChars: generated.scriptTextChars,
   spokenTextChars: generated.spokenTextChars,
   dialogueCoverageRatio: generated.dialogueCoverageRatio,
+  ...directorPlanAuditFields(generated),
   storyboardsWithAssetLinks: generated.storyboardsWithAssetLinks,
   assetLinks: generated.assetLinks,
   storyboardImageGenerationMode,
@@ -498,7 +808,17 @@ const report = {
   matchedAssetImages: generated.matchedAssetImages,
   framesWithRealAssetImages: generated.framesWithRealAssetImages,
   assetImagePaths: generated.assetImagePaths,
+  storyboardPromptManifest: generated.storyboardPromptManifest,
+  storyboardPromptsWithReferenceBindings: generated.storyboardPromptsWithReferenceBindings,
+  storyboardPromptsWithDaojieStyleLock: generated.storyboardPromptsWithDaojieStyleLock,
+  storyboardPromptsWithLightSection: generated.storyboardPromptsWithLightSection,
+  storyboardPromptsWithMissingVisibleCharacterRefs: generated.storyboardPromptsWithMissingVisibleCharacterRefs,
+  storyboardPromptsWithRawAssetNameLeaks: generated.storyboardPromptsWithRawAssetNameLeaks,
+  storyboardPromptMissingVisibleCharacterRefs: generated.storyboardPromptMissingVisibleCharacterRefs,
+  storyboardPromptRawAssetNameLeaks: generated.storyboardPromptRawAssetNameLeaks,
   storyboardMediaManifest: generated.storyboardMediaManifest,
+  voiceoverManifest: generated.voiceoverManifest,
+  audioCount: generated.audioCount,
   storyboardImageWorkflowManifest: generated.storyboardImageWorkflowManifest,
   assetImageManifest: generated.assetImageManifest,
   trackCandidateManifest: generated.trackCandidateManifest,
@@ -506,6 +826,9 @@ const report = {
   workflowSteps: generated.workflowSteps,
   voiceReferenceAudioPath: generated.voiceReferenceAudioPath,
   speakerVoiceMap: generated.speakerVoiceMap,
+  voiceBindingFingerprint: generated.voiceBindingFingerprint,
+  fixedVoiceBindings: generated.fixedVoiceBindings,
+  aiSelectedVoiceBindings: generated.aiSelectedVoiceBindings,
   speakerAudioStats: generated.speakerAudioStats,
   speakerAudioSamples: generated.speakerAudioSamples,
   missingVoiceProfiles: generated.missingVoiceProfiles,
