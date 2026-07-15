@@ -14,6 +14,7 @@ Use this skill for MYStudio release confidence after code changes, especially wh
 - Use `apps/` as the command working directory for npm commands.
 - Do not create `/Applications/*.backup-*` app backups. Install by overwriting `/Applications/漫影工作室.app`.
 - Before any Electron packaged, visible, or installed smoke test, close all existing MYStudio instances first. The smoke scripts do this automatically by default; do not disable it unless you are deliberately debugging with `MYSTUDIO_SMOKE_SKIP_PREKILL=1`.
+- Packaged and workflow automation runs in background by default with `MYSTUDIO_SMOKE_BACKGROUND=1`. Do not foreground MYStudio unless the user explicitly asks to watch the run.
 - For "自动打包后安装" requests, delegate the full package/install/smoke chain to a worker sub-agent when sub-agents are available. The main agent should supervise, avoid duplicating the same long-running commands, and verify or summarize the worker's evidence before reporting.
 - Treat old command output as stale; rerun the relevant check before claiming it passes.
 - If a command starts a long-running Electron process, wait for it to exit before ending the turn.
@@ -41,6 +42,19 @@ npm run smoke:desktop
 ```
 
 `npm run smoke:desktop`, `npm run smoke:installed`, `npm run smoke:workflow:open`, and `npm run smoke:workflow:run` must start from a clean app-process state. Their scripts should quit the app by bundle id and kill stale `漫影工作室` / helper processes before launching the tested instance.
+
+Use the background workflow commands for unattended checks:
+
+```bash
+npm run smoke:workflow:background
+npm run smoke:workflow:background:daojie
+npm run smoke:workflow:background:daojie -- --auto-video
+npm run video:daojie:chapter001:probe-providers
+```
+
+These commands must keep the Electron window hidden, avoid `System Events`/Accessibility focus control, and fail if focus evidence reports MYStudio as the foreground app. Use `smoke:workflow:run*` only for explicit visible inspection.
+
+`npm run video:daojie:chapter001:probe-providers` is a non-generating provider-model probe. It may verify hidden app configuration and `/v1/models` reachability, but it is not a balance proof and must not be reported as a successful real MP4 generation.
 
 For a focused regression test, use:
 

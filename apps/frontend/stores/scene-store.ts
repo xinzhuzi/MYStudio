@@ -12,6 +12,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { createSplitStorage } from '@/lib/project-storage';
 import { saveImageToLocal, isElectron } from '@/lib/image-storage';
 import { useProjectStore } from '@/stores/project-store';
+import type { SceneViewpointData } from '@/types/script';
 
 // ==================== Types ====================
 
@@ -61,11 +62,34 @@ export interface Scene {
   lightingDesign?: string;     // 光影设计
   keyProps?: string[];         // 关键道具
   spatialLayout?: string;      // 空间布局
+  contactSheetImage?: string;  // 场景联合图本地路径或 URL
+  viewpoints?: SceneViewpointData[];
+  viewpointImages?: Record<string, {
+    imageUrl: string;
+    imageBase64?: string;
+    gridIndex: number;
+  }>;
 
   /** 提示词润色状态 */
   promptState?: "none" | "polishing" | "ready" | "failed";
   /** 提示词润色错误信息 */
   promptError?: string;
+}
+
+export function sanitizeSceneForPersistence(scene: Scene): Scene {
+  const viewpointImages = Object.fromEntries(
+    Object.entries(scene.viewpointImages ?? {}).flatMap(([viewpointId, image]) => {
+      const imageUrl = image.imageUrl?.startsWith('data:') ? '' : image.imageUrl;
+      return imageUrl ? [[viewpointId, { imageUrl, gridIndex: image.gridIndex }]] : [];
+    }),
+  );
+  return {
+    ...scene,
+    referenceImageBase64: undefined,
+    referenceImage: scene.referenceImage?.startsWith('data:image/') ? undefined : scene.referenceImage,
+    contactSheetImage: scene.contactSheetImage?.startsWith('data:') ? undefined : scene.contactSheetImage,
+    viewpointImages: Object.keys(viewpointImages).length > 0 ? viewpointImages : undefined,
+  };
 }
 
 export type SceneGenerationStatus = 'idle' | 'generating' | 'completed' | 'error';
@@ -415,21 +439,7 @@ export const useSceneStore = create<SceneStore>()(
         'scenes', splitSceneData, mergeSceneData, 'shareScenes'
       )),
       partialize: (state) => ({
-        scenes: state.scenes.map((scene) => ({
-          ...scene,
-          // Don't persist large base64 images
-          referenceImageBase64: undefined,
-          // Safety net: strip data URLs that leaked into referenceImage
-          referenceImage: scene.referenceImage?.startsWith('data:image/')
-            ? undefined
-            : scene.referenceImage,
-          // Strip large contact sheet base64 data (should be saved locally via saveImageToLocal)
-          contactSheetImage: (scene as any).contactSheetImage?.startsWith('data:')
-            ? undefined
-            : (scene as any).contactSheetImage,
-          // Strip viewpointImages that contain base64 data
-          viewpointImages: undefined,
-        })),
+        scenes: state.scenes.map(sanitizeSceneForPersistence),
         folders: state.folders,
         generationPrefs: state.generationPrefs,
         generationPrefsByProject: state.generationPrefsByProject,
@@ -479,7 +489,7 @@ async function migrateBase64ToLocalImages(state: SceneStore) {
   let migratedCount = 0;
 
   for (const scene of scenes) {
-    const s = scene as any;
+    const s = scene;
     // Migrate contactSheetImage base64 → local file
     if (s.contactSheetImage && s.contactSheetImage.startsWith('data:')) {
       try {
@@ -489,7 +499,7 @@ async function migrateBase64ToLocalImages(state: SceneStore) {
           `contact-sheet-${scene.id}.png`
         );
         if (localPath.startsWith('local-image://')) {
-          updateScene(scene.id, { contactSheetImage: localPath } as any);
+          updateScene(scene.id, { contactSheetImage: localPath });
           migratedCount++;
         }
       } catch (err) {

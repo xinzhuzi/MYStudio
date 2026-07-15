@@ -85,6 +85,96 @@ GPT_IMAGE_SIZE_MAP = {
     "9:21": {"1K": "544x1280", "2K": "880x2048", "4K": "1648x3840"},
 }
 
+CHAPTER_CONTINUITY_GROUPS = (
+    {"groupId": "chapter-001:dock:01-12", "start": 1, "end": 12, "sceneName": "金水河码头", "viewpointId": "dock-main-axis"},
+    {"groupId": "chapter-001:inn-hall:13-19", "start": 13, "end": 19, "sceneName": "悦来客栈", "viewpointId": "inn-hall-counter-axis"},
+    {"groupId": "chapter-001:inn-room:20-24", "start": 20, "end": 24, "sceneName": "悦来客栈斗室", "viewpointId": "inn-room-window-axis"},
+    {"groupId": "chapter-001:school:25-40", "start": 25, "end": 40, "sceneName": "金水塾馆", "viewpointId": "school-lamp-desk-axis"},
+    {"groupId": "chapter-001:inn-room-return:41-42", "start": 41, "end": 42, "sceneName": "悦来客栈斗室", "viewpointId": "inn-room-night-return"},
+    {"groupId": "chapter-001:river:43", "start": 43, "end": 43, "sceneName": "金水河", "viewpointId": "river-night-long-axis"},
+)
+
+SAMPLE_SHOT_CONTINUITY = {
+    6: {
+        "actionIn": "独孤剑尘从画面左上河雾外沿湿木栈道入画。",
+        "actionOut": "独孤剑尘停在左中格，右脚落地、左脚待迈，油布剑包纵向压在背后。",
+        "characters": {
+            "独孤剑尘": {
+                "position": "左中格",
+                "orientation": "背部三分之四朝画面右侧",
+            },
+        },
+    },
+    7: {
+        "actionIn": "独孤剑尘停在左中格，右脚落地、左脚待迈，油布剑包纵向压在背后。",
+        "actionOut": "独孤剑尘不跨轴继续向右行，剑包刚颤，左袖残卷只露一角。",
+        "characters": {
+            "独孤剑尘": {
+                "position": "左中格",
+                "orientation": "背部三分之四朝画面右侧",
+            },
+        },
+    },
+    8: {
+        "actionIn": "赵四恢复镜头5左中格持鞭状态，小杂役恢复镜头3右下格缩肩护头状态；独孤剑尘不入画。",
+        "actionOut": "赵四持鞭臂越过顶点，鞭势从左上向右下开始斜劈；小杂役原位缩肩护头。",
+        "characters": {
+            "监工赵四": {
+                "position": "左中格",
+                "orientation": "正面三分之四朝画面右下",
+            },
+            "小杂役": {
+                "position": "右下格",
+                "orientation": "正面三分之四朝画面左上",
+            },
+        },
+    },
+    9: {
+        "actionIn": "承接镜头8鞭势从左上向右下斜劈，小杂役仍在右下格缩肩，独孤剑尘从左中格与赵四错身。",
+        "actionOut": "独孤剑尘鞋尖把朽木拨到赵四左脚前，小杂役仍在右下格，独孤剑尘不抬眼继续向右。",
+        "characters": {
+            "独孤剑尘": {
+                "position": "左中格",
+                "orientation": "侧背朝画面右侧",
+            },
+            "小杂役": {
+                "position": "右下格",
+                "orientation": "蜷缩朝画面左上",
+            },
+        },
+    },
+    10: {
+        "actionIn": "赵四左脚踩上镜头9拨来的朽木，身体向右前方失衡，持鞭臂尚未收回。",
+        "actionOut": "赵四踩偏后鞭梢抽碎右下格空筐，藤条碎屑向右侧炸开。",
+        "characters": {
+            "监工赵四": {
+                "position": "左中格",
+                "orientation": "正面三分之四朝画面右下",
+            },
+        },
+    },
+    11: {
+        "actionIn": "承接空筐碎屑落下，小杂役从右下格贴地滚向右后方船影。",
+        "actionOut": "小杂役抱紧矿渣缩进右后方船影，头仍低垂，不与独孤剑尘对视。",
+        "characters": {
+            "小杂役": {
+                "position": "右后格",
+                "orientation": "背部三分之四朝画面右侧",
+            },
+        },
+    },
+    12: {
+        "actionIn": "独孤剑尘承接镜头9继续向右，已到右中格，河雾从左后方吞来。",
+        "actionOut": "独孤剑尘右手压住袖口残卷，半边身影进入右侧河雾，保持向镇中离场方向。",
+        "characters": {
+            "独孤剑尘": {
+                "position": "右中格",
+                "orientation": "背部三分之四朝画面右侧",
+            },
+        },
+    },
+}
+
 
 def is_real_storyboard_image_mode():
     return STORYBOARD_IMAGE_GENERATION_MODE == REAL_STORYBOARD_IMAGE_MODE
@@ -210,7 +300,11 @@ def data_image_url(raw_base64, image_format="png"):
 
 
 def is_gpt_image_model(model):
-    return bool(re.search(r"(^|[-_:/])gpt[-_]?image", str(model or ""), re.IGNORECASE))
+    value = str(model or "")
+    return bool(
+        re.search(r"(^|[-_:/])gpt[-_]?image", value, re.IGNORECASE)
+        or re.search(r"(^|[-_:/])agnes[-_]?image", value, re.IGNORECASE)
+    )
 
 
 def gpt_image_size(aspect_ratio, resolution):
@@ -388,6 +482,47 @@ def build_storyboard_reference_continuity_rules(reference_images):
     return "【参考图规则】" + " ".join(parts)
 
 
+def build_storyboard_bible_rules(reference_images):
+    rules = []
+    for index, reference in enumerate(reference_images or [], 1):
+        label = storyboard_reference_type_label(reference)
+        if label == "角色":
+            anchors = reference.get("identityAnchors") or {}
+            negative = reference.get("negativePrompt") or {}
+            anchor_parts = [
+                anchors.get("faceShape"),
+                anchors.get("jawline"),
+                anchors.get("cheekbones"),
+                anchors.get("eyeShape"),
+                anchors.get("eyeDetails"),
+                anchors.get("noseShape"),
+                anchors.get("lipShape"),
+                "、".join(anchors.get("uniqueMarks") or []),
+                anchors.get("skinTexture"),
+                anchors.get("hairStyle"),
+                anchors.get("hairlineDetails"),
+            ]
+            colors = anchors.get("colorAnchors") or {}
+            color_text = "、".join(f"{key}:{value}" for key, value in colors.items() if value)
+            avoid_text = "、".join([*(negative.get("avoid") or []), *(negative.get("styleExclusions") or [])])
+            rules.append(
+                f"@图{index}身份锚点：{'；'.join(str(value) for value in anchor_parts if value)}"
+                + (f"；色彩锚点：{color_text}" if color_text else "")
+                + (f"；服装版本：{reference.get('wardrobeVersion')}" if reference.get("wardrobeVersion") else "")
+                + (f"；禁止：{avoid_text}" if avoid_text else "")
+            )
+        elif label == "场景":
+            scene_parts = [
+                f"布局：{reference.get('spatialLayout')}" if reference.get("spatialLayout") else "",
+                f"视角：{reference.get('sceneViewpointId')}" if reference.get("sceneViewpointId") else "",
+                f"光线：{reference.get('lightingDesign')}" if reference.get("lightingDesign") else "",
+                f"色板：{reference.get('colorPalette')}" if reference.get("colorPalette") else "",
+                f"关键物件：{'、'.join(reference.get('keyProps') or [])}" if reference.get("keyProps") else "",
+            ]
+            rules.append(f"@图{index}场景圣经：{'；'.join(part for part in scene_parts if part)}")
+    return "【资产圣经】" + " ".join(rule for rule in rules if rule) if rules else ""
+
+
 def build_storyboard_reference_bindings(reference_images):
     bindings = []
     for index, reference in enumerate(reference_images or [], 1):
@@ -559,6 +694,8 @@ def build_storyboard_image_prompt(storyboard, reference_images):
     visual_prompt = apply_reference_bindings_to_visual_prompt(visual_prompt, reference_images)
     reference_intro = build_storyboard_reference_intro(reference_images)
     continuity_rules = build_storyboard_reference_continuity_rules(reference_images)
+    bible_rules = build_storyboard_bible_rules(reference_images)
+    shot_continuity = build_shot_continuity_prompt(storyboard["continuityState"]) if storyboard.get("continuityState") else ""
     parts = []
     if reference_intro:
         parts.append(reference_intro)
@@ -567,6 +704,10 @@ def build_storyboard_image_prompt(storyboard, reference_images):
     parts.append(f"【光影】{storyboard_light_prompt(storyboard)}")
     if continuity_rules:
         parts.append(continuity_rules)
+    if bible_rules:
+        parts.append(bible_rules)
+    if shot_continuity:
+        parts.append(shot_continuity)
     parts.append("【镜头】16:9横版国风漫剧剧情关键帧，前中远景层次清楚，主体动作、角色位置和道具关系可读，不要画成资产设定页。")
     parts.append(f"【风格锁】{DAOJIE_STORYBOARD_STYLE_PROMPT}。")
     parts.append("【可变化项】只变化当前分镜需要的景别、动作、表情、局部光影、雾气和前景遮挡；不要改变参考图身份、场景结构、道具核心特征或道劫主风格。")
@@ -816,6 +957,17 @@ def collect_storyboard_reference_images(image_assets):
             "evidence": f"{asset.get('kind', '资产')}参考图：{asset.get('sourceName') or asset.get('name')}",
             "sourceName": asset.get("sourceName") or asset.get("name") or "",
             "aliases": asset.get("aliases") or [],
+            "versionId": asset.get("versionId"),
+            "referenceRole": asset.get("referenceRole"),
+            "identityAnchors": asset.get("identityAnchors"),
+            "negativePrompt": asset.get("negativePrompt"),
+            "wardrobeVersion": asset.get("wardrobeVersion"),
+            "characterViewType": asset.get("characterViewType"),
+            "sceneViewpointId": asset.get("sceneViewpointId"),
+            "spatialLayout": asset.get("spatialLayout") or "",
+            "lightingDesign": asset.get("lightingDesign") or "",
+            "colorPalette": asset.get("colorPalette") or "",
+            "keyProps": asset.get("keyProps") or [],
         })
     return references
 
@@ -838,6 +990,14 @@ def create_storyboard_image_workflow_graph(storyboard, prompt, result_image_path
                 "id": reference["assetId"],
             },
             "notes": reference.get("evidence", ""),
+            "continuityOrder": index,
+            "continuityVersionId": reference.get("versionId"),
+            "referenceRole": reference.get("referenceRole"),
+            "identityAnchors": reference.get("identityAnchors"),
+            "negativePrompt": reference.get("negativePrompt"),
+            "wardrobeVersion": reference.get("wardrobeVersion"),
+            "characterViewType": reference.get("characterViewType"),
+            "sceneViewpointId": reference.get("sceneViewpointId"),
             "position": {"x": 80, "y": 80 + (index - 1) * 180},
             "createdAt": created_at,
             "updatedAt": created_at,
@@ -874,12 +1034,29 @@ def create_storyboard_image_workflow_graph(storyboard, prompt, result_image_path
     }
 
 
-def generate_storyboard_frame_with_references(frame, storyboard, prompt, image_assets, config):
-    references = collect_storyboard_reference_images(image_assets)
+def generate_storyboard_frame_with_references(
+    frame,
+    storyboard,
+    prompt,
+    image_assets,
+    config,
+    continuity_manifest=None,
+    continuity_state=None,
+):
+    continuity_assets = (
+        apply_continuity_manifest_to_image_assets(image_assets, continuity_manifest)
+        if continuity_manifest
+        else image_assets
+    )
+    references = collect_storyboard_reference_images(continuity_assets)
     if not references:
         raise RuntimeError(f"分镜 {storyboard['index']:02d} 缺少参考资产图片")
     final_prompt = build_storyboard_image_prompt(
-        {**storyboard, "prompt": prompt or storyboard.get("prompt", "")},
+        {
+            **storyboard,
+            "prompt": prompt or storyboard.get("prompt", ""),
+            "continuityState": continuity_state,
+        },
         references,
     )
     prompt_audit = build_storyboard_prompt_audit(
@@ -913,6 +1090,21 @@ def generate_storyboard_frame_with_references(frame, storyboard, prompt, image_a
         "workflowGraph": graph,
         "generatedNodeId": f"gen-{graph['id']}",
         "referenceImages": references,
+        "orderedReferenceManifest": continuity_manifest or [],
+        "continuityState": continuity_state,
+        "providerRequestEvidence": {
+            "model": config.get("model", ""),
+            "aspectRatio": config.get("aspectRatio", ""),
+            "resolution": config.get("resolution", ""),
+            "referenceOrder": [
+                f"{item.get('assetId', '')}:{item.get('characterViewType') or item.get('sceneViewpointId') or 'base'}"
+                for item in references
+            ],
+            "previousApprovedFrameIncluded": any(
+                item.get("referenceRole") == "previous-approved-frame"
+                for item in continuity_manifest or []
+            ),
+        },
         "reusedExistingImage": reused_existing_image,
         "promptAudit": prompt_audit,
     }
@@ -1270,8 +1462,8 @@ CHAPTER_001_SHOTS = [
     ("悦来客栈斗室", "斗室狭窄，枯灯豆大，独孤合门坐下。", "旁白", "一间下房，藏不住十年的旧伤。", "门闩落下、灯火噼啪", ["独孤剑尘", "悦来客栈"], 4.0),
     ("悦来客栈斗室", "三层油布一圈圈解开，半截归元断剑露出寒光。", "独孤剑尘", "十年了，归元还没忘疼。", "油布摩擦、断剑轻鸣", ["独孤剑尘", "归元断剑", "油布剑包"], 4.2),
     ("悦来客栈斗室", "缚神索、玄天符、归元折断和太一宗火印在宣纸白光中闪过。", "旁白", "旧日一闪而过，伤口从未合上。", "闪回尖响、符纸震动", ["缚神索", "玄天符", "归元断剑"], 4.0),
-    ("悦来客栈", "楼下掌柜的声音穿过木板，窗外金水塾馆一盏油灯亮起。", "掌柜", "客官，会讲引气吗？", "木板传声、远处读书声", ["掌柜", "金水塾馆"], 3.8),
-    ("悦来客栈", "枯灯被风吹得一歪，独孤抬眼看向塾馆。", "独孤剑尘", "半堂，换粥。", "灯火摇晃、夜风", ["独孤剑尘", "金水塾馆"], 3.8),
+    ("悦来客栈斗室", "楼下掌柜的声音穿过木板，窗外金水塾馆一盏油灯亮起。", "掌柜", "客官，会讲引气吗？", "木板传声、远处读书声", ["掌柜", "金水塾馆"], 3.8),
+    ("悦来客栈斗室", "枯灯被风吹得一歪，独孤抬眼看向塾馆。", "独孤剑尘", "半堂，换粥。", "灯火摇晃、夜风", ["独孤剑尘", "金水塾馆"], 3.8),
     ("金水塾馆", "断口冷光化作塾馆油灯，孩童挤坐长凳，破衣湿鞋收在凳下。", "旁白", "夜课开始，穷孩子把呼吸都放轻了。", "叠化、孩童呼吸", ["金水塾馆", "孩童甲", "丫头"], 4.0),
     ("金水塾馆", "李先生收起书箱，将一根枯枝递给独孤。", "李先生", "掌柜说你会讲？", "书箱合上、枯枝递出", ["李先生", "独孤剑尘"], 3.6),
     ("金水塾馆", "独孤握住枯枝，窗外铁链拖动声远远压来。", "独孤剑尘", "半堂引气，只教活命，别问仙途。", "铁链远响、窗纸震动", ["独孤剑尘", "金水塾馆"], 3.6),
@@ -1601,12 +1793,18 @@ def parse_storyboard_table(markdown, episode_id=EPISODE_ID):
 def resolve_storyboard_source(state, episode_id=EPISODE_ID, allow_bootstrap=None):
     work = latest_storyboard_work(state, episode_id)
     if work:
+        shots = parse_storyboard_table(work["data"], episode_id)
+        if episode_id == EPISODE_ID and len(shots) == len(CHAPTER_001_SHOTS):
+            for index, shot in enumerate(shots, 1):
+                group = continuity_group_for_index(index)
+                if group:
+                    shot["scene"] = group["sceneName"]
         return {
             "kind": "project-storyboard-table",
             "workId": work.get("id") or "",
             "updatedAt": work.get("updatedAt") or work.get("createdAt") or 0,
             "data": work["data"],
-            "shots": parse_storyboard_table(work["data"], episode_id),
+            "shots": shots,
         }
     use_bootstrap = ALLOW_STORYBOARD_BOOTSTRAP if allow_bootstrap is None else bool(allow_bootstrap)
     if not use_bootstrap:
@@ -1964,6 +2162,11 @@ def build_asset_catalog(state):
                 "kind": "角色",
                 "id": item.get("id", ""),
                 "desc": item.get("description") or item.get("notes") or "剧本策划已抽取角色。",
+                "identityAnchors": item.get("identityAnchors"),
+                "negativePrompt": item.get("negativePrompt"),
+                "views": list(item.get("views") or []),
+                "variations": list(item.get("variations") or []),
+                "thumbnailUrl": item.get("thumbnailUrl") or "",
             }
     for item in scenes:
         name = item.get("name")
@@ -1972,21 +2175,32 @@ def build_asset_catalog(state):
                 "kind": "场景",
                 "id": item.get("id", ""),
                 "desc": item.get("notes") or item.get("atmosphere") or item.get("location") or "剧本策划已抽取场景。",
+                "spatialLayout": item.get("spatialLayout") or "",
+                "lightingDesign": item.get("lightingDesign") or "",
+                "colorPalette": item.get("colorPalette") or "",
+                "keyProps": list(item.get("keyProps") or []),
+                "viewpoints": list(item.get("viewpoints") or []),
+                "viewpointImages": dict(item.get("viewpointImages") or {}),
+                "contactSheetImage": item.get("contactSheetImage") or item.get("contactSheetImageUrl") or "",
+                "referenceImage": item.get("referenceImage") or "",
             }
     for item in extraction.get("characters", []):
         name = item.get("name")
         if name:
             previous = by_name.get(name, {})
             by_name[name] = {
+                **previous,
                 "kind": "角色",
                 "id": item.get("characterId", previous.get("id", "")),
                 "desc": item.get("note") or previous.get("desc") or "剧本策划已抽取角色。",
+                "aliases": unique_nonempty([*(previous.get("aliases") or []), *(item.get("aliases") or [])]),
             }
     for item in extraction.get("scenes", []):
         name = item.get("name")
         if name:
             previous = by_name.get(name, {})
             by_name[name] = {
+                **previous,
                 "kind": "场景",
                 "id": item.get("sceneId", previous.get("id", "")),
                 "desc": item.get("note") or previous.get("desc") or "剧本策划已抽取场景。",
@@ -3128,8 +3342,345 @@ def resolve_image_assets(scene, assets, asset_catalog):
                 *ASSET_IMAGE_ALIASES.get(asset_name, []),
                 *DAOJIE_REFERENCE_BINDING_ALIASES.get(asset_name, []),
             ]),
+            "identityAnchors": item.get("identityAnchors"),
+            "negativePrompt": item.get("negativePrompt"),
+            "views": list(item.get("views") or []),
+            "variations": list(item.get("variations") or []),
+            "spatialLayout": item.get("spatialLayout") or "",
+            "lightingDesign": item.get("lightingDesign") or "",
+            "colorPalette": item.get("colorPalette") or "",
+            "keyProps": list(item.get("keyProps") or []),
+            "viewpoints": list(item.get("viewpoints") or []),
+            "viewpointImages": dict(item.get("viewpointImages") or {}),
+            "contactSheetImage": item.get("contactSheetImage") or "",
         })
     return image_assets
+
+
+def continuity_group_for_index(index):
+    return next(
+        (group for group in CHAPTER_CONTINUITY_GROUPS if group["start"] <= index <= group["end"]),
+        None,
+    )
+
+
+def character_bible_missing_fields(asset):
+    anchors = asset.get("identityAnchors") or {}
+    negative = asset.get("negativePrompt") or {}
+    view_types = {str(view.get("viewType") or "") for view in asset.get("views") or [] if view.get("imageUrl") or view.get("imageBase64")}
+    missing = []
+    if not anchors or not isinstance(anchors.get("uniqueMarks"), list):
+        missing.append("identityAnchors")
+    if not isinstance(negative.get("avoid"), list) or not negative.get("avoid"):
+        missing.append("negativePrompt")
+    if len(view_types) < 3:
+        missing.append("views>=3")
+    return missing
+
+
+def scene_bible_missing_fields(asset, viewpoint_id):
+    missing = []
+    for field in ("spatialLayout", "lightingDesign", "colorPalette"):
+        if not str(asset.get(field) or "").strip():
+            missing.append(field)
+    viewpoint = next(
+        (item for item in asset.get("viewpoints") or [] if item.get("id") == viewpoint_id),
+        None,
+    )
+    if not viewpoint:
+        missing.append(f"viewpoint:{viewpoint_id}")
+    return missing
+
+
+def build_continuity_asset_version(asset, viewpoint_id=""):
+    asset_type = image_workflow_asset_type(asset.get("kind", ""))
+    asset_id = asset.get("assetId") or asset.get("name") or ""
+    if asset_type == "character":
+        wardrobe = {
+            "独孤剑尘": "grey-town",
+            "监工赵四": "dock-overseer",
+            "小杂役": "dock-ragged",
+        }.get(asset.get("name"), "chapter-001-base")
+        version_id = f"{asset_id}:{wardrobe}:v1"
+        missing = character_bible_missing_fields(asset)
+        view_order = {"front": 0, "three-quarter": 1, "side": 2, "back": 3}
+        views = sorted(
+            (
+                {
+                    "viewType": str(view.get("viewType") or ""),
+                    "imagePath": view.get("imageUrl") or view.get("imageBase64") or "",
+                }
+                for view in asset.get("views") or []
+                if (view.get("imageUrl") or view.get("imageBase64"))
+                and str(view.get("viewType") or "") in view_order
+            ),
+            key=lambda item: view_order[item["viewType"]],
+        )
+        reference_paths = [item["imagePath"] for item in views] or [asset["imagePath"]]
+        reference_view_types = [item["viewType"] for item in views]
+        return {
+            "assetId": asset_id,
+            "versionId": version_id,
+            "assetKind": asset_type,
+            "label": wardrobe,
+            "referenceImagePaths": reference_paths,
+            "referenceViewTypes": reference_view_types,
+            "identityAnchors": asset.get("identityAnchors"),
+            "negativePrompt": asset.get("negativePrompt"),
+            "wardrobeVersion": wardrobe,
+            "approved": not missing,
+            "missingFields": missing,
+            "source": "project-character-bible",
+        }
+    if asset_type == "scene":
+        version_id = f"{asset_id}:{viewpoint_id}:v1"
+        missing = scene_bible_missing_fields(asset, viewpoint_id)
+        return {
+            "assetId": asset_id,
+            "versionId": version_id,
+            "assetKind": asset_type,
+            "label": viewpoint_id,
+            "referenceImagePaths": [asset["imagePath"]],
+            "sceneViewpointId": viewpoint_id,
+            "approved": not missing,
+            "missingFields": missing,
+            "source": "project-scene-bible",
+        }
+    return {
+        "assetId": asset_id,
+        "versionId": f"{asset_id}:base:v1",
+        "assetKind": "prop",
+        "label": "chapter-001-base",
+        "referenceImagePaths": [asset["imagePath"]],
+        "approved": bool(asset.get("imagePath") and Path(asset["imagePath"]).exists()),
+        "missingFields": [],
+        "source": "project-prop-library",
+    }
+
+
+def build_ordered_continuity_manifest(image_assets, viewpoint_id):
+    manifest = []
+    versions = []
+    for order, asset in enumerate(image_assets, 1):
+        version = build_continuity_asset_version(asset, viewpoint_id if image_workflow_asset_type(asset.get("kind", "")) == "scene" else "")
+        versions.append(version)
+        manifest.append({
+            "order": order,
+            "assetId": version["assetId"],
+            "assetName": asset.get("name") or "",
+            "assetKind": version["assetKind"],
+            "imagePath": asset.get("imagePath") or "",
+            "referenceImagePaths": version.get("referenceImagePaths") or [],
+            "referenceViewTypes": version.get("referenceViewTypes") or [],
+            "source": version["source"],
+            "versionId": version["versionId"],
+            "referenceRole": "scene-viewpoint" if version["assetKind"] == "scene" else "canonical" if version["assetKind"] == "character" else "prop-state",
+            "identityAnchors": version.get("identityAnchors"),
+            "negativePrompt": version.get("negativePrompt"),
+            "wardrobeVersion": version.get("wardrobeVersion"),
+            "sceneViewpointId": version.get("sceneViewpointId"),
+            "approved": version["approved"],
+        })
+    return manifest, versions
+
+
+def apply_continuity_manifest_to_image_assets(image_assets, manifest):
+    """Expand one stable asset version into its ordered provider references."""
+    manifest_by_order = {int(item["order"]): item for item in manifest}
+    expanded = []
+    for order, asset in enumerate(image_assets, 1):
+        item = manifest_by_order.get(order)
+        if item is None:
+            raise RuntimeError(f"连续性清单缺少第 {order} 个资产: {asset.get('name') or asset.get('assetId')}")
+        paths = list(item.get("referenceImagePaths") or [item.get("imagePath") or asset.get("imagePath") or ""])
+        paths = [path for path in paths if path]
+        view_types = list(item.get("referenceViewTypes") or [])
+        if view_types and len(view_types) != len(paths):
+            raise RuntimeError(f"连续性资产 {item.get('assetId')} 的参考图与角色视图数量不一致")
+        for reference_index, path in enumerate(paths):
+            expanded.append({
+                **asset,
+                "imagePath": path,
+                "versionId": item.get("versionId"),
+                "referenceRole": item.get("referenceRole"),
+                "identityAnchors": item.get("identityAnchors"),
+                "negativePrompt": item.get("negativePrompt"),
+                "wardrobeVersion": item.get("wardrobeVersion"),
+                "characterViewType": view_types[reference_index] if view_types else None,
+                "sceneViewpointId": item.get("sceneViewpointId"),
+            })
+    return expanded
+
+
+def stable_json(value):
+    return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+
+
+def build_shot_continuity_prompt(state):
+    character_parts = [
+        (
+            f"{item['characterId']}使用{item['versionId']}，位置{item['position']}，朝向{item['orientation']}，"
+            f"承接动作{item['actionIn']}，镜尾动作{item['actionOut']}"
+        )
+        for item in state.get("characters") or []
+    ]
+    return " ".join(part for part in [
+        f"【连续镜头组】{state['groupId']}",
+        f"承接上一镜{state['previousStoryboardId']}" if state.get("previousStoryboardId") else "本组首镜",
+        f"【场景锁】{state['sceneVersionId']}/{state['sceneViewpointId']}，{state['lighting']}，{state['palette']}",
+        f"【动作承接】{state['actionIn']}；镜尾：{state['actionOut']}",
+        f"【人物状态】{'；'.join(character_parts)}" if character_parts else "",
+    ] if part)
+
+
+def build_visual_continuity_fingerprint(prompt, manifest, state):
+    reference_rows = []
+    for reference in sorted(manifest, key=lambda item: item["order"]):
+        row = {
+            "order": reference["order"],
+            "assetId": reference["assetId"],
+            "versionId": reference.get("versionId"),
+            "imagePath": reference.get("imagePath"),
+            "referenceImagePaths": reference.get("referenceImagePaths"),
+            "referenceViewTypes": reference.get("referenceViewTypes"),
+            "referenceRole": reference.get("referenceRole"),
+            "wardrobeVersion": reference.get("wardrobeVersion"),
+            "sceneViewpointId": reference.get("sceneViewpointId"),
+        }
+        reference_rows.append({key: value for key, value in row.items() if value is not None})
+    continuity = {key: value for key, value in state.items() if key != "inputFingerprint" and value is not None}
+    return stable_json({
+        "prompt": prompt,
+        "references": reference_rows,
+        "continuity": continuity,
+    })
+
+
+def build_sample_shot_continuity_state(index, prompt, image_assets, manifest):
+    group = continuity_group_for_index(index)
+    override = SAMPLE_SHOT_CONTINUITY.get(index)
+    if not group or not override:
+        raise RuntimeError(f"分镜 {index:03d} 缺少显式连续性编排")
+    versions_by_name = {
+        asset.get("name"): build_continuity_asset_version(
+            asset,
+            group["viewpointId"] if image_workflow_asset_type(asset.get("kind", "")) == "scene" else "",
+        )
+        for asset in image_assets
+    }
+    scene_version = versions_by_name.get(group["sceneName"])
+    if not scene_version:
+        raise RuntimeError(f"分镜 {index:03d} 缺少主场景连续版本: {group['sceneName']}")
+    characters = []
+    for character_name, blocking in override["characters"].items():
+        version = versions_by_name.get(character_name)
+        if not version:
+            raise RuntimeError(f"分镜 {index:03d} 缺少可见角色连续版本: {character_name}")
+        characters.append({
+            "characterId": version["assetId"],
+            "versionId": version["versionId"],
+            "position": blocking["position"],
+            "orientation": blocking["orientation"],
+            "actionIn": override["actionIn"],
+            "actionOut": override["actionOut"],
+        })
+    state = {
+        "groupId": group["groupId"],
+        "previousStoryboardId": f"sb-{EPISODE_ID}-{index - 1:03d}" if index > group["start"] else None,
+        "sceneVersionId": scene_version["versionId"],
+        "sceneViewpointId": group["viewpointId"],
+        "lighting": next((asset.get("lightingDesign") for asset in image_assets if asset.get("name") == group["sceneName"]), "") or storyboard_light_prompt({"index": index}),
+        "palette": next((asset.get("colorPalette") for asset in image_assets if asset.get("name") == group["sceneName"]), "") or "墨青、灰蓝、米白、浅褐，旧金与朱红只作焦点",
+        "actionIn": override["actionIn"],
+        "actionOut": override["actionOut"],
+        "characters": characters,
+        "inputFingerprint": "",
+    }
+    state["inputFingerprint"] = build_visual_continuity_fingerprint(prompt, manifest, state)
+    return state
+
+
+def build_default_shot_continuity_state(index, prompt, image_assets, manifest):
+    group = continuity_group_for_index(index)
+    if not group:
+        raise RuntimeError(f"分镜 {index:03d} 缺少连续镜头组")
+    scene_reference = next(
+        (item for item in manifest if item.get("assetKind") == "scene"),
+        manifest[0] if manifest else None,
+    )
+    if not scene_reference:
+        raise RuntimeError(f"分镜 {index:03d} 缺少场景连续版本")
+    scene_asset = next(
+        (asset for asset in image_assets if asset.get("assetId") == scene_reference.get("assetId")),
+        {},
+    )
+    characters = [
+        {
+            "characterId": item["assetId"],
+            "versionId": item["versionId"],
+            "position": "按本镜构图锁定",
+            "orientation": "按本镜画面朝向锁定",
+            "actionIn": prompt,
+            "actionOut": prompt,
+        }
+        for item in manifest
+        if item.get("assetKind") == "character"
+    ]
+    state = {
+        "groupId": group["groupId"],
+        "previousStoryboardId": f"sb-{EPISODE_ID}-{index - 1:03d}" if index > group["start"] else None,
+        "sceneVersionId": scene_reference["versionId"],
+        "sceneViewpointId": scene_reference.get("sceneViewpointId") or group["viewpointId"],
+        "lighting": scene_asset.get("lightingDesign") or storyboard_light_prompt({"index": index}),
+        "palette": scene_asset.get("colorPalette") or "墨青、灰蓝、米白、浅褐，旧金与朱红只作焦点",
+        "actionIn": prompt,
+        "actionOut": prompt,
+        "characters": characters,
+        "inputFingerprint": "",
+    }
+    if state["previousStoryboardId"] is None:
+        state.pop("previousStoryboardId")
+    state["inputFingerprint"] = build_visual_continuity_fingerprint(prompt, manifest, state)
+    return state
+
+
+def build_storyboard_continuity_payload(index, prompt, image_assets, existing_storyboard=None):
+    group = continuity_group_for_index(index)
+    if not group:
+        raise RuntimeError(f"分镜 {index:03d} 缺少连续镜头组")
+    manifest, versions = build_ordered_continuity_manifest(image_assets, group["viewpointId"])
+    if index in SAMPLE_SHOT_CONTINUITY:
+        state = build_sample_shot_continuity_state(index, prompt, image_assets, manifest)
+    else:
+        existing_state = json.loads(json.dumps((existing_storyboard or {}).get("continuityState") or {}))
+        if existing_state:
+            scene_reference = next(
+                (
+                    item for item in manifest
+                    if item.get("assetKind") == "scene" and item.get("assetName") == group["sceneName"]
+                ),
+                None,
+            )
+            if not scene_reference:
+                raise RuntimeError(f"分镜 {index:03d} 缺少主场景连续版本: {group['sceneName']}")
+            scene_asset = next(
+                (asset for asset in image_assets if asset.get("assetId") == scene_reference.get("assetId")),
+                {},
+            )
+            existing_state["groupId"] = group["groupId"]
+            existing_state["sceneVersionId"] = scene_reference["versionId"]
+            existing_state["sceneViewpointId"] = scene_reference.get("sceneViewpointId") or group["viewpointId"]
+            existing_state["lighting"] = scene_asset.get("lightingDesign") or storyboard_light_prompt({"index": index})
+            existing_state["palette"] = scene_asset.get("colorPalette") or "墨青、灰蓝、米白、浅褐，旧金与朱红只作焦点"
+            if index > group["start"]:
+                existing_state["previousStoryboardId"] = f"sb-{EPISODE_ID}-{index - 1:03d}"
+            else:
+                existing_state.pop("previousStoryboardId", None)
+            existing_state["inputFingerprint"] = build_visual_continuity_fingerprint(prompt, manifest, existing_state)
+            state = existing_state
+        else:
+            state = build_default_shot_continuity_state(index, prompt, image_assets, manifest)
+    return manifest, versions, state
 
 
 def select_primary_visual(scene, image_assets):
@@ -3579,6 +4130,11 @@ def main():
     tts_process = start_tts_backend() if USE_HTTP_TTS else None
     store = load_json(STORE)
     state = store.setdefault("state", {})
+    existing_storyboards_by_id = {
+        str(item.get("id")): item
+        for item in state.get("storyboards", [])
+        if item.get("episodeId") == EPISODE_ID and item.get("id")
+    }
     asset_index = build_asset_index(state)
     asset_catalog = build_asset_catalog(state)
     script_text = latest_script(state)
@@ -3653,6 +4209,12 @@ def main():
             image_assets = resolve_image_assets(scene, assets, asset_catalog)
             if not image_assets:
                 raise RuntimeError(f"分镜 {index:02d} 没有可用真实资产图片: {scene} / {', '.join(assets)}")
+            continuity_manifest, _continuity_versions, continuity_state = build_storyboard_continuity_payload(
+                index,
+                desc,
+                image_assets,
+                existing_storyboards_by_id.get(storyboard_id, {}),
+            )
             primary_visual = select_primary_visual(scene, image_assets)
             if not primary_visual:
                 raise RuntimeError(f"分镜 {index:02d} 缺少可用于成片的主视觉图: {scene}")
@@ -3668,6 +4230,8 @@ def main():
                     desc,
                     image_assets,
                     storyboard_image_config,
+                    continuity_manifest,
+                    continuity_state,
                 )
                 storyboard_image_workflows.append(storyboard_image_result["workflowGraph"])
                 storyboard_prompt_manifest.append(storyboard_image_result["promptAudit"])
@@ -3736,16 +4300,43 @@ def main():
                 storyboard_patch = {
                     "imageWorkflowId": storyboard_image_result["workflowGraph"]["id"],
                     "imageWorkflowNodeId": storyboard_image_result["generatedNodeId"],
+                    "orderedReferenceManifest": storyboard_image_result["orderedReferenceManifest"],
+                    "continuityState": storyboard_image_result["continuityState"],
                 }
+                existing_review = existing_storyboards_by_id.get(storyboard_id, {}).get("visualReview")
+                if storyboard_image_result["reusedExistingImage"] and existing_review:
+                    storyboard_patch["visualReview"] = existing_review
+                else:
+                    storyboard_patch["visualReview"] = {
+                        "status": "pending",
+                        "reasons": ["新分镜图等待逐镜视觉复核"],
+                        "characterChecks": [
+                            {"characterId": item["characterId"], "passed": False}
+                            for item in continuity_state.get("characters", [])
+                        ],
+                        "sceneChecks": [
+                            {"sceneVersionId": continuity_state["sceneVersionId"], "passed": False}
+                        ],
+                        "transitionChecks": [
+                            {
+                                "previousStoryboardId": continuity_state.get("previousStoryboardId"),
+                                "passed": False,
+                            }
+                        ],
+                        "reviewer": "automated",
+                        "reviewedAt": int(time.time() * 1000),
+                        "evidencePaths": [media_ref["path"]],
+                    }
             storyboards.append({
                 "id": storyboard_id,
                 "episodeId": EPISODE_ID,
                 "index": index,
                 "trackKey": track_key,
                 "trackId": "",
-                "duration": round(actual_duration, 2),
+                "duration": round(voiceover["durationTarget"], 2),
+                "renderDuration": round(actual_duration, 2),
                 "prompt": desc,
-                "videoDesc": f"{desc}；台词：{speaker}：{text}；音效：{sound}",
+                "videoDesc": shot.get("action") or desc,
                 "speaker": speaker,
                 "speakerId": speaker_id,
                 "line": voiceover["line"],

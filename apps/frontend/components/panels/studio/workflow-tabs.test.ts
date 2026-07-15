@@ -102,7 +102,9 @@ describe("studio workflow tabs", () => {
     expect(hookSource).toContain("runChapterAutoVideo");
     expect(hookSource).toContain("runStoryboardTtsGeneration");
     expect(hookSource).toContain("runProductionTrackRender");
-    expect(hookSource).toContain("runProductionEpisodeMerge");
+    expect(hookSource).toContain("buildChapterEditingProject");
+    expect(hookSource).toContain("renderChapterEditingProject");
+    expect(hookSource).not.toContain("runProductionEpisodeMerge");
     expect(hookSource).toContain("window.electronAPI?.openPath(status.finalPath)");
   });
 
@@ -148,10 +150,15 @@ describe("studio workflow tabs", () => {
       fileURLToPath(new URL("./ImageWorkflowCanvas.tsx", import.meta.url)),
       "utf8",
     );
+    const assetBridgeSource = readFileSync(
+      fileURLToPath(new URL("./image-workflow-asset-bridge.ts", import.meta.url)),
+      "utf8",
+    );
+    const workflowSource = `${canvasSource}\n${assetBridgeSource}`;
 
     expect(canvasSource).toContain("window.projectFiles?.writeBinary");
     expect(canvasSource).toContain("window.projectFiles?.saveImage");
-    expect(canvasSource).toContain("project-file://");
+    expect(workflowSource).toContain("project-file://");
     expect(canvasSource).toContain("initialAssetContext.imageWorkflowId");
     expect(canvasSource).toContain("assetWorkflowContextKey");
     expect(canvasSource).not.toContain("saveImageToLocal");
@@ -163,24 +170,41 @@ describe("studio workflow tabs", () => {
       fileURLToPath(new URL("./ImageWorkflowCanvas.tsx", import.meta.url)),
       "utf8",
     );
+    const nodeSource = readFileSync(
+      fileURLToPath(new URL("./image-workflow-node-card.tsx", import.meta.url)),
+      "utf8",
+    );
+    const paletteSource = readFileSync(
+      fileURLToPath(new URL("./image-workflow-palette.tsx", import.meta.url)),
+      "utf8",
+    );
+    const workflowSource = `${canvasSource}\n${nodeSource}\n${paletteSource}`;
 
     expect(canvasSource).toContain("bg-background text-foreground");
-    expect(canvasSource).toContain("bg-card/96");
-    expect(canvasSource).toContain("text-card-foreground");
+    expect(workflowSource).toContain("bg-card/96");
+    expect(workflowSource).toContain("text-card-foreground");
     expect(canvasSource).toContain("bg-muted/20");
     expect(canvasSource).toContain('Background color="hsl(var(--border))"');
     expect(canvasSource).toContain("react-flow__controls-button");
-    expect(canvasSource).not.toContain("border-white/");
-    expect(canvasSource).not.toContain("bg-black/");
-    expect(canvasSource).not.toContain("bg-white/[");
-    expect(canvasSource).not.toContain("text-zinc-");
-    expect(canvasSource).not.toContain("bg-[#181917]");
-    expect(canvasSource).not.toContain("bg-[#111210]");
+    expect(workflowSource).not.toContain("border-white/");
+    expect(workflowSource).not.toContain("bg-black/");
+    expect(workflowSource).not.toContain("bg-white/[");
+    expect(workflowSource).not.toContain("text-zinc-");
+    expect(workflowSource).not.toContain("bg-[#181917]");
+    expect(workflowSource).not.toContain("bg-[#111210]");
   });
 
   it("keeps image workflow drill-down navigable and non-blank", () => {
     const canvasSource = readFileSync(
       fileURLToPath(new URL("./ImageWorkflowCanvas.tsx", import.meta.url)),
+      "utf8",
+    );
+    const nodeSource = readFileSync(
+      fileURLToPath(new URL("./image-workflow-node-card.tsx", import.meta.url)),
+      "utf8",
+    );
+    const graphUtilsSource = readFileSync(
+      fileURLToPath(new URL("./image-workflow-graph-utils.ts", import.meta.url)),
       "utf8",
     );
     const indexSource = readFileSync(
@@ -203,17 +227,17 @@ describe("studio workflow tabs", () => {
     expect(canvasSource).toContain("isScopedWorkflowDetail");
     expect(canvasSource).toContain("canUseGlobalWorkflowControls");
     expect(canvasSource).toContain("data-scoped-image-workflow-summary");
-    expect(canvasSource).toContain("data-toonflow-generated-prompt-panel");
-    expect(canvasSource).toContain("data-toonflow-generated-prompt-textarea");
-    expect(canvasSource).toContain("findLinkedPromptNodeForGenerated");
+    expect(nodeSource).toContain("data-toonflow-generated-prompt-panel");
+    expect(nodeSource).toContain("data-toonflow-generated-prompt-textarea");
+    expect(graphUtilsSource).toContain("findLinkedPromptNodeForGenerated");
     expect(canvasSource).toContain("w-full flex-1 grid-cols-[minmax(0,1fr)_320px]");
     expect(canvasSource).toContain("当前图片工作流没有节点");
-    expect(canvasSource).toContain("context.sourceImagePath || context.resultImagePath");
-    expect(canvasSource).toContain("当前分镜参考图");
+    expect(graphUtilsSource).toContain("context.sourceImagePath || context.resultImagePath");
+    expect(graphUtilsSource).toContain("当前分镜参考图");
     expect(canvasSource).toContain("flowInstance?.fitView");
-    expect(canvasSource).toContain("focusNodeIdsForGenerated");
+    expect(graphUtilsSource).toContain("focusNodeIdsForGenerated");
     expect(canvasSource).toContain("focusedFitNodeKey");
-    expect(canvasSource).toContain("slice(0, 3)");
+    expect(graphUtilsSource).toContain("slice(0, 3)");
     expect(indexSource).toContain("onBack={viewModel.closeAssetImageWorkflow}");
     expect(viewModelSource).toContain("closeAssetImageWorkflow");
   });
@@ -221,6 +245,10 @@ describe("studio workflow tabs", () => {
   it("keeps drill-down image workflow detail scoped to the opened node", () => {
     const canvasSource = readFileSync(
       fileURLToPath(new URL("./ImageWorkflowCanvas.tsx", import.meta.url)),
+      "utf8",
+    );
+    const graphUtilsSource = readFileSync(
+      fileURLToPath(new URL("./image-workflow-graph-utils.ts", import.meta.url)),
       "utf8",
     );
 
@@ -231,7 +259,7 @@ describe("studio workflow tabs", () => {
     expect(canvasSource).toContain("scopedPendingWritebackTargetLabel");
     expect(canvasSource).toContain("const renderScopedWorkflowPending = () => (");
     expect(canvasSource).toContain("if (isScopedWorkflowDetail) return renderScopedWorkflowPending();");
-    expect(canvasSource).toContain("openContextTargetLabel");
+    expect(graphUtilsSource).toContain("openContextTargetLabel");
     expect(canvasSource).toContain("{canUseGlobalWorkflowControls ? (");
     expect(canvasSource).toContain("{selectedEdgeId && canUseGlobalWorkflowControls ? (");
     expect(canvasSource).toContain("data-scoped-image-workflow-summary");
@@ -244,11 +272,15 @@ describe("studio workflow tabs", () => {
       fileURLToPath(new URL("./ImageWorkflowCanvas.tsx", import.meta.url)),
       "utf8",
     );
+    const graphUtilsSource = readFileSync(
+      fileURLToPath(new URL("./image-workflow-graph-utils.ts", import.meta.url)),
+      "utf8",
+    );
 
     expect(canvasSource).toContain("preferredGeneratedNodeId");
     expect(canvasSource).toContain("activeGraphTargetKeyRef");
     expect(canvasSource).toContain("resolveOpenContextGeneratedNodeId");
-    expect(canvasSource).toContain("context.resultImagePath");
+    expect(graphUtilsSource).toContain("context.resultImagePath");
     expect(canvasSource).toContain('target: { kind: "free" }');
     expect(canvasSource).toContain("setTargetStoryboardId(");
     expect(canvasSource).toContain("? activeGraph.target.id");

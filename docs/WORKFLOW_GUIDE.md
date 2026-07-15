@@ -118,11 +118,15 @@ Python 和 TTS 依赖不会在应用启动时自动配置。详细说明见 [Pyt
 1. 确认每条 track 的分镜和时长。
 2. 对单条 track 点击生成候选片段。
 3. 选择可用候选片段。
-4. 点击 `拼接成片` 输出最终视频。
+4. 点击 `一键剪辑`，创建或复用当前章节的 `EditingProject` 剪辑草案。
+5. 在剪辑工作台检查画面、口播、字幕、转场和当前 revision。
+6. 点击 `一键成片`，把当前 `EditingProject` 编译成时间线计划，并由本地 timeline renderer 输出 MP4。
 
 本地合成依赖系统 `ffmpeg`。如果提示未找到 FFmpeg，先确认命令行中 `ffmpeg -version` 可用。打包和 smoke 流程见 [打包、安装与 Smoke 测试](./PACKAGING_AND_SMOKE_TESTING.md)。
 
-track 分组、候选片段状态、选择规则和拼接失败处理见 [分镜表与剪辑工作台操作参考](./WORKFLOW_STORYBOARD_EDITING_OPERATIONS.md)。当前最终合成主入口是 `视频工作台`，`成片与导出` 页面主要用于查看和导出已有素材/产物。
+当前权威成片链是 `分镜/候选 -> EditingProject -> TimelineRenderPlan -> timeline renderer -> MP4 + 完整媒体证据`。只有证据对应当前 EditingProject revision，并且最终 MP4、snapshot、render plan、input manifest、filter graph、日志和 ffprobe 文件都存在时，工作流才把视频工作台视为完成。
+
+旧 `拼接成片` 仍作为人工兼容导出保留，但不会被自动成片、工作流完成度或真实《道劫》验收当作权威最终视频。track 分组、候选片段状态、选择规则和兼容拼接失败处理见 [分镜表与剪辑工作台操作参考](./WORKFLOW_STORYBOARD_EDITING_OPERATIONS.md)。`成片与导出` 页面主要用于查看和导出已有素材/产物。
 
 ## 兼容与高级入口
 

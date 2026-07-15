@@ -2,6 +2,20 @@ import { describe, expect, it, vi } from "vitest";
 import { discoverProjectsFromDisk, recoverProjectFromDisk, useProjectStore } from "./project-store";
 
 describe("project disk recovery", () => {
+  it("skips disk discovery outside the renderer environment", async () => {
+    const previousWindow = globalThis.window;
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    Reflect.deleteProperty(globalThis, "window");
+
+    try {
+      await expect(discoverProjectsFromDisk()).resolves.toBeUndefined();
+      expect(consoleError).not.toHaveBeenCalled();
+    } finally {
+      (globalThis as unknown as { window: Window | undefined }).window = previousWindow;
+      consoleError.mockRestore();
+    }
+  });
+
   it("reads current per-project script and director keys", async () => {
     const getItem = vi.fn(async (key: string) => {
       if (key === "_p/p-current/script") {

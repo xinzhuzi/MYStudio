@@ -113,3 +113,13 @@ npm run smoke:installed
 ## Phase 3 boundary
 
 完成后运行 `trellis-check` 与 `trellis-update-spec` 判断；由于项目 no-git，跳过 Trellis 默认 commit。只向用户给 human-review 摘要，不自动 archive/record session。
+
+## Current verification status (2026-07-14)
+
+- Batch 1-5 已由 focused gate 复验：skill validation 通过，8 个相关测试文件共 136 个测试通过。
+- Batch 6 已完成：typecheck、lint、全量 114 文件 / 672 测试、`build:mac`、packaged smoke、installed smoke 均通过。
+- Batch 7 已完成：复用现有 43 张真实分镜图，连续两次运行当前代码的 `npm run video:daojie:chapter001` 均成功，未重新请求分镜图片。
+- 两轮 12 个 canonical speaker 的 `profileId`、参考音频路径、resolved 路径及 binding fingerprint 完全一致；第二轮全部 `match=fixed`，无 AI-selected binding。
+- AC10 机器断言通过：43 镜等于 43 源片段、43 份完整口播、43 份真实音频、local qwen-mlx TTS、无 mock/fallback、音视频流完整、172.291016 秒、SHA-256 存在。
+- 用户提供的临时服务已用 `agnes-image-2.1-flash` 通过模型列表和单图兼容测试；密钥与 provider 配置未持久化。
+- AC1-AC10 已齐全，下一步进入 Phase 3 spec 判断和 human review；按 no-git 规则不执行 commit，归档只走 `--no-commit`。

@@ -16,7 +16,9 @@ Questions to answer:
 - What code review standards apply?
 -->
 
-(To be filled by the team)
+Every frontend change must pass TypeScript, ESLint, and Vitest. Electron and
+workflow changes also require the relevant packaged or workflow smoke layer;
+navigation smoke must not be reported as real MP4 generation success.
 
 ---
 
@@ -24,7 +26,11 @@ Questions to answer:
 
 <!-- Patterns that should never be used and why -->
 
-(To be filled by the team)
+- Direct Node filesystem/process access from renderer components.
+- New untyped preload globals or duplicate IPC channel contracts.
+- Tests that only assert a mock without exercising production behavior.
+- Silent fallbacks that convert a failed real generation into apparent success.
+- Broad unrelated refactors inside a focused task.
 
 ---
 
@@ -32,7 +38,11 @@ Questions to answer:
 
 <!-- Patterns that must always be used -->
 
-(To be filled by the team)
+- Reuse preload bridges, stores, domain helpers, and shared UI primitives.
+- Keep project persistence scoped and migration-compatible.
+- Preserve explicit loading, failure, stale, canceled, and completed states.
+- Sanitize diagnostics before writing logs.
+- Add regression tests beside the affected code.
 
 ---
 
@@ -40,7 +50,16 @@ Questions to answer:
 
 <!-- What level of testing is expected -->
 
-(To be filled by the team)
+Run from `apps/`:
+
+```bash
+npm run typecheck
+npm run lint
+npm test
+```
+
+Use focused Vitest files during iteration. For Electron packaging or workflow
+changes, also run the exact smoke commands named in the task acceptance criteria.
 
 ---
 
@@ -48,4 +67,8 @@ Questions to answer:
 
 <!-- What reviewers should check -->
 
-(To be filled by the team)
+- Data flow is correct across component, store/lib, preload, and main process.
+- Project switching cannot redirect an in-flight write.
+- Errors and terminal states are visible and testable.
+- No secrets, prompts, or binary payloads leak into diagnostics.
+- The reported verification level matches the commands actually rerun.

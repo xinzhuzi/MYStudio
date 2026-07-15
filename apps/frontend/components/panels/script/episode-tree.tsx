@@ -40,12 +40,15 @@ import {
   X,
   MessageSquare,
   Clapperboard,
-  Play,
-  Timer,
 } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { TrailerDuration, TrailerConfig } from "@/stores/director-store";
-import { selectTrailerShots, convertShotsToSplitScenes, type TrailerGenerationOptions } from "@/lib/script/trailer-service";
+import type { TrailerGenerationOptions } from "@/lib/script/trailer-service";
+import { EpisodeTreeTrailerPanel } from "./episode-tree-trailer-panel";
+import { EpisodeTreeEpisodeDialog } from "./episode-tree-episode-dialog";
+import { EpisodeTreeDeleteDialog } from "./episode-tree-delete-dialog";
+import { EpisodeTreeSceneEditForm } from "./episode-tree-scene-edit-form";
+import { EpisodeTreeCharacterEditForm } from "./episode-tree-character-edit-form";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -65,16 +68,6 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 
 type FilterType = "all" | "pending" | "completed";
 
@@ -221,10 +214,6 @@ export function EpisodeTree({
   const [extrasExpanded, setExtrasExpanded] = useState(false);
   // Tab 状态: 剧集结构 vs 预告片
   const [activeTab, setActiveTab] = useState<"structure" | "trailer">("structure");
-  // 预告片时长选择
-  const [selectedTrailerDuration, setSelectedTrailerDuration] = useState<TrailerDuration>(30);
-  // 预告片生成状态
-  const [trailerGenerating, setTrailerGenerating] = useState(false);
 
   // Dialog states
   const [episodeDialogOpen, setEpisodeDialogOpen] = useState(false);
@@ -609,26 +598,6 @@ export function EpisodeTree({
     );
   }, [shots, scriptData]);
 
-  // 处理预告片生成
-  const handleGenerateTrailer = useCallback(async () => {
-    if (!trailerApiOptions || trailerGenerating) return;
-    
-    setTrailerGenerating(true);
-    try {
-      onGenerateTrailer?.(selectedTrailerDuration);
-    } finally {
-      setTrailerGenerating(false);
-    }
-  }, [trailerApiOptions, trailerGenerating, selectedTrailerDuration, onGenerateTrailer]);
-
-  // 获取预告片中的分镜列表
-  const trailerShots = useMemo(() => {
-    if (!trailerConfig?.shotIds || !shots.length) return [];
-    return trailerConfig.shotIds
-      .map(id => shots.find(s => s.id === id))
-      .filter((s): s is Shot => !!s);
-  }, [trailerConfig?.shotIds, shots]);
-
   if (!scriptData) {
     return (
       <div className="h-full flex items-center justify-center text-muted-foreground text-sm">
@@ -732,141 +701,18 @@ export function EpisodeTree({
 
       {/* 预告片 Tab 内容 */}
       {activeTab === "trailer" && (
-        <div className="flex-1 flex flex-col overflow-hidden">
-          {/* 预告片设置区 */}
-          <div className="p-3 border-b space-y-3">
-            <div className="flex items-center justify-between">
-              <Label className="text-sm font-medium">预告片时长</Label>
-              <div className="flex gap-1">
-                {([10, 30, 60] as TrailerDuration[]).map((d) => (
-                  <Button
-                    key={d}
-                    size="sm"
-                    variant={selectedTrailerDuration === d ? "default" : "outline"}
-                    className="h-7 text-xs px-2"
-                    onClick={() => setSelectedTrailerDuration(d)}
-                  >
-                    <Timer className="h-3 w-3 mr-1" />
-                    {d === 60 ? "1分钟" : `${d}秒`}
-                  </Button>
-                ))}
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                size="sm"
-                className="flex-1 h-8"
-                onClick={handleGenerateTrailer}
-                disabled={!trailerApiOptions || trailerGenerating || shots.length === 0 || trailerConfig?.status === 'generating'}
-              >
-                {trailerGenerating || trailerConfig?.status === 'generating' ? (
-                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" />AI 分析中...</>
-                ) : (
-                  <><Sparkles className="h-4 w-4 mr-2" />AI 智能挑选分镜</>
-                )}
-              </Button>
-              {trailerConfig?.shotIds && trailerConfig.shotIds.length > 0 && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-8"
-                  onClick={onClearTrailer}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              )}
-            </div>
-            {!trailerApiOptions && (
-              <p className="text-xs text-amber-500">请先在设置中配置 AI API 密钥</p>
-            )}
-            {shots.length === 0 && (
-              <p className="text-xs text-amber-500">请先生成分镜</p>
-            )}
-          </div>
-
-          {/* 预告片分镜列表 */}
-          <ScrollArea className="flex-1">
-            <div className="p-3 space-y-2">
-              {trailerConfig?.error && (
-                <div className="text-xs text-destructive bg-destructive/10 p-2 rounded">
-                  {trailerConfig.error}
-                </div>
-              )}
-              {trailerShots.length > 0 ? (
-                <>
-                  <div className="text-xs text-muted-foreground mb-2">
-                    已选择 {trailerShots.length} 个分镜，预计时长 {trailerShots.reduce((sum, s) => sum + (s.duration || 5), 0)} 秒
-                  </div>
-                  {trailerShots.map((shot, index) => {
-                    const calibrationStatus = singleShotCalibrationStatus?.[shot.id] || 'idle';
-                    return (
-                      <div
-                        key={shot.id}
-                        className={cn(
-                          "p-2 rounded border cursor-pointer hover:bg-muted/50 transition-colors",
-                          selectedItemId === shot.id && selectedItemType === "shot" && "bg-primary/10 border-primary"
-                        )}
-                        onClick={() => onSelectItem(shot.id, "shot")}
-                      >
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-mono text-muted-foreground w-5">
-                            #{index + 1}
-                          </span>
-                          <Play className="h-3 w-3 text-muted-foreground" />
-                          <span className="text-xs flex-1 truncate">
-                            {shot.shotSize || "镜头"} - {shot.actionSummary?.slice(0, 30)}...
-                          </span>
-                          <span className="text-xs text-muted-foreground">
-                            {shot.duration || 5}s
-                          </span>
-                          {/* AI 校准按钮 */}
-                          {onCalibrateSingleShot && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-5 w-5 p-0 shrink-0"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onCalibrateSingleShot(shot.id);
-                              }}
-                              disabled={calibrationStatus === 'calibrating'}
-                              title="AI 校准分镜"
-                            >
-                              {calibrationStatus === 'calibrating' ? (
-                                <Loader2 className="h-3 w-3 animate-spin" />
-                              ) : calibrationStatus === 'completed' ? (
-                                <Check className="h-3 w-3 text-green-500" />
-                              ) : calibrationStatus === 'error' ? (
-                                <X className="h-3 w-3 text-destructive" />
-                              ) : (
-                                <Wand2 className="h-3 w-3" />
-                              )}
-                            </Button>
-                          )}
-                        </div>
-                        {shot.dialogue && (
-                          <p className="text-xs text-muted-foreground mt-1 pl-7 truncate">
-                            「{shot.dialogue.slice(0, 40)}...」
-                          </p>
-                        )}
-                      </div>
-                    );
-                  })}
-                </>
-              ) : trailerConfig?.status === 'completed' ? (
-                <div className="text-center text-muted-foreground text-sm py-8">
-                  暂无挑选的分镜
-                </div>
-              ) : (
-                <div className="text-center text-muted-foreground text-sm py-8">
-                  <Clapperboard className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <p>选择时长后点击「AI 智能挑选分镜」</p>
-                  <p className="text-xs mt-1">AI 将根据叙事功能和情感张力自动挑选</p>
-                </div>
-              )}
-            </div>
-          </ScrollArea>
-        </div>
+        <EpisodeTreeTrailerPanel
+          shots={shots}
+          selectedItemId={selectedItemId}
+          selectedItemType={selectedItemType}
+          onSelectItem={onSelectItem}
+          trailerConfig={trailerConfig}
+          onGenerateTrailer={onGenerateTrailer}
+          onClearTrailer={onClearTrailer}
+          trailerApiOptions={trailerApiOptions}
+          onCalibrateSingleShot={onCalibrateSingleShot}
+          singleShotCalibrationStatus={singleShotCalibrationStatus}
+        />
       )}
 
       {/* 剧集结构 Tab 内容 - 树形结构 */}
@@ -1247,28 +1093,16 @@ export function EpisodeTree({
       </ScrollArea>
       )}
 
-      {/* Episode Dialog */}
-      <Dialog open={episodeDialogOpen} onOpenChange={setEpisodeDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{editingItem?.type === "episode" ? "编辑集" : "新建集"}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>标题</Label>
-              <Input value={formData.title || ""} onChange={(e) => setFormData({ ...formData, title: e.target.value })} />
-            </div>
-            <div className="space-y-2">
-              <Label>描述</Label>
-              <Input value={formData.description || ""} onChange={(e) => setFormData({ ...formData, description: e.target.value })} />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEpisodeDialogOpen(false)}>取消</Button>
-            <Button onClick={handleSaveEpisode}>保存</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <EpisodeTreeEpisodeDialog
+        open={episodeDialogOpen}
+        mode={editingItem?.type === "episode" ? "edit" : "create"}
+        title={formData.title || ""}
+        description={formData.description || ""}
+        onOpenChange={setEpisodeDialogOpen}
+        onTitleChange={(title) => setFormData({ ...formData, title })}
+        onDescriptionChange={(description) => setFormData({ ...formData, description })}
+        onSave={handleSaveEpisode}
+      />
 
       {/* Scene Dialog - AI 对话模式 */}
       <Dialog open={sceneDialogOpen} onOpenChange={(open) => {
@@ -1292,28 +1126,18 @@ export function EpisodeTree({
           
           {/* 编辑模式：显示普通表单 */}
           {editingItem?.type === "scene" ? (
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label>场景名称</Label>
-                <Input value={formData.name || ""} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
-              </div>
-              <div className="space-y-2">
-                <Label>地点</Label>
-                <Input value={formData.location || ""} onChange={(e) => setFormData({ ...formData, location: e.target.value })} />
-              </div>
-              <div className="space-y-2">
-                <Label>时间</Label>
-                <Input value={formData.time || ""} onChange={(e) => setFormData({ ...formData, time: e.target.value })} placeholder="如：白天、夜晚、黄昏" />
-              </div>
-              <div className="space-y-2">
-                <Label>氛围</Label>
-                <Input value={formData.atmosphere || ""} onChange={(e) => setFormData({ ...formData, atmosphere: e.target.value })} />
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setSceneDialogOpen(false)}>取消</Button>
-                <Button onClick={handleSaveScene}>保存</Button>
-              </DialogFooter>
-            </div>
+            <EpisodeTreeSceneEditForm
+              name={formData.name || ""}
+              location={formData.location || ""}
+              time={formData.time || ""}
+              atmosphere={formData.atmosphere || ""}
+              onNameChange={(name) => setFormData({ ...formData, name })}
+              onLocationChange={(location) => setFormData({ ...formData, location })}
+              onTimeChange={(time) => setFormData({ ...formData, time })}
+              onAtmosphereChange={(atmosphere) => setFormData({ ...formData, atmosphere })}
+              onCancel={() => setSceneDialogOpen(false)}
+              onSave={handleSaveScene}
+            />
           ) : (
             /* 新建模式：AI 对话界面 */
             <div className="space-y-4 py-2">
@@ -1461,28 +1285,18 @@ export function EpisodeTree({
           
           {/* 编辑模式：显示普通表单 */}
           {editingItem?.type === "character" ? (
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label>角色名</Label>
-                <Input value={formData.name || ""} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
-              </div>
-              <div className="space-y-2">
-                <Label>性别</Label>
-                <Input value={formData.gender || ""} onChange={(e) => setFormData({ ...formData, gender: e.target.value })} />
-              </div>
-              <div className="space-y-2">
-                <Label>年龄</Label>
-                <Input value={formData.age || ""} onChange={(e) => setFormData({ ...formData, age: e.target.value })} />
-              </div>
-              <div className="space-y-2">
-                <Label>性格</Label>
-                <Input value={formData.personality || ""} onChange={(e) => setFormData({ ...formData, personality: e.target.value })} />
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setCharacterDialogOpen(false)}>取消</Button>
-                <Button onClick={handleSaveCharacter}>保存</Button>
-              </DialogFooter>
-            </div>
+            <EpisodeTreeCharacterEditForm
+              name={formData.name || ""}
+              gender={formData.gender || ""}
+              age={formData.age || ""}
+              personality={formData.personality || ""}
+              onNameChange={(name) => setFormData({ ...formData, name })}
+              onGenderChange={(gender) => setFormData({ ...formData, gender })}
+              onAgeChange={(age) => setFormData({ ...formData, age })}
+              onPersonalityChange={(personality) => setFormData({ ...formData, personality })}
+              onCancel={() => setCharacterDialogOpen(false)}
+              onSave={handleSaveCharacter}
+            />
           ) : (
             /* 新建模式：AI 对话界面 */
             <div className="space-y-4 py-2">
@@ -1607,23 +1421,12 @@ export function EpisodeTree({
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation */}
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>确认删除</AlertDialogTitle>
-            <AlertDialogDescription>
-              确定要删除「{deleteItem?.name}」吗？此操作不可撤销。
-              {deleteItem?.type === "episode" && "\n删除集将同时删除其下所有场景和分镜。"}
-              {deleteItem?.type === "scene" && "\n删除场景将同时删除其下所有分镜。"}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>取消</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground">删除</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <EpisodeTreeDeleteDialog
+        open={deleteDialogOpen}
+        item={deleteItem}
+        onOpenChange={setDeleteDialogOpen}
+        onConfirm={confirmDelete}
+      />
 
       {/* 角色校准确认弹窗 */}
       <Dialog open={calibrationDialogOpen} onOpenChange={(open) => { if (!open) onCancelCalibration?.(); }}>

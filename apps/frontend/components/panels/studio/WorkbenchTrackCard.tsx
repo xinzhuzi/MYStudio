@@ -157,7 +157,7 @@ export function WorkbenchTrackCard(props: {
   );
 }
 
-function toPreviewSrc(filePath: string) {
+export function toPreviewSrc(filePath: string) {
   if (
     filePath.startsWith("local-image://") ||
     filePath.startsWith("file://") ||

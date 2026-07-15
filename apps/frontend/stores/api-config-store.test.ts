@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   API_AGENT_DEPLOYMENT_GROUPS,
   API_AGENT_DEPLOYMENT_DEFAULTS,
@@ -14,6 +14,10 @@ import {
 import { LOCAL_TTS_BASE_URL } from "@/lib/tts/constants";
 
 describe("useAPIConfigStore unified model configuration", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   beforeEach(() => {
     useAPIConfigStore.setState({
       providers: [
@@ -209,6 +213,76 @@ describe("useAPIConfigStore unified model configuration", () => {
       vendorId: undefined,
       modelId: undefined,
     });
+  });
+
+  it("validates configured models without importing unrelated upstream catalog entries", async () => {
+    useAPIConfigStore.setState({
+      providers: [{
+        id: "provider-1",
+        platform: "custom",
+        name: "Image Relay",
+        baseUrl: "https://relay.example.com/v1",
+        apiKey: "sk-test",
+        model: ["gpt-image-2"],
+      }],
+    });
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({
+      data: [
+        { id: "gpt-image-2", supported_endpoint_types: ["image-generation"] },
+        { id: "gpt-5.4" },
+        { id: "sora-2" },
+      ],
+    }), { status: 200 }));
+
+    const result = await useAPIConfigStore.getState().syncProviderModels("provider-1");
+
+    expect(result).toEqual({ success: true, count: 1 });
+    expect(useAPIConfigStore.getState().providers[0].model).toEqual(["gpt-image-2"]);
+    expect(useAPIConfigStore.getState().modelEndpointTypes["gpt-image-2"]).toEqual(["image-generation"]);
+    expect(useAPIConfigStore.getState().modelEndpointTypes["gpt-5.4"]).toBeUndefined();
+  });
+
+  it("refuses model synchronization when no explicit model is configured", async () => {
+    useAPIConfigStore.setState({
+      providers: [{
+        id: "provider-1",
+        platform: "custom",
+        name: "Image Relay",
+        baseUrl: "https://relay.example.com/v1",
+        apiKey: "sk-test",
+        model: [],
+      }],
+    });
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+
+    const result = await useAPIConfigStore.getState().syncProviderModels("provider-1");
+
+    expect(result).toMatchObject({ success: false, count: 0 });
+    expect(result.error).toContain("请先填写模型");
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(useAPIConfigStore.getState().providers[0].model).toEqual([]);
+  });
+
+  it("reports exact configured models missing from the upstream catalog without mutation", async () => {
+    useAPIConfigStore.setState({
+      providers: [{
+        id: "provider-1",
+        platform: "custom",
+        name: "Image Relay",
+        baseUrl: "https://relay.example.com/v1",
+        apiKey: "sk-test",
+        model: ["gpt-image-2", "private-image-model"],
+      }],
+    });
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({
+      data: [{ id: "gpt-image-2" }, { id: "unrelated-model" }],
+    }), { status: 200 }));
+
+    const result = await useAPIConfigStore.getState().syncProviderModels("provider-1");
+
+    expect(result).toMatchObject({ success: false, count: 0 });
+    expect(result.error).toContain("private-image-model");
+    expect(useAPIConfigStore.getState().providers[0].model).toEqual(["gpt-image-2", "private-image-model"]);
   });
 
   it("validates provider adapter code without executing it", () => {

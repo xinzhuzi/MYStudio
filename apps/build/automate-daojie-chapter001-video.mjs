@@ -1,15 +1,20 @@
-import { existsSync, mkdirSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { dirname, resolve } from 'node:path';
+import { dirname, extname, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 
 const appsRoot = process.cwd();
 const repoRoot = resolve(appsRoot, '..');
 const generatorScript = resolve(repoRoot, 'Library', 'build_daojie_chapter001_workflow.py');
+const timelineRunnerScript = 'build/render-daojie-editing-timeline.ts';
+const storyboardImageHelper = resolve(appsRoot, 'build', 'generate-storyboard-image.mjs');
+const viteNodeBin = './node_modules/.bin/vite-node';
 const reportPath = resolve(appsRoot, 'output', 'automation', 'daojie-chapter001-video-report.json');
 const packagedAppBin = resolve(appsRoot, 'release', 'build', 'mac-arm64', 'mac-arm64', '漫影工作室.app', 'Contents', 'MacOS', '漫影工作室');
 const installedAppBin = '/Applications/漫影工作室.app/Contents/MacOS/漫影工作室';
 const skipPrekill = process.env.MYSTUDIO_SMOKE_SKIP_PREKILL === '1';
+const probeProvidersOnly = process.argv.includes('--probe-providers');
+const probeGenerationOnly = process.argv.includes('--probe-generation');
 const MIN_DIALOGUE_COVERAGE_RATIO = 0.92;
 const MIN_AUDIO_MEAN_VOLUME_DB = -55;
 const MAX_DAOJIE_VIDEO_DURATION_SECONDS = 180;
@@ -101,6 +106,10 @@ function parseGeneratorOutput(stdout) {
   }
 }
 
+function sha256File(filePath) {
+  return createHash('sha256').update(readFileSync(filePath)).digest('hex');
+}
+
 function directorPlanAuditFields(generated) {
   return {
     directorPlanChars: generated?.directorPlanChars,
@@ -174,7 +183,14 @@ import { spawn } from 'node:child_process';
 const appBin = process.env.MYSTUDIO_IMAGE_CONFIG_APP_BIN;
 const debugPort = process.env.MYSTUDIO_IMAGE_CONFIG_DEBUG_PORT || '9395';
 const appConfigExpression = ${JSON.stringify(appConfigExpression)};
-const app = spawn(appBin, ['--remote-debugging-port=' + debugPort], { stdio: ['ignore', 'ignore', 'ignore'] });
+const app = spawn(appBin, ['--remote-debugging-port=' + debugPort], {
+  env: {
+    ...process.env,
+    MYSTUDIO_SMOKE: '1',
+    MYSTUDIO_SMOKE_BACKGROUND: '1',
+  },
+  stdio: ['ignore', 'ignore', 'ignore'],
+});
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const readJson = async (url) => {
   const response = await fetch(url);
@@ -242,6 +258,207 @@ try {
   } catch {
     return undefined;
   }
+}
+
+function parseImageApiKeys(apiKey, apiKeys = []) {
+  const raw = [];
+  if (Array.isArray(apiKeys)) raw.push(...apiKeys);
+  if (apiKey) raw.push(apiKey);
+  return [...new Set(raw
+    .flatMap((value) => String(value || '').split(/[,\n]/))
+    .map((value) => value.trim())
+    .filter(Boolean))];
+}
+
+function redactProbeText(value) {
+  return String(value || '')
+    .replace(/Bearer\s+[^\r\n"]+/gi, 'Bearer <redacted>')
+    .replace(/sk-[A-Za-z0-9_\-.]{8,}/gi, 'sk-<redacted>')
+    .replace(/[A-Za-z0-9_-]{24,}/g, '<redacted>');
+}
+
+function normalizeProbeBaseUrl(baseUrl) {
+  return String(baseUrl || '').replace(/\/+$/, '').replace(/\/v\d+$/, '');
+}
+
+function normalizeProviderConfigsForProbe(rawConfigJson) {
+  if (!rawConfigJson) return [];
+  const parsed = JSON.parse(rawConfigJson);
+  if (!Array.isArray(parsed)) return [];
+  return parsed.map((provider) => {
+    const apiKeys = parseImageApiKeys(provider.apiKey, provider.apiKeys);
+    return {
+      providerName: provider.providerName || provider.name || 'freedom-image',
+      baseUrl: provider.baseUrl || provider.baseURL || '',
+      model: provider.model || '',
+      apiKeys,
+    };
+  }).filter((provider) => provider.baseUrl && provider.model && provider.apiKeys.length > 0);
+}
+
+async function probeImageProviderModels(provider) {
+  let host = '';
+  try {
+    host = new URL(provider.baseUrl).host;
+  } catch {
+    host = '';
+  }
+  const result = {
+    providerName: provider.providerName,
+    host,
+    model: provider.model,
+    keyCount: provider.apiKeys.length,
+    modelsEndpointStatus: 'not-run',
+    modelCount: null,
+    error: '',
+  };
+  let timeout;
+  try {
+    const controller = new AbortController();
+    timeout = setTimeout(() => controller.abort(new Error('models probe timeout')), 8000);
+    const response = await fetch(`${normalizeProbeBaseUrl(provider.baseUrl)}/v1/models`, {
+      headers: { Authorization: `Bearer ${provider.apiKeys[0]}` },
+      signal: controller.signal,
+    });
+    result.modelsEndpointStatus = String(response.status);
+    const text = await response.text();
+    if (!response.ok) {
+      result.error = redactProbeText(text).slice(0, 300);
+      return result;
+    }
+    try {
+      const data = JSON.parse(text);
+      result.modelCount = Array.isArray(data.data) ? data.data.length : null;
+    } catch {
+      result.error = 'non-json models response';
+    }
+  } catch (error) {
+    result.error = redactProbeText(error instanceof Error ? error.message : String(error)).slice(0, 300);
+  } finally {
+    if (timeout) clearTimeout(timeout);
+  }
+  return result;
+}
+
+async function runImageProviderProbe() {
+  const configsJson = loadStoryboardImageProviderConfigsFromAppSettings();
+  const providers = normalizeProviderConfigsForProbe(configsJson);
+  const probes = [];
+  for (const provider of providers) {
+    probes.push(await probeImageProviderModels(provider));
+  }
+  const report = {
+    ok: true,
+    generatedAt: new Date().toISOString(),
+    command: 'npm run video:daojie:chapter001:probe-providers',
+    mode: 'provider-models-only',
+    generatedImages: 0,
+    generationEndpointCalled: false,
+    providerCount: providers.length,
+    probes,
+  };
+  mkdirSync(dirname(reportPath), { recursive: true });
+  const probeReportPath = resolve(appsRoot, 'output', 'automation', 'daojie-chapter001-provider-probe-report.json');
+  writeFileSync(probeReportPath, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
+  console.log(JSON.stringify({ ...report, reportPath: probeReportPath }, null, 2));
+}
+
+function probeReferenceDataUrl(referencePath) {
+  if (!referencePath || !existsSync(referencePath)) {
+    throw new Error(`真实生图探针参考图不存在: ${referencePath || 'MYSTUDIO_IMAGE_PROBE_REFERENCE_PATH 未设置'}`);
+  }
+  const mimeType = {
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.png': 'image/png',
+    '.webp': 'image/webp',
+  }[extname(referencePath).toLowerCase()];
+  if (!mimeType) throw new Error(`真实生图探针不支持该参考图格式: ${extname(referencePath)}`);
+  return `data:${mimeType};base64,${readFileSync(referencePath).toString('base64')}`;
+}
+
+async function saveProbeImage(imageUrl, outputPath) {
+  if (imageUrl.startsWith('data:image/')) {
+    const commaIndex = imageUrl.indexOf(',');
+    if (commaIndex < 0) throw new Error('真实生图探针返回了无效 data URL');
+    writeFileSync(outputPath, Buffer.from(imageUrl.slice(commaIndex + 1), 'base64'));
+    return;
+  }
+  const response = await fetch(imageUrl);
+  if (!response.ok) throw new Error(`真实生图探针结果下载失败: HTTP ${response.status}`);
+  writeFileSync(outputPath, Buffer.from(await response.arrayBuffer()));
+}
+
+async function runImageGenerationProbe() {
+  const configsJson = loadStoryboardImageProviderConfigsFromAppSettings();
+  const providers = normalizeProviderConfigsForProbe(configsJson);
+  if (providers.length === 0) throw new Error('真实生图探针没有读取到 freedom_image provider 配置');
+  const referencePath = process.env.MYSTUDIO_IMAGE_PROBE_REFERENCE_PATH || '';
+  const referenceImages = [probeReferenceDataUrl(referencePath)];
+  const prompt = process.env.MYSTUDIO_IMAGE_PROBE_PROMPT || [
+    '基于参考图中的同一角色，生成无文字的角色连续性设定板。',
+    '身份事实：成年男性，清瘦如剑，冷峻面容，银白长发半束高髻，洗旧灰色剑袍，右肩旧裂痕，腰间归元古剑。',
+    '同一画面从左到右严格排列正面、左侧面、背面三个全身正交视图；同一身高、体型、脸、发型、服装和武器，双手自然下垂，脚部完整。',
+    '彩色水墨国风，工笔线描锁定脸、手、发丝、衣褶与古剑结构，宣纸矿物淡彩，灰袍保持设定，旧金剑饰与克制石青、赭石环境色形成可辨层次。',
+    '纯净浅色设定板背景，不要文字、标签、边框、水印、额外人物、重复姿态、镜像复制、透视夸张、错误手指或武器穿身。',
+  ].join(' ');
+  const helperPayload = {
+    providers: providers.map((provider) => ({
+      providerName: provider.providerName,
+      baseUrl: provider.baseUrl,
+      apiKeys: provider.apiKeys,
+      model: provider.model,
+      aspectRatio: '4:3',
+      resolution: '1K',
+      timeoutSeconds: 360,
+    })),
+    prompt,
+    referenceImages,
+    aspectRatio: '4:3',
+    resolution: '1K',
+    timeoutSeconds: 360,
+  };
+  const result = spawnSync('node', [storyboardImageHelper], {
+    cwd: appsRoot,
+    input: JSON.stringify(helperPayload),
+    encoding: 'utf8',
+    timeout: 420000,
+    maxBuffer: 20 * 1024 * 1024,
+  });
+  if (result.status !== 0) {
+    throw new Error(`真实生图探针失败: ${redactProbeText(result.stderr || result.stdout).slice(0, 600)}`);
+  }
+  const parsed = JSON.parse(result.stdout || '{}');
+  const imageUrl = String(parsed.url || parsed.imageUrl || '');
+  if (!imageUrl) throw new Error('真实生图探针没有返回图片');
+  const outputDir = resolve(appsRoot, 'output', 'automation', 'daojie-chapter001-generation-probe');
+  mkdirSync(outputDir, { recursive: true });
+  const outputPath = resolve(outputDir, 'dugu-turnaround-probe.png');
+  await saveProbeImage(imageUrl, outputPath);
+  const report = {
+    ok: true,
+    generatedAt: new Date().toISOString(),
+    command: 'npm run video:daojie:chapter001:probe-generation',
+    mode: 'real-generation-with-reference',
+    generationEndpointCalled: true,
+    generatedImages: 1,
+    referenceImageCount: 1,
+    referencePath,
+    prompt,
+    promptSha256: createHash('sha256').update(prompt).digest('hex'),
+    outputPath,
+    outputSha256: sha256File(outputPath),
+    outputSizeBytes: statSync(outputPath).size,
+    providers: providers.map((provider) => ({
+      providerName: provider.providerName,
+      host: new URL(provider.baseUrl).host,
+      model: provider.model,
+      keyCount: provider.apiKeys.length,
+    })),
+  };
+  const generationProbeReportPath = resolve(appsRoot, 'output', 'automation', 'daojie-chapter001-generation-probe-report.json');
+  writeFileSync(generationProbeReportPath, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
+  console.log(JSON.stringify({ ...report, reportPath: generationProbeReportPath }, null, 2));
 }
 
 function requireWorkflowSteps(generated) {
@@ -494,7 +711,7 @@ function requireStoryboardVoiceoverIntegrity(generated, storyboardCount) {
   }
 }
 
-function writeFailureReport(generated, error) {
+function writeFailureReport(generated, error, timelineResult = null) {
   const storyboardImageGenerationMode =
     generated?.storyboardImageGenerationMode ||
     generated?.imageGenerationMode ||
@@ -504,7 +721,11 @@ function writeFailureReport(generated, error) {
     generatedAt: new Date().toISOString(),
     command: 'npm run video:daojie:chapter001',
     generatorScript,
-    finalVideo: generated?.final,
+    finalVideo: timelineResult?.timelineRenderRecord?.evidence?.path,
+    finalVideoEvidence: timelineResult?.timelineRenderRecord?.evidence,
+    legacyCompatibilityVideo: generated?.final,
+    legacyCompatibilityVideoEvidence: generated?.finalVideoEvidence,
+    timelineRenderRecord: timelineResult?.timelineRenderRecord,
     storyboards: generated?.storyboards,
     storyboardSourceKind: generated?.storyboardSourceKind,
     storyboardSourceWorkId: generated?.storyboardSourceWorkId,
@@ -544,6 +765,18 @@ if (!existsSync(generatorScript)) {
   throw new Error(`视频生成脚本不存在: ${generatorScript}`);
 }
 
+if (probeProvidersOnly) {
+  stopExistingMYStudioInstances();
+  await runImageProviderProbe();
+  process.exit(0);
+}
+
+if (probeGenerationOnly) {
+  stopExistingMYStudioInstances();
+  await runImageGenerationProbe();
+  process.exit(0);
+}
+
 stopExistingMYStudioInstances();
 
 let generated;
@@ -562,9 +795,23 @@ try {
   writeFailureReport(null, `生成器执行失败: ${message}`);
   throw error;
 }
-const finalVideo = generated.final;
-if (!finalVideo || !existsSync(finalVideo)) {
-  throw new Error(`最终视频不存在: ${finalVideo || 'missing'}`);
+const legacyCompatibilityVideo = generated.final;
+const legacyCompatibilityVideoEvidence = generated.finalVideoEvidence;
+if (!legacyCompatibilityVideo || !existsSync(legacyCompatibilityVideo)) {
+  throw new Error(`legacy compatibility 视频不存在: ${legacyCompatibilityVideo || 'missing'}`);
+}
+if (
+  !legacyCompatibilityVideoEvidence
+  || legacyCompatibilityVideoEvidence.path !== legacyCompatibilityVideo
+  || !existsSync(legacyCompatibilityVideoEvidence.path)
+) {
+  throw new Error(`legacy compatibility 视频证据缺失: ${JSON.stringify(legacyCompatibilityVideoEvidence ?? null)}`);
+}
+if (
+  !(Number(legacyCompatibilityVideoEvidence.sizeBytes) > 0)
+  || !/^[a-f0-9]{64}$/.test(String(legacyCompatibilityVideoEvidence.sha256 || ''))
+) {
+  throw new Error(`legacy compatibility 视频证据异常: ${JSON.stringify(legacyCompatibilityVideoEvidence)}`);
 }
 requireWorkflowSteps(generated);
 requireDirectorPlanIntegrity(generated);
@@ -755,6 +1002,98 @@ if (generated.frameSize?.width !== 1920 || generated.frameSize?.height !== 1080)
   throw new Error(`分镜画面尺寸错误: ${generated.frameSize?.width ?? 'missing'}x${generated.frameSize?.height ?? 'missing'}`);
 }
 
+let timelineResult;
+try {
+  if (!existsSync(resolve(appsRoot, timelineRunnerScript))) {
+    throw new Error(`timeline runner 不存在: ${resolve(appsRoot, timelineRunnerScript)}`);
+  }
+  if (!existsSync(resolve(appsRoot, viteNodeBin))) {
+    throw new Error(`vite-node 不存在: ${resolve(appsRoot, viteNodeBin)}`);
+  }
+  timelineResult = parseGeneratorOutput(run(viteNodeBin, [
+    '--config', 'build/vite-node.config.ts',
+    timelineRunnerScript,
+  ], {
+    cwd: appsRoot,
+    env: { MYSTUDIO_DAOJIE_TIMELINE_RUNNER: '1' },
+  }).stdout);
+  const editingProject = timelineResult?.editingProject;
+  const autoEditingRun = timelineResult?.autoEditingRun;
+  const timelineRenderPlan = timelineResult?.timelineRenderPlan;
+  const timelineRenderRecord = timelineResult?.timelineRenderRecord;
+  const evidence = timelineRenderRecord?.evidence;
+  if (!timelineResult?.ok || !editingProject || !autoEditingRun || !timelineRenderPlan || !timelineRenderRecord || !evidence) {
+    throw new Error(`timeline runner 报告字段不完整: ${JSON.stringify(timelineResult ?? null)}`);
+  }
+  if (
+    editingProject.projectId !== timelineRenderRecord.projectId
+    || editingProject.episodeId !== timelineRenderRecord.episodeId
+    || editingProject.id !== timelineRenderRecord.editingProjectId
+    || editingProject.revision !== timelineRenderRecord.editingRevision
+    || editingProject.sourceSnapshotHash !== timelineRenderRecord.sourceSnapshotHash
+  ) {
+    throw new Error('timeline render record 与 EditingProject identity 不一致');
+  }
+  if (
+    timelineRenderPlan.jobId !== evidence.jobId
+    || timelineRenderPlan.editingProjectId !== editingProject.id
+    || timelineRenderPlan.editingRevision !== editingProject.revision
+    || autoEditingRun.editingProjectId !== editingProject.id
+    || autoEditingRun.renderJobId !== evidence.jobId
+  ) {
+    throw new Error('timeline plan/run/evidence identity 不一致');
+  }
+  if (
+    timelineResult.sourceCounts?.storyboards !== generated.storyboards
+    || timelineResult.sourceCounts?.productionTracks !== generated.tracks
+  ) {
+    throw new Error(
+      `timeline source count 与 Python 写回不一致: ${JSON.stringify(timelineResult.sourceCounts ?? null)}`,
+    );
+  }
+  if (
+    timelineResult.finalVideo !== evidence.path
+    || timelineResult.finalVideoEvidence?.path !== evidence.path
+    || timelineResult.finalVideoEvidence?.sha256 !== evidence.sha256
+  ) {
+    throw new Error('timeline runner final path/hash 与 render evidence 不一致');
+  }
+  for (const [label, artifactPath] of Object.entries({
+    editingProjectPath: timelineResult.editingProjectPath,
+    autoEditingRunPath: timelineResult.autoEditingRunPath,
+    timelineRenderPlanPath: timelineResult.timelineRenderPlanPath,
+    progressHistoryPath: timelineResult.progressHistoryPath,
+    timelineRenderRecordPath: timelineResult.timelineRenderRecordPath,
+    runnerReportPath: timelineResult.runnerReportPath,
+    outputPath: evidence.path,
+    snapshotPath: evidence.snapshotPath,
+    renderPlanPath: evidence.renderPlanPath,
+    inputManifestPath: evidence.inputManifestPath,
+    filterGraphPath: evidence.filterGraphPath,
+    logPath: evidence.logPath,
+    ffprobePath: evidence.ffprobePath,
+  })) {
+    if (!artifactPath || !existsSync(artifactPath) || !(statSync(artifactPath).size > 0)) {
+      throw new Error(`timeline artifact 缺失或为空: ${label} / ${artifactPath || 'missing'}`);
+    }
+  }
+  if (!/^[a-f0-9]{64}$/.test(String(evidence.sha256 || '')) || sha256File(evidence.path) !== evidence.sha256) {
+    throw new Error(`timeline 最终视频 SHA-256 异常: ${evidence.sha256 || 'missing'}`);
+  }
+  if (!/^[a-f0-9]{64}$/.test(String(evidence.snapshotHash || '')) || sha256File(evidence.snapshotPath) !== evidence.snapshotHash) {
+    throw new Error(`timeline EditingProject snapshot hash 异常: ${evidence.snapshotHash || 'missing'}`);
+  }
+  if (!Array.isArray(timelineResult.progressHistory) || !timelineResult.progressHistory.some((item) => item?.stage === 'completed')) {
+    throw new Error('timeline progress history 未到 completed');
+  }
+} catch (error) {
+  const message = error instanceof Error ? error.message : String(error);
+  writeFailureReport(generated, `timeline runtime 执行失败: ${message}`, timelineResult);
+  throw error;
+}
+
+const finalVideo = timelineResult.timelineRenderRecord.evidence.path;
+const finalVideoEvidence = timelineResult.timelineRenderRecord.evidence;
 const probe = probeVideo(finalVideo);
 const streams = Array.isArray(probe.streams) ? probe.streams : [];
 const videoStream = streams.find((stream) => stream.codec_type === 'video');
@@ -769,11 +1108,11 @@ if (finalVideoDuration > MAX_DAOJIE_VIDEO_DURATION_SECONDS) {
   throw new Error(`最终视频时长超过3分钟规格: ${finalVideoDuration.toFixed(2)}s/${MAX_DAOJIE_VIDEO_DURATION_SECONDS}s`);
 }
 if (!(audioDuration > 0)) throw new Error(`最终视频 audio duration 异常: ${audioStream?.duration ?? 'missing'}`);
-if (!generated.finalVideoEvidence || generated.finalVideoEvidence.path !== finalVideo || !existsSync(generated.finalVideoEvidence.path)) {
-  throw new Error(`最终视频证据缺失: ${JSON.stringify(generated.finalVideoEvidence ?? null)}`);
+if (!finalVideoEvidence || finalVideoEvidence.path !== finalVideo || !existsSync(finalVideoEvidence.path)) {
+  throw new Error(`最终视频证据缺失: ${JSON.stringify(finalVideoEvidence ?? null)}`);
 }
-if (!(Number(generated.finalVideoEvidence.sizeBytes) > 0) || !/^[a-f0-9]{64}$/.test(String(generated.finalVideoEvidence.sha256 || ''))) {
-  throw new Error(`最终视频证据异常: ${JSON.stringify(generated.finalVideoEvidence)}`);
+if (!(Number(finalVideoEvidence.sizeBytes) > 0) || !/^[a-f0-9]{64}$/.test(String(finalVideoEvidence.sha256 || ''))) {
+  throw new Error(`最终视频证据异常: ${JSON.stringify(finalVideoEvidence)}`);
 }
 const finalAudioMeanVolumeDb = meanVolumeDb(finalVideo);
 if (!generated.ttsMode.includes('silent-visual-preview') && !(Number(finalAudioMeanVolumeDb) >= MIN_AUDIO_MEAN_VOLUME_DB)) {
@@ -785,7 +1124,23 @@ const report = {
   generatedAt: new Date().toISOString(),
   command: 'npm run video:daojie:chapter001',
   generatorScript,
+  timelineRunnerScript,
   finalVideo,
+  editingProject: timelineResult.editingProject,
+  autoEditingRun: timelineResult.autoEditingRun,
+  timelineRenderPlan: timelineResult.timelineRenderPlan,
+  timelineProgressHistory: timelineResult.progressHistory,
+  timelineRenderRecord: timelineResult.timelineRenderRecord,
+  timelineArtifacts: {
+    editingProjectPath: timelineResult.editingProjectPath,
+    autoEditingRunPath: timelineResult.autoEditingRunPath,
+    timelineRenderPlanPath: timelineResult.timelineRenderPlanPath,
+    progressHistoryPath: timelineResult.progressHistoryPath,
+    timelineRenderRecordPath: timelineResult.timelineRenderRecordPath,
+    runnerReportPath: timelineResult.runnerReportPath,
+  },
+  legacyCompatibilityVideo,
+  legacyCompatibilityVideoEvidence,
   storyboards: generated.storyboards,
   storyboardSourceKind: generated.storyboardSourceKind,
   storyboardSourceWorkId: generated.storyboardSourceWorkId,
@@ -832,7 +1187,7 @@ const report = {
   speakerAudioStats: generated.speakerAudioStats,
   speakerAudioSamples: generated.speakerAudioSamples,
   missingVoiceProfiles: generated.missingVoiceProfiles,
-  finalVideoEvidence: generated.finalVideoEvidence,
+  finalVideoEvidence: timelineResult.timelineRenderRecord.evidence,
   finalVideoDuration,
   finalAudioMeanVolumeDb,
   ttsMode: generated.ttsMode,

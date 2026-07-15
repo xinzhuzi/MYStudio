@@ -134,6 +134,11 @@ export function StudioView() {
 
             <TabsContent value="workbench" className="m-0">
               <WorkbenchTab
+                projectId={viewModel.projectId}
+                projectName={viewModel.projectName}
+                episodeId={viewModel.productionEpisodeId}
+                directorPlan={viewModel.directorPlan}
+                aspectRatio={viewModel.aspectRatio}
                 storyboards={viewModel.storyboards}
                 tracks={viewModel.productionTracks}
                 candidates={viewModel.videoCandidates}

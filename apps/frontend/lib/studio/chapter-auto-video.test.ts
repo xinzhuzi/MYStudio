@@ -1,13 +1,20 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  prepareChapterMedia,
   runChapterAutoVideo,
   type ChapterAutoVideoDependencies,
 } from "./chapter-auto-video";
 import type { ProductionTrack, StoryboardItem, VideoCandidate } from "@/types/studio";
+import type { EditingProjectV1, TimelineRenderEvidence } from "@/types/editing";
 import type { VoiceProfile } from "@/types/tts";
+import {
+  approvedVisualReview,
+  visualContinuityFingerprint,
+  visualReviewInputFingerprint,
+} from "./visual-continuity";
 
 function storyboard(index: number, overrides: Partial<StoryboardItem> = {}): StoryboardItem {
-  return {
+  const item: StoryboardItem = {
     id: `sb-${index}`,
     episodeId: "chapter-001",
     index,
@@ -27,8 +34,43 @@ function storyboard(index: number, overrides: Partial<StoryboardItem> = {}): Sto
     durationTarget: 4,
     voiceStyle: "克制",
     requiresFixedVoice: true,
+    orderedReferenceManifest: [
+      {
+        order: 1,
+        assetId: "scene:dock",
+        versionId: "dock:main",
+        imagePath: "/dock.png",
+        referenceRole: "scene-viewpoint",
+        approved: true,
+      },
+    ],
+    continuityState: {
+      groupId: "dock",
+      previousStoryboardId: index > 1 ? `sb-${index - 1}` : undefined,
+      sceneVersionId: "dock:main",
+      sceneViewpointId: "dock:front",
+      lighting: "冷青晨雾",
+      palette: "墨青灰蓝",
+      actionIn: index > 1 ? "承接前镜" : "建立场景",
+      actionOut: "继续向右",
+      characters: [],
+      inputFingerprint: "",
+    },
     ...overrides,
   };
+  if (!overrides.continuityState) {
+    item.continuityState!.inputFingerprint = visualContinuityFingerprint(item);
+  }
+  if (!Object.prototype.hasOwnProperty.call(overrides, "visualReview")) {
+    item.visualReview = approvedVisualReview({
+      reviewedAt: 1,
+      evidencePaths: [`/reviews/sb-${index}.png`],
+      sceneChecks: [{ sceneVersionId: "dock:main", passed: true }],
+      transitionChecks: index > 1 ? [{ previousStoryboardId: `sb-${index - 1}`, passed: true }] : [],
+      inputFingerprint: visualReviewInputFingerprint(item),
+    });
+  }
+  return item;
 }
 
 const profiles = {
@@ -80,6 +122,52 @@ function createDependencies(options: { missingMedia?: boolean } = {}) {
     state: "ready",
     createdAt: 1,
   };
+  const editingProject: EditingProjectV1 = {
+    schemaVersion: 1,
+    id: "editing-chapter-001",
+    projectId: "project-1",
+    episodeId: "chapter-001",
+    name: "第一章自动剪辑",
+    revision: 1,
+    sourceSnapshotHash: "snapshot-1",
+    createdBy: "auto",
+    manuallyEdited: false,
+    stale: false,
+    renderSettings: {
+      width: 1080,
+      height: 1920,
+      fps: 30,
+      codec: "h264",
+      subtitleMode: "burn-in",
+      loudnessLufs: -14,
+      truePeakDbtp: -1.5,
+    },
+    tracks: [],
+    clips: [],
+    transitions: [],
+    effects: [],
+    proposals: [],
+    createdAt: 1,
+    updatedAt: 1,
+  };
+  const evidence: TimelineRenderEvidence = {
+    jobId: "timeline-render-1",
+    path: "/final.mp4",
+    sizeBytes: 1024,
+    mtimeMs: 1_700_000_000_000,
+    sha256: "a".repeat(64),
+    duration: 120,
+    width: 1080,
+    height: 1920,
+    streams: ["video", "audio"],
+    snapshotHash: "b".repeat(64),
+    snapshotPath: "/editing-project.json",
+    renderPlanPath: "/render-plan.json",
+    inputManifestPath: "/input-manifest.json",
+    filterGraphPath: "/filter-graph.txt",
+    logPath: "/ffmpeg.log",
+    ffprobePath: "/ffprobe.json",
+  };
   const dependencies: ChapterAutoVideoDependencies = {
     ensurePlanning: vi.fn(async () => {
       calls.push("planning");
@@ -111,25 +199,46 @@ function createDependencies(options: { missingMedia?: boolean } = {}) {
       calls.push("render");
       return rendered;
     }),
-    mergeEpisode: vi.fn(async () => {
-      calls.push("merge");
-      return "/final.mp4";
+    createEditingProject: vi.fn(async () => {
+      calls.push("editing");
+      return editingProject;
     }),
-    probeFinalMedia: vi.fn(async () => ({
-      path: "/final.mp4",
-      sizeBytes: 1024,
-      mtimeMs: 1_700_000_000_000,
-      sha256: "a".repeat(64),
-      duration: 120,
-      streams: ["video", "audio"],
-    })),
+    renderEditingProject: vi.fn(async () => {
+      calls.push("timeline-render");
+      return evidence;
+    }),
     writeFinalEvidence: vi.fn(() => calls.push("write-final")),
   };
   return { dependencies, calls };
 }
 
 describe("chapter auto video orchestration", () => {
-  it("runs planning, fixed voice, missing TTS, render, merge, and final evidence in order", async () => {
+  it("prepares reusable storyboard media without rendering or merging", async () => {
+    const { dependencies, calls } = createDependencies();
+    const statuses: string[] = [];
+
+    const result = await prepareChapterMedia({
+      episodeId: "chapter-001",
+      dependencies,
+      onStatus: (status) => statuses.push(status.stage),
+    });
+
+    expect(result.storyboards.map((item) => item.id)).toEqual(["sb-1", "sb-2"]);
+    expect(result.storyboards.every((item) => item.audioRef?.path)).toBe(true);
+    expect(calls).toEqual(["planning", "binding", "tts:sb-2"]);
+    expect(statuses).toEqual([
+      "planning",
+      "voiceover",
+      "binding",
+      "tts",
+      "media",
+    ]);
+    expect(dependencies.rebuildTracks).not.toHaveBeenCalled();
+    expect(dependencies.renderTrack).not.toHaveBeenCalled();
+    expect(dependencies.createEditingProject).not.toHaveBeenCalled();
+  });
+
+  it("runs planning, fixed voice, candidates, editing, timeline render, and evidence in order", async () => {
     const { dependencies, calls } = createDependencies();
     const statuses: string[] = [];
     const result = await runChapterAutoVideo({
@@ -138,14 +247,20 @@ describe("chapter auto video orchestration", () => {
       onStatus: (status) => statuses.push(status.stage),
     });
 
-    expect(result).toMatchObject({ finalPath: "/final.mp4", storyboards: 2 });
+    expect(result).toMatchObject({
+      finalPath: "/final.mp4",
+      editingProjectId: "editing-chapter-001",
+      editingRevision: 1,
+      storyboards: 2,
+    });
     expect(calls).toEqual([
       "planning",
       "binding",
       "tts:sb-2",
       "rebuild",
       "render",
-      "merge",
+      "editing",
+      "timeline-render",
       "write-final",
     ]);
     expect(statuses).toEqual([
@@ -155,7 +270,9 @@ describe("chapter auto video orchestration", () => {
       "tts",
       "media",
       "render",
-      "merge",
+      "editing",
+      "rendering",
+      "probing",
       "completed",
     ]);
   });
@@ -171,8 +288,25 @@ describe("chapter auto video orchestration", () => {
       }),
     ).rejects.toThrow("缺少可读分镜图");
     expect(calls).not.toContain("render");
-    expect(calls).not.toContain("merge");
+    expect(calls).not.toContain("editing");
     expect(statuses.at(-1)).toBe("failed");
+  });
+
+  it("stops before rendering when visual continuity is pending, rejected, or stale", async () => {
+    for (const invalid of [
+      { visualReview: undefined },
+      { visualReview: approvedVisualReview({ status: "rejected", reasons: ["独孤剑尘换脸"] }) },
+      { stale: true, staleReason: "上一镜已变化" },
+    ] satisfies Partial<StoryboardItem>[]) {
+      const run = createDependencies();
+      run.dependencies.loadStoryboards = () => [storyboard(1, invalid)];
+      await expect(runChapterAutoVideo({
+        episodeId: "chapter-001",
+        dependencies: run.dependencies,
+      })).rejects.toThrow("视觉连续性未通过");
+      expect(run.dependencies.renderTrack).not.toHaveBeenCalled();
+      expect(run.dependencies.createEditingProject).not.toHaveBeenCalled();
+    }
   });
 
   it("blocks incomplete voiceover and missing fixed profile before TTS", async () => {

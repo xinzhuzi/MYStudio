@@ -103,3 +103,4 @@ __pycache__/
 *.pyo
 apps/backend/python/
 apps/output/*
+.trellis

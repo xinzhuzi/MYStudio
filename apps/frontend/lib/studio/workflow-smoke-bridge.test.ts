@@ -4,6 +4,7 @@ import { usePropsLibraryStore } from "@/stores/props-library-store";
 import { useSceneStore } from "@/stores/scene-store";
 import { useStudioStore } from "@/stores/studio-store";
 import { useTtsStore } from "@/stores/tts-store";
+import { useEditingStore } from "@/stores/editing-store";
 import {
   getSmokeStoryboardFramePath,
   installWorkflowSmokeBridge,
@@ -37,6 +38,7 @@ describe("workflow smoke bridge isolation", () => {
   it("allows only temp smoke user data directories", () => {
     expect(isIsolatedSmokeUserDataDir("/var/folders/tmp/mystudio-smoke-abcd")).toBe(true);
     expect(isIsolatedSmokeUserDataDir("/var/folders/tmp/mystudio-installed-smoke-abcd")).toBe(true);
+    expect(isIsolatedSmokeUserDataDir("/var/folders/tmp/mystudio-daojie-workflow-run-abcd")).toBe(true);
   });
 
   it("blocks real MYStudio user data directories", () => {
@@ -98,6 +100,10 @@ describe("workflow smoke bridge isolation", () => {
     expect(results.at(-1)?.progress).toBe(100);
     expect(results.at(-1)?.checks).toMatchObject({
       hasFinalExport: true,
+      hasEditingProject: true,
+      hasTimelineRenderRecord: true,
+      hasCompleteTimelineEvidence: true,
+      seededEditingEvidence: true,
       hasSelectedCandidate: true,
       hasVoiceBinding: true,
       hasVoiceAudio: true,
@@ -126,6 +132,18 @@ describe("workflow smoke bridge isolation", () => {
       storyboardsWithOrderedManifest: 1,
       orderedReferenceCount: 2,
       missingReferenceCount: 0,
+    });
+    expect(inspected?.editingEvidence).toMatchObject({
+      source: "seeded-ui-smoke",
+      editingProjectId: "smoke-editing-1",
+      editingRevision: 1,
+      timelineRenderJobId: "smoke-timeline-render-1",
+      hasCompleteTimelineEvidence: true,
+      realMediaGeneration: false,
+    });
+    expect(inspected?.evidenceBoundary).toMatchObject({
+      seededUiSmoke: true,
+      realMediaGeneration: false,
     });
   });
 
@@ -187,6 +205,10 @@ describe("workflow smoke bridge isolation", () => {
       storyboardReady: true,
       workbenchReady: true,
       hasFinalExport: true,
+      hasEditingProject: true,
+      hasTimelineRenderRecord: true,
+      hasCompleteTimelineEvidence: true,
+      seededEditingEvidence: true,
       hasSelectedCandidate: true,
       hasVoiceBinding: true,
       hasVoiceAudio: true,
@@ -197,6 +219,26 @@ describe("workflow smoke bridge isolation", () => {
     });
     expect(result?.workflowParityReport?.storyboard.withSourceEvidence).toBe(1);
     expect(result?.workflowParityReport?.references.storyboardsWithOrderedManifest).toBe(1);
+    expect(result?.workflowParityReport?.video).toMatchObject({
+      currentEditingProjectId: "smoke-editing-1",
+      currentEditingRevision: 1,
+      editingProject: expect.objectContaining({
+        id: "smoke-editing-1",
+        revision: 1,
+      }),
+      timelineRenderRecords: 1,
+      timelineRenderRecord: expect.objectContaining({
+        editingRevision: 1,
+        evidence: expect.objectContaining({
+          jobId: "smoke-timeline-render-1",
+        }),
+      }),
+      completeTimelineEvidence: 1,
+      hasCompleteTimelineEvidence: true,
+      hasFinalExport: true,
+      hasLegacyCompatibilityExport: true,
+    });
+    expect(result?.workflowParityReport?.evidenceBoundary.realMediaGeneration).toBe(false);
 
     const studio = useStudioStore.getState();
     expect(studio.scriptPlans[0]?.derivedAssetPlan).toEqual([
@@ -207,6 +249,12 @@ describe("workflow smoke bridge isolation", () => {
     expect(studio.storyboards[0]?.mediaRef?.path).toMatch(/^data:image\/png;base64,/);
     expect(studio.productionTracks[0]?.selectedVideoId).toBe("smoke-video-1");
     expect(studio.videoCandidates[0]?.filePath).toBe("/tmp/mystudio-smoke-final.mp4");
+    expect(
+      useEditingStore.getState().getCurrentEditingProject("smoke-chapter-1"),
+    ).toMatchObject({
+      id: "smoke-editing-1",
+      revision: 1,
+    });
     expect(studio.scriptPlans[0]).toMatchObject({
       theme: "矿场入局",
       visualStyle: "水墨漫剧",

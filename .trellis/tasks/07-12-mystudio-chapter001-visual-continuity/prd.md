@@ -70,13 +70,17 @@
 
 - [ ] AC1: Toonflow 43 镜只读 fixture 可复现 `storyboard -> ordered assetId -> fixed imageId -> filePath -> golden image`，缺失为 0。
 - [ ] AC2: 第一章所有重复角色和场景均有版本化 continuity manifest，且 43 镜有序参考覆盖率为 100%。
+  - 2026-07-13 progress: existing MYStudio storyboard image workflow reference nodes now populate `orderedReferenceManifest` and `continuityState` for 43/43 storyboards; this proves structural coverage but not full approved character/scene bible quality.
 - [ ] AC3: 测试证明角色六层锚点、多视图、variation、场景 viewpoint 和 ordered references 确实进入最终 provider 请求。
 - [ ] AC4: 测试证明相邻镜头组共享连续状态，上一镜变化会使依赖镜头 stale，恢复运行不会复用旧不一致图。
 - [ ] AC5: 先选码头连续段至少 6 镜；人工确认独孤剑尘、赵四、小杂役的脸、服装、体型和码头空间连续后，才允许全章生成。
+  - 2026-07-13 review:码头 `shot-001` through `shot-012` failed visual review; current images must not be marked approved. Evidence: `research/visual-review-20260713.md`.
 - [ ] AC6: 43 镜视觉审查台账无 rejected；重复角色、场景和关键道具均有逐镜证据，不能只报告 prompt 合规。
 - [ ] AC7: 全章新视频继续满足 43 镜、43 条真实口播、固定音色指纹不变、音视频流完整和时长上限。
 - [ ] AC8: 产品一键路径在视觉门禁失败时阻断 merge，并显示具体镜头与原因；通过后才输出最终 MP4。
+  - 2026-07-13 verification: `npm run smoke:workflow:background:daojie -- --auto-video` correctly blocks final merge with 43 pending visual-review items and no MP4 `finalPath`; background focus evidence stayed clean (`foregroundViolation=false`).
 - [ ] AC9: 当前项目源数据、旧 43 图和旧 MP4 均有可追溯备份，重生成过程无破坏性删除。
+  - 2026-07-13 blocker: current configured image providers are still only `凡人:gpt-image-2` and `torchai:gpt-image-2`; last real generation failed with `insufficient_user_quota`. Regeneration cannot proceed safely until a funded/capable provider is configured or topped up.
 
 ## Out of scope
 
@@ -84,21 +88,3 @@
 - 不训练自有 LoRA、InstantID 或人脸模型；若现有 provider 无法达到要求，先通过能力门禁暴露限制，再单独规划模型升级。
 - 不修改小说正文、口播文本或固定音色绑定。
 - 不在首批直接全量覆盖 43 张图；必须先通过连续样本门禁。
-
-## Goal
-
-深度对照 Toonflow 第一章真实分镜与生图链，修复 MYStudio 跨镜场景、人物身份、服装、构图和状态连续性，并重生成验收。
-
-## Requirements
-
-- TBD
-
-## Acceptance Criteria
-
-- [ ] TBD
-
-## Notes
-
-- Keep `prd.md` focused on requirements, constraints, and acceptance criteria.
-- Lightweight tasks can remain PRD-only.
-- For complex tasks, add `design.md` for technical design and `implement.md` for execution planning before `task.py start`.

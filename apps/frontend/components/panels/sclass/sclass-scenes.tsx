@@ -17,8 +17,6 @@ import {
   type SplitScene, 
   type EmotionTag,
   type ShotSizeType,
-  type DurationType,
-  type SoundEffectTag,
   EMOTION_PRESETS,
   SHOT_SIZE_PRESETS,
   SOUND_EFFECT_PRESETS,
@@ -58,8 +56,8 @@ import {
 } from "@/components/ui/alert-dialog";
 
 import { generateScenePrompts } from "@/lib/storyboard/scene-prompt-generator";
+import { pollImageTaskUrl } from "@/lib/storyboard/image-task-transport";
 import { useAPIConfigStore } from "@/stores/api-config-store";
-import { parseApiKeys } from "@/lib/api-key-manager";
 import { aiManager } from "@/lib/ai/ai-manager";
 import { uploadToImageHost, isImageHostConfigured } from "@/lib/image-host";
 import { saveVideoToLocal, readImageAsBase64 } from '@/lib/image-storage';
@@ -74,10 +72,6 @@ import {
   SelectGroup,
   SelectLabel,
 } from "@/components/ui/select";
-import { Monitor, Smartphone } from "lucide-react";
-import { AngleSwitchDialog, AngleSwitchResultDialog, type AngleSwitchResult } from "@/components/angle-switch";
-import { generateAngleSwitch } from "@/lib/ai/runninghub-client";
-import { getAngleLabel, type HorizontalDirection, type ElevationAngle, type ShotSize } from "@/lib/ai/runninghub-angles";
 import { SClassSceneCard } from "./sclass-scene-card";
 import { SceneVoiceBatchToolbar } from "../director/scene-voice-batch-toolbar";
 import { ShotGroupCard } from "./shot-group";
@@ -89,7 +83,7 @@ import { ExtendEditDialog, type ExtendEditMode } from "./extend-edit-dialog";
 import { runCalibration, runBatchCalibration } from "./sclass-calibrator";
 import { useSceneStore } from "@/stores/scene-store";
 import { Music } from "lucide-react";
-import { QuadGridDialog, QuadGridResultDialog, type QuadVariationType, type QuadGridResult } from "@/components/quad-grid";
+import { type QuadVariationType } from "@/components/quad-grid";
 import { 
   VISUAL_STYLE_PRESETS, 
   STYLE_CATEGORIES,
@@ -101,9 +95,22 @@ import {
 } from "@/lib/constants/visual-styles";
 import { getCinematographyProfile, DEFAULT_CINEMATOGRAPHY_PROFILE_ID } from "@/lib/constants/cinematography-profiles";
 import { buildVideoPrompt, buildEmotionDescription as buildEmotionDesc } from "@/lib/generation/prompt-builder";
-import { StylePicker } from "@/components/ui/style-picker";
-import { CinematographyProfilePicker } from "@/components/ui/cinematography-profile-picker";
 import { normalizeHorizontalVerticalAspectRatio } from "@/lib/ai/image-size-presets";
+import { useStoryboardGenerationUi } from "../director/use-storyboard-generation-ui";
+import { useStoryboardMediaLibrary } from "../director/use-storyboard-media-library";
+import { useStoryboardSceneActions } from "../director/use-storyboard-scene-actions";
+import { StoryboardGenerationDialogs } from "../director/storyboard-generation-dialogs";
+import { useStoryboardAngleSwitch } from "../director/use-storyboard-angle-switch";
+import { StoryboardConfigToolbar } from "../director/storyboard-config-toolbar";
+import { SClassStoryboardConfigToolbar } from "./sclass-storyboard-config-toolbar";
+import {
+  buildMergedFrameTasks,
+  calculateMergedGridAspectRatio as calculateGridAspectRatio,
+  calculateMergedGridLayout as calculateGridLayout,
+  isStoryboardSceneCompleted,
+  paginateMergedFrameTasks,
+  type MergedFrameTask as GridTask,
+} from "../director/storyboard-merged-grid-utils";
 
 interface SplitScenesProps {
   onBack?: () => void;
@@ -112,42 +119,36 @@ interface SplitScenesProps {
 
 // SceneCard 使用 S级专属版本 SClassSceneCard
 const SceneCard = SClassSceneCard;
+const formatSClassDeletedSceneNumber = (sceneId: number) => sceneId;
 
 export function SClassScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
-  // ========== 合并生成（九宫格）本地 UI 状态 ==========
-  const [imageGenMode, setImageGenMode] = useState<'single' | 'merged'>('single');
-  const [frameMode, setFrameMode] = useState<'first' | 'last' | 'both'>('first');
-  const [isMergedRunning, setIsMergedRunning] = useState(false);
-  const [refStrategy, setRefStrategy] = useState<'cluster'|'minimal'|'none'>('cluster');
-  const [useExemplar, setUseExemplar] = useState(true);
+  const storyboardUi = useStoryboardGenerationUi({ defaultImageGenMode: "single" });
+  const {
+    imageGenMode, setImageGenMode,
+    frameMode, setFrameMode,
+    isMergedRunning, setIsMergedRunning,
+    refStrategy, setRefStrategy,
+    useExemplar, setUseExemplar,
+    isGenerating, setIsGenerating,
+    isGeneratingPrompts, setIsGeneratingPrompts,
+    currentGeneratingId, setCurrentGeneratingId,
+    activeTab, setActiveTab,
+    angleSwitchOpen,
+    angleSwitchResultOpen, setAngleSwitchResultOpen,
+    angleSwitchTarget, setAngleSwitchTarget,
+    angleSwitchResult, setAngleSwitchResult,
+    selectedHistoryIndex, setSelectedHistoryIndex,
+    isAngleSwitching,
+    isExtractingFrame, setIsExtractingFrame,
+    quadGridOpen, setQuadGridOpen,
+    quadGridResultOpen, setQuadGridResultOpen,
+    quadGridTarget, setQuadGridTarget,
+    quadGridResult, setQuadGridResult,
+    isQuadGridGenerating, setIsQuadGridGenerating,
+  } = storyboardUi;
   const PAGE_CONCURRENCY = 2; // 每页并发集群数限制
   // 合并生成停止控制
   const mergedAbortRef = useRef(false);
-  // 合并生成控件将在 JSX 中内联渲染，避免闭包引用问题
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [isGeneratingPrompts, setIsGeneratingPrompts] = useState(false);
-  const [currentGeneratingId, setCurrentGeneratingId] = useState<number | null>(null);
-  // Tab 状态: 分镜编辑 vs 预告片
-  const [activeTab, setActiveTab] = useState<"editing" | "trailer">("editing");
-
-  // 角度切换状态
-  const [angleSwitchOpen, setAngleSwitchOpen] = useState(false);
-  const [angleSwitchResultOpen, setAngleSwitchResultOpen] = useState(false);
-  const [angleSwitchTarget, setAngleSwitchTarget] = useState<{ sceneId: number; type: "start" | "end" } | null>(null);
-  const [angleSwitchResult, setAngleSwitchResult] = useState<AngleSwitchResult | null>(null);
-  const [selectedHistoryIndex, setSelectedHistoryIndex] = useState(-1);
-  const [isAngleSwitching, setIsAngleSwitching] = useState(false);
-  
-  // 提取视频最后一帧状态
-  const [isExtractingFrame, setIsExtractingFrame] = useState(false);
-
-  // 四宫格状态
-  const [quadGridOpen, setQuadGridOpen] = useState(false);
-  const [quadGridResultOpen, setQuadGridResultOpen] = useState(false);
-  const [quadGridTarget, setQuadGridTarget] = useState<{ sceneId: number; type: "start" | "end" } | null>(null);
-  const [quadGridResult, setQuadGridResult] = useState<QuadGridResult | null>(null);
-  const [isQuadGridGenerating, setIsQuadGridGenerating] = useState(false);
-
   // Get current project data
   const projectData = useActiveDirectorProject();
   const imageGenerationSettings = useAppSettingsStore((state) => state.imageGenerationSettings);
@@ -216,13 +217,6 @@ export function SClassScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
     updateSplitSceneVideo,
     updateSplitSceneEndFrame,
     updateSplitSceneEndFrameStatus,
-    updateSplitSceneCharacters,
-    updateSplitSceneCharacterVariationMap,
-    updateSplitSceneEmotions,
-    updateSplitSceneShotSize,
-    updateSplitSceneDuration,
-    updateSplitSceneAmbientSound,
-    updateSplitSceneSoundEffects,
     // 场景库关联更新方法
     updateSplitSceneReference,
     updateSplitSceneEndFrameReference,
@@ -231,13 +225,30 @@ export function SClassScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
     // 视角切换历史
     addAngleSwitchHistory,
     deleteSplitScene,
-    resetStoryboard,
     // 预告片功能
     clearTrailer,
     // 摄影风格档案
     setCinematographyProfileId,
   } = useDirectorStore();
   const mediaProjectId = activeProjectId || undefined;
+  const {
+    updateEndFrame: handleUpdateEndFrame,
+    updateCharacters: handleUpdateCharacters,
+    updateCharacterVariationMap: handleUpdateCharacterVariationMap,
+    updateEmotions: handleUpdateEmotions,
+    updateShotSize: handleUpdateShotSize,
+    updateDuration: handleUpdateDuration,
+    updateAmbientSound: handleUpdateAmbientSound,
+    updateSoundEffects: handleUpdateSoundEffects,
+    deleteScene: handleDeleteScene,
+    removeImage: handleRemoveImage,
+    uploadImage: handleUploadImage,
+    goBack: handleBack,
+  } = useStoryboardSceneActions({
+    scenes: splitScenes,
+    onBack,
+    formatDeletedSceneNumber: formatSClassDeletedSceneNumber,
+  });
 
   // ========== S级分组状态 ==========
   const {
@@ -350,16 +361,6 @@ export function SClassScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
     }
   }, [setStoryboardConfig]);
 
-  // Update aspect ratio (S级: 6 种画幅比)
-  const SCLASS_ASPECT_RATIOS: { value: SClassAspectRatio; label: string; icon?: string }[] = [
-    { value: '16:9', label: '横屏 16:9' },
-    { value: '9:16', label: '竖屏 9:16' },
-    { value: '4:3', label: '经典 4:3' },
-    { value: '3:4', label: '人像 3:4' },
-    { value: '21:9', label: '宽屏 21:9' },
-    { value: '1:1', label: '方形 1:1' },
-  ];
-
   const handleAspectRatioChange = useCallback((ratio: SClassAspectRatio) => {
     setStoryboardConfig({ aspectRatio: ratio as '16:9' | '9:16' });
     toast.success(`画幅比已切换为 ${ratio}`);
@@ -367,132 +368,14 @@ export function SClassScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
 
   const { getApiKey, getProviderByPlatform, concurrency } = useAPIConfigStore();
   const { addMediaFromUrl, getOrCreateCategoryFolder } = useMediaStore();
+  const {
+    saveVideo: autoSaveVideoToLibrary,
+    saveImage: autoSaveImageToLibrary,
+  } = useStoryboardMediaLibrary(mediaProjectId);
   
   // Get system category folder IDs for auto-saving (images → AI图片, videos → AI视频)
   const getImageFolderId = useCallback(() => getOrCreateCategoryFolder('ai-image'), [getOrCreateCategoryFolder]);
   const getVideoFolderId = useCallback(() => getOrCreateCategoryFolder('ai-video'), [getOrCreateCategoryFolder]);
-
-  // Auto-save video to media library and return mediaId
-  const autoSaveVideoToLibrary = useCallback((sceneId: number, videoUrl: string, thumbnailUrl?: string, duration?: number): string => {
-    const folderId = getVideoFolderId();
-    
-    const mediaId = addMediaFromUrl({
-      url: videoUrl,
-      name: `分镜 ${sceneId + 1} - AI视频`,
-      type: 'video',
-      source: 'ai-video',
-      thumbnailUrl,
-      duration: duration || 5,
-      folderId,
-      projectId: mediaProjectId,
-    });
-    
-    console.log('[SplitScenes] Auto-saved video to AI视频 folder:', mediaId);
-    return mediaId;
-  }, [addMediaFromUrl, getVideoFolderId, mediaProjectId]);
-
-  // Auto-save image to media library
-  const autoSaveImageToLibrary = useCallback((sceneId: number, imageUrl: string): string => {
-    const folderId = getImageFolderId();
-    
-    const mediaId = addMediaFromUrl({
-      url: imageUrl,
-      name: `分镜 ${sceneId + 1} - AI图片`,
-      type: 'image',
-      source: 'ai-image',
-      folderId,
-      projectId: mediaProjectId,
-    });
-    
-    console.log('[SplitScenes] Auto-saved image to AI图片 folder:', mediaId);
-    return mediaId;
-  }, [addMediaFromUrl, getImageFolderId, mediaProjectId]);
-
-  // Handle update end frame
-  const handleUpdateEndFrame = useCallback((sceneId: number, imageUrl: string | null) => {
-    updateSplitSceneEndFrame(sceneId, imageUrl);
-  }, [updateSplitSceneEndFrame]);
-
-  // Handle update characters
-  const handleUpdateCharacters = useCallback((sceneId: number, characterIds: string[]) => {
-    updateSplitSceneCharacters(sceneId, characterIds);
-    const currentScene = splitScenes.find((s) => s.id === sceneId);
-    const currentMap = currentScene?.characterVariationMap;
-    if (!currentMap) return;
-
-    const selectedSet = new Set(characterIds);
-    const prunedMap: Record<string, string> = {};
-    Object.entries(currentMap).forEach(([charId, variationId]) => {
-      if (selectedSet.has(charId) && variationId) {
-        prunedMap[charId] = variationId;
-      }
-    });
-
-    const hasChanged =
-      Object.keys(prunedMap).length !== Object.keys(currentMap).length ||
-      Object.entries(prunedMap).some(([charId, variationId]) => currentMap[charId] !== variationId);
-    if (hasChanged) {
-      updateSplitSceneCharacterVariationMap(sceneId, prunedMap);
-    }
-  }, [splitScenes, updateSplitSceneCharacters, updateSplitSceneCharacterVariationMap]);
-
-  const handleUpdateCharacterVariationMap = useCallback((sceneId: number, characterVariationMap: Record<string, string>) => {
-    updateSplitSceneCharacterVariationMap(sceneId, characterVariationMap);
-  }, [updateSplitSceneCharacterVariationMap]);
-
-  // Handle update emotions
-  const handleUpdateEmotions = useCallback((sceneId: number, emotionTags: EmotionTag[]) => {
-    updateSplitSceneEmotions(sceneId, emotionTags);
-  }, [updateSplitSceneEmotions]);
-
-  // Handle update shot size
-  const handleUpdateShotSize = useCallback((sceneId: number, shotSize: ShotSizeType | null) => {
-    updateSplitSceneShotSize(sceneId, shotSize);
-  }, [updateSplitSceneShotSize]);
-
-  // Handle update duration
-  const handleUpdateDuration = useCallback((sceneId: number, duration: DurationType) => {
-    updateSplitSceneDuration(sceneId, duration);
-  }, [updateSplitSceneDuration]);
-
-  // Handle update ambient sound
-  const handleUpdateAmbientSound = useCallback((sceneId: number, ambientSound: string) => {
-    updateSplitSceneAmbientSound(sceneId, ambientSound);
-  }, [updateSplitSceneAmbientSound]);
-
-  // Handle update sound effects
-  const handleUpdateSoundEffects = useCallback((sceneId: number, soundEffects: SoundEffectTag[]) => {
-    updateSplitSceneSoundEffects(sceneId, soundEffects);
-  }, [updateSplitSceneSoundEffects]);
-
-  // Handle delete scene
-  const handleDeleteScene = useCallback((sceneId: number) => {
-    deleteSplitScene(sceneId);
-    toast.success(`分镜 ${sceneId} 已删除`);
-  }, [deleteSplitScene]);
-
-  // Handle remove first frame image
-  const handleRemoveImage = useCallback((sceneId: number) => {
-    // Reset image to empty and clear status
-    updateSplitSceneImage(sceneId, '', undefined, undefined, undefined);
-    updateSplitSceneImageStatus(sceneId, {
-      imageStatus: 'idle',
-      imageProgress: 0,
-      imageError: null,
-    });
-  }, [updateSplitSceneImage, updateSplitSceneImageStatus]);
-
-  // Handle upload first frame image
-  const handleUploadImage = useCallback(async (sceneId: number, imageDataUrl: string) => {
-    const { localPath, httpUrl } = await persistSceneImage(imageDataUrl, sceneId, 'first');
-    updateSplitSceneImage(sceneId, localPath, undefined, undefined, httpUrl || undefined);
-  }, [updateSplitSceneImage]);
-
-  // Handle go back
-  const handleBack = useCallback(() => {
-    resetStoryboard();
-    onBack?.();
-  }, [resetStoryboard, onBack]);
 
   // Handle extract video last frame -> insert to next scene's first frame
   const handleExtractVideoLastFrame = useCallback(async (sceneId: number) => {
@@ -578,107 +461,17 @@ export function SClassScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
     toast.info('合并生成已停止');
   }, []);
 
-  // Handle angle switch click
-  const handleAngleSwitchClick = useCallback((sceneId: number, type: "start" | "end") => {
-    const scene = splitScenes.find(s => s.id === sceneId);
-    if (!scene) return;
-
-    const imageUrl = type === "start" 
-      ? (scene.imageDataUrl || scene.imageHttpUrl) 
-      : (scene.endFrameImageUrl || scene.endFrameHttpUrl);
-    if (!imageUrl) {
-      toast.error(`请先生成${type === "start" ? "首帧" : "尾帧"}`);
-      return;
-    }
-
-    // 重置选中索引（历史从 store 中读取）
-    setSelectedHistoryIndex(-1);
-    setAngleSwitchTarget({ sceneId, type });
-    setAngleSwitchOpen(true);
-  }, [splitScenes]);
-
-  // Handle angle switch generation
-  const handleAngleSwitchGenerate = useCallback(async (params: {
-    direction: HorizontalDirection;
-    elevation: ElevationAngle;
-    shotSize: ShotSize;
-    applyToSameScene: boolean;
-    applyToAll: boolean;
-  }) => {
-    if (!angleSwitchTarget) return;
-    const { direction, elevation, shotSize } = params;
-
-    // Get RunningHub provider config
-    const runninghubProvider = getProviderByPlatform('runninghub');
-    const runninghubKey = parseApiKeys(runninghubProvider?.apiKey || '')[0];
-    const runninghubBaseUrl = runninghubProvider?.baseUrl?.trim();
-    const runninghubAppId = runninghubProvider?.model?.[0];
-    if (!runninghubKey || !runninghubBaseUrl || !runninghubAppId) {
-      toast.error("请先在设置中配置 RunningHub（API Key / Base URL / 模型AppId）");
-      setAngleSwitchOpen(false);
-      return;
-    }
-
-    const scene = splitScenes.find(s => s.id === angleSwitchTarget.sceneId);
-    if (!scene) return;
-
-    const originalImage = angleSwitchTarget.type === "start" 
-      ? (scene.imageDataUrl || scene.imageHttpUrl) 
-      : (scene.endFrameImageUrl || scene.endFrameHttpUrl);
-    if (!originalImage) {
-      toast.error("找不到原图");
-      return;
-    }
-
-    setIsAngleSwitching(true);
-
-    try {
-      const newImageUrl = await generateAngleSwitch({
-        referenceImage: originalImage,
-        direction,
-        elevation,
-        shotSize,
-        apiKey: runninghubKey,
-        baseUrl: runninghubBaseUrl,
-        appId: runninghubAppId,
-        onProgress: (progress, status) => {
-          console.log(`[AngleSwitch] Progress: ${progress}%, Status: ${status}`);
-        },
-      });
-
-      const angleLabel = getAngleLabel(direction, elevation, shotSize);
-
-      // Save to store history
-      const newHistoryItem = {
-        imageUrl: newImageUrl,
-        angleLabel,
-        timestamp: Date.now(),
-      };
-      addAngleSwitchHistory(angleSwitchTarget.sceneId, angleSwitchTarget.type, newHistoryItem);
-
-      // 获取更新后的历史（从 scene 中读取）
-      const updatedScene = splitScenes.find(s => s.id === angleSwitchTarget.sceneId);
-      const history = angleSwitchTarget.type === "start" 
-        ? (updatedScene?.startFrameAngleSwitchHistory || [])
-        : (updatedScene?.endFrameAngleSwitchHistory || []);
-      setSelectedHistoryIndex(history.length - 1); // 选中最新的
-
-      setAngleSwitchResult({
-        originalImage,
-        newImage: newImageUrl,
-        angleLabel,
-      });
-
-      setAngleSwitchOpen(false);
-      setAngleSwitchResultOpen(true);
-
-      toast.success("视角切换生成完成");
-    } catch (error) {
-      toast.error(`视角切换失败: ${(error as Error).message}`);
-    } finally {
-      setIsAngleSwitching(false);
-    }
-  }, [angleSwitchTarget, splitScenes, getProviderByPlatform, addAngleSwitchHistory]);
+  const getLatestSClassScenes = useCallback(() => splitScenes, [splitScenes]);
+  const {
+    openAngleSwitch: handleAngleSwitchClick,
+    generate: handleAngleSwitchGenerate,
+  } = useStoryboardAngleSwitch({
+    scenes: splitScenes,
+    controller: storyboardUi,
+    getProviderByPlatform,
+    addHistory: addAngleSwitchHistory,
+    getLatestScenes: getLatestSClassScenes,
+  });
 
   // 根据情绪标签生成氛围描述 - 使用统一 prompt-builder 模块
   const buildEmotionDescription = useCallback((emotionTags: EmotionTag[]): string => {
@@ -906,14 +699,6 @@ export function SClassScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
         }
       }
 
-      // Parse result helper（用于轮询阶段）
-      const normalizeUrl = (url: any): string | undefined => {
-        if (!url) return undefined;
-        if (Array.isArray(url)) return url[0] || undefined;
-        if (typeof url === 'string') return url;
-        return undefined;
-      };
-
       // 调用 API - 使用智能路由（自动选择 chat completions 或 images/generations）
       console.log('[QuadGrid] Calling API, model:', model);
       const apiResult = await aiManager.imageGrid({
@@ -933,37 +718,7 @@ export function SClassScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
       // Poll if async
       if (!gridImageUrl && taskId) {
         console.log('[QuadGrid] Polling task:', taskId);
-        const pollInterval = 2000;
-        const maxAttempts = 60;
-        
-        for (let attempt = 0; attempt < maxAttempts; attempt++) {
-          const statusUrl = new URL(`${imageBaseUrl}/v1/tasks/${taskId}`);
-          statusUrl.searchParams.set('_ts', Date.now().toString());
-          
-          const statusResp = await fetch(statusUrl.toString(), {
-            headers: { 'Authorization': `Bearer ${apiKey}` },
-          });
-          
-          if (!statusResp.ok) throw new Error(`查询任务失败: ${statusResp.status}`);
-          
-          const statusData = await statusResp.json();
-          const status = (statusData.status ?? statusData.data?.status ?? '').toString().toLowerCase();
-          
-          if (status === 'completed' || status === 'succeeded' || status === 'success') {
-            const images = statusData.result?.images ?? statusData.data?.result?.images;
-            if (images?.[0]) {
-              gridImageUrl = normalizeUrl(images[0].url || images[0]);
-            }
-            gridImageUrl = gridImageUrl || normalizeUrl(statusData.output_url) || normalizeUrl(statusData.url);
-            break;
-          }
-          
-          if (status === 'failed' || status === 'error') {
-            throw new Error(statusData.error || '图片生成失败');
-          }
-          
-          await new Promise(r => setTimeout(r, pollInterval));
-        }
+        gridImageUrl = await pollImageTaskUrl({ taskId, apiKey, baseUrl: imageBaseUrl });
       }
 
       if (!gridImageUrl) {
@@ -1831,14 +1586,6 @@ export function SClassScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
         keyManager,
       });
 
-      // Helper to normalize URL (handle array format) - used in poll responses
-      const normalizeUrlValue = (url: any): string | undefined => {
-        if (!url) return undefined;
-        if (Array.isArray(url)) return url[0] || undefined;
-        if (typeof url === 'string') return url;
-        return undefined;
-      };
-
       // Direct URL result
       if (apiResult.imageUrl) {
         const persistResult = await persistSceneImage(apiResult.imageUrl, sceneId, 'first');
@@ -1855,64 +1602,25 @@ export function SClassScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
 
       // Poll for completion if we have a task ID
       if (taskId) {
-        const pollInterval = 2000;
-        const maxAttempts = 60; // 2 minutes max
-        
-        for (let attempt = 0; attempt < maxAttempts; attempt++) {
-          const progress = Math.min(Math.floor((attempt / maxAttempts) * 100), 99);
-          updateSplitSceneImageStatus(sceneId, { imageProgress: progress });
+        const imageUrl = await pollImageTaskUrl({
+          taskId,
+          apiKey,
+          baseUrl: imageBaseUrl,
+          maxAttempts: 60,
+          pollIntervalMs: 2000,
+          onProgress: (progress) => updateSplitSceneImageStatus(sceneId, { imageProgress: progress }),
+          notFoundMessage: '任务不存在',
+          requestErrorMessage: (status) => `Failed to check task status: ${status}`,
+          noCache: true,
+        });
+        if (!imageUrl) throw new Error('图片生成超时');
 
-          const url = new URL(`${imageBaseUrl}/v1/tasks/${taskId}`);
-          url.searchParams.set('_ts', Date.now().toString());
-
-          const statusResponse = await fetch(url.toString(), {
-            method: 'GET',
-            headers: {
-              'Authorization': `Bearer ${apiKey}`,
-              'Cache-Control': 'no-cache',
-            },
-          });
-
-          if (!statusResponse.ok) {
-            if (statusResponse.status === 404) {
-              throw new Error('任务不存在');
-            }
-            throw new Error(`Failed to check task status: ${statusResponse.status}`);
-          }
-
-          const statusData = await statusResponse.json();
-          const status = (statusData.status ?? statusData.data?.status ?? 'unknown').toString().toLowerCase();
-
-          if (status === 'completed' || status === 'succeeded' || status === 'success') {
-            // Extract image URL (normalize array format)
-            const images = statusData.result?.images ?? statusData.data?.result?.images;
-            let imageUrl: string | undefined;
-            if (images?.[0]) {
-              const rawUrl = images[0].url || images[0];
-              imageUrl = normalizeUrlValue(rawUrl);
-            }
-            imageUrl = imageUrl || normalizeUrlValue(statusData.output_url) || normalizeUrlValue(statusData.result_url) || normalizeUrlValue(statusData.url);
-
-            if (!imageUrl) throw new Error('任务完成但没有图片 URL');
-            
-            // 持久化到本地 + 图床
-            const persistResult = await persistSceneImage(imageUrl, sceneId, 'first');
-            updateSplitSceneImage(sceneId, persistResult.localPath, scene.width, scene.height, persistResult.httpUrl || imageUrl);
-            autoSaveImageToLibrary(sceneId, persistResult.localPath);
-            toast.success(`分镜 ${sceneId + 1} 图片生成完成，已保存到素材库`);
-            setIsGenerating(false);
-            return;
-          }
-
-          if (status === 'failed' || status === 'error') {
-            const errorMsg = statusData.error || statusData.message || statusData.data?.error || '图片生成失败';
-            console.error('[SplitScenes] Task failed:', statusData);
-            throw new Error(typeof errorMsg === 'string' ? errorMsg : JSON.stringify(errorMsg));
-          }
-
-          await new Promise(r => setTimeout(r, pollInterval));
-        }
-        throw new Error('图片生成超时');
+        const persistResult = await persistSceneImage(imageUrl, sceneId, 'first');
+        updateSplitSceneImage(sceneId, persistResult.localPath, scene.width, scene.height, persistResult.httpUrl || imageUrl);
+        autoSaveImageToLibrary(sceneId, persistResult.localPath);
+        toast.success(`分镜 ${sceneId + 1} 图片生成完成，已保存到素材库`);
+        setIsGenerating(false);
+        return;
       }
 
       throw new Error('Invalid API response: no image URL or task ID');
@@ -2065,27 +1773,7 @@ export function SClassScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
     const dedup = (arr: string[]) => Array.from(new Set(arr.filter(Boolean)));
 
     // === 统一任务列表方案：支持混合九宫格 ===
-    // 任务类型定义
-    type GridTask = { scene: SplitScene; type: 'first' | 'end' };
-    
-    // 重要：视频已生成的分镜视为完成，不需要再生成首帧或尾帧
-    const isSceneCompleted = (s: SplitScene) => s.videoUrl || s.videoStatus === 'completed';
-
-    // 构建任务列表（根据用户选择的 mode）
-    const tasks: GridTask[] = [];
-    for (const scene of splitScenes) {
-      if (isSceneCompleted(scene)) continue; // 视频已完成，跳过
-      
-      // 仅首帧 或 首+尾：检查是否需要首帧
-      if ((mode === 'first' || mode === 'both') && !scene.imageDataUrl) {
-        tasks.push({ scene, type: 'first' });
-      }
-      
-      // 仅尾帧 或 首+尾：检查是否需要尾帧
-      if ((mode === 'last' || mode === 'both') && scene.needsEndFrame && !scene.endFrameImageUrl) {
-        tasks.push({ scene, type: 'end' });
-      }
-    }
+    const tasks = buildMergedFrameTasks(splitScenes, mode);
 
     // 检查是否有需要生成的
     if (tasks.length === 0) {
@@ -2100,15 +1788,11 @@ export function SClassScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
     const parts: string[] = [];
     if (firstCount > 0) parts.push(`${firstCount}个首帧`);
     if (endCount > 0) parts.push(`${endCount}个尾帧`);
-    const completedCount = splitScenes.filter(isSceneCompleted).length;
+    const completedCount = splitScenes.filter(isStoryboardSceneCompleted).length;
     const skipInfo = completedCount > 0 ? `（跳过${completedCount}个已完成视频）` : '';
     toast.info(`开始九宫格合并生成：${parts.join('、')}${skipInfo}`);
 
-    // 任务分页（每9个任务一页，混合首帧和尾帧）
-    const taskPages: GridTask[][] = [];
-    for (let i = 0; i < tasks.length; i += 9) {
-      taskPages.push(tasks.slice(i, i + 9));
-    }
+    const taskPages = paginateMergedFrameTasks(tasks);
 
     // 建立参考图池（按策略收集，从任务列表中提取场景）
     const collectRefsFromTasks = (pageTasks: GridTask[]): string[] => {
@@ -2125,24 +1809,6 @@ export function SClassScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
       }
       // 去重并限制数量（API 限制 14 张）
       return dedup(refs).slice(0, strategy === 'minimal' ? 2 : 14);
-    };
-
-    // 根据分镜数量计算最优网格布局（强制 N x N 以保证比例一致性）
-    const calculateGridLayout = (sceneCount: number): { cols: number; rows: number; paddedCount: number } => {
-      // 策略：为了保证每个格子大小绝对均匀，强制使用 N x N 布局
-      // 这样整张大图的宽高比 = 单个格子的宽高比
-      // 例如：3x3 布局，每个格子 16:9，整图也是 16:9
-      
-      if (sceneCount <= 4) {
-        return { cols: 2, rows: 2, paddedCount: 4 }; // 1-4 张 -> 四宫格
-      }
-      return { cols: 3, rows: 3, paddedCount: 9 }; // 5-9 张 -> 九宫格
-    };
-    
-    // 计算整张大图应该请求的宽高比
-    // 在 N x N 布局下，整图宽高比直接等于目标宽高比
-    const calculateGridAspectRatio = (targetAspect: '16:9' | '9:16'): string => {
-      return targetAspect;
     };
 
     // 切割大图为 N 个小图（根据布局的行数和列数）
@@ -2362,14 +2028,6 @@ export function SClassScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
         console.log(`[MergedGen] Ref[${i}] format:`, prefix + '...');
       });
       
-      // 解析结果辅助函数（用于轮询阶段）
-      const normalizeUrl = (url: any): string | undefined => {
-        if (!url) return undefined;
-        if (Array.isArray(url)) return url[0] || undefined;
-        if (typeof url === 'string') return url;
-        return undefined;
-      };
-      
       // 调用 API 生成九宫格图片 - 使用智能路由（自动选择 chat completions 或 images/generations）
       console.log('[MergedGen] Calling API with', processedRefs.length, 'reference images, model:', model);
       const apiResult = await aiManager.imageGrid({
@@ -2390,12 +2048,13 @@ export function SClassScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
       // 如果是异步任务，轮询
       if (!gridImageUrl && taskId) {
         console.log('[MergedGen] Polling task:', taskId);
-        const pollInterval = 2000;
-        const maxAttempts = 90; // 3 分钟
-        
-        for (let attempt = 0; attempt < maxAttempts; attempt++) {
-          const progress = Math.min(10 + Math.floor((attempt / maxAttempts) * 80), 90);
-          // 根据任务类型更新各自的进度
+        gridImageUrl = await pollImageTaskUrl({
+          taskId,
+          apiKey,
+          baseUrl: imageBaseUrl,
+          maxAttempts: 90,
+          onProgress: (pollProgress) => {
+            const progress = Math.min(10 + Math.floor(pollProgress * 0.8), 90);
           pageTasks.forEach(task => {
             if (task.type === 'end') {
               updateSplitSceneEndFrameStatus(task.scene.id, { endFrameProgress: progress });
@@ -2403,44 +2062,8 @@ export function SClassScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
               updateSplitSceneImageStatus(task.scene.id, { imageProgress: progress });
             }
           });
-          
-          const statusUrl = new URL(`${imageBaseUrl}/v1/tasks/${taskId}`);
-          statusUrl.searchParams.set('_ts', Date.now().toString());
-          
-          const statusResp = await fetch(statusUrl.toString(), {
-            headers: { 'Authorization': `Bearer ${apiKey}` },
-          });
-          
-          if (!statusResp.ok) throw new Error(`查询任务失败: ${statusResp.status}`);
-          
-          const statusData = await statusResp.json();
-          console.log(`[MergedGen] Task ${taskId} poll #${attempt}:`, JSON.stringify(statusData, null, 2).substring(0, 500));
-          
-          const status = (statusData.status ?? statusData.data?.status ?? '').toString().toLowerCase();
-          
-          if (status === 'completed' || status === 'succeeded' || status === 'success') {
-            // 尝试从多种路径获取图片 URL
-            const images = statusData.result?.images ?? statusData.data?.result?.images ?? statusData.images;
-            if (images?.[0]) {
-              gridImageUrl = normalizeUrl(images[0].url || images[0]);
-            }
-            gridImageUrl = gridImageUrl 
-              || normalizeUrl(statusData.output_url) 
-              || normalizeUrl(statusData.result_url)
-              || normalizeUrl(statusData.url)
-              || normalizeUrl(statusData.data?.url)
-              || normalizeUrl(statusData.result?.url);
-            console.log('[MergedGen] Task completed, gridImageUrl=', gridImageUrl?.substring(0, 80));
-            break;
-          }
-          
-          if (status === 'failed' || status === 'error') {
-            const errMsg = statusData.error || statusData.message || statusData.data?.error || '图片生成失败';
-            throw new Error(typeof errMsg === 'string' ? errMsg : JSON.stringify(errMsg));
-          }
-          
-          await new Promise(r => setTimeout(r, pollInterval));
-        }
+          },
+        });
       }
       
       if (!gridImageUrl) {
@@ -2833,14 +2456,6 @@ export function SClassScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
         keyManager,
       });
 
-      // Helper to normalize URL (handle array format) - used in poll responses
-      const normalizeUrlValue = (url: any): string | undefined => {
-        if (!url) return undefined;
-        if (Array.isArray(url)) return url[0] || undefined;
-        if (typeof url === 'string') return url;
-        return undefined;
-      };
-
       // Direct URL result
       if (apiResult.imageUrl) {
         const persistResult = await persistSceneImage(apiResult.imageUrl, sceneId, 'end');
@@ -2864,69 +2479,34 @@ export function SClassScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
       const taskId: string | undefined = apiResult.taskId;
       
       if (taskId) {
-        const pollInterval = 2000;
-        const maxAttempts = 60;
-        
-        for (let attempt = 0; attempt < maxAttempts; attempt++) {
-          const progress = Math.min(Math.floor((attempt / maxAttempts) * 100), 99);
-          updateSplitSceneEndFrameStatus(sceneId, { endFrameProgress: progress });
+        const imageUrl = await pollImageTaskUrl({
+          taskId,
+          apiKey,
+          baseUrl: imageBaseUrl,
+          maxAttempts: 60,
+          pollIntervalMs: 2000,
+          onProgress: (progress) => updateSplitSceneEndFrameStatus(sceneId, { endFrameProgress: progress }),
+          notFoundMessage: '任务不存在',
+          requestErrorMessage: (status) => `Failed to check task status: ${status}`,
+          failureFallbackMessage: '尾帧生成失败',
+          noCache: true,
+        });
+        if (!imageUrl) throw new Error('尾帧生成超时');
 
-          const url = new URL(`${imageBaseUrl}/v1/tasks/${taskId}`);
-          url.searchParams.set('_ts', Date.now().toString());
-
-          const statusResponse = await fetch(url.toString(), {
-            method: 'GET',
-            headers: {
-              'Authorization': `Bearer ${apiKey}`,
-              'Cache-Control': 'no-cache',
-            },
-          });
-
-          if (!statusResponse.ok) {
-            if (statusResponse.status === 404) throw new Error('任务不存在');
-            throw new Error(`Failed to check task status: ${statusResponse.status}`);
-          }
-
-          const statusData = await statusResponse.json();
-          const status = (statusData.status ?? statusData.data?.status ?? 'unknown').toString().toLowerCase();
-
-          if (status === 'completed' || status === 'succeeded' || status === 'success') {
-            const images = statusData.result?.images ?? statusData.data?.result?.images;
-            let imageUrl: string | undefined;
-            if (images?.[0]) {
-              const rawUrl = images[0].url || images[0];
-              imageUrl = normalizeUrlValue(rawUrl);
-            }
-            imageUrl = imageUrl || normalizeUrlValue(statusData.output_url) || normalizeUrlValue(statusData.url);
-
-            if (!imageUrl) throw new Error('任务完成但没有图片 URL');
-            
-            // 持久化到本地 + 图床
-            const persistResult = await persistSceneImage(imageUrl, sceneId, 'end');
-            updateSplitSceneEndFrame(sceneId, persistResult.localPath, 'ai-generated', persistResult.httpUrl || imageUrl);
-            // 自动保存尾帧到素材库
-            const folderId = getImageFolderId();
-            addMediaFromUrl({
-              url: persistResult.localPath,
-              name: `分镜 ${sceneId + 1} - 尾帧`,
-              type: 'image',
-              source: 'ai-image',
-              folderId,
-              projectId: mediaProjectId,
-            });
-            toast.success(`分镜 ${sceneId + 1} 尾帧生成完成，已保存到素材库`);
-            setIsGenerating(false);
-            return;
-          }
-
-          if (status === 'failed' || status === 'error') {
-            const errorMsg = statusData.error || statusData.message || '尾帧生成失败';
-            throw new Error(typeof errorMsg === 'string' ? errorMsg : JSON.stringify(errorMsg));
-          }
-
-          await new Promise(r => setTimeout(r, pollInterval));
-        }
-        throw new Error('尾帧生成超时');
+        const persistResult = await persistSceneImage(imageUrl, sceneId, 'end');
+        updateSplitSceneEndFrame(sceneId, persistResult.localPath, 'ai-generated', persistResult.httpUrl || imageUrl);
+        const folderId = getImageFolderId();
+        addMediaFromUrl({
+          url: persistResult.localPath,
+          name: `分镜 ${sceneId + 1} - 尾帧`,
+          type: 'image',
+          source: 'ai-image',
+          folderId,
+          projectId: mediaProjectId,
+        });
+        toast.success(`分镜 ${sceneId + 1} 尾帧生成完成，已保存到素材库`);
+        setIsGenerating(false);
+        return;
       }
 
       throw new Error('Invalid API response');
@@ -3003,6 +2583,45 @@ export function SClassScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
       </div>
     );
   }
+
+  const renderSceneCard = (scene: SplitScene) => (
+    <SceneCard
+      key={scene.id}
+      scene={scene}
+      onUpdateImagePrompt={(id, prompt, promptZh) => updateSplitSceneImagePrompt(id, prompt, promptZh)}
+      onUpdateVideoPrompt={(id, prompt, promptZh) => updateSplitSceneVideoPrompt(id, prompt, promptZh)}
+      onUpdateEndFramePrompt={(id, prompt, promptZh) => updateSplitSceneEndFramePrompt(id, prompt, promptZh)}
+      onUpdateNeedsEndFrame={(id, needsEndFrame) => updateSplitSceneNeedsEndFrame(id, needsEndFrame)}
+      onUpdateEndFrame={handleUpdateEndFrame}
+      onUpdateCharacters={handleUpdateCharacters}
+      onUpdateCharacterVariationMap={handleUpdateCharacterVariationMap}
+      onUpdateEmotions={handleUpdateEmotions}
+      onUpdateShotSize={handleUpdateShotSize}
+      onUpdateDuration={handleUpdateDuration}
+      onUpdateAmbientSound={handleUpdateAmbientSound}
+      onUpdateSoundEffects={handleUpdateSoundEffects}
+      onUpdateSceneReference={(id, sceneLibId, viewpointId, refImage, subViewId) => updateSplitSceneReference(id, sceneLibId, viewpointId, refImage, subViewId)}
+      onUpdateEndFrameSceneReference={(id, sceneLibId, viewpointId, refImage, subViewId) => updateSplitSceneEndFrameReference(id, sceneLibId, viewpointId, refImage, subViewId)}
+      onDelete={handleDeleteScene}
+      onSaveToLibrary={handleSaveToLibrary}
+      onGenerateImage={handleGenerateSingleImage}
+      onGenerateVideo={handleGenerateSingleVideo}
+      onGenerateEndFrame={handleGenerateEndFrameImage}
+      onRemoveImage={handleRemoveImage}
+      onUploadImage={handleUploadImage}
+      onUpdateField={(id, field, value) => updateSplitSceneField(id, field, value)}
+      onAngleSwitch={handleAngleSwitchClick}
+      onQuadGrid={handleQuadGridClick}
+      onExtractVideoLastFrame={handleExtractVideoLastFrame}
+      onStopImageGeneration={handleStopImageGeneration}
+      onStopVideoGeneration={handleStopVideoGeneration}
+      onStopEndFrameGeneration={handleStopEndFrameGeneration}
+      isExtractingFrame={isExtractingFrame}
+      isAngleSwitching={isAngleSwitching}
+      isQuadGridGenerating={isQuadGridGenerating}
+      isGeneratingAny={isGenerating}
+    />
+  );
 
   return (
     <div className="space-y-4">
@@ -3094,126 +2713,28 @@ export function SClassScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
                 </div>
               </div>
 
-              {/* Global style and aspect ratio config - 与分镜编辑一致 */}
-              <div className="flex flex-wrap items-center gap-3 p-3 rounded-lg bg-muted/30 border">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground whitespace-nowrap">视觉风格:</span>
-                  <StylePicker
-                    value={currentStyleId || ""}
-                    onChange={handleStyleChange}
-                    disabled={isGenerating}
-                  />
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground whitespace-nowrap">画面比例:</span>
-                  <div className="flex rounded-md border overflow-hidden">
-                    <button
-                      onClick={() => handleAspectRatioChange('16:9')}
-                      className={cn(
-                        "flex items-center gap-1.5 px-3 py-1.5 text-xs transition-colors",
-                        storyboardConfig.aspectRatio === '16:9'
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-background hover:bg-muted"
-                      )}
-                    >
-                      <Monitor className="h-3.5 w-3.5" />
-                      横屏
-                    </button>
-                    <button
-                      onClick={() => handleAspectRatioChange('9:16')}
-                      className={cn(
-                        "flex items-center gap-1.5 px-3 py-1.5 text-xs transition-colors border-l",
-                        storyboardConfig.aspectRatio === '9:16'
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-background hover:bg-muted"
-                      )}
-                    >
-                      <Smartphone className="h-3.5 w-3.5" />
-                      竖屏
-                    </button>
-                  </div>
-                </div>
-                {/* Image Resolution Selector */}
-                <Select
-                  value={storyboardConfig.resolution || defaultResolution}
-                  onValueChange={(v: '1K' | '2K' | '4K') => {
-                    setStoryboardConfig({ resolution: v });
-                    toast.success(`图片分辨率已切换为 ${v}`);
-                  }}
-                >
-                  <SelectTrigger className="w-[130px] h-8 text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1K" className="text-xs">标准 (1K)</SelectItem>
-                    <SelectItem value="2K" className="text-xs">高清 (2K)</SelectItem>
-                    <SelectItem value="4K" className="text-xs">超清 (4K)</SelectItem>
-                  </SelectContent>
-                </Select>
-
-                {/* Video Resolution Selector */}
-                <Select
-                  value={storyboardConfig.videoResolution || '480p'}
-                  onValueChange={(v: '480p' | '720p' | '1080p') => {
-                    setStoryboardConfig({ videoResolution: v });
-                    toast.success(`视频分辨率已切换为 ${v}`);
-                  }}
-                >
-                  <SelectTrigger className="w-[140px] h-8 text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="480p" className="text-xs">标准 (480P)</SelectItem>
-                    <SelectItem value="720p" className="text-xs">高清 (720P)</SelectItem>
-                    <SelectItem value="1080p" className="text-xs">高品质 (1080P)</SelectItem>
-                  </SelectContent>
-                </Select>
-
-                <div className="flex-1 text-xs text-muted-foreground/70 truncate">
-                  {storyboardConfig.styleTokens?.slice(0, 2).join(', ')}...
-                </div>
-              </div>
+              <StoryboardConfigToolbar
+                styleId={currentStyleId || ""}
+                onStyleChange={handleStyleChange}
+                aspectRatio={storyboardConfig.aspectRatio === "9:16" ? "9:16" : "16:9"}
+                onAspectRatioChange={handleAspectRatioChange}
+                imageResolution={storyboardConfig.resolution || defaultResolution}
+                onImageResolutionChange={(resolution) => {
+                  setStoryboardConfig({ resolution });
+                  toast.success(`图片分辨率已切换为 ${resolution}`);
+                }}
+                videoResolution={storyboardConfig.videoResolution || "480p"}
+                onVideoResolutionChange={(videoResolution) => {
+                  setStoryboardConfig({ videoResolution });
+                  toast.success(`视频分辨率已切换为 ${videoResolution}`);
+                }}
+                styleTokens={storyboardConfig.styleTokens}
+                disabled={isGenerating}
+              />
 
               {/* Scene list - 完全复用分镜编辑的 SceneCard */}
               <div className="flex flex-col gap-3">
-                {trailerScenes.map((scene) => (
-                  <SceneCard
-                    key={scene.id}
-                    scene={scene}
-                    onUpdateImagePrompt={(id, prompt, promptZh) => updateSplitSceneImagePrompt(id, prompt, promptZh)}
-                    onUpdateVideoPrompt={(id, prompt, promptZh) => updateSplitSceneVideoPrompt(id, prompt, promptZh)}
-                    onUpdateEndFramePrompt={(id, prompt, promptZh) => updateSplitSceneEndFramePrompt(id, prompt, promptZh)}
-                    onUpdateNeedsEndFrame={(id, needsEndFrame) => updateSplitSceneNeedsEndFrame(id, needsEndFrame)}
-                    onUpdateEndFrame={handleUpdateEndFrame}
-                    onUpdateCharacters={handleUpdateCharacters}
-                    onUpdateCharacterVariationMap={handleUpdateCharacterVariationMap}
-                    onUpdateEmotions={handleUpdateEmotions}
-                    onUpdateShotSize={handleUpdateShotSize}
-                    onUpdateDuration={handleUpdateDuration}
-                    onUpdateAmbientSound={handleUpdateAmbientSound}
-                    onUpdateSoundEffects={handleUpdateSoundEffects}
-            onUpdateSceneReference={(id, sceneLibId, viewpointId, refImage, subViewId) => updateSplitSceneReference(id, sceneLibId, viewpointId, refImage, subViewId)}
-            onUpdateEndFrameSceneReference={(id, sceneLibId, viewpointId, refImage, subViewId) => updateSplitSceneEndFrameReference(id, sceneLibId, viewpointId, refImage, subViewId)}
-            onDelete={handleDeleteScene}
-            onSaveToLibrary={handleSaveToLibrary}
-            onGenerateImage={handleGenerateSingleImage}
-            onGenerateVideo={handleGenerateSingleVideo}
-            onGenerateEndFrame={handleGenerateEndFrameImage}
-            onRemoveImage={handleRemoveImage}
-            onUploadImage={handleUploadImage}
-            onUpdateField={(id, field, value) => updateSplitSceneField(id, field, value)}
-            onAngleSwitch={handleAngleSwitchClick}
-            onQuadGrid={handleQuadGridClick}
-            onExtractVideoLastFrame={handleExtractVideoLastFrame}
-            onStopImageGeneration={handleStopImageGeneration}
-            onStopVideoGeneration={handleStopVideoGeneration}
-            onStopEndFrameGeneration={handleStopEndFrameGeneration}
-            isExtractingFrame={isExtractingFrame}
-            isAngleSwitching={isAngleSwitching}
-            isQuadGridGenerating={isQuadGridGenerating}
-            isGeneratingAny={isGenerating}
-          />
-                ))}
+                {trailerScenes.map(renderSceneCard)}
               </div>
 
               {/* Action buttons - 与分镜编辑一致 */}
@@ -3289,111 +2810,28 @@ export function SClassScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
         </div>
       </div>
 
-      {/* Row 1: 基础配置 - 视觉风格 / 画面比例 / 生成方式 */}
-      <div className="flex flex-wrap items-center gap-3 p-3 rounded-lg bg-muted/30 border">
-        {/* Visual Style Selector */}
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground whitespace-nowrap">视觉风格:</span>
-          <StylePicker
-            value={currentStyleId || ""}
-            onChange={handleStyleChange}
-            disabled={isGenerating}
-          />
-        </div>
-
-        {/* Cinematography Profile Selector */}
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground whitespace-nowrap">摄影风格:</span>
-          <CinematographyProfilePicker
-            value={currentCinProfileId}
-            onChange={handleCinProfileChange}
-            disabled={isGenerating}
-            styleId={currentStyleId}
-          />
-        </div>
-
-        {/* Aspect Ratio Selector — S级 6 种画幅比 */}
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground whitespace-nowrap">画幅比:</span>
-          <Select
-            value={storyboardConfig.aspectRatio || '16:9'}
-            onValueChange={(v: string) => handleAspectRatioChange(v as SClassAspectRatio)}
-          >
-            <SelectTrigger className="w-[120px] h-8 text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {SCLASS_ASPECT_RATIOS.map(ar => (
-                <SelectItem key={ar.value} value={ar.value} className="text-xs">
-                  {ar.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Image Resolution Selector */}
-        <Select
-          value={storyboardConfig.resolution || defaultResolution}
-          onValueChange={(v: '1K' | '2K' | '4K') => {
-            setStoryboardConfig({ resolution: v });
-            toast.success(`图片分辨率已切换为 ${v}`);
-          }}
-        >
-          <SelectTrigger className="w-[130px] h-8 text-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="1K" className="text-xs">标准 (1K)</SelectItem>
-            <SelectItem value="2K" className="text-xs">高清 (2K)</SelectItem>
-            <SelectItem value="4K" className="text-xs">超清 (4K)</SelectItem>
-          </SelectContent>
-        </Select>
-
-        {/* Video Resolution Selector */}
-        <Select
-          value={storyboardConfig.videoResolution || '480p'}
-          onValueChange={(v: '480p' | '720p' | '1080p') => {
-            setStoryboardConfig({ videoResolution: v });
-            toast.success(`视频分辨率已切换为 ${v}`);
-          }}
-        >
-          <SelectTrigger className="w-[140px] h-8 text-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="480p" className="text-xs">标准 (480P)</SelectItem>
-            <SelectItem value="720p" className="text-xs">高清 (720P)</SelectItem>
-            <SelectItem value="1080p" className="text-xs">高品质 (1080P)</SelectItem>
-          </SelectContent>
-        </Select>
-
-        {/* Image generation mode toggle */}
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground whitespace-nowrap">图片生成方式:</span>
-          <div className="flex rounded-md border overflow-hidden">
-            <button
-              onClick={() => setImageGenMode('single')}
-              className={cn(
-                "px-3 py-1.5 text-xs",
-                imageGenMode === 'single' ? 'bg-primary text-primary-foreground' : 'bg-background hover:bg-muted'
-              )}
-            >单图生成</button>
-            <button
-              onClick={() => setImageGenMode('merged')}
-              className={cn(
-                "px-3 py-1.5 text-xs border-l",
-                imageGenMode === 'merged' ? 'bg-primary text-primary-foreground' : 'bg-background hover:bg-muted'
-              )}
-            >合并生成</button>
-          </div>
-        </div>
-
-        {/* Current style tokens hint */}
-        <div className="flex-1 text-xs text-muted-foreground/70 truncate">
-          {storyboardConfig.styleTokens?.slice(0, 2).join(', ')}...
-        </div>
-      </div>
+      <SClassStoryboardConfigToolbar
+        styleId={currentStyleId || ""}
+        onStyleChange={handleStyleChange}
+        cinematographyProfileId={currentCinProfileId}
+        onCinematographyProfileChange={handleCinProfileChange}
+        aspectRatio={storyboardConfig.aspectRatio as SClassAspectRatio}
+        onAspectRatioChange={handleAspectRatioChange}
+        imageResolution={storyboardConfig.resolution || defaultResolution}
+        onImageResolutionChange={(resolution) => {
+          setStoryboardConfig({ resolution });
+          toast.success(`图片分辨率已切换为 ${resolution}`);
+        }}
+        videoResolution={storyboardConfig.videoResolution || "480p"}
+        onVideoResolutionChange={(videoResolution) => {
+          setStoryboardConfig({ videoResolution });
+          toast.success(`视频分辨率已切换为 ${videoResolution}`);
+        }}
+        imageGenerationMode={imageGenMode}
+        onImageGenerationModeChange={setImageGenMode}
+        styleTokens={storyboardConfig.styleTokens}
+        disabled={isGenerating}
+      />
 
       {/* Row 1.5: Seedance 2.0 音频/运镜提示（实际控制复用每个分镜的 per-scene 音频开关） */}
       <div className="flex flex-wrap items-center gap-3 p-2 rounded-lg bg-muted/20 border">
@@ -3599,43 +3037,7 @@ export function SClassScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
                     setExtendEditOpen(true);
                   }
                 }}
-                renderSceneCard={(scene) => (
-                  <SceneCard
-                    scene={scene}
-                    onUpdateImagePrompt={(id, prompt, promptZh) => updateSplitSceneImagePrompt(id, prompt, promptZh)}
-                    onUpdateVideoPrompt={(id, prompt, promptZh) => updateSplitSceneVideoPrompt(id, prompt, promptZh)}
-                    onUpdateEndFramePrompt={(id, prompt, promptZh) => updateSplitSceneEndFramePrompt(id, prompt, promptZh)}
-                    onUpdateNeedsEndFrame={(id, needsEndFrame) => updateSplitSceneNeedsEndFrame(id, needsEndFrame)}
-                    onUpdateEndFrame={handleUpdateEndFrame}
-                    onUpdateCharacters={handleUpdateCharacters}
-                    onUpdateCharacterVariationMap={handleUpdateCharacterVariationMap}
-                    onUpdateEmotions={handleUpdateEmotions}
-                    onUpdateShotSize={handleUpdateShotSize}
-                    onUpdateDuration={handleUpdateDuration}
-                    onUpdateAmbientSound={handleUpdateAmbientSound}
-                    onUpdateSoundEffects={handleUpdateSoundEffects}
-                    onUpdateSceneReference={(id, sceneLibId, viewpointId, refImage, subViewId) => updateSplitSceneReference(id, sceneLibId, viewpointId, refImage, subViewId)}
-                    onUpdateEndFrameSceneReference={(id, sceneLibId, viewpointId, refImage, subViewId) => updateSplitSceneEndFrameReference(id, sceneLibId, viewpointId, refImage, subViewId)}
-                    onDelete={handleDeleteScene}
-                    onSaveToLibrary={handleSaveToLibrary}
-                    onGenerateImage={handleGenerateSingleImage}
-                    onGenerateVideo={handleGenerateSingleVideo}
-                    onGenerateEndFrame={handleGenerateEndFrameImage}
-                    onRemoveImage={handleRemoveImage}
-                    onUploadImage={handleUploadImage}
-                    onUpdateField={(id, field, value) => updateSplitSceneField(id, field, value)}
-                    onAngleSwitch={handleAngleSwitchClick}
-                    onQuadGrid={handleQuadGridClick}
-                    onExtractVideoLastFrame={handleExtractVideoLastFrame}
-                    onStopImageGeneration={handleStopImageGeneration}
-                    onStopVideoGeneration={handleStopVideoGeneration}
-                    onStopEndFrameGeneration={handleStopEndFrameGeneration}
-                    isExtractingFrame={isExtractingFrame}
-                    isAngleSwitching={isAngleSwitching}
-                    isQuadGridGenerating={isQuadGridGenerating}
-                    isGeneratingAny={isGenerating}
-                  />
-                )}
+                renderSceneCard={renderSceneCard}
               />
             );
           })}
@@ -3643,44 +3045,7 @@ export function SClassScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
       ) : (
         /* ========== 单镜模式: 平铺 SceneCard ========== */
         <div className="flex flex-col gap-3">
-          {splitScenes.map((scene) => (
-            <SceneCard
-              key={scene.id}
-              scene={scene}
-              onUpdateImagePrompt={(id, prompt, promptZh) => updateSplitSceneImagePrompt(id, prompt, promptZh)}
-              onUpdateVideoPrompt={(id, prompt, promptZh) => updateSplitSceneVideoPrompt(id, prompt, promptZh)}
-              onUpdateEndFramePrompt={(id, prompt, promptZh) => updateSplitSceneEndFramePrompt(id, prompt, promptZh)}
-              onUpdateNeedsEndFrame={(id, needsEndFrame) => updateSplitSceneNeedsEndFrame(id, needsEndFrame)}
-              onUpdateEndFrame={handleUpdateEndFrame}
-              onUpdateCharacters={handleUpdateCharacters}
-              onUpdateCharacterVariationMap={handleUpdateCharacterVariationMap}
-              onUpdateEmotions={handleUpdateEmotions}
-              onUpdateShotSize={handleUpdateShotSize}
-              onUpdateDuration={handleUpdateDuration}
-              onUpdateAmbientSound={handleUpdateAmbientSound}
-              onUpdateSoundEffects={handleUpdateSoundEffects}
-              onUpdateSceneReference={(id, sceneLibId, viewpointId, refImage, subViewId) => updateSplitSceneReference(id, sceneLibId, viewpointId, refImage, subViewId)}
-              onUpdateEndFrameSceneReference={(id, sceneLibId, viewpointId, refImage, subViewId) => updateSplitSceneEndFrameReference(id, sceneLibId, viewpointId, refImage, subViewId)}
-              onDelete={handleDeleteScene}
-              onSaveToLibrary={handleSaveToLibrary}
-              onGenerateImage={handleGenerateSingleImage}
-              onGenerateVideo={handleGenerateSingleVideo}
-              onGenerateEndFrame={handleGenerateEndFrameImage}
-              onRemoveImage={handleRemoveImage}
-              onUploadImage={handleUploadImage}
-              onUpdateField={(id, field, value) => updateSplitSceneField(id, field, value)}
-              onAngleSwitch={handleAngleSwitchClick}
-              onQuadGrid={handleQuadGridClick}
-              onExtractVideoLastFrame={handleExtractVideoLastFrame}
-              onStopImageGeneration={handleStopImageGeneration}
-              onStopVideoGeneration={handleStopVideoGeneration}
-              onStopEndFrameGeneration={handleStopEndFrameGeneration}
-              isExtractingFrame={isExtractingFrame}
-              isAngleSwitching={isAngleSwitching}
-              isQuadGridGenerating={isQuadGridGenerating}
-              isGeneratingAny={isGenerating}
-            />
-          ))}
+          {splitScenes.map(renderSceneCard)}
         </div>
       )}
 
@@ -3770,70 +3135,14 @@ export function SClassScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
       </>
       )}
 
-      {/* Angle Switch Dialog */}
-      <AngleSwitchDialog
-        open={angleSwitchOpen}
-        onOpenChange={setAngleSwitchOpen}
-        onGenerate={handleAngleSwitchGenerate}
-        isGenerating={isAngleSwitching}
-        frameType={angleSwitchTarget?.type || "start"}
-        previewUrl={(() => {
-          if (!angleSwitchTarget) return undefined;
-          const scene = splitScenes.find(s => s.id === angleSwitchTarget.sceneId);
-          return angleSwitchTarget.type === "start"
-            ? scene?.imageDataUrl || undefined
-            : scene?.endFrameImageUrl || undefined;
-        })()}
-        sameSceneShotsCount={0}
-      />
-
-      {/* Angle Switch Result Dialog */}
-      <AngleSwitchResultDialog
-        open={angleSwitchResultOpen}
-        onOpenChange={setAngleSwitchResultOpen}
-        result={angleSwitchResult}
-        history={(() => {
-          if (!angleSwitchTarget) return [];
-          const scene = splitScenes.find(s => s.id === angleSwitchTarget.sceneId);
-          return angleSwitchTarget.type === "start"
-            ? (scene?.startFrameAngleSwitchHistory || [])
-            : (scene?.endFrameAngleSwitchHistory || []);
-        })()}
-        selectedHistoryIndex={selectedHistoryIndex}
-        onSelectHistory={setSelectedHistoryIndex}
-        onApply={handleApplyAngleSwitch}
-        onRegenerate={() => {
-          setAngleSwitchResultOpen(false);
-          setAngleSwitchOpen(true);
-        }}
-      />
-
-      {/* Quad Grid Dialog */}
-      <QuadGridDialog
-        open={quadGridOpen}
-        onOpenChange={setQuadGridOpen}
-        onGenerate={handleQuadGridGenerate}
-        isGenerating={isQuadGridGenerating}
-        frameType={quadGridTarget?.type || "start"}
-        previewUrl={(() => {
-          if (!quadGridTarget) return undefined;
-          const scene = splitScenes.find(s => s.id === quadGridTarget.sceneId);
-          return quadGridTarget.type === "start"
-            ? scene?.imageDataUrl || undefined
-            : scene?.endFrameImageUrl || undefined;
-        })()}
-      />
-
-      {/* Quad Grid Result Dialog */}
-      <QuadGridResultDialog
-        open={quadGridResultOpen}
-        onOpenChange={setQuadGridResultOpen}
-        result={quadGridResult}
-        frameType={quadGridTarget?.type || "start"}
-        currentSceneId={quadGridTarget?.sceneId ?? 0}
-        availableScenes={splitScenes.map(s => ({ id: s.id, label: `分镜 ${s.id + 1}` }))}
-        onApply={handleApplyQuadGrid}
-        onCopyToScene={handleCopyQuadGridToScene}
+      <StoryboardGenerationDialogs
+        controller={storyboardUi}
+        scenes={splitScenes}
+        onGenerateAngle={handleAngleSwitchGenerate}
+        onApplyAngle={handleApplyAngleSwitch}
+        onGenerateGrid={handleQuadGridGenerate}
+        onApplyGrid={handleApplyQuadGrid}
+        onCopyGridToScene={handleCopyQuadGridToScene}
       />
 
       {/* 视频延长/编辑对话框 */}
@@ -3851,4 +3160,3 @@ export function SClassScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
     </div>
   );
 }
-

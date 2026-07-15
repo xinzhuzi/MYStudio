@@ -8,7 +8,13 @@ import {
 import { useCharacterLibraryStore } from "@/stores/character-library-store";
 import { usePropsLibraryStore } from "@/stores/props-library-store";
 import { useSceneStore } from "@/stores/scene-store";
+import type { StoryboardItem } from "@/types/studio";
 import { useStudioStore } from "./studio-store";
+import {
+  approvedVisualReview,
+  visualContinuityFingerprint,
+  visualReviewInputFingerprint,
+} from "@/lib/studio/visual-continuity";
 
 afterEach(() => {
   useStudioStore.getState().resetStudioWorkflow();
@@ -22,6 +28,137 @@ afterEach(() => {
 });
 
 describe("studio workflow store", () => {
+  it("persists project-level continuity asset versions without sharing reference arrays", () => {
+    const versions = [{
+      assetId: "char-dugu",
+      versionId: "char-dugu:grey-town:v1",
+      assetKind: "character" as const,
+      label: "灰衫入镇态",
+      referenceImagePaths: ["/dugu/front.png", "/dugu/three-quarter.png", "/dugu/full-body.png"],
+      wardrobeVersion: "grey-town",
+      approved: true,
+      source: "project-character-bible",
+    }];
+
+    useStudioStore.getState().replaceContinuityAssetVersions(versions);
+    versions[0]!.referenceImagePaths.push("/dugu/late-mutation.png");
+
+    expect(useStudioStore.getState().continuityAssetVersions).toEqual([{
+      ...versions[0],
+      referenceImagePaths: ["/dugu/front.png", "/dugu/three-quarter.png", "/dugu/full-body.png"],
+    }]);
+  });
+
+  it("persists continuity contracts and marks downstream shots stale after an upstream change", () => {
+    const store = useStudioStore.getState();
+    for (const index of [1, 2, 3]) {
+      const storyboard: StoryboardItem = {
+        id: `continuity-${index}`,
+        episodeId: "chapter-001",
+        index,
+        trackKey: "dock",
+        trackId: "",
+        duration: 4,
+        prompt: `码头镜头 ${index}`,
+        videoDesc: `码头镜头 ${index}`,
+        assetIds: ["scene:dock"],
+        state: "ready",
+        orderedReferenceManifest: [{
+          order: 1,
+          assetId: "scene:dock",
+          versionId: "dock:morning",
+          imagePath: "/dock.png",
+          referenceRole: "scene-viewpoint" as const,
+          approved: true,
+        }],
+        continuityState: {
+          groupId: "dock",
+          previousStoryboardId: index > 1 ? `continuity-${index - 1}` : undefined,
+          sceneVersionId: "dock:morning",
+          sceneViewpointId: "dock:front",
+          lighting: "冷青晨雾",
+          palette: "墨青灰蓝",
+          actionIn: index > 1 ? "承接前镜" : "建立场景",
+          actionOut: "向右",
+          characters: [],
+          inputFingerprint: "",
+        },
+      };
+      storyboard.continuityState!.inputFingerprint = visualContinuityFingerprint(storyboard);
+      storyboard.visualReview = approvedVisualReview({
+        reviewedAt: 1,
+        evidencePaths: [`/reviews/continuity-${index}.png`],
+        sceneChecks: [{ sceneVersionId: "dock:morning", passed: true }],
+        transitionChecks: index > 1 ? [{ previousStoryboardId: `continuity-${index - 1}`, passed: true }] : [],
+        inputFingerprint: visualReviewInputFingerprint(storyboard),
+      });
+      store.addStoryboard(storyboard);
+    }
+
+    useStudioStore.getState().updateStoryboard("continuity-1", { prompt: "码头镜头一已调整" });
+    const storyboards = useStudioStore.getState().storyboards;
+    expect(storyboards[0]?.continuityState?.sceneVersionId).toBe("dock:morning");
+    expect(storyboards[1]).toMatchObject({ stale: true, visualReview: { status: "pending" } });
+    expect(storyboards[2]?.stale).toBe(true);
+  });
+
+  it("requires the dedicated human review action and invalidates approval after output changes", () => {
+    const id = useStudioStore.getState().addStoryboard({
+      id: "review-1",
+      episodeId: "chapter-001",
+      index: 1,
+      prompt: "审核镜头",
+      mediaRef: { kind: "image", path: "/frames/review-1.png" },
+      orderedReferenceManifest: [{
+        order: 1,
+        assetId: "scene:dock",
+        versionId: "dock:morning",
+        imagePath: "/dock.png",
+        referenceRole: "scene-viewpoint",
+        approved: true,
+      }],
+      continuityState: {
+        groupId: "dock",
+        sceneVersionId: "dock:morning",
+        sceneViewpointId: "dock:front",
+        lighting: "冷青晨雾",
+        palette: "墨青灰蓝",
+        actionIn: "建立场景",
+        actionOut: "向右",
+        characters: [],
+        inputFingerprint: "",
+      },
+    });
+    const initial = useStudioStore.getState().storyboards.find((item) => item.id === id)!;
+    useStudioStore.getState().updateStoryboard(id, {
+      visualReview: approvedVisualReview({
+        evidencePaths: ["/reviews/fake.png"],
+        sceneChecks: [{ sceneVersionId: "dock:morning", passed: true }],
+        inputFingerprint: visualReviewInputFingerprint(initial),
+      }),
+    });
+    expect(useStudioStore.getState().storyboards.find((item) => item.id === id)?.visualReview).toBeUndefined();
+
+    useStudioStore.getState().reviewStoryboardHuman(id, {
+      status: "approved",
+      reasons: [],
+      characterChecks: [],
+      sceneChecks: [{ sceneVersionId: "dock:morning", passed: true }],
+      transitionChecks: [],
+      evidencePaths: ["/reviews/review-1.png"],
+      reviewedAt: 10,
+    });
+    expect(useStudioStore.getState().storyboards.find((item) => item.id === id)?.visualReview).toMatchObject({
+      status: "approved",
+      reviewer: "human",
+      reviewedAt: 10,
+    });
+
+    useStudioStore.getState().bindStoryboardMedia(id, { kind: "image", path: "/frames/review-1-v2.png" });
+    expect(useStudioStore.getState().storyboards.find((item) => item.id === id)?.visualReview).toMatchObject({
+      status: "pending",
+    });
+  });
   it("persists agent run lifecycle evidence and creates retry runs", () => {
     const store = useStudioStore.getState();
 

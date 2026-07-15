@@ -16,7 +16,9 @@ Questions to answer:
 - How do you share stateful logic?
 -->
 
-(To be filled by the team)
+Hooks encapsulate reusable renderer state, browser/Electron integration, and
+feature actions. They use the `use` prefix and return typed values or a stable
+action object.
 
 ---
 
@@ -24,7 +26,13 @@ Questions to answer:
 
 <!-- How to create and structure custom hooks -->
 
-(To be filled by the team)
+- Use `useMemo` for deterministic derived values and `useEffect` only for real
+  external synchronization.
+- Capture external identifiers before the first `await` when project switching
+  could create a race.
+- Clean up subscriptions, timers, object URLs, and event listeners.
+- Keep pure parsing and transformation logic in `lib/` so it can be tested
+  without React.
 
 ---
 
@@ -32,7 +40,10 @@ Questions to answer:
 
 <!-- How data fetching is handled (React Query, SWR, etc.) -->
 
-(To be filled by the team)
+The project does not use a general server-state library. Hooks call typed AI,
+preload, or storage adapters and expose explicit loading/error state. Reuse the
+existing retry, rate-limit, diagnostics, and task-polling helpers instead of
+creating local fetch loops.
 
 ---
 
@@ -40,7 +51,11 @@ Questions to answer:
 
 <!-- Hook naming rules (use*, etc.) -->
 
-(To be filled by the team)
+- Hook names begin with `use`; action collections commonly end in `Actions`.
+- Event callbacks exposed to components use `on...` or an imperative verb such
+  as `generate`, `save`, or `retry`.
+- Files follow the local kebab-case convention, for example
+  `use-resolved-image-url.ts`.
 
 ---
 
@@ -48,4 +63,8 @@ Questions to answer:
 
 <!-- Hook-related mistakes your team has made -->
 
-(To be filled by the team)
+- Suppressing dependency problems instead of making captured values stable.
+- Performing the same domain transformation in a hook and a store.
+- Updating the currently active project after an awaited operation without
+  confirming it is still the project that started the operation.
+- Leaving Electron listeners registered after unmount.

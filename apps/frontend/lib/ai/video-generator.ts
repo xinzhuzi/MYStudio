@@ -6,6 +6,7 @@ import { uploadToImageHost, isImageHostConfigured } from "@/lib/image-host";
 import { saveVideoToLocal, readImageAsBase64 } from "@/lib/image-storage";
 import { useAPIConfigStore } from "@/stores/api-config-store";
 import { retryOperation } from "@/lib/utils/retry";
+import { toRunwayRatio, toSoraSize } from "@/lib/ai/video-request-sizing";
 
 function normalizeUrl(url: unknown): string | undefined {
   if (!url) return undefined;
@@ -504,21 +505,6 @@ export async function callVideoGenerationApi(
 // ==================== 视频统一格式 (grok/veo/luma/runway/海螺/即梦/doubao-seedance/wan2.6/vidu 等) ====================
 // MemeFast 文档: POST /v1/video/generations (primary) + /v1/video/create (fallback)
 //             GET  /v1/video/generations/{id} (primary) + /v1/video/query?id= (fallback)
-
-/**
- * Convert aspect ratio string to Runway pixel-format ratio (e.g. '16:9' → '1280:720')
- */
-function toRunwayRatio(aspectRatio: string): string {
-  const map: Record<string, string> = {
-    '16:9': '1280:720',
-    '9:16': '720:1280',
-    '1:1':  '720:720',
-    '4:3':  '960:720',
-    '3:4':  '720:960',
-    '21:9': '2048:880',
-  };
-  return map[aspectRatio] ?? aspectRatio;
-}
 
 /**
  * Extract video URL from various response formats
@@ -1123,16 +1109,6 @@ async function callKlingVideoApi(
 
 // ==================== OpenAI 官方视频格式 (sora-2) ====================
 // MemeFast: POST /v1/videos (FormData) + GET /v1/videos/{taskId}
-
-/**
- * Convert aspect ratio + resolution to Sora pixel size (e.g. '1280x720')
- */
-function toSoraSize(aspectRatio?: string, resolution?: string): string {
-  const isPortrait = aspectRatio === '9:16' || aspectRatio === '3:4';
-  const is1080 = (resolution || '').toLowerCase().includes('1080');
-  if (is1080) return isPortrait ? '1080x1920' : '1920x1080';
-  return isPortrait ? '720x1280' : '1280x720';
-}
 
 async function callOpenAIOfficialVideoApi(
   apiKey: string,

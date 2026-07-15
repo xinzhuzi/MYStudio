@@ -65,16 +65,27 @@
 
 ## Acceptance Criteria
 
-- [ ] AC1: 用 2 镜和 43 镜两个源分镜表 fixture 证明生成数量随源片段变化，且无生产代码固定判断 43。
-- [ ] AC2: `mystudio-voiceover-writer` 通过 skill frontmatter/结构验证，并明确 R2/R6/R8 的边界。
-- [ ] AC3: 单元测试证明已绑定角色重跑 profile/path 不变，未绑定角色只创建一次 binding，缺 profile/文件时失败且不改绑。
-- [ ] AC4: 单元测试证明旁白和角色 speakerId 均按 R3 解析，未知或冲突 alias 被阻断。
-- [ ] AC5: 单元/集成测试证明每镜口播契约完整，`speakerVoiceMap` 覆盖所有 speaker，真实音频数等于分镜数。
-- [ ] AC6: 产品界面存在可执行的一键入口；运行状态、失败原因和最终 MP4 路径可见，且调用共享生产契约。
-- [ ] AC7: `cd apps && npm run typecheck && npm run lint && npm test` 全部通过。
-- [ ] AC8: `cd apps && npm run build:mac && npm run smoke:desktop && npm run smoke:installed` 全部通过。
-- [ ] AC9: 连续两次真实 `npm run video:daojie:chapter001` 均成功，第二次所有固定 `profileId`/参考音频路径与第一次一致。
-- [ ] AC10: 最终报告满足动态分镜等式、逐镜口播/音频、`ttsMocked=false`、禁止 fallback、时长上限和 `finalVideoEvidence.sha256`。
+- [x] AC1: 用 2 镜和 43 镜两个源分镜表 fixture 证明生成数量随源片段变化，且无生产代码固定判断 43。
+- [x] AC2: `mystudio-voiceover-writer` 通过 skill frontmatter/结构验证，并明确 R2/R6/R8 的边界。
+- [x] AC3: 单元测试证明已绑定角色重跑 profile/path 不变，未绑定角色只创建一次 binding，缺 profile/文件时失败且不改绑。
+- [x] AC4: 单元测试证明旁白和角色 speakerId 均按 R3 解析，未知或冲突 alias 被阻断。
+- [x] AC5: 单元/集成测试证明每镜口播契约完整，`speakerVoiceMap` 覆盖所有 speaker，真实音频数等于分镜数。
+- [x] AC6: 产品界面存在可执行的一键入口；运行状态、失败原因和最终 MP4 路径可见，且调用共享生产契约。
+- [x] AC7: `cd apps && npm run typecheck && npm run lint && npm test` 全部通过。
+- [x] AC8: `cd apps && npm run build:mac && npm run smoke:desktop && npm run smoke:installed` 全部通过。
+- [x] AC9: 连续两次真实 `npm run video:daojie:chapter001` 均成功，第二次所有固定 `profileId`/参考音频路径与第一次一致。
+- [x] AC10: 最终报告满足动态分镜等式、逐镜口播/音频、`ttsMocked=false`、禁止 fallback、时长上限和 `finalVideoEvidence.sha256`。
+
+## Verification evidence (2026-07-14)
+
+- AC1-AC6 focused gate: 8 test files / 136 tests passed, covering dynamic storyboard fixtures, canonical speaker resolution, fixed binding reuse/failure, voiceover completeness, one-click orchestration, readiness, persistence, and build-script probes.
+- AC2 skill gate: `quick_validate.py .agents/skills/mystudio-voiceover-writer` returned `Skill is valid!`.
+- AC7 full gate: typecheck and lint passed; full Vitest passed with 114 files / 672 tests.
+- AC8 fresh gate: `build:mac`, packaged `smoke:desktop`, and installed `smoke:installed` passed. The installed smoke report has `ok=true`, uses `/Applications/漫影工作室.app/Contents/MacOS/漫影工作室`, and records DOM visual fallback after screenshot timeout. Packaged and installed `app.asar` SHA-256 both equal `ea1f1bc71fceb48214e2a5a5997ebf0ceddc770fc722ea57939b71f1859a3cec`.
+- AC9 fresh two-run gate: both current-code runs succeeded while reusing the existing 43 real storyboard images. Both reports have binding fingerprint `05ea07c6dbef5cf2f82c9b959faa1a75a9886db0f443fe9b8d09f8b947ada460`; all 12 canonical speakers have identical `profileId`, reference audio path, and resolved reference path; second-run bindings are all `match=fixed` with zero AI-selected bindings.
+- AC10 fresh report gate: `storyboards=43`, `storyboardSourceSegments=43`, `voiceoverManifest=43`, `audioCount=43`, every voiceover item is complete, `ttsMocked=false`, `ttsMode=local-tts-direct`, no forbidden fallback, audio/video streams are present, duration is `172.291016` seconds, and final SHA-256 is `42273db5aa84621862174168cc1c57e96646132194fb4427d47ef17065e300a8`.
+- Fresh report snapshots: `apps/output/automation/daojie-chapter001-video-report.current-run1-20260714-034009.json` and `apps/output/automation/daojie-chapter001-video-report.current-run2-20260714-034515.json`.
+- Temporary Agnes provider check: `https://fuhuaedu.com/v1/models` returned HTTP 200 and exposed `agnes-image-2.1-flash`; a one-image compatibility request through `generate-storyboard-image.mjs` returned a valid HTTP image URL. The key and provider were not persisted to the repository or application settings.
 
 ## Out of scope
 

@@ -5,6 +5,10 @@ import { tmpdir } from "node:os";
 import { dirname, resolve } from "node:path";
 import { PNG } from "pngjs";
 import { terminateSpawnedApp } from "./smoke-process-lifecycle.mjs";
+import {
+  hasMYStudioForegroundViolation,
+  sampleFrontmostApplication,
+} from "./smoke-focus.mjs";
 
 const appBinCandidates = [
   process.env.MYSTUDIO_SMOKE_APP_BIN,
@@ -53,6 +57,7 @@ const runStepwiseWorkflowSmoke =
   process.env.MYSTUDIO_SMOKE_WORKFLOW_STEPWISE === "1";
 const skipPrekill = process.env.MYSTUDIO_SMOKE_SKIP_PREKILL === "1";
 const foregroundSmoke = process.env.MYSTUDIO_SMOKE_FOREGROUND === "1";
+const smokeMode = foregroundSmoke ? "visible" : "background";
 const keepSmokeAppOpen = process.env.MYSTUDIO_SMOKE_KEEP_OPEN === "1";
 const parsedForegroundHoldMs = Number(
   process.env.MYSTUDIO_SMOKE_HOLD_MS || (foregroundSmoke ? 5_000 : 0),
@@ -173,6 +178,7 @@ function writeSmokeReport(report) {
         appBin,
         userDataDir,
         debugPort,
+        mode: smokeMode,
         runStepwiseWorkflowSmoke,
         ...report,
       },
@@ -413,7 +419,7 @@ async function inspectPage(pageTarget) {
     await send("Log.enable");
     await send("Network.enable");
     await send("Page.enable");
-    await send("Page.bringToFront");
+    if (foregroundSmoke) await send("Page.bringToFront");
     await new Promise((resolveDelay) => setTimeout(resolveDelay, 4_000));
 
     const evaluate = async (
@@ -459,6 +465,8 @@ async function inspectPage(pageTarget) {
         document.body.innerText.includes('剧情产物生成') ||
         document.body.innerText.includes('风格与导演选择'),
       hasWhiteBody: bodyBg === 'rgb(255, 255, 255)' || bodyBg === 'white',
+      visibilityState: document.visibilityState,
+      documentHasFocus: document.hasFocus(),
     }), 1500));
   })()`,
       "initial project entry check",
@@ -628,7 +636,7 @@ async function verifyWorkflowStages(evaluate) {
         requiredText: ['自动排版'],
         forbiddenText: ['分镜表与分镜视频生成', '运行 AI 分镜计划', '添加分镜', '生成配音', '试听配音', '进入待处理阶段'],
       },
-      { id: 'workbench', label: '视频工作台', requiredText: ['导出成片'] },
+      { id: 'workbench', label: '视频工作台', requiredText: ['一键成片', '旧拼接导出'] },
     ];
 
     const results = [];
@@ -931,6 +939,8 @@ async function verifyWorkflowEndToEnd(evaluate) {
       .map((texts) => texts.join(' / '));
     const bodyText = document.body.innerText;
     const inspectResult = await window.mystudioWorkflowSmoke?.inspectWorkflow?.();
+    const editingEvidence = inspectResult?.workflowParityReport?.video || null;
+    const evidenceBoundary = inspectResult?.workflowParityReport?.evidenceBoundary || null;
     const derivativeAssetNamesReady = ['独孤剑尘', '落魄江湖客', '矿场', '低机位推进', '断剑', '断剑破损版']
       .every((text) => assetsText.includes(text));
     const derivativeParentRefsReady = ['smoke-role-sword', 'smoke-scene-mine', 'smoke-prop-sword']
@@ -942,8 +952,16 @@ async function verifyWorkflowEndToEnd(evaluate) {
       clickedWorkflow,
       seedResult,
       inspectResult,
+      editingEvidence,
+      evidenceBoundary,
       hasReadyProgress: bodyText.includes('100%') || inspectResult?.progress === 100,
-      hasCompletedExport: bodyText.includes('已导出最终成片') || bodyText.includes('本地成片输出:') || Boolean(inspectResult?.checks?.hasFinalExport),
+      hasCompletedExport: Boolean(inspectResult?.checks?.hasFinalExport),
+      hasEditingProject: Boolean(editingEvidence?.currentEditingProjectId),
+      hasTimelineRenderRecord: Boolean(editingEvidence?.timelineRenderRecords > 0),
+      hasCompleteTimelineEvidence: Boolean(editingEvidence?.hasCompleteTimelineEvidence),
+      seededEditingEvidence: Boolean(inspectResult?.checks?.seededEditingEvidence && evidenceBoundary?.seededUiSmoke),
+      realMediaGeneration: evidenceBoundary?.realMediaGeneration === true,
+      doesNotClaimRealMediaGeneration: evidenceBoundary?.realMediaGeneration === false,
       hasSelectedCandidate: bodyText.includes('已选候选片段') || Boolean(inspectResult?.checks?.hasSelectedCandidate),
       hasVoiceFlow: bodyText.includes('已分配角色音色') || Boolean(inspectResult?.checks?.hasVoiceBinding),
       hasVoiceAudio: bodyText.includes('分镜配音已生成') || Boolean(inspectResult?.checks?.hasVoiceAudio),
@@ -1085,6 +1103,8 @@ async function verifyWorkflowStepByStepExecution(evaluate) {
       results,
       evidence: finalInspection?.evidence || [],
       checks: finalInspection?.checks || {},
+      editingEvidence: finalInspection?.workflowParityReport?.video || null,
+      evidenceBoundary: finalInspection?.workflowParityReport?.evidenceBoundary || null,
       bodyTextSample: document.body.innerText.slice(0, 1200),
     };
   })()`,
@@ -1562,6 +1582,7 @@ function assertHealthy(
   pythonSettings,
   screenshot,
   allowedErrors,
+  foregroundViolation,
 ) {
   const failures = [];
   if (state.readyState !== "complete")
@@ -1672,12 +1693,17 @@ function assertHealthy(
   }
   if (
     !workflowEndToEnd.hasCompletedExport ||
+    !workflowEndToEnd.hasEditingProject ||
+    !workflowEndToEnd.hasTimelineRenderRecord ||
+    !workflowEndToEnd.hasCompleteTimelineEvidence ||
+    !workflowEndToEnd.seededEditingEvidence ||
+    !workflowEndToEnd.doesNotClaimRealMediaGeneration ||
     !workflowEndToEnd.hasSelectedCandidate ||
     !workflowEndToEnd.hasVoiceFlow ||
     !workflowEndToEnd.hasVoiceAudio
   ) {
     failures.push(
-      "workflow end-to-end UI did not show export, selected candidate, voice binding, and voice audio completion",
+      "workflow end-to-end UI did not expose seeded EditingProject, current timeline evidence, selected candidate, voice binding, and voice audio completion",
     );
   }
   if (!workflowEndToEnd.hasNodeFlowDataPreview) {
@@ -1866,6 +1892,9 @@ function assertHealthy(
   }
   if (errors.length > 0)
     failures.push(`page reported ${errors.length} runtime/log error(s)`);
+  if (smokeMode === "background" && foregroundViolation) {
+    failures.push("background smoke brought MYStudio to the foreground");
+  }
 
   if (failures.length > 0) {
     console.error("Desktop smoke failed:");
@@ -1905,8 +1934,23 @@ function assertHealthy(
 stopExistingMYStudioInstances();
 prepareSmokeMedia();
 
-let smokeReport = null;
+const focusSamples = [];
+if (smokeMode === "background") {
+  focusSamples.push(sampleFrontmostApplication("before app launch"));
+}
+let smokeReport = {
+  mode: smokeMode,
+  focusSamples,
+  foregroundViolation: false,
+};
 let smokePassed = false;
+
+const childEnv = {
+  ...process.env,
+  ELECTRON_ENABLE_LOGGING: "1",
+  MYSTUDIO_SMOKE: "1",
+  MYSTUDIO_SMOKE_BACKGROUND: foregroundSmoke ? "0" : "1",
+};
 
 const child = spawn(
   appBin,
@@ -1914,7 +1958,7 @@ const child = spawn(
   {
     cwd: process.cwd(),
     detached: keepSmokeAppOpen,
-    env: { ...process.env, ELECTRON_ENABLE_LOGGING: "1", MYSTUDIO_SMOKE: "1" },
+    env: childEnv,
     stdio: ["ignore", "pipe", "pipe"],
   },
 );
@@ -1926,6 +1970,9 @@ child.stderr.on("data", forwardStderr);
 
 try {
   const page = await waitForPageTarget();
+  if (smokeMode === "background") {
+    focusSamples.push(sampleFrontmostApplication("after CDP target appeared"));
+  }
   bringSmokeAppToForeground(child);
   const {
     state,
@@ -1941,8 +1988,17 @@ try {
     pythonSettings,
     screenshot,
   } = await inspectPage(page);
+  if (smokeMode === "background") {
+    focusSamples.push(sampleFrontmostApplication("after desktop checks"));
+  }
+  const foregroundViolation = hasMYStudioForegroundViolation(focusSamples);
   smokeReport = {
     ok: true,
+    mode: smokeMode,
+    windowVisibility: state.visibilityState,
+    documentHasFocus: state.documentHasFocus,
+    focusSamples,
+    foregroundViolation,
     state,
     overviewWorkflow,
     routeChecks,
@@ -1969,6 +2025,7 @@ try {
     pythonSettings,
     screenshot,
     allowedErrors,
+    foregroundViolation,
   );
   smokePassed = true;
 } catch (error) {
@@ -1981,6 +2038,17 @@ try {
   process.exitCode = 1;
 } finally {
   try {
+    if (smokeMode === "background") {
+      focusSamples.push(sampleFrontmostApplication("before smoke report"));
+      smokeReport.focusSamples = focusSamples;
+      smokeReport.foregroundViolation = hasMYStudioForegroundViolation(focusSamples);
+      if (smokeReport.foregroundViolation) {
+        smokeReport.ok = false;
+        smokeReport.error = "background smoke brought MYStudio to the foreground";
+        smokePassed = false;
+        process.exitCode = 1;
+      }
+    }
     if (smokeReport) writeSmokeReport(smokeReport);
     if (smokePassed) await holdForegroundSmokeWindow();
   } finally {

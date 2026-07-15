@@ -11,16 +11,20 @@ import {
   type ChapterAutoVideoStatus,
 } from "@/lib/studio/chapter-auto-video";
 import {
-  probeProductionMedia,
-  runProductionEpisodeMerge,
   runProductionTrackRender,
 } from "@/lib/studio/production-runners";
+import {
+  buildChapterEditingProject,
+  createTimelineRenderRecord,
+  renderChapterEditingProject,
+} from "@/lib/studio/editing/chapter-editing-pipeline";
 import { runStoryboardTtsGeneration } from "@/lib/studio/storyboard-tts-runner";
 import {
   parseStoryboardTable,
   toStoryboardItems,
 } from "@/lib/studio/storyboard-table";
 import { useProjectStore } from "@/stores/project-store";
+import { useEditingStore } from "@/stores/editing-store";
 import { useStudioStore } from "@/stores/studio-store";
 import { useTtsStore } from "@/stores/tts-store";
 import type { StudioAssetSummary } from "@/types/studio-assets";
@@ -265,19 +269,94 @@ export function useChapterAutoVideoActions({
               throw error;
             }
           },
-          mergeEpisode: async (candidates) => {
-            const result = await runProductionEpisodeMerge({ candidates });
+          createEditingProject: async (storyboards) => {
+            const studio = useStudioStore.getState();
+            const projectState = useProjectStore.getState();
+            const editingState = useEditingStore.getState();
+            if (editingState.activeProjectId !== activeProjectId) {
+              editingState.setActiveProjectId(activeProjectId);
+            }
+            const now = Date.now;
+            const result = await buildChapterEditingProject({
+              projectId: activeProjectId,
+              episodeId,
+              projectName: projectState.activeProject?.name ?? "漫影工作室",
+              aspectRatio:
+                studio.seriesBible?.aspectRatio ??
+                studio.workflowConfig.platformSpec,
+              directorPlan: studio.scriptPlans.find(
+                (plan) => plan.episodeId === episodeId,
+              ),
+              storyboards,
+              productionTracks: studio.productionTracks,
+              videoCandidates: studio.videoCandidates,
+              existingProjects: Object.values(editingState.editingProjects).filter(
+                (project) =>
+                  project.projectId === activeProjectId &&
+                  project.episodeId === episodeId,
+              ),
+              runId: uniqueId("auto-edit"),
+              editingProjectId: uniqueId(`editing-${episodeId}`),
+              now,
+              onRun: (run) => {
+                const saved = useEditingStore.getState().saveAutoEditingRun(run);
+                if (!saved.success) throw new Error(saved.issue.message);
+              },
+            });
             assertProjectStillActive();
-            return result.filePath;
+            if (!result.success) {
+              throw new Error(result.run.error ?? "一键剪辑失败");
+            }
+            const committed = useEditingStore.getState().commitAutoEditingResult(
+              result.result,
+              result.staleEditingProjectIds,
+              now(),
+            );
+            if (!committed.success) throw new Error(committed.issue.message);
+            return (
+              useEditingStore.getState().editingProjects[
+                committed.editingProjectId
+              ] ?? result.result.project
+            );
           },
-          probeFinalMedia: (filePath) =>
-            probeProductionMedia({ filePath }),
-          writeFinalEvidence: (filePath, evidence) => {
+          renderEditingProject: async (project) => {
+            const renderer = window.studioRenderer;
+            if (!renderer?.renderTimeline) {
+              throw new Error("时间线渲染接口仅在桌面应用中可用");
+            }
+            const result = await renderChapterEditingProject({
+              project,
+              jobId: uniqueId("timeline-render"),
+              createdAt: Date.now(),
+              render: (plan) => renderer.renderTimeline(plan),
+            });
             assertProjectStillActive();
+            if (!result.success) throw new Error(result.error);
+            return result.evidence;
+          },
+          writeFinalEvidence: (project, evidence) => {
+            assertProjectStillActive();
+            const record = createTimelineRenderRecord(
+              project,
+              evidence,
+              Date.now(),
+            );
+            if (!record.success) {
+              throw new Error(
+                record.issues.map((issue) => issue.message).join("；"),
+              );
+            }
+            const saved = useEditingStore
+              .getState()
+              .saveTimelineRenderRecord(record.value);
+            if (!saved.success) throw new Error(saved.issue.message);
             useStudioStore.getState().saveAgentWorkData(
               "productionPlan",
               [
-                `本地成片输出: ${filePath}`,
+                `时间线成片输出: ${evidence.path}`,
+                `EditingProject: ${project.id}@${project.revision}`,
+                `TimelineRenderJob: ${evidence.jobId}`,
+                `本地成片输出: ${evidence.path}`,
                 `媒体证据: ${JSON.stringify(evidence)}`,
               ].join("\n"),
               episodeId,
@@ -311,4 +390,8 @@ export function useChapterAutoVideoActions({
     handleRunChapterAutoVideo,
     handleOpenFinalVideo,
   };
+}
+
+function uniqueId(prefix: string) {
+  return `${prefix}-${crypto.randomUUID()}`;
 }

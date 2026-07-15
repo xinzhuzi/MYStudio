@@ -1830,7 +1830,8 @@ describe("workflow stage action surfaces", () => {
     expect(screen.getByText("添加 track")).toBeTruthy();
     expect(screen.getByText("生成提示词")).toBeTruthy();
     expect(screen.getByText("生成视频")).toBeTruthy();
-    expect(screen.getByRole("button", { name: /导出成片/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "一键成片" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "旧拼接导出" })).toBeTruthy();
     expect(screen.queryByText("本地合成")).toBeNull();
   });
 
@@ -1937,7 +1938,7 @@ describe("workflow stage action surfaces", () => {
       />,
     );
 
-    expect(screen.getByRole("button", { name: /导出成片/ })).toHaveProperty(
+    expect(screen.getByRole("button", { name: "旧拼接导出" })).toHaveProperty(
       "disabled",
       true,
     );

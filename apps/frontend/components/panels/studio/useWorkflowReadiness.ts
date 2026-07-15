@@ -4,10 +4,17 @@ import {
   type WorkflowReadinessInput,
 } from "@/lib/studio/workflow-readiness";
 import { useTtsStore } from "@/stores/tts-store";
+import { useEditingStore } from "@/stores/editing-store";
 
 type WorkflowReadinessHookInput = Omit<
   WorkflowReadinessInput,
-  "voiceBindings" | "sceneVoiceLines" | "capabilities" | "fileExists"
+  | "voiceBindings"
+  | "sceneVoiceLines"
+  | "capabilities"
+  | "fileExists"
+  | "editingProjects"
+  | "currentEditingProjectIdByEpisode"
+  | "timelineRenderRecordsByEditingProjectId"
 >;
 
 export function useWorkflowReadiness({
@@ -20,9 +27,17 @@ export function useWorkflowReadiness({
   storyboards,
   productionTracks,
   videoCandidates,
+  episodeId,
 }: WorkflowReadinessHookInput) {
   const ttsProjectForReadiness = useTtsStore((s) =>
     s.activeProjectId ? s.projects[s.activeProjectId] : undefined,
+  );
+  const editingProjects = useEditingStore((state) => state.editingProjects);
+  const currentEditingProjectIdByEpisode = useEditingStore(
+    (state) => state.currentEditingProjectIdByEpisode,
+  );
+  const timelineRenderRecordsByEditingProjectId = useEditingStore(
+    (state) => state.timelineRenderRecordsByEditingProjectId,
   );
 
   return useMemo(
@@ -37,6 +52,10 @@ export function useWorkflowReadiness({
         storyboards,
         productionTracks,
         videoCandidates,
+        episodeId,
+        editingProjects,
+        currentEditingProjectIdByEpisode,
+        timelineRenderRecordsByEditingProjectId,
         voiceBindings: Object.values(ttsProjectForReadiness?.bindings ?? {}),
         sceneVoiceLines: Object.values(
           ttsProjectForReadiness?.voiceLines ?? {},
@@ -49,6 +68,9 @@ export function useWorkflowReadiness({
     [
       agentWorkData,
       entityExtractions,
+      editingProjects,
+      currentEditingProjectIdByEpisode,
+      episodeId,
       novelChapters,
       productionTracks,
       scriptPlans,
@@ -56,6 +78,7 @@ export function useWorkflowReadiness({
       storyboards,
       ttsProjectForReadiness?.bindings,
       ttsProjectForReadiness?.voiceLines,
+      timelineRenderRecordsByEditingProjectId,
       videoCandidates,
       workflowConfig,
     ],

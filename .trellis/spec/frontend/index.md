@@ -6,7 +6,8 @@
 
 ## Overview
 
-This directory contains guidelines for frontend development. Fill in each file with your project's specific conventions.
+These guidelines cover the React renderer, Zustand stores, shared TypeScript
+contracts, and Electron main/preload boundary under `apps/frontend/`.
 
 ---
 
@@ -14,13 +15,18 @@ This directory contains guidelines for frontend development. Fill in each file w
 
 | Guide | Description | Status |
 |-------|-------------|--------|
-| [Directory Structure](./directory-structure.md) | Module organization and file layout | To fill |
-| [Component Guidelines](./component-guidelines.md) | Component patterns, props, composition | To fill |
-| [Hook Guidelines](./hook-guidelines.md) | Custom hooks, data fetching patterns | To fill |
-| [State Management](./state-management.md) | Local state, global state, server state | To fill |
-| [Quality Guidelines](./quality-guidelines.md) | Code standards, forbidden patterns | To fill |
-| [Type Safety](./type-safety.md) | Type patterns, validation | To fill |
+| [Directory Structure](./directory-structure.md) | Module organization and file layout | Complete |
+| [Component Guidelines](./component-guidelines.md) | Components, props, styling, accessibility | Complete |
+| [Hook Guidelines](./hook-guidelines.md) | Custom hooks and async boundaries | Complete |
+| [State Management](./state-management.md) | Zustand and project-scoped persistence | Complete |
+| [Quality Guidelines](./quality-guidelines.md) | Static, unit, and smoke verification | Complete |
+| [Type Safety](./type-safety.md) | Shared contracts and runtime validation | Complete |
+| [Provider Integration](./provider-integration.md) | OpenAI-compatible model validation and GPT Image request contracts | Complete |
 | [Workflow Auto-Video Smoke](./workflow-auto-video-smoke.md) | Real Daojie clone, one-click MP4, report, and safety contracts | Complete |
+| [Editing Timeline Rendering](./timeline-rendering.md) | EditingProject compilation, typed IPC, FFmpeg execution, cancellation, and evidence | Complete |
+| [Editing Workbench](./editing-workbench.md) | Four-zone editing UI, project-scoped draft actions, command controls, and typed rendering entry | Complete |
+| [Editing Audio And Subtitles](./editing-audio-subtitles.md) | Audio commands, deterministic BGM ducking, subtitle exchange, and waveform preview | Complete |
+| [Editing AI Proposals And Effects](./editing-ai-effects.md) | Proposal state machine, honest preview, typed effect validation, and deterministic FFmpeg mappings | Complete |
 
 ---
 

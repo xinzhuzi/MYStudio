@@ -60,6 +60,10 @@ export function useStudioViewModel() {
   const productionEpisodeId = resolveProductionEpisodeId(
     useStudioStore.getState(),
   );
+  const directorPlan = scriptPlans.find(
+    (item) => item.episodeId === productionEpisodeId,
+  );
+  const aspectRatio = seriesBible?.aspectRatio ?? workflowConfig.platformSpec;
   const workflowReadiness = useWorkflowReadiness({
     workflowConfig,
     novelChapters,
@@ -70,6 +74,7 @@ export function useStudioViewModel() {
     storyboards,
     productionTracks,
     videoCandidates,
+    episodeId: productionEpisodeId,
   });
   const productionFlowModel = useProductionFlowModel({
     agentWorkData,
@@ -217,7 +222,10 @@ export function useStudioViewModel() {
     productionEpisodeId,
     scriptPlanCount: scriptPlans.length,
     hasSeriesBible: Boolean(seriesBible),
+    projectId: activeProject?.id,
     projectName,
+    directorPlan,
+    aspectRatio,
     productionFlowNodes: productionFlowModel.nodes,
     openNodeEditor,
     handleProductionNodeAction,

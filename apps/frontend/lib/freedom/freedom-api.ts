@@ -10,7 +10,6 @@
 
 import {
   getAllFeatureConfigs,
-  getFeatureConfig,
   getFeatureNotConfiguredMessage,
   type FeatureConfig,
 } from '@/lib/ai/feature-router';
@@ -23,16 +22,41 @@ import {
   sdkGenerateImage,
 } from '@/lib/ai/ai-sdk-bridge';
 import { createOperationId, logEvent } from '@/lib/diagnostics/logger';
-import { observedFetch, type ObservedFetchMeta } from '@/lib/diagnostics/network';
-import { resolveImageApiFormat } from '@/lib/api-key-manager';
-import { uploadBase64Image } from '@/lib/utils/image-upload';
 import { isVeoModel, resolveVeoUploadCapability } from '@/lib/freedom/veo-capability';
-import { type AIFeature, useAPIConfigStore } from '@/stores/api-config-store';
+import { useAPIConfigStore } from '@/stores/api-config-store';
 import { useAppSettingsStore } from '@/stores/app-settings-store';
 import { useMediaStore } from '@/stores/media-store';
 import { useProjectStore } from '@/stores/project-store';
-import { DEFAULT_IMAGE_ASPECT_RATIO, getImageSizeLabel } from '@/lib/ai/image-size-presets';
+import { getImageSizeLabel } from '@/lib/ai/image-size-presets';
+import { toRunwayRatio, toSoraSize, toVeoOpenAIVideoSize } from '@/lib/ai/video-request-sizing';
 import { toast } from 'sonner';
+import { freedomRetry } from './freedom-retry';
+import {
+  groupVideoUploadFiles,
+  validateVeoVideoUploads,
+  type FreedomVideoUploadFile,
+} from './video-upload-validation';
+import {
+  buildFreedomEndpoint as buildEndpoint,
+  extractFreedomImageUrl as extractImageUrl,
+  extractFreedomVideoUrl as extractVideoUrl,
+  freedomObservedFetch,
+  getFreedomRootBaseUrl as getRootBaseUrl,
+  pollForFreedomResult as pollForResult,
+  toUploadBlob,
+  toUploadHttpUrl,
+} from './freedom-transport';
+import {
+  DEFAULT_IMAGE_ENDPOINT,
+  detectFreedomImageRoute,
+  detectFreedomVideoRoute,
+  getImageEndpointPaths,
+  getUnifiedEndpointPaths,
+  resolveFreedomFeatureConfig,
+} from './freedom-routing';
+import { generateFreedomImageViaChat } from './freedom-image-chat';
+
+export type { FreedomVideoUploadFile, FreedomVideoUploadRole } from './video-upload-validation';
 
 // ==================== Types ====================
 
@@ -47,15 +71,6 @@ export interface FreedomImageParams {
   referenceImages?: string[];
   extraParams?: Record<string, any>;
   signal?: AbortSignal;
-}
-
-export type FreedomVideoUploadRole = 'single' | 'first' | 'last' | 'reference';
-
-export interface FreedomVideoUploadFile {
-  role: FreedomVideoUploadRole;
-  dataUrl: string;
-  fileName?: string;
-  mimeType?: string;
 }
 
 export interface FreedomVideoParams {
@@ -81,81 +96,7 @@ const VIDEO_POLL_INTERVAL = 2000;
 const VIDEO_POLL_MAX_ATTEMPTS = 120;
 const IMAGE_COMPATIBILITY_PROMPT_LIMIT = 180;
 
-// Retry config
-const RETRY_MAX_ATTEMPTS = 3;
-const RETRY_BASE_DELAY = 3000;
-
-function inferFreedomEndpointFamily(input: RequestInfo | URL) {
-  const raw = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
-  try {
-    const parsed = new URL(raw, 'http://local');
-    const path = parsed.pathname.toLowerCase();
-    if (path.includes('chat/completions')) return 'freedom-chat-completions';
-    if (path.includes('image') || path.includes('mj/') || path.includes('replicate')) return 'freedom-image';
-    if (path.includes('video') || path.includes('generations') || path.includes('tasks')) return 'freedom-video';
-    if (path.includes('upload')) return 'freedom-upload';
-  } catch {
-    // data URLs and relative proxy URLs still get a generic family.
-  }
-  return 'freedom-network';
-}
-
-function freedomObservedFetch(
-  input: RequestInfo | URL,
-  init?: RequestInit,
-  meta?: Partial<ObservedFetchMeta>,
-) {
-  const { endpointFamily, ...restMeta } = meta ?? {};
-  return observedFetch(input, init, {
-    operationId: createOperationId('freedom-http'),
-    endpointFamily: endpointFamily ?? inferFreedomEndpointFamily(input),
-    ...restMeta,
-      });
-}
-
 // ==================== Retry Logic ====================
-
-/**
- * Check if an error is retryable (rate limit / service unavailable / upstream overload)
- */
-function isRetryableError(error: unknown): boolean {
-  if (!error) return false;
-  const err = error as any;
-  if (err.name === 'AbortError') return false;
-  if (err.status === 429 || err.status === 500 || err.status === 502 || err.status === 503 || err.status === 529) return true;
-  if (err.code === 429 || err.code === 500 || err.code === 502 || err.code === 503 || err.code === 529) return true;
-  const message = (err.message || '').toLowerCase();
-  return (
-    message.includes('429') ||
-    message.includes('500') ||
-    message.includes('502') ||
-    message.includes('503') ||
-    message.includes('529') ||
-    message.includes('rate') ||
-    message.includes('quota') ||
-    message.includes('insufficient_user_quota') ||
-    message.includes('额度不足') ||
-    message.includes('余额不足') ||
-    message.includes('未配置订阅') ||
-    message.includes('invalid token') ||
-    message.includes('unauthorized') ||
-    message.includes('api key') ||
-    message.includes('too many requests') ||
-    message.includes('service unavailable') ||
-    message.includes('temporarily unavailable') ||
-    message.includes('internal server error') ||
-    message.includes('overloaded') ||
-    message.includes('上游负载') ||
-    message.includes('上游服务') ||
-    message.includes('饱和') ||
-    message.includes('负载已满') ||
-    message.includes('暂时不可用') ||
-    message.includes('服务暂时不可用') ||
-    message.includes('无可用渠道') ||
-    message.includes('no available channel') ||
-    message.includes('server error')
-  );
-}
 
 function shouldRetryImageCompatibility(result: { error?: string; status?: number }) {
   if (typeof result.status === 'number') {
@@ -198,190 +139,6 @@ function buildCompatibilityImagePrompt(prompt: string) {
   }).prompt;
 }
 
-/**
- * Retry an operation with exponential backoff for retryable errors.
- * 支持 keyManager：遇到可重试错误时先触发 key 轮换，下次重试自动使用新 key。
- */
-async function freedomRetry<T>(
-  operation: () => Promise<T>,
-  label: string,
-  keyManager?: { handleError: (status: number, errorText?: string) => boolean } | null,
-): Promise<T> {
-  let lastError: Error | undefined;
-  for (let attempt = 0; attempt < RETRY_MAX_ATTEMPTS; attempt++) {
-    try {
-      return await operation();
-    } catch (error) {
-      lastError = error as Error;
-      if (!isRetryableError(error)) throw error;
-      // 模型/provider 不支持的错误不重试，直接抛出让外层 fallback
-      const errMsg = ((error as any)?.message || '').toLowerCase();
-      if (errMsg.includes('unknown provider') || errMsg.includes('not supported') || errMsg.includes('does not exist') || errMsg.includes('model not found')) {
-        throw error;
-      }
-
-      // 触发 key 轮换（如果有 keyManager）
-      const errStatus = (error as any)?.status;
-      if (keyManager && typeof errStatus === 'number') {
-        const rotated = keyManager.handleError(errStatus, (error as any)?.message);
-        if (rotated) {
-          console.log(`[Freedom] ${label}: key rotated due to ${errStatus}`);
-        }
-      }
-
-      if (attempt < RETRY_MAX_ATTEMPTS - 1) {
-        const delay = RETRY_BASE_DELAY * Math.pow(2, attempt);
-        console.warn(
-          `[Freedom] ${label} hit retryable error, retrying in ${delay}ms... ` +
-          `(Attempt ${attempt + 1}/${RETRY_MAX_ATTEMPTS}): ${lastError.message}`
-        );
-        await new Promise(resolve => setTimeout(resolve, delay));
-      }
-    }
-  }
-  throw lastError;
-}
-
-// ==================== Helpers: Endpoint Building ====================
-
-function buildEndpoint(baseUrl: string, path: string): string {
-  const normalized = baseUrl.replace(/\/+$/, '');
-  return /\/v\d+$/.test(normalized) ? `${normalized}/${path}` : `${normalized}/v1/${path}`;
-}
-
-function getRootBaseUrl(baseUrl: string): string {
-  const normalized = baseUrl.replace(/\/+$/, '');
-  return normalized.replace(/\/v\d+$/, '');
-}
-
-function pickFeatureConfig(feature: AIFeature, requestedModel?: string): FeatureConfig | null {
-  const all = getAllFeatureConfigs(feature);
-  if (all.length === 0) return null;
-  if (requestedModel) {
-    const exact = all.find((c) => c.model === requestedModel);
-    if (exact) return exact;
-    // UI 展开的变体模型（如 gemini-3.1-pro 从绑定的 gemini-3-pro 展开而来）不会
-    // 精确匹配到任何 config.model，此时回退到轮询配置而非返回 null，
-    // 避免用户选了可用变体却报"未配置"错误
-  }
-  return getFeatureConfig(feature) ?? all[0];
-}
-
-function resolveFreedomFeatureConfig(
-  feature: 'freedom_image' | 'freedom_video',
-  fallback: 'character_generation' | 'video_generation',
-  requestedModel?: string,
-): { config: FeatureConfig | null; source: string } {
-  const primary = pickFeatureConfig(feature, requestedModel);
-  if (primary) return { config: primary, source: feature };
-
-  const fb = pickFeatureConfig(fallback, requestedModel);
-  if (fb) return { config: fb, source: `${fallback} (fallback)` };
-
-  return { config: null, source: feature };
-}
-
-type FreedomImageRoute = 'midjourney' | 'ideogram' | 'kling_image' | 'openai_chat' | 'openai_images' | 'replicate';
-
-function detectFreedomImageRoute(model: string, endpointTypes?: string[]): FreedomImageRoute {
-  const lower = model.toLowerCase();
-  const hasEndpoint = (re: RegExp) => (endpointTypes || []).some((t) => re.test(t));
-  const hasExactEndpoint = (name: string) => (endpointTypes || []).includes(name);
-
-  if (/^mj_/i.test(model) || /midjourney/i.test(model) || /^niji-/i.test(model) || hasEndpoint(/midjourney/i)) {
-    return 'midjourney';
-  }
-  if (/^ideogram_/i.test(model)) {
-    return 'ideogram';
-  }
-  // Kling image: 模型名检测 + 端点元数据检测
-  if (/^kling-(image|omni-image)/i.test(model) || hasExactEndpoint('kling生图') || hasExactEndpoint('omni-image') || hasExactEndpoint('文生图')) {
-    return 'kling_image';
-  }
-
-  // Replicate: endpoint type uses '{org}/{model}异步' pattern (contains '/' before '异步')
-  if ((endpointTypes || []).some(t => t.includes('/') && t.endsWith('异步'))) {
-    return 'replicate';
-  }
-
-  const baseRoute = resolveImageApiFormat(endpointTypes, model);
-  return baseRoute === 'openai_chat' ? 'openai_chat' : 'openai_images';
-}
-
-type FreedomVideoRoute = 'openai_official' | 'unified' | 'volc' | 'wan' | 'kling' | 'replicate';
-
-const FREEDOM_VIDEO_ROUTE_MAP: Record<string, FreedomVideoRoute> = {
-  'openAI官方视频格式': 'openai_official',
-  'openAI视频格式': 'openai_official',
-  '豆包视频异步': 'volc',  // doubao-seedance uses /volc/v1/contents/generations/tasks
-  '异步': 'wan',
-  '文生视频': 'kling',
-  '图生视频': 'kling',
-  '视频延长': 'kling',
-  'omni-video': 'kling',
-  '动作控制': 'kling',
-  '多模态视频编辑': 'kling',
-  '数字人': 'kling',
-  '对口型': 'kling',
-  '视频特效': 'kling',
-  'openai': 'unified', // 某些自定义供应商把视频模型标为通用 openai
-  '视频统一格式': 'unified',
-  'grok视频': 'unified',
-  'openai-response': 'unified',
-  '海螺视频生成': 'unified',
-  'luma视频生成': 'unified',
-  'luma视频扩展': 'unified',
-  'runway图生视频': 'unified',
-  'aigc-video': 'unified',
-  'wan视频生成': 'unified',  // wan2.6 models use memefast /v1/video/generations
-  // Vidu endpoint types (all route to unified /v1/video/generations)
-  'vidu文生视频': 'unified',
-  'vidu图生视频': 'unified',
-  'vidu参考生视频': 'unified',
-  'vidu首尾帧': 'unified',
-  'luma视频延长': 'unified',  // luma extend uses 延长 (file 04 naming)
-};
-
-/**
- * 统一格式端点路径映射（端点类型 → 提交/轮询 URL 路径）
- * 每种端点类型直接对应确定的 URL，不再靠 fallback 猜测
- */
-const UNIFIED_ENDPOINT_PATHS: Record<string, { submit: string; poll: (id: string) => string }> = {
-  // 路径均为域名根起的绝对路径（不依赖 /v1/ 前缀拼接）
-  'grok视频':     { submit: '/v1/video/create',      poll: (id) => `/v1/video/query?id=${id}` },
-  '视频统一格式': { submit: '/v1/video/create',      poll: (id) => `/v1/video/query?id=${id}` },
-  '海螺视频生成': { submit: '/minimax/v1/video_generation', poll: (id) => `/minimax/v1/query/video_generation?task_id=${id}` },
-  'luma视频生成': { submit: '/luma/generations',            poll: (id) => `/luma/generations/${id}` },
-  'luma视频扩展': { submit: '/luma/generations',            poll: (id) => `/luma/generations/${id}` },
-  'luma视频延长': { submit: '/luma/generations',            poll: (id) => `/luma/generations/${id}` },
-  'runway图生视频': { submit: '/runwayml/v1/image_to_video', poll: (id) => `/runwayml/v1/tasks/${id}` },
-  'wan视频生成':    { submit: '/alibailian/api/v1/services/aigc/video-generation/video-synthesis', poll: (id) => `/alibailian/api/v1/tasks/${id}` },
-  'aigc-video':    { submit: '/tencent-vod/v1/aigc-video', poll: (id) => `/tencent-vod/v1/aigc-video/${id}` },
-  // Vidu 企业版端点 (/ent/v2/)
-  'vidu文生视频':   { submit: '/ent/v2/text2video',       poll: (id) => `/ent/v2/task?task_id=${id}` },
-  'vidu图生视频':   { submit: '/ent/v2/img2video',        poll: (id) => `/ent/v2/task?task_id=${id}` },
-  'vidu参考生视频': { submit: '/ent/v2/reference2video',  poll: (id) => `/ent/v2/task?task_id=${id}` },
-  'vidu首尾帧':     { submit: '/ent/v2/start-end2video',  poll: (id) => `/ent/v2/task?task_id=${id}` },
-};
-const DEFAULT_UNIFIED_ENDPOINT = { submit: '/v1/video/generations', poll: (id: string) => `/v1/video/generations/${id}` };
-
-/**
- * 图片端点路径映射（端点类型 → 提交/轮询 URL 路径）
- * 仅用于需要自定义路径的端点类型，其余走默认 /v1/images/generations
- */
-const IMAGE_ENDPOINT_PATHS: Record<string, { submit: string; poll: (id: string) => string }> = {
-  'aigc-image': { submit: '/tencent-vod/v1/aigc-image', poll: (id) => `/tencent-vod/v1/aigc-image/${id}` },
-  'vidu生图':   { submit: '/ent/v2/reference2image',    poll: (id) => `/ent/v2/task?task_id=${id}` },
-};
-const DEFAULT_IMAGE_ENDPOINT = { submit: '/v1/images/generations', poll: (id: string) => `/v1/images/generations/${id}` };
-
-function getImageEndpointPaths(endpointTypes: string[]): { submit: string; poll: (id: string) => string } {
-  for (const t of endpointTypes) {
-    if (IMAGE_ENDPOINT_PATHS[t]) return IMAGE_ENDPOINT_PATHS[t];
-  }
-  return DEFAULT_IMAGE_ENDPOINT;
-}
-
 function withGlobalImageSizeDefaults(params: FreedomImageParams): FreedomImageParams {
   const imageSettings = useAppSettingsStore.getState().imageGenerationSettings;
   return {
@@ -389,43 +146,6 @@ function withGlobalImageSizeDefaults(params: FreedomImageParams): FreedomImagePa
     aspectRatio: params.aspectRatio || imageSettings.defaultAspectRatio,
     resolution: params.resolution || imageSettings.defaultResolution,
   };
-}
-
-function getUnifiedEndpointPaths(endpointTypes: string[]): { submit: string; poll: (id: string) => string } {
-  for (const t of endpointTypes) {
-    if (UNIFIED_ENDPOINT_PATHS[t]) return UNIFIED_ENDPOINT_PATHS[t];
-  }
-  return DEFAULT_UNIFIED_ENDPOINT;
-}
-
-function detectFreedomVideoRoute(model: string, endpointTypes?: string[]): FreedomVideoRoute {
-  if (endpointTypes && endpointTypes.length > 0) {
-    // 优先级：官方 Sora -> Kling -> Volc -> Wan -> Replicate -> Unified
-    for (const t of endpointTypes) {
-      if (FREEDOM_VIDEO_ROUTE_MAP[t] === 'openai_official') return 'openai_official';
-    }
-    for (const t of endpointTypes) {
-      if (FREEDOM_VIDEO_ROUTE_MAP[t] === 'kling') return 'kling';
-    }
-    for (const t of endpointTypes) {
-      if (FREEDOM_VIDEO_ROUTE_MAP[t] === 'volc') return 'volc';
-    }
-    for (const t of endpointTypes) {
-      if (FREEDOM_VIDEO_ROUTE_MAP[t] === 'wan') return 'wan';
-    }
-    // Replicate: endpoint type uses '{org}/{model}异步' pattern (contains '/' before '异步')
-    if (endpointTypes.some(t => t.includes('/') && t.endsWith('异步'))) return 'replicate';
-    for (const t of endpointTypes) {
-      if (FREEDOM_VIDEO_ROUTE_MAP[t] === 'unified') return 'unified';
-    }
-  }
-
-  const m = model.toLowerCase();
-  if (m.includes('sora-2')) return 'openai_official';
-  if (m.includes('kling')) return 'kling';
-  if (m.includes('seedance') || m.includes('doubao')) return 'volc';
-  if (m.includes('wan')) return 'wan';
-  return 'unified';
 }
 
 // ==================== Image Generation ====================
@@ -523,7 +243,14 @@ async function _generateFreedomImageInner(
     return await generateViaIdeogramEndpoint(params, model, apiKey, normalizedBase);
   }
   if (route === 'openai_chat') {
-    return await generateViaChatCompletions(params, model, apiKey, normalizedBase, operationId);
+    return await generateFreedomImageViaChat(
+      params,
+      model,
+      apiKey,
+      normalizedBase,
+      (url, prompt) => saveToMediaLibrary(url, prompt, 'ai-image'),
+      operationId,
+    );
   }
   if (route === 'kling_image') {
     return await generateViaKlingImagesEndpoint(params, model, apiKey, normalizedBase);
@@ -532,97 +259,6 @@ async function _generateFreedomImageInner(
     return await generateViaReplicateImageEndpoint(params, model, apiKey, normalizedBase);
   }
   return await generateViaImagesEndpoint(params, model, apiKey, normalizedBase, endpointTypes, operationId, config.provider);
-}
-
-/**
- * Generate image via /v1/chat/completions (for Gemini, GPT-image, etc.)
- */
-async function generateViaChatCompletions(
-  params: FreedomImageParams,
-  model: string,
-  apiKey: string,
-  baseUrl: string,
-  operationId?: string,
-): Promise<GenerationResult> {
-  const endpoint = buildEndpoint(baseUrl, 'chat/completions');
-  const aspectRatio = params.aspectRatio || DEFAULT_IMAGE_ASPECT_RATIO;
-
-  const userContent: Array<{ type: string; text?: string; image_url?: { url: string } }> = [
-    { type: 'text', text: `Generate an image with aspect ratio ${aspectRatio}: ${params.prompt}` },
-  ];
-  for (const image of params.referenceImages ?? []) {
-    userContent.push({ type: 'image_url', image_url: { url: image } });
-  }
-
-  const requestBody = {
-    model,
-    messages: [{ role: 'user', content: userContent }],
-    max_tokens: 4096,
-  };
-
-  console.log('[Freedom] Submitting via chat completions:', { model, endpoint });
-
-  const response = await freedomObservedFetch(endpoint, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify(requestBody),
-    signal: params.signal,
-  }, { operationId, endpointFamily: 'freedom-chat-completions', model });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    let msg = `图片生成 API 错误: ${response.status}`;
-    try { const j = JSON.parse(errorText); msg = j.error?.message || msg; } catch {}
-    throw toHttpError(msg, response.status, errorText);
-  }
-
-  const data = await response.json();
-  const imageUrl = extractChatCompletionsImage(data);
-
-  if (!imageUrl) {
-    throw new Error('未能从聊天响应中提取图片 URL');
-  }
-
-  const mediaId = saveToMediaLibrary(imageUrl, params.prompt, 'ai-image');
-  return { url: imageUrl, mediaId };
-}
-
-/**
- * Extract image URL from chat completions response (multiple formats)
- */
-function extractChatCompletionsImage(data: any): string | null {
-  const choice = data.choices?.[0];
-  if (!choice) return null;
-
-  const message = choice.message;
-
-  // Format 1: content is array with image parts (OpenAI multimodal)
-  if (Array.isArray(message?.content)) {
-    for (const part of message.content) {
-      if (part.type === 'image_url' && part.image_url?.url) {
-        return part.image_url.url;
-      }
-      if (part.type === 'image' && part.image?.url) {
-        return part.image.url;
-      }
-      if (part.type === 'image' && part.data) {
-        return `data:image/png;base64,${part.data}`;
-      }
-    }
-  }
-
-  // Format 2: content is string with markdown image link or base64
-  if (typeof message?.content === 'string') {
-    const mdMatch = message.content.match(/!\[.*?\]\((https?:\/\/[^)]+)\)/);
-    if (mdMatch) return mdMatch[1];
-    const b64Match = message.content.match(/(data:image\/[^;]+;base64,[A-Za-z0-9+/=]+)/);
-    if (b64Match) return b64Match[1];
-  }
-
-  return null;
 }
 
 /**
@@ -1180,142 +816,6 @@ async function _generateFreedomVideoInner(
   return { ...result, mediaId };
 }
 
-/**
- * Convert aspect ratio string to Runway pixel-format ratio (e.g. '16:9' → '1280:720')
- */
-function toRunwayRatio(aspectRatio: string): string {
-  const map: Record<string, string> = {
-    '16:9': '1280:720',
-    '9:16': '720:1280',
-    '1:1':  '720:720',
-    '4:3':  '960:720',
-    '3:4':  '720:960',
-    '21:9': '2048:880',
-  };
-  return map[aspectRatio] ?? aspectRatio;
-}
-
-function toSoraSize(aspectRatio?: string, resolution?: string): string {
-  const isPortrait = aspectRatio === '9:16' || aspectRatio === '3:4';
-  const is1080 = (resolution || '').toLowerCase().includes('1080');
-  if (is1080) return isPortrait ? '1080x1920' : '1920x1080';
-  return isPortrait ? '720x1280' : '1280x720';
-}
-
-function toVeoOpenAIVideoSize(aspectRatio?: string): string {
-  const isPortrait = aspectRatio === '9:16' || aspectRatio === '3:4';
-  return isPortrait ? '1080x1920' : '1920x1080';
-}
-
-function groupVideoUploadFiles(uploadFiles?: FreedomVideoUploadFile[]) {
-  const grouped: {
-    single?: FreedomVideoUploadFile;
-    first?: FreedomVideoUploadFile;
-    last?: FreedomVideoUploadFile;
-    references: FreedomVideoUploadFile[];
-  } = { references: [] };
-
-  for (const file of uploadFiles || []) {
-    if (file.role === 'single' && !grouped.single) grouped.single = file;
-    if (file.role === 'first' && !grouped.first) grouped.first = file;
-    if (file.role === 'last' && !grouped.last) grouped.last = file;
-    if (file.role === 'reference') grouped.references.push(file);
-  }
-
-  return grouped;
-}
-
-function countVideoUploadFiles(grouped: ReturnType<typeof groupVideoUploadFiles>): number {
-  return (
-    (grouped.single ? 1 : 0) +
-    (grouped.first ? 1 : 0) +
-    (grouped.last ? 1 : 0) +
-    grouped.references.length
-  );
-}
-
-function validateVeoVideoUploads(
-  model: string,
-  endpointTypes: string[] | undefined,
-  uploadFiles?: FreedomVideoUploadFile[],
-): ReturnType<typeof groupVideoUploadFiles> {
-  const capability = resolveVeoUploadCapability(model, endpointTypes);
-  const grouped = groupVideoUploadFiles(uploadFiles);
-  const total = countVideoUploadFiles(grouped);
-
-  if (!capability.isVeo) return grouped;
-
-  if (capability.mode === 'none') {
-    if (total > 0) throw new Error(`模型 ${model} 不支持上传文件输入`);
-    return grouped;
-  }
-
-  if (capability.mode === 'single') {
-    const file = grouped.single || grouped.first;
-    if (capability.minFiles > 0 && !file) {
-      throw new Error(`模型 ${model} 需要上传 1 张图片`);
-    }
-    if (grouped.references.length > 0 || !!grouped.last || (!!grouped.single && !!grouped.first)) {
-      throw new Error(`模型 ${model} 仅支持 1 张图片输入`);
-    }
-    return grouped;
-  }
-
-  if (capability.mode === 'first_last') {
-    if (grouped.references.length > 0 || !!grouped.single) {
-      throw new Error(`模型 ${model} 仅支持首帧/尾帧输入`);
-    }
-    if (capability.minFiles > 0 && !grouped.first) {
-      throw new Error(`模型 ${model} 需要上传首帧图片`);
-    }
-    if (!grouped.first && grouped.last) {
-      throw new Error(`模型 ${model} 仅上传尾帧无效，请先上传首帧`);
-    }
-    if (total > capability.maxFiles) {
-      throw new Error(`模型 ${model} 最多支持 2 张图片（首帧/尾帧）`);
-    }
-    return grouped;
-  }
-
-  if (capability.mode === 'multi') {
-    if (!!grouped.single || !!grouped.first || !!grouped.last) {
-      throw new Error(`模型 ${model} 仅支持多参考图输入`);
-    }
-    if (grouped.references.length < capability.minFiles) {
-      throw new Error(`模型 ${model} 至少需要上传 1 张参考图`);
-    }
-    if (grouped.references.length > capability.maxFiles) {
-      throw new Error(`模型 ${model} 最多支持 ${capability.maxFiles} 张参考图`);
-    }
-    return grouped;
-  }
-
-  return grouped;
-}
-
-async function toUploadHttpUrl(file: FreedomVideoUploadFile): Promise<string> {
-  if (/^https?:\/\//i.test(file.dataUrl)) return file.dataUrl;
-  return uploadBase64Image(file.dataUrl);
-}
-
-function dataUrlToBlob(dataUrl: string, mimeHint?: string): Blob {
-  const match = dataUrl.match(/^data:(.*?);base64,(.*)$/);
-  if (!match) throw new Error('上传文件格式无效，必须是 data URL 或 http(s) URL');
-  const mime = match[1] || mimeHint || 'image/png';
-  const b64 = match[2];
-  const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
-  return new Blob([bytes], { type: mime });
-}
-
-async function toUploadBlob(file: FreedomVideoUploadFile): Promise<Blob> {
-  if (/^https?:\/\//i.test(file.dataUrl)) {
-    const resp = await freedomObservedFetch(file.dataUrl);
-    if (!resp.ok) throw new Error(`无法下载上传素材：${resp.status}`);
-    return resp.blob();
-  }
-  return dataUrlToBlob(file.dataUrl, file.mimeType);
-}
-
 async function appendVeoMultipartReferences(
   form: FormData,
   model: string,
@@ -1841,89 +1341,6 @@ async function generateVideoViaReplicate(
     }
   }
   throw new Error('Replicate 视频生成超时');
-}
-
-// ==================== Helpers ====================
-
-function extractImageUrl(data: any): string | null {
-  // Handle multiple response formats
-  if (data.data?.[0]?.url) return data.data[0].url;
-  if (data.data?.[0]?.b64_json) return `data:image/png;base64,${data.data[0].b64_json}`;
-  if (data.url) return data.url;
-  if (data.output?.url) return data.output.url;
-  // Replicate: output as direct string URL or array of URLs
-  if (typeof data.output === 'string' && data.output.startsWith('http')) return data.output;
-  if (Array.isArray(data.output) && typeof data.output[0] === 'string') return data.output[0];
-  if (data.outputs?.[0]) return data.outputs[0];
-  // Chat completions format
-  if (data.choices?.[0]?.message?.content) {
-    const content = data.choices[0].message.content;
-    const mdMatch = content.match(/!\[.*?\]\((https?:\/\/[^)]+)\)/);
-    if (mdMatch) return mdMatch[1];
-    if (content.startsWith('http')) return content.trim();
-  }
-  return null;
-}
-
-function extractVideoUrl(data: any): string | null {
-  if (data.data?.[0]?.url) return data.data[0].url;
-  if (data.url) return data.url;
-  if (data.output?.url) return data.output.url;
-  // Replicate: output as direct string URL or array of URLs (minimax/video-01, etc.)
-  if (typeof data.output === 'string' && data.output.startsWith('http')) return data.output;
-  if (Array.isArray(data.output) && typeof data.output[0] === 'string') return data.output[0];
-  if (data.outputs?.[0]) return data.outputs[0];
-  if (data.video_url) return data.video_url;
-  if (data.response?.url) return data.response.url;  // doubao, jimeng, grok, wan2.6
-  return null;
-}
-
-async function pollForResult(
-  pollUrl: string,
-  apiKey: string,
-  interval: number,
-  maxAttempts: number,
-  operationId?: string,
-  taskId?: string,
-): Promise<string | null> {
-  for (let i = 0; i < maxAttempts; i++) {
-    await new Promise(resolve => setTimeout(resolve, interval));
-
-    try {
-      const response = await freedomObservedFetch(pollUrl, {
-        headers: { 'Authorization': `Bearer ${apiKey}` },
-      }, {
-        operationId,
-        endpointFamily: inferFreedomEndpointFamily(pollUrl),
-        taskId,
-        pollAttempt: i + 1,
-        maxRetries: maxAttempts,
-      });
-
-      if (!response.ok) continue;
-
-      const data = await response.json();
-      const status = (data.status || data.state || '').toLowerCase();
-
-      // Check completion - triple status normalization from Higgsfield
-      if (status === 'completed' || status === 'succeeded' || status === 'success') {
-        return extractImageUrl(data) || extractVideoUrl(data);
-      }
-
-      // Check failure
-      if (status === 'failed' || status === 'error' || status === 'cancelled') {
-        throw new Error(`Generation failed: ${data.error || data.message || status}`);
-      }
-
-      // Still processing
-      console.log(`[Freedom] Polling attempt ${i + 1}/${maxAttempts}, status: ${status}`);
-    } catch (err: any) {
-      if (err.message?.startsWith('Generation failed')) throw err;
-      console.warn(`[Freedom] Poll error (attempt ${i + 1}):`, err.message);
-    }
-  }
-
-  return null;
 }
 
 function saveToMediaLibrary(

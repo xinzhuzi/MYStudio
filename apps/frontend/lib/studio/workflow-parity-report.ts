@@ -23,6 +23,8 @@ import {
   type ToonflowFixtureParityReport,
   type ToonflowFixtureStoryboardRow,
 } from "@/lib/studio/toonflow-fixture-parity";
+import type { EditingProjectV1, TimelineRenderRecord } from "@/types/editing";
+import { resolveWorkflowTimelineEvidence } from "@/lib/studio/workflow-readiness";
 
 const WORKFLOW_NODE_IDS = [
   "script",
@@ -64,6 +66,10 @@ export interface WorkflowParityReportInput extends StudioFlowDataInput {
   workflowConfig?: Pick<StudioWorkflowConfig, "visualManualId" | "directorManualId">;
   manualCatalog?: StudioManualCatalog;
   evidenceBoundary?: Partial<WorkflowParityEvidenceBoundary>;
+  episodeId?: string;
+  editingProjects?: Record<string, EditingProjectV1>;
+  currentEditingProjectIdByEpisode?: Record<string, string>;
+  timelineRenderRecordsByEditingProjectId?: Record<string, TimelineRenderRecord>;
 }
 
 export interface WorkflowParityReport {
@@ -128,7 +134,17 @@ export interface WorkflowParityReport {
     candidates: number;
     readyCandidates: number;
     selectedTracks: number;
+    editingProjects: number;
+    currentEditingProjectId?: string;
+    currentEditingRevision?: number;
+    editingProject?: EditingProjectV1;
+    timelineRenderRecords: number;
+    timelineRenderRecord?: TimelineRenderRecord;
+    completeTimelineEvidence: number;
+    hasCompleteTimelineEvidence: boolean;
     hasFinalExport: boolean;
+    hasLegacyCompatibilityExport: boolean;
+    legacyCompatibilityExport: boolean;
   };
   evidenceBoundary: WorkflowParityEvidenceBoundary;
   issues: WorkflowParityIssue[];
@@ -143,7 +159,7 @@ export function buildWorkflowParityReport(
   const skills = buildSkillReport(input.workflowConfig, input.manualCatalog);
   const images = buildImageReport(input.storyboards);
   const audio = buildAudioReport(input.storyboards);
-  const video = buildVideoReport(input.agentWorkData, input.productionTracks, input.videoCandidates);
+  const video = buildVideoReport(input);
   const agentEvidence = buildAgentEvidenceReport(input.agentRuns ?? []);
   const mediaTaskEvidence = buildMediaTaskEvidenceReport(input.mediaTasks ?? []);
   const toonflowFixture = input.toonflowFixtureRows
@@ -388,16 +404,35 @@ function buildAudioReport(storyboards: StoryboardItem[]): WorkflowParityReport["
 }
 
 function buildVideoReport(
-  agentWorkData: AgentWorkData[],
-  productionTracks: ProductionTrack[],
-  videoCandidates: VideoCandidate[],
+  input: WorkflowParityReportInput,
 ): WorkflowParityReport["video"] {
+  const editingProjects = Object.values(input.editingProjects ?? {}).filter(
+    (project) => !input.episodeId || project.episodeId === input.episodeId,
+  );
+  const editingProjectIds = new Set(editingProjects.map((project) => project.id));
+  const timelineRenderRecords = Object.values(
+    input.timelineRenderRecordsByEditingProjectId ?? {},
+  ).filter((record) => editingProjectIds.has(record.editingProjectId));
+  const timelineStatus = resolveWorkflowTimelineEvidence(
+    input,
+    input.fileExists,
+  );
   return {
-    tracks: productionTracks.length,
-    candidates: videoCandidates.length,
-    readyCandidates: videoCandidates.filter((item) => item.state === "ready" && item.filePath).length,
-    selectedTracks: productionTracks.filter((item) => Boolean(item.selectedVideoId)).length,
-    hasFinalExport: Boolean(parseFinalExportPath(agentWorkData)),
+    tracks: input.productionTracks.length,
+    candidates: input.videoCandidates.length,
+    readyCandidates: input.videoCandidates.filter((item) => item.state === "ready" && item.filePath).length,
+    selectedTracks: input.productionTracks.filter((item) => Boolean(item.selectedVideoId)).length,
+    editingProjects: editingProjects.length,
+    currentEditingProjectId: timelineStatus.project?.id,
+    currentEditingRevision: timelineStatus.project?.revision,
+    editingProject: timelineStatus.project,
+    timelineRenderRecords: timelineRenderRecords.length,
+    timelineRenderRecord: timelineStatus.record,
+    completeTimelineEvidence: timelineStatus.complete ? 1 : 0,
+    hasCompleteTimelineEvidence: timelineStatus.complete,
+    hasFinalExport: timelineStatus.complete,
+    hasLegacyCompatibilityExport: Boolean(parseFinalExportPath(input.agentWorkData)),
+    legacyCompatibilityExport: Boolean(parseFinalExportPath(input.agentWorkData)),
   };
 }
 
@@ -492,6 +527,8 @@ function buildIssues(
     audio.withAudioRef > 0 ||
     video.tracks > 0 ||
     video.candidates > 0 ||
+    video.editingProjects > 0 ||
+    video.timelineRenderRecords > 0 ||
     video.hasFinalExport;
 
   for (const node of nodes) {
@@ -574,6 +611,16 @@ function buildIssues(
       severity: "warning",
       code: "video.output.missing",
       message: "Workbench tracks exist without ready candidates or final export evidence.",
+    });
+  }
+  if (
+    (video.readyCandidates > 0 || video.hasLegacyCompatibilityExport) &&
+    !video.hasFinalExport
+  ) {
+    issues.push({
+      severity: "warning",
+      code: "video.timelineEvidence.missing",
+      message: "Workbench output lacks current revision-matched timeline render evidence.",
     });
   }
   if (toonflowFixture.enabled) {

@@ -50,8 +50,49 @@ describe("image standard request helpers", () => {
     expect(body.prompt).toEqual(expect.stringContaining("old laborer character"));
     expect(body.prompt).toEqual(expect.stringContaining("clean image"));
     expect(body.prompt).toEqual(expect.stringContaining("low visual noise"));
-    expect(body.negative_prompt).toEqual(expect.stringContaining("visual noise"));
-    expect(body.negative_prompt).toEqual(expect.stringContaining("dirty texture"));
+    expect(body.prompt).toEqual(expect.stringContaining("Negative constraints:"));
+    expect(body.prompt).toEqual(expect.stringContaining("visual noise"));
+    expect(body.prompt).toEqual(expect.stringContaining("dirty texture"));
+    expect(body).not.toHaveProperty("negative_prompt");
+    expect(body).not.toHaveProperty("aspect_ratio");
+    expect(body).not.toHaveProperty("resolution");
+  });
+
+  it("builds a raw GPT Image connectivity body without prompt enhancement", () => {
+    const { body } = buildOpenAIImageRequestBody({
+      model: "gpt-image-2",
+      prompt: "A simple blue circle centered on a plain white background.",
+      aspectRatio: "1:1",
+      resolution: "1K",
+      promptPolicy: "raw",
+    });
+
+    expect(body).toMatchObject({
+      model: "gpt-image-2",
+      prompt: "A simple blue circle centered on a plain white background.",
+      n: 1,
+      size: "1024x1024",
+    });
+    expect(body).not.toHaveProperty("negative_prompt");
+    expect(body).not.toHaveProperty("aspect_ratio");
+    expect(body).not.toHaveProperty("resolution");
+    expect(body).not.toHaveProperty("stream");
+  });
+
+  it("uses the OpenAI size contract for Agnes image models", () => {
+    const { body, templateName } = buildOpenAIImageRequestBody({
+      model: "agnes-image-2.1-flash",
+      prompt: "ink wash storyboard",
+      aspectRatio: "16:9",
+      resolution: "2K",
+    });
+
+    expect(templateName).toBe("openai-size");
+    expect(body).toMatchObject({
+      model: "agnes-image-2.1-flash",
+      n: 1,
+      size: "2048x1152",
+    });
     expect(body).not.toHaveProperty("aspect_ratio");
     expect(body).not.toHaveProperty("resolution");
   });

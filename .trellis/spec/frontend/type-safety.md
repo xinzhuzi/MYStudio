@@ -16,7 +16,10 @@ Questions to answer:
 - How do you handle type inference?
 -->
 
-(To be filled by the team)
+The renderer, Electron main/preload code, and tests use TypeScript with
+`strict: true`, bundler module resolution, and the `@/` path alias. The current
+configuration permits explicit `any`, but new boundary code should prefer
+`unknown` plus narrowing.
 
 ---
 
@@ -24,7 +27,16 @@ Questions to answer:
 
 <!-- Where types are defined, shared types vs local types -->
 
-(To be filled by the team)
+- Shared domain and bridge contracts belong in `apps/frontend/types/`.
+- Component-only props and small local state types stay beside the component.
+- Use discriminated unions for success/failure and workflow status contracts.
+- Import types with `import type` when no runtime value is required.
+
+```ts
+export type UpdateCheckResult =
+  | { success: true; hasUpdate: boolean }
+  | { success: false; error: string };
+```
 
 ---
 
@@ -32,7 +44,10 @@ Questions to answer:
 
 <!-- Runtime validation patterns (Zod, Yup, io-ts, etc.) -->
 
-(To be filled by the team)
+Validate external provider responses, persisted legacy data, and IPC payloads
+at their boundary. Reuse existing Zod schemas where present; otherwise use
+explicit type guards and normalization functions. A TypeScript assertion alone
+is not runtime validation.
 
 ---
 
@@ -40,7 +55,11 @@ Questions to answer:
 
 <!-- Type utilities, generics, type guards -->
 
-(To be filled by the team)
+- Model finite states as string-literal unions.
+- Use `Partial<T>` for narrow updates, not for complete persisted records.
+- Return `null` for an expected absence and throw/return an error result for a
+  failed operation; do not mix the meanings.
+- Normalize snake_case/camelCase compatibility at one boundary.
 
 ---
 
@@ -48,4 +67,8 @@ Questions to answer:
 
 <!-- any, type assertions, etc. -->
 
-(To be filled by the team)
+- Repeated local casts of the same raw IPC/provider payload.
+- Non-null assertions on files, DOM nodes, or store records that can disappear.
+- Adding an unchecked status string outside the canonical union.
+- Using `any` to bypass a boundary that can be represented by `unknown` and a
+  guard.

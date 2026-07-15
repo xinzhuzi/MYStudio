@@ -81,7 +81,7 @@ export function classifyModelByName(modelName: string): ModelCapability[] {
   const imageGenPatterns = [
     'dall-e', 'dalle', 'flux', 'midjourney', 'niji', 'imagen', 'cogview',
     'gpt-image', 'ideogram', 'sd3', 'stable-diffusion', 'sdxl',
-    'playground', 'recraft', 'kolors', 'seedream',
+    'playground', 'recraft', 'kolors', 'seedream', 'agnes-image', 'grok-imagine-image',
   ];
   if (imageGenPatterns.some(p => name.includes(p))) return ['image_generation'];
   // "xxx-image-preview" 类（如 gemini-3-pro-image-preview）

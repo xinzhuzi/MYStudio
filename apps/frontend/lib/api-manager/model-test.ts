@@ -208,16 +208,18 @@ function buildImageModelTestAttempts(
   },
 ): PreparedImageModelTestAttempt[] {
   const endpoint = buildOpenAICompatibleEndpoint(baseUrl, "images/generations");
-  const prompt = "API 连通性测试图";
+  const prompt = "A simple blue circle centered on a plain white background.";
   const openAIImageBody = buildOpenAIImageRequestBody({
     model,
     prompt,
+    promptPolicy: "raw",
     aspectRatio: imageSettings.defaultAspectRatio,
     resolution: imageSettings.defaultResolution,
   }).body;
   const providerExtensionBody = buildProviderExtensionImageRequestBody({
     model,
     prompt,
+    promptPolicy: "raw",
     aspectRatio: imageSettings.defaultAspectRatio,
     resolution: imageSettings.defaultResolution,
   }).body;
@@ -455,6 +457,7 @@ export async function runModelTestRequest(
           },
           model: payload.model,
           prompt: getStringField(attempt.body, "prompt", "API 连通性测试图"),
+          promptPolicy: "raw",
           aspectRatio: getStringField(attempt.body, "aspect_ratio", DEFAULT_IMAGE_ASPECT_RATIO),
           resolution: getStringField(attempt.body, "resolution", DEFAULT_IMAGE_RESOLUTION),
           width: getNumberField(attempt.body, "width"),

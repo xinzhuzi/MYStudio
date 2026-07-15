@@ -16,6 +16,12 @@ import type {
   DiagnosticsLogQueryResult,
 } from "./diagnostics";
 import type { EpisodeMergePlan, TrackRenderPlan } from "./studio";
+import type {
+  TimelineRenderCancelResult,
+  TimelineRenderPlan,
+  TimelineRenderProgress,
+  TimelineRenderResult,
+} from "./editing";
 import type { StudioAssetListRequest, StudioAssetListResponse, StudioAssetSummary } from "./studio-assets";
 import type {
   StudioVisualManualCreatePayload,
@@ -238,6 +244,11 @@ declare global {
         duration: number;
         streams: string[];
       }>;
+      renderTimeline: (plan: TimelineRenderPlan) => Promise<TimelineRenderResult>;
+      cancelTimelineRender: (jobId: string) => Promise<TimelineRenderCancelResult>;
+      onTimelineRenderProgress: (
+        listener: (progress: TimelineRenderProgress) => void,
+      ) => () => void;
     };
     studioAssets?: {
       saveMaterial: (payload: { name: string; bytes: ArrayBuffer }) => Promise<{

@@ -15,6 +15,12 @@ import {
 } from "@/lib/studio/novel";
 import { groupStoryboardsIntoTracks } from "@/lib/studio/production";
 import {
+  createHumanVisualReview,
+  markContinuityDependentsStale,
+  visualContinuityFingerprint,
+  visualReviewInputFingerprint,
+} from "@/lib/studio/visual-continuity";
+import {
   buildProjectEventGraph,
   projectEventGraphToMemoryRecords,
   retrieveProjectMemory,
@@ -26,10 +32,12 @@ import { useSceneStore } from "@/stores/scene-store";
 import type {
   AgentWorkData,
   AgentWorkKey,
+  ContinuityAssetVersion,
   EntityExtractionResult,
   EpisodeOutline,
   ImageWorkflowGraph,
   ImageWorkflowTarget,
+  HumanVisualReviewInput,
   MediaGenerationTask,
   MediaGenerationTaskKind,
   NovelChapter,
@@ -57,6 +65,7 @@ interface StudioWorkflowState {
   seriesBible: SeriesBible | null;
   episodeOutlines: EpisodeOutline[];
   storyboards: StoryboardItem[];
+  continuityAssetVersions: ContinuityAssetVersion[];
   productionTracks: ProductionTrack[];
   videoCandidates: VideoCandidate[];
   imageWorkflows: ImageWorkflowGraph[];
@@ -114,8 +123,10 @@ interface StudioWorkflowActions {
   saveSeriesBible: (bible: SeriesBible) => void;
   saveEpisodeOutline: (outline: EpisodeOutline) => void;
   addStoryboard: (item?: Partial<StoryboardItem>) => string;
+  replaceContinuityAssetVersions: (items: ContinuityAssetVersion[]) => void;
   replaceStoryboardsForEpisode: (episodeId: string, items: StoryboardItem[]) => void;
   updateStoryboard: (id: string, updates: Partial<StoryboardItem>) => void;
+  reviewStoryboardHuman: (id: string, review: HumanVisualReviewInput) => void;
   bindStoryboardMedia: (id: string, mediaRef: StoryboardMediaRef) => void;
   createImageWorkflow: (input?: Parameters<typeof createImageWorkflowGraph>[0]) => string;
   upsertImageWorkflow: (graph: ImageWorkflowGraph) => void;
@@ -144,6 +155,7 @@ const initialState: StudioWorkflowState = {
   seriesBible: null,
   episodeOutlines: [],
   storyboards: [],
+  continuityAssetVersions: [],
   productionTracks: [],
   videoCandidates: [],
   imageWorkflows: [],
@@ -525,6 +537,8 @@ export const useStudioStore = create<StudioWorkflowStore>()(
           shouldGenerateImage: item.shouldGenerateImage,
           sourceEvidence: item.sourceEvidence,
           orderedReferenceManifest: item.orderedReferenceManifest,
+          continuityState: item.continuityState,
+          visualReview: item.visualReview,
           audioRef: item.audioRef,
           state: item.state ?? "idle",
           reason: item.reason,
@@ -547,6 +561,15 @@ export const useStudioStore = create<StudioWorkflowStore>()(
         return id;
       },
 
+      replaceContinuityAssetVersions: (items) => {
+        set({
+          continuityAssetVersions: items.map((item) => ({
+            ...item,
+            referenceImagePaths: [...item.referenceImagePaths],
+          })),
+        });
+      },
+
       replaceStoryboardsForEpisode: (episodeId, items) => {
         set((state) => ({
           storyboards: [
@@ -563,12 +586,47 @@ export const useStudioStore = create<StudioWorkflowStore>()(
       },
 
       updateStoryboard: (id, updates) => {
+        const { visualReview: _ignoredVisualReview, ...safeUpdates } = updates;
+        if (Object.keys(safeUpdates).length === 0) return;
+        const previous = get().storyboards.find((item) => item.id === id);
+        const previousReviewFingerprint = previous ? visualReviewInputFingerprint(previous) : undefined;
         set((state) => ({
           storyboards: state.storyboards.map((item) =>
-            item.id === id ? mergeStoryboardReplacement(item, { ...item, ...updates }, "storyboard source changed") : item,
+            item.id === id ? mergeStoryboardReplacement(item, { ...item, ...safeUpdates }, "storyboard source changed") : item,
           ),
         }));
+        const current = get().storyboards.find((item) => item.id === id);
+        if (
+          previousReviewFingerprint
+          && current
+          && previousReviewFingerprint !== visualReviewInputFingerprint(current)
+        ) {
+          set((state) => ({
+            storyboards: markContinuityDependentsStale(
+              state.storyboards.map((item) => item.id === id && item.visualReview
+                ? {
+                    ...item,
+                    visualReview: {
+                      ...item.visualReview,
+                      status: "pending" as const,
+                      reasons: ["分镜画面或连续性输入已变化，必须重新审核"],
+                    },
+                  }
+                : item),
+              id,
+            ),
+          }));
+        }
         get().rebuildTracks();
+      },
+
+      reviewStoryboardHuman: (id, reviewInput) => {
+        const storyboard = get().storyboards.find((item) => item.id === id);
+        if (!storyboard) throw new Error(`分镜 ${id} 不存在`);
+        const visualReview = createHumanVisualReview(storyboard, reviewInput);
+        set((state) => ({
+          storyboards: state.storyboards.map((item) => item.id === id ? { ...item, visualReview } : item),
+        }));
       },
 
       bindStoryboardMedia: (id, mediaRef) => {
@@ -855,6 +913,7 @@ function migrateStudioWorkflowState(persistedState: unknown) {
     scriptPlans: state.scriptPlans ?? [],
     seriesBible: state.seriesBible ?? null,
     episodeOutlines: state.episodeOutlines ?? [],
+    continuityAssetVersions: state.continuityAssetVersions ?? [],
     imageWorkflows: state.imageWorkflows ?? [],
     agentRuns: state.agentRuns ?? [],
     mediaTasks: state.mediaTasks ?? [],
@@ -919,6 +978,10 @@ function storyboardSourceFingerprint(item: Partial<StoryboardItem>) {
     videoDesc: item.videoDesc,
     assetIds: item.assetIds ?? [],
     shouldGenerateImage: item.shouldGenerateImage,
+    orderedReferenceManifest: item.orderedReferenceManifest ?? [],
+    continuityState: item.continuityState
+      ? { ...item.continuityState, inputFingerprint: undefined }
+      : undefined,
     lines: item.lines,
     speakerId: item.speakerId,
   });

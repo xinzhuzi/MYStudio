@@ -6,6 +6,12 @@ import type { ModelTestRequest, ModelTestResult } from '../lib/api-manager/model
 import type { TextCompletionRequest, TextCompletionResult } from '../lib/api-manager/text-completion'
 import type { ImageRequestPayload, ImageRequestResult } from '../types/api-image-request'
 import type { DiagnosticsLogEntryInput, DiagnosticsLogQuery } from '../types/diagnostics'
+import type {
+  TimelineRenderCancelResult,
+  TimelineRenderPlan,
+  TimelineRenderProgress,
+  TimelineRenderResult,
+} from '../types/editing'
 import type { StudioVisualManualCreatePayload, StudioVisualManualImagesWritePayload, StudioVisualManualWritePayload } from '../types/studio-visual-manual'
 import type { TtsRuntimeCommandResult, TtsRuntimeConfig, TtsRuntimeStatus } from '../types/tts'
 import type { UpdateCheckOptions } from '../types/update'
@@ -177,6 +183,15 @@ contextBridge.exposeInMainWorld('studioRenderer', {
   renderTrackCandidate: (plan: unknown) => ipcRenderer.invoke('studio-render-track-candidate', plan),
   mergeEpisode: (plan: unknown) => ipcRenderer.invoke('studio-merge-episode', plan),
   probeMedia: (filePath: string) => ipcRenderer.invoke('studio-probe-media-evidence', filePath),
+  renderTimeline: (plan: TimelineRenderPlan): Promise<TimelineRenderResult> =>
+    ipcRenderer.invoke('studio-timeline-render', plan),
+  cancelTimelineRender: (jobId: string): Promise<TimelineRenderCancelResult> =>
+    ipcRenderer.invoke('studio-timeline-render-cancel', jobId),
+  onTimelineRenderProgress(listener: (progress: TimelineRenderProgress) => void) {
+    const wrapped = (_event: IpcRendererEvent, progress: TimelineRenderProgress) => listener(progress)
+    ipcRenderer.on('studio-timeline-render-progress', wrapped)
+    return () => ipcRenderer.removeListener('studio-timeline-render-progress', wrapped)
+  },
 })
 
 contextBridge.exposeInMainWorld('studioAssets', {

@@ -9,9 +9,11 @@ import type {
   ImageWorkflowAssetTargetType,
   ImageWorkflowTarget,
   AssetImageWorkflowContext,
+  CharacterReferenceViewType,
   StoryboardItem,
 } from "@/types/studio";
 import { useAppSettingsStore } from "@/stores/app-settings-store";
+import { buildContinuityPrompt } from "./visual-continuity";
 
 export interface CreateImageWorkflowGraphInput {
   id?: string;
@@ -29,6 +31,20 @@ export interface AddReferenceImageNodeInput {
   position: ImageWorkflowNodePosition;
   source?: ImageWorkflowTarget;
   notes?: string;
+  continuityOrder?: number;
+  continuityVersionId?: string;
+  referenceRole?: StoryboardItem["orderedReferenceManifest"] extends (infer T)[] | undefined
+    ? T extends { referenceRole?: infer R } ? R : never
+    : never;
+  identityAnchors?: StoryboardItem["orderedReferenceManifest"] extends (infer T)[] | undefined
+    ? T extends { identityAnchors?: infer R } ? R : never
+    : never;
+  negativePrompt?: StoryboardItem["orderedReferenceManifest"] extends (infer T)[] | undefined
+    ? T extends { negativePrompt?: infer R } ? R : never
+    : never;
+  wardrobeVersion?: string;
+  characterViewType?: CharacterReferenceViewType;
+  sceneViewpointId?: string;
   createdAt?: number;
 }
 
@@ -67,6 +83,19 @@ export interface ImageWorkflowGenerationRequest {
   resolution?: string;
   negativePrompt?: string;
   referenceImages: string[];
+  orderedReferenceManifest: {
+    order: number;
+    imageUrl: string;
+    versionId?: string;
+    referenceRole?: string;
+    identityAnchors?: StoryboardOrderedReferenceMetadata["identityAnchors"];
+    negativePrompt?: StoryboardOrderedReferenceMetadata["negativePrompt"];
+    wardrobeVersion?: string;
+    characterViewType?: CharacterReferenceViewType;
+    sceneViewpointId?: string;
+  }[];
+  continuityRequired: boolean;
+  previousApprovedFrameIncluded: boolean;
 }
 
 export interface StoryboardImageWorkflowReferenceInput {
@@ -75,7 +104,19 @@ export interface StoryboardImageWorkflowReferenceInput {
   title?: string;
   imageUrl: string;
   evidence?: string;
+  order?: number;
+  versionId?: string;
+  referenceRole?: StoryboardItem["orderedReferenceManifest"] extends (infer T)[] | undefined
+    ? T extends { referenceRole?: infer R } ? R : never
+    : never;
+  identityAnchors?: StoryboardOrderedReferenceMetadata["identityAnchors"];
+  negativePrompt?: StoryboardOrderedReferenceMetadata["negativePrompt"];
+  wardrobeVersion?: string;
+  characterViewType?: CharacterReferenceViewType;
+  sceneViewpointId?: string;
 }
+
+type StoryboardOrderedReferenceMetadata = NonNullable<StoryboardItem["orderedReferenceManifest"]>[number];
 
 export interface AssetImageWorkflowPatch {
   imageUrl: string;
@@ -299,7 +340,7 @@ export function createStoryboardImageWorkflowGraph({
   resolution,
   referenceImages = [],
 }: {
-  storyboard: Pick<StoryboardItem, "id" | "index" | "prompt">;
+  storyboard: Pick<StoryboardItem, "id" | "index" | "prompt" | "continuityState">;
   prompt: string;
   resultImagePath: string;
   projectName: string;
@@ -313,7 +354,16 @@ export function createStoryboardImageWorkflowGraph({
     target: { kind: "storyboard", id: storyboard.id },
   });
   const generatedNodeId = createId("gen");
-  referenceImages.forEach((reference, index) => {
+  const orderedReferences = [...referenceImages].sort(
+    (left, right) => (left.order ?? Number.MAX_SAFE_INTEGER) - (right.order ?? Number.MAX_SAFE_INTEGER),
+  );
+  const continuityPrompt = storyboard.continuityState
+    ? buildContinuityPrompt(storyboard.continuityState)
+    : "";
+  const finalPrompt = [prompt || storyboard.prompt, continuityPrompt]
+    .filter(Boolean)
+    .join(" ");
+  orderedReferences.forEach((reference, index) => {
     graph = addReferenceImageNode(graph, {
       id: createId(`ref-${index + 1}`),
       title: reference.title || `参考资产 ${index + 1}`,
@@ -324,13 +374,21 @@ export function createStoryboardImageWorkflowGraph({
         id: reference.assetId,
       },
       notes: reference.evidence,
+      continuityOrder: reference.order ?? index + 1,
+      continuityVersionId: reference.versionId,
+      referenceRole: reference.referenceRole,
+      identityAnchors: reference.identityAnchors,
+      negativePrompt: reference.negativePrompt,
+      wardrobeVersion: reference.wardrobeVersion,
+      characterViewType: reference.characterViewType,
+      sceneViewpointId: reference.sceneViewpointId,
       position: { x: 80, y: 80 + index * 180 },
     });
   });
   graph = addGeneratedImageNode(graph, {
     id: generatedNodeId,
     title: `分镜 ${storyboard.index} 成图`,
-    prompt: prompt || storyboard.prompt,
+    prompt: finalPrompt,
     model,
     aspectRatio: aspectRatio ?? useAppSettingsStore.getState().imageGenerationSettings.defaultAspectRatio,
     quality: "standard",
@@ -340,13 +398,13 @@ export function createStoryboardImageWorkflowGraph({
   graph = addPromptImageNode(graph, {
     id: createId("prompt"),
     title: "图片生成",
-    prompt: prompt || storyboard.prompt,
+    prompt: finalPrompt,
     model,
     aspectRatio: aspectRatio ?? useAppSettingsStore.getState().imageGenerationSettings.defaultAspectRatio,
     quality: "standard",
     resolution,
     targetNodeId: generatedNodeId,
-    position: { x: referenceImages.length ? 560 : 160, y: 500 },
+    position: { x: orderedReferences.length ? 560 : 160, y: 500 },
   });
   for (const reference of graph.nodes.filter((node) => node.type === "reference")) {
     graph = connectImageWorkflowNodes(graph, {
@@ -376,6 +434,14 @@ export function addReferenceImageNode(
     position: input.position,
     source: input.source,
     notes: input.notes,
+    continuityOrder: input.continuityOrder,
+    continuityVersionId: input.continuityVersionId,
+    referenceRole: input.referenceRole,
+    identityAnchors: input.identityAnchors,
+    negativePrompt: input.negativePrompt,
+    wardrobeVersion: input.wardrobeVersion,
+    characterViewType: input.characterViewType,
+    sceneViewpointId: input.sceneViewpointId,
     createdAt: now,
     updatedAt: now,
   };
@@ -518,25 +584,118 @@ export function buildImageWorkflowGenerationRequest(
   const node = getGeneratedNode(graph, nodeId);
   const promptNode = findPromptNodeForGenerated(graph, nodeId);
   const promptSource = promptNode ?? node;
-  const referenceImages = graph.edges
+  const connectedNodes = graph.edges
     .filter((edge) => edge.target === nodeId)
-    .map((edge) => graph.nodes.find((candidate) => candidate.id === edge.source))
-    .flatMap((candidate) => {
+    .map((edge) => graph.nodes.find((candidate) => candidate.id === edge.source));
+  const orderedReferenceNodes = connectedNodes
+    .filter((candidate): candidate is ImageWorkflowReferenceNode => candidate?.type === "reference" && Boolean(candidate.imageUrl))
+    .sort((left, right) => (left.continuityOrder ?? Number.MAX_SAFE_INTEGER) - (right.continuityOrder ?? Number.MAX_SAFE_INTEGER));
+  const orderedReferenceManifest: ImageWorkflowGenerationRequest["orderedReferenceManifest"] = connectedNodes
+    .flatMap((candidate): ImageWorkflowGenerationRequest["orderedReferenceManifest"] => {
       if (!candidate) return [];
-      if (candidate.type === "reference") return candidate.imageUrl ? [candidate.imageUrl] : [];
-      if (candidate.type === "generated") return candidate.resultUrl ? [candidate.resultUrl] : [];
+      if (candidate.type === "reference" && candidate.imageUrl) {
+        return [{
+          order: candidate.continuityOrder ?? Number.MAX_SAFE_INTEGER,
+          imageUrl: candidate.imageUrl,
+          versionId: candidate.continuityVersionId,
+          referenceRole: candidate.referenceRole,
+          identityAnchors: candidate.identityAnchors,
+          negativePrompt: candidate.negativePrompt,
+          wardrobeVersion: candidate.wardrobeVersion,
+          characterViewType: candidate.characterViewType,
+          sceneViewpointId: candidate.sceneViewpointId,
+        }];
+      }
+      if (candidate.type === "generated" && candidate.resultUrl) {
+        return [{
+          order: Number.MAX_SAFE_INTEGER,
+          imageUrl: candidate.resultUrl,
+          referenceRole: "previous-approved-frame" as const,
+        }];
+      }
       return [];
-    });
+    })
+    .sort((left, right) => left.order - right.order);
+  const referenceImages = orderedReferenceManifest.map((reference) => reference.imageUrl);
+  const continuityRequired = orderedReferenceManifest.some((reference) => Boolean(reference.versionId));
+  const referenceContract = buildReferenceContinuityContract(orderedReferenceNodes);
+  const basePrompt = promptSource.prompt.trim();
+  const prompt = referenceContract && !basePrompt.includes("【资产圣经】")
+    ? `${basePrompt} ${referenceContract}`.trim()
+    : basePrompt;
+  const negativePrompt = mergeReferenceNegativePrompt(promptSource.negativePrompt, orderedReferenceNodes);
 
   return {
-    prompt: promptSource.prompt.trim(),
+    prompt,
     model: promptSource.model,
     aspectRatio: promptSource.aspectRatio,
     quality: promptSource.quality,
     resolution: promptSource.resolution,
-    negativePrompt: promptSource.negativePrompt,
+    negativePrompt,
     referenceImages,
+    orderedReferenceManifest,
+    continuityRequired,
+    previousApprovedFrameIncluded: orderedReferenceManifest.some(
+      (reference) => reference.referenceRole === "previous-approved-frame",
+    ),
   };
+}
+
+function buildReferenceContinuityContract(references: ImageWorkflowReferenceNode[]): string {
+  const rules = references.flatMap((reference, index) => {
+    const marker = `@图${index + 1}`;
+    if (reference.source?.assetType === "character") {
+      const anchors = reference.identityAnchors;
+      const anchorParts = [
+        anchors?.faceShape,
+        anchors?.jawline,
+        anchors?.cheekbones,
+        anchors?.eyeShape,
+        anchors?.eyeDetails,
+        anchors?.noseShape,
+        anchors?.lipShape,
+        ...(anchors?.uniqueMarks ?? []),
+        anchors?.skinTexture,
+        anchors?.hairStyle,
+        anchors?.hairlineDetails,
+      ].filter((value): value is string => Boolean(value?.trim()));
+      const colorText = Object.entries(anchors?.colorAnchors ?? {})
+        .filter((entry): entry is [string, string] => Boolean(entry[1]))
+        .map(([key, value]) => `${key}:${value}`)
+        .join("、");
+      if (!anchorParts.length && !colorText && !reference.wardrobeVersion) return [];
+      return [`${marker}身份锚点：${anchorParts.join("；")}${colorText ? `；色彩锚点：${colorText}` : ""}${reference.wardrobeVersion ? `；服装版本：${reference.wardrobeVersion}` : ""}${reference.characterViewType ? `；角色视图：${reference.characterViewType}` : ""}`];
+    }
+    if (reference.source?.assetType === "scene" && reference.sceneViewpointId) {
+      return [`${marker}场景圣经：视角：${reference.sceneViewpointId}`];
+    }
+    return [];
+  });
+  return rules.length ? `【资产圣经】${rules.join(" ")}` : "";
+}
+
+function mergeReferenceNegativePrompt(
+  base: string | undefined,
+  references: ImageWorkflowReferenceNode[],
+): string | undefined {
+  const parts = [
+    base,
+    ...references.flatMap((reference) => [
+      ...(reference.negativePrompt?.avoid ?? []),
+      ...(reference.negativePrompt?.styleExclusions ?? []),
+    ]),
+  ].filter((value): value is string => Boolean(value?.trim()));
+  return parts.length ? [...new Set(parts)].join(", ") : undefined;
+}
+
+export function assertImageWorkflowContinuityCapability(request: ImageWorkflowGenerationRequest) {
+  if (!request.continuityRequired) return;
+  if (!request.model || !/(^|[-_:/])gpt[-_]?image/i.test(request.model)) {
+    throw new Error(`当前图片模型 ${request.model || "未配置"} 未通过多参考图连续性能力门禁`);
+  }
+  if (request.orderedReferenceManifest.some((reference, index) => reference.order !== index + 1)) {
+    throw new Error("连续性参考图顺序不连续");
+  }
 }
 
 export function setGeneratedImageStatus(

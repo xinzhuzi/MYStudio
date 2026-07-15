@@ -1,9 +1,14 @@
 import type {
+  EditingProjectV1,
+  TimelineRenderEvidence,
+} from "@/types/editing";
+import type {
   ProductionTrack,
   StoryboardItem,
   VideoCandidate,
 } from "@/types/studio";
 import type { TtsSpeakerId, VoiceProfile } from "@/types/tts";
+import { assertVisualContinuityApproved } from "./visual-continuity";
 
 export type ChapterAutoVideoStage =
   | "idle"
@@ -13,7 +18,9 @@ export type ChapterAutoVideoStage =
   | "tts"
   | "media"
   | "render"
-  | "merge"
+  | "editing"
+  | "rendering"
+  | "probing"
   | "completed"
   | "failed";
 
@@ -22,15 +29,6 @@ export interface ChapterAutoVideoStatus {
   detail: string;
   finalPath?: string;
   error?: string;
-}
-
-export interface ChapterFinalMediaEvidence {
-  path: string;
-  sizeBytes: number;
-  mtimeMs: number;
-  sha256: string;
-  duration: number;
-  streams: string[];
 }
 
 export interface ChapterAutoVideoDependencies {
@@ -61,11 +59,16 @@ export interface ChapterAutoVideoDependencies {
     track: ProductionTrack,
     storyboards: StoryboardItem[],
   ) => Promise<VideoCandidate>;
-  mergeEpisode: (candidates: VideoCandidate[]) => Promise<string>;
-  probeFinalMedia: (filePath: string) => Promise<ChapterFinalMediaEvidence>;
+  createEditingProject: (
+    storyboards: StoryboardItem[],
+    candidates: VideoCandidate[],
+  ) => Promise<EditingProjectV1>;
+  renderEditingProject: (
+    project: EditingProjectV1,
+  ) => Promise<TimelineRenderEvidence>;
   writeFinalEvidence: (
-    filePath: string,
-    evidence: ChapterFinalMediaEvidence,
+    project: EditingProjectV1,
+    evidence: TimelineRenderEvidence,
   ) => void;
 }
 
@@ -110,6 +113,81 @@ function auditVoiceoverStoryboards(
   return [...speakerIds].sort();
 }
 
+export interface PreparedChapterMedia {
+  storyboards: StoryboardItem[];
+}
+
+export async function prepareChapterMedia({
+  episodeId,
+  dependencies,
+  onStatus,
+}: {
+  episodeId: string;
+  dependencies: ChapterAutoVideoDependencies;
+  onStatus?: (status: ChapterAutoVideoStatus) => void;
+}): Promise<PreparedChapterMedia> {
+  emit(onStatus, { stage: "planning", detail: "复用或生成导演计划与动态分镜" });
+  await dependencies.ensurePlanning();
+
+  emit(onStatus, { stage: "voiceover", detail: "校验逐镜口播与 canonical speaker" });
+  let storyboards = dependencies.loadStoryboards();
+  const speakerIds = auditVoiceoverStoryboards(storyboards, episodeId);
+  storyboards = storyboards
+    .filter((item) => item.episodeId === episodeId)
+    .sort((left, right) => left.index - right.index);
+
+  emit(onStatus, { stage: "binding", detail: "复用固定音色并只补缺失 binding" });
+  const profiles = await dependencies.ensureFixedVoiceProfiles(storyboards);
+  for (const speakerId of speakerIds) {
+    if (!profiles[speakerId]) {
+      throw new Error(`speaker ${speakerId} 缺少固定 voice profile`);
+    }
+  }
+
+  emit(onStatus, { stage: "tts", detail: "生成或复用逐镜真实 TTS" });
+  for (const storyboard of storyboards) {
+    const existingAudioPath = storyboard.audioRef?.path;
+    if (
+      existingAudioPath
+      && (await dependencies.resolveMediaPath(existingAudioPath))
+    ) {
+      continue;
+    }
+    const profile = profiles[storyboard.speakerId!];
+    const generated = await dependencies.generateAudio(storyboard, profile);
+    if (!generated.audioRef?.path) {
+      throw new Error(`分镜 ${storyboard.id} TTS 未返回真实音频路径`);
+    }
+    dependencies.writeStoryboardAudio(storyboard.id, generated);
+  }
+
+  storyboards = dependencies
+    .loadStoryboards()
+    .filter((item) => item.episodeId === episodeId)
+    .sort((left, right) => left.index - right.index);
+  for (const storyboard of storyboards) {
+    if (
+      !storyboard.audioRef?.path
+      || !(await dependencies.resolveMediaPath(storyboard.audioRef.path))
+    ) {
+      throw new Error(`分镜 ${storyboard.id} 缺少可读真实音频`);
+    }
+  }
+
+  emit(onStatus, { stage: "media", detail: "校验全部分镜画面媒体" });
+  assertVisualContinuityApproved(storyboards);
+  for (const storyboard of storyboards) {
+    if (
+      !storyboard.mediaRef?.path
+      || !(await dependencies.resolveMediaPath(storyboard.mediaRef.path))
+    ) {
+      throw new Error(`分镜 ${storyboard.id} 缺少可读分镜图，已停止成片`);
+    }
+  }
+
+  return { storyboards };
+}
+
 export async function runChapterAutoVideo({
   episodeId,
   dependencies,
@@ -120,63 +198,11 @@ export async function runChapterAutoVideo({
   onStatus?: (status: ChapterAutoVideoStatus) => void;
 }) {
   try {
-    emit(onStatus, { stage: "planning", detail: "复用或生成导演计划与动态分镜" });
-    await dependencies.ensurePlanning();
-
-    emit(onStatus, { stage: "voiceover", detail: "校验逐镜口播与 canonical speaker" });
-    let storyboards = dependencies.loadStoryboards();
-    const speakerIds = auditVoiceoverStoryboards(storyboards, episodeId);
-    storyboards = storyboards
-      .filter((item) => item.episodeId === episodeId)
-      .sort((left, right) => left.index - right.index);
-
-    emit(onStatus, { stage: "binding", detail: "复用固定音色并只补缺失 binding" });
-    const profiles = await dependencies.ensureFixedVoiceProfiles(storyboards);
-    for (const speakerId of speakerIds) {
-      if (!profiles[speakerId]) {
-        throw new Error(`speaker ${speakerId} 缺少固定 voice profile`);
-      }
-    }
-
-    emit(onStatus, { stage: "tts", detail: "生成或复用逐镜真实 TTS" });
-    for (const storyboard of storyboards) {
-      const existingAudioPath = storyboard.audioRef?.path;
-      if (
-        existingAudioPath
-        && (await dependencies.resolveMediaPath(existingAudioPath))
-      ) {
-        continue;
-      }
-      const profile = profiles[storyboard.speakerId!];
-      const generated = await dependencies.generateAudio(storyboard, profile);
-      if (!generated.audioRef?.path) {
-        throw new Error(`分镜 ${storyboard.id} TTS 未返回真实音频路径`);
-      }
-      dependencies.writeStoryboardAudio(storyboard.id, generated);
-    }
-
-    storyboards = dependencies
-      .loadStoryboards()
-      .filter((item) => item.episodeId === episodeId)
-      .sort((left, right) => left.index - right.index);
-    for (const storyboard of storyboards) {
-      if (
-        !storyboard.audioRef?.path
-        || !(await dependencies.resolveMediaPath(storyboard.audioRef.path))
-      ) {
-        throw new Error(`分镜 ${storyboard.id} 缺少可读真实音频`);
-      }
-    }
-
-    emit(onStatus, { stage: "media", detail: "校验全部分镜画面媒体" });
-    for (const storyboard of storyboards) {
-      if (
-        !storyboard.mediaRef?.path
-        || !(await dependencies.resolveMediaPath(storyboard.mediaRef.path))
-      ) {
-        throw new Error(`分镜 ${storyboard.id} 缺少可读分镜图，已停止成片`);
-      }
-    }
+    const { storyboards } = await prepareChapterMedia({
+      episodeId,
+      dependencies,
+      onStatus,
+    });
 
     dependencies.rebuildTracks();
     const tracks = dependencies
@@ -205,15 +231,26 @@ export async function runChapterAutoVideo({
       candidates.push(await dependencies.renderTrack(track, storyboards));
     }
 
-    emit(onStatus, { stage: "merge", detail: "拼接最终 MP4 并生成媒体证据" });
-    const finalPath = await dependencies.mergeEpisode(candidates);
-    const evidence = await dependencies.probeFinalMedia(finalPath);
-    dependencies.writeFinalEvidence(finalPath, evidence);
-    const result = { finalPath, evidence, storyboards: storyboards.length };
+    emit(onStatus, { stage: "editing", detail: "创建或复用 EditingProject 自动剪辑草案" });
+    const project = await dependencies.createEditingProject(
+      storyboards,
+      candidates,
+    );
+    emit(onStatus, { stage: "rendering", detail: "编译时间线并执行最终成片" });
+    const evidence = await dependencies.renderEditingProject(project);
+    emit(onStatus, { stage: "probing", detail: "核验时间线快照、媒体流与哈希证据" });
+    dependencies.writeFinalEvidence(project, evidence);
+    const result = {
+      finalPath: evidence.path,
+      evidence,
+      editingProjectId: project.id,
+      editingRevision: project.revision,
+      storyboards: storyboards.length,
+    };
     emit(onStatus, {
       stage: "completed",
       detail: "第一章自动成片完成",
-      finalPath,
+      finalPath: evidence.path,
     });
     return result;
   } catch (error) {

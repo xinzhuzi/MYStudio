@@ -43,4 +43,15 @@ describe("preload IPC surface", () => {
     expect(preloadSource).toContain("ipcRenderer.invoke('project-file-read-base64', url)");
     expect(preloadSource).toContain("ipcRenderer.invoke('project-file-get-absolute-path', url)");
   });
+
+  it("exposes typed timeline render, cancellation and progress without raw execution fields", () => {
+    expect(preloadSource).toContain("renderTimeline: (plan: TimelineRenderPlan): Promise<TimelineRenderResult>");
+    expect(preloadSource).toContain("ipcRenderer.invoke('studio-timeline-render', plan)");
+    expect(preloadSource).toContain("cancelTimelineRender: (jobId: string): Promise<TimelineRenderCancelResult>");
+    expect(preloadSource).toContain("ipcRenderer.invoke('studio-timeline-render-cancel', jobId)");
+    expect(preloadSource).toContain("ipcRenderer.on('studio-timeline-render-progress', wrapped)");
+    expect(preloadSource).not.toContain("renderTimeline: (args:");
+    expect(preloadSource).not.toContain("renderTimeline: (outputPath:");
+    expect(preloadSource).not.toContain("renderTimeline: (filterGraph:");
+  });
 });

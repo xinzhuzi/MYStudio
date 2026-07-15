@@ -6,7 +6,8 @@
 
 ## Overview
 
-This directory contains guidelines for backend development. Fill in each file with your project's specific conventions.
+These guidelines cover the local Python TTS/STT sidecar under `apps/backend/`
+and its Electron supervision boundary.
 
 ---
 
@@ -14,11 +15,11 @@ This directory contains guidelines for backend development. Fill in each file wi
 
 | Guide | Description | Status |
 |-------|-------------|--------|
-| [Directory Structure](./directory-structure.md) | Module organization and file layout | To fill |
-| [Database Guidelines](./database-guidelines.md) | ORM patterns, queries, migrations | To fill |
-| [Error Handling](./error-handling.md) | Error types, handling strategies | To fill |
-| [Quality Guidelines](./quality-guidelines.md) | Code standards, forbidden patterns | To fill |
-| [Logging Guidelines](./logging-guidelines.md) | Structured logging, log levels | To fill |
+| [Directory Structure](./directory-structure.md) | Module organization and file layout | Complete |
+| [Database Guidelines](./database-guidelines.md) | SQLite patterns and additive migrations | Complete |
+| [Error Handling](./error-handling.md) | HTTP, async task, and engine failures | Complete |
+| [Quality Guidelines](./quality-guidelines.md) | Contract tests and forbidden patterns | Complete |
+| [Logging Guidelines](./logging-guidelines.md) | Sidecar logs and secret boundaries | Complete |
 
 ---
 

@@ -158,6 +158,7 @@ export interface ResolveImageSizeInput {
 
 export interface BuildImageRequestBodyInput extends ResolveImageSizeInput {
   prompt: string;
+  promptPolicy?: "enhanced" | "raw";
   n?: number;
   quality?: string;
   outputFormat?: string;
@@ -223,7 +224,7 @@ const DENOISE_NEGATIVE_PROMPT_TERMS = [
 ];
 
 export function isGptImageModel(model?: string) {
-  return /(^|[-_:/])gpt[-_]?image/i.test(model ?? "");
+  return /(^|[-_:/])(?:gpt|agnes)[-_]?image/i.test(model ?? "");
 }
 
 function assignIfDefined(target: Record<string, unknown>, key: string, value: unknown) {
@@ -240,7 +241,14 @@ function appendUniqueTerms(value: string | undefined, terms: string[]) {
 export function normalizeImagePromptForGeneration(input: {
   prompt: string;
   negativePrompt?: string;
+  promptPolicy?: "enhanced" | "raw";
 }): { prompt: string; negativePrompt: string } {
+  if (input.promptPolicy === "raw") {
+    return {
+      prompt: input.prompt.trim(),
+      negativePrompt: input.negativePrompt?.trim() ?? "",
+    };
+  }
   return {
     prompt: appendUniqueTerms(input.prompt, CLEAN_IMAGE_PROMPT_TERMS),
     negativePrompt: appendUniqueTerms(input.negativePrompt, DENOISE_NEGATIVE_PROMPT_TERMS),
@@ -269,11 +277,11 @@ export function buildOpenAIImageRequestBody(input: BuildImageRequestBodyInput): 
   if (!isGptImageModel(input.model)) return buildProviderExtensionImageRequestBody(input);
   const { size, templateName } = resolveGptImageSize(input);
   const normalizedPrompt = normalizeImagePromptForGeneration(input);
-  const body: Record<string, unknown> = { model: input.model, prompt: normalizedPrompt.prompt, n: input.n ?? 1, size };
+  const prompt = buildSdkImagePromptText(normalizedPrompt.prompt, normalizedPrompt.negativePrompt);
+  const body: Record<string, unknown> = { model: input.model, prompt, n: input.n ?? 1, size };
   assignIfDefined(body, "quality", input.quality);
   assignIfDefined(body, "output_format", input.outputFormat);
   assignIfDefined(body, "output_compression", input.outputCompression);
-  assignIfDefined(body, "negative_prompt", normalizedPrompt.negativePrompt);
   if (input.referenceImages?.length) body.image_urls = input.referenceImages;
   Object.assign(body, input.extraParams ?? {});
   return { body, templateName };
@@ -445,8 +453,9 @@ export async function sdkGenerateImage(options: SdkGenerateImageOptions): Promis
 
   try {
     const imageModel = getImageModel(options.provider, options.model, fetcher);
-    const normalizedPrompt = normalizeImagePromptForGeneration(options);
-    const sdkPromptText = buildSdkImagePromptText(normalizedPrompt.prompt, normalizedPrompt.negativePrompt);
+    const sdkPromptText = typeof builtRequest.body.prompt === "string"
+      ? builtRequest.body.prompt
+      : options.prompt;
     const prompt = options.referenceImages?.length
       ? { text: sdkPromptText, images: options.referenceImages as any[] }
       : sdkPromptText;

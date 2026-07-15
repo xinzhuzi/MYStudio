@@ -210,7 +210,7 @@ export async function recoverProjectFromDisk(pid: string, storage: FileStorageLi
 }
 
 export async function discoverProjectsFromDisk(): Promise<void> {
-  if (!window.fileStorage?.listDirs) return;
+  if (typeof window === "undefined" || !window.fileStorage?.listDirs) return;
 
   try {
     // 列出 _p/ 下所有子目录名（每个子目录名就是一个 projectId）

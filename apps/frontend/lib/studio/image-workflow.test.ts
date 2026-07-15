@@ -4,6 +4,7 @@ import {
   addReferenceImageNode,
   buildAssetImageWorkflowPatch,
   buildImageWorkflowGenerationRequest,
+  assertImageWorkflowContinuityCapability,
   buildStoryboardImageWorkflowPatch,
   connectImageWorkflowNodes,
   createAssetImageWorkflowGraph,
@@ -73,6 +74,12 @@ describe("image workflow graph", () => {
         "local-image://characters/hero.png",
         "https://example.test/scene.png",
       ],
+      orderedReferenceManifest: [
+        { order: Number.MAX_SAFE_INTEGER, imageUrl: "local-image://characters/hero.png" },
+        { order: Number.MAX_SAFE_INTEGER, imageUrl: "https://example.test/scene.png" },
+      ],
+      continuityRequired: false,
+      previousApprovedFrameIncluded: false,
     });
   });
 
@@ -134,12 +141,27 @@ describe("image workflow graph", () => {
           assetType: "character",
           title: "角色参考：独孤剑尘",
           imageUrl: "project-file://dao/assets/char.png",
+          order: 2,
+          versionId: "dugu:base",
+          referenceRole: "canonical",
+          identityAnchors: {
+            faceShape: "清瘦长脸",
+            uniqueMarks: ["银白长发与右肩破损灰袍"],
+            hairStyle: "及腰银白长发，半束高髻",
+          },
+          negativePrompt: { avoid: ["黑发", "圆脸"] },
+          wardrobeVersion: "灰衫入镇态",
+          characterViewType: "front",
         },
         {
           assetId: "scene-1",
           assetType: "scene",
           title: "场景参考：道口镇",
           imageUrl: "project-file://dao/assets/scene.png",
+          order: 1,
+          versionId: "scene:main",
+          referenceRole: "scene-viewpoint",
+          sceneViewpointId: "dock-main-axis",
         },
       ],
     });
@@ -154,15 +176,22 @@ describe("image workflow graph", () => {
     expect(references).toEqual([
       expect.objectContaining({
         type: "reference",
-        title: "角色参考：独孤剑尘",
-        imageUrl: "project-file://dao/assets/char.png",
-        source: { kind: "asset", assetType: "character", id: "char-1" },
-      }),
-      expect.objectContaining({
-        type: "reference",
         title: "场景参考：道口镇",
         imageUrl: "project-file://dao/assets/scene.png",
         source: { kind: "asset", assetType: "scene", id: "scene-1" },
+        continuityOrder: 1,
+        sceneViewpointId: "dock-main-axis",
+      }),
+      expect.objectContaining({
+        type: "reference",
+        title: "角色参考：独孤剑尘",
+        imageUrl: "project-file://dao/assets/char.png",
+        source: { kind: "asset", assetType: "character", id: "char-1" },
+        continuityOrder: 2,
+        wardrobeVersion: "灰衫入镇态",
+        characterViewType: "front",
+        identityAnchors: expect.objectContaining({ hairStyle: "及腰银白长发，半束高髻" }),
+        negativePrompt: { avoid: ["黑发", "圆脸"] },
       }),
     ]);
     expect(generated).toMatchObject({
@@ -190,10 +219,22 @@ describe("image workflow graph", () => {
         expect.objectContaining({ source: prompt?.id, target: generated?.id }),
       ]),
     );
-    expect(buildImageWorkflowGenerationRequest(graph, generated?.id || "").referenceImages).toEqual([
-      "project-file://dao/assets/char.png",
+    const request = buildImageWorkflowGenerationRequest(graph, generated?.id || "");
+    expect(request.referenceImages).toEqual([
       "project-file://dao/assets/scene.png",
+      "project-file://dao/assets/char.png",
     ]);
+    expect(request.prompt).toContain("【资产圣经】");
+    expect(request.prompt).toContain("dock-main-axis");
+    expect(request.prompt).toContain("银白长发与右肩破损灰袍");
+    expect(request.prompt).toContain("灰衫入镇态");
+    expect(request.prompt).toContain("角色视图：front");
+    expect(request.orderedReferenceManifest[1]).toMatchObject({ characterViewType: "front" });
+    expect(request.negativePrompt).toContain("黑发");
+    expect(request.negativePrompt).toContain("圆脸");
+    expect(() => assertImageWorkflowContinuityCapability(
+      buildImageWorkflowGenerationRequest(graph, generated?.id || ""),
+    )).not.toThrow();
     expect(buildStoryboardImageWorkflowPatch(graph, generated?.id || "")).toMatchObject({
       mediaRef: {
         kind: "image",

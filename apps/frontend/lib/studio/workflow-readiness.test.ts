@@ -7,6 +7,7 @@ import type {
   StudioWorkflowConfig,
   VideoCandidate,
 } from "@/types/studio";
+import type { EditingProjectV1, TimelineRenderRecord } from "@/types/editing";
 
 describe("studio workflow readiness", () => {
   it("points a new project to manual selection before later workflow stages", () => {
@@ -418,11 +419,10 @@ describe("studio workflow readiness", () => {
       readiness.stages.find((stage) => stage.id === "workbench")?.status,
     ).toBe("active");
     expect(readiness.nextAction).toEqual({
-      kind: "merge-episode",
+      kind: "open-stage",
       stageId: "workbench",
-      label: "导出最终成片",
-      enabled: false,
-      disabledReason: "当前环境不支持本地渲染",
+      label: "打开剪辑工作台",
+      enabled: true,
     });
     expect(
       readiness.stages.find((stage) => stage.id === "storyboard"),
@@ -437,7 +437,134 @@ describe("studio workflow readiness", () => {
     });
     expect(
       readiness.stages.find((stage) => stage.id === "workbench")?.missing,
-    ).toContain("导出最终成片");
+    ).toEqual(["创建剪辑草案", "执行时间线成片"]);
+  });
+
+  it("does not accept productionPlan text as completed workbench evidence", () => {
+    const readiness = buildWorkflowReadiness({
+      ...readyWorkbenchInput(),
+      agentWorkData: [
+        ...readyWorkbenchInput().agentWorkData,
+        {
+          id: "legacy-export",
+          key: "productionPlan",
+          episodeId: "episode-1",
+          data: "本地成片输出: /tmp/legacy-final.mp4",
+          createdAt: 2,
+          updatedAt: 2,
+        },
+      ],
+      fileExists: () => true,
+    });
+
+    expect(readiness.progress).toBe(83);
+    expect(readiness.nextStageId).toBe("workbench");
+    expect(
+      readiness.stages.find((stage) => stage.id === "workbench"),
+    ).toMatchObject({
+      status: "active",
+      missing: ["创建剪辑草案", "执行时间线成片"],
+    });
+  });
+
+  it("requires a revision-matched complete timeline render record", () => {
+    const project = editingProject({ revision: 2 });
+    const record = timelineRenderRecord({ editingRevision: 1 });
+    const readiness = buildWorkflowReadiness({
+      ...readyWorkbenchInput(),
+      episodeId: "episode-1",
+      editingProjects: { [project.id]: project },
+      currentEditingProjectIdByEpisode: { "episode-1": project.id },
+      timelineRenderRecordsByEditingProjectId: { [project.id]: record },
+      fileExists: () => true,
+    });
+
+    expect(
+      readiness.stages.find((stage) => stage.id === "workbench"),
+    ).toMatchObject({
+      status: "active",
+      completed: expect.arrayContaining(["当前剪辑版本 v2 已就绪"]),
+      missing: ["重新执行当前剪辑版本的时间线成片"],
+    });
+  });
+
+  it("marks the workbench ready only with current complete on-disk timeline evidence", () => {
+    const project = editingProject();
+    const record = timelineRenderRecord();
+    const existingFiles = new Set([
+      "/tmp/sb-1.png",
+      "/tmp/sb-1.wav",
+      "/tmp/opening.mp4",
+      record.evidence.path,
+      record.evidence.snapshotPath,
+      record.evidence.renderPlanPath,
+      record.evidence.inputManifestPath,
+      record.evidence.filterGraphPath,
+      record.evidence.logPath,
+      record.evidence.ffprobePath,
+    ]);
+    const readiness = buildWorkflowReadiness({
+      ...readyWorkbenchInput(),
+      episodeId: "episode-1",
+      editingProjects: { [project.id]: project },
+      currentEditingProjectIdByEpisode: { "episode-1": project.id },
+      timelineRenderRecordsByEditingProjectId: { [project.id]: record },
+      fileExists: (filePath) => existingFiles.has(filePath),
+    });
+
+    expect(readiness.progress).toBe(100);
+    expect(
+      readiness.stages.find((stage) => stage.id === "workbench"),
+    ).toMatchObject({
+      status: "ready",
+      completed: expect.arrayContaining([
+        "当前剪辑版本 v1 已就绪",
+        "时间线成片与完整媒体证据已就绪",
+      ]),
+      missing: [],
+    });
+  });
+
+  it("keeps the workbench incomplete when a required timeline artifact is missing", () => {
+    const project = editingProject();
+    const record = timelineRenderRecord();
+    const readiness = buildWorkflowReadiness({
+      ...readyWorkbenchInput(),
+      episodeId: "episode-1",
+      editingProjects: { [project.id]: project },
+      currentEditingProjectIdByEpisode: { "episode-1": project.id },
+      timelineRenderRecordsByEditingProjectId: { [project.id]: record },
+      fileExists: (filePath) => filePath !== record.evidence.filterGraphPath,
+    });
+
+    expect(readiness.progress).toBe(83);
+    expect(
+      readiness.stages.find((stage) => stage.id === "workbench"),
+    ).toMatchObject({
+      status: "active",
+      missing: ["重新执行当前剪辑版本的时间线成片"],
+    });
+  });
+
+  it("does not accept a stale editing project as the current workbench version", () => {
+    const project = editingProject({ stale: true, staleReason: "sources changed" });
+    const record = timelineRenderRecord();
+    const readiness = buildWorkflowReadiness({
+      ...readyWorkbenchInput(),
+      episodeId: "episode-1",
+      editingProjects: { [project.id]: project },
+      currentEditingProjectIdByEpisode: { "episode-1": project.id },
+      timelineRenderRecordsByEditingProjectId: { [project.id]: record },
+      fileExists: () => true,
+    });
+
+    expect(readiness.progress).toBe(83);
+    expect(
+      readiness.stages.find((stage) => stage.id === "workbench"),
+    ).toMatchObject({
+      status: "active",
+      missing: ["创建剪辑草案", "执行时间线成片"],
+    });
   });
 
   it("does not count missing local files as ready workflow outputs", () => {
@@ -670,5 +797,122 @@ function seriesBible() {
     directorManualId: "director-1",
     aspectRatio: "16:9",
     stylePositioning: "水墨",
+  };
+}
+
+function readyWorkbenchInput() {
+  const tracks: ProductionTrack[] = [
+    {
+      id: "track-1",
+      episodeId: "episode-1",
+      trackKey: "opening",
+      storyboardIds: ["sb-1"],
+      prompt: "opening",
+      duration: 4,
+      candidateVideoIds: ["video-1"],
+      selectedVideoId: "video-1",
+      state: "ready",
+    },
+  ];
+  const candidates: VideoCandidate[] = [
+    {
+      id: "video-1",
+      trackId: "track-1",
+      provider: "ffmpeg-local",
+      state: "ready",
+      filePath: "/tmp/opening.mp4",
+      createdAt: 1,
+    },
+  ];
+  return {
+    workflowConfig: readyManuals(),
+    novelChapters: [analyzedChapter()],
+    agentWorkData: [
+      {
+        id: "work-1",
+        key: "scriptDraft" as const,
+        episodeId: "episode-1",
+        data: "## S01",
+        createdAt: 1,
+        updatedAt: 1,
+      },
+    ],
+    entityExtractions: [entityBatch()],
+    scriptPlans: [scriptPlan()],
+    seriesBible: seriesBible(),
+    storyboards: [
+      storyboard("sb-1", { kind: "image" as const, path: "/tmp/sb-1.png" }),
+    ],
+    productionTracks: tracks,
+    videoCandidates: candidates,
+    voiceBindings: [voiceBinding()],
+    sceneVoiceLines: [voiceLine(1, "/tmp/sb-1.wav")],
+  };
+}
+
+function editingProject(
+  updates: Partial<EditingProjectV1> = {},
+): EditingProjectV1 {
+  return {
+    schemaVersion: 1,
+    id: "editing-1",
+    projectId: "project-1",
+    episodeId: "episode-1",
+    name: "自动草案",
+    revision: 1,
+    sourceSnapshotHash: "snapshot-1",
+    createdBy: "auto",
+    manuallyEdited: false,
+    stale: false,
+    renderSettings: {
+      width: 1080,
+      height: 1920,
+      fps: 30,
+      codec: "h264",
+      subtitleMode: "burn-in",
+      loudnessLufs: -14,
+      truePeakDbtp: -1.5,
+    },
+    tracks: [],
+    clips: [],
+    transitions: [],
+    effects: [],
+    proposals: [],
+    createdAt: 1,
+    updatedAt: 1,
+    ...updates,
+  };
+}
+
+function timelineRenderRecord(
+  updates: Partial<TimelineRenderRecord> = {},
+): TimelineRenderRecord {
+  const hash = "a".repeat(64);
+  return {
+    projectId: "project-1",
+    episodeId: "episode-1",
+    editingProjectId: "editing-1",
+    editingRevision: 1,
+    sourceSnapshotHash: "snapshot-1",
+    completedAt: 2,
+    evidence: {
+      jobId: "render-1",
+      path: "/tmp/final.mp4",
+      sizeBytes: 1024,
+      mtimeMs: 2,
+      sha256: hash,
+      duration: 4,
+      width: 1080,
+      height: 1920,
+      streams: ["video", "audio"],
+      snapshotHash: hash,
+      snapshotPath: "/tmp/editing-project.json",
+      renderPlanPath: "/tmp/render-plan.json",
+      inputManifestPath: "/tmp/input-manifest.json",
+      filterGraphPath: "/tmp/filter-graph.txt",
+      logPath: "/tmp/ffmpeg.log",
+      ffprobePath: "/tmp/ffprobe.json",
+    },
+    ...updates,
   };
 }

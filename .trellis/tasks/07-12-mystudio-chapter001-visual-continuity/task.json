@@ -3,7 +3,7 @@
   "name": "mystudio-chapter001-visual-continuity",
   "title": "第一章分镜长线视觉与人物一致性",
   "description": "深度对照 Toonflow 第一章真实分镜与生图链，修复 MYStudio 跨镜场景、人物身份、服装、构图和状态连续性，并重生成验收。",
-  "status": "planning",
+  "status": "in_progress",
   "dev_type": null,
   "scope": null,
   "package": null,

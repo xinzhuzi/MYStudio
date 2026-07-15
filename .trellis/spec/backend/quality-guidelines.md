@@ -16,7 +16,9 @@ Questions to answer:
 - What code review standards apply?
 -->
 
-(To be filled by the team)
+Backend changes must preserve the Electron-sidecar contract, avoid import-time
+model downloads, and include focused Python contract tests. Real and mock TTS
+results must remain distinguishable.
 
 ---
 
@@ -24,7 +26,11 @@ Questions to answer:
 
 <!-- Patterns that should never be used and why -->
 
-(To be filled by the team)
+- Importing or downloading heavy ML models during module import.
+- Removing the control-token check from stateful routes.
+- Writing generated files outside the configured runtime data directory.
+- Treating mock audio as successful real generation without `mocked=true`.
+- Editing SQL with unparameterized external values.
 
 ---
 
@@ -32,7 +38,11 @@ Questions to answer:
 
 <!-- Patterns that must always be used -->
 
-(To be filled by the team)
+- Keep `main.py` thin and route work through focused modules.
+- Keep platform-specific dependencies guarded in `requirements.txt` and runtime
+  imports.
+- Preserve explicit terminal task states and output-file evidence.
+- Reuse `RuntimeStore`, `RuntimeState`, and existing route mixins.
 
 ---
 
@@ -40,7 +50,15 @@ Questions to answer:
 
 <!-- What level of testing is expected -->
 
-(To be filled by the team)
+Run from `apps/`:
+
+```bash
+PYTHONPATH=backend python3 -m unittest discover -s backend/tests
+```
+
+When Electron supervision changes, also run the focused
+`frontend/electron/tts-runtime.test.ts` Vitest suite and the normal TypeScript
+quality gate.
 
 ---
 
@@ -48,4 +66,8 @@ Questions to answer:
 
 <!-- What reviewers should check -->
 
-(To be filled by the team)
+- Input validation and HTTP status are correct.
+- Tokens, keys, prompts, and binary payloads are not leaked.
+- Runtime state cannot remain stuck after failure.
+- SQLite changes are additive and tested against an existing database shape.
+- macOS ARM and Windows/Linux dependency branches remain valid.

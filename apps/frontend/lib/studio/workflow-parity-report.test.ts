@@ -11,6 +11,7 @@ import type {
   StoryboardItem,
   VideoCandidate,
 } from "@/types/studio";
+import type { EditingProjectV1, TimelineRenderRecord } from "@/types/editing";
 
 const manualCatalog: StudioManualCatalog = {
   visual: [
@@ -62,6 +63,7 @@ describe("workflow parity report", () => {
       storyboards: [completeStoryboard()],
       productionTracks: baseTracks(),
       videoCandidates: baseVideoCandidates(),
+      ...baseEditingEvidence(),
       workflowConfig: {
         visualManualId: "visual-daojie",
         directorManualId: "director-daojie",
@@ -123,7 +125,19 @@ describe("workflow parity report", () => {
       candidates: 1,
       readyCandidates: 1,
       selectedTracks: 1,
+      editingProjects: 1,
+      currentEditingProjectId: "editing-1",
+      currentEditingRevision: 1,
+      editingProject: expect.objectContaining({ id: "editing-1", revision: 1 }),
+      timelineRenderRecords: 1,
+      timelineRenderRecord: expect.objectContaining({
+        editingRevision: 1,
+        evidence: expect.objectContaining({ jobId: "render-1" }),
+      }),
+      completeTimelineEvidence: 1,
+      hasCompleteTimelineEvidence: true,
       hasFinalExport: true,
+      hasLegacyCompatibilityExport: true,
     });
     expect(report.issues).toEqual([]);
   });
@@ -222,6 +236,62 @@ describe("workflow parity report", () => {
     });
   });
 
+  it("does not promote legacy export text or a stale timeline record to final evidence", () => {
+    const editing = baseEditingEvidence();
+    const project = editing.editingProjects["editing-1"]!;
+    const record = editing.timelineRenderRecordsByEditingProjectId["editing-1"]!;
+    const report = buildWorkflowParityReport({
+      agentWorkData: baseAgentWorkData(),
+      agentRuns: baseAgentRuns(),
+      mediaTasks: baseMediaTasks(),
+      entityExtractions: baseEntityExtractions(),
+      scriptPlans: baseScriptPlans(),
+      storyboards: [completeStoryboard()],
+      productionTracks: baseTracks(),
+      videoCandidates: baseVideoCandidates(),
+      ...editing,
+      timelineRenderRecordsByEditingProjectId: {
+        "editing-1": {
+          ...record,
+          editingRevision: project.revision + 1,
+        },
+      },
+    });
+
+    expect(report.video).toMatchObject({
+      hasLegacyCompatibilityExport: true,
+      completeTimelineEvidence: 0,
+      hasFinalExport: false,
+    });
+    expect(report.issues.map((issue) => issue.code)).toContain(
+      "video.timelineEvidence.missing",
+    );
+  });
+
+  it("does not treat a legacy productionPlan path as final timeline evidence", () => {
+    const report = buildWorkflowParityReport({
+      agentWorkData: baseAgentWorkData(),
+      agentRuns: baseAgentRuns(),
+      mediaTasks: baseMediaTasks(),
+      entityExtractions: baseEntityExtractions(),
+      scriptPlans: baseScriptPlans(),
+      storyboards: [completeStoryboard()],
+      productionTracks: baseTracks(),
+      videoCandidates: baseVideoCandidates(),
+    });
+
+    expect(report.video).toMatchObject({
+      hasLegacyCompatibilityExport: true,
+      hasFinalExport: false,
+      editingProjects: 0,
+      timelineRenderRecords: 0,
+      completeTimelineEvidence: 0,
+    });
+    expect(report.issues.map((issue) => issue.code)).toContain(
+      "video.timelineEvidence.missing",
+    );
+  });
+
   it("reports Toonflow fixture parity and deferred golden image comparison", () => {
     const report = buildWorkflowParityReport({
       agentWorkData: baseAgentWorkData(),
@@ -232,6 +302,7 @@ describe("workflow parity report", () => {
       storyboards: [completeStoryboard()],
       productionTracks: baseTracks(),
       videoCandidates: baseVideoCandidates(),
+      ...baseEditingEvidence(),
       toonflowFixtureRows: [toonflowFixtureRow()],
       workflowConfig: {
         visualManualId: "visual-daojie",
@@ -271,6 +342,86 @@ function baseAgentRuns(): StudioAgentRun[] {
     run("image-run", "storyboardImage", "storyboard", "image-flow-1"),
     run("workbench-run", "productionPlan", "workbench", "export"),
   ];
+}
+
+function baseEditingEvidence(): {
+  episodeId: string;
+  editingProjects: Record<string, EditingProjectV1>;
+  currentEditingProjectIdByEpisode: Record<string, string>;
+  timelineRenderRecordsByEditingProjectId: Record<string, TimelineRenderRecord>;
+  fileExists: (filePath: string) => boolean;
+} {
+  const project: EditingProjectV1 = {
+    schemaVersion: 1,
+    id: "editing-1",
+    projectId: "project-1",
+    episodeId: "chapter-001",
+    name: "自动草案",
+    revision: 1,
+    sourceSnapshotHash: "snapshot-1",
+    createdBy: "auto",
+    manuallyEdited: false,
+    stale: false,
+    renderSettings: {
+      width: 1080,
+      height: 1920,
+      fps: 30,
+      codec: "h264",
+      subtitleMode: "burn-in",
+      loudnessLufs: -14,
+      truePeakDbtp: -1.5,
+    },
+    tracks: [],
+    clips: [],
+    transitions: [],
+    effects: [],
+    proposals: [],
+    createdAt: 1,
+    updatedAt: 1,
+  };
+  const hash = "a".repeat(64);
+  const record: TimelineRenderRecord = {
+    projectId: "project-1",
+    episodeId: "chapter-001",
+    editingProjectId: project.id,
+    editingRevision: project.revision,
+    sourceSnapshotHash: project.sourceSnapshotHash,
+    completedAt: 2,
+    evidence: {
+      jobId: "render-1",
+      path: "/tmp/final.mp4",
+      sizeBytes: 1024,
+      mtimeMs: 2,
+      sha256: hash,
+      duration: 5,
+      width: 1080,
+      height: 1920,
+      streams: ["video", "audio"],
+      snapshotHash: hash,
+      snapshotPath: "/tmp/editing-project.json",
+      renderPlanPath: "/tmp/render-plan.json",
+      inputManifestPath: "/tmp/input-manifest.json",
+      filterGraphPath: "/tmp/filter-graph.txt",
+      logPath: "/tmp/ffmpeg.log",
+      ffprobePath: "/tmp/ffprobe.json",
+    },
+  };
+  const files = new Set([
+    record.evidence.path,
+    record.evidence.snapshotPath,
+    record.evidence.renderPlanPath,
+    record.evidence.inputManifestPath,
+    record.evidence.filterGraphPath,
+    record.evidence.logPath,
+    record.evidence.ffprobePath,
+  ]);
+  return {
+    episodeId: project.episodeId,
+    editingProjects: { [project.id]: project },
+    currentEditingProjectIdByEpisode: { [project.episodeId]: project.id },
+    timelineRenderRecordsByEditingProjectId: { [project.id]: record },
+    fileExists: (filePath) => files.has(filePath),
+  };
 }
 
 function baseMediaTasks(): MediaGenerationTask[] {

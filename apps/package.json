@@ -34,8 +34,12 @@
     "smoke:workflow:open": "node ./build/open-workflow-smoke-app.mjs",
     "smoke:workflow:run": "node ./build/run-visible-workflow-smoke.mjs",
     "smoke:workflow:run:daojie": "node ./build/run-visible-workflow-smoke.mjs --daojie",
+    "smoke:workflow:background": "node ./build/run-visible-workflow-smoke.mjs --background",
+    "smoke:workflow:background:daojie": "node ./build/run-visible-workflow-smoke.mjs --background --daojie",
     "smoke:installed": "node ./build/install-and-smoke.mjs",
     "video:daojie:chapter001": "node ./build/automate-daojie-chapter001-video.mjs",
+    "video:daojie:chapter001:probe-providers": "node ./build/automate-daojie-chapter001-video.mjs --probe-providers",
+    "video:daojie:chapter001:probe-generation": "node ./build/automate-daojie-chapter001-video.mjs --probe-generation",
     "preview": "electron-vite preview --config frontend/config/electron-vite.config.ts"
   },
   "dependencies": {

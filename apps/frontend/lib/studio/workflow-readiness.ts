@@ -10,6 +10,8 @@ import type {
   VideoCandidate,
 } from "@/types/studio";
 import type { ProjectVoiceBinding, SceneVoiceLine } from "@/types/tts";
+import type { EditingProjectV1, TimelineRenderRecord } from "@/types/editing";
+import { validateTimelineRenderRecord } from "@/lib/studio/editing/validation";
 
 export type WorkflowStageStatus = "ready" | "active" | "blocked";
 
@@ -61,7 +63,6 @@ export type WorkflowNextAction = WorkflowActionMeta &
         label: string;
         targetId: string;
       }
-    | { kind: "merge-episode"; stageId: "workbench"; label: string }
   );
 
 export interface WorkflowReadinessInput {
@@ -74,6 +75,10 @@ export interface WorkflowReadinessInput {
   storyboards: StoryboardItem[];
   productionTracks: ProductionTrack[];
   videoCandidates: VideoCandidate[];
+  episodeId?: string;
+  editingProjects?: Record<string, EditingProjectV1>;
+  currentEditingProjectIdByEpisode?: Record<string, string>;
+  timelineRenderRecordsByEditingProjectId?: Record<string, TimelineRenderRecord>;
   voiceBindings?: Pick<ProjectVoiceBinding, "speakerId" | "profileId">[];
   sceneVoiceLines?: Pick<
     SceneVoiceLine,
@@ -85,6 +90,20 @@ export interface WorkflowReadinessInput {
   >[];
   capabilities?: WorkflowCapabilities;
   fileExists?: (filePath: string) => boolean;
+}
+
+export type WorkflowTimelineEvidenceInput = Pick<
+  WorkflowReadinessInput,
+  | "episodeId"
+  | "editingProjects"
+  | "currentEditingProjectIdByEpisode"
+  | "timelineRenderRecordsByEditingProjectId"
+>;
+
+export interface WorkflowTimelineEvidenceStatus {
+  project?: EditingProjectV1;
+  record?: TimelineRenderRecord;
+  complete: boolean;
 }
 
 const STAGE_DEFS = [
@@ -174,14 +193,10 @@ export function buildWorkflowReadiness(
         fileExists(candidate.filePath),
     );
   }).length;
-  const hasEpisodeOutput = input.agentWorkData.some(
-    (item) => {
-      if (item.key !== "productionPlan") return false;
-      const filePath = item.data.match(/本地成片输出\s*:\s*(.+)/)?.[1]?.trim();
-      return Boolean(filePath && fileExists(filePath));
-    },
-  );
-  const workbenchReady = hasEpisodeOutput;
+  const timelineStatus = resolveWorkflowTimelineEvidence(input, fileExists);
+  const currentEditingProject = timelineStatus.project;
+  const timelineEvidenceReady = timelineStatus.complete;
+  const workbenchReady = timelineEvidenceReady;
 
   const checks: Record<
     string,
@@ -263,7 +278,10 @@ export function buildWorkflowReadiness(
         selectedReadyCandidateCount
           ? `${selectedReadyCandidateCount} 条制作轨已有候选片段`
           : "",
-        hasEpisodeOutput ? "已导出最终成片" : "",
+        currentEditingProject
+          ? `当前剪辑版本 v${currentEditingProject.revision} 已就绪`
+          : "",
+        timelineEvidenceReady ? "时间线成片与完整媒体证据已就绪" : "",
       ].filter(Boolean),
       missing: [
         input.productionTracks.length ? "" : "重建制作轨",
@@ -271,7 +289,12 @@ export function buildWorkflowReadiness(
         selectedReadyCandidateCount < input.productionTracks.length
           ? "生成候选片段"
           : "",
-        hasEpisodeOutput ? "" : "导出最终成片",
+        currentEditingProject ? "" : "创建剪辑草案",
+        timelineEvidenceReady
+          ? ""
+          : currentEditingProject
+            ? "重新执行当前剪辑版本的时间线成片"
+            : "执行时间线成片",
       ].filter(Boolean),
     },
   };
@@ -396,10 +419,10 @@ function resolveNextAction(
       };
     }
     return {
-      kind: "merge-episode",
+      kind: "open-stage",
       stageId,
-      label: "导出最终成片",
-      ...renderActionMeta,
+      label: "打开剪辑工作台",
+      enabled: true,
     };
   }
   return { kind: "open-stage", stageId, label: "进入下一步", enabled: true };
@@ -416,4 +439,56 @@ function findScriptTarget(items: AgentWorkData[]) {
   return [...items]
     .reverse()
     .find((item) => item.key === "scriptDraft" && item.episodeId)?.episodeId;
+}
+
+export function resolveWorkflowTimelineEvidence(
+  input: WorkflowTimelineEvidenceInput,
+  fileExists: (filePath: string) => boolean = () => true,
+): WorkflowTimelineEvidenceStatus {
+  if (!input.episodeId) return { complete: false };
+  const editingProjectId =
+    input.currentEditingProjectIdByEpisode?.[input.episodeId];
+  if (!editingProjectId) return { complete: false };
+  const project = input.editingProjects?.[editingProjectId];
+  if (!project || project.episodeId !== input.episodeId || project.stale) {
+    return { complete: false };
+  }
+  const record =
+    input.timelineRenderRecordsByEditingProjectId?.[editingProjectId];
+  return {
+    project,
+    record,
+    complete: Boolean(
+      record && isCurrentTimelineEvidenceComplete(project, record, fileExists),
+    ),
+  };
+}
+
+function isCurrentTimelineEvidenceComplete(
+  project: EditingProjectV1,
+  record: TimelineRenderRecord,
+  fileExists: (filePath: string) => boolean,
+) {
+  const validation = validateTimelineRenderRecord(record);
+  if (!validation.success) return false;
+  const current = validation.value;
+  if (
+    current.projectId !== project.projectId ||
+    current.episodeId !== project.episodeId ||
+    current.editingProjectId !== project.id ||
+    current.editingRevision !== project.revision ||
+    current.sourceSnapshotHash !== project.sourceSnapshotHash ||
+    !current.evidence.path.toLowerCase().endsWith(".mp4")
+  ) {
+    return false;
+  }
+  return [
+    current.evidence.path,
+    current.evidence.snapshotPath,
+    current.evidence.renderPlanPath,
+    current.evidence.inputManifestPath,
+    current.evidence.filterGraphPath,
+    current.evidence.logPath,
+    current.evidence.ffprobePath,
+  ].every((filePath) => Boolean(filePath && fileExists(filePath)));
 }

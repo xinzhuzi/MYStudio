@@ -252,19 +252,51 @@ describe("prepareModelTestRequest", () => {
       model: "gpt-image-2",
       n: 1,
       size: "2048x1152",
+      prompt: "A simple blue circle centered on a plain white background.",
     });
-    expect(prepared.body.prompt).toEqual(expect.stringContaining("API 连通性测试图"));
-    expect(prepared.body.prompt).toEqual(expect.stringContaining("clean image"));
-    expect(prepared.body.prompt).toEqual(expect.stringContaining("low visual noise"));
+    expect(prepared.body).not.toHaveProperty("negative_prompt");
+    expect(prepared.body).not.toHaveProperty("aspect_ratio");
+    expect(prepared.body).not.toHaveProperty("resolution");
+    expect(prepared.body).not.toHaveProperty("stream");
     expect(prepared.attempts[1].body).toMatchObject({
       model: "gpt-image-2",
       n: 1,
       stream: false,
       aspect_ratio: "16:9",
       resolution: "2K",
+      prompt: "A simple blue circle centered on a plain white background.",
     });
-    expect(prepared.attempts[1].body.prompt).toEqual(expect.stringContaining("API 连通性测试图"));
-    expect(prepared.attempts[1].body.prompt).toEqual(expect.stringContaining("clean image"));
+    expect(prepared.attempts[1].body).not.toHaveProperty("negative_prompt");
+  });
+
+  it("builds an Agnes image test with the standard size contract", () => {
+    const prepared = prepareModelTestRequest({
+      provider: {
+        id: "provider-agnes",
+        platform: "openai-compatible",
+        name: "Agnes Relay",
+        baseUrl: "https://relay.example.com/v1",
+        apiKey: "sk-test",
+        model: ["agnes-image-2.1-flash"],
+      },
+      model: "agnes-image-2.1-flash",
+      type: "image",
+    });
+
+    expect(prepared).toMatchObject({
+      success: true,
+      dryRun: false,
+      type: "image",
+      endpoint: "https://relay.example.com/v1/images/generations",
+      body: {
+        model: "agnes-image-2.1-flash",
+        size: "2048x1152",
+      },
+    });
+    if (!prepared.success || prepared.dryRun) {
+      throw new Error("expected prepared Agnes image request");
+    }
+    expect(prepared.attempts[0].template).toBe("openai-size");
   });
 
   it("builds image model test requests from image size settings", () => {
@@ -335,15 +367,13 @@ describe("prepareModelTestRequest", () => {
         apiKey: "sk-test",
       }),
       model: "gpt-image-2",
-      prompt: expect.stringContaining("API 连通性测试图"),
+      prompt: "A simple blue circle centered on a plain white background.",
       aspectRatio: "16:9",
       resolution: "2K",
+      promptPolicy: "raw",
       operationId: "model-test-op",
       endpointFamily: "model-test",
       maxRetries: 0,
-    }));
-    expect(imageSdk).toHaveBeenCalledWith(expect.objectContaining({
-      prompt: expect.stringContaining("clean image"),
     }));
   });
 

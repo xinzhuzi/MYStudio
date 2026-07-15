@@ -7,6 +7,7 @@ import {
   DEFAULT_SETTINGS_TAB,
   SETTINGS_TABS,
   buildProviderAdapterTemplate,
+  filterModelsByFuzzyQuery,
   getPythonExecutableDisplayPath,
 } from "./SettingsPanel";
 
@@ -55,6 +56,32 @@ describe("SettingsPanel navigation", () => {
     ]);
   });
 
+  it("fuzzy-filters provider models by case-insensitive partial tokens", () => {
+    const models = [
+      "gpt-5.4",
+      "gpt-image-2",
+      "claude-opus-4-6-thinking",
+      "stepfun-ai/step-3.7-flash",
+    ];
+
+    expect(filterModelsByFuzzyQuery(models, "GPT 5")).toEqual(["gpt-5.4"]);
+    expect(filterModelsByFuzzyQuery(models, "step flash")).toEqual(["stepfun-ai/step-3.7-flash"]);
+    expect(filterModelsByFuzzyQuery(models, "image")).toEqual(["gpt-image-2"]);
+    expect(filterModelsByFuzzyQuery(models, "  ")).toEqual(models);
+  });
+
+  it("renders the provider model search input and filtered count", () => {
+    const serviceSource = readFileSync(
+      fileURLToPath(new URL("./settings/ApiServiceSettingsSection.tsx", import.meta.url)),
+      "utf8",
+    );
+
+    expect(serviceSource).toContain('placeholder="模糊搜索模型名称，例如 gpt 5"');
+    expect(serviceSource).toContain("filteredModels.length");
+    expect(serviceSource).toContain("没有找到匹配");
+  });
+
+
   it("shows the Python executable path from the runtime install details", () => {
     expect(getPythonExecutableDisplayPath({
       pythonRuntimeDir: "/project-storage/python",
@@ -76,21 +103,63 @@ describe("SettingsPanel navigation", () => {
     })).toBe("/project-storage/python/bin/python3");
   });
 
+  it("delegates Python runtime effects to the dedicated settings module", () => {
+    const settingsSource = readFileSync(
+      fileURLToPath(new URL("./SettingsPanel.tsx", import.meta.url)),
+      "utf8",
+    );
+    const pythonSource = readFileSync(
+      fileURLToPath(new URL("./settings/PythonSettingsTab.tsx", import.meta.url)),
+      "utf8",
+    );
+    const hookSource = readFileSync(
+      fileURLToPath(new URL("./settings/usePythonRuntimeSettings.ts", import.meta.url)),
+      "utf8",
+    );
+
+    expect(settingsSource).toContain("<PythonSettingsTab />");
+    expect(settingsSource).not.toContain("setupTtsRuntime");
+    expect(pythonSource).toContain("usePythonRuntimeSettings");
+    expect(hookSource).toContain("stopSetupPolling");
+    expect(hookSource).toContain("window.clearInterval");
+  });
+
+  it("delegates storage and update effects to the dedicated settings module", () => {
+    const settingsSource = readFileSync(
+      fileURLToPath(new URL("./SettingsPanel.tsx", import.meta.url)),
+      "utf8",
+    );
+    const storageSource = readFileSync(
+      fileURLToPath(new URL("./settings/StorageSettingsTab.tsx", import.meta.url)),
+      "utf8",
+    );
+    const hookSource = readFileSync(
+      fileURLToPath(new URL("./settings/useStorageSettings.ts", import.meta.url)),
+      "utf8",
+    );
+
+    expect(settingsSource).toContain("<StorageSettingsTab />");
+    expect(settingsSource).not.toContain("window.storageManager");
+    expect(storageSource).toContain("useStorageSettings");
+    expect(hookSource).toContain("clearPersistedRendererCaches");
+    expect(hookSource).toContain("checkForUpdates");
+  });
+
   it("keeps low-level provider internals out of the service workspace", () => {
     expect(API_SERVICE_SUMMARY_FIELDS).toEqual(["Base URL", "接口协议", "API Key"]);
     expect(API_SERVICE_SUMMARY_FIELDS).not.toContain("供应商 ID");
   });
 
   it("uses a single horizontal API manager notice bar", () => {
-    const settingsSource = readFileSync(
-      fileURLToPath(new URL("./SettingsPanel.tsx", import.meta.url)),
+    const apiSource = readFileSync(
+      fileURLToPath(new URL("./settings/ApiSettingsTab.tsx", import.meta.url)),
       "utf8",
     );
 
-    expect(settingsSource).toContain("api-manager-notice-bar");
-    expect(settingsSource).toContain("提示");
-    expect(settingsSource).toContain("添加供应商");
-    expect(settingsSource).not.toContain("安全说明");
+    expect(apiSource).toContain("api-manager-notice-bar");
+    expect(apiSource).toContain("提示");
+    expect(apiSource).toContain("添加供应商");
+    expect(apiSource).not.toContain("安全说明");
   });
 
   it("keeps diagnostics log controls in the development settings tab", () => {
@@ -98,13 +167,23 @@ describe("SettingsPanel navigation", () => {
       fileURLToPath(new URL("./SettingsPanel.tsx", import.meta.url)),
       "utf8",
     );
+    const developmentSource = readFileSync(
+      fileURLToPath(new URL("./settings/DevelopmentSettingsTab.tsx", import.meta.url)),
+      "utf8",
+    );
+    const hookSource = readFileSync(
+      fileURLToPath(new URL("./settings/useDevelopmentSettings.ts", import.meta.url)),
+      "utf8",
+    );
 
-    expect(settingsSource).toContain("诊断日志");
-    expect(settingsSource).toContain("打开文件夹");
-    expect(settingsSource).toContain("导出诊断包");
-    expect(settingsSource).toContain("清理日志");
-    expect(settingsSource).toContain("window.diagnosticsLog.getInfo");
-    expect(settingsSource).toContain("日志只保存在本机");
+    expect(settingsSource).toContain("DevelopmentSettingsContainer");
+    expect(developmentSource).toContain("诊断日志");
+    expect(developmentSource).toContain("打开文件夹");
+    expect(developmentSource).toContain("导出诊断包");
+    expect(developmentSource).toContain("清理日志");
+    expect(settingsSource).not.toContain("window.diagnosticsLog");
+    expect(hookSource).toContain("window.diagnosticsLog.getInfo");
+    expect(developmentSource).toContain("日志只保存在本机");
   });
 
   it("shows a dedicated image size settings tab with gpt-image presets", () => {
@@ -112,13 +191,18 @@ describe("SettingsPanel navigation", () => {
       fileURLToPath(new URL("./SettingsPanel.tsx", import.meta.url)),
       "utf8",
     );
+    const imageSizeSource = readFileSync(
+      fileURLToPath(new URL("./settings/ImageSizeSettingsTab.tsx", import.meta.url)),
+      "utf8",
+    );
 
     expect(SETTINGS_TABS.map((tab) => tab.label)).toContain("图片规格");
     expect(settingsSource).toContain('TabsContent value="imageSize"');
-    expect(settingsSource).toContain("GPT Image 规格矩阵");
-    expect(settingsSource).toContain("GPT_IMAGE_SIZE_MAP");
-    expect(settingsSource).toContain("getImageSizeLabel");
-    expect(settingsSource).toContain("compatibilityRetryEnabled");
+    expect(settingsSource).toContain("ImageSizeSettingsTab");
+    expect(imageSizeSource).toContain("GPT Image 规格矩阵");
+    expect(imageSizeSource).toContain("GPT_IMAGE_SIZE_MAP");
+    expect(imageSizeSource).toContain("getImageSizeLabel");
+    expect(imageSizeSource).toContain("compatibilityRetryEnabled");
   });
 
   it("logs API model test clicks with an operation id before invoking IPC", () => {

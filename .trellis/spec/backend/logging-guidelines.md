@@ -16,7 +16,9 @@ Questions to answer:
 - What should NOT be logged (PII, secrets)?
 -->
 
-(To be filled by the team)
+The Python sidecar currently writes concise process logs to stdout/stderr. Each
+message must identify the subsystem and support Electron runtime diagnostics
+without exposing secrets or large media payloads.
 
 ---
 
@@ -24,7 +26,11 @@ Questions to answer:
 
 <!-- When to use each level: debug, info, warn, error -->
 
-(To be filled by the team)
+- Informational lifecycle events use stdout, for example server listening and
+  model task progress.
+- Recoverable degradation uses a warning message or persisted `warning` field.
+- Failed operations must update durable task state and surface an error to the
+  Electron caller; printing alone is insufficient.
 
 ---
 
@@ -32,7 +38,9 @@ Questions to answer:
 
 <!-- Log format, required fields -->
 
-(To be filled by the team)
+Prefix sidecar output with `[tts-sidecar]`. For durable cross-process evidence,
+return structured JSON fields such as `status`, `backend`, `mocked`, `warning`,
+and `error` instead of requiring consumers to parse prose logs.
 
 ---
 
@@ -40,7 +48,10 @@ Questions to answer:
 
 <!-- Important events to log -->
 
-(To be filled by the team)
+- Service start/stop and listening address.
+- Model download, cache, load, and unload lifecycle.
+- Generation identifiers, terminal status, backend kind, and timing metadata.
+- Enough context to identify a failing route without dumping its full body.
 
 ---
 
@@ -48,4 +59,6 @@ Questions to answer:
 
 <!-- Sensitive data, PII, secrets -->
 
-(To be filled by the team)
+- `MANYING_TTS_CONTROL_TOKEN`, API keys, authorization headers, or passwords.
+- Full prompt/reference text when a short identifier or length is sufficient.
+- Base64 media, raw audio bytes, or unbounded exception payloads.

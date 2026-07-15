@@ -14,6 +14,10 @@ import { homedir, tmpdir } from "node:os";
 import { dirname, resolve } from "node:path";
 import { terminateSpawnedApp } from "./smoke-process-lifecycle.mjs";
 import { auditVisibleAutoVideo } from "./visible-workflow-auto-video-audit.mjs";
+import {
+  hasMYStudioForegroundViolation,
+  sampleFrontmostApplication,
+} from "./smoke-focus.mjs";
 
 const appBinCandidates = [
   process.env.MYSTUDIO_SMOKE_APP_BIN,
@@ -47,8 +51,17 @@ const debugPort = Number(
     String(9400 + Math.floor(Math.random() * 400)),
 );
 const skipPrekill = process.env.MYSTUDIO_SMOKE_SKIP_PREKILL === "1";
-const stepDelayMs = Number(process.env.MYSTUDIO_SMOKE_STEP_DELAY_MS || 2500);
-const safeStepDelayMs = Number.isFinite(stepDelayMs) ? Math.max(0, stepDelayMs) : 2500;
+const runInBackground =
+  process.argv.includes("--background") ||
+  process.env.MYSTUDIO_SMOKE_BACKGROUND === "1";
+const runMode = runInBackground ? "background" : "visible";
+const defaultStepDelayMs = runInBackground ? 250 : 2500;
+const stepDelayMs = Number(
+  process.env.MYSTUDIO_SMOKE_STEP_DELAY_MS || defaultStepDelayMs,
+);
+const safeStepDelayMs = Number.isFinite(stepDelayMs)
+  ? Math.max(0, stepDelayMs)
+  : defaultStepDelayMs;
 const appProcessName = "漫影工作室";
 const smokeAudioPath = "/tmp/mystudio-smoke-voice.wav";
 const smokeVideoPath = "/tmp/mystudio-smoke-final.mp4";
@@ -80,14 +93,20 @@ const daojieSourceUserDataDir =
   process.env.MYSTUDIO_DAOJIE_USER_DATA_DIR ||
   resolve(homedir(), "Library", "Application Support", appProcessName);
 const visibleRunReportPath =
-  process.env.MYSTUDIO_VISIBLE_WORKFLOW_REPORT_PATH ||
+  (runInBackground
+    ? process.env.MYSTUDIO_BACKGROUND_WORKFLOW_REPORT_PATH
+    : process.env.MYSTUDIO_VISIBLE_WORKFLOW_REPORT_PATH) ||
   resolve(
     process.cwd(),
     "output",
     "automation",
     runRealDaojie
-      ? "visible-workflow-daojie-report.json"
-      : "visible-workflow-smoke-report.json",
+      ? runInBackground
+        ? "background-workflow-daojie-report.json"
+        : "visible-workflow-daojie-report.json"
+      : runInBackground
+        ? "background-workflow-smoke-report.json"
+        : "visible-workflow-smoke-report.json",
   );
 
 if (!existsSync(appBin)) {
@@ -185,12 +204,19 @@ function writeVisibleRunReport(report) {
     `${JSON.stringify(
       {
         generatedAt: new Date().toISOString(),
-        command: runRealDaojie
-          ? runChapterAutoVideo
-            ? "npm run smoke:workflow:run:daojie -- --auto-video"
-            : "npm run smoke:workflow:run:daojie"
-          : "npm run smoke:workflow:run",
+        command: runInBackground
+          ? runRealDaojie
+            ? runChapterAutoVideo
+              ? "npm run smoke:workflow:background:daojie -- --auto-video"
+              : "npm run smoke:workflow:background:daojie"
+            : "npm run smoke:workflow:background"
+          : runRealDaojie
+            ? runChapterAutoVideo
+              ? "npm run smoke:workflow:run:daojie -- --auto-video"
+              : "npm run smoke:workflow:run:daojie"
+            : "npm run smoke:workflow:run",
         reportPath: visibleRunReportPath,
+        mode: runMode,
         ...report,
       },
       null,
@@ -397,6 +423,10 @@ const userDataDir =
 
 stopExistingMYStudioInstances();
 prepareSmokeMedia();
+const focusSamples = [];
+if (runInBackground) {
+  focusSamples.push(sampleFrontmostApplication("before app launch"));
+}
 
 function readJson(url) {
   return new Promise((resolveJson, reject) => {
@@ -509,7 +539,7 @@ function withTimeout(promise, label, timeoutMs = 120_000) {
   return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
 
-async function runVisibleWorkflow(pageTarget, childPid) {
+async function runVisibleWorkflow(pageTarget, childPid, focusSamples) {
   const socket = await connectWebSocket(pageTarget.webSocketDebuggerUrl);
   let messageId = 0;
   const pending = new Map();
@@ -523,7 +553,13 @@ async function runVisibleWorkflow(pageTarget, childPid) {
         .filter((value) => typeof value === "string")
         .join(" ");
       if (text.startsWith("[visible-run]")) {
-        if (text.includes("stage")) nudgeAppToForeground(childPid, text);
+        if (text.includes("stage")) {
+          if (runInBackground) {
+            focusSamples.push(sampleFrontmostApplication(text));
+          } else {
+            nudgeAppToForeground(childPid, text);
+          }
+        }
         console.log(text);
       }
       if (message.params?.type === "error") {
@@ -579,16 +615,19 @@ async function runVisibleWorkflow(pageTarget, childPid) {
     await send("Runtime.enable");
     await send("Log.enable");
     await send("Page.enable");
-    await send("Page.bringToFront");
-    await ensureAppIsForeground(childPid, "before workflow clicks");
+    if (!runInBackground) {
+      await send("Page.bringToFront");
+      await ensureAppIsForeground(childPid, "before workflow clicks");
+    }
     const expression = runRealDaojie
       ? realDaojieWorkflowExpression(
           safeStepDelayMs,
           realDaojieRun,
           runChapterAutoVideo,
           safeAutoVideoTimeoutMs,
+          !runInBackground,
         )
-      : visibleWorkflowExpression(safeStepDelayMs);
+      : visibleWorkflowExpression(safeStepDelayMs, !runInBackground);
     const evaluated = await withTimeout(
       send("Runtime.evaluate", {
         awaitPromise: true,
@@ -598,26 +637,43 @@ async function runVisibleWorkflow(pageTarget, childPid) {
       "visible step-by-step workflow run",
       runChapterAutoVideo ? safeAutoVideoTimeoutMs + 180_000 : 120_000,
     );
-    return { ...evaluated.result.value, runtimeProblems };
+    const pageFocus = await send("Runtime.evaluate", {
+      returnByValue: true,
+      expression: `({
+        windowVisibility: document.visibilityState,
+        documentHasFocus: document.hasFocus(),
+      })`,
+    });
+    return {
+      ...evaluated.result.value,
+      ...pageFocus.result.value,
+      runtimeProblems,
+    };
   } finally {
     rejectPending(pending, new Error("CDP socket closed during visible workflow cleanup"));
     socket.close();
   }
 }
 
-function visibleWorkflowExpression(delayMs) {
+function visibleWorkflowExpression(delayMs, focusWindow) {
+  const focusWindowStatement = focusWindow ? "window.focus();" : "";
   return `(async () => {
+    const backgroundMode = ${!focusWindow};
     const normalize = (node) => (node.textContent || '').replace(/\\s+/g, ' ').trim();
     const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     const visibleDelay = () => wait(${delayMs});
     const activate = (node) => {
       if (!node) return false;
       node.scrollIntoView?.({ block: 'center', inline: 'center' });
-      node.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, pointerId: 1, button: 0, buttons: 1, pointerType: 'mouse' }));
-      node.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, button: 0, buttons: 1, view: window }));
-      node.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, cancelable: true, pointerId: 1, button: 0, buttons: 0, pointerType: 'mouse' }));
-      node.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true, button: 0, view: window }));
-      node.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, button: 0, view: window }));
+      if (backgroundMode && typeof node.click === 'function') {
+        node.click();
+      } else {
+        node.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, pointerId: 1, button: 0, buttons: 1, pointerType: 'mouse' }));
+        node.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, button: 0, buttons: 1, view: window }));
+        node.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, cancelable: true, pointerId: 1, button: 0, buttons: 0, pointerType: 'mouse' }));
+        node.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true, button: 0, view: window }));
+        node.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, button: 0, view: window }));
+      }
       return true;
     };
     const clickText = (text, exact = false) => {
@@ -638,10 +694,17 @@ function visibleWorkflowExpression(delayMs) {
       return null;
     };
     const clickStage = async (stage) => {
+      if (backgroundMode) {
+        const changed = await window.mystudioWorkflowSmoke?.setWorkflowStage?.(stage.id);
+        await visibleDelay();
+        return { clicked: Boolean(changed), text: changed ? 'background-bridge:' + stage.label : '' };
+      }
       console.info('[visible-run] stage ' + stage.id + ' opening switcher');
-      window.focus();
-      clickText('切换阶段');
+      ${focusWindowStatement}
+      const switcherClick = clickText('切换阶段');
+      console.info('[visible-run] stage ' + stage.id + ' switcher=' + Boolean(switcherClick.clicked));
       await visibleDelay();
+      await waitFor(() => Array.from(document.querySelectorAll('button, [role="menuitem"], [cmdk-item]')).some((node) => normalize(node).includes(stage.label)), 2_000);
       const clicked =
         stage.id === 'manuals' ? clickText('风格与导演') :
         stage.id === 'novel' ? clickText('小说导入') :
@@ -661,13 +724,15 @@ function visibleWorkflowExpression(delayMs) {
       await visibleDelay();
     };
 
-    const projectCard = document.querySelector('.dashboard-project-card');
+    const projectCard = await waitFor(() => document.querySelector('.dashboard-project-card'), 15_000);
     if (projectCard) {
       activate(projectCard);
       await visibleDelay();
     }
+    await waitFor(() => Array.from(document.querySelectorAll('button, [role="button"]')).some((node) => normalize(node) === '工作流'), 15_000);
     const workflowClick = clickText('工作流', true);
     await visibleDelay();
+    await waitFor(() => Array.from(document.querySelectorAll('button, [role="button"]')).some((node) => normalize(node).includes('切换阶段')), 15_000);
     await waitFor(() => window.mystudioWorkflowSmoke?.resetForStepwiseExecution, 15_000);
     const reset = await window.mystudioWorkflowSmoke?.resetForStepwiseExecution?.();
     await visibleDelay();
@@ -722,14 +787,17 @@ function realDaojieWorkflowExpression(
   daojieRun,
   autoVideoEnabled,
   autoVideoTimeoutMs,
+  focusWindow,
 ) {
   const projectId = JSON.stringify(daojieRun.projectId);
   const projectName = JSON.stringify(daojieRun.projectName);
   const chapterId = JSON.stringify(daojieRun.chapterId);
   const chapterTitle = JSON.stringify(daojieRun.chapterTitle);
   const expectedStoryboards = Number(daojieRun.expectedStoryboards);
+  const focusWindowStatement = focusWindow ? "window.focus();" : "";
   return `(async () => {
     // Daojie mode does not use resetForStepwiseExecution or seed smoke data.
+    const backgroundMode = ${!focusWindow};
     const projectId = ${projectId};
     const projectName = ${projectName};
     const chapterId = ${chapterId};
@@ -743,11 +811,15 @@ function realDaojieWorkflowExpression(
     const activate = (node) => {
       if (!node) return false;
       node.scrollIntoView?.({ block: 'center', inline: 'center' });
-      node.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, pointerId: 1, button: 0, buttons: 1, pointerType: 'mouse' }));
-      node.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, button: 0, buttons: 1, view: window }));
-      node.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, cancelable: true, pointerId: 1, button: 0, buttons: 0, pointerType: 'mouse' }));
-      node.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true, button: 0, view: window }));
-      node.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, button: 0, view: window }));
+      if (backgroundMode && typeof node.click === 'function') {
+        node.click();
+      } else {
+        node.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, pointerId: 1, button: 0, buttons: 1, pointerType: 'mouse' }));
+        node.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, button: 0, buttons: 1, view: window }));
+        node.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, cancelable: true, pointerId: 1, button: 0, buttons: 0, pointerType: 'mouse' }));
+        node.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true, button: 0, view: window }));
+        node.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, button: 0, view: window }));
+      }
       return true;
     };
     const clickText = (text, exact = false) => {
@@ -955,10 +1027,17 @@ function realDaojieWorkflowExpression(
       return { ready, domEvidence, manualsReady, workbenchReady, derivedReady };
     };
     const clickStage = async (stage) => {
+      if (backgroundMode) {
+        const changed = await window.mystudioWorkflowSmoke?.setWorkflowStage?.(stage.id);
+        await visibleDelay();
+        return { clicked: Boolean(changed), text: changed ? 'background-bridge:' + stage.label : '' };
+      }
       console.info('[visible-run] stage ' + stage.id + ' opening switcher');
-      window.focus();
-      clickText('切换阶段');
+      ${focusWindowStatement}
+      const switcherClick = clickText('切换阶段');
+      console.info('[visible-run] stage ' + stage.id + ' switcher=' + Boolean(switcherClick.clicked));
       await visibleDelay();
+      await waitFor(() => Array.from(document.querySelectorAll('button, [role="menuitem"], [cmdk-item], [role="button"]')).some((node) => normalize(node).includes(stage.label)), 2_000);
       const clicked =
         stage.id === 'manuals' ? clickText('风格与导演') :
         stage.id === 'novel' ? clickText('小说导入') :
@@ -1392,14 +1471,18 @@ const childEnv = {
   ...process.env,
   ELECTRON_ENABLE_LOGGING: "1",
   MYSTUDIO_SMOKE_STEP_DELAY_MS: String(safeStepDelayMs),
+  MYSTUDIO_SMOKE_BACKGROUND: runInBackground ? "1" : "0",
 };
 if (runRealDaojie) {
   childEnv.MYSTUDIO_WORKFLOW_REAL_DAOJIE = "1";
+  if (runInBackground) childEnv.MYSTUDIO_SMOKE = "1";
 } else {
   childEnv.MYSTUDIO_SMOKE = "1";
   childEnv.MYSTUDIO_SMOKE_WORKFLOW_STEPWISE = "1";
-  childEnv.MYSTUDIO_SMOKE_FOREGROUND = "1";
-  childEnv.MYSTUDIO_SMOKE_KEEP_OPEN = "1";
+  if (!runInBackground) {
+    childEnv.MYSTUDIO_SMOKE_FOREGROUND = "1";
+    childEnv.MYSTUDIO_SMOKE_KEEP_OPEN = "1";
+  }
 }
 
 const child = spawn(
@@ -1416,14 +1499,28 @@ let runPassed = false;
 
 try {
   const page = await waitForPageTarget();
-  await ensureAppIsForeground(child.pid, "after app launch");
-  const result = await runVisibleWorkflow(page, child.pid);
-  const frontmostApp = await ensureAppIsForeground(child.pid, "after workflow clicks");
+  if (runInBackground) {
+    focusSamples.push(sampleFrontmostApplication("after CDP target appeared"));
+  } else {
+    await ensureAppIsForeground(child.pid, "after app launch");
+  }
+  const result = await runVisibleWorkflow(page, child.pid, focusSamples);
+  if (runInBackground) {
+    focusSamples.push(sampleFrontmostApplication("after workflow clicks"));
+  }
+  const frontmostApp = runInBackground
+    ? ""
+    : await ensureAppIsForeground(child.pid, "after workflow clicks");
+  const foregroundViolation = hasMYStudioForegroundViolation(focusSamples);
+  const focusFailure = runInBackground
+    ? foregroundViolation
+    : process.platform === "darwin" && frontmostApp !== appProcessName;
   const failedStages = result.results.filter((stage) => !stage.clicked || !stage.ready);
   const runtimeProblems = Array.isArray(result.runtimeProblems)
     ? result.runtimeProblems
     : [];
   const baseReport = {
+    mode: runMode,
     appBin,
     userDataDir,
     debugPort,
@@ -1431,6 +1528,10 @@ try {
     runChapterAutoVideo,
     chapterAutoVideo: result.chapterAutoVideo,
     frontmostApp,
+    windowVisibility: result.windowVisibility,
+    documentHasFocus: result.documentHasFocus,
+    focusSamples,
+    foregroundViolation,
     result,
     failedStages,
     runtimeProblems,
@@ -1474,7 +1575,7 @@ try {
       daojie.videoCandidates < 1 ||
       daojie.hasSmokeTemplate ||
       autoVideoFailed ||
-      (process.platform === "darwin" && frontmostApp !== appProcessName);
+      focusFailure;
     writeVisibleRunReport({
       ...baseReport,
       source: result.source,
@@ -1489,7 +1590,7 @@ try {
     } else {
       runPassed = true;
       console.log(
-        `[visible-run] Daojie chapter001 clicked through and left open: pid=${child.pid}, project=${daojie.projectName}, chapter=${daojie.chapterId}, storyboards=${daojie.storyboards}/${expectedStoryboards}, derivedAssets=${daojie.derivedAssets}, derivedImageWorkflows=${daojie.derivedImageWorkflowsReady}/${daojie.derivedImageWorkflows}, videoCandidates=${daojie.videoCandidates}, autoVideoStage=${chapterAutoVideo.terminalStage || "disabled"}, frontmostApp=${frontmostApp}, userDataDir=${userDataDir}`,
+        `[${runMode}-run] Daojie chapter001 clicked through${runInBackground ? " in background" : " and left open"}: pid=${child.pid}, project=${daojie.projectName}, chapter=${daojie.chapterId}, storyboards=${daojie.storyboards}/${expectedStoryboards}, derivedAssets=${daojie.derivedAssets}, derivedImageWorkflows=${daojie.derivedImageWorkflowsReady}/${daojie.derivedImageWorkflows}, videoCandidates=${daojie.videoCandidates}, autoVideoStage=${chapterAutoVideo.terminalStage || "disabled"}, frontmostApp=${frontmostApp || "unchanged"}, userDataDir=${userDataDir}`,
       );
     }
   } else if (
@@ -1498,7 +1599,7 @@ try {
     !result.completed ||
     failedStages.length > 0 ||
     runtimeProblems.length > 0 ||
-    (process.platform === "darwin" && frontmostApp !== appProcessName)
+    focusFailure
   ) {
     writeVisibleRunReport({
       ...baseReport,
@@ -1515,15 +1616,19 @@ try {
     });
     runPassed = true;
     console.log(
-      `[visible-run] workflow clicked through and left open: pid=${child.pid}, progress=${result.progress}, frontmostApp=${frontmostApp}, userDataDir=${userDataDir}`,
+      `[${runMode}-run] workflow clicked through${runInBackground ? " in background" : " and left open"}: pid=${child.pid}, progress=${result.progress}, frontmostApp=${frontmostApp || "unchanged"}, userDataDir=${userDataDir}`,
     );
   }
 } catch (error) {
   const errorMessage = error instanceof Error ? error.message : String(error);
   console.error(errorMessage);
+  if (runInBackground) {
+    focusSamples.push(sampleFrontmostApplication("after workflow failure"));
+  }
   try {
     writeVisibleRunReport({
       ok: false,
+      mode: runMode,
       source: runRealDaojie
         ? "real-daojie-chapter001-clone"
         : "isolated-smoke-project",
@@ -1532,6 +1637,10 @@ try {
       debugPort,
       runRealDaojie,
       runChapterAutoVideo,
+      windowVisibility: null,
+      documentHasFocus: null,
+      focusSamples,
+      foregroundViolation: hasMYStudioForegroundViolation(focusSamples),
       error: errorMessage,
     });
   } catch (reportError) {
@@ -1541,6 +1650,6 @@ try {
   }
   process.exitCode = 1;
 } finally {
-  if (runPassed) child.unref();
-  else await terminateSpawnedApp(child, { logPrefix: "[visible-run]" });
+  if (runPassed && !runInBackground) child.unref();
+  else await terminateSpawnedApp(child, { logPrefix: `[${runMode}-run]` });
 }

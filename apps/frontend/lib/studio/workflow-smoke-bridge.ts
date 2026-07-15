@@ -3,6 +3,7 @@ import { useTtsStore } from "@/stores/tts-store";
 import { useCharacterLibraryStore } from "@/stores/character-library-store";
 import { usePropsLibraryStore } from "@/stores/props-library-store";
 import { useSceneStore } from "@/stores/scene-store";
+import { useEditingStore } from "@/stores/editing-store";
 import {
   buildWorkflowReadiness,
   type WorkflowStageReadiness,
@@ -13,6 +14,7 @@ import {
 } from "@/lib/studio/workflow-parity-report";
 import type { AgentWorkData, AgentWorkKey, StudioAgentRun } from "@/types/studio";
 import type { ProjectVoiceBinding, SceneVoiceLine, VoiceProfile } from "@/types/tts";
+import type { EditingProjectV1, TimelineRenderRecord } from "@/types/editing";
 
 export interface WorkflowSmokeResult {
   progress: number;
@@ -20,6 +22,17 @@ export interface WorkflowSmokeResult {
   nextActionLabel: string;
   checks: Record<string, boolean>;
   workflowParityReport?: WorkflowParityReport;
+  editingEvidence: WorkflowSmokeEditingEvidence;
+  evidenceBoundary: WorkflowParityReport["evidenceBoundary"];
+}
+
+export interface WorkflowSmokeEditingEvidence {
+  source: "seeded-ui-smoke";
+  editingProjectId?: string;
+  editingRevision?: number;
+  timelineRenderJobId?: string;
+  hasCompleteTimelineEvidence: boolean;
+  realMediaGeneration: false;
 }
 
 export interface WorkflowSmokeStageEvidence {
@@ -62,6 +75,7 @@ const SMOKE_PROP_ID = "smoke-prop-sword";
 const SMOKE_STORYBOARD_ID = "smoke-storyboard-1";
 const SMOKE_TRACK_ID = "smoke-track-1";
 const SMOKE_VIDEO_ID = "smoke-video-1";
+const SMOKE_EDITING_PROJECT_ID = "smoke-editing-1";
 const SMOKE_AUDIO_PATH = "/tmp/mystudio-smoke-voice.wav";
 const SMOKE_VIDEO_PATH = "/tmp/mystudio-smoke-final.mp4";
 const stepwiseEvidence: WorkflowSmokeStageEvidence[] = [];
@@ -81,7 +95,7 @@ export function installWorkflowSmokeBridge() {
 
 export function isIsolatedSmokeUserDataDir(userDataDir?: string): boolean {
   if (!userDataDir) return false;
-  return /(?:^|[/\\])mystudio-(?:installed-)?smoke-[^/\\]+$/.test(userDataDir);
+  return /(?:^|[/\\])mystudio-(?:(?:installed-)?smoke|daojie-workflow-run)-[^/\\]+$/.test(userDataDir);
 }
 
 export function getSmokeStoryboardFramePath() {
@@ -101,6 +115,7 @@ async function resetForStepwiseExecution(): Promise<WorkflowSmokeInspection> {
   useCharacterLibraryStore.setState({ characters: [] });
   useSceneStore.setState({ scenes: [] });
   usePropsLibraryStore.setState({ items: [], selectedFolderId: "all" });
+  resetSmokeEditingStore();
   const tts = useTtsStore.getState();
   tts.setActiveProjectId(SMOKE_PROJECT_ID);
   tts.ensureProject(SMOKE_PROJECT_ID);
@@ -494,11 +509,19 @@ function applyWorkbenchStep(now: number) {
       },
     ],
   }));
+  seedSmokeEditingEvidence({
+    episodeId: SMOKE_CHAPTER_ID,
+    storyboardId: SMOKE_STORYBOARD_ID,
+    trackId: SMOKE_TRACK_ID,
+    videoPath: SMOKE_VIDEO_PATH,
+    now,
+  });
 }
 
 async function seedCompleteWorkflow(): Promise<WorkflowSmokeResult> {
   const studio = useStudioStore.getState();
   studio.resetStudioWorkflow();
+  resetSmokeEditingStore();
 
   const now = Date.now();
   const chapterId = "smoke-chapter-1";
@@ -754,6 +777,13 @@ async function seedCompleteWorkflow(): Promise<WorkflowSmokeResult> {
       },
     ],
   });
+  seedSmokeEditingEvidence({
+    episodeId: chapterId,
+    storyboardId,
+    trackId,
+    videoPath,
+    now,
+  });
 
   const tts = useTtsStore.getState();
   tts.setActiveProjectId("default-project");
@@ -810,7 +840,9 @@ async function seedCompleteWorkflow(): Promise<WorkflowSmokeResult> {
 async function inspectWorkflow(): Promise<WorkflowSmokeInspection> {
   const studio = useStudioStore.getState();
   const tts = useTtsStore.getState();
+  const editing = useEditingStore.getState();
   const project = tts.projects[tts.activeProjectId ?? "default-project"];
+  const episodeId = studio.storyboards[0]?.episodeId ?? SMOKE_CHAPTER_ID;
   const readiness = buildWorkflowReadiness({
     workflowConfig: studio.workflowConfig,
     novelChapters: studio.novelChapters,
@@ -821,6 +853,12 @@ async function inspectWorkflow(): Promise<WorkflowSmokeInspection> {
     storyboards: studio.storyboards,
     productionTracks: studio.productionTracks,
     videoCandidates: studio.videoCandidates,
+    episodeId,
+    editingProjects: editing.editingProjects,
+    currentEditingProjectIdByEpisode:
+      editing.currentEditingProjectIdByEpisode,
+    timelineRenderRecordsByEditingProjectId:
+      editing.timelineRenderRecordsByEditingProjectId,
     voiceBindings: Object.values(project?.bindings ?? {}),
     sceneVoiceLines: Object.values(project?.voiceLines ?? {}),
     capabilities: { textCompletion: true, studioRenderer: true },
@@ -834,6 +872,12 @@ async function inspectWorkflow(): Promise<WorkflowSmokeInspection> {
     storyboards: studio.storyboards,
     productionTracks: studio.productionTracks,
     videoCandidates: studio.videoCandidates,
+    episodeId,
+    editingProjects: editing.editingProjects,
+    currentEditingProjectIdByEpisode:
+      editing.currentEditingProjectIdByEpisode,
+    timelineRenderRecordsByEditingProjectId:
+      editing.timelineRenderRecordsByEditingProjectId,
     workflowConfig: studio.workflowConfig,
     evidenceBoundary: {
       seededUiSmoke: true,
@@ -850,6 +894,18 @@ async function inspectWorkflow(): Promise<WorkflowSmokeInspection> {
     nextActionLabel: readiness.nextActionLabel,
     stages: readiness.stages,
     evidence: [...stepwiseEvidence],
+    editingEvidence: {
+      source: "seeded-ui-smoke",
+      editingProjectId:
+        workflowParityReport.video.currentEditingProjectId,
+      editingRevision: workflowParityReport.video.currentEditingRevision,
+      timelineRenderJobId:
+        workflowParityReport.video.timelineRenderRecord?.evidence.jobId,
+      hasCompleteTimelineEvidence:
+        workflowParityReport.video.hasCompleteTimelineEvidence,
+      realMediaGeneration: false,
+    },
+    evidenceBoundary: workflowParityReport.evidenceBoundary,
     checks: {
       manualsReady: readiness.stages[0]?.status === "ready",
       novelReady: readiness.stages[1]?.status === "ready",
@@ -858,7 +914,17 @@ async function inspectWorkflow(): Promise<WorkflowSmokeInspection> {
       generationReady: readiness.stages[3]?.status === "ready",
       storyboardReady: readiness.stages[4]?.status === "ready",
       workbenchReady: readiness.stages[5]?.status === "ready",
-      hasFinalExport: studio.agentWorkData.some((item) => item.key === "productionPlan" && item.data.includes("本地成片输出:")),
+      hasFinalExport: workflowParityReport.video.hasFinalExport,
+      hasLegacyCompatibilityExport:
+        workflowParityReport.video.hasLegacyCompatibilityExport,
+      hasEditingProject: Boolean(
+        workflowParityReport.video.currentEditingProjectId,
+      ),
+      hasTimelineRenderRecord:
+        workflowParityReport.video.timelineRenderRecords > 0,
+      hasCompleteTimelineEvidence:
+        workflowParityReport.video.completeTimelineEvidence > 0,
+      seededEditingEvidence: true,
       hasSelectedCandidate: studio.productionTracks.some((track) => Boolean(track.selectedVideoId)),
       hasVoiceBinding: Object.keys(project?.bindings ?? {}).some((speakerId) => speakerId.startsWith("character:")),
       hasVoiceAudio: Object.values(project?.voiceLines ?? {}).some((line) => line.status === "completed" && Boolean(line.audioLocalPath || line.audioFilePath)),
@@ -922,13 +988,143 @@ function stageEvidenceText(stageId: string) {
     return `directorPlan=${studio.scriptPlans.length}; storyboards=${studio.storyboards.length}; imageRefs=${studio.storyboards.filter((item) => item.mediaRef?.path).length}; voiceBindings=${Object.keys(project?.bindings ?? {}).length}; voiceLines=${Object.keys(project?.voiceLines ?? {}).length}`;
   }
   if (stageId === "workbench") {
-    return `tracks=${studio.productionTracks.length}; selectedCandidates=${studio.productionTracks.filter((track) => track.selectedVideoId).length}; finalExport=${studio.agentWorkData.some((item) => item.key === "productionPlan" && item.data.includes("本地成片输出:"))}`;
+    const editing = useEditingStore.getState();
+    const editingProjectId =
+      editing.currentEditingProjectIdByEpisode[SMOKE_CHAPTER_ID];
+    const record = editingProjectId
+      ? editing.timelineRenderRecordsByEditingProjectId[editingProjectId]
+      : undefined;
+    return `tracks=${studio.productionTracks.length}; selectedCandidates=${studio.productionTracks.filter((track) => track.selectedVideoId).length}; editingProject=${editingProjectId ?? "missing"}; editingRevision=${editingProjectId ? editing.editingProjects[editingProjectId]?.revision ?? "missing" : "missing"}; timelineRecord=${record?.evidence.jobId ?? "missing"}; seededTimelineEvidence=true`;
   }
   return `stage=${stageId}`;
 }
 
 function countWork(items: AgentWorkData[], key: AgentWorkKey) {
   return items.filter((item) => item.key === key && item.data.trim()).length;
+}
+
+function resetSmokeEditingStore() {
+  useEditingStore.setState({
+    activeProjectId: SMOKE_PROJECT_ID,
+    editingProjects: {},
+    currentEditingProjectIdByEpisode: {},
+    autoEditingRuns: {},
+    autoEditingRunIdsByEpisode: {},
+    timelineRenderRecordsByEditingProjectId: {},
+    historyByEditingProjectId: {},
+    persistenceWarnings: [],
+  });
+}
+
+function seedSmokeEditingEvidence({
+  episodeId,
+  storyboardId,
+  trackId,
+  videoPath,
+  now,
+}: {
+  episodeId: string;
+  storyboardId: string;
+  trackId: string;
+  videoPath: string;
+  now: number;
+}) {
+  const sourceSnapshotHash = `smoke-source-${episodeId}`;
+  const project: EditingProjectV1 = {
+    schemaVersion: 1,
+    id: SMOKE_EDITING_PROJECT_ID,
+    projectId: SMOKE_PROJECT_ID,
+    episodeId,
+    name: "Smoke 自动剪辑草案",
+    revision: 1,
+    sourceSnapshotHash,
+    createdBy: "auto",
+    manuallyEdited: false,
+    stale: false,
+    renderSettings: {
+      width: 1080,
+      height: 1920,
+      fps: 30,
+      codec: "h264",
+      subtitleMode: "burn-in",
+      loudnessLufs: -14,
+      truePeakDbtp: -1.5,
+    },
+    tracks: [
+      {
+        id: "smoke-editing-video-track",
+        kind: "video",
+        name: "主画面",
+        order: 0,
+        clipIds: ["smoke-editing-clip-1"],
+        muted: false,
+        locked: false,
+      },
+    ],
+    clips: [
+      {
+        id: "smoke-editing-clip-1",
+        trackId: "smoke-editing-video-track",
+        name: "Smoke 分镜 1",
+        source: {
+          kind: "videoCandidate",
+          path: videoPath,
+          evidence: {
+            storyboardId,
+            trackId,
+            candidateId: SMOKE_VIDEO_ID,
+          },
+        },
+        startUs: 0,
+        durationUs: 5_000_000,
+        trimStartUs: 0,
+        speed: 1,
+        volume: 0,
+        muted: true,
+      },
+    ],
+    transitions: [],
+    effects: [],
+    proposals: [],
+    createdAt: now,
+    updatedAt: now,
+  };
+  const hash = "a".repeat(64);
+  const record: TimelineRenderRecord = {
+    projectId: SMOKE_PROJECT_ID,
+    episodeId,
+    editingProjectId: project.id,
+    editingRevision: project.revision,
+    sourceSnapshotHash,
+    completedAt: now,
+    evidence: {
+      jobId: "smoke-timeline-render-1",
+      path: videoPath,
+      sizeBytes: 1024,
+      mtimeMs: now,
+      sha256: hash,
+      duration: 5,
+      width: 1080,
+      height: 1920,
+      streams: ["video", "audio"],
+      snapshotHash: hash,
+      snapshotPath: "/tmp/mystudio-smoke-editing-project.json",
+      renderPlanPath: "/tmp/mystudio-smoke-render-plan.json",
+      inputManifestPath: "/tmp/mystudio-smoke-input-manifest.json",
+      filterGraphPath: "/tmp/mystudio-smoke-filter-graph.txt",
+      logPath: "/tmp/mystudio-smoke-ffmpeg.log",
+      ffprobePath: "/tmp/mystudio-smoke-ffprobe.json",
+    },
+  };
+  const store = useEditingStore.getState();
+  const projectResult = store.saveEditingProject(project);
+  if (!projectResult.success) {
+    throw new Error(projectResult.issue.message);
+  }
+  const recordResult = useEditingStore.getState().saveTimelineRenderRecord(record);
+  if (!recordResult.success) {
+    throw new Error(recordResult.issue.message);
+  }
 }
 
 function upsertWorks(items: AgentWorkData[], updates: AgentWorkData[]) {

@@ -1,4 +1,7 @@
 import type { TtsSpeakerId } from "./tts";
+import type { CharacterIdentityAnchors, CharacterNegativePrompt } from "./script";
+
+export type CharacterReferenceViewType = "front" | "side" | "back" | "three-quarter";
 
 export type AgentWorkKey =
   | "eventAnalysis"
@@ -142,9 +145,74 @@ export interface StoryboardOrderedReference {
   assetKind?: ImageWorkflowAssetTargetType | "character" | "scene" | "prop";
   imageId?: string | number;
   imagePath?: string;
+  referenceImagePaths?: string[];
+  referenceViewTypes?: CharacterReferenceViewType[];
   source?: string;
   missing?: boolean;
+  versionId?: string;
+  referenceRole?: "canonical" | "scene-viewpoint" | "prop-state" | "previous-approved-frame";
+  identityAnchors?: CharacterIdentityAnchors;
+  negativePrompt?: CharacterNegativePrompt;
+  wardrobeVersion?: string;
+  sceneViewpointId?: string;
+  approved?: boolean;
 }
+
+export interface ContinuityAssetVersion {
+  assetId: string;
+  versionId: string;
+  assetKind: "character" | "scene" | "prop";
+  label: string;
+  referenceImagePaths: string[];
+  referenceViewTypes?: CharacterReferenceViewType[];
+  identityAnchors?: CharacterIdentityAnchors;
+  negativePrompt?: CharacterNegativePrompt;
+  wardrobeVersion?: string;
+  sceneViewpointId?: string;
+  validFromStoryboardIndex?: number;
+  validToStoryboardIndex?: number;
+  approved: boolean;
+  source: string;
+}
+
+export interface ShotContinuityCharacterState {
+  characterId: string;
+  versionId: string;
+  position: string;
+  orientation: string;
+  actionIn: string;
+  actionOut: string;
+}
+
+export interface ShotContinuityState {
+  groupId: string;
+  previousStoryboardId?: string;
+  sceneVersionId: string;
+  sceneViewpointId: string;
+  lighting: string;
+  palette: string;
+  actionIn: string;
+  actionOut: string;
+  characters: ShotContinuityCharacterState[];
+  inputFingerprint: string;
+}
+
+export interface VisualReviewResult {
+  status: "pending" | "approved" | "rejected";
+  reasons: string[];
+  characterChecks: { characterId: string; passed: boolean; reason?: string }[];
+  sceneChecks: { sceneVersionId: string; passed: boolean; reason?: string }[];
+  transitionChecks: { previousStoryboardId?: string; passed: boolean; reason?: string }[];
+  reviewer: "human" | "automated";
+  reviewedAt?: number;
+  evidencePaths: string[];
+  inputFingerprint: string;
+}
+
+export type HumanVisualReviewInput = Omit<
+  VisualReviewResult,
+  "reviewer" | "inputFingerprint"
+> & { reviewedAt?: number };
 
 export interface StudioMaterial {
   id: string;
@@ -174,6 +242,8 @@ export interface StoryboardItem extends StudioStaleEvidence {
   shouldGenerateImage?: boolean;
   sourceEvidence?: StoryboardSourceEvidence;
   orderedReferenceManifest?: StoryboardOrderedReference[];
+  continuityState?: ShotContinuityState;
+  visualReview?: VisualReviewResult;
   audioRef?: StoryboardMediaRef;
   state: StoryboardState;
   reason?: string;
@@ -434,6 +504,14 @@ export interface ImageWorkflowReferenceNode extends ImageWorkflowNodeBase {
   imageUrl: string;
   source?: ImageWorkflowTarget;
   notes?: string;
+  continuityOrder?: number;
+  continuityVersionId?: string;
+  referenceRole?: StoryboardOrderedReference["referenceRole"];
+  identityAnchors?: StoryboardOrderedReference["identityAnchors"];
+  negativePrompt?: StoryboardOrderedReference["negativePrompt"];
+  wardrobeVersion?: string;
+  characterViewType?: CharacterReferenceViewType;
+  sceneViewpointId?: string;
 }
 
 export interface ImageWorkflowGeneratedNode extends ImageWorkflowNodeBase {
