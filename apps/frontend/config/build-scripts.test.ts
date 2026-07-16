@@ -1,6 +1,7 @@
 import {
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   statSync,
   writeFileSync,
@@ -54,6 +55,33 @@ function runNodeHelper(payload: unknown): Promise<{ status: number | null; stdou
 }
 
 describe("desktop build scripts", () => {
+  it("archives prior canonical JSON reports before writing the latest result", () => {
+    const root = mkdtempSync(resolve(tmpdir(), "mystudio-report-retention-"));
+    const reportPath = resolve(root, "report.json");
+    const result = spawnSync("node", [
+      "--input-type=module",
+      "-e",
+      [
+        "import { writeDurableJsonReport } from './build/durable-json-report.mjs';",
+        "writeDurableJsonReport(process.env.TARGET_REPORT, { generatedAt: '2026-07-17T00:00:01Z', ok: false });",
+        "writeDurableJsonReport(process.env.TARGET_REPORT, { generatedAt: '2026-07-17T00:00:02Z', ok: true });",
+      ].join("\n"),
+    ], {
+      cwd: appsRoot,
+      env: { ...process.env, TARGET_REPORT: reportPath },
+      encoding: "utf8",
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(JSON.parse(readFileSync(reportPath, "utf8"))).toMatchObject({ ok: true });
+    const historyDir = resolve(root, "report-history", "report");
+    const archives = readdirSync(historyDir);
+    expect(archives).toHaveLength(1);
+    expect(JSON.parse(readFileSync(resolve(historyDir, archives[0]!), "utf8")))
+      .toMatchObject({ ok: false });
+  });
+
   it("use the current frontend build paths", () => {
     const source = readBuildFile("build/build-desktop.mjs");
 
@@ -1035,6 +1063,11 @@ describe("desktop build scripts", () => {
     expect(videoScript).toContain("imageGenerationProvider");
     expect(videoScript).toContain("storyboardImageWorkflowManifest");
     expect(videoScript).toContain("requireStoryboardPromptIntegrity(generated)");
+    expect(videoScript).toContain("requireDaojieVisualContinuityPreflight");
+    expect(videoScript).toContain("build/audit-daojie-visual-continuity.ts");
+    expect(videoScript).toContain("MYSTUDIO_DAOJIE_VISUAL_PREFLIGHT");
+    expect(videoScript).toContain("MYSTUDIO_DAOJIE_USE_APPROVED_STORYBOARDS");
+    expect(videoScript).toContain("generatedImages !== 0 || generated.reusedImages !== storyboardCount");
     expect(videoScript).toContain("requireDirectorPlanIntegrity(generated)");
     expect(videoScript).toContain("directorPlanAuditFields(generated)");
     expect(videoScript).toContain("MIN_DAOJIE_DIRECTOR_PLAN_CHARS = 4500");
@@ -1062,11 +1095,43 @@ describe("desktop build scripts", () => {
     expect(videoScript).toContain("generationEndpointCalled: false");
     expect(videoScript).toContain("daojie-chapter001-provider-probe-report.json");
     expect(packageJson).toContain('"video:daojie:chapter001:probe-generation": "node ./build/automate-daojie-chapter001-video.mjs --probe-generation"');
+    expect(packageJson).toContain('"video:daojie:chapter001:continuity-pilot": "node ./build/automate-daojie-chapter001-video.mjs --continuity-pilot"');
+    expect(packageJson).toContain('"video:daojie:chapter001:continuity-full": "node ./build/automate-daojie-chapter001-video.mjs --continuity-full-chapter"');
     expect(videoScript).toContain("probeGenerationOnly");
     expect(videoScript).toContain("runImageGenerationProbe");
+    expect(videoScript).toContain("providers.length !== 1 || providers[0].apiKeys.length !== 1");
+    expect(videoScript).toContain("singleAttempt: true");
+    expect(videoScript).toContain("isAmbiguousPaidImageFailure");
+    expect(videoScript).toContain("ambiguousPaidRequest: isAmbiguousPaidImageFailure(error)");
+    expect(videoScript).toContain("resubmitAllowed: false");
     expect(videoScript).toContain("generationEndpointCalled: true");
     expect(videoScript).toContain("MYSTUDIO_IMAGE_PROBE_REFERENCE_PATH");
+    expect(videoScript).toContain("真实生图探针参考图必须是独立 *_thumb.png");
+    expect(videoScript).toContain("actualBytes >= 1_000_000");
+    expect(videoScript).toContain("await sharp(referencePath, { failOn: 'error' }).metadata()");
+    expect(videoScript).toContain("MYSTUDIO_IMAGE_PROBE_OUTPUT_PATH");
+    expect(videoScript).toContain("MYSTUDIO_IMAGE_PROBE_REPORT_PATH");
+    expect(videoScript).toContain("MYSTUDIO_IMAGE_PROBE_ASPECT_RATIO");
+    expect(videoScript).toContain("拒绝覆盖已有真实生图探针结果");
     expect(videoScript).toContain("daojie-chapter001-generation-probe-report.json");
+    expect(videoScript).toContain("createProbeTransferThumbnail(outputPath)");
+    expect(videoScript).toContain("_thumb.png");
+    expect(videoScript).toContain("payload.length >= 1_000_000");
+    expect(videoScript).toContain("transferThumbnail");
+    expect(videoScript).toContain("continuityPilotOnly");
+    expect(videoScript).toContain("continuityFullChapterOnly");
+    expect(videoScript).toContain("generate_chapter001_continuity_sample.py");
+    expect(videoScript).toContain("MYSTUDIO_CONTINUITY_PILOT_SHOTS");
+    expect(videoScript).toContain("MYSTUDIO_CONTINUITY_RESTART_FROM_SHOT");
+    expect(videoScript).toContain("--full-chapter");
+    expect(videoScript).toContain("payload.generatedImages !== payload.processedImages");
+    expect(videoScript).toContain("payload.reusedImages !== 0");
+    expect(videoScript).toContain("storyboardTransferThumbnails");
+    expect(videoScript).toContain("statSync(thumbnailPath).size");
+    expect(videoScript).toContain("sha256File(thumbnailPath)");
+    expect(videoScript).toContain("await sharp(thumbnailPath).metadata()");
+    expect(videoScript).toContain("Number(thumbnail?.bytes) === actualBytes");
+    expect(videoScript).toContain("thumbnail.sha256 === actualSha256");
     expect(videoScript).toContain("/v1/models");
     expect(videoScript).toContain("opencut-api-config");
     expect(videoScript).toContain("freedom_image");
@@ -1081,6 +1146,13 @@ describe("desktop build scripts", () => {
     expect(videoScript).toContain("finalVideoEvidence");
     expect(videoScript).toContain("legacyCompatibilityVideo");
     expect(videoScript).toContain("legacyCompatibilityVideoEvidence");
+    expect(videoScript).toContain("let failureReportWritten = false;");
+    expect(videoScript).toContain("let failureStage = 'startup';");
+    expect(videoScript).toContain("failureStage,");
+    expect(videoScript).toContain("if (!failureReportWritten)");
+    expect(videoScript).toContain("stage=${failureStage}: ${message}");
+    expect(videoScript).toContain("failureStage = 'visual-continuity-preflight';");
+    expect(videoScript).toContain("failureStage = 'final-media-checks';");
     expect(videoScript).toContain("timelineRenderRecord");
     expect(videoScript).toContain(
       "const finalVideo = timelineResult.timelineRenderRecord.evidence.path;",
@@ -1325,8 +1397,8 @@ describe("desktop build scripts", () => {
         }],
         prompt: "赤练蛇皮鞭撕开河雾",
         referenceImages: [
-          "data:image/png;base64,cmVmMQ==",
-          "data:image/png;base64,cmVmMg==",
+          "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+          "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
         ],
       });
 
@@ -1343,11 +1415,13 @@ describe("desktop build scripts", () => {
         prompt: expect.stringContaining("赤练蛇皮鞭撕开河雾"),
         n: 1,
         size: "1280x720",
-        image_urls: [
-          "data:image/png;base64,cmVmMQ==",
-          "data:image/png;base64,cmVmMg==",
-        ],
+        image_urls: expect.arrayContaining([
+          expect.stringMatching(/^data:image\/jpeg;base64,/),
+        ]),
       });
+      const imageUrls = requests[0].body.image_urls as string[];
+      expect(imageUrls).toHaveLength(2);
+      expect(imageUrls.every((value) => Buffer.from(value.split(",", 2)[1], "base64").length < 1_000_000)).toBe(true);
       expect(requests[0].body).not.toHaveProperty("aspect_ratio");
       expect(requests[0].body).not.toHaveProperty("resolution");
     } finally {
@@ -1356,6 +1430,23 @@ describe("desktop build scripts", () => {
       });
     }
   }, 10_000);
+
+  it("rejects damaged storyboard references before the Node helper makes a request", async () => {
+    const result = await runNodeHelper({
+      providers: [{
+        providerName: "unreachable-provider",
+        baseUrl: "http://127.0.0.1:9/v1",
+        apiKey: "key-one",
+        model: "gpt-image-2",
+      }],
+      prompt: "损坏参考图",
+      referenceImages: ["data:image/png;base64,%%%"],
+    });
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("reference image decode failed before request");
+    expect(result.stderr).not.toContain("fetch failed");
+  });
 
   it("flushes large storyboard image data URLs before exiting the helper", async () => {
     const largeBase64 = "A".repeat(2_000_000);
@@ -1427,7 +1518,7 @@ describe("desktop build scripts", () => {
           timeoutSeconds: 5,
         }],
         prompt: "失败摘要",
-        referenceImages: ["data:image/png;base64,cmVm"],
+        referenceImages: ["data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="],
       });
 
       expect(result.status).toBe(1);
@@ -1436,6 +1527,175 @@ describe("desktop build scripts", () => {
       expect(result.stderr).toContain("quota exhausted");
       expect(result.stderr).toContain("mock-provider key 2: Image generation failed: 400");
       expect(result.stderr).toContain("image unsafe");
+    } finally {
+      await new Promise<void>((resolveClose, rejectClose) => {
+        server.close((error) => (error ? rejectClose(error) : resolveClose()));
+      });
+    }
+  }, 10_000);
+
+  it("reports the transport cause when a storyboard image provider disconnects", async () => {
+    let requestCount = 0;
+    const server = createServer((request) => {
+      requestCount += 1;
+      request.resume();
+      request.on("end", () => request.socket.destroy());
+    });
+    await new Promise<void>((resolveListen) => server.listen(0, "127.0.0.1", resolveListen));
+    try {
+      const address = server.address();
+      if (!address || typeof address === "string") throw new Error("mock server did not bind to a TCP port");
+      const result = await runNodeHelper({
+        providers: [{
+          providerName: "disconnecting-provider",
+          baseUrl: `http://127.0.0.1:${address.port}/v1`,
+          apiKeys: ["key-one", "key-two"],
+          model: "gpt-image-2",
+          timeoutSeconds: 5,
+        }],
+        prompt: "连接断开诊断",
+        referenceImages: [],
+      });
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("fetch failed");
+      expect(result.stderr).toContain("cause=");
+      expect(result.stderr).toContain("automatic provider/key fallback stopped");
+      expect(requestCount).toBe(1);
+    } finally {
+      await new Promise<void>((resolveClose, rejectClose) => {
+        server.close((error) => (error ? rejectClose(error) : resolveClose()));
+      });
+    }
+  }, 10_000);
+
+  it("uses explicit async image transport and polls the documented nested result", async () => {
+    const requests: Array<{ method: string; url: string }> = [];
+    const server = createServer((request, response) => {
+      requests.push({ method: request.method || "", url: request.url || "" });
+      request.resume();
+      request.on("end", () => {
+        response.writeHead(200, { "Content-Type": "application/json" });
+        if (request.method === "POST") {
+          response.end(JSON.stringify({ task_id: "img-task-1", status: "running" }));
+          return;
+        }
+        response.end(JSON.stringify({
+          task_id: "img-task-1",
+          status: "success",
+          result: { data: [{ url: "https://example.invalid/generated.png" }] },
+        }));
+      });
+    });
+    await new Promise<void>((resolveListen) => server.listen(0, "127.0.0.1", resolveListen));
+    try {
+      const address = server.address();
+      if (!address || typeof address === "string") throw new Error("mock server did not bind to a TCP port");
+      const result = await runNodeHelper({
+        providers: [{
+          providerName: "async-provider",
+          baseUrl: `http://127.0.0.1:${address.port}/v1`,
+          apiKey: "key-one",
+          model: "gpt-image-2",
+          timeoutSeconds: 8,
+          asyncMode: true,
+        }],
+        prompt: "异步生图",
+        referenceImages: [],
+      });
+
+      expect(result.status).toBe(0);
+      expect(result.stderr).toBe("");
+      expect(JSON.parse(result.stdout)).toEqual({ url: "https://example.invalid/generated.png" });
+      expect(requests).toEqual([
+        { method: "POST", url: "/v1/images/generations/async" },
+        { method: "GET", url: "/v1/images/tasks/img-task-1" },
+      ]);
+    } finally {
+      await new Promise<void>((resolveClose, rejectClose) => {
+        server.close((error) => (error ? rejectClose(error) : resolveClose()));
+      });
+    }
+  }, 10_000);
+
+  it("rejects a multi-provider or multi-key paid probe before any request", async () => {
+    let requestCount = 0;
+    const server = createServer((request, response) => {
+      requestCount += 1;
+      request.resume();
+      response.writeHead(500, { "Content-Type": "application/json" });
+      response.end(JSON.stringify({ error: "must not be called" }));
+    });
+    await new Promise<void>((resolveListen) => server.listen(0, "127.0.0.1", resolveListen));
+    try {
+      const address = server.address();
+      if (!address || typeof address === "string") throw new Error("mock server did not bind to a TCP port");
+      const result = await runNodeHelper({
+        singleAttempt: true,
+        providers: [{
+          providerName: "unsafe-paid-probe",
+          baseUrl: `http://127.0.0.1:${address.port}/v1`,
+          apiKeys: ["key-one", "key-two"],
+          model: "gpt-image-2",
+        }],
+        prompt: "付费生图探针必须单次提交",
+        referenceImages: [],
+      });
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("requires exactly one provider and one API key before request");
+      expect(requestCount).toBe(0);
+    } finally {
+      await new Promise<void>((resolveClose, rejectClose) => {
+        server.close((error) => (error ? rejectClose(error) : resolveClose()));
+      });
+    }
+  }, 10_000);
+
+  it("stops provider fallback after an async image task is accepted", async () => {
+    const requests: Array<{ authorization: string; method: string; url: string }> = [];
+    const server = createServer((request, response) => {
+      requests.push({
+        authorization: request.headers.authorization || "",
+        method: request.method || "",
+        url: request.url || "",
+      });
+      request.resume();
+      request.on("end", () => {
+        response.writeHead(200, { "Content-Type": "application/json" });
+        if (request.method === "POST") {
+          response.end(JSON.stringify({ task_id: "accepted-paid-task", status: "running" }));
+          return;
+        }
+        response.end(JSON.stringify({ task_id: "accepted-paid-task", status: "running" }));
+      });
+    });
+    await new Promise<void>((resolveListen) => server.listen(0, "127.0.0.1", resolveListen));
+    try {
+      const address = server.address();
+      if (!address || typeof address === "string") throw new Error("mock server did not bind to a TCP port");
+      const result = await runNodeHelper({
+        providers: [{
+          providerName: "async-provider",
+          baseUrl: `http://127.0.0.1:${address.port}/v1`,
+          apiKeys: ["key-one", "key-two"],
+          model: "gpt-image-2",
+          timeoutSeconds: 1,
+          asyncMode: true,
+        }],
+        prompt: "异步任务受理后禁止二次扣费请求",
+        referenceImages: [],
+      });
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("automatic provider/key fallback stopped");
+      expect(requests.filter((request) => request.method === "POST")).toEqual([
+        {
+          authorization: "Bearer key-one",
+          method: "POST",
+          url: "/v1/images/generations/async",
+        },
+      ]);
     } finally {
       await new Promise<void>((resolveClose, rejectClose) => {
         server.close((error) => (error ? rejectClose(error) : resolveClose()));
@@ -1484,6 +1744,67 @@ with tempfile.TemporaryDirectory() as tmp:
     expect(result.stderr).toBe("");
     expect(result.stdout.trim()).toBe("True 1280x720 False False True");
   });
+
+  it("enforces the Python storyboard thumbnail byte gate for local and data URI images", () => {
+    const result = runPythonSnippet(`
+import base64
+import importlib.util
+import json
+import tempfile
+from pathlib import Path
+import numpy as np
+from PIL import Image
+
+spec = importlib.util.spec_from_file_location("dao", "Library/build_daojie_chapter001_workflow.py")
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+
+with tempfile.TemporaryDirectory() as tmp:
+    source = Path(tmp) / "high-entropy.png"
+    pixels = np.random.default_rng(20260715).integers(0, 256, size=(1400, 1800, 4), dtype=np.uint8)
+    Image.fromarray(pixels).save(source)
+    source_uri = module.image_source_to_data_url(str(source))
+    prepared_local = module.prepare_storyboard_model_reference_image(str(source))
+    prepared_uri = module.prepare_storyboard_model_reference_image(source_uri)
+    local_bytes = len(base64.b64decode(prepared_local.split(",", 1)[1]))
+    uri_bytes = len(base64.b64decode(prepared_uri.split(",", 1)[1]))
+    thumb = module.create_storyboard_transfer_thumbnail(source)
+    malformed = "not-rejected"
+    try:
+        module.prepare_storyboard_model_reference_image("data:image/png;base64,%%%")
+    except RuntimeError as error:
+        malformed = str(error)
+    boundary = []
+    for size in (999_999, 1_000_000):
+        try:
+            module.assert_image_transfer_size(b"x" * size)
+            boundary.append("accepted")
+        except RuntimeError:
+            boundary.append("rejected")
+    print(json.dumps({
+        "localBytes": local_bytes,
+        "uriBytes": uri_bytes,
+        "thumb": thumb,
+        "malformed": malformed,
+        "boundary": boundary,
+        "remote": module.prepare_storyboard_model_reference_image("https://cdn.example.com/ref.png"),
+    }))
+`);
+
+    expect(result.status).toBe(0);
+    expect(result.stderr).toBe("");
+    const evidence = JSON.parse(result.stdout);
+    expect(evidence.localBytes).toBeLessThan(1_000_000);
+    expect(evidence.uriBytes).toBeLessThan(1_000_000);
+    expect(evidence.thumb.path).toMatch(/_thumb\.png$/);
+    expect(evidence.thumb.width).toBeLessThanOrEqual(768);
+    expect(evidence.thumb.height).toBeLessThanOrEqual(768);
+    expect(evidence.thumb.bytes).toBeLessThan(1_000_000);
+    expect(evidence.thumb.sha256).toMatch(/^[a-f0-9]{64}$/);
+    expect(evidence.malformed).toContain("data URI 格式无效");
+    expect(evidence.boundary).toEqual(["accepted", "rejected"]);
+    expect(evidence.remote).toBe("https://cdn.example.com/ref.png");
+  }, 20_000);
 
   it("routes Agnes image models through the OpenAI-compatible size contract", () => {
     const result = runPythonSnippet(`
@@ -1632,6 +1953,7 @@ final_prompt = module.build_storyboard_image_prompt({
 print(json.dumps({
     "manifest": manifest,
     "versionsApproved": [item["approved"] for item in versions],
+    "versionsStructurallyComplete": [item["structurallyComplete"] for item in versions],
     "referenceOrder": [f"{item['assetId']}:{item.get('characterViewType') or item.get('sceneViewpointId') or 'base'}" for item in refs],
     "state": state,
     "finalPrompt": final_prompt,
@@ -1646,7 +1968,8 @@ print(json.dumps({
       "char-dugu",
       "prop-sword-wrap",
     ]);
-    expect(payload.versionsApproved).toEqual([true, true, false]);
+    expect(payload.versionsStructurallyComplete).toEqual([true, true, true]);
+    expect(payload.versionsApproved).toEqual([false, false, false]);
     expect(payload.manifest[1].referenceImagePaths).toEqual([
       "/dugu-front.png",
       "/dugu-side.png",
@@ -1664,6 +1987,13 @@ print(json.dumps({
     expect(payload.finalPrompt).toContain("【连续镜头组】chapter-001:dock:01-12");
     expect(payload.finalPrompt).toContain("银白长发与右肩破损灰袍组合锚点");
     expect(payload.finalPrompt).toContain("左岸湿木栈道通向右侧泊船区");
+    expect(payload.finalPrompt).toContain("【多视图身份锁】");
+    expect(payload.finalPrompt).toContain("@图2/@图3/@图4 为独孤剑尘同一角色、同一版本的 front/side/back 参考视图");
+    expect(payload.finalPrompt).toContain("不是三个人");
+    expect(payload.finalPrompt).toContain("【出镜人数锁】本镜出镜角色总数：1");
+    expect(payload.finalPrompt).toContain("禁止重复、克隆或因多视图参考新增人物");
+    expect(payload.finalPrompt).toContain("前景、中景、远景和背景合计只能出现上述 1 个角色实例");
+    expect(payload.finalPrompt).toContain("不得出现路人、工人、剪影、倒影或模糊人影");
     expect(visualContinuityFingerprint({
       prompt: "独孤剑尘从河雾边走来。",
       orderedReferenceManifest: payload.manifest,
@@ -1694,6 +2024,14 @@ with tempfile.TemporaryDirectory() as tmp:
         boards[name] = path
     scene_ref = root / "dock.png"
     Image.new("RGB", (1200, 800), (70, 90, 105)).save(scene_ref)
+    prop_names = ["油布剑包", "赤练蛇皮鞭", "灵矿藤筐", "灵矿", "残卷"]
+    prop_items = []
+    for index, name in enumerate(prop_names, 1):
+        path = root / f"prop-{index}.png"
+        Image.new("RGB", (900, 900), (80 + index, 90, 100)).save(path)
+        prop_items.append({"id": f"prop-{index}", "name": name, "imageUrl": str(path)})
+    ore_override = root / "spirit-ore-v5.png"
+    Image.new("RGB", (900, 900), (40, 120, 150)).save(ore_override)
     characters = {
         "version": 1,
         "state": {
@@ -1709,19 +2047,55 @@ with tempfile.TemporaryDirectory() as tmp:
         "version": 1,
         "state": {"scenes": [{"id": "dock", "name": "金水河码头", "referenceImage": str(scene_ref)}], "folders": []},
     }
+    props = {"version": 1, "state": {"items": prop_items, "folders": []}}
     (project / "characters.json").write_text(json.dumps(characters, ensure_ascii=False), encoding="utf-8")
     (project / "scenes.json").write_text(json.dumps(scenes, ensure_ascii=False), encoding="utf-8")
-    dry_run = module.prepare_bibles(project, boards["dugu"], apply=False)
+    (project / "props.json").write_text(json.dumps(props, ensure_ascii=False), encoding="utf-8")
+    dry_run = module.prepare_bibles(
+        project, boards["dugu"], boards["zhao"], boards["helper"], scene_ref, apply=False
+    )
+    v5_dry_run = module.prepare_bibles(
+        project,
+        boards["dugu"],
+        boards["zhao"],
+        boards["helper"],
+        scene_ref,
+        apply=False,
+        bible_version="v5",
+        prop_source_overrides={"灵矿": ore_override},
+    )
     unchanged = json.loads((project / "characters.json").read_text(encoding="utf-8"))
-    applied = module.prepare_bibles(project, boards["dugu"], apply=True)
+    applied = module.prepare_bibles(
+        project, boards["dugu"], boards["zhao"], boards["helper"], scene_ref, apply=True
+    )
     next_characters = json.loads((project / "characters.json").read_text(encoding="utf-8"))["state"]["characters"]
     next_scene = json.loads((project / "scenes.json").read_text(encoding="utf-8"))["state"]["scenes"][0]
+    next_props = json.loads((project / "props.json").read_text(encoding="utf-8"))["state"]["items"]
+    overwrite_error = "missing"
+    try:
+        module.prepare_bibles(
+            project, boards["dugu"], boards["zhao"], boards["helper"], scene_ref, apply=True
+        )
+    except RuntimeError as error:
+        overwrite_error = str(error)
     print(json.dumps({
         "dryRun": dry_run["dryRun"],
+        "bibleVersion": applied["bibleVersion"],
+        "v5BibleVersion": v5_dry_run["bibleVersion"],
+        "v5OreSource": v5_dry_run["propPlan"]["灵矿"]["source"],
+        "v5OreOutput": v5_dry_run["propPlan"]["灵矿"]["outputPath"],
         "unchanged": all(not item.get("views") for item in unchanged["state"]["characters"]),
         "viewCounts": [len(item["views"]) for item in next_characters],
+        "duguMarks": next_characters[0]["identityAnchors"]["uniqueMarks"],
+        "helperAvoid": next_characters[2]["negativePrompt"]["avoid"],
         "sceneViewpoint": next_scene["viewpoints"][0]["id"],
+        "propPathsV4": all("/v4/props/" in item["imageUrl"] for item in next_props),
         "backupCount": len(applied["backups"]),
+        "pendingSummary": applied["approvalSummary"],
+        "allUnapproved": all(item["approved"] is False and item["approval"] is None for item in applied["continuityAssetVersions"]),
+        "thumbnailCount": len(applied["reviewThumbnails"]),
+        "thumbnailsSafe": all(item["bytes"] < 1000000 and item["width"] <= 768 and item["height"] <= 768 for item in applied["reviewThumbnails"]),
+        "overwriteBlocked": "拒绝覆盖已有 v4 Bible 目录" in overwrite_error,
         "manifestExists": Path(applied["manifestPath"]).exists(),
         "manifestSha256": len(applied["manifestSha256"]),
     }, ensure_ascii=False))
@@ -1731,10 +2105,22 @@ with tempfile.TemporaryDirectory() as tmp:
     expect(result.stderr).toBe("");
     expect(JSON.parse(result.stdout.trim())).toEqual({
       dryRun: true,
+      bibleVersion: "v4",
+      v5BibleVersion: "v5",
+      v5OreSource: expect.stringContaining("spirit-ore-v5.png"),
+      v5OreOutput: expect.stringContaining("/v5/props/spirit-ore/reference.png"),
       unchanged: true,
       viewCounts: [3, 3, 3],
+      duguMarks: ["银白长发半束高髻", "右肩破损灰袍", "背负三层油布剑包"],
+      helperAvoid: ["成年男子", "成年女性脸", "壮硕体型", "及踝长袍", "裙装", "整洁华服", "束冠高髻", "鞋靴", "现代服饰"],
       sceneViewpoint: "dock-main-axis",
-      backupCount: 2,
+      propPathsV4: true,
+      backupCount: 3,
+      pendingSummary: { approved: 0, pending: 9, rejected: 0 },
+      allUnapproved: true,
+      thumbnailCount: 15,
+      thumbnailsSafe: true,
+      overwriteBlocked: true,
       manifestExists: true,
       manifestSha256: 64,
     });
@@ -1795,22 +2181,268 @@ with tempfile.TemporaryDirectory() as tmp:
       repaired: 1,
       missingWorkflows: [],
       missingReferences: [],
-      unapprovedReferences: [],
+      unapprovedReferences: [{
+        storyboardId: "sb-chapter-001-001",
+        references: ["scene-dock"],
+      }],
       sceneGroupMismatches: [],
       reviewStatus: "pending",
     });
     expect(payload.storyboard.orderedReferenceManifest[0]).toMatchObject({
       versionId: "scene-dock:dock-main-axis:v1",
       sceneViewpointId: "dock-main-axis",
-      approved: true,
+      approved: false,
     });
     expect(payload.storyboard.continuityState.groupId).toBe("chapter-001:dock:01-12");
     expect(visualContinuityFingerprint(payload.storyboard)).toBe(
       payload.storyboard.continuityState.inputFingerprint,
     );
     const audit = auditVisualContinuity([payload.storyboard]);
-    expect(audit).toMatchObject({ pending: 1, approved: 0, rejected: 0, stale: 0 });
-    expect(audit.issues.map((issue) => issue.code)).toEqual(["review.missing"]);
+    expect(audit).toMatchObject({ pending: 1, approved: 0, rejected: 0, stale: 1 });
+    expect(audit.issues.map((issue) => issue.code)).toEqual(["continuity.stale", "review.missing"]);
+  });
+
+  it("forbids structural repair from writing automated visual approval", () => {
+    const result = runPythonSnippet(`
+import importlib.util
+
+spec = importlib.util.spec_from_file_location("repair", "Library/repair_chapter001_visual_continuity.py")
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+
+try:
+    module.repair_storyboards({"storyboards": [], "imageWorkflows": []}, "approved", None)
+    print("no-error")
+except RuntimeError as error:
+    print(str(error))
+`);
+
+    expect(result.status).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(result.stdout).toContain("禁止自动批准");
+  });
+
+  it("repairs shots 23-24 to one inn-room primary scene and keeps exterior scenes secondary", () => {
+    const result = runPythonSnippet(`
+import importlib.util
+import json
+import tempfile
+from pathlib import Path
+
+spec = importlib.util.spec_from_file_location("repair", "Library/repair_chapter001_visual_continuity.py")
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+
+with tempfile.TemporaryDirectory() as temp:
+    project = Path(temp)
+    room = project / "room.png"
+    inn = project / "inn.png"
+    school = project / "school.png"
+    for path in (room, inn, school):
+        path.write_bytes(path.stem.encode("utf-8"))
+    (project / "scenes.json").write_text(json.dumps({"state": {"scenes": [{
+        "id": "scene-room", "name": "悦来客栈斗室", "referenceImage": str(room)
+    }]}}), encoding="utf-8")
+    state = {"storyboards": [], "imageWorkflows": []}
+    for index in (23, 24):
+        storyboard_id = f"sb-chapter-001-{index:03d}"
+        state["storyboards"].append({
+            "id": storyboard_id, "episodeId": "chapter-001", "index": index,
+            "prompt": "透过斗室窗看塾馆", "mediaRef": {"path": f"/shot-{index}.png"},
+        })
+        state["imageWorkflows"].append({
+            "target": {"kind": "storyboard", "id": storyboard_id},
+            "nodes": [
+                {"type": "reference", "title": "悦来客栈", "imageUrl": str(inn), "source": {"assetType": "scene", "id": "scene-inn"}},
+                {"type": "reference", "title": "金水塾馆", "imageUrl": str(school), "source": {"assetType": "scene", "id": "scene-school"}},
+            ],
+        })
+    report = module.repair_storyboards(state, "pending", None, project)
+    print(json.dumps({"report": report, "storyboards": state["storyboards"]}, ensure_ascii=False))
+`);
+
+    expect(result.status).toBe(0);
+    expect(result.stderr).toBe("");
+    const payload = JSON.parse(result.stdout.trim());
+    expect(payload.report.sceneGroupMismatches).toEqual([]);
+    expect(payload.report.repairedSceneGroupMismatches).toHaveLength(2);
+    for (const storyboard of payload.storyboards) {
+      expect(storyboard.continuityState).toMatchObject({
+        sceneVersionId: "scene-room:inn-room-window-axis:v1",
+        sceneViewpointId: "inn-room-window-axis",
+      });
+      expect(storyboard.orderedReferenceManifest.map((item: { assetName: string; referenceRole: string }) => [item.assetName, item.referenceRole])).toEqual([
+        ["悦来客栈斗室", "scene-viewpoint"],
+        ["金水塾馆", "secondary-scene"],
+      ]);
+    }
+  });
+
+  it("syncs a pending v4 asset manifest into the store and invalidates dependent shots", () => {
+    const result = runPythonSnippet(`
+import importlib.util
+import json
+import tempfile
+from pathlib import Path
+
+spec = importlib.util.spec_from_file_location("repair", "Library/repair_chapter001_visual_continuity.py")
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+
+with tempfile.TemporaryDirectory() as temp:
+    project = Path(temp) / "project"
+    project.mkdir()
+    views = []
+    for name in ("front", "side", "back"):
+        path = project / f"dugu-{name}.png"
+        path.write_bytes(name.encode("utf-8"))
+        views.append(str(path))
+    (project / "characters.json").write_text(json.dumps({"state": {"characters": [{
+        "id": "canonical-dugu", "name": "独孤剑尘"
+    }]}}), encoding="utf-8")
+    (project / "scenes.json").write_text(json.dumps({"state": {"scenes": []}}), encoding="utf-8")
+    (project / "props.json").write_text(json.dumps({"state": {"items": []}}), encoding="utf-8")
+    version = module.normalize_continuity_asset_version({
+        "assetId": "canonical-dugu",
+        "versionId": "canonical-dugu:grey-town:v1",
+        "assetKind": "character",
+        "label": "grey-town",
+        "referenceImagePaths": views,
+        "referenceViewTypes": ["front", "side", "back"],
+        "identityAnchors": {"uniqueMarks": ["背负三层油布剑包"], "hairStyle": "银白长发"},
+        "negativePrompt": {"avoid": ["腰悬完整剑"]},
+        "wardrobeVersion": "grey-town",
+        "source": "project-character-bible",
+        "approved": False,
+    })
+    version["reviewStatus"] = "pending"
+    version["approval"] = None
+    manifest_path = project / "manifest.json"
+    manifest_path.write_text(json.dumps({
+        "projectDir": str(project),
+        "continuityAssetVersions": [version],
+    }), encoding="utf-8")
+    state = {
+        "continuityAssetVersions": [],
+        "storyboards": [
+            {
+                "id": "sb-chapter-001-006", "episodeId": "chapter-001", "index": 6,
+                "prompt": "独孤入画", "orderedReferenceManifest": [{
+                    "order": 1, "assetId": "stale-dugu", "assetName": "独孤剑尘",
+                    "assetKind": "character", "versionId": "stale-dugu:grey-town:v1",
+                    "imagePath": "/old.png", "referenceRole": "canonical", "approved": True,
+                }],
+                "continuityState": {
+                    "groupId": "dock", "sceneVersionId": "dock:v1", "sceneViewpointId": "dock-main-axis",
+                    "lighting": "冷青", "palette": "灰蓝", "actionIn": "入画", "actionOut": "停步",
+                    "characters": [{
+                        "characterId": "stale-dugu", "versionId": "stale-dugu:grey-town:v1",
+                        "position": "中景", "orientation": "向右", "actionIn": "入画", "actionOut": "停步",
+                    }], "inputFingerprint": "old",
+                },
+            },
+            {
+                "id": "sb-chapter-001-007", "episodeId": "chapter-001", "index": 7,
+                "prompt": "承接", "orderedReferenceManifest": [],
+                "continuityState": {
+                    "groupId": "dock", "previousStoryboardId": "sb-chapter-001-006",
+                    "sceneVersionId": "dock:v1", "sceneViewpointId": "dock-main-axis",
+                    "lighting": "冷青", "palette": "灰蓝", "actionIn": "承接", "actionOut": "继续",
+                    "characters": [], "inputFingerprint": "old",
+                },
+            },
+        ],
+    }
+    report = module.sync_pending_asset_manifest(state, manifest_path)
+    print(json.dumps({
+        "report": report,
+        "version": state["continuityAssetVersions"][0],
+        "first": state["storyboards"][0],
+        "second": state["storyboards"][1],
+    }, ensure_ascii=False))
+`);
+
+    expect(result.status).toBe(0);
+    expect(result.stderr).toBe("");
+    const payload = JSON.parse(result.stdout.trim());
+    expect(payload.report).toMatchObject({ versions: 1, pending: 1, approved: 0 });
+    expect(payload.version).toMatchObject({ assetId: "canonical-dugu", approved: false, approval: null });
+    expect(payload.first.orderedReferenceManifest[0]).toMatchObject({
+      assetId: "canonical-dugu",
+      versionId: "canonical-dugu:grey-town:v1",
+      approved: false,
+    });
+    expect(payload.first.continuityState.characters[0]).toMatchObject({
+      characterId: "canonical-dugu",
+      versionId: "canonical-dugu:grey-town:v1",
+    });
+    expect(payload.first).toMatchObject({ stale: true, visualReview: { status: "pending" } });
+    expect(payload.second).toMatchObject({ stale: true, visualReview: { status: "pending" } });
+  });
+
+  it("requires explicit human confirmation and carries one approved frame into the next pilot shot", () => {
+    const result = runPythonSnippet(`
+import importlib.util
+import json
+import tempfile
+from pathlib import Path
+
+spec = importlib.util.spec_from_file_location("pilot", "Library/generate_chapter001_continuity_sample.py")
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+
+with tempfile.TemporaryDirectory() as temp:
+    output = Path(temp)
+    image = output / "shot-006.png"
+    thumb = output / "shot-006_thumb.png"
+    image.write_bytes(b"generated-shot-6")
+    thumb.write_bytes(b"safe-thumbnail")
+    entry = {
+        "index": 6,
+        "storyboardId": "sb-chapter-001-006",
+        "outputPath": str(image),
+        "outputSha256": module.stable_sha256(image),
+        "transferThumbnail": {"path": str(thumb), "bytes": thumb.stat().st_size},
+    }
+    (output / "report.json").write_text(json.dumps({
+        "shots": [6, 7], "entries": [entry], "status": "awaiting-human-approval"
+    }), encoding="utf-8")
+    blocked = ""
+    try:
+        module.approve_generated_shot(output, 6, False, "")
+    except RuntimeError as error:
+        blocked = str(error)
+    receipt = module.approve_generated_shot(output, 6, True, "角色、场景与道具检查通过")
+    approvals = module.load_json_file(output / "human-approvals.json", {})
+    approval = module.valid_human_approval(approvals, 6, entry)
+    class Generator:
+        EPISODE_ID = "chapter-001"
+    manifest, reference = module.previous_approved_frame_manifest(Generator, 6, entry, approval, 4)
+    image.write_bytes(b"changed-after-approval")
+    invalid_after_change = module.valid_human_approval(approvals, 6, entry)
+    print(json.dumps({
+        "blocked": blocked,
+        "receipt": receipt,
+        "approval": approval,
+        "manifest": manifest,
+        "reference": reference,
+        "invalidAfterChange": invalid_after_change,
+    }, ensure_ascii=False))
+`);
+
+    expect(result.status).toBe(0);
+    expect(result.stderr).toBe("");
+    const payload = JSON.parse(result.stdout.trim());
+    expect(payload.blocked).toContain("--human-confirmed");
+    expect(payload.receipt).toMatchObject({ status: "ready-for-next-shot", approvedShot: 6 });
+    expect(payload.approval).toMatchObject({ reviewer: "human", status: "approved" });
+    expect(payload.manifest).toMatchObject({
+      order: 4,
+      referenceRole: "previous-approved-frame",
+      approved: true,
+    });
+    expect(payload.reference).toMatchObject({ referenceRole: "previous-approved-frame" });
+    expect(payload.invalidAfterChange).toBeNull();
   });
 
   it("defines explicit continuity states for the complete dock sample", () => {
@@ -1865,6 +2497,84 @@ print(json.dumps(states, ensure_ascii=False))
     expect(states.at(-1)?.state.previousStoryboardId).toBe("sb-chapter-001-011");
   });
 
+  it("plans all six chapter groups and restarts only the affected group suffix", () => {
+    const result = runPythonSnippet(`
+import importlib.util
+import json
+import tempfile
+from pathlib import Path
+
+spec = importlib.util.spec_from_file_location("pilot", "Library/generate_chapter001_continuity_sample.py")
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+generator = module.load_generator()
+shots = list(range(1, 44))
+groups = module.selected_continuity_groups(generator, shots)
+entries = {
+    index: {"index": index, "storyboardId": f"sb-chapter-001-{index:03d}", "outputPath": f"/tmp/{index}.png"}
+    for index in shots
+}
+approvals = {"approvals": {str(index): {"index": index, "status": "approved"} for index in shots}}
+kept_entries, kept_approvals, superseded = module.invalidate_restart_state(
+    generator, shots, entries, approvals, 9
+)
+blocked = ""
+try:
+    module.selected_continuity_groups(generator, [6, 8])
+except RuntimeError as error:
+    blocked = str(error)
+with tempfile.TemporaryDirectory() as temp:
+    output = Path(temp)
+    (output / "shot-009.png").write_bytes(b"old")
+    revision = module.next_revision_output_path(output, 9)
+planned = {}
+module.merge_planned_continuity_versions(planned, [{
+    "assetId": "scene-dock", "versionId": "scene-dock:main:v1", "contentFingerprint": "same"
+}])
+version_drift = ""
+try:
+    module.merge_planned_continuity_versions(planned, [{
+        "assetId": "scene-dock", "versionId": "scene-dock:main:v1", "contentFingerprint": "changed"
+    }])
+except RuntimeError as error:
+    version_drift = str(error)
+print(json.dumps({
+    "groups": groups,
+    "keptEntries": sorted(kept_entries),
+    "keptApprovals": sorted(int(index) for index in kept_approvals["approvals"]),
+    "superseded": sorted(item["index"] for item in superseded),
+    "blocked": blocked,
+    "revision": revision.name,
+    "previous": {
+        "pilotFirst": module.required_previous_selected_shot(
+            {"previousStoryboardId": "sb-chapter-001-005"}, [6, 7, 8, 9, 10, 11, 12], 6
+        ),
+        "pilotNext": module.required_previous_selected_shot(
+            {"previousStoryboardId": "sb-chapter-001-006"}, [6, 7, 8, 9, 10, 11, 12], 7
+        ),
+        "groupBoundary": module.required_previous_selected_shot({}, shots, 13),
+    },
+    "dryStatus": module.build_group_progress(groups, entries, approvals, True)[0]["status"],
+    "versionDrift": version_drift,
+}, ensure_ascii=False))
+`);
+
+    expect(result.status).toBe(0);
+    expect(result.stderr).toBe("");
+    const payload = JSON.parse(result.stdout.trim());
+    expect(payload.groups.map((item: { start: number; end: number }) => [item.start, item.end])).toEqual([
+      [1, 12], [13, 19], [20, 24], [25, 40], [41, 42], [43, 43],
+    ]);
+    expect(payload.keptEntries).toEqual([...Array.from({ length: 8 }, (_, index) => index + 1), ...Array.from({ length: 31 }, (_, index) => index + 13)]);
+    expect(payload.keptApprovals).toEqual(payload.keptEntries);
+    expect(payload.superseded).toEqual([9, 10, 11, 12]);
+    expect(payload.blocked).toContain("连续");
+    expect(payload.revision).toBe("shot-009-r02.png");
+    expect(payload.previous).toEqual({ pilotFirst: null, pilotNext: 6, groupBoundary: null });
+    expect(payload.dryStatus).toBe("dry-run");
+    expect(payload.versionDrift).toContain("指纹冲突");
+  });
+
   it("keeps shots 20 through 24 in the declared inn-room continuity group", () => {
     const result = runPythonSnippet(`
 import importlib.util
@@ -1879,13 +2589,19 @@ room = {
     "spatialLayout": "斗室内窗在右侧，房门在左后方", "lightingDesign": "枯灯暖光与窗外冷光",
     "colorPalette": "墨褐、旧金、冷青", "viewpoints": [{"id": "inn-room-window-axis", "imageUrl": "/room.png"}],
 }
+school = {
+    "name": "金水塾馆", "kind": "场景", "assetId": "scene-school", "imagePath": "/school.png",
+    "spatialLayout": "窗外远处塾馆屋脊", "lightingDesign": "冷青窗外光",
+    "colorPalette": "冷青、灰墨", "viewpoints": [{"id": "school-window-exterior", "imageUrl": "/school.png"}],
+}
 shots = module.canonical_storyboard_shots()
 states = []
 for index in range(20, 25):
+    assets = [room, school] if index >= 23 else [room]
     manifest, _versions, state = module.build_storyboard_continuity_payload(
         index,
         f"shot-{index}",
-        [room],
+        assets,
         {"continuityState": {
             "groupId": "chapter-001:legacy-hall",
             "sceneVersionId": "scene-hall:inn-hall-counter-axis:v1",
@@ -1898,7 +2614,12 @@ for index in range(20, 25):
             "inputFingerprint": "stale",
         }},
     )
-    states.append({"index": index, "scene": shots[index - 1]["scene"], "state": state})
+    states.append({
+        "index": index,
+        "scene": shots[index - 1]["scene"],
+        "state": state,
+        "sceneRoles": [item["referenceRole"] for item in manifest if item["assetKind"] == "scene"],
+    })
 print(json.dumps(states, ensure_ascii=False))
 `);
 
@@ -1908,12 +2629,15 @@ print(json.dumps(states, ensure_ascii=False))
       index: number;
       scene: string;
       state: { groupId: string; previousStoryboardId?: string; sceneVersionId: string; sceneViewpointId: string };
+      sceneRoles: string[];
     }>;
     expect(states.map((item) => item.scene)).toEqual(Array(5).fill("悦来客栈斗室"));
     expect(states.every((item) => item.state.groupId === "chapter-001:inn-room:20-24")).toBe(true);
     expect(states.every((item) => item.state.sceneVersionId === "scene-room:inn-room-window-axis:v1")).toBe(true);
     expect(states.every((item) => item.state.sceneViewpointId === "inn-room-window-axis")).toBe(true);
     expect(states[3]?.state.previousStoryboardId).toBe("sb-chapter-001-022");
+    expect(states[3]?.sceneRoles).toEqual(["scene-viewpoint", "secondary-scene"]);
+    expect(states[4]?.sceneRoles).toEqual(["scene-viewpoint", "secondary-scene"]);
   });
 
   it("fails Daojie storyboard prompt audits when visible roles lack reference images", () => {
@@ -1975,6 +2699,43 @@ print(
     expect(result.status).toBe(0);
     expect(result.stderr).toBe("");
     expect(result.stdout.trim()).toBe("43 43 43 43 0 0");
+  });
+
+  it("keeps project entity IDs canonical when episode extraction IDs are stale", () => {
+    const result = runPythonSnippet(`
+import importlib.util
+import json
+import tempfile
+from pathlib import Path
+
+spec = importlib.util.spec_from_file_location("dao", "Library/build_daojie_chapter001_workflow.py")
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+
+with tempfile.TemporaryDirectory() as temp:
+    root = Path(temp)
+    module.CHARACTERS_JSON = root / "characters.json"
+    module.SCENES_JSON = root / "scenes.json"
+    module.CHARACTERS_JSON.write_text(json.dumps({"state": {"characters": [{
+        "id": "canonical-dugu", "name": "独孤剑尘", "views": [], "variations": []
+    }]}}), encoding="utf-8")
+    module.SCENES_JSON.write_text(json.dumps({"state": {"scenes": [{
+        "id": "canonical-dock", "name": "金水河码头"
+    }]}}), encoding="utf-8")
+    state = {"entityExtractions": [{
+        "episodeId": module.EPISODE_ID,
+        "characters": [{"name": "独孤剑尘", "characterId": "stale-dugu"}],
+        "scenes": [{"name": "金水河码头", "sceneId": "stale-dock"}],
+        "props": [],
+    }]}
+    index = module.build_asset_index(state)
+    catalog = module.build_asset_catalog(state)
+    print(index["独孤剑尘"], index["金水河码头"], catalog["独孤剑尘"]["id"], catalog["金水河码头"]["id"])
+`);
+
+    expect(result.status).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(result.stdout.trim()).toBe("canonical-dugu canonical-dock canonical-dugu canonical-dock");
   });
 
   it("builds writeback-safe continuity payloads for all Daojie storyboards", () => {
@@ -2231,18 +2992,19 @@ os.environ["MYSTUDIO_DAOJIE_STORYBOARD_IMAGE_MODE"] = "real-ai-reference-image-w
 os.environ["MYSTUDIO_IMAGE_API_BASE_URL"] = "https://example.invalid/v1"
 os.environ["MYSTUDIO_IMAGE_API_KEY"] = "key-one\\nkey-two"
 os.environ["MYSTUDIO_IMAGE_MODEL"] = "gpt-image-2"
+os.environ["MYSTUDIO_IMAGE_ASYNC_MODE"] = "1"
 
 spec = importlib.util.spec_from_file_location("dao", "Library/build_daojie_chapter001_workflow.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
 config = module.storyboard_image_provider_config()
-print(config["apiKey"], config["apiKeys"], config["timeoutSeconds"])
+print(config["apiKey"], config["apiKeys"], config["timeoutSeconds"], config["asyncMode"])
 `);
 
     expect(result.status).toBe(0);
     expect(result.stderr).toBe("");
-    expect(result.stdout.trim()).toBe("key-one ['key-one', 'key-two'] 180.0");
+    expect(result.stdout.trim()).toBe("key-one ['key-one', 'key-two'] 180.0 True");
   });
 
   it("keeps Daojie storyboard image provider fallback order for real-ai mode", () => {

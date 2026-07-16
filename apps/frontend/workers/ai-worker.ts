@@ -18,6 +18,7 @@ import type {
 import type { AIScreenplay, AIScene, GenerationConfig, AICharacter, CharacterBibleLike } from '@opencut/ai-core';
 import { PromptCompiler } from '@opencut/ai-core/services/prompt-compiler';
 import { TaskPoller } from '@opencut/ai-core/api/task-poller';
+import { createWorkerApi, buildApiUrl } from './ai-worker-api';
 
 const WORKER_VERSION = '0.3.1';
 
@@ -25,17 +26,6 @@ const WORKER_VERSION = '0.3.1';
 let apiBaseUrl = '';
 
 // Helper to build API URL
-function buildApiUrl(path: string): string {
-  if (apiBaseUrl) {
-    return `${apiBaseUrl}${path}`;
-  }
-  // Fallback: try to get from location if available
-  if (typeof self !== 'undefined' && (self as any).location?.origin) {
-    return `${(self as any).location.origin}${path}`;
-  }
-  // Last resort: use relative URL (may not work in all workers)
-  return path;
-}
 
 // API Response types
 interface ScreenplayAPIResponse {
@@ -75,6 +65,7 @@ const promptCompiler = new PromptCompiler();
 // Task poller for async operations
 const taskPoller = new TaskPoller();
 
+
 function getBibleCharacters(characterBible?: CharacterBibleLike | string, fallback: AICharacter[] = []): AICharacter[] {
   if (!characterBible || typeof characterBible === 'string') {
     return fallback;
@@ -85,6 +76,14 @@ function getBibleCharacters(characterBible?: CharacterBibleLike | string, fallba
 // ==================== State ====================
 
 let cancelled = false;
+const workerApi = createWorkerApi({ getApiBaseUrl: () => apiBaseUrl, isCancelled: () => cancelled });
+// Legacy helper bodies below are retained as private compatibility scaffolding;
+// route their polling call through the extracted API client so they cannot drift.
+const pollTaskCompletion = workerApi.pollTaskCompletion;
+
+// Kept only for backwards-compatible local references in legacy dead code.
+const assertImageReadyForNetwork = (_source: string): void => undefined;
+const assertImagesReadyForNetwork = (_sources?: string[]): void => undefined;
 
 // ==================== Message Handler ====================
 
@@ -178,7 +177,7 @@ async function handleGenerateScreenplay(command: GenerateScreenplayCommand): Pro
     
     // Call the backend API with correct schema
     // Note: Pass raw prompt, API route will compile it with sceneCount
-    const response = await fetch(buildApiUrl('/api/ai/screenplay'), {
+    const response = await fetch(buildApiUrl('/api/ai/screenplay', apiBaseUrl), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -223,55 +222,14 @@ async function handleGenerateScreenplay(command: GenerateScreenplayCommand): Pro
  * Returns image URL after polling for completion
  * @param referenceImages - Character reference images (base64 or URL) for consistency
  */
-async function generateImage(
+async function legacyGenerateImage(
   prompt: string,
   negativePrompt: string,
   config: Partial<GenerationConfig> & { apiKey?: string },
   onProgress?: (progress: number) => void,
   referenceImages?: string[]
 ): Promise<string> {
-  const apiKey = config.apiKey || (config as any).imageApiKey || '';
-  const provider = (config as any).imageProvider || 'memefast';
-  
-  if (!apiKey) {
-    throw new Error('未配置图片生成 API Key');
-  }
-  
-  // Submit image generation task
-  const submitResponse = await fetch(buildApiUrl('/api/ai/image'), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      prompt,
-      negativePrompt,
-      aspectRatio: config.aspectRatio || '9:16',
-      apiKey,
-      provider,
-      // Pass character reference images for consistency
-      referenceImages: referenceImages && referenceImages.length > 0 ? referenceImages : undefined,
-    }),
-  });
-  
-  if (!submitResponse.ok) {
-    const errorData = await submitResponse.json().catch(() => ({}));
-    const errorMsg = errorData.message || errorData.error || `Image API request failed: ${submitResponse.status}`;
-    console.error('[AI Worker] Image API error:', submitResponse.status, errorData);
-    throw new Error(errorMsg);
-  }
-  
-  const submitData: ImageAPIResponse = await submitResponse.json();
-  
-  // If image URL is returned directly (synchronous API)
-  if (submitData.imageUrl && submitData.status === 'completed') {
-    return submitData.imageUrl;
-  }
-  
-  // If taskId is returned, poll for completion
-  if (submitData.taskId) {
-    return await pollTaskCompletion(submitData.taskId, 'image', apiKey, provider, onProgress);
-  }
-  
-  throw new Error('Invalid API response: no taskId or imageUrl');
+  return workerApi.generateImage(prompt, negativePrompt, config, onProgress, referenceImages);
 }
 
 /**
@@ -279,143 +237,34 @@ async function generateImage(
  * Returns video URL after polling for completion
  * @param referenceImages - Character reference images (URL) for consistency
  */
-async function generateVideo(
+async function legacyGenerateVideo(
   imageUrl: string,
   prompt: string,
   config: Partial<GenerationConfig> & { apiKey?: string },
   onProgress?: (progress: number) => void,
   referenceImages?: string[]
 ): Promise<string> {
-  const apiKey = config.apiKey || (config as any).videoApiKey || '';
-  const provider = (config as any).videoProvider || 'memefast';
-  
-  if (!apiKey) {
-    throw new Error('未配置视频生成 API Key');
-  }
-  
-  // Submit video generation task
-  const submitResponse = await fetch(buildApiUrl('/api/ai/video'), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      imageUrl,
-      prompt,
-      aspectRatio: config.aspectRatio || '9:16',
-      duration: (config as any).duration || 5,
-      apiKey,
-      provider,
-      // Pass character reference images for video generation
-      referenceImages: referenceImages && referenceImages.length > 0 ? referenceImages : undefined,
-    }),
-  });
-  
-  if (!submitResponse.ok) {
-    const errorData = await submitResponse.json().catch(() => ({}));
-    throw new Error(errorData.error || `Video API request failed: ${submitResponse.status}`);
-  }
-  
-  const submitData: VideoAPIResponse = await submitResponse.json();
-  
-  // If video URL is returned directly (synchronous API)
-  if (submitData.videoUrl && submitData.status === 'completed') {
-    return submitData.videoUrl;
-  }
-  
-  // If taskId is returned, poll for completion
-  if (submitData.taskId) {
-    return await pollTaskCompletion(submitData.taskId, 'video', apiKey, provider, onProgress);
-  }
-  
-  throw new Error('Invalid API response: no taskId or videoUrl');
+  return workerApi.generateVideo(imageUrl, prompt, config, onProgress, referenceImages);
 }
 
 /**
  * Helper: Poll task status until completion
  */
-async function pollTaskCompletion(
+async function legacyPollTaskCompletion(
   taskId: string,
   type: 'image' | 'video',
   apiKey: string,
   provider: string,
   onProgress?: (progress: number) => void
 ): Promise<string> {
-  const maxAttempts = type === 'video' ? 120 : 60; // Video takes longer
-  const pollInterval = 2000; // 2 seconds
-  
-  for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    if (cancelled) {
-      throw new Error('Cancelled');
-    }
-    
-    // API Key 通过 Header 传递，避免明文出现在 URL 中（安全风险：URL 会被日志/历史记录）
-    const statusResponse = await fetch(
-      buildApiUrl(`/api/ai/task/${taskId}?provider=${provider}&type=${type}`),
-      {
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-        },
-      }
-    );
-    
-    if (!statusResponse.ok) {
-      console.warn(`[AI Worker] Task status check failed: ${statusResponse.status}`);
-      await sleep(pollInterval);
-      continue;
-    }
-    
-    const statusData: TaskStatusResponse = await statusResponse.json();
-    
-    console.log(`[AI Worker] Task ${taskId} status:`, statusData.status, statusData.error ? `error: ${JSON.stringify(statusData.error)}` : '');
-    
-    // Report progress if available
-    if (statusData.progress && onProgress) {
-      onProgress(statusData.progress);
-    }
-    
-    switch (statusData.status) {
-      case 'completed': {
-        const url = statusData.result?.url || 
-                    statusData.result?.imageUrl || 
-                    statusData.result?.videoUrl;
-        // Also check top-level resultUrl from our API
-        const resultUrl = url || (statusData as any).resultUrl;
-        if (!resultUrl) {
-          throw new Error('Task completed but no URL in result');
-        }
-        return resultUrl;
-      }
-        
-      case 'failed': {
-        // Handle error that might be an object
-        let errorMsg = 'Task failed';
-        if (statusData.error) {
-          errorMsg = typeof statusData.error === 'string' 
-            ? statusData.error 
-            : JSON.stringify(statusData.error);
-        }
-        throw new Error(errorMsg);
-      }
-        
-      case 'pending':
-      case 'processing':
-        // Continue polling
-        await sleep(pollInterval);
-        break;
-    }
-  }
-  
-  throw new Error(`Task ${taskId} timed out after ${maxAttempts * pollInterval / 1000}s`);
+  return workerApi.pollTaskCompletion(taskId, type, apiKey, provider, onProgress);
 }
 
 /**
  * Helper: Download URL content as Blob
  */
-async function fetchAsBlob(url: string): Promise<Blob> {
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Failed to download: ${response.status}`);
-  }
-  return await response.blob();
+async function legacyFetchAsBlob(url: string): Promise<Blob> {
+  return workerApi.fetchAsBlob(url);
 }
 
 async function handleExecuteScene(command: ExecuteSceneCommand): Promise<void> {
@@ -454,7 +303,7 @@ async function handleExecuteScene(command: ExecuteSceneCommand): Promise<void> {
     
     // Generate image with progress tracking
     // Pass character reference images for visual consistency
-    const imageUrl = await generateImage(
+    const imageUrl = await workerApi.generateImage(
       imagePrompt,
       negativePrompt,
       config,
@@ -477,7 +326,7 @@ async function handleExecuteScene(command: ExecuteSceneCommand): Promise<void> {
     
     // Generate video with progress tracking
     // Pass character reference images for visual consistency in video
-    const videoUrl = await generateVideo(
+    const videoUrl = await workerApi.generateVideo(
       imageUrl,
       videoPrompt,
       config,
@@ -495,7 +344,7 @@ async function handleExecuteScene(command: ExecuteSceneCommand): Promise<void> {
     reportSceneProgress(screenplayId, scene.sceneId, 'generating', 'video', 95);
     
     // Download the video as blob
-    const videoBlob = await fetchAsBlob(videoUrl);
+    const videoBlob = await workerApi.fetchAsBlob(videoUrl);
     
     // ========== Complete ==========
     reportSceneProgress(screenplayId, scene.sceneId, 'completed', 'done', 100);
@@ -906,7 +755,7 @@ async function generateSceneImageOnly(
     console.log('[AI Worker] Image prompt:', imagePrompt.substring(0, 100));
     
     // Generate image with progress tracking
-    const imageUrl = await generateImage(
+    const imageUrl = await workerApi.generateImage(
       imagePrompt,
       negativePrompt,
       config,
@@ -1005,7 +854,7 @@ async function generateSceneVideoOnly(
     console.log('[AI Worker] Video prompt:', videoPrompt.substring(0, 100));
     
     // Generate video with progress tracking
-    const videoUrl = await generateVideo(
+    const videoUrl = await workerApi.generateVideo(
       scene.imageUrl!,
       videoPrompt,
       config,
@@ -1020,7 +869,7 @@ async function generateSceneVideoOnly(
     
     // Download and create blob
     reportSceneProgress(screenplayId, scene.sceneId, 'generating', 'video', 95);
-    const videoBlob = await fetchAsBlob(videoUrl);
+    const videoBlob = await workerApi.fetchAsBlob(videoUrl);
     
     // Complete
     reportSceneProgress(screenplayId, scene.sceneId, 'completed', 'done', 100);
@@ -1125,7 +974,7 @@ async function executeSceneInternal(
     
     // Generate image with progress tracking
     // Pass character reference images for visual consistency
-    const imageUrl = await generateImage(
+    const imageUrl = await workerApi.generateImage(
       imagePrompt,
       negativePrompt,
       config,
@@ -1147,7 +996,7 @@ async function executeSceneInternal(
     
     // Generate video with progress tracking
     // Pass character reference images for visual consistency in video
-    const videoUrl = await generateVideo(
+    const videoUrl = await workerApi.generateVideo(
       imageUrl,
       videoPrompt,
       config,
@@ -1164,7 +1013,7 @@ async function executeSceneInternal(
     reportSceneProgress(screenplayId, scene.sceneId, 'generating', 'video', 95);
     
     // Download the video as blob
-    const videoBlob = await fetchAsBlob(videoUrl);
+    const videoBlob = await workerApi.fetchAsBlob(videoUrl);
     
     // ========== Complete ==========
     reportSceneProgress(screenplayId, scene.sceneId, 'completed', 'done', 100);

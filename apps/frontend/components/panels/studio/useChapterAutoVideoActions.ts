@@ -127,6 +127,7 @@ export function useChapterAutoVideoActions({
               .replaceStoryboardsForEpisode(episodeId, storyboards);
           },
           loadStoryboards: () => useStudioStore.getState().storyboards,
+          loadContinuityAssetVersions: () => useStudioStore.getState().continuityAssetVersions,
           ensureFixedVoiceProfiles: async (storyboards) => {
             assertProjectStillActive();
             if (!window.studioAssets?.list) {

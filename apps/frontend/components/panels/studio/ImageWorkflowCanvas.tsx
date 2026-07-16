@@ -4,7 +4,6 @@ import {
   Controls,
   MarkerType,
   ReactFlow,
-  type Connection,
   type Edge,
   type ReactFlowInstance,
   useNodesState,
@@ -13,7 +12,6 @@ import "@xyflow/react/dist/style.css";
 import {
   ArrowLeft,
   CheckCircle2,
-  GitBranch,
   Image as ImageIcon,
   Loader2,
   Maximize2,
@@ -25,76 +23,47 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { aiManager } from "@/lib/ai/ai-manager";
 import {
-  addGeneratedImageNode,
-  addPromptImageNode,
-  addReferenceImageNode,
-  buildImageWorkflowGenerationRequest,
-  assertImageWorkflowContinuityCapability,
-  connectImageWorkflowNodes,
   createAssetImageWorkflowGraph,
   createImageWorkflowGraph,
-  createId,
   ensureImageWorkflowPromptNodes,
   ensureAssetImageWorkflowGraph,
-  removeImageWorkflowEdge,
-  removeImageWorkflowNode,
-  setGeneratedImageResult,
-  setGeneratedImageStatus,
   updateImageWorkflowNode,
   updateImageWorkflowNodePosition,
 } from "@/lib/studio/image-workflow";
-import { useProjectStore } from "@/stores/project-store";
 import { useStudioStore } from "@/stores/studio-store";
-import { useAppSettingsStore } from "@/stores/app-settings-store";
 import { useCharacterLibraryStore } from "@/stores/character-library-store";
 import type {
-  ImageWorkflowGeneratedNode,
   ImageWorkflowGraph,
   ImageWorkflowNode,
   ImageWorkflowOpenContext,
   ImageWorkflowPromptNode,
   AssetImageWorkflowContext,
-  StoryboardItem,
-  StudioMaterial,
 } from "@/types/studio";
 import { cn } from "@/lib/utils";
 import {
   ImageWorkflowNodeCard,
-  type ImageWorkflowNodeData,
   type ImageWorkflowReactNode,
 } from "./image-workflow-node-card";
-import {
-  ImageWorkflowPaletteImageButton,
-  ImageWorkflowPaletteSection,
-} from "./image-workflow-palette";
 import {
   assetTargetLabel,
   assetWorkflowContextKey,
   createOpenImageWorkflowGraph,
-  findLinkedPromptNodeForGenerated,
   focusNodeIdsForGenerated,
   imageWorkflowTargetKey,
   isAssetOpenContext,
   isSameImageWorkflowTarget,
-  nextNodePosition,
   openContextTargetLabel,
   resolveActionGeneratedNode,
   resolveGenerationTargetNodeId,
   resolveOpenContextGeneratedNodeId,
   workflowTargetLabel,
 } from "./image-workflow-graph-utils";
-import {
-  buildAssetLibraryPayloadForImageWorkflow,
-  notifyAssetLibraryUpdated,
-} from "./image-workflow-asset-bridge";
-import {
-  createWorkflowFilename,
-  prepareReferenceImages,
-  workflowImageRelativePath,
-} from "./image-workflow-file-utils";
+import { createImageWorkflowReactNodes } from "./image-workflow-react-nodes";
 import { ImageWorkflowScopedPending } from "./image-workflow-scoped-pending";
+import { useImageWorkflowGeneration } from "./use-image-workflow-generation";
+import { useImageWorkflowActions } from "./use-image-workflow-actions";
+import { ImageWorkflowSidebar } from "./image-workflow-sidebar";
 
 const nodeTypes = { imageWorkflow: ImageWorkflowNodeCard };
 const FIT_VIEW_OPTIONS = { padding: 0.18, minZoom: 0.35, maxZoom: 1.1 } as const;
@@ -119,7 +88,6 @@ export function ImageWorkflowCanvas({
     applyImageWorkflowResultToAsset,
     applyImageWorkflowResultToStoryboard,
   } = useStudioStore();
-  const activeProjectId = useProjectStore((state) => state.activeProjectId);
   const [activeWorkflowId, setActiveWorkflowId] = useState<string | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [preferredGeneratedNodeId, setPreferredGeneratedNodeId] = useState<string | null>(null);
@@ -307,312 +275,58 @@ export function ImageWorkflowCanvas({
     [activeGraph?.edges, selectedEdgeId],
   );
 
-  const createNewFlow = useCallback(() => {
-    const id = createImageWorkflow({
-      name: `${projectName} 图像工作流 ${imageWorkflows.length + 1}`,
-      target: { kind: "free" },
-    });
-    setActiveWorkflowId(id);
-    setSelectedNodeId(null);
-    setPreferredGeneratedNodeId(null);
-  }, [createImageWorkflow, imageWorkflows.length, projectName]);
+  const {
+    createNewFlow,
+    bindTargetStoryboard,
+    addReferenceFromMaterial,
+    addReferenceFromStoryboard,
+    addGeneratedNode,
+    deleteNode,
+    deleteSelectedEdge,
+    handleConnect,
+    handleUploadReference,
+    applyNodeToStoryboard,
+    storeGeneratedNodeInAssetLibrary,
+  } = useImageWorkflowActions({
+    activeGraph,
+    initialAssetContext,
+    projectName,
+    imageWorkflowCount: imageWorkflows.length,
+    storyboards,
+    targetStoryboardId,
+    selectedNodeId,
+    preferredGeneratedNodeId,
+    selectedEdgeId,
+    uploadInputRef,
+    saveGraph,
+    addMaterial,
+    createImageWorkflow,
+    updateImageWorkflow,
+    applyImageWorkflowResultToAsset,
+    applyImageWorkflowResultToStoryboard,
+    setActiveWorkflowId,
+    setSelectedNodeId,
+    setPreferredGeneratedNodeId,
+    setSelectedEdgeId,
+  });
 
-  const bindTargetStoryboard = useCallback(() => {
-    if (!activeGraph || !targetStoryboardId) return;
-    updateImageWorkflow(activeGraph.id, { target: { kind: "storyboard", id: targetStoryboardId } });
-    toast.success("已绑定分镜");
-  }, [activeGraph, targetStoryboardId, updateImageWorkflow]);
-
-  const addReferenceFromMaterial = useCallback(
-    (material: StudioMaterial) => {
-      if (!activeGraph) return;
-      const id = createId("ref");
-      saveGraph(addReferenceImageNode(activeGraph, {
-        id,
-        title: material.name,
-        imageUrl: material.localPath,
-        source: { kind: "material", id: material.id },
-        position: nextNodePosition(activeGraph, "reference"),
-      }));
-      setSelectedNodeId(id);
-    },
-    [activeGraph, saveGraph],
-  );
-
-  const addReferenceFromStoryboard = useCallback(
-    (storyboard: StoryboardItem) => {
-      if (!activeGraph || !storyboard.mediaRef?.path) return;
-      const id = createId("ref");
-      saveGraph(addReferenceImageNode(activeGraph, {
-        id,
-        title: `分镜 ${storyboard.index}`,
-        imageUrl: storyboard.mediaRef.path,
-        source: { kind: "storyboard", id: storyboard.id },
-        position: nextNodePosition(activeGraph, "reference"),
-      }));
-      setSelectedNodeId(id);
-    },
-    [activeGraph, saveGraph],
-  );
-
-  const addGeneratedNode = useCallback(() => {
-    if (!activeGraph) return;
-    const id = createId("gen");
-    const promptId = createId("prompt");
-    const imageSettings = useAppSettingsStore.getState().imageGenerationSettings;
-    const targetStoryboard = storyboards.find((item) => item.id === targetStoryboardId);
-    const targetAsset =
-      activeGraph.target.kind === "asset" &&
-      initialAssetContext &&
-      isAssetOpenContext(initialAssetContext) &&
-      isSameImageWorkflowTarget(activeGraph.target, initialAssetContext.target)
-        ? initialAssetContext
-        : undefined;
-    let next = addGeneratedImageNode(activeGraph, {
-      id,
-      title: targetAsset
-        ? `${targetAsset.title} 成图`
-        : targetStoryboard
-          ? `分镜 ${targetStoryboard.index} 成图`
-          : "生成图",
-      prompt: targetAsset?.prompt ?? targetStoryboard?.prompt ?? "",
-      aspectRatio: imageSettings.defaultAspectRatio,
-      quality: "standard",
-      position: nextNodePosition(activeGraph, "generated"),
-    });
-    next = addPromptImageNode(next, {
-      id: promptId,
-      title: "图片生成",
-      prompt: targetAsset?.prompt ?? targetStoryboard?.prompt ?? "",
-      aspectRatio: imageSettings.defaultAspectRatio,
-      resolution: imageSettings.defaultResolution,
-      quality: "standard",
-      targetNodeId: id,
-      position: { x: 560, y: 500 + activeGraph.nodes.filter((node) => node.type === "prompt").length * 320 },
-    });
-    next = connectImageWorkflowNodes(next, {
-      source: promptId,
-      target: id,
-    });
-    saveGraph(next);
-    setSelectedNodeId(promptId);
-    setPreferredGeneratedNodeId(id);
-  }, [activeGraph, initialAssetContext, saveGraph, storyboards, targetStoryboardId]);
-
-  const deleteNode = useCallback(
-    (nodeId: string) => {
-      if (!activeGraph) return;
-      saveGraph(removeImageWorkflowNode(activeGraph, nodeId));
-      if (selectedNodeId === nodeId) setSelectedNodeId(null);
-      if (preferredGeneratedNodeId === nodeId) setPreferredGeneratedNodeId(null);
-    },
-    [activeGraph, preferredGeneratedNodeId, saveGraph, selectedNodeId],
-  );
-
-  const deleteSelectedEdge = useCallback(() => {
-    if (!activeGraph || !selectedEdgeId) return;
-    saveGraph(removeImageWorkflowEdge(activeGraph, selectedEdgeId));
-    setSelectedEdgeId(null);
-  }, [activeGraph, saveGraph, selectedEdgeId]);
-
-  const handleConnect = useCallback(
-    (connection: Connection) => {
-      if (!activeGraph || !connection.source || !connection.target) return;
-      saveGraph(connectImageWorkflowNodes(activeGraph, {
-        source: connection.source,
-        target: connection.target,
-      }));
-    },
-    [activeGraph, saveGraph],
-  );
-
-  const handleUploadReference = useCallback(
-    async (file?: File) => {
-      if (!file || !activeGraph) return;
-      try {
-        if (!activeProjectId) throw new Error("请先选择项目");
-        const bytes = await file.arrayBuffer();
-        const id = createId("ref");
-        const saved = await window.projectFiles?.writeBinary({
-          projectId: activeProjectId,
-          relativePath: workflowImageRelativePath(activeGraph.id, createWorkflowFilename("ref", id, file.name)),
-          bytes,
-        });
-        if (!saved?.success || !saved.url) {
-          throw new Error(saved?.error || "项目内参考图保存失败");
-        }
-        const imageUrl = saved.url;
-        const materialId = addMaterial({
-          name: file.name,
-          localPath: imageUrl,
-          size: saved?.size ?? file.size,
-        });
-        saveGraph(addReferenceImageNode(activeGraph, {
-          id,
-          title: file.name,
-          imageUrl,
-          source: { kind: "material", id: materialId },
-          position: nextNodePosition(activeGraph, "reference"),
-        }));
-        setSelectedNodeId(id);
-      } catch (error) {
-        toast.error(error instanceof Error ? error.message : "参考图导入失败");
-      } finally {
-        if (uploadInputRef.current) uploadInputRef.current.value = "";
-      }
-    },
-    [activeGraph, activeProjectId, addMaterial, saveGraph],
-  );
-
-  const generateNode = useCallback(
-    async (nodeId: string) => {
-      const graph = useStudioStore.getState().imageWorkflows.find((item) => item.id === activeGraph?.id);
-      if (!graph) return;
-      const targetNodeId = resolveGenerationTargetNodeId(graph, nodeId);
-      if (!targetNodeId) {
-        toast.error("未找到要生成的图片节点");
-        return;
-      }
-      const request = buildImageWorkflowGenerationRequest(graph, targetNodeId);
-      if (!request.prompt.trim()) {
-        toast.error("请先填写生成提示词");
-        return;
-      }
-      assertImageWorkflowContinuityCapability(request);
-      saveGraph(setGeneratedImageStatus(graph, targetNodeId, "generating"));
-      try {
-        const projectId = useProjectStore.getState().activeProjectId;
-        if (!projectId) throw new Error("请先选择项目");
-        const referenceImages = await prepareReferenceImages(request.referenceImages);
-        const result = await aiManager.freedomImage({
-          prompt: request.prompt,
-          model: request.model,
-          aspectRatio: request.aspectRatio,
-          resolution: request.resolution,
-          negativePrompt: request.negativePrompt,
-          referenceImages,
-          extraParams: request.quality === "hd" ? { quality: "hd" } : undefined,
-        });
-        const node = graph.nodes.find((item) => item.id === targetNodeId);
-        const saved = await window.projectFiles?.saveImage({
-          projectId,
-          relativePath: workflowImageRelativePath(graph.id, createWorkflowFilename("gen", targetNodeId, `${node?.title || "workflow-image"}.png`)),
-          source: result.url,
-        });
-        if (!saved?.success || !saved.url) {
-          throw new Error(saved?.error || "项目内图片保存失败");
-        }
-        const localPath = saved.url;
-        const materialId = addMaterial({
-          name: `${node?.title || "workflow-image"}.png`,
-          localPath,
-          size: saved.size ?? 0,
-        });
-        const latest = useStudioStore.getState().imageWorkflows.find((item) => item.id === graph.id) ?? graph;
-        saveGraph(setGeneratedImageResult(latest, targetNodeId, {
-          imageUrl: localPath,
-          mediaId: materialId ?? result.mediaId,
-        }));
-        toast.success("图片已生成并保存到当前项目");
-      } catch (error) {
-        const latest = useStudioStore.getState().imageWorkflows.find((item) => item.id === graph.id) ?? graph;
-        saveGraph(setGeneratedImageStatus(latest, targetNodeId, "failed", error instanceof Error ? error.message : "生成失败"));
-        toast.error(error instanceof Error ? error.message : "生成失败");
-      }
-    },
-    [activeGraph?.id, addMaterial, saveGraph],
-  );
-
-  const applyNodeToStoryboard = useCallback(
-    (nodeId: string) => {
-      if (!activeGraph) return;
-      if (activeGraph.target.kind === "asset") {
-        applyImageWorkflowResultToAsset(activeGraph.target, activeGraph.id, nodeId);
-        toast.success("已回写到衍生资产");
-        return;
-      }
-      const storyboardId =
-        activeGraph.target.kind === "storyboard" && activeGraph.target.id
-          ? activeGraph.target.id
-          : targetStoryboardId;
-      if (!storyboardId) {
-        toast.error("请先选择要回写的分镜");
-        return;
-      }
-      applyImageWorkflowResultToStoryboard(storyboardId, activeGraph.id, nodeId);
-      toast.success("已回写到分镜媒体");
-    },
-    [
-      activeGraph,
-      applyImageWorkflowResultToAsset,
-      applyImageWorkflowResultToStoryboard,
-      targetStoryboardId,
-    ],
-  );
-
-  const storeGeneratedNodeInAssetLibrary = useCallback(
-    async (nodeId: string) => {
-      const graph =
-        useStudioStore.getState().imageWorkflows.find((item) => item.id === activeGraph?.id) ??
-        activeGraph;
-      if (!graph || graph.target.kind !== "asset") return;
-      const generatedNode = graph.nodes.find(
-        (item): item is ImageWorkflowGeneratedNode =>
-          item.id === nodeId && item.type === "generated",
-      );
-      if (!generatedNode?.resultUrl) {
-        toast.error("请先生成衍生图片");
-        return;
-      }
-      if (!window.studioAssets?.add) {
-        toast.error("当前环境不支持资产库写入");
-        return;
-      }
-      try {
-        const promptNode = findLinkedPromptNodeForGenerated(graph, generatedNode.id);
-        const payload = await buildAssetLibraryPayloadForImageWorkflow({
-          target: graph.target,
-          openContext: isAssetOpenContext(initialAssetContext)
-            ? initialAssetContext
-            : undefined,
-          generatedNode,
-          promptNode,
-        });
-        const existing = await window.studioAssets.getByName?.({
-          type: payload.type,
-          name: payload.name,
-        });
-        const asset = await window.studioAssets.add(payload);
-        if (!asset) throw new Error("资产库写入失败");
-        notifyAssetLibraryUpdated(asset);
-        toast.success(existing ? "资产库已更新" : "已放入资产库");
-      } catch (error) {
-        toast.error(error instanceof Error ? error.message : "资产库写入失败");
-      }
-    },
-    [activeGraph, initialAssetContext],
-  );
+  const { generateNode } = useImageWorkflowGeneration({
+    workflowId: activeGraph?.id,
+    addMaterial,
+    saveGraph,
+  });
 
   const reactFlowNodes = useMemo<ImageWorkflowReactNode[]>(
     () =>
-      (activeGraph?.nodes ?? []).map((node) => ({
-        id: node.id,
-        type: "imageWorkflow",
-        position: node.position,
-        data: {
-          node,
-          promptNode:
-            node.type === "generated" && activeGraph
-              ? findLinkedPromptNodeForGenerated(activeGraph, node.id)
-              : undefined,
-          selected: node.id === selectedNodeId,
-          storyboards,
-          onUpdate: updateNode,
-          onGenerate: (nodeId: string) => void generateNode(nodeId),
-          onApplyToStoryboard: (nodeId: string) => applyNodeToStoryboard(nodeId),
-          onDelete: (nodeId: string) => deleteNode(nodeId),
-        },
-      })),
+      createImageWorkflowReactNodes({
+        graph: activeGraph,
+        selectedNodeId,
+        storyboards,
+        onUpdate: updateNode,
+        onGenerate: generateNode,
+        onApplyToStoryboard: applyNodeToStoryboard,
+        onDelete: deleteNode,
+      }),
     [
       activeGraph,
       applyNodeToStoryboard,
@@ -855,92 +569,24 @@ export function ImageWorkflowCanvas({
         />
       </div>
 
-      <aside className="flex min-h-0 flex-col border-l border-border bg-card">
-        <div className="border-b border-border p-3">
-          <div className="flex items-center gap-2">
-            <GitBranch className="h-4 w-4 text-cyan-200" />
-            <div className="min-w-0">
-              <h3 className="truncate text-sm font-semibold">{activeGraph.name}</h3>
-              <p className="text-[11px] text-muted-foreground">{projectName}</p>
-            </div>
-          </div>
-          {isScopedWorkflowDetail ? (
-            <div className="mt-3 grid gap-2" data-scoped-image-workflow-summary>
-              <div className="rounded-md border border-cyan-300/20 bg-cyan-300/10 px-3 py-2 text-xs text-cyan-100">
-                <div className="text-[10px] uppercase tracking-[0.18em] text-cyan-200/70">
-                  来源
-                </div>
-                <div className="mt-1 truncate">
-                  {sourceStageLabel ? `${sourceStageLabel} / ${sourceLabel}` : sourceLabel}
-                </div>
-              </div>
-              <div className="rounded-md border border-cyan-300/20 bg-cyan-300/10 px-3 py-2 text-xs text-cyan-100">
-                <div className="text-[10px] uppercase tracking-[0.18em] text-cyan-200/70">
-                  回写目标
-                </div>
-                <div className="mt-1 truncate">{workflowWritebackTargetLabel}</div>
-              </div>
-            </div>
-          ) : activeGraph.target.kind === "asset" ? (
-            <div className="mt-3 rounded-md border border-cyan-300/20 bg-cyan-300/10 px-3 py-2 text-xs text-cyan-100">
-              <div className="text-[10px] uppercase tracking-[0.18em] text-cyan-200/70">
-                回写目标
-              </div>
-              <div className="mt-1 truncate">
-                {assetTargetLabel(
-                  activeGraph.target,
-                  isAssetOpenContext(initialAssetContext)
-                    ? initialAssetContext
-                    : undefined,
-                )}
-              </div>
-            </div>
-          ) : (
-            <div className="mt-3 grid gap-2">
-              <select
-                value={targetStoryboardId}
-                onChange={(event) => setTargetStoryboardId(event.target.value)}
-                className="h-8 rounded-md border border-border bg-background/80 px-2 text-xs text-foreground outline-none"
-              >
-                <option value="">选择回写分镜</option>
-                {storyboards.map((storyboard) => (
-                  <option key={storyboard.id} value={storyboard.id}>
-                    分镜 {storyboard.index} · {storyboard.prompt.slice(0, 18)}
-                  </option>
-                ))}
-              </select>
-              <Button size="sm" variant="secondary" onClick={bindTargetStoryboard} disabled={!targetStoryboardId}>
-                <Save className="h-3.5 w-3.5" />
-                绑定当前图
-              </Button>
-            </div>
-          )}
-        </div>
-        {canUseGlobalWorkflowControls ? (
-          <div className="min-h-0 flex-1 overflow-y-auto p-3">
-            <ImageWorkflowPaletteSection title="项目参考图" emptyText="当前项目暂无参考图">
-              {imageMaterials.slice(0, 24).map((material) => (
-                <ImageWorkflowPaletteImageButton
-                  key={material.id}
-                  title={material.name}
-                  imageUrl={material.localPath}
-                  onClick={() => addReferenceFromMaterial(material)}
-                />
-              ))}
-            </ImageWorkflowPaletteSection>
-            <ImageWorkflowPaletteSection title="分镜成图" emptyText="分镜尚未绑定图片">
-              {storyboardImages.slice(0, 24).map((storyboard) => (
-                <ImageWorkflowPaletteImageButton
-                  key={storyboard.id}
-                  title={`分镜 ${storyboard.index}`}
-                  imageUrl={storyboard.mediaRef!.path}
-                  onClick={() => addReferenceFromStoryboard(storyboard)}
-                />
-              ))}
-            </ImageWorkflowPaletteSection>
-          </div>
-        ) : null}
-      </aside>
+      <ImageWorkflowSidebar
+        activeGraph={activeGraph}
+        projectName={projectName}
+        initialAssetContext={initialAssetContext}
+        isScopedWorkflowDetail={isScopedWorkflowDetail}
+        sourceLabel={sourceLabel}
+        sourceStageLabel={sourceStageLabel}
+        workflowWritebackTargetLabel={workflowWritebackTargetLabel}
+        storyboards={storyboards}
+        targetStoryboardId={targetStoryboardId}
+        onTargetStoryboardChange={setTargetStoryboardId}
+        onBindTargetStoryboard={bindTargetStoryboard}
+        canUseGlobalWorkflowControls={canUseGlobalWorkflowControls}
+        imageMaterials={imageMaterials}
+        storyboardImages={storyboardImages}
+        onAddReferenceFromMaterial={addReferenceFromMaterial}
+        onAddReferenceFromStoryboard={addReferenceFromStoryboard}
+      />
     </section>
   );
 }

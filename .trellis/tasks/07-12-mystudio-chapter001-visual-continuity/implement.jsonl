@@ -1,1 +1,5 @@
-{"_example": "Fill with {\"file\": \"<path>\", \"reason\": \"<why>\"}. Put spec/research files only — no code paths. Run `python3 .trellis/scripts/get_context.py --mode packages` to list available specs. Delete this line once real entries are added."}
+{"file":".trellis/spec/guides/image-transfer-safety-guide.md","reason":"Defines the mandatory standalone thumbnail and strict byte-size transfer gate."}
+{"file":".trellis/spec/guides/cross-layer-thinking-guide.md","reason":"The transfer contract spans renderer provider requests, Python generation, reports, and tests."}
+{"file":".trellis/spec/frontend/provider-integration.md","reason":"Owns provider request construction and hard-failure behavior."}
+{"file":".trellis/spec/frontend/type-safety.md","reason":"Requires validation at external and persisted boundaries."}
+{"file":".trellis/tasks/07-12-mystudio-chapter001-visual-continuity/research/visual-review-20260713.md","reason":"Records why current images remain pending and why regeneration cannot bypass visual review."}

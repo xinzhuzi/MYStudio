@@ -22,6 +22,7 @@ import {
   validateGptImageSize,
   type ImageRequestTemplateName,
 } from "./image-size-presets";
+import { assertImageTransferPayloadSize } from "./image-transfer";
 
 export { resolveGptImageSize, validateGptImageSize } from "./image-size-presets";
 
@@ -422,6 +423,17 @@ async function normalizeSdkFetchResponse(response: Response): Promise<Response> 
 
 export async function sdkGenerateImage(options: SdkGenerateImageOptions): Promise<SdkGenerateImageResult> {
   const builtRequest = buildOpenAIImageRequestBody(options);
+  for (const referenceImage of options.referenceImages || []) {
+    if (/^https?:\/\//i.test(referenceImage)) continue;
+    if (!referenceImage.startsWith("data:image/")) {
+      return { success: false, error: "参考图必须完成缩略后再进入 AI SDK", templateName: builtRequest.templateName };
+    }
+    try {
+      assertImageTransferPayloadSize(referenceImage);
+    } catch (error) {
+      return { success: false, error: getErrorMessage(error), templateName: builtRequest.templateName };
+    }
+  }
   const size = typeof builtRequest.body.size === "string" ? builtRequest.body.size : undefined;
   const templateName = builtRequest.templateName;
   const timeoutMs = options.timeoutMs ?? 180_000;

@@ -40,7 +40,27 @@ type RegisterImageHostIpcHandlersContext = {
 };
 
 function isHttpUrl(value: string) {
-  return value.startsWith("http://") || value.startsWith("https://");
+  return /^https?:\/\//i.test(value);
+}
+
+function isValidImageHostUploadRequest(value: unknown): value is ImageHostUploadRequest {
+  if (!isRecord(value) || Array.isArray(value) || !isRecord(value.provider) || Array.isArray(value.provider)) return false;
+  const provider = value.provider;
+  if (typeof provider.name !== "string" || typeof provider.platform !== "string") return false;
+  if (typeof value.apiKey !== "string" || typeof value.imageData !== "string") return false;
+  if (provider.imagePayloadType !== undefined && provider.imagePayloadType !== "base64" && provider.imagePayloadType !== "file") return false;
+  if (provider.staticFormFields !== undefined && (Array.isArray(provider.staticFormFields) || !isRecord(provider.staticFormFields)
+    || Object.values(provider.staticFormFields).some((field) => typeof field !== "string"))) return false;
+  for (const key of ["baseUrl", "uploadPath", "apiKeyParam", "apiKeyHeader", "apiKeyFormField",
+    "expirationParam", "imageField", "nameField", "responseUrlField", "responseDeleteUrlField"] as const) {
+    if (provider[key] !== undefined && typeof provider[key] !== "string") return false;
+  }
+  if (value.options !== undefined) {
+    if (!isRecord(value.options) || Array.isArray(value.options)) return false;
+    if (value.options.name !== undefined && typeof value.options.name !== "string") return false;
+    if (value.options.expiration !== undefined && typeof value.options.expiration !== "number") return false;
+  }
+  return true;
 }
 
 function resolveImageHostUploadUrl(provider: ImageHostUploadProvider) {
@@ -159,11 +179,12 @@ async function uploadImageHostFromMain(
       const urlField = getByPath(data, provider.responseUrlField || "url");
       const deleteField = getByPath(data, provider.responseDeleteUrlField || "delete_url");
       const trimmedText = text.trim();
-      if (urlField) {
+      if (typeof urlField === "string" && isHttpUrl(urlField)) {
+        const deleteUrl = typeof deleteField === "string" && isHttpUrl(deleteField) ? deleteField : undefined;
         return {
           success: true,
-          url: typeof urlField === "string" ? urlField : String(urlField),
-          deleteUrl: deleteField ? (typeof deleteField === "string" ? deleteField : String(deleteField)) : undefined,
+          url: urlField,
+          deleteUrl,
         };
       }
       const extractedTextUrl = extractFirstHttpUrl(trimmedText);
@@ -192,8 +213,13 @@ export function registerImageHostIpcHandlers({
   writeDiagnosticsLog,
   readImageSource,
 }: RegisterImageHostIpcHandlersContext) {
-  ipcMain.handle("image-host-upload", async (_event, payload: ImageHostUploadRequest) => {
+  ipcMain.handle("image-host-upload", async (_event, payload: unknown) => {
     const operationId = createOperationId();
+    if (!isValidImageHostUploadRequest(payload)) {
+      writeDiagnosticsLog({ level: "error", category: "ipc", operationId,
+        message: "Image host upload rejected invalid payload" });
+      return { success: false, error: "图床上传参数无效" } satisfies ImageHostUploadResponse;
+    }
     writeDiagnosticsLog({
       level: "info",
       category: "ipc",

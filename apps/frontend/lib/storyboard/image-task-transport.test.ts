@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { normalizeImageTaskUrl, pollImageTaskUrl } from "./image-task-transport";
+import {
+  normalizeImageTaskUrl,
+  pollImageTaskUrl,
+  waitForAbortableDelay,
+} from "./image-task-transport";
 
 describe("image task transport", () => {
   afterEach(() => {
@@ -60,6 +64,33 @@ describe("image task transport", () => {
     controller.abort();
     await expect(pollImageTaskUrl({ taskId: "cancelled", apiKey: "key", baseUrl: "https://api.test", signal: controller.signal }))
       .rejects.toMatchObject({ name: "AbortError" });
+  });
+
+  it("cancels an active polling delay without issuing another request", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ status: "processing" }), { status: 200 }),
+    );
+    const controller = new AbortController();
+    const polling = pollImageTaskUrl({
+      taskId: "active-delay",
+      apiKey: "key",
+      baseUrl: "https://api.test",
+      pollIntervalMs: 60_000,
+      signal: controller.signal,
+    });
+
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
+    controller.abort();
+
+    await expect(polling).rejects.toMatchObject({ name: "AbortError" });
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it("provides an abortable delay for caller retry backoff", async () => {
+    const controller = new AbortController();
+    const delay = waitForAbortableDelay(60_000, controller.signal);
+    controller.abort();
+    await expect(delay).rejects.toMatchObject({ name: "AbortError" });
   });
 
   it("supports caller-compatible HTTP messages and no-cache polling", async () => {

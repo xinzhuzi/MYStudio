@@ -30,6 +30,12 @@ import {
   type ImageAspectRatio,
   type ImageResolution,
 } from '@/lib/ai/image-size-presets';
+import {
+  buildCompatibilityImagePrompt,
+  shouldRetryImageCompatibility,
+} from '@/lib/ai/image-compatibility';
+import { prepareReferenceImagesForTransfer } from '@/lib/ai/image-transfer';
+import { extractDirectImageUrl } from '@/lib/ai/image-response';
 
 export interface ImageGenerationParams {
   prompt: string;
@@ -66,75 +72,12 @@ const IMAGE_ENDPOINT_PATHS: Record<string, { submit: string; poll: (id: string) 
 };
 const DEFAULT_IMAGE_ENDPOINT = { submit: '/v1/images/generations', poll: (id: string) => `/v1/images/generations/${id}` };
 const IMAGE_SUBMIT_TIMEOUT_MS = 180_000;
-const IMAGE_COMPATIBILITY_PROMPT_LIMIT = 180;
 
 function getImageEndpointPaths(endpointTypes: string[]): { submit: string; poll: (id: string) => string } {
   for (const t of endpointTypes) {
     if (IMAGE_ENDPOINT_PATHS[t]) return IMAGE_ENDPOINT_PATHS[t];
   }
   return DEFAULT_IMAGE_ENDPOINT;
-}
-
-function shouldRetryImageCompatibility(result: { error?: string; status?: number }) {
-  if (typeof result.status === 'number') {
-    return [408, 502, 503, 504, 520, 522, 524].includes(result.status);
-  }
-
-  const message = (result.error || '').toLowerCase();
-  return (
-    message.includes('fetch failed') ||
-    message.includes('failed to fetch') ||
-    message.includes('socket') ||
-    message.includes('timeout') ||
-    message.includes('timed out') ||
-    message.includes('api 请求超时') ||
-    message.includes('network') ||
-    message.includes('aborted')
-  );
-}
-
-function buildCompatibilityImagePrompt(prompt: string) {
-  const normalized = prompt.replace(/\s+/g, ' ').trim();
-  if (normalized.length <= IMAGE_COMPATIBILITY_PROMPT_LIMIT) {
-    return normalizeImagePromptForGeneration({ prompt: normalized }).prompt;
-  }
-
-  const compact = normalized
-    .replace(/\s*\+\s*/g, '，')
-    .slice(0, IMAGE_COMPATIBILITY_PROMPT_LIMIT)
-    .replace(/[，,;；:：、\s]+$/, '');
-  return normalizeImagePromptForGeneration({
-    prompt: `${compact}。主体完整，构图简洁，细节清晰，避免文字和水印。`,
-  }).prompt;
-}
-
-function normalizeResponseUrl(value: unknown): string | undefined {
-  if (Array.isArray(value)) return normalizeResponseUrl(value[0]);
-  return typeof value === 'string' && value.trim() ? value : undefined;
-}
-
-function toDataImageUrl(b64: unknown, format: unknown): string | undefined {
-  if (typeof b64 !== 'string' || !b64.trim()) return undefined;
-  if (b64.startsWith('data:image/')) return b64;
-  const rawFormat = typeof format === 'string' ? format.toLowerCase().replace(/[^a-z0-9.+-]/g, '') : '';
-  const imageFormat = rawFormat === 'jpg' ? 'jpeg' : rawFormat || 'png';
-  return `data:image/${imageFormat};base64,${b64}`;
-}
-
-function getFirstDataItem(data: any): any {
-  const dataField = data?.data;
-  return Array.isArray(dataField) ? dataField[0] : dataField;
-}
-
-function extractDirectImageUrl(data: any): string | undefined {
-  const firstItem = getFirstDataItem(data);
-  return normalizeResponseUrl(firstItem?.url)
-    || normalizeResponseUrl(firstItem?.image_url)
-    || normalizeResponseUrl(firstItem?.output_url)
-    || normalizeResponseUrl(data?.url)
-    || normalizeResponseUrl(data?.image_url)
-    || normalizeResponseUrl(data?.output_url)
-    || toDataImageUrl(firstItem?.b64_json ?? data?.b64_json, firstItem?.output_format ?? data?.output_format);
 }
 
 function sameFeatureConfig(a: FeatureConfig, b: FeatureConfig) {
@@ -293,6 +236,7 @@ async function generateImage(
     ...params,
     prompt: normalizedPrompt.prompt,
     negativePrompt: normalizedPrompt.negativePrompt,
+    referenceImages: await prepareReferenceImagesForTransfer(params.referenceImages),
   };
   let lastError: unknown;
 
@@ -362,6 +306,9 @@ async function generateImage(
 
       // Kling image 原生端点: /kling/v1/images/generations 或 /kling/v1/images/omni-image
       if (apiFormat === 'kling_image') {
+        if (generationParams.referenceImages?.length) {
+          throw new Error('当前 Kling 图片适配器不支持参考图，已在网络请求前阻断');
+        }
         const result = await submitViaKlingImages(generationParams, model, apiKey, baseUrl, aspectRatio, featureConfig.keyManager, operationId);
         void logEvent({ level: 'info', category: 'ai', operationId, message: 'Image generation completed', context: { model, hasImageUrl: Boolean(result.imageUrl), taskId: result.taskId, attempt: attemptIndex + 1 } });
         return result;
@@ -427,38 +374,6 @@ async function generateImage(
 }
 
 /**
- * 压缩 base64 参考图到合理体积
- * 中转站（new_api/one_api）在做 OpenAI → Gemini 格式转换时，
- * 超大 base64 会导致 JSON 解析失败或 body size 超限，报 "contents is required"。
- * 将参考图缩小到 maxEdge px 并转为 JPEG 可大幅降低体积（2~4MB → ~60KB）。
- */
-function compressReferenceImage(dataUri: string, maxEdge = 768, quality = 0.8): Promise<string> {
-  return new Promise((resolve) => {
-    // 非 data URI（HTTP URL 等）直接返回，由服务端处理
-    if (!dataUri.startsWith('data:image/')) {
-      resolve(dataUri);
-      return;
-    }
-    const img = new Image();
-    img.onload = () => {
-      let { width, height } = img;
-      // 如果已经足够小，直接返回（转 JPEG 即可省体积）
-      const scale = Math.min(1, maxEdge / Math.max(width, height));
-      width = Math.round(width * scale);
-      height = Math.round(height * scale);
-      const canvas = document.createElement('canvas');
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext('2d')!;
-      ctx.drawImage(img, 0, 0, width, height);
-      resolve(canvas.toDataURL('image/jpeg', quality));
-    };
-    img.onerror = () => resolve(dataUri); // 解码失败就原样返回
-    img.src = dataUri;
-  });
-}
-
-/**
  * Generate image via /v1/chat/completions (multimodal)
  * Used for Gemini image models that don't support /v1/images/generations
  *
@@ -492,22 +407,13 @@ async function submitViaChatCompletions(
     ? ` Output the image at ${targetDims.width}x${targetDims.height} pixels resolution.`
     : '';
 
-  // 压缩参考图以避免超大 base64 导致中转站 "contents is required" 错误
-  let compressedRefs: string[] | undefined;
-  if (referenceImages && referenceImages.length > 0) {
-    compressedRefs = await Promise.all(referenceImages.map(img => compressReferenceImage(img)));
-    const originalSize = referenceImages.reduce((s, r) => s + r.length, 0);
-    const compressedSize = compressedRefs.reduce((s, r) => s + r.length, 0);
-    console.log(`[ImageGenerator] Compressed ${referenceImages.length} refs: ${(originalSize / 1024).toFixed(0)}KB → ${(compressedSize / 1024).toFixed(0)}KB`);
-  }
-
   // Build messages
   const userContent: Array<{ type: string; text?: string; image_url?: { url: string } }> = [
     { type: 'text', text: `Generate an image with aspect ratio ${aspectRatio}.${sizeInstruction} ${prompt}` },
   ];
-  // Attach reference images if any (already compressed)
-  if (compressedRefs && compressedRefs.length > 0) {
-    for (const img of compressedRefs) {
+  // Attach reference images after the shared pre-network transfer gate.
+  if (referenceImages && referenceImages.length > 0) {
+    for (const img of referenceImages) {
       userContent.push({ type: 'image_url', image_url: { url: img } });
     }
   }
@@ -1098,6 +1004,7 @@ export async function submitGridImageRequest(params: {
     signal,
   } = params;
   const normalizedPrompt = normalizeImagePromptForGeneration({ prompt });
+  const transferReferenceImages = await prepareReferenceImagesForTransfer(referenceImages);
   const normalizedBase = baseUrl.replace(/\/+$/, '');
   const operationId = createOperationId('grid-image');
 
@@ -1108,11 +1015,14 @@ export async function submitGridImageRequest(params: {
 
   if (apiFormat === 'openai_chat') {
     // Gemini 等模型通过 chat completions 生图
-    const result = await submitViaChatCompletions(normalizedPrompt.prompt, model, apiKey, normalizedBase, aspectRatio, referenceImages, resolution, keyManager, signal, operationId);
+    const result = await submitViaChatCompletions(normalizedPrompt.prompt, model, apiKey, normalizedBase, aspectRatio, transferReferenceImages, resolution, keyManager, signal, operationId);
     return { imageUrl: result.imageUrl };
   }
 
   if (apiFormat === 'kling_image') {
+    if (transferReferenceImages?.length) {
+      throw new Error('当前 Kling 图片适配器不支持参考图，已在网络请求前阻断');
+    }
     const result = await submitViaKlingImages({ prompt: normalizedPrompt.prompt, aspectRatio, negativePrompt: normalizedPrompt.negativePrompt }, model, apiKey, normalizedBase, aspectRatio, keyManager, operationId);
     return { imageUrl: result.imageUrl, taskId: result.taskId };
   }
@@ -1123,8 +1033,8 @@ export async function submitGridImageRequest(params: {
   const endpoint = `${rootBase}${imagePaths.submit}`;
   const usesDefaultImagesEndpoint = imagePaths.submit === DEFAULT_IMAGE_ENDPOINT.submit;
   const builtRequest = usesDefaultImagesEndpoint
-    ? buildOpenAIImageRequestBody({ model, prompt: normalizedPrompt.prompt, aspectRatio, resolution, referenceImages, negativePrompt: normalizedPrompt.negativePrompt })
-    : buildProviderExtensionImageRequestBody({ model, prompt: normalizedPrompt.prompt, aspectRatio, resolution, referenceImages, negativePrompt: normalizedPrompt.negativePrompt });
+    ? buildOpenAIImageRequestBody({ model, prompt: normalizedPrompt.prompt, aspectRatio, resolution, referenceImages: transferReferenceImages, negativePrompt: normalizedPrompt.negativePrompt })
+    : buildProviderExtensionImageRequestBody({ model, prompt: normalizedPrompt.prompt, aspectRatio, resolution, referenceImages: transferReferenceImages, negativePrompt: normalizedPrompt.negativePrompt });
   const requestBody = builtRequest.body;
 
   console.log('[GridImageAPI] Submitting to', endpoint, { templateName: builtRequest.templateName });
@@ -1144,7 +1054,7 @@ export async function submitGridImageRequest(params: {
       aspectRatio,
       resolution,
       negativePrompt: normalizedPrompt.negativePrompt,
-      referenceImages,
+      referenceImages: transferReferenceImages,
       operationId,
       endpointFamily: 'grid-images-generations',
       abortSignal: signal,

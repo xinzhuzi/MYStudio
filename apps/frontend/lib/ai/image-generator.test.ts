@@ -3,7 +3,32 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useAPIConfigStore } from "@/stores/api-config-store";
 import { useAppSettingsStore } from "@/stores/app-settings-store";
 import { resetFeatureRoundRobin } from "./feature-router";
-import { generateCharacterImage, generatePropImage, generateSceneImage } from "./image-generator";
+import {
+  generateCharacterImage,
+  generatePropImage,
+  generateSceneImage,
+  submitGridImageRequest,
+} from "./image-generator";
+import {
+  extractDirectImageUrl,
+  normalizeResponseUrl,
+  toDataImageUrl,
+} from "./image-response";
+
+describe("image response normalization", () => {
+  it("normalizes direct URLs across provider response shapes", () => {
+    expect(normalizeResponseUrl(["  https://cdn.example/image.png  "])).toBe("  https://cdn.example/image.png  ");
+    expect(normalizeResponseUrl("  ")).toBeUndefined();
+    expect(extractDirectImageUrl({ data: [{ image_url: "https://cdn.example/image.png" }] })).toBe("https://cdn.example/image.png");
+    expect(extractDirectImageUrl({ output_url: "https://cdn.example/output.png" })).toBe("https://cdn.example/output.png");
+  });
+
+  it("normalizes base64 payloads with provider formats", () => {
+    expect(toDataImageUrl("aGVsbG8=", "jpg")).toBe("data:image/jpeg;base64,aGVsbG8=");
+    expect(extractDirectImageUrl({ data: [{ b64_json: "aGVsbG8=" }], output_format: "webp" })).toBe("data:image/webp;base64,aGVsbG8=");
+    expect(toDataImageUrl("data:image/png;base64,aGVsbG8=", "jpg")).toBe("data:image/png;base64,aGVsbG8=");
+  });
+});
 
 const provider = {
   id: "fanren",
@@ -78,6 +103,48 @@ describe("generateCharacterImage", () => {
         method: "POST",
       }),
     );
+  });
+
+  it("blocks malformed references before ordinary generation reaches fetch", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(generateCharacterImage({
+      prompt: "broken reference",
+      referenceImages: ["data:image/png;base64,%%%"],
+    })).rejects.toThrow("data URI 格式无效");
+
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("blocks malformed references before grid generation reaches fetch", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(submitGridImageRequest({
+      model: "gpt-image-2",
+      prompt: "broken grid reference",
+      apiKey: "sk-test",
+      baseUrl: "https://console.fanrenapi.eu.cc/v1",
+      referenceImages: ["data:image/png;base64,%%%"],
+    })).rejects.toThrow("data URI 格式无效");
+
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("blocks reference images when the selected Kling adapter cannot consume them", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(submitGridImageRequest({
+      model: "kling-image",
+      prompt: "identity locked character",
+      apiKey: "sk-test",
+      baseUrl: "https://relay.example.com/v1",
+      referenceImages: ["https://cdn.example.com/reference.png"],
+    })).rejects.toThrow("Kling 图片适配器不支持参考图");
+
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("sends the standard size field for gpt-image models", async () => {

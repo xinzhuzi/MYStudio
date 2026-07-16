@@ -46,3 +46,18 @@ Toonflow read-only fixture / MYStudio project entities
 ## Rollback
 
 每批生成前记录 store、43 图、MP4 和 continuity manifest 的 SHA-256；失败时将新 revision 标记 rejected，不删除旧 revision。恢复只需切回旧 approved mediaRef。
+
+## Asset approval and transfer contracts
+
+- `ContinuityAssetVersion` 同时保存结构完整性、内容指纹和可选人工批准记录。`approved` 仅是“人工批准存在且指纹仍匹配”的派生结果。
+- 资产内容指纹覆盖参考图路径/哈希、视角、身份锚点、服装版本，以及场景布局、光线、色板和 viewpoint。任一输入变化都会使资产批准和依赖分镜审核失效。
+- 每镜必须有且只有一个 `scene-viewpoint` 与 `continuityState.sceneVersionId/sceneViewpointId` 完全匹配；其他场景引用使用 `secondary-scene`。
+- `VisualReviewResult` 增加关键道具检查和文字/水印检查；引用资产未批准时产品 UI 不允许提交镜头批准。
+- inline provider 图片统一经过 transfer gate：最长边约 768px，按质量/尺寸逐级降级，严格 `<1,000,000 bytes`，并记录尺寸、字节数和 SHA-256。
+
+## Storyboard promotion and authoritative reuse
+
+- 逐镜生成链的人类批准只用于证明当前输出可作为下一镜状态参考；它不能直接伪装成产品 `VisualReviewResult`。产品终审仍必须在推广后逐镜完成人物、场景、道具、转场和文字/水印检查。
+- 全章推广使用独立 CLI，默认 dry-run，写入同时要求 `--apply` 与 `--human-confirmed`。它必须验证 43/43 输出、原图 SHA-256、独立 `<1,000,000` byte `_thumb.png`、逐镜批准指纹和完整六组报告。
+- 推广图写入项目内的内容寻址 revision 路径，不覆盖旧分镜图；store 写入前建立独立备份。推广后镜头清除已重生成的 stale 状态，但视觉审核只能是 `pending`，不得自动变为 `approved`。
+- 真实 direct-video 只能复用已经通过产品视觉终审的当前 media revision，并保留其 ordered manifest、continuity state 和 review input fingerprint；不得再次调用图片 provider 或用新生成图绕过已有批准。

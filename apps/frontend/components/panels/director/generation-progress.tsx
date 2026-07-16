@@ -152,14 +152,14 @@ export function GenerationProgress() {
       if (isImageMode) {
         console.log('[GenerationProgress] Starting image generation with config:', execConfig);
         console.log('[GenerationProgress] execConfig.apiKeys:', execConfig.apiKeys);
-        workerBridge.executeScreenplayImages(screenplay, execConfig);
+        await workerBridge.executeScreenplayImages(screenplay, execConfig);
       } else {
         console.log('[GenerationProgress] Starting video generation with config:', execConfig);
         // Debug: Log each scene's imageUrl before sending to worker
         for (const scene of screenplay.scenes) {
           console.log(`[GenerationProgress] Scene ${scene.sceneId} imageUrl: ${scene.imageUrl || 'NOT SET'}`);
         }
-        workerBridge.executeScreenplayVideos(screenplay, execConfig);
+        await workerBridge.executeScreenplayVideos(screenplay, execConfig);
       }
     } catch (error) {
       console.error('[GenerationProgress] Failed to start generation:', error);

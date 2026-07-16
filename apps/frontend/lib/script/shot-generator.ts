@@ -12,6 +12,7 @@ import { retryOperation } from "@/lib/utils/retry";
 import { delay, RATE_LIMITS } from "@/lib/utils/rate-limiter";
 import { useAppSettingsStore } from "@/stores/app-settings-store";
 import type { ImageAspectRatio, ImageResolution } from "@/lib/ai/image-size-presets";
+import { prepareReferenceImagesForTransfer } from "@/lib/ai/image-transfer";
 
 const buildEndpoint = (baseUrl: string, path: string) => {
   const normalized = baseUrl.replace(/\/+$/, '');
@@ -218,14 +219,19 @@ export async function generateShotVideo(
     role: 'first_frame' | 'last_frame' | 'reference_image';
   }
 
-  const roles: ImageWithRole[] = [
-    { url: imageUrl, role: 'first_frame' }
-  ];
-
-  // Add character reference images (max 4)
   const maxRefs = Math.min(referenceImages.length, 4);
-  for (let i = 0; i < maxRefs; i++) {
-    roles.push({ url: referenceImages[i], role: 'reference_image' });
+  const preparedImages = await prepareReferenceImagesForTransfer([
+    imageUrl,
+    ...referenceImages.slice(0, maxRefs),
+  ]);
+  if (!preparedImages?.length) {
+    throw new Error('镜头视频缺少可发送的首帧');
+  }
+  const roles: ImageWithRole[] = [
+    { url: preparedImages[0], role: 'first_frame' },
+  ];
+  for (const referenceImage of preparedImages.slice(1)) {
+    roles.push({ url: referenceImage, role: 'reference_image' });
   }
 
   const requestBody = {

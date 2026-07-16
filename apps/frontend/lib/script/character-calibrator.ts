@@ -20,6 +20,7 @@ import { processBatched } from '@/lib/ai/batch-processor';
 import { estimateTokens, safeTruncate } from '@/lib/ai/model-registry';
 import { useScriptStore } from '@/stores/script-store';
 import { buildSeriesContextSummary } from './series-meta-sync';
+import { buildCharacterPriorityRecords } from './character-calibrator-utils';
 
 // ==================== 类型定义 ====================
 
@@ -282,45 +283,14 @@ export async function calibrateCharacters(
   const stats = collectCharacterStats(characterNames, episodeScripts);
   
   // 2. 构建带统计信息的角色列表，按智能优先级排序
-  const charsWithStats = rawCharacters.map(c => {
-    const s = stats.get(c.name);
-    const name = c.name;
-    
-    // 判断是否是群演（纯职业称呿、数字编号、群体描述）
-    // loose 模式下不标记群演，全部保留给 AI 判断
-    const isGroupExtra = strictness === 'loose' ? false : [
-      '保安', '警察', '员工', '护士', '医生', '记者', 
-      '律师', '路人', '众人', '若干', '群众', '大妈',
-    ].some(keyword => 
-      name === keyword || 
-      name === keyword + '1' || 
-      name === keyword + '2' ||
-      name.startsWith('几名') ||
-      name.startsWith('两个') ||
-      name.startsWith('若干')
-    );
-    
-    // 判断是否有具体名字（中文名字2-4字，或有昵称后缀）
-    const hasSpecificName = (
-      (name.length >= 2 && name.length <= 4 && /[\u4e00-\u9fa5]/.test(name)) || // 中文名字
-      name.includes('哥') || name.includes('姐') || name.includes('董') || // 有称呼
-      name.includes('总') || name.includes('老') || name.includes('小') || // 有称呼
-      /^[A-Z][a-z]+$/.test(name) // 英文名
-    );
-    
-    return {
-      name: c.name,
-      sceneCount: s?.sceneCount || 0,
-      dialogueCount: s?.dialogueCount || 0,
-      episodeCount: s?.episodes.length || 0,
-      isGroupExtra,
-      hasSpecificName,
-      // 智能优先级：有名字的优先，然后按出场排序
-      priority: isGroupExtra ? -1000 : // 群演最低
-                hasSpecificName ? 1000 + (s?.sceneCount || 0) + (s?.dialogueCount || 0) : // 有名字优先
-                (s?.sceneCount || 0) + (s?.dialogueCount || 0), // 没名字按出场
-    };
-  }).sort((a, b) => b.priority - a.priority);
+  const priorityStats = new Map(Array.from(stats.entries()).map(([name, value]) => [name, {
+    sceneCount: value.sceneCount,
+    dialogueCount: value.dialogueCount,
+    episodeCount: value.episodes.length,
+  }]));
+  const charsWithStats = buildCharacterPriorityRecords(
+    rawCharacters.map((character) => character.name), priorityStats, strictness,
+  );
   
   // 限制发送给 AI 的角色数量，避免输出截断
   // 优先保留有名字的角色

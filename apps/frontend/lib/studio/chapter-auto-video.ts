@@ -4,6 +4,7 @@ import type {
 } from "@/types/editing";
 import type {
   ProductionTrack,
+  ContinuityAssetVersion,
   StoryboardItem,
   VideoCandidate,
 } from "@/types/studio";
@@ -34,6 +35,7 @@ export interface ChapterAutoVideoStatus {
 export interface ChapterAutoVideoDependencies {
   ensurePlanning: () => Promise<void>;
   loadStoryboards: () => StoryboardItem[];
+  loadContinuityAssetVersions: () => ContinuityAssetVersion[];
   ensureFixedVoiceProfiles: (
     storyboards: StoryboardItem[],
   ) => Promise<Record<TtsSpeakerId, VoiceProfile>>;
@@ -135,6 +137,10 @@ export async function prepareChapterMedia({
   storyboards = storyboards
     .filter((item) => item.episodeId === episodeId)
     .sort((left, right) => left.index - right.index);
+  assertVisualContinuityApproved(
+    storyboards,
+    dependencies.loadContinuityAssetVersions(),
+  );
 
   emit(onStatus, { stage: "binding", detail: "复用固定音色并只补缺失 binding" });
   const profiles = await dependencies.ensureFixedVoiceProfiles(storyboards);
@@ -175,7 +181,6 @@ export async function prepareChapterMedia({
   }
 
   emit(onStatus, { stage: "media", detail: "校验全部分镜画面媒体" });
-  assertVisualContinuityApproved(storyboards);
   for (const storyboard of storyboards) {
     if (
       !storyboard.mediaRef?.path

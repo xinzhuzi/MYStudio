@@ -74,7 +74,7 @@
   </tr>
 </table>
 
-👉 [查看全部 60 种艺术风格 →](./docs/art-styles.md)
+👉 [查看全部 60 种艺术风格 →](docs/assets/art-styles.md)
 
 ## 当前入口
 
@@ -87,7 +87,7 @@
 5. `分镜配音` 生成分镜计划，维护时长、对白、画面素材和角色音色。
 6. `剪辑导出` 用本地 FFmpeg 生成候选片段，选择后拼接成片。
 
-更多操作文档见 [文档中心](./docs/README.md)。本地 TTS 与 Python 配置见 [Python 与本地 TTS 配置](./docs/PYTHON_TTS_SETUP.md)，角色音色绑定见 [资产库音色分配](./docs/ASSET_AUDIO_ASSIGNMENT.md)，开发入口见 [开发者架构与代码入口](./docs/DEVELOPER_ARCHITECTURE.md)，问题排查见 [常见故障排查](./docs/TROUBLESHOOTING.md)。
+更多操作文档见 [文档中心](./docs/README.md)。本地 TTS 与 Python 配置见 [Python 与本地 TTS 配置](docs/settings/PYTHON_TTS_SETUP.md)，角色音色绑定见 [资产库音色分配](docs/assets/ASSET_AUDIO_ASSIGNMENT.md)，开发入口见 [开发者架构与代码入口](docs/engineering/DEVELOPER_ARCHITECTURE.md)，问题排查见 [常见故障排查](docs/engineering/TROUBLESHOOTING.md)。
 
 ## 许可证
 

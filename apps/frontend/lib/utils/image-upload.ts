@@ -9,6 +9,7 @@
 
 import { uploadToImageHost, isImageHostConfigured } from '@/lib/image-host';
 import { readImageAsBase64 } from '@/lib/image-storage';
+import { prepareReferenceImageForTransfer } from '@/lib/ai/image-transfer';
 
 /**
  * Upload base64 image and get HTTP URL
@@ -41,7 +42,8 @@ export async function uploadBase64Image(imageData: string): Promise<string> {
     throw new Error('图床未配置');
   }
 
-  const result = await uploadToImageHost(base64Data, {
+  const transferImage = await prepareReferenceImageForTransfer(base64Data);
+  const result = await uploadToImageHost(transferImage, {
     // 180 days for hosts that support expiration-style parameters
     expiration: 15552000,
   });

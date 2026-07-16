@@ -2,11 +2,15 @@ import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'no
 import { createHash } from 'node:crypto';
 import { dirname, extname, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
+import sharp from 'sharp';
+import { writeDurableJsonReport } from './durable-json-report.mjs';
 
 const appsRoot = process.cwd();
 const repoRoot = resolve(appsRoot, '..');
 const generatorScript = resolve(repoRoot, 'Library', 'build_daojie_chapter001_workflow.py');
+const continuityPilotScript = resolve(repoRoot, 'Library', 'generate_chapter001_continuity_sample.py');
 const timelineRunnerScript = 'build/render-daojie-editing-timeline.ts';
+const visualContinuityPreflightScript = 'build/audit-daojie-visual-continuity.ts';
 const storyboardImageHelper = resolve(appsRoot, 'build', 'generate-storyboard-image.mjs');
 const viteNodeBin = './node_modules/.bin/vite-node';
 const reportPath = resolve(appsRoot, 'output', 'automation', 'daojie-chapter001-video-report.json');
@@ -15,6 +19,8 @@ const installedAppBin = '/Applications/漫影工作室.app/Contents/MacOS/漫影
 const skipPrekill = process.env.MYSTUDIO_SMOKE_SKIP_PREKILL === '1';
 const probeProvidersOnly = process.argv.includes('--probe-providers');
 const probeGenerationOnly = process.argv.includes('--probe-generation');
+const continuityPilotOnly = process.argv.includes('--continuity-pilot');
+const continuityFullChapterOnly = process.argv.includes('--continuity-full-chapter');
 const MIN_DIALOGUE_COVERAGE_RATIO = 0.92;
 const MIN_AUDIO_MEAN_VOLUME_DB = -55;
 const MAX_DAOJIE_VIDEO_DURATION_SECONDS = 180;
@@ -53,6 +59,8 @@ function run(command, args, options = {}) {
     cwd: options.cwd ?? repoRoot,
     env: { ...process.env, ...options.env },
     encoding: 'utf8',
+    timeout: options.timeout,
+    maxBuffer: options.maxBuffer,
   });
   if (result.status !== 0) {
     throw new Error([
@@ -104,6 +112,22 @@ function parseGeneratorOutput(stdout) {
   } catch (error) {
     throw new Error(`无法解析视频生成脚本输出: ${error instanceof Error ? error.message : String(error)}\n${trimmed}`);
   }
+}
+
+function requireDaojieVisualContinuityPreflight() {
+  const result = run(viteNodeBin, [
+    '--config', 'build/vite-node.config.ts',
+    visualContinuityPreflightScript,
+  ], {
+    cwd: appsRoot,
+    env: { MYSTUDIO_DAOJIE_VISUAL_PREFLIGHT: '1' },
+    timeout: 60_000,
+  });
+  const report = parseGeneratorOutput(result.stdout);
+  if (report.ok !== true || !(Number(report.storyboards) > 0) || report.approved !== report.storyboards) {
+    throw new Error(`直接成片视觉连续性预检无效: ${JSON.stringify(report)}`);
+  }
+  return report;
 }
 
 function sha256File(filePath) {
@@ -277,6 +301,11 @@ function redactProbeText(value) {
     .replace(/[A-Za-z0-9_-]{24,}/g, '<redacted>');
 }
 
+function isAmbiguousPaidImageFailure(value) {
+  return /(fetch failed|timed?\s*out|timeout|socket|other side closed|econnreset|und_err_|http 5\d\d)/i
+    .test(String(value || ''));
+}
+
 function normalizeProbeBaseUrl(baseUrl) {
   return String(baseUrl || '').replace(/\/+$/, '').replace(/\/v\d+$/, '');
 }
@@ -292,6 +321,7 @@ function normalizeProviderConfigsForProbe(rawConfigJson) {
       baseUrl: provider.baseUrl || provider.baseURL || '',
       model: provider.model || '',
       apiKeys,
+      asyncMode: provider.asyncMode === true || process.env.MYSTUDIO_IMAGE_ASYNC_MODE === '1',
     };
   }).filter((provider) => provider.baseUrl && provider.model && provider.apiKeys.length > 0);
 }
@@ -357,24 +387,32 @@ async function runImageProviderProbe() {
     providerCount: providers.length,
     probes,
   };
-  mkdirSync(dirname(reportPath), { recursive: true });
   const probeReportPath = resolve(appsRoot, 'output', 'automation', 'daojie-chapter001-provider-probe-report.json');
-  writeFileSync(probeReportPath, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
+  writeDurableJsonReport(probeReportPath, report);
   console.log(JSON.stringify({ ...report, reportPath: probeReportPath }, null, 2));
 }
 
-function probeReferenceDataUrl(referencePath) {
+async function probeReferenceDataUrl(referencePath) {
   if (!referencePath || !existsSync(referencePath)) {
     throw new Error(`真实生图探针参考图不存在: ${referencePath || 'MYSTUDIO_IMAGE_PROBE_REFERENCE_PATH 未设置'}`);
   }
-  const mimeType = {
-    '.jpg': 'image/jpeg',
-    '.jpeg': 'image/jpeg',
-    '.png': 'image/png',
-    '.webp': 'image/webp',
-  }[extname(referencePath).toLowerCase()];
-  if (!mimeType) throw new Error(`真实生图探针不支持该参考图格式: ${extname(referencePath)}`);
-  return `data:${mimeType};base64,${readFileSync(referencePath).toString('base64')}`;
+  if (!/_thumb\.png$/i.test(referencePath)) {
+    throw new Error(`真实生图探针参考图必须是独立 *_thumb.png: ${referencePath}`);
+  }
+  const actualBytes = statSync(referencePath).size;
+  const metadata = await sharp(referencePath, { failOn: 'error' }).metadata();
+  if (
+    metadata.format !== 'png'
+    || !metadata.width
+    || metadata.width > 768
+    || !metadata.height
+    || metadata.height > 768
+    || actualBytes <= 0
+    || actualBytes >= 1_000_000
+  ) {
+    throw new Error(`真实生图探针参考缩略图未通过尺寸/字节硬门: ${referencePath}`);
+  }
+  return `data:image/png;base64,${readFileSync(referencePath).toString('base64')}`;
 }
 
 async function saveProbeImage(imageUrl, outputPath) {
@@ -389,12 +427,58 @@ async function saveProbeImage(imageUrl, outputPath) {
   writeFileSync(outputPath, Buffer.from(await response.arrayBuffer()));
 }
 
+async function createProbeTransferThumbnail(outputPath) {
+  const extension = extname(outputPath);
+  const thumbnailPath = `${outputPath.slice(0, -extension.length)}_thumb.png`;
+  if (existsSync(thumbnailPath)) throw new Error(`拒绝覆盖已有真实生图探针缩略图: ${thumbnailPath}`);
+  const maxEdges = [768, 672, 576, 512, 448, 384, 320, 256];
+  const qualities = [100, 90, 80, 70, 60, 50, 40];
+  for (const maxEdge of maxEdges) {
+    for (const quality of qualities) {
+      const payload = await sharp(outputPath, { failOn: 'error' })
+        .rotate()
+        .flatten({ background: '#ffffff' })
+        .resize({ width: maxEdge, height: maxEdge, fit: 'inside', withoutEnlargement: true })
+        .png({ compressionLevel: 9, palette: true, quality })
+        .toBuffer();
+      if (payload.length >= 1_000_000) continue;
+      writeFileSync(thumbnailPath, payload);
+      const metadata = await sharp(payload, { failOn: 'error' }).metadata();
+      return {
+        path: thumbnailPath,
+        width: metadata.width,
+        height: metadata.height,
+        bytes: payload.length,
+        sha256: sha256File(thumbnailPath),
+      };
+    }
+  }
+  throw new Error('真实生图探针缩略图无法满足严格小于 1,000,000 bytes 的硬门');
+}
+
 async function runImageGenerationProbe() {
   const configsJson = loadStoryboardImageProviderConfigsFromAppSettings();
   const providers = normalizeProviderConfigsForProbe(configsJson);
   if (providers.length === 0) throw new Error('真实生图探针没有读取到 freedom_image provider 配置');
+  if (providers.length !== 1 || providers[0].apiKeys.length !== 1) {
+    throw new Error(
+      `真实生图探针为防止重复扣费，必须恰好配置 1 个 provider 和 1 个 key；`
+      + `当前 provider=${providers.length}, key=${providers.reduce((total, provider) => total + provider.apiKeys.length, 0)}`,
+    );
+  }
   const referencePath = process.env.MYSTUDIO_IMAGE_PROBE_REFERENCE_PATH || '';
-  const referenceImages = [probeReferenceDataUrl(referencePath)];
+  const aspectRatio = process.env.MYSTUDIO_IMAGE_PROBE_ASPECT_RATIO || '4:3';
+  const resolution = process.env.MYSTUDIO_IMAGE_PROBE_RESOLUTION || '1K';
+  const outputPath = process.env.MYSTUDIO_IMAGE_PROBE_OUTPUT_PATH
+    || resolve(appsRoot, 'output', 'automation', 'daojie-chapter001-generation-probe', 'dugu-turnaround-probe.png');
+  const generationProbeReportPath = process.env.MYSTUDIO_IMAGE_PROBE_REPORT_PATH
+    || resolve(appsRoot, 'output', 'automation', 'daojie-chapter001-generation-probe-report.json');
+  const outputExtension = extname(outputPath);
+  const transferThumbnailPath = `${outputPath.slice(0, -outputExtension.length)}_thumb.png`;
+  for (const path of [outputPath, transferThumbnailPath, generationProbeReportPath]) {
+    if (existsSync(path)) throw new Error(`拒绝覆盖已有真实生图探针结果: ${path}`);
+  }
+  const referenceImages = [await probeReferenceDataUrl(referencePath)];
   const prompt = process.env.MYSTUDIO_IMAGE_PROBE_PROMPT || [
     '基于参考图中的同一角色，生成无文字的角色连续性设定板。',
     '身份事实：成年男性，清瘦如剑，冷峻面容，银白长发半束高髻，洗旧灰色剑袍，右肩旧裂痕，腰间归元古剑。',
@@ -403,19 +487,21 @@ async function runImageGenerationProbe() {
     '纯净浅色设定板背景，不要文字、标签、边框、水印、额外人物、重复姿态、镜像复制、透视夸张、错误手指或武器穿身。',
   ].join(' ');
   const helperPayload = {
+    singleAttempt: true,
     providers: providers.map((provider) => ({
       providerName: provider.providerName,
       baseUrl: provider.baseUrl,
       apiKeys: provider.apiKeys,
       model: provider.model,
-      aspectRatio: '4:3',
-      resolution: '1K',
+      aspectRatio,
+      resolution,
       timeoutSeconds: 360,
+      asyncMode: provider.asyncMode,
     })),
     prompt,
     referenceImages,
-    aspectRatio: '4:3',
-    resolution: '1K',
+    aspectRatio,
+    resolution,
     timeoutSeconds: 360,
   };
   const result = spawnSync('node', [storyboardImageHelper], {
@@ -426,15 +512,41 @@ async function runImageGenerationProbe() {
     maxBuffer: 20 * 1024 * 1024,
   });
   if (result.status !== 0) {
-    throw new Error(`真实生图探针失败: ${redactProbeText(result.stderr || result.stdout).slice(0, 600)}`);
+    const error = redactProbeText(result.stderr || result.stdout).slice(0, 600);
+    const failureReport = {
+      ok: false,
+      generatedAt: new Date().toISOString(),
+      command: 'npm run video:daojie:chapter001:probe-generation',
+      mode: 'real-generation-with-reference',
+      generationEndpointCalled: true,
+      generatedImages: 0,
+      referenceImageCount: 1,
+      referencePath,
+      promptSha256: createHash('sha256').update(prompt).digest('hex'),
+      aspectRatio,
+      resolution,
+      outputPath,
+      ambiguousPaidRequest: isAmbiguousPaidImageFailure(error),
+      resubmitAllowed: false,
+      error,
+      providers: providers.map((provider) => ({
+        providerName: provider.providerName,
+        host: new URL(provider.baseUrl).host,
+        model: provider.model,
+        keyCount: provider.apiKeys.length,
+        asyncMode: provider.asyncMode,
+      })),
+    };
+    mkdirSync(dirname(generationProbeReportPath), { recursive: true });
+    writeFileSync(generationProbeReportPath, `${JSON.stringify(failureReport, null, 2)}\n`, 'utf8');
+    throw new Error(`真实生图探针失败: ${error}`);
   }
   const parsed = JSON.parse(result.stdout || '{}');
   const imageUrl = String(parsed.url || parsed.imageUrl || '');
   if (!imageUrl) throw new Error('真实生图探针没有返回图片');
-  const outputDir = resolve(appsRoot, 'output', 'automation', 'daojie-chapter001-generation-probe');
-  mkdirSync(outputDir, { recursive: true });
-  const outputPath = resolve(outputDir, 'dugu-turnaround-probe.png');
+  mkdirSync(dirname(outputPath), { recursive: true });
   await saveProbeImage(imageUrl, outputPath);
+  const transferThumbnail = await createProbeTransferThumbnail(outputPath);
   const report = {
     ok: true,
     generatedAt: new Date().toISOString(),
@@ -446,19 +558,160 @@ async function runImageGenerationProbe() {
     referencePath,
     prompt,
     promptSha256: createHash('sha256').update(prompt).digest('hex'),
+    aspectRatio,
+    resolution,
     outputPath,
     outputSha256: sha256File(outputPath),
     outputSizeBytes: statSync(outputPath).size,
+    transferThumbnail,
     providers: providers.map((provider) => ({
       providerName: provider.providerName,
       host: new URL(provider.baseUrl).host,
       model: provider.model,
       keyCount: provider.apiKeys.length,
+      asyncMode: provider.asyncMode,
     })),
   };
-  const generationProbeReportPath = resolve(appsRoot, 'output', 'automation', 'daojie-chapter001-generation-probe-report.json');
+  mkdirSync(dirname(generationProbeReportPath), { recursive: true });
   writeFileSync(generationProbeReportPath, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
   console.log(JSON.stringify({ ...report, reportPath: generationProbeReportPath }, null, 2));
+}
+
+async function validateContinuityPilotThumbnail(thumbnail) {
+  const thumbnailPath = typeof thumbnail?.path === 'string' ? thumbnail.path : '';
+  if (!thumbnailPath || !existsSync(thumbnailPath)) {
+    throw new Error(`连续性 pilot 缩略图证据无效: ${JSON.stringify(thumbnail)}`);
+  }
+  const actualBytes = statSync(thumbnailPath).size;
+  const actualSha256 = sha256File(thumbnailPath);
+  const metadata = await sharp(thumbnailPath).metadata();
+  const valid = metadata.format === 'png'
+    && Number(metadata.width) > 0
+    && Number(metadata.width) <= 768
+    && Number(metadata.height) > 0
+    && Number(metadata.height) <= 768
+    && Number(thumbnail?.width) === metadata.width
+    && Number(thumbnail?.height) === metadata.height
+    && actualBytes > 0
+    && actualBytes < 1_000_000
+    && Number(thumbnail?.bytes) === actualBytes
+    && /^[a-f0-9]{64}$/.test(String(thumbnail?.sha256 || ''))
+    && thumbnail.sha256 === actualSha256;
+  if (!valid) {
+    throw new Error(`连续性 pilot 缩略图证据无效: ${JSON.stringify(thumbnail)}`);
+  }
+}
+
+async function runContinuityPilot(fullChapter = false) {
+  const configsJson = loadStoryboardImageProviderConfigsFromAppSettings();
+  if (!configsJson) throw new Error('连续性 pilot 没有读取到 freedom_image provider 配置');
+  const shots = fullChapter ? '1-43' : process.env.MYSTUDIO_CONTINUITY_PILOT_SHOTS || '6-12';
+  const timestamp = new Date().toISOString().replace(/[-:.TZ]/g, '').slice(0, 14);
+  const outputDir = (fullChapter
+    ? process.env.MYSTUDIO_CONTINUITY_CHAPTER_OUTPUT_DIR
+    : process.env.MYSTUDIO_CONTINUITY_PILOT_OUTPUT_DIR)
+    || resolve(
+      appsRoot,
+      'output',
+      'automation',
+      `daojie-chapter001-continuity-${fullChapter ? 'full' : 'pilot'}-${timestamp}`,
+    );
+  const pilotArgs = [
+    continuityPilotScript,
+    '--output-dir', outputDir,
+  ];
+  if (fullChapter) pilotArgs.push('--full-chapter');
+  else pilotArgs.push('--shots', shots);
+  const restartFromShot = process.env.MYSTUDIO_CONTINUITY_RESTART_FROM_SHOT || '';
+  if (restartFromShot) pilotArgs.push('--restart-from-shot', restartFromShot);
+  const approveShot = process.env.MYSTUDIO_CONTINUITY_PILOT_APPROVE_SHOT || '';
+  if (approveShot) {
+    pilotArgs.push('--approve-shot', approveShot);
+    if (process.env.MYSTUDIO_CONTINUITY_PILOT_HUMAN_CONFIRMED === '1') pilotArgs.push('--human-confirmed');
+    if (process.env.MYSTUDIO_CONTINUITY_PILOT_APPROVAL_REASON) {
+      pilotArgs.push('--approval-reason', process.env.MYSTUDIO_CONTINUITY_PILOT_APPROVAL_REASON);
+    }
+  }
+  const result = run('python3', pilotArgs, {
+    env: {
+      MYSTUDIO_DAOJIE_STORYBOARD_IMAGE_MODE: REQUIRED_STORYBOARD_IMAGE_MODE,
+      MYSTUDIO_IMAGE_PROVIDER_CONFIGS_JSON: configsJson,
+      MYSTUDIO_IMAGE_TIMEOUT_SECONDS: '360',
+    },
+    timeout: 60 * 60 * 1000,
+    maxBuffer: 20 * 1024 * 1024,
+  });
+  const payload = parseGeneratorOutput(result.stdout);
+  if (approveShot) {
+    if (payload.approvedShot !== Number(approveShot) || payload.approval?.reviewer !== 'human') {
+      throw new Error(`连续性 pilot 人工批准回执无效: ${JSON.stringify(payload)}`);
+    }
+    console.log(JSON.stringify(payload, null, 2));
+    return;
+  }
+  const requestedImages = fullChapter ? 43 : shots.split(',').flatMap((part) => {
+    const [start, end] = part.split('-').map(Number);
+    return Number.isFinite(end) ? Array.from({ length: end - start + 1 }) : [start];
+  }).length;
+  if (!Number.isInteger(payload.processedImages) || payload.processedImages < 1 || payload.processedImages > requestedImages) {
+    throw new Error(`连续性 pilot 可用图片数量异常: ${payload.processedImages ?? 'missing'}/${requestedImages} shots=${shots}`);
+  }
+  if (payload.generatedImages !== payload.processedImages || payload.reusedImages !== 0) {
+    throw new Error(
+      `连续性 pilot 必须全新生成且禁止复用: generated=${payload.generatedImages ?? 'missing'} reused=${payload.reusedImages ?? 'missing'}`,
+    );
+  }
+  if (!payload.report || !existsSync(payload.report) || !payload.contactSheet || !existsSync(payload.contactSheet)) {
+    throw new Error(`连续性 pilot 证据不完整: ${JSON.stringify(payload)}`);
+  }
+  const report = JSON.parse(readFileSync(payload.report, 'utf8'));
+  if (report.status !== payload.status || !['awaiting-human-approval', 'completed'].includes(report.status)) {
+    throw new Error(`连续性 pilot 状态无效: ${JSON.stringify({ payload: payload.status, report: report.status })}`);
+  }
+  if (report.status === 'completed' && payload.processedImages !== requestedImages) {
+    throw new Error(`连续性 pilot 完成状态缺少全量镜头: ${payload.processedImages}/${requestedImages}`);
+  }
+  const thumbnails = Array.isArray(report.storyboardTransferThumbnails)
+    ? report.storyboardTransferThumbnails
+    : [];
+  if (thumbnails.length !== payload.processedImages) {
+    throw new Error(`连续性 pilot 缩略图证据数量异常: ${thumbnails.length}/${payload.processedImages}`);
+  }
+  for (const thumbnail of thumbnails) {
+    await validateContinuityPilotThumbnail(thumbnail);
+  }
+  const entries = Array.isArray(report.entries) ? report.entries : [];
+  const selectedStoryboardIds = new Set(entries.map((entry) => entry?.storyboardId).filter(Boolean));
+  for (const entry of entries) {
+    const previousReferences = Array.isArray(entry?.referenceManifest)
+      ? entry.referenceManifest.filter((item) => item?.referenceRole === 'previous-approved-frame')
+      : [];
+    const previousStoryboardId = entry?.continuityState?.previousStoryboardId;
+    const requiresPreviousReference = Boolean(
+      previousStoryboardId && selectedStoryboardIds.has(previousStoryboardId),
+    );
+    const validPreviousReference = previousReferences.length === 1
+      && previousReferences[0]?.approved === true
+      && previousReferences[0]?.assetId === previousStoryboardId;
+    if ((requiresPreviousReference && !validPreviousReference) || (!requiresPreviousReference && previousReferences.length > 0)) {
+      throw new Error(`连续性 pilot 第 ${entry?.index ?? 'unknown'} 镜上一镜人工批准参考不符合组边界`);
+    }
+  }
+  const groups = Array.isArray(report.groups) ? report.groups : [];
+  if (fullChapter) {
+    const ranges = groups.map((group) => [Number(group?.start), Number(group?.end)]);
+    const expectedRanges = [[1, 12], [13, 19], [20, 24], [25, 40], [41, 42], [43, 43]];
+    if (JSON.stringify(ranges) !== JSON.stringify(expectedRanges)) {
+      throw new Error(`连续性全章六组报告无效: ${JSON.stringify(ranges)}`);
+    }
+  }
+  console.log(JSON.stringify({
+    ...payload,
+    shots: report.shots,
+    provider: report.provider,
+    mutatedProductionProject: report.mutatedProductionProject,
+    storyboardTransferThumbnails: thumbnails,
+  }, null, 2));
 }
 
 function requireWorkflowSteps(generated) {
@@ -711,6 +964,9 @@ function requireStoryboardVoiceoverIntegrity(generated, storyboardCount) {
   }
 }
 
+let failureReportWritten = false;
+let failureStage = 'startup';
+
 function writeFailureReport(generated, error, timelineResult = null) {
   const storyboardImageGenerationMode =
     generated?.storyboardImageGenerationMode ||
@@ -755,31 +1011,57 @@ function writeFailureReport(generated, error, timelineResult = null) {
     voiceBindingFingerprint: generated?.voiceBindingFingerprint,
     fixedVoiceBindings: generated?.fixedVoiceBindings,
     aiSelectedVoiceBindings: generated?.aiSelectedVoiceBindings,
+    failureStage,
     error,
   };
-  mkdirSync(dirname(reportPath), { recursive: true });
-  writeFileSync(reportPath, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
+  writeDurableJsonReport(reportPath, report);
+  failureReportWritten = true;
 }
 
+let generated;
+let timelineResult;
+try {
 if (!existsSync(generatorScript)) {
   throw new Error(`视频生成脚本不存在: ${generatorScript}`);
 }
 
 if (probeProvidersOnly) {
+  failureStage = 'provider-probe';
   stopExistingMYStudioInstances();
   await runImageProviderProbe();
   process.exit(0);
 }
 
 if (probeGenerationOnly) {
+  failureStage = 'generation-probe';
   stopExistingMYStudioInstances();
   await runImageGenerationProbe();
   process.exit(0);
 }
 
+if (continuityPilotOnly) {
+  failureStage = 'continuity-pilot';
+  stopExistingMYStudioInstances();
+  await runContinuityPilot();
+  process.exit(0);
+}
+
+if (continuityFullChapterOnly) {
+  failureStage = 'continuity-full-chapter';
+  stopExistingMYStudioInstances();
+  await runContinuityPilot(true);
+  process.exit(0);
+}
+
+failureStage = 'visual-continuity-preflight';
+const visualContinuityPreflight = requireDaojieVisualContinuityPreflight();
+console.log(
+  `[video] visual continuity preflight approved=${visualContinuityPreflight.approved}`
+  + `/${visualContinuityPreflight.storyboards}`,
+);
 stopExistingMYStudioInstances();
 
-let generated;
+failureStage = 'generator';
 try {
   const storyboardImageProviderConfigs = loadStoryboardImageProviderConfigsFromAppSettings();
   generated = parseGeneratorOutput(run('python3', [generatorScript], {
@@ -787,6 +1069,7 @@ try {
       MANYING_REQUIRE_REAL_TTS: '1',
       MYSTUDIO_DAOJIE_ALLOW_STORYBOARD_BOOTSTRAP: '0',
       MYSTUDIO_DAOJIE_STORYBOARD_IMAGE_MODE: REQUIRED_STORYBOARD_IMAGE_MODE,
+      MYSTUDIO_DAOJIE_USE_APPROVED_STORYBOARDS: '1',
       ...(storyboardImageProviderConfigs && { MYSTUDIO_IMAGE_PROVIDER_CONFIGS_JSON: storyboardImageProviderConfigs }),
     },
   }).stdout);
@@ -816,6 +1099,12 @@ if (
 requireWorkflowSteps(generated);
 requireDirectorPlanIntegrity(generated);
 const { storyboardCount } = requireStoryboardCountFollowsDirectorPlan(generated);
+if (generated.generatedImages !== 0 || generated.reusedImages !== storyboardCount) {
+  throw new Error(
+    `真实 direct-video 必须零生图并复用全部人工批准镜头: `
+    + `generated=${generated.generatedImages ?? 'missing'}, reused=${generated.reusedImages ?? 'missing'}/${storyboardCount}`,
+  );
+}
 requireDynamicStoryboardSource(generated);
 requireStoryboardVoiceoverIntegrity(generated, storyboardCount);
 if (generated.storyboardsWithAssetLinks !== generated.storyboards) {
@@ -833,6 +1122,7 @@ if (generated.framesWithRealAssetImages !== storyboardCount) {
   throw new Error(`分镜真实资产图片不完整: ${generated.framesWithRealAssetImages ?? 0}/${storyboardCount}`);
 }
 const storyboardImageGenerationMode = generated.storyboardImageGenerationMode || generated.imageGenerationMode;
+failureStage = 'validation';
 if (storyboardImageGenerationMode === 'asset-composite') {
   const error = 'storyboardImageGenerationMode=asset-composite 不能作为 Toonflow 式分镜图生成验收；它只允许用于 fallback/smoke 路径';
   writeFailureReport(generated, error);
@@ -1002,7 +1292,7 @@ if (generated.frameSize?.width !== 1920 || generated.frameSize?.height !== 1080)
   throw new Error(`分镜画面尺寸错误: ${generated.frameSize?.width ?? 'missing'}x${generated.frameSize?.height ?? 'missing'}`);
 }
 
-let timelineResult;
+failureStage = 'timeline';
 try {
   if (!existsSync(resolve(appsRoot, timelineRunnerScript))) {
     throw new Error(`timeline runner 不存在: ${resolve(appsRoot, timelineRunnerScript)}`);
@@ -1093,6 +1383,7 @@ try {
 }
 
 const finalVideo = timelineResult.timelineRenderRecord.evidence.path;
+failureStage = 'final-media-checks';
 const finalVideoEvidence = timelineResult.timelineRenderRecord.evidence;
 const probe = probeVideo(finalVideo);
 const streams = Array.isArray(probe.streams) ? probe.streams : [];
@@ -1201,6 +1492,13 @@ const report = {
   streams,
 };
 
-mkdirSync(dirname(reportPath), { recursive: true });
-writeFileSync(reportPath, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
+writeDurableJsonReport(reportPath, report);
+failureReportWritten = true;
+} catch (error) {
+  if (!failureReportWritten) {
+    const message = error instanceof Error ? error.message : String(error);
+    writeFailureReport(generated, `stage=${failureStage}: ${message}`, timelineResult);
+  }
+  throw error;
+}
 console.log(JSON.stringify(report, null, 2));

@@ -21,6 +21,30 @@ import type {
 import { useMediaStore } from '@/stores/media-store';
 import { useProjectStore } from '@/stores/project-store';
 import { useDirectorStore } from '@/stores/director-store';
+import { prepareReferenceImageForTransfer, prepareReferenceImagesForTransfer } from '@/lib/ai/image-transfer';
+
+type GenerationConfigWithReferenceImages = GenerationConfig & {
+  characterReferenceImages?: string[];
+};
+
+async function prepareGenerationConfigForTransfer(
+  config: GenerationConfig,
+): Promise<GenerationConfig> {
+  const referenceImages = (config as GenerationConfigWithReferenceImages).characterReferenceImages;
+  const prepared = await prepareReferenceImagesForTransfer(referenceImages);
+  if (!prepared) return config;
+  return { ...config, characterReferenceImages: prepared } as GenerationConfigWithReferenceImages;
+}
+
+async function prepareScreenplayFramesForTransfer(screenplay: AIScreenplay): Promise<AIScreenplay> {
+  const scenes: AIScene[] = [];
+  for (const scene of screenplay.scenes) {
+    scenes.push(scene.imageUrl
+      ? { ...scene, imageUrl: await prepareReferenceImageForTransfer(scene.imageUrl) }
+      : scene);
+  }
+  return { ...screenplay, scenes };
+}
 
 type PromiseCallbacks = {
   resolve: (value: unknown) => void;
@@ -154,13 +178,14 @@ export class AIWorkerBridge {
    * Execute a single scene
    * @param characterReferenceImages - Array of character reference image URLs or base64 strings
    */
-  executeScene(
+  async executeScene(
     screenplayId: string,
     scene: AIScene,
     config: GenerationConfig,
     characterBible?: string,
     characterReferenceImages?: string[]
-  ): void {
+  ): Promise<void> {
+    const preparedReferenceImages = await prepareReferenceImagesForTransfer(characterReferenceImages);
     this.sendCommand({
       type: 'EXECUTE_SCENE',
       payload: {
@@ -168,7 +193,7 @@ export class AIWorkerBridge {
         scene,
         config,
         characterBible,
-        characterReferenceImages,
+        characterReferenceImages: preparedReferenceImages,
       },
     });
   }
@@ -176,10 +201,12 @@ export class AIWorkerBridge {
   /**
    * Execute entire screenplay (images + videos)
    */
-  executeScreenplay(screenplay: AIScreenplay, config: GenerationConfig): void {
+  async executeScreenplay(screenplay: AIScreenplay, config: GenerationConfig): Promise<void> {
+    const preparedConfig = await prepareGenerationConfigForTransfer(config);
+    const preparedScreenplay = await prepareScreenplayFramesForTransfer(screenplay);
     this.sendCommand({
       type: 'EXECUTE_SCREENPLAY',
-      payload: { screenplay, config },
+      payload: { screenplay: preparedScreenplay, config: preparedConfig },
     });
   }
 
@@ -187,10 +214,11 @@ export class AIWorkerBridge {
    * Execute screenplay images only (Step 1)
    * Generates images for all scenes without videos
    */
-  executeScreenplayImages(screenplay: AIScreenplay, config: GenerationConfig): void {
+  async executeScreenplayImages(screenplay: AIScreenplay, config: GenerationConfig): Promise<void> {
+    const preparedConfig = await prepareGenerationConfigForTransfer(config);
     this.sendCommand({
       type: 'EXECUTE_SCREENPLAY_IMAGES',
-      payload: { screenplay, config },
+      payload: { screenplay, config: preparedConfig },
     });
   }
 
@@ -198,10 +226,12 @@ export class AIWorkerBridge {
    * Execute screenplay videos only (Step 2)
    * Generates videos from existing scene images
    */
-  executeScreenplayVideos(screenplay: AIScreenplay, config: GenerationConfig): void {
+  async executeScreenplayVideos(screenplay: AIScreenplay, config: GenerationConfig): Promise<void> {
+    const preparedConfig = await prepareGenerationConfigForTransfer(config);
+    const preparedScreenplay = await prepareScreenplayFramesForTransfer(screenplay);
     this.sendCommand({
       type: 'EXECUTE_SCREENPLAY_VIDEOS',
-      payload: { screenplay, config },
+      payload: { screenplay: preparedScreenplay, config: preparedConfig },
     });
   }
 

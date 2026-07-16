@@ -11,6 +11,7 @@ import {
   isIsolatedSmokeUserDataDir,
   type WorkflowSmokeStageResult,
 } from "./workflow-smoke-bridge";
+import { buildWorkflowSmokeChecks } from "./workflow-smoke-checks";
 
 type BrowserMockGlobal = Partial<{
   window: Window & typeof globalThis;
@@ -35,6 +36,34 @@ afterEach(() => {
 });
 
 describe("workflow smoke bridge isolation", () => {
+  it("preserves parity checks when evidence is complete", () => {
+    const checks = buildWorkflowSmokeChecks({
+      stages: Array.from({ length: 6 }, () => ({ status: "ready" })) as never,
+      report: {
+        video: {
+          hasFinalExport: true,
+          hasLegacyCompatibilityExport: false,
+          currentEditingProjectId: "editing-1",
+          timelineRenderRecords: 1,
+          completeTimelineEvidence: 1,
+        },
+        issues: [],
+        references: { storyboardsWithOrderedManifest: 1 },
+        storyboard: { withSourceEvidence: 1 },
+      } as never,
+      storyboardsCount: 1,
+      selectedCandidateCount: 1,
+      voiceBindingCount: 1,
+      completedVoiceAudioCount: 1,
+    });
+    expect(checks).toMatchObject({
+      hasFinalExport: true,
+      hasEditingProject: true,
+      workflowParityNoErrors: true,
+      workflowParityHasOrderedReferences: true,
+      workflowParityHasSourceEvidence: true,
+    });
+  });
   it("allows only temp smoke user data directories", () => {
     expect(isIsolatedSmokeUserDataDir("/var/folders/tmp/mystudio-smoke-abcd")).toBe(true);
     expect(isIsolatedSmokeUserDataDir("/var/folders/tmp/mystudio-installed-smoke-abcd")).toBe(true);

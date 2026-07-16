@@ -65,14 +65,17 @@ APP_PYTHON = APP_SUPPORT / "python" / "bin" / "python3.12"
 SKIP_PROJECT_WRITE = os.environ.get("MYSTUDIO_DAOJIE_SKIP_PROJECT_WRITE") == "1"
 SKIP_SCENE_EXPORTS = os.environ.get("MYSTUDIO_DAOJIE_SKIP_SCENE_EXPORTS") == "1"
 ALLOW_STORYBOARD_BOOTSTRAP = os.environ.get("MYSTUDIO_DAOJIE_ALLOW_STORYBOARD_BOOTSTRAP") == "1"
+USE_APPROVED_STORYBOARD_IMAGES = os.environ.get("MYSTUDIO_DAOJIE_USE_APPROVED_STORYBOARDS") == "1"
 REAL_STORYBOARD_IMAGE_MODE = "real-ai-reference-image-workflow"
 ASSET_COMPOSITE_IMAGE_MODE = "asset-composite"
 STORYBOARD_IMAGE_GENERATION_MODE = (
     os.environ.get("MYSTUDIO_DAOJIE_STORYBOARD_IMAGE_MODE", ASSET_COMPOSITE_IMAGE_MODE).strip()
     or ASSET_COMPOSITE_IMAGE_MODE
 )
-MODEL_REFERENCE_MAX_EDGE = int(os.environ.get("MYSTUDIO_IMAGE_REFERENCE_MAX_EDGE", "1024"))
+MODEL_REFERENCE_MAX_EDGE = int(os.environ.get("MYSTUDIO_IMAGE_REFERENCE_MAX_EDGE", "768"))
 MODEL_REFERENCE_JPEG_QUALITY = int(os.environ.get("MYSTUDIO_IMAGE_REFERENCE_JPEG_QUALITY", "82"))
+IMAGE_TRANSFER_MAX_BYTES = 1_000_000
+IMAGE_TRANSFER_TARGET_MAX_EDGE = 768
 GPT_IMAGE_SIZE_MAP = {
     "1:1": {"1K": "1024x1024", "2K": "2048x2048", "4K": "2880x2880"},
     "16:9": {"1K": "1280x720", "2K": "2048x1152", "4K": "3840x2160"},
@@ -205,6 +208,7 @@ def storyboard_image_provider_config():
         "aspectRatio": os.environ.get("MYSTUDIO_IMAGE_ASPECT_RATIO", "16:9").strip() or "16:9",
         "resolution": os.environ.get("MYSTUDIO_IMAGE_RESOLUTION", "1K").strip() or "1K",
         "timeoutSeconds": float(os.environ.get("MYSTUDIO_IMAGE_TIMEOUT_SECONDS", "180")),
+        "asyncMode": os.environ.get("MYSTUDIO_IMAGE_ASYNC_MODE") == "1",
     }
     missing = [key for key in ("baseUrl", "apiKey", "model") if not config[key]]
     if missing:
@@ -242,6 +246,11 @@ def normalize_storyboard_image_provider_config(item, default_timeout):
         "aspectRatio": str(item.get("aspectRatio") or os.environ.get("MYSTUDIO_IMAGE_ASPECT_RATIO", "16:9")).strip() or "16:9",
         "resolution": str(item.get("resolution") or os.environ.get("MYSTUDIO_IMAGE_RESOLUTION", "1K")).strip() or "1K",
         "timeoutSeconds": float(item.get("timeoutSeconds") or default_timeout),
+        "asyncMode": (
+            item.get("asyncMode") is True
+            or str(item.get("asyncMode") or "").strip().lower() in {"1", "true"}
+            or os.environ.get("MYSTUDIO_IMAGE_ASYNC_MODE") == "1"
+        ),
     }
     missing = [key for key in ("baseUrl", "apiKey", "model") if not config[key]]
     if missing:
@@ -446,10 +455,24 @@ def build_storyboard_reference_intro(reference_images):
 
 def build_storyboard_reference_continuity_rules(reference_images):
     grouped = {"角色": [], "场景": [], "道具": [], "资产": []}
+    character_groups = {}
     for index, reference in enumerate(reference_images or [], 1):
         label = storyboard_reference_type_label(reference)
         name = storyboard_reference_name(reference, index)
         grouped.setdefault(label, []).append(f"@图{index}({name})")
+        if label == "角色":
+            stable_key = (
+                str(reference.get("assetId") or name),
+                str(reference.get("versionId") or "base"),
+            )
+            group = character_groups.setdefault(stable_key, {
+                "name": name,
+                "markers": [],
+                "views": [],
+            })
+            group["markers"].append(f"@图{index}")
+            if reference.get("characterViewType"):
+                group["views"].append(str(reference["characterViewType"]))
 
     parts = []
     if grouped.get("角色"):
@@ -479,7 +502,16 @@ def build_storyboard_reference_continuity_rules(reference_images):
     if not parts:
         return ""
     parts.append("所有参考图只服务当前剧情分镜，不生成设定页、拼贴图、海报站姿或无关新增角色。")
-    return "【参考图规则】" + " ".join(parts)
+    multi_view_rules = [
+        (
+            f"{'/'.join(group['markers'])} 为{group['name']}同一角色、同一版本的 "
+            f"{'/'.join(group['views'])} 参考视图，不是三个人；该角色在本镜只允许出现一个实例。"
+        )
+        for group in character_groups.values()
+        if len(group["markers"]) > 1 and len(group["views"]) == len(group["markers"])
+    ]
+    multi_view_contract = "【多视图身份锁】" + " ".join(multi_view_rules) if multi_view_rules else ""
+    return " ".join(part for part in [multi_view_contract, "【参考图规则】" + " ".join(parts)] if part)
 
 
 def build_storyboard_bible_rules(reference_images):
@@ -884,6 +916,7 @@ def generate_storyboard_image_via_node_helper(prompt, reference_images, config):
         "aspectRatio": config["aspectRatio"],
         "resolution": config["resolution"],
         "timeoutSeconds": config["timeoutSeconds"],
+        "asyncMode": config.get("asyncMode") is True,
     }
     provider_timeout = 0
     for provider in payload.get("providers") or []:
@@ -998,6 +1031,7 @@ def create_storyboard_image_workflow_graph(storyboard, prompt, result_image_path
             "wardrobeVersion": reference.get("wardrobeVersion"),
             "characterViewType": reference.get("characterViewType"),
             "sceneViewpointId": reference.get("sceneViewpointId"),
+            "contentFingerprint": reference.get("contentFingerprint"),
             "position": {"x": 80, "y": 80 + (index - 1) * 180},
             "createdAt": created_at,
             "updatedAt": created_at,
@@ -1042,6 +1076,7 @@ def generate_storyboard_frame_with_references(
     config,
     continuity_manifest=None,
     continuity_state=None,
+    approved_storyboard_image=None,
 ):
     continuity_assets = (
         apply_continuity_manifest_to_image_assets(image_assets, continuity_manifest)
@@ -1067,14 +1102,27 @@ def generate_storyboard_frame_with_references(
     )
     assert_storyboard_prompt_audit(prompt_audit)
     relative_path = f"workflow-images/storyboards/{EPISODE_ID}/shot-{storyboard['index']:03d}.png"
-    result_file = PROJECT / relative_path
-    reused_existing_image = can_reuse_storyboard_image(result_file)
+    result_file = (
+        Path(approved_storyboard_image["absolutePath"])
+        if approved_storyboard_image
+        else PROJECT / relative_path
+    )
+    reused_existing_image = bool(approved_storyboard_image) or can_reuse_storyboard_image(result_file)
     if not reused_existing_image:
-        prepared_reference_images = [prepare_storyboard_model_reference_image(reference["imageUrl"]) for reference in references]
+        prepared_reference_images = []
+        for reference in references:
+            prepared_reference_images.append(
+                prepare_storyboard_model_reference_image(reference["imageUrl"])
+            )
         generated_image_url = request_storyboard_image_generation(final_prompt, prepared_reference_images, config)
         save_generated_image_url(generated_image_url, result_file)
+    transfer_thumbnail = create_storyboard_transfer_thumbnail(result_file)
     Image.open(result_file).convert("RGB").resize((1920, 1080), Image.Resampling.LANCZOS).save(frame)
-    project_url = project_file_url(relative_path)
+    project_url = (
+        str(approved_storyboard_image["projectUrl"])
+        if approved_storyboard_image
+        else project_file_url(relative_path)
+    )
     graph = create_storyboard_image_workflow_graph(
         storyboard,
         final_prompt,
@@ -1105,6 +1153,7 @@ def generate_storyboard_frame_with_references(
                 for item in continuity_manifest or []
             ),
         },
+        "transferThumbnail": transfer_thumbnail,
         "reusedExistingImage": reused_existing_image,
         "promptAudit": prompt_audit,
     }
@@ -1127,6 +1176,57 @@ def resolve_project_file_url(value):
     if not parts or any(part == ".." for part in parts):
         raise RuntimeError(f"项目文件路径非法: {value}")
     return PROJECT.joinpath(*parts)
+
+
+def resolve_approved_storyboard_path(value):
+    """Resolve a current product-approved storyboard revision inside its immutable root."""
+    path = resolve_project_file_url(value).resolve(strict=True)
+    approved_root = (PROJECT / "workflow-images/storyboards" / EPISODE_ID / "approved-revisions").resolve()
+    try:
+        path.relative_to(approved_root)
+    except ValueError as error:
+        raise RuntimeError(f"人工批准图不在当前 approved-revisions 目录: {value}") from error
+    if not path.is_file() or not re.fullmatch(r"shot-\d{3}-[a-f0-9]{12}\.png", path.name, re.IGNORECASE):
+        raise RuntimeError(f"人工批准图不是内容寻址 PNG revision: {value}")
+    return path
+
+
+def approved_storyboard_reuse_input(existing_storyboard):
+    if not USE_APPROVED_STORYBOARD_IMAGES:
+        return None
+    review = existing_storyboard.get("visualReview") or {}
+    media_ref = existing_storyboard.get("mediaRef") or {}
+    manifest = json.loads(json.dumps(existing_storyboard.get("orderedReferenceManifest") or []))
+    continuity_state = json.loads(json.dumps(existing_storyboard.get("continuityState") or {}))
+    project_url = str(media_ref.get("path") or "")
+    if (
+        existing_storyboard.get("stale")
+        or review.get("status") != "approved"
+        or review.get("reviewer") != "human"
+        or int(review.get("reviewedAt") or 0) <= 0
+        or review.get("evidencePaths") != [project_url]
+        or not str(review.get("inputFingerprint") or "")
+        or not manifest
+        or not continuity_state.get("inputFingerprint")
+        or not project_url.startswith("project-file://")
+        or media_ref.get("kind") != "image"
+    ):
+        raise RuntimeError(f"分镜 {existing_storyboard.get('id')} 缺少可复用的当前人工视觉批准")
+    try:
+        absolute_path = resolve_approved_storyboard_path(project_url)
+    except (OSError, RuntimeError) as error:
+        raise RuntimeError(f"分镜 {existing_storyboard.get('id')} 人工批准图无效: {project_url}") from error
+    expected_sha256 = str(media_ref.get("contentSha256") or "").lower()
+    if not re.fullmatch(r"[a-f0-9]{64}", expected_sha256) or file_sha256(absolute_path) != expected_sha256:
+        raise RuntimeError(f"分镜 {existing_storyboard.get('id')} 人工批准图内容指纹已失效: {absolute_path}")
+    return {
+        "absolutePath": str(absolute_path),
+        "projectUrl": project_url,
+        "contentSha256": expected_sha256,
+        "referenceManifest": manifest,
+        "continuityState": continuity_state,
+        "visualReview": json.loads(json.dumps(review)),
+    }
 
 
 def image_source_to_data_url(source):
@@ -1153,27 +1253,101 @@ def image_source_to_path(source):
     return Path(source)
 
 
+def assert_image_transfer_size(payload, label="图片传输负载"):
+    byte_count = len(payload)
+    if byte_count >= IMAGE_TRANSFER_MAX_BYTES:
+        raise RuntimeError(
+            f"{label}必须严格小于 {IMAGE_TRANSFER_MAX_BYTES} bytes，实际 {byte_count} bytes"
+        )
+    return byte_count
+
+
+def decode_reference_image(source):
+    if source.startswith("data:image/"):
+        match = re.fullmatch(r"data:image/[^;,]+;base64,([A-Za-z0-9+/=\r\n]+)", source)
+        if not match:
+            raise RuntimeError("参考图 data URI 格式无效")
+        try:
+            payload = base64.b64decode(re.sub(r"\s+", "", match.group(1)), validate=True)
+        except (ValueError, TypeError) as error:
+            raise RuntimeError("参考图 data URI base64 解码失败") from error
+        if not payload:
+            raise RuntimeError("参考图 data URI 内容为空")
+        image_source = io.BytesIO(payload)
+        label = "data URI 参考图"
+    else:
+        path = image_source_to_path(source)
+        if not path.exists():
+            raise RuntimeError(f"参考图不存在: {source}")
+        image_source = path
+        label = str(path)
+    try:
+        with Image.open(image_source) as image:
+            image.load()
+            normalized = ImageOps.exif_transpose(image)
+            if "A" in normalized.getbands():
+                rgba = normalized.convert("RGBA")
+                background = Image.new("RGB", rgba.size, (255, 255, 255))
+                background.paste(rgba, mask=rgba.getchannel("A"))
+                return background
+            return normalized.convert("RGB")
+    except (OSError, ValueError) as error:
+        raise RuntimeError(f"参考图无法解码: {label}") from error
+
+
+def reference_transfer_max_edges():
+    target = min(IMAGE_TRANSFER_TARGET_MAX_EDGE, max(256, MODEL_REFERENCE_MAX_EDGE))
+    return list(dict.fromkeys(max(256, min(target, edge)) for edge in (target, 672, 576, 512, 448, 384, 320, 256)))
+
+
+def reference_transfer_qualities():
+    configured = max(40, min(92, MODEL_REFERENCE_JPEG_QUALITY))
+    return list(dict.fromkeys(max(40, min(configured, quality)) for quality in (configured, 76, 70, 64, 58, 52, 46, 40)))
+
+
 def prepare_storyboard_model_reference_image(source):
-    if source.startswith("data:image/") or source.startswith("http://") or source.startswith("https://"):
+    if source.startswith("http://") or source.startswith("https://"):
         return source
-    path = image_source_to_path(source)
-    if not path.exists():
-        raise RuntimeError(f"参考图不存在: {source}")
-    with Image.open(path) as image:
-        normalized = ImageOps.exif_transpose(image)
-        if normalized.mode == "RGBA":
-            background = Image.new("RGB", normalized.size, (255, 255, 255))
-            background.paste(normalized, mask=normalized.getchannel("A"))
-            normalized = background
-        elif normalized.mode != "RGB":
-            normalized = normalized.convert("RGB")
-        max_edge = max(256, MODEL_REFERENCE_MAX_EDGE)
-        normalized.thumbnail((max_edge, max_edge), Image.Resampling.LANCZOS)
-        buffer = io.BytesIO()
-        quality = max(40, min(95, MODEL_REFERENCE_JPEG_QUALITY))
-        normalized.save(buffer, format="JPEG", quality=quality, optimize=True)
-    encoded = base64.b64encode(buffer.getvalue()).decode("ascii")
-    return f"data:image/jpeg;base64,{encoded}"
+    normalized = decode_reference_image(source)
+    for max_edge in reference_transfer_max_edges():
+        resized = normalized.copy()
+        resized.thumbnail((max_edge, max_edge), Image.Resampling.LANCZOS)
+        for quality in reference_transfer_qualities():
+            buffer = io.BytesIO()
+            resized.save(buffer, format="JPEG", quality=quality, optimize=True)
+            payload = buffer.getvalue()
+            if len(payload) < IMAGE_TRANSFER_MAX_BYTES:
+                encoded = base64.b64encode(payload).decode("ascii")
+                return f"data:image/jpeg;base64,{encoded}"
+    raise RuntimeError(
+        f"参考图压缩失败：无法生成严格小于 {IMAGE_TRANSFER_MAX_BYTES} bytes 的缩略图"
+    )
+
+
+def create_storyboard_transfer_thumbnail(source_path):
+    source_path = Path(source_path)
+    thumbnail_path = source_path.with_name(f"{source_path.stem}_thumb.png")
+    normalized = decode_reference_image(str(source_path))
+    for max_edge in reference_transfer_max_edges():
+        resized = normalized.copy()
+        resized.thumbnail((max_edge, max_edge), Image.Resampling.LANCZOS)
+        for colors in (256, 192, 128, 96, 64, 48, 32):
+            quantized = resized.quantize(colors=colors, method=Image.Quantize.MEDIANCUT)
+            buffer = io.BytesIO()
+            quantized.save(buffer, format="PNG", optimize=True)
+            payload = buffer.getvalue()
+            if len(payload) < IMAGE_TRANSFER_MAX_BYTES:
+                thumbnail_path.write_bytes(payload)
+                return {
+                    "path": str(thumbnail_path),
+                    "width": quantized.width,
+                    "height": quantized.height,
+                    "bytes": assert_image_transfer_size(payload, str(thumbnail_path)),
+                    "sha256": hashlib.sha256(payload).hexdigest(),
+                }
+    raise RuntimeError(
+        f"分镜缩略图压缩失败：{source_path} 无法严格小于 {IMAGE_TRANSFER_MAX_BYTES} bytes"
+    )
 
 
 def save_generated_image_url(image_url, output_path):
@@ -2137,11 +2311,11 @@ def build_asset_index(state):
     for item in extraction.get("characters", []):
         name = item.get("name")
         if name and item.get("characterId"):
-            index[name] = item["characterId"]
+            index.setdefault(name, item["characterId"])
     for item in extraction.get("scenes", []):
         name = item.get("name")
         if name and item.get("sceneId"):
-            index[name] = item["sceneId"]
+            index.setdefault(name, item["sceneId"])
     for item in props:
         name = item.get("name")
         if name and item.get("assetId"):
@@ -2191,7 +2365,7 @@ def build_asset_catalog(state):
             by_name[name] = {
                 **previous,
                 "kind": "角色",
-                "id": item.get("characterId", previous.get("id", "")),
+                "id": previous.get("id") or item.get("characterId", ""),
                 "desc": item.get("note") or previous.get("desc") or "剧本策划已抽取角色。",
                 "aliases": unique_nonempty([*(previous.get("aliases") or []), *(item.get("aliases") or [])]),
             }
@@ -2202,7 +2376,7 @@ def build_asset_catalog(state):
             by_name[name] = {
                 **previous,
                 "kind": "场景",
-                "id": item.get("sceneId", previous.get("id", "")),
+                "id": previous.get("id") or item.get("sceneId", ""),
                 "desc": item.get("note") or previous.get("desc") or "剧本策划已抽取场景。",
             }
     for item in extraction.get("props", []):
@@ -3392,6 +3566,158 @@ def scene_bible_missing_fields(asset, viewpoint_id):
     return missing
 
 
+def continuity_asset_content_fingerprint(version):
+    fields = (
+        "assetId", "versionId", "assetKind", "label", "referenceImagePaths", "referenceImageSha256",
+        "referenceViewTypes", "identityAnchors", "negativePrompt", "wardrobeVersion",
+        "sceneViewpointId", "spatialLayout", "lightingDesign", "colorPalette",
+        "validFromStoryboardIndex", "validToStoryboardIndex", "source",
+    )
+    return stable_json({key: version.get(key) for key in fields if version.get(key) is not None})
+
+
+def continuity_asset_approval_fingerprint(version, approval):
+    fields = (
+        "assetId", "versionId", "contentFingerprint", "status", "reviewer",
+        "reviewedAt", "reason", "evidencePaths", "reviewEvidenceSha256",
+        "reviewEvidenceVerifiedAt",
+    )
+    values = {
+        "assetId": version.get("assetId"),
+        "versionId": version.get("versionId"),
+        "reviewEvidenceSha256": version.get("reviewEvidenceSha256"),
+        "reviewEvidenceVerifiedAt": version.get("reviewEvidenceVerifiedAt"),
+        **approval,
+    }
+    return stable_json({key: values.get(key) for key in fields if values.get(key) is not None})
+
+
+def continuity_asset_structurally_complete(version):
+    reference_paths = [str(path).strip() for path in version.get("referenceImagePaths") or [] if str(path).strip()]
+    reference_hashes = [str(value).strip().lower() for value in version.get("referenceImageSha256") or [] if str(value).strip()]
+    if not all(str(version.get(field) or "").strip() for field in ("assetId", "versionId", "label", "source")):
+        return False
+    if not reference_paths or version.get("missingFields"):
+        return False
+    if reference_hashes and (
+        len(reference_hashes) != len(reference_paths)
+        or any(not re.fullmatch(r"[a-f0-9]{64}", value) for value in reference_hashes)
+    ):
+        return False
+    if version.get("assetKind") == "character":
+        anchors = version.get("identityAnchors") or {}
+        negative = version.get("negativePrompt") or {}
+        view_types = version.get("referenceViewTypes") or []
+        return bool(
+            str(version.get("wardrobeVersion") or "").strip()
+            and isinstance(anchors.get("uniqueMarks"), list)
+            and negative.get("avoid")
+            and len(view_types) >= 3
+            and len(view_types) == len(reference_paths)
+        )
+    if version.get("assetKind") == "scene":
+        return all(
+            str(version.get(field) or "").strip()
+            for field in ("sceneViewpointId", "spatialLayout", "lightingDesign", "colorPalette")
+        )
+    return True
+
+
+def continuity_asset_review_evidence_is_verified(version):
+    verified_at = version.get("reviewEvidenceVerifiedAt")
+    paths = [str(path).strip() for path in version.get("reviewEvidencePaths") or [] if str(path).strip()]
+    hashes = [str(value).strip().lower() for value in version.get("reviewEvidenceSha256") or [] if str(value).strip()]
+    if not isinstance(verified_at, int) or isinstance(verified_at, bool) or verified_at <= 0:
+        return False
+    if len(paths) != len(version.get("referenceImagePaths") or []) or len(hashes) != len(paths):
+        return False
+    for raw_path, expected_hash in zip(paths, hashes, strict=True):
+        path = Path(raw_path).expanduser()
+        if (
+            not path.is_absolute()
+            or not path.is_file()
+            or not path.name.lower().endswith("_thumb.png")
+            or path.stat().st_size <= 0
+            or path.stat().st_size >= IMAGE_TRANSFER_MAX_BYTES
+            or not re.fullmatch(r"[a-f0-9]{64}", expected_hash)
+            or file_sha256(path) != expected_hash
+        ):
+            return False
+        try:
+            with Image.open(path) as image:
+                image.load()
+                if image.format != "PNG" or min(image.size) <= 0 or max(image.size) > IMAGE_TRANSFER_TARGET_MAX_EDGE:
+                    return False
+        except (OSError, ValueError):
+            return False
+    return True
+
+
+def normalize_continuity_asset_version(version):
+    normalized = json.loads(json.dumps(version))
+    normalized["referenceImagePaths"] = [
+        str(path).strip() for path in normalized.get("referenceImagePaths") or [] if str(path).strip()
+    ]
+    normalized["referenceImageSha256"] = [
+        str(value).strip().lower()
+        for value in normalized.get("referenceImageSha256") or []
+        if str(value).strip()
+    ] or None
+    normalized["reviewEvidencePaths"] = [
+        str(path).strip() for path in normalized.get("reviewEvidencePaths") or [] if str(path).strip()
+    ] or None
+    normalized["reviewEvidenceSha256"] = [
+        str(value).strip().lower()
+        for value in normalized.get("reviewEvidenceSha256") or []
+        if str(value).strip()
+    ] or None
+    normalized["structurallyComplete"] = continuity_asset_structurally_complete(normalized)
+    normalized["contentFingerprint"] = continuity_asset_content_fingerprint(normalized)
+    approval = normalized.get("approval") or {}
+    approval_evidence_paths = [
+        str(path).strip() for path in approval.get("evidencePaths") or [] if str(path).strip()
+    ]
+    registered_evidence_paths = normalized.get("reviewEvidencePaths") or []
+    registered_evidence_hashes = normalized.get("reviewEvidenceSha256") or []
+    evidence_is_registered_and_safe = bool(
+        len(registered_evidence_paths) == len(normalized["referenceImagePaths"])
+        and all(path.lower().endswith("_thumb.png") for path in registered_evidence_paths)
+        and approval_evidence_paths == registered_evidence_paths
+        and len(registered_evidence_hashes) == len(registered_evidence_paths)
+        and all(re.fullmatch(r"[a-f0-9]{64}", value) for value in registered_evidence_hashes)
+        and continuity_asset_review_evidence_is_verified(normalized)
+    )
+    normalized["approved"] = bool(
+        normalized["structurallyComplete"]
+        and approval.get("status") == "approved"
+        and approval.get("reviewer") == "human"
+        and int(approval.get("reviewedAt") or 0) > 0
+        and evidence_is_registered_and_safe
+        and approval.get("contentFingerprint") == normalized["contentFingerprint"]
+        and normalized.get("approvalFingerprint") == continuity_asset_approval_fingerprint(normalized, approval)
+    )
+    return normalized
+
+
+def preserve_valid_continuity_asset_approval(version, existing_version):
+    current = normalize_continuity_asset_version(version)
+    existing = normalize_continuity_asset_version(existing_version or {}) if existing_version else None
+    if not existing or not existing.get("approved"):
+        return current
+    if existing.get("contentFingerprint") != current.get("contentFingerprint"):
+        return current
+    current["approval"] = existing.get("approval")
+    current["approvalFingerprint"] = existing.get("approvalFingerprint")
+    return normalize_continuity_asset_version(current)
+
+
+def reference_image_sha256(paths):
+    resolved = [Path(str(path)) for path in paths]
+    if not resolved or not all(path.is_file() for path in resolved):
+        return None
+    return [file_sha256(path) for path in resolved]
+
+
 def build_continuity_asset_version(asset, viewpoint_id=""):
     asset_type = image_workflow_asset_type(asset.get("kind", ""))
     asset_id = asset.get("assetId") or asset.get("name") or ""
@@ -3418,52 +3744,68 @@ def build_continuity_asset_version(asset, viewpoint_id=""):
         )
         reference_paths = [item["imagePath"] for item in views] or [asset["imagePath"]]
         reference_view_types = [item["viewType"] for item in views]
-        return {
+        return normalize_continuity_asset_version({
             "assetId": asset_id,
             "versionId": version_id,
             "assetKind": asset_type,
             "label": wardrobe,
             "referenceImagePaths": reference_paths,
+            "referenceImageSha256": reference_image_sha256(reference_paths),
             "referenceViewTypes": reference_view_types,
             "identityAnchors": asset.get("identityAnchors"),
             "negativePrompt": asset.get("negativePrompt"),
             "wardrobeVersion": wardrobe,
-            "approved": not missing,
             "missingFields": missing,
             "source": "project-character-bible",
-        }
+        })
     if asset_type == "scene":
         version_id = f"{asset_id}:{viewpoint_id}:v1"
         missing = scene_bible_missing_fields(asset, viewpoint_id)
-        return {
+        return normalize_continuity_asset_version({
             "assetId": asset_id,
             "versionId": version_id,
             "assetKind": asset_type,
             "label": viewpoint_id,
             "referenceImagePaths": [asset["imagePath"]],
+            "referenceImageSha256": reference_image_sha256([asset["imagePath"]]),
             "sceneViewpointId": viewpoint_id,
-            "approved": not missing,
+            "spatialLayout": asset.get("spatialLayout") or "",
+            "lightingDesign": asset.get("lightingDesign") or "",
+            "colorPalette": asset.get("colorPalette") or "",
             "missingFields": missing,
             "source": "project-scene-bible",
-        }
-    return {
+        })
+    return normalize_continuity_asset_version({
         "assetId": asset_id,
         "versionId": f"{asset_id}:base:v1",
         "assetKind": "prop",
         "label": "chapter-001-base",
         "referenceImagePaths": [asset["imagePath"]],
-        "approved": bool(asset.get("imagePath") and Path(asset["imagePath"]).exists()),
+        "referenceImageSha256": reference_image_sha256([asset["imagePath"]]),
         "missingFields": [],
         "source": "project-prop-library",
-    }
+    })
 
 
-def build_ordered_continuity_manifest(image_assets, viewpoint_id):
+def build_ordered_continuity_manifest(image_assets, viewpoint_id, primary_scene_name=""):
     manifest = []
     versions = []
     for order, asset in enumerate(image_assets, 1):
-        version = build_continuity_asset_version(asset, viewpoint_id if image_workflow_asset_type(asset.get("kind", "")) == "scene" else "")
+        asset_kind = image_workflow_asset_type(asset.get("kind", ""))
+        asset_viewpoint_id = ""
+        if asset_kind == "scene":
+            if not primary_scene_name or asset.get("name") == primary_scene_name:
+                asset_viewpoint_id = viewpoint_id
+            else:
+                asset_viewpoint_id = str(next(
+                    (item.get("id") for item in asset.get("viewpoints") or [] if item.get("id")),
+                    viewpoint_id,
+                ))
+        version = build_continuity_asset_version(asset, asset_viewpoint_id)
         versions.append(version)
+        is_primary_scene = version["assetKind"] == "scene" and (
+            not primary_scene_name or asset.get("name") == primary_scene_name
+        )
         manifest.append({
             "order": order,
             "assetId": version["assetId"],
@@ -3471,14 +3813,17 @@ def build_ordered_continuity_manifest(image_assets, viewpoint_id):
             "assetKind": version["assetKind"],
             "imagePath": asset.get("imagePath") or "",
             "referenceImagePaths": version.get("referenceImagePaths") or [],
+            "referenceImageSha256": version.get("referenceImageSha256") or [],
             "referenceViewTypes": version.get("referenceViewTypes") or [],
             "source": version["source"],
             "versionId": version["versionId"],
-            "referenceRole": "scene-viewpoint" if version["assetKind"] == "scene" else "canonical" if version["assetKind"] == "character" else "prop-state",
+            "referenceRole": "scene-viewpoint" if is_primary_scene else "secondary-scene" if version["assetKind"] == "scene" else "canonical" if version["assetKind"] == "character" else "prop-state",
             "identityAnchors": version.get("identityAnchors"),
             "negativePrompt": version.get("negativePrompt"),
             "wardrobeVersion": version.get("wardrobeVersion"),
             "sceneViewpointId": version.get("sceneViewpointId"),
+            "contentFingerprint": version["contentFingerprint"],
+            "approvalFingerprint": version.get("approvalFingerprint"),
             "approved": version["approved"],
         })
     return manifest, versions
@@ -3509,6 +3854,19 @@ def apply_continuity_manifest_to_image_assets(image_assets, manifest):
                 "characterViewType": view_types[reference_index] if view_types else None,
                 "sceneViewpointId": item.get("sceneViewpointId"),
             })
+    for item in manifest:
+        if item.get("referenceRole") != "previous-approved-frame":
+            continue
+        paths = list(item.get("referenceImagePaths") or [item.get("imagePath") or ""])
+        for path in (value for value in paths if value):
+            expanded.append({
+                "name": item.get("assetName") or "上一镜人工批准成图",
+                "kind": "asset",
+                "assetId": item.get("assetId"),
+                "imagePath": path,
+                "versionId": item.get("versionId"),
+                "referenceRole": "previous-approved-frame",
+            })
     return expanded
 
 
@@ -3530,6 +3888,11 @@ def build_shot_continuity_prompt(state):
         f"【场景锁】{state['sceneVersionId']}/{state['sceneViewpointId']}，{state['lighting']}，{state['palette']}",
         f"【动作承接】{state['actionIn']}；镜尾：{state['actionOut']}",
         f"【人物状态】{'；'.join(character_parts)}" if character_parts else "",
+        (
+            f"【出镜人数锁】本镜出镜角色总数：{len(character_parts)}；每个连续性角色版本各出现 1 次。"
+            f"前景、中景、远景和背景合计只能出现上述 {len(character_parts)} 个角色实例；"
+            "不得出现路人、工人、剪影、倒影或模糊人影。禁止重复、克隆或因多视图参考新增人物。"
+        ),
     ] if part)
 
 
@@ -3542,10 +3905,12 @@ def build_visual_continuity_fingerprint(prompt, manifest, state):
             "versionId": reference.get("versionId"),
             "imagePath": reference.get("imagePath"),
             "referenceImagePaths": reference.get("referenceImagePaths"),
+            "referenceImageSha256": reference.get("referenceImageSha256"),
             "referenceViewTypes": reference.get("referenceViewTypes"),
             "referenceRole": reference.get("referenceRole"),
             "wardrobeVersion": reference.get("wardrobeVersion"),
             "sceneViewpointId": reference.get("sceneViewpointId"),
+            "contentFingerprint": reference.get("contentFingerprint"),
         }
         reference_rows.append({key: value for key, value in row.items() if value is not None})
     continuity = {key: value for key, value in state.items() if key != "inputFingerprint" and value is not None}
@@ -3605,7 +3970,7 @@ def build_default_shot_continuity_state(index, prompt, image_assets, manifest):
     if not group:
         raise RuntimeError(f"分镜 {index:03d} 缺少连续镜头组")
     scene_reference = next(
-        (item for item in manifest if item.get("assetKind") == "scene"),
+        (item for item in manifest if item.get("referenceRole") == "scene-viewpoint"),
         manifest[0] if manifest else None,
     )
     if not scene_reference:
@@ -3648,7 +4013,11 @@ def build_storyboard_continuity_payload(index, prompt, image_assets, existing_st
     group = continuity_group_for_index(index)
     if not group:
         raise RuntimeError(f"分镜 {index:03d} 缺少连续镜头组")
-    manifest, versions = build_ordered_continuity_manifest(image_assets, group["viewpointId"])
+    manifest, versions = build_ordered_continuity_manifest(
+        image_assets,
+        group["viewpointId"],
+        group["sceneName"],
+    )
     if index in SAMPLE_SHOT_CONTINUITY:
         state = build_sample_shot_continuity_state(index, prompt, image_assets, manifest)
     else:
@@ -4135,6 +4504,11 @@ def main():
         for item in state.get("storyboards", [])
         if item.get("episodeId") == EPISODE_ID and item.get("id")
     }
+    existing_continuity_versions_by_key = {
+        f"{item.get('assetId', '')}:{item.get('versionId', '')}": item
+        for item in state.get("continuityAssetVersions", [])
+        if item.get("assetId") and item.get("versionId")
+    }
     asset_index = build_asset_index(state)
     asset_catalog = build_asset_catalog(state)
     script_text = latest_script(state)
@@ -4194,6 +4568,8 @@ def main():
     missing_image_assets = set()
     storyboard_image_workflows = []
     storyboard_prompt_manifest = []
+    storyboard_image_results = []
+    continuity_versions_by_key = {}
     try:
         for index, shot in enumerate(shots, 1):
             scene, desc, speaker, text, sound, assets, duration = shot_tuple(shot)
@@ -4209,12 +4585,93 @@ def main():
             image_assets = resolve_image_assets(scene, assets, asset_catalog)
             if not image_assets:
                 raise RuntimeError(f"分镜 {index:02d} 没有可用真实资产图片: {scene} / {', '.join(assets)}")
-            continuity_manifest, _continuity_versions, continuity_state = build_storyboard_continuity_payload(
-                index,
+            existing_storyboard = existing_storyboards_by_id.get(storyboard_id, {})
+            approved_reuse = approved_storyboard_reuse_input(existing_storyboard)
+            if approved_reuse:
+                continuity_manifest = approved_reuse["referenceManifest"]
+                continuity_state = approved_reuse["continuityState"]
+                _continuity_versions = []
+                seen_version_keys = set()
+                for reference in continuity_manifest:
+                    if reference.get("referenceRole") == "previous-approved-frame":
+                        continue
+                    key = f"{reference.get('assetId', '')}:{reference.get('versionId', '')}"
+                    version = existing_continuity_versions_by_key.get(key)
+                    if not version:
+                        raise RuntimeError(f"分镜 {index:03d} 人工批准清单缺少资产版本: {key}")
+                    if key not in seen_version_keys:
+                        _continuity_versions.append(version)
+                        seen_version_keys.add(key)
+            else:
+                continuity_manifest, _continuity_versions, continuity_state = build_storyboard_continuity_payload(
+                    index,
+                    desc,
+                    image_assets,
+                    existing_storyboard,
+                )
+            for version in _continuity_versions:
+                key = f"{version['assetId']}:{version['versionId']}"
+                merged_version = preserve_valid_continuity_asset_approval(
+                    version,
+                    existing_continuity_versions_by_key.get(key),
+                )
+                previous_version = continuity_versions_by_key.get(key)
+                if previous_version and previous_version["contentFingerprint"] != merged_version["contentFingerprint"]:
+                    raise RuntimeError(f"连续性资产版本内容冲突: {key}")
+                continuity_versions_by_key[key] = merged_version
+            for reference in continuity_manifest:
+                if reference.get("referenceRole") == "previous-approved-frame":
+                    previous_path = Path(str(reference.get("imagePath") or ""))
+                    previous_hashes = [
+                        str(value).lower()
+                        for value in reference.get("referenceImageSha256") or []
+                        if str(value).strip()
+                    ]
+                    previous_resolved = None
+                    if (
+                        reference.get("approved") is not True
+                        or not reference.get("approvalFingerprint")
+                        or len(previous_hashes) != 1
+                        or not re.fullmatch(r"[a-f0-9]{64}", previous_hashes[0])
+                    ):
+                        raise RuntimeError(f"分镜 {index:03d} 上一镜人工批准参考已失效")
+                    try:
+                        previous_resolved = previous_path.resolve(strict=True)
+                        approved_root = (PROJECT / "workflow-images/storyboards" / EPISODE_ID / "approved-revisions").resolve()
+                        previous_resolved.relative_to(approved_root)
+                    except (OSError, ValueError):
+                        raise RuntimeError(f"分镜 {index:03d} 上一镜人工批准参考路径越界: {previous_path}")
+                    if (
+                        previous_resolved is None
+                        or not re.fullmatch(r"shot-\d{3}-[a-f0-9]{12}\.png", previous_resolved.name, re.IGNORECASE)
+                        or file_sha256(previous_resolved) != previous_hashes[0]
+                        or reference.get("contentFingerprint") != previous_hashes[0]
+                    ):
+                        raise RuntimeError(f"分镜 {index:03d} 上一镜人工批准参考内容指纹已失效")
+                    continue
+                key = f"{reference['assetId']}:{reference.get('versionId', '')}"
+                version = continuity_versions_by_key[key]
+                reference["contentFingerprint"] = version["contentFingerprint"]
+                reference["approvalFingerprint"] = version.get("approvalFingerprint")
+                reference["approved"] = version["approved"]
+            continuity_fingerprint = build_visual_continuity_fingerprint(
                 desc,
-                image_assets,
-                existing_storyboards_by_id.get(storyboard_id, {}),
+                continuity_manifest,
+                continuity_state,
             )
+            if approved_reuse and continuity_state.get("inputFingerprint") != continuity_fingerprint:
+                raise RuntimeError(f"分镜 {index:03d} 人工批准连续性输入指纹已失效")
+            continuity_state["inputFingerprint"] = continuity_fingerprint
+            if is_real_storyboard_image_mode():
+                unapproved = [
+                    f"{item['assetId']}:{item.get('versionId', '')}"
+                    for item in continuity_manifest
+                    if item.get("referenceRole") != "previous-approved-frame" and item.get("approved") is not True
+                ]
+                if unapproved:
+                    raise RuntimeError(
+                        f"分镜 {index:03d} 引用资产尚未通过有效人工批准: {', '.join(unapproved)}"
+                    )
             primary_visual = select_primary_visual(scene, image_assets)
             if not primary_visual:
                 raise RuntimeError(f"分镜 {index:02d} 缺少可用于成片的主视觉图: {scene}")
@@ -4232,9 +4689,11 @@ def main():
                     storyboard_image_config,
                     continuity_manifest,
                     continuity_state,
+                    approved_reuse,
                 )
                 storyboard_image_workflows.append(storyboard_image_result["workflowGraph"])
                 storyboard_prompt_manifest.append(storyboard_image_result["promptAudit"])
+                storyboard_image_results.append(storyboard_image_result)
             else:
                 storyboard_references = collect_storyboard_reference_images(image_assets)
                 final_storyboard_prompt = build_storyboard_image_prompt(
@@ -4317,15 +4776,26 @@ def main():
                         "sceneChecks": [
                             {"sceneVersionId": continuity_state["sceneVersionId"], "passed": False}
                         ],
+                        "propChecks": [
+                            {
+                                "assetId": item["assetId"],
+                                "versionId": item.get("versionId"),
+                                "passed": False,
+                            }
+                            for item in continuity_manifest
+                            if item.get("referenceRole") == "prop-state"
+                        ],
                         "transitionChecks": [
                             {
                                 "previousStoryboardId": continuity_state.get("previousStoryboardId"),
                                 "passed": False,
                             }
                         ],
+                        "textWatermarkCheck": {"passed": False},
                         "reviewer": "automated",
                         "reviewedAt": int(time.time() * 1000),
                         "evidencePaths": [media_ref["path"]],
+                        "inputFingerprint": "",
                     }
             storyboards.append({
                 "id": storyboard_id,
@@ -4463,6 +4933,13 @@ def main():
     state["agentWorkData"].extend(generated_work)
     state["storyboards"] = [sb for sb in state.get("storyboards", []) if sb.get("episodeId") != EPISODE_ID and sb.get("episodeId") != "episode-1"]
     state["storyboards"].extend(storyboards)
+    rebuilt_continuity_keys = set(continuity_versions_by_key)
+    state["continuityAssetVersions"] = [
+        normalize_continuity_asset_version(item)
+        for item in state.get("continuityAssetVersions", [])
+        if f"{item.get('assetId', '')}:{item.get('versionId', '')}" not in rebuilt_continuity_keys
+    ]
+    state["continuityAssetVersions"].extend(continuity_versions_by_key.values())
     state["productionTracks"] = [t for t in state.get("productionTracks", []) if t.get("episodeId") != EPISODE_ID and t.get("episodeId") != "episode-1"]
     state["productionTracks"].extend(production_tracks)
     state["videoCandidates"] = [v for v in state.get("videoCandidates", []) if not str(v.get("id", "")).startswith("video-chapter-001")]
@@ -4647,6 +5124,19 @@ def main():
         "imageGenerationMode": STORYBOARD_IMAGE_GENERATION_MODE,
         "imageGenerationProvider": storyboard_image_generation_provider(),
         "generatedFrameImages": generated_frame_count,
+        "generatedImages": sum(
+            1 for item in storyboard_image_results if not item["reusedExistingImage"]
+        ),
+        "reusedImages": sum(
+            1 for item in storyboard_image_results if item["reusedExistingImage"]
+        ),
+        "storyboardTransferThumbnails": [
+            {
+                "storyboardId": item["workflowGraph"]["target"]["id"],
+                **item["transferThumbnail"],
+            }
+            for item in storyboard_image_results
+        ],
         "matchedAssetImages": image_asset_count,
         "framesWithRealAssetImages": image_backed_storyboards,
         "assetImagePaths": sorted(used_image_paths),

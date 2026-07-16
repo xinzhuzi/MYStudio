@@ -154,10 +154,20 @@ describe("studio workflow tabs", () => {
       fileURLToPath(new URL("./image-workflow-asset-bridge.ts", import.meta.url)),
       "utf8",
     );
-    const workflowSource = `${canvasSource}\n${assetBridgeSource}`;
+    const generationSource = readFileSync(
+      fileURLToPath(new URL("./use-image-workflow-generation.ts", import.meta.url)),
+      "utf8",
+    );
+    const actionsSource = readFileSync(
+      fileURLToPath(new URL("./use-image-workflow-actions.ts", import.meta.url)),
+      "utf8",
+    );
+    const workflowSource = `${canvasSource}\n${assetBridgeSource}\n${generationSource}\n${actionsSource}`;
 
-    expect(canvasSource).toContain("window.projectFiles?.writeBinary");
-    expect(canvasSource).toContain("window.projectFiles?.saveImage");
+    expect(canvasSource).toContain("useImageWorkflowActions");
+    expect(actionsSource).toContain("window.projectFiles?.writeBinary");
+    expect(canvasSource).toContain("useImageWorkflowGeneration");
+    expect(generationSource).toContain("window.projectFiles?.saveImage");
     expect(workflowSource).toContain("project-file://");
     expect(canvasSource).toContain("initialAssetContext.imageWorkflowId");
     expect(canvasSource).toContain("assetWorkflowContextKey");
@@ -174,11 +184,15 @@ describe("studio workflow tabs", () => {
       fileURLToPath(new URL("./image-workflow-node-card.tsx", import.meta.url)),
       "utf8",
     );
+    const sidebarSource = readFileSync(
+      fileURLToPath(new URL("./image-workflow-sidebar.tsx", import.meta.url)),
+      "utf8",
+    );
     const paletteSource = readFileSync(
       fileURLToPath(new URL("./image-workflow-palette.tsx", import.meta.url)),
       "utf8",
     );
-    const workflowSource = `${canvasSource}\n${nodeSource}\n${paletteSource}`;
+    const workflowSource = `${canvasSource}\n${nodeSource}\n${sidebarSource}\n${paletteSource}`;
 
     expect(canvasSource).toContain("bg-background text-foreground");
     expect(workflowSource).toContain("bg-card/96");
@@ -201,6 +215,10 @@ describe("studio workflow tabs", () => {
     );
     const nodeSource = readFileSync(
       fileURLToPath(new URL("./image-workflow-node-card.tsx", import.meta.url)),
+      "utf8",
+    );
+    const sidebarSource = readFileSync(
+      fileURLToPath(new URL("./image-workflow-sidebar.tsx", import.meta.url)),
       "utf8",
     );
     const graphUtilsSource = readFileSync(
@@ -226,7 +244,7 @@ describe("studio workflow tabs", () => {
     expect(canvasSource).toContain("写回目标");
     expect(canvasSource).toContain("isScopedWorkflowDetail");
     expect(canvasSource).toContain("canUseGlobalWorkflowControls");
-    expect(canvasSource).toContain("data-scoped-image-workflow-summary");
+    expect(sidebarSource).toContain("data-scoped-image-workflow-summary");
     expect(nodeSource).toContain("data-toonflow-generated-prompt-panel");
     expect(nodeSource).toContain("data-toonflow-generated-prompt-textarea");
     expect(graphUtilsSource).toContain("findLinkedPromptNodeForGenerated");
@@ -251,18 +269,22 @@ describe("studio workflow tabs", () => {
       fileURLToPath(new URL("./image-workflow-graph-utils.ts", import.meta.url)),
       "utf8",
     );
+    const scopedPendingSource = readFileSync(
+      fileURLToPath(new URL("./image-workflow-scoped-pending.tsx", import.meta.url)),
+      "utf8",
+    );
 
     expect(canvasSource).toContain("const canUseGlobalWorkflowControls = !isScopedWorkflowDetail;");
     expect(canvasSource).toContain("initialAssetContext.imageWorkflowId");
     expect(canvasSource).toContain("isSameImageWorkflowTarget(item.target, initialAssetContext.target)");
     expect(canvasSource).toContain("selectedGraph && selectedGraph.id === scopedWorkflow?.id");
     expect(canvasSource).toContain("scopedPendingWritebackTargetLabel");
-    expect(canvasSource).toContain("const renderScopedWorkflowPending = () => (");
-    expect(canvasSource).toContain("if (isScopedWorkflowDetail) return renderScopedWorkflowPending();");
+    expect(canvasSource).toContain("<ImageWorkflowScopedPending");
+    expect(canvasSource).toContain("writebackTargetLabel={scopedPendingWritebackTargetLabel}");
     expect(graphUtilsSource).toContain("openContextTargetLabel");
     expect(canvasSource).toContain("{canUseGlobalWorkflowControls ? (");
     expect(canvasSource).toContain("{selectedEdgeId && canUseGlobalWorkflowControls ? (");
-    expect(canvasSource).toContain("data-scoped-image-workflow-summary");
+    expect(scopedPendingSource).toContain("data-scoped-image-workflow-summary");
     expect(canvasSource).toContain("data-image-workflow-selector");
     expect(canvasSource).toContain("data-image-workflow-global-action");
   });

@@ -642,6 +642,29 @@ export function buildImageWorkflowGenerationRequest(
 }
 
 function buildReferenceContinuityContract(references: ImageWorkflowReferenceNode[]): string {
+  const characterGroups = new Map<string, {
+    markers: string[];
+    title: string;
+    views: CharacterReferenceViewType[];
+  }>();
+  references.forEach((reference, index) => {
+    if (reference.source?.kind !== "asset" || reference.source.assetType !== "character") return;
+    const key = `${reference.source.id}:${reference.continuityVersionId ?? "base"}`;
+    const group = characterGroups.get(key) ?? {
+      markers: [],
+      title: reference.title,
+      views: [],
+    };
+    group.markers.push(`@图${index + 1}`);
+    if (reference.characterViewType) group.views.push(reference.characterViewType);
+    characterGroups.set(key, group);
+  });
+  const multiViewRules = [...characterGroups.values()]
+    .filter((group) => group.markers.length > 1 && group.views.length === group.markers.length)
+    .map((group) => (
+      `${group.markers.join("/")} 为${group.title}同一角色、同一版本的 ${group.views.join("/")} 参考视图，`
+      + "不是三个人；该角色在本镜只允许出现一个实例。"
+    ));
   const rules = references.flatMap((reference, index) => {
     const marker = `@图${index + 1}`;
     if (reference.source?.assetType === "character") {
@@ -671,7 +694,10 @@ function buildReferenceContinuityContract(references: ImageWorkflowReferenceNode
     }
     return [];
   });
-  return rules.length ? `【资产圣经】${rules.join(" ")}` : "";
+  return [
+    multiViewRules.length ? `【多视图身份锁】${multiViewRules.join(" ")}` : "",
+    rules.length ? `【资产圣经】${rules.join(" ")}` : "",
+  ].filter(Boolean).join(" ");
 }
 
 function mergeReferenceNegativePrompt(

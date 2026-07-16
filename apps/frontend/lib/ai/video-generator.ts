@@ -7,6 +7,11 @@ import { saveVideoToLocal, readImageAsBase64 } from "@/lib/image-storage";
 import { useAPIConfigStore } from "@/stores/api-config-store";
 import { retryOperation } from "@/lib/utils/retry";
 import { toRunwayRatio, toSoraSize } from "@/lib/ai/video-request-sizing";
+import { prepareReferenceImageForTransfer } from "@/lib/ai/image-transfer";
+import {
+  detectVideoApiFormat as detectVideoApiFormatFromRouting,
+  getUnifiedEndpointPaths as getUnifiedEndpointPathsFromRouting,
+} from "@/lib/ai/video-generator-routing";
 
 function normalizeUrl(url: unknown): string | undefined {
   if (!url) return undefined;
@@ -123,6 +128,7 @@ export async function convertToHttpUrl(
     if (!base64) throw new Error(`无法读取本地文件: ${url.substring(0, 40)}`);
     imageData = base64;
   }
+  imageData = await prepareReferenceImageForTransfer(imageData);
 
   const result = await uploadToImageHost(imageData, {
     name: options?.uploadName?.trim() || `media_ref_${Date.now()}`,
@@ -157,6 +163,19 @@ export async function buildImageWithRoles(
   }
 
   return imageWithRoles;
+}
+
+export async function prepareVideoImageRolesForTransfer(
+  imageWithRoles: Array<{ url: string; role: 'first_frame' | 'last_frame' }>,
+): Promise<Array<{ url: string; role: 'first_frame' | 'last_frame' }>> {
+  const prepared: Array<{ url: string; role: 'first_frame' | 'last_frame' }> = [];
+  for (const image of imageWithRoles) {
+    prepared.push({
+      ...image,
+      url: await prepareReferenceImageForTransfer(image.url),
+    });
+  }
+  return prepared;
 }
 
 // ==================== 模型路由检测 ====================
@@ -229,10 +248,7 @@ const DEFAULT_UNIFIED_ENDPOINT = { submit: '/v1/video/generations', poll: (id: s
  * 根据模型端点类型查找对应的提交/轮询 URL 路径
  */
 function getUnifiedEndpointPaths(endpointTypes: string[]): { submit: string; poll: (id: string) => string } {
-  for (const t of endpointTypes) {
-    if (UNIFIED_ENDPOINT_PATHS[t]) return UNIFIED_ENDPOINT_PATHS[t];
-  }
-  return DEFAULT_UNIFIED_ENDPOINT;
+  return getUnifiedEndpointPathsFromRouting(endpointTypes);
 }
 
 /**
@@ -240,6 +256,8 @@ function getUnifiedEndpointPaths(endpointTypes: string[]): { submit: string; pol
  * 优先使用 MemeFast /api/pricing_new 同步的元数据，fallback 到模型名推断
  */
 function detectVideoApiFormat(model: string): 'openai_official' | 'unified' | 'volc' | 'wan' | 'kling' | 'replicate' {
+  return detectVideoApiFormatFromRouting(model, useAPIConfigStore.getState().modelEndpointTypes[model] || []);
+  /*
   // 1. 查询 store 中的 endpoint types 元数据
   const endpointTypes = useAPIConfigStore.getState().modelEndpointTypes[model];
   if (endpointTypes && endpointTypes.length > 0) {
@@ -290,7 +308,7 @@ function detectVideoApiFormat(model: string): 'openai_official' | 'unified' | 'v
   // doubao-seedance 走 volc 格式（/volc/v1/contents/generations/tasks）
   if (m.includes('doubao') || m.includes('seedance') || m.includes('seedream')) return 'volc';
   if (m.includes('wan')) return 'wan';
-  return 'unified';
+  return 'unified'; */
 }
 
 // ==================== 通用错误处理 ====================
@@ -459,12 +477,11 @@ export async function callVideoGenerationApi(
   }
 
   // 确保所有输入图片满足视频 API 的最小尺寸要求（如 Seedance ≥ 300px）
-  const processedImages = await Promise.all(
-    imageWithRoles.map(async (img) => ({
-      ...img,
-      url: await ensureMinImageSize(img.url),
-    }))
-  );
+  const transferImages = await prepareVideoImageRolesForTransfer(imageWithRoles);
+  const processedImages: Array<{ url: string; role: 'first_frame' | 'last_frame' }> = [];
+  for (const image of transferImages) {
+    processedImages.push({ ...image, url: await ensureMinImageSize(image.url) });
+  }
 
   // 根据元数据/模型名检测 API 格式并路由，包裹重试（覆盖 429/503/529 等）
   const format = detectVideoApiFormat(model);

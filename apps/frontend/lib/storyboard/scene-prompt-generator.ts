@@ -24,6 +24,7 @@
 
 import { type SplitScene } from '@/stores/director-store';
 import { aiManager } from '@/lib/ai/ai-manager';
+import { prepareReferenceImageForTransfer } from '@/lib/ai/image-transfer';
 
 
 export interface ScenePromptRequest {
@@ -253,10 +254,12 @@ export async function generateScenePrompts(
       return [...textResults, ...placeholderResults].sort((a, b) => a.id - b.id);
     }
     
+    const transferStoryboardImage = await prepareReferenceImageForTransfer(storyboardImage);
+
     // Call Vision API for scenes without text
     try {
       const visionResults = await generatePromptsViaVisionAPI(
-        storyboardImage,
+        transferStoryboardImage,
         storyPrompt,
         scenesWithoutText
       );

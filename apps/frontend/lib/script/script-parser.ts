@@ -17,15 +17,14 @@ import { corsFetch } from "@/lib/cors-fetch";
 import { buildThinkingParams, buildThinkingProviderOptions, resolveThinkingEnabled } from "@/lib/ai/thinking-mode";
 import { getLanguageModel } from "@/lib/ai/ai-sdk-bridge";
 import { generateText } from "ai";
+import { normalizeScriptData } from "./script-data-normalizer";
 
 /**
  * Normalize time value to match scene-store TIME_PRESETS
  * Maps Chinese time descriptions to standard time IDs
  */
-function normalizeTimeValue(time: string | undefined): string {
-  if (!time) return 'day';
-  
-  const timeMap: Record<string, string> = {
+/* normalization is implemented in script-data-normalizer.ts */
+/* const timeMap: Record<string, string> = {
     // Chinese mappings
     '白天': 'day',
     '日间': 'day',
@@ -54,8 +53,7 @@ function normalizeTimeValue(time: string | undefined): string {
   };
   
   const normalized = time.toLowerCase().trim();
-  return timeMap[normalized] || timeMap[time] || 'day';
-}
+  return timeMap[normalized] || timeMap[time] || 'day'; */
 
 const PARSE_SYSTEM_PROMPT = `你是一个专业的剧本分析师。分析用户提供的剧本/故事文本，提取结构化信息。
 
@@ -540,80 +538,7 @@ ${rawScript}
   try {
     const parsed = JSON.parse(cleaned);
 
-    // Validate and transform scenes with detailed visual design
-    const scenes = (parsed.scenes || []).map((s: any, i: number) => ({
-      id: s.id || `scene_${i + 1}`,
-      name: s.name || s.location || `场景${i + 1}`,
-      location: s.location || '未知地点',
-      time: normalizeTimeValue(s.time),
-      atmosphere: s.atmosphere || '',
-      visualPrompt: s.visualPrompt || '', // 用于场景概念图生成
-      tags: s.tags || [],        // 场景标签
-      notes: s.notes || '',      // 场景备注
-      episodeId: s.episodeId,
-    }));
-
-    // Validate and transform characters with ALL extended fields
-    const characters = (parsed.characters || []).map((c: any, i: number) => ({
-      id: c.id || `char_${i + 1}`,
-      name: c.name || `角色${i + 1}`,
-      gender: c.gender,
-      age: c.age,
-      personality: c.personality,
-      role: c.role,
-      traits: c.traits,
-      skills: c.skills,           // 保留技能字段
-      keyActions: c.keyActions,   // 保留关键事迹
-      appearance: c.appearance,   // 保留外貌描述
-      relationships: c.relationships, // 保留人物关系
-      tags: c.tags || [],         // 角色标签
-      notes: c.notes || '',       // 角色备注
-    }));
-
-    // Parse episodes - use AI-generated if available, otherwise create default
-    let episodes = (parsed.episodes || []).map((e: any, i: number) => ({
-      id: e.id || `ep_${i + 1}`,
-      index: e.index || i + 1,
-      title: e.title || `第${i + 1}集`,
-      description: e.description,
-      sceneIds: e.sceneIds || [],
-    }));
-
-    // If no episodes from AI, create default episode with all scenes
-    if (episodes.length === 0) {
-      episodes = [{
-        id: 'ep_1',
-        index: 1,
-        title: parsed.title || '第1集',
-        description: parsed.logline,
-        sceneIds: scenes.map((s: any) => s.id),
-      }];
-    } else {
-      // Ensure all scenes are assigned to an episode
-      const assignedSceneIds = new Set(episodes.flatMap((e: any) => e.sceneIds));
-      const unassignedScenes = scenes.filter((s: any) => !assignedSceneIds.has(s.id));
-      if (unassignedScenes.length > 0 && episodes.length > 0) {
-        // Add unassigned scenes to the last episode
-        episodes[episodes.length - 1].sceneIds.push(...unassignedScenes.map((s: any) => s.id));
-      }
-    }
-
-    const scriptData: ScriptData = {
-      title: parsed.title || '未命名剧本',
-      genre: parsed.genre,
-      logline: parsed.logline,
-      language: options.language || '中文',
-      characters,
-      scenes,
-      episodes,
-      storyParagraphs: (parsed.storyParagraphs || []).map((p: any, i: number) => ({
-        id: p.id || i + 1,
-        text: p.text || '',
-        sceneRefId: p.sceneRefId || 'scene_1',
-      })),
-    };
-
-    return scriptData;
+    return normalizeScriptData(parsed, options.language || '中文');
   } catch (e) {
     console.error('[parseScript] Failed to parse JSON:', cleaned);
     throw new Error('无法解析AI返回的剧本数据');

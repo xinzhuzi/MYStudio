@@ -4,6 +4,7 @@
 
 import { callFeatureMultimodalAPI } from '@/lib/ai/feature-router';
 import { readImageAsBase64 } from '@/lib/image-storage';
+import { prepareReferenceImageForTransfer } from '@/lib/ai/image-transfer';
 
 export interface StyleExtractionResult {
   styleTokens: string;
@@ -77,13 +78,10 @@ export async function extractStyleTokens(
   contentParts.push({ type: 'text', text: userText });
 
   for (const url of imageUrls.slice(0, 3)) {
-    try {
-      const dataUrl = await resolveImageUrl(url);
-      if (dataUrl) {
-        contentParts.push({ type: 'image_url', image_url: { url: dataUrl } });
-      }
-    } catch (error) {
-      console.warn('[StyleExtractor] Failed to resolve image:', url, error);
+    const dataUrl = await resolveImageUrl(url);
+    if (dataUrl) {
+      const transferImage = await prepareReferenceImageForTransfer(dataUrl);
+      contentParts.push({ type: 'image_url', image_url: { url: transferImage } });
     }
   }
 

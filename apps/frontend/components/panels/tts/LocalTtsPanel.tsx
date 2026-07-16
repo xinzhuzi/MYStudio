@@ -58,6 +58,7 @@ import {
 import type { TtsActiveTasksResponse, TtsEngine, TtsModelCacheInfo, TtsModelRow, TtsRuntimeStatus } from "@/types/tts";
 import { useTtsStore } from "@/stores/tts-store";
 import { cn } from "@/lib/utils";
+import { VoiceProfileSection } from "./VoiceProfileSection";
 
 interface ModelProgressEvent {
   model_name: string;
@@ -777,7 +778,19 @@ export function LocalTtsPanel() {
           </section>
         ))}
 
-        <section className="tts-glass-card rounded-2xl border border-border bg-card/50 backdrop-blur-xl p-5">
+        <VoiceProfileSection
+          profiles={voiceProfiles} name={newProfileName} language={newProfileLanguage} mode={newProfileMode}
+          engine={newProfileEngine} modelSize={newProfileModelSize} voiceId={newProfileVoiceId}
+          referencePath={newProfileReferencePath} referenceText={newProfileReferenceText} instruct={newProfileInstruct}
+          uploading={uploadingReference} voices={unifiedPresetVoices} presetSelection={presetSelection}
+          supportsInstruction={newProfileMode === "preset" ? presetSelection?.engine === "qwen_custom_voice" : supportsVoiceInstruction(newProfileEngine)}
+          referenceInputRef={referenceInputRef} Select={NativeTtsSelect} onName={setNewProfileName} onLanguage={handleLanguageChange}
+          onMode={handleModeChange} onEngine={handleEngineChange} onModelSize={setNewProfileModelSize} onVoice={setNewProfileVoiceId}
+          onReferencePath={setNewProfileReferencePath} onReferenceText={setNewProfileReferenceText} onInstruct={setNewProfileInstruct}
+          onUpload={event => void handleReferenceAudioUpload(event)} onCreate={handleCreateProfile}
+        />
+        {/* legacy voice profile markup moved to VoiceProfileSection */}
+        {false && <section className="tts-glass-card rounded-2xl border border-border bg-card/50 backdrop-blur-xl p-5">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div>
               <h4 className="text-sm font-semibold text-foreground">声线库</h4>
@@ -936,7 +949,7 @@ export function LocalTtsPanel() {
               })}
             </div>
           )}
-        </section>
+        </section>}
       </div>
 
       <Dialog open={!!selectedModel} onOpenChange={(open) => !open && setSelectedModel(null)}>

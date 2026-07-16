@@ -17,46 +17,26 @@ import { toast } from "sonner";
 import {
   useSClassStore,
   type ShotGroup,
-  type AssetRef,
-  type GenerationRecord,
   type SClassAspectRatio,
   type SClassResolution,
-  type SClassDuration,
-  type VideoGenStatus,
 } from "@/stores/sclass-store";
 import { useDirectorStore, useActiveDirectorProject, type SplitScene } from "@/stores/director-store";
 import { useCharacterLibraryStore } from "@/stores/character-library-store";
 import { useSceneStore } from "@/stores/scene-store";
-import {
-  buildImageWithRoles,
-  convertToHttpUrl,
-  saveVideoLocally,
-  isContentModerationError,
-} from "@/lib/ai/video-generator";
+import { saveVideoLocally, isContentModerationError } from "@/lib/ai/video-generator";
 import { aiManager } from "@/lib/ai/ai-manager";
+import { runSClassVideoWithKeyRotation } from "./sclass-video-retry";
+import { prepareSClassGroupGeneration } from "./sclass-generation-prep";
 import {
-  buildGroupPrompt,
-  collectAllRefs,
-  mergeToGridImage,
-  SEEDANCE_LIMITS,
-  type GroupPromptResult,
-} from "./sclass-prompt-builder";
+  createSClassGenerationRecord,
+  materializeSClassGenerationReferences,
+} from "./sclass-generation-output";
+import { runSClassBatchGeneration } from "./sclass-batch-generation";
+import type { BatchGenerationProgress, GroupGenerationResult } from "./sclass-generation-types";
+import { runSClassSingleShotGeneration } from "./sclass-single-shot-generation";
+export type { BatchGenerationProgress, GroupGenerationResult } from "./sclass-generation-types";
 
 // ==================== Types ====================
-
-export interface GroupGenerationResult {
-  groupId: string;
-  success: boolean;
-  videoUrl: string | null;
-  error: string | null;
-}
-
-export interface BatchGenerationProgress {
-  total: number;
-  completed: number;
-  current: string | null;
-  results: GroupGenerationResult[];
-}
 
 // ==================== Hook ====================
 
@@ -71,7 +51,6 @@ export function useSClassGeneration() {
     updateGroupVideoStatus,
     addGroupHistory,
     updateSingleShotVideo,
-    updateConfig,
     updateShotGroup,
     addShotGroup,
   } = useSClassStore();
@@ -91,36 +70,6 @@ export function useSClassGeneration() {
         .filter(Boolean) as SplitScene[];
     },
     [splitScenes]
-  );
-
-  /** 将 @引用中的图片 URL 转为 HTTP URL */
-  const prepareImageUrls = useCallback(
-    async (
-      refs: AssetRef[]
-    ): Promise<Array<{ url: string; role: "first_frame" | "last_frame" }>> => {
-      const imageWithRoles: Array<{
-        url: string;
-        role: "first_frame" | "last_frame";
-      }> = [];
-
-      for (let i = 0; i < refs.length; i++) {
-        const ref = refs[i];
-        const httpUrl = await convertToHttpUrl(ref.localUrl, {
-          fallbackHttpUrl: ref.httpUrl,
-          uploadName: ref.fileName,
-        });
-        if (httpUrl) {
-          // 第一张图作为 first_frame，其余作为 last_frame
-          imageWithRoles.push({
-            url: httpUrl,
-            role: i === 0 ? "first_frame" : "last_frame",
-          });
-        }
-      }
-
-      return imageWithRoles;
-    },
-    []
   );
 
   // ========== 单组生成 ==========
@@ -198,76 +147,25 @@ export function useSClassGeneration() {
       });
 
       try {
-      // 4. 从组内分镜聚合音频/运镜设置
-        const isExtendOrEdit = group.generationType === 'extend' || group.generationType === 'edit';
-        const hasAnyDialogue = groupScenes.some(s => s.audioDialogueEnabled !== false && s.dialogue?.trim());
-        const hasAnyAmbient = groupScenes.some(s => s.audioAmbientEnabled !== false);
-        const hasAnySfx = groupScenes.some(s => s.audioSfxEnabled !== false);
-        const enableAudio = hasAnyDialogue || hasAnyAmbient || hasAnySfx;
-        const enableLipSync = hasAnyDialogue;
-
-        // camerafixed: 全部分镜运镜为 Static 或为空 → 锁定运镜
-        const allStaticCamera = groupScenes.every(s => {
-          const cm = (s.cameraMovement || '').toLowerCase().trim();
-          return !cm || cm === 'static' || cm === '固定' || cm === '静止';
-        });
-
-        // 4b. 构建格子图（合并首帧 或 复用缓存）
-        // 延长/编辑组跳过格子图 — 它们的首帧参考来自 sourceVideoUrl
-        let gridImageRef: AssetRef | null = null;
-
-        if (!isExtendOrEdit) {
-          const sceneIds = group.sceneIds;
-
-          // 检查是否可复用缓存的九宫格图
-          const cachedGridUrl = sclassProjectData.lastGridImageUrl;
-          const cachedSceneIds = sclassProjectData.lastGridSceneIds;
-          const canReuseGrid = cachedGridUrl &&
-            cachedSceneIds &&
-            sceneIds.length === cachedSceneIds.length &&
-            sceneIds.every((id, i) => id === cachedSceneIds[i]);
-
-          // 收集组内分镜的首帧图片
-          const firstFrameUrls = groupScenes
-            .map(s => s.imageDataUrl || s.imageHttpUrl || '')
-            .filter(Boolean);
-
-          if (firstFrameUrls.length > 0) {
-            let gridDataUrl: string;
-            if (canReuseGrid) {
-              // 复用步骤③保存的原始九宫格图
-              gridDataUrl = cachedGridUrl!;
-              console.log('[SClassGen] 复用缓存九宫格图:', gridDataUrl.substring(0, 60));
-            } else {
-              // 重新合并首帧为格子图
-              gridDataUrl = await mergeToGridImage(firstFrameUrls, aspectRatio);
-              console.log('[SClassGen] 已合并', firstFrameUrls.length, '张首帧为格子图');
-            }
-
-            gridImageRef = {
-              id: 'grid_image',
-              type: 'image',
-              tag: '@图片1',
-              localUrl: gridDataUrl,
-              httpUrl: gridDataUrl.startsWith('http') ? gridDataUrl : null,
-              fileName: 'grid_image.png',
-              fileSize: 0,
-              duration: null,
-              purpose: 'grid_image',
-            };
-          }
-        }
-
-        // 4c. 构建 prompt（传入格子图引用 + 风格 tokens）
-        const promptResult: GroupPromptResult = buildGroupPrompt({
+        // 4. 聚合音频/运镜设置、格子图与组级 prompt
+        const {
+          isExtendOrEdit,
+          enableAudio,
+          allStaticCamera,
+          gridImageRef,
+          promptResult,
+          prompt,
+          duration,
+        } = await prepareSClassGroupGeneration({
           group,
           scenes: groupScenes,
           characters,
           sceneLibrary: scenes,
           styleTokens: styleTokens || undefined,
           aspectRatio,
-          enableLipSync,
-          gridImageRef,
+          defaultDuration: sclassConfig.defaultDuration,
+          cachedGridUrl: sclassProjectData.lastGridImageUrl,
+          cachedSceneIds: sclassProjectData.lastGridSceneIds,
         });
 
         if (promptResult.refs.overLimit) {
@@ -301,37 +199,18 @@ export function useSClassGeneration() {
           }
         }
 
-        // 5. 收集图片引用 → 转 HTTP URL
-        const imageRefs = promptResult.refs.images;
-        const imageWithRoles = await prepareImageUrls(imageRefs);
-
-        // 5b. 收集视频/音频引用 → 转 HTTP URL（Seedance 2.0 多模态输入）
-        const videoRefUrls: string[] = [];
-        // 前组视频衔接（链式重试时传入）— 延长/编辑组已在 refs.videos 中携带 sourceVideoUrl，跳过
-        if (!isExtendOrEdit && options?.prevVideoUrl) {
-          const prevHttpUrl = await convertToHttpUrl(options.prevVideoUrl).catch(() => "");
-          if (prevHttpUrl) videoRefUrls.push(prevHttpUrl);
-        }
-        for (const vRef of promptResult.refs.videos) {
-          const httpUrl = vRef.httpUrl || (await convertToHttpUrl(vRef.localUrl).catch(() => ""));
-          if (httpUrl) videoRefUrls.push(httpUrl);
-        }
-        const audioRefUrls: string[] = [];
-        for (const aRef of promptResult.refs.audios) {
-          const httpUrl = aRef.httpUrl || (await convertToHttpUrl(aRef.localUrl).catch(() => ""));
-          if (httpUrl) audioRefUrls.push(httpUrl);
-        }
+        // 5. 收集图片/视频/音频引用并转换为 HTTP URL
+        const { imageWithRoles, videoRefUrls, audioRefUrls } = await materializeSClassGenerationReferences({
+          imageRefs: promptResult.refs.images,
+          videoRefs: promptResult.refs.videos,
+          audioRefs: promptResult.refs.audios,
+          prevVideoUrl: options?.prevVideoUrl,
+          isExtendOrEdit,
+        });
 
         updateGroupVideoStatus(group.id, { videoProgress: 10 });
 
         // 6. 调用视频生成 API
-        const prompt =
-          promptResult.prompt || `Multi-shot video: ${group.name}`;
-        const duration = Math.max(
-          SEEDANCE_LIMITS.minDuration,
-          Math.min(SEEDANCE_LIMITS.maxDuration, group.totalDuration || sclassConfig.defaultDuration)
-        );
-
         console.log("[SClassGen] Generating group video:", {
           groupId: group.id,
           groupName: group.name,
@@ -345,75 +224,30 @@ export function useSClassGeneration() {
           videoResolution,
         });
 
-        const maxVideoAttempts = Math.max(1, Math.min(keyManager.getTotalKeyCount(), 6));
-        let videoUrl: string | null = null;
-        let lastVideoError: Error | null = null;
-
-        for (let attempt = 0; attempt < maxVideoAttempts; attempt++) {
-          const currentApiKey = keyManager.getCurrentKey() || "";
-          if (!currentApiKey) break;
-
-          try {
-            videoUrl = await aiManager.video(
-              currentApiKey,
-              prompt,
-              duration,
-              aspectRatio,
-              imageWithRoles,
-              (progress) => {
-                const mappedProgress = 10 + Math.floor(progress * 0.85);
-                updateGroupVideoStatus(group.id, {
-                  videoProgress: mappedProgress,
-                });
-                options?.onProgress?.(mappedProgress);
-              },
-              keyManager,
-              featureConfig.platform,
-              videoResolution,
-              videoRefUrls.length > 0 ? videoRefUrls : undefined,
-              audioRefUrls.length > 0 ? audioRefUrls : undefined,
-              enableAudio,
-              allStaticCamera,
-            );
-            lastVideoError = null;
-            break;
-          } catch (error) {
-            const err = error as Error & { status?: number };
-            lastVideoError = err;
-            const message = err.message || "";
-            const statusMatch = message.match(/\b(4\d\d|5\d\d)\b/);
-            const parsedStatus = typeof err.status === "number"
-              ? err.status
-              : (statusMatch ? Number(statusMatch[1]) : undefined);
-            const alreadyRotatedByInner = typeof err.status === "number"
-              && [400, 401, 403, 429, 500, 502, 503, 529].includes(err.status);
-            const fallbackStatus = /model|模型/i.test(message)
-              && /not support|unsupported|无权限|权限不足|未开通|不可用/i.test(message)
-              ? 400
-              : undefined;
-            const statusForHandle = parsedStatus ?? fallbackStatus;
-            const rotated = alreadyRotatedByInner
-              ? true
-              : (typeof statusForHandle === "number" ? keyManager.handleError(statusForHandle, message) : false);
-            const retryableByMessage = /429|500|502|503|529|too many requests|rate|quota|service unavailable|overloaded|internal server error|server error|上游负载|上游服务|饱和|暂时不可用|服务暂时不可用|api key|无效|过期|model|模型|不支持|权限|未开通/.test(message.toLowerCase());
-            const canRetry = attempt < maxVideoAttempts - 1 && (rotated || retryableByMessage);
-
-            if (canRetry) {
-              console.warn(`[SClassGen] Group video retry with next key (${attempt + 1}/${maxVideoAttempts})`, {
-                groupId: group.id,
-                status: statusForHandle,
-                message: message.substring(0, 160),
-              });
-              continue;
-            }
-            throw err;
-          }
-        }
-
-        if (!videoUrl) {
-          throw lastVideoError || new Error("视频生成失败：没有可用 API Key");
-        }
-
+        const videoUrl = await runSClassVideoWithKeyRotation({
+          keyManager,
+          label: "Group video",
+          context: { groupId: group.id },
+          invoke: (currentApiKey) => aiManager.video(
+            currentApiKey,
+            prompt,
+            duration,
+            aspectRatio,
+            imageWithRoles,
+            (progress) => {
+              const mappedProgress = 10 + Math.floor(progress * 0.85);
+              updateGroupVideoStatus(group.id, { videoProgress: mappedProgress });
+              options?.onProgress?.(mappedProgress);
+            },
+            keyManager,
+            featureConfig.platform,
+            videoResolution,
+            videoRefUrls.length > 0 ? videoRefUrls : undefined,
+            audioRefUrls.length > 0 ? audioRefUrls : undefined,
+            enableAudio,
+            allStaticCamera,
+          ),
+        });
         // 7. 保存视频到本地
         const localUrl = await saveVideoLocally(
           videoUrl,
@@ -429,24 +263,19 @@ export function useSClassGeneration() {
         });
 
         // 9. 记录历史
-        const record: GenerationRecord = {
-          id: `gen_${Date.now()}_${group.id}`,
-          timestamp: Date.now(),
+        const record = createSClassGenerationRecord({
+          group,
           prompt,
           videoUrl: localUrl,
-          status: "completed",
-          error: null,
           assetRefs: [
             ...promptResult.refs.images,
             ...promptResult.refs.videos,
             ...promptResult.refs.audios,
           ],
-          config: {
-            aspectRatio,
-            resolution: videoResolution,
-            duration: duration as SClassDuration,
-          },
-        };
+          aspectRatio,
+          resolution: videoResolution,
+          duration,
+        });
         addGroupHistory(group.id, record);
 
         return {
@@ -484,7 +313,6 @@ export function useSClassGeneration() {
       scenes,
       updateGroupVideoStatus,
       addGroupHistory,
-      prepareImageUrls,
       updateShotGroup,
       addShotGroup,
     ]
@@ -503,87 +331,13 @@ export function useSClassGeneration() {
       }
 
       const projectData = getProjectData(projectId);
-      const groups = projectData.shotGroups;
-
-      if (groups.length === 0) {
-        toast.error("没有镜头组");
-        return [];
-      }
-
-      // 过滤需要生成的组（idle 或 failed）
-      const groupsToGenerate = groups.filter(
-        (g) => g.videoStatus === "idle" || g.videoStatus === "failed"
-      );
-
-      if (groupsToGenerate.length === 0) {
-        toast.info("所有镜头组已生成或正在生成中");
-        return [];
-      }
-
       abortRef.current = false;
-      const results: GroupGenerationResult[] = [];
-
-      toast.info(
-        `开始逐组生成 ${groupsToGenerate.length} 个镜头组视频...`
-      );
-
-      for (let i = 0; i < groupsToGenerate.length; i++) {
-        if (abortRef.current) {
-          toast.warning("已中止批量生成");
-          break;
-        }
-
-        const group = groupsToGenerate[i];
-
-        onBatchProgress?.({
-          total: groupsToGenerate.length,
-          completed: i,
-          current: group.id,
-          results,
-        });
-
-        const result = await generateGroupVideo(group, {
-          onProgress: (progress) => {
-            onBatchProgress?.({
-              total: groupsToGenerate.length,
-              completed: i,
-              current: group.id,
-              results,
-            });
-          },
-        });
-
-        results.push(result);
-
-        if (result.success) {
-          toast.success(
-            `组 ${i + 1}/${groupsToGenerate.length} 「${group.name}」生成完成`
-          );
-        } else {
-          toast.error(
-            `组 ${i + 1}/${groupsToGenerate.length} 「${group.name}」失败: ${result.error}`
-          );
-        }
-      }
-
-      onBatchProgress?.({
-        total: groupsToGenerate.length,
-        completed: groupsToGenerate.length,
-        current: null,
-        results,
+      return runSClassBatchGeneration({
+        groups: projectData.shotGroups,
+        isAborted: () => abortRef.current,
+        generateGroup: generateGroupVideo,
+        onBatchProgress,
       });
-
-      const successCount = results.filter((r) => r.success).length;
-      const failCount = results.filter((r) => !r.success).length;
-      if (failCount === 0) {
-        toast.success(`全部 ${successCount} 个镜头组生成完成 🎬`);
-      } else {
-        toast.warning(
-          `生成完毕：${successCount} 成功，${failCount} 失败`
-        );
-      }
-
-      return results;
     },
     [activeProjectId, getProjectData, generateGroupVideo]
   );
@@ -597,137 +351,9 @@ export function useSClassGeneration() {
         toast.error("未找到分镜");
         return false;
       }
-
-      const featureConfig = aiManager.featureConfig("video_generation");
-      if (!featureConfig) {
-        toast.error(aiManager.featureNotConfiguredMessage("video_generation"));
-        return false;
-      }
-
-      const keyManager = featureConfig.keyManager;
-      if (!keyManager.getCurrentKey()) {
-        toast.error("请先在设置中配置视频生成 API Key");
-        return false;
-      }
-      const projectId = activeProjectId;
-      if (!projectId) return false;
-
-      // 从 director-store 直读共享配置（与 generateGroupVideo 保持一致）
-      const dirState = useDirectorStore.getState();
-      const dirProj = dirState.projects[dirState.activeProjectId || ''];
-      const sbConfig = dirProj?.storyboardConfig;
-      const singleAspectRatio = (sbConfig?.aspectRatio || '16:9') as SClassAspectRatio;
-      const singleVideoRes = (sbConfig?.videoResolution || '720p') as SClassResolution;
-
-      updateSingleShotVideo(sceneId, {
-        videoStatus: "generating",
-        videoProgress: 0,
-        videoError: null,
-      });
-
-      try {
-        // 构建 imageWithRoles
-        const firstFrameUrl = scene.imageDataUrl || scene.imageHttpUrl || undefined;
-        const imageWithRoles = await buildImageWithRoles(
-          firstFrameUrl,
-          undefined
-        );
-
-        const prompt =
-          scene.videoPrompt ||
-          scene.videoPromptZh ||
-          `分镜 ${scene.id + 1} 视频`;
-        const duration = Math.max(4, Math.min(15, scene.duration || 5));
-
-        const maxVideoAttempts = Math.max(1, Math.min(keyManager.getTotalKeyCount(), 6));
-        let videoUrl: string | null = null;
-        let lastVideoError: Error | null = null;
-
-        for (let attempt = 0; attempt < maxVideoAttempts; attempt++) {
-          const currentApiKey = keyManager.getCurrentKey() || "";
-          if (!currentApiKey) break;
-
-          try {
-            videoUrl = await aiManager.video(
-              currentApiKey,
-              prompt,
-              duration,
-              singleAspectRatio,
-              imageWithRoles,
-              (progress) => {
-                updateSingleShotVideo(sceneId, { videoProgress: progress });
-              },
-              keyManager,
-              featureConfig.platform,
-              singleVideoRes
-            );
-            lastVideoError = null;
-            break;
-          } catch (error) {
-            const err = error as Error & { status?: number };
-            lastVideoError = err;
-            const message = err.message || "";
-            const statusMatch = message.match(/\b(4\d\d|5\d\d)\b/);
-            const parsedStatus = typeof err.status === "number"
-              ? err.status
-              : (statusMatch ? Number(statusMatch[1]) : undefined);
-            const alreadyRotatedByInner = typeof err.status === "number"
-              && [400, 401, 403, 429, 500, 502, 503, 529].includes(err.status);
-            const fallbackStatus = /model|模型/i.test(message)
-              && /not support|unsupported|无权限|权限不足|未开通|不可用/i.test(message)
-              ? 400
-              : undefined;
-            const statusForHandle = parsedStatus ?? fallbackStatus;
-            const rotated = alreadyRotatedByInner
-              ? true
-              : (typeof statusForHandle === "number" ? keyManager.handleError(statusForHandle, message) : false);
-            const retryableByMessage = /429|500|502|503|529|too many requests|rate|quota|service unavailable|overloaded|internal server error|server error|上游负载|上游服务|饱和|暂时不可用|服务暂时不可用|api key|无效|过期|model|模型|不支持|权限|未开通/.test(message.toLowerCase());
-            const canRetry = attempt < maxVideoAttempts - 1 && (rotated || retryableByMessage);
-
-            if (canRetry) {
-              console.warn(`[SClassGen] Single shot retry with next key (${attempt + 1}/${maxVideoAttempts})`, {
-                sceneId,
-                status: statusForHandle,
-                message: message.substring(0, 160),
-              });
-              continue;
-            }
-            throw err;
-          }
-        }
-
-        if (!videoUrl) {
-          throw lastVideoError || new Error("视频生成失败：没有可用 API Key");
-        }
-
-        const localUrl = await saveVideoLocally(videoUrl, sceneId);
-
-        updateSingleShotVideo(sceneId, {
-          videoStatus: "completed",
-          videoProgress: 100,
-          videoUrl: localUrl,
-          videoError: null,
-        });
-
-        toast.success(`分镜 ${sceneId + 1} 生成完成`);
-        return true;
-      } catch (error) {
-        const err = error as Error;
-        updateSingleShotVideo(sceneId, {
-          videoStatus: "failed",
-          videoProgress: 0,
-          videoError: err.message,
-        });
-        toast.error(`分镜 ${sceneId + 1} 生成失败: ${err.message}`);
-        return false;
-      }
+      return runSClassSingleShotGeneration({ scene, activeProjectId, updateSingleShotVideo });
     },
-    [
-      splitScenes,
-      activeProjectId,
-      getProjectData,
-      updateSingleShotVideo,
-    ]
+    [splitScenes, activeProjectId, updateSingleShotVideo]
   );
 
   // ========== 中止 ==========

@@ -23,6 +23,11 @@ import {
   validateAutoEditingRun,
   validateEditingProject,
 } from "./validation";
+import {
+  findReusableDraft,
+  staleProjectIds,
+  validateInputScope,
+} from "./auto-editing-planning";
 
 export const STORY_DRIVEN_V1_PRESET = {
   version: 1,
@@ -317,81 +322,6 @@ function createRun(input: RunAutoEditingDraftInput): AutoEditingRun {
     startedAt,
     updatedAt: startedAt,
   };
-}
-
-function validateInputScope(
-  input: RunAutoEditingDraftInput,
-): AutoEditingWarning | null {
-  if (
-    input.request.projectId !== input.adapterInput.projectId ||
-    input.request.episodeId !== input.adapterInput.episodeId
-  ) {
-    return warning(
-      "editing.auto.request_scope",
-      "一键剪辑 request 与分镜输入的 project/episode 不一致",
-      false,
-    );
-  }
-  if (!input.runId.trim() || !input.editingProjectId.trim()) {
-    return warning(
-      "editing.auto.id_required",
-      "一键剪辑 runId 和 editingProjectId 不能为空",
-      false,
-    );
-  }
-  const preset = input.request.preset;
-  if (
-    preset.id !== "story-driven-v1" ||
-    preset.version !== 1 ||
-    !positiveSafeInteger(preset.voiceTailPaddingUs) ||
-    !positiveSafeInteger(preset.maxTransitionUs) ||
-    !Number.isFinite(preset.maxTransitionRatio) ||
-    preset.maxTransitionRatio <= 0 ||
-    preset.maxTransitionRatio > 1 ||
-    !Number.isFinite(preset.imageScaleFrom) ||
-    !Number.isFinite(preset.imageScaleTo) ||
-    preset.imageScaleFrom <= 0 ||
-    preset.imageScaleTo <= 0
-  ) {
-    return warning(
-      "editing.auto.preset_invalid",
-      "story-driven-v1 preset 参数无效",
-      false,
-    );
-  }
-  return null;
-}
-
-function findReusableDraft(input: RunAutoEditingDraftInput) {
-  return [...input.existingProjects]
-    .filter(
-      (project) =>
-        project.projectId === input.request.projectId &&
-        project.episodeId === input.request.episodeId &&
-        project.createdBy === "auto" &&
-        !project.manuallyEdited &&
-        !project.stale &&
-        project.sourceSnapshotHash === input.adapterInput.sourceSnapshotHash,
-    )
-    .sort(
-      (left, right) =>
-        left.createdAt - right.createdAt || left.id.localeCompare(right.id),
-    )
-    .at(-1);
-}
-
-function staleProjectIds(input: RunAutoEditingDraftInput) {
-  return input.existingProjects
-    .filter(
-      (project) =>
-        project.projectId === input.request.projectId &&
-        project.episodeId === input.request.episodeId &&
-        project.createdBy === "auto" &&
-        !project.stale &&
-        project.sourceSnapshotHash !== input.adapterInput.sourceSnapshotHash,
-    )
-    .map((project) => project.id)
-    .sort();
 }
 
 function sourceAndDurationDecisions(

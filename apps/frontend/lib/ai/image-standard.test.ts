@@ -165,4 +165,24 @@ describe("image standard request helpers", () => {
       prompt: expect.stringContaining("clean image"),
     }));
   });
+
+  it("rejects unprepared local references before the AI SDK call", async () => {
+    generateImageMock.mockClear();
+
+    const result = await sdkGenerateImage({
+      provider: {
+        id: "relay",
+        platform: "openai-compatible",
+        name: "Relay",
+        baseUrl: "https://relay.example.com/v1",
+        apiKey: "sk-test",
+      },
+      model: "gpt-image-2",
+      prompt: "old laborer character",
+      referenceImages: ["file:///original.png"],
+    });
+
+    expect(result).toMatchObject({ success: false, error: expect.stringContaining("完成缩略") });
+    expect(generateImageMock).not.toHaveBeenCalled();
+  });
 });

@@ -1,11 +1,16 @@
-﻿// Copyright (c) 2025 hotflow2024
+// Copyright (c) 2025 hotflow2024
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { createProjectScopedStorage } from "@/lib/project-storage";
-import { DEFAULT_STYLE_ID } from "@/lib/constants/visual-styles";
 import type { ScriptData, Shot, Episode, ScriptScene, ScriptCharacter, EpisodeRawScript, ProjectBackground, PromptLanguage, CalibrationStrictness, FilteredCharacterRecord, SeriesMeta } from "@/types/script";
+import {
+  cloneScriptCharacters,
+  createDefaultScriptProjectData,
+  createScriptPersistOptions,
+  defaultScriptInputDraft,
+} from "./script-store-persistence";
 
 export type ParseStatus = "idle" | "parsing" | "ready" | "error";
 export type ShotListStatus = "idle" | "generating" | "ready" | "error";
@@ -63,8 +68,8 @@ export interface ScriptProjectData {
   targetDuration: string;
   styleId: string;
   inputDraft: ScriptInputDraft;
-  sceneCount?: string; // 鍦烘櫙鏁伴噺锛堝彲閫夛級
-  shotCount?: string;  // 鍒嗛暅鏁伴噺锛堝彲閫夛級
+  sceneCount?: string; // 场景数量（可选）
+  shotCount?: string;  // 分镜数量（可选）
   scriptData: ScriptData | null;
   parseStatus: ParseStatus;
   parseError?: string;
@@ -75,24 +80,24 @@ export interface ScriptProjectData {
   characterIdMap: Record<string, string>; // scriptCharId -> characterId
   sceneIdMap: Record<string, string>; // scriptSceneId -> sceneId
   updatedAt: number;
-  // 鏂板锛氬畬鏁村墽鏈瓨鍌?
-  projectBackground: ProjectBackground | null;  // 椤圭洰鑳屾櫙锛堝ぇ绾层€佷汉鐗╁皬浼犵瓑锛?
-  episodeRawScripts: EpisodeRawScript[];        // 鍚勯泦鍘熷鍓ф湰鍐呭
-  metadataMarkdown: string;                     // 鑷姩鐢熸垚鐨勯」鐩厓鏁版嵁 MD锛堜綔涓?AI 鐢熸垚鐨勫叏灞€鍙傝€冿級
-  metadataGeneratedAt?: number;                 // 鍏冩暟鎹敓鎴愭椂闂?
-  promptLanguage: PromptLanguage;               // 鎻愮ず璇嶈瑷€閫夐」锛堥粯璁や粎涓枃锛?
-  calibrationStrictness: CalibrationStrictness;  // AI瑙掕壊鏍″噯涓ユ牸搴?
-  lastFilteredCharacters: FilteredCharacterRecord[];  // 涓婃鏍″噯琚繃婊ょ殑瑙掕壊锛堢敤浜庢仮澶嶏級
-  calibrationState: ScriptCalibrationState;           // 鏍″噯浠诲姟鐘舵€侊紙鎸佷箙鍖栵紝鏀寔鍒囨崲鏉垮潡鎭㈠锛?
-  seriesMeta: SeriesMeta | null;                      // 鍓х骇鍏冩暟鎹紙璺ㄩ泦鍏变韩锛?
+  // 完整剧本数据
+  projectBackground: ProjectBackground | null;  // 项目背景（大纲、人物小传等）
+  episodeRawScripts: EpisodeRawScript[];        // 各集原始剧本文本
+  metadataMarkdown: string;                     // 自动生成的项目元数据 Markdown（供 AI 生成使用）
+  metadataGeneratedAt?: number;                 // 元数据生成时间
+  promptLanguage: PromptLanguage;               // 提示词语言（默认中文）
+  calibrationStrictness: CalibrationStrictness;  // AI 角色校准严格度
+  lastFilteredCharacters: FilteredCharacterRecord[];  // 上次校准被过滤的角色（用于恢复）
+  calibrationState: ScriptCalibrationState;           // 校准任务状态（持久化，支持切换面板后恢复）
+  seriesMeta: SeriesMeta | null;                      // 剧集元数据（跨集共享）
 }
 
-interface ScriptStoreState {
+export interface ScriptStoreState {
   activeProjectId: string | null;
   projects: Record<string, ScriptProjectData>;
 }
 
-interface ScriptStoreActions {
+export interface ScriptStoreActions {
   setActiveProjectId: (id: string | null) => void;
   ensureProject: (projectId: string) => void;
   setRawScript: (projectId: string, rawScript: string) => void;
@@ -114,7 +119,7 @@ interface ScriptStoreActions {
   addEpisode: (projectId: string, episode: Episode) => void;
   updateEpisode: (projectId: string, episodeId: string, updates: Partial<Episode>) => void;
   deleteEpisode: (projectId: string, episodeId: string) => void;
-  // Episode Bundle 鍘熷瓙鎿嶄綔锛堝悓姝?scriptData.episodes + episodeRawScripts锛?
+  // Episode Bundle 原子操作（同步 scriptData.episodes 与 episodeRawScripts）
   addEpisodeBundle: (projectId: string, title: string, synopsis?: string) => void;
   deleteEpisodeBundle: (projectId: string, episodeIndex: number) => void;
   reindexEpisodes: (projectId: string) => void;
@@ -130,7 +135,7 @@ interface ScriptStoreActions {
   // Shot CRUD
   addShot: (projectId: string, shot: Shot) => void;
   deleteShot: (projectId: string, shotId: string) => void;
-  // 瀹屾暣鍓ф湰绠＄悊
+// 完整剧本管理
   setProjectBackground: (projectId: string, background: ProjectBackground) => void;
   setEpisodeRawScripts: (projectId: string, scripts: EpisodeRawScript[]) => void;
   updateEpisodeRawScript: (projectId: string, episodeIndex: number, updates: Partial<EpisodeRawScript>) => void;
@@ -144,125 +149,9 @@ interface ScriptStoreActions {
   updateSeriesMeta: (projectId: string, updates: Partial<SeriesMeta>) => void;
 }
 
-type ScriptStore = ScriptStoreState & ScriptStoreActions;
+export type ScriptStore = ScriptStoreState & ScriptStoreActions;
 
-const defaultInputDraft: ScriptInputDraft = {
-  mode: "import",
-  idea: "",
-  updatedAt: 0,
-};
-
-const defaultProjectData = (): ScriptProjectData => ({
-  rawScript: "",
-  language: "涓枃",
-  targetDuration: "60s",
-  styleId: DEFAULT_STYLE_ID,
-  inputDraft: { ...defaultInputDraft },
-  sceneCount: undefined,
-  shotCount: undefined,
-  scriptData: null,
-  parseStatus: "idle",
-  parseError: undefined,
-  shots: [],
-  shotStatus: "idle",
-  shotError: undefined,
-  batchProgress: null,
-  characterIdMap: {},
-  sceneIdMap: {},
-  updatedAt: Date.now(),
-  // 鏂板榛樿鍊?
-  projectBackground: null,
-  episodeRawScripts: [],
-  metadataMarkdown: '',
-  metadataGeneratedAt: undefined,
-  promptLanguage: 'zh',
-  calibrationStrictness: 'normal',
-  lastFilteredCharacters: [],
-  calibrationState: defaultCalibrationState(),
-  seriesMeta: null,
-});
-
-const pendingCharacterRecoveryProjectIds = new Set<string>();
-
-const cloneScriptCharacters = (characters: ScriptCharacter[] | undefined): ScriptCharacter[] => {
-  if (!Array.isArray(characters) || characters.length === 0) {
-    return [];
-  }
-
-  return characters
-    .filter((character): character is ScriptCharacter => Boolean(character?.name))
-    .map((character, index) => ({
-      ...character,
-      id: character.id || `char_recovered_${index + 1}`,
-      name: character.name.trim(),
-      tags: Array.isArray(character.tags)
-        ? [...new Set(character.tags.filter(Boolean))]
-        : character.tags,
-    }));
-};
-
-const normalizeScriptProjectData = (projectId: string, projectData: any): ScriptProjectData => {
-  const defaults = defaultProjectData();
-  const defaultCalibration = defaultCalibrationState();
-  const normalizedProject: ScriptProjectData = {
-    ...defaults,
-    ...projectData,
-    inputDraft: {
-      ...defaultInputDraft,
-      ...(projectData?.inputDraft || {}),
-    },
-    calibrationState: {
-      ...defaultCalibration,
-      ...(projectData?.calibrationState || {}),
-      singleShotCalibrationStatus: {
-        ...defaultCalibration.singleShotCalibrationStatus,
-        ...(projectData?.calibrationState?.singleShotCalibrationStatus || {}),
-      },
-      pendingCalibrationCharacters: Array.isArray(projectData?.calibrationState?.pendingCalibrationCharacters)
-        ? projectData.calibrationState.pendingCalibrationCharacters
-        : null,
-      pendingFilteredCharacters: Array.isArray(projectData?.calibrationState?.pendingFilteredCharacters)
-        ? projectData.calibrationState.pendingFilteredCharacters
-        : [],
-    },
-  };
-
-  const recoveredCharacters = cloneScriptCharacters(normalizedProject.seriesMeta?.characters);
-  if (
-    normalizedProject.scriptData &&
-    (!Array.isArray(normalizedProject.scriptData.characters) || normalizedProject.scriptData.characters.length === 0) &&
-    recoveredCharacters.length > 0
-  ) {
-    normalizedProject.scriptData = {
-      ...normalizedProject.scriptData,
-      characters: recoveredCharacters,
-    };
-    pendingCharacterRecoveryProjectIds.add(projectId);
-  }
-
-  return normalizedProject;
-};
-
-const flushRecoveredCharactersToDisk = (state: ScriptStore | undefined) => {
-  if (!state || pendingCharacterRecoveryProjectIds.size === 0) {
-    return;
-  }
-
-  for (const projectId of Array.from(pendingCharacterRecoveryProjectIds)) {
-    const project = state.projects[projectId];
-    const characters = cloneScriptCharacters(project?.scriptData?.characters);
-    if (!project?.scriptData || characters.length === 0) {
-      pendingCharacterRecoveryProjectIds.delete(projectId);
-      continue;
-    }
-
-    state.setScriptData(projectId, {
-      ...project.scriptData,
-      characters,
-    });
-    pendingCharacterRecoveryProjectIds.delete(projectId);
-  }
-};
+const defaultProjectData = createDefaultScriptProjectData;
 
 export const useScriptStore = create<ScriptStore>()(
   persist(
@@ -344,7 +233,7 @@ export const useScriptStore = create<ScriptStore>()(
             [projectId]: {
               ...state.projects[projectId],
               inputDraft: {
-                ...(state.projects[projectId]?.inputDraft || defaultInputDraft),
+                ...(state.projects[projectId]?.inputDraft || defaultScriptInputDraft),
                 ...draft,
                 updatedAt: Date.now(),
               },
@@ -565,7 +454,7 @@ export const useScriptStore = create<ScriptStore>()(
         });
       },
 
-      // ==================== Episode Bundle 鍘熷瓙鎿嶄綔 ====================
+      // ==================== Episode Bundle 原子操作 ====================
 
       addEpisodeBundle: (projectId, title, synopsis) => {
         get().ensureProject(projectId);
@@ -885,7 +774,7 @@ export const useScriptStore = create<ScriptStore>()(
         });
       },
 
-      // 瀹屾暣鍓ф湰绠＄悊鏂规硶
+      // 完整剧本管理方法
       setProjectBackground: (projectId, background) => {
         get().ensureProject(projectId);
         set((state) => ({
@@ -1095,53 +984,9 @@ export const useScriptStore = create<ScriptStore>()(
         });
       },
     }),
-    {
-      name: "mystudio-script-store",
-      storage: createJSONStorage(() => createProjectScopedStorage('script')),
-      partialize: (state) => {
-        const pid = state.activeProjectId;
-        if (!pid || !state.projects[pid]) return { activeProjectId: pid };
-        return {
-          activeProjectId: pid,
-          projectData: state.projects[pid],
-        };
-      },
-      merge: (persisted: any, current: any) => {
-        if (!persisted) return current;
-        
-        // Legacy format: has `projects` as Record (from old monolithic file)
-        if (persisted.projects && typeof persisted.projects === 'object') {
-          const normalizedProjects: Record<string, ScriptProjectData> = {};
-          for (const [projectId, projectData] of Object.entries(persisted.projects)) {
-            normalizedProjects[projectId] = normalizeScriptProjectData(projectId, projectData);
-          }
-          return {
-            ...current,
-            ...persisted,
-            projects: normalizedProjects,
-          };
-        }
-        
-        // New per-project format: has `projectData` for single project
-        const { activeProjectId: pid, projectData } = persisted;
-        if (!pid || !projectData) return current;
-        
-        return {
-          ...current,
-          activeProjectId: pid,
-          projects: { ...current.projects, [pid]: normalizeScriptProjectData(pid, projectData) },
-        };
-      },
-      onRehydrateStorage: () => (state, error) => {
-        if (error || pendingCharacterRecoveryProjectIds.size === 0) {
-          return;
-        }
-
-        queueMicrotask(() => {
-          flushRecoveredCharactersToDisk(state as ScriptStore | undefined);
-        });
-      },
-    }
+    createScriptPersistOptions<ScriptStore>(
+      createJSONStorage(() => createProjectScopedStorage("script")),
+    ),
   )
 );
 
@@ -1152,4 +997,3 @@ export const useActiveScriptProject = (): ScriptProjectData | null => {
     return state.projects[id] || null;
   });
 };
-

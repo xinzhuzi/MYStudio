@@ -2,6 +2,23 @@ import { describe, expect, it, vi } from "vitest";
 import { discoverProjectsFromDisk, recoverProjectFromDisk, useProjectStore } from "./project-store";
 
 describe("project disk recovery", () => {
+  it("deletes project state without touching window outside the renderer", () => {
+    const previousWindow = globalThis.window;
+    Reflect.deleteProperty(globalThis, "window");
+    useProjectStore.setState({
+      projects: [{ id: "p-delete", name: "待删除", createdAt: 1, updatedAt: 1 }],
+      activeProjectId: "p-delete",
+      activeProject: { id: "p-delete", name: "待删除", createdAt: 1, updatedAt: 1 },
+    });
+
+    try {
+      expect(() => useProjectStore.getState().deleteProject("p-delete")).not.toThrow();
+      expect(useProjectStore.getState().projects).toEqual([]);
+    } finally {
+      (globalThis as unknown as { window: Window | undefined }).window = previousWindow;
+    }
+  });
+
   it("skips disk discovery outside the renderer environment", async () => {
     const previousWindow = globalThis.window;
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);

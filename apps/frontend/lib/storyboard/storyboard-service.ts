@@ -13,6 +13,7 @@ import { calculateGrid, type AspectRatio, type Resolution, RESOLUTION_PRESETS } 
 import { retryOperation } from "@/lib/utils/retry";
 import { delay, RATE_LIMITS } from "@/lib/utils/rate-limiter";
 import { aiManager } from '@/lib/ai/ai-manager';
+import { prepareReferenceImagesForTransfer } from '@/lib/ai/image-transfer';
 
 export interface StoryboardGenerationConfig {
   storyPrompt: string;
@@ -353,17 +354,16 @@ async function submitVideoGenTask(
     role: 'first_frame' | 'last_frame' | 'reference_image';
   }
 
-  const roles: ImageWithRole[] = [];
-
-  // First image as first_frame
-  roles.push({ url: imageInput, role: 'first_frame' });
-
-  // Add character reference images (max 4)
-  if (referenceImages && referenceImages.length > 0) {
-    const maxRefs = Math.min(referenceImages.length, 4);
-    for (let i = 0; i < maxRefs; i++) {
-      roles.push({ url: referenceImages[i], role: 'reference_image' });
-    }
+  const preparedImages = await prepareReferenceImagesForTransfer([
+    imageInput,
+    ...(referenceImages || []).slice(0, 4),
+  ]);
+  if (!preparedImages?.length) {
+    throw new Error('分镜视频缺少可发送的首帧');
+  }
+  const roles: ImageWithRole[] = [{ url: preparedImages[0], role: 'first_frame' }];
+  for (const referenceImage of preparedImages.slice(1)) {
+    roles.push({ url: referenceImage, role: 'reference_image' });
   }
 
   const requestBody: Record<string, unknown> = {

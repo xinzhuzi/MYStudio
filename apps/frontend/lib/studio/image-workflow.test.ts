@@ -248,6 +248,58 @@ describe("image workflow graph", () => {
     });
   });
 
+  it("groups multiple character views as one in-frame identity", () => {
+    const graph = createStoryboardImageWorkflowGraph({
+      storyboard: {
+        id: "shot-11",
+        index: 11,
+        prompt: "小杂役滚入船影。",
+        continuityState: {
+          groupId: "dock-1",
+          previousStoryboardId: "shot-10",
+          sceneVersionId: "dock:morning",
+          sceneViewpointId: "dock-main-axis",
+          lighting: "冷青晨雾",
+          palette: "墨青灰蓝",
+          actionIn: "小杂役贴地滚动",
+          actionOut: "小杂役缩进船影",
+          characters: [{
+            characterId: "char-helper",
+            versionId: "char-helper:dock-ragged:v1",
+            position: "右后格",
+            orientation: "背部三分之四朝右",
+            actionIn: "贴地滚动",
+            actionOut: "缩进船影",
+          }],
+          inputFingerprint: "fingerprint",
+        },
+      },
+      prompt: "小杂役滚入船影。",
+      resultImagePath: "project-file://dao/shot-11.png",
+      projectName: "道劫",
+      model: "gpt-image-2",
+      referenceImages: ["front", "side", "back"].map((view, index) => ({
+        assetId: "char-helper",
+        assetType: "character" as const,
+        title: "小杂役",
+        imageUrl: `project-file://dao/helper-${view}.png`,
+        order: index + 1,
+        versionId: "char-helper:dock-ragged:v1",
+        referenceRole: "canonical" as const,
+        characterViewType: view as "front" | "side" | "back",
+        identityAnchors: { faceShape: "清瘦少年脸", uniqueMarks: ["凌乱及肩黑发"] },
+      })),
+    });
+    const generated = graph.nodes.find((node) => node.type === "generated");
+    const request = buildImageWorkflowGenerationRequest(graph, generated?.id || "");
+
+    expect(request.referenceImages).toHaveLength(3);
+    expect(request.prompt).toContain("【多视图身份锁】");
+    expect(request.prompt).toContain("@图1/@图2/@图3 为小杂役同一角色、同一版本的 front/side/back 参考视图");
+    expect(request.prompt).toContain("不是三个人");
+    expect(request.prompt).toContain("该角色在本镜只允许出现一个实例");
+  });
+
   it("produces a derived asset patch with Toonflow-style flow traceability", () => {
     let graph = createImageWorkflowGraph({
       id: "asset-flow-1",

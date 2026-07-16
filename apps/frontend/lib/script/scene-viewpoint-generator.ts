@@ -9,6 +9,12 @@
  */
 
 import type { ScriptScene, Shot } from '@/types/script';
+import {
+  detectEnvironmentType as detectEnvironment,
+  type EnvironmentKeywords,
+  type SceneEnvironmentType,
+} from './scene-environment';
+export type { SceneEnvironmentType } from './scene-environment';
 
 // ==================== 类型定义 ====================
 
@@ -56,16 +62,7 @@ export interface ContactSheetPromptResult {
 /**
  * 场景环境类型
  */
-export type SceneEnvironmentType = 
-  | 'vehicle'        // 现代交通工具（大巴、汽车、火车、飞机等）
-  | 'outdoor'        // 现代户外（公路、街道、公园等）
-  | 'indoor_home'    // 现代室内家居
-  | 'indoor_work'    // 现代室内办公/商业
-  | 'indoor_public'  // 现代室内公共（医院、学校、餐厅等）
-  | 'ancient_indoor' // 古代室内（宫殿、府邸、客栈、寺庙等）
-  | 'ancient_outdoor'// 古代户外（官道、集市、城门等）
-  | 'ancient_vehicle'// 古代交通（马车、轿子、船等）
-  | 'unknown';       // 未知
+// SceneEnvironmentType is re-exported above for backwards compatibility.
 
 /**
  * 环境类型关键词检测
@@ -146,45 +143,11 @@ const ENVIRONMENT_KEYWORDS: Record<SceneEnvironmentType, string[]> = {
 /**
  * 清理场景地点字符串，移除人物信息等无关内容
  */
-function cleanLocationString(location: string): string {
-  // 移除 "人物：XXX" 部分
-  let cleaned = location.replace(/\s*人物[：:].*/g, '');
-  // 移除 "角色：XXX" 部分
-  cleaned = cleaned.replace(/\s*角色[：:].*/g, '');
-  // 移除 "时间：XXX" 部分
-  cleaned = cleaned.replace(/\s*时间[：:].*/g, '');
-  // 去除首尾空白
-  return cleaned.trim();
-}
-
 /**
  * 从场景地点推断环境类型
  */
 export function detectEnvironmentType(location: string): SceneEnvironmentType {
-  // 先清理地点字符串
-  const cleanedLocation = cleanLocationString(location);
-  const normalizedLocation = cleanedLocation.toLowerCase();
-  
-  console.log(`[detectEnvironmentType] 原始: "${location}" -> 清理后: "${cleanedLocation}"`);
-  
-  // 按优先级检测：古代 > 现代交通 > 户外 > 室内公共 > 室内办公 > 室内家居
-  const priorities: SceneEnvironmentType[] = [
-    'ancient_vehicle', 'ancient_indoor', 'ancient_outdoor',  // 古代优先
-    'vehicle', 'outdoor', 'indoor_public', 'indoor_work', 'indoor_home'
-  ];
-  
-  for (const envType of priorities) {
-    const keywords = ENVIRONMENT_KEYWORDS[envType];
-    for (const keyword of keywords) {
-      if (normalizedLocation.includes(keyword)) {
-        console.log(`[detectEnvironmentType] 匹配到关键词 "${keyword}" -> 环境类型: ${envType}`);
-        return envType;
-      }
-    }
-  }
-  
-  console.log(`[detectEnvironmentType] 未匹配到任何关键词 -> unknown`);
-  return 'unknown';
+  return detectEnvironment(location, ENVIRONMENT_KEYWORDS as EnvironmentKeywords);
 }
 
 // ==================== 视角关键词映射 ====================

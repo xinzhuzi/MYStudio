@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const mainSource = readFileSync(new URL("./main.ts", import.meta.url), "utf8");
+const protocolSource = readFileSync(new URL("./register-protocol-handlers.ts", import.meta.url), "utf8");
 const diagnosticsIpcSource = readFileSync(new URL("./ipc/diagnostics-ipc.ts", import.meta.url), "utf8");
 const appUpdaterIpcSource = readFileSync(new URL("./ipc/app-updater-ipc.ts", import.meta.url), "utf8");
 const projectFileIpcSource = readFileSync(new URL("./ipc/project-file-ipc.ts", import.meta.url), "utf8");
@@ -13,7 +14,7 @@ describe("main process startup", () => {
   it("does not auto-start the TTS backend when the app becomes ready", () => {
     const readyBlock = mainSource.slice(
       mainSource.indexOf("app.whenReady().then"),
-      mainSource.indexOf("protocol.handle('local-image'"),
+      mainSource.indexOf("  registerProtocolHandlers({"),
     );
 
     expect(readyBlock).not.toContain("ttsRuntimeController.start()");
@@ -22,7 +23,7 @@ describe("main process startup", () => {
   it("does not initialize the independent asset library before asset IPC is used", () => {
     const readyBlock = mainSource.slice(
       mainSource.indexOf("app.whenReady().then"),
-      mainSource.indexOf("protocol.handle('local-image'"),
+      mainSource.indexOf("  registerProtocolHandlers({"),
     );
     expect(readyBlock).not.toContain("assetsStorage.initAssetsStorage");
     expect(mainSource).toContain("registerAssetLibraryIpcHandlers");
@@ -59,7 +60,7 @@ describe("main process startup", () => {
     );
     const readyBlock = mainSource.slice(
       mainSource.indexOf("app.whenReady().then"),
-      mainSource.indexOf("protocol.handle('local-image'"),
+      mainSource.indexOf("  registerProtocolHandlers({"),
     );
 
     expect(mainSource).toContain(
@@ -83,8 +84,10 @@ describe("main process startup", () => {
   });
 
   it("registers project-file protocol for project-scoped workflow assets", () => {
-    expect(mainSource).toContain("scheme: 'project-file'");
-    expect(mainSource).toContain("protocol.handle('project-file'");
+    expect(mainSource).toContain("registerPrivilegedSchemes(protocol)");
+    expect(mainSource).toContain("registerProtocolHandlers({");
+    expect(protocolSource).toContain('"project-file"');
+    expect(protocolSource).toContain('protocol.handle("project-file"');
     expect(mainSource).toContain("registerProjectFileIpcHandlers");
     expect(projectFileIpcSource).toContain('ipcMain.handle("project-file-write-binary"');
     expect(projectFileIpcSource).toContain('ipcMain.handle("project-file-save-image"');

@@ -1,1 +1,4 @@
-{"_example": "Fill with {\"file\": \"<path>\", \"reason\": \"<why>\"}. Put spec/research files only — no code paths. Run `python3 .trellis/scripts/get_context.py --mode packages` to list available specs. Delete this line once real entries are added."}
+{"file":".trellis/spec/guides/image-transfer-safety-guide.md","reason":"Check every transfer path against the strict thumbnail contract."}
+{"file":".trellis/spec/frontend/quality-guidelines.md","reason":"Requires focused tests, typecheck, lint, and full Vitest without silent fallback."}
+{"file":".trellis/spec/frontend/workflow-auto-video-smoke.md","reason":"Keeps real-media acceptance separate from smoke and provider probes."}
+{"file":".trellis/tasks/07-12-mystudio-chapter001-visual-continuity/prd.md","reason":"Defines the locked Bible-first and sub-1MB acceptance conditions."}

@@ -123,6 +123,7 @@ export interface StudioStaleEvidence {
 export interface StoryboardMediaRef {
   kind: "image" | "video" | "audio";
   path: string;
+  contentSha256?: string;
   imageWorkflowId?: string;
   imageWorkflowNodeId?: string;
 }
@@ -146,17 +147,34 @@ export interface StoryboardOrderedReference {
   imageId?: string | number;
   imagePath?: string;
   referenceImagePaths?: string[];
+  referenceImageSha256?: string[];
   referenceViewTypes?: CharacterReferenceViewType[];
   source?: string;
   missing?: boolean;
   versionId?: string;
-  referenceRole?: "canonical" | "scene-viewpoint" | "prop-state" | "previous-approved-frame";
+  referenceRole?: "canonical" | "scene-viewpoint" | "secondary-scene" | "prop-state" | "previous-approved-frame";
   identityAnchors?: CharacterIdentityAnchors;
   negativePrompt?: CharacterNegativePrompt;
   wardrobeVersion?: string;
   sceneViewpointId?: string;
+  contentFingerprint?: string;
+  approvalFingerprint?: string;
   approved?: boolean;
 }
+
+export interface ContinuityAssetApproval {
+  status: "pending" | "approved" | "rejected";
+  reviewer: "human" | "automated";
+  reviewedAt?: number;
+  reason?: string;
+  evidencePaths: string[];
+  contentFingerprint: string;
+}
+
+export type HumanContinuityAssetApprovalInput = Omit<
+  ContinuityAssetApproval,
+  "reviewer" | "contentFingerprint"
+> & { reviewedAt?: number };
 
 export interface ContinuityAssetVersion {
   assetId: string;
@@ -164,13 +182,25 @@ export interface ContinuityAssetVersion {
   assetKind: "character" | "scene" | "prop";
   label: string;
   referenceImagePaths: string[];
+  referenceImageSha256?: string[];
+  reviewEvidencePaths?: string[];
+  reviewEvidenceSha256?: string[];
+  reviewEvidenceVerifiedAt?: number;
   referenceViewTypes?: CharacterReferenceViewType[];
   identityAnchors?: CharacterIdentityAnchors;
   negativePrompt?: CharacterNegativePrompt;
   wardrobeVersion?: string;
   sceneViewpointId?: string;
+  spatialLayout?: string;
+  lightingDesign?: string;
+  colorPalette?: string;
   validFromStoryboardIndex?: number;
   validToStoryboardIndex?: number;
+  missingFields?: string[];
+  structurallyComplete: boolean;
+  contentFingerprint: string;
+  approval?: ContinuityAssetApproval;
+  approvalFingerprint?: string;
   approved: boolean;
   source: string;
 }
@@ -202,7 +232,9 @@ export interface VisualReviewResult {
   reasons: string[];
   characterChecks: { characterId: string; passed: boolean; reason?: string }[];
   sceneChecks: { sceneVersionId: string; passed: boolean; reason?: string }[];
+  propChecks: { assetId: string; versionId?: string; passed: boolean; reason?: string }[];
   transitionChecks: { previousStoryboardId?: string; passed: boolean; reason?: string }[];
+  textWatermarkCheck: { passed: boolean; reason?: string };
   reviewer: "human" | "automated";
   reviewedAt?: number;
   evidencePaths: string[];

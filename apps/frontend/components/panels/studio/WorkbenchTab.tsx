@@ -42,6 +42,8 @@ export function WorkbenchTab(props: {
   const propsItems = usePropsLibraryStore((state) => state.items);
   const activeProjectId = useProjectStore((state) => state.activeProjectId);
   const reviewStoryboardHuman = useStudioStore((state) => state.reviewStoryboardHuman);
+  const continuityAssetVersions = useStudioStore((state) => state.continuityAssetVersions);
+  const reviewContinuityAssetVersionHuman = useStudioStore((state) => state.reviewContinuityAssetVersionHuman);
   const editing = useEditingWorkbenchActions({
     projectId: props.projectId ?? activeProjectId ?? undefined,
     projectName: props.projectName ?? "漫影工作室",
@@ -71,7 +73,9 @@ export function WorkbenchTab(props: {
     <div className="space-y-3">
       <VisualContinuityReviewPanel
         storyboards={props.storyboards}
+        continuityAssetVersions={continuityAssetVersions}
         onReview={reviewStoryboardHuman}
+        onReviewAsset={reviewContinuityAssetVersionHuman}
       />
       <EditingWorkbench
         project={editing.currentProject}

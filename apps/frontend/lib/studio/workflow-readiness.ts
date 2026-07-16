@@ -183,13 +183,14 @@ export function buildWorkflowReadiness(
   const storyboardReady =
     storyboardVisualReady && hasCharacterVoiceBinding && voiceLineReady;
   const selectedReadyCandidateCount = input.productionTracks.filter((track) => {
-    if (!track.selectedVideoId) return false;
+    if (!track.selectedVideoId || track.stale) return false;
     const candidate = input.videoCandidates.find(
       (item) => item.id === track.selectedVideoId,
     );
     return Boolean(
       candidate?.filePath &&
         candidate.state === "ready" &&
+        !candidate.stale &&
         fileExists(candidate.filePath),
     );
   }).length;

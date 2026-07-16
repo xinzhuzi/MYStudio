@@ -75,7 +75,7 @@ The pipeline supports phased progress: you can stop at scripts and storyboards, 
   </tr>
 </table>
 
-👉 [Browse all 60 art styles →](./art-styles.en.md)
+👉 [Browse all 60 art styles →](assets/art-styles.en.md)
 
 ## Entry Points
 
@@ -95,50 +95,50 @@ Most detailed guides are currently maintained in Chinese. Use these entry points
 | Guide | Scope |
 |---|---|
 | [Documentation Center](./README.md) | Full Chinese docs index |
-| [App Shell Operations](./APP_SHELL_OPERATIONS.md) | Chinese guide for sidebar collapse, project header, back button, episode breadcrumb, and save status |
-| [Navigation](./NAVIGATION_GUIDE.md) | Main navigation, settings tabs, workflow tabs, and internal compatibility workspaces |
-| [Skills Editor Operations](./SKILLS_EDITOR_OPERATIONS.md) | Chinese guide for skill editor buttons, file states, create/delete/restore behavior |
-| [Project Dashboard](./PROJECT_DASHBOARD_GUIDE.md) | Create, open, duplicate, rename, and delete projects |
-| [Project Dashboard Operations](./PROJECT_DASHBOARD_OPERATIONS.md) | Chinese guide for sidebar toggle, selection mode, inline create, card menu, dialogs, and batch delete |
-| [Project Overview](./OVERVIEW_PANEL_GUIDE.md) | Story core, worldbuilding, production settings, and episode list |
-| [Project Overview Operations](./OVERVIEW_PANEL_OPERATIONS.md) | Chinese guide for workflow cards, inline editing, episode catalog, and right-side metadata summaries |
-| [Workflow Guide](./WORKFLOW_GUIDE.md) | Novel import, script planning, asset generation, storyboard, and editing workflow |
-| [Workflow Stage Operations](./WORKFLOW_STAGE_OPERATIONS.md) | Detailed Chinese reference for workflow stage buttons, status, dialogs, and data flow |
-| [Novel Import and Script Planning Operations](./WORKFLOW_NOVEL_SCRIPT_OPERATIONS.md) | Chinese reference for manual selection, chapter import, event analysis, staged script generation, review, and repair |
-| [Script Asset and Generation Operations](./WORKFLOW_ASSET_GENERATION_OPERATIONS.md) | Chinese reference for script asset extraction, asset matching, prompt polishing, missing asset generation, and role voice entry points |
-| [Storyboard and Editing Operations](./WORKFLOW_STORYBOARD_EDITING_OPERATIONS.md) | Chinese reference for material binding, storyboard fields, AI storyboard table protocol, track grouping, local rendering, and final stitching |
-| [Assist Workbench Operations](./ASSIST_WORKBENCH_OPERATIONS.md) | Chinese guide for image/video/cinema/TTS assist workbench controls and history |
-| [Assist Workbench Parameter Reference](./ASSIST_WORKBENCH_PARAMETER_REFERENCE.md) | Chinese reference for image/video/Veo upload/cinema/TTS assist workbench fields |
-| [Media Outputs Operations](./MEDIA_OUTPUTS_OPERATIONS.md) | Chinese guide for media upload, folders, context menus, export, and director shortcuts |
-| [Export Operations](./EXPORT_OPERATIONS.md) | Chinese guide for export source selection, sequence strip, progress display, disabled states, and secondary cards |
-| [Visual Style Management](./VISUAL_STYLE_MANAGEMENT.md) | Default styles, custom styles, visual manual editing, and AI style-token extraction |
-| [Visual Manual Editor Operations](./VISUAL_MANUAL_EDITOR_OPERATIONS.md) | Chinese guide for visual manual Markdown modules, reference images, directory access, preview, and save behavior |
-| [Legacy Script Workspace](./LEGACY_SCRIPT_WORKSPACE_GUIDE.md) | Internal three-column script editor, AI calibration, trailer shot selection, and compatibility jumps |
-| [Trailer Storyboard Reuse Reference](./TRAILER_STORYBOARD_REUSE_REFERENCE.md) | Chinese reference for trailer shot selection, Shot-to-director-scene reuse, S-Class trailer generation, and clearing behavior |
-| [Character Generation and Wardrobe](./CHARACTER_GENERATION_GUIDE.md) | Internal character generation, character sheets, AI calibration data, and outfit variations |
-| [Advanced Director Tools](./ADVANCED_DIRECTOR_TOOLS.md) | Internal director workspace, S-level group generation, angle switching, and quad-grid variants |
-| [Director Shot Card Reference](./DIRECTOR_SHOT_CARD_REFERENCE.md) | Chinese reference for director shot card fields, first/end frames, references, prompts, video generation, and audio controls |
-| [Director Voiceover Reference](./DIRECTOR_VOICEOVER_REFERENCE.md) | Chinese reference for shot voice-over lines, voice profiles, single-shot generation, and batch retry/missing generation |
-| [Angle and Quad Grid Operations](./ANGLE_AND_QUAD_GRID_OPERATIONS.md) | Chinese guide for start/end-frame angle switching, quad-grid generation, result application, copying to other shots, and failures |
-| [S-Class Group Video Operations](./SCLASS_GROUP_VIDEO_OPERATIONS.md) | Chinese guide for Seedance 2.0 grouped generation, single-shot generation, @references, AI calibration, extension, and editing |
-| [Scene Multi-view and Orthographic Views](./SCENE_MULTIVIEW_GUIDE.md) | Scene single-image, contact-sheet, orthographic-view, splitting, and batch generation workflows |
-| [Asset Library](./ASSET_LIBRARY_GUIDE.md) | Roles, scenes, props, audio assets, styles, and storage |
-| [Asset Import and Management](./ASSET_IMPORT_AND_MANAGEMENT.md) | Add roles/scenes/props, batch manage assets, edit detail data, manage multiple images, and transcribe audio samples |
-| [Asset Detail Operations](./ASSET_DETAIL_OPERATIONS.md) | Chinese guide for asset preview, image actions, prompt polish, one-click generation, audio transcription, role voices, and deletion |
-| [Props Library Operations](./PROPS_LIBRARY_OPERATIONS.md) | Chinese guide for local prop folders, folder create/rename/delete, and prop move/rename/delete behavior |
-| [Voice Assignment](./ASSET_AUDIO_ASSIGNMENT.md) | Assign asset audio samples to roles for local voice cloning |
-| [Role Audio Assignment Reference](./ROLE_AUDIO_ASSIGNMENT_REFERENCE.md) | Chinese reference for role voice dialog fields, automatic matching rules, AI semantic matching, preview playback, and transcription failures |
-| [Settings Panel Operations](./SETTINGS_PANEL_OPERATIONS.md) | Chinese guide for settings tabs, desktop-only controls, storage/update/development/support actions |
-| [Python and Local TTS](./PYTHON_TTS_SETUP.md) | Manual Python 3.12 setup, dependency installation, and TTS backend startup |
-| [API Manager Operations](./API_MANAGER_OPERATIONS.md) | Chinese guide for providers, model sync/test, thinking mode, feature mapping, and Agent bindings |
-| [API Provider and Model Test Reference](./API_PROVIDER_MODEL_TEST_REFERENCE.md) | Chinese reference for provider add/edit fields, model sync behavior, model test protocols, and errors |
-| [TTS Configuration](./TTS_CONFIG_GUIDE.md) | Local TTS backend status, model cache, model downloads, and voice profiles |
-| [TTS Panel Operations](./TTS_PANEL_OPERATIONS.md) | Chinese guide for local TTS status, model folders, download tasks, model detail dialog, and voice profiles |
-| [Storage and Migration](./STORAGE_AND_DATA.md) | Storage base path, import/export, recovery, and legacy migration |
-| [App Updates](./APP_UPDATE_GUIDE.md) | Manual update checks, startup checks, ignored versions, and manifest fields |
-| [Packaging and Smoke Testing](./PACKAGING_AND_SMOKE_TESTING.md) | macOS build, no-backup install, app hash check, and desktop smoke |
-| [Troubleshooting](./TROUBLESHOOTING.md) | White screen, Python, TTS, API, image host, storage, and build issues |
-| [Documentation Coverage Audit](./DOCS_COVERAGE_AUDIT.md) | Chinese maintenance map from current UI/source entry points to user docs and remaining priorities |
+| [App Shell Operations](panels/APP_SHELL_OPERATIONS.md) | Chinese guide for sidebar collapse, project header, back button, episode breadcrumb, and save status |
+| [Navigation](panels/NAVIGATION_GUIDE.md) | Main navigation, settings tabs, workflow tabs, and internal compatibility workspaces |
+| [Skills Editor Operations](panels/SKILLS_EDITOR_OPERATIONS.md) | Chinese guide for skill editor buttons, file states, create/delete/restore behavior |
+| [Project Dashboard](panels/PROJECT_DASHBOARD_GUIDE.md) | Create, open, duplicate, rename, and delete projects |
+| [Project Dashboard Operations](panels/PROJECT_DASHBOARD_OPERATIONS.md) | Chinese guide for sidebar toggle, selection mode, inline create, card menu, dialogs, and batch delete |
+| [Project Overview](workflow/OVERVIEW_PANEL_GUIDE.md) | Story core, worldbuilding, production settings, and episode list |
+| [Project Overview Operations](workflow/OVERVIEW_PANEL_OPERATIONS.md) | Chinese guide for workflow cards, inline editing, episode catalog, and right-side metadata summaries |
+| [Workflow Guide](workflow/WORKFLOW_GUIDE.md) | Novel import, script planning, asset generation, storyboard, and editing workflow |
+| [Workflow Stage Operations](workflow/WORKFLOW_STAGE_OPERATIONS.md) | Detailed Chinese reference for workflow stage buttons, status, dialogs, and data flow |
+| [Novel Import and Script Planning Operations](workflow/WORKFLOW_NOVEL_SCRIPT_OPERATIONS.md) | Chinese reference for manual selection, chapter import, event analysis, staged script generation, review, and repair |
+| [Script Asset and Generation Operations](workflow/WORKFLOW_ASSET_GENERATION_OPERATIONS.md) | Chinese reference for script asset extraction, asset matching, prompt polishing, missing asset generation, and role voice entry points |
+| [Storyboard and Editing Operations](workflow/WORKFLOW_STORYBOARD_EDITING_OPERATIONS.md) | Chinese reference for material binding, storyboard fields, AI storyboard table protocol, track grouping, local rendering, and final stitching |
+| [Assist Workbench Operations](panels/ASSIST_WORKBENCH_OPERATIONS.md) | Chinese guide for image/video/cinema/TTS assist workbench controls and history |
+| [Assist Workbench Parameter Reference](panels/ASSIST_WORKBENCH_PARAMETER_REFERENCE.md) | Chinese reference for image/video/Veo upload/cinema/TTS assist workbench fields |
+| [Media Outputs Operations](panels/MEDIA_OUTPUTS_OPERATIONS.md) | Chinese guide for media upload, folders, context menus, export, and director shortcuts |
+| [Export Operations](panels/EXPORT_OPERATIONS.md) | Chinese guide for export source selection, sequence strip, progress display, disabled states, and secondary cards |
+| [Visual Style Management](assets/VISUAL_STYLE_MANAGEMENT.md) | Default styles, custom styles, visual manual editing, and AI style-token extraction |
+| [Visual Manual Editor Operations](assets/VISUAL_MANUAL_EDITOR_OPERATIONS.md) | Chinese guide for visual manual Markdown modules, reference images, directory access, preview, and save behavior |
+| [Legacy Script Workspace](director/LEGACY_SCRIPT_WORKSPACE_GUIDE.md) | Internal three-column script editor, AI calibration, trailer shot selection, and compatibility jumps |
+| [Trailer Storyboard Reuse Reference](director/TRAILER_STORYBOARD_REUSE_REFERENCE.md) | Chinese reference for trailer shot selection, Shot-to-director-scene reuse, S-Class trailer generation, and clearing behavior |
+| [Character Generation and Wardrobe](assets/CHARACTER_GENERATION_GUIDE.md) | Internal character generation, character sheets, AI calibration data, and outfit variations |
+| [Advanced Director Tools](director/ADVANCED_DIRECTOR_TOOLS.md) | Internal director workspace, S-level group generation, angle switching, and quad-grid variants |
+| [Director Shot Card Reference](director/DIRECTOR_SHOT_CARD_REFERENCE.md) | Chinese reference for director shot card fields, first/end frames, references, prompts, video generation, and audio controls |
+| [Director Voiceover Reference](director/DIRECTOR_VOICEOVER_REFERENCE.md) | Chinese reference for shot voice-over lines, voice profiles, single-shot generation, and batch retry/missing generation |
+| [Angle and Quad Grid Operations](director/ANGLE_AND_QUAD_GRID_OPERATIONS.md) | Chinese guide for start/end-frame angle switching, quad-grid generation, result application, copying to other shots, and failures |
+| [S-Class Group Video Operations](director/SCLASS_GROUP_VIDEO_OPERATIONS.md) | Chinese guide for Seedance 2.0 grouped generation, single-shot generation, @references, AI calibration, extension, and editing |
+| [Scene Multi-view and Orthographic Views](assets/SCENE_MULTIVIEW_GUIDE.md) | Scene single-image, contact-sheet, orthographic-view, splitting, and batch generation workflows |
+| [Asset Library](assets/ASSET_LIBRARY_GUIDE.md) | Roles, scenes, props, audio assets, styles, and storage |
+| [Asset Import and Management](assets/ASSET_IMPORT_AND_MANAGEMENT.md) | Add roles/scenes/props, batch manage assets, edit detail data, manage multiple images, and transcribe audio samples |
+| [Asset Detail Operations](assets/ASSET_DETAIL_OPERATIONS.md) | Chinese guide for asset preview, image actions, prompt polish, one-click generation, audio transcription, role voices, and deletion |
+| [Props Library Operations](assets/PROPS_LIBRARY_OPERATIONS.md) | Chinese guide for local prop folders, folder create/rename/delete, and prop move/rename/delete behavior |
+| [Voice Assignment](assets/ASSET_AUDIO_ASSIGNMENT.md) | Assign asset audio samples to roles for local voice cloning |
+| [Role Audio Assignment Reference](assets/ROLE_AUDIO_ASSIGNMENT_REFERENCE.md) | Chinese reference for role voice dialog fields, automatic matching rules, AI semantic matching, preview playback, and transcription failures |
+| [Settings Panel Operations](settings/SETTINGS_PANEL_OPERATIONS.md) | Chinese guide for settings tabs, desktop-only controls, storage/update/development/support actions |
+| [Python and Local TTS](settings/PYTHON_TTS_SETUP.md) | Manual Python 3.12 setup, dependency installation, and TTS backend startup |
+| [API Manager Operations](settings/API_MANAGER_OPERATIONS.md) | Chinese guide for providers, model sync/test, thinking mode, feature mapping, and Agent bindings |
+| [API Provider and Model Test Reference](settings/API_PROVIDER_MODEL_TEST_REFERENCE.md) | Chinese reference for provider add/edit fields, model sync behavior, model test protocols, and errors |
+| [TTS Configuration](settings/TTS_CONFIG_GUIDE.md) | Local TTS backend status, model cache, model downloads, and voice profiles |
+| [TTS Panel Operations](panels/TTS_PANEL_OPERATIONS.md) | Chinese guide for local TTS status, model folders, download tasks, model detail dialog, and voice profiles |
+| [Storage and Migration](engineering/STORAGE_AND_DATA.md) | Storage base path, import/export, recovery, and legacy migration |
+| [App Updates](settings/APP_UPDATE_GUIDE.md) | Manual update checks, startup checks, ignored versions, and manifest fields |
+| [Packaging and Smoke Testing](engineering/PACKAGING_AND_SMOKE_TESTING.md) | macOS build, no-backup install, app hash check, and desktop smoke |
+| [Troubleshooting](engineering/TROUBLESHOOTING.md) | White screen, Python, TTS, API, image host, storage, and build issues |
+| [Documentation Coverage Audit](engineering/DOCS_COVERAGE_AUDIT.md) | Chinese maintenance map from current UI/source entry points to user docs and remaining priorities |
 
 ## License
 
@@ -211,7 +211,7 @@ The script automatically:
 2. Keeps the Python runtime out of the installer and backend source directory
 3. Lets users manually configure Python later from `Settings -> Python Configuration`
 
-Python 3.12 and TTS dependencies are configured on demand from the desktop app. The app does not download Python or start the local TTS backend during startup. See [Python and local TTS setup](./PYTHON_TTS_SETUP.md) for the current Chinese guide.
+Python 3.12 and TTS dependencies are configured on demand from the desktop app. The app does not download Python or start the local TTS backend during startup. See [Python and local TTS setup](settings/PYTHON_TTS_SETUP.md) for the current Chinese guide.
 
 ### Run
 

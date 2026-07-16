@@ -103,7 +103,7 @@ export const useProjectStore = create<ProjectStore>()(
           };
         });
         // Clean up per-project storage directory
-        if (window.fileStorage?.removeDir) {
+        if (typeof window !== "undefined" && window.fileStorage?.removeDir) {
           window.fileStorage.removeDir(`_p/${id}`).catch((err: unknown) =>
             console.warn(`[ProjectStore] Failed to remove project dir _p/${id}:`, err)
           );

@@ -23,6 +23,7 @@ These guides help you **ask the right questions before coding**.
 |-------|---------|-------------|
 | [Code Reuse Thinking Guide](./code-reuse-thinking-guide.md) | Identify patterns and reduce duplication | When you notice repeated patterns |
 | [Cross-Layer Thinking Guide](./cross-layer-thinking-guide.md) | Think through data flow across layers | Features spanning multiple layers |
+| [Image Transfer Safety Guide](./image-transfer-safety-guide.md) | Enforce single-thumbnail and byte-size gates before sending images | Any task that transfers or reviews local images |
 
 ---
 
@@ -50,6 +51,14 @@ These guides help you **ask the right questions before coding**.
 - [ ] Multiple branches update the same derived state from `kind` / `action`
 
 → Read [Code Reuse Thinking Guide](./code-reuse-thinking-guide.md)
+
+### When Transferring Images
+
+- [ ] A local image will be sent to `view_image`, model context, a review tool, or an image API
+- [ ] The source image is larger than the transfer-safe thumbnail contract
+- [ ] Several images must be reviewed sequentially
+
+→ Read [Image Transfer Safety Guide](./image-transfer-safety-guide.md)
 
 ### When Verifying AI Cross-Review Results
 

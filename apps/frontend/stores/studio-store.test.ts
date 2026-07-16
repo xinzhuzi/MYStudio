@@ -8,7 +8,7 @@ import {
 import { useCharacterLibraryStore } from "@/stores/character-library-store";
 import { usePropsLibraryStore } from "@/stores/props-library-store";
 import { useSceneStore } from "@/stores/scene-store";
-import type { StoryboardItem } from "@/types/studio";
+import type { ContinuityAssetVersion, StoryboardItem } from "@/types/studio";
 import { useStudioStore } from "./studio-store";
 import {
   approvedVisualReview,
@@ -28,14 +28,21 @@ afterEach(() => {
 });
 
 describe("studio workflow store", () => {
-  it("persists project-level continuity asset versions without sharing reference arrays", () => {
-    const versions = [{
+  it("derives asset approval from a dedicated human review and does not trust an approved boolean", () => {
+    const versions: ContinuityAssetVersion[] = [{
       assetId: "char-dugu",
       versionId: "char-dugu:grey-town:v1",
       assetKind: "character" as const,
       label: "灰衫入镇态",
       referenceImagePaths: ["/dugu/front.png", "/dugu/three-quarter.png", "/dugu/full-body.png"],
+      reviewEvidencePaths: ["/reviews/dugu-front_thumb.png", "/reviews/dugu-three-quarter_thumb.png", "/reviews/dugu-full-body_thumb.png"],
+      reviewEvidenceSha256: Array.from({ length: 3 }, () => "a".repeat(64)),
+      referenceViewTypes: ["front", "three-quarter", "side"],
+      identityAnchors: { faceShape: "清瘦长脸", uniqueMarks: ["银白长发"], hairStyle: "半束高髻" },
+      negativePrompt: { avoid: ["黑发", "腰悬完整剑"] },
       wardrobeVersion: "grey-town",
+      structurallyComplete: true,
+      contentFingerprint: "forged-content-fingerprint",
       approved: true,
       source: "project-character-bible",
     }];
@@ -43,10 +50,102 @@ describe("studio workflow store", () => {
     useStudioStore.getState().replaceContinuityAssetVersions(versions);
     versions[0]!.referenceImagePaths.push("/dugu/late-mutation.png");
 
-    expect(useStudioStore.getState().continuityAssetVersions).toEqual([{
-      ...versions[0],
+    expect(useStudioStore.getState().continuityAssetVersions[0]).toMatchObject({
+      structurallyComplete: true,
+      approved: false,
       referenceImagePaths: ["/dugu/front.png", "/dugu/three-quarter.png", "/dugu/full-body.png"],
+    });
+    expect(useStudioStore.getState().continuityAssetVersions[0]?.contentFingerprint).not.toBe("forged-content-fingerprint");
+
+    expect(() => useStudioStore.getState().reviewContinuityAssetVersionHuman(
+      "char-dugu",
+      "char-dugu:grey-town:v1",
+      { status: "approved", evidencePaths: ["/reviews/dugu-front_thumb.png", "/reviews/dugu-three-quarter_thumb.png", "/reviews/dugu-full-body_thumb.png"], reviewedAt: 10 },
+    )).toThrow("必须先通过本地缩略图文件与 SHA-256 安全校验");
+    useStudioStore.getState().replaceContinuityAssetVersions([{
+      ...useStudioStore.getState().continuityAssetVersions[0]!,
+      reviewEvidenceVerifiedAt: 1,
     }]);
+
+    useStudioStore.getState().reviewContinuityAssetVersionHuman(
+      "char-dugu",
+      "char-dugu:grey-town:v1",
+      { status: "approved", evidencePaths: ["/reviews/dugu-front_thumb.png", "/reviews/dugu-three-quarter_thumb.png", "/reviews/dugu-full-body_thumb.png"], reviewedAt: 10 },
+    );
+    expect(useStudioStore.getState().continuityAssetVersions[0]).toMatchObject({
+      approved: true,
+      approval: { reviewer: "human", status: "approved", reviewedAt: 10 },
+    });
+  });
+
+  it("invalidates asset approval and propagates storyboard stale state after canonical content changes", () => {
+    useStudioStore.getState().replaceContinuityAssetVersions([{
+      assetId: "scene:dock",
+      versionId: "dock:morning",
+      assetKind: "scene",
+      label: "码头晨雾主轴",
+      referenceImagePaths: ["/dock.png"],
+      reviewEvidencePaths: ["/reviews/dock_thumb.png"],
+      reviewEvidenceSha256: ["a".repeat(64)],
+      reviewEvidenceVerifiedAt: 1,
+      sceneViewpointId: "dock:front",
+      spatialLayout: "河岸、栈桥与仓棚位置固定",
+      lightingDesign: "冷青晨雾",
+      colorPalette: "墨青灰蓝",
+      structurallyComplete: true,
+      contentFingerprint: "",
+      approved: false,
+      source: "project-scene-bible",
+    }]);
+    useStudioStore.getState().reviewContinuityAssetVersionHuman(
+      "scene:dock",
+      "dock:morning",
+      { status: "approved", evidencePaths: ["/reviews/dock_thumb.png"], reviewedAt: 10 },
+    );
+    const approved = useStudioStore.getState().continuityAssetVersions[0]!;
+    for (const index of [1, 2]) {
+      useStudioStore.getState().addStoryboard({
+        id: `asset-stale-${index}`,
+        episodeId: "chapter-001",
+        index,
+        trackKey: "dock",
+        orderedReferenceManifest: [{
+          order: 1,
+          assetId: approved.assetId,
+          assetKind: "scene",
+          versionId: approved.versionId,
+          imagePath: approved.referenceImagePaths[0],
+          referenceRole: "scene-viewpoint",
+          sceneViewpointId: approved.sceneViewpointId,
+          contentFingerprint: approved.contentFingerprint,
+          approvalFingerprint: approved.approvalFingerprint,
+          approved: true,
+        }],
+        continuityState: {
+          groupId: "dock",
+          previousStoryboardId: index > 1 ? `asset-stale-${index - 1}` : undefined,
+          sceneVersionId: approved.versionId,
+          sceneViewpointId: approved.sceneViewpointId!,
+          lighting: "冷青晨雾",
+          palette: "墨青灰蓝",
+          actionIn: "承接",
+          actionOut: "继续",
+          characters: [],
+          inputFingerprint: "",
+        },
+      });
+    }
+
+    useStudioStore.getState().replaceContinuityAssetVersions([{
+      ...approved,
+      spatialLayout: "修改后的河岸、栈桥与仓棚布局",
+    }]);
+
+    expect(useStudioStore.getState().continuityAssetVersions[0]?.approved).toBe(false);
+    expect(useStudioStore.getState().storyboards).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: "asset-stale-1", stale: true, visualReview: undefined }),
+      expect.objectContaining({ id: "asset-stale-2", stale: true }),
+    ]));
   });
 
   it("persists continuity contracts and marks downstream shots stale after an upstream change", () => {
@@ -103,6 +202,30 @@ describe("studio workflow store", () => {
   });
 
   it("requires the dedicated human review action and invalidates approval after output changes", () => {
+    useStudioStore.getState().replaceContinuityAssetVersions([{
+      assetId: "scene:dock",
+      versionId: "dock:morning",
+      assetKind: "scene",
+      label: "码头晨雾主轴",
+      referenceImagePaths: ["/dock.png"],
+      reviewEvidencePaths: ["/reviews/dock_thumb.png"],
+      reviewEvidenceSha256: ["a".repeat(64)],
+      reviewEvidenceVerifiedAt: 1,
+      sceneViewpointId: "dock:front",
+      spatialLayout: "河岸、栈桥与仓棚位置固定",
+      lightingDesign: "冷青晨雾",
+      colorPalette: "墨青灰蓝",
+      structurallyComplete: true,
+      contentFingerprint: "",
+      approved: false,
+      source: "project-scene-bible",
+    }]);
+    useStudioStore.getState().reviewContinuityAssetVersionHuman(
+      "scene:dock",
+      "dock:morning",
+      { status: "approved", evidencePaths: ["/reviews/dock_thumb.png"], reviewedAt: 5 },
+    );
+    const sceneVersion = useStudioStore.getState().continuityAssetVersions[0]!;
     const id = useStudioStore.getState().addStoryboard({
       id: "review-1",
       episodeId: "chapter-001",
@@ -114,8 +237,12 @@ describe("studio workflow store", () => {
         assetId: "scene:dock",
         versionId: "dock:morning",
         imagePath: "/dock.png",
+        assetKind: "scene",
         referenceRole: "scene-viewpoint",
-        approved: true,
+        sceneViewpointId: "dock:front",
+        contentFingerprint: sceneVersion.contentFingerprint,
+        approvalFingerprint: sceneVersion.approvalFingerprint,
+        approved: sceneVersion.approved,
       }],
       continuityState: {
         groupId: "dock",
@@ -130,11 +257,21 @@ describe("studio workflow store", () => {
       },
     });
     const initial = useStudioStore.getState().storyboards.find((item) => item.id === id)!;
+    useStudioStore.setState((state) => ({
+      storyboards: state.storyboards.map((item) => item.id === id ? {
+        ...item,
+        continuityState: {
+          ...item.continuityState!,
+          inputFingerprint: visualContinuityFingerprint(initial),
+        },
+      } : item),
+    }));
+    const reviewable = useStudioStore.getState().storyboards.find((item) => item.id === id)!;
     useStudioStore.getState().updateStoryboard(id, {
       visualReview: approvedVisualReview({
         evidencePaths: ["/reviews/fake.png"],
         sceneChecks: [{ sceneVersionId: "dock:morning", passed: true }],
-        inputFingerprint: visualReviewInputFingerprint(initial),
+        inputFingerprint: visualReviewInputFingerprint(reviewable),
       }),
     });
     expect(useStudioStore.getState().storyboards.find((item) => item.id === id)?.visualReview).toBeUndefined();
@@ -144,14 +281,28 @@ describe("studio workflow store", () => {
       reasons: [],
       characterChecks: [],
       sceneChecks: [{ sceneVersionId: "dock:morning", passed: true }],
+      propChecks: [],
       transitionChecks: [],
-      evidencePaths: ["/reviews/review-1.png"],
+      textWatermarkCheck: { passed: true },
+      evidencePaths: ["/frames/review-1.png"],
       reviewedAt: 10,
     });
     expect(useStudioStore.getState().storyboards.find((item) => item.id === id)?.visualReview).toMatchObject({
       status: "approved",
       reviewer: "human",
       reviewedAt: 10,
+    });
+
+    useStudioStore.getState().reviewContinuityAssetVersionHuman("scene:dock", "dock:morning", {
+      status: "rejected",
+      reason: "场景布局与当前 Bible 不一致",
+      evidencePaths: [],
+      reviewedAt: 11,
+    });
+    expect(useStudioStore.getState().storyboards.find((item) => item.id === id)).toMatchObject({
+      stale: true,
+      visualReview: { status: "pending" },
+      orderedReferenceManifest: [expect.objectContaining({ approved: false })],
     });
 
     useStudioStore.getState().bindStoryboardMedia(id, { kind: "image", path: "/frames/review-1-v2.png" });
@@ -559,6 +710,82 @@ describe("studio workflow store", () => {
     expect(
       state.productionTracks.flatMap((track) => track.storyboardIds),
     ).not.toContain("sb-ep1-2");
+  });
+
+  it("resets an approved visual review when episode replacement writes fresh visual output", () => {
+    const reviewed: StoryboardItem = {
+      id: "sb-reviewed",
+      episodeId: "ep-reviewed",
+      index: 1,
+      trackKey: "reviewed",
+      trackId: "track-reviewed",
+      duration: 4,
+      prompt: "同一分镜",
+      videoDesc: "同一分镜画面",
+      assetIds: [],
+      state: "ready",
+      mediaRef: { kind: "image", path: "project-file://frames/review-v1.png" },
+      imageWorkflowId: "flow-v1",
+      imageWorkflowNodeId: "gen-v1",
+      outputVersion: 3,
+    };
+    reviewed.visualReview = approvedVisualReview({
+      reviewedAt: 10,
+      evidencePaths: [reviewed.mediaRef!.path],
+      inputFingerprint: visualReviewInputFingerprint(reviewed),
+    });
+    useStudioStore.getState().addStoryboard(reviewed);
+
+    useStudioStore.getState().replaceStoryboardsForEpisode("ep-reviewed", [{
+      ...reviewed,
+      mediaRef: { kind: "image", path: "project-file://frames/review-v2.png" },
+      imageWorkflowId: "flow-v2",
+      imageWorkflowNodeId: "gen-v2",
+    }]);
+
+    expect(useStudioStore.getState().storyboards[0]).toMatchObject({
+      stale: false,
+      outputVersion: 4,
+      visualReview: {
+        status: "pending",
+        reasons: ["分镜画面或连续性输入已变化，必须重新审核"],
+      },
+    });
+  });
+
+  it("keeps visual review unchanged for audio-only or identical episode replacement", () => {
+    const reviewed: StoryboardItem = {
+      id: "sb-audio-only",
+      episodeId: "ep-audio-only",
+      index: 1,
+      trackKey: "audio-only",
+      trackId: "track-audio-only",
+      duration: 4,
+      prompt: "同一分镜",
+      videoDesc: "同一分镜画面",
+      assetIds: [],
+      state: "ready",
+      mediaRef: { kind: "image", path: "project-file://frames/review.png" },
+      audioRef: { kind: "audio", path: "project-file://audio/v1.wav" },
+      outputVersion: 2,
+    };
+    reviewed.visualReview = approvedVisualReview({
+      reviewedAt: 10,
+      evidencePaths: [reviewed.mediaRef!.path],
+      inputFingerprint: visualReviewInputFingerprint(reviewed),
+    });
+    useStudioStore.getState().addStoryboard(reviewed);
+
+    useStudioStore.getState().replaceStoryboardsForEpisode("ep-audio-only", [{
+      ...reviewed,
+      audioRef: { kind: "audio", path: "project-file://audio/v2.wav" },
+    }]);
+
+    expect(useStudioStore.getState().storyboards[0]).toMatchObject({
+      stale: false,
+      outputVersion: 3,
+      visualReview: { status: "approved" },
+    });
   });
 
   it("marks tracks and video candidates stale when storyboard source changes", () => {

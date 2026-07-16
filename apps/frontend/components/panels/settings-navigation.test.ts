@@ -145,6 +145,25 @@ describe("SettingsPanel navigation", () => {
     expect(hookSource).toContain("checkForUpdates");
   });
 
+  it("delegates image-host state and upload effects to the dedicated container", () => {
+    const settingsSource = readFileSync(
+      fileURLToPath(new URL("./SettingsPanel.tsx", import.meta.url)),
+      "utf8",
+    );
+    const imageHostSource = readFileSync(
+      fileURLToPath(new URL("./settings/ImageHostSettingsContainer.tsx", import.meta.url)),
+      "utf8",
+    );
+
+    expect(settingsSource).toContain("<ImageHostSettingsContainer />");
+    expect(settingsSource).not.toContain("uploadToImageHost");
+    expect(settingsSource).not.toContain("testingImageHostId");
+    expect(imageHostSource).toContain("uploadToImageHost");
+    expect(imageHostSource).toContain("ImageHostSettingsTab");
+    expect(imageHostSource).toContain("AddImageHostDialog");
+    expect(imageHostSource).toContain("EditImageHostDialog");
+  });
+
   it("keeps low-level provider internals out of the service workspace", () => {
     expect(API_SERVICE_SUMMARY_FIELDS).toEqual(["Base URL", "接口协议", "API Key"]);
     expect(API_SERVICE_SUMMARY_FIELDS).not.toContain("供应商 ID");
@@ -207,7 +226,7 @@ describe("SettingsPanel navigation", () => {
 
   it("logs API model test clicks with an operation id before invoking IPC", () => {
     const settingsSource = readFileSync(
-      fileURLToPath(new URL("./SettingsPanel.tsx", import.meta.url)),
+      fileURLToPath(new URL("./settings/ApiSettingsContainer.tsx", import.meta.url)),
       "utf8",
     );
 

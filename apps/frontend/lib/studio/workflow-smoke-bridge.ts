@@ -15,6 +15,7 @@ import {
 import type { AgentWorkData, AgentWorkKey, StudioAgentRun } from "@/types/studio";
 import type { ProjectVoiceBinding, SceneVoiceLine, VoiceProfile } from "@/types/tts";
 import type { EditingProjectV1, TimelineRenderRecord } from "@/types/editing";
+import { buildWorkflowSmokeChecks } from "./workflow-smoke-checks";
 
 export interface WorkflowSmokeResult {
   progress: number;
@@ -906,33 +907,14 @@ async function inspectWorkflow(): Promise<WorkflowSmokeInspection> {
       realMediaGeneration: false,
     },
     evidenceBoundary: workflowParityReport.evidenceBoundary,
-    checks: {
-      manualsReady: readiness.stages[0]?.status === "ready",
-      novelReady: readiness.stages[1]?.status === "ready",
-      scriptReady: readiness.stages[2]?.status === "ready",
-      assetsReady: readiness.stages[3]?.status === "ready",
-      generationReady: readiness.stages[3]?.status === "ready",
-      storyboardReady: readiness.stages[4]?.status === "ready",
-      workbenchReady: readiness.stages[5]?.status === "ready",
-      hasFinalExport: workflowParityReport.video.hasFinalExport,
-      hasLegacyCompatibilityExport:
-        workflowParityReport.video.hasLegacyCompatibilityExport,
-      hasEditingProject: Boolean(
-        workflowParityReport.video.currentEditingProjectId,
-      ),
-      hasTimelineRenderRecord:
-        workflowParityReport.video.timelineRenderRecords > 0,
-      hasCompleteTimelineEvidence:
-        workflowParityReport.video.completeTimelineEvidence > 0,
-      seededEditingEvidence: true,
-      hasSelectedCandidate: studio.productionTracks.some((track) => Boolean(track.selectedVideoId)),
-      hasVoiceBinding: Object.keys(project?.bindings ?? {}).some((speakerId) => speakerId.startsWith("character:")),
-      hasVoiceAudio: Object.values(project?.voiceLines ?? {}).some((line) => line.status === "completed" && Boolean(line.audioLocalPath || line.audioFilePath)),
-      hasWorkflowParityReport: true,
-      workflowParityNoErrors: !workflowParityReport.issues.some((issue) => issue.severity === "error"),
-      workflowParityHasOrderedReferences: workflowParityReport.references.storyboardsWithOrderedManifest === studio.storyboards.length,
-      workflowParityHasSourceEvidence: workflowParityReport.storyboard.withSourceEvidence === studio.storyboards.length,
-    },
+    checks: buildWorkflowSmokeChecks({
+      stages: readiness.stages,
+      report: workflowParityReport,
+      storyboardsCount: studio.storyboards.length,
+      selectedCandidateCount: studio.productionTracks.filter((track) => Boolean(track.selectedVideoId)).length,
+      voiceBindingCount: Object.keys(project?.bindings ?? {}).filter((speakerId) => speakerId.startsWith("character:")).length,
+      completedVoiceAudioCount: Object.values(project?.voiceLines ?? {}).filter((line) => line.status === "completed" && Boolean(line.audioLocalPath || line.audioFilePath)).length,
+    }),
     workflowParityReport,
   };
 }

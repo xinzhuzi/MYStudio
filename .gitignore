@@ -39,15 +39,20 @@ backup*/
 *.backup-*
 
 # Reference / internal docs
+# 忽略 docs 下所有内容，仅例外索引和关键文档
 reference/
 nami-reference/
 docs/*
 !docs/images/
-!docs/WORKFLOW_GUIDE.md
-!docs/SCRIPT_FORMAT_EXAMPLE.md
+!docs/README.md
 !docs/README.en.md
-!docs/art-styles.md
-!docs/art-styles.en.md
+# 允许子目录被遍历（这样子目录内的例外才能生效）
+!docs/*/
+docs/*/**
+!docs/workflow/WORKFLOW_GUIDE.md
+!docs/workflow/SCRIPT_FORMAT_EXAMPLE.md
+!docs/assets/art-styles.md
+!docs/assets/art-styles.en.md
 
 # Next.js cache (not used)
 .next/

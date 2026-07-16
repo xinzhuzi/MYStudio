@@ -1,6 +1,6 @@
 # Art Style Gallery · 艺术风格画廊
 
-[简体中文 Gallery](./art-styles.md) · [English README](./README.en.md) · [简体中文 README](../README.md)
+[简体中文 Gallery](./art-styles.md) · [English README](../README.en.md) · [简体中文 README](../README.md)
 
 MYStudio ships with **60 built-in art styles** covering 2D animation, 3D rendering, stop-motion, and live-action imagery. Apply any of them with one click during storyboard production. Below are representative samples.
 

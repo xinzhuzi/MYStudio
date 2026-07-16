@@ -20,11 +20,17 @@ from pathlib import Path
 from typing import Any
 
 try:
-    from Library.build_daojie_chapter001_workflow import continuity_group_for_index
+    from Library.build_daojie_chapter001_workflow import (
+        continuity_group_for_index,
+        normalize_continuity_asset_version,
+    )
 except ModuleNotFoundError as error:
     if error.name != "Library":
         raise
-    from build_daojie_chapter001_workflow import continuity_group_for_index
+    from build_daojie_chapter001_workflow import (
+        continuity_group_for_index,
+        normalize_continuity_asset_version,
+    )
 
 
 PROJECT_ID = "49dce4c1-64b1-42de-85c2-9f266698aec0"
@@ -68,16 +74,223 @@ def load_store(path: Path) -> dict[str, Any]:
 
 
 def write_store(path: Path, data: dict[str, Any]) -> None:
-    with path.open("w", encoding="utf-8") as handle:
+    temporary = path.with_name(f".{path.name}.visual-continuity-{os.getpid()}.tmp")
+    with temporary.open("x", encoding="utf-8") as handle:
         json.dump(data, handle, ensure_ascii=False, indent=2)
         handle.write("\n")
+        handle.flush()
+        os.fsync(handle.fileno())
+    os.replace(temporary, path)
 
 
 def backup_store(path: Path) -> Path:
-    stamp = dt.datetime.now().strftime("%Y%m%d-%H%M%S")
+    stamp = dt.datetime.now().strftime("%Y%m%d-%H%M%S-%f")
     backup = path.with_name(f"{path.name}.bak-visual-continuity-{stamp}")
     shutil.copy2(path, backup)
     return backup
+
+
+def continuity_version_key(version: dict[str, Any]) -> str:
+    return f"{version.get('assetId', '')}:{version.get('versionId', '')}"
+
+
+def load_pending_asset_manifest(path: Path) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    document = load_store(path)
+    raw_versions = document.get("continuityAssetVersions")
+    if not isinstance(raw_versions, list) or not raw_versions:
+        raise RuntimeError(f"连续性资产 manifest 缺少 continuityAssetVersions: {path}")
+    versions: list[dict[str, Any]] = []
+    for raw in raw_versions:
+        if (
+            raw.get("reviewStatus") != "pending"
+            or raw.get("approval") is not None
+            or raw.get("approved") is not False
+        ):
+            raise RuntimeError("连续性资产 manifest 只能导入 pending 且未经人工批准的版本")
+        enriched = copy.deepcopy(raw)
+        reference_paths = [Path(str(value)) for value in enriched.get("referenceImagePaths") or []]
+        missing_paths = [value for value in reference_paths if not value.is_file()]
+        if missing_paths:
+            raise RuntimeError(f"连续性资产参考图不存在: {', '.join(str(value) for value in missing_paths)}")
+        if not enriched.get("referenceImageSha256"):
+            enriched["referenceImageSha256"] = [
+                hashlib.sha256(value.read_bytes()).hexdigest()
+                for value in reference_paths
+            ]
+        version = normalize_continuity_asset_version(enriched)
+        if version.get("approved") or not version.get("structurallyComplete"):
+            raise RuntimeError(
+                f"连续性资产版本不可导入: {version.get('assetId')}/{version.get('versionId')}"
+            )
+        versions.append(version)
+    keys = [continuity_version_key(version) for version in versions]
+    if len(keys) != len(set(keys)):
+        raise RuntimeError("连续性资产 manifest 存在重复 assetId/versionId")
+    return document, versions
+
+
+def load_project_entity_names(project_dir: Path) -> dict[str, tuple[str, str]]:
+    result: dict[str, tuple[str, str]] = {}
+    sources = (
+        (project_dir / "characters.json", "characters", "character"),
+        (project_dir / "scenes.json", "scenes", "scene"),
+        (project_dir / "props.json", "items", "prop"),
+    )
+    for path, state_key, asset_kind in sources:
+        if not path.is_file():
+            continue
+        document = load_store(path)
+        records = document.get("state", {}).get(state_key)
+        if not isinstance(records, list):
+            raise RuntimeError(f"项目资产文件缺少 state.{state_key}: {path}")
+        for record in records:
+            name = str(record.get("name") or "").strip()
+            asset_id = str(record.get("id") or "").strip()
+            if name and asset_id:
+                result[name] = (asset_id, asset_kind)
+    return result
+
+
+def index_continuity_versions(
+    versions: list[dict[str, Any]],
+    entities: dict[str, tuple[str, str]],
+) -> tuple[
+    dict[tuple[str, str], dict[str, Any]],
+    dict[str, list[dict[str, Any]]],
+    dict[str, list[dict[str, Any]]],
+]:
+    versions_by_key: dict[tuple[str, str], dict[str, Any]] = {}
+    versions_by_id: dict[str, list[dict[str, Any]]] = {}
+    for version in versions:
+        asset_id = str(version.get("assetId") or "")
+        version_id = str(version.get("versionId") or "")
+        if not asset_id or not version_id:
+            continue
+        versions_by_key[(asset_id, version_id)] = version
+        versions_by_id.setdefault(asset_id, []).append(version)
+    versions_by_name = {
+        name: list(versions_by_id.get(asset_id) or [])
+        for name, (asset_id, _kind) in entities.items()
+        if versions_by_id.get(asset_id)
+    }
+    return versions_by_key, versions_by_id, versions_by_name
+
+
+def select_continuity_version(
+    reference: dict[str, Any],
+    versions_by_key: dict[tuple[str, str], dict[str, Any]],
+    versions_by_id: dict[str, list[dict[str, Any]]],
+    versions_by_name: dict[str, list[dict[str, Any]]],
+) -> dict[str, Any] | None:
+    asset_id = str(reference.get("assetId") or "")
+    version_id = str(reference.get("versionId") or "")
+    exact = versions_by_key.get((asset_id, version_id))
+    if exact is not None:
+        return exact
+
+    candidates = list(versions_by_id.get(asset_id) or [])
+    if not candidates:
+        candidates = list(versions_by_name.get(str(reference.get("assetName") or "")) or [])
+    asset_kind = str(reference.get("assetKind") or "")
+    candidates = [version for version in candidates if version.get("assetKind") == asset_kind]
+
+    viewpoint_id = str(reference.get("sceneViewpointId") or "")
+    if asset_kind == "scene" and viewpoint_id:
+        candidates = [version for version in candidates if version.get("sceneViewpointId") == viewpoint_id]
+    wardrobe_version = str(reference.get("wardrobeVersion") or "")
+    if asset_kind == "character" and wardrobe_version:
+        candidates = [version for version in candidates if version.get("wardrobeVersion") == wardrobe_version]
+    return candidates[0] if len(candidates) == 1 else None
+
+
+def apply_available_versions_to_references(
+    references: list[dict[str, Any]],
+    versions: list[dict[str, Any]],
+    entities: dict[str, tuple[str, str]],
+) -> tuple[list[dict[str, Any]], dict[tuple[str, str], dict[str, Any]]]:
+    versions_by_key, versions_by_id, versions_by_name = index_continuity_versions(versions, entities)
+    old_to_new: dict[tuple[str, str], dict[str, Any]] = {}
+    updated_references: list[dict[str, Any]] = []
+    for reference in references:
+        version = select_continuity_version(reference, versions_by_key, versions_by_id, versions_by_name)
+        if version is None:
+            updated_references.append(reference)
+            continue
+        old_key = (
+            str(reference.get("assetId") or ""),
+            str(reference.get("versionId") or ""),
+        )
+        old_to_new[old_key] = version
+        updated_references.append(apply_version_to_reference(reference, version))
+    return updated_references, old_to_new
+
+
+def apply_version_to_reference(
+    reference: dict[str, Any],
+    version: dict[str, Any],
+) -> dict[str, Any]:
+    paths = list(version.get("referenceImagePaths") or [])
+    updated = {
+        **reference,
+        "assetId": version["assetId"],
+        "assetKind": version["assetKind"],
+        "versionId": version["versionId"],
+        "imagePath": paths[0],
+        "referenceImagePaths": paths,
+        "referenceImageSha256": list(version.get("referenceImageSha256") or []),
+        "referenceViewTypes": list(version.get("referenceViewTypes") or []),
+        "source": version["source"],
+        "contentFingerprint": version["contentFingerprint"],
+        "approvalFingerprint": None,
+        "approved": False,
+    }
+    optional_fields = (
+        "identityAnchors",
+        "negativePrompt",
+        "wardrobeVersion",
+        "sceneViewpointId",
+    )
+    for field in optional_fields:
+        if version.get(field) is not None:
+            updated[field] = copy.deepcopy(version[field])
+        else:
+            updated.pop(field, None)
+    return updated
+
+
+def reset_storyboard_visual_review(storyboard: dict[str, Any], reason: str) -> None:
+    continuity = storyboard.get("continuityState") or {}
+    references = storyboard.get("orderedReferenceManifest") or []
+    storyboard["visualReview"] = {
+        "status": "pending",
+        "reasons": [reason],
+        "characterChecks": [
+            {"characterId": item.get("characterId"), "passed": False}
+            for item in continuity.get("characters") or []
+        ],
+        "sceneChecks": [
+            {"sceneVersionId": continuity.get("sceneVersionId"), "passed": False}
+        ] if continuity.get("sceneVersionId") else [],
+        "propChecks": [
+            {
+                "assetId": item.get("assetId"),
+                "versionId": item.get("versionId"),
+                "passed": False,
+            }
+            for item in references
+            if item.get("referenceRole") == "prop-state"
+        ],
+        "transitionChecks": [
+            {
+                "previousStoryboardId": continuity.get("previousStoryboardId"),
+                "passed": False,
+            }
+        ] if continuity.get("previousStoryboardId") else [],
+        "textWatermarkCheck": {"passed": False},
+        "reviewer": "automated",
+        "reviewedAt": int(dt.datetime.now().timestamp() * 1000),
+        "evidencePaths": [storyboard.get("mediaRef", {}).get("path", "")],
+    }
 
 
 def workflow_by_storyboard(image_workflows: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
@@ -131,7 +344,7 @@ def ordered_references(workflow: dict[str, Any]) -> list[dict[str, Any]]:
                 or reference_version_id(source, str(node.get("title") or asset_id)),
                 "referenceRole": reference_role(asset_type),
                 "sceneViewpointId": scene_viewpoint_id if asset_type == "scene" else None,
-                "approved": bool(asset_id and image_path and Path(image_path).exists()),
+                "approved": False,
             }
         )
     for ref in refs:
@@ -145,6 +358,40 @@ def first_scene_reference(refs: list[dict[str, Any]]) -> dict[str, Any] | None:
         if ref.get("assetKind") == "scene":
             return ref
     return refs[0] if refs else None
+
+
+def expected_scene_reference(
+    project_dir: Path | None,
+    scene_name: str,
+    viewpoint_id: str,
+    order: int,
+) -> dict[str, Any] | None:
+    if project_dir is None:
+        return None
+    scenes_path = project_dir / "scenes.json"
+    if not scenes_path.is_file():
+        return None
+    records = load_store(scenes_path).get("state", {}).get("scenes") or []
+    matches = [record for record in records if record.get("name") == scene_name]
+    if len(matches) != 1:
+        return None
+    record = matches[0]
+    image_path = str(record.get("referenceImage") or "").strip()
+    asset_id = str(record.get("id") or "").strip()
+    if not asset_id or not image_path or not Path(image_path).is_file():
+        return None
+    return {
+        "order": order,
+        "assetId": asset_id,
+        "assetName": scene_name,
+        "assetKind": "scene",
+        "imagePath": image_path,
+        "source": "project-scene-contract-repair",
+        "versionId": f"{asset_id}:{viewpoint_id}:v1",
+        "referenceRole": "scene-viewpoint",
+        "sceneViewpointId": viewpoint_id,
+        "approved": False,
+    }
 
 
 def character_states(refs: list[dict[str, Any]], prompt: str) -> list[dict[str, str]]:
@@ -179,9 +426,13 @@ def continuity_fingerprint(storyboard: dict[str, Any]) -> str:
                     "assetId": ref.get("assetId"),
                     "versionId": ref.get("versionId"),
                     "imagePath": ref.get("imagePath"),
+                    "referenceImagePaths": ref.get("referenceImagePaths"),
+                    "referenceImageSha256": ref.get("referenceImageSha256"),
+                    "referenceViewTypes": ref.get("referenceViewTypes"),
                     "referenceRole": ref.get("referenceRole"),
                     "wardrobeVersion": ref.get("wardrobeVersion"),
                     "sceneViewpointId": ref.get("sceneViewpointId"),
+                    "contentFingerprint": ref.get("contentFingerprint"),
                 }
             )
             for ref in refs
@@ -257,12 +508,191 @@ def align_source_fields(
     return changed
 
 
-def repair_storyboards(state: dict[str, Any], review_status: str, align_store: Path | None) -> dict[str, Any]:
+def sync_pending_asset_manifest(
+    state: dict[str, Any],
+    manifest_path: Path,
+) -> dict[str, Any]:
+    manifest, versions = load_pending_asset_manifest(manifest_path)
+    project_dir = Path(str(manifest.get("projectDir") or "")).resolve()
+    if not project_dir.is_dir():
+        raise RuntimeError(f"连续性资产 manifest 的 projectDir 不存在: {project_dir}")
+    entities = load_project_entity_names(project_dir)
+    incoming_keys = {continuity_version_key(version) for version in versions}
+    state["continuityAssetVersions"] = [
+        item
+        for item in state.get("continuityAssetVersions") or []
+        if continuity_version_key(item) not in incoming_keys
+    ] + copy.deepcopy(versions)
+
+    storyboards = sorted(
+        [item for item in state.get("storyboards") or [] if item.get("episodeId") == EPISODE_ID],
+        key=lambda item: int(item.get("index") or 0),
+    )
+    directly_changed: list[str] = []
+    first_changed_by_group: dict[str, int] = {}
+    for storyboard in storyboards:
+        references = storyboard.get("orderedReferenceManifest") or []
+        old_to_new: dict[tuple[str, str], dict[str, Any]] = {}
+        changed = False
+        updated_references, old_to_new = apply_available_versions_to_references(
+            references,
+            versions,
+            entities,
+        )
+        changed = stable_serialize(updated_references) != stable_serialize(references)
+        if not changed:
+            continue
+        storyboard["orderedReferenceManifest"] = updated_references
+        continuity = storyboard.get("continuityState") or {}
+        for character in continuity.get("characters") or []:
+            version = old_to_new.get((
+                str(character.get("characterId") or ""),
+                str(character.get("versionId") or ""),
+            ))
+            if version and version.get("assetKind") == "character":
+                character["characterId"] = version["assetId"]
+                character["versionId"] = version["versionId"]
+        primary_scene = next(
+            (
+                item for item in updated_references
+                if item.get("assetKind") == "scene" and item.get("referenceRole") == "scene-viewpoint"
+            ),
+            None,
+        )
+        if primary_scene:
+            continuity["sceneVersionId"] = primary_scene["versionId"]
+            continuity["sceneViewpointId"] = primary_scene.get("sceneViewpointId") or continuity.get("sceneViewpointId")
+        storyboard["continuityState"] = continuity
+        continuity["inputFingerprint"] = continuity_fingerprint(storyboard)
+        storyboard["sourceFingerprint"] = storyboard_source_fingerprint(storyboard)
+        storyboard["stale"] = True
+        storyboard["staleReason"] = "连续性资产 Bible 已更新，必须重新生成并审核"
+        storyboard["staleSince"] = int(dt.datetime.now().timestamp() * 1000)
+        reset_storyboard_visual_review(storyboard, "连续性资产 Bible 已更新，必须重新生成并审核")
+        storyboard_id = str(storyboard.get("id") or "")
+        directly_changed.append(storyboard_id)
+        group_id = str(continuity.get("groupId") or "")
+        index = int(storyboard.get("index") or 0)
+        if group_id:
+            first_changed_by_group[group_id] = min(first_changed_by_group.get(group_id, index), index)
+
+    propagated: list[str] = []
+    direct_ids = set(directly_changed)
+    for storyboard in storyboards:
+        continuity = storyboard.get("continuityState") or {}
+        group_id = str(continuity.get("groupId") or "")
+        first_changed = first_changed_by_group.get(group_id)
+        storyboard_id = str(storyboard.get("id") or "")
+        if first_changed is None or int(storyboard.get("index") or 0) < first_changed or storyboard_id in direct_ids:
+            continue
+        storyboard["stale"] = True
+        storyboard["staleReason"] = "上游连续镜头引用的资产 Bible 已更新"
+        storyboard["staleSince"] = int(dt.datetime.now().timestamp() * 1000)
+        reset_storyboard_visual_review(storyboard, "上游连续镜头引用的资产 Bible 已更新")
+        propagated.append(storyboard_id)
+    return {
+        "manifest": str(manifest_path),
+        "versions": len(versions),
+        "pending": sum(version.get("approved") is not True for version in versions),
+        "approved": sum(version.get("approved") is True for version in versions),
+        "directlyChangedStoryboards": directly_changed,
+        "propagatedStoryboards": propagated,
+    }
+
+
+def canonical_storyboard_asset_ids(storyboard: dict[str, Any]) -> list[str]:
+    references = sorted(
+        storyboard.get("orderedReferenceManifest") or [],
+        key=lambda item: int(item.get("order") or 0),
+    )
+    return [
+        str(reference.get("assetId") or "").strip()
+        for reference in references
+        if str(reference.get("assetId") or "").strip()
+    ]
+
+
+def align_storyboard_asset_ids(storyboards: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    changes: list[dict[str, Any]] = []
+    for storyboard in storyboards:
+        if storyboard.get("episodeId") != EPISODE_ID:
+            continue
+        canonical_ids = canonical_storyboard_asset_ids(storyboard)
+        if not canonical_ids or storyboard.get("assetIds") == canonical_ids:
+            continue
+        changes.append({
+            "storyboardId": storyboard.get("id"),
+            "index": storyboard.get("index"),
+            "from": copy.deepcopy(storyboard.get("assetIds") or []),
+            "to": canonical_ids,
+        })
+        storyboard["assetIds"] = canonical_ids
+        storyboard["sourceFingerprint"] = storyboard_source_fingerprint(storyboard)
+    return changes
+
+
+def sync_script_shot_asset_ids(
+    script_document: dict[str, Any],
+    storyboards: list[dict[str, Any]],
+) -> dict[str, Any]:
+    shots = script_document.get("shots")
+    if not isinstance(shots, list):
+        raise RuntimeError("script.json 缺少顶层 shots 数组")
+    chapter_storyboards = [item for item in storyboards if item.get("episodeId") == EPISODE_ID]
+    by_id: dict[str, dict[str, Any]] = {}
+    by_index: dict[int, list[dict[str, Any]]] = {}
+    for storyboard in chapter_storyboards:
+        storyboard_id = str(storyboard.get("id") or "")
+        if not storyboard_id or storyboard_id in by_id:
+            raise RuntimeError(f"Studio store 存在空或重复 storyboard id: {storyboard_id}")
+        by_id[storyboard_id] = storyboard
+        by_index.setdefault(int(storyboard.get("index") or 0), []).append(storyboard)
+
+    matched_storyboard_ids: set[str] = set()
+    changed_shots: list[str] = []
+    unmatched_script_shots: list[str] = []
+    for shot in shots:
+        if shot.get("episodeId") != EPISODE_ID:
+            continue
+        shot_id = str(shot.get("id") or "")
+        storyboard = by_id.get(shot_id)
+        if storyboard is None:
+            matches = by_index.get(int(shot.get("index") or 0), [])
+            storyboard = matches[0] if len(matches) == 1 else None
+        if storyboard is None:
+            unmatched_script_shots.append(shot_id or f"index:{shot.get('index')}")
+            continue
+        storyboard_id = str(storyboard["id"])
+        matched_storyboard_ids.add(storyboard_id)
+        canonical_ids = canonical_storyboard_asset_ids(storyboard)
+        if not canonical_ids:
+            raise RuntimeError(f"分镜 {storyboard_id} 缺少 canonical orderedReferenceManifest")
+        if shot.get("assetIds") != canonical_ids:
+            shot["assetIds"] = copy.deepcopy(canonical_ids)
+            changed_shots.append(shot_id or storyboard_id)
+    return {
+        "shots": len([shot for shot in shots if shot.get("episodeId") == EPISODE_ID]),
+        "changedShots": changed_shots,
+        "unmatchedScriptShots": unmatched_script_shots,
+        "missingScriptStoryboards": sorted(set(by_id) - matched_storyboard_ids),
+    }
+
+
+def repair_storyboards(
+    state: dict[str, Any],
+    review_status: str,
+    align_store: Path | None,
+    project_dir: Path | None = None,
+) -> dict[str, Any]:
+    if review_status != "pending":
+        raise RuntimeError("结构修复只能写入 pending，禁止自动批准视觉资产或分镜")
     workflows = workflow_by_storyboard(state.get("imageWorkflows") or [])
     storyboards = sorted(
         [item for item in state.get("storyboards") or [] if item.get("episodeId") == EPISODE_ID],
         key=lambda item: item.get("index", 0),
     )
+    existing_versions = list(state.get("continuityAssetVersions") or [])
+    entities = load_project_entity_names(project_dir) if project_dir is not None else {}
     aligned_source_fields = align_source_fields(storyboards, align_store)
     previous_by_group: dict[str, str] = {}
     report = {
@@ -273,10 +703,16 @@ def repair_storyboards(state: dict[str, Any], review_status: str, align_store: P
         "missingReferences": [],
         "unapprovedReferences": [],
         "sceneGroupMismatches": [],
+        "repairedSceneGroupMismatches": [],
         "durationAlignedToTarget": [],
         "reviewStatus": review_status,
     }
     for storyboard in storyboards:
+        previous_continuity = storyboard.get("continuityState") or {}
+        previous_input_fingerprint = str(previous_continuity.get("inputFingerprint") or "")
+        was_stale = storyboard.get("stale") is True
+        previous_stale_reason = str(storyboard.get("staleReason") or "").strip()
+        previous_stale_since = storyboard.get("staleSince")
         duration_target = storyboard.get("durationTarget")
         if duration_target is not None and storyboard.get("duration") != duration_target:
             report["durationAlignedToTarget"].append(
@@ -296,14 +732,6 @@ def repair_storyboards(state: dict[str, Any], review_status: str, align_store: P
         if not refs:
             report["missingReferences"].append(storyboard.get("id"))
             continue
-        unapproved = [ref for ref in refs if ref.get("approved") is not True]
-        if unapproved:
-            report["unapprovedReferences"].append(
-                {
-                    "storyboardId": storyboard.get("id"),
-                    "references": [ref.get("assetId") for ref in unapproved],
-                }
-            )
         index = int(storyboard.get("index") or 0)
         group = continuity_group_for_index(index)
         scene = next(
@@ -313,6 +741,33 @@ def repair_storyboards(state: dict[str, Any], review_status: str, align_store: P
             ),
             None,
         )
+        if group and not scene:
+            scene_indexes = [
+                offset for offset, reference in enumerate(refs)
+                if reference.get("assetKind") == "scene"
+            ]
+            replacement = expected_scene_reference(
+                project_dir,
+                str(group["sceneName"]),
+                str(group["viewpointId"]),
+                int(refs[scene_indexes[0]].get("order") or scene_indexes[0] + 1) if scene_indexes else 1,
+            )
+            if replacement:
+                if scene_indexes:
+                    replaced = refs[scene_indexes[0]]
+                    refs[scene_indexes[0]] = replacement
+                else:
+                    replaced = None
+                    refs.insert(0, replacement)
+                    for order, reference in enumerate(refs, 1):
+                        reference["order"] = order
+                scene = replacement
+                report["repairedSceneGroupMismatches"].append({
+                    "storyboardId": storyboard.get("id"),
+                    "index": index,
+                    "expectedScene": group["sceneName"],
+                    "replacedScene": (replaced or {}).get("assetName"),
+                })
         if not group or not scene:
             report["sceneGroupMismatches"].append(
                 {
@@ -323,11 +778,43 @@ def repair_storyboards(state: dict[str, Any], review_status: str, align_store: P
                 }
             )
             continue
+        for reference in refs:
+            if reference.get("assetKind") == "scene":
+                reference["referenceRole"] = "scene-viewpoint" if reference is scene else "secondary-scene"
+        refs, _old_to_new = apply_available_versions_to_references(refs, existing_versions, entities)
+        scene = next(
+            (
+                reference for reference in refs
+                if reference.get("assetKind") == "scene"
+                and reference.get("assetName") == group["sceneName"]
+                and reference.get("referenceRole") == "scene-viewpoint"
+            ),
+            None,
+        )
+        if scene is None:
+            report["sceneGroupMismatches"].append(
+                {
+                    "storyboardId": storyboard.get("id"),
+                    "index": index,
+                    "expectedScene": group["sceneName"],
+                    "actualScenes": [ref.get("assetName") for ref in refs if ref.get("assetKind") == "scene"],
+                }
+            )
+            continue
         scene_version = str(scene["versionId"])
         scene_viewpoint = str(scene.get("sceneViewpointId") or group["viewpointId"])
+        unapproved = [ref for ref in refs if ref.get("approved") is not True]
+        if unapproved:
+            report["unapprovedReferences"].append(
+                {
+                    "storyboardId": storyboard.get("id"),
+                    "references": [ref.get("assetId") for ref in unapproved],
+                }
+            )
         group_id = str(group["groupId"])
         prompt = str(storyboard.get("prompt") or "").strip()
         storyboard["orderedReferenceManifest"] = refs
+        character_continuity = character_states(refs, prompt)
         storyboard["continuityState"] = {
             "groupId": group_id,
             "previousStoryboardId": previous_by_group.get(group_id),
@@ -337,15 +824,28 @@ def repair_storyboards(state: dict[str, Any], review_status: str, align_store: P
             "palette": "沿用道劫水墨国风视觉手册",
             "actionIn": prompt,
             "actionOut": prompt,
-            "characters": character_states(refs, prompt),
+            "characters": character_continuity,
             "inputFingerprint": "",
         }
         if not storyboard["continuityState"]["previousStoryboardId"]:
             storyboard["continuityState"].pop("previousStoryboardId")
         storyboard["continuityState"]["inputFingerprint"] = continuity_fingerprint(storyboard)
-        storyboard.pop("stale", None)
-        storyboard.pop("staleReason", None)
-        storyboard.pop("staleSince", None)
+        continuity_changed = (
+            previous_input_fingerprint
+            != storyboard["continuityState"]["inputFingerprint"]
+        )
+        if was_stale or (continuity_changed and storyboard.get("mediaRef", {}).get("path")):
+            storyboard["stale"] = True
+            storyboard["staleReason"] = previous_stale_reason or "连续性结构已更新，必须重新生成并审核"
+            storyboard["staleSince"] = (
+                previous_stale_since
+                if isinstance(previous_stale_since, int) and previous_stale_since > 0
+                else int(dt.datetime.now().timestamp() * 1000)
+            )
+        else:
+            storyboard.pop("stale", None)
+            storyboard.pop("staleReason", None)
+            storyboard.pop("staleSince", None)
         storyboard["sourceFingerprint"] = storyboard_source_fingerprint(storyboard)
         storyboard["visualReview"] = {
             "status": review_status,
@@ -355,42 +855,89 @@ def repair_storyboards(state: dict[str, Any], review_status: str, align_store: P
                 for state in storyboard["continuityState"]["characters"]
             ],
             "sceneChecks": [{"sceneVersionId": scene_version, "passed": review_status == "approved"}],
+            "propChecks": [
+                {
+                    "assetId": ref.get("assetId"),
+                    "versionId": ref.get("versionId"),
+                    "passed": False,
+                }
+                for ref in refs
+                if ref.get("referenceRole") == "prop-state"
+            ],
             "transitionChecks": [
                 {
                     "previousStoryboardId": storyboard["continuityState"].get("previousStoryboardId"),
                     "passed": review_status == "approved",
                 }
             ],
+            "textWatermarkCheck": {"passed": False},
             "reviewer": "automated",
-            "reviewedAt": int(dt.datetime.now().timestamp() * 1000),
-            "evidencePaths": [storyboard.get("mediaRef", {}).get("path", "")],
+            "evidencePaths": [],
         }
         previous_by_group[group_id] = str(storyboard.get("id"))
         report["repaired"] += 1
+    report["assetIdsAligned"] = align_storyboard_asset_ids(storyboards)
     return report
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--store", type=Path, default=default_store_path())
+    parser.add_argument("--script", type=Path)
     parser.add_argument("--align-from-store", type=Path)
+    parser.add_argument("--asset-manifest", type=Path)
     parser.add_argument("--apply", action="store_true")
-    parser.add_argument("--review-status", choices=["pending", "approved"], default="pending")
+    parser.add_argument("--review-status", choices=["pending"], default="pending")
     args = parser.parse_args()
 
-    data = load_store(args.store)
-    before = sha256_text(args.store.read_text(encoding="utf-8"))
-    report = repair_storyboards(data["state"], args.review_status, args.align_from_store)
+    store_path = args.store.expanduser().resolve()
+    script_path = (args.script or store_path.parent / "script.json").expanduser().resolve()
+    data = load_store(store_path)
+    script_data = load_store(script_path)
+    before = sha256_text(store_path.read_text(encoding="utf-8"))
+    script_before = sha256_text(script_path.read_text(encoding="utf-8"))
+    report = repair_storyboards(
+        data["state"],
+        args.review_status,
+        args.align_from_store,
+        store_path.parent,
+    )
+    if args.asset_manifest:
+        report["assetSync"] = sync_pending_asset_manifest(data["state"], args.asset_manifest.resolve())
+        report["assetIdsAligned"].extend(align_storyboard_asset_ids(data["state"].get("storyboards") or []))
+    report["scriptSync"] = sync_script_shot_asset_ids(
+        script_data,
+        data["state"].get("storyboards") or [],
+    )
+    if (
+        report["scriptSync"]["unmatchedScriptShots"]
+        or report["scriptSync"]["missingScriptStoryboards"]
+    ):
+        raise RuntimeError(
+            "studio-workflow-store.json 与 script.json 的 chapter-001 分镜无法一一对应: "
+            f"{report['scriptSync']}"
+        )
     after_text = json.dumps(data, ensure_ascii=False, indent=2) + "\n"
     after = sha256_text(after_text)
-    report["changed"] = before != after
-    report["store"] = str(args.store)
-    if args.apply and before != after:
-        backup = backup_store(args.store)
-        write_store(args.store, data)
-        report["backup"] = str(backup)
+    script_after_text = json.dumps(script_data, ensure_ascii=False, indent=2) + "\n"
+    script_after = sha256_text(script_after_text)
+    report["storeChanged"] = before != after
+    report["scriptChanged"] = script_before != script_after
+    report["changed"] = report["storeChanged"] or report["scriptChanged"]
+    report["store"] = str(store_path)
+    report["script"] = str(script_path)
+    if args.apply and report["changed"]:
+        store_backup = backup_store(store_path) if report["storeChanged"] else None
+        script_backup = backup_store(script_path) if report["scriptChanged"] else None
+        if report["storeChanged"]:
+            write_store(store_path, data)
+        if report["scriptChanged"]:
+            write_store(script_path, script_data)
+        report["backup"] = str(store_backup) if store_backup else None
+        report["scriptBackup"] = str(script_backup) if script_backup else None
     elif args.apply:
         report["backup"] = None
+        report["scriptBackup"] = None
     print(json.dumps(report, ensure_ascii=False, indent=2))
 
 

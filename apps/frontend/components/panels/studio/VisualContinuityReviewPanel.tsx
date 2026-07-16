@@ -4,16 +4,41 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  continuityAssetSafeReviewEvidencePaths,
+  isContinuityAssetVersionApproved,
+  normalizeOrderedReferences,
+  storyboardContinuityStateIssues,
+  storyboardPrimarySceneIssues,
+  storyboardReferenceApprovalIssues,
+} from "@/lib/studio/visual-continuity";
 import { cn } from "@/lib/utils";
-import type { HumanVisualReviewInput, StoryboardItem } from "@/types/studio";
+import type {
+  ContinuityAssetVersion,
+  HumanContinuityAssetApprovalInput,
+  HumanVisualReviewInput,
+  StoryboardItem,
+  StoryboardOrderedReference,
+} from "@/types/studio";
 import { toPreviewSrc } from "./WorkflowNodePreviews";
 
 type VisualContinuityReviewPanelProps = {
   storyboards: StoryboardItem[];
+  continuityAssetVersions: ContinuityAssetVersion[];
   onReview: (storyboardId: string, review: HumanVisualReviewInput) => void;
+  onReviewAsset: (
+    assetId: string,
+    versionId: string,
+    review: HumanContinuityAssetApprovalInput,
+  ) => void;
 };
 
-export function VisualContinuityReviewPanel({ storyboards, onReview }: VisualContinuityReviewPanelProps) {
+export function VisualContinuityReviewPanel({
+  storyboards,
+  continuityAssetVersions,
+  onReview,
+  onReviewAsset,
+}: VisualContinuityReviewPanelProps) {
   const ordered = useMemo(
     () => [...storyboards].sort((left, right) => left.index - right.index),
     [storyboards],
@@ -24,8 +49,10 @@ export function VisualContinuityReviewPanel({ storyboards, onReview }: VisualCon
   const previous = selectedPosition > 0 ? ordered[selectedPosition - 1] : undefined;
   const next = selectedPosition < ordered.length - 1 ? ordered[selectedPosition + 1] : undefined;
   const [checkedCharacters, setCheckedCharacters] = useState<string[]>([]);
+  const [checkedProps, setCheckedProps] = useState<string[]>([]);
   const [scenePassed, setScenePassed] = useState(false);
   const [transitionPassed, setTransitionPassed] = useState(false);
+  const [textWatermarkPassed, setTextWatermarkPassed] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
 
   useEffect(() => {
@@ -40,14 +67,22 @@ export function VisualContinuityReviewPanel({ storyboards, onReview }: VisualCon
 
   useEffect(() => {
     setCheckedCharacters([]);
+    setCheckedProps([]);
     setScenePassed(false);
     setTransitionPassed(false);
+    setTextWatermarkPassed(false);
     setRejectionReason("");
   }, [selected?.id]);
 
   if (!selected) return null;
 
   const characterIds = [...new Set(selected.continuityState?.characters.map((item) => item.characterId) ?? [])];
+  const propReferences = selected.orderedReferenceManifest?.filter(
+    (reference) => reference.referenceRole === "prop-state",
+  ) ?? [];
+  const assetApprovalIssues = storyboardReferenceApprovalIssues(selected, continuityAssetVersions);
+  const continuityStateIssues = storyboardContinuityStateIssues(selected);
+  const primarySceneIssues = storyboardPrimarySceneIssues(selected);
   const requiresTransition = Boolean(selected.continuityState?.previousStoryboardId);
   const hasCurrentImage = Boolean(selected.mediaRef?.path);
   const canApprove = hasCurrentImage
@@ -56,7 +91,12 @@ export function VisualContinuityReviewPanel({ storyboards, onReview }: VisualCon
     && Boolean(selected.continuityState?.sceneVersionId)
     && scenePassed
     && (!requiresTransition || transitionPassed)
-    && characterIds.every((id) => checkedCharacters.includes(id));
+    && characterIds.every((id) => checkedCharacters.includes(id))
+    && propReferences.every((reference) => checkedProps.includes(`${reference.assetId}:${reference.versionId ?? ""}`))
+    && textWatermarkPassed
+    && continuityStateIssues.length === 0
+    && assetApprovalIssues.length === 0
+    && primarySceneIssues.length === 0;
   const statusCounts = ordered.reduce(
     (counts, item) => {
       counts[item.visualReview?.status ?? "pending"] += 1;
@@ -76,9 +116,15 @@ export function VisualContinuityReviewPanel({ storyboards, onReview }: VisualCon
       sceneChecks: selected.continuityState?.sceneVersionId
         ? [{ sceneVersionId: selected.continuityState.sceneVersionId, passed: scenePassed }]
         : [],
+      propChecks: propReferences.map((reference) => ({
+        assetId: reference.assetId,
+        versionId: reference.versionId,
+        passed: checkedProps.includes(`${reference.assetId}:${reference.versionId ?? ""}`),
+      })),
       transitionChecks: requiresTransition
         ? [{ previousStoryboardId: selected.continuityState?.previousStoryboardId, passed: transitionPassed }]
         : [],
+      textWatermarkCheck: { passed: textWatermarkPassed },
       evidencePaths: selected.mediaRef?.path ? [selected.mediaRef.path] : [],
     });
   };
@@ -134,6 +180,11 @@ export function VisualContinuityReviewPanel({ storyboards, onReview }: VisualCon
             <FrameEvidence label="当前镜" storyboard={selected} current />
             <FrameEvidence label="下一镜" storyboard={next} muted />
           </div>
+          <CanonicalAssetEvidence
+            references={normalizeOrderedReferences(selected.orderedReferenceManifest)}
+            versions={continuityAssetVersions}
+            onReviewAsset={onReviewAsset}
+          />
           <div className="flex items-center justify-between gap-2">
             <Button
               type="button"
@@ -163,7 +214,14 @@ export function VisualContinuityReviewPanel({ storyboards, onReview }: VisualCon
         </div>
 
         <div className="space-y-3 rounded-lg border border-zinc-800 bg-zinc-900/60 p-3">
-          <ReviewWarnings storyboard={selected} />
+          <ReviewWarnings
+            storyboard={selected}
+            contractReasons={[
+              ...continuityStateIssues,
+              ...assetApprovalIssues,
+              ...primarySceneIssues,
+            ].map((issue) => issue.message)}
+          />
           <div className="space-y-2" aria-label="视觉检查项">
             {characterIds.map((characterId) => (
               <ReviewCheck
@@ -173,6 +231,16 @@ export function VisualContinuityReviewPanel({ storyboards, onReview }: VisualCon
                 onCheckedChange={(checked) => setCheckedCharacters((current) => checked
                   ? [...new Set([...current, characterId])]
                   : current.filter((id) => id !== characterId))}
+              />
+            ))}
+            {propReferences.map((reference) => (
+              <ReviewCheck
+                key={`${reference.assetId}:${reference.versionId ?? ""}`}
+                label={`道具 ${reference.assetId} 的状态和摆放一致`}
+                checked={checkedProps.includes(`${reference.assetId}:${reference.versionId ?? ""}`)}
+                onCheckedChange={(checked) => setCheckedProps((current) => checked
+                  ? [...new Set([...current, `${reference.assetId}:${reference.versionId ?? ""}`])]
+                  : current.filter((id) => id !== `${reference.assetId}:${reference.versionId ?? ""}`))}
               />
             ))}
             <ReviewCheck
@@ -187,6 +255,11 @@ export function VisualContinuityReviewPanel({ storyboards, onReview }: VisualCon
                 onCheckedChange={setTransitionPassed}
               />
             ) : null}
+            <ReviewCheck
+              label="文字与水印检查通过"
+              checked={textWatermarkPassed}
+              onCheckedChange={setTextWatermarkPassed}
+            />
           </div>
           <div>
             <label htmlFor={`visual-review-reason-${selected.id}`} className="text-[11px] font-medium text-zinc-300">驳回原因</label>
@@ -219,6 +292,160 @@ export function VisualContinuityReviewPanel({ storyboards, onReview }: VisualCon
             </Button>
           </div>
         </div>
+      </div>
+    </section>
+  );
+}
+
+function CanonicalAssetEvidence({
+  references,
+  versions,
+  onReviewAsset,
+}: {
+  references: StoryboardOrderedReference[];
+  versions: ContinuityAssetVersion[];
+  onReviewAsset: VisualContinuityReviewPanelProps["onReviewAsset"];
+}) {
+  const [reviewReasons, setReviewReasons] = useState<Record<string, string>>({});
+  const versionsByKey = new Map(
+    versions.map((version) => [`${version.assetId}:${version.versionId}`, version]),
+  );
+  return (
+    <section aria-label="本镜 canonical 资产对照" className="rounded-lg border border-zinc-800 bg-black/25 p-2.5">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <div className="text-[11px] font-semibold text-zinc-200">有序 canonical / 场景 / 道具对照</div>
+        <div className="text-[10px] text-zinc-500">按 provider 引用顺序展示</div>
+      </div>
+      <div className="space-y-2">
+        {references.map((reference) => {
+          const version = versionsByKey.get(`${reference.assetId}:${reference.versionId ?? ""}`);
+          const approved = Boolean(version && isContinuityAssetVersionApproved(version));
+          const rejected = version?.approval?.status === "rejected";
+          const safeReviewEvidencePaths = version ? continuityAssetSafeReviewEvidencePaths(version) : [];
+          const hasCompleteReviewEvidence = Boolean(
+            version && safeReviewEvidencePaths.length === version.referenceImagePaths.length,
+          );
+          const hasVerifiedReviewEvidence = Boolean(version?.reviewEvidenceVerifiedAt);
+          const versionKey = version ? `${version.assetId}:${version.versionId}` : "";
+          const reviewReason = versionKey ? reviewReasons[versionKey] ?? "" : "";
+          const paths = version?.referenceImagePaths ?? reference.referenceImagePaths ?? [reference.imagePath ?? ""];
+          const viewTypes = version?.referenceViewTypes ?? reference.referenceViewTypes ?? [];
+          const anchors = version?.identityAnchors ?? reference.identityAnchors;
+          const anchorText = [
+            anchors?.faceShape,
+            anchors?.hairStyle,
+            ...(anchors?.uniqueMarks ?? []),
+          ].filter(Boolean).join("；");
+          const sceneText = version?.assetKind === "scene"
+            ? [version.spatialLayout, version.lightingDesign, version.colorPalette].filter(Boolean).join("；")
+            : "";
+          return (
+            <article key={`${reference.order}:${reference.assetId}:${reference.versionId ?? ""}`} className="rounded-md border border-zinc-800 bg-zinc-950/80 p-2">
+              <div className="flex flex-wrap items-center justify-between gap-2 text-[11px]">
+                <div className="font-medium text-zinc-200">
+                  @{reference.order} · {reference.assetName || reference.assetId} · {reference.versionId || "未设置版本"}
+                </div>
+                <Badge
+                  variant="outline"
+                  className={approved
+                    ? "border-emerald-600/50 bg-emerald-950/50 text-emerald-200"
+                    : rejected
+                      ? "border-red-600/50 bg-red-950/50 text-red-200"
+                      : "border-amber-600/50 bg-amber-950/50 text-amber-200"}
+                >
+                  {approved ? "已人工批准" : rejected ? "已人工驳回" : "待人工审核"}
+                </Badge>
+              </div>
+              <div className="mt-1 text-[10px] text-zinc-500">
+                {reference.referenceRole ?? "未设置角色"}
+                {version?.wardrobeVersion ? ` · 服装 ${version.wardrobeVersion}` : ""}
+                {version?.sceneViewpointId ? ` · 视角 ${version.sceneViewpointId}` : ""}
+              </div>
+              <div className="mt-2 grid grid-cols-2 gap-1.5 sm:grid-cols-3 lg:grid-cols-4">
+                {paths.filter(Boolean).map((path, index) => (
+                  <figure key={`${path}:${index}`} className="overflow-hidden rounded border border-zinc-800 bg-black">
+                    <img
+                      src={toPreviewSrc(path)}
+                      alt={`${version?.label ?? reference.assetName ?? reference.assetId} ${viewTypes[index] ?? reference.sceneViewpointId ?? reference.referenceRole ?? `图${index + 1}`} 参考图`}
+                      className="aspect-video h-full w-full object-contain"
+                    />
+                  </figure>
+                ))}
+              </div>
+              {anchorText ? <div className="mt-2 text-[10px] leading-4 text-zinc-400">文字锚点：{anchorText}</div> : null}
+              {sceneText ? <div className="mt-2 text-[10px] leading-4 text-zinc-400">场景锚点：{sceneText}</div> : null}
+              {version?.contentFingerprint ? (
+                <div className="mt-1 break-all text-[9px] leading-4 text-zinc-600">
+                  内容指纹：{version.contentFingerprint.slice(0, 48)}{version.contentFingerprint.length > 48 ? "…" : ""}
+                </div>
+              ) : null}
+              {version?.approvalFingerprint ? (
+                <div className="mt-1 break-all text-[9px] leading-4 text-zinc-600">
+                  批准指纹：{version.approvalFingerprint.slice(0, 48)}{version.approvalFingerprint.length > 48 ? "…" : ""}
+                </div>
+              ) : null}
+              {version?.approval?.reason ? (
+                <div className="mt-1 text-[10px] leading-4 text-zinc-400">上次审核说明：{version.approval.reason}</div>
+              ) : null}
+              {version && !hasCompleteReviewEvidence ? (
+                <div className="mt-1 text-[10px] leading-4 text-amber-300">
+                  缺少逐图安全缩略证据；请先生成严格小于 1MB 的 *_thumb.png。
+                </div>
+              ) : null}
+              {version && hasCompleteReviewEvidence && !hasVerifiedReviewEvidence ? (
+                <div className="mt-1 text-[10px] leading-4 text-amber-300">
+                  缩略图尚未完成本地文件、尺寸、字节数与 SHA-256 安全校验；请使用单资产安全推广命令。
+                </div>
+              ) : null}
+              {!approved && version ? (
+                <div className="mt-2 space-y-2">
+                  <Textarea
+                    value={reviewReason}
+                    onChange={(event) => setReviewReasons((current) => ({
+                      ...current,
+                      [versionKey]: event.target.value,
+                    }))}
+                    aria-label={`资产审核说明 ${version.assetId} ${version.versionId}`}
+                    placeholder="批准可填写核对说明；驳回必须说明具体问题"
+                    className="min-h-16 border-zinc-800 bg-black/30 text-[10px]"
+                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="destructive"
+                      className="h-7 text-[11px]"
+                      disabled={!reviewReason.trim()}
+                      aria-label={`驳回资产 ${version.assetId} ${version.versionId}`}
+                      onClick={() => onReviewAsset(version.assetId, version.versionId, {
+                        status: "rejected",
+                        reason: reviewReason.trim(),
+                        evidencePaths: safeReviewEvidencePaths,
+                      })}
+                    >
+                      驳回资产
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-[11px]"
+                      disabled={!version.structurallyComplete || !hasCompleteReviewEvidence || !hasVerifiedReviewEvidence}
+                      aria-label={`批准资产 ${version.assetId} ${version.versionId}`}
+                      onClick={() => onReviewAsset(version.assetId, version.versionId, {
+                        status: "approved",
+                        ...(reviewReason.trim() ? { reason: reviewReason.trim() } : {}),
+                        evidencePaths: safeReviewEvidencePaths,
+                      })}
+                    >
+                      人工批准该资产
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
+            </article>
+          );
+        })}
       </div>
     </section>
   );
@@ -281,12 +508,19 @@ function ReviewCheck({
   );
 }
 
-function ReviewWarnings({ storyboard }: { storyboard: StoryboardItem }) {
+function ReviewWarnings({
+  storyboard,
+  contractReasons,
+}: {
+  storyboard: StoryboardItem;
+  contractReasons: string[];
+}) {
   const reasons = [
     ...(storyboard.visualReview?.reasons ?? []),
     ...(storyboard.stale ? [storyboard.staleReason || "镜头已过期，必须重新生成"] : []),
     ...(!storyboard.mediaRef?.path ? ["缺少当前镜画面证据"] : []),
     ...(!storyboard.continuityState ? ["缺少连续镜头状态"] : []),
+    ...contractReasons,
   ];
   return (
     <div className={cn(

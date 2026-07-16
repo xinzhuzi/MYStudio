@@ -70,10 +70,11 @@ describe("LocalTtsPanel select controls", () => {
 
   it("keeps Python runtime configuration available in settings", () => {
     const settingsSource = readFileSync(new URL("../SettingsPanel.tsx", import.meta.url), "utf8");
+    const tabsSource = readFileSync(new URL("../settings/SettingsTabsBar.tsx", import.meta.url), "utf8");
     const pythonSource = readFileSync(new URL("../settings/PythonSettingsTab.tsx", import.meta.url), "utf8");
     const hookSource = readFileSync(new URL("../settings/usePythonRuntimeSettings.ts", import.meta.url), "utf8");
 
-    expect(settingsSource).toContain('value: "python"');
+    expect(tabsSource).toContain('value: "python"');
     expect(settingsSource).toContain("PythonSettingsTab");
     expect(pythonSource).toContain("Python 运行环境");
     expect(pythonSource).toContain("开始配置");

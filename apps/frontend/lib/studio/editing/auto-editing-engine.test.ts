@@ -149,6 +149,27 @@ describe("story-driven-v1 auto editing", () => {
     expect(second.result.run.editingProjectId).toBe("auto-draft-1");
   });
 
+  it("forceNewDraft bypasses reuse and tie-breaks equal timestamps by id", async () => {
+    const base = await runAutoEditingDraft({ request: request(), adapterInput: adapterInput(), existingProjects: [], runId: "seed", editingProjectId: "seed", now: sequenceClock() });
+    expect(base.success).toBe(true);
+    if (!base.success) return;
+    const older = { ...base.result.project, id: "draft-a", createdAt: 10 };
+    const newerTie = { ...base.result.project, id: "draft-b", createdAt: 10 };
+    const reused = await runAutoEditingDraft({ request: request(), adapterInput: adapterInput(), existingProjects: [older, newerTie], runId: "reuse", editingProjectId: "fresh", now: sequenceClock() });
+    expect(reused.success && reused.result.project.id).toBe("draft-b");
+    const forced = await runAutoEditingDraft({ request: { ...request(), forceNewDraft: true }, adapterInput: adapterInput(), existingProjects: [older, newerTie], runId: "forced", editingProjectId: "fresh", now: sequenceClock() });
+    expect(forced.success && forced.result.project.id).toBe("fresh");
+  });
+
+  it("stale filtering only reports matching non-stale automatic projects", async () => {
+    const result = await runAutoEditingDraft({ request: request(), adapterInput: { ...adapterInput(), sourceSnapshotHash: "new" }, existingProjects: [
+      { ...existingProject({ id: "stale-match", sourceSnapshotHash: "old" }), stale: false },
+      { ...existingProject({ id: "already-stale", sourceSnapshotHash: "old" }), stale: true },
+      { ...existingProject({ id: "other-episode", sourceSnapshotHash: "old" }), episodeId: "other" },
+    ], runId: "stale", editingProjectId: "fresh", now: sequenceClock() });
+    expect(result.success && result.staleEditingProjectIds).toEqual(["stale-match"]);
+  });
+
   it("creates a parallel draft beside manual work and stales old automatic snapshots", async () => {
     const manual = existingProject({
       id: "manual-1",

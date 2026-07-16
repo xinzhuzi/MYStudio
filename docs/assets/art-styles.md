@@ -1,6 +1,6 @@
 # 艺术风格画廊 · Art Style Gallery
 
-[简体中文 README](../README.md) · [English README](./README.en.md) · [English Gallery](./art-styles.en.md)
+[简体中文 README](../README.md) · [English README](../README.en.md) · [English Gallery](./art-styles.en.md)
 
 漫影工作室内置 60 种美术风格，可在分镜生产时一键套用。下图为各风格的代表效果。
 

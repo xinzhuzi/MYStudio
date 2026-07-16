@@ -467,6 +467,20 @@ describe("studio workflow readiness", () => {
     });
   });
 
+  it("does not count stale tracks or selected candidates as ready workbench media", () => {
+    const input = readyWorkbenchInput();
+    const readiness = buildWorkflowReadiness({
+      ...input,
+      productionTracks: input.productionTracks.map((track) => ({ ...track, stale: true })),
+      videoCandidates: input.videoCandidates.map((candidate) => ({ ...candidate, stale: true })),
+      fileExists: () => true,
+    });
+    const workbench = readiness.stages.find((stage) => stage.id === "workbench");
+
+    expect(workbench?.completed).not.toContain("1 条制作轨已有候选片段");
+    expect(workbench?.missing).toContain("生成候选片段");
+  });
+
   it("requires a revision-matched complete timeline render record", () => {
     const project = editingProject({ revision: 2 });
     const record = timelineRenderRecord({ editingRevision: 1 });

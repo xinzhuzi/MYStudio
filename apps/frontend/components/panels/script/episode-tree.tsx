@@ -20,35 +20,34 @@ import { cn } from "@/lib/utils";
 import {
   ChevronDown,
   ChevronRight,
-  Film,
   MapPin,
   User,
   Circle,
   Clock,
   CheckCircle2,
-  Filter,
-  Plus,
   MoreHorizontal,
   Pencil,
   Trash2,
-  Loader2,
-  Wand2,
-  RefreshCw,
   Search,
   Sparkles,
   Check,
   X,
-  MessageSquare,
-  Clapperboard,
 } from "lucide-react";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { TrailerDuration, TrailerConfig } from "@/stores/director-store";
 import type { TrailerGenerationOptions } from "@/lib/script/trailer-service";
 import { EpisodeTreeTrailerPanel } from "./episode-tree-trailer-panel";
 import { EpisodeTreeEpisodeDialog } from "./episode-tree-episode-dialog";
 import { EpisodeTreeDeleteDialog } from "./episode-tree-delete-dialog";
-import { EpisodeTreeSceneEditForm } from "./episode-tree-scene-edit-form";
-import { EpisodeTreeCharacterEditForm } from "./episode-tree-character-edit-form";
+import { EpisodeTreeEntityDialogs } from "./episode-tree-entity-dialogs";
+import { EpisodeTreeCharacterCalibrationDialogs } from "./episode-tree-character-calibration-dialogs";
+import { EpisodeTreeCharacterList } from "./episode-tree-character-list";
+import { EpisodeTreeStructure } from "./episode-tree-structure";
+import { useEpisodeTreeDeleteController } from "./use-episode-tree-delete-controller";
+import {
+  EpisodeTreeHeader,
+  type EpisodeTreeFilter,
+  type EpisodeTreeTab,
+} from "./episode-tree-header";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -68,8 +67,6 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-
-type FilterType = "all" | "pending" | "completed";
 
 // 计算完成状态图标
 function StatusIcon({ status }: { status?: CompletionStatus }) {
@@ -209,21 +206,17 @@ export function EpisodeTree({
 }: EpisodeTreeProps) {
   const [expandedEpisodes, setExpandedEpisodes] = useState<Set<string>>(new Set(["default"]));
   const [expandedScenes, setExpandedScenes] = useState<Set<string>>(new Set());
-  const [filter, setFilter] = useState<FilterType>("all");
-  // 角色分组折叠状态
-  const [extrasExpanded, setExtrasExpanded] = useState(false);
+  const [filter, setFilter] = useState<EpisodeTreeFilter>("all");
   // Tab 状态: 剧集结构 vs 预告片
-  const [activeTab, setActiveTab] = useState<"structure" | "trailer">("structure");
+  const [activeTab, setActiveTab] = useState<EpisodeTreeTab>("structure");
 
   // Dialog states
   const [episodeDialogOpen, setEpisodeDialogOpen] = useState(false);
   const [sceneDialogOpen, setSceneDialogOpen] = useState(false);
   const [characterDialogOpen, setCharacterDialogOpen] = useState(false);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   // Edit states
   const [editingItem, setEditingItem] = useState<{ type: "episode" | "scene" | "character" | "shot"; id: string } | null>(null);
-  const [deleteItem, setDeleteItem] = useState<{ type: "episode" | "scene" | "character" | "shot"; id: string; name: string } | null>(null);
   const [targetEpisodeId, setTargetEpisodeId] = useState<string | null>(null);
 
   // Form states
@@ -251,70 +244,6 @@ export function EpisodeTree({
   // 被过滤角色查看弹窗
   const [filteredCharsDialogOpen, setFilteredCharsDialogOpen] = useState(false);
   
-  // 校准确认弹窗的本地编辑状态
-  const [localKeptCharacters, setLocalKeptCharacters] = useState<ScriptCharacter[]>([]);
-  const [localFilteredCharacters, setLocalFilteredCharacters] = useState<FilteredCharacterRecord[]>([]);
-  // 缓存用户手动移除的角色完整数据，便于恢复时不丢失 AI 生成的字段
-  const [removedCharactersCache, setRemovedCharactersCache] = useState<Map<string, ScriptCharacter>>(new Map());
-  
-  // 当确认弹窗打开时，从 props 同步
-  useEffect(() => {
-    if (calibrationDialogOpen && pendingCalibrationCharacters) {
-      setLocalKeptCharacters([...pendingCalibrationCharacters]);
-      setLocalFilteredCharacters([...(pendingFilteredCharacters || [])]);
-      setRemovedCharactersCache(new Map());
-    }
-  }, [calibrationDialogOpen, pendingCalibrationCharacters, pendingFilteredCharacters]);
-  
-  // 从保留列表移除角色（缓存完整数据以便恢复）
-  const handleRemoveKeptCharacter = useCallback((charId: string) => {
-    const char = localKeptCharacters.find(c => c.id === charId);
-    if (!char) return;
-    setRemovedCharactersCache(prev => {
-      const next = new Map(prev);
-      next.set(char.name, char);
-      return next;
-    });
-    setLocalKeptCharacters(prev => prev.filter(c => c.id !== charId));
-    setLocalFilteredCharacters(prev => [...prev, { name: char.name, reason: '用户手动移除' }]);
-  }, [localKeptCharacters]);
-  
-  // 从过滤列表恢复角色到保留列表
-  const handleRestoreToKept = useCallback((characterName: string) => {
-    setLocalFilteredCharacters(prev => prev.filter(fc => fc.name !== characterName));
-    // 优先从缓存恢复完整角色数据，避免丢失 AI 生成的字段
-    const cachedChar = removedCharactersCache.get(characterName);
-    if (cachedChar) {
-      setLocalKeptCharacters(prev => [...prev, cachedChar]);
-      setRemovedCharactersCache(prev => {
-        const next = new Map(prev);
-        next.delete(characterName);
-        return next;
-      });
-    } else {
-      setLocalKeptCharacters(prev => [...prev, {
-        id: `char_restored_${Date.now()}`,
-        name: characterName,
-        tags: ['extra', 'restored'],
-      }]);
-    }
-  }, [removedCharactersCache]);
-  
-  // 确认校准结果
-  const handleConfirmCalibrationLocal = useCallback(() => {
-    onConfirmCalibration?.(localKeptCharacters, localFilteredCharacters);
-  }, [localKeptCharacters, localFilteredCharacters, onConfirmCalibration]);
-  
-  // 全部保留（恢复所有被过滤的角色并确认）
-  const handleRestoreAllAndConfirm = useCallback(() => {
-    const restored: ScriptCharacter[] = localFilteredCharacters.map((fc, i) => ({
-      id: `char_restored_${Date.now()}_${i}`,
-      name: fc.name,
-      tags: ['extra', 'restored'],
-    }));
-    onConfirmCalibration?.([...localKeptCharacters, ...restored], []);
-  }, [localKeptCharacters, localFilteredCharacters, onConfirmCalibration]);
-
   // 如果没有episodes，创建一个默认的
   const episodes = useMemo(() => {
     if (!scriptData) return [];
@@ -329,6 +258,20 @@ export function EpisodeTree({
       sceneIds: scriptData.scenes.map((s) => s.id),
     }];
   }, [scriptData]);
+
+  const {
+    deleteDialogOpen,
+    setDeleteDialogOpen,
+    deleteItem,
+    handleDelete,
+    confirmDelete,
+  } = useEpisodeTreeDeleteController({
+    episodes,
+    onDeleteEpisodeBundle,
+    onDeleteScene,
+    onDeleteCharacter,
+    onDeleteShot,
+  });
 
   // 按场景分组的shots
   const shotsByScene = useMemo(() => {
@@ -563,33 +506,6 @@ export function EpisodeTree({
     setAiResult(null);
   };
 
-  const handleDelete = (type: "episode" | "scene" | "character" | "shot", id: string, name: string) => {
-    setDeleteItem({ type, id, name });
-    setDeleteDialogOpen(true);
-  };
-
-  const confirmDelete = () => {
-    if (!deleteItem) return;
-    switch (deleteItem.type) {
-      case "episode": {
-        const ep = episodes.find(e => e.id === deleteItem.id);
-        if (ep) onDeleteEpisodeBundle?.(ep.index);
-        break;
-      }
-      case "scene":
-        onDeleteScene?.(deleteItem.id);
-        break;
-      case "character":
-        onDeleteCharacter?.(deleteItem.id);
-        break;
-      case "shot":
-        onDeleteShot?.(deleteItem.id);
-        break;
-    }
-    setDeleteDialogOpen(false);
-    setDeleteItem(null);
-  };
-
   // 计算整体进度
   const overallProgress = useMemo(() => {
     if (!scriptData) return '0/0';
@@ -608,97 +524,19 @@ export function EpisodeTree({
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
-      {/* 顶部 Tab 切换 */}
-      <div className="border-b">
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "structure" | "trailer")} className="w-full">
-          <TabsList className="w-full justify-start h-9 rounded-none bg-transparent border-b-0 p-0">
-            <TabsTrigger 
-              value="structure" 
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent h-9 px-4"
-            >
-              <Film className="h-3 w-3 mr-1" />
-              剧集结构
-            </TabsTrigger>
-            <TabsTrigger 
-              value="trailer" 
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent h-9 px-4"
-            >
-              <Clapperboard className="h-3 w-3 mr-1" />
-              预告片
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
-      </div>
-
-      {/* 标题和进度 - 仅在剧集结构 Tab 显示 */}
-      {activeTab === "structure" && (
-        <div className="p-3 border-b">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="font-medium text-sm">{scriptData.title}</h3>
-              {scriptData.genre && (
-                <span className="text-xs text-muted-foreground">{scriptData.genre}</span>
-              )}
-            </div>
-            <span className="text-xs text-muted-foreground">
-              进度: {overallProgress}
-            </span>
-          </div>
-        </div>
-      )}
-
-      {/* 筛选 + 新建按钮 - 仅在剧集结构 Tab 显示 */}
-      {activeTab === "structure" && (
-        <div className="px-3 py-2 border-b flex items-center justify-between">
-          <div className="flex items-center gap-1">
-            <Filter className="h-3 w-3 text-muted-foreground" />
-            <div className="flex gap-1">
-              {(["all", "pending", "completed"] as FilterType[]).map((f) => (
-                <Button
-                  key={f}
-                  size="sm"
-                  variant={filter === f ? "default" : "ghost"}
-                  className="h-6 text-xs px-2"
-                  onClick={() => setFilter(f)}
-                >
-                  {f === "all" ? "全部" : f === "pending" ? "未完成" : "已完成"}
-                </Button>
-              ))}
-            </div>
-          </div>
-          <div className="flex gap-1">
-            {onCalibrateScenes && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-6 text-xs px-2"
-                onClick={onCalibrateScenes}
-                disabled={sceneCalibrationStatus === 'calibrating'}
-              >
-                {sceneCalibrationStatus === 'calibrating' ? (
-                  <><Loader2 className="h-3 w-3 mr-1 animate-spin" />校准中...</>
-                ) : (
-                  <><Wand2 className="h-3 w-3 mr-1" />AI场景校准</>
-                )}
-              </Button>
-            )}
-            {onRegenerateAllShots && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-6 text-xs px-2"
-                onClick={onRegenerateAllShots}
-              >
-                <RefreshCw className="h-3 w-3 mr-1" />更新全部
-              </Button>
-            )}
-            <Button size="sm" variant="outline" className="h-6 text-xs px-2" onClick={handleAddEpisode}>
-              <Plus className="h-3 w-3 mr-1" />新建集
-            </Button>
-          </div>
-        </div>
-      )}
-
+      <EpisodeTreeHeader
+        activeTab={activeTab}
+        onActiveTabChange={setActiveTab}
+        title={scriptData.title}
+        genre={scriptData.genre}
+        overallProgress={overallProgress}
+        filter={filter}
+        onFilterChange={setFilter}
+        onCalibrateScenes={onCalibrateScenes}
+        sceneCalibrationStatus={sceneCalibrationStatus}
+        onRegenerateAllShots={onRegenerateAllShots}
+        onAddEpisode={handleAddEpisode}
+      />
       {/* 预告片 Tab 内容 */}
       {activeTab === "trailer" && (
         <EpisodeTreeTrailerPanel
@@ -719,376 +557,46 @@ export function EpisodeTree({
       {activeTab === "structure" && (
       <ScrollArea className="flex-1">
         <div className="p-2 pb-20 space-y-1">
-          {/* 集列表 */}
-          {episodes.map((episode) => {
-            const episodeScenes = scriptData.scenes.filter((s) =>
-              episode.sceneIds.includes(s.id)
-            );
-            const episodeShots = shots.filter((shot) =>
-              episodeScenes.some((s) => s.id === shot.sceneRefId)
-            );
-            const episodeProgress = calculateProgress(
-              episodeShots.map((s) => ({ status: getShotCompletionStatus(s) }))
-            );
+          <EpisodeTreeStructure
+            episodes={episodes}
+            scenes={scriptData.scenes}
+            shots={shots}
+            shotsByScene={shotsByScene}
+            filter={filter}
+            expandedEpisodes={expandedEpisodes}
+            expandedScenes={expandedScenes}
+            selectedItemId={selectedItemId}
+            selectedItemType={selectedItemType}
+            shotStatus={shotStatus}
+            episodeGenerationStatus={episodeGenerationStatus}
+            sceneCalibrationStatus={sceneCalibrationStatus}
+            onSelectItem={onSelectItem}
+            onToggleEpisode={toggleEpisode}
+            onToggleScene={toggleScene}
+            onAddScene={handleAddScene}
+            onEditEpisode={handleEditEpisode}
+            onEditScene={handleEditScene}
+            onDeleteItem={handleDelete}
+            onGenerateEpisodeShots={onGenerateEpisodeShots}
+            onCalibrateShots={onCalibrateShots}
+            onCalibrateEpisodeScenes={onCalibrateEpisodeScenes}
+            onCalibrateScenesShots={onCalibrateScenesShots}
+          />
 
-            return (
-              <div key={episode.id} className="space-y-0.5">
-                {/* 集标题 */}
-                <div className="flex items-center group">
-                  <button
-                    onClick={() => toggleEpisode(episode.id)}
-                    className={cn(
-                      "flex-1 min-w-0 flex items-center gap-1 px-2 py-1.5 rounded hover:bg-muted text-left overflow-hidden",
-                      selectedItemId === `episode_${episode.index}` &&
-                        selectedItemType === "episode" &&
-                        "bg-primary/10"
-                    )}
-                  >
-                    {expandedEpisodes.has(episode.id) ? (
-                      <ChevronDown className="h-3 w-3" />
-                    ) : (
-                      <ChevronRight className="h-3 w-3" />
-                    )}
-                    <Film className="h-3 w-3 text-primary" />
-                    <span 
-                      className="text-sm font-medium flex-1 truncate"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onSelectItem(`episode_${episode.index}`, "episode");
-                      }}
-                    >
-                      {episode.title}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      {episodeProgress}
-                    </span>
-                  </button>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm" className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100">
-                        <MoreHorizontal className="h-3 w-3" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      {onGenerateEpisodeShots && (
-                        <DropdownMenuItem
-                          onClick={() => onGenerateEpisodeShots(episode.index)}
-                          disabled={episodeGenerationStatus?.[episode.index] === 'generating'}
-                        >
-                          {episodeGenerationStatus?.[episode.index] === 'generating' ? (
-                            <><Loader2 className="h-3 w-3 mr-2 animate-spin" />生成中...</>
-                          ) : episodeGenerationStatus?.[episode.index] === 'completed' ? (
-                            <><RefreshCw className="h-3 w-3 mr-2" />更新分镜</>
-                          ) : (
-                            <><Wand2 className="h-3 w-3 mr-2" />生成分镜</>
-                          )}
-                        </DropdownMenuItem>
-                      )}
-                      {onCalibrateShots && episodeGenerationStatus?.[episode.index] === 'completed' && (
-                        <DropdownMenuItem
-                          onClick={() => onCalibrateShots(episode.index)}
-                        >
-                          <Wand2 className="h-3 w-3 mr-2" />AI校准分镜
-                        </DropdownMenuItem>
-                      )}
-                      {onCalibrateEpisodeScenes && (
-                        <DropdownMenuItem
-                          onClick={() => onCalibrateEpisodeScenes(episode.index)}
-                          disabled={sceneCalibrationStatus === 'calibrating'}
-                        >
-                          {sceneCalibrationStatus === 'calibrating' ? (
-                            <><Loader2 className="h-3 w-3 mr-2 animate-spin" />校准中...</>
-                          ) : (
-                            <><MapPin className="h-3 w-3 mr-2" />校准本集场景</>
-                          )}
-                        </DropdownMenuItem>
-                      )}
-                      <DropdownMenuItem onClick={() => handleAddScene(episode.id)}>
-                        <Plus className="h-3 w-3 mr-2" />新建场景
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleEditEpisode(episode)}>
-                        <Pencil className="h-3 w-3 mr-2" />编辑
-                      </DropdownMenuItem>
-                      <DropdownMenuItem className="text-destructive" onClick={() => handleDelete("episode", episode.id, episode.title)}>
-                        <Trash2 className="h-3 w-3 mr-2" />删除
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-
-                {/* 场景列表 */}
-                {expandedEpisodes.has(episode.id) && (
-                  <div className="ml-4 space-y-0.5">
-                    {episodeScenes.map((scene) => {
-                      const sceneShots = shotsByScene[scene.id] || [];
-                      const sceneProgress = calculateProgress(
-                        sceneShots.map((s) => ({ status: getShotCompletionStatus(s) }))
-                      );
-
-                      return (
-                        <div key={scene.id} className="space-y-0.5">
-                          {/* 场景标题 */}
-                          <div className="flex items-center group">
-                            <button
-                              onClick={() => toggleScene(scene.id)}
-                              className={cn(
-                                "flex-1 flex items-center gap-1 px-2 py-1 rounded hover:bg-muted text-left",
-                                selectedItemId === scene.id &&
-                                  selectedItemType === "scene" &&
-                                  "bg-primary/10"
-                              )}
-                            >
-                              {sceneShots.length > 0 ? (
-                                expandedScenes.has(scene.id) ? (
-                                  <ChevronDown className="h-3 w-3" />
-                                ) : (
-                                  <ChevronRight className="h-3 w-3" />
-                                )
-                              ) : (
-                                <span className="w-3" />
-                              )}
-                              {/* 分镜生成状态指示器 */}
-                              {shotStatus === "generating" && sceneShots.length === 0 ? (
-                                <Loader2 className="h-3 w-3 text-primary animate-spin" />
-                              ) : (
-                                <MapPin className="h-3 w-3 text-blue-500" />
-                              )}
-                              <span
-                                className="text-xs flex-1 truncate"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  onSelectItem(scene.id, "scene");
-                                }}
-                              >
-                                {scene.name || scene.location}
-                              </span>
-                              <StatusIcon status={scene.status} />
-                              <span className="text-xs text-muted-foreground">
-                                {sceneProgress}
-                              </span>
-                            </button>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="sm" className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100">
-                                  <MoreHorizontal className="h-3 w-3" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                {onCalibrateScenesShots && sceneShots.length > 0 && (
-                                  <DropdownMenuItem
-                                    onClick={() => onCalibrateScenesShots(scene.id)}
-                                  >
-                                    <Wand2 className="h-3 w-3 mr-2" />AI校准分镜
-                                  </DropdownMenuItem>
-                                )}
-                                <DropdownMenuItem onClick={() => handleEditScene(scene)}>
-                                  <Pencil className="h-3 w-3 mr-2" />编辑
-                                </DropdownMenuItem>
-                                <DropdownMenuItem className="text-destructive" onClick={() => handleDelete("scene", scene.id, scene.name || scene.location)}>
-                                  <Trash2 className="h-3 w-3 mr-2" />删除
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </div>
-
-                          {/* 分镜列表 */}
-                          {expandedScenes.has(scene.id) && sceneShots.length > 0 && (
-                            <div className="ml-4 space-y-0.5">
-                              {sceneShots
-                                .filter((shot) => {
-                                  if (filter === "all") return true;
-                                  const status = getShotCompletionStatus(shot);
-                                  if (filter === "completed")
-                                    return status === "completed";
-                                  return status !== "completed";
-                                })
-                                .map((shot) => (
-                                  <div key={shot.id} className="flex items-center group">
-                                    <button
-                                      onClick={() => onSelectItem(shot.id, "shot")}
-                                      className={cn(
-                                        "flex-1 flex items-center gap-2 px-2 py-1 rounded hover:bg-muted text-left",
-                                        selectedItemId === shot.id &&
-                                          selectedItemType === "shot" &&
-                                          "bg-primary/10"
-                                      )}
-                                    >
-                                      <span className="text-xs font-mono text-muted-foreground w-5">
-                                        {String(shot.index).padStart(2, "0")}
-                                      </span>
-                                      <span className="text-xs flex-1 truncate">
-                                        {shot.shotSize || "镜头"} - {shot.actionSummary?.slice(0, 20)}...
-                                      </span>
-                                      <StatusIcon
-                                        status={getShotCompletionStatus(shot)}
-                                      />
-                                    </button>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 text-destructive"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleDelete("shot", shot.id, `镜头 ${shot.index}`);
-                                      }}
-                                    >
-                                      <Trash2 className="h-3 w-3" />
-                                    </Button>
-                                  </div>
-                                ))}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-
-          {/* 角色列表 - 分为主角组和群演配角组 */}
-          {(() => {
-            // 过滤掉父角色，并去重
-            const seenIds = new Set<string>();
-            const allCharacters = scriptData.characters
-              .filter(c => !c.stageCharacterIds || c.stageCharacterIds.length === 0)
-              .filter(c => {
-                if (seenIds.has(c.id)) return false;
-                seenIds.add(c.id);
-                return true;
-              });
-            
-            // 分组：主角组 (protagonist, supporting) 和 群演配角组 (minor, extra)
-            const mainCharacters = allCharacters.filter(c => {
-              const tags = c.tags || [];
-              return tags.includes('protagonist') || tags.includes('supporting');
-            });
-            const extraCharacters = allCharacters.filter(c => {
-              const tags = c.tags || [];
-              return !tags.includes('protagonist') && !tags.includes('supporting');
-            });
-            
-            const renderCharacterItem = (char: ScriptCharacter) => (
-              <div key={char.id} className="flex items-center group">
-                <button
-                  onClick={() => onSelectItem(char.id, "character")}
-                  className={cn(
-                    "flex items-center gap-1 px-2 py-1 rounded text-xs hover:bg-muted",
-                    selectedItemId === char.id &&
-                      selectedItemType === "character" &&
-                      "bg-primary/10"
-                  )}
-                >
-                  <StatusIcon status={char.status} />
-                  {char.name}
-                </button>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm" className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100">
-                      <MoreHorizontal className="h-3 w-3" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => handleEditCharacter(char)}>
-                      <Pencil className="h-3 w-3 mr-2" />编辑
-                    </DropdownMenuItem>
-                    <DropdownMenuItem className="text-destructive" onClick={() => handleDelete("character", char.id, char.name)}>
-                      <Trash2 className="h-3 w-3 mr-2" />删除
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            );
-            
-            return (
-              <>
-                {/* 主角组 */}
-                <div className="mt-4 pt-4 border-t">
-                  <div className="px-2 py-1 text-xs font-medium text-muted-foreground flex items-center justify-between">
-                    <div className="flex items-center gap-1">
-                      <User className="h-3 w-3" />
-                      角色 ({mainCharacters.length})
-                    </div>
-                    <div className="flex items-center gap-1">
-                      {onCalibrateCharacters && (
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button 
-                              size="sm" 
-                              variant="ghost" 
-                              className="h-5 text-xs px-1"
-                              disabled={characterCalibrationStatus === 'calibrating'}
-                            >
-                              {characterCalibrationStatus === 'calibrating' ? (
-                                <Loader2 className="h-3 w-3 animate-spin" />
-                              ) : (
-                                <MoreHorizontal className="h-3 w-3" />
-                              )}
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={onCalibrateCharacters}>
-                              <Wand2 className="h-3 w-3 mr-2" />AI角色校准
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuSub>
-                              <DropdownMenuSubTrigger className="text-xs">
-                                <Wand2 className="h-3 w-3 mr-2" />校准严格度
-                              </DropdownMenuSubTrigger>
-                              <DropdownMenuSubContent>
-                                <DropdownMenuRadioGroup
-                                  value={calibrationStrictness || 'normal'}
-                                  onValueChange={(v) => onCalibrationStrictnessChange?.(v as CalibrationStrictness)}
-                                >
-                                  <DropdownMenuRadioItem value="strict" className="text-xs">严格</DropdownMenuRadioItem>
-                                  <DropdownMenuRadioItem value="normal" className="text-xs">标准</DropdownMenuRadioItem>
-                                  <DropdownMenuRadioItem value="loose" className="text-xs">宽松</DropdownMenuRadioItem>
-                                </DropdownMenuRadioGroup>
-                              </DropdownMenuSubContent>
-                            </DropdownMenuSub>
-                            <DropdownMenuItem onClick={() => setFilteredCharsDialogOpen(true)}>
-                              <Filter className="h-3 w-3 mr-2" />查看被过滤角色
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      )}
-                      <Button size="sm" variant="ghost" className="h-5 text-xs px-1" onClick={handleAddCharacter}>
-                        <Plus className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap gap-1 px-2 mt-1">
-                    {mainCharacters.map(renderCharacterItem)}
-                  </div>
-                </div>
-                
-                {/* 群演配角组 - 可折叠 */}
-                {extraCharacters.length > 0 && (
-                  <div className="mt-2 border-t border-dashed pt-2">
-                    <button
-                      onClick={() => setExtrasExpanded(!extrasExpanded)}
-                      className="w-full px-2 py-1 text-xs text-muted-foreground flex items-center justify-between hover:bg-muted/50 rounded"
-                    >
-                      <div className="flex items-center gap-1">
-                        {extrasExpanded ? (
-                          <ChevronDown className="h-3 w-3" />
-                        ) : (
-                          <ChevronRight className="h-3 w-3" />
-                        )}
-                        <span>群演配角 ({extraCharacters.length})</span>
-                      </div>
-                    </button>
-                    {extrasExpanded && (
-                      <div className="flex flex-wrap gap-1 px-2 mt-1">
-                        {extraCharacters.map(renderCharacterItem)}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </>
-            );
-          })()}
+          <EpisodeTreeCharacterList
+            characters={scriptData.characters}
+            selectedItemId={selectedItemId}
+            selectedItemType={selectedItemType}
+            onSelectItem={onSelectItem}
+            onEditCharacter={handleEditCharacter}
+            onDeleteCharacter={(character) => handleDelete("character", character.id, character.name)}
+            onAddCharacter={handleAddCharacter}
+            onCalibrateCharacters={onCalibrateCharacters}
+            characterCalibrationStatus={characterCalibrationStatus}
+            calibrationStrictness={calibrationStrictness}
+            onCalibrationStrictnessChange={onCalibrationStrictnessChange}
+            onOpenFilteredCharacters={() => setFilteredCharsDialogOpen(true)}
+          />
         </div>
       </ScrollArea>
       )}
@@ -1104,322 +612,45 @@ export function EpisodeTree({
         onSave={handleSaveEpisode}
       />
 
-      {/* Scene Dialog - AI 对话模式 */}
-      <Dialog open={sceneDialogOpen} onOpenChange={(open) => {
-        setSceneDialogOpen(open);
-        if (!open) {
-          setSceneAiQuery("");
-          setSceneAiResult(null);
-          setSceneAiSearching(false);
-        }
-      }}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              {editingItem?.type === "scene" ? (
-                <><Pencil className="h-4 w-4" />编辑场景</>
-              ) : (
-                <><Sparkles className="h-4 w-4 text-primary" />AI 智能添加场景</>
-              )}
-            </DialogTitle>
-          </DialogHeader>
-          
-          {/* 编辑模式：显示普通表单 */}
-          {editingItem?.type === "scene" ? (
-            <EpisodeTreeSceneEditForm
-              name={formData.name || ""}
-              location={formData.location || ""}
-              time={formData.time || ""}
-              atmosphere={formData.atmosphere || ""}
-              onNameChange={(name) => setFormData({ ...formData, name })}
-              onLocationChange={(location) => setFormData({ ...formData, location })}
-              onTimeChange={(time) => setFormData({ ...formData, time })}
-              onAtmosphereChange={(atmosphere) => setFormData({ ...formData, atmosphere })}
-              onCancel={() => setSceneDialogOpen(false)}
-              onSave={handleSaveScene}
-            />
-          ) : (
-            /* 新建模式：AI 对话界面 */
-            <div className="space-y-4 py-2">
-              {/* AI 输入区 */}
-              <div className="space-y-2">
-                <Label className="text-sm text-muted-foreground">
-                  描述你需要的场景，例如：
-                </Label>
-                <div className="text-xs text-muted-foreground space-y-1 pl-2">
-                  <p>• “缺第5集的张家客厅这个场景”</p>
-                  <p>• “添加医院走廊这个地点”</p>
-                  <p>• “需要公司会议室”</p>
-                </div>
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="输入场景名或描述..."
-                    value={sceneAiQuery}
-                    onChange={(e) => setSceneAiQuery(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault();
-                        handleSceneAISearch();
-                      }
-                    }}
-                    disabled={sceneAiSearching}
-                  />
-                  <Button
-                    onClick={handleSceneAISearch}
-                    disabled={!sceneAiQuery.trim() || sceneAiSearching || !onAIFindScene}
-                    className="shrink-0"
-                  >
-                    {sceneAiSearching ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Search className="h-4 w-4" />
-                    )}
-                  </Button>
-                </div>
-                {!onAIFindScene && (
-                  <p className="text-xs text-amber-500">请先导入剧本以启用 AI 查找</p>
-                )}
-              </div>
-
-              {/* AI 结果显示 */}
-              {sceneAiResult && (
-                <div className={cn(
-                  "rounded-lg border p-3 space-y-3",
-                  sceneAiResult.found ? "border-green-500/50 bg-green-50 dark:bg-green-950/20" : "border-amber-500/50 bg-amber-50 dark:bg-amber-950/20"
-                )}>
-                  <div className="flex items-start gap-2">
-                    {sceneAiResult.found ? (
-                      <Check className="h-4 w-4 text-green-500 mt-0.5" />
-                    ) : (
-                      <MessageSquare className="h-4 w-4 text-amber-500 mt-0.5" />
-                    )}
-                    <p className="text-sm">{sceneAiResult.message}</p>
-                  </div>
-                  
-                  {/* 找到场景时显示场景信息 */}
-                  {sceneAiResult.scene && (
-                    <div className="space-y-2 pl-6">
-                      <div className="grid grid-cols-2 gap-2 text-sm">
-                        <div>
-                          <span className="text-muted-foreground">场景名：</span>
-                          <span className="font-medium">{sceneAiResult.scene.name || sceneAiResult.scene.location}</span>
-                        </div>
-                        {sceneAiResult.scene.time && (
-                          <div>
-                            <span className="text-muted-foreground">时间：</span>
-                            <span>{sceneAiResult.scene.time}</span>
-                          </div>
-                        )}
-                        {sceneAiResult.scene.atmosphere && (
-                          <div className="col-span-2">
-                            <span className="text-muted-foreground">氛围：</span>
-                            <span>{sceneAiResult.scene.atmosphere}</span>
-                          </div>
-                        )}
-                      </div>
-                      {sceneAiResult.scene.location && sceneAiResult.scene.location !== sceneAiResult.scene.name && (
-                        <div className="text-sm">
-                          <span className="text-muted-foreground">地点详情：</span>
-                          <p className="text-xs mt-1 text-muted-foreground">{sceneAiResult.scene.location}</p>
-                        </div>
-                      )}
-                      {sceneAiResult.scene.visualPrompt && (
-                        <div className="text-sm">
-                          <span className="text-muted-foreground">视觉描述：</span>
-                          <p className="text-xs mt-1 text-muted-foreground">{sceneAiResult.scene.visualPrompt}</p>
-                        </div>
-                      )}
-                      {sceneAiResult.scene.tags && sceneAiResult.scene.tags.length > 0 && (
-                        <div className="flex flex-wrap gap-1">
-                          {sceneAiResult.scene.tags.map((tag, i) => (
-                            <span key={i} className="text-xs bg-muted px-1.5 py-0.5 rounded">#{tag}</span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* 操作按钮 */}
-              <DialogFooter className="gap-2">
-                <Button variant="outline" onClick={() => setSceneDialogOpen(false)}>
-                  取消
-                </Button>
-                {sceneAiResult?.scene ? (
-                  <Button onClick={handleConfirmAIScene} className="gap-1">
-                    <Check className="h-4 w-4" />
-                    确认添加
-                  </Button>
-                ) : sceneAiResult && !sceneAiResult.found ? (
-                  <Button onClick={handleSaveScene} variant="secondary" className="gap-1">
-                    <Plus className="h-4 w-4" />
-                    仍然创建
-                  </Button>
-                ) : null}
-              </DialogFooter>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Character Dialog - AI 对话模式 */}
-      <Dialog open={characterDialogOpen} onOpenChange={(open) => {
-        setCharacterDialogOpen(open);
-        if (!open) {
-          setAiQuery("");
-          setAiResult(null);
-          setAiSearching(false);
-        }
-      }}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              {editingItem?.type === "character" ? (
-                <><Pencil className="h-4 w-4" />编辑角色</>
-              ) : (
-                <><Sparkles className="h-4 w-4 text-primary" />AI 智能添加角色</>
-              )}
-            </DialogTitle>
-          </DialogHeader>
-          
-          {/* 编辑模式：显示普通表单 */}
-          {editingItem?.type === "character" ? (
-            <EpisodeTreeCharacterEditForm
-              name={formData.name || ""}
-              gender={formData.gender || ""}
-              age={formData.age || ""}
-              personality={formData.personality || ""}
-              onNameChange={(name) => setFormData({ ...formData, name })}
-              onGenderChange={(gender) => setFormData({ ...formData, gender })}
-              onAgeChange={(age) => setFormData({ ...formData, age })}
-              onPersonalityChange={(personality) => setFormData({ ...formData, personality })}
-              onCancel={() => setCharacterDialogOpen(false)}
-              onSave={handleSaveCharacter}
-            />
-          ) : (
-            /* 新建模式：AI 对话界面 */
-            <div className="space-y-4 py-2">
-              {/* AI 输入区 */}
-              <div className="space-y-2">
-                <Label className="text-sm text-muted-foreground">
-                  描述你需要的角色，例如：
-                </Label>
-                <div className="text-xs text-muted-foreground space-y-1 pl-2">
-                  <p>• “缺第10集的王大哥这个角色”</p>
-                  <p>• “添加张小宝这个人”</p>
-                  <p>• “需要刀疑哥”</p>
-                </div>
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="输入角色名或描述..."
-                    value={aiQuery}
-                    onChange={(e) => setAiQuery(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault();
-                        handleAISearch();
-                      }
-                    }}
-                    disabled={aiSearching}
-                  />
-                  <Button
-                    onClick={handleAISearch}
-                    disabled={!aiQuery.trim() || aiSearching || !onAIFindCharacter}
-                    className="shrink-0"
-                  >
-                    {aiSearching ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Search className="h-4 w-4" />
-                    )}
-                  </Button>
-                </div>
-                {!onAIFindCharacter && (
-                  <p className="text-xs text-amber-500">请先导入剧本以启用 AI 查找</p>
-                )}
-              </div>
-
-              {/* AI 结果显示 */}
-              {aiResult && (
-                <div className={cn(
-                  "rounded-lg border p-3 space-y-3",
-                  aiResult.found ? "border-green-500/50 bg-green-50 dark:bg-green-950/20" : "border-amber-500/50 bg-amber-50 dark:bg-amber-950/20"
-                )}>
-                  <div className="flex items-start gap-2">
-                    {aiResult.found ? (
-                      <Check className="h-4 w-4 text-green-500 mt-0.5" />
-                    ) : (
-                      <MessageSquare className="h-4 w-4 text-amber-500 mt-0.5" />
-                    )}
-                    <p className="text-sm">{aiResult.message}</p>
-                  </div>
-                  
-                  {/* 找到角色时显示角色信息 */}
-                  {aiResult.character && (
-                    <div className="space-y-2 pl-6">
-                      <div className="grid grid-cols-2 gap-2 text-sm">
-                        <div>
-                          <span className="text-muted-foreground">角色名：</span>
-                          <span className="font-medium">{aiResult.character.name}</span>
-                        </div>
-                        {aiResult.character.gender && (
-                          <div>
-                            <span className="text-muted-foreground">性别：</span>
-                            <span>{aiResult.character.gender}</span>
-                          </div>
-                        )}
-                        {aiResult.character.age && (
-                          <div>
-                            <span className="text-muted-foreground">年龄：</span>
-                            <span>{aiResult.character.age}</span>
-                          </div>
-                        )}
-                        {aiResult.character.personality && (
-                          <div>
-                            <span className="text-muted-foreground">性格：</span>
-                            <span>{aiResult.character.personality}</span>
-                          </div>
-                        )}
-                      </div>
-                      {aiResult.character.role && (
-                        <div className="text-sm">
-                          <span className="text-muted-foreground">角色简介：</span>
-                          <p className="text-xs mt-1 text-muted-foreground">{aiResult.character.role}</p>
-                        </div>
-                      )}
-                      {aiResult.character.visualPromptZh && (
-                        <div className="text-sm">
-                          <span className="text-muted-foreground">视觉描述：</span>
-                          <p className="text-xs mt-1 text-muted-foreground">{aiResult.character.visualPromptZh}</p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* 操作按钮 */}
-              <DialogFooter className="gap-2">
-                <Button variant="outline" onClick={() => setCharacterDialogOpen(false)}>
-                  取消
-                </Button>
-                {aiResult?.character ? (
-                  <Button onClick={handleConfirmAICharacter} className="gap-1">
-                    <Check className="h-4 w-4" />
-                    确认添加
-                  </Button>
-                ) : aiResult && !aiResult.found ? (
-                  <Button onClick={handleSaveCharacter} variant="secondary" className="gap-1">
-                    <Plus className="h-4 w-4" />
-                    仍然创建
-                  </Button>
-                ) : null}
-              </DialogFooter>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      <EpisodeTreeEntityDialogs
+        sceneOpen={sceneDialogOpen}
+        characterOpen={characterDialogOpen}
+        editingType={editingItem?.type || null}
+        formData={formData}
+        onFormFieldChange={(field, value) => setFormData((current) => ({ ...current, [field]: value }))}
+        onSceneOpenChange={(open) => {
+          setSceneDialogOpen(open);
+          if (!open) {
+            setSceneAiQuery("");
+            setSceneAiResult(null);
+            setSceneAiSearching(false);
+          }
+        }}
+        onCharacterOpenChange={(open) => {
+          setCharacterDialogOpen(open);
+          if (!open) {
+            setAiQuery("");
+            setAiResult(null);
+            setAiSearching(false);
+          }
+        }}
+        sceneQuery={sceneAiQuery}
+        sceneSearching={sceneAiSearching}
+        sceneResult={sceneAiResult}
+        onSceneQueryChange={setSceneAiQuery}
+        onSceneSearch={handleSceneAISearch}
+        canFindScene={Boolean(onAIFindScene)}
+        onSaveScene={handleSaveScene}
+        onConfirmScene={handleConfirmAIScene}
+        characterQuery={aiQuery}
+        characterSearching={aiSearching}
+        characterResult={aiResult}
+        onCharacterQueryChange={setAiQuery}
+        onCharacterSearch={handleAISearch}
+        canFindCharacter={Boolean(onAIFindCharacter)}
+        onSaveCharacter={handleSaveCharacter}
+        onConfirmCharacter={handleConfirmAICharacter}
+      />
 
       <EpisodeTreeDeleteDialog
         open={deleteDialogOpen}
@@ -1428,113 +659,17 @@ export function EpisodeTree({
         onConfirm={confirmDelete}
       />
 
-      {/* 角色校准确认弹窗 */}
-      <Dialog open={calibrationDialogOpen} onOpenChange={(open) => { if (!open) onCancelCalibration?.(); }}>
-        <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Wand2 className="h-4 w-4" />
-              角色校准结果确认
-            </DialogTitle>
-          </DialogHeader>
-          
-          <div className="space-y-4 py-2">
-            {/* 保留角色列表 */}
-            <div>
-              <h4 className="text-sm font-medium mb-2">保留角色 ({localKeptCharacters.length})</h4>
-              <div className="space-y-1 max-h-48 overflow-y-auto border rounded-md p-2">
-                {localKeptCharacters.map(char => {
-                  const importance = char.tags?.find(t => ['protagonist', 'supporting', 'minor', 'extra'].includes(t));
-                  const labels: Record<string, string> = { protagonist: '主角', supporting: '配角', minor: '次要', extra: '群演' }; // TODO: extract to module constant
-                  return (
-                    <div key={char.id} className="flex items-center justify-between px-2 py-1 rounded hover:bg-muted text-xs">
-                      <div className="flex items-center gap-2">
-                        <span>{char.name}</span>
-                        {importance && (
-                          <span className="text-muted-foreground text-[10px]">({labels[importance] || importance})</span>
-                        )}
-                      </div>
-                      <Button
-                        variant="ghost" size="sm" className="h-5 w-5 p-0 text-destructive hover:text-destructive"
-                        onClick={() => handleRemoveKeptCharacter(char.id)}
-                      >
-                        <X className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-            
-            {/* 被过滤角色列表 */}
-            {localFilteredCharacters.length > 0 && (
-              <div>
-                <h4 className="text-sm font-medium mb-2">被过滤角色 ({localFilteredCharacters.length})</h4>
-                <div className="space-y-1 max-h-32 overflow-y-auto border rounded-md p-2">
-                  {localFilteredCharacters.map((fc, i) => (
-                    <div key={`${fc.name}_${i}`} className="flex items-center justify-between px-2 py-1 rounded hover:bg-muted text-xs">
-                      <div className="flex items-center gap-2">
-                        <span className="text-muted-foreground line-through">{fc.name}</span>
-                        <span className="text-muted-foreground text-[10px]">({fc.reason})</span>
-                      </div>
-                      <Button
-                        variant="ghost" size="sm" className="h-5 w-5 p-0 text-green-600 hover:text-green-700"
-                        onClick={() => handleRestoreToKept(fc.name)}
-                      >
-                        <Check className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-          
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={onCancelCalibration}>取消</Button>
-            {localFilteredCharacters.length > 0 && (
-              <Button variant="secondary" onClick={handleRestoreAllAndConfirm}>全部保留</Button>
-            )}
-            <Button onClick={handleConfirmCalibrationLocal}>确认</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* 查看被过滤角色弹窗 */}
-      <Dialog open={filteredCharsDialogOpen} onOpenChange={setFilteredCharsDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>被过滤的角色</DialogTitle>
-          </DialogHeader>
-          <div className="py-2">
-            {(lastFilteredCharacters && lastFilteredCharacters.length > 0) ? (
-              <div className="space-y-1 max-h-64 overflow-y-auto">
-                {lastFilteredCharacters.map((fc, i) => (
-                  <div key={`${fc.name}_${i}`} className="flex items-center justify-between px-2 py-1 rounded hover:bg-muted text-xs">
-                    <div>
-                      <span>{fc.name}</span>
-                      <span className="text-muted-foreground ml-2">({fc.reason})</span>
-                    </div>
-                    <Button
-                      variant="ghost" size="sm" className="h-5 text-xs px-1 text-green-600"
-                      onClick={() => {
-                        onRestoreFilteredCharacter?.(fc.name);
-                      }}
-                    >
-                      恢复
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground text-center py-4">没有被过滤的角色</p>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setFilteredCharsDialogOpen(false)}>关闭</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <EpisodeTreeCharacterCalibrationDialogs
+        calibrationOpen={calibrationDialogOpen}
+        pendingCharacters={pendingCalibrationCharacters}
+        pendingFilteredCharacters={pendingFilteredCharacters}
+        onConfirm={onConfirmCalibration}
+        onCancel={onCancelCalibration}
+        filteredOpen={filteredCharsDialogOpen}
+        onFilteredOpenChange={setFilteredCharsDialogOpen}
+        lastFilteredCharacters={lastFilteredCharacters}
+        onRestoreFilteredCharacter={onRestoreFilteredCharacter}
+      />
     </div>
   );
 }

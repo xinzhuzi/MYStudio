@@ -31,7 +31,7 @@ type ImageTaskResponse = {
   message?: unknown;
 };
 
-function waitForPoll(intervalMs: number, signal?: AbortSignal): Promise<void> {
+export function waitForAbortableDelay(intervalMs: number, signal?: AbortSignal): Promise<void> {
   if (signal?.aborted) return Promise.reject(new DOMException("Aborted", "AbortError"));
   return new Promise((resolve, reject) => {
     const timer = setTimeout(resolve, intervalMs);
@@ -103,7 +103,7 @@ export async function pollImageTaskUrl(options: {
             : options.failureFallbackMessage ?? "图片生成失败",
       );
     }
-    await waitForPoll(pollIntervalMs, options.signal);
+    await waitForAbortableDelay(pollIntervalMs, options.signal);
   }
   return undefined;
 }

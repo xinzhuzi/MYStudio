@@ -4,16 +4,44 @@ import {
   runChapterAutoVideo,
   type ChapterAutoVideoDependencies,
 } from "./chapter-auto-video";
-import type { ProductionTrack, StoryboardItem, VideoCandidate } from "@/types/studio";
+import type { ContinuityAssetVersion, ProductionTrack, StoryboardItem, VideoCandidate } from "@/types/studio";
 import type { EditingProjectV1, TimelineRenderEvidence } from "@/types/editing";
 import type { VoiceProfile } from "@/types/tts";
 import {
   approvedVisualReview,
+  createHumanContinuityAssetApproval,
+  normalizeContinuityAssetVersion,
   visualContinuityFingerprint,
   visualReviewInputFingerprint,
 } from "./visual-continuity";
 
+function approvedSceneVersion(): ContinuityAssetVersion {
+  return createHumanContinuityAssetApproval(normalizeContinuityAssetVersion({
+    assetId: "scene:dock",
+    versionId: "dock:main",
+    assetKind: "scene",
+    label: "码头正向主轴",
+    referenceImagePaths: ["/dock.png"],
+    reviewEvidencePaths: ["/reviews/dock_thumb.png"],
+    reviewEvidenceSha256: ["a".repeat(64)],
+    reviewEvidenceVerifiedAt: 1,
+    sceneViewpointId: "dock:front",
+    spatialLayout: "河岸、栈桥与仓棚位置固定",
+    lightingDesign: "冷青晨雾",
+    colorPalette: "墨青灰蓝",
+    structurallyComplete: true,
+    contentFingerprint: "",
+    approved: false,
+    source: "test-scene-bible",
+  }), {
+    status: "approved",
+    evidencePaths: ["/reviews/dock_thumb.png"],
+    reviewedAt: 10,
+  });
+}
+
 function storyboard(index: number, overrides: Partial<StoryboardItem> = {}): StoryboardItem {
+  const sceneVersion = approvedSceneVersion();
   const item: StoryboardItem = {
     id: `sb-${index}`,
     episodeId: "chapter-001",
@@ -40,8 +68,12 @@ function storyboard(index: number, overrides: Partial<StoryboardItem> = {}): Sto
         assetId: "scene:dock",
         versionId: "dock:main",
         imagePath: "/dock.png",
+        assetKind: "scene",
         referenceRole: "scene-viewpoint",
-        approved: true,
+        sceneViewpointId: "dock:front",
+        contentFingerprint: sceneVersion.contentFingerprint,
+        approvalFingerprint: sceneVersion.approvalFingerprint,
+        approved: sceneVersion.approved,
       },
     ],
     continuityState: {
@@ -64,9 +96,11 @@ function storyboard(index: number, overrides: Partial<StoryboardItem> = {}): Sto
   if (!Object.prototype.hasOwnProperty.call(overrides, "visualReview")) {
     item.visualReview = approvedVisualReview({
       reviewedAt: 1,
-      evidencePaths: [`/reviews/sb-${index}.png`],
+      evidencePaths: [`/frame-${index}.png`],
       sceneChecks: [{ sceneVersionId: "dock:main", passed: true }],
+      propChecks: [],
       transitionChecks: index > 1 ? [{ previousStoryboardId: `sb-${index - 1}`, passed: true }] : [],
+      textWatermarkCheck: { passed: true },
       inputFingerprint: visualReviewInputFingerprint(item),
     });
   }
@@ -102,7 +136,7 @@ function createDependencies(options: { missingMedia?: boolean } = {}) {
   const calls: string[] = [];
   let storyboards = [
     storyboard(1),
-    storyboard(2, options.missingMedia ? { mediaRef: undefined } : {}),
+    storyboard(2),
   ];
   const track: ProductionTrack = {
     id: "track-1",
@@ -173,11 +207,14 @@ function createDependencies(options: { missingMedia?: boolean } = {}) {
       calls.push("planning");
     }),
     loadStoryboards: () => storyboards,
+    loadContinuityAssetVersions: () => [approvedSceneVersion()],
     ensureFixedVoiceProfiles: vi.fn(async () => {
       calls.push("binding");
       return profiles;
     }),
-    resolveMediaPath: vi.fn(async (path) => path),
+    resolveMediaPath: vi.fn(async (path) => (
+      options.missingMedia && path === "/frame-2.png" ? "" : path
+    )),
     generateAudio: vi.fn(async (item) => {
       calls.push(`tts:${item.id}`);
       return {
@@ -304,6 +341,8 @@ describe("chapter auto video orchestration", () => {
         episodeId: "chapter-001",
         dependencies: run.dependencies,
       })).rejects.toThrow("视觉连续性未通过");
+      expect(run.dependencies.ensureFixedVoiceProfiles).not.toHaveBeenCalled();
+      expect(run.dependencies.generateAudio).not.toHaveBeenCalled();
       expect(run.dependencies.renderTrack).not.toHaveBeenCalled();
       expect(run.dependencies.createEditingProject).not.toHaveBeenCalled();
     }

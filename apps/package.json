@@ -40,6 +40,8 @@
     "video:daojie:chapter001": "node ./build/automate-daojie-chapter001-video.mjs",
     "video:daojie:chapter001:probe-providers": "node ./build/automate-daojie-chapter001-video.mjs --probe-providers",
     "video:daojie:chapter001:probe-generation": "node ./build/automate-daojie-chapter001-video.mjs --probe-generation",
+    "video:daojie:chapter001:continuity-pilot": "node ./build/automate-daojie-chapter001-video.mjs --continuity-pilot",
+    "video:daojie:chapter001:continuity-full": "node ./build/automate-daojie-chapter001-video.mjs --continuity-full-chapter",
     "preview": "electron-vite preview --config frontend/config/electron-vite.config.ts"
   },
   "dependencies": {

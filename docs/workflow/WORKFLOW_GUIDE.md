@@ -1,6 +1,6 @@
 # 漫影工作室基本工作流教程
 
-本文说明当前 `工作流` 页面从小说原文到候选片段、最终成片的基础流程。更细的按钮、状态、弹窗和数据关系见 [工作流阶段操作手册](./WORKFLOW_STAGE_OPERATIONS.md)。小说导入、事件分析和策划编剧细节见 [小说导入与策划编剧操作参考](./WORKFLOW_NOVEL_SCRIPT_OPERATIONS.md)，剧本资产提取和剧本资产管理细节见 [剧本资产管理操作参考](./WORKFLOW_ASSET_GENERATION_OPERATIONS.md)，分镜面板与视频工作台细节见 [分镜面板与视频工作台操作参考](./WORKFLOW_STORYBOARD_EDITING_OPERATIONS.md)。安装、配置和排错入口见 [文档中心](./README.md)。
+本文说明当前 `工作流` 页面从小说原文到候选片段、最终成片的基础流程。更细的按钮、状态、弹窗和数据关系见 [工作流阶段操作手册](./WORKFLOW_STAGE_OPERATIONS.md)。小说导入、事件分析和策划编剧细节见 [小说导入与策划编剧操作参考](./WORKFLOW_NOVEL_SCRIPT_OPERATIONS.md)，剧本资产提取和剧本资产管理细节见 [剧本资产管理操作参考](./WORKFLOW_ASSET_GENERATION_OPERATIONS.md)，分镜面板与视频工作台细节见 [分镜面板与视频工作台操作参考](./WORKFLOW_STORYBOARD_EDITING_OPERATIONS.md)。安装、配置和排错入口见 [文档中心](../README.md)。
 
 ## 流程总览
 
@@ -26,7 +26,7 @@
 4. 如果要使用本地 TTS、声音克隆或角色试听，进入 `设置 -> Python 配置`，点击 `开始配置`。
 5. 如果视频接口需要公网图片 URL，进入 `设置 -> 图床配置` 配置图床服务。
 
-Python 和 TTS 依赖不会在应用启动时自动配置。详细说明见 [Python 与本地 TTS 配置](./PYTHON_TTS_SETUP.md)。
+Python 和 TTS 依赖不会在应用启动时自动配置。详细说明见 [Python 与本地 TTS 配置](../settings/PYTHON_TTS_SETUP.md)。
 
 ## 1. 风格与导演
 
@@ -73,7 +73,7 @@ Python 和 TTS 依赖不会在应用启动时自动配置。详细说明见 [Pyt
 4. 页面会标记资产库是否已有对应资产。
 5. 对缺失资产，可以跳转到资产生成或在资产库中补齐。
 
-如果角色需要对白或旁白，进入 `资产 -> 角色库`，在角色详情里点击 `音色`，从资产库音频中选择可克隆的音频样本。也可以在角色库顶部使用 `自动分配音频`。详见 [资产库音色分配](./ASSET_AUDIO_ASSIGNMENT.md)。
+如果角色需要对白或旁白，进入 `资产 -> 角色库`，在角色详情里点击 `音色`，从资产库音频中选择可克隆的音频样本。也可以在角色库顶部使用 `自动分配音频`。详见 [资产库音色分配](../assets/ASSET_AUDIO_ASSIGNMENT.md)。
 
 ## 5. 剧本资产管理
 
@@ -122,7 +122,7 @@ Python 和 TTS 依赖不会在应用启动时自动配置。详细说明见 [Pyt
 5. 在剪辑工作台检查画面、口播、字幕、转场和当前 revision。
 6. 点击 `一键成片`，把当前 `EditingProject` 编译成时间线计划，并由本地 timeline renderer 输出 MP4。
 
-本地合成依赖系统 `ffmpeg`。如果提示未找到 FFmpeg，先确认命令行中 `ffmpeg -version` 可用。打包和 smoke 流程见 [打包、安装与 Smoke 测试](./PACKAGING_AND_SMOKE_TESTING.md)。
+本地合成依赖系统 `ffmpeg`。如果提示未找到 FFmpeg，先确认命令行中 `ffmpeg -version` 可用。打包和 smoke 流程见 [打包、安装与 Smoke 测试](../engineering/PACKAGING_AND_SMOKE_TESTING.md)。
 
 当前权威成片链是 `分镜/候选 -> EditingProject -> TimelineRenderPlan -> timeline renderer -> MP4 + 完整媒体证据`。只有证据对应当前 EditingProject revision，并且最终 MP4、snapshot、render plan、input manifest、filter graph、日志和 ffprobe 文件都存在时，工作流才把视频工作台视为完成。
 
@@ -134,11 +134,11 @@ Python 和 TTS 依赖不会在应用启动时自动配置。详细说明见 [Pyt
 
 | 入口 | 说明 |
 |---|---|
-| [视觉风格管理](./VISUAL_STYLE_MANAGEMENT.md) | 默认风格、我的风格、视觉手册编辑和 AI 提取风格词 |
-| [兼容剧本编辑工作区](./LEGACY_SCRIPT_WORKSPACE_GUIDE.md) | 三栏剧本编辑、AI 校准、预告片挑选和角色/场景/导演跳转 |
-| [角色生成与衣橱](./CHARACTER_GENERATION_GUIDE.md) | 角色定妆图、三视图、表情设定和造型变体 |
-| [高级导演与 S级镜头](./ADVANCED_DIRECTOR_TOOLS.md) | 单张图片切割、首尾帧、视角切换、四宫格和 Seedance 组级生成 |
-| [场景库多视角与四视图](./SCENE_MULTIVIEW_GUIDE.md) | 场景单图、联合图、四视图和批量四视图 |
+| [视觉风格管理](../assets/VISUAL_STYLE_MANAGEMENT.md) | 默认风格、我的风格、视觉手册编辑和 AI 提取风格词 |
+| [兼容剧本编辑工作区](../director/LEGACY_SCRIPT_WORKSPACE_GUIDE.md) | 三栏剧本编辑、AI 校准、预告片挑选和角色/场景/导演跳转 |
+| [角色生成与衣橱](../assets/CHARACTER_GENERATION_GUIDE.md) | 角色定妆图、三视图、表情设定和造型变体 |
+| [高级导演与 S级镜头](../director/ADVANCED_DIRECTOR_TOOLS.md) | 单张图片切割、首尾帧、视角切换、四宫格和 Seedance 组级生成 |
+| [场景库多视角与四视图](../assets/SCENE_MULTIVIEW_GUIDE.md) | 场景单图、联合图、四视图和批量四视图 |
 
 新项目不需要先进入这些内部页面；只有当主流程中的按钮跳转过去，或需要做精修、兼容旧数据时再使用。
 

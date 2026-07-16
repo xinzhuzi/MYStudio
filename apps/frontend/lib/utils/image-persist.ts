@@ -9,6 +9,7 @@
 
 import { saveImageToLocal, type ImageCategory } from '@/lib/image-storage';
 import { uploadToImageHost, isImageHostConfigured } from '@/lib/image-host';
+import { prepareReferenceImageForTransfer } from '@/lib/ai/image-transfer';
 
 export interface PersistResult {
   /** local-image:// path for state storage */
@@ -56,7 +57,8 @@ export async function persistSceneImage(
   let httpUrl: string | null = null;
   if (isImageHostConfigured()) {
     try {
-      const result = await uploadToImageHost(imageData, {
+      const transferImage = await prepareReferenceImageForTransfer(imageData);
+      const result = await uploadToImageHost(transferImage, {
         name: filename,
         expiration: 15552000, // 180 days
       });
@@ -96,7 +98,8 @@ export async function persistReferenceImage(
   let httpUrl: string | null = null;
   if (isImageHostConfigured()) {
     try {
-      const result = await uploadToImageHost(imageData, {
+      const transferImage = await prepareReferenceImageForTransfer(imageData);
+      const result = await uploadToImageHost(transferImage, {
         name: filename,
         expiration: 15552000,
       });

@@ -15,8 +15,10 @@ import {
 } from "@/lib/studio/novel";
 import { groupStoryboardsIntoTracks } from "@/lib/studio/production";
 import {
+  createHumanContinuityAssetApproval,
   createHumanVisualReview,
   markContinuityDependentsStale,
+  normalizeContinuityAssetVersion,
   visualContinuityFingerprint,
   visualReviewInputFingerprint,
 } from "@/lib/studio/visual-continuity";
@@ -25,6 +27,12 @@ import {
   projectEventGraphToMemoryRecords,
   retrieveProjectMemory,
 } from "@/lib/studio/event-graph";
+import {
+  migrateStudioWorkflowState,
+  normalizeWorkflowConfig,
+  STUDIO_WORKFLOW_PERSIST_VERSION,
+  STUDIO_WORKFLOW_STORAGE_KEY,
+} from "./studio-store-persistence";
 import { useCharacterLibraryStore } from "@/stores/character-library-store";
 import { useProjectStore } from "@/stores/project-store";
 import { usePropsLibraryStore } from "@/stores/props-library-store";
@@ -38,6 +46,7 @@ import type {
   ImageWorkflowGraph,
   ImageWorkflowTarget,
   HumanVisualReviewInput,
+  HumanContinuityAssetApprovalInput,
   MediaGenerationTask,
   MediaGenerationTaskKind,
   NovelChapter,
@@ -124,6 +133,11 @@ interface StudioWorkflowActions {
   saveEpisodeOutline: (outline: EpisodeOutline) => void;
   addStoryboard: (item?: Partial<StoryboardItem>) => string;
   replaceContinuityAssetVersions: (items: ContinuityAssetVersion[]) => void;
+  reviewContinuityAssetVersionHuman: (
+    assetId: string,
+    versionId: string,
+    review: HumanContinuityAssetApprovalInput,
+  ) => void;
   replaceStoryboardsForEpisode: (episodeId: string, items: StoryboardItem[]) => void;
   updateStoryboard: (id: string, updates: Partial<StoryboardItem>) => void;
   reviewStoryboardHuman: (id: string, review: HumanVisualReviewInput) => void;
@@ -168,9 +182,6 @@ const initialState: StudioWorkflowState = {
     episodeDurationMin: 3,
   },
 };
-
-const LEGACY_VISUAL_MANUAL_ID = "2D_chinese_guofeng";
-const LEGACY_DIRECTOR_MANUAL_ID = "Xianxia_fantasy";
 
 export const useStudioStore = create<StudioWorkflowStore>()(
   persist(
@@ -562,11 +573,76 @@ export const useStudioStore = create<StudioWorkflowStore>()(
       },
 
       replaceContinuityAssetVersions: (items) => {
-        set({
-          continuityAssetVersions: items.map((item) => ({
-            ...item,
-            referenceImagePaths: [...item.referenceImagePaths],
-          })),
+        const previous = get().continuityAssetVersions;
+        const normalized = items.map(normalizeContinuityAssetVersion);
+        const nextKeys = new Set(normalized.map(continuityAssetVersionKey));
+        const nextByKey = new Map(normalized.map((item) => [continuityAssetVersionKey(item), item]));
+        const changedKeys = new Set(
+          previous
+            .filter((item) => {
+              const next = nextByKey.get(continuityAssetVersionKey(item));
+              return !next || next.contentFingerprint !== item.contentFingerprint;
+            })
+            .map(continuityAssetVersionKey),
+        );
+        for (const item of previous) {
+          if (!nextKeys.has(continuityAssetVersionKey(item))) changedKeys.add(continuityAssetVersionKey(item));
+        }
+        set((state) => ({
+          continuityAssetVersions: normalized,
+          storyboards: changedKeys.size > 0
+            ? invalidateStoryboardsForAssetVersionChanges(state.storyboards, changedKeys)
+            : state.storyboards,
+        }));
+      },
+
+      reviewContinuityAssetVersionHuman: (assetId, versionId, reviewInput) => {
+        const key = `${assetId}:${versionId}`;
+        const current = get().continuityAssetVersions.find((item) => continuityAssetVersionKey(item) === key);
+        if (!current) throw new Error(`连续性资产 ${assetId}/${versionId} 不存在`);
+        if (reviewInput.status === "approved" && !current.reviewEvidenceVerifiedAt) {
+          throw new Error(`连续性资产 ${assetId}/${versionId} 必须先通过本地缩略图文件与 SHA-256 安全校验`);
+        }
+        const reviewed = createHumanContinuityAssetApproval(current, reviewInput);
+        set((state) => {
+          const synchronizedStoryboards = state.storyboards.map((storyboard) => {
+            const referencesVersion = storyboard.orderedReferenceManifest?.some((reference) => (
+              `${reference.assetId}:${reference.versionId ?? ""}` === key
+            ));
+            return {
+            ...storyboard,
+            orderedReferenceManifest: storyboard.orderedReferenceManifest?.map((reference) => (
+              `${reference.assetId}:${reference.versionId ?? ""}` === key
+                ? {
+                    ...reference,
+                    contentFingerprint: reviewed.contentFingerprint,
+                    approvalFingerprint: reviewed.approvalFingerprint,
+                    approved: reviewed.approved,
+                  }
+                : reference
+            )),
+            visualReview: referencesVersion && storyboard.visualReview
+              ? {
+                  ...storyboard.visualReview,
+                  status: "pending" as const,
+                  reasons: ["引用资产审批状态已变化，必须重新审核"],
+                }
+              : storyboard.visualReview,
+            };
+          });
+          return {
+            continuityAssetVersions: state.continuityAssetVersions.map((item) => (
+              continuityAssetVersionKey(item) === key ? reviewed : item
+            )),
+            storyboards: reviewed.approval?.status === "rejected"
+              ? invalidateStoryboardsForAssetVersionChanges(
+                  synchronizedStoryboards,
+                  new Set([key]),
+                  "引用的角色、场景或道具基准资产已被人工驳回",
+                  "引用资产已被人工驳回，必须更换资产、重新生成并审核",
+                )
+              : synchronizedStoryboards,
+          };
         });
       },
 
@@ -623,7 +699,7 @@ export const useStudioStore = create<StudioWorkflowStore>()(
       reviewStoryboardHuman: (id, reviewInput) => {
         const storyboard = get().storyboards.find((item) => item.id === id);
         if (!storyboard) throw new Error(`分镜 ${id} 不存在`);
-        const visualReview = createHumanVisualReview(storyboard, reviewInput);
+        const visualReview = createHumanVisualReview(storyboard, reviewInput, get().continuityAssetVersions);
         set((state) => ({
           storyboards: state.storyboards.map((item) => item.id === id ? { ...item, visualReview } : item),
         }));
@@ -892,9 +968,9 @@ export const useStudioStore = create<StudioWorkflowStore>()(
       resetStudioWorkflow: () => set({ ...initialState }),
     }),
     {
-      name: "studio-workflow-store",
-      storage: createJSONStorage(() => createProjectScopedStorage("studio-workflow-store")),
-      version: 8,
+      name: STUDIO_WORKFLOW_STORAGE_KEY,
+      storage: createJSONStorage(() => createProjectScopedStorage(STUDIO_WORKFLOW_STORAGE_KEY)),
+      version: STUDIO_WORKFLOW_PERSIST_VERSION,
       migrate: (persistedState) => migrateStudioWorkflowState(persistedState),
     },
   ),
@@ -904,23 +980,41 @@ function createId(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-function migrateStudioWorkflowState(persistedState: unknown) {
-  if (!persistedState || typeof persistedState !== "object") return persistedState;
-  const state = persistedState as Partial<StudioWorkflowState>;
-  return {
-    ...state,
-    entityExtractions: state.entityExtractions ?? [],
-    scriptPlans: state.scriptPlans ?? [],
-    seriesBible: state.seriesBible ?? null,
-    episodeOutlines: state.episodeOutlines ?? [],
-    continuityAssetVersions: state.continuityAssetVersions ?? [],
-    imageWorkflows: state.imageWorkflows ?? [],
-    agentRuns: state.agentRuns ?? [],
-    mediaTasks: state.mediaTasks ?? [],
-    eventGraph: state.eventGraph ?? [],
-    projectMemoryRecords: state.projectMemoryRecords ?? [],
-    workflowConfig: normalizeWorkflowConfig(state.workflowConfig),
-  };
+function continuityAssetVersionKey(version: Pick<ContinuityAssetVersion, "assetId" | "versionId">) {
+  return `${version.assetId}:${version.versionId}`;
+}
+
+function invalidateStoryboardsForAssetVersionChanges(
+  storyboards: StoryboardItem[],
+  changedKeys: Set<string>,
+  staleReason = "引用的角色、场景或道具基准资产已变化",
+  reviewReason = "引用资产已变化，必须重新生成并审核",
+) {
+  const staleSince = Date.now();
+  const directlyAffectedIds = storyboards
+    .filter((storyboard) => storyboard.orderedReferenceManifest?.some((reference) => (
+      changedKeys.has(`${reference.assetId}:${reference.versionId ?? ""}`)
+    )))
+    .map((storyboard) => storyboard.id);
+  let next = storyboards.map((storyboard) => directlyAffectedIds.includes(storyboard.id)
+    ? {
+        ...storyboard,
+        stale: true,
+        staleReason,
+        staleSince,
+        visualReview: storyboard.visualReview
+          ? {
+              ...storyboard.visualReview,
+              status: "pending" as const,
+              reasons: [reviewReason],
+            }
+          : storyboard.visualReview,
+      }
+    : storyboard);
+  for (const storyboardId of directlyAffectedIds) {
+    next = markContinuityDependentsStale(next, storyboardId, staleSince);
+  }
+  return next;
 }
 
 function mergeStoryboardReplacement(previous: StoryboardItem, next: StoryboardItem, staleReason: string): StoryboardItem {
@@ -934,6 +1028,11 @@ function mergeStoryboardReplacement(previous: StoryboardItem, next: StoryboardIt
       next.imageWorkflowId !== previous.imageWorkflowId ||
       next.imageWorkflowNodeId !== previous.imageWorkflowNodeId,
   );
+  const visualInputChanged = Boolean(
+    next.mediaRef !== previous.mediaRef ||
+      next.imageWorkflowId !== previous.imageWorkflowId ||
+      next.imageWorkflowNodeId !== previous.imageWorkflowNodeId,
+  );
   if (freshWrite) {
     return {
       ...next,
@@ -942,6 +1041,13 @@ function mergeStoryboardReplacement(previous: StoryboardItem, next: StoryboardIt
       staleSince: undefined,
       sourceFingerprint: nextFingerprint,
       outputVersion: (previous.outputVersion ?? 0) + 1,
+      visualReview: visualInputChanged && next.visualReview
+        ? {
+            ...next.visualReview,
+            status: "pending",
+            reasons: ["分镜画面或连续性输入已变化，必须重新审核"],
+          }
+        : next.visualReview,
     };
   }
   if (sourceChanged && hasOutput) {
@@ -1018,18 +1124,6 @@ function stableHash(value: unknown) {
         return acc;
       }, {});
   });
-}
-
-function normalizeWorkflowConfig(config: Partial<StudioWorkflowConfig> | undefined): StudioWorkflowConfig {
-  return {
-    ...config,
-    visualManualId: config?.visualManualId === LEGACY_VISUAL_MANUAL_ID
-      ? undefined
-      : config?.visualManualId,
-    directorManualId: config?.directorManualId === LEGACY_DIRECTOR_MANUAL_ID
-      ? undefined
-      : config?.directorManualId,
-  };
 }
 
 function getActiveProjectId() {

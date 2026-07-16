@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { callChatAPI } from "./script-parser";
+import { normalizeScriptData, normalizeTimeValue } from "./script-data-normalizer";
 
 vi.mock("@/lib/ai/ai-sdk-bridge", () => ({
   getLanguageModel: vi.fn(() => ({})),
@@ -117,5 +118,28 @@ describe("callChatAPI auto thinking mode", () => {
     expect(body.thinking).toBeUndefined();
     expect(body.reasoning_effort).toBeUndefined();
     expect(body.enable_thinking).toBeUndefined();
+  });
+});
+
+describe("script data normalization boundaries", () => {
+  it("defaults empty model output to a usable episode", () => {
+    const result = normalizeScriptData({}, "中文");
+    expect(result.title).toBe("未命名剧本");
+    expect(result.episodes).toEqual([{ id: "ep_1", index: 1, title: "第1集", description: undefined, sceneIds: [] }]);
+  });
+
+  it("normalizes shot-head scene time and preserves dialogue/action paragraphs", () => {
+    const result = normalizeScriptData({
+      scenes: [{ id: "scene_1", name: "镜头头", location: "室内", time: "夜间" }],
+      storyParagraphs: [{ id: 1, text: "甲：快走！（动作：拔刀）", sceneRefId: "scene_1" }],
+    });
+    expect(result.scenes[0].time).toBe("night");
+    expect(result.storyParagraphs[0].text).toContain("甲：快走");
+    expect(result.storyParagraphs[0].text).toContain("动作");
+  });
+
+  it("falls back to day for unknown or blank time values", () => {
+    expect(normalizeTimeValue("  ")).toBe("day");
+    expect(normalizeTimeValue("未知时段")).toBe("day");
   });
 });
