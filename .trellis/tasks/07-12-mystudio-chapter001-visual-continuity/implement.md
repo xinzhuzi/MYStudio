@@ -153,3 +153,12 @@ Validation: the report-retention regression proves the second canonical write ar
 4. Submit `old-laborer-turnaround-r4`, `girl-turnaround-r2`, and `young-laborer-turnaround-r2` asynchronously and strictly serially. Each request uses a unique output/report path and the single-provider/single-key contract; any ambiguous result stops the remaining paid calls.
 
 Validation: focused Python/Vitest regressions for rollback, idempotence, evidence linkage, byte tamper, path forgery, review reset, and durable failure reporting; then provider preflight and the three explicitly authorized asynchronous requests under the stop-on-ambiguity rule.
+
+## Batch 17: 2026-07-17 release-gate evidence and current visual blocker
+
+1. Fresh read-only review confirmed all 31 v5 asset evidence paths exist as registered `*_thumb.png` files, each strictly below 1,000,000 bytes with matching packet SHA-256; no approval write was performed.
+2. `MYSTUDIO_DAOJIE_VISUAL_PREFLIGHT=1 ./node_modules/.bin/vite-node --config build/vite-node.config.ts build/audit-daojie-visual-continuity.ts` correctly failed closed with `approved=0,pending=43,rejected=0,stale=43`.
+3. `npm run video:daojie:chapter001:probe-providers` passed in `provider-models-only` mode with `generationEndpointCalled=false`, one `mikoto / gpt-image-2` provider/key, and HTTP 200 for `/v1/models`; no paid image request was made.
+4. Release gate passed after the current source snapshot: typecheck, lint, full Vitest (330 files; 1364 passed, 3 skipped), `build:mac`, packaged smoke, overwrite install, and installed smoke. Packaged and installed `app.asar` SHA-256 both equal `b71d0951a3f813214e509a29c87f175aa44f51f40cb646561fb6278f2e0972de`. Smoke screenshot capture timed out but the script's DOM visual fallback reported `whiteRatio=0.000` and exit 0.
+
+Result: packaging/install is complete, but visual approval and real v5 generation remain open. Do not run the paid pilot, full generation, or final direct-video command until the 31 asset approvals and subsequent 43-shot storyboard approvals are explicitly confirmed.

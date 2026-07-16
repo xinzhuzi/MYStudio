@@ -193,6 +193,30 @@ function RuntimeSetupProgress({ status, starting }: { status: TtsRuntimeStatus |
   );
 }
 
+function ErrorBanner({ errors, onClear }: { errors: Record<string, string>; onClear: () => void }) {
+  const entries = Object.entries(errors);
+  if (entries.length === 0) return null;
+
+  return (
+    <div className="rounded-2xl border border-destructive/20 bg-destructive/5 backdrop-blur-lg p-4">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 text-sm font-medium text-destructive">
+          <AlertCircle className="h-4 w-4" />
+          下载/运行错误
+        </div>
+        <Button size="sm" variant="ghost" onClick={onClear}>清除</Button>
+      </div>
+      <div className="space-y-2">
+        {entries.map(([key, message]) => (
+          <div key={key} className="rounded-md bg-background px-3 py-2 text-xs text-muted-foreground">
+            <span className="font-mono text-foreground">{key}</span>：{message}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function ModelRow({
   row,
   progress,
@@ -644,7 +668,6 @@ export function LocalTtsPanel() {
 
   const selectedProgress = selectedModel ? progressByModel[selectedModel.modelName] : undefined;
   const selectedState = selectedModel ? getModelState(selectedModel, selectedProgress) : "missing";
-  const errorEntries = Object.entries(errors);
   const scanPaths = modelCacheInfo?.scan_paths?.filter(Boolean) ?? [];
   const runtimeSetupStage = runtimeStatus?.setupStage ?? "idle";
   const runtimeSetupActive = ["checking", "downloading-python", "extracting-python", "installing-deps", "starting-backend"].includes(runtimeSetupStage);
@@ -727,24 +750,7 @@ export function LocalTtsPanel() {
           </div>
         )}
 
-        {errorEntries.length > 0 && (
-          <div className="rounded-2xl border border-destructive/20 bg-destructive/5 backdrop-blur-lg p-4">
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2 text-sm font-medium text-destructive">
-                <AlertCircle className="h-4 w-4" />
-                下载/运行错误
-              </div>
-              <Button size="sm" variant="ghost" onClick={() => setErrors({})}>清除</Button>
-            </div>
-            <div className="space-y-2">
-              {errorEntries.map(([key, message]) => (
-                <div key={key} className="rounded-md bg-background px-3 py-2 text-xs text-muted-foreground">
-                  <span className="font-mono text-foreground">{key}</span>：{message}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        <ErrorBanner errors={errors} onClear={() => setErrors({})} />
 
         {groupedRows.map((group) => (
           <section key={group.id} className="tts-glass-card rounded-2xl border border-border bg-card/50 backdrop-blur-xl overflow-hidden">

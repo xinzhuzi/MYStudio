@@ -7,7 +7,8 @@
  * Uses same API logic as storyboard-service.ts
  */
 
-import { getAllFeatureConfigs, getFeatureConfig, getFeatureNotConfiguredMessage, type FeatureConfig } from '@/lib/ai/feature-router';
+import { getFeatureConfig, getFeatureNotConfiguredMessage } from '@/lib/ai/feature-router';
+import { buildEndpoint, getRootBaseUrl, getImageEndpointPaths, DEFAULT_IMAGE_ENDPOINT, getImageAttemptConfigs, parseImageApiErrorMessage, createImageApiHttpError, getTargetDimensions, isGeminiImageModel, geminiSupportsImageSize, normalizeResolutionForGemini, needsPixelSize } from '@/lib/ai/image-generator-helpers';
 import {
   buildOpenAIImageRequestBody,
   buildProviderExtensionImageRequestBody,
@@ -22,14 +23,7 @@ import { retryOperation } from '@/lib/utils/retry';
 import { resolveImageApiFormat, type IProvider } from '@/lib/api-key-manager';
 import { useAPIConfigStore } from '@/stores/api-config-store';
 import { useAppSettingsStore } from '@/stores/app-settings-store';
-import {
-  DEFAULT_IMAGE_RESOLUTION,
-  getImageSizeLabel,
-  normalizeImageResolution,
-  resolveImageDimensions,
-  type ImageAspectRatio,
-  type ImageResolution,
-} from '@/lib/ai/image-size-presets';
+import { getImageSizeLabel, type ImageAspectRatio, type ImageResolution } from '@/lib/ai/image-size-presets';
 import {
   buildCompatibilityImagePrompt,
   shouldRetryImageCompatibility,
@@ -53,152 +47,11 @@ export interface ImageGenerationResult {
   taskId?: string;
 }
 
-const buildEndpoint = (baseUrl: string, path: string) => {
-  const normalized = baseUrl.replace(/\/+$/, '');
-  return /\/v\d+$/.test(normalized) ? `${normalized}/${path}` : `${normalized}/v1/${path}`;
-};
-
-const getRootBaseUrl = (baseUrl: string): string => {
-  return baseUrl.replace(/\/+$/, '').replace(/\/v\d+$/, '');
-};
-
-/**
- * 图片端点路径映射（端点类型 → 提交/轮询 URL 路径）
- * 仅用于需要自定义路径的端点类型，其余走默认 /v1/images/generations
- */
-const IMAGE_ENDPOINT_PATHS: Record<string, { submit: string; poll: (id: string) => string }> = {
-  'aigc-image': { submit: '/tencent-vod/v1/aigc-image', poll: (id) => `/tencent-vod/v1/aigc-image/${id}` },
-  'vidu生图':   { submit: '/ent/v2/reference2image',    poll: (id) => `/ent/v2/task?task_id=${id}` },
-};
-const DEFAULT_IMAGE_ENDPOINT = { submit: '/v1/images/generations', poll: (id: string) => `/v1/images/generations/${id}` };
-const IMAGE_SUBMIT_TIMEOUT_MS = 180_000;
-
-function getImageEndpointPaths(endpointTypes: string[]): { submit: string; poll: (id: string) => string } {
-  for (const t of endpointTypes) {
-    if (IMAGE_ENDPOINT_PATHS[t]) return IMAGE_ENDPOINT_PATHS[t];
-  }
-  return DEFAULT_IMAGE_ENDPOINT;
-}
-
-function sameFeatureConfig(a: FeatureConfig, b: FeatureConfig) {
-  return a.provider.id === b.provider.id && a.model === b.model;
-}
-
 type ImageGenerationFeature = 'character_generation' | 'scene_generation' | 'prop_generation';
-
-function getImageAttemptConfigs(feature: ImageGenerationFeature, selectedConfig: FeatureConfig) {
-  const allConfigs = getAllFeatureConfigs(feature);
-  if (allConfigs.length === 0) return [selectedConfig];
-  return [
-    selectedConfig,
-    ...allConfigs.filter((config) => !sameFeatureConfig(config, selectedConfig)),
-  ];
-}
-
-function parseImageApiErrorMessage(errorText: string, fallback: string) {
-  try {
-    const data = JSON.parse(errorText);
-    return data?.error?.message || data?.message || data?.msg || fallback;
-  } catch {
-    return errorText && errorText.length < 500 ? errorText : fallback;
-  }
-}
-
-function hasQuotaProblem(status: number, errorText: string, message: string) {
-  const text = `${message}\n${errorText}`.toLowerCase();
-  return status === 403 && (
-    text.includes('insufficient_user_quota')
-    || text.includes('insufficient quota')
-    || text.includes('subscription quota')
-    || text.includes('quota insufficient')
-    || text.includes('额度不足')
-    || text.includes('未配置订阅')
-  );
-}
-
-function createImageApiHttpError(status: number, errorText: string) {
-  const rawMessage = parseImageApiErrorMessage(errorText, `图片生成 API 错误: ${status}`);
-  let message = rawMessage;
-
-  if (status === 401) {
-    message = `API Key 无效或已过期，请前往「设置」检查图片生成服务的 API Key 配置（原始信息：${rawMessage}）`;
-  } else if (hasQuotaProblem(status, errorText, rawMessage)) {
-    message = `图片生成额度不足或订阅未配置：${rawMessage}`;
-  } else if (status === 403) {
-    message = `图片生成服务拒绝请求（403）：${rawMessage}`;
-  }
-
-  const error = new Error(message) as Error & { status?: number; retryable?: boolean };
-  error.status = status;
-  if (status === 401 || status === 403) {
-    error.retryable = false;
-  }
-  return error;
-}
-
-function getTargetDimensions(aspectRatio: string, resolution?: string): { width: number; height: number } | undefined {
-  return resolveImageDimensions({ aspectRatio, resolution });
-}
-
-/**
- * 判断模型是否为 Gemini 图片生成模型（Nano Banana 系列）
- * - Nano Banana Pro = gemini-3-pro-image-preview   → 支持 1K/2K/4K
- * - Nano Banana 2  = gemini-3.1-flash-image-preview → 支持 512/1K/2K/4K
- * - Nano Banana    = gemini-2.5-flash-image          → 固定 1K（不支持 image_size 参数）
- *
- * 用于决定是否在请求体中附加官方 image_size / aspect_ratio 参数
- */
-function isGeminiImageModel(model: string): boolean {
-  const m = model.toLowerCase();
-  return (
-    m.includes('gemini') && (m.includes('image') || m.includes('imagen'))
-  );
-}
-
-/**
- * 判断 Gemini 图片模型是否支持 image_size 参数（1K/2K/4K）
- * gemini-2.5-flash-image 只输出固定 1024px，不支持 image_size
- */
-function geminiSupportsImageSize(model: string): boolean {
-  const m = model.toLowerCase();
-  // gemini-3-pro-image / gemini-3.1-flash-image 支持 1K/2K/4K
-  if (m.includes('gemini-3') && m.includes('image')) return true;
-  // gemini-2.5-flash-image 不支持 image_size，固定 1K
-  return false;
-}
-
-/**
- * 规范化分辨率值为 Gemini 官方要求的格式
- * 官方要求大写 K（例如 1K、2K、4K），小写会被拒绝
- */
-function normalizeResolutionForGemini(resolution?: string): string {
-  if (!resolution) return DEFAULT_IMAGE_RESOLUTION;
-  const upper = resolution.toUpperCase();
-  // 接受 '512' 直接通过（仅 3.1 Flash Image 支持）
-  if (upper === '512') return '512';
-  // 确保是 '1K' / '2K' / '4K' 格式
-  return normalizeImageResolution(upper);
-}
-
-/**
- * 判断模型是否需要像素尺寸格式 (如 "1024x1024") 而非比例格式 (如 "1:1")
- * doubao-seedream, cogview 等国产模型需要像素尺寸
- */
-function needsPixelSize(model: string): boolean {
-  const m = model.toLowerCase();
-  return m.includes('doubao') || m.includes('seedream') || m.includes('cogview') || false /* zhipu removed */;
-}
-
-/**
- * Generate image for character
- */
+const IMAGE_SUBMIT_TIMEOUT_MS = 180_000;
 export async function generateCharacterImage(params: ImageGenerationParams): Promise<ImageGenerationResult> {
   return generateImage(params, 'character_generation');
 }
-
-/**
- * Generate image for scene
- */
 export async function generateSceneImage(params: ImageGenerationParams): Promise<ImageGenerationResult> {
   return generateImage(params, 'scene_generation');
 }

@@ -374,6 +374,12 @@ describe("studio workflow tabs", () => {
       fileURLToPath(new URL("./workflow-node-model.ts", import.meta.url)),
       "utf8",
     );
+    const previewModelSource = readFileSync(
+      fileURLToPath(
+        new URL("./storyboard-preview-model.ts", import.meta.url),
+      ),
+      "utf8",
+    );
     const editDialogSource = readFileSync(
       fileURLToPath(
         new URL("./WorkflowNodeEditDialog.tsx", import.meta.url),
@@ -578,7 +584,7 @@ describe("studio workflow tabs", () => {
     expect(modelSource).toContain("const DIRECTOR_PLAN_PREVIEW_MAX_LINES = 600");
     expect(modelSource).toContain('previewKind: "table"');
     expect(modelSource).toContain('previewKind: "storyboard-grid"');
-    expect(modelSource).toContain("parseStoryboardTable");
+    expect(previewModelSource).toContain("parseStoryboardTable");
     expect(modelSource).toContain('previewTitle: "剧本内容"');
     expect(modelSource).toContain('previewTitle: "导演规划"');
     expect(modelSource).toContain("DIRECTOR_PLAN_PREVIEW_MAX_LINES");

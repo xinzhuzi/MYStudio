@@ -18,6 +18,7 @@ import { buildThinkingParams, buildThinkingProviderOptions, resolveThinkingEnabl
 import { getLanguageModel } from "@/lib/ai/ai-sdk-bridge";
 import { generateText } from "ai";
 import { normalizeScriptData } from "./script-data-normalizer";
+import { detectInputType } from "./input-type-detector";
 
 /**
  * Normalize time value to match scene-store TIME_PRESETS
@@ -979,48 +980,6 @@ ${styleId ? `- 视觉风格：${styleId}` : ''}
   console.log('[generateScriptFromIdea] 生成剧本长度:', response.length);
   
   return response;
-}
-
-/**
- * Detect the type of creative input
- */
-function detectInputType(input: string): string {
-  const trimmed = input.trim();
-  const lineCount = trimmed.split('\n').filter(l => l.trim()).length;
-  
-  // 检测已有分镜结构：【镜头X】或 **【镜头X】**
-  if (/[【\[]\s*镜头\s*\d+/i.test(trimmed) || /\*\*.*镜头.*\*\*/i.test(trimmed)) {
-    return '详细分镜脚本';
-  }
-  
-  // 检测MV概念
-  if (/MV|[音乐][视音][频像]|music\s*video/i.test(trimmed)) {
-    return 'MV概念';
-  }
-  
-  // 检测广告简报
-  if (/广告|宣传[片视频]|commercial|ad\s*brief|品牌/i.test(trimmed)) {
-    return '广告简报';
-  }
-  
-  // 检测预告片
-  if (/预告[片视频]|trailer|宣传片/i.test(trimmed)) {
-    return '预告片脚本';
-  }
-  
-  // 检测短视频
-  if (/短视频|抹音|tiktok|快手|reels/i.test(trimmed)) {
-    return '短视频创意';
-  }
-  
-  // 根据长度判断
-  if (lineCount <= 3 && trimmed.length < 100) {
-    return '一句话创意';
-  } else if (lineCount <= 10) {
-    return '故事大纲';
-  } else {
-    return '详细故事描述';
-  }
 }
 
 export type { ParseOptions, ShotGenerationOptions };

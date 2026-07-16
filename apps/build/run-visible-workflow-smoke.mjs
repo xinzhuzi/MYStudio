@@ -398,9 +398,14 @@ function inspectClonedDaojieProjectData(userDataDir) {
     const edgeKeys = new Set((graph.edges || []).map((edge) => `${edge.source}->${edge.target}`));
     return referenceNodes.every((node) => edgeKeys.has(`${node.id}->${generatedNode.id}`));
   });
+  const storyboardWorkflowIds = new Set(storyboardImageWorkflows.map((graph) => graph.id));
   return {
     storyboardsWithWorkflow: chapterStoryboards.filter((storyboard) =>
-      Boolean(storyboard.imageWorkflowId || storyboard.mediaRef?.imageWorkflowId),
+      Boolean(
+        storyboard.imageWorkflowId ||
+        storyboard.mediaRef?.imageWorkflowId ||
+        storyboardWorkflowIds.has(`storyboard-flow-${storyboard.episodeId}-${String(storyboard.id || '').split('-').pop()}`),
+      ),
     ).length,
     storyboardImageWorkflows: storyboardImageWorkflows.length,
     storyboardImageWorkflowsReady: storyboardImageWorkflowsReady.length,
@@ -934,7 +939,14 @@ function realDaojieWorkflowExpression(
       const entityExtractions = (workflowState.entityExtractions || []).filter((candidate) => !candidate.episodeId || candidate.episodeId === chapterId);
       const agentWorkData = (workflowState.agentWorkData || []).filter((candidate) => !candidate.episodeId || candidate.episodeId === chapterId);
        const storyboardsWithMediaPath = storyboards.filter((candidate) => Boolean(candidate.mediaRef?.path));
-       const storyboardsWithWorkflow = storyboards.filter((candidate) => Boolean(candidate.imageWorkflowId || candidate.mediaRef?.imageWorkflowId));
+       const storyboardImageWorkflows = (workflowState.imageWorkflows || []).filter((graph) =>
+         String(graph.id || '').startsWith('storyboard-flow-' + chapterId + '-'),
+       );
+       const storyboardWorkflowIds = new Set(storyboardImageWorkflows.map((graph) => graph.id));
+       const storyboardsWithWorkflow = storyboards.filter((candidate) => Boolean(
+         candidate.imageWorkflowId || candidate.mediaRef?.imageWorkflowId ||
+         storyboardWorkflowIds.has('storyboard-flow-' + candidate.episodeId + '-' + String(candidate.id || '').split('-').pop()),
+       ));
        const totalStoryboardDuration = storyboards.reduce((sum, storyboard) => sum + Number(storyboard.duration || 0), 0);
       const totalTrackDuration = productionTracks.reduce((sum, track) => sum + Number(track.duration || 0), 0);
       const derivedAssetPlan = scriptPlans.flatMap((plan) => plan.derivedAssetPlan || []);
@@ -950,9 +962,6 @@ function realDaojieWorkflowExpression(
          (graph.nodes || []).some((node) => node.type === 'reference' && node.imageUrl) &&
          (graph.nodes || []).some((node) => node.type === 'generated' && node.resultUrl) &&
          (graph.edges || []).length > 0,
-       );
-       const storyboardImageWorkflows = (workflowState.imageWorkflows || []).filter((graph) =>
-         String(graph.id || '').startsWith('storyboard-flow-' + chapterId + '-'),
        );
        const storyboardImageWorkflowsReady = storyboardImageWorkflows.filter((graph) => {
          const referenceNodes = (graph.nodes || []).filter((node) => node.type === 'reference' && node.imageUrl);

@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { callChatAPI } from "./script-parser";
 import { normalizeScriptData, normalizeTimeValue } from "./script-data-normalizer";
+import { detectInputType } from "./input-type-detector";
 
 vi.mock("@/lib/ai/ai-sdk-bridge", () => ({
   getLanguageModel: vi.fn(() => ({})),
@@ -141,5 +142,15 @@ describe("script data normalization boundaries", () => {
   it("falls back to day for unknown or blank time values", () => {
     expect(normalizeTimeValue("  ")).toBe("day");
     expect(normalizeTimeValue("未知时段")).toBe("day");
+  });
+});
+
+describe("creative input type detection", () => {
+  it("classifies empty input as a one-line idea", () => {
+    expect(detectInputType("")).toBe("一句话创意");
+  });
+
+  it("prioritizes storyboard markers over length-based classification", () => {
+    expect(detectInputType("**【镜头1】**\n一个很长的镜头描述")).toBe("详细分镜脚本");
   });
 });

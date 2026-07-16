@@ -20,7 +20,9 @@ import { processBatched } from '@/lib/ai/batch-processor';
 import { estimateTokens, safeTruncate } from '@/lib/ai/model-registry';
 import { useScriptStore } from '@/stores/script-store';
 import { buildSeriesContextSummary } from './series-meta-sync';
-import { buildCharacterPriorityRecords } from './character-calibrator-utils';
+import { buildCharacterPriorityRecords, collectCharacterStats } from './character-calibrator-utils';
+export { collectCharacterStats } from './character-calibrator-utils';
+export type { CharacterStats } from './character-calibrator-utils';
 
 // ==================== 类型定义 ====================
 
@@ -142,120 +144,6 @@ export function extractAllCharactersFromEpisodes(
   
   console.log(`[extractAllCharactersFromEpisodes] 从 ${episodeScripts.length} 集剧本中提取到 ${characters.length} 个角色`);
   return characters;
-}
-
-// ==================== 出场统计 ====================
-
-/** 角色出场统计 */
-export interface CharacterStats {
-  name: string;
-  /** 场景出场次数 */
-  sceneCount: number;
-  /** 对白条数 */
-  dialogueCount: number;
-  /** 出场的集数列表 */
-  episodes: number[];
-  /** 首次出场集数 */
-  firstEpisode: number;
-  /** 最后出场集数 */
-  lastEpisode: number;
-  /** 对白样本（前3条） */
-  dialogueSamples: string[];
-  /** 出场场景样本 */
-  sceneSamples: string[];
-}
-
-/**
- * 统计每个角色的出场情况
- */
-export function collectCharacterStats(
-  characterNames: string[],
-  episodeScripts: EpisodeRawScript[]
-): Map<string, CharacterStats> {
-  const stats = new Map<string, CharacterStats>();
-  
-  // 防御性检查
-  if (!characterNames || !Array.isArray(characterNames)) {
-    console.warn('[collectCharacterStats] characterNames 无效');
-    return stats;
-  }
-  if (!episodeScripts || !Array.isArray(episodeScripts)) {
-    console.warn('[collectCharacterStats] episodeScripts 无效');
-    return stats;
-  }
-  
-  // 初始化
-  for (const name of characterNames) {
-    if (!name) continue;
-    stats.set(name, {
-      name,
-      sceneCount: 0,
-      dialogueCount: 0,
-      episodes: [],
-      firstEpisode: Infinity,
-      lastEpisode: 0,
-      dialogueSamples: [],
-      sceneSamples: [],
-    });
-  }
-  
-  // 遍历所有剧本
-  for (const ep of episodeScripts) {
-    if (!ep || !ep.scenes) continue;
-    const epIndex = ep.episodeIndex ?? 0;
-    
-    for (const scene of ep.scenes) {
-      if (!scene) continue;
-      
-      // 检查场景人物
-      const sceneChars = scene.characters || [];
-      for (const charName of sceneChars) {
-        if (!charName) continue;
-        // 精确匹配或包含匹配
-        for (const name of characterNames) {
-          if (!name) continue;
-          if (charName === name || charName.includes(name) || name.includes(charName)) {
-            const s = stats.get(name);
-            if (!s) continue;
-            s.sceneCount++;
-            if (!s.episodes.includes(epIndex)) {
-              s.episodes.push(epIndex);
-            }
-            s.firstEpisode = Math.min(s.firstEpisode, epIndex);
-            s.lastEpisode = Math.max(s.lastEpisode, epIndex);
-            if (s.sceneSamples.length < 3) {
-              s.sceneSamples.push(`第${epIndex}集: ${scene.sceneHeader || '未知场景'}`);
-            }
-          }
-        }
-      }
-      
-      // 检查对白
-      const dialogues = scene.dialogues || [];
-      for (const dialogue of dialogues) {
-        if (!dialogue || !dialogue.character) continue;
-        for (const name of characterNames) {
-          if (!name) continue;
-          if (dialogue.character === name || dialogue.character.includes(name)) {
-            const s = stats.get(name);
-            if (!s) continue;
-            s.dialogueCount++;
-            if (s.dialogueSamples.length < 3) {
-              const line = dialogue.line || '';
-              s.dialogueSamples.push(`${dialogue.character}: ${line.slice(0, 30)}...`);
-            }
-          }
-        }
-      }
-    }
-  }
-  
-  // 修正 Infinity
-  for (const s of stats.values()) {
-    if (s.firstEpisode === Infinity) s.firstEpisode = 0;
-  }
-  
-  return stats;
 }
 
 // ==================== 核心函数 ====================

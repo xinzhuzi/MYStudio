@@ -14,6 +14,7 @@ import {
   type EnvironmentKeywords,
   type SceneEnvironmentType,
 } from './scene-environment';
+import { getShotSearchableText } from './scene-shot-text';
 export type { SceneEnvironmentType } from './scene-environment';
 
 // ==================== 类型定义 ====================
@@ -675,20 +676,6 @@ import type {
   PendingViewpointData, 
   ContactSheetPromptSet 
 } from '@/stores/media-panel-store';
-
-/**
- * 从分镜文本中提取所有可搜索的内容
- * 包括：动作描述、对白、视觉描述等
- */
-function getShotSearchableText(shot: Shot): string {
-  const parts = [
-    shot.actionSummary || '',
-    shot.dialogue || '',
-    shot.visualDescription || '',
-    shot.characterBlocking || '',
-  ];
-  return parts.join(' ');
-}
 
 /**
  * 根据环境类型获取默认视角列表

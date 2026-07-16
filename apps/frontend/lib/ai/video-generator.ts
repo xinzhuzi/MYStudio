@@ -181,70 +181,6 @@ export async function prepareVideoImageRolesForTransfer(
 // ==================== 模型路由检测 ====================
 
 /**
- * MemeFast supported_endpoint_types → 内部视频路由格式
- * 基于 /api/pricing_new 返回的元数据，而非模型名猜测
- */
-const VIDEO_FORMAT_MAP: Record<string, 'openai_official' | 'unified' | 'volc' | 'wan' | 'kling' | 'replicate'> = {
-  // OpenAI 官方视频格式 (sora-2): /v1/videos
-  'openAI官方视频格式': 'openai_official',
-  'openAI视频格式': 'openai_official',
-  // 豆包/Seedance: /volc/v1/contents/generations/tasks
-  '豆包视频异步': 'volc',
-  // 阿里百炼 wan: /ali/bailian/...
-  '异步': 'wan',
-  // 可灵 Kling 全系列: /kling/v1/videos/...
-  '文生视频': 'kling',
-  '图生视频': 'kling',
-  '视频延长': 'kling',
-  'omni-video': 'kling',
-  '动作控制': 'kling',
-  '多模态视频编辑': 'kling',
-  '数字人': 'kling',
-  '对口型': 'kling',
-  '视频特效': 'kling',
-  // 统一格式: /v1/video/generations
-  'openai': 'unified', // 某些自定义供应商会把视频模型标记为通用 openai
-  '视频统一格式': 'unified',
-  'grok视频': 'unified',
-  'openai-response': 'unified',
-  '海螺视频生成': 'unified',
-  'luma视频生成': 'unified',
-  'luma视频扩展': 'unified',
-  'runway图生视频': 'unified',
-  'aigc-video': 'unified',
-  'wan视频生成': 'unified',
-  // Vidu (all route to unified /v1/video/generations)
-  'vidu文生视频': 'unified',
-  'vidu图生视频': 'unified',
-  'vidu参考生视频': 'unified',
-  'vidu首尾帧': 'unified',
-  'luma视频延长': 'unified',
-};
-
-/**
- * 统一格式端点路径映射（端点类型 → 提交/轮询 URL 路径）
- * 每种端点类型直接对应确定的 URL，不再靠 fallback 猜测
- */
-const UNIFIED_ENDPOINT_PATHS: Record<string, { submit: string; poll: (id: string) => string }> = {
-  // 路径均为域名根起的绝对路径（不依赖 /v1/ 前缀拼接）
-  'grok视频':     { submit: '/v1/video/create',      poll: (id) => `/v1/video/query?id=${id}` },
-  '视频统一格式': { submit: '/v1/video/create',      poll: (id) => `/v1/video/query?id=${id}` },
-  '海螺视频生成': { submit: '/minimax/v1/video_generation', poll: (id) => `/minimax/v1/query/video_generation?task_id=${id}` },
-  'luma视频生成': { submit: '/luma/generations',            poll: (id) => `/luma/generations/${id}` },
-  'luma视频扩展': { submit: '/luma/generations',            poll: (id) => `/luma/generations/${id}` },
-  'luma视频延长': { submit: '/luma/generations',            poll: (id) => `/luma/generations/${id}` },
-  'runway图生视频': { submit: '/runwayml/v1/image_to_video', poll: (id) => `/runwayml/v1/tasks/${id}` },
-  'wan视频生成':    { submit: '/alibailian/api/v1/services/aigc/video-generation/video-synthesis', poll: (id) => `/alibailian/api/v1/tasks/${id}` },
-  'aigc-video':    { submit: '/tencent-vod/v1/aigc-video', poll: (id) => `/tencent-vod/v1/aigc-video/${id}` },
-  // Vidu 企业版端点 (/ent/v2/)
-  'vidu文生视频':   { submit: '/ent/v2/text2video',       poll: (id) => `/ent/v2/task?task_id=${id}` },
-  'vidu图生视频':   { submit: '/ent/v2/img2video',        poll: (id) => `/ent/v2/task?task_id=${id}` },
-  'vidu参考生视频': { submit: '/ent/v2/reference2video',  poll: (id) => `/ent/v2/task?task_id=${id}` },
-  'vidu首尾帧':     { submit: '/ent/v2/start-end2video',  poll: (id) => `/ent/v2/task?task_id=${id}` },
-};
-const DEFAULT_UNIFIED_ENDPOINT = { submit: '/v1/video/generations', poll: (id: string) => `/v1/video/generations/${id}` };
-
-/**
  * 根据模型端点类型查找对应的提交/轮询 URL 路径
  */
 function getUnifiedEndpointPaths(endpointTypes: string[]): { submit: string; poll: (id: string) => string } {
@@ -257,58 +193,6 @@ function getUnifiedEndpointPaths(endpointTypes: string[]): { submit: string; pol
  */
 function detectVideoApiFormat(model: string): 'openai_official' | 'unified' | 'volc' | 'wan' | 'kling' | 'replicate' {
   return detectVideoApiFormatFromRouting(model, useAPIConfigStore.getState().modelEndpointTypes[model] || []);
-  /*
-  // 1. 查询 store 中的 endpoint types 元数据
-  const endpointTypes = useAPIConfigStore.getState().modelEndpointTypes[model];
-  if (endpointTypes && endpointTypes.length > 0) {
-    // 优先级：openai_official → kling → volc → wan → replicate → unified
-    for (const t of endpointTypes) {
-      if (VIDEO_FORMAT_MAP[t] === 'openai_official') {
-        console.log(`[VideoGen] Metadata-driven routing: ${model} → openai_official (endpoint: ${t})`);
-        return 'openai_official';
-      }
-    }
-    for (const t of endpointTypes) {
-      if (VIDEO_FORMAT_MAP[t] === 'kling') {
-        console.log(`[VideoGen] Metadata-driven routing: ${model} → kling (endpoint: ${t})`);
-        return 'kling';
-      }
-    }
-    for (const t of endpointTypes) {
-      if (VIDEO_FORMAT_MAP[t] === 'volc') {
-        console.log(`[VideoGen] Metadata-driven routing: ${model} → volc (endpoint: ${t})`);
-        return 'volc';
-      }
-    }
-    for (const t of endpointTypes) {
-      if (VIDEO_FORMAT_MAP[t] === 'wan') {
-        console.log(`[VideoGen] Metadata-driven routing: ${model} → wan (endpoint: ${t})`);
-        return 'wan';
-      }
-    }
-    // Replicate: endpoint type uses '{org}/{model}异步' pattern (contains '/' before '异步')
-    if (endpointTypes.some(t => t.includes('/') && t.endsWith('异步'))) {
-      console.log(`[VideoGen] Metadata-driven routing: ${model} → replicate (dynamic pattern)`);
-      return 'replicate';
-    }
-    for (const t of endpointTypes) {
-      if (VIDEO_FORMAT_MAP[t] === 'unified') {
-        console.log(`[VideoGen] Metadata-driven routing: ${model} → unified (endpoint: ${t})`);
-        return 'unified';
-      }
-    }
-    // 有元数据但没匹配到已知格式
-    console.warn(`[VideoGen] Unknown endpoint types for ${model}:`, endpointTypes, '→ fallback to name-based');
-  }
-
-  // 2. Fallback: 按模型名推断
-  const m = model.toLowerCase();
-  if (m.includes('sora-2')) return 'openai_official';
-  if (m.includes('kling')) return 'kling';
-  // doubao-seedance 走 volc 格式（/volc/v1/contents/generations/tasks）
-  if (m.includes('doubao') || m.includes('seedance') || m.includes('seedream')) return 'volc';
-  if (m.includes('wan')) return 'wan';
-  return 'unified'; */
 }
 
 // ==================== 通用错误处理 ====================
