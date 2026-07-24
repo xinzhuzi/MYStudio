@@ -1,4 +1,4 @@
-import type { DirectorStore } from "./director-store";
+import type { DirectorStore } from "./director-store-types";
 import type { SceneProgress } from "@opencut/ai-core";
 
 export type DirectorGenerationLifecycleActions = Pick<

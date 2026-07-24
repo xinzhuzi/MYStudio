@@ -272,13 +272,17 @@ export async function callChatAPI(
   
   // 输入已超过 context window 的 90% → 抛出错误（不发请求，省钱）
   if (inputTokens > modelLimits.contextWindow * 0.9) {
-    const err = new Error(
-      `[TokenBudget] 输入 token (≈${inputTokens}) 超出 ${model} 的 context window ` +
-      `(${modelLimits.contextWindow}) 的 90%，请缩减输入或使用更大上下文的模型`
+    const err = Object.assign(
+      new Error(
+        `[TokenBudget] 输入 token (≈${inputTokens}) 超出 ${model} 的 context window ` +
+        `(${modelLimits.contextWindow}) 的 90%，请缩减输入或使用更大上下文的模型`
+      ),
+      {
+        code: 'TOKEN_BUDGET_EXCEEDED' as const,
+        inputTokens,
+        contextWindow: modelLimits.contextWindow,
+      },
     );
-    (err as any).code = 'TOKEN_BUDGET_EXCEEDED';
-    (err as any).inputTokens = inputTokens;
-    (err as any).contextWindow = modelLimits.contextWindow;
     throw err;
   }
   
@@ -418,8 +422,10 @@ export async function callChatAPI(
         }
       }
       
-      const error = new Error(`API request failed: ${response.status} - ${errorText}`);
-      (error as any).status = response.status;
+      const error = Object.assign(
+        new Error(`API request failed: ${response.status} - ${errorText}`),
+        { status: response.status },
+      );
       throw error;
     }
 
@@ -619,7 +625,7 @@ export async function generateShotList(
 地点: ${scene.location}
 时间: ${scene.time}
 氛围: ${scene.atmosphere}
-${(scene as any).visualPrompt ? `场景视觉参考: ${(scene as any).visualPrompt}` : ''}
+${scene.visualPrompt ? `场景视觉参考: ${scene.visualPrompt}` : ''}
 
 === 场景内容 ===
 "${sceneContent.slice(0, 5000)}"

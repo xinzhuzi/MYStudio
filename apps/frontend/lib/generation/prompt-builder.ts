@@ -194,8 +194,8 @@ export function buildVideoPrompt(
   }
 
   // 1.9 特殊拍摄手法
-  if ((scene as any).specialTechnique && (scene as any).specialTechnique !== 'none') {
-    const stPreset = SPECIAL_TECHNIQUE_PRESETS.find(p => p.id === (scene as any).specialTechnique);
+  if (scene.specialTechnique && scene.specialTechnique !== 'none') {
+    const stPreset = SPECIAL_TECHNIQUE_PRESETS.find(p => p.id === scene.specialTechnique);
     if (stPreset?.promptToken) cameraDesignParts.push(stPreset.promptToken);
   }
 

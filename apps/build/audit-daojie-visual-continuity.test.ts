@@ -4,10 +4,14 @@ import {
   approvedVisualReview,
   createHumanContinuityAssetApproval,
   normalizeContinuityAssetVersion,
+  storyboardShotSemanticsFingerprint,
   visualContinuityFingerprint,
   visualReviewInputFingerprint,
 } from "@/lib/studio/visual-continuity";
-import { auditDaojieVisualContinuityState } from "./audit-daojie-visual-continuity";
+import {
+  auditDaojieVisualContinuityState,
+  isDaojieVisualPreflightEnabled,
+} from "./audit-daojie-visual-continuity";
 
 function approvedFixture() {
   const scene = createHumanContinuityAssetApproval(normalizeContinuityAssetVersion({
@@ -41,6 +45,14 @@ function approvedFixture() {
     assetIds: [scene.assetId],
     mediaRef: { kind: "image", path: "/shot-001.png" },
     state: "ready",
+    shotSemantics: {
+      sceneViewpointId: "dock-main-axis",
+      personFree: true,
+      visibleCharacters: [],
+      visibleProps: [],
+      actionIn: "建立场景",
+      actionOut: "继续向右",
+    },
     orderedReferenceManifest: [{
       order: 1,
       assetId: scene.assetId,
@@ -62,9 +74,11 @@ function approvedFixture() {
       actionIn: "建立场景",
       actionOut: "继续向右",
       characters: [],
+      sourceSemanticsFingerprint: "",
       inputFingerprint: "",
     },
   };
+  storyboard.continuityState!.sourceSemanticsFingerprint = storyboardShotSemanticsFingerprint(storyboard.shotSemantics);
   storyboard.continuityState!.inputFingerprint = visualContinuityFingerprint(storyboard);
   storyboard.visualReview = approvedVisualReview({
     reviewedAt: 2,
@@ -79,6 +93,13 @@ function approvedFixture() {
 }
 
 describe("Daojie direct-video visual preflight", () => {
+  it("requires an explicit environment flag before executing the import-safe audit module", () => {
+    expect(isDaojieVisualPreflightEnabled({})).toBe(false);
+    expect(isDaojieVisualPreflightEnabled({
+      MYSTUDIO_DAOJIE_VISUAL_PREFLIGHT: "1",
+    })).toBe(true);
+  });
+
   it("accepts only current human-approved storyboards and asset versions", () => {
     const { scene, storyboard } = approvedFixture();
     expect(auditDaojieVisualContinuityState({

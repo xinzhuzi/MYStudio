@@ -16,7 +16,7 @@ import {
 } from "./freedom-transport";
 import { getUnifiedEndpointPaths } from "./freedom-routing";
 import { resolveKlingModelName } from "./freedom-model-names";
-import type { FreedomVideoParams, GenerationResult } from "./freedom-api";
+import type { FreedomVideoParams, GenerationResult } from "./freedom-types";
 
 const VIDEO_POLL_INTERVAL = 2000;
 const VIDEO_POLL_MAX_ATTEMPTS = 120;
@@ -491,5 +491,4 @@ export async function generateVideoViaKling(
 
   throw new Error('Kling 视频生成超时');
 }
-
 

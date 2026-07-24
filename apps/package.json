@@ -38,6 +38,7 @@
     "smoke:workflow:background:daojie": "node ./build/run-visible-workflow-smoke.mjs --background --daojie",
     "smoke:installed": "node ./build/install-and-smoke.mjs",
     "video:daojie:chapter001": "node ./build/automate-daojie-chapter001-video.mjs",
+    "video:daojie:chapter001:visual-preflight": "MYSTUDIO_DAOJIE_VISUAL_PREFLIGHT=1 ./node_modules/.bin/vite-node --config build/vite-node.config.ts build/audit-daojie-visual-continuity.ts",
     "video:daojie:chapter001:probe-providers": "node ./build/automate-daojie-chapter001-video.mjs --probe-providers",
     "video:daojie:chapter001:probe-generation": "node ./build/automate-daojie-chapter001-video.mjs --probe-generation",
     "video:daojie:chapter001:continuity-pilot": "node ./build/automate-daojie-chapter001-video.mjs --continuity-pilot",

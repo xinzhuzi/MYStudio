@@ -1,5 +1,5 @@
 import type { StateStorage } from "zustand/middleware";
-import type { APIConfigState } from "./api-config-store";
+import type { APIConfigState } from "./api-config-store-types";
 
 export const API_CONFIG_STORAGE_KEY = "opencut-api-config";
 export const API_CONFIG_PERSIST_VERSION = 17;

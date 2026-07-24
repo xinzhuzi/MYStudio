@@ -95,4 +95,25 @@ describe("switchProject", () => {
       mocks.events.indexOf("editing:sync:project-2"),
     );
   });
+
+  it("does nothing when switching to the active project", async () => {
+    await switchProject("project-1");
+
+    expect(mocks.projectState.setActiveProject).not.toHaveBeenCalled();
+    expect(mocks.scriptStore.persist.rehydrate).not.toHaveBeenCalled();
+    expect(mocks.editingStore.persist.rehydrate).not.toHaveBeenCalled();
+    expect(mocks.events).toEqual([]);
+  });
+
+  it("continues rehydrating later stores after one store fails", async () => {
+    mocks.sceneStore.persist.rehydrate.mockRejectedValueOnce(new Error("scene failed"));
+
+    await switchProject("project-2");
+
+    expect(mocks.sceneStore.persist.rehydrate).toHaveBeenCalledOnce();
+    expect(mocks.simpleTimelineStore.persist.rehydrate).toHaveBeenCalledOnce();
+    expect(mocks.editingStore.persist.rehydrate).toHaveBeenCalledOnce();
+    expect(mocks.editingStore.getState().setActiveProjectId)
+      .toHaveBeenCalledWith("project-2");
+  });
 });

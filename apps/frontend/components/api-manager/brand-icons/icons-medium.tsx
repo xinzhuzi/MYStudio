@@ -1,6 +1,6 @@
 // 中型品牌 SVG 图标（1000-2000 chars）
 // 源自 MemeFast pricing 页面 lobe-icons
-import type { BrandIconFn } from "./index";
+import type { BrandIconFn } from "./brand-icon-types";
 
 export const iconsMedium: Record<string, BrandIconFn> = {
   openai: (s) => (

@@ -66,6 +66,25 @@ describe("toonflow fixture parity", () => {
       ]),
     );
   });
+
+  it("accepts a content-addressed golden image fixture with a verified pixel digest", () => {
+    const report = compareToonflowFixtureToStoryboards({
+      storyboardRows: [{
+        ...fixtureRow(),
+        goldenImage: {
+          relativePath: "golden/abc.png",
+          sha256: "a".repeat(64),
+          pixelSha256: "b".repeat(64),
+          verified: true,
+        },
+      }],
+    }, [storyboard()]);
+
+    expect(report.goldenImageComparisonStatus).toBe("passed");
+    expect(report.issues).not.toContainEqual(
+      expect.objectContaining({ code: "toonflow.goldenImage.deferred" }),
+    );
+  });
 });
 
 function fixtureRow() {

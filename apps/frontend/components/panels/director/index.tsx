@@ -25,10 +25,9 @@ import { Play, Square, RotateCcw, Settings, Trash2, ChevronLeft, ChevronRight } 
 import { Separator } from "@/components/ui/separator";
 // ResizablePanelGroup not needed here - using global layout
 import { useState, useCallback } from "react";
-import { useAPIConfigStore } from "@/stores/api-config-store";
 import { useAppSettingsStore } from "@/stores/app-settings-store";
 import { useMediaStore } from "@/stores/media-store";
-import { generateStoryboardImage, generateSceneVideos } from "@/lib/storyboard";
+import { generateStoryboardImage } from "@/lib/storyboard";
 import { aiManager } from "@/lib/ai/ai-manager";
 import { toast } from "sonner";
 import { normalizeHorizontalVerticalAspectRatio } from "@/lib/ai/image-size-presets";
@@ -84,7 +83,6 @@ export function DirectorView() {
   const screenplayStatus = projectData?.screenplayStatus || 'idle';
   const screenplayError = projectData?.screenplayError || null;
 
-  const { getApiKey, isConfigured } = useAPIConfigStore();
   const { addMediaFromUrl, getOrCreateCategoryFolder } = useMediaStore();
   const { setActiveTab } = useMediaPanelStore();
   const overallProgress = useOverallProgress();
@@ -221,57 +219,7 @@ export function DirectorView() {
       setStoryboardStatus('error');
       toast.error(`故事板生成失败: ${err.message}`);
     }
-  }, [getApiKey, setStoryboardImage, setStoryboardStatus, setStoryboardError, setStoryboardConfig, getOrCreateCategoryFolder, addMediaFromUrl, activeProjectId]);
-
-  // Handle video generation from split scenes
-  const handleGenerateVideos = useCallback(async () => {
-    if (splitScenes.length === 0) {
-      toast.error('没有可生成的场景');
-      return;
-    }
-
-    // 从服务映射获取视频生成配置
-    const videoConfig = aiManager.featureConfig('video_generation');
-    if (!videoConfig) {
-      toast.error('请先在设置中配置视频生成 API');
-      return;
-    }
-    const apiKey = videoConfig.apiKey;
-    const provider = videoConfig.platform as string;
-    const model = videoConfig.models[0]; // 获取第一个模型
-    const baseUrl = videoConfig.baseUrl;
-    
-    console.log('[DirectorView] Using video generation config:', { provider, model, baseUrl });
-
-    toast.info(`开始为 ${splitScenes.length} 个场景生成视频... (使用 ${provider} ${model || ''})`);
-
-    await generateSceneVideos(
-      splitScenes.map(s => ({
-        id: s.id,
-        imageDataUrl: s.imageDataUrl,
-        videoPrompt: s.videoPrompt,
-      })),
-      {
-        aspectRatio: storyboardConfig.aspectRatio,
-        apiKey,
-        provider, // 直接传递服务映射选择的 provider
-        model,
-        baseUrl,
-      },
-      (sceneId, progress) => {
-        console.log(`[DirectorView] Scene ${sceneId} progress: ${progress}%`);
-      },
-      (sceneId, videoUrl) => {
-        toast.success(`场景 ${sceneId} 视频生成完成`);
-        // TODO: Add video to media library
-      },
-      (sceneId, error) => {
-        toast.error(`场景 ${sceneId} 生成失败: ${error}`);
-      }
-    );
-
-    toast.success('所有视频生成完成！');
-  }, [splitScenes, storyboardConfig]);
+  }, [setStoryboardImage, setStoryboardStatus, setStoryboardError, setStoryboardConfig, getOrCreateCategoryFolder, addMediaFromUrl, activeProjectId]);
 
   // Render based on current status (prioritize storyboard workflow)
   const renderContent = () => {
@@ -309,7 +257,6 @@ export function DirectorView() {
           return (
             <SplitScenes
               onBack={() => resetStoryboard()}
-              onGenerateVideos={handleGenerateVideos}
             />
           );
 
@@ -333,7 +280,6 @@ export function DirectorView() {
         return (
           <SplitScenes
             onBack={() => resetStoryboard()}
-            onGenerateVideos={handleGenerateVideos}
           />
         );
 

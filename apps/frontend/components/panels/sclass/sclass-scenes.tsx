@@ -22,24 +22,10 @@ import {
 import { useCharacterLibraryStore } from "@/stores/character-library-store";
 import { 
   ArrowLeft, 
-  Play,
   ImageIcon,
-  AlertCircle,
-  Loader2,
-  Sparkles,
-  Clapperboard,
-  Film,
-  Square,
 } from "lucide-react";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useMediaStore } from "@/stores/media-store";
 import { toast } from "sonner";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { waitForAbortableDelay } from "@/lib/storyboard/image-task-transport";
 import { useMergedGenerationCancellation } from "@/hooks/use-merged-generation-cancellation";
 import { useAPIConfigStore } from "@/stores/api-config-store";
@@ -47,15 +33,12 @@ import { aiManager } from "@/lib/ai/ai-manager";
 import { readImageAsBase64 } from '@/lib/image-storage';
 import { persistSceneImage } from '@/lib/utils/image-persist';
 import { SClassSceneCard } from "./sclass-scene-card";
-import { SceneVoiceBatchToolbar } from "../director/scene-voice-batch-toolbar";
-import { ShotGroupCard } from "./shot-group";
 import { useSClassStore, type SClassAspectRatio } from "@/stores/sclass-store";
 import { useAppSettingsStore } from "@/stores/app-settings-store";
 import { useSClassGeneration, type BatchGenerationProgress } from "./use-sclass-generation";
 import { ExtendEditDialog } from "./extend-edit-dialog";
 import { useSClassGroupingController } from "./use-sclass-grouping-controller";
 import { useSceneStore } from "@/stores/scene-store";
-import { Music } from "lucide-react";
 import { 
   VISUAL_STYLE_PRESETS, 
   STYLE_CATEGORIES,
@@ -80,16 +63,16 @@ import { normalizeStoryboardReferenceImages } from "../director/storyboard-refer
 import { collectMergedFrameReferenceImages } from "../director/storyboard-merged-reference-utils";
 import { runStoryboardMergedPages } from "../director/storyboard-merged-page-controller";
 import { createSClassMergedPageGenerator } from "./sclass-merged-page-generation";
-import { StoryboardConfigToolbar } from "../director/storyboard-config-toolbar";
-import { StoryboardMergedGenerationControls } from "../director/storyboard-merged-generation-controls";
-import { SClassGenerationModeToggle } from "./sclass-generation-mode-toggle";
-import { SClassStoryboardConfigToolbar } from "./sclass-storyboard-config-toolbar";
-import { SClassTrailerScenesPanel } from "./sclass-trailer-scenes-panel";
+import { SClassEditingPanel } from "./sclass-editing-panel";
+import { SClassTrailerScenesPanel } from "../storyboard-trailer-scenes-panel";
+import { StoryboardScenesTabs } from "../storyboard-scenes-tabs";
+import { useStoryboardResolutionToastHandlers } from "../use-storyboard-resolution-toast-handlers";
 import { useSClassQuadGridController } from "./use-sclass-quad-grid-controller";
 import { createSClassLegacyVideoGenerator } from "./sclass-legacy-video-generation";
 import { createSClassSingleVideoGenerator } from "./sclass-single-video-generation";
 import { createSClassEndFrameGenerator } from "./sclass-end-frame-generation";
 import { createStoryboardSingleImageGenerator } from "../director/storyboard-single-image-generation";
+import { filterSClassTrailerScenes } from "./sclass-scenes-utils";
 import {
   allocateStoryboardAngles as allocateAngles,
   buildMergedFrameTasks,
@@ -184,10 +167,7 @@ export function SClassScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
   // 筛选预告片分镜：通过 sceneName 包含 "预告片" 关键字来识别
   const trailerScenes = useMemo(() => {
     // 通过 sceneName 包含 "预告片" 来筛选
-    const filtered = splitScenes.filter(scene => {
-      const sceneName = scene.sceneName || '';
-      return sceneName.includes('预告片');
-    });
+    const filtered = filterSClassTrailerScenes(splitScenes);
     console.log('[SplitScenes] Trailer filter by sceneName:', {
       totalScenes: splitScenes.length,
       filteredCount: filtered.length,
@@ -825,6 +805,18 @@ export function SClassScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
     });
   }, [addMediaFromUrl, getImageFolderId, getVideoFolderId, mediaProjectId]);
 
+  const handleGenerateAllGroups = useCallback(() => {
+    setIsGenerating(true);
+    setBatchProgress(null);
+    generateAllGroups((progress) => setBatchProgress(progress))
+      .finally(() => {
+        setIsGenerating(false);
+        setBatchProgress(null);
+      });
+  }, [generateAllGroups, setIsGenerating]);
+
+  const { handleImageResolutionChange, handleVideoResolutionChange } = useStoryboardResolutionToastHandlers(setStoryboardConfig);
+
   // Show empty state
   if (storyboardStatus !== 'editing' || splitScenes.length === 0) {
     return (
@@ -885,26 +877,11 @@ export function SClassScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
   return (
     <div className="space-y-4">
       {/* 顶部 Tab 切换 */}
-      <div className="border-b -mx-4 px-4 -mt-4 pt-4">
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "editing" | "trailer")} className="w-full">
-          <TabsList className="w-full justify-start h-9 rounded-none bg-transparent border-b-0 p-0">
-            <TabsTrigger 
-              value="editing" 
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent h-9 px-4"
-            >
-              <Film className="h-3 w-3 mr-1" />
-              分镜编辑
-            </TabsTrigger>
-            <TabsTrigger 
-              value="trailer" 
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent h-9 px-4"
-            >
-              <Clapperboard className="h-3 w-3 mr-1" />
-              预告片 {trailerScenes.length > 0 ? `(${trailerScenes.length})` : ''}
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
-      </div>
+      <StoryboardScenesTabs
+        activeTab={activeTab}
+        trailerCount={trailerScenes.length}
+        onActiveTabChange={setActiveTab}
+      />
 
       {/* 预告片 Tab 内容 - 完全复用分镜编辑的功能 */}
       {activeTab === "trailer" && (
@@ -920,229 +897,60 @@ export function SClassScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
           aspectRatio={storyboardConfig.aspectRatio === "9:16" ? "9:16" : "16:9"}
           onAspectRatioChange={handleAspectRatioChange}
           imageResolution={storyboardConfig.resolution || defaultResolution}
-          onImageResolutionChange={(resolution) => {
-            setStoryboardConfig({ resolution });
-            toast.success(`图片分辨率已切换为 ${resolution}`);
-          }}
+          onImageResolutionChange={handleImageResolutionChange}
           videoResolution={storyboardConfig.videoResolution || "480p"}
-          onVideoResolutionChange={(videoResolution) => {
-            setStoryboardConfig({ videoResolution });
-            toast.success(`视频分辨率已切换为 ${videoResolution}`);
-          }}
+          onVideoResolutionChange={handleVideoResolutionChange}
           styleTokens={storyboardConfig.styleTokens}
         />
       )}
 
       {/* 分镜编辑 Tab 内容 */}
       {activeTab === "editing" && (
-      <>
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium">分镜编辑</span>
-          <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
-            {splitScenes.length} 个分镜
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="text"
-            size="sm"
-            onClick={handleBack}
-            className="h-7 px-2 text-xs"
-          >
-            <ArrowLeft className="h-3 w-3 mr-1" />
-            重新生成
-          </Button>
-        </div>
-      </div>
-
-      <SClassStoryboardConfigToolbar
-        styleId={currentStyleId || ""}
-        onStyleChange={handleStyleChange}
-        cinematographyProfileId={currentCinProfileId}
-        onCinematographyProfileChange={handleCinProfileChange}
-        aspectRatio={storyboardConfig.aspectRatio as SClassAspectRatio}
-        onAspectRatioChange={handleAspectRatioChange}
-        imageResolution={storyboardConfig.resolution || defaultResolution}
-        onImageResolutionChange={(resolution) => {
-          setStoryboardConfig({ resolution });
-          toast.success(`图片分辨率已切换为 ${resolution}`);
-        }}
-        videoResolution={storyboardConfig.videoResolution || "480p"}
-        onVideoResolutionChange={(videoResolution) => {
-          setStoryboardConfig({ videoResolution });
-          toast.success(`视频分辨率已切换为 ${videoResolution}`);
-        }}
-        imageGenerationMode={imageGenMode}
-        onImageGenerationModeChange={setImageGenMode}
-        styleTokens={storyboardConfig.styleTokens}
-        disabled={isGenerating}
-      />
-
-      {/* Row 1.5: Seedance 2.0 音频/运镜提示（实际控制复用每个分镜的 per-scene 音频开关） */}
-      <div className="flex flex-wrap items-center gap-3 p-2 rounded-lg bg-muted/20 border">
-        <Music className="h-3.5 w-3.5 text-muted-foreground" />
-        <span className="text-xs text-muted-foreground">音频/运镜: 复用每个分镜的独立开关（对白 / 音效 / 环境声 / 运镜）自动聚合</span>
-        <span className="text-xs text-muted-foreground/60">时长上限 15s · Seedance 2.0</span>
-      </div>
-
-      {/* Row 2: 合并生成选项（仅在合并模式下显示） */}
-      {imageGenMode === 'merged' && (
-        <StoryboardMergedGenerationControls
+        <SClassEditingPanel
+          scenes={splitScenes}
+          renderSceneCard={renderSceneCard}
+          isGenerating={isGenerating}
+          onBack={handleBack}
+          styleId={currentStyleId || ""}
+          onStyleChange={handleStyleChange}
+          cinematographyProfileId={currentCinProfileId}
+          onCinematographyProfileChange={handleCinProfileChange}
+          aspectRatio={storyboardConfig.aspectRatio as SClassAspectRatio}
+          onAspectRatioChange={handleAspectRatioChange}
+          imageResolution={storyboardConfig.resolution || defaultResolution}
+          onImageResolutionChange={handleImageResolutionChange}
+          videoResolution={storyboardConfig.videoResolution || "480p"}
+          onVideoResolutionChange={handleVideoResolutionChange}
+          imageGenerationMode={imageGenMode}
+          onImageGenerationModeChange={setImageGenMode}
+          styleTokens={storyboardConfig.styleTokens}
           frameMode={frameMode}
           onFrameModeChange={setFrameMode}
           refStrategy={refStrategy}
           onRefStrategyChange={setRefStrategy}
           useExemplar={useExemplar}
           onUseExemplarChange={setUseExemplar}
-          isGenerating={isGenerating}
           isMergedRunning={isMergedRunning}
-          sceneCount={splitScenes.length}
-          onGenerate={handleMergedGenerate}
-          onStop={handleStopMergedGeneration}
+          onMergedGenerate={handleMergedGenerate}
+          onStopMerged={handleStopMergedGeneration}
+          sclassGenerationMode={sclassGenMode}
+          onSClassGenerationModeChange={setSclassGenMode}
+          shotGroups={shotGroups}
+          sceneMap={sceneMap}
+          isBatchCalibrationDisabled={isBatchCalibrationDisabled}
+          onBatchCalibrate={batchCalibrate}
+          onRegroup={regroup}
+          onCalibrateGroup={calibrateGroup}
+          onGenerateGroupVideo={generateGroup}
+          onExtendGroup={(groupId) => openExtendEdit(groupId, 'extend')}
+          onEditGroup={(groupId) => openExtendEdit(groupId, 'edit')}
+          allCharacters={allCharacters}
+          sceneLibrary={sceneLibrary}
+          batchProgress={batchProgress}
+          onGenerateGroupVideos={handleGenerateAllGroups}
+          onGenerateVideos={handleGenerateVideos}
+          onAbortGeneration={abortSClassGeneration}
         />
-      )}
-
-      {/* Warning if no prompts */}
-      {splitScenes.some(s => !s.videoPrompt.trim()) && (
-        <div className="flex items-start gap-2 p-2 rounded-md bg-yellow-500/10 border border-yellow-500/20">
-          <AlertCircle className="h-4 w-4 text-yellow-500 mt-0.5 shrink-0" />
-          <div className="text-xs text-yellow-600 dark:text-yellow-400">
-            <p>部分分镜缺少提示词，点击分镜下方的文字区域可编辑。</p>
-          </div>
-        </div>
-      )}
-
-      <SClassGenerationModeToggle
-        generationMode={sclassGenMode}
-        groupCount={shotGroups.length}
-        sceneCount={splitScenes.length}
-        isBatchCalibrationDisabled={isBatchCalibrationDisabled}
-        onGenerationModeChange={setSclassGenMode}
-        onBatchCalibrate={batchCalibrate}
-        onRegroup={regroup}
-      />
-
-      <SceneVoiceBatchToolbar scenes={splitScenes} />
-
-      {/* ========== 分组模式: ShotGroupCard ========== */}
-      {sclassGenMode === 'group' ? (
-        <div className="flex flex-col gap-3">
-          {shotGroups.map((group, groupIdx) => {
-            const groupScenes = group.sceneIds
-              .map(id => sceneMap.get(id))
-              .filter(Boolean) as SplitScene[];
-            return (
-              <ShotGroupCard
-                key={group.id}
-                group={group}
-                scenes={groupScenes}
-                allScenes={splitScenes}
-                groupIndex={groupIdx}
-                isGeneratingAny={isGenerating}
-                characters={allCharacters}
-                sceneLibrary={sceneLibrary}
-                onCalibrateGroup={calibrateGroup}
-                onGenerateGroupVideo={generateGroup}
-                onExtendGroup={(groupId) => openExtendEdit(groupId, 'extend')}
-                onEditGroup={(groupId) => openExtendEdit(groupId, 'edit')}
-                renderSceneCard={renderSceneCard}
-              />
-            );
-          })}
-        </div>
-      ) : (
-        /* ========== 单镜模式: 平铺 SceneCard ========== */
-        <div className="flex flex-col gap-3">
-          {splitScenes.map(renderSceneCard)}
-        </div>
-      )}
-
-      {/* Action buttons — S级组级视频生成 */}
-      {(() => {
-        const scenesWithImages = splitScenes.filter(s => s.imageDataUrl).length;
-        const scenesNeedVideo = splitScenes.filter(s => s.imageDataUrl && (s.videoStatus === 'idle' || s.videoStatus === 'failed')).length;
-        const groupsNeedGen = shotGroups.filter(g => g.videoStatus === 'idle' || g.videoStatus === 'failed').length;
-        const noImages = scenesWithImages === 0;
-        return (
-          <div className="flex gap-2 pt-2">
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    onClick={() => {
-                      if (sclassGenMode === 'group') {
-                        // S级组级生成: 调用 Seedance 2.0 API 逐组生成
-                        setIsGenerating(true);
-                        setBatchProgress(null);
-                        generateAllGroups((progress) => setBatchProgress(progress))
-                          .finally(() => {
-                            setIsGenerating(false);
-                            setBatchProgress(null);
-                          });
-                      } else {
-                        // 单镜模式: 使用导演面板原有逻辑
-                        handleGenerateVideos();
-                      }
-                    }}
-                    disabled={isGenerating || splitScenes.length === 0 || noImages}
-                    className="flex-1"
-                    size="lg"
-                  >
-                    {isGenerating ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        {batchProgress
-                          ? `生成中 (${batchProgress.completed}/${batchProgress.total})...`
-                          : '生成中...'
-                        }
-                      </>
-                    ) : (
-                      <>
-                        <Play className="h-4 w-4 mr-2" />
-                        {sclassGenMode === 'group'
-                          ? `Seedance 2.0 组级生成 (${groupsNeedGen}/${shotGroups.length} 组)`
-                          : `生成视频 (${scenesNeedVideo}/${splitScenes.length})`
-                        }
-                      </>
-                    )}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  {noImages ? (
-                    <p>请先为分镜生成图片，再生成视频</p>
-                  ) : sclassGenMode === 'group' ? (
-                    <p>{groupsNeedGen} 个组待生成，每组合并多镜头 + @引用 调用 Seedance 2.0，逐组尾帧传递</p>
-                  ) : (
-                    <p>{scenesWithImages} 个分镜已有图片，{scenesNeedVideo} 个待生成视频</p>
-                  )}
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-            {isGenerating && sclassGenMode === 'group' && (
-              <Button
-                variant="destructive"
-                size="lg"
-                onClick={abortSClassGeneration}
-              >
-                <Square className="h-4 w-4 mr-2" />
-                停止
-              </Button>
-            )}
-          </div>
-        );
-      })()}
-
-      {/* Tips */}
-      <div className="text-xs text-muted-foreground bg-muted/50 rounded-md p-2">
-        {sclassGenMode === 'group' ? (
-          <p>💡 分组模式：每组 2~4 个镜头合并为一个视频，总时长 ≤15s。点击「重新分组」可重新自动分配。</p>
-        ) : (
-          <p>💡 单镜模式：每个镜头独立生成一个视频。点击分镜下方的文字区域可编辑提示词。</p>
-        )}
-      </div>
-      </>
       )}
 
       <StoryboardGenerationDialogs

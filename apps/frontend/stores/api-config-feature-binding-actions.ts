@@ -1,6 +1,6 @@
 import { parseApiKeys, type IProvider } from "@/lib/api-key-manager";
 import { isLocalTtsProvider } from "./api-config-provider-helpers";
-import type { APIConfigStore } from "./api-config-store";
+import type { APIConfigStore } from "./api-config-store-types";
 
 export type APIConfigFeatureBindingActions = Pick<
   APIConfigStore,
@@ -142,4 +142,3 @@ export function createAPIConfigFeatureBindingActions(
     },
   };
 }
-

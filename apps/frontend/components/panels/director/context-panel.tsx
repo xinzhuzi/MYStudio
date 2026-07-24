@@ -377,8 +377,8 @@ export function DirectorContextPanel() {
       videoPromptZh: shot.videoPromptZh?.substring(0, 50),
       endFramePrompt: shot.endFramePrompt?.substring(0, 50),
       needsEndFrame: shot.needsEndFrame,
-      narrativeFunction: (shot as any).narrativeFunction,
-      shotPurpose: (shot as any).shotPurpose,
+      narrativeFunction: shot.narrativeFunction,
+      shotPurpose: shot.shotPurpose,
     });
     // 使用详细的视觉描述作为提示词（优先）
     let promptZh = shot.visualDescription || '';
@@ -439,13 +439,13 @@ export function DirectorContextPanel() {
       viewpointId: sceneMatch?.viewpointId,
       sceneReferenceImage: sceneMatch?.sceneReferenceImage,
       // 叙事驱动设计（基于《电影语言的语法》）
-      narrativeFunction: (shot as any).narrativeFunction || '',
-      shotPurpose: (shot as any).shotPurpose || '',
-      visualFocus: (shot as any).visualFocus || '',
-      cameraPosition: (shot as any).cameraPosition || '',
-      characterBlocking: (shot as any).characterBlocking || '',
-      rhythm: (shot as any).rhythm || '',
-      visualDescription: (shot as any).visualDescription || '',
+      narrativeFunction: shot.narrativeFunction || '',
+      shotPurpose: shot.shotPurpose || '',
+      visualFocus: shot.visualFocus || '',
+      cameraPosition: shot.cameraPosition || '',
+      characterBlocking: shot.characterBlocking || '',
+      rhythm: shot.rhythm || '',
+      visualDescription: shot.visualDescription || '',
       // 拍摄控制（灯光/焦点/器材/特效/速度）
       lightingStyle: shot.lightingStyle,
       lightingDirection: shot.lightingDirection,
@@ -578,13 +578,13 @@ export function DirectorContextPanel() {
         viewpointId: sceneMatch?.viewpointId,
         sceneReferenceImage: sceneMatch?.sceneReferenceImage,
         // 叙事驱动设计（基于《电影语言的语法》）
-        narrativeFunction: (shot as any).narrativeFunction || '',
-        shotPurpose: (shot as any).shotPurpose || '',
-        visualFocus: (shot as any).visualFocus || '',
-        cameraPosition: (shot as any).cameraPosition || '',
-        characterBlocking: (shot as any).characterBlocking || '',
-        rhythm: (shot as any).rhythm || '',
-        visualDescription: (shot as any).visualDescription || '',
+        narrativeFunction: shot.narrativeFunction || '',
+        shotPurpose: shot.shotPurpose || '',
+        visualFocus: shot.visualFocus || '',
+        cameraPosition: shot.cameraPosition || '',
+        characterBlocking: shot.characterBlocking || '',
+        rhythm: shot.rhythm || '',
+        visualDescription: shot.visualDescription || '',
         // 拍摄控制（灯光/焦点/器材/特效/速度）
         lightingStyle: shot.lightingStyle,
         lightingDirection: shot.lightingDirection,

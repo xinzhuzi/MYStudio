@@ -5,92 +5,15 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { createProjectScopedStorage } from "@/lib/project-storage";
 import type { ScriptData, Shot, Episode, ScriptScene, ScriptCharacter, EpisodeRawScript, ProjectBackground, PromptLanguage, CalibrationStrictness, FilteredCharacterRecord, SeriesMeta } from "@/types/script";
+import type { ParseStatus, ShotListStatus, BatchProgress, ScriptInputDraft, ScriptCalibrationStatus, ScriptViewpointStatus, ScriptStructureStatus, ScriptImportStatus, ScriptSynopsisStatus, ScriptCalibrationState, ScriptProjectData } from "./script-store-types";
+export type { ParseStatus, ShotListStatus, BatchProgress, ScriptInputDraft, ScriptCalibrationStatus, ScriptViewpointStatus, ScriptStructureStatus, ScriptImportStatus, ScriptSynopsisStatus, ScriptCalibrationState, ScriptProjectData } from "./script-store-types";
 import {
   cloneScriptCharacters,
   createDefaultScriptProjectData,
   createScriptPersistOptions,
+  defaultCalibrationState,
   defaultScriptInputDraft,
 } from "./script-store-persistence";
-
-export type ParseStatus = "idle" | "parsing" | "ready" | "error";
-export type ShotListStatus = "idle" | "generating" | "ready" | "error";
-
-export interface BatchProgress {
-  current: number;
-  total: number;
-  message: string;
-}
-
-export interface ScriptInputDraft {
-  mode: "import" | "create";
-  idea: string;
-  updatedAt: number;
-}
-
-export type ScriptCalibrationStatus = "idle" | "calibrating" | "completed" | "error";
-export type ScriptViewpointStatus = "idle" | "analyzing" | "completed" | "error";
-export type ScriptStructureStatus = "idle" | "processing" | "completed" | "error";
-
-export type ScriptImportStatus = "idle" | "importing" | "ready" | "error";
-export type ScriptSynopsisStatus = "idle" | "generating" | "completed" | "error";
-
-export interface ScriptCalibrationState {
-  titleCalibrationStatus: ScriptCalibrationStatus;
-  characterCalibrationStatus: ScriptCalibrationStatus;
-  sceneCalibrationStatus: ScriptCalibrationStatus;
-  viewpointAnalysisStatus: ScriptViewpointStatus;
-  structureCompletionStatus: ScriptStructureStatus;
-  singleShotCalibrationStatus: Record<string, ScriptCalibrationStatus>;
-  calibrationDialogOpen: boolean;
-  pendingCalibrationCharacters: ScriptCharacter[] | null;
-  pendingFilteredCharacters: FilteredCharacterRecord[];
-  // 面板切换后需恢复的导入/大纲生成状态
-  importStatus: ScriptImportStatus;
-  synopsisStatus: ScriptSynopsisStatus;
-}
-
-const defaultCalibrationState = (): ScriptCalibrationState => ({
-  titleCalibrationStatus: "idle",
-  characterCalibrationStatus: "idle",
-  sceneCalibrationStatus: "idle",
-  viewpointAnalysisStatus: "idle",
-  structureCompletionStatus: "idle",
-  singleShotCalibrationStatus: {},
-  calibrationDialogOpen: false,
-  pendingCalibrationCharacters: null,
-  pendingFilteredCharacters: [],
-  importStatus: "idle",
-  synopsisStatus: "idle",
-});
-export interface ScriptProjectData {
-  rawScript: string;
-  language: string;
-  targetDuration: string;
-  styleId: string;
-  inputDraft: ScriptInputDraft;
-  sceneCount?: string; // 场景数量（可选）
-  shotCount?: string;  // 分镜数量（可选）
-  scriptData: ScriptData | null;
-  parseStatus: ParseStatus;
-  parseError?: string;
-  shots: Shot[];
-  shotStatus: ShotListStatus;
-  shotError?: string;
-  batchProgress: BatchProgress | null;
-  characterIdMap: Record<string, string>; // scriptCharId -> characterId
-  sceneIdMap: Record<string, string>; // scriptSceneId -> sceneId
-  updatedAt: number;
-  // 完整剧本数据
-  projectBackground: ProjectBackground | null;  // 项目背景（大纲、人物小传等）
-  episodeRawScripts: EpisodeRawScript[];        // 各集原始剧本文本
-  metadataMarkdown: string;                     // 自动生成的项目元数据 Markdown（供 AI 生成使用）
-  metadataGeneratedAt?: number;                 // 元数据生成时间
-  promptLanguage: PromptLanguage;               // 提示词语言（默认中文）
-  calibrationStrictness: CalibrationStrictness;  // AI 角色校准严格度
-  lastFilteredCharacters: FilteredCharacterRecord[];  // 上次校准被过滤的角色（用于恢复）
-  calibrationState: ScriptCalibrationState;           // 校准任务状态（持久化，支持切换面板后恢复）
-  seriesMeta: SeriesMeta | null;                      // 剧集元数据（跨集共享）
-}
 
 export interface ScriptStoreState {
   activeProjectId: string | null;

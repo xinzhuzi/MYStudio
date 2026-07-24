@@ -29,6 +29,10 @@ const isElectron = (): boolean => {
   return typeof window !== 'undefined' && !!window.fileStorage;
 };
 
+const getBrowserStorage = (): Storage | null => {
+  return typeof localStorage === 'undefined' ? null : localStorage;
+};
+
 const LEGACY_STORAGE_PREFIX = ["mo", "yin"].join("");
 const LEGACY_INDEXED_DB_NAME = `${LEGACY_STORAGE_PREFIX}-creator-db`;
 
@@ -98,8 +102,9 @@ export const fileStorage: StateStorage = {
         const fileData = await window.fileStorage!.getItem(name);
         const legacyName = getLegacyStorageKey(name);
         const legacyFileData = !fileData && legacyName ? await window.fileStorage!.getItem(legacyName) : null;
-        const localData = localStorage.getItem(name);
-        const legacyLocalData = legacyName ? localStorage.getItem(legacyName) : null;
+        const browserStorage = getBrowserStorage();
+        const localData = browserStorage?.getItem(name) ?? null;
+        const legacyLocalData = legacyName ? browserStorage?.getItem(legacyName) ?? null : null;
         let idbData: string | null = null;
         let legacyIdbData: string | null = null;
         try {
@@ -127,8 +132,8 @@ export const fileStorage: StateStorage = {
         if (localHasData && !fileHasData) {
           console.log(`[Storage] Migrating ${name} from localStorage to file storage (richer data)...`);
           await window.fileStorage!.setItem(name, resolvedLocalData!);
-          localStorage.removeItem(name);
-          if (legacyName) localStorage.removeItem(legacyName);
+          browserStorage?.removeItem(name);
+          if (legacyName) browserStorage?.removeItem(legacyName);
           console.log(`[Storage] Migration complete for ${name}`);
           return resolvedLocalData;
         }
@@ -146,7 +151,7 @@ export const fileStorage: StateStorage = {
         if (fileHasData) {
           if (localData) {
             console.log(`[Storage] Cleaning up localStorage for ${name}`);
-            localStorage.removeItem(name);
+            browserStorage?.removeItem(name);
           }
           if (idbData) {
             console.log(`[Storage] Cleaning up IndexedDB for ${name}`);
@@ -167,7 +172,7 @@ export const fileStorage: StateStorage = {
       }
     }
     // Fallback to localStorage (browser mode)
-    return localStorage.getItem(name);
+    return getBrowserStorage()?.getItem(name) ?? null;
   },
 
   setItem: async (name: string, value: string): Promise<void> => {
@@ -183,7 +188,7 @@ export const fileStorage: StateStorage = {
     }
     // Fallback to localStorage
     try {
-      localStorage.setItem(name, value);
+      getBrowserStorage()?.setItem(name, value);
     } catch (error) {
       console.error('localStorage setItem error:', error);
     }
@@ -198,13 +203,17 @@ export const fileStorage: StateStorage = {
         console.error('File storage removeItem error:', error);
       }
     }
-    localStorage.removeItem(name);
+    getBrowserStorage()?.removeItem(name);
   },
 };
 
 // Helper to get data from IndexedDB (for migration)
 const getFromIndexedDB = (name: string): Promise<string | null> => {
   return new Promise((resolve) => {
+    if (typeof indexedDB === 'undefined') {
+      resolve(null);
+      return;
+    }
     try {
       const request = indexedDB.open(LEGACY_INDEXED_DB_NAME, 1);
       request.onerror = () => resolve(null);
@@ -228,6 +237,10 @@ const getFromIndexedDB = (name: string): Promise<string | null> => {
 
 const removeFromIndexedDB = (name: string): Promise<void> => {
   return new Promise((resolve) => {
+    if (typeof indexedDB === 'undefined') {
+      resolve();
+      return;
+    }
     try {
       const request = indexedDB.open(LEGACY_INDEXED_DB_NAME, 1);
       request.onerror = () => resolve();

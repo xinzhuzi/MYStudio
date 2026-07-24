@@ -8,31 +8,49 @@
  * 生成多视角联合图提示词，用于生成 6 格联合图。
  */
 
-import type { ScriptScene, Shot } from '@/types/script';
+import type { ScriptScene, SceneViewpointData, Shot } from '@/types/script';
 import {
   detectEnvironmentType as detectEnvironment,
   type EnvironmentKeywords,
   type SceneEnvironmentType,
 } from './scene-environment';
-import { getShotSearchableText } from './scene-shot-text';
+import {
+  extractAllViewpointsFromShots as extractAllViewpointsFromShotsImpl,
+  extractViewpointsFromShots as extractViewpointsFromShotsImpl,
+  matchShotToViewpoint as matchShotToViewpointImpl,
+  type ViewpointKeywordMap,
+} from './scene-viewpoint-extraction';
+import {
+  getDefaultViewpointsForEnvironment,
+  isViewpointCompatibleWithEnvironment,
+} from './scene-viewpoint-defaults';
+import {
+  assignViewpointImages as assignViewpointImagesImpl,
+  groupViewpointsIntoPages as groupViewpointsIntoPagesImpl,
+  type ViewpointImageAssignment,
+  type ViewpointSplitResult,
+} from './scene-viewpoint-layout-utils';
+import { selectContactSheetLayout } from './scene-viewpoint-layout-selection';
+import { buildMultiPageContactSheetPrompt } from './scene-viewpoint-prompt-builder';
+import { buildSingleContactSheetPrompt } from './scene-viewpoint-single-prompt-builder';
+import { preparePendingViewpoint } from './scene-viewpoint-transform-utils';
+import { buildSceneDescriptions } from './scene-viewpoint-descriptions';
+import type { SceneViewpoint } from './scene-viewpoint-types';
+export type { SceneViewpoint } from './scene-viewpoint-types';
 export type { SceneEnvironmentType } from './scene-environment';
+export { buildSceneDescriptions } from './scene-viewpoint-descriptions';
+export {
+  getDefaultViewpointsForEnvironment,
+  isViewpointCompatibleWithEnvironment,
+} from './scene-viewpoint-defaults';
+export type { ViewpointConfig } from './scene-viewpoint-defaults';
+
+type SceneViewpointSource = SceneViewpointData & Partial<Pick<
+  SceneViewpoint,
+  'nameEn' | 'keyPropsEn' | 'description' | 'descriptionEn'
+>>;
 
 // ==================== 类型定义 ====================
-
-/**
- * 场景视角定义
- */
-export interface SceneViewpoint {
-  id: string;           // 视角ID，如 'dining', 'sofa', 'window'
-  name: string;         // 中文名：餐桌区、沙发区、窗边
-  nameEn: string;       // 英文名：Dining Area, Sofa Area, Window
-  shotIds: string[];    // 关联的分镜ID列表
-  keyProps: string[];   // 该视角需要的道具（中文）
-  keyPropsEn: string[]; // 该视角需要的道具（英文）
-  description: string;  // 视角描述（中文）
-  descriptionEn: string; // 视角描述（英文）
-  gridIndex: number;    // 在联合图中的位置 (0-5)
-}
 
 /**
  * 联合图生成配置
@@ -154,19 +172,6 @@ export function detectEnvironmentType(location: string): SceneEnvironmentType {
 // ==================== 视角关键词映射 ====================
 
 /**
- * 视角配置（带环境兼容性）
- */
-interface ViewpointConfig {
-  id: string;
-  name: string;
-  nameEn: string;
-  propsZh: string[];
-  propsEn: string[];
-  /** 兼容的环境类型，空数组表示通用 */
-  environments: SceneEnvironmentType[];
-}
-
-/**
  * 动作关键词 -> 视角映射
  * 从分镜动作描写中识别需要的视角
  * 扩展关键词以覆盖更多场景
@@ -175,7 +180,7 @@ interface ViewpointConfig {
  * - 空数组 [] 表示通用视角，适用于所有环境
  * - 指定环境类型列表表示仅在这些环境中匹配
  */
-const VIEWPOINT_KEYWORDS: Record<string, ViewpointConfig> = {
+const VIEWPOINT_KEYWORDS: ViewpointKeywordMap = {
   // ========== 古代室内视角 (ancient_indoor) ==========
   // 堂屋/正厅
   '堂屋': { id: 'ancient_hall', name: '堂屋', nameEn: 'Main Hall', propsZh: ['太师椅', '案几', '寿屏'], propsEn: ['taishi chair', 'table', 'screen'], environments: ['ancient_indoor'] },
@@ -389,73 +394,7 @@ export function extractViewpointsFromShots(
   shots: Shot[],
   maxViewpoints: number = 6
 ): SceneViewpoint[] {
-  const viewpointMap = new Map<string, SceneViewpoint>();
-  
-  for (const shot of shots) {
-    const actionText = shot.actionSummary || '';
-    
-    // 检查每个关键词
-    for (const [keyword, config] of Object.entries(VIEWPOINT_KEYWORDS)) {
-      if (actionText.includes(keyword)) {
-        if (!viewpointMap.has(config.id)) {
-          viewpointMap.set(config.id, {
-            id: config.id,
-            name: config.name,
-            nameEn: config.nameEn,
-            shotIds: [shot.id],
-            keyProps: [...config.propsZh],
-            keyPropsEn: [...config.propsEn],
-            description: '',
-            descriptionEn: '',
-            gridIndex: viewpointMap.size,
-          });
-        } else {
-          const existing = viewpointMap.get(config.id)!;
-          if (!existing.shotIds.includes(shot.id)) {
-            existing.shotIds.push(shot.id);
-          }
-          // 合并道具
-          for (const prop of config.propsZh) {
-            if (!existing.keyProps.includes(prop)) {
-              existing.keyProps.push(prop);
-            }
-          }
-          for (const prop of config.propsEn) {
-            if (!existing.keyPropsEn.includes(prop)) {
-              existing.keyPropsEn.push(prop);
-            }
-          }
-        }
-      }
-    }
-  }
-  
-  // 按关联分镜数排序（常用视角优先）
-  const viewpoints = Array.from(viewpointMap.values())
-    .sort((a, b) => b.shotIds.length - a.shotIds.length)
-    .slice(0, maxViewpoints);
-  
-  // 重新分配 gridIndex
-  viewpoints.forEach((v, i) => { v.gridIndex = i; });
-  
-  // 如果视角不足 6 个，补充默认视角
-  const defaultViewpoints: Array<Omit<SceneViewpoint, 'shotIds' | 'gridIndex'>> = [
-    { id: 'overview', name: '全景', nameEn: 'Overview', keyProps: [], keyPropsEn: [], description: '整体空间布局', descriptionEn: 'Overall spatial layout' },
-    { id: 'detail', name: '细节', nameEn: 'Detail View', keyProps: [], keyPropsEn: [], description: '装饰细节特写', descriptionEn: 'Decorative details close-up' },
-  ];
-  
-  while (viewpoints.length < maxViewpoints && defaultViewpoints.length > 0) {
-    const def = defaultViewpoints.shift()!;
-    if (!viewpoints.some(v => v.id === def.id)) {
-      viewpoints.push({
-        ...def,
-        shotIds: [],
-        gridIndex: viewpoints.length,
-      });
-    }
-  }
-  
-  return viewpoints;
+  return extractViewpointsFromShotsImpl(shots, maxViewpoints, VIEWPOINT_KEYWORDS);
 }
 
 /**
@@ -472,7 +411,8 @@ export function generateContactSheetPrompt(config: ContactSheetConfig): ContactS
   if (scene.viewpoints && scene.viewpoints.length > 0) {
     // 使用 AI 分析的视角
     console.log(`[generateContactSheetPrompt] 使用 AI 分析视角: ${scene.viewpoints.length} 个`);
-    viewpoints = scene.viewpoints.slice(0, maxViewpoints).map((v: any, idx: number) => ({
+    const sourceViewpoints: SceneViewpointSource[] = scene.viewpoints;
+    viewpoints = sourceViewpoints.slice(0, maxViewpoints).map((v, idx) => ({
       id: v.id || `viewpoint_${idx}`,
       name: v.name || '未命名视角',
       nameEn: v.nameEn || 'Unnamed Viewpoint',
@@ -490,26 +430,8 @@ export function generateContactSheetPrompt(config: ContactSheetConfig): ContactS
     viewpoints = extractViewpointsFromShots(shots, maxViewpoints);
   }
   
-  // 确定网格布局 - 强制使用 NxN 布局 (2x2 或 3x3)
-  const vpCount = viewpoints.length;
-  const gridLayout = vpCount <= 4 
-    ? { rows: 2, cols: 2 }
-    : { rows: 3, cols: 3 };
-  
   // 构建场景基础描述
-  const sceneDescZh = [
-    scene.architectureStyle && `建筑风格：${scene.architectureStyle}`,
-    scene.colorPalette && `色彩基调：${scene.colorPalette}`,
-    scene.eraDetails && `时代特征：${scene.eraDetails}`,
-    scene.lightingDesign && `光影设计：${scene.lightingDesign}`,
-  ].filter(Boolean).join('，');
-  
-  const sceneDescEn = [
-    scene.architectureStyle && `Architecture: ${scene.architectureStyle}`,
-    scene.colorPalette && `Color palette: ${scene.colorPalette}`,
-    scene.eraDetails && `Era: ${scene.eraDetails}`,
-    scene.lightingDesign && `Lighting: ${scene.lightingDesign}`,
-  ].filter(Boolean).join('. ');
+  const { sceneDescEn, sceneDescZh } = buildSceneDescriptions(scene);
   
   // 为每个视角生成描述
   viewpoints.forEach((vp, index) => {
@@ -519,81 +441,16 @@ export function generateContactSheetPrompt(config: ContactSheetConfig): ContactS
     vp.description = `${vp.name}视角${propsZh}`;
     vp.descriptionEn = `${vp.nameEn} angle${propsEn}`;
   });
-  
-  const styleStr = styleTokens.length > 0 
-    ? styleTokens.join(', ') 
-    : 'anime style, soft colors, detailed background';
-  
-  const totalCells = gridLayout.rows * gridLayout.cols;
-  const paddedCount = totalCells;
-  
-  // 构建增强版提示词 — 对齐导演面板 generateGridAndSlice 的三层风格夹击结构
-  const promptParts: string[] = [];
-  
-  // 1. 核心指令区 (Instruction Block) — 使用与导演面板一致的 storyboard grid 术语
-  promptParts.push('<instruction>');
-  promptParts.push(`Generate a clean ${gridLayout.rows}x${gridLayout.cols} storyboard grid with exactly ${paddedCount} equal-sized panels.`);
-  promptParts.push(`Overall Image Aspect Ratio: ${aspectRatio}.`);
-  // 明确指定单个格子的宽高比，防止 AI 混淆（导演面板核心差异点）
-  const panelAspect = aspectRatio === '16:9' ? '16:9 (horizontal landscape)' : '9:16 (vertical portrait)';
-  promptParts.push(`Each individual panel must have a ${panelAspect} aspect ratio.`);
-  // 全局视觉风格（前置到指令区，权重最高 — 三层夹击第一层）
-  if (styleStr) {
-    promptParts.push(`MANDATORY Visual Style for ALL panels: ${styleStr}`);
-  }
-  promptParts.push('Structure: No borders between panels, no text, no watermarks, no speech bubbles.');
-  promptParts.push('Consistency: Maintain consistent perspective, lighting, color grading, and visual style across ALL panels.');
-  promptParts.push('Subject: Interior design and architectural details only, NO people.');
-  promptParts.push('</instruction>');
-  
-  // 2. 布局描述
-  promptParts.push(`Layout: ${gridLayout.rows} rows, ${gridLayout.cols} columns, reading order left-to-right, top-to-bottom.`);
-  
-  // 3. 场景信息
-  if (sceneDescEn) {
-    promptParts.push(`Scene Context: ${sceneDescEn}`);
-  }
-  
-  // 4. 每个格子的内容描述 — 每格附带 [same style] 锚定（三层夹击第二层）
-  const styleAnchor = styleStr ? ' [same style]' : '';
-  viewpoints.forEach((vp, idx) => {
-    const row = Math.floor(idx / gridLayout.cols) + 1;
-    const col = (idx % gridLayout.cols) + 1;
-    
-    promptParts.push(`Panel [row ${row}, col ${col}] (no people): ${vp.nameEn.toUpperCase()}: ${vp.descriptionEn}${styleAnchor}`);
+  const { prompt, promptZh, gridLayout } = buildSingleContactSheetPrompt({
+    viewpoints,
+    sceneName: scene.name,
+    sceneLocation: scene.location,
+    styleTokens,
+    aspectRatio,
+    sceneDescEn,
+    sceneDescZh,
+    isAIAnalyzed,
   });
-  
-  // 5. 空白占位格描述
-  for (let i = viewpoints.length; i < paddedCount; i++) {
-    const row = Math.floor(i / gridLayout.cols) + 1;
-    const col = (i % gridLayout.cols) + 1;
-    promptParts.push(`Panel [row ${row}, col ${col}]: empty placeholder, solid gray background`);
-  }
-  
-    // 6. 全局风格尾部再次强调（三层夹击第三层）
-    if (styleStr) {
-      promptParts.push(`IMPORTANT - Apply this EXACT style uniformly to every panel: ${styleStr}`);
-    }
-  
-    // 7. 负面提示词
-    promptParts.push('Negative constraints: text, watermark, split screen borders, speech bubbles, blur, distortion, bad anatomy, people, characters, distorted grid, uneven panels.');
-    
-    const prompt = promptParts.join('\n');
-
-    // 中文提示词
-    const gridItemsZh = viewpoints.map((vp, i) => 
-      `[${i + 1}] ${vp.name}：${vp.description || vp.name + '视角'}`
-    ).join('\n');
-    
-    const viewpointSource = isAIAnalyzed ? '（AI 分析）' : '（关键词提取）';
-  
-  const promptZh = `一张${gridLayout.rows}x${gridLayout.cols}网格联合图，展示同一个「${scene.name || scene.location}」场景的${viewpoints.length}个不同机位视角${viewpointSource}。
-${sceneDescZh}
-
-网格布局（从左到右，从上到下）：
-${gridItemsZh}
-
-风格：${styleTokens.length > 0 ? styleTokens.join('、') : '动画风格，柔和色彩，细节丰富'}，${viewpoints.length}个格子保持一致的透视和光照。每个格子用细白线分隔。只有背景，没有人物。`;
 
   return {
     prompt,
@@ -609,34 +466,10 @@ ${gridItemsZh}
  */
 export function assignViewpointImages(
   viewpoints: SceneViewpoint[],
-  splitResults: Array<{
-    id: number;
-    dataUrl: string;
-    row: number;
-    col: number;
-  }>,
+  splitResults: ViewpointSplitResult[],
   gridLayout: { rows: number; cols: number }
-): Map<string, { imageUrl: string; gridIndex: number }> {
-  const result = new Map<string, { imageUrl: string; gridIndex: number }>();
-  
-  for (const vp of viewpoints) {
-    // 计算该视角在切割结果中的索引
-    const gridIndex = vp.gridIndex;
-    const row = Math.floor(gridIndex / gridLayout.cols);
-    const col = gridIndex % gridLayout.cols;
-    
-    // 查找匹配的切割结果
-    const splitResult = splitResults.find(sr => sr.row === row && sr.col === col);
-    
-    if (splitResult) {
-      result.set(vp.id, {
-        imageUrl: splitResult.dataUrl,
-        gridIndex: gridIndex,
-      });
-    }
-  }
-  
-  return result;
+): Map<string, ViewpointImageAssignment> {
+  return assignViewpointImagesImpl(viewpoints, splitResults, gridLayout);
 }
 
 /**
@@ -646,28 +479,7 @@ export function matchShotToViewpoint(
   shot: Shot,
   viewpoints: SceneViewpoint[]
 ): string | null {
-  const actionText = shot.actionSummary || '';
-  
-  // 检查分镜是否已关联到某个视角
-  for (const vp of viewpoints) {
-    if (vp.shotIds.includes(shot.id)) {
-      return vp.id;
-    }
-  }
-  
-  // 尝试根据动作关键词匹配
-  for (const [keyword, config] of Object.entries(VIEWPOINT_KEYWORDS)) {
-    if (actionText.includes(keyword)) {
-      const matchedVp = viewpoints.find(vp => vp.id === config.id);
-      if (matchedVp) {
-        return matchedVp.id;
-      }
-    }
-  }
-  
-  // 默认返回全景视角
-  const overviewVp = viewpoints.find(vp => vp.id === 'overview');
-  return overviewVp?.id || viewpoints[0]?.id || null;
+  return matchShotToViewpointImpl(shot, viewpoints, VIEWPOINT_KEYWORDS);
 }
 
 // ==================== 动态视角和分页支持 ====================
@@ -678,115 +490,7 @@ import type {
 } from '@/stores/media-panel-store';
 
 /**
- * 根据环境类型获取默认视角列表
- * 用于在提取的视角不足时补充
- */
-function getDefaultViewpointsForEnvironment(
-  envType: SceneEnvironmentType
-): Array<Omit<SceneViewpoint, 'shotIds' | 'gridIndex'>> {
-  // 通用默认视角
-  const commonDefaults: Array<Omit<SceneViewpoint, 'shotIds' | 'gridIndex'>> = [
-    { id: 'overview', name: '全景', nameEn: 'Overview', keyProps: [], keyPropsEn: [], description: '整体空间布局', descriptionEn: 'Overall spatial layout' },
-    { id: 'detail', name: '细节', nameEn: 'Detail View', keyProps: [], keyPropsEn: [], description: '细节特写', descriptionEn: 'Detail close-up' },
-  ];
-  
-  // 根据环境类型返回特定默认视角
-  switch (envType) {
-    case 'vehicle':
-      return [
-        { id: 'vehicle_window', name: '车窗', nameEn: 'Vehicle Window View', keyProps: ['车窗', '窗外风景'], keyPropsEn: ['vehicle window', 'outside scenery'], description: '车窗视角', descriptionEn: 'Vehicle window view' },
-        { id: 'vehicle_seat', name: '座位区', nameEn: 'Seat Area', keyProps: ['座位'], keyPropsEn: ['seat'], description: '座位区域', descriptionEn: 'Seating area' },
-        { id: 'vehicle_aisle', name: '过道', nameEn: 'Aisle View', keyProps: ['过道', '扶手'], keyPropsEn: ['aisle', 'handrail'], description: '过道视角', descriptionEn: 'Aisle view' },
-        { id: 'vehicle_driver', name: '驾驶位', nameEn: 'Driver Area', keyProps: ['方向盘'], keyPropsEn: ['steering wheel'], description: '驾驶区域', descriptionEn: 'Driver area' },
-        ...commonDefaults,
-      ];
-      
-    case 'outdoor':
-      return [
-        { id: 'nature', name: '自然风景', nameEn: 'Nature View', keyProps: [], keyPropsEn: [], description: '自然风景视角', descriptionEn: 'Nature scenery view' },
-        { id: 'roadside', name: '路边', nameEn: 'Roadside View', keyProps: ['道路'], keyPropsEn: ['road'], description: '路边视角', descriptionEn: 'Roadside view' },
-        { id: 'street', name: '街景', nameEn: 'Street View', keyProps: ['街道'], keyPropsEn: ['street'], description: '街景视角', descriptionEn: 'Street view' },
-        ...commonDefaults,
-      ];
-      
-    case 'indoor_home':
-      return [
-        { id: 'sofa', name: '沙发区', nameEn: 'Sofa Area', keyProps: ['沙发', '茶几'], keyPropsEn: ['sofa', 'coffee table'], description: '沙发区域', descriptionEn: 'Sofa area' },
-        { id: 'window', name: '窗边', nameEn: 'Window View', keyProps: ['窗户', '窗帘'], keyPropsEn: ['window', 'curtains'], description: '窗边视角', descriptionEn: 'Window view' },
-        { id: 'entrance', name: '入口', nameEn: 'Entrance View', keyProps: ['门', '玄关'], keyPropsEn: ['door', 'entrance'], description: '入口视角', descriptionEn: 'Entrance view' },
-        ...commonDefaults,
-      ];
-      
-    case 'indoor_work':
-      return [
-        { id: 'study', name: '办公区', nameEn: 'Work Area', keyProps: ['书桌', '电脑'], keyPropsEn: ['desk', 'computer'], description: '办公区域', descriptionEn: 'Work area' },
-        { id: 'window', name: '窗边', nameEn: 'Window View', keyProps: ['窗户'], keyPropsEn: ['window'], description: '窗边视角', descriptionEn: 'Window view' },
-        { id: 'entrance', name: '入口', nameEn: 'Entrance View', keyProps: ['门'], keyPropsEn: ['door'], description: '入口视角', descriptionEn: 'Entrance view' },
-        ...commonDefaults,
-      ];
-      
-    case 'indoor_public':
-      return [
-        { id: 'seating', name: '坐席区', nameEn: 'Seating Area', keyProps: [], keyPropsEn: [], description: '坐席区域', descriptionEn: 'Seating area' },
-        { id: 'entrance', name: '入口', nameEn: 'Entrance View', keyProps: ['门'], keyPropsEn: ['door'], description: '入口视角', descriptionEn: 'Entrance view' },
-        ...commonDefaults,
-      ];
-    
-    // === 古代场景 ===
-    case 'ancient_indoor':
-      return [
-        { id: 'ancient_hall', name: '堂屋', nameEn: 'Main Hall', keyProps: ['太师椅', '案几'], keyPropsEn: ['taishi chair', 'table'], description: '堂屋视角', descriptionEn: 'Main hall view' },
-        { id: 'ancient_table', name: '案几', nameEn: 'Ancient Table', keyProps: ['案几', '茶具'], keyPropsEn: ['table', 'tea set'], description: '案几视角', descriptionEn: 'Table view' },
-        { id: 'ancient_screen', name: '屏风', nameEn: 'Screen View', keyProps: ['屏风', '帐幔'], keyPropsEn: ['screen', 'curtain'], description: '屏风视角', descriptionEn: 'Screen view' },
-        { id: 'ancient_couch', name: '榻', nameEn: 'Ancient Couch', keyProps: ['榻', '软垫'], keyPropsEn: ['daybed', 'cushion'], description: '榻视角', descriptionEn: 'Couch view' },
-        ...commonDefaults,
-      ];
-      
-    case 'ancient_outdoor':
-      return [
-        { id: 'ancient_courtyard', name: '庭院', nameEn: 'Courtyard', keyProps: ['假山', '水池'], keyPropsEn: ['rockery', 'pond'], description: '庭院视角', descriptionEn: 'Courtyard view' },
-        { id: 'ancient_pavilion', name: '亝子', nameEn: 'Pavilion', keyProps: ['亝', '石凳'], keyPropsEn: ['pavilion', 'stone bench'], description: '亝子视角', descriptionEn: 'Pavilion view' },
-        { id: 'ancient_road', name: '官道', nameEn: 'Official Road', keyProps: ['官道'], keyPropsEn: ['road'], description: '官道视角', descriptionEn: 'Road view' },
-        { id: 'ancient_gate', name: '城门', nameEn: 'City Gate', keyProps: ['城门', '城墙'], keyPropsEn: ['city gate', 'wall'], description: '城门视角', descriptionEn: 'City gate view' },
-        ...commonDefaults,
-      ];
-      
-    case 'ancient_vehicle':
-      return [
-        { id: 'ancient_sedan', name: '轿内', nameEn: 'Inside Sedan', keyProps: ['轿帘', '坐垫'], keyPropsEn: ['sedan curtain', 'cushion'], description: '轿内视角', descriptionEn: 'Inside sedan view' },
-        { id: 'ancient_carriage', name: '车内', nameEn: 'Inside Carriage', keyProps: ['车篾', '坐垫'], keyPropsEn: ['canopy', 'cushion'], description: '车内视角', descriptionEn: 'Inside carriage view' },
-        { id: 'ancient_boat', name: '船舱', nameEn: 'Boat Cabin', keyProps: ['船舱', '窗子'], keyPropsEn: ['cabin', 'window'], description: '船舱视角', descriptionEn: 'Boat cabin view' },
-        { id: 'ancient_deck', name: '甲板', nameEn: 'Ship Deck', keyProps: ['甲板', '风帆'], keyPropsEn: ['deck', 'sail'], description: '甲板视角', descriptionEn: 'Deck view' },
-        { id: 'ancient_horse', name: '马背', nameEn: 'On Horseback', keyProps: ['马', '马鞍'], keyPropsEn: ['horse', 'saddle'], description: '马背视角', descriptionEn: 'Horseback view' },
-        ...commonDefaults,
-      ];
-      
-    default:
-      return commonDefaults;
-  }
-}
-
-/**
- * 检查视角配置是否与环境类型兼容
- */
-function isViewpointCompatibleWithEnvironment(
-  config: ViewpointConfig,
-  envType: SceneEnvironmentType
-): boolean {
-  // 空数组表示通用视角，适用于所有环境
-  if (config.environments.length === 0) {
-    return true;
-  }
-  // unknown 环境不做过滤，允许所有视角
-  if (envType === 'unknown') {
-    return true;
-  }
-  // 检查环境是否在兼容列表中
-  return config.environments.includes(envType);
-}
-
-/**
- * 提取视角（不限数量）
+* 提取视角（不限数量）
  * 返回所有识别到的视角，不再限制为6个
  * 
  * 视角是从分镜内容中提取的，不做环境过滤
@@ -798,103 +502,7 @@ export function extractAllViewpointsFromShots(
   shots: Shot[],
   sceneLocation?: string
 ): SceneViewpoint[] {
-  const viewpointMap = new Map<string, SceneViewpoint>();
-  const matchedShotIds = new Set<string>();
-  
-  // 第一遍：根据关键词匹配分镜到视角
-  for (const shot of shots) {
-    const searchText = getShotSearchableText(shot);
-    let shotMatched = false;
-    
-    for (const [keyword, config] of Object.entries(VIEWPOINT_KEYWORDS)) {
-      if (searchText.includes(keyword)) {
-        shotMatched = true;
-        
-        if (!viewpointMap.has(config.id)) {
-          viewpointMap.set(config.id, {
-            id: config.id,
-            name: config.name,
-            nameEn: config.nameEn,
-            shotIds: [shot.id],
-            keyProps: [...config.propsZh],
-            keyPropsEn: [...config.propsEn],
-            description: '',
-            descriptionEn: '',
-            gridIndex: viewpointMap.size,
-          });
-        } else {
-          const existing = viewpointMap.get(config.id)!;
-          if (!existing.shotIds.includes(shot.id)) {
-            existing.shotIds.push(shot.id);
-          }
-          for (const prop of config.propsZh) {
-            if (!existing.keyProps.includes(prop)) {
-              existing.keyProps.push(prop);
-            }
-          }
-          for (const prop of config.propsEn) {
-            if (!existing.keyPropsEn.includes(prop)) {
-              existing.keyPropsEn.push(prop);
-            }
-          }
-        }
-      }
-    }
-    
-    if (shotMatched) {
-      matchedShotIds.add(shot.id);
-    }
-  }
-  
-  // 第二遍：将未匹配的分镜归入「全景」视角
-  const unmatchedShots = shots.filter(s => !matchedShotIds.has(s.id));
-  if (unmatchedShots.length > 0) {
-    if (!viewpointMap.has('overview')) {
-      viewpointMap.set('overview', {
-        id: 'overview',
-        name: '全景',
-        nameEn: 'Overview',
-        shotIds: unmatchedShots.map(s => s.id),
-        keyProps: [],
-        keyPropsEn: [],
-        description: '整体空间布局',
-        descriptionEn: 'Overall spatial layout',
-        gridIndex: viewpointMap.size,
-      });
-    } else {
-      const overview = viewpointMap.get('overview')!;
-      for (const shot of unmatchedShots) {
-        if (!overview.shotIds.includes(shot.id)) {
-          overview.shotIds.push(shot.id);
-        }
-      }
-    }
-  }
-  
-  // 按关联分镜数排序
-  const viewpoints = Array.from(viewpointMap.values())
-    .sort((a, b) => b.shotIds.length - a.shotIds.length);
-  
-  // 补充默认视角（全景和细节）
-  const defaultViewpoints = [
-    { id: 'overview', name: '全景', nameEn: 'Overview', keyProps: [] as string[], keyPropsEn: [] as string[], description: '整体空间布局', descriptionEn: 'Overall spatial layout' },
-    { id: 'detail', name: '细节', nameEn: 'Detail View', keyProps: [] as string[], keyPropsEn: [] as string[], description: '细节特写', descriptionEn: 'Detail close-up' },
-  ];
-  
-  while (viewpoints.length < 6 && defaultViewpoints.length > 0) {
-    const def = defaultViewpoints.shift()!;
-    if (!viewpoints.some(v => v.id === def.id)) {
-      viewpoints.push({
-        ...def,
-        shotIds: [],
-        gridIndex: viewpoints.length,
-      });
-    }
-  }
-  
-  viewpoints.forEach((v, i) => { v.gridIndex = i; });
-  
-  return viewpoints;
+  return extractAllViewpointsFromShotsImpl(shots, sceneLocation, VIEWPOINT_KEYWORDS);
 }
 
 /**
@@ -905,16 +513,7 @@ export function groupViewpointsIntoPages(
   viewpoints: SceneViewpoint[],
   viewpointsPerPage: number = 6
 ): SceneViewpoint[][] {
-  const pages: SceneViewpoint[][] = [];
-  
-  for (let i = 0; i < viewpoints.length; i += viewpointsPerPage) {
-    const page = viewpoints.slice(i, i + viewpointsPerPage);
-    // 重新分配页内 gridIndex (0-5)
-    page.forEach((v, idx) => { v.gridIndex = idx; });
-    pages.push(page);
-  }
-  
-  return pages;
+  return groupViewpointsIntoPagesImpl(viewpoints, viewpointsPerPage);
 }
 
 /**
@@ -941,20 +540,8 @@ export function generateMultiPageContactSheetData(
   
   // 根据视角数量和宽高比自动选择最优布局
   // 强制使用 NxN 布局 (2x2 或 3x3) 以保证宽高比一致性，与 Director 面板保持一致
-  let gridLayout: { rows: number; cols: number };
-  let viewpointsPerPage: number;
-  
   const vpCount = allViewpoints.length;
-  
-  if (vpCount <= 4) {
-    // 4 个以内：使用 2x2
-    gridLayout = { rows: 2, cols: 2 };
-    viewpointsPerPage = 4;
-  } else {
-    // 超过 4 个：使用 3x3 (最多 9 个一页)
-    gridLayout = { rows: 3, cols: 3 };
-    viewpointsPerPage = 9;
-  }
+  const { gridLayout, viewpointsPerPage } = selectContactSheetLayout(vpCount);
   
   console.log('[ContactSheet] 布局选择:', { vpCount, aspectRatio, gridLayout, viewpointsPerPage });
   
@@ -962,19 +549,7 @@ export function generateMultiPageContactSheetData(
   const pages = groupViewpointsIntoPages(allViewpoints, viewpointsPerPage);
   
   // 构建场景基础描述
-  const sceneDescEn = [
-    scene.architectureStyle && `Architecture: ${scene.architectureStyle}`,
-    scene.colorPalette && `Color palette: ${scene.colorPalette}`,
-    scene.eraDetails && `Era: ${scene.eraDetails}`,
-    scene.lightingDesign && `Lighting: ${scene.lightingDesign}`,
-  ].filter(Boolean).join('. ');
-  
-  const sceneDescZh = [
-    scene.architectureStyle && `建筑风格：${scene.architectureStyle}`,
-    scene.colorPalette && `色彩基调：${scene.colorPalette}`,
-    scene.eraDetails && `时代特征：${scene.eraDetails}`,
-    scene.lightingDesign && `光影设计：${scene.lightingDesign}`,
-  ].filter(Boolean).join('，');
+  const { sceneDescEn, sceneDescZh } = buildSceneDescriptions(scene);
   
   const styleStr = styleTokens.length > 0 
     ? styleTokens.join(', ') 
@@ -991,37 +566,25 @@ export function generateMultiPageContactSheetData(
   
   pages.forEach((pageViewpoints, pageIndex) => {
     pageViewpoints.forEach((vp, idx) => {
-      // 生成视角描述
-      const propsZh = vp.keyProps.length > 0 ? `，包含${vp.keyProps.join('、')}` : '';
-      const propsEn = vp.keyPropsEn.length > 0 ? ` with ${vp.keyPropsEn.join(', ')}` : '';
-      vp.description = `${vp.name}视角${propsZh}`;
-      vp.descriptionEn = `${vp.nameEn} angle${propsEn}`;
-      
-      // 更新 gridIndex
-      vp.gridIndex = idx;
-      
-      // 获取关联分镜的序号
-      const shotIndexes = vp.shotIds
-        .map(id => shotIdToIndex.get(id))
-        .filter((idx): idx is number => idx !== undefined)
-        .sort((a, b) => a - b);
-      
-      pendingViewpoints.push({
-        id: vp.id,
-        name: vp.name,
-        nameEn: vp.nameEn,
-        shotIds: vp.shotIds,
-        shotIndexes,
-        keyProps: vp.keyProps,
-        keyPropsEn: vp.keyPropsEn,
-        gridIndex: vp.gridIndex,
-        pageIndex,
-      });
+      pendingViewpoints.push(preparePendingViewpoint(vp, idx, pageIndex, shotIdToIndex));
     });
   });
   
   // 生成每页的 ContactSheetPromptSet
   const contactSheetPrompts: ContactSheetPromptSet[] = pages.map((pageViewpoints, pageIndex) => {
+    return buildMultiPageContactSheetPrompt({
+      pageViewpoints,
+      pageIndex,
+      gridLayout,
+      aspectRatio,
+      styleStr,
+      styleTokens,
+      sceneName: scene.name,
+      sceneLocation: scene.location,
+      sceneDescEn,
+      sceneDescZh,
+    });
+    /*
     const totalCells = gridLayout.rows * gridLayout.cols;
     const paddedCount = totalCells;
     const actualCount = pageViewpoints.length;
@@ -1109,7 +672,7 @@ ${totalCells} 个格子分别展示：${gridItemsZh}。
       promptZh,
       viewpointIds: pageViewpoints.map(vp => vp.id),
       gridLayout,
-    };
+    }; */
   });
   
   return {
@@ -1147,16 +710,7 @@ export function buildContactSheetDataFromViewpoints(
 } {
   // 根据视角数量选择布局
   const vpCount = viewpoints.length;
-  let gridLayout: { rows: number; cols: number };
-  let viewpointsPerPage: number;
-  
-  if (vpCount <= 4) {
-    gridLayout = { rows: 2, cols: 2 };
-    viewpointsPerPage = 4;
-  } else {
-    gridLayout = { rows: 3, cols: 3 };
-    viewpointsPerPage = 9;
-  }
+  const { gridLayout, viewpointsPerPage } = selectContactSheetLayout(vpCount);
   
   console.log('[buildContactSheetDataFromViewpoints] 使用 AI 视角构建联合图数据:', {
     vpCount,
@@ -1178,24 +732,12 @@ export function buildContactSheetDataFromViewpoints(
   for (let i = 0; i < viewpoints.length; i += viewpointsPerPage) {
     const page = viewpoints.slice(i, i + viewpointsPerPage);
     // 重新分配页内 gridIndex (0-based)
-    page.forEach((v, idx) => { (v as any).gridIndex = idx; });
+    page.forEach((v, idx) => { v.gridIndex = idx; });
     pages.push(page);
   }
   
   // 构建场景描述（美术设计字段）
-  const sceneDescEn = [
-    scene.architectureStyle && `Architecture: ${scene.architectureStyle}`,
-    scene.colorPalette && `Color palette: ${scene.colorPalette}`,
-    scene.eraDetails && `Era: ${scene.eraDetails}`,
-    scene.lightingDesign && `Lighting: ${scene.lightingDesign}`,
-  ].filter(Boolean).join('. ');
-  
-  const sceneDescZh = [
-    scene.architectureStyle && `建筑风格：${scene.architectureStyle}`,
-    scene.colorPalette && `色彩基调：${scene.colorPalette}`,
-    scene.eraDetails && `时代特征：${scene.eraDetails}`,
-    scene.lightingDesign && `光影设计：${scene.lightingDesign}`,
-  ].filter(Boolean).join('，');
+  const { sceneDescEn, sceneDescZh } = buildSceneDescriptions(scene);
   
   // 视觉提示词（AI 场景校准生成的详细场景描述）
   const visualPromptZh = scene.visualPrompt || '';

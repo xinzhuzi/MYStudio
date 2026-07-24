@@ -34,7 +34,7 @@ import {
 } from './app-lifecycle'
 import { registerTtsIpcHandlers } from './ipc/tts-ipc'
 import { registerDiagnosticsIpcHandlers } from './ipc/diagnostics-ipc'
-import { registerFileStorageIpcHandlers } from './ipc/file-storage-ipc'
+import { registerStorageMediaIpcHandlers } from './ipc/storage-media-ipc'
 import { registerAppUpdaterIpcHandlers } from './ipc/app-updater-ipc'
 import {
   parseLocalMediaPath,
@@ -42,8 +42,6 @@ import {
   resolveProjectFileUrl,
 } from './storage-paths'
 import { registerProjectFileIpcHandlers } from './ipc/project-file-ipc'
-import { registerLocalMediaIpcHandlers } from './ipc/local-media-ipc'
-import { registerImageHostIpcHandlers } from './ipc/image-host-ipc'
 import { registerStudioContentIpcHandlers } from './ipc/studio-content-ipc'
 import { registerAppShellIpcHandlers } from './ipc/app-shell-ipc'
 import { registerApiRequestIpcHandlers } from './ipc/api-request-ipc'
@@ -246,6 +244,9 @@ function createWindow() {
     trafficLightPosition: { x: 16, y: 14 },
     webPreferences: {
       preload: path.join(__dirname, '../preload/index.cjs'),
+      sandbox: true,
+      contextIsolation: true,
+      nodeIntegration: false,
       backgroundThrottling: !isBackgroundSmoke,
     },
   })
@@ -404,14 +405,14 @@ const getDataDir = () => {
 }
 const readImageSource = createImageSourceReader({ getDataDir, getMediaRoot })
 
-registerLocalMediaIpcHandlers({ getMediaRoot })
-registerImageHostIpcHandlers({
-  createOperationId: () => createDiagnosticsOperationId('image-host'),
+// Storage/media orchestration delegates registerLocalMediaIpcHandlers, image-host, and file-storage.
+registerStorageMediaIpcHandlers({
+  getDataDir,
+  getMediaRoot,
+  createOperationId: createDiagnosticsOperationId,
   writeDiagnosticsLog,
   readImageSource,
 })
-
-registerFileStorageIpcHandlers({ getDataDir })
 
 function getStudioManualsSourceRoot() {
   const appRoot = process.env.APP_ROOT ?? path.join(__dirname, '../..')

@@ -1,6 +1,6 @@
 import { DEFAULT_IMAGE_ASPECT_RATIO } from "@/lib/ai/image-size-presets";
 import { buildFreedomEndpoint, freedomObservedFetch } from "./freedom-transport";
-import type { FreedomImageParams, GenerationResult } from "./freedom-api";
+import type { FreedomImageParams, GenerationResult } from "./freedom-types";
 
 type ChatImagePart = {
   type?: string;

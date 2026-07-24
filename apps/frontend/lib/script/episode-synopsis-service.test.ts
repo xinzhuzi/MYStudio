@@ -8,6 +8,7 @@ import {
   generateEpisodeSynopses,
   getMissingSynopsisEpisodes,
 } from './episode-synopsis-service';
+import { exportProjectMetadata as exportProjectMetadataService } from './project-metadata-export-service';
 
 vi.mock('@/lib/ai/batch-processor', () => ({ processBatched: vi.fn() }));
 vi.mock('@/stores/script-store', () => ({ useScriptStore: { getState: vi.fn() } }));
@@ -95,5 +96,6 @@ describe('episode synopsis service', () => {
     expect(getMissingSynopsisEpisodes('project').map((item) => item.episodeIndex)).toEqual([2]);
     expect(exportProjectMetadata('project')).toContain('# 《测试剧本》');
     expect(exportProjectMetadata('project')).toContain('**总集数**：2集');
+    expect(exportProjectMetadata).toBe(exportProjectMetadataService);
   });
 });

@@ -567,6 +567,7 @@ describe("studio workflow tabs", () => {
     expect(productionPlanningHookSource).toContain("【本次节点补充要求】");
     expect(productionPlanningHookSource).toContain("buildStoryboardTableMessages");
     expect(productionPlanningHookSource).toContain("parseStoryboardTable");
+    expect(productionPlanningHookSource).toContain("requireShotSemantics: true");
     expect(productionPlanningHookSource).toContain("toStoryboardItems");
     expect(indexSource).toContain("editingWorkflowNodeId");
     expect(indexSource).toContain("workflowNodeDraft");

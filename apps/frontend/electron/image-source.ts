@@ -9,6 +9,9 @@ export type ImageSource = {
 
 type ImageSourceFetch = (url: string, init: RequestInit) => Promise<Response>;
 
+const DEFAULT_IMAGE_SOURCE_MAX_BYTES = 512 * 1024 * 1024;
+const IMAGE_SOURCE_MAX_BYTES_ENV = "MYSTUDIO_IMAGE_SOURCE_MAX_BYTES";
+
 type ImageSourceReaderOptions = {
   getDataDir: () => string;
   getMediaRoot: () => string;
@@ -19,6 +22,57 @@ type ImageSourceReaderOptions = {
 
 function isHttpUrl(value: string) {
   return value.startsWith("http://") || value.startsWith("https://");
+}
+
+function getImageSourceMaxBytes() {
+  const configured = Number(process.env[IMAGE_SOURCE_MAX_BYTES_ENV]);
+  if (Number.isFinite(configured) && configured > 0) {
+    return Math.floor(configured);
+  }
+  return DEFAULT_IMAGE_SOURCE_MAX_BYTES;
+}
+
+function createImageSourceSizeError(maxBytes: number) {
+  return new Error(`图片超过 ${maxBytes} bytes`);
+}
+
+function getContentLength(headers: Headers) {
+  const rawValue = headers.get("content-length");
+  if (!rawValue) return null;
+  const parsed = Number.parseInt(rawValue, 10);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+}
+
+async function readBoundedResponseBuffer(response: Response, maxBytes: number) {
+  const contentLength = getContentLength(response.headers);
+  if (contentLength !== null && contentLength > maxBytes) {
+    throw createImageSourceSizeError(maxBytes);
+  }
+
+  const body = response.body as ReadableStream<Uint8Array> | null;
+  if (!body) {
+    const buffer = Buffer.from(await response.arrayBuffer());
+    if (buffer.length > maxBytes) {
+      throw createImageSourceSizeError(maxBytes);
+    }
+    return buffer;
+  }
+
+  const reader = body.getReader();
+  const chunks: Buffer[] = [];
+  let totalBytes = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    if (!value) continue;
+    totalBytes += value.byteLength;
+    if (totalBytes > maxBytes) {
+      await reader.cancel().catch(() => undefined);
+      throw createImageSourceSizeError(maxBytes);
+    }
+    chunks.push(Buffer.from(value));
+  }
+  return Buffer.concat(chunks, totalBytes);
 }
 
 function getMimeTypeFromExtension(filePath: string) {
@@ -57,7 +111,7 @@ async function fetchImageBuffer(url: string, fetchImage: ImageSourceFetch, timeo
       throw new Error(`请求失败: ${response.status}`);
     }
 
-    const buffer = Buffer.from(await response.arrayBuffer());
+    const buffer = await readBoundedResponseBuffer(response, getImageSourceMaxBytes());
     if (buffer.length === 0) {
       throw new Error("获取到的图片为空");
     }

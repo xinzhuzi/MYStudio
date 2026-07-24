@@ -4,7 +4,7 @@ import type {
   DirectorEditorPrefs,
   DirectorProjectData,
   DirectorScreenplayDraft,
-} from './director-store';
+} from './director-store-types';
 
 export const DEFAULT_DIRECTOR_SCREENPLAY_DRAFT: DirectorScreenplayDraft = {
   prompt: '',

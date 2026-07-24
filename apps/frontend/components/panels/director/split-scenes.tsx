@@ -9,8 +9,6 @@
  */
 
 import React, { useCallback, useMemo, useRef } from "react";
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 import { 
   useDirectorStore, 
   useActiveDirectorProject,
@@ -22,40 +20,10 @@ import {
 } from "@/stores/director-store";
 import { useCharacterLibraryStore } from "@/stores/character-library-store";
 import { useScriptStore } from "@/stores/script-store";
-import { 
-  ArrowLeft, 
-  Trash2, 
-  Play,
-  ImageIcon,
-  Loader2,
-  Sparkles,
-  Clapperboard,
-  Film,
-  Square,
-  Plus,
-} from "lucide-react";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useMediaStore } from "@/stores/media-store";
 import { useAppSettingsStore } from "@/stores/app-settings-store";
 import { toast } from "sonner";
 import { normalizeHorizontalVerticalAspectRatio } from "@/lib/ai/image-size-presets";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 
 import { waitForAbortableDelay } from "@/lib/storyboard/image-task-transport";
 import { useMergedGenerationCancellation } from "@/hooks/use-merged-generation-cancellation";
@@ -64,10 +32,7 @@ import { aiManager } from "@/lib/ai/ai-manager";
 import { readImageAsBase64 } from '@/lib/image-storage';
 import { persistSceneImage } from '@/lib/utils/image-persist';
 import { SplitSceneCard } from "./split-scene-card";
-import { SplitSceneVideoActionBar } from "./split-scene-video-action-bar";
-import { SplitScenesPromptWarning } from "./split-scenes-prompt-warning";
-import { StoryboardMergedGenerationControls } from "./storyboard-merged-generation-controls";
-import { SceneVoiceBatchToolbar } from "./scene-voice-batch-toolbar";
+import { SplitScenesEditingPanel } from "./split-scenes-editing-panel";
 import { 
   VISUAL_STYLE_PRESETS, 
   STYLE_CATEGORIES,
@@ -79,7 +44,6 @@ import {
 import { DEFAULT_CINEMATOGRAPHY_PROFILE_ID } from "@/lib/constants/cinematography-profiles";
 import { buildVideoPrompt, buildEmotionDescription as buildEmotionDesc } from "@/lib/generation/prompt-builder";
 import { useStoryboardGenerationUi } from "./use-storyboard-generation-ui";
-import { StoryboardConfigToolbar } from "./storyboard-config-toolbar";
 import { useStoryboardMediaLibrary } from "./use-storyboard-media-library";
 import { saveStoryboardSceneToLibrary } from "./storyboard-media-library-actions";
 import { useStoryboardSceneActions } from "./use-storyboard-scene-actions";
@@ -89,6 +53,11 @@ import { useStoryboardResultActions } from "./use-storyboard-result-actions";
 import { useStoryboardPromptGeneration } from "./use-storyboard-prompt-generation";
 import { useStoryboardVideoLastFrame } from "./use-storyboard-video-last-frame";
 import { useSplitSceneVideoGeneration } from "./use-split-scene-video-generation";
+import { SplitScenesEmptyState } from "./split-scenes-empty-state";
+import { SplitScenesTrailerTab } from "./split-scenes-trailer-tab";
+import { filterTrailerScenes } from "../storyboard-scenes-utils";
+import { StoryboardScenesTabs } from "../storyboard-scenes-tabs";
+import { useStoryboardResolutionToastHandlers } from "../use-storyboard-resolution-toast-handlers";
 import { createStoryboardEndFrameGenerator } from "./storyboard-end-frame-generation";
 import { createStoryboardSingleImageGenerator } from "./storyboard-single-image-generation";
 import { useDirectorQuadGridController } from "./use-director-quad-grid-controller";
@@ -107,6 +76,7 @@ import {
 } from "./storyboard-merged-grid-utils";
 import {
   MAX_REFERENCE_IMAGES,
+  collectCharacterReferenceImages,
   buildCharacterIdentityBlock,
   buildReferencePriorityHint,
   buildSceneCharacterContexts,
@@ -118,14 +88,13 @@ import { buildStoryboardQuadGridPrompt } from "./storyboard-quad-grid-prompt";
 
 interface SplitScenesProps {
   onBack?: () => void;
+  /** Retained for import compatibility; the local video controller owns generation. */
   onGenerateVideos?: () => void;
 }
 
-// SceneCard 已移至 split-scene-card.tsx，此处使用 SplitSceneCard
-const SceneCard = SplitSceneCard;
 const formatDirectorDeletedSceneNumber = (sceneId: number) => sceneId + 1;
 
-export function SplitScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
+export function SplitScenes({ onBack }: SplitScenesProps) {
   const storyboardUi = useStoryboardGenerationUi({ defaultImageGenMode: "merged" });
   const {
     imageGenMode, setImageGenMode,
@@ -202,10 +171,7 @@ export function SplitScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
   // 筛选预告片分镜：通过 sceneName 包含 "预告片" 关键字来识别
   const trailerScenes = useMemo(() => {
     // 通过 sceneName 包含 "预告片" 来筛选
-    const filtered = splitScenes.filter(scene => {
-      const sceneName = scene.sceneName || '';
-      return sceneName.includes('预告片');
-    });
+    const filtered = filterTrailerScenes(splitScenes);
     console.log('[SplitScenes] Trailer filter by sceneName:', {
       totalScenes: splitScenes.length,
       filteredCount: filtered.length,
@@ -419,26 +385,7 @@ export function SplitScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
     variationMap?: Record<string, string>,
   ): string[] => {
     const contexts = getSceneCharacterContexts(characterIds, variationMap);
-    if (contexts.length === 0) return [];
-
-    const refs: string[] = [];
-    const seen = new Set<string>();
-
-    const maxDepth = contexts.reduce((depth, context) => Math.max(depth, context.referenceImages.length), 0);
-
-    for (let index = 0; index < maxDepth; index += 1) {
-      for (const context of contexts) {
-        const image = context.referenceImages[index];
-        if (!image || seen.has(image)) continue;
-        seen.add(image);
-        refs.push(image);
-        if (refs.length >= MAX_REFERENCE_IMAGES) {
-          return refs;
-        }
-      }
-    }
-
-    return refs.slice(0, MAX_REFERENCE_IMAGES);
+    return collectCharacterReferenceImages(contexts, MAX_REFERENCE_IMAGES);
   }, [getSceneCharacterContexts]);
 
   const getSceneIdentityLockLines = useCallback((
@@ -922,388 +869,119 @@ export function SplitScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
     });
   }, [addMediaFromUrl, getImageFolderId, getVideoFolderId, mediaProjectId]);
 
+  const { handleImageResolutionChange, handleVideoResolutionChange } = useStoryboardResolutionToastHandlers(setStoryboardConfig);
+
+  const renderSceneCard = (scene: SplitScene) => (
+    <SplitSceneCard
+      key={scene.id}
+      scene={scene}
+      promptLanguage={promptLanguage}
+      onUpdateImagePrompt={(id, prompt, promptZh) => updateSplitSceneImagePrompt(id, prompt, promptZh)}
+      onUpdateVideoPrompt={(id, prompt, promptZh) => updateSplitSceneVideoPrompt(id, prompt, promptZh)}
+      onUpdateEndFramePrompt={(id, prompt, promptZh) => updateSplitSceneEndFramePrompt(id, prompt, promptZh)}
+      onUpdateNeedsEndFrame={(id, needsEndFrame) => updateSplitSceneNeedsEndFrame(id, needsEndFrame)}
+      onUpdateEndFrame={handleUpdateEndFrame}
+      onUpdateCharacters={handleUpdateCharacters}
+      onUpdateCharacterVariationMap={handleUpdateCharacterVariationMap}
+      onUpdateEmotions={handleUpdateEmotions}
+      onUpdateShotSize={handleUpdateShotSize}
+      onUpdateDuration={handleUpdateDuration}
+      onUpdateAmbientSound={handleUpdateAmbientSound}
+      onUpdateSoundEffects={handleUpdateSoundEffects}
+      onUpdateSceneReference={(id, sceneLibId, viewpointId, refImage, subViewId) => updateSplitSceneReference(id, sceneLibId, viewpointId, refImage, subViewId)}
+      onUpdateEndFrameSceneReference={(id, sceneLibId, viewpointId, refImage, subViewId) => updateSplitSceneEndFrameReference(id, sceneLibId, viewpointId, refImage, subViewId)}
+      onDelete={handleDeleteScene}
+      onSaveToLibrary={handleSaveToLibrary}
+      onGenerateImage={handleGenerateSingleImage}
+      onGenerateVideo={handleGenerateSingleVideo}
+      onGenerateEndFrame={handleGenerateEndFrameImage}
+      onRemoveImage={handleRemoveImage}
+      onUploadImage={handleUploadImage}
+      onUpdateField={(id, field, value) => updateSplitSceneField(id, field, value)}
+      onAngleSwitch={handleAngleSwitchClick}
+      onQuadGrid={handleQuadGridClick}
+      onExtractVideoLastFrame={handleExtractVideoLastFrame}
+      onStopImageGeneration={handleStopImageGeneration}
+      onStopVideoGeneration={handleStopVideoGeneration}
+      onStopEndFrameGeneration={handleStopEndFrameGeneration}
+      isExtractingFrame={isExtractingFrame}
+      isAngleSwitching={isAngleSwitching}
+      isQuadGridGenerating={isQuadGridGenerating}
+      isGeneratingAny={isGenerating}
+    />
+  );
+
   // Show empty state
   if (splitScenes.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-12 space-y-4">
-        <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
-          <ImageIcon className="h-8 w-8 text-muted-foreground" />
-        </div>
-        <p className="text-sm text-muted-foreground">暂无切割的分镜</p>
-      </div>
-    );
+    return <SplitScenesEmptyState />;
   }
 
   return (
     <div className="space-y-4">
-      {/* 顶部 Tab 切换 */}
-      <div className="border-b -mx-4 px-4 -mt-4 pt-4">
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "editing" | "trailer")} className="w-full">
-          <TabsList className="w-full justify-start h-9 rounded-none bg-transparent border-b-0 p-0">
-            <TabsTrigger 
-              value="editing" 
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent h-9 px-4"
-            >
-              <Film className="h-3 w-3 mr-1" />
-              分镜编辑
-            </TabsTrigger>
-            <TabsTrigger 
-              value="trailer" 
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent h-9 px-4"
-            >
-              <Clapperboard className="h-3 w-3 mr-1" />
-              预告片 {trailerScenes.length > 0 ? `(${trailerScenes.length})` : ''}
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
-      </div>
+      <StoryboardScenesTabs
+        activeTab={activeTab}
+        trailerCount={trailerScenes.length}
+        onActiveTabChange={setActiveTab}
+      />
 
       {/* 预告片 Tab 内容 - 完全复用分镜编辑的功能 */}
       {activeTab === "trailer" && (
-        <>
-          {trailerScenes.length === 0 ? (
-            <div className="text-center text-muted-foreground text-sm py-8">
-              <Clapperboard className="h-8 w-8 mx-auto mb-2 opacity-50" />
-              <p>预告片功能</p>
-              <p className="text-xs mt-1">请在左侧「剧本」面板中的「预告片」标签页生成预告片</p>
-              <p className="text-xs mt-1">挑选的分镜将在此显示并可进行图片/视频生成</p>
-            </div>
-          ) : (
-            <>
-              {/* Header - 与分镜编辑一致 */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium">预告片分镜</span>
-                  <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
-                    {trailerScenes.length} 个分镜
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    预计 {trailerScenes.reduce((sum, s) => sum + (s.duration || 5), 0)} 秒
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleAutoGeneratePrompts}
-                    disabled={isGeneratingPrompts || isGenerating}
-                    className="hidden h-7 px-2 text-xs"
-                  >
-                    {isGeneratingPrompts ? (
-                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                    ) : (
-                      <Sparkles className="h-3 w-3 mr-1 text-yellow-500" />
-                    )}
-                    AI 自动填写提示词
-                  </Button>
-                  {/* 一键清空预告片分镜 */}
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-7 px-2 text-xs text-destructive hover:text-destructive"
-                        disabled={isGenerating}
-                      >
-                        <Trash2 className="h-3 w-3 mr-1" />
-                        清空分镜
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>确认清空预告片分镜</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          这将删除所有 {trailerScenes.length} 个预告片分镜（包括已生成的图片和视频）。此操作不可撤销。
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>取消</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={() => {
-                            // 删除所有预告片分镜
-                            trailerScenes.forEach(scene => {
-                              deleteSplitScene(scene.id);
-                            });
-                            // 清空预告片配置
-                            clearTrailer();
-                            toast.success(`已清空 ${trailerScenes.length} 个预告片分镜`);
-                          }}
-                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                        >
-                          确认清空
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </div>
-              </div>
-
-              <StoryboardConfigToolbar
-                styleId={currentStyleId || ""}
-                onStyleChange={handleStyleChange}
-                aspectRatio={storyboardConfig.aspectRatio}
-                onAspectRatioChange={handleAspectRatioChange}
-                imageResolution={storyboardConfig.resolution || defaultStoryboardResolution}
-                onImageResolutionChange={(resolution) => {
-                  setStoryboardConfig({ resolution });
-                  toast.success(`图片分辨率已切换为 ${resolution}`);
-                }}
-                videoResolution={storyboardConfig.videoResolution || "480p"}
-                onVideoResolutionChange={(videoResolution) => {
-                  setStoryboardConfig({ videoResolution });
-                  toast.success(`视频分辨率已切换为 ${videoResolution}`);
-                }}
-                styleTokens={storyboardConfig.styleTokens}
-                disabled={isGenerating}
-              />
-
-              {/* Scene list - 完全复用分镜编辑的 SceneCard */}
-              <div className="flex flex-col gap-3">
-                {trailerScenes.map((scene) => (
-                  <SceneCard
-                    key={scene.id}
-                    scene={scene}
-                    promptLanguage={promptLanguage}
-                    onUpdateImagePrompt={(id, prompt, promptZh) => updateSplitSceneImagePrompt(id, prompt, promptZh)}
-                    onUpdateVideoPrompt={(id, prompt, promptZh) => updateSplitSceneVideoPrompt(id, prompt, promptZh)}
-                    onUpdateEndFramePrompt={(id, prompt, promptZh) => updateSplitSceneEndFramePrompt(id, prompt, promptZh)}
-                    onUpdateNeedsEndFrame={(id, needsEndFrame) => updateSplitSceneNeedsEndFrame(id, needsEndFrame)}
-                    onUpdateEndFrame={handleUpdateEndFrame}
-                    onUpdateCharacters={handleUpdateCharacters}
-                    onUpdateCharacterVariationMap={handleUpdateCharacterVariationMap}
-                    onUpdateEmotions={handleUpdateEmotions}
-                    onUpdateShotSize={handleUpdateShotSize}
-                    onUpdateDuration={handleUpdateDuration}
-                    onUpdateAmbientSound={handleUpdateAmbientSound}
-                    onUpdateSoundEffects={handleUpdateSoundEffects}
-            onUpdateSceneReference={(id, sceneLibId, viewpointId, refImage, subViewId) => updateSplitSceneReference(id, sceneLibId, viewpointId, refImage, subViewId)}
-            onUpdateEndFrameSceneReference={(id, sceneLibId, viewpointId, refImage, subViewId) => updateSplitSceneEndFrameReference(id, sceneLibId, viewpointId, refImage, subViewId)}
-            onDelete={handleDeleteScene}
-            onSaveToLibrary={handleSaveToLibrary}
-            onGenerateImage={handleGenerateSingleImage}
-            onGenerateVideo={handleGenerateSingleVideo}
-            onGenerateEndFrame={handleGenerateEndFrameImage}
-            onRemoveImage={handleRemoveImage}
-            onUploadImage={handleUploadImage}
-            onUpdateField={(id, field, value) => updateSplitSceneField(id, field, value)}
-            onAngleSwitch={handleAngleSwitchClick}
-            onQuadGrid={handleQuadGridClick}
-            onExtractVideoLastFrame={handleExtractVideoLastFrame}
-            onStopImageGeneration={handleStopImageGeneration}
-            onStopVideoGeneration={handleStopVideoGeneration}
-            onStopEndFrameGeneration={handleStopEndFrameGeneration}
-            isExtractingFrame={isExtractingFrame}
-            isAngleSwitching={isAngleSwitching}
-            isQuadGridGenerating={isQuadGridGenerating}
-            isGeneratingAny={isGenerating}
-          />
-                ))}
-              </div>
-
-              {/* Action buttons - 与分镜编辑一致 */}
-              <div className="flex gap-2 pt-2">
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        onClick={() => {
-                          // 仅为预告片分镜生成视频
-                          toast.info(`开始生成 ${trailerScenes.length} 个预告片视频...`);
-                          // 循环调用单个生成
-                          trailerScenes.forEach(scene => {
-                            if (scene.imageDataUrl && scene.videoStatus !== 'completed') {
-                              handleGenerateSingleVideo(scene.id);
-                            }
-                          });
-                        }}
-                        disabled={isGenerating || trailerScenes.length === 0}
-                        className="flex-1"
-                        size="lg"
-                      >
-                        {isGenerating ? (
-                          <>
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            生成中...
-                          </>
-                        ) : (
-                          <>
-                            <Play className="h-4 w-4 mr-2" />
-                            生成预告片视频 ({trailerScenes.length})
-                          </>
-                        )}
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>为预告片分镜生成视频</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
-
-              {/* Tips */}
-              <div className="text-xs text-muted-foreground bg-muted/50 rounded-md p-2">
-                <p>💡 预告片分镜与主分镜共享数据，修改会同步。点击每个分镜下方的文字区域可编辑提示词。</p>
-              </div>
-            </>
-          )}
-        </>
+        <SplitScenesTrailerTab
+          trailerScenes={trailerScenes}
+          isGenerating={isGenerating}
+          isGeneratingPrompts={isGeneratingPrompts}
+          renderSceneCard={renderSceneCard}
+          onAutoGeneratePrompts={handleAutoGeneratePrompts}
+          onDeleteScene={deleteSplitScene}
+          onClearTrailer={clearTrailer}
+          onGenerateVideo={handleGenerateSingleVideo}
+          styleId={currentStyleId || ""}
+          onStyleChange={handleStyleChange}
+          aspectRatio={storyboardConfig.aspectRatio}
+          onAspectRatioChange={handleAspectRatioChange}
+          imageResolution={storyboardConfig.resolution || defaultStoryboardResolution}
+          onImageResolutionChange={handleImageResolutionChange}
+          videoResolution={storyboardConfig.videoResolution || "480p"}
+          onVideoResolutionChange={handleVideoResolutionChange}
+          styleTokens={storyboardConfig.styleTokens ?? []}
+        />
       )}
 
       {/* 分镜编辑 Tab 内容 */}
       {activeTab === "editing" && (
-      <>
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium">分镜编辑</span>
-          <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
-            {splitScenes.length} 个分镜
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleAutoGeneratePrompts}
-            disabled={isGeneratingPrompts || isGenerating}
-            className="hidden h-7 px-2 text-xs"
-          >
-            {isGeneratingPrompts ? (
-              <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-            ) : (
-              <Sparkles className="h-3 w-3 mr-1 text-yellow-500" />
-            )}
-            AI 自动填写提示词
-          </Button>
-          <Button
-            variant="text"
-            size="sm"
-            onClick={handleBack}
-            className="hidden h-7 px-2 text-xs"
-          >
-            <ArrowLeft className="h-3 w-3 mr-1" />
-            重新生成
-          </Button>
-        </div>
-      </div>
-
-      <StoryboardConfigToolbar
-        styleId={currentStyleId || ""}
-        onStyleChange={handleStyleChange}
-        cinematographyProfileId={currentCinProfileId}
-        onCinematographyProfileChange={handleCinProfileChange}
-        aspectRatio={storyboardConfig.aspectRatio}
-        onAspectRatioChange={handleAspectRatioChange}
-        imageResolution={storyboardConfig.resolution || defaultStoryboardResolution}
-        onImageResolutionChange={(resolution) => {
-          setStoryboardConfig({ resolution });
-          toast.success(`图片分辨率已切换为 ${resolution}`);
-        }}
-        videoResolution={storyboardConfig.videoResolution || "480p"}
-        onVideoResolutionChange={(videoResolution) => {
-          setStoryboardConfig({ videoResolution });
-          toast.success(`视频分辨率已切换为 ${videoResolution}`);
-        }}
-        imageGenerationMode={imageGenMode}
-        onImageGenerationModeChange={setImageGenMode}
-        styleTokens={storyboardConfig.styleTokens}
-        disabled={isGenerating}
-      />
-
-      {/* Row 2: 合并生成选项（仅在合并模式下显示） */}
-      {imageGenMode === 'merged' && (
-        <StoryboardMergedGenerationControls
+        <SplitScenesEditingPanel
+          scenes={splitScenes}
+          renderSceneCard={renderSceneCard}
+          isGenerating={isGenerating}
+          isGeneratingPrompts={isGeneratingPrompts}
+          onAutoGeneratePrompts={handleAutoGeneratePrompts}
+          onBack={handleBack}
+          styleId={currentStyleId || ""}
+          onStyleChange={handleStyleChange}
+          cinematographyProfileId={currentCinProfileId}
+          onCinematographyProfileChange={handleCinProfileChange}
+          aspectRatio={storyboardConfig.aspectRatio}
+          onAspectRatioChange={handleAspectRatioChange}
+          imageResolution={storyboardConfig.resolution || defaultStoryboardResolution}
+          onImageResolutionChange={handleImageResolutionChange}
+          videoResolution={storyboardConfig.videoResolution || "480p"}
+          onVideoResolutionChange={handleVideoResolutionChange}
+          imageGenerationMode={imageGenMode}
+          onImageGenerationModeChange={setImageGenMode}
+          styleTokens={storyboardConfig.styleTokens ?? []}
           frameMode={frameMode}
           onFrameModeChange={setFrameMode}
           refStrategy={refStrategy}
           onRefStrategyChange={setRefStrategy}
           useExemplar={useExemplar}
           onUseExemplarChange={setUseExemplar}
-          isGenerating={isGenerating}
           isMergedRunning={isMergedRunning}
-          sceneCount={splitScenes.length}
-          onGenerate={handleMergedGenerate}
-          onStop={handleStopMergedGeneration}
+          onMergedGenerate={handleMergedGenerate}
+          onStopMerged={handleStopMergedGeneration}
+          hasMissingPrompt={splitScenes.some(s => !(s.videoPromptZh?.trim() || s.videoPrompt?.trim()))}
+          onAddBlank={addBlankSplitScene}
+          onGenerateVideos={handleGenerateVideos}
         />
-      )}
-
-      <SplitScenesPromptWarning
-        hasMissingPrompt={splitScenes.some(s => !(s.videoPromptZh?.trim() || s.videoPrompt?.trim()))}
-      />
-
-      <SceneVoiceBatchToolbar scenes={splitScenes} />
-
-      {/* Scene list */}
-      <div className="flex flex-col gap-3">
-        {splitScenes.map((scene) => (
-          <SceneCard
-            key={scene.id}
-            scene={scene}
-            promptLanguage={promptLanguage}
-            onUpdateImagePrompt={(id, prompt, promptZh) => updateSplitSceneImagePrompt(id, prompt, promptZh)}
-            onUpdateVideoPrompt={(id, prompt, promptZh) => updateSplitSceneVideoPrompt(id, prompt, promptZh)}
-            onUpdateEndFramePrompt={(id, prompt, promptZh) => updateSplitSceneEndFramePrompt(id, prompt, promptZh)}
-            onUpdateNeedsEndFrame={(id, needsEndFrame) => updateSplitSceneNeedsEndFrame(id, needsEndFrame)}
-            onUpdateEndFrame={handleUpdateEndFrame}
-            onUpdateCharacters={handleUpdateCharacters}
-            onUpdateCharacterVariationMap={handleUpdateCharacterVariationMap}
-            onUpdateEmotions={handleUpdateEmotions}
-            onUpdateShotSize={handleUpdateShotSize}
-            onUpdateDuration={handleUpdateDuration}
-            onUpdateAmbientSound={handleUpdateAmbientSound}
-            onUpdateSoundEffects={handleUpdateSoundEffects}
-            onUpdateSceneReference={(id, sceneLibId, viewpointId, refImage, subViewId) => updateSplitSceneReference(id, sceneLibId, viewpointId, refImage, subViewId)}
-            onUpdateEndFrameSceneReference={(id, sceneLibId, viewpointId, refImage, subViewId) => updateSplitSceneEndFrameReference(id, sceneLibId, viewpointId, refImage, subViewId)}
-            onDelete={handleDeleteScene}
-            onSaveToLibrary={handleSaveToLibrary}
-            onGenerateImage={handleGenerateSingleImage}
-            onGenerateVideo={handleGenerateSingleVideo}
-            onGenerateEndFrame={handleGenerateEndFrameImage}
-            onRemoveImage={handleRemoveImage}
-            onUploadImage={handleUploadImage}
-            onUpdateField={(id, field, value) => updateSplitSceneField(id, field, value)}
-            onAngleSwitch={handleAngleSwitchClick}
-            onQuadGrid={handleQuadGridClick}
-            onExtractVideoLastFrame={handleExtractVideoLastFrame}
-            onStopImageGeneration={handleStopImageGeneration}
-            onStopVideoGeneration={handleStopVideoGeneration}
-            onStopEndFrameGeneration={handleStopEndFrameGeneration}
-            isExtractingFrame={isExtractingFrame}
-            isAngleSwitching={isAngleSwitching}
-            isQuadGridGenerating={isQuadGridGenerating}
-            isGeneratingAny={isGenerating}
-          />
-        ))}
-
-        {/* 添加空白分镜按钮 */}
-        <button
-          type="button"
-          onClick={addBlankSplitScene}
-          disabled={isGenerating}
-          className={cn(
-            "w-full rounded-lg border-2 border-dashed border-muted-foreground/25",
-            "flex items-center justify-center gap-2 py-6",
-            "text-sm text-muted-foreground hover:border-primary/50 hover:text-primary hover:bg-primary/5",
-            "transition-colors cursor-pointer",
-            "disabled:opacity-50 disabled:cursor-not-allowed",
-          )}
-        >
-          <Plus className="h-5 w-5" />
-          <span>添加空白分镜</span>
-        </button>
-      </div>
-
-      <SplitSceneVideoActionBar
-        scenes={splitScenes}
-        isGenerating={isGenerating}
-        onGenerateVideos={handleGenerateVideos}
-      />
-
-      {/* Tips */}
-      <div className="text-xs text-muted-foreground bg-muted/50 rounded-md p-2">
-        <p>💡 点击每个分镜下方的文字区域可编辑视频生成提示词。悬停在分镜上可以删除不需要的分镜。</p>
-      </div>
-      </>
       )}
 
       <StoryboardGenerationDialogs

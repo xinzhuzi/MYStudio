@@ -152,7 +152,7 @@ export interface StoryboardOrderedReference {
   source?: string;
   missing?: boolean;
   versionId?: string;
-  referenceRole?: "canonical" | "scene-viewpoint" | "secondary-scene" | "prop-state" | "previous-approved-frame";
+  referenceRole?: "canonical" | "scene-viewpoint" | "secondary-scene" | "prop-state" | "previous-approved-frame" | "style-reference";
   identityAnchors?: CharacterIdentityAnchors;
   negativePrompt?: CharacterNegativePrompt;
   wardrobeVersion?: string;
@@ -214,6 +214,34 @@ export interface ShotContinuityCharacterState {
   actionOut: string;
 }
 
+/** A per-shot source fact emitted by the storyboard table, before asset versions are resolved. */
+export interface StoryboardVisibleCharacterSemantic {
+  name: string;
+  position: string;
+  orientation: string;
+  actionIn: string;
+  actionOut: string;
+}
+
+export interface StoryboardVisiblePropSemantic {
+  name: string;
+  position: string;
+  state: string;
+}
+
+/**
+ * Explicit source semantics for image generation. `personFree` distinguishes an
+ * intentional empty frame from a storyboard row that omitted its cast.
+ */
+export interface StoryboardShotSemantics {
+  sceneViewpointId: string;
+  personFree: boolean;
+  visibleCharacters: StoryboardVisibleCharacterSemantic[];
+  visibleProps: StoryboardVisiblePropSemantic[];
+  actionIn: string;
+  actionOut: string;
+}
+
 export interface ShotContinuityState {
   groupId: string;
   previousStoryboardId?: string;
@@ -224,6 +252,10 @@ export interface ShotContinuityState {
   actionIn: string;
   actionOut: string;
   characters: ShotContinuityCharacterState[];
+  styleContractVersion?: string;
+  styleContractFingerprint?: string;
+  promptAuditVersion?: string;
+  sourceSemanticsFingerprint?: string;
   inputFingerprint: string;
 }
 
@@ -300,6 +332,8 @@ export interface StoryboardItem extends StudioStaleEvidence {
   voiceReferenceAudioPath?: string;
   voiceMatch?: "fixed" | "ai-selected";
   sound?: string;
+  shotSemantics?: StoryboardShotSemantics;
+  styleContractVersion?: string;
 }
 
 export interface ProductionTrack extends StudioStaleEvidence {

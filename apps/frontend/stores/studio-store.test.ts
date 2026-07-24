@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   addGeneratedImageNode,
   createImageWorkflowGraph,
@@ -12,6 +12,7 @@ import type { ContinuityAssetVersion, StoryboardItem } from "@/types/studio";
 import { useStudioStore } from "./studio-store";
 import {
   approvedVisualReview,
+  storyboardShotSemanticsFingerprint,
   visualContinuityFingerprint,
   visualReviewInputFingerprint,
 } from "@/lib/studio/visual-continuity";
@@ -28,6 +29,81 @@ afterEach(() => {
 });
 
 describe("studio workflow store", () => {
+  it("skips novel file mirrors when the Electron window bridge is unavailable", () => {
+    vi.stubGlobal("window", undefined);
+
+    try {
+      expect(() => useStudioStore.getState().replaceNovelText("第1章 雨夜入镇\n独孤剑尘入镇。"))
+        .not.toThrow();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("rehydrates the full persisted state while preserving action identity", async () => {
+    const originalOptions = useStudioStore.persist.getOptions();
+    const actions = {
+      addMaterial: useStudioStore.getState().addMaterial,
+      setWorkflowConfig: useStudioStore.getState().setWorkflowConfig,
+      resetStudioWorkflow: useStudioStore.getState().resetStudioWorkflow,
+    };
+    const persistedState = {
+      materials: [{ id: "material-restored", name: "原始素材", localPath: "/素材/原始.txt", size: 12, importedAt: 1 }],
+      novelChapters: [{ id: "chapter-restored", title: "恢复章节", content: "正文" }],
+      agentWorkData: [{ key: "directorPlan", data: "恢复工作" }],
+      entityExtractions: [{ id: "entity-restored", chapterId: "chapter-001", entities: [] }],
+      scriptPlans: [{ id: "plan-restored", title: "恢复计划", scenes: [] }],
+      seriesBible: { title: "恢复设定" },
+      episodeOutlines: [{ id: "outline-restored", episodeId: "chapter-001", title: "恢复大纲" }],
+      storyboards: [{ id: "storyboard-restored", episodeId: "chapter-001", index: 1 }],
+      continuityAssetVersions: [{ assetId: "asset-restored", versionId: "asset-restored:v1", assetKind: "character", label: "恢复资产", referenceImagePaths: [] }],
+      productionTracks: [{ id: "track-restored", episodeId: "chapter-001", storyboardIds: [], candidateVideoIds: [] }],
+      videoCandidates: [{ id: "video-restored", trackId: "track-restored", provider: "ffmpeg-local", state: "ready" }],
+      imageWorkflows: [{ id: "workflow-restored", name: "恢复工作流", nodes: [], edges: [], target: { kind: "storyboard", id: "storyboard-restored" }, createdAt: 1, updatedAt: 1 }],
+      agentRuns: [{ id: "run-restored", key: "directorPlan", phase: "scriptPlan", status: "success", inputSummary: "恢复" }],
+      mediaTasks: [{ id: "task-restored", kind: "storyboardImage", targetId: "storyboard-restored", status: "success" }],
+      eventGraph: [{ id: "event-restored", projectId: "project-a", episodeId: "chapter-001", eventType: "test" }],
+      projectMemoryRecords: [{ id: "memory-restored", projectId: "project-a", episodeId: "chapter-001", content: "恢复记忆" }],
+      workflowConfig: { autoAnalyzeEventsOnImport: true, episodeDurationMin: 7 },
+    };
+
+    useStudioStore.persist.setOptions({
+      storage: {
+        getItem: vi.fn(async () => ({ state: persistedState, version: 9 })),
+        setItem: vi.fn(async () => undefined),
+        removeItem: vi.fn(async () => undefined),
+      },
+    });
+
+    try {
+      await expect(useStudioStore.persist.rehydrate()).resolves.toBeUndefined();
+      const state = useStudioStore.getState();
+      expect(state.materials).toEqual(persistedState.materials);
+      expect(state.novelChapters).toEqual(persistedState.novelChapters);
+      expect(state.agentWorkData).toEqual(persistedState.agentWorkData);
+      expect(state.entityExtractions).toEqual(persistedState.entityExtractions);
+      expect(state.scriptPlans).toEqual(persistedState.scriptPlans);
+      expect(state.seriesBible).toEqual(persistedState.seriesBible);
+      expect(state.episodeOutlines).toEqual(persistedState.episodeOutlines);
+      expect(state.storyboards).toEqual(persistedState.storyboards);
+      expect(state.continuityAssetVersions).toHaveLength(1);
+      expect(state.productionTracks).toEqual(persistedState.productionTracks);
+      expect(state.videoCandidates).toEqual(persistedState.videoCandidates);
+      expect(state.imageWorkflows).toEqual(persistedState.imageWorkflows);
+      expect(state.agentRuns).toEqual(persistedState.agentRuns);
+      expect(state.mediaTasks).toEqual(persistedState.mediaTasks);
+      expect(state.eventGraph).toEqual(persistedState.eventGraph);
+      expect(state.projectMemoryRecords).toEqual(persistedState.projectMemoryRecords);
+      expect(state.workflowConfig).toEqual(persistedState.workflowConfig);
+      expect(state.addMaterial).toBe(actions.addMaterial);
+      expect(state.setWorkflowConfig).toBe(actions.setWorkflowConfig);
+      expect(state.resetStudioWorkflow).toBe(actions.resetStudioWorkflow);
+    } finally {
+      useStudioStore.persist.setOptions(originalOptions);
+      useStudioStore.getState().resetStudioWorkflow();
+    }
+  });
+
   it("derives asset approval from a dedicated human review and does not trust an approved boolean", () => {
     const versions: ContinuityAssetVersion[] = [{
       assetId: "char-dugu",
@@ -162,6 +238,14 @@ describe("studio workflow store", () => {
         videoDesc: `码头镜头 ${index}`,
         assetIds: ["scene:dock"],
         state: "ready",
+        shotSemantics: {
+          sceneViewpointId: "dock:front",
+          personFree: true,
+          visibleCharacters: [],
+          visibleProps: [],
+          actionIn: index > 1 ? "承接前镜" : "建立场景",
+          actionOut: "向右",
+        },
         orderedReferenceManifest: [{
           order: 1,
           assetId: "scene:dock",
@@ -180,9 +264,11 @@ describe("studio workflow store", () => {
           actionIn: index > 1 ? "承接前镜" : "建立场景",
           actionOut: "向右",
           characters: [],
+          sourceSemanticsFingerprint: "",
           inputFingerprint: "",
         },
       };
+      storyboard.continuityState!.sourceSemanticsFingerprint = storyboardShotSemanticsFingerprint(storyboard.shotSemantics);
       storyboard.continuityState!.inputFingerprint = visualContinuityFingerprint(storyboard);
       storyboard.visualReview = approvedVisualReview({
         reviewedAt: 1,
@@ -232,6 +318,14 @@ describe("studio workflow store", () => {
       index: 1,
       prompt: "审核镜头",
       mediaRef: { kind: "image", path: "/frames/review-1.png" },
+      shotSemantics: {
+        sceneViewpointId: "dock:front",
+        personFree: true,
+        visibleCharacters: [],
+        visibleProps: [],
+        actionIn: "建立场景",
+        actionOut: "向右",
+      },
       orderedReferenceManifest: [{
         order: 1,
         assetId: "scene:dock",
@@ -253,16 +347,27 @@ describe("studio workflow store", () => {
         actionIn: "建立场景",
         actionOut: "向右",
         characters: [],
+        sourceSemanticsFingerprint: "",
         inputFingerprint: "",
       },
     });
     const initial = useStudioStore.getState().storyboards.find((item) => item.id === id)!;
+    expect(initial.shotSemantics).toMatchObject({ personFree: true, visibleCharacters: [] });
+    const sourceSemanticsFingerprint = storyboardShotSemanticsFingerprint(initial.shotSemantics);
+    const continuityState = {
+      ...initial.continuityState!,
+      sourceSemanticsFingerprint,
+    };
+    const inputFingerprint = visualContinuityFingerprint({
+      ...initial,
+      continuityState,
+    });
     useStudioStore.setState((state) => ({
       storyboards: state.storyboards.map((item) => item.id === id ? {
         ...item,
         continuityState: {
-          ...item.continuityState!,
-          inputFingerprint: visualContinuityFingerprint(initial),
+          ...continuityState,
+          inputFingerprint,
         },
       } : item),
     }));
@@ -785,6 +890,51 @@ describe("studio workflow store", () => {
       stale: false,
       outputVersion: 3,
       visualReview: { status: "approved" },
+    });
+  });
+
+  it("retains review metadata when a storyboard replacement changes ids but keeps the episode index", () => {
+    const reviewed: StoryboardItem = {
+      id: "sb-reviewed-old-id",
+      episodeId: "ep-id-drift",
+      index: 1,
+      trackKey: "dock-1",
+      trackId: "track-dock",
+      duration: 4,
+      prompt: "旧画面",
+      videoDesc: "旧画面",
+      assetIds: [],
+      state: "ready",
+      mediaRef: { kind: "image", path: "project-file://frames/review.png" },
+      outputVersion: 2,
+    };
+    reviewed.visualReview = approvedVisualReview({
+      reviewedAt: 10,
+      evidencePaths: [reviewed.mediaRef!.path],
+      inputFingerprint: visualReviewInputFingerprint(reviewed),
+    });
+    useStudioStore.getState().addStoryboard(reviewed);
+
+    useStudioStore.getState().replaceStoryboardsForEpisode("ep-id-drift", [{
+      id: "sb-reviewed-new-id",
+      episodeId: "ep-id-drift",
+      index: 1,
+      trackKey: "dock-1",
+      trackId: "track-dock",
+      duration: 4,
+      prompt: "新画面",
+      videoDesc: "新画面",
+      assetIds: [],
+      state: "ready",
+    }]);
+
+    expect(useStudioStore.getState().storyboards[0]).toMatchObject({
+      id: "sb-reviewed-new-id",
+      stale: true,
+      visualReview: {
+        status: "pending",
+        reasons: ["分镜画面或连续性输入已变化，必须重新审核"],
+      },
     });
   });
 

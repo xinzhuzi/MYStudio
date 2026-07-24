@@ -103,6 +103,48 @@ describe("editing boundary validation", () => {
     );
   });
 
+  it("rejects clip track mismatches, source branches and subtitle metadata", () => {
+    const missingTrack = validProject();
+    missingTrack.clips[0]!.trackId = "track-missing";
+    const missingTrackResult = validateEditingProject(missingTrack);
+    expect(missingTrackResult.success).toBe(false);
+    if (missingTrackResult.success) return;
+    expect(missingTrackResult.issues).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: "editing.clip.track_missing" }),
+    ]));
+
+    const missingMembership = validProject();
+    missingMembership.tracks[0]!.clipIds = [];
+    const missingMembershipResult = validateEditingProject(missingMembership);
+    expect(missingMembershipResult.success).toBe(false);
+    if (missingMembershipResult.success) return;
+    expect(missingMembershipResult.issues).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: "editing.clip.track_membership" }),
+    ]));
+
+    const sourceAndSubtitle = validProject() as unknown as Record<string, unknown>;
+    const clips = sourceAndSubtitle.clips as Array<Record<string, unknown>>;
+    clips[0]!.source = {
+      kind: "text",
+      path: "project-file://ignored-for-text.txt",
+      evidence: "not-object",
+    };
+    clips[0]!.subtitle = {
+      sourceFormat: "vtt",
+      warnings: ["kept warning", 7],
+    };
+
+    const sourceAndSubtitleResult = validateEditingProject(sourceAndSubtitle);
+    expect(sourceAndSubtitleResult.success).toBe(false);
+    if (sourceAndSubtitleResult.success) return;
+    expect(sourceAndSubtitleResult.issues).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: "editing.string.required", path: "$.clips[0].source.text" }),
+      expect.objectContaining({ code: "editing.source.evidence" }),
+      expect.objectContaining({ code: "editing.subtitle.source_format" }),
+      expect.objectContaining({ code: "editing.string.required", path: "$.clips[0].subtitle.warnings[1]" }),
+    ]));
+  });
+
   it("rejects unsorted, duplicate and out-of-duration audio envelope points", () => {
     const project = validProject();
     project.clips[0]!.envelope = [
@@ -133,6 +175,43 @@ describe("editing boundary validation", () => {
     ]));
   });
 
+  it("rejects render plan snapshot identity drift", () => {
+    const invalidCases = [
+      {
+        mutate: (plan: TimelineRenderPlan) => {
+          plan.editingProjectSnapshot.id = "editing-other";
+        },
+        code: "editing.render.snapshot_project",
+        path: "$.editingProjectSnapshot.id",
+      },
+      {
+        mutate: (plan: TimelineRenderPlan) => {
+          plan.editingProjectSnapshot.revision += 1;
+        },
+        code: "editing.render.snapshot_revision",
+        path: "$.editingProjectSnapshot.revision",
+      },
+      {
+        mutate: (plan: TimelineRenderPlan) => {
+          plan.editingProjectSnapshot.sourceSnapshotHash = "snapshot-other";
+        },
+        code: "editing.render.snapshot_hash",
+        path: "$.editingProjectSnapshot.sourceSnapshotHash",
+      },
+    ];
+
+    for (const invalidCase of invalidCases) {
+      const plan = validRenderPlan(validProject());
+      invalidCase.mutate(plan);
+      const result = validateTimelineRenderPlan(plan);
+      expect(result.success).toBe(false);
+      if (result.success) continue;
+      expect(result.issues).toEqual(expect.arrayContaining([
+        expect.objectContaining({ code: invalidCase.code, path: invalidCase.path }),
+      ]));
+    }
+  });
+
   it("rejects renderer-controlled commands, args and output paths", () => {
     const plan = {
       ...validRenderPlan(validProject()),
@@ -149,6 +228,24 @@ describe("editing boundary validation", () => {
         expect.objectContaining({ code: "editing.render.forbidden_key" }),
       ]),
     );
+  });
+
+  it("rejects renderer-controlled keys recursively", () => {
+    const plan = validRenderPlan(validProject()) as unknown as Record<string, unknown>;
+    plan.renderSettings = {
+      ...plan.renderSettings as Record<string, unknown>,
+      diagnostics: [{ filterGraph: "unsafe" }],
+    };
+
+    const result = validateTimelineRenderPlan(plan);
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.issues).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        code: "editing.render.forbidden_key",
+        path: "$.renderSettings.diagnostics[0].filterGraph",
+      }),
+    ]));
   });
 
   it("rejects proposal targets and windows the v1 renderer cannot execute", () => {
@@ -228,6 +325,73 @@ describe("editing boundary validation", () => {
     ]));
   });
 
+  it("rejects effect parameter and proposal linkage edge cases", () => {
+    const badParams = validProject();
+    badParams.effects = [{
+      id: "effect-bad-param",
+      effectId: "panZoom",
+      targetClipId: "clip-1",
+      startUs: 0,
+      durationUs: 5_000_000,
+      params: { scaleFrom: 1, scaleTo: 1.06, x: 0.5, y: 0.5, extra: 1 },
+      enabled: true,
+    }];
+    const badParamsResult = validateEditingProject(badParams);
+    expect(badParamsResult.success).toBe(false);
+    if (badParamsResult.success) return;
+    expect(badParamsResult.issues).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: "editing.effect.param_unknown" }),
+    ]));
+
+    const badEnum = validProject();
+    badEnum.transitions = [{
+      id: "transition-bad-enum",
+      fromClipId: "clip-1",
+      toClipId: "clip-1",
+      effectId: "crossfade",
+      durationUs: 500_000,
+      params: { curve: "diagonal" },
+    }];
+    const badEnumResult = validateEditingProject(badEnum);
+    expect(badEnumResult.success).toBe(false);
+    if (badEnumResult.success) return;
+    expect(badEnumResult.issues).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: "editing.effect.param_enum" }),
+    ]));
+
+    const orphan = validProject();
+    orphan.effects = [linkedProposalEffect({ proposalId: "missing-proposal" })];
+    const orphanResult = validateEditingProject(orphan);
+    expect(orphanResult.success).toBe(false);
+    if (orphanResult.success) return;
+    expect(orphanResult.issues).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: "editing.effect.proposal_missing" }),
+    ]));
+
+    const multipleLinks = validProject();
+    multipleLinks.proposals = [proposal({ status: "accepted" })];
+    multipleLinks.effects = [
+      linkedProposalEffect(),
+      linkedProposalEffect({ id: "effect-from-proposal-proposal-1-copy" }),
+    ];
+    const multipleLinksResult = validateEditingProject(multipleLinks);
+    expect(multipleLinksResult.success).toBe(false);
+    if (multipleLinksResult.success) return;
+    expect(multipleLinksResult.issues).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: "editing.proposal.effect_link" }),
+    ]));
+
+    const disabledMismatch = validProject();
+    disabledMismatch.proposals = [proposal({ status: "disabled" })];
+    disabledMismatch.effects = [linkedProposalEffect({ enabled: true })];
+    const disabledMismatchResult = validateEditingProject(disabledMismatch);
+    expect(disabledMismatchResult.success).toBe(false);
+    if (disabledMismatchResult.success) return;
+    expect(disabledMismatchResult.issues).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: "editing.proposal.effect_state" }),
+    ]));
+  });
+
   it("validates auto-editing stages and decision evidence", () => {
     const run: AutoEditingRun = {
       id: "run-1",
@@ -274,6 +438,44 @@ describe("editing boundary validation", () => {
     );
   });
 
+  it("rejects malformed auto-editing warning entries", () => {
+    const run: AutoEditingRun = {
+      id: "run-1",
+      projectId: "project-1",
+      episodeId: "episode-1",
+      sourceSnapshotHash: "snapshot-1",
+      presetId: "story-driven-v1",
+      stage: "arrangingClips",
+      decisions: [],
+      warnings: [],
+      startedAt: 1,
+      updatedAt: 2,
+    };
+    const invalid = {
+      ...run,
+      warnings: [
+        "plain warning",
+        {
+          code: "",
+          message: 7,
+          targetId: 3,
+          recoverable: "yes",
+        },
+      ],
+    };
+
+    const result = validateAutoEditingRun(invalid);
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.issues).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: "editing.auto_warning.object", path: "$.warnings[0]" }),
+      expect.objectContaining({ code: "editing.string.required", path: "$.warnings[1].code" }),
+      expect.objectContaining({ code: "editing.string.required", path: "$.warnings[1].message" }),
+      expect.objectContaining({ code: "editing.string.required", path: "$.warnings[1].targetId" }),
+      expect.objectContaining({ code: "editing.boolean", path: "$.warnings[1].recoverable" }),
+    ]));
+  });
+
   it("accepts only complete audio-video timeline render records", () => {
     const record = validRenderRecord(validProject());
     expect(validateTimelineRenderRecord(record)).toEqual({
@@ -294,6 +496,61 @@ describe("editing boundary validation", () => {
       expect.objectContaining({ code: "editing.render_evidence.streams" }),
       expect.objectContaining({ path: "$.evidence.filterGraphPath" }),
     ]));
+  });
+
+  it("rejects invalid timeline render evidence numeric fields", () => {
+    const invalidFields = [
+      { field: "sizeBytes", value: 0, code: "editing.render_evidence.size" },
+      { field: "mtimeMs", value: -1, code: "editing.render_evidence.mtime" },
+      { field: "duration", value: Number.NaN, code: "editing.render_evidence.duration" },
+      { field: "width", value: 1.5, code: "editing.render_evidence.width" },
+      { field: "height", value: 0, code: "editing.render_evidence.height" },
+    ];
+
+    for (const invalidField of invalidFields) {
+      const record = structuredClone(validRenderRecord(validProject())) as unknown as Record<string, unknown>;
+      const evidence = record.evidence as Record<string, unknown>;
+      evidence[invalidField.field] = invalidField.value;
+
+      const result = validateTimelineRenderRecord(record);
+      expect(result.success).toBe(false);
+      if (result.success) continue;
+      expect(result.issues).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          code: invalidField.code,
+          path: `$.evidence.${invalidField.field}`,
+        }),
+      ]));
+    }
+  });
+
+  it("requires timeline render evidence identity and artifact paths", () => {
+    const requiredFields = [
+      "jobId",
+      "path",
+      "snapshotPath",
+      "renderPlanPath",
+      "inputManifestPath",
+      "filterGraphPath",
+      "logPath",
+      "ffprobePath",
+    ];
+
+    for (const requiredField of requiredFields) {
+      const record = structuredClone(validRenderRecord(validProject())) as unknown as Record<string, unknown>;
+      const evidence = record.evidence as Record<string, unknown>;
+      delete evidence[requiredField];
+
+      const result = validateTimelineRenderRecord(record);
+      expect(result.success).toBe(false);
+      if (result.success) continue;
+      expect(result.issues).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          code: "editing.string.required",
+          path: `$.evidence.${requiredField}`,
+        }),
+      ]));
+    }
   });
 });
 
@@ -369,6 +626,22 @@ function proposal(
     confidence: 0.8,
     sourceEvidence: { storyboardId: "storyboard-1" },
     status: "pending",
+    ...overrides,
+  };
+}
+
+function linkedProposalEffect(
+  overrides: Partial<EditingProjectV1["effects"][number]> = {},
+): EditingProjectV1["effects"][number] {
+  return {
+    id: "effect-from-proposal-proposal-1",
+    effectId: "panZoom",
+    targetClipId: "clip-1",
+    startUs: 0,
+    durationUs: 5_000_000,
+    params: { scaleFrom: 1, scaleTo: 1.06, x: 0.5, y: 0.5 },
+    enabled: true,
+    proposalId: "proposal-1",
     ...overrides,
   };
 }

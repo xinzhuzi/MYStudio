@@ -7,7 +7,19 @@ export interface ToonflowFixtureStoryboardRow {
   videoDesc: string;
   referenceAssetIds: Array<string | number>;
   referenceImagePaths: string[];
+  referenceImageSha256?: string[];
+  goldenImage?: ToonflowGoldenImage;
   shouldGenerateImage?: boolean;
+}
+
+export interface ToonflowGoldenImage {
+  relativePath: string;
+  sha256: string;
+  pixelSha256: string;
+  bytes?: number;
+  width?: number;
+  height?: number;
+  verified?: boolean;
 }
 
 export interface ToonflowStoryboardFixture {
@@ -63,6 +75,7 @@ export function compareToonflowFixtureToStoryboards(
   let videoDescMismatches = 0;
   let referenceOrderMismatches = 0;
   let imagePathMissing = 0;
+  let goldenImageMetadataInvalid = 0;
 
   if (fixture.storyboardRows.length !== storyboards.length) {
     issues.push({
@@ -115,10 +128,16 @@ export function compareToonflowFixtureToStoryboards(
     }
   }
 
-  issues.push({
-    code: "toonflow.goldenImage.deferred",
-    message: "Golden image pixel comparison is deferred until portable Toonflow OSS fixture ownership is stable.",
-  });
+  const goldenImages = fixture.storyboardRows.map((row) => row.goldenImage);
+  if (!goldenImages.length || goldenImages.some((golden) => !isVerifiedGoldenImage(golden))) {
+    goldenImageMetadataInvalid = goldenImages.length === 0
+      ? 1
+      : goldenImages.filter((golden) => !isVerifiedGoldenImage(golden)).length;
+    issues.push({
+      code: "toonflow.goldenImage.deferred",
+      message: "Golden image pixel comparison is deferred until every fixture row has a verified content-addressed pixel digest.",
+    });
+  }
 
   return {
     enabled: true,
@@ -128,10 +147,21 @@ export function compareToonflowFixtureToStoryboards(
     videoDescMismatches,
     referenceOrderMismatches,
     imagePathMissing,
-    goldenImageComparisonStatus: "deferred",
-    goldenImageBlocker: "Portable Toonflow image fixture paths are not stable for unit tests.",
+    goldenImageComparisonStatus: goldenImageMetadataInvalid === 0 ? "passed" : "deferred",
+    goldenImageBlocker: goldenImageMetadataInvalid
+      ? "Portable Toonflow golden image metadata is incomplete or unverified."
+      : undefined,
     issues,
   };
+}
+
+function isVerifiedGoldenImage(golden: ToonflowGoldenImage | undefined) {
+  return Boolean(
+    golden?.verified === true
+      && golden?.relativePath
+      && /^[a-f0-9]{64}$/i.test(golden.sha256)
+      && /^[a-f0-9]{64}$/i.test(golden.pixelSha256),
+  );
 }
 
 function normalize(value: string) {

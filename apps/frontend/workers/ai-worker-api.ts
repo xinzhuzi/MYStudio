@@ -4,6 +4,7 @@ import { assertImageTransferPayloadSize } from '@/lib/ai/image-transfer';
 export interface WorkerApiContext {
   getApiBaseUrl: () => string;
   isCancelled: () => boolean;
+  signal?: AbortSignal;
 }
 
 interface TaskStatusResponse {
@@ -34,7 +35,10 @@ export function createWorkerApi(context: WorkerApiContext) {
     const maxAttempts = type === 'video' ? 120 : 60;
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       if (context.isCancelled()) throw new Error('Cancelled');
-      const response = await fetch(url(`/api/ai/task/${taskId}?provider=${provider}&type=${type}`), { headers: { Authorization: `Bearer ${apiKey}` } });
+      const response = await fetch(url(`/api/ai/task/${taskId}?provider=${provider}&type=${type}`), {
+        headers: { Authorization: `Bearer ${apiKey}` },
+        signal: context.signal,
+      });
       if (!response.ok) { await new Promise(r => setTimeout(r, 2000)); continue; }
       const data: TaskStatusResponse = await response.json();
       if (data.progress && onProgress) onProgress(data.progress);
@@ -49,10 +53,11 @@ export function createWorkerApi(context: WorkerApiContext) {
     throw new Error(`Task ${taskId} timed out after ${(maxAttempts * 2000) / 1000}s`);
   };
   const generateImage = async (prompt: string, negativePrompt: string, config: Partial<GenerationConfig> & { apiKey?: string }, onProgress?: (progress: number) => void, referenceImages?: string[]): Promise<string> => {
-    const apiKey = config.apiKey || (config as any).imageApiKey || ''; const provider = (config as any).imageProvider || 'memefast';
+    const apiKey = config.apiKey || (config as any).imageApiKey || ''; const provider = config.imageProvider || 'memefast';
     if (!apiKey) throw new Error('未配置图片生成 API Key');
+    if (context.isCancelled()) throw new Error('Cancelled');
     for (const source of referenceImages || []) assertImageReady(source);
-    const response = await fetch(url('/api/ai/image'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt, negativePrompt, aspectRatio: config.aspectRatio || '9:16', apiKey, provider, referenceImages: referenceImages?.length ? referenceImages : undefined }) });
+    const response = await fetch(url('/api/ai/image'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt, negativePrompt, aspectRatio: config.aspectRatio || '9:16', apiKey, provider, referenceImages: referenceImages?.length ? referenceImages : undefined }), signal: context.signal });
     if (!response.ok) { const data = await response.json().catch(() => ({})); throw new Error(data.message || data.error || `Image API request failed: ${response.status}`); }
     const data: SubmitResponse = await response.json();
     if (data.imageUrl && data.status === 'completed') return data.imageUrl;
@@ -60,16 +65,17 @@ export function createWorkerApi(context: WorkerApiContext) {
     throw new Error('Invalid API response: no taskId or imageUrl');
   };
   const generateVideo = async (imageUrl: string, prompt: string, config: Partial<GenerationConfig> & { apiKey?: string }, onProgress?: (progress: number) => void, referenceImages?: string[]): Promise<string> => {
-    const apiKey = config.apiKey || (config as any).videoApiKey || ''; const provider = (config as any).videoProvider || 'memefast';
+    const apiKey = config.apiKey || (config as any).videoApiKey || ''; const provider = config.videoProvider || 'memefast';
     if (!apiKey) throw new Error('未配置视频生成 API Key');
+    if (context.isCancelled()) throw new Error('Cancelled');
     assertImageReady(imageUrl); for (const source of referenceImages || []) assertImageReady(source);
-    const response = await fetch(url('/api/ai/video'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ imageUrl, prompt, aspectRatio: config.aspectRatio || '9:16', duration: (config as any).duration || 5, apiKey, provider, referenceImages: referenceImages?.length ? referenceImages : undefined }) });
+    const response = await fetch(url('/api/ai/video'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ imageUrl, prompt, aspectRatio: config.aspectRatio || '9:16', duration: config.duration || 5, apiKey, provider, referenceImages: referenceImages?.length ? referenceImages : undefined }), signal: context.signal });
     if (!response.ok) { const data = await response.json().catch(() => ({})); throw new Error(data.error || `Video API request failed: ${response.status}`); }
     const data: SubmitResponse = await response.json();
     if (data.videoUrl && data.status === 'completed') return data.videoUrl;
     if (data.taskId) return pollTaskCompletion(data.taskId, 'video', apiKey, provider, onProgress);
     throw new Error('Invalid API response: no taskId or videoUrl');
   };
-  const fetchAsBlob = async (mediaUrl: string): Promise<Blob> => { const response = await fetch(mediaUrl); if (!response.ok) throw new Error(`Failed to download: ${response.status}`); return response.blob(); };
+  const fetchAsBlob = async (mediaUrl: string): Promise<Blob> => { if (context.isCancelled()) throw new Error('Cancelled'); const response = await fetch(mediaUrl, { signal: context.signal }); if (!response.ok) throw new Error(`Failed to download: ${response.status}`); return response.blob(); };
   return { generateImage, generateVideo, fetchAsBlob, pollTaskCompletion };
 }

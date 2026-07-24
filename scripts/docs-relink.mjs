@@ -126,6 +126,13 @@ function rewriteFile(filePath) {
     // 解析 target 的磁盘绝对路径
     const resolvedTarget = resolve(fileDir, target);
 
+    // A current, resolvable relative link is authoritative even when another
+    // document shares its basename in the relocation index.
+    if (existsSync(resolvedTarget)) {
+      unchanged++;
+      continue;
+    }
+
     // 判断 target 是否指向索引中的文件（.md 或根目录文件如 LICENSE）
     let bn = basename(target);
     let decodedBn = bn;

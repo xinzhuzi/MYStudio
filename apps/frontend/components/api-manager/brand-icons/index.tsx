@@ -9,11 +9,12 @@
 
 import type { ReactNode } from "react";
 import { BRAND_REGISTRY } from "@/lib/brand-mapping";
+import type { BrandIconFn } from "./brand-icon-types";
 import { iconsSmall } from "./icons-small";
 import { iconsMedium } from "./icons-medium";
 import { iconsLarge } from "./icons-large";
 
-export type BrandIconFn = (size: number) => ReactNode;
+export type { BrandIconFn } from "./brand-icon-types";
 
 /** 合并所有图标 */
 const ALL_ICONS: Record<string, BrandIconFn> = {

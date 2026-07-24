@@ -70,9 +70,9 @@ const BRAND_PATTERNS: Array<{ pattern: RegExp; brand: string }> = [
   { pattern: /^(glm|cogview|cogvideo|chatglm)/i,                        brand: 'zhipu' },
 
   // 豆包 Doubao (ByteDance)
-  { pattern: /^(doubao|seed[- ]?oss)/i,                                  brand: 'doubao' },
-  // seedance (豆包视频) — must be before generic seed
-  { pattern: /^(doubao-)?seed(ance|dream)/i,                             brand: 'doubao' },
+  { pattern: /^(doubao|seed[- ]?oss|bytedance[-_]?seedream)/i,            brand: 'doubao' },
+  // Seedance / Seedream (豆包视频/图片) — must be before generic seed
+  { pattern: /^(doubao-)?seed(ance|ream)/i,                               brand: 'doubao' },
 
   // Kling (可灵)
   { pattern: /^kling/i,                                                   brand: 'kling' },

@@ -2,7 +2,8 @@ import { updateProviderKeys, type IProvider } from "@/lib/api-key-manager";
 import type { FeatureBindings } from "@/lib/ai/feature-definitions";
 import { omitRecordKeys } from "./api-config-provider-helpers";
 import { syncProviderModels as syncProviderModelsFromApi } from "./api-config-model-sync";
-import type { AgentDeploymentConfig, APIConfigStore } from "./api-config-store";
+import type { AgentDeploymentConfig } from "./api-config-agent-deployments";
+import type { APIConfigStore } from "./api-config-store-types";
 
 export type APIConfigProviderActions = Pick<
   APIConfigStore,

@@ -62,10 +62,10 @@ import { generateVideoViaReplicate } from './freedom-replicate-video';
 import { runFreedomVideoRoute } from './freedom-video-dispatch';
 import {
   generateViaIdeogramEndpoint,
+  generateViaKlingImageEndpoint,
   generateViaMidjourneyEndpoint,
   generateViaReplicateImageEndpoint,
 } from './freedom-image-provider-adapters';
-import { resolveKlingModelName } from './freedom-model-names';
 import { saveFreedomImage, saveToMediaLibrary } from './freedom-media';
 import {
   generateVideoViaKling,
@@ -74,38 +74,11 @@ import {
   generateVideoViaVolc,
   generateVideoViaWan,
 } from './freedom-video-provider-adapters';
+import type { FreedomImageParams, FreedomVideoParams, GenerationResult } from './freedom-types';
+
+export type { FreedomImageParams, FreedomVideoParams, GenerationResult } from './freedom-types';
 
 export type { FreedomVideoUploadFile, FreedomVideoUploadRole } from './video-upload-validation';
-
-// ==================== Types ====================
-
-export interface FreedomImageParams {
-  prompt: string;
-  model?: string;
-  aspectRatio?: string;
-  resolution?: string;
-  width?: number;
-  height?: number;
-  negativePrompt?: string;
-  referenceImages?: string[];
-  extraParams?: Record<string, any>;
-  signal?: AbortSignal;
-}
-
-export interface FreedomVideoParams {
-  prompt: string;
-  model?: string;
-  aspectRatio?: string;
-  duration?: number;
-  resolution?: string;
-  uploadFiles?: FreedomVideoUploadFile[];
-}
-
-export interface GenerationResult {
-  url: string;
-  taskId?: string;
-  mediaId?: string;
-}
 
 // ==================== Constants ====================
 
@@ -153,7 +126,7 @@ export async function generateFreedomImage(
   const seen = new Set<string>();
   const fallbackConfigs: FeatureConfig[] = [];
   for (const feature of ['freedom_image', 'character_generation', 'scene_generation'] as const) {
-    for (const cfg of getAllFeatureConfigs(feature as any)) {
+    for (const cfg of getAllFeatureConfigs(feature)) {
       const key = cfg.provider.id + ':' + cfg.baseUrl;
       if (seen.has(key)) continue;
       seen.add(key);
@@ -239,7 +212,14 @@ async function _generateFreedomImageInner(
     );
   }
   if (route === 'kling_image') {
-    return await generateViaKlingImagesEndpoint(params, model, apiKey, normalizedBase);
+    return await generateViaKlingImageEndpoint(
+      params,
+      model,
+      apiKey,
+      normalizedBase,
+      () => generateViaImagesEndpoint(params, model, apiKey, normalizedBase),
+      saveFreedomImage,
+    );
   }
   if (route === 'replicate') {
     return await generateViaReplicateImageEndpoint(params, model, apiKey, normalizedBase, saveFreedomImage);
@@ -435,63 +415,6 @@ async function generateViaImagesEndpoint(
  * Composite IDs like 'kling-image-v1-5' → 'kling-v1-5' (MemeFast version ID).
  * Video version IDs (kling-v2-6) pass through unchanged.
  */
-/**
- * Generate image via Kling's native /kling/v1/images/* endpoints
- * Falls back to standard /v1/images/generations if native endpoint fails
- */
-async function generateViaKlingImagesEndpoint(
-  params: FreedomImageParams,
-  model: string,
-  apiKey: string,
-  baseUrl: string,
-): Promise<GenerationResult> {
-  const rootBase = getRootBaseUrl(baseUrl);
-  const nativePath = model === 'kling-omni-image'
-    ? 'kling/v1/images/omni-image'
-    : 'kling/v1/images/generations';
-
-  const body: Record<string, any> = { prompt: params.prompt, model: resolveKlingModelName(model) };
-  if (params.aspectRatio) body.aspect_ratio = params.aspectRatio;
-  if (params.negativePrompt) body.negative_prompt = params.negativePrompt;
-  if (params.referenceImages?.length) body.image_urls = params.referenceImages;
-  if (params.extraParams) Object.assign(body, params.extraParams);
-
-  let response: Response;
-  try {
-    response = await freedomObservedFetch(`${rootBase}/${nativePath}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-      body: JSON.stringify(body),
-      signal: params.signal,
-    });
-  } catch {
-    return generateViaImagesEndpoint(params, model, apiKey, baseUrl);
-  }
-
-  if (!response.ok) {
-    return generateViaImagesEndpoint(params, model, apiKey, baseUrl);
-  }
-
-  const data = await response.json();
-  let imageUrl = extractImageUrl(data);
-
-  if (!imageUrl && data.task_id) {
-    imageUrl = await pollForResult(
-      `${rootBase}/${nativePath}/${data.task_id}`,
-      apiKey,
-      IMAGE_POLL_INTERVAL,
-      IMAGE_POLL_MAX_ATTEMPTS,
-    );
-  }
-
-  if (!imageUrl) {
-    return generateViaImagesEndpoint(params, model, apiKey, baseUrl);
-  }
-
-  const mediaId = saveToMediaLibrary(imageUrl, params.prompt, 'ai-image');
-  return { url: imageUrl, taskId: data.task_id, mediaId };
-}
-
 function toHttpError(prefix: string, status: number, body: string): Error & { status: number } {
   const err = new Error(`${prefix}: ${status} ${body}`) as Error & { status: number };
   err.status = status;

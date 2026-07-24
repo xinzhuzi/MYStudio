@@ -1,6 +1,6 @@
 import { generateId } from "@/lib/api-key-manager";
 import { normalizeImageHostProvider } from "./api-config-image-host";
-import type { APIConfigStore } from "./api-config-store";
+import type { APIConfigStore } from "./api-config-store-types";
 
 export type APIConfigImageHostActions = Pick<
   APIConfigStore,

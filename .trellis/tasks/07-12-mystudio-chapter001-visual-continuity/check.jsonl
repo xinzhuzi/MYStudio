@@ -2,3 +2,4 @@
 {"file":".trellis/spec/frontend/quality-guidelines.md","reason":"Requires focused tests, typecheck, lint, and full Vitest without silent fallback."}
 {"file":".trellis/spec/frontend/workflow-auto-video-smoke.md","reason":"Keeps real-media acceptance separate from smoke and provider probes."}
 {"file":".trellis/tasks/07-12-mystudio-chapter001-visual-continuity/prd.md","reason":"Defines the locked Bible-first and sub-1MB acceptance conditions."}
+{"file":".trellis/tasks/07-12-mystudio-chapter001-visual-continuity/research/daojie-gongbi-v2-43-shot-dry-run-20260719-r05/report.json","reason":"Fresh 43-shot no-network V2 manifest and fail-closed reference-capability evidence after final prompt and fingerprint fixes."}

@@ -20,6 +20,8 @@ const scriptData = {
     name: "谢乘风",
     role: "主角",
     visualPromptZh: "玄衣青年",
+    stageInfo: { stageName: "青年期", episodeRange: [3, 5], ageDescription: "25岁" },
+    consistencyElements: { facialFeatures: "剑眉", bodyType: "修长", uniqueMarks: "左眉痣" },
   }],
   scenes: [{
     id: "scene-1",
@@ -89,6 +91,8 @@ describe("useScriptNavigation", () => {
       era: "现代",
       sourceEpisodeIndex: 3,
       sourceEpisodeId: "episode-3",
+      stageInfo: { stageName: "青年期", episodeRange: [3, 5], ageDescription: "25岁" },
+      consistencyElements: { facialFeatures: "剑眉", bodyType: "修长", uniqueMarks: "左眉痣" },
     }));
   });
 

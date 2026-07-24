@@ -5,6 +5,7 @@ import type { ContinuityAssetVersion, StoryboardItem } from "@/types/studio";
 import {
   createHumanContinuityAssetApproval,
   normalizeContinuityAssetVersion,
+  storyboardShotSemanticsFingerprint,
   visualContinuityFingerprint,
 } from "@/lib/studio/visual-continuity";
 import { VisualContinuityReviewPanel } from "./VisualContinuityReviewPanel";
@@ -25,6 +26,24 @@ function storyboard(index: number): StoryboardItem {
     assetIds: ["character:dugu", "scene:dock"],
     mediaRef: { kind: "image", path: `/frames/sb-${index}.png` },
     state: "ready",
+    shotSemantics: {
+      sceneViewpointId: "dock-main-axis",
+      personFree: false,
+      visibleCharacters: [{
+        name: "独孤剑尘",
+        position: "中景",
+        orientation: "朝右",
+        actionIn: "迈步",
+        actionOut: "继续迈步",
+      }],
+      visibleProps: [{
+        name: "三层油布剑包",
+        position: "背部中景",
+        state: "背负完整",
+      }],
+      actionIn: index > 1 ? "承接上一镜" : "建立场景",
+      actionOut: "继续向右",
+    },
     orderedReferenceManifest: versions.map((version, order) => ({
       order: order + 1,
       assetId: version.assetId,
@@ -59,9 +78,11 @@ function storyboard(index: number): StoryboardItem {
         actionIn: "迈步",
         actionOut: "继续迈步",
       }],
+      sourceSemanticsFingerprint: "",
       inputFingerprint: "",
     },
   };
+  item.continuityState!.sourceSemanticsFingerprint = storyboardShotSemanticsFingerprint(item.shotSemantics);
   item.continuityState!.inputFingerprint = visualContinuityFingerprint(item);
   return item;
 }

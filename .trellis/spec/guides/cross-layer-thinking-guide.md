@@ -161,6 +161,83 @@ against both fresh init and upgrade paths.
 
 ## Versioned Documentation Boundary
 
+## Paid Image Request Boundary
+
+When a storyboard image crosses the Python runner, Node provider helper, and an
+external image API, `generatedImages` is not a payment ledger. The request
+boundary must carry one immutable fingerprint across layers:
+
+- `logicalJob` and `logicalShot` identify the intended work, not an output
+  directory or filename.
+- `attemptId` identifies one execution in one non-overwriting output directory;
+  it must not be reused across directories even when `logicalShot` is the same.
+- `promptSha256`, ordered `referenceSha256`, the actual generation `endpoint`,
+  model, and `payloadSha256` identify what could be charged.
+- The append-only ledger records `POST_SENT`, `TASK_ACCEPTED`, `COMPLETED`,
+  `AMBIGUOUS`, or `FAILED`. The latest blocking status for a fingerprint stops
+  a duplicate POST before network I/O.
+- A pilot request must use exactly one provider and one API key, and must carry
+  explicit operator authorization. Provider/key fallback is not a recovery
+  strategy after a transport-ambiguous POST.
+- Reports must project the ledger evidence (`endpoint`, fingerprints, task ID,
+  and error type); an old report without those fields is unverified rather than
+  evidence that no charge occurred.
+- A continuity-asset request must bind its source-plan SHA-256, exact job ID,
+  prompt SHA-256, ordered source-image SHA-256 values, provider/model, output
+  path, and non-overwriting attempt ID into one `requestBindingSha256`. A paid
+  authorization is valid only when it records that exact binding.
+- An asset dry run must accept an explicitly unauthorized manifest, load no
+  provider credential, stop no desktop process, perform no image transfer or
+  POST, and report `requestAllowed=false` plus `generationEndpointCalled=false`.
+- A ledger `COMPLETED` event followed by download, decode, color-audit, or other
+  local post-processing failure is `provider-completed-local-failure`, not an
+  ambiguous provider request. Preserve the output and reject it locally without
+  retrying or rewriting the provider ledger.
+- Async response parsing must cover the provider's documented envelope at every
+  layer (including nested `result.data`), and a mock task-poll regression must
+  prove a successful task is not misclassified as a timeout.
+
+The Python runner owns logical-shot and authorization metadata. The Node helper
+owns the normalized prompt, transfer-thumbnail bytes, request payload hash, and
+actual endpoint. Tests must exercise the boundary with a mock HTTP server and
+assert that a repeated fingerprint produces zero additional POSTs.
+
+## AI Image Prompt, Reference, And Review Boundary
+
+An image request is not one prompt string. It crosses source semantics, prompt
+assembly, reference selection, provider transport, paid evidence, local output
+checks, and human review. Before a paid request, verify the complete chain:
+
+- [ ] The reviewed prompt and the provider prompt have the same SHA-256. A
+      transport adapter must not append style, quality, text, or watermark
+      wording after manifest review.
+- [ ] Raw Bible values and provider prompt projections are separate fields.
+      Preserve incompatible version/palette facts in audit evidence, but never
+      copy them into positive prompt text or relabel them as a compliant asset.
+- [ ] Every reference instruction is scoped by asset type. A trailing
+      "keep all references identical" sentence must not override current
+      medium, color, intact-clothing, light, action, or composition contracts.
+- [ ] The audit inspects the exact provider-selected image bytes, not an asset
+      title, alias, source list, or unselected canonical view.
+- [ ] Every selected image SHA-256 matches the declared manifest SHA-256.
+- [ ] A renamed version or rewritten prompt has not been used to promote old,
+      incompatible pixels.
+- [ ] Transport/capacity evidence and provider-native semantic-role evidence
+      are reported separately. Ordered images plus prompt markers do not prove
+      native role metadata.
+- [ ] Color prefilter thresholds and provenance match the authoritative local
+      implementation. Numeric color checks do not approve cleanliness,
+      clothing, age, identity, text, watermark, or continuity.
+- [ ] Output processing is ordered: preserve provider output, run local hard
+      gates, create the strict review thumbnail, then wait for human review.
+- [ ] A failed visual result changes the control mechanism before another paid
+      request; adding more negative words is not a new control strategy.
+
+**Failure pattern**: a gray-blue scene board and a ragged identity reference
+can dominate a prompt that says "clean, colorful, intact clothing". The fix is
+to block those selected pixels or replace the control input, not to claim that
+the negative prompt should override them.
+
 Versioned documentation is a cross-layer boundary: source paths, `docs.json`
 version routing, and the rendered version selector must all describe the same
 release line.

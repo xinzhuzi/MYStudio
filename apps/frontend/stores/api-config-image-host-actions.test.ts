@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { APIConfigStore } from "./api-config-store";
+import type { APIConfigStore } from "./api-config-store-types";
 import type { ImageHostProvider } from "./api-config-image-host";
 import { createAPIConfigImageHostActions } from "./api-config-image-host-actions";
 

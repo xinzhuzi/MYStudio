@@ -244,18 +244,21 @@ export function useWorkflowNodeEditor({
       return;
     }
     if (editingWorkflowNodeId === "storyboardTable") {
+      const parsed = parseStoryboardTable(text, episodeId, {
+        requireShotSemantics: true,
+      });
+      if (parsed.errors.length > 0 || parsed.rows.length === 0) {
+        toast.error(`分镜表不可保存: ${parsed.errors.join("；") || "没有分镜"}`);
+        return;
+      }
       saveAgentWorkData("storyboardTable", workflowNodeDraft, episodeId);
-      const parsed = parseStoryboardTable(text, episodeId);
       const workflowStore = useStudioStore.getState();
       const characters = workflowStore.entityExtractions.find(
         (item) => item.episodeId === episodeId,
       )?.characters ?? [];
       const items = toStoryboardItems(parsed.rows, episodeId, characters);
       workflowStore.replaceStoryboardsForEpisode(episodeId, items);
-      const warningText = parsed.errors.length
-        ? `，忽略非法行 ${parsed.errors.length} 条`
-        : "";
-      toast.success(`分镜表已保存：${items.length} 条分镜${warningText}`);
+      toast.success(`分镜表已保存：${items.length} 条分镜`);
       setEditingWorkflowNodeId(null);
       return;
     }

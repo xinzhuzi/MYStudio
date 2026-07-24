@@ -1,14 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { freedomObservedFetch } from "./freedom-transport";
+import { freedomObservedFetch, pollForFreedomResult } from "./freedom-transport";
 import {
   generateViaIdeogramEndpoint,
+  generateViaKlingImageEndpoint,
   generateViaMidjourneyEndpoint,
   generateViaReplicateImageEndpoint,
 } from "./freedom-image-provider-adapters";
 
 vi.mock("./freedom-transport", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./freedom-transport")>();
-  return { ...actual, freedomObservedFetch: vi.fn() };
+  return { ...actual, freedomObservedFetch: vi.fn(), pollForFreedomResult: vi.fn() };
 });
 
 function response(data: unknown, ok = true, status = 200): Response {
@@ -24,6 +25,7 @@ describe("freedom image provider adapters", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useFakeTimers();
+    vi.mocked(pollForFreedomResult).mockReset();
   });
 
   afterEach(() => {
@@ -94,5 +96,28 @@ describe("freedom image provider adapters", () => {
       model: "owner/model",
       input: { prompt: "character", aspect_ratio: "9:16", width: 768, quality: 90 },
     });
+  });
+
+  it("submits native Kling image requests and persists direct output", async () => {
+    vi.mocked(freedomObservedFetch).mockResolvedValue(response({ data: [{ url: "https://image.test/kling.png" }] }));
+    const saveImage = vi.fn(() => "media-kling");
+    await expect(generateViaKlingImageEndpoint({ prompt: "ink scene", aspectRatio: "16:9" }, "kling-image-v1-5", "key", "https://api.test/v1", vi.fn(), saveImage)).resolves.toEqual({ url: "https://image.test/kling.png", mediaId: "media-kling" });
+    expect(freedomObservedFetch).toHaveBeenCalledWith("https://api.test/kling/v1/images/generations", expect.objectContaining({ method: "POST" }));
+    expect(JSON.parse(String(vi.mocked(freedomObservedFetch).mock.calls[0][1]?.body))).toMatchObject({ model: "kling-v1-5", aspect_ratio: "16:9" });
+  });
+
+  it("falls back when the native Kling POST fails", async () => {
+    vi.mocked(freedomObservedFetch).mockResolvedValue(response({ error: "unsupported" }, false, 404));
+    const fallback = vi.fn(async () => ({ url: "https://image.test/fallback.png" }));
+    await expect(generateViaKlingImageEndpoint({ prompt: "fallback" }, "kling-image-v2", "key", "https://api.test/v1", fallback, vi.fn())).resolves.toEqual({ url: "https://image.test/fallback.png" });
+    expect(fallback).toHaveBeenCalledOnce();
+  });
+
+  it("polls native Kling tasks and surfaces terminal polling errors", async () => {
+    vi.mocked(freedomObservedFetch).mockResolvedValueOnce(response({ task_id: "task-1" }));
+    vi.mocked(pollForFreedomResult).mockResolvedValue("https://image.test/polled.png");
+    const pending = generateViaKlingImageEndpoint({ prompt: "poll" }, "kling-image-v2", "key", "https://api.test/v1", vi.fn(), vi.fn(() => "media-poll"));
+    await expect(pending).resolves.toMatchObject({ url: "https://image.test/polled.png", taskId: "task-1" });
+    expect(pollForFreedomResult).toHaveBeenCalledWith("https://api.test/kling/v1/images/generations/task-1", "key", 2000, 60);
   });
 });

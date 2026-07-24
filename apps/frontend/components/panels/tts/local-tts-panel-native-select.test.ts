@@ -18,10 +18,21 @@ describe("LocalTtsPanel select controls", () => {
     expect(source).toContain("Object.values(voiceProfilesById)");
   });
 
+  it("guards delayed polling and startup completion after unmount", () => {
+    const source = readFileSync(new URL("./LocalTtsPanel.tsx", import.meta.url), "utf8");
+
+    expect(source).toContain("let disposed = false;");
+    expect(source).toContain("if (disposed) return;");
+    expect(source).toContain("const mountedRef = useRef(true);");
+    expect(source).toContain("if (!mountedRef.current) return;");
+    expect(source).toContain("if (mountedRef.current) setStarting(false);");
+  });
+
   it("does not offer download actions for already cached models", () => {
     const source = readFileSync(new URL("./LocalTtsPanel.tsx", import.meta.url), "utf8");
-    const downloadedCheckIndex = source.indexOf('if (row.downloaded) return "downloaded";');
-    const progressErrorIndex = source.indexOf('if (progress?.status === "error") return "failed";');
+    const modelStateSource = readFileSync(new URL("./local-tts-model-state.ts", import.meta.url), "utf8");
+    const downloadedCheckIndex = modelStateSource.indexOf('if (row.downloaded) return "downloaded";');
+    const progressErrorIndex = modelStateSource.indexOf('if (progress?.status === "error") return "failed";');
 
     expect(source).toContain('state === "missing" || state === "failed"');
     expect(source).toContain("ModelStateLabel");
@@ -50,10 +61,12 @@ describe("LocalTtsPanel select controls", () => {
 
   it("shows the selected model cache location in the details dialog", () => {
     const source = readFileSync(new URL("./LocalTtsPanel.tsx", import.meta.url), "utf8");
+    const dialogSource = readFileSync(new URL("./LocalTtsModelDetailsDialog.tsx", import.meta.url), "utf8");
 
-    expect(source).toContain("模型位置");
-    expect(source).toContain("selectedModel.modelRepoPath");
-    expect(source).toContain("selectedModel.modelCacheDir");
+    expect(source).toContain("LocalTtsModelDetailsDialog");
+    expect(dialogSource).toContain("模型位置");
+    expect(dialogSource).toContain("selectedModel.modelRepoPath");
+    expect(dialogSource).toContain("selectedModel.modelCacheDir");
   });
 
   it("separates Python runtime setup progress from model downloads", () => {

@@ -14,6 +14,31 @@ export type SceneCharacterContext = {
   referenceImages: string[];
 };
 
+/** Collect character references in round-robin order, preserving first-seen uniqueness. */
+export function collectCharacterReferenceImages(
+  contexts: SceneCharacterContext[],
+  maxImages = MAX_REFERENCE_IMAGES,
+): string[] {
+  if (maxImages <= 0 || contexts.length === 0) return [];
+  const refs: string[] = [];
+  const seen = new Set<string>();
+  const maxDepth = contexts.reduce(
+    (depth, context) => Math.max(depth, context.referenceImages.length),
+    0,
+  );
+
+  for (let index = 0; index < maxDepth; index += 1) {
+    for (const context of contexts) {
+      const image = context.referenceImages[index];
+      if (!image || seen.has(image)) continue;
+      seen.add(image);
+      refs.push(image);
+      if (refs.length >= maxImages) return refs;
+    }
+  }
+  return refs;
+}
+
 export const MAX_REFERENCE_IMAGES = 14;
 const MAX_NANO_BANANA_REFERENCE_IMAGES = 6;
 const NANO_BANANA_IDENTITY_MODELS = new Set([

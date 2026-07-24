@@ -159,7 +159,7 @@ export function SceneLibrarySelector({
   // 预览参考图（提取到组件级别以便使用 hook）
   const previewRefImage = selectedSubView?.referenceImage || selectedSubView?.referenceImageBase64
     || selectedViewpoint?.referenceImage || selectedViewpoint?.referenceImageBase64
-    || selectedScene?.referenceImage || (selectedScene as any)?.contactSheetImage || selectedScene?.referenceImageBase64
+    || selectedScene?.referenceImage || selectedScene?.contactSheetImage || selectedScene?.referenceImageBase64
     || null;
   const resolvedPreview = useResolvedImageUrl(previewRefImage);
   
@@ -208,7 +208,7 @@ export function SceneLibrarySelector({
                 <div className="max-h-[300px] overflow-y-auto space-y-1 pr-1">
                   {parentScenes.map((s) => {
                     const isSelected = selectedSceneLibraryId === s.id;
-                    const thumbnail = s.referenceImage || (s as any).contactSheetImage || s.referenceImageBase64;
+                    const thumbnail = s.referenceImage || s.contactSheetImage || s.referenceImageBase64;
                     const hasViewpoints = libraryScenes.some(v => v.parentSceneId === s.id);
                     return (
                       <button

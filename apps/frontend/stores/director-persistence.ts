@@ -1,6 +1,6 @@
 import type { GenerationConfig } from "@opencut/ai-core";
 import { normalizeDirectorProjectData } from "./director-project-defaults";
-import type { DirectorProjectData, DirectorStore, SplitScene } from "./director-store";
+import type { DirectorProjectData, DirectorStore, SplitScene } from "./director-store-types";
 
 export interface DirectorPersistedState {
   activeProjectId: string | null;

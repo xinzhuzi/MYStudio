@@ -24,12 +24,16 @@ export type WorkerCommand =
   | CancelCommand
   | UpdateConfigCommand;
 
+export interface WorkerRunCommand {
+  runId?: number;
+}
+
 export interface PingCommand {
   type: 'PING';
   payload: { timestamp: number };
 }
 
-export interface GenerateScreenplayCommand {
+export interface GenerateScreenplayCommand extends WorkerRunCommand {
   type: 'GENERATE_SCREENPLAY';
   payload: {
     prompt: string;
@@ -38,7 +42,7 @@ export interface GenerateScreenplayCommand {
   };
 }
 
-export interface ExecuteScreenplayCommand {
+export interface ExecuteScreenplayCommand extends WorkerRunCommand {
   type: 'EXECUTE_SCREENPLAY';
   payload: {
     screenplay: AIScreenplay;
@@ -46,7 +50,7 @@ export interface ExecuteScreenplayCommand {
   };
 }
 
-export interface ExecuteSceneCommand {
+export interface ExecuteSceneCommand extends WorkerRunCommand {
   type: 'EXECUTE_SCENE';
   payload: {
     screenplayId: string;
@@ -57,7 +61,7 @@ export interface ExecuteSceneCommand {
   };
 }
 
-export interface ExecuteScreenplayImagesCommand {
+export interface ExecuteScreenplayImagesCommand extends WorkerRunCommand {
   type: 'EXECUTE_SCREENPLAY_IMAGES';
   payload: {
     screenplay: AIScreenplay;
@@ -65,7 +69,7 @@ export interface ExecuteScreenplayImagesCommand {
   };
 }
 
-export interface ExecuteScreenplayVideosCommand {
+export interface ExecuteScreenplayVideosCommand extends WorkerRunCommand {
   type: 'EXECUTE_SCREENPLAY_VIDEOS';
   payload: {
     screenplay: AIScreenplay;
@@ -81,7 +85,7 @@ export interface RetrySceneCommand {
   };
 }
 
-export interface CancelCommand {
+export interface CancelCommand extends WorkerRunCommand {
   type: 'CANCEL';
   payload?: {
     screenplayId?: string;
@@ -99,7 +103,11 @@ export interface UpdateConfigCommand {
 /**
  * Events sent from worker to main thread
  */
-export type WorkerEvent =
+export interface WorkerEventBase {
+  runId?: number;
+}
+
+export type WorkerEvent = (
   | PongEvent
   | ScreenplayReadyEvent
   | ScreenplayErrorEvent
@@ -110,7 +118,8 @@ export type WorkerEvent =
   | SceneFailedEvent
   | AllScenesCompletedEvent
   | WorkerErrorEvent
-  | WorkerReadyEvent;
+  | WorkerReadyEvent
+) & WorkerEventBase;
 
 export interface PongEvent {
   type: 'PONG';

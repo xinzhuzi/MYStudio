@@ -8,7 +8,7 @@
  */
 
 import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
+import { persist, createJSONStorage, type StateStorage } from 'zustand/middleware';
 import { registerCustomStyleLookup, type StylePreset } from '@/lib/constants/visual-styles';
 
 // ==================== Types ====================
@@ -77,6 +77,17 @@ const initialState: CustomStyleState = {
   folders: [],
   selectedStyleId: null,
   editingStyleId: null,
+};
+
+const getCustomStyleStorage = (): StateStorage => {
+  if (typeof globalThis.localStorage === 'undefined') {
+    return {
+      getItem: () => null,
+      setItem: () => undefined,
+      removeItem: () => undefined,
+    };
+  }
+  return globalThis.localStorage;
 };
 
 // ==================== Store ====================
@@ -183,7 +194,7 @@ export const useCustomStyleStore = create<CustomStyleStore>()(
     }),
     {
       name: 'mystudio-custom-styles',
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(getCustomStyleStorage),
       partialize: (state) => ({
         styles: state.styles,
         folders: state.folders,

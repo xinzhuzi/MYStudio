@@ -1,14 +1,59 @@
-import type { FreedomImageParams, GenerationResult } from "./freedom-api";
+import type { FreedomImageParams, GenerationResult } from "./freedom-types";
 import {
   extractFreedomImageUrl,
   freedomObservedFetch,
   getFreedomRootBaseUrl,
+  pollForFreedomResult,
 } from "./freedom-transport";
+import { resolveKlingModelName } from "./freedom-model-names";
 
 const IMAGE_POLL_INTERVAL = 2000;
 const IMAGE_POLL_MAX_ATTEMPTS = 60;
 
 export type SaveFreedomImage = (url: string, prompt: string) => string | undefined;
+
+export async function generateViaKlingImageEndpoint(
+  params: FreedomImageParams,
+  model: string,
+  apiKey: string,
+  baseUrl: string,
+  fallback: () => Promise<GenerationResult>,
+  saveImage: SaveFreedomImage,
+): Promise<GenerationResult> {
+  const rootBase = getFreedomRootBaseUrl(baseUrl);
+  const nativePath = model === "kling-omni-image"
+    ? "kling/v1/images/omni-image"
+    : "kling/v1/images/generations";
+  const body: Record<string, any> = { prompt: params.prompt, model: resolveKlingModelName(model) };
+  if (params.aspectRatio) body.aspect_ratio = params.aspectRatio;
+  if (params.negativePrompt) body.negative_prompt = params.negativePrompt;
+  if (params.referenceImages?.length) body.image_urls = params.referenceImages;
+  if (params.extraParams) Object.assign(body, params.extraParams);
+  let response: Response;
+  try {
+    response = await freedomObservedFetch(`${rootBase}/${nativePath}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
+      body: JSON.stringify(body),
+      signal: params.signal,
+    });
+  } catch {
+    return fallback();
+  }
+  if (!response.ok) return fallback();
+  const data = await response.json();
+  let imageUrl = extractFreedomImageUrl(data);
+  if (!imageUrl && data.task_id) {
+    imageUrl = await pollForFreedomResult(
+      `${rootBase}/${nativePath}/${data.task_id}`,
+      apiKey,
+      IMAGE_POLL_INTERVAL,
+      IMAGE_POLL_MAX_ATTEMPTS,
+    );
+  }
+  if (!imageUrl) return fallback();
+  return { url: imageUrl, taskId: data.task_id, mediaId: saveImage(imageUrl, params.prompt) };
+}
 
 function toHttpError(prefix: string, status: number, body: string): Error & { status: number } {
   const error = new Error(`${prefix}: ${status} ${body}`) as Error & { status: number };

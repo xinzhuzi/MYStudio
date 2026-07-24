@@ -3,10 +3,21 @@ import type {
   AutoEditingWarning,
   EditingProjectV1,
 } from "@/types/editing";
-import type { RunAutoEditingDraftInput } from "./auto-editing-engine";
+import type { BuildStoryboardEditingProjectInput } from "./storyboard-adapter";
+
+type AutoEditingPlanningInput = {
+  request: AutoEditingRequest;
+  adapterInput: Pick<
+    BuildStoryboardEditingProjectInput,
+    "projectId" | "episodeId" | "sourceSnapshotHash"
+  >;
+  existingProjects: EditingProjectV1[];
+  runId: string;
+  editingProjectId: string;
+};
 
 export function validateInputScope(
-  input: RunAutoEditingDraftInput,
+  input: AutoEditingPlanningInput,
 ): AutoEditingWarning | null {
   if (
     input.request.projectId !== input.adapterInput.projectId ||
@@ -29,7 +40,7 @@ export function validateInputScope(
   return null;
 }
 
-export function findReusableDraft(input: RunAutoEditingDraftInput): EditingProjectV1 | undefined {
+export function findReusableDraft(input: AutoEditingPlanningInput): EditingProjectV1 | undefined {
   return [...input.existingProjects].filter((project) =>
     project.projectId === input.request.projectId && project.episodeId === input.request.episodeId &&
     project.createdBy === "auto" && !project.manuallyEdited && !project.stale &&
@@ -37,7 +48,7 @@ export function findReusableDraft(input: RunAutoEditingDraftInput): EditingProje
   ).sort((left, right) => left.createdAt - right.createdAt || left.id.localeCompare(right.id)).at(-1);
 }
 
-export function staleProjectIds(input: RunAutoEditingDraftInput): string[] {
+export function staleProjectIds(input: AutoEditingPlanningInput): string[] {
   return input.existingProjects.filter((project) =>
     project.projectId === input.request.projectId && project.episodeId === input.request.episodeId &&
     project.createdBy === "auto" && !project.stale &&

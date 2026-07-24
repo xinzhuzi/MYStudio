@@ -175,18 +175,7 @@ export function createStorageManager({ userDataPath }: CreateStorageManagerOptio
   );
 
   const registerIpcHandlers = ({ getStudioManualsSourceRoot }: RegisterStorageIpcHandlersOptions) => {
-    ipcMain.handle("storage-get-paths", async () => ({
-      basePath: getStorageBasePath(),
-      projectPath: getProjectDataRoot(),
-      mediaPath: getMediaRoot(),
-      skillsPath: getSkillsRoot(),
-      cachePath: path.join(userDataPath, "Cache"),
-    }));
-    ipcMain.handle("storage-select-directory", async () => {
-      const result = await dialog.showOpenDialog({ properties: ["openDirectory", "createDirectory"] });
-      return result.canceled || !result.filePaths[0] ? null : result.filePaths[0];
-    });
-    ipcMain.handle("storage-validate-data-dir", async (_event, dirPath: string) => {
+    const validateDataDir = async (dirPath: string) => {
       try {
         if (!dirPath) return { valid: false, error: "路径不能为空" };
         const target = normalizePath(dirPath);
@@ -221,7 +210,19 @@ export function createStorageManager({ userDataPath }: CreateStorageManagerOptio
       } catch (error) {
         return { valid: false, error: String(error) };
       }
+    };
+    ipcMain.handle("storage-get-paths", async () => ({
+      basePath: getStorageBasePath(),
+      projectPath: getProjectDataRoot(),
+      mediaPath: getMediaRoot(),
+      skillsPath: getSkillsRoot(),
+      cachePath: path.join(userDataPath, "Cache"),
+    }));
+    ipcMain.handle("storage-select-directory", async () => {
+      const result = await dialog.showOpenDialog({ properties: ["openDirectory", "createDirectory"] });
+      return result.canceled || !result.filePaths[0] ? null : result.filePaths[0];
     });
+    ipcMain.handle("storage-validate-data-dir", async (_event, dirPath: string) => validateDataDir(dirPath));
     ipcMain.handle("storage-link-data", async (_event, dirPath: string) => {
       try {
         if (!dirPath) return { success: false, error: "路径不能为空" };
@@ -333,9 +334,7 @@ export function createStorageManager({ userDataPath }: CreateStorageManagerOptio
       }
     });
 
-    ipcMain.handle("storage-validate-project-dir", async (_event, dirPath: string) => (
-      ipcMain.emit("storage-validate-data-dir", null, dirPath)
-    ));
+    ipcMain.handle("storage-validate-project-dir", async (_event, dirPath: string) => validateDataDir(dirPath));
     ipcMain.handle("storage-link-project-data", async (_event, dirPath: string) => {
       const basePath = path.dirname(normalizePath(dirPath));
       updateBasePath(basePath);
@@ -372,6 +371,11 @@ export function createStorageManager({ userDataPath }: CreateStorageManagerOptio
         const mediaDir = path.join(source, "media");
         const currentProjectsDir = getProjectDataRoot();
         const currentMediaDir = getMediaRoot();
+        const currentStorageBase = path.resolve(getStorageBasePath());
+        const sourceResolved = path.resolve(source);
+        if ([currentStorageBase, path.resolve(currentProjectsDir), path.resolve(currentMediaDir)].includes(sourceResolved)) {
+          return { success: true };
+        }
         const backupDir = path.join(os.tmpdir(), `mystudio-legacy-import-backup-${Date.now()}`);
         try {
           for (const [current, name] of [[currentProjectsDir, "projects"], [currentMediaDir, "media"]] as const) {

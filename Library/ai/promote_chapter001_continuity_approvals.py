@@ -32,11 +32,17 @@ from Library.build_daojie_chapter001_workflow import (  # noqa: E402
     continuity_asset_structurally_complete,
     normalize_continuity_asset_version,
 )
+from Library.ai.prepare_chapter001_continuity_bibles import (  # noqa: E402
+    planned_reference_paths,
+    write_new_or_identical,
+)
 
 
 PROJECT_ID = "49dce4c1-64b1-42de-85c2-9f266698aec0"
 MAX_EVIDENCE_BYTES = 1_000_000
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
+CANDIDATE_REVIEW_SCHEMA_VERSION = "daojie-continuity-asset-review-v1"
+CANDIDATE_APPROVAL_SCHEMA_VERSION = "daojie-continuity-asset-human-approval-v1"
 
 
 def default_store_path() -> Path:
@@ -193,6 +199,196 @@ def validate_review_evidence(paths: list[Path]) -> list[dict[str, Any]]:
     return result
 
 
+def resolve_record_path(value: Any, label: str) -> Path:
+    raw = str(value or "").strip()
+    if not raw:
+        raise RuntimeError(f"{label}路径为空")
+    path = Path(raw).expanduser()
+    if not path.is_absolute():
+        path = REPOSITORY_ROOT / path
+    return path.resolve()
+
+
+def validate_bound_file(
+    record: Any,
+    label: str,
+    *,
+    expected_path: Path | None = None,
+) -> dict[str, Any]:
+    if not isinstance(record, dict):
+        raise RuntimeError(f"{label}记录无效")
+    path = resolve_record_path(record.get("path"), label)
+    if expected_path is not None and path != expected_path.resolve():
+        raise RuntimeError(f"{label}路径与审核记录不一致")
+    if not path.is_file():
+        raise RuntimeError(f"{label}文件不存在: {path}")
+    expected_hash = str(record.get("sha256") or "").strip().lower()
+    if len(expected_hash) != 64 or any(char not in "0123456789abcdef" for char in expected_hash):
+        raise RuntimeError(f"{label} SHA-256 无效")
+    actual_hash = sha256_path(path)
+    if actual_hash != expected_hash:
+        raise RuntimeError(f"{label} SHA-256 不匹配")
+    return {"path": path, "sha256": actual_hash, "bytes": path.stat().st_size}
+
+
+def iso_timestamp_ms(value: Any, label: str) -> int:
+    raw = str(value or "").strip()
+    try:
+        timestamp = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    except ValueError as error:
+        raise RuntimeError(f"{label}不是有效 ISO-8601 时间") from error
+    if timestamp.tzinfo is None:
+        raise RuntimeError(f"{label}必须包含时区")
+    milliseconds = int(timestamp.timestamp() * 1000)
+    if milliseconds <= 0:
+        raise RuntimeError(f"{label}必须晚于 Unix epoch")
+    return milliseconds
+
+
+def validate_candidate_image(record: Any, label: str) -> dict[str, Any]:
+    bound = validate_bound_file(record, label)
+    path = bound["path"]
+    try:
+        with Image.open(path) as image:
+            image.load()
+            width, height = image.size
+            image_format = image.format
+    except (OSError, ValueError, UnidentifiedImageError) as error:
+        raise RuntimeError(f"{label}无法解码") from error
+    if image_format != "PNG" or width <= 0 or height <= 0:
+        raise RuntimeError(f"{label}必须是有效 PNG")
+    if int(record.get("width") or 0) != width or int(record.get("height") or 0) != height:
+        raise RuntimeError(f"{label}尺寸与审核记录不一致")
+    if int(record.get("bytes") or 0) != bound["bytes"]:
+        raise RuntimeError(f"{label}字节数与审核记录不一致")
+    return {**bound, "width": width, "height": height}
+
+
+def validate_candidate_review(
+    review_path: Path,
+    asset_id: str,
+    evidence_paths: list[Path],
+) -> dict[str, Any]:
+    review_path = review_path.expanduser().resolve()
+    review = load_json_object(review_path, "连续性资产候选审核记录")
+    if review.get("schemaVersion") != CANDIDATE_REVIEW_SCHEMA_VERSION:
+        raise RuntimeError("连续性资产候选审核 schemaVersion 无效")
+    if review.get("status") != "pending-human-review":
+        raise RuntimeError("连续性资产候选必须处于 pending-human-review")
+    if review.get("assetId") != asset_id:
+        raise RuntimeError("连续性资产候选 assetId 与请求不一致")
+    if review.get("productionStoreMutated") is not False or review.get("assetApproved") is not False:
+        raise RuntimeError("连续性资产候选审核记录已声明生产写入或批准")
+    if (review.get("providerRequest") or {}).get("status") != "completed":
+        raise RuntimeError("连续性资产候选缺少已完成 provider 请求证据")
+
+    candidate = review.get("reviewCandidate")
+    if not isinstance(candidate, dict) or candidate.get("kind") != "non-destructive-tight-crop":
+        raise RuntimeError("连续性资产候选必须是已登记的非破坏裁切图")
+    candidate_file = validate_candidate_image(candidate, "连续性资产候选图")
+    thumbnail = candidate.get("thumbnail")
+    if not isinstance(thumbnail, dict):
+        raise RuntimeError("连续性资产候选缺少审核缩略图")
+    thumbnail_path = resolve_record_path(thumbnail.get("path"), "连续性资产候选缩略图")
+    requested_evidence = [path.expanduser().resolve() for path in evidence_paths]
+    if requested_evidence != [thumbnail_path]:
+        raise RuntimeError("人工批准必须使用候选记录登记的唯一审核缩略图")
+    evidence = validate_review_evidence(requested_evidence)
+    if evidence[0]["sha256"] != str(thumbnail.get("sha256") or "").lower():
+        raise RuntimeError("连续性资产候选缩略图 SHA-256 不匹配")
+    for field in ("width", "height", "bytes"):
+        if int(thumbnail.get(field) or 0) != int(evidence[0][field]):
+            raise RuntimeError(f"连续性资产候选缩略图 {field} 与审核记录不一致")
+
+    color_audit = candidate.get("colorAudit")
+    if not isinstance(color_audit, dict) or color_audit.get("status") != "pass":
+        raise RuntimeError("连续性资产候选未通过 V2 色彩门")
+    ratio = float(color_audit.get("chromaticPixelRatio") or -1)
+    band = color_audit.get("chromaticBand")
+    if band != [0.3, 0.7] or not 0.3 <= ratio <= 0.7:
+        raise RuntimeError("连续性资产候选色彩比例不在 0.30-0.70")
+    audit_path = resolve_record_path(color_audit.get("reportPath"), "连续性资产候选色彩报告")
+    audit = load_json_object(audit_path, "连续性资产候选色彩报告")
+    if (
+        audit.get("status") != "pass"
+        or audit.get("failedGates") != []
+        or float(audit.get("chromaticPixelRatio") or -1) != ratio
+        or audit.get("chromaticBand") != band
+    ):
+        raise RuntimeError("连续性资产候选色彩报告与审核记录不一致")
+
+    semantic = review.get("semanticAssessment") or {}
+    required_true = ("flatVermilionImprint", "basketSideCompatible", "shipBowCompatible")
+    required_false = ("isPedestalOrPhysicalFireTotem", "containsReadableText", "containsWatermark")
+    if any(semantic.get(field) is not True for field in required_true):
+        raise RuntimeError("连续性资产候选语义正向检查未通过")
+    if any(semantic.get(field) is not False for field in required_false):
+        raise RuntimeError("连续性资产候选语义负向检查未通过")
+    return {
+        "review": review,
+        "reviewPath": review_path,
+        "reviewSha256": sha256_path(review_path),
+        "candidate": candidate_file,
+        "evidence": evidence,
+    }
+
+
+def validate_candidate_approval_record(
+    approval_record_path: Path,
+    candidate_review: dict[str, Any],
+    asset_id: str,
+) -> dict[str, Any]:
+    path = approval_record_path.expanduser().resolve()
+    record = load_json_object(path, "连续性资产人工批准记录")
+    review = candidate_review["review"]
+    if record.get("schemaVersion") != CANDIDATE_APPROVAL_SCHEMA_VERSION:
+        raise RuntimeError("连续性资产人工批准 schemaVersion 无效")
+    if record.get("status") != "approved" or record.get("reviewer") != "human":
+        raise RuntimeError("连续性资产人工批准记录未获人工 approved")
+    if not str(record.get("userStatement") or "").strip():
+        raise RuntimeError("连续性资产人工批准记录缺少用户原话")
+    if (
+        record.get("assetId") != asset_id
+        or record.get("candidateId") != review.get("candidateId")
+    ):
+        raise RuntimeError("连续性资产人工批准记录与候选不一致")
+    scope = record.get("scope") or {}
+    if (
+        scope.get("approveCandidateOnly") is not True
+        or scope.get("allowNonOverwritingContinuityVersionPromotion") is not True
+        or scope.get("allowStoryboardVisualApproval") is not False
+        or scope.get("allowAdditionalPaidRequest") is not False
+    ):
+        raise RuntimeError("连续性资产人工批准范围无效")
+    review_binding = validate_bound_file(
+        record.get("reviewRecord"),
+        "人工批准绑定的审核记录",
+        expected_path=candidate_review["reviewPath"],
+    )
+    if review_binding["sha256"] != candidate_review["reviewSha256"]:
+        raise RuntimeError("人工批准绑定的审核记录 SHA-256 不一致")
+    approved_image = validate_bound_file(
+        record.get("approvedImage"),
+        "人工批准绑定的候选图",
+        expected_path=candidate_review["candidate"]["path"],
+    )
+    if approved_image["sha256"] != candidate_review["candidate"]["sha256"]:
+        raise RuntimeError("人工批准绑定的候选图 SHA-256 不一致")
+    review_evidence = validate_bound_file(
+        record.get("reviewEvidence"),
+        "人工批准绑定的审核缩略图",
+        expected_path=Path(candidate_review["evidence"][0]["path"]),
+    )
+    if review_evidence["sha256"] != candidate_review["evidence"][0]["sha256"]:
+        raise RuntimeError("人工批准绑定的审核缩略图 SHA-256 不一致")
+    return {
+        "record": record,
+        "path": path,
+        "sha256": sha256_path(path),
+        "reviewedAt": iso_timestamp_ms(record.get("recordedAt"), "人工批准 recordedAt"),
+    }
+
+
 def backup_store(path: Path) -> Path:
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
     backup = path.with_name(f"{path.name}.bak-continuity-approval-{stamp}")
@@ -207,6 +403,185 @@ def atomic_write_json(path: Path, value: dict[str, Any]) -> None:
         handle.flush()
         os.fsync(handle.fileno())
     os.replace(temporary, path)
+
+
+def promote_human_approved_candidate(
+    store_path: Path,
+    review_path: Path,
+    approval_record_path: Path,
+    asset_id: str,
+    version_id: str,
+    evidence_paths: list[Path],
+    *,
+    reason: str | None = None,
+    apply: bool = False,
+    human_confirmed: bool = False,
+) -> dict[str, Any]:
+    if apply and not human_confirmed:
+        raise RuntimeError("真实写入必须同时提供 --apply 与 --human-confirmed")
+    asset_id = asset_id.strip()
+    version_id = version_id.strip()
+    if not asset_id or not version_id:
+        raise RuntimeError("assetId 和 versionId 不能为空")
+    expected_version_id = f"{asset_id}:base:v1"
+    if version_id != expected_version_id:
+        raise RuntimeError(f"当前道具运行时只接受精确版本键 {expected_version_id}")
+
+    candidate_review = validate_candidate_review(review_path, asset_id, evidence_paths)
+    human_approval = validate_candidate_approval_record(
+        approval_record_path,
+        candidate_review,
+        asset_id,
+    )
+    store_path = store_path.expanduser().resolve()
+    store = load_json_object(store_path, "Studio workflow store")
+    state = store.get("state")
+    if not isinstance(state, dict):
+        raise RuntimeError("Studio workflow store 缺少 state 对象")
+    versions = state.get("continuityAssetVersions")
+    if not isinstance(versions, list):
+        raise RuntimeError("Studio workflow store 缺少 state.continuityAssetVersions 数组")
+    existing = [
+        item for item in versions
+        if isinstance(item, dict)
+        and item.get("assetId") == asset_id
+        and item.get("versionId") == version_id
+    ]
+    if existing:
+        raise RuntimeError(f"store 已存在 {asset_id}/{version_id}，拒绝覆盖")
+
+    candidate = candidate_review["candidate"]
+    source_path = Path(candidate["path"])
+    bible_root = store_path.parent / "continuity-bibles/chapter-001/v5"
+    planned_version = {
+        "assetId": asset_id,
+        "versionId": version_id,
+        "assetKind": "prop",
+        "referenceImagePaths": [str(source_path)],
+    }
+    target_path = planned_reference_paths(bible_root, planned_version)[0]
+    if target_path.exists() and sha256_path(target_path) != candidate["sha256"]:
+        raise RuntimeError(f"拒绝覆盖已有不同连续性资产: {target_path}")
+
+    reviewed_at = int(human_approval["reviewedAt"])
+    evidence = candidate_review["evidence"]
+    version: dict[str, Any] = {
+        "assetId": asset_id,
+        "versionId": version_id,
+        "assetKind": "prop",
+        "label": "chapter-001-base",
+        "referenceImagePaths": [str(target_path)],
+        "referenceImageSha256": [candidate["sha256"]],
+        "reviewEvidencePaths": [item["path"] for item in evidence],
+        "reviewEvidenceSha256": [item["sha256"] for item in evidence],
+        "reviewEvidenceVerifiedAt": reviewed_at,
+        "reviewStatus": "approved",
+        "approval": None,
+        "approvalFingerprint": None,
+        "approved": False,
+        "source": f"human-approved-candidate:{candidate_review['review'].get('candidateId')}",
+    }
+    version = normalize_continuity_asset_version(version)
+    approval_reason = str(reason or human_approval["record"].get("userStatement") or "").strip()
+    approval: dict[str, Any] = {
+        "status": "approved",
+        "reviewer": "human",
+        "reviewedAt": reviewed_at,
+        "evidencePaths": [item["path"] for item in evidence],
+        "contentFingerprint": version["contentFingerprint"],
+    }
+    if approval_reason:
+        approval["reason"] = approval_reason
+    version["approval"] = approval
+    version["approvalFingerprint"] = continuity_asset_approval_fingerprint(version, approval)
+    version["approved"] = True
+    version["reviewStatus"] = "approved"
+    version = normalize_continuity_asset_version(version)
+    version["reviewStatus"] = "approved"
+    if not version.get("approved"):
+        raise RuntimeError("候选资产人工批准未通过运行时指纹校验")
+
+    storyboards = state.get("storyboards")
+    if not isinstance(storyboards, list):
+        raise RuntimeError("Studio workflow store 缺少 state.storyboards 数组")
+    storyboard_guard = [
+        {
+            "id": storyboard.get("id"),
+            "visualReview": copy.deepcopy(storyboard.get("visualReview")),
+            "stale": storyboard.get("stale"),
+            "staleReason": storyboard.get("staleReason"),
+            "staleSince": storyboard.get("staleSince"),
+        }
+        for storyboard in storyboards
+    ]
+    state["continuityAssetVersions"].append(version)
+    reference_updates = 0
+    for storyboard in storyboards:
+        for reference in storyboard.get("orderedReferenceManifest") or []:
+            if reference.get("assetId") == asset_id and reference.get("versionId") == version_id:
+                reference.update({
+                    "imagePath": str(target_path),
+                    "referenceImagePaths": [str(target_path)],
+                    "referenceImageSha256": [candidate["sha256"]],
+                    "contentFingerprint": version["contentFingerprint"],
+                    "approvalFingerprint": version["approvalFingerprint"],
+                    "approved": True,
+                })
+                reference_updates += 1
+    after_storyboard_guard = [
+        {
+            "id": storyboard.get("id"),
+            "visualReview": copy.deepcopy(storyboard.get("visualReview")),
+            "stale": storyboard.get("stale"),
+            "staleReason": storyboard.get("staleReason"),
+            "staleSince": storyboard.get("staleSince"),
+        }
+        for storyboard in storyboards
+    ]
+    if after_storyboard_guard != storyboard_guard:
+        raise RuntimeError("候选资产批准不得修改分镜 visualReview 或 stale 状态")
+
+    before_bytes = store_path.read_bytes()
+    after_bytes = json_bytes(store)
+    target_existed = target_path.exists()
+    report: dict[str, Any] = {
+        "dryRun": not apply,
+        "changed": before_bytes != after_bytes,
+        "store": str(store_path),
+        "candidateReview": str(candidate_review["reviewPath"]),
+        "candidateReviewSha256": candidate_review["reviewSha256"],
+        "humanApprovalRecord": str(human_approval["path"]),
+        "humanApprovalRecordSha256": human_approval["sha256"],
+        "assetId": asset_id,
+        "versionId": version_id,
+        "contentFingerprint": version["contentFingerprint"],
+        "approvalFingerprint": version["approvalFingerprint"],
+        "canonicalReference": {
+            "sourcePath": str(source_path),
+            "targetPath": str(target_path),
+            "sha256": candidate["sha256"],
+            "targetExistedBefore": target_existed,
+        },
+        "reviewEvidence": evidence,
+        "orderedReferenceUpdates": reference_updates,
+        "storyboardReviewsChanged": 0,
+        "staleFlagsCleared": 0,
+        "assetDatabaseMutated": False,
+        "beforeSha256": hashlib.sha256(before_bytes).hexdigest(),
+        "afterSha256": hashlib.sha256(after_bytes).hexdigest(),
+        "backup": None,
+    }
+    if apply:
+        backup = backup_store(store_path)
+        write_new_or_identical(target_path, source_path.read_bytes())
+        if sha256_path(target_path) != candidate["sha256"]:
+            raise RuntimeError("写入后的连续性资产 SHA-256 不匹配")
+        atomic_write_json(store_path, store)
+        report["backup"] = str(backup)
+        report["backupSha256"] = sha256_path(backup)
+        report["writtenSha256"] = sha256_path(store_path)
+        report["canonicalReference"]["targetCreated"] = not target_existed
+    return report
 
 
 def promote_human_approval(
@@ -375,7 +750,10 @@ def main() -> None:
         description="安全推广一个已获人工明确确认的第一章连续性资产版本",
     )
     parser.add_argument("--store", type=Path, default=default_store_path())
-    parser.add_argument("--manifest", type=Path, required=True)
+    source = parser.add_mutually_exclusive_group(required=True)
+    source.add_argument("--manifest", type=Path)
+    source.add_argument("--candidate-review", type=Path)
+    parser.add_argument("--human-approval-record", type=Path)
     parser.add_argument("--asset-id", required=True)
     parser.add_argument("--version-id", required=True)
     parser.add_argument("--evidence", type=Path, action="append", required=True)
@@ -383,16 +761,33 @@ def main() -> None:
     parser.add_argument("--apply", action="store_true")
     parser.add_argument("--human-confirmed", action="store_true")
     args = parser.parse_args()
-    report = promote_human_approval(
-        args.store,
-        args.manifest,
-        args.asset_id,
-        args.version_id,
-        args.evidence,
-        reason=args.reason,
-        apply=args.apply,
-        human_confirmed=args.human_confirmed,
-    )
+    if args.candidate_review:
+        if args.human_approval_record is None:
+            parser.error("--candidate-review 必须同时提供 --human-approval-record")
+        report = promote_human_approved_candidate(
+            args.store,
+            args.candidate_review,
+            args.human_approval_record,
+            args.asset_id,
+            args.version_id,
+            args.evidence,
+            reason=args.reason,
+            apply=args.apply,
+            human_confirmed=args.human_confirmed,
+        )
+    else:
+        if args.human_approval_record is not None:
+            parser.error("--human-approval-record 仅用于 --candidate-review")
+        report = promote_human_approval(
+            args.store,
+            args.manifest,
+            args.asset_id,
+            args.version_id,
+            args.evidence,
+            reason=args.reason,
+            apply=args.apply,
+            human_confirmed=args.human_confirmed,
+        )
     print(json.dumps(report, ensure_ascii=False, indent=2))
 
 

@@ -3,24 +3,18 @@
 import { type ChangeEvent, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertCircle,
-  CircleCheck,
-  CircleX,
   Download,
-  ExternalLink,
   FolderOpen,
-  HardDrive,
   Loader2,
   Play,
   RefreshCw,
   Server,
   Square,
-  Trash2,
   Unplug,
   Upload,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
@@ -59,16 +53,18 @@ import type { TtsActiveTasksResponse, TtsEngine, TtsModelCacheInfo, TtsModelRow,
 import { useTtsStore } from "@/stores/tts-store";
 import { cn } from "@/lib/utils";
 import { VoiceProfileSection } from "./VoiceProfileSection";
-
-interface ModelProgressEvent {
-  model_name: string;
-  current: number;
-  total: number;
-  progress: number;
-  filename?: string;
-  status: "idle" | "downloading" | "complete" | "error" | string;
-  error?: string;
-}
+import { formatBytes, formatSizeMb } from "./local-tts-formatters";
+import { applyLocalTtsRuntimeStatus, canApplyLocalTtsUpdate } from "./local-tts-panel-lifecycle";
+import {
+  LocalTtsModelDetailsDialog,
+  ModelStateIcon,
+  ModelStateLabel,
+  PendingScanLabel,
+} from "./LocalTtsModelDetailsDialog";
+import {
+  getLocalTtsModelState,
+  type ModelProgressEvent,
+} from "./local-tts-model-state";
 
 const purposeGroups = groupTtsModelsByPurpose();
 
@@ -95,49 +91,6 @@ function NativeTtsSelect({
       {children}
     </select>
   );
-}
-
-function formatSizeMb(sizeMb?: number | null) {
-  if (!sizeMb) return "未知";
-  if (sizeMb >= 1024) return `${(sizeMb / 1024).toFixed(sizeMb >= 10 * 1024 ? 1 : 2)} GB`;
-  return `${Math.round(sizeMb)} MB`;
-}
-
-function formatBytes(bytes?: number) {
-  if (!bytes) return "0 B";
-  const units = ["B", "KB", "MB", "GB", "TB"];
-  const index = Math.min(units.length - 1, Math.floor(Math.log(bytes) / Math.log(1024)));
-  return `${(bytes / Math.pow(1024, index)).toFixed(index === 0 ? 0 : 1)} ${units[index]}`;
-}
-
-function getModelState(row: TtsModelRow, progress?: ModelProgressEvent) {
-  if (row.loaded) return "loaded";
-  if (row.downloading) return "downloading";
-  if (row.downloaded) return "downloaded";
-  if (progress?.status === "downloading") return "downloading";
-  if (progress?.status === "complete") return "downloaded";
-  if (progress?.status === "error") return "failed";
-  return "missing";
-}
-
-function ModelStateIcon({ state }: { state: string }) {
-  if (state === "downloading") return <Loader2 className="h-4 w-4 animate-spin text-blue-500" />;
-  if (state === "loaded") return <Play className="h-4 w-4 text-emerald-500" />;
-  if (state === "downloaded") return <CircleCheck className="h-4 w-4 text-emerald-500" />;
-  if (state === "failed") return <CircleX className="h-4 w-4 text-destructive" />;
-  return <Download className="h-4 w-4 text-muted-foreground" />;
-}
-
-function ModelStateLabel({ state }: { state: string }) {
-  if (state === "loaded") return <span className="text-xs font-medium text-emerald-500">已加载</span>;
-  if (state === "downloaded") return <span className="text-xs font-medium text-emerald-500">已下载</span>;
-  if (state === "failed") return <span className="text-xs font-medium text-destructive">失败</span>;
-  if (state === "downloading") return <span className="text-xs font-medium text-blue-500">下载中</span>;
-  return <span className="text-xs text-muted-foreground">未下载</span>;
-}
-
-function PendingScanLabel() {
-  return <span className="text-xs text-muted-foreground">启动后扫描</span>;
 }
 
 function RuntimeStatusLine({ label, value }: { label: string; value: ReactNode }) {
@@ -232,7 +185,7 @@ function ModelRow({
   onDownload: (row: TtsModelRow) => void;
   onCancel: (row: TtsModelRow) => void;
 }) {
-  const state = getModelState(row, progress);
+  const state = getLocalTtsModelState(row, progress);
   const progressValue = progress?.progress ?? (state === "downloaded" || state === "loaded" ? 100 : 0);
 
   return (
@@ -313,6 +266,7 @@ export function LocalTtsPanel() {
   const [uploadingReference, setUploadingReference] = useState(false);
   const referenceInputRef = useRef<HTMLInputElement>(null);
   const subscriptions = useRef<Record<string, () => void>>({});
+  const mountedRef = useRef(true);
   const voiceProfilesById = useTtsStore((state) => state.voiceProfiles);
   const createVoiceProfile = useTtsStore((state) => state.createVoiceProfile);
   const voiceProfiles = useMemo(() => Object.values(voiceProfilesById), [voiceProfilesById]);
@@ -365,6 +319,7 @@ export function LocalTtsPanel() {
       subscriptions.current[modelName] = await subscribeModelProgress(
         modelName,
         (event) => {
+          if (!canApplyLocalTtsUpdate(mountedRef.current)) return;
           const next = event as ModelProgressEvent;
           setProgressByModel((prev) => ({ ...prev, [modelName]: next }));
           if (next.status === "error" && next.error) {
@@ -384,7 +339,9 @@ export function LocalTtsPanel() {
         },
       );
     } catch (error) {
-      setErrors((prev) => ({ ...prev, [modelName]: error instanceof Error ? error.message : "订阅下载进度失败" }));
+      if (canApplyLocalTtsUpdate(mountedRef.current)) {
+        setErrors((prev) => ({ ...prev, [modelName]: error instanceof Error ? error.message : "订阅下载进度失败" }));
+      }
     }
   }, []);
 
@@ -392,6 +349,7 @@ export function LocalTtsPanel() {
     setRefreshing(true);
     try {
       const status = await getTtsRuntimeStatus();
+      if (!canApplyLocalTtsUpdate(mountedRef.current)) return null;
       setRuntimeStatus(status);
       if (!modelCacheDirtyRef.current) {
         setDraftModelCacheDir(status.modelCacheDir || "");
@@ -412,6 +370,7 @@ export function LocalTtsPanel() {
         getActiveTasks(),
         getModelCacheDir(),
       ]);
+      if (!canApplyLocalTtsUpdate(mountedRef.current)) return status;
       setModelCacheInfo(cacheInfo);
       setRows(applyModelStatuses(modelStatus.models));
       setActiveTasks(tasks);
@@ -425,30 +384,41 @@ export function LocalTtsPanel() {
       });
       return status;
     } catch (error) {
-      setErrors((prev) => ({ ...prev, runtime: error instanceof Error ? error.message : "刷新本地 TTS 状态失败" }));
+      if (canApplyLocalTtsUpdate(mountedRef.current)) {
+        setErrors((prev) => ({ ...prev, runtime: error instanceof Error ? error.message : "刷新本地 TTS 状态失败" }));
+      }
       return null;
     } finally {
-      setRefreshing(false);
+      if (canApplyLocalTtsUpdate(mountedRef.current)) setRefreshing(false);
     }
   }, [attachProgress]);
 
   useEffect(() => {
+    mountedRef.current = true;
+    let disposed = false;
     let timer: number | undefined;
     // 延迟检查，避免切换侧边栏时阻塞
     const delay = setTimeout(() => {
       void refresh().then((status) => {
+        if (disposed) return;
         if (status?.running) {
           timer = window.setInterval(() => void refresh(), 5000);
         }
       });
     }, 500);
     return () => {
+      disposed = true;
+      mountedRef.current = false;
       clearTimeout(delay);
       if (timer) window.clearInterval(timer);
       Object.values(subscriptions.current).forEach((close) => close());
       subscriptions.current = {};
     };
   }, [refresh]);
+
+  useEffect(() => () => {
+    mountedRef.current = false;
+  }, []);
 
   useEffect(() => {
     setSelectedModel((current) => {
@@ -463,21 +433,24 @@ export function LocalTtsPanel() {
     try {
       setupPoll = window.setInterval(() => {
         void getTtsRuntimeStatus()
-          .then(setRuntimeStatus)
+          .then((status) => {
+            applyLocalTtsRuntimeStatus(mountedRef.current, status, setRuntimeStatus);
+          })
           .catch(() => {});
       }, 500);
       const result = await startTtsRuntime();
+      if (!mountedRef.current) return;
       if (result.success) {
         toast.success("本地 TTS 后端已启动");
       } else {
         toast.error(result.error || "本地 TTS 后端启动失败");
       }
-      await refresh();
+      if (mountedRef.current) await refresh();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "启动失败");
     } finally {
       if (setupPoll) window.clearInterval(setupPoll);
-      setStarting(false);
+      if (mountedRef.current) setStarting(false);
     }
   };
 
@@ -667,7 +640,7 @@ export function LocalTtsPanel() {
   };
 
   const selectedProgress = selectedModel ? progressByModel[selectedModel.modelName] : undefined;
-  const selectedState = selectedModel ? getModelState(selectedModel, selectedProgress) : "missing";
+  const selectedState = selectedModel ? getLocalTtsModelState(selectedModel, selectedProgress) : "missing";
   const scanPaths = modelCacheInfo?.scan_paths?.filter(Boolean) ?? [];
   const runtimeSetupStage = runtimeStatus?.setupStage ?? "idle";
   const runtimeSetupActive = ["checking", "downloading-python", "extracting-python", "installing-deps", "starting-backend"].includes(runtimeSetupStage);
@@ -958,93 +931,17 @@ export function LocalTtsPanel() {
         </section>}
       </div>
 
-      <Dialog open={!!selectedModel} onOpenChange={(open) => !open && setSelectedModel(null)}>
-        <DialogContent className="tts-glass-dialog max-w-2xl border-white/[0.08] bg-background/80 backdrop-blur-2xl shadow-2xl shadow-black/[0.2]">
-          {selectedModel && (
-            <>
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2">
-                  <ModelStateIcon state={selectedState} />
-                  {selectedModel.displayName}
-                </DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-3">
-                    <div className="text-xs text-muted-foreground">HuggingFace Repo</div>
-                    <div className="mt-1 flex items-center gap-2 truncate font-mono text-xs">
-                      {selectedModel.hfRepoId}
-                      <a href={`https://huggingface.co/${selectedModel.hfRepoId}`} target="_blank" rel="noreferrer">
-                        <ExternalLink className="h-3.5 w-3.5" />
-                      </a>
-                    </div>
-                  </div>
-                  <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-3">
-                    <div className="text-xs text-muted-foreground">磁盘大小</div>
-                    <div className="mt-1 flex items-center gap-2 text-sm">
-                      <HardDrive className="h-4 w-4 text-muted-foreground" />
-                      {formatSizeMb(selectedModel.sizeMb)}
-                    </div>
-                  </div>
-                </div>
-                <p className="text-sm text-muted-foreground">{selectedModel.description}</p>
-                <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-3">
-                  <div className="text-xs text-muted-foreground">模型位置</div>
-                  <div className="mt-1 break-all font-mono text-xs text-foreground">
-                    {selectedModel.modelRepoPath || selectedModel.modelCacheDir || (selectedState === "missing" ? "未下载，未找到本地路径" : "启动后扫描")}
-                  </div>
-                  {selectedModel.modelRepoPath && selectedModel.modelCacheDir && (
-                    <div className="mt-2 break-all text-xs text-muted-foreground">缓存目录：{selectedModel.modelCacheDir}</div>
-                  )}
-                </div>
-                <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3 text-xs text-muted-foreground">
-                  License 以 HuggingFace 模型页为准；MYStudio 仅管理本地缓存和运行入口。
-                </div>
-                {selectedProgress && (
-                  <div>
-                    <Progress value={selectedProgress.progress} className="h-2" />
-                    <div className="mt-2 flex justify-between gap-3 text-xs text-muted-foreground">
-                      <span className="truncate">{selectedProgress.filename || selectedProgress.status}</span>
-                      <span>{Math.round(selectedProgress.progress)}%</span>
-                    </div>
-                  </div>
-                )}
-                <div className="flex flex-wrap justify-end gap-2">
-                  {selectedState === "downloading" ? (
-                    <Button variant="outline" onClick={() => void handleCancel(selectedModel)}>
-                      <Square className="mr-2 h-4 w-4" />
-                      取消
-                    </Button>
-                  ) : selectedState === "missing" || selectedState === "failed" ? (
-                    runtimeStatus?.running ? (
-                      <Button onClick={() => void handleDownload(selectedModel)}>
-                        <Download className="mr-2 h-4 w-4" />
-                        {selectedState === "failed" ? "重试下载" : "下载"}
-                      </Button>
-                    ) : (
-                      <div className="flex h-9 items-center px-2">
-                        <PendingScanLabel />
-                      </div>
-                    )
-                  ) : (
-                    <div className="flex h-9 items-center px-2">
-                      <ModelStateLabel state={selectedState} />
-                    </div>
-                  )}
-                  <Button variant="outline" onClick={() => void handleUnload(selectedModel)}>
-                    <Unplug className="mr-2 h-4 w-4" />
-                    卸载
-                  </Button>
-                  <Button variant="destructive" onClick={() => void handleDelete(selectedModel)}>
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    删除
-                  </Button>
-                </div>
-              </div>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
+      <LocalTtsModelDetailsDialog
+        selectedModel={selectedModel}
+        selectedState={selectedState}
+        selectedProgress={selectedProgress}
+        runtimeRunning={runtimeStatus?.running === true}
+        onOpenChange={(open) => !open && setSelectedModel(null)}
+        onCancel={(row) => void handleCancel(row)}
+        onDownload={(row) => void handleDownload(row)}
+        onUnload={(row) => void handleUnload(row)}
+        onDelete={(row) => void handleDelete(row)}
+      />
     </ScrollArea>
   );
 }

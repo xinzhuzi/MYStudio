@@ -31,6 +31,11 @@ export async function runStaggered<T>(
 ): Promise<PromiseSettledResult<T>[]> {
   if (tasks.length === 0) return [];
 
+  // Invalid concurrency must not leave every waiter blocked forever.
+  const effectiveMaxConcurrent = Number.isFinite(maxConcurrent)
+    ? Math.max(1, Math.floor(maxConcurrent))
+    : 1;
+
   const results: PromiseSettledResult<T>[] = new Array(tasks.length);
 
   // 信号量：控制最大并发数
@@ -38,7 +43,7 @@ export async function runStaggered<T>(
   const waiters: (() => void)[] = [];
 
   const acquire = async (): Promise<void> => {
-    if (activeCount < maxConcurrent) {
+    if (activeCount < effectiveMaxConcurrent) {
       activeCount++;
       return;
     }
@@ -72,7 +77,7 @@ export async function runStaggered<T>(
       const value = await task();
       results[idx] = { status: 'fulfilled', value };
     } catch (reason) {
-      results[idx] = { status: 'rejected', reason: reason as any };
+      results[idx] = { status: 'rejected', reason };
     } finally {
       release();
     }

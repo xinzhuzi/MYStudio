@@ -9,6 +9,7 @@ type VoiceProfileInput = Omit<VoiceProfile, "id" | "createdAt" | "updatedAt">;
 export interface VoiceProfileSink {
   createVoiceProfile: (profile: VoiceProfileInput) => string;
   bindSpeaker: (binding: ProjectVoiceBinding) => void;
+  getBinding?: (speakerId: ProjectVoiceBinding["speakerId"]) => ProjectVoiceBinding | undefined;
 }
 
 export interface SyncCharacterVoicesDeps {
@@ -34,6 +35,13 @@ export function syncCharacterVoices(
   let bound = 0;
 
   for (const assignment of assignments) {
+    const existingBinding = sink.getBinding?.(assignment.speakerId);
+    if (existingBinding) {
+      profileIdByCharacter[assignment.characterId] = existingBinding.profileId;
+      bound += 1;
+      continue;
+    }
+
     const engine = assignment.engine;
     const modelSize = getDefaultModelSizeForEngine(engine);
     const profileId = sink.createVoiceProfile({
@@ -65,5 +73,6 @@ export function createMystudioTtsSink(): VoiceProfileSink {
   return {
     createVoiceProfile: (profile) => useTtsStore.getState().createVoiceProfile(profile).id,
     bindSpeaker: (binding) => useTtsStore.getState().bindSpeaker(binding),
+    getBinding: (speakerId) => useTtsStore.getState().getBinding(speakerId),
   };
 }

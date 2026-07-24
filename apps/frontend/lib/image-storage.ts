@@ -6,6 +6,8 @@
  * Handles saving and loading images via Electron IPC
  */
 
+import { fetchRemoteImageDataUrl } from "./remote-image-fetch";
+
 // Type declarations for the imageStorage API exposed by preload
 declare global {
   interface Window {
@@ -144,14 +146,7 @@ export async function readImageAsBase64(imagePath: string): Promise<string | nul
   // If it's a remote URL, fetch and convert
   if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
     try {
-      const response = await fetch(imagePath);
-      const blob = await response.blob();
-      return new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result as string);
-        reader.onerror = () => resolve(null);
-        reader.readAsDataURL(blob);
-      });
+      return await fetchRemoteImageDataUrl(imagePath);
     } catch (error) {
       console.error('Error fetching remote image:', error);
       return null;

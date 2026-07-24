@@ -355,11 +355,15 @@ export const useAPIConfigStore = create<APIConfigStore>()(
 
       getAllConfigs: () => {
         const { apiKeys, maskApiKey, isConfigured } = get();
-        return (Object.keys(PROVIDER_INFO) as ProviderId[]).map((provider) => ({
-          provider,
-          configured: isConfigured(provider),
-          masked: maskApiKey(apiKeys[provider] || ''),
-        }));
+        return (Object.keys(PROVIDER_INFO) as ProviderId[]).map((provider) => {
+          const resolvedProvider = get().getProviderByPlatform(provider);
+          const key = resolvedProvider ? resolvedProvider.apiKey : apiKeys[provider];
+          return {
+            provider,
+            configured: isConfigured(provider),
+            masked: maskApiKey(key || ''),
+          };
+        });
       },
 
       // ==================== Model limits discovery ====================

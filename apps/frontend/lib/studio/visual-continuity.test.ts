@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { ContinuityAssetVersion, StoryboardItem } from "@/types/studio";
 import {
   approvedVisualReview,
+  approvedVisualReviewIssues,
   auditVisualContinuity,
   assertVisualContinuityApproved,
   buildContinuityPrompt,
@@ -12,6 +13,8 @@ import {
   isContinuityAssetVersionApproved,
   markContinuityDependentsStale,
   normalizeContinuityAssetVersion,
+  storyboardContinuityStateIssues,
+  storyboardShotSemanticsFingerprint,
   storyboardPrimarySceneIssues,
   visualContinuityFingerprint,
   visualReviewInputFingerprint,
@@ -90,6 +93,20 @@ function storyboard(index: number): StoryboardItem {
     assetIds: ["character:dugu", "scene:dock"],
     mediaRef: { kind: "image", path: `/frames/sb-${index}.png` },
     state: "ready",
+    shotSemantics: {
+      sceneViewpointId: "dock:reverse",
+      personFree: false,
+      visibleCharacters: [{
+        name: "独孤剑尘",
+        position: "中前",
+        orientation: "3/4朝右",
+        actionIn: "迈步",
+        actionOut: "继续前行",
+      }],
+      visibleProps: [],
+      actionIn: index > 1 ? "承接前镜步伐" : "苦力队列前行",
+      actionOut: "人物向右离画",
+    },
     orderedReferenceManifest: [
       { order: 2, assetId: "scene:dock", assetKind: "scene", versionId: "dock:morning", imagePath: "/dock.png", referenceRole: "scene-viewpoint", sceneViewpointId: "dock:reverse" },
       { order: 1, assetId: "character:dugu", assetKind: "character", versionId: "dugu:base", imagePath: "/dugu.png", referenceRole: "canonical" },
@@ -104,6 +121,7 @@ function storyboard(index: number): StoryboardItem {
       actionIn: index > 1 ? "承接前镜步伐" : "苦力队列前行",
       actionOut: "人物向右离画",
       characters: [{ characterId: "dugu", versionId: "dugu:base", position: "中前", orientation: "3/4朝右", actionIn: "迈步", actionOut: "继续前行" }],
+      sourceSemanticsFingerprint: "",
       inputFingerprint: "",
     },
   };
@@ -117,6 +135,7 @@ function storyboard(index: number): StoryboardItem {
       approved: version?.approved,
     };
   });
+  item.continuityState!.sourceSemanticsFingerprint = storyboardShotSemanticsFingerprint(item.shotSemantics);
   item.continuityState!.inputFingerprint = visualContinuityFingerprint(item);
   item.visualReview = approvedVisualReview({
     reviewedAt: 1,
@@ -132,6 +151,24 @@ function storyboard(index: number): StoryboardItem {
 }
 
 describe("storyboard visual continuity", () => {
+  it("invalidates continuity and human review when only shot semantics change", () => {
+    const item = storyboard(1);
+    item.shotSemantics = {
+      ...item.shotSemantics!,
+      visibleCharacters: [{
+        ...item.shotSemantics!.visibleCharacters[0]!,
+        actionOut: "停在画面右侧回望",
+      }],
+    };
+
+    expect(storyboardContinuityStateIssues(item)).toMatchObject([
+      { code: "continuity.stale" },
+    ]);
+    expect(approvedVisualReviewIssues(item, item.visualReview, storyboardAssetVersions())).toMatchObject([
+      { code: "continuity.stale" },
+    ]);
+  });
+
   it("does not treat structural completeness or an automated reviewer as asset approval", () => {
     const structural = continuityAssetVersion("character", "character:dugu", "dugu:base");
     expect(structural).toMatchObject({ structurallyComplete: true, approved: false });

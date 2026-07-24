@@ -68,4 +68,6 @@ describe("director generation lifecycle actions", () => {
     actions.onAllCompleted();
     expect(state.projects["project-1"].screenplayStatus).toBe("completed");
   });
+
+  it.todo("fences late image events after cancelAll once generation-id/AbortController semantics are approved");
 });

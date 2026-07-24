@@ -355,3 +355,31 @@ describe("per-model thinking-mode overrides", () => {
     expect(useAPIConfigStore.getState().getModelThinkingOverride("glm-4.6")).toBeUndefined();
   });
 });
+
+describe("getAllConfigs API key masking", () => {
+  it("prefers the resolved v2 provider key over legacy apiKeys", () => {
+    useAPIConfigStore.setState({
+      providers: [{
+        id: "memefast-v2",
+        platform: "memefast",
+        name: "MemeFast v2",
+        baseUrl: "https://relay.example.com/v1",
+        apiKey: "v2-secret-key",
+        model: [],
+      }],
+      apiKeys: { memefast: "legacy-secret-key" },
+    });
+
+    const config = useAPIConfigStore.getState().getAllConfigs().find((item) => item.provider === "memefast");
+
+    expect(config).toMatchObject({ configured: true, masked: "v2-secre...-key" });
+  });
+
+  it("falls back to legacy apiKeys when no v2 provider is resolved", () => {
+    useAPIConfigStore.setState({ providers: [], apiKeys: { memefast: "legacy-secret-key" } });
+
+    const config = useAPIConfigStore.getState().getAllConfigs().find((item) => item.provider === "memefast");
+
+    expect(config).toMatchObject({ configured: true, masked: "legacy-s...-key" });
+  });
+});

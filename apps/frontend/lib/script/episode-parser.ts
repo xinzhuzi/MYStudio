@@ -250,21 +250,12 @@ export function parseScenes(episodeText: string): SceneRawContent[] {
         const endIndex = i < looseMatches.length - 1 ? looseMatches[i + 1].index! : episodeText.length;
         const content = episodeText.slice(startIndex, endIndex).trim();
         
-        // 解析人物
-        const characters = parseCharacters(content);
-        const dialogues = parseDialogues(content);
-        const actions = parseActions(content);
-        const subtitles = parseSubtitles(content);
-        const weather = detectWeather(content, actions);
+        const tokens = parseSceneTokens(content);
         
         scenes.push({
           sceneHeader,
-          characters,
+          ...tokens,
           content,
-          dialogues,
-          actions,
-          subtitles,
-          weather,
           timeOfDay,
         });
       }
@@ -288,29 +279,12 @@ export function parseScenes(episodeText: string): SceneRawContent[] {
     const endIndex = i < sceneMatches.length - 1 ? sceneMatches[i + 1].index! : episodeText.length;
     const content = episodeText.slice(startIndex, endIndex).trim();
     
-    // 解析人物
-    const characters = parseCharacters(content);
-    
-    // 解析对白
-    const dialogues = parseDialogues(content);
-    
-    // 解析动作
-    const actions = parseActions(content);
-    
-    // 解析字幕
-    const subtitles = parseSubtitles(content);
-    
-    // 检测天气
-    const weather = detectWeather(content, actions);
+    const tokens = parseSceneTokens(content);
     
     scenes.push({
       sceneHeader: `${sceneNumber} ${timeOfDay} ${interior} ${location}`,
-      characters,
+      ...tokens,
       content,
-      dialogues,
-      actions,
-      subtitles,
-      weather,
       timeOfDay,
     });
   }
@@ -341,26 +315,32 @@ function parseAlternativeSceneFormat(text: string): SceneRawContent[] {
       
       scenes.push({
         sceneHeader: match[0].replace(/[【】]/g, ''),
-        characters: parseCharacters(content),
+        ...parseSceneTokens(content, false),
         content,
-        dialogues: parseDialogues(content),
-        actions: parseActions(content),
-        subtitles: parseSubtitles(content),
       });
     }
   } else {
     // 作为单一场景处理
     scenes.push({
       sceneHeader: '主场景',
-      characters: parseCharacters(text),
+      ...parseSceneTokens(text, false),
       content: text,
-      dialogues: parseDialogues(text),
-      actions: parseActions(text),
-      subtitles: parseSubtitles(text),
     });
   }
   
   return scenes;
+}
+
+/** Parse the common content tokens shared by each scene-header format. */
+function parseSceneTokens(content: string, includeWeather = true): Pick<SceneRawContent, 'characters' | 'dialogues' | 'actions' | 'subtitles'> & Partial<Pick<SceneRawContent, 'weather'>> {
+  const characters = parseCharacters(content);
+  const dialogues = parseDialogues(content);
+  const actions = parseActions(content);
+  const subtitles = parseSubtitles(content);
+
+  return includeWeather
+    ? { characters, dialogues, actions, subtitles, weather: detectWeather(content, actions) }
+    : { characters, dialogues, actions, subtitles };
 }
 
 /**

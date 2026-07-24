@@ -20,6 +20,13 @@ import { processBatched } from '@/lib/ai/batch-processor';
 import { estimateTokens, safeTruncate } from '@/lib/ai/model-registry';
 import { useScriptStore } from '@/stores/script-store';
 import { buildSeriesContextSummary } from './series-meta-sync';
+import {
+  cleanLocationString,
+  extractLocationFromHeader,
+  extractTimeFromHeader,
+  normalizeLocation,
+} from './scene-calibrator-utils';
+export { cleanLocationString, extractLocationFromHeader, extractTimeFromHeader, normalizeLocation } from './scene-calibrator-utils';
 
 // ==================== 类型定义 ====================
 
@@ -198,51 +205,6 @@ export function collectSceneStats(
  * 从场景头提取地点
  * 如 "1-1 日 内 沪上 张家" → "沪上 张家"
  */
-function extractLocationFromHeader(header: string): string {
-  // 去除场景编号和时间/内外标记
-  const parts = header.split(/\s+/);
-  // 跳过 "1-1", "日/夜", "内/外"
-  const locationParts = parts.filter(p => 
-    !p.match(/^\d+-\d+$/) && 
-    !p.match(/^(日|夜|晨|暮|黄昏|黎明)$/) &&
-    !p.match(/^(内|外|内\/外)$/)
-  );
-  return locationParts.join(' ') || header;
-}
-
-/**
- * 从场景头提取时间
- */
-function extractTimeFromHeader(header: string): string {
-  const timeMatch = header.match(/(日|夜|晨|暮|黄昏|黎明|清晨|傍晚)/);
-  return timeMatch ? timeMatch[1] : '日';
-}
-
-/**
- * 标准化地点名称用于匹配
- */
-function normalizeLocation(location: string): string {
-  return cleanLocationString(location)
-    .replace(/\s+/g, '')
-    .replace(/[\uff08\uff09()]/g, '')
-    .toLowerCase();
-}
-
-/**
- * 清理场景地点字符串，移除人物信息等无关内容
- */
-function cleanLocationString(location: string): string {
-  if (!location) return '';
-  // 移除 "人物：XXX" 部分
-  let cleaned = location.replace(/\s*人物[\uff1a:].*/g, '');
-  // 移除 "角色：XXX" 部分
-  cleaned = cleaned.replace(/\s*角色[\uff1a:].*/g, '');
-  // 移除 "时间：XXX" 部分
-  cleaned = cleaned.replace(/\s*时间[\uff1a:].*/g, '');
-  // 去除首尾空白
-  return cleaned.trim();
-}
-
 // ==================== 核心校准函数 ====================
 
 /**

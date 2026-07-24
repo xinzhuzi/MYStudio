@@ -15,13 +15,25 @@ import { useAppSettingsStore } from '@/stores/app-settings-store';
 
 // ==================== Helpers ====================
 
+function isSafeProjectId(value: unknown): value is string {
+  return (
+    typeof value === 'string' &&
+    value.length > 0 &&
+    value !== '.' &&
+    value !== '..' &&
+    !value.includes('/') &&
+    !value.includes('\\')
+  );
+}
+
 /**
  * Get current activeProjectId from project-store.
  * MUST be called synchronously (before any await) to avoid race conditions.
  */
 function getActiveProjectId(): string | null {
   try {
-    return useProjectStore.getState().activeProjectId;
+    const projectId = useProjectStore.getState().activeProjectId;
+    return isSafeProjectId(projectId) ? projectId : null;
   } catch {
     return null;
   }
@@ -43,7 +55,7 @@ function getResourceSharing(): { shareCharacters: boolean; shareScenes: boolean;
  */
 function getAllProjectIds(): string[] {
   try {
-    return useProjectStore.getState().projects.map(p => p.id);
+    return useProjectStore.getState().projects.map(p => p.id).filter(isSafeProjectId);
   } catch {
     return [];
   }
@@ -103,7 +115,7 @@ export function createProjectScopedStorage(storeName: string): StateStorage {
       try {
         const parsed = JSON.parse(value);
         const state = parsed?.state ?? parsed;
-        if (state && typeof state === 'object' && typeof state.activeProjectId === 'string') {
+        if (state && typeof state === 'object' && isSafeProjectId(state.activeProjectId)) {
           dataProjectId = state.activeProjectId;
         }
       } catch {
@@ -286,12 +298,15 @@ export function createSplitStorage<T = any>(
         // When sharing is ON, the store may contain items from other projects
         // that were modified (e.g. adding a variation to a character from another project).
         // We must write each project's data back to its own file.
+        const knownProjectIds = new Set(getAllProjectIds());
+        knownProjectIds.add(pid);
         const allPids = new Set<string>([pid]);
         for (const val of Object.values(state as Record<string, unknown>)) {
           if (Array.isArray(val)) {
             for (const item of val) {
               if (item && typeof item === 'object' && 'projectId' in item &&
-                  typeof (item as any).projectId === 'string') {
+                  isSafeProjectId((item as any).projectId) &&
+                  knownProjectIds.has((item as any).projectId)) {
                 allPids.add((item as any).projectId);
               }
             }

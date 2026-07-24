@@ -11,6 +11,41 @@ from Library.ai import build_chapter001_full_bible_source as builder
 
 
 class BuildChapter001FullBibleSourceTest(unittest.TestCase):
+    def test_live_bible_requires_current_additive_32_version_matrix(self):
+        versions = [
+            {"assetId": f"asset-{index}", "versionId": f"asset-{index}:base:v1"}
+            for index in range(builder.EXPECTED_VERSION_COUNT)
+        ]
+        with tempfile.TemporaryDirectory() as temp:
+            store_path = Path(temp) / "store.json"
+            store_path.write_text(json.dumps({
+                "state": {
+                    "continuityAssetVersions": versions,
+                    "storyboards": [],
+                }
+            }), encoding="utf-8")
+            with patch.object(builder, "STORE_PATH", store_path):
+                loaded, names = builder.read_store_versions()
+                self.assertEqual(len(loaded), 32)
+                self.assertEqual(names, {})
+
+            store_path.write_text(json.dumps({
+                "state": {
+                    "continuityAssetVersions": versions[:-1],
+                    "storyboards": [],
+                }
+            }), encoding="utf-8")
+            with (
+                patch.object(builder, "STORE_PATH", store_path),
+                self.assertRaisesRegex(RuntimeError, "必须是 32"),
+            ):
+                builder.read_store_versions()
+
+        self.assertEqual(
+            builder.SOURCE_MATRIX_STEM,
+            "chapter001-daojie-gongbi-v2-32-version-source-matrix",
+        )
+
     def test_laborer_revisions_are_non_overwriting_and_lock_intact_clothing(self):
         jobs = {job["jobId"]: job for job in builder.generation_jobs()}
 
@@ -28,9 +63,20 @@ class BuildChapter001FullBibleSourceTest(unittest.TestCase):
 
         for job_id in ("old-laborer-turnaround-r4", "young-laborer-turnaround-r2"):
             job = jobs[job_id]
-            self.assertIn("完整无补丁", job["prompt"])
+            self.assertIn("衣物必须完整可穿", job["prompt"])
             self.assertIn("连续闭合", job["prompt"])
-            self.assertIn("禁止破洞", job["prompt"])
+            self.assertIn("整齐布边", job["prompt"])
+
+    def test_v2_night_scene_jobs_keep_mist_and_light_as_paper_layers(self):
+        jobs = {job["jobId"]: job for job in builder.generation_jobs()}
+        river = jobs["river-night-long-axis"]["prompt"]
+        inn_room = jobs["inn-room-contact-sheet"]["prompt"]
+
+        self.assertIn("淡墨雾层和留白退远", river)
+        self.assertIn("低亮朱砂火印", river)
+        self.assertNotIn("浓雾覆盖", river)
+        self.assertIn("赭石薄染与窗外石青薄染并置", inn_room)
+        self.assertNotIn("窗外冷光", inn_room)
 
     def test_assembly_preflight_fails_before_any_source_write(self):
         with (

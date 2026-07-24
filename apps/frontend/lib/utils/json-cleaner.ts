@@ -27,13 +27,13 @@ export function cleanJsonString(str: string): string {
   const firstBracket = cleaned.indexOf("[");
   const lastBrace = cleaned.lastIndexOf("}");
   const lastBracket = cleaned.lastIndexOf("]");
+  const hasObjectBounds = firstBrace !== -1 && lastBrace !== -1 && firstBrace < lastBrace;
+  const hasArrayBounds = firstBracket !== -1 && lastBracket !== -1 && firstBracket < lastBracket;
   
   // If we found valid JSON bounds, extract just the JSON
-  if (firstBrace !== -1 && lastBrace !== -1 && firstBrace < lastBrace) {
-    if (firstBracket === -1 || firstBrace < firstBracket) {
-      cleaned = cleaned.slice(firstBrace, lastBrace + 1);
-    }
-  } else if (firstBracket !== -1 && lastBracket !== -1 && firstBracket < lastBracket) {
+  if (hasObjectBounds && (!hasArrayBounds || firstBrace < firstBracket)) {
+    cleaned = cleaned.slice(firstBrace, lastBrace + 1);
+  } else if (hasArrayBounds) {
     cleaned = cleaned.slice(firstBracket, lastBracket + 1);
   }
   

@@ -8,7 +8,12 @@
  */
 
 import { getFeatureConfig, getFeatureNotConfiguredMessage } from '@/lib/ai/feature-router';
-import { buildEndpoint, getRootBaseUrl, getImageEndpointPaths, DEFAULT_IMAGE_ENDPOINT, getImageAttemptConfigs, parseImageApiErrorMessage, createImageApiHttpError, getTargetDimensions, isGeminiImageModel, geminiSupportsImageSize, normalizeResolutionForGemini, needsPixelSize } from '@/lib/ai/image-generator-helpers';
+import { buildEndpoint, getRootBaseUrl, getImageEndpointPaths, DEFAULT_IMAGE_ENDPOINT, getImageAttemptConfigs, parseImageApiErrorMessage, createImageApiHttpError, getTargetDimensions, needsPixelSize } from '@/lib/ai/image-generator-helpers';
+import {
+  buildChatCompletionsImageRequest,
+  extractChatCompletionsImageUrl,
+  parseChatCompletionsImageResponseText,
+} from '@/lib/ai/image-request-adapter';
 import {
   buildOpenAIImageRequestBody,
   buildProviderExtensionImageRequestBody,
@@ -29,7 +34,13 @@ import {
   shouldRetryImageCompatibility,
 } from '@/lib/ai/image-compatibility';
 import { prepareReferenceImagesForTransfer } from '@/lib/ai/image-transfer';
-import { extractDirectImageUrl } from '@/lib/ai/image-response';
+import { pollTaskStatus as pollTaskStatusImpl } from '@/lib/ai/image-task-poller';
+import {
+  isAmbiguousPaidImageError,
+  isAmbiguousPaidImageException,
+  isAmbiguousPaidImageResult,
+  markAmbiguousPaidImageError,
+} from '@/lib/ai/image-generation-errors';
 
 export interface ImageGenerationParams {
   prompt: string;
@@ -49,6 +60,15 @@ export interface ImageGenerationResult {
 
 type ImageGenerationFeature = 'character_generation' | 'scene_generation' | 'prop_generation';
 const IMAGE_SUBMIT_TIMEOUT_MS = 180_000;
+
+function isMikotoImageProvider(baseUrl: string): boolean {
+  try {
+    return new URL(baseUrl).hostname.toLowerCase() === 'api.mikoto.vip';
+  } catch {
+    return false;
+  }
+}
+
 export async function generateCharacterImage(params: ImageGenerationParams): Promise<ImageGenerationResult> {
   return generateImage(params, 'character_generation');
 }
@@ -198,6 +218,9 @@ async function generateImage(
       throw new Error('Invalid API response');
     } catch (error) {
       lastError = error;
+      if (isAmbiguousPaidImageError(error)) {
+        throw error;
+      }
       const hasNextAttempt = attemptIndex < attemptConfigs.length - 1;
       if (hasNextAttempt) {
         void logEvent({
@@ -249,64 +272,14 @@ async function submitViaChatCompletions(
 ): Promise<ImageGenerationResult> {
   const endpoint = buildEndpoint(baseUrl, 'chat/completions');
 
-  // === 分辨率处理：区分 Gemini 图片模型与其他模型 ===
-  const isGemini = isGeminiImageModel(model);
-  const geminiHasImageSize = isGemini && geminiSupportsImageSize(model);
+  const requestBody = buildChatCompletionsImageRequest({ model, prompt, aspectRatio, resolution, referenceImages });
 
-  // 非 Gemini 模型：通过 prompt 文本嵌入像素尺寸说明（软提示）
-  // Gemini 模型如果支持 image_size，也保留 prompt 提示作为兜底
-  const targetDims = getTargetDimensions(aspectRatio, resolution);
-  const sizeInstruction = targetDims
-    ? ` Output the image at ${targetDims.width}x${targetDims.height} pixels resolution.`
-    : '';
-
-  // Build messages
-  const userContent: Array<{ type: string; text?: string; image_url?: { url: string } }> = [
-    { type: 'text', text: `Generate an image with aspect ratio ${aspectRatio}.${sizeInstruction} ${prompt}` },
-  ];
-  // Attach reference images after the shared pre-network transfer gate.
-  if (referenceImages && referenceImages.length > 0) {
-    for (const img of referenceImages) {
-      userContent.push({ type: 'image_url', image_url: { url: img } });
-    }
-  }
-
-  // === 构建请求体 ===
-  const requestBody: Record<string, unknown> = {
+  console.log('[ImageGenerator] Submitting via chat completions:', {
     model,
-    messages: [{ role: 'user', content: userContent }],
-    // Standard multimodal image generation parameters
-    max_tokens: 4096,
-    stream: false,
-  };
-
-  // Gemini 图片模型：附加官方 image_size / aspect_ratio 参数
-  // 中转站（MemeFast / new_api / one_api 等）会将这些参数转发给 Gemini 原生 API 的
-  // generation_config.image_config
-  if (isGemini) {
-    const geminiResolution = geminiHasImageSize
-      ? normalizeResolutionForGemini(resolution)
-      : undefined; // gemini-2.5-flash-image 不支持 image_size
-
-    // 方式 1: 顶层参数（大部分中转站兼容）
-    if (geminiResolution) {
-      requestBody.image_size = geminiResolution;
-    }
-    requestBody.aspect_ratio = aspectRatio;
-
-    // 方式 2: 嵌套 generation_config（官方 SDK 格式，部分中转站支持）
-    requestBody.generation_config = {
-      response_modalities: ['TEXT', 'IMAGE'],
-      image_config: {
-        ...(geminiResolution ? { image_size: geminiResolution } : {}),
-        aspect_ratio: aspectRatio,
-      },
-    };
-
-    console.log('[ImageGenerator] Gemini image model detected, added image_size:', geminiResolution || '(not supported)', 'aspect_ratio:', aspectRatio);
-  }
-
-  console.log('[ImageGenerator] Submitting via chat completions:', { model, endpoint, isGemini, geminiImageSize: geminiHasImageSize ? normalizeResolutionForGemini(resolution) : 'N/A' });
+    endpoint,
+    isGemini: Object.prototype.hasOwnProperty.call(requestBody, 'generation_config'),
+    geminiImageSize: (requestBody as { image_size?: string }).image_size || 'N/A',
+  });
 
   const response = await retryOperation(async () => {
     // 每次重试独立创建 AbortController，避免共享 controller 在重试时已超时
@@ -395,89 +368,12 @@ async function submitViaChatCompletions(
 
   // Parse response — some providers return SSE "data: {...}" even with stream:false
   const responseText = await response.text();
-  let data: any;
-  try {
-    data = JSON.parse(responseText);
-  } catch {
-    // Fallback: accumulate SSE delta chunks into a single message
-    const lines = responseText.split('\n').filter(l => l.startsWith('data: '));
-    let accumulatedText = '';
-    const accumulatedParts: any[] = [];
-    let lastChunk: any = null;
-
-    for (const line of lines) {
-      const payload = line.replace(/^data:\s*/, '').trim();
-      if (payload === '[DONE]') continue;
-      try {
-        const chunk = JSON.parse(payload);
-        lastChunk = chunk;
-        const delta = chunk.choices?.[0]?.delta;
-        if (delta) {
-          if (typeof delta.content === 'string') {
-            accumulatedText += delta.content;
-          } else if (Array.isArray(delta.content)) {
-            accumulatedParts.push(...delta.content);
-          }
-        }
-        // Also check non-delta message (some proxies mix formats)
-        const msg = chunk.choices?.[0]?.message;
-        if (msg) {
-          if (typeof msg.content === 'string') accumulatedText += msg.content;
-          else if (Array.isArray(msg.content)) accumulatedParts.push(...msg.content);
-        }
-      } catch { /* skip malformed line */ }
-    }
-
-    if (!lastChunk) {
-      throw new Error(`无法解析图片 API 响应: ${responseText.substring(0, 120)}`);
-    }
-
-    // Reconstruct standard response format from accumulated deltas
-    data = {
-      ...lastChunk,
-      choices: [{
-        ...(lastChunk.choices?.[0] || {}),
-        message: {
-          role: 'assistant',
-          content: accumulatedParts.length > 0 ? accumulatedParts : accumulatedText,
-        },
-      }],
-    };
-  }
+  const data = parseChatCompletionsImageResponseText(responseText);
   console.log('[ImageGenerator] Chat completions response received');
 
   // Extract image from response - multiple possible formats
-  const choice = data.choices?.[0];
-  if (!choice) throw new Error('响应中无有效内容');
-
-  const message = choice.message;
-
-  // Format 1: content is array with image parts (OpenAI multimodal)
-  if (Array.isArray(message?.content)) {
-    for (const part of message.content) {
-      if (part.type === 'image_url' && part.image_url?.url) {
-        return { imageUrl: part.image_url.url };
-      }
-      // Base64 inline image
-      if (part.type === 'image' && part.image?.url) {
-        return { imageUrl: part.image.url };
-      }
-      // Some APIs return base64 in data field
-      if (part.type === 'image' && part.data) {
-        return { imageUrl: `data:image/png;base64,${part.data}` };
-      }
-    }
-  }
-
-  // Format 2: content is string with markdown image link
-  if (typeof message?.content === 'string') {
-    // Try to extract image URL from markdown: ![...](url)
-    const mdMatch = message.content.match(/!\[.*?\]\((https?:\/\/[^)]+)\)/);
-    if (mdMatch) return { imageUrl: mdMatch[1] };
-    // Try to extract base64 data URI
-    const b64Match = message.content.match(/(data:image\/[^;]+;base64,[A-Za-z0-9+/=]+)/);
-    if (b64Match) return { imageUrl: b64Match[1] };
-  }
+  const imageUrl = extractChatCompletionsImageUrl(data);
+  if (imageUrl) return { imageUrl };
 
   throw new Error('未能从响应中提取图片 URL');
 }
@@ -505,13 +401,14 @@ async function submitImageTask(
   const imagePaths = getImageEndpointPaths(endpointTypes || []);
   const usesDefaultImagesEndpoint = imagePaths.submit === DEFAULT_IMAGE_ENDPOINT.submit;
   const imageSettings = useAppSettingsStore.getState().imageGenerationSettings;
+  const mikotoPaidBoundary = isMikotoImageProvider(baseUrl);
   const builtRequest = usesDefaultImagesEndpoint
     ? buildOpenAIImageRequestBody({ model, prompt, aspectRatio, resolution, referenceImages, negativePrompt })
     : buildProviderExtensionImageRequestBody({ model, prompt, aspectRatio, resolution, referenceImages, negativePrompt });
   const requestData = builtRequest.body;
 
   if (model && !requestData.size && needsPixelSize(model)) {
-    const dims = resolveImageDimensions({ aspectRatio, resolution });
+    const dims = getTargetDimensions(aspectRatio, resolution);
     if (dims) {
       requestData.size = `${dims.width}x${dims.height}`;
       delete requestData.aspect_ratio;
@@ -541,12 +438,17 @@ async function submitImageTask(
       operationId,
       endpointFamily: 'images-generations',
       timeoutMs: IMAGE_SUBMIT_TIMEOUT_MS,
-      maxRetries: 2,
+      maxRetries: mikotoPaidBoundary ? 0 : 2,
     });
     if (sdkResult.success && sdkResult.imageUrl) {
       return { imageUrl: sdkResult.imageUrl };
     }
-    if (imageSettings.compatibilityRetryEnabled && shouldRetryImageCompatibility(sdkResult)) {
+    if (mikotoPaidBoundary && isAmbiguousPaidImageResult(sdkResult)) {
+      throw markAmbiguousPaidImageError(new Error(
+        `Mikoto 图片请求结果不确定，已停止兼容重试与 provider fallback: ${sdkResult.error || 'transport failure'}`,
+      ));
+    }
+    if (imageSettings.compatibilityRetryEnabled && !mikotoPaidBoundary && shouldRetryImageCompatibility(sdkResult)) {
       const compatibilityPrompt = buildCompatibilityImagePrompt(prompt);
       void logEvent({
         level: 'warn',
@@ -688,7 +590,7 @@ async function submitImageTask(
         clearTimeout(timeoutId);
       }
     }, {
-      maxRetries: 3,
+      maxRetries: mikotoPaidBoundary ? 0 : 3,
       baseDelay: 3000,
       retryOn429: true,
       onRetry: (attempt, delay) => {
@@ -697,41 +599,22 @@ async function submitImageTask(
     });
     console.log('[ImageGenerator] API response:', data);
 
-    // GPT Image 返回 choices 格式（MemeFast 文档确认）
-    if (data.choices?.[0]?.message?.content) {
-      const content = data.choices[0].message.content;
-      // 可能是 markdown 图片链接
-      const mdMatch = content.match(/!\[.*?\]\((https?:\/\/[^)]+)\)/);
-      if (mdMatch) return { imageUrl: mdMatch[1] };
-      // 可能是 base64
-      const b64Match = content.match(/(data:image\/[^;]+;base64,[A-Za-z0-9+/=]+)/);
-      if (b64Match) return { imageUrl: b64Match[1] };
-      // 可能直接是 URL
-      const urlMatch = content.match(/(https?:\/\/[^\s"']+\.(?:png|jpg|jpeg|webp|gif)[^\s"']*)/i);
-      if (urlMatch) return { imageUrl: urlMatch[1] };
-    }
-
     // 标准格式: { data: [{ url }] } 或 OpenAI-compatible { data: [{ b64_json }] }
     const extracted = extractImageGenerationResult(data);
-    const directImageUrl = extracted.imageUrl || extractDirectImageUrl(data);
-    if (directImageUrl) return { imageUrl: directImageUrl };
+    if (extracted.imageUrl) return { imageUrl: extracted.imageUrl };
 
-    let taskId: string | undefined = extracted.taskId;
-    const dataList = data.data;
-    if (Array.isArray(dataList) && dataList.length > 0) {
-      taskId = dataList[0].task_id?.toString();
-    }
-    taskId = taskId || data.task_id?.toString();
-
-    if (!taskId) {
+    if (!extracted.taskId) {
       throw new Error('No task_id or image URL in response');
     }
 
     // 返回 pollUrl 供调用方使用自定义轮询路径
     const rootBase = getRootBaseUrl(baseUrl);
-    const pollUrl = `${rootBase}${imagePaths.poll(taskId)}`;
-    return { taskId, pollUrl };
+    const pollUrl = `${rootBase}${imagePaths.poll(extracted.taskId)}`;
+    return { taskId: extracted.taskId, pollUrl };
   } catch (error) {
+    if (mikotoPaidBoundary && isAmbiguousPaidImageException(error)) {
+      throw markAmbiguousPaidImageError(error);
+    }
     if (error instanceof Error) {
       if (error.name === 'AbortError') throw new Error('API 请求超时');
       throw error;
@@ -740,90 +623,17 @@ async function submitImageTask(
   }
 }
 
-/**
- * Poll task status until completion
- */
-async function pollTaskStatus(
+/** Compatibility façade preserving the historical export and call signature. */
+export async function pollTaskStatus(
   taskId: string,
   apiKey: string,
   baseUrl: string,
   onProgress?: (progress: number) => void,
   customPollUrl?: string,
   operationId?: string,
+  signal?: AbortSignal,
 ): Promise<string> {
-  const maxAttempts = 120;
-  const pollInterval = 2000;
-
-  for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    const progress = Math.min(Math.floor((attempt / maxAttempts) * 100), 99);
-    onProgress?.(progress);
-
-    try {
-      const rawUrl = customPollUrl || buildEndpoint(baseUrl, `images/generations/${taskId}`);
-      const url = new URL(rawUrl);
-      url.searchParams.set('_ts', Date.now().toString());
-
-      const response = await observedFetch(url.toString(), {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Cache-Control': 'no-cache',
-        },
-      }, {
-        operationId,
-        endpointFamily: 'images-generations-poll',
-        taskId,
-        pollAttempt: attempt + 1,
-        maxRetries: maxAttempts,
-      });
-
-      if (!response.ok) {
-        if (response.status === 404) throw new Error('Task not found');
-        throw new Error(`Failed to check task status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      console.log(`[ImageGenerator] Task ${taskId} status:`, data);
-
-      const status = (data.status ?? data.data?.status ?? 'unknown').toString().toLowerCase();
-      const statusMap: Record<string, string> = {
-        'pending': 'pending', 'submitted': 'pending', 'queued': 'pending',
-        'processing': 'processing', 'running': 'processing', 'in_progress': 'processing',
-        'completed': 'completed', 'succeeded': 'completed', 'success': 'completed',
-        'failed': 'failed', 'error': 'failed',
-      };
-      const mappedStatus = statusMap[status] || 'processing';
-
-      if (mappedStatus === 'completed') {
-        onProgress?.(100);
-        const images = data.result?.images ?? data.data?.result?.images;
-        let resultUrl: string | undefined;
-        if (images?.[0]) {
-          const urlField = images[0].url;
-          resultUrl = Array.isArray(urlField) ? urlField[0] : urlField;
-        }
-        resultUrl = resultUrl || data.output_url || data.result_url || data.url;
-        if (!resultUrl) throw new Error('Task completed but no URL in result');
-        return resultUrl;
-      }
-
-      if (mappedStatus === 'failed') {
-        const rawError = data.error || data.error_message || data.data?.error;
-        throw new Error(rawError ? String(rawError) : 'Task failed');
-      }
-
-      await new Promise(resolve => setTimeout(resolve, pollInterval));
-    } catch (error) {
-      if (error instanceof Error && 
-          (error.message.includes('Task failed') || error.message.includes('no URL') || error.message.includes('Task not found'))) {
-        throw error;
-      }
-      console.error(`[ImageGenerator] Poll attempt ${attempt} failed:`, error);
-      await new Promise(resolve => setTimeout(resolve, pollInterval));
-    }
-  }
-
-  throw new Error('图片生成超时');
+  return pollTaskStatusImpl(taskId, apiKey, baseUrl, onProgress, customPollUrl, operationId, signal);
 }
 
 /**
@@ -859,6 +669,7 @@ export async function submitGridImageRequest(params: {
   const normalizedPrompt = normalizeImagePromptForGeneration({ prompt });
   const transferReferenceImages = await prepareReferenceImagesForTransfer(referenceImages);
   const normalizedBase = baseUrl.replace(/\/+$/, '');
+  const mikotoPaidBoundary = isMikotoImageProvider(normalizedBase);
   const operationId = createOperationId('grid-image');
 
   // 检测 API 格式（与 generateImage 一致）
@@ -876,7 +687,7 @@ export async function submitGridImageRequest(params: {
     if (transferReferenceImages?.length) {
       throw new Error('当前 Kling 图片适配器不支持参考图，已在网络请求前阻断');
     }
-    const result = await submitViaKlingImages({ prompt: normalizedPrompt.prompt, aspectRatio, negativePrompt: normalizedPrompt.negativePrompt }, model, apiKey, normalizedBase, aspectRatio, keyManager, operationId);
+    const result = await submitViaKlingImages({ prompt: normalizedPrompt.prompt, aspectRatio, negativePrompt: normalizedPrompt.negativePrompt }, model, apiKey, normalizedBase, aspectRatio, keyManager, operationId, signal);
     return { imageUrl: result.imageUrl, taskId: result.taskId };
   }
 
@@ -911,15 +722,22 @@ export async function submitGridImageRequest(params: {
       operationId,
       endpointFamily: 'grid-images-generations',
       abortSignal: signal,
-      maxRetries: 2,
+      maxRetries: mikotoPaidBoundary ? 0 : 2,
     });
     if (sdkResult.success && sdkResult.imageUrl) {
       return { imageUrl: sdkResult.imageUrl };
     }
+    if (mikotoPaidBoundary && isAmbiguousPaidImageResult(sdkResult)) {
+      throw markAmbiguousPaidImageError(new Error(
+        `Mikoto 图片请求结果不确定，已停止兼容重试与 provider fallback: ${sdkResult.error || 'transport failure'}`,
+      ));
+    }
     throw new Error(sdkResult.error || 'AI SDK 图片生成失败');
   }
 
-  const data = await retryOperation(async () => {
+  let data: Record<string, any>;
+  try {
+    data = await retryOperation(async () => {
     // 每次重试动态取当前 key（利用 keyManager rotate 后的新 key）
     const currentApiKey = keyManager?.getCurrentKey?.() || apiKey;
     if (signal?.aborted) throw new Error('用户已取消');
@@ -956,42 +774,29 @@ export async function submitGridImageRequest(params: {
     }
 
     return response.json();
-  }, {
-    maxRetries: 3,
+    }, {
+    maxRetries: mikotoPaidBoundary ? 0 : 3,
     baseDelay: 3000,
     retryOn429: true,
   });
+  } catch (error) {
+    if (mikotoPaidBoundary && isAmbiguousPaidImageException(error)) {
+      throw markAmbiguousPaidImageError(error);
+    }
+    throw error;
+  }
   console.log('[GridImageAPI] Response received');
 
-  // GPT Image 可能通过 images/generations 返回 choices 格式
-  if (data.choices?.[0]?.message?.content) {
-    const content = data.choices[0].message.content;
-    const mdMatch = content.match(/!\[.*?\]\((https?:\/\/[^)]+)\)/);
-    if (mdMatch) return { imageUrl: mdMatch[1] };
-    const b64Match = content.match(/(data:image\/[^;]+;base64,[A-Za-z0-9+/=]+)/);
-    if (b64Match) return { imageUrl: b64Match[1] };
-    const urlMatch = content.match(/(https?:\/\/[^\s"']+\.(?:png|jpg|jpeg|webp|gif)[^\s"']*)/i);
-    if (urlMatch) return { imageUrl: urlMatch[1] };
-  }
-
   // 标准格式: { data: [{ url, task_id }] } 或 OpenAI-compatible { data: [{ b64_json }] }
-  const dataField = data.data;
-  const firstItem = Array.isArray(dataField) ? dataField[0] : dataField;
-
   const extracted = extractImageGenerationResult(data);
-  const imageUrl = extracted.imageUrl || extractDirectImageUrl(data);
-
-  const taskId = extracted.taskId
-    || firstItem?.task_id?.toString()
-    || firstItem?.id?.toString()
-    || data.task_id?.toString()
-    || data.id?.toString();
+  const imageUrl = extracted.imageUrl;
+  const taskId = extracted.taskId;
 
   // 如果只有 taskId 没有 imageUrl，自动轮询获取结果（与 generateImage 行为一致）
   if (!imageUrl && taskId) {
     console.log('[GridImageAPI] Got taskId without imageUrl, polling...', taskId);
     const pollUrl = `${rootBase}${imagePaths.poll(taskId)}`;
-    const polledUrl = await pollTaskStatus(taskId, params.keyManager?.getCurrentKey?.() || apiKey, normalizedBase, undefined, pollUrl, operationId);
+    const polledUrl = await pollTaskStatus(taskId, params.keyManager?.getCurrentKey?.() || apiKey, normalizedBase, undefined, pollUrl, operationId, signal);
     return { imageUrl: polledUrl, taskId };
   }
 
@@ -1017,6 +822,7 @@ async function submitViaKlingImages(
   aspectRatio: string,
   keyManager?: { getCurrentKey?: () => string | null; handleError?: (status: number, errorText?: string) => boolean },
   operationId?: string,
+  signal?: AbortSignal,
 ): Promise<ImageGenerationResult> {
   const rootBase = baseUrl.replace(/\/v\d+$/, '');
   const nativePath = model === 'kling-omni-image'
@@ -1031,10 +837,12 @@ async function submitViaKlingImages(
 
   const data = await retryOperation(async () => {
     const currentApiKey = keyManager?.getCurrentKey?.() || apiKey;
+    if (signal?.aborted) throw signal.reason || new Error('用户已取消');
     const response = await observedFetch(`${rootBase}/${nativePath}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentApiKey}` },
       body: JSON.stringify(body),
+      signal,
     }, {
       operationId,
       endpointFamily: 'kling-image-submit',
@@ -1072,10 +880,25 @@ async function submitViaKlingImages(
   const maxAttempts = 60;
 
   for (let i = 0; i < maxAttempts; i++) {
-    await new Promise(r => setTimeout(r, pollInterval));
+    await new Promise<void>((resolve, reject) => {
+      const onAbort = () => {
+        clearTimeout(timer);
+        signal?.removeEventListener('abort', onAbort);
+        reject(signal?.reason || new Error('用户已取消'));
+      };
+      const timer = setTimeout(() => {
+        signal?.removeEventListener('abort', onAbort);
+        resolve();
+      }, pollInterval);
+      if (!signal) return;
+      if (signal.aborted) onAbort();
+      else signal.addEventListener('abort', onAbort, { once: true });
+    });
     const currentApiKey = keyManager?.getCurrentKey?.() || apiKey;
+    if (signal?.aborted) throw signal.reason || new Error('用户已取消');
     const pollResp = await observedFetch(pollUrl, {
       headers: { 'Authorization': `Bearer ${currentApiKey}` },
+      signal,
     }, {
       operationId,
       endpointFamily: 'kling-image-poll',

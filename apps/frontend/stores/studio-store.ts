@@ -9,7 +9,6 @@ import {
 import { buildMediaRefFromMaterial, createMaterialRecord } from "@/lib/studio/material";
 import {
   appendNovelChapters,
-  buildNovelChapterMirror,
   parseNovelChapters,
   replaceNovelChapters,
 } from "@/lib/studio/novel";
@@ -34,6 +33,11 @@ import {
   STUDIO_WORKFLOW_STORAGE_KEY,
 } from "./studio-store-persistence";
 import {
+  createStudioWorkflowId,
+  removeNovelChapterMirrorsForActiveProject,
+  syncNovelChapterMirrorsForActiveProject,
+} from "./studio-store-runtime";
+import {
   continuityAssetVersionKey,
   invalidateStoryboardsForAssetVersionChanges,
   markStale,
@@ -43,7 +47,6 @@ import {
   videoCandidateFingerprint,
 } from "./studio-store-continuity-helpers";
 import { useCharacterLibraryStore } from "@/stores/character-library-store";
-import { useProjectStore } from "@/stores/project-store";
 import { usePropsLibraryStore } from "@/stores/props-library-store";
 import { useSceneStore } from "@/stores/scene-store";
 import type {
@@ -166,9 +169,7 @@ interface StudioWorkflowActions {
   deleteVideoCandidate: (id: string) => void;
   resetStudioWorkflow: () => void;
 }
-
 type StudioWorkflowStore = StudioWorkflowState & StudioWorkflowActions;
-
 const initialState: StudioWorkflowState = {
   materials: [],
   novelChapters: [],
@@ -282,7 +283,7 @@ export const useStudioStore = create<StudioWorkflowStore>()(
       },
 
       startAgentRun: (input) => {
-        const id = createId("run");
+        const id = createStudioWorkflowId("run");
         const now = Date.now();
         const previous = input.retryOf ? get().agentRuns.find((run) => run.id === input.retryOf) : undefined;
         const run: StudioAgentRun = {
@@ -366,7 +367,7 @@ export const useStudioStore = create<StudioWorkflowStore>()(
       },
 
       startMediaTask: (input) => {
-        const id = createId("media-task");
+        const id = createStudioWorkflowId("media-task");
         const now = Date.now();
         const previous = input.retryOf ? get().mediaTasks.find((task) => task.id === input.retryOf) : undefined;
         const task: MediaGenerationTask = {
@@ -492,7 +493,7 @@ export const useStudioStore = create<StudioWorkflowStore>()(
 
       saveAgentWorkData: (key, data, episodeId) => {
         const now = Date.now();
-        const id = createId("work");
+        const id = createStudioWorkflowId("work");
         const item: AgentWorkData = { id, key, episodeId, data, createdAt: now, updatedAt: now };
         set((state) => ({ agentWorkData: [...state.agentWorkData, item] }));
         if (key === "productionPlan" && /本地成片输出[:：]\s*\S+/.test(data)) {
@@ -540,7 +541,7 @@ export const useStudioStore = create<StudioWorkflowStore>()(
       },
 
       addStoryboard: (item = {}) => {
-        const id = item.id ?? createId("sb");
+        const id = item.id ?? createStudioWorkflowId("sb");
         const storyboard: StoryboardItem = {
           id,
           episodeId: item.episodeId ?? "episode-1",
@@ -557,6 +558,7 @@ export const useStudioStore = create<StudioWorkflowStore>()(
           shouldGenerateImage: item.shouldGenerateImage,
           sourceEvidence: item.sourceEvidence,
           orderedReferenceManifest: item.orderedReferenceManifest,
+          shotSemantics: item.shotSemantics,
           continuityState: item.continuityState,
           visualReview: item.visualReview,
           audioRef: item.audioRef,
@@ -660,7 +662,10 @@ export const useStudioStore = create<StudioWorkflowStore>()(
           storyboards: [
             ...state.storyboards.filter((item) => item.episodeId !== episodeId),
             ...items.map((item) => {
-              const previous = state.storyboards.find((current) => current.id === item.id);
+              const previous = state.storyboards.find((current) => current.id === item.id)
+                ?? state.storyboards.find((current) => (
+                  current.episodeId === episodeId && current.index === item.index
+                ));
               return previous
                 ? mergeStoryboardReplacement(previous, { ...previous, ...item }, "storyboard source changed")
                 : { ...item, sourceFingerprint: item.sourceFingerprint ?? storyboardSourceFingerprint(item) };
@@ -825,7 +830,7 @@ export const useStudioStore = create<StudioWorkflowStore>()(
         const chapters = get().novelChapters;
         if (!chapters.length) return;
         const storyboards = chapters.map<StoryboardItem>((chapter) => ({
-          id: createId("sb"),
+          id: createStudioWorkflowId("sb"),
           episodeId: chapter.id,
           index: chapter.index,
           trackKey: `chapter-${String(chapter.index).padStart(3, "0")}`,
@@ -884,7 +889,7 @@ export const useStudioStore = create<StudioWorkflowStore>()(
       },
 
       addVideoCandidate: (candidate) => {
-        const id = candidate.id ?? createId("video");
+        const id = candidate.id ?? createStudioWorkflowId("video");
         const createdAt = candidate.createdAt ?? Date.now();
         const nextCandidate: VideoCandidate = {
           ...candidate,
@@ -985,34 +990,10 @@ export const useStudioStore = create<StudioWorkflowStore>()(
   ),
 );
 
-function createId(prefix: string) {
-  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-}
-
-function getActiveProjectId() {
-  return useProjectStore.getState().activeProjectId;
-}
-
 function syncNovelChapterMirrors(chapters: NovelChapter[]) {
-  const projectId = getActiveProjectId();
-  if (!projectId || !window.projectFiles?.writeText) return;
-
-  for (const chapter of chapters) {
-    const mirror = buildNovelChapterMirror(projectId, chapter);
-    window.projectFiles.writeText(mirror.key, mirror.content).catch((error: unknown) => {
-      console.warn("[StudioStore] Failed to write novel chapter mirror:", error);
-    });
-  }
+  syncNovelChapterMirrorsForActiveProject(chapters);
 }
 
 function removeNovelChapterMirrors(chapters: NovelChapter[]) {
-  const projectId = getActiveProjectId();
-  if (!projectId || !window.projectFiles?.removeText) return;
-
-  for (const chapter of chapters) {
-    const mirror = buildNovelChapterMirror(projectId, chapter);
-    window.projectFiles.removeText(mirror.key).catch((error: unknown) => {
-      console.warn("[StudioStore] Failed to remove novel chapter mirror:", error);
-    });
-  }
+  removeNovelChapterMirrorsForActiveProject(chapters);
 }

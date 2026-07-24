@@ -363,9 +363,9 @@ const STYLES_2D: StylePreset[] = [
     name: '2D工笔风',
     category: '2d',
     mediaType: 'graphic',
-    prompt: '(best quality, masterpiece, high detailed:1.2), (Chinese gongbi painting illustration:1.3), (meticulous brushwork, elegant figure, refined ornament, ink wash background:1.18), (soft paper light, delicate highlight, calm atmosphere:1.1), rice paper grain, fine mineral pigment, precise linework, clean composition, readable silhouette, high detail, finished illustration',
-    negativePrompt: '(worst quality, low quality:1.4), blurry, messy lineart, bad anatomy, 3D render, photorealistic, CGI, watermark, signature, text, western oil painting, neon color, rough sketch, 3D realism',
-    description: '工笔国画风格，强调细密线描、传统色和雅致留白。',
+    prompt: 'Chinese 2D colored gongbi illustration. Medium rules take priority over any reference image digital rendering, lighting, or material. Use line-first continuous baimiao and iron-wire outlines for face, hands, hair, garment seams, folds, ornaments, objects, and architectural edges; keep the subject dense and the background sparse. Apply transparent layered mineral washes and glazing on xuan paper with visible paper fibers. Keep 30%-70% visible chromatic area with a target near 30%-40%, using only two or three restrained mineral accents from stone blue, stone green, indigo, ochre, cinnabar, and old gold; leave most sky, water, mist, and ground as ink wash and paper white. Use even flat paper illumination and paper-scattered light, clean finished image, balanced warm and cool accents, intact wearable clothing with complete hems and sleeves.',
+    negativePrompt: 'blurry image, messy or broken linework, bad anatomy, extra limbs, photorealistic photography, 3D render, CGI, plastic skin, western oil painting, neon color, cel shading, broad dark value blocks, heavy airbrushed volume, cinematic volumetric fog, HDR highlights, wet mirror reflections, full-frame cyan or blue-grey rendering, dirty texture, watermark, signature, logo, text, incomplete clothing, broken hems, cropped body',
+    description: '工笔国画风格，强调先线后色、矿物分染、30%-70%综合色彩、平光宣纸和完整衣物。',
     thumbnail: '2d_gongbi.png',
   },
   {

@@ -21,15 +21,15 @@ from typing import Any
 
 try:
     from Library.build_daojie_chapter001_workflow import (
-        continuity_group_for_index,
         normalize_continuity_asset_version,
+        resolve_storyboard_source,
     )
 except ModuleNotFoundError as error:
     if error.name != "Library":
         raise
     from build_daojie_chapter001_workflow import (
-        continuity_group_for_index,
         normalize_continuity_asset_version,
+        resolve_storyboard_source,
     )
 
 
@@ -241,8 +241,12 @@ def apply_version_to_reference(
         "referenceViewTypes": list(version.get("referenceViewTypes") or []),
         "source": version["source"],
         "contentFingerprint": version["contentFingerprint"],
-        "approvalFingerprint": None,
-        "approved": False,
+        # An approved Bible version is authoritative for the reference too.
+        # Pending versions intentionally remain unapproved, while approved
+        # versions carry their exact approval fingerprint so the visual audit
+        # can verify the reference against the asset-level approval record.
+        "approvalFingerprint": version.get("approvalFingerprint"),
+        "approved": version.get("approved") is True,
     }
     optional_fields = (
         "identityAnchors",
@@ -394,19 +398,29 @@ def expected_scene_reference(
     }
 
 
-def character_states(refs: list[dict[str, Any]], prompt: str) -> list[dict[str, str]]:
+def character_states(
+    refs: list[dict[str, Any]],
+    visible_characters: list[dict[str, Any]],
+) -> list[dict[str, str]]:
+    refs_by_name = {
+        str(ref.get("assetName") or ""): ref
+        for ref in refs
+        if ref.get("assetKind") == "character"
+    }
     states: list[dict[str, str]] = []
-    for ref in refs:
-        if ref.get("assetKind") != "character":
-            continue
+    for character in visible_characters:
+        name = str(character.get("name") or "")
+        ref = refs_by_name.get(name)
+        if not ref:
+            raise RuntimeError(f"当前分镜语义中的出镜角色缺少对应参考: {name}")
         states.append(
             {
                 "characterId": str(ref["assetId"]),
                 "versionId": str(ref["versionId"]),
-                "position": "按本镜构图锁定",
-                "orientation": "按本镜画面朝向锁定",
-                "actionIn": prompt,
-                "actionOut": prompt,
+                "position": str(character["position"]),
+                "orientation": str(character["orientation"]),
+                "actionIn": str(character["actionIn"]),
+                "actionOut": str(character["actionOut"]),
             }
         )
     return states
@@ -687,6 +701,11 @@ def repair_storyboards(
     if review_status != "pending":
         raise RuntimeError("结构修复只能写入 pending，禁止自动批准视觉资产或分镜")
     workflows = workflow_by_storyboard(state.get("imageWorkflows") or [])
+    source = resolve_storyboard_source(state, EPISODE_ID)
+    source_by_index = {
+        int(shot.get("index") or 0): shot
+        for shot in source.get("shots") or []
+    }
     storyboards = sorted(
         [item for item in state.get("storyboards") or [] if item.get("episodeId") == EPISODE_ID],
         key=lambda item: item.get("index", 0),
@@ -733,7 +752,18 @@ def repair_storyboards(
             report["missingReferences"].append(storyboard.get("id"))
             continue
         index = int(storyboard.get("index") or 0)
-        group = continuity_group_for_index(index)
+        source_shot = source_by_index.get(index)
+        group = source_shot.get("_continuityGroup") if source_shot else None
+        semantics = source_shot.get("shotSemantics") if source_shot else None
+        if not isinstance(group, dict) or not isinstance(semantics, dict):
+            raise RuntimeError(f"分镜 {index:03d} 缺少当前分镜源的逐镜语义或连续镜头组，拒绝修复旧审核")
+        source_assets = {str(name) for name in source_shot.get("assets") or []}
+        visible_asset_names = {
+            *(str(item["name"]) for item in semantics["visibleCharacters"]),
+            *(str(item["name"]) for item in semantics["visibleProps"]),
+        }
+        if not visible_asset_names.issubset(source_assets):
+            raise RuntimeError(f"分镜 {index:03d} 逐镜人物或道具未绑定到当前分镜关联资产")
         scene = next(
             (
                 ref for ref in refs
@@ -812,9 +842,9 @@ def repair_storyboards(
                 }
             )
         group_id = str(group["groupId"])
-        prompt = str(storyboard.get("prompt") or "").strip()
+        storyboard["shotSemantics"] = copy.deepcopy(semantics)
         storyboard["orderedReferenceManifest"] = refs
-        character_continuity = character_states(refs, prompt)
+        character_continuity = character_states(refs, semantics["visibleCharacters"])
         storyboard["continuityState"] = {
             "groupId": group_id,
             "previousStoryboardId": previous_by_group.get(group_id),
@@ -822,9 +852,10 @@ def repair_storyboards(
             "sceneViewpointId": scene_viewpoint,
             "lighting": "沿用导演计划与本镜现有成图光照",
             "palette": "沿用道劫水墨国风视觉手册",
-            "actionIn": prompt,
-            "actionOut": prompt,
+            "actionIn": semantics["actionIn"],
+            "actionOut": semantics["actionOut"],
             "characters": character_continuity,
+            "sourceSemanticsFingerprint": stable_serialize(semantics),
             "inputFingerprint": "",
         }
         if not storyboard["continuityState"]["previousStoryboardId"]:

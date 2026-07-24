@@ -55,4 +55,37 @@ describe("subtitle codec", () => {
       expect.objectContaining({ code: "subtitle.time.range" }),
     ]);
   });
+
+  it("rejects SRT clock components outside their ranges", () => {
+    const parsed = parseSrt([
+      "1",
+      "00:00:60,000 --> 00:01:00,000",
+      "invalid seconds",
+      "",
+      "2",
+      "00:60:00,000 --> 01:00:00,000",
+      "invalid minutes",
+    ].join("\n"));
+
+    expect(parsed.cues).toEqual([]);
+    expect(parsed.warnings).toEqual([
+      expect.objectContaining({ code: "subtitle.srt.timing", cueIndex: 0 }),
+      expect.objectContaining({ code: "subtitle.srt.timing", cueIndex: 1 }),
+    ]);
+  });
+
+  it("rejects ASS clock components outside their ranges", () => {
+    const parsed = parseAssDialogue([
+      "[Events]",
+      "Format: Start, End, Text",
+      "Dialogue: 0:00:60.00,0:01:00.00,invalid seconds",
+      "Dialogue: 0:60:00.00,1:00:00.00,invalid minutes",
+    ].join("\n"));
+
+    expect(parsed.cues).toEqual([]);
+    expect(parsed.warnings).toEqual([
+      expect.objectContaining({ code: "subtitle.ass.timing", cueIndex: 0 }),
+      expect.objectContaining({ code: "subtitle.ass.timing", cueIndex: 0 }),
+    ]);
+  });
 });

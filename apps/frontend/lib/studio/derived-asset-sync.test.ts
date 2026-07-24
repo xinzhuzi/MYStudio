@@ -10,9 +10,12 @@ import type { ScriptPlan } from "@/types/studio";
 
 function makeSinks() {
   const calls = {
-    addVariation: [] as Array<{ characterId: string; variation: any }>,
-    addScene: [] as any[],
-    addProp: [] as any[],
+    addVariation: [] as Array<{
+      characterId: string;
+      variation: Parameters<DerivedCharacterSink["addVariation"]>[1];
+    }>,
+    addScene: [] as Array<Parameters<DerivedSceneSink["addScene"]>[0]>,
+    addProp: [] as Array<Parameters<DerivedPropSink["addProp"]>[0]>,
   };
   let varSeq = 0;
   let sceneSeq = 0;

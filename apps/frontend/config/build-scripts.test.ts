@@ -468,6 +468,10 @@ describe("desktop build scripts", () => {
     expect(smokeScript).toContain('"output", "automation", "desktop-smoke-report.json"');
     expect(smokeScript).toContain("command:");
     expect(smokeScript).toContain("reportPath: smokeReportPath");
+    expect(smokeScript).toContain("smoke bridge environment check");
+    expect(smokeScript).toContain("isolatedUserDataDir");
+    expect(smokeScript).toContain("参考音频 1/1");
+    expect(smokeScript).toContain("dialogsClosedBeforeAudio");
     expect(smokeScript).toContain("writeSmokeReport(smokeReport)");
     expect(smokeScript).toContain("report written");
   });
@@ -675,6 +679,8 @@ describe("desktop build scripts", () => {
     expect(runnerScript).toContain("npm run smoke:workflow:run:daojie -- --auto-video");
     expect(runnerScript).toContain("MYSTUDIO_WORKFLOW_REAL_DAOJIE");
     expect(runnerScript).toContain("cloneRealDaojieUserData");
+    expect(runnerScript).toContain("function inspectClonedDaojieProjectData(userDataDir, projectId = daojieProjectId)");
+    expect(runnerScript).toContain("inspectClonedDaojieProjectData(userDataDir, realDaojieRun?.projectId)");
     expect(runnerScript).toContain("mystudio-daojie-workflow-run-");
     expect(runnerScript).toContain("copyProjectDirectoryIfExists");
     expect(runnerScript).not.toContain("symlinkSync");
@@ -760,6 +766,9 @@ describe("desktop build scripts", () => {
     expect(runnerScript).toContain("hasPostClickStageTransition");
     expect(runnerScript).toContain("finalVideoEvidence");
     expect(runnerScript).toContain("auditVisibleAutoVideo");
+    expect(runnerScript).toContain('mode: "observation"');
+    expect(runnerScript).toContain('mode: "strict"');
+    expect(runnerScript).toContain("timelineEvidenceStatus");
     expect(runnerScript).toContain("terminateSpawnedApp");
     expect(autoVideoAudit).toContain('value.terminalStage !== "completed"');
     expect(autoVideoAudit).toContain("final MP4 predates the one-click action");
@@ -798,6 +807,145 @@ describe("desktop build scripts", () => {
     expect(result.stderr).toContain("--auto-video requires --daojie");
   });
 
+  it("keeps failed background auto-video reports from counting as media evidence", async () => {
+    const auditModuleUrl = pathToFileURL(
+      resolve(appsRoot, "build/visible-workflow-auto-video-audit.mjs"),
+    ).href;
+    const { auditVisibleAutoVideo } = await import(auditModuleUrl);
+    const failedBackgroundReport = {
+      mode: "background",
+      source: "real-daojie-chapter001-clone",
+      runChapterAutoVideo: true,
+      foregroundViolation: false,
+      chapterAutoVideo: {
+        enabled: true,
+        stageClicked: true,
+        clicked: true,
+        preClickStage: "idle",
+        startedAtMs: Date.now(),
+        hasPostClickStageTransition: true,
+        terminalStage: "failed",
+        timedOut: false,
+        hasFinalPathButton: false,
+        finalPath: "",
+        finalVideoEvidence: null,
+        finalVideoEvidenceError: "",
+        projectId: "daojie-project",
+        chapterId: "chapter-001",
+        editingProjectId: "editing-1",
+        editingRevision: 1,
+        editingSourceSnapshotHash: "snapshot-1",
+        hasCurrentTimelineEvidence: false,
+        timelineArtifactPaths: null,
+        timelineEvidence: null,
+        timelineRenderRecord: null,
+      },
+    };
+
+    expect(failedBackgroundReport).toMatchObject({
+      mode: "background",
+      runChapterAutoVideo: true,
+      foregroundViolation: false,
+      chapterAutoVideo: {
+        terminalStage: "failed",
+        finalPath: "",
+      },
+    });
+
+    const audit = auditVisibleAutoVideo({
+      chapterAutoVideo: failedBackgroundReport.chapterAutoVideo,
+      userDataDir: mkdtempSync(resolve(tmpdir(), "mystudio-auto-video-failed-")),
+    });
+
+    expect(audit.ok).toBe(false);
+    expect(audit.issues.map((item: { code: string }) => item.code)).toEqual(
+      expect.arrayContaining([
+        "auto-video.terminal",
+        "auto-video.final-button",
+        "auto-video.extension",
+        "auto-video.file-missing",
+        "auto-video.evidence-missing",
+        "auto-video.timeline-evidence-missing",
+        "auto-video.timeline-record-missing",
+      ]),
+    );
+  });
+
+  it("keeps background focus and auto-video audit failures from producing passing wrapper reports", () => {
+    const runnerScript = readBuildFile("build/run-visible-workflow-smoke.mjs");
+
+    expect(runnerScript).toMatch(
+      /const focusFailure = runInBackground\s+\?\s+foregroundViolation\s+:/,
+    );
+    expect(runnerScript).toMatch(/autoVideoFailed\s+\|\|\s+focusFailure/);
+    expect(runnerScript).toContain("ok: !failed");
+    expect(runnerScript).toContain("autoVideoFailed,");
+    expect(runnerScript).toContain("autoVideoAudit,");
+  });
+
+  it("rejects legacy compatibility videos as authoritative auto-video evidence", async () => {
+    const auditModuleUrl = pathToFileURL(
+      resolve(appsRoot, "build/visible-workflow-auto-video-audit.mjs"),
+    ).href;
+    const { auditVisibleAutoVideo } = await import(auditModuleUrl);
+    const userDataDir = mkdtempSync(
+      resolve(tmpdir(), "mystudio-auto-video-legacy-"),
+    );
+    const renderRoot = resolve(userDataDir, "media", "studio-render");
+    mkdirSync(renderRoot, { recursive: true });
+    const legacyPath = resolve(renderRoot, "legacy-python-concat.mp4");
+    writeFileSync(legacyPath, "legacy compatibility video");
+    const legacyStat = statSync(legacyPath);
+    const legacyOnlyReport = {
+      legacyCompatibilityVideo: legacyPath,
+      legacyCompatibilityVideoEvidence: {
+        path: legacyPath,
+        sizeBytes: legacyStat.size,
+        mtimeMs: legacyStat.mtimeMs,
+        sha256: "b".repeat(64),
+        duration: 120,
+        streams: ["video", "audio"],
+      },
+      chapterAutoVideo: {
+        enabled: true,
+        stageClicked: true,
+        clicked: true,
+        preClickStage: "idle",
+        startedAtMs: legacyStat.mtimeMs - 1,
+        hasPostClickStageTransition: true,
+        terminalStage: "completed",
+        timedOut: false,
+        hasFinalPathButton: true,
+        finalPath: legacyPath,
+        finalVideoEvidence: null,
+        finalVideoEvidenceError: "",
+        projectId: "project-1",
+        chapterId: "chapter-1",
+        editingProjectId: "editing-1",
+        editingRevision: 1,
+        editingSourceSnapshotHash: "snapshot-1",
+        hasCurrentTimelineEvidence: false,
+        timelineArtifactPaths: null,
+        timelineEvidence: null,
+        timelineRenderRecord: null,
+      },
+    };
+
+    const audit = auditVisibleAutoVideo({
+      chapterAutoVideo: legacyOnlyReport.chapterAutoVideo,
+      userDataDir,
+    });
+
+    expect(audit.ok).toBe(false);
+    expect(audit.issues.map((item: { code: string }) => item.code)).toEqual(
+      expect.arrayContaining([
+        "auto-video.evidence-missing",
+        "auto-video.timeline-evidence-missing",
+        "auto-video.timeline-record-missing",
+      ]),
+    );
+  });
+
   it("executes clone-root, freshness, and final-media evidence rejection", async () => {
     const auditModuleUrl = pathToFileURL(
       resolve(appsRoot, "build/visible-workflow-auto-video-audit.mjs"),
@@ -810,13 +958,36 @@ describe("desktop build scripts", () => {
     mkdirSync(renderRoot, { recursive: true });
     const finalPath = resolve(renderRoot, "episode-proof.mp4");
     writeFileSync(finalPath, "non-empty smoke evidence");
+    for (const artifactPath of [
+      resolve(renderRoot, "editing-project.json"),
+      resolve(renderRoot, "timeline-render-plan.json"),
+      resolve(renderRoot, "input-manifest.json"),
+      resolve(renderRoot, "filter-graph.txt"),
+      resolve(renderRoot, "render.log"),
+      resolve(renderRoot, "ffprobe.json"),
+    ]) {
+      writeFileSync(artifactPath, "non-empty timeline artifact");
+    }
+    const timelineArtifactPaths = {
+      outputPath: finalPath,
+      snapshotPath: resolve(renderRoot, "editing-project.json"),
+      renderPlanPath: resolve(renderRoot, "timeline-render-plan.json"),
+      inputManifestPath: resolve(renderRoot, "input-manifest.json"),
+      filterGraphPath: resolve(renderRoot, "filter-graph.txt"),
+      logPath: resolve(renderRoot, "render.log"),
+      ffprobePath: resolve(renderRoot, "ffprobe.json"),
+    };
     const finalStat = statSync(finalPath);
+    const startedAtMs = Math.min(
+      finalStat.mtimeMs,
+      ...Object.values(timelineArtifactPaths).map((artifactPath) => statSync(artifactPath).mtimeMs),
+    ) - 1;
     const base = {
       enabled: true,
       stageClicked: true,
       clicked: true,
       preClickStage: "idle",
-      startedAtMs: finalStat.mtimeMs - 1,
+      startedAtMs,
       hasPostClickStageTransition: true,
       terminalStage: "completed",
       timedOut: false,
@@ -830,6 +1001,25 @@ describe("desktop build scripts", () => {
         sha256: "a".repeat(64),
         duration: 120,
         streams: ["video", "audio"],
+      },
+      projectId: "project-1",
+      chapterId: "chapter-1",
+      editingProjectId: "editing-1",
+      editingRevision: 1,
+      editingSourceSnapshotHash: "snapshot-1",
+      hasCurrentTimelineEvidence: true,
+      timelineArtifactPaths,
+      timelineEvidence: {
+        jobId: "timeline-1",
+        path: finalPath,
+      },
+      timelineRenderRecord: {
+        projectId: "project-1",
+        episodeId: "chapter-1",
+        editingProjectId: "editing-1",
+        editingRevision: 1,
+        sourceSnapshotHash: "snapshot-1",
+        evidence: { path: finalPath },
       },
     };
 
@@ -869,6 +1059,7 @@ describe("desktop build scripts", () => {
       expect.arrayContaining([
         "auto-video.stale-file",
         "auto-video.evidence-mtime",
+        "auto-video.timeline-artifact-stale",
       ]),
     );
 
@@ -889,6 +1080,85 @@ describe("desktop build scripts", () => {
         "auto-video.evidence-sha256",
         "auto-video.evidence-duration",
         "auto-video.evidence-streams",
+      ]),
+    );
+
+    const missingTimelineAudit = auditVisibleAutoVideo({
+      chapterAutoVideo: {
+        ...base,
+        hasCurrentTimelineEvidence: false,
+        timelineRenderRecord: null,
+        timelineEvidence: null,
+        timelineArtifactPaths: null,
+      },
+      userDataDir,
+    });
+    expect(missingTimelineAudit.issues.map((item: { code: string }) => item.code)).toEqual(
+      expect.arrayContaining([
+        "auto-video.timeline-evidence-missing",
+        "auto-video.timeline-record-missing",
+      ]),
+    );
+
+    const missingArtifactAudit = auditVisibleAutoVideo({
+      chapterAutoVideo: {
+        ...base,
+        timelineArtifactPaths: {
+          ...base.timelineArtifactPaths,
+          ffprobePath: resolve(renderRoot, "missing-ffprobe.json"),
+        },
+      },
+      userDataDir,
+    });
+    expect(missingArtifactAudit.issues.map((item: { code: string }) => item.code)).toContain(
+      "auto-video.timeline-artifact-missing",
+    );
+
+    const outsideArtifactPath = resolve(userDataDir, "outside-render-plan.json");
+    writeFileSync(outsideArtifactPath, "outside clone render root");
+    const outsideArtifactAudit = auditVisibleAutoVideo({
+      chapterAutoVideo: {
+        ...base,
+        timelineArtifactPaths: {
+          ...base.timelineArtifactPaths,
+          renderPlanPath: outsideArtifactPath,
+        },
+      },
+      userDataDir,
+    });
+    expect(outsideArtifactAudit.issues.map((item: { code: string }) => item.code)).toContain(
+      "auto-video.timeline-artifact-root",
+    );
+
+    const staleTimelineAudit = auditVisibleAutoVideo({
+      chapterAutoVideo: {
+        ...base,
+        timelineRenderRecord: {
+          ...base.timelineRenderRecord,
+          editingRevision: 2,
+        },
+      },
+      userDataDir,
+    });
+    expect(staleTimelineAudit.issues.map((item: { code: string }) => item.code)).toContain(
+      "auto-video.timeline-revision",
+    );
+
+    const wrongSourceTimelineAudit = auditVisibleAutoVideo({
+      chapterAutoVideo: {
+        ...base,
+        timelineRenderRecord: {
+          ...base.timelineRenderRecord,
+          projectId: "other-project",
+          episodeId: "other-chapter",
+        },
+      },
+      userDataDir,
+    });
+    expect(wrongSourceTimelineAudit.issues.map((item: { code: string }) => item.code)).toEqual(
+      expect.arrayContaining([
+        "auto-video.timeline-source-project",
+        "auto-video.timeline-source-episode",
       ]),
     );
   });
@@ -1041,6 +1311,9 @@ describe("desktop build scripts", () => {
       '"video:daojie:chapter001": "node ./build/automate-daojie-chapter001-video.mjs"',
     );
     expect(packageJson).toContain(
+      '"video:daojie:chapter001:visual-preflight": "MYSTUDIO_DAOJIE_VISUAL_PREFLIGHT=1 ./node_modules/.bin/vite-node --config build/vite-node.config.ts build/audit-daojie-visual-continuity.ts"',
+    );
+    expect(packageJson).toContain(
       '"video:daojie:chapter001:probe-providers": "node ./build/automate-daojie-chapter001-video.mjs --probe-providers"',
     );
     expect(videoScript).toContain("Library");
@@ -1123,6 +1396,17 @@ describe("desktop build scripts", () => {
     expect(videoScript).toContain("generate_chapter001_continuity_sample.py");
     expect(videoScript).toContain("MYSTUDIO_CONTINUITY_PILOT_SHOTS");
     expect(videoScript).toContain("MYSTUDIO_CONTINUITY_RESTART_FROM_SHOT");
+    expect(videoScript).toContain("MYSTUDIO_CONTINUITY_CONFIRM_PAID_RETRY");
+    expect(videoScript).toContain("--confirm-paid-retry");
+    expect(videoScript).toContain("MYSTUDIO_CONTINUITY_WATERMARK_TEST_VARIANT");
+    expect(videoScript).toContain("--watermark-test-variant");
+    expect(videoScript).toContain("MYSTUDIO_CONTINUITY_PILOT_REJECT_SHOT");
+    expect(videoScript).toContain("MYSTUDIO_CONTINUITY_PILOT_REJECTION_REASON");
+    expect(videoScript).toContain("--reject-shot");
+    expect(videoScript).toContain("不能同时设置");
+    expect(videoScript).toContain("if (approveShot || rejectShot)");
+    expect(videoScript).toContain("humanRejections");
+    expect(videoScript).toContain("人工审核持久化证据无效");
     expect(videoScript).toContain("--full-chapter");
     expect(videoScript).toContain("payload.generatedImages !== payload.processedImages");
     expect(videoScript).toContain("payload.reusedImages !== 0");
@@ -1136,6 +1420,9 @@ describe("desktop build scripts", () => {
     expect(videoScript).toContain("opencut-api-config");
     expect(videoScript).toContain("freedom_image");
     expect(videoScript).toContain("MYSTUDIO_IMAGE_PROVIDER_CONFIGS_JSON");
+    expect(videoScript).toContain("MYSTUDIO_IMAGE_ASYNC_MODE: '1'");
+    expect(videoScript).toContain("MYSTUDIO_CONTINUITY_PILOT_DRY_RUN");
+    expect(videoScript).toContain("pilotArgs.push('--dry-run')");
     expect(videoScript).toContain("generatedFrameImages");
     expect(videoScript).toContain("matchedAssetImages");
     expect(videoScript).toContain("storyboardMediaManifest");
@@ -1351,6 +1638,21 @@ describe("desktop build scripts", () => {
     );
     expect(videoScript).not.toContain("generated.imageGenerationMode !== 'asset-composite'");
     expect(videoScript).not.toContain("generated.imageGenerationProvider !== 'local-pillow-ffmpeg'");
+  });
+
+  it("validates V2 continuity asset candidates before loading paid provider credentials", () => {
+    const videoScript = readBuildFile("build/automate-daojie-chapter001-video.mjs");
+
+    expect(videoScript).toContain("chapter001_continuity_asset_candidate.py");
+    expect(videoScript).toContain("readContinuityAssetCandidateManifest(dryRun)");
+    expect(videoScript).toContain("...(dryRun ? ['--dry-run'] : [])");
+    expect(videoScript).toContain("const providers = dryRun");
+    expect(videoScript).toContain("credentialLoaded: Boolean(provider.baseUrl && provider.apiKeys?.length)");
+    expect(videoScript).toContain("if (!dryRun) stopExistingMYStudioInstances()");
+    expect(videoScript).toContain("requestBindingSha256: manifest.requestBindingSha256");
+    expect(videoScript).toContain("referenceImageSha256: manifest.referenceImageSha256");
+    expect(videoScript).not.toContain("assetKind !== 'prop'");
+    expect(videoScript).not.toContain("daojie-gongbi-v2-prompt-audit-v3");
   });
 
   it("sends GPT storyboard reference images through the standard images endpoint", async () => {
@@ -1652,6 +1954,104 @@ describe("desktop build scripts", () => {
     }
   }, 10_000);
 
+  it("records a paid request fingerprint and blocks the same request across output directories", async () => {
+    let postCount = 0;
+    const server = createServer((request, response) => {
+      if (request.method === "POST") postCount += 1;
+      request.resume();
+      request.on("end", () => {
+        response.writeHead(200, { "Content-Type": "application/json" });
+        response.end(JSON.stringify({ url: "https://example.invalid/paid.png" }));
+      });
+    });
+    await new Promise<void>((resolveListen) => server.listen(0, "127.0.0.1", resolveListen));
+    const ledgerPath = resolve(mkdtempSync(resolve(tmpdir(), "mystudio-paid-ledger-")), "requests.jsonl");
+    try {
+      const address = server.address();
+      if (!address || typeof address === "string") throw new Error("mock server did not bind to a TCP port");
+      const payload = {
+        singleAttempt: true,
+        paidRequestLedgerPath: ledgerPath,
+        paidAuthorization: true,
+        logicalJob: "test-paid-job",
+        logicalShot: "sb-test-001",
+        providers: [{
+          providerName: "ledger-provider",
+          baseUrl: `http://127.0.0.1:${address.port}/v1`,
+          apiKey: "key-one",
+          model: "gpt-image-2",
+          asyncMode: true,
+          timeoutSeconds: 5,
+        }],
+        attemptId: "attempt-1",
+        prompt: "账本去重",
+        referenceImages: [],
+      };
+      const first = await runNodeHelper(payload);
+      expect(first.status).toBe(0);
+      expect(JSON.parse(first.stdout)).toMatchObject({
+        url: "https://example.invalid/paid.png",
+        request: { asyncMode: true, taskId: null },
+      });
+      expect(postCount).toBe(1);
+      const ledger = readFileSync(ledgerPath, "utf8").trim().split("\n").map((line) => JSON.parse(line));
+      expect(ledger.map((event) => event.status)).toEqual(["POST_SENT", "COMPLETED"]);
+      expect(ledger[1]).toMatchObject({
+        logicalJob: "test-paid-job",
+        logicalShot: "sb-test-001",
+        endpoint: `http://127.0.0.1:${address.port}/v1/images/generations/async`,
+        taskId: null,
+      });
+      const second = await runNodeHelper({ ...payload, attemptId: "attempt-2" });
+      expect(second.status).toBe(1);
+      expect(second.stderr).toContain("fingerprint already has COMPLETED evidence");
+      expect(postCount).toBe(1);
+    } finally {
+      await new Promise<void>((resolveClose, rejectClose) => {
+        server.close((error) => (error ? rejectClose(error) : resolveClose()));
+      });
+    }
+  }, 10_000);
+
+  it("requires explicit paid authorization before the ledger can reach a provider", async () => {
+    let requestCount = 0;
+    const server = createServer((request, response) => {
+      requestCount += 1;
+      request.resume();
+      response.writeHead(500, { "Content-Type": "application/json" });
+      response.end(JSON.stringify({ error: "must not be called" }));
+    });
+    await new Promise<void>((resolveListen) => server.listen(0, "127.0.0.1", resolveListen));
+    const ledgerPath = resolve(mkdtempSync(resolve(tmpdir(), "mystudio-paid-auth-")), "requests.jsonl");
+    try {
+      const address = server.address();
+      if (!address || typeof address === "string") throw new Error("mock server did not bind to a TCP port");
+      const result = await runNodeHelper({
+        singleAttempt: true,
+        paidRequestLedgerPath: ledgerPath,
+        paidAuthorization: false,
+        logicalJob: "test-paid-job",
+        logicalShot: "sb-test-002",
+        attemptId: "attempt-auth-1",
+        providers: [{
+          providerName: "ledger-provider",
+          baseUrl: `http://127.0.0.1:${address.port}/v1`,
+          apiKey: "key-one",
+          model: "gpt-image-2",
+        }],
+        prompt: "授权门",
+        referenceImages: [],
+      });
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("explicit authorization");
+      expect(requestCount).toBe(0);
+    } finally {
+      await new Promise<void>((resolveClose, rejectClose) => {
+        server.close((error) => (error ? rejectClose(error) : resolveClose()));
+      });
+    }
+  }, 10_000);
+
   it("stops provider fallback after an async image task is accepted", async () => {
     const requests: Array<{ authorization: string; method: string; url: string }> = [];
     const server = createServer((request, response) => {
@@ -1866,20 +2266,16 @@ audit = module.build_storyboard_prompt_audit(
 )
 
 checks = [
-    "《道劫》默认主风格" in prompt,
-    "宣纸淡彩工笔" in prompt,
-    "低饱和青绿山水" in prompt,
-    "竹窗卷轴人物质感" in prompt,
-    "旧金只用于衣纹" in prompt,
-    "水墨国风" in prompt,
-    "工笔线描" in prompt,
-    "宣纸质感" in prompt,
-    "高完成度国风漫剧关键帧" in prompt,
-    "画面无字幕、无水印、无标题叠字" in prompt,
+    "daojie-gongbi-v2" in prompt,
+    "连续白描和铁线描" in prompt,
+    "薄层矿物色分染与罩染" in prompt,
+    "30%-70%" in prompt,
+    "均匀平光宣纸照明" in prompt,
+    "衣物完整可穿" in prompt,
+    "无统一脏污滤镜" in prompt,
     "禁止写实摄影" in prompt,
-    "禁止3D写实渲染" in prompt,
-    "禁止偏离宣纸淡彩工笔主风格" in prompt,
-    "禁止白底设定图/三视图/四视图/资料卡" in prompt,
+    "3D/CGI" in prompt,
+    "文字、水印、签名、logo" in prompt,
     "@图1 为金水河码头场景" in prompt,
     "@图2 为独孤剑尘角色" in prompt,
     "@图3 为赤练蛇皮鞭道具" in prompt,
@@ -1888,7 +2284,8 @@ checks = [
     "道具一致性" in prompt,
     "只允许镜头、动作、表情按当前分镜变化" in prompt,
     "只变化当前分镜需要的景别、动作、表情" in prompt,
-    "保持所有@图N造型、结构与参考图一致" in prompt,
+    "【参考继承边界】" in prompt,
+    "V2媒介、综合色彩、完整衣物、当前分镜动作与构图优先" in prompt,
     "【光影】" in prompt,
     "@图2在@图1抬手，@图3撕开河雾" in visual,
     "独孤剑尘" not in visual,
@@ -1902,6 +2299,7 @@ checks = [
     audit["hasNegativeConstraints"],
     audit["missingVisibleRoleReferences"] == [],
     audit["rawAssetNameLeaks"] == [],
+    audit["v2"]["status"] == "pass",
 ]
 print(all(checks), prompt.count("@图") >= 8)
 `);
@@ -1944,7 +2342,19 @@ dugu = {
 prop = {"name": "油布剑包", "kind": "道具", "assetId": "prop-sword-wrap", "imagePath": "/wrap.png"}
 assets = [scene, dugu, prop]
 manifest, versions = module.build_ordered_continuity_manifest(assets, "dock-main-axis")
-state = module.build_sample_shot_continuity_state(6, "独孤剑尘从河雾边走来。", assets, manifest)
+semantics = {
+    "sceneViewpointId": "dock-main-axis",
+    "personFree": False,
+    "visibleCharacters": [{
+        "name": "独孤剑尘", "position": "左中格", "orientation": "背部三分之四朝右",
+        "actionIn": "从河雾外沿沿湿木栈道入画", "actionOut": "停在左中格，右脚落地",
+    }],
+    "visibleProps": [{"name": "油布剑包", "position": "左后景", "state": "背负且未露剑"}],
+    "actionIn": "独孤剑尘从河雾外沿进入湿木栈道",
+    "actionOut": "独孤剑尘停在左中格，继续朝右",
+}
+group = {"groupId": "chapter-001:source:006-006", "start": 6, "end": 6, "sceneName": "金水河码头", "viewpointId": "dock-main-axis"}
+state = module.build_storyboard_semantic_continuity_state(6, "独孤剑尘从河雾边走来。", assets, manifest, semantics, group)
 refs = module.collect_storyboard_reference_images(module.apply_continuity_manifest_to_image_assets(assets, manifest))
 final_prompt = module.build_storyboard_image_prompt({
     "id": "sb-chapter-001-006", "index": 6, "sceneNo": 1,
@@ -1984,7 +2394,7 @@ print(json.dumps({
       "prop-sword-wrap:base",
     ]);
     expect(payload.finalPrompt).toContain("【资产圣经】");
-    expect(payload.finalPrompt).toContain("【连续镜头组】chapter-001:dock:01-12");
+    expect(payload.finalPrompt).toContain("【连续镜头组】chapter-001:source:006-006");
     expect(payload.finalPrompt).toContain("银白长发与右肩破损灰袍组合锚点");
     expect(payload.finalPrompt).toContain("左岸湿木栈道通向右侧泊船区");
     expect(payload.finalPrompt).toContain("【多视图身份锁】");
@@ -2089,7 +2499,7 @@ with tempfile.TemporaryDirectory() as tmp:
         "duguMarks": next_characters[0]["identityAnchors"]["uniqueMarks"],
         "helperAvoid": next_characters[2]["negativePrompt"]["avoid"],
         "sceneViewpoint": next_scene["viewpoints"][0]["id"],
-        "propPathsV4": all("/v4/props/" in item["imageUrl"] for item in next_props),
+        "propPathsV5": all("/v5/props/" in item["imageUrl"] for item in next_props),
         "backupCount": len(applied["backups"]),
         "pendingSummary": applied["approvalSummary"],
         "allUnapproved": all(item["approved"] is False and item["approval"] is None for item in applied["continuityAssetVersions"]),
@@ -2105,22 +2515,22 @@ with tempfile.TemporaryDirectory() as tmp:
     expect(result.stderr).toBe("");
     expect(JSON.parse(result.stdout.trim())).toEqual({
       dryRun: true,
-      bibleVersion: "v4",
+      bibleVersion: "v5",
       v5BibleVersion: "v5",
       v5OreSource: expect.stringContaining("spirit-ore-v5.png"),
       v5OreOutput: expect.stringContaining("/v5/props/spirit-ore/reference.png"),
       unchanged: true,
       viewCounts: [3, 3, 3],
-      duguMarks: ["银白长发半束高髻", "右肩破损灰袍", "背负三层油布剑包"],
-      helperAvoid: ["成年男子", "成年女性脸", "壮硕体型", "及踝长袍", "裙装", "整洁华服", "束冠高髻", "鞋靴", "现代服饰"],
+      duguMarks: ["银白长发半束高髻", "右肩加固缝线的完整灰袍", "背负三层油布剑包"],
+      helperAvoid: ["成年男子", "成年女性脸", "壮硕体型", "及踝长袍", "裙装", "华贵锦袍", "束冠高髻", "鞋靴", "现代服饰"],
       sceneViewpoint: "dock-main-axis",
-      propPathsV4: true,
+      propPathsV5: true,
       backupCount: 3,
       pendingSummary: { approved: 0, pending: 9, rejected: 0 },
       allUnapproved: true,
       thumbnailCount: 15,
       thumbnailsSafe: true,
-      overwriteBlocked: true,
+      overwriteBlocked: false,
       manifestExists: true,
       manifestSha256: 64,
     });
@@ -2141,6 +2551,17 @@ with tempfile.TemporaryDirectory() as tmp:
     image_path = Path(tmp) / "dock.png"
     image_path.write_bytes(b"reference")
     state = {
+        "agentWorkData": [{
+            "id": "source-001", "key": "storyboardTable", "episodeId": "chapter-001", "updatedAt": 1,
+            "data": """<storyboardTable>
+## 场1：金水河码头
+**引用资产名称**：[金水河码头]
+**引用资产ID**：[scene-dock]
+| 序号 | 画面描述 | 时长 | 景别 | 运镜 | 台词 | 音效 | 出镜语义JSON |
+|---|---|---|---|---|---|---|---|
+| 1 | 空镜建立码头。 | 3 | 远景 | 静止 | 旁白：河雾压低。 | 水声 | {\"sceneViewpointId\":\"dock-main-axis\",\"personFree\":true,\"visibleCharacters\":[],\"visibleProps\":[],\"actionIn\":\"河雾压低。\",\"actionOut\":\"木桩停在前景。\"} |
+</storyboardTable>""",
+        }],
         "storyboards": [{
             "id": "sb-chapter-001-001",
             "episodeId": "chapter-001",
@@ -2193,7 +2614,7 @@ with tempfile.TemporaryDirectory() as tmp:
       sceneViewpointId: "dock-main-axis",
       approved: false,
     });
-    expect(payload.storyboard.continuityState.groupId).toBe("chapter-001:dock:01-12");
+    expect(payload.storyboard.continuityState.groupId).toBe("chapter-001:source:001-001");
     expect(visualContinuityFingerprint(payload.storyboard)).toBe(
       payload.storyboard.continuityState.inputFingerprint,
     );
@@ -2243,7 +2664,39 @@ with tempfile.TemporaryDirectory() as temp:
     (project / "scenes.json").write_text(json.dumps({"state": {"scenes": [{
         "id": "scene-room", "name": "悦来客栈斗室", "referenceImage": str(room)
     }]}}), encoding="utf-8")
-    state = {"storyboards": [], "imageWorkflows": []}
+    semantics = json.dumps({
+        "sceneViewpointId": "inn-room-window-axis",
+        "personFree": True,
+        "visibleCharacters": [],
+        "visibleProps": [],
+        "actionIn": "斗室窗边保持静止。",
+        "actionOut": "窗外塾馆屋脊停在远景。",
+    }, ensure_ascii=False, separators=(",", ":"))
+    prefix_rows = []
+    for index in range(1, 23):
+        prefix_semantics = json.dumps({
+            "sceneViewpointId": f"prefix-viewpoint-{index}",
+            "personFree": True,
+            "visibleCharacters": [],
+            "visibleProps": [],
+            "actionIn": f"前置镜头 {index} 静止。",
+            "actionOut": f"前置镜头 {index} 结束。",
+        }, ensure_ascii=False, separators=(",", ":"))
+        prefix_rows.append(
+            f"| {index} | 前置镜头 | 前置场景{index} | — | 3 | 中景 | 静止 | 静止 | — | — | 克制 | 旁白：前置镜头。 | 风声 | — | {prefix_semantics} |"
+        )
+    source_rows = prefix_rows + [
+        f"| {index} | 透过斗室窗看塾馆 | 悦来客栈斗室 | [金水塾馆] | 3 | 中景 | 静止 | 静止 | — | — | 克制 | 旁白：窗外屋脊。 | 风声 | [scene-school] | {semantics} |"
+        for index in (23, 24)
+    ]
+    state = {
+        "storyboards": [],
+        "imageWorkflows": [],
+        "agentWorkData": [{
+            "id": "source-023-024", "key": "storyboardTable", "episodeId": "chapter-001", "updatedAt": 1,
+            "data": "<storyboardTable>\\n| 序号 | 画面描述 | 场景 | 关联资产名称 | 时长 | 景别 | 运镜 | 角色动作 | 朝向 | 空间关系 | 情绪 | 台词 | 音效 | 关联资产ID | 出镜语义JSON |\\n|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|\\n" + "\\n".join(source_rows) + "\\n</storyboardTable>",
+        }],
+    }
     for index in (23, 24):
         storyboard_id = f"sb-chapter-001-{index:03d}"
         state["storyboards"].append({
@@ -2268,6 +2721,7 @@ with tempfile.TemporaryDirectory() as temp:
     expect(payload.report.repairedSceneGroupMismatches).toHaveLength(2);
     for (const storyboard of payload.storyboards) {
       expect(storyboard.continuityState).toMatchObject({
+        groupId: "chapter-001:source:023-024",
         sceneVersionId: "scene-room:inn-room-window-axis:v1",
         sceneViewpointId: "inn-room-window-axis",
       });
@@ -2403,6 +2857,8 @@ with tempfile.TemporaryDirectory() as temp:
         "outputPath": str(image),
         "outputSha256": module.stable_sha256(image),
         "transferThumbnail": {"path": str(thumb), "bytes": thumb.stat().st_size},
+        "styleContractVersion": "daojie-gongbi-v2",
+        "colorAudit": {"status": "pass"},
     }
     (output / "report.json").write_text(json.dumps({
         "shots": [6, 7], "entries": [entry], "status": "awaiting-human-approval"
@@ -2412,7 +2868,8 @@ with tempfile.TemporaryDirectory() as temp:
         module.approve_generated_shot(output, 6, False, "")
     except RuntimeError as error:
         blocked = str(error)
-    receipt = module.approve_generated_shot(output, 6, True, "角色、场景与道具检查通过")
+    checklist = {field: True for field in module.daojie_gongbi_v2.HUMAN_REVIEW_CHECKLIST_FIELDS}
+    receipt = module.approve_generated_shot(output, 6, True, "角色、场景与道具检查通过", checklist)
     approvals = module.load_json_file(output / "human-approvals.json", {})
     approval = module.valid_human_approval(approvals, 6, entry)
     class Generator:
@@ -2474,12 +2931,28 @@ characters = {
     "监工赵四": character("监工赵四", "char-zhaosi"),
     "小杂役": character("小杂役", "char-worker"),
 }
+visible_by_index = {
+    6: ["独孤剑尘"], 7: ["独孤剑尘"], 8: ["监工赵四", "小杂役"],
+    9: ["独孤剑尘", "小杂役"], 10: ["监工赵四"], 11: ["小杂役"], 12: ["独孤剑尘"],
+}
 states = []
+group = {"groupId": "chapter-001:source:006-012", "start": 6, "end": 12, "sceneName": "金水河码头", "viewpointId": "dock-main-axis"}
 for index in range(6, 13):
-    names = list(module.SAMPLE_SHOT_CONTINUITY[index]["characters"])
+    names = visible_by_index[index]
     assets = [scene, *[characters[name] for name in names]]
     manifest, _versions = module.build_ordered_continuity_manifest(assets, "dock-main-axis")
-    state = module.build_sample_shot_continuity_state(index, f"shot-{index}", assets, manifest)
+    semantics = {
+        "sceneViewpointId": "dock-main-axis",
+        "personFree": False,
+        "visibleCharacters": [{
+            "name": name, "position": "左中格", "orientation": "三分之四朝右",
+            "actionIn": f"{name} 承接镜头 {index - 1}", "actionOut": f"{name} 完成镜头 {index}",
+        } for name in names],
+        "visibleProps": [],
+        "actionIn": f"镜头 {index} 的明确起始状态",
+        "actionOut": f"镜头 {index} 的明确结束状态",
+    }
+    state = module.build_storyboard_semantic_continuity_state(index, f"shot-{index}", assets, manifest, semantics, group)
     states.append({"index": index, "state": state})
 print(json.dumps(states, ensure_ascii=False))
 `);
@@ -2491,7 +2964,7 @@ print(json.dumps(states, ensure_ascii=False))
       state: { groupId: string; previousStoryboardId?: string; actionIn: string; actionOut: string; inputFingerprint: string };
     }>;
     expect(states.map((item) => item.index)).toEqual([6, 7, 8, 9, 10, 11, 12]);
-    expect(states.every((item) => item.state.groupId === "chapter-001:dock:01-12")).toBe(true);
+    expect(states.every((item) => item.state.groupId === "chapter-001:source:006-012")).toBe(true);
     expect(states.every((item) => item.state.actionIn.length > 0 && item.state.actionOut.length > 0)).toBe(true);
     expect(states.every((item) => item.state.inputFingerprint.length > 0)).toBe(true);
     expect(states.at(-1)?.state.previousStoryboardId).toBe("sb-chapter-001-011");
@@ -2509,18 +2982,41 @@ module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 generator = module.load_generator()
 shots = list(range(1, 44))
-groups = module.selected_continuity_groups(generator, shots)
+source_shots = []
+for start, end, scene, viewpoint in [
+    (1, 12, "金水河码头", "dock-main-axis"),
+    (13, 19, "悦来客栈", "inn-hall-counter-axis"),
+    (20, 24, "悦来客栈斗室", "inn-room-window-axis"),
+    (25, 40, "金水塾馆", "school-lamp-desk-axis"),
+    (41, 42, "悦来客栈斗室", "inn-room-night-return"),
+    (43, 43, "金水河", "river-night-long-axis"),
+]:
+    for index in range(start, end + 1):
+        source_shots.append({
+            "index": index,
+            "scene": scene,
+            "shotSemantics": {
+                "sceneViewpointId": viewpoint,
+                "personFree": True,
+                "visibleCharacters": [],
+                "visibleProps": [],
+                "actionIn": f"镜头 {index} 起始",
+                "actionOut": f"镜头 {index} 结束",
+            },
+        })
+generator.attach_storyboard_continuity_groups(source_shots)
+groups = module.selected_continuity_groups(source_shots, shots)
 entries = {
     index: {"index": index, "storyboardId": f"sb-chapter-001-{index:03d}", "outputPath": f"/tmp/{index}.png"}
     for index in shots
 }
 approvals = {"approvals": {str(index): {"index": index, "status": "approved"} for index in shots}}
 kept_entries, kept_approvals, superseded = module.invalidate_restart_state(
-    generator, shots, entries, approvals, 9
+    source_shots, shots, entries, approvals, 9
 )
 blocked = ""
 try:
-    module.selected_continuity_groups(generator, [6, 8])
+    module.selected_continuity_groups(source_shots, [6, 8])
 except RuntimeError as error:
     blocked = str(error)
 with tempfile.TemporaryDirectory() as temp:
@@ -2596,23 +3092,22 @@ school = {
 }
 shots = module.canonical_storyboard_shots()
 states = []
+group = {"groupId": "chapter-001:source:020-024", "start": 20, "end": 24, "sceneName": "悦来客栈斗室", "viewpointId": "inn-room-window-axis"}
 for index in range(20, 25):
     assets = [room, school] if index >= 23 else [room]
     manifest, _versions, state = module.build_storyboard_continuity_payload(
         index,
         f"shot-{index}",
         assets,
-        {"continuityState": {
-            "groupId": "chapter-001:legacy-hall",
-            "sceneVersionId": "scene-hall:inn-hall-counter-axis:v1",
-            "sceneViewpointId": "inn-hall-counter-axis",
-            "lighting": "旧光照",
-            "palette": "旧色板",
-            "actionIn": f"shot-{index}",
-            "actionOut": f"shot-{index}",
-            "characters": [],
-            "inputFingerprint": "stale",
-        }},
+        shot_semantics={
+            "sceneViewpointId": "inn-room-window-axis",
+            "personFree": True,
+            "visibleCharacters": [],
+            "visibleProps": [],
+            "actionIn": f"斗室空镜 {index} 的起始构图",
+            "actionOut": f"斗室空镜 {index} 的结束构图",
+        },
+        continuity_group=group,
     )
     states.append({
         "index": index,
@@ -2632,7 +3127,7 @@ print(json.dumps(states, ensure_ascii=False))
       sceneRoles: string[];
     }>;
     expect(states.map((item) => item.scene)).toEqual(Array(5).fill("悦来客栈斗室"));
-    expect(states.every((item) => item.state.groupId === "chapter-001:inn-room:20-24")).toBe(true);
+    expect(states.every((item) => item.state.groupId === "chapter-001:source:020-024")).toBe(true);
     expect(states.every((item) => item.state.sceneVersionId === "scene-room:inn-room-window-axis:v1")).toBe(true);
     expect(states.every((item) => item.state.sceneViewpointId === "inn-room-window-axis")).toBe(true);
     expect(states[3]?.state.previousStoryboardId).toBe("sb-chapter-001-022");
@@ -2667,7 +3162,7 @@ except RuntimeError as error:
     expect(result.stdout.trim()).toBe("True ['独孤剑尘']");
   });
 
-  it("audits all Daojie chapter 001 storyboard prompts for Toonflow-style bindings", () => {
+  it("blocks a static Daojie fixture before it can infer per-shot cast references", () => {
     const result = runPythonSnippet(`
 import importlib.util
 
@@ -2675,30 +3170,18 @@ spec = importlib.util.spec_from_file_location("dao", "Library/build_daojie_chapt
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
-state = module.load_json(module.STORE).setdefault("state", {})
-catalog = module.build_asset_catalog(state)
-manifest = []
-for index, shot in enumerate(module.canonical_storyboard_shots(), 1):
-    scene, desc, speaker, text, sound, assets, duration = module.shot_tuple(shot)
-    refs = module.collect_storyboard_reference_images(module.resolve_image_assets(scene, assets, catalog))
-    prompt = module.build_storyboard_image_prompt({"id": f"sb-{index}", "index": index, "sceneNo": shot.get("sceneNo", 1), "prompt": desc}, refs)
-    audit = module.build_storyboard_prompt_audit({"id": f"sb-{index}", "index": index}, prompt, refs, desc)
-    module.assert_storyboard_prompt_audit(audit)
-    manifest.append(audit)
-summary = module.summarize_storyboard_prompt_manifest(manifest)
-print(
-    len(manifest),
-    summary["storyboardPromptsWithReferenceBindings"],
-    summary["storyboardPromptsWithDaojieStyleLock"],
-    summary["storyboardPromptsWithLightSection"],
-    summary["storyboardPromptsWithMissingVisibleCharacterRefs"],
-    summary["storyboardPromptsWithRawAssetNameLeaks"],
-)
+blocked = []
+for shot in module.canonical_storyboard_shots():
+    try:
+        module.require_storyboard_shot_semantics(shot)
+    except RuntimeError as error:
+        blocked.append("缺少出镜语义JSON" in str(error))
+print(len(blocked), all(blocked))
 `);
 
     expect(result.status).toBe(0);
     expect(result.stderr).toBe("");
-    expect(result.stdout.trim()).toBe("43 43 43 43 0 0");
+    expect(result.stdout.trim()).toBe("43 True");
   });
 
   it("keeps project entity IDs canonical when episode extraction IDs are stale", () => {
@@ -2738,7 +3221,32 @@ with tempfile.TemporaryDirectory() as temp:
     expect(result.stdout.trim()).toBe("canonical-dugu canonical-dock canonical-dugu canonical-dock");
   });
 
-  it("builds writeback-safe continuity payloads for all Daojie storyboards", () => {
+  it("hard-locks the dock-overseer wardrobe color in storyboard bible rules", () => {
+    const result = runPythonSnippet(`
+import importlib.util
+
+spec = importlib.util.spec_from_file_location("dao", "Library/build_daojie_chapter001_workflow.py")
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+
+rules = module.build_storyboard_bible_rules([{
+    "assetType": "character",
+    "name": "监工赵四",
+    "wardrobeVersion": "dock-overseer",
+    "identityAnchors": {"uniqueMarks": ["粗壮监工体型"]},
+    "negativePrompt": {"avoid": ["换脸"]},
+}])
+print("灰白旧监工袍作为服装主色、灰腰带、粗布层次清晰" in rules)
+print("胸腹、双袖和下摆必须保留可见灰白色块" in rules)
+print("近黑长袍、纯黑整套服装、黑色武服、把服装主色渲染成黑色" in rules)
+`);
+
+    expect(result.status).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(result.stdout.trim()).toBe("True\nTrue\nTrue");
+  });
+
+  it("requires the current project storyboard table to provide per-shot semantics", () => {
     const result = runPythonSnippet(`
 import importlib.util
 
@@ -2748,26 +3256,85 @@ spec.loader.exec_module(module)
 
 state = module.load_json(module.STORE).setdefault("state", {})
 source = module.resolve_storyboard_source(state, module.EPISODE_ID)
-catalog = module.build_asset_catalog(state)
-existing = {str(item.get("id")): item for item in state.get("storyboards", []) if item.get("episodeId") == module.EPISODE_ID}
-payloads = []
-for index, shot in enumerate(source["shots"], 1):
-    scene, desc, speaker, text, sound, assets, duration = module.shot_tuple(shot)
-    image_assets = module.resolve_image_assets(scene, assets, catalog)
-    manifest, versions, continuity = module.build_storyboard_continuity_payload(
-        index, desc, image_assets, existing.get(f"sb-{module.EPISODE_ID}-{index:03d}", {})
-    )
-    payloads.append((manifest, continuity))
 print(
-    len(payloads),
-    sum(1 for manifest, continuity in payloads if manifest and continuity.get("inputFingerprint")),
-    sum(1 for manifest, continuity in payloads if continuity.get("groupId")),
+    len(source["shots"]) == 43
+    and all(isinstance(shot.get("shotSemantics"), dict) for shot in source["shots"])
 )
 `);
 
     expect(result.status).toBe(0);
     expect(result.stderr).toBe("");
-    expect(result.stdout.trim()).toBe("43 43 43");
+    expect(result.stdout.trim()).toBe("True");
+  });
+
+  it("reuses approved v5 canonical references when the project catalog is stale", () => {
+    const result = runPythonSnippet(`
+import importlib.util
+import json
+
+spec = importlib.util.spec_from_file_location("dao", "Library/build_daojie_chapter001_workflow.py")
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+
+state = module.load_json(module.STORE).setdefault("state", {})
+catalog = module.build_asset_catalog(state)
+existing_versions = {
+    f"{item.get('assetId', '')}:{item.get('versionId', '')}": item
+    for item in state.get("continuityAssetVersions") or []
+}
+shot = {
+    "index": 6,
+    "scene": "金水河码头",
+    "assets": ["独孤剑尘", "油布剑包"],
+    "shotSemantics": {
+        "sceneViewpointId": "dock-main-axis",
+        "personFree": False,
+        "visibleCharacters": [{
+            "name": "独孤剑尘", "position": "左中格", "orientation": "背部三分之四朝右",
+            "actionIn": "从河雾外沿入画", "actionOut": "停在左中格",
+        }],
+        "visibleProps": [{"name": "油布剑包", "position": "左后景", "state": "背负且未露剑"}],
+        "actionIn": "独孤剑尘从河雾外沿入画",
+        "actionOut": "独孤剑尘停在左中格",
+    },
+}
+image_assets = module.resolve_continuity_image_assets(shot, catalog)
+manifest, versions = module.build_ordered_continuity_manifest(
+    image_assets,
+    shot["shotSemantics"]["sceneViewpointId"],
+    shot["scene"],
+)
+old_paths = [item.get("imagePath") for item in manifest]
+manifest, versions = module.reuse_approved_continuity_versions(
+    manifest,
+    versions,
+    existing_versions,
+)
+print(json.dumps({
+    "approved": sum(item.get("approved") is True for item in versions),
+    "reused": sum(
+        item.get("referenceImagePaths")
+        and item.get("referenceImagePaths") != [old_paths[index]]
+        for index, item in enumerate(versions)
+    ),
+    "pathsMatchStore": all(
+        item.get("referenceImagePaths") == existing_versions[
+            f"{item.get('assetId', '')}:{item.get('versionId', '')}"
+        ].get("referenceImagePaths")
+        for item in versions
+        if f"{item.get('assetId', '')}:{item.get('versionId', '')}" in existing_versions
+        and existing_versions[f"{item.get('assetId', '')}:{item.get('versionId', '')}"].get("approved") is True
+    ),
+}, ensure_ascii=False))
+`);
+
+    expect(result.status).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(JSON.parse(result.stdout.trim())).toEqual({
+      approved: 3,
+      reused: 3,
+      pathsMatchStore: true,
+    });
   });
 
   it("injects Daojie ink-guofeng style and reference labels into derived asset image prompts", () => {
@@ -2798,13 +3365,13 @@ prop_prompt = module.build_derived_asset_image_prompt(
 )
 
 checks = [
-    "水墨国风修仙" in prompt,
-    "工笔线描" in prompt,
-    "宣纸质感" in prompt,
-    "水墨国风电影质感" in prompt,
-    "画面无字幕、无水印、无标题叠字" in prompt,
+    "daojie-gongbi-v2" in prompt,
+    "连续白描和铁线描" in prompt,
+    "薄层矿物色分染与罩染" in prompt,
+    "30%-70%可辨彩色" in prompt,
+    "衣物必须完整可穿" in prompt,
     "禁止写实摄影" in prompt,
-    "禁止3D写实渲染" in prompt,
+    "3D/CGI" in prompt,
     "@图1 为独孤剑尘角色基准图" in prompt,
     "角色四视图设定图" in prompt,
     "三视图参考图" in prompt,
@@ -2816,7 +3383,7 @@ checks = [
     "character reference sheet" in prompt,
     "character turnaround" in prompt,
     "不要生成单张全身插画" in prompt,
-    "保持所有@图N造型、结构与参考图一致" in prompt,
+    "【参考继承边界】@图1仅继承同一角色身份、面容、体态、发型和比例结构" in prompt,
     "灰衫入镇态" in prompt,
 ]
 scene_checks = [
@@ -2911,7 +3478,7 @@ with tempfile.TemporaryDirectory() as tmp:
         frame.exists(),
         result["projectImageUrl"].endswith("/workflow-images/storyboards/chapter-001/shot-001.png"),
         result.get("reusedExistingImage") is True,
-        "《道劫》默认主风格" in result["workflowGraph"]["nodes"][-1]["prompt"],
+        "daojie-gongbi-v2" in result["workflowGraph"]["nodes"][-1]["prompt"],
     )
 `);
 
@@ -3106,15 +3673,29 @@ print(source["kind"], source["workId"], len(source["shots"]), [shot["index"] for
   it("derives all 43 shots from a project storyboard table without bootstrap fallback", () => {
     const result = runPythonSnippet(`
 import importlib.util
+import json
 spec = importlib.util.spec_from_file_location("dao", "Library/build_daojie_chapter001_workflow.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 header = [
-    "| 序号 | 画面描述 | 场景 | 关联资产名称 | 时长 | 景别 | 运镜 | 角色动作 | 朝向 | 空间关系 | 情绪 | 台词 | 音效 | 关联资产ID |",
-    "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|",
+    "| 序号 | 画面描述 | 场景 | 关联资产名称 | 时长 | 景别 | 运镜 | 角色动作 | 朝向 | 空间关系 | 情绪 | 台词 | 音效 | 关联资产ID | 出镜语义JSON |",
+    "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|",
 ]
 rows = [
-    f"| {index} | 动态镜头{index} | 金水河码头 | [独孤剑尘] | 3 | 中景 | 静止 | 抬头 | — | — | 克制 | 旁白：第{index}镜。 | 风声 | [char-dugu] |"
+    "| {index} | 动态镜头{index} | 金水河码头 | [独孤剑尘] | 3 | 中景 | 静止 | 抬头 | — | — | 克制 | 旁白：第{index}镜。 | 风声 | [char-dugu] | {semantics} |".format(
+        index=index,
+        semantics=json.dumps({
+            "sceneViewpointId": "dock-main-axis",
+            "personFree": False,
+            "visibleCharacters": [{
+                "name": "独孤剑尘", "position": "中格", "orientation": "三分之四朝右",
+                "actionIn": f"进入动态镜头{index}", "actionOut": f"结束动态镜头{index}",
+            }],
+            "visibleProps": [],
+            "actionIn": f"动态镜头{index} 的起始状态",
+            "actionOut": f"动态镜头{index} 的结束状态",
+        }, ensure_ascii=False, separators=(",", ":")),
+    )
     for index in range(1, 44)
 ]
 dynamic_table = "<storyboardTable>" + chr(10) + chr(10).join(header + rows) + chr(10) + "</storyboardTable>"

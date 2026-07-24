@@ -19,7 +19,13 @@ import {
   LucideIcon,
 } from "lucide-react";
 import { create } from "zustand";
-import type { CharacterIdentityAnchors, CharacterNegativePrompt } from "@/types/script";
+import type {
+  CharacterConsistencyElements,
+  CharacterIdentityAnchors,
+  CharacterNegativePrompt,
+  CharacterStageInfo,
+  PromptLanguage,
+} from "@/types/script";
 
 // Tab-based navigation (simpler flat structure)
 export type Tab = "dashboard" | "overview" | "studio" | "script" | "characters" | "scenes" | "freedom" | "director" | "sclass" | "assets" | "media" | "skills" | "tts" | "export" | "settings";
@@ -207,7 +213,7 @@ export interface PendingCharacterData {
   storyYear?: number;  // 故事年份，如 2002
   era?: string;        // 时代背景描述
   // === 提示词语言偏好（从剧本面板透传）===
-  promptLanguage?: import('@/types/script').PromptLanguage;  // 'zh' | 'en' | 'zh+en'
+  promptLanguage?: PromptLanguage;  // 'zh' | 'en' | 'zh+en'
   // === 专业角色设计字段（世界级大师生成） ===
   visualPromptEn?: string;  // 英文视觉提示词
   visualPromptZh?: string;  // 中文视觉提示词
@@ -215,16 +221,8 @@ export interface PendingCharacterData {
   identityAnchors?: CharacterIdentityAnchors;  // 身份锚点 - 6层特征锁定
   negativePrompt?: CharacterNegativePrompt;    // 负面提示词
   // === 多阶段角色支持 ===
-  stageInfo?: {
-    stageName: string;
-    episodeRange: [number, number];
-    ageDescription?: string;
-  };
-  consistencyElements?: {
-    facialFeatures?: string;
-    bodyType?: string;
-    uniqueMarks?: string;
-  };
+  stageInfo?: CharacterStageInfo;
+  consistencyElements?: CharacterConsistencyElements;
 }
 
 // Data passed from script panel to scene library

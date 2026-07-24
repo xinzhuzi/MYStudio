@@ -347,9 +347,14 @@ export function visualContinuityFingerprint(storyboard: Pick<
   StoryboardItem,
   "prompt" | "orderedReferenceManifest" | "continuityState"
 >) {
+  const orderedReferences = normalizeOrderedReferences(storyboard.orderedReferenceManifest);
+  const continuity = storyboard.continuityState;
+  const styleReferenceSha256 = orderedReferences.find(
+    (reference) => reference.referenceRole === "style-reference",
+  )?.referenceImageSha256?.[0];
   return stableSerialize({
     prompt: storyboard.prompt,
-    references: normalizeOrderedReferences(storyboard.orderedReferenceManifest).map((reference) => compactNullishFields({
+    references: orderedReferences.map((reference) => compactNullishFields({
       order: reference.order,
       assetId: reference.assetId,
       versionId: reference.versionId,
@@ -362,10 +367,22 @@ export function visualContinuityFingerprint(storyboard: Pick<
       sceneViewpointId: reference.sceneViewpointId,
       contentFingerprint: reference.contentFingerprint,
     })),
-    continuity: storyboard.continuityState
-      ? compactNullishFields({ ...storyboard.continuityState, inputFingerprint: undefined })
+    continuity: continuity
+      ? compactNullishFields({ ...continuity, inputFingerprint: undefined })
+      : undefined,
+    styleContract: continuity?.styleContractVersion
+      ? {
+          version: continuity.styleContractVersion,
+          fingerprint: continuity.styleContractFingerprint,
+          promptAuditVersion: continuity.promptAuditVersion,
+          styleReferenceSha256: styleReferenceSha256 ?? null,
+        }
       : undefined,
   });
+}
+
+export function storyboardShotSemanticsFingerprint(semantics: StoryboardItem["shotSemantics"]) {
+  return semantics ? stableSerialize(semantics) : "";
 }
 
 export function storyboardContinuityStateIssues(storyboard: StoryboardItem): VisualContinuityIssue[] {
@@ -375,6 +392,20 @@ export function storyboardContinuityStateIssues(storyboard: StoryboardItem): Vis
       storyboardId: storyboard.id,
       code: "continuity.missing",
       message: `分镜 ${storyboard.id} 缺少连续镜头状态`,
+    }];
+  }
+  if (!storyboard.shotSemantics) {
+    return [{
+      storyboardId: storyboard.id,
+      code: "continuity.stale",
+      message: `分镜 ${storyboard.id} 缺少当前逐镜语义，不能沿用既有连续性状态`,
+    }];
+  }
+  if (continuity.sourceSemanticsFingerprint !== storyboardShotSemanticsFingerprint(storyboard.shotSemantics)) {
+    return [{
+      storyboardId: storyboard.id,
+      code: "continuity.stale",
+      message: `分镜 ${storyboard.id} 的逐镜语义已变化，必须重新生成并审核`,
     }];
   }
   if (continuity.inputFingerprint !== visualContinuityFingerprint(storyboard)) {

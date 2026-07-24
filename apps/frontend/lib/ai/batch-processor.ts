@@ -308,7 +308,7 @@ async function executeBatchWithRetry<TItem, TResult>(
       lastError = err instanceof Error ? err : new Error(String(err));
 
       // TOKEN_BUDGET_EXCEEDED 不重试（输入太大，重试也没用）
-      if ((lastError as any).code === 'TOKEN_BUDGET_EXCEEDED') {
+      if ("code" in lastError && lastError.code === 'TOKEN_BUDGET_EXCEEDED') {
         throw lastError;
       }
 

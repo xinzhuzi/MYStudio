@@ -7,8 +7,8 @@ import type { VoiceAssignment } from "./voice-assigner";
 
 function makeSink() {
   const calls = {
-    createVoiceProfile: [] as any[],
-    bindSpeaker: [] as any[],
+    createVoiceProfile: [] as Array<Parameters<VoiceProfileSink["createVoiceProfile"]>[0]>,
+    bindSpeaker: [] as Array<Parameters<VoiceProfileSink["bindSpeaker"]>[0]>,
   };
   let seq = 0;
   const sink: VoiceProfileSink = {
@@ -49,5 +49,28 @@ describe("studio voice sync", () => {
 
     expect(result.bound).toBe(2);
     expect(result.profileIdByCharacter).toEqual({ a: "voice-profile-1", b: "voice-profile-2" });
+  });
+
+  it("reuses an existing binding without replacing its profile", () => {
+    const { sink, calls } = makeSink();
+    const existing = {
+      speakerId: "character:a" as const,
+      profileId: "voice-profile-existing",
+      defaultEngine: "qwen_custom_voice" as const,
+      defaultModelSize: "1.7B",
+    };
+    const result = syncCharacterVoices(assignments, {
+      projectId: "proj-1",
+      sink: {
+        ...sink,
+        getBinding: (speakerId) => speakerId === existing.speakerId ? existing : undefined,
+      },
+    });
+
+    expect(calls.createVoiceProfile).toHaveLength(1);
+    expect(calls.bindSpeaker).toHaveLength(1);
+    expect(calls.bindSpeaker[0]).toMatchObject({ speakerId: "character:b" });
+    expect(result.bound).toBe(2);
+    expect(result.profileIdByCharacter).toEqual({ a: "voice-profile-existing", b: "voice-profile-1" });
   });
 });

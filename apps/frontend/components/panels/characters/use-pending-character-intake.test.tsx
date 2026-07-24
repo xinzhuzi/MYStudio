@@ -41,6 +41,8 @@ function createOptions(data: PendingCharacterData) {
     setEra: setter(),
     setSourceEpisodeId: setter(),
     setStyleId: setter(),
+    setStageInfo: setter(),
+    setConsistencyElements: setter(),
   };
 }
 
@@ -69,6 +71,8 @@ describe("usePendingCharacterIntake", () => {
       era: "现代",
       sourceEpisodeId: "episode-1",
       styleId: "ink",
+      stageInfo: { stageName: "青年期", episodeRange: [1, 8], ageDescription: "25岁" },
+      consistencyElements: { facialFeatures: "剑眉", bodyType: "修长", uniqueMarks: "左眉痣" },
     };
     const options = createOptions(data);
 
@@ -91,6 +95,8 @@ describe("usePendingCharacterIntake", () => {
     expect(options.setCharNegativePrompt).toHaveBeenCalledWith(data.negativePrompt);
     expect(options.setSourceEpisodeId).toHaveBeenCalledWith("episode-1");
     expect(options.setStyleId).toHaveBeenCalledWith("ink");
+    expect(options.setStageInfo).toHaveBeenCalledWith(data.stageInfo);
+    expect(options.setConsistencyElements).toHaveBeenCalledWith(data.consistencyElements);
     expect(options.setPendingCharacterData).toHaveBeenCalledWith(null);
   });
 
@@ -108,6 +114,8 @@ describe("usePendingCharacterIntake", () => {
     expect(options.setIdentityAnchors).not.toHaveBeenCalled();
     expect(options.setStyleId).not.toHaveBeenCalled();
     expect(options.setSourceEpisodeId).toHaveBeenCalledWith(undefined);
+    expect(options.setStageInfo).toHaveBeenCalledWith(undefined);
+    expect(options.setConsistencyElements).toHaveBeenCalledWith(undefined);
     expect(options.setPendingCharacterData).toHaveBeenCalledWith(null);
   });
 });

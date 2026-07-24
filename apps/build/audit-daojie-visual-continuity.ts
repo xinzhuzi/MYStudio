@@ -1,7 +1,6 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
 import { auditVisualContinuity } from "@/lib/studio/visual-continuity";
 import type {
   ContinuityAssetVersion,
@@ -67,10 +66,10 @@ async function main() {
   process.stdout.write(`${JSON.stringify({ ...report, projectDir, storePath }, null, 2)}\n`);
 }
 
-function isDirectExecution() {
-  const entryPath = process.argv[1];
-  return process.env.MYSTUDIO_DAOJIE_VISUAL_PREFLIGHT === "1"
-    || (Boolean(entryPath) && pathToFileURL(path.resolve(entryPath)).href === import.meta.url);
+export function isDaojieVisualPreflightEnabled(
+  environment: Record<string, string | undefined> = process.env,
+): boolean {
+  return environment.MYSTUDIO_DAOJIE_VISUAL_PREFLIGHT === "1";
 }
 
-if (isDirectExecution()) await main();
+if (isDaojieVisualPreflightEnabled()) await main();

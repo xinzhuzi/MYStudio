@@ -9,11 +9,7 @@ import type {
   ScriptCharacter,
   ScriptData,
 } from "@/types/script";
-import type {
-  ScriptCalibrationState,
-  ScriptInputDraft,
-  ScriptProjectData,
-} from "./script-store";
+import type { ScriptCalibrationState, ScriptInputDraft, ScriptProjectData } from "./script-store-types";
 
 export interface ScriptStorePersistenceState {
   activeProjectId: string | null;
@@ -33,7 +29,7 @@ export const defaultScriptInputDraft: ScriptInputDraft = {
   updatedAt: 0,
 };
 
-const defaultCalibrationState = (): ScriptCalibrationState => ({
+export const defaultCalibrationState = (): ScriptCalibrationState => ({
   titleCalibrationStatus: "idle",
   characterCalibrationStatus: "idle",
   sceneCalibrationStatus: "idle",

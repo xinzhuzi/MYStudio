@@ -11,7 +11,13 @@
 import { useState } from "react";
 import { useCharacterLibraryStore, type Character } from "@/stores/character-library-store";
 import { useProjectStore } from "@/stores/project-store";
-import type { CharacterIdentityAnchors, CharacterNegativePrompt, PromptLanguage } from "@/types/script";
+import type {
+  CharacterConsistencyElements,
+  CharacterIdentityAnchors,
+  CharacterNegativePrompt,
+  CharacterStageInfo,
+  PromptLanguage,
+} from "@/types/script";
 import { useActiveScriptProject } from "@/stores/script-store";
 import { useMediaPanelStore } from "@/stores/media-panel-store";
 import { useMediaStore } from "@/stores/media-store";
@@ -51,6 +57,10 @@ import { StylePicker } from "@/components/ui/style-picker";
 import { getStyleById, DEFAULT_STYLE_ID } from "@/lib/constants/visual-styles";
 import { buildCharacterDataText } from "./character-data-export";
 import { CharacterCalibrationSection } from "./character-calibration-section";
+import {
+  buildCharacterStageVariation,
+  hasMatchingStageVariation,
+} from "./character-stage-variation";
 import { usePendingCharacterIntake } from "./use-pending-character-intake";
 import {
   SHEET_ELEMENTS,
@@ -68,7 +78,9 @@ interface GenerationPanelProps {
 export function GenerationPanel({ selectedCharacter, onCharacterCreated }: GenerationPanelProps) {
   const { 
     addCharacter, 
+    addVariation,
     updateCharacter,
+    getCharacterById,
     addCharacterView,
     selectCharacter,
     generationStatus,
@@ -111,6 +123,8 @@ export function GenerationPanel({ selectedCharacter, onCharacterCreated }: Gener
   const [era, setEra] = useState<string | undefined>();
   // === 集作用域（从 pending 数据透传）===
   const [sourceEpisodeId, setSourceEpisodeId] = useState<string | undefined>();
+  const [stageInfo, setStageInfo] = useState<CharacterStageInfo | undefined>();
+  const [consistencyElements, setConsistencyElements] = useState<CharacterConsistencyElements | undefined>();
   const [referenceImages, setReferenceImages] = useState<string[]>([]);
   const [styleId, setStyleId] = useState<string>(DEFAULT_STYLE_ID);
   const [selectedElements, setSelectedElements] = useState<SheetElementId[]>(
@@ -158,6 +172,8 @@ export function GenerationPanel({ selectedCharacter, onCharacterCreated }: Gener
     setEra,
     setSourceEpisodeId,
     setStyleId,
+    setStageInfo,
+    setConsistencyElements,
   });
 
   const toggleElement = (elementId: SheetElementId) => {
@@ -218,6 +234,8 @@ export function GenerationPanel({ selectedCharacter, onCharacterCreated }: Gener
     setEra(undefined);
     // === 重置集作用域 ===
     setSourceEpisodeId(undefined);
+    setStageInfo(undefined);
+    setConsistencyElements(undefined);
     setReferenceImages([]);
     setStyleId(DEFAULT_STYLE_ID);
     setSelectedElements(SHEET_ELEMENTS.filter(e => e.default).map(e => e.id));
@@ -270,6 +288,15 @@ export function GenerationPanel({ selectedCharacter, onCharacterCreated }: Gener
       // === 集作用域 ===
       linkedEpisodeId: sourceEpisodeId,
     });
+    const stageVariation = buildCharacterStageVariation({
+      stageInfo,
+      consistencyElements,
+      visualPromptEn,
+      visualPromptZh,
+    });
+    if (stageInfo && stageVariation && !hasMatchingStageVariation(getCharacterById(targetId)?.variations || [], stageInfo)) {
+      addVariation(targetId, stageVariation);
+    }
     selectCharacter(targetId);
     onCharacterCreated?.(targetId);
 

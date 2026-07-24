@@ -27,7 +27,8 @@ DEFAULT_PROJECT_DIR = Path(
 )
 TARGET_CHARACTERS = ("独孤剑尘", "监工赵四", "小杂役")
 VIEW_TYPES = ("front", "side", "back")
-BIBLE_VERSION = "v4"
+BIBLE_VERSION = "v5"
+ART_DIRECTION_VERSION = "daojie-gongbi-v2"
 PILOT_PROPS = {
     "油布剑包": "oilcloth-sword-wrap",
     "赤练蛇皮鞭": "red-snake-whip",
@@ -38,11 +39,11 @@ PILOT_PROPS = {
 
 CHARACTER_DESCRIPTIONS = {
     "独孤剑尘": (
-        "清瘦冷峻的银白长发剑修，身穿洗到发白且右肩破损的旧灰袍，"
+        "清瘦冷峻的银白长发剑修，身穿洗到发白、右肩有加固缝线的完整旧灰袍，"
         "第一章入镇阶段背负三层油布剑包；不得腰悬或裸露完整长剑。"
     ),
     "小杂役": (
-        "十二三岁的瘦弱少年，凌乱及肩黑发，身穿褴褛短褐与破旧裤装，赤足；"
+        "十二三岁的瘦弱少年，凌乱及肩黑发，身穿完整朴素短褐与长裤，赤足；"
         "不得出现及踝长袍、裙装或成年女性脸。"
     ),
 }
@@ -55,7 +56,7 @@ CHARACTER_BIBLES: dict[str, dict[str, Any]] = {
             "jawline": "锐利窄下颌",
             "cheekbones": "高而清晰的颧骨",
             "eyeShape": "狭长深色眼",
-            "uniqueMarks": ["银白长发半束高髻", "右肩破损灰袍", "背负三层油布剑包"],
+            "uniqueMarks": ["银白长发半束高髻", "右肩加固缝线的完整灰袍", "背负三层油布剑包"],
             "hairStyle": "及腰银白长发，半束高髻",
         },
         "negativePrompt": {
@@ -86,11 +87,11 @@ CHARACTER_BIBLES: dict[str, dict[str, Any]] = {
             "jawline": "柔和窄下颌",
             "cheekbones": "不突出的少年颧骨",
             "eyeShape": "偏大的深色怯生眼睛",
-            "uniqueMarks": ["十二三岁瘦弱少年体态", "凌乱及肩黑发", "褴褛短褐与破旧裤装且赤足"],
+            "uniqueMarks": ["十二三岁瘦弱少年体态", "凌乱及肩黑发", "完整朴素短褐与长裤且赤足"],
             "hairStyle": "凌乱及肩黑发，碎发垂在额前与耳侧",
         },
         "negativePrompt": {
-            "avoid": ["成年男子", "成年女性脸", "壮硕体型", "及踝长袍", "裙装", "整洁华服", "束冠高髻", "鞋靴", "现代服饰"],
+            "avoid": ["成年男子", "成年女性脸", "壮硕体型", "及踝长袍", "裙装", "华贵锦袍", "束冠高髻", "鞋靴", "现代服饰"],
             "styleExclusions": ["写实摄影", "3D塑料质感", "赛璐璐平涂"],
         },
         "cropProfile": "portrait-plus-three-view",
@@ -103,8 +104,8 @@ DOCK_BIBLE = {
         "画面前景为由左下向中部递进的湿石台阶与装卸平台；左侧固定堆放藤筐和散落矿石；"
         "右前景为系缆木桩与粗绳，右侧沿河停靠木船；河道从画面中部向远景延伸，群山与雾气构成背景轴。"
     ),
-    "lightingDesign": "阴天晨雾中的冷青漫射光，湿石与河面有克制反光，人物主光方向保持左上至右下。",
-    "colorPalette": "墨青、灰蓝、湿石深灰、藤筐赭褐、旧木褐、苔绿，旧金与朱砂仅作小面积叙事焦点。",
+    "lightingDesign": "阴天晨雾中的均匀平光宣纸照明，湿石与河面保留轻薄有彩色层次的反光，人物脸手清晰可读。",
+    "colorPalette": "石青、石绿、靛青、苔绿、藤筐赭褐与旧木褐形成30%-70%可辨色区，朱砂与旧金作为克制叙事焦点。",
     "keyProps": ["湿石台阶", "藤筐", "散落矿石", "系缆木桩", "粗麻绳", "木船"],
 }
 
@@ -126,7 +127,7 @@ def continuity_content_fingerprint(version: dict[str, Any]) -> str:
         "assetId", "versionId", "assetKind", "label", "referenceImagePaths", "referenceImageSha256",
         "referenceViewTypes", "identityAnchors", "negativePrompt", "wardrobeVersion",
         "sceneViewpointId", "spatialLayout", "lightingDesign", "colorPalette",
-        "validFromStoryboardIndex", "validToStoryboardIndex", "source",
+        "validFromStoryboardIndex", "validToStoryboardIndex", "source", "artDirectionVersion",
     )
     value = {key: version.get(key) for key in fields if version.get(key) is not None}
     return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
@@ -388,6 +389,7 @@ def prepare_bibles(
             "negativePrompt": CHARACTER_BIBLES[name]["negativePrompt"],
             "wardrobeVersion": wardrobe,
             "source": "project-character-bible",
+            "artDirectionVersion": ART_DIRECTION_VERSION,
         }))
     continuity_versions.append(pending_version({
         "assetId": dock["id"],
@@ -401,6 +403,7 @@ def prepare_bibles(
         "lightingDesign": DOCK_BIBLE["lightingDesign"],
         "colorPalette": DOCK_BIBLE["colorPalette"],
         "source": "project-scene-bible",
+        "artDirectionVersion": ART_DIRECTION_VERSION,
     }))
     for name, item in planned_props.items():
         record = prop_records[name]
@@ -412,11 +415,13 @@ def prepare_bibles(
             "referenceImagePaths": [str(item["outputPath"])],
             "referenceImageSha256": [hashlib.sha256(png_bytes(item["source"])).hexdigest()],
             "source": "project-prop-library",
+            "artDirectionVersion": ART_DIRECTION_VERSION,
         }))
 
     report: dict[str, Any] = {
         "dryRun": not apply,
         "bibleVersion": bible_version,
+        "artDirectionVersion": ART_DIRECTION_VERSION,
         "projectDir": str(project_dir),
         "changedCharacters": list(TARGET_CHARACTERS),
         "changedScenes": ["金水河码头"],

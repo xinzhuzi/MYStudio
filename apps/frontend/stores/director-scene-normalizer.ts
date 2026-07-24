@@ -1,4 +1,4 @@
-import type { SplitScene } from './director-store';
+import type { SplitScene } from './director-store-types';
 
 type LegacySplitSceneFields = {
   sceneName?: string;

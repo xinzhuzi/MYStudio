@@ -1,5 +1,6 @@
 import type { StudioMaterial } from "@/types/studio";
 import type { StudioAssetSummary } from "@/types/studio-assets";
+import { normalizeReferenceText } from "@/lib/tts/reference-text";
 
 export interface VoiceReferenceAsset {
   id: string;
@@ -43,16 +44,6 @@ export function buildVoiceReferenceAssets(
     seen.add(key);
     return true;
   });
-}
-
-function normalizeReferenceText(value?: string) {
-  const text = value?.trim();
-  if (!text || looksLikePath(text)) return undefined;
-  return text;
-}
-
-function looksLikePath(value: string) {
-  return /[\\/]/.test(value) || /\.(mp3|wav|m4a|aac|flac|ogg|opus)$/i.test(value);
 }
 
 function getRuntimeAudioPath(item: StudioAssetSummary) {

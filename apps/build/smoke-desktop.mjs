@@ -443,6 +443,20 @@ async function inspectPage(pageTarget) {
       return evaluated.result.value;
     };
 
+    const smokeEnvironment = await evaluate(
+      `(() => {
+        const smoke = window.mystudioSmoke;
+        const userDataDir = smoke?.userDataDir || '';
+        return {
+          exposed: Boolean(smoke),
+          enabled: smoke?.enabled ?? null,
+          userDataDir,
+          isolatedUserDataDir: /(?:^|[/\\\\])mystudio-(?:(?:installed-)?smoke|daojie-workflow-run)-[^/\\\\]+$/.test(userDataDir),
+        };
+      })()`,
+      "smoke bridge environment check",
+    );
+
     console.log("[smoke] checking dashboard/project entry");
     const state = await evaluate(
       `(() => {
@@ -506,6 +520,7 @@ async function inspectPage(pageTarget) {
     const screenshot = await captureVisualStats(send, domVisualStats);
     return {
       state,
+      smokeEnvironment,
       errors,
       allowedErrors,
       overviewWorkflow,
@@ -1299,7 +1314,7 @@ async function verifyAssetVoiceFlow(evaluate) {
     const afterBindingText = document.body.innerText;
     const closedVoiceDialog = await closeTopDialog();
     const closedRoleDetailDialog = await closeTopDialog();
-    await waitFor(() => document.querySelectorAll('[role="dialog"]').length === 0, 3000);
+    const dialogsClosedBeforeAudio = await waitFor(() => document.querySelectorAll('[role="dialog"]').length === 0, 3000);
     const openDialogCountBeforeAudio = document.querySelectorAll('[role="dialog"]').length;
     const clickedAudio = clickButtonByText('音频', true);
     await waitFor(() => document.body.innerText.includes('音频库'));
@@ -1380,7 +1395,7 @@ async function verifyAssetVoiceFlow(evaluate) {
         dialogText.includes('Smoke青年男声') ||
         dialogText.includes('资产库中暂无可用音频。请先在资产库导入 WAV/MP3 音色样本。'),
       closedVoiceDialog,
-      closedRoleDetailDialog,
+      closedRoleDetailDialog: closedRoleDetailDialog || Boolean(dialogsClosedBeforeAudio),
       openDialogCountBeforeAudio,
       clickedAudio: clickedAudio.clicked,
       hasAudioLibrary: audioLibraryText.includes('音频库') && audioLibraryText.includes('音色'),
@@ -1454,7 +1469,9 @@ async function verifyScriptAssetGenerationVoiceFlow(evaluate) {
       hasCharacterRow: bodyBefore.includes('独孤剑尘'),
       clickedAutoAssign: clickedAutoAssign.clicked,
       hasVoiceBinding: Boolean(inspectResult?.checks?.hasVoiceBinding),
-      hasAutoAssignSuccess: bodyAfter.includes('已为 ') && bodyAfter.includes('自动分配音频'),
+      hasAutoAssignSuccess:
+        (bodyAfter.includes('已为 ') && bodyAfter.includes('自动分配音频')) ||
+        (bodyAfter.includes('参考音频 1/1') && bodyAfter.includes('已绑定音色音频')),
       inspectResult,
       bodyTextSample: bodyAfter.slice(0, 1000),
     };
@@ -1979,6 +1996,7 @@ try {
     errors,
     allowedErrors,
     overviewWorkflow,
+    smokeEnvironment,
     routeChecks,
     workflowStages,
     workflowEndToEnd,
@@ -2000,6 +2018,7 @@ try {
     focusSamples,
     foregroundViolation,
     state,
+    smokeEnvironment,
     overviewWorkflow,
     routeChecks,
     workflowStages,

@@ -1,7 +1,17 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createImageSourceReader } from "./image-source";
 
 describe("createImageSourceReader", () => {
+  const originalMaxBytes = process.env.MYSTUDIO_IMAGE_SOURCE_MAX_BYTES;
+
+  afterEach(() => {
+    if (originalMaxBytes === undefined) {
+      delete process.env.MYSTUDIO_IMAGE_SOURCE_MAX_BYTES;
+    } else {
+      process.env.MYSTUDIO_IMAGE_SOURCE_MAX_BYTES = originalMaxBytes;
+    }
+  });
+
   it("preserves data URLs and local-file MIME detection", async () => {
     const fileExists = vi.fn((filePath: string) => filePath === "/images/frame.webp");
     const readFile = vi.fn(() => Buffer.from("local-image"));
@@ -44,6 +54,53 @@ describe("createImageSourceReader", () => {
       "https://images.example.test/frame",
       expect.objectContaining({ headers: { Accept: "image/*, */*;q=0.8" } }),
     );
+  });
+
+  it("rejects oversized remote images before reading the response body", async () => {
+    process.env.MYSTUDIO_IMAGE_SOURCE_MAX_BYTES = "4";
+    const arrayBuffer = vi.fn(async () => Uint8Array.from([1, 2, 3, 4, 5]).buffer);
+    const fetchImage = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      headers: {
+        get: (name: string) => (name.toLowerCase() === "content-length" ? "5" : "image/png"),
+      },
+      arrayBuffer,
+    }) as unknown as Response);
+    const readImageSource = createImageSourceReader({
+      getDataDir: () => "/data",
+      getMediaRoot: () => "/media",
+      fetchImage,
+    });
+
+    await expect(readImageSource("https://images.example.test/frame")).rejects.toThrow("图片超过 4 bytes");
+    expect(arrayBuffer).not.toHaveBeenCalled();
+  });
+
+  it("cancels remote streams when the downloaded body exceeds the byte limit", async () => {
+    process.env.MYSTUDIO_IMAGE_SOURCE_MAX_BYTES = "4";
+    const cancel = vi.fn(async () => undefined);
+    const read = vi.fn()
+      .mockResolvedValueOnce({ done: false, value: Uint8Array.from([1, 2]) })
+      .mockResolvedValueOnce({ done: false, value: Uint8Array.from([3, 4, 5]) });
+    const fetchImage = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      headers: {
+        get: (name: string) => (name.toLowerCase() === "content-type" ? "image/png" : null),
+      },
+      body: {
+        getReader: () => ({ read, cancel }),
+      },
+    }) as unknown as Response);
+    const readImageSource = createImageSourceReader({
+      getDataDir: () => "/data",
+      getMediaRoot: () => "/media",
+      fetchImage,
+    });
+
+    await expect(readImageSource("https://images.example.test/frame")).rejects.toThrow("图片超过 4 bytes");
+    expect(cancel).toHaveBeenCalledTimes(1);
   });
 
   it("rejects missing local files without reading them", async () => {

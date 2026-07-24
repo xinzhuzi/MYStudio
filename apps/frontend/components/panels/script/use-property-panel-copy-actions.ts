@@ -302,8 +302,8 @@ export function usePropertyPanelCopyActions({
       if (s.shotSize || s.cameraMovement) {
         lines.push(`**镜头**: ${[s.shotSize, s.cameraMovement].filter(Boolean).join(' | ')}`);
       }
-      if ((s as any).visualDescription) {
-        lines.push(`**视觉描述**: ${(s as any).visualDescription}`);
+      if (s.visualDescription) {
+        lines.push(`**视觉描述**: ${s.visualDescription}`);
       }
       if (s.actionSummary) {
         lines.push(`**动作**: ${s.actionSummary}`);
@@ -318,8 +318,8 @@ export function usePropertyPanelCopyActions({
         const tags = s.emotionTags.map(t => emotionLabels[t] || t).join('、');
         lines.push(`**情绪**: ${tags}`);
       }
-      if (promptLanguage !== 'zh' && (s as any).visualPrompt) {
-        lines.push(`**英文Prompt**: ${(s as any).visualPrompt}`);
+      if (promptLanguage !== 'zh' && s.visualPrompt) {
+        lines.push(`**英文Prompt**: ${s.visualPrompt}`);
       }
       // 三层提示词系统
       if (s.imagePromptZh || s.imagePrompt) {
@@ -426,9 +426,9 @@ export function usePropertyPanelCopyActions({
     lines.push('');
 
     // 视觉描述
-    if ((shot as any).visualDescription) {
+    if (shot.visualDescription) {
       lines.push('【视觉描述】');
-      lines.push((shot as any).visualDescription);
+      lines.push(shot.visualDescription);
       lines.push('');
     }
 
@@ -445,28 +445,28 @@ export function usePropertyPanelCopyActions({
     }
 
     // 叙事驱动设计（基于《电影语言的语法》）
-    const hasNarrative = (shot as any).narrativeFunction || (shot as any).shotPurpose || 
-                         (shot as any).visualFocus || (shot as any).cameraPosition || 
-                         (shot as any).characterBlocking || (shot as any).rhythm;
+    const hasNarrative = shot.narrativeFunction || shot.shotPurpose ||
+                         shot.visualFocus || shot.cameraPosition ||
+                         shot.characterBlocking || shot.rhythm;
     if (hasNarrative) {
       lines.push('【叙事驱动设计】基于《电影语言的语法》');
-      if ((shot as any).narrativeFunction) {
-        lines.push(`叙事功能: ${(shot as any).narrativeFunction}`);
+      if (shot.narrativeFunction) {
+        lines.push(`叙事功能: ${shot.narrativeFunction}`);
       }
-      if ((shot as any).shotPurpose) {
-        lines.push(`镜头目的: ${(shot as any).shotPurpose}`);
+      if (shot.shotPurpose) {
+        lines.push(`镜头目的: ${shot.shotPurpose}`);
       }
-      if ((shot as any).visualFocus) {
-        lines.push(`视觉焦点: ${(shot as any).visualFocus}`);
+      if (shot.visualFocus) {
+        lines.push(`视觉焦点: ${shot.visualFocus}`);
       }
-      if ((shot as any).cameraPosition) {
-        lines.push(`机位描述: ${(shot as any).cameraPosition}`);
+      if (shot.cameraPosition) {
+        lines.push(`机位描述: ${shot.cameraPosition}`);
       }
-      if ((shot as any).characterBlocking) {
-        lines.push(`人物布局: ${(shot as any).characterBlocking}`);
+      if (shot.characterBlocking) {
+        lines.push(`人物布局: ${shot.characterBlocking}`);
       }
-      if ((shot as any).rhythm) {
-        lines.push(`节奏: ${(shot as any).rhythm}`);
+      if (shot.rhythm) {
+        lines.push(`节奏: ${shot.rhythm}`);
       }
       lines.push('');
     }

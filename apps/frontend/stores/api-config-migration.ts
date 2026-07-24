@@ -23,7 +23,7 @@ import {
   ensureDefaultLocalTtsProvider,
 } from "./api-config-provider-helpers";
 import { normalizeAgentDeployments } from "./api-config-agent-deployments";
-import type { APIConfigState, LegacyImageHostConfig } from "./api-config-store";
+import type { APIConfigState, LegacyImageHostConfig } from "./api-config-store-types";
 
 export function migrateAPIConfigState(
   persistedState: unknown,
@@ -389,4 +389,3 @@ export function migrateAPIConfigState(
         return result;
 
 }
-

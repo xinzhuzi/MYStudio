@@ -13,6 +13,17 @@ export interface RetryOptions {
   onRetry?: (attempt: number, delay: number, error: Error) => void;
 }
 
+type RetryErrorDetails = {
+  retryable?: unknown;
+  status?: unknown;
+  code?: unknown;
+  message?: unknown;
+};
+
+function getRetryErrorDetails(error: unknown): RetryErrorDetails {
+  return typeof error === "object" && error !== null ? error as RetryErrorDetails : {};
+}
+
 /**
  * Check if an error is retryable (rate limit, overload, or temporary service unavailability)
  * Covers: 429 rate limit, 503 service unavailable, 529 overloaded (Anthropic/some providers)
@@ -20,7 +31,7 @@ export interface RetryOptions {
 export function isRateLimitError(error: unknown): boolean {
   if (!error) return false;
 
-  const err = error as any;
+  const err = getRetryErrorDetails(error);
 
   if (err.retryable === false) return false;
 
@@ -28,7 +39,7 @@ export function isRateLimitError(error: unknown): boolean {
   if (err.status === 429 || err.status === 500 || err.status === 502 || err.status === 503 || err.status === 529) return true;
   if (err.code === 429 || err.code === 500 || err.code === 502 || err.code === 503 || err.code === 529) return true;
 
-  const message = err.message?.toLowerCase() || "";
+  const message = typeof err.message === "string" ? err.message.toLowerCase() : "";
   if (
     message.includes("429") ||    message.includes("500") ||    message.includes("502") ||    message.includes("503") ||
     message.includes("529") ||

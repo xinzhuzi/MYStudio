@@ -8,6 +8,7 @@
 
 import { useAPIConfigStore, type ImageHostProvider } from '@/stores/api-config-store';
 import { ApiKeyManager, parseApiKeys } from '@/lib/api-key-manager';
+import { fetchRemoteImageBlob, fetchRemoteImageDataUrl } from '@/lib/remote-image-fetch';
 
 // ==================== Types ====================
 
@@ -116,11 +117,7 @@ async function toUploadFile(imageData: string, name?: string): Promise<{ blob: B
   let blob: Blob;
 
   if (isHttpUrl(imageData)) {
-    const response = await fetch(imageData);
-    if (!response.ok) {
-      throw new Error(`下载图片失败: ${response.status}`);
-    }
-    blob = await response.blob();
+    blob = await fetchRemoteImageBlob(imageData);
   } else if (imageData.startsWith('data:')) {
     const commaIndex = imageData.indexOf(',');
     const header = commaIndex >= 0 ? imageData.slice(0, commaIndex) : '';
@@ -140,14 +137,7 @@ async function toUploadFile(imageData: string, name?: string): Promise<{ blob: B
 async function toBase64Data(imageData: string): Promise<string> {
   // If it's a URL, fetch and convert
   if (isHttpUrl(imageData)) {
-    const response = await fetch(imageData);
-    const blob = await response.blob();
-    const reader = new FileReader();
-    const dataUrl = await new Promise<string>((resolve, reject) => {
-      reader.onloadend = () => resolve(reader.result as string);
-      reader.onerror = reject;
-      reader.readAsDataURL(blob);
-    });
+    const dataUrl = await fetchRemoteImageDataUrl(imageData);
     const parts = dataUrl.split(',');
     return parts.length === 2 ? parts[1] : dataUrl;
   }

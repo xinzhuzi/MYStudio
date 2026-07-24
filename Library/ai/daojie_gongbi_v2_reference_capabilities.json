@@ -1,0 +1,71 @@
+{
+  "schemaVersion": "daojie-reference-capability-v1",
+  "styleContractVersion": "daojie-gongbi-v2",
+  "capabilities": [
+    {
+      "status": "verified",
+      "providerName": "mikoto",
+      "model": "gpt-image-2",
+      "requestMode": "openai-image-generations-json",
+      "referenceTransportStrategy": "primary-per-asset",
+      "supportedReferenceCount": 9,
+      "referenceRoleOrder": [
+        "scene-viewpoint",
+        "canonical",
+        "prop-state",
+        "previous-approved-frame",
+        "style-reference"
+      ],
+      "evidence": {
+        "kind": "current-model-probe-plus-historical-async-task",
+        "checkedAt": "2026-07-19T20:04:17.074Z",
+        "detail": "Current /v1/models probe returned HTTP 200 for mikoto/gpt-image-2. The append-only paid ledger records TASK_ACCEPTED and COMPLETED for one-provider/one-key async requests to /v1/images/generations/async with nine ordered reference SHA-256 values."
+      },
+      "transportEvidence": {
+        "kind": "toonflow-mechanism-port-plus-full-chapter-dry-run",
+        "checkedAt": "2026-07-21T00:15:00+08:00",
+        "detail": "The local primary-per-asset projection preserves every logical asset and source hash while selecting one stable provider image per asset. A 43-shot no-network run resolves every shot to at most six ordered provider references, below mikoto's verified capacity nine."
+      },
+      "semanticRoleEvidence": {
+        "status": "unverified",
+        "providerRoleMetadataSent": false,
+        "bindingMechanism": "prompt-markers-plus-ordered-images",
+        "detail": "The generations JSON payload sends prompt plus ordered image_urls only. scene-viewpoint/canonical/prop-state labels are local evidence and prompt markers, not provider-native role fields."
+      },
+      "styleReference": {
+        "enabled": false,
+        "sha256": null
+      }
+    },
+    {
+      "status": "historical-only",
+      "providerName": "toonflow-local-ai",
+      "model": "gpt-image-2",
+      "requestMode": "openai-image-edits",
+      "referenceTransportStrategy": "primary-per-asset",
+      "supportedReferenceCount": 6,
+      "referenceRoleOrder": [
+        "scene-viewpoint",
+        "canonical",
+        "prop-state",
+        "previous-approved-frame",
+        "style-reference"
+      ],
+      "evidence": {
+        "kind": "toonflow-source-fixture-plus-local-service-probe",
+        "checkedAt": "2026-07-20T23:40:00+08:00",
+        "detail": "Historical mechanism evidence only. Toonflow batchGenerateImage.ts preserves o_assets2Storyboard rowid order and reuses one o_assets.imageId per logical asset; local_ai.ts sends ordered repeated multipart image fields to synchronous /v1/images/edits. The operator confirmed this local endpoint is no longer a MYStudio production dependency, so this record must not authorize requests."
+      },
+      "semanticRoleEvidence": {
+        "status": "unverified",
+        "providerRoleMetadataSent": false,
+        "bindingMechanism": "prompt-markers-plus-ordered-images",
+        "detail": "The historical multipart request repeats image fields in order but sends no provider-native reference-role metadata."
+      },
+      "styleReference": {
+        "enabled": false,
+        "sha256": null
+      }
+    }
+  ]
+}

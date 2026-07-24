@@ -3,22 +3,29 @@
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 import { getFeatureConfig } from "@/lib/ai/feature-router";
 import { uploadToImageHost, isImageHostConfigured } from "@/lib/image-host";
-import { saveVideoToLocal, readImageAsBase64 } from "@/lib/image-storage";
+import { saveVideoToLocal } from "@/lib/image-storage";
 import { useAPIConfigStore } from "@/stores/api-config-store";
 import { retryOperation } from "@/lib/utils/retry";
-import { toRunwayRatio, toSoraSize } from "@/lib/ai/video-request-sizing";
-import { prepareReferenceImageForTransfer } from "@/lib/ai/image-transfer";
+import { toRunwayRatio } from "@/lib/ai/video-request-sizing";
 import {
   detectVideoApiFormat as detectVideoApiFormatFromRouting,
   getUnifiedEndpointPaths as getUnifiedEndpointPathsFromRouting,
 } from "@/lib/ai/video-generator-routing";
-
-function normalizeUrl(url: unknown): string | undefined {
-  if (!url) return undefined;
-  if (Array.isArray(url)) return url[0] || undefined;
-  if (typeof url === 'string') return url;
-  return undefined;
-}
+import {
+  extractVideoUrl,
+  normalizeUrl,
+} from "@/lib/ai/video-response-utils";
+import {
+  buildImageWithRoles,
+  convertToHttpUrl,
+  prepareVideoImageRolesForTransfer,
+} from "@/lib/ai/video-generator-image-transfer";
+import { callVolcVideoApi as callVolcVideoApiAdapter } from "@/lib/ai/video-generator-volc-adapter";
+import { callOpenAIOfficialVideoApiAdapter } from "@/lib/ai/video-generator-openai-adapter";
+import { callWanVideoApiAdapter } from "@/lib/ai/video-generator-wan-adapter";
+import { callKlingVideoApiAdapter } from "@/lib/ai/video-generator-kling-adapter";
+import { callReplicateVideoApiAdapter } from "@/lib/ai/video-generator-replicate-adapter";
+export { buildImageWithRoles, convertToHttpUrl, prepareVideoImageRolesForTransfer } from "@/lib/ai/video-generator-image-transfer";
 
 // ==================== Content Moderation ====================
 
@@ -90,92 +97,6 @@ export function getVideoApiConfig() {
     model,
     videoBaseUrl,
   };
-}
-
-interface ConvertToHttpUrlOptions {
-  fallbackHttpUrl?: string | null;
-  uploadName?: string;
-}
-
-// Convert local/base64 image to HTTP URL for API
-export async function convertToHttpUrl(
-  rawUrl: unknown,
-  options?: ConvertToHttpUrlOptions
-): Promise<string> {
-  const url = typeof rawUrl === 'string' ? rawUrl : (Array.isArray(rawUrl) ? rawUrl[0] : '');
-  const fallbackHttpUrl = typeof options?.fallbackHttpUrl === 'string' ? options.fallbackHttpUrl : '';
-  if (!url) {
-    if (fallbackHttpUrl.startsWith('http://') || fallbackHttpUrl.startsWith('https://')) {
-      return fallbackHttpUrl;
-    }
-    console.warn('[VideoGen] convertToHttpUrl received invalid url:', rawUrl);
-    return '';
-  }
-  
-  // Already HTTP URL - use directly
-  if (url.startsWith('http://') || url.startsWith('https://')) {
-    return url;
-  }
-  
-  // For base64/local data URLs, upload to image host
-  if (!isImageHostConfigured()) {
-    throw new Error('图床未配置，请在设置中配置图床 API Key');
-  }
-
-  let imageData = url;
-  if (url.startsWith('local-image://')) {
-    const base64 = await readImageAsBase64(url);
-    if (!base64) throw new Error(`无法读取本地文件: ${url.substring(0, 40)}`);
-    imageData = base64;
-  }
-  imageData = await prepareReferenceImageForTransfer(imageData);
-
-  const result = await uploadToImageHost(imageData, {
-    name: options?.uploadName?.trim() || `media_ref_${Date.now()}`,
-    expiration: 15552000,
-  });
-  if (!result.success || !result.url) {
-    throw new Error(result.error || '图床上传失败');
-  }
-  return result.url;
-}
-
-// Build image_with_roles array for video generation
-export async function buildImageWithRoles(
-  firstFrameUrl: string | undefined,
-  lastFrameUrl: string | undefined
-): Promise<Array<{ url: string; role: 'first_frame' | 'last_frame' }>> {
-  const imageWithRoles: Array<{ url: string; role: 'first_frame' | 'last_frame' }> = [];
-
-  if (firstFrameUrl) {
-    const normalizedFirstFrame = normalizeUrl(firstFrameUrl) || '';
-    const firstFrameConverted = await convertToHttpUrl(normalizedFirstFrame);
-    if (firstFrameConverted) {
-      imageWithRoles.push({ url: firstFrameConverted, role: 'first_frame' });
-    }
-  }
-
-  if (lastFrameUrl) {
-    const lastFrameConverted = await convertToHttpUrl(lastFrameUrl);
-    if (lastFrameConverted) {
-      imageWithRoles.push({ url: lastFrameConverted, role: 'last_frame' });
-    }
-  }
-
-  return imageWithRoles;
-}
-
-export async function prepareVideoImageRolesForTransfer(
-  imageWithRoles: Array<{ url: string; role: 'first_frame' | 'last_frame' }>,
-): Promise<Array<{ url: string; role: 'first_frame' | 'last_frame' }>> {
-  const prepared: Array<{ url: string; role: 'first_frame' | 'last_frame' }> = [];
-  for (const image of imageWithRoles) {
-    prepared.push({
-      ...image,
-      url: await prepareReferenceImageForTransfer(image.url),
-    });
-  }
-  return prepared;
 }
 
 // ==================== 模型路由检测 ====================
@@ -381,7 +302,7 @@ export async function callVideoGenerationApi(
       case 'openai_official':
         return callOpenAIOfficialVideoApi(currentApiKey, prompt, videoBaseUrl, model, aspectRatio, duration, videoResolution, onProgress, keyManager, signal);
       case 'volc':
-        return callVolcVideoApi(currentApiKey, prompt, videoBaseUrl, model, aspectRatio, processedImages, videoResolution, duration, cameraFixed, onProgress, keyManager, videoRefs, audioRefs, signal);
+        return callVolcVideoApiAdapter(currentApiKey, prompt, videoBaseUrl, model, aspectRatio, processedImages, videoResolution, duration, cameraFixed, onProgress, keyManager, videoRefs, audioRefs, signal);
       case 'wan':
         return callWanVideoApi(currentApiKey, prompt, videoBaseUrl, model, processedImages, videoResolution, duration, enableAudio, onProgress, keyManager, signal);
       case 'kling':
@@ -406,23 +327,6 @@ export async function callVideoGenerationApi(
 // ==================== 视频统一格式 (grok/veo/luma/runway/海螺/即梦/doubao-seedance/wan2.6/vidu 等) ====================
 // MemeFast 文档: POST /v1/video/generations (primary) + /v1/video/create (fallback)
 //             GET  /v1/video/generations/{id} (primary) + /v1/video/query?id= (fallback)
-
-/**
- * Extract video URL from various response formats
- */
-function extractVideoUrl(data: Record<string, any>): string | null {
-  const url =
-    data.data?.[0]?.url ||
-    data.url ||
-    data.output?.url ||
-    (typeof data.output === 'string' && data.output.startsWith('http') ? data.output : null) ||
-    (Array.isArray(data.output) && typeof data.output[0] === 'string' ? data.output[0] : null) ||
-    data.outputs?.[0] ||
-    data.video_url ||
-    data.result_url ||
-    data.response?.url;  // doubao, jimeng, grok, wan2.6
-  return (url ? normalizeUrl(url) : undefined) ?? null;
-}
 
 async function callUnifiedVideoApi(
   apiKey: string,
@@ -597,176 +501,7 @@ async function callVolcVideoApi(
   audioRefs?: string[],
   signal?: AbortSignal,
 ): Promise<string> {
-  // 构建 content 数组（Volcengine 格式: text + image_url）
-  const content: Array<Record<string, unknown>> = [];
-
-  // 文本内容：prompt + 内联参数（--rs, --rt, --dur, --cf）
-  let textContent = prompt;
-  const resolution = (videoResolution || '720p').toLowerCase();
-  textContent += ` --rs ${resolution}`;
-  textContent += ` --rt ${aspectRatio}`;
-  if (duration) textContent += ` --dur ${duration}`;
-  if (cameraFixed !== undefined) textContent += ` --cf ${cameraFixed}`;
-
-  content.push({ type: 'text', text: textContent });
-
-  // 图片内容（首帧/尾帧）
-  for (const img of imageWithRoles) {
-    if (img.url) {
-      content.push({
-        type: 'image_url',
-        image_url: { url: img.url },
-        role: img.role,
-      });
-    }
-  }
-
-  // Seedance 2.0 多模态：视频引用（延长/编辑/运镜复刻等）
-  if (videoRefs && videoRefs.length > 0) {
-    for (const vUrl of videoRefs) {
-      if (vUrl) {
-        content.push({
-          type: 'video_url',
-          video_url: { url: vUrl },
-        });
-      }
-    }
-  }
-
-  // Seedance 2.0 多模态：音频引用（BGM/卡点等）
-  if (audioRefs && audioRefs.length > 0) {
-    for (const aUrl of audioRefs) {
-      if (aUrl) {
-        content.push({
-          type: 'audio_url',
-          audio_url: { url: aUrl },
-        });
-      }
-    }
-  }
-
-  const requestBody = { model, content };
-
-  console.log('[VideoGen] Volc format → POST /volc/v1/contents/generations/tasks', {
-    model,
-    resolution,
-    aspectRatio,
-    duration,
-    imageCount: imageWithRoles.filter(i => i.url).length,
-  });
-
-  const submitResponse = await fetch(`${baseUrl}/volc/v1/contents/generations/tasks`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify(requestBody),
-  });
-
-  if (!submitResponse.ok) {
-    const errorText = await submitResponse.text();
-    console.error('[VideoGen] Volc video submit error:', submitResponse.status, errorText);
-    handleVideoSubmitError(submitResponse.status, errorText, keyManager);
-  }
-
-  const submitData = await submitResponse.json();
-  console.log('[VideoGen] Volc submit response:', JSON.stringify(submitData).substring(0, 500));
-
-  // 检测代理包装的业务级错误（HTTP 200 但 body.status 为 failed/error）
-  // 典型场景：MemeFast 中转将上游 451（内容审核）等错误包装为 {status: "failed", message: "..."}
-  if (submitData.status === 'failed' || submitData.status === 'error') {
-    const proxyMsg = submitData.message || submitData.error?.message || '视频提交失败（代理返回业务错误）';
-    console.error('[VideoGen] Volc: proxy-wrapped business error:', proxyMsg);
-    // 尝试从错误信息中提取原始 HTTP 状态码
-    const statusMatch = proxyMsg.match(/status\s+(\d+)/);
-    const inferredStatus = statusMatch ? parseInt(statusMatch[1]) : 400;
-    handleVideoSubmitError(inferredStatus, JSON.stringify(submitData), keyManager);
-  }
-
-  // 提取任务 ID（兼容多种响应格式）
-  // MemeFast 中转: { id: "cgt-..." }  /  原生火山方舟: { id: "01973..." }
-  // 也兼容 response.* / result.* 嵌套格式
-  const taskId = (
-    submitData.id ||
-    submitData.task_id ||
-    submitData.request_id ||
-    submitData.data?.id ||
-    submitData.data?.task_id ||
-    submitData.response?.task_id ||
-    submitData.response?.id ||
-    submitData.result?.task_id ||
-    submitData.result?.id ||
-    submitData.output?.task_id ||
-    submitData.output?.id
-  )?.toString();
-
-  if (!taskId) {
-    console.error('[VideoGen] Volc: cannot extract taskId. Full response:', JSON.stringify(submitData));
-    // 兜底：将代理返回的错误信息（如有）附加到异常中，避免信息丢失
-    const detail = submitData.message || submitData.error?.message || '';
-    throw new Error(detail || `doubao-seedance 返回空的任务 ID（响应格式未识别，请检查控制台日志）`);
-  }
-
-  // 轮询: GET /volc/v1/contents/generations/tasks/{taskId}
-  const pollInterval = 5000;
-  const maxAttempts = 180; // 15分钟
-
-  for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    onProgress?.(Math.min(20 + Math.floor((attempt / maxAttempts) * 80), 99));
-
-    const statusResponse = await fetch(
-      `${baseUrl}/volc/v1/contents/generations/tasks/${taskId}`,
-      {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Authorization': `Bearer ${apiKey}`,
-        },
-        signal,
-      },
-    );
-
-    if (!statusResponse.ok) {
-      if (statusResponse.status === 404) throw new Error('任务不存在');
-      console.warn('[VideoGen] Volc query failed:', statusResponse.status);
-      await sleepOrAbort(pollInterval, signal);
-      continue;
-    }
-
-    const statusData = await statusResponse.json();
-    console.log(`[VideoGen] Volc task ${taskId} status:`, statusData);
-
-    // Volcengine 状态: queued | running | succeeded | failed | expired | cancelled
-    const status = (statusData.status ?? 'unknown').toString().toLowerCase();
-
-    if (status === 'succeeded') {
-      // 兼容多种响应格式提取视频 URL
-      const videoUrl =
-        normalizeUrl(statusData.content?.video_url) ||      // MemeFast 中转格式
-        normalizeUrl(statusData.output?.video_url) ||       // 原生火山方舟格式
-        normalizeUrl(statusData.output?.url) ||
-        normalizeUrl(statusData.video_url) ||
-        normalizeUrl(statusData.url) ||
-        extractVideoUrl(statusData);
-      if (!videoUrl) {
-        console.error('[VideoGen] Volc: task succeeded but no video URL. statusData:', JSON.stringify(statusData));
-        throw new Error('任务完成但没有视频 URL');
-      }
-      return videoUrl;
-    }
-
-    if (status === 'failed' || status === 'expired' || status === 'cancelled') {
-      const errorMsg = statusData.error?.message || statusData.error?.code || '视频生成失败';
-      throw new Error(typeof errorMsg === 'string' ? errorMsg : JSON.stringify(errorMsg));
-    }
-
-    // queued / running → 继续轮询
-    await sleepOrAbort(pollInterval, signal);
-  }
-  throw new Error('视频生成超时');
+  return callVolcVideoApiAdapter(apiKey, prompt, baseUrl, model, aspectRatio, imageWithRoles, videoResolution, duration, cameraFixed, onProgress, keyManager, videoRefs, audioRefs, signal);
 }
 
 // ==================== 通义万象 wan 格式 ====================
@@ -787,117 +522,24 @@ async function callWanVideoApi(
   keyManager?: { handleError: (status: number, errorText?: string) => boolean },
   signal?: AbortSignal,
 ): Promise<string> {
-  const firstFrame = imageWithRoles.find(img => img.role === 'first_frame');
-
-  const requestBody: Record<string, unknown> = {
+  return callWanVideoApiAdapter(
+    apiKey,
+    prompt,
+    baseUrl,
     model,
-    input: {
-      prompt,
-      ...(firstFrame?.url ? { img_url: firstFrame.url } : {}),
-    },
-    parameters: {
-      resolution: (resolution || '480P').toUpperCase(),
-      prompt_extend: true,
-      ...(duration ? { duration: Math.max(3, Math.min(10, duration)) } : {}),
-      audio: enableAudio !== false,
-    },
-  };
-
-  console.log('[VideoGen] Wan format → POST /alibailian/api/v1/services/aigc/video-generation/video-synthesis', { model });
-
-  const submitResponse = await fetch(
-    `${baseUrl}/alibailian/api/v1/services/aigc/video-generation/video-synthesis`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify(requestBody),
-    },
+    imageWithRoles,
+    resolution,
+    duration,
+    enableAudio,
+    onProgress,
+    keyManager,
+    signal,
+    { handleVideoSubmitError, sleepOrAbort },
   );
-
-  if (!submitResponse.ok) {
-    const errorText = await submitResponse.text();
-    console.error('[VideoGen] Wan video submit error:', submitResponse.status, errorText);
-    handleVideoSubmitError(submitResponse.status, errorText, keyManager);
-  }
-
-  const submitData = await submitResponse.json();
-  console.log('[VideoGen] Wan submit response:', submitData);
-
-  // 百炼响应: { request_id, output: { task_id, task_status: "PENDING" } }
-  const taskId = submitData.output?.task_id;
-  if (!taskId) throw new Error('返回空的任务 ID');
-
-  // 轮询: GET /alibailian/api/v1/tasks/{task_id}
-  const pollInterval = 5000;
-  const maxAttempts = 180;
-
-  for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    onProgress?.(Math.min(20 + Math.floor((attempt / maxAttempts) * 80), 99));
-
-    const statusResponse = await fetch(
-      `${baseUrl}/alibailian/api/v1/tasks/${taskId}`,
-      {
-        method: 'GET',
-        headers: { 'Authorization': `Bearer ${apiKey}` },
-        signal,
-      },
-    );
-
-    if (!statusResponse.ok) {
-      if (statusResponse.status === 404) throw new Error('任务不存在');
-      console.warn('[VideoGen] Wan query failed:', statusResponse.status);
-      await sleepOrAbort(pollInterval, signal);
-      continue;
-    }
-
-    const statusData = await statusResponse.json();
-    console.log(`[VideoGen] Wan task ${taskId} status:`, statusData);
-
-    // 百炼响应: { output: { task_status: "SUCCEEDED", video_url: "..." } }
-    const taskStatus = (statusData.output?.task_status ?? '').toUpperCase();
-
-    if (taskStatus === 'SUCCEEDED') {
-      const videoUrl = normalizeUrl(statusData.output?.video_url);
-      if (!videoUrl) throw new Error('任务完成但没有视频 URL');
-      return videoUrl;
-    }
-
-    if (taskStatus === 'FAILED') {
-      throw new Error(statusData.output?.message || statusData.output?.error || '视频生成失败');
-    }
-
-    await sleepOrAbort(pollInterval, signal);
-  }
-  throw new Error('视频生成超时');
 }
 
 // ==================== Kling 可灵全系列格式 ====================
 // MemeFast: POST /kling/v1/videos/{path} + GET /kling/v1/videos/{path}/{task_id}
-
-/**
- * Resolve kling model name for API requests.
- * Composite IDs like 'kling-image-v1-5' → 'kling-v1-5' (MemeFast version ID).
- * Video version IDs (kling-v2-6) pass through unchanged.
- */
-function resolveKlingModelName(model: string): string {
-  const match = model.match(/^kling-image-(v.+)$/);
-  return match ? `kling-${match[1]}` : model;
-}
-
-// Native Kling endpoint paths (relative to /kling/v1/videos/)
-// kling-video variants (kling-v2-1-master, kling-v3-0-pro, etc.) fall through to text2video / image2video
-const KLING_VIDEO_PATH_MAP: Record<string, string> = {
-  'kling-omni-video': 'omni-video',
-  'kling-video-extend': 'video-extend',
-  'kling-motion-control': 'motion-control',
-  'kling-multi-elements': 'multi-elements',
-  'kling-avatar-image2video': 'avatar/image2video',
-  'kling-advanced-lip-sync': 'advanced-lip-sync',
-  'kling-effects': 'effects',
-};
 
 async function callKlingVideoApi(
   apiKey: string,
@@ -911,101 +553,19 @@ async function callKlingVideoApi(
   keyManager?: { handleError: (status: number, errorText?: string) => boolean },
   signal?: AbortSignal,
 ): Promise<string> {
-  const firstFrame = imageWithRoles.find(img => img.role === 'first_frame');
-  const lastFrame = imageWithRoles.find(img => img.role === 'last_frame');
-
-  // Determine the endpoint path: specialized models have a fixed path;
-  // all kling-video variants fall through to text2video / image2video
-  const specialPath = KLING_VIDEO_PATH_MAP[model];
-  const endpointPath = specialPath || (firstFrame?.url ? 'image2video' : 'text2video');
-
-  // Kling 用 model_name 而不是 model
-  const requestBody: Record<string, unknown> = {
-    model_name: resolveKlingModelName(model),
+  return callKlingVideoApiAdapter(
+    apiKey,
     prompt,
-    aspect_ratio: aspectRatio,
-    duration: duration ? String(Math.min(10, Math.max(5, duration))) : '5',
-    mode: 'std',
-  };
-
-  // Attach image URLs for image-based endpoints
-  if (endpointPath === 'image2video' && firstFrame?.url) {
-    requestBody.image_url = firstFrame.url;
-    if (lastFrame?.url) requestBody.tail_image_url = lastFrame.url;
-  } else if (endpointPath === 'avatar/image2video' && firstFrame?.url) {
-    requestBody.image_url = firstFrame.url;
-  }
-
-  const submitUrl = `${baseUrl}/kling/v1/videos/${endpointPath}`;
-  console.log('[VideoGen] Kling format →', endpointPath, { model, submitUrl });
-
-  const submitResponse = await fetch(submitUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify(requestBody),
-  });
-
-  if (!submitResponse.ok) {
-    const errorText = await submitResponse.text();
-    console.error('[VideoGen] Kling video submit error:', submitResponse.status, errorText);
-    handleVideoSubmitError(submitResponse.status, errorText, keyManager);
-  }
-
-  const submitData = await submitResponse.json();
-  console.log('[VideoGen] Kling submit response:', submitData);
-
-  // Kling 响应: { code, message, data: { task_id, task_status } }
-  const taskId = submitData.data?.task_id;
-  if (!taskId) throw new Error('返回空的任务 ID');
-
-  // 轮询 URL 镜像提交路径: GET /kling/v1/videos/{path}/{task_id}
-  const pollUrl = `${baseUrl}/kling/v1/videos/${endpointPath}/${taskId}`;
-  const pollInterval = 5000;
-  const maxAttempts = 180;
-
-  for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    onProgress?.(Math.min(20 + Math.floor((attempt / maxAttempts) * 80), 99));
-    await sleepOrAbort(pollInterval, signal);
-
-    const statusResponse = await fetch(pollUrl, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
-      signal,
-    });
-
-    if (!statusResponse.ok) {
-      if (statusResponse.status === 404) throw new Error('任务不存在');
-      console.warn('[VideoGen] Kling query failed:', statusResponse.status);
-      continue;
-    }
-
-    const statusData = await statusResponse.json();
-    console.log(`[VideoGen] Kling task ${taskId} status:`, statusData);
-
-    // Kling 响应: { data: { task_status: "succeed", task_result: { videos: [{ url }] } } }
-    const taskStatus = (statusData.data?.task_status ?? '').toLowerCase();
-
-    if (taskStatus === 'succeed' || taskStatus === 'success' || taskStatus === 'completed') {
-      const videoUrl =
-        normalizeUrl(statusData.data?.task_result?.videos?.[0]?.url) ||
-        normalizeUrl(statusData.data?.task_result?.video_url) ||
-        extractVideoUrl(statusData);
-      if (!videoUrl) throw new Error('任务完成但没有视频 URL');
-      return videoUrl;
-    }
-
-    if (taskStatus === 'failed' || taskStatus === 'error') {
-      throw new Error(statusData.data?.task_status_msg || statusData.message || '视频生成失败');
-    }
-  }
-  throw new Error('视频生成超时');
+    baseUrl,
+    model,
+    aspectRatio,
+    imageWithRoles,
+    duration,
+    onProgress,
+    keyManager,
+    signal,
+    { handleVideoSubmitError, sleepOrAbort },
+  );
 }
 
 // ==================== OpenAI 官方视频格式 (sora-2) ====================
@@ -1023,68 +583,19 @@ async function callOpenAIOfficialVideoApi(
   keyManager?: { handleError: (status: number, errorText?: string) => boolean },
   signal?: AbortSignal,
 ): Promise<string> {
-  const form = new FormData();
-  form.append('model', model);
-  form.append('prompt', prompt);
-  form.append('size', toSoraSize(aspectRatio, videoResolution));
-  form.append('seconds', String(duration || 10));
-
-  const submitUrl = `${baseUrl}/v1/videos`;
-  console.log('[VideoGen] OpenAI Official format → POST /v1/videos', { model, size: toSoraSize(aspectRatio, videoResolution) });
-
-  const submitResponse = await fetch(submitUrl, {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${apiKey}` },
-    body: form,
-  });
-
-  if (!submitResponse.ok) {
-    const errorText = await submitResponse.text();
-    console.error('[VideoGen] Sora video submit error:', submitResponse.status, errorText);
-    handleVideoSubmitError(submitResponse.status, errorText, keyManager);
-  }
-
-  const submitData = await submitResponse.json();
-  console.log('[VideoGen] Sora submit response:', submitData);
-
-  const taskId = (submitData.id || submitData.video_id)?.toString();
-  const directUrl = extractVideoUrl(submitData);
-  if (directUrl) return directUrl;
-  if (!taskId) throw new Error('Sora 返回空任务 ID');
-
-  // 轮询: GET /v1/videos/{taskId}
-  const pollUrl = `${baseUrl}/v1/videos/${taskId}`;
-  const pollInterval = 5000;
-  const maxAttempts = 180;
-
-  for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    onProgress?.(Math.min(20 + Math.floor((attempt / maxAttempts) * 80), 99));
-    await sleepOrAbort(pollInterval, signal);
-
-    const statusResponse = await fetch(pollUrl, {
-      method: 'GET',
-      headers: { 'Authorization': `Bearer ${apiKey}` },
-      signal,
-    });
-
-    if (!statusResponse.ok) continue;
-
-    const statusData = await statusResponse.json();
-    console.log(`[VideoGen] Sora task ${taskId} status:`, statusData);
-
-    const status = String(statusData.status || '').toLowerCase();
-
-    if (status === 'completed' || status === 'succeeded' || status === 'success') {
-      const videoUrl = extractVideoUrl(statusData) || normalizeUrl(`${baseUrl}/v1/videos/${taskId}/content`);
-      if (!videoUrl) throw new Error('Sora 任务完成但没有视频 URL');
-      return videoUrl;
-    }
-
-    if (status === 'failed' || status === 'error') {
-      throw new Error(statusData.error?.message || statusData.error || statusData.message || 'Sora 生成失败');
-    }
-  }
-  throw new Error('Sora 生成超时');
+  return callOpenAIOfficialVideoApiAdapter(
+    apiKey,
+    prompt,
+    baseUrl,
+    model,
+    aspectRatio,
+    duration,
+    videoResolution,
+    onProgress,
+    keyManager,
+    signal,
+    { handleVideoSubmitError, sleepOrAbort },
+  );
 }
 
 // ==================== Replicate 视频格式 ====================
@@ -1103,80 +614,20 @@ async function callReplicateVideoApi(
   keyManager?: { handleError: (status: number, errorText?: string) => boolean },
   signal?: AbortSignal,
 ): Promise<string> {
-  // rootBase: strip /v1 suffix for /replicate/ prefix path
-  const rootBase = baseUrl.replace(/\/v\d+$/, '');
-
-  const input: Record<string, unknown> = { prompt };
-  if (aspectRatio) input.aspect_ratio = aspectRatio;
-  if (duration) input.duration = duration;
-  if (videoResolution) input.resolution = videoResolution;
-
-  // Image-to-video: attach first frame inside input
-  const firstFrame = imageWithRoles.find(img => img.role === 'first_frame');
-  if (firstFrame?.url) input.image = firstFrame.url;
-  const lastFrame = imageWithRoles.find(img => img.role === 'last_frame');
-  if (lastFrame?.url) input.tail_image = lastFrame.url;
-
-  const submitUrl = `${rootBase}/replicate/v1/predictions`;
-  console.log('[VideoGen] Replicate format → POST /replicate/v1/predictions', { model });
-
-  const submitResponse = await fetch(submitUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({ model, input }),
-  });
-
-  if (!submitResponse.ok) {
-    const errorText = await submitResponse.text();
-    console.error('[VideoGen] Replicate video submit error:', submitResponse.status, errorText);
-    handleVideoSubmitError(submitResponse.status, errorText, keyManager);
-  }
-
-  const submitData = await submitResponse.json();
-  console.log('[VideoGen] Replicate submit response:', submitData);
-
-  const directUrl = extractVideoUrl(submitData);
-  if (directUrl) return directUrl;
-
-  const predictionId = submitData.id?.toString();
-  if (!predictionId) throw new Error('Replicate 返回空 prediction ID');
-
-  // 轮询: GET /replicate/v1/predictions/{id}
-  const pollUrl = `${rootBase}/replicate/v1/predictions/${predictionId}`;
-  const pollInterval = 5000;
-  const maxAttempts = 180;
-
-  for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    onProgress?.(Math.min(20 + Math.floor((attempt / maxAttempts) * 80), 99));
-    await sleepOrAbort(pollInterval, signal);
-
-    const statusResponse = await fetch(pollUrl, {
-      method: 'GET',
-      headers: { 'Authorization': `Bearer ${apiKey}` },
-      signal,
-    });
-
-    if (!statusResponse.ok) continue;
-
-    const statusData = await statusResponse.json();
-    console.log(`[VideoGen] Replicate prediction ${predictionId} status:`, statusData);
-
-    const status = String(statusData.status || '').toLowerCase();
-
-    if (status === 'succeeded') {
-      const videoUrl = extractVideoUrl(statusData);
-      if (!videoUrl) throw new Error('Replicate 成功但未返回视频 URL');
-      return videoUrl;
-    }
-
-    if (status === 'failed' || status === 'canceled') {
-      throw new Error(statusData.error || 'Replicate 视频生成失败');
-    }
-  }
-  throw new Error('Replicate 视频生成超时');
+  return callReplicateVideoApiAdapter(
+    apiKey,
+    prompt,
+    baseUrl,
+    model,
+    aspectRatio,
+    imageWithRoles,
+    duration,
+    videoResolution,
+    onProgress,
+    keyManager,
+    signal,
+    { handleVideoSubmitError, sleepOrAbort },
+  );
 }
 
 // Save video to local and return the local URL

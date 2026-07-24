@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
+import argparse
 import json
 import base64
+import binascii
 import hashlib
 import io
 import math
@@ -16,11 +18,16 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 import numpy as np
 from scipy import ndimage
 from PIL import Image, ImageDraw, ImageFilter, ImageFont, ImageOps
+
+try:
+    from Library.ai import daojie_gongbi_v2
+except ModuleNotFoundError:
+    from ai import daojie_gongbi_v2
 
 DEFAULT_PROJECT = Path("/Users/zhengbingjin/Library/Application Support/漫影工作室/projects/_p/49dce4c1-64b1-42de-85c2-9f266698aec0")
 PROJECT = Path(os.environ.get("MYSTUDIO_DAOJIE_PROJECT_DIR", str(DEFAULT_PROJECT)))
@@ -76,6 +83,16 @@ MODEL_REFERENCE_MAX_EDGE = int(os.environ.get("MYSTUDIO_IMAGE_REFERENCE_MAX_EDGE
 MODEL_REFERENCE_JPEG_QUALITY = int(os.environ.get("MYSTUDIO_IMAGE_REFERENCE_JPEG_QUALITY", "82"))
 IMAGE_TRANSFER_MAX_BYTES = 1_000_000
 IMAGE_TRANSFER_TARGET_MAX_EDGE = 768
+MODEL_REFERENCE_PREFLIGHT_SCHEMA_VERSION = "daojie-model-reference-preflight-v1"
+REFERENCE_TRANSPORT_SCHEMA_VERSION = "daojie-reference-transport-v1"
+CHARACTER_THREE_VIEW_BUNDLE_KIND = "character-three-view-bundle"
+REQUEST_MODE_GENERATIONS_JSON = "openai-image-generations-json"
+REQUEST_MODE_IMAGE_EDITS = "openai-image-edits"
+STORYBOARD_IMAGE_REQUEST_MODES = {
+    REQUEST_MODE_GENERATIONS_JSON,
+    REQUEST_MODE_IMAGE_EDITS,
+}
+CHARACTER_THREE_VIEW_BUNDLE_SIZE = (768, 768)
 GPT_IMAGE_SIZE_MAP = {
     "1:1": {"1K": "1024x1024", "2K": "2048x2048", "4K": "2880x2880"},
     "16:9": {"1K": "1280x720", "2K": "2048x1152", "4K": "3840x2160"},
@@ -88,97 +105,6 @@ GPT_IMAGE_SIZE_MAP = {
     "9:21": {"1K": "544x1280", "2K": "880x2048", "4K": "1648x3840"},
 }
 
-CHAPTER_CONTINUITY_GROUPS = (
-    {"groupId": "chapter-001:dock:01-12", "start": 1, "end": 12, "sceneName": "金水河码头", "viewpointId": "dock-main-axis"},
-    {"groupId": "chapter-001:inn-hall:13-19", "start": 13, "end": 19, "sceneName": "悦来客栈", "viewpointId": "inn-hall-counter-axis"},
-    {"groupId": "chapter-001:inn-room:20-24", "start": 20, "end": 24, "sceneName": "悦来客栈斗室", "viewpointId": "inn-room-window-axis"},
-    {"groupId": "chapter-001:school:25-40", "start": 25, "end": 40, "sceneName": "金水塾馆", "viewpointId": "school-lamp-desk-axis"},
-    {"groupId": "chapter-001:inn-room-return:41-42", "start": 41, "end": 42, "sceneName": "悦来客栈斗室", "viewpointId": "inn-room-night-return"},
-    {"groupId": "chapter-001:river:43", "start": 43, "end": 43, "sceneName": "金水河", "viewpointId": "river-night-long-axis"},
-)
-
-SAMPLE_SHOT_CONTINUITY = {
-    6: {
-        "actionIn": "独孤剑尘从画面左上河雾外沿湿木栈道入画。",
-        "actionOut": "独孤剑尘停在左中格，右脚落地、左脚待迈，油布剑包纵向压在背后。",
-        "characters": {
-            "独孤剑尘": {
-                "position": "左中格",
-                "orientation": "背部三分之四朝画面右侧",
-            },
-        },
-    },
-    7: {
-        "actionIn": "独孤剑尘停在左中格，右脚落地、左脚待迈，油布剑包纵向压在背后。",
-        "actionOut": "独孤剑尘不跨轴继续向右行，剑包刚颤，左袖残卷只露一角。",
-        "characters": {
-            "独孤剑尘": {
-                "position": "左中格",
-                "orientation": "背部三分之四朝画面右侧",
-            },
-        },
-    },
-    8: {
-        "actionIn": "赵四恢复镜头5左中格持鞭状态，小杂役恢复镜头3右下格缩肩护头状态；独孤剑尘不入画。",
-        "actionOut": "赵四持鞭臂越过顶点，鞭势从左上向右下开始斜劈；小杂役原位缩肩护头。",
-        "characters": {
-            "监工赵四": {
-                "position": "左中格",
-                "orientation": "正面三分之四朝画面右下",
-            },
-            "小杂役": {
-                "position": "右下格",
-                "orientation": "正面三分之四朝画面左上",
-            },
-        },
-    },
-    9: {
-        "actionIn": "承接镜头8鞭势从左上向右下斜劈，小杂役仍在右下格缩肩，独孤剑尘从左中格与赵四错身。",
-        "actionOut": "独孤剑尘鞋尖把朽木拨到赵四左脚前，小杂役仍在右下格，独孤剑尘不抬眼继续向右。",
-        "characters": {
-            "独孤剑尘": {
-                "position": "左中格",
-                "orientation": "侧背朝画面右侧",
-            },
-            "小杂役": {
-                "position": "右下格",
-                "orientation": "蜷缩朝画面左上",
-            },
-        },
-    },
-    10: {
-        "actionIn": "赵四左脚踩上镜头9拨来的朽木，身体向右前方失衡，持鞭臂尚未收回。",
-        "actionOut": "赵四踩偏后鞭梢抽碎右下格空筐，藤条碎屑向右侧炸开。",
-        "characters": {
-            "监工赵四": {
-                "position": "左中格",
-                "orientation": "正面三分之四朝画面右下",
-            },
-        },
-    },
-    11: {
-        "actionIn": "承接空筐碎屑落下，小杂役从右下格贴地滚向右后方船影。",
-        "actionOut": "小杂役抱紧矿渣缩进右后方船影，头仍低垂，不与独孤剑尘对视。",
-        "characters": {
-            "小杂役": {
-                "position": "右后格",
-                "orientation": "背部三分之四朝画面右侧",
-            },
-        },
-    },
-    12: {
-        "actionIn": "独孤剑尘承接镜头9继续向右，已到右中格，河雾从左后方吞来。",
-        "actionOut": "独孤剑尘右手压住袖口残卷，半边身影进入右侧河雾，保持向镇中离场方向。",
-        "characters": {
-            "独孤剑尘": {
-                "position": "右中格",
-                "orientation": "背部三分之四朝画面右侧",
-            },
-        },
-    },
-}
-
-
 def is_real_storyboard_image_mode():
     return STORYBOARD_IMAGE_GENERATION_MODE == REAL_STORYBOARD_IMAGE_MODE
 
@@ -189,16 +115,28 @@ def storyboard_image_generation_provider():
     return "local-pillow-ffmpeg"
 
 
+def with_daojie_gongbi_v2_contract(config):
+    """Attach immutable prompt-contract metadata to every real storyboard request."""
+    if not config:
+        return config
+    return {
+        **config,
+        "styleContractVersion": daojie_gongbi_v2.STYLE_CONTRACT_VERSION,
+        "styleContractFingerprint": daojie_gongbi_v2.style_contract_fingerprint(),
+        "promptAuditVersion": daojie_gongbi_v2.PROMPT_AUDIT_VERSION,
+    }
+
+
 def storyboard_image_provider_config():
     if not is_real_storyboard_image_mode():
         return {}
     provider_configs = storyboard_image_provider_configs_from_env()
     if provider_configs:
         first = provider_configs[0]
-        return {
+        return with_daojie_gongbi_v2_contract({
             **first,
             "providers": provider_configs,
-        }
+        })
     api_keys = parse_storyboard_image_api_keys(os.environ.get("MYSTUDIO_IMAGE_API_KEY", ""))
     config = {
         "baseUrl": os.environ.get("MYSTUDIO_IMAGE_API_BASE_URL", "").strip(),
@@ -209,14 +147,22 @@ def storyboard_image_provider_config():
         "resolution": os.environ.get("MYSTUDIO_IMAGE_RESOLUTION", "1K").strip() or "1K",
         "timeoutSeconds": float(os.environ.get("MYSTUDIO_IMAGE_TIMEOUT_SECONDS", "180")),
         "asyncMode": os.environ.get("MYSTUDIO_IMAGE_ASYNC_MODE") == "1",
+        "requestMode": os.environ.get(
+            "MYSTUDIO_IMAGE_REQUEST_MODE",
+            REQUEST_MODE_GENERATIONS_JSON,
+        ).strip() or REQUEST_MODE_GENERATIONS_JSON,
     }
+    if config["requestMode"] not in STORYBOARD_IMAGE_REQUEST_MODES:
+        raise RuntimeError(f"真实分镜图 provider requestMode 不受支持: {config['requestMode']}")
+    if config["requestMode"] == REQUEST_MODE_IMAGE_EDITS and config["asyncMode"]:
+        raise RuntimeError("openai-image-edits 要求 asyncMode=false")
     missing = [key for key in ("baseUrl", "apiKey", "model") if not config[key]]
     if missing:
         raise RuntimeError(
             "真实分镜图生成缺少配置: "
             + ", ".join(f"MYSTUDIO_IMAGE_{'API_BASE_URL' if key == 'baseUrl' else 'API_KEY' if key == 'apiKey' else 'MODEL'}" for key in missing)
         )
-    return config
+    return with_daojie_gongbi_v2_contract(config)
 
 
 def parse_storyboard_image_api_keys(value):
@@ -237,6 +183,13 @@ def normalize_storyboard_image_provider_config(item, default_timeout):
     api_keys.extend(parse_storyboard_image_api_keys(item.get("apiKey", "")))
     seen = set()
     api_keys = [key for key in api_keys if not (key in seen or seen.add(key))]
+    request_mode = str(
+        item.get("requestMode")
+        or os.environ.get("MYSTUDIO_IMAGE_REQUEST_MODE")
+        or REQUEST_MODE_GENERATIONS_JSON
+    ).strip()
+    if request_mode not in STORYBOARD_IMAGE_REQUEST_MODES:
+        raise RuntimeError(f"真实分镜图 provider requestMode 不受支持: {request_mode}")
     config = {
         "providerName": str(item.get("providerName") or item.get("name") or storyboard_image_generation_provider()).strip() or "freedom-image",
         "baseUrl": str(item.get("baseUrl") or item.get("baseURL") or "").strip(),
@@ -251,7 +204,10 @@ def normalize_storyboard_image_provider_config(item, default_timeout):
             or str(item.get("asyncMode") or "").strip().lower() in {"1", "true"}
             or os.environ.get("MYSTUDIO_IMAGE_ASYNC_MODE") == "1"
         ),
+        "requestMode": request_mode,
     }
+    if config["requestMode"] == REQUEST_MODE_IMAGE_EDITS and config["asyncMode"]:
+        raise RuntimeError("openai-image-edits 要求 asyncMode=false")
     missing = [key for key in ("baseUrl", "apiKey", "model") if not config[key]]
     if missing:
         raise RuntimeError(f"真实分镜图 provider 配置不完整: {config['providerName']} missing={','.join(missing)}")
@@ -276,14 +232,17 @@ def normalize_image_base_url(base_url):
     return re.sub(r"/v\d+/?$", "", base_url.rstrip("/"))
 
 
-def image_generation_endpoint(base_url):
-    return f"{normalize_image_base_url(base_url)}/v1/images/generations"
+def image_generation_endpoint(base_url, async_mode=False):
+    suffix = "/async" if async_mode else ""
+    return f"{normalize_image_base_url(base_url)}/v1/images/generations{suffix}"
 
 
-def image_task_poll_endpoint(base_url, task_id):
+def image_task_poll_endpoint(base_url, task_id, async_mode=False):
     template = os.environ.get("MYSTUDIO_IMAGE_POLL_URL_TEMPLATE", "").strip()
     if template:
         return template.replace("{task_id}", urllib.parse.quote(str(task_id)))
+    if async_mode:
+        return f"{normalize_image_base_url(base_url)}/v1/images/tasks/{urllib.parse.quote(str(task_id))}"
     return f"{image_generation_endpoint(base_url)}/{urllib.parse.quote(str(task_id))}"
 
 
@@ -324,29 +283,13 @@ def gpt_image_size(aspect_ratio, resolution):
     return GPT_IMAGE_SIZE_MAP[ratio][normalized_resolution]
 
 
-DAOJIE_STORYBOARD_STYLE_PROMPT = (
-    "《道劫》默认主风格，宣纸质感，宣纸淡彩工笔，工笔线描，细密白描线描，低饱和青绿山水，"
-    "米白、墨青、灰蓝、青绿、浅褐为底，旧金只用于衣纹、发饰、卷轴轴头和器物边缘，"
-    "竹窗卷轴人物质感，淡墨山体、瀑布、竹影、木窗、画案、卷轴和纸面肌理，"
-    "水墨国风修仙，写意泼墨，写意晕染，墨色层次丰富，传统水墨技法，"
-    "工笔写意融合，连环画叙事感，水墨国风电影质感，高完成度国风漫剧关键帧，清雅、细腻、透气、贵而不艳、旧而不脏，"
-    "电影构图，水墨国风高清渲染，高细节，画面无字幕、无水印、无标题叠字"
-)
-DAOJIE_DERIVED_ASSET_STYLE_PROMPT = (
-    "水墨国风修仙，工笔线描，写意泼墨，写意晕染，青绿淡彩，宣纸质感，"
-    "宣纸淡彩工笔，细密白描线描，低饱和青绿山水，墨色层次丰富，"
-    "传统水墨技法，工笔写意融合，连环画叙事感，水墨国风电影质感，"
-    "电影构图，水墨国风高清渲染，高细节，画面无字幕、无水印、无标题叠字"
-)
-DAOJIE_STORYBOARD_NEGATIVE_CONSTRAINTS = (
-    "禁止写实摄影，禁止3D写实渲染，禁止照片级真实感，禁止赛璐璐平涂，"
-    "禁止现代/科幻/西方奇幻元素，禁止文字水印、logo、乱码题字"
-)
-DAOJIE_STORYBOARD_FRAME_NEGATIVE_CONSTRAINTS = (
-    f"{DAOJIE_STORYBOARD_NEGATIVE_CONSTRAINTS}，禁止偏离宣纸淡彩工笔主风格的高对比漫画动作稿，"
-    "禁止欧美厚涂奇幻，禁止高饱和荧光色，禁止大面积暗黑脏污，禁止现代摄影感，"
-    "禁止白底设定图/三视图/四视图/资料卡，禁止把剧情分镜画成角色设定页或资产设定页"
-)
+DAOJIE_STORYBOARD_STYLE_PROMPT = daojie_gongbi_v2.STORYBOARD_STYLE_LOCK
+DAOJIE_STORYBOARD_MEDIUM_PROMPT = daojie_gongbi_v2.STORYBOARD_MEDIUM_LOCK
+DAOJIE_STORYBOARD_COLOR_MATERIAL_PROMPT = daojie_gongbi_v2.STORYBOARD_COLOR_MATERIAL_LOCK
+DAOJIE_STORYBOARD_LIGHT_PROMPT = daojie_gongbi_v2.STORYBOARD_LIGHT_LOCK
+DAOJIE_DERIVED_ASSET_STYLE_PROMPT = daojie_gongbi_v2.DERIVED_ASSET_STYLE_LOCK
+DAOJIE_STORYBOARD_NEGATIVE_CONSTRAINTS = daojie_gongbi_v2.STORYBOARD_NEGATIVE_CONSTRAINTS
+DAOJIE_STORYBOARD_FRAME_NEGATIVE_CONSTRAINTS = daojie_gongbi_v2.STORYBOARD_FRAME_NEGATIVE_CONSTRAINTS
 STORYBOARD_REFERENCE_TYPE_LABELS = {
     "scene": "场景",
     "character": "角色",
@@ -434,10 +377,6 @@ def storyboard_reference_aliases(reference, index):
     name = storyboard_reference_name(reference, index)
     aliases = [name, reference.get("sourceName"), reference.get("title")]
     aliases.extend(reference.get("aliases") or [])
-    for alias_name, candidates in ASSET_IMAGE_ALIASES.items():
-        if name == alias_name or name in candidates:
-            aliases.append(alias_name)
-            aliases.extend(candidates)
     for alias_name, candidates in DAOJIE_REFERENCE_BINDING_ALIASES.items():
         if name == alias_name or name in candidates:
             aliases.append(alias_name)
@@ -445,22 +384,63 @@ def storyboard_reference_aliases(reference, index):
     return unique_nonempty(aliases)
 
 
+def audit_storyboard_reference_alias_ownership(reference_images):
+    owners = {}
+    for index, reference in enumerate(reference_images or [], 1):
+        owner = {
+            "marker": f"@图{index}",
+            "assetId": str(reference.get("assetId") or storyboard_reference_name(reference, index)),
+            "versionId": str(reference.get("versionId") or "base"),
+            "assetName": storyboard_reference_name(reference, index),
+        }
+        owner_key = (owner["assetId"], owner["versionId"])
+        for alias in storyboard_reference_aliases(reference, index):
+            if len(alias) < 2 or alias.startswith("@"):
+                continue
+            bucket = owners.setdefault(alias, {})
+            bucket[owner_key] = owner
+    collisions = [
+        {"alias": alias, "owners": list(owner_rows.values())}
+        for alias, owner_rows in sorted(owners.items())
+        if len(owner_rows) > 1
+    ]
+    return {
+        "schemaVersion": "daojie-reference-alias-ownership-v1",
+        "status": "fail" if collisions else "pass",
+        "collisions": collisions,
+    }
+
+
+def assert_storyboard_reference_alias_ownership(audit):
+    if audit.get("status") == "pass":
+        return
+    aliases = "、".join(item.get("alias", "") for item in audit.get("collisions") or [])
+    raise RuntimeError(f"分镜参考别名所有权冲突: {aliases}")
+
+
 def build_storyboard_reference_intro(reference_images):
     labels = []
     for index, reference in enumerate(reference_images or [], 1):
         name = storyboard_reference_name(reference, index)
-        labels.append(f"@图{index} 为{name}{storyboard_reference_type_label(reference)}")
+        transport = reference.get("referenceTransport") or {}
+        suffix = "三视图束" if transport.get("kind") == CHARACTER_THREE_VIEW_BUNDLE_KIND else ""
+        labels.append(f"@图{index} 为{name}{storyboard_reference_type_label(reference)}{suffix}")
     return "；".join(labels)
 
 
 def build_storyboard_reference_continuity_rules(reference_images):
-    grouped = {"角色": [], "场景": [], "道具": [], "资产": []}
+    grouped = {"角色": [], "角色仅身份": [], "场景": [], "道具": [], "资产": []}
     character_groups = {}
     for index, reference in enumerate(reference_images or [], 1):
         label = storyboard_reference_type_label(reference)
         name = storyboard_reference_name(reference, index)
-        grouped.setdefault(label, []).append(f"@图{index}({name})")
         if label == "角色":
+            character_bucket = (
+                "角色"
+                if daojie_gongbi_v2.is_v2_wardrobe_compatible(reference.get("wardrobeVersion"))
+                else "角色仅身份"
+            )
+            grouped[character_bucket].append(f"@图{index}({name})")
             stable_key = (
                 str(reference.get("assetId") or name),
                 str(reference.get("versionId") or "base"),
@@ -469,23 +449,43 @@ def build_storyboard_reference_continuity_rules(reference_images):
                 "name": name,
                 "markers": [],
                 "views": [],
+                "bundles": [],
             })
-            group["markers"].append(f"@图{index}")
-            if reference.get("characterViewType"):
+            transport = reference.get("referenceTransport") or {}
+            if transport.get("kind") == CHARACTER_THREE_VIEW_BUNDLE_KIND:
+                group["bundles"].append({
+                    "marker": f"@图{index}",
+                    "views": list(transport.get("sourceViewTypes") or []),
+                })
+            else:
+                group["markers"].append(f"@图{index}")
+            if reference.get("characterViewType") and transport.get("kind") != CHARACTER_THREE_VIEW_BUNDLE_KIND:
                 group["views"].append(str(reference["characterViewType"]))
+        else:
+            grouped.setdefault(label, []).append(f"@图{index}({name})")
 
     parts = []
     if grouped.get("角色"):
         parts.append(
             "角色一致性："
             + "、".join(grouped["角色"])
-            + "只继承身份、面容、体态、发型识别点、服饰层次和主色比例；只允许镜头、动作、表情按当前分镜变化。"
+            + "只继承身份、面容、体态、发型识别点、服饰层次和事实色相；"
+            "不得继承参考图的灰白、黑白、低饱和媒介或脏旧滤镜。只允许镜头、动作、表情按当前分镜变化。"
+        )
+    if grouped.get("角色仅身份"):
+        parts.append(
+            "角色身份限定继承："
+            + "、".join(grouped["角色仅身份"])
+            + "仅继承身份、面容、体态和发型识别点；不继承参考图衣物状态、事实色相、灰白媒介或脏旧滤镜。"
+            "衣物按当前分镜事实与V2完整衣物合同重建，只允许镜头、动作和表情按当前分镜变化。"
         )
     if grouped.get("场景"):
         parts.append(
             "场景一致性："
             + "、".join(grouped["场景"])
-            + "只继承空间结构、建筑/地貌材质、前中远景层次和光影基调；不要换成其他时代、其他地域或西幻空间。"
+            + "只继承空间结构、建筑/地貌材质和前中远景层次；"
+            "不得继承参考图的灰白、黑白、低饱和媒介或脏旧滤镜，综合色区按本镜色彩材质与光影契约重建；"
+            "不要换成其他时代、其他地域或西幻空间。"
         )
     if grouped.get("道具"):
         parts.append(
@@ -510,11 +510,29 @@ def build_storyboard_reference_continuity_rules(reference_images):
         for group in character_groups.values()
         if len(group["markers"]) > 1 and len(group["views"]) == len(group["markers"])
     ]
-    multi_view_contract = "【多视图身份锁】" + " ".join(multi_view_rules) if multi_view_rules else ""
+    bundle_view_rules = [
+        (
+            f"{bundle['marker']} 为{group['name']}同一角色、同一版本的 "
+            f"{'/'.join(bundle['views'])} 三视图束，不是三个人；该角色在本镜只允许出现一个实例。"
+        )
+        for group in character_groups.values()
+        for bundle in group.get("bundles", [])
+    ]
+    multi_view_contract = (
+        "【多视图身份锁】" + " ".join([*multi_view_rules, *bundle_view_rules])
+        if multi_view_rules or bundle_view_rules
+        else ""
+    )
     return " ".join(part for part in [multi_view_contract, "【参考图规则】" + " ".join(parts)] if part)
 
 
-def build_storyboard_bible_rules(reference_images):
+def build_storyboard_bible_rules(reference_images, *, enforce_v2_reference_compatibility=True):
+    wardrobe_visual_locks = {
+        "dock-overseer": {
+            "require": "灰白旧监工袍作为服装主色、灰腰带、粗布层次清晰；胸腹、双袖和下摆必须保留可见灰白色块，黑色只允许出现在头发、鞋和小面积阴影",
+            "avoid": "近黑长袍、纯黑整套服装、黑色武服、把服装主色渲染成黑色",
+        },
+    }
     rules = []
     for index, reference in enumerate(reference_images or [], 1):
         label = storyboard_reference_type_label(reference)
@@ -534,21 +552,39 @@ def build_storyboard_bible_rules(reference_images):
                 anchors.get("hairStyle"),
                 anchors.get("hairlineDetails"),
             ]
+            anchor_text = daojie_gongbi_v2.render_prompt_safe_story_facts(
+                "、".join(str(value) for value in anchor_parts if value)
+            )
             colors = anchors.get("colorAnchors") or {}
             color_text = "、".join(f"{key}:{value}" for key, value in colors.items() if value)
             avoid_text = "、".join([*(negative.get("avoid") or []), *(negative.get("styleExclusions") or [])])
+            avoid_text = daojie_gongbi_v2.render_prompt_safe_negative_constraints(avoid_text)
+            source_wardrobe_version = daojie_gongbi_v2.render_prompt_wardrobe_version(
+                str(reference.get("wardrobeVersion") or "")
+            )
+            if enforce_v2_reference_compatibility:
+                daojie_gongbi_v2.assert_v2_wardrobe_compatible(source_wardrobe_version)
+            wardrobe_version = daojie_gongbi_v2.render_prompt_safe_wardrobe_version(
+                source_wardrobe_version
+            )
+            wardrobe_lock = wardrobe_visual_locks.get(wardrobe_version)
+            wardrobe_text = ""
+            if wardrobe_lock:
+                wardrobe_text = (
+                    f"；服装硬锁：必须是{wardrobe_lock['require']}；"
+                    f"禁止{wardrobe_lock['avoid']}"
+                )
             rules.append(
-                f"@图{index}身份锚点：{'；'.join(str(value) for value in anchor_parts if value)}"
+                f"@图{index}身份锚点：{anchor_text}"
                 + (f"；色彩锚点：{color_text}" if color_text else "")
-                + (f"；服装版本：{reference.get('wardrobeVersion')}" if reference.get("wardrobeVersion") else "")
+                + (f"；服装版本：{wardrobe_version}" if wardrobe_version else "")
+                + wardrobe_text
                 + (f"；禁止：{avoid_text}" if avoid_text else "")
             )
         elif label == "场景":
             scene_parts = [
                 f"布局：{reference.get('spatialLayout')}" if reference.get("spatialLayout") else "",
                 f"视角：{reference.get('sceneViewpointId')}" if reference.get("sceneViewpointId") else "",
-                f"光线：{reference.get('lightingDesign')}" if reference.get("lightingDesign") else "",
-                f"色板：{reference.get('colorPalette')}" if reference.get("colorPalette") else "",
                 f"关键物件：{'、'.join(reference.get('keyProps') or [])}" if reference.get("keyProps") else "",
             ]
             rules.append(f"@图{index}场景圣经：{'；'.join(part for part in scene_parts if part)}")
@@ -556,6 +592,8 @@ def build_storyboard_bible_rules(reference_images):
 
 
 def build_storyboard_reference_bindings(reference_images):
+    ownership = audit_storyboard_reference_alias_ownership(reference_images)
+    assert_storyboard_reference_alias_ownership(ownership)
     bindings = []
     for index, reference in enumerate(reference_images or [], 1):
         marker = f"@图{index}"
@@ -570,14 +608,15 @@ def build_storyboard_reference_bindings(reference_images):
 
 def apply_reference_bindings_to_visual_prompt(visual_prompt, reference_images):
     text = str(visual_prompt or "").strip()
-    for binding in build_storyboard_reference_bindings(reference_images):
+    bindings = build_storyboard_reference_bindings(reference_images)
+    for binding in bindings:
         aliases = sorted(binding["aliases"], key=len, reverse=True)
         for alias in aliases:
             if len(alias) < 2 or alias.startswith("@"):
                 continue
             text = text.replace(alias, binding["marker"])
     scene_marker = next(
-        (binding["marker"] for binding in build_storyboard_reference_bindings(reference_images) if binding["typeLabel"] == "场景"),
+        (binding["marker"] for binding in bindings if binding["typeLabel"] == "场景"),
         "",
     )
     if scene_marker and scene_marker not in text:
@@ -586,15 +625,160 @@ def apply_reference_bindings_to_visual_prompt(visual_prompt, reference_images):
 
 
 def storyboard_light_prompt(storyboard):
-    index = int((storyboard or {}).get("index") or 0)
-    scene_no = (storyboard or {}).get("sceneNo")
-    if scene_no == 1 or (scene_no is None and index <= 12):
-        return "金水河雾冷青漫射，湿木栈反出低亮，人物脸和手保留清晰侧光，背景山水淡墨退远。"
-    if scene_no == 2 or (scene_no is None and index <= 24):
-        return "客栈枯灯偏暖，门缝夜风压暗四角，铜钱、账册、油布和断剑以局部旧金冷光提亮。"
-    if scene_no == 3 or (scene_no is None and index <= 40):
-        return "塾馆油灯与窗外冷雾交叠，孩童面部半明半暗，掌心暗红只作克制焦点光。"
-    return "深夜雾气吞没远景，断剑与残卷带旧金冷光，宗门灵舟火印穿雾但不破坏低饱和水墨基调。"
+    state = (storyboard or {}).get("continuityState") or {}
+    view_id = str(state.get("sceneViewpointId") or "")
+    scene_light = daojie_gongbi_v2.storyboard_scene_lighting(view_id)
+    if scene_light:
+        return scene_light
+    return "均匀平光宣纸照明与纸面散射光，保持线描可读、冷暖色区克制且画面干净。"
+
+
+def storyboard_time_of_day(index):
+    shot_index = int(index or 0)
+    scene = next(
+        (
+            item for item in CHAPTER_001_DIRECTOR_SCENES
+            if int(item["shotStart"]) <= shot_index <= int(item["shotEnd"])
+        ),
+        None,
+    )
+    if not scene:
+        return ""
+    match = re.search(r"(?:^|\s)(深夜|傍晚|夜)/", str(scene.get("title") or ""))
+    return match.group(1) if match else ""
+
+
+def semantic_reference_binding(name, bindings):
+    matches = [binding for binding in bindings if name in binding.get("aliases", [])]
+    return matches[0] if len(matches) == 1 else None
+
+
+def build_storyboard_visible_subject_prompt(storyboard, reference_images):
+    semantics = (storyboard or {}).get("shotSemantics")
+    if not isinstance(semantics, dict):
+        return ""
+    normalized = parse_storyboard_shot_semantics(
+        json.dumps(semantics, ensure_ascii=False, separators=(",", ":")),
+        int((storyboard or {}).get("index") or 0),
+    )
+    bindings = build_storyboard_reference_bindings(reference_images)
+    parts = []
+    time_of_day = storyboard_time_of_day((storyboard or {}).get("index"))
+    if time_of_day:
+        parts.append(f"时段为{time_of_day}")
+    if normalized["personFree"]:
+        parts.append("本镜无可见人物")
+    else:
+        for character in normalized["visibleCharacters"]:
+            binding = semantic_reference_binding(character["name"], bindings)
+            marker = binding["marker"] if binding else character["name"]
+            parts.append(
+                f"{marker}({character['name']})位于{character['position']}，{character['orientation']}，"
+                f"从{daojie_gongbi_v2.render_prompt_safe_story_facts(character['actionIn'])}"
+                f"到{daojie_gongbi_v2.render_prompt_safe_story_facts(character['actionOut'])}"
+            )
+    parts.append(
+        f"整镜从{daojie_gongbi_v2.render_prompt_safe_story_facts(normalized['actionIn'])}"
+        f"承接到{daojie_gongbi_v2.render_prompt_safe_story_facts(normalized['actionOut'])}"
+    )
+    return "；".join(parts)
+
+
+def scene_time_conflict_terms(expected_time_of_day, text):
+    conflicts = {
+        "傍晚": ("清晨", "晨雾", "早晨", "朝阳"),
+        "夜": ("清晨", "晨雾", "早晨", "朝阳", "正午"),
+        "深夜": ("清晨", "晨雾", "早晨", "朝阳", "正午", "傍晚"),
+    }
+    return [token for token in conflicts.get(expected_time_of_day, ()) if token in str(text or "")]
+
+
+def build_storyboard_reference_visual_audit(reference_images, expected_time_of_day=""):
+    alias_ownership = audit_storyboard_reference_alias_ownership(reference_images)
+    rows = []
+    failed_gates = []
+    for order, reference in enumerate(reference_images or [], 1):
+        row_failures = []
+        wardrobe_version = str(reference.get("wardrobeVersion") or "").strip()
+        try:
+            daojie_gongbi_v2.assert_v2_wardrobe_compatible(wardrobe_version)
+        except RuntimeError as error:
+            row_failures.append("incompatible_wardrobe_version")
+            wardrobe_reason = str(error)
+        else:
+            wardrobe_reason = ""
+        time_conflicts = scene_time_conflict_terms(
+            expected_time_of_day,
+            " ".join(str(reference.get(key) or "") for key in ("lightingDesign", "title", "evidence")),
+        )
+        if time_conflicts:
+            row_failures.append("scene_time_conflict")
+        source = str(reference.get("imageUrl") or "").strip()
+        color_audit = None
+        source_sha256 = None
+        declared_hashes = [
+            str(value or "").strip().lower()
+            for value in reference.get("referenceImageSha256") or []
+            if str(value or "").strip()
+        ]
+        declared_source_sha256 = declared_hashes[0] if len(declared_hashes) == 1 else None
+        if not declared_source_sha256 or re.fullmatch(r"[a-f0-9]{64}", declared_source_sha256) is None:
+            row_failures.append("missing_reference_hash")
+        if not source or source.startswith(("http://", "https://", "data:image/")):
+            row_failures.append("uninspectable_reference_image")
+        else:
+            try:
+                source_path = image_source_to_path(source).expanduser().resolve()
+                source_sha256 = file_sha256(source_path)
+                color_audit = daojie_gongbi_v2.audit_reference_color(
+                    source_path,
+                    str(reference.get("referenceRole") or ""),
+                )
+            except (OSError, RuntimeError, ValueError) as error:
+                row_failures.append("uninspectable_reference_image")
+                color_audit = {"status": "error", "error": str(error)}
+            else:
+                if declared_source_sha256 != source_sha256:
+                    row_failures.append("reference_hash_mismatch")
+                if color_audit.get("status") != "pass":
+                    row_failures.append("reference_color")
+        failed_gates.extend(row_failures)
+        rows.append({
+            "order": order,
+            "assetId": reference.get("assetId"),
+            "versionId": reference.get("versionId"),
+            "assetName": storyboard_reference_name(reference, order),
+            "referenceRole": reference.get("referenceRole"),
+            "imagePath": source,
+            "sourceSha256": source_sha256,
+            "declaredSourceSha256": declared_source_sha256,
+            "wardrobeVersion": wardrobe_version or None,
+            "wardrobeReason": wardrobe_reason or None,
+            "expectedTimeOfDay": expected_time_of_day or None,
+            "timeConflictTerms": time_conflicts,
+            "colorAudit": color_audit,
+            "failedGates": unique_nonempty(row_failures),
+            "status": "fail" if row_failures else "pass",
+        })
+    if alias_ownership.get("status") != "pass":
+        failed_gates.append("alias_ownership")
+    return {
+        "schemaVersion": "daojie-reference-visual-audit-v1",
+        "styleContractVersion": daojie_gongbi_v2.STYLE_CONTRACT_VERSION,
+        "expectedTimeOfDay": expected_time_of_day or None,
+        "status": "fail" if failed_gates else "pass",
+        "failedGates": unique_nonempty(failed_gates),
+        "aliasOwnership": alias_ownership,
+        "references": rows,
+    }
+
+
+def assert_storyboard_reference_visual_audit(audit):
+    if audit.get("status") == "pass":
+        return
+    raise RuntimeError(
+        "道劫工笔 V2 参考图预检失败: " + "、".join(audit.get("failedGates") or ["unknown"])
+    )
 
 
 def extract_prompt_section(prompt, section_name):
@@ -611,9 +795,39 @@ def find_visible_role_mentions(visual_prompt):
     return unique_nonempty(visible)
 
 
+def storyboard_declared_visible_roles(storyboard, raw_visual_prompt):
+    semantics = (storyboard or {}).get("shotSemantics")
+    if isinstance(semantics, dict):
+        normalized = parse_storyboard_shot_semantics(
+            json.dumps(semantics, ensure_ascii=False, separators=(",", ":")),
+            int((storyboard or {}).get("index") or 0),
+        )
+        return [item["name"] for item in normalized["visibleCharacters"]], "shotSemantics"
+    return find_visible_role_mentions(str(raw_visual_prompt or "")), "legacy-text-fallback"
+
+
+def storyboard_reference_roles(reference_images):
+    role_by_kind = {
+        "scene": "scene-viewpoint",
+        "character": "canonical",
+        "role": "canonical",
+        "prop": "prop-state",
+        "tool": "prop-state",
+    }
+    roles = []
+    for reference in reference_images or []:
+        role = str(reference.get("referenceRole") or "").strip()
+        if not role:
+            role = role_by_kind.get(str(reference.get("assetKind") or reference.get("assetType") or "").lower(), "")
+        roles.append(role)
+    return roles
+
+
 def build_storyboard_prompt_audit(storyboard, final_prompt, reference_images, raw_visual_prompt):
     bindings = build_storyboard_reference_bindings(reference_images)
+    alias_ownership = audit_storyboard_reference_alias_ownership(reference_images)
     visual_section = extract_prompt_section(final_prompt, "画面")
+    subject_section = extract_prompt_section(final_prompt, "主体动作")
     role_reference_aliases = set()
     raw_asset_name_leaks = []
     for binding in bindings:
@@ -628,12 +842,26 @@ def build_storyboard_prompt_audit(storyboard, final_prompt, reference_images, ra
                     "assetName": binding["name"],
                     "alias": alias,
                 })
-    visible_roles = find_visible_role_mentions(str(raw_visual_prompt or ""))
+    visible_roles, visible_role_source = storyboard_declared_visible_roles(
+        storyboard,
+        raw_visual_prompt,
+    )
     missing_visible_role_refs = [
         role_name
         for role_name in visible_roles
         if not any(alias in role_reference_aliases for alias in DAOJIE_VISIBLE_ROLE_ALIASES.get(role_name, [role_name]))
     ]
+    missing_leading_visual_characters = []
+    semantics = (storyboard or {}).get("shotSemantics")
+    if isinstance(semantics, dict):
+        normalized_semantics = parse_storyboard_shot_semantics(
+            json.dumps(semantics, ensure_ascii=False, separators=(",", ":")),
+            int((storyboard or {}).get("index") or 0),
+        )
+        for character in normalized_semantics["visibleCharacters"]:
+            binding = semantic_reference_binding(character["name"], bindings)
+            if not binding or binding["marker"] not in subject_section:
+                missing_leading_visual_characters.append(character["name"])
     reference_labels = [
         {
             "marker": binding["marker"],
@@ -643,22 +871,35 @@ def build_storyboard_prompt_audit(storyboard, final_prompt, reference_images, ra
         }
         for binding in bindings
     ]
+    reference_roles = storyboard_reference_roles(reference_images)
+    v2_audit = daojie_gongbi_v2.prompt_quality_audit(
+        final_prompt,
+        reference_roles,
+        (storyboard or {}).get("referenceCapability"),
+    )
     return {
         "storyboardId": (storyboard or {}).get("id", ""),
         "index": (storyboard or {}).get("index", 0),
         "referenceLabels": reference_labels,
         "visibleRoleNames": visible_roles,
+        "visibleRoleSource": visible_role_source,
         "missingVisibleRoleReferences": missing_visible_role_refs,
+        "missingLeadingVisualCharacters": missing_leading_visual_characters,
+        "aliasOwnership": alias_ownership,
         "rawAssetNameLeaks": raw_asset_name_leaks,
         "hasReferencePrefix": bool(reference_labels) and final_prompt.strip().startswith("@图1"),
         "hasVisualReferenceBinding": "@图" in visual_section,
         "hasLightSection": bool(extract_prompt_section(final_prompt, "光影")),
-        "hasDaojieStyleLock": "【风格锁】" in final_prompt and "《道劫》默认主风格" in final_prompt,
+        "hasDaojieStyleLock": (
+            daojie_gongbi_v2.STYLE_CONTRACT_VERSION in final_prompt
+            and all(extract_prompt_section(final_prompt, section) for section in ("媒介层级", "色彩材质", "光影"))
+        ),
         "hasReferenceRules": "【参考图规则】" in final_prompt and any(
             label in final_prompt
             for label in ("角色一致性", "场景一致性", "道具一致性", "资产一致性")
         ),
-        "hasNegativeConstraints": "【反向约束】" in final_prompt and "禁止写实摄影" in final_prompt and "禁止3D写实渲染" in final_prompt,
+        "hasNegativeConstraints": "【反向约束】" in final_prompt and "禁止写实摄影" in final_prompt and "3D/CGI" in final_prompt,
+        "v2": v2_audit,
         "finalPrompt": final_prompt,
     }
 
@@ -679,9 +920,15 @@ def assert_storyboard_prompt_audit(audit):
         errors.append("缺少反向约束")
     if audit.get("missingVisibleRoleReferences"):
         errors.append("可见角色缺少参考图: " + "、".join(audit["missingVisibleRoleReferences"]))
+    if audit.get("missingLeadingVisualCharacters"):
+        errors.append("前置主体段缺少可见角色: " + "、".join(audit["missingLeadingVisualCharacters"]))
+    if (audit.get("aliasOwnership") or {}).get("status") != "pass":
+        errors.append("参考别名所有权冲突")
     if audit.get("rawAssetNameLeaks"):
         leaks = [f"{item['assetName']}:{item['alias']}" for item in audit["rawAssetNameLeaks"]]
         errors.append("【画面】仍有原始资产名: " + "、".join(leaks))
+    if (audit.get("v2") or {}).get("status") != "pass":
+        errors.append("V2 提示词审计失败: " + "、".join((audit.get("v2") or {}).get("violations") or ["unknown"]))
     if errors:
         raise RuntimeError(f"分镜 {int(audit.get('index') or 0):03d} 图片提示词绑定失败: " + "；".join(errors))
 
@@ -699,7 +946,14 @@ def summarize_storyboard_prompt_manifest(manifest):
         "storyboardPromptsWithDaojieStyleLock": sum(1 for item in manifest if item.get("hasDaojieStyleLock")),
         "storyboardPromptsWithLightSection": sum(1 for item in manifest if item.get("hasLightSection")),
         "storyboardPromptsWithMissingVisibleCharacterRefs": sum(1 for item in manifest if item.get("missingVisibleRoleReferences")),
+        "storyboardPromptsWithMissingLeadingVisualCharacters": sum(1 for item in manifest if item.get("missingLeadingVisualCharacters")),
+        "storyboardPromptsWithAliasOwnershipFailures": sum(
+            1 for item in manifest if (item.get("aliasOwnership") or {}).get("status") != "pass"
+        ),
         "storyboardPromptsWithRawAssetNameLeaks": sum(1 for item in manifest if item.get("rawAssetNameLeaks")),
+        "storyboardPromptsWithV2PromptAuditFailures": sum(
+            1 for item in manifest if (item.get("v2") or {}).get("status") != "pass"
+        ),
         "storyboardPromptMissingVisibleCharacterRefs": [
             {
                 "storyboardId": item.get("storyboardId", ""),
@@ -721,65 +975,91 @@ def summarize_storyboard_prompt_manifest(manifest):
     }
 
 
-def build_storyboard_image_prompt(storyboard, reference_images):
-    visual_prompt = str((storyboard or {}).get("prompt") or "").strip()
+def build_storyboard_image_prompt(storyboard, reference_images, *, enforce_v2_reference_compatibility=True):
+    if enforce_v2_reference_compatibility:
+        for reference in reference_images or []:
+            if storyboard_reference_type_label(reference) == "角色":
+                daojie_gongbi_v2.assert_v2_wardrobe_compatible(reference.get("wardrobeVersion"))
+    visual_prompt = daojie_gongbi_v2.render_prompt_safe_story_facts(
+        str((storyboard or {}).get("prompt") or "").strip()
+    )
     visual_prompt = apply_reference_bindings_to_visual_prompt(visual_prompt, reference_images)
     reference_intro = build_storyboard_reference_intro(reference_images)
+    visible_subject = build_storyboard_visible_subject_prompt(storyboard, reference_images)
     continuity_rules = build_storyboard_reference_continuity_rules(reference_images)
-    bible_rules = build_storyboard_bible_rules(reference_images)
+    bible_rules = build_storyboard_bible_rules(
+        reference_images,
+        enforce_v2_reference_compatibility=enforce_v2_reference_compatibility,
+    )
     shot_continuity = build_shot_continuity_prompt(storyboard["continuityState"]) if storyboard.get("continuityState") else ""
     parts = []
     if reference_intro:
         parts.append(reference_intro)
+    if visible_subject:
+        parts.append(f"【主体动作】{visible_subject}")
     if visual_prompt:
         parts.append(f"【画面】{visual_prompt}")
-    parts.append(f"【光影】{storyboard_light_prompt(storyboard)}")
     if continuity_rules:
         parts.append(continuity_rules)
     if bible_rules:
         parts.append(bible_rules)
     if shot_continuity:
         parts.append(shot_continuity)
-    parts.append("【镜头】16:9横版国风漫剧剧情关键帧，前中远景层次清楚，主体动作、角色位置和道具关系可读，不要画成资产设定页。")
-    parts.append(f"【风格锁】{DAOJIE_STORYBOARD_STYLE_PROMPT}。")
-    parts.append("【可变化项】只变化当前分镜需要的景别、动作、表情、局部光影、雾气和前景遮挡；不要改变参考图身份、场景结构、道具核心特征或道劫主风格。")
-    parts.append(f"【反向约束】{DAOJIE_STORYBOARD_FRAME_NEGATIVE_CONSTRAINTS}。")
     if reference_intro:
-        parts.append("保持所有@图N造型、结构与参考图一致。")
+        parts.append(
+            "【参考继承边界】按上方各@图N的资产类型限定继承；"
+            "V2媒介、综合色彩、完整衣物、当前分镜动作与构图优先。"
+            "角色参考不复制破损衣物或脏灰媒介，场景参考不复制旧综合色量、旧光影或原构图。"
+        )
+    parts.append("【可变化项】只变化当前分镜需要的景别、动作、表情、局部光影、雾气和前景遮挡；不要改变已限定继承的角色身份、场景空间、道具核心特征或道劫主风格。")
+    parts.append(f"【媒介层级】{DAOJIE_STORYBOARD_MEDIUM_PROMPT}。")
+    parts.append("【构图空间】16:9横版国风漫剧剧情关键帧，前中远景层次清楚，主体动作、角色位置和道具关系可读，不要画成资产设定页。")
+    parts.append(f"【色彩材质】{DAOJIE_STORYBOARD_COLOR_MATERIAL_PROMPT}。")
+    light_prompt = daojie_gongbi_v2.render_prompt_safe_story_facts(storyboard_light_prompt(storyboard))
+    parts.append(f"【光影】{light_prompt}。{DAOJIE_STORYBOARD_LIGHT_PROMPT}。")
+    parts.append(f"【反向约束】{DAOJIE_STORYBOARD_FRAME_NEGATIVE_CONSTRAINTS}。")
     return " ".join(part for part in parts if part).strip()
 
 
 def build_derived_asset_image_prompt(parent_name, state_name, reason, asset_type):
     type_label = STORYBOARD_REFERENCE_TYPE_LABELS.get(asset_type, "资产")
     reference_intro = f"@图1 为{parent_name}{type_label}基准图"
+    safe_state_name = daojie_gongbi_v2.render_prompt_safe_story_facts(state_name)
+    safe_reason = daojie_gongbi_v2.render_prompt_safe_story_facts(reason)
     if asset_type == "character":
         parts = [
             reference_intro,
-            f"【衍生目标】{state_name}：{reason}",
+            f"【衍生目标】{safe_state_name}：{safe_reason}",
             (
                 "【画面】以@图1为底图，保持父角色身份识别、面容、体态、发型识别点与比例结构不变，"
-                f"只叠加{state_name}所需的服化妆造、衣料磨损、光影和局部状态变化。"
+                f"只叠加{safe_state_name}所需的服化妆造、干净局部光影和状态变化，衣物始终完整可穿。"
             ),
             "【输出】必须输出角色四视图设定图/三视图参考图，不要生成单张全身插画或说明卡。",
             "【布局】同一画面左至右并排：人像特写+正视图+侧视图+后视图；portrait closeup, front view, side view, back view, character reference sheet, character turnaround。",
             "【站姿】自然站立，宣纸白底色背景，均匀散光，无硬阴影，四视图服化妆造一致，图中不要有任何文字。",
             f"【风格】{DAOJIE_DERIVED_ASSET_STYLE_PROMPT}。",
+            (
+                "【参考继承边界】@图1仅继承同一角色身份、面容、体态、发型和比例结构；"
+                "V2媒介、综合色彩、完整衣物及当前衍生状态优先，不复制参考图的破损衣物、脏灰媒介、原构图或旧光影。"
+            ),
             f"【反向约束】{DAOJIE_STORYBOARD_NEGATIVE_CONSTRAINTS}，face drift，identity changed，different person，pose changed，added scene，added handheld prop，inconsistent costume between views，cropped body。",
-            "保持所有@图N造型、结构与参考图一致。",
         ]
         return " ".join(part for part in parts if part).strip()
 
     parts = [
         reference_intro,
-        f"【衍生目标】{state_name}：{reason}",
+        f"【衍生目标】{safe_state_name}：{safe_reason}",
         (
             "【画面】以@图1为底图，保持父资产主体轮廓、身份识别、比例结构与核心特征不变，"
-            f"只强化{state_name}所需的服饰、光影、磨损、姿态或局部状态变化。"
+            f"只强化{safe_state_name}所需的服饰、光影、磨损、姿态或局部状态变化。"
         ),
         "【镜头】16:9横版国风漫剧资产设定图，主体完整清晰，可供后续分镜连续复用。",
         f"【风格】{DAOJIE_DERIVED_ASSET_STYLE_PROMPT}。",
+        (
+            "【参考继承边界】@图1仅继承父资产轮廓、比例结构、材质事实与核心识别点；"
+            "V2媒介、综合色彩及当前衍生状态优先，不复制参考图的脏灰媒介、原构图或旧光影。"
+        ),
         f"【反向约束】{DAOJIE_STORYBOARD_NEGATIVE_CONSTRAINTS}。",
-        "保持所有@图N造型、结构与参考图一致。",
     ]
     return " ".join(part for part in parts if part).strip()
 
@@ -810,6 +1090,8 @@ def extract_generated_image_url(data):
     if not isinstance(data, dict):
         return ""
     data_field = data.get("data")
+    if not data_field and isinstance(data.get("result"), dict):
+        data_field = data["result"].get("data")
     first_item = data_field[0] if isinstance(data_field, list) and data_field else data_field
     first_record = first_item if isinstance(first_item, dict) else {}
     image_url = (
@@ -901,6 +1183,99 @@ def build_storyboard_image_request_body(prompt, reference_images, config):
     return body
 
 
+PAID_LEDGER_BLOCKING_STATUSES = {"POST_SENT", "TASK_ACCEPTED", "AMBIGUOUS", "COMPLETED"}
+
+
+def _paid_reference_sha256(value):
+    text = str(value or "")
+    match = re.match(r"^data:image/[^;,]+;base64,([A-Za-z0-9+/=\r\n]+)$", text, re.IGNORECASE)
+    if match:
+        try:
+            return hashlib.sha256(base64.b64decode(re.sub(r"\s+", "", match.group(1)), validate=True)).hexdigest()
+        except (ValueError, binascii.Error) as error:
+            raise RuntimeError("付费请求指纹无法解码参考图 data URI") from error
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def _append_paid_ledger_event(path, event):
+    ledger_path = Path(path)
+    ledger_path.parent.mkdir(parents=True, exist_ok=True)
+    with ledger_path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(event, ensure_ascii=False, sort_keys=True) + "\n")
+        handle.flush()
+
+
+def _latest_paid_ledger_events(path):
+    ledger_path = Path(path)
+    if not ledger_path.is_file():
+        return []
+    latest = {}
+    for line_number, line in enumerate(ledger_path.read_text(encoding="utf-8").splitlines(), 1):
+        if not line.strip():
+            continue
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError as error:
+            raise RuntimeError(f"付费请求账本第 {line_number} 行无法解析") from error
+        if isinstance(event, dict) and event.get("attemptId"):
+            latest[str(event["attemptId"])] = event
+    return list(latest.values())
+
+
+def _paid_request_descriptor(prompt, reference_images, config):
+    ledger_path = config.get("paidRequestLedgerPath")
+    if not ledger_path:
+        return None
+    providers = config.get("providers") or [config]
+    key_count = sum(len(item.get("apiKeys") or ([item.get("apiKey")] if item.get("apiKey") else [])) for item in providers)
+    if config.get("singleAttempt") is not True or len(providers) != 1 or key_count != 1:
+        raise RuntimeError("付费请求账本要求 singleAttempt=true、恰好一个 provider 和一个 API key")
+    if config.get("paidAuthorization") is not True:
+        raise RuntimeError("付费请求账本要求显式授权")
+    required = [config.get("attemptId"), config.get("logicalJob"), config.get("logicalShot")]
+    if not all(required):
+        raise RuntimeError("付费请求账本缺少 attemptId/logicalJob/logicalShot")
+    async_mode = config.get("asyncMode") is True
+    endpoint = image_generation_endpoint(config["baseUrl"], async_mode)
+    body = build_storyboard_image_request_body(prompt, reference_images, config)
+    prompt_sha256 = hashlib.sha256(str(prompt).encode("utf-8")).hexdigest()
+    reference_sha256 = [_paid_reference_sha256(item) for item in reference_images]
+    payload_sha256 = hashlib.sha256(json.dumps(body, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
+    descriptor = {
+        "attemptId": config["attemptId"],
+        "logicalJob": config["logicalJob"],
+        "logicalShot": config["logicalShot"],
+        "providerHost": urllib.parse.urlparse(endpoint).netloc,
+        "model": config["model"],
+        "asyncMode": async_mode,
+        "endpoint": endpoint,
+        "promptSha256": prompt_sha256,
+        "referenceSha256": reference_sha256,
+        "payloadSha256": payload_sha256,
+    }
+    fingerprint_payload = {**descriptor}
+    fingerprint_payload.pop("attemptId", None)
+    descriptor["requestFingerprint"] = hashlib.sha256(json.dumps(fingerprint_payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
+    for event in _latest_paid_ledger_events(ledger_path):
+        if event.get("requestFingerprint") == descriptor["requestFingerprint"] and event.get("status") in PAID_LEDGER_BLOCKING_STATUSES:
+            raise RuntimeError(f"付费请求已阻断：同一指纹已有 {event['status']} 证据 (attemptId={event.get('attemptId')})")
+    _append_paid_ledger_event(ledger_path, {**descriptor, "status": "POST_SENT", "recordedAt": datetime.now(timezone.utc).isoformat()})
+    return descriptor
+
+
+def _paid_ledger_record(config, descriptor, status, **extra):
+    if not descriptor:
+        return
+    _append_paid_ledger_event(
+        config["paidRequestLedgerPath"],
+        {**descriptor, "status": status, "recordedAt": datetime.now(timezone.utc).isoformat(), **extra},
+    )
+
+
+def _is_ambiguous_paid_error(error):
+    return bool(re.search(r"fetch failed|timed? out|abort|socket|UND_ERR|ECONNRESET|EPIPE|ETIMEDOUT|API 错误: 5\d{2}", str(error), re.IGNORECASE))
+
+
 def generate_storyboard_image_via_node_helper(prompt, reference_images, config):
     if not NODE_STORYBOARD_IMAGE_HELPER.exists():
         raise RuntimeError(f"Node 分镜图生成 helper 不存在: {NODE_STORYBOARD_IMAGE_HELPER}")
@@ -917,6 +1292,18 @@ def generate_storyboard_image_via_node_helper(prompt, reference_images, config):
         "resolution": config["resolution"],
         "timeoutSeconds": config["timeoutSeconds"],
         "asyncMode": config.get("asyncMode") is True,
+        "requestMode": config.get("requestMode") or REQUEST_MODE_GENERATIONS_JSON,
+        "singleAttempt": config.get("singleAttempt") is True,
+        "paidRequestLedgerPath": config.get("paidRequestLedgerPath") or "",
+        "paidAuthorization": config.get("paidAuthorization") is True,
+        "attemptId": config.get("attemptId") or "",
+        "logicalJob": config.get("logicalJob") or "",
+        "logicalShot": config.get("logicalShot") or "",
+        "styleContractVersion": config.get("styleContractVersion") or "",
+        "styleContractFingerprint": config.get("styleContractFingerprint") or "",
+        "promptAuditVersion": config.get("promptAuditVersion") or "",
+        "referenceRoles": config.get("referenceRoles") or [],
+        "referenceCapability": config.get("referenceCapability"),
     }
     provider_timeout = 0
     for provider in payload.get("providers") or []:
@@ -939,33 +1326,142 @@ def generate_storyboard_image_via_node_helper(prompt, reference_images, config):
     image_url = first_string(data.get("url")) or first_string(data.get("imageUrl"))
     if not image_url:
         raise RuntimeError(f"Node 分镜图生成缺少结果图: {result.stdout[:500]}")
+    config["_lastPaidRequest"] = data.get("request") if isinstance(data, dict) else None
     return image_url
 
 
 def request_storyboard_image_generation(prompt, reference_images, config):
+    if config.get("styleContractVersion") == daojie_gongbi_v2.STYLE_CONTRACT_VERSION:
+        reference_roles = config.get("referenceRoles") or []
+        if len(reference_roles) != len(reference_images):
+            raise RuntimeError("V2 分镜参考角色数量必须与图片数量一致")
+        daojie_gongbi_v2.assert_reference_capability(
+            config.get("referenceCapability") or {},
+            reference_roles,
+        )
     if is_gpt_image_model(config["model"]):
         return generate_storyboard_image_via_node_helper(prompt, reference_images, config)
-    endpoint = image_generation_endpoint(config["baseUrl"])
+    async_mode = config.get("asyncMode") is True
+    endpoint = image_generation_endpoint(config["baseUrl"], async_mode)
     payload = build_storyboard_image_request_body(prompt, reference_images, config)
-    data = fetch_json(endpoint, config["apiKey"], payload, config["timeoutSeconds"])
+    descriptor = _paid_request_descriptor(prompt, reference_images, config)
+    try:
+        data = fetch_json(endpoint, config["apiKey"], payload, config["timeoutSeconds"])
+    except Exception as error:
+        _paid_ledger_record(
+            config,
+            descriptor,
+            "AMBIGUOUS" if _is_ambiguous_paid_error(error) else "FAILED",
+            errorType=type(error).__name__,
+            error=str(error)[:1000],
+        )
+        raise
     image_url = extract_generated_image_url(data)
     if image_url:
+        if descriptor:
+            descriptor = {**descriptor, "taskId": None}
+            _paid_ledger_record(config, descriptor, "COMPLETED", taskId=None)
+            config["_lastPaidRequest"] = descriptor
         return image_url
     task_id = extract_image_task_id(data)
     if not task_id:
+        _paid_ledger_record(config, descriptor, "AMBIGUOUS", errorType="MissingResultOrTaskId")
         raise RuntimeError(f"图片生成响应缺少结果图或任务 ID: {json.dumps(data, ensure_ascii=False)[:500]}")
+    _paid_ledger_record(config, descriptor, "TASK_ACCEPTED", taskId=task_id)
     poll_interval = float(os.environ.get("MYSTUDIO_IMAGE_POLL_INTERVAL_SECONDS", "3"))
     poll_attempts = int(os.environ.get("MYSTUDIO_IMAGE_POLL_ATTEMPTS", "60"))
-    for _ in range(poll_attempts):
-        time.sleep(poll_interval)
-        poll_data = fetch_json(image_task_poll_endpoint(config["baseUrl"], task_id), config["apiKey"], None, config["timeoutSeconds"])
-        image_url = extract_generated_image_url(poll_data)
-        if image_url:
-            return image_url
-        status = str(poll_data.get("status") or poll_data.get("state") or "").lower()
-        if status in {"failed", "error", "canceled", "cancelled"}:
-            raise RuntimeError(f"图片生成任务失败: {json.dumps(poll_data, ensure_ascii=False)[:500]}")
+    try:
+        for _ in range(poll_attempts):
+            time.sleep(poll_interval)
+            poll_data = fetch_json(
+                image_task_poll_endpoint(config["baseUrl"], task_id, async_mode),
+                config["apiKey"],
+                None,
+                config["timeoutSeconds"],
+            )
+            image_url = extract_generated_image_url(poll_data)
+            if image_url:
+                if descriptor:
+                    descriptor = {**descriptor, "taskId": task_id}
+                    _paid_ledger_record(config, descriptor, "COMPLETED", taskId=task_id)
+                    config["_lastPaidRequest"] = descriptor
+                return image_url
+            status = str(poll_data.get("status") or poll_data.get("state") or "").lower()
+            if status in {"failed", "error", "canceled", "cancelled"}:
+                raise RuntimeError(f"图片生成任务失败: {json.dumps(poll_data, ensure_ascii=False)[:500]}")
+    except Exception as error:
+        _paid_ledger_record(config, descriptor, "AMBIGUOUS", taskId=task_id, errorType=type(error).__name__, error=str(error)[:1000])
+        raise
+    _paid_ledger_record(config, descriptor, "AMBIGUOUS", taskId=task_id, errorType="TaskTimeout")
     raise RuntimeError(f"图片生成任务超时: {task_id}")
+
+
+def storyboard_reference_capability(config, reference_images):
+    reference_roles = storyboard_reference_roles(reference_images)
+    provider_name = str(config.get("providerName") or storyboard_image_generation_provider())
+    manifest_path = config.get("referenceCapabilityManifest")
+    return daojie_gongbi_v2.resolve_reference_capability(
+        provider_name,
+        str(config.get("model") or ""),
+        reference_roles,
+        manifest_path=Path(manifest_path) if manifest_path else None,
+    )
+
+
+def style_reference_sha256_from_references(reference_images):
+    hashes = [
+        str(value).lower()
+        for reference in reference_images or []
+        if reference.get("referenceRole") == daojie_gongbi_v2.STYLE_REFERENCE_ROLE
+        for value in reference.get("referenceImageSha256") or []
+        if str(value).strip()
+    ]
+    unique_hashes = sorted(set(hashes))
+    if not unique_hashes:
+        return ""
+    if len(unique_hashes) != 1 or not re.fullmatch(r"[a-f0-9]{64}", unique_hashes[0]):
+        raise RuntimeError("style-reference 必须提供唯一且可验证的 SHA-256 来源")
+    return unique_hashes[0]
+
+
+def with_storyboard_v2_reference_contract(config, reference_images):
+    """Attach the verified reference capacity without changing manifest order."""
+    request_config = dict(config)
+    if request_config.get("styleContractVersion") != daojie_gongbi_v2.STYLE_CONTRACT_VERSION:
+        return request_config
+    request_config["referenceRoles"] = storyboard_reference_roles(reference_images)
+    capability = storyboard_reference_capability(request_config, reference_images)
+    request_mode = str(request_config.get("requestMode") or REQUEST_MODE_GENERATIONS_JSON)
+    capability_request_mode = str(capability.get("requestMode") or REQUEST_MODE_GENERATIONS_JSON)
+    if capability.get("status") == "verified" and capability_request_mode != request_mode:
+        capability = {
+            **capability,
+            "status": "unverified",
+            "reason": f"provider requestMode 与能力契约不匹配: {request_mode} != {capability_request_mode}",
+        }
+        capability["fingerprint"] = daojie_gongbi_v2.reference_capability_fingerprint(capability)
+    style_reference_sha256 = style_reference_sha256_from_references(reference_images)
+    if style_reference_sha256:
+        provenance = capability.get("styleReference") or {}
+        if provenance.get("sha256") != style_reference_sha256:
+            capability = {
+                **capability,
+                "status": "unverified",
+                "reason": "style-reference SHA-256 与能力契约来源不匹配",
+            }
+            capability["fingerprint"] = daojie_gongbi_v2.reference_capability_fingerprint(capability)
+    request_config["referenceCapability"] = capability
+    request_config["styleContractFingerprint"] = daojie_gongbi_v2.style_contract_fingerprint(
+        style_reference_sha256 or None
+    )
+    return request_config
+
+
+def audit_daojie_gongbi_v2_output(image_path):
+    report = daojie_gongbi_v2.write_color_audit(Path(image_path))
+    if report["status"] != "pass":
+        raise RuntimeError("道劫工笔 V2 色彩审计失败: " + ", ".join(report["failedGates"]))
+    return report
 
 
 def image_workflow_asset_type(kind):
@@ -992,6 +1488,7 @@ def collect_storyboard_reference_images(image_assets):
             "aliases": asset.get("aliases") or [],
             "versionId": asset.get("versionId"),
             "referenceRole": asset.get("referenceRole"),
+            "referenceImageSha256": asset.get("referenceImageSha256") or [],
             "identityAnchors": asset.get("identityAnchors"),
             "negativePrompt": asset.get("negativePrompt"),
             "wardrobeVersion": asset.get("wardrobeVersion"),
@@ -1083,19 +1580,47 @@ def generate_storyboard_frame_with_references(
         if continuity_manifest
         else image_assets
     )
-    references = collect_storyboard_reference_images(continuity_assets)
-    if not references:
+    source_references = collect_storyboard_reference_images(continuity_assets)
+    if not source_references:
         raise RuntimeError(f"分镜 {storyboard['index']:02d} 缺少参考资产图片")
+    reference_transport = None
+    if config.get("styleContractVersion") == daojie_gongbi_v2.STYLE_CONTRACT_VERSION:
+        source_capability = storyboard_reference_capability(config, source_references)
+        references, reference_transport = build_storyboard_reference_transport(
+            source_references,
+            source_capability,
+            PROJECT / "workflow-images" / "reference-bundles" / EPISODE_ID,
+        )
+    else:
+        references = source_references
+    request_config = with_storyboard_v2_reference_contract(config, references)
+    reference_visual_audit = (
+        build_storyboard_reference_visual_audit(
+            references,
+            expected_time_of_day=storyboard_time_of_day(storyboard.get("index")),
+        )
+        if request_config.get("styleContractVersion") == daojie_gongbi_v2.STYLE_CONTRACT_VERSION
+        else {
+            "schemaVersion": "daojie-reference-visual-audit-v1",
+            "status": "not-run",
+            "reason": "non-v2-request",
+            "references": [],
+        }
+    )
     final_prompt = build_storyboard_image_prompt(
         {
             **storyboard,
             "prompt": prompt or storyboard.get("prompt", ""),
             "continuityState": continuity_state,
+            "referenceCapability": request_config.get("referenceCapability"),
         },
         references,
     )
     prompt_audit = build_storyboard_prompt_audit(
-        storyboard,
+        {
+            **storyboard,
+            "referenceCapability": request_config.get("referenceCapability"),
+        },
         final_prompt,
         references,
         prompt or storyboard.get("prompt", ""),
@@ -1108,14 +1633,22 @@ def generate_storyboard_frame_with_references(
         else PROJECT / relative_path
     )
     reused_existing_image = bool(approved_storyboard_image) or can_reuse_storyboard_image(result_file)
+    if (
+        reused_existing_image
+        and request_config.get("styleContractVersion") == daojie_gongbi_v2.STYLE_CONTRACT_VERSION
+        and (not approved_storyboard_image or approved_storyboard_image.get("styleContractVersion") != daojie_gongbi_v2.STYLE_CONTRACT_VERSION)
+    ):
+        raise RuntimeError("daojie-gongbi-v2 不得复用缺少 V2 契约证据的旧分镜图")
+    reference_preflight = None
     if not reused_existing_image:
-        prepared_reference_images = []
-        for reference in references:
-            prepared_reference_images.append(
-                prepare_storyboard_model_reference_image(reference["imageUrl"])
-            )
-        generated_image_url = request_storyboard_image_generation(final_prompt, prepared_reference_images, config)
+        if request_config.get("styleContractVersion") == daojie_gongbi_v2.STYLE_CONTRACT_VERSION:
+            assert_storyboard_reference_visual_audit(reference_visual_audit)
+        prepared_reference_images, reference_preflight = prepare_storyboard_model_reference_images(references)
+        generated_image_url = request_storyboard_image_generation(final_prompt, prepared_reference_images, request_config)
         save_generated_image_url(generated_image_url, result_file)
+    color_audit = None
+    if request_config.get("styleContractVersion") == daojie_gongbi_v2.STYLE_CONTRACT_VERSION:
+        color_audit = audit_daojie_gongbi_v2_output(result_file)
     transfer_thumbnail = create_storyboard_transfer_thumbnail(result_file)
     Image.open(result_file).convert("RGB").resize((1920, 1080), Image.Resampling.LANCZOS).save(frame)
     project_url = (
@@ -1128,7 +1661,7 @@ def generate_storyboard_frame_with_references(
         final_prompt,
         project_url,
         references,
-        config,
+        request_config,
         1780301000000 + storyboard["index"],
     )
     return {
@@ -1138,12 +1671,23 @@ def generate_storyboard_frame_with_references(
         "workflowGraph": graph,
         "generatedNodeId": f"gen-{graph['id']}",
         "referenceImages": references,
+        "sourceReferenceImages": source_references,
+        "referenceTransport": reference_transport,
         "orderedReferenceManifest": continuity_manifest or [],
         "continuityState": continuity_state,
         "providerRequestEvidence": {
-            "model": config.get("model", ""),
-            "aspectRatio": config.get("aspectRatio", ""),
-            "resolution": config.get("resolution", ""),
+            "model": request_config.get("model", ""),
+            "aspectRatio": request_config.get("aspectRatio", ""),
+            "resolution": request_config.get("resolution", ""),
+            "styleContractVersion": request_config.get("styleContractVersion", ""),
+            "styleContractFingerprint": request_config.get("styleContractFingerprint", ""),
+            "referenceCapability": request_config.get("referenceCapability"),
+            "requestMode": request_config.get("requestMode") or REQUEST_MODE_GENERATIONS_JSON,
+            "referenceTransport": reference_transport,
+            "sourceReferenceOrder": [
+                f"{item.get('assetId', '')}:{item.get('characterViewType') or item.get('sceneViewpointId') or 'base'}"
+                for item in source_references
+            ],
             "referenceOrder": [
                 f"{item.get('assetId', '')}:{item.get('characterViewType') or item.get('sceneViewpointId') or 'base'}"
                 for item in references
@@ -1152,10 +1696,13 @@ def generate_storyboard_frame_with_references(
                 item.get("referenceRole") == "previous-approved-frame"
                 for item in continuity_manifest or []
             ),
+            "modelReferencePreflight": reference_preflight,
         },
         "transferThumbnail": transfer_thumbnail,
+        "colorAudit": color_audit,
         "reusedExistingImage": reused_existing_image,
         "promptAudit": prompt_audit,
+        "referenceVisualAudit": reference_visual_audit,
     }
 
 
@@ -1225,8 +1772,17 @@ def approved_storyboard_reuse_input(existing_storyboard):
         "contentSha256": expected_sha256,
         "referenceManifest": manifest,
         "continuityState": continuity_state,
+        "styleContractVersion": str(continuity_state.get("styleContractVersion") or ""),
         "visualReview": json.loads(json.dumps(review)),
     }
+
+
+def approved_storyboard_reuse_matches_current(approved_storyboard, current_input_fingerprint):
+    return bool(
+        approved_storyboard
+        and str(approved_storyboard.get("continuityState", {}).get("inputFingerprint") or "")
+        == str(current_input_fingerprint or "")
+    )
 
 
 def image_source_to_data_url(source):
@@ -1322,6 +1878,324 @@ def prepare_storyboard_model_reference_image(source):
     raise RuntimeError(
         f"参考图压缩失败：无法生成严格小于 {IMAGE_TRANSFER_MAX_BYTES} bytes 的缩略图"
     )
+
+
+def prepared_storyboard_model_reference_evidence(prepared_reference):
+    """Return inspectable metadata for a prepared reference without exposing its data URI."""
+    match = re.fullmatch(
+        r"data:(image/[A-Za-z0-9.+-]+);base64,([A-Za-z0-9+/=\r\n]+)",
+        str(prepared_reference or ""),
+        re.IGNORECASE,
+    )
+    if not match:
+        raise RuntimeError("模型参考图预检要求可验证的 data URI 缩略图")
+    try:
+        payload = base64.b64decode(re.sub(r"\s+", "", match.group(2)), validate=True)
+    except (ValueError, TypeError, binascii.Error) as error:
+        raise RuntimeError("模型参考图预检无法解码 data URI") from error
+    if not payload or len(payload) >= IMAGE_TRANSFER_MAX_BYTES:
+        raise RuntimeError("模型参考图预检发现缩略图为空或超出传输上限")
+    try:
+        with Image.open(io.BytesIO(payload)) as image:
+            image.load()
+            width, height = image.size
+    except (OSError, ValueError) as error:
+        raise RuntimeError("模型参考图预检无法读取缩略图尺寸") from error
+    return {
+        "mimeType": match.group(1).lower(),
+        "width": width,
+        "height": height,
+        "bytes": len(payload),
+        "sha256": hashlib.sha256(payload).hexdigest(),
+    }
+
+
+def prepare_storyboard_model_reference_images(reference_images):
+    """Prepare one reusable payload batch and a URI-free audit record before any POST."""
+    prepared = []
+    evidence = []
+    for order, reference in enumerate(reference_images or [], 1):
+        source = str((reference or {}).get("imageUrl") or "").strip()
+        if not source:
+            raise RuntimeError(f"模型参考图预检缺少第 {order} 张 imageUrl")
+        payload = prepare_storyboard_model_reference_image(source)
+        prepared.append(payload)
+        evidence.append({"order": order, **prepared_storyboard_model_reference_evidence(payload)})
+    fingerprint = hashlib.sha256(
+        json.dumps(
+            {
+                "schemaVersion": MODEL_REFERENCE_PREFLIGHT_SCHEMA_VERSION,
+                "references": evidence,
+            },
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+    ).hexdigest()
+    return prepared, {
+        "schemaVersion": MODEL_REFERENCE_PREFLIGHT_SCHEMA_VERSION,
+        "referenceCount": len(evidence),
+        "totalBytes": sum(item["bytes"] for item in evidence),
+        "references": evidence,
+        "fingerprint": fingerprint,
+    }
+
+
+def reference_transport_source_record(reference):
+    """Describe one immutable source without changing its image or manifest."""
+    source = str(reference.get("imageUrl") or "").strip()
+    if not source:
+        raise RuntimeError("参考图束缺少 imageUrl")
+    if source.startswith(("http://", "https://")):
+        hashes = [str(value) for value in reference.get("referenceImageSha256") or [] if str(value)]
+        return {
+            "imageUrl": source,
+            "sha256": hashes[0] if len(hashes) == 1 else None,
+            "characterViewType": reference.get("characterViewType"),
+        }
+    if source.startswith("data:image/"):
+        return {
+            "imageUrl": source,
+            "sha256": hashlib.sha256(source.encode("utf-8")).hexdigest(),
+            "characterViewType": reference.get("characterViewType"),
+        }
+    path = image_source_to_path(source).expanduser().resolve()
+    if not path.is_file():
+        raise RuntimeError(f"参考图束源文件不存在: {source}")
+    return {
+        "imageUrl": source,
+        "absolutePath": str(path),
+        "sha256": file_sha256(path),
+        "characterViewType": reference.get("characterViewType"),
+    }
+
+
+def contiguous_canonical_three_view_group(reference_images, start_index):
+    """Return only a complete, adjacent front/side/back character group."""
+    first = reference_images[start_index]
+    if str(first.get("referenceRole") or "") != "canonical":
+        return []
+    asset_key = (
+        str(first.get("assetId") or first.get("title") or ""),
+        str(first.get("versionId") or "base"),
+    )
+    if not asset_key[0] or not first.get("characterViewType"):
+        return []
+    group = []
+    for reference in reference_images[start_index:]:
+        key = (
+            str(reference.get("assetId") or reference.get("title") or ""),
+            str(reference.get("versionId") or "base"),
+        )
+        if (
+            key != asset_key
+            or str(reference.get("referenceRole") or "") != "canonical"
+            or not reference.get("characterViewType")
+        ):
+            break
+        group.append(reference)
+    views = [str(item.get("characterViewType")) for item in group]
+    return group if views == ["front", "side", "back"] else []
+
+
+def create_character_three_view_reference_bundle(reference_images, output_dir):
+    """Create one content-addressed source-preserving three-view transport image."""
+    if len(reference_images) != 3:
+        raise RuntimeError("角色三视图束必须恰好包含 front/side/back 三张参考图")
+    source_references = [reference_transport_source_record(item) for item in reference_images]
+    source_views = [str(item.get("characterViewType") or "") for item in source_references]
+    if source_views != ["front", "side", "back"]:
+        raise RuntimeError("角色三视图束的视图顺序必须是 front/side/back")
+    if any("absolutePath" not in item for item in source_references):
+        raise RuntimeError("角色三视图束只支持可验证的本地参考图")
+    identity = {
+        "schemaVersion": REFERENCE_TRANSPORT_SCHEMA_VERSION,
+        "kind": CHARACTER_THREE_VIEW_BUNDLE_KIND,
+        "assetId": reference_images[0].get("assetId"),
+        "versionId": reference_images[0].get("versionId"),
+        "sourceReferences": source_references,
+        "sourceViewTypes": source_views,
+        "layout": [
+            {"view": "front", "box": [0, 0, 512, 768]},
+            {"view": "side", "box": [512, 0, 768, 384]},
+            {"view": "back", "box": [512, 384, 768, 768]},
+        ],
+    }
+    fingerprint = hashlib.sha256(
+        json.dumps(identity, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    asset_id = re.sub(r"[^A-Za-z0-9_.-]+", "-", str(reference_images[0].get("assetId") or "character")).strip("-")
+    bundle_path = Path(output_dir) / f"{asset_id}-{fingerprint[:16]}.png"
+    canvas = Image.new("RGB", CHARACTER_THREE_VIEW_BUNDLE_SIZE, (255, 255, 255))
+    for source, layout in zip(source_references, identity["layout"]):
+        x0, y0, x1, y1 = layout["box"]
+        width, height = x1 - x0, y1 - y0
+        image = decode_reference_image(source["absolutePath"])
+        image.thumbnail((max(1, width - 16), max(1, height - 16)), Image.Resampling.LANCZOS)
+        x = x0 + (width - image.width) // 2
+        y = y0 + (height - image.height) // 2
+        canvas.paste(image, (x, y))
+    payload = io.BytesIO()
+    canvas.save(payload, format="PNG", optimize=True)
+    bundle_bytes = payload.getvalue()
+    bundle_sha256 = hashlib.sha256(bundle_bytes).hexdigest()
+    if bundle_path.exists():
+        if file_sha256(bundle_path) != bundle_sha256:
+            raise RuntimeError(f"参考图束内容冲突，拒绝覆盖既有文件: {bundle_path}")
+    else:
+        bundle_path.parent.mkdir(parents=True, exist_ok=True)
+        bundle_path.write_bytes(bundle_bytes)
+    return {
+        **identity,
+        "fingerprint": fingerprint,
+        "bundlePath": str(bundle_path),
+        "bundleSha256": bundle_sha256,
+        "bundleBytes": len(bundle_bytes),
+        "bundleWidth": canvas.width,
+        "bundleHeight": canvas.height,
+    }
+
+
+def primary_per_asset_reference_transport(reference_images, verified_capacity):
+    """Select one stable provider image while retaining every logical asset source."""
+    groups = {}
+    group_order = []
+    for reference in reference_images:
+        asset_id = str(reference.get("assetId") or reference.get("title") or "").strip()
+        version_id = str(reference.get("versionId") or "base").strip() or "base"
+        reference_role = str(reference.get("referenceRole") or "").strip()
+        if not asset_id or not reference_role:
+            raise RuntimeError("primary-per-asset 参考缺少 assetId 或 referenceRole")
+        key = (asset_id, version_id, reference_role)
+        if key not in groups:
+            groups[key] = []
+            group_order.append(key)
+        groups[key].append(reference)
+    if verified_capacity is None:
+        raise RuntimeError("primary-per-asset 缺少已验证 provider 容量")
+    if len(group_order) > verified_capacity:
+        raise RuntimeError(
+            f"primary-per-asset 逻辑资产数量 {len(group_order)} 超过已验证容量 {verified_capacity}"
+        )
+    transported = []
+    for key in group_order:
+        sources = groups[key]
+        selected_index = next(
+            (index for index, item in enumerate(sources) if item.get("characterViewType") == "front"),
+            0,
+        )
+        selected = sources[selected_index]
+        source_records = [reference_transport_source_record(item) for item in sources]
+        selected_source = source_records[selected_index]
+        transported.append({
+            **selected,
+            "referenceImageSha256": [selected_source["sha256"]] if selected_source.get("sha256") else [],
+            "referenceTransport": {
+                "schemaVersion": REFERENCE_TRANSPORT_SCHEMA_VERSION,
+                "kind": "primary-per-asset",
+                "assetId": key[0],
+                "versionId": key[1],
+                "referenceRole": key[2],
+                "sourceReferenceCount": len(source_records),
+                "sourceReferences": source_records,
+                "sourceViewTypes": [
+                    item.get("characterViewType")
+                    for item in source_records
+                    if item.get("characterViewType")
+                ],
+                "selectedSourceIndex": selected_index,
+                "selectedCharacterViewType": selected.get("characterViewType"),
+                "selectedSourceSha256": selected_source.get("sha256"),
+            },
+        })
+    return transported
+
+
+def build_storyboard_reference_transport(reference_images, capability, output_dir):
+    """Project complete source evidence into an explicitly verified provider strategy."""
+    references = list(reference_images or [])
+    verified_capacity = capability.get("supportedReferenceCount") if capability.get("status") == "verified" else None
+    if not isinstance(verified_capacity, int) or verified_capacity < 1:
+        verified_capacity = None
+    strategy = str(
+        capability.get("referenceTransportStrategy")
+        or "bundle-only-when-verified-capacity-requires-it"
+    )
+    if strategy == "primary-per-asset":
+        transported = primary_per_asset_reference_transport(references, verified_capacity)
+        required_reduction = max(0, len(references) - verified_capacity)
+        remaining_reduction = 0
+    elif strategy != "bundle-only-when-verified-capacity-requires-it":
+        raise RuntimeError(f"不受支持的分镜参考传输策略: {strategy}")
+    else:
+        transported = []
+        required_reduction = max(0, len(references) - verified_capacity) if verified_capacity is not None else 0
+        remaining_reduction = required_reduction
+        index = 0
+        while index < len(references):
+            group = contiguous_canonical_three_view_group(references, index)
+            if remaining_reduction > 0 and group:
+                bundle = create_character_three_view_reference_bundle(group, output_dir)
+                transported.append({
+                    **group[0],
+                    "imageUrl": bundle["bundlePath"],
+                    "referenceImageSha256": [bundle["bundleSha256"]],
+                    "characterViewType": None,
+                    "referenceTransport": bundle,
+                })
+                remaining_reduction = max(0, remaining_reduction - (len(group) - 1))
+                index += len(group)
+                continue
+            reference = references[index]
+            source = reference_transport_source_record(reference)
+            transported.append({
+                **reference,
+                "referenceTransport": {
+                    "schemaVersion": REFERENCE_TRANSPORT_SCHEMA_VERSION,
+                    "kind": "direct-reference",
+                    "sourceReferenceCount": 1,
+                    "sourceReferences": [source],
+                    "sourceViewTypes": [source.get("characterViewType")] if source.get("characterViewType") else [],
+                },
+            })
+            index += 1
+    transport_references = [
+        {
+            "order": order,
+            "assetId": reference.get("assetId"),
+            "versionId": reference.get("versionId"),
+            "referenceRole": reference.get("referenceRole"),
+            "transport": reference.get("referenceTransport"),
+        }
+        for order, reference in enumerate(transported, 1)
+    ]
+    fingerprint = hashlib.sha256(
+        json.dumps({
+            "schemaVersion": REFERENCE_TRANSPORT_SCHEMA_VERSION,
+            "strategy": strategy,
+            "sourceReferenceCount": len(references),
+            "providerReferenceCount": len(transported),
+            "supportedReferenceCount": verified_capacity,
+            "references": transport_references,
+        }, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    return transported, {
+        "schemaVersion": REFERENCE_TRANSPORT_SCHEMA_VERSION,
+        "strategy": strategy,
+        "sourceReferenceCount": len(references),
+        "providerReferenceCount": len(transported),
+        "supportedReferenceCount": verified_capacity,
+        "requiredReduction": required_reduction,
+        "remainingReduction": remaining_reduction,
+        "sourceReductionCount": len(references) - len(transported),
+        "bundleCount": sum(
+            1
+            for reference in transported
+            if (reference.get("referenceTransport") or {}).get("kind") == CHARACTER_THREE_VIEW_BUNDLE_KIND
+        ),
+        "references": transport_references,
+        "fingerprint": fingerprint,
+    }
 
 
 def create_storyboard_transfer_thumbnail(source_path):
@@ -1834,6 +2708,79 @@ def parse_storyboard_duration(value):
     return float(match.group(0))
 
 
+def required_storyboard_semantic_text(value, index, field):
+    if not isinstance(value, str) or not value.strip():
+        raise RuntimeError(f"分镜 {index:03d} 出镜语义缺少 {field}")
+    return value.strip()
+
+
+def parse_storyboard_shot_semantics(raw, index):
+    try:
+        value = json.loads(str(raw or ""))
+    except json.JSONDecodeError as error:
+        raise RuntimeError(f"分镜 {index:03d} 出镜语义JSON不是有效 JSON") from error
+    if not isinstance(value, dict):
+        raise RuntimeError(f"分镜 {index:03d} 出镜语义JSON必须是对象")
+    scene_viewpoint_id = required_storyboard_semantic_text(
+        value.get("sceneViewpointId"), index, "sceneViewpointId"
+    )
+    person_free = value.get("personFree")
+    visible_characters = value.get("visibleCharacters")
+    visible_props = value.get("visibleProps")
+    if (
+        not isinstance(person_free, bool)
+        or not isinstance(visible_characters, list)
+        or not isinstance(visible_props, list)
+    ):
+        raise RuntimeError(
+            f"分镜 {index:03d} 出镜语义必须包含布尔 personFree、数组 visibleCharacters 与数组 visibleProps"
+        )
+    action_in = required_storyboard_semantic_text(value.get("actionIn"), index, "actionIn")
+    action_out = required_storyboard_semantic_text(value.get("actionOut"), index, "actionOut")
+    parsed_characters = []
+    names = set()
+    for ordinal, character in enumerate(visible_characters, 1):
+        if not isinstance(character, dict):
+            raise RuntimeError(f"分镜 {index:03d} 出镜语义第 {ordinal} 个角色不是对象")
+        item = {
+            "name": required_storyboard_semantic_text(character.get("name"), index, "visibleCharacters.name"),
+            "position": required_storyboard_semantic_text(character.get("position"), index, "visibleCharacters.position"),
+            "orientation": required_storyboard_semantic_text(character.get("orientation"), index, "visibleCharacters.orientation"),
+            "actionIn": required_storyboard_semantic_text(character.get("actionIn"), index, "visibleCharacters.actionIn"),
+            "actionOut": required_storyboard_semantic_text(character.get("actionOut"), index, "visibleCharacters.actionOut"),
+        }
+        if item["name"] in names:
+            raise RuntimeError(f"分镜 {index:03d} 出镜语义重复角色: {item['name']}")
+        names.add(item["name"])
+        parsed_characters.append(item)
+    if person_free and parsed_characters:
+        raise RuntimeError(f"分镜 {index:03d} personFree=true 时不能声明出镜角色")
+    if not person_free and not parsed_characters:
+        raise RuntimeError(f"分镜 {index:03d} 必须明确人物入画，或以 personFree=true 声明无人物镜头")
+    parsed_props = []
+    prop_names = set()
+    for ordinal, prop in enumerate(visible_props, 1):
+        if not isinstance(prop, dict):
+            raise RuntimeError(f"分镜 {index:03d} 出镜语义第 {ordinal} 个道具不是对象")
+        item = {
+            "name": required_storyboard_semantic_text(prop.get("name"), index, "visibleProps.name"),
+            "position": required_storyboard_semantic_text(prop.get("position"), index, "visibleProps.position"),
+            "state": required_storyboard_semantic_text(prop.get("state"), index, "visibleProps.state"),
+        }
+        if item["name"] in prop_names:
+            raise RuntimeError(f"分镜 {index:03d} 出镜语义重复道具: {item['name']}")
+        prop_names.add(item["name"])
+        parsed_props.append(item)
+    return {
+        "sceneViewpointId": scene_viewpoint_id,
+        "personFree": person_free,
+        "visibleCharacters": parsed_characters,
+        "visibleProps": parsed_props,
+        "actionIn": action_in,
+        "actionOut": action_out,
+    }
+
+
 def parse_storyboard_speech(lines, description):
     raw = (lines or "").strip()
     if raw in EMPTY_STORYBOARD_SPEECH:
@@ -1894,7 +2841,7 @@ def parse_storyboard_table(markdown, episode_id=EPISODE_ID):
             errors.append(f"序号非法: {line}")
             continue
 
-        if len(fields) == 14:
+        if len(fields) in {14, 15}:
             scene = fields[2]
             asset_names = parse_storyboard_list(fields[3])
             asset_ids = parse_storyboard_list(fields[13])
@@ -1914,7 +2861,9 @@ def parse_storyboard_table(markdown, episode_id=EPISODE_ID):
                 "lines": fields[11],
                 "sound": fields[12],
             }
-        elif len(fields) == 7:
+            if len(fields) == 15:
+                row["shotSemantics"] = parse_storyboard_shot_semantics(fields[14], index)
+        elif len(fields) in {7, 8}:
             scene = current_scene
             row = {
                 "index": index,
@@ -1932,8 +2881,10 @@ def parse_storyboard_table(markdown, episode_id=EPISODE_ID):
                 "lines": fields[5],
                 "sound": fields[6],
             }
+            if len(fields) == 8:
+                row["shotSemantics"] = parse_storyboard_shot_semantics(fields[7], index)
         else:
-            errors.append(f"列数不符（应为14列或7列，实为{len(fields)}）: {line}")
+            errors.append(f"列数不符（应为15列、14列、8列或7列，实为{len(fields)}）: {line}")
             continue
 
         if not row["scene"]:
@@ -1949,7 +2900,10 @@ def parse_storyboard_table(markdown, episode_id=EPISODE_ID):
             "speaker": speaker,
             "text": spoken_line,
             "trackKey": f"{episode_id}-scene-{scene_no}",
-            "characters": [],
+            "characters": [
+                item["name"]
+                for item in (row.get("shotSemantics") or {}).get("visibleCharacters") or []
+            ],
         })
         rows.append(row)
 
@@ -1964,15 +2918,60 @@ def parse_storyboard_table(markdown, episode_id=EPISODE_ID):
     return rows
 
 
+def attach_storyboard_continuity_groups(shots, episode_id=EPISODE_ID):
+    """Attach contiguous source-defined groups without consulting chapter shot numbers."""
+    if not shots:
+        return shots
+    spans = []
+    start_offset = 0
+    previous_key = None
+    for offset, shot in enumerate(shots):
+        semantics = require_storyboard_shot_semantics(shot)
+        scene_name = str(shot.get("scene") or "").strip()
+        if not scene_name:
+            raise RuntimeError(f"分镜 {int(shot.get('index') or 0):03d} 缺少场景")
+        key = (scene_name, semantics["sceneViewpointId"])
+        if previous_key is not None and key != previous_key:
+            spans.append((start_offset, offset - 1, previous_key))
+            start_offset = offset
+        previous_key = key
+    spans.append((start_offset, len(shots) - 1, previous_key))
+    for start_offset, end_offset, (scene_name, viewpoint_id) in spans:
+        start = int(shots[start_offset]["index"])
+        end = int(shots[end_offset]["index"])
+        group = {
+            "groupId": f"{episode_id}:source:{start:03d}-{end:03d}",
+            "start": start,
+            "end": end,
+            "sceneName": scene_name,
+            "viewpointId": viewpoint_id,
+        }
+        for offset in range(start_offset, end_offset + 1):
+            shots[offset]["_continuityGroup"] = dict(group)
+    return shots
+
+
+def storyboard_continuity_group(shot):
+    index = int((shot or {}).get("index") or 0)
+    group = (shot or {}).get("_continuityGroup")
+    semantics = require_storyboard_shot_semantics(shot)
+    if not isinstance(group, dict):
+        raise RuntimeError(f"分镜 {index:03d} 缺少由当前分镜源推导的连续镜头组")
+    scene_name = str(shot.get("scene") or "").strip()
+    if group.get("sceneName") != scene_name or group.get("viewpointId") != semantics["sceneViewpointId"]:
+        raise RuntimeError(f"分镜 {index:03d} 连续镜头组与当前场景或视角语义不一致")
+    return group
+
+
 def resolve_storyboard_source(state, episode_id=EPISODE_ID, allow_bootstrap=None):
     work = latest_storyboard_work(state, episode_id)
     if work:
         shots = parse_storyboard_table(work["data"], episode_id)
         if episode_id == EPISODE_ID and len(shots) == len(CHAPTER_001_SHOTS):
-            for index, shot in enumerate(shots, 1):
-                group = continuity_group_for_index(index)
-                if group:
-                    shot["scene"] = group["sceneName"]
+            for shot in shots:
+                require_storyboard_shot_semantics(shot)
+        if shots and all(isinstance(shot.get("shotSemantics"), dict) for shot in shots):
+            attach_storyboard_continuity_groups(shots, episode_id)
         return {
             "kind": "project-storyboard-table",
             "workId": work.get("id") or "",
@@ -1984,6 +2983,9 @@ def resolve_storyboard_source(state, episode_id=EPISODE_ID, allow_bootstrap=None
     if not use_bootstrap:
         raise RuntimeError(f"未找到 {episode_id} 最新 storyboardTable；生产运行禁止静态 fixture 回退")
     shots = canonical_storyboard_shots(episode_id)
+    if episode_id == EPISODE_ID:
+        for shot in shots:
+            require_storyboard_shot_semantics(shot)
     return {
         "kind": "bootstrap-fixture",
         "workId": "",
@@ -2154,7 +3156,7 @@ def build_script_plan(shots=None):
         "",
         "## ② 视觉风格与画面基调",
         "",
-        "- **主风格锁定**：宣纸淡彩工笔、青绿山水底色、低饱和蓝灰、旧金细纹、细密线描；画面是国风漫剧关键帧，不是写实摄影、3D 写实渲染或赛璐璐动画。",
+        "- **主风格锁定**：宣纸淡彩工笔、连续线描、石青石绿靛青配赭石朱砂旧金的矿物色区、均匀平光；画面是国风漫剧关键帧，不是写实摄影、3D 写实渲染或赛璐璐动画。",
         "- **构图基调**：大量侧偏留白和前中后景层次，独孤常被放在画面边缘，留白代表他背负的十年旧誓。",
         "- **码头段**：藤筐、鞭梢、苦力队列形成斜线压迫，前景朽木遮挡让小人物像被空间挤住。",
         "- **客栈段**：柜台、门缝、楼梯、斗室构成层层框架，把断剑旧案从公共空间推入私人空间。",
@@ -2232,7 +3234,7 @@ def build_structured_script_plan():
         "id": "script-plan-chapter-001-toonflow",
         "episodeId": EPISODE_ID,
         "theme": "灰衫剑修在被宗门火印碾压的小镇里守住旧誓，码头暗救不露锋芒，客栈断剑揭出旧案，塾馆晏燎燃起一息暗红，尾声以灵舟逼近把希望推进倒计时。",
-        "visualStyle": "宣纸淡彩工笔、青绿山水底色、低饱和蓝灰、旧金细纹、细密线描；侧偏留白、前中后景层次、框中框空间压迫；禁止写实摄影、3D写实渲染、赛璐璐色块和白底设定页。",
+        "visualStyle": "宣纸淡彩工笔、连续白描、石青石绿靛青配赭石朱砂旧金的矿物色区、均匀平光；侧偏留白、前中后景层次、框中框空间压迫；禁止写实摄影、3D写实渲染、赛璐璐色块和白底设定页。",
         "narrativeRhythm": "P1 码头压迫沉缓推进；P2 客栈从市井冷眼转入密室旧痛；P3 塾馆夜课用问答蓄势，晏燎燃气瞬间收紧；P4 斗室极静确认，用残卷、断剑、铜钱替台词；P5 金水河灵舟以大远景放大危机。",
         "sceneIntents": [
             {
@@ -3513,7 +4515,6 @@ def resolve_image_assets(scene, assets, asset_catalog):
                 asset_name,
                 item.get("imageAssetName"),
                 item.get("imageAliasOf"),
-                *ASSET_IMAGE_ALIASES.get(asset_name, []),
                 *DAOJIE_REFERENCE_BINDING_ALIASES.get(asset_name, []),
             ]),
             "identityAnchors": item.get("identityAnchors"),
@@ -3531,11 +4532,82 @@ def resolve_image_assets(scene, assets, asset_catalog):
     return image_assets
 
 
-def continuity_group_for_index(index):
-    return next(
-        (group for group in CHAPTER_CONTINUITY_GROUPS if group["start"] <= index <= group["end"]),
-        None,
+def require_storyboard_shot_semantics(shot):
+    semantics = (shot or {}).get("shotSemantics")
+    if not isinstance(semantics, dict):
+        raise RuntimeError(
+            f"分镜 {int((shot or {}).get('index') or 0):03d} 缺少出镜语义JSON；"
+            "必须重新生成含逐镜人物、站位、朝向与动作承接的分镜表"
+        )
+    index = int((shot or {}).get("index") or 0)
+    normalized = parse_storyboard_shot_semantics(
+        json.dumps(semantics, ensure_ascii=False, separators=(",", ":")),
+        index,
     )
+    if isinstance(shot, dict):
+        shot["shotSemantics"] = normalized
+    return normalized
+
+
+def canonical_asset_name(asset_name, asset_catalog):
+    item = asset_catalog.get(asset_name)
+    if not item:
+        raise RuntimeError(f"关联资产名称无法解析到当前资产库: {asset_name}")
+    alias_of = str(item.get("imageAliasOf") or "").strip()
+    if alias_of and alias_of in asset_catalog:
+        return alias_of
+    return asset_name
+
+
+def asset_identity_key(asset_name, asset_catalog):
+    canonical_name = canonical_asset_name(asset_name, asset_catalog)
+    item = asset_catalog[canonical_name]
+    return (image_workflow_asset_type(item.get("kind", "")), str(item.get("id") or canonical_name))
+
+
+def ordered_continuity_asset_names(shot, asset_catalog):
+    """Resolve only the storyboard-declared scene, visible cast, and visible linked props."""
+    semantics = require_storyboard_shot_semantics(shot)
+    index = int(shot.get("index") or 0)
+    scene = str(shot.get("scene") or "").strip()
+    source_assets = [str(name).strip() for name in shot.get("assets") or [] if str(name).strip()]
+    if not scene:
+        raise RuntimeError(f"分镜 {index:03d} 缺少场景")
+    canonical_scene = canonical_asset_name(scene, asset_catalog)
+    if image_workflow_asset_type(asset_catalog[canonical_scene].get("kind", "")) != "scene":
+        raise RuntimeError(f"分镜 {index:03d} 主场景不是场景资产: {scene}")
+    source_identities = {
+        asset_identity_key(name, asset_catalog): canonical_asset_name(name, asset_catalog)
+        for name in source_assets
+    }
+    visible_character_names = []
+    for character in semantics["visibleCharacters"]:
+        name = character["name"]
+        canonical_name = canonical_asset_name(name, asset_catalog)
+        identity = asset_identity_key(canonical_name, asset_catalog)
+        if identity[0] != "character":
+            raise RuntimeError(f"分镜 {index:03d} 出镜角色不是角色资产: {name}")
+        if identity not in source_identities:
+            raise RuntimeError(f"分镜 {index:03d} 出镜角色未绑定到关联资产名称: {name}")
+        visible_character_names.append(canonical_name)
+    visible_prop_names = []
+    for prop in semantics["visibleProps"]:
+        name = prop["name"]
+        canonical_name = canonical_asset_name(name, asset_catalog)
+        identity = asset_identity_key(canonical_name, asset_catalog)
+        if identity[0] != "prop":
+            raise RuntimeError(f"分镜 {index:03d} 出镜道具不是道具资产: {name}")
+        if identity not in source_identities:
+            raise RuntimeError(f"分镜 {index:03d} 出镜道具未绑定到关联资产名称: {name}")
+        visible_prop_names.append(canonical_name)
+    return unique_nonempty([canonical_scene, *visible_character_names, *visible_prop_names])
+
+
+def resolve_continuity_image_assets(shot, asset_catalog):
+    names = ordered_continuity_asset_names(shot, asset_catalog)
+    if not names:
+        return []
+    return resolve_image_assets(names[0], names[1:], asset_catalog)
 
 
 def character_bible_missing_fields(asset):
@@ -3829,6 +4901,52 @@ def build_ordered_continuity_manifest(image_assets, viewpoint_id, primary_scene_
     return manifest, versions
 
 
+def reuse_approved_continuity_versions(manifest, versions, existing_versions_by_key=None):
+    """Project the exact approved canonical version back into a newly built payload.
+
+    Project entities can still point at the pre-Bible asset library while the live
+    continuity store contains an approved v5 version for the same stable key. In
+    that case the approved version is authoritative: its reference paths, hashes,
+    fingerprints, and approval evidence must be reused as-is so a dry-run does not
+    accidentally invalidate a human approval by rebuilding an older path.
+    """
+    if not existing_versions_by_key:
+        return manifest, versions
+    manifest_by_key = {
+        f"{item.get('assetId', '')}:{item.get('versionId', '')}": item
+        for item in manifest
+    }
+    projected_versions = []
+    for version in versions:
+        key = f"{version.get('assetId', '')}:{version.get('versionId', '')}"
+        existing = existing_versions_by_key.get(key)
+        if existing:
+            normalized_existing = normalize_continuity_asset_version(existing)
+            if (
+                normalized_existing.get("approved") is True
+                and normalized_existing.get("assetKind") == version.get("assetKind")
+            ):
+                version = normalized_existing
+                reference = manifest_by_key.get(key)
+                if reference is not None:
+                    reference.update({
+                        "imagePath": (version.get("referenceImagePaths") or [""])[0],
+                        "referenceImagePaths": version.get("referenceImagePaths") or [],
+                        "referenceImageSha256": version.get("referenceImageSha256") or [],
+                        "referenceViewTypes": version.get("referenceViewTypes") or [],
+                        "source": version.get("source") or reference.get("source"),
+                        "identityAnchors": version.get("identityAnchors"),
+                        "negativePrompt": version.get("negativePrompt"),
+                        "wardrobeVersion": version.get("wardrobeVersion"),
+                        "sceneViewpointId": version.get("sceneViewpointId"),
+                        "contentFingerprint": version.get("contentFingerprint"),
+                        "approvalFingerprint": version.get("approvalFingerprint"),
+                        "approved": True,
+                    })
+        projected_versions.append(version)
+    return manifest, projected_versions
+
+
 def apply_continuity_manifest_to_image_assets(image_assets, manifest):
     """Expand one stable asset version into its ordered provider references."""
     manifest_by_order = {int(item["order"]): item for item in manifest}
@@ -3848,6 +4966,7 @@ def apply_continuity_manifest_to_image_assets(image_assets, manifest):
                 "imagePath": path,
                 "versionId": item.get("versionId"),
                 "referenceRole": item.get("referenceRole"),
+                "referenceImageSha256": item.get("referenceImageSha256") or [],
                 "identityAnchors": item.get("identityAnchors"),
                 "negativePrompt": item.get("negativePrompt"),
                 "wardrobeVersion": item.get("wardrobeVersion"),
@@ -3866,6 +4985,7 @@ def apply_continuity_manifest_to_image_assets(image_assets, manifest):
                 "imagePath": path,
                 "versionId": item.get("versionId"),
                 "referenceRole": "previous-approved-frame",
+                "referenceImageSha256": item.get("referenceImageSha256") or [],
             })
     return expanded
 
@@ -3875,22 +4995,20 @@ def stable_json(value):
 
 
 def build_shot_continuity_prompt(state):
-    character_parts = [
-        (
-            f"{item['characterId']}使用{item['versionId']}，位置{item['position']}，朝向{item['orientation']}，"
-            f"承接动作{item['actionIn']}，镜尾动作{item['actionOut']}"
-        )
-        for item in state.get("characters") or []
-    ]
+    character_count = len(state.get("characters") or [])
+    scene_palette = daojie_gongbi_v2.render_prompt_safe_scene_palette(state.get("palette") or "")
     return " ".join(part for part in [
-        f"【连续镜头组】{state['groupId']}",
-        f"承接上一镜{state['previousStoryboardId']}" if state.get("previousStoryboardId") else "本组首镜",
-        f"【场景锁】{state['sceneVersionId']}/{state['sceneViewpointId']}，{state['lighting']}，{state['palette']}",
-        f"【动作承接】{state['actionIn']}；镜尾：{state['actionOut']}",
-        f"【人物状态】{'；'.join(character_parts)}" if character_parts else "",
         (
-            f"【出镜人数锁】本镜出镜角色总数：{len(character_parts)}；每个连续性角色版本各出现 1 次。"
-            f"前景、中景、远景和背景合计只能出现上述 {len(character_parts)} 个角色实例；"
+            f"【连续镜头组】{state['groupId']}；"
+            + (f"承接上一镜{state['previousStoryboardId']}" if state.get("previousStoryboardId") else "本组首镜")
+        ),
+        (
+            f"【场景锁】{state['sceneVersionId']}/{state['sceneViewpointId']}，"
+            f"V2色板：{scene_palette}；综合色量以本镜V2色彩材质与光影合同为准"
+        ),
+        (
+            f"【出镜人数锁】本镜出镜角色总数：{character_count}；每个连续性角色版本各出现 1 次。"
+            f"前景、中景、远景和背景合计只能出现上述 {character_count} 个角色实例；"
             "不得出现路人、工人、剪影、倒影或模糊人影。禁止重复、克隆或因多视图参考新增人物。"
         ),
     ] if part)
@@ -3913,19 +5031,42 @@ def build_visual_continuity_fingerprint(prompt, manifest, state):
             "contentFingerprint": reference.get("contentFingerprint"),
         }
         reference_rows.append({key: value for key, value in row.items() if value is not None})
+    style_reference_sha256 = next(
+        (
+            str((reference.get("referenceImageSha256") or [""])[0] or "")
+            for reference in manifest
+            if reference.get("referenceRole") == daojie_gongbi_v2.STYLE_REFERENCE_ROLE
+        ),
+        "",
+    )
     continuity = {key: value for key, value in state.items() if key != "inputFingerprint" and value is not None}
     return stable_json({
         "prompt": prompt,
         "references": reference_rows,
         "continuity": continuity,
+        "styleContract": {
+            "version": daojie_gongbi_v2.STYLE_CONTRACT_VERSION,
+            "fingerprint": daojie_gongbi_v2.style_contract_fingerprint(style_reference_sha256 or None),
+            "promptAuditVersion": daojie_gongbi_v2.PROMPT_AUDIT_VERSION,
+            "styleReferenceSha256": style_reference_sha256 or None,
+        },
     })
 
 
-def build_sample_shot_continuity_state(index, prompt, image_assets, manifest):
-    group = continuity_group_for_index(index)
-    override = SAMPLE_SHOT_CONTINUITY.get(index)
-    if not group or not override:
-        raise RuntimeError(f"分镜 {index:03d} 缺少显式连续性编排")
+def require_storyboard_continuity_group(index, group, semantics):
+    if not isinstance(group, dict):
+        raise RuntimeError(f"分镜 {index:03d} 缺少由当前分镜源推导的连续镜头组")
+    scene_name = str(group.get("sceneName") or "").strip()
+    viewpoint_id = str(group.get("viewpointId") or "").strip()
+    if not scene_name or not viewpoint_id:
+        raise RuntimeError(f"分镜 {index:03d} 连续镜头组缺少场景或视角")
+    if viewpoint_id != semantics["sceneViewpointId"]:
+        raise RuntimeError(f"分镜 {index:03d} 连续镜头组视角与逐镜语义不一致")
+    return group
+
+
+def build_storyboard_semantic_continuity_state(index, prompt, image_assets, manifest, semantics, continuity_group):
+    group = require_storyboard_continuity_group(index, continuity_group, semantics)
     versions_by_name = {
         asset.get("name"): build_continuity_asset_version(
             asset,
@@ -3937,17 +5078,18 @@ def build_sample_shot_continuity_state(index, prompt, image_assets, manifest):
     if not scene_version:
         raise RuntimeError(f"分镜 {index:03d} 缺少主场景连续版本: {group['sceneName']}")
     characters = []
-    for character_name, blocking in override["characters"].items():
+    for character in semantics["visibleCharacters"]:
+        character_name = character["name"]
         version = versions_by_name.get(character_name)
         if not version:
             raise RuntimeError(f"分镜 {index:03d} 缺少可见角色连续版本: {character_name}")
         characters.append({
             "characterId": version["assetId"],
             "versionId": version["versionId"],
-            "position": blocking["position"],
-            "orientation": blocking["orientation"],
-            "actionIn": override["actionIn"],
-            "actionOut": override["actionOut"],
+            "position": character["position"],
+            "orientation": character["orientation"],
+            "actionIn": character["actionIn"],
+            "actionOut": character["actionOut"],
         })
     state = {
         "groupId": group["groupId"],
@@ -3955,100 +5097,58 @@ def build_sample_shot_continuity_state(index, prompt, image_assets, manifest):
         "sceneVersionId": scene_version["versionId"],
         "sceneViewpointId": group["viewpointId"],
         "lighting": next((asset.get("lightingDesign") for asset in image_assets if asset.get("name") == group["sceneName"]), "") or storyboard_light_prompt({"index": index}),
-        "palette": next((asset.get("colorPalette") for asset in image_assets if asset.get("name") == group["sceneName"]), "") or "墨青、灰蓝、米白、浅褐，旧金与朱红只作焦点",
-        "actionIn": override["actionIn"],
-        "actionOut": override["actionOut"],
+        "palette": next((asset.get("colorPalette") for asset in image_assets if asset.get("name") == group["sceneName"]), "") or "石青、石绿、靛青、赭石、朱砂与旧金形成冷暖可见色区",
+        "actionIn": semantics["actionIn"],
+        "actionOut": semantics["actionOut"],
         "characters": characters,
+        "sourceSemanticsFingerprint": stable_json(semantics),
+        "styleContractVersion": daojie_gongbi_v2.STYLE_CONTRACT_VERSION,
+        "styleContractFingerprint": daojie_gongbi_v2.style_contract_fingerprint(),
+        "promptAuditVersion": daojie_gongbi_v2.PROMPT_AUDIT_VERSION,
         "inputFingerprint": "",
     }
     state["inputFingerprint"] = build_visual_continuity_fingerprint(prompt, manifest, state)
     return state
 
 
-def build_default_shot_continuity_state(index, prompt, image_assets, manifest):
-    group = continuity_group_for_index(index)
-    if not group:
-        raise RuntimeError(f"分镜 {index:03d} 缺少连续镜头组")
-    scene_reference = next(
-        (item for item in manifest if item.get("referenceRole") == "scene-viewpoint"),
-        manifest[0] if manifest else None,
+def build_storyboard_continuity_payload(
+    index,
+    prompt,
+    image_assets,
+    existing_storyboard=None,
+    existing_continuity_versions_by_key=None,
+    shot_semantics=None,
+    continuity_group=None,
+):
+    del existing_storyboard
+    if not isinstance(shot_semantics, dict):
+        raise RuntimeError(
+            f"分镜 {index:03d} 缺少已解析的逐镜出镜语义；拒绝从镜号、场景或道具推断人物"
+        )
+    semantics = parse_storyboard_shot_semantics(
+        json.dumps(shot_semantics, ensure_ascii=False, separators=(",", ":")),
+        index,
     )
-    if not scene_reference:
-        raise RuntimeError(f"分镜 {index:03d} 缺少场景连续版本")
-    scene_asset = next(
-        (asset for asset in image_assets if asset.get("assetId") == scene_reference.get("assetId")),
-        {},
-    )
-    characters = [
-        {
-            "characterId": item["assetId"],
-            "versionId": item["versionId"],
-            "position": "按本镜构图锁定",
-            "orientation": "按本镜画面朝向锁定",
-            "actionIn": prompt,
-            "actionOut": prompt,
-        }
-        for item in manifest
-        if item.get("assetKind") == "character"
-    ]
-    state = {
-        "groupId": group["groupId"],
-        "previousStoryboardId": f"sb-{EPISODE_ID}-{index - 1:03d}" if index > group["start"] else None,
-        "sceneVersionId": scene_reference["versionId"],
-        "sceneViewpointId": scene_reference.get("sceneViewpointId") or group["viewpointId"],
-        "lighting": scene_asset.get("lightingDesign") or storyboard_light_prompt({"index": index}),
-        "palette": scene_asset.get("colorPalette") or "墨青、灰蓝、米白、浅褐，旧金与朱红只作焦点",
-        "actionIn": prompt,
-        "actionOut": prompt,
-        "characters": characters,
-        "inputFingerprint": "",
-    }
-    if state["previousStoryboardId"] is None:
-        state.pop("previousStoryboardId")
-    state["inputFingerprint"] = build_visual_continuity_fingerprint(prompt, manifest, state)
-    return state
-
-
-def build_storyboard_continuity_payload(index, prompt, image_assets, existing_storyboard=None):
-    group = continuity_group_for_index(index)
-    if not group:
-        raise RuntimeError(f"分镜 {index:03d} 缺少连续镜头组")
+    group = require_storyboard_continuity_group(index, continuity_group, semantics)
     manifest, versions = build_ordered_continuity_manifest(
         image_assets,
         group["viewpointId"],
         group["sceneName"],
     )
-    if index in SAMPLE_SHOT_CONTINUITY:
-        state = build_sample_shot_continuity_state(index, prompt, image_assets, manifest)
-    else:
-        existing_state = json.loads(json.dumps((existing_storyboard or {}).get("continuityState") or {}))
-        if existing_state:
-            scene_reference = next(
-                (
-                    item for item in manifest
-                    if item.get("assetKind") == "scene" and item.get("assetName") == group["sceneName"]
-                ),
-                None,
-            )
-            if not scene_reference:
-                raise RuntimeError(f"分镜 {index:03d} 缺少主场景连续版本: {group['sceneName']}")
-            scene_asset = next(
-                (asset for asset in image_assets if asset.get("assetId") == scene_reference.get("assetId")),
-                {},
-            )
-            existing_state["groupId"] = group["groupId"]
-            existing_state["sceneVersionId"] = scene_reference["versionId"]
-            existing_state["sceneViewpointId"] = scene_reference.get("sceneViewpointId") or group["viewpointId"]
-            existing_state["lighting"] = scene_asset.get("lightingDesign") or storyboard_light_prompt({"index": index})
-            existing_state["palette"] = scene_asset.get("colorPalette") or "墨青、灰蓝、米白、浅褐，旧金与朱红只作焦点"
-            if index > group["start"]:
-                existing_state["previousStoryboardId"] = f"sb-{EPISODE_ID}-{index - 1:03d}"
-            else:
-                existing_state.pop("previousStoryboardId", None)
-            existing_state["inputFingerprint"] = build_visual_continuity_fingerprint(prompt, manifest, existing_state)
-            state = existing_state
-        else:
-            state = build_default_shot_continuity_state(index, prompt, image_assets, manifest)
+    manifest, versions = reuse_approved_continuity_versions(
+        manifest,
+        versions,
+        existing_continuity_versions_by_key,
+    )
+    state = build_storyboard_semantic_continuity_state(
+        index,
+        prompt,
+        image_assets,
+        manifest,
+        semantics,
+        group,
+    )
+    state["inputFingerprint"] = build_visual_continuity_fingerprint(prompt, manifest, state)
     return manifest, versions, state
 
 
@@ -4582,33 +5682,19 @@ def main():
             track_key = shot.get("trackKey") or track_key_for(index, scene_no)
             asset_ids = shot.get("assetIds") or resolve_asset_ids(scene, assets, asset_index)
             associate_assets = [scene, *assets]
-            image_assets = resolve_image_assets(scene, assets, asset_catalog)
+            image_assets = resolve_continuity_image_assets(shot, asset_catalog)
             if not image_assets:
                 raise RuntimeError(f"分镜 {index:02d} 没有可用真实资产图片: {scene} / {', '.join(assets)}")
             existing_storyboard = existing_storyboards_by_id.get(storyboard_id, {})
-            approved_reuse = approved_storyboard_reuse_input(existing_storyboard)
-            if approved_reuse:
-                continuity_manifest = approved_reuse["referenceManifest"]
-                continuity_state = approved_reuse["continuityState"]
-                _continuity_versions = []
-                seen_version_keys = set()
-                for reference in continuity_manifest:
-                    if reference.get("referenceRole") == "previous-approved-frame":
-                        continue
-                    key = f"{reference.get('assetId', '')}:{reference.get('versionId', '')}"
-                    version = existing_continuity_versions_by_key.get(key)
-                    if not version:
-                        raise RuntimeError(f"分镜 {index:03d} 人工批准清单缺少资产版本: {key}")
-                    if key not in seen_version_keys:
-                        _continuity_versions.append(version)
-                        seen_version_keys.add(key)
-            else:
-                continuity_manifest, _continuity_versions, continuity_state = build_storyboard_continuity_payload(
-                    index,
-                    desc,
-                    image_assets,
-                    existing_storyboard,
-                )
+            continuity_manifest, _continuity_versions, continuity_state = build_storyboard_continuity_payload(
+                index,
+                desc,
+                image_assets,
+                existing_storyboard,
+                existing_continuity_versions_by_key,
+                shot.get("shotSemantics"),
+                storyboard_continuity_group(shot),
+            )
             for version in _continuity_versions:
                 key = f"{version['assetId']}:{version['versionId']}"
                 merged_version = preserve_valid_continuity_asset_approval(
@@ -4659,9 +5745,10 @@ def main():
                 continuity_manifest,
                 continuity_state,
             )
-            if approved_reuse and continuity_state.get("inputFingerprint") != continuity_fingerprint:
-                raise RuntimeError(f"分镜 {index:03d} 人工批准连续性输入指纹已失效")
             continuity_state["inputFingerprint"] = continuity_fingerprint
+            approved_reuse = approved_storyboard_reuse_input(existing_storyboard)
+            if not approved_storyboard_reuse_matches_current(approved_reuse, continuity_fingerprint):
+                approved_reuse = None
             if is_real_storyboard_image_mode():
                 unapproved = [
                     f"{item['assetId']}:{item.get('versionId', '')}"
@@ -4683,7 +5770,13 @@ def main():
             if is_real_storyboard_image_mode():
                 storyboard_image_result = generate_storyboard_frame_with_references(
                     frame,
-                    {"id": storyboard_id, "index": index, "sceneNo": scene_no, "prompt": desc},
+                    {
+                        "id": storyboard_id,
+                        "index": index,
+                        "sceneNo": scene_no,
+                        "prompt": desc,
+                        "shotSemantics": shot.get("shotSemantics"),
+                    },
                     desc,
                     image_assets,
                     storyboard_image_config,
@@ -4697,11 +5790,21 @@ def main():
             else:
                 storyboard_references = collect_storyboard_reference_images(image_assets)
                 final_storyboard_prompt = build_storyboard_image_prompt(
-                    {"id": storyboard_id, "index": index, "sceneNo": scene_no, "prompt": desc},
+                    {
+                        "id": storyboard_id,
+                        "index": index,
+                        "sceneNo": scene_no,
+                        "prompt": desc,
+                        "shotSemantics": shot.get("shotSemantics"),
+                    },
                     storyboard_references,
                 )
                 prompt_audit = build_storyboard_prompt_audit(
-                    {"id": storyboard_id, "index": index},
+                    {
+                        "id": storyboard_id,
+                        "index": index,
+                        "shotSemantics": shot.get("shotSemantics"),
+                    },
                     final_storyboard_prompt,
                     storyboard_references,
                     desc,
@@ -4761,6 +5864,7 @@ def main():
                     "imageWorkflowNodeId": storyboard_image_result["generatedNodeId"],
                     "orderedReferenceManifest": storyboard_image_result["orderedReferenceManifest"],
                     "continuityState": storyboard_image_result["continuityState"],
+                    "styleContractVersion": storyboard_image_result["continuityState"].get("styleContractVersion"),
                 }
                 existing_review = existing_storyboards_by_id.get(storyboard_id, {}).get("visualReview")
                 if storyboard_image_result["reusedExistingImage"] and existing_review:
@@ -4843,6 +5947,7 @@ def main():
                 "orientation": shot.get("orientation") or "—",
                 "spatialRelation": shot.get("spatialRelation") or "—",
                 "associateAssetsNames": associate_assets,
+                "shotSemantics": shot.get("shotSemantics"),
                 "lines": f"{speaker}：{text}" if speaker != "旁白" else f"旁白：{text}",
                 "sound": sound,
                 **storyboard_patch,
@@ -5189,5 +6294,20 @@ def main():
     print(json.dumps(report, ensure_ascii=False, indent=2))
 
 
-if __name__ == "__main__":
+def run_cli(argv=None):
+    parser = argparse.ArgumentParser(
+        description="Generate the current approved Daojie chapter-001 workflow.",
+    )
+    parser.add_argument(
+        "--run",
+        action="store_true",
+        help="Run the generation workflow. Required because this command can write project files.",
+    )
+    args = parser.parse_args(argv)
+    if not args.run:
+        parser.error("refusing to run without --run because this workflow can write project files")
     main()
+
+
+if __name__ == "__main__":
+    run_cli()

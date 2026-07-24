@@ -9,9 +9,18 @@
 
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { migrateFromLocalStorage } from '@/lib/indexed-db-storage';
 import { createSplitStorage } from '@/lib/project-storage';
 import type { CharacterIdentityAnchors, CharacterNegativePrompt } from '@/types/script';
+import {
+  mergeCharData,
+  mergeCharacterLibrary,
+  onCharacterLibraryRehydrate,
+  partializeCharacterLibrary,
+  splitCharData,
+} from './character-library-store-persistence';
+import type { CharPersistedState } from './character-library-store-persistence';
+
+export { mergeCharData, splitCharData } from './character-library-store-persistence';
 
 // ==================== Types ====================
 
@@ -166,42 +175,6 @@ const initialState: CharacterLibraryState = {
   generationError: null,
   generatingCharacterId: null,
 };
-
-// ==================== Split/Merge for per-project storage ====================
-
-type CharPersistedState = { folders: CharacterFolder[]; characters: Character[]; currentFolderId: string | null };
-
-function splitCharData(state: CharPersistedState, pid: string) {
-  return {
-    projectData: {
-      folders: state.folders.filter((f) => f.projectId === pid),
-      characters: state.characters.filter((c) => c.projectId === pid),
-      currentFolderId: state.currentFolderId,
-    },
-    sharedData: {
-      folders: state.folders.filter((f) => !f.projectId),
-      characters: state.characters.filter((c) => !c.projectId),
-      currentFolderId: null,
-    },
-  };
-}
-
-function mergeCharData(
-  projectData: CharPersistedState | null,
-  sharedData: CharPersistedState | null,
-): CharPersistedState {
-  return {
-    folders: [
-      ...(sharedData?.folders ?? []),
-      ...(projectData?.folders ?? []),
-    ],
-    characters: [
-      ...(sharedData?.characters ?? []),
-      ...(projectData?.characters ?? []),
-    ],
-    currentFolderId: projectData?.currentFolderId ?? null,
-  };
-}
 
 // ==================== Store ====================
 
@@ -477,75 +450,9 @@ export const useCharacterLibraryStore = create<CharacterLibraryStore>()(
       storage: createJSONStorage(() => createSplitStorage<CharPersistedState>(
         'characters', splitCharData, mergeCharData, 'shareCharacters'
       )),
-      partialize: (state) => ({
-        // Persist folders
-        folders: state.folders,
-        currentFolderId: state.currentFolderId,
-        // Persist characters with essential data only
-        characters: state.characters.map((char) => ({
-          ...char,
-          // Don't persist reference images (base64)
-          referenceImages: undefined,
-          // For views, only keep minimal data
-          views: char.views.map((view) => ({
-            viewType: view.viewType,
-            imageUrl: view.imageUrl,
-            generatedAt: view.generatedAt,
-          })),
-          // For variations, explicitly pick fields (same pattern as views above).
-          // This avoids persisting non-serializable data or oversized base64.
-          variations: (char.variations || []).map((v: CharacterVariation) => ({
-            id: v.id,
-            name: v.name,
-            visualPrompt: v.visualPrompt,
-            visualPromptZh: v.visualPromptZh,
-            referenceImage: v.referenceImage,
-            imageWorkflowId: v.imageWorkflowId,
-            imageWorkflowNodeId: v.imageWorkflowNodeId,
-            generatedAt: v.generatedAt,
-            // Stage variation fields
-            isStageVariation: v.isStageVariation,
-            episodeRange: v.episodeRange,
-            ageDescription: v.ageDescription,
-            stageDescription: v.stageDescription,
-            // clothingReferenceImages: intentionally excluded (base64, recreated at runtime)
-          })),
-        })),
-      }),
-      merge: (persisted: any, current: any) => {
-        if (!persisted) return current;
-        // Debug: log variations in persisted data to trace persistence issues
-        if (persisted.characters?.length) {
-          const varSummary = persisted.characters.map((c: any) => ({
-            name: c.name,
-            pid: c.projectId?.substring(0, 8),
-            vars: (c.variations || []).length,
-            varNames: (c.variations || []).map((v: any) => v.name),
-          }));
-          console.log('[CharStore] merge: persisted characters →', JSON.stringify(varSummary));
-        }
-        return {
-          ...current,
-          folders: persisted.folders ?? current.folders,
-          characters: persisted.characters ?? current.characters,
-          currentFolderId: persisted.currentFolderId ?? current.currentFolderId,
-        };
-      },
-      onRehydrateStorage: () => (state, error) => {
-        if (error) {
-          console.error('Failed to rehydrate character library:', error);
-        } else if (state) {
-          const varSummary = state.characters?.map((c) => ({
-            name: c.name,
-            vars: (c.variations || []).length,
-            varNames: (c.variations || []).map((v) => v.name),
-            varRefs: (c.variations || []).map((v) => v.referenceImage ? '✓' : '✗'),
-          }));
-          console.log(`[CharStore] rehydrated: ${state.characters?.length || 0} chars →`, JSON.stringify(varSummary));
-        }
-        // Migrate old data from localStorage to IndexedDB
-        migrateFromLocalStorage('mystudio-character-library');
-      },
+      partialize: (state) => partializeCharacterLibrary(state),
+      merge: (persisted, current) => mergeCharacterLibrary(persisted, current),
+      onRehydrateStorage: () => (state, error) => onCharacterLibraryRehydrate(state, error),
     }
   )
 );

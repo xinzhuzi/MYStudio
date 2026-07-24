@@ -51,3 +51,37 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 2: Close paid retry review without Git
+
+**Date**: 2026-07-19
+**Task**: Close paid retry review without Git
+**Branch**: `main`
+
+### Summary
+
+Archived the paid retry and visual-review closure task without Git. Revalidated the paid ledger, shot 008 human rejection receipt, zero-cost workflow gates, full tests, packaged smoke, and installed-app smoke; real MP4 remains intentionally blocked by 43 pending/stale storyboard reviews.
+
+### Main Changes
+
+- Archived `07-17-paid-retry-closure-review` with `task.py archive --no-commit`.
+- Rebased the two archived manifest references to the archive path and revalidated both context files.
+- Preserved the final audit, Mikoto billing reconciliation, and immutable shot 008 rejection receipt.
+
+### Git Commits
+
+(No commits - planning session)
+
+### Testing
+
+- [OK] Python regressions 12/12; build-script contract 71/71; full Vitest 1,488 passed.
+- [OK] Typecheck, lint, zero-cost pilot/probe, packaged smoke, and installed-app smoke passed.
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

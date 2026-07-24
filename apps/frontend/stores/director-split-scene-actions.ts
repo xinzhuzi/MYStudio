@@ -1,4 +1,4 @@
-import type { DirectorStore } from "./director-store";
+import type { DirectorStore } from "./director-store-types";
 import { normalizeDirectorSplitScenes } from "./director-scene-normalizer";
 
 export type DirectorSplitSceneActions = Pick<
@@ -453,4 +453,3 @@ export function createDirectorSplitSceneActions(
     },
   };
 }
-

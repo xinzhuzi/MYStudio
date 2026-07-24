@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { IProvider } from "@/lib/api-key-manager";
-import type { APIConfigStore } from "./api-config-store";
+import type { APIConfigStore } from "./api-config-store-types";
 
 const updateProviderKeys = vi.hoisted(() => vi.fn());
 

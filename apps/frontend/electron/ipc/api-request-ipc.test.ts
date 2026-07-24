@@ -25,5 +25,22 @@ describe("registerApiRequestIpcHandlers", () => {
     ]);
     await expect(handlers.get("api-image-request")?.({}, { url: "file:///tmp/image.png" }))
       .rejects.toThrow("仅支持 http/https 图片 API 请求");
+    await expect(handlers.get("api-image-request")?.({}, { url: "not-a-url" }))
+      .rejects.toThrow();
   });
+
+  it.each(["", "   "]) (
+    "rejects an empty image URL (%j) before making a request",
+    async (url) => {
+      await expect(handlers.get("api-image-request")?.({}, { url })).rejects.toThrow();
+    },
+  );
+
+  it.each(["ftp://example.com/image.png", "data:image/png;base64,aW1hZ2U="]) (
+    "rejects unsupported image URL protocols (%s)",
+    async (url) => {
+      await expect(handlers.get("api-image-request")?.({}, { url }))
+        .rejects.toThrow("仅支持 http/https 图片 API 请求");
+    },
+  );
 });

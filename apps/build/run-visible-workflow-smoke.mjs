@@ -350,8 +350,8 @@ function cloneRealDaojieUserData() {
   };
 }
 
-function inspectClonedDaojieProjectData(userDataDir) {
-  const projectDir = resolve(userDataDir, "projects", "_p", daojieProjectId);
+function inspectClonedDaojieProjectData(userDataDir, projectId = daojieProjectId) {
+  const projectDir = resolve(userDataDir, "projects", "_p", projectId);
   const workflowState = readJsonFile(resolve(projectDir, "studio-workflow-store.json")).state || {};
   const characters = existsSync(resolve(projectDir, "characters.json"))
     ? readJsonFile(resolve(projectDir, "characters.json")).state?.characters || []
@@ -919,7 +919,9 @@ function realDaojieWorkflowExpression(
       const charactersStore = await readJsonStore('_p/' + projectId + '/characters');
       const scenesStore = await readJsonStore('_p/' + projectId + '/scenes');
       const propsStore = await readJsonStore('_p/' + projectId + '/props');
+      const editingStore = await readJsonStore('_p/' + projectId + '/editing');
       const workflowState = workflowStore?.state || {};
+      const editingState = editingStore?.state || {};
       const characters = charactersStore?.state?.characters || [];
       const scenes = scenesStore?.state?.scenes || [];
       const props = propsStore?.state?.items || [];
@@ -970,6 +972,33 @@ function realDaojieWorkflowExpression(
          const edgeKeys = new Set((graph.edges || []).map((edge) => edge.source + '->' + edge.target));
          return referenceNodes.every((node) => edgeKeys.has(node.id + '->' + generatedNode.id));
        });
+       const editingProjectId = editingState.currentEditingProjectIdByEpisode?.[chapterId] || '';
+       const editingProject = editingState.editingProjects?.[editingProjectId] || null;
+       const timelineRenderRecord = editingState.timelineRenderRecordsByEditingProjectId?.[editingProjectId] || null;
+       const timelineEvidence = timelineRenderRecord?.evidence || null;
+       const timelineArtifactPaths = timelineEvidence ? {
+         outputPath: timelineEvidence.path || '',
+         snapshotPath: timelineEvidence.snapshotPath || '',
+         renderPlanPath: timelineEvidence.renderPlanPath || '',
+         inputManifestPath: timelineEvidence.inputManifestPath || '',
+         filterGraphPath: timelineEvidence.filterGraphPath || '',
+         logPath: timelineEvidence.logPath || '',
+         ffprobePath: timelineEvidence.ffprobePath || '',
+       } : null;
+       const hasCompleteTimelineArtifactPaths = Boolean(
+         timelineArtifactPaths && Object.values(timelineArtifactPaths).every((filePath) => Boolean(filePath)),
+       );
+       const hasCurrentTimelineEvidence = Boolean(
+         editingProject &&
+         timelineRenderRecord &&
+         timelineRenderRecord.projectId === projectId &&
+         timelineRenderRecord.episodeId === chapterId &&
+         timelineRenderRecord.editingProjectId === editingProject.id &&
+         timelineRenderRecord.editingRevision === editingProject.revision &&
+         timelineRenderRecord.sourceSnapshotHash === editingProject.sourceSnapshotHash &&
+         timelineEvidence?.path?.toLowerCase().endsWith('.mp4') &&
+         hasCompleteTimelineArtifactPaths,
+       );
        return {
         source: 'real-daojie-chapter001-clone',
         projectId,
@@ -999,6 +1028,15 @@ function realDaojieWorkflowExpression(
         derivedProps: derivedProps.length,
         derivedImageWorkflows: derivedWorkflows.length,
         derivedImageWorkflowsReady: derivedWorkflowsWithReferenceAndResult.length,
+        editingProjectId,
+        editingRevision: editingProject?.revision ?? null,
+        editingSourceSnapshotHash: editingProject?.sourceSnapshotHash || '',
+        timelineRenderJobId: timelineEvidence?.jobId || '',
+        timelineRenderRecord,
+        timelineEvidence,
+        timelineArtifactPaths,
+        hasCompleteTimelineArtifactPaths,
+        hasCurrentTimelineEvidence,
         firstFramePath: storyboards[0]?.mediaRef?.path || '',
         finalVideoPath: videoCandidates.find((candidate) => String(candidate.filePath || '').includes('toonflow_workflow'))?.filePath || videoCandidates[0]?.filePath || '',
         hasSmokeTemplate: normalize(document.body).includes('Smoke 第一章') || chapter?.title?.includes('Smoke') || false,
@@ -1108,6 +1146,12 @@ function realDaojieWorkflowExpression(
           finalVideoEvidenceError = error instanceof Error ? error.message : String(error);
         }
       }
+      const postAutoVideoData = finalStatus.stage === 'completed'
+        ? await waitFor(async () => {
+            const data = await inspectDaojieProjectData();
+            return data.hasCurrentTimelineEvidence ? data : null;
+          }, 5_000) || await inspectDaojieProjectData()
+        : await inspectDaojieProjectData();
       return {
         enabled: true,
         stageClicked: Boolean(storyboardClick.clicked),
@@ -1125,6 +1169,17 @@ function realDaojieWorkflowExpression(
         hasFinalPathButton: finalStatus.hasFinalPathButton,
         finalVideoEvidence,
         finalVideoEvidenceError,
+        projectId: postAutoVideoData.projectId,
+        chapterId: postAutoVideoData.chapterId,
+        editingProjectId: postAutoVideoData.editingProjectId,
+        editingRevision: postAutoVideoData.editingRevision,
+        editingSourceSnapshotHash: postAutoVideoData.editingSourceSnapshotHash,
+        timelineRenderJobId: postAutoVideoData.timelineRenderJobId,
+        timelineRenderRecord: postAutoVideoData.timelineRenderRecord,
+        timelineEvidence: postAutoVideoData.timelineEvidence,
+        timelineArtifactPaths: postAutoVideoData.timelineArtifactPaths,
+        hasCompleteTimelineArtifactPaths: postAutoVideoData.hasCompleteTimelineArtifactPaths,
+        hasCurrentTimelineEvidence: postAutoVideoData.hasCurrentTimelineEvidence,
         timedOut: Boolean(actionClick.clicked && !terminal),
       };
     };
@@ -1546,15 +1601,30 @@ try {
     runtimeProblems,
   };
   if (runRealDaojie) {
-    const diskDaojie = inspectClonedDaojieProjectData(userDataDir);
+    const diskDaojie = inspectClonedDaojieProjectData(userDataDir, realDaojieRun?.projectId);
     const daojie = { ...(result.daojie || {}), ...diskDaojie };
     const expectedStoryboards = Number(realDaojieRun?.expectedStoryboards ?? daojie.expectedStoryboards);
     const storyboardPaletteImages = result.derivativeImageWorkflowDetail?.storyboardPaletteImages;
     const scopedDerivativePaletteAbsent = storyboardPaletteImages?.sectionFound === false;
     const chapterAutoVideo = result.chapterAutoVideo || { enabled: false };
     const autoVideoAudit = runChapterAutoVideo
-      ? auditVisibleAutoVideo({ chapterAutoVideo, userDataDir })
-      : { ok: true, expectedRoot: "", issues: [] };
+      ? {
+          ...auditVisibleAutoVideo({ chapterAutoVideo, userDataDir }),
+          mode: "strict",
+          required: true,
+        }
+      : {
+          ok: true,
+          expectedRoot: "",
+          issues: [],
+          mode: "observation",
+          required: false,
+          timelineEvidenceObserved: chapterAutoVideo.hasCurrentTimelineEvidence === true,
+          timelineEvidenceStatus:
+            chapterAutoVideo.hasCurrentTimelineEvidence === true
+              ? "observed"
+              : "not-observed",
+        };
     const autoVideoFailed = runChapterAutoVideo && !autoVideoAudit.ok;
     const failed =
       !(expectedStoryboards > 0) ||

@@ -17,6 +17,12 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { createProjectScopedStorage } from '@/lib/project-storage';
+import {
+  defaultEditorPrefs,
+  defaultProjectData,
+  mergeSClassStore,
+  partializeSClassStore,
+} from './sclass-store-persistence';
 
 // ==================== Types ====================
 
@@ -298,32 +304,6 @@ type SClassStore = SClassState & SClassActions;
 
 // ==================== Defaults ====================
 
-const defaultConfig: SClassConfig = {
-  defaultDuration: 10,
-  concurrency: 1,
-};
-
-const defaultEditorPrefs: SClassEditorPrefs = {
-  imageGenMode: 'merged',
-  frameMode: 'first',
-  refStrategy: 'cluster',
-  useExemplar: true,
-  activeTab: 'editing',
-  episodeViewScope: 'episode',
-};
-
-const defaultProjectData = (): SClassProjectData => ({
-  shotGroups: [],
-  singleShotOverrides: {},
-  globalAssetRefs: [],
-  config: { ...defaultConfig },
-  mode: 'storyboard',
-  hasAutoGrouped: false,
-  lastGridImageUrl: null,
-  lastGridSceneIds: null,
-  editorPrefs: { ...defaultEditorPrefs },
-});
-
 const initialState: SClassState = {
   activeProjectId: null,
   projects: {},
@@ -337,22 +317,6 @@ const initialState: SClassState = {
 const getCurrentProject = (state: SClassState): SClassProjectData | null => {
   if (!state.activeProjectId) return null;
   return state.projects[state.activeProjectId] || null;
-};
-
-const normalizeProjectData = (project: any): SClassProjectData => {
-  const defaults = defaultProjectData();
-  return {
-    ...defaults,
-    ...project,
-    config: {
-      ...defaults.config,
-      ...(project?.config || {}),
-    },
-    editorPrefs: {
-      ...defaultEditorPrefs,
-      ...(project?.editorPrefs || {}),
-    },
-  };
 };
 
 // ==================== Store ====================
@@ -799,60 +763,8 @@ export const useSClassStore = create<SClassStore>()(
     {
       name: 'mystudio-sclass-store',
       storage: createJSONStorage(() => createProjectScopedStorage('sclass')),
-      partialize: (state) => {
-        const pid = state.activeProjectId;
-        let projectData = null;
-        if (pid && state.projects[pid]) {
-          projectData = state.projects[pid];
-        }
-        return {
-          activeProjectId: pid,
-          projectData,
-          generationMode: state.generationMode,
-          // Don't persist: selectedGroupId (transient UI state)
-        };
-      },
-      merge: (persisted: any, current: any) => {
-        if (!persisted) return current;
-
-        // 迁移辅助：清理 SClassConfig 中已移除的冗余字段（aspectRatio/resolution 已由 director-store 管理）
-        const migrateConfig = (config: any) => {
-          if (!config) return config;
-          const { aspectRatio, resolution, ...clean } = config;
-          return clean;
-        };
-        const migrateProjectData = (pd: any) => {
-          if (!pd) return normalizeProjectData(pd);
-          const normalized = normalizeProjectData(pd);
-          return {
-            ...normalized,
-            config: migrateConfig(normalized.config),
-            editorPrefs: {
-              ...defaultEditorPrefs,
-              ...(normalized.editorPrefs || {}),
-            },
-          };
-        };
-
-        // Legacy format
-        if (persisted.projects && typeof persisted.projects === 'object') {
-          const migratedProjects: any = {};
-          for (const [k, v] of Object.entries(persisted.projects)) {
-            migratedProjects[k] = migrateProjectData(v);
-          }
-          return { ...current, ...persisted, projects: migratedProjects };
-        }
-
-        // Per-project format
-        const { activeProjectId: pid, projectData, generationMode } = persisted;
-        const updates: any = { ...current };
-        if (generationMode) updates.generationMode = generationMode;
-        if (pid) updates.activeProjectId = pid;
-        if (pid && projectData) {
-          updates.projects = { ...current.projects, [pid]: migrateProjectData(projectData) };
-        }
-        return updates;
-      },
+      partialize: partializeSClassStore,
+      merge: mergeSClassStore,
     }
   )
 );

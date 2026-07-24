@@ -81,8 +81,8 @@ export async function selectTrailerShots(
       visualDescription: shot.visualDescription || '',
       dialogue: shot.dialogue || '',
       characterNames: shot.characterNames || [],
-      narrativeFunction: (shot as any).narrativeFunction || '',
-      emotionTags: (shot as any).emotionTags || [],
+      narrativeFunction: shot.narrativeFunction || '',
+      emotionTags: shot.emotionTags || [],
       shotSize: shot.shotSize || '',
     }));
 
@@ -204,14 +204,14 @@ function selectTrailerShotsByRules(shots: Shot[], targetCount: number): Shot[] {
     let score = 0;
     
     // 叙事功能评分
-    const narrativeFunction = (shot as any).narrativeFunction || '';
+    const narrativeFunction = shot.narrativeFunction || '';
     if (narrativeFunction.includes('高潮')) score += 10;
     if (narrativeFunction.includes('转折')) score += 8;
     if (narrativeFunction.includes('冲突')) score += 6;
     if (narrativeFunction.includes('升级')) score += 4;
     
     // 情绪评分
-    const emotionTags = (shot as any).emotionTags || [];
+    const emotionTags = shot.emotionTags || [];
     if (emotionTags.includes('tense')) score += 5;
     if (emotionTags.includes('excited')) score += 5;
     if (emotionTags.includes('mysterious')) score += 4;
@@ -305,12 +305,12 @@ export function convertShotsToSplitScenes(
     actionSummary: shot.actionSummary || '',
     cameraMovement: shot.cameraMovement || '',
     // 叙事驱动字段
-    narrativeFunction: (shot as any).narrativeFunction || '',
-    shotPurpose: (shot as any).shotPurpose || '',
-    visualFocus: (shot as any).visualFocus || '',
-    cameraPosition: (shot as any).cameraPosition || '',
-    characterBlocking: (shot as any).characterBlocking || '',
-    rhythm: (shot as any).rhythm || '',
+    narrativeFunction: shot.narrativeFunction || '',
+    shotPurpose: shot.shotPurpose || '',
+    visualFocus: shot.visualFocus || '',
+    cameraPosition: shot.cameraPosition || '',
+    characterBlocking: shot.characterBlocking || '',
+    rhythm: shot.rhythm || '',
     visualDescription: shot.visualDescription || '',
     // 灯光师
     lightingStyle: shot.lightingStyle,

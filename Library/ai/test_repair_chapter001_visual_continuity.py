@@ -84,6 +84,24 @@ class RepairChapter001VisualContinuityTest(unittest.TestCase):
         state = {
             "continuityAssetVersions": [dugu_version, dock_version],
             "storyboards": [storyboard],
+            "agentWorkData": [{
+                "id": "work-storyboard-table-current",
+                "key": "storyboardTable",
+                "episodeId": "chapter-001",
+                "updatedAt": 1,
+                "data": "\n".join((
+                    "<storyboardTable>",
+                    "## 场 1：金水河码头",
+                    "**引用资产名称**：金水河码头，独孤剑尘",
+                    "**引用资产ID**：scene-legacy-dock，char-legacy-dugu",
+                    "| 1 | 独孤从码头走来 | 3秒 | 全景 | 固定 | — | 环境声 | "
+                    '{"sceneViewpointId":"dock-main-axis","personFree":false,'
+                    '"visibleCharacters":[{"name":"独孤剑尘","position":"中景",'
+                    '"orientation":"朝前","actionIn":"走入码头","actionOut":"停在石阶"}],'
+                    '"visibleProps":[],"actionIn":"独孤走入码头","actionOut":"独孤停在石阶"} |',
+                    "</storyboardTable>",
+                )),
+            }],
             "imageWorkflows": [{
                 "target": {"kind": "storyboard", "id": storyboard["id"]},
                 "nodes": [
@@ -145,6 +163,33 @@ class RepairChapter001VisualContinuityTest(unittest.TestCase):
         ambiguous.pop("sceneViewpointId")
         unchanged, _mapping = apply_available_versions_to_references([ambiguous], [hall, room], entities)
         self.assertEqual(unchanged[0], ambiguous)
+
+    def test_projects_approved_asset_fingerprint_into_repaired_reference(self) -> None:
+        version = self.version(
+            self.current_dugu_id,
+            f"{self.current_dugu_id}:grey-town:v1",
+            "character",
+        )
+        version["approved"] = True
+        version["approvalFingerprint"] = "approval:human"
+        reference = {
+            "assetId": "char-legacy-dugu",
+            "assetName": "独孤剑尘",
+            "assetKind": "character",
+            "versionId": "char-legacy-dugu:grey-town:v1",
+            "imagePath": "/legacy/dugu.png",
+        }
+
+        updated, _mapping = apply_available_versions_to_references(
+            [reference],
+            [version],
+            {"独孤剑尘": (self.current_dugu_id, "character")},
+        )
+
+        self.assertEqual(updated[0]["assetId"], self.current_dugu_id)
+        self.assertTrue(updated[0]["approved"])
+        self.assertEqual(updated[0]["approvalFingerprint"], "approval:human")
+        self.assertEqual(updated[0]["contentFingerprint"], version["contentFingerprint"])
 
     def test_syncs_script_asset_ids_from_canonical_reference_order_without_touching_voice_fields(self) -> None:
         storyboards = [{

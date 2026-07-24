@@ -100,6 +100,91 @@ describe("studio storyboard table parsing", () => {
     ).toEqual([4.2, 4.8]);
   });
 
+  it("parses source-defined per-shot visibility instead of inferring the scene cast", () => {
+    const semantics = JSON.stringify({
+      sceneViewpointId: "dock-main-axis",
+      personFree: false,
+      visibleCharacters: [{
+        name: "监工赵四",
+        position: "左中格",
+        orientation: "正面三分之四朝右下",
+        actionIn: "抬鞭停在肩侧",
+        actionOut: "鞭臂停在劈落前的顶点",
+      }],
+      visibleProps: [{
+        name: "赤练蛇皮鞭",
+        position: "左前景",
+        state: "鞭梢扬起",
+      }],
+      actionIn: "赵四站在左中格，鞭梢朝向右下",
+      actionOut: "赵四保持抬鞭姿势",
+    });
+    const output = [
+      "<storyboardTable>",
+      "## 场1：金水河码头 ｜ 参演角色：独孤剑尘、监工赵四、小杂役",
+      "**引用资产名称**：[监工赵四, 赤练蛇皮鞭, 金水河码头]",
+      "**引用资产ID**：[role-zhao, prop-whip, scene-dock]",
+      "| 序号 | 画面描述 | 时长 | 景别 | 运镜 | 台词 | 音效 | 出镜语义JSON |",
+      "|------|------|------|------|------|------|------|------|",
+      `| 1 | 赵四抬鞭立在湿木栈道。 | 4 | 中景 | 缓推 | 旁白：鞭梢划过河雾。 | 风声 | ${semantics} |`,
+      "</storyboardTable>",
+    ].join("\n");
+
+    const { rows, errors } = parseStoryboardTable(output, "chapter-001");
+
+    expect(errors).toHaveLength(0);
+    expect(rows[0]?.shotSemantics).toEqual(JSON.parse(semantics));
+    expect(rows[0]?.shotSemantics?.visibleCharacters).toHaveLength(1);
+    expect(rows[0]?.shotSemantics?.visibleCharacters[0]?.name).toBe("监工赵四");
+  });
+
+  it("rejects an ambiguous empty cast unless the source explicitly declares a person-free shot", () => {
+    const output = [
+      "<storyboardTable>",
+      "## 场1：金水河码头",
+      "| 序号 | 画面描述 | 时长 | 景别 | 运镜 | 台词 | 音效 | 出镜语义JSON |",
+      "|------|------|------|------|------|------|------|------|",
+      "| 1 | 河雾压低。 | 4 | 远景 | 静止 | 旁白：河雾压低。 | 水声 | {\"sceneViewpointId\":\"dock-main-axis\",\"personFree\":false,\"visibleCharacters\":[],\"visibleProps\":[],\"actionIn\":\"河雾压低\",\"actionOut\":\"河雾掠过木桩\"} |",
+      "</storyboardTable>",
+    ].join("\n");
+
+    expect(parseStoryboardTable(output, "chapter-001").errors).toContain(
+      "分镜 1 必须明确人物入画，或以 personFree=true 声明无人物镜头",
+    );
+  });
+
+  it("rejects a production semantic without a viewpoint or visible-prop declaration", () => {
+    const output = [
+      "<storyboardTable>",
+      "## 场1：金水河码头",
+      "| 序号 | 画面描述 | 时长 | 景别 | 运镜 | 台词 | 音效 | 出镜语义JSON |",
+      "|------|------|------|------|------|------|------|------|",
+      "| 1 | 河雾压低。 | 4 | 远景 | 静止 | 旁白：河雾压低。 | 水声 | {\"personFree\":true,\"visibleCharacters\":[],\"actionIn\":\"河雾压低\",\"actionOut\":\"河雾掠过木桩\"} |",
+      "</storyboardTable>",
+    ].join("\n");
+
+    expect(parseStoryboardTable(output, "chapter-001", { requireShotSemantics: true }).errors).toContain(
+      "分镜 1 出镜语义JSON缺少 sceneViewpointId、personFree、visibleCharacters、visibleProps、actionIn 或 actionOut",
+    );
+  });
+
+  it("requires per-shot semantics when accepting a newly generated production table", () => {
+    const output = [
+      "<storyboardTable>",
+      "## 场1：金水河码头",
+      "| 序号 | 画面描述 | 时长 | 景别 | 运镜 | 台词 | 音效 |",
+      "|------|------|------|------|------|------|------|",
+      "| 1 | 河雾压低。 | 4 | 远景 | 静止 | 旁白：河雾压低。 | 水声 |",
+      "</storyboardTable>",
+    ].join("\n");
+
+    const parsed = parseStoryboardTable(output, "chapter-001", {
+      requireShotSemantics: true,
+    });
+
+    expect(parsed.errors).toContain("分镜 1 缺少出镜语义JSON");
+  });
+
   it.each([
     [1, 1],
     [2, 1],

@@ -25,6 +25,7 @@ MYSTUDIO_WORKFLOW_AUTO_VIDEO=1 npm run smoke:workflow:background:daojie
 MYSTUDIO_AUTO_VIDEO_TIMEOUT_MS=600000 npm run smoke:workflow:background:daojie -- --auto-video
 MYSTUDIO_BACKGROUND_WORKFLOW_REPORT_PATH="$PWD/output/automation/background-workflow-daojie-report.json" npm run smoke:workflow:background:daojie -- --auto-video
 npm run video:daojie:chapter001:probe-providers
+npm run video:daojie:chapter001:visual-preflight
 MYSTUDIO_DAOJIE_REUSE_STORYBOARD_IMAGES=1 MYSTUDIO_DAOJIE_REUSE_STORYBOARD_IMAGES_AFTER="2026-07-01T00:00:00+08:00" npm run video:daojie:chapter001
 ```
 
@@ -33,12 +34,14 @@ MYSTUDIO_DAOJIE_REUSE_STORYBOARD_IMAGES=1 MYSTUDIO_DAOJIE_REUSE_STORYBOARD_IMAGE
 - `MYSTUDIO_SMOKE_DEBUG_PORT` may select a free DevTools port.
 - `MYSTUDIO_SMOKE_BACKGROUND=1` is the shared Electron background contract. The visible command remains available for explicit human observation.
 - `video:daojie:chapter001:probe-providers` is a non-generating provider-model probe. It must read app image settings in background mode, call only `/v1/models`, write `daojie-chapter001-provider-probe-report.json`, and report `generatedImages=0` plus `generationEndpointCalled=false`.
+- `video:daojie:chapter001:visual-preflight` is the only standalone visual gate. It explicitly sets `MYSTUDIO_DAOJIE_VISUAL_PREFLIGHT=1`; do not invoke its TypeScript module through bare `vite-node`, because that runner does not preserve the module path in `process.argv` and may otherwise exit without running the audit.
 - Storyboard image reuse is opt-in. Both reuse keys are required, and every reused image must exist with an mtime at or after the ISO timestamp. Reuse avoids a generation request but does not relax voiceover, TTS, stream, duration, or SHA-256 gates.
 
 ## 3. Contracts
 
 - The runner clones the real Daojie `chapter-001` project into temporary user data and must copy project `tts.json`; it must not write the original project.
 - It clicks the button labeled `一键第一章成片` and records every observed `data-auto-video-stage` transition.
+- Storyboard workflow association first uses the persisted `storyboard.imageWorkflowId` or `mediaRef.imageWorkflowId`; when either is absent, the runner may resolve the deterministic `storyboard-flow-${episodeId}-${ordinal}` ID derived from the current storyboard row. The same precedence must be used in clone preflight and page assertions so missing optional IDs do not create a false negative.
 - The report must contain `source=real-daojie-chapter001-clone`, `runChapterAutoVideo=true`, and `chapterAutoVideo` with `stageHistory`, `terminalStage`, `statusText`, `finalPath`, `hasFinalPathButton`, and `timedOut`.
 - Background reports must contain `mode=background`, `windowVisibility`, `documentHasFocus`, `focusSamples`, and `foregroundViolation=false`.
 - The background branch must not call `Page.bringToFront`, `window.focus()`, or macOS `System Events`; frontmost-app samples use `lsappinfo` and any MYStudio sample fails the run.
@@ -125,7 +128,145 @@ Wrong: An older successful report proves the current runner, or one unchanged sp
 Correct: Run the current command twice, compare all canonical speaker profile/reference paths, and independently assert every final media gate.
 ```
 
+## 8. Portable Toonflow golden fixture
+
+### 1. Scope / Trigger
+
+Use this contract when checking Toonflow chapter-001 parity or creating a
+golden-image fixture. Toonflow `o_storyboard.filePath` and `o_image.filePath`
+are database paths relative to `data/oss/`, not directly relative to `data/`.
+
+### 2. Signatures
+
+```bash
+python3 Library/ai/build_toonflow_portable_fixture.py \
+  --database "/Users/zhengbingjin/Library/Application Support/toonflow/data/db2.sqlite" \
+  --output .trellis/tasks/07-12-mystudio-chapter001-visual-continuity/research/toonflow-chapter001-portable-fixture.json
+```
+
+The script also exposes `build_fixture(database, output_manifest)` and
+`verify_fixture(manifest_path)` for deterministic Python tests.
+
+### 3. Contracts
+
+- The read-only source is SQLite plus `data/oss/`; production project files,
+  old images, MP4s, and provider endpoints are never written or called.
+- The manifest must contain 43 storyboard rows, ordered `assetId`/`imageId`
+  links, content-addressed `goldenImage` and reference paths, file SHA-256,
+  decoded RGBA `pixelSha256`, dimensions, and `verified=true`.
+- `fixtureRoot` must be stored relative to the manifest file and resolved from
+  the manifest's parent directory, so verification is independent of the
+  caller's current working directory.
+- A successful report has `missingImageCount=0`,
+  `goldenPixelSha256Verified=true`, and `contentAddressed=true`.
+
+### 4. Validation & Error Matrix
+
+| Condition | Required result |
+| --- | --- |
+| Source path resolves only under `data/oss/` | Resolve there; do not mark missing |
+| Any storyboard/reference image is absent | Raise before writing a successful manifest |
+| Copied file hash or pixel digest differs | Raise; never silently replace evidence |
+| Fixture row lacks verified 64-hex file and pixel digests | Frontend parity remains `deferred` |
+
+### 5. Good / Base / Bad Cases
+
+- Good: `43/43` golden images and `132` ordered references resolve and verify.
+- Base: a structural fixture without golden digests remains deferred.
+- Bad: Toonflow originals are copied into MYStudio production media or treated
+  as newly generated storyboard results.
+
+### 6. Tests Required
+
+- `python3 -m unittest Library.ai.test_toonflow_portable_fixture` must verify
+  idempotent content-addressed copies and all digest fields.
+- Focused Vitest must pass the verified-golden and deferred-metadata parity
+  cases; full typecheck, lint, and Vitest remain required.
+
+### 7. Wrong vs Correct
+
+```text
+Wrong: resolve data/177927.../assets/... directly and report golden paths missing.
+Correct: resolve data/oss/177927.../assets/... and copy to a task-local
+content-addressed fixture, then verify file and pixel digests.
+```
+
 ```text
 Wrong: finalVideo = generated.final when the timeline runner fails or is skipped.
 Correct: finalVideo = timelineResult.timelineRenderRecord.evidence.path; generated.final is legacyCompatibilityVideo only.
+```
+
+## 9. Continuity pilot human-review receipts
+
+### 1. Scope / Trigger
+
+Apply this contract when changing the chapter-001 continuity pilot's human
+approval or rejection commands, their `MYSTUDIO_CONTINUITY_PILOT_*`
+environment bridge, or `runContinuityPilot()` result handling.
+
+### 2. Signatures
+
+```bash
+python3 Library/generate_chapter001_continuity_sample.py \
+  --output-dir <pilot-output> \
+  --reject-shot <index> \
+  --human-confirmed \
+  --rejection-reason <reason>
+```
+
+The Node bridge uses `MYSTUDIO_CONTINUITY_PILOT_REJECT_SHOT`,
+`MYSTUDIO_CONTINUITY_PILOT_REJECTION_REASON`, and the shared
+`MYSTUDIO_CONTINUITY_PILOT_HUMAN_CONFIRMED` flag. Approval and rejection are
+mutually exclusive review operations.
+
+### 3. Contracts
+
+- A rejected review keeps the original image and `*_thumb.png` evidence
+  immutable, records the output SHA-256 plus an `approvalFingerprint`, and
+  requires a non-empty reason.
+- The report projects a valid rejection through `humanRejections`,
+  `rejectedShots`, and a `status="rejected"` group; it must not look like an
+  unreviewed pending frame.
+- The Node bridge validates the returned shot, human reviewer, persisted
+  report record, status, and fingerprint before returning review success.
+- Review receipts return before image-count, contact-sheet, thumbnail-count,
+  or generation-output checks. Those checks apply only to generation results.
+- A rejected shot blocks ordinary paid execution before generator setup. A new
+  request remains an explicitly authorized restart; it is never an automatic
+  retry.
+
+### 4. Validation & Error Matrix
+
+| Condition | Required result |
+| --- | --- |
+| Both approval and rejection inputs are set | Fail before Python execution |
+| Rejection lacks `--human-confirmed` or a reason | Fail without writing a review record |
+| Review receipt lacks its persisted fingerprint | Fail the Node bridge; do not report success |
+| Rejected shot is run as ordinary paid work | Fail before generator/provider setup |
+| Valid rejection receipt | Return `status="rejected"`; do not enter generation-count checks |
+
+### 5. Good / Base / Bad Cases
+
+- Good: a watermarked frame is rejected once, preserves its hashes, and the
+  Node wrapper returns the persisted rejection receipt.
+- Base: an approved frame returns its approval receipt and still requires the
+  normal next-shot generation rules.
+- Bad: the Python rejection writes successfully but the wrapper then fails
+  because `processedImages` is absent from a review-only response.
+
+### 6. Tests Required
+
+- Python regression must require a rejection reason, reject duplicate review
+  writes, preserve output bytes, and stop paid execution before generator setup.
+- `frontend/config/build-scripts.test.ts` must cover the rejection environment
+  keys, mutual exclusion, and persisted-review validation branch.
+- Run an isolated review-receipt command and assert a zero exit plus
+  `status="rejected"`, `rejectedShots=[index]`, and one stored rejection.
+
+### 7. Wrong vs Correct
+
+```text
+Wrong: validate every continuity-pilot response as a generated-image payload.
+Correct: validate approved/rejected review receipts first, then use image-count
+checks only for generation payloads.
 ```

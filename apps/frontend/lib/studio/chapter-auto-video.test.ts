@@ -11,6 +11,7 @@ import {
   approvedVisualReview,
   createHumanContinuityAssetApproval,
   normalizeContinuityAssetVersion,
+  storyboardShotSemanticsFingerprint,
   visualContinuityFingerprint,
   visualReviewInputFingerprint,
 } from "./visual-continuity";
@@ -62,6 +63,14 @@ function storyboard(index: number, overrides: Partial<StoryboardItem> = {}): Sto
     durationTarget: 4,
     voiceStyle: "克制",
     requiresFixedVoice: true,
+    shotSemantics: {
+      sceneViewpointId: "dock:front",
+      personFree: true,
+      visibleCharacters: [],
+      visibleProps: [],
+      actionIn: index > 1 ? "承接前镜" : "建立场景",
+      actionOut: "继续向右",
+    },
     orderedReferenceManifest: [
       {
         order: 1,
@@ -86,11 +95,13 @@ function storyboard(index: number, overrides: Partial<StoryboardItem> = {}): Sto
       actionIn: index > 1 ? "承接前镜" : "建立场景",
       actionOut: "继续向右",
       characters: [],
+      sourceSemanticsFingerprint: "",
       inputFingerprint: "",
     },
     ...overrides,
   };
   if (!overrides.continuityState) {
+    item.continuityState!.sourceSemanticsFingerprint = storyboardShotSemanticsFingerprint(item.shotSemantics);
     item.continuityState!.inputFingerprint = visualContinuityFingerprint(item);
   }
   if (!Object.prototype.hasOwnProperty.call(overrides, "visualReview")) {
@@ -327,6 +338,162 @@ describe("chapter auto video orchestration", () => {
     expect(calls).not.toContain("render");
     expect(calls).not.toContain("editing");
     expect(statuses.at(-1)).toBe("failed");
+  });
+
+  it("blocks chapters with no dynamic storyboards before fixed voice binding", async () => {
+    const run = createDependencies();
+    const statuses: string[] = [];
+    run.dependencies.loadStoryboards = () => [];
+
+    await expect(
+      runChapterAutoVideo({
+        episodeId: "chapter-001",
+        dependencies: run.dependencies,
+        onStatus: (status) => statuses.push(status.stage),
+      }),
+    ).rejects.toThrow("chapter-001 没有可用于成片的动态分镜");
+
+    expect(run.dependencies.ensureFixedVoiceProfiles).not.toHaveBeenCalled();
+    expect(run.dependencies.generateAudio).not.toHaveBeenCalled();
+    expect(run.dependencies.renderTrack).not.toHaveBeenCalled();
+    expect(statuses.at(-1)).toBe("failed");
+  });
+
+  it("blocks TTS results without a real audio path", async () => {
+    const run = createDependencies();
+    run.dependencies.generateAudio = vi.fn(async () => ({
+      audioRef: { kind: "audio" as const, path: "" },
+    }));
+    run.dependencies.writeStoryboardAudio = vi.fn();
+
+    await expect(
+      prepareChapterMedia({
+        episodeId: "chapter-001",
+        dependencies: run.dependencies,
+      }),
+    ).rejects.toThrow("分镜 sb-2 TTS 未返回真实音频路径");
+
+    expect(run.dependencies.writeStoryboardAudio).not.toHaveBeenCalled();
+    expect(run.dependencies.rebuildTracks).not.toHaveBeenCalled();
+    expect(run.dependencies.renderTrack).not.toHaveBeenCalled();
+  });
+
+  it("blocks generated audio that cannot be resolved after TTS writeback", async () => {
+    const run = createDependencies();
+    run.dependencies.resolveMediaPath = vi.fn(async (path) => (
+      path.startsWith("/generated-") ? "" : path
+    ));
+
+    await expect(
+      prepareChapterMedia({
+        episodeId: "chapter-001",
+        dependencies: run.dependencies,
+      }),
+    ).rejects.toThrow("分镜 sb-2 缺少可读真实音频");
+
+    expect(run.dependencies.generateAudio).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "sb-2" }),
+      profiles["character:dugu"],
+    );
+    expect(run.dependencies.rebuildTracks).not.toHaveBeenCalled();
+    expect(run.dependencies.renderTrack).not.toHaveBeenCalled();
+  });
+
+  it("stops after media preparation when no production track exists", async () => {
+    const run = createDependencies();
+    const statuses: string[] = [];
+    run.dependencies.loadTracks = () => [];
+
+    await expect(
+      runChapterAutoVideo({
+        episodeId: "chapter-001",
+        dependencies: run.dependencies,
+        onStatus: (status) => statuses.push(status.stage),
+      }),
+    ).rejects.toThrow("chapter-001 没有可渲染生产轨道");
+
+    expect(run.dependencies.rebuildTracks).toHaveBeenCalled();
+    expect(run.dependencies.renderTrack).not.toHaveBeenCalled();
+    expect(run.dependencies.createEditingProject).not.toHaveBeenCalled();
+    expect(statuses.at(-1)).toBe("failed");
+  });
+
+  it.each([
+    {
+      name: "non-positive duration target",
+      buildStoryboards: () => [storyboard(1, { durationTarget: 0 })],
+      message: "分镜 sb-1 durationTarget 必须大于 0",
+    },
+    {
+      name: "missing fixed voice requirement",
+      buildStoryboards: () => [{
+        ...storyboard(1),
+        requiresFixedVoice: false,
+      } as unknown as StoryboardItem],
+      message: "分镜 sb-1 requiresFixedVoice 必须为 true",
+    },
+  ] satisfies Array<{
+    name: string;
+    buildStoryboards: () => StoryboardItem[];
+    message: string;
+  }>)("blocks $name before voice binding and TTS", async ({ buildStoryboards, message }) => {
+    const run = createDependencies();
+    run.dependencies.loadStoryboards = buildStoryboards;
+
+    await expect(
+      runChapterAutoVideo({
+        episodeId: "chapter-001",
+        dependencies: run.dependencies,
+      }),
+    ).rejects.toThrow(message);
+
+    expect(run.dependencies.ensureFixedVoiceProfiles).not.toHaveBeenCalled();
+    expect(run.dependencies.generateAudio).not.toHaveBeenCalled();
+    expect(run.dependencies.renderTrack).not.toHaveBeenCalled();
+    expect(run.dependencies.createEditingProject).not.toHaveBeenCalled();
+  });
+
+  it("reuses a ready selected candidate instead of rendering a track again", async () => {
+    const run = createDependencies();
+    const [baseTrack] = run.dependencies.loadTracks();
+    if (!baseTrack) throw new Error("test fixture missing production track");
+    const readyCandidate: VideoCandidate = {
+      id: "candidate-1",
+      trackId: baseTrack.id,
+      provider: "ffmpeg-local",
+      filePath: "/track.mp4",
+      state: "ready",
+      createdAt: 1,
+    };
+    run.dependencies.loadTracks = () => [{
+      ...baseTrack,
+      selectedVideoId: readyCandidate.id,
+    }];
+    run.dependencies.loadCandidates = () => [readyCandidate];
+
+    const result = await runChapterAutoVideo({
+      episodeId: "chapter-001",
+      dependencies: run.dependencies,
+    });
+
+    expect(result.finalPath).toBe("/final.mp4");
+    expect(run.calls).toEqual([
+      "planning",
+      "binding",
+      "tts:sb-2",
+      "rebuild",
+      "editing",
+      "timeline-render",
+      "write-final",
+    ]);
+    expect(run.dependencies.renderTrack).not.toHaveBeenCalled();
+    expect(run.dependencies.createEditingProject).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "sb-1" }),
+        expect.objectContaining({ id: "sb-2" }),
+      ]),
+      [readyCandidate],
+    );
   });
 
   it("stops before rendering when visual continuity is pending, rejected, or stale", async () => {

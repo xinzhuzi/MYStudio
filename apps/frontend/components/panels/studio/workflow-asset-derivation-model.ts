@@ -9,7 +9,7 @@ import type {
   ProductionFlowAssetSummary,
   ProductionFlowModelInput,
   ProductionFlowRuntimeAssetKind,
-} from "./workflow-node-model";
+} from "./workflow-asset-types";
 
 export function buildAssetDerivationModel(
   assets: ReturnType<typeof buildStudioFlowData>["assets"],
@@ -479,3 +479,32 @@ function studioAssetSummaryToMedia(
     Partial<ProductionFlowAssetMedia>,
 ): ProductionFlowAssetMedia | null {
   if (!asset) return null;
+  const path = getStudioAssetPreviewPath(asset);
+  if (!path) return null;
+  const imageWorkflowTarget = fallback.imageWorkflowTarget
+    ? {
+        ...fallback.imageWorkflowTarget,
+        id: fallback.imageWorkflowTarget.id || asset.id,
+      }
+    : undefined;
+  return {
+    id: fallback.id,
+    name: fallback.name,
+    path,
+    prompt:
+      asset.prompt ||
+      asset.description ||
+      asset.setting ||
+      asset.remark ||
+      fallback.prompt,
+    parentAssetId: fallback.parentAssetId || asset.parentAssetId,
+    parentAssetName: fallback.parentAssetName || asset.parentAssetName,
+    state: fallback.state || asset.state,
+    reason: fallback.reason || asset.description || asset.remark,
+    imageWorkflowId: asset.imageWorkflowId || fallback.imageWorkflowId,
+    imageWorkflowTarget,
+    toonflowAssetId: asset.toonflowAssetId ?? fallback.toonflowAssetId,
+    toonflowParentAssetId:
+      asset.toonflowParentAssetId ?? fallback.toonflowParentAssetId,
+  };
+}

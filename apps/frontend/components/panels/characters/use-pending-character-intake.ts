@@ -2,8 +2,10 @@ import { useEffect, type Dispatch, type SetStateAction } from "react";
 import { getStyleById } from "@/lib/constants/visual-styles";
 import type { PendingCharacterData } from "@/stores/media-panel-store";
 import type {
+  CharacterConsistencyElements,
   CharacterIdentityAnchors,
   CharacterNegativePrompt,
+  CharacterStageInfo,
   PromptLanguage,
 } from "@/types/script";
 
@@ -34,6 +36,8 @@ interface UsePendingCharacterIntakeOptions {
   setEra: StateSetter<string | undefined>;
   setSourceEpisodeId: StateSetter<string | undefined>;
   setStyleId: StateSetter<string>;
+  setStageInfo: StateSetter<CharacterStageInfo | undefined>;
+  setConsistencyElements: StateSetter<CharacterConsistencyElements | undefined>;
 }
 
 export function usePendingCharacterIntake(options: UsePendingCharacterIntakeOptions): void {
@@ -62,6 +66,8 @@ export function usePendingCharacterIntake(options: UsePendingCharacterIntakeOpti
     setEra,
     setSourceEpisodeId,
     setStyleId,
+    setStageInfo,
+    setConsistencyElements,
   } = options;
 
   useEffect(() => {
@@ -129,17 +135,15 @@ export function usePendingCharacterIntake(options: UsePendingCharacterIntakeOpti
       }
     }
 
-    // TODO: 处理多阶段角色变体
-    // 如果有 stageInfo 或 consistencyElements，应该：
-    // 1. 在角色描述中提示用户这是多阶段角色
-    // 2. 生成角色后自动为其添加 variations
-    // 注：这部分逻辑应该在 handleCreateAndGenerate 后执行
+    setStageInfo(pendingCharacterData.stageInfo);
+    setConsistencyElements(pendingCharacterData.consistencyElements);
     setPendingCharacterData(null);
   }, [
     pendingCharacterData,
     setAge,
     setAppearance,
     setCharNegativePrompt,
+    setConsistencyElements,
     setDescription,
     setEra,
     setGender,
@@ -156,6 +160,7 @@ export function usePendingCharacterIntake(options: UsePendingCharacterIntakeOpti
     setSourceEpisodeId,
     setStoryYear,
     setStyleId,
+    setStageInfo,
     setTags,
     setTraits,
     setVisualPromptEn,

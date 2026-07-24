@@ -56,9 +56,10 @@ export function mergeStoryboardReplacement(previous: StoryboardItem, next: Story
   );
   const visualInputChanged = Boolean(
     next.mediaRef !== previous.mediaRef ||
-      next.imageWorkflowId !== previous.imageWorkflowId ||
-      next.imageWorkflowNodeId !== previous.imageWorkflowNodeId,
+    next.imageWorkflowId !== previous.imageWorkflowId ||
+    next.imageWorkflowNodeId !== previous.imageWorkflowNodeId,
   );
+  const carriedVisualReview = next.visualReview ?? previous.visualReview;
   if (freshWrite) {
     return {
       ...next,
@@ -67,13 +68,13 @@ export function mergeStoryboardReplacement(previous: StoryboardItem, next: Story
       staleSince: undefined,
       sourceFingerprint: nextFingerprint,
       outputVersion: (previous.outputVersion ?? 0) + 1,
-      visualReview: visualInputChanged && next.visualReview
+      visualReview: visualInputChanged && carriedVisualReview
         ? {
-            ...next.visualReview,
+            ...carriedVisualReview,
             status: "pending",
             reasons: ["分镜画面或连续性输入已变化，必须重新审核"],
           }
-        : next.visualReview,
+        : carriedVisualReview,
     };
   }
   if (sourceChanged && hasOutput) {
@@ -82,12 +83,20 @@ export function mergeStoryboardReplacement(previous: StoryboardItem, next: Story
       ...markStale(next, staleReason),
       sourceFingerprint: nextFingerprint,
       outputVersion: previous.outputVersion,
+      visualReview: carriedVisualReview
+        ? {
+            ...carriedVisualReview,
+            status: "pending",
+            reasons: ["分镜画面或连续性输入已变化，必须重新审核"],
+          }
+        : carriedVisualReview,
     };
   }
   return {
     ...next,
     sourceFingerprint: nextFingerprint,
     outputVersion: previous.outputVersion,
+    visualReview: carriedVisualReview,
   };
 }
 
@@ -111,6 +120,7 @@ export function storyboardSourceFingerprint(item: Partial<StoryboardItem>) {
     assetIds: item.assetIds ?? [],
     shouldGenerateImage: item.shouldGenerateImage,
     orderedReferenceManifest: item.orderedReferenceManifest ?? [],
+    shotSemantics: item.shotSemantics,
     continuityState: item.continuityState
       ? { ...item.continuityState, inputFingerprint: undefined }
       : undefined,

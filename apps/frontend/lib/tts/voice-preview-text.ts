@@ -1,5 +1,6 @@
 import type { VoiceProfile } from "@/types/tts";
 import type { StudioAssetSummary } from "@/types/studio-assets";
+import { normalizeReferenceText } from "./reference-text";
 
 export const MISSING_QWEN_REFERENCE_TEXT_MESSAGE =
   "该音色缺少参考音频的说话内容。请先在音频资产详情中生成说话内容，然后重新分配音色。";
@@ -33,12 +34,6 @@ export function findReferenceTextForVoiceProfile(
   return normalizeReferenceText(matchedAsset?.description)
     ?? normalizeReferenceLabel(matchedAsset?.name)
     ?? fallbackText;
-}
-
-function normalizeReferenceText(value?: string) {
-  const text = value?.trim();
-  if (!text || looksLikePath(text)) return undefined;
-  return text;
 }
 
 function normalizePath(value?: string) {
@@ -87,8 +82,4 @@ function isMeaningfulReferenceLabel(value: string) {
   if (/^[0-9a-f]{8}(?: [0-9a-f]{4}){3} [0-9a-f]{12}$/i.test(value)) return false;
   if (/^(ref|reference|voice|audio|sample|test)$/i.test(value)) return false;
   return value.length >= 4;
-}
-
-function looksLikePath(value: string) {
-  return /[\\/]/.test(value) || /\.(mp3|wav|m4a|aac|flac|ogg|opus)$/i.test(value);
 }

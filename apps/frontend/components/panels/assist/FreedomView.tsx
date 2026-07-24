@@ -1,11 +1,17 @@
 "use client";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useFreedomStore } from '@/stores/freedom-store';
+import { useFreedomStore, type StudioMode } from '@/stores/freedom-store';
 import { ImageStudio } from './ImageStudio';
 import { VideoStudio } from './VideoStudio';
 import { CinemaStudio } from './CinemaStudio';
 import { TtsStudio } from './TtsStudio';
+
+export const FREEDOM_STUDIO_MODES = ['image', 'video', 'cinema', 'tts'] as const;
+
+export function isFreedomStudioMode(value: string): value is StudioMode {
+  return FREEDOM_STUDIO_MODES.includes(value as StudioMode);
+}
 
 export function FreedomView() {
   const { activeStudio, setActiveStudio } = useFreedomStore();
@@ -14,7 +20,9 @@ export function FreedomView() {
     <div className="flex flex-col h-full bg-background overflow-hidden">
       <Tabs
         value={activeStudio}
-        onValueChange={(v) => setActiveStudio(v as any)}
+        onValueChange={(v) => {
+          if (isFreedomStudioMode(v)) setActiveStudio(v);
+        }}
         className="flex flex-col h-full"
       >
         <div className="h-12 border-b flex items-center px-4 shrink-0">

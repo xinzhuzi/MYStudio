@@ -2,6 +2,76 @@ import { describe, expect, it, vi } from "vitest";
 import { discoverProjectsFromDisk, recoverProjectFromDisk, useProjectStore } from "./project-store";
 
 describe("project disk recovery", () => {
+  it("keeps the stable persistence key and partialized project payload", () => {
+    const project = {
+      id: "p-contract",
+      name: "契约项目",
+      createdAt: 1,
+      updatedAt: 2,
+    };
+    const options = useProjectStore.persist.getOptions();
+    const partialize = options.partialize!;
+
+    expect(options.name).toBe("mystudio-project-store");
+    expect(partialize({
+      ...useProjectStore.getState(),
+      projects: [project],
+      activeProjectId: project.id,
+      activeProject: project,
+    })).toEqual({
+      projects: [project],
+      activeProjectId: project.id,
+    });
+  });
+
+  it("falls back to the default project when persisted projects is not an array", async () => {
+    const originalOptions = useProjectStore.persist.getOptions();
+    useProjectStore.persist.setOptions({
+      storage: {
+        getItem: vi.fn(async () => ({
+          state: { projects: { malformed: true }, activeProjectId: "malformed" },
+          version: -1,
+        })),
+        setItem: vi.fn(async () => undefined),
+        removeItem: vi.fn(async () => undefined),
+      },
+    });
+
+    try {
+      await expect(useProjectStore.persist.rehydrate()).resolves.toBeUndefined();
+      expect(useProjectStore.getState().projects).toEqual([
+        expect.objectContaining({ id: "default-project" }),
+      ]);
+      expect(useProjectStore.getState().activeProjectId).toBe("default-project");
+    } finally {
+      useProjectStore.persist.setOptions(originalOptions);
+    }
+  });
+
+  it("normalizes same-version malformed persisted projects before rehydration", async () => {
+    const originalOptions = useProjectStore.persist.getOptions();
+    useProjectStore.persist.setOptions({
+      storage: {
+        getItem: vi.fn(async () => ({
+          state: { projects: { malformed: true }, activeProjectId: "malformed" },
+          version: 0,
+        })),
+        setItem: vi.fn(async () => undefined),
+        removeItem: vi.fn(async () => undefined),
+      },
+    });
+
+    try {
+      await expect(useProjectStore.persist.rehydrate()).resolves.toBeUndefined();
+      expect(useProjectStore.getState().projects).toEqual([
+        expect.objectContaining({ id: "default-project" }),
+      ]);
+      expect(useProjectStore.getState().activeProjectId).toBe("default-project");
+    } finally {
+      useProjectStore.persist.setOptions(originalOptions);
+    }
+  });
+
   it("deletes project state without touching window outside the renderer", () => {
     const previousWindow = globalThis.window;
     Reflect.deleteProperty(globalThis, "window");

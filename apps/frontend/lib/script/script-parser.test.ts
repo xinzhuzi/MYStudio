@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { callChatAPI } from "./script-parser";
+import { callChatAPI, parseScript } from "./script-parser";
 import { normalizeScriptData, normalizeTimeValue } from "./script-data-normalizer";
 import { detectInputType } from "./input-type-detector";
 
@@ -119,6 +119,63 @@ describe("callChatAPI auto thinking mode", () => {
     expect(body.thinking).toBeUndefined();
     expect(body.reasoning_effort).toBeUndefined();
     expect(body.enable_thinking).toBeUndefined();
+  });
+});
+
+describe("parseScript API normalization", () => {
+  let fetchMock: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    fetchMock = vi.fn().mockResolvedValue(jsonResponse(JSON.stringify({
+      title: "夜巷追逃",
+      scenes: [
+        {
+          name: "夜巷",
+          location: "巷口",
+          time: "夜间",
+        },
+      ],
+      storyParagraphs: [
+        {
+          id: 7,
+          text: "甲：快走！",
+          sceneRefId: "scene_1",
+        },
+      ],
+    })));
+    vi.stubGlobal("fetch", fetchMock);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it("preserves paragraphs and normalizes model output without scene ids", async () => {
+    const result = await parseScript("甲在夜巷中追逃。", {
+      apiKey: "sk-test",
+      provider: "openai",
+      baseUrl: "https://relay.example.com/v1",
+      model: "gpt-4o-mini",
+      sceneCount: 1,
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(result.scenes[0]).toMatchObject({
+      id: "scene_1",
+      name: "夜巷",
+      location: "巷口",
+      time: "night",
+    });
+    expect(result.storyParagraphs[0]).toMatchObject({
+      id: 7,
+      text: "甲：快走！",
+      sceneRefId: "scene_1",
+    });
+
+    const body = lastRequestBody(fetchMock);
+    const messages = body.messages as Array<{ role: string; content: string }>;
+    expect(messages[1]?.content).toContain("请仅提取最重要的 1 个场景");
   });
 });
 

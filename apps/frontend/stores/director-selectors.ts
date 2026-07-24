@@ -1,5 +1,5 @@
 import type { SceneProgress } from "@opencut/ai-core";
-import type { DirectorProjectData, DirectorStore } from "./director-store";
+import type { DirectorProjectData, DirectorStore } from "./director-store-types";
 
 function getSceneProgress(state: DirectorStore): Map<number, SceneProgress> {
   return state.sceneProgress instanceof Map ? state.sceneProgress : new Map();

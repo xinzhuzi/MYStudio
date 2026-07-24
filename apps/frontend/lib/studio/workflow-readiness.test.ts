@@ -481,6 +481,29 @@ describe("studio workflow readiness", () => {
     expect(workbench?.missing).toContain("生成候选片段");
   });
 
+  it("disables render-track actions when the local renderer is unavailable", () => {
+    const input = readyWorkbenchInput();
+    const readiness = buildWorkflowReadiness({
+      ...input,
+      productionTracks: input.productionTracks.map((track) => ({
+        ...track,
+        selectedVideoId: undefined,
+      })),
+      capabilities: { textCompletion: true, studioRenderer: false },
+      fileExists: () => true,
+    });
+
+    expect(readiness.nextStageId).toBe("workbench");
+    expect(readiness.nextAction).toEqual({
+      kind: "render-track",
+      stageId: "workbench",
+      label: "生成候选片段",
+      targetId: "track-1",
+      enabled: false,
+      disabledReason: "当前环境不支持本地渲染",
+    });
+  });
+
   it("requires a revision-matched complete timeline render record", () => {
     const project = editingProject({ revision: 2 });
     const record = timelineRenderRecord({ editingRevision: 1 });
@@ -498,6 +521,33 @@ describe("studio workflow readiness", () => {
     ).toMatchObject({
       status: "active",
       completed: expect.arrayContaining(["当前剪辑版本 v2 已就绪"]),
+      missing: ["重新执行当前剪辑版本的时间线成片"],
+    });
+  });
+
+  it("requires current timeline evidence to point to an mp4 artifact", () => {
+    const project = editingProject();
+    const record = timelineRenderRecord({
+      evidence: {
+        ...timelineRenderRecord().evidence,
+        path: "/tmp/final.mov",
+      },
+    });
+    const readiness = buildWorkflowReadiness({
+      ...readyWorkbenchInput(),
+      episodeId: "episode-1",
+      editingProjects: { [project.id]: project },
+      currentEditingProjectIdByEpisode: { "episode-1": project.id },
+      timelineRenderRecordsByEditingProjectId: { [project.id]: record },
+      fileExists: () => true,
+    });
+
+    expect(readiness.progress).toBe(83);
+    expect(
+      readiness.stages.find((stage) => stage.id === "workbench"),
+    ).toMatchObject({
+      status: "active",
+      completed: expect.arrayContaining(["当前剪辑版本 v1 已就绪"]),
       missing: ["重新执行当前剪辑版本的时间线成片"],
     });
   });

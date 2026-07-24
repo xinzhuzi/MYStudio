@@ -1,6 +1,6 @@
 // 大型品牌 SVG 图标（2000+ chars）
 // 源自 MemeFast pricing 页面 lobe-icons
-import type { BrandIconFn } from "./index";
+import type { BrandIconFn } from "./brand-icon-types";
 
 export const iconsLarge: Record<string, BrandIconFn> = {
   deepseek: (s) => (

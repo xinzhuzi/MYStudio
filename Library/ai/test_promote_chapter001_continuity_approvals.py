@@ -16,6 +16,7 @@ from Library.ai.promote_chapter001_continuity_approvals import (
     continuity_asset_approval_fingerprint,
     continuity_asset_content_fingerprint,
     normalize_continuity_asset_version,
+    promote_human_approved_candidate,
     promote_human_approval,
     validate_review_evidence,
 )
@@ -289,6 +290,181 @@ class PromoteChapter001ContinuityApprovalsTest(unittest.TestCase):
         accepted.write_bytes(accepted.read_bytes() + b"\0" * (MAX_EVIDENCE_BYTES - 1 - accepted.stat().st_size))
         result = validate_review_evidence([accepted])
         self.assertEqual(result[0]["bytes"], MAX_EVIDENCE_BYTES - 1)
+
+
+class PromoteHumanApprovedCandidateTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.temporary = tempfile.TemporaryDirectory()
+        self.root = Path(self.temporary.name)
+        self.store_path = self.root / "studio-workflow-store.json"
+        self.asset_id = "prop-candidate"
+        self.version_id = f"{self.asset_id}:base:v1"
+        self.candidate = self.root / "candidate.png"
+        self.thumbnail = self.root / "candidate_thumb.png"
+        Image.new("RGB", (64, 64), (180, 40, 30)).save(self.candidate, format="PNG")
+        Image.new("RGB", (64, 64), (180, 40, 30)).save(self.thumbnail, format="PNG")
+        self.audit_path = self.root / "candidate.color-audit.json"
+        self.audit_path.write_text(json.dumps({
+            "status": "pass",
+            "failedGates": [],
+            "chromaticPixelRatio": 0.4,
+            "chromaticBand": [0.3, 0.7],
+        }), encoding="utf-8")
+        self.review_path = self.root / "candidate-review.json"
+        self.review_path.write_text(json.dumps({
+            "schemaVersion": "daojie-continuity-asset-review-v1",
+            "status": "pending-human-review",
+            "candidateId": "fire-seal-v1",
+            "assetId": self.asset_id,
+            "assetName": "太一宗火印",
+            "providerRequest": {"status": "completed"},
+            "reviewCandidate": {
+                "kind": "non-destructive-tight-crop",
+                "path": str(self.candidate),
+                "sha256": self.sha256_path(self.candidate),
+                "width": 64,
+                "height": 64,
+                "bytes": self.candidate.stat().st_size,
+                "thumbnail": {
+                    "path": str(self.thumbnail),
+                    "sha256": self.sha256_path(self.thumbnail),
+                    "width": 64,
+                    "height": 64,
+                    "bytes": self.thumbnail.stat().st_size,
+                },
+                "colorAudit": {
+                    "status": "pass",
+                    "chromaticPixelRatio": 0.4,
+                    "chromaticBand": [0.3, 0.7],
+                    "reportPath": str(self.audit_path),
+                },
+            },
+            "semanticAssessment": {
+                "flatVermilionImprint": True,
+                "basketSideCompatible": True,
+                "shipBowCompatible": True,
+                "isPedestalOrPhysicalFireTotem": False,
+                "containsReadableText": False,
+                "containsWatermark": False,
+            },
+            "productionStoreMutated": False,
+            "assetApproved": False,
+        }), encoding="utf-8")
+        self.approval_path = self.root / "candidate-approval.json"
+        self.approval_path.write_text(json.dumps({
+            "schemaVersion": "daojie-continuity-asset-human-approval-v1",
+            "recordedAt": "2026-07-20T01:59:59Z",
+            "reviewer": "human",
+            "userStatement": "批准火印候选",
+            "status": "approved",
+            "assetId": self.asset_id,
+            "candidateId": "fire-seal-v1",
+            "reviewRecord": {"path": str(self.review_path), "sha256": self.sha256_path(self.review_path)},
+            "approvedImage": {"path": str(self.candidate), "sha256": self.sha256_path(self.candidate)},
+            "reviewEvidence": {"path": str(self.thumbnail), "sha256": self.sha256_path(self.thumbnail)},
+            "scope": {
+                "approveCandidateOnly": True,
+                "allowNonOverwritingContinuityVersionPromotion": True,
+                "allowStoryboardVisualApproval": False,
+                "allowAdditionalPaidRequest": False,
+            },
+        }), encoding="utf-8")
+        existing = {
+            "assetId": "prop-existing",
+            "versionId": "prop-existing:base:v1",
+            "assetKind": "prop",
+            "label": "existing",
+            "referenceImagePaths": [str(self.candidate)],
+            "referenceImageSha256": [self.sha256_path(self.candidate)],
+            "source": "test",
+            "structurallyComplete": True,
+            "contentFingerprint": "existing",
+            "approved": False,
+        }
+        self.store_path.write_text(json.dumps({
+            "version": 0,
+            "state": {
+                "continuityAssetVersions": [existing],
+                "storyboards": [{
+                    "id": "sb-001",
+                    "orderedReferenceManifest": [{
+                        "assetId": self.asset_id,
+                        "versionId": self.version_id,
+                        "approved": False,
+                    }],
+                    "visualReview": {"status": "pending"},
+                    "stale": True,
+                }],
+            },
+        }), encoding="utf-8")
+
+    def tearDown(self) -> None:
+        self.temporary.cleanup()
+
+    @staticmethod
+    def sha256_path(path: Path) -> str:
+        return hashlib.sha256(path.read_bytes()).hexdigest()
+
+    def promote(self, **overrides: object) -> dict[str, object]:
+        arguments: dict[str, object] = {
+            "store_path": self.store_path,
+            "review_path": self.review_path,
+            "approval_record_path": self.approval_path,
+            "asset_id": self.asset_id,
+            "version_id": self.version_id,
+            "evidence_paths": [self.thumbnail],
+        }
+        arguments.update(overrides)
+        return promote_human_approved_candidate(**arguments)
+
+    def test_candidate_dry_run_is_non_mutating(self) -> None:
+        before = self.store_path.read_bytes()
+        report = self.promote()
+        self.assertTrue(report["dryRun"])
+        self.assertTrue(report["changed"])
+        self.assertFalse(Path(str(report["canonicalReference"]["targetPath"])).exists())
+        self.assertEqual(self.store_path.read_bytes(), before)
+
+    def test_candidate_apply_appends_approved_version_without_overwrite(self) -> None:
+        before = json.loads(self.store_path.read_text(encoding="utf-8"))
+        report = self.promote(apply=True, human_confirmed=True)
+        after = json.loads(self.store_path.read_text(encoding="utf-8"))
+        target = Path(str(report["canonicalReference"]["targetPath"]))
+        self.assertTrue(target.is_file())
+        self.assertEqual(self.sha256_path(target), self.sha256_path(self.candidate))
+        self.assertEqual(after["state"]["continuityAssetVersions"][0], before["state"]["continuityAssetVersions"][0])
+        promoted = after["state"]["continuityAssetVersions"][1]
+        self.assertEqual(promoted["versionId"], self.version_id)
+        self.assertTrue(promoted["approved"])
+        self.assertTrue(Path(str(report["backup"])).is_file())
+        reference = after["state"]["storyboards"][0]["orderedReferenceManifest"][0]
+        self.assertTrue(reference["approved"])
+
+    def test_candidate_apply_requires_confirmation_and_rejects_tampering(self) -> None:
+        with self.assertRaisesRegex(RuntimeError, "--apply 与 --human-confirmed"):
+            self.promote(apply=True)
+        self.candidate.write_bytes(self.candidate.read_bytes() + b"tampered")
+        with self.assertRaisesRegex(RuntimeError, "SHA-256 不匹配"):
+            self.promote()
+
+    def test_candidate_cli_dry_run(self) -> None:
+        completed = subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPT_PATH),
+                "--store", str(self.store_path),
+                "--candidate-review", str(self.review_path),
+                "--human-approval-record", str(self.approval_path),
+                "--asset-id", self.asset_id,
+                "--version-id", self.version_id,
+                "--evidence", str(self.thumbnail),
+            ],
+            cwd=REPOSITORY_ROOT,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        self.assertTrue(json.loads(completed.stdout)["dryRun"])
 
 
 if __name__ == "__main__":

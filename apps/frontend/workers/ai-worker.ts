@@ -12,52 +12,24 @@ import type {
   WorkerEvent,
   PingCommand,
   GenerateScreenplayCommand,
+  ExecuteScreenplayCommand,
+  ExecuteScreenplayImagesCommand,
+  ExecuteScreenplayVideosCommand,
   ExecuteSceneCommand,
   CancelCommand,
 } from '@opencut/ai-core/protocol';
-import type { AIScreenplay, AIScene, GenerationConfig, AICharacter, CharacterBibleLike } from '@opencut/ai-core';
+import type { AIScene, GenerationConfig, AICharacter, CharacterBibleLike } from '@opencut/ai-core';
 import { PromptCompiler } from '@opencut/ai-core/services/prompt-compiler';
 import { TaskPoller } from '@opencut/ai-core/api/task-poller';
-import { createWorkerApi, buildApiUrl } from './ai-worker-api';
+import { createWorkerApi } from './ai-worker-api';
+import { createWorkerRunLifecycle, type WorkerRun } from './worker-run-lifecycle';
+import { createWorkerSceneEventReporter } from './worker-scene-events';
+import { handleGenerateScreenplayCommand } from './worker-screenplay-handler';
 
 const WORKER_VERSION = '0.3.1';
 
 // Base URL for API requests (passed from main thread)
 let apiBaseUrl = '';
-
-// Helper to build API URL
-
-// API Response types
-interface ScreenplayAPIResponse {
-  screenplay: AIScreenplay;
-  error?: string;
-}
-
-interface ImageAPIResponse {
-  taskId?: string;
-  imageUrl?: string;
-  status: 'pending' | 'processing' | 'completed' | 'failed';
-  error?: string;
-}
-
-interface VideoAPIResponse {
-  taskId?: string;
-  videoUrl?: string;
-  status: 'pending' | 'processing' | 'completed' | 'failed';
-  error?: string;
-}
-
-interface TaskStatusResponse {
-  taskId: string;
-  status: 'pending' | 'processing' | 'completed' | 'failed';
-  progress?: number;
-  result?: {
-    url?: string;
-    imageUrl?: string;
-    videoUrl?: string;
-  };
-  error?: string;
-}
 
 // Prompt compiler instance
 const promptCompiler = new PromptCompiler();
@@ -75,15 +47,33 @@ function getBibleCharacters(characterBible?: CharacterBibleLike | string, fallba
 
 // ==================== State ====================
 
-let cancelled = false;
-const workerApi = createWorkerApi({ getApiBaseUrl: () => apiBaseUrl, isCancelled: () => cancelled });
+const workerRuns = createWorkerRunLifecycle();
+const legacyWorkerApi = createWorkerApi({ getApiBaseUrl: () => apiBaseUrl, isCancelled: () => false });
 // Legacy helper bodies below are retained as private compatibility scaffolding;
 // route their polling call through the extracted API client so they cannot drift.
-const pollTaskCompletion = workerApi.pollTaskCompletion;
+const pollTaskCompletion = legacyWorkerApi.pollTaskCompletion;
 
 // Kept only for backwards-compatible local references in legacy dead code.
 const assertImageReadyForNetwork = (_source: string): void => undefined;
 const assertImagesReadyForNetwork = (_sources?: string[]): void => undefined;
+
+type WorkerApi = ReturnType<typeof createWorkerApi>;
+
+function beginRun(requestedRunId?: number): { run: WorkerRun; api: WorkerApi } {
+  const run = workerRuns.begin(requestedRunId);
+  return {
+    run,
+    api: createWorkerApi({
+      getApiBaseUrl: () => apiBaseUrl,
+      isCancelled: () => !workerRuns.isCurrent(run),
+      signal: run.controller.signal,
+    }),
+  };
+}
+
+function isCancelled(run: WorkerRun): boolean {
+  return !workerRuns.isCurrent(run);
+}
 
 // ==================== Message Handler ====================
 
@@ -125,13 +115,14 @@ self.onmessage = async (e: MessageEvent<WorkerCommand>) => {
     }
   } catch (error) {
     const err = error as Error;
+    const runId = 'runId' in command ? command.runId : undefined;
     postEvent({
       type: 'WORKER_ERROR',
       payload: {
         message: err.message,
         stack: err.stack,
       },
-    });
+    }, undefined, runId);
   }
 };
 
@@ -148,73 +139,15 @@ function handlePing(command: PingCommand): void {
 }
 
 async function handleGenerateScreenplay(command: GenerateScreenplayCommand): Promise<void> {
-  const { prompt, referenceImages, config } = command.payload;
-  
-  console.log('[AI Worker] Generating screenplay for prompt:', prompt.substring(0, 100));
-  console.log('[AI Worker] Config received:', JSON.stringify(config, null, 2));
-  
-  try {
-    // Check for mock mode
-    const mockMode = (config as any).mockMode || false;
-    
-    // Set baseUrl if provided
-    if ((config as any).baseUrl) {
-      apiBaseUrl = (config as any).baseUrl;
-    }
-    
-    // Note: API key should be passed from main thread in config
-    // The main thread gets it from useAPIConfigStore
-    const apiKey = (config as any).apiKey || '';
-    const provider = (config as any).chatProvider || 'memefast';
-    const sceneCount = config.sceneCount || 5;
-    
-    console.log('[AI Worker] Using sceneCount:', sceneCount);
-    
-    // Only require API key if not in mock mode
-    if (!apiKey && !mockMode) {
-      throw new Error('未配置 API Key，请在设置中添加或启用 Mock 模式');
-    }
-    
-    // Call the backend API with correct schema
-    // Note: Pass raw prompt, API route will compile it with sceneCount
-    const response = await fetch(buildApiUrl('/api/ai/screenplay', apiBaseUrl), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        prompt,
-        sceneCount,
-        aspectRatio: config.aspectRatio || '9:16',
-        apiKey,
-        provider,
-        mockMode,
-      }),
-    });
-    
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      const errorMsg = errorData.message || errorData.error || `API request failed: ${response.status}`;
-      console.error('[AI Worker] Screenplay API error:', response.status, errorData);
-      throw new Error(errorMsg);
-    }
-    
-    // API returns screenplay directly, not wrapped in { screenplay: ... }
-    const screenplay: AIScreenplay = await response.json();
-    
-    postEvent({
-      type: 'SCREENPLAY_READY',
-      payload: screenplay,
-    });
-  } catch (error) {
-    const err = error as Error;
-    console.error('[AI Worker] Screenplay generation error:', err);
-    postEvent({
-      type: 'SCREENPLAY_ERROR',
-      payload: {
-        error: err.message,
-        details: err.stack,
-      },
-    });
-  }
+  return handleGenerateScreenplayCommand(command, {
+    beginRun,
+    getApiBaseUrl: () => apiBaseUrl,
+    isCancelled,
+    postEvent,
+    setApiBaseUrl: (baseUrl) => {
+      apiBaseUrl = baseUrl;
+    },
+  });
 }
 
 /**
@@ -229,7 +162,7 @@ async function legacyGenerateImage(
   onProgress?: (progress: number) => void,
   referenceImages?: string[]
 ): Promise<string> {
-  return workerApi.generateImage(prompt, negativePrompt, config, onProgress, referenceImages);
+  return legacyWorkerApi.generateImage(prompt, negativePrompt, config, onProgress, referenceImages);
 }
 
 /**
@@ -244,7 +177,7 @@ async function legacyGenerateVideo(
   onProgress?: (progress: number) => void,
   referenceImages?: string[]
 ): Promise<string> {
-  return workerApi.generateVideo(imageUrl, prompt, config, onProgress, referenceImages);
+  return legacyWorkerApi.generateVideo(imageUrl, prompt, config, onProgress, referenceImages);
 }
 
 /**
@@ -257,30 +190,30 @@ async function legacyPollTaskCompletion(
   provider: string,
   onProgress?: (progress: number) => void
 ): Promise<string> {
-  return workerApi.pollTaskCompletion(taskId, type, apiKey, provider, onProgress);
+  return legacyWorkerApi.pollTaskCompletion(taskId, type, apiKey, provider, onProgress);
 }
 
 /**
  * Helper: Download URL content as Blob
  */
 async function legacyFetchAsBlob(url: string): Promise<Blob> {
-  return workerApi.fetchAsBlob(url);
+  return legacyWorkerApi.fetchAsBlob(url);
 }
 
 async function handleExecuteScene(command: ExecuteSceneCommand): Promise<void> {
   const { screenplayId, scene, config, characterBible, characterReferenceImages } = command.payload;
-  cancelled = false; // 新操作启动时重置取消标志
+  const { run, api } = beginRun(command.runId);
 
   console.log(`[AI Worker] Executing scene ${scene.sceneId} for screenplay ${screenplayId}`);
   
   // Check cancellation
-  if (cancelled) {
-    reportSceneFailed(screenplayId, scene.sceneId, 'Cancelled', false);
+  if (isCancelled(run)) {
+    reportSceneFailed(run, screenplayId, scene.sceneId, 'Cancelled', false);
     return;
   }
   
   // Report progress: starting image generation
-  reportSceneProgress(screenplayId, scene.sceneId, 'generating', 'image', 0);
+  reportSceneProgress(run, screenplayId, scene.sceneId, 'generating', 'image', 0);
   
   try {
     // Extract characters from bible for consistency
@@ -303,37 +236,37 @@ async function handleExecuteScene(command: ExecuteSceneCommand): Promise<void> {
     
     // Generate image with progress tracking
     // Pass character reference images for visual consistency
-    const imageUrl = await workerApi.generateImage(
+    const imageUrl = await api.generateImage(
       imagePrompt,
       negativePrompt,
       config,
       (progress) => {
         // Map image progress to 0-45%
         const mappedProgress = Math.floor(progress * 0.45);
-        reportSceneProgress(screenplayId, scene.sceneId, 'generating', 'image', mappedProgress);
+        reportSceneProgress(run, screenplayId, scene.sceneId, 'generating', 'image', mappedProgress);
       },
       refImages // Character reference images
     );
     
-    reportSceneProgress(screenplayId, scene.sceneId, 'generating', 'image', 45);
+    reportSceneProgress(run, screenplayId, scene.sceneId, 'generating', 'image', 45);
     console.log('[AI Worker] Image generated:', imageUrl);
     
     // ========== Stage 2: Video Generation ==========
     const videoPrompt = promptCompiler.compileSceneVideoPrompt(scene, characters);
     
     console.log('[AI Worker] Video prompt:', videoPrompt.substring(0, 100));
-    reportSceneProgress(screenplayId, scene.sceneId, 'generating', 'video', 50);
+    reportSceneProgress(run, screenplayId, scene.sceneId, 'generating', 'video', 50);
     
     // Generate video with progress tracking
     // Pass character reference images for visual consistency in video
-    const videoUrl = await workerApi.generateVideo(
+    const videoUrl = await api.generateVideo(
       imageUrl,
       videoPrompt,
       config,
       (progress) => {
         // Map video progress to 50-95%
         const mappedProgress = 50 + Math.floor(progress * 0.45);
-        reportSceneProgress(screenplayId, scene.sceneId, 'generating', 'video', mappedProgress);
+        reportSceneProgress(run, screenplayId, scene.sceneId, 'generating', 'video', mappedProgress);
       },
       refImages // Character reference images
     );
@@ -341,13 +274,13 @@ async function handleExecuteScene(command: ExecuteSceneCommand): Promise<void> {
     console.log('[AI Worker] Video generated:', videoUrl);
     
     // ========== Stage 3: Download and Create Blob ==========
-    reportSceneProgress(screenplayId, scene.sceneId, 'generating', 'video', 95);
+    reportSceneProgress(run, screenplayId, scene.sceneId, 'generating', 'video', 95);
     
     // Download the video as blob
-    const videoBlob = await workerApi.fetchAsBlob(videoUrl);
+    const videoBlob = await api.fetchAsBlob(videoUrl);
     
     // ========== Complete ==========
-    reportSceneProgress(screenplayId, scene.sceneId, 'completed', 'done', 100);
+    reportSceneProgress(run, screenplayId, scene.sceneId, 'completed', 'done', 100);
     
     // Send the completed scene with media blob
     postEvent({
@@ -363,69 +296,26 @@ async function handleExecuteScene(command: ExecuteSceneCommand): Promise<void> {
           mimeType: 'video/mp4',
         },
       },
-    });
+    }, run);
     
   } catch (error) {
     const err = error as Error;
     const isCancelled = err.message === 'Cancelled';
     console.error(`[AI Worker] Scene ${scene.sceneId} failed:`, err);
-    reportSceneFailed(screenplayId, scene.sceneId, err.message, !isCancelled);
+    reportSceneFailed(run, screenplayId, scene.sceneId, err.message, !isCancelled);
   }
 }
 
-/**
- * Helper: Report scene progress
- */
-function reportSceneProgress(
-  screenplayId: string,
-  sceneId: number,
-  status: 'pending' | 'generating' | 'completed' | 'failed',
-  stage: 'idle' | 'image' | 'video' | 'audio' | 'done',
-  progress: number
-): void {
-  postEvent({
-    type: 'SCENE_PROGRESS',
-    payload: {
-      screenplayId,
-      sceneId,
-      progress: {
-        sceneId,
-        status,
-        stage,
-        progress,
-      },
-    },
-  });
-}
-
-/**
- * Helper: Report scene failed
- */
-function reportSceneFailed(
-  screenplayId: string,
-  sceneId: number,
-  error: string,
-  retryable: boolean
-): void {
-  postEvent({
-    type: 'SCENE_FAILED',
-    payload: {
-      screenplayId,
-      sceneId,
-      error,
-      retryable,
-    },
-  });
-}
+const { reportSceneProgress, reportSceneFailed } = createWorkerSceneEventReporter(postEvent);
 
 
 /**
  * Handle EXECUTE_SCREENPLAY command
  * Executes all scenes in the screenplay sequentially (or with limited concurrency)
  */
-async function handleExecuteScreenplay(command: { type: string; payload: { screenplay: AIScreenplay; config: GenerationConfig } }): Promise<void> {
+async function handleExecuteScreenplay(command: ExecuteScreenplayCommand): Promise<void> {
   const { screenplay, config } = command.payload;
-  cancelled = false; // 新操作启动时重置取消标志
+  const { run, api } = beginRun(command.runId);
 
   console.log(`[AI Worker] Executing screenplay ${screenplay.id} with ${screenplay.scenes.length} scenes`);
   
@@ -464,7 +354,7 @@ async function handleExecuteScreenplay(command: { type: string; payload: { scree
   
   // Process scenes in batches
   for (let i = 0; i < scenes.length; i += concurrency) {
-    if (cancelled) {
+    if (isCancelled(run)) {
       console.log('[AI Worker] Screenplay execution cancelled');
       break;
     }
@@ -475,7 +365,7 @@ async function handleExecuteScreenplay(command: { type: string; payload: { scree
     await Promise.allSettled(
       batch.map(async (scene) => {
         try {
-          await executeSceneInternal(screenplay.id, scene, extendedConfig, screenplay.characterBible, characterReferenceImages);
+          await executeSceneInternal(run, api, screenplay.id, scene, extendedConfig, screenplay.characterBible, characterReferenceImages);
           completedCount++;
         } catch (error) {
           failedCount++;
@@ -495,7 +385,7 @@ async function handleExecuteScreenplay(command: { type: string; payload: { scree
       failedCount,
       totalCount: scenes.length,
     },
-  });
+  }, run);
   
   console.log(`[AI Worker] Screenplay execution complete: ${completedCount} completed, ${failedCount} failed`);
 }
@@ -504,9 +394,9 @@ async function handleExecuteScreenplay(command: { type: string; payload: { scree
  * Handle EXECUTE_SCREENPLAY_IMAGES command
  * Generates images for all scenes (Step 1 of two-step flow)
  */
-async function handleExecuteScreenplayImages(command: { type: string; payload: { screenplay: AIScreenplay; config: GenerationConfig } }): Promise<void> {
+async function handleExecuteScreenplayImages(command: ExecuteScreenplayImagesCommand): Promise<void> {
   const { screenplay, config } = command.payload;
-  cancelled = false; // 新操作启动时重置取消标志
+  const { run, api } = beginRun(command.runId);
 
   console.log(`[AI Worker] Generating images for screenplay ${screenplay.id} with ${screenplay.scenes.length} scenes`);
   
@@ -523,7 +413,7 @@ async function handleExecuteScreenplayImages(command: { type: string; payload: {
   const concurrency = config.concurrency || 1;
   
   console.log('[AI Worker] Config apiKeys:', JSON.stringify(apiKeys));
-  console.log('[AI Worker] Config keys:', Object.keys(config as any));
+  console.log('[AI Worker] Config keys:', Object.keys(config));
   
   // Validate API key (required for image generation)
   const imageKey = apiKeys.memefast || '';
@@ -538,10 +428,10 @@ async function handleExecuteScreenplayImages(command: { type: string; payload: {
         totalCount: screenplay.scenes.length,
         error: '未配置图片生成 API Key，请在服务映射中配置',
       },
-    });
+    }, run);
     // Also report failure for each scene
     for (const scene of screenplay.scenes) {
-      reportSceneFailed(screenplay.id, scene.sceneId, '未配置图片生成 API Key', false);
+      reportSceneFailed(run, screenplay.id, scene.sceneId, '未配置图片生成 API Key', false);
     }
     return;
   }
@@ -567,7 +457,7 @@ async function handleExecuteScreenplayImages(command: { type: string; payload: {
   
   // Process scenes in batches
   for (let i = 0; i < scenes.length; i += concurrency) {
-    if (cancelled) {
+    if (isCancelled(run)) {
       console.log('[AI Worker] Image generation cancelled');
       break;
     }
@@ -578,7 +468,7 @@ async function handleExecuteScreenplayImages(command: { type: string; payload: {
     await Promise.allSettled(
       batch.map(async (scene) => {
         try {
-          await generateSceneImageOnly(screenplay.id, scene, extendedConfig, screenplay.characterBible, characterReferenceImages);
+          await generateSceneImageOnly(run, api, screenplay.id, scene, extendedConfig, screenplay.characterBible, characterReferenceImages);
           completedCount++;
         } catch (error) {
           failedCount++;
@@ -598,7 +488,7 @@ async function handleExecuteScreenplayImages(command: { type: string; payload: {
       failedCount,
       totalCount: scenes.length,
     },
-  });
+  }, run);
   
   console.log(`[AI Worker] Image generation complete: ${completedCount} completed, ${failedCount} failed`);
 }
@@ -607,9 +497,9 @@ async function handleExecuteScreenplayImages(command: { type: string; payload: {
  * Handle EXECUTE_SCREENPLAY_VIDEOS command
  * Generates videos from existing scene images (Step 2 of two-step flow)
  */
-async function handleExecuteScreenplayVideos(command: { type: string; payload: { screenplay: AIScreenplay; config: GenerationConfig } }): Promise<void> {
+async function handleExecuteScreenplayVideos(command: ExecuteScreenplayVideosCommand): Promise<void> {
   const { screenplay, config } = command.payload;
-  cancelled = false; // 新操作启动时重置取消标志
+  const { run, api } = beginRun(command.runId);
 
   console.log(`[AI Worker] Generating videos for screenplay ${screenplay.id} with ${screenplay.scenes.length} scenes`);
   
@@ -649,7 +539,7 @@ async function handleExecuteScreenplayVideos(command: { type: string; payload: {
   
   // Process scenes in batches
   for (let i = 0; i < scenes.length; i += concurrency) {
-    if (cancelled) {
+    if (isCancelled(run)) {
       console.log('[AI Worker] Video generation cancelled');
       break;
     }
@@ -664,7 +554,7 @@ async function handleExecuteScreenplayVideos(command: { type: string; payload: {
           if (!scene.imageUrl) {
             throw new Error(`Scene ${scene.sceneId} has no image, cannot generate video`);
           }
-          await generateSceneVideoOnly(screenplay.id, scene, extendedConfig, screenplay.characterBible, characterReferenceImages);
+          await generateSceneVideoOnly(run, api, screenplay.id, scene, extendedConfig, screenplay.characterBible, characterReferenceImages);
           completedCount++;
         } catch (error) {
           failedCount++;
@@ -684,7 +574,7 @@ async function handleExecuteScreenplayVideos(command: { type: string; payload: {
       failedCount,
       totalCount: scenes.length,
     },
-  });
+  }, run);
   
   console.log(`[AI Worker] Video generation complete: ${completedCount} completed, ${failedCount} failed`);
 }
@@ -693,6 +583,8 @@ async function handleExecuteScreenplayVideos(command: { type: string; payload: {
  * Generate image only for a scene (used in two-step flow)
  */
 async function generateSceneImageOnly(
+  run: WorkerRun,
+  api: WorkerApi,
   screenplayId: string,
   scene: AIScene,
   config: GenerationConfig & { mockImage?: boolean },
@@ -702,13 +594,13 @@ async function generateSceneImageOnly(
   console.log(`[AI Worker] Generating image for scene ${scene.sceneId}`);
   
   // Check cancellation
-  if (cancelled) {
-    reportSceneFailed(screenplayId, scene.sceneId, 'Cancelled', false);
+  if (isCancelled(run)) {
+    reportSceneFailed(run, screenplayId, scene.sceneId, 'Cancelled', false);
     throw new Error('Cancelled');
   }
   
   // Report progress: starting image generation
-  reportSceneProgress(screenplayId, scene.sceneId, 'generating', 'image', 0);
+  reportSceneProgress(run, screenplayId, scene.sceneId, 'generating', 'image', 0);
   
   // Mock mode check
   if (config.mockImage) {
@@ -716,9 +608,9 @@ async function generateSceneImageOnly(
     
     // Simulate progress
     for (let p = 0; p <= 100; p += 25) {
-      if (cancelled) throw new Error('Cancelled');
+      if (isCancelled(run)) throw new Error('Cancelled');
       await sleep(200);
-      reportSceneProgress(screenplayId, scene.sceneId, 'generating', 'image', p / 2);
+      reportSceneProgress(run, screenplayId, scene.sceneId, 'generating', 'image', p / 2);
     }
     
     const mockImageUrl = `https://picsum.photos/seed/${scene.sceneId}/1280/720`;
@@ -731,7 +623,7 @@ async function generateSceneImageOnly(
         sceneId: scene.sceneId,
         imageUrl: mockImageUrl,
       },
-    });
+    }, run);
     
     return;
   }
@@ -755,12 +647,12 @@ async function generateSceneImageOnly(
     console.log('[AI Worker] Image prompt:', imagePrompt.substring(0, 100));
     
     // Generate image with progress tracking
-    const imageUrl = await workerApi.generateImage(
+    const imageUrl = await api.generateImage(
       imagePrompt,
       negativePrompt,
       config,
       (progress) => {
-        reportSceneProgress(screenplayId, scene.sceneId, 'generating', 'image', Math.floor(progress * 0.5));
+        reportSceneProgress(run, screenplayId, scene.sceneId, 'generating', 'image', Math.floor(progress * 0.5));
       },
       refImages
     );
@@ -775,13 +667,13 @@ async function generateSceneImageOnly(
         sceneId: scene.sceneId,
         imageUrl,
       },
-    });
+    }, run);
     
   } catch (error) {
     const err = error as Error;
     const isCancelled = err.message === 'Cancelled';
     console.error(`[AI Worker] Scene ${scene.sceneId} image failed:`, err);
-    reportSceneFailed(screenplayId, scene.sceneId, err.message, !isCancelled);
+    reportSceneFailed(run, screenplayId, scene.sceneId, err.message, !isCancelled);
     throw error;
   }
 }
@@ -790,6 +682,8 @@ async function generateSceneImageOnly(
  * Generate video only for a scene (used in two-step flow)
  */
 async function generateSceneVideoOnly(
+  run: WorkerRun,
+  api: WorkerApi,
   screenplayId: string,
   scene: AIScene,
   config: GenerationConfig & { mockVideo?: boolean },
@@ -799,13 +693,13 @@ async function generateSceneVideoOnly(
   console.log(`[AI Worker] Generating video for scene ${scene.sceneId}`);
   
   // Check cancellation
-  if (cancelled) {
-    reportSceneFailed(screenplayId, scene.sceneId, 'Cancelled', false);
+  if (isCancelled(run)) {
+    reportSceneFailed(run, screenplayId, scene.sceneId, 'Cancelled', false);
     throw new Error('Cancelled');
   }
   
   // Report progress: starting video generation
-  reportSceneProgress(screenplayId, scene.sceneId, 'generating', 'video', 50);
+  reportSceneProgress(run, screenplayId, scene.sceneId, 'generating', 'video', 50);
   
   // Mock mode check
   if (config.mockVideo) {
@@ -813,15 +707,15 @@ async function generateSceneVideoOnly(
     
     // Simulate progress
     for (let p = 50; p <= 100; p += 10) {
-      if (cancelled) throw new Error('Cancelled');
+      if (isCancelled(run)) throw new Error('Cancelled');
       await sleep(200);
-      reportSceneProgress(screenplayId, scene.sceneId, 'generating', 'video', p);
+      reportSceneProgress(run, screenplayId, scene.sceneId, 'generating', 'video', p);
     }
     
     // Create a mock video blob
     const mockBlob = new Blob(['mock video data'], { type: 'video/mp4' });
     
-    reportSceneProgress(screenplayId, scene.sceneId, 'completed', 'done', 100);
+    reportSceneProgress(run, screenplayId, scene.sceneId, 'completed', 'done', 100);
     
     postEvent({
       type: 'SCENE_COMPLETED',
@@ -836,7 +730,7 @@ async function generateSceneVideoOnly(
           mimeType: 'video/mp4',
         },
       },
-    });
+    }, run);
     
     return;
   }
@@ -854,13 +748,13 @@ async function generateSceneVideoOnly(
     console.log('[AI Worker] Video prompt:', videoPrompt.substring(0, 100));
     
     // Generate video with progress tracking
-    const videoUrl = await workerApi.generateVideo(
+    const videoUrl = await api.generateVideo(
       scene.imageUrl!,
       videoPrompt,
       config,
       (progress) => {
         const mappedProgress = 50 + Math.floor(progress * 0.45);
-        reportSceneProgress(screenplayId, scene.sceneId, 'generating', 'video', mappedProgress);
+        reportSceneProgress(run, screenplayId, scene.sceneId, 'generating', 'video', mappedProgress);
       },
       refImages
     );
@@ -868,11 +762,11 @@ async function generateSceneVideoOnly(
     console.log('[AI Worker] Video generated:', videoUrl);
     
     // Download and create blob
-    reportSceneProgress(screenplayId, scene.sceneId, 'generating', 'video', 95);
-    const videoBlob = await workerApi.fetchAsBlob(videoUrl);
+    reportSceneProgress(run, screenplayId, scene.sceneId, 'generating', 'video', 95);
+    const videoBlob = await api.fetchAsBlob(videoUrl);
     
     // Complete
-    reportSceneProgress(screenplayId, scene.sceneId, 'completed', 'done', 100);
+    reportSceneProgress(run, screenplayId, scene.sceneId, 'completed', 'done', 100);
     
     postEvent({
       type: 'SCENE_COMPLETED',
@@ -887,13 +781,13 @@ async function generateSceneVideoOnly(
           mimeType: 'video/mp4',
         },
       },
-    });
+    }, run);
     
   } catch (error) {
     const err = error as Error;
     const isCancelled = err.message === 'Cancelled';
     console.error(`[AI Worker] Scene ${scene.sceneId} video failed:`, err);
-    reportSceneFailed(screenplayId, scene.sceneId, err.message, !isCancelled);
+    reportSceneFailed(run, screenplayId, scene.sceneId, err.message, !isCancelled);
     throw error;
   }
 }
@@ -902,6 +796,8 @@ async function generateSceneVideoOnly(
  * Internal scene execution (used by both EXECUTE_SCENE and EXECUTE_SCREENPLAY)
  */
 async function executeSceneInternal(
+  run: WorkerRun,
+  api: WorkerApi,
   screenplayId: string,
   scene: AIScene,
   config: GenerationConfig & { mockImage?: boolean; mockVideo?: boolean },
@@ -911,13 +807,13 @@ async function executeSceneInternal(
   console.log(`[AI Worker] Executing scene ${scene.sceneId} for screenplay ${screenplayId}`);
   
   // Check cancellation
-  if (cancelled) {
-    reportSceneFailed(screenplayId, scene.sceneId, 'Cancelled', false);
+  if (isCancelled(run)) {
+    reportSceneFailed(run, screenplayId, scene.sceneId, 'Cancelled', false);
     throw new Error('Cancelled');
   }
   
   // Report progress: starting image generation
-  reportSceneProgress(screenplayId, scene.sceneId, 'generating', 'image', 0);
+  reportSceneProgress(run, screenplayId, scene.sceneId, 'generating', 'image', 0);
   
   // Mock mode check
   if (config.mockImage && config.mockVideo) {
@@ -925,16 +821,16 @@ async function executeSceneInternal(
     
     // Simulate progress
     for (let p = 0; p <= 100; p += 20) {
-      if (cancelled) throw new Error('Cancelled');
+      if (isCancelled(run)) throw new Error('Cancelled');
       await sleep(300);
       const stage = p < 50 ? 'image' : 'video';
-      reportSceneProgress(screenplayId, scene.sceneId, 'generating', stage as any, p);
+      reportSceneProgress(run, screenplayId, scene.sceneId, 'generating', stage, p);
     }
     
     // Create a mock video blob
     const mockBlob = new Blob(['mock video data'], { type: 'video/mp4' });
     
-    reportSceneProgress(screenplayId, scene.sceneId, 'completed', 'done', 100);
+    reportSceneProgress(run, screenplayId, scene.sceneId, 'completed', 'done', 100);
     
     postEvent({
       type: 'SCENE_COMPLETED',
@@ -949,7 +845,7 @@ async function executeSceneInternal(
           mimeType: 'video/mp4',
         },
       },
-    });
+    }, run);
     
     return;
   }
@@ -974,35 +870,35 @@ async function executeSceneInternal(
     
     // Generate image with progress tracking
     // Pass character reference images for visual consistency
-    const imageUrl = await workerApi.generateImage(
+    const imageUrl = await api.generateImage(
       imagePrompt,
       negativePrompt,
       config,
       (progress) => {
         const mappedProgress = Math.floor(progress * 0.45);
-        reportSceneProgress(screenplayId, scene.sceneId, 'generating', 'image', mappedProgress);
+        reportSceneProgress(run, screenplayId, scene.sceneId, 'generating', 'image', mappedProgress);
       },
       refImages
     );
     
-    reportSceneProgress(screenplayId, scene.sceneId, 'generating', 'image', 45);
+    reportSceneProgress(run, screenplayId, scene.sceneId, 'generating', 'image', 45);
     console.log('[AI Worker] Image generated:', imageUrl);
     
     // ========== Stage 2: Video Generation ==========
     const videoPrompt = promptCompiler.compileSceneVideoPrompt(scene, characters);
     
     console.log('[AI Worker] Video prompt:', videoPrompt.substring(0, 100));
-    reportSceneProgress(screenplayId, scene.sceneId, 'generating', 'video', 50);
+    reportSceneProgress(run, screenplayId, scene.sceneId, 'generating', 'video', 50);
     
     // Generate video with progress tracking
     // Pass character reference images for visual consistency in video
-    const videoUrl = await workerApi.generateVideo(
+    const videoUrl = await api.generateVideo(
       imageUrl,
       videoPrompt,
       config,
       (progress) => {
         const mappedProgress = 50 + Math.floor(progress * 0.45);
-        reportSceneProgress(screenplayId, scene.sceneId, 'generating', 'video', mappedProgress);
+        reportSceneProgress(run, screenplayId, scene.sceneId, 'generating', 'video', mappedProgress);
       },
       refImages
     );
@@ -1010,13 +906,13 @@ async function executeSceneInternal(
     console.log('[AI Worker] Video generated:', videoUrl);
     
     // ========== Stage 3: Download and Create Blob ==========
-    reportSceneProgress(screenplayId, scene.sceneId, 'generating', 'video', 95);
+    reportSceneProgress(run, screenplayId, scene.sceneId, 'generating', 'video', 95);
     
     // Download the video as blob
-    const videoBlob = await workerApi.fetchAsBlob(videoUrl);
+    const videoBlob = await api.fetchAsBlob(videoUrl);
     
     // ========== Complete ==========
-    reportSceneProgress(screenplayId, scene.sceneId, 'completed', 'done', 100);
+    reportSceneProgress(run, screenplayId, scene.sceneId, 'completed', 'done', 100);
     
     postEvent({
       type: 'SCENE_COMPLETED',
@@ -1031,27 +927,31 @@ async function executeSceneInternal(
           mimeType: 'video/mp4',
         },
       },
-    });
+    }, run);
     
   } catch (error) {
     const err = error as Error;
     const isCancelled = err.message === 'Cancelled';
     console.error(`[AI Worker] Scene ${scene.sceneId} failed:`, err);
-    reportSceneFailed(screenplayId, scene.sceneId, err.message, !isCancelled);
+    reportSceneFailed(run, screenplayId, scene.sceneId, err.message, !isCancelled);
     throw error;
   }
 }
 
 function handleCancel(command: CancelCommand): void {
   console.log('[AI Worker] Cancelling operations');
-  cancelled = true;
-  // 不自动重置 cancelled 标志，由新的生成操作启动时重置
+  workerRuns.cancel(command.runId);
 }
 
 // ==================== Helpers ====================
 
-function postEvent(event: WorkerEvent): void {
-  self.postMessage(event);
+function postEvent(event: WorkerEvent, run?: WorkerRun, explicitRunId?: number): void {
+  if (run && !workerRuns.isCurrent(run)) return;
+  if (explicitRunId !== undefined) {
+    self.postMessage({ ...event, runId: explicitRunId });
+    return;
+  }
+  self.postMessage(run ? { ...event, runId: run.id } : event);
 }
 
 function sleep(ms: number): Promise<void> {

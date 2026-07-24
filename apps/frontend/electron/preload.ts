@@ -12,6 +12,7 @@ import type {
   TimelineRenderProgress,
   TimelineRenderResult,
 } from '../types/editing'
+import type { EpisodeMergePlan, TrackRenderPlan } from '../types/studio'
 import type { StudioVisualManualCreatePayload, StudioVisualManualImagesWritePayload, StudioVisualManualWritePayload } from '../types/studio-visual-manual'
 import type { TtsRuntimeCommandResult, TtsRuntimeConfig, TtsRuntimeStatus } from '../types/tts'
 import type { UpdateCheckOptions } from '../types/update'
@@ -180,8 +181,8 @@ contextBridge.exposeInMainWorld('imageHostUploader', {
 })
 
 contextBridge.exposeInMainWorld('studioRenderer', {
-  renderTrackCandidate: (plan: unknown) => ipcRenderer.invoke('studio-render-track-candidate', plan),
-  mergeEpisode: (plan: unknown) => ipcRenderer.invoke('studio-merge-episode', plan),
+  renderTrackCandidate: (plan: TrackRenderPlan) => ipcRenderer.invoke('studio-render-track-candidate', plan),
+  mergeEpisode: (plan: EpisodeMergePlan) => ipcRenderer.invoke('studio-merge-episode', plan),
   probeMedia: (filePath: string) => ipcRenderer.invoke('studio-probe-media-evidence', filePath),
   renderTimeline: (plan: TimelineRenderPlan): Promise<TimelineRenderResult> =>
     ipcRenderer.invoke('studio-timeline-render', plan),

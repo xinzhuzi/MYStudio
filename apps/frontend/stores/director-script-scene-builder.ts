@@ -14,7 +14,7 @@ import type {
   PlaybackSpeed,
 } from "@/types/script";
 import type { DurationType, EmotionTag, ShotSizeType, SoundEffectTag } from "./director-presets";
-import type { SplitScene } from "./director-store";
+import type { SplitScene } from "./director-store-types";
 
 export interface DirectorScriptSceneInput {
   promptZh: string;

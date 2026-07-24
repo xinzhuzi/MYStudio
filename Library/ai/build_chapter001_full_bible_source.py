@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Plan and assemble the exact 31-version chapter-001 v5 Bible source.
+"""Plan and assemble the exact 32-version chapter-001 v5 Bible source.
 
 The planner writes only task research artifacts. Assembly is non-overwriting and
 requires all eight reviewed generation outputs to exist before it can build the
@@ -16,6 +16,11 @@ from typing import Any
 
 from PIL import Image, ImageOps
 
+try:
+    from Library.ai import daojie_gongbi_v2
+except ModuleNotFoundError:
+    from ai import daojie_gongbi_v2
+
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 PROJECT_DIR = Path.home() / "Library/Application Support/漫影工作室/projects/_p/49dce4c1-64b1-42de-85c2-9f266698aec0"
@@ -25,6 +30,9 @@ AUTOMATION_ROOT = REPOSITORY_ROOT / "apps/output/automation"
 ASSET_FILES = Path.home() / "Library/Application Support/漫影工作室/assets/files"
 GENERATED_ROOT = AUTOMATION_ROOT / "chapter001-v5-full-bible-generated"
 SOURCE_ROOT = AUTOMATION_ROOT / "chapter001-v5-full-bible-source"
+ART_DIRECTION_VERSION = daojie_gongbi_v2.STYLE_CONTRACT_VERSION
+EXPECTED_VERSION_COUNT = 32
+SOURCE_MATRIX_STEM = "chapter001-daojie-gongbi-v2-32-version-source-matrix"
 
 
 CHARACTER_SPECS: dict[str, dict[str, Any]] = {
@@ -50,7 +58,7 @@ CHARACTER_SPECS: dict[str, dict[str, Any]] = {
         "board": GENERATED_ROOT / "old-laborer-turnaround-r4.png",
         "profile": "three-view", "wardrobe": "laborer-old",
         "anchors": ["五十五至六十五岁男性", "风霜皱纹", "长期劳作的结实体型"],
-        "avoid": ["年轻脸", "女性脸", "极端破衣乞丐装", "白袍书生"],
+        "avoid": ["年轻脸", "女性脸", "衣物不完整", "白袍书生"],
     },
     "char_1780296482373_kj9fb89": {
         "board": GENERATED_ROOT / "young-laborer-turnaround-r2.png",
@@ -98,7 +106,7 @@ CHARACTER_SPECS: dict[str, dict[str, Any]] = {
         "board": AUTOMATION_ROOT / "chapter001-bible-assets-v4/yan-liao-turnaround.png",
         "profile": "three-view", "wardrobe": "yan-liao-base",
         "anchors": ["年轻男性", "高束黑发", "冷峻脸", "白蓝完整宗门衣袍"],
-        "avoid": ["女性脸", "散发", "破衣", "更换白蓝衣袍层次"],
+        "avoid": ["女性脸", "散发", "衣物不完整", "更换白蓝衣袍层次"],
     },
 }
 
@@ -107,42 +115,42 @@ SCENE_SPECS: dict[str, dict[str, Any]] = {
     "scene_1780296482373_avuxou2:dock-main-axis:v1": {
         "board": AUTOMATION_ROOT / "chapter001-v4-bible-inputs/dock-main-axis-v4.png", "profile": "full",
         "viewpoint": "dock-main-axis", "layout": "湿石阶与装卸平台在左，藤筐和灵矿靠左前景，系船柱、缆绳与船只在右，河道透视居中通向雾山",
-        "light": "清晨冷色漫射雾光", "palette": "墨青、灰蓝、湿石赭褐与克制旧木色",
+        "light": "清晨均匀平光宣纸照明，雾气轻薄", "palette": "石青、石绿、靛青、湿石赭褐、旧木褐与朱砂旧金焦点",
     },
     "scene_1780296482373_h8geu0d:inn-hall-counter-axis:v1": {
         "board": GENERATED_ROOT / "inn-contact-sheet.png", "profile": "left",
         "viewpoint": "inn-hall-counter-axis", "layout": "柜台与算盘固定在左前景，朽木楼梯在后侧，客栈入口和桌凳保持固定轴线",
-        "light": "夜间赭黄油灯照明", "palette": "赭黄、旧木褐、墨黑与少量暗朱",
+        "light": "油灯赭石薄染与均匀纸面平光并置", "palette": "赭石、旧木褐、石青阴影、朱砂与旧金焦点",
     },
     "scene_1780296482373_h8geu0d:inn-room-window-axis:v1": {
         "board": GENERATED_ROOT / "inn-contact-sheet.png", "profile": "right",
         "viewpoint": "inn-room-window-axis", "layout": "从客栈大堂通往斗室的受控次级视角，窗与楼梯方位固定，不替代斗室主场景",
-        "light": "大堂油灯向斗室方向渐暗", "palette": "旧木褐、赭黄与窗外冷青",
+        "light": "大堂油灯向斗室保持轻薄层次", "palette": "旧木褐、赭石、石青、石绿与窗外靛青",
     },
     "scene_1780296482373_ndts8if:inn-room-window-axis:v1": {
         "board": GENERATED_ROOT / "inn-room-contact-sheet.png", "profile": "left",
         "viewpoint": "inn-room-window-axis", "layout": "狭窄斗室，床榻靠右墙，木桌与枯灯靠左，窗固定在北墙并可见塾馆灯火",
-        "light": "枯灯暖光与窗外冷光交叠", "palette": "旧木褐、暗赭、冷青与灰白宣纸色",
+        "light": "枯灯赭石薄染与窗外石青薄染并置，均匀纸面光保持线描可读", "palette": "旧木褐、赭石、石青、石绿、靛青与宣纸白",
     },
     "scene_1780296482373_ndts8if:inn-room-night-return:v1": {
         "board": GENERATED_ROOT / "inn-room-contact-sheet.png", "profile": "right",
         "viewpoint": "inn-room-night-return", "layout": "与斗室窗轴完全同一布局，床榻、木桌、枯灯和北窗位置不变，仅表现深夜归来状态",
-        "light": "深夜枯灯将熄，窗外微弱冷月光", "palette": "深墨蓝、旧木褐、暗赭与低亮灰白",
+        "light": "深夜枯灯与窗外月色只以轻薄石青和赭石薄染保持平光纸面层次", "palette": "靛青、旧木褐、赭石、石青与少量朱砂",
     },
     "scene_1780296482374_jew094y:school-lamp-desk-axis:v1": {
         "board": GENERATED_ROOT / "school-contact-sheet.png", "profile": "left",
         "viewpoint": "school-lamp-desk-axis", "layout": "长凳与书案纵向排列，油灯居于先生书案，入口处保留湿鞋位置，窗在面向客栈的一侧",
-        "light": "夜间油灯暖光，室内其余区域低照度", "palette": "旧木褐、油灯赭黄、墨青阴影与灰白墙面",
+        "light": "油灯赭石薄染为暖色焦点，室内保持可读纸面层次", "palette": "旧木褐、油灯赭石、石青阴影、石绿与朱砂焦点",
     },
     "scene_1780296482374_jew094y:inn-room-window-axis:v1": {
         "board": GENERATED_ROOT / "school-contact-sheet.png", "profile": "right",
         "viewpoint": "inn-room-window-axis", "layout": "从悦来客栈斗室北窗望向塾馆的外部次级视角，仅见塾馆窗灯与轮廓，不替代斗室主场景",
-        "light": "浓夜中塾馆窗灯形成唯一暖色点", "palette": "深墨蓝、雾灰与克制赭黄窗光",
+        "light": "夜色中的塾馆窗灯以克制赭石薄染为暖色焦点，纸面平光保留淡墨雾层", "palette": "靛青、石青、雾白、赭石窗光与少量旧金",
     },
     "scene_1780296482374_koqmk1b:river-night-long-axis:v1": {
         "board": GENERATED_ROOT / "river-night-long-axis.png", "profile": "full",
-        "viewpoint": "river-night-long-axis", "layout": "深夜金水河长轴，河面与浓雾延伸至远山，宗门灵舟沿河道主轴出现，朱红火印位于可读焦点",
-        "light": "深夜冷雾与灵舟微光，朱红火印点亮局部", "palette": "深墨蓝、冷灰、旧金与朱砂红",
+        "viewpoint": "river-night-long-axis", "layout": "深夜金水河长轴，河面与远山之间以淡墨雾层和留白退远，宗门灵舟沿河道主轴出现，低亮朱砂火印位于可读焦点",
+        "light": "深夜雾层以淡墨留白与局部石青薄染展开，灵舟轮廓保持纸面平光层次，低亮朱砂火印成为局部焦点", "palette": "靛青、石青、石绿、旧金与朱砂红",
     },
 }
 
@@ -157,24 +165,24 @@ PROP_SOURCE_OVERRIDES = {
 
 def generation_jobs() -> list[dict[str, Any]]:
     style = (
-        "《道劫》彩色工笔水墨设定资产，连续白描锁定结构，宣纸肌理，水墨为主并以石青、赭石、朱砂或旧金形成30%-50%可辨色区；"
-        "无文字、无标签、无边框、无水印、无额外人物，不使用数字厚涂或塑料体积光。"
+        f"{daojie_gongbi_v2.DERIVED_ASSET_STYLE_LOCK}"
+        "无文字、无标签、无边框、无水印、无额外人物。"
     )
     character_layout = "同一人物从左到右严格正面、左侧面、背面三格全身正交视图，同一脸、发型、身高、体型和服装，浅色纯净背景，脚部完整。"
-    return [
+    jobs = [
         {
             "jobId": "old-laborer-turnaround-r4", "assetId": "char_1780296482373_kuuv99u",
             "outputPath": str(GENERATED_ROOT / "old-laborer-turnaround-r4.png"),
             "referenceThumbnail": str(AUTOMATION_ROOT / "chapter001-full-bible-source-thumbnails/old-laborer_thumb.png"),
             "aspectRatio": "3:2", "resolution": "1K",
-            "prompt": f"{style}{character_layout} 五十五至六十五岁男性码头老苦力，风霜皱纹，长期劳动形成的结实体型。参考图只继承脸、年龄、体型和服装层次，不继承破损；重制为完整无补丁的朴素粗布短袍和长裤，袖口、衣摆、裤脚都是连续闭合的整齐布边。禁止破洞、裂口、毛边、碎边、布条、补丁、乞丐装；不得年轻化，不得白袍书生。",
+            "prompt": f"{style}{character_layout} 五十五至六十五岁男性码头老苦力，风霜皱纹，长期劳动形成的结实体型。参考图只继承脸、年龄、体型和服装层次；重制为朴素完整的粗布短袍和长裤，袖口、衣摆、裤脚都是连续闭合的整齐布边。不得年轻化，不得白袍书生。",
         },
         {
             "jobId": "young-laborer-turnaround-r2", "assetId": "char_1780296482373_kj9fb89",
             "outputPath": str(GENERATED_ROOT / "young-laborer-turnaround-r2.png"),
             "referenceThumbnail": str(AUTOMATION_ROOT / "chapter001-full-bible-source-thumbnails/young-laborer_thumb.png"),
             "aspectRatio": "3:2", "resolution": "1K",
-            "prompt": f"{style}{character_layout} 二十至三十岁成年男性码头力工，晒黑朴实面容，肩背和手臂有劳动肌肉。参考图只继承脸、年龄、体型和服装层次，不继承破损；重制为完整无补丁的朴素粗布短袍和长裤，袖口、衣摆、裤脚都是连续闭合的整齐布边。禁止破洞、裂口、毛边、碎边、布条、补丁、乞丐装；不得清秀白袍书生，不得女性脸，不得少年体型。",
+            "prompt": f"{style}{character_layout} 二十至三十岁成年男性码头力工，晒黑朴实面容，肩背和手臂有劳动肌肉。参考图只继承脸、年龄、体型和服装层次；重制为朴素完整的粗布短袍和长裤，袖口、衣摆、裤脚都是连续闭合的整齐布边。不得清秀白袍书生，不得女性脸，不得少年体型。",
         },
         {
             "jobId": "child-a-turnaround", "assetId": "char_1780296482373_rrq7twm",
@@ -202,7 +210,7 @@ def generation_jobs() -> list[dict[str, Any]]:
             "outputPath": str(GENERATED_ROOT / "inn-room-contact-sheet.png"),
             "referenceThumbnail": str(AUTOMATION_ROOT / "chapter001-full-bible-source-thumbnails/inn-room_thumb.png"),
             "aspectRatio": "16:9", "resolution": "1K",
-            "prompt": f"{style} 同一狭窄悦来客栈斗室的两格固定布局：床榻靠右墙、木桌与枯灯靠左、北窗外可见塾馆灯火；左格枯灯暖光与窗外冷光交叠，右格保持所有位置不变只表现深夜归来、枯灯将熄。空场景，无人物。",
+            "prompt": f"{style} 同一狭窄悦来客栈斗室的两格固定布局：床榻靠右墙、木桌与枯灯靠左、北窗外可见塾馆灯火；左格枯灯赭石薄染与窗外石青薄染并置，右格保持所有位置不变只表现深夜归来、枯灯将熄。空场景，无人物。",
         },
         {
             "jobId": "school-contact-sheet", "assetId": "scene_1780296482374_jew094y",
@@ -216,20 +224,27 @@ def generation_jobs() -> list[dict[str, Any]]:
             "outputPath": str(GENERATED_ROOT / "river-night-long-axis.png"),
             "referenceThumbnail": str(AUTOMATION_ROOT / "chapter001-full-bible-source-thumbnails/river_thumb.png"),
             "aspectRatio": "16:9", "resolution": "1K",
-            "prompt": f"{style} 深夜金水河长轴空场景，浓雾覆盖河面并通向远山，宗门灵舟沿河道主轴出现，朱红火印成为克制焦点；深墨蓝、冷灰、旧金与朱砂红，空间层次清楚，无可辨文字。",
+            "prompt": f"{style} 深夜金水河长轴空场景，河面与远山之间以淡墨雾层和留白退远，宗门灵舟沿河道主轴出现，低亮朱砂火印成为克制焦点；靛青、石青、石绿、旧金与朱砂红形成冷暖层次，空间清楚，无可辨文字。",
         },
     ]
+    for job in jobs:
+        job["artDirectionVersion"] = ART_DIRECTION_VERSION
+    return jobs
 
 
 def read_store_versions() -> tuple[list[dict[str, Any]], dict[str, str]]:
     document = json.loads(STORE_PATH.read_text(encoding="utf-8"))
     state = document.get("state") or {}
     versions = state.get("continuityAssetVersions") or []
-    if len(versions) != 31:
-        raise RuntimeError(f"live continuityAssetVersions 必须是 31，实际 {len(versions)}")
+    if len(versions) != EXPECTED_VERSION_COUNT:
+        raise RuntimeError(
+            f"live continuityAssetVersions 必须是 {EXPECTED_VERSION_COUNT}，实际 {len(versions)}"
+        )
     keys = [(item.get("assetId"), item.get("versionId")) for item in versions]
-    if len(set(keys)) != 31 or any(not all(key) for key in keys):
-        raise RuntimeError("live 31-version matrix 存在空键或重复键")
+    if len(set(keys)) != EXPECTED_VERSION_COUNT or any(not all(key) for key in keys):
+        raise RuntimeError(
+            f"live {EXPECTED_VERSION_COUNT}-version matrix 存在空键或重复键"
+        )
     names: dict[str, str] = {}
     for storyboard in state.get("storyboards") or []:
         for reference in storyboard.get("orderedReferenceManifest") or []:
@@ -249,6 +264,20 @@ def write_new_or_identical(path: Path, payload: bytes) -> None:
         return
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(payload)
+
+
+def write_versioned_research_artifact(stem: str, preferred_revision: int, payload: bytes) -> Path:
+    """Keep prior research snapshots and allocate a new revision on content drift."""
+    revision = preferred_revision
+    while True:
+        path = TASK_RESEARCH / f"{stem}-r{revision}.json"
+        if not path.exists():
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(payload)
+            return path
+        if hashlib.sha256(path.read_bytes()).digest() == hashlib.sha256(payload).digest():
+            return path
+        revision += 1
 
 
 def json_payload(value: Any) -> bytes:
@@ -424,15 +453,29 @@ def write_plan() -> dict[str, Any]:
             "currentMissingFields": version.get("missingFields") or [], "operation": operation,
             "sourceBoardOrImage": str(target), "sourceExists": Path(target).is_file(),
         })
-    if len(matrix) != 31 or len(CHARACTER_SPECS) != 12 or len(SCENE_SPECS) != 8:
-        raise RuntimeError("31-version source mapping count invariant failed")
+    if (
+        len(matrix) != EXPECTED_VERSION_COUNT
+        or len(CHARACTER_SPECS) != 12
+        or len(SCENE_SPECS) != 8
+    ):
+        raise RuntimeError(
+            f"{EXPECTED_VERSION_COUNT}-version source mapping count invariant failed"
+        )
     TASK_RESEARCH.mkdir(parents=True, exist_ok=True)
-    matrix_path = TASK_RESEARCH / "chapter001-v5-31-version-source-matrix-r4.json"
-    prompts_path = TASK_RESEARCH / "chapter001-v5-generation-prompts-r4.json"
-    write_new_or_identical(matrix_path, json_payload({"versionCount": 31, "versions": matrix}))
-    write_new_or_identical(prompts_path, json_payload({"jobCount": 8, "jobs": jobs}))
+    matrix_path = write_versioned_research_artifact(
+        SOURCE_MATRIX_STEM, 1,
+        json_payload({
+            "artDirectionVersion": ART_DIRECTION_VERSION,
+            "versionCount": EXPECTED_VERSION_COUNT,
+            "versions": matrix,
+        }),
+    )
+    prompts_path = write_versioned_research_artifact(
+        "chapter001-daojie-gongbi-v2-generation-prompts", 1,
+        json_payload({"artDirectionVersion": ART_DIRECTION_VERSION, "jobCount": 8, "jobs": jobs}),
+    )
     return {
-        "ok": True, "versionCount": len(matrix), "generationJobCount": len(jobs),
+        "ok": True, "artDirectionVersion": ART_DIRECTION_VERSION, "versionCount": len(matrix), "generationJobCount": len(jobs),
         "existingSources": sum(item["sourceExists"] for item in matrix),
         "missingSources": [item["sourceBoardOrImage"] for item in matrix if not item["sourceExists"]],
         "matrixPath": str(matrix_path), "promptsPath": str(prompts_path),
@@ -540,10 +583,14 @@ def assemble_source_document() -> dict[str, Any]:
             )
         assembled.append(normalized)
     keys = {(item["assetId"], item["versionId"]) for item in assembled}
-    if len(assembled) != 31 or len(keys) != 31:
-        raise RuntimeError("组装后的 v5 source 不是 31 个唯一版本")
+    if len(assembled) != EXPECTED_VERSION_COUNT or len(keys) != EXPECTED_VERSION_COUNT:
+        raise RuntimeError(
+            f"组装后的 v5 source 不是 {EXPECTED_VERSION_COUNT} 个唯一版本"
+        )
     source_document = {
-        "sourceVersion": "v5", "versionCount": 31, "approvalPolicy": "pending-human-only",
+        "sourceVersion": "v5",
+        "versionCount": EXPECTED_VERSION_COUNT,
+        "approvalPolicy": "pending-human-only",
         "continuityAssetVersions": assembled,
     }
     source_payload = json_payload(source_document)

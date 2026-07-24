@@ -4,6 +4,7 @@ import { dirname, extname, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import sharp from 'sharp';
 import { writeDurableJsonReport } from './durable-json-report.mjs';
+import { latestLedgerEvents } from './paid-image-request-ledger.mjs';
 
 const appsRoot = process.cwd();
 const repoRoot = resolve(appsRoot, '..');
@@ -12,6 +13,8 @@ const continuityPilotScript = resolve(repoRoot, 'Library', 'generate_chapter001_
 const timelineRunnerScript = 'build/render-daojie-editing-timeline.ts';
 const visualContinuityPreflightScript = 'build/audit-daojie-visual-continuity.ts';
 const storyboardImageHelper = resolve(appsRoot, 'build', 'generate-storyboard-image.mjs');
+const continuityAssetCandidateValidator = resolve(repoRoot, 'Library', 'ai', 'chapter001_continuity_asset_candidate.py');
+const paidImageRequestLedgerPath = resolve(appsRoot, 'output', 'automation', 'daojie-chapter001-paid-image-request-ledger.jsonl');
 const viteNodeBin = './node_modules/.bin/vite-node';
 const reportPath = resolve(appsRoot, 'output', 'automation', 'daojie-chapter001-video-report.json');
 const packagedAppBin = resolve(appsRoot, 'release', 'build', 'mac-arm64', 'mac-arm64', '漫影工作室.app', 'Contents', 'MacOS', '漫影工作室');
@@ -21,6 +24,7 @@ const probeProvidersOnly = process.argv.includes('--probe-providers');
 const probeGenerationOnly = process.argv.includes('--probe-generation');
 const continuityPilotOnly = process.argv.includes('--continuity-pilot');
 const continuityFullChapterOnly = process.argv.includes('--continuity-full-chapter');
+const continuityAssetCandidateOnly = process.argv.includes('--continuity-asset-candidate');
 const MIN_DIALOGUE_COVERAGE_RATIO = 0.92;
 const MIN_AUDIO_MEAN_VOLUME_DB = -55;
 const MAX_DAOJIE_VIDEO_DURATION_SECONDS = 180;
@@ -54,6 +58,11 @@ const REQUIRED_WORKFLOW_STEPS = [
   'project_writeback',
 ];
 
+function assertDaojieImageGenerationNotFrozen(mode, { dryRun = false } = {}) {
+  if (dryRun || process.env.MYSTUDIO_DAOJIE_IMAGE_GENERATION_FROZEN !== '1') return;
+  throw new Error(`MYSTUDIO_DAOJIE_IMAGE_GENERATION_FROZEN=1: blocked Daojie image generation mode=${mode}; no provider request was sent`);
+}
+
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, {
     cwd: options.cwd ?? repoRoot,
@@ -70,6 +79,31 @@ function run(command, args, options = {}) {
     ].filter(Boolean).join('\n'));
   }
   return result;
+}
+
+function writeJsonOutput(value) {
+  return new Promise((resolveWrite, rejectWrite) => {
+    process.stdout.write(`${JSON.stringify(value, null, 2)}\n`, (error) => {
+      if (error) rejectWrite(error);
+      else resolveWrite();
+    });
+  });
+}
+
+function readContinuityAssetCandidateManifest(dryRun) {
+  const manifestPath = String(process.env.MYSTUDIO_CONTINUITY_ASSET_CANDIDATE_MANIFEST || '').trim();
+  if (!manifestPath) throw new Error('连续性资产候选缺少 MYSTUDIO_CONTINUITY_ASSET_CANDIDATE_MANIFEST');
+  const resolvedManifestPath = resolve(manifestPath);
+  const result = run('python3', [
+    continuityAssetCandidateValidator,
+    '--manifest', resolvedManifestPath,
+    ...(dryRun ? ['--dry-run'] : []),
+  ], { maxBuffer: 20 * 1024 * 1024 });
+  try {
+    return JSON.parse(result.stdout || '{}');
+  } catch (error) {
+    throw new Error(`连续性资产候选校验回执不是合法 JSON: ${error instanceof Error ? error.message : String(error)}`);
+  }
 }
 
 function runOptional(command, args) {
@@ -577,6 +611,242 @@ async function runImageGenerationProbe() {
   console.log(JSON.stringify({ ...report, reportPath: generationProbeReportPath }, null, 2));
 }
 
+function runCandidateColorAudit(outputPath) {
+  const result = run('python3', [
+    '-c',
+    [
+      'import json',
+      'import sys',
+      'from pathlib import Path',
+      'from Library.ai.daojie_gongbi_v2 import write_color_audit',
+      'print(json.dumps(write_color_audit(Path(sys.argv[1])), ensure_ascii=False))',
+    ].join('; '),
+    outputPath,
+  ]);
+  return JSON.parse(result.stdout || '{}');
+}
+
+function candidateProviderSummary(providers) {
+  return providers.map((provider) => ({
+    providerName: provider.providerName,
+    host: provider.baseUrl ? new URL(provider.baseUrl).host : null,
+    model: provider.model,
+    keyCount: provider.apiKeys?.length || 0,
+    credentialLoaded: Boolean(provider.baseUrl && provider.apiKeys?.length),
+    asyncMode: true,
+  }));
+}
+
+async function runAuthorizedContinuityAssetCandidate() {
+  const dryRun = process.env.MYSTUDIO_CONTINUITY_ASSET_CANDIDATE_DRY_RUN === '1';
+  const manifest = readContinuityAssetCandidateManifest(dryRun);
+  const paidAuthorization = process.env.MYSTUDIO_CONTINUITY_ASSET_CONFIRM_PAID_REQUEST === '1';
+  if (!dryRun && !paidAuthorization) {
+    throw new Error('连续性资产候选真实生成需要 MYSTUDIO_CONTINUITY_ASSET_CONFIRM_PAID_REQUEST=1');
+  }
+  const providers = dryRun
+    ? [{
+      providerName: manifest.provider.providerName,
+      baseUrl: '',
+      apiKeys: [],
+      model: manifest.provider.model,
+      asyncMode: true,
+      requestMode: manifest.referenceCapability.requestMode,
+    }]
+    : normalizeProviderConfigsForProbe(loadStoryboardImageProviderConfigsFromAppSettings());
+  if (!dryRun && (providers.length !== 1 || providers[0]?.apiKeys.length !== 1)) {
+    throw new Error(`连续性资产候选必须恰好使用 1 个 provider 与 1 个 key；当前 provider=${providers.length}`);
+  }
+  const provider = providers[0];
+  if (provider.providerName !== manifest.provider?.providerName || provider.model !== manifest.provider?.model) {
+    throw new Error(`连续性资产候选 provider/model 与已审阅清单不一致: ${provider.providerName}/${provider.model}`);
+  }
+  if (!dryRun) stopExistingMYStudioInstances();
+  const outputPath = resolve(manifest.outputDirectory, manifest.outputFileName);
+  const transferThumbnailPath = `${outputPath.slice(0, -extname(outputPath).length)}_thumb.png`;
+  const colorAuditPath = `${outputPath.slice(0, -extname(outputPath).length)}.color-audit.json`;
+  const candidateReportPath = resolve(manifest.outputDirectory, dryRun ? 'preflight-report.json' : 'report.json');
+  for (const path of [outputPath, transferThumbnailPath, colorAuditPath, candidateReportPath]) {
+    if (existsSync(path)) throw new Error(`拒绝覆盖已有连续性资产候选证据: ${path}`);
+  }
+  const helperPayload = {
+    singleAttempt: true,
+    paidRequestLedgerPath: paidImageRequestLedgerPath,
+    paidAuthorization: !dryRun && paidAuthorization,
+    attemptId: manifest.attemptId,
+    logicalJob: manifest.logicalJob,
+    logicalShot: manifest.logicalShot,
+    providers: [{
+      providerName: provider.providerName,
+      baseUrl: provider.baseUrl,
+      apiKeys: provider.apiKeys,
+      model: provider.model,
+      aspectRatio: manifest.aspectRatio,
+      resolution: manifest.resolution,
+      timeoutSeconds: 360,
+      asyncMode: true,
+      requestMode: manifest.referenceCapability.requestMode,
+    }],
+    prompt: manifest.prompt,
+    referenceImages: manifest.referenceImages,
+    referenceRoles: manifest.referenceRoles,
+    referenceCapability: manifest.referenceCapability,
+    styleContractVersion: manifest.styleContract.version,
+    styleContractFingerprint: manifest.styleContract.fingerprint,
+    promptAuditVersion: manifest.promptAudit.version,
+    aspectRatio: manifest.aspectRatio,
+    resolution: manifest.resolution,
+    timeoutSeconds: 360,
+    asyncMode: true,
+    requestMode: manifest.referenceCapability.requestMode,
+    dryRun,
+  };
+  const result = spawnSync('node', [storyboardImageHelper], {
+    cwd: appsRoot,
+    input: JSON.stringify(helperPayload),
+    encoding: 'utf8',
+    timeout: dryRun ? 60_000 : 420_000,
+    maxBuffer: 20 * 1024 * 1024,
+  });
+  if (result.status !== 0) {
+    const error = redactProbeText(result.stderr || result.stdout).slice(0, 600);
+    const requestEvent = latestLedgerEvents(paidImageRequestLedgerPath)
+      .find((event) => event.attemptId === manifest.attemptId) || null;
+    writeDurableJsonReport(candidateReportPath, {
+      ok: false,
+      generatedAt: new Date().toISOString(),
+      command: 'video:daojie:chapter001 --continuity-asset-candidate',
+      manifestPath: manifest.manifestPath,
+      candidateId: manifest.candidateId,
+      assetId: manifest.assetId,
+      outputPath,
+      dryRun,
+      requestBindingSha256: manifest.requestBindingSha256,
+      promptSha256: manifest.promptSha256,
+      referenceImageSha256: manifest.referenceImageSha256,
+      generationEndpointCalled: requestEvent !== null,
+      generatedImages: 0,
+      request: requestEvent,
+      ambiguousPaidRequest: requestEvent?.status === 'AMBIGUOUS' || (!dryRun && requestEvent !== null && isAmbiguousPaidImageFailure(error)),
+      resubmitAllowed: false,
+      providers: candidateProviderSummary(providers),
+      error,
+    });
+    throw new Error(`连续性资产候选生成失败: ${error}`);
+  }
+  const parsed = JSON.parse(result.stdout || '{}');
+  if (dryRun) {
+    if (
+      parsed.dryRun !== true
+      || parsed.generationEndpointCalled !== false
+      || parsed.referenceCount !== manifest.referenceImages.length
+      || parsed.promptSha256 !== manifest.promptSha256
+      || parsed.promptPolicy !== 'exact-reviewed-v2'
+    ) {
+      throw new Error(`连续性资产候选 dry-run 回执无效: ${JSON.stringify(parsed)}`);
+    }
+    const report = {
+      ok: true,
+      generatedAt: new Date().toISOString(),
+      command: 'video:daojie:chapter001 --continuity-asset-candidate',
+      manifestPath: manifest.manifestPath,
+      candidateId: manifest.candidateId,
+      assetId: manifest.assetId,
+      outputPath,
+      dryRun: true,
+      paidAuthorization: false,
+      requestAllowed: false,
+      requestBindingSha256: manifest.requestBindingSha256,
+      generationEndpointCalled: false,
+      generatedImages: 0,
+      referenceCount: manifest.referenceImages.length,
+      referenceImageSha256: manifest.referenceImageSha256,
+      promptSha256: createHash('sha256').update(parsed.prompt || '').digest('hex'),
+      styleContractFingerprint: manifest.styleContract.fingerprint,
+      referenceCapabilityFingerprint: manifest.referenceCapability.fingerprint,
+      providerPromptPolicy: parsed.promptPolicy,
+      providers: candidateProviderSummary(providers),
+      mutatedProductionProject: false,
+    };
+    writeDurableJsonReport(candidateReportPath, report);
+    await writeJsonOutput({ ...report, reportPath: candidateReportPath });
+    return;
+  }
+  const imageUrl = String(parsed.url || '');
+  if (!imageUrl) throw new Error('连续性资产候选没有返回图片 URL');
+  if (parsed.request?.promptSha256 !== manifest.promptSha256) {
+    throw new Error('连续性资产候选付费台账提示词 SHA-256 与已授权 manifest 不一致');
+  }
+  try {
+    mkdirSync(manifest.outputDirectory, { recursive: true });
+    await saveProbeImage(imageUrl, outputPath);
+    const transferThumbnail = await createProbeTransferThumbnail(outputPath);
+    const colorAudit = runCandidateColorAudit(outputPath);
+    const report = {
+      ok: colorAudit.status === 'pass',
+      generatedAt: new Date().toISOString(),
+      command: 'video:daojie:chapter001 --continuity-asset-candidate',
+      status: colorAudit.status === 'pass' ? 'awaiting-human-approval' : 'blocked-color-audit',
+      manifestPath: manifest.manifestPath,
+      candidateId: manifest.candidateId,
+      assetId: manifest.assetId,
+      assetName: manifest.assetName,
+      outputPath,
+      outputSha256: sha256File(outputPath),
+      outputSizeBytes: statSync(outputPath).size,
+      transferThumbnail,
+      colorAudit,
+      paidAuthorization: true,
+      requestAllowed: true,
+      requestBindingSha256: manifest.requestBindingSha256,
+      promptSha256: manifest.promptSha256,
+      referenceImageSha256: manifest.referenceImageSha256,
+      styleContractFingerprint: manifest.styleContract.fingerprint,
+      referenceCapabilityFingerprint: manifest.referenceCapability.fingerprint,
+      providerPromptPolicy: 'exact-reviewed-v2',
+      generationEndpointCalled: true,
+      generatedImages: 1,
+      referenceCount: manifest.referenceImages.length,
+      request: parsed.request || null,
+      providers: candidateProviderSummary(providers),
+      humanReviewChecklist: {
+        linework: null,
+        colorBalance: null,
+        clothingIntegrity: null,
+        cleanliness: null,
+        continuity: null,
+        text: null,
+        watermark: null,
+      },
+      mutatedProductionProject: false,
+    };
+    writeDurableJsonReport(candidateReportPath, report);
+    await writeJsonOutput({ ...report, reportPath: candidateReportPath });
+  } catch (error) {
+    const message = redactProbeText(error instanceof Error ? error.message : String(error)).slice(0, 600);
+    writeDurableJsonReport(candidateReportPath, {
+      ok: false,
+      generatedAt: new Date().toISOString(),
+      command: 'video:daojie:chapter001 --continuity-asset-candidate',
+      status: 'post-generation-evidence-failed',
+      manifestPath: manifest.manifestPath,
+      candidateId: manifest.candidateId,
+      assetId: manifest.assetId,
+      outputPath,
+      requestBindingSha256: manifest.requestBindingSha256,
+      promptSha256: manifest.promptSha256,
+      referenceImageSha256: manifest.referenceImageSha256,
+      generationEndpointCalled: true,
+      generatedImages: existsSync(outputPath) ? 1 : 0,
+      resubmitAllowed: false,
+      providers: candidateProviderSummary(providers),
+      error: message,
+      mutatedProductionProject: false,
+    });
+    throw error;
+  }
+}
+
 async function validateContinuityPilotThumbnail(thumbnail) {
   const thumbnailPath = typeof thumbnail?.path === 'string' ? thumbnail.path : '';
   if (!thumbnailPath || !existsSync(thumbnailPath)) {
@@ -620,11 +890,28 @@ async function runContinuityPilot(fullChapter = false) {
     continuityPilotScript,
     '--output-dir', outputDir,
   ];
+  const dryRun = process.env.MYSTUDIO_CONTINUITY_PILOT_DRY_RUN === '1';
+  if (dryRun) pilotArgs.push('--dry-run');
   if (fullChapter) pilotArgs.push('--full-chapter');
   else pilotArgs.push('--shots', shots);
   const restartFromShot = process.env.MYSTUDIO_CONTINUITY_RESTART_FROM_SHOT || '';
-  if (restartFromShot) pilotArgs.push('--restart-from-shot', restartFromShot);
+  if (restartFromShot) {
+    pilotArgs.push('--restart-from-shot', restartFromShot);
+    if (process.env.MYSTUDIO_CONTINUITY_CONFIRM_PAID_RETRY === '1') {
+      pilotArgs.push('--confirm-paid-retry');
+    }
+  }
+  if (process.env.MYSTUDIO_CONTINUITY_WATERMARK_TEST_VARIANT === '1') {
+    pilotArgs.push('--watermark-test-variant');
+  }
+  if (process.env.MYSTUDIO_CONTINUITY_CONFIRM_PAID_REQUEST === '1') {
+    pilotArgs.push('--confirm-paid-request');
+  }
   const approveShot = process.env.MYSTUDIO_CONTINUITY_PILOT_APPROVE_SHOT || '';
+  const rejectShot = process.env.MYSTUDIO_CONTINUITY_PILOT_REJECT_SHOT || '';
+  if (approveShot && rejectShot) {
+    throw new Error('MYSTUDIO_CONTINUITY_PILOT_APPROVE_SHOT 与 MYSTUDIO_CONTINUITY_PILOT_REJECT_SHOT 不能同时设置');
+  }
   if (approveShot) {
     pilotArgs.push('--approve-shot', approveShot);
     if (process.env.MYSTUDIO_CONTINUITY_PILOT_HUMAN_CONFIRMED === '1') pilotArgs.push('--human-confirmed');
@@ -632,19 +919,76 @@ async function runContinuityPilot(fullChapter = false) {
       pilotArgs.push('--approval-reason', process.env.MYSTUDIO_CONTINUITY_PILOT_APPROVAL_REASON);
     }
   }
+  if (rejectShot) {
+    pilotArgs.push('--reject-shot', rejectShot);
+    if (process.env.MYSTUDIO_CONTINUITY_PILOT_HUMAN_CONFIRMED === '1') pilotArgs.push('--human-confirmed');
+    if (process.env.MYSTUDIO_CONTINUITY_PILOT_REJECTION_REASON) {
+      pilotArgs.push('--rejection-reason', process.env.MYSTUDIO_CONTINUITY_PILOT_REJECTION_REASON);
+    }
+  }
   const result = run('python3', pilotArgs, {
     env: {
       MYSTUDIO_DAOJIE_STORYBOARD_IMAGE_MODE: REQUIRED_STORYBOARD_IMAGE_MODE,
       MYSTUDIO_IMAGE_PROVIDER_CONFIGS_JSON: configsJson,
       MYSTUDIO_IMAGE_TIMEOUT_SECONDS: '360',
+      MYSTUDIO_IMAGE_ASYNC_MODE: '1',
     },
     timeout: 60 * 60 * 1000,
     maxBuffer: 20 * 1024 * 1024,
   });
   const payload = parseGeneratorOutput(result.stdout);
-  if (approveShot) {
-    if (payload.approvedShot !== Number(approveShot) || payload.approval?.reviewer !== 'human') {
-      throw new Error(`连续性 pilot 人工批准回执无效: ${JSON.stringify(payload)}`);
+  if (dryRun) {
+    if (!payload.report || !existsSync(payload.report)) {
+      throw new Error(`连续性 pilot dry-run 报告缺失: ${JSON.stringify(payload)}`);
+    }
+    const report = JSON.parse(readFileSync(payload.report, 'utf8'));
+    if (
+      report.dryRun !== true
+      || report.asyncMode !== true
+      || report.generationEndpointCalled !== false
+      || report.generatedImages !== 0
+      || report.reusedImages !== 0
+      || report.mutatedProductionProject !== false
+    ) {
+      throw new Error(`连续性 pilot dry-run 安全断言失败: ${JSON.stringify({
+        dryRun: report.dryRun,
+        asyncMode: report.asyncMode,
+        generationEndpointCalled: report.generationEndpointCalled,
+        generatedImages: report.generatedImages,
+        reusedImages: report.reusedImages,
+        mutatedProductionProject: report.mutatedProductionProject,
+      })}`);
+    }
+    console.log(JSON.stringify({
+      ...payload,
+      provider: report.provider,
+      asyncMode: report.asyncMode,
+      generationEndpointCalled: report.generationEndpointCalled,
+      mutatedProductionProject: report.mutatedProductionProject,
+    }, null, 2));
+    return;
+  }
+  if (approveShot || rejectShot) {
+    const reviewShot = Number(approveShot || rejectShot);
+    const expectedStatus = rejectShot ? 'rejected' : 'approved';
+    const shotField = rejectShot ? 'rejectedShot' : 'approvedShot';
+    const reviewField = rejectShot ? 'rejection' : 'approval';
+    const reportField = rejectShot ? 'humanRejections' : 'humanApprovals';
+    if (payload[shotField] !== reviewShot || payload[reviewField]?.reviewer !== 'human') {
+      throw new Error(`连续性 pilot 人工审核回执无效: ${JSON.stringify(payload)}`);
+    }
+    if (!payload.report || !existsSync(payload.report)) {
+      throw new Error(`连续性 pilot 人工审核报告缺失: ${JSON.stringify(payload)}`);
+    }
+    const reviewReport = JSON.parse(readFileSync(payload.report, 'utf8'));
+    const persistedReview = Array.isArray(reviewReport[reportField])
+      && reviewReport[reportField].some((item) => (
+        item?.index === reviewShot
+        && item?.status === expectedStatus
+        && item?.approvalFingerprint === payload[reviewField]?.approvalFingerprint
+      ));
+    if (!persistedReview || (rejectShot && reviewReport.status !== 'rejected')) {
+      throw new Error(`连续性 pilot 人工审核持久化证据无效: ${JSON.stringify({ payload, report: reviewReport.status })}`);
     }
     console.log(JSON.stringify(payload, null, 2));
     return;
@@ -1034,13 +1378,26 @@ if (probeProvidersOnly) {
 
 if (probeGenerationOnly) {
   failureStage = 'generation-probe';
+  assertDaojieImageGenerationNotFrozen('probe-generation');
   stopExistingMYStudioInstances();
   await runImageGenerationProbe();
   process.exit(0);
 }
 
+if (continuityAssetCandidateOnly) {
+  failureStage = 'continuity-asset-candidate';
+  assertDaojieImageGenerationNotFrozen('continuity-asset-candidate', {
+    dryRun: process.env.MYSTUDIO_CONTINUITY_ASSET_CANDIDATE_DRY_RUN === '1',
+  });
+  await runAuthorizedContinuityAssetCandidate();
+  process.exit(0);
+}
+
 if (continuityPilotOnly) {
   failureStage = 'continuity-pilot';
+  assertDaojieImageGenerationNotFrozen('continuity-pilot', {
+    dryRun: process.env.MYSTUDIO_CONTINUITY_PILOT_DRY_RUN === '1',
+  });
   stopExistingMYStudioInstances();
   await runContinuityPilot();
   process.exit(0);
@@ -1048,12 +1405,16 @@ if (continuityPilotOnly) {
 
 if (continuityFullChapterOnly) {
   failureStage = 'continuity-full-chapter';
+  assertDaojieImageGenerationNotFrozen('continuity-full-chapter', {
+    dryRun: process.env.MYSTUDIO_CONTINUITY_PILOT_DRY_RUN === '1',
+  });
   stopExistingMYStudioInstances();
   await runContinuityPilot(true);
   process.exit(0);
 }
 
 failureStage = 'visual-continuity-preflight';
+assertDaojieImageGenerationNotFrozen('chapter001-video');
 const visualContinuityPreflight = requireDaojieVisualContinuityPreflight();
 console.log(
   `[video] visual continuity preflight approved=${visualContinuityPreflight.approved}`
@@ -1064,7 +1425,7 @@ stopExistingMYStudioInstances();
 failureStage = 'generator';
 try {
   const storyboardImageProviderConfigs = loadStoryboardImageProviderConfigsFromAppSettings();
-  generated = parseGeneratorOutput(run('python3', [generatorScript], {
+  generated = parseGeneratorOutput(run('python3', [generatorScript, '--run'], {
     env: {
       MANYING_REQUIRE_REAL_TTS: '1',
       MYSTUDIO_DAOJIE_ALLOW_STORYBOARD_BOOTSTRAP: '0',

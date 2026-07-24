@@ -108,7 +108,9 @@ export function useChapterAutoVideoActions({
             if (!storyboardTable) {
               throw new Error("动态导演分镜表生成失败，自动成片已停止");
             }
-            const parsed = parseStoryboardTable(storyboardTable, episodeId);
+            const parsed = parseStoryboardTable(storyboardTable, episodeId, {
+              requireShotSemantics: true,
+            });
             if (parsed.errors.length > 0 || parsed.rows.length === 0) {
               throw new Error(
                 `动态导演分镜表不可用: ${parsed.errors.join("；") || "没有分镜"}`,

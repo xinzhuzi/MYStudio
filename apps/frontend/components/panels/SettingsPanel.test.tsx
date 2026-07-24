@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
@@ -74,7 +74,7 @@ import { DEFAULT_SETTINGS_TAB, SETTINGS_TABS, SettingsPanel } from "./SettingsPa
 afterEach(cleanup);
 
 describe("SettingsPanel tab navigation", () => {
-  it("keeps the public tab navigation and extracted panels connected", () => {
+  it("keeps the public tab navigation and extracted panels connected", async () => {
     render(<SettingsPanel />);
 
     expect(screen.getAllByRole("tab")).toHaveLength(SETTINGS_TABS.length);
@@ -85,14 +85,20 @@ describe("SettingsPanel tab navigation", () => {
 
     const navigations = [
       ["API 管理", "api settings panel"],
+      ["图片规格", "image-size settings panel"],
+      ["Python 配置", "python settings panel"],
+      ["TTS 配置", "tts settings panel"],
+      ["高级选项", "advanced settings panel"],
+      ["图床配置", "image-host settings panel"],
       ["存储", "storage settings panel"],
       ["开发", "development settings panel"],
+      ["请作者喝杯咖啡", "support settings panel"],
     ] as const;
 
     for (const [label, panelText] of navigations) {
       fireEvent.mouseDown(screen.getByRole("tab", { name: label }), { button: 0, ctrlKey: false });
       expect(screen.getByRole("tab", { name: label }).getAttribute("aria-selected")).toBe("true");
-      expect(screen.getByText(panelText)).toBeTruthy();
+      await waitFor(() => expect(screen.getByText(panelText)).toBeTruthy());
     }
   });
 });

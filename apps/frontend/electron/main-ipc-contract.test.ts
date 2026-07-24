@@ -2,6 +2,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 const EXPECTED_CHANNELS = `
@@ -114,9 +115,10 @@ function listTypeScriptFiles(root: string): string[] {
   });
 }
 
+const electronRoot = path.dirname(fileURLToPath(import.meta.url));
+
 describe("Electron IPC contract", () => {
   it("registers the established channel list exactly once", () => {
-    const electronRoot = path.resolve(process.cwd(), "frontend/electron");
     const channels = listTypeScriptFiles(electronRoot).flatMap((filePath) => {
       const source = fs.readFileSync(filePath, "utf8");
       return [...source.matchAll(/ipcMain\.handle\(['"]([^'"]+)['"]/g)].map((match) => match[1]);
@@ -124,5 +126,32 @@ describe("Electron IPC contract", () => {
 
     expect(channels).toHaveLength(new Set(channels).size);
     expect([...channels].sort()).toEqual(EXPECTED_CHANNELS);
+  });
+
+  it("keeps every preload invoke mapped to a registered channel", () => {
+    const handlerChannels = listTypeScriptFiles(electronRoot).flatMap((filePath) => {
+      const source = fs.readFileSync(filePath, "utf8");
+      return [...source.matchAll(/ipcMain\.handle\(['"]([^'"]+)['"]/g)].map((match) => match[1]);
+    });
+    const preloadSource = fs.readFileSync(path.join(electronRoot, "preload.ts"), "utf8");
+    const invokeChannels = [...preloadSource.matchAll(/ipcRenderer\.invoke\(['"]([^'"]+)['"]/g)].map((match) => match[1]);
+    const handlerOnlyChannels = [...new Set(handlerChannels)]
+      .filter((channel) => !new Set(invokeChannels).has(channel))
+      .sort();
+
+    expect(invokeChannels).toHaveLength(new Set(invokeChannels).size);
+    expect(invokeChannels.every((channel) => EXPECTED_CHANNELS.includes(channel))).toBe(true);
+    expect(handlerOnlyChannels).toEqual([
+      "storage-export-media-data",
+      "storage-export-project-data",
+      "storage-import-media-data",
+      "storage-import-project-data",
+      "storage-link-media-data",
+      "storage-link-project-data",
+      "storage-move-media-data",
+      "storage-move-project-data",
+      "storage-validate-project-dir",
+      "studio-list-assets",
+    ]);
   });
 });

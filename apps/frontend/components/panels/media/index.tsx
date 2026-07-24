@@ -175,9 +175,9 @@ export function MediaView() {
     try {
       // For local protocol URLs, use Electron's save dialog
       if (item.url.startsWith('local-image://') || item.url.startsWith('local-video://')) {
-        if (typeof window !== 'undefined' && (window as any).electronAPI?.saveFileDialog) {
+        if (typeof window !== 'undefined' && window.electronAPI?.saveFileDialog) {
           // Use Electron's save dialog
-          const result = await (window as any).electronAPI.saveFileDialog({
+          const result = await window.electronAPI.saveFileDialog({
             localPath: item.url,
             defaultPath: item.name,
             filters: item.type === 'video' 

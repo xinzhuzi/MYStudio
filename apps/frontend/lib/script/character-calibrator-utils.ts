@@ -1,4 +1,4 @@
-import type { CalibrationStrictness, EpisodeRawScript } from '@/types/script';
+import type { CalibrationStrictness, EpisodeRawScript, ScriptCharacter } from '@/types/script';
 
 export interface CharacterStats {
   name: string;
@@ -9,6 +9,39 @@ export interface CharacterStats {
   lastEpisode: number;
   dialogueSamples: string[];
   sceneSamples: string[];
+}
+
+/** Re-extracts unique character names from raw episode scenes and dialogue. */
+export function extractAllCharactersFromEpisodes(episodeScripts: EpisodeRawScript[]): ScriptCharacter[] {
+  const characterSet = new Set<string>();
+
+  if (!episodeScripts || !Array.isArray(episodeScripts)) {
+    console.warn('[extractAllCharactersFromEpisodes] episodeScripts 无效');
+    return [];
+  }
+
+  for (const ep of episodeScripts) {
+    if (!ep || !ep.scenes) continue;
+
+    for (const scene of ep.scenes) {
+      if (!scene) continue;
+
+      for (const name of scene.characters || []) {
+        if (name && name.trim()) characterSet.add(name.trim());
+      }
+
+      for (const dialogue of scene.dialogues || []) {
+        if (dialogue?.character?.trim()) characterSet.add(dialogue.character.trim());
+      }
+    }
+  }
+
+  const characters = Array.from(characterSet).map((name, index) => ({
+    id: `char_raw_${index + 1}`,
+    name,
+  }));
+  console.log(`[extractAllCharactersFromEpisodes] 从 ${episodeScripts.length} 集剧本中提取到 ${characters.length} 个角色`);
+  return characters;
 }
 
 /** Collects deterministic episode/scene statistics without provider or store dependencies. */

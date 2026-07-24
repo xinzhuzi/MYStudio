@@ -76,6 +76,17 @@ describe("main process startup", () => {
     expect(readyBlock).toContain("app.dock.hide()");
   });
 
+  it("keeps the renderer isolated from Node integration", () => {
+    const windowBlock = mainSource.slice(
+      mainSource.indexOf("win = new BrowserWindow"),
+      mainSource.indexOf("// Open external links in system browser"),
+    );
+
+    expect(windowBlock).toContain("sandbox: true");
+    expect(windowBlock).toContain("contextIsolation: true");
+    expect(windowBlock).toContain("nodeIntegration: false");
+  });
+
   it("keeps automatic update checks quiet while preserving manual check errors", () => {
     expect(mainSource).toContain("registerAppUpdaterIpcHandlers");
     expect(appUpdaterIpcSource).toContain("options?: UpdateCheckOptions");

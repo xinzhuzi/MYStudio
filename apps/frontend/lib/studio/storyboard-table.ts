@@ -4,7 +4,12 @@ import {
   buildStoryboardVoiceoverItem,
   type VoiceoverCharacterIdentity,
 } from "@/lib/studio/chapter-voiceover";
-import type { StoryboardItem } from "@/types/studio";
+import type {
+  StoryboardItem,
+  StoryboardShotSemantics,
+  StoryboardVisibleCharacterSemantic,
+  StoryboardVisiblePropSemantic,
+} from "@/types/studio";
 
 export interface BuildStoryboardTableInput {
   episodeId: string;
@@ -36,12 +41,17 @@ export interface StoryboardTableRow {
   lines: string;
   sound: string;
   associateAssetsIds: string[];
+  shotSemantics?: StoryboardShotSemantics;
 }
 
 export interface ParseStoryboardTableResult {
   rows: StoryboardTableRow[];
   errors: string[];
   warnings: string[];
+}
+
+export interface ParseStoryboardTableOptions {
+  requireShotSemantics?: boolean;
 }
 
 /** §3.2 语速表：愤怒~4字/秒，正常~3字/秒，悲伤/低语/虚弱~2字/秒，缺省按正常。 */
@@ -80,7 +90,11 @@ export function buildStoryboardTableMessages(input: BuildStoryboardTableInput): 
   };
 }
 
-export function parseStoryboardTable(output: string, episodeId: string): ParseStoryboardTableResult {
+export function parseStoryboardTable(
+  output: string,
+  episodeId: string,
+  options: ParseStoryboardTableOptions = {},
+): ParseStoryboardTableResult {
   void episodeId;
   const body = extractStoryboardSegments(output);
   const rows: StoryboardTableRow[] = [];
@@ -132,8 +146,24 @@ export function parseStoryboardTable(output: string, episodeId: string): ParseSt
     }
 
     const row =
-      fields.length === 14
+      fields.length === 15
+        ? buildLegacyRow(index, fields, warnings, legacySceneIndexes, errors)
+        : fields.length === 14
         ? buildLegacyRow(index, fields, warnings, legacySceneIndexes)
+        : fields.length === 8
+          ? buildGroupedRow(
+              index,
+              fields,
+              {
+                scene: currentScene,
+                sceneIndex: currentSceneIndex,
+                segmentTitle: currentSegmentTitle,
+                assetNames: currentAssetNames,
+                assetIds: currentAssetIds,
+              },
+              warnings,
+              errors,
+            )
         : fields.length === 7
           ? buildGroupedRow(
               index,
@@ -149,7 +179,7 @@ export function parseStoryboardTable(output: string, episodeId: string): ParseSt
             )
           : null;
     if (!row) {
-      errors.push(`列数不符（应为14列或7列，实为${fields.length}）：${line}`);
+      errors.push(`列数不符（应为15列、14列、8列或7列，实为${fields.length}）：${line}`);
       continue;
     }
     rows.push(row);
@@ -157,6 +187,13 @@ export function parseStoryboardTable(output: string, episodeId: string): ParseSt
 
   const indexError = storyboardIndexContinuityError(rows);
   if (indexError) errors.push(indexError);
+  if (options.requireShotSemantics) {
+    for (const row of rows) {
+      if (!row.shotSemantics) {
+        errors.push(`分镜 ${row.index} 缺少出镜语义JSON`);
+      }
+    }
+  }
 
   return { rows, errors, warnings };
 }
@@ -208,6 +245,7 @@ export function toStoryboardItems(
       voiceStyle: voiceover.voiceStyle,
       requiresFixedVoice: voiceover.requiresFixedVoice,
       sound: row.sound,
+      shotSemantics: row.shotSemantics,
     };
   });
 }
@@ -224,6 +262,7 @@ function buildLegacyRow(
   fields: string[],
   warnings: string[],
   sceneIndexes: Map<string, number>,
+  errors?: string[],
 ): StoryboardTableRow {
   const descriptionRaw = fields[1]!;
   const scene = fields[2]!;
@@ -252,6 +291,9 @@ function buildLegacyRow(
     lines: fields[11]!,
     sound: fields[12]!,
     associateAssetsIds: splitBracketList(fields[13]!),
+    shotSemantics: fields.length === 15
+      ? parseShotSemantics(fields[14]!, index, errors ?? [])
+      : undefined,
   };
 }
 
@@ -266,6 +308,7 @@ function buildGroupedRow(
     assetIds: string[];
   },
   warnings: string[],
+  errors?: string[],
 ): StoryboardTableRow {
   const descriptionRaw = fields[1]!;
   const soundRaw = fields[6]!;
@@ -291,7 +334,103 @@ function buildGroupedRow(
     lines: fields[5]!,
     sound: stripLightingTerms(soundRaw),
     associateAssetsIds: context.assetIds,
+    shotSemantics: fields.length === 8
+      ? parseShotSemantics(fields[7]!, index, errors ?? [])
+      : undefined,
   };
+}
+
+function parseShotSemantics(
+  raw: string,
+  index: number,
+  errors: string[],
+): StoryboardShotSemantics | undefined {
+  let value: unknown;
+  try {
+    value = JSON.parse(raw);
+  } catch {
+    errors.push(`分镜 ${index} 出镜语义JSON不是有效JSON`);
+    return undefined;
+  }
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    errors.push(`分镜 ${index} 出镜语义JSON必须是对象`);
+    return undefined;
+  }
+  const semantic = value as Record<string, unknown>;
+  const sceneViewpointId = semantic.sceneViewpointId;
+  const personFree = semantic.personFree;
+  const visibleCharacters = semantic.visibleCharacters;
+  const visibleProps = semantic.visibleProps;
+  const actionIn = semantic.actionIn;
+  const actionOut = semantic.actionOut;
+  if (!isNonEmptyString(sceneViewpointId) || typeof personFree !== "boolean"
+    || !Array.isArray(visibleCharacters) || !Array.isArray(visibleProps)
+    || !isNonEmptyString(actionIn) || !isNonEmptyString(actionOut)) {
+    errors.push(`分镜 ${index} 出镜语义JSON缺少 sceneViewpointId、personFree、visibleCharacters、visibleProps、actionIn 或 actionOut`);
+    return undefined;
+  }
+  const parsedCharacters: StoryboardVisibleCharacterSemantic[] = [];
+  for (const item of visibleCharacters) {
+    if (!item || typeof item !== "object" || Array.isArray(item)) {
+      errors.push(`分镜 ${index} 出镜语义JSON含非法角色项`);
+      return undefined;
+    }
+    const character = item as Record<string, unknown>;
+    if (!isNonEmptyString(character.name) || !isNonEmptyString(character.position)
+      || !isNonEmptyString(character.orientation) || !isNonEmptyString(character.actionIn)
+      || !isNonEmptyString(character.actionOut)) {
+      errors.push(`分镜 ${index} 出镜角色必须有名称、站位、朝向、入镜动作和出镜动作`);
+      return undefined;
+    }
+    parsedCharacters.push({
+      name: character.name.trim(),
+      position: character.position.trim(),
+      orientation: character.orientation.trim(),
+      actionIn: character.actionIn.trim(),
+      actionOut: character.actionOut.trim(),
+    });
+  }
+  if ((personFree && parsedCharacters.length > 0) || (!personFree && parsedCharacters.length === 0)) {
+    errors.push(`分镜 ${index} 必须明确人物入画，或以 personFree=true 声明无人物镜头`);
+    return undefined;
+  }
+  if (new Set(parsedCharacters.map((item) => item.name)).size !== parsedCharacters.length) {
+    errors.push(`分镜 ${index} 出镜语义JSON不能重复同一角色`);
+    return undefined;
+  }
+  const parsedProps: StoryboardVisiblePropSemantic[] = [];
+  for (const item of visibleProps) {
+    if (!item || typeof item !== "object" || Array.isArray(item)) {
+      errors.push(`分镜 ${index} 出镜语义JSON含非法道具项`);
+      return undefined;
+    }
+    const prop = item as Record<string, unknown>;
+    if (!isNonEmptyString(prop.name) || !isNonEmptyString(prop.position) || !isNonEmptyString(prop.state)) {
+      errors.push(`分镜 ${index} 出镜道具必须有名称、位置和状态`);
+      return undefined;
+    }
+    parsedProps.push({
+      name: prop.name.trim(),
+      position: prop.position.trim(),
+      state: prop.state.trim(),
+    });
+  }
+  if (new Set(parsedProps.map((item) => item.name)).size !== parsedProps.length) {
+    errors.push(`分镜 ${index} 出镜语义JSON不能重复同一道具`);
+    return undefined;
+  }
+  return {
+    sceneViewpointId: sceneViewpointId.trim(),
+    personFree,
+    visibleCharacters: parsedCharacters,
+    visibleProps: parsedProps,
+    actionIn: actionIn.trim(),
+    actionOut: actionOut.trim(),
+  };
+}
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
 }
 
 function parseSceneHeading(line: string): { index?: number; scene: string; roles: string[] } | null {

@@ -24,6 +24,7 @@ These guides help you **ask the right questions before coding**.
 | [Code Reuse Thinking Guide](./code-reuse-thinking-guide.md) | Identify patterns and reduce duplication | When you notice repeated patterns |
 | [Cross-Layer Thinking Guide](./cross-layer-thinking-guide.md) | Think through data flow across layers | Features spanning multiple layers |
 | [Image Transfer Safety Guide](./image-transfer-safety-guide.md) | Enforce single-thumbnail and byte-size gates before sending images | Any task that transfers or reviews local images |
+| [Trellis Open Task Board Guide](./trellis-open-task-board-guide.md) | Report only open and ambiguous Trellis tasks | When the user asks what tasks remain |
 
 ---
 

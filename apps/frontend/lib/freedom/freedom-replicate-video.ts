@@ -1,4 +1,4 @@
-import type { FreedomVideoParams, GenerationResult } from "./freedom-api";
+import type { FreedomVideoParams, GenerationResult } from "./freedom-types";
 import {
   extractFreedomVideoUrl,
   freedomObservedFetch,

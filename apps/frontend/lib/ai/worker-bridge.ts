@@ -58,6 +58,8 @@ export class AIWorkerBridge {
   private isReady = false;
   private readyPromise: Promise<void>;
   private readyResolve: (() => void) | null = null;
+  private activeRunId: number | null = null;
+  private nextRunId = 0;
 
   constructor() {
     this.readyPromise = new Promise((resolve) => {
@@ -157,7 +159,8 @@ export class AIWorkerBridge {
       : undefined;
 
     return new Promise((resolve, reject) => {
-      const id = `screenplay_${Date.now()}`;
+      const runId = this.beginRun();
+      const id = `screenplay_${runId}`;
       this.pendingPromises.set(id, {
         resolve: resolve as (value: unknown) => void,
         reject,
@@ -165,6 +168,7 @@ export class AIWorkerBridge {
 
       this.sendCommand({
         type: 'GENERATE_SCREENPLAY',
+        runId,
         payload: {
           prompt,
           referenceImages: imageBuffers,
@@ -186,8 +190,10 @@ export class AIWorkerBridge {
     characterReferenceImages?: string[]
   ): Promise<void> {
     const preparedReferenceImages = await prepareReferenceImagesForTransfer(characterReferenceImages);
+    const runId = this.beginRun();
     this.sendCommand({
       type: 'EXECUTE_SCENE',
+      runId,
       payload: {
         screenplayId,
         scene,
@@ -204,8 +210,10 @@ export class AIWorkerBridge {
   async executeScreenplay(screenplay: AIScreenplay, config: GenerationConfig): Promise<void> {
     const preparedConfig = await prepareGenerationConfigForTransfer(config);
     const preparedScreenplay = await prepareScreenplayFramesForTransfer(screenplay);
+    const runId = this.beginRun();
     this.sendCommand({
       type: 'EXECUTE_SCREENPLAY',
+      runId,
       payload: { screenplay: preparedScreenplay, config: preparedConfig },
     });
   }
@@ -216,8 +224,10 @@ export class AIWorkerBridge {
    */
   async executeScreenplayImages(screenplay: AIScreenplay, config: GenerationConfig): Promise<void> {
     const preparedConfig = await prepareGenerationConfigForTransfer(config);
+    const runId = this.beginRun();
     this.sendCommand({
       type: 'EXECUTE_SCREENPLAY_IMAGES',
+      runId,
       payload: { screenplay, config: preparedConfig },
     });
   }
@@ -229,8 +239,10 @@ export class AIWorkerBridge {
   async executeScreenplayVideos(screenplay: AIScreenplay, config: GenerationConfig): Promise<void> {
     const preparedConfig = await prepareGenerationConfigForTransfer(config);
     const preparedScreenplay = await prepareScreenplayFramesForTransfer(screenplay);
+    const runId = this.beginRun();
     this.sendCommand({
       type: 'EXECUTE_SCREENPLAY_VIDEOS',
+      runId,
       payload: { screenplay: preparedScreenplay, config: preparedConfig },
     });
   }
@@ -249,8 +261,14 @@ export class AIWorkerBridge {
    * Cancel all or specific operations
    */
   cancel(screenplayId?: string, sceneId?: number): void {
+    const runId = this.activeRunId ?? undefined;
+    if (runId !== undefined) {
+      this.activeRunId = null;
+      this.rejectPendingScreenplay(runId, new Error('Generation cancelled'));
+    }
     this.sendCommand({
       type: 'CANCEL',
+      runId,
       payload: screenplayId || sceneId ? { screenplayId, sceneId } : undefined,
     });
   }
@@ -264,8 +282,25 @@ export class AIWorkerBridge {
     this.worker.postMessage(command);
   }
 
+  private beginRun(): number {
+    if (this.activeRunId !== null) {
+      this.rejectPendingScreenplay(this.activeRunId, new Error('Generation superseded by a newer run'));
+    }
+    this.activeRunId = ++this.nextRunId;
+    return this.activeRunId;
+  }
+
+  private rejectPendingScreenplay(runId: number, error: Error): void {
+    const id = `screenplay_${runId}`;
+    const callbacks = this.pendingPromises.get(id);
+    if (!callbacks) return;
+    callbacks.reject(error);
+    this.pendingPromises.delete(id);
+  }
+
   private handleWorkerMessage(e: MessageEvent<WorkerEvent>): void {
     const event = e.data;
+    if (event.runId !== undefined && event.runId !== this.activeRunId) return;
 
     switch (event.type) {
       case 'WORKER_READY':
@@ -286,27 +321,13 @@ export class AIWorkerBridge {
         break;
 
       case 'SCREENPLAY_READY':
-        // Resolve pending screenplay promise
-        for (const [id, callbacks] of this.pendingPromises) {
-          if (id.startsWith('screenplay_')) {
-            callbacks.resolve(event.payload);
-            this.pendingPromises.delete(id);
-            break;
-          }
-        }
+        this.resolveScreenplay(event);
         // Also call registered handler
         this.eventHandlers.SCREENPLAY_READY?.(event.payload);
         break;
 
       case 'SCREENPLAY_ERROR':
-        // Reject pending screenplay promise
-        for (const [id, callbacks] of this.pendingPromises) {
-          if (id.startsWith('screenplay_')) {
-            callbacks.reject(new Error(event.payload.error));
-            this.pendingPromises.delete(id);
-            break;
-          }
-        }
+        this.rejectScreenplay(event);
         break;
 
       case 'SCENE_PROGRESS':
@@ -346,6 +367,37 @@ export class AIWorkerBridge {
 
       default:
         console.warn('[WorkerBridge] Unhandled event type:', (event as WorkerEvent).type);
+    }
+  }
+
+  private resolveScreenplay(event: Extract<WorkerEvent, { type: 'SCREENPLAY_READY' }>): void {
+    const id = event.runId === undefined ? undefined : `screenplay_${event.runId}`;
+    if (id) {
+      const callbacks = this.pendingPromises.get(id);
+      if (!callbacks) return;
+      callbacks.resolve(event.payload);
+      this.pendingPromises.delete(id);
+      return;
+    }
+    for (const [pendingId, callbacks] of this.pendingPromises) {
+      if (!pendingId.startsWith('screenplay_')) continue;
+      callbacks.resolve(event.payload);
+      this.pendingPromises.delete(pendingId);
+      return;
+    }
+  }
+
+  private rejectScreenplay(event: Extract<WorkerEvent, { type: 'SCREENPLAY_ERROR' }>): void {
+    const error = new Error(event.payload.error);
+    if (event.runId !== undefined) {
+      this.rejectPendingScreenplay(event.runId, error);
+      return;
+    }
+    for (const [id, callbacks] of this.pendingPromises) {
+      if (!id.startsWith('screenplay_')) continue;
+      callbacks.reject(error);
+      this.pendingPromises.delete(id);
+      return;
     }
   }
 

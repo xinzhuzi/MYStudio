@@ -18,7 +18,9 @@
   "commit": null,
   "pr_url": null,
   "subtasks": [],
-  "children": [],
+  "children": [
+    "07-17-paid-retry-closure-review"
+  ],
   "parent": "07-10-mystudio-chapter001-auto-video-fixed-voiceover",
   "relatedFiles": [],
   "notes": "",

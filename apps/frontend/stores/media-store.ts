@@ -20,7 +20,7 @@ import {
 
 type MediaPersistedState = { folders: MediaFolder[]; mediaFiles: MediaFile[] };
 
-function splitMediaData(state: MediaPersistedState, pid: string) {
+export function splitMediaData(state: MediaPersistedState, pid: string) {
   return {
     projectData: {
       folders: state.folders.filter((f) => f.projectId === pid && !f.isSystem),
@@ -33,7 +33,7 @@ function splitMediaData(state: MediaPersistedState, pid: string) {
   };
 }
 
-function mergeMediaData(
+export function mergeMediaData(
   projectData: MediaPersistedState | null,
   sharedData: MediaPersistedState | null,
 ): MediaPersistedState {
@@ -46,6 +46,25 @@ function mergeMediaData(
       ...(sharedData?.mediaFiles ?? []),
       ...(projectData?.mediaFiles ?? []),
     ],
+  };
+}
+
+export function normalizeMediaUrl(url: unknown): string | undefined {
+  if (!url) return undefined;
+  if (Array.isArray(url)) return url[0] || undefined;
+  if (typeof url === "string") return url;
+  return undefined;
+}
+
+export function partializeMediaData(state: MediaStore) {
+  return {
+    folders: state.folders,
+    mediaFiles: state.mediaFiles.filter((f) => !f.ephemeral).map((f) => {
+      const url = normalizeMediaUrl(f.url);
+      const thumbnailUrl = normalizeMediaUrl(f.thumbnailUrl);
+      const transient = (u?: string) => !u || u.startsWith("blob:") || u.startsWith("data:");
+      return { ...f, file: undefined, url: transient(url) ? undefined : url, thumbnailUrl: transient(thumbnailUrl) ? undefined : thumbnailUrl };
+    }),
   };
 }
 
@@ -532,7 +551,7 @@ export const useMediaStore = create<MediaStore>()(
       source,
       folderId: folderId ?? null,
       projectId,
-      file: null as any, // No file object for URL-based media
+      file: null, // No file object for URL-based media
     };
     
     // Add to state immediately (with URL)
@@ -675,33 +694,7 @@ export const useMediaStore = create<MediaStore>()(
       storage: createJSONStorage(() => createSplitStorage<MediaPersistedState>(
         'media', splitMediaData, mergeMediaData, 'shareMedia'
       )),
-      partialize: (state) => ({
-        // Persist folders and media metadata (not File objects or ephemeral URLs)
-        folders: state.folders,
-        mediaFiles: state.mediaFiles
-          .filter((f) => !f.ephemeral)
-          .map((f) => {
-            // Normalize URL - handle array format ['url'] -> 'url'
-            const normalizeUrl = (url: any): string | undefined => {
-              if (!url) return undefined;
-              if (Array.isArray(url)) return url[0] || undefined;
-              if (typeof url === 'string') return url;
-              return undefined;
-            };
-            const normalizedUrl = normalizeUrl(f.url);
-            const normalizedThumbnail = normalizeUrl(f.thumbnailUrl);
-            
-            // Strip non-persistent URLs: blob: (session-only) and data: (too large)
-            const isTransientUrl = (u?: string) => !u || u.startsWith('blob:') || u.startsWith('data:');
-            
-            return {
-              ...f,
-              file: undefined, // Don't persist File objects
-              url: isTransientUrl(normalizedUrl) ? undefined : normalizedUrl,
-              thumbnailUrl: isTransientUrl(normalizedThumbnail) ? undefined : normalizedThumbnail,
-            };
-          }),
-      }),
+      partialize: partializeMediaData,
       merge: (persisted: any, current: any) => {
         if (!persisted) return current;
         // Replace arrays completely on rehydrate (don't merge/append)

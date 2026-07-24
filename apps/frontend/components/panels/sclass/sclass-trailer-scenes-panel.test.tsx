@@ -5,13 +5,14 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { SplitScene } from "@/stores/director-store";
 import {
   SClassTrailerScenesPanel,
-  type SClassTrailerScenesPanelProps,
+  StoryboardTrailerScenesPanel,
+  type StoryboardTrailerScenesPanelProps,
 } from "./sclass-trailer-scenes-panel";
 
 const toast = vi.hoisted(() => ({ info: vi.fn(), success: vi.fn() }));
 
 vi.mock("sonner", () => ({ toast }));
-vi.mock("../director/storyboard-config-toolbar", () => ({
+vi.mock("../storyboard-config-toolbar", () => ({
   StoryboardConfigToolbar: () => <div data-testid="storyboard-config-toolbar" />,
 }));
 vi.mock("@/components/ui/alert-dialog", () => ({
@@ -46,8 +47,8 @@ function scene(id: number, updates: Partial<SplitScene> = {}): SplitScene {
 }
 
 function createProps(
-  overrides: Partial<SClassTrailerScenesPanelProps> = {},
-): SClassTrailerScenesPanelProps {
+  overrides: Partial<StoryboardTrailerScenesPanelProps> = {},
+): StoryboardTrailerScenesPanelProps {
   return {
     trailerScenes: [scene(0)],
     isGenerating: false,
@@ -128,5 +129,14 @@ describe("SClassTrailerScenesPanel", () => {
 
     expect((screen.getByRole("button", { name: "清空分镜" }) as HTMLButtonElement).disabled).toBe(true);
     expect((screen.getByRole("button", { name: "生成中..." }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it("renders optional header actions before the clear action", () => {
+    render(<StoryboardTrailerScenesPanel {...createProps({
+      headerActions: <button type="button">AI 自动填写提示词</button>,
+    })} />);
+
+    expect(screen.getByRole("button", { name: "AI 自动填写提示词" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "清空分镜" })).toBeTruthy();
   });
 });

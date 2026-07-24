@@ -8,6 +8,7 @@ import {
   generatePropImage,
   generateSceneImage,
   submitGridImageRequest,
+  pollTaskStatus,
 } from "./image-generator";
 import {
   extractDirectImageUrl,
@@ -79,6 +80,24 @@ describe("generateCharacterImage", () => {
   afterEach(() => {
     vi.useRealTimers();
     vi.unstubAllGlobals();
+  });
+
+  it("fails with a precise configuration error before fetch when no character provider is bound", async () => {
+    const fetchMock = vi.fn();
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    vi.stubGlobal("fetch", fetchMock);
+    useAPIConfigStore.setState({
+      providers: [],
+      featureBindings: {},
+      modelEndpointTypes: {},
+    } as never);
+
+    await expect(generateCharacterImage({
+      prompt: "unconfigured character",
+    })).rejects.toThrow("请先在设置中为「角色生成」功能绑定 API 供应商");
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(warnSpy).toHaveBeenCalledWith("[FeatureRouter] No provider bound for feature: character_generation");
   });
 
   it("accepts OpenAI-compatible b64_json image responses", async () => {
@@ -283,6 +302,75 @@ describe("generateCharacterImage", () => {
     expect(retryBody.size).toBe("864x1152");
   });
 
+  it("stops Mikoto after an ambiguous paid transport failure without compatibility or provider fallback", async () => {
+    const mikotoProvider = {
+      ...provider,
+      id: "mikoto",
+      name: "mikoto",
+      baseUrl: "https://api.mikoto.vip/v1",
+    };
+    const backupProvider = {
+      ...provider,
+      id: "backup",
+      name: "备用",
+      baseUrl: "https://backup.example.com/v1",
+      apiKey: "sk-backup",
+      model: ["gpt-image-backup"],
+    };
+    useAPIConfigStore.setState({
+      providers: [mikotoProvider, backupProvider],
+      featureBindings: {
+        character_generation: ["mikoto:gpt-image-2", "backup:gpt-image-backup"],
+      },
+      modelEndpointTypes: {
+        "gpt-image-2": ["openai"],
+        "gpt-image-backup": ["openai"],
+      },
+    } as never);
+    const fetchMock = vi.fn().mockRejectedValue(new TypeError("fetch failed"));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(generateCharacterImage({ prompt: "ambiguous paid transport" })).rejects.toThrow(
+      "Mikoto 图片请求结果不确定",
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0]?.[0]).toBe("https://api.mikoto.vip/v1/images/generations");
+  });
+
+  it("stops Mikoto grid generation after one ambiguous paid transport request", async () => {
+    const fetchMock = vi.fn().mockRejectedValue(new TypeError("fetch failed"));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(submitGridImageRequest({
+      model: "gpt-image-2",
+      prompt: "ambiguous paid grid transport",
+      apiKey: "sk-test",
+      baseUrl: "https://api.mikoto.vip/v1",
+    })).rejects.toThrow("Mikoto 图片请求结果不确定");
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0]?.[0]).toBe("https://api.mikoto.vip/v1/images/generations");
+  });
+
+  it("keeps a known Mikoto 403 diagnosable instead of marking it ambiguous", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({
+      error: {
+        message: "订阅额度不足或未配置订阅: subscription quota insufficient",
+        code: "insufficient_user_quota",
+      },
+    }, { ok: false, status: 403 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(submitGridImageRequest({
+      model: "gpt-image-2",
+      prompt: "known paid grid rejection",
+      apiKey: "sk-test",
+      baseUrl: "https://api.mikoto.vip/v1",
+    })).rejects.toThrow("订阅额度不足或未配置订阅");
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it("does not abort slow synchronous image generation at 60 seconds", async () => {
     vi.useFakeTimers();
     const capturedSignals: AbortSignal[] = [];
@@ -471,5 +559,123 @@ describe("generateCharacterImage", () => {
     const requestBody = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
     expect(requestBody.model).toBe("gpt-image-2");
     expect(requestBody.prompt).toContain("ancient inn room");
+  });
+});
+
+describe("pollTaskStatus contract", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  it("returns the completed image URL", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ status: "success", result: { images: [{ url: "https://cdn.test/a.png" }] } }),
+    }));
+    await expect(pollTaskStatus("task-1", "sk-test", "https://api.test/v1")).resolves.toBe("https://cdn.test/a.png");
+  });
+
+  it("surfaces provider task failures", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ status: "failed", error: "render failed" }),
+    }));
+    await expect(pollTaskStatus("task-2", "sk-test", "https://api.test/v1")).rejects.toThrow("render failed");
+  });
+
+  it("times out after the bounded polling window", async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ status: "processing" }),
+    }));
+    const pending = pollTaskStatus("task-3", "sk-test", "https://api.test/v1");
+    const rejection = expect(pending).rejects.toThrow("图片生成超时");
+    await vi.advanceTimersByTimeAsync(120 * 2000);
+    await rejection;
+  });
+
+  it("passes AbortSignal to polling and aborts promptly", async () => {
+    const controller = new AbortController();
+    const signals: AbortSignal[] = [];
+    vi.stubGlobal("fetch", vi.fn((_url, init) => {
+      signals.push(init?.signal as AbortSignal);
+      return Promise.reject(controller.signal.reason);
+    }));
+    const pending = pollTaskStatus("task-4", "sk-test", "https://api.test/v1", undefined, undefined, undefined, controller.signal);
+    controller.abort(new Error("cancelled"));
+    await expect(pending).rejects.toThrow("cancelled");
+    expect(signals[0]).toBe(controller.signal);
+  });
+
+  it("passes the caller signal to grid task polling GET", async () => {
+    const controller = new AbortController();
+    const previousEndpointTypes = useAPIConfigStore.getState().modelEndpointTypes;
+    useAPIConfigStore.setState({
+      modelEndpointTypes: { "grid-model": ["standard", "aigc-image"] },
+    } as never);
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ data: [{ task_id: "grid-1" }] }),
+      })
+      .mockImplementationOnce((_url, init) => {
+        expect(init?.signal).toBe(controller.signal);
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => ({ status: "completed", url: "https://cdn.test/grid.png" }),
+        });
+      });
+    vi.stubGlobal("fetch", fetchMock);
+
+    try {
+      await expect(submitGridImageRequest({
+        model: "grid-model",
+        prompt: "grid prompt",
+        apiKey: "sk-test",
+        baseUrl: "https://api.test/v1",
+        signal: controller.signal,
+      })).resolves.toMatchObject({ imageUrl: "https://cdn.test/grid.png", taskId: "grid-1" });
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    } finally {
+      useAPIConfigStore.setState({ modelEndpointTypes: previousEndpointTypes } as never);
+    }
+  });
+
+  it("passes the caller signal to Kling submit and polling", async () => {
+    vi.useFakeTimers();
+    const controller = new AbortController();
+    const previousEndpointTypes = useAPIConfigStore.getState().modelEndpointTypes;
+    useAPIConfigStore.setState({ modelEndpointTypes: {} } as never);
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ data: { task_id: "kling-1" } }) })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ data: { task_status: "succeed", task_result: { images: [{ url: "https://cdn.test/kling.png" }] } } }),
+      });
+    vi.stubGlobal("fetch", fetchMock);
+
+    try {
+      const pending = submitGridImageRequest({
+        model: "kling-image",
+        prompt: "kling prompt",
+        apiKey: "sk-test",
+        baseUrl: "https://api.test/v1",
+        signal: controller.signal,
+      });
+      await vi.advanceTimersByTimeAsync(2000);
+      await expect(pending).resolves.toMatchObject({ imageUrl: "https://cdn.test/kling.png", taskId: "kling-1" });
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(fetchMock.mock.calls[0]?.[1]?.signal).toBe(controller.signal);
+      expect(fetchMock.mock.calls[1]?.[1]?.signal).toBe(controller.signal);
+    } finally {
+      useAPIConfigStore.setState({ modelEndpointTypes: previousEndpointTypes } as never);
+    }
   });
 });

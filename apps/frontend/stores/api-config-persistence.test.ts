@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { APIConfigState } from "./api-config-store";
+import type { APIConfigState } from "./api-config-store-types";
 import {
   API_CONFIG_PERSIST_VERSION,
   API_CONFIG_STORAGE_KEY,

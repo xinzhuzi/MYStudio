@@ -39,6 +39,17 @@ const DEFAULT_PROJECT: Project = {
   updatedAt: Date.now(),
 };
 
+function isProject(value: unknown): value is Project {
+  if (!value || typeof value !== "object") return false;
+  const project = value as Partial<Project>;
+  return (
+    typeof project.id === "string" &&
+    typeof project.name === "string" &&
+    typeof project.createdAt === "number" &&
+    typeof project.updatedAt === "number"
+  );
+}
+
 export const useProjectStore = create<ProjectStore>()(
   persist(
     (set, get) => ({
@@ -129,7 +140,7 @@ export const useProjectStore = create<ProjectStore>()(
       }),
       migrate: (persisted: unknown) => {
         const candidate = persisted as Partial<ProjectStore> | null;
-        if (candidate?.projects && candidate.projects.length > 0) {
+        if (Array.isArray(candidate?.projects) && candidate.projects.length > 0) {
           return candidate;
         }
         return {
@@ -139,9 +150,16 @@ export const useProjectStore = create<ProjectStore>()(
       },
       onRehydrateStorage: () => (state) => {
         if (!state) return;
+        // `migrate` is skipped when the persisted version already matches.
+        // Normalize same-version payloads before any array methods run.
+        const projects = Array.isArray(state.projects)
+          ? state.projects.filter(isProject)
+          : [];
+        if (projects.length === 0) projects.push(DEFAULT_PROJECT);
+        state.projects = projects;
         const project =
-          state.projects.find((p) => p.id === state.activeProjectId) ||
-          state.projects[0] ||
+          projects.find((p) => p.id === state.activeProjectId) ||
+          projects[0] ||
           null;
         state.activeProjectId = project?.id || null;
         state.activeProject = project;

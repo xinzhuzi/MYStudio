@@ -3,12 +3,19 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from PIL import Image
+from PIL import Image, UnidentifiedImageError
 
 from Library.ai.prepare_chapter001_continuity_bibles import prepare_full_chapter_manifest
 
 
 class PrepareFullChapterContinuityBiblesTest(unittest.TestCase):
+    def write_source_document(self, root: Path, versions: list[dict[str, object]]) -> Path:
+        source_document = root / "versions.json"
+        source_document.write_text(json.dumps({
+            "continuityAssetVersions": versions,
+        }, ensure_ascii=False), encoding="utf-8")
+        return source_document
+
     def test_preserves_exact_version_keys_and_writes_safe_independent_thumbnails(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
@@ -108,6 +115,97 @@ class PrepareFullChapterContinuityBiblesTest(unittest.TestCase):
                 self.assertLessEqual(max(item["width"], item["height"]), 768)
             rerun = prepare_full_chapter_manifest(project, source_document, apply=True, bible_version="v8")
             self.assertEqual(rerun["manifestSha256"], applied["manifestSha256"])
+
+    def test_rejects_invalid_bible_versions_before_io(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            project = root / "project"
+            project.mkdir()
+            source_document = self.write_source_document(root, [])
+
+            for value in ("", "v0", "V1", "v1x"):
+                with self.subTest(value=value):
+                    with self.assertRaisesRegex(RuntimeError, "Bible 版本必须是 vN 格式"):
+                        prepare_full_chapter_manifest(project, source_document, apply=False, bible_version=value)
+
+    def test_rejects_missing_project_or_source_inputs(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            with self.assertRaisesRegex(RuntimeError, "完整 Bible 输入不存在"):
+                prepare_full_chapter_manifest(
+                    root / "missing-project",
+                    root / "missing-versions.json",
+                    apply=False,
+                    bible_version="v1",
+                )
+
+    def test_rejects_sources_without_continuity_versions_array(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            project = root / "project"
+            project.mkdir()
+            source_document = root / "versions.json"
+            source_document.write_text(json.dumps({"state": {}}, ensure_ascii=False), encoding="utf-8")
+
+            with self.assertRaisesRegex(RuntimeError, "连续性资产来源缺少 continuityAssetVersions 数组"):
+                prepare_full_chapter_manifest(project, source_document, apply=False, bible_version="v1")
+
+    def test_rejects_empty_or_duplicate_version_keys(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            project = root / "project"
+            project.mkdir()
+
+            cases = [
+                (
+                    [{"assetId": "", "versionId": "empty:base:v1", "referenceImagePaths": []}],
+                    "完整 Bible 存在空 assetId/versionId",
+                ),
+                (
+                    [
+                        {"assetId": "asset-1", "versionId": "asset-1:base:v1", "referenceImagePaths": []},
+                        {"assetId": "asset-1", "versionId": "asset-1:base:v1", "referenceImagePaths": []},
+                    ],
+                    "完整 Bible 存在重复 assetId/versionId",
+                ),
+            ]
+            for index, (versions, message) in enumerate(cases):
+                with self.subTest(index=index):
+                    source_document = self.write_source_document(root, versions)
+                    with self.assertRaisesRegex(RuntimeError, message):
+                        prepare_full_chapter_manifest(project, source_document, apply=False, bible_version="v1")
+
+    def test_rejects_missing_reference_images(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            project = root / "project"
+            project.mkdir()
+            source_document = self.write_source_document(root, [{
+                "assetId": "asset-1",
+                "versionId": "asset-1:base:v1",
+                "assetKind": "prop",
+                "referenceImagePaths": [str(root / "missing.png")],
+            }])
+
+            with self.assertRaisesRegex(RuntimeError, "完整 Bible 参考图不存在: asset-1/asset-1:base:v1"):
+                prepare_full_chapter_manifest(project, source_document, apply=False, bible_version="v1")
+
+    def test_rejects_malformed_png_references(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            project = root / "project"
+            project.mkdir()
+            source = root / "not-a-png.png"
+            source.write_text("not a png", encoding="utf-8")
+            source_document = self.write_source_document(root, [{
+                "assetId": "asset-1",
+                "versionId": "asset-1:base:v1",
+                "assetKind": "prop",
+                "referenceImagePaths": [str(source)],
+            }])
+
+            with self.assertRaises(UnidentifiedImageError):
+                prepare_full_chapter_manifest(project, source_document, apply=False, bible_version="v1")
 
 
 if __name__ == "__main__":

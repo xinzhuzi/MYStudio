@@ -44,4 +44,54 @@ describe("registerAppShellIpcHandlers", () => {
       error: "无效文件路径",
     });
   });
+
+  it("rejects blank and non-string paths before resolving them", async () => {
+    await expect(mocks.handlers.get("app-open-path")?.({}, "")).resolves.toEqual({
+      success: false,
+      error: "无效文件路径",
+    });
+    await expect(mocks.handlers.get("app-open-path")?.({}, "   ")).resolves.toEqual({
+      success: false,
+      error: "无效文件路径",
+    });
+    await expect(mocks.handlers.get("app-open-path")?.({}, 42)).resolves.toEqual({
+      success: false,
+      error: "无效文件路径",
+    });
+
+    expect(mocks.existsSync).not.toHaveBeenCalled();
+    expect(mocks.openPath).not.toHaveBeenCalled();
+  });
+
+  it("returns the current file-missing and shell-open errors", async () => {
+    mocks.existsSync.mockReturnValueOnce(false);
+
+    await expect(mocks.handlers.get("app-open-path")?.({}, "missing.pdf")).resolves.toEqual({
+      success: false,
+      error: "文件不存在",
+    });
+    expect(mocks.openPath).not.toHaveBeenCalled();
+
+    mocks.openPath.mockResolvedValueOnce("open failed");
+    await expect(mocks.handlers.get("app-open-path")?.({}, "blocked.pdf")).resolves.toEqual({
+      success: false,
+      error: "open failed",
+    });
+  });
+
+  it("stringifies resolver failures without changing the open-path contract", async () => {
+    mocks.handlers.clear();
+    registerAppShellIpcHandlers({
+      resolveSourcePath: () => {
+        throw new Error("resolver failed");
+      },
+    });
+
+    await expect(mocks.handlers.get("app-open-path")?.({}, "manual.pdf")).resolves.toEqual({
+      success: false,
+      error: "resolver failed",
+    });
+    expect(mocks.existsSync).not.toHaveBeenCalled();
+    expect(mocks.openPath).not.toHaveBeenCalled();
+  });
 });

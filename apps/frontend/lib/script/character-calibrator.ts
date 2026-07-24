@@ -14,15 +14,23 @@
  * 5. AI 补充角色信息（年龄、性别、关系）
  */
 
-import type { ScriptCharacter, ProjectBackground, EpisodeRawScript, CharacterIdentityAnchors, CharacterNegativePrompt, PromptLanguage, CalibrationStrictness, FilteredCharacterRecord } from '@/types/script';
+import type { ScriptCharacter, ProjectBackground, EpisodeRawScript, PromptLanguage, CalibrationStrictness, FilteredCharacterRecord } from '@/types/script';
 import { aiManager } from '@/lib/ai/ai-manager';
 import { processBatched } from '@/lib/ai/batch-processor';
 import { estimateTokens, safeTruncate } from '@/lib/ai/model-registry';
 import { useScriptStore } from '@/stores/script-store';
 import { buildSeriesContextSummary } from './series-meta-sync';
-import { buildCharacterPriorityRecords, collectCharacterStats } from './character-calibrator-utils';
-export { collectCharacterStats } from './character-calibrator-utils';
+import { buildCharacterPriorityRecords, collectCharacterStats, extractAllCharactersFromEpisodes } from './character-calibrator-utils';
+import {
+  convertToScriptCharacters,
+  resolveSafeScriptCharacters,
+  sortByImportance,
+  type CalibratedCharacter,
+} from './character-calibrator-normalizers';
+export { collectCharacterStats, extractAllCharactersFromEpisodes } from './character-calibrator-utils';
 export type { CharacterStats } from './character-calibrator-utils';
+export { convertToScriptCharacters, resolveSafeScriptCharacters, sortByImportance } from './character-calibrator-normalizers';
+export type { CalibratedCharacter } from './character-calibrator-normalizers';
 
 // ==================== 类型定义 ====================
 
@@ -37,44 +45,6 @@ export interface CharacterCalibrationResult {
   mergeRecords: MergeRecord[];
   /** AI 分析说明 */
   analysisNotes: string;
-}
-
-export interface CalibratedCharacter {
-  id: string;
-  name: string;
-  /** 角色重要性：protagonist(主角), supporting(重要配角), minor(次要角色), extra(龙套) */
-  importance: 'protagonist' | 'supporting' | 'minor' | 'extra';
-  /** 出场集数范围 */
-  episodeRange?: [number, number];
-  /** 出场次数 */
-  appearanceCount: number;
-  /** AI 补充的角色描述 */
-  role?: string;
-  /** AI 推断的年龄 */
-  age?: string;
-  /** AI 推断的性别 */
-  gender?: string;
-  /** 与其他角色的关系 */
-  relationships?: string;
-  /** 原始提取的名字变体 */
-  nameVariants: string[];
-  // === 专业角色设计字段 ===
-  /** 英文视觉提示词（用于AI图像生成） */
-  visualPromptEn?: string;
-  /** 中文视觉提示词 */
-  visualPromptZh?: string;
-  /** 面部特征描述 */
-  facialFeatures?: string;
-  /** 独特标记（疆痕、胎记等） */
-  uniqueMarks?: string;
-  /** 服装风格 */
-  clothingStyle?: string;
-  
-  // === 6层身份锚点（角色一致性）===
-  /** 身份锚点 - 6层特征锁定 */
-  identityAnchors?: CharacterIdentityAnchors;
-  /** 负面提示词 */
-  negativePrompt?: CharacterNegativePrompt;
 }
 
 export interface MergeRecord {
@@ -93,57 +63,6 @@ export interface CalibrationOptions {
   promptLanguage?: PromptLanguage;
   /** 校准严格度 */
   strictness?: CalibrationStrictness;
-}
-
-// ==================== 从剧本重新提取角色 ====================
-
-/**
- * 从 episodeRawScripts 中重新提取所有角色
- * 这会遍历所有集的所有场景，提取场景人物和对白说话人
- */
-export function extractAllCharactersFromEpisodes(
-  episodeScripts: EpisodeRawScript[]
-): ScriptCharacter[] {
-  const characterSet = new Set<string>();
-  
-  if (!episodeScripts || !Array.isArray(episodeScripts)) {
-    console.warn('[extractAllCharactersFromEpisodes] episodeScripts 无效');
-    return [];
-  }
-  
-  // 遍历所有集
-  for (const ep of episodeScripts) {
-    if (!ep || !ep.scenes) continue;
-    
-    for (const scene of ep.scenes) {
-      if (!scene) continue;
-      
-      // 从场景人物列表提取
-      const sceneChars = scene.characters || [];
-      for (const name of sceneChars) {
-        if (name && name.trim()) {
-          characterSet.add(name.trim());
-        }
-      }
-      
-      // 从对白中提取说话人
-      const dialogues = scene.dialogues || [];
-      for (const dialogue of dialogues) {
-        if (dialogue && dialogue.character && dialogue.character.trim()) {
-          characterSet.add(dialogue.character.trim());
-        }
-      }
-    }
-  }
-  
-  // 转换为 ScriptCharacter 数组
-  const characters: ScriptCharacter[] = Array.from(characterSet).map((name, index) => ({
-    id: `char_raw_${index + 1}`,
-    name,
-  }));
-  
-  console.log(`[extractAllCharactersFromEpisodes] 从 ${episodeScripts.length} 集剧本中提取到 ${characters.length} 个角色`);
-  return characters;
 }
 
 // ==================== 核心函数 ====================
@@ -610,136 +529,6 @@ function collectCharacterContexts(
   }
   
   return contexts.join('\n');
-}
-
-/**
- * 将校准结果转换回 ScriptCharacter 格式
- * 注意：保留原始角色的所有字段，只补充/更新 AI 校准的字段
- */
-export function convertToScriptCharacters(
-  calibrated: CalibratedCharacter[],
-  originalCharacters?: ScriptCharacter[],
-  promptLanguage: PromptLanguage = 'zh+en',
-): ScriptCharacter[] {
-  return calibrated.map(c => {
-    // 查找原始角色数据
-    const original = originalCharacters?.find(orig => orig.name === c.name);
-    
-    const nextVisualPromptEn = c.visualPromptEn || original?.visualPromptEn;
-    const nextVisualPromptZh = c.visualPromptZh || original?.visualPromptZh;
-    // 合并：保留原始数据，只补充/更新 AI 生成的字段
-    return {
-      // 保留原始字段
-      ...original,
-      // 更新/补充 AI 校准的字段
-      id: c.id,
-      name: c.name,
-      role: c.role || original?.role,
-      age: c.age || original?.age,
-      gender: c.gender || original?.gender,
-      relationships: c.relationships || original?.relationships,
-      // === 专业角色设计字段（世界级大师生成）===
-      visualPromptEn: promptLanguage === 'zh' ? undefined : nextVisualPromptEn,
-      visualPromptZh: promptLanguage === 'en' ? undefined : nextVisualPromptZh,
-      appearance: c.facialFeatures || c.uniqueMarks || c.clothingStyle 
-        ? [c.facialFeatures, c.uniqueMarks, c.clothingStyle].filter(Boolean).join(', ')
-        : original?.appearance,
-      // === 6层身份锚点（角色一致性）===
-      identityAnchors: c.identityAnchors || original?.identityAnchors,
-      negativePrompt: c.negativePrompt || original?.negativePrompt,
-      // 标记重要性，便于UI展示
-      tags: [c.importance, `出场${c.appearanceCount}次`, ...(original?.tags || [])],
-    };
-  });
-}
-
-/**
- * 角色恢复兜底：优先保留带名字的角色，并去重
- */
-function cloneScriptCharactersForRecovery(
-  characters: ScriptCharacter[] | undefined,
-  source: 'calibrated' | 'existing' | 'series-meta' | 'raw',
-): ScriptCharacter[] {
-  if (!Array.isArray(characters) || characters.length === 0) {
-    return [];
-  }
-
-  const seen = new Set<string>();
-  const recovered: ScriptCharacter[] = [];
-
-  for (let index = 0; index < characters.length; index += 1) {
-    const character = characters[index];
-    const name = character?.name?.trim();
-    if (!name) continue;
-
-    const key = (character.id && character.id.trim()) || name;
-    if (seen.has(key)) continue;
-    seen.add(key);
-
-    recovered.push({
-      ...character,
-      id: character.id || `char_recovered_${index + 1}`,
-      name,
-      tags: Array.isArray(character.tags) && character.tags.length > 0
-        ? [...new Set(character.tags.filter(Boolean))]
-        : source === 'raw'
-          ? ['minor', 'recovered']
-          : character.tags,
-    });
-  }
-
-  return recovered;
-}
-
-export function resolveSafeScriptCharacters(
-  preferredCharacters: ScriptCharacter[],
-  options?: {
-    existingCharacters?: ScriptCharacter[];
-    seriesMetaCharacters?: ScriptCharacter[];
-    rawCharacters?: ScriptCharacter[];
-  },
-): {
-  characters: ScriptCharacter[];
-  source: 'calibrated' | 'existing' | 'series-meta' | 'raw' | 'empty';
-} {
-  const candidates: Array<{
-    source: 'calibrated' | 'existing' | 'series-meta' | 'raw';
-    characters?: ScriptCharacter[];
-  }> = [
-    { source: 'calibrated', characters: preferredCharacters },
-    { source: 'existing', characters: options?.existingCharacters },
-    { source: 'series-meta', characters: options?.seriesMetaCharacters },
-    { source: 'raw', characters: options?.rawCharacters },
-  ];
-
-  for (const candidate of candidates) {
-    const characters = cloneScriptCharactersForRecovery(candidate.characters, candidate.source);
-    if (characters.length > 0) {
-      return {
-        characters,
-        source: candidate.source,
-      };
-    }
-  }
-
-  return {
-    characters: [],
-    source: 'empty',
-  };
-}
-
-/**
- * 按重要性排序角色
- */
-export function sortByImportance(characters: CalibratedCharacter[]): CalibratedCharacter[] {
-  const order = { protagonist: 0, supporting: 1, minor: 2, extra: 3 };
-  return [...characters].sort((a, b) => {
-    // 先按重要性
-    const importanceOrder = order[a.importance] - order[b.importance];
-    if (importanceOrder !== 0) return importanceOrder;
-    // 再按出场次数
-    return b.appearanceCount - a.appearanceCount;
-  });
 }
 
 // ==================== 专业角色设计 ====================

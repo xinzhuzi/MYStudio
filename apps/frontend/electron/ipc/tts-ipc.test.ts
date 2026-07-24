@@ -13,7 +13,7 @@ const mocks = vi.hoisted(() => ({
   setModelCacheDir: vi.fn(async () => ({ success: true })),
   setup: vi.fn(async () => ({ success: true })),
   start: vi.fn(async () => ({ success: true })),
-  stat: vi.fn(async () => ({ isFile: () => true, size: 12 })),
+  stat: vi.fn(async () => ({ isFile: (): boolean => true, size: 12 })),
   status: vi.fn(async () => ({ installed: true, running: true, port: 9000, baseUrl: "http://127.0.0.1:9000" })),
   stop: vi.fn(async () => ({ success: true })),
 }));
@@ -73,7 +73,8 @@ describe("registerTtsIpcHandlers", () => {
     vi.clearAllMocks();
     diagnosticsCalls.length = 0;
     mocks.resolveSourcePath.mockImplementation((value: string) => `/audio/${value}`);
-    mocks.stat.mockResolvedValue({ isFile: () => true, size: 12 });
+    mocks.access.mockResolvedValue(undefined);
+    mocks.stat.mockResolvedValue({ isFile: (): boolean => true, size: 12 });
     registerHandlers();
   });
 
@@ -104,5 +105,64 @@ describe("registerTtsIpcHandlers", () => {
     expect(mocks.resolveSourcePath).toHaveBeenCalledWith("reference.wav");
     expect(mocks.access).toHaveBeenCalledWith("/audio/reference.wav", 4);
     await expect(mocks.handlers.get("tts-reference-audio-resolve")?.({}, "")).resolves.toBeNull();
+  });
+
+  it("delegates runtime lifecycle and configuration commands with diagnostics", async () => {
+    await expect(mocks.handlers.get("tts-runtime-status")?.({})).resolves.toEqual({
+      installed: true,
+      running: true,
+      port: 9000,
+      baseUrl: "http://127.0.0.1:9000",
+    });
+    await expect(mocks.handlers.get("tts-runtime-start")?.({})).resolves.toEqual({ success: true });
+    await expect(mocks.handlers.get("tts-runtime-setup")?.({})).resolves.toEqual({ success: true });
+    await expect(mocks.handlers.get("tts-runtime-stop")?.({})).resolves.toEqual({ success: true });
+    await expect(mocks.handlers.get("tts-runtime-get-config")?.({})).resolves.toEqual({ pythonRuntimeDir: "/runtime" });
+
+    const config = { pythonRuntimeUrl: "https://example.test/python.zip" };
+    await expect(mocks.handlers.get("tts-runtime-set-config")?.({}, config)).resolves.toEqual({ success: true });
+    await expect(mocks.handlers.get("tts-runtime-set-model-cache-dir")?.({}, "/models/cache")).resolves.toEqual({ success: true });
+
+    expect(diagnosticsCalls).toEqual([
+      { action: "status", context: {} },
+      { action: "start", context: {} },
+      { action: "setup", context: {} },
+      { action: "stop", context: {} },
+      { action: "set-config", context: { config } },
+      { action: "set-model-cache-dir", context: { dirPath: "/models/cache" } },
+    ]);
+  });
+
+  it("preserves bytes/formdata argument forwarding without leaking reference text", async () => {
+    const bytesPayload = { method: "GET", path: "/audio", body: { sample: true } };
+    const formDataPayload = { path: "/reference", audioFilePath: "/tmp/reference.wav", referenceText: "台词" };
+
+    await expect(mocks.handlers.get("tts-runtime-request-bytes")?.({}, bytesPayload)).resolves.toEqual({ data: new ArrayBuffer(0) });
+    await expect(mocks.handlers.get("tts-runtime-request-formdata")?.({}, formDataPayload)).resolves.toEqual({ success: true });
+
+    expect(mocks.requestBytes).toHaveBeenCalledWith("GET", "/audio", { sample: true });
+    expect(mocks.requestFormData).toHaveBeenCalledWith("/reference", "/tmp/reference.wav", "台词");
+    expect(diagnosticsCalls).toContainEqual({ action: "request-bytes", context: bytesPayload });
+    expect(diagnosticsCalls).toContainEqual({
+      action: "request-formdata",
+      context: { path: "/reference", audioFilePath: "/tmp/reference.wav", referenceTextLength: 2 },
+    });
+    expect(JSON.stringify(diagnosticsCalls)).not.toContain("台词");
+  });
+
+  it("returns null for unsafe or unreadable reference audio paths", async () => {
+    mocks.resolveSourcePath.mockReturnValueOnce("relative/audio.wav");
+    await expect(mocks.handlers.get("tts-reference-audio-resolve")?.({}, "relative.wav")).resolves.toBeNull();
+
+    mocks.resolveSourcePath.mockReturnValue("/audio/not-a-file.wav");
+    mocks.stat.mockResolvedValueOnce({ isFile: () => false, size: 12 });
+    await expect(mocks.handlers.get("tts-reference-audio-resolve")?.({}, "not-a-file.wav")).resolves.toBeNull();
+
+    mocks.stat.mockResolvedValueOnce({ isFile: () => true, size: 0 });
+    await expect(mocks.handlers.get("tts-reference-audio-resolve")?.({}, "empty.wav")).resolves.toBeNull();
+
+    mocks.stat.mockResolvedValueOnce({ isFile: () => true, size: 12 });
+    mocks.access.mockRejectedValueOnce(new Error("EACCES"));
+    await expect(mocks.handlers.get("tts-reference-audio-resolve")?.({}, "denied.wav")).resolves.toBeNull();
   });
 });

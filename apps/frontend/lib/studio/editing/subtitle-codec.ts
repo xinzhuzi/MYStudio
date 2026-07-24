@@ -39,6 +39,10 @@ export function parseSrt(value: string): SubtitleCodecResult {
     }
     const startUs = clockPartsToUs(match.slice(1, 5));
     const endUs = clockPartsToUs(match.slice(5, 9));
+    if (startUs === undefined || endUs === undefined) {
+      warnings.push(warning("subtitle.srt.timing", "SRT cue 时间范围无效", blockIndex));
+      return;
+    }
     const text = lines.slice(timingIndex + 1).join("\n").trim();
     if (endUs <= startUs) {
       warnings.push(warning("subtitle.time.range", "字幕结束时间必须晚于开始时间", blockIndex));
@@ -134,12 +138,29 @@ function normalizeLines(value: string) {
 
 function clockPartsToUs(parts: string[]) {
   const [hours, minutes, seconds, milliseconds] = parts.map(Number);
+  if (
+    !Number.isFinite(hours) ||
+    !Number.isFinite(minutes) ||
+    !Number.isFinite(seconds) ||
+    !Number.isFinite(milliseconds) ||
+    minutes! < 0 ||
+    minutes! > 59 ||
+    seconds! < 0 ||
+    seconds! > 59 ||
+    milliseconds! < 0 ||
+    milliseconds! > 999
+  ) {
+    return undefined;
+  }
   return (((hours! * 60 + minutes!) * 60 + seconds!) * 1_000 + milliseconds!) * 1_000;
 }
 
 function parseAssTime(value: string | undefined) {
   const match = value?.match(/^(\d+):(\d{2}):(\d{2})[.](\d{1,2})$/);
   if (!match) return undefined;
+  const minutes = Number(match[2]);
+  const seconds = Number(match[3]);
+  if (minutes > 59 || seconds > 59) return undefined;
   const centiseconds = Number(match[4]!.padEnd(2, "0"));
   return (((Number(match[1]) * 60 + Number(match[2])) * 60 + Number(match[3])) * 100 + centiseconds) * 10_000;
 }

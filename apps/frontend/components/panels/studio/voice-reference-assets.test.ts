@@ -92,6 +92,45 @@ describe("buildVoiceReferenceAssets", () => {
       },
     ]);
   });
+
+  it("does not treat path-like material or runtime labels as spoken reference text", () => {
+    const materials: StudioMaterial[] = [
+      material(
+        "path-material",
+        "/project/audio/material.wav",
+        "audio",
+        "/project/audio/material.wav",
+        "/project/audio/material.wav",
+      ),
+    ];
+    const runtimeAssets: StudioAssetSummary[] = [
+      {
+        id: "path-runtime",
+        source: "manying-local",
+        type: "audio",
+        name: "/project/audio/runtime.wav",
+        description: "C:\\voices\\runtime.wav",
+        filePath: "/project/audio/runtime.wav",
+      },
+    ];
+
+    expect(buildVoiceReferenceAssets(materials, runtimeAssets)).toEqual([
+      {
+        id: "material:path-material",
+        name: "/project/audio/material.wav",
+        filePath: "/project/audio/material.wav",
+        referenceText: undefined,
+        sourceLabel: "material.wav",
+      },
+      {
+        id: "path-runtime",
+        name: "/project/audio/runtime.wav",
+        filePath: "/project/audio/runtime.wav",
+        referenceText: undefined,
+        sourceLabel: "runtime.wav",
+      },
+    ]);
+  });
 });
 
 function material(

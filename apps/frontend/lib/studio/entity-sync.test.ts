@@ -13,10 +13,10 @@ import type { DedupedEntity } from "./entity-extraction";
 
 function makeSinks() {
   const calls = {
-    addCharacter: [] as any[],
-    updateCharacter: [] as Array<{ id: string; updates: any }>,
-    addScene: [] as any[],
-    updateScene: [] as Array<{ id: string; updates: any }>,
+    addCharacter: [] as Array<Parameters<CharacterSink["addCharacter"]>[0]>,
+    updateCharacter: [] as Array<{ id: string; updates: Record<string, unknown> }>,
+    addScene: [] as Array<Parameters<SceneSink["addScene"]>[0]>,
+    updateScene: [] as Array<{ id: string; updates: Record<string, unknown> }>,
     charFolder: [] as Array<[string, string]>,
     sceneFolder: [] as Array<[string, string]>,
   };
@@ -56,7 +56,7 @@ function makeSinks() {
 
 describe("studio entity sync bridge", () => {
   beforeEach(() => {
-    delete (window as any).studioAssets;
+    delete window.studioAssets;
     useCharacterLibraryStore.setState({
       characters: [],
       folders: [],
@@ -130,10 +130,10 @@ describe("studio entity sync bridge", () => {
   });
 
   it("keeps workflow entity sync project-scoped and does not write the independent asset library", () => {
-    (window as any).studioAssets = {
+    window.studioAssets = {
       getByName: vi.fn(),
       add: vi.fn(),
-    };
+    } as unknown as NonNullable<Window["studioAssets"]>;
     const sinks = createMystudioSinks();
 
     sinks.characterSink.addCharacter({

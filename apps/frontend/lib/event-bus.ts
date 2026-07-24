@@ -8,7 +8,9 @@
  *   一次性：eventBus.once('image:generated', handler)
  */
 
-type EventHandler = (...args: any[]) => void;
+// `never[]` keeps handlers contravariant for event-specific payloads while the
+// bus remains intentionally string-keyed until an event map is introduced.
+type EventHandler = (...args: never[]) => void;
 
 class EventBus {
   private listeners = new Map<string, Set<EventHandler>>();
@@ -31,9 +33,9 @@ class EventBus {
     this.listeners.get(event)?.delete(handler);
   }
 
-  emit(event: string, ...args: any[]) {
+  emit(event: string, ...args: unknown[]) {
     this.listeners.get(event)?.forEach((handler) => {
-      try { handler(...args); } catch (e) { console.error(`[EventBus] Error in ${event}:`, e); }
+      try { handler(...(args as never[])); } catch (e) { console.error(`[EventBus] Error in ${event}:`, e); }
     });
   }
 

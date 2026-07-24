@@ -1,4 +1,4 @@
-import type { DirectorStore } from "./director-store";
+import type { DirectorStore } from "./director-store-types";
 
 export type DirectorStoryboardActions = Pick<
   DirectorStore,

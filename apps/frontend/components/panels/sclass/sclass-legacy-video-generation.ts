@@ -16,6 +16,11 @@ export type SClassLegacyVideoGenerationOptions = {
   updateSplitSceneVideo: DirectorStore["updateSplitSceneVideo"];
 };
 
+export function normalizeSClassLegacyConcurrency(concurrency: number): number {
+  if (!Number.isFinite(concurrency) || concurrency <= 0) return 1;
+  return Math.max(1, Math.floor(concurrency));
+}
+
 /**
  * Compatibility path retained for callers of the old S-Class batch button.
  * New flows use the typed group/single-shot controllers instead.
@@ -32,6 +37,7 @@ export function createSClassLegacyVideoGenerator({
 }: SClassLegacyVideoGenerationOptions) {
   return async function generateLegacyVideos() {
     console.warn("[DEPRECATED] handleGenerateVideos 已废弃，请使用 S级批量生成");
+    const batchSize = normalizeSClassLegacyConcurrency(concurrency);
     if (scenes.length === 0) {
       toast.error("没有可生成的分镜");
       return;
@@ -61,11 +67,11 @@ export function createSClassLegacyVideoGenerator({
     }
 
     setIsGenerating(true);
-    toast.info(`开始串行生成 ${scenesToGenerate.length} 个视频...每次处理 ${concurrency} 个`);
+    toast.info(`开始串行生成 ${scenesToGenerate.length} 个视频...每次处理 ${batchSize} 个`);
     const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
 
-    for (let index = 0; index < scenesToGenerate.length; index += concurrency) {
-      const batch = scenesToGenerate.slice(index, index + concurrency);
+    for (let index = 0; index < scenesToGenerate.length; index += batchSize) {
+      const batch = scenesToGenerate.slice(index, index + batchSize);
       await Promise.all(batch.map(async (scene) => {
         setCurrentGeneratingId(scene.id);
         try {

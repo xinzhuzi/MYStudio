@@ -2,6 +2,7 @@ import type { StudioMaterial } from "@/types/studio";
 import type { StudioAssetSummary } from "@/types/studio-assets";
 import type { ProjectVoiceBinding, TtsSpeakerId, VoiceProfile } from "@/types/tts";
 import { toRoleSpeakerId } from "@/lib/tts/role-speaker-id";
+import { normalizeReferenceText } from "@/lib/tts/reference-text";
 import { validateVoiceProfileForGeneration } from "@/lib/tts/voice-profile-capabilities";
 
 type VoiceProfileInput = Omit<VoiceProfile, "id" | "createdAt" | "updatedAt">;
@@ -669,16 +670,6 @@ function extractJsonObject(text: string) {
   const end = trimmed.lastIndexOf("}");
   if (start === -1 || end <= start) return "";
   return trimmed.slice(start, end + 1);
-}
-
-function normalizeReferenceText(value?: string) {
-  const text = value?.trim();
-  if (!text || looksLikePath(text)) return undefined;
-  return text;
-}
-
-function looksLikePath(value: string) {
-  return /[\\/]/.test(value) || /\.(mp3|wav|m4a|aac|flac|ogg|opus)$/i.test(value);
 }
 
 function getFileName(value?: string) {

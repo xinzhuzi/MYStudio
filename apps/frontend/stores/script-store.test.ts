@@ -18,6 +18,7 @@ import type { ScriptStorePersistenceState } from "./script-store-persistence";
 import { useScriptStore } from "./script-store";
 import {
   createDefaultScriptProjectData,
+  defaultCalibrationState,
   mergeScriptStoreState,
   normalizeScriptProjectData,
   partializeScriptStoreState,
@@ -40,6 +41,10 @@ describe("script store defaults", () => {
     useScriptStore.getState().ensureProject("project-default-language");
 
     expect(useScriptStore.getState().projects["project-default-language"]?.language).toBe("中文");
+  });
+
+  it("uses the canonical calibration defaults for new projects", () => {
+    expect(createDefaultScriptProjectData().calibrationState).toEqual(defaultCalibrationState());
   });
 
   it("persists only the active project with the legacy-compatible store key", () => {

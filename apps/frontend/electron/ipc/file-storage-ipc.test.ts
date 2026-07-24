@@ -71,4 +71,26 @@ describe("registerFileStorageIpcHandlers", () => {
     await expect(mocks.handlers.get("file-storage-set")?.({}, "../outside", "blocked")).resolves.toBe(false);
     expect(mocks.writeFileSync).toHaveBeenCalledTimes(1);
   });
+
+  it("does not rename when the source is missing or the target already exists", async () => {
+    mocks.existsSync.mockReturnValueOnce(false);
+    await expect(mocks.handlers.get("file-storage-rename")?.({}, "projects/from", "projects/to")).resolves.toBe(false);
+
+    mocks.existsSync.mockReset();
+    mocks.existsSync.mockReturnValueOnce(true).mockReturnValueOnce(true);
+    await expect(mocks.handlers.get("file-storage-rename")?.({}, "projects/from", "projects/to")).resolves.toBe(false);
+
+    expect(mocks.mkdirSync).not.toHaveBeenCalled();
+    expect(mocks.renameSync).not.toHaveBeenCalled();
+  });
+
+  it("returns stable absence results when a storage directory is missing", async () => {
+    await expect(mocks.handlers.get("file-storage-exists")?.({}, "projects/scene")).resolves.toBe(false);
+    await expect(mocks.handlers.get("file-storage-remove")?.({}, "projects/scene")).resolves.toBe(true);
+    await expect(mocks.handlers.get("file-storage-list")?.({}, "projects")).resolves.toEqual([]);
+    await expect(mocks.handlers.get("file-storage-list-dirs")?.({}, "projects")).resolves.toEqual([]);
+    await expect(mocks.handlers.get("file-storage-remove-dir")?.({}, "projects")).resolves.toBe(true);
+    expect(mocks.readdir).not.toHaveBeenCalled();
+    expect(mocks.removeDirectory).not.toHaveBeenCalled();
+  });
 });

@@ -36,6 +36,7 @@
 - 对重复场景建立空间布局、光线、色板、关键道具位置和受控视角版本。
 - 同场景连续镜头只允许在已声明视角间切换；不得每镜重造建筑结构、门窗位置或空间尺度。
 - 相邻镜头记录人物九宫格位置、朝向、入画/出画方向和动作承接。
+- 分镜表必须逐镜提供结构化的出镜语义：明确可见角色、站位、朝向、每个角色的入/出镜动作和整镜动作承接；无人物镜头必须显式声明。生成链只能从该行语义和它已链接的资产构建角色参考，禁止按镜号、场头演员表、场景或道具推断人物。
 
 ### R4. Shot-group generation
 
@@ -66,20 +67,36 @@
 - 先以 6–8 镜连续样本通过人工视觉复核，再分场景小批量重生成 43 镜。
 - 保留现有口播、固定音色和音频；视觉重生成后重新合成第一章视频，不重新选择音色。
 
+### R9. MA ImageGen art-direction alignment
+
+- 第一章剧情关键帧采用 `$ma-imagegen` 的“道劫水墨国风”单一主通道：工笔负责脸、手、发丝、衣褶和器物结构，写意只承载背景、雾气与远景；竹窗、卷轴等仅是适用场景的内容，禁止作为全局默认。
+- 所有最终 prompt 必须包含连续线描、薄层矿物色分染/罩染、平光宣纸照明、30%–70% 可辨彩色、干净完成度和全员完整衣物约束；不得注入 `dirty texture`、破衣褴褛或大面积灰黑脏污等相冲突指令。
+- `2D工笔风.png` 只有在 provider 已验证额外 style reference 的容量、顺序和传输时才可使用；验证前不得挤掉 canonical、scene 或上一镜参考，也不得发起付费探测。
+- 风格契约版本、启用时的 style-reference SHA-256 和 prompt audit 必须进入连续性指纹。契约变化使旧 pilot 输出失去可继续生成资格，但不覆盖其图片、审核记录或支付台账。
+
+### R10. Prepaid-generation break-loop gate
+
+- 2026-07-21 的 `a08` 结果证明“结构/容量/prompt 字符串通过”不能代表参考图或最终画面符合 V2。每个付费请求前必须审计实际被选中的参考图像素、服装版本、时段、别名所有权和 provider 语义证据，任一项不满足即在网络前阻断。
+- R9 的发行向完整衣物合同覆盖 2026-07-15 的旧 `dock-ragged` 服装决定。禁止把旧版本名或提示词字符串改写成 `dock-workwear` 后继续发送同一张破衣参考图；必须使用新的非覆盖完整工装 Bible 版本和新内容指纹。
+- 最终提示词必须由当前 `shotSemantics` 驱动，先写所有可见人物的身份、站位、朝向和动作，再写道具/场景事实；不得让人物事实只存在于后半段连续性说明。分镜时段必须来自当前导演场次事实，并与场景光线一致。
+- provider 的“接收有序多图/容量”证据不得表述为“理解 reference role”证据。报告必须分别记录 transport/capacity 证据与 semantic-role 证据；当前 JSON `image_urls` 请求不发送独立 role 字段。
+- 本轮不授权任何付费请求。修复只允许测试、离线 prompt/引用预检和非覆盖研究证据；不得生成镜头 001 新图或请求镜头 002 及以后。
+
 ## Acceptance criteria
 
-- [ ] AC1: Toonflow 43 镜只读 fixture 可复现 `storyboard -> ordered assetId -> fixed imageId -> filePath -> golden image`，缺失为 0。
-- [ ] AC2: 第一章所有重复角色和场景均有版本化 continuity manifest，且 43 镜有序参考覆盖率为 100%。
+- [x] AC1: Toonflow 43 镜只读 fixture 可复现 `storyboard -> ordered assetId -> fixed imageId -> filePath -> golden image`，缺失为 0。
+  - 2026-07-17 closure: Toonflow paths resolve under the actual read-only `data/oss/` root. `Library/ai/build_toonflow_portable_fixture.py` created a content-addressed task fixture with `storyboardCount=43`, `goldenImageCount=43`, `referenceCount=132`, `missingImageCount=0`, and verified per-image pixel SHA-256 digests. The independent verifier and unit test pass; no production file or provider was touched. Evidence: `.trellis/tasks/07-12-mystudio-chapter001-visual-continuity/research/toonflow-chapter001-portable-fixture.json`.
+- [x] AC2: 第一章所有重复角色和场景均有版本化 continuity manifest，且 43 镜有序参考覆盖率为 100%。
   - 2026-07-13 progress: existing MYStudio storyboard image workflow reference nodes now populate `orderedReferenceManifest` and `continuityState` for 43/43 storyboards; this proves structural coverage but not full approved character/scene bible quality.
-- [ ] AC3: 测试证明角色六层锚点、多视图、variation、场景 viewpoint 和 ordered references 确实进入最终 provider 请求。
-- [ ] AC4: 测试证明相邻镜头组共享连续状态，上一镜变化会使依赖镜头 stale，恢复运行不会复用旧不一致图。
+- [x] AC3: 测试证明角色六层锚点、多视图、variation、场景 viewpoint 和 ordered references 确实进入最终 provider 请求。
+- [x] AC4: 测试证明相邻镜头组共享连续状态，上一镜变化会使依赖镜头 stale，恢复运行不会复用旧不一致图。
 - [ ] AC5: 先选码头连续段至少 6 镜；人工确认独孤剑尘、赵四、小杂役的脸、服装、体型和码头空间连续后，才允许全章生成。
   - 2026-07-13 review:码头 `shot-001` through `shot-012` failed visual review; current images must not be marked approved. Evidence: `research/visual-review-20260713.md`.
 - [ ] AC6: 43 镜视觉审查台账无 rejected；重复角色、场景和关键道具均有逐镜证据，不能只报告 prompt 合规。
 - [ ] AC7: 全章新视频继续满足 43 镜、43 条真实口播、固定音色指纹不变、音视频流完整和时长上限。
-- [ ] AC8: 产品一键路径在视觉门禁失败时阻断 merge，并显示具体镜头与原因；通过后才输出最终 MP4。
+- [x] AC8: 产品一键路径在视觉门禁失败时阻断 merge，并显示具体镜头与原因；通过后才输出最终 MP4。
   - 2026-07-13 verification: `npm run smoke:workflow:background:daojie -- --auto-video` correctly blocks final merge with 43 pending visual-review items and no MP4 `finalPath`; background focus evidence stayed clean (`foregroundViolation=false`).
-- [ ] AC9: 当前项目源数据、旧 43 图和旧 MP4 均有可追溯备份，重生成过程无破坏性删除。
+- [x] AC9: 当前项目源数据、旧 43 图和旧 MP4 均有可追溯备份，重生成过程无破坏性删除。
   - 2026-07-13 blocker: current configured image providers are still only `凡人:gpt-image-2` and `torchai:gpt-image-2`; last real generation failed with `insufficient_user_quota`. Regeneration cannot proceed safely until a funded/capable provider is configured or topped up.
   - 2026-07-16 progress: `mikoto:gpt-image-2` completed one real v5 Bible generation through the provider's asynchronous image-task API. The resulting 独孤剑尘 thumbnail is `768×576`, `344,937 bytes`, and remains `pending` until explicit human visual approval; this resolves the earlier provider/quota blocker but does not satisfy AC5 or AC6.
   - 2026-07-16 progress: 独孤剑尘 v5-r2 uses a `512×768` / `135,357 bytes` composite transfer reference to align the character board with the oilcloth-wrap canonical. Its three views share one rope layout and expose no waist sword or blade; the `768×576` / `384,731 bytes` output remains `pending`, with the still-rectangular bundle silhouette requiring human approval.
@@ -100,6 +117,8 @@
 - 2026-07-17 recovery finding: Mikoto's public `1k异步文档` now provides verified endpoints for immediate task-ID creation and polling. The local helper already implements this exact contract and passes its mock regression. Switching the next paid attempt to `asyncMode=true` is no longer a guessed capability, but still requires a new authorization because the old-laborer r3 allowance was consumed and the stop-on-ambiguity gate halted the remaining jobs.
 - 2026-07-17 explicit authorization renewal: the user authorizes exactly one non-overwriting asynchronous resend for `old-laborer-turnaround-r4`, exactly one non-overwriting asynchronous resend for `girl-turnaround-r2`, and the first asynchronous submission for `young-laborer-turnaround-r2`, accepting possible duplicate charges. These three calls must be serialized through the verified single-provider/single-key probe path; any new ambiguous failure immediately stops the remaining calls. Prior failure evidence and all old outputs remain immutable.
   - 2026-07-17 renewed explicit authorization: the user accepts possible duplicate charges and authorizes exactly one asynchronous, non-overwriting resend of the old laborer as `old-laborer-turnaround-r4`, exactly one asynchronous, non-overwriting resend of the girl as `girl-turnaround-r2`, and the first asynchronous submission of `young-laborer-turnaround-r2`. Run them serially through the verified single-provider/single-key path; preserve r2/r3 evidence and stop all remaining paid calls on any new ambiguous failure.
+- [x] AC10: 新的离线门必须使当前镜头 001 和 43 镜 manifest 在网络前明确阻断，至少报告 `dock-ragged` 版本不兼容、被选参考图不满足 V2 色彩方向、码头傍晚/晨雾冲突、别名所有权冲突（若存在）、主体前置缺失（若存在）和 semantic-role 证据边界；修复后不得触碰 provider、台账、store、批准或旧输出。
+  - 2026-07-21 closure: `research/daojie-gongbi-v2-break-loop-43-shot-dry-run-20260721-r05/report.json` records 43/43 blocked before transfer/network with `reference_color=43`, `scene_time_conflict=12`, and `incompatible_wardrobe_version=6`; selected-reference hash mismatch, missing leading characters, and alias failures are all zero. Capability is 43/43 ready while semantic roles remain explicitly unverified with `providerRoleMetadataSent=false`. All 43 prompt SHA-256 values self-verify under `providerPromptPolicy=exact-reviewed-v2`; endpoint calls, attempts, paid authorization, and production mutation are zero. Report SHA-256: `81b57fb0a5fe0363f4e35551b45a2ac4007d698969d9ca9537cd98d811d01223`.
 
 ## Out of scope
 
@@ -116,3 +135,10 @@
 - 分镜 23–24 的主场景必须是 `悦来客栈斗室/inn-room-window-axis`；`金水塾馆` 只能作为窗外 secondary scene，不能替代主场景版本。
 - 所有本地或 data-URI 图片发送前必须生成约 768px 的缩略图，实际二进制严格 `<1,000,000 bytes`；解码或压缩失败时在网络请求前硬失败。
 - 当前 43 镜保持 `pending`，不得使用脚本或自动 reviewer 批量写成 `approved`。
+
+## 2026-07-17 paid-request safety contract
+
+- 连续性 pilot 的每个付费请求必须带 `logicalJob`、`logicalShot`、`attemptId` 和显式 `--confirm-paid-request`；默认恢复、换 output 目录和视觉失败都不能隐式授权新 POST。
+- Node helper 在真实缩略图准备完成后计算 `promptSha256`、有序 `referenceSha256`、实际 generation endpoint、`payloadSha256` 和 `requestFingerprint`，并写入跨 output 的 append-only ledger。
+- 同一 fingerprint 出现 `POST_SENT`、`TASK_ACCEPTED`、`AMBIGUOUS` 或 `COMPLETED` 时，在网络请求前硬阻断；pilot 还必须是单 provider、单 key、`singleAttempt=true`，禁止 fallback。
+- 旧报告缺少 task/endpoint/payload 证据时只能标为未充分观测，不能由 `generatedImages` 推断付费次数或安全重跑。

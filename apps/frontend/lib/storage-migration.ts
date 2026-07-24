@@ -16,13 +16,39 @@ import { fileStorage } from './indexed-db-storage';
 
 const MIGRATION_FLAG_KEY = '_p/_migrated';
 
+function isSafeProjectId(value: unknown): value is string {
+  return (
+    typeof value === 'string' &&
+    value.length > 0 &&
+    value !== '.' &&
+    value !== '..' &&
+    !value.includes('/') &&
+    !value.includes('\\')
+  );
+}
+
+function normalizeProjectIds(projects: unknown): string[] {
+  if (!Array.isArray(projects)) return [];
+  return projects
+    .map((project) => (project && typeof project === 'object' ? (project as { id?: unknown }).id : undefined))
+    .filter(isSafeProjectId);
+}
+
+async function readKnownProjectIds(): Promise<Set<string>> {
+  const raw = await fileStorage.getItem('mystudio-project-store');
+  if (!raw) return new Set();
+  const parsed = JSON.parse(raw);
+  const state = parsed?.state ?? parsed;
+  return new Set(normalizeProjectIds(state?.projects));
+}
+
 /**
  * Run migration if needed. Should be called early in app initialization,
  * before stores rehydrate from the new per-project paths.
  */
 export async function migrateToProjectStorage(): Promise<void> {
   // Only run in Electron
-  if (!window.fileStorage) return;
+  if (typeof window === 'undefined' || !window.fileStorage) return;
 
   // Check migration flag
   try {
@@ -50,7 +76,7 @@ export async function migrateToProjectStorage(): Promise<void> {
 
     const projectStoreData = JSON.parse(projectStoreRaw);
     const projectState = projectStoreData.state ?? projectStoreData;
-    const projectIds: string[] = (projectState.projects ?? []).map((p: any) => p.id);
+    const projectIds = normalizeProjectIds(projectState.projects);
 
     if (projectIds.length === 0) {
       console.log('[Migration] No projects found, nothing to migrate.');
@@ -93,7 +119,10 @@ export async function migrateToProjectStorage(): Promise<void> {
     });
 
     // 4. Migrate timeline (simple: whole state is project-scoped, assign to active project)
-    await migrateTimelineStore(projectState.activeProjectId || projectIds[0]);
+    const activeProjectId = isSafeProjectId(projectState.activeProjectId) && projectIds.includes(projectState.activeProjectId)
+      ? projectState.activeProjectId
+      : projectIds[0];
+    await migrateTimelineStore(activeProjectId);
 
     // 5. Write migration flag
     await writeMigrationFlag();
@@ -132,7 +161,9 @@ async function migrateRecordStore(
     }
 
     let migratedCount = 0;
+    const knownProjectIds = new Set(projectIds);
     for (const pid of Object.keys(projects)) {
+      if (!knownProjectIds.has(pid)) continue;
       const projectData = projects[pid];
       if (!projectData) continue;
 
@@ -154,6 +185,7 @@ async function migrateRecordStore(
     console.log(`[Migration] ${legacyKey}: migrated ${migratedCount} projects to per-project files.`);
   } catch (error) {
     console.error(`[Migration] Failed to migrate ${legacyKey}:`, error);
+    throw error;
   }
 }
 
@@ -220,6 +252,7 @@ async function migrateFlatStore(
     console.log(`[Migration] ${legacyKey}: migrated ${migratedCount} project files + 1 shared file.`);
   } catch (error) {
     console.error(`[Migration] Failed to migrate ${legacyKey}:`, error);
+    throw error;
   }
 }
 
@@ -241,6 +274,7 @@ async function migrateTimelineStore(activeProjectId: string): Promise<void> {
     }
   } catch (error) {
     console.error('[Migration] Failed to migrate timeline:', error);
+    throw error;
   }
 }
 
@@ -258,7 +292,7 @@ async function migrateTimelineStore(activeProjectId: string): Promise<void> {
  * This runs on every startup (fast: only reads and compares when needed).
  */
 export async function recoverFromLegacy(): Promise<void> {
-  if (!window.fileStorage) return;
+  if (typeof window === 'undefined' || !window.fileStorage) return;
 
   // Only run if migration has already happened
   try {
@@ -271,9 +305,12 @@ export async function recoverFromLegacy(): Promise<void> {
   console.log('[Recovery] Checking for data that needs recovery from legacy files...');
 
   try {
+    const knownProjectIds = await readKnownProjectIds();
+    if (knownProjectIds.size === 0) return;
+
     // Recover Record-based stores
-    await recoverRecordStore('mystudio-script-store', 'script', isScriptDataRich);
-    await recoverRecordStore('mystudio-director-store', 'director', isDirectorDataRich);
+    await recoverRecordStore('mystudio-script-store', 'script', isScriptDataRich, knownProjectIds);
+    await recoverRecordStore('mystudio-director-store', 'director', isDirectorDataRich, knownProjectIds);
 
     console.log('[Recovery] Recovery check complete.');
   } catch (error) {
@@ -308,6 +345,7 @@ async function recoverRecordStore(
   legacyKey: string,
   storeName: string,
   isRich: (data: any) => boolean,
+  knownProjectIds: ReadonlySet<string>,
 ): Promise<void> {
   // Read legacy monolithic file directly from file system (bypass indexed-db-storage adapter)
   const legacyRaw = await window.fileStorage!.getItem(legacyKey);
@@ -323,6 +361,7 @@ async function recoverRecordStore(
     let recoveredCount = 0;
 
     for (const pid of Object.keys(projects)) {
+      if (!knownProjectIds.has(pid)) continue;
       const legacyData = projects[pid];
       if (!legacyData || !isRich(legacyData)) continue;
 

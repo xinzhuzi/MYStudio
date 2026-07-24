@@ -227,13 +227,30 @@ function sha256File(filePath: string) {
   return createHash("sha256").update(fs.readFileSync(filePath)).digest("hex");
 }
 
-function requireTimelineArtifacts(evidence: TimelineRenderEvidence) {
+export function requireTimelineArtifacts(
+  evidence: TimelineRenderEvidence,
+  options: { renderRoot?: string; minimumMtimeMs?: number } = {},
+) {
   if (!evidence.path.toLowerCase().endsWith(".mp4")) {
     throw new Error(`timeline 最终输出不是 MP4: ${evidence.path}`);
   }
   if (!evidence.streams.includes("video") || !evidence.streams.includes("audio")) {
     throw new Error(`timeline 最终输出缺少音视频流: ${evidence.streams.join(",")}`);
   }
+  if (!Number.isFinite(evidence.duration) || evidence.duration <= 0) {
+    throw new Error("timeline 最终输出时长无效");
+  }
+  if (!Number.isFinite(evidence.width) || evidence.width <= 0 || !Number.isFinite(evidence.height) || evidence.height <= 0) {
+    throw new Error("timeline 最终输出尺寸无效");
+  }
+  let renderRoot: string | undefined;
+  if (options.renderRoot) {
+    if (!path.isAbsolute(options.renderRoot)) {
+      throw new Error(`timeline renderRoot 不是绝对路径: ${options.renderRoot}`);
+    }
+    renderRoot = fs.realpathSync(options.renderRoot);
+  }
+  let outputStat: fs.Stats | undefined;
   for (const [label, artifactPath] of Object.entries({
     outputPath: evidence.path,
     snapshotPath: evidence.snapshotPath,
@@ -246,6 +263,33 @@ function requireTimelineArtifacts(evidence: TimelineRenderEvidence) {
     if (!artifactPath || !fs.existsSync(artifactPath) || fs.statSync(artifactPath).size <= 0) {
       throw new Error(`timeline artifact 缺失或为空: ${label} / ${artifactPath ?? "missing"}`);
     }
+    const stat = fs.statSync(artifactPath);
+    if (!stat.isFile()) {
+      throw new Error(`timeline artifact 不是普通文件: ${label} / ${artifactPath}`);
+    }
+    if (options.minimumMtimeMs !== undefined && stat.mtimeMs < options.minimumMtimeMs) {
+      throw new Error(`timeline artifact 早于本次运行: ${label} / ${artifactPath}`);
+    }
+    if (renderRoot) {
+      const artifactRoot = fs.realpathSync(artifactPath);
+      const relative = path.relative(renderRoot, artifactRoot);
+      if (relative.startsWith("..") || path.isAbsolute(relative)) {
+        throw new Error(`timeline artifact 路径逃逸 renderRoot: ${label} / ${artifactPath}`);
+      }
+    }
+    if (label === "outputPath") outputStat = stat;
+  }
+  if (!outputStat) {
+    throw new Error("timeline 最终输出缺少文件状态");
+  }
+  if (outputStat.size !== evidence.sizeBytes) {
+    throw new Error("timeline evidence sizeBytes 与输出文件不一致");
+  }
+  if (Math.abs(outputStat.mtimeMs - evidence.mtimeMs) > 1) {
+    throw new Error("timeline evidence mtimeMs 与输出文件不一致");
+  }
+  if (sha256File(evidence.path) !== evidence.sha256) {
+    throw new Error("timeline evidence sha256 与输出文件不一致");
   }
   if (sha256File(evidence.snapshotPath) !== evidence.snapshotHash) {
     throw new Error("timeline snapshotHash 与 editing-project artifact 不一致");
@@ -334,7 +378,10 @@ async function main() {
   if (!renderResult.success) {
     throw new Error(`timeline runtime 失败: ${renderResult.jobId} / ${renderResult.error}`);
   }
-  requireTimelineArtifacts(renderResult.evidence);
+  requireTimelineArtifacts(renderResult.evidence, {
+    renderRoot,
+    minimumMtimeMs: startedAt,
+  });
   const recordValidation = createTimelineRenderRecord(
     editingProject,
     renderResult.evidence,

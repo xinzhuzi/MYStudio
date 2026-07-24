@@ -122,6 +122,40 @@ describe("role audio auto assign", () => {
     });
   });
 
+  it("drops path-like labels from role audio reference text", () => {
+    const materials: StudioMaterial[] = [
+      {
+        id: "mat-path",
+        kind: "audio",
+        name: "/voices/material.wav",
+        localPath: "/voices/material.wav",
+        sourceName: "C:\\voices\\material.wav",
+        size: 12,
+        importedAt: 1,
+      },
+    ];
+    const candidates = buildRoleAudioCandidates(materials, [
+      audio("runtime-path", "runtime.OPUS", "/voices/runtime.wav", "/voices/runtime.wav"),
+    ]);
+
+    expect(candidates).toEqual([
+      {
+        id: "material:mat-path",
+        name: "material.wav",
+        filePath: "/voices/material.wav",
+        referenceText: undefined,
+        sourceLabel: "material.wav",
+      },
+      {
+        id: "runtime-path",
+        name: "runtime.OPUS",
+        filePath: "/voices/runtime.wav",
+        referenceText: undefined,
+        sourceLabel: "runtime.wav",
+      },
+    ]);
+  });
+
   it("creates a qwen reference voice profile bound to the role speaker id", () => {
     const [assignment] = assignAudioToRoles(
       [role("hero", "沈砚", "性别：男。年龄：青年。")],
