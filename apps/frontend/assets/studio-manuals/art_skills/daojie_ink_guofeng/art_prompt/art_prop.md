@@ -141,7 +141,7 @@ metaData: art_skills
 
 ### 正向质量锚点
 
-水墨国风修仙，Chinese ink wash xianxia，gongbi linework，rice paper texture，muted cyan-green palette，layered ink wash，spiritual aura as ink diffusion，cinematic composition，best quality，high detailed。
+水墨国风修仙，Chinese ink wash xianxia，gongbi linework，rice paper texture，restrained mineral-color palette，layered ink wash，spiritual aura as ink diffusion，clear layered composition，clean finished image，high detail。
 道具类提示词必须明确道具类型、材质、工艺、磨损痕迹、陈列方式和多角度/细节特写；补充 crisp silhouette, readable material, fine craftsmanship, isolated prop display。
 
 ### 反向规避提示词

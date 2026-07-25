@@ -12,8 +12,8 @@
 import { useState, lazy, Suspense } from "react";
 
 const LocalTtsPanelLazy = lazy(() => import("@/components/panels/tts/LocalTtsPanel").then((m) => ({ default: m.LocalTtsPanel })));
-import { useAPIConfigStore } from "@/stores/api-config-store";
-import { useAppSettingsStore } from "@/stores/app-settings-store";
+import { useAPIConfigStore } from "@/stores/ai/api-config-store";
+import { useAppSettingsStore } from "@/stores/app/app-settings-store";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { SidebarToggleButton } from "@/components/ChromeControls";
 import { AppearanceSettingsTab } from "./settings/AppearanceSettingsTab";

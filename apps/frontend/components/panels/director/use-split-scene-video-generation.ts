@@ -7,8 +7,8 @@ import { getCinematographyProfile } from "@/lib/constants/cinematography-profile
 import { getMediaType, getStylePrompt } from "@/lib/constants/visual-styles";
 import { buildVideoPrompt } from "@/lib/generation/prompt-builder";
 import { persistSceneImage } from "@/lib/utils/image-persist";
-import { useAPIConfigStore } from "@/stores/api-config-store";
-import type { DirectorProjectData, DirectorStore, SplitScene } from "@/stores/director-store";
+import { useAPIConfigStore } from "@/stores/ai/api-config-store";
+import type { DirectorProjectData, DirectorStore, SplitScene } from "@/stores/director/director-store";
 import {
   convertStoryboardFrameToHttpUrl,
   isDiscouragedExternalImageUrl,

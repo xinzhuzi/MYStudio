@@ -14,7 +14,7 @@ import {
   type Scene,
   TIME_PRESETS,
   ATMOSPHERE_PRESETS,
-} from "@/stores/scene-store";
+} from "@/stores/library/scene-store";
 import { useResolvedImageUrl } from "@/hooks/use-resolved-image-url";
 import { readImageAsBase64 } from "@/lib/image-storage";
 import { Button } from "@/components/ui/button";

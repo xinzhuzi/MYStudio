@@ -1,8 +1,9 @@
+import { getProjectFilesBridge } from "@/lib/bridge/project-files";
 import { getAbsoluteImagePath } from "@/lib/image-storage";
 import { eventBus } from "@/lib/event-bus";
-import { useCharacterLibraryStore } from "@/stores/character-library-store";
-import { usePropsLibraryStore } from "@/stores/props-library-store";
-import { useSceneStore } from "@/stores/scene-store";
+import { useCharacterLibraryStore } from "@/stores/library/character-library-store";
+import { usePropsLibraryStore } from "@/stores/library/props-library-store";
+import { useSceneStore } from "@/stores/library/scene-store";
 import type {
   AssetImageWorkflowContext,
   ImageWorkflowAssetTargetType,
@@ -132,7 +133,7 @@ export function imageWorkflowAssetTypeToLibraryKind(
 export async function resolveAssetLibrarySourceFilePath(image?: string) {
   if (!image) return undefined;
   if (image.startsWith("project-file://")) {
-    return (await window.projectFiles?.getAbsolutePath?.(image)) ?? undefined;
+    return (await getProjectFilesBridge()?.getAbsolutePath?.(image)) ?? undefined;
   }
   if (image.startsWith("local-image://")) {
     return (await getAbsoluteImagePath(image)) ?? undefined;

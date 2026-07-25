@@ -1,4 +1,4 @@
-import type { ModelTestProtocol } from "@/lib/api-manager/model-test";
+import type { ModelTestProtocol } from "@/lib/ai/model-test";
 import type { JSONValue } from "@ai-sdk/provider";
 import type { ProviderOptions } from "@ai-sdk/provider-utils";
 

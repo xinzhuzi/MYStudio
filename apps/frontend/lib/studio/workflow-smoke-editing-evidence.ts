@@ -1,4 +1,4 @@
-import { useEditingStore } from "@/stores/editing-store";
+import { useEditingStore } from "@/stores/editing/editing-store";
 import type { EditingProjectV1, TimelineRenderRecord } from "@/types/editing";
 
 export interface SeedSmokeEditingEvidenceInput {

@@ -1,6 +1,6 @@
 import type { Shot } from "@/types/script";
-import { useCharacterLibraryStore } from "@/stores/character-library-store";
-import { useScriptStore } from "@/stores/script-store";
+import { useCharacterLibraryStore } from "@/stores/library/character-library-store";
+import { useScriptStore } from "@/stores/script/script-store";
 import { getVariationForEpisode } from "./character-stage-analyzer";
 import type { ShotFactoryParams } from "./shot-content-parser";
 

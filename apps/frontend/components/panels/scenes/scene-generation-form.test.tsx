@@ -2,7 +2,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/components/ui/style-picker", () => ({
+vi.mock("@/components/features/visual-style/style-picker", () => ({
   StylePicker: ({ value, onChange, disabled }: { value: string; onChange: (value: string) => void; disabled: boolean }) => (
     <button type="button" disabled={disabled} onClick={() => onChange("new-style")}>风格:{value}</button>
   ),

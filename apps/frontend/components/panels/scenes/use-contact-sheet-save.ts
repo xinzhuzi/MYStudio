@@ -1,7 +1,7 @@
 import { useCallback } from "react";
-import type { Scene } from "@/stores/scene-store";
-import { useSceneStore } from "@/stores/scene-store";
-import type { PendingViewpointData, ContactSheetPromptSet } from "@/stores/media-panel-store";
+import type { Scene } from "@/stores/library/scene-store";
+import { useSceneStore } from "@/stores/library/scene-store";
+import type { PendingViewpointData, ContactSheetPromptSet } from "@/stores/navigation/media-panel-store";
 import type { SceneViewpoint } from "@/lib/script/scene-viewpoint-generator";
 import type { ScriptScene, Shot } from "@/types/script";
 import { saveImageToLocal } from "@/lib/image-storage";

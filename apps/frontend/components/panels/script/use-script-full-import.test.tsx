@@ -27,7 +27,7 @@ vi.mock("@/lib/script/character-calibrator", () => ({
   resolveSafeScriptCharacters: vi.fn((characters) => ({ characters, source: "calibrated" })),
   sortByImportance: vi.fn((characters) => characters),
 }));
-vi.mock("@/stores/script-store", () => ({
+vi.mock("@/stores/script/script-store", () => ({
   useScriptStore: { getState: () => ({ projects: {} }) },
 }));
 vi.mock("sonner", () => ({ toast: mocks.toast }));

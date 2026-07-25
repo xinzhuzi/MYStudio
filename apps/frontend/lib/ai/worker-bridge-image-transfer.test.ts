@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { AIScreenplay, GenerationConfig } from '@opencut/ai-core';
+import type { AIScreenplay, GenerationConfig } from '@/lib/ai/core';
 
 const transferMocks = vi.hoisted(() => ({
   prepareOne: vi.fn(),

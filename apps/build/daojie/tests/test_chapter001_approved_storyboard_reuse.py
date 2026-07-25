@@ -1163,6 +1163,7 @@ class Chapter001ApprovedStoryboardReuseTest(unittest.TestCase):
             self.assertEqual(report["schemaVersion"], module.MODEL_REFERENCE_PREFLIGHT_SCHEMA_VERSION)
             self.assertEqual(report["referenceCount"], 2)
             self.assertEqual(report["totalBytes"], sum(item["bytes"] for item in report["references"]))
+            self.assertEqual(report["processing"], {"denoise": False, "denoiseVersion": "none"})
             self.assertNotIn("data:image", json.dumps(report, ensure_ascii=False))
             self.assertNotIn(str(source), json.dumps(report, ensure_ascii=False))
             for item in report["references"]:
@@ -1177,6 +1178,33 @@ class Chapter001ApprovedStoryboardReuseTest(unittest.TestCase):
             ])
             self.assertEqual(repeated, prepared)
             self.assertEqual(repeated_report, report)
+
+    def test_v2_reference_preflight_applies_deterministic_denoise_and_records_policy(self):
+        module = load_generator()
+        with tempfile.TemporaryDirectory() as temp:
+            source = Path(temp) / "noisy-reference.png"
+            image = Image.new("RGB", (96, 72), (112, 138, 164))
+            pixels = image.load()
+            for x in range(0, image.width, 2):
+                for y in range(0, image.height, 2):
+                    pixels[x, y] = (245, 245, 245)
+            image.save(source)
+
+            plain, plain_report = module.prepare_storyboard_model_reference_images([
+                {"imageUrl": str(source)},
+            ])
+            denoised, denoised_report = module.prepare_storyboard_model_reference_images(
+                [{"imageUrl": str(source)}],
+                denoise=True,
+            )
+
+            self.assertNotEqual(denoised, plain)
+            self.assertNotEqual(denoised_report["fingerprint"], plain_report["fingerprint"])
+            self.assertEqual(
+                denoised_report["processing"],
+                {"denoise": True, "denoiseVersion": module.MODEL_REFERENCE_DENOISE_VERSION},
+            )
+            self.assertNotIn(str(source), json.dumps(denoised_report, ensure_ascii=False))
 
 
 if __name__ == "__main__":

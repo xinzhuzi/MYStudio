@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { SplitScene } from "@/stores/director-store";
+import type { SplitScene } from "@/stores/director/director-store";
 import { saveStoryboardSceneToLibrary } from "./storyboard-media-library-actions";
 
 const { toast } = vi.hoisted(() => ({

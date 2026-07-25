@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { useStudioConfigStore } from "@/stores/studio-config-store";
+import { useStudioConfigStore } from "@/stores/app/studio-config-store";
 import type { ModelBinding } from "@/types/studio";
 import { toast } from "sonner";
 

@@ -1,4 +1,4 @@
-import type { SplitScene } from "@/stores/director-store";
+import type { SplitScene } from "@/stores/director/director-store";
 import { describe, expect, it } from "vitest";
 import { filterTrailerScenes } from "./storyboard-scenes-utils";
 

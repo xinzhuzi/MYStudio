@@ -36,7 +36,7 @@ import {
   type ShotGroup,
   type ExtendDirection,
   type EditType,
-} from "@/stores/sclass-store";
+} from "@/stores/sclass/sclass-store";
 
 // ==================== Types ====================
 

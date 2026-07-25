@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { useAppSettingsStore } from "@/stores/app-settings-store";
+import { useAppSettingsStore } from "@/stores/app/app-settings-store";
 import type { DiagnosticsLogInfo } from "@/types/diagnostics";
+import { getDiagnosticsBridge } from "@/lib/bridge/diagnostics";
 
 export function useDevelopmentSettings() {
   const settings = useAppSettingsStore((state) => state.developmentSettings);
@@ -12,13 +13,14 @@ export function useDevelopmentSettings() {
   const [isExportingDiagnostics, setIsExportingDiagnostics] = useState(false);
   const [isClearingDiagnostics, setIsClearingDiagnostics] = useState(false);
   const hasDevTools = typeof window !== "undefined" && !!window.electronAPI?.openDevTools;
-  const hasDiagnostics = typeof window !== "undefined" && !!window.diagnosticsLog;
+  const hasDiagnostics = Boolean(getDiagnosticsBridge());
 
   const refreshDiagnostics = useCallback(async () => {
-    if (!window.diagnosticsLog) return;
+    const diagnostics = getDiagnosticsBridge();
+    if (!diagnostics) return;
     setIsDiagnosticsLoading(true);
     try {
-      setDiagnosticsInfo(await window.diagnosticsLog.getInfo());
+      setDiagnosticsInfo(await diagnostics.getInfo());
     } catch (error) {
       console.error("[DevelopmentSettings] Failed to load diagnostics info:", error);
     } finally {
@@ -48,22 +50,24 @@ export function useDevelopmentSettings() {
   }, []);
 
   const openDiagnosticsFolder = useCallback(async () => {
-    if (!window.diagnosticsLog) {
+    const diagnostics = getDiagnosticsBridge();
+    if (!diagnostics) {
       toast.error("请在桌面应用中使用此功能");
       return;
     }
-    const result = await window.diagnosticsLog.openFolder();
+    const result = await diagnostics.openFolder();
     result.success ? toast.success("日志文件夹已打开") : toast.error(result.error || "打开日志文件夹失败");
   }, []);
 
   const exportDiagnostics = useCallback(async () => {
-    if (!window.diagnosticsLog) {
+    const diagnostics = getDiagnosticsBridge();
+    if (!diagnostics) {
       toast.error("请在桌面应用中使用此功能");
       return;
     }
     setIsExportingDiagnostics(true);
     try {
-      const result = await window.diagnosticsLog.exportBundle();
+      const result = await diagnostics.exportBundle();
       if (result.success) {
         toast.success("诊断包已导出");
         await refreshDiagnostics();
@@ -76,14 +80,15 @@ export function useDevelopmentSettings() {
   }, [refreshDiagnostics]);
 
   const clearDiagnostics = useCallback(async () => {
-    if (!window.diagnosticsLog) {
+    const diagnostics = getDiagnosticsBridge();
+    if (!diagnostics) {
       toast.error("请在桌面应用中使用此功能");
       return;
     }
     if (!window.confirm("清理诊断日志？这不会影响项目资产和配置。")) return;
     setIsClearingDiagnostics(true);
     try {
-      const result = await window.diagnosticsLog.clear();
+      const result = await diagnostics.clear();
       if (result.success) {
         toast.success(`已清理 ${result.removedFiles} 个日志文件`);
         await refreshDiagnostics();

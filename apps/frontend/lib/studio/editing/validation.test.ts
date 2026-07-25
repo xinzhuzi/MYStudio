@@ -478,6 +478,21 @@ describe("editing boundary validation", () => {
 
   it("accepts only complete audio-video timeline render records", () => {
     const record = validRenderRecord(validProject());
+    record.evidence.renderer = {
+      requested: "remotion",
+      actual: "ffmpeg",
+      fallback: {
+        code: "unsupported-effects",
+        effectIds: ["blur"],
+        message: "Remotion 暂不支持：blur",
+      },
+    };
+    record.evidence.audioPostProcess = {
+      engine: "ffmpeg",
+      loudnessLufs: -14,
+      truePeakDbtp: -1.5,
+      logPath: "/tmp/postprocess.log",
+    };
     expect(validateTimelineRenderRecord(record)).toEqual({
       success: true,
       value: record,
@@ -495,6 +510,48 @@ describe("editing boundary validation", () => {
       expect.objectContaining({ code: "editing.render_evidence.sha256" }),
       expect.objectContaining({ code: "editing.render_evidence.streams" }),
       expect.objectContaining({ path: "$.evidence.filterGraphPath" }),
+    ]));
+  });
+
+  it("rejects malformed optional renderer evidence", () => {
+    const record = validRenderRecord(validProject()) as unknown as Record<string, unknown>;
+    const evidence = record.evidence as Record<string, unknown>;
+    evidence.renderer = {
+      requested: "remotion",
+      actual: "remotion",
+      fallback: {
+        code: "unsupported-effects",
+        effectIds: [],
+        message: "",
+      },
+    };
+    evidence.audioPostProcess = {
+      engine: "remotion",
+      loudnessLufs: Number.NaN,
+      truePeakDbtp: -1.5,
+      logPath: "",
+    };
+
+    const result = validateTimelineRenderRecord(record);
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.issues).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        code: "editing.render_evidence.renderer",
+        path: "$.evidence.renderer.fallback.effectIds",
+      }),
+      expect.objectContaining({
+        code: "editing.render_evidence.renderer",
+        path: "$.evidence.renderer.fallback",
+      }),
+      expect.objectContaining({
+        code: "editing.render_evidence.audio_postprocess",
+        path: "$.evidence.audioPostProcess.engine",
+      }),
+      expect.objectContaining({
+        code: "editing.render_evidence.audio_postprocess",
+        path: "$.evidence.audioPostProcess.loudnessLufs",
+      }),
     ]));
   });
 

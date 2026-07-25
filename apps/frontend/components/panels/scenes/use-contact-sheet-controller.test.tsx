@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Scene } from "@/stores/scene-store";
+import type { Scene } from "@/stores/library/scene-store";
 import type { Shot } from "@/types/script";
 
 const mocks = vi.hoisted(() => ({
@@ -23,7 +23,7 @@ vi.mock("@/lib/ai/ai-manager", () => ({
     imageGrid: mocks.imageGrid,
   },
 }));
-vi.mock("@/stores/app-settings-store", () => ({
+vi.mock("@/stores/app/app-settings-store", () => ({
   useAppSettingsStore: { getState: () => ({ imageGenerationSettings: { defaultResolution: "2K" } }) },
 }));
 

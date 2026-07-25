@@ -11,7 +11,7 @@ metaData: art_skills
 ## 一、基础形象原则
 
 1. **造型即灵魂** — 角色造型是核心锚点，水墨国风造型，工笔线描勾勒
-2. **底模即基础** — 基础打底服装 + 素颜，后续服化均为叠加层
+2. **底模即基础** — 基础形象阶段使用基础服装与素颜；衍生资产按 `art_character_derivative` 叠加基础妆/轻妆/正式妆，不混用两个阶段规则
 3. **四视图一致** — 面容/体型/发型/基础服装跨视图高度统一
 4. **仙道气质** — 无妆状态仍需体现角色气质（清冷/飘逸/凌厉/温润）
 
@@ -174,7 +174,7 @@ character design sheet, character turnaround,
 
 ### 正向质量锚点
 
-水墨国风修仙，Chinese ink wash xianxia，gongbi linework，rice paper texture，muted cyan-green palette，layered ink wash，spiritual aura as ink diffusion，cinematic composition，best quality，high detailed。
+水墨国风修仙，Chinese ink wash xianxia，gongbi linework，rice paper texture，restrained mineral-color palette，layered ink wash，spiritual aura as ink diffusion，clear layered composition，clean finished image，high detail。
 角色类提示词必须保留身份、年龄、性别、五官、身高、头身比、体态、服装、发型和四视图一致性；补充 anatomy coherent, clean facial structure, consistent identity, complete head-to-toe framing。
 
 ### 反向规避提示词
@@ -196,7 +196,7 @@ bad anatomy, deformed face, asymmetrical eyes, extra limbs, missing limbs, fused
 
 | 编号 | 规则 |
 |---|---|
-| R1 | 必须为「素颜状态」 |
+| R1 | 基础形象阶段必须为「素颜状态」；衍生资产的妆造由 `art_character_derivative` 决定 |
 | R2 | 必须声明基础服装（女性：素色道袍长裙；男性：素色道袍长衫） |
 | R3 | 必须声明「无发饰、无配饰」 |
 | R4 | 必须指定「宣纸白底色背景」 |

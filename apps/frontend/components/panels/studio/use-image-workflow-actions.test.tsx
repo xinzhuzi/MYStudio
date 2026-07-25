@@ -3,7 +3,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createImageWorkflowGraph } from "@/lib/studio/image-workflow";
-import { useProjectStore } from "@/stores/project-store";
+import { useProjectStore } from "@/stores/project/project-store";
 import { useImageWorkflowActions } from "./use-image-workflow-actions";
 
 const initialProjectState = useProjectStore.getState();

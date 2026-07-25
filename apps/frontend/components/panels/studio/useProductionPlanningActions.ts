@@ -27,11 +27,11 @@ import {
 import { DAOJIE_VISUAL_MANUAL_ID } from "@/lib/studio/visual-manual-classification";
 import type { AssetGenerationTask } from "@/lib/studio/asset-generation-orchestrator";
 import type { EntityResolver } from "@/lib/studio/derived-asset-sync";
-import { useCharacterLibraryStore } from "@/stores/character-library-store";
-import { useProjectStore } from "@/stores/project-store";
-import { usePropsLibraryStore } from "@/stores/props-library-store";
-import { useSceneStore } from "@/stores/scene-store";
-import { useStudioStore } from "@/stores/studio-store";
+import { useCharacterLibraryStore } from "@/stores/library/character-library-store";
+import { useProjectStore } from "@/stores/project/project-store";
+import { usePropsLibraryStore } from "@/stores/library/props-library-store";
+import { useSceneStore } from "@/stores/library/scene-store";
+import { useStudioStore } from "@/stores/studio/studio-store";
 import { toast } from "sonner";
 import {
   formatScriptPlanContext,
@@ -472,6 +472,8 @@ function buildCharacterDerivativeImagePrompt(input: {
       ? [
           "道劫彩色工笔水墨角色设定：媒介规则优先于父图的数字渲染，脸、手、发丝、衣褶与服饰结构先以连续白描和铁线描建立，再以矿物薄层分染与罩染；主体密、背景疏",
           "水墨与纸白占画面大部，30%-70%可辨彩色且目标约30%-40%，只用石青、石绿、赭石、朱砂或旧金等2-3种低饱和点缀色；均匀平光宣纸照明与纸面散射光",
+          "低视觉噪点，denoised details，clear readable surfaces，clean paper texture，controlled ink wash",
+          "负面约束：dirty/muddy texture，compression artifacts/jpeg artifacts，oversharpening halos，random stains",
           "禁止写实摄影，禁止3D写实渲染，CGI，赛璐璐平涂，高饱和霓虹，电影级体积雾，HDR高光，镜面湿面反光和全幅冷青或灰蓝渲染",
         ]
       : [

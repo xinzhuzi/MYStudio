@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
-import type { AdvancedGenerationOptions } from "@/stores/api-config-store";
+import type { AdvancedGenerationOptions } from "@/stores/ai/api-config-store";
 
 type AdvancedSettingsTabProps = {
   options: AdvancedGenerationOptions;

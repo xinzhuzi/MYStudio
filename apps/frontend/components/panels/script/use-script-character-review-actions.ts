@@ -4,7 +4,7 @@ import { detectMultiStageHints } from "@/lib/script/character-stage-analyzer";
 import { resolveSafeScriptCharacters } from "@/lib/script/character-calibrator";
 import { exportProjectMetadata } from "@/lib/script/full-script-service";
 import { syncToSeriesMeta } from "@/lib/script/series-meta-sync";
-import { useScriptStore, type ScriptCalibrationState } from "@/stores/script-store";
+import { useScriptStore, type ScriptCalibrationState } from "@/stores/script/script-store";
 import type { CalibrationStrictness, FilteredCharacterRecord, ScriptCharacter, ScriptData } from "@/types/script";
 
 interface Options {

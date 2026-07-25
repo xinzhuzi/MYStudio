@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { SceneGenerationPrefs } from "@/stores/scene-store";
+import type { SceneGenerationPrefs } from "@/stores/library/scene-store";
 
 export type GenerationMode = SceneGenerationPrefs["generationMode"];
 

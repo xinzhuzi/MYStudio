@@ -3,9 +3,9 @@
  * 项目内所有「对话/文本、图像、视频、TTS」的 AI 对接逐步收口到这里。
  * P0：text() 委托现有 electronAPI.textCompletion；resolve() 桥接两套绑定（Agent 部署 / 功能绑定）。
  */
-import { useAPIConfigStore, type AgentDeploymentKey, type AIFeature } from "@/stores/api-config-store";
+import { useAPIConfigStore, type AgentDeploymentKey, type AIFeature } from "@/stores/ai/api-config-store";
 import type { IProvider } from "@/lib/api-key-manager";
-import type { TextCompletionMessage } from "@/lib/api-manager/text-completion";
+import type { TextCompletionMessage } from "@/lib/ai/text-completion";
 import {
   generateCharacterImage,
   generatePropImage,
@@ -16,7 +16,7 @@ import {
 } from "@/lib/ai/image-generator";
 import { getWorkerBridge, initializeWorkerBridge, type AIWorkerBridge } from "@/lib/ai/worker-bridge";
 import { extractStyleTokens } from "@/lib/ai/style-extractor";
-import { generateFreedomImage, generateFreedomVideo } from "@/lib/freedom/freedom-api";
+import { generateFreedomImage, generateFreedomVideo } from "@/lib/assist/freedom-api";
 import { callVideoGenerationApi } from "@/lib/ai/video-generator";
 import { generateSpeech } from "@/lib/tts/client";
 import {
@@ -27,7 +27,7 @@ import {
 } from "@/lib/ai/feature-router";
 import type { TtsGenerateRequest, TtsGenerateResponse } from "@/types/tts";
 
-/** 绑定：可来自 studio 的 Agent 部署，或 ai-core 的功能绑定。 */
+/** 绑定：可来自 studio 的 Agent 部署，或 AI core 的功能绑定。 */
 export type AIBinding = { agent: AgentDeploymentKey } | { feature: AIFeature };
 
 export interface ResolvedModel {
@@ -113,12 +113,12 @@ async function imageGrid(params: Parameters<typeof submitGridImageRequest>[0]) {
   return submitGridImageRequest(params);
 }
 
-/** ai-core 工作线程（导演 剧本→场景→图像→视频 流水线，事件式长任务）。同步取单例。 */
+/** AI core 工作线程（导演 剧本→场景→图像→视频 流水线，事件式长任务）。同步取单例。 */
 function worker(): AIWorkerBridge {
   return getWorkerBridge();
 }
 
-/** 确保 ai-core 工作线程已初始化后返回（异步）。 */
+/** 确保 AI core 工作线程已初始化后返回（异步）。 */
 function initWorker(): Promise<AIWorkerBridge> {
   return initializeWorkerBridge();
 }

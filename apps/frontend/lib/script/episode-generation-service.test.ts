@@ -6,7 +6,7 @@ const mocks = vi.hoisted(() => ({
   getState: vi.fn(),
 }));
 
-vi.mock("@/stores/script-store", () => ({
+vi.mock("@/stores/script/script-store", () => ({
   useScriptStore: { getState: mocks.getState },
 }));
 vi.mock("./episode-shot-generation", () => ({

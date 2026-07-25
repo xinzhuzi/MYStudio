@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import type { AngleSwitchDialogProps, AngleSwitchHistoryItem } from "@/components/angle-switch";
-import type { IProvider } from "@/stores/api-config-store";
-import type { SplitScene } from "@/stores/director-store";
+import type { IProvider } from "@/stores/ai/api-config-store";
+import type { SplitScene } from "@/stores/director/director-store";
 import { parseApiKeys } from "@/lib/api-key-manager";
 import { generateAngleSwitch } from "@/lib/ai/runninghub-client";
 import { getAngleLabel } from "@/lib/ai/runninghub-angles";

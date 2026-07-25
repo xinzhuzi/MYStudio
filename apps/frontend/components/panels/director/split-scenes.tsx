@@ -17,17 +17,17 @@ import {
   EMOTION_PRESETS,
   SHOT_SIZE_PRESETS,
   SOUND_EFFECT_PRESETS,
-} from "@/stores/director-store";
-import { useCharacterLibraryStore } from "@/stores/character-library-store";
-import { useScriptStore } from "@/stores/script-store";
-import { useMediaStore } from "@/stores/media-store";
-import { useAppSettingsStore } from "@/stores/app-settings-store";
+} from "@/stores/director/director-store";
+import { useCharacterLibraryStore } from "@/stores/library/character-library-store";
+import { useScriptStore } from "@/stores/script/script-store";
+import { useMediaStore } from "@/stores/media/media-store";
+import { useAppSettingsStore } from "@/stores/app/app-settings-store";
 import { toast } from "sonner";
 import { normalizeHorizontalVerticalAspectRatio } from "@/lib/ai/image-size-presets";
 
 import { waitForAbortableDelay } from "@/lib/storyboard/image-task-transport";
 import { useMergedGenerationCancellation } from "@/hooks/use-merged-generation-cancellation";
-import { useAPIConfigStore } from "@/stores/api-config-store";
+import { useAPIConfigStore } from "@/stores/ai/api-config-store";
 import { aiManager } from "@/lib/ai/ai-manager";
 import { readImageAsBase64 } from '@/lib/image-storage';
 import { persistSceneImage } from '@/lib/utils/image-persist';

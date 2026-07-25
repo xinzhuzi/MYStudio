@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Scene } from "@/stores/scene-store";
+import type { Scene } from "@/stores/library/scene-store";
 
 const mocks = vi.hoisted(() => ({
   scenes: [] as Scene[],
@@ -18,10 +18,10 @@ vi.mock("@/lib/ai/ai-manager", () => ({
 }));
 vi.mock("@/lib/storyboard/image-splitter", () => ({ splitStoryboardImage: mocks.splitStoryboardImage }));
 vi.mock("@/lib/image-storage", () => ({ readImageAsBase64: vi.fn(), saveImageToLocal: mocks.saveImageToLocal }));
-vi.mock("@/stores/app-settings-store", () => ({
+vi.mock("@/stores/app/app-settings-store", () => ({
   useAppSettingsStore: { getState: () => ({ imageGenerationSettings: { defaultResolution: "2K" } }) },
 }));
-vi.mock("@/stores/scene-store", () => ({ useSceneStore: { getState: () => ({ scenes: mocks.scenes }) } }));
+vi.mock("@/stores/library/scene-store", () => ({ useSceneStore: { getState: () => ({ scenes: mocks.scenes }) } }));
 vi.mock("sonner", () => ({ toast: mocks.toast }));
 
 import { useOrthographicController } from "./use-orthographic-controller";

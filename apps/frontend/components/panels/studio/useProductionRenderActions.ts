@@ -3,7 +3,7 @@ import {
   runProductionEpisodeMerge,
   runProductionTrackRender,
 } from "@/lib/studio/production-runners";
-import { useStudioStore } from "@/stores/studio-store";
+import { useStudioStore } from "@/stores/studio/studio-store";
 import type {
   ProductionTrack,
   StoryboardItem,

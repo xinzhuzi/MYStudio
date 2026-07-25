@@ -35,10 +35,14 @@ function isViteDev(): boolean {
  * @returns      Response（与原生 fetch 返回值相同）
  */
 export async function corsFetch(
-  url: string | URL,
+  url: RequestInfo | URL,
   init?: RequestInit,
 ): Promise<Response> {
-  const targetUrl = url.toString();
+  const targetUrl = typeof url === 'string'
+    ? url
+    : url instanceof URL
+      ? url.toString()
+      : url.url;
 
   // Electron 或非开发环境：直连
   if (isElectron() || !isViteDev()) {

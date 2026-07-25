@@ -9,7 +9,7 @@
  */
 
 import { useState } from "react";
-import { useCharacterLibraryStore, type Character } from "@/stores/character-library-store";
+import { useCharacterLibraryStore, type Character } from "@/stores/library/character-library-store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";

@@ -8,7 +8,7 @@ import {
   CAMERA_MOVEMENT_PRESETS,
   SPECIAL_TECHNIQUE_PRESETS,
   type SplitScene,
-} from "@/stores/director-store";
+} from "@/stores/director/director-store";
 import type { PromptLanguage } from "@/types/script";
 import { EditableTextField } from "./editable-text-field";
 

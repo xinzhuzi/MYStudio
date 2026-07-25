@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { parseApiKeys } from "@/lib/api-key-manager";
 import { resolveThinkingEnabled } from "@/lib/ai/thinking-mode";
-import { useAPIConfigStore, type IProvider } from "@/stores/api-config-store";
+import { useAPIConfigStore, type IProvider } from "@/stores/ai/api-config-store";
 import {
   MODEL_TYPE_LABELS,
   filterModelsByFuzzyQuery,

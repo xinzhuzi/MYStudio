@@ -20,6 +20,7 @@ import { Label } from "@/components/ui/label";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
+import { getStudioSkillsBridge } from "@/lib/bridge/studio-skills";
 import {
   STUDIO_SKILL_CATEGORY_LABELS,
   getStudioSkillCategory,
@@ -145,8 +146,9 @@ export function SkillsView({
         setSavedContent("");
         return;
       }
-      if (window.studioSkills?.readText) {
-        const result = await window.studioSkills.readText(file.relativePath);
+      const studioSkills = getStudioSkillsBridge();
+      if (studioSkills?.readText) {
+        const result = await studioSkills.readText(file.relativePath);
         if (!result.success) throw new Error(result.error || "读取技能文件失败");
         const nextContent = result.content ?? "";
         setDraft(nextContent);
@@ -175,9 +177,10 @@ export function SkillsView({
   }, []);
 
   useEffect(() => {
-    if (!window.studioSkills?.list) return;
+    const studioSkills = getStudioSkillsBridge();
+    if (!studioSkills?.list) return;
     let cancelled = false;
-    window.studioSkills.list()
+    studioSkills.list()
       .then((remoteFiles) => {
         if (cancelled) return;
         const bundledByPath = new Map(bundledFiles.map((file) => [file.relativePath, file]));
@@ -232,13 +235,14 @@ export function SkillsView({
 
   const handleSave = async () => {
     if (!selectedFile) return;
-    if (!window.studioSkills?.writeText) {
+    const studioSkills = getStudioSkillsBridge();
+    if (!studioSkills?.writeText) {
       toast.error("当前环境不支持写回技能文件，请在 Electron 中打开");
       return;
     }
     setIsSaving(true);
     try {
-      const result = await window.studioSkills.writeText(selectedFile.relativePath, draft);
+      const result = await studioSkills.writeText(selectedFile.relativePath, draft);
       if (!result.success) throw new Error(result.error || "保存技能文件失败");
       setSavedContent(draft);
       setFiles((current) => current.map((item) => (
@@ -262,7 +266,8 @@ export function SkillsView({
   };
 
   const handleCreate = async () => {
-    if (!window.studioSkills?.createText) {
+    const studioSkills = getStudioSkillsBridge();
+    if (!studioSkills?.createText) {
       toast.error("当前环境不支持新增技能文件，请在 Electron 中打开");
       return;
     }
@@ -274,7 +279,7 @@ export function SkillsView({
     const initialContent = `# ${getSkillTitleFromPath(relativePath)}\n\n`;
     setIsSaving(true);
     try {
-      const result = await window.studioSkills.createText(relativePath, initialContent);
+      const result = await studioSkills.createText(relativePath, initialContent);
       if (!result.success || !result.relativePath) throw new Error(result.error || "新增技能文件失败");
       const nextFile = makeEditableSkillFile(result.relativePath, initialContent, {
         filePath: result.filePath,
@@ -300,14 +305,15 @@ export function SkillsView({
 
   const handleDelete = async () => {
     if (!selectedFile) return;
-    if (!window.studioSkills?.deleteText) {
+    const studioSkills = getStudioSkillsBridge();
+    if (!studioSkills?.deleteText) {
       toast.error("当前环境不支持删除技能文件，请在 Electron 中打开");
       return;
     }
     if (!window.confirm(`删除技能文件：${selectedFile.relativePath}\n删除后会记录在存储目录中，不会修改内置种子。继续？`)) return;
     setIsSaving(true);
     try {
-      const result = await window.studioSkills.deleteText(selectedFile.relativePath);
+      const result = await studioSkills.deleteText(selectedFile.relativePath);
       if (!result.success) throw new Error(result.error || "删除技能文件失败");
       const remaining = files.filter((item) => item.relativePath !== selectedFile.relativePath);
       setFiles(remaining);
@@ -326,7 +332,8 @@ export function SkillsView({
 
   const handleRestore = async () => {
     if (!selectedFile) return;
-    if (!window.studioSkills?.restoreText) {
+    const studioSkills = getStudioSkillsBridge();
+    if (!studioSkills?.restoreText) {
       toast.error("当前环境不支持恢复技能文件，请在 Electron 中打开");
       return;
     }
@@ -340,7 +347,7 @@ export function SkillsView({
     if (!window.confirm(`${confirmMessage}\n继续？`)) return;
     setIsSaving(true);
     try {
-      const result = await window.studioSkills.restoreText(selectedFile.relativePath);
+      const result = await studioSkills.restoreText(selectedFile.relativePath);
       if (!result.success || !result.relativePath) throw new Error(result.error || "恢复技能文件失败");
       const nextFile = {
         ...selectedFile,

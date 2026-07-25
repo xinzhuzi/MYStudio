@@ -35,10 +35,10 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import type { SplitScene } from "@/stores/director-store";
-import type { Character } from "@/stores/character-library-store";
-import type { Scene } from "@/stores/scene-store";
-import type { ShotGroup, SClassAspectRatio } from "@/stores/sclass-store";
+import type { SplitScene } from "@/stores/director/director-store";
+import type { Character } from "@/stores/library/character-library-store";
+import type { Scene } from "@/stores/library/scene-store";
+import type { ShotGroup, SClassAspectRatio } from "@/stores/sclass/sclass-store";
 import {
   buildGroupPrompt,
   estimateGroupRefs,

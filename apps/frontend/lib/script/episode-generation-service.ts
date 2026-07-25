@@ -1,5 +1,5 @@
 import type { PromptLanguage, Shot } from "@/types/script";
-import { useScriptStore } from "@/stores/script-store";
+import { useScriptStore } from "@/stores/script/script-store";
 import { generateShotsForEpisode } from "./episode-shot-generation";
 import {
   summarizeEpisodeGeneration,

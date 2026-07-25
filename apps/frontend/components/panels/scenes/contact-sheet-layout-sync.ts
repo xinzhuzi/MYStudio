@@ -1,6 +1,6 @@
 import { getStyleById } from '@/lib/constants/visual-styles';
-import type { Scene } from '@/stores/scene-store';
-import type { ContactSheetPromptSet, PendingViewpointData } from '@/stores/media-panel-store';
+import type { Scene } from '@/stores/library/scene-store';
+import type { ContactSheetPromptSet, PendingViewpointData } from '@/stores/navigation/media-panel-store';
 
 import type { ContactSheetLayout } from './generation-panel-utils';
 

@@ -2,7 +2,7 @@
 
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { SplitScene } from "@/stores/director-store";
+import type { SplitScene } from "@/stores/director/director-store";
 
 const featureConfig = vi.hoisted(() => vi.fn());
 const generateScenePrompts = vi.hoisted(() => vi.fn());

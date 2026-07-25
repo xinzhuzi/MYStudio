@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { useAppSettingsStore } from "@/stores/app-settings-store";
-import { useCharacterLibraryStore } from "@/stores/character-library-store";
-import { useMediaStore } from "@/stores/media-store";
-import { useProjectStore } from "@/stores/project-store";
-import { useSceneStore } from "@/stores/scene-store";
+import { getStorageManagerBridge } from "@/lib/bridge/storage-manager";
+import { useAppSettingsStore } from "@/stores/app/app-settings-store";
+import { useCharacterLibraryStore } from "@/stores/library/character-library-store";
+import { useMediaStore } from "@/stores/media/media-store";
+import { useProjectStore } from "@/stores/project/project-store";
+import { useSceneStore } from "@/stores/library/scene-store";
 import type { AvailableUpdateInfo } from "@/types/update";
 import packageJson from "../../../../package.json";
 import { clearPersistedRendererCaches } from "./storage-cache-utils";
@@ -39,39 +40,40 @@ export function useStorageSettings() {
   const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
   const [availableUpdate, setAvailableUpdate] = useState<AvailableUpdateInfo | null>(null);
   const [appVersion, setAppVersion] = useState(packageJson.version);
-  const hasStorageManager = typeof window !== "undefined" && !!window.storageManager;
+  const storageManager = getStorageManagerBridge();
+  const hasStorageManager = !!storageManager;
   const hasAppUpdater = typeof window !== "undefined" && !!window.appUpdater;
 
   const refreshCacheSize = useCallback(async () => {
-    if (!window.storageManager) return;
+    if (!storageManager) return;
     setIsCacheLoading(true);
     try {
-      const result = await window.storageManager.getCacheSize();
+      const result = await storageManager.getCacheSize();
       setCacheSize(result.total || 0);
     } catch (error) {
       console.error("Failed to get cache size:", error);
     } finally {
       setIsCacheLoading(false);
     }
-  }, []);
+  }, [storageManager]);
 
   useEffect(() => {
     if (!hasStorageManager) return;
-    window.storageManager?.getPaths()
+    storageManager?.getPaths()
       .then((paths) => {
         if (paths.basePath) setStoragePaths({ basePath: paths.basePath });
       })
       .catch(() => {});
     void refreshCacheSize();
-  }, [hasStorageManager, refreshCacheSize, setStoragePaths]);
+  }, [hasStorageManager, refreshCacheSize, setStoragePaths, storageManager]);
 
   useEffect(() => {
-    if (!hasStorageManager || !window.storageManager) return;
-    void window.storageManager.updateConfig({
+    if (!hasStorageManager || !storageManager) return;
+    void storageManager.updateConfig({
       autoCleanEnabled: cacheSettings.autoCleanEnabled,
       autoCleanDays: cacheSettings.autoCleanDays,
     });
-  }, [cacheSettings.autoCleanDays, cacheSettings.autoCleanEnabled, hasStorageManager]);
+  }, [cacheSettings.autoCleanDays, cacheSettings.autoCleanEnabled, hasStorageManager, storageManager]);
 
   useEffect(() => {
     let cancelled = false;
@@ -110,69 +112,69 @@ export function useStorageSettings() {
   }, [activeProjectId, assignMediaToProject, setResourceSharing]);
 
   const selectStoragePath = useCallback(async () => {
-    if (!window.storageManager) {
+    if (!storageManager) {
       toast.error("请在桌面应用中使用此功能");
       return;
     }
-    const dir = await window.storageManager.selectDirectory();
+    const dir = await storageManager.selectDirectory();
     if (!dir) return;
-    const result = await window.storageManager.moveData(dir);
+    const result = await storageManager.moveData(dir);
     if (!result.success) {
       toast.error(`移动失败: ${result.error || "未知错误"}`);
       return;
     }
     setStoragePaths({ basePath: result.path || dir });
     reloadWithFreshCaches("存储位置已更新，正在刷新...");
-  }, [reloadWithFreshCaches, setStoragePaths]);
+  }, [reloadWithFreshCaches, setStoragePaths, storageManager]);
 
   const exportData = useCallback(async () => {
-    if (!window.storageManager) return;
-    const dir = await window.storageManager.selectDirectory();
+    if (!storageManager) return;
+    const dir = await storageManager.selectDirectory();
     if (!dir) return;
-    const result = await window.storageManager.exportData(dir);
+    const result = await storageManager.exportData(dir);
     result.success ? toast.success("数据已导出") : toast.error(`导出失败: ${result.error || "未知错误"}`);
-  }, []);
+  }, [storageManager]);
 
   const importData = useCallback(async () => {
-    if (!window.storageManager) return;
-    const dir = await window.storageManager.selectDirectory();
+    if (!storageManager) return;
+    const dir = await storageManager.selectDirectory();
     if (!dir || !window.confirm("导入将覆盖当前数据，是否继续？")) return;
-    const result = await window.storageManager.importData(dir);
+    const result = await storageManager.importData(dir);
     if (!result.success) {
       toast.error(`导入失败: ${result.error || "未知错误"}`);
       return;
     }
     reloadWithFreshCaches("数据已导入，正在刷新...");
-  }, [reloadWithFreshCaches]);
+  }, [reloadWithFreshCaches, storageManager]);
 
   const linkData = useCallback(async () => {
-    if (!window.storageManager) {
+    if (!storageManager) {
       toast.error("请在桌面应用中使用此功能");
       return;
     }
-    const dir = await window.storageManager.selectDirectory();
+    const dir = await storageManager.selectDirectory();
     if (!dir) return;
-    const validation = await window.storageManager.validateDataDir(dir);
+    const validation = await storageManager.validateDataDir(dir);
     if (!validation.valid) {
       toast.error(validation.error || "无效的数据目录");
       return;
     }
     const message = `检测到 ${validation.projectCount || 0} 个项目文件，${validation.mediaCount || 0} 个素材文件。\n\n是否指向此目录？操作后建议重启应用。`;
     if (!window.confirm(message)) return;
-    const result = await window.storageManager.linkData(dir);
+    const result = await storageManager.linkData(dir);
     if (!result.success) {
       toast.error(`操作失败: ${result.error || "未知错误"}`);
       return;
     }
     setStoragePaths({ basePath: result.path || dir });
     reloadWithFreshCaches("已指向数据目录，正在刷新...");
-  }, [reloadWithFreshCaches, setStoragePaths]);
+  }, [reloadWithFreshCaches, setStoragePaths, storageManager]);
 
   const clearCache = useCallback(async () => {
-    if (!window.storageManager) return;
+    if (!storageManager) return;
     setIsClearingCache(true);
     try {
-      const result = await window.storageManager.clearCache();
+      const result = await storageManager.clearCache();
       if (result.success) {
         toast.success("缓存已清理");
         await refreshCacheSize();
@@ -182,7 +184,7 @@ export function useStorageSettings() {
     } finally {
       setIsClearingCache(false);
     }
-  }, [refreshCacheSize]);
+  }, [refreshCacheSize, storageManager]);
 
   const checkForUpdates = useCallback(async () => {
     if (!window.appUpdater) {

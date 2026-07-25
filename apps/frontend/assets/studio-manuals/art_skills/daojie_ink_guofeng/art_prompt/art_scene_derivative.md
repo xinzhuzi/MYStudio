@@ -35,9 +35,9 @@ metaData: art_skills
 | 从基准图衍生 | 保持不变 | 允许变化 |
 |---|---|---|
 | 大全景 → 全景 | 建筑外观、整体布局 | 视角收窄、前景增加 |
-| 全景 → 中景 | 材质、色调、光线 | 裁切聚焦、景深变化 |
-| 中景 → 近景 | 材质、色调 | 景深浅、背景虚化 |
-| 近景 → 特写 | 材质纹理 | 极浅景深、微距感 |
+| 全景 → 中景 | 材质、色调、光线 | 裁切聚焦、线描密度变化 |
+| 中景 → 近景 | 材质、色调 | 主体线描更清楚、背景淡墨退后 |
+| 近景 → 特写 | 材质纹理 | 局部线描与矿物薄染更清楚 |
 
 ---
 
@@ -80,7 +80,7 @@ metaData: art_skills
 | 从基准天候衍生 | 保持不变 | 变化项 |
 |---|---|---|
 | 晴 → 灵雾 | 建筑/布局 | 增加灵雾层、远景模糊、饱和度降低 |
-| 晴 → 灵雨 | 建筑/布局 | 增加灵雨丝、地面灵光反射、色调偏冷 |
+| 晴 → 灵雨 | 建筑/布局 | 增加灵雨丝、地面淡墨湿润薄染、色调偏冷 |
 | 晴 → 飞雪 | 建筑/布局 | 增加积雪、雪花、色调偏白 |
 | 植被需随天候逻辑适配 | — | 灵雨中灵花湿润、雪中枯枝挂霜 |
 
@@ -123,7 +123,7 @@ Chinese ink-wash style, gongbi line drawing, xieyi splash ink, xuan paper textur
 保持场景空间结构一致，
 {目标角度（如有）}, {景别视角（如有）}, {时段描述（如有）}, {天候描述（如有）},
 {前景}, {中景}, {后景},
-{色调描述}, {景深描述（如有）}, {天空色调变化（如有）}, {氛围调整（如有）},
+{色调描述}, {淡墨空气透视描述（如有）}, {天空色调变化（如有）}, {氛围调整（如有）},
 {天候视觉特征（如有）}, {材质表面变化（如有）}, {植被适配描述（如有）},
 材质自然磨损痕迹，岁月包浆，灵纱自然垂褶，
 柔和光影，水墨渲染，自然光漫射，细腻质感，
@@ -142,8 +142,8 @@ Chinese ink-wash style, gongbi line drawing, xieyi splash ink, xuan paper textur
 
 ### 正向质量锚点
 
-水墨国风修仙，Chinese ink wash xianxia，gongbi linework，rice paper texture，muted cyan-green palette，layered ink wash，spiritual aura as ink diffusion，cinematic composition，best quality，high detailed。
-场景衍生提示词必须保持原场景地标、空间结构、材质年代感不变，只改变时段、天候、景别或镜头角度；补充 landmark consistency, spatial continuity, cinematic atmosphere。
+水墨国风修仙，Chinese ink wash xianxia，gongbi linework，rice paper texture，restrained mineral-color palette，layered ink wash，spiritual aura as ink diffusion，clear layered composition，clean finished image，high detail。
+场景衍生提示词必须保持原场景地标、空间结构、材质年代感不变，只改变时段、天候、景别或镜头角度；补充 landmark consistency, spatial continuity, clean ink-wash atmosphere。
 
 ### 反向规避提示词
 
@@ -186,4 +186,4 @@ changed location, lost landmark, added people, human silhouette, random architec
 | X5 | 画面被拼接成多视图/网格/分屏布局 |
 | X6 | 3D 写实/CG 动画/赛璐璐/日式动画质感（禁用 3D render、CGI、Unreal Engine、Unity、cel shading 等词） |
 | X7 | 材质过于干净完美、无任何使用痕迹与岁月感（避免"塑料感"） |
-| X8 | 光照过于均匀平坦、无景深虚化、无镜头光学特征 |
+| X8 | 禁止电影式三点布光、体积光和浅景深虚化；采用均匀平光宣纸照明，以空间层次、线描密度和淡墨空气透视建立变化 |

@@ -123,7 +123,7 @@ describe("studio workflow tabs", () => {
     expect(indexSource).not.toContain("buildWorkbenchAssetMediaMap");
     expect(indexSource).not.toContain("buildProductionFlowModel({");
     expect(hookSource).toContain("buildWorkbenchAssetMediaMap");
-    expect(hookSource).toContain("window.studioAssets?.batchMatch");
+    expect(hookSource).toContain("getStudioAssetsBridge()?.batchMatch");
     expect(hookSource).toContain("buildAssetLibraryMatchNamesForProductionFlow");
     expect(hookSource).toContain("buildAssetLibraryMediaMapForProductionFlow");
     expect(hookSource).not.toContain("window.studioAssets?.saveMaterial");
@@ -165,9 +165,9 @@ describe("studio workflow tabs", () => {
     const workflowSource = `${canvasSource}\n${assetBridgeSource}\n${generationSource}\n${actionsSource}`;
 
     expect(canvasSource).toContain("useImageWorkflowActions");
-    expect(actionsSource).toContain("window.projectFiles?.writeBinary");
+    expect(actionsSource).toContain("getProjectFilesBridge()?.writeBinary");
     expect(canvasSource).toContain("useImageWorkflowGeneration");
-    expect(generationSource).toContain("window.projectFiles?.saveImage");
+    expect(generationSource).toContain("getProjectFilesBridge()?.saveImage");
     expect(workflowSource).toContain("project-file://");
     expect(canvasSource).toContain("initialAssetContext.imageWorkflowId");
     expect(canvasSource).toContain("assetWorkflowContextKey");
@@ -336,7 +336,7 @@ describe("studio workflow tabs", () => {
   it("does not keep removed Skill context preview state in the studio store", () => {
     const source = readFileSync(
       fileURLToPath(
-        new URL("../../../stores/studio-store.ts", import.meta.url),
+        new URL("../../../stores/studio/studio-store.ts", import.meta.url),
       ),
       "utf8",
     );

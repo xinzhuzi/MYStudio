@@ -279,7 +279,7 @@ character design sheet, character turnaround,
 
 ### 正向质量锚点
 
-水墨国风修仙，Chinese ink wash xianxia，gongbi linework，rice paper texture，muted cyan-green palette，layered ink wash，spiritual aura as ink diffusion，cinematic composition，best quality，high detailed。
+水墨国风修仙，Chinese ink wash xianxia，gongbi linework，rice paper texture，restrained mineral-color palette，layered ink wash，spiritual aura as ink diffusion，clear layered composition，clean finished image，high detail。
 人物衍生提示词必须保持底模面容、体态、发型识别点不变，只叠加服化妆造与局部风格升级；补充 same character identity, face consistency, outfit detail clarity。
 
 ### 反向规避提示词

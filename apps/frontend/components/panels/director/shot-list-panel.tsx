@@ -10,9 +10,9 @@
  */
 
 import { useMemo, useState } from "react";
-import { useScriptStore, useActiveScriptProject } from "@/stores/script-store";
-import { useProjectStore } from "@/stores/project-store";
-import { useDirectorShotStore } from "@/stores/director-shot-store";
+import { useScriptStore, useActiveScriptProject } from "@/stores/script/script-store";
+import { useProjectStore } from "@/stores/project/project-store";
+import { useDirectorShotStore } from "@/stores/director/director-shot-store";
 import { BatchProgressOverlay } from "@/components/BatchProgressOverlay";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";

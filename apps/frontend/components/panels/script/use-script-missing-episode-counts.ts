@@ -3,7 +3,7 @@ import {
   getMissingSynopsisEpisodes,
   getMissingTitleEpisodes,
 } from "@/lib/script/full-script-service";
-import type { ScriptImportStatus } from "@/stores/script-store";
+import type { ScriptImportStatus } from "@/stores/script/script-store";
 import type { EpisodeRawScript } from "@/types/script";
 
 type UseScriptMissingEpisodeCountsOptions = {

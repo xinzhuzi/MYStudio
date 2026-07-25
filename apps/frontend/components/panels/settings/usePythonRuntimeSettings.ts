@@ -6,6 +6,7 @@ import {
   setTtsRuntimeConfig,
   setupTtsRuntime,
 } from "@/lib/tts/client";
+import { getTtsRuntimeBridge } from "@/lib/bridge/tts-runtime";
 import type { TtsRuntimeConfig, TtsRuntimeStatus } from "@/types/tts";
 import { getPythonExecutableDisplayPath } from "./settings-model-utils";
 
@@ -23,7 +24,7 @@ export function usePythonRuntimeSettings() {
   const [isSaving, setIsSaving] = useState(false);
   const [isSettingUp, setIsSettingUp] = useState(false);
   const setupPollRef = useRef<number | null>(null);
-  const hasRuntime = typeof window !== "undefined" && !!window.ttsRuntime;
+  const hasRuntime = Boolean(getTtsRuntimeBridge());
 
   const stopSetupPolling = useCallback(() => {
     if (setupPollRef.current === null) return;

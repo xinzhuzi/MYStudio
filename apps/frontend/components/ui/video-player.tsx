@@ -4,7 +4,7 @@
 "use client";
 
 import { useRef, useEffect } from "react";
-import { usePlaybackStore } from "@/stores/playback-store";
+import { usePlaybackStore } from "@/stores/playback/playback-store";
 
 interface VideoPlayerProps {
   src: string;

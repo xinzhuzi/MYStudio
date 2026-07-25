@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { useAPIConfigStore } from "@/stores/api-config-store";
-import { useAppSettingsStore } from "@/stores/app-settings-store";
+import { useAPIConfigStore } from "@/stores/ai/api-config-store";
+import { useAppSettingsStore } from "@/stores/app/app-settings-store";
 import { resetFeatureRoundRobin } from "./feature-router";
 import {
   generateCharacterImage,

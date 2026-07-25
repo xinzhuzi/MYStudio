@@ -1,7 +1,7 @@
 import type { ComponentProps } from "react";
 import { AngleSwitchDialog, AngleSwitchResultDialog } from "@/components/angle-switch";
 import { QuadGridDialog, QuadGridResultDialog } from "@/components/quad-grid";
-import type { SplitScene } from "@/stores/director-store";
+import type { SplitScene } from "@/stores/director/director-store";
 import type { StoryboardGenerationUiController } from "./use-storyboard-generation-ui";
 
 type StoryboardDialogScene = Pick<

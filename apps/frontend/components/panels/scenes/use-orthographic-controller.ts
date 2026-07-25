@@ -1,8 +1,8 @@
 import { useCallback } from "react";
 import type { ChangeEvent } from "react";
-import type { Scene } from "@/stores/scene-store";
-import { useSceneStore } from "@/stores/scene-store";
-import { useAppSettingsStore } from "@/stores/app-settings-store";
+import type { Scene } from "@/stores/library/scene-store";
+import { useSceneStore } from "@/stores/library/scene-store";
+import { useAppSettingsStore } from "@/stores/app/app-settings-store";
 import { aiManager } from "@/lib/ai/ai-manager";
 import { readImageAsBase64, saveImageToLocal } from "@/lib/image-storage";
 import { splitStoryboardImage } from "@/lib/storyboard/image-splitter";

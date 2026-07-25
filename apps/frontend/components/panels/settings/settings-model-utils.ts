@@ -2,7 +2,7 @@ import { classifyModelByName } from "@/lib/api-key-manager";
 import type {
   IProvider,
   ProviderAdapterModelType,
-} from "@/stores/api-config-store";
+} from "@/stores/ai/api-config-store";
 import type { TtsRuntimeConfig } from "@/types/tts";
 
 export type AdapterModelType = ProviderAdapterModelType;

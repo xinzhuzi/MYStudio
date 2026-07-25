@@ -8,7 +8,7 @@ const mediaStore = vi.hoisted(() => ({
   getOrCreateCategoryFolder: vi.fn((kind: string) => `${kind}-folder`),
 }));
 
-vi.mock("@/stores/media-store", () => ({
+vi.mock("@/stores/media/media-store", () => ({
   useMediaStore: (selector: (state: typeof mediaStore) => unknown) => selector(mediaStore),
 }));
 

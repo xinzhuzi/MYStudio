@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 
 import { aiManager } from '@/lib/ai/ai-manager';
 import { calibrateEpisodeTitles, getMissingTitleEpisodes } from '@/lib/script/full-script-service';
-import type { ScriptCalibrationStatus } from '@/stores/script-store';
+import type { ScriptCalibrationStatus } from '@/stores/script/script-store';
 
 interface UseScriptTitleCalibrationOptions {
   projectId: string;

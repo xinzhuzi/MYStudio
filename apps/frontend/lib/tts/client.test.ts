@@ -7,6 +7,7 @@ import {
   getActiveTasks,
   getModelCacheDir,
   getModelStatus,
+  getTtsRuntimeStatus,
   unloadModel,
 } from "./client";
 
@@ -14,6 +15,12 @@ describe("TTS client", () => {
   afterEach(() => {
     vi.restoreAllMocks();
     delete (globalThis as { window?: unknown }).window;
+  });
+
+  it("keeps the desktop-only error when the preload bridge is unavailable", () => {
+    expect(() => getTtsRuntimeStatus()).toThrow(
+      "本地 TTS 仅在桌面应用中可用",
+    );
   });
 
   it("calls the Voicebox-compatible model routes through Electron IPC", async () => {

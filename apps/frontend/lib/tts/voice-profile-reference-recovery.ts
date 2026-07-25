@@ -1,3 +1,4 @@
+import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";
 import type { StudioAssetSummary } from "@/types/studio-assets";
 import type { VoiceProfile } from "@/types/tts";
 import { findReferenceTextForVoiceProfile } from "./voice-preview-text";
@@ -25,9 +26,10 @@ export async function recoverVoiceProfileReferenceText(
 }
 
 async function listRuntimeAudioAssets(): Promise<StudioAssetSummary[]> {
-  if (typeof window === "undefined" || !window.studioAssets?.list) {
+  const studioAssets = getStudioAssetsBridge();
+  if (!studioAssets?.list) {
     return [];
   }
-  const result = await window.studioAssets.list({ type: "audio", limit: 9999 });
+  const result = await studioAssets.list({ type: "audio", limit: 9999 });
   return result.items ?? [];
 }

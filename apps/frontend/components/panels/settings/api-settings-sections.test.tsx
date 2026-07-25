@@ -2,7 +2,7 @@
 
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { IProvider } from "@/stores/api-config-store";
+import type { IProvider } from "@/stores/ai/api-config-store";
 import { ApiServiceSettingsSection } from "./ApiServiceSettingsSection";
 import { ApiSettingsTab } from "./ApiSettingsTab";
 

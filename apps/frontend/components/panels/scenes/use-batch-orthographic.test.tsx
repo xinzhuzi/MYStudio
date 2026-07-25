@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Scene } from "@/stores/scene-store";
+import type { Scene } from "@/stores/library/scene-store";
 
 const mocks = vi.hoisted(() => ({
   scenes: [] as Scene[],
@@ -12,8 +12,8 @@ const mocks = vi.hoisted(() => ({
   saveImageToLocal: vi.fn(),
   toast: { error: vi.fn(), info: vi.fn(), success: vi.fn() },
 }));
-vi.mock("@/stores/scene-store", () => ({ useSceneStore: { getState: () => ({ scenes: mocks.scenes }) } }));
-vi.mock("@/stores/app-settings-store", () => ({
+vi.mock("@/stores/library/scene-store", () => ({ useSceneStore: { getState: () => ({ scenes: mocks.scenes }) } }));
+vi.mock("@/stores/app/app-settings-store", () => ({
   useAppSettingsStore: { getState: () => ({ imageGenerationSettings: { defaultResolution: "2K" } }) },
 }));
 vi.mock("@/lib/ai/ai-manager", () => ({

@@ -1,6 +1,6 @@
 import type { EpisodeRawScript } from "@/types/script";
 import { aiManager } from "@/lib/ai/ai-manager";
-import { useScriptStore } from "@/stores/script-store";
+import { useScriptStore } from "@/stores/script/script-store";
 import { parseScenes } from "./episode-parser";
 import { preprocessLineBreaks } from "./script-normalizer";
 import { buildSeriesContextSummary } from "./series-meta-sync";

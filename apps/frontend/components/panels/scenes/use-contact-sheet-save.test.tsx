@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Scene } from "@/stores/scene-store";
+import type { Scene } from "@/stores/library/scene-store";
 
 const mocks = vi.hoisted(() => ({
   saveImageToLocal: vi.fn(),
@@ -11,7 +11,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@/lib/image-storage", () => ({ saveImageToLocal: mocks.saveImageToLocal }));
 vi.mock("sonner", () => ({ toast: mocks.toast }));
-vi.mock("@/stores/scene-store", () => ({
+vi.mock("@/stores/library/scene-store", () => ({
   useSceneStore: { getState: () => ({ scenes: mocks.scenes }) },
 }));
 

@@ -113,7 +113,7 @@ describe("desktop build scripts", () => {
     expect(source).toContain("'frontend', 'config', 'electron-builder.yml'");
     expect(source).toContain("'frontend', 'config', 'electron-vite.config.ts'");
     expect(source).toContain("'frontend', 'assets', 'brand'");
-    expect(source).toContain("'frontend', 'scripts', 'generate-icon.mjs'");
+    expect(source).toContain("resolve(scriptDir, 'generate-icon.mjs')");
     expect(source).not.toContain("src/config");
     expect(source).not.toContain("src/assets");
     expect(source).not.toContain("src/scripts");
@@ -434,7 +434,7 @@ describe("desktop build scripts", () => {
   });
 
   it("keeps props in project split storage instead of the independent asset library", () => {
-    const propsStore = readBuildFile("frontend/stores/props-library-store.ts");
+    const propsStore = readBuildFile("frontend/stores/library/props-library-store.ts");
     const migration = readBuildFile("frontend/lib/storage-migration.ts");
 
     expect(propsStore).toContain("createSplitStorage<PropLibraryPersistedState>");
@@ -1232,7 +1232,7 @@ describe("desktop build scripts", () => {
     expect(scriptAssetActions).not.toContain(
       'await import("@/lib/studio/asset-generation-orchestrator")',
     );
-    expect(assetDialog).not.toContain('await import("@/stores/props-library-store")');
+    expect(assetDialog).not.toContain('await import("@/stores/library/props-library-store")');
     expect(assetDialog).not.toContain(
       'await import("@/lib/studio/asset-generation-orchestrator")',
     );
@@ -3981,7 +3981,7 @@ with tempfile.TemporaryDirectory() as temp_dir:
   });
 
   it("generates icons from the current frontend assets directory", () => {
-    const source = readBuildFile("frontend/scripts/generate-icon.mjs");
+    const source = readBuildFile("build/packaging/generate-icon.mjs");
 
     expect(source).toContain("'..'");
     expect(source).toContain("'assets', 'brand'");

@@ -25,7 +25,7 @@ import {
   useCharacterLibraryStore,
   type Character,
   type CharacterVariation,
-} from "@/stores/character-library-store";
+} from "@/stores/library/character-library-store";
 import {
   Shirt,
   Plus,

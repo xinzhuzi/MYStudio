@@ -17,10 +17,10 @@ import type {
   SceneProgress,
   SceneCompletedEvent,
   SceneFailedEvent,
-} from '@opencut/ai-core';
-import { useMediaStore } from '@/stores/media-store';
-import { useProjectStore } from '@/stores/project-store';
-import { useDirectorStore } from '@/stores/director-store';
+} from '@/lib/ai/core';
+import { useMediaStore } from '@/stores/media/media-store';
+import { useProjectStore } from '@/stores/project/project-store';
+import { useDirectorStore } from '@/stores/director/director-store';
 import { prepareReferenceImageForTransfer, prepareReferenceImagesForTransfer } from '@/lib/ai/image-transfer';
 
 type GenerationConfigWithReferenceImages = GenerationConfig & {
@@ -77,9 +77,9 @@ export class AIWorkerBridge {
       return;
     }
 
-    // Create worker using Next.js worker loader
+    // Load the AI worker from the canonical AI module.
     this.worker = new Worker(
-      new URL('../../workers/ai-worker.ts', import.meta.url)
+      new URL('./workers/ai-worker.ts', import.meta.url)
     );
 
     this.worker.onmessage = this.handleWorkerMessage.bind(this);

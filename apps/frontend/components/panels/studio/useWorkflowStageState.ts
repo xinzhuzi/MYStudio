@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useStudioStore } from "@/stores/studio-store";
+import { useStudioStore } from "@/stores/studio/studio-store";
 import { toast } from "sonner";
 import { resolveVisibleWorkflowStage } from "./workflow-tabs";
 

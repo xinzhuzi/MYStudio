@@ -7,7 +7,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('@/lib/ai/feature-router', () => ({ getFeatureConfig: mocks.getFeatureConfig }));
-vi.mock('@/stores/api-config-store', () => ({ useAPIConfigStore: { getState: mocks.getState } }));
+vi.mock('@/stores/ai/api-config-store', () => ({ useAPIConfigStore: { getState: mocks.getState } }));
 vi.mock('@/lib/ai/video-generator-image-transfer', () => ({
   prepareVideoImageRolesForTransfer: mocks.prepareImages,
   buildImageWithRoles: vi.fn(),

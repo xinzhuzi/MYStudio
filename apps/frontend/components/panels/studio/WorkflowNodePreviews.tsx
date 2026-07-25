@@ -15,7 +15,7 @@ import type { ReactNode } from "react";
 import { MdPreview } from "md-editor-rt";
 import "md-editor-rt/lib/style.css";
 import { cn } from "@/lib/utils";
-import { useThemeStore } from "@/stores/theme-store";
+import { useThemeStore } from "@/stores/app/theme-store";
 import type {
   AssetImageWorkflowContext,
   ImageWorkflowOpenContext,

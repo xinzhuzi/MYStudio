@@ -9,6 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";
 import type { StudioAssetKind } from "@/types/studio-assets";
 import { ImageIcon, Plus } from "lucide-react";
 import { toast } from "sonner";
@@ -39,8 +40,9 @@ export function AddAssetDialog({
   const [saving, setSaving] = useState(false);
 
   const handleSelectImage = async () => {
-    if (!window.studioAssets?.selectImageFile) return;
-    const filePath = await window.studioAssets.selectImageFile();
+    const studioAssets = getStudioAssetsBridge();
+    if (!studioAssets?.selectImageFile) return;
+    const filePath = await studioAssets.selectImageFile();
     if (filePath) {
       setImagePath(filePath);
       setImagePreview(`file://${filePath}`);
@@ -53,13 +55,14 @@ export function AddAssetDialog({
       toast.error("请填写名称");
       return;
     }
-    if (!window.studioAssets?.add) {
+    const studioAssets = getStudioAssetsBridge();
+    if (!studioAssets?.add) {
       toast.error("当前环境不支持添加");
       return;
     }
     setSaving(true);
     try {
-      const result = await window.studioAssets.add({
+      const result = await studioAssets.add({
         type,
         name,
         sourceFilePath: imagePath || "",

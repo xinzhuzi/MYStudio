@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 import { recoverVoiceProfileReferenceText } from "./voice-profile-reference-recovery";
 import type { VoiceProfile } from "@/types/tts";
@@ -53,5 +54,18 @@ describe("voice profile reference recovery", () => {
 
     expect(recovered).toBe(original);
     expect(updateVoiceProfile).not.toHaveBeenCalled();
+  });
+
+  it("routes runtime audio listing through the shared studio-assets bridge", () => {
+    const source = readFileSync(
+      new URL("./voice-profile-reference-recovery.ts", import.meta.url),
+      "utf8",
+    );
+
+    expect(source).toContain(
+      'import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";',
+    );
+    expect(source).toContain("getStudioAssetsBridge()");
+    expect(source).not.toContain("window.studioAssets");
   });
 });

@@ -18,7 +18,7 @@ import { processBatched } from '@/lib/ai/batch-processor';
 import { getStyleDescription, getMediaType } from '@/lib/constants/visual-styles';
 import { buildCinematographyGuidance } from '@/lib/constants/cinematography-profiles';
 import { getMediaTypeGuidance } from '@/lib/generation/media-type-tokens';
-import { useScriptStore } from '@/stores/script-store';
+import { useScriptStore } from '@/stores/script/script-store';
 import { buildSeriesContextSummary } from './series-meta-sync';
 
 export interface ShotInputData {

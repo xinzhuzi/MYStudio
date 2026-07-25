@@ -25,7 +25,7 @@ import {
   CAMERA_ANGLE_PRESETS,
   PHOTOGRAPHY_TECHNIQUE_PRESETS,
   FOCAL_LENGTH_PRESETS,
-} from "@/stores/director-store";
+} from "@/stores/director/director-store";
 import type { PromptLanguage } from "@/types/script";
 import {
   Select,
@@ -66,7 +66,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { usePreviewStore } from "@/stores/preview-store";
+import { usePreviewStore } from "@/stores/playback/preview-store";
 import { ScenePromptPanel } from "./scene-prompt-panel";
 import { SceneVoiceLinePanel } from "./scene-voice-line-panel";
 import { useResolvedImageUrl } from "@/hooks/use-resolved-image-url";

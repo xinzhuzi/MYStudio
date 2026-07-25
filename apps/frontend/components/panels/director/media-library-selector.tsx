@@ -12,9 +12,9 @@ import React, { useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { Check, ImageIcon, FolderOpen, X } from "lucide-react";
 import { Label } from "@/components/ui/label";
-import { useMediaStore } from "@/stores/media-store";
-import { useAppSettingsStore } from "@/stores/app-settings-store";
-import { useProjectStore } from "@/stores/project-store";
+import { useMediaStore } from "@/stores/media/media-store";
+import { useAppSettingsStore } from "@/stores/app/app-settings-store";
+import { useProjectStore } from "@/stores/project/project-store";
 import {
   Popover,
   PopoverContent,

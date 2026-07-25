@@ -28,7 +28,7 @@ vi.mock("@/lib/script/scene-calibrator", () => ({
 }));
 vi.mock("@/lib/script/series-meta-sync", () => ({ syncToSeriesMeta: mocks.syncToSeriesMeta }));
 vi.mock("@/lib/script/full-script-service", () => ({ exportProjectMetadata: mocks.exportProjectMetadata }));
-vi.mock("@/stores/script-store", () => ({
+vi.mock("@/stores/script/script-store", () => ({
   useScriptStore: {
     getState: () => ({
       projects: { p1: { seriesMeta: { title: "剧名" } } },

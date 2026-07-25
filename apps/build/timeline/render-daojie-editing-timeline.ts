@@ -11,11 +11,13 @@ import {
   validateAutoEditingRun,
   validateEditingProject,
 } from "@/lib/studio/editing/validation";
-import { createTimelineRenderRuntime } from "@/electron/timeline-render-runtime";
+import { createTimelineRenderRuntime } from "@/electron/rendering/timeline-render-runtime";
+import { createFfmpegRendererAdapter } from "@rendering/runtime/ffmpeg/ffmpeg-renderer-adapter";
+import { createTimelineRenderHost } from "@rendering/runtime/timeline-render-host";
 import {
   resolveLocalMediaPath,
   resolveProjectFileUrl,
-} from "@/electron/storage-paths";
+} from "@/electron/storage/storage-paths";
 import type {
   AutoEditingRun,
   EditingProjectV1,
@@ -28,6 +30,7 @@ import type {
   StoryboardItem,
   VideoCandidate,
 } from "@/types/studio";
+import { createTimelineRenderRequest } from "@rendering/contracts/timeline-renderer";
 
 const EPISODE_ID = "chapter-001";
 const DEFAULT_PROJECT_ID = "49dce4c1-64b1-42de-85c2-9f266698aec0";
@@ -363,16 +366,21 @@ async function main() {
   const progressHistory: TimelineRenderProgress[] = [];
   writeJson(editingProjectPath, editingProject);
   writeJson(autoEditingRunPath, buildResult.result.run);
-  const runtime = createTimelineRenderRuntime({
+  const emitProgress = (progress: TimelineRenderProgress) => progressHistory.push(progress);
+  const ffmpegRuntime = createTimelineRenderRuntime({
     renderRoot,
     resolveSourcePath: (sourcePath) => resolveTimelineSourcePath({ sourcePath, dataRoot, mediaRoot }),
-    emitProgress: (progress) => progressHistory.push(progress),
+    emitProgress,
+  });
+  const renderHost = createTimelineRenderHost({
+    adapters: [createFfmpegRendererAdapter(ffmpegRuntime)],
+    emitProgress,
   });
   const renderResult = await renderChapterEditingProject({
     project: editingProject,
     jobId,
     createdAt: nextTime(),
-    render: (plan) => runtime.render(plan),
+    render: (plan) => renderHost.render(createTimelineRenderRequest("ffmpeg", plan)),
   });
   writeJson(progressHistoryPath, progressHistory);
   if (!renderResult.success) {

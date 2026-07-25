@@ -8,18 +8,18 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
-import { useFreedomStore } from '@/stores/freedom-store';
-import { useAPIConfigStore } from '@/stores/api-config-store';
+import { useFreedomStore } from '@/stores/assist/freedom-store';
+import { useAPIConfigStore } from '@/stores/ai/api-config-store';
 import { ModelSelector } from './ModelSelector';
 import { GenerationHistory } from './GenerationHistory';
-import { type FreedomVideoUploadFile } from '@/lib/freedom/freedom-api';
+import { type FreedomVideoUploadFile } from '@/lib/assist/freedom-api';
 import { aiManager } from '@/lib/ai/ai-manager';
 import {
   getAspectRatiosForT2VModel,
   getDurationsForModel,
   getResolutionsForModel,
-} from '@/lib/freedom/model-registry';
-import { resolveVeoUploadCapability, type VeoUploadCapability } from '@/lib/freedom/veo-capability';
+} from '@/lib/assist/model-registry';
+import { resolveVeoUploadCapability, type VeoUploadCapability } from '@/lib/assist/veo-capability';
 
 interface LocalUploadAsset {
   id: string;

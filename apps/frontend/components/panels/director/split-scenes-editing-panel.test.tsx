@@ -2,7 +2,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { SplitScene } from "@/stores/director-store";
+import type { SplitScene } from "@/stores/director/director-store";
 import { SplitScenesEditingPanel, type SplitScenesEditingPanelProps } from "./split-scenes-editing-panel";
 
 vi.mock("./storyboard-config-toolbar", () => ({

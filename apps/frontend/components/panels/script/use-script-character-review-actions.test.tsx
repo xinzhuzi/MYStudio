@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { toast } from "sonner";
 import { detectMultiStageHints } from "@/lib/script/character-stage-analyzer";
 import { resolveSafeScriptCharacters } from "@/lib/script/character-calibrator";
-import { useScriptStore } from "@/stores/script-store";
+import { useScriptStore } from "@/stores/script/script-store";
 import { useScriptCharacterReviewActions } from "./use-script-character-review-actions";
 
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), info: vi.fn() } }));
@@ -12,7 +12,7 @@ vi.mock("@/lib/script/character-stage-analyzer", () => ({ detectMultiStageHints:
 vi.mock("@/lib/script/character-calibrator", () => ({ resolveSafeScriptCharacters: vi.fn() }));
 vi.mock("@/lib/script/full-script-service", () => ({ exportProjectMetadata: vi.fn(() => "metadata") }));
 vi.mock("@/lib/script/series-meta-sync", () => ({ syncToSeriesMeta: vi.fn(() => ({ characters: [] })) }));
-vi.mock("@/stores/script-store", () => ({ useScriptStore: { getState: vi.fn() } }));
+vi.mock("@/stores/script/script-store", () => ({ useScriptStore: { getState: vi.fn() } }));
 
 describe("useScriptCharacterReviewActions", () => {
   const setScriptData = vi.fn();

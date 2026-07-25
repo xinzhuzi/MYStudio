@@ -9,9 +9,9 @@
  */
 
 import { useState, useCallback } from "react";
-import { useScriptStore, useActiveScriptProject } from "@/stores/script-store";
-import { useProjectStore } from "@/stores/project-store";
-import { useMediaPanelStore } from "@/stores/media-panel-store";
+import { useScriptStore, useActiveScriptProject } from "@/stores/script/script-store";
+import { useProjectStore } from "@/stores/project/project-store";
+import { useMediaPanelStore } from "@/stores/navigation/media-panel-store";
 import {
   ResizablePanelGroup,
   ResizablePanel,

@@ -4,7 +4,7 @@
 import { getFeatureConfig } from "@/lib/ai/feature-router";
 import { uploadToImageHost, isImageHostConfigured } from "@/lib/image-host";
 import { saveVideoToLocal } from "@/lib/image-storage";
-import { useAPIConfigStore } from "@/stores/api-config-store";
+import { useAPIConfigStore } from "@/stores/ai/api-config-store";
 import { retryOperation } from "@/lib/utils/retry";
 import { toRunwayRatio } from "@/lib/ai/video-request-sizing";
 import {

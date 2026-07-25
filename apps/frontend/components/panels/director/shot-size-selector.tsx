@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { SHOT_SIZE_PRESETS, type ShotSizeType } from "@/stores/director-store";
+import { SHOT_SIZE_PRESETS, type ShotSizeType } from "@/stores/director/director-store";
 import { Camera } from "lucide-react";
 
 interface ShotSizeSelectorProps {

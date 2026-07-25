@@ -1,5 +1,5 @@
 import { getStylePrompt } from "@/lib/constants/visual-styles";
-import type { SplitScene } from "@/stores/director-store";
+import type { SplitScene } from "@/stores/director/director-store";
 import { normalizeStoryboardReferenceImages } from "../director/storyboard-reference-image-normalizer";
 import {
   createStoryboardEndFrameGenerator,

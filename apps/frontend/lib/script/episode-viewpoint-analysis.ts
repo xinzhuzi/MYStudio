@@ -1,4 +1,4 @@
-import { useAPIConfigStore } from "@/stores/api-config-store";
+import { useAPIConfigStore } from "@/stores/ai/api-config-store";
 import type {
   EpisodeRawScript,
   ProjectBackground,

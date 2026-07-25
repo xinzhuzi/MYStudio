@@ -8,7 +8,7 @@
  */
 
 import { useState } from 'react';
-import { usePropsLibraryStore } from '@/stores/props-library-store';
+import { usePropsLibraryStore } from '@/stores/library/props-library-store';
 import { saveImageToLocal } from '@/lib/image-storage';
 import {
   Dialog,

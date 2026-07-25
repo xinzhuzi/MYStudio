@@ -32,7 +32,7 @@ vi.mock("@/lib/script/character-stage-analyzer", () => ({
   detectMultiStageHints: mocks.detectMultiStageHints,
   analyzeCharacterStages: mocks.analyzeCharacterStages,
 }));
-vi.mock("@/stores/script-store", () => ({
+vi.mock("@/stores/script/script-store", () => ({
   useScriptStore: { getState: () => ({ projects: {} }) },
 }));
 vi.mock("sonner", () => ({ toast: mocks.toast }));

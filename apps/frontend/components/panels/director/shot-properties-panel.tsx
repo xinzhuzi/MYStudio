@@ -10,11 +10,11 @@
  */
 
 import { useMemo, useState } from "react";
-import { useScriptStore, useActiveScriptProject } from "@/stores/script-store";
-import { useProjectStore } from "@/stores/project-store";
-import { useCharacterLibraryStore, type Character } from "@/stores/character-library-store";
-import { useDirectorShotStore } from "@/stores/director-shot-store";
-import { usePreviewStore } from "@/stores/preview-store";
+import { useScriptStore, useActiveScriptProject } from "@/stores/script/script-store";
+import { useProjectStore } from "@/stores/project/project-store";
+import { useCharacterLibraryStore, type Character } from "@/stores/library/character-library-store";
+import { useDirectorShotStore } from "@/stores/director/director-shot-store";
+import { usePreviewStore } from "@/stores/playback/preview-store";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -48,7 +48,7 @@ import type { Shot, Keyframe } from "@/types/script";
 import { AngleSwitchDialog, AngleSwitchResultDialog, type AngleSwitchResult } from "@/components/angle-switch";
 import { generateAngleSwitch } from "@/lib/ai/runninghub-client";
 import { getAngleLabel, type HorizontalDirection, type ElevationAngle, type ShotSize } from "@/lib/ai/runninghub-angles";
-import { useAPIConfigStore } from "@/stores/api-config-store";
+import { useAPIConfigStore } from "@/stores/ai/api-config-store";
 import { parseApiKeys } from "@/lib/api-key-manager";
 
 interface ShotPropertiesPanelProps {

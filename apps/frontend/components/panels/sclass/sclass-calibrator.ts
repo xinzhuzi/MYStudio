@@ -15,12 +15,12 @@
  * - 产物只写 sclass-store.ShotGroup 的校准字段
  */
 
-import type { SplitScene } from '@/stores/director-store';
-import type { ShotGroup } from '@/stores/sclass-store';
-import type { Character } from '@/stores/character-library-store';
-import type { Scene } from '@/stores/scene-store';
+import type { SplitScene } from '@/stores/director/director-store';
+import type { ShotGroup } from '@/stores/sclass/sclass-store';
+import type { Character } from '@/stores/library/character-library-store';
+import type { Scene } from '@/stores/library/scene-store';
 import { aiManager } from '@/lib/ai/ai-manager';
-import { useSClassStore } from '@/stores/sclass-store';
+import { useSClassStore } from '@/stores/sclass/sclass-store';
 
 // ==================== 类型定义 ====================
 

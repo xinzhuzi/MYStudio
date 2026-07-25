@@ -3,12 +3,13 @@ import { act, cleanup, renderHook } from "@testing-library/react";
 import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { runChapterAutoVideo } from "@/lib/studio/chapter-auto-video";
-import { useEditingStore } from "@/stores/editing-store";
-import { useProjectStore } from "@/stores/project-store";
-import { useStudioStore } from "@/stores/studio-store";
+import { useEditingStore } from "@/stores/editing/editing-store";
+import { useProjectStore } from "@/stores/project/project-store";
+import { useStudioStore } from "@/stores/studio/studio-store";
 import type {
   TimelineRenderEvidence,
   TimelineRenderPlan,
+  TimelineRenderRequest,
 } from "@/types/editing";
 import type {
   ProductionTrack,
@@ -79,6 +80,8 @@ afterEach(() => {
   vi.clearAllMocks();
   vi.unstubAllGlobals();
   delete (window as { studioRenderer?: unknown }).studioRenderer;
+  delete (window as { studioAssets?: unknown }).studioAssets;
+  delete (window as { ttsRuntime?: unknown }).ttsRuntime;
   delete (window as typeof window & { electronAPI?: unknown }).electronAPI;
   useProjectStore.setState(initialProjectState, true);
   useStudioStore.setState(initialStudioState, true);
@@ -138,6 +141,32 @@ describe("useChapterAutoVideoActions", () => {
     });
   });
 
+  it("keeps the fixed-voice validation error when the TTS bridge is unavailable", async () => {
+    (window as { studioAssets?: { list: ReturnType<typeof vi.fn> } }).studioAssets = {
+      list: vi.fn(),
+    };
+    const autoVideo = vi.mocked(runChapterAutoVideo);
+    autoVideo.mockImplementationOnce(async ({ dependencies }) => {
+      await dependencies.ensureFixedVoiceProfiles(
+        useStudioStore.getState().storyboards,
+      );
+      throw new Error("测试未收到固定音色 bridge 错误");
+    });
+    const { result } = renderHook(() =>
+      useChapterAutoVideoActions({
+        activeProjectId: "project-1",
+        productionEpisodeId: "chapter-001",
+        handleProductionNodeAction: vi.fn(),
+      }),
+    );
+
+    await act(async () => {
+      await result.current.handleRunChapterAutoVideo();
+    });
+
+    expect(toast.error).toHaveBeenCalledWith("固定音色文件校验接口不可用");
+  });
+
   it("does not start a second run while the current run is non-terminal", async () => {
     const autoVideo = vi.mocked(runChapterAutoVideo);
     let resolveRun: () => void = () => undefined;
@@ -194,9 +223,9 @@ describe("useChapterAutoVideoActions", () => {
   });
 
   it("persists the rendered current EditingProject evidence from the auto-video action", async () => {
-    const renderTimeline = vi.fn(async (plan: TimelineRenderPlan) => ({
+    const renderTimeline = vi.fn(async (request: TimelineRenderRequest) => ({
       success: true as const,
-      evidence: timelineEvidence(plan),
+      evidence: timelineEvidence(request.plan),
     }));
     (window as { studioRenderer?: { renderTimeline: typeof renderTimeline } }).studioRenderer = {
       renderTimeline,
@@ -239,12 +268,16 @@ describe("useChapterAutoVideoActions", () => {
     expect(autoVideo).toHaveBeenCalledOnce();
     expect(toast.error).not.toHaveBeenCalled();
     expect(renderTimeline).toHaveBeenCalledWith(expect.objectContaining({
-      projectId: "project-1",
-      episodeId: "chapter-001",
-      editingProjectId: expect.stringMatching(/^editing-chapter-001-/),
-      editingRevision: 1,
+      schemaVersion: 1,
+      requestedRenderer: "ffmpeg",
+      plan: expect.objectContaining({
+        projectId: "project-1",
+        episodeId: "chapter-001",
+        editingProjectId: expect.stringMatching(/^editing-chapter-001-/),
+        editingRevision: 1,
+      }),
     }));
-    const plan = renderTimeline.mock.calls[0]?.[0];
+    const plan = renderTimeline.mock.calls[0]?.[0]?.plan;
     if (!plan) throw new Error("测试未收到时间线渲染计划");
     expect(
       useEditingStore.getState().timelineRenderRecordsByEditingProjectId[

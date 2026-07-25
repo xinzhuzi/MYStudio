@@ -3,8 +3,8 @@ import {
   buildWorkflowReadiness,
   type WorkflowReadinessInput,
 } from "@/lib/studio/workflow-readiness";
-import { useTtsStore } from "@/stores/tts-store";
-import { useEditingStore } from "@/stores/editing-store";
+import { useTtsStore } from "@/stores/tts/tts-store";
+import { useEditingStore } from "@/stores/editing/editing-store";
 
 type WorkflowReadinessHookInput = Omit<
   WorkflowReadinessInput,

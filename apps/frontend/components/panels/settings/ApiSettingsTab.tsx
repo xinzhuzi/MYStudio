@@ -4,7 +4,7 @@ import { FeatureBindingPanel } from "@/components/api-manager";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
-import type { IProvider } from "@/stores/api-config-store";
+import type { IProvider } from "@/stores/ai/api-config-store";
 import { AgentSettingsSection } from "./AgentSettingsSection";
 import { ApiServiceSettingsSection } from "./ApiServiceSettingsSection";
 import { getProviderDisplayName } from "./settings-model-utils";

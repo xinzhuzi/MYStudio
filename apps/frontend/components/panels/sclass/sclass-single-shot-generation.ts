@@ -1,8 +1,8 @@
 import { aiManager } from "@/lib/ai/ai-manager";
 import { buildImageWithRoles, saveVideoLocally } from "@/lib/ai/video-generator";
-import type { SplitScene } from "@/stores/director-store";
-import { useDirectorStore } from "@/stores/director-store";
-import type { SClassAspectRatio, SClassResolution, VideoGenStatus } from "@/stores/sclass-store";
+import type { SplitScene } from "@/stores/director/director-store";
+import { useDirectorStore } from "@/stores/director/director-store";
+import type { SClassAspectRatio, SClassResolution, VideoGenStatus } from "@/stores/sclass/sclass-store";
 import { toast } from "sonner";
 import { runSClassVideoWithKeyRotation } from "./sclass-video-retry";
 

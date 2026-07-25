@@ -15,8 +15,8 @@
  *   - 进度回调
  */
 
-import type { AIFeature } from '@/stores/api-config-store';
-import { useAPIConfigStore } from '@/stores/api-config-store';
+import type { AIFeature } from '@/stores/ai/api-config-store';
+import { useAPIConfigStore } from '@/stores/ai/api-config-store';
 import { type CallFeatureAPIOptions } from '@/lib/ai/feature-router';
 import { aiManager } from '@/lib/ai/ai-manager';
 import { getModelLimits, estimateTokens } from '@/lib/ai/model-registry';

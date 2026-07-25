@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
+import { getStudioSkillsBridge } from "@/lib/bridge/studio-skills";
 import { cn } from "@/lib/utils";
 import { getManualModuleKeys, getManualModuleRelativePath, getManualSkillSource } from "@/lib/studio/manuals";
 import type { StudioManualPreset } from "@/types/studio";
@@ -39,7 +40,8 @@ export function ManualEditDialog({
   if (!manual) return null;
 
   const handleSave = async () => {
-    if (!window.studioSkills?.writeText) {
+    const studioSkills = getStudioSkillsBridge();
+    if (!studioSkills?.writeText) {
       toast.error("当前环境不支持编辑手册，请在桌面版中打开");
       return;
     }
@@ -51,11 +53,10 @@ export function ManualEditDialog({
         const next = drafts[key] ?? "";
         if (next === (manual.modules[key] ?? "")) continue;
         const relativePath = `${source}/${manual.id}/${getManualModuleRelativePath(kind, key)}`;
-        const res = await window.studioSkills.writeText(relativePath, next);
-        if (res?.success) {
-          manual.modules[key] = next;
-          saved += 1;
-        }
+        const res = await studioSkills.writeText(relativePath, next);
+        if (!res.success) throw new Error(res.error || "保存手册失败");
+        manual.modules[key] = next;
+        saved += 1;
       }
       toast.success(saved > 0 ? `已保存 ${saved} 个文档` : "没有改动");
       onOpenChange(false);
@@ -71,6 +72,9 @@ export function ManualEditDialog({
       <DialogContent className="max-w-4xl">
         <DialogHeader>
           <DialogTitle>编辑{kind === "visual" ? "视觉风格" : "导演手册"}：{manual.name}</DialogTitle>
+          <DialogDescription className="sr-only">
+            编辑手册 Markdown 内容并保存到桌面端技能存储。
+          </DialogDescription>
         </DialogHeader>
         {manual.images?.length ? (
           <div className="flex gap-2 overflow-x-auto pb-1">

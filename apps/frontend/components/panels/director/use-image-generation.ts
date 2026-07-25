@@ -1,11 +1,11 @@
 // Copyright (c) 2025 hotflow2024
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
-import { useCharacterLibraryStore } from "@/stores/character-library-store";
+import { useCharacterLibraryStore } from "@/stores/library/character-library-store";
 import { imageUrlToBase64 } from "@/lib/ai/image-generator";
 import { aiManager } from "@/lib/ai/ai-manager";
 import { readImageAsBase64 } from "@/lib/image-storage";
-import type { SplitScene, ShotSizeType } from "@/stores/director-store";
+import type { SplitScene, ShotSizeType } from "@/stores/director/director-store";
 
 // Helper to normalize URL (handle array format)
 export function normalizeUrl(url: unknown): string | undefined {

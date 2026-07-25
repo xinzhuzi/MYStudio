@@ -10,7 +10,7 @@ import {
   parseStoryboardTable,
   toStoryboardItems,
 } from "@/lib/studio/storyboard-table";
-import { useStudioStore } from "@/stores/studio-store";
+import { useStudioStore } from "@/stores/studio/studio-store";
 import type { ScriptPlan } from "@/types/studio";
 import { toast } from "sonner";
 import {

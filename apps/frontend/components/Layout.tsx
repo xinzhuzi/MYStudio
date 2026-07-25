@@ -7,7 +7,7 @@ import { RightPanel } from "./RightPanel";
 import { SimpleTimeline } from "./SimpleTimeline";
 import { Dashboard } from "./Dashboard";
 import { ProjectHeader } from "./ProjectHeader";
-import { useMediaPanelStore } from "@/stores/media-panel-store";
+import { useMediaPanelStore } from "@/stores/navigation/media-panel-store";
 import { useLayoutEffect, useRef, useState } from "react";
 import {
   ResizablePanelGroup,

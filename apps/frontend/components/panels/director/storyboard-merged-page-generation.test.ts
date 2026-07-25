@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { SplitScene } from "@/stores/director-store";
+import type { SplitScene } from "@/stores/director/director-store";
 import type { MergedFrameTask } from "./storyboard-merged-grid-utils";
 import { createStoryboardMergedPageGenerator } from "./storyboard-merged-page-generation";
 

@@ -10,7 +10,7 @@ import { useState, useCallback } from "react";
 import {
   useSimpleTimelineStore,
   type TimelineClip,
-} from "@/stores/simple-timeline-store";
+} from "@/stores/editing/simple-timeline-store";
 import { Button } from "@/components/ui/button";
 import {
   Play,
@@ -24,8 +24,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { usePreviewStore } from "@/stores/preview-store";
-import { useMediaStore } from "@/stores/media-store";
+import { usePreviewStore } from "@/stores/playback/preview-store";
+import { useMediaStore } from "@/stores/media/media-store";
 
 interface DragState {
   isDragging: boolean;

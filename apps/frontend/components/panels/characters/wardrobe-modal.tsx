@@ -17,10 +17,10 @@ import {
   type Character,
   type CharacterVariation,
   useCharacterLibraryStore,
-} from "@/stores/character-library-store";
-import { useMediaStore } from "@/stores/media-store";
-import { useProjectStore } from "@/stores/project-store";
-import { useAppSettingsStore } from "@/stores/app-settings-store";
+} from "@/stores/library/character-library-store";
+import { useMediaStore } from "@/stores/media/media-store";
+import { useProjectStore } from "@/stores/project/project-store";
+import { useAppSettingsStore } from "@/stores/app/app-settings-store";
 import { aiManager } from "@/lib/ai/ai-manager";
 import { readImageAsBase64, saveImageToLocal } from "@/lib/image-storage";
 import { Button } from "@/components/ui/button";

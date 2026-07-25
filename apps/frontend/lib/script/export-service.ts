@@ -8,7 +8,7 @@
 
 import type { Shot } from "@/types/script";
 import type { ScriptData } from "@/types/script";
-import type { SplitScene } from '@/stores/director-store';
+import type { SplitScene } from '@/stores/director/director-store';
 import { readImageAsBase64 } from '@/lib/image-storage';
 
 export interface ExportManifest {

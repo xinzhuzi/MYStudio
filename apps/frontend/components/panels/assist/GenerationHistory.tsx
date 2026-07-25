@@ -5,7 +5,7 @@ import { Clock, Search, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { useFreedomStore, type HistoryEntry } from '@/stores/freedom-store';
+import { useFreedomStore, type HistoryEntry } from '@/stores/assist/freedom-store';
 import { cn } from '@/lib/utils';
 
 interface GenerationHistoryProps {

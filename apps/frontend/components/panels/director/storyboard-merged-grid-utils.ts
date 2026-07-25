@@ -1,4 +1,4 @@
-import type { SplitScene } from "@/stores/director-store";
+import type { SplitScene } from "@/stores/director/director-store";
 
 export type StoryboardAngle =
   | "Back View"

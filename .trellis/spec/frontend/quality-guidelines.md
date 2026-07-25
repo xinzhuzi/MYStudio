@@ -44,6 +44,30 @@ navigation smoke must not be reported as real MP4 generation success.
 - Sanitize diagnostics before writing logs.
 - Add regression tests beside the affected code.
 
+## Cancellation and Optional Bridge Contracts
+
+Director generation cancellation has two ordered effects. `GenerationProgress`
+must await `aiManager.initWorker()` and, when initialization succeeds, call the
+initialized `AIWorkerBridge.cancel()` before the Director store's `cancelAll()`.
+If worker initialization rejects, the handler must log the failure and still
+apply `cancelAll()` so local UI state cannot remain generating.
+
+`AIWorkerBridge` assigns a monotonically increasing `runId` to generation
+commands, sends the active id with `CANCEL`, and drops run-bound events whose id
+does not match the current active run. The protocol still permits legacy
+runId-less events for compatibility; do not treat those events as fenced or
+tighten that compatibility path without an explicit protocol decision and
+regression tests.
+
+Optional Electron bridges such as `projectFiles` must be read through a helper
+that returns `undefined` when `typeof window === "undefined"` and otherwise
+returns the exact preload object without reshaping it. Tests must cover both
+the no-window case and object identity.
+
+Required regressions include cancel-before-store ordering, initialization
+failure recovery, late event suppression after cancel/supersession, and SSR
+bridge lookup without a browser `window`.
+
 ---
 
 ## Testing Requirements

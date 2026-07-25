@@ -9,7 +9,7 @@
  */
 
 import { useEffect, useMemo, useState } from "react";
-import { useCustomStyleStore } from "@/stores/custom-style-store";
+import { useCustomStyleStore } from "@/stores/library/custom-style-store";
 import { StyleCard } from "./StyleCard";
 import { StyleEditor } from "./StyleEditor";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { getStudioVisualManualsBridge } from "@/lib/bridge/studio-visual-manuals";
 import { getCustomVisualManuals } from "@/lib/studio/visual-manual-classification";
 import type { StudioVisualManualDetail, StudioVisualManualSummary } from "@/types/studio-visual-manual";
 import { Copy, Loader2, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
@@ -76,7 +77,8 @@ export function CustomStylesGrid() {
   );
 
   const loadManuals = async (force = false) => {
-    if (!window.studioVisualManuals?.list) {
+    const studioVisualManuals = getStudioVisualManualsBridge();
+    if (!studioVisualManuals?.list) {
       toast.error("当前环境不支持读取我的风格，请在 Electron 中打开");
       return;
     }
@@ -87,7 +89,7 @@ export function CustomStylesGrid() {
     }
     setIsLoading(true);
     try {
-      const result = await window.studioVisualManuals.list(force ? { refresh: true } : undefined);
+      const result = await studioVisualManuals.list(force ? { refresh: true } : undefined);
       _customManualsCache = result;
       setManuals(getCustomVisualManuals(result));
       setAllManuals(result);
@@ -103,13 +105,14 @@ export function CustomStylesGrid() {
   }, []);
 
   const openManual = async (manual: StudioVisualManualSummary) => {
-    if (!window.studioVisualManuals?.read) {
+    const studioVisualManuals = getStudioVisualManualsBridge();
+    if (!studioVisualManuals?.read) {
       toast.error("当前环境不支持编辑我的风格，请在 Electron 中打开");
       return;
     }
     setIsLoading(true);
     try {
-      const result = await window.studioVisualManuals.read(manual.stylePath);
+      const result = await studioVisualManuals.read(manual.stylePath);
       if (!result.success || !result.manual) throw new Error(result.error || "读取我的风格失败");
       setSelectedManual(result.manual);
       setIsManualEditorOpen(true);
@@ -121,7 +124,8 @@ export function CustomStylesGrid() {
   };
 
   const handleCreateManual = async () => {
-    if (!window.studioVisualManuals?.create) {
+    const studioVisualManuals = getStudioVisualManualsBridge();
+    if (!studioVisualManuals?.create) {
       toast.error("当前环境不支持新增我的风格，请在 Electron 中打开");
       return;
     }
@@ -139,14 +143,14 @@ export function CustomStylesGrid() {
     setIsCreating(true);
     try {
       let result: { success: boolean; manual?: StudioVisualManualDetail; error?: string };
-      if (createSourcePath && window.studioVisualManuals.duplicate) {
-        result = await window.studioVisualManuals.duplicate({
+      if (createSourcePath && studioVisualManuals.duplicate) {
+        result = await studioVisualManuals.duplicate({
           sourceStylePath: createSourcePath,
           name,
           stylePath,
         });
       } else {
-        result = await window.studioVisualManuals.create({ name, stylePath });
+        result = await studioVisualManuals.create({ name, stylePath });
       }
       if (!result.success || !result.manual) throw new Error(result.error || "新增我的风格失败");
       setManuals((current) => [...current.filter((item) => item.stylePath !== result.manual!.stylePath), result.manual!]);

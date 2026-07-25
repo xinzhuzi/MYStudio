@@ -19,10 +19,10 @@ import {
   type ShotGroup,
   type SClassAspectRatio,
   type SClassResolution,
-} from "@/stores/sclass-store";
-import { useDirectorStore, useActiveDirectorProject, type SplitScene } from "@/stores/director-store";
-import { useCharacterLibraryStore } from "@/stores/character-library-store";
-import { useSceneStore } from "@/stores/scene-store";
+} from "@/stores/sclass/sclass-store";
+import { useDirectorStore, useActiveDirectorProject, type SplitScene } from "@/stores/director/director-store";
+import { useCharacterLibraryStore } from "@/stores/library/character-library-store";
+import { useSceneStore } from "@/stores/library/scene-store";
 import { saveVideoLocally, isContentModerationError } from "@/lib/ai/video-generator";
 import { aiManager } from "@/lib/ai/ai-manager";
 import { runSClassVideoWithKeyRotation } from "./sclass-video-retry";

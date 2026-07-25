@@ -487,7 +487,7 @@ export function matchShotToViewpoint(
 import type { 
   PendingViewpointData, 
   ContactSheetPromptSet 
-} from '@/stores/media-panel-store';
+} from '@/stores/navigation/media-panel-store';
 
 /**
 * 提取视角（不限数量）

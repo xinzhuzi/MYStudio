@@ -3,7 +3,7 @@
 import React, { useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { readImageAsBase64 } from "@/lib/image-storage";
-import { type SplitScene } from "@/stores/director-store";
+import { type SplitScene } from "@/stores/director/director-store";
 import {
   Download,
   Grid2X2,
@@ -15,7 +15,7 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
-import { usePreviewStore } from "@/stores/preview-store";
+import { usePreviewStore } from "@/stores/playback/preview-store";
 import { useResolvedImageUrl } from "@/hooks/use-resolved-image-url";
 import { CharacterSelector } from "./character-selector";
 import { MediaLibrarySelector } from "./media-library-selector";

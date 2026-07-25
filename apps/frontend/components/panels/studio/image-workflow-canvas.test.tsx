@@ -3,9 +3,9 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ImageWorkflowCanvas } from "./ImageWorkflowCanvas";
 import { createAssetImageWorkflowGraph } from "@/lib/studio/image-workflow";
-import { useCharacterLibraryStore } from "@/stores/character-library-store";
-import { useProjectStore } from "@/stores/project-store";
-import { useStudioStore } from "@/stores/studio-store";
+import { useCharacterLibraryStore } from "@/stores/library/character-library-store";
+import { useProjectStore } from "@/stores/project/project-store";
+import { useStudioStore } from "@/stores/studio/studio-store";
 
 (globalThis as any).ResizeObserver ??= class {
   observe() {}

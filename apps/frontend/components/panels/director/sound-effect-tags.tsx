@@ -14,7 +14,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { SOUND_EFFECT_PRESETS, type SoundEffectTag } from "@/stores/director-store";
+import { SOUND_EFFECT_PRESETS, type SoundEffectTag } from "@/stores/director/director-store";
 import { Volume2, X, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 

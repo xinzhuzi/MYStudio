@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 const setPreviewItem = vi.fn();
 
-vi.mock("@/stores/preview-store", () => ({
+vi.mock("@/stores/playback/preview-store", () => ({
   usePreviewStore: () => ({ setPreviewItem }),
 }));
 
@@ -28,7 +28,7 @@ vi.mock("./media-library-selector", () => ({
 }));
 
 import { StoryboardSceneFrameSection } from "./storyboard-scene-frame-section";
-import type { SplitScene } from "@/stores/director-store";
+import type { SplitScene } from "@/stores/director/director-store";
 
 afterEach(() => {
   cleanup();

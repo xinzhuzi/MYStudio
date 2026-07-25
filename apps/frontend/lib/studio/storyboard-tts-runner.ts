@@ -1,4 +1,6 @@
 import { aiManager } from "@/lib/ai/ai-manager";
+import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";
+import { getTtsRuntimeBridge } from "@/lib/bridge/tts-runtime";
 import {
   ensureBackendVoiceProfile,
   fetchGenerationAudio,
@@ -36,10 +38,12 @@ export interface StoryboardTtsRunnerDependencies {
 }
 
 function defaultDependencies(): StoryboardTtsRunnerDependencies {
-  if (!window.studioAssets?.saveMaterial) {
+  const studioAssets = getStudioAssetsBridge();
+  if (!studioAssets?.saveMaterial) {
     throw new Error("素材保存接口仅在桌面应用中可用");
   }
-  if (!window.ttsRuntime?.resolveReferenceAudioPath) {
+  const ttsRuntime = getTtsRuntimeBridge();
+  if (!ttsRuntime?.resolveReferenceAudioPath) {
     throw new Error("固定音色文件校验接口仅在桌面应用中可用");
   }
   return {
@@ -48,9 +52,9 @@ function defaultDependencies(): StoryboardTtsRunnerDependencies {
     submit: (payload) => aiManager.tts(payload),
     getStatus: getGenerationStatus,
     fetchAudio: fetchGenerationAudio,
-    saveMaterial: (payload) => window.studioAssets!.saveMaterial(payload),
+    saveMaterial: (payload) => studioAssets.saveMaterial(payload),
     resolveReferenceAudioPath: (audioPath) =>
-      window.ttsRuntime!.resolveReferenceAudioPath(audioPath),
+      ttsRuntime.resolveReferenceAudioPath(audioPath),
     delay: (ms) => new Promise((resolve) => window.setTimeout(resolve, ms)),
   };
 }

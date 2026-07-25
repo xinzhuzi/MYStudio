@@ -81,6 +81,7 @@ STORYBOARD_IMAGE_GENERATION_MODE = (
 )
 MODEL_REFERENCE_MAX_EDGE = int(os.environ.get("MYSTUDIO_IMAGE_REFERENCE_MAX_EDGE", "768"))
 MODEL_REFERENCE_JPEG_QUALITY = int(os.environ.get("MYSTUDIO_IMAGE_REFERENCE_JPEG_QUALITY", "82"))
+MODEL_REFERENCE_DENOISE_VERSION = "median-filter-3-v1"
 IMAGE_TRANSFER_MAX_BYTES = 1_000_000
 IMAGE_TRANSFER_TARGET_MAX_EDGE = 768
 MODEL_REFERENCE_PREFLIGHT_SCHEMA_VERSION = "daojie-model-reference-preflight-v1"
@@ -1643,7 +1644,10 @@ def generate_storyboard_frame_with_references(
     if not reused_existing_image:
         if request_config.get("styleContractVersion") == daojie_gongbi_v2.STYLE_CONTRACT_VERSION:
             assert_storyboard_reference_visual_audit(reference_visual_audit)
-        prepared_reference_images, reference_preflight = prepare_storyboard_model_reference_images(references)
+        prepared_reference_images, reference_preflight = prepare_storyboard_model_reference_images(
+            references,
+            denoise=request_config.get("styleContractVersion") == daojie_gongbi_v2.STYLE_CONTRACT_VERSION,
+        )
         generated_image_url = request_storyboard_image_generation(final_prompt, prepared_reference_images, request_config)
         save_generated_image_url(generated_image_url, result_file)
     color_audit = None
@@ -1861,10 +1865,17 @@ def reference_transfer_qualities():
     return list(dict.fromkeys(max(40, min(configured, quality)) for quality in (configured, 76, 70, 64, 58, 52, 46, 40)))
 
 
-def prepare_storyboard_model_reference_image(source):
+def denoise_storyboard_reference_image(image):
+    """Apply one deterministic low-radius denoise pass before V2 transport."""
+    return image.filter(ImageFilter.MedianFilter(size=3))
+
+
+def prepare_storyboard_model_reference_image(source, *, denoise=False):
     if source.startswith("http://") or source.startswith("https://"):
         return source
     normalized = decode_reference_image(source)
+    if denoise:
+        normalized = denoise_storyboard_reference_image(normalized)
     for max_edge in reference_transfer_max_edges():
         resized = normalized.copy()
         resized.thumbnail((max_edge, max_edge), Image.Resampling.LANCZOS)
@@ -1910,7 +1921,7 @@ def prepared_storyboard_model_reference_evidence(prepared_reference):
     }
 
 
-def prepare_storyboard_model_reference_images(reference_images):
+def prepare_storyboard_model_reference_images(reference_images, *, denoise=False):
     """Prepare one reusable payload batch and a URI-free audit record before any POST."""
     prepared = []
     evidence = []
@@ -1918,13 +1929,17 @@ def prepare_storyboard_model_reference_images(reference_images):
         source = str((reference or {}).get("imageUrl") or "").strip()
         if not source:
             raise RuntimeError(f"模型参考图预检缺少第 {order} 张 imageUrl")
-        payload = prepare_storyboard_model_reference_image(source)
+        payload = prepare_storyboard_model_reference_image(source, denoise=denoise)
         prepared.append(payload)
         evidence.append({"order": order, **prepared_storyboard_model_reference_evidence(payload)})
     fingerprint = hashlib.sha256(
         json.dumps(
             {
                 "schemaVersion": MODEL_REFERENCE_PREFLIGHT_SCHEMA_VERSION,
+                "processing": {
+                    "denoise": denoise,
+                    "denoiseVersion": MODEL_REFERENCE_DENOISE_VERSION if denoise else "none",
+                },
                 "references": evidence,
             },
             ensure_ascii=False,
@@ -1936,6 +1951,10 @@ def prepare_storyboard_model_reference_images(reference_images):
         "schemaVersion": MODEL_REFERENCE_PREFLIGHT_SCHEMA_VERSION,
         "referenceCount": len(evidence),
         "totalBytes": sum(item["bytes"] for item in evidence),
+        "processing": {
+            "denoise": denoise,
+            "denoiseVersion": MODEL_REFERENCE_DENOISE_VERSION if denoise else "none",
+        },
         "references": evidence,
         "fingerprint": fingerprint,
     }

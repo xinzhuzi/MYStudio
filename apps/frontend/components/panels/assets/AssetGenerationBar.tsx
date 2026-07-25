@@ -11,7 +11,7 @@
 
 import { useState, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { useStudioStore } from "@/stores/studio-store";
+import { useStudioStore } from "@/stores/studio/studio-store";
 import { polishAssetsAndUpdateStore, type AssetType } from "@/lib/studio/asset-generation-orchestrator";
 import { Loader2, Sparkles, ImageIcon, X } from "lucide-react";
 import { toast } from "sonner";

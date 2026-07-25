@@ -21,6 +21,7 @@ import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/componen
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { LocalImage } from "@/components/ui/local-image";
+import { getStudioVisualManualsBridge } from "@/lib/bridge/studio-visual-manuals";
 import type { StudioVisualManualDetail, StudioVisualManualImage } from "@/types/studio-visual-manual";
 import { cn } from "@/lib/utils";
 import { FolderOpen, ImageIcon, ImagePlus, Save, Trash2 } from "lucide-react";
@@ -94,7 +95,9 @@ export function VisualManualEditorDialog({
   };
 
   const handleSave = async () => {
-    if (!manual || !window.studioVisualManuals?.write) return;
+    if (!manual) return;
+    const studioVisualManuals = getStudioVisualManualsBridge();
+    if (!studioVisualManuals?.write) return;
     if (!name.trim()) {
       toast.error("请填写风格名称");
       return;
@@ -102,7 +105,7 @@ export function VisualManualEditorDialog({
 
     setIsSaving(true);
     try {
-      const result = await window.studioVisualManuals.write(manual.stylePath, {
+      const result = await studioVisualManuals.write(manual.stylePath, {
         name: name.trim(),
         modules: manual.modules.map((module) => ({
           value: module.value,
@@ -155,12 +158,13 @@ export function VisualManualEditorDialog({
         };
       }));
 
-      if (!window.studioVisualManuals?.writeImages) {
+      const studioVisualManuals = getStudioVisualManualsBridge();
+      if (!studioVisualManuals?.writeImages) {
         setImages((current) => [...current, ...newImages]);
         return;
       }
 
-      const result = await window.studioVisualManuals.writeImages(manual.stylePath, {
+      const result = await studioVisualManuals.writeImages(manual.stylePath, {
         images: [
           ...images.map((image) => ({
             relativePath: image.isNew ? undefined : image.relativePath,

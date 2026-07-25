@@ -10,10 +10,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { StylePicker } from "@/components/ui/style-picker";
+import { StylePicker } from "@/components/features/visual-style/style-picker";
 import { Textarea } from "@/components/ui/textarea";
 import type { VisualStyleId } from "@/lib/constants/visual-styles";
-import { useSceneStore, type Scene } from "@/stores/scene-store";
+import { useSceneStore, type Scene } from "@/stores/library/scene-store";
 import type { PromptLanguage } from "@/types/script";
 import type { OrthographicViews } from "./generation-panel-utils";
 

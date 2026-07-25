@@ -8,7 +8,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/ai/batch-processor", () => ({ processBatched: mocks.processBatched }));
-vi.mock("@/stores/script-store", () => ({
+vi.mock("@/stores/script/script-store", () => ({
   useScriptStore: {
     getState: () => ({
       ...mocks.state,

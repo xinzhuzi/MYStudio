@@ -1,6 +1,6 @@
 import type { Shot } from "@/types/script";
-import { useScriptStore } from "@/stores/script-store";
-import { useAPIConfigStore } from "@/stores/api-config-store";
+import { useScriptStore } from "@/stores/script/script-store";
+import { useAPIConfigStore } from "@/stores/ai/api-config-store";
 import { runStaggered } from "@/lib/utils/concurrency";
 import { calibrateShotsMultiStage } from "./shot-calibration-stages";
 import { buildSeriesContextSummary } from "./series-meta-sync";

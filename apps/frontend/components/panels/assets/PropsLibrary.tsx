@@ -8,7 +8,7 @@
  */
 
 import { useState, useRef } from 'react';
-import { usePropsLibraryStore, PropItem, PropFolder } from '@/stores/props-library-store';
+import { usePropsLibraryStore, PropItem, PropFolder } from '@/stores/library/props-library-store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';

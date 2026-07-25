@@ -10,9 +10,9 @@ import {
   removeImageWorkflowEdge,
   removeImageWorkflowNode,
 } from "@/lib/studio/image-workflow";
-import { useAppSettingsStore } from "@/stores/app-settings-store";
-import { useProjectStore } from "@/stores/project-store";
-import { useStudioStore } from "@/stores/studio-store";
+import { useAppSettingsStore } from "@/stores/app/app-settings-store";
+import { useProjectStore } from "@/stores/project/project-store";
+import { useStudioStore } from "@/stores/studio/studio-store";
 import type {
   ImageWorkflowGeneratedNode,
   ImageWorkflowGraph,
@@ -34,6 +34,8 @@ import {
   createWorkflowFilename,
   workflowImageRelativePath,
 } from "./image-workflow-file-utils";
+import { getProjectFilesBridge } from "@/lib/bridge/project-files";
+import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";
 
 type StudioState = ReturnType<typeof useStudioStore.getState>;
 
@@ -196,7 +198,7 @@ export function useImageWorkflowActions({
       if (!activeProjectId) throw new Error("请先选择项目");
       const bytes = await file.arrayBuffer();
       const id = createId("ref");
-      const saved = await window.projectFiles?.writeBinary({
+      const saved = await getProjectFilesBridge()?.writeBinary({
         projectId: activeProjectId,
         relativePath: workflowImageRelativePath(
           activeGraph.id,
@@ -256,7 +258,8 @@ export function useImageWorkflowActions({
       toast.error("请先生成衍生图片");
       return;
     }
-    if (!window.studioAssets?.add) {
+    const studioAssets = getStudioAssetsBridge();
+    if (!studioAssets?.add) {
       toast.error("当前环境不支持资产库写入");
       return;
     }
@@ -268,11 +271,11 @@ export function useImageWorkflowActions({
         generatedNode,
         promptNode,
       });
-      const existing = await window.studioAssets.getByName?.({
+      const existing = await studioAssets.getByName?.({
         type: payload.type,
         name: payload.name,
       });
-      const asset = await window.studioAssets.add(payload);
+      const asset = await studioAssets.add(payload);
       if (!asset) throw new Error("资产库写入失败");
       notifyAssetLibraryUpdated(asset);
       toast.success(existing ? "资产库已更新" : "已放入资产库");

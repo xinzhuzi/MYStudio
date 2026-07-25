@@ -7,7 +7,7 @@ import {
   createImageWorkflowGraph,
   setGeneratedImageResult,
 } from "@/lib/studio/image-workflow";
-import { useAppSettingsStore } from "@/stores/app-settings-store";
+import { useAppSettingsStore } from "@/stores/app/app-settings-store";
 import type {
   AssetImageWorkflowContext,
   ImageWorkflowGeneratedNode,

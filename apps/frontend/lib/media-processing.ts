@@ -7,7 +7,7 @@ import {
   getMediaDuration,
   getImageDimensions,
   generateVideoThumbnail,
-} from "@/stores/media-store";
+} from "@/stores/media/media-store";
 import { MediaFile } from "@/types/media";
 
 export interface ProcessedMediaItem extends Omit<MediaFile, "id"> {}

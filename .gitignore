@@ -59,7 +59,6 @@ docs/*/**
 
 # Script files (internal tools)
 *.ps1
-!scripts/prebuild-cleanup.ps1
 !apps/build/setup-win.ps1
 
 # Story/script content

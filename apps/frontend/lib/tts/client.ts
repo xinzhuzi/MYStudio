@@ -9,6 +9,7 @@ import type {
   TtsRuntimeStatus,
   VoiceProfile,
 } from "@/types/tts";
+import { getTtsRuntimeBridge } from "@/lib/bridge/tts-runtime";
 
 export { LOCAL_TTS_BASE_URL } from "./constants";
 
@@ -17,10 +18,11 @@ export interface ModelStatusResponse {
 }
 
 function assertTtsRuntime() {
-  if (typeof window === "undefined" || !window.ttsRuntime) {
+  const ttsRuntime = getTtsRuntimeBridge();
+  if (!ttsRuntime) {
     throw new Error("本地 TTS 仅在桌面应用中可用");
   }
-  return window.ttsRuntime;
+  return ttsRuntime;
 }
 
 function request<T>(method: string, path: string, body?: unknown): Promise<T> {

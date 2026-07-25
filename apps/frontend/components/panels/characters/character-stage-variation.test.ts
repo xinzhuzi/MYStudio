@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { CharacterVariation } from "@/stores/character-library-store";
+import type { CharacterVariation } from "@/stores/library/character-library-store";
 import { buildCharacterStageVariation, hasMatchingStageVariation } from "./character-stage-variation";
 
 const stageInfo = {

@@ -2,7 +2,7 @@ import { Download, Folder, Loader2, RefreshCw, Terminal, Trash2 } from "lucide-r
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
-import type { DevelopmentSettings } from "@/stores/app-settings-store";
+import type { DevelopmentSettings } from "@/stores/app/app-settings-store";
 import type { DiagnosticsLogInfo } from "@/types/diagnostics";
 
 type DevelopmentSettingsTabProps = {

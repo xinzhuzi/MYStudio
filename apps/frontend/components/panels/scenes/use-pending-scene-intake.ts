@@ -3,8 +3,8 @@ import { toast } from 'sonner';
 
 import { getStyleById, DEFAULT_STYLE_ID } from '@/lib/constants/visual-styles';
 import type { SceneViewpoint } from '@/lib/script/scene-viewpoint-generator';
-import type { ContactSheetPromptSet, PendingSceneData, PendingViewpointData } from '@/stores/media-panel-store';
-import { ATMOSPHERE_PRESETS, TIME_PRESETS, useSceneStore } from '@/stores/scene-store';
+import type { ContactSheetPromptSet, PendingSceneData, PendingViewpointData } from '@/stores/navigation/media-panel-store';
+import { ATMOSPHERE_PRESETS, TIME_PRESETS, useSceneStore } from '@/stores/library/scene-store';
 import type { PromptLanguage } from '@/types/script';
 
 import type { ContactSheetLayout } from './generation-panel-utils';

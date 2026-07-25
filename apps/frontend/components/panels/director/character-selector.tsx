@@ -11,9 +11,9 @@
 import React, { useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { Check, User, Users } from "lucide-react";
-import { useCharacterLibraryStore } from "@/stores/character-library-store";
-import { useAppSettingsStore } from "@/stores/app-settings-store";
-import { useProjectStore } from "@/stores/project-store";
+import { useCharacterLibraryStore } from "@/stores/library/character-library-store";
+import { useAppSettingsStore } from "@/stores/app/app-settings-store";
+import { useProjectStore } from "@/stores/project/project-store";
 import {
   Popover,
   PopoverContent,

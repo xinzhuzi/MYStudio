@@ -11,11 +11,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";
 import { createMystudioTtsSink } from "@/lib/studio/voice-sync";
 import { toRoleSpeakerId } from "@/lib/tts/role-speaker-id";
-import { useProjectStore } from "@/stores/project-store";
-import { useStudioStore } from "@/stores/studio-store";
-import { useTtsStore } from "@/stores/tts-store";
+import { useProjectStore } from "@/stores/project/project-store";
+import { useStudioStore } from "@/stores/studio/studio-store";
+import { useTtsStore } from "@/stores/tts/tts-store";
 import type { StudioAssetSummary } from "@/types/studio-assets";
 import { cn } from "@/lib/utils";
 import { Search, Volume2 } from "lucide-react";
@@ -55,10 +56,11 @@ export function RoleVoiceAssignDialog({
       setAudioSearch("");
       return;
     }
-    if (!window.studioAssets?.list) return;
+    const studioAssets = getStudioAssetsBridge();
+    if (!studioAssets?.list) return;
     let cancelled = false;
     setLoadingAssets(true);
-    window.studioAssets.list({ type: "audio", limit: 9999 })
+    studioAssets.list({ type: "audio", limit: 9999 })
       .then((result) => {
         if (!cancelled) setRuntimeAudioAssets(result.items ?? []);
       })

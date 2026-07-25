@@ -3,7 +3,7 @@
 import { useRef } from "react";
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { SplitScene } from "@/stores/director-store";
+import type { SplitScene } from "@/stores/director/director-store";
 import { useStoryboardGenerationUi } from "../director/use-storyboard-generation-ui";
 import { useSClassQuadGridController } from "./use-sclass-quad-grid-controller";
 

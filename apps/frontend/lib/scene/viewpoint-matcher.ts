@@ -8,7 +8,7 @@
  * 策略：先用关键词快速匹配，匹配不到才调用 AI
  */
 
-import type { Scene } from '@/stores/scene-store';
+import type { Scene } from '@/stores/library/scene-store';
 
 // ==================== 类型定义 ====================
 

@@ -9,7 +9,7 @@ import {
   IMAGE_RESOLUTIONS,
   getImageSizeLabel,
 } from "@/lib/ai/image-size-presets";
-import type { ImageGenerationSettings } from "@/stores/app-settings-store";
+import type { ImageGenerationSettings } from "@/stores/app/app-settings-store";
 
 type ImageSizeSettingsTabProps = {
   settings: ImageGenerationSettings;

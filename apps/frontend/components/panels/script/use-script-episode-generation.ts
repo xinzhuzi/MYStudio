@@ -2,7 +2,7 @@ import { useCallback } from "react";
 import { toast } from "sonner";
 import { aiManager } from "@/lib/ai/ai-manager";
 import { generateEpisodeShots } from "@/lib/script/full-script-service";
-import type { ScriptViewpointStatus } from "@/stores/script-store";
+import type { ScriptViewpointStatus } from "@/stores/script/script-store";
 import type { PromptLanguage } from "@/types/script";
 
 export function useScriptEpisodeGeneration({

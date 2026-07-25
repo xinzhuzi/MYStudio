@@ -1,10 +1,15 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   createWorkflowFilename,
+  prepareReferenceImages,
   safeExtension,
   safePathSegment,
   workflowImageRelativePath,
 } from "./image-workflow-file-utils";
+
+afterEach(() => {
+  Reflect.deleteProperty(globalThis, "window");
+});
 
 describe("image workflow file utils", () => {
   it("keeps workflow files under a sanitized project-relative directory", () => {
@@ -23,5 +28,22 @@ describe("image workflow file utils", () => {
       "gen-node-1-hero-pose-1234-i.jpg",
     );
     vi.restoreAllMocks();
+  });
+
+  it("reads project references through the optional project-files bridge", async () => {
+    const readAsBase64 = vi.fn(async () => ({ success: true, base64: "data:image/png;base64,abc" }));
+    Object.defineProperty(globalThis, "window", {
+      configurable: true,
+      value: { projectFiles: { readAsBase64 } },
+    });
+
+    await expect(prepareReferenceImages(["project-file://demo/ref.png"]))
+      .resolves.toEqual(["data:image/png;base64,abc"]);
+    expect(readAsBase64).toHaveBeenCalledWith("project-file://demo/ref.png");
+  });
+
+  it("preserves the project-reference error when the bridge is unavailable", async () => {
+    await expect(prepareReferenceImages(["project-file://demo/ref.png"]))
+      .rejects.toThrow("项目内参考图读取失败：project-file://demo/ref.png");
   });
 });

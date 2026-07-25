@@ -11,7 +11,7 @@
  */
 
 import { useMemo, useState } from "react";
-import { useAPIConfigStore, type AIFeature } from "@/stores/api-config-store";
+import { useAPIConfigStore, type AIFeature } from "@/stores/ai/api-config-store";
 import { parseApiKeys, classifyModelByName, type ModelCapability } from "@/lib/api-key-manager";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -35,7 +35,7 @@ import { cn } from "@/lib/utils";
 import type { ReactNode } from "react";
 import { extractBrandFromModel, getBrandInfo } from "@/lib/brand-mapping";
 import { getBrandIcon } from "./brand-icons";
-import { getModelDisplayName } from "@/lib/freedom/model-display-names";
+import { getModelDisplayName } from "@/lib/assist/model-display-names";
 import { LOCAL_TTS_BASE_URL } from "@/lib/tts/client";
 
 /**

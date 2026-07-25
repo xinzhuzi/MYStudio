@@ -8,7 +8,7 @@
  * Shows overall generation progress and controls
  */
 
-import { useDirectorStore, useIsGenerating, useOverallProgress, useActiveDirectorProject } from "@/stores/director-store";
+import { useDirectorStore, useIsGenerating, useOverallProgress, useActiveDirectorProject } from "@/stores/director/director-store";
 import { Button } from "@/components/ui/button";
 import { 
   Play, 
@@ -21,7 +21,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useMemo, useCallback, useEffect, useRef } from "react";
 import { aiManager } from "@/lib/ai/ai-manager";
-import { useAPIConfigStore } from "@/stores/api-config-store";
+import { useAPIConfigStore } from "@/stores/ai/api-config-store";
 
 export function GenerationProgress() {
   // Get current project data
@@ -102,7 +102,7 @@ export function GenerationProgress() {
     if (!screenplay) return;
     
     try {
-      const workerBridge = aiManager.worker();
+      const workerBridge = await aiManager.initWorker();
       
       // Register event handlers
       workerBridge.on('SCENE_PROGRESS', (event) => {
@@ -165,6 +165,16 @@ export function GenerationProgress() {
       console.error('[GenerationProgress] Failed to start generation:', error);
     }
   }, [screenplay, config, apiKeys, isImageMode, onSceneProgressUpdate, onSceneImageCompleted, onSceneCompleted, onSceneFailed, onAllImagesCompleted, onAllCompleted]);
+
+  const handleCancelGeneration = useCallback(async () => {
+    try {
+      const workerBridge = await aiManager.initWorker();
+      workerBridge.cancel();
+    } catch (error) {
+      console.error('[GenerationProgress] Failed to cancel generation:', error);
+    }
+    cancelAll();
+  }, [cancelAll]);
 
   // Track if we've already started generation for this screenplay
   const hasStartedRef = useRef<string | null>(null);
@@ -250,6 +260,17 @@ export function GenerationProgress() {
         <p className="text-xs text-muted-foreground text-center">
           预计剩余时间: {estimateRemainingTime(overallProgress.total - overallProgress.completed)}
         </p>
+      )}
+
+      {isGenerating && !isComplete && (
+        <Button
+          variant="destructive"
+          onClick={handleCancelGeneration}
+          className="w-full"
+        >
+          <StopCircle className="h-4 w-4 mr-2" />
+          取消生成
+        </Button>
       )}
     </div>
   );

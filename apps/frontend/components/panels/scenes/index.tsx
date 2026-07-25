@@ -11,9 +11,9 @@
  */
 
 import { useMemo } from "react";
-import { useSceneStore, type Scene } from "@/stores/scene-store";
-import { useAppSettingsStore } from "@/stores/app-settings-store";
-import { useProjectStore } from "@/stores/project-store";
+import { useSceneStore, type Scene } from "@/stores/library/scene-store";
+import { useAppSettingsStore } from "@/stores/app/app-settings-store";
+import { useProjectStore } from "@/stores/project/project-store";
 import {
   ResizableHandle,
   ResizablePanel,

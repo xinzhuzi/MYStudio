@@ -32,7 +32,7 @@ vi.mock("./episode-parser", () => ({
 }));
 vi.mock("./series-meta-sync", () => ({ populateSeriesMetaFromImport: mocks.populateSeriesMetaFromImport }));
 vi.mock("./episode-synopsis-service", () => ({ exportProjectMetadata: mocks.exportProjectMetadata }));
-vi.mock("@/stores/script-store", () => ({ useScriptStore: { getState: () => mocks.store } }));
+vi.mock("@/stores/script/script-store", () => ({ useScriptStore: { getState: () => mocks.store } }));
 
 import { importFullScript } from "./full-script-import-service";
 

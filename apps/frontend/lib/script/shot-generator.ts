@@ -10,7 +10,7 @@ import type { Shot } from "@/types/script";
 import { aiManager } from "@/lib/ai/ai-manager";
 import { retryOperation } from "@/lib/utils/retry";
 import { delay, RATE_LIMITS } from "@/lib/utils/rate-limiter";
-import { useAppSettingsStore } from "@/stores/app-settings-store";
+import { useAppSettingsStore } from "@/stores/app/app-settings-store";
 import type { ImageAspectRatio, ImageResolution } from "@/lib/ai/image-size-presets";
 import { prepareReferenceImagesForTransfer } from "@/lib/ai/image-transfer";
 

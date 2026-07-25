@@ -18,7 +18,7 @@ vi.mock("@/lib/image-host", () => ({
 vi.mock("@/lib/image-storage", () => ({
   readImageAsBase64: mocks.readImageAsBase64,
 }));
-vi.mock("@/stores/api-config-store", () => ({
+vi.mock("@/stores/ai/api-config-store", () => ({
   useAPIConfigStore: {
     getState: () => ({ isImageHostConfigured: () => mocks.currentHostConfigured }),
   },

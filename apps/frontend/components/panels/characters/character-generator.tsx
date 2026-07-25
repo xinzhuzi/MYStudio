@@ -15,10 +15,10 @@
  */
 
 import { useState } from "react";
-import { type Character, type CharacterView, useCharacterLibraryStore } from "@/stores/character-library-store";
+import { type Character, type CharacterView, useCharacterLibraryStore } from "@/stores/library/character-library-store";
 import { aiManager } from "@/lib/ai/ai-manager";
 import { saveImageToLocal } from "@/lib/image-storage";
-import { useMediaStore } from "@/stores/media-store";
+import { useMediaStore } from "@/stores/media/media-store";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -448,4 +448,4 @@ function generateVisualTraits(description: string, name: string): string {
 
 // Note: generateCharacterImage is imported from @/lib/ai/image-generator
 // Note: saveImageToLocal is imported from @/lib/image-storage
-// Note: useMediaStore is imported from @/stores/media-store for archiving to media library
+// Note: useMediaStore is imported from @/stores/media/media-store for archiving to media library

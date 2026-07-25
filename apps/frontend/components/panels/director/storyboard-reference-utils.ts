@@ -1,4 +1,4 @@
-import type { Character, CharacterVariation } from "@/stores/character-library-store";
+import type { Character, CharacterVariation } from "@/stores/library/character-library-store";
 
 type ReferenceBucketKind = "anchor" | "character" | "scene" | "style";
 

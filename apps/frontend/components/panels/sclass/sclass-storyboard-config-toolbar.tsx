@@ -1,8 +1,8 @@
 import { cn } from "@/lib/utils";
-import { StylePicker } from "@/components/ui/style-picker";
-import { CinematographyProfilePicker } from "@/components/ui/cinematography-profile-picker";
+import { StylePicker } from "@/components/features/visual-style/style-picker";
+import { CinematographyProfilePicker } from "@/components/features/cinematography/cinematography-profile-picker";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import type { SClassAspectRatio } from "@/stores/sclass-store";
+import type { SClassAspectRatio } from "@/stores/sclass/sclass-store";
 
 const SCLASS_ASPECT_RATIOS: Array<{ value: SClassAspectRatio; label: string }> = [
   { value: "16:9", label: "横屏 16:9" },

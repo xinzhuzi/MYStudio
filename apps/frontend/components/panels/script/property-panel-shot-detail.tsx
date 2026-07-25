@@ -1,7 +1,7 @@
 import type { Dispatch, SetStateAction } from "react";
 import type { Shot } from "@/types/script";
 import { getShotCompletionStatus } from "@/lib/script/shot-utils";
-import { CAMERA_MOVEMENT_PRESETS, SPECIAL_TECHNIQUE_PRESETS } from "@/stores/director-presets";
+import { CAMERA_MOVEMENT_PRESETS, SPECIAL_TECHNIQUE_PRESETS } from "@/stores/director/director-presets";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";

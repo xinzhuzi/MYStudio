@@ -23,7 +23,7 @@ const mocks = vi.hoisted(() => ({
   setImageGenerationSettings: vi.fn(),
 }));
 
-vi.mock("@/stores/api-config-store", () => ({
+vi.mock("@/stores/ai/api-config-store", () => ({
   useAPIConfigStore: () => ({
     advancedOptions: mocks.advancedOptions,
     isImageHostConfigured: mocks.isImageHostConfigured,
@@ -31,7 +31,7 @@ vi.mock("@/stores/api-config-store", () => ({
     setAdvancedOption: mocks.setAdvancedOption,
   }),
 }));
-vi.mock("@/stores/app-settings-store", () => ({
+vi.mock("@/stores/app/app-settings-store", () => ({
   useAppSettingsStore: () => ({
     imageGenerationSettings: mocks.imageGenerationSettings,
     setImageGenerationSettings: mocks.setImageGenerationSettings,

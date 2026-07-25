@@ -1,9 +1,9 @@
-import { useStudioStore } from "@/stores/studio-store";
-import { useTtsStore } from "@/stores/tts-store";
-import { useCharacterLibraryStore } from "@/stores/character-library-store";
-import { usePropsLibraryStore } from "@/stores/props-library-store";
-import { useSceneStore } from "@/stores/scene-store";
-import { useEditingStore } from "@/stores/editing-store";
+import { useStudioStore } from "@/stores/studio/studio-store";
+import { useTtsStore } from "@/stores/tts/tts-store";
+import { useCharacterLibraryStore } from "@/stores/library/character-library-store";
+import { usePropsLibraryStore } from "@/stores/library/props-library-store";
+import { useSceneStore } from "@/stores/library/scene-store";
+import { useEditingStore } from "@/stores/editing/editing-store";
 import {
   buildWorkflowReadiness,
   type WorkflowStageReadiness,

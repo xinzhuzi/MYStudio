@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { ShotGroup } from "@/stores/sclass-store";
+import type { ShotGroup } from "@/stores/sclass/sclass-store";
 import { runSClassBatchGeneration } from "./sclass-batch-generation";
 
 const toast = vi.hoisted(() => ({ error: vi.fn(), info: vi.fn(), success: vi.fn(), warning: vi.fn() }));

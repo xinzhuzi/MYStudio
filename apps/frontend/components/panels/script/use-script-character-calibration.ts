@@ -20,7 +20,7 @@ import {
   detectMultiStageHints,
 } from "@/lib/script/character-stage-analyzer";
 import { expandCharacterStages } from "@/lib/script/character-stage-expansion";
-import { useScriptStore, type ScriptCalibrationStatus } from "@/stores/script-store";
+import { useScriptStore, type ScriptCalibrationStatus } from "@/stores/script/script-store";
 import { toast } from "sonner";
 
 type ScriptStoreState = ReturnType<typeof useScriptStore.getState>;

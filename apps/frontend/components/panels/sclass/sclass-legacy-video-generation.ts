@@ -2,7 +2,7 @@ import { aiManager } from "@/lib/ai/ai-manager";
 import { getCinematographyProfile } from "@/lib/constants/cinematography-profiles";
 import { getMediaType, getStylePrompt } from "@/lib/constants/visual-styles";
 import { buildVideoPrompt } from "@/lib/generation/prompt-builder";
-import type { DirectorProjectData, DirectorStore, SplitScene } from "@/stores/director-store";
+import type { DirectorProjectData, DirectorStore, SplitScene } from "@/stores/director/director-store";
 import { toast } from "sonner";
 
 export type SClassLegacyVideoGenerationOptions = {

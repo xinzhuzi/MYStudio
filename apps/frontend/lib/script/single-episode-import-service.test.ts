@@ -16,7 +16,7 @@ vi.mock("./episode-parser", () => ({ parseScenes: mocks.parseScenes }));
 vi.mock("./script-normalizer", () => ({ preprocessLineBreaks: mocks.preprocessLineBreaks }));
 vi.mock("./series-meta-sync", () => ({ buildSeriesContextSummary: () => "" }));
 vi.mock("@/lib/ai/ai-manager", () => ({ aiManager: { featureText: mocks.featureText } }));
-vi.mock("@/stores/script-store", () => ({ useScriptStore: { getState: () => mocks.store } }));
+vi.mock("@/stores/script/script-store", () => ({ useScriptStore: { getState: () => mocks.store } }));
 
 import { importSingleEpisodeContent } from "./single-episode-import-service";
 

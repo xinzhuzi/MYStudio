@@ -36,10 +36,10 @@ import {
   Palette,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { StylePicker } from "@/components/ui/style-picker";
+import { StylePicker } from "@/components/features/visual-style/style-picker";
 import type { VisualStyleId } from "@/lib/constants/visual-styles";
 import type { PromptLanguage } from "@/types/script";
-import { useScriptStore } from "@/stores/script-store";
+import { useScriptStore } from "@/stores/script/script-store";
 
 const PROMPT_LANGUAGE_OPTIONS = [
   { value: "zh", label: "仅中文" },

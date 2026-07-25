@@ -1,10 +1,10 @@
 import { useCallback } from "react";
 import type { ScriptScene, Shot } from "@/types/script";
-import type { Scene } from "@/stores/scene-store";
+import type { Scene } from "@/stores/library/scene-store";
 import { generateContactSheetPrompt, type SceneViewpoint } from "@/lib/script/scene-viewpoint-generator";
 import { getStyleById } from "@/lib/constants/visual-styles";
 import { aiManager } from "@/lib/ai/ai-manager";
-import { useAppSettingsStore } from "@/stores/app-settings-store";
+import { useAppSettingsStore } from "@/stores/app/app-settings-store";
 import { toast } from "sonner";
 import { buildContactSheetCopyText, type ContactSheetLayout } from "./generation-panel-utils";
 

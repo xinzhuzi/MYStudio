@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import type { SplitScene } from "@/stores/director-store";
-import type { ShotGroup } from "@/stores/sclass-store";
+import type { SplitScene } from "@/stores/director/director-store";
+import type { ShotGroup } from "@/stores/sclass/sclass-store";
 import type { GroupPromptResult } from "./sclass-prompt-builder";
 import {
   deriveSClassGroupGenerationFlags,

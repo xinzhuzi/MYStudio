@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from "react";
-import { useScriptStore, type ScriptCalibrationState, type ScriptCalibrationStatus, type ScriptViewpointStatus } from "@/stores/script-store";
+import { useScriptStore, type ScriptCalibrationState, type ScriptCalibrationStatus, type ScriptViewpointStatus } from "@/stores/script/script-store";
 
 interface Options {
   activeProjectId: string | null;

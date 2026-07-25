@@ -2,10 +2,10 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { Character } from "@/stores/character-library-store";
-import type { SplitScene } from "@/stores/director-store";
-import type { Scene } from "@/stores/scene-store";
-import type { ShotGroup } from "@/stores/sclass-store";
+import type { Character } from "@/stores/library/character-library-store";
+import type { SplitScene } from "@/stores/director/director-store";
+import type { Scene } from "@/stores/library/scene-store";
+import type { ShotGroup } from "@/stores/sclass/sclass-store";
 import { SClassEditingPanel, type SClassEditingPanelProps } from "./sclass-editing-panel";
 
 vi.mock("./sclass-storyboard-config-toolbar", () => ({

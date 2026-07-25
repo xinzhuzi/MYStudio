@@ -1,4 +1,4 @@
-import type { Tab } from "@/stores/media-panel-store";
+import type { Tab } from "@/stores/navigation/media-panel-store";
 
 export const OVERVIEW_WORKFLOW_GUIDE = {
   title: "开始制作",

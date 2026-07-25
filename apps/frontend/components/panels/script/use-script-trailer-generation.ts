@@ -2,8 +2,8 @@ import { useCallback } from "react";
 import { aiManager } from "@/lib/ai/ai-manager";
 import { selectTrailerShots } from "@/lib/script/trailer-service";
 import type { ProjectBackground, Shot } from "@/types/script";
-import type { DirectorScriptSceneInput } from "@/stores/director-script-scene-builder";
-import type { DirectorStore, SplitScene, TrailerDuration } from "@/stores/director-store";
+import type { DirectorScriptSceneInput } from "@/stores/director/director-script-scene-builder";
+import type { DirectorStore, SplitScene, TrailerDuration } from "@/stores/director/director-store";
 import { toast } from "sonner";
 
 type TrailerShot = Shot & {

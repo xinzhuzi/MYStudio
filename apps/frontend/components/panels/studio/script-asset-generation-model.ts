@@ -1,7 +1,7 @@
 import type { AssetGenerationTask } from "@/lib/studio/asset-generation-orchestrator";
-import type { Character } from "@/stores/character-library-store";
-import type { PropItem } from "@/stores/props-library-store";
-import type { Scene } from "@/stores/scene-store";
+import type { Character } from "@/stores/library/character-library-store";
+import type { PropItem } from "@/stores/library/props-library-store";
+import type { Scene } from "@/stores/library/scene-store";
 import type { ScriptPlan } from "@/types/studio";
 import type { StudioAssetSummary } from "@/types/studio-assets";
 import { Gem, MapPin, UserRound, type LucideIcon } from "lucide-react";

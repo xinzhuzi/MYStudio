@@ -3,8 +3,8 @@ import { aiManager } from "@/lib/ai/ai-manager";
 import { getStyleById } from "@/lib/constants/visual-styles";
 import { readImageAsBase64, saveImageToLocal } from "@/lib/image-storage";
 import { splitStoryboardImage } from "@/lib/storyboard/image-splitter";
-import { useAppSettingsStore } from "@/stores/app-settings-store";
-import { useSceneStore } from "@/stores/scene-store";
+import { useAppSettingsStore } from "@/stores/app/app-settings-store";
+import { useSceneStore } from "@/stores/library/scene-store";
 import { toast } from "sonner";
 import { extractSpatialAssets } from "./generation-panel-utils";
 

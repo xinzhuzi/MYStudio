@@ -49,7 +49,7 @@ apps/backend/
 - Put route-family behavior in focused mixins such as
   `GenerationRoutesMixin` and `ModelRoutesMixin`.
 - Put inference adapters in `engine.py`; load heavy model libraries lazily.
-- Keep Electron process management in `apps/frontend/electron/tts-runtime.ts`.
+- Keep Electron process management in `apps/frontend/electron/tts/tts-runtime.ts`.
 
 ## Runtime Contract: Managed Python and Daojie direct runner
 
@@ -76,8 +76,10 @@ uses `apps/backend` only as `PYTHONPATH` and the subprocess working directory.
 - Windows executable: `<storageBasePath>/python/python.exe`.
 - Sidecar data: `MANYING_TTS_DATA_DIR` and `--data-dir` point to the runtime
   data directory; model variables point to the configured model cache.
-- `apps/backend/python` is never a fallback candidate and remains untouched
-  unless a separately approved cleanup task says otherwise.
+- `apps/backend/python` is not a supported directory and must never be used as
+  a fallback candidate. Python runtime files belong only under the configured
+  `<storageBasePath>/python`; do not add a runtime distribution to the sidecar
+  source tree.
 - The default Daojie video command does not enable HTTP TTS; the direct HTTP
   branch is opt-in through `MANYING_TTS_USE_HTTP=1`.
 

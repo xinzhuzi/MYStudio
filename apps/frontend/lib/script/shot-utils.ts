@@ -7,7 +7,7 @@
  */
 
 import type { CompletionStatus, Shot } from "@/types/script";
-import type { ShotSizeType } from "@/stores/director-store";
+import type { ShotSizeType } from "@/stores/director/director-store";
 
 /**
  * 根据 Shot 的 imageStatus/videoStatus 计算完成状态

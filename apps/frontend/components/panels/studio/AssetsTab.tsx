@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { useCharacterLibraryStore } from "@/stores/character-library-store";
-import { useProjectStore } from "@/stores/project-store";
-import { useSceneStore } from "@/stores/scene-store";
-import { usePropsLibraryStore } from "@/stores/props-library-store";
-import { useStudioStore } from "@/stores/studio-store";
+import { useCharacterLibraryStore } from "@/stores/library/character-library-store";
+import { useProjectStore } from "@/stores/project/project-store";
+import { useSceneStore } from "@/stores/library/scene-store";
+import { usePropsLibraryStore } from "@/stores/library/props-library-store";
+import { useStudioStore } from "@/stores/studio/studio-store";
 import { Boxes } from "lucide-react";
 import { toast } from "sonner";
 import { AssetsBatchCard, type AssetType } from "./AssetsBatchCard";

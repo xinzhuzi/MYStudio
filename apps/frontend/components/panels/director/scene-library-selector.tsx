@@ -12,10 +12,10 @@ import React, { useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { Check, Layers, MapPin } from "lucide-react";
 import { Label } from "@/components/ui/label";
-import { useSceneStore } from "@/stores/scene-store";
+import { useSceneStore } from "@/stores/library/scene-store";
 import { useResolvedImageUrl } from "@/hooks/use-resolved-image-url";
-import { useAppSettingsStore } from "@/stores/app-settings-store";
-import { useProjectStore } from "@/stores/project-store";
+import { useAppSettingsStore } from "@/stores/app/app-settings-store";
+import { useProjectStore } from "@/stores/project/project-store";
 import {
   Popover,
   PopoverContent,

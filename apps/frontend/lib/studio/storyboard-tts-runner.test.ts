@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { runStoryboardTtsGeneration } from "./storyboard-tts-runner";
 import type { StoryboardItem } from "@/types/studio";
 import type { VoiceProfile } from "@/types/tts";
@@ -60,7 +60,22 @@ function dependencies(overrides: Record<string, unknown> = {}) {
   };
 }
 
+afterEach(() => {
+  Reflect.deleteProperty(globalThis, "window");
+});
+
 describe("storyboard TTS runner", () => {
+  it("keeps the fixed-voice bridge error when the TTS preload is unavailable", async () => {
+    Object.defineProperty(globalThis, "window", {
+      configurable: true,
+      value: { studioAssets: { saveMaterial: vi.fn() } },
+    });
+
+    await expect(
+      runStoryboardTtsGeneration({ storyboard, profile }),
+    ).rejects.toThrow("固定音色文件校验接口仅在桌面应用中可用");
+  });
+
   it("generates and saves one real fixed-voice audio file", async () => {
     const deps = dependencies();
     const result = await runStoryboardTtsGeneration({

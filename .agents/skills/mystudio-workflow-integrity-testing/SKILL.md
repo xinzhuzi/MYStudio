@@ -7,6 +7,14 @@ description: Use when verifying MYStudio workflow completeness, step-by-step app
 
 Use this skill to prove the workflow is complete with fresh evidence, not impressions. Scope includes the Studio workflow graph, workflow data, preview rendering, asset links, storage boundaries, and packaged app smoke tests.
 
+## Path dictionary
+
+- `<repo-root>` means `/Users/zhengbingjin/Project/Github/MYStudio`; run npm commands from `<repo-root>/apps`. This `SKILL.md` and all `apps/...` paths below are repository source/instructions, read-only to the running product.
+- Workflow UI and model sources are under `<repo-root>/apps/frontend/components/panels/studio/`; the smoke bridge is `<repo-root>/apps/frontend/lib/studio/workflow-smoke-bridge.ts`; packaged smoke is `<repo-root>/apps/build/smoke/smoke-desktop.mjs`. All three are source entry points, not runtime write targets.
+- `<userData>` is Electron's per-user application-data directory. `<storageBasePath>` is the runtime-writable storage root resolved from `<userData>/storage-config.json`; project workflow state is stored under `<storageBasePath>/projects/_p/<projectId>/`, while the independent asset library is `<storageBasePath>/assets/`.
+- Product-editable skills are `<storageBasePath>/skills/`. The bundled seed source `<repo-root>/apps/frontend/assets/studio-manuals/` is read-only; AI/development skills under `<repo-root>/.agents/skills/`, `~/.codex/skills/`, or `~/.agents/skills/` are not product data.
+- The default durable smoke report is `<repo-root>/apps/output/automation/desktop-smoke-report.json` (generated, writable runtime/output evidence); use `MYSTUDIO_SMOKE_REPORT_PATH` to override it.
+
 ## Ground Rules
 
 - Work from `/Users/zhengbingjin/Project/Github/MYStudio`.
@@ -22,8 +30,8 @@ Use this skill to prove the workflow is complete with fresh evidence, not impres
 
 Keep these separate when testing or fixing workflow behavior:
 
-- Project workflow/state files: `_p/{projectId}/...`, including `studio-workflow-store`, `characters`, `scenes`, and project file URLs such as `project-file://...`.
-- Independent asset library: `{basePath}/assets/assets.db` and `assets/files/...`.
+- Project workflow/state files: `<storageBasePath>/projects/_p/<projectId>/...`, including `studio-workflow-store`, `characters`, `scenes`, and project file URLs such as `project-file://...`.
+- Independent asset library: `<storageBasePath>/assets/assets.db` and `<storageBasePath>/assets/files/...`; this is the existing `{basePath}/assets/assets.db` and `assets/files/...` contract after `basePath` resolves to `<storageBasePath>`.
 
 Workflow node generation, storyboard images, character/scene/prop project state, and smoke seed data should stay project-scoped unless the user explicitly asks to write the independent asset library.
 
@@ -62,7 +70,7 @@ Verify the workflow in layers:
    - Smoke seed must use isolated smoke user data and project-scoped stores.
 
 4. **Packaged smoke assertions**
-   - Check `apps/build/smoke-desktop.mjs`.
+   - Check `apps/build/smoke/smoke-desktop.mjs`.
    - It should assert route health, workflow stages, React Flow canvas, node FlowData text, `hasDirectorPlanPreview`, `hasToonflowDerivativeLinks`, `hasStoryboardImagePreview`, voice flow, Python settings, and visual stats.
    - Screenshot timeout is acceptable only if the script exits `0` and DOM visual fallback reports a low `whiteRatio`.
 
@@ -87,7 +95,7 @@ Review evidence before running the matching test. Do not collapse the checklist 
    - Test: `npm test -- frontend/lib/studio/workflow-smoke-bridge.test.ts`.
 
 5. **Step 5 - Step-by-step app execution smoke**
-   - Review `apps/build/smoke-desktop.mjs` for `verifyWorkflowStepByStepExecution`.
+   - Review `apps/build/smoke/smoke-desktop.mjs` for `verifyWorkflowStepByStepExecution`.
    - Confirm the smoke entry closes existing MYStudio instances before launching the packaged app.
    - It must use `resetForStepwiseExecution`, `runStepwiseWorkflowStage`, `inspectWorkflowStages`, and wait for each stage to become ready.
    - It must not use `seedCompleteWorkflow()` as a substitute for the execution path.
@@ -105,7 +113,7 @@ Review evidence before running the matching test. Do not collapse the checklist 
    - AC6 passes only when `chapterAutoVideo.terminalStage` is `completed`, the run did not time out, and `chapterAutoVideo.finalPath` in `apps/output/automation/background-workflow-daojie-report.json` ends in `.mp4` and exists on disk. A failed, timed-out, foreground-violating, or missing-MP4 auto-video run must not count toward AC6.
 
 6. **Step 6 - Build and packaged smoke test**
-   - Review `apps/build/smoke-desktop.mjs` for route, stage, node preview, storage, visual, and voice assertions.
+   - Review `apps/build/smoke/smoke-desktop.mjs` for route, stage, node preview, storage, visual, and voice assertions.
    - Confirm stale MYStudio process cleanup runs before the tested app is spawned.
    - Test: `npm run typecheck`, `npm run lint`, `npm test`, `npm run build:mac`, then `npm run smoke:desktop`.
 

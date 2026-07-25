@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react";
 import { Check } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { COLOR_PRESETS, useThemeStore } from "@/stores/theme-store";
+import { COLOR_PRESETS, useThemeStore } from "@/stores/app/theme-store";
 import { cn } from "@/lib/utils";
 
 type PresetCardStyle = CSSProperties & { "--preset-color": string };

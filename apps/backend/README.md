@@ -44,13 +44,13 @@ http://127.0.0.1:17593
 
 `storageBasePath` 由应用存储设置决定；用户迁移项目存储目录后，Python runtime 和默认模型缓存也会跟随该目录。
 
-`apps/backend/` 是 sidecar 源码和依赖声明，不是 Python runtime 的安装位置。当前本机若存在 `apps/backend/python`，它只是一份遗留的本地 CPython 供应物：`.gitignore` 忽略它，electron-builder 也排除 `backend/python/**`。Electron 不把它作为可选 Python 候选；本任务同样没有删除或移动该本地目录。
+`apps/backend/` 是 sidecar 源码和依赖声明，不是 Python runtime 的安装位置。此前遗留在源码树中的 `apps/backend/python` 已于 2026-07-25 移出；该路径不再是开发或运行时入口。`.gitignore` 仍忽略它，electron-builder 也继续排除 `backend/python/**`，防止本地 runtime 被重新带入源码包。Electron 不把它作为可选 Python 候选；正式 runtime 只从 `<storageBasePath>/python` 获取。
 
 ## 服务实现
 
 后端入口是 `manying_voicebox_tts.main`，使用 Python 标准库 `ThreadingHTTPServer`。除 `/health` 外，控制类接口都需要 Electron main process 注入 `X-Manying-TTS-Token`，前端 renderer 不直接持有 token。
 
-启动命令由 `apps/frontend/electron/tts-runtime.ts` 生成，核心形式如下：
+启动命令由 `apps/frontend/electron/tts/tts-runtime.ts` 生成，核心形式如下：
 
 ```text
 python -m manying_voicebox_tts.main --host 127.0.0.1 --port 17593 --data-dir {userData}/tts-runtime
@@ -112,4 +112,4 @@ Daojie chapter-001 直跑只有在显式设置 `MANYING_TTS_USE_HTTP=1` 时才�
 PYTHONPATH=backend python3 -m unittest discover -s backend/tests
 ```
 
-在 Electron/TypeScript 侧，TTS runtime 行为由 `apps/frontend/electron/tts-runtime.test.ts` 覆盖。
+在 Electron/TypeScript 侧，TTS runtime 行为由 `apps/frontend/electron/tts/tts-runtime.test.ts` 覆盖。

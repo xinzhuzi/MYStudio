@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AlertCircle, ChevronDown, ChevronRight, Loader2, Mic, Play, Square } from "lucide-react";
 import { toast } from "sonner";
+import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -86,8 +87,9 @@ export function TtsStudio() {
   // 加载资产库音频（展开音色时才加载）
   useEffect(() => {
     if (!voiceExpanded || audioAssets.length > 0) return;
-    if (!window.studioAssets?.list) return;
-    window.studioAssets.list({ type: "audio", limit: 1000 }).then((res) => {
+    const studioAssets = getStudioAssetsBridge();
+    if (!studioAssets?.list) return;
+    studioAssets.list({ type: "audio", limit: 1000 }).then((res) => {
       setAudioAssets(res.items);
     }).catch(() => {});
   }, [voiceExpanded, audioAssets.length]);
@@ -95,9 +97,10 @@ export function TtsStudio() {
   // 选中音频时严格读取数据库 description 字段作为参考文本
   useEffect(() => {
     if (!selectedAssetId || selectedSource !== "voice") { setReferenceText(""); return; }
-    if (!window.studioAssets?.get) { setReferenceText(""); return; }
+    const studioAssets = getStudioAssetsBridge();
+    if (!studioAssets?.get) { setReferenceText(""); return; }
     let cancelled = false;
-    window.studioAssets.get(selectedAssetId).then((detail) => {
+    studioAssets.get(selectedAssetId).then((detail) => {
       if (cancelled) return;
       setReferenceText(detail?.description?.trim() || "");
     }).catch(() => { if (!cancelled) setReferenceText(""); });

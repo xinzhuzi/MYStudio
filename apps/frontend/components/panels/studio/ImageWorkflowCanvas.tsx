@@ -31,8 +31,8 @@ import {
   updateImageWorkflowNode,
   updateImageWorkflowNodePosition,
 } from "@/lib/studio/image-workflow";
-import { useStudioStore } from "@/stores/studio-store";
-import { useCharacterLibraryStore } from "@/stores/character-library-store";
+import { useStudioStore } from "@/stores/studio/studio-store";
+import { useCharacterLibraryStore } from "@/stores/library/character-library-store";
 import type {
   ImageWorkflowGraph,
   ImageWorkflowNode,

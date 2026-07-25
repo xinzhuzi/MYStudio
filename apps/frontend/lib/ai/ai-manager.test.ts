@@ -1,9 +1,9 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { useAPIConfigStore } from "@/stores/api-config-store";
+import { useAPIConfigStore } from "@/stores/ai/api-config-store";
 import { aiManager, resolve } from "./ai-manager";
-import type { TextCompletionMessage, TextCompletionResult } from "@/lib/api-manager/text-completion";
+import type { TextCompletionMessage, TextCompletionResult } from "@/lib/ai/text-completion";
 
 const provider = {
   id: "p1",

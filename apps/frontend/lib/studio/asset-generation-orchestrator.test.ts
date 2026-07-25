@@ -1,16 +1,20 @@
 // @vitest-environment jsdom
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { aiManager } from "@/lib/ai/ai-manager";
+import { saveImageToLocal } from "@/lib/image-storage";
 import { polishAssetPrompt } from "@/lib/ai/prompt-polisher";
-import { useCharacterLibraryStore } from "@/stores/character-library-store";
-import { useAppSettingsStore } from "@/stores/app-settings-store";
-import { useProjectStore } from "@/stores/project-store";
-import { usePropsLibraryStore } from "@/stores/props-library-store";
-import { useSceneStore } from "@/stores/scene-store";
-import { useStudioStore } from "@/stores/studio-store";
+import { useCharacterLibraryStore } from "@/stores/library/character-library-store";
+import { useAppSettingsStore } from "@/stores/app/app-settings-store";
+import { useProjectStore } from "@/stores/project/project-store";
+import { usePropsLibraryStore } from "@/stores/library/props-library-store";
+import { useSceneStore } from "@/stores/library/scene-store";
+import { useStudioStore } from "@/stores/studio/studio-store";
 import {
   applyMatchedAssets,
   generateAsset,
+  type AssetGenerationTask,
   type AssetGenerationProgress,
 } from "./asset-generation-orchestrator";
 
@@ -210,6 +214,52 @@ describe("asset-generation-orchestrator", () => {
     expect(graph?.nodes.some((node) => node.type === "generated")).toBe(true);
   });
 
+  it("keeps project asset generation failed when projectFiles.saveImage returns a failure", async () => {
+    const saveImage = vi.fn().mockResolvedValue({
+      success: false,
+      error: "项目目录不可写",
+    });
+    (window as any).projectFiles = { saveImage };
+
+    const result = await generateAsset(projectPropGenerationTask());
+
+    expect(result).toMatchObject({
+      phase: "failed",
+      error: "项目目录不可写",
+    });
+    expect(saveImage).toHaveBeenCalledOnce();
+    expect(saveImageToLocal).not.toHaveBeenCalled();
+    expect(usePropsLibraryStore.getState().getPropById("prop-1")?.imageUrl).toBe("");
+  });
+
+  it("keeps project asset generation failed when projectFiles.saveImage rejects", async () => {
+    const saveImage = vi.fn().mockRejectedValue(
+      new Error("projectFiles.saveImage IPC rejected"),
+    );
+    (window as any).projectFiles = { saveImage };
+
+    const result = await generateAsset(projectPropGenerationTask());
+
+    expect(result).toMatchObject({
+      phase: "failed",
+      error: "projectFiles.saveImage IPC rejected",
+    });
+    expect(saveImage).toHaveBeenCalledOnce();
+    expect(saveImageToLocal).not.toHaveBeenCalled();
+    expect(usePropsLibraryStore.getState().getPropById("prop-1")?.imageUrl).toBe("");
+  });
+
+  it("keeps the project bridge unavailable error without falling back to local-image", async () => {
+    const result = await generateAsset(projectPropGenerationTask());
+
+    expect(result).toMatchObject({
+      phase: "failed",
+      error: "当前环境不支持项目内资产图片保存",
+    });
+    expect(saveImageToLocal).not.toHaveBeenCalled();
+    expect(usePropsLibraryStore.getState().getPropById("prop-1")?.imageUrl).toBe("");
+  });
+
   it("does not save derivative workflow assets to the global local-image library without projectId", async () => {
     const result = await generateAsset({
       assetId: "prop-1",
@@ -224,6 +274,7 @@ describe("asset-generation-orchestrator", () => {
       phase: "failed",
       error: "衍生资产图片必须保存到当前项目",
     });
+    expect(saveImageToLocal).not.toHaveBeenCalled();
     const prop = usePropsLibraryStore.getState().getPropById("prop-1");
     expect(prop?.imageUrl).toBe("");
   });
@@ -335,4 +386,29 @@ describe("asset-generation-orchestrator", () => {
       "prop",
     );
   });
+
+  it("routes asset-library matching through the shared studio-assets bridge", () => {
+    const source = readFileSync(
+      join(process.cwd(), "frontend/lib/studio/asset-generation-orchestrator.ts"),
+      "utf8",
+    );
+
+    expect(source).toContain(
+      'import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";',
+    );
+    expect(source).toContain("getStudioAssetsBridge()?.batchMatch");
+    expect(source).not.toContain("window.studioAssets");
+  });
 });
+
+function projectPropGenerationTask(): AssetGenerationTask {
+  return {
+    assetId: "prop-1",
+    assetType: "prop",
+    projectId: "dao-project",
+    name: "断剑",
+    description: "一柄断裂的古剑",
+    isDerivative: true,
+    visualManualId: "ink",
+  };
+}

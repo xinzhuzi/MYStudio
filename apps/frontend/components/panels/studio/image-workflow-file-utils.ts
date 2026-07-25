@@ -1,9 +1,10 @@
 import { readImageAsBase64 } from "@/lib/image-storage";
+import { getProjectFilesBridge } from "@/lib/bridge/project-files";
 import { prepareImageWorkflowReferenceImages } from "@/lib/studio/image-workflow-references";
 
 export async function prepareReferenceImages(values: string[]) {
   return prepareImageWorkflowReferenceImages(values, {
-    readProjectFileAsBase64: async (url) => window.projectFiles?.readAsBase64(url),
+    readProjectFileAsBase64: async (url) => getProjectFilesBridge()?.readAsBase64(url),
     readLocalImageAsBase64: readImageAsBase64,
   });
 }

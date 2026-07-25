@@ -2,7 +2,7 @@
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 import { useEffect, useRef } from "react";
-import { usePreviewStore } from "@/stores/preview-store";
+import { usePreviewStore } from "@/stores/playback/preview-store";
 import { Video } from "lucide-react";
 
 export function PreviewPanel() {

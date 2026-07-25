@@ -9,8 +9,8 @@
  * 同时保留已生成的图片/视频 URL 不变。
  */
 
-import type { SplitScene } from '@/stores/director-store';
-import { useScriptStore } from '@/stores/script-store';
+import type { SplitScene } from '@/stores/director/director-store';
+import { useScriptStore } from '@/stores/script/script-store';
 import { calibrateShotsMultiStage, type ShotInputData, type GlobalContext, type CalibrationOptions } from './shot-calibration-stages';
 
 /**

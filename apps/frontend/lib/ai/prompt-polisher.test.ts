@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { aiManager } from "@/lib/ai/ai-manager";
-import { polishAssetPrompt } from "./prompt-polisher";
+import { polishAssetPrompt, sanitizeDaojiePrompt } from "./prompt-polisher";
 
 vi.mock("@/lib/ai/ai-manager", () => ({
   aiManager: {
@@ -118,6 +118,21 @@ describe("polishAssetPrompt", () => {
     expect(result.negativePrompt).toContain("visual noise");
     expect(result.negativePrompt).toContain("dirty texture");
     expect(result.negativePrompt).toContain("jpeg artifacts");
+  });
+
+  it("removes legacy cinematic and weighted directives from Daojie positive prompts", () => {
+    const sanitized = sanitizeDaojiePrompt(
+      "Chinese ink wash, cinematic lighting, shallow depth of field, film grain, 电影级体积雾, (masterpiece:1.2)",
+    );
+
+    expect(sanitized).toContain("even flat xuan-paper illumination");
+    expect(sanitized).toContain("clear layered ink-wash depth");
+    expect(sanitized).toContain("clean paper texture");
+    expect(sanitized).not.toContain("cinematic lighting");
+    expect(sanitized).not.toContain("shallow depth of field");
+    expect(sanitized).not.toContain("film grain");
+    expect(sanitized).not.toContain("电影级体积雾");
+    expect(sanitized).not.toContain(":1.2");
   });
 
   it("falls back to a local visual-manual prompt when text models are unavailable", async () => {

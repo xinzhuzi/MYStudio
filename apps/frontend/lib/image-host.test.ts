@@ -3,7 +3,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { uploadToImageHost } from "./image-host";
-import { useAPIConfigStore, type ImageHostProvider } from "@/stores/api-config-store";
+import { useAPIConfigStore, type ImageHostProvider } from "@/stores/ai/api-config-store";
 
 const provider = (overrides: Partial<ImageHostProvider> = {}): ImageHostProvider => ({
   id: "test-host",

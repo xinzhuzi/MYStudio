@@ -7,7 +7,7 @@ import type {
   PendingDirectorData,
   PendingSceneData,
   Tab,
-} from "@/stores/media-panel-store";
+} from "@/stores/navigation/media-panel-store";
 import type {
   ProjectBackground,
   PromptLanguage,

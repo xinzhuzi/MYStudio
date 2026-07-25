@@ -44,34 +44,34 @@ const mocks = vi.hoisted(() => {
   };
 });
 
-vi.mock("@/stores/project-store", () => ({
+vi.mock("@/stores/project/project-store", () => ({
   useProjectStore: mocks.projectStore,
 }));
-vi.mock("@/stores/script-store", () => ({
+vi.mock("@/stores/script/script-store", () => ({
   useScriptStore: mocks.scriptStore,
 }));
-vi.mock("@/stores/director-store", () => ({
+vi.mock("@/stores/director/director-store", () => ({
   useDirectorStore: mocks.directorStore,
 }));
-vi.mock("@/stores/media-store", () => ({
+vi.mock("@/stores/media/media-store", () => ({
   useMediaStore: mocks.mediaStore,
 }));
-vi.mock("@/stores/character-library-store", () => ({
+vi.mock("@/stores/library/character-library-store", () => ({
   useCharacterLibraryStore: mocks.characterStore,
 }));
-vi.mock("@/stores/scene-store", () => ({
+vi.mock("@/stores/library/scene-store", () => ({
   useSceneStore: mocks.sceneStore,
 }));
-vi.mock("@/stores/simple-timeline-store", () => ({
+vi.mock("@/stores/editing/simple-timeline-store", () => ({
   useSimpleTimelineStore: mocks.simpleTimelineStore,
 }));
-vi.mock("@/stores/sclass-store", () => ({
+vi.mock("@/stores/sclass/sclass-store", () => ({
   useSClassStore: mocks.sclassStore,
 }));
-vi.mock("@/stores/tts-store", () => ({
+vi.mock("@/stores/tts/tts-store", () => ({
   useTtsStore: mocks.ttsStore,
 }));
-vi.mock("@/stores/editing-store", () => ({
+vi.mock("@/stores/editing/editing-store", () => ({
   useEditingStore: mocks.editingStore,
 }));
 

@@ -4,9 +4,9 @@
 
 | 模式 | 风格标签 |
 |------|----------|
-| **通用多参模式（英文）** | `Chinese ink wash painting style, xianxia immortal cultivation, traditional brushwork, muted cyan-green palette, rice paper texture, cinematic composition, atmospheric depth` |
-| **通用首尾帧模式（英文）** | `Chinese ink wash painting style, xianxia immortal cultivation, traditional brushwork, muted cyan-green palette, rice paper texture, cinematic composition, atmospheric depth, shallow depth of field` |
-| **Seedance 2.0（中文）** | `水墨国风修仙，工笔线描，写意泼墨，青绿淡彩，宣纸质感，墨色层次丰富，连环画叙事感，电影构图` |
+| **通用多参模式（英文）** | `Chinese ink wash painting style, xianxia immortal cultivation, traditional brushwork, restrained mineral-color palette, rice paper texture, clear layered composition, ink-wash atmospheric perspective` |
+| **通用首尾帧模式（英文）** | `Chinese ink wash painting style, xianxia immortal cultivation, traditional brushwork, restrained mineral-color palette, rice paper texture, clear layered composition, ink-wash atmospheric perspective` |
+| **Seedance 2.0（中文）** | `水墨国风修仙，工笔线描，写意泼墨，矿物淡彩，宣纸质感，墨色层次丰富，连环画叙事感，清楚前中远景构图` |
 | **Seedance 1.5（中文）** | `水墨国风，工笔线描，写意晕染，青绿淡彩，宣纸肌理，修仙题材，灵气流转，动态张力` |
 
 ## 视频特有约束
@@ -37,8 +37,8 @@
 
 ### 正向质量锚点
 
-水墨国风修仙，Chinese ink wash xianxia，gongbi linework，rice paper texture，muted cyan-green palette，layered ink wash，spiritual aura as ink diffusion，cinematic composition，best quality，high detailed。
-视频提示词必须补充镜头运动、主体运动、起承转合、景深变化、光影连续性和首尾帧一致性；补充 cinematic motion, temporal continuity, stable composition, consistent subject identity。
+水墨国风修仙，Chinese ink wash xianxia，gongbi linework，rice paper texture，restrained mineral-color palette，layered ink wash，spiritual aura as ink diffusion，clear layered composition，clean finished image，readable detail。
+视频提示词必须补充镜头运动、主体运动、起承转合、淡墨空气透视变化、光影连续性和首尾帧一致性；补充 ink-wash motion, temporal continuity, stable composition, consistent subject identity。
 
 ### 反向规避提示词
 
@@ -50,4 +50,3 @@ flicker, jitter, morphing face, identity drift, inconsistent costume, warped han
 - 正向提示词只写画面主体、风格、构图、光影、材质、动作和质量锚点；不要把“不要/禁止/严禁”混入正向主体。
 - 反向提示词只写低质量、错媒介、错风格、结构错误、身份漂移、文字水印、裁切和画面伪影等排除项。
 - 若调用方要求中文输出，保留中文风格术语；若调用方要求英文输出，可翻译锚点，但不得改变本风格的媒介边界。
-

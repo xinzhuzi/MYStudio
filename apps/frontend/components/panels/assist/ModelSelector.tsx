@@ -12,9 +12,9 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { useAPIConfigStore } from '@/stores/api-config-store';
+import { useAPIConfigStore } from '@/stores/ai/api-config-store';
 import { extractBrandFromModel, getBrandInfo } from '@/lib/brand-mapping';
-import { getModelDisplayName } from '@/lib/freedom/model-display-names';
+import { getModelDisplayName } from '@/lib/assist/model-display-names';
 
 interface ModelSelectorProps {
   type: 'image' | 'video';

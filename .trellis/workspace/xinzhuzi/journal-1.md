@@ -75,6 +75,27 @@ Closed the three read-only SQLite handles in the Daojie workflow helper with
 [OPEN] Two real-media acceptance items remain frozen; the late-event
 cancellation product decision is also intentionally unresolved.
 
+## Session 4: Wave152 media acceptance rerun
+
+**Date**: 2026-07-25
+**Task**: Freshly attempt the two remaining code-health acceptance items
+
+### Testing
+
+- [BLOCKED] Background Daojie auto-video: six stages and 43/43 storyboards
+  observed, then continuity guard failed with 172 issues; empty final path and
+  no timeline evidence.
+- [BLOCKED] Direct Daojie video: preflight reported 0 approved / 43 pending /
+  0 rejected / 0 stale and stopped before provider execution.
+- [OK] Fresh durable reports were written; no guard or approval was bypassed.
+- [OK] Stale Trellis manifest paths were mapped to current modules; validation
+  passes with 435 implement / 440 check entries.
+
+### Status
+
+[OPEN] Both acceptance items remain open pending legitimate storyboard review
+writeback and a subsequent real-media run.
+
 
 ## Session 2: Close paid retry review without Git
 

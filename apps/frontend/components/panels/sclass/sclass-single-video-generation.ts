@@ -5,7 +5,7 @@ import { buildVideoPrompt } from "@/lib/generation/prompt-builder";
 import { saveVideoToLocal } from "@/lib/image-storage";
 import { persistSceneImage } from "@/lib/utils/image-persist";
 import { convertToHttpUrl, extractLastFrameFromVideo, isContentModerationError } from "@/lib/ai/video-generator";
-import type { DirectorProjectData, DirectorStore, SplitScene } from "@/stores/director-store";
+import type { DirectorProjectData, DirectorStore, SplitScene } from "@/stores/director/director-store";
 import { toast } from "sonner";
 
 type SClassSingleVideoGenerationOptions = {

@@ -1,4 +1,4 @@
-import type { ShotGroup } from "@/stores/sclass-store";
+import type { ShotGroup } from "@/stores/sclass/sclass-store";
 import { toast } from "sonner";
 import type { BatchGenerationProgress, GroupGenerationResult } from "./sclass-generation-types";
 

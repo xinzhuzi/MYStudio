@@ -11,9 +11,9 @@
  */
 
 import { useEffect } from "react";
-import { useDirectorStore, useOverallProgress, useIsGenerating, useActiveDirectorProject } from "@/stores/director-store";
-import { useProjectStore } from "@/stores/project-store";
-import { useMediaPanelStore } from "@/stores/media-panel-store";
+import { useDirectorStore, useOverallProgress, useIsGenerating, useActiveDirectorProject } from "@/stores/director/director-store";
+import { useProjectStore } from "@/stores/project/project-store";
+import { useMediaPanelStore } from "@/stores/navigation/media-panel-store";
 import { ScreenplayInput } from "./screenplay-input";
 import { StoryboardPreview } from "./storyboard-preview";
 import { SplitScenes } from "./split-scenes";
@@ -25,8 +25,8 @@ import { Play, Square, RotateCcw, Settings, Trash2, ChevronLeft, ChevronRight } 
 import { Separator } from "@/components/ui/separator";
 // ResizablePanelGroup not needed here - using global layout
 import { useState, useCallback } from "react";
-import { useAppSettingsStore } from "@/stores/app-settings-store";
-import { useMediaStore } from "@/stores/media-store";
+import { useAppSettingsStore } from "@/stores/app/app-settings-store";
+import { useMediaStore } from "@/stores/media/media-store";
 import { generateStoryboardImage } from "@/lib/storyboard";
 import { aiManager } from "@/lib/ai/ai-manager";
 import { toast } from "sonner";

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { SplitScene } from "@/stores/director-store";
+import type { SplitScene } from "@/stores/director/director-store";
 import { runSClassSingleShotGeneration } from "./sclass-single-shot-generation";
 
 const mocks = vi.hoisted(() => ({
@@ -23,7 +23,7 @@ vi.mock("@/lib/ai/video-generator", () => ({
   buildImageWithRoles: mocks.buildImageWithRoles,
   saveVideoLocally: mocks.saveVideoLocally,
 }));
-vi.mock("@/stores/director-store", () => ({
+vi.mock("@/stores/director/director-store", () => ({
   useDirectorStore: {
     getState: () => ({
       activeProjectId: "project-1",

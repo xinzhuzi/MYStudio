@@ -33,7 +33,7 @@ import {
   Check,
   X,
 } from "lucide-react";
-import type { TrailerDuration, TrailerConfig } from "@/stores/director-store";
+import type { TrailerDuration, TrailerConfig } from "@/stores/director/director-store";
 import type { TrailerGenerationOptions } from "@/lib/script/trailer-service";
 import { EpisodeTreeTrailerPanel } from "./episode-tree-trailer-panel";
 import { EpisodeTreeEpisodeDialog } from "./episode-tree-episode-dialog";

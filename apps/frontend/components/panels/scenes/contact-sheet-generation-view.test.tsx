@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ComponentProps } from "react";
 
-vi.mock("@/components/ui/style-picker", () => ({
+vi.mock("@/components/features/visual-style/style-picker", () => ({
   StylePicker: ({ value }: { value: string }) => <button type="button">风格:{value}</button>,
 }));
 

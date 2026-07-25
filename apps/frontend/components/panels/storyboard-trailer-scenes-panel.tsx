@@ -19,7 +19,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import type { SplitScene } from "@/stores/director-store";
+import type { SplitScene } from "@/stores/director/director-store";
 import { StoryboardConfigToolbar } from "./storyboard-config-toolbar";
 import type { StoryboardTrailerToolbarProps } from "./storyboard-config-toolbar-types";
 

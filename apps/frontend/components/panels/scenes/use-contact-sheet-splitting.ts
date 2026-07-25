@@ -1,8 +1,8 @@
 import { useCallback } from "react";
 import type { ChangeEvent } from "react";
-import type { PendingViewpointData, ContactSheetPromptSet } from "@/stores/media-panel-store";
+import type { PendingViewpointData, ContactSheetPromptSet } from "@/stores/navigation/media-panel-store";
 import type { SceneViewpoint } from "@/lib/script/scene-viewpoint-generator";
-import { useAppSettingsStore } from "@/stores/app-settings-store";
+import { useAppSettingsStore } from "@/stores/app/app-settings-store";
 import { splitStoryboardImage } from "@/lib/storyboard/image-splitter";
 import { toast } from "sonner";
 import {

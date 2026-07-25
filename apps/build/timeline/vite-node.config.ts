@@ -9,6 +9,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(appsRoot, "frontend"),
+      "@rendering": path.resolve(appsRoot, "rendering"),
     },
   },
 });

@@ -8,7 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { FONT_OPTIONS, FontFamily } from "@/constants/font-constants";
+import { FONT_OPTIONS, FontFamily } from "@/lib/constants/font-constants";
 
 interface FontPickerProps {
   defaultValue?: FontFamily;

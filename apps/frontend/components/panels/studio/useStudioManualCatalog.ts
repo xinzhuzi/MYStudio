@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import { getStudioSkillsBridge } from "@/lib/bridge/studio-skills";
+import { getStudioVisualManualsBridge } from "@/lib/bridge/studio-visual-manuals";
 import {
   buildStudioManualsFromSkillFiles,
   listStudioManualPresets,
@@ -16,21 +18,21 @@ export function useStudioManualCatalog() {
   );
   const [storedManualCatalog, setStoredManualCatalog] =
     useState<StudioManualCatalog | null>(null);
-  const usesStoredManualCatalog =
-    typeof window !== "undefined" && Boolean(window.studioSkills?.list);
+  const usesStoredManualCatalog = Boolean(getStudioSkillsBridge()?.list);
   const manualCatalog =
     storedManualCatalog ??
     (usesStoredManualCatalog ? {} : bundledManualCatalog);
 
   useEffect(() => {
-    const studioSkills = window.studioSkills;
+    const studioSkills = getStudioSkillsBridge();
     if (!studioSkills?.list || !studioSkills.readText) return;
+    const studioVisualManuals = getStudioVisualManualsBridge();
     let cancelled = false;
     const loadStoredManualCatalog = async () => {
       try {
         const [files, visualManuals] = await Promise.all([
           studioSkills.list(),
-          window.studioVisualManuals?.list?.() ?? Promise.resolve([]),
+          studioVisualManuals?.list?.() ?? Promise.resolve([]),
         ]);
         const manualFiles = files.filter((file) =>
           isManualSkillMarkdownPath(file.relativePath),

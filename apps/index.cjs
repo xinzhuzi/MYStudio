@@ -110,7 +110,7 @@ electron.contextBridge.exposeInMainWorld("studioRenderer", {
   renderTrackCandidate: (plan) => electron.ipcRenderer.invoke("studio-render-track-candidate", plan),
   mergeEpisode: (plan) => electron.ipcRenderer.invoke("studio-merge-episode", plan),
   probeMedia: (filePath) => electron.ipcRenderer.invoke("studio-probe-media-evidence", filePath),
-  renderTimeline: (plan) => electron.ipcRenderer.invoke("studio-timeline-render", plan),
+  renderTimeline: (request) => electron.ipcRenderer.invoke("studio-timeline-render", request),
   cancelTimelineRender: (jobId) => electron.ipcRenderer.invoke("studio-timeline-render-cancel", jobId),
   onTimelineRenderProgress(listener) {
     const wrapped = (_event, progress) => listener(progress);

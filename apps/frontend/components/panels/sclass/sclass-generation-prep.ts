@@ -1,12 +1,12 @@
-import type { Character } from "@/stores/character-library-store";
-import type { SplitScene } from "@/stores/director-store";
-import type { Scene } from "@/stores/scene-store";
+import type { Character } from "@/stores/library/character-library-store";
+import type { SplitScene } from "@/stores/director/director-store";
+import type { Scene } from "@/stores/library/scene-store";
 import type {
   AssetRef,
   SClassAspectRatio,
   SClassDuration,
   ShotGroup,
-} from "@/stores/sclass-store";
+} from "@/stores/sclass/sclass-store";
 import {
   buildGroupPrompt,
   mergeToGridImage,

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import type { SceneGenerationPrefs } from "@/stores/scene-store";
+import type { SceneGenerationPrefs } from "@/stores/library/scene-store";
 import { useGenerationPreferences } from "./use-generation-preferences";
 
 const defaults: SceneGenerationPrefs = {

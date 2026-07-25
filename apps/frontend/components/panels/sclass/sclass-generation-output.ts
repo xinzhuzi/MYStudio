@@ -6,7 +6,7 @@ import type {
   SClassDuration,
   SClassResolution,
   ShotGroup,
-} from "@/stores/sclass-store";
+} from "@/stores/sclass/sclass-store";
 
 type ConvertToHttpUrl = typeof convertToHttpUrl;
 

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { ScriptImportStatus } from "@/stores/script-store";
+import type { ScriptImportStatus } from "@/stores/script/script-store";
 import type { EpisodeRawScript } from "@/types/script";
 import {
   getMissingSynopsisEpisodes,

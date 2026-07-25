@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { SplitScene } from "@/stores/director-store";
+import type { SplitScene } from "@/stores/director/director-store";
 import {
   allocateStoryboardAngles,
   buildMergedFrameTasks,

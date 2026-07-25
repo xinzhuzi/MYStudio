@@ -30,6 +30,8 @@
     "typecheck": "tsc --noEmit -p frontend/config/tsconfig.json",
     "lint": "eslint . --config frontend/config/eslint.cjs --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "test": "vitest run --config frontend/config/vite.config.ts",
+    "remotion:versions": "node ./build/remotion/verify-versions.mjs && remotion versions",
+    "remotion:upgrade": "node ./build/remotion/upgrade.mjs",
     "smoke:desktop": "node ./build/smoke/smoke-desktop.mjs",
     "smoke:workflow:open": "node ./build/smoke/open-workflow-smoke-app.mjs",
     "smoke:workflow:run": "node ./build/smoke/run-visible-workflow-smoke.mjs",
@@ -64,6 +66,9 @@
     "@radix-ui/react-switch": "^1.2.6",
     "@radix-ui/react-tabs": "^1.1.13",
     "@radix-ui/react-tooltip": "^1.2.8",
+    "@remotion/media": "4.0.499",
+    "@remotion/player": "4.0.499",
+    "@remotion/renderer": "4.0.499",
     "@xyflow/react": "^12.11.1",
     "ai": "^6.0.67",
     "class-variance-authority": "^0.7.1",
@@ -73,7 +78,7 @@
     "input-otp": "^1.4.2",
     "lucide-react": "^0.562.0",
     "md-editor-rt": "4.21.4",
-    "mediabunny": "^1.37.0",
+    "mediabunny": "1.50.8",
     "motion": "^12.35.0",
     "nanoid": "^5.1.6",
     "next-themes": "^0.4.6",
@@ -88,6 +93,7 @@
     "react-resizable-panels": "^2.1.7",
     "recharts": "^3.7.0",
     "remark-gfm": "^4.0.1",
+    "remotion": "4.0.499",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.4.0",
     "vaul": "^1.1.2",
@@ -97,6 +103,8 @@
     "zustand": "^5.0.10"
   },
   "devDependencies": {
+    "@remotion/bundler": "4.0.499",
+    "@remotion/cli": "4.0.499",
     "@tailwindcss/postcss": "^4.1.18",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/react": "^16.3.2",
@@ -124,5 +132,8 @@
     "vite-plugin-electron-renderer": "^0.14.6",
     "vitest": "^1.6.1"
   },
-  "main": "out/main/index.cjs"
+  "main": "out/main/index.cjs",
+  "optionalDependencies": {
+    "@remotion/compositor-darwin-arm64": "4.0.499"
+  }
 }

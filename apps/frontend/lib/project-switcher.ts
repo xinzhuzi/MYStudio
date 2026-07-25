@@ -12,16 +12,16 @@
  * to ensure data consistency across stores.
  */
 
-import { useProjectStore } from '@/stores/project-store';
-import { useScriptStore } from '@/stores/script-store';
-import { useDirectorStore } from '@/stores/director-store';
-import { useMediaStore } from '@/stores/media-store';
-import { useCharacterLibraryStore } from '@/stores/character-library-store';
-import { useSceneStore } from '@/stores/scene-store';
-import { useSimpleTimelineStore } from '@/stores/simple-timeline-store';
-import { useSClassStore } from '@/stores/sclass-store';
-import { useTtsStore } from '@/stores/tts-store';
-import { useEditingStore } from '@/stores/editing-store';
+import { useProjectStore } from '@/stores/project/project-store';
+import { useScriptStore } from '@/stores/script/script-store';
+import { useDirectorStore } from '@/stores/director/director-store';
+import { useMediaStore } from '@/stores/media/media-store';
+import { useCharacterLibraryStore } from '@/stores/library/character-library-store';
+import { useSceneStore } from '@/stores/library/scene-store';
+import { useSimpleTimelineStore } from '@/stores/editing/simple-timeline-store';
+import { useSClassStore } from '@/stores/sclass/sclass-store';
+import { useTtsStore } from '@/stores/tts/tts-store';
+import { useEditingStore } from '@/stores/editing/editing-store';
 
 /**
  * Switch to a different project. Saves current project data and loads new project data.

@@ -12,14 +12,14 @@ import { useState, useEffect } from "react";
 import { 
   useSceneStore,
   type Scene,
-} from "@/stores/scene-store";
-import { useMediaPanelStore } from "@/stores/media-panel-store";
-import { useScriptStore, useActiveScriptProject } from "@/stores/script-store";
+} from "@/stores/library/scene-store";
+import { useMediaPanelStore } from "@/stores/navigation/media-panel-store";
+import { useScriptStore, useActiveScriptProject } from "@/stores/script/script-store";
 import type { PromptLanguage } from "@/types/script";
-import { useProjectStore } from "@/stores/project-store";
-import { useMediaStore } from "@/stores/media-store";
+import { useProjectStore } from "@/stores/project/project-store";
+import { useMediaStore } from "@/stores/media/media-store";
 import { generateMultiPageContactSheetData, type SceneViewpoint } from "@/lib/script/scene-viewpoint-generator";
-import type { PendingViewpointData, ContactSheetPromptSet } from "@/stores/media-panel-store";
+import type { PendingViewpointData, ContactSheetPromptSet } from "@/stores/navigation/media-panel-store";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {

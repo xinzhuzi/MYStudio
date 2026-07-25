@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { AssetsTab } from "./AssetsTab";
 import { ScriptAssetGenerationTab } from "./ScriptAssetGenerationTab";
-import { useStudioStore } from "@/stores/studio-store";
+import { useStudioStore } from "@/stores/studio/studio-store";
 
 export function ScriptAssetManagementTab({
   novelChapters,

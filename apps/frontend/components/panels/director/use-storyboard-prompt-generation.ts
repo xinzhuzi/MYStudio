@@ -2,7 +2,7 @@ import { useCallback } from "react";
 import { toast } from "sonner";
 import { aiManager } from "@/lib/ai/ai-manager";
 import { generateScenePrompts } from "@/lib/storyboard/scene-prompt-generator";
-import type { DirectorProjectData, DirectorStore, SplitScene } from "@/stores/director-store";
+import type { DirectorProjectData, DirectorStore, SplitScene } from "@/stores/director/director-store";
 
 type UseStoryboardPromptGenerationOptions = {
   storyboardImage: string | null;

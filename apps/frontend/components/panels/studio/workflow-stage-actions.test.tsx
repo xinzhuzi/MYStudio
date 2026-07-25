@@ -8,12 +8,12 @@ import { ScriptAssetManagementTab } from "./ScriptAssetManagementTab";
 import { ScriptAssetGenerationTab } from "./ScriptAssetGenerationTab";
 import { WorkbenchTab } from "./WorkbenchTab";
 import { collectDerivedAssetGenerationTasks, useProductionPlanningActions } from "./useProductionPlanningActions";
-import { useProjectStore } from "@/stores/project-store";
-import { useStudioStore } from "@/stores/studio-store";
-import { useCharacterLibraryStore } from "@/stores/character-library-store";
-import { usePropsLibraryStore } from "@/stores/props-library-store";
-import { useSceneStore } from "@/stores/scene-store";
-import { useTtsStore } from "@/stores/tts-store";
+import { useProjectStore } from "@/stores/project/project-store";
+import { useStudioStore } from "@/stores/studio/studio-store";
+import { useCharacterLibraryStore } from "@/stores/library/character-library-store";
+import { usePropsLibraryStore } from "@/stores/library/props-library-store";
+import { useSceneStore } from "@/stores/library/scene-store";
+import { useTtsStore } from "@/stores/tts/tts-store";
 import { DAOJIE_VISUAL_MANUAL_ID } from "@/lib/studio/visual-manual-classification";
 import {
   formatScriptPlanContext,
@@ -193,7 +193,7 @@ describe("workflow stage action surfaces", () => {
       ],
       scriptPlans: [{ id: "plan-1", episodeId: "chapter-1" }],
     } as unknown as ReturnType<
-      typeof import("@/stores/studio-store").useStudioStore.getState
+      typeof import("@/stores/studio/studio-store").useStudioStore.getState
     >;
 
     expect(resolveProductionEpisodeId(store)).toBe("chapter-2");
@@ -501,6 +501,15 @@ describe("workflow stage action surfaces", () => {
     expect(tasks.characterVariationTasks[0]?.prompt).toContain("不要生成单张全身插画");
     expect(tasks.characterVariationTasks[0]?.prompt).toContain("禁止写实摄影");
     expect(tasks.characterVariationTasks[0]?.prompt).toContain("禁止3D写实渲染");
+    expect(tasks.characterVariationTasks[0]?.prompt).toContain("低视觉噪点");
+    expect(tasks.characterVariationTasks[0]?.prompt).toContain("denoised details");
+    expect(tasks.characterVariationTasks[0]?.prompt).toContain("clear readable surfaces");
+    expect(tasks.characterVariationTasks[0]?.prompt).toContain("clean paper texture");
+    expect(tasks.characterVariationTasks[0]?.prompt).toContain("controlled ink wash");
+    expect(tasks.characterVariationTasks[0]?.prompt).toContain("dirty/muddy texture");
+    expect(tasks.characterVariationTasks[0]?.prompt).toContain("compression artifacts/jpeg artifacts");
+    expect(tasks.characterVariationTasks[0]?.prompt).toContain("oversharpening halos");
+    expect(tasks.characterVariationTasks[0]?.prompt).toContain("random stains");
     expect(tasks.storeTasks).toEqual([
       expect.objectContaining({
         assetId: "scene-derived",

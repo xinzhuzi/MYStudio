@@ -1,7 +1,7 @@
 import type { DerivedAsset, ScriptPlan } from "@/types/studio";
-import { useCharacterLibraryStore } from "@/stores/character-library-store";
-import { usePropsLibraryStore, type PropItem } from "@/stores/props-library-store";
-import { useSceneStore } from "@/stores/scene-store";
+import { useCharacterLibraryStore } from "@/stores/library/character-library-store";
+import { usePropsLibraryStore, type PropItem } from "@/stores/library/props-library-store";
+import { useSceneStore } from "@/stores/library/scene-store";
 
 export interface DerivedCharacterSink {
   addVariation: (

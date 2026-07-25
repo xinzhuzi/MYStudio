@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, renderHook, waitFor } from "@testing-library/react";
-import { useCharacterLibraryStore } from "@/stores/character-library-store";
-import { useProjectStore } from "@/stores/project-store";
-import { usePropsLibraryStore } from "@/stores/props-library-store";
-import { useSceneStore } from "@/stores/scene-store";
+import { useCharacterLibraryStore } from "@/stores/library/character-library-store";
+import { useProjectStore } from "@/stores/project/project-store";
+import { usePropsLibraryStore } from "@/stores/library/props-library-store";
+import { useSceneStore } from "@/stores/library/scene-store";
 import { useProductionFlowModel } from "./useProductionFlowModel";
 
 afterEach(() => {

@@ -8,8 +8,8 @@ import type {
   StoryboardItem,
   StudioWorkflowConfig,
 } from "@/types/studio";
-import type { EditingStore } from "@/stores/editing-store";
-import type { TtsProjectState } from "@/stores/tts-store";
+import type { EditingStore } from "@/stores/editing/editing-store";
+import type { TtsProjectState } from "@/stores/tts/tts-store";
 
 export interface WorkflowSmokeStageEvidenceInput {
   stageId: string;

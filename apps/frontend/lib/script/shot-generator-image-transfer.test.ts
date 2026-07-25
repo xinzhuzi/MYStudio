@@ -10,7 +10,7 @@ vi.mock('@/lib/ai/image-transfer', () => ({
 }));
 
 vi.mock('@/lib/ai/ai-manager', () => ({ aiManager: { imageGrid: vi.fn() } }));
-vi.mock('@/stores/app-settings-store', () => ({
+vi.mock('@/stores/app/app-settings-store', () => ({
   useAppSettingsStore: { getState: () => ({ imageGenerationSettings: {} }) },
 }));
 

@@ -36,11 +36,11 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { toast } from "sonner";
-import type { SplitScene } from "@/stores/director-store";
-import type { Character } from "@/stores/character-library-store";
-import type { Scene } from "@/stores/scene-store";
-import type { ShotGroup, AssetRef } from "@/stores/sclass-store";
-import { useSClassStore } from "@/stores/sclass-store";
+import type { SplitScene } from "@/stores/director/director-store";
+import type { Character } from "@/stores/library/character-library-store";
+import type { Scene } from "@/stores/library/scene-store";
+import type { ShotGroup, AssetRef } from "@/stores/sclass/sclass-store";
+import { useSClassStore } from "@/stores/sclass/sclass-store";
 import {
   collectCharacterRefs,
   collectSceneRefs,

@@ -1,7 +1,7 @@
 "use client";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useFreedomStore, type StudioMode } from '@/stores/freedom-store';
+import { useFreedomStore, type StudioMode } from '@/stores/assist/freedom-store';
 import { ImageStudio } from './ImageStudio';
 import { VideoStudio } from './VideoStudio';
 import { CinemaStudio } from './CinemaStudio';

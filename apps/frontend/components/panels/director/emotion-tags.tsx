@@ -9,7 +9,7 @@
  */
 
 import { useState } from "react";
-import { EMOTION_PRESETS, type EmotionTag } from "@/stores/director-store";
+import { EMOTION_PRESETS, type EmotionTag } from "@/stores/director/director-store";
 import { Button } from "@/components/ui/button";
 import { X, Plus, GripVertical } from "lucide-react";
 import { cn } from "@/lib/utils";

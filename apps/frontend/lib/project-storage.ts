@@ -10,8 +10,8 @@
 
 import type { StateStorage } from 'zustand/middleware';
 import { fileStorage } from './indexed-db-storage';
-import { useProjectStore } from '@/stores/project-store';
-import { useAppSettingsStore } from '@/stores/app-settings-store';
+import { useProjectStore } from '@/stores/project/project-store';
+import { useAppSettingsStore } from '@/stores/app/app-settings-store';
 
 // ==================== Helpers ====================
 

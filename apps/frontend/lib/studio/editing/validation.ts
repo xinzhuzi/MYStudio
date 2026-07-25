@@ -15,6 +15,10 @@ import {
   getEditingEffectDefinition,
   isEditingEffectId,
 } from "./effect-registry";
+import {
+  validateTimelineAudioPostProcessEvidence,
+  validateTimelineRendererEvidence,
+} from "@rendering/contracts/timeline-renderer";
 
 const TRACK_KINDS = new Set([
   "video",
@@ -661,11 +665,47 @@ export function validateTimelineRenderRecord(
     requiredString(evidence.filterGraphPath, issues, "$.evidence.filterGraphPath");
     requiredString(evidence.logPath, issues, "$.evidence.logPath");
     requiredString(evidence.ffprobePath, issues, "$.evidence.ffprobePath");
+    if (evidence.renderer !== undefined) {
+      appendRendererContractIssues(
+        validateTimelineRendererEvidence(evidence.renderer),
+        issues,
+        "$.evidence.renderer",
+        "editing.render_evidence.renderer",
+      );
+    }
+    if (evidence.audioPostProcess !== undefined) {
+      appendRendererContractIssues(
+        validateTimelineAudioPostProcessEvidence(evidence.audioPostProcess),
+        issues,
+        "$.evidence.audioPostProcess",
+        "editing.render_evidence.audio_postprocess",
+      );
+    }
   }
 
   return issues.length > 0
     ? { success: false, issues }
     : { success: true, value: value as unknown as TimelineRenderRecord };
+}
+
+function appendRendererContractIssues(
+  result: ReturnType<
+    | typeof validateTimelineRendererEvidence
+    | typeof validateTimelineAudioPostProcessEvidence
+  >,
+  issues: EditingValidationIssue[],
+  path: string,
+  code: string,
+): void {
+  if (result.success) return;
+  result.issues.forEach((contractIssue) => {
+    issue(
+      issues,
+      code,
+      contractIssue.path === "$" ? path : `${path}.${contractIssue.path}`,
+      contractIssue.message,
+    );
+  });
 }
 
 function validateEffectTarget(

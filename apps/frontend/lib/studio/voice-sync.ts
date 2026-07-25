@@ -1,5 +1,5 @@
 import { getDefaultModelSizeForEngine } from "@/lib/tts/voice-profile-capabilities";
-import { useTtsStore } from "@/stores/tts-store";
+import { useTtsStore } from "@/stores/tts/tts-store";
 import type { ProjectVoiceBinding, VoiceProfile } from "@/types/tts";
 import type { VoiceAssignment } from "./voice-assigner";
 

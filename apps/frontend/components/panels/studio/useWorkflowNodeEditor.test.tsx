@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, renderHook } from "@testing-library/react";
-import { useStudioStore } from "@/stores/studio-store";
+import { useStudioStore } from "@/stores/studio/studio-store";
 import { useWorkflowNodeEditor } from "./useWorkflowNodeEditor";
 import {
   PRODUCTION_FLOW_EDGES,

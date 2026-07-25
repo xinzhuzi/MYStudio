@@ -11,9 +11,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { StylePicker } from "@/components/ui/style-picker";
+import { StylePicker } from "@/components/features/visual-style/style-picker";
 import { Textarea } from "@/components/ui/textarea";
-import { ATMOSPHERE_PRESETS, TIME_PRESETS } from "@/stores/scene-store";
+import { ATMOSPHERE_PRESETS, TIME_PRESETS } from "@/stores/library/scene-store";
 
 interface SceneGenerationFormProps {
   name: string;

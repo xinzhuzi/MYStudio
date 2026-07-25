@@ -114,12 +114,14 @@ def _compact_medium_lock(asset_kind: str) -> str:
             "石阶、栈道、藤筐、船体、木桩与缆绳以细密连续白描和铁线描定形，"
             "再用透明薄层矿物色分染与罩染；远山、河雾和水面降低线条密度，主体密、背景疏。"
             "不得继承参考图的灰白媒介、宽笔刷明暗或颗粒化材质。"
+            "保持 low visual noise、denoised details、clear readable surfaces、clean paper texture 与 controlled ink wash。"
         )
     return (
         "daojie-gongbi-v2《道劫》2D彩色工笔水墨；媒介规则优先于参考图中的数字渲染。"
         "脸、手、发丝、衣缘、接缝、衣褶和脚部以细密连续白描和铁线描定形，"
         "再用透明薄层矿物色分染与罩染，主体密、背景疏。衣物完整可穿，服装边缘、"
         "闭合接缝与裤脚清楚；不得继承参考图的灰白媒介、数字明暗或污损材质。"
+        "保持 low visual noise、denoised details、clear readable surfaces、clean paper texture 与 controlled ink wash。"
     )
 
 

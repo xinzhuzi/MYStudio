@@ -4,7 +4,7 @@ import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
 import { getApiKeyCount } from "@/lib/api-key-manager";
-import type { ImageHostProvider } from "@/stores/api-config-store";
+import type { ImageHostProvider } from "@/stores/ai/api-config-store";
 
 type ImageHostSettingsTabProps = {
   providers: ImageHostProvider[];

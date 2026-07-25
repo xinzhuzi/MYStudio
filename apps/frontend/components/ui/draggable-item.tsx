@@ -14,7 +14,7 @@ import { ReactNode, useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { usePlaybackStore } from "@/stores/playback-store";
+import { usePlaybackStore } from "@/stores/playback/playback-store";
 import { DragData } from "@/types/timeline";
 
 export interface DraggableMediaItemProps {

@@ -10,8 +10,8 @@
  */
 
 import { useState, useRef, useEffect } from "react";
-import type { AIScene, SceneProgress } from "@opencut/ai-core";
-import { useDirectorStore } from "@/stores/director-store";
+import type { AIScene, SceneProgress } from "@/lib/ai/core";
+import { useDirectorStore } from "@/stores/director/director-store";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";

@@ -3,9 +3,9 @@ import { aiManager } from "@/lib/ai/ai-manager";
 import { saveImageToLocal } from "@/lib/image-storage";
 import type { SceneViewpoint } from "@/lib/script/scene-viewpoint-generator";
 import { splitStoryboardImage } from "@/lib/storyboard/image-splitter";
-import { useAppSettingsStore } from "@/stores/app-settings-store";
-import type { ContactSheetPromptSet, PendingViewpointData } from "@/stores/media-panel-store";
-import { useSceneStore, type Scene } from "@/stores/scene-store";
+import { useAppSettingsStore } from "@/stores/app/app-settings-store";
+import type { ContactSheetPromptSet, PendingViewpointData } from "@/stores/navigation/media-panel-store";
+import { useSceneStore, type Scene } from "@/stores/library/scene-store";
 import type { ScriptScene, Shot } from "@/types/script";
 import { toast } from "sonner";
 import {

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Scene } from "@/stores/scene-store";
+import type { Scene } from "@/stores/library/scene-store";
 
 const mocks = vi.hoisted(() => ({
   featureConfig: vi.fn(),
@@ -21,10 +21,10 @@ vi.mock("@/lib/ai/ai-manager", () => ({
 }));
 vi.mock("@/lib/storyboard/image-splitter", () => ({ splitStoryboardImage: mocks.splitStoryboardImage }));
 vi.mock("@/lib/image-storage", () => ({ saveImageToLocal: mocks.saveImageToLocal }));
-vi.mock("@/stores/app-settings-store", () => ({
+vi.mock("@/stores/app/app-settings-store", () => ({
   useAppSettingsStore: { getState: () => ({ imageGenerationSettings: { defaultResolution: "2K" } }) },
 }));
-vi.mock("@/stores/scene-store", () => ({
+vi.mock("@/stores/library/scene-store", () => ({
   useSceneStore: { getState: () => ({ scenes: mocks.scenes }) },
 }));
 vi.mock("sonner", () => ({ toast: mocks.toast }));

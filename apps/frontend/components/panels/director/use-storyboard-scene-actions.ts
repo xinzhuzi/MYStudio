@@ -8,7 +8,7 @@ import {
   type ShotSizeType,
   type SoundEffectTag,
   type SplitScene,
-} from "@/stores/director-store";
+} from "@/stores/director/director-store";
 
 type UseStoryboardSceneActionsOptions = {
   scenes: Array<Pick<SplitScene, "id" | "characterVariationMap">>;

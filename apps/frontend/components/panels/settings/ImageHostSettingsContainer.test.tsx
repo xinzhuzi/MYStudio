@@ -2,7 +2,7 @@
 
 import { act, cleanup, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { ImageHostProvider } from "@/stores/api-config-store";
+import type { ImageHostProvider } from "@/stores/ai/api-config-store";
 import { useImageHostSettings } from "./ImageHostSettingsContainer";
 
 const mocks = vi.hoisted(() => ({
@@ -17,7 +17,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@/lib/image-host", () => ({ uploadToImageHost: mocks.upload }));
 vi.mock("sonner", () => ({ toast: { success: mocks.success, error: mocks.error } }));
-vi.mock("@/stores/api-config-store", () => ({
+vi.mock("@/stores/ai/api-config-store", () => ({
   isVisibleImageHostProvider: () => true,
   useAPIConfigStore: () => ({
     imageHostProviders: [mocks.provider],

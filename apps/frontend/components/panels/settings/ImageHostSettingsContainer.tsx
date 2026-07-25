@@ -1,12 +1,12 @@
 import { useMemo, useState } from "react";
-import { AddImageHostDialog } from "@/components/image-host-manager/AddImageHostDialog";
-import { EditImageHostDialog } from "@/components/image-host-manager/EditImageHostDialog";
+import { AddImageHostDialog } from "./image-host/AddImageHostDialog";
+import { EditImageHostDialog } from "./image-host/EditImageHostDialog";
 import { uploadToImageHost } from "@/lib/image-host";
 import {
   isVisibleImageHostProvider,
   useAPIConfigStore,
   type ImageHostProvider,
-} from "@/stores/api-config-store";
+} from "@/stores/ai/api-config-store";
 import { toast } from "sonner";
 import { ImageHostSettingsTab } from "./ImageHostSettingsTab";
 

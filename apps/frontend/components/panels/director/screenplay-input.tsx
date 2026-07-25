@@ -11,11 +11,11 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { useDirectorStore, useActiveDirectorProject } from "@/stores/director-store";
-import { useAPIConfigStore } from "@/stores/api-config-store";
-import { useCharacterLibraryStore, type Character } from "@/stores/character-library-store";
-import { useAppSettingsStore } from "@/stores/app-settings-store";
-import { useProjectStore } from "@/stores/project-store";
+import { useDirectorStore, useActiveDirectorProject } from "@/stores/director/director-store";
+import { useAPIConfigStore } from "@/stores/ai/api-config-store";
+import { useCharacterLibraryStore, type Character } from "@/stores/library/character-library-store";
+import { useAppSettingsStore } from "@/stores/app/app-settings-store";
+import { useProjectStore } from "@/stores/project/project-store";
 import { aiManager } from "@/lib/ai/ai-manager";
 import { Wand2, ImagePlus, X, Settings, AlertCircle, Shuffle, ChevronDown, User, Users, Plus, Check, Monitor, Smartphone } from "lucide-react";
 import { toast } from "sonner";
@@ -41,7 +41,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { useMediaPanelStore } from "@/stores/media-panel-store";
+import { useMediaPanelStore } from "@/stores/navigation/media-panel-store";
 import { 
   validateSceneCount, 
   SCENE_LIMITS,
@@ -50,7 +50,7 @@ import {
 } from "@/lib/storyboard/grid-calculator";
 import { uploadMultipleImages } from "@/lib/utils/image-upload";
 import { VISUAL_STYLE_PRESETS, getStyleTokens, getStylesByCategory, type VisualStyleId, DEFAULT_STYLE_ID } from "@/lib/constants/visual-styles";
-import { StylePicker } from "@/components/ui/style-picker";
+import { StylePicker } from "@/components/features/visual-style/style-picker";
 import { normalizeHorizontalVerticalAspectRatio } from "@/lib/ai/image-size-presets";
 
 const EXAMPLE_PROMPTS = [

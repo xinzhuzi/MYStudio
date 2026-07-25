@@ -1,4 +1,4 @@
-import type { PendingViewpointData } from '@/stores/media-panel-store';
+import type { PendingViewpointData } from '@/stores/navigation/media-panel-store';
 import type { SceneViewpoint } from './scene-viewpoint-types';
 
 /**

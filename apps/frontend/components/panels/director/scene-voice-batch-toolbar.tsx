@@ -11,11 +11,12 @@ import {
   startTtsRuntime,
 } from "@/lib/tts/client";
 import { aiManager } from "@/lib/ai/ai-manager";
+import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";
 import { recoverVoiceProfileReferenceText } from "@/lib/tts/voice-profile-reference-recovery";
 import { validateVoiceProfileForGeneration } from "@/lib/tts/voice-profile-capabilities";
-import type { SplitScene } from "@/stores/director-store";
-import { useProjectStore } from "@/stores/project-store";
-import { useTtsStore } from "@/stores/tts-store";
+import type { SplitScene } from "@/stores/director/director-store";
+import { useProjectStore } from "@/stores/project/project-store";
+import { useTtsStore } from "@/stores/tts/tts-store";
 
 interface SceneVoiceBatchToolbarProps {
   scenes: SplitScene[];
@@ -52,7 +53,8 @@ export function SceneVoiceBatchToolbar({ scenes }: SceneVoiceBatchToolbarProps) 
       toast.error("当前没有项目");
       return;
     }
-    if (!window.studioAssets?.saveMaterial) {
+    const studioAssets = getStudioAssetsBridge();
+    if (!studioAssets?.saveMaterial) {
       toast.error("素材保存接口仅在桌面应用中可用");
       return;
     }
@@ -109,7 +111,7 @@ export function SceneVoiceBatchToolbar({ scenes }: SceneVoiceBatchToolbarProps) 
           markGenerating(sceneId, generation.id);
           const completed = await waitForBatchGeneration(generation.id);
           const bytes = await fetchGenerationAudio(generation.id);
-          const material = await window.studioAssets.saveMaterial({
+          const material = await studioAssets.saveMaterial({
             name: `scene-${scene.id + 1}-voice-${Date.now()}.wav`,
             bytes,
           });

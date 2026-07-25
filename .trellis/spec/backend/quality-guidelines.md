@@ -57,7 +57,7 @@ PYTHONPATH=backend python3 -m unittest discover -s backend/tests
 ```
 
 When Electron supervision changes, also run the focused
-`frontend/electron/tts-runtime.test.ts` Vitest suite and the normal TypeScript
+`frontend/electron/tts/tts-runtime.test.ts` Vitest suite and the normal TypeScript
 quality gate.
 
 ---

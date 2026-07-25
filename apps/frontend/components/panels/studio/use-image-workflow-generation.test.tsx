@@ -10,12 +10,12 @@ const freedomImage = vi.hoisted(() => vi.fn());
 const toast = vi.hoisted(() => ({ error: vi.fn(), success: vi.fn() }));
 
 vi.mock("@/lib/ai/ai-manager", () => ({ aiManager: { freedomImage } }));
-vi.mock("@/stores/studio-store", () => ({
+vi.mock("@/stores/studio/studio-store", () => ({
   useStudioStore: Object.assign(vi.fn(), {
     getState: () => ({ imageWorkflows: [currentGraph] }),
   }),
 }));
-vi.mock("@/stores/project-store", () => ({
+vi.mock("@/stores/project/project-store", () => ({
   useProjectStore: Object.assign(vi.fn(), {
     getState: () => ({ activeProjectId }),
   }),
@@ -56,6 +56,7 @@ function createGraph(prompt = "cinematic portrait"): ImageWorkflowGraph {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  Reflect.deleteProperty(window, "projectFiles");
   currentGraph = createGraph();
   activeProjectId = "project-1";
 });
@@ -124,6 +125,30 @@ describe("useImageWorkflowGeneration", () => {
     expect(saveGraph).not.toHaveBeenCalled();
     expect(freedomImage).not.toHaveBeenCalled();
     expect(toast.error).toHaveBeenCalledWith("请先填写生成提示词");
+  });
+
+  it("preserves the project-save failure when the bridge is unavailable", async () => {
+    freedomImage.mockResolvedValue({ url: "https://provider.test/image.png" });
+    const savedGraphs: ImageWorkflowGraph[] = [];
+    const saveGraph = vi.fn((graph: ImageWorkflowGraph) => {
+      currentGraph = graph;
+      savedGraphs.push(graph);
+    });
+    const addMaterial = vi.fn();
+    const { result } = renderHook(() => useImageWorkflowGeneration({
+      workflowId: "graph-1",
+      saveGraph,
+      addMaterial,
+    }));
+
+    await act(async () => result.current.generateNode("generated-1"));
+
+    expect(savedGraphs.at(-1)?.nodes[0]).toMatchObject({
+      status: "failed",
+      errorReason: "项目内图片保存失败",
+    });
+    expect(addMaterial).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalledWith("项目内图片保存失败");
   });
 
   it("marks generation failed when no project is active", async () => {

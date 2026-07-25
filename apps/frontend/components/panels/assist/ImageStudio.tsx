@@ -11,7 +11,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { useFreedomStore } from '@/stores/freedom-store';
+import { useFreedomStore } from '@/stores/assist/freedom-store';
 import { ModelSelector } from './ModelSelector';
 import { GenerationHistory } from './GenerationHistory';
 import { SaveToPropsDialog } from './SaveToPropsDialog';
@@ -19,7 +19,7 @@ import { aiManager } from '@/lib/ai/ai-manager';
 import {
   getT2IModelById,
   getAspectRatiosForT2IModel,
-} from '@/lib/freedom/model-registry';
+} from '@/lib/assist/model-registry';
 
 export function ImageStudio() {
   const [saveToPropsOpen, setSaveToPropsOpen] = useState(false);

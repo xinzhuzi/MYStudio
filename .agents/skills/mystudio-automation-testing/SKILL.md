@@ -7,6 +7,14 @@ description: Use when validating, packaging, installing, or smoke-testing MYStud
 
 Use this skill for MYStudio release confidence after code changes, especially when the user asks to self-test, self-verify, package, install, check white-screen regressions, or prove the installed app is the latest build.
 
+## Path dictionary
+
+- `<repo-root>` means `/Users/zhengbingjin/Project/Github/MYStudio`. This `SKILL.md` and all paths under it are repository source/instructions, read-only to the running product.
+- Run npm commands from `<repo-root>/apps`; the frontend, backend, build, and documentation roots are `<repo-root>/apps/frontend`, `<repo-root>/apps/backend`, `<repo-root>/apps/build`, and `<repo-root>/docs`. They are repository source, not application runtime write targets.
+- The packaged macOS app is emitted under `<repo-root>/apps/release/build/mac-arm64/mac-arm64/漫影工作室.app` (generated, writable build output); the default packaged smoke report is `<repo-root>/apps/output/automation/desktop-smoke-report.json` (generated, writable runtime/output evidence).
+- `<userData>` is Electron's per-user application-data directory. `<storageBasePath>` is the configured runtime-writable storage root resolved from `<userData>/storage-config.json`; product-editable skills live at `<storageBasePath>/skills/`.
+- `<repo-root>/apps/frontend/assets/studio-manuals/` is the read-only bundled seed source. `<repo-root>/.agents/skills/<skill>/SKILL.md`, `~/.codex/skills/<skill>/SKILL.md`, and `~/.agents/skills/<skill>/SKILL.md` are AI/development instructions, not product skill storage.
+
 ## Ground Rules
 
 - Work from `/Users/zhengbingjin/Project/Github/MYStudio`.
@@ -74,7 +82,7 @@ Useful focused tests:
 
 `apps/frontend/config/build-scripts.test.ts` protects the automation surface. If build or smoke scripts change, update tests with the behavior being protected, not only snapshots of strings. It currently checks:
 
-- `build:mac` routes through `sh ./build/build-mac.sh --arm64`.
+- `build:mac` routes through `sh ./build/packaging/build-mac.sh --arm64`.
 - setup scripts do not install Python into `backend`.
 - `smoke:desktop` exists in `package.json`.
 - `smoke-desktop.mjs` checks project entry, route verification, screenshots, timeout handling, and DOM visual fallback.
@@ -107,7 +115,7 @@ Use a different `MYSTUDIO_SMOKE_DEBUG_PORT` if the port is busy.
 
 ## Smoke Coverage
 
-`apps/build/smoke-desktop.mjs` is the packaged desktop smoke runner. It checks:
+`apps/build/smoke/smoke-desktop.mjs` is the packaged desktop smoke runner. It checks:
 
 - App starts without a white screen.
 - Dashboard/project entry renders.
@@ -123,7 +131,7 @@ If screenshot capture times out but the script exits `0` with DOM visual stats, 
 - `package.json` missing: the command was probably run from repo root; rerun from `apps/`.
 - Packaged app missing: run `npm run build:mac` before `npm run smoke:desktop`.
 - Debug port unavailable: change `MYSTUDIO_SMOKE_DEBUG_PORT`.
-- Route text missing: inspect `CORE_ROUTE_CHECKS` in `apps/build/smoke-desktop.mjs` and verify the route label or expected text changed intentionally.
+- Route text missing: inspect `CORE_ROUTE_CHECKS` in `apps/build/smoke/smoke-desktop.mjs` and verify the route label or expected text changed intentionally.
 - High `whiteRatio` or root not rendered: treat as a white-screen regression. Use the smoke console logs before editing.
 - Screenshot timeout with exit `0`: acceptable only when DOM fallback still reports valid route checks and low `whiteRatio`.
 - Hash mismatch after install: reinstall with `ditto`, then rerun both `shasum` commands before smoke.

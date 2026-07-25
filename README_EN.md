@@ -112,7 +112,7 @@ cd apps && npm run build:win
 | Build Tool | electron-vite (Vite 5) |
 | State Management | Zustand 5 |
 | UI Components | Radix UI + Tailwind CSS 4 |
-| AI Core | `@opencut/ai-core` (prompt compilation, character bible, task polling) |
+| AI Core | `apps/frontend/lib/ai/core/` (prompt compilation, character bible, task polling) |
 
 ### Project Structure
 

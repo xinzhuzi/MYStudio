@@ -19,8 +19,8 @@ import {
   formatProjectMemoryContext,
   retrieveProjectMemory,
 } from "@/lib/studio/project-memory";
-import { useStudioStore } from "@/stores/studio-store";
-import { useProjectStore } from "@/stores/project-store";
+import { useStudioStore } from "@/stores/studio/studio-store";
+import { useProjectStore } from "@/stores/project/project-store";
 import type {
   AgentWorkData,
   AgentWorkKey,

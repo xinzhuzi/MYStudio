@@ -13,7 +13,9 @@
 import { getManualModuleText as getBundledManualModuleText } from "@/lib/studio/manuals";
 import { aiManager, type AIBinding, type AITextResult } from "@/lib/ai/ai-manager";
 import { normalizeImagePromptForGeneration } from "@/lib/ai/ai-sdk-bridge";
-import type { AIFeature } from "@/stores/api-config-store";
+import { getStudioVisualManualsBridge } from "@/lib/bridge/studio-visual-manuals";
+import { DAOJIE_VISUAL_MANUAL_ID } from "@/lib/studio/visual-manual-classification";
+import type { AIFeature } from "@/stores/ai/api-config-store";
 import type { CharacterIdentityAnchors } from "@/types/script";
 import type { StudioVisualManualDetail } from "@/types/studio-visual-manual";
 
@@ -117,6 +119,7 @@ export async function polishAssetPrompt(
         name,
         description,
         systemPrompt,
+        visualManualId,
         negativePrompt: request.negativePrompt,
       });
       return {
@@ -128,7 +131,10 @@ export async function polishAssetPrompt(
     // Step 6: 解析输出
     const parsed = parsePolishResult(result.text);
     const normalizedPrompt = normalizeImagePromptForGeneration({
-      prompt: parsed.prompt,
+      prompt:
+        visualManualId === DAOJIE_VISUAL_MANUAL_ID
+          ? sanitizeDaojiePrompt(parsed.prompt)
+          : parsed.prompt,
       negativePrompt: parsed.negativePrompt || request.negativePrompt,
     });
 
@@ -273,9 +279,10 @@ function getModuleKey(assetType: AssetType, isDerivative: boolean): string {
 }
 
 async function readRuntimeVisualManual(visualManualId: string): Promise<StudioVisualManualDetail | null> {
-  if (typeof window === "undefined" || !window.studioVisualManuals?.read) return null;
+  const studioVisualManuals = getStudioVisualManualsBridge();
+  if (!studioVisualManuals?.read) return null;
   try {
-    const result = await window.studioVisualManuals.read(visualManualId);
+    const result = await studioVisualManuals.read(visualManualId);
     return result.success && result.manual ? result.manual : null;
   } catch {
     return null;
@@ -414,12 +421,16 @@ function buildLocalFallbackPolishResult(input: {
   name: string;
   description: string;
   systemPrompt: string;
+  visualManualId: string;
   negativePrompt?: string;
 }): { prompt: string; promptZh?: string; negativePrompt: string } {
   const styleAnchor = extractVisualStyleAnchor(input.systemPrompt);
   const typeInstruction: Record<AssetType, string> = {
     character: "single character concept art, clear face, full-body readable silhouette, costume and identity details",
-    scene: "environment concept art, clear spatial layout, cinematic lighting, atmospheric depth",
+    scene:
+      input.visualManualId === DAOJIE_VISUAL_MANUAL_ID
+        ? "environment concept art, clear spatial layout, even flat xuan-paper illumination, pale ink atmospheric perspective"
+        : "environment concept art, clear spatial layout, cinematic lighting, atmospheric depth",
     prop: "single prop concept art, isolated object, readable material, no hands, no characters",
   };
   const zhLabel: Record<AssetType, string> = {
@@ -437,7 +448,10 @@ function buildLocalFallbackPolishResult(input: {
   ].filter(Boolean).join(", ");
 
   const normalizedPrompt = normalizeImagePromptForGeneration({
-    prompt,
+    prompt:
+      input.visualManualId === DAOJIE_VISUAL_MANUAL_ID
+        ? sanitizeDaojiePrompt(prompt)
+        : prompt,
     negativePrompt: input.negativePrompt?.trim()
       || "low quality, blurry, watermark, logo, text, subtitle, extra limbs, distorted face, cropped subject",
   });
@@ -461,4 +475,36 @@ function extractVisualStyleAnchor(systemPrompt: string) {
     .map((line) => line.replace(/[|#>*`]/g, " ").trim())
     .find((line) => /[a-zA-Z]/.test(line) && line.length >= 20);
   return compactLine || "";
+}
+
+const DAOJIE_POSITIVE_PROMPT_REPLACEMENTS: Array<[RegExp, string]> = [
+  [/\bcinematic\s+lighting\b/gi, "even flat xuan-paper illumination"],
+  [/\bcinematic\s+composition\b/gi, "clear layered ink-wash composition"],
+  [/\bcinematic\s+(?:quality|atmosphere|motion)\b/gi, "clean finished gongbi quality"],
+  [/\bvolumetric\s+fog\b/gi, "layered pale ink mist"],
+  [/\bvolumetric\s+light\b/gi, "paper-scattered light"],
+  [/\bshallow\s+depth\s+of\s+field\b/gi, "clear layered ink-wash depth"],
+  [/\bdepth\s+of\s+field\s+blur\b/gi, "ink-wash atmospheric perspective"],
+  [/\bdepth\s+of\s+field\b/gi, "ink-wash atmospheric perspective"],
+  [/\bfilm\s+grain\b/gi, "clean paper texture"],
+  [/\b(?:muted|low[- ]saturation)\s+cyan[- ]green\s+palette\b/gi, "restrained mineral-color palette with readable warm and cool areas"],
+  [/\bHDR\s+highlights?\b/gi, "soft paper-scattered light"],
+  [/\bmirror(?:ed)?\s+wet\s+reflections?\b/gi, "controlled matte material"],
+  [/电影级(?:光影|布光|构图|质感|氛围)/g, "均匀平光宣纸照明与清楚分层"],
+  [/电影质感/g, "干净工笔成片质感"],
+  [/电影构图/g, "清楚前中远景构图"],
+  [/电影级体积雾/g, "淡墨雾层"],
+  [/体积雾/g, "淡墨雾层"],
+  [/浅景深(?:虚化)?/g, "淡墨空气透视"],
+  [/景深虚化/g, "淡墨空气透视"],
+  [/胶片颗粒/g, "干净宣纸肌理"],
+];
+
+/** Remove legacy cinematic/noise directives before a Daojie prompt reaches an image provider. */
+export function sanitizeDaojiePrompt(prompt: string): string {
+  let sanitized = prompt.trim();
+  for (const [pattern, replacement] of DAOJIE_POSITIVE_PROMPT_REPLACEMENTS) {
+    sanitized = sanitized.replace(pattern, replacement);
+  }
+  return sanitized.replace(/\(([^()]{1,200}):\s*\d+(?:\.\d+)?\)/g, "$1");
 }

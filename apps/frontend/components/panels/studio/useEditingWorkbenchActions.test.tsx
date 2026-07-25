@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { useEditingStore } from "@/stores/editing-store";
-import { useProjectStore } from "@/stores/project-store";
+import { useEditingStore } from "@/stores/editing/editing-store";
+import { useProjectStore } from "@/stores/project/project-store";
 import type {
-  TimelineRenderPlan,
   TimelineRenderProgress,
+  TimelineRenderRequest,
 } from "@/types/editing";
 import type { StoryboardItem } from "@/types/studio";
 import {
@@ -104,7 +104,8 @@ describe("useEditingWorkbenchActions", () => {
   it("uses the typed timeline renderer, filters progress and cleans the listener", async () => {
     let progressListener: ((progress: TimelineRenderProgress) => void) | undefined;
     const unsubscribe = vi.fn();
-    const renderTimeline = vi.fn(async (plan: TimelineRenderPlan) => {
+    const renderTimeline = vi.fn(async (request: TimelineRenderRequest) => {
+      const plan = request.plan;
       progressListener?.({ jobId: "other-job", stage: "rendering", ratio: 0.9 });
       progressListener?.({ jobId: plan.jobId, stage: "rendering", ratio: 0.5 });
       return {
@@ -148,14 +149,20 @@ describe("useEditingWorkbenchActions", () => {
     });
 
     expect(renderTimeline).toHaveBeenCalledOnce();
-    const plan = renderTimeline.mock.calls[0]?.[0];
-    expect(plan).toMatchObject({
+    const request = renderTimeline.mock.calls[0]?.[0];
+    expect(request).toMatchObject({
       schemaVersion: 1,
-      projectId: "project-1",
-      episodeId: "episode-1",
+      requestedRenderer: "ffmpeg",
+      plan: {
+        schemaVersion: 1,
+        projectId: "project-1",
+        episodeId: "episode-1",
+      },
     });
-    expect(plan).not.toHaveProperty("args");
-    expect(plan).not.toHaveProperty("outputPath");
+    expect(request).not.toHaveProperty("args");
+    expect(request).not.toHaveProperty("outputPath");
+    const plan = request?.plan;
+    if (!plan) throw new Error("测试未收到时间线渲染计划");
     expect(result.current.renderEvidence).toMatchObject({
       path: "/tmp/final.mp4",
       width: 1080,
@@ -221,7 +228,163 @@ describe("useEditingWorkbenchActions", () => {
       filters: [{ name: "SubRip Subtitle", extensions: ["srt"] }],
     }));
   });
+
+  it("surfaces projectFiles.writeText failures while exporting subtitles", async () => {
+    const writeText = vi.fn().mockResolvedValue({
+      success: false,
+      error: "字幕临时文件写入失败：项目目录只读",
+    });
+    const saveFileDialog = vi.fn();
+    (window as any).projectFiles = { writeText };
+    (window as any).electronAPI = { saveFileDialog };
+    const { result } = await renderExportReadyHook();
+
+    const failure = await captureActionFailure(
+      () => result.current.exportSubtitles(),
+    );
+
+    expect(failure).toBe("字幕临时文件写入失败：项目目录只读");
+    expect(result.current.error).toBe("字幕临时文件写入失败：项目目录只读");
+    expect(saveFileDialog).not.toHaveBeenCalled();
+  });
+
+  it("surfaces projectFiles.writeText rejections while exporting subtitles", async () => {
+    const writeText = vi.fn().mockRejectedValue(
+      new Error("projectFiles.writeText IPC rejected"),
+    );
+    const saveFileDialog = vi.fn();
+    (window as any).projectFiles = { writeText };
+    (window as any).electronAPI = { saveFileDialog };
+    const { result } = await renderExportReadyHook();
+
+    const failure = await captureActionFailure(
+      () => result.current.exportSubtitles(),
+    );
+
+    expect(failure).toBe("projectFiles.writeText IPC rejected");
+    expect(result.current.error).toBe("projectFiles.writeText IPC rejected");
+    expect(saveFileDialog).not.toHaveBeenCalled();
+  });
+
+  it("stops before saveFileDialog when the active project switches during writeText", async () => {
+    const pendingWrite = deferred<{ success: true; filePath: string }>();
+    const writeText = vi.fn(() => pendingWrite.promise);
+    const saveFileDialog = vi.fn();
+    (window as any).projectFiles = { writeText };
+    (window as any).electronAPI = { saveFileDialog };
+    const { result } = await renderExportReadyHook();
+
+    let exportPromise!: Promise<void>;
+    await act(async () => {
+      exportPromise = result.current.exportSubtitles();
+      await Promise.resolve();
+    });
+    await waitFor(() => expect(writeText).toHaveBeenCalledOnce());
+    act(activateSecondProject);
+
+    let failure = "";
+    await act(async () => {
+      pendingWrite.resolve({ success: true, filePath: "/tmp/subtitle.srt" });
+      try {
+        await exportPromise;
+      } catch (error) {
+        failure = error instanceof Error ? error.message : String(error);
+      }
+    });
+
+    expect(failure).toBe("项目已切换，剪辑操作已停止写回");
+    expect(result.current.error).toBe("项目已切换，剪辑操作已停止写回");
+    expect(saveFileDialog).not.toHaveBeenCalled();
+  });
+
+  it("reports a project switch after saveFileDialog resolves", async () => {
+    const pendingDialog = deferred<{ success: true; filePath: string }>();
+    const writeText = vi.fn().mockResolvedValue({
+      success: true,
+      filePath: "/tmp/subtitle.srt",
+    });
+    const saveFileDialog = vi.fn(() => pendingDialog.promise);
+    (window as any).projectFiles = { writeText };
+    (window as any).electronAPI = { saveFileDialog };
+    const { result } = await renderExportReadyHook();
+
+    let exportPromise!: Promise<void>;
+    await act(async () => {
+      exportPromise = result.current.exportSubtitles();
+      await Promise.resolve();
+    });
+    await waitFor(() => expect(saveFileDialog).toHaveBeenCalledOnce());
+    act(activateSecondProject);
+
+    let failure = "";
+    await act(async () => {
+      pendingDialog.resolve({ success: true, filePath: "/tmp/exported.srt" });
+      try {
+        await exportPromise;
+      } catch (error) {
+        failure = error instanceof Error ? error.message : String(error);
+      }
+    });
+
+    expect(writeText).toHaveBeenCalledOnce();
+    expect(failure).toBe("项目已切换，剪辑操作已停止写回");
+    expect(result.current.error).toBe("项目已切换，剪辑操作已停止写回");
+  });
 });
+
+async function renderExportReadyHook() {
+  const rendered = renderHook(() => useEditingWorkbenchActions(editingInput()));
+  await waitFor(() => expect(useEditingStore.getState().activeProjectId).toBe("project-1"));
+  await act(async () => {
+    await rendered.result.current.createDraft();
+  });
+  await act(async () => {
+    await rendered.result.current.importSubtitles(subtitleFile());
+  });
+  return rendered;
+}
+
+async function captureActionFailure(action: () => Promise<void>) {
+  let failure = "";
+  await act(async () => {
+    try {
+      await action();
+    } catch (error) {
+      failure = error instanceof Error ? error.message : String(error);
+    }
+  });
+  return failure;
+}
+
+function subtitleFile() {
+  return {
+    name: "chapter.srt",
+    size: 80,
+    lastModified: 10,
+    text: vi.fn(async () => [
+      "1",
+      "00:00:00,500 --> 00:00:02,000",
+      "导出字幕",
+    ].join("\n")),
+  } as unknown as File;
+}
+
+function activateSecondProject() {
+  useProjectStore.setState({
+    activeProjectId: "project-2",
+    activeProject: { id: "project-2", name: "第二项目", createdAt: 2, updatedAt: 2 },
+  });
+}
+
+function deferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return { promise, resolve, reject };
+}
 
 function editingInput(
   overrides: Partial<UseEditingWorkbenchActionsInput> = {},

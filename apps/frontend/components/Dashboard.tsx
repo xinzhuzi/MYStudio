@@ -9,9 +9,10 @@
  */
 
 import { useState, useCallback } from "react";
-import { useProjectStore } from "@/stores/project-store";
-import { useMediaPanelStore } from "@/stores/media-panel-store";
+import { useProjectStore } from "@/stores/project/project-store";
+import { useMediaPanelStore } from "@/stores/navigation/media-panel-store";
 import { switchProject } from "@/lib/project-switcher";
+import { getFileStorageBridge } from "@/lib/bridge/file-storage";
 import {
   copyProjectScopedStoreFiles,
   waitForProjectStoreFile,
@@ -55,7 +56,7 @@ import {
 } from "lucide-react";
 import { cn, generateUUID } from "@/lib/utils";
 import { toast } from "sonner";
-import type { Project } from "@/stores/project-store";
+import type { Project } from "@/stores/project/project-store";
 
 interface DashboardProps {
   sidebarCollapsed?: boolean;
@@ -181,7 +182,7 @@ export function Dashboard({
     setDuplicatingId(projectId);
 
     try {
-      const fs = window.fileStorage;
+      const fs = getFileStorageBridge();
       if (!fs) {
         toast.warning('文件存储不可用，仅复制了项目名称');
         setDuplicatingId(null);

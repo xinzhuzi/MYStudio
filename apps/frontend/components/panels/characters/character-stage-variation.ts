@@ -1,4 +1,4 @@
-import type { CharacterVariation } from "@/stores/character-library-store";
+import type { CharacterVariation } from "@/stores/library/character-library-store";
 import type { CharacterConsistencyElements, CharacterStageInfo } from "@/types/script";
 
 interface BuildCharacterStageVariationOptions {

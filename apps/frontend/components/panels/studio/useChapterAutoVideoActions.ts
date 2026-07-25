@@ -23,13 +23,16 @@ import {
   parseStoryboardTable,
   toStoryboardItems,
 } from "@/lib/studio/storyboard-table";
-import { useProjectStore } from "@/stores/project-store";
-import { useEditingStore } from "@/stores/editing-store";
-import { useStudioStore } from "@/stores/studio-store";
-import { useTtsStore } from "@/stores/tts-store";
+import { useProjectStore } from "@/stores/project/project-store";
+import { useEditingStore } from "@/stores/editing/editing-store";
+import { useStudioStore } from "@/stores/studio/studio-store";
+import { useTtsStore } from "@/stores/tts/tts-store";
 import type { StudioAssetSummary } from "@/types/studio-assets";
 import type { TtsSpeakerId, VoiceProfile } from "@/types/tts";
 import { latestAgentWork } from "./workflow-helpers";
+import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";
+import { getTtsRuntimeBridge } from "@/lib/bridge/tts-runtime";
+import { createTimelineRenderRequest } from "@rendering/contracts/timeline-renderer";
 
 const INITIAL_STATUS: ChapterAutoVideoStatus = {
   stage: "idle",
@@ -132,10 +135,12 @@ export function useChapterAutoVideoActions({
           loadContinuityAssetVersions: () => useStudioStore.getState().continuityAssetVersions,
           ensureFixedVoiceProfiles: async (storyboards) => {
             assertProjectStillActive();
-            if (!window.studioAssets?.list) {
+            const studioAssets = getStudioAssetsBridge();
+            if (!studioAssets?.list) {
               throw new Error("素材读取接口仅在桌面应用中可用");
             }
-            if (!window.ttsRuntime?.resolveReferenceAudioPath) {
+            const ttsRuntime = getTtsRuntimeBridge();
+            if (!ttsRuntime?.resolveReferenceAudioPath) {
               throw new Error("固定音色文件校验接口不可用");
             }
             const store = useStudioStore.getState();
@@ -171,7 +176,7 @@ export function useChapterAutoVideoActions({
               return { speakerId, role };
             });
 
-            const audioAssets = await window.studioAssets.list({
+            const audioAssets = await studioAssets.list({
               type: "audio",
               limit: 9999,
             });
@@ -187,7 +192,7 @@ export function useChapterAutoVideoActions({
               bindings: ttsState.projects[activeProjectId]?.bindings ?? {},
               voiceProfiles: ttsState.voiceProfiles,
               resolveReferenceAudioPath: (audioPath) =>
-                window.ttsRuntime!.resolveReferenceAudioPath(audioPath),
+                ttsRuntime.resolveReferenceAudioPath(audioPath),
             });
             if (plan.errors.length > 0) {
               throw new Error(plan.errors.map((item) => item.message).join("；"));
@@ -217,7 +222,7 @@ export function useChapterAutoVideoActions({
           },
           resolveMediaPath: async (mediaPath) => {
             assertProjectStillActive();
-            return window.ttsRuntime?.resolveReferenceAudioPath(mediaPath) ?? null;
+            return getTtsRuntimeBridge()?.resolveReferenceAudioPath(mediaPath) ?? null;
           },
           generateAudio: (storyboard, profile) =>
             runStoryboardTtsGeneration({ storyboard, profile }),
@@ -331,7 +336,9 @@ export function useChapterAutoVideoActions({
               project,
               jobId: uniqueId("timeline-render"),
               createdAt: Date.now(),
-              render: (plan) => renderer.renderTimeline(plan),
+              render: (plan) => renderer.renderTimeline(
+                createTimelineRenderRequest("ffmpeg", plan),
+              ),
             });
             assertProjectStillActive();
             if (!result.success) throw new Error(result.error);

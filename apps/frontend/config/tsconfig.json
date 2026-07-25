@@ -18,8 +18,7 @@
     "baseUrl": "..",
     "paths": {
       "@/*": ["./*"],
-      "@opencut/ai-core": ["./packages/ai-core/index.ts"],
-      "@opencut/ai-core/*": ["./packages/ai-core/*"]
+      "@rendering/*": ["../rendering/*"]
     },
 
     /* Linting */
@@ -29,7 +28,7 @@
     "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["../**/*.ts", "../**/*.tsx", "../**/*.d.ts"],
+  "include": ["../**/*.ts", "../**/*.tsx", "../**/*.d.ts", "../../rendering/**/*.ts", "../../rendering/**/*.tsx"],
   "exclude": ["./**/*.ts"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

@@ -9,8 +9,8 @@
  */
 
 import { useState, useMemo, useCallback } from "react";
-import { useMediaPanelStore } from "@/stores/media-panel-store";
-import { useActiveScriptProject } from "@/stores/script-store";
+import { useMediaPanelStore } from "@/stores/navigation/media-panel-store";
+import { useActiveScriptProject } from "@/stores/script/script-store";
 import { getShotCompletionStatus, calculateProgress, SHOT_SIZE_MAP } from "@/lib/script/shot-utils";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -30,11 +30,11 @@ import {
 } from "lucide-react";
 import type { Shot, CompletionStatus, ScriptScene } from "@/types/script";
 import { DEFAULT_STYLE_ID, getStyleById } from "@/lib/constants/visual-styles";
-import { useDirectorStore, useActiveDirectorProject, type SoundEffectTag, type EmotionTag } from '@/stores/director-store';
-import { useCharacterLibraryStore } from '@/stores/character-library-store';
-import { useSceneStore } from '@/stores/scene-store';
-import { useAppSettingsStore } from '@/stores/app-settings-store';
-import { useProjectStore } from '@/stores/project-store';
+import { useDirectorStore, useActiveDirectorProject, type SoundEffectTag, type EmotionTag } from '@/stores/director/director-store';
+import { useCharacterLibraryStore } from '@/stores/library/character-library-store';
+import { useSceneStore } from '@/stores/library/scene-store';
+import { useAppSettingsStore } from '@/stores/app/app-settings-store';
+import { useProjectStore } from '@/stores/project/project-store';
 import { toast } from "sonner";
 import { matchSceneAndViewpoint, matchSceneAndViewpointSync, type ViewpointMatchResult } from '@/lib/scene/viewpoint-matcher';
 

@@ -1,8 +1,8 @@
 import type { DedupedEntity, EntityKind } from "@/lib/studio/entity-extraction";
 import type { EntityExtractionResult } from "@/types/studio";
-import { useCharacterLibraryStore } from "@/stores/character-library-store";
-import { useSceneStore } from "@/stores/scene-store";
-import { usePropsLibraryStore } from "@/stores/props-library-store";
+import { useCharacterLibraryStore } from "@/stores/library/character-library-store";
+import { useSceneStore } from "@/stores/library/scene-store";
+import { usePropsLibraryStore } from "@/stores/library/props-library-store";
 import { formatAssetName } from "@/lib/studio/asset-names";
 
 export interface CharacterSink {

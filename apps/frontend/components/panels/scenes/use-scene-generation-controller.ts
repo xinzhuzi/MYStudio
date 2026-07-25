@@ -1,7 +1,7 @@
 import { useState, type ChangeEvent } from "react";
 import type { Shot } from "@/types/script";
-import type { Scene, useSceneStore } from "@/stores/scene-store";
-import type { useMediaStore } from "@/stores/media-store";
+import type { Scene, useSceneStore } from "@/stores/library/scene-store";
+import type { useMediaStore } from "@/stores/media/media-store";
 import { aiManager } from "@/lib/ai/ai-manager";
 import { saveImageToLocal } from "@/lib/image-storage";
 import { getStyleById } from "@/lib/constants/visual-styles";

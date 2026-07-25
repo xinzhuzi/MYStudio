@@ -19,7 +19,7 @@ const director = vi.hoisted(() => ({
 }));
 const persistSceneImage = vi.hoisted(() => vi.fn());
 
-vi.mock("@/stores/director-store", () => ({ useDirectorStore: () => director }));
+vi.mock("@/stores/director/director-store", () => ({ useDirectorStore: () => director }));
 vi.mock("@/lib/utils/image-persist", () => ({ persistSceneImage }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn() } }));
 

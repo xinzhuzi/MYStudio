@@ -201,7 +201,7 @@ describe("SettingsPanel navigation", () => {
     expect(developmentSource).toContain("导出诊断包");
     expect(developmentSource).toContain("清理日志");
     expect(settingsSource).not.toContain("window.diagnosticsLog");
-    expect(hookSource).toContain("window.diagnosticsLog.getInfo");
+    expect(hookSource).toContain("getDiagnosticsBridge");
     expect(developmentSource).toContain("日志只保存在本机");
   });
 

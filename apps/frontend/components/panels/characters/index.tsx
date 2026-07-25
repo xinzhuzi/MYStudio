@@ -11,9 +11,9 @@
  */
 
 import { useMemo } from "react";
-import { useCharacterLibraryStore, type Character } from "@/stores/character-library-store";
-import { useAppSettingsStore } from "@/stores/app-settings-store";
-import { useProjectStore } from "@/stores/project-store";
+import { useCharacterLibraryStore, type Character } from "@/stores/library/character-library-store";
+import { useAppSettingsStore } from "@/stores/app/app-settings-store";
+import { useProjectStore } from "@/stores/project/project-store";
 import {
   ResizableHandle,
   ResizablePanel,

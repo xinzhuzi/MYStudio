@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { useScriptStore } from "@/stores/script-store";
+import { useScriptStore } from "@/stores/script/script-store";
 import { useScriptProjectLifecycle } from "./use-script-project-lifecycle";
 
-vi.mock("@/stores/script-store", () => ({
+vi.mock("@/stores/script/script-store", () => ({
   useScriptStore: { getState: vi.fn() },
 }));
 

@@ -212,7 +212,7 @@ function cleanIntermediateOutput() {
 }
 
 if (shouldGenerateIcons()) {
-  run('node', [resolve(projectRoot, 'frontend', 'scripts', 'generate-icon.mjs')]);
+  run('node', [resolve(scriptDir, 'generate-icon.mjs')]);
 }
 
 const buildArchs = resolveBuildArchs();

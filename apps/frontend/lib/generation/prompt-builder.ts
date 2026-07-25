@@ -16,7 +16,7 @@
  * 摄影风格档案回退规则：逐镜字段为空时使用项目级摄影档案默认值
  */
 
-import type { SplitScene, EmotionTag } from '@/stores/director-store';
+import type { SplitScene, EmotionTag } from '@/stores/director/director-store';
 import {
   SHOT_SIZE_PRESETS,
   CAMERA_RIG_PRESETS,
@@ -35,7 +35,7 @@ import {
   PHOTOGRAPHY_TECHNIQUE_PRESETS,
   CAMERA_MOVEMENT_PRESETS,
   SPECIAL_TECHNIQUE_PRESETS,
-} from '@/stores/director-store';
+} from '@/stores/director/director-store';
 import type { CinematographyProfile } from '@/lib/constants/cinematography-profiles';
 import type { MediaType } from '@/lib/constants/visual-styles';
 import { translateToken, type CinematographyField } from '@/lib/generation/media-type-tokens';

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { getProjectFilesBridge } from "@/lib/bridge/project-files";
 import {
   buildChapterEditingProject,
   createTimelineRenderRecord,
@@ -11,8 +12,8 @@ import {
   parseSrt,
   serializeSrt,
 } from "@/lib/studio/editing/subtitle-codec";
-import { useEditingStore } from "@/stores/editing-store";
-import { useProjectStore } from "@/stores/project-store";
+import { useEditingStore } from "@/stores/editing/editing-store";
+import { useProjectStore } from "@/stores/project/project-store";
 import type {
   EditingProjectV1,
   TimelineRenderEvidence,
@@ -24,6 +25,7 @@ import type {
   StoryboardItem,
   VideoCandidate,
 } from "@/types/studio";
+import { createTimelineRenderRequest } from "@rendering/contracts/timeline-renderer";
 
 export interface UseEditingWorkbenchActionsInput {
   projectId?: string;
@@ -155,7 +157,9 @@ export function useEditingWorkbenchActions(
         project,
         jobId,
         createdAt: Date.now(),
-        render: (plan) => renderer.renderTimeline(plan),
+        render: (plan) => renderer.renderTimeline(
+          createTimelineRenderRequest("ffmpeg", plan),
+        ),
       });
       assertProjectActive(projectId);
       if (!result.success) throw new Error(result.error);
@@ -281,11 +285,12 @@ export function useEditingWorkbenchActions(
           text: clip.source.text!.trim(),
         }));
       if (cues.length === 0) throw new Error("当前时间线没有可导出的字幕");
-      if (!window.projectFiles?.writeText || !window.electronAPI?.saveFileDialog) {
+      const projectFiles = getProjectFilesBridge();
+      if (!projectFiles?.writeText || !window.electronAPI?.saveFileDialog) {
         throw new Error("字幕导出仅在桌面应用中可用");
       }
       const key = `_p/${projectId}/studio/editing/${project.id}/exports/${input.episodeId}.srt`;
-      const saved = await window.projectFiles.writeText(key, serializeSrt(cues));
+      const saved = await projectFiles.writeText(key, serializeSrt(cues));
       assertProjectActive(projectId);
       if (!saved.success || !saved.filePath) throw new Error(saved.error ?? "字幕临时文件写入失败");
       const exported = await window.electronAPI.saveFileDialog({

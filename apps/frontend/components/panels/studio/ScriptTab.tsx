@@ -12,8 +12,8 @@ import {
   type ReviewableStage,
 } from "@/lib/studio/script-planning";
 import { cn } from "@/lib/utils";
-import { useStudioStore } from "@/stores/studio-store";
-import { useThemeStore } from "@/stores/theme-store";
+import { useStudioStore } from "@/stores/studio/studio-store";
+import { useThemeStore } from "@/stores/app/theme-store";
 import type { AgentWorkKey, NovelChapter } from "@/types/studio";
 import { ClipboardList, Edit3, WandSparkles } from "lucide-react";
 import { MdPreview } from "md-editor-rt";

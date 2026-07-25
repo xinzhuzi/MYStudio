@@ -1,7 +1,7 @@
 import { aiManager } from "@/lib/ai/ai-manager";
 import { pollImageTaskUrl } from "@/lib/storyboard/image-task-transport";
 import type { PersistResult } from "@/lib/utils/image-persist";
-import type { SplitScene } from "@/stores/director-store";
+import type { SplitScene } from "@/stores/director/director-store";
 import { normalizeStoryboardReferenceImages } from "../director/storyboard-reference-image-normalizer";
 import { sliceStoryboardMergedGridImage } from "../director/storyboard-merged-grid-image-slicer";
 import { writeStoryboardMergedImages } from "../director/storyboard-merged-image-writeback";

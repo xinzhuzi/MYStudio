@@ -20,12 +20,13 @@ import {
   startTtsRuntime,
 } from "@/lib/tts/client";
 import { aiManager } from "@/lib/ai/ai-manager";
+import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";
 import { recoverVoiceProfileReferenceText } from "@/lib/tts/voice-profile-reference-recovery";
 import { getDefaultPresetVoiceId, validateVoiceProfileForGeneration } from "@/lib/tts/voice-profile-capabilities";
-import { useCharacterLibraryStore } from "@/stores/character-library-store";
-import type { SplitScene } from "@/stores/director-store";
-import { useProjectStore } from "@/stores/project-store";
-import { useTtsStore } from "@/stores/tts-store";
+import { useCharacterLibraryStore } from "@/stores/library/character-library-store";
+import type { SplitScene } from "@/stores/director/director-store";
+import { useProjectStore } from "@/stores/project/project-store";
+import { useTtsStore } from "@/stores/tts/tts-store";
 import type { TtsSpeakerId } from "@/types/tts";
 
 interface SceneVoiceLinePanelProps {
@@ -191,7 +192,8 @@ export function SceneVoiceLinePanel({ scene }: SceneVoiceLinePanelProps) {
       toast.error(validationError);
       return;
     }
-    if (!window.studioAssets?.saveMaterial) {
+    const studioAssets = getStudioAssetsBridge();
+    if (!studioAssets?.saveMaterial) {
       toast.error("素材保存接口仅在桌面应用中可用");
       return;
     }
@@ -212,7 +214,7 @@ export function SceneVoiceLinePanel({ scene }: SceneVoiceLinePanelProps) {
       const completed = await waitForGeneration(generation.id);
       if (!getGenerationAudioPath(completed)) throw new Error("生成完成但没有音频路径");
       const bytes = await fetchGenerationAudio(generation.id);
-      const material = await window.studioAssets.saveMaterial({
+      const material = await studioAssets.saveMaterial({
         name: `scene-${scene.id + 1}-voice-${Date.now()}.wav`,
         bytes,
       });

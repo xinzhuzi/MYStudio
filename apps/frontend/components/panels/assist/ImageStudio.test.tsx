@@ -3,7 +3,7 @@ import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { ImageStudio } from "./ImageStudio";
-import { useFreedomStore } from "@/stores/freedom-store";
+import { useFreedomStore } from "@/stores/assist/freedom-store";
 
 (globalThis as any).ResizeObserver ??= class {
   observe() {}

@@ -33,7 +33,7 @@ manying-studio/
 │   ├── components/    # React UI 组件
 │   ├── stores/        # Zustand 状态管理
 │   ├── lib/           # 工具库和业务逻辑
-│   ├── packages/      # 内部包 (@opencut/ai-core)
+│   ├── lib/ai/        # 统一 AI Manager、AI core、provider 与 Worker 模块
 │   ├── scripts/       # 构建和工具脚本
 │   ├── config/        # 构建、打包和工具配置
 │   ├── renderer/      # Renderer HTML 入口

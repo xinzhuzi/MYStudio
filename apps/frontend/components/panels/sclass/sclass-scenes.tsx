@@ -18,27 +18,27 @@ import {
   EMOTION_PRESETS,
   SHOT_SIZE_PRESETS,
   SOUND_EFFECT_PRESETS,
-} from "@/stores/director-store";
-import { useCharacterLibraryStore } from "@/stores/character-library-store";
+} from "@/stores/director/director-store";
+import { useCharacterLibraryStore } from "@/stores/library/character-library-store";
 import { 
   ArrowLeft, 
   ImageIcon,
 } from "lucide-react";
-import { useMediaStore } from "@/stores/media-store";
+import { useMediaStore } from "@/stores/media/media-store";
 import { toast } from "sonner";
 import { waitForAbortableDelay } from "@/lib/storyboard/image-task-transport";
 import { useMergedGenerationCancellation } from "@/hooks/use-merged-generation-cancellation";
-import { useAPIConfigStore } from "@/stores/api-config-store";
+import { useAPIConfigStore } from "@/stores/ai/api-config-store";
 import { aiManager } from "@/lib/ai/ai-manager";
 import { readImageAsBase64 } from '@/lib/image-storage';
 import { persistSceneImage } from '@/lib/utils/image-persist';
 import { SClassSceneCard } from "./sclass-scene-card";
-import { useSClassStore, type SClassAspectRatio } from "@/stores/sclass-store";
-import { useAppSettingsStore } from "@/stores/app-settings-store";
+import { useSClassStore, type SClassAspectRatio } from "@/stores/sclass/sclass-store";
+import { useAppSettingsStore } from "@/stores/app/app-settings-store";
 import { useSClassGeneration, type BatchGenerationProgress } from "./use-sclass-generation";
 import { ExtendEditDialog } from "./extend-edit-dialog";
 import { useSClassGroupingController } from "./use-sclass-grouping-controller";
-import { useSceneStore } from "@/stores/scene-store";
+import { useSceneStore } from "@/stores/library/scene-store";
 import { 
   VISUAL_STYLE_PRESETS, 
   STYLE_CATEGORIES,

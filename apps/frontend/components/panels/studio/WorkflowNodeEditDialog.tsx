@@ -7,7 +7,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useThemeStore } from "@/stores/theme-store";
+import { useThemeStore } from "@/stores/app/theme-store";
 import { MdEditor } from "md-editor-rt";
 import "md-editor-rt/lib/style.css";
 

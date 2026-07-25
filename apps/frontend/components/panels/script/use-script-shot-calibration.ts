@@ -4,7 +4,7 @@ import { aiManager } from "@/lib/ai/ai-manager";
 import { DEFAULT_CINEMATOGRAPHY_PROFILE_ID } from "@/lib/constants/cinematography-profiles";
 import { calibrateEpisodeShots, calibrateSingleShot, exportProjectMetadata } from "@/lib/script/full-script-service";
 import { syncToSeriesMeta } from "@/lib/script/series-meta-sync";
-import { useScriptStore, type ScriptCalibrationStatus, type ScriptViewpointStatus } from "@/stores/script-store";
+import { useScriptStore, type ScriptCalibrationStatus, type ScriptViewpointStatus } from "@/stores/script/script-store";
 import type { PromptLanguage, ScriptData, Shot } from "@/types/script";
 
 interface UseScriptShotCalibrationOptions {

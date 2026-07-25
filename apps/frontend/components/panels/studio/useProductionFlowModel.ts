@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { useCharacterLibraryStore } from "@/stores/character-library-store";
-import { useProjectStore } from "@/stores/project-store";
-import { usePropsLibraryStore } from "@/stores/props-library-store";
-import { useSceneStore } from "@/stores/scene-store";
+import { useCharacterLibraryStore } from "@/stores/library/character-library-store";
+import { useProjectStore } from "@/stores/project/project-store";
+import { usePropsLibraryStore } from "@/stores/library/props-library-store";
+import { useSceneStore } from "@/stores/library/scene-store";
 import {
   buildAssetLibraryMatchNamesForProductionFlow,
   buildAssetLibraryMediaMapForProductionFlow,
@@ -11,6 +11,7 @@ import {
   type ProductionFlowAssetLibraryMatches,
 } from "./workflow-node-model";
 import { buildWorkbenchAssetMediaMap } from "./WorkbenchTab";
+import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";
 
 type ProductionFlowModelInput = Omit<
   Parameters<typeof buildProductionFlowModel>[0],
@@ -65,7 +66,7 @@ export function useProductionFlowModel({
   useEffect(() => {
     let cancelled = false;
     async function loadAssetLibraryMatches() {
-      const batchMatch = window.studioAssets?.batchMatch;
+      const batchMatch = getStudioAssetsBridge()?.batchMatch;
       if (!batchMatch) {
         setAssetLibraryMatches({ role: {}, scene: {}, tool: {} });
         return;

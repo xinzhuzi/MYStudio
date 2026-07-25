@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { DURATION_PRESETS, type DurationType } from "@/stores/director-store";
+import { DURATION_PRESETS, type DurationType } from "@/stores/director/director-store";
 import { Clock } from "lucide-react";
 
 interface DurationSelectorProps {

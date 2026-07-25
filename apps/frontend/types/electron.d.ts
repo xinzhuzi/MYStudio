@@ -2,8 +2,8 @@
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 import type { OpenExternalResult, UpdateCheckOptions, UpdateCheckResult } from "./update";
-import type { ModelTestRequest, ModelTestResult } from "../lib/api-manager/model-test";
-import type { TextCompletionRequest, TextCompletionResult } from "../lib/api-manager/text-completion";
+import type { ModelTestRequest, ModelTestResult } from "../lib/ai/model-test";
+import type { TextCompletionRequest, TextCompletionResult } from "../lib/ai/text-completion";
 import type { ImageRequestPayload, ImageRequestResult } from "./api-image-request";
 import type {
   DiagnosticsLogClearResult,
@@ -18,8 +18,8 @@ import type {
 import type { EpisodeMergePlan, TrackRenderPlan } from "./studio";
 import type {
   TimelineRenderCancelResult,
-  TimelineRenderPlan,
   TimelineRenderProgress,
+  TimelineRenderRequest,
   TimelineRenderResult,
 } from "./editing";
 import type { StudioAssetListRequest, StudioAssetListResponse, StudioAssetSummary } from "./studio-assets";
@@ -248,7 +248,7 @@ declare global {
         duration: number;
         streams: string[];
       }>;
-      renderTimeline: (plan: TimelineRenderPlan) => Promise<TimelineRenderResult>;
+      renderTimeline: (request: TimelineRenderRequest) => Promise<TimelineRenderResult>;
       cancelTimelineRender: (jobId: string) => Promise<TimelineRenderCancelResult>;
       onTimelineRenderProgress: (
         listener: (progress: TimelineRenderProgress) => void,

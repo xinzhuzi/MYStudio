@@ -10,7 +10,7 @@
 
 import { useState, useEffect } from "react";
 import type { ScriptCharacter, ScriptScene, Shot, Episode } from "@/types/script";
-import { useActiveScriptProject } from "@/stores/script-store";
+import { useActiveScriptProject } from "@/stores/script/script-store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";

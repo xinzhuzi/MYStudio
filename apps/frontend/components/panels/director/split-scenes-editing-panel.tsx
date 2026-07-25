@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { ArrowLeft, Loader2, Plus, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import type { SplitScene } from "@/stores/director-store";
+import type { SplitScene } from "@/stores/director/director-store";
 import { StoryboardConfigToolbar } from "./storyboard-config-toolbar";
 import {
   StoryboardMergedGenerationControls,

@@ -9,7 +9,7 @@
  */
 
 import { useState } from "react";
-import { useAPIConfigStore } from "@/stores/api-config-store";
+import { useAPIConfigStore } from "@/stores/ai/api-config-store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,7 +24,7 @@ import {
   ChevronUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { ProviderId } from "@opencut/ai-core";
+import type { ProviderId } from "@/lib/ai/core";
 
 interface APISettingsProps {
   collapsed?: boolean;

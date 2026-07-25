@@ -9,9 +9,9 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { useProjectStore } from "@/stores/project-store";
-import { useScriptStore } from "@/stores/script-store";
-import { useMediaPanelStore, stages, type Stage, type Tab } from "@/stores/media-panel-store";
+import { useProjectStore } from "@/stores/project/project-store";
+import { useScriptStore } from "@/stores/script/script-store";
+import { useMediaPanelStore, stages, type Stage, type Tab } from "@/stores/navigation/media-panel-store";
 import { CloudOff, Loader2, Check, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ChromeControls, SidebarToggleButton } from "@/components/ChromeControls";

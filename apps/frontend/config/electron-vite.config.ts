@@ -16,7 +16,7 @@ export default defineConfig({
       outDir: path.resolve(electronViteOutDir, 'main'),
       rollupOptions: {
         input: {
-          index: path.resolve(frontendRoot, 'electron/main.ts'),
+          index: path.resolve(frontendRoot, 'electron/main/main.ts'),
         },
         output: {
           format: 'cjs',
@@ -29,7 +29,7 @@ export default defineConfig({
       outDir: path.resolve(electronViteOutDir, 'preload'),
       rollupOptions: {
         input: {
-          index: path.resolve(frontendRoot, 'electron/preload.ts'),
+          index: path.resolve(frontendRoot, 'electron/preload/preload.ts'),
         },
         output: {
           format: 'cjs',
@@ -56,10 +56,6 @@ export default defineConfig({
     resolve: {
       alias: {
         '@': frontendRoot,
-        '@opencut/ai-core/services/prompt-compiler': path.resolve(frontendRoot, 'packages/ai-core/services/prompt-compiler.ts'),
-        '@opencut/ai-core/api/task-poller': path.resolve(frontendRoot, 'packages/ai-core/api/task-poller.ts'),
-        '@opencut/ai-core/protocol': path.resolve(frontendRoot, 'packages/ai-core/protocol/index.ts'),
-        '@opencut/ai-core': path.resolve(frontendRoot, 'packages/ai-core/index.ts'),
       },
     },
     plugins: [

@@ -1,15 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { AddProviderDialog, EditProviderDialog } from "@/components/api-manager";
-import { useStudioConfigStore } from "@/stores/studio-config-store";
-import { useAppSettingsStore } from "@/stores/app-settings-store";
-import { useAPIConfigStore, type IProvider } from "@/stores/api-config-store";
+import { useStudioConfigStore } from "@/stores/app/studio-config-store";
+import { useAppSettingsStore } from "@/stores/app/app-settings-store";
+import { useAPIConfigStore, type IProvider } from "@/stores/ai/api-config-store";
 import { classifyModelByName, parseApiKeys } from "@/lib/api-key-manager";
 import { resolveThinkingEnabled } from "@/lib/ai/thinking-mode";
 import {
   prepareModelTestRequest,
   type ModelTestResult,
   type ModelTestType,
-} from "@/lib/api-manager/model-test";
+} from "@/lib/ai/model-test";
 import { createOperationId, logEvent } from "@/lib/diagnostics/logger";
 import { toast } from "sonner";
 import { ApiSettingsTab } from "./ApiSettingsTab";

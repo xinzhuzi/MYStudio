@@ -1,6 +1,6 @@
 import type { EpisodeRawScript } from '@/types/script';
 import { processBatched } from '@/lib/ai/batch-processor';
-import { useScriptStore } from '@/stores/script-store';
+import { useScriptStore } from '@/stores/script/script-store';
 import { buildSeriesContextSummary } from './series-meta-sync';
 import { extractEpisodeSummary } from './episode-calibration-utils';
 import type { CalibrationOptions } from './episode-title-calibration-service';

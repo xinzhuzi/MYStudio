@@ -8,7 +8,7 @@ import {
 } from "@/lib/studio/script-planning";
 import { Edit3 } from "lucide-react";
 import { MdPreview } from "md-editor-rt";
-import { useThemeStore } from "@/stores/theme-store";
+import { useThemeStore } from "@/stores/app/theme-store";
 
 export function ScriptOutputPanel(props: {
   activeStage: ScriptStageKey;

@@ -2,7 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { LocalImage } from "@/components/ui/local-image";
 import { RoleVoicePreviewButton } from "../assets/RoleVoicePreviewButton";
-import { useTtsStore } from "@/stores/tts-store";
+import { useTtsStore } from "@/stores/tts/tts-store";
 import type { ProjectVoiceBinding } from "@/types/tts";
 import { Gem, Loader2, MapPin, PackagePlus, UserRound } from "lucide-react";
 import {

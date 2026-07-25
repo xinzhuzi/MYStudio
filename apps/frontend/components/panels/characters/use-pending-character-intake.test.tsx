@@ -2,7 +2,7 @@
 
 import { renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import type { PendingCharacterData } from "@/stores/media-panel-store";
+import type { PendingCharacterData } from "@/stores/navigation/media-panel-store";
 
 const mocks = vi.hoisted(() => ({
   getStyleById: vi.fn(),

@@ -20,10 +20,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(projectRoot, 'frontend'),
-      '@opencut/ai-core/services/prompt-compiler': path.resolve(projectRoot, 'frontend/packages/ai-core/services/prompt-compiler.ts'),
-      '@opencut/ai-core/api/task-poller': path.resolve(projectRoot, 'frontend/packages/ai-core/api/task-poller.ts'),
-      '@opencut/ai-core/protocol': path.resolve(projectRoot, 'frontend/packages/ai-core/protocol/index.ts'),
-      '@opencut/ai-core': path.resolve(projectRoot, 'frontend/packages/ai-core/index.ts'),
+      '@rendering': path.resolve(projectRoot, 'rendering'),
     },
   },
   plugins: [
@@ -31,10 +28,10 @@ export default defineConfig({
     react(),
     electron({
       main: {
-        entry: 'frontend/electron/main.ts',
+        entry: 'frontend/electron/main/main.ts',
       },
       preload: {
-        input: path.join(projectRoot, 'frontend/electron/preload.ts'),
+        input: path.join(projectRoot, 'frontend/electron/preload/preload.ts'),
       },
       renderer: process.env.NODE_ENV === 'test' ? undefined : {},
     }),

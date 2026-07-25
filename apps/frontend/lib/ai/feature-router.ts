@@ -16,7 +16,7 @@
  *   // Use config.apiKey and config.provider in API call
  */
 
-import { useAPIConfigStore, type AIFeature, type IProvider, AI_FEATURES } from '@/stores/api-config-store';
+import { useAPIConfigStore, type AIFeature, type IProvider, AI_FEATURES } from '@/stores/ai/api-config-store';
 import { parseApiKeys, getProviderKeyManager, ApiKeyManager } from '@/lib/api-key-manager';
 import { retryOperation } from '@/lib/utils/retry';
 

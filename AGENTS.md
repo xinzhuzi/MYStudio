@@ -19,3 +19,11 @@ If you're using Codex or another agent-capable tool, additional project-scoped h
 Managed by Trellis. Edits outside this block are preserved; edits inside may be overwritten by a future `trellis update`.
 
 <!-- TRELLIS:END -->
+
+---
+
+## 项目级工程铁律(Claude Code)
+
+本仓库的通用工程铁律——先验证再动手(铁律0)、下结论前三关、渐进式分段、大量内容用脚本处理(放 `apps/build/scripts/`)、子代理探子用法、禁止破坏性操作、严禁猜测、搜索 SOP(搜索前先读 `.trellis/spec/guides/search-sop-guide.md`)等——维护在 [`.claude/CLAUDE.md`](.claude/CLAUDE.md)。
+
+Codex / 其它 agent 处理本仓库时建议参照该文件的工程纪律;任务流程仍以 `.trellis/workflow.md` 为准。

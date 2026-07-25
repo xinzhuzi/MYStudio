@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { importSingleEpisodeContent } from "@/lib/script/full-script-service";
-import type { ScriptStructureStatus } from "@/stores/script-store";
+import type { ScriptStructureStatus } from "@/stores/script/script-store";
 import type { ScriptData } from "@/types/script";
 
 type UseScriptStructureCompletionOptions = {

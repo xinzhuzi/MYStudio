@@ -8,7 +8,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/storyboard/image-splitter", () => ({ splitStoryboardImage: mocks.splitStoryboardImage }));
-vi.mock("@/stores/app-settings-store", () => ({
+vi.mock("@/stores/app/app-settings-store", () => ({
   useAppSettingsStore: { getState: () => ({ imageGenerationSettings: { defaultResolution: "2K" } }) },
 }));
 vi.mock("sonner", () => ({ toast: mocks.toast }));

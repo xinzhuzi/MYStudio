@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { useAPIConfigStore } from "@/stores/api-config-store";
+import { useAPIConfigStore } from "@/stores/ai/api-config-store";
 import type { EpisodeRawScript, ScriptData, ScriptScene, Shot } from "@/types/script";
 import { analyzeEpisodeViewpoints } from "./episode-viewpoint-analysis";
 import { analyzeSceneViewpoints } from "./viewpoint-analyzer";

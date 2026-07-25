@@ -1,6 +1,6 @@
 import { useEffect, type Dispatch, type SetStateAction } from "react";
 import { getStyleById } from "@/lib/constants/visual-styles";
-import type { PendingCharacterData } from "@/stores/media-panel-store";
+import type { PendingCharacterData } from "@/stores/navigation/media-panel-store";
 import type {
   CharacterConsistencyElements,
   CharacterIdentityAnchors,

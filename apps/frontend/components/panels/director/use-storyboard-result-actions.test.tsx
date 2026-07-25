@@ -3,7 +3,7 @@
 import { useRef } from "react";
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { SplitScene } from "@/stores/director-store";
+import type { SplitScene } from "@/stores/director/director-store";
 import { useStoryboardGenerationUi } from "./use-storyboard-generation-ui";
 import { useStoryboardResultActions } from "./use-storyboard-result-actions";
 

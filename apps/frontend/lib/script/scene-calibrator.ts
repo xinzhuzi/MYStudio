@@ -18,7 +18,7 @@ import type { ScriptScene, ProjectBackground, EpisodeRawScript, SceneRawContent,
 import { aiManager } from '@/lib/ai/ai-manager';
 import { processBatched } from '@/lib/ai/batch-processor';
 import { estimateTokens, safeTruncate } from '@/lib/ai/model-registry';
-import { useScriptStore } from '@/stores/script-store';
+import { useScriptStore } from '@/stores/script/script-store';
 import { buildSeriesContextSummary } from './series-meta-sync';
 import {
   cleanLocationString,

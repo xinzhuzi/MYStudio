@@ -3,12 +3,12 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { HTMLAttributes, ReactNode } from "react";
 
-vi.mock("@/components/ui/style-picker", () => ({
+vi.mock("@/components/features/visual-style/style-picker", () => ({
   StylePicker: ({ onChange }: { onChange: (value: string) => void }) => (
     <button type="button" onClick={() => onChange("ink")}>选择视觉风格</button>
   ),
 }));
-vi.mock("@/components/ui/cinematography-profile-picker", () => ({
+vi.mock("@/components/features/cinematography/cinematography-profile-picker", () => ({
   CinematographyProfilePicker: ({ onChange }: { onChange: (value: string) => void }) => (
     <button type="button" onClick={() => onChange("noir")}>选择摄影风格</button>
   ),

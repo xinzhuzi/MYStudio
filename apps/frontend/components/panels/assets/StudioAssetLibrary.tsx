@@ -4,10 +4,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { usePropsLibraryStore } from "@/stores/props-library-store";
-import { useStudioStore } from "@/stores/studio-store";
-import { useProjectStore } from "@/stores/project-store";
-import { useTtsStore } from "@/stores/tts-store";
+import { usePropsLibraryStore } from "@/stores/library/props-library-store";
+import { useStudioStore } from "@/stores/studio/studio-store";
+import { useProjectStore } from "@/stores/project/project-store";
+import { useTtsStore } from "@/stores/tts/tts-store";
 import type { StudioAssetKind, StudioAssetSummary } from "@/types/studio-assets";
 import { Box, CheckSquare, ChevronDown, ChevronRight, Film, Loader2, Map, Mic2, Music2, Plus, RefreshCw, Search, Square, Trash2, UserCircle } from "lucide-react";
 import { toast } from "sonner";
@@ -26,6 +26,8 @@ import {
   type RoleAudioAiMatchRequest,
 } from "./role-audio-auto-assign";
 import { aiManager } from "@/lib/ai/ai-manager";
+import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";
+import { getTtsRuntimeBridge } from "@/lib/bridge/tts-runtime";
 import {
   resolveCanonicalSpeakerId,
   type VoiceoverCharacterIdentity,
@@ -163,7 +165,8 @@ export function StudioAssetLibrary({ type }: { type: StudioAssetKind }) {
   runtimeItemsRef.current = runtimeItems;
 
   const loadAssets = useCallback(async (offset: number, mode: "replace" | "append", refresh = false) => {
-    if (!window.studioAssets?.list) {
+    const studioAssets = getStudioAssetsBridge();
+    if (!studioAssets?.list) {
       setError("当前环境不支持读取本地素材，请在 Electron 中打开");
       return;
     }
@@ -186,7 +189,7 @@ export function StudioAssetLibrary({ type }: { type: StudioAssetKind }) {
     else setIsLoadingMore(true);
 
     try {
-      const response = await window.studioAssets.list({
+      const response = await studioAssets.list({
         type,
         search,
         offset,
@@ -255,11 +258,12 @@ export function StudioAssetLibrary({ type }: { type: StudioAssetKind }) {
   const deselectAll = () => { setSelectedIds(new Set()); setSelectMode(false); };
 
   const handleBatchDelete = async () => {
-    if (!selectedIds.size || !window.studioAssets?.delete) return;
+    const studioAssets = getStudioAssetsBridge();
+    if (!selectedIds.size || !studioAssets?.delete) return;
     if (!confirm(`确定删除选中的 ${selectedIds.size} 个素材？此操作不可撤销。`)) return;
     let deleted = 0;
     for (const id of selectedIds) {
-      const ok = await window.studioAssets.delete(id);
+      const ok = await studioAssets.delete(id);
       if (ok) deleted++;
     }
     toast.success(`已删除 ${deleted} 个素材`);
@@ -279,11 +283,12 @@ export function StudioAssetLibrary({ type }: { type: StudioAssetKind }) {
       toast.error("当前没有项目，无法写入音色绑定");
       return;
     }
-    if (!window.studioAssets?.list) {
+    const studioAssets = getStudioAssetsBridge();
+    if (!studioAssets?.list) {
       toast.error("素材读取接口仅在桌面应用中可用");
       return;
     }
-    const roleResult = await window.studioAssets.list({ type: "role", limit: 9999 });
+    const roleResult = await studioAssets.list({ type: "role", limit: 9999 });
     const roleItems = mergeAssetItems(
       localItems.filter((item) => item.type === "role"),
       roleResult.items ?? items.filter((item) => item.type === "role"),
@@ -295,7 +300,7 @@ export function StudioAssetLibrary({ type }: { type: StudioAssetKind }) {
 
     setIsAutoAssigningAudio(true);
     try {
-      const audioResult = await window.studioAssets.list({ type: "audio", limit: 9999 });
+      const audioResult = await studioAssets.list({ type: "audio", limit: 9999 });
       const candidates = buildRoleAudioCandidates(materials, audioResult.items ?? []);
       const canUseAiMatcher = Boolean(aiManager.resolve({ agent: "universalAi" }));
       const identities = buildProjectVoiceIdentities(entityExtractions);
@@ -322,7 +327,7 @@ export function StudioAssetLibrary({ type }: { type: StudioAssetKind }) {
         bindings: ttsProject?.bindings ?? {},
         voiceProfiles: ttsState.voiceProfiles,
         resolveReferenceAudioPath: async (audioPath) =>
-          window.ttsRuntime?.resolveReferenceAudioPath(audioPath) ?? null,
+          getTtsRuntimeBridge()?.resolveReferenceAudioPath(audioPath) ?? null,
         assignUnbound: canUseAiMatcher
           ? (roles, audioCandidates) => assignAudioToRolesWithAi(
               roles,
@@ -622,7 +627,9 @@ function AudioGroupedGrid({
 
   // 批量识别：对 description 为空的音色音频逐个识别
   const handleBatchTranscribe = async (targets: StudioAssetSummary[]) => {
-    if (!window.ttsRuntime?.request || !window.studioAssets?.get || !window.studioAssets?.update) {
+    const studioAssets = getStudioAssetsBridge();
+    const ttsRuntime = getTtsRuntimeBridge();
+    if (!ttsRuntime?.request || !studioAssets?.get || !studioAssets?.update) {
       toast.error("TTS 后端未就绪");
       return;
     }
@@ -631,7 +638,7 @@ function AudioGroupedGrid({
     let success = 0;
     const pending: { id: string; audioPath: string }[] = [];
     for (const item of targets) {
-      const detail = await window.studioAssets.get(item.id).catch(() => null);
+      const detail = await studioAssets.get(item.id).catch(() => null);
       const audioPath = detail?.sourcePath || detail?.filePath;
       if (!detail?.description?.trim() && audioPath) pending.push({ id: item.id, audioPath });
     }
@@ -643,11 +650,11 @@ function AudioGroupedGrid({
     }
     for (const { id, audioPath } of pending) {
       try {
-        const reqPromise = window.ttsRuntime.request({ method: "POST", path: "/transcribe", body: { audio_path: audioPath } }) as Promise<{ text?: string }>;
+        const reqPromise = ttsRuntime.request({ method: "POST", path: "/transcribe", body: { audio_path: audioPath } }) as Promise<{ text?: string }>;
         const timeoutPromise = new Promise<{ text?: string }>((_, reject) => setTimeout(() => reject(new Error("timeout")), 90000));
         const res = await Promise.race([reqPromise, timeoutPromise]);
         if (res?.text?.trim()) {
-          await window.studioAssets.update({ id, updates: { description: res.text.trim() } });
+          await studioAssets.update({ id, updates: { description: res.text.trim() } });
           success++;
         }
       } catch { /* 单个失败或超时跳过 */ }

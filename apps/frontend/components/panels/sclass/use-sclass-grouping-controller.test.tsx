@@ -2,9 +2,9 @@
 import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { SplitScene } from "@/stores/director-store";
-import { useProjectStore } from "@/stores/project-store";
-import { useSClassStore } from "@/stores/sclass-store";
+import type { SplitScene } from "@/stores/director/director-store";
+import { useProjectStore } from "@/stores/project/project-store";
+import { useSClassStore } from "@/stores/sclass/sclass-store";
 import { useSClassGroupingController } from "./use-sclass-grouping-controller";
 import { runBatchCalibration, runCalibration } from "./sclass-calibrator";
 

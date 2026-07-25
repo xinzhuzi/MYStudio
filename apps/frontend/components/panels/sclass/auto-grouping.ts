@@ -12,8 +12,8 @@
  *   4. 每组 2~maxPerGroup 个镜头
  */
 
-import type { SplitScene } from '@/stores/director-store';
-import type { ShotGroup, SClassDuration } from '@/stores/sclass-store';
+import type { SplitScene } from '@/stores/director/director-store';
+import type { ShotGroup, SClassDuration } from '@/stores/sclass/sclass-store';
 
 // ==================== Config ====================
 

@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { TrailerGenerationOptions } from "@/lib/script/trailer-service";
 import { cn } from "@/lib/utils";
-import type { TrailerConfig, TrailerDuration } from "@/stores/director-store";
+import type { TrailerConfig, TrailerDuration } from "@/stores/director/director-store";
 import type { Shot } from "@/types/script";
 
 interface EpisodeTreeTrailerPanelProps {

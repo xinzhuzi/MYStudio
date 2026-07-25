@@ -14,6 +14,8 @@ import {
   Upload,
 } from "lucide-react";
 import { toast } from "sonner";
+import { getStorageManagerBridge } from "@/lib/bridge/storage-manager";
+import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -50,7 +52,7 @@ import {
   unloadModel,
 } from "@/lib/tts/client";
 import type { TtsActiveTasksResponse, TtsEngine, TtsModelCacheInfo, TtsModelRow, TtsRuntimeStatus } from "@/types/tts";
-import { useTtsStore } from "@/stores/tts-store";
+import { useTtsStore } from "@/stores/tts/tts-store";
 import { cn } from "@/lib/utils";
 import { VoiceProfileSection } from "./VoiceProfileSection";
 import { formatBytes, formatSizeMb } from "./local-tts-formatters";
@@ -504,11 +506,12 @@ export function LocalTtsPanel() {
   };
 
   const handleSelectModelCacheDir = async () => {
-    if (!window.storageManager?.selectDirectory) {
+    const storageManager = getStorageManagerBridge();
+    if (!storageManager?.selectDirectory) {
       toast.error("选择文件夹仅在桌面应用中可用");
       return;
     }
-    const dir = await window.storageManager.selectDirectory();
+    const dir = await storageManager.selectDirectory();
     if (!dir) return;
     setDraftModelCacheDir(dir);
     setModelCacheDirty(true); modelCacheDirtyRef.current = true;
@@ -616,14 +619,15 @@ export function LocalTtsPanel() {
     const file = event.target.files?.[0];
     event.target.value = "";
     if (!file) return;
-    if (!window.studioAssets?.saveMaterial) {
+    const studioAssets = getStudioAssetsBridge();
+    if (!studioAssets?.saveMaterial) {
       toast.error("参考音频上传仅在桌面应用中可用");
       return;
     }
 
     setUploadingReference(true);
     try {
-      const material = await window.studioAssets.saveMaterial({
+      const material = await studioAssets.saveMaterial({
         name: `voice-reference-${Date.now()}-${file.name}`,
         bytes: await file.arrayBuffer(),
       });

@@ -9,8 +9,8 @@
  */
 
 import { useState, useCallback } from "react";
-import { useScriptStore } from "@/stores/script-store";
-import { useCharacterLibraryStore, type Character, type CharacterVariation } from "@/stores/character-library-store";
+import { useScriptStore } from "@/stores/script/script-store";
+import { useCharacterLibraryStore, type Character, type CharacterVariation } from "@/stores/library/character-library-store";
 import { aiManager } from "@/lib/ai/ai-manager";
 import { generateShotImage, generateShotVideo, batchGenerateShotImages } from "@/lib/script/shot-generator";
 import type { Shot } from "@/types/script";

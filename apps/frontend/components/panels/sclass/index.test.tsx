@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { SplitScene } from "@/stores/director-store";
+import type { SplitScene } from "@/stores/director/director-store";
 import { SClassView } from "./index";
 
 const mocks = vi.hoisted(() => ({
@@ -21,11 +21,11 @@ vi.mock("./sclass-scenes", () => ({
   SClassScenes: () => <div data-testid="sclass-scenes" />,
 }));
 
-vi.mock("@/stores/project-store", () => ({
+vi.mock("@/stores/project/project-store", () => ({
   useProjectStore: () => ({ activeProjectId: mocks.activeProjectId }),
 }));
 
-vi.mock("@/stores/director-store", () => ({
+vi.mock("@/stores/director/director-store", () => ({
   useDirectorStore: () => ({
     setActiveProjectId: mocks.setDirectorActiveProjectId,
     ensureProject: mocks.ensureDirectorProject,
@@ -33,14 +33,14 @@ vi.mock("@/stores/director-store", () => ({
   useActiveDirectorProject: () => mocks.projectData,
 }));
 
-vi.mock("@/stores/sclass-store", () => ({
+vi.mock("@/stores/sclass/sclass-store", () => ({
   useSClassStore: () => ({
     setActiveProjectId: mocks.setSClassActiveProjectId,
     ensureProject: mocks.ensureSClassProject,
   }),
 }));
 
-vi.mock("@/stores/media-panel-store", () => ({
+vi.mock("@/stores/navigation/media-panel-store", () => ({
   useMediaPanelStore: () => ({ setActiveTab: mocks.setActiveTab }),
 }));
 

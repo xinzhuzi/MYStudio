@@ -6,10 +6,10 @@ const mocks = vi.hoisted(() => ({
   getVariationForEpisode: vi.fn(),
 }));
 
-vi.mock("@/stores/script-store", () => ({
+vi.mock("@/stores/script/script-store", () => ({
   useScriptStore: { getState: mocks.getScriptState },
 }));
-vi.mock("@/stores/character-library-store", () => ({
+vi.mock("@/stores/library/character-library-store", () => ({
   useCharacterLibraryStore: { getState: mocks.getCharacterLibraryState },
 }));
 vi.mock("./character-stage-analyzer", () => ({

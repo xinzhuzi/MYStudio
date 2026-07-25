@@ -1,14 +1,15 @@
 import { useCallback } from "react";
 import { toast } from "sonner";
 import { aiManager } from "@/lib/ai/ai-manager";
+import { getProjectFilesBridge } from "@/lib/bridge/project-files";
 import {
   assertImageWorkflowContinuityCapability,
   buildImageWorkflowGenerationRequest,
   setGeneratedImageResult,
   setGeneratedImageStatus,
 } from "@/lib/studio/image-workflow";
-import { useProjectStore } from "@/stores/project-store";
-import { useStudioStore } from "@/stores/studio-store";
+import { useProjectStore } from "@/stores/project/project-store";
+import { useStudioStore } from "@/stores/studio/studio-store";
 import type { ImageWorkflowGraph } from "@/types/studio";
 import {
   createWorkflowFilename,
@@ -58,7 +59,7 @@ export function useImageWorkflowGeneration({
         extraParams: request.quality === "hd" ? { quality: "hd" } : undefined,
       });
       const node = graph.nodes.find((item) => item.id === targetNodeId);
-      const saved = await window.projectFiles?.saveImage({
+      const saved = await getProjectFilesBridge()?.saveImage({
         projectId,
         relativePath: workflowImageRelativePath(
           graph.id,

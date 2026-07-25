@@ -20,6 +20,7 @@ const mocks = vi.hoisted(() => ({
   statusResolvers: [] as Array<(status: TtsRuntimeStatus) => void>,
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
   createVoiceProfile: vi.fn(),
+  getStorageManagerBridge: vi.fn(),
 }));
 
 vi.mock("@/lib/tts/client", () => ({
@@ -37,13 +38,16 @@ vi.mock("@/lib/tts/client", () => ({
   subscribeModelProgress: mocks.subscribeModelProgress,
 }));
 
-vi.mock("@/stores/tts-store", () => ({
+vi.mock("@/stores/tts/tts-store", () => ({
   useTtsStore: (selector: (state: unknown) => unknown) => selector({
     voiceProfiles: {},
     createVoiceProfile: mocks.createVoiceProfile,
   }),
 }));
 
+vi.mock("@/lib/bridge/storage-manager", () => ({
+  getStorageManagerBridge: mocks.getStorageManagerBridge,
+}));
 vi.mock("sonner", () => ({ toast: mocks.toast }));
 vi.mock("./VoiceProfileSection", () => ({ VoiceProfileSection: () => <div>voice profiles</div> }));
 
@@ -94,6 +98,7 @@ beforeEach(() => {
   mocks.cancelModelDownload.mockResolvedValue({ message: "cancelled" });
   mocks.deleteModel.mockResolvedValue({ message: "deleted" });
   mocks.unloadModel.mockResolvedValue({ message: "unloaded" });
+  mocks.getStorageManagerBridge.mockReturnValue(undefined);
 });
 
 afterEach(() => {
@@ -154,5 +159,30 @@ describe("LocalTtsPanel mounted lifecycle", () => {
 
     expect(screen.getByText("正在检查 Python 运行环境")).toBeTruthy();
     start.resolve({ success: false, error: "启动失败" });
+  });
+
+  it("keeps the desktop-only folder guard when the storage bridge is unavailable", () => {
+    render(<LocalTtsPanel />);
+
+    fireEvent.click(screen.getByRole("button", { name: "选择模型目录" }));
+
+    expect(mocks.toast.error).toHaveBeenCalledWith("选择文件夹仅在桌面应用中可用");
+  });
+
+  it("applies the directory selected through the storage bridge", async () => {
+    const selectDirectory = vi.fn().mockResolvedValue("/models");
+    mocks.getStorageManagerBridge.mockReturnValue({ selectDirectory });
+    mocks.getTtsRuntimeStatus.mockResolvedValue(status());
+    render(<LocalTtsPanel />);
+
+    fireEvent.click(screen.getByRole("button", { name: "选择模型目录" }));
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(selectDirectory).toHaveBeenCalledOnce();
+    expect(mocks.setTtsModelCacheDir).toHaveBeenCalledWith("/models");
+    expect(mocks.toast.success).toHaveBeenCalledWith("模型缓存路径已切换");
   });
 });

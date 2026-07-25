@@ -9,8 +9,8 @@
  */
 
 import { useState } from "react";
-import { useCharacterLibraryStore, type Character } from "@/stores/character-library-store";
-import { useProjectStore } from "@/stores/project-store";
+import { useCharacterLibraryStore, type Character } from "@/stores/library/character-library-store";
+import { useProjectStore } from "@/stores/project/project-store";
 import type {
   CharacterConsistencyElements,
   CharacterIdentityAnchors,
@@ -18,9 +18,9 @@ import type {
   CharacterStageInfo,
   PromptLanguage,
 } from "@/types/script";
-import { useActiveScriptProject } from "@/stores/script-store";
-import { useMediaPanelStore } from "@/stores/media-panel-store";
-import { useMediaStore } from "@/stores/media-store";
+import { useActiveScriptProject } from "@/stores/script/script-store";
+import { useMediaPanelStore } from "@/stores/navigation/media-panel-store";
+import { useMediaStore } from "@/stores/media/media-store";
 import { aiManager } from "@/lib/ai/ai-manager";
 import { saveImageToLocal } from "@/lib/image-storage";
 import { Button } from "@/components/ui/button";
@@ -53,7 +53,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { StylePicker } from "@/components/ui/style-picker";
+import { StylePicker } from "@/components/features/visual-style/style-picker";
 import { getStyleById, DEFAULT_STYLE_ID } from "@/lib/constants/visual-styles";
 import { buildCharacterDataText } from "./character-data-export";
 import { CharacterCalibrationSection } from "./character-calibration-section";

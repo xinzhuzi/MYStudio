@@ -1,5 +1,5 @@
 import { toast } from "sonner";
-import type { SplitScene } from "@/stores/director-store";
+import type { SplitScene } from "@/stores/director/director-store";
 import type { MediaType } from "@/types/media";
 
 type AddMediaFromUrl = (options: {

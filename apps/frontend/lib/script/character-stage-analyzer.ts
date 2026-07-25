@@ -13,7 +13,7 @@
  */
 
 import type { ProjectBackground, ScriptCharacter, PromptLanguage } from '@/types/script';
-import type { CharacterVariation } from '@/stores/character-library-store';
+import type { CharacterVariation } from '@/stores/library/character-library-store';
 import { aiManager } from '@/lib/ai/ai-manager';
 
 // ==================== 类型定义 ====================

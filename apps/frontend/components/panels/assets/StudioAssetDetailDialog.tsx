@@ -20,9 +20,10 @@ import {
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
-import { useFreedomStore } from "@/stores/freedom-store";
-import { useMediaPanelStore } from "@/stores/media-panel-store";
+import { useFreedomStore } from "@/stores/assist/freedom-store";
+import { useMediaPanelStore } from "@/stores/navigation/media-panel-store";
 import type { AssetImage, StudioAssetSummary } from "@/types/studio-assets";
+import { getImageStorageBridge } from "@/lib/bridge/image-storage";
 import { RoleVoiceAssignDialog } from "./RoleVoiceAssignDialog";
 import { RoleVoicePreviewButton } from "./RoleVoicePreviewButton";
 import {
@@ -47,9 +48,11 @@ import { polishAssetPrompt, type PolishResult } from "@/lib/ai/prompt-polisher";
 import { generateAsset } from "@/lib/studio/asset-generation-orchestrator";
 import { parseAssetNames } from "@/lib/studio/asset-names";
 import { toRoleSpeakerId } from "@/lib/tts/role-speaker-id";
-import { usePropsLibraryStore } from "@/stores/props-library-store";
-import { useStudioStore } from "@/stores/studio-store";
-import { useTtsStore } from "@/stores/tts-store";
+import { usePropsLibraryStore } from "@/stores/library/props-library-store";
+import { useStudioStore } from "@/stores/studio/studio-store";
+import { useTtsStore } from "@/stores/tts/tts-store";
+import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";
+import { getTtsRuntimeBridge } from "@/lib/bridge/tts-runtime";
 import { buildAssetRegenerationPrompt, getAssetDisplayName, getAssetImageOpenTarget, getAssetOperationError, getAssetSpokenText, updateImagesAfterReplacingMainImage } from "./studio-asset-detail-utils";
 
 export { buildAssetRegenerationPrompt, getAssetDisplayName, getAssetImageOpenTarget, getAssetOperationError, getAssetSpokenText, updateImagesAfterReplacingMainImage } from "./studio-asset-detail-utils";
@@ -140,8 +143,8 @@ export function StudioAssetDetailDialog({
     setDraftPrompt(asset.prompt || "");
     setDraftSetting(asset.setting || "");
 
-    if (window.studioAssets?.get) {
-      window.studioAssets.get(asset.id).then((result) => {
+    if (getStudioAssetsBridge()?.get) {
+      getStudioAssetsBridge()!.get(asset.id).then((result) => {
         if (!result || cancelled) return;
         setFullAsset(result);
         setDraftName(result.name || "");
@@ -219,7 +222,7 @@ export function StudioAssetDetailDialog({
   };
 
   const handleSave = async () => {
-    if (!window.studioAssets?.update) {
+    if (!getStudioAssetsBridge()?.update) {
       toast.error("当前环境不支持保存");
       return;
     }
@@ -229,7 +232,7 @@ export function StudioAssetDetailDialog({
     updates.prompt = draftPrompt;
     updates.setting = draftSetting;
     try {
-      const result = await window.studioAssets.update({ id: asset.id, updates });
+      const result = await getStudioAssetsBridge()!.update({ id: asset.id, updates });
       if (result) {
         toast.success("已保存");
       } else {
@@ -250,8 +253,8 @@ export function StudioAssetDetailDialog({
         const realId = asset.id.replace("manying-prop:", "");
         usePropsLibraryStore.getState().deleteProp(realId);
         success = true;
-      } else if (window.studioAssets?.delete) {
-        success = await window.studioAssets.delete(asset.id);
+      } else if (getStudioAssetsBridge()?.delete) {
+        success = await getStudioAssetsBridge()!.delete(asset.id);
       } else {
         toast.error("当前环境不支持删除");
         return;
@@ -340,8 +343,8 @@ export function StudioAssetDetailDialog({
           result.imageLocalPath,
           result.polishResult,
         );
-        if (window.studioAssets?.get) {
-          const updated = await window.studioAssets.get(asset.id);
+        if (getStudioAssetsBridge()?.get) {
+          const updated = await getStudioAssetsBridge()!.get(asset.id);
           if (updated) {
             setDraftName(updated.name || "");
             setDraftDescription(updated.description || "");
@@ -451,12 +454,12 @@ export function StudioAssetDetailDialog({
   };
 
   const handleAddImage = async () => {
-    if (!window.studioAssets?.selectImageFiles || !window.studioAssets?.addImage) {
+    if (!getStudioAssetsBridge()?.selectImageFiles || !getStudioAssetsBridge()?.addImage) {
       toast.error("当前环境不支持添加图片");
       return;
     }
     try {
-      const filePaths = await window.studioAssets.selectImageFiles();
+      const filePaths = await getStudioAssetsBridge()!.selectImageFiles();
       if (!filePaths.length) return;
 
       let lastResult: StudioAssetSummary | null = null;
@@ -465,7 +468,7 @@ export function StudioAssetDetailDialog({
       for (const filePath of filePaths) {
         const imageName = filePath.split(/[\\/]/).pop()?.replace(/\.[^.]+$/, "") || "新图片";
         try {
-          const result = await window.studioAssets.addImage({
+          const result = await getStudioAssetsBridge()!.addImage({
             assetId: asset.id,
             imageName: imageName.trim(),
             sourceFilePath: filePath,
@@ -504,14 +507,14 @@ export function StudioAssetDetailDialog({
   };
 
   const handleReplaceImage = async () => {
-    if (!window.studioAssets?.selectImageFile || !window.studioAssets?.replaceImage) {
+    if (!getStudioAssetsBridge()?.selectImageFile || !getStudioAssetsBridge()?.replaceImage) {
       toast.error("当前环境不支持更换图片");
       return;
     }
     try {
-      const filePath = await window.studioAssets.selectImageFile();
+      const filePath = await getStudioAssetsBridge()!.selectImageFile();
       if (!filePath) return;
-      const result = await window.studioAssets.replaceImage({ assetId: asset.id, sourceFilePath: filePath });
+      const result = await getStudioAssetsBridge()!.replaceImage({ assetId: asset.id, sourceFilePath: filePath });
       if (result) {
         const newImgs = updateImagesAfterReplacingMainImage(images, result);
         setImages(newImgs);
@@ -531,9 +534,9 @@ export function StudioAssetDetailDialog({
       toast.error("不能删除主图");
       return;
     }
-    if (!window.studioAssets?.removeImage) return;
+    if (!getStudioAssetsBridge()?.removeImage) return;
     try {
-      const result = await window.studioAssets.removeImage({ assetId: asset.id, imageFilePath: img.filePath });
+      const result = await getStudioAssetsBridge()!.removeImage({ assetId: asset.id, imageFilePath: img.filePath });
       if (result) {
         const newImgs = images.filter((_, i) => i !== idx);
         setImages(newImgs);
@@ -549,7 +552,7 @@ export function StudioAssetDetailDialog({
 
   const handleRenameImage = async (img: AssetImage, idx: number) => {
     if (idx === 0 && img.name === "主图") return;
-    if (!window.studioAssets?.renameImage) return;
+    if (!getStudioAssetsBridge()?.renameImage) return;
     const newName = await new Promise<string | null>((resolve) => {
       const input = document.createElement("input");
       input.value = img.name;
@@ -565,7 +568,7 @@ export function StudioAssetDetailDialog({
     });
     if (!newName?.trim() || newName.trim() === img.name) return;
     try {
-      const result = await window.studioAssets.renameImage({ assetId: asset.id, imageFilePath: img.filePath, newName: newName.trim() });
+      const result = await getStudioAssetsBridge()!.renameImage({ assetId: asset.id, imageFilePath: img.filePath, newName: newName.trim() });
       if (result) {
         const newImgs = [...images];
         newImgs[idx] = { ...newImgs[idx], name: newName.trim() };
@@ -630,16 +633,17 @@ export function StudioAssetDetailDialog({
                         onClick={async () => {
                           const filePath = asset.sourcePath || asset.filePath;
                           if (!filePath) { toast.error("无音频文件路径"); return; }
-                          if (!window.ttsRuntime?.request) { toast.error("TTS 后端未就绪"); return; }
+                          const ttsRuntime = getTtsRuntimeBridge();
+                          if (!ttsRuntime?.request) { toast.error("TTS 后端未就绪"); return; }
                           toast.info("正在识别说话内容...");
                           try {
-                            const res = await window.ttsRuntime.request({ method: "POST", path: "/transcribe", body: { audio_path: filePath } }) as { text?: string };
+                            const res = await ttsRuntime.request({ method: "POST", path: "/transcribe", body: { audio_path: filePath } }) as { text?: string };
                             if (res?.text) {
                               setDraftDescription(res.text);
                               setRecognizedText(res.text);
                               // 自动保存到资产库
-                              if (window.studioAssets?.update) {
-                                await window.studioAssets.update({ id: asset.id, updates: { description: res.text } });
+                              if (getStudioAssetsBridge()?.update) {
+                                await getStudioAssetsBridge()!.update({ id: asset.id, updates: { description: res.text } });
                               }
                               toast.success("识别完成并已保存");
                             } else {
@@ -965,12 +969,12 @@ export async function persistGeneratedAssetPromptToLibrary(
   polishResult?: PolishResult,
 ) {
   const prompt = polishResult?.status === "success" ? polishResult.prompt?.trim() : "";
-  if (typeof window === "undefined" || !window.studioAssets?.update || !prompt) {
+  if (typeof window === "undefined" || !getStudioAssetsBridge()?.update || !prompt) {
     return false;
   }
 
   try {
-    const result = await window.studioAssets.update({
+    const result = await getStudioAssetsBridge()!.update({
       id: assetId,
       updates: { prompt },
     });
@@ -986,14 +990,15 @@ export async function saveGeneratedAssetImageToLibrary(
   imagePath?: string,
   polishResult?: PolishResult,
 ) {
-  if (typeof window === "undefined" || !window.studioAssets || !imagePath) {
+  if (typeof window === "undefined" || !getStudioAssetsBridge() || !imagePath) {
     return false;
   }
 
   const sourceFilePath = await materializeGeneratedImageForAssetLibrary(assetId, imagePath);
   let imageSaved = false;
-  if (sourceFilePath && window.studioAssets.replaceImage) {
-    const result = await window.studioAssets.replaceImage({ assetId, sourceFilePath });
+  const studioAssets = getStudioAssetsBridge();
+  if (sourceFilePath && studioAssets) {
+    const result = await studioAssets.replaceImage({ assetId, sourceFilePath });
     imageSaved = Boolean(result);
   }
 
@@ -1004,7 +1009,7 @@ export async function saveGeneratedAssetImageToLibrary(
 
 async function materializeGeneratedImageForAssetLibrary(assetId: string, imagePath: string) {
   if (imagePath.startsWith("local-image://")) {
-    return window.imageStorage?.getAbsolutePath?.(imagePath) ?? null;
+    return getImageStorageBridge()?.getAbsolutePath?.(imagePath) ?? null;
   }
 
   if (imagePath.startsWith("file://")) {
@@ -1019,11 +1024,11 @@ async function materializeGeneratedImageForAssetLibrary(assetId: string, imagePa
     return imagePath;
   }
 
-  if ((imagePath.startsWith("http://") || imagePath.startsWith("https://") || imagePath.startsWith("data:")) && window.studioAssets?.saveMaterial) {
+  if ((imagePath.startsWith("http://") || imagePath.startsWith("https://") || imagePath.startsWith("data:")) && getStudioAssetsBridge()?.saveMaterial) {
     const response = await fetch(imagePath);
     const blob = await response.blob();
     const bytes = await blob.arrayBuffer();
-    const result = await window.studioAssets.saveMaterial({
+    const result = await getStudioAssetsBridge()!.saveMaterial({
       name: `${assetId}_generated_${Date.now()}.png`,
       bytes,
     });

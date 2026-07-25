@@ -9,7 +9,7 @@ import type {
 import {
   CAMERA_MOVEMENT_PRESETS,
   SPECIAL_TECHNIQUE_PRESETS,
-} from "@/stores/director-presets";
+} from "@/stores/director/director-presets";
 
 type CopyEpisodeDetail = Episode & { synopsis?: string };
 

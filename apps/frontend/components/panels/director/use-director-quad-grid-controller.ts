@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import type { QuadVariationType } from "@/components/quad-grid";
 import { aiManager } from "@/lib/ai/ai-manager";
-import type { DirectorProjectData, EmotionTag, SplitScene } from "@/stores/director-store";
+import type { DirectorProjectData, EmotionTag, SplitScene } from "@/stores/director/director-store";
 import { toast } from "sonner";
 import type { StoryboardGenerationUiController } from "./use-storyboard-generation-ui";
 import { executeStoryboardGridGeneration } from "./storyboard-grid-generation-executor";

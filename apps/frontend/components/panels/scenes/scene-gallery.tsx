@@ -15,11 +15,11 @@ import {
   type SceneFolder,
   TIME_PRESETS,
   ATMOSPHERE_PRESETS,
-} from "@/stores/scene-store";
-import { useAppSettingsStore } from "@/stores/app-settings-store";
-import { useProjectStore } from "@/stores/project-store";
-import { useMediaPanelStore } from "@/stores/media-panel-store";
-import { useActiveScriptProject } from "@/stores/script-store";
+} from "@/stores/library/scene-store";
+import { useAppSettingsStore } from "@/stores/app/app-settings-store";
+import { useProjectStore } from "@/stores/project/project-store";
+import { useMediaPanelStore } from "@/stores/navigation/media-panel-store";
+import { useActiveScriptProject } from "@/stores/script/script-store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";

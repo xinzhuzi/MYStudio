@@ -11,8 +11,8 @@
 
 import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { useDirectorStore, useActiveDirectorProject } from "@/stores/director-store";
-import { useAppSettingsStore } from "@/stores/app-settings-store";
+import { useDirectorStore, useActiveDirectorProject } from "@/stores/director/director-store";
+import { useAppSettingsStore } from "@/stores/app/app-settings-store";
 import { splitStoryboardImage, type SplitResult } from "@/lib/storyboard/image-splitter";
 import { persistSceneImage } from '@/lib/utils/image-persist';
 import { normalizeHorizontalVerticalAspectRatio } from "@/lib/ai/image-size-presets";

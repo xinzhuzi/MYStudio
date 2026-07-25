@@ -7,6 +7,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { getStudioVisualManualsBridge } from "@/lib/bridge/studio-visual-manuals";
 import {
   getDefaultVisualManuals,
   groupDefaultVisualManuals,
@@ -35,7 +36,8 @@ export function DefaultStylesGrid() {
   const [isLoading, setIsLoading] = useState(false);
 
   const loadManuals = async (force = false) => {
-    if (!window.studioVisualManuals?.list) {
+    const studioVisualManuals = getStudioVisualManualsBridge();
+    if (!studioVisualManuals?.list) {
       toast.error("当前环境不支持读取默认风格，请在 Electron 中打开");
       return;
     }
@@ -46,7 +48,7 @@ export function DefaultStylesGrid() {
     }
     setIsLoading(true);
     try {
-      const result = await window.studioVisualManuals.list(force ? { refresh: true } : undefined);
+      const result = await studioVisualManuals.list(force ? { refresh: true } : undefined);
       _manualsCache = result;
       setManuals(result);
       setExpandedManualCategories(new Set(groupDefaultVisualManuals(result).map((group) => group.id)));
@@ -73,13 +75,14 @@ export function DefaultStylesGrid() {
   };
 
   const openManualDetail = async (manual: StudioVisualManualSummary) => {
-    if (!window.studioVisualManuals?.read) {
+    const studioVisualManuals = getStudioVisualManualsBridge();
+    if (!studioVisualManuals?.read) {
       toast.error("当前环境不支持编辑默认风格，请在 Electron 中打开");
       return;
     }
     setIsLoading(true);
     try {
-      const result = await window.studioVisualManuals.read(manual.stylePath);
+      const result = await studioVisualManuals.read(manual.stylePath);
       if (!result.success || !result.manual) throw new Error(result.error || "读取默认风格失败");
       setSelectedManual(result.manual);
       setIsManualEditorOpen(true);

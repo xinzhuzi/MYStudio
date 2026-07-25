@@ -2,7 +2,7 @@
 
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { IProvider } from "@/stores/api-config-store";
+import type { IProvider } from "@/stores/ai/api-config-store";
 
 const mocks = vi.hoisted(() => ({
   provider: {
@@ -25,7 +25,7 @@ const mocks = vi.hoisted(() => ({
 }));
 let studioBindings: unknown[] = [];
 
-vi.mock("@/stores/api-config-store", () => ({
+vi.mock("@/stores/ai/api-config-store", () => ({
   useAPIConfigStore: (selector?: (state: Record<string, unknown>) => unknown) => {
     const state = {
       providers: [mocks.provider],
@@ -40,11 +40,11 @@ vi.mock("@/stores/api-config-store", () => ({
     return selector ? selector(state) : state;
   },
 }));
-vi.mock("@/stores/studio-config-store", () => ({ useStudioConfigStore: () => studioBindings }));
-vi.mock("@/stores/app-settings-store", () => ({
+vi.mock("@/stores/app/studio-config-store", () => ({ useStudioConfigStore: () => studioBindings }));
+vi.mock("@/stores/app/app-settings-store", () => ({
   useAppSettingsStore: () => ({ defaultAspectRatio: "16:9", defaultResolution: "2K" }),
 }));
-vi.mock("@/lib/api-manager/model-test", () => ({
+vi.mock("@/lib/ai/model-test", () => ({
   prepareModelTestRequest: () => ({ success: true, dryRun: false }),
 }));
 vi.mock("@/lib/ai/thinking-mode", () => ({ resolveThinkingEnabled: () => false }));

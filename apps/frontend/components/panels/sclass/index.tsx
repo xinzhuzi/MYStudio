@@ -15,10 +15,10 @@
  */
 
 import { useEffect } from "react";
-import { useDirectorStore, useActiveDirectorProject } from "@/stores/director-store";
-import { useProjectStore } from "@/stores/project-store";
-import { useMediaPanelStore } from "@/stores/media-panel-store";
-import { useSClassStore } from "@/stores/sclass-store";
+import { useDirectorStore, useActiveDirectorProject } from "@/stores/director/director-store";
+import { useProjectStore } from "@/stores/project/project-store";
+import { useMediaPanelStore } from "@/stores/navigation/media-panel-store";
+import { useSClassStore } from "@/stores/sclass/sclass-store";
 import { SClassScenes } from "./sclass-scenes";
 import { Button } from "@/components/ui/button";
 import { Settings, Sparkles } from "lucide-react";

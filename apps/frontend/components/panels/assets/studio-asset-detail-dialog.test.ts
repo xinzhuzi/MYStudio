@@ -117,6 +117,32 @@ describe("buildAssetRegenerationPrompt", () => {
     expect(source).toContain("useEffect(() =>");
   });
 
+  it("routes asset IPC through the renderer bridge adapter", () => {
+    const source = readFileSync(new URL("./StudioAssetDetailDialog.tsx", import.meta.url), "utf8");
+    expect(source).toContain('from "@/lib/bridge/studio-assets"');
+    expect(source).toContain("getStudioAssetsBridge");
+    expect(source).not.toContain("window.studioAssets");
+  });
+
+  it("routes asset library IPC through the renderer bridge adapter", () => {
+    const source = readFileSync(new URL("./StudioAssetLibrary.tsx", import.meta.url), "utf8");
+    expect(source).toContain('from "@/lib/bridge/studio-assets"');
+    expect(source).toContain("getStudioAssetsBridge");
+    expect(source).not.toContain("window.studioAssets");
+  });
+
+  it("routes asset creation and role voice asset reads through the renderer bridge adapter", () => {
+    const addAssetSource = readFileSync(new URL("./AddAssetDialog.tsx", import.meta.url), "utf8");
+    const roleVoiceSource = readFileSync(new URL("./RoleVoiceAssignDialog.tsx", import.meta.url), "utf8");
+
+    expect(addAssetSource).toContain('import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";');
+    expect(addAssetSource).toContain("getStudioAssetsBridge()");
+    expect(addAssetSource).not.toContain("window.studioAssets");
+    expect(roleVoiceSource).toContain('import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";');
+    expect(roleVoiceSource).toContain("getStudioAssetsBridge()");
+    expect(roleVoiceSource).not.toContain("window.studioAssets");
+  });
+
   it("opens the reusable voice assignment dialog from role details", () => {
     const source = readFileSync(new URL("./StudioAssetDetailDialog.tsx", import.meta.url), "utf8");
     expect(source).toContain('import { RoleVoiceAssignDialog } from "./RoleVoiceAssignDialog";');
@@ -134,7 +160,7 @@ describe("buildAssetRegenerationPrompt", () => {
 
   it("syncs the active project before binding a role voice", () => {
     const source = readFileSync(new URL("./RoleVoiceAssignDialog.tsx", import.meta.url), "utf8");
-    expect(source).toContain('import { useProjectStore } from "@/stores/project-store";');
+    expect(source).toContain('import { useProjectStore } from "@/stores/project/project-store";');
     expect(source).toContain("setTtsActiveProjectId(activeProjectId)");
     expect(source).toContain("ensureTtsProject(activeProjectId)");
   });

@@ -3,13 +3,14 @@
 import { useCallback, useEffect, useRef, useState, type MouseEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { ensureBackendVoiceProfile } from "@/lib/tts/client";
+import { getTtsRuntimeBridge } from "@/lib/bridge/tts-runtime";
 import {
   buildRoleVoicePreviewText,
   getVoicePreviewBlockReason,
 } from "@/lib/tts/voice-preview-text";
 import { recoverVoiceProfileReferenceText } from "@/lib/tts/voice-profile-reference-recovery";
 import { cn } from "@/lib/utils";
-import { useTtsStore } from "@/stores/tts-store";
+import { useTtsStore } from "@/stores/tts/tts-store";
 import type { TtsEngine } from "@/types/tts";
 import { Loader2, Play, Square } from "lucide-react";
 import { toast } from "sonner";
@@ -62,7 +63,8 @@ export function RoleVoicePreviewButton({
       setPlaying(false);
       return;
     }
-    if (!window.ttsRuntime) {
+    const ttsRuntime = getTtsRuntimeBridge();
+    if (!ttsRuntime) {
       toast.error("TTS 后端未就绪");
       return;
     }
@@ -83,9 +85,9 @@ export function RoleVoicePreviewButton({
 
     setLoading(true);
     try {
-      const ttsStatus = await window.ttsRuntime.status();
+      const ttsStatus = await ttsRuntime.status();
       if (!ttsStatus.running) {
-        const startRes = await window.ttsRuntime.start();
+        const startRes = await ttsRuntime.start();
         if (!startRes.success) {
           toast.error(`TTS 启动失败: ${startRes.error || "未知错误"}`);
           return;
@@ -93,7 +95,7 @@ export function RoleVoicePreviewButton({
       }
       await ensureBackendVoiceProfile(previewProfile);
       const text = buildRoleVoicePreviewText(characterName);
-      const genRes = await window.ttsRuntime.request({
+      const genRes = await ttsRuntime.request({
         method: "POST",
         path: "/generate",
         body: {
@@ -113,7 +115,7 @@ export function RoleVoicePreviewButton({
       let completedStatus: VoicePreviewGenerationStatus | null = null;
       while (attempts < 60) {
         await new Promise((resolve) => setTimeout(resolve, 500));
-        const status = await window.ttsRuntime.request({
+        const status = await ttsRuntime.request({
           method: "GET",
           path: `/generate/${genRes.id}/status`,
         }) as VoicePreviewGenerationStatus;
@@ -137,7 +139,7 @@ export function RoleVoicePreviewButton({
         return;
       }
 
-      const audioRes = await window.ttsRuntime.requestBytes({
+      const audioRes = await ttsRuntime.requestBytes({
         method: "GET",
         path: `/audio/${genRes.id}`,
       });

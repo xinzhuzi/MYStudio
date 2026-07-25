@@ -1,11 +1,11 @@
 import { useCallback } from "react";
 import { toast } from "sonner";
 import { persistSceneImage } from "@/lib/utils/image-persist";
-import type { SplitScene } from "@/stores/director-store";
-import type { useMediaStore } from "@/stores/media-store";
+import type { SplitScene } from "@/stores/director/director-store";
+import type { useMediaStore } from "@/stores/media/media-store";
 import type { StoryboardGenerationUiController } from "./use-storyboard-generation-ui";
 
-type DirectorState = ReturnType<typeof import("@/stores/director-store").useDirectorStore.getState>;
+type DirectorState = ReturnType<typeof import("@/stores/director/director-store").useDirectorStore.getState>;
 type MediaState = ReturnType<typeof useMediaStore.getState>;
 
 type UseStoryboardResultActionsOptions = {

@@ -2,10 +2,10 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/components/ui/style-picker", () => ({
+vi.mock("@/components/features/visual-style/style-picker", () => ({
   StylePicker: ({ value }: { value: string }) => <div>style:{value}</div>,
 }));
-vi.mock("@/components/ui/cinematography-profile-picker", () => ({
+vi.mock("@/components/features/cinematography/cinematography-profile-picker", () => ({
   CinematographyProfilePicker: ({ value }: { value: string }) => <div>cinematography:{value}</div>,
 }));
 

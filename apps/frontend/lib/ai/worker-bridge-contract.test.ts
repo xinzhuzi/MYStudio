@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { AIScreenplay, GenerationConfig, WorkerEvent } from '@opencut/ai-core';
+import type { AIScreenplay, GenerationConfig, WorkerEvent } from '@/lib/ai/core';
 
 import { AIWorkerBridge } from './worker-bridge';
 
@@ -124,6 +124,25 @@ describe('AIWorkerBridge event/command contract', () => {
       type: 'WORKER_ERROR',
       runId: 1,
       payload: { message: 'Cancelled', stack: 'late' },
+    });
+
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it('ignores late image completion after the active run is cancelled', async () => {
+    const postMessage = vi.fn();
+    const bridge = new AIWorkerBridge();
+    Object.assign(bridge, { worker: { postMessage } });
+    const handler = vi.fn();
+    bridge.on('SCENE_IMAGE_COMPLETED', handler);
+
+    await bridge.executeScreenplayImages(screenplayFixture('cancelled'), {} as GenerationConfig);
+    bridge.cancel();
+
+    dispatchWorkerEvent(bridge, {
+      type: 'SCENE_IMAGE_COMPLETED',
+      runId: 1,
+      payload: { screenplayId: 'cancelled', sceneId: 1, imageUrl: 'project://late.png' },
     });
 
     expect(handler).not.toHaveBeenCalled();

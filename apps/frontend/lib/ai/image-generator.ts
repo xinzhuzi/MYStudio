@@ -24,10 +24,13 @@ import {
 } from '@/lib/ai/ai-sdk-bridge';
 import { createOperationId, logEvent } from '@/lib/diagnostics/logger';
 import { observedFetch } from '@/lib/diagnostics/network';
+import { getImageStorageBridge } from '@/lib/bridge/image-storage';
 import { retryOperation } from '@/lib/utils/retry';
+import { corsFetch } from '@/lib/cors-fetch';
+import { fetchRemoteImageDataUrl } from '@/lib/remote-image-fetch';
 import { resolveImageApiFormat, type IProvider } from '@/lib/api-key-manager';
-import { useAPIConfigStore } from '@/stores/api-config-store';
-import { useAppSettingsStore } from '@/stores/app-settings-store';
+import { useAPIConfigStore } from '@/stores/ai/api-config-store';
+import { useAppSettingsStore } from '@/stores/app/app-settings-store';
 import { getImageSizeLabel, type ImageAspectRatio, type ImageResolution } from '@/lib/ai/image-size-presets';
 import {
   buildCompatibilityImagePrompt,
@@ -935,10 +938,11 @@ export async function imageUrlToBase64(url: string): Promise<string> {
   }
   
   // Try to use Electron local storage first
-  if (typeof window !== 'undefined' && window.imageStorage) {
+  const imageStorage = getImageStorageBridge();
+  if (imageStorage) {
     try {
       const filename = `image_${Date.now()}.png`;
-      const result = await window.imageStorage.saveImage(url, 'shots', filename);
+      const result = await imageStorage.saveImage(url, 'shots', filename);
       if (result.success && result.localPath) {
         console.log('[ImageGenerator] Saved image locally:', result.localPath);
         return result.localPath;
@@ -969,23 +973,16 @@ export async function imageUrlToBase64(url: string): Promise<string> {
       return await convertBlobToBase64(blob);
     }
   } catch (error) {
-    console.warn('[ImageGenerator] Direct fetch failed, trying proxy:', error);
+    console.warn('[ImageGenerator] Direct fetch failed, trying shared image fetch:', error);
   }
   
-  // Fallback: use our API proxy to fetch the image
+  // Fallback: use the shared CORS-aware image fetch path.
   try {
-    const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(url)}`;
-    const response = await observedFetch(proxyUrl, undefined, {
-      operationId,
-      endpointFamily: 'image-download-proxy',
+    return await fetchRemoteImageDataUrl(url, {
+      fetchImage: (input, init) => corsFetch(input, init),
     });
-    if (!response.ok) {
-      throw new Error(`Proxy fetch failed: ${response.status}`);
-    }
-    const blob = await response.blob();
-    return await convertBlobToBase64(blob);
   } catch (error) {
-    console.warn('[ImageGenerator] Proxy fetch also failed:', error);
+    console.warn('[ImageGenerator] Shared image fetch also failed:', error);
     throw error;
   }
 }

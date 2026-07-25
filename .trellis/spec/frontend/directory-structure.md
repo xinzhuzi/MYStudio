@@ -32,14 +32,38 @@ repository-root utility directory or under the renderer/backend packages.
 apps/frontend/
 ├── components/  # React UI and feature panels
 ├── hooks/       # reusable renderer hooks
-├── stores/      # Zustand state and persistence
+├── stores/      # Zustand state and persistence, grouped by domain
+│   ├── ai/      # provider, feature-binding, model, and image-host configuration
+│   ├── app/     # renderer-wide settings, theme, and Studio configuration
+│   ├── project/ # project discovery and identity
+│   ├── script/  # screenplay state, types, and persistence
+│   ├── director/ # storyboard state, actions, selectors, and persistence
+│   ├── library/ # character, prop, scene, and custom-style libraries
+│   ├── media/   # media state, file moves, and persistence
+│   ├── navigation/ # panel navigation and pending intake state
+│   ├── playback/ # preview and playback coordination
+│   ├── editing/ # editing projects and simple timeline state
+│   ├── studio/  # Studio workflow, runtime, and continuity helpers
+│   ├── sclass/  # S-class generation state and persistence
+│   ├── tts/     # project-scoped voice and TTS state
+│   └── assist/  # Assist-mode transient generation state
 ├── lib/         # domain logic, storage, AI, and utilities
+│   └── ai/      # canonical AI manager, core contracts, providers, and workers
 ├── types/       # shared TypeScript contracts
-├── electron/    # Electron main, preload, and runtime controllers
+├── electron/    # Electron main-process modules, grouped by domain
+│   ├── main/    # main process entrypoint and startup/contract tests
+│   ├── preload/ # context-isolated bridge entrypoint and surface tests
+│   ├── ipc/     # handlers grouped by ai, app, assets, diagnostics, files, media, studio, and tts
+│   ├── runtime/ # lifecycle, protocol registration, and update policy
+│   ├── diagnostics/ # diagnostics service
+│   ├── storage/ # storage manager, paths, and Studio persistence services
+│   ├── media/   # Node-only media source and picker helpers
+│   ├── rendering/ # FFmpeg command compiler and timeline runtime
+│   ├── tts/     # local TTS sidecar runtime
+│   └── types/   # Electron-only ambient declarations
 ├── renderer/    # renderer HTML and entrypoint
 ├── config/      # Vite, TypeScript, ESLint, builder, and test setup
-├── assets/      # bundled UI and Studio manual assets
-└── packages/    # locally vendored packages such as ai-core
+└── assets/      # bundled UI and Studio manual assets
 
 apps/build/
 ├── packaging/   # desktop build, install, and setup entrypoints
@@ -60,8 +84,14 @@ apps/build/
 - Put reusable primitives in `components/ui/`; feature UI belongs in the
   matching `components/panels/<feature>/` directory.
 - Put reusable domain behavior in `lib/<domain>/`, not inside large panels.
+- Put every Zustand store, its persistence/helper modules, and colocated tests
+  in `stores/<domain>/`; do not add flat store files or root compatibility
+  shims under `stores/`.
+- Keep all reusable AI behavior, AI core contracts, providers, workers, and
+  image-fetch helpers under the existing `lib/ai/` and `lib/` modules. Do not
+  reintroduce the removed legacy `app/` directory.
 - Put cross-feature contracts in `types/`; keep component-only props local.
-- Keep Electron-only Node APIs in `electron/` and expose narrow preload bridges.
+- Keep Electron-only Node APIs in `electron/`; main and preload entrypoints live in `main/` and `preload/`, while Node services and handlers stay in their named domains. Expose only narrow preload bridges.
 - Colocate `*.test.ts` and `*.test.tsx` with the unit being tested.
 - Keep domain-specific build scripts and Python contract tests under
   `apps/build/<domain>/`; use a nested subpackage for related Python helpers.
@@ -84,6 +114,6 @@ apps/build/
 <!-- Link to well-organized modules as examples -->
 
 - `components/BrandMark.tsx`: small reusable component.
-- `stores/studio-store.ts`: project-scoped workflow state.
+- `stores/studio/studio-store.ts`: project-scoped workflow state.
 - `lib/studio/`: reusable Studio production contracts and algorithms.
-- `electron/tts-runtime.ts`: Electron-owned sidecar supervision.
+- `electron/tts/tts-runtime.ts`: Electron-owned sidecar supervision.

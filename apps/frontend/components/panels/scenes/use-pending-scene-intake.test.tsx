@@ -3,7 +3,7 @@ import { renderHook } from '@testing-library/react';
 import { StrictMode, type ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { PendingSceneData } from '@/stores/media-panel-store';
+import type { PendingSceneData } from '@/stores/navigation/media-panel-store';
 
 const mocks = vi.hoisted(() => ({
   getStyleById: vi.fn(),
@@ -15,7 +15,7 @@ vi.mock('@/lib/constants/visual-styles', () => ({
   DEFAULT_STYLE_ID: 'default',
   getStyleById: mocks.getStyleById,
 }));
-vi.mock('@/stores/scene-store', () => ({
+vi.mock('@/stores/library/scene-store', () => ({
   TIME_PRESETS: [{ id: 'night', label: '夜晚' }],
   ATMOSPHERE_PRESETS: [{ id: 'tense', label: '紧张' }],
 }));

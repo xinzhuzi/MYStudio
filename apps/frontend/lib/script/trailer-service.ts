@@ -13,7 +13,7 @@
  */
 
 import type { Shot, ProjectBackground } from '@/types/script';
-import type { SplitScene, TrailerDuration } from '@/stores/director-store';
+import type { SplitScene, TrailerDuration } from '@/stores/director/director-store';
 import { aiManager } from '@/lib/ai/ai-manager';
 
 // 时长对应的分镜数量

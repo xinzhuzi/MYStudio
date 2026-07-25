@@ -1,4 +1,4 @@
-import { useScriptStore } from '@/stores/script-store';
+import { useScriptStore } from '@/stores/script/script-store';
 
 /**
  * 导出项目元数据为 Markdown 格式

@@ -1,6 +1,6 @@
 import { useCallback, useState, type ReactNode } from "react";
-import { useProjectStore } from "@/stores/project-store";
-import { useStudioStore } from "@/stores/studio-store";
+import { useProjectStore } from "@/stores/project/project-store";
+import { useStudioStore } from "@/stores/studio/studio-store";
 import type { ImageWorkflowOpenContext } from "@/types/studio";
 import { resolveProductionEpisodeId } from "./workflow-helpers";
 import { useNovelPipelineActions } from "./useNovelPipelineActions";

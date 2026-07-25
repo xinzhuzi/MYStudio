@@ -6,7 +6,7 @@
  * Upload images to external hosting services for video generation
  */
 
-import { useAPIConfigStore, type ImageHostProvider } from '@/stores/api-config-store';
+import { useAPIConfigStore, type ImageHostProvider } from '@/stores/ai/api-config-store';
 import { ApiKeyManager, parseApiKeys } from '@/lib/api-key-manager';
 import { fetchRemoteImageBlob, fetchRemoteImageDataUrl } from '@/lib/remote-image-fetch';
 

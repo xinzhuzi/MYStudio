@@ -1,3 +1,11 @@
+import type {
+  TimelineAudioPostProcessEvidence as TimelineAudioPostProcessEvidenceContract,
+  TimelineRenderProgress as TimelineRenderProgressContract,
+  TimelineRenderProgressStage as TimelineRenderProgressStageContract,
+  TimelineRendererEvidence as TimelineRendererEvidenceContract,
+  TimelineRenderRequest as TimelineRenderRequestContract,
+} from "@rendering/contracts/timeline-renderer";
+
 export type TimelineTimeUs = number;
 
 export type EditingTrackKind =
@@ -335,6 +343,14 @@ export interface TimelineRenderPlan {
   createdAt: number;
 }
 
+export type TimelineRenderRequest = TimelineRenderRequestContract<TimelineRenderPlan>;
+
+export type TimelineRendererEvidence =
+  TimelineRendererEvidenceContract<EditingEffectId>;
+
+export type TimelineAudioPostProcessEvidence =
+  TimelineAudioPostProcessEvidenceContract;
+
 export interface TimelineRenderEvidence {
   jobId: string;
   path: string;
@@ -352,6 +368,8 @@ export interface TimelineRenderEvidence {
   filterGraphPath?: string;
   logPath?: string;
   ffprobePath?: string;
+  renderer?: TimelineRendererEvidence;
+  audioPostProcess?: TimelineAudioPostProcessEvidence;
 }
 
 export interface TimelineRenderRecord {
@@ -364,21 +382,9 @@ export interface TimelineRenderRecord {
   evidence: TimelineRenderEvidence;
 }
 
-export type TimelineRenderProgressStage =
-  | "validating"
-  | "preparing"
-  | "rendering"
-  | "probing"
-  | "completed"
-  | "canceled"
-  | "failed";
+export type TimelineRenderProgressStage = TimelineRenderProgressStageContract;
 
-export interface TimelineRenderProgress {
-  jobId: string;
-  stage: TimelineRenderProgressStage;
-  ratio: number;
-  message?: string;
-}
+export type TimelineRenderProgress = TimelineRenderProgressContract;
 
 export type TimelineRenderResult =
   | { success: true; evidence: TimelineRenderEvidence }

@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { useMediaStore } from "@/stores/media-store";
+import { useMediaStore } from "@/stores/media/media-store";
 
 export function useStoryboardMediaLibrary(projectId?: string) {
   const addMediaFromUrl = useMediaStore((state) => state.addMediaFromUrl);

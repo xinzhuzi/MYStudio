@@ -1,7 +1,7 @@
 import { Monitor, Smartphone } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { StylePicker } from "@/components/ui/style-picker";
-import { CinematographyProfilePicker } from "@/components/ui/cinematography-profile-picker";
+import { StylePicker } from "@/components/features/visual-style/style-picker";
+import { CinematographyProfilePicker } from "@/components/features/cinematography/cinematography-profile-picker";
 import {
   Select,
   SelectContent,

@@ -13,6 +13,7 @@
  */
 
 import { fileStorage } from './indexed-db-storage';
+import { getFileStorageBridge, type FileStorageBridge } from './bridge/file-storage';
 
 const MIGRATION_FLAG_KEY = '_p/_migrated';
 
@@ -52,11 +53,12 @@ async function readKnownProjectIds(): Promise<Set<string>> {
  */
 export async function migrateToProjectStorage(): Promise<void> {
   // Only run in Electron
-  if (typeof window === 'undefined' || !window.fileStorage) return;
+  const storage = getFileStorageBridge();
+  if (!storage) return;
 
   // Check migration flag
   try {
-    const flagExists = await window.fileStorage.exists(MIGRATION_FLAG_KEY);
+    const flagExists = await storage.exists(MIGRATION_FLAG_KEY);
     if (flagExists) {
       console.log('[Migration] Already migrated, skipping.');
       return;
@@ -307,11 +309,12 @@ async function migrateTimelineStore(activeProjectId: string): Promise<void> {
  * This runs on every startup (fast: only reads and compares when needed).
  */
 export async function recoverFromLegacy(): Promise<void> {
-  if (typeof window === 'undefined' || !window.fileStorage) return;
+  const storage = getFileStorageBridge();
+  if (!storage) return;
 
   // Only run if migration has already happened
   try {
-    const flagExists = await window.fileStorage.exists(MIGRATION_FLAG_KEY);
+    const flagExists = await storage.exists(MIGRATION_FLAG_KEY);
     if (!flagExists) return; // Migration hasn't run yet, nothing to recover
   } catch {
     return;
@@ -324,8 +327,8 @@ export async function recoverFromLegacy(): Promise<void> {
     if (knownProjectIds.size === 0) return;
 
     // Recover Record-based stores
-    await recoverRecordStore('mystudio-script-store', 'script', isScriptDataRich, knownProjectIds);
-    await recoverRecordStore('mystudio-director-store', 'director', isDirectorDataRich, knownProjectIds);
+    await recoverRecordStore('mystudio-script-store', 'script', isScriptDataRich, knownProjectIds, storage);
+    await recoverRecordStore('mystudio-director-store', 'director', isDirectorDataRich, knownProjectIds, storage);
 
     console.log('[Recovery] Recovery check complete.');
   } catch (error) {
@@ -361,9 +364,10 @@ async function recoverRecordStore(
   storeName: string,
   isRich: (data: unknown) => boolean,
   knownProjectIds: ReadonlySet<string>,
+  storage: FileStorageBridge,
 ): Promise<void> {
   // Read legacy monolithic file directly from file system (bypass indexed-db-storage adapter)
-  const legacyRaw = await window.fileStorage!.getItem(legacyKey);
+  const legacyRaw = await storage.getItem(legacyKey);
   if (!legacyRaw) return;
 
   try {
@@ -382,7 +386,7 @@ async function recoverRecordStore(
 
       // Read current per-project file
       const projectKey = `_p/${pid}/${storeName}`;
-      const currentRaw = await window.fileStorage!.getItem(projectKey);
+      const currentRaw = await storage.getItem(projectKey);
 
       // Check if current per-project data is empty/default
       let currentData: unknown = null;

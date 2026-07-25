@@ -4,7 +4,7 @@ import type {
   PromptLanguage,
   ScriptData,
 } from "@/types/script";
-import { useScriptStore } from "@/stores/script-store";
+import { useScriptStore } from "@/stores/script/script-store";
 import { convertToScriptData, parseFullScript } from "./episode-parser";
 import {
   analyzeScriptStructureWithAI,

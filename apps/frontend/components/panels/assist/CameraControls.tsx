@@ -7,7 +7,7 @@ import {
   LENS_OPTIONS,
   FOCAL_OPTIONS,
   APERTURE_OPTIONS,
-} from '@/lib/freedom/camera-dictionary';
+} from '@/lib/assist/camera-dictionary';
 
 interface CameraControlsProps {
   camera: string;

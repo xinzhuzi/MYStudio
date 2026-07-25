@@ -5,8 +5,8 @@ import type {
   PromptLanguage,
   ScriptData,
 } from "@/types/script";
-import type { ScriptCalibrationStatus } from "@/stores/script-store";
-import { useScriptStore } from "@/stores/script-store";
+import type { ScriptCalibrationStatus } from "@/stores/script/script-store";
+import { useScriptStore } from "@/stores/script/script-store";
 import { aiManager } from "@/lib/ai/ai-manager";
 import {
   calibrateEpisodeScenes,

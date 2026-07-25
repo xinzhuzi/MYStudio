@@ -22,7 +22,7 @@ import {
   createDefaultFeatureBindings,
   useAPIConfigStore,
   type IProvider,
-} from "@/stores/api-config-store";
+} from "@/stores/ai/api-config-store";
 
 type SdkGenerateTextInput = {
   provider: {

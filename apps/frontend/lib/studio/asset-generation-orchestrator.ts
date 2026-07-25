@@ -13,6 +13,8 @@
  */
 
 import { aiManager, type AIBinding } from "@/lib/ai/ai-manager";
+import { getProjectFilesBridge } from "@/lib/bridge/project-files";
+import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";
 import {
   batchPolishAssetPrompts,
   polishAssetPrompt,
@@ -24,12 +26,12 @@ import {
 export type { AssetType };
 import { saveImageToLocal, type ImageCategory } from "@/lib/image-storage";
 import { createAssetImageWorkflowGraph } from "@/lib/studio/image-workflow";
-import { useCharacterLibraryStore } from "@/stores/character-library-store";
-import { useProjectStore } from "@/stores/project-store";
-import { usePropsLibraryStore, type PropItem } from "@/stores/props-library-store";
-import { useSceneStore } from "@/stores/scene-store";
-import { useAppSettingsStore } from "@/stores/app-settings-store";
-import { useStudioStore } from "@/stores/studio-store";
+import { useCharacterLibraryStore } from "@/stores/library/character-library-store";
+import { useProjectStore } from "@/stores/project/project-store";
+import { usePropsLibraryStore, type PropItem } from "@/stores/library/props-library-store";
+import { useSceneStore } from "@/stores/library/scene-store";
+import { useAppSettingsStore } from "@/stores/app/app-settings-store";
+import { useStudioStore } from "@/stores/studio/studio-store";
 import type { ImageAspectRatio, ImageResolution } from "@/lib/ai/image-size-presets";
 
 // ─── 类型定义 ───
@@ -537,7 +539,7 @@ export async function collectAndMatchAssets(
   let matchedEntries: Array<{ name: string; asset: any }> = [];
   try {
     const dbType = assetType === "prop" ? "tool" : assetType === "character" ? "role" : assetType;
-    matchedEntries = await window.studioAssets?.batchMatch({
+    matchedEntries = await getStudioAssetsBridge()?.batchMatch({
       type: dbType,
       names: all.map(a => a.name),
     }) ?? [];
@@ -687,8 +689,9 @@ async function saveGeneratedAssetImage({
     }
     return saveImageToLocal(source, category, `${assetName}-${Date.now()}`);
   }
-  if (projectId && window.projectFiles?.saveImage) {
-    const saved = await window.projectFiles.saveImage({
+  const projectFiles = getProjectFilesBridge();
+  if (projectId && projectFiles?.saveImage) {
+    const saved = await projectFiles.saveImage({
       projectId,
       relativePath: `workflow-images/assets/${assetType}/${filename}`,
       source,

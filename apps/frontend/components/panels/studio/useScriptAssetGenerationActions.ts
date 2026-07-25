@@ -12,11 +12,11 @@ import {
 import {
   generateAsset,
 } from "@/lib/studio/asset-generation-orchestrator";
-import { useStudioStore } from "@/stores/studio-store";
-import { useTtsStore } from "@/stores/tts-store";
-import { useCharacterLibraryStore } from "@/stores/character-library-store";
-import { usePropsLibraryStore } from "@/stores/props-library-store";
-import { useSceneStore } from "@/stores/scene-store";
+import { useStudioStore } from "@/stores/studio/studio-store";
+import { useTtsStore } from "@/stores/tts/tts-store";
+import { useCharacterLibraryStore } from "@/stores/library/character-library-store";
+import { usePropsLibraryStore } from "@/stores/library/props-library-store";
+import { useSceneStore } from "@/stores/library/scene-store";
 import { eventBus } from "@/lib/event-bus";
 import type { EntityExtractionResult, ScriptPlan } from "@/types/studio";
 import type { StudioAssetSummary, StudioAssetKind } from "@/types/studio-assets";
@@ -34,6 +34,8 @@ import {
 } from "./script-asset-generation-model";
 import { getAbsoluteImagePath } from "@/lib/image-storage";
 import { toRoleSpeakerId } from "@/lib/tts/role-speaker-id";
+import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";
+import { getTtsRuntimeBridge } from "@/lib/bridge/tts-runtime";
 
 export function useScriptAssetGenerationActions({
   activeType,
@@ -114,7 +116,7 @@ export function useScriptAssetGenerationActions({
       return;
     }
     try {
-      const asset = await window.studioAssets?.getByName({
+      const asset = await getStudioAssetsBridge()?.getByName({
         type: toRuntimeAssetType(row.type),
         name: row.name,
       });
@@ -131,7 +133,8 @@ export function useScriptAssetGenerationActions({
 
   const handleStoreInAssetLibrary = useCallback(async (row: AssetRow) => {
     if (row.assetLibrary) return;
-    if (!window.studioAssets?.add) {
+    const studioAssets = getStudioAssetsBridge();
+    if (!studioAssets?.add) {
       toast.error("资产库接口仅在桌面应用中可用");
       return;
     }
@@ -150,7 +153,7 @@ export function useScriptAssetGenerationActions({
         }
         return;
       }
-      const existing = await window.studioAssets.getByName?.({
+      const existing = await studioAssets.getByName?.({
         type: toRuntimeAssetType(row.type),
         name: row.name,
       });
@@ -205,7 +208,8 @@ export function useScriptAssetGenerationActions({
       toast.error("未选择项目，无法写入音色绑定");
       return;
     }
-    if (!window.studioAssets?.list) {
+    const studioAssets = getStudioAssetsBridge();
+    if (!studioAssets?.list) {
       toast.error("素材读取接口仅在桌面应用中可用");
       return;
     }
@@ -220,7 +224,7 @@ export function useScriptAssetGenerationActions({
 
     setIsAutoAssigningAudio(true);
     try {
-      const audioResult = await window.studioAssets.list({
+      const audioResult = await studioAssets.list({
         type: "audio",
         limit: 9999,
       });
@@ -243,7 +247,7 @@ export function useScriptAssetGenerationActions({
         bindings: ttsProject?.bindings ?? {},
         voiceProfiles: ttsState.voiceProfiles,
         resolveReferenceAudioPath: async (audioPath) =>
-          window.ttsRuntime?.resolveReferenceAudioPath(audioPath) ?? null,
+          getTtsRuntimeBridge()?.resolveReferenceAudioPath(audioPath) ?? null,
       });
       if (plan.errors.length > 0) {
         throw new Error(plan.errors.map((item) => item.message).join("；"));
@@ -314,13 +318,14 @@ async function toAssetLibraryAddPayload(row: AssetRow) {
 async function storeRowInAssetLibrary(
   row: AssetRow,
 ): Promise<{ status: "existing" | "created"; asset: StudioAssetSummary } | null> {
-  if (!window.studioAssets?.add) return null;
-  const existing = await window.studioAssets.getByName?.({
+  const studioAssets = getStudioAssetsBridge();
+  if (!studioAssets?.add) return null;
+  const existing = await studioAssets.getByName?.({
     type: toRuntimeAssetType(row.type),
     name: row.name,
   });
   if (existing) return { status: "existing", asset: existing };
-  const created = await window.studioAssets.add(await toAssetLibraryAddPayload(row));
+  const created = await studioAssets.add(await toAssetLibraryAddPayload(row));
   return created ? { status: "created", asset: created } : null;
 }
 

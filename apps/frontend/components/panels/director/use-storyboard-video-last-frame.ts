@@ -2,7 +2,7 @@ import { useCallback } from "react";
 import { toast } from "sonner";
 import { extractLastFrameFromVideo } from "@/lib/ai/video-generator";
 import { persistSceneImage } from "@/lib/utils/image-persist";
-import type { SplitScene } from "@/stores/director-store";
+import type { SplitScene } from "@/stores/director/director-store";
 
 type StoryboardVideoScene = Pick<SplitScene, "id" | "videoUrl" | "width" | "height">;
 

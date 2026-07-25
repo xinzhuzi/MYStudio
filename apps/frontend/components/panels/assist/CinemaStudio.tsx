@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { useFreedomStore } from '@/stores/freedom-store';
+import { useFreedomStore } from '@/stores/assist/freedom-store';
 import { CameraControls } from './CameraControls';
 import { GenerationHistory } from './GenerationHistory';
 import { aiManager } from '@/lib/ai/ai-manager';
@@ -17,7 +17,7 @@ import {
   LENS_MAP,
   FOCAL_PERSPECTIVE,
   APERTURE_EFFECT,
-} from '@/lib/freedom/camera-dictionary';
+} from '@/lib/assist/camera-dictionary';
 
 export function CinemaStudio() {
   const {

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { AssetRef, ShotGroup } from "@/stores/sclass-store";
+import type { AssetRef, ShotGroup } from "@/stores/sclass/sclass-store";
 import {
   createSClassGenerationRecord,
   materializeSClassGenerationReferences,

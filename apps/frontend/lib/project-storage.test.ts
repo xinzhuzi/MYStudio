@@ -50,7 +50,7 @@ vi.mock("./indexed-db-storage", () => ({
   },
 }));
 
-vi.mock("@/stores/project-store", () => ({
+vi.mock("@/stores/project/project-store", () => ({
   useProjectStore: {
     getState: () => storageMocks.projectState,
     persist: {
@@ -65,7 +65,7 @@ vi.mock("@/stores/project-store", () => ({
   },
 }));
 
-vi.mock("@/stores/app-settings-store", () => ({
+vi.mock("@/stores/app/app-settings-store", () => ({
   useAppSettingsStore: {
     getState: () => ({ resourceSharing: storageMocks.resourceSharing }),
   },

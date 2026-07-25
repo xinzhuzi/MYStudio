@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
-import type { Character } from "@/stores/character-library-store";
-import type { SplitScene } from "@/stores/director-store";
-import type { Scene } from "@/stores/scene-store";
-import { useSClassStore, useShotGroups, type ShotGroup } from "@/stores/sclass-store";
+import type { Character } from "@/stores/library/character-library-store";
+import type { SplitScene } from "@/stores/director/director-store";
+import type { Scene } from "@/stores/library/scene-store";
+import { useSClassStore, useShotGroups, type ShotGroup } from "@/stores/sclass/sclass-store";
 import { autoGroupScenes, generateGroupName } from "./auto-grouping";
 import type { ExtendEditMode } from "./extend-edit-dialog";
 import { runBatchCalibration, runCalibration } from "./sclass-calibrator";

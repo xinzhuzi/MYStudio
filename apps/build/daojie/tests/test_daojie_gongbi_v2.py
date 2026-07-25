@@ -38,10 +38,36 @@ class DaojieGongbiV2Test(unittest.TestCase):
         passed = v2.prompt_quality_audit(valid_prompt, ["scene-viewpoint"], None)
         self.assertEqual(passed["status"], "pass")
         self.assertEqual(passed["styleContractVersion"], v2.STYLE_CONTRACT_VERSION)
-        self.assertEqual(passed["version"], "daojie-gongbi-v2-prompt-audit-v6")
+        self.assertEqual(passed["version"], "daojie-gongbi-v2-prompt-audit-v7")
         self.assertIn("连续可见色区", valid_prompt)
         self.assertIn("不得继承参考图的灰白媒介", valid_prompt)
         self.assertIn("黑白画、灰白画、单色素描", valid_prompt)
+
+        for marker in (
+            "low visual noise",
+            "denoised details",
+            "clear readable surfaces",
+            "clean paper texture",
+            "controlled ink wash",
+        ):
+            self.assertIn(marker, v2.STORYBOARD_STYLE_LOCK)
+            self.assertIn(marker, v2.DERIVED_ASSET_STYLE_LOCK)
+        for marker in (
+            "dirty texture",
+            "muddy texture",
+            "compression artifacts",
+            "oversharpening halos",
+            "random stains",
+        ):
+            self.assertIn(marker, v2.STORYBOARD_FRAME_NEGATIVE_CONSTRAINTS)
+
+        negative_only = (
+            f"【风格锁】{v2.STORYBOARD_STYLE_LOCK}"
+            f"【反向约束】{v2.STORYBOARD_FRAME_NEGATIVE_CONSTRAINTS}"
+        )
+        negative_audit = v2.prompt_quality_audit(negative_only, ["scene-viewpoint"], None)
+        self.assertEqual(negative_audit["status"], "pass")
+        self.assertFalse(negative_audit["hasPositiveDirtyTexture"])
 
         rejected = v2.prompt_quality_audit(
             f"【风格锁】{v2.STORYBOARD_STYLE_LOCK}竹窗卷轴 (best quality:1.2), dirty texture, 褴褛短褐"

@@ -3,13 +3,13 @@
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 import { useState, useCallback } from "react";
 import { toast } from "sonner";
-import { useAPIConfigStore } from "@/stores/api-config-store";
+import { useAPIConfigStore } from "@/stores/ai/api-config-store";
 import { parseApiKeys } from "@/lib/api-key-manager";
-import { useDirectorStore } from "@/stores/director-store";
+import { useDirectorStore } from "@/stores/director/director-store";
 import { generateAngleSwitch } from "@/lib/ai/runninghub-client";
 import { getAngleLabel, type HorizontalDirection, type ElevationAngle, type ShotSize } from "@/lib/ai/runninghub-angles";
 import type { AngleSwitchResult, AngleSwitchHistoryItem } from "@/components/angle-switch";
-import type { SplitScene } from "@/stores/director-store";
+import type { SplitScene } from "@/stores/director/director-store";
 
 export interface AngleSwitchTarget {
   sceneId: number;

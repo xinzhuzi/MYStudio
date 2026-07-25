@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { processBatched } from '@/lib/ai/batch-processor';
-import { useScriptStore } from '@/stores/script-store';
+import { useScriptStore } from '@/stores/script/script-store';
 
 import {
   exportProjectMetadata,
@@ -11,7 +11,7 @@ import {
 import { exportProjectMetadata as exportProjectMetadataService } from './project-metadata-export-service';
 
 vi.mock('@/lib/ai/batch-processor', () => ({ processBatched: vi.fn() }));
-vi.mock('@/stores/script-store', () => ({ useScriptStore: { getState: vi.fn() } }));
+vi.mock('@/stores/script/script-store', () => ({ useScriptStore: { getState: vi.fn() } }));
 
 const episode = (episodeIndex: number, synopsis = '') => ({
   episodeIndex,

@@ -18,18 +18,18 @@ import {
   type ScriptCalibrationStatus,
   type ScriptViewpointStatus,
   type ScriptStructureStatus,
-} from "@/stores/script-store";
-import { useProjectStore } from "@/stores/project-store";
-import { useAPIConfigStore } from "@/stores/api-config-store";
+} from "@/stores/script/script-store";
+import { useProjectStore } from "@/stores/project/project-store";
+import { useAPIConfigStore } from "@/stores/ai/api-config-store";
 import { aiManager } from "@/lib/ai/ai-manager";
-import { useCharacterLibraryStore } from "@/stores/character-library-store";
-import { useMediaPanelStore } from "@/stores/media-panel-store";
+import { useCharacterLibraryStore } from "@/stores/library/character-library-store";
+import { useMediaPanelStore } from "@/stores/navigation/media-panel-store";
 import { generateMultiPageContactSheetData } from "@/lib/script/scene-viewpoint-generator";
 import {
   sortByImportance as sortScenesByImportance,
 } from "@/lib/script/scene-calibrator";
 import type { TrailerGenerationOptions } from "@/lib/script/trailer-service";
-import { useDirectorStore, useActiveDirectorProject } from "@/stores/director-store";
+import { useDirectorStore, useActiveDirectorProject } from "@/stores/director/director-store";
 import { ScriptInput } from "./script-input";
 import { EpisodeTree } from "./episode-tree";
 import { PropertyPanel } from "./property-panel";

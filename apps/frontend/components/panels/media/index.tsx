@@ -1,7 +1,7 @@
 // Copyright (c) 2025 hotflow2024
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
-import { useMediaStore, SYSTEM_CATEGORIES } from "@/stores/media-store";
+import { useMediaStore, SYSTEM_CATEGORIES } from "@/stores/media/media-store";
 import { MediaFile, MediaFolder } from "@/types/media";
 import {
   ArrowDown01,
@@ -41,16 +41,16 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useProjectStore } from "@/stores/project-store";
-import { useAppSettingsStore } from "@/stores/app-settings-store";
-import { usePreviewStore } from "@/stores/preview-store";
-import { useDirectorStore } from "@/stores/director-store";
-import { useMediaPanelStore } from "@/stores/media-panel-store";
+import { useProjectStore } from "@/stores/project/project-store";
+import { useAppSettingsStore } from "@/stores/app/app-settings-store";
+import { usePreviewStore } from "@/stores/playback/preview-store";
+import { useDirectorStore } from "@/stores/director/director-store";
+import { useMediaPanelStore } from "@/stores/navigation/media-panel-store";
 import { processMediaFiles } from "@/lib/media-processing";
 import {
   generateVideoThumbnail,
   getMediaDuration,
-} from "@/stores/media-store";
+} from "@/stores/media/media-store";
 import {
   FolderContextMenu,
   MediaItemWithContextMenu,

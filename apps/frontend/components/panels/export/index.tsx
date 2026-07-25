@@ -9,9 +9,9 @@
  */
 
 import { useState, useCallback } from "react";
-import { useScriptStore, useActiveScriptProject } from "@/stores/script-store";
-import { useActiveDirectorProject } from "@/stores/director-store";
-import { useProjectStore } from "@/stores/project-store";
+import { useScriptStore, useActiveScriptProject } from "@/stores/script/script-store";
+import { useActiveDirectorProject } from "@/stores/director/director-store";
+import { useProjectStore } from "@/stores/project/project-store";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";

@@ -12,7 +12,7 @@ import type {
   CharacterReferenceViewType,
   StoryboardItem,
 } from "@/types/studio";
-import { useAppSettingsStore } from "@/stores/app-settings-store";
+import { useAppSettingsStore } from "@/stores/app/app-settings-store";
 import { buildContinuityPrompt } from "./visual-continuity";
 
 export interface CreateImageWorkflowGraphInput {

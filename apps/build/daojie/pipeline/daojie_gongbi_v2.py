@@ -17,7 +17,7 @@ from PIL import Image
 
 
 STYLE_CONTRACT_VERSION = "daojie-gongbi-v2"
-PROMPT_AUDIT_VERSION = "daojie-gongbi-v2-prompt-audit-v6"
+PROMPT_AUDIT_VERSION = "daojie-gongbi-v2-prompt-audit-v7"
 COLOR_AUDIT_VERSION = "daojie-gongbi-v2-color-audit-v3"
 REFERENCE_CAPABILITY_SCHEMA_VERSION = "daojie-reference-capability-v1"
 SOURCE_PROVENANCE = (
@@ -59,6 +59,8 @@ STORYBOARD_MEDIUM_LOCK = (
     "配饰、器物与建筑边缘先以连续白描和铁线描建立结构，再用透明薄层矿物色分染与罩染；"
     "主体密、背景疏，写意只用于山水、雾气、灵气与远景，不用数字厚涂、宽大明暗块或材质高光塑形。"
     "全员衣物完整可穿，保留整袖口、整下摆和闭合缝线，材质可朴素但不可破损。"
+    "保持 low visual noise、denoised details、clear readable surfaces、clean paper texture 与 controlled ink wash，"
+    "不放大表面噪声。"
 )
 STORYBOARD_COLOR_MATERIAL_LOCK = (
     "水墨墨线、淡墨和宣纸留白约占画面60%-70%，可辨彩色必须严格处于30%-70%硬范围内，"
@@ -74,6 +76,11 @@ STORYBOARD_LIGHT_LOCK = (
     "雾与潮湿只以淡墨留白、细线和局部薄染表现，不作镜面湿面反光、HDR高光或电影级体积雾。"
     "画面干净、完成度高、无统一脏污滤镜。"
 )
+CLEAN_GONGBI_OUTPUT_LOCK = (
+    "CLEAN GONGBI OUTPUT（hard）：保持 low visual noise、denoised details、clear readable surfaces、"
+    "clean paper texture 与 controlled ink wash；保留真实宣纸纤维、墨线边缘和克制矿物颜料颗粒，"
+    "不放大表面噪声。"
+)
 STORYBOARD_STYLE_LOCK = " ".join((
     STORYBOARD_MEDIUM_LOCK,
     STORYBOARD_COLOR_MATERIAL_LOCK,
@@ -82,13 +89,16 @@ STORYBOARD_STYLE_LOCK = " ".join((
 DERIVED_ASSET_STYLE_LOCK = (
     "daojie-gongbi-v2：《道劫》彩色工笔资产：先以连续白描和铁线描锁定脸、手、发丝、"
     "衣褶、接缝与器物结构，再以透明薄层矿物色分染与罩染；30%-70%可辨彩色与水墨纸白保持平衡，"
-    "使用均匀平光宣纸照明和干净完成度。衣物必须完整可穿，保持整袖口、整下摆和闭合缝线。"
+    "使用均匀平光宣纸照明和干净完成度；保持 low visual noise、denoised details、clear readable surfaces、"
+    "clean paper texture 与 controlled ink wash。衣物必须完整可穿，保持整袖口、整下摆和闭合缝线。"
 )
 STORYBOARD_NEGATIVE_CONSTRAINTS = (
     "禁止写实摄影、3D/CGI、塑料磨皮、赛璐璐平涂、西方油画厚涂、霓虹色、"
     "大块灰面塑形、软体积光、照片级景深、HDR高光、电影级体积雾、镜面湿面反光、"
     "全幅冷青或灰蓝渲染、近黑大面积衣袍或地面、统一纸纹覆盖、脏污噪点、"
-    "黑白画、灰白画、单色素描、衣物不完整、断裂衣摆、文字、水印、签名、logo、乱码题字。"
+    "黑白画、灰白画、单色素描、衣物不完整、断裂衣摆、文字、水印、签名、logo、乱码题字；"
+    "dirty texture、muddy texture、compression artifacts、oversharpening halos、random stains、"
+    "dirty color clumps、messy lineart、visual noise。"
 )
 STORYBOARD_FRAME_NEGATIVE_CONSTRAINTS = (
     f"{STORYBOARD_NEGATIVE_CONSTRAINTS}禁止高对比漫画动作稿、现代/科幻元素、"
@@ -148,6 +158,11 @@ REQUIRED_STYLE_MARKERS = (
     "不得继承参考图的灰白媒介",
     "均匀平光宣纸照明",
     "纸面散射光",
+    "low visual noise",
+    "denoised details",
+    "clear readable surfaces",
+    "clean paper texture",
+    "controlled ink wash",
 )
 CHARACTER_REQUIRED_STYLE_MARKERS = ("衣物完整可穿",)
 REFERENCE_REPLACEMENT_PROMPT_VERSION = "daojie-gongbi-v2-reference-replacement-v2"

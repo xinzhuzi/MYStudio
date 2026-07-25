@@ -1,7 +1,7 @@
 import { aiManager } from "@/lib/ai/ai-manager";
 import { pollImageTaskUrl } from "@/lib/storyboard/image-task-transport";
 import { persistSceneImage } from "@/lib/utils/image-persist";
-import type { SplitScene } from "@/stores/director-store";
+import type { SplitScene } from "@/stores/director/director-store";
 import { toast } from "sonner";
 
 type EndFrameStatusUpdate = Partial<Pick<

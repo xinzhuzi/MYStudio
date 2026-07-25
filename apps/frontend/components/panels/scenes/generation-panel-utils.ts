@@ -1,4 +1,4 @@
-import { ATMOSPHERE_PRESETS, TIME_PRESETS, type Scene } from "@/stores/scene-store";
+import { ATMOSPHERE_PRESETS, TIME_PRESETS, type Scene } from "@/stores/library/scene-store";
 import { getStyleById } from "@/lib/constants/visual-styles";
 
 const PROP_MAPPINGS: Record<string, string> = {
