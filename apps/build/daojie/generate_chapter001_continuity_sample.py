@@ -22,9 +22,9 @@ from typing import Any
 from PIL import Image, ImageDraw, ImageFont, ImageOps
 
 try:
-    from apps.build.daojie.ai import daojie_gongbi_v2
+    from apps.build.daojie.pipeline import daojie_gongbi_v2
 except ModuleNotFoundError:
-    from ai import daojie_gongbi_v2
+    from pipeline import daojie_gongbi_v2
 
 
 REPO_ROOT = Path(__file__).resolve().parents[3]

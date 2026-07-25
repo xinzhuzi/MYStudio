@@ -6,7 +6,7 @@ import { resolve } from "node:path";
 import sharp from "sharp";
 import { describe, expect, it } from "vitest";
 
-const appsRoot = resolve(__dirname, "..");
+const appsRoot = resolve(__dirname, "../..");
 const capability = {
   schemaVersion: "daojie-reference-capability-v1",
   status: "verified",
@@ -33,7 +33,7 @@ const capability = {
 };
 
 function runHelper(payload: object) {
-  return spawnSync("node", ["build/generate-storyboard-image.mjs"], {
+  return spawnSync("node", ["build/daojie/generate-storyboard-image.mjs"], {
     cwd: appsRoot,
     input: JSON.stringify(payload),
     encoding: "utf8",
@@ -42,7 +42,7 @@ function runHelper(payload: object) {
 
 function runHelperAsync(payload: object): Promise<{ status: number | null; stdout: string; stderr: string }> {
   return new Promise((resolveRun, rejectRun) => {
-    const child = spawn("node", ["build/generate-storyboard-image.mjs"], {
+    const child = spawn("node", ["build/daojie/generate-storyboard-image.mjs"], {
       cwd: appsRoot,
       stdio: ["pipe", "pipe", "pipe"],
     });

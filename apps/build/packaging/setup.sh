@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # MYStudio 本地开发环境一键配置
-# 用法: bash apps/build/setup.sh
+# 用法: bash apps/build/packaging/setup.sh
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 
 # ─── 颜色 ───
 GREEN='\033[0;32m'

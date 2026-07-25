@@ -2,11 +2,11 @@ import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-const appsRoot = new URL("../", import.meta.url).pathname;
-const automationScript = readFileSync(`${appsRoot}/build/automate-daojie-chapter001-video.mjs`, "utf8");
+const appsRoot = new URL("../../", import.meta.url).pathname;
+const automationScript = readFileSync(`${appsRoot}/build/daojie/automate-daojie-chapter001-video.mjs`, "utf8");
 
 function runHelper(payload: Record<string, unknown>, frozen: boolean) {
-  return spawnSync("node", ["build/generate-storyboard-image.mjs"], {
+  return spawnSync("node", ["build/daojie/generate-storyboard-image.mjs"], {
     cwd: appsRoot,
     env: { ...process.env, MYSTUDIO_DAOJIE_IMAGE_GENERATION_FROZEN: frozen ? "1" : "" },
     input: JSON.stringify(payload),
@@ -15,7 +15,7 @@ function runHelper(payload: Record<string, unknown>, frozen: boolean) {
 }
 
 function runAutomation(args: string[], env: Record<string, string> = {}) {
-  return spawnSync("node", ["build/automate-daojie-chapter001-video.mjs", ...args], {
+  return spawnSync("node", ["build/daojie/automate-daojie-chapter001-video.mjs", ...args], {
     cwd: appsRoot,
     env: { ...process.env, MYSTUDIO_DAOJIE_IMAGE_GENERATION_FROZEN: "1", ...env },
     encoding: "utf8",

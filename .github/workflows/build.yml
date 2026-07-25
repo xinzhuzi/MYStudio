@@ -22,7 +22,7 @@ jobs:
           node-version: 20
 
       - name: 配置 Python 后端 + Node 依赖
-        run: bash apps/build/setup.sh
+        run: bash apps/build/packaging/setup.sh
 
       - name: 构建渲染进程
         working-directory: apps

@@ -32,7 +32,7 @@ from apps.build.daojie.build_daojie_chapter001_workflow import (  # noqa: E402
     continuity_asset_structurally_complete,
     normalize_continuity_asset_version,
 )
-from apps.build.daojie.ai.prepare_chapter001_continuity_bibles import (  # noqa: E402
+from apps.build.daojie.pipeline.prepare_chapter001_continuity_bibles import (  # noqa: E402
     planned_reference_paths,
     write_new_or_identical,
 )

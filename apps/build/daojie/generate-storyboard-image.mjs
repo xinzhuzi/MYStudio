@@ -7,7 +7,7 @@ import {
   canonicalJson,
   hashReferenceImage,
   sha256,
-} from "./paid-image-request-ledger.mjs";
+} from "../shared/paid-image-request-ledger.mjs";
 
 const GPT_IMAGE_SIZE_MAP = {
   "1:1": { "1K": "1024x1024", "2K": "2048x2048", "4K": "2880x2880" },

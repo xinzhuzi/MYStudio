@@ -6,9 +6,9 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from apps.build.daojie.ai import build_chapter001_reference_replacement_manifests as builder
-from apps.build.daojie.ai import chapter001_continuity_asset_candidate as contract
-from apps.build.daojie.ai import daojie_gongbi_v2 as v2
+from apps.build.daojie.pipeline import build_chapter001_reference_replacement_manifests as builder
+from apps.build.daojie.pipeline import chapter001_continuity_asset_candidate as contract
+from apps.build.daojie.pipeline import daojie_gongbi_v2 as v2
 
 
 class Chapter001ContinuityAssetCandidateTest(unittest.TestCase):

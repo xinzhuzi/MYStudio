@@ -14,8 +14,8 @@ npm run smoke:workflow:background:daojie -- --auto-video
 npm run video:daojie:chapter001
 
 MYSTUDIO_DAOJIE_TIMELINE_RUNNER=1 ./node_modules/.bin/vite-node \
-  --config build/vite-node.config.ts \
-  build/render-daojie-editing-timeline.ts
+  --config build/timeline/vite-node.config.ts \
+  build/timeline/render-daojie-editing-timeline.ts
 ```
 
 Equivalent opt-in and supported environment keys:
@@ -106,7 +106,7 @@ MYSTUDIO_DAOJIE_REUSE_STORYBOARD_IMAGES=1 MYSTUDIO_DAOJIE_REUSE_STORYBOARD_IMAGE
 - Run `npm run video:daojie:chapter001:probe-providers` when checking configured image providers without spending generation quota; verify the report contains no API keys and `generationEndpointCalled=false`.
 - Run the focused voiceover, storyboard, TTS persistence, auto-video, readiness, and build-script tests; assert dynamic 2-shot/43-shot fixtures, canonical identity errors, fixed binding reuse, complete voiceover fields, and hard failures for missing voice assets.
 - Run `npm run video:daojie:chapter001` twice on current code. Preserve both reports and compare the complete canonical speaker profile/reference map, not only display names or a single sample.
-- Run `npm test -- build/render-daojie-editing-timeline.test.ts frontend/config/build-scripts.test.ts`; assert the Node-only Vite config, explicit runner handshake, supported path schemes, current store shape, authoritative final fields, and forbidden legacy fallback.
+- Run `npm test -- build/timeline/render-daojie-editing-timeline.test.ts frontend/config/build-scripts.test.ts`; assert the Node-only Vite config, explicit runner handshake, supported path schemes, current store shape, authoritative final fields, and forbidden legacy fallback.
 - Run the direct timeline command against the current store before the provider-heavy full command. Verify `reusedExistingDraft`, EditingProject/plan/record identity, progress stages, MP4 streams/dimensions/duration, disk hash, snapshot hash, and every artifact path.
 
 ## 7. Wrong vs Correct
@@ -139,7 +139,7 @@ are database paths relative to `data/oss/`, not directly relative to `data/`.
 ### 2. Signatures
 
 ```bash
-python3 apps/build/daojie/ai/build_toonflow_portable_fixture.py \
+python3 apps/build/daojie/pipeline/build_toonflow_portable_fixture.py \
   --database "/Users/zhengbingjin/Library/Application Support/toonflow/data/db2.sqlite" \
   --output .trellis/tasks/07-12-mystudio-chapter001-visual-continuity/research/toonflow-chapter001-portable-fixture.json
 ```

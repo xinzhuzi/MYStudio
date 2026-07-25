@@ -26,9 +26,9 @@ from scipy import ndimage
 from PIL import Image, ImageDraw, ImageFilter, ImageFont, ImageOps
 
 try:
-    from apps.build.daojie.ai import daojie_gongbi_v2
+    from apps.build.daojie.pipeline import daojie_gongbi_v2
 except ModuleNotFoundError:
-    from ai import daojie_gongbi_v2
+    from pipeline import daojie_gongbi_v2
 
 DEFAULT_PROJECT = Path("/Users/zhengbingjin/Library/Application Support/漫影工作室/projects/_p/49dce4c1-64b1-42de-85c2-9f266698aec0")
 PROJECT = Path(os.environ.get("MYSTUDIO_DAOJIE_PROJECT_DIR", str(DEFAULT_PROJECT)))
@@ -68,7 +68,7 @@ SILENT_PREVIEW = os.environ.get("MYSTUDIO_DAOJIE_SILENT_PREVIEW") == "1"
 REUSE_AUDIO_DIR = os.environ.get("MYSTUDIO_DAOJIE_REUSE_AUDIO_DIR")
 REPO_ROOT = Path(__file__).resolve().parents[3]
 BACKEND_ROOT = REPO_ROOT / "apps" / "backend"
-NODE_STORYBOARD_IMAGE_HELPER = REPO_ROOT / "apps" / "build" / "generate-storyboard-image.mjs"
+NODE_STORYBOARD_IMAGE_HELPER = REPO_ROOT / "apps" / "build" / "daojie" / "generate-storyboard-image.mjs"
 SKIP_PROJECT_WRITE = os.environ.get("MYSTUDIO_DAOJIE_SKIP_PROJECT_WRITE") == "1"
 SKIP_SCENE_EXPORTS = os.environ.get("MYSTUDIO_DAOJIE_SKIP_SCENE_EXPORTS") == "1"
 ALLOW_STORYBOARD_BOOTSTRAP = os.environ.get("MYSTUDIO_DAOJIE_ALLOW_STORYBOARD_BOOTSTRAP") == "1"

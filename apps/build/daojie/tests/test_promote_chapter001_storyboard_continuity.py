@@ -6,7 +6,7 @@ from unittest import mock
 
 from PIL import Image
 
-from apps.build.daojie.ai import promote_chapter001_storyboard_continuity as promotion
+from apps.build.daojie.pipeline import promote_chapter001_storyboard_continuity as promotion
 
 
 class PromoteChapter001StoryboardContinuityTest(unittest.TestCase):

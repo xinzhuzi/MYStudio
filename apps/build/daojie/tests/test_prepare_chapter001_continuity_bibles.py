@@ -5,7 +5,7 @@ from pathlib import Path
 
 from PIL import Image, UnidentifiedImageError
 
-from apps.build.daojie.ai.prepare_chapter001_continuity_bibles import prepare_full_chapter_manifest
+from apps.build.daojie.pipeline.prepare_chapter001_continuity_bibles import prepare_full_chapter_manifest
 
 
 class PrepareFullChapterContinuityBiblesTest(unittest.TestCase):

@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
 
 const configDir = path.dirname(fileURLToPath(import.meta.url));
-const appsRoot = path.resolve(configDir, "..");
+const appsRoot = path.resolve(configDir, "../..");
 
 export default defineConfig({
   resolve: {

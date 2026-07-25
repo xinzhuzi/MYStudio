@@ -51,6 +51,80 @@ apps/backend/
 - Put inference adapters in `engine.py`; load heavy model libraries lazily.
 - Keep Electron process management in `apps/frontend/electron/tts-runtime.ts`.
 
+## Runtime Contract: Managed Python and Daojie direct runner
+
+### 1. Scope / Trigger
+
+This contract applies when changing Python runtime discovery, TTS sidecar startup,
+Daojie HTTP-TTS direct runs, or storage/runtime documentation. The source tree
+contains sidecar code; it is not a Python runtime distribution.
+
+### 2. Signatures
+
+```python
+managed_python_executable_path(runtime_dir: Path, platform: str | None = None) -> Path
+start_tts_backend() -> subprocess.Popen | None
+```
+
+Electron resolves the runtime from `<storageBasePath>/python`; the Daojie
+direct runner resolves its configured `APP_SUPPORT / "python"` directory and
+uses `apps/backend` only as `PYTHONPATH` and the subprocess working directory.
+
+### 3. Contracts
+
+- macOS/Linux executable: `<storageBasePath>/python/bin/python3`.
+- Windows executable: `<storageBasePath>/python/python.exe`.
+- Sidecar data: `MANYING_TTS_DATA_DIR` and `--data-dir` point to the runtime
+  data directory; model variables point to the configured model cache.
+- `apps/backend/python` is never a fallback candidate and remains untouched
+  unless a separately approved cleanup task says otherwise.
+- The default Daojie video command does not enable HTTP TTS; the direct HTTP
+  branch is opt-in through `MANYING_TTS_USE_HTTP=1`.
+
+### 4. Validation & Error Matrix
+
+| Condition | Required result |
+| --- | --- |
+| Existing TTS health check is healthy | Return without starting another process |
+| Managed runtime executable exists | Start `manying_voicebox_tts.main` with backend `PYTHONPATH` |
+| Managed runtime is missing | Raise a settings-directed configuration error before `Popen` |
+| Only `apps/backend/python` exists | Treat the runtime as missing; never invoke the source-tree executable |
+
+### 5. Good / Base / Bad Cases
+
+- Good: a configured storage runtime starts the sidecar and writes data under
+  the runtime data directory.
+- Base: a healthy existing sidecar is reused without requiring a local runtime
+  probe.
+- Bad: copying or probing `apps/backend/python` to hide a missing Settings
+  configuration.
+
+### 6. Tests Required
+
+- `apps/build/daojie/tests/test_tts_runtime_path.py` must assert platform
+  executable selection, storage-runtime startup, missing-runtime error text,
+  no source-tree fallback, and healthy-process reuse.
+- `cd apps && PYTHONPATH=backend python3 -m unittest discover -s build/daojie/tests`.
+- `cd apps && PYTHONPATH=backend python3 -m unittest discover -s backend/tests`.
+- When packaging/build helpers change, run the focused build-script test and
+  the applicable packaged smoke gate.
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+```python
+python_bin = BACKEND_ROOT / "python" / "bin" / "python3.12"
+```
+
+#### Correct
+
+```python
+python_bin = managed_python_executable_path(APP_SUPPORT / "python")
+if not python_bin.exists():
+    raise RuntimeError("请先到设置里的 Python 配置页点击开始配置，完成 TTS 依赖安装")
+```
+
 ---
 
 ## Naming Conventions

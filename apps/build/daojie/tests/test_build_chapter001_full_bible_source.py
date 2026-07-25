@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 from PIL import Image
 
-from apps.build.daojie.ai import build_chapter001_full_bible_source as builder
+from apps.build.daojie.pipeline import build_chapter001_full_bible_source as builder
 
 
 class BuildChapter001FullBibleSourceTest(unittest.TestCase):

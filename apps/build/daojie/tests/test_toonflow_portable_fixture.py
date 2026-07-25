@@ -7,7 +7,7 @@ from pathlib import Path
 
 from PIL import Image
 
-from apps.build.daojie.ai.build_toonflow_portable_fixture import (
+from apps.build.daojie.pipeline.build_toonflow_portable_fixture import (
     build_fixture,
     resolve_oss_path,
     verify_fixture,

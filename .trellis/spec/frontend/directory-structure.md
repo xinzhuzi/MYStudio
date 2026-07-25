@@ -42,7 +42,13 @@ apps/frontend/
 └── packages/    # locally vendored packages such as ai-core
 
 apps/build/
-└── daojie/      # Daojie Python generation, continuity, and fixture tooling
+├── packaging/   # desktop build, install, and setup entrypoints
+├── smoke/       # packaged, installed, and workflow smoke runners
+├── daojie/      # Daojie orchestration, image helpers, and Python tooling
+│   ├── pipeline/ # production Python helpers and JSON capability data
+│   └── tests/    # Python contract tests
+├── timeline/    # Node-only direct timeline runner and config
+└── shared/      # build-time reports and request ledgers
 ```
 
 ---

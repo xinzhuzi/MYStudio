@@ -7,7 +7,7 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw
 
-from apps.build.daojie.ai import daojie_gongbi_v2 as v2
+from apps.build.daojie.pipeline import daojie_gongbi_v2 as v2
 
 
 class DaojieGongbiV2Test(unittest.TestCase):

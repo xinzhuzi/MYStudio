@@ -11,7 +11,7 @@ from pathlib import Path
 
 from PIL import Image
 
-from apps.build.daojie.ai.promote_chapter001_continuity_approvals import (
+from apps.build.daojie.pipeline.promote_chapter001_continuity_approvals import (
     MAX_EVIDENCE_BYTES,
     continuity_asset_approval_fingerprint,
     continuity_asset_content_fingerprint,
@@ -23,7 +23,7 @@ from apps.build.daojie.ai.promote_chapter001_continuity_approvals import (
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[4]
-SCRIPT_PATH = REPOSITORY_ROOT / "apps/build/daojie/ai/promote_chapter001_continuity_approvals.py"
+SCRIPT_PATH = REPOSITORY_ROOT / "apps/build/daojie/pipeline/promote_chapter001_continuity_approvals.py"
 
 
 class PromoteChapter001ContinuityApprovalsTest(unittest.TestCase):

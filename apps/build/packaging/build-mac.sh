@@ -2,7 +2,7 @@
 set -eu
 
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-APPS_DIR=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
+APPS_DIR=$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)
 INSTALL_AFTER_BUILD=0
 BUILD_ARGS=
 HAS_ARCH=0
@@ -29,11 +29,11 @@ if [ "$HAS_ARCH" -eq 0 ]; then
 fi
 
 echo "Building mac app from $APPS_DIR"
-echo "Command: node ./build/build-desktop.mjs --mac$BUILD_ARGS"
+echo "Command: node ./build/packaging/build-desktop.mjs --mac$BUILD_ARGS"
 
 # shellcheck disable=SC2086
-node ./build/build-desktop.mjs --mac $BUILD_ARGS
+node ./build/packaging/build-desktop.mjs --mac $BUILD_ARGS
 
 if [ "$INSTALL_AFTER_BUILD" -eq 1 ]; then
-  node ./build/install-and-smoke.mjs
+  node ./build/packaging/install-and-smoke.mjs
 fi

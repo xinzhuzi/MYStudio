@@ -80,7 +80,7 @@ git clone https://github.com/xinzhuzi/MYStudio.git
 cd MYStudio
 
 # Install dependencies and desktop setup helpers
-bash apps/build/setup.sh
+bash apps/build/packaging/setup.sh
 
 # Start development mode
 cd apps
@@ -119,7 +119,12 @@ cd apps && npm run build:win
 ```
 manying-studio/
 ├── apps/
-│   ├── build/             # Desktop build, setup, and smoke scripts
+│   ├── build/             # Modular desktop build, smoke, Daojie, and timeline tools
+│   │   ├── packaging/     # Desktop packaging, install, and setup entrypoints
+│   │   ├── smoke/         # Packaged, installed, and workflow smoke runners
+│   │   ├── daojie/        # Daojie orchestration and image/pipeline helpers
+│   │   ├── timeline/      # Direct timeline runner and Node-only config
+│   │   └── shared/        # Build-time reports and request ledgers
 │   ├── backend/           # Local backend and TTS sidecar source
 │   └── frontend/
 │       ├── electron/      # Electron main process and preload bridge

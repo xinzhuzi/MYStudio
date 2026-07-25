@@ -4,7 +4,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
-const projectRoot = resolve(scriptDir, '..');
+const projectRoot = resolve(scriptDir, '../..');
 const releaseDir = resolve(projectRoot, 'release');
 const defaultBuildOutputDir = resolve(releaseDir, 'build');
 const electronViteOutDir = resolve(releaseDir, '.electron-vite');

@@ -195,7 +195,7 @@ The project's AI features (TTS voice cloning, speech recognition, image/video ge
 ```bash
 git clone https://github.com/xinzhuzi/MYStudio.git
 cd MYStudio
-bash apps/build/setup.sh
+bash apps/build/packaging/setup.sh
 ```
 
 **Windows (PowerShell):**

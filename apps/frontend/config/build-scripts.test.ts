@@ -46,7 +46,7 @@ function runPythonSnippet(source: string) {
 
 function runNodeHelper(payload: unknown): Promise<{ status: number | null; stdout: string; stderr: string }> {
   return new Promise((resolveRun, rejectRun) => {
-    const child = spawn("node", ["build/generate-storyboard-image.mjs"], {
+    const child = spawn("node", ["build/daojie/generate-storyboard-image.mjs"], {
       cwd: appsRoot,
       stdio: ["pipe", "pipe", "pipe"],
     });
@@ -69,14 +69,14 @@ function runNodeHelper(payload: unknown): Promise<{ status: number | null; stdou
 }
 
 describe("desktop build scripts", () => {
-  it("keeps Daojie Python tests outside the production ai package", () => {
-    const aiRoot = resolve(appsRoot, "build", "daojie", "ai");
+  it("keeps Daojie Python tests outside the production pipeline package", () => {
+    const pipelineRoot = resolve(appsRoot, "build", "daojie", "pipeline");
     const testsRoot = resolve(appsRoot, "build", "daojie", "tests");
-    const aiTests = readdirSync(aiRoot).filter((name) => /^test_.*\.py$/.test(name));
+    const pipelineTests = readdirSync(pipelineRoot).filter((name) => /^test_.*\.py$/.test(name));
     const tests = readdirSync(testsRoot).filter((name) => /^test_.*\.py$/.test(name));
 
-    expect(aiTests).toEqual([]);
-    expect(tests).toHaveLength(11);
+    expect(pipelineTests).toEqual([]);
+    expect(tests).toHaveLength(12);
     expect(tests).toContain("test_toonflow_portable_fixture.py");
   });
 
@@ -87,7 +87,7 @@ describe("desktop build scripts", () => {
       "--input-type=module",
       "-e",
       [
-        "import { writeDurableJsonReport } from './build/durable-json-report.mjs';",
+        "import { writeDurableJsonReport } from './build/shared/durable-json-report.mjs';",
         "writeDurableJsonReport(process.env.TARGET_REPORT, { generatedAt: '2026-07-17T00:00:01Z', ok: false });",
         "writeDurableJsonReport(process.env.TARGET_REPORT, { generatedAt: '2026-07-17T00:00:02Z', ok: true });",
       ].join("\n"),
@@ -108,7 +108,7 @@ describe("desktop build scripts", () => {
   });
 
   it("use the current frontend build paths", () => {
-    const source = readBuildFile("build/build-desktop.mjs");
+    const source = readBuildFile("build/packaging/build-desktop.mjs");
 
     expect(source).toContain("'frontend', 'config', 'electron-builder.yml'");
     expect(source).toContain("'frontend', 'config', 'electron-vite.config.ts'");
@@ -120,8 +120,8 @@ describe("desktop build scripts", () => {
   });
 
   it("does not install Python into backend during setup", () => {
-    const setupSh = readBuildFile("build/setup.sh");
-    const setupWin = readBuildFile("build/setup-win.ps1");
+    const setupSh = readBuildFile("build/packaging/setup.sh");
+    const setupWin = readBuildFile("build/packaging/setup-win.ps1");
 
     for (const source of [setupSh, setupWin]) {
       expect(source).not.toContain("backend/python");
@@ -132,15 +132,15 @@ describe("desktop build scripts", () => {
   });
 
   it("routes mac helper through the current build script path", () => {
-    const source = readBuildFile("build/build-mac.sh");
+    const source = readBuildFile("build/packaging/build-mac.sh");
 
-    expect(source).toContain("node ./build/build-desktop.mjs --mac");
+    expect(source).toContain("node ./build/packaging/build-desktop.mjs --mac");
     expect(source).toContain("HAS_ARCH=0");
     expect(source).toContain("BUILD_ARGS=\"${BUILD_ARGS} --arm64\"");
-    expect(source).toContain("Command: node ./build/build-desktop.mjs --mac$BUILD_ARGS");
+    expect(source).toContain("Command: node ./build/packaging/build-desktop.mjs --mac$BUILD_ARGS");
     expect(source).toContain("--install|--smoke-installed");
     expect(source).toContain("INSTALL_AFTER_BUILD=1");
-    expect(source).toContain("node ./build/install-and-smoke.mjs");
+    expect(source).toContain("node ./build/packaging/install-and-smoke.mjs");
     expect(source).not.toContain("ditto");
     expect(source).not.toContain("/Applications/漫影工作室.app");
     expect(source).not.toContain("backup-");
@@ -148,16 +148,16 @@ describe("desktop build scripts", () => {
     expect(source).not.toContain("cp -R");
     expect(source).not.toContain("mv ");
     expect(source).not.toContain("rsync");
-    expect(source).not.toContain("./src/build/build-desktop.mjs");
-    expect(source).not.toContain("SCRIPT_DIR/../..");
+    expect(source).not.toContain("./src/build/packaging/build-desktop.mjs");
+    expect(source).toContain("SCRIPT_DIR/../..");
   });
 
   it("routes npm mac builds through the managed desktop build script", () => {
     const source = readBuildFile("package.json");
 
-    expect(source).toContain('"build:mac": "sh ./build/build-mac.sh --arm64"');
-    expect(source).toContain('"build:mac:install": "sh ./build/build-mac.sh --arm64 --install"');
-    expect(source).not.toContain('"build:mac:install": "node ./build/install-and-smoke.mjs"');
+    expect(source).toContain('"build:mac": "sh ./build/packaging/build-mac.sh --arm64"');
+    expect(source).toContain('"build:mac:install": "sh ./build/packaging/build-mac.sh --arm64 --install"');
+    expect(source).not.toContain('"build:mac:install": "node ./build/packaging/install-and-smoke.mjs"');
     expect(source).not.toContain(
       "electron-builder --config frontend/config/electron-builder.yml --mac --arm64",
     );
@@ -197,13 +197,13 @@ describe("desktop build scripts", () => {
 
   it("exposes a packaged desktop smoke test for white-screen regressions", () => {
     const packageJson = readBuildFile("package.json");
-    const smokeScript = readBuildFile("build/smoke-desktop.mjs");
+    const smokeScript = readBuildFile("build/smoke/smoke-desktop.mjs");
     const workflowPreviews = readBuildFile(
       "frontend/components/panels/studio/WorkflowNodePreviews.tsx",
     );
 
     expect(packageJson).toContain(
-      '"smoke:desktop": "node ./build/smoke-desktop.mjs"',
+      '"smoke:desktop": "node ./build/smoke/smoke-desktop.mjs"',
     );
     expect(smokeScript).toContain("dashboard-project-card");
     expect(smokeScript).toContain("项目概览");
@@ -456,7 +456,7 @@ describe("desktop build scripts", () => {
   });
 
   it("exposes a packaged stepwise workflow smoke that does not seed complete state", () => {
-    const smokeScript = readBuildFile("build/smoke-desktop.mjs");
+    const smokeScript = readBuildFile("build/smoke/smoke-desktop.mjs");
     const stepwiseStart = smokeScript.indexOf(
       "async function verifyWorkflowStepByStepExecution",
     );
@@ -487,7 +487,7 @@ describe("desktop build scripts", () => {
   });
 
   it("persists packaged desktop smoke evidence under output automation", () => {
-    const smokeScript = readBuildFile("build/smoke-desktop.mjs");
+    const smokeScript = readBuildFile("build/smoke/smoke-desktop.mjs");
 
     expect(smokeScript).toContain("MYSTUDIO_SMOKE_REPORT_PATH");
     expect(smokeScript).toContain('"output", "automation", "desktop-smoke-report.json"');
@@ -502,7 +502,7 @@ describe("desktop build scripts", () => {
   });
 
   it("does not fail packaged smoke on offline markdown preview CDN resources", () => {
-    const smokeScript = readBuildFile("build/smoke-desktop.mjs");
+    const smokeScript = readBuildFile("build/smoke/smoke-desktop.mjs");
 
     expect(smokeScript).toContain("isAllowedOfflinePreviewResourceError");
     expect(smokeScript).toContain('url.startsWith("https://unpkg.com/")');
@@ -516,7 +516,7 @@ describe("desktop build scripts", () => {
   });
 
   it("exposes a foreground packaged smoke mode for visible app startup", () => {
-    const smokeScript = readBuildFile("build/smoke-desktop.mjs");
+    const smokeScript = readBuildFile("build/smoke/smoke-desktop.mjs");
     const skill = readFileSync(
       resolve(
         appsRoot,
@@ -537,11 +537,11 @@ describe("desktop build scripts", () => {
 
   it("runs desktop and workflow automation in background without accessibility focus control", () => {
     const packageJson = readBuildFile("package.json");
-    const smokeScript = readBuildFile("build/smoke-desktop.mjs");
-    const workflowRunner = readBuildFile("build/run-visible-workflow-smoke.mjs");
-    const focusHelper = readBuildFile("build/smoke-focus.mjs");
+    const smokeScript = readBuildFile("build/smoke/smoke-desktop.mjs");
+    const workflowRunner = readBuildFile("build/smoke/run-visible-workflow-smoke.mjs");
+    const focusHelper = readBuildFile("build/smoke/smoke-focus.mjs");
     const videoScript = readBuildFile(
-      "build/automate-daojie-chapter001-video.mjs",
+      "build/daojie/automate-daojie-chapter001-video.mjs",
     );
     const workflowSkill = readFileSync(
       resolve(
@@ -559,10 +559,10 @@ describe("desktop build scripts", () => {
     );
 
     expect(packageJson).toContain(
-      '"smoke:workflow:background": "node ./build/run-visible-workflow-smoke.mjs --background"',
+      '"smoke:workflow:background": "node ./build/smoke/run-visible-workflow-smoke.mjs --background"',
     );
     expect(packageJson).toContain(
-      '"smoke:workflow:background:daojie": "node ./build/run-visible-workflow-smoke.mjs --background --daojie"',
+      '"smoke:workflow:background:daojie": "node ./build/smoke/run-visible-workflow-smoke.mjs --background --daojie"',
     );
     expect(smokeScript).toContain(
       'MYSTUDIO_SMOKE_BACKGROUND: foregroundSmoke ? "0" : "1"',
@@ -596,7 +596,7 @@ describe("desktop build scripts", () => {
 
   it("exposes a normal visible workflow app launcher that stays open", () => {
     const packageJson = readBuildFile("package.json");
-    const openScript = readBuildFile("build/open-workflow-smoke-app.mjs");
+    const openScript = readBuildFile("build/smoke/open-workflow-smoke-app.mjs");
     const skill = readFileSync(
       resolve(
         appsRoot,
@@ -606,7 +606,7 @@ describe("desktop build scripts", () => {
     );
 
     expect(packageJson).toContain(
-      '"smoke:workflow:open": "node ./build/open-workflow-smoke-app.mjs"',
+      '"smoke:workflow:open": "node ./build/smoke/open-workflow-smoke-app.mjs"',
     );
     expect(openScript).toContain("mkdtempSync(resolve(tmpdir(), \"mystudio-smoke-open-\"))");
     expect(openScript).toContain("--user-data-dir=");
@@ -627,9 +627,9 @@ describe("desktop build scripts", () => {
 
   it("exposes a visible step-by-step workflow runner that clicks through and stays open", () => {
     const packageJson = readBuildFile("package.json");
-    const runnerScript = readBuildFile("build/run-visible-workflow-smoke.mjs");
-    const smokeScript = readBuildFile("build/smoke-desktop.mjs");
-    const lifecycleScript = readBuildFile("build/smoke-process-lifecycle.mjs");
+    const runnerScript = readBuildFile("build/smoke/run-visible-workflow-smoke.mjs");
+    const smokeScript = readBuildFile("build/smoke/smoke-desktop.mjs");
+    const lifecycleScript = readBuildFile("build/smoke/smoke-process-lifecycle.mjs");
     const skill = readFileSync(
       resolve(
         appsRoot,
@@ -639,7 +639,7 @@ describe("desktop build scripts", () => {
     );
 
     expect(packageJson).toContain(
-      '"smoke:workflow:run": "node ./build/run-visible-workflow-smoke.mjs"',
+      '"smoke:workflow:run": "node ./build/smoke/run-visible-workflow-smoke.mjs"',
     );
     expect(runnerScript).toContain("MYSTUDIO_SMOKE_WORKFLOW_STEPWISE");
     expect(runnerScript).toContain("MYSTUDIO_SMOKE_FOREGROUND");
@@ -683,9 +683,9 @@ describe("desktop build scripts", () => {
 
   it("exposes a visible Daojie chapter 001 workflow runner that does not use an empty smoke template", () => {
     const packageJson = readBuildFile("package.json");
-    const runnerScript = readBuildFile("build/run-visible-workflow-smoke.mjs");
+    const runnerScript = readBuildFile("build/smoke/run-visible-workflow-smoke.mjs");
     const autoVideoAudit = readBuildFile(
-      "build/visible-workflow-auto-video-audit.mjs",
+      "build/smoke/visible-workflow-auto-video-audit.mjs",
     );
     const skill = readFileSync(
       resolve(
@@ -696,7 +696,7 @@ describe("desktop build scripts", () => {
     );
 
     expect(packageJson).toContain(
-      '"smoke:workflow:run:daojie": "node ./build/run-visible-workflow-smoke.mjs --daojie"',
+      '"smoke:workflow:run:daojie": "node ./build/smoke/run-visible-workflow-smoke.mjs --daojie"',
     );
     expect(runnerScript).toContain('process.argv.includes("--auto-video")');
     expect(runnerScript).toContain("MYSTUDIO_WORKFLOW_AUTO_VIDEO");
@@ -816,7 +816,7 @@ describe("desktop build scripts", () => {
   it("rejects the one-click auto-video runner outside a real Daojie clone", () => {
     const result = spawnSync(
       "node",
-      ["build/run-visible-workflow-smoke.mjs", "--auto-video"],
+      ["build/smoke/run-visible-workflow-smoke.mjs", "--auto-video"],
       {
         cwd: appsRoot,
         encoding: "utf8",
@@ -834,7 +834,7 @@ describe("desktop build scripts", () => {
 
   it("keeps failed background auto-video reports from counting as media evidence", async () => {
     const auditModuleUrl = pathToFileURL(
-      resolve(appsRoot, "build/visible-workflow-auto-video-audit.mjs"),
+      resolve(appsRoot, "build/smoke/visible-workflow-auto-video-audit.mjs"),
     ).href;
     const { auditVisibleAutoVideo } = await import(auditModuleUrl);
     const failedBackgroundReport = {
@@ -897,7 +897,7 @@ describe("desktop build scripts", () => {
   });
 
   it("keeps background focus and auto-video audit failures from producing passing wrapper reports", () => {
-    const runnerScript = readBuildFile("build/run-visible-workflow-smoke.mjs");
+    const runnerScript = readBuildFile("build/smoke/run-visible-workflow-smoke.mjs");
 
     expect(runnerScript).toMatch(
       /const focusFailure = runInBackground\s+\?\s+foregroundViolation\s+:/,
@@ -910,7 +910,7 @@ describe("desktop build scripts", () => {
 
   it("rejects legacy compatibility videos as authoritative auto-video evidence", async () => {
     const auditModuleUrl = pathToFileURL(
-      resolve(appsRoot, "build/visible-workflow-auto-video-audit.mjs"),
+      resolve(appsRoot, "build/smoke/visible-workflow-auto-video-audit.mjs"),
     ).href;
     const { auditVisibleAutoVideo } = await import(auditModuleUrl);
     const userDataDir = createTempRoot("mystudio-auto-video-legacy-");
@@ -971,7 +971,7 @@ describe("desktop build scripts", () => {
 
   it("executes clone-root, freshness, and final-media evidence rejection", async () => {
     const auditModuleUrl = pathToFileURL(
-      resolve(appsRoot, "build/visible-workflow-auto-video-audit.mjs"),
+      resolve(appsRoot, "build/smoke/visible-workflow-auto-video-audit.mjs"),
     ).href;
     const { auditVisibleAutoVideo } = await import(auditModuleUrl);
     const userDataDir = createTempRoot("mystudio-auto-video-audit-");
@@ -1241,7 +1241,7 @@ describe("desktop build scripts", () => {
   });
 
   it("keeps the packaged workflow smoke aligned with script asset generation", () => {
-    const smokeScript = readBuildFile("build/smoke-desktop.mjs");
+    const smokeScript = readBuildFile("build/smoke/smoke-desktop.mjs");
     const assetsStart = smokeScript.indexOf("id: 'assets'");
     const assetsEnd = smokeScript.indexOf("id: 'storyboard'");
     const generationStart = smokeScript.indexOf("id: 'generation'");
@@ -1277,10 +1277,10 @@ describe("desktop build scripts", () => {
 
   it("exposes a no-backup installed app smoke flow", () => {
     const packageJson = readBuildFile("package.json");
-    const installSmokeScript = readBuildFile("build/install-and-smoke.mjs");
+    const installSmokeScript = readBuildFile("build/packaging/install-and-smoke.mjs");
 
     expect(packageJson).toContain(
-      '"smoke:installed": "node ./build/install-and-smoke.mjs"',
+      '"smoke:installed": "node ./build/packaging/install-and-smoke.mjs"',
     );
     expect(installSmokeScript).toContain("/Applications/漫影工作室.app");
     expect(installSmokeScript).toContain("stopInstalledAppIfRunning");
@@ -1317,31 +1317,31 @@ describe("desktop build scripts", () => {
   it("exposes an automated Daojie chapter 001 video output flow", () => {
     const packageJson = readBuildFile("package.json");
     const videoScript = readBuildFile(
-      "build/automate-daojie-chapter001-video.mjs",
+      "build/daojie/automate-daojie-chapter001-video.mjs",
     );
     const timelineRunnerScript = readBuildFile(
-      "build/render-daojie-editing-timeline.ts",
+      "build/timeline/render-daojie-editing-timeline.ts",
     );
-    const timelineRunnerConfig = readBuildFile("build/vite-node.config.ts");
+    const timelineRunnerConfig = readBuildFile("build/timeline/vite-node.config.ts");
     const generatorScript = readFileSync(
       resolve(appsRoot, "build", "daojie", "build_daojie_chapter001_workflow.py"),
       "utf8",
     );
 
     expect(packageJson).toContain(
-      '"video:daojie:chapter001": "node ./build/automate-daojie-chapter001-video.mjs"',
+      '"video:daojie:chapter001": "node ./build/daojie/automate-daojie-chapter001-video.mjs"',
     );
     expect(packageJson).toContain(
-      '"video:daojie:chapter001:visual-preflight": "MYSTUDIO_DAOJIE_VISUAL_PREFLIGHT=1 ./node_modules/.bin/vite-node --config build/vite-node.config.ts build/audit-daojie-visual-continuity.ts"',
+      '"video:daojie:chapter001:visual-preflight": "MYSTUDIO_DAOJIE_VISUAL_PREFLIGHT=1 ./node_modules/.bin/vite-node --config build/timeline/vite-node.config.ts build/daojie/audit-daojie-visual-continuity.ts"',
     );
     expect(packageJson).toContain(
-      '"video:daojie:chapter001:probe-providers": "node ./build/automate-daojie-chapter001-video.mjs --probe-providers"',
+      '"video:daojie:chapter001:probe-providers": "node ./build/daojie/automate-daojie-chapter001-video.mjs --probe-providers"',
     );
     expect(videoScript).toContain("daojieBuildRoot");
     expect(videoScript).toContain("build_daojie_chapter001_workflow.py");
-    expect(videoScript).toContain("build/render-daojie-editing-timeline.ts");
+    expect(videoScript).toContain("build/timeline/render-daojie-editing-timeline.ts");
     expect(videoScript).toContain("./node_modules/.bin/vite-node");
-    expect(videoScript).toContain("build/vite-node.config.ts");
+    expect(videoScript).toContain("build/timeline/vite-node.config.ts");
     expect(videoScript).toContain("MYSTUDIO_DAOJIE_TIMELINE_RUNNER: '1'");
     expect(videoScript).toContain("daojie-chapter001-video-report.json");
     expect(videoScript).toContain("MYSTUDIO_SMOKE_SKIP_PREKILL");
@@ -1358,7 +1358,7 @@ describe("desktop build scripts", () => {
     expect(videoScript).toContain("storyboardImageWorkflowManifest");
     expect(videoScript).toContain("requireStoryboardPromptIntegrity(generated)");
     expect(videoScript).toContain("requireDaojieVisualContinuityPreflight");
-    expect(videoScript).toContain("build/audit-daojie-visual-continuity.ts");
+    expect(videoScript).toContain("build/daojie/audit-daojie-visual-continuity.ts");
     expect(videoScript).toContain("MYSTUDIO_DAOJIE_VISUAL_PREFLIGHT");
     expect(videoScript).toContain("MYSTUDIO_DAOJIE_USE_APPROVED_STORYBOARDS");
     expect(videoScript).toContain("generatedImages !== 0 || generated.reusedImages !== storyboardCount");
@@ -1388,9 +1388,9 @@ describe("desktop build scripts", () => {
     expect(videoScript).toContain("runImageProviderProbe");
     expect(videoScript).toContain("generationEndpointCalled: false");
     expect(videoScript).toContain("daojie-chapter001-provider-probe-report.json");
-    expect(packageJson).toContain('"video:daojie:chapter001:probe-generation": "node ./build/automate-daojie-chapter001-video.mjs --probe-generation"');
-    expect(packageJson).toContain('"video:daojie:chapter001:continuity-pilot": "node ./build/automate-daojie-chapter001-video.mjs --continuity-pilot"');
-    expect(packageJson).toContain('"video:daojie:chapter001:continuity-full": "node ./build/automate-daojie-chapter001-video.mjs --continuity-full-chapter"');
+    expect(packageJson).toContain('"video:daojie:chapter001:probe-generation": "node ./build/daojie/automate-daojie-chapter001-video.mjs --probe-generation"');
+    expect(packageJson).toContain('"video:daojie:chapter001:continuity-pilot": "node ./build/daojie/automate-daojie-chapter001-video.mjs --continuity-pilot"');
+    expect(packageJson).toContain('"video:daojie:chapter001:continuity-full": "node ./build/daojie/automate-daojie-chapter001-video.mjs --continuity-full-chapter"');
     expect(videoScript).toContain("probeGenerationOnly");
     expect(videoScript).toContain("runImageGenerationProbe");
     expect(videoScript).toContain("providers.length !== 1 || providers[0].apiKeys.length !== 1");
@@ -1644,7 +1644,7 @@ describe("desktop build scripts", () => {
   });
 
   it("rejects asset-composite as Toonflow-style storyboard image generation evidence", () => {
-    const videoScript = readBuildFile("build/automate-daojie-chapter001-video.mjs");
+    const videoScript = readBuildFile("build/daojie/automate-daojie-chapter001-video.mjs");
 
     expect(videoScript).toContain("real-ai-reference-image-workflow");
     expect(videoScript).toContain("storyboardImageGenerationMode");
@@ -1662,7 +1662,7 @@ describe("desktop build scripts", () => {
   });
 
   it("validates V2 continuity asset candidates before loading paid provider credentials", () => {
-    const videoScript = readBuildFile("build/automate-daojie-chapter001-video.mjs");
+    const videoScript = readBuildFile("build/daojie/automate-daojie-chapter001-video.mjs");
 
     expect(videoScript).toContain("chapter001_continuity_asset_candidate.py");
     expect(videoScript).toContain("readContinuityAssetCandidateManifest(dryRun)");
@@ -2125,7 +2125,7 @@ describe("desktop build scripts", () => {
   }, 10_000);
 
   it("keeps Daojie real storyboard image requests provider-compatible", () => {
-    const helperScript = readBuildFile("build/generate-storyboard-image.mjs");
+    const helperScript = readBuildFile("build/daojie/generate-storyboard-image.mjs");
     const generatorScript = readFileSync(
       resolve(appsRoot, "build", "daojie", "build_daojie_chapter001_workflow.py"),
       "utf8",
@@ -2440,7 +2440,7 @@ import tempfile
 from pathlib import Path
 from PIL import Image
 
-spec = importlib.util.spec_from_file_location("prepare_bibles", "apps/build/daojie/ai/prepare_chapter001_continuity_bibles.py")
+spec = importlib.util.spec_from_file_location("prepare_bibles", "apps/build/daojie/pipeline/prepare_chapter001_continuity_bibles.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
@@ -3562,7 +3562,7 @@ with tempfile.TemporaryDirectory() as tmp:
   });
 
   it("splits multiline Daojie storyboard image API keys before provider calls", () => {
-    const helperScript = readBuildFile("build/generate-storyboard-image.mjs");
+    const helperScript = readBuildFile("build/daojie/generate-storyboard-image.mjs");
 
     expect(helperScript).toContain("apiKeys");
     expect(helperScript).toContain("parseApiKeys");
@@ -3596,7 +3596,7 @@ print(config["apiKey"], config["apiKeys"], config["timeoutSeconds"], config["asy
   });
 
   it("keeps Daojie storyboard image provider fallback order for real-ai mode", () => {
-    const helperScript = readBuildFile("build/generate-storyboard-image.mjs");
+    const helperScript = readBuildFile("build/daojie/generate-storyboard-image.mjs");
 
     expect(helperScript).toContain("providers");
     expect(helperScript).toContain("for (const providerConfig of providers)");
