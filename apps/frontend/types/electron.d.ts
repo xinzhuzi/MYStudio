@@ -36,6 +36,10 @@ export {};
 
 declare global {
   interface Window {
+    showDirectoryPicker?: (options?: {
+      mode?: "read" | "readwrite";
+      startIn?: string;
+    }) => Promise<FileSystemDirectoryHandle>;
     appEvents?: {
       onMainProcessMessage: (listener: (message: string) => void) => () => void;
     };
@@ -268,6 +272,7 @@ declare global {
       removeImage: (payload: { assetId: string; imageFilePath: string }) => Promise<StudioAssetSummary | null>;
       renameImage: (payload: { assetId: string; imageFilePath: string; newName: string }) => Promise<StudioAssetSummary | null>;
       selectImageFile: () => Promise<string | null>;
+      selectImageFiles: () => Promise<string[]>;
       importFromToonflow: (payload: { type: string }) => Promise<{ success: boolean; imported: number }>;
       getByName: (payload: { type: string; name: string }) => Promise<StudioAssetSummary | null>;
       batchMatch: (payload: { type: string; names: string[] }) => Promise<Array<{ name: string; asset: StudioAssetSummary | null }>>;

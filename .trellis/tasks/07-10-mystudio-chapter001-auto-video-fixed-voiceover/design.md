@@ -117,7 +117,7 @@ TypeScript 的两处自动分配入口共用一个 planner，planner 返回 `fix
 
 ## 5. CLI changes
 
-`Library/build_daojie_chapter001_workflow.py`：
+`apps/build/daojie/build_daojie_chapter001_workflow.py`：
 
 - 从最新 storyboardTable 解析动态 shots，并报告 source 证据。
 - 生成逐镜 voiceover 字段与 canonical speakerId。

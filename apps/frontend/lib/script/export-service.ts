@@ -278,7 +278,8 @@ export async function exportProjectToFolder(
   onProgress?: (progress: ExportProgress) => void
 ): Promise<boolean> {
   // Check if File System Access API is available
-  if (!('showDirectoryPicker' in window)) {
+  const showDirectoryPicker = window.showDirectoryPicker;
+  if (!showDirectoryPicker) {
     console.log('[ExportService] File System Access API not available, falling back to downloads');
     await exportProjectFiles(config, onProgress);
     return false;
@@ -288,7 +289,7 @@ export async function exportProjectToFolder(
 
   try {
     // Request directory access
-    const dirHandle = await (window as any).showDirectoryPicker({
+    const dirHandle = await showDirectoryPicker({
       mode: 'readwrite',
       startIn: 'downloads',
     });
@@ -482,7 +483,8 @@ export async function exportDirectorToFolder(
   config: DirectorExportConfig,
   onProgress?: (progress: ExportProgress) => void
 ): Promise<boolean> {
-  if (!('showDirectoryPicker' in window)) {
+  const showDirectoryPicker = window.showDirectoryPicker;
+  if (!showDirectoryPicker) {
     console.log('[ExportService] File System Access API not available, falling back to downloads');
     await exportDirectorFiles(config, onProgress);
     return false;
@@ -491,7 +493,7 @@ export async function exportDirectorToFolder(
   const { scenes, includeImages, includeVideos, includeEndFrames, projectName } = config;
 
   try {
-    const dirHandle = await (window as any).showDirectoryPicker({
+    const dirHandle = await showDirectoryPicker({
       mode: 'readwrite',
       startIn: 'downloads',
     });

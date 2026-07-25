@@ -139,7 +139,7 @@ are database paths relative to `data/oss/`, not directly relative to `data/`.
 ### 2. Signatures
 
 ```bash
-python3 Library/ai/build_toonflow_portable_fixture.py \
+python3 apps/build/daojie/ai/build_toonflow_portable_fixture.py \
   --database "/Users/zhengbingjin/Library/Application Support/toonflow/data/db2.sqlite" \
   --output .trellis/tasks/07-12-mystudio-chapter001-visual-continuity/research/toonflow-chapter001-portable-fixture.json
 ```
@@ -178,7 +178,7 @@ The script also exposes `build_fixture(database, output_manifest)` and
 
 ### 6. Tests Required
 
-- `python3 -m unittest Library.ai.test_toonflow_portable_fixture` must verify
+- `python3 -m unittest apps.build.daojie.tests.test_toonflow_portable_fixture` must verify
   idempotent content-addressed copies and all digest fields.
 - Focused Vitest must pass the verified-golden and deferred-metadata parity
   cases; full typecheck, lint, and Vitest remain required.
@@ -207,7 +207,7 @@ environment bridge, or `runContinuityPilot()` result handling.
 ### 2. Signatures
 
 ```bash
-python3 Library/generate_chapter001_continuity_sample.py \
+python3 apps/build/daojie/generate_chapter001_continuity_sample.py \
   --output-dir <pilot-output> \
   --reject-shot <index> \
   --human-confirmed \

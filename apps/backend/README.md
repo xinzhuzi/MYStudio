@@ -24,9 +24,9 @@ apps/backend/
 
 1. 用户进入 `设置 -> Python 配置`。
 2. 点击 `开始配置`。
-3. Electron 运行时把 Python 3.12 配置到存储根目录下的 `python` 目录。
-4. 使用该 Python 执行 `python -m pip install -r apps/backend/requirements.txt`。
-5. 用户在 `设置 -> TTS 配置` 启动本地 TTS，或在口播/试听流程中触发启动。
+3. Electron 只在 `<storageBasePath>/python` 下解析当前平台的 Python 3.12 可执行文件。
+4. 使用该 Python 执行 `python -m pip install -r apps/backend/requirements.txt`，把依赖安装到该 managed runtime。
+5. 用户在 `设置 -> TTS 配置` 启动本地 TTS，或在口播/试听流程中触发启动；Electron 以该 Python 启动 sidecar。
 
 默认监听地址：
 
@@ -44,6 +44,8 @@ http://127.0.0.1:17593
 
 `storageBasePath` 由应用存储设置决定；用户迁移项目存储目录后，Python runtime 和默认模型缓存也会跟随该目录。
 
+`apps/backend/` 是 sidecar 源码和依赖声明，不是 Python runtime 的安装位置。当前本机若存在 `apps/backend/python`，它只是一份遗留的本地 CPython 供应物：`.gitignore` 忽略它，electron-builder 也排除 `backend/python/**`。Electron 不把它作为可选 Python 候选；本任务同样没有删除或移动该本地目录。
+
 ## 服务实现
 
 后端入口是 `manying_voicebox_tts.main`，使用 Python 标准库 `ThreadingHTTPServer`。除 `/health` 外，控制类接口都需要 Electron main process 注入 `X-Manying-TTS-Token`，前端 renderer 不直接持有 token。
@@ -53,6 +55,8 @@ http://127.0.0.1:17593
 ```text
 python -m manying_voicebox_tts.main --host 127.0.0.1 --port 17593 --data-dir {userData}/tts-runtime
 ```
+
+Electron 会先从开发时的 `apps/backend` 或打包后的 `Resources/backend` 定位 sidecar 源码；该目录只作为工作目录和 `PYTHONPATH`。随后它确认 `<storageBasePath>/python` 与依赖 hash marker 已就绪，创建模型与 sidecar 数据目录，并用该 managed Python 启动 `manying_voicebox_tts.main`。sidecar 状态和生成音频留在 `{userData}/tts-runtime`，不会写回 `apps/backend/`。
 
 关键环境变量：
 
@@ -93,6 +97,12 @@ python -m manying_voicebox_tts.main --host 127.0.0.1 --port 17593 --data-dir {us
 - 依赖安装由 `设置 -> Python 配置 -> 开始配置` 触发，不随应用启动自动执行。
 - Electron runtime 使用 `requirements.txt` 内容和 Python 路径计算 hash marker；未变化时跳过重复安装。
 - 安装目标是 `<storageBasePath>/python/lib/python3.12/site-packages` 对应的 Python 运行环境，不写入应用安装目录。
+
+## Daojie 直跑与 HTTP TTS
+
+Daojie chapter-001 直跑只有在显式设置 `MANYING_TTS_USE_HTTP=1` 时才会启动或复用 HTTP TTS。它会先复用已健康的 `127.0.0.1:17593` 服务；需要启动时，只检查其当前 managed 存储根目录下的 `python`，缺失时会提示先到 `设置 -> Python 配置` 点击 `开始配置` 并完成 TTS 依赖安装。它不再探测 `apps/backend/python`，并仍以 `apps/backend` 作为 `PYTHONPATH`。
+
+默认 `video:daojie:chapter001` 自动链不会注入 `MANYING_TTS_USE_HTTP=1`，因此不会经过这条 HTTP-TTS 直跑分支。当前直跑脚本的 `APP_SUPPORT` 根目录仍是 macOS 默认的应用支持目录；它尚不会跟随用户在设置页选择的替代 `storageBasePath`，这项跨平台/存储迁移不属于本批文档或运行时变更。
 
 ## 测试
 

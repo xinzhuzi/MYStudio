@@ -34,11 +34,16 @@ type ImageTaskResponse = {
 export function waitForAbortableDelay(intervalMs: number, signal?: AbortSignal): Promise<void> {
   if (signal?.aborted) return Promise.reject(new DOMException("Aborted", "AbortError"));
   return new Promise((resolve, reject) => {
-    const timer = setTimeout(resolve, intervalMs);
-    signal?.addEventListener("abort", () => {
+    const onAbort = () => {
       clearTimeout(timer);
+      signal?.removeEventListener("abort", onAbort);
       reject(new DOMException("Aborted", "AbortError"));
-    }, { once: true });
+    };
+    const timer = setTimeout(() => {
+      signal?.removeEventListener("abort", onAbort);
+      resolve();
+    }, intervalMs);
+    signal?.addEventListener("abort", onAbort, { once: true });
   });
 }
 

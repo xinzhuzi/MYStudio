@@ -170,6 +170,24 @@ describe("createProjectScopedStorage", () => {
     expect(storageMocks.values.get("_p/p2/director")).toBe("p2-value");
     expect(fileStorage.removeItem).toHaveBeenCalledWith("_p/p1/director");
   });
+
+  it("keeps the scoped removal target when the active project changes during the async delete", async () => {
+    storageMocks.values.set("_p/p1/director", "p1-value");
+    storageMocks.values.set("_p/p2/director", "p2-value");
+    let release!: () => void;
+    vi.mocked(fileStorage.removeItem).mockImplementationOnce(async (key: string) => {
+      await new Promise<void>((resolve) => { release = resolve; });
+      storageMocks.values.delete(key);
+    });
+
+    const pending = createProjectScopedStorage("director").removeItem("mystudio-director-store");
+    storageMocks.projectState.activeProjectId = "p2";
+    release();
+    await pending;
+
+    expect(storageMocks.values.has("_p/p1/director")).toBe(false);
+    expect(storageMocks.values.get("_p/p2/director")).toBe("p2-value");
+  });
 });
 
 describe("createSplitStorage", () => {
@@ -313,5 +331,23 @@ describe("createSplitStorage", () => {
     expect(storageMocks.values.get("_shared/characters")).toBe("shared-value");
     expect(fileStorage.removeItem).toHaveBeenCalledWith("_p/p1/characters");
     expect(fileStorage.removeItem).not.toHaveBeenCalledWith("_shared/characters");
+  });
+
+  it("keeps split-storage removal scoped to the project active at invocation", async () => {
+    storageMocks.values.set("_p/p1/characters", "p1-value");
+    storageMocks.values.set("_p/p2/characters", "p2-value");
+    let release!: () => void;
+    vi.mocked(fileStorage.removeItem).mockImplementationOnce(async (key: string) => {
+      await new Promise<void>((resolve) => { release = resolve; });
+      storageMocks.values.delete(key);
+    });
+
+    const pending = createTestStorage().removeItem("mystudio-character-library");
+    storageMocks.projectState.activeProjectId = "p2";
+    release();
+    await pending;
+
+    expect(storageMocks.values.has("_p/p1/characters")).toBe(false);
+    expect(storageMocks.values.get("_p/p2/characters")).toBe("p2-value");
   });
 });

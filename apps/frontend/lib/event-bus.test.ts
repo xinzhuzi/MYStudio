@@ -19,6 +19,20 @@ describe("eventBus", () => {
     expect(handler).toHaveBeenCalledWith({ id: "asset-1" });
   });
 
+  it("delivers a replacement listener registered during the same emit", () => {
+    const replacement = vi.fn();
+    const unsubscribe = eventBus.on("test:event", () => {
+      unsubscribe();
+      eventBus.on("test:event", replacement);
+    });
+
+    eventBus.emit("test:event", "first");
+    eventBus.emit("test:event", "second");
+
+    expect(replacement).toHaveBeenCalledTimes(2);
+    expect(replacement).toHaveBeenNthCalledWith(1, "first");
+  });
+
   it("invokes once listeners only once", () => {
     const handler = vi.fn();
     eventBus.once("test:once", handler);

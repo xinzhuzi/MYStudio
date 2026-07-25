@@ -8,12 +8,13 @@ import { latestLedgerEvents } from './paid-image-request-ledger.mjs';
 
 const appsRoot = process.cwd();
 const repoRoot = resolve(appsRoot, '..');
-const generatorScript = resolve(repoRoot, 'Library', 'build_daojie_chapter001_workflow.py');
-const continuityPilotScript = resolve(repoRoot, 'Library', 'generate_chapter001_continuity_sample.py');
+const daojieBuildRoot = resolve(appsRoot, 'build', 'daojie');
+const generatorScript = resolve(daojieBuildRoot, 'build_daojie_chapter001_workflow.py');
+const continuityPilotScript = resolve(daojieBuildRoot, 'generate_chapter001_continuity_sample.py');
 const timelineRunnerScript = 'build/render-daojie-editing-timeline.ts';
 const visualContinuityPreflightScript = 'build/audit-daojie-visual-continuity.ts';
 const storyboardImageHelper = resolve(appsRoot, 'build', 'generate-storyboard-image.mjs');
-const continuityAssetCandidateValidator = resolve(repoRoot, 'Library', 'ai', 'chapter001_continuity_asset_candidate.py');
+const continuityAssetCandidateValidator = resolve(daojieBuildRoot, 'ai', 'chapter001_continuity_asset_candidate.py');
 const paidImageRequestLedgerPath = resolve(appsRoot, 'output', 'automation', 'daojie-chapter001-paid-image-request-ledger.jsonl');
 const viteNodeBin = './node_modules/.bin/vite-node';
 const reportPath = resolve(appsRoot, 'output', 'automation', 'daojie-chapter001-video-report.json');
@@ -618,7 +619,7 @@ function runCandidateColorAudit(outputPath) {
       'import json',
       'import sys',
       'from pathlib import Path',
-      'from Library.ai.daojie_gongbi_v2 import write_color_audit',
+      'from apps.build.daojie.ai.daojie_gongbi_v2 import write_color_audit',
       'print(json.dumps(write_color_audit(Path(sys.argv[1])), ensure_ascii=False))',
     ].join('; '),
     outputPath,

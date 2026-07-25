@@ -1,12 +1,22 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { getAssetImagePickerDefaultPath } from "./asset-image-picker";
 
+const mediaRoots: string[] = [];
+
 function createMediaRoot() {
-  return mkdtempSync(join(tmpdir(), "mystudio-media-picker-"));
+  const root = mkdtempSync(join(tmpdir(), "mystudio-media-picker-"));
+  mediaRoots.push(root);
+  return root;
 }
+
+afterEach(() => {
+  for (const root of mediaRoots.splice(0)) {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
 
 describe("asset image picker default path", () => {
   it("opens the only image-containing media folder directly", () => {

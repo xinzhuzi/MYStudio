@@ -50,4 +50,28 @@ describe("migrateAPIConfigState", () => {
       discoveredModelLimits: {},
     });
   });
+
+  it("normalizes a primitive persisted payload instead of spreading it", () => {
+    expect(() => migrateAPIConfigState("malformed persisted state", 17)).not.toThrow();
+
+    const result = migrateAPIConfigState(null, 17);
+    expect(result.featureBindings?.tts).toEqual([
+      `${DEFAULT_LOCAL_TTS_PROVIDER_ID}:${DEFAULT_LOCAL_TTS_MODEL}`,
+    ]);
+    expect(result.providers?.some((provider) => provider.id === DEFAULT_LOCAL_TTS_PROVIDER_ID)).toBe(true);
+  });
+
+  it("drops malformed provider and feature-binding entries during legacy migration", () => {
+    const result = migrateAPIConfigState({
+      providers: "not-an-array",
+      featureBindings: {
+        script_analysis: ["openai:m", null, 42],
+      },
+    }, 8);
+
+    expect(result.providers).toEqual([
+      expect.objectContaining({ id: DEFAULT_LOCAL_TTS_PROVIDER_ID }),
+    ]);
+    expect(result.featureBindings?.script_analysis).toEqual(["openai:m"]);
+  });
 });

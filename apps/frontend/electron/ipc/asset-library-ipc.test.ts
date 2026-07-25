@@ -37,7 +37,7 @@ describe("registerAssetLibraryIpcHandlers", () => {
     expect([...handlers.keys()].sort()).toEqual([
       "assets:add", "assets:add-image", "assets:batch-match", "assets:delete", "assets:get",
       "assets:get-by-name", "assets:import-from-toonflow", "assets:list", "assets:remove-image",
-      "assets:rename-image", "assets:replace-image", "assets:select-image-file", "assets:update",
+      "assets:rename-image", "assets:replace-image", "assets:select-image-file", "assets:select-image-files", "assets:update",
     ]);
   });
 
@@ -49,5 +49,28 @@ describe("registerAssetLibraryIpcHandlers", () => {
     expect(dialog.showOpenDialog).toHaveBeenCalledWith(expect.objectContaining({
       properties: ["openFile"],
     }));
+  });
+
+  it("returns every selected image from the multi-select picker", async () => {
+    registerHandlers();
+    vi.mocked(dialog.showOpenDialog).mockResolvedValue({
+      canceled: false,
+      filePaths: ["/media/one.png", "/media/two.webp"],
+    });
+
+    await expect(getHandler("assets:select-image-files")({})).resolves.toEqual([
+      "/media/one.png",
+      "/media/two.webp",
+    ]);
+    expect(dialog.showOpenDialog).toHaveBeenCalledWith(expect.objectContaining({
+      properties: ["openFile", "multiSelections"],
+    }));
+  });
+
+  it("returns an empty list when the multi-select picker is canceled", async () => {
+    registerHandlers();
+    vi.mocked(dialog.showOpenDialog).mockResolvedValue({ canceled: true, filePaths: [] });
+
+    await expect(getHandler("assets:select-image-files")({})).resolves.toEqual([]);
   });
 });

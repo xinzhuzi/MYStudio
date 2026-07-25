@@ -325,6 +325,49 @@ describe("story-driven-v1 auto editing", () => {
       ]),
     );
   });
+
+  it("fails preflight when request scope or draft ids are invalid", async () => {
+    const scopeMismatch = await runAutoEditingDraft({
+      request: { ...request(), episodeId: "episode-other" },
+      adapterInput: adapterInput(),
+      existingProjects: [],
+      runId: "run-scope",
+      editingProjectId: "draft-scope",
+      now: sequenceClock(),
+    });
+    expect(scopeMismatch.success).toBe(false);
+    if (!scopeMismatch.success) {
+      expect(scopeMismatch.run.stage).toBe("failed");
+      expect(scopeMismatch.run.warnings).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            code: "editing.auto.request_scope",
+            recoverable: false,
+          }),
+        ]),
+      );
+    }
+
+    const blankIds = await runAutoEditingDraft({
+      request: request(),
+      adapterInput: adapterInput(),
+      existingProjects: [],
+      runId: "   ",
+      editingProjectId: "draft-ids",
+      now: sequenceClock(),
+    });
+    expect(blankIds.success).toBe(false);
+    if (!blankIds.success) {
+      expect(blankIds.run.warnings).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            code: "editing.auto.id_required",
+            recoverable: false,
+          }),
+        ]),
+      );
+    }
+  });
 });
 
 function request(): AutoEditingRequest {

@@ -157,12 +157,16 @@ export const useSimpleTimelineStore = create<SimpleTimelineStore>()(
         clips: state.clips,
         totalDuration: state.totalDuration,
       }),
-      merge: (persisted: any, current: any) => {
-        if (!persisted) return current;
+      merge: (
+        persisted: unknown,
+        current: SimpleTimelineStore,
+      ) => {
+        const persistedState = persisted as Partial<Pick<SimpleTimelineStore, "clips" | "totalDuration">> | undefined;
+        if (!persistedState) return current;
         return {
           ...current,
-          clips: persisted.clips ?? current.clips,
-          totalDuration: persisted.totalDuration ?? current.totalDuration,
+          clips: persistedState.clips ?? current.clips,
+          totalDuration: persistedState.totalDuration ?? current.totalDuration,
         };
       },
     }

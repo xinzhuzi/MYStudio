@@ -13,6 +13,14 @@ export function updateImagesAfterReplacingMainImage(images: AssetImage[], update
   return [mainImage, ...restImages];
 }
 
+export function getAssetImageOpenTarget(
+  images: AssetImage[],
+  currentIndex: number,
+  asset: StudioAssetSummary | null,
+) {
+  return images[currentIndex]?.url || asset?.sourcePath || asset?.filePath || "";
+}
+
 export function getAssetDisplayName(asset: StudioAssetSummary | null) {
   if (!asset) return "";
   return getPrimaryAssetName(asset.name || asset.sourcePath || asset.filePath, "未命名素材");
@@ -32,4 +40,11 @@ function looksLikePath(value: string) {
 export function buildAssetRegenerationPrompt(asset: StudioAssetSummary | null) {
   if (!asset) return "";
   return [asset.prompt, asset.setting, asset.description].map((part) => part?.trim()).filter(Boolean).join("\n\n");
+}
+
+export function getAssetOperationError(error: unknown, fallback: string) {
+  if (error instanceof Error && error.message.trim()) {
+    return `${fallback}: ${error.message.trim()}`;
+  }
+  return fallback;
 }

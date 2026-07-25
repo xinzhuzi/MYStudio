@@ -3,6 +3,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   buildAssetRegenerationPrompt,
   getAssetDisplayName,
+  getAssetImageOpenTarget,
+  getAssetOperationError,
   getAssetSpokenText,
   persistGeneratedAssetPromptToLibrary,
   saveGeneratedAssetImageToLibrary,
@@ -14,6 +16,12 @@ describe("buildAssetRegenerationPrompt", () => {
   afterEach(() => {
     delete (globalThis as any).window;
     vi.restoreAllMocks();
+  });
+
+  it("normalizes rejected asset operations into user-facing errors", () => {
+    expect(getAssetOperationError(new Error("IPC unavailable"), "保存失败")).toBe("保存失败: IPC unavailable");
+    expect(getAssetOperationError("unexpected", "加载资产详情失败")).toBe("加载资产详情失败");
+    expect(getAssetOperationError(new Error("   "), "删除失败")).toBe("删除失败");
   });
 
   it("combines prompt, setting, and description for regenerating an asset image", () => {
@@ -71,6 +79,24 @@ describe("buildAssetRegenerationPrompt", () => {
     const source = readFileSync(new URL("./StudioAssetDetailDialog.tsx", import.meta.url), "utf8");
     expect(source).toContain("secondaryNames");
     expect(source).toContain("副名字");
+  });
+
+  it("opens the image currently selected in the asset carousel", () => {
+    const asset: StudioAssetSummary = {
+      id: "asset-role-3",
+      source: "manying-local",
+      type: "role",
+      name: "主角",
+      sourcePath: "/asset-files/role/main.png",
+      filePath: "role/main.png",
+    };
+    const images = [
+      { name: "主图", filePath: "role/main.png", url: "file:///asset-files/role/main.png" },
+      { name: "姿态一", filePath: "role/pose-one.png", url: "file:///asset-files/role/pose-one.png" },
+    ];
+
+    expect(getAssetImageOpenTarget(images, 0, asset)).toBe("file:///asset-files/role/main.png");
+    expect(getAssetImageOpenTarget(images, 1, asset)).toBe("file:///asset-files/role/pose-one.png");
   });
 
   it("keeps a real spoken description ahead of the file path", () => {
@@ -269,5 +295,14 @@ describe("buildAssetRegenerationPrompt", () => {
     expect(source).toContain("handleOneClickGenerateAssetImage");
     expect(source).toContain("一键生成资产生图");
     expect(source).not.toContain("点击下方按钮将走完整生成流程");
+  });
+
+  it("uses the multi-select bridge for detail-image additions and syncs carousel selection", () => {
+    const source = readFileSync(new URL("./StudioAssetDetailDialog.tsx", import.meta.url), "utf8");
+    expect(source).toContain("selectImageFiles");
+    expect(source).toContain("for (const filePath of filePaths)");
+    expect(source).toContain("setApi={syncCarouselIndex}");
+    expect(source).toContain('api.selectedScrollSnap()');
+    expect(source).toContain("getAssetImageOpenTarget(images, currentIndex, detail)");
   });
 });

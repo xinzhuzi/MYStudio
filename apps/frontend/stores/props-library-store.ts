@@ -259,12 +259,15 @@ export const usePropsLibraryStore = create<PropsLibraryStore>()(
         folders: state.folders,
         selectedFolderId: state.selectedFolderId,
       }),
-      merge: (persisted: any, current: any) => ({
-        ...current,
-        items: persisted?.items ?? current.items,
-        folders: persisted?.folders ?? current.folders,
-        selectedFolderId: persisted?.selectedFolderId ?? current.selectedFolderId,
-      }),
+      merge: (persisted: unknown, current: PropsLibraryStore) => {
+        const persistedState = persisted as Partial<PropLibraryPersistedState> | undefined;
+        return {
+          ...current,
+          items: persistedState?.items ?? current.items,
+          folders: persistedState?.folders ?? current.folders,
+          selectedFolderId: persistedState?.selectedFolderId ?? current.selectedFolderId,
+        };
+      },
     }
   )
 );

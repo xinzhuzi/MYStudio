@@ -8,7 +8,7 @@
 
 - 当前正式视频的 43 张分镜图来自 `real-ai-reference-image-workflow`，每镜都有 2–5 张参考资产，不能把问题归因成“完全没有参考图”。
 - 当前每镜仍是独立图片请求；请求不包含上一镜结果、连续镜头组、固定视觉生成参数或生成后身份比对。
-- `Library/build_daojie_chapter001_workflow.py` 只把 `[scene, *assets]` 转成参考图，并用文本规则宣称“一致”；当前门禁只检查 `@图N`、风格锁和引用存在，不检查实际脸、服装、体型、空间与相邻动作是否一致。
+- `apps/build/daojie/build_daojie_chapter001_workflow.py` 只把 `[scene, *assets]` 转成参考图，并用文本规则宣称“一致”；当前门禁只检查 `@图N`、风格锁和引用存在，不检查实际脸、服装、体型、空间与相邻动作是否一致。
 - Toonflow 第一章真实项目位于 `/Users/zhengbingjin/Library/Application Support/toonflow/data/db2.sqlite`，43 条 `o_storyboard.filePath` 均有本地原图。
 - Toonflow 按 `o_assets2Storyboard.rowid` 保留每镜资产顺序，再通过 `o_assets.imageId -> o_image.filePath` 复用固定参考图。同一独孤剑尘 `imageId=1` 被 27 镜复用，斩魂剑 `imageId=2524` 被 26 镜复用。
 - Toonflow prompt 明确记录景别、人物朝向、画面位置、动作承接、场景变体与固定 `@图N` 身份；例如第 6、7 镜使用完全相同的六项有序参考图，并描述相邻动作承接。
@@ -85,7 +85,7 @@
 ## Acceptance criteria
 
 - [x] AC1: Toonflow 43 镜只读 fixture 可复现 `storyboard -> ordered assetId -> fixed imageId -> filePath -> golden image`，缺失为 0。
-  - 2026-07-17 closure: Toonflow paths resolve under the actual read-only `data/oss/` root. `Library/ai/build_toonflow_portable_fixture.py` created a content-addressed task fixture with `storyboardCount=43`, `goldenImageCount=43`, `referenceCount=132`, `missingImageCount=0`, and verified per-image pixel SHA-256 digests. The independent verifier and unit test pass; no production file or provider was touched. Evidence: `.trellis/tasks/07-12-mystudio-chapter001-visual-continuity/research/toonflow-chapter001-portable-fixture.json`.
+  - 2026-07-17 closure: Toonflow paths resolve under the actual read-only `data/oss/` root. `apps/build/daojie/ai/build_toonflow_portable_fixture.py` created a content-addressed task fixture with `storyboardCount=43`, `goldenImageCount=43`, `referenceCount=132`, `missingImageCount=0`, and verified per-image pixel SHA-256 digests. The independent verifier and unit test pass; no production file or provider was touched. Evidence: `.trellis/tasks/07-12-mystudio-chapter001-visual-continuity/research/toonflow-chapter001-portable-fixture.json`.
 - [x] AC2: 第一章所有重复角色和场景均有版本化 continuity manifest，且 43 镜有序参考覆盖率为 100%。
   - 2026-07-13 progress: existing MYStudio storyboard image workflow reference nodes now populate `orderedReferenceManifest` and `continuityState` for 43/43 storyboards; this proves structural coverage but not full approved character/scene bible quality.
 - [x] AC3: 测试证明角色六层锚点、多视图、variation、场景 viewpoint 和 ordered references 确实进入最终 provider 请求。

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AIScreenplay, SceneProgress } from "@opencut/ai-core";
 import { createDefaultDirectorProjectData } from "./director-project-defaults";
 import type { DirectorStore } from "./director-store";
@@ -25,6 +25,10 @@ describe("director generation lifecycle actions", () => {
     setState.mockImplementation((partial) => {
       state = { ...state, ...partial };
     });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it("initializes project-scoped image generation progress", () => {
@@ -57,6 +61,22 @@ describe("director generation lifecycle actions", () => {
       progress: 50,
       imageUrl: "project://scene-1.png",
     });
+  });
+
+  it("does not start image or video generation without a screenplay", () => {
+    state.projects["project-1"] = {
+      ...state.projects["project-1"],
+      screenplay: null,
+    };
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const actions = createDirectorGenerationLifecycleActions(setState, () => state, {});
+
+    actions.startImageGeneration();
+    actions.startVideoGeneration();
+
+    expect(setState).not.toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenNthCalledWith(1, "[DirectorStore] No screenplay to generate images");
+    expect(errorSpy).toHaveBeenNthCalledWith(2, "[DirectorStore] No screenplay to generate videos");
   });
 
   it("moves the active project through image-ready and completed terminal states", () => {

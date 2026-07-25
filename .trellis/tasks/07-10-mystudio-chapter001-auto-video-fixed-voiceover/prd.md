@@ -8,7 +8,7 @@
 
 - 任务依据为 `docs/计划/第一章自动成片与多角色口播Trellis计划.md`；其中的默认 Grill 答案均视为已批准产品决策。
 - 当前真实生成已能输出 43 镜、真实 qwen-mlx TTS 和最终 MP4，但这只证明既有 fixture 链通过，不证明本任务要求已完成。
-- `Library/build_daojie_chapter001_workflow.py:1293` 仍以静态 `CHAPTER_001_SHOTS` 作为分镜规格，`source_segment_units()` 与 `build_shots_from_script()` 都回读该静态规格（`:1369-1370`、`:1425-1426`），尚未由项目中的导演分镜表决定数量。
+- `apps/build/daojie/build_daojie_chapter001_workflow.py:1293` 仍以静态 `CHAPTER_001_SHOTS` 作为分镜规格，`source_segment_units()` 与 `build_shots_from_script()` 都回读该静态规格（`:1369-1370`、`:1425-1426`），尚未由项目中的导演分镜表决定数量。
 - `apps/frontend/components/panels/assets/role-audio-auto-assign.ts:169-243` 会对传入的全部角色重新选音频；`StudioAssetLibrary.tsx:311-318` 与 `useScriptAssetGenerationActions.ts:240-247` 都会新建 profile 并重新 bind，尚未保护已有固定 binding。
 - `apps/frontend/stores/tts-store.ts:357-363` 仍把 TTS 状态保存在 `mystudio-tts-store` 浏览器存储，真实 CLI 无法从项目目录读取该 binding。
 - 当前 CLI 已检查音色文件、`missingVoiceProfiles`、真实 TTS、最终音视频流和 SHA-256；仍缺逐镜口播契约、speaker 全覆盖、固定 binding 重跑不变和真实音频数量等门禁。

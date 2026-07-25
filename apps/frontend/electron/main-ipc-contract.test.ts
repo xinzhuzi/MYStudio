@@ -27,6 +27,7 @@ assets:remove-image
 assets:rename-image
 assets:replace-image
 assets:select-image-file
+assets:select-image-files
 assets:update
 delete-image
 diagnostics-log-clear

@@ -294,8 +294,10 @@ export function convertShotsToSplitScenes(
     endFrameHttpUrl: null,
     endFrameSource: null,
     characterIds: [],
-    emotionTags: (shot.emotionTags || []) as any,
-    shotSize: shot.shotSize as any || null,
+    // Shot uses legacy free-form strings; SplitScene keeps the director preset unions.
+    // Preserve the existing runtime values while expressing the boundary explicitly.
+    emotionTags: (shot.emotionTags || []) as SplitScene['emotionTags'],
+    shotSize: (shot.shotSize as SplitScene['shotSize']) || null,
     // Seedance 1.5 Pro 要求 4-12 秒，强制限制范围
     duration: Math.max(4, Math.min(12, shot.duration || 5)),
     ambientSound: shot.ambientSound || '',

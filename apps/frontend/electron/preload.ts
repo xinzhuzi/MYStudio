@@ -207,6 +207,7 @@ contextBridge.exposeInMainWorld('studioAssets', {
   removeImage: (payload: { assetId: string; imageFilePath: string }) => ipcRenderer.invoke('assets:remove-image', payload),
   renameImage: (payload: { assetId: string; imageFilePath: string; newName: string }) => ipcRenderer.invoke('assets:rename-image', payload),
   selectImageFile: () => ipcRenderer.invoke('assets:select-image-file'),
+  selectImageFiles: () => ipcRenderer.invoke('assets:select-image-files'),
   importFromToonflow: (payload: { type: string }) => ipcRenderer.invoke('assets:import-from-toonflow', payload),
   getByName: (payload: { type: string; name: string }) => ipcRenderer.invoke('assets:get-by-name', payload),
   batchMatch: (payload: { type: string; names: string[] }) => ipcRenderer.invoke('assets:batch-match', payload),

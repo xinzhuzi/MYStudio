@@ -163,8 +163,8 @@ export function createProjectScopedStorage(storeName: string): StateStorage {
  * splitFn: takes the persisted state object and splits it into project-specific and shared parts
  * mergeFn: merges project-specific and shared data back into a single state object
  */
-export type SplitFn<T = any> = (state: T, projectId: string) => { projectData: T; sharedData: T };
-export type MergeFn<T = any> = (projectData: T | null, sharedData: T | null) => T;
+export type SplitFn<T = unknown> = (state: T, projectId: string) => { projectData: T; sharedData: T };
+export type MergeFn<T = unknown> = (projectData: T | null, sharedData: T | null) => T;
 
 /**
  * Creates a StateStorage that splits flat-array data between:
@@ -178,7 +178,7 @@ export type MergeFn<T = any> = (projectData: T | null, sharedData: T | null) => 
  * @param mergeFn - Function to merge project and shared parts back together
  * @param sharingKey - Optional key in resourceSharing settings to check (e.g., 'shareCharacters')
  */
-export function createSplitStorage<T = any>(
+export function createSplitStorage<T = unknown>(
   storeName: string,
   splitFn: SplitFn<T>,
   mergeFn: MergeFn<T>,
@@ -304,10 +304,12 @@ export function createSplitStorage<T = any>(
         for (const val of Object.values(state as Record<string, unknown>)) {
           if (Array.isArray(val)) {
             for (const item of val) {
-              if (item && typeof item === 'object' && 'projectId' in item &&
-                  isSafeProjectId((item as any).projectId) &&
-                  knownProjectIds.has((item as any).projectId)) {
-                allPids.add((item as any).projectId);
+              const itemRecord = item && typeof item === 'object'
+                ? item as { projectId?: unknown }
+                : null;
+              if (itemRecord && isSafeProjectId(itemRecord.projectId) &&
+                  knownProjectIds.has(itemRecord.projectId)) {
+                allPids.add(itemRecord.projectId);
               }
             }
           }

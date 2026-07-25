@@ -444,17 +444,18 @@ export const useSceneStore = create<SceneStore>()(
         generationPrefs: state.generationPrefs,
         generationPrefsByProject: state.generationPrefsByProject,
       }),
-      merge: (persisted: any, current: any) => {
-        if (!persisted) return current;
+      merge: (persisted: unknown, current: SceneStore) => {
+        const persistedState = persisted as Partial<ScenePersistedState> | undefined;
+        if (!persistedState) return current;
         const activeProjectId = useProjectStore.getState().activeProjectId;
         const mergedPrefsByProject: Record<string, SceneGenerationPrefs> = {
           ...(current.generationPrefsByProject || {}),
         };
-        for (const [projectId, prefs] of Object.entries(persisted.generationPrefsByProject || {})) {
+        for (const [projectId, prefs] of Object.entries(persistedState.generationPrefsByProject || {})) {
           mergedPrefsByProject[projectId] = normalizeGenerationPrefs(prefs as Partial<SceneGenerationPrefs>);
         }
         const mergedPrefs = normalizeGenerationPrefs(
-          persisted.generationPrefs || current.generationPrefs
+          persistedState.generationPrefs || current.generationPrefs
         );
         if (activeProjectId) {
           mergedPrefsByProject[activeProjectId] = normalizeGenerationPrefs(
@@ -463,8 +464,8 @@ export const useSceneStore = create<SceneStore>()(
         }
         return {
           ...current,
-          scenes: persisted.scenes ?? current.scenes,
-          folders: persisted.folders ?? current.folders,
+          scenes: persistedState.scenes ?? current.scenes,
+          folders: persistedState.folders ?? current.folders,
           generationPrefs: mergedPrefs,
           generationPrefsByProject: mergedPrefsByProject,
         };

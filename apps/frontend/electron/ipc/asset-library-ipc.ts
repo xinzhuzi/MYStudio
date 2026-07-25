@@ -165,6 +165,15 @@ export function registerAssetLibraryIpcHandlers({
     if (result.canceled || !result.filePaths[0]) return null;
     return result.filePaths[0];
   });
+  ipcMain.handle("assets:select-image-files", async () => {
+    const result = await dialog.showOpenDialog({
+      defaultPath: getAssetImagePickerDefaultPath(getMediaRoot()),
+      properties: ["openFile", "multiSelections"],
+      filters: [{ name: "图片", extensions: ["png", "jpg", "jpeg", "webp", "gif"] }],
+    });
+    if (result.canceled) return [];
+    return result.filePaths;
+  });
   ipcMain.handle("assets:import-from-toonflow", async (_event, payload: { type: string }) => (
     runAssetDiagnostics("import-from-toonflow", payload, async () => {
       const toonflowResult = await listStudioRuntimeAssets({

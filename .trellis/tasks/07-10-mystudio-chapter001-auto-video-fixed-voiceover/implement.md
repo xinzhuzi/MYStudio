@@ -57,7 +57,7 @@ npm run typecheck
 Focused validation:
 
 ```bash
-python3 -m py_compile Library/build_daojie_chapter001_workflow.py
+python3 -m py_compile apps/build/daojie/build_daojie_chapter001_workflow.py
 cd apps
 node --check build/automate-daojie-chapter001-video.mjs
 npm test -- frontend/config/build-scripts.test.ts
@@ -106,7 +106,7 @@ npm run smoke:installed
 
 - `apps/frontend/stores/tts-store.ts`: persistence migration；必须保留 legacy test，禁止删除旧存储。
 - `apps/frontend/lib/studio/storyboard-table.ts`: data contract；必须覆盖旧 14 列和新 7 列格式。
-- `Library/build_daojie_chapter001_workflow.py`: 真实生产数据写回；每个新增函数先用临时 fixture probe，不直接以生产项目试错。
+- `apps/build/daojie/build_daojie_chapter001_workflow.py`: 真实生产数据写回；每个新增函数先用临时 fixture probe，不直接以生产项目试错。
 - `apps/build/automate-daojie-chapter001-video.mjs`: final gate；门禁只能收紧且必须有失败 probe。
 - UI orchestrator: 只复用现有 store/renderer/TTS 接口，不复制媒体实现。
 

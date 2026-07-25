@@ -172,6 +172,8 @@ describe("main process startup", () => {
     );
 
     expect(handlerBlock).toContain("defaultPath: getAssetImagePickerDefaultPath(getMediaRoot())");
+    expect(handlerBlock).toContain('ipcMain.handle("assets:select-image-files"');
+    expect(handlerBlock).toContain('properties: ["openFile", "multiSelections"]');
   });
 
   it("serializes asset library IPC operations before touching the sqlite database", () => {

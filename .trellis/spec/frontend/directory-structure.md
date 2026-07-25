@@ -20,6 +20,10 @@ The desktop UI is a React renderer bundled with Electron Vite. Main/preload
 code lives beside renderer code under `apps/frontend/`, while packaging and
 end-to-end smoke runners live in `apps/build/`.
 
+Build-time domain automation belongs under `apps/build/<domain>/`. Python
+workflow helpers and their contract tests stay colocated there rather than in a
+repository-root utility directory or under the renderer/backend packages.
+
 ---
 
 ## Directory Layout
@@ -36,6 +40,9 @@ apps/frontend/
 ├── config/      # Vite, TypeScript, ESLint, builder, and test setup
 ├── assets/      # bundled UI and Studio manual assets
 └── packages/    # locally vendored packages such as ai-core
+
+apps/build/
+└── daojie/      # Daojie Python generation, continuity, and fixture tooling
 ```
 
 ---
@@ -50,6 +57,8 @@ apps/frontend/
 - Put cross-feature contracts in `types/`; keep component-only props local.
 - Keep Electron-only Node APIs in `electron/` and expose narrow preload bridges.
 - Colocate `*.test.ts` and `*.test.tsx` with the unit being tested.
+- Keep domain-specific build scripts and Python contract tests under
+  `apps/build/<domain>/`; use a nested subpackage for related Python helpers.
 
 ---
 

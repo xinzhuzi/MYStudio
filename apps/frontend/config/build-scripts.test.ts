@@ -1,6 +1,7 @@
 import {
   mkdirSync,
   mkdtempSync,
+  rmSync,
   readdirSync,
   readFileSync,
   statSync,
@@ -11,13 +12,26 @@ import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import {
   auditVisualContinuity,
   visualContinuityFingerprint,
 } from "@/lib/studio/visual-continuity";
 
 const appsRoot = resolve(__dirname, "../..");
+const tempRoots: string[] = [];
+
+function createTempRoot(prefix: string) {
+  const root = mkdtempSync(resolve(tmpdir(), prefix));
+  tempRoots.push(root);
+  return root;
+}
+
+afterEach(() => {
+  for (const root of tempRoots.splice(0)) {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
 
 function readBuildFile(relativePath: string) {
   return readFileSync(resolve(appsRoot, relativePath), "utf8");
@@ -55,8 +69,19 @@ function runNodeHelper(payload: unknown): Promise<{ status: number | null; stdou
 }
 
 describe("desktop build scripts", () => {
+  it("keeps Daojie Python tests outside the production ai package", () => {
+    const aiRoot = resolve(appsRoot, "build", "daojie", "ai");
+    const testsRoot = resolve(appsRoot, "build", "daojie", "tests");
+    const aiTests = readdirSync(aiRoot).filter((name) => /^test_.*\.py$/.test(name));
+    const tests = readdirSync(testsRoot).filter((name) => /^test_.*\.py$/.test(name));
+
+    expect(aiTests).toEqual([]);
+    expect(tests).toHaveLength(11);
+    expect(tests).toContain("test_toonflow_portable_fixture.py");
+  });
+
   it("archives prior canonical JSON reports before writing the latest result", () => {
-    const root = mkdtempSync(resolve(tmpdir(), "mystudio-report-retention-"));
+    const root = createTempRoot("mystudio-report-retention-");
     const reportPath = resolve(root, "report.json");
     const result = spawnSync("node", [
       "--input-type=module",
@@ -854,7 +879,7 @@ describe("desktop build scripts", () => {
 
     const audit = auditVisibleAutoVideo({
       chapterAutoVideo: failedBackgroundReport.chapterAutoVideo,
-      userDataDir: mkdtempSync(resolve(tmpdir(), "mystudio-auto-video-failed-")),
+      userDataDir: createTempRoot("mystudio-auto-video-failed-"),
     });
 
     expect(audit.ok).toBe(false);
@@ -888,9 +913,7 @@ describe("desktop build scripts", () => {
       resolve(appsRoot, "build/visible-workflow-auto-video-audit.mjs"),
     ).href;
     const { auditVisibleAutoVideo } = await import(auditModuleUrl);
-    const userDataDir = mkdtempSync(
-      resolve(tmpdir(), "mystudio-auto-video-legacy-"),
-    );
+    const userDataDir = createTempRoot("mystudio-auto-video-legacy-");
     const renderRoot = resolve(userDataDir, "media", "studio-render");
     mkdirSync(renderRoot, { recursive: true });
     const legacyPath = resolve(renderRoot, "legacy-python-concat.mp4");
@@ -951,9 +974,7 @@ describe("desktop build scripts", () => {
       resolve(appsRoot, "build/visible-workflow-auto-video-audit.mjs"),
     ).href;
     const { auditVisibleAutoVideo } = await import(auditModuleUrl);
-    const userDataDir = mkdtempSync(
-      resolve(tmpdir(), "mystudio-auto-video-audit-"),
-    );
+    const userDataDir = createTempRoot("mystudio-auto-video-audit-");
     const renderRoot = resolve(userDataDir, "media", "studio-render");
     mkdirSync(renderRoot, { recursive: true });
     const finalPath = resolve(renderRoot, "episode-proof.mp4");
@@ -1303,7 +1324,7 @@ describe("desktop build scripts", () => {
     );
     const timelineRunnerConfig = readBuildFile("build/vite-node.config.ts");
     const generatorScript = readFileSync(
-      resolve(appsRoot, "..", "Library", "build_daojie_chapter001_workflow.py"),
+      resolve(appsRoot, "build", "daojie", "build_daojie_chapter001_workflow.py"),
       "utf8",
     );
 
@@ -1316,7 +1337,7 @@ describe("desktop build scripts", () => {
     expect(packageJson).toContain(
       '"video:daojie:chapter001:probe-providers": "node ./build/automate-daojie-chapter001-video.mjs --probe-providers"',
     );
-    expect(videoScript).toContain("Library");
+    expect(videoScript).toContain("daojieBuildRoot");
     expect(videoScript).toContain("build_daojie_chapter001_workflow.py");
     expect(videoScript).toContain("build/render-daojie-editing-timeline.ts");
     expect(videoScript).toContain("./node_modules/.bin/vite-node");
@@ -1965,7 +1986,7 @@ describe("desktop build scripts", () => {
       });
     });
     await new Promise<void>((resolveListen) => server.listen(0, "127.0.0.1", resolveListen));
-    const ledgerPath = resolve(mkdtempSync(resolve(tmpdir(), "mystudio-paid-ledger-")), "requests.jsonl");
+    const ledgerPath = resolve(createTempRoot("mystudio-paid-ledger-"), "requests.jsonl");
     try {
       const address = server.address();
       if (!address || typeof address === "string") throw new Error("mock server did not bind to a TCP port");
@@ -2022,7 +2043,7 @@ describe("desktop build scripts", () => {
       response.end(JSON.stringify({ error: "must not be called" }));
     });
     await new Promise<void>((resolveListen) => server.listen(0, "127.0.0.1", resolveListen));
-    const ledgerPath = resolve(mkdtempSync(resolve(tmpdir(), "mystudio-paid-auth-")), "requests.jsonl");
+    const ledgerPath = resolve(createTempRoot("mystudio-paid-auth-"), "requests.jsonl");
     try {
       const address = server.address();
       if (!address || typeof address === "string") throw new Error("mock server did not bind to a TCP port");
@@ -2106,7 +2127,7 @@ describe("desktop build scripts", () => {
   it("keeps Daojie real storyboard image requests provider-compatible", () => {
     const helperScript = readBuildFile("build/generate-storyboard-image.mjs");
     const generatorScript = readFileSync(
-      resolve(appsRoot, "..", "Library", "build_daojie_chapter001_workflow.py"),
+      resolve(appsRoot, "build", "daojie", "build_daojie_chapter001_workflow.py"),
       "utf8",
     );
 
@@ -2123,7 +2144,7 @@ import tempfile
 from pathlib import Path
 from PIL import Image
 
-spec = importlib.util.spec_from_file_location("dao", "Library/build_daojie_chapter001_workflow.py")
+spec = importlib.util.spec_from_file_location("dao", "apps/build/daojie/build_daojie_chapter001_workflow.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
@@ -2155,7 +2176,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
-spec = importlib.util.spec_from_file_location("dao", "Library/build_daojie_chapter001_workflow.py")
+spec = importlib.util.spec_from_file_location("dao", "apps/build/daojie/build_daojie_chapter001_workflow.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
@@ -2210,7 +2231,7 @@ with tempfile.TemporaryDirectory() as tmp:
     const result = runPythonSnippet(`
 import importlib.util
 
-spec = importlib.util.spec_from_file_location("dao", "Library/build_daojie_chapter001_workflow.py")
+spec = importlib.util.spec_from_file_location("dao", "apps/build/daojie/build_daojie_chapter001_workflow.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
@@ -2241,7 +2262,7 @@ print(
     const result = runPythonSnippet(`
 import importlib.util
 
-spec = importlib.util.spec_from_file_location("dao", "Library/build_daojie_chapter001_workflow.py")
+spec = importlib.util.spec_from_file_location("dao", "apps/build/daojie/build_daojie_chapter001_workflow.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
@@ -2314,7 +2335,7 @@ print(all(checks), prompt.count("@图") >= 8)
 import importlib.util
 import json
 
-spec = importlib.util.spec_from_file_location("dao", "Library/build_daojie_chapter001_workflow.py")
+spec = importlib.util.spec_from_file_location("dao", "apps/build/daojie/build_daojie_chapter001_workflow.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
@@ -2419,7 +2440,7 @@ import tempfile
 from pathlib import Path
 from PIL import Image
 
-spec = importlib.util.spec_from_file_location("prepare_bibles", "Library/ai/prepare_chapter001_continuity_bibles.py")
+spec = importlib.util.spec_from_file_location("prepare_bibles", "apps/build/daojie/ai/prepare_chapter001_continuity_bibles.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
@@ -2543,7 +2564,7 @@ import json
 import tempfile
 from pathlib import Path
 
-spec = importlib.util.spec_from_file_location("repair", "Library/repair_chapter001_visual_continuity.py")
+spec = importlib.util.spec_from_file_location("repair", "apps/build/daojie/repair_chapter001_visual_continuity.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
@@ -2627,7 +2648,7 @@ with tempfile.TemporaryDirectory() as tmp:
     const result = runPythonSnippet(`
 import importlib.util
 
-spec = importlib.util.spec_from_file_location("repair", "Library/repair_chapter001_visual_continuity.py")
+spec = importlib.util.spec_from_file_location("repair", "apps/build/daojie/repair_chapter001_visual_continuity.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
@@ -2650,7 +2671,7 @@ import json
 import tempfile
 from pathlib import Path
 
-spec = importlib.util.spec_from_file_location("repair", "Library/repair_chapter001_visual_continuity.py")
+spec = importlib.util.spec_from_file_location("repair", "apps/build/daojie/repair_chapter001_visual_continuity.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
@@ -2739,7 +2760,7 @@ import json
 import tempfile
 from pathlib import Path
 
-spec = importlib.util.spec_from_file_location("repair", "Library/repair_chapter001_visual_continuity.py")
+spec = importlib.util.spec_from_file_location("repair", "apps/build/daojie/repair_chapter001_visual_continuity.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
@@ -2841,7 +2862,7 @@ import json
 import tempfile
 from pathlib import Path
 
-spec = importlib.util.spec_from_file_location("pilot", "Library/generate_chapter001_continuity_sample.py")
+spec = importlib.util.spec_from_file_location("pilot", "apps/build/daojie/generate_chapter001_continuity_sample.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
@@ -2907,7 +2928,7 @@ with tempfile.TemporaryDirectory() as temp:
 import importlib.util
 import json
 
-spec = importlib.util.spec_from_file_location("dao", "Library/build_daojie_chapter001_workflow.py")
+spec = importlib.util.spec_from_file_location("dao", "apps/build/daojie/build_daojie_chapter001_workflow.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
@@ -2977,7 +2998,7 @@ import json
 import tempfile
 from pathlib import Path
 
-spec = importlib.util.spec_from_file_location("pilot", "Library/generate_chapter001_continuity_sample.py")
+spec = importlib.util.spec_from_file_location("pilot", "apps/build/daojie/generate_chapter001_continuity_sample.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 generator = module.load_generator()
@@ -3076,7 +3097,7 @@ print(json.dumps({
 import importlib.util
 import json
 
-spec = importlib.util.spec_from_file_location("dao", "Library/build_daojie_chapter001_workflow.py")
+spec = importlib.util.spec_from_file_location("dao", "apps/build/daojie/build_daojie_chapter001_workflow.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
@@ -3139,7 +3160,7 @@ print(json.dumps(states, ensure_ascii=False))
     const result = runPythonSnippet(`
 import importlib.util
 
-spec = importlib.util.spec_from_file_location("dao", "Library/build_daojie_chapter001_workflow.py")
+spec = importlib.util.spec_from_file_location("dao", "apps/build/daojie/build_daojie_chapter001_workflow.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
@@ -3166,7 +3187,7 @@ except RuntimeError as error:
     const result = runPythonSnippet(`
 import importlib.util
 
-spec = importlib.util.spec_from_file_location("dao", "Library/build_daojie_chapter001_workflow.py")
+spec = importlib.util.spec_from_file_location("dao", "apps/build/daojie/build_daojie_chapter001_workflow.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
@@ -3191,7 +3212,7 @@ import json
 import tempfile
 from pathlib import Path
 
-spec = importlib.util.spec_from_file_location("dao", "Library/build_daojie_chapter001_workflow.py")
+spec = importlib.util.spec_from_file_location("dao", "apps/build/daojie/build_daojie_chapter001_workflow.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
@@ -3225,7 +3246,7 @@ with tempfile.TemporaryDirectory() as temp:
     const result = runPythonSnippet(`
 import importlib.util
 
-spec = importlib.util.spec_from_file_location("dao", "Library/build_daojie_chapter001_workflow.py")
+spec = importlib.util.spec_from_file_location("dao", "apps/build/daojie/build_daojie_chapter001_workflow.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
@@ -3250,7 +3271,7 @@ print("近黑长袍、纯黑整套服装、黑色武服、把服装主色渲染�
     const result = runPythonSnippet(`
 import importlib.util
 
-spec = importlib.util.spec_from_file_location("dao", "Library/build_daojie_chapter001_workflow.py")
+spec = importlib.util.spec_from_file_location("dao", "apps/build/daojie/build_daojie_chapter001_workflow.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
@@ -3272,7 +3293,7 @@ print(
 import importlib.util
 import json
 
-spec = importlib.util.spec_from_file_location("dao", "Library/build_daojie_chapter001_workflow.py")
+spec = importlib.util.spec_from_file_location("dao", "apps/build/daojie/build_daojie_chapter001_workflow.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
@@ -3341,7 +3362,7 @@ print(json.dumps({
     const result = runPythonSnippet(`
 import importlib.util
 
-spec = importlib.util.spec_from_file_location("dao", "Library/build_daojie_chapter001_workflow.py")
+spec = importlib.util.spec_from_file_location("dao", "apps/build/daojie/build_daojie_chapter001_workflow.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
@@ -3415,7 +3436,7 @@ import tempfile
 from pathlib import Path
 from PIL import Image
 
-spec = importlib.util.spec_from_file_location("dao", "Library/build_daojie_chapter001_workflow.py")
+spec = importlib.util.spec_from_file_location("dao", "apps/build/daojie/build_daojie_chapter001_workflow.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
@@ -3445,7 +3466,7 @@ import tempfile
 from pathlib import Path
 from PIL import Image
 
-spec = importlib.util.spec_from_file_location("dao", "Library/build_daojie_chapter001_workflow.py")
+spec = importlib.util.spec_from_file_location("dao", "apps/build/daojie/build_daojie_chapter001_workflow.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
@@ -3496,7 +3517,7 @@ import tempfile
 from pathlib import Path
 from PIL import Image
 
-spec = importlib.util.spec_from_file_location("dao", "Library/build_daojie_chapter001_workflow.py")
+spec = importlib.util.spec_from_file_location("dao", "apps/build/daojie/build_daojie_chapter001_workflow.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
@@ -3561,7 +3582,7 @@ os.environ["MYSTUDIO_IMAGE_API_KEY"] = "key-one\\nkey-two"
 os.environ["MYSTUDIO_IMAGE_MODEL"] = "gpt-image-2"
 os.environ["MYSTUDIO_IMAGE_ASYNC_MODE"] = "1"
 
-spec = importlib.util.spec_from_file_location("dao", "Library/build_daojie_chapter001_workflow.py")
+spec = importlib.util.spec_from_file_location("dao", "apps/build/daojie/build_daojie_chapter001_workflow.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
@@ -3603,7 +3624,7 @@ os.environ["MYSTUDIO_IMAGE_PROVIDER_CONFIGS_JSON"] = json.dumps([
     },
 ])
 
-spec = importlib.util.spec_from_file_location("dao", "Library/build_daojie_chapter001_workflow.py")
+spec = importlib.util.spec_from_file_location("dao", "apps/build/daojie/build_daojie_chapter001_workflow.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
@@ -3626,7 +3647,7 @@ print(
   it("keeps the explicit chapter 001 bootstrap fixture at 43 shots", () => {
     const result = runPythonSnippet(`
 import importlib.util
-spec = importlib.util.spec_from_file_location("dao", "Library/build_daojie_chapter001_workflow.py")
+spec = importlib.util.spec_from_file_location("dao", "apps/build/daojie/build_daojie_chapter001_workflow.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 shots = module.canonical_storyboard_shots()
@@ -3642,7 +3663,7 @@ print(len(module.CHAPTER_001_SHOTS), len(shots), round(total_duration, 1))
   it("selects the latest episode storyboard work and derives a dynamic two-shot source", () => {
     const result = runPythonSnippet(`
 import importlib.util
-spec = importlib.util.spec_from_file_location("dao", "Library/build_daojie_chapter001_workflow.py")
+spec = importlib.util.spec_from_file_location("dao", "apps/build/daojie/build_daojie_chapter001_workflow.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 old_table = """<storyboardTable>
@@ -3674,7 +3695,7 @@ print(source["kind"], source["workId"], len(source["shots"]), [shot["index"] for
     const result = runPythonSnippet(`
 import importlib.util
 import json
-spec = importlib.util.spec_from_file_location("dao", "Library/build_daojie_chapter001_workflow.py")
+spec = importlib.util.spec_from_file_location("dao", "apps/build/daojie/build_daojie_chapter001_workflow.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 header = [
@@ -3730,7 +3751,7 @@ print(
     const result = runPythonSnippet(`
 import importlib.util
 import json
-spec = importlib.util.spec_from_file_location("dao", "Library/build_daojie_chapter001_workflow.py")
+spec = importlib.util.spec_from_file_location("dao", "apps/build/daojie/build_daojie_chapter001_workflow.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 old_table = """<storyboardTable>
@@ -3802,7 +3823,7 @@ print(json.dumps({
   it("requires an explicit canonical alias for storyboard speakers", () => {
     const result = runPythonSnippet(`
 import importlib.util
-spec = importlib.util.spec_from_file_location("dao", "Library/build_daojie_chapter001_workflow.py")
+spec = importlib.util.spec_from_file_location("dao", "apps/build/daojie/build_daojie_chapter001_workflow.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 shot = {
@@ -3832,7 +3853,7 @@ print(module.build_storyboard_voiceover(shot, identities)["speakerId"])
     const result = runPythonSnippet(`
 import importlib.util
 import json
-spec = importlib.util.spec_from_file_location("dao", "Library/build_daojie_chapter001_workflow.py")
+spec = importlib.util.spec_from_file_location("dao", "apps/build/daojie/build_daojie_chapter001_workflow.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 identities = [{"characterId": "char-zhao", "name": "监工赵四", "aliases": ["赵四"]}]
@@ -3864,7 +3885,7 @@ import importlib.util
 import json
 import tempfile
 from pathlib import Path
-spec = importlib.util.spec_from_file_location("dao", "Library/build_daojie_chapter001_workflow.py")
+spec = importlib.util.spec_from_file_location("dao", "apps/build/daojie/build_daojie_chapter001_workflow.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 with tempfile.TemporaryDirectory() as temp_dir:

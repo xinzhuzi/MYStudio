@@ -52,6 +52,29 @@
 
 - None - task complete
 
+## Session 3: Wave151 SQLite lifecycle cleanup
+
+**Date**: 2026-07-25
+**Task**: Continue code-health refactor within the frozen media boundary
+
+### Summary
+
+Closed the three read-only SQLite handles in the Daojie workflow helper with
+`contextlib.closing`. This removed the aggregate Python suite's
+`ResourceWarning` without running or changing any provider/media workflow.
+
+### Testing
+
+- [OK] `PYTHONWARNINGS=error::ResourceWarning` Python suite: 129 tests.
+- [OK] Typecheck, lint, full Vitest: 398 files / 1855 tests (1 file / 3 tests
+  skipped, 1 todo).
+- [OK] Trellis manifests: 434 implement / 439 check entries.
+
+### Status
+
+[OPEN] Two real-media acceptance items remain frozen; the late-event
+cancellation product decision is also intentionally unresolved.
+
 
 ## Session 2: Close paid retry review without Git
 

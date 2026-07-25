@@ -25,13 +25,25 @@ import {
 import { normalizeAgentDeployments } from "./api-config-agent-deployments";
 import type { APIConfigState, LegacyImageHostConfig } from "./api-config-store-types";
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function normalizeProviderList(value: unknown): IProvider[] {
+  return Array.isArray(value)
+    ? value.filter(isRecord) as unknown as IProvider[]
+    : [];
+}
+
 export function migrateAPIConfigState(
   persistedState: unknown,
   version: number,
 ): Partial<APIConfigState> {
         // Use mutable result object for chained migration
          
-        const result = { ...(persistedState as any) } as Partial<APIConfigState> & { imageHostConfig?: LegacyImageHostConfig };
+        const result = {
+          ...(isRecord(persistedState) ? persistedState : {}),
+        } as Partial<APIConfigState> & { imageHostConfig?: LegacyImageHostConfig };
         console.log(`[APIConfig] Chained migration: v${version} → v17`);
         
         // Default feature bindings for migration
@@ -49,7 +61,9 @@ export function migrateAPIConfigState(
         };
         const resolveImageHostProviders = (): ImageHostProvider[] => {
           const legacyConfig = result?.imageHostConfig;
-          let imageHostProviders: ImageHostProvider[] = normalizeImageHostProviders(result?.imageHostProviders || []);
+          let imageHostProviders: ImageHostProvider[] = normalizeImageHostProviders(
+            Array.isArray(result?.imageHostProviders) ? result.imageHostProviders : [],
+          );
 
           if (
             imageHostProviders.length > 0
@@ -120,11 +134,14 @@ export function migrateAPIConfigState(
         
         // v0/v1 → v2: Migrate apiKeys to providers
         if (version <= 1) {
-          const oldApiKeys = result?.apiKeys || {};
+          const oldApiKeys = isRecord(result?.apiKeys) ? result.apiKeys : {};
           const providers: IProvider[] = [];
           
           for (const template of DEFAULT_PROVIDERS) {
-            const existingKey = oldApiKeys[template.platform as ProviderId] || '';
+            const rawKey = oldApiKeys[template.platform as ProviderId];
+            const existingKey = typeof rawKey === 'string'
+              ? rawKey
+              : '';
             providers.push({
               id: generateId(),
               ...template,
@@ -141,14 +158,17 @@ export function migrateAPIConfigState(
 
         // v2 → v3: Ensure providers and featureBindings exist
         if (version <= 2) {
-          result.providers = result.providers || [];
-          result.featureBindings = { ...defaultBindings, ...(result.featureBindings || {}) };
+          result.providers = normalizeProviderList(result.providers);
+          result.featureBindings = {
+            ...defaultBindings,
+            ...(isRecord(result.featureBindings) ? result.featureBindings : {}),
+          } as FeatureBindings;
           version = 3;
         }
 
         // v3 → v4: Ensure RunningHub model uses AppId
         if (version <= 3) {
-          result.providers = (result.providers || []).map((p: IProvider) => {
+          result.providers = normalizeProviderList(result.providers).map((p: IProvider) => {
             if (p.platform === 'runninghub') {
               const hasOldModel = p.model?.includes('qwen-image-edit-angles');
               const hasAppId = p.model?.includes('2009613632530812930');
@@ -158,13 +178,16 @@ export function migrateAPIConfigState(
             }
             return p;
           });
-          result.featureBindings = { ...defaultBindings, ...(result.featureBindings || {}) };
+          result.featureBindings = {
+            ...defaultBindings,
+            ...(isRecord(result.featureBindings) ? result.featureBindings : {}),
+          } as FeatureBindings;
           version = 4;
         }
 
         // v4/v5 → v6: Convert featureBindings from string to string[] (multi-select)
         if (version <= 5) {
-          const oldBindings = result.featureBindings || {};
+          const oldBindings = isRecord(result.featureBindings) ? result.featureBindings : {};
           const newBindings: FeatureBindings = { ...defaultBindings };
           
           for (const [key, value] of Object.entries(oldBindings)) {
@@ -173,7 +196,7 @@ export function migrateAPIConfigState(
               newBindings[feature] = [value];
               console.log(`[APIConfig] v5→v6: Migrated ${feature}: "${value}" -> ["${value}"]`);
             } else if (Array.isArray(value)) {
-              newBindings[feature] = value;
+              newBindings[feature] = value.filter((binding): binding is string => typeof binding === 'string');
             } else {
               newBindings[feature] = null;
             }
@@ -187,7 +210,7 @@ export function migrateAPIConfigState(
         // v6 → v7: Remove deprecated providers (dik3, nanohajimi, apimart, zhipu)
         if (version <= 6) {
           const DEPRECATED_PLATFORMS = ['dik3', 'nanohajimi', 'apimart', 'zhipu'];
-          const oldProviders: IProvider[] = result.providers || [];
+          const oldProviders = normalizeProviderList(result.providers);
           const cleanedProviders = oldProviders.filter(
             (p: IProvider) => !DEPRECATED_PLATFORMS.includes(p.platform)
           );
@@ -196,13 +219,14 @@ export function migrateAPIConfigState(
             console.log(`[APIConfig] v6→v7: Removed ${removedCount} deprecated providers`);
           }
           
-          const oldBindings = result.featureBindings || {};
+          const oldBindings = isRecord(result.featureBindings) ? result.featureBindings : {};
           const cleanedBindings: FeatureBindings = { ...defaultBindings };
           for (const [key, value] of Object.entries(oldBindings)) {
             const feature = key as AIFeature;
             if (Array.isArray(value)) {
               const filtered = value.filter(
-                (b: string) => !DEPRECATED_PLATFORMS.some((dp) => b.startsWith(dp + ':'))
+                (b): b is string => typeof b === 'string'
+                  && !DEPRECATED_PLATFORMS.some((dp) => b.startsWith(dp + ':'))
               );
               cleanedBindings[feature] = filtered.length > 0 ? filtered : null;
             } else {
@@ -222,8 +246,8 @@ export function migrateAPIConfigState(
 
         // v8 → v9: Convert platform:model bindings to id:model format
         if (version <= 8) {
-          const providers: IProvider[] = result.providers || [];
-          const oldBindings = result.featureBindings || {};
+          const providers = normalizeProviderList(result.providers);
+          const oldBindings = isRecord(result.featureBindings) ? result.featureBindings : {};
           const newBindings: FeatureBindings = { ...defaultBindings };
           let convertedCount = 0;
           let removedCount = 0;
@@ -231,11 +255,12 @@ export function migrateAPIConfigState(
           for (const [key, value] of Object.entries(oldBindings)) {
             const feature = key as AIFeature;
             if (!Array.isArray(value)) {
-              newBindings[feature] = value ? [value as unknown as string] : null;
+              newBindings[feature] = typeof value === 'string' && value ? [value] : null;
               continue;
             }
             const converted: string[] = [];
             for (const binding of value) {
+              if (typeof binding !== 'string') continue;
               const idx = binding.indexOf(':');
               if (idx <= 0) { converted.push(binding); continue; }
               const platformOrId = binding.slice(0, idx);
@@ -298,7 +323,7 @@ export function migrateAPIConfigState(
           
           // Backfill missing provider defaults without overwriting user-edited values.
           if (Array.isArray(result.providers)) {
-            result.providers = result.providers.map((p: IProvider) => {
+            result.providers = normalizeProviderList(result.providers).map((p: IProvider) => {
               const template = DEFAULT_PROVIDERS.find(t => t.platform === p.platform);
               if (template) {
                 const updated = {
@@ -330,7 +355,7 @@ export function migrateAPIConfigState(
         // v14 → v15: remove the old empty MemeFast marketing placeholder.
         if (version <= 14) {
           if (Array.isArray(result.providers)) {
-            result.providers = result.providers.filter((provider: IProvider) => {
+            result.providers = normalizeProviderList(result.providers).filter((provider: IProvider) => {
               if (provider.platform !== 'memefast') return true;
               return parseApiKeys(provider.apiKey).length > 0;
             });
@@ -355,13 +380,13 @@ export function migrateAPIConfigState(
 
         // Ensure all feature binding keys exist and normalize string → string[]
         const finalBindings: FeatureBindings = { ...defaultBindings };
-        if (result.featureBindings) {
+        if (isRecord(result.featureBindings)) {
           for (const [key, value] of Object.entries(result.featureBindings)) {
             const feature = key as AIFeature;
             if (typeof value === 'string' && value) {
               finalBindings[feature] = [value];
             } else if (Array.isArray(value)) {
-              finalBindings[feature] = value;
+              finalBindings[feature] = value.filter((binding): binding is string => typeof binding === 'string');
             } else {
               finalBindings[feature] = null;
             }
@@ -376,7 +401,7 @@ export function migrateAPIConfigState(
         result.agentDeployments = normalizeAgentDeployments(result.agentDeployments);
         result.providerAdapterCodes = result.providerAdapterCodes || [];
         result.studioBindingsMigrated = Boolean(result.studioBindingsMigrated);
-        result.providers = ensureDefaultLocalTtsProvider(result.providers as IProvider[] | undefined | null);
+        result.providers = ensureDefaultLocalTtsProvider(normalizeProviderList(result.providers));
 
         if (!result.modelThinkingOverrides || typeof result.modelThinkingOverrides !== 'object') {
           result.modelThinkingOverrides = {};

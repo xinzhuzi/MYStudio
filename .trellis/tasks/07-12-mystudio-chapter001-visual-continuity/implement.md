@@ -84,7 +84,7 @@ Validation: focused Vitest + Python snippets、typecheck、lint、full Vitest、
 3. 复用运行时指纹算法生成 human approval；备份并原子写 store，只更新选中资产及对应 ordered references，不批准分镜、不清除 stale。
 4. 独立 Python 单元测试覆盖 dry-run、双确认门、指纹/哈希/证据失败和最小范围 apply。
 
-Validation: `python3 -m unittest Library.ai.test_promote_chapter001_continuity_approvals`；随后使用最终 9 个候选重跑 v5 Bible dry-run。未取得用户逐项明确批准前不得 apply、pilot 或全章生成。
+Validation: `python3 -m unittest apps.build.daojie.ai.test_promote_chapter001_continuity_approvals`；随后使用最终 9 个候选重跑 v5 Bible dry-run。未取得用户逐项明确批准前不得 apply、pilot 或全章生成。
 
 ## Batch 11: 2026-07-16 full-chapter asset-version coverage correction
 
@@ -213,7 +213,7 @@ Correction: the current production store has 43/43 `visualReview`, `continuitySt
 
 ## Batch 23: 2026-07-17 approved-asset structural recovery and release recheck
 
-1. Corrected `Library/repair_chapter001_visual_continuity.py` so repaired references project an approved Bible version's exact `approvalFingerprint` and `approved=true`; pending versions remain unapproved. Added a regression covering the approved projection.
+1. Corrected `apps/build/daojie/repair_chapter001_visual_continuity.py` so repaired references project an approved Bible version's exact `approvalFingerprint` and `approved=true`; pending versions remain unapproved. Added a regression covering the approved projection.
 2. Applied backup-first structural repair to the live project store. All 43 storyboards now have ordered manifests, continuity state, source fingerprints, and pending visual-review records; no storyboard was auto-approved. The repair created timestamped store/script backups and fixed the 23–24 primary scene contract.
 3. Fresh live audit: 31/31 continuity assets approved by human; 139/139 storyboard references resolve with matching content/approval fingerprints; 43/43 primary scenes unique; 23–24 use `悦来客栈斗室/inn-room-window-axis` as primary and `金水塾馆` as secondary; 43/43 storyboards remain pending/stale pending regenerated-image review.
 4. Fresh transfer audit: 55 unique evidence thumbnails decode as PNG, longest edge `<=768px`, strict bytes `<1,000,000`, with packet byte/SHA parity 55/55.
@@ -301,7 +301,7 @@ Current gate: pilot is safely paused at shot 008. Continuing to 009–012 requir
 ## Batch 33: 2026-07-17 wardrobe prompt hardening without new paid calls
 
 1. Root-cause review of both failed 008 outputs found the approved `dock-overseer` asset had no explicit color lock in its runtime prompt: the canonical asset showed grey-white clothing, but the prompt only carried the opaque wardrobe version and generic negative constraints.
-2. Added a runtime-only `dock-overseer` wardrobe hard lock in `Library/build_daojie_chapter001_workflow.py`: require grey-white worn overseer robe/grey sash/coarse-cloth layers and prohibit near-black/full-black martial robes. This does not rewrite the approved Bible store or invalidate the 31 asset approvals.
+2. Added a runtime-only `dock-overseer` wardrobe hard lock in `apps/build/daojie/build_daojie_chapter001_workflow.py`: require grey-white worn overseer robe/grey sash/coarse-cloth layers and prohibit near-black/full-black martial robes. This does not rewrite the approved Bible store or invalidate the 31 asset approvals.
 3. Added a focused regression in `apps/frontend/config/build-scripts.test.ts`; the selected prompt/manifest suite passes `4/4`.
 
 No image provider request was made for this hardening change. The paid pilot remains paused at the rejected `shot-008-r02`.
@@ -349,15 +349,15 @@ The provider is reachable, but the paid generation gate remains intentionally cl
 ## Batch 39: 2026-07-17 portable Toonflow golden fixture closure without paid generation
 
 1. Corrected the Toonflow path audit: the database stores image paths relative to the read-only `data/oss/` root, not directly under `data/`. All 43 storyboard images and all 132 ordered reference links resolve from that source.
-2. Added `Library/ai/build_toonflow_portable_fixture.py`, which copies only content-addressed evidence into the task research directory, records fixed `assetId/imageId/sourcePath` order, and verifies both file SHA-256 and decoded RGBA pixel SHA-256. The durable fixture reports `storyboardCount=43`, `goldenImageCount=43`, `referenceCount=132`, `missingImageCount=0`, and `goldenPixelSha256Verified=true`.
+2. Added `apps/build/daojie/ai/build_toonflow_portable_fixture.py`, which copies only content-addressed evidence into the task research directory, records fixed `assetId/imageId/sourcePath` order, and verifies both file SHA-256 and decoded RGBA pixel SHA-256. The durable fixture reports `storyboardCount=43`, `goldenImageCount=43`, `referenceCount=132`, `missingImageCount=0`, and `goldenPixelSha256Verified=true`.
 3. Added an idempotence/integrity unit test and a frontend parity regression for verified golden metadata. Focused Vitest (`4/4`), Python fixture test (`1/1`), typecheck, and lint pass. No production project file, old image, MP4, or provider endpoint was modified or called.
 
 Evidence: `.trellis/tasks/07-12-mystudio-chapter001-visual-continuity/research/toonflow-chapter001-portable-fixture.json`. AC1 is now closed; AC5–AC7 remain gated by the already-consumed, rejected shot-008 retry.
 
 ## Batch 40: 2026-07-17 portable fixture path contract
 
-1. Hardened `Library/ai/build_toonflow_portable_fixture.py` so `fixtureRoot` is serialized relative to the manifest and `verify_fixture()` resolves it from the manifest parent instead of the caller's current working directory.
-2. Added a regression assertion in `Library/ai/test_toonflow_portable_fixture.py`; regenerated the task-local manifest with `fixtureRoot=toonflow-chapter001-portable-fixture`.
+1. Hardened `apps/build/daojie/ai/build_toonflow_portable_fixture.py` so `fixtureRoot` is serialized relative to the manifest and `verify_fixture()` resolves it from the manifest parent instead of the caller's current working directory.
+2. Added a regression assertion in `apps/build/daojie/ai/test_toonflow_portable_fixture.py`; regenerated the task-local manifest with `fixtureRoot=toonflow-chapter001-portable-fixture`.
 3. Fresh verification reports `storyboardCount=43`, `goldenImageCount=43`, `referenceCount=132`, `missingImageCount=0`, `goldenPixelSha256Verified=true`, and `contentAddressed=true`; verification also passes from `/tmp` using the absolute manifest path.
 
 No image provider request was made. The visual pilot remains paused at the already-consumed rejected `shot-008-r02`.
@@ -384,10 +384,10 @@ Current gate: no automatic or further paid retry is permitted. A new 008 image r
 ## Batch 43: 2026-07-18 paid-retry confirmation hard gate
 
 1. Root-cause follow-up found that `--restart-from-shot` was a paid operation but had no separate command-line confirmation, so a mistaken recovery command could issue another provider request.
-2. `Library/generate_chapter001_continuity_sample.py` now requires `--confirm-paid-retry` whenever `--restart-from-shot` is used, and rejects the confirmation flag by itself before loading provider state.
+2. `apps/build/daojie/generate_chapter001_continuity_sample.py` now requires `--confirm-paid-retry` whenever `--restart-from-shot` is used, and rejects the confirmation flag by itself before loading provider state.
 3. `apps/build/automate-daojie-chapter001-video.mjs` forwards the confirmation only when `MYSTUDIO_CONTINUITY_CONFIRM_PAID_RETRY=1`; setting a restart environment variable alone now fails closed before the provider call.
 
-Validation: `python3 -m unittest Library.ai.test_continuity_pilot_attempt_ledger` (`3/3`) and `npm test -- frontend/config/build-scripts.test.ts` (`69/69`) pass. No provider request was made; the formal pilot remains paused at rejected `shot-008-r02`.
+Validation: `python3 -m unittest apps.build.daojie.ai.test_continuity_pilot_attempt_ledger` (`3/3`) and `npm test -- frontend/config/build-scripts.test.ts` (`69/69`) pass. No provider request was made; the formal pilot remains paused at rejected `shot-008-r02`.
 
 ## Batch 44: 2026-07-18 independent shot-008 evidence recheck
 
@@ -400,7 +400,7 @@ Current gate is unchanged: a newly authorized/model-changed 008 result must pass
 ## Batch 45: 2026-07-17 Mikoto async transport wiring closure without paid generation
 
 1. Root cause was isolated to transport wiring, not an absent Mikoto API: the Node helper already supported `POST /v1/images/generations/async` plus `GET /v1/images/tasks/{task_id}`, but the formal continuity-pilot child process did not force `MYSTUDIO_IMAGE_ASYNC_MODE=1`; Python's non-GPT path also ignored `asyncMode` when building its endpoints.
-2. Fixed `Library/build_daojie_chapter001_workflow.py` so non-GPT providers select `/v1/images/generations/async` and `/v1/images/tasks/{task_id}` when `asyncMode=true`, while preserving the synchronous endpoints when false. The formal pilot wrapper now passes `MYSTUDIO_IMAGE_ASYNC_MODE=1` for both pilot and full-chapter runs.
+2. Fixed `apps/build/daojie/build_daojie_chapter001_workflow.py` so non-GPT providers select `/v1/images/generations/async` and `/v1/images/tasks/{task_id}` when `asyncMode=true`, while preserving the synchronous endpoints when false. The formal pilot wrapper now passes `MYSTUDIO_IMAGE_ASYNC_MODE=1` for both pilot and full-chapter runs.
 3. Pilot reports now record top-level/provider `asyncMode` and `generationEndpointCalled`; a fresh 6–12 dry-run with an intentionally false provider flag plus the forced environment reports `asyncMode=true`, `generationEndpointCalled=false`, `generatedImages=0`, `reusedImages=0`, `generationAttemptCount=0`, and no provider request.
 4. Fresh provider-model probe remains non-generating: one `mikoto / gpt-image-2` provider/key, `/v1/models` HTTP `200`, `18` models, `generatedImages=0`, `generationEndpointCalled=false`.
 5. Regression coverage passes: Python approved-reuse/transport/attempt-ledger tests `7/7`; `npm test -- frontend/config/build-scripts.test.ts` `69/69`; Python compile and Node syntax checks pass.
@@ -427,7 +427,7 @@ The remaining transition is external and paid: one newly authorized/model-change
 
 1. Added `apps/build/paid-image-request-ledger.mjs`, an append-only ledger with canonical request hashing. It records logical job/shot, provider host, model, async endpoint, prompt/reference/payload SHA-256 values, task ID, status, and redacted error type.
 2. Updated `apps/build/generate-storyboard-image.mjs` to prepare transfer thumbnails before hashing, write `POST_SENT` before network I/O, stop duplicate fingerprints before a second POST, and stop provider/key fallback for ambiguous outcomes. Ledger-backed calls require explicit authorization, exact single-provider/single-key configuration, and `singleAttempt=true`.
-3. Updated `Library/generate_chapter001_continuity_sample.py` to require `--confirm-paid-request` for every non-dry-run paid call, pass logical attempt metadata, and project ledger request evidence into per-output attempts and reports. Existing images and old reports were not rewritten.
+3. Updated `apps/build/daojie/generate_chapter001_continuity_sample.py` to require `--confirm-paid-request` for every non-dry-run paid call, pass logical attempt metadata, and project ledger request evidence into per-output attempts and reports. Existing images and old reports were not rewritten.
 4. Updated `apps/build/automate-daojie-chapter001-video.mjs` to forward paid authorization only when explicitly set in the environment; the default path remains non-generating.
 5. Added mock regressions proving one completed fingerprint produces exactly one POST across a second attempt and that missing authorization produces zero provider requests. Focused build-script tests pass `71/71`; Python compile and Node syntax checks pass. No generation endpoint was called.
 6. Added the root-cause report `research/paid-retry-root-cause-20260717.md` and the paid-image boundary section to `.trellis/spec/guides/cross-layer-thinking-guide.md`.
@@ -437,10 +437,10 @@ Current gate: the rejected `shot-008-r02` remains immutable; no new paid request
 ## Batch 49: 2026-07-17 async response-shape regression closure
 
 1. A zero-network mock of the Python non-GPT adapter exposed a second transport-layer gap: Mikoto's documented poll response stores the final image under `result.data`, while the adapter only inspected top-level `data`; a successful task could therefore be misreported as a timeout and prompt an unnecessary retry.
-2. Updated `Library/build_daojie_chapter001_workflow.py` to accept the documented nested `result.data` response without changing the synchronous contract or any provider configuration.
+2. Updated `apps/build/daojie/build_daojie_chapter001_workflow.py` to accept the documented nested `result.data` response without changing the synchronous contract or any provider configuration.
 3. Added a regression proving the non-GPT async path uses exactly `POST /v1/images/generations/async` followed by `GET /v1/images/tasks/{task_id}` and resolves the nested result without network I/O.
 
-Validation: `python3 -m unittest Library.ai.test_continuity_pilot_attempt_ledger Library.ai.test_chapter001_approved_storyboard_reuse` passes `9/9`. No paid endpoint was called; the formal pilot remains paused at the already-consumed, visually rejected `shot-008-r02`.
+Validation: `python3 -m unittest apps.build.daojie.ai.test_continuity_pilot_attempt_ledger apps.build.daojie.ai.test_chapter001_approved_storyboard_reuse` passes `9/9`. No paid endpoint was called; the formal pilot remains paused at the already-consumed, visually rejected `shot-008-r02`.
 
 ## Batch 50: 2026-07-17 no-cost quality and installed-release revalidation
 
@@ -486,7 +486,7 @@ Open gate: human review of the V2 manifest/Bible/capability contract remains req
 ## Batch 55: 2026-07-20 V2 shot-001 authorized-pilot terminal evidence
 
 1. The first local submission attempt stopped at the Node authorization boundary before any provider POST because the V2 request-config snapshot was created before `singleAttempt`, `attemptId`, `logicalJob`, and `logicalShot` were attached. Its nonempty output directory and `failed-or-ambiguous` local attempt record are preserved; the append-only paid ledger has no event for that directory.
-2. Fixed `Library/generate_chapter001_continuity_sample.py` to derive the final V2 request configuration after those immutable attempt fields are attached. Added a no-network regression that exercises the selected-shot path with a mocked output and verifies that the GPT request receives explicit authorization plus all four attempt fields. Focused Python suites pass `19/19`; Python compile, Node syntax, focused V2 Node tests, typecheck, and lint pass.
+2. Fixed `apps/build/daojie/generate_chapter001_continuity_sample.py` to derive the final V2 request configuration after those immutable attempt fields are attached. Added a no-network regression that exercises the selected-shot path with a mocked output and verifies that the GPT request receives explicit authorization plus all four attempt fields. Focused Python suites pass `19/19`; Python compile, Node syntax, focused V2 Node tests, typecheck, and lint pass.
 3. The second, new-directory invocation consumed the single authorized request for V2 shot 001. The paid ledger records one `POST_SENT -> TASK_ACCEPTED -> COMPLETED` chain for `mikoto / gpt-image-2` at `/v1/images/generations/async`, task `img_ccecfc6575ec5c2bbf34b85348946c2d`, with the approved V2 contract fingerprint and ordered roles `scene-viewpoint, prop-state, prop-state`.
 4. The returned PNG is preserved at `apps/output/automation/daojie-chapter001-v2-pilot-shot001-20260720-a02/shot-001.png` (`1672x941`, SHA-256 `2dd674df9e362c4069b8463e99a8f03286613f73547f8afe3dd2768a892e27a0`). It is terminally unapproved: `shot-001.color-audit.json` reports `chromatic_pixel_ratio_high` at `0.7266`, outside the accepted `0.30-0.70` band. The runner therefore stopped before creating a review thumbnail or report, and no approval, production-store update, retry, or later-shot request occurred.
 
@@ -537,13 +537,13 @@ Current gate: r02 remains rejected and immutable. The r03 contract corrects the 
 3. The image reference resolver now uses only the source-declared scene, visible semantic characters, and linked non-character assets. A visible character must resolve to the current asset catalog and be present in the source row/segment's asset references. Missing semantics, ambiguous zero-cast data, unknown roles, or unlinked roles fail before any image request. Segment-level references may contain other cast members, but they are never injected as image references unless declared visible by that row.
 4. Current live `storyboardTable` remains the old 14-column source. A read-only import check now stops at `分镜 001 缺少出镜语义JSON；必须重新生成含逐镜人物、站位、朝向与动作承接的分镜表`. No project store, approval, image, paid ledger, provider endpoint, or historical pilot evidence was changed. The r03 hardcoded dry-run is non-authoritative.
 
-Validation: `python3 -m unittest Library.ai.test_chapter001_approved_storyboard_reuse Library.ai.test_continuity_pilot_attempt_ledger Library.ai.test_daojie_gongbi_v2` (`31/31`), `npm test -- --run frontend/lib/studio/storyboard-table.test.ts` (`15/15`), `npm test -- --run frontend/config/build-scripts.test.ts` (`71/71`), `npm test -- --run frontend/components/panels/studio/workflow-tabs.test.ts` (`16/16`), `npm run typecheck`, `npm run lint`, and Python compilation all pass. Regeneration is blocked pending a newly generated, human-reviewed 43-shot storyboard table that supplies the semantic contract; no paid generation authorization is implied.
+Validation: `python3 -m unittest apps.build.daojie.ai.test_chapter001_approved_storyboard_reuse apps.build.daojie.ai.test_continuity_pilot_attempt_ledger apps.build.daojie.ai.test_daojie_gongbi_v2` (`31/31`), `npm test -- --run frontend/lib/studio/storyboard-table.test.ts` (`15/15`), `npm test -- --run frontend/config/build-scripts.test.ts` (`71/71`), `npm test -- --run frontend/components/panels/studio/workflow-tabs.test.ts` (`16/16`), `npm run typecheck`, `npm run lint`, and Python compilation all pass. Regeneration is blocked pending a newly generated, human-reviewed 43-shot storyboard table that supplies the semantic contract; no paid generation authorization is implied.
 
 ## Batch 62: 2026-07-20 semantic-store preservation and fresh quality recheck
 
 1. The post-contract audit found and fixed one persisted-boundary gap: `addStoryboard` copied the continuity state but omitted `shotSemantics`, so a storyboard that had declared its exact source cast/action could become semantically incomplete before human review. The store now preserves `shotSemantics` unchanged.
 2. Updated approved-storyboard fixtures only to declare the corresponding source semantics and set `sourceSemanticsFingerprint` before their continuity/review fingerprints. The UI fixture contains the actual visible character and sword-wrap prop; scene-only fixtures explicitly declare `personFree=true`. The stale-input regression still changes only its intended input fingerprint.
-3. Fresh validation passes: focused continuity suite `4 files / 32 tests`; full Vitest `358 passed / 1 skipped` with `1515 passed / 3 skipped / 1 todo`; `npm run typecheck`; `npm run lint`; and `python3 -m py_compile Library/build_daojie_chapter001_workflow.py`.
+3. Fresh validation passes: focused continuity suite `4 files / 32 tests`; full Vitest `358 passed / 1 skipped` with `1515 passed / 3 skipped / 1 todo`; `npm run typecheck`; `npm run lint`; and `python3 -m py_compile apps/build/daojie/build_daojie_chapter001_workflow.py`.
 4. The current read-only direct visual preflight remains correctly fail-closed at `approved=0`, `pending=43`, `rejected=0`, `stale=0`. The live table still lacks ordered references, continuity state, and human review; no image, provider, TTS, timeline, MP4, paid ledger, or project-store write occurred in this batch.
 
 Current gate: this code repair does not create the required 43 per-row semantic contracts. A newly generated, human-reviewed storyboard table remains required before a V2 manifest/capability dry-run can be current evidence or before any paid shot generation is considered.
@@ -572,7 +572,7 @@ Current gate: the three Batch 63 draft artifacts require human semantic review b
 4. r12 correctly blocks the full chapter capability report: shot 001 and 033 each need 10 physical references and shot 028 needs 13, exceeding the proven `mikoto/gpt-image-2` capacity of 9. `requestAllowed=false`; no canonical, scene, prop, or previous-frame reference was removed to make room. The request entrypoint rejects the same condition before any provider POST, and a report-level regression covers this boundary.
 5. The fresh direct visual preflight remains fail-closed at `approved=0, pending=43, rejected=0, stale=0`; it also reports that current storyboard records lack ordered visual manifests and continuity state. This does not upgrade old images, reviews, or MP4s, and it is not evidence that any visual gate has passed.
 
-Validation: Python compilation; `python3 -m unittest Library.ai.test_apply_chapter001_source_semantics Library.ai.test_chapter001_approved_storyboard_reuse Library.ai.test_continuity_pilot_attempt_ledger Library.ai.test_daojie_gongbi_v2` (`42/42`); focused storyboard/continuity/store Vitest (`48/48`); build-script Vitest (`71/71`); `npm run typecheck`; `npm run lint`; and `task.py validate` all pass.
+Validation: Python compilation; `python3 -m unittest apps.build.daojie.ai.test_apply_chapter001_source_semantics apps.build.daojie.ai.test_chapter001_approved_storyboard_reuse apps.build.daojie.ai.test_continuity_pilot_attempt_ledger apps.build.daojie.ai.test_daojie_gongbi_v2` (`42/42`); focused storyboard/continuity/store Vitest (`48/48`); build-script Vitest (`71/71`); `npm run typecheck`; `npm run lint`; and `task.py validate` all pass.
 
 Current gate: review the r12 43-shot manifest and the capacity report. Paid V2 generation remains unauthorized and technically blocked until the provider/model has an auditable ordered-reference capacity of at least 13, or the product explicitly approves a different reference-transport design that preserves every required continuity reference. Every image remains pending until its own manual review.
 
@@ -742,7 +742,7 @@ Current gate: no paid request is authorized. Shot 001 can only proceed after the
 
 ## Batch 79: 2026-07-23 authoritative replacement manifests and zero-network preflight
 
-1. Added `Library/ai/chapter001_continuity_asset_candidate.py` as the authoritative manifest validator and `Library/ai/build_chapter001_reference_replacement_manifests.py` as the reproducible builder. The runner now supports `scene`, `character`, and `prop`, validates the source-plan/prompt/reference/capability/output bindings, permits an unauthorized dry-run without credentials, and requires an exact `requestBindingSha256` authorization before a real request. The production storyboard parser remains fail-closed; only the stale-repair test fixture was supplied with its now-required current `storyboardTable`.
+1. Added `apps/build/daojie/ai/chapter001_continuity_asset_candidate.py` as the authoritative manifest validator and `apps/build/daojie/ai/build_chapter001_reference_replacement_manifests.py` as the reproducible builder. The runner now supports `scene`, `character`, and `prop`, validates the source-plan/prompt/reference/capability/output bindings, permits an unauthorized dry-run without credentials, and requires an exact `requestBindingSha256` authorization before a real request. The production storyboard parser remains fail-closed; only the stale-repair test fixture was supplied with its now-required current `storyboardTable`.
 2. The rebuilt V5 plan is `research/daojie-gongbi-v2-shot001-reference-replacement-plan-20260723-r02.json`, SHA-256 `8b4b8f1597b21b2551af39c218c751ab98f430a6f94d6f2c1113d381ded20e4a`. Its three non-overwriting manifests are under `research/daojie-gongbi-v2-shot001-reference-replacement-manifests-20260723-r01/`; all three prompts pass `daojie-gongbi-v2-prompt-audit-v5`. Their exact request bindings are: evening dock `9cd01a4c89dd04f3b3e47f7837818eab6ae4c34dd9b7dde0e69385a7d1a4d664`, Zhao Si `f008f755bc48f0ba0cb28a63bbf47fc3e159d0f13beedb2440ac288d91b27554`, and young helper workwear `7fcec3a5150e26bdc816181eb54049d9b8d655c3704bb1edb2ee25350a8d5e5c`.
 3. Three serialized dry-runs wrote only `preflight-report.json` files under `apps/output/automation/daojie-chapter001-v2-bible-replacements-20260723-r02/`. Every report records `ok=true`, `dryRun=true`, `paidAuthorization=false`, `requestAllowed=false`, provider `keyCount=0`, `credentialLoaded=false`, `generationEndpointCalled=false`, `generatedImages=0`, and `mutatedProductionProject=false`; prompt, reference, capability, style, and request-binding hashes match the reviewed manifests. No PNG exists in the output tree.
 4. Verification passes: focused asset-validator Python tests `7/7`; selected visual-continuity Python suites `107/107`; focused Vitest `81/81`; full Vitest `359` files and `1526` tests passed with only the existing `1` skipped file, `3` skipped tests, and `1` todo; typecheck, lint, Python compilation, and Node syntax checks pass.

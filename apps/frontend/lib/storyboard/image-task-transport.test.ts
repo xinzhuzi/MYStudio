@@ -93,6 +93,16 @@ describe("image task transport", () => {
     await expect(delay).rejects.toMatchObject({ name: "AbortError" });
   });
 
+  it("removes the abort listener after a delay resolves", async () => {
+    const controller = new AbortController();
+    const addSpy = vi.spyOn(controller.signal, "addEventListener");
+    const removeSpy = vi.spyOn(controller.signal, "removeEventListener");
+    await waitForAbortableDelay(0, controller.signal);
+    const onAbort = addSpy.mock.calls[0]?.[1];
+    expect(onAbort).toBeTypeOf("function");
+    expect(removeSpy).toHaveBeenCalledWith("abort", onAbort);
+  });
+
   it("supports caller-compatible HTTP messages and no-cache polling", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch")
       .mockResolvedValue(new Response("", { status: 404 }));

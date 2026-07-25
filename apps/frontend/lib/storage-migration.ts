@@ -16,6 +16,10 @@ import { fileStorage } from './indexed-db-storage';
 
 const MIGRATION_FLAG_KEY = '_p/_migrated';
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
 function isSafeProjectId(value: unknown): value is string {
   return (
     typeof value === 'string' &&
@@ -94,8 +98,8 @@ export async function migrateToProjectStorage(): Promise<void> {
     await migrateFlatStore('mystudio-media-store', 'media', projectIds, {
       arrayKeys: ['mediaFiles', 'folders'],
       projectIdField: 'projectId',
-      sharedFilter: (item: any, key: string) => {
-        if (key === 'folders') return item.isSystem || !item.projectId;
+      sharedFilter: (item, key) => {
+        if (key === 'folders') return Boolean(item.isSystem) || !item.projectId;
         return !item.projectId;
       },
     });
@@ -103,19 +107,19 @@ export async function migrateToProjectStorage(): Promise<void> {
     await migrateFlatStore('mystudio-character-library', 'characters', projectIds, {
       arrayKeys: ['characters', 'folders'],
       projectIdField: 'projectId',
-      sharedFilter: (item: any) => !item.projectId,
+      sharedFilter: (item) => !item.projectId,
     });
 
     await migrateFlatStore('mystudio-scene-store', 'scenes', projectIds, {
       arrayKeys: ['scenes', 'folders'],
       projectIdField: 'projectId',
-      sharedFilter: (item: any) => !item.projectId,
+      sharedFilter: (item) => !item.projectId,
     });
 
     await migrateFlatStore('mystudio-props-library', 'props', projectIds, {
       arrayKeys: ['items', 'folders'],
       projectIdField: 'projectId',
-      sharedFilter: (item: any) => !item.projectId,
+      sharedFilter: (item) => !item.projectId,
     });
 
     // 4. Migrate timeline (simple: whole state is project-scoped, assign to active project)
@@ -194,7 +198,13 @@ async function migrateRecordStore(
 interface FlatMigrationConfig {
   arrayKeys: string[];        // e.g., ['mediaFiles', 'folders']
   projectIdField: string;     // e.g., 'projectId'
-  sharedFilter: (item: any, arrayKey: string) => boolean;
+  sharedFilter: (item: Record<string, unknown>, arrayKey: string) => boolean;
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return typeof value === 'object' && value !== null
+    ? value as Record<string, unknown>
+    : null;
 }
 
 async function migrateFlatStore(
@@ -215,10 +225,13 @@ async function migrateFlatStore(
     const version = parsed.version ?? 0;
 
     // Collect shared items
-    const sharedState: Record<string, any[]> = {};
+    const sharedState: Record<string, unknown[]> = {};
     for (const key of config.arrayKeys) {
-      const arr = state[key] ?? [];
-      sharedState[key] = arr.filter((item: any) => config.sharedFilter(item, key));
+      const arr = Array.isArray(state[key]) ? state[key] : [];
+      sharedState[key] = arr.filter((item: unknown) => {
+        const record = asRecord(item);
+        return record ? config.sharedFilter(record, key) : false;
+      });
     }
 
     // Write shared file
@@ -228,15 +241,17 @@ async function migrateFlatStore(
     // Group by projectId and write per-project files
     let migratedCount = 0;
     for (const pid of projectIds) {
-      const projectState: Record<string, any[]> = {};
+      const projectState: Record<string, unknown[]> = {};
       let hasData = false;
 
       for (const key of config.arrayKeys) {
-        const arr = state[key] ?? [];
-        const projectItems = arr.filter((item: any) => {
+        const arr = Array.isArray(state[key]) ? state[key] : [];
+        const projectItems = arr.filter((item: unknown) => {
+          const record = asRecord(item);
+          if (!record) return false;
           // For folders, system folders go to shared (already handled above)
-          if (key === 'folders' && item.isSystem) return false;
-          return item[config.projectIdField] === pid;
+          if (key === 'folders' && record.isSystem) return false;
+          return record[config.projectIdField] === pid;
         });
         projectState[key] = projectItems;
         if (projectItems.length > 0) hasData = true;
@@ -319,19 +334,19 @@ export async function recoverFromLegacy(): Promise<void> {
 }
 
 /** Check if script project data has meaningful content */
-function isScriptDataRich(data: any): boolean {
-  if (!data) return false;
-  if (data.rawScript && data.rawScript.length > 10) return true;
-  if (data.shots && data.shots.length > 0) return true;
-  if (data.scriptData && data.scriptData.episodes && data.scriptData.episodes.length > 0) return true;
-  if (data.episodeRawScripts && data.episodeRawScripts.length > 0) return true;
+function isScriptDataRich(data: unknown): boolean {
+  if (!isRecord(data)) return false;
+  if (typeof data.rawScript === 'string' && data.rawScript.length > 10) return true;
+  if (Array.isArray(data.shots) && data.shots.length > 0) return true;
+  if (isRecord(data.scriptData) && Array.isArray(data.scriptData.episodes) && data.scriptData.episodes.length > 0) return true;
+  if (Array.isArray(data.episodeRawScripts) && data.episodeRawScripts.length > 0) return true;
   return false;
 }
 
 /** Check if director project data has meaningful content */
-function isDirectorDataRich(data: any): boolean {
-  if (!data) return false;
-  if (data.splitScenes && data.splitScenes.length > 0) return true;
+function isDirectorDataRich(data: unknown): boolean {
+  if (!isRecord(data)) return false;
+  if (Array.isArray(data.splitScenes) && data.splitScenes.length > 0) return true;
   if (data.screenplay) return true;
   if (data.storyboardImage) return true;
   return false;
@@ -344,7 +359,7 @@ function isDirectorDataRich(data: any): boolean {
 async function recoverRecordStore(
   legacyKey: string,
   storeName: string,
-  isRich: (data: any) => boolean,
+  isRich: (data: unknown) => boolean,
   knownProjectIds: ReadonlySet<string>,
 ): Promise<void> {
   // Read legacy monolithic file directly from file system (bypass indexed-db-storage adapter)
@@ -370,12 +385,12 @@ async function recoverRecordStore(
       const currentRaw = await window.fileStorage!.getItem(projectKey);
 
       // Check if current per-project data is empty/default
-      let currentData: any = null;
+      let currentData: unknown = null;
       if (currentRaw) {
         try {
           const currentParsed = JSON.parse(currentRaw);
           const currentState = currentParsed.state ?? currentParsed;
-          currentData = currentState.projectData ?? currentState;
+          currentData = isRecord(currentState) ? currentState.projectData ?? currentState : null;
         } catch {
           // Corrupt file, will be overwritten
         }

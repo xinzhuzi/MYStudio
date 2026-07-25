@@ -51,7 +51,7 @@ export function generateUUID(): string {
   );
 }
 
-export function isDOMElement(el: any): el is HTMLElement {
+export function isDOMElement(el: unknown): el is HTMLElement {
   return !!el && (el instanceof Element || el instanceof HTMLElement);
 }
 

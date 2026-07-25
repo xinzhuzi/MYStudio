@@ -30,7 +30,7 @@ import {
 } from "lucide-react";
 import type { Shot, CompletionStatus, ScriptScene } from "@/types/script";
 import { DEFAULT_STYLE_ID, getStyleById } from "@/lib/constants/visual-styles";
-import { useDirectorStore, useActiveDirectorProject, type SoundEffectTag } from '@/stores/director-store';
+import { useDirectorStore, useActiveDirectorProject, type SoundEffectTag, type EmotionTag } from '@/stores/director-store';
 import { useCharacterLibraryStore } from '@/stores/character-library-store';
 import { useSceneStore } from '@/stores/scene-store';
 import { useAppSettingsStore } from '@/stores/app-settings-store';
@@ -417,9 +417,9 @@ export function DirectorContextPanel() {
       // 角色（使用角色库ID）
       characterIds: characterLibraryIds,
       // 情绪标签（AI校准产出）
-      emotionTags: (shot.emotionTags || []) as any,
+      emotionTags: (shot.emotionTags || []) as EmotionTag[],
       // 景别
-      shotSize: shot.shotSize ? (SHOT_SIZE_MAP[shot.shotSize] || null) as any : null,
+      shotSize: shot.shotSize ? SHOT_SIZE_MAP[shot.shotSize] || null : null,
       // 时长
       duration: shot.duration || 5,
       // 音频
@@ -556,9 +556,9 @@ export function DirectorContextPanel() {
         // 角色（使用角色库ID）
         characterIds: characterLibraryIds,
         // 情绪标签（AI校准产出）
-        emotionTags: (shot.emotionTags || []) as any,
+        emotionTags: (shot.emotionTags || []) as EmotionTag[],
         // 景别
-        shotSize: shot.shotSize ? (SHOT_SIZE_MAP[shot.shotSize] || null) as any : null,
+        shotSize: shot.shotSize ? SHOT_SIZE_MAP[shot.shotSize] || null : null,
         // 时长
         duration: shot.duration || 5,
         // 音频

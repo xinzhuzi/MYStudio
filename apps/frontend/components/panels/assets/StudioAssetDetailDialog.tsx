@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -9,6 +9,7 @@ import {
   CarouselItem,
   CarouselNext,
   CarouselPrevious,
+  type CarouselApi,
 } from "@/components/ui/carousel";
 import {
   Dialog,
@@ -49,9 +50,9 @@ import { toRoleSpeakerId } from "@/lib/tts/role-speaker-id";
 import { usePropsLibraryStore } from "@/stores/props-library-store";
 import { useStudioStore } from "@/stores/studio-store";
 import { useTtsStore } from "@/stores/tts-store";
-import { buildAssetRegenerationPrompt, getAssetDisplayName, getAssetSpokenText, updateImagesAfterReplacingMainImage } from "./studio-asset-detail-utils";
+import { buildAssetRegenerationPrompt, getAssetDisplayName, getAssetImageOpenTarget, getAssetOperationError, getAssetSpokenText, updateImagesAfterReplacingMainImage } from "./studio-asset-detail-utils";
 
-export { buildAssetRegenerationPrompt, getAssetDisplayName, getAssetSpokenText, updateImagesAfterReplacingMainImage } from "./studio-asset-detail-utils";
+export { buildAssetRegenerationPrompt, getAssetDisplayName, getAssetImageOpenTarget, getAssetOperationError, getAssetSpokenText, updateImagesAfterReplacingMainImage } from "./studio-asset-detail-utils";
 
 const TYPE_ICON = {
   role: UserCircle,
@@ -105,6 +106,12 @@ export function StudioAssetDetailDialog({
   const [fullAsset, setFullAsset] = useState<StudioAssetSummary | null>(null);
   const [recognizedText, setRecognizedText] = useState<string | null>(null);
   const regenerationPrompt = useMemo(() => buildAssetRegenerationPrompt(fullAsset || asset), [fullAsset, asset]);
+  const syncCarouselIndex = useCallback((api: CarouselApi) => {
+    if (!api) return;
+    const updateIndex = () => setCurrentIndex(api.selectedScrollSnap());
+    updateIndex();
+    api.on("select", updateIndex);
+  }, []);
 
   useEffect(() => {
     if (!asset) {
@@ -149,6 +156,10 @@ export function StudioAssetDetailDialog({
           updatedImgs.push(...result.images);
         }
         setImages(updatedImgs);
+      }).catch((error: unknown) => {
+        if (!cancelled) {
+          toast.error(getAssetOperationError(error, "加载资产详情失败"));
+        }
       });
     }
 
@@ -217,11 +228,15 @@ export function StudioAssetDetailDialog({
     updates.description = draftDescription;
     updates.prompt = draftPrompt;
     updates.setting = draftSetting;
-    const result = await window.studioAssets.update({ id: asset.id, updates });
-    if (result) {
-      toast.success("已保存");
-    } else {
-      toast.error("保存失败");
+    try {
+      const result = await window.studioAssets.update({ id: asset.id, updates });
+      if (result) {
+        toast.success("已保存");
+      } else {
+        toast.error("保存失败");
+      }
+    } catch (error: unknown) {
+      toast.error(getAssetOperationError(error, "保存失败"));
     }
   };
 
@@ -229,15 +244,20 @@ export function StudioAssetDetailDialog({
     if (!confirm(`确定删除「${asset.name}」？此操作不可撤销。`)) return;
 
     let success = false;
-    if (asset.id.startsWith("manying-prop:")) {
-      // 本地道具库数据，从 localStorage store 删除
-      const realId = asset.id.replace("manying-prop:", "");
-      usePropsLibraryStore.getState().deleteProp(realId);
-      success = true;
-    } else if (window.studioAssets?.delete) {
-      success = await window.studioAssets.delete(asset.id);
-    } else {
-      toast.error("当前环境不支持删除");
+    try {
+      if (asset.id.startsWith("manying-prop:")) {
+        // 本地道具库数据，从 localStorage store 删除
+        const realId = asset.id.replace("manying-prop:", "");
+        usePropsLibraryStore.getState().deleteProp(realId);
+        success = true;
+      } else if (window.studioAssets?.delete) {
+        success = await window.studioAssets.delete(asset.id);
+      } else {
+        toast.error("当前环境不支持删除");
+        return;
+      }
+    } catch (error: unknown) {
+      toast.error(getAssetOperationError(error, "删除失败"));
       return;
     }
 
@@ -398,14 +418,18 @@ export function StudioAssetDetailDialog({
   };
 
   const handleOpenSource = async () => {
-    const target = asset.sourcePath || asset.filePath;
+    const target = getAssetImageOpenTarget(images, currentIndex, detail);
     if (!target || !window.electronAPI?.openPath) {
       toast.error("没有可打开的本地路径");
       return;
     }
-    const result = await window.electronAPI.openPath(target);
-    if (!result.success) {
-      toast.error(result.error || "打开失败");
+    try {
+      const result = await window.electronAPI.openPath(target);
+      if (!result.success) {
+        toast.error(result.error || "打开失败");
+      }
+    } catch (error: unknown) {
+      toast.error(getAssetOperationError(error, "打开失败"));
     }
   };
 
@@ -416,38 +440,66 @@ export function StudioAssetDetailDialog({
       return;
     }
     const dir = target.substring(0, target.lastIndexOf("/")) || target;
-    const result = await window.electronAPI.openPath(dir);
-    if (!result.success) {
-      toast.error(result.error || "打开失败");
+    try {
+      const result = await window.electronAPI.openPath(dir);
+      if (!result.success) {
+        toast.error(result.error || "打开失败");
+      }
+    } catch (error: unknown) {
+      toast.error(getAssetOperationError(error, "打开失败"));
     }
   };
 
   const handleAddImage = async () => {
-    if (!window.studioAssets?.selectImageFile || !window.studioAssets?.addImage) {
+    if (!window.studioAssets?.selectImageFiles || !window.studioAssets?.addImage) {
       toast.error("当前环境不支持添加图片");
       return;
     }
-    const filePath = await window.studioAssets.selectImageFile();
-    if (!filePath) return;
+    try {
+      const filePaths = await window.studioAssets.selectImageFiles();
+      if (!filePaths.length) return;
 
-    const imageName = filePath.split(/[\\/]/).pop()?.replace(/\.[^.]+$/, "") || "新图片";
-
-    const result = await window.studioAssets.addImage({
-      assetId: asset.id,
-      imageName: imageName.trim(),
-      sourceFilePath: filePath,
-    });
-    if (result?.images) {
-      const newImgs: AssetImage[] = [];
-      if (asset.previewUrl || asset.thumbnailUrl) {
-        newImgs.push({ name: "主图", filePath: asset.filePath || "", url: asset.previewUrl || asset.thumbnailUrl });
+      let lastResult: StudioAssetSummary | null = null;
+      let addedCount = 0;
+      let failedCount = 0;
+      for (const filePath of filePaths) {
+        const imageName = filePath.split(/[\\/]/).pop()?.replace(/\.[^.]+$/, "") || "新图片";
+        try {
+          const result = await window.studioAssets.addImage({
+            assetId: asset.id,
+            imageName: imageName.trim(),
+            sourceFilePath: filePath,
+          });
+          if (result?.images) {
+            lastResult = result;
+            addedCount += 1;
+          } else {
+            failedCount += 1;
+          }
+        } catch {
+          failedCount += 1;
+        }
       }
-      newImgs.push(...result.images);
-      setImages(newImgs);
-      setCurrentIndex(newImgs.length - 1);
-      toast.success(`已添加图片「${imageName.trim()}」`);
-    } else {
-      toast.error("添加失败");
+
+      if (lastResult?.images) {
+        const newImgs: AssetImage[] = [];
+        if (lastResult.previewUrl || lastResult.thumbnailUrl) {
+          newImgs.push({ name: "主图", filePath: lastResult.filePath || "", url: lastResult.previewUrl || lastResult.thumbnailUrl });
+        }
+        newImgs.push(...lastResult.images);
+        setFullAsset(lastResult);
+        setImages(newImgs);
+        setCurrentIndex(newImgs.length - 1);
+        if (failedCount > 0) {
+          toast.warning(`已添加 ${addedCount} 张图片，${failedCount} 张未添加`);
+        } else {
+          toast.success(`已添加 ${addedCount} 张图片`);
+        }
+      } else {
+        toast.error(`添加失败：${failedCount} 张图片均未添加`);
+      }
+    } catch (error: unknown) {
+      toast.error(getAssetOperationError(error, "添加失败"));
     }
   };
 
@@ -456,17 +508,21 @@ export function StudioAssetDetailDialog({
       toast.error("当前环境不支持更换图片");
       return;
     }
-    const filePath = await window.studioAssets.selectImageFile();
-    if (!filePath) return;
-    const result = await window.studioAssets.replaceImage({ assetId: asset.id, sourceFilePath: filePath });
-    if (result) {
-      const newImgs = updateImagesAfterReplacingMainImage(images, result);
-      setImages(newImgs);
-      setFullAsset((current) => current ? { ...current, ...result } : result);
-      setCurrentIndex(0);
-      toast.success("主图已更换");
-    } else {
-      toast.error("更换失败");
+    try {
+      const filePath = await window.studioAssets.selectImageFile();
+      if (!filePath) return;
+      const result = await window.studioAssets.replaceImage({ assetId: asset.id, sourceFilePath: filePath });
+      if (result) {
+        const newImgs = updateImagesAfterReplacingMainImage(images, result);
+        setImages(newImgs);
+        setFullAsset((current) => current ? { ...current, ...result } : result);
+        setCurrentIndex(0);
+        toast.success("主图已更换");
+      } else {
+        toast.error("更换失败");
+      }
+    } catch (error: unknown) {
+      toast.error(getAssetOperationError(error, "更换失败"));
     }
   };
 
@@ -476,12 +532,18 @@ export function StudioAssetDetailDialog({
       return;
     }
     if (!window.studioAssets?.removeImage) return;
-    const result = await window.studioAssets.removeImage({ assetId: asset.id, imageFilePath: img.filePath });
-    if (result) {
-      const newImgs = images.filter((_, i) => i !== idx);
-      setImages(newImgs);
-      setCurrentIndex(Math.min(currentIndex, newImgs.length - 1));
-      toast.success("已删除");
+    try {
+      const result = await window.studioAssets.removeImage({ assetId: asset.id, imageFilePath: img.filePath });
+      if (result) {
+        const newImgs = images.filter((_, i) => i !== idx);
+        setImages(newImgs);
+        setCurrentIndex(Math.min(currentIndex, newImgs.length - 1));
+        toast.success("已删除");
+      } else {
+        toast.error("删除失败");
+      }
+    } catch (error: unknown) {
+      toast.error(getAssetOperationError(error, "删除失败"));
     }
   };
 
@@ -502,12 +564,18 @@ export function StudioAssetDetailDialog({
       overlay.onclick = () => { cleanup(); resolve(null); };
     });
     if (!newName?.trim() || newName.trim() === img.name) return;
-    const result = await window.studioAssets.renameImage({ assetId: asset.id, imageFilePath: img.filePath, newName: newName.trim() });
-    if (result) {
-      const newImgs = [...images];
-      newImgs[idx] = { ...newImgs[idx], name: newName.trim() };
-      setImages(newImgs);
-      toast.success("已重命名");
+    try {
+      const result = await window.studioAssets.renameImage({ assetId: asset.id, imageFilePath: img.filePath, newName: newName.trim() });
+      if (result) {
+        const newImgs = [...images];
+        newImgs[idx] = { ...newImgs[idx], name: newName.trim() };
+        setImages(newImgs);
+        toast.success("已重命名");
+      } else {
+        toast.error("重命名失败");
+      }
+    } catch (error: unknown) {
+      toast.error(getAssetOperationError(error, "重命名失败"));
     }
   };
 
@@ -589,7 +657,7 @@ export function StudioAssetDetailDialog({
                 </div>
               ) : hasImagePreview ? (
                 <div className="relative">
-                  <Carousel key={images.length} className="w-full" opts={{ startIndex: currentIndex }}>
+                  <Carousel key={images.length} className="w-full" opts={{ startIndex: currentIndex }} setApi={syncCarouselIndex}>
                     <CarouselContent>
                       {images.map((img, idx) => (
                         <CarouselItem key={img.filePath || idx}>

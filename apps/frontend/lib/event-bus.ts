@@ -30,19 +30,45 @@ class EventBus {
   }
 
   off(event: string, handler: EventHandler) {
-    this.listeners.get(event)?.delete(handler);
+    const listeners = this.listeners.get(event);
+    if (!listeners) return;
+    listeners.delete(handler);
+    this.cleanupEmptyListeners(event, listeners);
+  }
+
+  private cleanupEmptyListeners(event: string, listeners: Set<EventHandler>) {
+    if (
+      listeners.size === 0
+      && this.listeners.get(event) === listeners
+      && !this.dispatchDepths.has(event)
+    ) {
+      this.listeners.delete(event);
+    }
   }
 
   emit(event: string, ...args: unknown[]) {
-    this.listeners.get(event)?.forEach((handler) => {
-      try { handler(...(args as never[])); } catch (e) { console.error(`[EventBus] Error in ${event}:`, e); }
-    });
+    const listeners = this.listeners.get(event);
+    if (!listeners) return;
+
+    this.dispatchDepths.set(event, (this.dispatchDepths.get(event) ?? 0) + 1);
+    try {
+      listeners.forEach((handler) => {
+        try { handler(...(args as never[])); } catch (e) { console.error(`[EventBus] Error in ${event}:`, e); }
+      });
+    } finally {
+      const remainingDepth = this.dispatchDepths.get(event)! - 1;
+      if (remainingDepth === 0) this.dispatchDepths.delete(event);
+      else this.dispatchDepths.set(event, remainingDepth);
+      this.cleanupEmptyListeners(event, listeners);
+    }
   }
 
   /** 清除某事件的所有监听 */
   clear(event: string) {
     this.listeners.delete(event);
   }
+
+  private dispatchDepths = new Map<string, number>();
 }
 
 export const eventBus = new EventBus();

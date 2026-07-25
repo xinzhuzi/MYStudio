@@ -100,4 +100,38 @@ describe("diagnostics log service", () => {
     expect(fs.existsSync(path.join(rootDir, "diagnostics-2026-07-02.jsonl"))).toBe(false);
     expect(fs.existsSync(path.join(rootDir, "keep.txt"))).toBe(true);
   });
+
+  it("rotates the current-day file when the configured byte limit is reached", async () => {
+    const rootDir = createTempRoot();
+    const service = createDiagnosticsLogService({
+      rootDir,
+      maxFileBytes: 1,
+      now: () => new Date("2026-07-02T12:00:00.000Z"),
+    });
+
+    await service.write({ level: "info", category: "runtime", message: "first" });
+    await service.write({ level: "info", category: "runtime", message: "second" });
+
+    expect(fs.existsSync(path.join(rootDir, "diagnostics-2026-07-02.jsonl"))).toBe(true);
+    expect(fs.existsSync(path.join(rootDir, "diagnostics-2026-07-02-1.jsonl"))).toBe(true);
+    await expect(service.query()).resolves.toMatchObject({ total: 2 });
+  });
+
+  it("removes expired diagnostic files while preserving unrelated files", async () => {
+    const rootDir = createTempRoot();
+    const expiredPath = path.join(rootDir, "diagnostics-2026-06-30.jsonl");
+    fs.writeFileSync(expiredPath, "expired\n");
+    const keepPath = path.join(rootDir, "keep.txt");
+    fs.writeFileSync(keepPath, "keep");
+    const service = createDiagnosticsLogService({
+      rootDir,
+      retentionDays: 1,
+      now: () => new Date("2026-07-02T12:00:00.000Z"),
+    });
+
+    await service.write({ level: "info", category: "runtime", message: "current" });
+
+    expect(fs.existsSync(expiredPath)).toBe(false);
+    expect(fs.existsSync(keepPath)).toBe(true);
+  });
 });

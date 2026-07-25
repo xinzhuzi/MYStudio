@@ -160,6 +160,24 @@ describe("fileStorage legacy MYStudio key migration", () => {
       .toEqual([]);
   });
 
+  it("skips malformed flat-store entries without aborting migration", async () => {
+    const { values } = installElectronStorage({
+      "mystudio-project-store": JSON.stringify({ state: { projects: [{ id: "p1" }] } }),
+      "mystudio-media-store": JSON.stringify({
+        state: {
+          mediaFiles: [null, { id: "media-1", projectId: "p1" }],
+          folders: [null, { id: "folder-1", projectId: "p1" }],
+        },
+      }),
+    });
+
+    await migrateToProjectStorage();
+
+    const projectMedia = JSON.parse(values.get("_p/p1/media") ?? "{}");
+    expect(projectMedia.state.mediaFiles).toEqual([{ id: "media-1", projectId: "p1" }]);
+    expect(projectMedia.state.folders).toEqual([{ id: "folder-1", projectId: "p1" }]);
+  });
+
   it("recovers only richer data for known projects from legacy stores", async () => {
     const currentP1 = JSON.stringify({
       state: { activeProjectId: "p1", projectData: {} },
@@ -205,5 +223,21 @@ describe("fileStorage legacy MYStudio key migration", () => {
     expect(values.get("_p/p3/script")).toBe(currentP3);
     expect(values.has("_p/unknown/script")).toBe(false);
     expect(setItem).toHaveBeenCalledWith("_p/p2/script", expect.any(String));
+  });
+
+  it("does not treat malformed recovery payloads as rich data", async () => {
+    const { values, setItem } = installElectronStorage({
+      "_p/_migrated": JSON.stringify({ version: 1 }),
+      "mystudio-project-store": JSON.stringify({ state: { projects: [{ id: "p1" }] } }),
+      "mystudio-script-store": JSON.stringify({
+        state: { projects: { p1: null } },
+      }),
+      "_p/p1/script": JSON.stringify({ state: { activeProjectId: "p1", projectData: {} } }),
+    });
+
+    await recoverFromLegacy();
+
+    expect(values.get("_p/p1/script")).toContain('"projectData":{}');
+    expect(setItem).not.toHaveBeenCalledWith("_p/p1/script", expect.any(String));
   });
 });
