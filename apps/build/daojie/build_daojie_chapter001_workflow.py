@@ -4326,7 +4326,7 @@ def start_tts_backend():
         [
             str(python_bin),
             "-m",
-            "manying_voicebox_tts.main",
+            "tts.main",
             "--host",
             TTS_HOST,
             "--port",
@@ -4422,7 +4422,7 @@ def create_direct_tts_audio(path, text, voice_profile, seed):
     os.environ.setdefault("MANYING_TTS_MODELS_DIR", str(APP_SUPPORT / "tts-models"))
     os.environ.setdefault("VOICEBOX_MODELS_DIR", str(APP_SUPPORT / "tts-models"))
     os.environ.setdefault("HF_HUB_CACHE", str(Path.home() / ".cache" / "huggingface" / "hub"))
-    from manying_voicebox_tts.engine import synthesize_to_wav
+    from tts.engine import synthesize_to_wav
 
     profile = {
         "id": voice_profile["profileId"],

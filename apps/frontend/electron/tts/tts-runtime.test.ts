@@ -12,7 +12,7 @@ describe("TTS runtime controller", () => {
       appRoot: "/repo",
       userDataPath: "/user-data",
       fileExists: (filePath) => (
-        filePath.includes("manying_voicebox_tts/main.py")
+        filePath.includes("tts/main.py")
         || filePath === "/project-storage/python/bin/python3"
       ),
       spawnProcess: vi.fn(),
@@ -37,7 +37,7 @@ describe("TTS runtime controller", () => {
       userDataPath: "/user-data",
       storageBasePath: () => "/project-storage",
       fileExists: (filePath) => (
-        filePath.includes("manying_voicebox_tts/main.py")
+        filePath.includes("tts/main.py")
         || filePath === "/project-storage/python/bin/python3"
       ),
       ensureDir: vi.fn(),
@@ -57,7 +57,7 @@ describe("TTS runtime controller", () => {
       "/project-storage/python/bin/python3",
       [
         "-m",
-        "manying_voicebox_tts.main",
+        "tts.main",
         "--host",
         "127.0.0.1",
         "--port",
@@ -84,7 +84,7 @@ describe("TTS runtime controller", () => {
       userDataPath: "/user-data",
       storageBasePath: () => "/project-storage",
       fileExists: (filePath) => (
-        filePath.includes("manying_voicebox_tts/main.py")
+        filePath.includes("tts/main.py")
         || filePath === "/project-storage/python/bin/python3"
       ),
       spawnProcess: vi.fn(),
@@ -103,7 +103,7 @@ describe("TTS runtime controller", () => {
       userDataPath: "/user-data",
       storageBasePath: () => "/project-storage",
       fileExists: (filePath) => (
-        filePath.includes("manying_voicebox_tts/main.py")
+        filePath.includes("tts/main.py")
         || filePath === "/project-storage/python/bin/python3"
       ),
       ensureDir: vi.fn(),
@@ -180,7 +180,7 @@ describe("TTS runtime controller", () => {
       storageBasePath: () => "/project-storage",
       sidecarRoots: [packagedRoot],
       fileExists: (filePath) => (
-        filePath === `${packagedRoot}/manying_voicebox_tts/main.py`
+        filePath === `${packagedRoot}/tts/main.py`
         || filePath === "/project-storage/python/bin/python3"
       ),
       ensureDir: vi.fn(),
@@ -226,7 +226,7 @@ describe("TTS runtime controller", () => {
       userDataPath: "/user-data",
       storageBasePath: () => "/project-storage",
       fileExists: (filePath) => (
-        filePath.includes("manying_voicebox_tts/main.py")
+        filePath.includes("tts/main.py")
         || (extracted && filePath === "/project-storage/python/bin/python3")
         || filePath.endsWith("requirements.txt")
       ),
@@ -273,7 +273,7 @@ describe("TTS runtime controller", () => {
       appRoot: "/repo",
       userDataPath: "/user-data",
       storageBasePath: () => "/project-storage",
-      fileExists: (filePath) => filePath.includes("manying_voicebox_tts/main.py"),
+      fileExists: (filePath) => filePath.includes("tts/main.py"),
       ensureDir: vi.fn(),
       runPython: vi.fn().mockRejectedValue(new Error("missing system python")),
       fetchRuntimeArchive,
@@ -297,7 +297,7 @@ describe("TTS runtime controller", () => {
       userDataPath: "/user-data",
       storageBasePath: () => "/project-storage",
       fileExists: (filePath) => (
-        filePath.includes("manying_voicebox_tts/main.py")
+        filePath.includes("tts/main.py")
         || filePath.endsWith("requirements.txt")
       ),
       ensureDir: vi.fn(),
@@ -324,7 +324,7 @@ describe("TTS runtime controller", () => {
       userDataPath: "/user-data",
       storageBasePath: () => "/project-storage",
       fileExists: (filePath) => (
-        filePath.includes("manying_voicebox_tts/main.py")
+        filePath.includes("tts/main.py")
         || filePath === "/project-storage/python/bin/python3"
       ),
       ensureDir: vi.fn(),
@@ -354,7 +354,7 @@ describe("TTS runtime controller", () => {
       appRoot: "/repo",
       userDataPath: "/user-data",
       storageBasePath: () => "/project-storage",
-      fileExists: (filePath) => filePath.includes("manying_voicebox_tts/main.py"),
+      fileExists: (filePath) => filePath.includes("tts/main.py"),
       readTextFile: (filePath) => (
         filePath.endsWith("config.json")
           ? JSON.stringify({
@@ -391,7 +391,7 @@ describe("TTS runtime controller", () => {
       userDataPath: "/user-data",
       storageBasePath: () => "/project-storage",
       fileExists: (filePath) => (
-        filePath.includes("manying_voicebox_tts/main.py")
+        filePath.includes("tts/main.py")
         || (extracted && filePath === "/project-storage/python/bin/python3")
         || filePath.endsWith("requirements.txt")
       ),
@@ -441,7 +441,7 @@ describe("TTS runtime controller", () => {
       userDataPath: "/user-data",
       storageBasePath: () => "/project-storage",
       fileExists: (filePath) => (
-        filePath.includes("manying_voicebox_tts/main.py")
+        filePath.includes("tts/main.py")
         || (extracted && filePath === "/project-storage/python/bin/python3")
         || filePath.endsWith("requirements.txt")
       ),
@@ -477,7 +477,7 @@ describe("TTS runtime controller", () => {
       appRoot: "/repo",
       userDataPath: "/user-data",
       storageBasePath: () => "/project-storage",
-      fileExists: (filePath) => filePath.includes("manying_voicebox_tts/main.py"),
+      fileExists: (filePath) => filePath.includes("tts/main.py"),
       ensureDir: vi.fn(),
       writeTextFile: vi.fn(),
       writeBinaryFile: vi.fn(),
@@ -512,7 +512,7 @@ describe("TTS runtime controller", () => {
       userDataPath: "/user-data",
       storageBasePath: () => "/project-storage",
       fileExists: (filePath) => (
-        filePath.includes("manying_voicebox_tts/main.py")
+        filePath.includes("tts/main.py")
         || filePath === "/project-storage/python/bin/python3"
         || filePath.endsWith("requirements.txt")
       ),
@@ -548,7 +548,7 @@ describe("TTS runtime controller", () => {
       userDataPath: "/user-data",
       storageBasePath: () => "/project-storage",
       fileExists: (filePath) => (
-        filePath.includes("manying_voicebox_tts/main.py")
+        filePath.includes("tts/main.py")
         || filePath === "/project-storage/python/bin/python3"
         || filePath.endsWith("requirements.txt")
       ),
@@ -590,7 +590,7 @@ describe("TTS runtime controller", () => {
       userDataPath: "/user-data",
       storageBasePath: () => "/project-storage",
       fileExists: (filePath) => (
-        filePath.includes("manying_voicebox_tts/main.py")
+        filePath.includes("tts/main.py")
         || filePath === "/project-storage/python/bin/python3"
       ),
       ensureDir: vi.fn(),
@@ -616,7 +616,7 @@ describe("TTS runtime controller", () => {
       appRoot: "/repo",
       userDataPath: "/user-data",
       storageBasePath: () => "/project-storage",
-      fileExists: (filePath) => filePath.includes("manying_voicebox_tts/main.py"),
+      fileExists: (filePath) => filePath.includes("tts/main.py"),
       ensureDir: vi.fn(),
       writeTextFile: vi.fn(),
       spawnProcess: vi.fn(),
@@ -697,7 +697,7 @@ describe("TTS runtime controller", () => {
       userDataPath: "/user-data",
       storageBasePath: () => "/project-storage",
       fileExists: (filePath) => (
-        filePath.includes("manying_voicebox_tts/main.py")
+        filePath.includes("tts/main.py")
         || filePath === "/project-storage/python/bin/python3"
       ),
       ensureDir: vi.fn(),

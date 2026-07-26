@@ -6,7 +6,7 @@
 
 ```text
 apps/backend/
-  manying_voicebox_tts/
+  tts/
     main.py          # ThreadingHTTPServer 服务入口
     engine.py        # TTS/STT 引擎调度
     storage.py       # tts.sqlite 运行时存储
@@ -48,15 +48,15 @@ http://127.0.0.1:17593
 
 ## 服务实现
 
-后端入口是 `manying_voicebox_tts.main`，使用 Python 标准库 `ThreadingHTTPServer`。除 `/health` 外，控制类接口都需要 Electron main process 注入 `X-Manying-TTS-Token`，前端 renderer 不直接持有 token。
+后端入口是 `tts.main`，使用 Python 标准库 `ThreadingHTTPServer`。除 `/health` 外，控制类接口都需要 Electron main process 注入 `X-Manying-TTS-Token`，前端 renderer 不直接持有 token。
 
 启动命令由 `apps/frontend/electron/tts/tts-runtime.ts` 生成，核心形式如下：
 
 ```text
-python -m manying_voicebox_tts.main --host 127.0.0.1 --port 17593 --data-dir {userData}/tts-runtime
+python -m tts.main --host 127.0.0.1 --port 17593 --data-dir {userData}/tts-runtime
 ```
 
-Electron 会先从开发时的 `apps/backend` 或打包后的 `Resources/backend` 定位 sidecar 源码；该目录只作为工作目录和 `PYTHONPATH`。随后它确认 `<storageBasePath>/python` 与依赖 hash marker 已就绪，创建模型与 sidecar 数据目录，并用该 managed Python 启动 `manying_voicebox_tts.main`。sidecar 状态和生成音频留在 `{userData}/tts-runtime`，不会写回 `apps/backend/`。
+Electron 会先从开发时的 `apps/backend` 或打包后的 `Resources/backend` 定位 sidecar 源码；该目录只作为工作目录和 `PYTHONPATH`。随后它确认 `<storageBasePath>/python` 与依赖 hash marker 已就绪，创建模型与 sidecar 数据目录，并用该 managed Python 启动 `tts.main`。sidecar 状态和生成音频留在 `{userData}/tts-runtime`，不会写回 `apps/backend/`。
 
 关键环境变量：
 

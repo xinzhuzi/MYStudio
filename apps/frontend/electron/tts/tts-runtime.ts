@@ -198,7 +198,7 @@ function normalizeRoutePath(routePath: string) {
 }
 
 function sidecarMainPath(sidecarRoot: string) {
-  return path.join(sidecarRoot, "manying_voicebox_tts", "main.py");
+  return path.join(sidecarRoot, "tts", "main.py");
 }
 
 function uniquePaths(paths: string[]) {
@@ -715,7 +715,7 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
       backendPython,
       [
         "-m",
-        "manying_voicebox_tts.main",
+        "tts.main",
         "--host",
         host,
         "--port",

@@ -1,0 +1,20 @@
+# TTS migration commit-ready file set (do not commit without user approval)
+# Verified: PYTHONPATH=backend python3 -m unittest discover -s backend/tests → 22 OK
+# Entry: tts.main (electron tts-runtime, daojie workflow); no manying_voicebox_tts refs in apps/
+
+## Include
+apps/backend/README.md
+apps/backend/tests/test_tts_contract.py
+apps/backend/tts/
+apps/frontend/electron/tts/tts-runtime.ts
+apps/frontend/electron/tts/tts-runtime.test.ts
+apps/build/daojie/build_daojie_chapter001_workflow.py
+
+## Delete (old package)
+apps/backend/manying_voicebox_tts/
+
+## Suggested message
+refactor(backend): rename manying_voicebox_tts package to tts
+
+## Not included
+Remotion, frontend modularization, skill path docs — separate commits
