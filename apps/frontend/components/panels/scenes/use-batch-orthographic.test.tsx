@@ -20,7 +20,7 @@ vi.mock("@/lib/ai/ai-manager", () => ({
   aiManager: { featureConfig: mocks.featureConfig, featureNotConfiguredMessage: () => "未配置", image: mocks.image },
 }));
 vi.mock("@/lib/storyboard/image-splitter", () => ({ splitStoryboardImage: mocks.splitStoryboardImage }));
-vi.mock("@/lib/image-storage", () => ({
+vi.mock("@/lib/media/image-storage", () => ({
   readImageAsBase64: mocks.readImageAsBase64,
   saveImageToLocal: mocks.saveImageToLocal,
 }));

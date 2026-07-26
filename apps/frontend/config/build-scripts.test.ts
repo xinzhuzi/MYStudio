@@ -76,8 +76,9 @@ describe("desktop build scripts", () => {
     const tests = readdirSync(testsRoot).filter((name) => /^test_.*\.py$/.test(name));
 
     expect(pipelineTests).toEqual([]);
-    expect(tests).toHaveLength(12);
+    expect(tests).toHaveLength(13);
     expect(tests).toContain("test_toonflow_portable_fixture.py");
+    expect(tests).toContain("test_build_chapter001_visual_review_packet.py");
   });
 
   it("archives prior canonical JSON reports before writing the latest result", () => {
@@ -379,6 +380,36 @@ describe("desktop build scripts", () => {
     expect(smokeScript).toContain("captureError");
   });
 
+  it("falls back to macOS LaunchServices after a direct AppKit abort", async () => {
+    const smokeScript = readBuildFile("build/smoke/smoke-desktop.mjs");
+    const launchScript = readBuildFile("build/smoke/smoke-launch.mjs");
+    const { resolveAppBundlePath, shouldFallbackToLaunchServices } = await import(
+      "../../build/smoke/smoke-launch.mjs"
+    );
+
+    expect(smokeScript).toContain("MYSTUDIO_SMOKE_LAUNCH_MODE");
+    expect(smokeScript).toContain("shouldFallbackToLaunchServices");
+    expect(smokeScript).toContain("retrying through macOS LaunchServices");
+    expect(launchScript).toContain('spawn("open", ["-na", bundlePath, "--args"');
+    expect(resolveAppBundlePath("/tmp/漫影工作室.app/Contents/MacOS/漫影工作室"))
+      .toBe("/tmp/漫影工作室.app");
+    expect(shouldFallbackToLaunchServices({
+      platform: "darwin",
+      childExit: { code: 134, signal: null },
+      launchMode: "auto",
+    })).toBe(true);
+    expect(shouldFallbackToLaunchServices({
+      platform: "darwin",
+      childExit: { code: 1, signal: null },
+      launchMode: "auto",
+    })).toBe(false);
+    expect(shouldFallbackToLaunchServices({
+      platform: "linux",
+      childExit: { code: 134, signal: null },
+      launchMode: "auto",
+    })).toBe(false);
+  });
+
   it("gates packaged and installed Remotion export smoke behind an explicit opt-in", () => {
     const smokeScript = readBuildFile("build/smoke/smoke-desktop.mjs");
     const installScript = readBuildFile("build/packaging/install-and-smoke.mjs");
@@ -393,6 +424,9 @@ describe("desktop build scripts", () => {
     );
     expect(modeContract).toContain(
       'process.env.MYSTUDIO_SMOKE_REMOTION_EXPORT || "disabled"',
+    );
+    expect(smokeScript).toContain(
+      "process.env.MYSTUDIO_SMOKE_REMOTION_EXPORT_TIMEOUT_MS || 180_000",
     );
     expect(enabledModes).toContain('remotionExportSmokeMode === "1"');
     expect(enabledModes).toContain('remotionExportSmokeMode === "blocked"');
@@ -425,8 +459,9 @@ describe("desktop build scripts", () => {
       smokeScript.indexOf("async function verifyRemotionExport"),
       smokeScript.indexOf("async function verifyWorkflowEndToEnd"),
     );
-    expect(remotionSmoke.indexOf("window.remotionPreview.create(plan)"))
-      .toBeLessThan(remotionSmoke.indexOf("clickedBrowserDownload"));
+    expect(remotionSmoke.indexOf("prepared = await prepareRemotionBrowserDownload(evaluate)"))
+      .toBeLessThan(remotionSmoke.indexOf("const renderResult = await evaluate"));
+    expect(remotionSmoke).toContain("const renderBrowserStatus = JSON.stringify");
     expect(remotionSmoke).toContain("const serializedPlan = JSON.stringify");
     expect(remotionSmoke).toContain("const expectCanceledExport = mode === 'cancel'");
     expect(remotionSmoke).toContain("progress.stage === 'rendering'");
@@ -434,6 +469,12 @@ describe("desktop build scripts", () => {
     expect(remotionSmoke).toContain("progress.stage === 'canceled'");
     expect(remotionSmoke).toContain("__mystudioRemotionExportSmokePromise");
     expect(remotionSmoke).toContain("delete globalThis.${promiseKey}");
+    expect(smokeScript).toContain("prepareRemotionBrowserDownload");
+    expect(smokeScript).toContain("Remotion browser download status poll");
+    expect(smokeScript).toContain("Remotion browser download final progress");
+    expect(smokeScript).toContain('browserStatus.message.includes("同一时间只允许一个浏览器 utility 操作")');
+    expect(smokeScript).toContain("browserDownloadStarted");
+    expect(smokeScript).toContain("REMOTION_DOWNLOAD_PROGRESS_KEY");
 
     const artifactInspection = smokeScript.slice(
       smokeScript.indexOf("function inspectRemotionExportArtifact"),
@@ -756,6 +797,9 @@ describe("desktop build scripts", () => {
     expect(runnerScript).toContain('runOptional("pkill", ["-f", "漫影工作室.app/Contents"])');
     expect(runnerScript).toContain("MYSTUDIO_SMOKE_STEP_DELAY_MS");
     expect(runnerScript).toContain("const defaultStepDelayMs = runInBackground ? 250 : 2500");
+    expect(runnerScript).toContain('const smokeMediaDir = resolve(userDataDir, "media")');
+    expect(runnerScript).toContain('resolve(smokeMediaDir, "mystudio-smoke-voice.wav")');
+    expect(runnerScript).toContain('resolve(smokeMediaDir, "mystudio-smoke-final.mp4")');
     expect(runnerScript).toContain(
       "process.env.MYSTUDIO_SMOKE_STEP_DELAY_MS || defaultStepDelayMs",
     );
@@ -2677,7 +2721,19 @@ spec.loader.exec_module(module)
 with tempfile.TemporaryDirectory() as tmp:
     image_path = Path(tmp) / "dock.png"
     image_path.write_bytes(b"reference")
+    (Path(tmp) / "scenes.json").write_text(json.dumps({"state": {"scenes": [{
+        "id": "scene-dock", "name": "金水河码头", "referenceImage": str(image_path)
+    }]}}, ensure_ascii=False), encoding="utf-8")
     state = {
+        "continuityAssetVersions": [{
+            "assetId": "scene-dock", "assetKind": "scene",
+            "versionId": "scene-dock:dock-main-axis:v1",
+            "referenceImagePaths": [str(image_path)],
+            "referenceImageSha256": ["sha256:dock"],
+            "referenceViewTypes": ["hero"],
+            "source": "project-scene-bible", "contentFingerprint": "fingerprint:dock",
+            "approved": False, "sceneViewpointId": "dock-main-axis",
+        }],
         "agentWorkData": [{
             "id": "source-001", "key": "storyboardTable", "episodeId": "chapter-001", "updatedAt": 1,
             "data": """<storyboardTable>
@@ -2717,7 +2773,7 @@ with tempfile.TemporaryDirectory() as tmp:
             }],
         }],
     }
-    report = module.repair_storyboards(state, "pending", None)
+    report = module.repair_storyboards(state, "pending", None, Path(tmp))
     print(json.dumps({"report": report, "storyboard": state["storyboards"][0]}, ensure_ascii=False))
 `);
 
@@ -2817,6 +2873,16 @@ with tempfile.TemporaryDirectory() as temp:
         for index in (23, 24)
     ]
     state = {
+        "continuityAssetVersions": [{
+            "assetId": "scene-room", "assetKind": "scene",
+            "assetName": "悦来客栈斗室",
+            "versionId": "scene-room:inn-room-window-axis:v1",
+            "referenceImagePaths": [str(room)],
+            "referenceImageSha256": ["sha256:room"],
+            "referenceViewTypes": ["hero"],
+            "source": "project-scene-bible", "contentFingerprint": "fingerprint:room",
+            "approved": False, "sceneViewpointId": "inn-room-window-axis",
+        }],
         "storyboards": [],
         "imageWorkflows": [],
         "agentWorkData": [{

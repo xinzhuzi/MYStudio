@@ -120,11 +120,11 @@ Python 和 TTS 依赖不会在应用启动时自动配置。详细说明见 [Pyt
 3. 选择可用候选片段。
 4. 点击 `一键剪辑`，创建或复用当前章节的 `EditingProject` 剪辑草案。
 5. 在剪辑工作台检查画面、口播、字幕、转场和当前 revision。
-6. 点击 `一键成片`，把当前 `EditingProject` 编译成时间线计划，并由本地 timeline renderer 输出 MP4。
+6. 点击 `一键成片`，把当前 `EditingProject` 编译成时间线计划，并由 renderer host 按全局设置选择 Remotion 或 FFmpeg 输出 MP4。
 
-本地合成依赖系统 `ffmpeg`。如果提示未找到 FFmpeg，先确认命令行中 `ffmpeg -version` 可用。打包和 smoke 流程见 [打包、安装与 Smoke 测试](../engineering/PACKAGING_AND_SMOKE_TESTING.md)。
+单轨 `本地合成` 仍是独立的 FFmpeg 兼容入口；最终成片的 FFmpeg 直出和 Remotion 音频后处理都依赖系统 `ffmpeg`。如果提示未找到 FFmpeg，先确认命令行中 `ffmpeg -version` 可用。选择 Remotion 时，MP4 导出还要求在设置页主动下载/更新匹配版本的 Chrome Headless Shell；Player 预览仍可在没有 Headless Shell 时运行。打包和 smoke 流程见 [打包、安装与 Smoke 测试](../engineering/PACKAGING_AND_SMOKE_TESTING.md)。
 
-当前权威成片链是 `分镜/候选 -> EditingProject -> TimelineRenderPlan -> timeline renderer -> MP4 + 完整媒体证据`。只有证据对应当前 EditingProject revision，并且最终 MP4、snapshot、render plan、input manifest、filter graph、日志和 ffprobe 文件都存在时，工作流才把视频工作台视为完成。
+当前权威成片链是 `分镜/候选 -> EditingProject -> TimelineRenderPlan -> renderer host -> MP4 + 完整媒体证据`。只有证据对应当前 EditingProject revision，并且最终 MP4、snapshot、render plan、input manifest、renderer diagnostics、日志和 ffprobe 文件都存在时，工作流才把视频工作台视为完成；filter graph 仅适用于 FFmpeg 直出，Remotion 还必须有 raw MP4 与 postprocess log。
 
 旧 `拼接成片` 仍作为人工兼容导出保留，但不会被自动成片、工作流完成度或真实《道劫》验收当作权威最终视频。track 分组、候选片段状态、选择规则和兼容拼接失败处理见 [分镜表与剪辑工作台操作参考](./WORKFLOW_STORYBOARD_EDITING_OPERATIONS.md)。`成片与导出` 页面主要用于查看和导出已有素材/产物。
 

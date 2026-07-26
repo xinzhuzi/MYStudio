@@ -2,7 +2,26 @@
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { fetchRemoteImageBlob, fetchRemoteImageDataUrl } from "./remote-image-fetch";
+import {
+  fetchRemoteImageBlob as facadeFetchRemoteImageBlob,
+  fetchRemoteImageBlob,
+  fetchRemoteImageDataUrl as facadeFetchRemoteImageDataUrl,
+  fetchRemoteImageDataUrl,
+  readBlobAsDataUrl as facadeReadBlobAsDataUrl,
+} from "./remote-image-fetch";
+import {
+  fetchRemoteImageBlob as canonicalFetchRemoteImageBlob,
+  fetchRemoteImageDataUrl as canonicalFetchRemoteImageDataUrl,
+  readBlobAsDataUrl as canonicalReadBlobAsDataUrl,
+} from "./media/remote-image-fetch";
+
+describe("remote-image-fetch root facade", () => {
+  it("re-exports the same helpers as the media domain module", () => {
+    expect(facadeFetchRemoteImageBlob).toBe(canonicalFetchRemoteImageBlob);
+    expect(facadeFetchRemoteImageDataUrl).toBe(canonicalFetchRemoteImageDataUrl);
+    expect(facadeReadBlobAsDataUrl).toBe(canonicalReadBlobAsDataUrl);
+  });
+});
 
 describe("remote-image-fetch", () => {
   afterEach(() => {

@@ -25,14 +25,15 @@ From novel to final cut — scripts, storyboards, assets, voice-over, and editin
 
 MYStudio is a desktop production tool for AI-driven animated series, short dramas, and novel-to-film adaptation. It brings long-text adaptation, screenplay editing, character and scene assets, storyboard production, video candidate generation, local editing/compositing, and project configuration together into a single, traceable workflow.
 
-The project emphasizes a local-first approach with creator control: assets, project data, and generation records are stored on the user's machine first; AI output enters the project as drafts, candidates, and editable data rather than overwriting final content directly; local video compositing is done via FFmpeg, making it easy to quickly produce previewable, reviewable, and re-editable clips and final cuts on the desktop.
+The project emphasizes a local-first approach with creator control: assets, project data, and generation records are stored on the user's machine first; AI output enters the project as drafts, candidates, and editable data rather than overwriting final content directly; timeline rendering uses an engine-neutral host with Remotion and FFmpeg kept as separate renderers, making it easy to produce previewable, reviewable, and re-editable cuts on the desktop.
 
 ### Core Positioning
 
 - A unified workbench for novel adaptation, AI animated drama, short-drama storyboarding, and local final cuts.
 - A structured workflow that carries the full production process from text to video.
 - Project-level storage for source text, scripts, storyboards, assets, candidate videos, and configuration.
-- Local FFmpeg support for turning image/video assets into candidate clips and stitching full episodes.
+- Local FFmpeg support for track candidates, compatible stitching, and Remotion audio post-processing.
+- A Remotion 4.0.499 renderer with Electron Chromium preview, explicit Headless Shell preparation for MP4 export, fixed bundles, and same-major upgrade governance; the global selector still keeps FFmpeg available, and new installs remain on FFmpeg until both real Daojie chains pass.
 - A configuration center for managing models, provider capabilities, and per-task model bindings.
 
 ### Production Pipeline
@@ -43,7 +44,7 @@ The core pipeline is:
 Novel Import -> Script Planning -> Asset Extraction -> Production Generation -> Storyboard Table -> Editing Workbench
 ```
 
-The pipeline supports phased progress: you can stop at scripts and storyboards, or continue to bind assets, generate candidate clips, and produce a full video via local compositing. Each stage keeps a manual revision entry point, so creators retain control when AI output quality is unstable.
+The pipeline supports phased progress: you can stop at scripts and storyboards, or continue to bind assets, generate candidate clips, and produce a full video through the renderer host. Each stage keeps a manual revision entry point, so creators retain control when AI output quality is unstable.
 
 ### Architecture
 
@@ -52,7 +53,7 @@ The pipeline supports phased progress: you can stop at scripts and storyboards, 
 - State management: Zustand manages project workflow, assets, storyboards, candidates, and configuration state.
 - File-based storage: aimed at personal creative projects, reducing database deployment and backend maintenance cost.
 - Asset library storage: production assets use a separate SQLite-backed library under `<storageBasePath>/assets`, while project JSON data stays under `<storageBasePath>/projects`.
-- Local compositing: the Electron main process invokes FFmpeg for candidate clip rendering, subtitle burn-in, and stitched output.
+- Rendering: the Electron host routes the validated timeline plan to FFmpeg or Remotion; the existing FFmpeg path remains independent, while Remotion uses a fixed composition and an isolated utility worker. Remotion raw output receives host-owned FFmpeg loudness/AAC post-processing.
 
 ### Design Goals
 
@@ -86,7 +87,7 @@ After opening a project, open `Workflow` on the left:
 3. `Script Asset Management`: extract characters, scenes, and props from scripts and match them with the asset library.
 4. `Production Generation`: run director planning and fill missing character, scene, and prop images.
 5. `Storyboard Table`: generate storyboard rows and maintain duration, dialogue, and visual assets.
-6. `Editing Workbench`: render candidate clips with local FFmpeg and stitch selected clips into a final cut.
+6. `Editing Workbench`: render candidate clips with the independent local FFmpeg path, then send the validated timeline to the selected Remotion or FFmpeg renderer for a final cut.
 
 ## Current Documentation Map
 

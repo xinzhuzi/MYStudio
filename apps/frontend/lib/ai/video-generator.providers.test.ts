@@ -13,8 +13,8 @@ vi.mock('@/lib/ai/video-generator-image-transfer', () => ({
   buildImageWithRoles: vi.fn(),
   convertToHttpUrl: vi.fn(),
 }));
-vi.mock('@/lib/image-host', () => ({ isImageHostConfigured: () => false, uploadToImageHost: vi.fn() }));
-vi.mock('@/lib/image-storage', () => ({ saveVideoToLocal: vi.fn() }));
+vi.mock('@/lib/media/image-host', () => ({ isImageHostConfigured: () => false, uploadToImageHost: vi.fn() }));
+vi.mock('@/lib/media/image-storage', () => ({ saveVideoToLocal: vi.fn() }));
 
 import { callVideoGenerationApi } from './video-generator';
 

@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { aiManager } from "@/lib/ai/ai-manager";
-import { saveImageToLocal } from "@/lib/image-storage";
+import { saveImageToLocal } from "@/lib/media/image-storage";
 import { polishAssetPrompt } from "@/lib/ai/prompt-polisher";
 import { useCharacterLibraryStore } from "@/stores/library/character-library-store";
 import { useAppSettingsStore } from "@/stores/app/app-settings-store";
@@ -32,7 +32,7 @@ vi.mock("@/lib/ai/prompt-polisher", () => ({
   }),
 }));
 
-vi.mock("@/lib/image-storage", () => ({
+vi.mock("@/lib/media/image-storage", () => ({
   saveImageToLocal: vi
     .fn()
     .mockResolvedValue("local-image://props/prop-1.png"),

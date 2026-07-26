@@ -16,7 +16,18 @@ if (!parentPort) {
 const service = createRemotionBrowserWorkerService({
   ensureBrowser: ensureBrowser as RemotionEnsureBrowser,
   store: createPreparedVersionFileStore(process.cwd()),
+  downloadTimeoutMs: readDownloadTimeoutMs(),
 });
+
+function readDownloadTimeoutMs(): number | undefined {
+  const raw = process.env.MYSTUDIO_REMOTION_BROWSER_DOWNLOAD_TIMEOUT_MS;
+  if (raw === undefined || raw.trim() === "") return undefined;
+  const value = Number(raw);
+  if (!Number.isFinite(value) || value <= 0) {
+    throw new Error("MYSTUDIO_REMOTION_BROWSER_DOWNLOAD_TIMEOUT_MS 必须是正数");
+  }
+  return value;
+}
 
 parentPort.once("message", (messageEvent) => {
   void service.handle(messageEvent.data, (event) => {

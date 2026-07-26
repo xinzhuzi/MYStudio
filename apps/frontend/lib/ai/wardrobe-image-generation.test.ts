@@ -22,7 +22,7 @@ vi.mock("@/lib/ai/ai-manager", () => ({
   },
 }));
 
-vi.mock("@/lib/image-storage", () => ({
+vi.mock("@/lib/media/image-storage", () => ({
   readImageAsBase64: mocks.readImageAsBase64,
 }));
 

@@ -72,7 +72,7 @@ import { ContactSheetGenerationView } from "./contact-sheet-generation-view";
 import { ScenePreviewView } from "./scene-preview-view";
 import { SceneGenerationForm } from "./scene-generation-form";
 import { useSceneGenerationController } from "./use-scene-generation-controller";
-import { buildContactSheetLayoutSync } from './contact-sheet-layout-sync';
+import { useContactSheetLayoutSync } from "./use-contact-sheet-layout-sync";
 import { usePendingSceneIntake } from './use-pending-scene-intake';
 
 interface GenerationPanelProps {
@@ -368,29 +368,13 @@ export function GenerationPanel({ selectedScene, onSceneCreated }: GenerationPan
     setExtractedViewpoints,
   });
 
-  // Keep the original aspect-ratio-only synchronization trigger.
-  useEffect(() => {
-    const sync = buildContactSheetLayoutSync({
-      aspectRatio: contactSheetAspectRatio,
-      viewpoints: pendingViewpoints,
-      prompts: pendingContactSheetPrompts,
-      currentPageIndex,
-      hasCurrentPrompt: Boolean(contactSheetPrompt),
-      selectedScene,
-      styleId,
-    });
-    if (!sync) return;
-    setContactSheetLayout(sync.layout);
-    setPendingContactSheetPrompts(sync.prompts);
-    if (sync.prompt) setContactSheetPrompt(sync.prompt);
-    if (sync.promptZh) setContactSheetPromptZh(sync.promptZh);
-    console.log('[ContactSheet] 宽高比变化，更新布局:', {
-      aspectRatio: contactSheetAspectRatio,
-      vpCount: pendingViewpoints.length,
-      newLayout: sync.prompts[0]?.gridLayout,
-      selectedSceneId: selectedScene?.id,
-    });
-  }, [contactSheetAspectRatio]); // 只监听宽高比变化
+  useContactSheetLayoutSync({
+    aspectRatio: contactSheetAspectRatio, viewpoints: pendingViewpoints,
+    prompts: pendingContactSheetPrompts, currentPageIndex, currentPrompt: contactSheetPrompt,
+    selectedScene, styleId,
+    setLayout: setContactSheetLayout, setPrompts: setPendingContactSheetPrompts,
+    setPrompt: setContactSheetPrompt, setPromptZh: setContactSheetPromptZh,
+  });
 
   const handleCreateScene = () => {
     if (!name.trim()) {

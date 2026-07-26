@@ -83,7 +83,7 @@ const SMOKE_TRACK_ID = "smoke-track-1";
 const SMOKE_VIDEO_ID = "smoke-video-1";
 const SMOKE_EDITING_PROJECT_ID = "smoke-editing-1";
 const SMOKE_AUDIO_PATH = "/tmp/mystudio-smoke-voice.wav";
-const SMOKE_VIDEO_PATH = "/tmp/mystudio-smoke-final.mp4";
+const DEFAULT_SMOKE_VIDEO_PATH = "/tmp/mystudio-smoke-final.mp4";
 const stepwiseEvidence: WorkflowSmokeStageEvidence[] = [];
 export function installWorkflowSmokeBridge() {
   if (typeof window === "undefined" || !window.mystudioSmoke?.enabled) return;
@@ -102,6 +102,13 @@ export function isIsolatedSmokeUserDataDir(userDataDir?: string): boolean {
   if (!userDataDir) return false;
   return /(?:^|[/\\])mystudio-(?:(?:installed-)?smoke|daojie-workflow-run)-[^/\\]+$/.test(userDataDir);
 }
+
+function getSmokeVideoPath(): string {
+  const userDataDir = typeof window === "undefined" ? undefined : window.mystudioSmoke?.userDataDir;
+  if (!userDataDir || !isIsolatedSmokeUserDataDir(userDataDir)) return DEFAULT_SMOKE_VIDEO_PATH;
+  return `${userDataDir.replace(/[\\/]+$/, "")}/media/mystudio-smoke-final.mp4`;
+}
+
 export function getSmokeStoryboardFramePath() {
   return "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADtgGOSHzRgQAAAABJRU5ErkJggg==";
 }
@@ -482,12 +489,13 @@ function applyStoryboardStep(now: number) {
 
 function applyWorkbenchStep(now: number) {
   applyStoryboardStep(now);
+  const videoPath = getSmokeVideoPath();
   useStudioStore.setState((state) => ({
     agentWorkData: upsertWorks(state.agentWorkData, [
-      work("productionPlan", `本地成片输出: ${SMOKE_VIDEO_PATH}`, SMOKE_CHAPTER_ID, now),
+      work("productionPlan", `本地成片输出: ${videoPath}`, SMOKE_CHAPTER_ID, now),
     ]),
     agentRuns: upsertRuns(state.agentRuns, [
-      run("productionPlan", "workbench", SMOKE_VIDEO_PATH, now),
+      run("productionPlan", "workbench", videoPath, now),
     ]),
     productionTracks: [
       {
@@ -507,7 +515,7 @@ function applyWorkbenchStep(now: number) {
         id: SMOKE_VIDEO_ID,
         trackId: SMOKE_TRACK_ID,
         provider: "ffmpeg-local",
-        filePath: SMOKE_VIDEO_PATH,
+        filePath: videoPath,
         state: "ready",
         createdAt: now,
       },
@@ -520,7 +528,7 @@ function applyWorkbenchStep(now: number) {
     storyboardId: SMOKE_STORYBOARD_ID,
     trackId: SMOKE_TRACK_ID,
     videoId: SMOKE_VIDEO_ID,
-    videoPath: SMOKE_VIDEO_PATH,
+    videoPath,
     now,
   });
 }
@@ -539,8 +547,8 @@ async function seedCompleteWorkflow(): Promise<WorkflowSmokeResult> {
   const trackId = "smoke-track-1";
   const videoId = "smoke-video-1";
   const audioPath = "/tmp/mystudio-smoke-voice.wav";
+  const videoPath = getSmokeVideoPath();
   const framePath = getSmokeStoryboardFramePath();
-  const videoPath = "/tmp/mystudio-smoke-final.mp4";
 
   useCharacterLibraryStore.setState({
     characters: [

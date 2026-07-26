@@ -29,7 +29,14 @@ export function useRemotionRuntimeSettings() {
     const unsubscribe = bridge.onDownloadProgress((next) => {
       setProgress(next);
       if (next.phase === "failed") setError(next.message ?? "Headless Shell 下载失败");
-      if (next.phase === "completed") void refreshStatus();
+      if (next.phase === "completed") {
+        setError(undefined);
+        setStatus({
+          state: "ready",
+          remotionVersion: next.remotionVersion,
+          preparedForRemotionVersion: next.remotionVersion,
+        });
+      }
     });
     void refreshStatus();
     return unsubscribe;

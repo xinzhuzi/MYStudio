@@ -63,8 +63,6 @@ const safeStepDelayMs = Number.isFinite(stepDelayMs)
   ? Math.max(0, stepDelayMs)
   : defaultStepDelayMs;
 const appProcessName = "漫影工作室";
-const smokeAudioPath = "/tmp/mystudio-smoke-voice.wav";
-const smokeVideoPath = "/tmp/mystudio-smoke-final.mp4";
 const runRealDaojie =
   process.argv.includes("--daojie") ||
   process.env.MYSTUDIO_WORKFLOW_REAL_DAOJIE === "1";
@@ -149,6 +147,10 @@ function stopExistingMYStudioInstances() {
 
 function prepareSmokeMedia() {
   if (runRealDaojie) return;
+  const smokeMediaDir = resolve(userDataDir, "media");
+  const smokeAudioPath = resolve(smokeMediaDir, "mystudio-smoke-voice.wav");
+  const smokeVideoPath = resolve(smokeMediaDir, "mystudio-smoke-final.mp4");
+  mkdirSync(smokeMediaDir, { recursive: true });
   rmSync(smokeAudioPath, { force: true });
   rmSync(smokeVideoPath, { force: true });
 

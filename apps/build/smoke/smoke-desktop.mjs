@@ -16,6 +16,10 @@ import { dirname, resolve } from "node:path";
 import { PNG } from "pngjs";
 import { terminateSpawnedApp } from "./smoke-process-lifecycle.mjs";
 import {
+  shouldFallbackToLaunchServices,
+  spawnSmokeApp,
+} from "./smoke-launch.mjs";
+import {
   hasMYStudioForegroundViolation,
   sampleFrontmostApplication,
 } from "./smoke-focus.mjs";
@@ -78,7 +82,7 @@ if (!remotionExportSmokeModes.includes(remotionExportSmokeMode)) {
   );
 }
 const REMOTION_EXPORT_TIMEOUT_MS = Number(
-  process.env.MYSTUDIO_SMOKE_REMOTION_EXPORT_TIMEOUT_MS || 900_000,
+  process.env.MYSTUDIO_SMOKE_REMOTION_EXPORT_TIMEOUT_MS || 180_000,
 );
 const remotionPreparedVersionFixture =
   process.env.MYSTUDIO_SMOKE_REMOTION_PREPARED_VERSION;
@@ -86,6 +90,12 @@ const skipPrekill = process.env.MYSTUDIO_SMOKE_SKIP_PREKILL === "1";
 const foregroundSmoke = process.env.MYSTUDIO_SMOKE_FOREGROUND === "1";
 const smokeMode = foregroundSmoke ? "visible" : "background";
 const keepSmokeAppOpen = process.env.MYSTUDIO_SMOKE_KEEP_OPEN === "1";
+const smokeLaunchMode = process.env.MYSTUDIO_SMOKE_LAUNCH_MODE || "auto";
+if (!["auto", "direct", "launch-services"].includes(smokeLaunchMode)) {
+  throw new Error(
+    `MYSTUDIO_SMOKE_LAUNCH_MODE must be auto, direct, or launch-services; received ${smokeLaunchMode}`,
+  );
+}
 const parsedForegroundHoldMs = Number(
   process.env.MYSTUDIO_SMOKE_HOLD_MS || (foregroundSmoke ? 5_000 : 0),
 );
@@ -119,7 +129,14 @@ const CORE_ROUTE_CHECKS = [
     requiredText: ["系统设置", "外观", "Python 配置"],
   },
 ];
-const SMOKE_VIDEO_PATH = "/tmp/mystudio-smoke-final.mp4";
+// Keep each smoke run's fixture private. The packaged Remotion preview uses
+// the same asset bridge as export, so a concurrent smoke must not be able to
+// delete another run's source while its session is still serving it.
+const SMOKE_VIDEO_PATH = resolve(
+  userDataDir,
+  "media",
+  "mystudio-smoke-final.mp4",
+);
 const SMOKE_VIDEO_WIDTH = 320;
 const SMOKE_VIDEO_HEIGHT = 180;
 const SMOKE_VIDEO_FPS = 30;
@@ -127,6 +144,21 @@ const SMOKE_VIDEO_DURATION_US = 200_000;
 const smokeReportPath =
   process.env.MYSTUDIO_SMOKE_REPORT_PATH ||
   resolve(process.cwd(), "output", "automation", "desktop-smoke-report.json");
+let smokeChildExit = null;
+let tracksSmokeChildExit = true;
+
+function watchSmokeChild(childProcess, { trackExit = true } = {}) {
+  smokeChildExit = null;
+  tracksSmokeChildExit = trackExit;
+  if (trackExit) {
+    childProcess.once("close", (code, signal) => {
+      smokeChildExit = { code, signal };
+    });
+    childProcess.once("error", (error) => {
+      smokeChildExit = { error: error instanceof Error ? error.message : String(error) };
+    });
+  }
+}
 
 if (!existsSync(appBin)) {
   console.error(
@@ -167,6 +199,7 @@ function stopExistingMYStudioInstances() {
 }
 
 function prepareSmokeMedia() {
+  mkdirSync(dirname(SMOKE_VIDEO_PATH), { recursive: true });
   rmSync(SMOKE_VIDEO_PATH, { force: true });
   const result = spawnSync(
     "ffmpeg",
@@ -513,6 +546,7 @@ function writeSmokeReport(report) {
         userDataDir,
         debugPort,
         mode: smokeMode,
+        launchMode: smokeLaunchMode,
         runStepwiseWorkflowSmoke,
         remotionExportSmokeMode,
         ...report,
@@ -525,10 +559,23 @@ function writeSmokeReport(report) {
   console.log(`[smoke] report written: ${smokeReportPath}`);
 }
 
-function bringSmokeAppToForeground(childProcess) {
+function bringSmokeAppToForeground(childProcess, launchMode = "direct") {
   if (!foregroundSmoke) return;
   if (process.platform !== "darwin") {
     console.warn("[smoke] foreground mode is only implemented for macOS");
+    return;
+  }
+  if (launchMode === "launch-services") {
+    const result = spawnSync(
+      "osascript",
+      ["-e", 'tell application id "com.manju2026.manying-studio" to activate'],
+      { stdio: "ignore" },
+    );
+    if (result.status !== 0) {
+      console.warn(
+        "[smoke] failed to activate the LaunchServices app; macOS may require Automation permission",
+      );
+    }
     return;
   }
   if (!childProcess.pid) {
@@ -584,6 +631,12 @@ async function waitForPageTarget() {
       }
     } catch {
       // The debugging server opens after Electron has started.
+    }
+    if (tracksSmokeChildExit && smokeChildExit) {
+      const detail = smokeChildExit.error
+        ? `error=${smokeChildExit.error}`
+        : `code=${smokeChildExit.code ?? "null"}, signal=${smokeChildExit.signal ?? "none"}`;
+      throw new Error(`Smoke app exited before exposing a page target (${detail}).`);
     }
     await new Promise((resolveDelay) => setTimeout(resolveDelay, 250));
   }
@@ -775,6 +828,14 @@ async function inspectPage(pageTarget) {
         label,
         timeoutMs,
       );
+      if (evaluated?.exceptionDetails) {
+        const exception = evaluated.exceptionDetails;
+        const description = exception.exception?.description
+          || exception.exception?.value
+          || exception.text
+          || `${label} failed`;
+        throw new Error(String(description));
+      }
       return evaluated.result.value;
     };
 
@@ -1096,14 +1157,200 @@ async function verifyPythonSettings(evaluate) {
   );
 }
 
+const REMOTION_DOWNLOAD_PROGRESS_KEY = "__mystudioRemotionDownloadProgress";
+
+async function prepareRemotionBrowserDownload(evaluate) {
+  return evaluate(
+    `(async () => {
+      const normalize = (node) => (node?.textContent || '').replace(/\\s+/g, ' ').trim();
+      const activate = (node) => {
+        if (!node) return false;
+        node.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, pointerId: 1, button: 0, buttons: 1, pointerType: 'mouse' }));
+        node.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, button: 0, buttons: 1, view: window }));
+        node.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, cancelable: true, pointerId: 1, button: 0, buttons: 0, pointerType: 'mouse' }));
+        node.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true, button: 0, buttons: 0, view: window }));
+        node.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, button: 0, view: window }));
+        return true;
+      };
+      const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+      const waitFor = async (check, timeoutMs, label) => {
+        const deadline = Date.now() + timeoutMs;
+        while (Date.now() < deadline) {
+          const value = await check();
+          if (value) return value;
+          await wait(250);
+        }
+        throw new Error(label + ' timed out after ' + timeoutMs + 'ms');
+      };
+      const readStatusAfterProbeSettles = async () => {
+        let lastConflict = '';
+        for (let attempt = 0; attempt < 40; attempt += 1) {
+          try {
+            const status = await window.remotionRuntime.status();
+            if (
+              status?.state === 'error'
+              && typeof status.message === 'string'
+              && status.message.includes('同一时间只允许一个浏览器 utility 操作')
+            ) {
+              lastConflict = status.message;
+              await wait(250);
+              continue;
+            }
+            return status;
+          } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            if (!message.includes('同一时间只允许一个浏览器 utility 操作')) throw error;
+            lastConflict = message;
+            await wait(250);
+          }
+        }
+        throw new Error(lastConflict || 'Remotion browser status probe did not settle');
+      };
+      const result = {
+        enabled: true,
+        success: true,
+        settings: {},
+        browserProgress: [],
+        browserDownloadStarted: false,
+      };
+      if (!window.remotionRuntime || !window.remotionPreview || !window.studioRenderer) {
+        throw new Error('Remotion runtime, preview, or studio renderer bridge is unavailable');
+      }
+
+      const navButtons = Array.from(document.querySelectorAll('.studio-nav-button'))
+        .filter((node) => node.tagName === 'BUTTON');
+      const settingsButton = navButtons.find((node) => normalize(node).includes('设置'));
+      result.settings.clickedSettings = activate(settingsButton);
+      await waitFor(
+        () => Array.from(document.querySelectorAll('.settings-tabs-bar button')).some((node) => normalize(node) === '渲染'),
+        10_000,
+        'rendering settings tab',
+      );
+      const renderingTab = Array.from(document.querySelectorAll('.settings-tabs-bar button'))
+        .find((node) => normalize(node) === '渲染');
+      result.settings.clickedRenderingTab = activate(renderingTab);
+      await waitFor(() => document.body.innerText.includes('Remotion Headless Shell'), 10_000, 'Remotion settings panel');
+
+      const remotionOption = Array.from(document.querySelectorAll('[role="radio"]'))
+        .find((node) => normalize(node).startsWith('Remotion'));
+      result.settings.clickedRemotion = activate(remotionOption);
+      await waitFor(() => remotionOption?.getAttribute('aria-checked') === 'true', 5_000, 'Remotion renderer selection');
+      result.settings.rendererSelected = remotionOption?.getAttribute('aria-checked') === 'true';
+      result.settings.hasRuntimeStatus = document.body.innerText.includes('当前状态');
+      await waitFor(
+        () => ['已就绪', '需要手动更新', '尚未安装', '检查失败']
+          .some((label) => document.body.innerText.includes(label)),
+        30_000,
+        'initial Remotion browser status',
+      );
+      result.initialBrowserStatus = await readStatusAfterProbeSettles();
+
+      if (result.initialBrowserStatus.state === 'ready') return result;
+      if (${JSON.stringify(remotionExportSmokeMode)} === 'blocked') return result;
+
+      const progressState = { progress: [], unsubscribe: null };
+      globalThis.${REMOTION_DOWNLOAD_PROGRESS_KEY} = progressState;
+      progressState.unsubscribe = window.remotionRuntime.onDownloadProgress((progress) => {
+        const previous = progressState.progress[progressState.progress.length - 1];
+        const stage = progress.phase || progress.stage || '';
+        if (!previous || previous.stage !== stage || Math.abs(previous.ratio - progress.ratio) >= 0.1) {
+          progressState.progress.push({ stage, ratio: progress.ratio, message: progress.message || '' });
+          if (progressState.progress.length > 40) progressState.progress.shift();
+        }
+      });
+      const downloadButton = Array.from(document.querySelectorAll('button')).find((node) => {
+        const text = normalize(node);
+        return !node.disabled && (text.includes('下载 Headless Shell') || text.includes('手动更新'));
+      });
+      result.settings.clickedBrowserDownload = activate(downloadButton);
+      if (!result.settings.clickedBrowserDownload) {
+        progressState.unsubscribe?.();
+        delete globalThis.${REMOTION_DOWNLOAD_PROGRESS_KEY};
+        throw new Error('Remotion browser download button was not available');
+      }
+      result.browserDownloadStarted = true;
+      return result;
+    })()`,
+    "Remotion browser download trigger",
+    30_000,
+  );
+}
+
 async function verifyRemotionExport(evaluate) {
   const serializedPlan = JSON.stringify(
     buildRemotionSmokePlan(SMOKE_VIDEO_DURATION_US),
   );
   const mode = JSON.stringify(remotionExportSmokeMode);
   const promiseKey = "__mystudioRemotionExportSmokePromise";
+  let prepared;
+  let browserStatus;
+  let browserProgress = [];
   try {
-    return await evaluate(
+    prepared = await prepareRemotionBrowserDownload(evaluate);
+    browserStatus = prepared.initialBrowserStatus;
+    if (prepared.browserDownloadStarted) {
+      const deadline = Date.now() + REMOTION_EXPORT_TIMEOUT_MS;
+      while (Date.now() < deadline) {
+        const remainingMs = Math.max(1_000, deadline - Date.now());
+        try {
+          browserStatus = await evaluate(
+            "window.remotionRuntime.status()",
+            "Remotion browser download status poll",
+            Math.min(CDP_CALL_TIMEOUT_MS, remainingMs),
+          );
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          if (!message.includes("同一时间只允许一个浏览器 utility 操作")) throw error;
+          await sleep(500);
+          continue;
+        }
+        browserProgress = await evaluate(
+          `globalThis.${REMOTION_DOWNLOAD_PROGRESS_KEY}?.progress || []`,
+          "Remotion browser download progress poll",
+          Math.min(CDP_CALL_TIMEOUT_MS, remainingMs),
+        );
+        const failedProgress = Array.isArray(browserProgress)
+          ? [...browserProgress].reverse().find((progress) => progress?.stage === "failed")
+          : undefined;
+        if (failedProgress) {
+          throw new Error(
+            failedProgress.message || "Remotion Headless Shell 下载失败",
+          );
+        }
+        if (
+          browserStatus?.state === "error"
+          && typeof browserStatus.message === "string"
+          && browserStatus.message.includes("同一时间只允许一个浏览器 utility 操作")
+        ) {
+          await sleep(500);
+          continue;
+        }
+        if (browserStatus?.state === "ready") break;
+        const alert = await evaluate(
+          "document.querySelector('[role=alert]')?.innerText || ''",
+          "Remotion browser download error poll",
+          Math.min(CDP_CALL_TIMEOUT_MS, remainingMs),
+        );
+        if (alert) throw new Error(alert);
+        if (browserStatus?.state === "error" || browserStatus?.state === "update-required") {
+          throw new Error(browserStatus.message || `Remotion 浏览器状态为 ${browserStatus.state}`);
+        }
+        await sleep(1_000);
+      }
+      if (browserStatus?.state !== "ready") {
+        throw new Error(
+          `Remotion browser download timed out after ${REMOTION_EXPORT_TIMEOUT_MS}ms; last state=${browserStatus?.state || "unknown"}`,
+        );
+      }
+      browserProgress = await evaluate(
+        `globalThis.${REMOTION_DOWNLOAD_PROGRESS_KEY}?.progress || []`,
+        "Remotion browser download final progress",
+        CDP_CALL_TIMEOUT_MS,
+      );
+    }
+
+    const renderBrowserStatus = JSON.stringify(browserStatus || prepared?.initialBrowserStatus || null);
+    const renderResult = await evaluate(
     `(() => {
       const smokePromise = (async () => {
       const plan = ${serializedPlan};
@@ -1147,7 +1394,6 @@ async function verifyRemotionExport(evaluate) {
           if (target.length > 20) target.shift();
         }
       };
-      let unsubscribeBrowserProgress;
       let unsubscribeRenderProgress;
       let previewSessionId = '';
       let renderPromise;
@@ -1184,7 +1430,7 @@ async function verifyRemotionExport(evaluate) {
           30_000,
           'initial Remotion browser status',
         );
-        result.initialBrowserStatus = await window.remotionRuntime.status();
+        result.initialBrowserStatus = ${renderBrowserStatus};
 
         const preview = await window.remotionPreview.create(plan);
         previewSessionId = preview.sessionId;
@@ -1201,27 +1447,7 @@ async function verifyRemotionExport(evaluate) {
         result.previewReleased = released.released === true && released.sessionId === previewSessionId;
         previewSessionId = '';
 
-        if (!expectBlockedExport && result.initialBrowserStatus.state !== 'ready') {
-          unsubscribeBrowserProgress = window.remotionRuntime.onDownloadProgress((progress) => {
-            rememberProgress(result.browserProgress, progress);
-          });
-          const downloadButton = Array.from(document.querySelectorAll('button')).find((node) => {
-            const text = normalize(node);
-            return !node.disabled && (text.includes('下载 Headless Shell') || text.includes('手动更新'));
-          });
-          result.settings.clickedBrowserDownload = activate(downloadButton);
-          if (!result.settings.clickedBrowserDownload) {
-            throw new Error('Remotion browser download button was not available');
-          }
-          await waitFor(() => {
-            const alert = document.querySelector('[role="alert"]');
-            if (alert && normalize(alert)) throw new Error(normalize(alert));
-            return document.body.innerText.includes('当前状态')
-              && document.body.innerText.includes('已就绪');
-          }, ${REMOTION_EXPORT_TIMEOUT_MS}, 'Remotion browser download');
-        }
-
-        result.browserStatus = await window.remotionRuntime.status();
+        result.browserStatus = result.initialBrowserStatus;
         if (!expectBlockedExport && result.browserStatus.state !== 'ready') {
           throw new Error('Remotion browser is not ready: ' + result.browserStatus.state);
         }
@@ -1323,7 +1549,6 @@ async function verifyRemotionExport(evaluate) {
             result.renderCleanupError = error instanceof Error ? error.message : String(error);
           }
         }
-        unsubscribeBrowserProgress?.();
         unsubscribeRenderProgress?.();
         if (previewSessionId) {
           try {
@@ -1340,11 +1565,39 @@ async function verifyRemotionExport(evaluate) {
     })()`,
     "Remotion packaged export smoke",
     REMOTION_EXPORT_TIMEOUT_MS,
-  );
+    );
+    return {
+      ...renderResult,
+      settings: {
+        ...(prepared?.settings || {}),
+        ...(renderResult?.settings || {}),
+      },
+      initialBrowserStatus: prepared?.initialBrowserStatus || renderResult?.initialBrowserStatus,
+      browserStatus: browserStatus || renderResult?.browserStatus,
+      browserProgress: [
+        ...(Array.isArray(browserProgress) ? browserProgress : []),
+        ...(Array.isArray(renderResult?.browserProgress) ? renderResult.browserProgress : []),
+      ],
+    };
+  } catch (error) {
+    return {
+      enabled: true,
+      mode: remotionExportSmokeMode,
+      success: false,
+      settings: prepared?.settings || {},
+      initialBrowserStatus: prepared?.initialBrowserStatus,
+      browserStatus,
+      browserProgress,
+      error: error instanceof Error ? error.message : String(error),
+    };
   } finally {
     await evaluate(
       `delete globalThis.${promiseKey}`,
       "Remotion packaged export smoke promise cleanup",
+    ).catch(() => undefined);
+    await evaluate(
+      `globalThis.${REMOTION_DOWNLOAD_PROGRESS_KEY}?.unsubscribe?.(); delete globalThis.${REMOTION_DOWNLOAD_PROGRESS_KEY}`,
+      "Remotion browser download progress cleanup",
     ).catch(() => undefined);
   }
 }
@@ -2619,6 +2872,7 @@ if (smokeMode === "background") {
 }
 let smokeReport = {
   mode: smokeMode,
+  launchMode: smokeLaunchMode,
   focusSamples,
   foregroundViolation: false,
 };
@@ -2631,28 +2885,62 @@ const childEnv = {
   MYSTUDIO_SMOKE_BACKGROUND: foregroundSmoke ? "0" : "1",
 };
 
-const child = spawn(
+const smokeAppArgs = [
+  `--remote-debugging-port=${debugPort}`,
+  `--user-data-dir=${userDataDir}`,
+];
+let activeLaunch = spawnSmokeApp({
   appBin,
-  [`--remote-debugging-port=${debugPort}`, `--user-data-dir=${userDataDir}`],
-  {
-    cwd: process.cwd(),
-    detached: keepSmokeAppOpen,
-    env: childEnv,
-    stdio: ["ignore", "pipe", "pipe"],
-  },
-);
+  args: smokeAppArgs,
+  cwd: process.cwd(),
+  env: childEnv,
+  detached: keepSmokeAppOpen,
+  launchMode: smokeLaunchMode === "launch-services" ? "launch-services" : "direct",
+});
+let child = activeLaunch.child;
+watchSmokeChild(child, { trackExit: activeLaunch.tracksChildExit });
 
 const forwardStdout = (data) => process.stdout.write(data);
 const forwardStderr = (data) => process.stderr.write(data);
-child.stdout.on("data", forwardStdout);
-child.stderr.on("data", forwardStderr);
+function attachChildOutput(childProcess) {
+  childProcess.stdout?.on("data", forwardStdout);
+  childProcess.stderr?.on("data", forwardStderr);
+}
+attachChildOutput(child);
 
 try {
-  const page = await waitForPageTarget();
+  let page;
+  try {
+    page = await waitForPageTarget();
+  } catch (error) {
+    if (!shouldFallbackToLaunchServices({
+      platform: process.platform,
+      childExit: smokeChildExit,
+      launchMode: smokeLaunchMode,
+    })) {
+      throw error;
+    }
+    console.warn(
+      "[smoke] direct Electron launch aborted before page startup; retrying through macOS LaunchServices",
+    );
+    await terminateSpawnedApp(child, { detached: keepSmokeAppOpen, logPrefix: "[smoke]" });
+    activeLaunch = spawnSmokeApp({
+      appBin,
+      args: smokeAppArgs,
+      cwd: process.cwd(),
+      env: childEnv,
+      detached: keepSmokeAppOpen,
+      launchMode: "launch-services",
+    });
+    child = activeLaunch.child;
+    watchSmokeChild(child, { trackExit: activeLaunch.tracksChildExit });
+    attachChildOutput(child);
+    page = await waitForPageTarget();
+  }
   if (smokeMode === "background") {
     focusSamples.push(sampleFrontmostApplication("after CDP target appeared"));
   }
-  bringSmokeAppToForeground(child);
+  bringSmokeAppToForeground(child, activeLaunch.launchMode);
   const {
     state,
     errors,
@@ -2677,6 +2965,7 @@ try {
   smokeReport = {
     ok: true,
     mode: smokeMode,
+    launchMode: activeLaunch.launchMode,
     windowVisibility: state.visibilityState,
     documentHasFocus: state.documentHasFocus,
     focusSamples,
@@ -2743,8 +3032,8 @@ try {
     if (smokeReport) writeSmokeReport(smokeReport);
     if (smokePassed) await holdForegroundSmokeWindow();
   } finally {
-    child.stdout.off("data", forwardStdout);
-    child.stderr.off("data", forwardStderr);
+    child.stdout?.off("data", forwardStdout);
+    child.stderr?.off("data", forwardStderr);
     if (keepSmokeAppOpen && smokePassed) {
       child.unref();
       console.log(`[smoke] leaving app open: pid=${child.pid}, userDataDir=${userDataDir}`);
@@ -2753,6 +3042,9 @@ try {
         detached: keepSmokeAppOpen,
         logPrefix: "[smoke]",
       });
+      if (activeLaunch.launchMode === "launch-services") {
+        stopExistingMYStudioInstances();
+      }
     }
     rmSync(SMOKE_VIDEO_PATH, { force: true });
   }

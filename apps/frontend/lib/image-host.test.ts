@@ -2,8 +2,23 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { uploadToImageHost } from "./image-host";
+import {
+  isImageHostConfigured as facadeIsImageHostConfigured,
+  uploadToImageHost as facadeUploadToImageHost,
+  uploadToImageHost,
+} from "./image-host";
+import {
+  isImageHostConfigured as canonicalIsImageHostConfigured,
+  uploadToImageHost as canonicalUploadToImageHost,
+} from "./media/image-host";
 import { useAPIConfigStore, type ImageHostProvider } from "@/stores/ai/api-config-store";
+
+describe("image-host root facade", () => {
+  it("re-exports the same helpers as the media domain module", () => {
+    expect(facadeIsImageHostConfigured).toBe(canonicalIsImageHostConfigured);
+    expect(facadeUploadToImageHost).toBe(canonicalUploadToImageHost);
+  });
+});
 
 const provider = (overrides: Partial<ImageHostProvider> = {}): ImageHostProvider => ({
   id: "test-host",

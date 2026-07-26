@@ -28,7 +28,7 @@ vi.mock("@/lib/ai/video-generator", () => ({
   extractLastFrameFromVideo: vi.fn(),
   isContentModerationError: vi.fn(() => false),
 }));
-vi.mock("@/lib/image-storage", () => ({ saveVideoToLocal: mocks.saveVideoToLocal }));
+vi.mock("@/lib/media/image-storage", () => ({ saveVideoToLocal: mocks.saveVideoToLocal }));
 vi.mock("@/lib/utils/image-persist", () => ({ persistSceneImage: vi.fn() }));
 vi.mock("@/lib/constants/visual-styles", () => ({
   getStylePrompt: mocks.getStylePrompt,

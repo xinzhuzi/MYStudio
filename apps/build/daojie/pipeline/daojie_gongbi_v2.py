@@ -102,7 +102,10 @@ STORYBOARD_NEGATIVE_CONSTRAINTS = (
 )
 STORYBOARD_FRAME_NEGATIVE_CONSTRAINTS = (
     f"{STORYBOARD_NEGATIVE_CONSTRAINTS}禁止高对比漫画动作稿、现代/科幻元素、"
-    "白底设定图、三视图、资料卡，以及把剧情分镜画成资产设定页。"
+    "白底设定图、三视图、资料卡，以及把剧情分镜画成资产设定页；"
+    "禁止 reference-card/character-card/prop-card 参考卡、角色卡、道具卡等卡片式叠层，"
+    "禁止 picture-in-picture/PIP 画中画、分屏、拼贴、"
+    "网格、多面板或带边框缩略图；参考图不得作为可见图层出现在成片中，输出必须是单一全幅连续剧情画面。"
 )
 STORYBOARD_SCENE_LIGHTING = {
     "dock-main-axis": (

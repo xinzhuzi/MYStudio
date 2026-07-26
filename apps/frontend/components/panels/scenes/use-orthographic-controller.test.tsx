@@ -17,7 +17,7 @@ vi.mock("@/lib/ai/ai-manager", () => ({
   aiManager: { featureConfig: mocks.featureConfig, featureNotConfiguredMessage: () => "未配置", image: mocks.image },
 }));
 vi.mock("@/lib/storyboard/image-splitter", () => ({ splitStoryboardImage: mocks.splitStoryboardImage }));
-vi.mock("@/lib/image-storage", () => ({ readImageAsBase64: vi.fn(), saveImageToLocal: mocks.saveImageToLocal }));
+vi.mock("@/lib/media/image-storage", () => ({ readImageAsBase64: vi.fn(), saveImageToLocal: mocks.saveImageToLocal }));
 vi.mock("@/stores/app/app-settings-store", () => ({
   useAppSettingsStore: { getState: () => ({ imageGenerationSettings: { defaultResolution: "2K" } }) },
 }));

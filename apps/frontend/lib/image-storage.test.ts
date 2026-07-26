@@ -2,7 +2,40 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { readImageAsBase64 } from "./image-storage";
+import {
+  deleteLocalImage as facadeDeleteLocalImage,
+  getAbsoluteImagePath as facadeGetAbsoluteImagePath,
+  isElectron as facadeIsElectron,
+  moveLocalImageToCategory as facadeMoveLocalImageToCategory,
+  readImageAsBase64 as facadeReadImageAsBase64,
+  readImageAsBase64,
+  resolveImagePath as facadeResolveImagePath,
+  saveImageToLocal as facadeSaveImageToLocal,
+  saveVideoToLocal as facadeSaveVideoToLocal,
+} from "./image-storage";
+import {
+  deleteLocalImage as canonicalDeleteLocalImage,
+  getAbsoluteImagePath as canonicalGetAbsoluteImagePath,
+  isElectron as canonicalIsElectron,
+  moveLocalImageToCategory as canonicalMoveLocalImageToCategory,
+  readImageAsBase64 as canonicalReadImageAsBase64,
+  resolveImagePath as canonicalResolveImagePath,
+  saveImageToLocal as canonicalSaveImageToLocal,
+  saveVideoToLocal as canonicalSaveVideoToLocal,
+} from "./media/image-storage";
+
+describe("image-storage root facade", () => {
+  it("re-exports the same helpers as the media domain module", () => {
+    expect(facadeDeleteLocalImage).toBe(canonicalDeleteLocalImage);
+    expect(facadeGetAbsoluteImagePath).toBe(canonicalGetAbsoluteImagePath);
+    expect(facadeIsElectron).toBe(canonicalIsElectron);
+    expect(facadeMoveLocalImageToCategory).toBe(canonicalMoveLocalImageToCategory);
+    expect(facadeReadImageAsBase64).toBe(canonicalReadImageAsBase64);
+    expect(facadeResolveImagePath).toBe(canonicalResolveImagePath);
+    expect(facadeSaveImageToLocal).toBe(canonicalSaveImageToLocal);
+    expect(facadeSaveVideoToLocal).toBe(canonicalSaveVideoToLocal);
+  });
+});
 
 describe("readImageAsBase64", () => {
   beforeEach(() => {

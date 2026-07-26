@@ -40,7 +40,7 @@ vi.mock("@/lib/ai/ai-manager", () => ({
   },
 }));
 
-vi.mock("@/lib/image-storage", () => ({
+vi.mock("@/lib/media/image-storage", () => ({
   saveImageToLocal: vi.fn(),
 }));
 

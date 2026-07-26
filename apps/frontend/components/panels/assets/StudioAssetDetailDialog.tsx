@@ -1,16 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Carousel,
-  CarouselContent,
-  CarouselItem,
-  CarouselNext,
-  CarouselPrevious,
-  type CarouselApi,
-} from "@/components/ui/carousel";
+import type { CarouselApi } from "@/components/ui/carousel";
 import {
   Dialog,
   DialogContent,
@@ -27,18 +20,13 @@ import { RoleVoiceAssignDialog } from "./RoleVoiceAssignDialog";
 import { RoleVoicePreviewButton } from "./RoleVoicePreviewButton";
 import {
   Box,
-  Clipboard,
   Copy,
-  ExternalLink,
-  FolderOpen,
   ImageIcon,
   Loader2,
   Map,
   Music2,
   Pencil,
-  Plus,
   Sparkles,
-  Trash2,
   UserCircle,
   Volume2,
 } from "lucide-react";
@@ -54,6 +42,9 @@ import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";
 import { getTtsRuntimeBridge } from "@/lib/bridge/tts-runtime";
 import { buildAssetRegenerationPrompt, getAssetDisplayName, getAssetImageOpenTarget, getAssetOperationError, getAssetSpokenText, updateImagesAfterReplacingMainImage } from "./studio-asset-detail-utils";
 import { persistGeneratedAssetPromptToLibrary, saveGeneratedAssetImageToLibrary } from "./studio-asset-generation-persistence";
+import { StudioAssetDetailPreviewPane } from "./studio-asset-detail-preview-pane";
+import { subscribeAssetCarouselIndex } from "./studio-asset-detail-carousel";
+import { StudioAssetRoleAttributes } from "./studio-asset-role-attributes";
 
 export { buildAssetRegenerationPrompt, getAssetDisplayName, getAssetImageOpenTarget, getAssetOperationError, getAssetSpokenText, updateImagesAfterReplacingMainImage } from "./studio-asset-detail-utils";
 export { persistGeneratedAssetPromptToLibrary, saveGeneratedAssetImageToLibrary } from "./studio-asset-generation-persistence";
@@ -73,8 +64,6 @@ const TYPE_LABEL = {
   clip: "视频素材",
   audio: "音频",
 } as const;
-
-const waveformBars = [42, 68, 50, 84, 46, 72, 58, 92, 54, 76, 48, 66, 40, 60, 36, 70];
 
 export function StudioAssetDetailDialog({
   asset,
@@ -111,10 +100,7 @@ export function StudioAssetDetailDialog({
   const [recognizedText, setRecognizedText] = useState<string | null>(null);
   const regenerationPrompt = useMemo(() => buildAssetRegenerationPrompt(fullAsset || asset), [fullAsset, asset]);
   const syncCarouselIndex = useCallback((api: CarouselApi) => {
-    if (!api) return;
-    const updateIndex = () => setCurrentIndex(api.selectedScrollSnap());
-    updateIndex();
-    api.on("select", updateIndex);
+    subscribeAssetCarouselIndex(api, setCurrentIndex);
   }, []);
 
   useEffect(() => {
@@ -583,6 +569,42 @@ export function StudioAssetDetailDialog({
     }
   };
 
+  const handleTranscribe = async () => {
+    const filePath = asset.sourcePath || asset.filePath;
+    if (!filePath) {
+      toast.error("无音频文件路径");
+      return;
+    }
+    const ttsRuntime = getTtsRuntimeBridge();
+    if (!ttsRuntime?.request) {
+      toast.error("TTS 后端未就绪");
+      return;
+    }
+    toast.info("正在识别说话内容...");
+    try {
+      const result = await ttsRuntime.request({
+        method: "POST",
+        path: "/transcribe",
+        body: { audio_path: filePath },
+      }) as { text?: string };
+      if (result?.text) {
+        setDraftDescription(result.text);
+        setRecognizedText(result.text);
+        if (getStudioAssetsBridge()?.update) {
+          await getStudioAssetsBridge()!.update({
+            id: asset.id,
+            updates: { description: result.text },
+          });
+        }
+        toast.success("识别完成并已保存");
+      } else {
+        toast.error("未识别到内容");
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "识别失败");
+    }
+  };
+
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -599,159 +621,23 @@ export function StudioAssetDetailDialog({
         </DialogHeader>
 
         <div className="grid min-h-0 flex-1 grid-cols-[minmax(280px,420px)_1fr] gap-0 overflow-hidden">
-          {/* 左侧：图片/音频预览 */}
-          <div className="studio-asset-detail-preview border-r border-border bg-muted/90 p-4">
-            <div className="relative">
-              {asset.type === "audio" ? (
-                <div className="space-y-3 rounded-lg border border-border bg-background/90 p-4">
-                  <div className="flex items-start gap-3">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-primary/20 bg-primary/10">
-                      <Music2 className="h-5 w-5 text-primary" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="text-[11px] text-muted-foreground">说话内容</div>
-                      <div className="mt-0.5 text-sm leading-6 text-foreground">{spokenText || "暂无口播词句"}</div>
-                    </div>
-                  </div>
-                  <div className="studio-audio-waveform studio-audio-waveform-large" aria-hidden="true">
-                    {waveformBars.map((height, index) => (
-                      <span key={index} style={{ "--bar-height": `${height}%` } as CSSProperties} />
-                    ))}
-                  </div>
-                  <div className="rounded-md border border-border bg-muted/90 p-3">
-                    {audioSrc ? (
-                      <audio controls src={audioSrc} className="w-full" />
-                    ) : (
-                      <div className="text-xs text-muted-foreground">暂无可播放的音频地址</div>
-                    )}
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 text-[11px] text-muted-foreground">
-                    <div className="col-span-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="w-full"
-                        onClick={async () => {
-                          const filePath = asset.sourcePath || asset.filePath;
-                          if (!filePath) { toast.error("无音频文件路径"); return; }
-                          const ttsRuntime = getTtsRuntimeBridge();
-                          if (!ttsRuntime?.request) { toast.error("TTS 后端未就绪"); return; }
-                          toast.info("正在识别说话内容...");
-                          try {
-                            const res = await ttsRuntime.request({ method: "POST", path: "/transcribe", body: { audio_path: filePath } }) as { text?: string };
-                            if (res?.text) {
-                              setDraftDescription(res.text);
-                              setRecognizedText(res.text);
-                              // 自动保存到资产库
-                              if (getStudioAssetsBridge()?.update) {
-                                await getStudioAssetsBridge()!.update({ id: asset.id, updates: { description: res.text } });
-                              }
-                              toast.success("识别完成并已保存");
-                            } else {
-                              toast.error("未识别到内容");
-                            }
-                          } catch (err) {
-                            toast.error(err instanceof Error ? err.message : "识别失败");
-                          }
-                        }}
-                      >
-                        ✨ 智能生成说话内容
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              ) : hasImagePreview ? (
-                <div className="relative">
-                  <Carousel key={images.length} className="w-full" opts={{ startIndex: currentIndex }} setApi={syncCarouselIndex}>
-                    <CarouselContent>
-                      {images.map((img, idx) => (
-                        <CarouselItem key={img.filePath || idx}>
-                          <div className="aspect-square overflow-hidden rounded-lg border border-border bg-background">
-                            <img
-                              src={img.url}
-                              alt={img.name}
-                              className="h-full w-full object-contain"
-                              draggable={false}
-                            />
-                          </div>
-                          {/* 图片名称 + 操作 */}
-                          <div className="mt-2 flex items-center justify-between px-1">
-                            <span className="truncate text-xs text-muted-foreground">{img.name}</span>
-                            {idx > 0 || img.name !== "主图" ? (
-                              <div className="flex gap-1">
-                                <button
-                                  className="rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                                  onClick={() => handleRemoveImage(img, idx)}
-                                  title="删除"
-                                >
-                                  <Trash2 className="h-3 w-3" />
-                                </button>
-                              </div>
-                            ) : null}
-                          </div>
-                        </CarouselItem>
-                      ))}
-                    </CarouselContent>
-                    {images.length > 1 && (
-                      <>
-                        <CarouselPrevious className="left-2" />
-                        <CarouselNext className="right-2" />
-                      </>
-                    )}
-                  </Carousel>
-                  {/* 图片计数指示器 */}
-                  {images.length > 1 && (
-                    <div className="mt-1 flex justify-center gap-1">
-                      {images.map((_, idx) => (
-                        <div
-                          key={idx}
-                          className={`h-1.5 w-1.5 rounded-full ${idx === currentIndex ? "bg-primary" : "bg-muted-foreground/30"}`}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="flex aspect-square w-full flex-col items-center justify-center gap-2 rounded-lg border border-border bg-background text-muted-foreground">
-                  <Icon className="h-12 w-12 opacity-40" />
-                  <span className="text-xs">暂无预览图</span>
-                </div>
-              )}
-            </div>
-
-            {/* 添加图片按钮 */}
-            {asset.type === "audio" ? null : (
-              <>
-                <Button variant="outline" size="sm" className="mt-3 w-full" onClick={handleAddImage}>
-                  <Plus className="mr-2 h-3.5 w-3.5" />
-                  添加图片
-                </Button>
-                <Button variant="outline" size="sm" className="mt-2 w-full" onClick={handleReplaceImage}>
-                  <ImageIcon className="mr-2 h-3.5 w-3.5" />
-                  更换主图
-                </Button>
-
-                <div className="mt-3 grid grid-cols-2 gap-2">
-                  <Button variant="default" size="sm" onClick={handleRegenerate}>
-                    <Sparkles className="mr-2 h-3.5 w-3.5" />
-                    重新出图
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={() => copyText("出图提示词", draftPrompt || draftDescription || regenerationPrompt)}>
-                    <Clipboard className="mr-2 h-3.5 w-3.5" />
-                    复制出图提示词
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={handleOpenSource}>
-                    <ExternalLink className="mr-2 h-3.5 w-3.5" />
-                    查看图片
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={handleOpenFolder}>
-                    <FolderOpen className="mr-2 h-3.5 w-3.5" />
-                    打开本地文件夹
-                  </Button>
-                </div>
-              </>
-            )}
-          </div>
+          <StudioAssetDetailPreviewPane
+            asset={asset}
+            images={images}
+            currentIndex={currentIndex}
+            spokenText={spokenText}
+            audioSrc={audioSrc}
+            Icon={Icon}
+            onCarouselApi={syncCarouselIndex}
+            onTranscribe={handleTranscribe}
+            onRemoveImage={handleRemoveImage}
+            onAddImage={handleAddImage}
+            onReplaceImage={handleReplaceImage}
+            onRegenerate={handleRegenerate}
+            onCopyPrompt={() => copyText("出图提示词", draftPrompt || draftDescription || regenerationPrompt)}
+            onOpenSource={handleOpenSource}
+            onOpenFolder={handleOpenFolder}
+          />
 
           {/* 右侧：表单 */}
           <ScrollArea className="max-h-[calc(92vh-72px)] min-w-0 overflow-x-hidden [&>[data-radix-scroll-area-viewport]>div]:!block [&_[data-orientation=vertical]]:bg-transparent">
@@ -803,34 +689,9 @@ export function StudioAssetDetailDialog({
                 />
               </section>
               {/* 人物属性 — 从 setting 中解析 */}
-              {asset?.type === "role" && (() => {
-                const source = draftSetting || asset?.setting || "";
-                const fields: { label: string; value: string }[] = [];
-                // 匹配 - **标签**：值 格式
-                const regex = /[-*]\s*\*\*(.+?)\*\*[：:]\s*(.+)/g;
-                let m;
-                while ((m = regex.exec(source)) !== null) {
-                  const label = m[1].trim();
-                  const value = m[2].trim();
-                  // 只提取关键属性，跳过"姓名"等冗余字段
-                  if (["性别", "年龄", "身份", "出身背景", "出生地", "尊号", "境界", "势力", "组织归属"].includes(label)) {
-                    fields.push({ label, value });
-                  }
-                }
-                if (fields.length === 0) return null;
-                return (
-                  <section className="space-y-2 rounded-lg border border-border bg-muted/90 p-3 overflow-hidden">
-                    <div className="text-xs font-semibold text-foreground">人物属性</div>
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
-                      {fields.map((f, i) => (
-                        <div key={i} className={`truncate ${["出身背景", "出生地", "身份", "组织归属", "势力"].includes(f.label) ? "col-span-2" : ""}`} title={`${f.label}：${f.value}`}>
-                          <span className="text-muted-foreground">{f.label}：</span>{f.value}
-                        </div>
-                      ))}
-                    </div>
-                  </section>
-                );
-              })()}
+              {asset.type === "role" && (
+                <StudioAssetRoleAttributes setting={draftSetting || asset.setting || ""} />
+              )}
               {/* 音色信息 — 仅角色类型显示 */}
               {asset.type === "role" && (() => {
                 if (!roleVoiceBinding || !roleVoiceProfile) {

@@ -1,5 +1,44 @@
 import { describe, expect, it } from "vitest";
-import { convertToScriptData, parseEpisodes, parseFullScript, parseScenes } from "./episode-parser";
+import { convertToScriptData, parseCharacterBios, parseEpisodes, parseFullScript, parseScenes } from "./episode-parser";
+
+describe("parseCharacterBios characterization", () => {
+  it("returns no characters for empty biographies", () => {
+    expect(parseCharacterBios("  ")).toEqual([]);
+  });
+
+  it("parses compact biographies, strips section prefixes, and keeps sequential ids", () => {
+    const result = parseCharacterBios(
+      "核心主角萧惊鸿：年龄：26 身份：剑客，性格沉稳坚韧。正面角色赵将军：年龄：45 身份：将军，为人憨厚老实。",
+    );
+
+    expect(result).toHaveLength(2);
+    expect(result[0]).toMatchObject({
+      id: "char_1",
+      name: "萧惊鸿",
+      age: "26",
+      personality: "性格沉稳坚韧",
+      traits: "坚韧",
+    });
+    expect(result[1]).toMatchObject({
+      id: "char_2",
+      name: "赵将军",
+      age: "45",
+      personality: "为人憨厚老实",
+      traits: "憨厚、老实",
+    });
+  });
+
+  it("keeps standard biography parsing and skips attribute labels", () => {
+    const result = parseCharacterBios("张明（18岁）：性格聪明，脚踏实地\n年龄：18\n李华：为人勤奋感恩");
+
+    expect(result.map(({ id, name, age }) => ({ id, name, age }))).toEqual([
+      { id: "char_1", name: "张明", age: "18" },
+      { id: "char_2", name: "李华", age: "" },
+    ]);
+    expect(result[0].traits).toBe("聪明、脚踏实地");
+    expect(result[1].personality).toBe("为人勤奋感恩");
+  });
+});
 
 describe("parseFullScript metadata compatibility", () => {
   it("keeps defaults for unnamed scripts and parses outline to EOF", () => {
@@ -117,6 +156,27 @@ describe("parseEpisodes characterization", () => {
 });
 
 describe("convertToScriptData characterization", () => {
+  it("supplements biography characters from scene casts and cleaned dialogue speakers", () => {
+    const scenes = Array.from({ length: 6 }, (_, index) => ({
+      sceneHeader: `1-${index + 1} 日 内 测试地`,
+      characters: ["**李华**、张明", "旁白"],
+      content: "",
+      dialogues: [{ character: "王艳（周妻）", line: "继续。" }],
+      actions: [],
+      subtitles: [],
+    }));
+    const result = convertToScriptData(
+      { title: "测试", outline: "", characterBios: "张明：主角", era: "", timelineSetting: "", storyStartYear: undefined, storyEndYear: undefined, genre: "", worldSetting: "", themes: [] },
+      [{ episodeIndex: 1, title: "第一集", rawContent: "", scenes, shotGenerationStatus: "idle" }],
+    );
+
+    expect(result.characters.map(({ id, name, role }) => ({ id, name, role }))).toEqual([
+      { id: "char_1", name: "张明", role: "主角" },
+      { id: "char_2", name: "李华", role: "重要配角（出场6次）" },
+      { id: "char_3", name: "王艳", role: "重要配角（出场6次）" },
+    ]);
+  });
+
   it("maps scene header time/location and atmosphere defaults", () => {
     const result = convertToScriptData(
       { title: "测试", outline: "", characterBios: "", era: "", timelineSetting: "", storyStartYear: undefined, storyEndYear: undefined, genre: "", worldSetting: "", themes: [] },

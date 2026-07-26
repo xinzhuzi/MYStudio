@@ -2,7 +2,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { aiManager } from "@/lib/ai/ai-manager";
-import { saveImageToLocal } from "@/lib/image-storage";
+import { saveImageToLocal } from "@/lib/media/image-storage";
 import { useSceneGenerationController } from "./use-scene-generation-controller";
 
 vi.mock("@/lib/ai/ai-manager", () => ({
@@ -12,7 +12,7 @@ vi.mock("@/lib/ai/ai-manager", () => ({
     image: vi.fn(),
   },
 }));
-vi.mock("@/lib/image-storage", () => ({ saveImageToLocal: vi.fn() }));
+vi.mock("@/lib/media/image-storage", () => ({ saveImageToLocal: vi.fn() }));
 vi.mock("sonner", () => ({
   toast: { error: vi.fn(), success: vi.fn(), loading: vi.fn() },
 }));

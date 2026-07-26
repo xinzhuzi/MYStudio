@@ -60,6 +60,16 @@ class DaojieGongbiV2Test(unittest.TestCase):
             "random stains",
         ):
             self.assertIn(marker, v2.STORYBOARD_FRAME_NEGATIVE_CONSTRAINTS)
+        for marker in (
+            "reference-card/character-card/prop-card",
+            "参考卡、角色卡、道具卡等卡片式叠层",
+            "picture-in-picture/PIP 画中画",
+            "分屏、拼贴",
+            "网格、多面板或带边框缩略图",
+            "参考图不得作为可见图层出现在成片中",
+            "单一全幅连续剧情画面",
+        ):
+            self.assertIn(marker, v2.STORYBOARD_FRAME_NEGATIVE_CONSTRAINTS)
 
         negative_only = (
             f"【风格锁】{v2.STORYBOARD_STYLE_LOCK}"

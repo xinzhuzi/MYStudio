@@ -15,7 +15,7 @@ const mocks = vi.hoisted(() => ({
   error: vi.fn(),
 }));
 
-vi.mock("@/lib/image-host", () => ({ uploadToImageHost: mocks.upload }));
+vi.mock("@/lib/media/image-host", () => ({ uploadToImageHost: mocks.upload }));
 vi.mock("sonner", () => ({ toast: { success: mocks.success, error: mocks.error } }));
 vi.mock("@/stores/ai/api-config-store", () => ({
   isVisibleImageHostProvider: () => true,

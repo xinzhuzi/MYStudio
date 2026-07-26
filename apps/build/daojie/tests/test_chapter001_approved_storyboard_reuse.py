@@ -700,6 +700,33 @@ class Chapter001ApprovedStoryboardReuseTest(unittest.TestCase):
         self.assertEqual(audit["missingLeadingVisualCharacters"], [])
         self.assertLess(final_prompt.index("【主体动作】"), final_prompt.index("【画面】"))
 
+    def test_storyboard_prompt_emits_final_no_card_picture_in_picture_collage_lock(self):
+        module = load_generator()
+
+        final_prompt = module.build_storyboard_image_prompt(
+            {
+                "id": "sb-chapter-001-001",
+                "index": 1,
+                "sceneNo": 1,
+                "prompt": "小杂役抱矿跪倒，河雾从左侧漫入。",
+            },
+            [],
+        )
+        negative_section = module.extract_prompt_section(final_prompt, "反向约束")
+
+        self.assertEqual(final_prompt.count("【反向约束】"), 1)
+        self.assertEqual(final_prompt.rsplit("【反向约束】", 1)[1].strip(), negative_section)
+        for marker in (
+            "reference-card/character-card/prop-card",
+            "参考卡、角色卡、道具卡等卡片式叠层",
+            "picture-in-picture/PIP 画中画",
+            "分屏、拼贴",
+            "网格、多面板或带边框缩略图",
+            "参考图不得作为可见图层出现在成片中",
+            "单一全幅连续剧情画面",
+        ):
+            self.assertIn(marker, negative_section)
+
     def test_cross_asset_alias_ownership_is_rejected_before_replacement(self):
         module = load_generator()
         references = [

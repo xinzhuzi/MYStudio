@@ -9,7 +9,7 @@ const mocks = vi.hoisted(() => ({
   scenes: [] as Scene[],
 }));
 
-vi.mock("@/lib/image-storage", () => ({ saveImageToLocal: mocks.saveImageToLocal }));
+vi.mock("@/lib/media/image-storage", () => ({ saveImageToLocal: mocks.saveImageToLocal }));
 vi.mock("sonner", () => ({ toast: mocks.toast }));
 vi.mock("@/stores/library/scene-store", () => ({
   useSceneStore: { getState: () => ({ scenes: mocks.scenes }) },

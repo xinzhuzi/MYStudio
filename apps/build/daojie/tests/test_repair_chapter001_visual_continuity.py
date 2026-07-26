@@ -164,6 +164,113 @@ class RepairChapter001VisualContinuityTest(unittest.TestCase):
         unchanged, _mapping = apply_available_versions_to_references([ambiguous], [hall, room], entities)
         self.assertEqual(unchanged[0], ambiguous)
 
+    def test_repair_synthesizes_missing_semantic_character_reference(self) -> None:
+        helper_id = "char-current-helper"
+        (self.project_dir / "characters.json").write_text(
+            json.dumps(
+                {
+                    "state": {
+                        "characters": [
+                            {"id": self.current_dugu_id, "name": "独孤剑尘"},
+                            {"id": helper_id, "name": "小杂役"},
+                        ]
+                    }
+                },
+                ensure_ascii=False,
+            ),
+            encoding="utf-8",
+        )
+        dugu_version = self.version(
+            self.current_dugu_id,
+            f"{self.current_dugu_id}:grey-town:v1",
+            "character",
+        )
+        helper_version = self.version(
+            helper_id,
+            f"{helper_id}:dock-ragged:v1",
+            "character",
+        )
+        helper_version["label"] = "dock-ragged"
+        helper_version["wardrobeVersion"] = "dock-ragged"
+        dock_version = self.version(
+            self.current_dock_id,
+            f"{self.current_dock_id}:dock-main-axis:v1",
+            "scene",
+            viewpoint_id="dock-main-axis",
+        )
+        storyboard = {
+            "id": "sb-chapter-001-001",
+            "episodeId": "chapter-001",
+            "index": 1,
+            "prompt": "独孤与小杂役在码头",
+            "speakerId": "character:char-legacy-dugu",
+            "assetIds": ["char-legacy-dugu", "char-legacy-helper", "scene-legacy-dock"],
+            "mediaRef": {"kind": "image", "path": "/frames/shot-001.png"},
+        }
+        semantics = (
+            '{"sceneViewpointId":"dock-main-axis","personFree":false,'
+            '"visibleCharacters":[{"name":"独孤剑尘","position":"左中景",'
+            '"orientation":"朝前","actionIn":"走入码头","actionOut":"停下"},'
+            '{"name":"小杂役","position":"右下前景",'
+            '"orientation":"蜷身朝左","actionIn":"跪倒","actionOut":"护住头脸"}],'
+            '"visibleProps":[],"actionIn":"两人进入码头","actionOut":"两人停下"}'
+        )
+        state = {
+            "continuityAssetVersions": [dugu_version, helper_version, dock_version],
+            "storyboards": [storyboard],
+            "agentWorkData": [{
+                "id": "work-storyboard-table-current",
+                "key": "storyboardTable",
+                "episodeId": "chapter-001",
+                "updatedAt": 1,
+                "data": "\n".join((
+                    "<storyboardTable>",
+                    "## 场 1：金水河码头",
+                    "**引用资产名称**：金水河码头，独孤剑尘，小杂役",
+                    "**引用资产ID**：scene-legacy-dock，char-legacy-dugu，char-legacy-helper",
+                    "| 1 | 独孤与小杂役在码头 | 3秒 | 全景 | 固定 | — | 环境声 | " + semantics + " |",
+                    "</storyboardTable>",
+                )),
+            }],
+            "imageWorkflows": [{
+                "target": {"kind": "storyboard", "id": storyboard["id"]},
+                "nodes": [
+                    {
+                        "type": "reference",
+                        "title": "金水河码头",
+                        "imageUrl": "/legacy/dock.png",
+                        "source": {"id": "scene-legacy-dock", "assetType": "scene"},
+                        "sceneViewpointId": "dock-main-axis",
+                    },
+                    {
+                        "type": "reference",
+                        "title": "独孤剑尘",
+                        "imageUrl": "/legacy/dugu.png",
+                        "source": {"id": "char-legacy-dugu", "assetType": "character"},
+                    },
+                ],
+            }],
+        }
+
+        report = repair_storyboards(state, "pending", None, self.project_dir)
+
+        self.assertEqual(report["repaired"], 1)
+        references = storyboard["orderedReferenceManifest"]
+        self.assertEqual([reference["assetName"] for reference in references[:3]], [
+            "金水河码头", "独孤剑尘", "小杂役",
+        ])
+        self.assertEqual(references[2]["assetId"], helper_id)
+        self.assertEqual(references[2]["versionId"], helper_version["versionId"])
+        self.assertEqual(references[2]["referenceRole"], "canonical")
+        self.assertEqual(storyboard["continuityState"]["characters"][1]["characterId"], helper_id)
+        self.assertTrue(storyboard["stale"])
+        self.assertEqual(storyboard["visualReview"]["status"], "pending")
+        self.assertEqual(storyboard["visualReview"]["evidencePaths"], [])
+        self.assertEqual(storyboard["speakerId"], "character:char-legacy-dugu")
+        first_snapshot = json.dumps(state, ensure_ascii=False, sort_keys=True)
+        repair_storyboards(state, "pending", None, self.project_dir)
+        self.assertEqual(json.dumps(state, ensure_ascii=False, sort_keys=True), first_snapshot)
+
     def test_projects_approved_asset_fingerprint_into_repaired_reference(self) -> None:
         version = self.version(
             self.current_dugu_id,

@@ -126,6 +126,14 @@ import {
   WardrobeModal as LegacyWardrobeModal,
   type WardrobeModalProps as LegacyWardrobeModalProps,
 } from "./WardrobeModal";
+import {
+  StoryboardConfigToolbar as CanonicalStoryboardConfigToolbar,
+} from "./panels/storyboard-config-toolbar";
+import {
+  StoryboardConfigToolbar as DirectorStoryboardConfigToolbar,
+  type StoryboardConfigToolbarProps as DirectorStoryboardConfigToolbarProps,
+} from "./panels/director/storyboard-config-toolbar";
+import type { StoryboardConfigToolbarProps as CanonicalStoryboardConfigToolbarProps } from "./panels/storyboard-config-toolbar-types";
 
 const componentsRoot = dirname(fileURLToPath(import.meta.url));
 const uiRoot = join(componentsRoot, "ui");
@@ -273,6 +281,46 @@ describe("component ownership", () => {
       'from "@/lib/tts/voice-reference-assets"',
     );
     expect(roleVoiceAssignSource).not.toContain("../studio/voice-reference-assets");
+  });
+
+  it("keeps director storyboard-config-toolbar as a thin panels facade", () => {
+    expect(DirectorStoryboardConfigToolbar).toBe(CanonicalStoryboardConfigToolbar);
+    expectTypeOf<DirectorStoryboardConfigToolbarProps>().toEqualTypeOf<CanonicalStoryboardConfigToolbarProps>();
+
+    expect(
+      readFileSync(
+        join(componentsRoot, "panels/director/storyboard-config-toolbar.tsx"),
+        "utf8",
+      ).trim().split(/\r?\n/),
+    ).toEqual([
+      'export type { StoryboardConfigToolbarProps } from "../storyboard-config-toolbar-types";',
+      'export { StoryboardConfigToolbar } from "../storyboard-config-toolbar";',
+    ]);
+  });
+
+  it("keeps director use-video-generation as an exact lib/ai video-generator facade", () => {
+    // Source-only lock: avoid loading the full video-generator graph in this suite.
+    // Runtime identity is covered by lib/ai/ai-manager.test.ts path contract.
+    const source = readFileSync(
+      join(componentsRoot, "panels/director/use-video-generation.ts"),
+      "utf8",
+    );
+    const codeLines = source
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0 && !line.startsWith("//"));
+    expect(codeLines).toEqual(['export * from "@/lib/ai/video-generator";']);
+  });
+
+  it("keeps sclass-scenes-utils as an exact storyboard-scenes-utils alias facade", () => {
+    expect(
+      readFileSync(
+        join(componentsRoot, "panels/sclass/sclass-scenes-utils.ts"),
+        "utf8",
+      ).trim(),
+    ).toBe(
+      'export { filterTrailerScenes as filterSClassTrailerScenes } from "../storyboard-scenes-utils";',
+    );
   });
 
   it("keeps the root wardrobe entry as an exact character-panel facade", () => {

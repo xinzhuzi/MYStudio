@@ -225,6 +225,92 @@ def apply_available_versions_to_references(
     return updated_references, old_to_new
 
 
+def rebuild_semantic_references(
+    references: list[dict[str, Any]],
+    semantics: dict[str, Any],
+    scene_name: str,
+    scene_viewpoint_id: str,
+    versions: list[dict[str, Any]],
+    entities: dict[str, tuple[str, str]],
+    source_asset_names: set[str] | None = None,
+) -> list[dict[str, Any]]:
+    """Project the current shot semantics onto a deterministic reference list.
+
+    Legacy image workflows can predate the per-shot semantic contract.  In that
+    case, updating existing nodes is insufficient: every declared visible
+    character/prop must resolve to one exact continuity version before the
+    structural repair can proceed.  Ambiguous or missing versions fail closed.
+    """
+    required: list[tuple[str, str, str | None]] = [(scene_name, "scene", scene_viewpoint_id)]
+    required.extend(
+        (str(item["name"]), "character", None)
+        for item in semantics.get("visibleCharacters") or []
+    )
+    required.extend(
+        (str(item["name"]), "prop", None)
+        for item in semantics.get("visibleProps") or []
+    )
+    names = [name for name, _kind, _viewpoint in required]
+    if len(names) != len(set(names)):
+        raise RuntimeError("当前分镜语义包含重复的连续性资产名称，拒绝猜测引用顺序")
+
+    rebuilt: list[dict[str, Any]] = []
+    used_asset_ids: set[str] = set()
+    for name, asset_kind, viewpoint_id in required:
+        entity = entities.get(name)
+        if entity is None:
+            raise RuntimeError(f"当前分镜语义中的资产未找到项目实体: {name}")
+        asset_id, entity_kind = entity
+        if entity_kind != asset_kind:
+            raise RuntimeError(f"当前分镜语义中的资产类型不匹配: {name}")
+        candidates = [
+            version
+            for version in versions
+            if str(version.get("assetId") or "") == asset_id
+            and str(version.get("assetKind") or "") == asset_kind
+            and (asset_kind != "scene" or str(version.get("sceneViewpointId") or "") == viewpoint_id)
+        ]
+        if len(candidates) != 1:
+            raise RuntimeError(
+                f"当前分镜语义中的资产连续性版本不唯一: {name} ({len(candidates)} 个)"
+            )
+        version = candidates[0]
+        if asset_id in used_asset_ids:
+            raise RuntimeError(f"当前分镜语义重复引用资产: {name}")
+        used_asset_ids.add(asset_id)
+        existing = next(
+            (
+                reference
+                for reference in references
+                if str(reference.get("assetName") or "") == name
+                or str(reference.get("assetId") or "") == asset_id
+            ),
+            {},
+        )
+        base = {
+            **existing,
+            "assetName": name,
+            "assetKind": asset_kind,
+            "referenceRole": "scene-viewpoint" if asset_kind == "scene" else reference_role(asset_kind),
+            **({"sceneViewpointId": viewpoint_id} if viewpoint_id else {}),
+        }
+        rebuilt.append(apply_version_to_reference(base, version))
+
+    # Keep legacy secondary/diagnostic references after the authoritative
+    # semantic list; they are not allowed to displace declared visible assets.
+    for reference in references:
+        asset_id = str(reference.get("assetId") or "")
+        asset_name = str(reference.get("assetName") or "")
+        if asset_id in used_asset_ids or asset_name in names:
+            continue
+        if source_asset_names is not None and asset_name not in source_asset_names:
+            continue
+        rebuilt.append(reference)
+    for order, reference in enumerate(rebuilt, 1):
+        reference["order"] = order
+    return rebuilt
+
+
 def apply_version_to_reference(
     reference: dict[str, Any],
     version: dict[str, Any],
@@ -764,6 +850,26 @@ def repair_storyboards(
         }
         if not visible_asset_names.issubset(source_assets):
             raise RuntimeError(f"分镜 {index:03d} 逐镜人物或道具未绑定到当前分镜关联资产")
+        # Older synthetic/import fixtures do not carry the canonical
+        # continuityAssetVersions field. Preserve their legacy node repair
+        # path for compatibility; a present field (including an empty list)
+        # opts into the strict semantic projection and therefore fails closed
+        # on missing or ambiguous canonical data.
+        legacy_scene_names = [
+            str(reference.get("assetName") or "")
+            for reference in refs
+            if reference.get("assetKind") == "scene"
+        ]
+        if "continuityAssetVersions" in state:
+            refs = rebuild_semantic_references(
+                refs,
+                semantics,
+                str(group["sceneName"]),
+                str(group["viewpointId"]),
+                existing_versions,
+                entities,
+                source_assets,
+            )
         scene = next(
             (
                 ref for ref in refs
@@ -821,6 +927,18 @@ def repair_storyboards(
             ),
             None,
         )
+        if (
+            group
+            and scene
+            and str(group["sceneName"]) not in legacy_scene_names
+            and legacy_scene_names
+        ):
+            report["repairedSceneGroupMismatches"].append({
+                "storyboardId": storyboard.get("id"),
+                "index": index,
+                "expectedScene": group["sceneName"],
+                "replacedScene": legacy_scene_names[0],
+            })
         if scene is None:
             report["sceneGroupMismatches"].append(
                 {

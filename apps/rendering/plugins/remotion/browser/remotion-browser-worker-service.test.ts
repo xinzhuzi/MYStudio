@@ -94,6 +94,32 @@ describe("Remotion browser worker service", () => {
     expect(events.some((event) => event.kind === "progress" && event.progress.phase === "failed")).toBe(true);
   });
 
+  it("bounds a stalled Headless Shell download and emits a diagnostic failure", async () => {
+    const ensureBrowser: RemotionEnsureBrowser = vi.fn(
+      () => new Promise<never>(() => {}),
+    );
+    const events: RemotionBrowserWorkerEvent[] = [];
+    const service = createRemotionBrowserWorkerService({
+      ensureBrowser,
+      store: { read: () => undefined, write: vi.fn() },
+      downloadTimeoutMs: 5,
+    });
+
+    const terminal = await service.handle(command("download"), (event) => events.push(event));
+
+    expect(terminal).toMatchObject({
+      kind: "error",
+      message: "Remotion Headless Shell 下载超过 5ms 未完成",
+    });
+    expect(events).toContainEqual(expect.objectContaining({
+      kind: "progress",
+      progress: expect.objectContaining({
+        phase: "failed",
+        message: "Remotion Headless Shell 下载超过 5ms 未完成",
+      }),
+    }));
+  });
+
   it("rejects unknown worker command fields before ensureBrowser runs", async () => {
     const ensureBrowser: RemotionEnsureBrowser = vi.fn();
     const service = createRemotionBrowserWorkerService({

@@ -17,7 +17,7 @@ import { useCharacterLibraryStore, type Character } from "@/stores/library/chara
 import { useAppSettingsStore } from "@/stores/app/app-settings-store";
 import { useProjectStore } from "@/stores/project/project-store";
 import { aiManager } from "@/lib/ai/ai-manager";
-import { Wand2, ImagePlus, X, Settings, AlertCircle, Shuffle, ChevronDown, User, Users, Plus, Check, Monitor, Smartphone } from "lucide-react";
+import { Wand2, X, Settings, AlertCircle, User, Users, Monitor, Smartphone } from "lucide-react";
 import { toast } from "sonner";
 import {
   Tooltip,
@@ -36,11 +36,6 @@ import {
   SelectLabel,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import { useMediaPanelStore } from "@/stores/navigation/media-panel-store";
 import { 
   validateSceneCount, 
@@ -49,9 +44,11 @@ import {
   type Resolution 
 } from "@/lib/storyboard/grid-calculator";
 import { uploadMultipleImages } from "@/lib/utils/image-upload";
-import { VISUAL_STYLE_PRESETS, getStyleTokens, getStylesByCategory, type VisualStyleId, DEFAULT_STYLE_ID } from "@/lib/constants/visual-styles";
+import { VISUAL_STYLE_PRESETS, getStyleTokens, type VisualStyleId } from "@/lib/constants/visual-styles";
 import { StylePicker } from "@/components/features/visual-style/style-picker";
 import { normalizeHorizontalVerticalAspectRatio } from "@/lib/ai/image-size-presets";
+import { CharacterPickerPopover } from "./character-picker-popover";
+import { ScreenplayReferenceImages } from "./screenplay-reference-images";
 
 const EXAMPLE_PROMPTS = [
   "一只可爱的小猫在草地上玩耍，追逐蝴蝶",
@@ -681,62 +678,15 @@ export function ScreenplayInput({ onGenerateStoryboard }: ScreenplayInputProps) 
           }`}
         >
           {selectedCharacters.length === 0 ? (
-            <Popover open={isCharacterPopoverOpen} onOpenChange={setIsCharacterPopoverOpen}>
-              <PopoverTrigger asChild>
-                <button className="w-full h-[44px] flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors">
-                  <Plus className="h-6 w-6" />
-                </button>
-              </PopoverTrigger>
-              <PopoverContent className="w-64 p-0" align="start">
-                <div className="p-2 border-b">
-                  <p className="text-sm font-medium">选择角色</p>
-                </div>
-                {visibleCharacters.length === 0 ? (
-                  <div className="p-4 text-center">
-                    <User className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                    <p className="text-sm text-muted-foreground mb-2">角色库为空</p>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={goToCharacterLibrary}
-                    >
-                      去创建角色
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="max-h-[200px] overflow-y-auto">
-                    {visibleCharacters.map((char: Character) => {
-                      const isSelected = selectedCharacters.some(c => c.characterId === char.id);
-                      const thumbnail = char.views.length > 0 ? char.views[0].imageUrl : undefined;
-                      
-                      return (
-                        <button
-                          key={char.id}
-                          onClick={() => toggleCharacterSelection(char)}
-                          className="w-full flex items-center gap-2 p-2 hover:bg-muted transition-colors text-left"
-                        >
-                          {thumbnail ? (
-                            <img 
-                              src={thumbnail} 
-                              alt={char.name}
-                              className="w-8 h-8 rounded-full object-cover"
-                            />
-                          ) : (
-                            <div className="w-8 h-8 rounded-full bg-primary/15 flex items-center justify-center">
-                              <User className="h-4 w-4" />
-                            </div>
-                          )}
-                          <span className="flex-1 text-sm truncate">{char.name}</span>
-                          {isSelected && (
-                            <Check className="h-4 w-4 text-primary" />
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </PopoverContent>
-            </Popover>
+            <CharacterPickerPopover
+              characters={visibleCharacters}
+              selectedCharacterIds={selectedCharacterIds}
+              open={isCharacterPopoverOpen}
+              variant="empty"
+              onOpenChange={setIsCharacterPopoverOpen}
+              onToggle={toggleCharacterSelection}
+              onCreate={goToCharacterLibrary}
+            />
           ) : (
             <div className="flex flex-wrap gap-2 items-center">
               {selectedCharacters.map((char) => (
@@ -757,6 +707,7 @@ export function ScreenplayInput({ onGenerateStoryboard }: ScreenplayInputProps) 
                   )}
                   <span className="text-xs font-medium">{char.characterName}</span>
                   <button
+                    aria-label={`移除角色 ${char.characterName}`}
                     onClick={() => removeCharacter(char.characterId)}
                     className="text-muted-foreground hover:text-destructive transition-colors"
                   >
@@ -764,110 +715,27 @@ export function ScreenplayInput({ onGenerateStoryboard }: ScreenplayInputProps) 
                   </button>
                 </div>
               ))}
-              {/* Add more button */}
-              <Popover open={isCharacterPopoverOpen} onOpenChange={setIsCharacterPopoverOpen}>
-                <PopoverTrigger asChild>
-                  <button className="w-7 h-7 rounded-full border-2 border-dashed border-muted-foreground/30 flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-foreground/50 transition-colors">
-                    <Plus className="h-4 w-4" />
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent className="w-64 p-0" align="start">
-                  <div className="p-2 border-b">
-                    <p className="text-sm font-medium">选择角色</p>
-                  </div>
-                  {visibleCharacters.length === 0 ? (
-                    <div className="p-4 text-center">
-                      <User className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                      <p className="text-sm text-muted-foreground mb-2">角色库为空</p>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={goToCharacterLibrary}
-                      >
-                        去创建角色
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="max-h-[200px] overflow-y-auto">
-                      {visibleCharacters.map((char: Character) => {
-                        const isSelected = selectedCharacters.some(c => c.characterId === char.id);
-                        const thumbnail = char.views.length > 0 ? char.views[0].imageUrl : undefined;
-                        
-                        return (
-                          <button
-                            key={char.id}
-                            onClick={() => toggleCharacterSelection(char)}
-                            className="w-full flex items-center gap-2 p-2 hover:bg-muted transition-colors text-left"
-                          >
-                            {thumbnail ? (
-                              <img 
-                                src={thumbnail} 
-                                alt={char.name}
-                                className="w-8 h-8 rounded-full object-cover"
-                              />
-                            ) : (
-                              <div className="w-8 h-8 rounded-full bg-primary/15 flex items-center justify-center">
-                                <User className="h-4 w-4" />
-                              </div>
-                            )}
-                            <span className="flex-1 text-sm truncate">{char.name}</span>
-                            {isSelected && (
-                              <Check className="h-4 w-4 text-primary" />
-                            )}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </PopoverContent>
-              </Popover>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Reference images */}
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <label className="text-sm font-medium">参考图片（可选）</label>
-          <span className="text-xs text-muted-foreground">{images.length}/3</span>
-        </div>
-
-        <div className="flex gap-2 flex-wrap">
-          {images.map((_img, i) => (
-            <div key={i} className="relative group">
-              <img
-                src={imageUrls[i]}
-                alt={`Reference ${i + 1}`}
-                className="w-16 h-16 object-cover rounded-md border"
+              <CharacterPickerPopover
+                characters={visibleCharacters}
+                selectedCharacterIds={selectedCharacterIds}
+                open={isCharacterPopoverOpen}
+                variant="add"
+                onOpenChange={setIsCharacterPopoverOpen}
+                onToggle={toggleCharacterSelection}
+                onCreate={goToCharacterLibrary}
               />
-              <button
-                onClick={() => removeImage(i)}
-                className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </div>
-          ))}
-
-          {images.length < 3 && (
-            <div
-              className={`relative w-16 h-16 border-2 border-dashed rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-foreground/50 transition-colors ${isSubmitting ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
-              onClick={() => {
-                if (isSubmitting) return;
-                const input = document.createElement('input');
-                input.type = 'file';
-                input.accept = 'image/*';
-                input.multiple = true;
-                input.onchange = (e) => handleImageChange(e as unknown as React.ChangeEvent<HTMLInputElement>);
-                input.click();
-              }}
-            >
-              <ImagePlus className="h-5 w-5 pointer-events-none" />
             </div>
           )}
         </div>
       </div>
+
+      <ScreenplayReferenceImages
+        images={images}
+        imageUrls={imageUrls}
+        isSubmitting={isSubmitting}
+        onImageChange={handleImageChange}
+        onRemove={removeImage}
+      />
 
       {/* API status warning - for screenplay we only need chat API */}
       {!isFeatureConfigured('script_analysis') && !checkChatKeys().isAllConfigured && (

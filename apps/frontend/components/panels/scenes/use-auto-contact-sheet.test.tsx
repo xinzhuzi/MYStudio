@@ -20,7 +20,7 @@ vi.mock("@/lib/ai/ai-manager", () => ({
   },
 }));
 vi.mock("@/lib/storyboard/image-splitter", () => ({ splitStoryboardImage: mocks.splitStoryboardImage }));
-vi.mock("@/lib/image-storage", () => ({ saveImageToLocal: mocks.saveImageToLocal }));
+vi.mock("@/lib/media/image-storage", () => ({ saveImageToLocal: mocks.saveImageToLocal }));
 vi.mock("@/stores/app/app-settings-store", () => ({
   useAppSettingsStore: { getState: () => ({ imageGenerationSettings: { defaultResolution: "2K" } }) },
 }));

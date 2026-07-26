@@ -492,7 +492,9 @@ describe("workflow smoke bridge isolation", () => {
     ]);
     expect(studio.storyboards[0]?.mediaRef?.path).toMatch(/^data:image\/png;base64,/);
     expect(studio.productionTracks[0]?.selectedVideoId).toBe("smoke-video-1");
-    expect(studio.videoCandidates[0]?.filePath).toBe("/tmp/mystudio-smoke-final.mp4");
+    expect(studio.videoCandidates[0]?.filePath).toBe(
+      "/var/folders/tmp/mystudio-smoke-workflow-test/media/mystudio-smoke-final.mp4",
+    );
     expect(
       useEditingStore.getState().getCurrentEditingProject("smoke-chapter-1"),
     ).toMatchObject({
@@ -568,7 +570,7 @@ describe("workflow smoke bridge isolation", () => {
     });
     expect(useStudioStore.getState().videoCandidates[0]).toMatchObject({
       provider: "ffmpeg-local",
-      filePath: "/tmp/mystudio-smoke-final.mp4",
+      filePath: "/var/folders/tmp/mystudio-smoke-evidence-boundary-test/media/mystudio-smoke-final.mp4",
     });
     expect(useTtsStore.getState().projects["default-project"]?.voiceLines["1"]).toMatchObject({
       audioLocalPath: "/tmp/mystudio-smoke-voice.wav",

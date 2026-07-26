@@ -7,8 +7,8 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@/lib/ai/feature-router', () => ({ getFeatureConfig: mocks.getFeatureConfig }));
 vi.mock('@/stores/ai/api-config-store', () => ({ useAPIConfigStore: { getState: mocks.getState } }));
-vi.mock('@/lib/image-host', () => ({ isImageHostConfigured: () => false, uploadToImageHost: vi.fn() }));
-vi.mock('@/lib/image-storage', () => ({ saveVideoToLocal: vi.fn() }));
+vi.mock('@/lib/media/image-host', () => ({ isImageHostConfigured: () => false, uploadToImageHost: vi.fn() }));
+vi.mock('@/lib/media/image-storage', () => ({ saveVideoToLocal: vi.fn() }));
 
 import { callJuxinVideoGenerationApi, isContentModerationError } from './video-generator';
 

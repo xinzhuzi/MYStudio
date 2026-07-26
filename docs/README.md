@@ -81,8 +81,8 @@
 
 | 文档 | 用途 |
 |---|---|
-| [设置页操作手册](./settings/SETTINGS_PANEL_OPERATIONS.md) | 设置标签页、外观、API、Python、存储、更新、开发和支持入口的按钮状态 |
-| [设置与 API 管理](./settings/API_SETTINGS_GUIDE.md) | 模型服务、模型映射、Agent 配置、图床和本地 TTS 服务说明 |
+| [设置页操作手册](./settings/SETTINGS_PANEL_OPERATIONS.md) | 设置标签页、外观、API、Python、渲染、存储、更新、开发和支持入口的按钮状态 |
+| [设置与 API 管理](./settings/API_SETTINGS_GUIDE.md) | 模型服务、模型映射、Agent 配置、渲染器选择、Headless Shell、图床和本地 TTS 服务说明 |
 | [API 管理操作手册](./settings/API_MANAGER_OPERATIONS.md) | 添加供应商、同步模型、测试模型、思考模式、模型映射和 Agent 绑定 |
 | [API 供应商字段与模型测试参考](./settings/API_PROVIDER_MODEL_TEST_REFERENCE.md) | 添加/编辑供应商字段、同步模型规则、模型测试范围、协议和错误说明 |
 | [Python 与本地 TTS 配置](./settings/PYTHON_TTS_SETUP.md) | 设置页手动配置 Python 3.12、本地 TTS 依赖、模型缓存和启动方式 |
@@ -115,6 +115,15 @@
 | [数据模型与接口规范](./融合/数据模型与接口规范.md) | 工作流、资产、分镜、导出等核心数据结构 |
 | [部署打包与工程化手册](./融合/部署打包与工程化手册.md) | Electron 打包、安装、测试和工程化约束 |
 | [错误处理与测试策略](./融合/错误处理与测试策略.md) | 运行时错误、回归测试、打包 smoke 和故障处理 |
+| [工作流全链路追溯矩阵](./融合/MYStudio_Toonflow_工作流全链路追溯矩阵.md) | MYStudio / Toonflow 工作流节点、输入输出和验证证据追溯 |
+| [工作流缺口与分目标推进计划](./融合/MYStudio_Toonflow_工作流缺口与分目标推进计划.md) | 当前 Toonflow 对照缺口、未迁移能力和 Trellis 目标 |
+| [Toonflow 分镜差异审计](./融合/Toonflow_MYStudio_分镜差异审计.md) | 分镜来源、资产顺序、图片生成、回写和视觉结果差异 |
+| [ToonFlow 剧情产物生成技术调查](./融合/ToonFlow_剧情产物生成_技术调查.md) | Toonflow 资产提示词、图片生成和 ProductionAgent 参考 |
+| [MoYin 资产生成技术调查](./融合/MoYin_资产生成_技术调查.md) | MoYin 资产生成、服务路由和批处理参考 |
+| [配置中心升级与供应商能力方案](./融合/配置中心升级与供应商能力方案.md) | 服务商能力、健康检查、Feature Router 和 vendor 边界 |
+| [模板系统与 ComfyUI 集成方案](./融合/模板系统与ComfyUI集成方案.md) | 模板、ComfyUI、资源覆盖和批量生成方向 |
+| [FFmpeg + AI 开源漫剧短视频自动化计划](./融合/FFmpeg_AI开源漫剧短视频自动化计划.md) | 本地 FFmpeg、字幕、TTS、素材和短视频自动化方向 |
+| [第一章自动成片与多角色口播 Trellis 计划](./融合/第一章自动成片与多角色口播Trellis计划.md) | 第一章自动成片链路、多角色口播和 Trellis 推进计划 |
 | [外部参考资料](./融合/参考/) | Seedance 2.0 Skill OS 等外部仓库参考资料（非 MYStudio 官方文档） |
 
 ## 相关入口

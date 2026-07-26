@@ -145,6 +145,8 @@ describe("VisualContinuityReviewPanel", () => {
       onReviewAsset={vi.fn()}
     />);
 
+    expect(screen.getByText("当前第 1 / 3 镜")).toBeTruthy();
+    expect(screen.getByText("待审 3 / 3")).toBeTruthy();
     expect(screen.getByRole("img", { name: "当前镜第 1 镜画面" }).getAttribute("src")).toBe("file:///frames/sb-1.png");
     expect(screen.getByRole("img", { name: "下一镜第 2 镜画面" })).toBeTruthy();
     expect(screen.getAllByText(/批准指纹：/)).toHaveLength(3);
@@ -203,6 +205,7 @@ describe("VisualContinuityReviewPanel", () => {
     />);
 
     expect(screen.getByRole("img", { name: "grey-town front 参考图" })).toBeTruthy();
+    expect(screen.getByRole("img", { name: "grey-town front 人工审核缩略图" })).toBeTruthy();
     expect(screen.getByText(/背负三层油布剑包/)).toBeTruthy();
     expect(screen.getByText("待人工审核")).toBeTruthy();
     expect((screen.getByRole("button", { name: "批准第 1 镜" }) as HTMLButtonElement).disabled).toBe(true);
@@ -231,6 +234,40 @@ describe("VisualContinuityReviewPanel", () => {
 
     expect(screen.getByText(/连续性输入指纹已失效/)).toBeTruthy();
     expect((screen.getByRole("button", { name: "批准第 1 镜" }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it("shows the persisted human review evidence and check totals for the selected shot", () => {
+    const item = storyboard(1);
+    item.visualReview = {
+      status: "approved",
+      reasons: [],
+      characterChecks: [{ characterId: "dugu", passed: true }],
+      sceneChecks: [{ sceneVersionId: "dock:morning", passed: true }],
+      propChecks: [{ assetId: "prop:sword-wrap", versionId: "sword-wrap:intact", passed: true }],
+      transitionChecks: [],
+      textWatermarkCheck: { passed: true },
+      reviewer: "human",
+      reviewedAt: 1,
+      evidencePaths: ["/reviews/sb-1-reviewed.png"],
+      inputFingerprint: visualContinuityFingerprint(item),
+    };
+    render(<VisualContinuityReviewPanel
+      storyboards={[item]}
+      continuityAssetVersions={continuityVersions()}
+      onReview={vi.fn()}
+      onReviewAsset={vi.fn()}
+    />);
+
+    expect(screen.getByText("人工审核")).toBeTruthy();
+    expect(screen.getByText(/审核时间：/)).toBeTruthy();
+    expect(screen.getByText("逐项检查：4 / 4 通过")).toBeTruthy();
+    expect(screen.getByText("画面证据：1 个")).toBeTruthy();
+    expect(screen.getByText("/reviews/sb-1-reviewed.png")).toBeTruthy();
+    expect(screen.getByRole("img", { name: "当前镜第 1 镜画面" }).getAttribute("src")).toBe("file:///reviews/sb-1-reviewed.png");
+    expect(screen.getByText("通过 · 角色 dugu")).toBeTruthy();
+    expect(screen.getByText("通过 · 场景 dock:morning")).toBeTruthy();
+    expect(screen.getByText("通过 · 道具 prop:sword-wrap")).toBeTruthy();
+    expect(screen.getByText("通过 · 文字与水印")).toBeTruthy();
   });
 
   it("disables asset approval when safe thumbnail evidence is missing", () => {

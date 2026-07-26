@@ -85,6 +85,7 @@ export function VisualContinuityReviewPanel({
   const primarySceneIssues = storyboardPrimarySceneIssues(selected);
   const requiresTransition = Boolean(selected.continuityState?.previousStoryboardId);
   const hasCurrentImage = Boolean(selected.mediaRef?.path);
+  const currentEvidencePath = selected.visualReview?.evidencePaths?.[0] || selected.mediaRef?.path;
   const canApprove = hasCurrentImage
     && !selected.stale
     && Boolean(selected.continuityState)
@@ -104,6 +105,7 @@ export function VisualContinuityReviewPanel({
     },
     { pending: 0, approved: 0, rejected: 0 },
   );
+  const totalShots = ordered.length;
 
   const submit = (status: "approved" | "rejected") => {
     onReview(selected.id, {
@@ -125,7 +127,7 @@ export function VisualContinuityReviewPanel({
         ? [{ previousStoryboardId: selected.continuityState?.previousStoryboardId, passed: transitionPassed }]
         : [],
       textWatermarkCheck: { passed: textWatermarkPassed },
-      evidencePaths: selected.mediaRef?.path ? [selected.mediaRef.path] : [],
+      evidencePaths: currentEvidencePath ? [currentEvidencePath] : [],
     });
   };
 
@@ -142,10 +144,11 @@ export function VisualContinuityReviewPanel({
           </div>
           <p className="mt-1 text-[11px] text-zinc-400">逐镜核对身份、场景和动作承接；未人工批准的镜头不能进入最终成片。</p>
         </div>
-        <div className="flex items-center gap-1.5 text-[11px]">
-          <Badge variant="outline" className="border-amber-500/40 bg-amber-500/10 text-amber-200">待审 {statusCounts.pending}</Badge>
-          <Badge variant="outline" className="border-emerald-500/40 bg-emerald-500/10 text-emerald-200">通过 {statusCounts.approved}</Badge>
-          <Badge variant="outline" className="border-red-500/40 bg-red-500/10 text-red-200">驳回 {statusCounts.rejected}</Badge>
+        <div className="flex flex-wrap items-center justify-end gap-1.5 text-[11px]" aria-label="视觉审核统计">
+          <Badge variant="outline" className="border-sky-500/40 bg-sky-500/10 text-sky-200">当前第 {selected.index} / {totalShots} 镜</Badge>
+          <Badge variant="outline" className="border-amber-500/40 bg-amber-500/10 text-amber-200">待审 {statusCounts.pending} / {totalShots}</Badge>
+          <Badge variant="outline" className="border-emerald-500/40 bg-emerald-500/10 text-emerald-200">通过 {statusCounts.approved} / {totalShots}</Badge>
+          <Badge variant="outline" className="border-red-500/40 bg-red-500/10 text-red-200">驳回 {statusCounts.rejected} / {totalShots}</Badge>
         </div>
       </header>
 
@@ -222,6 +225,7 @@ export function VisualContinuityReviewPanel({
               ...primarySceneIssues,
             ].map((issue) => issue.message)}
           />
+          <ReviewEvidenceSummary review={selected.visualReview} />
           <div className="space-y-2" aria-label="视觉检查项">
             {characterIds.map((characterId) => (
               <ReviewCheck
@@ -361,16 +365,23 @@ function CanonicalAssetEvidence({
                 {version?.wardrobeVersion ? ` · 服装 ${version.wardrobeVersion}` : ""}
                 {version?.sceneViewpointId ? ` · 视角 ${version.sceneViewpointId}` : ""}
               </div>
-              <div className="mt-2 grid grid-cols-2 gap-1.5 sm:grid-cols-3 lg:grid-cols-4">
-                {paths.filter(Boolean).map((path, index) => (
-                  <figure key={`${path}:${index}`} className="overflow-hidden rounded border border-zinc-800 bg-black">
-                    <img
-                      src={toPreviewSrc(path)}
-                      alt={`${version?.label ?? reference.assetName ?? reference.assetId} ${viewTypes[index] ?? reference.sceneViewpointId ?? reference.referenceRole ?? `图${index + 1}`} 参考图`}
-                      className="aspect-video h-full w-full object-contain"
-                    />
-                  </figure>
-                ))}
+              <div className="mt-2 grid gap-2 md:grid-cols-2">
+                <AssetImageStrip
+                  label="参考原图"
+                  paths={paths.filter(Boolean)}
+                  altPrefix={version?.label ?? reference.assetName ?? reference.assetId}
+                  viewTypes={viewTypes}
+                  altLabel="参考图"
+                  fallback="无参考原图"
+                />
+                <AssetImageStrip
+                  label="人工审核缩略图"
+                  paths={safeReviewEvidencePaths.length ? safeReviewEvidencePaths : paths.filter(Boolean)}
+                  altPrefix={version?.label ?? reference.assetName ?? reference.assetId}
+                  viewTypes={viewTypes}
+                  altLabel="人工审核缩略图"
+                  fallback="暂无安全审核缩略图"
+                />
               </div>
               {anchorText ? <div className="mt-2 text-[10px] leading-4 text-zinc-400">文字锚点：{anchorText}</div> : null}
               {sceneText ? <div className="mt-2 text-[10px] leading-4 text-zinc-400">场景锚点：{sceneText}</div> : null}
@@ -451,6 +462,43 @@ function CanonicalAssetEvidence({
   );
 }
 
+function AssetImageStrip({
+  label,
+  paths,
+  altPrefix,
+  viewTypes,
+  altLabel,
+  fallback,
+}: {
+  label: string;
+  paths: string[];
+  altPrefix: string;
+  viewTypes: string[];
+  altLabel: string;
+  fallback: string;
+}) {
+  return (
+    <div aria-label={label} className="rounded border border-zinc-800/80 bg-black/20 p-1.5">
+      <div className="mb-1 text-[10px] font-medium text-zinc-400">{label}</div>
+      {paths.length ? (
+        <div className="grid grid-cols-2 gap-1.5">
+          {paths.map((path, index) => (
+            <figure key={`${path}:${index}`} className="overflow-hidden rounded border border-zinc-800 bg-black">
+              <img
+                src={toPreviewSrc(path)}
+                alt={`${altPrefix} ${viewTypes[index] ?? `图${index + 1}`} ${altLabel}`}
+                className="aspect-video h-full w-full object-contain"
+              />
+            </figure>
+          ))}
+        </div>
+      ) : (
+        <div className="flex min-h-12 items-center justify-center text-[10px] text-zinc-600">{fallback}</div>
+      )}
+    </div>
+  );
+}
+
 function FrameEvidence({
   label,
   storyboard,
@@ -462,6 +510,7 @@ function FrameEvidence({
   current?: boolean;
   muted?: boolean;
 }) {
+  const evidencePath = storyboard?.visualReview?.evidencePaths?.[0] || storyboard?.mediaRef?.path;
   return (
     <figure className={cn(
       "overflow-hidden rounded-lg border bg-black",
@@ -472,9 +521,9 @@ function FrameEvidence({
         <span>{label}</span><span>{storyboard ? `#${storyboard.index}` : "—"}</span>
       </figcaption>
       <div className="aspect-video bg-[radial-gradient(circle_at_50%_45%,#27272a,#09090b_70%)]">
-        {storyboard?.mediaRef?.path ? (
+        {evidencePath ? (
           <img
-            src={toPreviewSrc(storyboard.mediaRef.path)}
+            src={toPreviewSrc(evidencePath)}
             alt={`${label}第 ${storyboard.index} 镜画面`}
             className="h-full w-full object-contain"
           />
@@ -505,6 +554,63 @@ function ReviewCheck({
       />
       <span>{label}</span>
     </label>
+  );
+}
+
+function ReviewEvidenceSummary({
+  review,
+}: {
+  review?: StoryboardItem["visualReview"];
+}) {
+  if (!review) {
+    return (
+      <section aria-label="当前镜审核证据" className="rounded-md border border-zinc-800 bg-black/20 px-2.5 py-2 text-[10px] text-zinc-500">
+        当前镜尚未提交审核记录。
+      </section>
+    );
+  }
+  const checks: Array<{ label: string; passed: boolean }> = [
+    ...review.characterChecks.map((check) => ({ label: `角色 ${check.characterId}`, ...check })),
+    ...review.sceneChecks.map((check) => ({ label: `场景 ${check.sceneVersionId}`, ...check })),
+    ...review.propChecks.map((check) => ({ label: `道具 ${check.assetId}`, ...check })),
+    ...review.transitionChecks.map((check) => ({ label: `转场 ${check.previousStoryboardId ?? "上一镜"}`, ...check })),
+    { label: "文字与水印", ...review.textWatermarkCheck },
+  ];
+  const passedChecks = checks.filter((check) => check.passed).length;
+  const reviewedAt = review.reviewedAt && Number.isFinite(review.reviewedAt)
+    ? new Date(review.reviewedAt).toLocaleString("zh-CN")
+    : "未记录";
+  return (
+    <section aria-label="当前镜审核证据" className="rounded-md border border-zinc-800 bg-black/20 px-2.5 py-2 text-[10px] text-zinc-400">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="font-medium text-zinc-200">已提交审核证据</span>
+        <Badge variant="outline" className={review.reviewer === "human"
+          ? "border-emerald-600/50 bg-emerald-950/40 text-emerald-200"
+          : "border-zinc-700 bg-zinc-900 text-zinc-400"}>
+          {review.reviewer === "human" ? "人工审核" : "自动记录"}
+        </Badge>
+      </div>
+      <div className="mt-1 grid gap-1 sm:grid-cols-2">
+        <span>状态：{review.status}</span>
+        <span>审核时间：{reviewedAt}</span>
+        <span>逐项检查：{passedChecks} / {checks.length} 通过</span>
+        <span>画面证据：{review.evidencePaths.length} 个</span>
+      </div>
+      {review.evidencePaths.length ? (
+        <ul className="mt-1 space-y-0.5" aria-label="当前镜画面证据路径">
+          {review.evidencePaths.map((path) => (
+            <li key={path} className="truncate font-mono text-[9px] text-zinc-500" title={path}>{path}</li>
+          ))}
+        </ul>
+      ) : null}
+      <ul className="mt-1 space-y-0.5" aria-label="当前镜逐项审核检查">
+        {checks.map((check) => (
+          <li key={check.label} className={check.passed ? "text-emerald-300" : "text-red-300"}>
+            {check.passed ? "通过" : "未通过"} · {check.label}
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 

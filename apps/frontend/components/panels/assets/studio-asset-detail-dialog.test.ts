@@ -209,6 +209,18 @@ describe("buildAssetRegenerationPrompt", () => {
     expect(source).not.toContain("function RoleVoicePreviewButton(");
   });
 
+  it("delegates role attribute parsing and rendering to the focused leaf", () => {
+    const source = readFileSync(new URL("./StudioAssetDetailDialog.tsx", import.meta.url), "utf8");
+
+    expect(source).toContain(
+      'import { StudioAssetRoleAttributes } from "./studio-asset-role-attributes";',
+    );
+    expect(source).toContain(
+      '<StudioAssetRoleAttributes setting={draftSetting || asset.setting || ""} />',
+    );
+    expect(source).not.toContain("const fields: { label: string; value: string }[] = [];");
+  });
+
   it("writes one-click generated images and prompts back to the studio asset library", async () => {
     const replaceImage = vi.fn().mockResolvedValue({ id: "asset-role-1" });
     const update = vi.fn().mockResolvedValue({ id: "asset-role-1" });
@@ -338,10 +350,13 @@ describe("buildAssetRegenerationPrompt", () => {
 
   it("uses the multi-select bridge for detail-image additions and syncs carousel selection", () => {
     const source = readFileSync(new URL("./StudioAssetDetailDialog.tsx", import.meta.url), "utf8");
+    const previewSource = readFileSync(new URL("./studio-asset-detail-preview-pane.tsx", import.meta.url), "utf8");
+    const carouselSource = readFileSync(new URL("./studio-asset-detail-carousel.ts", import.meta.url), "utf8");
     expect(source).toContain("selectImageFiles");
     expect(source).toContain("for (const filePath of filePaths)");
-    expect(source).toContain("setApi={syncCarouselIndex}");
-    expect(source).toContain('api.selectedScrollSnap()');
+    expect(source).toContain("onCarouselApi={syncCarouselIndex}");
+    expect(previewSource).toContain("setApi={onCarouselApi}");
+    expect(carouselSource).toContain('api.selectedScrollSnap()');
     expect(source).toContain("getAssetImageOpenTarget(images, currentIndex, detail)");
   });
 });

@@ -9,11 +9,11 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@/lib/ai/image-transfer', () => ({
   prepareReferenceImageForTransfer: mocks.prepareOne,
 }));
-vi.mock('@/lib/image-host', () => ({
+vi.mock('@/lib/media/image-host', () => ({
   isImageHostConfigured: () => true,
   uploadToImageHost: mocks.upload,
 }));
-vi.mock('@/lib/image-storage', () => ({
+vi.mock('@/lib/media/image-storage', () => ({
   readImageAsBase64: mocks.readImage,
 }));
 

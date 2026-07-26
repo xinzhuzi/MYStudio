@@ -46,6 +46,7 @@ export type RemotionEnsureBrowser = (
 export interface RemotionBrowserWorkerServiceDependencies {
   ensureBrowser: RemotionEnsureBrowser;
   store: PreparedVersionStore;
+  downloadTimeoutMs?: number;
 }
 
 export interface RemotionBrowserWorkerService {
@@ -56,6 +57,7 @@ export interface RemotionBrowserWorkerService {
 }
 
 const PREPARED_VERSION_STATE_FILE = "browser-state.json";
+const DEFAULT_DOWNLOAD_TIMEOUT_MS = 120_000;
 
 export function createPreparedVersionFileStore(runtimeDir: string): PreparedVersionStore {
   if (!path.isAbsolute(runtimeDir)) {
@@ -137,6 +139,7 @@ export function createRemotionEnsureBrowserAdapters(
 export function createRemotionBrowserWorkerService(
   dependencies: RemotionBrowserWorkerServiceDependencies,
 ): RemotionBrowserWorkerService {
+  const downloadTimeoutMs = normalizeDownloadTimeout(dependencies.downloadTimeoutMs);
   return {
     async handle(value, emit) {
       const validated = validateRemotionBrowserWorkerCommand(value);
@@ -163,10 +166,14 @@ export function createRemotionBrowserWorkerService(
       try {
         if (command.action === "download") {
           emitProgress(emit, command, "starting", 0);
-          const result = await controller.downloadWithExecutable((ratio) => {
-            lastRatio = ratio;
-            emitProgress(emit, command, "downloading", ratio);
-          });
+          const result = await withTimeout(
+            controller.downloadWithExecutable((ratio) => {
+              lastRatio = ratio;
+              emitProgress(emit, command, "downloading", ratio);
+            }),
+            downloadTimeoutMs,
+            `Remotion Headless Shell 下载超过 ${downloadTimeoutMs}ms 未完成`,
+          );
           emitProgress(emit, command, "completed", 1);
           return emitResult(emit, command, result.status, result.executablePath);
         }
@@ -188,6 +195,32 @@ export function createRemotionBrowserWorkerService(
       }
     },
   };
+}
+
+function normalizeDownloadTimeout(value: number | undefined): number {
+  if (value === undefined) return DEFAULT_DOWNLOAD_TIMEOUT_MS;
+  if (!Number.isFinite(value) || value <= 0) {
+    throw new Error("Remotion 浏览器下载超时必须是正数");
+  }
+  return value;
+}
+
+async function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  message: string,
+): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_, reject) => {
+        timer = setTimeout(() => reject(new Error(message)), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 }
 
 function emitProgress(

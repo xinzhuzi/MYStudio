@@ -13,22 +13,12 @@ import { useMediaPanelStore } from "@/stores/navigation/media-panel-store";
 import { useActiveScriptProject } from "@/stores/script/script-store";
 import { getShotCompletionStatus, calculateProgress, SHOT_SIZE_MAP } from "@/lib/script/shot-utils";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { cn } from "@/lib/utils";
 import {
-  ChevronDown,
-  ChevronRight,
-  Film,
-  MapPin,
-  Circle,
-  Clock,
-  CheckCircle2,
   ArrowLeft,
-  Send,
   FileVideo,
   Plus,
 } from "lucide-react";
-import type { Shot, CompletionStatus, ScriptScene } from "@/types/script";
+import type { Shot, ScriptScene } from "@/types/script";
 import { DEFAULT_STYLE_ID, getStyleById } from "@/lib/constants/visual-styles";
 import { useDirectorStore, useActiveDirectorProject, type SoundEffectTag, type EmotionTag } from '@/stores/director/director-store';
 import { useCharacterLibraryStore } from '@/stores/library/character-library-store';
@@ -37,18 +27,11 @@ import { useAppSettingsStore } from '@/stores/app/app-settings-store';
 import { useProjectStore } from '@/stores/project/project-store';
 import { toast } from "sonner";
 import { matchSceneAndViewpoint, matchSceneAndViewpointSync, type ViewpointMatchResult } from '@/lib/scene/viewpoint-matcher';
-
-// 状态图标
-function StatusIcon({ status }: { status?: CompletionStatus }) {
-  switch (status) {
-    case "completed":
-      return <CheckCircle2 className="h-3 w-3 text-green-500" />;
-    case "in_progress":
-      return <Clock className="h-3 w-3 text-yellow-500" />;
-    default:
-      return <Circle className="h-3 w-3 text-muted-foreground" />;
-  }
-}
+import { DirectorContextTree } from "./director-context-tree";
+import {
+  findQuickSceneViewpointMatch,
+  mapScriptCharactersToLibraryIds,
+} from "./director-context-mapping";
 
 // 导出组件
 export function DirectorContextPanel() {
@@ -150,157 +133,6 @@ export function DirectorContextPanel() {
     return characters.filter((c) => c.projectId === activeProjectId);
   }, [characters, resourceSharing.shareCharacters, activeProjectId]);
   
-  // 将剧本角色ID或角色名称映射到角色库ID
-  const mapScriptCharacterIdsToLibraryIds = (scriptCharIds: string[], characterNames?: string[]): string[] => {
-    const libraryIds: string[] = [];
-    const addedIds = new Set<string>(); // 避免重复
-    
-    // 1. 先通过 characterIds 匹配
-    if (scriptCharIds && scriptCharIds.length > 0 && scriptData) {
-      for (const scriptCharId of scriptCharIds) {
-        // 查找剧本角色
-        const scriptChar = scriptData.characters.find(c => c.id === scriptCharId);
-        if (!scriptChar) continue;
-        
-        // 优先使用已关联的角色库ID（需校验该ID在当前可见角色库中仍有效）
-        if (scriptChar.characterLibraryId && !addedIds.has(scriptChar.characterLibraryId)) {
-          const linkedLibraryChar = libraryCharacters.find(c => c.id === scriptChar.characterLibraryId);
-          if (linkedLibraryChar) {
-            libraryIds.push(linkedLibraryChar.id);
-            addedIds.add(linkedLibraryChar.id);
-            continue;
-          }
-          console.warn(`[ContextPanel] Invalid characterLibraryId "${scriptChar.characterLibraryId}" for script character "${scriptChar.name}", fallback to name matching`);
-        }
-        
-        // 否则通过名字匹配角色库中的角色
-        const libraryChar = libraryCharacters.find(c => c.name === scriptChar.name);
-        if (libraryChar && !addedIds.has(libraryChar.id)) {
-          libraryIds.push(libraryChar.id);
-          addedIds.add(libraryChar.id);
-        }
-      }
-    }
-    
-    // 2. 再通过 characterNames 补充匹配（AI校准的分镜可能只有名称）
-    if (characterNames && characterNames.length > 0) {
-      for (const charName of characterNames) {
-        if (!charName) continue;
-        
-        // 精确匹配
-        let libraryChar = libraryCharacters.find(c => c.name === charName);
-        
-        // 模糊匹配：角色库名称包含分镜角色名，或分镜角色名包含角色库名称
-        if (!libraryChar) {
-          libraryChar = libraryCharacters.find(c => 
-            c.name.includes(charName) || charName.includes(c.name)
-          );
-        }
-        
-        if (libraryChar && !addedIds.has(libraryChar.id)) {
-          libraryIds.push(libraryChar.id);
-          addedIds.add(libraryChar.id);
-          console.log(`[ContextPanel] Matched character "${charName}" to library "${libraryChar.name}"`);
-        }
-      }
-    }
-    
-    return libraryIds;
-  };
-  
-  // 根据分镜和场景信息查找匹配的场景库视角
-  // 优先使用AI分析的shotIds关联，保底用分镜序号对应视角序号
-  const findMatchingSceneAndViewpointQuick = (shot: Shot, scene: ScriptScene, shotIndexInScene?: number): ViewpointMatchResult | null => {
-    const sceneName = scene.name || '';
-    
-    // 找到场景库中匹配的父场景
-    const parentScene = sceneLibraryScenes.find(s => 
-      !s.parentSceneId && !s.isViewpointVariant &&
-      (s.name.includes(sceneName) || sceneName.includes(s.name))
-    );
-    
-    if (!parentScene) {
-      console.log(`[findMatchingSceneAndViewpointQuick] 未找到匹配的父场景: "${sceneName}"`);
-      return null;
-    }
-    
-    // 获取该父场景的所有视角变体，按创建时间排序
-    const variants = sceneLibraryScenes
-      .filter(s => s.parentSceneId === parentScene.id)
-      .sort((a, b) => a.createdAt - b.createdAt);
-    
-    console.log(`[findMatchingSceneAndViewpointQuick] 场景 "${sceneName}" 有 ${variants.length} 个视角变体`);
-    
-    if (variants.length === 0) {
-      // 没有视角变体，返回父场景
-      return {
-        sceneLibraryId: parentScene.id,
-        viewpointId: undefined,
-        sceneReferenceImage: parentScene.referenceImage || parentScene.referenceImageBase64,
-        matchedSceneName: parentScene.name,
-        matchMethod: 'fallback' as const,
-        confidence: 0.5,
-      };
-    }
-    
-    // 方案一：优先检查场景库视角变体的shotIds（切割时保存的）
-    const variantWithShot = variants.find(v => v.shotIds?.includes(shot.id));
-    if (variantWithShot) {
-      console.log(`[findMatchingSceneAndViewpointQuick] 通过场景库shotIds匹配: 分镜${shot.id} -> 视角 "${variantWithShot.viewpointName || variantWithShot.name}"`);
-      return {
-        sceneLibraryId: variantWithShot.id,
-        viewpointId: variantWithShot.viewpointId,
-        sceneReferenceImage: variantWithShot.referenceImage || variantWithShot.referenceImageBase64,
-        matchedSceneName: variantWithShot.viewpointName || variantWithShot.name,
-        matchMethod: 'keyword' as const,
-        confidence: 0.98,
-      };
-    }
-    
-    // 方案二：检查剧本scene.viewpoints的shotIds（AI分析时保存的）
-    if (scene.viewpoints && scene.viewpoints.length > 0) {
-      const matchedViewpoint = scene.viewpoints.find(v => v.shotIds?.includes(shot.id));
-      if (matchedViewpoint) {
-        // 在场景库视角变体中找到同名的
-        const matchedVariant = variants.find(v => {
-          const variantName = v.viewpointName || v.name || '';
-          return variantName.includes(matchedViewpoint.name) || matchedViewpoint.name.includes(variantName);
-        });
-        if (matchedVariant) {
-          console.log(`[findMatchingSceneAndViewpointQuick] 通过剧本shotIds匹配: 分镜${shot.id} -> 视角 "${matchedVariant.viewpointName || matchedVariant.name}"`);
-          return {
-            sceneLibraryId: matchedVariant.id,
-            viewpointId: matchedVariant.viewpointId,
-            sceneReferenceImage: matchedVariant.referenceImage || matchedVariant.referenceImageBase64,
-            matchedSceneName: matchedVariant.viewpointName || matchedVariant.name,
-            matchMethod: 'keyword' as const,
-            confidence: 0.95,
-          };
-        }
-      }
-    }
-    
-    // 方案三：保底 - 按分镜序号对应视角变体序号
-    // 分镜1 -> 视角1，分镜2 -> 视角2，...
-    // 如果分镜数超过视角数，循环使用
-    const variantIndex = shotIndexInScene !== undefined 
-      ? shotIndexInScene % variants.length 
-      : 0;
-    
-    const matchedVariant = variants[variantIndex];
-    
-    console.log(`[findMatchingSceneAndViewpointQuick] 通过序号匹配: 分镜序号 ${(shotIndexInScene ?? 0) + 1} -> 视角变体 ${variantIndex + 1}: "${matchedVariant.viewpointName || matchedVariant.name}"`);
-    
-    return {
-      sceneLibraryId: matchedVariant.id,
-      viewpointId: matchedVariant.viewpointId,
-      sceneReferenceImage: matchedVariant.referenceImage || matchedVariant.referenceImageBase64,
-      matchedSceneName: matchedVariant.viewpointName || matchedVariant.name,
-      matchMethod: 'keyword' as const,
-      confidence: 0.9,
-    };
-  };
-  
   // 在场景库中查找匹配的视角
   const findViewpointInLibrary = (sceneName: string, viewpointName: string): ViewpointMatchResult | null => {
     console.log(`[findViewpointInLibrary] 查找场景: "${sceneName}", 视角: "${viewpointName}"`);
@@ -390,14 +222,24 @@ export function DirectorContextPanel() {
     }
     
     // 将剧本角色ID/名称映射到角色库ID
-    const characterLibraryIds = mapScriptCharacterIdsToLibraryIds(shot.characterIds || [], shot.characterNames);
+    const characterLibraryIds = mapScriptCharactersToLibraryIds({
+      scriptCharacterIds: shot.characterIds || [],
+      characterNames: shot.characterNames,
+      scriptCharacters: scriptData?.characters || [],
+      libraryCharacters,
+    });
     
     // 获取分镜在场景内的序号
     const sceneShots = shotsByScene[scene.id] || [];
     const shotIndexInScene = sceneShots.findIndex(s => s.id === shot.id);
     
     // 自动匹配场景库中的场景和视角（优先使用已有的视角关联）
-    const sceneMatch = findMatchingSceneAndViewpointQuick(shot, scene, shotIndexInScene >= 0 ? shotIndexInScene : undefined);
+    const sceneMatch = findQuickSceneViewpointMatch({
+      shot,
+      scene,
+      sceneLibraryScenes,
+      shotIndexInScene: shotIndexInScene >= 0 ? shotIndexInScene : undefined,
+    });
     
     addScenesAndSyncStyle([{
       // 场景信息
@@ -532,10 +374,20 @@ export function DirectorContextPanel() {
       }
       
       // 将剧本角色ID/名称映射到角色库ID
-      const characterLibraryIds = mapScriptCharacterIdsToLibraryIds(shot.characterIds || [], shot.characterNames);
+      const characterLibraryIds = mapScriptCharactersToLibraryIds({
+        scriptCharacterIds: shot.characterIds || [],
+        characterNames: shot.characterNames,
+        scriptCharacters: scriptData?.characters || [],
+        libraryCharacters,
+      });
       
       // 自动匹配场景库中的场景和视角（优先使用已有的视角关联，保底用序号）
-      const sceneMatch = findMatchingSceneAndViewpointQuick(shot, scene, shotIndexInScene);
+      const sceneMatch = findQuickSceneViewpointMatch({
+        shot,
+        scene,
+        sceneLibraryScenes,
+        shotIndexInScene,
+      });
       if (sceneMatch) matchedCount++;
       
       return {
@@ -756,164 +608,22 @@ export function DirectorContextPanel() {
         )}
       </div>
 
-      {/* 树形结构 */}
-      <ScrollArea className="flex-1">
-        <div className="p-2 space-y-1">
-          {/* 集列表 */}
-          {episodes.map((episode) => {
-            const episodeScenes = scriptData.scenes.filter((s) =>
-              episode.sceneIds.includes(s.id)
-            );
-            const episodeShots = shots.filter((shot) =>
-              episodeScenes.some((s) => s.id === shot.sceneRefId)
-            );
-            const episodeProgress = calculateProgress(
-              episodeShots.map((s) => ({ status: getShotCompletionStatus(s) }))
-            );
-
-            return (
-              <div key={episode.id} className="space-y-0.5">
-                {/* 集标题 */}
-                <button
-                  onClick={() => toggleEpisode(episode.id)}
-                  className="w-full flex items-center gap-1 px-2 py-1.5 rounded hover:bg-muted text-left"
-                >
-                  {expandedEpisodes.has(episode.id) ? (
-                    <ChevronDown className="h-3 w-3" />
-                  ) : (
-                    <ChevronRight className="h-3 w-3" />
-                  )}
-                  <Film className="h-3 w-3 text-primary" />
-                  <span className="text-sm font-medium flex-1 truncate">
-                    {episode.title}
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    {episodeProgress}
-                  </span>
-                </button>
-
-                {/* 场景列表 */}
-                {expandedEpisodes.has(episode.id) && (
-                  <div className="ml-4 space-y-0.5">
-                    {episodeScenes.map((scene) => {
-                      const sceneShots = shotsByScene[scene.id] || [];
-                      const sceneProgress = calculateProgress(
-                        sceneShots.map((s) => ({ status: getShotCompletionStatus(s) }))
-                      );
-                      const isSceneSelected = selectedSceneId === scene.id;
-
-                      return (
-                        <div key={scene.id} className="space-y-0.5">
-                          {/* 场景标题 */}
-                          <div className="flex items-center group">
-                            <button
-                              onClick={() => toggleScene(scene.id)}
-                              className={cn(
-                                "flex-1 flex items-center gap-1 px-2 py-1 rounded hover:bg-muted text-left",
-                                isSceneSelected && "bg-primary/10 ring-1 ring-primary/30"
-                              )}
-                            >
-                              {sceneShots.length > 0 ? (
-                                expandedScenes.has(scene.id) ? (
-                                  <ChevronDown className="h-3 w-3" />
-                                ) : (
-                                  <ChevronRight className="h-3 w-3" />
-                                )
-                              ) : (
-                                <span className="w-3" />
-                              )}
-                              <MapPin className="h-3 w-3 text-blue-500" />
-                              <span className="text-xs flex-1 truncate">
-                                {scene.name || scene.location}
-                              </span>
-                              <StatusIcon status={scene.status} />
-                              <span className="text-xs text-muted-foreground">
-                                {sceneProgress}
-                              </span>
-                            </button>
-                            {/* 添加场景所有分镜到分镜编辑 */}
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-6 w-6 p-0 shrink-0 opacity-0 group-hover:opacity-100"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleAddSceneToSplitScenes(scene);
-                              }}
-                              title="添加所有分镜到分镜编辑"
-                            >
-                              <Plus className="h-3 w-3 text-green-500" />
-                            </Button>
-                            {/* 发送场景按钮 */}
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-6 w-6 p-0 shrink-0 opacity-0 group-hover:opacity-100"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleSendScene(scene);
-                              }}
-                              title="发送整个场景到AI导演生成图片"
-                            >
-                              <Send className="h-3 w-3 text-primary" />
-                            </Button>
-                          </div>
-
-                          {/* 分镜列表 */}
-                          {expandedScenes.has(scene.id) && sceneShots.length > 0 && (
-                            <div className="ml-4 space-y-0.5">
-                              {sceneShots.map((shot) => {
-                                const isShotSelected = selectedShotId === shot.id;
-
-                                return (
-                                  <div key={shot.id} className="flex items-center group">
-                                    <button
-                                      onClick={() => handleSendShot(shot, scene)}
-                                      onDoubleClick={() => handleAddShotToSplitScenes(shot, scene)}
-                                      className={cn(
-                                        "flex-1 flex items-center gap-2 px-2 py-1 rounded hover:bg-muted text-left",
-                                        isShotSelected && "bg-primary/10 ring-1 ring-primary/30"
-                                      )}
-                                      title="单击: 发送到AI导演输入 | 双击: 直接添加到分镜编辑"
-                                    >
-                                      <span className="text-xs font-mono text-muted-foreground w-5">
-                                        {String(shot.index).padStart(2, "0")}
-                                      </span>
-                                      <span className="text-xs flex-1 truncate">
-                                        {shot.shotSize || "镜头"} - {shot.actionSummary?.slice(0, 20)}...
-                                      </span>
-                                      <StatusIcon
-                                        status={getShotCompletionStatus(shot)}
-                                      />
-                                    </button>
-                                    {/* 添加到分镜按钮 */}
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      className="h-6 w-6 p-0 shrink-0 opacity-0 group-hover:opacity-100"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleAddShotToSplitScenes(shot, scene);
-                                      }}
-                                      title="添加到分镜编辑"
-                                    >
-                                      <Plus className="h-3 w-3 text-green-500" />
-                                    </Button>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </ScrollArea>
+      <DirectorContextTree
+        episodes={episodes}
+        scenes={scriptData.scenes}
+        shots={shots}
+        shotsByScene={shotsByScene}
+        expandedEpisodes={expandedEpisodes}
+        expandedScenes={expandedScenes}
+        selectedSceneId={selectedSceneId}
+        selectedShotId={selectedShotId}
+        onToggleEpisode={toggleEpisode}
+        onToggleScene={toggleScene}
+        onSendScene={handleSendScene}
+        onAddScene={handleAddSceneToSplitScenes}
+        onSendShot={handleSendShot}
+        onAddShot={handleAddShotToSplitScenes}
+      />
 
       {/* 底部操作 */}
       <div className="p-3 border-t space-y-2">
