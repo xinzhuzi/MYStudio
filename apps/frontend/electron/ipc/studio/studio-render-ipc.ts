@@ -7,6 +7,7 @@ import { BrowserWindow, ipcMain } from "electron";
 import { createTimelineRenderRuntime } from "../../rendering/timeline-render-runtime";
 import { createFfmpegRendererAdapter } from "@rendering/runtime/ffmpeg/ffmpeg-renderer-adapter";
 import { createTimelineRenderHost } from "@rendering/runtime/timeline-render-host";
+import type { TimelineRendererAdapter } from "@rendering/runtime/renderer-registry";
 import { listStudioRuntimeAssets } from "../../storage/studio-runtime-assets";
 import type { DiagnosticsLogEntryInput } from "../../../types/diagnostics";
 import type { TimelineRenderProgress } from "../../../types/editing";
@@ -19,6 +20,7 @@ type RegisterStudioRenderIpcHandlersContext = {
   resolveSourcePath: (sourcePath: string) => string;
   createOperationId: (prefix: string) => string;
   writeDiagnosticsLog: (entry: DiagnosticsLogEntryInput) => void;
+  remotionAdapter?: TimelineRendererAdapter;
 };
 
 const execFileAsync = promisify(execFile);
@@ -28,6 +30,7 @@ export function registerStudioRenderIpcHandlers({
   resolveSourcePath,
   createOperationId,
   writeDiagnosticsLog,
+  remotionAdapter,
 }: RegisterStudioRenderIpcHandlersContext) {
   const ensureDir = (dirPath: string) => fs.mkdirSync(dirPath, { recursive: true });
   const getStudioRenderRoot = () => {
@@ -67,7 +70,10 @@ export function registerStudioRenderIpcHandlers({
       emitProgress,
     });
     timelineRenderHost = createTimelineRenderHost({
-      adapters: [createFfmpegRendererAdapter(ffmpegRuntime)],
+      adapters: [
+        createFfmpegRendererAdapter(ffmpegRuntime),
+        ...(remotionAdapter ? [remotionAdapter] : []),
+      ],
       emitProgress,
     });
     return timelineRenderHost;

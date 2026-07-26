@@ -33,6 +33,16 @@ export function verifyRemotionVersions({ root = process.cwd() } = {}) {
   if (!isExactSemver(expectedMediabunnyVersion)) {
     errors.push("dependencies.mediabunny 必须是精确 semver");
   }
+  if (lock.packages?.[""]?.dependencies?.mediabunny !== expectedMediabunnyVersion) {
+    errors.push(
+      `package-lock root dependencies.mediabunny 必须精确等于 ${expectedMediabunnyVersion}`,
+    );
+  }
+  if (lock.packages?.["node_modules/mediabunny"]?.version !== expectedMediabunnyVersion) {
+    errors.push(
+      `package-lock node_modules/mediabunny 版本漂移: ${lock.packages?.["node_modules/mediabunny"]?.version ?? "missing"}`,
+    );
+  }
 
   for (const [section, packageNames] of Object.entries(REQUIRED_REMOTION_PACKAGES)) {
     for (const packageName of packageNames) {

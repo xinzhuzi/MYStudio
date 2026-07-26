@@ -13,6 +13,7 @@ import {
   serializeSrt,
 } from "@/lib/studio/editing/subtitle-codec";
 import { useEditingStore } from "@/stores/editing/editing-store";
+import { useAppSettingsStore } from "@/stores/app/app-settings-store";
 import { useProjectStore } from "@/stores/project/project-store";
 import type {
   EditingProjectV1,
@@ -51,6 +52,7 @@ export function useEditingWorkbenchActions(
   const currentProject = useEditingStore((state) =>
     editingProjectId ? state.editingProjects[editingProjectId] : undefined,
   );
+  const requestedRenderer = useAppSettingsStore((state) => state.renderingSettings.renderer);
   const history = useEditingStore((state) =>
     editingProjectId ? state.historyByEditingProjectId[editingProjectId] : undefined,
   );
@@ -158,7 +160,7 @@ export function useEditingWorkbenchActions(
         jobId,
         createdAt: Date.now(),
         render: (plan) => renderer.renderTimeline(
-          createTimelineRenderRequest("ffmpeg", plan),
+          createTimelineRenderRequest(requestedRenderer, plan),
         ),
       });
       assertProjectActive(projectId);
@@ -187,7 +189,7 @@ export function useEditingWorkbenchActions(
       setRenderProgress(undefined);
       setRendering(false);
     }
-  }, [createDraft, input.episodeId, input.projectId]);
+  }, [createDraft, input.episodeId, input.projectId, requestedRenderer]);
 
   const cancelRender = useCallback(async () => {
     if (!renderJobId || !window.studioRenderer?.cancelTimelineRender) return;
@@ -324,6 +326,7 @@ export function useEditingWorkbenchActions(
 
   return useMemo(() => ({
     currentProject,
+    requestedRenderer,
     drafting,
     rendering,
     renderProgress,
@@ -356,6 +359,7 @@ export function useEditingWorkbenchActions(
     history?.past.length,
     importSubtitles,
     persistedRenderRecord,
+    requestedRenderer,
     redo,
     renderCurrent,
     renderEvidence,

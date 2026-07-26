@@ -1,5 +1,6 @@
 import {
   Coffee,
+  Film,
   HardDrive,
   Image as ImageIcon,
   Key,
@@ -20,6 +21,7 @@ export const SETTINGS_TABS = [
   { value: "advanced", label: "高级选项" },
   { value: "imagehost", label: "图床配置" },
   { value: "storage", label: "存储" },
+  { value: "rendering", label: "渲染" },
   { value: "development", label: "开发" },
   { value: "support", label: "请作者喝杯咖啡" },
 ] as const;
@@ -45,6 +47,8 @@ function renderSettingsTabIcon(value: SettingsTabId) {
       return <Upload className="h-4 w-4 mr-2" />;
     case "storage":
       return <HardDrive className="h-4 w-4 mr-2" />;
+    case "rendering":
+      return <Film className="h-4 w-4 mr-2" />;
     case "development":
       return <Terminal className="h-4 w-4 mr-2" />;
     case "support":

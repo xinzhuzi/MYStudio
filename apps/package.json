@@ -31,6 +31,10 @@
     "lint": "eslint . --config frontend/config/eslint.cjs --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "test": "vitest run --config frontend/config/vite.config.ts",
     "remotion:versions": "node ./build/remotion/verify-versions.mjs && remotion versions",
+    "remotion:bundle": "node ./build/remotion/bundle.mjs",
+    "remotion:worker:smoke": "electron ./build/remotion/render-worker-entry-smoke.mjs",
+    "remotion:smoke:five-shot": "MYSTUDIO_REMOTION_FIVE_SHOT=1 vite-node --config build/timeline/vite-node.config.ts build/remotion/render-five-shot.ts",
+    "remotion:measure:loudness": "MYSTUDIO_REMOTION_LOUDNESS_RUNNER=1 vite-node --config build/timeline/vite-node.config.ts build/remotion/measure-loudness.ts",
     "remotion:upgrade": "node ./build/remotion/upgrade.mjs",
     "smoke:desktop": "node ./build/smoke/smoke-desktop.mjs",
     "smoke:workflow:open": "node ./build/smoke/open-workflow-smoke-app.mjs",
@@ -45,6 +49,7 @@
     "video:daojie:chapter001:probe-generation": "node ./build/daojie/automate-daojie-chapter001-video.mjs --probe-generation",
     "video:daojie:chapter001:continuity-pilot": "node ./build/daojie/automate-daojie-chapter001-video.mjs --continuity-pilot",
     "video:daojie:chapter001:continuity-full": "node ./build/daojie/automate-daojie-chapter001-video.mjs --continuity-full-chapter",
+    "video:daojie:chapter001:remotion": "MYSTUDIO_DAOJIE_REMOTION_RUNNER=1 vite-node --config build/timeline/vite-node.config.ts build/timeline/render-daojie-remotion-timeline.ts",
     "preview": "electron-vite preview --config frontend/config/electron-vite.config.ts"
   },
   "dependencies": {

@@ -55,6 +55,8 @@ project-file-save-image
 project-file-write-binary
 project-file-write-text
 read-image-base64
+remotion-runtime-download
+remotion-runtime-status
 save-file-dialog
 save-image
 storage-clear-cache
@@ -108,6 +110,11 @@ tts-runtime-status
 tts-runtime-stop
 `.trim().split("\n");
 
+const NAMED_IPC_CHANNELS = {
+  REMOTION_RUNTIME_DOWNLOAD_CHANNEL: "remotion-runtime-download",
+  REMOTION_RUNTIME_STATUS_CHANNEL: "remotion-runtime-status",
+} as const;
+
 function listTypeScriptFiles(root: string): string[] {
   return fs.readdirSync(root, { withFileTypes: true }).flatMap((entry) => {
     const fullPath = path.join(root, entry.name);
@@ -116,13 +123,26 @@ function listTypeScriptFiles(root: string): string[] {
   });
 }
 
+function listIpcCallChannels(
+  source: string,
+  call: "ipcMain.handle" | "ipcRenderer.invoke",
+): string[] {
+  const escapedCall = call.replace(".", "\\.");
+  const literalPattern = new RegExp(`${escapedCall}\\(['\"]([^'\"]+)['\"]`, "g");
+  const literalChannels = [...source.matchAll(literalPattern)].map((match) => match[1]);
+  const namedChannels = Object.entries(NAMED_IPC_CHANNELS)
+    .filter(([name]) => source.includes(`${call}(${name}`))
+    .map(([, channel]) => channel);
+  return [...literalChannels, ...namedChannels];
+}
+
 const electronRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 describe("Electron IPC contract", () => {
   it("registers the established channel list exactly once", () => {
     const channels = listTypeScriptFiles(electronRoot).flatMap((filePath) => {
       const source = fs.readFileSync(filePath, "utf8");
-      return [...source.matchAll(/ipcMain\.handle\(['"]([^'"]+)['"]/g)].map((match) => match[1]);
+      return listIpcCallChannels(source, "ipcMain.handle");
     });
 
     expect(channels).toHaveLength(new Set(channels).size);
@@ -132,10 +152,10 @@ describe("Electron IPC contract", () => {
   it("keeps every preload invoke mapped to a registered channel", () => {
     const handlerChannels = listTypeScriptFiles(electronRoot).flatMap((filePath) => {
       const source = fs.readFileSync(filePath, "utf8");
-      return [...source.matchAll(/ipcMain\.handle\(['"]([^'"]+)['"]/g)].map((match) => match[1]);
+      return listIpcCallChannels(source, "ipcMain.handle");
     });
     const preloadSource = fs.readFileSync(path.join(electronRoot, "preload", "preload.ts"), "utf8");
-    const invokeChannels = [...preloadSource.matchAll(/ipcRenderer\.invoke\(['"]([^'"]+)['"]/g)].map((match) => match[1]);
+    const invokeChannels = listIpcCallChannels(preloadSource, "ipcRenderer.invoke");
     const handlerOnlyChannels = [...new Set(handlerChannels)]
       .filter((channel) => !new Set(invokeChannels).has(channel))
       .sort();

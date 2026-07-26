@@ -1,0 +1,403 @@
+// Boundary guard for CompositionProps. Both the Player (renderer) and the fixed
+// render bundle validate the props they receive before mounting, so neither
+// trusts a raw payload that crossed an IPC/bundle boundary. Pure and dependency
+// free beyond the prop types it checks.
+
+import type { CompositionProps } from "./composition-props";
+import {
+  COMPOSITION_TRANSITION_EFFECTS,
+  type CompositionTransitionEffect,
+} from "./timing";
+
+const VISUAL_KINDS = ["image", "video"] as const;
+const AUDIO_KINDS = ["voice", "bgm", "sfx"] as const;
+
+export type CompositionValidationResult<T> =
+  | { success: true; value: T }
+  | { success: false; issues: Array<{ path: string; message: string }> };
+
+type Issue = { path: string; message: string };
+
+export function validateCompositionProps(
+  value: unknown,
+): CompositionValidationResult<CompositionProps> {
+  if (!isRecord(value)) {
+    return { success: false, issues: [{ path: "$", message: "合成属性必须是对象" }] };
+  }
+  const issues: Issue[] = [];
+  requirePositiveInteger(value.width, "width", issues);
+  requirePositiveInteger(value.height, "height", issues);
+  requirePositiveNumber(value.fps, "fps", issues);
+  requirePositiveInteger(value.durationInFrames, "durationInFrames", issues);
+  validateArray(value.visualClips, "visualClips", issues, validateVisualClip);
+  validateArray(value.transitions, "transitions", issues, validateTransition);
+  validateArray(value.audioClips, "audioClips", issues, validateAudioClip);
+  validateArray(value.subtitles, "subtitles", issues, validateSubtitle);
+  validateRelationships(value, issues);
+  if (issues.length > 0) return { success: false, issues };
+  return { success: true, value: value as unknown as CompositionProps };
+}
+
+function validateVisualClip(clip: unknown, path: string, issues: Issue[]): void {
+  if (!isRecord(clip)) {
+    issues.push({ path, message: "视觉片段必须是对象" });
+    return;
+  }
+  requireNonEmptyString(clip.clipId, `${path}.clipId`, issues);
+  requireEnum(clip.kind, VISUAL_KINDS, `${path}.kind`, issues);
+  requireNonEmptyString(clip.src, `${path}.src`, issues);
+  requireCapabilityUrl(clip.src, `${path}.src`, issues);
+  requireNonNegativeInteger(clip.from, `${path}.from`, issues);
+  requirePositiveInteger(clip.durationInFrames, `${path}.durationInFrames`, issues);
+  validateTransform(clip.transform, `${path}.transform`, issues);
+  validateOptionalClipFields(clip, path, issues);
+}
+
+function validateTransform(value: unknown, path: string, issues: Issue[]): void {
+  if (!isRecord(value)) {
+    issues.push({ path, message: "变换必须是对象" });
+    return;
+  }
+  for (const key of ["x", "y", "scaleX", "scaleY", "rotation", "opacity"]) {
+    if (!isFiniteNumber(value[key])) {
+      issues.push({ path: `${path}.${key}`, message: `${key} 必须是有限数值` });
+    }
+  }
+  for (const key of ["scaleX", "scaleY"]) {
+    if (isFiniteNumber(value[key]) && value[key] <= 0) {
+      issues.push({ path: `${path}.${key}`, message: `${key} 必须大于 0` });
+    }
+  }
+  if (isFiniteNumber(value.opacity) && (value.opacity < 0 || value.opacity > 1)) {
+    issues.push({ path: `${path}.opacity`, message: "opacity 必须位于 0..1" });
+  }
+}
+
+function validateTransition(value: unknown, path: string, issues: Issue[]): void {
+  if (!isRecord(value)) {
+    issues.push({ path, message: "转场必须是对象" });
+    return;
+  }
+  requireNonEmptyString(value.fromClipId, `${path}.fromClipId`, issues);
+  requireNonEmptyString(value.toClipId, `${path}.toClipId`, issues);
+  if (!isTransitionEffect(value.effectId)) {
+    issues.push({ path: `${path}.effectId`, message: "转场效果无效" });
+  }
+  requireNonNegativeInteger(value.overlapFrames, `${path}.overlapFrames`, issues);
+}
+
+function validateAudioClip(value: unknown, path: string, issues: Issue[]): void {
+  if (!isRecord(value)) {
+    issues.push({ path, message: "音频片段必须是对象" });
+    return;
+  }
+  requireNonEmptyString(value.clipId, `${path}.clipId`, issues);
+  requireEnum(value.kind, AUDIO_KINDS, `${path}.kind`, issues);
+  requireNonEmptyString(value.src, `${path}.src`, issues);
+  requireCapabilityUrl(value.src, `${path}.src`, issues);
+  requireNonNegativeInteger(value.from, `${path}.from`, issues);
+  requirePositiveInteger(value.durationInFrames, `${path}.durationInFrames`, issues);
+  if (!isFiniteNumber(value.volume) || (value.volume as number) < 0) {
+    issues.push({ path: `${path}.volume`, message: "音量必须是非负有限数值" });
+  }
+  validateOptionalClipFields(value, path, issues);
+}
+
+function validateOptionalClipFields(value: Record<string, unknown>, path: string, issues: Issue[]): void {
+  const trimStartFrames = value.trimStartFrames;
+  if (trimStartFrames !== undefined && !isNonNegativeInteger(trimStartFrames)) {
+    issues.push({ path: `${path}.trimStartFrames`, message: "trimStartFrames 必须是非负整数" });
+  }
+  if (value.playbackRate !== undefined
+    && (!isFiniteNumber(value.playbackRate) || value.playbackRate <= 0)) {
+    issues.push({ path: `${path}.playbackRate`, message: "播放速率必须是正有限数值" });
+  }
+  if (value.muted !== undefined && typeof value.muted !== "boolean") {
+    issues.push({ path: `${path}.muted`, message: "muted 必须是布尔值" });
+  }
+  validateFade(value.fade, value.durationInFrames, `${path}.fade`, issues);
+  validateEnvelope(value.envelope, value.durationInFrames, `${path}.envelope`, issues);
+  validatePanZoom(value.panZoom, `${path}.panZoom`, issues);
+}
+
+function requireCapabilityUrl(value: unknown, path: string, issues: Issue[]): void {
+  if (typeof value !== "string") return;
+  try {
+    const url = new URL(value);
+    const parts = url.pathname.split("/").filter(Boolean);
+    if (url.protocol !== "http:"
+      || url.hostname !== "127.0.0.1"
+      || !url.port
+      || url.username
+      || url.password
+      || parts.length !== 2
+      || !/^[a-f0-9]{64}$/.test(parts[0] ?? "")
+      || !(parts[1] ?? "")
+      || url.search
+      || url.hash) {
+      throw new Error();
+    }
+  } catch { issues.push({ path, message: "src 必须是 127.0.0.1 的 HTTP capability URL" }); }
+}
+
+function validateFade(
+  value: unknown,
+  durationInFrames: unknown,
+  path: string,
+  issues: Issue[],
+): void {
+  if (value === undefined) return;
+  if (!isRecord(value)) {
+    issues.push({ path, message: "fade 必须是对象" });
+    return;
+  }
+  for (const key of ["fadeInFrames", "fadeOutFrames"]) {
+    const frames = value[key];
+    if (!isNonNegativeInteger(frames)) {
+      issues.push({ path: `${path}.${key}`, message: `${key} 必须是非负整数` });
+    } else if (isNonNegativeInteger(durationInFrames) && frames > durationInFrames) {
+      issues.push({ path: `${path}.${key}`, message: `${key} 不得超过片段时长` });
+    }
+  }
+}
+
+function validateEnvelope(
+  value: unknown,
+  durationInFrames: unknown,
+  path: string,
+  issues: Issue[],
+): void {
+  if (value === undefined) return;
+  if (!Array.isArray(value)) {
+    issues.push({ path, message: "envelope 必须是数组" });
+    return;
+  }
+  value.forEach((point, index) => {
+    const pointPath = `${path}[${index}]`;
+    if (!isRecord(point)) {
+      issues.push({ path: pointPath, message: "包络点必须是对象" });
+      return;
+    }
+    if (!isNonNegativeInteger(point.frame)) {
+      issues.push({ path: `${pointPath}.frame`, message: "frame 必须是非负整数" });
+    } else if (isNonNegativeInteger(durationInFrames) && point.frame > durationInFrames) {
+      issues.push({ path: `${pointPath}.frame`, message: "frame 不得超过片段时长" });
+    }
+    if (!isFiniteNumber(point.gain) || point.gain < 0) {
+      issues.push({ path: `${pointPath}.gain`, message: "gain 必须是非负有限数值" });
+    }
+  });
+}
+
+function validatePanZoom(value: unknown, path: string, issues: Issue[]): void {
+  if (value === undefined) return;
+  if (!isRecord(value)) {
+    issues.push({ path, message: "panZoom 必须是对象" });
+    return;
+  }
+  for (const key of ["fromScale", "toScale"]) {
+    if (!isFiniteNumber(value[key]) || value[key] <= 0) {
+      issues.push({ path: `${path}.${key}`, message: `${key} 必须是正有限数值` });
+    }
+  }
+  for (const key of ["originX", "originY"]) {
+    if (!isFiniteNumber(value[key]) || value[key] < 0 || value[key] > 1) {
+      issues.push({ path: `${path}.${key}`, message: `${key} 必须位于 0..1` });
+    }
+  }
+}
+
+function validateSubtitle(value: unknown, path: string, issues: Issue[]): void {
+  if (!isRecord(value)) {
+    issues.push({ path, message: "字幕必须是对象" });
+    return;
+  }
+  requireNonEmptyString(value.cueId, `${path}.cueId`, issues);
+  requireNonEmptyString(value.text, `${path}.text`, issues);
+  requireNonNegativeInteger(value.from, `${path}.from`, issues);
+  requirePositiveInteger(value.durationInFrames, `${path}.durationInFrames`, issues);
+}
+
+function validateRelationships(value: Record<string, unknown>, issues: Issue[]): void {
+  const compositionDuration = value.durationInFrames;
+  const visuals = Array.isArray(value.visualClips)
+    ? value.visualClips.filter(isRecord)
+    : [];
+  const visualIndexById = new Map<string, number>();
+
+  visuals.forEach((clip, index) => {
+    const clipId = typeof clip.clipId === "string" ? clip.clipId : "";
+    if (clipId && visualIndexById.has(clipId)) {
+      issues.push({ path: `visualClips[${index}].clipId`, message: "视觉片段 ID 重复" });
+    } else if (clipId) {
+      visualIndexById.set(clipId, index);
+    }
+    validateWithinComposition(
+      clip.from,
+      clip.durationInFrames,
+      compositionDuration,
+      `visualClips[${index}]`,
+      issues,
+    );
+  });
+
+  if (Array.isArray(value.transitions)) {
+    const seenPairs = new Set<string>();
+    value.transitions.forEach((transition, index) => {
+      if (!isRecord(transition)) return;
+      const path = `transitions[${index}]`;
+      const fromId = typeof transition.fromClipId === "string"
+        ? transition.fromClipId
+        : "";
+      const toId = typeof transition.toClipId === "string"
+        ? transition.toClipId
+        : "";
+      const fromIndex = visualIndexById.get(fromId);
+      const toIndex = visualIndexById.get(toId);
+      if (fromIndex === undefined) {
+        issues.push({ path: `${path}.fromClipId`, message: "转场来源片段不存在" });
+      }
+      if (toIndex === undefined) {
+        issues.push({ path: `${path}.toClipId`, message: "转场目标片段不存在" });
+      }
+      if (fromIndex !== undefined && toIndex !== undefined && toIndex !== fromIndex + 1) {
+        issues.push({ path: `${path}.toClipId`, message: "转场只能连接相邻视觉片段" });
+      }
+
+      const pair = `${fromId}->${toId}`;
+      if (seenPairs.has(pair)) {
+        issues.push({ path, message: "相邻片段转场重复" });
+      }
+      seenPairs.add(pair);
+
+      if (transition.effectId === "cut" && transition.overlapFrames !== 0) {
+        issues.push({ path: `${path}.overlapFrames`, message: "cut 转场重叠必须为 0" });
+      } else if (isTransitionEffect(transition.effectId)
+        && transition.effectId !== "cut"
+        && transition.overlapFrames === 0) {
+        issues.push({ path: `${path}.overlapFrames`, message: "非 cut 转场重叠必须大于 0" });
+      }
+
+      if (fromIndex === undefined
+        || toIndex === undefined
+        || !isNonNegativeInteger(transition.overlapFrames)) {
+        return;
+      }
+      const from = visuals[fromIndex];
+      const to = visuals[toIndex];
+      if (isPositiveInteger(from.durationInFrames)
+        && isPositiveInteger(to.durationInFrames)
+        && transition.overlapFrames
+          > Math.max(0, Math.min(from.durationInFrames, to.durationInFrames) - 1)) {
+        issues.push({ path: `${path}.overlapFrames`, message: "转场重叠不能耗尽相邻片段" });
+      }
+      if (isNonNegativeInteger(from.from)
+        && isPositiveInteger(from.durationInFrames)
+        && isNonNegativeInteger(to.from)
+        && to.from !== from.from + from.durationInFrames - transition.overlapFrames) {
+        issues.push({ path: `${path}.overlapFrames`, message: "转场重叠与片段时序不一致" });
+      }
+    });
+  }
+
+  for (const [collectionName, collection] of [
+    ["audioClips", value.audioClips],
+    ["subtitles", value.subtitles],
+  ] as const) {
+    if (!Array.isArray(collection)) continue;
+    collection.forEach((item, index) => {
+      if (!isRecord(item)) return;
+      validateWithinComposition(
+        item.from,
+        item.durationInFrames,
+        compositionDuration,
+        `${collectionName}[${index}]`,
+        issues,
+      );
+    });
+  }
+}
+
+function validateWithinComposition(
+  from: unknown,
+  duration: unknown,
+  compositionDuration: unknown,
+  path: string,
+  issues: Issue[],
+): void {
+  if (isNonNegativeInteger(from)
+    && isPositiveInteger(duration)
+    && isPositiveInteger(compositionDuration)
+    && from + duration > compositionDuration) {
+    issues.push({ path: `${path}.durationInFrames`, message: "片段结束帧超出 composition 时长" });
+  }
+}
+
+function isTransitionEffect(value: unknown): value is CompositionTransitionEffect {
+  return typeof value === "string"
+    && (COMPOSITION_TRANSITION_EFFECTS as readonly string[]).includes(value);
+}
+
+function validateArray<T>(
+  value: unknown,
+  path: string,
+  issues: Issue[],
+  validateItem: (item: unknown, itemPath: string, issues: Issue[]) => void,
+): void {
+  if (!Array.isArray(value)) {
+    issues.push({ path, message: `${path} 必须是数组` });
+    return;
+  }
+  value.forEach((item, index) => validateItem(item, `${path}[${index}]`, issues));
+}
+
+function requireEnum(
+  value: unknown,
+  allowed: readonly string[],
+  path: string,
+  issues: Issue[],
+): void {
+  if (typeof value !== "string" || !allowed.includes(value)) {
+    issues.push({ path, message: `${path} 必须是 ${allowed.join(" / ")} 之一` });
+  }
+}
+
+function requireNonEmptyString(value: unknown, path: string, issues: Issue[]): void {
+  if (typeof value !== "string" || value.trim().length === 0) {
+    issues.push({ path, message: `${path} 必须是非空字符串` });
+  }
+}
+
+function requirePositiveNumber(value: unknown, path: string, issues: Issue[]): void {
+  if (!isFiniteNumber(value) || (value as number) <= 0) {
+    issues.push({ path, message: `${path} 必须是正有限数值` });
+  }
+}
+
+function requirePositiveInteger(value: unknown, path: string, issues: Issue[]): void {
+  if (!Number.isInteger(value) || (value as number) <= 0) {
+    issues.push({ path, message: `${path} 必须是正整数` });
+  }
+}
+
+function requireNonNegativeInteger(value: unknown, path: string, issues: Issue[]): void {
+  if (!Number.isInteger(value) || (value as number) < 0) {
+    issues.push({ path, message: `${path} 必须是非负整数` });
+  }
+}
+
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
+function isNonNegativeInteger(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0;
+}
+
+function isPositiveInteger(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value > 0;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}

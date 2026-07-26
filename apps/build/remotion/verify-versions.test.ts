@@ -44,6 +44,23 @@ describe("verifyRemotionVersions", () => {
       "dependencies 禁止安装 @remotion/transitions",
     ]));
   });
+
+  it("detects Mediabunny lockfile drift", () => {
+    const root = fixtureRoot();
+    const lockPath = path.join(root, "package-lock.json");
+    const lock = JSON.parse(fs.readFileSync(lockPath, "utf8"));
+    lock.packages[""].dependencies.mediabunny = "1.50.7";
+    lock.packages["node_modules/mediabunny"].version = "1.50.6";
+    writeJson(lockPath, lock);
+
+    const result = verifyRemotionVersions({ root });
+
+    expect(result.success).toBe(false);
+    expect(result.errors).toEqual(expect.arrayContaining([
+      "package-lock root dependencies.mediabunny 必须精确等于 1.50.8",
+      "package-lock node_modules/mediabunny 版本漂移: 1.50.6",
+    ]));
+  });
 });
 
 function fixtureRoot() {
@@ -80,6 +97,7 @@ function fixtureRoot() {
     name: "mediabunny",
     version: mediaVersion,
   });
+  lockPackages["node_modules/mediabunny"] = { version: mediaVersion };
   writeJson(path.join(root, "package.json"), manifest);
   writeJson(path.join(root, "package-lock.json"), { packages: lockPackages });
   return root;

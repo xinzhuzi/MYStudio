@@ -143,6 +143,57 @@ describe("preload IPC surface", () => {
     expect(preloadSource).not.toContain("renderTimeline: (filterGraph:");
   });
 
+  it("exposes a validated Remotion browser runtime without raw download options", () => {
+    expect(preloadSource).toContain("exposeInMainWorld('remotionRuntime'");
+    expect(preloadSource).toContain("ipcRenderer.invoke(REMOTION_RUNTIME_STATUS_CHANNEL)");
+    expect(preloadSource).toContain("ipcRenderer.invoke(REMOTION_RUNTIME_DOWNLOAD_CHANNEL, {})");
+    expect(preloadSource).toContain("validateRemotionRuntimeStatusReply(value)");
+    expect(preloadSource).toContain("validateRemotionRuntimeDownloadProgressEvent(payload)");
+    expect(preloadSource).toContain("ipcRenderer.removeListener(REMOTION_RUNTIME_DOWNLOAD_PROGRESS_EVENT, wrapped)");
+    expect(preloadSource).not.toContain("download: (options:");
+    expect(electronTypesSource).toContain("remotionRuntime?:");
+    expect(electronTypesSource).toContain("status: () => Promise<RemotionBrowserStatus>");
+    expect(electronTypesSource).toContain("download: () => Promise<RemotionBrowserStatus>");
+  });
+
+  it("exposes a narrow validated Remotion browser runtime facade", () => {
+    expect(preloadSource).toContain("exposeInMainWorld('remotionRuntime'");
+    expect(preloadSource).toContain("REMOTION_RUNTIME_STATUS_CHANNEL");
+    expect(preloadSource).toContain("REMOTION_RUNTIME_DOWNLOAD_CHANNEL");
+    expect(preloadSource).toContain("validateRemotionRuntimeStatusReply");
+    expect(preloadSource).toContain("validateRemotionRuntimeDownloadProgressEvent(payload)");
+    expect(preloadSource).toContain("ipcRenderer.on(REMOTION_RUNTIME_DOWNLOAD_PROGRESS_EVENT, wrapped)");
+    expect(preloadSource).toContain("ipcRenderer.removeListener(REMOTION_RUNTIME_DOWNLOAD_PROGRESS_EVENT, wrapped)");
+    expect(electronTypesSource).toContain("remotionRuntime?:");
+    expect(electronTypesSource).toContain("status: () => Promise<RemotionBrowserStatus>");
+    expect(electronTypesSource).toContain("download: () => Promise<RemotionBrowserStatus>");
+    expect(electronTypesSource).toContain("listener: (progress: RemotionBrowserDownloadProgress) => void");
+
+    const runtimeTypeBlock = electronTypesSource.slice(
+      electronTypesSource.indexOf("remotionRuntime?:"),
+      electronTypesSource.indexOf("studioAssets?:"),
+    );
+    expect(runtimeTypeBlock).not.toContain("executablePath");
+  });
+
+  it("exposes validated Remotion preview sessions without paths or tokens", () => {
+    expect(preloadSource).toContain("exposeInMainWorld('remotionPreview'");
+    expect(preloadSource).toContain("ipcRenderer.invoke(REMOTION_PREVIEW_CREATE_CHANNEL, { plan })");
+    expect(preloadSource).toContain("validateRemotionPreviewCreateReply");
+    expect(preloadSource).toContain("ipcRenderer.invoke(REMOTION_PREVIEW_RELEASE_CHANNEL, { sessionId })");
+    expect(preloadSource).toContain("validateRemotionPreviewReleaseReply");
+    expect(electronTypesSource).toContain("remotionPreview?:");
+    expect(electronTypesSource).toContain("create: (plan: TimelineRenderRequest[\"plan\"])");
+    expect(electronTypesSource).toContain("release: (sessionId: string)");
+
+    const previewTypeBlock = electronTypesSource.slice(
+      electronTypesSource.indexOf("remotionPreview?:"),
+      electronTypesSource.indexOf("studioAssets?:"),
+    );
+    expect(previewTypeBlock).not.toContain("token");
+    expect(previewTypeBlock).not.toContain("sourcePath");
+  });
+
   it("keeps studio renderer inputs aligned with the shared render plans", () => {
     expect(preloadSource).toContain(
       "renderTrackCandidate: (plan: TrackRenderPlan) => ipcRenderer.invoke('studio-render-track-candidate', plan)",

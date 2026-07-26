@@ -24,6 +24,7 @@ import { ImageHostSettingsContainer } from "./settings/ImageHostSettingsContaine
 import { DevelopmentSettingsContainer } from "./settings/DevelopmentSettingsContainer";
 import { PythonSettingsTab } from "./settings/PythonSettingsTab";
 import { StorageSettingsTab } from "./settings/StorageSettingsTab";
+import { RenderingSettingsTab } from "./settings/RenderingSettingsTab";
 import { ApiSettingsContainer, ApiSettingsMigration } from "./settings/ApiSettingsContainer";
 import {
   DEFAULT_SETTINGS_TAB,
@@ -134,6 +135,10 @@ export function SettingsPanel({
         {/* Storage Tab */}
         <TabsContent value="storage" className="flex-1 overflow-hidden mt-0">
           <StorageSettingsTab />
+        </TabsContent>
+
+        <TabsContent value="rendering" className="flex-1 overflow-hidden mt-0">
+          <RenderingSettingsTab />
         </TabsContent>
 
         <TabsContent value="development" className="flex-1 overflow-hidden mt-0">

@@ -1,7 +1,7 @@
 // Copyright (c) 2025 hotflow2024
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
-import { app, BrowserWindow, ipcMain, protocol, net, dialog, shell } from 'electron'
+import { app, BrowserWindow, ipcMain, protocol, net, dialog, shell, utilityProcess } from 'electron'
 import path from 'node:path'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -48,6 +48,10 @@ import { registerApiRequestIpcHandlers } from '../ipc/ai/api-request-ipc'
 import { registerFileExportIpcHandlers } from '../ipc/files/file-export-ipc'
 import { registerAssetLibraryIpcHandlers } from '../ipc/assets/asset-library-ipc'
 import { registerStudioRenderIpcHandlers } from '../ipc/studio/studio-render-ipc'
+import { registerRemotionRuntimeIpcHandlers } from '../ipc/studio/remotion-runtime-ipc'
+import { registerRemotionPreviewIpcHandlers } from '../ipc/studio/remotion-preview-ipc'
+import { createRemotionRendererAdapter } from '@rendering/plugins/remotion/renderer/remotion-renderer-adapter'
+import { resolveRemotionRuntimeDir } from '@rendering/plugins/remotion/browser/remotion-runtime-manifest'
 import { createStorageManager } from '../storage/storage-manager'
 import { createImageSourceReader } from '../media/image-source'
 import {
@@ -96,9 +100,15 @@ type PackageUpdateConfig = {
 
 type PackageMetadata = {
   updateConfig?: PackageUpdateConfig
+  dependencies?: { remotion?: string }
 }
 
-const packageUpdateConfig = (packageMetadata as PackageMetadata).updateConfig ?? {}
+const typedPackageMetadata = packageMetadata as PackageMetadata
+const packageUpdateConfig = typedPackageMetadata.updateConfig ?? {}
+const remotionVersion = typedPackageMetadata.dependencies?.remotion
+if (!isNonEmptyString(remotionVersion)) {
+  throw new Error('package.json 必须声明精确 Remotion 版本')
+}
 
 function writeDiagnosticsLog(entry: DiagnosticsLogEntryInput) {
   diagnosticsLogService.write(entry).catch((error) => {
@@ -159,6 +169,7 @@ const ttsRuntimeController = createTtsRuntimeController({
   fetchBytes: diagnosticsFetchBytes,
 })
 let stopLocalSidecarsPromise: Promise<void> | null = null
+let disposeRemotionRuntime: (() => void | Promise<void>) | null = null
 
 function stopLocalSidecars() {
   if (!stopLocalSidecarsPromise) {
@@ -172,6 +183,12 @@ function stopLocalSidecars() {
     })
   }
   return stopLocalSidecarsPromise
+}
+
+async function stopAllLocalServices() {
+  await disposeRemotionRuntime?.()
+  disposeRemotionRuntime = null
+  await stopLocalSidecars()
 }
 
 function getUpdateManifestUrl() {
@@ -368,7 +385,7 @@ app.on('window-all-closed', createWindowAllClosedHandler({
 }))
 
 app.on('before-quit', createBeforeQuitCleanup({
-  stopLocalServices: stopLocalSidecars,
+  stopLocalServices: stopAllLocalServices,
   quit: () => app.quit(),
   onError: (error) => {
     console.warn('Failed to stop local services before quit:', error)
@@ -415,10 +432,13 @@ registerStorageMediaIpcHandlers({
 })
 
 function getStudioManualsSourceRoot() {
+  // APP_ROOT is apps/ in electron-vite out layout (out/main -> ../..).
+  // Seed lives at apps/frontend/assets/studio-manuals (not legacy src/assets).
+  // Packaged builds ship the same tree via extraResources -> resources/studio-manuals.
   const appRoot = process.env.APP_ROOT ?? path.join(__dirname, '../..')
   const candidates = [
-    path.join(appRoot, 'src', 'assets', 'studio-manuals'),
-    path.join(app.getAppPath(), 'src', 'assets', 'studio-manuals'),
+    path.join(appRoot, 'frontend', 'assets', 'studio-manuals'),
+    path.join(app.getAppPath(), 'frontend', 'assets', 'studio-manuals'),
     path.join(process.resourcesPath, 'studio-manuals'),
   ]
   return candidates.find((candidate) => fs.existsSync(candidate)) ?? candidates[0]
@@ -504,11 +524,51 @@ registerApiRequestIpcHandlers({
 
 registerFileExportIpcHandlers({ getDataDir, getMediaRoot })
 
+const remotionUserDataDir = app.getPath('userData')
+const remotionRuntime = registerRemotionRuntimeIpcHandlers({
+  userDataDir: remotionUserDataDir,
+  remotionVersion,
+  workerPath: path.join(MAIN_DIST, 'remotion-browser-worker.cjs'),
+})
+const remotionPreview = registerRemotionPreviewIpcHandlers({
+  resolveSourcePath: resolveStudioSourcePath,
+})
+const remotionBundlePath = app.isPackaged
+  ? path.join(process.resourcesPath, 'remotion-bundle')
+  : path.join(process.env.APP_ROOT ?? path.join(__dirname, '../..'), '.cache/remotion-bundle')
+const remotionRuntimeDir = resolveRemotionRuntimeDir(remotionUserDataDir)
+const remotionBinariesDirectory = app.isPackaged
+  ? path.join(process.resourcesPath, 'app.asar.unpacked', 'node_modules/@remotion/compositor-darwin-arm64')
+  : path.join(process.env.APP_ROOT ?? path.join(__dirname, '../..'), 'node_modules/@remotion/compositor-darwin-arm64')
+const remotionAdapter = createRemotionRendererAdapter({
+  renderRoot: path.join(getMediaRoot(), 'studio-render'),
+  bundlePath: remotionBundlePath,
+  workerPath: path.join(MAIN_DIST, 'remotion-render-worker.cjs'),
+  cwd: remotionRuntimeDir,
+  binariesDirectory: remotionBinariesDirectory,
+  resolveSourcePath: resolveStudioSourcePath,
+  probeBrowser: () => remotionRuntime.controller.probeStatus(),
+  fork: (modulePath, args, options) => utilityProcess.fork(modulePath, [...args], options),
+  remotionVersion,
+  emitProgress: (progress) => {
+    for (const window of BrowserWindow.getAllWindows()) {
+      if (!window.isDestroyed()) window.webContents.send('studio-timeline-render-progress', progress)
+    }
+  },
+})
+
+disposeRemotionRuntime = async () => {
+  await remotionPreview.dispose()
+  await remotionAdapter.dispose()
+  remotionRuntime.dispose()
+}
+
 registerStudioRenderIpcHandlers({
   getMediaRoot,
   resolveSourcePath: resolveStudioSourcePath,
   createOperationId: createDiagnosticsOperationId,
   writeDiagnosticsLog,
+  remotionAdapter,
 })
 
 registerAssetLibraryIpcHandlers({

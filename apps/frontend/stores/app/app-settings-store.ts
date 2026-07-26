@@ -12,6 +12,10 @@ import {
   type ImageAspectRatio,
   type ImageResolution,
 } from "@/lib/ai/image-size-presets";
+import {
+  isTimelineRendererId,
+  type TimelineRendererId,
+} from "@rendering/contracts/timeline-renderer";
 
 export interface ResourceSharingSettings {
   shareCharacters: boolean;
@@ -41,6 +45,9 @@ export interface ImageGenerationSettings {
   compatibilityRetryAspectRatio: ImageAspectRatio;
   compatibilityRetryResolution: ImageResolution;
 }
+export interface RenderingSettings {
+  renderer: TimelineRendererId;
+}
 
 interface AppSettingsState {
   resourceSharing: ResourceSharingSettings;
@@ -49,6 +56,7 @@ interface AppSettingsState {
   updateSettings: UpdateSettings;
   developmentSettings: DevelopmentSettings;
   imageGenerationSettings: ImageGenerationSettings;
+  renderingSettings: RenderingSettings;
 }
 
 interface AppSettingsActions {
@@ -58,6 +66,7 @@ interface AppSettingsActions {
   setUpdateSettings: (settings: Partial<UpdateSettings>) => void;
   setDevelopmentSettings: (settings: Partial<DevelopmentSettings>) => void;
   setImageGenerationSettings: (settings: Partial<ImageGenerationSettings>) => void;
+  setRenderingSettings: (settings: Partial<RenderingSettings>) => void;
 }
 
 const defaultState: AppSettingsState = {
@@ -86,6 +95,9 @@ const defaultState: AppSettingsState = {
     compatibilityRetryEnabled: true,
     compatibilityRetryAspectRatio: DEFAULT_COMPATIBILITY_RETRY_ASPECT_RATIO,
     compatibilityRetryResolution: DEFAULT_COMPATIBILITY_RETRY_RESOLUTION,
+  },
+  renderingSettings: {
+    renderer: "ffmpeg",
   },
 };
 
@@ -125,10 +137,38 @@ export const useAppSettingsStore = create<AppSettingsState & AppSettingsActions>
             ...settings,
           },
         })),
+      setRenderingSettings: (settings) =>
+        set((state) => ({
+          renderingSettings: {
+            ...defaultState.renderingSettings,
+            ...state.renderingSettings,
+            ...settings,
+          },
+        })),
     }),
     {
       name: "mystudio-app-settings",
       storage: createJSONStorage(() => fileStorage),
+      merge: mergeAppSettingsState,
     }
   )
 );
+
+export function mergeAppSettingsState(
+  persisted: unknown,
+  current: AppSettingsState & AppSettingsActions,
+): AppSettingsState & AppSettingsActions {
+  const persistedState = persisted && typeof persisted === "object"
+    ? persisted as Partial<AppSettingsState>
+    : {};
+  const persistedRenderer = persistedState.renderingSettings?.renderer;
+  return {
+    ...current,
+    ...persistedState,
+    renderingSettings: {
+      renderer: isTimelineRendererId(persistedRenderer)
+        ? persistedRenderer
+        : current.renderingSettings.renderer,
+    },
+  };
+}

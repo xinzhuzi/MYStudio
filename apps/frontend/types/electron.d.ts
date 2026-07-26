@@ -31,6 +31,11 @@ import type {
   StudioVisualManualWritePayload,
 } from "./studio-visual-manual";
 import type { TtsRuntimeCommandResult, TtsRuntimeConfig, TtsRuntimeStatus } from "./tts";
+import type { RemotionBrowserDownloadProgress, RemotionBrowserStatus } from "@rendering/contracts/remotion-browser-status";
+import type {
+  RemotionPreviewCreateReply,
+  RemotionPreviewReleaseReply,
+} from "@rendering/plugins/remotion/preview/remotion-preview-ipc";
 
 export {};
 
@@ -253,6 +258,17 @@ declare global {
       onTimelineRenderProgress: (
         listener: (progress: TimelineRenderProgress) => void,
       ) => () => void;
+    };
+    remotionRuntime?: {
+      status: () => Promise<RemotionBrowserStatus>;
+      download: () => Promise<RemotionBrowserStatus>;
+      onDownloadProgress: (
+        listener: (progress: RemotionBrowserDownloadProgress) => void,
+      ) => () => void;
+    };
+    remotionPreview?: {
+      create: (plan: TimelineRenderRequest["plan"]) => Promise<RemotionPreviewCreateReply>;
+      release: (sessionId: string) => Promise<RemotionPreviewReleaseReply>;
     };
     studioAssets?: {
       saveMaterial: (payload: { name: string; bytes: ArrayBuffer }) => Promise<{

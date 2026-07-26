@@ -1,7 +1,14 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 const mainSource = readFileSync(new URL("./main.ts", import.meta.url), "utf8");
+const mainDir = path.dirname(fileURLToPath(import.meta.url));
+/** Source: apps/frontend/electron/main → apps/ is ../../../ ; APP_ROOT in built main is also apps/. */
+const appsRootFromSource = path.resolve(mainDir, "../../..");
+/** Dev seed candidate: APP_ROOT/frontend/assets/studio-manuals */
+const frontendStudioManualsSeed = path.join(appsRootFromSource, "frontend", "assets", "studio-manuals");
 const protocolSource = readFileSync(new URL("../runtime/register-protocol-handlers.ts", import.meta.url), "utf8");
 const diagnosticsIpcSource = readFileSync(new URL("../ipc/diagnostics/diagnostics-ipc.ts", import.meta.url), "utf8");
 const appUpdaterIpcSource = readFileSync(new URL("../ipc/app/app-updater-ipc.ts", import.meta.url), "utf8");
@@ -18,6 +25,32 @@ describe("main process startup", () => {
     );
 
     expect(readyBlock).not.toContain("ttsRuntimeController.start()");
+  });
+
+  it("keeps Remotion IPC registered during startup and disposes it only in lifecycle cleanup", () => {
+    const readyBlock = mainSource.slice(mainSource.indexOf("app.whenReady().then"));
+    const windowAllClosedBlock = mainSource.slice(
+      mainSource.indexOf("app.on('window-all-closed'"),
+      mainSource.indexOf("app.on('before-quit'"),
+    );
+    const beforeQuitBlock = mainSource.slice(
+      mainSource.indexOf("app.on('before-quit'"),
+      mainSource.indexOf("app.on('activate'"),
+    );
+
+    expect(readyBlock).toContain("await stopLocalSidecars()");
+    expect(readyBlock).not.toContain("await stopAllLocalServices()");
+    expect(windowAllClosedBlock).toContain("stopLocalServices: stopLocalSidecars");
+    expect(beforeQuitBlock).toContain("stopLocalServices: stopAllLocalServices");
+    expect(mainSource).toContain("disposeRemotionRuntime?.()");
+    expect(mainSource).toContain("package.json 必须声明精确 Remotion 版本");
+    expect(mainSource).not.toContain("?? '4.0.499'");
+  });
+
+  it("pins the Remotion render worker to the managed runtime and compositor directories", () => {
+    expect(mainSource).toContain("resolveRemotionRuntimeDir(remotionUserDataDir)");
+    expect(mainSource).toContain("binariesDirectory: remotionBinariesDirectory");
+    expect(mainSource).toContain("workerPath: path.join(MAIN_DIST, 'remotion-render-worker.cjs')");
   });
 
   it("does not initialize the independent asset library before asset IPC is used", () => {
@@ -194,5 +227,30 @@ describe("main process startup", () => {
     expect(localMediaIpcSource).toContain("resolveLocalMediaPath(getMediaRoot(), localPath)");
     expect(localMediaIpcSource).toContain("getImagesDir(getMediaRoot(), category)");
     expect(localMediaIpcSource).toContain("localPath: `local-image://${category}/");
+  });
+
+  it("resolves studio skill seed from frontend/assets, not legacy src/assets", () => {
+    const manualsBlock = mainSource.slice(
+      mainSource.indexOf("function getStudioManualsSourceRoot"),
+      mainSource.indexOf("function getToonflowRuntimeStudioManualsSourceRoot"),
+    );
+
+    expect(manualsBlock).toContain("path.join(appRoot, 'frontend', 'assets', 'studio-manuals')");
+    expect(manualsBlock).toContain("path.join(app.getAppPath(), 'frontend', 'assets', 'studio-manuals')");
+    expect(manualsBlock).toContain("path.join(process.resourcesPath, 'studio-manuals')");
+    expect(manualsBlock).not.toContain("'src', 'assets', 'studio-manuals'");
+    expect(manualsBlock).not.toContain("src/assets/studio-manuals");
+    expect(mainSource).toContain("ensureStudioSkillsSynced(getStudioSkillSyncOptions())");
+    expect(mainSource).toContain("sourceRoot: getStudioManualsSourceRoot()");
+    expect(mainSource).toContain("storageRoot: getSkillsRoot()");
+
+    // Real on-disk seed that APP_ROOT/frontend/assets/studio-manuals must hit in dev
+    // (APP_ROOT = apps/; source tree seed is apps/frontend/assets/studio-manuals).
+    expect(existsSync(frontendStudioManualsSeed), frontendStudioManualsSeed).toBe(true);
+    expect(existsSync(path.join(appsRootFromSource, "src", "assets", "studio-manuals"))).toBe(false);
+    expect(
+      existsSync(path.join(frontendStudioManualsSeed, "script_execution_skeleton.md")),
+      "bundled agent skill seed markdown",
+    ).toBe(true);
   });
 });

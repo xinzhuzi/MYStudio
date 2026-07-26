@@ -16,6 +16,22 @@ import type { EpisodeMergePlan, TrackRenderPlan } from '../../types/studio'
 import type { StudioVisualManualCreatePayload, StudioVisualManualImagesWritePayload, StudioVisualManualWritePayload } from '../../types/studio-visual-manual'
 import type { TtsRuntimeCommandResult, TtsRuntimeConfig, TtsRuntimeStatus } from '../../types/tts'
 import type { UpdateCheckOptions } from '../../types/update'
+import {
+  REMOTION_RUNTIME_DOWNLOAD_CHANNEL,
+  REMOTION_RUNTIME_DOWNLOAD_PROGRESS_EVENT,
+  REMOTION_RUNTIME_STATUS_CHANNEL,
+  validateRemotionRuntimeDownloadProgressEvent,
+  validateRemotionRuntimeStatusReply,
+} from '@rendering/contracts/remotion-runtime-ipc'
+import type { RemotionBrowserDownloadProgress, RemotionBrowserStatus } from '@rendering/contracts/remotion-browser-status'
+import {
+  REMOTION_PREVIEW_CREATE_CHANNEL,
+  REMOTION_PREVIEW_RELEASE_CHANNEL,
+  validateRemotionPreviewCreateReply,
+  validateRemotionPreviewReleaseReply,
+  type RemotionPreviewCreateReply,
+  type RemotionPreviewReleaseReply,
+} from '@rendering/plugins/remotion/preview/remotion-preview-ipc'
 
 contextBridge.exposeInMainWorld('appEvents', {
   onMainProcessMessage(listener: (message: string) => void) {
@@ -192,6 +208,50 @@ contextBridge.exposeInMainWorld('studioRenderer', {
     const wrapped = (_event: IpcRendererEvent, progress: TimelineRenderProgress) => listener(progress)
     ipcRenderer.on('studio-timeline-render-progress', wrapped)
     return () => ipcRenderer.removeListener('studio-timeline-render-progress', wrapped)
+  },
+})
+
+function parseRemotionRuntimeStatus(value: unknown): RemotionBrowserStatus {
+  const result = validateRemotionRuntimeStatusReply(value)
+  if (!result.success) {
+    throw new Error(result.issues.map((issue) => `${issue.path}: ${issue.message}`).join('; '))
+  }
+  return result.value
+}
+
+contextBridge.exposeInMainWorld('remotionRuntime', {
+  status: async (): Promise<RemotionBrowserStatus> =>
+    parseRemotionRuntimeStatus(await ipcRenderer.invoke(REMOTION_RUNTIME_STATUS_CHANNEL)),
+  download: async (): Promise<RemotionBrowserStatus> =>
+    parseRemotionRuntimeStatus(await ipcRenderer.invoke(REMOTION_RUNTIME_DOWNLOAD_CHANNEL, {})),
+  onDownloadProgress(listener: (progress: RemotionBrowserDownloadProgress) => void) {
+    const wrapped = (_event: IpcRendererEvent, payload: unknown) => {
+      const result = validateRemotionRuntimeDownloadProgressEvent(payload)
+      if (result.success) listener(result.value)
+    }
+    ipcRenderer.on(REMOTION_RUNTIME_DOWNLOAD_PROGRESS_EVENT, wrapped)
+    return () => ipcRenderer.removeListener(REMOTION_RUNTIME_DOWNLOAD_PROGRESS_EVENT, wrapped)
+  },
+})
+
+contextBridge.exposeInMainWorld('remotionPreview', {
+  create: async (plan: TimelineRenderRequest['plan']): Promise<RemotionPreviewCreateReply> => {
+    const result = validateRemotionPreviewCreateReply(
+      await ipcRenderer.invoke(REMOTION_PREVIEW_CREATE_CHANNEL, { plan }),
+    )
+    if (!result.success) {
+      throw new Error(result.issues.map((issue) => `${issue.path}: ${issue.message}`).join('; '))
+    }
+    return result.value
+  },
+  release: async (sessionId: string): Promise<RemotionPreviewReleaseReply> => {
+    const result = validateRemotionPreviewReleaseReply(
+      await ipcRenderer.invoke(REMOTION_PREVIEW_RELEASE_CHANNEL, { sessionId }),
+    )
+    if (!result.success) {
+      throw new Error(result.issues.map((issue) => `${issue.path}: ${issue.message}`).join('; '))
+    }
+    return result.value
   },
 })
 

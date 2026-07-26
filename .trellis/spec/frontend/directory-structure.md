@@ -48,7 +48,7 @@ apps/frontend/
 │   ├── tts/     # project-scoped voice and TTS state
 │   └── assist/  # Assist-mode transient generation state
 ├── lib/         # domain logic, storage, AI, and utilities
-│   └── ai/      # canonical AI manager, core contracts, providers, and workers
+│   └── ai/      # canonical AI manager, config adapter, core contracts, providers, and workers
 ├── types/       # shared TypeScript contracts
 ├── electron/    # Electron main-process modules, grouped by domain
 │   ├── main/    # main process entrypoint and startup/contract tests
@@ -81,8 +81,21 @@ apps/build/
 
 <!-- How should new features be organized? -->
 
-- Put reusable primitives in `components/ui/`; feature UI belongs in the
-  matching `components/panels/<feature>/` directory.
+- Keep `components/ui/` limited to reusable, domain-neutral visual and
+  interaction primitives. These modules must not own provider schemas, store
+  state, playback state, or generation-domain contracts.
+- Put reusable business-facing controls in `components/features/<domain>/`.
+  These controls may depend on a domain store or contract while remaining
+  reusable across panels. Current examples include
+  `features/visual-style/style-picker/`,
+  `features/cinematography/cinematography-profile-picker/`, and
+  `features/playback/audio-player.tsx`.
+- Put settings-only UI and dialogs in `components/panels/settings/<domain>/`.
+  The image-host dialogs live under
+  `panels/settings/image-host/`; their settings controller and tab remain in
+  the settings panel layer.
+- Put other feature UI in the matching `components/panels/<feature>/`
+  directory when it is owned by one panel rather than shared across domains.
 - Put reusable domain behavior in `lib/<domain>/`, not inside large panels.
 - Put every Zustand store, its persistence/helper modules, and colocated tests
   in `stores/<domain>/`; do not add flat store files or root compatibility
@@ -90,6 +103,10 @@ apps/build/
 - Keep all reusable AI behavior, AI core contracts, providers, workers, and
   image-fetch helpers under the existing `lib/ai/` and `lib/` modules. Do not
   reintroduce the removed legacy `app/` directory.
+- Keep `lib/ai/config/store-adapter.ts` as the only production bridge from AI
+  runtime and adjacent generation helpers to `stores/ai/api-config-store`. The
+  Zustand store owns persistence and migrations; runtime modules must use the
+  adapter rather than importing the store directly.
 - Put cross-feature contracts in `types/`; keep component-only props local.
 - Keep Electron-only Node APIs in `electron/`; main and preload entrypoints live in `main/` and `preload/`, while Node services and handlers stay in their named domains. Expose only narrow preload bridges.
 - Colocate `*.test.ts` and `*.test.tsx` with the unit being tested.
@@ -114,6 +131,13 @@ apps/build/
 <!-- Link to well-organized modules as examples -->
 
 - `components/BrandMark.tsx`: small reusable component.
+- `components/features/visual-style/style-picker/`: reusable visual-style
+  control used by generation panels.
+- `components/features/cinematography/cinematography-profile-picker/`:
+  reusable cinematography profile control.
+- `components/features/playback/audio-player.tsx`: playback control that
+  preserves the shared playback store and event contract.
+- `components/panels/settings/image-host/`: settings-only image-host dialogs.
 - `stores/studio/studio-store.ts`: project-scoped workflow state.
 - `lib/studio/`: reusable Studio production contracts and algorithms.
 - `electron/tts/tts-runtime.ts`: Electron-owned sidecar supervision.
