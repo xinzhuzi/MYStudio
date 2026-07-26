@@ -1,3 +1,1 @@
-import type { ReactNode } from "react";
-
-export type BrandIconFn = (size: number) => ReactNode;
+export * from "@/components/panels/settings/api/brand-icons/brand-icon-types";

@@ -79,7 +79,7 @@ type EditDialogProps = {
   provider: IProvider | null;
   onSave: (provider: IProvider) => void;
 };
-vi.mock("@/components/api-manager", () => ({
+vi.mock("./api", () => ({
   AddProviderDialog: ({ open, onSubmit }: AddDialogProps) => open ? (
     <button type="button" onClick={() => onSubmit({
       platform: mocks.provider.platform,

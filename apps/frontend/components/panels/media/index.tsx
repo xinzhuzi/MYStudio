@@ -6,16 +6,11 @@ import { MediaFile, MediaFolder } from "@/types/media";
 import {
   ArrowDown01,
   Grid2X2,
-  Image,
   List,
   Loader2,
-  Music,
-  Video,
   FolderPlus,
-  Folder,
   CloudUpload,
   Home,
-  Sparkles,
   ChevronRight,
 } from "lucide-react";
 import { useRef, useState, useMemo, useEffect } from "react";
@@ -51,11 +46,19 @@ import {
   generateVideoThumbnail,
   getMediaDuration,
 } from "@/stores/media/media-store";
+import { MediaLibraryGrid } from "./MediaLibraryGrid";
+import { MediaLibraryList } from "./MediaLibraryList";
 import {
-  FolderContextMenu,
-  MediaItemWithContextMenu,
-  getFolderIcon,
-} from "./media-context-menus";
+  getCurrentMediaFolders,
+  getFilteredMediaItems,
+  getMediaBreadcrumbPath,
+  getMediaFolderFileCounts,
+  getVisibleMediaFiles,
+  getVisibleMediaFolders,
+  splitCurrentMediaFolders,
+  type MediaSortBy,
+  type MediaSortOrder,
+} from "./media-view-helpers";
 
 export function MediaView() {
   const { 
@@ -80,8 +83,8 @@ export function MediaView() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
-  const [sortBy, setSortBy] = useState<"name" | "type" | "duration" | "size">("name");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const [sortBy, setSortBy] = useState<MediaSortBy>("name");
+  const [sortOrder, setSortOrder] = useState<MediaSortOrder>("asc");
   
   // Dialog states
   const [newFolderDialogOpen, setNewFolderDialogOpen] = useState(false);
@@ -90,16 +93,19 @@ export function MediaView() {
   const [renameTarget, setRenameTarget] = useState<{ type: 'folder' | 'file'; id: string; name: string } | null>(null);
 
   const visibleFolders = useMemo(() => {
-    if (resourceSharing.shareMedia) return folders;
-    if (!activeProject) return [];
-    // System folders are always visible; project folders filtered by projectId
-    return folders.filter((f) => f.isSystem || f.projectId === activeProject.id);
+    return getVisibleMediaFolders(
+      folders,
+      resourceSharing.shareMedia,
+      activeProject?.id,
+    );
   }, [folders, resourceSharing.shareMedia, activeProject]);
 
   const visibleMediaFiles = useMemo(() => {
-    if (resourceSharing.shareMedia) return mediaFiles;
-    if (!activeProject) return [];
-    return mediaFiles.filter((m) => m.projectId === activeProject.id);
+    return getVisibleMediaFiles(
+      mediaFiles,
+      resourceSharing.shareMedia,
+      activeProject?.id,
+    );
   }, [mediaFiles, resourceSharing.shareMedia, activeProject]);
 
   const { getOrCreateCategoryFolder } = useMediaStore();
@@ -311,59 +317,29 @@ export function MediaView() {
     toast.success('已创建分镜，可以开始生成视频');
   };
 
-  const formatDuration = (duration: number) => {
-    const min = Math.floor(duration / 60);
-    const sec = Math.floor(duration % 60);
-    return `${min}:${sec.toString().padStart(2, "0")}`;
-  };
-
   // Get folders in current directory
   const currentFolders = useMemo(() => {
-    return visibleFolders.filter((f) => f.parentId === currentFolderId);
+    return getCurrentMediaFolders(visibleFolders, currentFolderId);
   }, [visibleFolders, currentFolderId]);
 
   // Split root folders into system vs custom groups
   const { systemFolders, customFolders } = useMemo(() => {
-    if (currentFolderId !== null) {
-      return { systemFolders: [] as MediaFolder[], customFolders: currentFolders };
-    }
-    return {
-      systemFolders: currentFolders.filter((f) => f.isSystem),
-      customFolders: currentFolders.filter((f) => !f.isSystem),
-    };
+    return splitCurrentMediaFolders(currentFolders, currentFolderId);
   }, [currentFolders, currentFolderId]);
 
   // Count files in each folder (including nested)
   const folderFileCounts = useMemo(() => {
-    const counts: Record<string, number> = {};
-    const getAllDescendantIds = (folderId: string): string[] => {
-      const children = visibleFolders.filter((f) => f.parentId === folderId);
-      return [folderId, ...children.flatMap((c) => getAllDescendantIds(c.id))];
-    };
-    for (const folder of currentFolders) {
-      const allIds = new Set(getAllDescendantIds(folder.id));
-      counts[folder.id] = visibleMediaFiles.filter(
-        (m) => !m.ephemeral && m.folderId && allIds.has(m.folderId)
-      ).length;
-    }
-    return counts;
+    return getMediaFolderFileCounts(
+      currentFolders,
+      visibleFolders,
+      visibleMediaFiles,
+    );
   }, [currentFolders, visibleFolders, visibleMediaFiles]);
 
   // Get breadcrumb path
   const breadcrumbPath = useMemo(() => {
-    const path: MediaFolder[] = [];
-    let current = currentFolderId;
-    while (current) {
-      const folder = visibleFolders.find((f) => f.id === current);
-      if (folder) {
-        path.unshift(folder);
-        current = folder.parentId;
-      } else {
-        break;
-      }
-    }
-    return path;
-  }, [folders, currentFolderId]);
+    return getMediaBreadcrumbPath(visibleFolders, currentFolderId);
+  }, [visibleFolders, currentFolderId]);
 
   useEffect(() => {
     if (resourceSharing.shareMedia) return;
@@ -374,42 +350,12 @@ export function MediaView() {
   }, [resourceSharing.shareMedia, visibleFolders, currentFolderId, setCurrentFolder]);
 
   const filteredMediaItems = useMemo(() => {
-    // Filter by current folder
-    const filtered = visibleMediaFiles.filter((item) => 
-      !item.ephemeral && (item.folderId || null) === currentFolderId
+    return getFilteredMediaItems(
+      visibleMediaFiles,
+      currentFolderId,
+      sortBy,
+      sortOrder,
     );
-
-    filtered.sort((a, b) => {
-      let valueA: string | number;
-      let valueB: string | number;
-
-      switch (sortBy) {
-        case "name":
-          valueA = a.name.toLowerCase();
-          valueB = b.name.toLowerCase();
-          break;
-        case "type":
-          valueA = a.type;
-          valueB = b.type;
-          break;
-        case "duration":
-          valueA = a.duration || 0;
-          valueB = b.duration || 0;
-          break;
-        case "size":
-          valueA = a.file?.size || 0;
-          valueB = b.file?.size || 0;
-          break;
-        default:
-          return 0;
-      }
-
-      if (valueA < valueB) return sortOrder === "asc" ? -1 : 1;
-      if (valueA > valueB) return sortOrder === "asc" ? 1 : -1;
-      return 0;
-    });
-
-    return filtered;
   }, [visibleMediaFiles, sortBy, sortOrder, currentFolderId]);
 
   // Handle new folder creation
@@ -462,64 +408,6 @@ export function MediaView() {
   const openRenameFileDialog = (item: MediaFile) => {
     setRenameTarget({ type: 'file', id: item.id, name: item.name });
     setRenameDialogOpen(true);
-  };
-
-  const renderPreview = (item: MediaFile) => {
-    if (item.type === "image") {
-      return (
-        <div className="w-full h-full flex items-center justify-center">
-          <img
-            src={item.url}
-            alt={item.name}
-            className="w-full max-h-full object-cover"
-            loading="lazy"
-          />
-        </div>
-      );
-    } else if (item.type === "video") {
-      if (item.thumbnailUrl) {
-        return (
-          <div className="relative w-full h-full">
-            <img
-              src={item.thumbnailUrl}
-              alt={item.name}
-              className="w-full h-full object-cover rounded"
-              loading="lazy"
-            />
-            <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded">
-              <Video className="h-6 w-6 text-white" />
-            </div>
-            {item.duration && (
-              <div className="absolute bottom-1 right-1 bg-black/70 text-white text-xs px-1 rounded">
-                {formatDuration(item.duration)}
-              </div>
-            )}
-          </div>
-        );
-      } else {
-        return (
-          <div className="w-full h-full bg-muted/30 flex flex-col items-center justify-center text-muted-foreground rounded">
-            <Video className="h-6 w-6 mb-1" />
-            <span className="text-xs">Video</span>
-          </div>
-        );
-      }
-    } else if (item.type === "audio") {
-      return (
-        <div className="w-full h-full bg-green-500/20 flex flex-col items-center justify-center text-muted-foreground rounded border border-green-500/20">
-          <Music className="h-6 w-6 mb-1" />
-          <span className="text-xs">Audio</span>
-          {item.duration && (
-            <span className="text-xs opacity-70">{formatDuration(item.duration)}</span>
-          )}
-        </div>
-      );
-    }
-    return (
-      <div className="w-full h-full bg-muted/30 flex flex-col items-center justify-center text-muted-foreground rounded">
-        <Image className="h-6 w-6" />
-      </div>
-    );
   };
 
   return (
@@ -652,235 +540,42 @@ export function MediaView() {
             <p className="text-xs">或点击上传按钮</p>
           </div>
         ) : viewMode === "grid" ? (
-          <div className="space-y-3">
-            {/* System category folders */}
-            {systemFolders.length > 0 && (
-              <div>
-                <p className="text-xs text-muted-foreground mb-1.5 font-medium">素材分类</p>
-                <div
-                  className="grid gap-2"
-                  style={{ gridTemplateColumns: "repeat(auto-fill, 100px)" }}
-                >
-                  {systemFolders.map((folder) => {
-                    const IconComp = getFolderIcon(folder);
-                    const count = folderFileCounts[folder.id] || 0;
-                    return (
-                      <div
-                        key={folder.id}
-                        className="cursor-pointer hover:opacity-80 transition-opacity"
-                        onDoubleClick={() => setCurrentFolder(folder.id)}
-                      >
-                        <div className="w-[100px] h-[100px] rounded overflow-hidden bg-primary/5 flex flex-col items-center justify-center border border-primary/20 hover:border-primary/50 gap-1">
-                          <IconComp className="h-8 w-8 text-primary/70" />
-                          <span className="text-[10px] text-muted-foreground">{count} 项</span>
-                        </div>
-                        <p className="text-xs mt-1 truncate text-center font-medium">{folder.name}</p>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-            {/* Custom folders + files */}
-            {(customFolders.length > 0 || filteredMediaItems.length > 0) && (
-              <div>
-                {systemFolders.length > 0 && (customFolders.length > 0 || filteredMediaItems.length > 0) && (
-                  <p className="text-xs text-muted-foreground mb-1.5 font-medium">
-                    {currentFolderId === null ? '自定义文件夹' : '内容'}
-                  </p>
-                )}
-                <div
-                  className="grid gap-2"
-                  style={{ gridTemplateColumns: "repeat(auto-fill, 100px)" }}
-                >
-                  {customFolders.map((folder) => {
-                    const count = folderFileCounts[folder.id] || 0;
-                    return (
-                      <FolderContextMenu
-                        key={folder.id}
-                        folder={folder}
-                        onRename={openRenameFolderDialog}
-                        onDelete={handleDeleteFolder}
-                      >
-                        <div
-                          className="cursor-pointer hover:opacity-80 transition-opacity"
-                          onDoubleClick={() => setCurrentFolder(folder.id)}
-                        >
-                          <div className="w-[100px] h-[100px] rounded overflow-hidden bg-muted/50 flex flex-col items-center justify-center border-2 border-dashed border-muted-foreground/20 hover:border-primary/50 gap-1">
-                            <Folder className="h-8 w-8 text-primary/70" />
-                            <span className="text-[10px] text-muted-foreground">{count} 项</span>
-                          </div>
-                          <p className="text-xs mt-1 truncate text-center">{folder.name}</p>
-                        </div>
-                      </FolderContextMenu>
-                    );
-                  })}
-                  {/* Files */}
-                  {filteredMediaItems.map((item) => (
-                    <MediaItemWithContextMenu
-                      key={item.id}
-                      item={item}
-                      folders={visibleFolders}
-                      onRemove={handleRemove}
-                      onExport={handleExport}
-                      onRename={openRenameFileDialog}
-                      onMove={handleMoveToFolder}
-                      onSmartSplit={handleSmartSplit}
-                      onGenerateScenes={handleGenerateScenes}
-                    >
-                      <div
-                        className="cursor-pointer hover:opacity-80 transition-opacity relative"
-                        onClick={() => handlePreview(item)}
-                        draggable={item.type === "video"}
-                        onDragStart={(e) => {
-                          if (item.type === "video") {
-                            e.dataTransfer.setData(
-                              "application/json",
-                              JSON.stringify({
-                                type: "media",
-                                mediaType: item.type,
-                                mediaId: item.id,
-                                name: item.name,
-                                url: item.url,
-                                thumbnailUrl: item.thumbnailUrl,
-                                duration: item.duration || 5,
-                              })
-                            );
-                            e.dataTransfer.effectAllowed = "copy";
-                          }
-                        }}
-                      >
-                        <div className="w-[100px] h-[100px] rounded overflow-hidden bg-muted relative">
-                          {renderPreview(item)}
-                          {/* AI source badge */}
-                          {item.source && item.source !== 'upload' && (
-                            <div className="absolute top-1 left-1 bg-primary/80 rounded p-0.5">
-                              <Sparkles className="h-3 w-3 text-white" />
-                            </div>
-                          )}
-                        </div>
-                        <p className="text-xs mt-1 truncate">{item.name}</p>
-                      </div>
-                    </MediaItemWithContextMenu>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
+          <MediaLibraryGrid
+            systemFolders={systemFolders}
+            customFolders={customFolders}
+            mediaItems={filteredMediaItems}
+            visibleFolders={visibleFolders}
+            folderFileCounts={folderFileCounts}
+            currentFolderId={currentFolderId}
+            onSetCurrentFolder={setCurrentFolder}
+            onRenameFolder={openRenameFolderDialog}
+            onDeleteFolder={handleDeleteFolder}
+            onRemoveMedia={handleRemove}
+            onExportMedia={handleExport}
+            onRenameMedia={openRenameFileDialog}
+            onMoveMedia={handleMoveToFolder}
+            onSmartSplit={handleSmartSplit}
+            onGenerateScenes={handleGenerateScenes}
+            onPreviewMedia={handlePreview}
+          />
         ) : (
-          <div className="space-y-1">
-            {/* System folders in list view */}
-            {systemFolders.length > 0 && (
-              <>
-                <p className="text-xs text-muted-foreground px-2 pt-1 font-medium">素材分类</p>
-                {systemFolders.map((folder) => {
-                  const IconComp = getFolderIcon(folder);
-                  const count = folderFileCounts[folder.id] || 0;
-                  return (
-                    <div
-                      key={folder.id}
-                      className="flex items-center gap-2 p-2 rounded hover:bg-accent cursor-pointer"
-                      onDoubleClick={() => setCurrentFolder(folder.id)}
-                    >
-                      <div className="w-12 h-12 rounded bg-primary/5 flex items-center justify-center flex-shrink-0 border border-primary/20">
-                        <IconComp className="h-6 w-6 text-primary/70" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm truncate font-medium">{folder.name}</p>
-                        <p className="text-xs text-muted-foreground">{count} 项</p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </>
-            )}
-            {/* Custom folders in list view */}
-            {customFolders.length > 0 && (
-              <>
-                {systemFolders.length > 0 && (
-                  <p className="text-xs text-muted-foreground px-2 pt-2 font-medium">自定义文件夹</p>
-                )}
-                {customFolders.map((folder) => {
-                  const count = folderFileCounts[folder.id] || 0;
-                  return (
-                    <FolderContextMenu
-                      key={folder.id}
-                      folder={folder}
-                      onRename={openRenameFolderDialog}
-                      onDelete={handleDeleteFolder}
-                    >
-                      <div
-                        className="flex items-center gap-2 p-2 rounded hover:bg-accent cursor-pointer"
-                        onDoubleClick={() => setCurrentFolder(folder.id)}
-                      >
-                        <div className="w-12 h-12 rounded bg-muted/50 flex items-center justify-center flex-shrink-0">
-                          <Folder className="h-6 w-6 text-primary/70" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm truncate">{folder.name}</p>
-                          <p className="text-xs text-muted-foreground">{count} 项</p>
-                        </div>
-                      </div>
-                    </FolderContextMenu>
-                  );
-                })}
-              </>
-            )}
-            {/* Files in list view */}
-            {filteredMediaItems.map((item) => (
-              <MediaItemWithContextMenu
-                key={item.id}
-                item={item}
-                folders={visibleFolders}
-                onRemove={handleRemove}
-                onExport={handleExport}
-                onRename={openRenameFileDialog}
-                onMove={handleMoveToFolder}
-                onSmartSplit={handleSmartSplit}
-                onGenerateScenes={handleGenerateScenes}
-              >
-                <div
-                  className="flex items-center gap-2 p-2 rounded hover:bg-accent cursor-pointer"
-                  onClick={() => handlePreview(item)}
-                  draggable={item.type === "video"}
-                  onDragStart={(e) => {
-                    if (item.type === "video") {
-                      e.dataTransfer.setData(
-                        "application/json",
-                        JSON.stringify({
-                          type: "media",
-                          mediaType: item.type,
-                          mediaId: item.id,
-                          name: item.name,
-                          url: item.url,
-                          thumbnailUrl: item.thumbnailUrl,
-                          duration: item.duration || 5,
-                        })
-                      );
-                      e.dataTransfer.effectAllowed = "copy";
-                    }
-                  }}
-                >
-                  <div className="w-12 h-12 rounded overflow-hidden bg-muted flex-shrink-0 relative">
-                    {renderPreview(item)}
-                    {item.source && item.source !== 'upload' && (
-                      <div className="absolute top-0.5 left-0.5 bg-primary/80 rounded p-0.5">
-                        <Sparkles className="h-2 w-2 text-white" />
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm truncate">{item.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {item.type}
-                      {item.duration && ` · ${formatDuration(item.duration)}`}
-                      {item.source && item.source !== 'upload' && ' · AI生成'}
-                    </p>
-                  </div>
-                </div>
-              </MediaItemWithContextMenu>
-            ))}
-          </div>
+          <MediaLibraryList
+            systemFolders={systemFolders}
+            customFolders={customFolders}
+            mediaItems={filteredMediaItems}
+            visibleFolders={visibleFolders}
+            folderFileCounts={folderFileCounts}
+            onSetCurrentFolder={setCurrentFolder}
+            onRenameFolder={openRenameFolderDialog}
+            onDeleteFolder={handleDeleteFolder}
+            onRemoveMedia={handleRemove}
+            onExportMedia={handleExport}
+            onRenameMedia={openRenameFileDialog}
+            onMoveMedia={handleMoveToFolder}
+            onSmartSplit={handleSmartSplit}
+            onGenerateScenes={handleGenerateScenes}
+            onPreviewMedia={handlePreview}
+          />
         )}
       </div>
 

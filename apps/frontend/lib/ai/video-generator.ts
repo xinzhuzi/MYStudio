@@ -4,7 +4,7 @@
 import { getFeatureConfig } from "@/lib/ai/feature-router";
 import { uploadToImageHost, isImageHostConfigured } from "@/lib/image-host";
 import { saveVideoToLocal } from "@/lib/image-storage";
-import { useAPIConfigStore } from "@/stores/ai/api-config-store";
+import { getModelEndpointTypes } from "@/lib/ai/config/store-adapter";
 import { retryOperation } from "@/lib/utils/retry";
 import { toRunwayRatio } from "@/lib/ai/video-request-sizing";
 import {
@@ -113,7 +113,7 @@ function getUnifiedEndpointPaths(endpointTypes: string[]): { submit: string; pol
  * 优先使用 MemeFast /api/pricing_new 同步的元数据，fallback 到模型名推断
  */
 function detectVideoApiFormat(model: string): 'openai_official' | 'unified' | 'volc' | 'wan' | 'kling' | 'replicate' {
-  return detectVideoApiFormatFromRouting(model, useAPIConfigStore.getState().modelEndpointTypes[model] || []);
+  return detectVideoApiFormatFromRouting(model, getModelEndpointTypes(model));
 }
 
 // ==================== 通用错误处理 ====================
@@ -342,7 +342,7 @@ async function callUnifiedVideoApi(
   signal?: AbortSignal,
 ): Promise<string> {
   // 检测模型端点类型，决定特殊处理和 URL 路径
-  const endpointTypes = useAPIConfigStore.getState().modelEndpointTypes[model] || [];
+  const endpointTypes = getModelEndpointTypes(model);
   const isLuma = endpointTypes.some(t => /luma/i.test(t));
   const isRunway = endpointTypes.some(t => /runway/i.test(t));
   const isGrok = endpointTypes.some(t => /grok/i.test(t)) || /grok/i.test(model);

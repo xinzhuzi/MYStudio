@@ -10,7 +10,7 @@ import {
   type AgentDeploymentKey,
   type AgentUseMode,
 } from "@/stores/ai/api-config-store";
-import { parseApiKeys } from "@/lib/api-key-manager";
+import { parseApiKeys } from "@/lib/ai/core";
 import {
   MODEL_TYPE_LABELS,
   getProviderDisplayName,

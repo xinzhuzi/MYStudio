@@ -15,8 +15,8 @@
  *   - 进度回调
  */
 
-import type { AIFeature } from '@/stores/ai/api-config-store';
-import { useAPIConfigStore } from '@/stores/ai/api-config-store';
+import type { AIFeature } from '@/lib/ai/feature-definitions';
+import { getAIConfigStore } from '@/lib/ai/config/store-adapter';
 import { type CallFeatureAPIOptions } from '@/lib/ai/feature-router';
 import { aiManager } from '@/lib/ai/ai-manager';
 import { getModelLimits, estimateTokens } from '@/lib/ai/model-registry';
@@ -124,7 +124,7 @@ export async function processBatched<TItem, TResult>(
   }
 
   // === 1. 获取模型限制 ===
-  const store = useAPIConfigStore.getState();
+  const store = getAIConfigStore();
   const providerInfo = store.getProviderForFeature(feature);
   const modelName = providerInfo?.model?.[0] || '';
   const limits = getModelLimits(modelName);

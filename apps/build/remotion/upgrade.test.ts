@@ -54,6 +54,7 @@ describe("Remotion upgrade governance", () => {
         "upgrade",
         "--version=4.0.500",
         "--package-manager=npm",
+        "--save-exact",
         "--no-fund",
         "--no-audit",
         "--registry=https://registry.npmjs.org/",

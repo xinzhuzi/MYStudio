@@ -23,7 +23,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { useFreedomStore } from "@/stores/assist/freedom-store";
 import { useMediaPanelStore } from "@/stores/navigation/media-panel-store";
 import type { AssetImage, StudioAssetSummary } from "@/types/studio-assets";
-import { getImageStorageBridge } from "@/lib/bridge/image-storage";
 import { RoleVoiceAssignDialog } from "./RoleVoiceAssignDialog";
 import { RoleVoicePreviewButton } from "./RoleVoicePreviewButton";
 import {
@@ -54,8 +53,10 @@ import { useTtsStore } from "@/stores/tts/tts-store";
 import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";
 import { getTtsRuntimeBridge } from "@/lib/bridge/tts-runtime";
 import { buildAssetRegenerationPrompt, getAssetDisplayName, getAssetImageOpenTarget, getAssetOperationError, getAssetSpokenText, updateImagesAfterReplacingMainImage } from "./studio-asset-detail-utils";
+import { persistGeneratedAssetPromptToLibrary, saveGeneratedAssetImageToLibrary } from "./studio-asset-generation-persistence";
 
 export { buildAssetRegenerationPrompt, getAssetDisplayName, getAssetImageOpenTarget, getAssetOperationError, getAssetSpokenText, updateImagesAfterReplacingMainImage } from "./studio-asset-detail-utils";
+export { persistGeneratedAssetPromptToLibrary, saveGeneratedAssetImageToLibrary } from "./studio-asset-generation-persistence";
 
 const TYPE_ICON = {
   role: UserCircle,
@@ -962,78 +963,4 @@ export function StudioAssetDetailDialog({
       )}
     </>
   );
-}
-
-export async function persistGeneratedAssetPromptToLibrary(
-  assetId: string,
-  polishResult?: PolishResult,
-) {
-  const prompt = polishResult?.status === "success" ? polishResult.prompt?.trim() : "";
-  if (typeof window === "undefined" || !getStudioAssetsBridge()?.update || !prompt) {
-    return false;
-  }
-
-  try {
-    const result = await getStudioAssetsBridge()!.update({
-      id: assetId,
-      updates: { prompt },
-    });
-    return Boolean(result);
-  } catch (err) {
-    console.warn("[Asset] Persist generated prompt failed:", err);
-    return false;
-  }
-}
-
-export async function saveGeneratedAssetImageToLibrary(
-  assetId: string,
-  imagePath?: string,
-  polishResult?: PolishResult,
-) {
-  if (typeof window === "undefined" || !getStudioAssetsBridge() || !imagePath) {
-    return false;
-  }
-
-  const sourceFilePath = await materializeGeneratedImageForAssetLibrary(assetId, imagePath);
-  let imageSaved = false;
-  const studioAssets = getStudioAssetsBridge();
-  if (sourceFilePath && studioAssets) {
-    const result = await studioAssets.replaceImage({ assetId, sourceFilePath });
-    imageSaved = Boolean(result);
-  }
-
-  await persistGeneratedAssetPromptToLibrary(assetId, polishResult);
-
-  return imageSaved;
-}
-
-async function materializeGeneratedImageForAssetLibrary(assetId: string, imagePath: string) {
-  if (imagePath.startsWith("local-image://")) {
-    return getImageStorageBridge()?.getAbsolutePath?.(imagePath) ?? null;
-  }
-
-  if (imagePath.startsWith("file://")) {
-    try {
-      return decodeURIComponent(new URL(imagePath).pathname);
-    } catch {
-      return null;
-    }
-  }
-
-  if (imagePath.startsWith("/")) {
-    return imagePath;
-  }
-
-  if ((imagePath.startsWith("http://") || imagePath.startsWith("https://") || imagePath.startsWith("data:")) && getStudioAssetsBridge()?.saveMaterial) {
-    const response = await fetch(imagePath);
-    const blob = await response.blob();
-    const bytes = await blob.arrayBuffer();
-    const result = await getStudioAssetsBridge()!.saveMaterial({
-      name: `${assetId}_generated_${Date.now()}.png`,
-      bytes,
-    });
-    return result.success ? result.filePath ?? result.localPath ?? null : null;
-  }
-
-  return null;
 }

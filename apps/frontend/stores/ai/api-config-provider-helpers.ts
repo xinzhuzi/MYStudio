@@ -1,5 +1,5 @@
 import type { ProviderId, ServiceType } from "@/lib/ai/core";
-import type { IProvider } from "@/lib/api-key-manager";
+import type { IProvider } from "@/lib/ai/core";
 import { LOCAL_TTS_BASE_URL } from "@/lib/tts/constants";
 import { TTS_MODEL_GROUPS } from "@/lib/tts/model-catalog";
 

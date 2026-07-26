@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import type { QuadVariationType } from "@/components/quad-grid";
+import type { QuadVariationType } from "@/components/features/storyboard/quad-grid";
 import { aiManager } from "@/lib/ai/ai-manager";
 import type { DirectorProjectData, EmotionTag, SplitScene } from "@/stores/director/director-store";
 import { toast } from "sonner";

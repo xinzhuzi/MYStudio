@@ -16,8 +16,10 @@
  *   // Use config.apiKey and config.provider in API call
  */
 
-import { useAPIConfigStore, type AIFeature, type IProvider, AI_FEATURES } from '@/stores/ai/api-config-store';
-import { parseApiKeys, getProviderKeyManager, ApiKeyManager } from '@/lib/api-key-manager';
+import { getAIConfigStore, useAIConfigSelector, type AIConfigStore } from '@/lib/ai/config/store-adapter';
+import { AI_FEATURES, type AIFeature } from '@/lib/ai/feature-definitions';
+import type { IProvider } from '@/lib/ai/core';
+import { parseApiKeys, getProviderKeyManager, ApiKeyManager } from '@/lib/ai/core';
 import { retryOperation } from '@/lib/utils/retry';
 
 export interface FeatureConfig {
@@ -81,7 +83,7 @@ function parseBindingValue(binding: string): { platform: string; model?: string 
  * featureBindings now stores: string[] (array of platform:model)
  * 这个函数仅用于兼容旧代码，新代码应使用 getProvidersForFeature
  */
-function getBoundPlatformAndModel(store: ReturnType<typeof useAPIConfigStore.getState>, feature: AIFeature): { platform: string; model?: string } | null {
+function getBoundPlatformAndModel(store: AIConfigStore, feature: AIFeature): { platform: string; model?: string } | null {
   const bindings = store.getFeatureBindings(feature);
   if (!bindings || bindings.length === 0) return null;
   
@@ -111,7 +113,7 @@ function getBoundPlatformAndModel(store: ReturnType<typeof useAPIConfigStore.get
  * 获取功能的所有可用配置（多模型）
  */
 export function getAllFeatureConfigs(feature: AIFeature): FeatureConfig[] {
-  const store = useAPIConfigStore.getState();
+  const store = getAIConfigStore();
   const providersWithModels = store.getProvidersForFeature(feature);
   const featureInfo = AI_FEATURES.find(f => f.key === feature);
   
@@ -163,7 +165,7 @@ export function getFeatureConfig(feature: AIFeature): FeatureConfig | null {
   
   if (configs.length === 0) {
     // Fallback: 尝试使用默认平台映射
-    const store = useAPIConfigStore.getState();
+    const store = getAIConfigStore();
     const defaultPlatform = FEATURE_PLATFORM_MAP[feature];
     if (defaultPlatform) {
       const provider = store.providers.find(p => p.platform === defaultPlatform);
@@ -301,7 +303,7 @@ export async function callFeatureAPI(
   console.log(`[callFeatureAPI] BaseURL: ${baseUrl}`);
 
   const disableThinking = options?.disableThinking;
-  const thinkingEnabled = useAPIConfigStore.getState().getModelThinkingOverride(model);
+  const thinkingEnabled = getAIConfigStore().getModelThinkingOverride(model);
   const thinkingParams = disableThinking
     ? { thinking: { type: 'disabled' } }
     : buildThinkingParams({
@@ -350,7 +352,7 @@ export async function callFeatureAPI(
  * Hook-friendly version using Zustand subscription
  */
 export function useFeatureConfig(feature: AIFeature): FeatureConfig | null {
-  const getProviderForFeature = useAPIConfigStore(state => state.getProviderForFeature);
+  const getProviderForFeature = useAIConfigSelector(state => state.getProviderForFeature);
   const provider = getProviderForFeature(feature);
   
   if (!provider) return null;
@@ -386,7 +388,7 @@ export function getAllFeatureStatuses(): Array<{
   configured: boolean;
   providerName?: string;
 }> {
-  const store = useAPIConfigStore.getState();
+  const store = getAIConfigStore();
   
   return AI_FEATURES.map(f => {
     const provider = store.getProviderForFeature(f.key);

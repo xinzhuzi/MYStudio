@@ -23,7 +23,7 @@ import {
 } from '@/lib/ai/ai-sdk-bridge';
 import { createOperationId, logEvent } from '@/lib/diagnostics/logger';
 import { isVeoModel, resolveVeoUploadCapability } from '@/lib/assist/veo-capability';
-import { useAPIConfigStore } from '@/stores/ai/api-config-store';
+import { getModelEndpointTypes } from '@/lib/ai/config/store-adapter';
 import { useAppSettingsStore } from '@/stores/app/app-settings-store';
 import { getImageSizeLabel } from '@/lib/ai/image-size-presets';
 import {
@@ -186,7 +186,7 @@ async function _generateFreedomImageInner(
   const normalizedBase = baseUrl.replace(/\/+$/, '');
 
   // ── Smart Routing: choose endpoint based on model metadata ──
-  const endpointTypes = useAPIConfigStore.getState().modelEndpointTypes[model];
+  const endpointTypes = getModelEndpointTypes(model);
   const route = detectFreedomImageRoute(model, endpointTypes);
 
   console.log('[Freedom] Generating image:', {
@@ -451,7 +451,7 @@ async function _generateFreedomVideoInner(
   // 模型 ID 直接透传：UI 选的就是供应商原始 ID，无需转换
   const model = params.model || defaultModel;
 
-  const endpointTypes = useAPIConfigStore.getState().modelEndpointTypes[model];
+  const endpointTypes = getModelEndpointTypes(model);
   const route = detectFreedomVideoRoute(model, endpointTypes);
   console.log('[Freedom] Generating video:', {
     model,

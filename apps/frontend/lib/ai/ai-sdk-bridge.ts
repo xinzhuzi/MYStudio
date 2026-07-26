@@ -12,7 +12,7 @@ import { createQwen } from "qwen-ai-provider-v5";
 import { createZhipu } from "zhipu-ai-provider";
 import { createMinimax } from "vercel-minimax-ai-provider";
 import { generateImage, generateText, streamText } from "ai";
-import type { IProvider } from "../api-key-manager";
+import type { IProvider } from "./core";
 import type { ProviderOptions } from "@ai-sdk/provider-utils";
 import { observedFetch, type ObservedFetchMeta } from "../diagnostics/network";
 import {

@@ -17,7 +17,7 @@ import {
   resetFeatureRoundRobin,
   type FeatureConfig,
 } from "./feature-router";
-import { ApiKeyManager } from "@/lib/api-key-manager";
+import { ApiKeyManager } from "@/lib/ai/core";
 import {
   createDefaultFeatureBindings,
   useAPIConfigStore,

@@ -1,4 +1,4 @@
-import { generateId } from "@/lib/api-key-manager";
+import { generateId } from "@/lib/ai/core";
 import { normalizeImageHostProvider } from "./api-config-image-host";
 import type { APIConfigStore } from "./api-config-store-types";
 

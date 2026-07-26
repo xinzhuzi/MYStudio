@@ -26,7 +26,7 @@ standalone remote web service.
 
 ```
 apps/backend/
-├── manying_voicebox_tts/
+├── tts/
 │   ├── main.py              # thin module entrypoint
 │   ├── server.py            # HTTP server and top-level routing
 │   ├── generation_routes.py # generation and transcription routes
@@ -88,7 +88,7 @@ uses `apps/backend` only as `PYTHONPATH` and the subprocess working directory.
 | Condition | Required result |
 | --- | --- |
 | Existing TTS health check is healthy | Return without starting another process |
-| Managed runtime executable exists | Start `manying_voicebox_tts.main` with backend `PYTHONPATH` |
+| Managed runtime executable exists | Start `tts.main` with backend `PYTHONPATH` |
 | Managed runtime is missing | Raise a settings-directed configuration error before `Popen` |
 | Only `apps/backend/python` exists | Treat the runtime as missing; never invoke the source-tree executable |
 
@@ -144,6 +144,6 @@ if not python_bin.exists():
 
 <!-- Link to well-organized modules as examples -->
 
-- `apps/backend/manying_voicebox_tts/main.py` demonstrates the thin entrypoint.
-- `apps/backend/manying_voicebox_tts/server.py` owns shared HTTP behavior.
+- `apps/backend/tts/main.py` demonstrates the thin entrypoint.
+- `apps/backend/tts/server.py` owns shared HTTP behavior.
 - `apps/backend/tests/test_tts_contract.py` demonstrates contract-focused tests.

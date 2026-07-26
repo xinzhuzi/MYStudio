@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
-import type { AngleSwitchResult } from "@/components/angle-switch";
-import type { QuadGridResult } from "@/components/quad-grid";
+import type { AngleSwitchResult } from "@/components/features/storyboard/angle-switch";
+import type { QuadGridResult } from "@/components/features/storyboard/quad-grid";
 
 export type StoryboardFrameTarget = {
   sceneId: number;

@@ -4,11 +4,11 @@
 import { useState, useCallback } from "react";
 import { toast } from "sonner";
 import { useAPIConfigStore } from "@/stores/ai/api-config-store";
-import { parseApiKeys } from "@/lib/api-key-manager";
+import { parseApiKeys } from "@/lib/ai/core";
 import { useDirectorStore } from "@/stores/director/director-store";
 import { generateAngleSwitch } from "@/lib/ai/runninghub-client";
 import { getAngleLabel, type HorizontalDirection, type ElevationAngle, type ShotSize } from "@/lib/ai/runninghub-angles";
-import type { AngleSwitchResult, AngleSwitchHistoryItem } from "@/components/angle-switch";
+import type { AngleSwitchResult, AngleSwitchHistoryItem } from "@/components/features/storyboard/angle-switch";
 import type { SplitScene } from "@/stores/director/director-store";
 
 export interface AngleSwitchTarget {

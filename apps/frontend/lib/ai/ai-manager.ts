@@ -3,8 +3,9 @@
  * 项目内所有「对话/文本、图像、视频、TTS」的 AI 对接逐步收口到这里。
  * P0：text() 委托现有 electronAPI.textCompletion；resolve() 桥接两套绑定（Agent 部署 / 功能绑定）。
  */
-import { useAPIConfigStore, type AgentDeploymentKey, type AIFeature } from "@/stores/ai/api-config-store";
-import type { IProvider } from "@/lib/api-key-manager";
+import { getAIConfigStore, type AgentDeploymentKey } from "@/lib/ai/config/store-adapter";
+import type { AIFeature } from "@/lib/ai/feature-definitions";
+import type { IProvider } from "@/lib/ai/core";
 import type { TextCompletionMessage } from "@/lib/ai/text-completion";
 import {
   generateCharacterImage,
@@ -55,7 +56,7 @@ export interface AITextResult {
 /** 统一绑定解析：Agent → getResolvedAgentModel；Feature → feature-router（含多模型轮询/key 轮换/兼容旧配置）。 */
 export function resolve(binding: AIBinding): ResolvedModel | null {
   if ("agent" in binding) {
-    const r = useAPIConfigStore.getState().getResolvedAgentModel(binding.agent);
+    const r = getAIConfigStore().getResolvedAgentModel(binding.agent);
     if (!r) return null;
     return { provider: r.provider, model: r.model, temperature: r.deployment.temperature, maxTokens: r.deployment.maxOutputTokens };
   }

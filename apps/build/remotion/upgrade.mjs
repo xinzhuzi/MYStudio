@@ -56,6 +56,7 @@ export function buildUpgradePlan({ appRoot, targetVersion }) {
         "upgrade",
         `--version=${targetVersion}`,
         "--package-manager=npm",
+        "--save-exact",
         "--no-fund",
         "--no-audit",
         "--registry=https://registry.npmjs.org/",

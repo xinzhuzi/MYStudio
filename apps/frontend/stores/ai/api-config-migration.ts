@@ -4,7 +4,7 @@ import {
   generateId,
   parseApiKeys,
   type IProvider,
-} from "@/lib/api-key-manager";
+} from "@/lib/ai/core";
 import {
   type AIFeature,
   type FeatureBindings,

@@ -61,7 +61,7 @@ import {
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useResolvedImageUrl } from "@/hooks/use-resolved-image-url";
-import { ImagePreviewModal } from "@/components/panels/director/media-preview-modal";
+import { ImagePreviewModal } from "@/components/features/media/media-preview-modal";
 
 type ViewMode = "grid" | "list";
 

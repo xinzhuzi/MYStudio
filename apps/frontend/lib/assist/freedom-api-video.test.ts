@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { resetFeatureRoundRobin } from "@/lib/ai/feature-router";
-import { clearAllManagers } from "@/lib/api-key-manager";
+import { clearAllManagers } from "@/lib/ai/core";
 import { useAPIConfigStore } from "@/stores/ai/api-config-store";
 import { generateFreedomVideo } from "./freedom-api";
 import { runFreedomVideoRoute } from "./freedom-video-dispatch";

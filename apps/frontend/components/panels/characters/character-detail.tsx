@@ -35,7 +35,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { WardrobeModal } from "./wardrobe-modal";
 import { LocalImage } from "@/components/ui/local-image";
-import { ImagePreviewModal } from "@/components/panels/director/media-preview-modal";
+import { ImagePreviewModal } from "@/components/features/media/media-preview-modal";
 
 // View type labels
 const VIEW_LABELS: Record<string, string> = {

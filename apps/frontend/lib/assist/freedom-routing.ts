@@ -3,8 +3,8 @@ import {
   getFeatureConfig,
   type FeatureConfig,
 } from "@/lib/ai/feature-router";
-import { resolveImageApiFormat } from "@/lib/api-key-manager";
-import type { AIFeature } from "@/stores/ai/api-config-store";
+import { resolveImageApiFormat } from "@/lib/ai/core";
+import type { AIFeature } from "@/lib/ai/feature-definitions";
 
 export type FreedomImageRoute = "midjourney" | "ideogram" | "kling_image" | "openai_chat" | "openai_images" | "replicate";
 export type FreedomVideoRoute = "openai_official" | "unified" | "volc" | "wan" | "kling" | "replicate";

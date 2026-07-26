@@ -1,4 +1,4 @@
-import { generateId } from '@/lib/api-key-manager';
+import { generateId } from '@/lib/ai/core';
 
 export type ImageHostPlatform = 'imgbb' | 'imgurl' | 'scdn' | 'catbox' | 'cloudflare_r2' | 'custom';
 

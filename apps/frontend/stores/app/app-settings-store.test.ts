@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import { useAppSettingsStore } from "./app-settings-store";
+import {
+  mergeAppSettingsState,
+  useAppSettingsStore,
+} from "./app-settings-store";
 
-vi.mock("../lib/indexed-db-storage", () => ({
+vi.mock("@/lib/indexed-db-storage", () => ({
   fileStorage: {
     getItem: async () => null,
     setItem: async () => undefined,
@@ -40,5 +43,23 @@ describe("useAppSettingsStore development settings", () => {
       compatibilityRetryAspectRatio: "1:1",
       compatibilityRetryResolution: "1K",
     });
+  });
+
+  it("keeps the gated FFmpeg default for legacy or invalid persisted renderer state", () => {
+    const current = useAppSettingsStore.getState();
+
+    expect(current.renderingSettings.renderer).toBe("ffmpeg");
+    expect(mergeAppSettingsState({}, current).renderingSettings.renderer).toBe("ffmpeg");
+    expect(mergeAppSettingsState({
+      renderingSettings: { renderer: "auto" },
+    }, current).renderingSettings.renderer).toBe("ffmpeg");
+  });
+
+  it("restores an exact persisted renderer selection", () => {
+    const current = useAppSettingsStore.getState();
+
+    expect(mergeAppSettingsState({
+      renderingSettings: { renderer: "remotion" },
+    }, current).renderingSettings.renderer).toBe("remotion");
   });
 });

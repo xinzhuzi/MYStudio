@@ -1,5 +1,5 @@
 import type { ProviderId, ServiceType } from "@/lib/ai/core";
-import type { IProvider } from "@/lib/api-key-manager";
+import type { IProvider } from "@/lib/ai/core";
 import type { DiscoveredModelLimits } from "@/lib/ai/model-registry";
 import type { AIFeature, FeatureBindings } from "@/lib/ai/feature-definitions";
 import type { ModelBinding } from "@/types/studio";
@@ -181,4 +181,3 @@ export interface APIConfigStatus {
   missingKeys: string[];
   friendlyMessage: string;
 }
-

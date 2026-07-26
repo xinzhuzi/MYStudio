@@ -3,6 +3,7 @@ import { existsSync, mkdtempSync, readdirSync, readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
+import { inspectPackagedRemotionApp } from '../remotion/verify-packaged-remotion.mjs';
 
 const packagedApp = resolve(process.cwd(), 'release', 'build', 'mac-arm64', 'mac-arm64', '漫影工作室.app');
 const installedApp = '/Applications/漫影工作室.app';
@@ -72,6 +73,8 @@ if (!existsSync(packagedAsar)) {
   throw new Error(`Packaged app.asar not found: ${packagedAsar}`);
 }
 
+inspectPackagedRemotionApp(packagedApp);
+
 assertNoBackupApps();
 stopInstalledAppIfRunning();
 run('ditto', [packagedApp, installedApp]);
@@ -80,6 +83,8 @@ assertNoBackupApps();
 if (!existsSync(installedAsar) || !existsSync(installedBin)) {
   throw new Error(`Installed app is incomplete: ${installedApp}`);
 }
+
+inspectPackagedRemotionApp(installedApp);
 
 const packagedHash = sha256(packagedAsar);
 const installedHash = sha256(installedAsar);

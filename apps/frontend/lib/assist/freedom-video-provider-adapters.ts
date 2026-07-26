@@ -1,5 +1,5 @@
 import { isVeoModel, resolveVeoUploadCapability } from "@/lib/assist/veo-capability";
-import { useAPIConfigStore } from "@/stores/ai/api-config-store";
+import { getModelEndpointTypes } from "@/lib/ai/config/store-adapter";
 import { toRunwayRatio, toSoraSize, toVeoOpenAIVideoSize } from "@/lib/ai/video-request-sizing";
 import {
   groupVideoUploadFiles,
@@ -100,7 +100,7 @@ export async function generateVideoViaOpenAIOfficial(
   baseUrl: string,
 ): Promise<GenerationResult> {
   const endpoint = buildEndpoint(baseUrl, 'videos');
-  const endpointTypes = useAPIConfigStore.getState().modelEndpointTypes[model];
+  const endpointTypes = getModelEndpointTypes(model);
   const isVeo = isVeoModel(model);
   const form = new FormData();
   form.append('model', model);
@@ -153,7 +153,7 @@ export async function generateVideoViaUnified(
   apiKey: string,
   baseUrl: string,
 ): Promise<GenerationResult> {
-  const endpointTypes = useAPIConfigStore.getState().modelEndpointTypes[model];
+  const endpointTypes = getModelEndpointTypes(model);
 
   let body: Record<string, any>;
   if (isVeoModel(model)) {

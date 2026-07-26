@@ -25,6 +25,7 @@ import {
 } from "@/lib/studio/storyboard-table";
 import { useProjectStore } from "@/stores/project/project-store";
 import { useEditingStore } from "@/stores/editing/editing-store";
+import { useAppSettingsStore } from "@/stores/app/app-settings-store";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import { useTtsStore } from "@/stores/tts/tts-store";
 import type { StudioAssetSummary } from "@/types/studio-assets";
@@ -53,6 +54,7 @@ export function useChapterAutoVideoActions({
   }) => void | Promise<void>;
 }) {
   const [status, setStatus] = useState<ChapterAutoVideoStatus>(INITIAL_STATUS);
+  const requestedRenderer = useAppSettingsStore((state) => state.renderingSettings.renderer);
   const running = !["idle", "completed", "failed"].includes(status.stage);
 
   const assertProjectStillActive = useCallback(() => {
@@ -337,7 +339,7 @@ export function useChapterAutoVideoActions({
               jobId: uniqueId("timeline-render"),
               createdAt: Date.now(),
               render: (plan) => renderer.renderTimeline(
-                createTimelineRenderRequest("ffmpeg", plan),
+                createTimelineRenderRequest(requestedRenderer, plan),
               ),
             });
             assertProjectStillActive();
@@ -383,6 +385,7 @@ export function useChapterAutoVideoActions({
     assertProjectStillActive,
     handleProductionNodeAction,
     productionEpisodeId,
+    requestedRenderer,
     running,
   ]);
 

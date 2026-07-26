@@ -8,6 +8,9 @@
 
 // Types
 export * from './types';
+export * from './defaults';
+export * from './model-capabilities';
+export * from './model-routing';
 
 // Provider implementations
 // Providers are dynamically configured via api-config-store.

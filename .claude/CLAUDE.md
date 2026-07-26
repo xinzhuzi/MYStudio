@@ -3,8 +3,8 @@
 本地优先的 AI 漫剧 / 短剧 / 小说影视化创作桌面工作台 —— 从小说到成片。
 
 - **类型**:Electron 桌面应用(AI 漫剧/短剧制作工作台)
-- **技术栈**:Electron + React 18 + TypeScript + Zustand + Tailwind v4 + electron-vite/Vite + Vercel AI SDK(多 provider:anthropic/openai/google/deepseek/xai/qwen/zhipu/minimax)+ 本地 FFmpeg + Python TTS sidecar(`manying_voicebox_tts`)
-- **主代码**:`apps/frontend`(renderer:`components/` `stores/` `lib/` `hooks/` `types/` + electron:`main.ts`/`preload.ts`/`ipc/`/`timeline-ffmpeg-command.ts`)、`apps/backend`(Python TTS)、`apps/build`(构建执行器:`daojie/` `timeline/` `smoke/` `packaging/`)
+- **技术栈**:Electron + React 18 + TypeScript + Zustand + Tailwind v4 + electron-vite/Vite + Vercel AI SDK(多 provider:anthropic/openai/google/deepseek/xai/qwen/zhipu/minimax)+ 本地 FFmpeg + Python TTS sidecar(`tts`)
+- **主代码**:`apps/frontend`(renderer:`components/` `stores/` `lib/` `hooks/` `types/` + electron:`main/main.ts`/`preload/preload.ts`/`ipc/`/`rendering/timeline-ffmpeg-command.ts`)、`apps/backend`(Python TTS)、`apps/build`(构建执行器:`daojie/` `timeline/` `smoke/` `packaging/`)
 - **关键约定**:**没有根 `package.json`**,所有 npm 命令从 `apps/` 执行(`cd apps && npm run dev`)。`apps/out/` `apps/release/` `apps/output/` 是构建产物,禁止 import。
 - **注意**:不要在根目录随意新增文件夹和文件
 - **必须**:渐进式,分段式,少量,多次输出,每次编辑/写入只改一点,逐次完毕

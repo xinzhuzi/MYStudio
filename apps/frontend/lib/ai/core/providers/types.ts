@@ -8,6 +8,31 @@
 
 import type { ProviderId, ServiceType, AsyncTaskResult } from '../types';
 
+/** Model capabilities exposed by the provider configuration layer. */
+export type ModelCapability =
+  | 'text'
+  | 'vision'
+  | 'function_calling'
+  | 'image_generation'
+  | 'video_generation'
+  | 'tts'
+  | 'web_search'
+  | 'reasoning'
+  | 'embedding';
+
+/** Persisted provider configuration shared by AI routing and settings. */
+export interface IProvider {
+  id: string;
+  platform: string;
+  name: string;
+  baseUrl: string;
+  apiKey: string;
+  model: string[];
+  apiProtocol?: 'openai-compatible' | 'anthropic-compatible' | 'gemini-compatible';
+  capabilities?: ModelCapability[];
+  contextLimit?: number;
+}
+
 /**
  * API Provider interface
  * All providers must implement this interface

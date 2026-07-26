@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { StoryboardGenerationDialogs } from "./storyboard-generation-dialogs";
 import { useStoryboardGenerationUi } from "./use-storyboard-generation-ui";
 
-vi.mock("@/components/angle-switch", () => ({
+vi.mock("@/components/features/storyboard/angle-switch", () => ({
   AngleSwitchDialog: (props: { open: boolean; previewUrl?: string; frameType: string }) => (
     <div data-testid="angle-input" data-open={props.open} data-preview={props.previewUrl} data-frame={props.frameType} />
   ),
@@ -21,7 +21,7 @@ vi.mock("@/components/angle-switch", () => ({
   ),
 }));
 
-vi.mock("@/components/quad-grid", () => ({
+vi.mock("@/components/features/storyboard/quad-grid", () => ({
   QuadGridDialog: (props: { previewUrl?: string; frameType: string }) => (
     <div data-testid="grid-input" data-preview={props.previewUrl} data-frame={props.frameType} />
   ),

@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { AddProviderDialog, EditProviderDialog } from "@/components/api-manager";
+import { AddProviderDialog, EditProviderDialog } from "./api";
 import { useStudioConfigStore } from "@/stores/app/studio-config-store";
 import { useAppSettingsStore } from "@/stores/app/app-settings-store";
 import { useAPIConfigStore, type IProvider } from "@/stores/ai/api-config-store";
-import { classifyModelByName, parseApiKeys } from "@/lib/api-key-manager";
+import { classifyModelByName, parseApiKeys } from "@/lib/ai/core";
 import { resolveThinkingEnabled } from "@/lib/ai/thinking-mode";
 import {
   prepareModelTestRequest,

@@ -6,8 +6,8 @@
  * Upload images to external hosting services for video generation
  */
 
-import { useAPIConfigStore, type ImageHostProvider } from '@/stores/ai/api-config-store';
-import { ApiKeyManager, parseApiKeys } from '@/lib/api-key-manager';
+import { getAIConfigStore, type ImageHostProvider } from '@/lib/ai/config/store-adapter';
+import { ApiKeyManager, parseApiKeys } from '@/lib/ai/core';
 import { fetchRemoteImageBlob, fetchRemoteImageDataUrl } from '@/lib/remote-image-fetch';
 
 // ==================== Types ====================
@@ -292,7 +292,7 @@ export async function uploadToImageHost(
   imageData: string,
   options?: UploadOptions
 ): Promise<UploadResult> {
-  const store = useAPIConfigStore.getState();
+  const store = getAIConfigStore();
   const targetProvider = options?.providerId
     ? store.getImageHostProviderById(options.providerId)
     : null;
@@ -368,5 +368,5 @@ export async function uploadToImageHost(
  * Check if any image host is configured
  */
 export function isImageHostConfigured(): boolean {
-  return useAPIConfigStore.getState().isImageHostConfigured();
+  return getAIConfigStore().isImageHostConfigured();
 }

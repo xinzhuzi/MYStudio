@@ -20,7 +20,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   BookOpen,
@@ -46,177 +45,17 @@ import {
 } from "lucide-react";
 import type {
   SeriesMeta,
-  NamedEntity,
   Faction,
   EpisodeRawScript,
 } from "@/types/script";
 import { getStyleName } from "@/lib/constants/visual-styles";
+import {
+  EditableText,
+  FieldRow,
+  NamedEntityList,
+  SectionCard,
+} from "./OverviewFields";
 import { OVERVIEW_WORKFLOW_GUIDE } from "./workflow-guide";
-
-// ==================== Inline Editable Field ====================
-
-function EditableText({
-  value,
-  placeholder,
-  onSave,
-  multiline = false,
-  className = "",
-}: {
-  value: string | undefined;
-  placeholder: string;
-  onSave: (v: string) => void;
-  multiline?: boolean;
-  className?: string;
-}) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(value || "");
-
-  const startEdit = () => {
-    setDraft(value || "");
-    setEditing(true);
-  };
-
-  const save = () => {
-    onSave(draft);
-    setEditing(false);
-  };
-
-  const cancel = () => {
-    setEditing(false);
-  };
-
-  if (editing) {
-    const Comp = multiline ? Textarea : Input;
-    return (
-      <div className="flex items-start gap-1">
-        <Comp
-          value={draft}
-          onChange={(
-            e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
-          ) => setDraft(e.target.value)}
-          onKeyDown={(e: React.KeyboardEvent) => {
-            if (e.key === "Enter" && !multiline) save();
-            if (e.key === "Escape") cancel();
-          }}
-          autoFocus
-          className={`text-sm ${multiline ? "min-h-[80px]" : ""} ${className}`}
-          placeholder={placeholder}
-        />
-        <Button
-          size="icon"
-          variant="ghost"
-          className="h-7 w-7 shrink-0"
-          onClick={save}
-        >
-          <Check className="h-3 w-3" />
-        </Button>
-        <Button
-          size="icon"
-          variant="ghost"
-          className="h-7 w-7 shrink-0"
-          onClick={cancel}
-        >
-          <X className="h-3 w-3" />
-        </Button>
-      </div>
-    );
-  }
-
-  return (
-    <div
-      className={`group cursor-pointer rounded px-1 py-0.5 hover:bg-muted/50 transition-colors ${className}`}
-      onClick={startEdit}
-    >
-      <span
-        className={`text-sm ${value ? "text-foreground" : "text-muted-foreground italic"}`}
-      >
-        {value || placeholder}
-      </span>
-      <Pencil className="h-3 w-3 ml-1 inline opacity-0 group-hover:opacity-50 transition-opacity" />
-    </div>
-  );
-}
-
-// ==================== Section Card ====================
-
-function SectionCard({
-  icon: Icon,
-  title,
-  children,
-}: {
-  icon: React.ElementType;
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="rounded-lg border bg-card p-4 space-y-3">
-      <div className="flex items-center gap-2 text-sm font-medium">
-        <Icon className="h-4 w-4 text-primary" />
-        {title}
-      </div>
-      {children}
-    </div>
-  );
-}
-
-// ==================== Named Entity List ====================
-
-function NamedEntityList({
-  items,
-  emptyText,
-  onUpdate,
-}: {
-  items: NamedEntity[] | undefined;
-  emptyText: string;
-  onUpdate: (items: NamedEntity[]) => void;
-}) {
-  if (!items || items.length === 0) {
-    return <p className="text-xs text-muted-foreground italic">{emptyText}</p>;
-  }
-  return (
-    <div className="space-y-1">
-      {items.map((item, i) => (
-        <div
-          key={`${item.name}-${i}`}
-          className="flex items-start gap-2 text-xs"
-        >
-          <Badge variant="outline" className="shrink-0 text-[10px]">
-            {item.name}
-          </Badge>
-          <EditableText
-            value={item.desc}
-            placeholder="描述..."
-            onSave={(desc) => {
-              const next = [...items];
-              next[i] = { ...item, desc };
-              onUpdate(next);
-            }}
-            className="flex-1"
-          />
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// ==================== Field Row ====================
-
-function FieldRow({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="flex items-start gap-2">
-      <span className="text-xs text-muted-foreground w-16 shrink-0 pt-1">
-        {label}
-      </span>
-      <div className="flex-1 min-w-0">{children}</div>
-    </div>
-  );
-}
 
 // ==================== Main Component ====================
 

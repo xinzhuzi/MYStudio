@@ -1,4 +1,4 @@
-import { parseApiKeys, type IProvider } from "../api-key-manager";
+import { parseApiKeys, type IProvider } from "./core";
 import {
   buildOpenAIImageRequestBody,
   buildProviderExtensionImageRequestBody,

@@ -205,6 +205,9 @@ describe("desktop build scripts", () => {
     expect(packageJson).toContain(
       '"smoke:desktop": "node ./build/smoke/smoke-desktop.mjs"',
     );
+    expect(packageJson).toContain(
+      '"remotion:measure:loudness": "MYSTUDIO_REMOTION_LOUDNESS_RUNNER=1 vite-node --config build/timeline/vite-node.config.ts build/remotion/measure-loudness.ts"',
+    );
     expect(smokeScript).toContain("dashboard-project-card");
     expect(smokeScript).toContain("项目概览");
     expect(smokeScript).toContain("bodyBg");
@@ -373,6 +376,107 @@ describe("desktop build scripts", () => {
     expect(smokeScript).toContain("socket.close");
     expect(smokeScript).toContain("captureDomVisualStats");
     expect(smokeScript).toContain("captureError");
+  });
+
+  it("gates packaged and installed Remotion export smoke behind an explicit opt-in", () => {
+    const smokeScript = readBuildFile("build/smoke/smoke-desktop.mjs");
+    const installScript = readBuildFile("build/packaging/install-and-smoke.mjs");
+
+    const modeContract = smokeScript.slice(
+      smokeScript.indexOf("const remotionExportSmokeMode"),
+      smokeScript.indexOf("const REMOTION_EXPORT_TIMEOUT_MS"),
+    );
+    const enabledModes = modeContract.slice(
+      modeContract.indexOf("const runRemotionExportSmoke"),
+      modeContract.indexOf("if (!"),
+    );
+    expect(modeContract).toContain(
+      'process.env.MYSTUDIO_SMOKE_REMOTION_EXPORT || "disabled"',
+    );
+    expect(enabledModes).toContain('remotionExportSmokeMode === "1"');
+    expect(enabledModes).toContain('remotionExportSmokeMode === "blocked"');
+    expect(enabledModes).toContain('remotionExportSmokeMode === "cancel"');
+    expect(enabledModes).not.toContain('remotionExportSmokeMode === "0"');
+    expect(modeContract).toContain('["disabled", "0", "1", "blocked", "cancel"]');
+    expect(modeContract).toContain(
+      "MYSTUDIO_SMOKE_REMOTION_EXPORT must be 0, 1, blocked, or cancel",
+    );
+
+    expect(smokeScript).toContain("MYSTUDIO_SMOKE_REMOTION_EXPORT");
+    expect(smokeScript).toContain("verifyRemotionExport");
+    expect(smokeScript).toContain("window.remotionRuntime");
+    expect(smokeScript).toContain("window.remotionPreview.create");
+    expect(smokeScript).toContain("window.remotionPreview.release");
+    expect(smokeScript).toContain("window.studioRenderer.renderTimeline");
+    expect(smokeScript).toContain("requestedRenderer: 'remotion'");
+    expect(smokeScript).toContain("const expectBlockedExport = mode === 'blocked'");
+    expect(smokeScript).toContain("MYSTUDIO_SMOKE_REMOTION_PREPARED_VERSION");
+    expect(smokeScript).toContain("result.player");
+    expect(smokeScript).toContain("noDownloadObserved");
+    expect(smokeScript).toContain("realMediaGeneration");
+    expect(smokeScript).toContain("remotionArtifact");
+    expect(smokeScript).toContain("codec_name");
+    expect(smokeScript).toContain("output mtime does not match render evidence");
+    expect(smokeScript).toContain("render evidence duration does not match ffprobe");
+    expect(installScript).toContain("env: { ...process.env, ...options.env }");
+
+    const remotionSmoke = smokeScript.slice(
+      smokeScript.indexOf("async function verifyRemotionExport"),
+      smokeScript.indexOf("async function verifyWorkflowEndToEnd"),
+    );
+    expect(remotionSmoke.indexOf("window.remotionPreview.create(plan)"))
+      .toBeLessThan(remotionSmoke.indexOf("clickedBrowserDownload"));
+    expect(remotionSmoke).toContain("const serializedPlan = JSON.stringify");
+    expect(remotionSmoke).toContain("const expectCanceledExport = mode === 'cancel'");
+    expect(remotionSmoke).toContain("progress.stage === 'rendering'");
+    expect(remotionSmoke).toContain("cancelTimelineRender(plan.jobId)");
+    expect(remotionSmoke).toContain("progress.stage === 'canceled'");
+    expect(remotionSmoke).toContain("__mystudioRemotionExportSmokePromise");
+    expect(remotionSmoke).toContain("delete globalThis.${promiseKey}");
+
+    const artifactInspection = smokeScript.slice(
+      smokeScript.indexOf("function inspectRemotionExportArtifact"),
+      smokeScript.indexOf("function sleep"),
+    );
+    const blockedInspection = artifactInspection.slice(
+      artifactInspection.indexOf('remotionExportSmokeMode === "blocked"'),
+      artifactInspection.indexOf("if (!remotionExport?.success ||"),
+    );
+    expect(blockedInspection).toContain("realMediaGeneration: false");
+    expect(blockedInspection).not.toContain("evidence.path");
+    const canceledInspection = artifactInspection.slice(
+      artifactInspection.indexOf('remotionExportSmokeMode === "cancel"'),
+      artifactInspection.indexOf("if (!remotionExport?.success ||"),
+    );
+    expect(canceledInspection).toContain("cancellationArtifactsPresent");
+    expect(canceledInspection).toContain("noSuccessfulOutput");
+    expect(canceledInspection).toContain('"editing-project.json"');
+    expect(canceledInspection).toContain('"render-plan.json"');
+    expect(canceledInspection).toContain('"input-manifest.json"');
+    expect(canceledInspection).toContain('"result.json"');
+    expect(canceledInspection).toContain("realMediaGeneration: false");
+
+    const pageInspection = smokeScript.slice(
+      smokeScript.indexOf("async function inspectPage"),
+      smokeScript.indexOf("async function verifyRoute"),
+    );
+    expect(pageInspection).toMatch(
+      /const remotionExport = runRemotionExportSmoke\s+\? await verifyRemotionExport\(evaluate\)\s+: \{ enabled: false, success: false \}/,
+    );
+
+    const healthGate = smokeScript.slice(
+      smokeScript.indexOf("function assertHealthy"),
+      smokeScript.indexOf("stopExistingMYStudioInstances();"),
+    );
+    expect(healthGate).toContain("if (!remotionArtifact?.ok)");
+    const mainRemotionGate = smokeScript.slice(
+      smokeScript.lastIndexOf("const remotionArtifact ="),
+      smokeScript.lastIndexOf("smokePassed = true;"),
+    );
+    expect(mainRemotionGate.indexOf("realMediaGeneration:"))
+      .toBeLessThan(mainRemotionGate.indexOf("assertHealthy("));
+    expect(mainRemotionGate).toContain('remotionExportSmokeMode === "1"');
+    expect(mainRemotionGate).toContain("&& remotionArtifact.ok");
   });
 
   it("keeps the workflow integrity skill stepwise instead of relying only on smoke", () => {

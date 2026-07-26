@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
-import { getApiKeyCount } from "@/lib/api-key-manager";
+import { getApiKeyCount } from "@/lib/ai/core";
 import type { ImageHostProvider } from "@/stores/ai/api-config-store";
 
 type ImageHostSettingsTabProps = {

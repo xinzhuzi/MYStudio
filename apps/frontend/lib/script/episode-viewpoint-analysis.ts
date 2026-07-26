@@ -1,4 +1,4 @@
-import { useAPIConfigStore } from "@/stores/ai/api-config-store";
+import { getAIConcurrency } from "@/lib/ai/config/store-adapter";
 import type {
   EpisodeRawScript,
   ProjectBackground,
@@ -76,7 +76,7 @@ export async function analyzeEpisodeViewpoints({
       era: projectBackground?.era,
       worldSetting: projectBackground?.worldSetting,
     };
-    const userConcurrency = useAPIConfigStore.getState().concurrency || 1;
+    const userConcurrency = getAIConcurrency();
     const concurrency = Math.min(userConcurrency, 10);
     const updatedScenes = [...scriptData.scenes];
     const sceneAnalysisTasks = episodeScenes

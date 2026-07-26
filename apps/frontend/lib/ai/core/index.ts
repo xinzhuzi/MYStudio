@@ -23,3 +23,7 @@ export type { CharacterBible } from './services/character-bible';
 
 // Providers
 export * from './providers';
+
+// API-key rotation and normalization services
+export * from './services/api-key-manager';
+export * from './services/api-key-utils';

@@ -1,10 +1,18 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { EditingProjectV1 } from "@/types/editing";
+
+vi.mock("@rendering/plugins/remotion/composition/RemotionPlayer", () => ({
+  RemotionPlayer: () => <div data-testid="remotion-player" />,
+}));
+
 import { EditingWorkbench } from "./EditingWorkbench";
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  delete window.remotionPreview;
+});
 
 describe("EditingWorkbench", () => {
   it("shows the draft call to action before a timeline exists", () => {
@@ -174,6 +182,91 @@ describe("EditingWorkbench", () => {
     expect(preview.style.filter).toContain("contrast(1.12)");
     expect(screen.getByText("近似预览，最终效果以 FFmpeg 成片为准")).toBeTruthy();
   });
+
+  it("shows requested and actual renderers with the exact compatibility reason", () => {
+    renderWorkbench({
+      renderEvidence: {
+        jobId: "job-fallback",
+        path: "/tmp/output.mp4",
+        sizeBytes: 1024,
+        mtimeMs: 1,
+        sha256: "a".repeat(64),
+        duration: 4,
+        width: 1080,
+        height: 1920,
+        streams: ["video", "audio"],
+        snapshotHash: "b".repeat(64),
+        snapshotPath: "/tmp/editing-project.json",
+        renderer: {
+          requested: "remotion",
+          actual: "ffmpeg",
+          fallback: {
+            code: "unsupported-effects",
+            effectIds: ["glitch", "grain"],
+            message: "Remotion 暂不支持已启用效果",
+          },
+        },
+      },
+    });
+
+    expect(screen.getByText("渲染器 Remotion → FFmpeg")).toBeTruthy();
+    expect(screen.getByLabelText("渲染器兼容性路由").textContent).toContain(
+      "Remotion 暂不支持已启用效果",
+    );
+    expect(screen.getByLabelText("渲染器兼容性路由").textContent).toContain(
+      "效果：glitch、grain",
+    );
+  });
+
+  it("mounts the Remotion Player through a capability session and releases it", async () => {
+    const create = vi.fn(async () => ({
+      sessionId: "preview-1",
+      composition: {
+        width: 1080,
+        height: 1920,
+        fps: 30,
+        durationInFrames: 30,
+        visualClips: [],
+        transitions: [],
+        audioClips: [],
+        subtitles: [],
+      },
+    }));
+    const release = vi.fn(async (sessionId: string) => ({ sessionId, released: true as const }));
+    window.remotionPreview = { create, release };
+
+    const rendered = renderWorkbench({ requestedRenderer: "remotion" });
+    await waitFor(() => expect(screen.getByTestId("remotion-player")).toBeTruthy());
+    expect(screen.getByText("Electron Chromium")).toBeTruthy();
+    expect(screen.getByText("Remotion Player")).toBeTruthy();
+    expect(create).toHaveBeenCalledOnce();
+
+    rendered.unmount();
+    await waitFor(() => expect(release).toHaveBeenCalledWith("preview-1"));
+  });
+
+  it("keeps unsupported Remotion effects on the explicit FFmpeg preview route", async () => {
+    const project = editingProject();
+    project.effects = [{
+      id: "blur-1",
+      effectId: "blur",
+      targetClipId: "visual-1",
+      startUs: 0,
+      durationUs: 1_000_000,
+      params: { radius: 4 },
+      enabled: true,
+    }];
+    const create = vi.fn();
+    window.remotionPreview = {
+      create,
+      release: vi.fn(),
+    } as unknown as NonNullable<Window["remotionPreview"]>;
+
+    renderWorkbench({ project, requestedRenderer: "remotion" });
+    await waitFor(() => expect(screen.getByText("Remotion → FFmpeg · blur")).toBeTruthy());
+    expect(screen.getByText("Remotion 暂不支持效果：blur")).toBeTruthy();
+    expect(create).not.toHaveBeenCalled();
+  });
 });
 
 function renderWorkbench(overrides: Partial<React.ComponentProps<typeof EditingWorkbench>> = {}) {
@@ -181,6 +274,7 @@ function renderWorkbench(overrides: Partial<React.ComponentProps<typeof EditingW
     project: editingProject(),
     drafting: false,
     rendering: false,
+    requestedRenderer: "ffmpeg",
     canUndo: true,
     canRedo: true,
     onCreateDraft: vi.fn(),

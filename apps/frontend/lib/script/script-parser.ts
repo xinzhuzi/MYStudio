@@ -11,7 +11,7 @@ import type { ScriptData, ScriptCharacter, ScriptScene, ScriptParagraph, Shot } 
 import { retryOperation } from "@/lib/utils/retry";
 import { cleanJsonString, safeParseJson, normalizeIds } from "@/lib/utils/json-cleaner";
 import { delay, RATE_LIMITS } from "@/lib/utils/rate-limiter";
-import { ApiKeyManager } from "@/lib/api-key-manager";
+import { ApiKeyManager } from "@/lib/ai/core";
 import { getModelLimits, parseModelLimitsFromError, cacheDiscoveredLimits, estimateTokens } from "@/lib/ai/model-registry";
 import { corsFetch } from "@/lib/cors-fetch";
 import { buildThinkingParams, buildThinkingProviderOptions, resolveThinkingEnabled } from "@/lib/ai/thinking-mode";

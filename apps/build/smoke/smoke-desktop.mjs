@@ -1,6 +1,16 @@
 import { spawn, spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import http from "node:http";
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, resolve } from "node:path";
 import { PNG } from "pngjs";
@@ -55,6 +65,23 @@ const AUDIO_METADATA_TIMEOUT_MS = Number(
 );
 const runStepwiseWorkflowSmoke =
   process.env.MYSTUDIO_SMOKE_WORKFLOW_STEPWISE === "1";
+const remotionExportSmokeMode =
+  process.env.MYSTUDIO_SMOKE_REMOTION_EXPORT || "disabled";
+const runRemotionExportSmoke =
+  remotionExportSmokeMode === "1"
+  || remotionExportSmokeMode === "blocked"
+  || remotionExportSmokeMode === "cancel";
+const remotionExportSmokeModes = ["disabled", "0", "1", "blocked", "cancel"];
+if (!remotionExportSmokeModes.includes(remotionExportSmokeMode)) {
+  throw new Error(
+    `MYSTUDIO_SMOKE_REMOTION_EXPORT must be 0, 1, blocked, or cancel; received ${remotionExportSmokeMode}`,
+  );
+}
+const REMOTION_EXPORT_TIMEOUT_MS = Number(
+  process.env.MYSTUDIO_SMOKE_REMOTION_EXPORT_TIMEOUT_MS || 900_000,
+);
+const remotionPreparedVersionFixture =
+  process.env.MYSTUDIO_SMOKE_REMOTION_PREPARED_VERSION;
 const skipPrekill = process.env.MYSTUDIO_SMOKE_SKIP_PREKILL === "1";
 const foregroundSmoke = process.env.MYSTUDIO_SMOKE_FOREGROUND === "1";
 const smokeMode = foregroundSmoke ? "visible" : "background";
@@ -93,6 +120,10 @@ const CORE_ROUTE_CHECKS = [
   },
 ];
 const SMOKE_VIDEO_PATH = "/tmp/mystudio-smoke-final.mp4";
+const SMOKE_VIDEO_WIDTH = 320;
+const SMOKE_VIDEO_HEIGHT = 180;
+const SMOKE_VIDEO_FPS = 30;
+const SMOKE_VIDEO_DURATION_US = 200_000;
 const smokeReportPath =
   process.env.MYSTUDIO_SMOKE_REPORT_PATH ||
   resolve(process.cwd(), "output", "automation", "desktop-smoke-report.json");
@@ -143,7 +174,7 @@ function prepareSmokeMedia() {
       "-f",
       "lavfi",
       "-i",
-      "color=c=black:s=320x180:d=0.2",
+      `color=c=black:s=${SMOKE_VIDEO_WIDTH}x${SMOKE_VIDEO_HEIGHT}:d=${SMOKE_VIDEO_DURATION_US / 1_000_000}`,
       "-pix_fmt",
       "yuv420p",
       "-movflags",
@@ -160,8 +191,307 @@ function prepareSmokeMedia() {
   }
 }
 
+function buildRemotionSmokePlan(durationUs = SMOKE_VIDEO_DURATION_US) {
+  const createdAt = Date.now();
+  const jobId = `desktop-remotion-smoke-${createdAt}`;
+  const projectId = "desktop-remotion-smoke-project";
+  const episodeId = "desktop-remotion-smoke-episode";
+  const editingProjectId = "desktop-remotion-smoke-editing";
+  const sourceSnapshotHash = "desktop-remotion-smoke-snapshot-v1";
+  const source = {
+    kind: "storyboardVideo",
+    path: SMOKE_VIDEO_PATH,
+    evidence: { mediaId: "desktop-remotion-smoke-media" },
+  };
+  const renderSettings = {
+    width: SMOKE_VIDEO_WIDTH,
+    height: SMOKE_VIDEO_HEIGHT,
+    fps: SMOKE_VIDEO_FPS,
+    codec: "h264",
+    subtitleMode: "none",
+    loudnessLufs: -14,
+    truePeakDbtp: -1.5,
+    audioDucking: {
+      reductionDb: -12,
+      attackUs: 120_000,
+      releaseUs: 400_000,
+    },
+  };
+  const snapshotClip = {
+    id: "desktop-remotion-smoke-clip",
+    trackId: "desktop-remotion-smoke-track",
+    name: "Remotion smoke clip",
+    source,
+    startUs: 0,
+    durationUs,
+    trimStartUs: 0,
+    speed: 1,
+    volume: 0,
+    muted: true,
+  };
+  const editingProjectSnapshot = {
+    schemaVersion: 1,
+    id: editingProjectId,
+    projectId,
+    episodeId,
+    name: "Remotion packaged export smoke",
+    revision: 1,
+    sourceSnapshotHash,
+    createdBy: "manual",
+    manuallyEdited: false,
+    stale: false,
+    renderSettings,
+    tracks: [
+      {
+        id: "desktop-remotion-smoke-track",
+        kind: "video",
+        name: "主画面",
+        order: 0,
+        clipIds: [snapshotClip.id],
+        muted: false,
+        locked: false,
+      },
+    ],
+    clips: [snapshotClip],
+    transitions: [],
+    effects: [],
+    proposals: [],
+    createdAt,
+    updatedAt: createdAt,
+  };
+  return {
+    schemaVersion: 1,
+    jobId,
+    projectId,
+    episodeId,
+    editingProjectId,
+    editingRevision: 1,
+    sourceSnapshotHash,
+    editingProjectSnapshot,
+    renderSettings,
+    clips: [
+      {
+        id: snapshotClip.id,
+        trackId: snapshotClip.trackId,
+        trackKind: "video",
+        source,
+        startUs: snapshotClip.startUs,
+        durationUs: snapshotClip.durationUs,
+        trimStartUs: snapshotClip.trimStartUs,
+        speed: snapshotClip.speed,
+        volume: snapshotClip.volume,
+        muted: snapshotClip.muted,
+      },
+    ],
+    transitions: [],
+    effects: [],
+    createdAt,
+  };
+}
+
+function inspectRemotionExportArtifact(remotionExport) {
+  if (!runRemotionExportSmoke) return { enabled: false, ok: true, issues: [] };
+  const issues = [];
+  try {
+    if (remotionExportSmokeMode === "blocked") {
+      if (!remotionExport?.success
+        || remotionExport?.render?.success !== false
+        || remotionExport?.noDownloadObserved !== true) {
+        issues.push(remotionExport?.error || "Remotion export was not blocked without a download");
+      }
+      return {
+        enabled: true,
+        blocked: true,
+        ok: issues.length === 0,
+        issues,
+        realMediaGeneration: false,
+        browserState: remotionExport?.browserStatus?.state,
+        error: remotionExport?.render?.error,
+      };
+    }
+    if (remotionExportSmokeMode === "cancel") {
+      const jobsRoot = resolve(
+        userDataDir,
+        "media",
+        "studio-render",
+        "timeline-jobs",
+      );
+      const jobPrefix = `${remotionExport?.jobId || "missing-job"}-`;
+      const jobDirectoryName = existsSync(jobsRoot)
+        ? readdirSync(jobsRoot, { withFileTypes: true })
+          .filter((entry) => entry.isDirectory() && entry.name.startsWith(jobPrefix))
+          .map((entry) => entry.name)
+          .sort()
+          .at(-1)
+        : undefined;
+      const jobDirectory = jobDirectoryName
+        ? resolve(jobsRoot, jobDirectoryName)
+        : undefined;
+      const requiredArtifactNames = [
+        "editing-project.json",
+        "render-plan.json",
+        "input-manifest.json",
+        "result.json",
+      ];
+      const artifactPaths = jobDirectory
+        ? requiredArtifactNames.map((name) => resolve(jobDirectory, name))
+        : [];
+      const cancellationArtifactsPresent = artifactPaths.length === requiredArtifactNames.length
+        && artifactPaths.every((artifactPath) => existsSync(artifactPath));
+      const persistedResult = cancellationArtifactsPresent
+        ? JSON.parse(readFileSync(resolve(jobDirectory, "result.json"), "utf8"))
+        : undefined;
+      const noSuccessfulOutput = Boolean(jobDirectory)
+        && !existsSync(resolve(jobDirectory, "output.mp4"))
+        && !existsSync(resolve(jobDirectory, "raw-remotion.mp4"));
+      if (!remotionExport?.success
+        || remotionExport?.cancel?.success !== true
+        || remotionExport?.cancel?.canceled !== true
+        || remotionExport?.render?.success !== false
+        || remotionExport?.render?.canceled !== true
+        || persistedResult?.success !== false
+        || persistedResult?.canceled !== true
+        || !cancellationArtifactsPresent
+        || !noSuccessfulOutput) {
+        issues.push(remotionExport?.error || "Remotion cancellation evidence was incomplete");
+      }
+      return {
+        enabled: true,
+        canceled: true,
+        ok: issues.length === 0,
+        issues,
+        realMediaGeneration: false,
+        cancellationArtifactsPresent,
+        noSuccessfulOutput,
+        jobDirectory,
+        artifactPaths,
+      };
+    }
+    if (!remotionExport?.success || !remotionExport.render?.success) {
+      issues.push(remotionExport?.error || remotionExport?.render?.error || "Remotion export did not succeed");
+      return { enabled: true, ok: false, issues };
+    }
+
+    const evidence = remotionExport.render.evidence;
+    const renderer = evidence?.renderer;
+    const postProcess = evidence?.audioPostProcess;
+    if (renderer?.requested !== "remotion" || renderer?.actual !== "remotion") {
+      issues.push(`renderer evidence mismatch: ${renderer?.requested || "missing"}/${renderer?.actual || "missing"}`);
+    }
+    if (renderer?.version !== remotionExport.browserStatus?.remotionVersion) {
+      issues.push("renderer version does not match the prepared browser status");
+    }
+    if (!/^[a-f0-9]{64}$/.test(renderer?.bundleVersion || "")) {
+      issues.push("bundleVersion is not a SHA-256 content hash");
+    }
+    if (postProcess?.engine !== "ffmpeg"
+      || postProcess?.loudnessLufs !== -14
+      || postProcess?.truePeakDbtp !== -1.5) {
+      issues.push("audio post-process evidence does not match the loudnorm contract");
+    }
+
+    if (!evidence?.path || !existsSync(evidence.path)) {
+      issues.push(`rendered output is missing: ${evidence?.path || "missing"}`);
+      return { enabled: true, ok: false, issues };
+    }
+    const outputStat = statSync(evidence.path);
+    const sha256 = createHash("sha256").update(readFileSync(evidence.path)).digest("hex");
+    if (evidence.sizeBytes !== outputStat.size) issues.push("output size does not match render evidence");
+    if (evidence.mtimeMs !== outputStat.mtimeMs) issues.push("output mtime does not match render evidence");
+    if (evidence.sha256 !== sha256) issues.push("output SHA-256 does not match render evidence");
+
+    const artifactPaths = [
+      evidence.snapshotPath,
+      evidence.renderPlanPath,
+      evidence.inputManifestPath,
+      evidence.ffprobePath,
+      postProcess?.logPath,
+    ];
+    const missingArtifactPaths = artifactPaths.filter(
+      (artifactPath) => typeof artifactPath !== "string" || !existsSync(artifactPath),
+    );
+    if (missingArtifactPaths.length > 0) {
+      issues.push(`render artifacts are missing: ${missingArtifactPaths.join(", ")}`);
+    }
+
+    const probeResult = spawnSync(
+      "ffprobe",
+      [
+        "-v",
+        "error",
+        "-show_entries",
+        "format=duration:stream=codec_type,codec_name,width,height",
+        "-of",
+        "json",
+        evidence.path,
+      ],
+      { encoding: "utf8", maxBuffer: 4 * 1024 * 1024 },
+    );
+    if (probeResult.status !== 0) {
+      issues.push(`ffprobe failed: ${(probeResult.stderr || "").trim() || `exit ${probeResult.status}`}`);
+      return { enabled: true, ok: false, issues, path: evidence.path, sha256 };
+    }
+    const probe = JSON.parse(probeResult.stdout);
+    const video = probe.streams?.find((stream) => stream.codec_type === "video");
+    const audio = probe.streams?.find((stream) => stream.codec_type === "audio");
+    const duration = Number(probe.format?.duration);
+    if (video?.codec_name !== "h264") issues.push(`video codec is ${video?.codec_name || "missing"}, expected h264`);
+    if (audio?.codec_name !== "aac") issues.push(`audio codec is ${audio?.codec_name || "missing"}, expected aac`);
+    if (video?.width !== SMOKE_VIDEO_WIDTH || video?.height !== SMOKE_VIDEO_HEIGHT) {
+      issues.push(`video dimensions are ${video?.width || 0}x${video?.height || 0}`);
+    }
+    if (!Number.isFinite(duration)
+      || Math.abs(duration - SMOKE_VIDEO_DURATION_US / 1_000_000) > 1 / SMOKE_VIDEO_FPS) {
+      issues.push(`video duration is outside one frame: ${duration}`);
+    }
+    if (!Number.isFinite(evidence.duration)
+      || !Number.isFinite(duration)
+      || Math.abs(evidence.duration - duration) > 1 / SMOKE_VIDEO_FPS) {
+      issues.push(`render evidence duration does not match ffprobe: ${evidence.duration}/${duration}`);
+    }
+    if (evidence.width !== SMOKE_VIDEO_WIDTH || evidence.height !== SMOKE_VIDEO_HEIGHT) {
+      issues.push(`render evidence dimensions are ${evidence.width || 0}x${evidence.height || 0}`);
+    }
+    if (!evidence.streams?.includes("video") || !evidence.streams?.includes("audio")) {
+      issues.push(`render evidence streams are incomplete: ${(evidence.streams || []).join(",")}`);
+    }
+
+    return {
+      enabled: true,
+      ok: issues.length === 0,
+      issues,
+      path: evidence.path,
+      sizeBytes: outputStat.size,
+      sha256,
+      duration,
+      width: video?.width,
+      height: video?.height,
+      videoCodec: video?.codec_name,
+      audioCodec: audio?.codec_name,
+      artifactPaths,
+    };
+  } catch (error) {
+    issues.push(error instanceof Error ? error.message : String(error));
+    return { enabled: true, ok: false, issues };
+  }
+}
+
 function sleep(ms) {
   return new Promise((resolveSleep) => setTimeout(resolveSleep, ms));
+}
+
+function prepareRemotionBrowserStateFixture() {
+  if (!remotionPreparedVersionFixture) return;
+  const runtimeDir = resolve(userDataDir, "remotion-runtime");
+  mkdirSync(runtimeDir, { recursive: true });
+  writeFileSync(
+    resolve(runtimeDir, "browser-state.json"),
+    `${JSON.stringify({
+      schemaVersion: 1,
+      preparedForRemotionVersion: remotionPreparedVersionFixture,
+    }, null, 2)}\n`,
+    "utf8",
+  );
 }
 
 function writeSmokeReport(report) {
@@ -171,15 +501,20 @@ function writeSmokeReport(report) {
     `${JSON.stringify(
       {
         generatedAt: new Date().toISOString(),
-        command: runStepwiseWorkflowSmoke
-          ? "MYSTUDIO_SMOKE_WORKFLOW_STEPWISE=1 npm run smoke:desktop"
-          : "npm run smoke:desktop",
+        command: [
+          runStepwiseWorkflowSmoke ? "MYSTUDIO_SMOKE_WORKFLOW_STEPWISE=1" : null,
+          runRemotionExportSmoke
+            ? `MYSTUDIO_SMOKE_REMOTION_EXPORT=${remotionExportSmokeMode}`
+            : null,
+          "npm run smoke:desktop",
+        ].filter(Boolean).join(" "),
         reportPath: smokeReportPath,
         appBin,
         userDataDir,
         debugPort,
         mode: smokeMode,
         runStepwiseWorkflowSmoke,
+        remotionExportSmokeMode,
         ...report,
       },
       null,
@@ -515,6 +850,10 @@ async function inspectPage(pageTarget) {
     console.log("[smoke] checking Python settings");
     const pythonSettings = await verifyPythonSettings(evaluate);
 
+    const remotionExport = runRemotionExportSmoke
+      ? await verifyRemotionExport(evaluate)
+      : { enabled: false, success: false };
+
     const domVisualStats = await captureDomVisualStats(evaluate);
     console.log("[smoke] capturing screenshot");
     const screenshot = await captureVisualStats(send, domVisualStats);
@@ -531,6 +870,7 @@ async function inspectPage(pageTarget) {
       assetVoiceFlow,
       scriptAssetGenerationVoiceFlow,
       pythonSettings,
+      remotionExport,
       screenshot,
     };
   } finally {
@@ -643,8 +983,8 @@ async function verifyWorkflowStages(evaluate) {
 	    const stages = [
 	      { id: 'manuals', label: '风格与导演', requiredText: ['视觉手册', '导演手册'] },
       { id: 'novel', label: '小说导入', requiredText: ['导入原文'] },
-      { id: 'script', label: '剧本生产阶段', requiredText: ['请先在「小说导入」导入章节'] },
-      { id: 'assets', label: '剧本资产管理', requiredText: ['还没有剧本：请先在「剧本生产阶段」生成各章剧本', '角色/场景/道具', '承接本阶段已提取的角色、场景、道具', '参考音频'], forbiddenText: ['运行导演计划', '锁定剧集圣经', '角色库', '全部润色角色提示词', '全部润色提示词', '生成图片 ('] },
+	      { id: 'script', label: '剧本生产阶段', requiredText: ['章节（1 章 = 1 集）', '事件摘要'] },
+	      { id: 'assets', label: '剧本资产管理', requiredText: ['资产提取', '剧本内容', '承接本阶段已提取的角色、场景、道具', '参考音频'], forbiddenText: ['运行导演计划', '锁定剧集圣经', '角色库', '全部润色角色提示词', '全部润色提示词', '生成图片 ('] },
       {
         id: 'storyboard',
         label: '分镜视频生成',
@@ -754,6 +1094,259 @@ async function verifyPythonSettings(evaluate) {
   })()`,
     "Python settings check",
   );
+}
+
+async function verifyRemotionExport(evaluate) {
+  const serializedPlan = JSON.stringify(
+    buildRemotionSmokePlan(SMOKE_VIDEO_DURATION_US),
+  );
+  const mode = JSON.stringify(remotionExportSmokeMode);
+  const promiseKey = "__mystudioRemotionExportSmokePromise";
+  try {
+    return await evaluate(
+    `(() => {
+      const smokePromise = (async () => {
+      const plan = ${serializedPlan};
+      const mode = ${mode};
+      const expectBlockedExport = mode === 'blocked';
+      const expectCanceledExport = mode === 'cancel';
+      const result = {
+        enabled: true,
+        mode,
+        jobId: plan.jobId,
+        success: false,
+        settings: {},
+        browserProgress: [],
+        renderProgress: [],
+      };
+      const normalize = (node) => (node?.textContent || '').replace(/\\s+/g, ' ').trim();
+      const activate = (node) => {
+        if (!node) return false;
+        node.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, pointerId: 1, button: 0, buttons: 1, pointerType: 'mouse' }));
+        node.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, button: 0, buttons: 1, view: window }));
+        node.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, cancelable: true, pointerId: 1, button: 0, buttons: 0, pointerType: 'mouse' }));
+        node.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true, button: 0, view: window }));
+        node.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, button: 0, view: window }));
+        return true;
+      };
+      const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+      const waitFor = async (check, timeoutMs, label) => {
+        const deadline = Date.now() + timeoutMs;
+        while (Date.now() < deadline) {
+          const value = await check();
+          if (value) return value;
+          await wait(250);
+        }
+        throw new Error(label + ' timed out after ' + timeoutMs + 'ms');
+      };
+      const rememberProgress = (target, progress) => {
+        const previous = target[target.length - 1];
+        const stage = progress.phase || progress.stage || '';
+        if (!previous || previous.stage !== stage || Math.abs(previous.ratio - progress.ratio) >= 0.1) {
+          target.push({ stage, ratio: progress.ratio, message: progress.message || '' });
+          if (target.length > 20) target.shift();
+        }
+      };
+      let unsubscribeBrowserProgress;
+      let unsubscribeRenderProgress;
+      let previewSessionId = '';
+      let renderPromise;
+
+      try {
+        if (!window.remotionRuntime || !window.remotionPreview || !window.studioRenderer) {
+          throw new Error('Remotion runtime, preview, or studio renderer bridge is unavailable');
+        }
+
+        const navButtons = Array.from(document.querySelectorAll('.studio-nav-button'))
+          .filter((node) => node.tagName === 'BUTTON');
+        const settingsButton = navButtons.find((node) => normalize(node).includes('设置'));
+        result.settings.clickedSettings = activate(settingsButton);
+        await waitFor(
+          () => Array.from(document.querySelectorAll('.settings-tabs-bar button')).some((node) => normalize(node) === '渲染'),
+          10_000,
+          'rendering settings tab',
+        );
+        const renderingTab = Array.from(document.querySelectorAll('.settings-tabs-bar button'))
+          .find((node) => normalize(node) === '渲染');
+        result.settings.clickedRenderingTab = activate(renderingTab);
+        await waitFor(() => document.body.innerText.includes('Remotion Headless Shell'), 10_000, 'Remotion settings panel');
+
+        const remotionOption = Array.from(document.querySelectorAll('[role="radio"]'))
+          .find((node) => normalize(node).startsWith('Remotion'));
+        result.settings.clickedRemotion = activate(remotionOption);
+        await waitFor(() => remotionOption?.getAttribute('aria-checked') === 'true', 5_000, 'Remotion renderer selection');
+        result.settings.rendererSelected = remotionOption?.getAttribute('aria-checked') === 'true';
+        result.settings.hasRuntimeStatus = document.body.innerText.includes('当前状态');
+
+        await waitFor(
+          () => ['已就绪', '需要手动更新', '尚未安装', '检查失败']
+            .some((label) => document.body.innerText.includes(label)),
+          30_000,
+          'initial Remotion browser status',
+        );
+        result.initialBrowserStatus = await window.remotionRuntime.status();
+
+        const preview = await window.remotionPreview.create(plan);
+        previewSessionId = preview.sessionId;
+        result.preview = {
+          sessionId: preview.sessionId,
+          browserStateAtCreate: result.initialBrowserStatus.state,
+          width: preview.composition.width,
+          height: preview.composition.height,
+          fps: preview.composition.fps,
+          durationInFrames: preview.composition.durationInFrames,
+          visualClipCount: preview.composition.visualClips.length,
+        };
+        const released = await window.remotionPreview.release(previewSessionId);
+        result.previewReleased = released.released === true && released.sessionId === previewSessionId;
+        previewSessionId = '';
+
+        if (!expectBlockedExport && result.initialBrowserStatus.state !== 'ready') {
+          unsubscribeBrowserProgress = window.remotionRuntime.onDownloadProgress((progress) => {
+            rememberProgress(result.browserProgress, progress);
+          });
+          const downloadButton = Array.from(document.querySelectorAll('button')).find((node) => {
+            const text = normalize(node);
+            return !node.disabled && (text.includes('下载 Headless Shell') || text.includes('手动更新'));
+          });
+          result.settings.clickedBrowserDownload = activate(downloadButton);
+          if (!result.settings.clickedBrowserDownload) {
+            throw new Error('Remotion browser download button was not available');
+          }
+          await waitFor(() => {
+            const alert = document.querySelector('[role="alert"]');
+            if (alert && normalize(alert)) throw new Error(normalize(alert));
+            return document.body.innerText.includes('当前状态')
+              && document.body.innerText.includes('已就绪');
+          }, ${REMOTION_EXPORT_TIMEOUT_MS}, 'Remotion browser download');
+        }
+
+        result.browserStatus = await window.remotionRuntime.status();
+        if (!expectBlockedExport && result.browserStatus.state !== 'ready') {
+          throw new Error('Remotion browser is not ready: ' + result.browserStatus.state);
+        }
+
+        const workflowButton = Array.from(document.querySelectorAll('.studio-nav-button'))
+          .find((node) => node.tagName === 'BUTTON' && normalize(node).includes('工作流'));
+        result.player = { clickedWorkflow: activate(workflowButton), mounted: false };
+        if (!window.mystudioWorkflowSmoke?.seedCompleteWorkflow) {
+          throw new Error('Workflow smoke bridge is unavailable for the Remotion Player check');
+        }
+        await window.mystudioWorkflowSmoke.seedCompleteWorkflow();
+        await window.mystudioWorkflowSmoke.setWorkflowStage('workbench');
+        result.player = await waitFor(() => {
+          const previewPanel = document.querySelector('[aria-label="预览区"]');
+          const playerRoot = previewPanel
+            ? Array.from(previewPanel.querySelectorAll('div')).find((node) =>
+              typeof node.className === 'string'
+              && node.className.includes('max-h-[330px]')
+              && node.className.includes('w-full'))
+            : null;
+          if (!previewPanel || !playerRoot) return null;
+          return {
+            clickedWorkflow: true,
+            mounted: true,
+            label: normalize(previewPanel),
+            hasVideoElement: Boolean(previewPanel.querySelector('video')),
+            browserStateAtMount: result.browserStatus.state,
+          };
+        }, 30_000, 'Remotion Player UI');
+
+        unsubscribeRenderProgress = window.studioRenderer.onTimelineRenderProgress((progress) => {
+          if (progress.jobId !== plan.jobId) return;
+          rememberProgress(result.renderProgress, progress);
+        });
+        renderPromise = window.studioRenderer.renderTimeline({
+          schemaVersion: 1,
+          requestedRenderer: 'remotion',
+          plan,
+        });
+        if (expectCanceledExport) {
+          await waitFor(
+            () => result.renderProgress.some((progress) => progress.stage === 'rendering'),
+            30_000,
+            'Remotion rendering progress before cancellation',
+          );
+          result.cancel = await window.studioRenderer.cancelTimelineRender(plan.jobId);
+          result.render = await renderPromise;
+          renderPromise = null;
+          await waitFor(
+            () => result.renderProgress.some((progress) => progress.stage === 'canceled'),
+            10_000,
+            'Remotion canceled progress',
+          );
+          result.success = result.settings.rendererSelected
+            && result.settings.hasRuntimeStatus
+            && result.previewReleased
+            && result.player?.mounted
+            && result.cancel?.success === true
+            && result.cancel?.canceled === true
+            && result.render?.success === false
+            && result.render?.canceled === true;
+          if (!result.success) throw new Error('Remotion cancellation evidence was incomplete');
+          return result;
+        }
+        result.render = await renderPromise;
+        renderPromise = null;
+        if (expectBlockedExport) {
+          result.noDownloadObserved = result.browserProgress.length === 0
+            && !result.settings.clickedBrowserDownload;
+          result.success = result.settings.rendererSelected
+            && result.settings.hasRuntimeStatus
+            && result.previewReleased
+            && result.player?.mounted
+            && result.browserStatus.state !== 'ready'
+            && result.render.success === false
+            && result.render.canceled === false
+            && result.noDownloadObserved;
+          if (!result.success) throw new Error('Remotion no-download export block evidence was incomplete');
+          return result;
+        }
+        if (!result.render.success) throw new Error(result.render.error);
+        result.success = result.settings.rendererSelected
+          && result.settings.hasRuntimeStatus
+          && result.previewReleased
+          && result.player?.mounted
+          && result.render.evidence?.renderer?.requested === 'remotion'
+          && result.render.evidence?.renderer?.actual === 'remotion';
+        if (!result.success) throw new Error('Remotion smoke evidence was incomplete');
+        return result;
+      } catch (error) {
+        result.error = error instanceof Error ? error.message : String(error);
+        return result;
+      } finally {
+        if (renderPromise) {
+          try {
+            await window.studioRenderer?.cancelTimelineRender(plan.jobId);
+            result.render = await renderPromise;
+          } catch (error) {
+            result.renderCleanupError = error instanceof Error ? error.message : String(error);
+          }
+        }
+        unsubscribeBrowserProgress?.();
+        unsubscribeRenderProgress?.();
+        if (previewSessionId) {
+          try {
+            const released = await window.remotionPreview?.release(previewSessionId);
+            result.previewReleased = released?.released === true;
+          } catch (error) {
+            result.previewReleaseError = error instanceof Error ? error.message : String(error);
+          }
+        }
+      }
+      })();
+      globalThis.${promiseKey} = smokePromise;
+      return smokePromise;
+    })()`,
+    "Remotion packaged export smoke",
+    REMOTION_EXPORT_TIMEOUT_MS,
+  );
+  } finally {
+    await evaluate(
+      `delete globalThis.${promiseKey}`,
+      "Remotion packaged export smoke promise cleanup",
+    ).catch(() => undefined);
+  }
 }
 
 async function verifyWorkflowEndToEnd(evaluate) {
@@ -1597,6 +2190,8 @@ function assertHealthy(
   assetVoiceFlow,
   scriptAssetGenerationVoiceFlow,
   pythonSettings,
+  remotionExport,
+  remotionArtifact,
   screenshot,
   allowedErrors,
   foregroundViolation,
@@ -1897,6 +2492,63 @@ function assertHealthy(
       `Python settings appears to auto-configure before user action: ${pythonSettings.forbiddenTextFound.join(", ")}`,
     );
   }
+  if (runRemotionExportSmoke) {
+    const expectBlockedExport = remotionExportSmokeMode === "blocked";
+    const expectCanceledExport = remotionExportSmokeMode === "cancel";
+    if (!remotionExport?.success) {
+      failures.push(`Remotion export smoke failed: ${remotionExport?.error || "missing result"}`);
+    }
+    if (!remotionExport?.settings?.clickedSettings
+      || !remotionExport?.settings?.clickedRenderingTab
+      || !remotionExport?.settings?.clickedRemotion
+      || !remotionExport?.settings?.rendererSelected
+      || !remotionExport?.settings?.hasRuntimeStatus) {
+      failures.push("Remotion settings UI was not fully exercised");
+    }
+    if (!expectBlockedExport
+      && remotionExport?.initialBrowserStatus?.state !== "ready"
+      && !remotionExport?.settings?.clickedBrowserDownload) {
+      failures.push("Remotion browser was not ready and the settings download action was not used");
+    }
+    if (!expectBlockedExport && remotionExport?.browserStatus?.state !== "ready") {
+      failures.push(`Remotion browser status is ${remotionExport?.browserStatus?.state || "missing"}`);
+    }
+    if (!remotionExport?.previewReleased
+      || remotionExport?.preview?.width !== SMOKE_VIDEO_WIDTH
+      || remotionExport?.preview?.height !== SMOKE_VIDEO_HEIGHT
+      || remotionExport?.preview?.fps !== SMOKE_VIDEO_FPS
+      || remotionExport?.preview?.visualClipCount !== 1) {
+      failures.push("Remotion Player preview session evidence is incomplete");
+    }
+    if (!remotionExport?.player?.mounted) {
+      failures.push("Remotion Player did not mount inside the packaged workbench");
+    }
+    if (expectBlockedExport
+      && (remotionExport?.render?.success !== false
+        || remotionExport?.noDownloadObserved !== true
+        || remotionExport?.browserStatus?.state === "ready")) {
+      failures.push("Remotion export was not blocked before download");
+    }
+    if (expectCanceledExport
+      && (remotionExport?.cancel?.success !== true
+        || remotionExport?.cancel?.canceled !== true
+        || remotionExport?.render?.success !== false
+        || remotionExport?.render?.canceled !== true
+        || !remotionExport?.renderProgress?.some((progress) => progress.stage === "canceled")
+        || remotionArtifact?.cancellationArtifactsPresent !== true
+        || remotionArtifact?.noSuccessfulOutput !== true
+        || remotionArtifact?.realMediaGeneration !== false)) {
+      failures.push("Remotion cancellation did not preserve artifacts or quarantine partial output");
+    }
+    if (!expectBlockedExport
+      && !expectCanceledExport
+      && !remotionExport?.renderProgress?.some((progress) => progress.stage === "completed")) {
+      failures.push("Remotion export progress did not report completed");
+    }
+    if (!remotionArtifact?.ok) {
+      failures.push(`Remotion artifact verification failed: ${(remotionArtifact?.issues || []).join(", ")}`);
+    }
+  }
   if (!screenshot || screenshot.whiteRatio > 0.75) {
     failures.push(
       `screenshot is too white: ${screenshot ? screenshot.whiteRatio.toFixed(3) : "missing"}`,
@@ -1929,6 +2581,8 @@ function assertHealthy(
           assetVoiceFlow,
           scriptAssetGenerationVoiceFlow,
           pythonSettings,
+          remotionExport,
+          remotionArtifact,
           screenshot,
           pageErrors: errors.map(summarizePageError),
           allowedPageErrors: allowedErrors.map(summarizePageError),
@@ -1943,13 +2597,21 @@ function assertHealthy(
   const workflowStepwiseSummary = runStepwiseWorkflowSmoke
     ? ", workflowStepwise=ok"
     : "";
+  const remotionSummary = runRemotionExportSmoke
+    ? remotionExportSmokeMode === "blocked"
+      ? `, remotionExport=blocked, browserState=${remotionArtifact.browserState}`
+      : remotionExportSmokeMode === "cancel"
+        ? `, remotionExport=canceled, artifacts=${remotionArtifact.cancellationArtifactsPresent ? "ok" : "missing"}`
+        : `, remotionExport=ok, remotionSha256=${remotionArtifact.sha256}`
+    : "";
   console.log(
-    `Desktop smoke passed: ${state.title}, rootChildren=${state.rootChildren}, bodyBg=${state.bodyBg}, routes=${routeChecks.length}, workflowE2E=ok${workflowStepwiseSummary}, assetVoiceFlow=ok, scriptAssetGenerationVoiceFlow=ok, pythonSettings=ok, whiteRatio=${screenshot.whiteRatio.toFixed(3)}, appBin=${appBin}`,
+    `Desktop smoke passed: ${state.title}, rootChildren=${state.rootChildren}, bodyBg=${state.bodyBg}, routes=${routeChecks.length}, workflowE2E=ok${workflowStepwiseSummary}, assetVoiceFlow=ok, scriptAssetGenerationVoiceFlow=ok, pythonSettings=ok${remotionSummary}, whiteRatio=${screenshot.whiteRatio.toFixed(3)}, appBin=${appBin}`,
   );
 }
 
 stopExistingMYStudioInstances();
 prepareSmokeMedia();
+prepareRemotionBrowserStateFixture();
 
 const focusSamples = [];
 if (smokeMode === "background") {
@@ -2004,8 +2666,10 @@ try {
     assetVoiceFlow,
     scriptAssetGenerationVoiceFlow,
     pythonSettings,
+    remotionExport,
     screenshot,
   } = await inspectPage(page);
+  const remotionArtifact = inspectRemotionExportArtifact(remotionExport);
   if (smokeMode === "background") {
     focusSamples.push(sampleFrontmostApplication("after desktop checks"));
   }
@@ -2027,6 +2691,12 @@ try {
     assetVoiceFlow,
     scriptAssetGenerationVoiceFlow,
     pythonSettings,
+    remotionExport,
+    remotionArtifact,
+    realMediaGeneration: runRemotionExportSmoke
+      && remotionExportSmokeMode === "1"
+      && remotionExport.success
+      && remotionArtifact.ok,
     screenshot,
     pageErrors: errors.map(summarizePageError),
     allowedPageErrors: allowedErrors.map(summarizePageError),
@@ -2042,6 +2712,8 @@ try {
     assetVoiceFlow,
     scriptAssetGenerationVoiceFlow,
     pythonSettings,
+    remotionExport,
+    remotionArtifact,
     screenshot,
     allowedErrors,
     foregroundViolation,

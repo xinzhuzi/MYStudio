@@ -17,7 +17,7 @@ import {
   parseApiKeys,
   maskApiKey as maskKey,
   classifyModelByName,
-} from '@/lib/api-key-manager';
+} from '@/lib/ai/core';
 import { injectDiscoveryCache, type DiscoveredModelLimits } from '@/lib/ai/model-registry';
 import {
   AI_FEATURES,
@@ -81,7 +81,7 @@ export {
 } from './api-config-provider-helpers';
 
 // Re-export IProvider for convenience
-export type { IProvider } from '@/lib/api-key-manager';
+export type { IProvider } from '@/lib/ai/core';
 export { DEFAULT_ADVANCED_OPTIONS } from './api-config-store-types';
 export type {
   AdvancedGenerationOptions,

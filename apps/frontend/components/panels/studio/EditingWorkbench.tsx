@@ -30,6 +30,9 @@ import type {
 import { toPreviewSrc } from "./WorkbenchTrackCard";
 import { EditingProposalPanel } from "./EditingProposalPanel";
 import { useAudioWaveform } from "./useAudioWaveform";
+import { useRemotionPlayerPreview } from "./useRemotionPlayerPreview";
+import { RemotionPlayer } from "@rendering/plugins/remotion/composition/RemotionPlayer";
+import type { TimelineRendererId } from "@rendering/contracts/timeline-renderer";
 
 interface EditingWorkbenchProps {
   project?: EditingProjectV1;
@@ -37,6 +40,7 @@ interface EditingWorkbenchProps {
   rendering: boolean;
   renderProgress?: TimelineRenderProgress;
   renderEvidence?: TimelineRenderEvidence;
+  requestedRenderer: TimelineRendererId;
   error?: string;
   canUndo: boolean;
   canRedo: boolean;
@@ -78,7 +82,11 @@ export function EditingWorkbench(props: EditingWorkbenchProps) {
             onSelectClip={setSelectedClipId}
             onExecuteCommand={props.onExecuteCommand}
           />
-          <EditingPreviewPanel project={props.project} clip={selectedClip} />
+          <EditingPreviewPanel
+            project={props.project}
+            clip={selectedClip}
+            requestedRenderer={props.requestedRenderer}
+          />
           <EditingPropertiesPanel
             project={props.project}
             clip={selectedClip}
@@ -113,6 +121,7 @@ export function EditingWorkbench(props: EditingWorkbenchProps) {
 
 function EditingWorkbenchHeader(props: EditingWorkbenchProps) {
   const progress = props.renderProgress;
+  const rendererEvidence = props.renderEvidence?.renderer;
   return (
     <header className="border-b border-foreground/10 bg-[#181c1b]/95 px-4 py-3 backdrop-blur-xl">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -216,10 +225,28 @@ function EditingWorkbenchHeader(props: EditingWorkbenchProps) {
       ) : null}
       {props.renderEvidence ? (
         <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 rounded-md border border-emerald-300/15 bg-emerald-300/[0.05] px-3 py-2 text-[11px] text-emerald-100/80">
+          {rendererEvidence ? (
+            <span>
+              渲染器 {formatRendererLabel(rendererEvidence.requested)} → {formatRendererLabel(rendererEvidence.actual)}
+            </span>
+          ) : null}
           <span>{props.renderEvidence.width}×{props.renderEvidence.height}</span>
           <span>{props.renderEvidence.duration.toFixed(2)}s</span>
           <span>{props.renderEvidence.streams.join(" + ")}</span>
           <span className="min-w-0 truncate">SHA {props.renderEvidence.sha256.slice(0, 12)}</span>
+        </div>
+      ) : null}
+      {rendererEvidence?.fallback ? (
+        <div
+          role="status"
+          aria-label="渲染器兼容性路由"
+          className="mt-2 rounded-md border border-amber-300/20 bg-amber-300/[0.06] px-3 py-2 text-[11px] text-amber-100/80"
+        >
+          <span className="font-medium text-amber-100">兼容性路由：</span>
+          {rendererEvidence.fallback.message}
+          <span className="ml-2 text-amber-100/60">
+            效果：{rendererEvidence.fallback.effectIds.join("、")}
+          </span>
         </div>
       ) : null}
     </header>
@@ -263,19 +290,60 @@ function EditingAssetPanel(props: {
   );
 }
 
-function EditingPreviewPanel({ project, clip }: { project: EditingProjectV1; clip?: EditingClip }) {
+function EditingPreviewPanel({
+  project,
+  clip,
+  requestedRenderer,
+}: {
+  project: EditingProjectV1;
+  clip?: EditingClip;
+  requestedRenderer: TimelineRendererId;
+}) {
   const preview = clip ? buildEditingEffectPreview(project, clip.id) : undefined;
+  const remotionPreview = useRemotionPlayerPreview(project, requestedRenderer);
+  const fallback = remotionPreview.decision?.fallback;
+  const usesRemotionPlayer = requestedRenderer === "remotion"
+    && remotionPreview.status === "ready"
+    && remotionPreview.composition;
   return (
     <div className="border-b border-foreground/10 p-4 xl:border-r" aria-label="预览区">
-      <PanelTitle label="PREVIEW" detail={clip?.name ?? "未选择片段"} />
+      <PanelTitle
+        label="PREVIEW"
+        detail={requestedRenderer === "remotion" ? project.name : clip?.name ?? "未选择片段"}
+      />
       <div className="mt-3 flex min-h-[300px] items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-[linear-gradient(135deg,#090b0b,#151918)] shadow-inner">
-        <ClipPreview clip={clip} preview={preview} />
+        {usesRemotionPlayer ? (
+          <RemotionPlayer
+            composition={remotionPreview.composition!}
+            className="max-h-[330px] w-full"
+          />
+        ) : requestedRenderer === "remotion" && remotionPreview.status === "loading" ? (
+          <span className="text-xs text-muted-foreground">正在创建 Remotion 安全预览…</span>
+        ) : requestedRenderer === "remotion" && remotionPreview.status === "error" ? (
+          <span className="max-w-md px-6 text-center text-xs leading-5 text-destructive">
+            {remotionPreview.error}
+          </span>
+        ) : (
+          <ClipPreview clip={clip} preview={preview} />
+        )}
       </div>
       <div className="mt-2 flex justify-between text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-        <span>{preview?.effects.length ? `${preview.capability} · ${preview.effects.map((effect) => effect.effectId).join(" + ")}` : "Browser Preview"}</span>
-        <span>FFmpeg Final</span>
+        <span>
+          {fallback
+            ? `Remotion → FFmpeg · ${fallback.effectIds.join(" + ")}`
+            : requestedRenderer === "remotion"
+              ? "Electron Chromium"
+              : preview?.effects.length
+                ? `${preview.capability} · ${preview.effects.map((effect) => effect.effectId).join(" + ")}`
+                : "Browser Preview"}
+        </span>
+        <span>{requestedRenderer === "remotion" && !fallback ? "Remotion Player" : "FFmpeg Final"}</span>
       </div>
-      {preview?.effects.length ? <p className="mt-2 text-[11px] text-amber-100/70">{preview.notice}</p> : null}
+      {fallback ? (
+        <p className="mt-2 text-[11px] text-amber-100/70">{fallback.message}</p>
+      ) : preview?.effects.length ? (
+        <p className="mt-2 text-[11px] text-amber-100/70">{preview.notice}</p>
+      ) : null}
     </div>
   );
 }
@@ -606,6 +674,10 @@ function parseEnvelope(value: string) {
 
 function formatTime(valueUs: number) {
   return `${(valueUs / 1_000_000).toFixed(2)}s`;
+}
+
+function formatRendererLabel(renderer: "remotion" | "ffmpeg") {
+  return renderer === "remotion" ? "Remotion" : "FFmpeg";
 }
 
 function trackDotClass(kind: EditingProjectV1["tracks"][number]["kind"]) {

@@ -20,9 +20,9 @@ import {
 } from "@/stores/library/character-library-store";
 import { useMediaStore } from "@/stores/media/media-store";
 import { useProjectStore } from "@/stores/project/project-store";
-import { useAppSettingsStore } from "@/stores/app/app-settings-store";
 import { aiManager } from "@/lib/ai/ai-manager";
-import { readImageAsBase64, saveImageToLocal } from "@/lib/image-storage";
+import { generateVariationImage } from "@/lib/ai/wardrobe-image-generation";
+import { saveImageToLocal } from "@/lib/image-storage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -50,9 +50,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { getStyleById } from "@/lib/constants/visual-styles";
 import { LocalImage } from "@/components/ui/local-image";
-import { ImagePreviewModal } from "@/components/panels/director/media-preview-modal";
+import { ImagePreviewModal } from "@/components/features/media/media-preview-modal";
 
 // Preset variation types for quick creation
 const VARIATION_PRESETS = [
@@ -69,13 +68,23 @@ const VARIATION_PRESETS = [
 // Max clothing reference images per variation
 const MAX_CLOTHING_REFS = 3;
 
-interface WardrobeModalProps {
-  character: Character;
+export interface WardrobeModalProps {
+  character: Character | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onGenerateVariation?: (
+    characterId: string,
+    variationId: string,
+    visualPrompt: string,
+  ) => Promise<string>;
 }
 
-export function WardrobeModal({ character, open, onOpenChange }: WardrobeModalProps) {
+export function WardrobeModal({
+  character,
+  open,
+  onOpenChange,
+  onGenerateVariation: generateVariationExternally,
+}: WardrobeModalProps) {
   const { addVariation, updateVariation, deleteVariation } = useCharacterLibraryStore();
   const { addMediaFromUrl, getOrCreateCategoryFolder } = useMediaStore();
   const { activeProjectId } = useProjectStore();
@@ -100,10 +109,10 @@ export function WardrobeModal({ character, open, onOpenChange }: WardrobeModalPr
     }
   }, [showAddForm]);
 
-  const variations = character.variations || [];
+  const variations = character?.variations || [];
 
   // Get character base portrait
-  const characterBaseImage = character.thumbnailUrl || character.views[0]?.imageUrl;
+  const characterBaseImage = character?.thumbnailUrl || character?.views[0]?.imageUrl;
 
   // ---- Image Upload ----
   const handleClothingImageUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -143,6 +152,8 @@ export function WardrobeModal({ character, open, onOpenChange }: WardrobeModalPr
   const handleRemoveClothingRef = useCallback((index: number) => {
     setNewClothingRefs((prev) => prev.filter((_, i) => i !== index));
   }, []);
+
+  if (!character) return null;
 
   // ---- Add Variation ----
   const handleAddVariation = () => {
@@ -186,6 +197,27 @@ export function WardrobeModal({ character, open, onOpenChange }: WardrobeModalPr
 
   // ---- Generate Variation Image ----
   const handleGenerateVariation = async (variation: CharacterVariation) => {
+    if (generateVariationExternally) {
+      setGeneratingVariationId(variation.id);
+      try {
+        const imageUrl = await generateVariationExternally(
+          character.id,
+          variation.id,
+          variation.visualPrompt,
+        );
+        updateVariation(character.id, variation.id, {
+          referenceImage: imageUrl,
+          generatedAt: Date.now(),
+        });
+        toast.success(`变体图片生成完成: ${variation.name}`);
+      } catch (error) {
+        toast.error(`生成失败: ${(error as Error).message}`);
+      } finally {
+        setGeneratingVariationId(null);
+      }
+      return;
+    }
+
     const featureConfig = aiManager.featureConfig('character_generation');
     if (!featureConfig) {
       toast.error(aiManager.featureNotConfiguredMessage('character_generation'));
@@ -438,7 +470,10 @@ export function WardrobeModal({ character, open, onOpenChange }: WardrobeModalPr
                           variant="outline"
                           className="mt-2 w-full h-7 text-xs"
                           onClick={() => handleGenerateVariation(variation)}
-                          disabled={generatingVariationId !== null || !characterBaseImage}
+                          disabled={
+                            generatingVariationId !== null ||
+                            (!generateVariationExternally && !characterBaseImage)
+                          }
                         >
                           {generatingVariationId === variation.id ? (
                             <>
@@ -635,239 +670,4 @@ export function WardrobeModal({ character, open, onOpenChange }: WardrobeModalPr
       />
     </Dialog>
   );
-}
-
-// ==================== Generation Logic ====================
-
-/**
- * Build character-sheet-format variation image.
- *
- * The output is a FULL CHARACTER SHEET (三视图 + 表情设定 + 比例设定 + 动作设定)
- * matching the base character generation format, NOT a single portrait.
- *
- * Prompt structure = base character sheet prompt + clothing description overlay.
- *
- * Reference images:
- *   - Character base image → face/body identity anchor
- *   - Clothing reference images → target outfit (if provided)
- */
-
-// Same SHEET_ELEMENTS as generation-panel.tsx for consistency
-const WARDROBE_SHEET_ELEMENTS = [
-  { id: 'three-view', prompt: 'front view, side view, back view, turnaround', realisticPrompt: 'multiple photographic angles: front portrait, side profile, full body shot' },
-  { id: 'expressions', prompt: 'expression sheet, multiple facial expressions, happy, sad, angry, surprised', realisticPrompt: 'collage of different facial expressions: smiling, frowning, angry, surprised' },
-  { id: 'proportions', prompt: 'height chart, body proportions, head-to-body ratio reference', realisticPrompt: 'full body photography, standing straight' },
-  { id: 'poses', prompt: 'pose sheet, various action poses, standing, sitting, running', realisticPrompt: 'various action poses, action photography collage' },
-] as const;
-
-async function generateVariationImage(params: {
-  character: Character;
-  variation: CharacterVariation;
-  featureConfig: NonNullable<ReturnType<typeof aiManager.featureConfig>>;
-}): Promise<string> {
-  const { character, variation, featureConfig } = params;
-  const apiKey = featureConfig.apiKey;
-  const model = featureConfig.models?.[0];
-  const baseUrl = featureConfig.baseUrl?.replace(/\/+$/, '');
-
-  if (!model || !baseUrl) {
-    throw new Error('图片生成服务未正确配置（缺少模型或 Base URL）');
-  }
-
-  // ---- Build CHARACTER SHEET prompt (same structure as generation-panel) ----
-  const stylePreset = character.styleId ? getStyleById(character.styleId) : null;
-  const styleTokens = stylePreset?.prompt || 'anime style, professional quality';
-  const isRealistic = stylePreset?.category === 'real';
-
-  const charTraits = character.visualTraits || character.description || '';
-  const clothingDesc = variation.visualPrompt || variation.name;
-  const hasClothingRefs = variation.clothingReferenceImages && variation.clothingReferenceImages.length > 0;
-
-  // Character description with clothing overlay
-  const characterDescription = `${charTraits}, wearing ${clothingDesc}`;
-
-  // Base prompt — realistic vs animation branching (matches generation-panel.tsx)
-  const basePrompt = isRealistic
-    ? `professional character reference for "${character.name}", ${characterDescription}, real person`
-    : `professional character design sheet for "${character.name}", ${characterDescription}`;
-
-  // Sheet elements content — all 4 elements for full character sheet
-  const contentParts = WARDROBE_SHEET_ELEMENTS.map(el =>
-    isRealistic ? el.realisticPrompt : el.prompt
-  );
-  const contentPrompt = contentParts.join(', ');
-
-  // White background enforcement (same as generation-panel)
-  const whiteBackgroundPrompt = 'pure solid white background, isolated character on white background, absolutely no background scenery';
-
-  // Multi-image fusion instructions (when clothing reference images exist)
-  const fusionInstruction = hasClothingRefs
-    ? 'The FIRST image is the base character — preserve identity exactly. The FOLLOWING image(s) show the target outfit — dress the character in this outfit for ALL views.'
-    : '';
-
-  // Assemble final prompt
-  let prompt: string;
-  if (isRealistic) {
-    prompt = [
-      basePrompt,
-      contentPrompt,
-      'photographic character reference layout, collage format',
-      whiteBackgroundPrompt,
-      styleTokens,
-      'cinematic lighting, highly detailed skin texture, photorealistic',
-      fusionInstruction,
-      'IMPORTANT: NO TEXT, NO WORDS, NO WATERMARKS.',
-    ].filter(Boolean).join(', ');
-  } else {
-    prompt = [
-      basePrompt,
-      contentPrompt,
-      'character reference sheet layout',
-      whiteBackgroundPrompt,
-      styleTokens,
-      'detailed illustration',
-      fusionInstruction,
-      'IMPORTANT: NO TEXT, NO WORDS, NO WATERMARKS.',
-    ].filter(Boolean).join(', ');
-  }
-
-  // ---- Collect reference images ----
-  // Order: character base portrait first, then clothing references
-  const referenceImages: string[] = [];
-
-  // 1. Character base portrait (most important — face anchor)
-  const charBaseImage = character.thumbnailUrl || character.views[0]?.imageUrl;
-  if (charBaseImage) {
-    const resolved = await resolveImageToBase64(charBaseImage);
-    if (resolved) referenceImages.push(resolved);
-  }
-
-  // 2. Clothing reference images (user-uploaded)
-  if (hasClothingRefs) {
-    for (const img of variation.clothingReferenceImages!) {
-      const resolved = await resolveImageToBase64(img);
-      if (resolved) referenceImages.push(resolved);
-    }
-  }
-
-  console.log('[Wardrobe] Generating character sheet variation:', {
-    variationName: variation.name,
-    model,
-    isRealistic,
-    hasClothingRefs,
-    refCount: referenceImages.length,
-    promptPreview: prompt.substring(0, 150),
-  });
-
-  // ---- Call API via unified image generator ----
-  // Use 1:1 aspect ratio to match base character sheet format
-  const imageSettings = useAppSettingsStore.getState().imageGenerationSettings;
-  const result = await aiManager.imageGrid({
-    model,
-    prompt,
-    apiKey,
-    baseUrl,
-    aspectRatio: "1:1",
-    resolution: imageSettings.defaultResolution,
-    referenceImages: referenceImages.length > 0 ? referenceImages : undefined,
-  });
-
-  // Direct result
-  if (result.imageUrl) {
-    return result.imageUrl;
-  }
-
-  // Async task — poll
-  if (result.taskId) {
-    return await pollForVariationImage(result.taskId, apiKey, baseUrl);
-  }
-
-  throw new Error('无效的 API 响应');
-}
-
-/**
- * Resolve various image URL formats to base64 data URI for API submission.
- */
-async function resolveImageToBase64(url: string): Promise<string | null> {
-  if (!url) return null;
-  // Already base64
-  if (url.startsWith('data:image/')) return url;
-  // HTTP URL — pass through (API can fetch it)
-  if (url.startsWith('http://') || url.startsWith('https://')) return url;
-  // local-image:// protocol
-  if (url.startsWith('local-image://')) {
-    try {
-      return await readImageAsBase64(url) || null;
-    } catch {
-      console.warn('[Wardrobe] Failed to read local image:', url);
-      return null;
-    }
-  }
-  return null;
-}
-
-/**
- * Poll async task for variation image completion.
- */
-async function pollForVariationImage(
-  taskId: string,
-  apiKey: string,
-  baseUrl: string,
-): Promise<string> {
-  const normalizedBase = baseUrl.replace(/\/+$/, '');
-  const hasV1 = /\/v\d+$/.test(normalizedBase);
-  const taskEndpoint = hasV1
-    ? `${normalizedBase}/tasks/${taskId}`
-    : `${normalizedBase}/v1/tasks/${taskId}`;
-
-  const maxAttempts = 60;
-  const pollInterval = 2000;
-
-  for (let i = 0; i < maxAttempts; i++) {
-    await new Promise(resolve => setTimeout(resolve, pollInterval));
-
-    try {
-      const url = new URL(taskEndpoint);
-      url.searchParams.set('_ts', Date.now().toString());
-
-      const response = await fetch(url.toString(), {
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Cache-Control': 'no-cache',
-        },
-      });
-
-      if (!response.ok) {
-        if (response.status === 404) throw new Error('任务不存在');
-        continue;
-      }
-
-      const data = await response.json();
-      const status = (data.status ?? data.data?.status ?? 'unknown').toString().toLowerCase();
-
-      if (status === 'completed' || status === 'succeeded' || status === 'success') {
-        const images = data.result?.images ?? data.data?.result?.images;
-        let imageUrl: string | undefined;
-        if (images?.[0]) {
-          const raw = images[0].url || images[0];
-          imageUrl = Array.isArray(raw) ? raw[0] : raw;
-        }
-        imageUrl = imageUrl || data.output_url || data.result_url || data.url;
-        if (imageUrl) return imageUrl;
-        throw new Error('任务完成但无图片 URL');
-      }
-
-      if (status === 'failed' || status === 'error') {
-        throw new Error(data.error || '图片生成失败');
-      }
-    } catch (error) {
-      if (error instanceof Error &&
-          (error.message.includes('失败') || error.message.includes('不存在') || error.message.includes('无图片'))) {
-        throw error;
-      }
-      // Transient error, continue polling
-    }
-  }
-
-  throw new Error('图片生成超时');
 }

@@ -1,4 +1,4 @@
-import type { IProvider } from "@/lib/api-key-manager";
+import type { IProvider } from "@/lib/ai/core";
 import {
   DEFAULT_LOCAL_TTS_MODEL,
   DEFAULT_LOCAL_TTS_PROVIDER_ID,
@@ -426,6 +426,5 @@ export function validateProviderAdapterCodeText(code: string): ProviderAdapterVa
     models,
   };
 }
-
 
 

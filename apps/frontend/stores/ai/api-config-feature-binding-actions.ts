@@ -1,4 +1,4 @@
-import { parseApiKeys, type IProvider } from "@/lib/api-key-manager";
+import { parseApiKeys, type IProvider } from "@/lib/ai/core";
 import { isLocalTtsProvider } from "./api-config-provider-helpers";
 import type { APIConfigStore } from "./api-config-store-types";
 

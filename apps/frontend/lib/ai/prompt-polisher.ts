@@ -15,7 +15,7 @@ import { aiManager, type AIBinding, type AITextResult } from "@/lib/ai/ai-manage
 import { normalizeImagePromptForGeneration } from "@/lib/ai/ai-sdk-bridge";
 import { getStudioVisualManualsBridge } from "@/lib/bridge/studio-visual-manuals";
 import { DAOJIE_VISUAL_MANUAL_ID } from "@/lib/studio/visual-manual-classification";
-import type { AIFeature } from "@/stores/ai/api-config-store";
+import type { AIFeature } from "@/lib/ai/feature-definitions";
 import type { CharacterIdentityAnchors } from "@/types/script";
 import type { StudioVisualManualDetail } from "@/types/studio-visual-manual";
 

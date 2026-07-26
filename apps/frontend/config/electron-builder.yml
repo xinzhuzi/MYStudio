@@ -29,6 +29,10 @@ files:
   - "!**/coverage/**"
 
 extraResources:
+  - from: .cache/remotion-bundle
+    to: remotion-bundle
+    filter:
+      - "**/*"
   - from: backend
     to: backend
     filter:
@@ -64,10 +68,10 @@ extraResources:
       - "!**/*.tsbuildinfo"
       - "!**/*.psd"
       - "!**/*.zip"
-
 asar: true
 asarUnpack:
   - "**/*.node"
+  - "node_modules/@remotion/compositor-darwin-arm64/**"
 
 # 图标配置
 icon: frontend/assets/brand/manying-studio-icon.ico

@@ -4,11 +4,16 @@ import { describe, expect, it } from "vitest";
 describe("LocalTtsPanel select controls", () => {
   it("does not mount Radix Select in the standalone TTS page", () => {
     const source = readFileSync(new URL("./LocalTtsPanel.tsx", import.meta.url), "utf8");
+    const presentationSource = readFileSync(
+      new URL("./LocalTtsPanelPresentation.tsx", import.meta.url),
+      "utf8",
+    );
 
-    expect(source).toContain("function NativeTtsSelect");
-    expect(source).not.toContain("@/components/ui/select");
-    expect(source).not.toContain("<Select ");
-    expect(source).not.toContain("<SelectContent");
+    expect(source).toContain('from "./LocalTtsPanelPresentation"');
+    expect(presentationSource).toContain("export function NativeTtsSelect");
+    expect(presentationSource).not.toContain("@/components/ui/select");
+    expect(presentationSource).not.toContain("<Select ");
+    expect(presentationSource).not.toContain("<SelectContent");
   });
 
   it("keeps Zustand selectors referentially stable", () => {
@@ -30,15 +35,19 @@ describe("LocalTtsPanel select controls", () => {
 
   it("does not offer download actions for already cached models", () => {
     const source = readFileSync(new URL("./LocalTtsPanel.tsx", import.meta.url), "utf8");
+    const presentationSource = readFileSync(
+      new URL("./LocalTtsPanelPresentation.tsx", import.meta.url),
+      "utf8",
+    );
     const modelStateSource = readFileSync(new URL("./local-tts-model-state.ts", import.meta.url), "utf8");
     const downloadedCheckIndex = modelStateSource.indexOf('if (row.downloaded) return "downloaded";');
     const progressErrorIndex = modelStateSource.indexOf('if (progress?.status === "error") return "failed";');
 
-    expect(source).toContain('state === "missing" || state === "failed"');
-    expect(source).toContain("ModelStateLabel");
-    expect(source).toContain("PendingScanLabel");
-    expect(source).not.toContain("重新下载");
-    expect(source).not.toContain("更新");
+    expect(presentationSource).toContain('state === "missing" || state === "failed"');
+    expect(presentationSource).toContain("ModelStateLabel");
+    expect(presentationSource).toContain("PendingScanLabel");
+    expect(presentationSource).not.toContain("重新下载");
+    expect(presentationSource).not.toContain("更新");
     expect(downloadedCheckIndex).toBeGreaterThan(-1);
     expect(progressErrorIndex).toBeGreaterThan(-1);
     expect(downloadedCheckIndex).toBeLessThan(progressErrorIndex);
@@ -47,9 +56,13 @@ describe("LocalTtsPanel select controls", () => {
 
   it("renders runtime status as full-width rows without a duplicate port field", () => {
     const source = readFileSync(new URL("./LocalTtsPanel.tsx", import.meta.url), "utf8");
+    const presentationSource = readFileSync(
+      new URL("./LocalTtsPanelPresentation.tsx", import.meta.url),
+      "utf8",
+    );
 
-    expect(source).toContain("function RuntimeStatusLine");
-    expect(source).toContain("break-all");
+    expect(presentationSource).toContain("export function RuntimeStatusLine");
+    expect(presentationSource).toContain("break-all");
     expect(source).toContain("handleManualRefresh");
     expect(source).toContain("已刷新");
     expect(source).toContain("运行中（残留进程）");
@@ -71,12 +84,16 @@ describe("LocalTtsPanel select controls", () => {
 
   it("separates Python runtime setup progress from model downloads", () => {
     const source = readFileSync(new URL("./LocalTtsPanel.tsx", import.meta.url), "utf8");
+    const presentationSource = readFileSync(
+      new URL("./LocalTtsPanelPresentation.tsx", import.meta.url),
+      "utf8",
+    );
 
     expect(source).toContain("RuntimeSetupProgress");
-    expect(source).toContain("正在下载 Python 运行环境");
-    expect(source).toContain("正在配置 Python 仓库");
-    expect(source).toContain("正在安装 TTS 依赖");
-    expect(source).toContain("本地 TTS 后端启动中");
+    expect(presentationSource).toContain("正在下载 Python 运行环境");
+    expect(presentationSource).toContain("正在配置 Python 仓库");
+    expect(presentationSource).toContain("正在安装 TTS 依赖");
+    expect(presentationSource).toContain("本地 TTS 后端启动中");
     expect(source).toContain("runtimeSetupActive");
     expect(source).toContain("disabled={starting || runtimeSetupActive || runtimeStatus?.installed === false}");
   });

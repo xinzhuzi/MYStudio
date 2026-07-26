@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { classifyModelByName } from "@/lib/api-key-manager";
+import { classifyModelByName } from "@/lib/ai/core";
 import { modelSupportsCapability } from "./FeatureBindingPanel";
 
 describe("feature binding capability detection", () => {

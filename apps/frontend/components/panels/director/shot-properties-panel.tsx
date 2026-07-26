@@ -45,11 +45,11 @@ import {
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import type { Shot, Keyframe } from "@/types/script";
-import { AngleSwitchDialog, AngleSwitchResultDialog, type AngleSwitchResult } from "@/components/angle-switch";
+import { AngleSwitchDialog, AngleSwitchResultDialog, type AngleSwitchResult } from "@/components/features/storyboard/angle-switch";
 import { generateAngleSwitch } from "@/lib/ai/runninghub-client";
 import { getAngleLabel, type HorizontalDirection, type ElevationAngle, type ShotSize } from "@/lib/ai/runninghub-angles";
 import { useAPIConfigStore } from "@/stores/ai/api-config-store";
-import { parseApiKeys } from "@/lib/api-key-manager";
+import { parseApiKeys } from "@/lib/ai/core";
 
 interface ShotPropertiesPanelProps {
   onGenerateImage?: (shot: Shot, type: "start" | "end") => Promise<string>;

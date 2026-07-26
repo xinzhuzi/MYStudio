@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useAPIConfigStore } from "@/stores/ai/api-config-store";
 import { useAppSettingsStore } from "@/stores/app/app-settings-store";
 import { resetFeatureRoundRobin } from "@/lib/ai/feature-router";
-import { clearAllManagers } from "@/lib/api-key-manager";
+import { clearAllManagers } from "@/lib/ai/core";
 import { generateFreedomImage } from "./freedom-api";
 
 const provider = {

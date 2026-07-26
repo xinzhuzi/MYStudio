@@ -2,6 +2,21 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 describe("electron-builder TTS packaging", () => {
+  it("packages the fixed Remotion bundle and unpacks the arm64 compositor", () => {
+    const source = readFileSync(new URL("./electron-builder.yml", import.meta.url), "utf8");
+
+    expect(source).toContain("from: .cache/remotion-bundle");
+    expect(source).toContain("to: remotion-bundle");
+    expect(source.match(/^\u0020{2}- from: \.cache\/remotion-bundle$/gm)).toHaveLength(1);
+    const remotionBundleStart = source.indexOf("  - from: .cache/remotion-bundle");
+    const backendResourceStart = source.indexOf("  - from: backend");
+    const remotionBundleResource = source.slice(remotionBundleStart, backendResourceStart);
+    expect(remotionBundleResource).toContain('"**/*"');
+    expect(remotionBundleResource).not.toContain('"!**/*.map"');
+    expect(source).toContain('"node_modules/@remotion/compositor-darwin-arm64/**"');
+    expect(source).not.toContain("Headless Shell");
+  });
+
   it("keeps backend source in extraResources without bundling Python runtime", () => {
     const source = readFileSync(new URL("./electron-builder.yml", import.meta.url), "utf8");
 

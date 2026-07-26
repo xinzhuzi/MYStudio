@@ -1,6 +1,6 @@
 import type { Shot } from "@/types/script";
 import { useScriptStore } from "@/stores/script/script-store";
-import { useAPIConfigStore } from "@/stores/ai/api-config-store";
+import { getAIConcurrency } from "@/lib/ai/config/store-adapter";
 import { runStaggered } from "@/lib/utils/concurrency";
 import { calibrateShotsMultiStage } from "./shot-calibration-stages";
 import { buildSeriesContextSummary } from "./series-meta-sync";
@@ -99,7 +99,7 @@ export async function calibrateEpisodeShots(
   
   try {
     // 获取用户设置的并发数
-    const concurrency = useAPIConfigStore.getState().concurrency || 1;
+    const concurrency = getAIConcurrency();
     const batchSize = 5; // 每个 AI 调用处理 5 个分镜
     let calibratedCount = 0;
     const updatedShots: Shot[] = [...project.shots];
@@ -447,5 +447,4 @@ export async function calibrateSingleShot(
     };
   }
 }
-
 

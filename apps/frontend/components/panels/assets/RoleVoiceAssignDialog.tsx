@@ -21,7 +21,7 @@ import type { StudioAssetSummary } from "@/types/studio-assets";
 import { cn } from "@/lib/utils";
 import { Search, Volume2 } from "lucide-react";
 import { toast } from "sonner";
-import { buildVoiceReferenceAssets } from "../studio/voice-reference-assets";
+import { buildVoiceReferenceAssets } from "@/lib/tts/voice-reference-assets";
 
 export interface RoleVoiceAssignableCharacter {
   id: string;

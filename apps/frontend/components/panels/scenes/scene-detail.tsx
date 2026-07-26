@@ -41,7 +41,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { ImagePreviewModal } from "@/components/panels/director/media-preview-modal";
+import { ImagePreviewModal } from "@/components/features/media/media-preview-modal";
 
 interface SceneDetailProps {
   scene: Scene | null;

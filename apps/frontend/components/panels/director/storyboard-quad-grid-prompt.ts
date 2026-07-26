@@ -1,4 +1,4 @@
-import type { QuadVariationType } from "@/components/quad-grid";
+import type { QuadVariationType } from "@/components/features/storyboard/quad-grid";
 import type { SplitScene } from "@/stores/director/director-store";
 
 export type QuadGridPromptOptions = {

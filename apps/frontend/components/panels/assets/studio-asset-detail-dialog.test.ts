@@ -10,6 +10,10 @@ import {
   saveGeneratedAssetImageToLibrary,
   updateImagesAfterReplacingMainImage,
 } from "./StudioAssetDetailDialog";
+import {
+  persistGeneratedAssetPromptToLibrary as canonicalPersistGeneratedAssetPromptToLibrary,
+  saveGeneratedAssetImageToLibrary as canonicalSaveGeneratedAssetImageToLibrary,
+} from "./studio-asset-generation-persistence";
 import type { StudioAssetSummary } from "@/types/studio-assets";
 
 describe("buildAssetRegenerationPrompt", () => {
@@ -22,6 +26,15 @@ describe("buildAssetRegenerationPrompt", () => {
     expect(getAssetOperationError(new Error("IPC unavailable"), "保存失败")).toBe("保存失败: IPC unavailable");
     expect(getAssetOperationError("unexpected", "加载资产详情失败")).toBe("加载资产详情失败");
     expect(getAssetOperationError(new Error("   "), "删除失败")).toBe("删除失败");
+  });
+
+  it("keeps generated asset persistence behind the dialog compatibility facade", () => {
+    expect(persistGeneratedAssetPromptToLibrary).toBe(
+      canonicalPersistGeneratedAssetPromptToLibrary,
+    );
+    expect(saveGeneratedAssetImageToLibrary).toBe(
+      canonicalSaveGeneratedAssetImageToLibrary,
+    );
   });
 
   it("combines prompt, setting, and description for regenerating an asset image", () => {

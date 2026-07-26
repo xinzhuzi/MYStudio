@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { IProvider } from "@/lib/api-key-manager";
+import type { IProvider } from "@/lib/ai/core";
 import type { APIConfigStore } from "./api-config-store-types";
 
 const updateProviderKeys = vi.hoisted(() => vi.fn());
 
-vi.mock("@/lib/api-key-manager", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/api-key-manager")>();
+vi.mock("@/lib/ai/core", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/ai/core")>();
   return { ...actual, updateProviderKeys };
 });
 

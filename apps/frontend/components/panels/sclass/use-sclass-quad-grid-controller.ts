@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import type { QuadVariationType } from "@/components/quad-grid";
+import type { QuadVariationType } from "@/components/features/storyboard/quad-grid";
 import { aiManager } from "@/lib/ai/ai-manager";
 import { readImageAsBase64 } from "@/lib/image-storage";
 import type { EmotionTag } from "@/stores/director/director-presets";

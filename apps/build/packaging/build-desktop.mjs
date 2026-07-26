@@ -219,6 +219,7 @@ const buildArchs = resolveBuildArchs();
 
 cleanIntermediateOutput();
 
+run('npm', ['run', 'remotion:bundle']);
 run('npx', ['electron-vite', 'build', '--config', resolve(projectRoot, 'frontend', 'config', 'electron-vite.config.ts')]);
 
 for (const arch of buildArchs) {

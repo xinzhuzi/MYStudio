@@ -83,6 +83,7 @@ export function WorkbenchTab(props: {
         rendering={editing.rendering}
         renderProgress={editing.renderProgress}
         renderEvidence={editing.renderEvidence}
+        requestedRenderer={editing.requestedRenderer}
         error={editing.error}
         canUndo={editing.canUndo}
         canRedo={editing.canRedo}

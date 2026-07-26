@@ -28,8 +28,8 @@ import { getImageStorageBridge } from '@/lib/bridge/image-storage';
 import { retryOperation } from '@/lib/utils/retry';
 import { corsFetch } from '@/lib/cors-fetch';
 import { fetchRemoteImageDataUrl } from '@/lib/remote-image-fetch';
-import { resolveImageApiFormat, type IProvider } from '@/lib/api-key-manager';
-import { useAPIConfigStore } from '@/stores/ai/api-config-store';
+import { resolveImageApiFormat, type IProvider } from '@/lib/ai/core';
+import { getModelEndpointTypes } from '@/lib/ai/config/store-adapter';
 import { useAppSettingsStore } from '@/stores/app/app-settings-store';
 import { getImageSizeLabel, type ImageAspectRatio, type ImageResolution } from '@/lib/ai/image-size-presets';
 import {
@@ -127,7 +127,7 @@ async function generateImage(
     }
 
     // 根据元数据决定图片生成 API 格式
-    const endpointTypes = useAPIConfigStore.getState().modelEndpointTypes[model];
+    const endpointTypes = getModelEndpointTypes(model);
     const apiFormat = resolveImageApiFormat(endpointTypes, model);
 
     console.log('[ImageGenerator] Generating image', {
@@ -676,7 +676,7 @@ export async function submitGridImageRequest(params: {
   const operationId = createOperationId('grid-image');
 
   // 检测 API 格式（与 generateImage 一致）
-  const endpointTypes = useAPIConfigStore.getState().modelEndpointTypes[model];
+  const endpointTypes = getModelEndpointTypes(model);
   const apiFormat = resolveImageApiFormat(endpointTypes, model);
   console.log('[GridImageAPI] format:', apiFormat, 'model:', model);
 

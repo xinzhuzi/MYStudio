@@ -1,4 +1,4 @@
-import { updateProviderKeys, type IProvider } from "@/lib/api-key-manager";
+import { updateProviderKeys, type IProvider } from "@/lib/ai/core";
 import type { FeatureBindings } from "@/lib/ai/feature-definitions";
 import { omitRecordKeys } from "./api-config-provider-helpers";
 import { syncProviderModels as syncProviderModelsFromApi } from "./api-config-model-sync";

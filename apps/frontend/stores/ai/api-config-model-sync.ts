@@ -1,4 +1,4 @@
-import { parseApiKeys, type IProvider } from "@/lib/api-key-manager";
+import { parseApiKeys, type IProvider } from "@/lib/ai/core";
 
 export interface ProviderModelMetadata {
   modelTypes: Record<string, string>;

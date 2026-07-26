@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Key, Link2, Plus, Shield, Trash2, Workflow } from "lucide-react";
-import { FeatureBindingPanel } from "@/components/api-manager";
+import { FeatureBindingPanel } from "./api";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";

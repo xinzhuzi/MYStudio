@@ -1,4 +1,4 @@
-import { classifyModelByName } from "@/lib/api-key-manager";
+import { classifyModelByName } from "@/lib/ai/core";
 import type {
   IProvider,
   ProviderAdapterModelType,
