@@ -17,7 +17,7 @@ import { useTtsStore } from "@/stores/tts/tts-store";
 import { useCharacterLibraryStore } from "@/stores/library/character-library-store";
 import { usePropsLibraryStore } from "@/stores/library/props-library-store";
 import { useSceneStore } from "@/stores/library/scene-store";
-import { eventBus } from "@/lib/event-bus";
+import { eventBus } from "@/lib/events/event-bus";
 import type { EntityExtractionResult, ScriptPlan } from "@/types/studio";
 import type { StudioAssetSummary, StudioAssetKind } from "@/types/studio-assets";
 import { toast } from "sonner";
@@ -32,7 +32,7 @@ import {
   type AssetGenerationType,
   type AssetRow,
 } from "./script-asset-generation-model";
-import { getAbsoluteImagePath } from "@/lib/image-storage";
+import { getAbsoluteImagePath } from "@/lib/media/image-storage";
 import { toRoleSpeakerId } from "@/lib/tts/role-speaker-id";
 import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";
 import { getTtsRuntimeBridge } from "@/lib/bridge/tts-runtime";

@@ -48,7 +48,14 @@ apps/frontend/
 │   ├── tts/     # project-scoped voice and TTS state
 │   └── assist/  # Assist-mode transient generation state
 ├── lib/         # domain logic, storage, AI, and utilities
-│   └── ai/      # canonical AI manager, config adapter, core contracts, providers, and workers
+│   ├── ai/      # canonical AI manager, config adapter, core contracts, providers, and workers
+│   ├── events/  # cross-feature event contracts and event bus
+│   ├── media/   # image/video storage, remote image fetch, hosting, and media processing
+│   ├── network/ # renderer-safe network transport helpers
+│   ├── project/ # project duplication and project-switch orchestration
+│   ├── sound/   # UI audio effects and interaction-sound intent
+│   ├── storage/ # fileStorage adapter, project storage, and migrations
+│   └── studio/editing/ # editing timecode and timeline-domain helpers
 ├── types/       # shared TypeScript contracts
 ├── electron/    # Electron main-process modules, grouped by domain
 │   ├── main/    # main process entrypoint and startup/contract tests
@@ -107,6 +114,19 @@ apps/build/
   runtime and adjacent generation helpers to `stores/ai/api-config-store`. The
   Zustand store owns persistence and migrations; runtime modules must use the
   adapter rather than importing the store directly.
+- Keep provider/model metadata under `lib/ai/core/providers/`; the canonical
+  brand mapping is `lib/ai/core/providers/brand-mapping.ts`.
+- Keep media-facing helpers under `lib/media/`, renderer network transport under
+  `lib/network/`, project orchestration under `lib/project/`, and cross-feature
+  events under `lib/events/`. `lib/bridge/` remains reserved for Electron IPC
+  and Node bridge implementations; same-named media helpers must not be merged
+  into that layer.
+- Keep storage adapters and migration flows under `lib/storage/`; preserve old
+  root imports as thin compatibility facades during path migrations.
+- Prefer domain folders under `lib/` over new root-level implementations:
+  UI audio in `lib/sound/`, media helpers in `lib/media/`, editing timecode in
+  `lib/studio/editing/timecode.ts`. When relocating, keep a thin root
+  re-export facade so historical `@/lib/<name>` imports do not break.
 - Put cross-feature contracts in `types/`; keep component-only props local.
 - Keep Electron-only Node APIs in `electron/`; main and preload entrypoints live in `main/` and `preload/`, while Node services and handlers stay in their named domains. Expose only narrow preload bridges.
 - Colocate `*.test.ts` and `*.test.tsx` with the unit being tested.

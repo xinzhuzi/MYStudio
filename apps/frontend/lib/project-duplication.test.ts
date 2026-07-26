@@ -1,11 +1,22 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildProjectStoreKeys as facadeBuildProjectStoreKeys,
+  copyProjectScopedStoreFiles as facadeCopyProjectScopedStoreFiles,
+  rewriteProjectScopedPayload as facadeRewriteProjectScopedPayload,
+} from "./project-duplication";
+import {
   buildProjectStoreKeys,
   copyProjectScopedStoreFiles,
   rewriteProjectScopedPayload,
-} from "./project-duplication";
+} from "./project/project-duplication";
 
 describe("project duplication storage boundary", () => {
+  it("keeps the root facade identical to canonical exports", () => {
+    expect(facadeBuildProjectStoreKeys).toBe(buildProjectStoreKeys);
+    expect(facadeCopyProjectScopedStoreFiles).toBe(copyProjectScopedStoreFiles);
+    expect(facadeRewriteProjectScopedPayload).toBe(rewriteProjectScopedPayload);
+  });
+
   it("unions partial listKeys output with all known project stores", () => {
     const keys = buildProjectStoreKeys("source", [
       "_p/source/script",

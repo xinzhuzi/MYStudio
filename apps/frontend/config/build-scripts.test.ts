@@ -285,7 +285,8 @@ describe("desktop build scripts", () => {
     expect(smokeScript).not.toContain("label: '剧本资产生成'");
     expect(smokeScript).toContain("分镜视频生成");
     expect(smokeScript).toContain("自动排版");
-    expect(smokeScript).toContain("角色/场景/道具");
+    expect(smokeScript).toContain("资产提取");
+    expect(smokeScript).toContain("还没有剧本");
     expect(smokeScript).toContain("视频工作台");
     expect(smokeScript).toContain("requiredText: ['一键成片', '旧拼接导出']");
     expect(smokeScript).not.toContain("requiredText: ['导出成片']");
@@ -539,7 +540,7 @@ describe("desktop build scripts", () => {
 
   it("keeps props in project split storage instead of the independent asset library", () => {
     const propsStore = readBuildFile("frontend/stores/library/props-library-store.ts");
-    const migration = readBuildFile("frontend/lib/storage-migration.ts");
+    const migration = readBuildFile("frontend/lib/storage/storage-migration.ts");
 
     expect(propsStore).toContain("createSplitStorage<PropLibraryPersistedState>");
     expect(propsStore).toContain("'props', splitPropLibraryDataForStorage, mergePropLibraryDataForStorage");
@@ -1361,7 +1362,8 @@ describe("desktop build scripts", () => {
     expect(generationStart).toBe(-1);
     expect(storyboardStart).toBeGreaterThan(-1);
     expect(storyboardEnd).toBeGreaterThan(storyboardStart);
-    expect(assetsStage).toContain("还没有剧本：请先在「剧本生产阶段」生成各章剧本");
+    expect(assetsStage).toContain("资产提取");
+    expect(assetsStage).toContain("还没有剧本");
     expect(assetsStage).toContain("承接本阶段已提取的角色、场景、道具");
     expect(assetsRequiredText).not.toContain("'全部润色提示词'");
     expect(assetsRequiredText).not.toContain("'生成图片'");
@@ -1370,7 +1372,7 @@ describe("desktop build scripts", () => {
     expect(assetsStage).toContain("参考音频");
     expect(assetsStage).not.toContain("requiredText: ['剧本资产提取'");
     expect(assetsStage).not.toContain("requiredText: ['剧本资产生成'");
-    expect(assetsStage).toContain("'角色/场景/道具'");
+    expect(assetsStage).toContain("'还没有剧本'");
     expect(storyboardStage).toContain("自动排版");
     expect(storyboardStage).not.toContain("requiredText: ['分镜视频生成'");
     expect(assetsStage).toContain("forbiddenText");

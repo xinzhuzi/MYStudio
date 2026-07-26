@@ -191,6 +191,12 @@ async function renderRemotionPlan(
     };
     const success: TimelineRenderResult = { success: true, evidence };
     await fs.promises.writeFile(resultPath, stableJson(success), "utf8");
+    options.emitProgress({
+      jobId: plan.jobId,
+      stage: "completed",
+      ratio: 1,
+      message: "Remotion 成片核验完成",
+    });
     return success;
   } catch (error) {
     const quarantineErrors = await Promise.all([

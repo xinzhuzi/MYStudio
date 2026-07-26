@@ -8,9 +8,9 @@ import { Toaster } from "@/components/ui/sonner";
 import { UpdateDialog } from "@/components/UpdateDialog";
 import { COLOR_PRESETS, useThemeStore } from "@/stores/app/theme-store";
 import { useAppSettingsStore } from "@/stores/app/app-settings-store";
-import { migrateToProjectStorage, recoverFromLegacy } from "@/lib/storage-migration";
+import { migrateToProjectStorage, recoverFromLegacy } from "@/lib/storage/storage-migration";
 import { installWorkflowSmokeBridge } from "@/lib/studio/workflow-smoke-bridge";
-import { initSound, playSound } from "@/lib/sound";
+import { initSound, playSound } from "@/lib/sound/sound";
 import type { AvailableUpdateInfo } from "@/types/update";
 
 let hasTriggeredStartupUpdateCheck = false;

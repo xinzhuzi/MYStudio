@@ -22,7 +22,7 @@ import { useMediaStore } from "@/stores/media/media-store";
 import { useProjectStore } from "@/stores/project/project-store";
 import { aiManager } from "@/lib/ai/ai-manager";
 import { generateVariationImage } from "@/lib/ai/wardrobe-image-generation";
-import { saveImageToLocal } from "@/lib/image-storage";
+import { saveImageToLocal } from "@/lib/media/image-storage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";

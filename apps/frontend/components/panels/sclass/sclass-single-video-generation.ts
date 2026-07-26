@@ -2,7 +2,7 @@ import { aiManager } from "@/lib/ai/ai-manager";
 import { getMediaType, getStylePrompt } from "@/lib/constants/visual-styles";
 import { getCinematographyProfile } from "@/lib/constants/cinematography-profiles";
 import { buildVideoPrompt } from "@/lib/generation/prompt-builder";
-import { saveVideoToLocal } from "@/lib/image-storage";
+import { saveVideoToLocal } from "@/lib/media/image-storage";
 import { persistSceneImage } from "@/lib/utils/image-persist";
 import { convertToHttpUrl, extractLastFrameFromVideo, isContentModerationError } from "@/lib/ai/video-generator";
 import type { DirectorProjectData, DirectorStore, SplitScene } from "@/stores/director/director-store";

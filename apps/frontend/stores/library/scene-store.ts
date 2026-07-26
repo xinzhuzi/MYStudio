@@ -9,8 +9,8 @@
 
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { createSplitStorage } from '@/lib/project-storage';
-import { saveImageToLocal, isElectron } from '@/lib/image-storage';
+import { createSplitStorage } from '@/lib/storage/project-storage';
+import { saveImageToLocal, isElectron } from '@/lib/media/image-storage';
 import { useProjectStore } from '@/stores/project/project-store';
 import type { SceneViewpointData } from '@/types/script';
 

@@ -2,8 +2,8 @@
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 import { getFeatureConfig } from "@/lib/ai/feature-router";
-import { uploadToImageHost, isImageHostConfigured } from "@/lib/image-host";
-import { saveVideoToLocal } from "@/lib/image-storage";
+import { uploadToImageHost, isImageHostConfigured } from "@/lib/media/image-host";
+import { saveVideoToLocal } from "@/lib/media/image-storage";
 import { getModelEndpointTypes } from "@/lib/ai/config/store-adapter";
 import { retryOperation } from "@/lib/utils/retry";
 import { toRunwayRatio } from "@/lib/ai/video-request-sizing";

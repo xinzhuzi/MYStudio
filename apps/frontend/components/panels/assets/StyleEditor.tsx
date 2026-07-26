@@ -10,7 +10,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useCustomStyleStore, type CustomStyle } from "@/stores/library/custom-style-store";
-import { saveImageToLocal } from "@/lib/image-storage";
+import { saveImageToLocal } from "@/lib/media/image-storage";
 import { aiManager } from "@/lib/ai/ai-manager";
 import { LocalImage } from "@/components/ui/local-image";
 import { Button } from "@/components/ui/button";

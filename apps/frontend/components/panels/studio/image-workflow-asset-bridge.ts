@@ -1,6 +1,6 @@
 import { getProjectFilesBridge } from "@/lib/bridge/project-files";
-import { getAbsoluteImagePath } from "@/lib/image-storage";
-import { eventBus } from "@/lib/event-bus";
+import { getAbsoluteImagePath } from "@/lib/media/image-storage";
+import { eventBus } from "@/lib/events/event-bus";
 import { useCharacterLibraryStore } from "@/stores/library/character-library-store";
 import { usePropsLibraryStore } from "@/stores/library/props-library-store";
 import { useSceneStore } from "@/stores/library/scene-store";

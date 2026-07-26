@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import type { QuadVariationType } from "@/components/features/storyboard/quad-grid";
 import { aiManager } from "@/lib/ai/ai-manager";
-import { readImageAsBase64 } from "@/lib/image-storage";
+import { readImageAsBase64 } from "@/lib/media/image-storage";
 import type { EmotionTag } from "@/stores/director/director-presets";
 import type { DirectorProjectData, SplitScene } from "@/stores/director/director-store";
 import { useCharacterLibraryStore } from "@/stores/library/character-library-store";

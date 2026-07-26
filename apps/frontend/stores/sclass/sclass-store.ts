@@ -16,7 +16,7 @@
 
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { createProjectScopedStorage } from '@/lib/project-storage';
+import { createProjectScopedStorage } from '@/lib/storage/project-storage';
 import {
   defaultEditorPrefs,
   defaultProjectData,

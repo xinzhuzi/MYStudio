@@ -4,7 +4,7 @@ import {
   useAppSettingsStore,
 } from "./app-settings-store";
 
-vi.mock("@/lib/indexed-db-storage", () => ({
+vi.mock("@/lib/storage/indexed-db-storage", () => ({
   fileStorage: {
     getItem: async () => null,
     setItem: async () => undefined,

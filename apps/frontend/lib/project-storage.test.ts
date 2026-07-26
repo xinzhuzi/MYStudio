@@ -1,7 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { StateStorage } from "zustand/middleware";
-import { fileStorage } from "./indexed-db-storage";
-import { createProjectScopedStorage, createSplitStorage } from "./project-storage";
+import { fileStorage } from "./storage/indexed-db-storage";
+import {
+  createProjectScopedStorage as facadeCreateProjectScopedStorage,
+  createSplitStorage as facadeCreateSplitStorage,
+} from "./project-storage";
+import { createProjectScopedStorage, createSplitStorage } from "./storage/project-storage";
 
 type MockProjectState = {
   activeProjectId: string | null;
@@ -38,7 +42,7 @@ const storageMocks = vi.hoisted(() => {
   };
 });
 
-vi.mock("./indexed-db-storage", () => ({
+vi.mock("./storage/indexed-db-storage", () => ({
   fileStorage: {
     getItem: vi.fn(async (key: string) => storageMocks.values.get(key) ?? null),
     setItem: vi.fn(async (key: string, value: string) => {
@@ -84,6 +88,11 @@ beforeEach(() => {
 });
 
 describe("createProjectScopedStorage", () => {
+  it("keeps the root facade identical to canonical exports", () => {
+    expect(facadeCreateProjectScopedStorage).toBe(createProjectScopedStorage);
+    expect(facadeCreateSplitStorage).toBe(createSplitStorage);
+  });
+
   it("reads project-scoped data before legacy data", async () => {
     storageMocks.values.set("_p/p1/director", "project-value");
     storageMocks.values.set("mystudio-director-store", "legacy-value");

@@ -22,7 +22,7 @@ import { useActiveScriptProject } from "@/stores/script/script-store";
 import { useMediaPanelStore } from "@/stores/navigation/media-panel-store";
 import { useMediaStore } from "@/stores/media/media-store";
 import { aiManager } from "@/lib/ai/ai-manager";
-import { saveImageToLocal } from "@/lib/image-storage";
+import { saveImageToLocal } from "@/lib/media/image-storage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";

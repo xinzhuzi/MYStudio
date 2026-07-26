@@ -75,9 +75,14 @@ vi.mock("@/stores/editing/editing-store", () => ({
   useEditingStore: mocks.editingStore,
 }));
 
-import { switchProject } from "./project-switcher";
+import { switchProject as facadeSwitchProject } from "./project-switcher";
+import { switchProject } from "./project/project-switcher";
 
 describe("switchProject", () => {
+  it("keeps the root facade identical to the canonical export", () => {
+    expect(facadeSwitchProject).toBe(switchProject);
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.events.length = 0;

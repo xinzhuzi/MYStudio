@@ -16,7 +16,7 @@ import {
   ATMOSPHERE_PRESETS,
 } from "@/stores/library/scene-store";
 import { useResolvedImageUrl } from "@/hooks/use-resolved-image-url";
-import { readImageAsBase64 } from "@/lib/image-storage";
+import { readImageAsBase64 } from "@/lib/media/image-storage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";

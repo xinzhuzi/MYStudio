@@ -3,7 +3,7 @@ import type { Shot } from "@/types/script";
 import type { Scene, useSceneStore } from "@/stores/library/scene-store";
 import type { useMediaStore } from "@/stores/media/media-store";
 import { aiManager } from "@/lib/ai/ai-manager";
-import { saveImageToLocal } from "@/lib/image-storage";
+import { saveImageToLocal } from "@/lib/media/image-storage";
 import { getStyleById } from "@/lib/constants/visual-styles";
 import { toast } from "sonner";
 import { buildScenePrompt } from "./generation-panel-utils";

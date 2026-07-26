@@ -983,8 +983,8 @@ async function verifyWorkflowStages(evaluate) {
 	    const stages = [
 	      { id: 'manuals', label: '风格与导演', requiredText: ['视觉手册', '导演手册'] },
       { id: 'novel', label: '小说导入', requiredText: ['导入原文'] },
-	      { id: 'script', label: '剧本生产阶段', requiredText: ['章节（1 章 = 1 集）', '事件摘要'] },
-	      { id: 'assets', label: '剧本资产管理', requiredText: ['资产提取', '剧本内容', '承接本阶段已提取的角色、场景、道具', '参考音频'], forbiddenText: ['运行导演计划', '锁定剧集圣经', '角色库', '全部润色角色提示词', '全部润色提示词', '生成图片 ('] },
+		      { id: 'script', label: '剧本生产阶段', requiredText: ['请先在「小说导入」导入章节', '逐章生成剧本'] },
+		      { id: 'assets', label: '剧本资产管理', requiredText: ['资产提取', '还没有剧本', '承接本阶段已提取的角色、场景、道具', '参考音频'], forbiddenText: ['运行导演计划', '锁定剧集圣经', '角色库', '全部润色角色提示词', '全部润色提示词', '生成图片 ('] },
       {
         id: 'storyboard',
         label: '分镜视频生成',

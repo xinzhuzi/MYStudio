@@ -4,7 +4,7 @@ import { useSceneStore } from "@/stores/library/scene-store";
 import type { PendingViewpointData, ContactSheetPromptSet } from "@/stores/navigation/media-panel-store";
 import type { SceneViewpoint } from "@/lib/script/scene-viewpoint-generator";
 import type { ScriptScene, Shot } from "@/types/script";
-import { saveImageToLocal } from "@/lib/image-storage";
+import { saveImageToLocal } from "@/lib/media/image-storage";
 import { toast } from "sonner";
 
 type SceneStoreState = ReturnType<typeof useSceneStore.getState>;

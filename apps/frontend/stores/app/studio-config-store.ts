@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import { fileStorage } from "@/lib/indexed-db-storage";
+import { fileStorage } from "@/lib/storage/indexed-db-storage";
 import { validateVendorConfig } from "@/lib/studio/model-config";
 import type { ModelBinding, VendorConfig } from "@/types/studio";
 

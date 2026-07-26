@@ -13,7 +13,7 @@ import { cleanJsonString, safeParseJson, normalizeIds } from "@/lib/utils/json-c
 import { delay, RATE_LIMITS } from "@/lib/utils/rate-limiter";
 import { ApiKeyManager } from "@/lib/ai/core";
 import { getModelLimits, parseModelLimitsFromError, cacheDiscoveredLimits, estimateTokens } from "@/lib/ai/model-registry";
-import { corsFetch } from "@/lib/cors-fetch";
+import { corsFetch } from "@/lib/network/cors-fetch";
 import { buildThinkingParams, buildThinkingProviderOptions, resolveThinkingEnabled } from "@/lib/ai/thinking-mode";
 import { getLanguageModel } from "@/lib/ai/ai-sdk-bridge";
 import { generateText } from "ai";

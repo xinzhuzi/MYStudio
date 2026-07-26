@@ -1,6 +1,6 @@
 import { create, type StateCreator } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-import { createProjectScopedStorage } from "@/lib/project-storage";
+import { createProjectScopedStorage } from "@/lib/storage/project-storage";
 import {
   createEditingHistory,
   executeEditingHistory,

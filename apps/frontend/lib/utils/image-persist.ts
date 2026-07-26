@@ -7,8 +7,8 @@
  * Eliminates base64 data from Zustand state persistence.
  */
 
-import { saveImageToLocal, type ImageCategory } from '@/lib/image-storage';
-import { uploadToImageHost, isImageHostConfigured } from '@/lib/image-host';
+import { saveImageToLocal, type ImageCategory } from '@/lib/media/image-storage';
+import { uploadToImageHost, isImageHostConfigured } from '@/lib/media/image-host';
 import { prepareReferenceImageForTransfer } from '@/lib/ai/image-transfer';
 
 export interface PersistResult {

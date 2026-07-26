@@ -91,7 +91,7 @@ export function ImageStudio() {
       setImageResult(result.url);
       
       // 通知其他面板图片已生成
-      const { eventBus } = await import('@/lib/event-bus');
+      const { eventBus } = await import('@/lib/events/event-bus');
       eventBus.emit('image:generated', { url: result.url, prompt: imagePrompt, model: selectedImageModel });
 
       // Add to history

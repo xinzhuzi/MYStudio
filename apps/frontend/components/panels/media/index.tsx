@@ -41,7 +41,7 @@ import { useAppSettingsStore } from "@/stores/app/app-settings-store";
 import { usePreviewStore } from "@/stores/playback/preview-store";
 import { useDirectorStore } from "@/stores/director/director-store";
 import { useMediaPanelStore } from "@/stores/navigation/media-panel-store";
-import { processMediaFiles } from "@/lib/media-processing";
+import { processMediaFiles } from "@/lib/media/media-processing";
 import {
   generateVideoThumbnail,
   getMediaDuration,

@@ -9,7 +9,7 @@
 
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-import { createSplitStorage } from '@/lib/project-storage';
+import { createSplitStorage } from '@/lib/storage/project-storage';
 
 // 道具项
 export interface PropItem {

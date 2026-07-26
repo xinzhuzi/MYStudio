@@ -9,7 +9,7 @@
 
 import { useState } from 'react';
 import { usePropsLibraryStore } from '@/stores/library/props-library-store';
-import { saveImageToLocal } from '@/lib/image-storage';
+import { saveImageToLocal } from '@/lib/media/image-storage';
 import {
   Dialog,
   DialogContent,

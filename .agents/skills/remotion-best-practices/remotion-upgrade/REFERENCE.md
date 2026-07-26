@@ -22,7 +22,7 @@ description: Upgrade Remotion, its related packages, compatible Mediabunny packa
 4. Update the installed Remotion skills:
 
    ```bash
-   npx remotion skills update
+   npx -y --loglevel=error skills@1.2.0 add remotion-dev/skills --skill remotion-best-practices --agent codex -y
    ```
 
 5. Review the manifest and lockfile diff. Ensure all Remotion packages use one version and all installed Mediabunny packages use the compatible version. If the CLI is available, run `npx remotion versions` as an additional check.

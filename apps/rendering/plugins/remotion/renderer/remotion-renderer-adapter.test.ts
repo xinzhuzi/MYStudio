@@ -99,6 +99,7 @@ describe("createRemotionRendererAdapter", () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "mystudio-remotion-postprocess-"));
     const bundlePath = path.join(root, "bundle");
     const child = new FakeUtilityProcess();
+    const progress: Array<{ stage: string; ratio: number }> = [];
     fs.mkdirSync(bundlePath, { recursive: true });
     fs.writeFileSync(path.join(bundlePath, "manifest.json"), JSON.stringify({
       schemaVersion: 1,
@@ -119,7 +120,7 @@ describe("createRemotionRendererAdapter", () => {
       }),
       fork: () => child,
       remotionVersion: "4.0.499",
-      emitProgress: () => undefined,
+      emitProgress: (event) => progress.push(event),
       runAudioPostProcess: async (input) => {
         fs.writeFileSync(input.outputPath, "final", "utf8");
         fs.writeFileSync(input.logPath, "loudnorm ok", "utf8");
@@ -166,6 +167,7 @@ describe("createRemotionRendererAdapter", () => {
           audioPostProcess: { engine: "ffmpeg", loudnessLufs: -14, truePeakDbtp: -1.5 },
         },
       });
+      expect(progress.at(-1)).toMatchObject({ stage: "completed", ratio: 1 });
     } finally {
       await adapter.dispose();
       fs.rmSync(root, { recursive: true, force: true });

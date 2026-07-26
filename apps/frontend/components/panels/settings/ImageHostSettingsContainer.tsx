@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { AddImageHostDialog } from "./image-host/AddImageHostDialog";
 import { EditImageHostDialog } from "./image-host/EditImageHostDialog";
-import { uploadToImageHost } from "@/lib/image-host";
+import { uploadToImageHost } from "@/lib/media/image-host";
 import {
   isVisibleImageHostProvider,
   useAPIConfigStore,

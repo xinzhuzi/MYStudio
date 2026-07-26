@@ -4,7 +4,7 @@
 import { useCharacterLibraryStore } from "@/stores/library/character-library-store";
 import { imageUrlToBase64 } from "@/lib/ai/image-generator";
 import { aiManager } from "@/lib/ai/ai-manager";
-import { readImageAsBase64 } from "@/lib/image-storage";
+import { readImageAsBase64 } from "@/lib/media/image-storage";
 import type { SplitScene, ShotSizeType } from "@/stores/director/director-store";
 
 // Helper to normalize URL (handle array format)

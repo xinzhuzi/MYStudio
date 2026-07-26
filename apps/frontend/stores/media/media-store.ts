@@ -3,12 +3,12 @@
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import { createSplitStorage } from "@/lib/project-storage";
+import { createSplitStorage } from "@/lib/storage/project-storage";
 import { storageService } from "@/lib/storage/storage-service";
 import { generateUUID } from "@/lib/utils";
 import { MediaType, MediaFile, MediaFolder, MediaFolderCategory } from "@/types/media";
-import { saveImageToLocal, isElectron, moveLocalImageToCategory } from "@/lib/image-storage";
-import type { ImageCategory } from "@/lib/image-storage";
+import { saveImageToLocal, isElectron, moveLocalImageToCategory } from "@/lib/media/image-storage";
+import type { ImageCategory } from "@/lib/media/image-storage";
 import {
   getLocalMediaUrlCategory,
   getMediaFileStorageMoveCategory,

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { classifyModelByName } from "@/lib/ai/core";
 import { modelSupportsCapability } from "./FeatureBindingPanel";
+import { FEATURE_CONFIGS, isProviderConfiguredForFeature } from "./feature-binding-domain";
 
 describe("feature binding capability detection", () => {
   it("classifies Agnes image models as image generation models", () => {
@@ -20,5 +21,24 @@ describe("feature binding capability detection", () => {
   it("does not expose pure text or local TTS models as image understanding models", () => {
     expect(modelSupportsCapability("deepseek-chat", { platform: "deepseek" }, "vision")).toBe(false);
     expect(modelSupportsCapability("qwen-tts-0.6B", { platform: "tts-compatible" }, "vision")).toBe(false);
+  });
+
+  it("keeps local TTS configured without an API key only for the TTS feature", () => {
+    const ttsFeature = FEATURE_CONFIGS.find((feature) => feature.key === "tts");
+    const textFeature = FEATURE_CONFIGS.find((feature) => feature.key === "script_analysis");
+    expect(ttsFeature).toBeDefined();
+    expect(textFeature).toBeDefined();
+
+    const localProvider = {
+      platform: "tts-compatible",
+      apiKey: "",
+      baseUrl: "http://127.0.0.1:17593/",
+    };
+    expect(isProviderConfiguredForFeature(localProvider, ttsFeature!)).toBe(true);
+    expect(isProviderConfiguredForFeature(localProvider, textFeature!)).toBe(false);
+  });
+
+  it("keeps unknown providers selectable when no capability metadata exists", () => {
+    expect(modelSupportsCapability("private-model", { platform: "private-provider" }, "text")).toBe(true);
   });
 });

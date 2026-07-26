@@ -1,4 +1,4 @@
-import { migrateFromLocalStorage } from "@/lib/indexed-db-storage";
+import { migrateFromLocalStorage } from "@/lib/storage/indexed-db-storage";
 import type {
   Character,
   CharacterFolder,

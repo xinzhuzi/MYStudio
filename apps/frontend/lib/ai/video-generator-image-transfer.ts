@@ -2,8 +2,8 @@
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 
-import { uploadToImageHost, isImageHostConfigured } from '@/lib/image-host';
-import { readImageAsBase64 } from '@/lib/image-storage';
+import { uploadToImageHost, isImageHostConfigured } from '@/lib/media/image-host';
+import { readImageAsBase64 } from '@/lib/media/image-storage';
 import { prepareReferenceImageForTransfer } from '@/lib/ai/image-transfer';
 import { normalizeUrl } from '@/lib/ai/video-response-utils';
 

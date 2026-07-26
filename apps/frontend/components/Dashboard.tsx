@@ -11,12 +11,12 @@
 import { useState, useCallback } from "react";
 import { useProjectStore } from "@/stores/project/project-store";
 import { useMediaPanelStore } from "@/stores/navigation/media-panel-store";
-import { switchProject } from "@/lib/project-switcher";
+import { switchProject } from "@/lib/project/project-switcher";
 import { getFileStorageBridge } from "@/lib/bridge/file-storage";
 import {
   copyProjectScopedStoreFiles,
   waitForProjectStoreFile,
-} from "@/lib/project-duplication";
+} from "@/lib/project/project-duplication";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";

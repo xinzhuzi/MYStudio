@@ -82,7 +82,7 @@ vi.mock("@/stores/navigation/media-panel-store", () => ({
   useMediaPanelStore: () => ({ setActiveTab: mocks.setActiveTab }),
 }));
 
-vi.mock("@/lib/media-processing", () => ({
+vi.mock("@/lib/media/media-processing", () => ({
   processMediaFiles: vi.fn(),
 }));
 

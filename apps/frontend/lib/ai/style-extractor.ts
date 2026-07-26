@@ -3,7 +3,7 @@
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 
 import { callFeatureMultimodalAPI } from '@/lib/ai/feature-router';
-import { readImageAsBase64 } from '@/lib/image-storage';
+import { readImageAsBase64 } from '@/lib/media/image-storage';
 import { prepareReferenceImageForTransfer } from '@/lib/ai/image-transfer';
 
 export interface StyleExtractionResult {

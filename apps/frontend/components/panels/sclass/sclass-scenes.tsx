@@ -30,7 +30,7 @@ import { waitForAbortableDelay } from "@/lib/storyboard/image-task-transport";
 import { useMergedGenerationCancellation } from "@/hooks/use-merged-generation-cancellation";
 import { useAPIConfigStore } from "@/stores/ai/api-config-store";
 import { aiManager } from "@/lib/ai/ai-manager";
-import { readImageAsBase64 } from '@/lib/image-storage';
+import { readImageAsBase64 } from '@/lib/media/image-storage';
 import { persistSceneImage } from '@/lib/utils/image-persist';
 import { SClassSceneCard } from "./sclass-scene-card";
 import { useSClassStore, type SClassAspectRatio } from "@/stores/sclass/sclass-store";

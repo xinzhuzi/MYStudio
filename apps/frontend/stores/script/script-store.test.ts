@@ -6,7 +6,7 @@ const mocks = vi.hoisted(() => ({
   setItem: vi.fn(async () => undefined),
 }));
 
-vi.mock("@/lib/project-storage", () => ({
+vi.mock("@/lib/storage/project-storage", () => ({
   createProjectScopedStorage: () => ({
     getItem: mocks.getItem,
     removeItem: mocks.removeItem,

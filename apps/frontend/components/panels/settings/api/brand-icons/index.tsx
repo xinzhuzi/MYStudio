@@ -8,7 +8,7 @@
  */
 
 import type { ReactNode } from "react";
-import { BRAND_REGISTRY } from "@/lib/brand-mapping";
+import { BRAND_REGISTRY } from "@/lib/ai/core/providers/brand-mapping";
 import type { BrandIconFn } from "./brand-icon-types";
 import { iconsSmall } from "./icons-small";
 import { iconsMedium } from "./icons-medium";

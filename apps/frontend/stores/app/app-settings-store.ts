@@ -3,7 +3,7 @@
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import { fileStorage } from "@/lib/indexed-db-storage";
+import { fileStorage } from "@/lib/storage/indexed-db-storage";
 import {
   DEFAULT_COMPATIBILITY_RETRY_ASPECT_RATIO,
   DEFAULT_COMPATIBILITY_RETRY_RESOLUTION,

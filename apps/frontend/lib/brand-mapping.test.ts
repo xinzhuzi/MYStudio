@@ -1,7 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { BRAND_REGISTRY, extractBrandFromModel, getBrandInfo } from "./brand-mapping";
+import * as canonical from "./ai/core/providers/brand-mapping";
+import * as facade from "./brand-mapping";
+
+const { BRAND_REGISTRY, extractBrandFromModel, getBrandInfo } = canonical;
 
 describe("brand mapping helpers", () => {
+  it("keeps the root facade bound to the canonical provider module", () => {
+    expect(facade.BRAND_REGISTRY).toBe(canonical.BRAND_REGISTRY);
+    expect(facade.extractBrandFromModel).toBe(canonical.extractBrandFromModel);
+    expect(facade.getBrandInfo).toBe(canonical.getBrandInfo);
+  });
+
   it.each([
     ["gpt-4o-mini", "openai"],
     ["gpt_image_1", "openai"],

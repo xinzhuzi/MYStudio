@@ -1,4 +1,4 @@
-import { readImageAsBase64 } from "@/lib/image-storage";
+import { readImageAsBase64 } from "@/lib/media/image-storage";
 import { getProjectFilesBridge } from "@/lib/bridge/project-files";
 import { prepareImageWorkflowReferenceImages } from "@/lib/studio/image-workflow-references";
 

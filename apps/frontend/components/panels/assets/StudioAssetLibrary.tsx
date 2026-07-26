@@ -233,7 +233,7 @@ export function StudioAssetLibrary({ type }: { type: StudioAssetKind }) {
   // 监听素材删除事件，强制刷新
   useEffect(() => {
     let unsub: (() => void) | undefined;
-    import("@/lib/event-bus").then(({ eventBus }) => {
+    import("@/lib/events/event-bus").then(({ eventBus }) => {
       unsub = eventBus.on("asset:deleted", () => {
         delete assetCache[getCacheKey(type, search, category)];
         setRuntimeItems([]);

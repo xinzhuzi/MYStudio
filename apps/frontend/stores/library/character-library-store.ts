@@ -9,7 +9,7 @@
 
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { createSplitStorage } from '@/lib/project-storage';
+import { createSplitStorage } from '@/lib/storage/project-storage';
 import type { CharacterIdentityAnchors, CharacterNegativePrompt } from '@/types/script';
 import {
   mergeCharData,

@@ -13,13 +13,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Tabs,
   TabsContent,
   TabsList,
@@ -33,53 +26,11 @@ import {
   AlertCircle,
   RefreshCw,
   BookOpen,
-  Palette,
 } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { StylePicker } from "@/components/features/visual-style/style-picker";
-import type { VisualStyleId } from "@/lib/constants/visual-styles";
 import type { PromptLanguage } from "@/types/script";
 import { useScriptStore } from "@/stores/script/script-store";
-
-const PROMPT_LANGUAGE_OPTIONS = [
-  { value: "zh", label: "仅中文" },
-  { value: "en", label: "仅英文" },
-  { value: "zh+en", label: "中英文" },
-];
-
-const DURATION_OPTIONS = [
-  { value: "auto", label: "自动" },
-  { value: "10s", label: "10秒" },
-  { value: "15s", label: "15秒" },
-  { value: "20s", label: "20秒" },
-  { value: "30s", label: "30秒" },
-  { value: "60s", label: "1分钟" },
-  { value: "90s", label: "1分30秒" },
-  { value: "120s", label: "2分钟" },
-  { value: "180s", label: "3分钟" },
-];
-
-const SCENE_COUNT_OPTIONS = [
-  { value: "1", label: "1个场景" },
-  { value: "2", label: "2个场景" },
-  { value: "3", label: "3个场景" },
-  { value: "4", label: "4个场景" },
-  { value: "5", label: "5个场景" },
-  { value: "6", label: "6个场景" },
-  { value: "8", label: "8个场景" },
-  { value: "10", label: "10个场景" },
-];
-
-const SHOT_COUNT_OPTIONS = [
-  { value: "3", label: "3个分镜" },
-  { value: "4", label: "4个分镜" },
-  { value: "5", label: "5个分镜" },
-  { value: "6", label: "6个分镜" },
-  { value: "8", label: "8个分镜" },
-  { value: "10", label: "10个分镜" },
-  { value: "12", label: "12个分镜" },
-  { value: "custom", label: "自定义..." },
-];
+import { ScriptImportProgress } from "./script-import-progress";
+import { ScriptInputSettings } from "./script-input-settings";
 
 interface ScriptInputProps {
   rawScript: string;
@@ -168,8 +119,6 @@ export function ScriptInput({
   const [mode, setMode] = useState<"import" | "create">(inputDraft?.mode || "import");
   const [idea, setIdea] = useState(inputDraft?.idea || "");
   const [isGenerating, setIsGenerating] = useState(false);
-  const [showCustomShotInput, setShowCustomShotInput] = useState(false);
-  const [customShotValue, setCustomShotValue] = useState("");
   const [isImporting, setIsImporting] = useState(false);
   const [isCalibrating, setIsCalibrating] = useState(false);
   const [isGeneratingSynopsis, setIsGeneratingSynopsis] = useState(false);
@@ -272,149 +221,15 @@ export function ScriptInput({
               <p className="text-xs text-destructive">导入失败：{importError}</p>
             )}
             
-            {/* 持久进度状态显示 - 在执行过程中始终可见 */}
-            {(importStatus === 'importing' || 
-              calibrationStatus === 'calibrating' || 
-              synopsisStatus === 'generating' || 
-              viewpointAnalysisStatus === 'analyzing' || 
-              characterCalibrationStatus === 'calibrating' ||
-              sceneCalibrationStatus === 'calibrating') && (
-              <div className="p-4 rounded-xl bg-primary/10 border-2 border-primary/30 space-y-3">
-                {/* 标题：根据是否二次校准显示不同文案 */}
-                <div className="flex items-center gap-3 text-primary">
-                  <Loader2 className="h-6 w-6 animate-spin" />
-                  <span className="text-lg font-bold">
-                    {secondPassTypes && secondPassTypes.size > 0 ? '🔄 二次校准中...' : '正在处理中...'}
-                  </span>
-                </div>
-                <div className="space-y-2">
-                  {/* === 二次校准模式：只显示相关步骤 === */}
-                  {secondPassTypes && secondPassTypes.size > 0 ? (
-                    <>
-                      {/* 分镜校准（二次） */}
-                      {secondPassTypes.has('shots') && (
-                        <div className={`flex items-center gap-3 py-1 ${viewpointAnalysisStatus === 'analyzing' ? 'text-primary font-bold' : viewpointAnalysisStatus === 'completed' ? 'text-green-600 font-medium' : 'text-muted-foreground'}`}>
-                          {viewpointAnalysisStatus === 'analyzing' ? (
-                            <Loader2 className="h-5 w-5 animate-spin" />
-                          ) : viewpointAnalysisStatus === 'completed' ? (
-                            <span className="text-lg">✓</span>
-                          ) : (
-                            <span className="w-5 h-5 rounded-full border-2 border-current" />
-                          )}
-                          <span className="text-base">AI 校准分镜</span>
-                          <span className="text-xs px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">二次</span>
-                        </div>
-                      )}
-                      
-                      {/* 角色校准（二次） */}
-                      {secondPassTypes.has('characters') && (
-                        <div className={`flex items-center gap-3 py-1 ${characterCalibrationStatus === 'calibrating' ? 'text-primary font-bold' : characterCalibrationStatus === 'completed' ? 'text-green-600 font-medium' : 'text-muted-foreground'}`}>
-                          {characterCalibrationStatus === 'calibrating' ? (
-                            <Loader2 className="h-5 w-5 animate-spin" />
-                          ) : characterCalibrationStatus === 'completed' ? (
-                            <span className="text-lg">✓</span>
-                          ) : (
-                            <span className="w-5 h-5 rounded-full border-2 border-current" />
-                          )}
-                          <span className="text-base">AI 角色校准</span>
-                          <span className="text-xs px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">二次</span>
-                        </div>
-                      )}
-                      
-                      {/* 场景校准（二次） */}
-                      {secondPassTypes.has('scenes') && (
-                        <div className={`flex items-center gap-3 py-1 ${sceneCalibrationStatus === 'calibrating' ? 'text-primary font-bold' : sceneCalibrationStatus === 'completed' ? 'text-green-600 font-medium' : 'text-muted-foreground'}`}>
-                          {sceneCalibrationStatus === 'calibrating' ? (
-                            <Loader2 className="h-5 w-5 animate-spin" />
-                          ) : sceneCalibrationStatus === 'completed' ? (
-                            <span className="text-lg">✓</span>
-                          ) : (
-                            <span className="w-5 h-5 rounded-full border-2 border-current" />
-                          )}
-                          <span className="text-base">AI 场景校准</span>
-                          <span className="text-xs px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">二次</span>
-                        </div>
-                      )}
-                    </>
-                  ) : (
-                    /* === 首次 pipeline 模式：完整 6 步骤 === */
-                    <>
-                      {/* 导入剧本 */}
-                      <div className={`flex items-center gap-3 py-1 ${importStatus === 'importing' ? 'text-primary font-bold' : importStatus === 'ready' ? 'text-green-600 font-medium' : 'text-muted-foreground'}`}>
-                        {importStatus === 'importing' ? (
-                          <Loader2 className="h-5 w-5 animate-spin" />
-                        ) : importStatus === 'ready' ? (
-                          <span className="text-lg">✓</span>
-                        ) : (
-                          <span className="w-5 h-5 rounded-full border-2 border-current" />
-                        )}
-                        <span className="text-base">导入剧本</span>
-                      </div>
-                      
-                      {/* 标题校准 */}
-                      <div className={`flex items-center gap-3 py-1 ${calibrationStatus === 'calibrating' ? 'text-primary font-bold' : calibrationStatus === 'completed' ? 'text-green-600 font-medium' : 'text-muted-foreground'}`}>
-                        {calibrationStatus === 'calibrating' ? (
-                          <Loader2 className="h-5 w-5 animate-spin" />
-                        ) : calibrationStatus === 'completed' ? (
-                          <span className="text-lg">✓</span>
-                        ) : (
-                          <span className="w-5 h-5 rounded-full border-2 border-current" />
-                        )}
-                        <span className="text-base">AI 标题校准</span>
-                      </div>
-                      
-                      {/* 大纲生成 */}
-                      <div className={`flex items-center gap-3 py-1 ${synopsisStatus === 'generating' ? 'text-primary font-bold' : synopsisStatus === 'completed' ? 'text-green-600 font-medium' : 'text-muted-foreground'}`}>
-                        {synopsisStatus === 'generating' ? (
-                          <Loader2 className="h-5 w-5 animate-spin" />
-                        ) : synopsisStatus === 'completed' ? (
-                          <span className="text-lg">✓</span>
-                        ) : (
-                          <span className="w-5 h-5 rounded-full border-2 border-current" />
-                        )}
-                        <span className="text-base">AI 大纲生成</span>
-                      </div>
-                      
-                      {/* 分镜校准 */}
-                      <div className={`flex items-center gap-3 py-1 ${viewpointAnalysisStatus === 'analyzing' ? 'text-primary font-bold' : viewpointAnalysisStatus === 'completed' ? 'text-green-600 font-medium' : 'text-muted-foreground'}`}>
-                        {viewpointAnalysisStatus === 'analyzing' ? (
-                          <Loader2 className="h-5 w-5 animate-spin" />
-                        ) : viewpointAnalysisStatus === 'completed' ? (
-                          <span className="text-lg">✓</span>
-                        ) : (
-                          <span className="w-5 h-5 rounded-full border-2 border-current" />
-                        )}
-                        <span className="text-base">AI 分镜校准</span>
-                      </div>
-                      
-                      {/* 角色校准 */}
-                      <div className={`flex items-center gap-3 py-1 ${characterCalibrationStatus === 'calibrating' ? 'text-primary font-bold' : characterCalibrationStatus === 'completed' ? 'text-green-600 font-medium' : 'text-muted-foreground'}`}>
-                        {characterCalibrationStatus === 'calibrating' ? (
-                          <Loader2 className="h-5 w-5 animate-spin" />
-                        ) : characterCalibrationStatus === 'completed' ? (
-                          <span className="text-lg">✓</span>
-                        ) : (
-                          <span className="w-5 h-5 rounded-full border-2 border-current" />
-                        )}
-                        <span className="text-base">AI 角色校准</span>
-                      </div>
-                      
-                      {/* 场景校准 */}
-                      <div className={`flex items-center gap-3 py-1 ${sceneCalibrationStatus === 'calibrating' ? 'text-primary font-bold' : sceneCalibrationStatus === 'completed' ? 'text-green-600 font-medium' : 'text-muted-foreground'}`}>
-                        {sceneCalibrationStatus === 'calibrating' ? (
-                          <Loader2 className="h-5 w-5 animate-spin" />
-                        ) : sceneCalibrationStatus === 'completed' ? (
-                          <span className="text-lg">✓</span>
-                        ) : (
-                          <span className="w-5 h-5 rounded-full border-2 border-current" />
-                        )}
-                        <span className="text-base">AI 场景校准</span>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
-            )}
+            <ScriptImportProgress
+              importStatus={importStatus}
+              calibrationStatus={calibrationStatus}
+              synopsisStatus={synopsisStatus}
+              viewpointAnalysisStatus={viewpointAnalysisStatus}
+              characterCalibrationStatus={characterCalibrationStatus}
+              sceneCalibrationStatus={sceneCalibrationStatus}
+              secondPassTypes={secondPassTypes}
+            />
           </div>
         </TabsContent>
 
@@ -491,319 +306,23 @@ export function ScriptInput({
         </TabsContent>
       </Tabs>
 
-      {/* 设置区域 - 根据模式显示不同选项 */}
       <div className="space-y-3 pt-2 border-t">
-        {/* 导入模式：显示语言、场景数量、分镜数量 */}
-        {mode === "import" && (
-          <div className="space-y-3">
-            <div className="space-y-1">
-              <Label className="text-xs">剧本语言</Label>
-              <Select
-                value={language}
-                onValueChange={onLanguageChange}
-                disabled={parseStatus === "parsing"}
-              >
-                <SelectTrigger className="h-8 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="中文">中文</SelectItem>
-                  <SelectItem value="English">English</SelectItem>
-                  <SelectItem value="日本語">日本語</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-1">
-              <Label className="text-xs">提示词语言</Label>
-              <Select
-                value={promptLanguage || "zh"}
-                onValueChange={(v) => onPromptLanguageChange?.(v as PromptLanguage)}
-                disabled={parseStatus === "parsing"}
-              >
-                <SelectTrigger className="h-8 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {PROMPT_LANGUAGE_OPTIONS.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-[10px] text-muted-foreground">
-                控制AI校准生成中/英文提示词，默认仅中文可减少生成压力
-              </p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-1">
-                <Label className="text-xs">场景数量（可选）</Label>
-                <Select
-                  value={sceneCount || ""}
-                  onValueChange={(v) => onSceneCountChange?.(v)}
-                  disabled={parseStatus === "parsing"}
-                >
-                  <SelectTrigger className="h-8 text-xs">
-                    <SelectValue placeholder="自动" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="auto">自动</SelectItem>
-                    {SCENE_COUNT_OPTIONS.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-1">
-                <Label className="text-xs">分镜数量（可选）</Label>
-                {showCustomShotInput ? (
-                  <div className="flex gap-1">
-                    <Input
-                      type="number"
-                      min="1"
-                      max="100"
-                      placeholder="输入数量"
-                      value={customShotValue}
-                      onChange={(e) => setCustomShotValue(e.target.value)}
-                      onBlur={() => {
-                        if (customShotValue && parseInt(customShotValue) > 0) {
-                          onShotCountChange?.(customShotValue);
-                        }
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && customShotValue && parseInt(customShotValue) > 0) {
-                          onShotCountChange?.(customShotValue);
-                        }
-                      }}
-                      className="h-8 text-xs flex-1"
-                      disabled={parseStatus === "parsing"}
-                    />
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 px-2 text-xs"
-                      onClick={() => {
-                        setShowCustomShotInput(false);
-                        setCustomShotValue("");
-                        onShotCountChange?.("auto");
-                      }}
-                    >
-                      取消
-                    </Button>
-                  </div>
-                ) : (
-                  <Select
-                    value={shotCount || ""}
-                    onValueChange={(v) => {
-                      if (v === "custom") {
-                        setShowCustomShotInput(true);
-                      } else {
-                        onShotCountChange?.(v);
-                      }
-                    }}
-                    disabled={parseStatus === "parsing"}
-                  >
-                    <SelectTrigger className="h-8 text-xs">
-                      <SelectValue placeholder="自动" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="auto">自动</SelectItem>
-                      {SHOT_COUNT_OPTIONS.map((opt) => (
-                        <SelectItem key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              </div>
-            </div>
-
-            {/* 视觉风格 - 导入模式也可以选择 */}
-            <div className="space-y-1">
-              <Label className="text-xs flex items-center gap-1">
-                <Palette className="h-3 w-3" />
-                视觉风格
-              </Label>
-              <StylePicker
-                value={styleId}
-                onChange={(id) => onStyleChange(id)}
-                disabled={parseStatus === "parsing"}
-              />
-              <p className="text-[10px] text-muted-foreground">
-                此风格将用于AI校准分镜时生成视觉描述
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* 创作模式：显示语言、时长、风格、场景数量、分镜数量 */}
-        {mode === "create" && (
-          <div className="space-y-3">
-            <div className="space-y-1">
-              <Label className="text-xs">提示词语言</Label>
-              <Select
-                value={promptLanguage || "zh"}
-                onValueChange={(v) => onPromptLanguageChange?.(v as PromptLanguage)}
-                disabled={parseStatus === "parsing"}
-              >
-                <SelectTrigger className="h-8 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {PROMPT_LANGUAGE_OPTIONS.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-[10px] text-muted-foreground">
-                控制AI生成中/英文提示词，默认仅中文可减少生成压力
-              </p>
-            </div>
-            <div className="grid grid-cols-3 gap-2">
-              <div className="space-y-1">
-                <Label className="text-xs">语言</Label>
-                <Select
-                  value={language}
-                  onValueChange={onLanguageChange}
-                  disabled={parseStatus === "parsing"}
-                >
-                  <SelectTrigger className="h-8 text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="中文">中文</SelectItem>
-                    <SelectItem value="English">English</SelectItem>
-                    <SelectItem value="日本語">日本語</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-1">
-                <Label className="text-xs">时长</Label>
-                <Select
-                  value={targetDuration}
-                  onValueChange={onDurationChange}
-                  disabled={parseStatus === "parsing"}
-                >
-                  <SelectTrigger className="h-8 text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {DURATION_OPTIONS.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-1">
-                <Label className="text-xs">风格</Label>
-                <StylePicker
-                  value={styleId}
-                  onChange={(id) => onStyleChange(id)}
-                  disabled={parseStatus === "parsing"}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-1">
-                <Label className="text-xs">场景数量（可选）</Label>
-                <Select
-                  value={sceneCount || ""}
-                  onValueChange={(v) => onSceneCountChange?.(v)}
-                  disabled={parseStatus === "parsing"}
-                >
-                  <SelectTrigger className="h-8 text-xs">
-                    <SelectValue placeholder="自动" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="auto">自动</SelectItem>
-                    {SCENE_COUNT_OPTIONS.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-1">
-                <Label className="text-xs">分镜数量（可选）</Label>
-                {showCustomShotInput ? (
-                  <div className="flex gap-1">
-                    <Input
-                      type="number"
-                      min="1"
-                      max="100"
-                      placeholder="输入数量"
-                      value={customShotValue}
-                      onChange={(e) => setCustomShotValue(e.target.value)}
-                      onBlur={() => {
-                        if (customShotValue && parseInt(customShotValue) > 0) {
-                          onShotCountChange?.(customShotValue);
-                        }
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && customShotValue && parseInt(customShotValue) > 0) {
-                          onShotCountChange?.(customShotValue);
-                        }
-                      }}
-                      className="h-8 text-xs flex-1"
-                      disabled={parseStatus === "parsing"}
-                    />
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 px-2 text-xs"
-                      onClick={() => {
-                        setShowCustomShotInput(false);
-                        setCustomShotValue("");
-                        onShotCountChange?.("auto");
-                      }}
-                    >
-                      取消
-                    </Button>
-                  </div>
-                ) : (
-                  <Select
-                    value={shotCount || ""}
-                    onValueChange={(v) => {
-                      if (v === "custom") {
-                        setShowCustomShotInput(true);
-                      } else {
-                        onShotCountChange?.(v);
-                      }
-                    }}
-                    disabled={parseStatus === "parsing"}
-                  >
-                    <SelectTrigger className="h-8 text-xs">
-                      <SelectValue placeholder="自动" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="auto">自动</SelectItem>
-                      {SHOT_COUNT_OPTIONS.map((opt) => (
-                        <SelectItem key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
+        <ScriptInputSettings
+        mode={mode}
+        language={language}
+        targetDuration={targetDuration}
+        styleId={styleId}
+        sceneCount={sceneCount}
+        shotCount={shotCount}
+        parseStatus={parseStatus}
+        onLanguageChange={onLanguageChange}
+        onDurationChange={onDurationChange}
+        onStyleChange={onStyleChange}
+        onSceneCountChange={onSceneCountChange}
+        onShotCountChange={onShotCountChange}
+        promptLanguage={promptLanguage}
+        onPromptLanguageChange={onPromptLanguageChange}
+        />
 
         {/* API 警告 */}
         {!chatConfigured && (

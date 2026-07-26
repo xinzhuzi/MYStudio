@@ -5,7 +5,7 @@ import { PropsWithChildren, useEffect } from "react";
 import {
   getInteractionSoundIntentFromTarget,
   playInteractionSound,
-} from "@/lib/interaction-sound";
+} from "@/lib/sound/interaction-sound";
 
 export function InteractionEffects({ children }: PropsWithChildren) {
   useEffect(() => {

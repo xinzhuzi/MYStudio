@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import { aiManager } from "@/lib/ai/ai-manager";
-import { saveImageToLocal } from "@/lib/image-storage";
+import { saveImageToLocal } from "@/lib/media/image-storage";
 import type { SceneViewpoint } from "@/lib/script/scene-viewpoint-generator";
 import { splitStoryboardImage } from "@/lib/storyboard/image-splitter";
 import { useAppSettingsStore } from "@/stores/app/app-settings-store";

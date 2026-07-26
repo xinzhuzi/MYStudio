@@ -24,7 +24,7 @@ import {
 } from "@/lib/ai/prompt-polisher";
 
 export type { AssetType };
-import { saveImageToLocal, type ImageCategory } from "@/lib/image-storage";
+import { saveImageToLocal, type ImageCategory } from "@/lib/media/image-storage";
 import { createAssetImageWorkflowGraph } from "@/lib/studio/image-workflow";
 import { useCharacterLibraryStore } from "@/stores/library/character-library-store";
 import { useProjectStore } from "@/stores/project/project-store";

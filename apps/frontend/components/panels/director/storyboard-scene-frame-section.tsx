@@ -2,7 +2,7 @@
 
 import React, { useRef, useState } from "react";
 import { cn } from "@/lib/utils";
-import { readImageAsBase64 } from "@/lib/image-storage";
+import { readImageAsBase64 } from "@/lib/media/image-storage";
 import { type SplitScene } from "@/stores/director/director-store";
 import {
   Download,

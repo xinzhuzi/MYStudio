@@ -4,7 +4,7 @@ import type { Scene } from "@/stores/library/scene-store";
 import { useSceneStore } from "@/stores/library/scene-store";
 import { useAppSettingsStore } from "@/stores/app/app-settings-store";
 import { aiManager } from "@/lib/ai/ai-manager";
-import { readImageAsBase64, saveImageToLocal } from "@/lib/image-storage";
+import { readImageAsBase64, saveImageToLocal } from "@/lib/media/image-storage";
 import { splitStoryboardImage } from "@/lib/storyboard/image-splitter";
 import { getStyleById } from "@/lib/constants/visual-styles";
 import { toast } from "sonner";

@@ -13,7 +13,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useAPIConfigStore } from '@/stores/ai/api-config-store';
-import { extractBrandFromModel, getBrandInfo } from '@/lib/brand-mapping';
+import { extractBrandFromModel, getBrandInfo } from '@/lib/ai/core/providers/brand-mapping';
 import { getModelDisplayName } from '@/lib/assist/model-display-names';
 
 interface ModelSelectorProps {

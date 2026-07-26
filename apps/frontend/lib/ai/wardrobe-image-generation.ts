@@ -4,7 +4,7 @@ import type {
 } from "@/stores/library/character-library-store";
 import { useAppSettingsStore } from "@/stores/app/app-settings-store";
 import { getStyleById } from "@/lib/constants/visual-styles";
-import { readImageAsBase64 } from "@/lib/image-storage";
+import { readImageAsBase64 } from "@/lib/media/image-storage";
 import { aiManager } from "./ai-manager";
 
 const WARDROBE_SHEET_ELEMENTS = [

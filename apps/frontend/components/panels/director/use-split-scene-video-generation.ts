@@ -2,7 +2,7 @@ import { useCallback, useRef } from "react";
 import { toast } from "sonner";
 import { aiManager } from "@/lib/ai/ai-manager";
 import { extractLastFrameFromVideo, isContentModerationError } from "@/lib/ai/video-generator";
-import { saveVideoToLocal } from "@/lib/image-storage";
+import { saveVideoToLocal } from "@/lib/media/image-storage";
 import { getCinematographyProfile } from "@/lib/constants/cinematography-profiles";
 import { getMediaType, getStylePrompt } from "@/lib/constants/visual-styles";
 import { buildVideoPrompt } from "@/lib/generation/prompt-builder";
