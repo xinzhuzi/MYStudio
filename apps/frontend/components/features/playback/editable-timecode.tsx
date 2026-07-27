@@ -59,10 +59,9 @@ export function EditableTimecode({
     }
 
     // Clamp time to valid range
-    const clampedTime = Math.max(
-      0,
-      duration ? Math.min(duration, parsedTime) : parsedTime
-    );
+    const clampedTime = duration !== undefined && Number.isFinite(duration)
+      ? Math.max(0, Math.min(duration, parsedTime))
+      : parsedTime;
 
     onTimeChange?.(clampedTime);
     setIsEditing(false);

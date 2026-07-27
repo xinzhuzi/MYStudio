@@ -33,11 +33,12 @@ export function registerAssetLibraryIpcHandlers({
   writeDiagnosticsLog,
 }: RegisterAssetLibraryIpcHandlersContext) {
   let assetDiagnosticsQueue: Promise<void> = Promise.resolve();
-  let assetsStorageReady = false;
+  let readyStorageBasePath: string | null = null;
   const ensureAssetsStorageReady = () => {
-    if (assetsStorageReady) return;
-    assetsStorage.initAssetsStorage(getStorageBasePath());
-    assetsStorageReady = true;
+    const storageBasePath = getStorageBasePath();
+    if (readyStorageBasePath === storageBasePath) return;
+    assetsStorage.initAssetsStorage(storageBasePath);
+    readyStorageBasePath = storageBasePath;
   };
   const runAssetDiagnostics = async <T>(
     action: string,

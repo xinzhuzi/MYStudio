@@ -17,6 +17,7 @@ dist-electron
 .cache/
 out/
 release/
+/output/
 
 # Local workspace artifacts
 .changes/

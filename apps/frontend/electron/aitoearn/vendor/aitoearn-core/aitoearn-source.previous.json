@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "adapterContractVersion": "self-media/v1",
+  "upstream": {
+    "repository": "https://github.com/yikart/AiToEarn.git",
+    "ref": "main",
+    "commit": "3cbb97bb9a58dd99b97f45b60923cdbfdfeb3368",
+    "packageVersion": "0.8.0",
+    "checkoutHint": "<external-aitoearn-repo-root>/project/aitoearn-electron",
+    "sourceTreeSha256": "617ee1b8f62bd63bd35daf10d46bfd2423f527961bfbc7947da57f4d59a171a7"
+  },
+  "sourceFiles": [
+    "electron/main/account/BrowserWindow/BrowserWindowItem.ts",
+    "electron/main/account/BrowserWindow/browserWindow.d.ts",
+    "electron/main/account/BrowserWindow/index.ts",
+    "electron/main/account/controller.ts",
+    "electron/main/account/module.ts",
+    "electron/main/account/service.ts",
+    "electron/main/plat/PlatformBase.ts",
+    "electron/main/plat/index.ts",
+    "electron/main/plat/module.ts",
+    "electron/main/plat/plat.type.ts",
+    "electron/main/plat/platforms/Kwai/KwaiPubListener.ts",
+    "electron/main/plat/platforms/Kwai/index.ts",
+    "electron/main/plat/platforms/douyin/index.ts",
+    "electron/main/plat/platforms/wxSph/index.ts",
+    "electron/main/plat/platforms/xhs/index.ts",
+    "electron/main/plat/pub/PubItemBase.ts",
+    "electron/main/plat/pub/PubItemImgText.ts",
+    "electron/main/plat/pub/PubItemVideo.ts",
+    "electron/plat/Kwai/index.ts",
+    "electron/plat/Kwai/kwai.type.ts",
+    "electron/plat/Kwai/sign/KwaiSign.ts",
+    "electron/plat/Kwai/sign/kuaiShoSignCore.js",
+    "electron/plat/douyin/douyin.type.ts",
+    "electron/plat/douyin/index.ts",
+    "electron/plat/requestNet.ts",
+    "electron/plat/shipinhao/index.ts",
+    "electron/plat/shipinhao/wxShp.type.ts",
+    "electron/plat/utils/index.ts",
+    "electron/plat/xiaohongshu/index.ts",
+    "electron/plat/xiaohongshu/xiaohongshu.type.ts"
+  ],
+  "license": {
+    "spdx": "MIT",
+    "noticeFiles": ["LICENSE"],
+    "attribution": "AiToEarn (yikart/AiToEarn)"
+  },
+  "snapshot": {
+    "root": ".",
+    "status": "planned",
+    "treeSha256": null,
+    "files": [],
+    "lastSyncAt": null
+  }
+}

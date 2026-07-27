@@ -89,6 +89,13 @@ export function createStorageManager({ userDataPath }: CreateStorageManagerOptio
     ensureDir(base);
     return base;
   };
+  const getAssetsRoot = () => {
+    const base = path.join(getStorageBasePath(), "assets");
+    ensureDir(base);
+    return base;
+  };
+  const getPythonRuntimeDir = () => path.join(getStorageBasePath(), "python");
+  const getModelCacheDir = () => path.join(getStorageBasePath(), "tts-models");
   const getCacheDirs = () => [
     path.join(userDataPath, "Cache"),
     path.join(userDataPath, "Code Cache"),
@@ -183,9 +190,11 @@ export function createStorageManager({ userDataPath }: CreateStorageManagerOptio
         const projectsDir = path.join(target, "projects");
         const mediaDir = path.join(target, "media");
         const skillsDir = path.join(target, "skills");
+        const assetsDir = path.join(target, "assets");
         let projectCount = 0;
         let mediaCount = 0;
         let skillCount = 0;
+        let assetCount = 0;
         if (fs.existsSync(projectsDir)) {
           const files = await fs.promises.readdir(projectsDir);
           projectCount = files.filter((file) => file.endsWith(".json")).length;
@@ -203,10 +212,11 @@ export function createStorageManager({ userDataPath }: CreateStorageManagerOptio
             storageRoot: skillsDir,
           })).length;
         }
-        if (projectCount === 0 && mediaCount === 0 && skillCount === 0) {
-          return { valid: false, error: "该目录不包含有效的数据（需要 projects/、media/ 或 skills/ 子目录）" };
+        if (fs.existsSync(assetsDir)) assetCount = (await fs.promises.readdir(assetsDir)).length;
+        if (projectCount === 0 && mediaCount === 0 && skillCount === 0 && assetCount === 0) {
+          return { valid: false, error: "该目录不包含有效的数据（需要 projects/、media/、assets/ 或 skills/ 子目录）" };
         }
-        return { valid: true, projectCount, mediaCount, skillCount };
+        return { valid: true, projectCount, mediaCount, skillCount, assetCount };
       } catch (error) {
         return { valid: false, error: String(error) };
       }
@@ -215,7 +225,10 @@ export function createStorageManager({ userDataPath }: CreateStorageManagerOptio
       basePath: getStorageBasePath(),
       projectPath: getProjectDataRoot(),
       mediaPath: getMediaRoot(),
+      assetsPath: getAssetsRoot(),
       skillsPath: getSkillsRoot(),
+      pythonRuntimeDir: getPythonRuntimeDir(),
+      modelCacheDir: getModelCacheDir(),
       cachePath: path.join(userDataPath, "Cache"),
     }));
     ipcMain.handle("storage-select-directory", async () => {
@@ -228,8 +241,8 @@ export function createStorageManager({ userDataPath }: CreateStorageManagerOptio
         if (!dirPath) return { success: false, error: "路径不能为空" };
         const target = normalizePath(dirPath);
         if (!fs.existsSync(target)) return { success: false, error: "目录不存在" };
-        if (!["projects", "media", "skills"].some((name) => fs.existsSync(path.join(target, name)))) {
-          return { success: false, error: "该目录不包含有效的数据（需要 projects/、media/ 或 skills/ 子目录）" };
+        if (!["projects", "media", "assets", "skills"].some((name) => fs.existsSync(path.join(target, name)))) {
+          return { success: false, error: "该目录不包含有效的数据（需要 projects/、media/、assets/ 或 skills/ 子目录）" };
         }
         updateBasePath(target);
         return { success: true, path: target };
@@ -248,14 +261,17 @@ export function createStorageManager({ userDataPath }: CreateStorageManagerOptio
         if (conflictError) return { success: false, error: conflictError };
         const targetProjectsDir = path.join(target, "projects");
         const targetMediaDir = path.join(target, "media");
+        const targetAssetsDir = path.join(target, "assets");
         const targetSkillsDir = path.join(target, "skills");
-        [targetProjectsDir, targetMediaDir, targetSkillsDir].forEach(ensureDir);
+        [targetProjectsDir, targetMediaDir, targetAssetsDir, targetSkillsDir].forEach(ensureDir);
         const currentProjectsDir = getProjectDataRoot();
         const currentMediaDir = getMediaRoot();
+        const currentAssetsDir = getAssetsRoot();
         const currentSkillsDir = getSkillsRoot();
         for (const [source, destination] of [
           [currentProjectsDir, targetProjectsDir],
           [currentMediaDir, targetMediaDir],
+          [currentAssetsDir, targetAssetsDir],
           [currentSkillsDir, targetSkillsDir],
         ] as const) {
           if (!fs.existsSync(source)) continue;
@@ -264,7 +280,7 @@ export function createStorageManager({ userDataPath }: CreateStorageManagerOptio
           }
         }
         updateBasePath(target);
-        for (const currentDir of [currentProjectsDir, currentMediaDir, currentSkillsDir]) {
+        for (const currentDir of [currentProjectsDir, currentMediaDir, currentAssetsDir, currentSkillsDir]) {
           if (!currentDir.startsWith(userDataPath)) await removeDir(currentDir).catch(() => undefined);
         }
         return { success: true, path: target };
@@ -279,6 +295,7 @@ export function createStorageManager({ userDataPath }: CreateStorageManagerOptio
         const exportDir = createExportDir(targetPath);
         await copyDir(getProjectDataRoot(), path.join(exportDir, "projects"));
         await copyDir(getMediaRoot(), path.join(exportDir, "media"));
+        await copyDir(getAssetsRoot(), path.join(exportDir, "assets"));
         await copyDir(getSkillsRoot(), path.join(exportDir, "skills"));
         return { success: true, path: exportDir };
       } catch (error) {
@@ -293,14 +310,20 @@ export function createStorageManager({ userDataPath }: CreateStorageManagerOptio
         const sources = {
           projects: path.join(source, "projects"),
           media: path.join(source, "media"),
+          assets: path.join(source, "assets"),
           skills: path.join(source, "skills"),
         };
         const present = Object.fromEntries(Object.entries(sources).map(([key, value]) => [key, fs.existsSync(value)]));
-        if (!present.projects && !present.media && !present.skills) {
-          return { success: false, error: "源目录不包含有效数据（需要 projects/、media/ 或 skills/ 子目录）" };
+        if (!present.projects && !present.media && !present.assets && !present.skills) {
+          return { success: false, error: "源目录不包含有效数据（需要 projects/、media/、assets/ 或 skills/ 子目录）" };
         }
         const backupDir = path.join(os.tmpdir(), `mystudio-backup-${Date.now()}`);
-        const targets = { projects: getProjectDataRoot(), media: getMediaRoot(), skills: getSkillsRoot() };
+        const targets = {
+          projects: getProjectDataRoot(),
+          media: getMediaRoot(),
+          assets: getAssetsRoot(),
+          skills: getSkillsRoot(),
+        };
         try {
           for (const key of Object.keys(sources) as Array<keyof typeof sources>) {
             if (!present[key] || !fs.existsSync(targets[key])) continue;

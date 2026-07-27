@@ -129,3 +129,101 @@ Archived the paid retry and visual-review closure task without Git. Revalidated 
 ### Next Steps
 
 - None - task complete
+
+
+## Session 3: 归档 Remotion 打包与根目录清理任务
+
+**Date**: 2026-07-26
+**Task**: 归档 Remotion 打包与根目录清理任务
+**Branch**: `main`
+
+### Summary
+
+归档 07-26-mystudio-remotion-packaging-root-cleanup；固定 Remotion bundle、build-mac.sh 构建覆盖安装 installed smoke 通过，根目录 node_modules/output/backups 已清理。保留边界：全仓 typecheck 与 Vitest 仍被既有 TTS 测试阻塞；本次不修改 TTS 文件。
+
+### Main Changes
+
+- Detailed change bullets were not supplied; see the summary above.
+
+### Git Commits
+
+(No commits - planning session)
+
+### Testing
+
+- Validation was not recorded for this session.
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 4: Archive AC11 local visual review slice
+
+**Date**: 2026-07-26
+**Task**: Archive AC11 local visual review slice
+**Branch**: `main`
+
+### Summary
+
+Archived the completed local AC11 visual review slice with no-git mode. Added design and implement/check manifests, added stale storyboard and boundary navigation regressions, and verified full Vitest 487 files/2301 tests, typecheck, lint, Python 49 tests, and py_compile. The production visual preflight remains intentionally blocked at approved=0,pending=43,rejected=0,stale=43; no provider request or real generation was performed.
+
+### Main Changes
+
+- Detailed change bullets were not supplied; see the summary above.
+
+### Git Commits
+
+(No commits - planning session)
+
+### Testing
+
+- Validation was not recorded for this session.
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 5: 统一项目路径规划归档确认
+
+**Date**: 2026-07-27
+**Task**: 统一项目路径规划归档确认
+**Branch**: `no-git-user-managed`
+
+### Summary
+
+统一项目路径任务已位于 archive/2026-07，状态 completed；最终扫描、测试、typecheck、lint 与 Trellis validate 均通过；未执行 git/worktree。
+
+### Main Changes
+
+- Target task: .trellis/tasks/archive/2026-07/07-26-unified-project-paths
+- Archive check: task.json status=completed, no children/subtasks, worktree_path=null, meta.no_git=true.
+- Active task guard: current active task is .trellis/tasks/07-26-aitoearn-electron-self-media-integration, unrelated and not archived.
+- Validation evidence from final pass: source/docs/Trellis hardcoded path scans passed, affected tests passed, npm run typecheck passed, npm run lint passed, task.py validate passed.
+- No git commands and no worktree operations were executed for this archive confirmation.
+
+
+### Git Commits
+
+(No commits - planning session)
+
+### Testing
+
+- Validation was not recorded for this session.
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

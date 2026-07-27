@@ -10,7 +10,7 @@ const configSource = readFileSync(
 
 describe("Electron Vite Remotion entries", () => {
   it("shares the rendering alias across main, preload, and renderer builds", () => {
-    expect(configSource).toContain("'@rendering': path.resolve(projectRoot, 'rendering')");
+    expect(configSource).toContain("'@rendering': path.resolve(frontendRoot, 'electron/rendering')");
     expect(configSource).toContain("main: {\n    resolve: { alias: sharedAlias }");
     expect(configSource).toContain("preload: {\n    resolve: { alias: sharedAlias }");
     expect(configSource).toContain("renderer: {");
@@ -19,9 +19,9 @@ describe("Electron Vite Remotion entries", () => {
 
   it("emits the browser utility worker with a deterministic CJS name", () => {
     expect(configSource).toContain("'remotion-browser-worker': path.resolve(");
-    expect(configSource).toContain("'rendering/plugins/remotion/browser/remotion-browser-worker.ts'");
+    expect(configSource).toContain("'frontend/electron/rendering/plugins/remotion/browser/remotion-browser-worker.ts'");
     expect(configSource).toContain("'remotion-render-worker': path.resolve(");
-    expect(configSource).toContain("'rendering/plugins/remotion/renderer/remotion-render-worker-entry.ts'");
+    expect(configSource).toContain("'frontend/electron/rendering/plugins/remotion/renderer/remotion-render-worker-entry.ts'");
     expect(configSource).toContain("entryFileNames: '[name].cjs'");
   });
 });

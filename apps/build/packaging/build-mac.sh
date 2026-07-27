@@ -3,7 +3,9 @@ set -eu
 
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 APPS_DIR=$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)
-INSTALL_AFTER_BUILD=0
+# The standard macOS package command is build -> overwrite install -> installed smoke.
+# Keep the complete chain enabled even when callers omit legacy --install flags.
+INSTALL_AFTER_BUILD=1
 BUILD_ARGS=
 HAS_ARCH=0
 
@@ -35,5 +37,6 @@ echo "Command: node ./build/packaging/build-desktop.mjs --mac$BUILD_ARGS"
 node ./build/packaging/build-desktop.mjs --mac $BUILD_ARGS
 
 if [ "$INSTALL_AFTER_BUILD" -eq 1 ]; then
-  node ./build/packaging/install-and-smoke.mjs
+  MYSTUDIO_SMOKE_KEEP_OPEN=0 MYSTUDIO_SMOKE_SKIP_PREKILL=0 \
+    node ./build/packaging/install-and-smoke.mjs
 fi

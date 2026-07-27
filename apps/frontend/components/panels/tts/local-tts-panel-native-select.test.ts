@@ -56,6 +56,10 @@ describe("LocalTtsPanel select controls", () => {
 
   it("renders runtime status as full-width rows without a duplicate port field", () => {
     const source = readFileSync(new URL("./LocalTtsPanel.tsx", import.meta.url), "utf8");
+    const runtimeCardSource = readFileSync(
+      new URL("./LocalTtsRuntimeCard.tsx", import.meta.url),
+      "utf8",
+    );
     const presentationSource = readFileSync(
       new URL("./LocalTtsPanelPresentation.tsx", import.meta.url),
       "utf8",
@@ -65,10 +69,12 @@ describe("LocalTtsPanel select controls", () => {
     expect(presentationSource).toContain("break-all");
     expect(source).toContain("handleManualRefresh");
     expect(source).toContain("已刷新");
-    expect(source).toContain("运行中（残留进程）");
+    expect(source).toContain("LocalTtsRuntimeCard");
     expect(source).toContain("delete next.runtime");
-    expect(source).toContain('label="后端"');
-    expect(source).toContain('label="扫描路径"');
+    expect(runtimeCardSource).toContain("运行中（残留进程）");
+    expect(runtimeCardSource).toContain('label="后端"');
+    expect(runtimeCardSource).toContain('label="扫描路径"');
+    expect(runtimeCardSource).not.toContain("端口：");
     expect(source).not.toContain("端口：");
   });
 
@@ -84,18 +90,25 @@ describe("LocalTtsPanel select controls", () => {
 
   it("separates Python runtime setup progress from model downloads", () => {
     const source = readFileSync(new URL("./LocalTtsPanel.tsx", import.meta.url), "utf8");
+    const runtimeCardSource = readFileSync(
+      new URL("./LocalTtsRuntimeCard.tsx", import.meta.url),
+      "utf8",
+    );
     const presentationSource = readFileSync(
       new URL("./LocalTtsPanelPresentation.tsx", import.meta.url),
       "utf8",
     );
 
-    expect(source).toContain("RuntimeSetupProgress");
+    expect(source).toContain("LocalTtsRuntimeCard");
+    expect(runtimeCardSource).toContain("RuntimeSetupProgress");
     expect(presentationSource).toContain("正在下载 Python 运行环境");
     expect(presentationSource).toContain("正在配置 Python 仓库");
     expect(presentationSource).toContain("正在安装 TTS 依赖");
     expect(presentationSource).toContain("本地 TTS 后端启动中");
-    expect(source).toContain("runtimeSetupActive");
-    expect(source).toContain("disabled={starting || runtimeSetupActive || runtimeStatus?.installed === false}");
+    expect(runtimeCardSource).toContain("runtimeSetupActive");
+    expect(runtimeCardSource).toContain(
+      "disabled={starting || runtimeSetupActive || runtimeStatus?.installed === false}",
+    );
   });
 
   it("keeps Python runtime configuration available in settings", () => {

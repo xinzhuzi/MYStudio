@@ -28,7 +28,7 @@ describe("asset names", () => {
   });
 
   it("cleans file paths and media extensions before matching names", () => {
-    expect(cleanAssetNameSegment("/Users/demo/音频/少年旁白_穿过雨夜.wav")).toBe("少年旁白_穿过雨夜");
+    expect(cleanAssetNameSegment("/tmp/mystudio-fixtures/音频/少年旁白_穿过雨夜.wav")).toBe("少年旁白_穿过雨夜");
     expect(assetNameMatchesQuery("少年旁白_穿过雨夜.wav;少年音色", "少年音色")).toBe(true);
     expect(assetNameMatchesQuery("铜钱;铜币;古钱", "铜币")).toBe(true);
     expect(assetNameMatchesQuery("铜钱;铜币;古钱", "铜")).toBe(false);

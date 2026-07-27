@@ -23,6 +23,12 @@ import type {
   TimelineRenderRecord,
   EditingValidationIssue,
 } from "@/types/editing";
+import {
+  appendEpisodeRecordId,
+  filterAutoEditingRunIds,
+  filterCurrentEditingProjectIds,
+} from "./editing-state-indexes";
+import { validateTimelineRecordProjectMatch } from "./editing-timeline-record-validation";
 
 export interface PersistedEditingStoreState {
   activeProjectId: string | null;
@@ -755,95 +761,6 @@ function scopePersistedEditingState(
     ),
     timelineRenderRecordsByEditingProjectId,
   };
-}
-
-function validateTimelineRecordProjectMatch(
-  activeProjectId: string | null,
-  project: EditingProjectV1 | undefined,
-  record: TimelineRenderRecord,
-  requireCurrentRevision: boolean,
-): EditingValidationIssue | undefined {
-  if (!activeProjectId || record.projectId !== activeProjectId) {
-    return issue(
-      "editing.persistence.render_record_scope",
-      "$.projectId",
-      "时间线渲染记录不属于当前应用项目",
-    );
-  }
-  if (!project) {
-    return issue(
-      "editing.persistence.render_record_project",
-      "$.editingProjectId",
-      "时间线渲染记录引用的剪辑项目不存在",
-    );
-  }
-  if (
-    project.projectId !== record.projectId ||
-    project.episodeId !== record.episodeId ||
-    project.sourceSnapshotHash !== record.sourceSnapshotHash ||
-    record.editingRevision > project.revision ||
-    (requireCurrentRevision && record.editingRevision !== project.revision)
-  ) {
-    return issue(
-      "editing.persistence.render_record_mismatch",
-      "$",
-      "时间线渲染记录与剪辑项目、剧集、快照或版本不一致",
-    );
-  }
-  return undefined;
-}
-
-function filterCurrentEditingProjectIds(
-  value: unknown,
-  editingProjects: Record<string, EditingProjectV1>,
-): Record<string, string> {
-  if (!isRecord(value)) return {};
-  return Object.fromEntries(
-    Object.entries(value).filter(([episodeId, editingProjectId]) => {
-      if (typeof editingProjectId !== "string") return false;
-      const project = editingProjects[editingProjectId];
-      return project?.episodeId === episodeId;
-    }),
-  ) as Record<string, string>;
-}
-
-function filterAutoEditingRunIds(
-  value: unknown,
-  autoEditingRuns: Record<string, AutoEditingRun>,
-): Record<string, string[]> {
-  const indexed = new Set<string>();
-  const result: Record<string, string[]> = {};
-  if (isRecord(value)) {
-    for (const [episodeId, runIds] of Object.entries(value)) {
-      if (!Array.isArray(runIds)) continue;
-      for (const runId of runIds) {
-        if (typeof runId !== "string" || indexed.has(runId)) continue;
-        const run = autoEditingRuns[runId];
-        if (!run || run.episodeId !== episodeId) continue;
-        (result[episodeId] ??= []).push(runId);
-        indexed.add(runId);
-      }
-    }
-  }
-  for (const run of Object.values(autoEditingRuns).sort(
-    (left, right) =>
-      left.startedAt - right.startedAt || left.id.localeCompare(right.id),
-  )) {
-    if (indexed.has(run.id)) continue;
-    (result[run.episodeId] ??= []).push(run.id);
-    indexed.add(run.id);
-  }
-  return result;
-}
-
-function appendEpisodeRecordId(
-  records: Record<string, string[]>,
-  episodeId: string,
-  recordId: string,
-) {
-  const existing = records[episodeId] ?? [];
-  if (existing.includes(recordId)) return records;
-  return { ...records, [episodeId]: [...existing, recordId] };
 }
 
 function appendUniqueIssues(

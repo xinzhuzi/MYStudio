@@ -75,7 +75,7 @@ export function StorageSettingsTab() {
               存储位置
             </h4>
             <div className="space-y-3">
-              <Label className="text-xs text-muted-foreground">数据存储位置（包含项目和素材）</Label>
+              <Label className="text-xs text-muted-foreground">统一数据存储根</Label>
               <div className="flex items-center gap-2">
                 <Input
                   value={storage.storagePaths.basePath || "默认位置"}
@@ -93,7 +93,7 @@ export function StorageSettingsTab() {
                 <Button variant="outline" size="sm" onClick={storage.importData} disabled={!storage.hasStorageManager}>导入</Button>
               </div>
             </div>
-            <p className="text-xs text-muted-foreground">⚠️ 更改位置会移动现有数据到新目录（自动创建 projects/ 和 media/ 子目录）</p>
+            <p className="text-xs text-muted-foreground">⚠️ 更改位置会复制并迁移 projects/、media/、assets/、skills/；python/ 和 tts-models/ 是运行时下载目录，本次不会随数据操作迁移。</p>
           </div>
 
           <div className="p-6 border border-border rounded-xl bg-card space-y-4">
@@ -113,7 +113,7 @@ export function StorageSettingsTab() {
                 <Folder className="h-3.5 w-3.5 mr-1" />
                 指向已有数据目录
               </Button>
-              <p className="text-xs text-muted-foreground">💡 选择包含 projects/ 和 media/ 子目录的数据目录，操作后重启应用。</p>
+              <p className="text-xs text-muted-foreground">💡 选择包含 projects/、media/、assets/ 或 skills/ 的数据目录。Python runtime 与 TTS 模型下载目录不属于恢复数据，操作后重启应用。</p>
             </div>
           </div>
 

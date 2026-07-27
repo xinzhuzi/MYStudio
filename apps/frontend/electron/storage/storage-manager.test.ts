@@ -35,7 +35,9 @@ describe("createStorageManager", () => {
     readdir.mockReset();
     readdir.mockResolvedValue([]);
     rm.mockReset();
+    rm.mockResolvedValue(undefined);
     cp.mockReset();
+    cp.mockResolvedValue(undefined);
   });
 
   it("keeps default paths project-scoped and registers the complete storage channel set", async () => {
@@ -45,7 +47,10 @@ describe("createStorageManager", () => {
       basePath: "/user-data",
       projectPath: "/user-data/projects",
       mediaPath: "/user-data/media",
+      assetsPath: "/user-data/assets",
       skillsPath: "/user-data/skills",
+      pythonRuntimeDir: "/user-data/python",
+      modelCacheDir: "/user-data/tts-models",
       cachePath: "/user-data/Cache",
     });
     expect(handlers.size).toBe(19);
@@ -101,13 +106,64 @@ describe("createStorageManager", () => {
       projectCount: 1,
       mediaCount: 1,
       skillCount: 0,
+      assetCount: 0,
     });
 
     existsSync.mockImplementation((candidate?: unknown) => candidate === "/empty");
     await expect(handlers.get("storage-link-data")?.(null, "/empty")).resolves.toEqual({
       success: false,
-      error: "该目录不包含有效的数据（需要 projects/、media/ 或 skills/ 子目录）",
+      error: "该目录不包含有效的数据（需要 projects/、media/、assets/ 或 skills/ 子目录）",
     });
+  });
+
+  it("recognizes an existing assets library as unified storage data", async () => {
+    const manager = createStorageManager({ userDataPath: "/user-data" });
+    manager.registerIpcHandlers({ getStudioManualsSourceRoot: () => "/manuals" });
+
+    existsSync.mockImplementation((candidate?: unknown) => candidate === "/assets-only" || candidate === "/assets-only/assets");
+    readdir.mockResolvedValue(["assets.db", "files"]);
+
+    await expect(handlers.get("storage-validate-data-dir")?.(null, "/assets-only")).resolves.toEqual({
+      valid: true,
+      projectCount: 0,
+      mediaCount: 0,
+      skillCount: 0,
+      assetCount: 2,
+    });
+  });
+
+  it("includes assets in move and export operations", async () => {
+    const manager = createStorageManager({ userDataPath: "/user-data" });
+    manager.registerIpcHandlers({ getStudioManualsSourceRoot: () => "/manuals" });
+
+    existsSync.mockImplementation((candidate?: unknown) => (
+      candidate === "/user-data/assets" || candidate === "/user-data/projects" || candidate === "/user-data/media" || candidate === "/user-data/skills"
+    ));
+    readdir.mockResolvedValue(["entry"]);
+
+    await expect(handlers.get("storage-move-data")?.(null, "/new-data")).resolves.toEqual({
+      success: true,
+      path: "/new-data",
+    });
+    expect(cp).toHaveBeenCalledWith("/user-data/assets/entry", "/new-data/assets/entry", { recursive: true, force: true });
+
+    cp.mockClear();
+    await expect(handlers.get("storage-export-data")?.(null, "/backup")).resolves.toMatchObject({ success: true });
+    expect(cp).toHaveBeenCalledWith("/new-data/assets", expect.stringMatching(/\/assets$/), { recursive: true, force: true });
+  });
+
+  it("imports the assets category with the same category-level replacement flow", async () => {
+    const manager = createStorageManager({ userDataPath: "/user-data" });
+    manager.registerIpcHandlers({ getStudioManualsSourceRoot: () => "/manuals" });
+
+    existsSync.mockImplementation((candidate?: unknown) => (
+      candidate === "/incoming/assets" || candidate === "/user-data/assets"
+    ));
+    readdir.mockResolvedValue([]);
+
+    await expect(handlers.get("storage-import-data")?.(null, "/incoming")).resolves.toEqual({ success: true });
+    expect(rm).toHaveBeenCalledWith("/user-data/assets", { recursive: true, force: true });
+    expect(cp).toHaveBeenCalledWith("/incoming/assets", "/user-data/assets", { recursive: true, force: true });
   });
 
   it("does not destroy data when a legacy import points at the active storage root", async () => {

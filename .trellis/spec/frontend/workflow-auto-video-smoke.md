@@ -140,7 +140,7 @@ are database paths relative to `data/oss/`, not directly relative to `data/`.
 
 ```bash
 python3 apps/build/daojie/pipeline/build_toonflow_portable_fixture.py \
-  --database "/Users/zhengbingjin/Library/Application Support/toonflow/data/db2.sqlite" \
+  --database "$MYSTUDIO_TOONFLOW_DATABASE" \
   --output .trellis/tasks/07-12-mystudio-chapter001-visual-continuity/research/toonflow-chapter001-portable-fixture.json
 ```
 

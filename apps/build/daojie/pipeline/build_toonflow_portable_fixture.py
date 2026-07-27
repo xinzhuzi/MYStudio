@@ -22,10 +22,16 @@ from typing import Any
 from PIL import Image
 
 
-DEFAULT_DATABASE = Path("/Users/zhengbingjin/Library/Application Support/toonflow/data/db2.sqlite")
 DEFAULT_OUTPUT = Path(
     ".trellis/tasks/07-12-mystudio-chapter001-visual-continuity/research/toonflow-chapter001-portable-fixture.json"
 )
+
+
+def default_database_path() -> Path:
+    value = os.environ.get("MYSTUDIO_TOONFLOW_DATABASE", "").strip()
+    if value:
+        return Path(value).expanduser()
+    raise RuntimeError("必须通过 --database 或 MYSTUDIO_TOONFLOW_DATABASE 指定 Toonflow SQLite 数据库")
 
 
 def sha256_file(path: Path) -> str:
@@ -241,10 +247,11 @@ def verify_fixture(manifest_path: Path) -> dict[str, Any]:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--database", type=Path, default=DEFAULT_DATABASE)
+    parser.add_argument("--database", type=Path)
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     args = parser.parse_args()
-    manifest = build_fixture(args.database, args.output)
+    database = args.database or default_database_path()
+    manifest = build_fixture(database, args.output)
     verified = verify_fixture(args.output)
     print(json.dumps({**manifest["verification"], "verified": verified}, ensure_ascii=False, sort_keys=True))
     print(f"manifest={args.output.resolve()}")

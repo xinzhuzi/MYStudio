@@ -33,6 +33,9 @@ import {
   shouldCreateWindowOnSecondInstance,
 } from '../runtime/app-lifecycle'
 import { registerTtsIpcHandlers } from '../ipc/tts/tts-ipc'
+import { registerSelfMediaIpcHandlers } from '../ipc/self-media/self-media-ipc'
+import { createCredentialVault } from '../aitoearn/credential-vault'
+import { createAitoearnLocalPlatformBridge } from '../aitoearn/providers/aitoearn-local/platform-bridge'
 import { registerDiagnosticsIpcHandlers } from '../ipc/diagnostics/diagnostics-ipc'
 import { registerStorageMediaIpcHandlers } from '../ipc/media/storage-media-ipc'
 import { registerAppUpdaterIpcHandlers } from '../ipc/app/app-updater-ipc'
@@ -170,6 +173,23 @@ const ttsRuntimeController = createTtsRuntimeController({
 })
 let stopLocalSidecarsPromise: Promise<void> | null = null
 let disposeRemotionRuntime: (() => void | Promise<void>) | null = null
+const selfMediaCredentialVault = createCredentialVault(app.getPath('userData'))
+const selfMediaIpc = registerSelfMediaIpcHandlers({
+  credentialVault: selfMediaCredentialVault,
+  localBridge: createAitoearnLocalPlatformBridge({
+    userDataPath: app.getPath('userData'),
+    allowedAssetRoots: () => [getDataDir(), getMediaRoot()],
+  }),
+  taskStorePath: path.join(app.getPath('userData'), 'self-media', 'tasks.json'),
+  resolveAsset: async (_projectId, asset) => {
+    const source = asset.approvedUrl ?? asset.assetId;
+    const resolved = resolveStudioSourcePath(source);
+    if (!resolved || (!resolved.startsWith('http://') && !resolved.startsWith('https://') && !path.isAbsolute(resolved))) {
+      throw new Error('自媒体资产无法解析为安全的本地路径或 URL');
+    }
+    return { assetId: asset.assetId, url: resolved, kind: asset.kind };
+  },
+})
 
 function stopLocalSidecars() {
   if (!stopLocalSidecarsPromise) {
@@ -186,6 +206,7 @@ function stopLocalSidecars() {
 }
 
 async function stopAllLocalServices() {
+  await selfMediaIpc.dispose()
   await disposeRemotionRuntime?.()
   disposeRemotionRuntime = null
   await stopLocalSidecars()

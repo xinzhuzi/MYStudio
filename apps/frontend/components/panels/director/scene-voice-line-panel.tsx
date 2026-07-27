@@ -199,6 +199,7 @@ export function SceneVoiceLinePanel({ scene }: SceneVoiceLinePanelProps) {
     }
 
     setBusy(true);
+    let generationId: string | undefined;
     try {
       const runtime = await startTtsRuntime();
       if (!runtime.success) throw new Error(runtime.error || "TTS 后端启动失败");
@@ -210,6 +211,7 @@ export function SceneVoiceLinePanel({ scene }: SceneVoiceLinePanelProps) {
         modelSize: currentLine.modelSize,
         language: generationProfile.language,
       });
+      generationId = generation.id;
       markGenerating(scene.id, generation.id);
       const completed = await waitForGeneration(generation.id);
       if (!getGenerationAudioPath(completed)) throw new Error("生成完成但没有音频路径");
@@ -222,6 +224,7 @@ export function SceneVoiceLinePanel({ scene }: SceneVoiceLinePanelProps) {
         throw new Error(material.error || "保存音频素材失败");
       }
       markCompleted(scene.id, {
+        generationId: generation.id,
         audioLocalPath: material.localPath,
         audioMaterialId: material.filePath || material.localPath,
         audioFilePath: material.filePath,
@@ -230,7 +233,7 @@ export function SceneVoiceLinePanel({ scene }: SceneVoiceLinePanelProps) {
       toast.success(`分镜 ${scene.id + 1} 口播已生成`);
     } catch (error) {
       const message = error instanceof Error ? error.message : "口播生成失败";
-      markFailed(scene.id, message);
+      markFailed(scene.id, message, generationId);
       toast.error(message);
     } finally {
       setBusy(false);

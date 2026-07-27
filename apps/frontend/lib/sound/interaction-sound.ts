@@ -2,7 +2,9 @@
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 
-export type InteractionSoundIntent = "primary" | "soft" | "confirm";
+import { initSound, playSound, type SoundEffect } from "./sound";
+
+export type InteractionSoundIntent = "primary" | "soft" | "confirm" | "cancel";
 
 export interface InteractionSoundTarget {
   tagName: string;
@@ -10,7 +12,15 @@ export interface InteractionSoundTarget {
   type?: string | null;
   disabled?: boolean;
   ariaDisabled?: string | null;
+  ariaLabel?: string | null;
   sound?: string | null;
+}
+
+/** 关闭/取消/删除/失败类操作，听感上应当是下沉而不是确认 */
+const dismissLabelPattern = /取消|关闭|删除|失败/;
+
+function isDismissLabel(ariaLabel?: string | null): boolean {
+  return Boolean(ariaLabel && dismissLabelPattern.test(ariaLabel));
 }
 
 const textEntryInputTypes = new Set([
@@ -43,7 +53,6 @@ const interactiveSelector = [
   "[role='tab']",
 ].join(",");
 
-let audioContext: AudioContext | null = null;
 let lastPlayAt = 0;
 
 export function resolveInteractionSoundIntent(
@@ -51,7 +60,12 @@ export function resolveInteractionSoundIntent(
 ): InteractionSoundIntent | null {
   const explicitSound = target.sound?.trim().toLowerCase();
   if (explicitSound === "off") return null;
-  if (explicitSound === "primary" || explicitSound === "soft" || explicitSound === "confirm") {
+  if (
+    explicitSound === "primary" ||
+    explicitSound === "soft" ||
+    explicitSound === "confirm" ||
+    explicitSound === "cancel"
+  ) {
     return explicitSound;
   }
 
@@ -61,6 +75,17 @@ export function resolveInteractionSoundIntent(
   const role = target.role?.toLowerCase() ?? "";
   const inputType = target.type?.toLowerCase() ?? "";
 
+  const base = resolveBaseIntent(tagName, role, inputType);
+  // 关闭/取消/删除类按钮走下沉的 cancel 音，其余保持 base
+  if (base === "primary" && isDismissLabel(target.ariaLabel)) return "cancel";
+  return base;
+}
+
+function resolveBaseIntent(
+  tagName: string,
+  role: string,
+  inputType: string
+): InteractionSoundIntent | null {
   if (tagName === "TEXTAREA") return null;
   if (tagName === "INPUT") {
     if (textEntryInputTypes.has(inputType)) return null;
@@ -86,6 +111,7 @@ export function getInteractionSoundIntentFromTarget(
 
   const element = target.closest(interactiveSelector);
   if (!element) return null;
+  if (element.closest("[data-no-sound]")) return null;
 
   return resolveInteractionSoundIntent({
     tagName: element.tagName,
@@ -95,45 +121,33 @@ export function getInteractionSoundIntentFromTarget(
       element.hasAttribute("disabled") ||
       Boolean("disabled" in element && (element as HTMLButtonElement | HTMLInputElement).disabled),
     ariaDisabled: element.getAttribute("aria-disabled"),
-    sound: element.getAttribute("data-interaction-sound"),
+    ariaLabel: element.getAttribute("aria-label"),
+    sound: element.getAttribute("data-interaction-sound") ?? element.getAttribute("data-sound"),
   });
 }
+
+/** intent 到合成引擎音色的唯一映射 */
+export const INTENT_TO_EFFECT: Record<InteractionSoundIntent, SoundEffect> = {
+  primary: "activate",
+  soft: "click",
+  confirm: "success",
+  cancel: "cancel",
+};
+
+/**
+ * 连播间隔下限：新音色带 160–300ms 的空气尾，间隔太短会让尾音互相叠加、
+ * 听起来又回到"吵"。
+ */
+const MIN_REPLAY_INTERVAL_MS = 70;
 
 export function playInteractionSound(intent: InteractionSoundIntent): void {
   if (typeof window === "undefined") return;
 
   const now = performance.now();
-  if (now - lastPlayAt < 45) return;
+  if (now - lastPlayAt < MIN_REPLAY_INTERVAL_MS) return;
   lastPlayAt = now;
 
-  const AudioContextCtor =
-    window.AudioContext ?? (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-  if (!AudioContextCtor) return;
-
-  audioContext ??= new AudioContextCtor();
-  const context = audioContext;
-  void context.resume();
-
-  const oscillator = context.createOscillator();
-  const gain = context.createGain();
-  const currentTime = context.currentTime;
-  const tone =
-    intent === "confirm"
-      ? { frequency: 820, gain: 0.045, duration: 0.07 }
-      : intent === "soft"
-        ? { frequency: 470, gain: 0.022, duration: 0.032 }
-        : { frequency: 650, gain: 0.034, duration: 0.04 };
-
-  oscillator.type = "triangle";
-  oscillator.frequency.setValueAtTime(tone.frequency, currentTime);
-  oscillator.frequency.exponentialRampToValueAtTime(tone.frequency * 0.72, currentTime + tone.duration);
-
-  gain.gain.setValueAtTime(0.0001, currentTime);
-  gain.gain.exponentialRampToValueAtTime(tone.gain, currentTime + 0.006);
-  gain.gain.exponentialRampToValueAtTime(0.0001, currentTime + tone.duration);
-
-  oscillator.connect(gain);
-  gain.connect(context.destination);
-  oscillator.start(currentTime);
-  oscillator.stop(currentTime + tone.duration + 0.01);
+  // 首次交互时解锁 AudioContext（浏览器自动播放策略）
+  initSound();
+  playSound(INTENT_TO_EFFECT[intent]);
 }

@@ -15,58 +15,20 @@ import {
   getMediaStorageCategoryForNewUrl,
   withMovedMediaUrl,
 } from "./media-file-move";
+import {
+  mergeMediaData,
+  normalizeMediaUrl,
+  partializeMediaData,
+  splitMediaData,
+  type MediaPersistedState,
+} from "./media-store-persistence";
 
-// ==================== Split/Merge for per-project storage ====================
-
-type MediaPersistedState = { folders: MediaFolder[]; mediaFiles: MediaFile[] };
-
-export function splitMediaData(state: MediaPersistedState, pid: string) {
-  return {
-    projectData: {
-      folders: state.folders.filter((f) => f.projectId === pid && !f.isSystem),
-      mediaFiles: state.mediaFiles.filter((f) => f.projectId === pid),
-    },
-    sharedData: {
-      folders: state.folders.filter((f) => f.isSystem || (!f.projectId && !f.isAutoCreated)),
-      mediaFiles: state.mediaFiles.filter((f) => !f.projectId),
-    },
-  };
-}
-
-export function mergeMediaData(
-  projectData: MediaPersistedState | null,
-  sharedData: MediaPersistedState | null,
-): MediaPersistedState {
-  return {
-    folders: [
-      ...(sharedData?.folders ?? []),
-      ...(projectData?.folders ?? []),
-    ],
-    mediaFiles: [
-      ...(sharedData?.mediaFiles ?? []),
-      ...(projectData?.mediaFiles ?? []),
-    ],
-  };
-}
-
-export function normalizeMediaUrl(url: unknown): string | undefined {
-  if (!url) return undefined;
-  if (Array.isArray(url)) return url[0] || undefined;
-  if (typeof url === "string") return url;
-  return undefined;
-}
-
-export function partializeMediaData(state: MediaStore) {
-  return {
-    folders: state.folders,
-    mediaFiles: state.mediaFiles.filter((f) => !f.ephemeral).map((f) => {
-      const url = normalizeMediaUrl(f.url);
-      const thumbnailUrl = normalizeMediaUrl(f.thumbnailUrl);
-      const transient = (u?: string) => !u || u.startsWith("blob:") || u.startsWith("data:");
-      return { ...f, file: undefined, url: transient(url) ? undefined : url, thumbnailUrl: transient(thumbnailUrl) ? undefined : thumbnailUrl };
-    }),
-  };
-}
+export {
+  mergeMediaData,
+  normalizeMediaUrl,
+  partializeMediaData,
+  splitMediaData,
+} from "./media-store-persistence";
 
 // ==================== System Category Definitions ====================
 
@@ -255,7 +217,7 @@ export const getMediaAspectRatio = (item: MediaFile): number => {
 };
 
 export const useMediaStore = create<MediaStore>()(
-  persist(
+  persist<MediaStore, [], [], MediaPersistedState>(
     (set, get) => ({
       mediaFiles: [],
       folders: [],

@@ -27,11 +27,27 @@ from PIL import Image, ImageDraw, ImageFilter, ImageFont, ImageOps
 
 try:
     from apps.build.daojie.pipeline import daojie_gongbi_v2
+    from apps.build.daojie.path_resolver import (
+        env_path,
+        resolve_asset_files_dir,
+        resolve_project_dir,
+        resolve_storage_base_path,
+        resolve_user_data_dir,
+    )
 except ModuleNotFoundError:
     from pipeline import daojie_gongbi_v2
+    from path_resolver import (
+        env_path,
+        resolve_asset_files_dir,
+        resolve_project_dir,
+        resolve_storage_base_path,
+        resolve_user_data_dir,
+    )
 
-DEFAULT_PROJECT = Path("/Users/zhengbingjin/Library/Application Support/漫影工作室/projects/_p/49dce4c1-64b1-42de-85c2-9f266698aec0")
-PROJECT = Path(os.environ.get("MYSTUDIO_DAOJIE_PROJECT_DIR", str(DEFAULT_PROJECT)))
+
+USER_DATA_DIR = resolve_user_data_dir()
+STORAGE_BASE_PATH = resolve_storage_base_path(USER_DATA_DIR)
+PROJECT = resolve_project_dir(STORAGE_BASE_PATH, required=False)
 STORE = PROJECT / "studio-workflow-store.json"
 SCRIPT_JSON = PROJECT / "script.json"
 TTS_JSON = PROJECT / "tts.json"
@@ -43,9 +59,11 @@ EXPORTS = Path(os.environ.get("MYSTUDIO_DAOJIE_EXPORTS_DIR", str(EXPORTS)))
 FRAMES = EXPORTS / "toonflow_frames"
 AUDIO = EXPORTS / "toonflow_audio"
 SEGMENTS = EXPORTS / "toonflow_segments"
-APP_SUPPORT = Path("/Users/zhengbingjin/Library/Application Support/漫影工作室")
-ASSET_DB = APP_SUPPORT / "assets" / "assets.db"
-ASSET_FILES = APP_SUPPORT / "assets" / "files"
+ASSET_DB = STORAGE_BASE_PATH / "assets" / "assets.db"
+ASSET_FILES = resolve_asset_files_dir(STORAGE_BASE_PATH)
+PYTHON_RUNTIME_DIR = STORAGE_BASE_PATH / "python"
+TTS_RUNTIME_DIR = USER_DATA_DIR / "tts-runtime"
+TTS_MODELS_DIR = STORAGE_BASE_PATH / "tts-models"
 
 EPISODE_ID = "chapter-001"
 FINAL_NAME = "道劫_EP01_断剑夜访道口镇_toonflow_workflow.mp4"
@@ -4305,7 +4323,7 @@ def managed_python_executable_path(runtime_dir, platform=None):
 def start_tts_backend():
     if health_check():
         return None
-    python_bin = managed_python_executable_path(APP_SUPPORT / "python")
+    python_bin = managed_python_executable_path(PYTHON_RUNTIME_DIR)
     if not python_bin.exists():
         raise RuntimeError(
             f"未找到已配置的 Python 3.12 运行环境: {python_bin}。"
@@ -4314,9 +4332,9 @@ def start_tts_backend():
     env = {
         **os.environ,
         "PYTHONPATH": str(BACKEND_ROOT),
-        "MANYING_TTS_DATA_DIR": str(APP_SUPPORT / "tts-runtime"),
-        "MANYING_TTS_MODELS_DIR": str(APP_SUPPORT / "tts-models"),
-        "VOICEBOX_MODELS_DIR": str(APP_SUPPORT / "tts-models"),
+        "MANYING_TTS_DATA_DIR": str(TTS_RUNTIME_DIR),
+        "MANYING_TTS_MODELS_DIR": str(TTS_MODELS_DIR),
+        "VOICEBOX_MODELS_DIR": str(TTS_MODELS_DIR),
         "HF_HUB_CACHE": str(Path.home() / ".cache" / "huggingface" / "hub"),
         "MANYING_TTS_CONTROL_TOKEN": TTS_TOKEN,
         "MANYING_TTS_ENGINE_MODE": os.environ.get("MANYING_TTS_ENGINE_MODE", "real"),
@@ -4332,7 +4350,7 @@ def start_tts_backend():
             "--port",
             str(TTS_PORT),
             "--data-dir",
-            str(APP_SUPPORT / "tts-runtime"),
+            str(TTS_RUNTIME_DIR),
         ],
         cwd=str(BACKEND_ROOT),
         env=env,
@@ -4419,8 +4437,8 @@ def create_direct_tts_audio(path, text, voice_profile, seed):
         sys.path.insert(0, str(BACKEND_ROOT))
     os.environ.setdefault("MANYING_TTS_ENGINE_MODE", "real")
     os.environ.setdefault("MANYING_TTS_QWEN_BACKEND", "mlx")
-    os.environ.setdefault("MANYING_TTS_MODELS_DIR", str(APP_SUPPORT / "tts-models"))
-    os.environ.setdefault("VOICEBOX_MODELS_DIR", str(APP_SUPPORT / "tts-models"))
+    os.environ.setdefault("MANYING_TTS_MODELS_DIR", str(TTS_MODELS_DIR))
+    os.environ.setdefault("VOICEBOX_MODELS_DIR", str(TTS_MODELS_DIR))
     os.environ.setdefault("HF_HUB_CACHE", str(Path.home() / ".cache" / "huggingface" / "hub"))
     from tts.engine import synthesize_to_wav
 

@@ -2,7 +2,7 @@
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
+import { persist, createJSONStorage, type StateStorage } from "zustand/middleware";
 import { fileStorage } from "@/lib/storage/indexed-db-storage";
 import { getFileStorageBridge } from "@/lib/bridge/file-storage";
 import { generateUUID } from "@/lib/utils";
@@ -30,6 +30,12 @@ interface ProjectStore {
 type FileStorageLike = {
   getItem: (key: string) => Promise<string | null>;
   listDirs?: (prefix: string) => Promise<string[]>;
+};
+
+const projectStorage: StateStorage = {
+  getItem: (name) => typeof window === "undefined" ? null : fileStorage.getItem(name),
+  setItem: (name, value) => typeof window === "undefined" ? undefined : fileStorage.setItem(name, value),
+  removeItem: (name) => typeof window === "undefined" ? undefined : fileStorage.removeItem(name),
 };
 
 // Default project for desktop app
@@ -135,7 +141,7 @@ export const useProjectStore = create<ProjectStore>()(
     }),
     {
       name: "mystudio-project-store",
-      storage: createJSONStorage(() => fileStorage),
+      storage: createJSONStorage(() => projectStorage),
       partialize: (state) => ({
         projects: state.projects,
         activeProjectId: state.activeProjectId,

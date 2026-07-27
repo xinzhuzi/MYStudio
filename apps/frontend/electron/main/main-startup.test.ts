@@ -61,7 +61,8 @@ describe("main process startup", () => {
     expect(readyBlock).not.toContain("assetsStorage.initAssetsStorage");
     expect(mainSource).toContain("registerAssetLibraryIpcHandlers");
     expect(assetLibraryIpcSource).toContain("const ensureAssetsStorageReady = () =>");
-    expect(assetLibraryIpcSource).toContain("assetsStorage.initAssetsStorage(getStorageBasePath())");
+    expect(assetLibraryIpcSource).toContain("const storageBasePath = getStorageBasePath()");
+    expect(assetLibraryIpcSource).toContain("assetsStorage.initAssetsStorage(storageBasePath)");
     expect(assetLibraryIpcSource).toContain("ensureAssetsStorageReady()");
   });
 

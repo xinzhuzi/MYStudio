@@ -2,6 +2,31 @@ import { describe, expect, it, vi } from "vitest";
 import { discoverProjectsFromDisk, recoverProjectFromDisk, useProjectStore } from "./project-store";
 
 describe("project disk recovery", () => {
+  it("does not read persisted storage while imported without a renderer window", async () => {
+    const getItem = vi.fn(async () => null);
+    const setItem = vi.fn(async () => undefined);
+    const removeItem = vi.fn(async () => undefined);
+    const previousWindow = globalThis.window;
+
+    vi.doMock("@/lib/storage/indexed-db-storage", () => ({
+      fileStorage: { getItem, setItem, removeItem },
+    }));
+    Reflect.deleteProperty(globalThis, "window");
+    vi.resetModules();
+
+    try {
+      const isolatedModule = await import("./project-store");
+
+      expect(getItem).not.toHaveBeenCalled();
+      await isolatedModule.useProjectStore.persist.rehydrate();
+      expect(getItem).not.toHaveBeenCalled();
+    } finally {
+      (globalThis as unknown as { window: Window | undefined }).window = previousWindow;
+      vi.doUnmock("@/lib/storage/indexed-db-storage");
+      vi.resetModules();
+    }
+  });
+
   it("keeps the stable persistence key and partialized project payload", () => {
     const project = {
       id: "p-contract",
@@ -13,6 +38,7 @@ describe("project disk recovery", () => {
     const partialize = options.partialize!;
 
     expect(options.name).toBe("mystudio-project-store");
+    expect(options.version).toBe(0);
     expect(partialize({
       ...useProjectStore.getState(),
       projects: [project],

@@ -598,7 +598,13 @@ export async function generateShotList(
   // Determine concurrency based on available keys
   const keyManager = new ApiKeyManager(options.apiKey);
   const keyCount = keyManager.getTotalKeyCount();
-  const concurrency = options.concurrency || Math.min(keyCount, 4); // Max 4 parallel
+  if (keyCount <= 0) {
+    throw new Error("API Key 未配置");
+  }
+  const requestedConcurrency = options.concurrency;
+  const concurrency = requestedConcurrency === undefined || !Number.isFinite(requestedConcurrency)
+    ? Math.min(keyCount, 4)
+    : Math.max(1, Math.floor(requestedConcurrency)); // Max 4 parallel
   
   console.log(`[generateShotList] Processing ${totalScenes} scenes with concurrency ${concurrency} (${keyCount} keys)`);
 

@@ -314,7 +314,7 @@ export function registerApiRequestIpcHandlers({
           if (chunk.type === "text-delta") {
             fullText += chunk.text;
             if (!event.sender.isDestroyed()) {
-              event.sender.send(`api-text-stream:${args.streamId}`, { delta: chunk.text });
+              event.sender.send(`api-text-stream:${args.streamId}`, chunk.text);
             }
           }
         }

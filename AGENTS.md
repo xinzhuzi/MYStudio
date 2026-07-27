@@ -27,3 +27,7 @@ Managed by Trellis. Edits outside this block are preserved; edits inside may be 
 本仓库的通用工程铁律——先验证再动手(铁律0)、下结论前三关、渐进式分段、大量内容用脚本处理(放 `apps/build/scripts/`)、子代理探子用法、禁止破坏性操作、严禁猜测、搜索 SOP(搜索前先读 `.trellis/spec/guides/search-sop-guide.md`)等——维护在 [`.claude/CLAUDE.md`](.claude/CLAUDE.md)。
 
 Codex / 其它 agent 处理本仓库时建议参照该文件的工程纪律;任务流程仍以 `.trellis/workflow.md` 为准。
+
+## macOS 打包与覆盖安装
+
+当用户明确说“打包”、“覆盖安装”或“打包覆盖安装”时，必须以 `apps/build/packaging/build-mac.sh` 为唯一入口。该脚本负责构建、覆盖安装到应用目录并运行 installed smoke；不得绕过它只执行局部构建、手动复制应用或以旧安装包代替本轮验证。

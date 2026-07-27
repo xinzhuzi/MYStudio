@@ -16,6 +16,7 @@ import {
   WorkflowIcon,
   Mic2Icon,
   BookOpenTextIcon,
+  Share2Icon,
   LucideIcon,
 } from "lucide-react";
 import { create } from "zustand";
@@ -28,7 +29,7 @@ import type {
 } from "@/types/script";
 
 // Tab-based navigation (simpler flat structure)
-export type Tab = "dashboard" | "overview" | "studio" | "script" | "characters" | "scenes" | "freedom" | "director" | "sclass" | "assets" | "media" | "skills" | "tts" | "export" | "settings";
+export type Tab = "dashboard" | "overview" | "studio" | "script" | "characters" | "scenes" | "freedom" | "director" | "sclass" | "assets" | "media" | "self-media" | "skills" | "tts" | "export" | "settings";
 
 export interface NavItem {
   id: Tab;
@@ -46,6 +47,7 @@ export const mainNavItems: NavItem[] = [
   { id: "tts", label: "TTS", icon: Mic2Icon },
   { id: "export", label: "导出", icon: FilmIcon },
   { id: "media", label: "产物", icon: VideoIcon },
+  { id: "self-media", label: "自媒体", icon: Share2Icon },
 ];
 
 // Bottom navigation items
@@ -80,6 +82,7 @@ export const tabs: { [key in Tab]: { icon: LucideIcon; label: string; stage?: St
   sclass: { icon: SparklesIcon, label: "S级", stage: "director" },
   assets: { icon: FolderOpenIcon, label: "资产" },
   media: { icon: VideoIcon, label: "产物" },
+  "self-media": { icon: Share2Icon, label: "自媒体" },
   skills: { icon: BookOpenTextIcon, label: "技能" },
   tts: { icon: Mic2Icon, label: "TTS" },
   export: { icon: FilmIcon, label: "导出", stage: "export" },
@@ -102,6 +105,7 @@ const projectLevelTabs = new Set<Tab>([
   "media",
   "skills",
   "tts",
+  "self-media",
 ]);
 
 function toNavigationSnapshot(state: Pick<MediaPanelStore, keyof NavigationSnapshot>): NavigationSnapshot {

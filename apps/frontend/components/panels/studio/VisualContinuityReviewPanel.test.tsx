@@ -7,6 +7,7 @@ import {
   normalizeContinuityAssetVersion,
   storyboardShotSemanticsFingerprint,
   visualContinuityFingerprint,
+  visualReviewInputFingerprint,
 } from "@/lib/studio/visual-continuity";
 import { VisualContinuityReviewPanel } from "./VisualContinuityReviewPanel";
 
@@ -171,6 +172,33 @@ describe("VisualContinuityReviewPanel", () => {
     }));
   });
 
+  it("uses the shot ordinal for the current position when storyboard indexes are sparse", () => {
+    render(<VisualContinuityReviewPanel
+      storyboards={[storyboard(20), storyboard(10)]}
+      continuityAssetVersions={continuityVersions()}
+      onReview={vi.fn()}
+      onReviewAsset={vi.fn()}
+    />);
+
+    expect(screen.getByText("当前第 1 / 2 镜")).toBeTruthy();
+    expect(screen.getByRole("img", { name: "当前镜第 10 镜画面" })).toBeTruthy();
+  });
+
+  it("switches the current image and position when selecting a storyboard thumbnail", () => {
+    render(<VisualContinuityReviewPanel
+      storyboards={[storyboard(1), storyboard(2), storyboard(3)]}
+      continuityAssetVersions={continuityVersions()}
+      onReview={vi.fn()}
+      onReviewAsset={vi.fn()}
+    />);
+
+    fireEvent.click(screen.getByRole("button", { name: "审核第 3 镜" }));
+
+    expect(screen.getByText("当前第 3 / 3 镜")).toBeTruthy();
+    expect(screen.getByRole("img", { name: "当前镜第 3 镜画面" }).getAttribute("src")).toBe("file:///frames/sb-3.png");
+    expect(screen.getByRole("img", { name: "上一镜第 2 镜画面" })).toBeTruthy();
+  });
+
   it("requires a reason for rejection and resets checks when navigating", () => {
     const onReview = vi.fn();
     render(<VisualContinuityReviewPanel
@@ -236,6 +264,48 @@ describe("VisualContinuityReviewPanel", () => {
     expect((screen.getByRole("button", { name: "批准第 1 镜" }) as HTMLButtonElement).disabled).toBe(true);
   });
 
+  it("keeps approval disabled for an explicitly stale storyboard after every check passes", () => {
+    const item = storyboard(1);
+    item.stale = true;
+    render(<VisualContinuityReviewPanel
+      storyboards={[item]}
+      continuityAssetVersions={continuityVersions()}
+      onReview={vi.fn()}
+      onReviewAsset={vi.fn()}
+    />);
+
+    fireEvent.click(screen.getByRole("checkbox", { name: /角色 dugu/ }));
+    fireEvent.click(screen.getByRole("checkbox", { name: /场景 dock:morning/ }));
+    fireEvent.click(screen.getByRole("checkbox", { name: /道具 prop:sword-wrap/ }));
+    fireEvent.click(screen.getByRole("checkbox", { name: /文字与水印/ }));
+
+    expect((screen.getByRole("button", { name: "批准第 1 镜" }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it("disables navigation at the boundaries and switches between adjacent shots", () => {
+    render(<VisualContinuityReviewPanel
+      storyboards={[storyboard(1), storyboard(2), storyboard(3)]}
+      continuityAssetVersions={continuityVersions()}
+      onReview={vi.fn()}
+      onReviewAsset={vi.fn()}
+    />);
+
+    const previous = screen.getByRole("button", { name: "审核上一镜" }) as HTMLButtonElement;
+    const next = screen.getByRole("button", { name: "审核下一镜" }) as HTMLButtonElement;
+    expect(previous.disabled).toBe(true);
+    expect(next.disabled).toBe(false);
+
+    fireEvent.click(next);
+    expect(screen.getByText("当前第 2 / 3 镜")).toBeTruthy();
+    expect(previous.disabled).toBe(false);
+    expect(next.disabled).toBe(false);
+
+    fireEvent.click(next);
+    expect(screen.getByText("当前第 3 / 3 镜")).toBeTruthy();
+    expect(previous.disabled).toBe(false);
+    expect(next.disabled).toBe(true);
+  });
+
   it("shows the persisted human review evidence and check totals for the selected shot", () => {
     const item = storyboard(1);
     item.visualReview = {
@@ -248,8 +318,8 @@ describe("VisualContinuityReviewPanel", () => {
       textWatermarkCheck: { passed: true },
       reviewer: "human",
       reviewedAt: 1,
-      evidencePaths: ["/reviews/sb-1-reviewed.png"],
-      inputFingerprint: visualContinuityFingerprint(item),
+      evidencePaths: ["/reviews/sb-1-reviewed.png", "/reviews/sb-1-reviewed-detail.png"],
+      inputFingerprint: visualReviewInputFingerprint(item),
     };
     render(<VisualContinuityReviewPanel
       storyboards={[item]}
@@ -261,13 +331,141 @@ describe("VisualContinuityReviewPanel", () => {
     expect(screen.getByText("人工审核")).toBeTruthy();
     expect(screen.getByText(/审核时间：/)).toBeTruthy();
     expect(screen.getByText("逐项检查：4 / 4 通过")).toBeTruthy();
-    expect(screen.getByText("画面证据：1 个")).toBeTruthy();
+    expect(screen.getByText("画面证据：2 个")).toBeTruthy();
     expect(screen.getByText("/reviews/sb-1-reviewed.png")).toBeTruthy();
+    expect(screen.getByText("/reviews/sb-1-reviewed-detail.png")).toBeTruthy();
     expect(screen.getByRole("img", { name: "当前镜第 1 镜画面" }).getAttribute("src")).toBe("file:///reviews/sb-1-reviewed.png");
     expect(screen.getByText("通过 · 角色 dugu")).toBeTruthy();
     expect(screen.getByText("通过 · 场景 dock:morning")).toBeTruthy();
     expect(screen.getByText("通过 · 道具 prop:sword-wrap")).toBeTruthy();
     expect(screen.getByText("通过 · 文字与水印")).toBeTruthy();
+  });
+
+  it("uses persisted review evidence when the generated media reference is unavailable", () => {
+    const item = storyboard(1);
+    item.mediaRef = undefined;
+    item.visualReview = {
+      status: "pending",
+      reasons: [],
+      characterChecks: [],
+      sceneChecks: [],
+      propChecks: [],
+      transitionChecks: [],
+      textWatermarkCheck: { passed: false },
+      reviewer: "automated",
+      evidencePaths: ["/reviews/sb-1-reviewed.png"],
+      inputFingerprint: visualReviewInputFingerprint(item),
+    };
+    const onReview = vi.fn();
+    render(<VisualContinuityReviewPanel
+      storyboards={[item]}
+      continuityAssetVersions={continuityVersions()}
+      onReview={onReview}
+      onReviewAsset={vi.fn()}
+    />);
+
+    expect(screen.getByRole("img", { name: "当前镜第 1 镜画面" }).getAttribute("src")).toBe("file:///reviews/sb-1-reviewed.png");
+    fireEvent.click(screen.getByRole("checkbox", { name: /角色 dugu/ }));
+    fireEvent.click(screen.getByRole("checkbox", { name: /场景 dock:morning/ }));
+    fireEvent.click(screen.getByRole("checkbox", { name: /道具 prop:sword-wrap/ }));
+    fireEvent.click(screen.getByRole("checkbox", { name: /文字与水印/ }));
+
+    const approve = screen.getByRole("button", { name: "批准第 1 镜" }) as HTMLButtonElement;
+    expect(approve.disabled).toBe(false);
+    fireEvent.click(approve);
+    expect(onReview).toHaveBeenCalledWith("sb-1", expect.objectContaining({
+      status: "approved",
+      evidencePaths: ["/reviews/sb-1-reviewed.png"],
+    }));
+  });
+
+  it("does not show stale review evidence over the current generated image", () => {
+    const item = storyboard(1);
+    item.mediaRef = { kind: "image", path: "/frames/current.png" };
+    item.visualReview = {
+      status: "pending",
+      reasons: [],
+      characterChecks: [],
+      sceneChecks: [],
+      propChecks: [],
+      transitionChecks: [],
+      textWatermarkCheck: { passed: false },
+      reviewer: "automated",
+      evidencePaths: ["/reviews/old.png"],
+      inputFingerprint: "stale-review-input",
+    };
+    render(<VisualContinuityReviewPanel
+      storyboards={[item]}
+      continuityAssetVersions={continuityVersions()}
+      onReview={vi.fn()}
+      onReviewAsset={vi.fn()}
+    />);
+
+    expect(screen.getByRole("img", { name: "当前镜第 1 镜画面" }).getAttribute("src")).toBe("file:///frames/current.png");
+    expect(screen.getByText(/审核输入已变化，必须重新审核/)).toBeTruthy();
+  });
+
+  it("falls back to a trimmed generated image when the first review path is blank", () => {
+    const item = storyboard(1);
+    item.mediaRef = { kind: "image", path: " /frames/fallback.png " };
+    item.visualReview = {
+      status: "pending",
+      reasons: [],
+      characterChecks: [],
+      sceneChecks: [],
+      propChecks: [],
+      transitionChecks: [],
+      textWatermarkCheck: { passed: false },
+      reviewer: "automated",
+      evidencePaths: ["   "],
+      inputFingerprint: visualReviewInputFingerprint(item),
+    };
+    const onReview = vi.fn();
+    render(<VisualContinuityReviewPanel
+      storyboards={[item]}
+      continuityAssetVersions={continuityVersions()}
+      onReview={onReview}
+      onReviewAsset={vi.fn()}
+    />);
+
+    expect(screen.getByRole("img", { name: "当前镜第 1 镜画面" }).getAttribute("src")).toBe("file:///frames/fallback.png");
+    fireEvent.click(screen.getByRole("checkbox", { name: /角色 dugu/ }));
+    fireEvent.click(screen.getByRole("checkbox", { name: /场景 dock:morning/ }));
+    fireEvent.click(screen.getByRole("checkbox", { name: /道具 prop:sword-wrap/ }));
+    fireEvent.click(screen.getByRole("checkbox", { name: /文字与水印/ }));
+    fireEvent.click(screen.getByRole("button", { name: "批准第 1 镜" }));
+
+    expect(onReview).toHaveBeenCalledWith("sb-1", expect.objectContaining({
+      evidencePaths: ["/frames/fallback.png"],
+    }));
+  });
+
+  it("blocks approval and shows a warning when both review and generated evidence are absent", () => {
+    const item = storyboard(1);
+    item.mediaRef = undefined;
+    item.visualReview = {
+      status: "pending",
+      reasons: [],
+      characterChecks: [],
+      sceneChecks: [],
+      propChecks: [],
+      transitionChecks: [],
+      textWatermarkCheck: { passed: false },
+      reviewer: "automated",
+      evidencePaths: ["   "],
+      inputFingerprint: visualReviewInputFingerprint(item),
+    };
+    render(<VisualContinuityReviewPanel
+      storyboards={[item]}
+      continuityAssetVersions={continuityVersions()}
+      onReview={vi.fn()}
+      onReviewAsset={vi.fn()}
+    />);
+
+    expect(screen.getAllByText("无画面证据")).toHaveLength(3);
+    expect(screen.getByText(/缺少当前镜画面证据/)).toBeTruthy();
+    expect(screen.getByText("画面证据：0 个")).toBeTruthy();
+    expect((screen.getByRole("button", { name: "批准第 1 镜" }) as HTMLButtonElement).disabled).toBe(true);
   });
 
   it("disables asset approval when safe thumbnail evidence is missing", () => {

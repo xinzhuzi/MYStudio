@@ -2,12 +2,14 @@ import { describe, expect, it } from "vitest";
 import type {
   AutoEditingRun,
   EditingProjectV1,
+  EditingValidationIssue,
   TimelineRenderRecord,
   TimelineRenderPlan,
 } from "@/types/editing";
 import {
   validateAutoEditingRun,
   validateEditingProject,
+  validateProposalEffectLinks,
   validateTimelineRenderPlan,
   validateTimelineRenderRecord,
 } from "./validation";
@@ -390,6 +392,44 @@ describe("editing boundary validation", () => {
     expect(disabledMismatchResult.issues).toEqual(expect.arrayContaining([
       expect.objectContaining({ code: "editing.proposal.effect_state" }),
     ]));
+  });
+
+  it("keeps proposal-effect link validation pure and order-stable", () => {
+    const accepted = proposal({ status: "accepted" });
+    const disabled = proposal({ id: "proposal-disabled", status: "disabled" });
+    const effects = [
+      linkedProposalEffect({ proposalId: "missing-proposal" }),
+      linkedProposalEffect({ id: "effect-disabled", proposalId: "proposal-disabled", enabled: true }),
+    ];
+    const issues: EditingValidationIssue[] = [];
+
+    validateProposalEffectLinks([accepted, disabled], effects, issues);
+
+    expect(issues).toEqual([
+      {
+        code: "editing.effect.proposal_missing",
+        path: "$.effects[0].proposalId",
+        message: "效果关联的建议不存在",
+      },
+      {
+        code: "editing.proposal.effect_link",
+        path: "$.proposals[0]",
+        message: "已接受或禁用建议必须关联唯一效果",
+      },
+      {
+        code: "editing.proposal.effect_state",
+        path: "$.proposals[1]",
+        message: "建议状态与关联效果启用状态不一致",
+      },
+    ]);
+
+    const validIssues: EditingValidationIssue[] = [];
+    validateProposalEffectLinks(
+      [proposal({ status: "accepted" })],
+      [linkedProposalEffect()],
+      validIssues,
+    );
+    expect(validIssues).toEqual([]);
   });
 
   it("validates auto-editing stages and decision evidence", () => {

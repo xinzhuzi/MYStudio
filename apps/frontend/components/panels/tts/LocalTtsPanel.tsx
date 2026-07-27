@@ -1,23 +1,10 @@
 "use client";
 
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  FolderOpen,
-  Loader2,
-  Play,
-  RefreshCw,
-  Server,
-  Unplug,
-  Upload,
-} from "lucide-react";
 import { toast } from "sonner";
 import { getStorageManagerBridge } from "@/lib/bridge/storage-manager";
 import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Textarea } from "@/components/ui/textarea";
 import {
   TTS_MODEL_GROUPS,
   applyModelStatuses,
@@ -26,9 +13,6 @@ import {
 import {
   getAllPresetVoices,
   getDefaultModelSizeForEngine,
-  getDefaultPresetVoiceId,
-  getPresetVoiceOptions,
-  getVoiceProfileType,
   resolvePresetVoiceSelection,
   supportsVoiceInstruction,
   validateVoiceProfileForGeneration,
@@ -49,8 +33,8 @@ import {
 } from "@/lib/tts/client";
 import type { TtsActiveTasksResponse, TtsEngine, TtsModelCacheInfo, TtsModelRow, TtsRuntimeStatus } from "@/types/tts";
 import { useTtsStore } from "@/stores/tts/tts-store";
-import { cn } from "@/lib/utils";
 import { VoiceProfileSection } from "./VoiceProfileSection";
+import { LocalTtsRuntimeCard } from "./LocalTtsRuntimeCard";
 import { applyLocalTtsRuntimeStatus, canApplyLocalTtsUpdate } from "./local-tts-panel-lifecycle";
 import {
   getLocalTtsModelState,
@@ -61,8 +45,6 @@ import {
   LocalTtsModelDetailsDialog,
   ModelRow,
   NativeTtsSelect,
-  RuntimeSetupProgress,
-  RuntimeStatusLine,
 } from "./LocalTtsPanelPresentation";
 
 const purposeGroups = groupTtsModelsByPurpose();
@@ -473,81 +455,22 @@ export function LocalTtsPanel() {
 
   const selectedProgress = selectedModel ? progressByModel[selectedModel.modelName] : undefined;
   const selectedState = selectedModel ? getLocalTtsModelState(selectedModel, selectedProgress) : "missing";
-  const scanPaths = modelCacheInfo?.scan_paths?.filter(Boolean) ?? [];
-  const runtimeSetupStage = runtimeStatus?.setupStage ?? "idle";
-  const runtimeSetupActive = ["checking", "downloading-python", "extracting-python", "installing-deps", "starting-backend"].includes(runtimeSetupStage);
 
   return (
     <ScrollArea className="h-full">
       <div className="p-8 max-w-6xl mx-auto space-y-6">
-        <div className="tts-glass-card rounded-2xl border border-border bg-card/50 backdrop-blur-xl p-5">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="min-w-0 flex-1">
-              <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
-                <Server className="h-5 w-5 text-primary" />
-                本地 TTS
-              </h3>
-              <div className="mt-2 space-y-1 text-sm">
-                <RuntimeStatusLine
-                  label="状态"
-                  value={runtimeStatus?.running
-                    ? (runtimeStatus.managed === false ? "运行中（残留进程）" : "运行中")
-                    : runtimeStatus?.installed
-                      ? "已安装，未运行"
-                      : "未安装"}
-                />
-                <RuntimeStatusLine label="后端" value={runtimeStatus?.baseUrl ?? "http://127.0.0.1:17593"} />
-                <RuntimeStatusLine label="运行数据" value={runtimeStatus?.cacheDir || "tts-runtime"} />
-                <RuntimeStatusLine label="Python" value={runtimeStatus?.pythonRuntimeDir || "启动时配置"} />
-                <RuntimeStatusLine label="模型缓存" value={modelCacheInfo?.path || "启动后读取"} />
-                <RuntimeStatusLine label="下载写入" value={modelCacheInfo?.download_path || "启动后读取"} />
-                <RuntimeStatusLine label="扫描路径" value={scanPaths.length ? scanPaths.join("；") : "启动后读取"} />
-              </div>
-              <RuntimeSetupProgress status={runtimeStatus} starting={starting} />
-              <div className="mt-4 grid grid-cols-1 gap-2 md:grid-cols-[1fr_auto_auto_auto_auto]">
-                <Button type="button" variant="outline" onClick={() => void handleSelectModelCacheDir()} disabled={applyingModelCacheDir || runtimeStatus?.running}>
-                  <FolderOpen className="mr-2 h-4 w-4" />
-                  选择模型目录
-                </Button>
-              </div>
-              {/* 展示扫描到的模型路径 */}
-              <div className="mt-3 space-y-1">
-                {draftModelCacheDir && (
-                  <div className="text-xs text-muted-foreground">
-                    当前路径：<span className="text-foreground">{draftModelCacheDir}</span>
-                  </div>
-                )}
-                {runtimeStatus?.defaultModelCacheDir && runtimeStatus.defaultModelCacheDir !== draftModelCacheDir && (
-                  <div className="text-xs text-muted-foreground">
-                    项目路径：<span className="text-foreground">{runtimeStatus.defaultModelCacheDir}</span>
-                  </div>
-                )}
-                {runtimeStatus?.systemModelCacheDir && runtimeStatus.systemModelCacheDir !== draftModelCacheDir && (
-                  <div className="text-xs text-muted-foreground">
-                    HF 路径：<span className="text-foreground">{runtimeStatus.systemModelCacheDir}</span>
-                  </div>
-                )}
-              </div>
-              <div className="mt-4 flex flex-wrap items-center gap-2">
-                <Button variant="outline" onClick={() => void handleManualRefresh()} disabled={refreshing}>
-                  <RefreshCw className={cn("mr-2 h-4 w-4", refreshing && "animate-spin")} />
-                  刷新
-                </Button>
-                {runtimeStatus?.running ? (
-                  <Button variant="outline" onClick={() => void handleStop()}>
-                    <Unplug className="mr-2 h-4 w-4" />
-                    停止
-                  </Button>
-                ) : (
-                  <Button onClick={() => void handleStart()} disabled={starting || runtimeSetupActive || runtimeStatus?.installed === false}>
-                    {starting || runtimeSetupActive ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}
-                    启动
-                  </Button>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
+        <LocalTtsRuntimeCard
+          runtimeStatus={runtimeStatus}
+          modelCacheInfo={modelCacheInfo}
+          draftModelCacheDir={draftModelCacheDir}
+          starting={starting}
+          refreshing={refreshing}
+          applyingModelCacheDir={applyingModelCacheDir}
+          onSelectModelCacheDir={() => void handleSelectModelCacheDir()}
+          onManualRefresh={() => void handleManualRefresh()}
+          onStart={() => void handleStart()}
+          onStop={() => void handleStop()}
+        />
 
         {activeTasks.downloads.length > 0 && (
           <div className="rounded-2xl border border-primary/20 bg-primary/5 backdrop-blur-lg p-4 text-sm text-primary">
@@ -600,167 +523,6 @@ export function LocalTtsPanel() {
           onReferencePath={setNewProfileReferencePath} onReferenceText={setNewProfileReferenceText} onInstruct={setNewProfileInstruct}
           onUpload={event => void handleReferenceAudioUpload(event)} onCreate={handleCreateProfile}
         />
-        {/* legacy voice profile markup moved to VoiceProfileSection */}
-        {false && <section className="tts-glass-card rounded-2xl border border-border bg-card/50 backdrop-blur-xl p-5">
-          <div className="mb-4 flex items-center justify-between gap-3">
-            <div>
-              <h4 className="text-sm font-semibold text-foreground">声线库</h4>
-              <p className="mt-1 text-xs text-muted-foreground">全局 VoiceProfile；分镜内再把旁白或角色绑定到具体 profile。</p>
-            </div>
-            <span className="text-xs text-muted-foreground">{voiceProfiles.length} 个 profile</span>
-          </div>
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_150px_160px]">
-            <div>
-              <Label className="text-xs text-muted-foreground">名称</Label>
-              <Input value={newProfileName} onChange={(event) => setNewProfileName(event.target.value)} className="mt-1" />
-            </div>
-            <div>
-              <Label className="text-xs text-muted-foreground">语言</Label>
-              <NativeTtsSelect value={newProfileLanguage} onValueChange={handleLanguageChange} className="mt-1">
-                <option value="zh">中文</option>
-                <option value="en">English</option>
-                <option value="ja">日本語</option>
-                <option value="ko">한국어</option>
-                <option value="es">Español</option>
-                <option value="fr">Français</option>
-              </NativeTtsSelect>
-            </div>
-            <div>
-              <Label className="text-xs text-muted-foreground">音色来源</Label>
-              <NativeTtsSelect
-                value={newProfileMode}
-                onValueChange={(v) => handleModeChange(v as "preset" | "clone")}
-                className="mt-1"
-              >
-                <option value="preset">从音色库选</option>
-                <option value="clone">上传参考音频克隆</option>
-              </NativeTtsSelect>
-            </div>
-            {newProfileMode === "preset" ? (
-              <>
-                <div className="md:col-span-3">
-                  <Label className="text-xs text-muted-foreground">音色</Label>
-                  <NativeTtsSelect
-                    value={newProfileVoiceId}
-                    onValueChange={setNewProfileVoiceId}
-                    className="mt-1"
-                  >
-                    <option value="" disabled>
-                      {unifiedPresetVoices.length > 0
-                        ? "选择音色（引擎自动确定）"
-                        : "当前语言下没有可用音色"}
-                    </option>
-                    {unifiedPresetVoices.map((voice) => (
-                      <option key={voice.id} value={voice.id}>
-                        {voice.name} · {voice.gender === "female" ? "女" : "男"} · {voice.engineLabel}
-                      </option>
-                    ))}
-                  </NativeTtsSelect>
-                  {unifiedPresetVoices.length === 0 && (
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      切换到「上传参考音频克隆」可创建自定义音色。
-                    </p>
-                  )}
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="md:col-span-3">
-                  <Label className="text-xs text-muted-foreground">克隆引擎</Label>
-                  <NativeTtsSelect value={newProfileEngine} onValueChange={(value) => handleEngineChange(value as TtsEngine)} className="mt-1">
-                    <option value="qwen">Qwen（中文最佳）</option>
-                    <option value="chatterbox">Chatterbox（多语种）</option>
-                    <option value="chatterbox_turbo">Chatterbox 极速版（英文）</option>
-                    <option value="luxtts">LuxTTS（高速英文）</option>
-                    <option value="tada">TADA 1B（英文长文本）</option>
-                  </NativeTtsSelect>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    引擎仅在克隆音色时可见；生成时系统按音色元数据自动选引擎。
-                  </p>
-                </div>
-                <div className="md:col-span-3">
-                  <Label className="text-xs text-muted-foreground">参考音频路径</Label>
-                  <div className="mt-1 flex gap-2">
-                    <Input
-                      value={newProfileReferencePath}
-                      onChange={(event) => setNewProfileReferencePath(event.target.value)}
-                      placeholder="/Users/.../voice.wav"
-                    />
-                    <input
-                      ref={referenceInputRef}
-                      type="file"
-                      accept="audio/*,.wav,.mp3,.m4a,.flac,.ogg"
-                      className="hidden"
-                      onChange={(event) => void handleReferenceAudioUpload(event)}
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => referenceInputRef.current?.click()}
-                      disabled={uploadingReference}
-                    >
-                      {uploadingReference ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
-                      上传
-                    </Button>
-                  </div>
-                </div>
-                <div className="md:col-span-3">
-                  <Label className="text-xs text-muted-foreground">参考文本</Label>
-                  <Textarea
-                    value={newProfileReferenceText}
-                    onChange={(event) => setNewProfileReferenceText(event.target.value)}
-                    rows={3}
-                    className="mt-1 resize-none"
-                  />
-                </div>
-              </>
-            )}
-            {(newProfileMode === "preset"
-              ? presetSelection?.engine === "qwen_custom_voice"
-              : supportsVoiceInstruction(newProfileEngine)) && (
-              <div className="md:col-span-3">
-                <Label className="text-xs text-muted-foreground">风格指令</Label>
-                <Textarea
-                  value={newProfileInstruct}
-                  onChange={(event) => setNewProfileInstruct(event.target.value)}
-                  rows={2}
-                  className="mt-1 resize-none"
-                  placeholder="例如：温柔、缓慢、像讲述悬疑旁白一样。"
-                />
-              </div>
-            )}
-          </div>
-          <div className="mt-4 flex justify-end">
-            <Button onClick={handleCreateProfile}>创建声线</Button>
-          </div>
-          {voiceProfiles.length > 0 && (
-            <div className="mt-4 divide-y divide-white/[0.06] rounded-xl border border-white/[0.08] bg-white/[0.02]">
-              {voiceProfiles.map((profile) => {
-                // 列表视图：用户只看到音色名（通过音色元数据反查中文展示名），引擎作为 tooltip
-                const voiceLabel = profile.presetVoiceId
-                  ? (() => {
-                      const options = getPresetVoiceOptions(profile.defaultEngine, profile.language);
-                      const match = options.find((v) => v.id === profile.presetVoiceId);
-                      return match ? match.name : profile.presetVoiceId;
-                    })()
-                  : profile.referenceAudioPath
-                    ? "克隆音色"
-                    : "—";
-                return (
-                  <div
-                    key={profile.id}
-                    className="grid grid-cols-[1fr_120px_140px] gap-3 px-3 py-2 text-sm"
-                    title={profile.defaultEngine ? `内部引擎：${profile.defaultEngine}` : undefined}
-                  >
-                    <span className="truncate text-foreground">{profile.name}</span>
-                    <span className="text-xs text-muted-foreground">{profile.type === "preset" ? "预设" : "克隆"}</span>
-                    <span className="truncate text-xs text-muted-foreground">{voiceLabel}</span>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </section>}
       </div>
 
       <LocalTtsModelDetailsDialog

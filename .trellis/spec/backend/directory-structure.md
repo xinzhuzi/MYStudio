@@ -67,8 +67,9 @@ start_tts_backend() -> subprocess.Popen | None
 ```
 
 Electron resolves the runtime from `<storageBasePath>/python`; the Daojie
-direct runner resolves its configured `APP_SUPPORT / "python"` directory and
-uses `apps/backend` only as `PYTHONPATH` and the subprocess working directory.
+direct runner resolves the same storage base from `MYSTUDIO_STORAGE_BASE_PATH`,
+`<userData>/storage-config.json`, or a development fallback, then uses
+`apps/backend` only as `PYTHONPATH` and the subprocess working directory.
 
 ### 3. Contracts
 
@@ -122,7 +123,7 @@ python_bin = BACKEND_ROOT / "python" / "bin" / "python3.12"
 #### Correct
 
 ```python
-python_bin = managed_python_executable_path(APP_SUPPORT / "python")
+python_bin = managed_python_executable_path(PYTHON_RUNTIME_DIR)
 if not python_bin.exists():
     raise RuntimeError("请先到设置里的 Python 配置页点击开始配置，完成 TTS 依赖安装")
 ```

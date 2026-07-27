@@ -44,6 +44,14 @@ navigation smoke must not be reported as real MP4 generation success.
 - Sanitize diagnostics before writing logs.
 - Add regression tests beside the affected code.
 
+## Source-contract test stability
+
+Tests that inspect Electron source text should assert the stable boundary
+contract (for example, lazy initialization through the context callback), not
+an incidental local-variable spelling. When a helper intentionally snapshots
+an externally visible source contract, keep the assertion focused on the
+observable call and add a behavior test for the actual runtime path.
+
 ## Cancellation and Optional Bridge Contracts
 
 Director generation cancellation has two ordered effects. `GenerationProgress`
@@ -67,6 +75,312 @@ the no-window case and object identity.
 Required regressions include cancel-before-store ordering, initialization
 failure recovery, late event suppression after cancel/supersession, and SSR
 bridge lookup without a browser `window`.
+
+## Scenario: local-only self-media provider boundary
+
+### 1. Scope / Trigger
+
+Main-process self-media IPC handlers receive `providerId` values from the
+renderer and resolve them through `SelfMediaProviderRegistry`. The product
+ships exactly one provider: the Electron-local `aitoearn-local` adapter.
+
+### 2. Signatures
+
+- `registry.get(providerId): SelfMediaProviderAdapter | undefined`
+- `SelfMediaProviderId = "aitoearn-local"`
+- Self-media list/create/login/poll/cancel handlers return `SelfMediaIpcReply<T>`.
+
+### 3. Contracts
+
+- Only `aitoearn-local` may reach the adapter path; it owns the four platform
+  bridges (`douyin`, `xhs`, `wxSph`, `KWAI`).
+- The renderer has no MCP client, remote provider, API-key configuration, or
+  fallback provider path. Login credentials remain main-process-only.
+- An unknown provider returns `{ success: false, error: { code:
+  "invalid-provider", message: "provider 无效" } }`.
+- IPC channel names and successful reply payloads remain unchanged.
+
+### 4. Validation & Error Matrix
+
+- Unknown provider before list/create/poll/cancel adapter call -> typed
+  `invalid-provider` reply.
+- Non-local or malformed login request -> existing `invalid-login-request`
+  reply before adapter lookup.
+- A historical MCP/remote provider id -> typed `invalid-provider` reply and
+  no adapter, network, or fallback invocation.
+- Adapter throws -> existing normalized provider error behavior.
+- Poll/cancel task with an invalid persisted provider -> typed
+  `invalid-provider` reply, never an uncaught `undefined` dereference.
+
+### 5. Good/Base/Bad Cases
+
+- Good: check the adapter result before invoking `.listAccounts`, `.summary`,
+  or an action method.
+- Base: preserve the `aitoearn-local` bridge and its typed IPC channel.
+- Bad: reintroduce `aitoearn-mcp`, a `remote:` capability, or a renderer-side
+  API-key fallback because a local adapter call failed.
+
+### 6. Tests Required
+
+- Send an unknown provider to list and create handlers and assert the exact
+  error code/message.
+- Keep valid provider publish, progress, and task state tests.
+- Search product code, package manifest, and lockfile for
+  `aitoearn-mcp`, `@modelcontextprotocol/sdk`, and `remote:`; all must be
+  absent.
+- Cover the Electron IPC channel inventory and preload surface separately.
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+```ts
+const adapter = registry.get(request.providerId);
+return adapter.listAccounts(request.projectId);
+```
+
+#### Correct
+
+```ts
+const adapter = registry.get(request.providerId);
+if (!adapter) return disabled("invalid-provider", "provider 无效");
+return adapter.listAccounts(request.projectId);
+```
+
+## Scenario: self-media asset and task safety
+
+### 1. Scope / Trigger
+
+Any local AiToEarn publish path that resolves renderer-selected assets or
+creates a retry/cancel task through the Electron main process.
+
+### 2. Signatures
+
+- `resolveAsset(projectId, asset): Promise<SelfMediaResolvedAsset>`
+- `createTask({ projectId, providerId, draft, previousTaskId? }): SelfMediaIpcReply<SelfMediaTask[]>`
+- `pollTask/cancelTask({ projectId, taskId }): SelfMediaIpcReply<SelfMediaTask>`
+- `decodeSelfMediaTaskRecord(value): SelfMediaTask`
+- `SelfMediaTaskRuntime.poll/execute/cancel(task): Promise<SelfMediaTask>`
+
+### 3. Contracts
+
+- Production local publishing must use the main-process resolver; renderer
+  URLs are never treated as filesystem paths by the provider adapter.
+- Absolute asset paths must be inside the configured project/media roots and
+  downloaded remote assets must use an explicitly allowlisted HTTPS host.
+- `previousTaskId` must identify a failed or expired-login task belonging to
+  the same project/provider; per-account retries reuse only that account.
+- Cancel errors return a typed failure reply and leave the task state intact;
+  terminal tasks reject further poll/cancel actions.
+- IPC replies, the journal, and the persisted Zustand slice rebuild task and
+  draft values from an allowlist. Credential-like and unknown fields are not
+  passed to the renderer or written to disk.
+- An asynchronous poll, scheduled publish, or cancel may commit only when the
+  current record still has the same `attemptId`, is non-terminal, and permits
+  the requested state transition.
+
+### 4. Validation & Error Matrix
+
+- Missing production resolver -> `asset-resolver-unavailable` and no provider request.
+- Absolute path outside an allowed root -> provider failure; no file read.
+- Non-HTTPS or non-allowlisted remote asset -> provider failure; no download.
+- Missing/cross-project/terminal retry source -> `invalid-previous-task`.
+- Unsupported cancel -> provider error reply; task remains `running`/`scheduled`.
+- Poll/cancel after a terminal status -> `task-terminal`.
+- Late poll/scheduled-publish completion after cancel -> ignored; `canceled`
+  remains the persisted terminal state.
+- Missing typed `createTask` bridge during retry -> a visible failure; no
+  renderer-only task or apparent success.
+
+### 5. Good/Base/Bad Cases
+
+- Good: resolve `project-file://` and `local-image://` in main, then enforce
+  canonical roots again in the local adapter.
+- Base: retain one immutable task record per attempt and link retries with
+  `previousTaskId`.
+- Base: retain only the documented task/draft fields after a journal round trip.
+- Bad: pass `approvedUrl` directly to a local adapter when no resolver is
+  installed, fetch arbitrary HTTP URLs, let a late result overwrite a terminal
+  task, or persist cookies/tokens with a draft.
+
+### 6. Tests Required
+
+- Assert resolver enforcement, root traversal rejection, and HTTPS-only
+  materialization.
+- Assert retry-source project/provider/status validation and account scoping.
+- Assert unsupported cancel preserves the original task and terminal actions
+  are rejected.
+- Assert late poll and scheduled results cannot overwrite cancellation; assert
+  credential-like and unknown fields are rejected at IPC, journal, and store
+  persistence boundaries.
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+```ts
+if (asset.approvedUrl) return { assetId, url: asset.approvedUrl, kind };
+```
+
+#### Correct
+
+```ts
+if (resolveAsset) return resolveAsset(projectId, asset);
+if (localBridge) throw new SelfMediaProviderError(providerId, "asset-resolver-unavailable", "主进程未提供受控资产解析器");
+```
+
+## Scenario: reviewed local AiToEarn snapshot upgrade
+
+### 1. Scope / Trigger
+
+Apply when refreshing the vendored AiToEarn Electron core under
+`electron/aitoearn/vendor/aitoearn-core/`. The snapshot is upstream-owned;
+the MYStudio adapter, IPC, UI, store, manifest, and compatibility matrix are
+not upstream sync targets.
+
+### 2. Signatures
+
+- `runSync(check|dry-run|apply, --source-root, --manifest, --compatibility-matrix)`
+- Source manifest `adapterContractVersion = "self-media/v1"`
+- Matrix local entry `{ providerId: "aitoearn-local", upstreamCommit }`
+
+### 3. Contracts
+
+- `check` and `dry-run` validate the exact adapter contract, source hashes,
+  MIT notice, source manifest, and reviewed compatibility matrix without
+  modifying the vendor root.
+- `apply` requires `--approve` plus the exact reviewed full commit. Its matrix
+  entry must match the replacement commit before the atomic snapshot swap.
+- Source entries, stale entries, and license metadata may not target the
+  source manifest, previous manifest, license notice, adapter metadata, or any
+  MYStudio-owned path. Source, vendor, and staging trees must contain no
+  symlinks.
+- An apply writes only listed vendor source files, preserves control files and
+  a previous snapshot, and makes no network or platform publish call.
+
+### 4. Validation & Error Matrix
+
+- Wrong `adapterContractVersion` -> reject before reading/copying the source.
+- Unreviewed or malformed ref -> reject before staging or rename.
+- Matrix contract/commit mismatch -> reject apply; no vendor-root replacement.
+- Reserved path or symlink -> reject check and apply; never follow the path.
+- Tampered current snapshot -> block apply until a known-good snapshot is
+  restored.
+- Swap or manifest-write failure -> restore the exact old vendor root and
+  manifest; do not delete an existing rollback.
+
+### 5. Good/Base/Bad Cases
+
+- Good: review a commit, update the local compatibility matrix deliberately,
+  then run `dry-run` and `apply --approve --reviewed-ref <40-char-sha>`.
+- Base: a pinned source whose checksum and matrix already match reports no
+  unsafe replacement.
+- Bad: copy an upstream tree over the vendor directory, permit a symlinked
+  manifest entry, or let sync overwrite MYStudio adapter/UI/storage files.
+
+### 6. Tests Required
+
+- Cover contract-version, reserved-path, symlink, unreviewed-ref,
+  compatibility-matrix, stale/tampered snapshot, rollback, and protected
+  sentinel cases in `sync-aitoearn-core.test.mjs`.
+- Assert the shipped matrix commit and contract version match the source
+  manifest.
+- Keep the mocked upgrade smoke at `networkRequests=0` and
+  `externalPublishAttempts=0`; then run the focused suite, typecheck, lint,
+  full Vitest, macOS packaging, and packaged desktop smoke.
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+```ts
+await cp(sourceRoot, vendorRoot, { recursive: true, force: true });
+```
+
+#### Correct
+
+```ts
+await runSync([
+  "apply", "--source-root", sourceRoot, "--approve",
+  "--reviewed-ref", reviewedCommit,
+]);
+// runSync validates the local matrix, stages, swaps atomically, and rolls back on failure.
+```
+
+## Scenario: vendored snapshot native-module boundary
+
+### 1. Scope / Trigger
+
+Any bare import pulled in from `electron/aitoearn/vendor/aitoearn-core/`, or any
+new dependency reachable from an Electron main entry in
+`frontend/config/electron-vite.config.ts`.
+
+### 2. Signatures
+
+- `sharedAlias` in `frontend/config/electron-vite.config.ts`
+- `electron/aitoearn/providers/aitoearn-local/compatibility/<module>.ts`
+
+### 3. Contracts
+
+- The main bundle must contain no native module. rollup cannot bundle a `.node`
+  binary, so a native import survives typecheck, lint, Vitest, and the dev run,
+  then crashes the packaged app at startup.
+- A vendor bare import is redirected through `sharedAlias` to a named shim under
+  `providers/aitoearn-local/compatibility/`. The vendor file is never edited.
+- A shim implements only the surface the vendor actually consumes. Do not port
+  the upstream module's full API.
+- A dependency used only by a shim replacement stays out of `dependencies`; it
+  must not be required at runtime.
+
+### 4. Validation & Error Matrix
+
+- Native import reaches the main bundle -> packaged app throws
+  `Could not load the "<module>" module using the <platform> runtime` at
+  `app.asar/out/main/index.cjs` before the window opens.
+- Shim missing an API the vendor calls -> `TypeError` at publish time, not build
+  time; the shim's regression test must cover every consumed method.
+- Unsupported input -> the shim throws a typed error. It never returns zeroed or
+  guessed values, which would silently corrupt an upload.
+
+### 5. Good/Base/Bad Cases
+
+- Good: `sharp` is consumed only as `sharp(buffer).metadata()` for width/height
+  (`vendor/.../plat/utils/index.ts:38`), so `compatibility/sharp.ts` wraps the
+  existing pure-JS `image-size` reader.
+- Base: keep each shim aligned with the upstream source path it replaces and
+  record it in `compatibility/provider-matrix.json` `requiredShims`.
+- Bad: add the native package to `dependencies` plus `asarUnpack`, or mark it
+  external, to make the bundler stop complaining.
+
+### 6. Tests Required
+
+- One regression test per shim covering each consumed method and the
+  fail-closed path.
+- After changing a shim or alias, rebuild and assert the produced
+  `apps/out/main/index.cjs` contains no native binary reference, then package and
+  scan the installed `app.asar` bytes for the same reference.
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+```ts
+// devDependencies-only native module bundled into the main process
+import sharp from "sharp";
+const { width, height } = await sharp(buffer).metadata();
+```
+
+#### Correct
+
+```ts
+// frontend/config/electron-vite.config.ts
+sharp: path.join(aitoearnCompatibility, "sharp.ts"),
+
+// compatibility/sharp.ts — only the consumed surface, fail-closed on bad input
+export default function sharp(buffer: Buffer): SharpInstance {
+  return { async metadata() { const { width, height, type } = imageSize(buffer); return { width, height, format: type }; } };
+}
+```
 
 ---
 

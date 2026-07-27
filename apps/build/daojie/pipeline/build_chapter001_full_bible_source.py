@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -18,16 +19,19 @@ from PIL import Image, ImageOps
 
 try:
     from apps.build.daojie.pipeline import daojie_gongbi_v2
+    from apps.build.daojie.path_resolver import resolve_asset_files_dir, resolve_project_dir
 except ModuleNotFoundError:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
     from daojie_gongbi_v2 import daojie_gongbi_v2
+    from path_resolver import resolve_asset_files_dir, resolve_project_dir
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[4]
-PROJECT_DIR = Path.home() / "Library/Application Support/漫影工作室/projects/_p/49dce4c1-64b1-42de-85c2-9f266698aec0"
+PROJECT_DIR = resolve_project_dir(required=False)
 STORE_PATH = PROJECT_DIR / "studio-workflow-store.json"
 TASK_RESEARCH = REPOSITORY_ROOT / ".trellis/tasks/07-12-mystudio-chapter001-visual-continuity/research"
 AUTOMATION_ROOT = REPOSITORY_ROOT / "apps/output/automation"
-ASSET_FILES = Path.home() / "Library/Application Support/漫影工作室/assets/files"
+ASSET_FILES = resolve_asset_files_dir()
 GENERATED_ROOT = AUTOMATION_ROOT / "chapter001-v5-full-bible-generated"
 SOURCE_ROOT = AUTOMATION_ROOT / "chapter001-v5-full-bible-source"
 ART_DIRECTION_VERSION = daojie_gongbi_v2.STYLE_CONTRACT_VERSION

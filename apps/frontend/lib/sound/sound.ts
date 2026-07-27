@@ -1,13 +1,27 @@
 "use client";
 
 /**
- * MYStudio 高端 UI 音效系统
+ * MYStudio 电影级 UI 音效系统
  *
- * 设计目标：模仿 Apple Vision Pro / Tesla / Hermes 那种"清脆的瞬态"激活音
- * 关键技术：噪声瞬态 + 双谐波 + 谐振低通，让声音有"啪"的物理质感
+ * 设计目标：影厅里按下一个实体键的听感 —— 低频有重量、高频只留一点微光、
+ * 尾部有一层自然消散的空气残响。刻意避开旧版的高 Q 谐振金属声。
+ *
+ * 分层结构（每个音效都由同一个 voice 合成）：
+ *   1. body    低频正弦，频率轻微下滑，模拟键落底的重量
+ *   2. sub     低八度垫底，只给胸腔感不给音高
+ *   3. sparkle 极轻的高频噪声微光，2ms 起、28ms 灭，点出"按下"的瞬间
+ *   4. air     低通噪声长尾，模拟空气残响
+ *
  * - 不依赖任何音频资源
- * - 首次点击时自动激活 AudioContext（解决 Chrome 策略限制）
+ * - 首次点击时自动激活 AudioContext（解决 Chrome 自动播放策略限制）
+ * - 峰值约为旧金属谐振版本的 25%
  */
+
+/** 主输出增益：整体音量的唯一闸门 */
+const MASTER_GAIN = 0.16;
+
+/** 旧版 activate 的线性峰值（masterGain 0.4 × (噪声 0.5 + 谐波 0.4)），用于回归断言 */
+export const LEGACY_PEAK = 0.36;
 
 let _ctx: AudioContext | null = null;
 let _masterGain: GainNode | null = null;
@@ -25,7 +39,7 @@ function getCtx(): AudioContext | null {
     if (!Ctor) return null;
     _ctx = new Ctor();
     _masterGain = _ctx.createGain();
-    _masterGain.gain.value = 0.4;
+    _masterGain.gain.value = MASTER_GAIN;
     _masterGain.connect(_ctx.destination);
     return _ctx;
   } catch {
@@ -44,190 +58,166 @@ function getNoiseBuffer(ctx: AudioContext): AudioBuffer {
   return buf;
 }
 
-/** 噪声瞬态 + 谐振低通 → "啪"的金属感 */
-function makeClickTransient(ctx: AudioContext, dest: AudioNode, opts: {
-  freq: number;
-  q: number;
-  noiseLevel: number;
-  oscLevel: number;
-  duration: number;
+export interface VoiceProfile {
+  /** body 起始频率（Hz） */
+  bodyFreq: number;
+  /** body 落点频率倍率，<1 下滑、>1 上扬 */
+  bodyDrop: number;
+  bodyLevel: number;
+  /** 低八度垫底电平，0 表示不加 */
+  subLevel: number;
+  sparkleFreq: number;
+  /** 高频微光电平，0 表示纯低频 */
+  sparkleLevel: number;
+  /** 空气尾电平，0 表示干声 */
+  airLevel: number;
+  /** 空气尾时长（秒） */
+  airDecay: number;
   attack: number;
   decay: number;
-}) {
-  const now = ctx.currentTime;
-
-  // 1. 噪声瞬态（提供"啪"的攻击感）
-  const noise = ctx.createBufferSource();
-  noise.buffer = getNoiseBuffer(ctx);
-  const noiseFilter = ctx.createBiquadFilter();
-  noiseFilter.type = "bandpass";
-  noiseFilter.frequency.value = opts.freq * 4;
-  noiseFilter.Q.value = 2;
-  const noiseGain = ctx.createGain();
-  noiseGain.gain.setValueAtTime(0, now);
-  noiseGain.gain.linearRampToValueAtTime(opts.noiseLevel, now + opts.attack);
-  noiseGain.gain.exponentialRampToValueAtTime(0.0001, now + opts.attack + opts.decay * 0.3);
-  noise.connect(noiseFilter).connect(noiseGain).connect(dest);
-  noise.start(now);
-  noise.stop(now + opts.attack + opts.decay * 0.3 + 0.01);
-
-  // 2. 谐振低通的双谐波（提供"叮"的金属感）
-  const osc1 = ctx.createOscillator();
-  osc1.type = "sine";
-  osc1.frequency.setValueAtTime(opts.freq, now);
-  osc1.frequency.exponentialRampToValueAtTime(opts.freq * 0.5, now + opts.duration);
-
-  const osc2 = ctx.createOscillator();
-  osc2.type = "sine";
-  osc2.frequency.setValueAtTime(opts.freq * 1.5, now);
-  osc2.frequency.exponentialRampToValueAtTime(opts.freq * 0.75, now + opts.duration);
-
-  // 谐振低通（关键：增加金属感）
-  const resFilter = ctx.createBiquadFilter();
-  resFilter.type = "lowpass";
-  resFilter.frequency.value = opts.freq * 3;
-  resFilter.Q.value = opts.q;
-
-  const oscGain = ctx.createGain();
-  oscGain.gain.setValueAtTime(0, now);
-  oscGain.gain.linearRampToValueAtTime(opts.oscLevel, now + opts.attack);
-  oscGain.gain.exponentialRampToValueAtTime(0.0001, now + opts.duration);
-
-  osc1.connect(oscGain);
-  osc2.connect(oscGain);
-  oscGain.connect(resFilter);
-  resFilter.connect(dest);
-
-  osc1.start(now);
-  osc2.start(now);
-  osc1.stop(now + opts.duration);
-  osc2.stop(now + opts.duration);
+  /** body/sub 的总低通，去掉金属感的关键 */
+  lowpass: number;
 }
 
-/** 激活音：清脆的"啪"+"叮"，Apple Vision Pro 风格 */
-function playActivate() {
-  const ctx = getCtx();
-  if (!ctx || !_masterGain) return;
-
-  makeClickTransient(ctx, _masterGain, {
-    freq: 1200,        // 主频
-    q: 8,              // 高谐振
-    noiseLevel: 0.5,   // 噪声瞬态
-    oscLevel: 0.4,     // 谐波
-    duration: 0.08,    // 短促
-    attack: 0.001,     // 极快起音
-    decay: 0.04,
-  });
+/** 单个 voice 的理论线性峰值（各层同时到顶的最坏情况） */
+export function voicePeak(p: VoiceProfile): number {
+  return (p.bodyLevel + p.subLevel + p.sparkleLevel + p.airLevel) * MASTER_GAIN;
 }
 
-/** 轻点击音：更轻的"嗒" */
-function playClick() {
-  const ctx = getCtx();
-  if (!ctx || !_masterGain) return;
+function playVoice(ctx: AudioContext, dest: AudioNode, p: VoiceProfile, at: number) {
+  const now = at;
+  const end = now + p.decay;
 
-  makeClickTransient(ctx, _masterGain, {
-    freq: 900,
-    q: 6,
-    noiseLevel: 0.35,
-    oscLevel: 0.25,
-    duration: 0.05,
-    attack: 0.001,
-    decay: 0.025,
-  });
-}
+  // 总低通：body 与 sub 都经过它，保证听感是"沉"而不是"叮"
+  const tone = ctx.createBiquadFilter();
+  tone.type = "lowpass";
+  tone.frequency.value = p.lowpass;
+  tone.Q.value = 0.7;
+  tone.connect(dest);
 
-/** 成功音：双音"叮咚"，上扬确认感 */
-function playSuccess() {
-  const ctx = getCtx();
-  if (!ctx || !_masterGain) return;
-  const now = ctx.currentTime;
+  const body = ctx.createOscillator();
+  body.type = "sine";
+  body.frequency.setValueAtTime(p.bodyFreq, now);
+  body.frequency.exponentialRampToValueAtTime(p.bodyFreq * p.bodyDrop, end);
+  const bodyGain = ctx.createGain();
+  bodyGain.gain.setValueAtTime(0.0001, now);
+  bodyGain.gain.exponentialRampToValueAtTime(p.bodyLevel, now + p.attack);
+  bodyGain.gain.exponentialRampToValueAtTime(0.0001, end);
+  body.connect(bodyGain).connect(tone);
+  body.start(now);
+  body.stop(end + 0.02);
 
-  // 第一声
-  makeClickTransient(ctx, _masterGain, {
-    freq: 1100, q: 8, noiseLevel: 0.45, oscLevel: 0.4,
-    duration: 0.07, attack: 0.001, decay: 0.035,
-  });
-  // 间隔 60ms 后第二声（更高）
-  setTimeout(() => {
-    if (!ctx || !_masterGain) return;
-    const t = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    osc.type = "sine";
-    osc.frequency.setValueAtTime(1500, t);
-    osc.frequency.exponentialRampToValueAtTime(1500, t + 0.1);
-    const g = ctx.createGain();
-    g.gain.setValueAtTime(0, t);
-    g.gain.linearRampToValueAtTime(0.35, t + 0.005);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
-    const f = ctx.createBiquadFilter();
-    f.type = "lowpass"; f.frequency.value = 4000; f.Q.value = 4;
-    osc.connect(g).connect(f).connect(_masterGain);
-    osc.start(t); osc.stop(t + 0.15);
-  }, 60);
-}
+  if (p.subLevel > 0) {
+    const sub = ctx.createOscillator();
+    sub.type = "sine";
+    sub.frequency.setValueAtTime(p.bodyFreq * 0.5, now);
+    const subGain = ctx.createGain();
+    subGain.gain.setValueAtTime(0.0001, now);
+    subGain.gain.exponentialRampToValueAtTime(p.subLevel, now + p.attack * 1.5);
+    subGain.gain.exponentialRampToValueAtTime(0.0001, end);
+    sub.connect(subGain).connect(tone);
+    sub.start(now);
+    sub.stop(end + 0.02);
+  }
 
-/** 取消音：下行"噗"，柔和的否认感 */
-function playCancel() {
-  const ctx = getCtx();
-  if (!ctx || !_masterGain) return;
-  const now = ctx.currentTime;
+  // 微光走独立支路：它本来就在总低通之上，经过 tone 会被完全削掉
+  if (p.sparkleLevel > 0) {
+    const sparkle = ctx.createBufferSource();
+    sparkle.buffer = getNoiseBuffer(ctx);
+    const sparkleFilter = ctx.createBiquadFilter();
+    sparkleFilter.type = "bandpass";
+    sparkleFilter.frequency.value = p.sparkleFreq;
+    sparkleFilter.Q.value = 1.2;
+    const sparkleGain = ctx.createGain();
+    sparkleGain.gain.setValueAtTime(0.0001, now);
+    sparkleGain.gain.exponentialRampToValueAtTime(p.sparkleLevel, now + 0.002);
+    sparkleGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.028);
+    sparkle.connect(sparkleFilter).connect(sparkleGain).connect(dest);
+    sparkle.start(now);
+    sparkle.stop(now + 0.04);
+  }
 
-  const osc = ctx.createOscillator();
-  osc.type = "sine";
-  osc.frequency.setValueAtTime(500, now);
-  osc.frequency.exponentialRampToValueAtTime(180, now + 0.15);
-
-  const g = ctx.createGain();
-  g.gain.setValueAtTime(0, now);
-  g.gain.linearRampToValueAtTime(0.3, now + 0.005);
-  g.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
-
-  const f = ctx.createBiquadFilter();
-  f.type = "lowpass";
-  f.frequency.value = 800;
-  f.Q.value = 2;
-
-  osc.connect(g).connect(f).connect(_masterGain);
-  osc.start(now);
-  osc.stop(now + 0.2);
-}
-
-/** 滑动音：上传/下载进度条等 */
-function playSlide() {
-  const ctx = getCtx();
-  if (!ctx || !_masterGain) return;
-
-  const osc = ctx.createOscillator();
-  osc.type = "sine";
-  const now = ctx.currentTime;
-  osc.frequency.setValueAtTime(300, now);
-  osc.frequency.exponentialRampToValueAtTime(600, now + 0.06);
-
-  const g = ctx.createGain();
-  g.gain.setValueAtTime(0, now);
-  g.gain.linearRampToValueAtTime(0.18, now + 0.003);
-  g.gain.exponentialRampToValueAtTime(0.0001, now + 0.08);
-
-  osc.connect(g).connect(_masterGain);
-  osc.start(now);
-  osc.stop(now + 0.1);
+  // 空气尾：噪声经过持续下滑的低通，听起来像残响自然变暗而不是被剪断
+  if (p.airLevel > 0) {
+    const air = ctx.createBufferSource();
+    air.buffer = getNoiseBuffer(ctx);
+    const airFilter = ctx.createBiquadFilter();
+    airFilter.type = "lowpass";
+    airFilter.frequency.setValueAtTime(900, now);
+    airFilter.frequency.exponentialRampToValueAtTime(320, now + p.airDecay);
+    airFilter.Q.value = 0.5;
+    const airGain = ctx.createGain();
+    airGain.gain.setValueAtTime(0.0001, now);
+    airGain.gain.exponentialRampToValueAtTime(p.airLevel, now + 0.012);
+    airGain.gain.exponentialRampToValueAtTime(0.0001, now + p.airDecay);
+    air.connect(airFilter).connect(airGain).connect(dest);
+    air.start(now);
+    air.stop(now + p.airDecay + 0.02);
+  }
 }
 
 export type SoundEffect = "activate" | "click" | "success" | "cancel" | "slide";
 
-const PLAYERS: Record<SoundEffect, () => void> = {
-  activate: playActivate,
-  click: playClick,
-  success: playSuccess,
-  cancel: playCancel,
-  slide: playSlide,
+/** 成功音的第二声延迟（秒），用 AudioContext 时钟而不是 setTimeout，保证采样级准确 */
+const SUCCESS_TAIL_DELAY = 0.09;
+
+export const SOUND_PROFILES: Record<SoundEffect, VoiceProfile> = {
+  /** 主按钮：最完整的一击，body + sub + 微光 + 空气尾 */
+  activate: {
+    bodyFreq: 92, bodyDrop: 0.68, bodyLevel: 0.30, subLevel: 0.14,
+    sparkleFreq: 2600, sparkleLevel: 0.05,
+    airLevel: 0.06, airDecay: 0.18,
+    attack: 0.008, decay: 0.16, lowpass: 1200,
+  },
+  /** 轻交互：同一把嗓子，压低并收短 */
+  click: {
+    bodyFreq: 110, bodyDrop: 0.72, bodyLevel: 0.20, subLevel: 0.08,
+    sparkleFreq: 2900, sparkleLevel: 0.035,
+    airLevel: 0.035, airDecay: 0.11,
+    attack: 0.006, decay: 0.10, lowpass: 1400,
+  },
+  /** 成功：第一声偏亮，随后叠一层更暖的尾（见 playSuccess） */
+  success: {
+    bodyFreq: 124, bodyDrop: 0.78, bodyLevel: 0.24, subLevel: 0.10,
+    sparkleFreq: 2800, sparkleLevel: 0.045,
+    airLevel: 0.05, airDecay: 0.16,
+    attack: 0.007, decay: 0.14, lowpass: 1300,
+  },
+  /** 取消：更低、下滑更多、尾更长，是"沉下去"而不是"噗" */
+  cancel: {
+    bodyFreq: 78, bodyDrop: 0.55, bodyLevel: 0.26, subLevel: 0.16,
+    sparkleFreq: 1800, sparkleLevel: 0.02,
+    airLevel: 0.07, airDecay: 0.26,
+    attack: 0.010, decay: 0.24, lowpass: 900,
+  },
+  /** 滑动：唯一上扬的一条，几乎只剩气声 */
+  slide: {
+    bodyFreq: 140, bodyDrop: 1.25, bodyLevel: 0.12, subLevel: 0,
+    sparkleFreq: 3200, sparkleLevel: 0.02,
+    airLevel: 0.02, airDecay: 0.08,
+    attack: 0.005, decay: 0.07, lowpass: 1600,
+  },
+};
+
+/** 成功音的第二声：比第一声高一个五度、更暖、尾更长 */
+export const SUCCESS_TAIL_PROFILE: VoiceProfile = {
+  bodyFreq: 186, bodyDrop: 0.92, bodyLevel: 0.20, subLevel: 0.08,
+  sparkleFreq: 3000, sparkleLevel: 0.03,
+  airLevel: 0.07, airDecay: 0.30,
+  attack: 0.012, decay: 0.22, lowpass: 1500,
 };
 
 /** 播放音效 */
 export function playSound(effect: SoundEffect) {
   if (_muted) return;
   try {
-    PLAYERS[effect]();
+    const ctx = getCtx();
+    if (!ctx || !_masterGain) return;
+    const now = ctx.currentTime;
+    playVoice(ctx, _masterGain, SOUND_PROFILES[effect], now);
+    if (effect === "success") {
+      playVoice(ctx, _masterGain, SUCCESS_TAIL_PROFILE, now + SUCCESS_TAIL_DELAY);
+    }
   } catch {
     // ignore
   }
@@ -238,7 +228,7 @@ export function setSoundMuted(muted: boolean) {
   _muted = muted;
 }
 
-/** 初始化音频上下文（首次用户点击时调用） */
+/** 初始化音频上下文（首次用户交互时调用） */
 export function initSound() {
   getCtx();
 }

@@ -55,7 +55,7 @@ describe("Remotion fixed bundle", () => {
   it("resolves the fixed output directory", () => {
     const appRoot = "/workspace/apps";
     expect(resolveCompositionEntry({ appRoot })).toBe(
-      "/workspace/apps/rendering/plugins/remotion/composition/entry.tsx",
+      "/workspace/apps/frontend/electron/rendering/plugins/remotion/composition/entry.tsx",
     );
     expect(resolveBundleOutput({ appRoot })).toBe(
       "/workspace/apps/.cache/remotion-bundle",
@@ -64,9 +64,9 @@ describe("Remotion fixed bundle", () => {
 
   it("bundles once into a temporary directory and writes a pinned manifest", async () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "mystudio-remotion-bundle-"));
-    fs.mkdirSync(path.join(root, "rendering/plugins/remotion/composition"), { recursive: true });
+    fs.mkdirSync(path.join(root, "frontend/electron/rendering/plugins/remotion/composition"), { recursive: true });
     fs.writeFileSync(
-      path.join(root, "rendering/plugins/remotion/composition/entry.tsx"),
+      path.join(root, "frontend/electron/rendering/plugins/remotion/composition/entry.tsx"),
       "export default {};\n",
       "utf8",
     );

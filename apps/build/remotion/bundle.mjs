@@ -8,7 +8,7 @@ export const BUNDLE_MANIFEST_SCHEMA_VERSION = 1;
 
 // The composition entry and manifest are deliberately fixed. Export paths only
 // consume this output; they never invoke the bundler per render job.
-export const FIXED_COMPOSITION_ENTRY = "rendering/plugins/remotion/composition/entry.tsx";
+export const FIXED_COMPOSITION_ENTRY = "frontend/electron/rendering/plugins/remotion/composition/entry.tsx";
 export const FIXED_COMPOSITION_ID = "DaojieTimeline";
 export const BUNDLE_OUTPUT_DIR = ".cache/remotion-bundle";
 

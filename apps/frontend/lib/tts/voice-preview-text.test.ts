@@ -69,7 +69,7 @@ describe("voice preview text", () => {
       findReferenceTextForVoiceProfile(
         {
           ...profile(),
-          referenceAudioPath: "/Users/me/assets/files/audio/军士-男-低音、厚实、强壮.wav",
+          referenceAudioPath: "/tmp/mystudio-storage/assets/files/audio/军士-男-低音、厚实、强壮.wav",
         },
         [],
       ),

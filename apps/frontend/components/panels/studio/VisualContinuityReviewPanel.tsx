@@ -11,6 +11,7 @@ import {
   storyboardContinuityStateIssues,
   storyboardPrimarySceneIssues,
   storyboardReferenceApprovalIssues,
+  visualReviewInputFingerprint,
 } from "@/lib/studio/visual-continuity";
 import { cn } from "@/lib/utils";
 import type {
@@ -32,6 +33,19 @@ type VisualContinuityReviewPanelProps = {
     review: HumanContinuityAssetApprovalInput,
   ) => void;
 };
+
+function hasCurrentVisualReview(storyboard: StoryboardItem) {
+  const review = storyboard.visualReview;
+  return Boolean(review && review.inputFingerprint === visualReviewInputFingerprint(storyboard));
+}
+
+function firstStoryboardEvidencePath(storyboard?: StoryboardItem) {
+  const review = storyboard?.visualReview;
+  const reviewPath = storyboard && review && hasCurrentVisualReview(storyboard)
+    ? review.evidencePaths[0]?.trim()
+    : undefined;
+  return reviewPath || storyboard?.mediaRef?.path?.trim();
+}
 
 export function VisualContinuityReviewPanel({
   storyboards,
@@ -84,8 +98,9 @@ export function VisualContinuityReviewPanel({
   const continuityStateIssues = storyboardContinuityStateIssues(selected);
   const primarySceneIssues = storyboardPrimarySceneIssues(selected);
   const requiresTransition = Boolean(selected.continuityState?.previousStoryboardId);
-  const hasCurrentImage = Boolean(selected.mediaRef?.path);
-  const currentEvidencePath = selected.visualReview?.evidencePaths?.[0] || selected.mediaRef?.path;
+  const currentEvidencePath = firstStoryboardEvidencePath(selected);
+  const currentEvidencePaths = currentEvidencePath ? [currentEvidencePath] : [];
+  const hasCurrentImage = currentEvidencePaths.length > 0;
   const canApprove = hasCurrentImage
     && !selected.stale
     && Boolean(selected.continuityState)
@@ -127,7 +142,7 @@ export function VisualContinuityReviewPanel({
         ? [{ previousStoryboardId: selected.continuityState?.previousStoryboardId, passed: transitionPassed }]
         : [],
       textWatermarkCheck: { passed: textWatermarkPassed },
-      evidencePaths: currentEvidencePath ? [currentEvidencePath] : [],
+      evidencePaths: currentEvidencePaths,
     });
   };
 
@@ -145,7 +160,7 @@ export function VisualContinuityReviewPanel({
           <p className="mt-1 text-[11px] text-zinc-400">逐镜核对身份、场景和动作承接；未人工批准的镜头不能进入最终成片。</p>
         </div>
         <div className="flex flex-wrap items-center justify-end gap-1.5 text-[11px]" aria-label="视觉审核统计">
-          <Badge variant="outline" className="border-sky-500/40 bg-sky-500/10 text-sky-200">当前第 {selected.index} / {totalShots} 镜</Badge>
+          <Badge variant="outline" className="border-sky-500/40 bg-sky-500/10 text-sky-200">当前第 {selectedPosition + 1} / {totalShots} 镜</Badge>
           <Badge variant="outline" className="border-amber-500/40 bg-amber-500/10 text-amber-200">待审 {statusCounts.pending} / {totalShots}</Badge>
           <Badge variant="outline" className="border-emerald-500/40 bg-emerald-500/10 text-emerald-200">通过 {statusCounts.approved} / {totalShots}</Badge>
           <Badge variant="outline" className="border-red-500/40 bg-red-500/10 text-red-200">驳回 {statusCounts.rejected} / {totalShots}</Badge>
@@ -510,7 +525,7 @@ function FrameEvidence({
   current?: boolean;
   muted?: boolean;
 }) {
-  const evidencePath = storyboard?.visualReview?.evidencePaths?.[0] || storyboard?.mediaRef?.path;
+  const evidencePath = firstStoryboardEvidencePath(storyboard);
   return (
     <figure className={cn(
       "overflow-hidden rounded-lg border bg-black",
@@ -524,7 +539,7 @@ function FrameEvidence({
         {evidencePath ? (
           <img
             src={toPreviewSrc(evidencePath)}
-            alt={`${label}第 ${storyboard.index} 镜画面`}
+            alt={`${label}第 ${storyboard?.index ?? "—"} 镜画面`}
             className="h-full w-full object-contain"
           />
         ) : (
@@ -576,6 +591,7 @@ function ReviewEvidenceSummary({
     ...review.transitionChecks.map((check) => ({ label: `转场 ${check.previousStoryboardId ?? "上一镜"}`, ...check })),
     { label: "文字与水印", ...review.textWatermarkCheck },
   ];
+  const evidencePaths = review.evidencePaths.map((path) => path.trim()).filter(Boolean);
   const passedChecks = checks.filter((check) => check.passed).length;
   const reviewedAt = review.reviewedAt && Number.isFinite(review.reviewedAt)
     ? new Date(review.reviewedAt).toLocaleString("zh-CN")
@@ -594,11 +610,11 @@ function ReviewEvidenceSummary({
         <span>状态：{review.status}</span>
         <span>审核时间：{reviewedAt}</span>
         <span>逐项检查：{passedChecks} / {checks.length} 通过</span>
-        <span>画面证据：{review.evidencePaths.length} 个</span>
+        <span>画面证据：{evidencePaths.length} 个</span>
       </div>
-      {review.evidencePaths.length ? (
+      {evidencePaths.length ? (
         <ul className="mt-1 space-y-0.5" aria-label="当前镜画面证据路径">
-          {review.evidencePaths.map((path) => (
+          {evidencePaths.map((path) => (
             <li key={path} className="truncate font-mono text-[9px] text-zinc-500" title={path}>{path}</li>
           ))}
         </ul>
@@ -624,7 +640,12 @@ function ReviewWarnings({
   const reasons = [
     ...(storyboard.visualReview?.reasons ?? []),
     ...(storyboard.stale ? [storyboard.staleReason || "镜头已过期，必须重新生成"] : []),
-    ...(!storyboard.mediaRef?.path ? ["缺少当前镜画面证据"] : []),
+    ...(storyboard.visualReview && !hasCurrentVisualReview(storyboard)
+      ? ["审核输入已变化，必须重新审核"]
+      : []),
+    ...(!firstStoryboardEvidencePath(storyboard)
+      ? ["缺少当前镜画面证据"]
+      : []),
     ...(!storyboard.continuityState ? ["缺少连续镜头状态"] : []),
     ...contractReasons,
   ];

@@ -10,6 +10,11 @@ import {
   buildStoryboardEditingProject,
   migrateLegacySimpleTimeline,
 } from "./storyboard-adapter";
+import {
+  indexCandidateTrimStarts,
+  indexSelectedCandidates,
+  indexTracksByStoryboard,
+} from "./storyboard-indexes";
 
 describe("storyboard editing adapter", () => {
   it("uses the selected ready candidate first and segments grouped tracks", () => {
@@ -262,6 +267,54 @@ describe("legacy SimpleTimeline migration", () => {
         expect.objectContaining({ code: "editing.legacy.start_time" }),
       ]),
     );
+  });
+});
+
+describe("storyboard index helpers", () => {
+  it("keeps the first track for duplicate storyboard membership", () => {
+    const first = track([storyboard(1), storyboard(2)]);
+    const second = { ...track([storyboard(1)]), id: "track-2" };
+
+    const indexed = indexTracksByStoryboard([first, second]);
+
+    expect(indexed.get("sb-1")).toBe(first);
+    expect(indexed.get("sb-2")).toBe(first);
+  });
+
+  it("indexes only ready, fresh candidates with matching track and path", () => {
+    const selectedTrack = track([storyboard(1)], "ready-candidate");
+    const staleTrack = { ...track([storyboard(2)], "stale-candidate"), id: "track-2", stale: true };
+    const candidates = [
+      candidate("ready-candidate"),
+      { ...candidate("stale-candidate"), trackId: staleTrack.id },
+      { ...candidate("wrong-track"), trackId: "other-track" },
+      { ...candidate("not-ready"), state: "failed" as const },
+      { ...candidate("missing-path"), filePath: "" },
+    ];
+
+    const indexed = indexSelectedCandidates([selectedTrack, staleTrack], candidates);
+
+    expect(indexed.get(selectedTrack.id)?.id).toBe("ready-candidate");
+    expect(indexed.has(staleTrack.id)).toBe(false);
+  });
+
+  it("orders trim starts by storyboard index and treats missing duration as zero", () => {
+    const items = [storyboard(2), storyboard(1), storyboard(3)];
+    const idsBefore = ["sb-2", "sb-1", "missing", "sb-3"];
+    const sourceTrack = { ...track(items), storyboardIds: idsBefore };
+    const durations = new Map([
+      ["sb-1", 1_000_000],
+      ["sb-2", 2_000_000],
+    ]);
+
+    const indexed = indexCandidateTrimStarts([sourceTrack], items, durations);
+
+    expect(indexed).toEqual(new Map([
+      ["sb-1", 0],
+      ["sb-2", 1_000_000],
+      ["sb-3", 3_000_000],
+    ]));
+    expect(sourceTrack.storyboardIds).toEqual(idsBefore);
   });
 });
 

@@ -8,6 +8,8 @@ import {
   snapTimelineTime,
   undoEditingHistory,
 } from "./command-core";
+import { executeEditingHistory as executeEditingHistoryWithApply } from "./editing-history";
+import { snapTimelineTime as directSnapTimelineTime } from "./timeline-snap";
 
 describe("editing command core", () => {
   it("splits inside a clip and advances source trim by speed", () => {
@@ -119,6 +121,27 @@ describe("editing command core", () => {
       thresholdUs: 100_000,
       excludeClipId: "clip-1",
     })).toEqual({ snapped: false, timeUs: 4_400_000 });
+  });
+
+  it("keeps the extracted snap boundary strict and filters invalid markers", () => {
+    const project = fixtureProject();
+    expect(directSnapTimelineTime({
+      project,
+      proposedTimeUs: Number.NaN,
+      thresholdUs: 100_000,
+    })).toEqual({ snapped: false, timeUs: Number.NaN });
+    expect(directSnapTimelineTime({
+      project,
+      proposedTimeUs: 4_100_000,
+      thresholdUs: 100_000,
+      markersUs: [-1, Number.POSITIVE_INFINITY, 4_000_000],
+    })).toEqual({ snapped: true, timeUs: 4_000_000, targetUs: 4_000_000 });
+    expect(directSnapTimelineTime({
+      project,
+      proposedTimeUs: 4_100_000,
+      thresholdUs: 100_000,
+      markersUs: [4_200_000],
+    })).toEqual({ snapped: true, timeUs: 4_000_000, targetUs: 4_000_000 });
   });
 
   it("routes source, effect, transition and proposal changes through commands", () => {
@@ -393,6 +416,21 @@ describe("editing command core", () => {
 });
 
 describe("editing command history", () => {
+  it("keeps the extracted history boundary behind the command facade", () => {
+    const history = createEditingHistory(fixtureProject());
+    const command = {
+      type: "clip.move" as const,
+      clipId: "clip-1",
+      trackId: "track-main",
+      startUs: 500_000,
+      issuedAt: 20,
+    };
+
+    expect(executeEditingHistoryWithApply(history, command, applyEditingCommand)).toEqual(
+      executeEditingHistory(history, command),
+    );
+  });
+
   it("undoes and redoes while revisions keep increasing", () => {
     const history = createEditingHistory(fixtureProject(), 2);
     const executed = executeEditingHistory(history, {
@@ -417,6 +455,27 @@ describe("editing command history", () => {
     if (!redone.success) return;
     expect(redone.history.present.clips[0]?.startUs).toBe(500_000);
     expect(redone.history.present.revision).toBe(4);
+  });
+
+  it("preserves issuedAt validation for history snapshots", () => {
+    const executed = executeEditingHistory(createEditingHistory(fixtureProject()), {
+      type: "clip.move",
+      clipId: "clip-1",
+      trackId: "track-main",
+      startUs: 500_000,
+      issuedAt: 20,
+    });
+    expect(executed.success).toBe(true);
+    if (!executed.success) return;
+
+    expect(undoEditingHistory(executed.history, Number.NaN)).toEqual({
+      success: false,
+      issue: {
+        code: "editing.command.issued_at",
+        path: "$.issuedAt",
+        message: "命令时间必须是非负安全整数",
+      },
+    });
   });
 
   it("clears redo on a new command and enforces history limit", () => {

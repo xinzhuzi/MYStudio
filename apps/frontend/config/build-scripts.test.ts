@@ -69,6 +69,10 @@ function runNodeHelper(payload: unknown): Promise<{ status: number | null; stdou
 }
 
 describe("desktop build scripts", () => {
+  it("exposes the deterministic AiToEarn upgrade smoke command", () => {
+    const packageJson = readBuildFile("package.json");
+    expect(packageJson).toContain('"smoke:aitoearn-upgrade": "node ./build/scripts/aitoearn-upgrade-smoke.mjs"');
+  });
   it("keeps Daojie Python tests outside the production pipeline package", () => {
     const pipelineRoot = resolve(appsRoot, "build", "daojie", "pipeline");
     const testsRoot = resolve(appsRoot, "build", "daojie", "tests");
@@ -120,6 +124,14 @@ describe("desktop build scripts", () => {
     expect(source).not.toContain("src/scripts");
   });
 
+  it("reuses a verified fixed Remotion bundle instead of rebuilding during desktop packaging", () => {
+    const source = readBuildFile("build/packaging/build-desktop.mjs");
+
+    expect(source).toContain("verifyRemotionVersions");
+    expect(source).toContain("verifyFixedRemotionBundle");
+    expect(source).not.toContain("run('npm', ['run', 'remotion:bundle'])");
+  });
+
   it("does not install Python into backend during setup", () => {
     const setupSh = readBuildFile("build/packaging/setup.sh");
     const setupWin = readBuildFile("build/packaging/setup-win.ps1");
@@ -139,9 +151,12 @@ describe("desktop build scripts", () => {
     expect(source).toContain("HAS_ARCH=0");
     expect(source).toContain("BUILD_ARGS=\"${BUILD_ARGS} --arm64\"");
     expect(source).toContain("Command: node ./build/packaging/build-desktop.mjs --mac$BUILD_ARGS");
-    expect(source).toContain("--install|--smoke-installed");
     expect(source).toContain("INSTALL_AFTER_BUILD=1");
+    expect(source).toContain("--install|--smoke-installed");
     expect(source).toContain("node ./build/packaging/install-and-smoke.mjs");
+    expect(source).toContain("MYSTUDIO_SMOKE_KEEP_OPEN=0");
+    expect(source).toContain("MYSTUDIO_SMOKE_SKIP_PREKILL=0");
+    expect(source).not.toContain("INSTALL_AFTER_BUILD=0");
     expect(source).not.toContain("ditto");
     expect(source).not.toContain("/Applications/漫影工作室.app");
     expect(source).not.toContain("backup-");
@@ -158,9 +173,14 @@ describe("desktop build scripts", () => {
 
     expect(source).toContain('"build:mac": "sh ./build/packaging/build-mac.sh --arm64"');
     expect(source).toContain('"build:mac:install": "sh ./build/packaging/build-mac.sh --arm64 --install"');
+    expect(source).toContain('"build:win": "node ./build/packaging/build-desktop.mjs --win"');
+    expect(source).toContain('"build:linux": "node ./build/packaging/build-desktop.mjs --linux"');
     expect(source).not.toContain('"build:mac:install": "node ./build/packaging/install-and-smoke.mjs"');
     expect(source).not.toContain(
       "electron-builder --config frontend/config/electron-builder.yml --mac --arm64",
+    );
+    expect(source).not.toContain(
+      "electron-vite build --config frontend/config/electron-vite.config.ts && electron-builder",
     );
   });
 

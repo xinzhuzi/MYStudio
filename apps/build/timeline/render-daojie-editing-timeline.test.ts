@@ -6,16 +6,27 @@ import { pathToFileURL } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   deriveStorageRoots,
+  resolveProjectDir,
+  resolveStorageBasePath,
   parseStoryboard,
   requireTimelineArtifacts,
   resolveTimelineSourcePath,
 } from "./render-daojie-editing-timeline";
 
 const temporaryRoots: string[] = [];
+const ENV_KEYS = [
+  "MYSTUDIO_DAOJIE_PROJECT_DIR",
+  "MYSTUDIO_DAOJIE_PROJECT_ID",
+  "MYSTUDIO_DAOJIE_USER_DATA_DIR",
+  "MYSTUDIO_STORAGE_BASE_PATH",
+] as const;
 
 afterEach(() => {
   for (const root of temporaryRoots.splice(0)) {
     fs.rmSync(root, { recursive: true, force: true });
+  }
+  for (const key of ENV_KEYS) {
+    delete process.env[key];
   }
 });
 
@@ -98,6 +109,42 @@ describe("Daojie editing timeline runner", () => {
       dataRoot: roots.dataRoot,
       mediaRoot: roots.mediaRoot,
     })).toThrow(/不可读或为空/);
+  });
+
+  it("resolves the Daojie project from storage config and explicit project id", () => {
+    const userData = fs.mkdtempSync(path.join(os.tmpdir(), "mystudio-user-data-"));
+    const storageBase = fs.mkdtempSync(path.join(os.tmpdir(), "mystudio-storage-base-"));
+    temporaryRoots.push(userData, storageBase);
+    fs.writeFileSync(path.join(userData, "storage-config.json"), `${JSON.stringify({ basePath: storageBase })}\n`, "utf8");
+    process.env.MYSTUDIO_DAOJIE_USER_DATA_DIR = userData;
+    process.env.MYSTUDIO_DAOJIE_PROJECT_ID = "project-from-env";
+
+    expect(resolveStorageBasePath()).toBe(storageBase);
+    expect(resolveProjectDir()).toBe(path.join(storageBase, "projects", "_p", "project-from-env"));
+  });
+
+  it("resolves the Daojie project from the project catalog when no fixed id is configured", () => {
+    const userData = fs.mkdtempSync(path.join(os.tmpdir(), "mystudio-user-data-"));
+    const storageBase = fs.mkdtempSync(path.join(os.tmpdir(), "mystudio-storage-base-"));
+    temporaryRoots.push(userData, storageBase);
+    fs.writeFileSync(path.join(userData, "storage-config.json"), `${JSON.stringify({ basePath: storageBase })}\n`, "utf8");
+    fs.mkdirSync(path.join(storageBase, "projects"), { recursive: true });
+    fs.writeFileSync(
+      path.join(storageBase, "projects", "mystudio-project-store.json"),
+      `${JSON.stringify({ state: { projects: [{ id: "project-from-name", name: "道劫" }] } })}\n`,
+      "utf8",
+    );
+    process.env.MYSTUDIO_DAOJIE_USER_DATA_DIR = userData;
+
+    expect(resolveProjectDir()).toBe(path.join(storageBase, "projects", "_p", "project-from-name"));
+  });
+
+  it("keeps an explicit Daojie project directory override above storage config", () => {
+    const explicitProjectDir = path.join(os.tmpdir(), "mystudio-explicit-project");
+    process.env.MYSTUDIO_DAOJIE_PROJECT_DIR = explicitProjectDir;
+    process.env.MYSTUDIO_STORAGE_BASE_PATH = path.join(os.tmpdir(), "mystudio-storage-ignored");
+
+    expect(resolveProjectDir()).toBe(explicitProjectDir);
   });
 
   it("accepts only complete timeline artifacts with a matching snapshot hash", () => {

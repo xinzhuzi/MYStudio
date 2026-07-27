@@ -189,8 +189,8 @@ describe("workflow smoke bridge isolation", () => {
 
   it("blocks real MYStudio user data directories", () => {
     expect(isIsolatedSmokeUserDataDir("")).toBe(false);
-    expect(isIsolatedSmokeUserDataDir("/Users/me/Library/Application Support/漫影工作室")).toBe(false);
-    expect(isIsolatedSmokeUserDataDir("/Users/me/Library/Application Support/MYStudio")).toBe(false);
+    expect(isIsolatedSmokeUserDataDir("/Volumes/UserData/Library/Application Support/漫影工作室")).toBe(false);
+    expect(isIsolatedSmokeUserDataDir("/Volumes/UserData/Library/Application Support/MYStudio")).toBe(false);
   });
 
   it("matches only isolated smoke directory leaf names", () => {
@@ -378,7 +378,7 @@ describe("workflow smoke bridge isolation", () => {
     browserGlobal.window = {
       mystudioSmoke: {
         enabled: true,
-        userDataDir: "/Users/me/Library/Application Support/漫影工作室",
+        userDataDir: "/Volumes/UserData/Library/Application Support/漫影工作室",
       },
     } as Window &
       typeof globalThis & {

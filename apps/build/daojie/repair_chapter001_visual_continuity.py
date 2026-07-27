@@ -24,6 +24,7 @@ try:
         normalize_continuity_asset_version,
         resolve_storyboard_source,
     )
+    from apps.build.daojie.path_resolver import resolve_project_dir
 except ModuleNotFoundError as error:
     if error.name not in {"apps", "Library"}:
         raise
@@ -31,19 +32,14 @@ except ModuleNotFoundError as error:
         normalize_continuity_asset_version,
         resolve_storyboard_source,
     )
+    from path_resolver import resolve_project_dir
 
 
-PROJECT_ID = "49dce4c1-64b1-42de-85c2-9f266698aec0"
 EPISODE_ID = "chapter-001"
 
 
 def default_store_path() -> Path:
-    return (
-        Path.home()
-        / "Library/Application Support/漫影工作室/projects/_p"
-        / PROJECT_ID
-        / "studio-workflow-store.json"
-    )
+    return resolve_project_dir() / "studio-workflow-store.json"
 
 
 def stable_serialize(value: Any) -> str:
@@ -1031,7 +1027,7 @@ def repair_storyboards(
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--store", type=Path, default=default_store_path())
+    parser.add_argument("--store", type=Path)
     parser.add_argument("--script", type=Path)
     parser.add_argument("--align-from-store", type=Path)
     parser.add_argument("--asset-manifest", type=Path)
@@ -1039,7 +1035,7 @@ def main() -> None:
     parser.add_argument("--review-status", choices=["pending"], default="pending")
     args = parser.parse_args()
 
-    store_path = args.store.expanduser().resolve()
+    store_path = (args.store or default_store_path()).expanduser().resolve()
     script_path = (args.script or store_path.parent / "script.json").expanduser().resolve()
     data = load_store(store_path)
     script_data = load_store(script_path)

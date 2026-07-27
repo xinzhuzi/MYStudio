@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { createHash } from "node:crypto";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -33,7 +34,8 @@ import type {
 import { createTimelineRenderRequest } from "@rendering/contracts/timeline-renderer";
 
 const EPISODE_ID = "chapter-001";
-const DEFAULT_PROJECT_ID = "49dce4c1-64b1-42de-85c2-9f266698aec0";
+const APP_PROCESS_NAME = "漫影工作室";
+const DAOJIE_PROJECT_NAME = "道劫";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -138,20 +140,58 @@ function writeJson(filePath: string, value: unknown) {
   return filePath;
 }
 
-function resolveProjectDir() {
+function envPath(name: string) {
+  const value = process.env[name]?.trim();
+  return value ? path.resolve(value) : undefined;
+}
+
+function readStorageBasePathFromConfig(userDataDir: string) {
+  const configPath = path.join(userDataDir, "storage-config.json");
+  if (!fs.existsSync(configPath)) return undefined;
+  let config: Record<string, unknown>;
+  try {
+    config = JSON.parse(fs.readFileSync(configPath, "utf8")) as Record<string, unknown>;
+  } catch {
+    return undefined;
+  }
+  const basePath = typeof config.basePath === "string" ? config.basePath.trim() : "";
+  if (basePath) return path.resolve(basePath);
+  const legacyProjectPath = typeof config.projectPath === "string" ? config.projectPath.trim() : "";
+  return legacyProjectPath ? path.dirname(path.resolve(legacyProjectPath)) : undefined;
+}
+
+export function resolveUserDataDir() {
+  return envPath("MYSTUDIO_DAOJIE_USER_DATA_DIR") || path.join(os.homedir(), "Library", "Application Support", APP_PROCESS_NAME);
+}
+
+export function resolveStorageBasePath(userDataDir = resolveUserDataDir()) {
+  return envPath("MYSTUDIO_STORAGE_BASE_PATH") || readStorageBasePathFromConfig(userDataDir) || userDataDir;
+}
+
+export function resolveProjectId(storageBasePath = resolveStorageBasePath()) {
+  const explicit = process.env.MYSTUDIO_DAOJIE_PROJECT_ID?.trim();
+  if (explicit) return explicit;
+  const catalogPath = path.join(storageBasePath, "projects", "mystudio-project-store.json");
+  const catalog = requireRecord(readJson(catalogPath), "project catalog");
+  const state = requireRecord(catalog.state, "project catalog.state");
+  const projects = requireArray(state.projects, "project catalog.state.projects");
+  for (const [index, value] of projects.entries()) {
+    const project = requireRecord(value, `project catalog.projects[${index}]`);
+    const id = typeof project.id === "string" ? project.id.trim() : "";
+    const name = typeof project.name === "string" ? project.name.trim() : "";
+    if (id && (name === DAOJIE_PROJECT_NAME || name.includes(DAOJIE_PROJECT_NAME))) return id;
+  }
+  throw new Error(
+    `项目索引中未找到名称包含 ${DAOJIE_PROJECT_NAME} 的项目；请设置 MYSTUDIO_DAOJIE_PROJECT_DIR 或 MYSTUDIO_DAOJIE_PROJECT_ID`,
+  );
+}
+
+export function resolveProjectDir() {
   if (process.env.MYSTUDIO_DAOJIE_PROJECT_DIR?.trim()) {
     return path.resolve(process.env.MYSTUDIO_DAOJIE_PROJECT_DIR);
   }
-  const home = requireString(process.env.HOME, "HOME");
-  return path.join(
-    home,
-    "Library",
-    "Application Support",
-    "漫影工作室",
-    "projects",
-    "_p",
-    DEFAULT_PROJECT_ID,
-  );
+  const storageBasePath = resolveStorageBasePath();
+  return path.join(storageBasePath, "projects", "_p", resolveProjectId(storageBasePath));
 }
 
 export function deriveStorageRoots(projectDir: string) {

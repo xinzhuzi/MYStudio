@@ -65,8 +65,9 @@ apps/frontend/
 │   ├── diagnostics/ # diagnostics service
 │   ├── storage/ # storage manager, paths, and Studio persistence services
 │   ├── media/   # Node-only media source and picker helpers
-│   ├── rendering/ # FFmpeg command compiler and timeline runtime
+│   ├── rendering/ # FFmpeg/Remotion adapters, timeline runtime, and render contracts
 │   ├── tts/     # local TTS sidecar runtime
+│   ├── aitoearn/ # sole AiToEarn main-process integration and upstream upgrade root
 │   └── types/   # Electron-only ambient declarations
 ├── renderer/    # renderer HTML and entrypoint
 ├── config/      # Vite, TypeScript, ESLint, builder, and test setup
@@ -81,6 +82,13 @@ apps/build/
 ├── timeline/    # Node-only direct timeline runner and config
 └── shared/      # build-time reports and request ledgers
 ```
+
+The physical AiToEarn integration root is `apps/frontend/electron/aitoearn/`.
+It is the unique upstream upgrade boundary for the vendor snapshot,
+compatibility shims, local account vault, task runtime, and `aitoearn-local`
+adapter. Renderer-facing `self-media` contracts, UI, store, persisted
+user-data directory, and IPC channel names remain domain boundaries and are
+not renamed with this directory.
 
 ---
 
@@ -127,6 +135,12 @@ apps/build/
   UI audio in `lib/sound/`, media helpers in `lib/media/`, editing timecode in
   `lib/studio/editing/timecode.ts`. When relocating, keep a thin root
   re-export facade so historical `@/lib/<name>` imports do not break.
+- When extracting pure domain logic behind an existing facade, keep the facade
+  as the public compatibility boundary and inject any controller operation as
+  a typed function argument rather than importing the controller at runtime.
+  The extracted module may use `import type` for shared contracts, while the
+  facade owns the runtime adapter; compare adapter and facade behavior in a
+  colocated test to prevent cycles or contract drift.
 - Put cross-feature contracts in `types/`; keep component-only props local.
 - Keep Electron-only Node APIs in `electron/`; main and preload entrypoints live in `main/` and `preload/`, while Node services and handlers stay in their named domains. Expose only narrow preload bridges.
 - Colocate `*.test.ts` and `*.test.tsx` with the unit being tested.

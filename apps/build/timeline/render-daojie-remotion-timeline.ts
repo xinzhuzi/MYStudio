@@ -1,5 +1,4 @@
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { ensureBrowser, renderMedia, selectComposition } from "@remotion/renderer";
 import { MediaBridgeServer } from "@rendering/plugins/remotion/media-bridge/media-bridge-server";
@@ -11,7 +10,12 @@ import { createRemotionEnsureBrowserAdapters, type RemotionEnsureBrowser } from 
 import { buildRemotionRuntimeManifest } from "@rendering/plugins/remotion/browser/remotion-runtime-manifest";
 import { runTimelineAudioPostProcess } from "@rendering/runtime/ffmpeg/timeline-audio-postprocess";
 import { validateTimelineRenderPlan } from "@/lib/studio/editing/validation";
-import { deriveStorageRoots, resolveTimelineSourcePath } from "./render-daojie-editing-timeline";
+import {
+  deriveStorageRoots,
+  resolveProjectDir,
+  resolveTimelineSourcePath,
+  resolveUserDataDir,
+} from "./render-daojie-editing-timeline";
 import {
   assertRenderedMediaEvidence,
   hashFileSha256,
@@ -35,7 +39,7 @@ export async function runDaojieRemotionTimeline(): Promise<Record<string, unknow
   if (manifest.remotionVersion !== remotionVersion || manifest.compositionId !== REMOTION_COMPOSITION_ID) throw new Error("Daojie Remotion bundle manifest 与运行时不一致");
   const projectDir = resolveProjectDir();
   const roots = deriveStorageRoots(projectDir);
-  const runtimeDir = path.resolve(process.env.MYSTUDIO_REMOTION_RUNTIME_DIR || path.join(os.homedir(), "Library", "Application Support", "漫影工作室", "remotion-runtime"));
+  const runtimeDir = path.resolve(process.env.MYSTUDIO_REMOTION_RUNTIME_DIR || path.join(resolveUserDataDir(), "remotion-runtime"));
   fs.mkdirSync(runtimeDir, { recursive: true });
   fs.writeFileSync(
     path.join(runtimeDir, "package.json"),
@@ -151,11 +155,6 @@ export async function runDaojieRemotionTimeline(): Promise<Record<string, unknow
   } finally {
     process.chdir(previousCwd);
   }
-}
-
-function resolveProjectDir(): string {
-  if (process.env.MYSTUDIO_DAOJIE_PROJECT_DIR?.trim()) return path.resolve(process.env.MYSTUDIO_DAOJIE_PROJECT_DIR);
-  return path.join(os.homedir(), "Library", "Application Support", "漫影工作室", "projects", "_p", "49dce4c1-64b1-42de-85c2-9f266698aec0");
 }
 
 async function resolveBrowser(): Promise<string> {

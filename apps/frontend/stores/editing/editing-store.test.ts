@@ -11,6 +11,11 @@ import {
   mergeEditingStoreState,
   partializeEditingStoreState,
 } from "./editing-store";
+import {
+  appendEpisodeRecordId,
+  filterAutoEditingRunIds,
+  filterCurrentEditingProjectIds,
+} from "./editing-state-indexes";
 
 const originalProjectState = useProjectStore.getState();
 
@@ -284,6 +289,51 @@ describe("editing store", () => {
       protectedProject,
     );
     expect(store.getState().autoEditingRuns).toEqual({});
+  });
+});
+
+describe("editing state indexes", () => {
+  it("keeps only current-project episode mappings", () => {
+    const current = project();
+    expect(
+      filterCurrentEditingProjectIds(
+        {
+          "episode-1": "editing-1",
+          "episode-2": "editing-1",
+          invalid: 42,
+        },
+        { "editing-1": current },
+      ),
+    ).toEqual({ "episode-1": "editing-1" });
+    expect(filterCurrentEditingProjectIds(null, { "editing-1": current })).toEqual({});
+  });
+
+  it("deduplicates persisted run indexes and fills missing runs deterministically", () => {
+    const runs = {
+      "run-2": autoRun({ id: "run-2", startedAt: 30 }),
+      "run-1": autoRun({ id: "run-1", startedAt: 10 }),
+      "run-3": autoRun({ id: "run-3", episodeId: "episode-2", startedAt: 20 }),
+    };
+    const persisted = {
+      "episode-1": ["run-2", "run-2", "missing", "run-3"],
+      "episode-2": ["run-3"],
+    };
+    expect(filterAutoEditingRunIds(persisted, runs)).toEqual({
+      "episode-1": ["run-2", "run-1"],
+      "episode-2": ["run-3"],
+    });
+    expect(persisted).toEqual({
+      "episode-1": ["run-2", "run-2", "missing", "run-3"],
+      "episode-2": ["run-3"],
+    });
+  });
+
+  it("appends an episode record immutably and preserves duplicate identity", () => {
+    const records = { "episode-1": ["run-1"] };
+    const appended = appendEpisodeRecordId(records, "episode-1", "run-2");
+    expect(appended).toEqual({ "episode-1": ["run-1", "run-2"] });
+    expect(records).toEqual({ "episode-1": ["run-1"] });
+    expect(appendEpisodeRecordId(appended, "episode-1", "run-2")).toBe(appended);
   });
 });
 

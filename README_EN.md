@@ -103,6 +103,13 @@ cd apps && npm run build:mac
 cd apps && npm run build:win
 ```
 
+Run packaging commands from `apps/`. `npm run build:mac` goes through `build-mac.sh` and performs
+fixed-bundle validation, packaging, overwrite installation, installed smoke, and app shutdown.
+It reuses the verified fixed Remotion bundle instead of rebuilding it on every package. After
+changing the Remotion version or composition, run `cd apps && npm run remotion:bundle` and
+`cd apps && npm run remotion:versions` before the target packaging command. See [packaging,
+installation, and smoke testing](docs/engineering/PACKAGING_AND_SMOKE_TESTING.md).
+
 ## Architecture
 
 | Layer | Technology |

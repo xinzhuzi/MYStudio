@@ -128,6 +128,11 @@ const CORE_ROUTE_CHECKS = [
     label: "设置",
     requiredText: ["系统设置", "外观", "Python 配置"],
   },
+  {
+    label: "自媒体",
+    requiredText: ["自媒体发布台", "账号", "发布", "任务", "历史"],
+    forbiddenText: ["AiToEarn Web", "OpenClaw"],
+  },
 ];
 // Keep each smoke run's fixture private. The packaged Remotion preview uses
 // the same asset bridge as export, so a concurrent smoke must not be able to

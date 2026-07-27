@@ -174,3 +174,9 @@ cd apps && npm run build:mac
 # Windows
 cd apps && npm run build:win
 ```
+
+桌面打包必须从 `apps/` 执行。`npm run build:mac` 会经由 `build-mac.sh` 完成固定 bundle
+校验、构建、覆盖安装、installed smoke 和关闭应用；正常打包不会每次重新 bundle。Remotion
+版本或 composition 变化后，先执行 `cd apps && npm run remotion:bundle` 和
+`cd apps && npm run remotion:versions`，再运行目标打包命令。完整流程见
+[打包、安装与 Smoke 测试](docs/engineering/PACKAGING_AND_SMOKE_TESTING.md)。

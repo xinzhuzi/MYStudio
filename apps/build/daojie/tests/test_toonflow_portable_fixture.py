@@ -1,14 +1,17 @@
+import os
 import json
 import sqlite3
 import tempfile
 import unittest
 from contextlib import closing
 from pathlib import Path
+from unittest.mock import patch
 
 from PIL import Image
 
 from apps.build.daojie.pipeline.build_toonflow_portable_fixture import (
     build_fixture,
+    default_database_path,
     resolve_oss_path,
     verify_fixture,
 )
@@ -89,6 +92,15 @@ class ToonflowPortableFixtureTest(unittest.TestCase):
             outside.write_bytes(b"outside")
 
             self.assertIsNone(resolve_oss_path(data_root, "../outside.png"))
+
+    def test_default_database_path_requires_env_instead_of_baked_local_path(self):
+        with patch.dict(os.environ, {}, clear=True):
+            with self.assertRaisesRegex(RuntimeError, "MYSTUDIO_TOONFLOW_DATABASE"):
+                default_database_path()
+        with tempfile.TemporaryDirectory() as temp:
+            database = Path(temp) / "db2.sqlite"
+            with patch.dict(os.environ, {"MYSTUDIO_TOONFLOW_DATABASE": str(database)}, clear=True):
+                self.assertEqual(default_database_path(), database)
 
     def test_verify_fixture_rejects_tampered_golden_digest(self):
         with tempfile.TemporaryDirectory() as temp:

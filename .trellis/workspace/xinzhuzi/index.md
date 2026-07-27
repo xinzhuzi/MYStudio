@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 2
-- **Last Active**: 2026-07-19
+- **Total Sessions**: 5
+- **Last Active**: 2026-07-27
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~84 | Active |
+| `journal-1.md` | ~229 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,9 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 5 | 2026-07-27 | 统一项目路径规划归档确认 | - | `no-git-user-managed` |
+| 4 | 2026-07-26 | Archive AC11 local visual review slice | - | `main` |
+| 3 | 2026-07-26 | 归档 Remotion 打包与根目录清理任务 | - | `main` |
 | 2 | 2026-07-19 | Close paid retry review without Git | - | `main` |
 | 1 | 2026-07-10 | 清理 docs 不需要内容 | - | `-` |
 <!-- @@@/auto:session-history -->

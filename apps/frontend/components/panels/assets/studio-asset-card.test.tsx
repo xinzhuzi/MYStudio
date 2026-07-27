@@ -9,7 +9,7 @@ describe("StudioAssetCard", () => {
       id: "voice-1",
       source: "manying-local",
       type: "audio",
-      name: "/Users/zhengbingjin/Documents/音频/800+音色合集/少年旁白_穿过雨夜.wav",
+      name: "/tmp/mystudio-fixtures/音频/800+音色合集/少年旁白_穿过雨夜.wav",
       thumbnailUrl: "file:///missing/audio-cover.png",
     };
 

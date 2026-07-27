@@ -6,7 +6,7 @@ module.exports = {
     'plugin:@typescript-eslint/recommended',
     'plugin:react-hooks/recommended',
   ],
-  ignorePatterns: ['dist', 'out', 'release', '.cache', '.eslintrc.cjs'],
+  ignorePatterns: ['dist', 'out', 'release', '.cache', '.eslintrc.cjs', 'frontend/electron/aitoearn/vendor/aitoearn-core/**'],
   parser: '@typescript-eslint/parser',
   plugins: ['react-refresh'],
   rules: {

@@ -1,14 +1,13 @@
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { auditVisualContinuity } from "@/lib/studio/visual-continuity";
+import { resolveProjectDir } from "../timeline/render-daojie-editing-timeline";
 import type {
   ContinuityAssetVersion,
   StoryboardItem,
 } from "@/types/studio";
 
 const EPISODE_ID = "chapter-001";
-const DEFAULT_PROJECT_ID = "49dce4c1-64b1-42de-85c2-9f266698aec0";
 
 type StudioState = {
   storyboards?: StoryboardItem[];
@@ -49,16 +48,7 @@ export function auditDaojieVisualContinuityState(
 }
 
 async function main() {
-  const projectDir = process.env.MYSTUDIO_DAOJIE_PROJECT_DIR
-    || path.join(
-      os.homedir(),
-      "Library",
-      "Application Support",
-      "漫影工作室",
-      "projects",
-      "_p",
-      DEFAULT_PROJECT_ID,
-    );
+  const projectDir = resolveProjectDir();
   const storePath = path.join(projectDir, "studio-workflow-store.json");
   if (!fs.existsSync(storePath)) throw new Error(`视觉连续性 store 不存在: ${storePath}`);
   const document = JSON.parse(fs.readFileSync(storePath, "utf8")) as { state?: StudioState } & StudioState;

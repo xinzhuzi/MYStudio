@@ -101,6 +101,7 @@
 | [开发者架构与代码入口](./engineering/DEVELOPER_ARCHITECTURE.md) | 当前目录结构、前端/Electron/后端/TTS/打包模块索引 |
 | [打包、安装与 Smoke 测试](./engineering/PACKAGING_AND_SMOKE_TESTING.md) | 本地验证、macOS 打包、覆盖安装和安装版 smoke 流程 |
 | [常见故障排查](./engineering/TROUBLESHOOTING.md) | 白屏、Python、TTS、API、图床、存储和打包问题排查 |
+| [自媒体 / AiToEarn 集成边界](./engineering/self-media-aitoearn-integration.md) | 自媒体域的 provider 适配层、只读上游快照与升级守卫 |
 | [第三方声明](./engineering/THIRD_PARTY_NOTICES.md) | 第三方组件和许可证声明 |
 | [存储与数据迁移](./engineering/STORAGE_AND_DATA.md) | 项目存储位置、导入导出、指向已有数据目录和 legacy 迁移 |
 | [文档覆盖审计](./engineering/DOCS_COVERAGE_AUDIT.md) | 当前界面、源码入口和用户文档的覆盖关系与维护方向 |

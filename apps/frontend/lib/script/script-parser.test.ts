@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { callChatAPI, parseScript } from "./script-parser";
+import { callChatAPI, generateShotList, parseScript } from "./script-parser";
+import type { ScriptData } from "@/types/script";
 import { normalizeScriptData, normalizeTimeValue } from "./script-data-normalizer";
 import { detectInputType } from "./input-type-detector";
 
@@ -176,6 +177,33 @@ describe("parseScript API normalization", () => {
     const body = lastRequestBody(fetchMock);
     const messages = body.messages as Array<{ role: string; content: string }>;
     expect(messages[1]?.content).toContain("请仅提取最重要的 1 个场景");
+  });
+});
+
+describe("shot generation preflight", () => {
+  it("fails before batching when no API key is configured", async () => {
+    const scriptData = {
+      title: "空 key 回归",
+      language: "中文",
+      characters: [],
+      episodes: [],
+      storyParagraphs: [],
+      scenes: [{
+        id: "scene-1",
+        location: "室内",
+        time: "night",
+        atmosphere: "安静",
+      }],
+    } satisfies ScriptData;
+
+    await expect(generateShotList(scriptData, {
+      apiKey: "",
+      provider: "openai",
+      baseUrl: "https://relay.example.com/v1",
+      model: "gpt-4o-mini",
+      targetDuration: "auto",
+      styleId: "ink",
+    })).rejects.toThrow("API Key 未配置");
   });
 });
 

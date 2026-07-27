@@ -22,6 +22,7 @@ import { useSimpleTimelineStore } from '@/stores/editing/simple-timeline-store';
 import { useSClassStore } from '@/stores/sclass/sclass-store';
 import { useTtsStore } from '@/stores/tts/tts-store';
 import { useEditingStore } from '@/stores/editing/editing-store';
+import { useSelfMediaStore } from '@/stores/self-media/self-media-store';
 
 /**
  * Switch to a different project. Saves current project data and loads new project data.
@@ -114,6 +115,12 @@ export async function switchProject(newProjectId: string): Promise<void> {
     console.warn('[ProjectSwitcher] Failed to rehydrate editing store:', e);
   }
 
+  try {
+    await useSelfMediaStore.persist.rehydrate();
+  } catch (e) {
+    console.warn('[ProjectSwitcher] Failed to rehydrate self-media store:', e);
+  }
+
   // 4. NOW sync internal activeProjectId in stores that track it.
   //    By this point, per-project data is already loaded into memory via rehydrate(),
   //    so the persist write triggered here will save the correct data (not empty defaults).
@@ -122,12 +129,14 @@ export async function switchProject(newProjectId: string): Promise<void> {
   useSClassStore.getState().setActiveProjectId(newProjectId);
   useTtsStore.getState().setActiveProjectId(newProjectId);
   useEditingStore.getState().setActiveProjectId(newProjectId);
+  useSelfMediaStore.getState().setActiveProjectId(newProjectId);
 
   // 5. Ensure project data exists in stores that need it
   useScriptStore.getState().ensureProject(newProjectId);
   useDirectorStore.getState().ensureProject(newProjectId);
   useSClassStore.getState().ensureProject(newProjectId);
   useTtsStore.getState().ensureProject(newProjectId);
+  useSelfMediaStore.getState().ensureProject(newProjectId);
 
   console.log(`[ProjectSwitcher] Switch complete → ${newProjectId.substring(0, 8)}`);
 }

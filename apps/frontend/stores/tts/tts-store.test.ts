@@ -141,7 +141,7 @@ describe("TTS store", () => {
     store.getState().markCompleted(3, {
       audioLocalPath: "/tmp/3.wav",
       audioMaterialId: "mat-3",
-      audioFilePath: "/Users/me/media/scene-3.wav",
+      audioFilePath: "/tmp/mystudio-media/scene-3.wav",
       ttsBackend: "mock",
       mocked: true,
       warning: "Real qwen adapter unavailable",
@@ -151,7 +151,7 @@ describe("TTS store", () => {
       status: "completed",
       audioLocalPath: "/tmp/3.wav",
       audioMaterialId: "mat-3",
-      audioFilePath: "/Users/me/media/scene-3.wav",
+      audioFilePath: "/tmp/mystudio-media/scene-3.wav",
       ttsBackend: "mock",
       mocked: true,
       warning: "Real qwen adapter unavailable",
@@ -167,6 +167,73 @@ describe("TTS store", () => {
       ttsBackend: undefined,
       mocked: undefined,
       warning: undefined,
+    });
+  });
+
+  it("ignores a stale completion after a newer generation starts", () => {
+    const store = createTtsStore();
+
+    store.getState().setActiveProjectId("project-1");
+    store.getState().markGenerating(4, "generation-old");
+    store.getState().markGenerating(4, "generation-new");
+
+    store.getState().markCompleted(4, {
+      generationId: "generation-old",
+      audioLocalPath: "/tmp/old.wav",
+    });
+
+    expect(store.getState().getSceneVoiceLine(4)).toMatchObject({
+      status: "generating",
+      generationId: "generation-new",
+      audioLocalPath: undefined,
+    });
+
+    store.getState().markCompleted(4, {
+      generationId: "generation-new",
+      audioLocalPath: "/tmp/new.wav",
+    });
+
+    expect(store.getState().getSceneVoiceLine(4)).toMatchObject({
+      status: "completed",
+      generationId: "generation-new",
+      audioLocalPath: "/tmp/new.wav",
+    });
+  });
+
+  it("ignores a stale failure after a newer generation starts", () => {
+    const store = createTtsStore();
+
+    store.getState().setActiveProjectId("project-1");
+    store.getState().markGenerating(5, "generation-old");
+    store.getState().markGenerating(5, "generation-new");
+
+    store.getState().markFailed(5, "旧请求失败", "generation-old");
+    expect(store.getState().getSceneVoiceLine(5)).toMatchObject({
+      status: "generating",
+      generationId: "generation-new",
+      error: undefined,
+    });
+
+    store.getState().markFailed(5, "新请求失败", "generation-new");
+    expect(store.getState().getSceneVoiceLine(5)).toMatchObject({
+      status: "failed",
+      generationId: "generation-new",
+      error: "新请求失败",
+    });
+  });
+
+  it("keeps validation failures without a generation ID compatible", () => {
+    const store = createTtsStore();
+
+    store.getState().setActiveProjectId("project-1");
+    store.getState().upsertSceneVoiceLine({ sceneId: 6, text: "待校验", status: "idle" });
+
+    store.getState().markFailed(6, "未绑定声线 profile");
+
+    expect(store.getState().getSceneVoiceLine(6)).toMatchObject({
+      status: "failed",
+      generationId: undefined,
+      error: "未绑定声线 profile",
     });
   });
 

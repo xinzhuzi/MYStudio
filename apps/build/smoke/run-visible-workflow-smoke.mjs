@@ -81,15 +81,17 @@ if (runChapterAutoVideo && (!Number.isFinite(autoVideoTimeoutMs) || autoVideoTim
 const safeAutoVideoTimeoutMs = Number.isFinite(autoVideoTimeoutMs) && autoVideoTimeoutMs > 0
   ? Math.floor(autoVideoTimeoutMs)
   : 600_000;
-const daojieProjectName = "道劫";
-const daojieChapterId = "chapter-001";
-const daojieChapterTitle = "第1章：剑主夜访道口镇";
-const daojieProjectId =
-  process.env.MYSTUDIO_DAOJIE_PROJECT_ID ||
-  "49dce4c1-64b1-42de-85c2-9f266698aec0";
+  const daojieProjectName = "道劫";
+  const daojieChapterId = "chapter-001";
+  const daojieChapterTitle = "第1章：剑主夜访道口镇";
+  const daojieProjectId = process.env.MYSTUDIO_DAOJIE_PROJECT_ID?.trim() || null;
 const daojieSourceUserDataDir =
   process.env.MYSTUDIO_DAOJIE_USER_DATA_DIR ||
   resolve(homedir(), "Library", "Application Support", appProcessName);
+const daojieSourceStorageBasePath =
+  process.env.MYSTUDIO_STORAGE_BASE_PATH ||
+  readStorageBasePathFromConfig(daojieSourceUserDataDir) ||
+  daojieSourceUserDataDir;
 const visibleRunReportPath =
   (runInBackground
     ? process.env.MYSTUDIO_BACKGROUND_WORKFLOW_REPORT_PATH
@@ -199,6 +201,24 @@ function readJsonFile(filePath) {
   return JSON.parse(readFileSync(filePath, "utf8"));
 }
 
+function readStorageBasePathFromConfig(userDataDir) {
+  const configPath = resolve(userDataDir, "storage-config.json");
+  if (!existsSync(configPath)) return null;
+  let config;
+  try {
+    config = readJsonFile(configPath);
+  } catch {
+    return null;
+  }
+  if (typeof config.basePath === "string" && config.basePath.trim()) {
+    return resolve(config.basePath);
+  }
+  if (typeof config.projectPath === "string" && config.projectPath.trim()) {
+    return dirname(resolve(config.projectPath));
+  }
+  return null;
+}
+
 function writeVisibleRunReport(report) {
   mkdirSync(dirname(visibleRunReportPath), { recursive: true });
   writeFileSync(
@@ -245,7 +265,7 @@ function copyProjectDirectoryIfExists(sourcePath, targetPath) {
 }
 
 function cloneRealDaojieUserData() {
-  const sourceProjectsDir = resolve(daojieSourceUserDataDir, "projects");
+  const sourceProjectsDir = resolve(daojieSourceStorageBasePath, "projects");
   const projectStorePath = resolve(sourceProjectsDir, "mystudio-project-store.json");
   if (!existsSync(projectStorePath)) {
     throw new Error(`Daojie project store was not found: ${projectStorePath}`);
@@ -254,7 +274,9 @@ function cloneRealDaojieUserData() {
   const projectStore = readJsonFile(projectStorePath);
   const projects = projectStore?.state?.projects || [];
   const project =
-    projects.find((candidate) => candidate.id === daojieProjectId) ||
+    (daojieProjectId
+      ? projects.find((candidate) => candidate.id === daojieProjectId)
+      : null) ||
     projects.find((candidate) => String(candidate.name || "").includes(daojieProjectName));
   if (!project) {
     throw new Error(`Daojie project was not found in ${projectStorePath}`);

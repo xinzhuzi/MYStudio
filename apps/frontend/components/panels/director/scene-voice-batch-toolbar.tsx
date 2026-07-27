@@ -99,6 +99,7 @@ export function SceneVoiceBatchToolbar({ scenes }: SceneVoiceBatchToolbarProps) 
           failed += 1;
           continue;
         }
+        let generationId: string | undefined;
         try {
           await ensureBackendVoiceProfile(generationProfile);
           const generation = await aiManager.tts({
@@ -108,6 +109,7 @@ export function SceneVoiceBatchToolbar({ scenes }: SceneVoiceBatchToolbarProps) 
             modelSize: line.modelSize,
             language: generationProfile.language,
           });
+          generationId = generation.id;
           markGenerating(sceneId, generation.id);
           const completed = await waitForBatchGeneration(generation.id);
           const bytes = await fetchGenerationAudio(generation.id);
@@ -117,6 +119,7 @@ export function SceneVoiceBatchToolbar({ scenes }: SceneVoiceBatchToolbarProps) 
           });
           if (!material.success || !material.localPath) throw new Error(material.error || "保存音频素材失败");
           markCompleted(sceneId, {
+            generationId: generation.id,
             audioLocalPath: material.localPath,
             audioMaterialId: material.filePath || material.localPath,
             audioFilePath: material.filePath,
@@ -126,7 +129,7 @@ export function SceneVoiceBatchToolbar({ scenes }: SceneVoiceBatchToolbarProps) 
           });
           success += 1;
         } catch (error) {
-          markFailed(sceneId, error instanceof Error ? error.message : "口播生成失败");
+          markFailed(sceneId, error instanceof Error ? error.message : "口播生成失败", generationId);
           failed += 1;
         }
       }

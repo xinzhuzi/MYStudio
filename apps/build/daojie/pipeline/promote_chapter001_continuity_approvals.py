@@ -32,13 +32,13 @@ from apps.build.daojie.build_daojie_chapter001_workflow import (  # noqa: E402
     continuity_asset_structurally_complete,
     normalize_continuity_asset_version,
 )
+from apps.build.daojie.path_resolver import resolve_project_dir  # noqa: E402
 from apps.build.daojie.pipeline.prepare_chapter001_continuity_bibles import (  # noqa: E402
     planned_reference_paths,
     write_new_or_identical,
 )
 
 
-PROJECT_ID = "49dce4c1-64b1-42de-85c2-9f266698aec0"
 MAX_EVIDENCE_BYTES = 1_000_000
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 CANDIDATE_REVIEW_SCHEMA_VERSION = "daojie-continuity-asset-review-v1"
@@ -46,12 +46,7 @@ CANDIDATE_APPROVAL_SCHEMA_VERSION = "daojie-continuity-asset-human-approval-v1"
 
 
 def default_store_path() -> Path:
-    return (
-        Path.home()
-        / "Library/Application Support/漫影工作室/projects/_p"
-        / PROJECT_ID
-        / "studio-workflow-store.json"
-    )
+    return resolve_project_dir() / "studio-workflow-store.json"
 
 
 def sha256_path(path: Path) -> str:
@@ -749,7 +744,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description="安全推广一个已获人工明确确认的第一章连续性资产版本",
     )
-    parser.add_argument("--store", type=Path, default=default_store_path())
+    parser.add_argument("--store", type=Path)
     source = parser.add_mutually_exclusive_group(required=True)
     source.add_argument("--manifest", type=Path)
     source.add_argument("--candidate-review", type=Path)
@@ -761,11 +756,12 @@ def main() -> None:
     parser.add_argument("--apply", action="store_true")
     parser.add_argument("--human-confirmed", action="store_true")
     args = parser.parse_args()
+    store_path = args.store or default_store_path()
     if args.candidate_review:
         if args.human_approval_record is None:
             parser.error("--candidate-review 必须同时提供 --human-approval-record")
         report = promote_human_approved_candidate(
-            args.store,
+            store_path,
             args.candidate_review,
             args.human_approval_record,
             args.asset_id,
@@ -779,7 +775,7 @@ def main() -> None:
         if args.human_approval_record is not None:
             parser.error("--human-approval-record 仅用于 --candidate-review")
         report = promote_human_approval(
-            args.store,
+            store_path,
             args.manifest,
             args.asset_id,
             args.version_id,

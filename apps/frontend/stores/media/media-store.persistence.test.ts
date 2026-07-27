@@ -1,11 +1,19 @@
 import { describe, expect, it } from "vitest";
 import { mergeMediaData, normalizeMediaUrl, partializeMediaData, splitMediaData, useMediaStore } from "./media-store";
+import * as mediaPersistence from "./media-store-persistence";
 import type { MediaFile, MediaFolder } from "@/types/media";
 
 const folder = (id: string, extra: Partial<MediaFolder> = {}): MediaFolder => ({ id, name: id, parentId: null, createdAt: 1, ...extra });
 const file = (id: string, extra: Partial<MediaFile> = {}): MediaFile => ({ id, name: id, type: "image", ...extra });
 
 describe("media store persistence characterization", () => {
+  it("keeps the store exports as compatibility facades for the persistence module", () => {
+    expect(splitMediaData).toBe(mediaPersistence.splitMediaData);
+    expect(mergeMediaData).toBe(mediaPersistence.mergeMediaData);
+    expect(normalizeMediaUrl).toBe(mediaPersistence.normalizeMediaUrl);
+    expect(partializeMediaData).toBe(mediaPersistence.partializeMediaData);
+  });
+
   it("keeps the stable persistence key and media partializer", () => {
     const options = useMediaStore.persist.getOptions();
 

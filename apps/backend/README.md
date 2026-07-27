@@ -42,7 +42,7 @@ http://127.0.0.1:17593
 | `<storageBasePath>/tts-models` | 默认 TTS 模型缓存目录 |
 | `{userData}/tts-runtime` | TTS sidecar 运行数据、`tts.sqlite`、生成音频、依赖 hash marker 和 runtime config |
 
-`storageBasePath` 由应用存储设置决定；用户迁移项目存储目录后，Python runtime 和默认模型缓存也会跟随该目录。
+`storageBasePath` 由应用存储设置决定；用户迁移项目存储目录后，Python runtime 和默认模型缓存的解析路径会指向新的存储根目录，但现有 `python/` 和 `tts-models/` 内容不会随 move/export/import 自动复制。
 
 `apps/backend/` 是 sidecar 源码和依赖声明，不是 Python runtime 的安装位置。此前遗留在源码树中的 `apps/backend/python` 已于 2026-07-25 移出；该路径不再是开发或运行时入口。`.gitignore` 仍忽略它，electron-builder 也继续排除 `backend/python/**`，防止本地 runtime 被重新带入源码包。Electron 不把它作为可选 Python 候选；正式 runtime 只从 `<storageBasePath>/python` 获取。
 
@@ -102,7 +102,7 @@ Electron 会先从开发时的 `apps/backend` 或打包后的 `Resources/backend
 
 Daojie chapter-001 直跑只有在显式设置 `MANYING_TTS_USE_HTTP=1` 时才会启动或复用 HTTP TTS。它会先复用已健康的 `127.0.0.1:17593` 服务；需要启动时，只检查其当前 managed 存储根目录下的 `python`，缺失时会提示先到 `设置 -> Python 配置` 点击 `开始配置` 并完成 TTS 依赖安装。它不再探测 `apps/backend/python`，并仍以 `apps/backend` 作为 `PYTHONPATH`。
 
-默认 `video:daojie:chapter001` 自动链不会注入 `MANYING_TTS_USE_HTTP=1`，因此不会经过这条 HTTP-TTS 直跑分支。当前直跑脚本的 `APP_SUPPORT` 根目录仍是 macOS 默认的应用支持目录；它尚不会跟随用户在设置页选择的替代 `storageBasePath`，这项跨平台/存储迁移不属于本批文档或运行时变更。
+默认 `video:daojie:chapter001` 自动链不会注入 `MANYING_TTS_USE_HTTP=1`，因此不会经过这条 HTTP-TTS 直跑分支。直跑脚本会按 `MYSTUDIO_STORAGE_BASE_PATH`、`<userData>/storage-config.json`、macOS development fallback 的顺序解析 managed 存储根；其中 `python/` 与 `tts-models/` 属于 `<storageBasePath>`，`tts-runtime/` 仍属于 `<userData>`。
 
 ## 测试
 

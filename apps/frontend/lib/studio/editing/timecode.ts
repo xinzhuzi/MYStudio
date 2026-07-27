@@ -4,15 +4,22 @@
 
 export type TimeCode = "HH:MM:SS:FF" | "MM:SS" | "SS";
 
+const DEFAULT_FPS = 30;
+
 function pad(value: number, length: number = 2): string {
   return String(Math.max(0, value)).padStart(length, "0");
 }
 
-export function formatTimeCode(seconds: number, format: TimeCode = "HH:MM:SS:FF", fps: number = 30): string {
+export function formatTimeCode(
+  seconds: number,
+  format: TimeCode = "HH:MM:SS:FF",
+  fps: number = DEFAULT_FPS,
+): string {
   const safeSeconds = Math.max(0, Number.isFinite(seconds) ? seconds : 0);
-  const totalFrames = Math.floor(safeSeconds * fps);
-  const frames = totalFrames % fps;
-  const totalWholeSeconds = Math.floor(totalFrames / fps);
+  const safeFps = Number.isFinite(fps) && fps > 0 ? fps : DEFAULT_FPS;
+  const totalFrames = Math.floor(safeSeconds * safeFps);
+  const totalWholeSeconds = Math.floor(totalFrames / safeFps);
+  const frames = totalFrames - Math.floor(totalWholeSeconds * safeFps);
   const ss = totalWholeSeconds % 60;
   const mm = Math.floor(totalWholeSeconds / 60) % 60;
   const hh = Math.floor(totalWholeSeconds / 3600);
@@ -22,7 +29,11 @@ export function formatTimeCode(seconds: number, format: TimeCode = "HH:MM:SS:FF"
   return `${pad(hh)}:${pad(mm)}:${pad(ss)}:${pad(frames)}`;
 }
 
-export function parseTimeCode(value: string, format: TimeCode = "HH:MM:SS:FF", fps: number = 30): number | null {
+export function parseTimeCode(
+  value: string,
+  format: TimeCode = "HH:MM:SS:FF",
+  fps: number = DEFAULT_FPS,
+): number | null {
   const text = value.trim();
   if (!text) return null;
 
@@ -32,16 +43,21 @@ export function parseTimeCode(value: string, format: TimeCode = "HH:MM:SS:FF", f
   }
 
   if (format === "MM:SS") {
-    const parts = text.split(":").map(Number);
+    const rawParts = text.split(":");
+    if (rawParts.some((part) => part.trim() === "")) return null;
+    const parts = rawParts.map(Number);
     if (parts.length !== 2 || parts.some((p) => !Number.isFinite(p) || p < 0)) return null;
     const [mm, ss] = parts;
+    if (ss >= 60) return null;
     return mm * 60 + ss;
   }
 
-  const parts = text.split(":").map(Number);
+  if (!Number.isFinite(fps) || fps <= 0) return null;
+  const rawParts = text.split(":");
+  if (rawParts.some((part) => part.trim() === "")) return null;
+  const parts = rawParts.map(Number);
   if (parts.length !== 4 || parts.some((p) => !Number.isFinite(p) || p < 0)) return null;
   const [hh, mm, ss, ff] = parts;
-  if (ff >= fps) return null;
+  if (!/^\d+$/.test(rawParts[3].trim()) || mm >= 60 || ss >= 60 || ff >= fps) return null;
   return hh * 3600 + mm * 60 + ss + ff / fps;
 }
-

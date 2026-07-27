@@ -20,7 +20,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(projectRoot, 'frontend'),
-      '@rendering': path.resolve(projectRoot, 'rendering'),
+      '@rendering': path.resolve(projectRoot, 'frontend/electron/rendering'),
     },
   },
   plugins: [

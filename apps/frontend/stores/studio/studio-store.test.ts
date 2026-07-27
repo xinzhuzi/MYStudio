@@ -381,6 +381,8 @@ describe("studio workflow store", () => {
     });
     expect(useStudioStore.getState().storyboards.find((item) => item.id === id)?.visualReview).toBeUndefined();
 
+    useStudioStore.getState().updateStoryboard(id, { mediaRef: undefined });
+    expect(useStudioStore.getState().storyboards.find((item) => item.id === id)?.mediaRef).toBeUndefined();
     useStudioStore.getState().reviewStoryboardHuman(id, {
       status: "approved",
       reasons: [],
@@ -389,13 +391,14 @@ describe("studio workflow store", () => {
       propChecks: [],
       transitionChecks: [],
       textWatermarkCheck: { passed: true },
-      evidencePaths: ["/frames/review-1.png"],
+      evidencePaths: ["/reviews/review-1.png"],
       reviewedAt: 10,
     });
     expect(useStudioStore.getState().storyboards.find((item) => item.id === id)?.visualReview).toMatchObject({
       status: "approved",
       reviewer: "human",
       reviewedAt: 10,
+      evidencePaths: ["/reviews/review-1.png"],
     });
 
     useStudioStore.getState().reviewContinuityAssetVersionHuman("scene:dock", "dock:morning", {

@@ -14,6 +14,8 @@ import {
   defaultCalibrationState,
   defaultScriptInputDraft,
 } from "./script-store-persistence";
+import { selectActiveScriptProject } from "./script-store-selectors";
+export { selectActiveScriptProject } from "./script-store-selectors";
 
 export interface ScriptStoreState {
   activeProjectId: string | null;
@@ -914,9 +916,5 @@ export const useScriptStore = create<ScriptStore>()(
 );
 
 export const useActiveScriptProject = (): ScriptProjectData | null => {
-  return useScriptStore((state) => {
-    const id = state.activeProjectId;
-    if (!id) return null;
-    return state.projects[id] || null;
-  });
+  return useScriptStore(selectActiveScriptProject);
 };

@@ -36,6 +36,22 @@ import type {
   RemotionPreviewCreateReply,
   RemotionPreviewReleaseReply,
 } from "@rendering/plugins/remotion/preview/remotion-preview-ipc";
+import type {
+  SelfMediaAccountListReply,
+  SelfMediaConfigureProviderReply,
+  SelfMediaConfigureProviderRequest,
+  SelfMediaCreateTaskRequest,
+  SelfMediaCreateTaskReply,
+  SelfMediaListAccountsRequest,
+  SelfMediaListTasksRequest,
+  SelfMediaLoginReply,
+  SelfMediaProviderListReply,
+  SelfMediaStartLoginRequest,
+  SelfMediaTaskListReply,
+  SelfMediaTaskProgressEvent,
+  SelfMediaTaskReply,
+  SelfMediaTaskRequest,
+} from "../lib/self-media/ipc-contract";
 
 export {};
 
@@ -47,6 +63,17 @@ declare global {
     }) => Promise<FileSystemDirectoryHandle>;
     appEvents?: {
       onMainProcessMessage: (listener: (message: string) => void) => () => void;
+    };
+    selfMedia?: {
+      listProviders: () => Promise<SelfMediaProviderListReply>;
+      listAccounts: (request: SelfMediaListAccountsRequest) => Promise<SelfMediaAccountListReply>;
+      listTasks: (request: SelfMediaListTasksRequest) => Promise<SelfMediaTaskListReply>;
+      configureProvider: (request: SelfMediaConfigureProviderRequest) => Promise<SelfMediaConfigureProviderReply>;
+      startLogin: (request: SelfMediaStartLoginRequest) => Promise<SelfMediaLoginReply>;
+      createTask: (request: SelfMediaCreateTaskRequest) => Promise<SelfMediaCreateTaskReply>;
+      pollTask: (request: SelfMediaTaskRequest) => Promise<SelfMediaTaskReply>;
+      cancelTask: (request: SelfMediaTaskRequest) => Promise<SelfMediaTaskReply>;
+      onProgress: (listener: (progress: SelfMediaTaskProgressEvent) => void) => () => void;
     };
     mystudioSmoke?: {
       enabled: boolean;
@@ -170,10 +197,26 @@ declare global {
       }>;
     };
     storageManager?: {
-      getPaths: () => Promise<{ basePath: string; projectPath: string; mediaPath: string; skillsPath: string; cachePath: string }>;
+      getPaths: () => Promise<{
+        basePath: string;
+        projectPath: string;
+        mediaPath: string;
+        assetsPath: string;
+        skillsPath: string;
+        pythonRuntimeDir: string;
+        modelCacheDir: string;
+        cachePath: string;
+      }>;
       selectDirectory: () => Promise<string | null>;
-      // Unified storage operations (single base path for projects + media)
-      validateDataDir: (dirPath: string) => Promise<{ valid: boolean; projectCount?: number; mediaCount?: number; skillCount?: number; error?: string }>;
+      // Unified storage operations (single base path for projects, media, assets, and skills)
+      validateDataDir: (dirPath: string) => Promise<{
+        valid: boolean;
+        projectCount?: number;
+        mediaCount?: number;
+        assetCount?: number;
+        skillCount?: number;
+        error?: string;
+      }>;
       moveData: (newPath: string) => Promise<{ success: boolean; path?: string; error?: string }>;
       linkData: (dirPath: string) => Promise<{ success: boolean; path?: string; error?: string }>;
       exportData: (targetPath: string) => Promise<{ success: boolean; path?: string; error?: string }>;

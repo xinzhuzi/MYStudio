@@ -40,13 +40,13 @@ describe("LocalImage", () => {
   it("renders absolute filesystem paths as file URLs", () => {
     render(
       <LocalImage
-        src="/Users/zhengbingjin/Library/Application Support/漫影工作室/assets/files/role/dugu.png"
+        src="/tmp/MYStudio Test/assets/files/role/dugu.png"
         alt="preview"
       />,
     );
 
     expect(screen.getByAltText("preview").getAttribute("src")).toBe(
-      "file:///Users/zhengbingjin/Library/Application%20Support/%E6%BC%AB%E5%BD%B1%E5%B7%A5%E4%BD%9C%E5%AE%A4/assets/files/role/dugu.png",
+      "file:///tmp/MYStudio%20Test/assets/files/role/dugu.png",
     );
   });
 

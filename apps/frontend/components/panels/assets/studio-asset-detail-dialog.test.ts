@@ -72,7 +72,7 @@ describe("buildAssetRegenerationPrompt", () => {
       id: "asset-audio-1",
       source: "manying-local",
       type: "audio",
-      name: "/Users/zhengbingjin/Documents/音频/800+音色合集/少年旁白_穿过雨夜.wav",
+      name: "/tmp/mystudio-fixtures/音频/800+音色合集/少年旁白_穿过雨夜.wav",
       filePath: "/project/assets/audio/少年旁白_穿过雨夜.wav",
     };
 
@@ -262,7 +262,7 @@ describe("buildAssetRegenerationPrompt", () => {
     const saveMaterial = vi.fn().mockResolvedValue({
       success: true,
       localPath: "local-image://studio-assets/generated-role.png",
-      filePath: "/Users/zhengbingjin/Library/Application Support/漫影工作室/assets/files/generated-role.png",
+      filePath: "/tmp/mystudio-storage/assets/files/generated-role.png",
     });
     const update = vi.fn().mockResolvedValue({ id: "asset-role-1" });
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(new Blob(["image-bytes"], { type: "image/png" }))));
@@ -287,7 +287,7 @@ describe("buildAssetRegenerationPrompt", () => {
     expect(saved).toBe(true);
     expect(replaceImage).toHaveBeenCalledWith({
       assetId: "asset-role-1",
-      sourceFilePath: "/Users/zhengbingjin/Library/Application Support/漫影工作室/assets/files/generated-role.png",
+      sourceFilePath: "/tmp/mystudio-storage/assets/files/generated-role.png",
     });
   });
 

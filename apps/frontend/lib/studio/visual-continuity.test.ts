@@ -468,4 +468,29 @@ describe("storyboard visual continuity", () => {
       inputFingerprint: visualReviewInputFingerprint(item),
     });
   });
+
+  it("accepts one persisted review image when generated media is unavailable", () => {
+    const item = storyboard(1);
+    item.mediaRef = undefined;
+    item.visualReview = undefined;
+
+    const review = createHumanVisualReview(item, {
+      status: "approved",
+      reasons: [],
+      characterChecks: [{ characterId: "dugu", passed: true }],
+      sceneChecks: [{ sceneVersionId: "dock:morning", passed: true }],
+      propChecks: [],
+      transitionChecks: [],
+      textWatermarkCheck: { passed: true },
+      evidencePaths: ["/reviews/sb-1-reviewed.png"],
+      reviewedAt: 100,
+    }, storyboardAssetVersions());
+
+    expect(review).toMatchObject({
+      status: "approved",
+      reviewer: "human",
+      evidencePaths: ["/reviews/sb-1-reviewed.png"],
+      inputFingerprint: visualReviewInputFingerprint(item),
+    });
+  });
 });

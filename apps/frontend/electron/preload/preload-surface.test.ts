@@ -15,6 +15,23 @@ describe("preload IPC surface", () => {
     expect(preloadSource).toContain("ipcRenderer.invoke('app-updater-check', options)");
   });
 
+  it("exposes the self-media IPC contract through a validated narrow facade", () => {
+    expect(preloadSource).toContain("exposeInMainWorld('selfMedia'");
+    expect(preloadSource).toContain("ipcRenderer.invoke(SELF_MEDIA_IPC.listProviders)");
+    expect(preloadSource).toContain("ipcRenderer.invoke(SELF_MEDIA_IPC.listAccounts, request)");
+    expect(preloadSource).toContain("ipcRenderer.invoke(SELF_MEDIA_IPC.listTasks, request)");
+    expect(preloadSource).toContain("ipcRenderer.invoke(SELF_MEDIA_IPC.configureProvider, request)");
+    expect(preloadSource).toContain("ipcRenderer.invoke(SELF_MEDIA_IPC.startLogin, request)");
+    expect(preloadSource).toContain("ipcRenderer.invoke(SELF_MEDIA_IPC.createTask, request)");
+    expect(preloadSource).toContain("ipcRenderer.invoke(SELF_MEDIA_IPC.pollTask, request)");
+    expect(preloadSource).toContain("ipcRenderer.invoke(SELF_MEDIA_IPC.cancelTask, request)");
+    expect(preloadSource).toContain("ipcRenderer.on(SELF_MEDIA_IPC.progress, wrapped)");
+    expect(preloadSource).toContain("decodeSelfMediaIpcReply");
+    expect(preloadSource).toContain("decodeSelfMediaProgressEvent(payload)");
+    expect(electronTypesSource).toContain("selfMedia?:");
+    expect(electronTypesSource).toContain("onProgress: (listener: (progress: SelfMediaTaskProgressEvent) => void) => () => void");
+  });
+
   it("exposes diagnostics logging through a narrow safe API", () => {
     expect(preloadSource).toContain("exposeInMainWorld('diagnosticsLog'");
     expect(preloadSource).toContain("ipcRenderer.invoke('diagnostics-log-write', entry)");
@@ -218,7 +235,7 @@ describe("preload IPC surface", () => {
     expect(preloadSource).toContain("clearCache: (options?: { olderThanDays?: number }) => ipcRenderer.invoke('storage-clear-cache', options)");
     expect(preloadSource).toContain("ipcRenderer.invoke('storage-update-config', config)");
     expect(electronTypesSource).toContain("storageManager?:");
-    expect(electronTypesSource).toContain("getPaths: () => Promise<{ basePath: string; projectPath: string; mediaPath: string; skillsPath: string; cachePath: string }>");
+    expect(electronTypesSource).toContain("getPaths: () => Promise<{\n        basePath: string;\n        projectPath: string;\n        mediaPath: string;\n        assetsPath: string;\n        skillsPath: string;\n        pythonRuntimeDir: string;\n        modelCacheDir: string;\n        cachePath: string;\n      }>;");
     expect(electronTypesSource).toContain("selectDirectory: () => Promise<string | null>");
     expect(electronTypesSource).toContain("validateDataDir: (dirPath: string)");
     expect(electronTypesSource).toContain("moveData: (newPath: string)");

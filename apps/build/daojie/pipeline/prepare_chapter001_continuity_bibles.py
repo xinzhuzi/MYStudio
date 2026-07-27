@@ -14,17 +14,24 @@ import io
 import json
 import re
 import shutil
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 from PIL import Image, ImageOps
 
+try:
+    from apps.build.daojie.path_resolver import resolve_project_dir
+except ModuleNotFoundError:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from path_resolver import resolve_project_dir
 
-DEFAULT_PROJECT_DIR = Path(
-    "/Users/zhengbingjin/Library/Application Support/漫影工作室/projects/_p/"
-    "49dce4c1-64b1-42de-85c2-9f266698aec0"
-)
+
+def default_project_dir() -> Path:
+    return resolve_project_dir()
+
+
 TARGET_CHARACTERS = ("独孤剑尘", "监工赵四", "小杂役")
 VIEW_TYPES = ("front", "side", "back")
 BIBLE_VERSION = "v5"
@@ -685,7 +692,7 @@ def prepare_full_chapter_manifest(
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--project-dir", type=Path, default=DEFAULT_PROJECT_DIR)
+    parser.add_argument("--project-dir", type=Path)
     parser.add_argument("--dugu-board", type=Path)
     parser.add_argument("--zhao-board", type=Path)
     parser.add_argument("--helper-board", type=Path)
@@ -695,9 +702,10 @@ def main() -> None:
     parser.add_argument("--prop-source", action="append", default=[])
     parser.add_argument("--apply", action="store_true")
     args = parser.parse_args()
+    project_dir = args.project_dir or default_project_dir()
     if args.full_chapter_source:
         print(json.dumps(prepare_full_chapter_manifest(
-            args.project_dir,
+            project_dir,
             args.full_chapter_source,
             args.apply,
             args.bible_version,
@@ -707,7 +715,7 @@ def main() -> None:
         parser.error("pilot 模式必须同时提供 --dugu-board/--zhao-board/--helper-board/--dock-board")
     prop_source_overrides = parse_prop_source_overrides(args.prop_source)
     print(json.dumps(prepare_bibles(
-        args.project_dir,
+        project_dir,
         args.dugu_board,
         args.zhao_board,
         args.helper_board,

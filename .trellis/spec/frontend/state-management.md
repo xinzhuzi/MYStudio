@@ -92,3 +92,64 @@ current `EditingProject` ID.
 - Replacing storyboard rows by generated id alone; when an upstream parser regenerates ids, preserve continuity/review metadata by episode and shot index, then reset review only for changed visual inputs.
 - Treating an old timeline render record as current after an editing revision
   changes.
+
+## Scenario: SSR-safe persisted store adapters
+
+### 1. Scope / Trigger
+
+Any Zustand store imported by Vitest, Node tooling, or a non-renderer module
+that uses a renderer-only Electron/file-storage bridge.
+
+### 2. Signatures
+
+- `StateStorage.getItem(name: string): Promise<string | null> | string | null`
+- `StateStorage.setItem(name: string, value: string): Promise<void> | void`
+- `StateStorage.removeItem(name: string): Promise<void> | void`
+
+### 3. Contracts
+
+- The adapter checks `typeof window` when each storage method is called.
+- Without a renderer `window`, reads return `null` and writes/removes are
+  no-ops; importing or rehydrating the store must not access `window`.
+- In the renderer, the existing file-storage bridge, persistence key,
+  version, migration, and partialize payload are unchanged.
+
+### 4. Validation & Error Matrix
+
+- No `window` at import/rehydrate -> no bridge call, no `ReferenceError`.
+- Renderer bridge present -> delegate to the existing adapter unchanged.
+- Malformed persisted payload -> existing migration/normalization fallback.
+- Bridge operation rejects -> preserve the adapter's existing error handling;
+  do not convert the state to apparent success.
+
+### 5. Good/Base/Bad Cases
+
+- Good: `typeof window === "undefined" ? null : fileStorage.getItem(name)`.
+- Base: browser storage fallback continues to run in a renderer without the
+  Electron bridge.
+- Bad: evaluating `window.fileStorage` while constructing a module-level
+  storage object.
+
+### 6. Tests Required
+
+- Import and rehydrate the store with `window` removed and assert the bridge
+  `getItem` was not called.
+- Assert persistence key/version/partialize compatibility.
+- Keep malformed payload and normal renderer recovery tests.
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+```ts
+const storage = { getItem: (key: string) => window.fileStorage!.getItem(key) };
+```
+
+#### Correct
+
+```ts
+const storage = {
+  getItem: (key: string) =>
+    typeof window === "undefined" ? null : fileStorage.getItem(key),
+};
+```

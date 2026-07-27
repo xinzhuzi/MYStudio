@@ -2,6 +2,8 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, renameSync, rmSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { verifyFixedRemotionBundle } from '../remotion/bundle-preflight.mjs';
+import { verifyRemotionVersions } from '../remotion/verify-versions.mjs';
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const projectRoot = resolve(scriptDir, '../..');
@@ -219,7 +221,12 @@ const buildArchs = resolveBuildArchs();
 
 cleanIntermediateOutput();
 
-run('npm', ['run', 'remotion:bundle']);
+const versionResult = verifyRemotionVersions({ root: projectRoot });
+if (!versionResult.success) {
+  console.error(`${versionResult.errors.join('; ')}。请先运行 npm run remotion:versions。`);
+  process.exit(1);
+}
+verifyFixedRemotionBundle({ appRoot: projectRoot });
 run('npx', ['electron-vite', 'build', '--config', resolve(projectRoot, 'frontend', 'config', 'electron-vite.config.ts')]);
 
 for (const arch of buildArchs) {

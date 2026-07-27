@@ -51,6 +51,11 @@ interface SimpleTimelineStore {
   getClipAtTime: (time: number) => TimelineClip | null;
 }
 
+function clampTimelineTime(time: number, totalDuration: number): number {
+  const safeTotalDuration = Number.isFinite(totalDuration) ? Math.max(0, totalDuration) : 0;
+  return Number.isFinite(time) ? Math.max(0, Math.min(time, safeTotalDuration)) : 0;
+}
+
 export const useSimpleTimelineStore = create<SimpleTimelineStore>()(
   persist(
     (set, get) => ({
@@ -61,6 +66,8 @@ export const useSimpleTimelineStore = create<SimpleTimelineStore>()(
       activeClipId: null,
   
   addClip: (clipData) => {
+    if (!Number.isFinite(clipData.duration) || clipData.duration < 0) return;
+
     const { clips } = get();
     
     // Calculate start time (end of last clip)
@@ -97,6 +104,17 @@ export const useSimpleTimelineStore = create<SimpleTimelineStore>()(
   
   reorderClips: (fromIndex, toIndex) => {
     const { clips } = get();
+    if (
+      !Number.isInteger(fromIndex) ||
+      !Number.isInteger(toIndex) ||
+      fromIndex < 0 ||
+      fromIndex >= clips.length ||
+      toIndex < 0 ||
+      toIndex >= clips.length
+    ) {
+      return;
+    }
+
     const newClips = [...clips];
     const [removed] = newClips.splice(fromIndex, 1);
     newClips.splice(toIndex, 0, removed);
@@ -130,16 +148,20 @@ export const useSimpleTimelineStore = create<SimpleTimelineStore>()(
   
   seek: (time) => {
     const { totalDuration } = get();
-    const clampedTime = Math.max(0, Math.min(time, totalDuration));
+    const clampedTime = clampTimelineTime(time, totalDuration);
     set({ currentTime: clampedTime });
   },
   
   setCurrentTime: (time) => {
-    const clip = get().getClipAtTime(time);
-    set({ currentTime: time, activeClipId: clip?.id || null });
+    const { totalDuration } = get();
+    const clampedTime = clampTimelineTime(time, totalDuration);
+    const clip = get().getClipAtTime(clampedTime);
+    set({ currentTime: clampedTime, activeClipId: clip?.id || null });
   },
   
   getClipAtTime: (time) => {
+    if (!Number.isFinite(time)) return null;
+
     const { clips } = get();
     for (const clip of clips) {
       if (time >= clip.startTime && time < clip.startTime + clip.duration) {
@@ -175,7 +197,8 @@ export const useSimpleTimelineStore = create<SimpleTimelineStore>()(
 
 // Helper: Format time as MM:SS
 export function formatTime(seconds: number): string {
-  const mins = Math.floor(seconds / 60);
-  const secs = Math.floor(seconds % 60);
+  const safeSeconds = Math.max(0, Number.isFinite(seconds) ? seconds : 0);
+  const mins = Math.floor(safeSeconds / 60);
+  const secs = Math.floor(safeSeconds % 60);
   return `${mins}:${secs.toString().padStart(2, "0")}`;
 }

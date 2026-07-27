@@ -20,15 +20,29 @@ const RENDERER_OPTIONS = [
 export function RenderingSettingsTab() {
   const runtime = useRemotionRuntimeSettings();
   const progressPercent = Math.round((runtime.progress?.ratio ?? 0) * 100);
-  const statusLabel = runtime.status?.state === "ready"
-    ? "已就绪"
-    : runtime.status?.state === "update-required"
-      ? "需要手动更新"
-      : runtime.status?.state === "not-installed"
-        ? "尚未安装"
-        : runtime.status?.state === "error"
-          ? "检查失败"
-          : "未检查";
+  const statusLabel = runtime.isCheckingStatus
+    ? "检查中"
+    : runtime.status?.state === "ready"
+      ? "已就绪"
+      : runtime.status?.state === "update-required"
+        ? "需要手动更新"
+        : runtime.status?.state === "not-installed"
+          ? "尚未安装"
+          : runtime.status?.state === "error" || runtime.verificationState === "error"
+            ? "检查失败"
+            : "未检查";
+  const validationLabel = runtime.verificationState === "ready"
+    ? "可执行文件与缓存匹配"
+    : runtime.verificationState === "needs-download"
+      ? "需要安装或更新"
+      : runtime.verificationState === "error"
+        ? "无法验证"
+        : "验证中";
+  const downloadLabel = runtime.status?.state === "update-required"
+    ? "手动更新"
+    : runtime.verificationState === "error"
+      ? "重试下载"
+      : "下载 Headless Shell";
 
   return (
     <ScrollArea className="h-full">
@@ -75,7 +89,7 @@ export function RenderingSettingsTab() {
               <h4 className="font-medium text-foreground">Remotion Headless Shell</h4>
               <p className="text-xs text-muted-foreground mt-1">导出前必须手动安装官方浏览器运行时；状态检查不会触发下载。</p>
             </div>
-            <Button variant="ghost" size="icon" aria-label="刷新浏览器状态" onClick={() => void runtime.refreshStatus()} disabled={!runtime.runtimeAvailable || runtime.isLoading}>
+            <Button variant="ghost" size="icon" aria-label="刷新浏览器状态" onClick={() => void runtime.refreshStatus()} disabled={!runtime.runtimeAvailable || runtime.isBusy}>
               <RefreshCw className="h-4 w-4" />
             </Button>
           </div>
@@ -94,6 +108,19 @@ export function RenderingSettingsTab() {
                   <span className="font-mono">{runtime.status.remotionVersion}</span>
                 </div>
               )}
+              {runtime.status?.preparedForRemotionVersion && (
+                <div className="flex items-center justify-between gap-4 text-xs text-muted-foreground">
+                  <span>缓存准备版本</span>
+                  <span className="font-mono">{runtime.status.preparedForRemotionVersion}</span>
+                </div>
+              )}
+              <div className="flex items-center justify-between gap-4 text-sm">
+                <span className="text-muted-foreground">可执行文件/缓存验证</span>
+                <span className="font-medium text-foreground">{validationLabel}</span>
+              </div>
+              <p id="remotion-browser-verification" className="text-sm leading-6 text-muted-foreground" role="status" aria-live="polite">
+                {runtime.verificationMessage}
+              </p>
               {runtime.progress && runtime.progress.phase !== "completed" && (
                 <div className="space-y-2" aria-live="polite">
                   <div className="flex items-center justify-between text-xs text-muted-foreground">
@@ -103,10 +130,16 @@ export function RenderingSettingsTab() {
                   <Progress value={progressPercent} />
                 </div>
               )}
-              <Button onClick={() => void runtime.downloadBrowser()} disabled={runtime.isLoading || runtime.status?.state === "ready"}>
-                {runtime.isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-                {runtime.status?.state === "update-required" ? "手动更新" : "下载 Headless Shell"}
-              </Button>
+              <div className="flex flex-wrap gap-3">
+                <Button onClick={() => void runtime.downloadBrowser()} disabled={!runtime.canDownload || runtime.isBusy} aria-describedby="remotion-browser-verification">
+                  {runtime.isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                  {downloadLabel}
+                </Button>
+                <Button variant="outline" onClick={() => void runtime.verifyBrowser()} disabled={runtime.isBusy}>
+                  {runtime.isVerifying ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                  重新验证/修复
+                </Button>
+              </div>
               {runtime.error && <p className="text-sm text-destructive" role="alert">{runtime.error}</p>}
             </>
           )}

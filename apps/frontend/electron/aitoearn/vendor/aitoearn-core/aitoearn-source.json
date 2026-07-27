@@ -1,0 +1,257 @@
+{
+  "schemaVersion": 1,
+  "adapterContractVersion": "self-media/v1",
+  "upstream": {
+    "repository": "https://github.com/yikart/AiToEarn.git",
+    "ref": "main",
+    "commit": "3cbb97bb9a58dd99b97f45b60923cdbfdfeb3368",
+    "packageVersion": "0.8.0",
+    "checkoutHint": "<external-aitoearn-repo-root>/project/aitoearn-electron",
+    "sourceTreeSha256": "47d617bd586b7b4895ca50b04d816b1551d364a5f2318c727cf3123c26f7539d"
+  },
+  "sourceFiles": [
+    "commont/plat/douyin/common.douyin.ts",
+    "commont/regular.ts",
+    "commont/utils.type.ts",
+    "commont/utils.ts",
+    "electron/global/log.ts",
+    "electron/util/common.ts",
+    "electron/util/file.ts",
+    "electron/util/index.ts",
+    "electron/main/account/BrowserWindow/BrowserWindowItem.ts",
+    "electron/main/account/BrowserWindow/browserWindow.d.ts",
+    "electron/main/account/BrowserWindow/index.ts",
+    "electron/main/account/controller.ts",
+    "electron/main/account/module.ts",
+    "electron/main/account/service.ts",
+    "electron/main/plat/PlatformBase.ts",
+    "electron/main/plat/index.ts",
+    "electron/main/plat/module.ts",
+    "electron/main/plat/plat.type.ts",
+    "electron/main/plat/platforms/Kwai/KwaiPubListener.ts",
+    "electron/main/plat/platforms/Kwai/index.ts",
+    "electron/main/plat/platforms/douyin/index.ts",
+    "electron/main/plat/platforms/wxSph/index.ts",
+    "electron/main/plat/platforms/xhs/index.ts",
+    "electron/main/plat/pub/PubItemBase.ts",
+    "electron/main/plat/pub/PubItemImgText.ts",
+    "electron/main/plat/pub/PubItemVideo.ts",
+    "electron/plat/Kwai/index.ts",
+    "electron/plat/Kwai/kwai.type.ts",
+    "electron/plat/Kwai/sign/KwaiSign.ts",
+    "electron/plat/Kwai/sign/kuaiShoSignCore.js",
+    "electron/plat/douyin/douyin.type.ts",
+    "electron/plat/douyin/index.ts",
+    "electron/plat/requestNet.ts",
+    "electron/plat/shipinhao/index.ts",
+    "electron/plat/shipinhao/wxShp.type.ts",
+    "electron/plat/utils/index.ts",
+    "electron/plat/xiaohongshu/index.ts",
+    "electron/plat/xiaohongshu/xiaohongshu.type.ts"
+  ],
+  "license": {
+    "spdx": "MIT",
+    "noticeFiles": [
+      "LICENSE-AITOEARN.txt (copied from AiToEarn/LICENSE)"
+    ],
+    "attribution": "AiToEarn (yikart/AiToEarn)"
+  },
+  "snapshot": {
+    "root": ".",
+    "status": "synced",
+    "treeSha256": "47d617bd586b7b4895ca50b04d816b1551d364a5f2318c727cf3123c26f7539d",
+    "files": [
+      {
+        "path": "commont/plat/douyin/common.douyin.ts",
+        "sha256": "8117543eac63dba53b6c533ff6d1d50237d52a813f5d76924804c875dfdfa094",
+        "bytes": 403
+      },
+      {
+        "path": "commont/regular.ts",
+        "sha256": "d3f46cf4cacf9ee43b3d2e0ff033014c7b0627e6d888b5ae0e91486b41017cda",
+        "bytes": 230
+      },
+      {
+        "path": "commont/utils.type.ts",
+        "sha256": "0545757c81f5a5ff44f47ece0f84b293d897c6915eab7ee63c0c1c1e468db328",
+        "bytes": 318
+      },
+      {
+        "path": "commont/utils.ts",
+        "sha256": "2f89c7f950ea15cd274e6a723087173b7aa0f972d1b4362854ed31414f844f09",
+        "bytes": 1819
+      },
+      {
+        "path": "electron/global/log.ts",
+        "sha256": "c86935d49eb8029c557d6198fda76e2b31ac5128abe3f3c66f18594166b80eb8",
+        "bytes": 2031
+      },
+      {
+        "path": "electron/util/common.ts",
+        "sha256": "9e9e507235b91acf333b5b529af7f2f25871adba7655ed062d1dad122e5e9a83",
+        "bytes": 2391
+      },
+      {
+        "path": "electron/util/file.ts",
+        "sha256": "dca802e449481d03e31d0a6ae7733d3750ab918a7f31799e8507c3401f304096",
+        "bytes": 8895
+      },
+      {
+        "path": "electron/util/index.ts",
+        "sha256": "809bf9623acaf9334bf3a013e44ce3fe8aeb90c9728aca09d0022b44d9d12549",
+        "bytes": 1372
+      },
+      {
+        "path": "electron/main/account/BrowserWindow/BrowserWindowItem.ts",
+        "sha256": "fdc936b932394964fe01db583ef241c3ea6021a99c2494ad532b6e13d8b0ef6d",
+        "bytes": 1443
+      },
+      {
+        "path": "electron/main/account/BrowserWindow/browserWindow.d.ts",
+        "sha256": "05a86c7b15af8ad174d0b62effde8f1f5bc000c1cdc4a9c1773967a9698863b2",
+        "bytes": 317
+      },
+      {
+        "path": "electron/main/account/BrowserWindow/index.ts",
+        "sha256": "d3c3ece2da38c8ad26e13fecc134c7335671dcf2cd8bcefedc6fe4f8a290c29e",
+        "bytes": 903
+      },
+      {
+        "path": "electron/main/account/controller.ts",
+        "sha256": "ab99afbca080cb83586a645d2af1c143f98cf137ce69aa6c79b43aad5864226b",
+        "bytes": 8055
+      },
+      {
+        "path": "electron/main/account/module.ts",
+        "sha256": "af6dff1fa671e1141b980518bddc6692f32dd1a71aa199d720c6e5b0520779d3",
+        "bytes": 383
+      },
+      {
+        "path": "electron/main/account/service.ts",
+        "sha256": "14718cc9ec8f8d3a5e0f08423369bf1a0cfe412058d4fed970ddb71bad07d6ad",
+        "bytes": 7207
+      },
+      {
+        "path": "electron/main/plat/PlatformBase.ts",
+        "sha256": "5751ee2e88af34f92fdbbab433ac0f004eebbb204a41dd71253e999536ea1a7d",
+        "bytes": 5525
+      },
+      {
+        "path": "electron/main/plat/index.ts",
+        "sha256": "5c27b88f3d45b7ab3a0601dde1ce74608c17643223416a87e0dd939b93e8f993",
+        "bytes": 9748
+      },
+      {
+        "path": "electron/main/plat/module.ts",
+        "sha256": "14dee4f67c01d1b20a70e77d6c499eff15860012169c091947cf0561b22ccc93",
+        "bytes": 1042
+      },
+      {
+        "path": "electron/main/plat/plat.type.ts",
+        "sha256": "7c4fef2f84bace7c8078188c32a9afbd4f69a34c09f4f6c90b77e3ba6851fceb",
+        "bytes": 3468
+      },
+      {
+        "path": "electron/main/plat/platforms/Kwai/KwaiPubListener.ts",
+        "sha256": "32480df53870d7a1943e95090ea8305d027756d531e4029620401e46b1e76543",
+        "bytes": 3869
+      },
+      {
+        "path": "electron/main/plat/platforms/Kwai/index.ts",
+        "sha256": "d3711a01959644df90abc43c472b9d74d0443ed68a19adc1b4ba903b7c7f9bbf",
+        "bytes": 15312
+      },
+      {
+        "path": "electron/main/plat/platforms/douyin/index.ts",
+        "sha256": "3b478bf1319ce50643dcce233afec92a44ae7cf0f532e7ac64f662acf19c0ddf",
+        "bytes": 17854
+      },
+      {
+        "path": "electron/main/plat/platforms/wxSph/index.ts",
+        "sha256": "52d22fdc9e0b7b34c00b507239269619ce15c6e603881b1657073ac19268b2b5",
+        "bytes": 11878
+      },
+      {
+        "path": "electron/main/plat/platforms/xhs/index.ts",
+        "sha256": "8c737d978446b83408684ad9c1aaf39114d72b1eae46a81f9e8e11926e701538",
+        "bytes": 17146
+      },
+      {
+        "path": "electron/main/plat/pub/PubItemBase.ts",
+        "sha256": "4518e84a98ccafc44c233fedd1b025481a169abb484ef4654c687bf5e1e4060b",
+        "bytes": 353
+      },
+      {
+        "path": "electron/main/plat/pub/PubItemImgText.ts",
+        "sha256": "db3255919e432af538409f8db74587260d417c25355a322bf8e484294a4a1419",
+        "bytes": 2288
+      },
+      {
+        "path": "electron/main/plat/pub/PubItemVideo.ts",
+        "sha256": "4540834641269a1f33eb58ba08bbde4206e72676a1b626952b35415f572fc7d8",
+        "bytes": 2922
+      },
+      {
+        "path": "electron/plat/Kwai/index.ts",
+        "sha256": "9505404b903a6d38e8e438e1b6b9aca7901fd707e9b189dc371bc316b32f47b5",
+        "bytes": 25195
+      },
+      {
+        "path": "electron/plat/Kwai/kwai.type.ts",
+        "sha256": "58ed6a9445f832305e6e87f1d5978f64460c60073a3a8d163d61b7ed7bb4ce8c",
+        "bytes": 8398
+      },
+      {
+        "path": "electron/plat/Kwai/sign/KwaiSign.ts",
+        "sha256": "2e85cfb4b7a4ee1f775b817346c1be0e6eadcb5c4217ccb6ac2b78e54286cc6a",
+        "bytes": 1518
+      },
+      {
+        "path": "electron/plat/Kwai/sign/kuaiShoSignCore.js",
+        "sha256": "8288e965851205dfe57a512650476432d783cced2180d76d78a081b83148d53a",
+        "bytes": 41753
+      },
+      {
+        "path": "electron/plat/douyin/douyin.type.ts",
+        "sha256": "2d7a9b64ca11a2c0f27dd9d37a891a733dd9be6bd25a7bce6e0afb8082d1e6ef",
+        "bytes": 21767
+      },
+      {
+        "path": "electron/plat/douyin/index.ts",
+        "sha256": "abfef48bbb3159885532cdb72382de613a573928ae63cc05046ada90a96ea305",
+        "bytes": 77189
+      },
+      {
+        "path": "electron/plat/requestNet.ts",
+        "sha256": "c3117c47a30c1408d38686fc47472a8480a3c32de67f17c024ed00365666435a",
+        "bytes": 4228
+      },
+      {
+        "path": "electron/plat/shipinhao/index.ts",
+        "sha256": "db3c735cb0c7e02b4d114dbe9fa5d72f4e2930831e4f3cc0e1c0dabc060ad6c8",
+        "bytes": 44631
+      },
+      {
+        "path": "electron/plat/shipinhao/wxShp.type.ts",
+        "sha256": "3931a28dc8757f2471a05af3bae03446c6cc146b103359f0be75189b95bf8fff",
+        "bytes": 7662
+      },
+      {
+        "path": "electron/plat/utils/index.ts",
+        "sha256": "e28a4231065579b358cc389b627e02ecf47cdfcee53a1ee3684454e1b1421f14",
+        "bytes": 1275
+      },
+      {
+        "path": "electron/plat/xiaohongshu/index.ts",
+        "sha256": "4b0f5051ad38f36e98a58483547e5d793fbb2a2d76b8e3cced59fc4a2cb27ce1",
+        "bytes": 50598
+      },
+      {
+        "path": "electron/plat/xiaohongshu/xiaohongshu.type.ts",
+        "sha256": "91709dfbbc97687257bc2b1834cea7658928bb663db0c70bbdf0780ebbcb057b",
+        "bytes": 6185
+      }
+    ],
+    "lastSyncAt": "2026-07-26T14:34:28.570Z"
+  }
+}

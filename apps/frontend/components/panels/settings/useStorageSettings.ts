@@ -138,7 +138,7 @@ export function useStorageSettings() {
   const importData = useCallback(async () => {
     if (!storageManager) return;
     const dir = await storageManager.selectDirectory();
-    if (!dir || !window.confirm("导入将覆盖当前数据，是否继续？")) return;
+    if (!dir || !window.confirm("导入会按来源中存在的目录类别覆盖当前 projects/media/assets/skills 数据，是否继续？")) return;
     const result = await storageManager.importData(dir);
     if (!result.success) {
       toast.error(`导入失败: ${result.error || "未知错误"}`);
@@ -159,7 +159,7 @@ export function useStorageSettings() {
       toast.error(validation.error || "无效的数据目录");
       return;
     }
-    const message = `检测到 ${validation.projectCount || 0} 个项目文件，${validation.mediaCount || 0} 个素材文件。\n\n是否指向此目录？操作后建议重启应用。`;
+    const message = `检测到 ${validation.projectCount || 0} 个项目文件，${validation.mediaCount || 0} 个素材文件，${validation.assetCount || 0} 个资产库条目，${validation.skillCount || 0} 个技能文件。\n\n是否指向此目录？操作后建议重启应用。`;
     if (!window.confirm(message)) return;
     const result = await storageManager.linkData(dir);
     if (!result.success) {

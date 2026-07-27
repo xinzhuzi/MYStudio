@@ -28,6 +28,11 @@ import {
   staleProjectIds,
   validateInputScope,
 } from "./auto-editing-planning";
+import {
+  explicitTransitionDuration,
+  explicitTransitionEffect,
+  transitionParams,
+} from "./transition-policy";
 
 export const STORY_DRIVEN_V1_PRESET = {
   version: 1,
@@ -817,46 +822,6 @@ function sourceReason(clip: EditingClip) {
       return "没有可用视频，使用分镜图片";
     default:
       return "使用 adapter 已验证的画面来源";
-  }
-}
-
-function explicitTransitionEffect(
-  hint: string | undefined,
-): EditingTransition["effectId"] | null {
-  if (!hint) return null;
-  if (/黑场/.test(hint)) return "blackout";
-  if (/闪白/.test(hint)) return "flash";
-  if (/叠化|交叉淡化|cross\s*fade/i.test(hint)) return "crossfade";
-  if (/淡入|淡出|\bfade\b/i.test(hint)) return "fade";
-  return null;
-}
-
-function explicitTransitionDuration(
-  from: EditingClip,
-  to: EditingClip,
-  preset: AutoEditingPresetV1,
-) {
-  const ratioDuration = Math.floor(
-    Math.min(from.durationUs, to.durationUs) * preset.maxTransitionRatio,
-  );
-  if (ratioDuration < 1) return 0;
-  return Math.min(preset.maxTransitionUs, ratioDuration);
-}
-
-function transitionParams(
-  effectId: EditingTransition["effectId"],
-): EditingTransition["params"] {
-  switch (effectId) {
-    case "fade":
-      return { opacity: 1 };
-    case "crossfade":
-      return { curve: "linear" };
-    case "flash":
-      return { intensity: 0.8 };
-    case "blackout":
-      return { hold: 0.15 };
-    case "cut":
-      return {};
   }
 }
 

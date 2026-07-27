@@ -11,6 +11,9 @@ describe("timecode helpers", () => {
   it("clamps invalid input to zero while formatting", () => {
     expect(formatTimeCode(-5)).toBe("00:00:00:00");
     expect(formatTimeCode(Number.NaN)).toBe("00:00:00:00");
+    expect(formatTimeCode(65.5, "HH:MM:SS:FF", 0)).toBe("00:01:05:15");
+    expect(formatTimeCode(65.5, "HH:MM:SS:FF", Number.NaN)).toBe("00:01:05:15");
+    expect(formatTimeCode(65.5, "HH:MM:SS:FF", 29.97)).toBe("00:01:05:15");
   });
 
   it("parses supported timecode formats and rejects malformed values", () => {
@@ -19,7 +22,14 @@ describe("timecode helpers", () => {
     expect(parseTimeCode("65.5", "SS")).toBe(65.5);
 
     expect(parseTimeCode("00:00:00:30", "HH:MM:SS:FF", 30)).toBeNull();
+    expect(parseTimeCode("00:60:00:00", "HH:MM:SS:FF", 30)).toBeNull();
+    expect(parseTimeCode("00:00:60:00", "HH:MM:SS:FF", 30)).toBeNull();
+    expect(parseTimeCode("01:60", "MM:SS")).toBeNull();
     expect(parseTimeCode("01:-1", "MM:SS")).toBeNull();
+    expect(parseTimeCode("00:00:00:1.5", "HH:MM:SS:FF", 30)).toBeNull();
+    expect(parseTimeCode("00:00:00:", "HH:MM:SS:FF", 30)).toBeNull();
+    expect(parseTimeCode("00:00:00:00", "HH:MM:SS:FF", 0)).toBeNull();
+    expect(parseTimeCode("00:00:00:00", "HH:MM:SS:FF", Number.NaN)).toBeNull();
     expect(parseTimeCode("", "SS")).toBeNull();
   });
 });

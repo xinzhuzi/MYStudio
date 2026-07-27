@@ -17,6 +17,27 @@ import type { StudioVisualManualCreatePayload, StudioVisualManualImagesWritePayl
 import type { TtsRuntimeCommandResult, TtsRuntimeConfig, TtsRuntimeStatus } from '../../types/tts'
 import type { UpdateCheckOptions } from '../../types/update'
 import {
+  SELF_MEDIA_IPC,
+  decodeSelfMediaIpcReply,
+  decodeSelfMediaProgressEvent,
+} from '../../lib/self-media/ipc-contract'
+import type {
+  SelfMediaAccountListReply,
+  SelfMediaConfigureProviderRequest,
+  SelfMediaConfigureProviderReply,
+  SelfMediaCreateTaskRequest,
+  SelfMediaCreateTaskReply,
+  SelfMediaListAccountsRequest,
+  SelfMediaListTasksRequest,
+  SelfMediaLoginReply,
+  SelfMediaProviderListReply,
+  SelfMediaStartLoginRequest,
+  SelfMediaTaskListReply,
+  SelfMediaTaskProgressEvent,
+  SelfMediaTaskReply,
+  SelfMediaTaskRequest,
+} from '../../lib/self-media/ipc-contract'
+import {
   REMOTION_RUNTIME_DOWNLOAD_CHANNEL,
   REMOTION_RUNTIME_DOWNLOAD_PROGRESS_EVENT,
   REMOTION_RUNTIME_STATUS_CHANNEL,
@@ -38,6 +59,36 @@ contextBridge.exposeInMainWorld('appEvents', {
     const wrapped = (_event: IpcRendererEvent, message: string) => listener(message)
     ipcRenderer.on('main-process-message', wrapped)
     return () => ipcRenderer.removeListener('main-process-message', wrapped)
+  },
+})
+
+contextBridge.exposeInMainWorld('selfMedia', {
+  listProviders: async (): Promise<SelfMediaProviderListReply> =>
+    decodeSelfMediaIpcReply(await ipcRenderer.invoke(SELF_MEDIA_IPC.listProviders)),
+  listAccounts: async (request: SelfMediaListAccountsRequest): Promise<SelfMediaAccountListReply> =>
+    decodeSelfMediaIpcReply(await ipcRenderer.invoke(SELF_MEDIA_IPC.listAccounts, request)),
+  listTasks: async (request: SelfMediaListTasksRequest): Promise<SelfMediaTaskListReply> =>
+    decodeSelfMediaIpcReply(await ipcRenderer.invoke(SELF_MEDIA_IPC.listTasks, request)),
+  configureProvider: async (request: SelfMediaConfigureProviderRequest): Promise<SelfMediaConfigureProviderReply> =>
+    decodeSelfMediaIpcReply(await ipcRenderer.invoke(SELF_MEDIA_IPC.configureProvider, request)),
+  startLogin: async (request: SelfMediaStartLoginRequest): Promise<SelfMediaLoginReply> =>
+    decodeSelfMediaIpcReply(await ipcRenderer.invoke(SELF_MEDIA_IPC.startLogin, request)),
+  createTask: async (request: SelfMediaCreateTaskRequest): Promise<SelfMediaCreateTaskReply> =>
+    decodeSelfMediaIpcReply(await ipcRenderer.invoke(SELF_MEDIA_IPC.createTask, request)),
+  pollTask: async (request: SelfMediaTaskRequest): Promise<SelfMediaTaskReply> =>
+    decodeSelfMediaIpcReply(await ipcRenderer.invoke(SELF_MEDIA_IPC.pollTask, request)),
+  cancelTask: async (request: SelfMediaTaskRequest): Promise<SelfMediaTaskReply> =>
+    decodeSelfMediaIpcReply(await ipcRenderer.invoke(SELF_MEDIA_IPC.cancelTask, request)),
+  onProgress(listener: (progress: SelfMediaTaskProgressEvent) => void) {
+    const wrapped = (_event: IpcRendererEvent, payload: unknown) => {
+      try {
+        listener(decodeSelfMediaProgressEvent(payload))
+      } catch {
+        // Ignore malformed provider events at the renderer boundary.
+      }
+    }
+    ipcRenderer.on(SELF_MEDIA_IPC.progress, wrapped)
+    return () => ipcRenderer.removeListener(SELF_MEDIA_IPC.progress, wrapped)
   },
 })
 

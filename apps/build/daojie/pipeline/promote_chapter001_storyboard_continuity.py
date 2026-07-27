@@ -9,6 +9,7 @@ import hashlib
 import importlib.util
 import json
 import os
+import sys
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
@@ -19,7 +20,12 @@ from PIL import Image
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[4]
-DEFAULT_PROJECT = Path.home() / "Library/Application Support/漫影工作室/projects/_p/49dce4c1-64b1-42de-85c2-9f266698aec0"
+try:
+    from apps.build.daojie.path_resolver import resolve_project_dir
+except ModuleNotFoundError:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from path_resolver import resolve_project_dir
+
 EXPECTED_SHOTS = list(range(1, 44))
 
 
@@ -492,7 +498,7 @@ def apply_promotion(plan: dict[str, Any], human_confirmed: bool) -> dict[str, An
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--report", type=Path, required=True)
-    parser.add_argument("--project", type=Path, default=DEFAULT_PROJECT)
+    parser.add_argument("--project", type=Path)
     parser.add_argument("--store", type=Path)
     parser.add_argument("--apply", action="store_true")
     parser.add_argument("--human-confirmed", action="store_true")
@@ -501,7 +507,7 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    project = args.project.resolve()
+    project = (args.project or resolve_project_dir()).resolve()
     store_path = (args.store or (project / "studio-workflow-store.json")).resolve()
     plan = build_promotion_plan(args.report.resolve(), store_path, project)
     if args.human_confirmed and not args.apply:

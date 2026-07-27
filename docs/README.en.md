@@ -228,3 +228,7 @@ cd apps && npm run build:mac
 # Windows
 cd apps && npm run build:win
 ```
+
+On macOS, `build:mac` always runs through `build-mac.sh`: it packages, overwrites the installed
+app, runs installed smoke, and closes the app before returning. It reuses the fixed Remotion
+bundle; rebuild it explicitly with `npm run remotion:bundle` only after a version or composition change.

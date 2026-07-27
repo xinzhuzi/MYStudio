@@ -30,6 +30,7 @@ import { AssetsView } from "@/components/panels/assets";
 import { StudioView } from "@/components/panels/studio";
 import { SkillsView } from "@/components/panels/skills";
 import { TTSView } from "@/components/panels/tts";
+import { SelfMediaPanel } from "@/components/panels/self-media";
 
 export function Layout() {
   const { activeTab, inProject } = useMediaPanelStore();
@@ -84,7 +85,7 @@ export function Layout() {
 
   // Full-screen views (no resizable panels)
   // 这些板块有自己的多栏布局，不需要全局的预览和属性面板
-  const fullScreenTabs = ["export", "settings", "overview", "studio", "script", "characters", "scenes", "freedom", "assets", "skills", "tts"];
+  const fullScreenTabs = ["export", "settings", "overview", "studio", "script", "characters", "scenes", "freedom", "assets", "skills", "tts", "self-media"];
   if (fullScreenTabs.includes(activeTab)) {
     return (
       <>
@@ -110,6 +111,7 @@ export function Layout() {
               {activeTab === "characters" && <CharactersView />}
               {activeTab === "scenes" && <ScenesView />}
               {activeTab === "freedom" && <FreedomView />}
+              {activeTab === "self-media" && <SelfMediaPanel />}
               {/* 重型面板：懒挂载 + hidden 保活 */}
               {mountedTabs.has("assets") && <div className={activeTab === "assets" ? "h-full" : "hidden"}><AssetsView /></div>}
               {mountedTabs.has("skills") && <div className={activeTab === "skills" ? "h-full" : "hidden"}><SkillsView sidebarCollapsed={sidebarCollapsed} onToggleSidebar={toggleSidebar} /></div>}

@@ -55,10 +55,20 @@ project-file-save-image
 project-file-write-binary
 project-file-write-text
 read-image-base64
+remotion-preview-create
+remotion-preview-release
 remotion-runtime-download
 remotion-runtime-status
 save-file-dialog
 save-image
+self-media:cancel-task
+self-media:configure-provider
+self-media:create-task
+self-media:list-accounts
+self-media:list-providers
+self-media:list-tasks
+self-media:poll-task
+self-media:start-login
 storage-clear-cache
 storage-export-data
 storage-export-media-data
@@ -111,13 +121,27 @@ tts-runtime-stop
 `.trim().split("\n");
 
 const NAMED_IPC_CHANNELS = {
+  REMOTION_PREVIEW_CREATE_CHANNEL: "remotion-preview-create",
+  REMOTION_PREVIEW_RELEASE_CHANNEL: "remotion-preview-release",
   REMOTION_RUNTIME_DOWNLOAD_CHANNEL: "remotion-runtime-download",
   REMOTION_RUNTIME_STATUS_CHANNEL: "remotion-runtime-status",
+  "SELF_MEDIA_IPC.cancelTask": "self-media:cancel-task",
+  "SELF_MEDIA_IPC.configureProvider": "self-media:configure-provider",
+  "SELF_MEDIA_IPC.createTask": "self-media:create-task",
+  "SELF_MEDIA_IPC.listAccounts": "self-media:list-accounts",
+  "SELF_MEDIA_IPC.listTasks": "self-media:list-tasks",
+  "SELF_MEDIA_IPC.listProviders": "self-media:list-providers",
+  "SELF_MEDIA_IPC.pollTask": "self-media:poll-task",
+  "SELF_MEDIA_IPC.startLogin": "self-media:start-login",
 } as const;
 
 function listTypeScriptFiles(root: string): string[] {
   return fs.readdirSync(root, { withFileTypes: true }).flatMap((entry) => {
     const fullPath = path.join(root, entry.name);
+    // The AiToEarn snapshot is an isolated source lane. Its upstream modules
+    // may contain their own ipcMain handlers, but they are not registered by
+    // MYStudio and must not expand the app-owned IPC contract.
+    if (entry.isDirectory() && entry.name === "vendor" && path.basename(root) === "self-media") return [];
     if (entry.isDirectory()) return listTypeScriptFiles(fullPath);
     return entry.name.endsWith(".ts") && !entry.name.includes(".test.") ? [fullPath] : [];
   });

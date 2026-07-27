@@ -465,11 +465,15 @@ export function approvedVisualReviewIssues(
   if (evidencePaths.length === 0) {
     add("review.evidence", `分镜 ${storyboard.id} 缺少审核证据路径`);
   } else if (
-    !storyboard.mediaRef?.path
-    || evidencePaths.length !== 1
-    || evidencePaths[0] !== storyboard.mediaRef.path
+    evidencePaths.length !== 1
+    || (storyboard.mediaRef?.path && evidencePaths[0] !== storyboard.mediaRef.path)
   ) {
-    add("review.evidence", `分镜 ${storyboard.id} 的审核证据必须精确绑定当前画面`);
+    add(
+      "review.evidence",
+      storyboard.mediaRef?.path
+        ? `分镜 ${storyboard.id} 的审核证据必须精确绑定当前画面`
+        : `分镜 ${storyboard.id} 在缺少生成画面时只能保留一条审核证据`,
+    );
   }
   if (review.inputFingerprint !== visualReviewInputFingerprint(storyboard)) {
     add("review.stale", `分镜 ${storyboard.id} 审核输入已变化，必须重新审核`);

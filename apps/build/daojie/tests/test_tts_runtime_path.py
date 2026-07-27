@@ -1,4 +1,5 @@
 import importlib.util
+import os
 import sys
 import tempfile
 import unittest
@@ -19,6 +20,56 @@ def load_generator():
 
 
 class TtsRuntimePathTest(unittest.TestCase):
+    def test_storage_config_resolves_project_assets_and_runtime_roots(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            user_data = root / "user-data"
+            storage_root = root / "storage"
+            user_data.mkdir()
+            storage_root.mkdir()
+            (user_data / "storage-config.json").write_text(
+                '{"basePath": "' + str(storage_root) + '"}',
+                "utf-8",
+            )
+
+            with patch.dict(os.environ, {
+                "MYSTUDIO_DAOJIE_USER_DATA_DIR": str(user_data),
+                "MYSTUDIO_DAOJIE_PROJECT_ID": "project-from-env",
+            }, clear=False):
+                module = load_generator()
+
+            self.assertEqual(module.USER_DATA_DIR, user_data)
+            self.assertEqual(module.STORAGE_BASE_PATH, storage_root)
+            self.assertEqual(module.PROJECT, storage_root / "projects" / "_p" / "project-from-env")
+            self.assertEqual(module.ASSET_DB, storage_root / "assets" / "assets.db")
+            self.assertEqual(module.PYTHON_RUNTIME_DIR, storage_root / "python")
+            self.assertEqual(module.TTS_RUNTIME_DIR, user_data / "tts-runtime")
+            self.assertEqual(module.TTS_MODELS_DIR, storage_root / "tts-models")
+
+    def test_storage_config_resolves_project_by_name_without_fixed_project_id(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            user_data = root / "user-data"
+            storage_root = root / "storage"
+            projects_root = storage_root / "projects"
+            user_data.mkdir()
+            projects_root.mkdir(parents=True)
+            (user_data / "storage-config.json").write_text(
+                '{"basePath": "' + str(storage_root) + '"}',
+                "utf-8",
+            )
+            (projects_root / "mystudio-project-store.json").write_text(
+                '{"state": {"projects": [{"id": "project-from-name", "name": "道劫"}]}}',
+                "utf-8",
+            )
+
+            with patch.dict(os.environ, {
+                "MYSTUDIO_DAOJIE_USER_DATA_DIR": str(user_data),
+            }, clear=True):
+                module = load_generator()
+
+            self.assertEqual(module.PROJECT, storage_root / "projects" / "_p" / "project-from-name")
+
     def test_managed_python_executable_matches_current_platform(self):
         module = load_generator()
         runtime_dir = Path("/managed-storage/python")
@@ -39,7 +90,9 @@ class TtsRuntimePathTest(unittest.TestCase):
             process.poll.return_value = None
 
             with (
-                patch.object(module, "APP_SUPPORT", storage_root),
+                patch.object(module, "PYTHON_RUNTIME_DIR", storage_root / "python"),
+                patch.object(module, "TTS_RUNTIME_DIR", storage_root / "tts-runtime"),
+                patch.object(module, "TTS_MODELS_DIR", storage_root / "tts-models"),
                 patch.object(module, "health_check", side_effect=[False, True]),
                 patch.object(module.subprocess, "Popen", return_value=process) as popen,
             ):
@@ -60,7 +113,7 @@ class TtsRuntimePathTest(unittest.TestCase):
             legacy_python.write_bytes(b"")
 
             with (
-                patch.object(module, "APP_SUPPORT", storage_root),
+                patch.object(module, "PYTHON_RUNTIME_DIR", storage_root / "python"),
                 patch.object(module, "BACKEND_ROOT", source_tree),
                 patch.object(module, "APP_PYTHON", storage_root / "python" / "bin" / "python3.12", create=True),
                 patch.object(module, "health_check", return_value=False),

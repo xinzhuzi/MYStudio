@@ -32,6 +32,9 @@ interface EnsureSceneVoiceLineInput {
 
 type VoiceProfileInput = Omit<VoiceProfile, "id" | "createdAt" | "updatedAt">;
 
+type TtsCompletionResult = Pick<SceneVoiceLine, "audioLocalPath"> &
+  Partial<Pick<SceneVoiceLine, "generationId" | "audioMaterialId" | "audioFilePath" | "ttsBackend" | "mocked" | "warning">>;
+
 export interface TtsStore {
   activeProjectId: string | null;
   projects: Record<string, TtsProjectState>;
@@ -47,8 +50,8 @@ export interface TtsStore {
   getSceneVoiceLine: (sceneId: number) => SceneVoiceLine | undefined;
   selectBatchSceneIds: (sceneIds: number[], mode: BatchMode) => number[];
   markGenerating: (sceneId: number, generationId: string) => void;
-  markCompleted: (sceneId: number, result: Pick<SceneVoiceLine, "audioLocalPath"> & Partial<Pick<SceneVoiceLine, "audioMaterialId" | "audioFilePath" | "ttsBackend" | "mocked" | "warning">>) => void;
-  markFailed: (sceneId: number, error: string) => void;
+  markCompleted: (sceneId: number, result: TtsCompletionResult) => void;
+  markFailed: (sceneId: number, error: string, generationId?: string) => void;
   clearSceneAudio: (sceneId: number) => void;
 }
 
@@ -281,6 +284,9 @@ function createStoreState(set: (partial: Partial<TtsStore> | ((state: TtsStore) 
         const sceneKey = String(sceneId);
         const existing = project.voiceLines[sceneKey];
         if (!existing) return project;
+        if (result.generationId !== undefined && existing.generationId !== result.generationId) {
+          return project;
+        }
         return {
           ...project,
           voiceLines: {
@@ -302,8 +308,26 @@ function createStoreState(set: (partial: Partial<TtsStore> | ((state: TtsStore) 
       });
     },
 
-    markFailed: (sceneId, error) => {
-      get().upsertSceneVoiceLine({ sceneId, status: "failed", error });
+    markFailed: (sceneId, error, generationId) => {
+      withProject(set, get, (project) => {
+        const sceneKey = String(sceneId);
+        const existing = project.voiceLines[sceneKey];
+        if (!existing || (generationId !== undefined && existing.generationId !== generationId)) {
+          return project;
+        }
+        return {
+          ...project,
+          voiceLines: {
+            ...project.voiceLines,
+            [sceneKey]: {
+              ...existing,
+              status: "failed",
+              error,
+              updatedAt: Date.now(),
+            },
+          },
+        };
+      });
     },
 
     clearSceneAudio: (sceneId) => {

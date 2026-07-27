@@ -18,7 +18,18 @@
     "baseUrl": "..",
     "paths": {
       "@/*": ["./*"],
-      "@rendering/*": ["../rendering/*"]
+      "@rendering/*": ["./electron/rendering/*"],
+      "@@/utils.type": ["./electron/aitoearn/providers/aitoearn-local/compatibility/utils-type.ts"],
+      "image-size": ["./electron/aitoearn/providers/aitoearn-local/compatibility/image-size.ts"],
+      "xml2js": ["./electron/aitoearn/providers/aitoearn-local/compatibility/xml2js.ts"],
+      "crc32": ["./electron/aitoearn/providers/aitoearn-local/compatibility/crc32.ts"],
+      "crypto-js": ["./electron/aitoearn/providers/aitoearn-local/compatibility/crypto-js.ts"],
+      "fluent-ffmpeg": ["./electron/aitoearn/providers/aitoearn-local/compatibility/fluent-ffmpeg.ts"],
+      "electron-log/main": ["./electron/aitoearn/providers/aitoearn-local/compatibility/electron-log-main.ts"]
+      ,"@aitoearn/xhs": ["./electron/aitoearn/providers/aitoearn-local/compatibility/xhs-service.d.ts"]
+      ,"@aitoearn/douyin": ["./electron/aitoearn/providers/aitoearn-local/compatibility/douyin-service.d.ts"]
+      ,"@aitoearn/wx": ["./electron/aitoearn/providers/aitoearn-local/compatibility/wx-service.d.ts"]
+      ,"@aitoearn/kwai": ["./electron/aitoearn/providers/aitoearn-local/compatibility/kwai-service.d.ts"]
     },
 
     /* Linting */
@@ -28,7 +39,7 @@
     "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["../**/*.ts", "../**/*.tsx", "../**/*.d.ts", "../../rendering/**/*.ts", "../../rendering/**/*.tsx"],
-  "exclude": ["./**/*.ts"],
+  "include": ["../**/*.ts", "../**/*.tsx", "../**/*.d.ts", "../electron/rendering/**/*.ts", "../electron/rendering/**/*.tsx"],
+  "exclude": ["./**/*.ts", "../electron/aitoearn/vendor/aitoearn-core/**"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

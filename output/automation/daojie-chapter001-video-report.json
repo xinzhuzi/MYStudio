@@ -1,9 +1,0 @@
-{
-  "ok": false,
-  "generatedAt": "2026-07-26T08:36:43.406Z",
-  "command": "npm run video:daojie:chapter001",
-  "generatorScript": "/Users/zhengbingjin/Project/Github/MYStudio/build/daojie/build_daojie_chapter001_workflow.py",
-  "storyboardImageGenerationMode": "real-ai-reference-image-workflow",
-  "failureStage": "startup",
-  "error": "stage=startup: 视频生成脚本不存在: /Users/zhengbingjin/Project/Github/MYStudio/build/daojie/build_daojie_chapter001_workflow.py"
-}

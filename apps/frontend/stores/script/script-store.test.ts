@@ -15,7 +15,7 @@ vi.mock("@/lib/storage/project-storage", () => ({
 }));
 
 import type { ScriptStorePersistenceState } from "./script-store-persistence";
-import { useScriptStore } from "./script-store";
+import { selectActiveScriptProject, useScriptStore } from "./script-store";
 import {
   createDefaultScriptProjectData,
   defaultCalibrationState,
@@ -134,5 +134,32 @@ describe("script store defaults", () => {
     expect(setScriptData).toHaveBeenCalledWith("project-recovered", expect.objectContaining({
       characters: normalized.scriptData?.characters,
     }));
+  });
+});
+
+describe("active script project selector", () => {
+  it("returns null when no project is active", () => {
+    expect(
+      selectActiveScriptProject({ activeProjectId: null, projects: {} }),
+    ).toBeNull();
+  });
+
+  it("returns null when the active project is missing", () => {
+    expect(
+      selectActiveScriptProject({
+        activeProjectId: "missing",
+        projects: {},
+      }),
+    ).toBeNull();
+  });
+
+  it("returns the active project without cloning it", () => {
+    const project = createDefaultScriptProjectData();
+    expect(
+      selectActiveScriptProject({
+        activeProjectId: "active",
+        projects: { active: project },
+      }),
+    ).toBe(project);
   });
 });

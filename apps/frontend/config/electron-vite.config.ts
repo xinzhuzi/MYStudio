@@ -9,9 +9,25 @@ const configDir = path.dirname(fileURLToPath(import.meta.url));
 const frontendRoot = path.resolve(configDir, '..');
 const projectRoot = path.resolve(configDir, '..', '..');
 const electronViteOutDir = path.resolve(projectRoot, 'out');
+const aitoearnCompatibility = path.resolve(
+  frontendRoot,
+  'electron/aitoearn/providers/aitoearn-local/compatibility',
+);
 const sharedAlias = {
   '@': frontendRoot,
-  '@rendering': path.resolve(projectRoot, 'rendering'),
+  '@rendering': path.resolve(frontendRoot, 'electron/rendering'),
+  '@@/utils.type': path.join(aitoearnCompatibility, 'utils-type.ts'),
+  'image-size': path.join(aitoearnCompatibility, 'image-size.ts'),
+  xml2js: path.join(aitoearnCompatibility, 'xml2js.ts'),
+  crc32: path.join(aitoearnCompatibility, 'crc32.ts'),
+  'crypto-js': path.join(aitoearnCompatibility, 'crypto-js.ts'),
+  'fluent-ffmpeg': path.join(aitoearnCompatibility, 'fluent-ffmpeg.ts'),
+  sharp: path.join(aitoearnCompatibility, 'sharp.ts'),
+  'electron-log/main': path.join(aitoearnCompatibility, 'electron-log-main.ts'),
+  '@aitoearn/xhs': path.resolve(frontendRoot, 'electron/aitoearn/vendor/aitoearn-core/electron/plat/xiaohongshu/index.ts'),
+  '@aitoearn/douyin': path.resolve(frontendRoot, 'electron/aitoearn/vendor/aitoearn-core/electron/plat/douyin/index.ts'),
+  '@aitoearn/wx': path.resolve(frontendRoot, 'electron/aitoearn/vendor/aitoearn-core/electron/plat/shipinhao/index.ts'),
+  '@aitoearn/kwai': path.resolve(frontendRoot, 'electron/aitoearn/vendor/aitoearn-core/electron/plat/Kwai/index.ts'),
 };
 
 export default defineConfig({
@@ -24,11 +40,11 @@ export default defineConfig({
           index: path.resolve(frontendRoot, 'electron/main/main.ts'),
           'remotion-browser-worker': path.resolve(
             projectRoot,
-            'rendering/plugins/remotion/browser/remotion-browser-worker.ts',
+            'frontend/electron/rendering/plugins/remotion/browser/remotion-browser-worker.ts',
           ),
           'remotion-render-worker': path.resolve(
             projectRoot,
-            'rendering/plugins/remotion/renderer/remotion-render-worker-entry.ts',
+            'frontend/electron/rendering/plugins/remotion/renderer/remotion-render-worker-entry.ts',
           ),
         },
         output: {

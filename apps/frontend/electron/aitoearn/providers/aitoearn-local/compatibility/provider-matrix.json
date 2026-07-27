@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "contractVersion": "self-media/v1",
+  "providers": [
+    {
+      "providerId": "aitoearn-local",
+      "adapterVersion": "0.1.0",
+      "upstreamCommit": "3cbb97bb9a58dd99b97f45b60923cdbfdfeb3368",
+      "status": "enabled-with-local-bridge",
+      "platforms": ["xhs", "douyin", "wxSph", "KWAI"],
+      "capabilities": {
+        "accountListing": true,
+        "loginCheck": true,
+        "videoPublish": true,
+        "imageTextPublish": true,
+        "scheduledPublish": true,
+        "taskPolling": false,
+        "cancellation": false
+      },
+      "requiredShims": [
+        "@@/utils.type",
+        "image-size",
+        "xml2js",
+        "crc32",
+        "crypto-js",
+        "fluent-ffmpeg",
+        "sharp",
+        "electron-log/main"
+      ],
+      "notes": "AitoearnLocalPlatformBridge is wired in main.ts:179, so provider-registry.ts:72-86 reports the provider as enabled. Video publish covers all four platforms. Image-text publish exists upstream only for xhs (xiaohongshu/index.ts:812) and douyin (douyin/index.ts:664); shipinhao and Kwai expose video-only publish APIs, so lib/self-media/capabilities.ts keeps their supportsImageText false. scheduledPublish is MYStudio-side: task-runtime holds the task until scheduledAt, then self-media-ipc.ts:231-233 strips scheduledAt before calling the bridge, because platform-bridge.ts:232 rejects native platform scheduling. taskPolling stays false because the local publish is synchronous and platform-bridge.ts:289 only echoes the stored task status. Cancellation fails closed at platform-bridge.ts:290. The sharp shim replaces the native module imported by vendor plat/utils/index.ts:2, which is used only to read image width/height, so the packaged main bundle carries no .node binary."
+    }
+  ]
+}
