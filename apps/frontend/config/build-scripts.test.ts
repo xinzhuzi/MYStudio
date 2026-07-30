@@ -69,6 +69,317 @@ function runNodeHelper(payload: unknown): Promise<{ status: number | null; stdou
 }
 
 describe("desktop build scripts", () => {
+  it("does not treat an inactive hidden production canvas as the active storyboard stage", () => {
+    const source = readBuildFile("build/smoke/measure-workflow-zoom-performance.mjs");
+    const stageNavigation = source.slice(
+      source.indexOf("function openStoryboardStageExpression"),
+      source.indexOf("function captureEvidenceExpression"),
+    );
+
+    expect(stageNavigation).toContain("const canvasIsVisible = (canvas) =>");
+    expect(stageNavigation).toContain("canvas.closest('[data-state=\"inactive\"]')");
+    expect(stageNavigation).toContain("rect.width > 0 && rect.height > 0");
+    expect(stageNavigation).toContain("canvasIsVisible(canvas)");
+  });
+
+  it("waits for the production canvas to finish its initial fit before zoom assertions", () => {
+    const source = readBuildFile("build/smoke/measure-workflow-zoom-performance.mjs");
+    const probeSequence = source.slice(
+      source.indexOf("navigation = await evaluate"),
+      source.indexOf("initialVisualEvidence = await captureCanvasVisualMetrics"),
+    );
+
+    expect(source).toContain("async function waitForStableCanvasEvidence");
+    expect(probeSequence).toContain("await waitForStableCanvasEvidence(cdp)");
+    expect(probeSequence.indexOf("await waitForStableCanvasEvidence(cdp)"))
+      .toBeLessThan(probeSequence.indexOf('evidenceIssues(initialEvidence, "initial")'));
+  });
+
+  it("bounds production canvas screenshots and avoids the hanging surface path", () => {
+    const source = readBuildFile("build/smoke/measure-workflow-zoom-performance.mjs");
+    const visualCapture = source.slice(
+      source.indexOf("async function captureCanvasVisualMetrics"),
+      source.indexOf("function summarizeRound"),
+    );
+
+    expect(source).toContain("const CANVAS_SCREENSHOT_TIMEOUT_MS = 10_000");
+    expect(visualCapture).toContain("await withTimeout(");
+    expect(visualCapture).toContain('cdp.send("Page.captureScreenshot"');
+    expect(visualCapture).toContain("fromSurface: false");
+    expect(visualCapture).toContain('"capture production canvas screenshot"');
+    expect(source).toContain("async function captureMacCanvasPng");
+    expect(source).toContain('execFile("/usr/sbin/screencapture"');
+    expect(visualCapture).toContain('process.platform !== "darwin"');
+    expect(visualCapture).toContain("maximumNearBlackBandHeightCss");
+    expect(source).toContain(
+      'let cdpCanvasCaptureAvailable = process.platform !== "darwin"',
+    );
+    expect(visualCapture).toContain("cdpCanvasCaptureAvailable = false");
+    expect(source).not.toContain("System Events");
+    expect(source).not.toContain("Browser.getWindowForTarget");
+    expect(source).not.toContain("Browser.setWindowBounds");
+    expect(source).toContain('execFile("/usr/bin/open", ["-R", APP_BIN]');
+    expect(source).toContain("async function activateProbeApp");
+    expect(source).toContain('execFile("/usr/bin/osascript"');
+    expect(source).toContain("NSRunningApplication.runningApplicationWithProcessIdentifier");
+    expect(source).toContain("activateWithOptions");
+    expect(source).not.toContain('execFile("/usr/bin/open", ["-a", APP_PROCESS_NAME]');
+    expect(source).toContain("document.hasFocus()");
+    expect(source).toContain("window.resizeTo(");
+  });
+
+  it("warms the first explicit fit before timed zoom rounds", () => {
+    const source = readBuildFile("build/smoke/measure-workflow-zoom-performance.mjs");
+    const measuredRounds = source.slice(
+      source.indexOf("initialVisualEvidence = await captureCanvasVisualMetrics"),
+      source.indexOf("windowReturnStability = await measureWindowReturnStability"),
+    );
+
+    expect(measuredRounds.indexOf('await dispatchViewportControlPointer(cdp, "适配画布")'))
+      .toBeLessThan(measuredRounds.indexOf("for (let cycle = 1; cycle <= 5; cycle += 1)"));
+    expect(measuredRounds.indexOf('await dispatchViewportControlPointer(cdp, "适配画布")'))
+      .toBeLessThan(measuredRounds.indexOf("await sleep(700)"));
+  });
+
+  it("warms the CDP input path before frame-interval measurement begins", () => {
+    const source = readBuildFile("build/smoke/measure-workflow-zoom-performance.mjs");
+    const zoomRound = source.slice(
+      source.indexOf("async function measureRound"),
+      source.indexOf("async function warmInputDispatch"),
+    );
+
+    expect(source).toContain("async function warmInputDispatch");
+    expect(zoomRound.indexOf("await activateProbeApp(cdp, expectedProcessId)"))
+      .toBeLessThan(zoomRound.indexOf("await warmInputDispatch(cdp, preRoundEvidence)"));
+    expect(zoomRound.indexOf("await warmInputDispatch(cdp, preRoundEvidence)"))
+      .toBeLessThan(zoomRound.indexOf("startRoundExpression()"));
+  });
+
+  it("keeps macOS app activation outside the frame-measurement cycles", () => {
+    const source = readBuildFile("build/smoke/measure-workflow-zoom-performance.mjs");
+    const probeSequence = source.slice(
+      source.indexOf("for (let cycle = 1; cycle <= 5; cycle += 1)"),
+      source.indexOf("windowReturnStability = await measureWindowReturnStability"),
+    );
+    const cycles = probeSequence.slice(
+      0,
+      probeSequence.indexOf("await activateProbeApp(cdp, child.pid)"),
+    );
+
+    expect(cycles).not.toContain("activateProbeApp");
+  });
+
+  it("settles visual capture with the exact app process before the next measured round", () => {
+    const source = readBuildFile("build/smoke/measure-workflow-zoom-performance.mjs");
+    const zoomRound = source.slice(
+      source.indexOf("async function measureRound"),
+      source.indexOf("async function warmInputDispatch"),
+    );
+
+    expect(zoomRound).toContain("async function measureRound(cdp, direction, round, expectedProcessId)");
+    expect(zoomRound.indexOf("await warmInputDispatch(cdp, preRoundEvidence)"))
+      .toBeLessThan(zoomRound.indexOf("startRoundExpression()"));
+    expect(zoomRound.indexOf("stopRoundExpression()"))
+      .toBeLessThan(zoomRound.lastIndexOf("await activateProbeApp(cdp, expectedProcessId)"));
+    expect(zoomRound.lastIndexOf("await activateProbeApp(cdp, expectedProcessId)"))
+      .toBeLessThan(zoomRound.indexOf("settledVisualEvidence = await captureCanvasVisualMetrics"));
+  });
+
+  it("requires each zoom or fit action to settle on the viewport before its evidence is recorded", () => {
+    const source = readBuildFile("build/smoke/measure-workflow-zoom-performance.mjs");
+    const settlement = source.slice(
+      source.indexOf("async function waitForRoundSettlement"),
+      source.indexOf("function evidenceIssues"),
+    );
+    const zoomRound = source.slice(
+      source.indexOf("async function measureRound"),
+      source.indexOf("async function warmInputDispatch"),
+    );
+    const finalGate = source.slice(
+      source.indexOf("const aggregate = aggregateRounds(rounds)"),
+      source.indexOf("const report = {"),
+    );
+
+    expect(source).toContain("const ROUND_SETTLEMENT_TIMEOUT_MS = 5_000");
+    expect(source).toContain("const ROUND_SETTLEMENT_IDLE_MS = 260");
+    expect(source).toContain("const ROUND_SETTLEMENT_POLL_INTERVAL_MS = 60");
+    expect(settlement).toContain("await sleep(ROUND_SETTLEMENT_POLL_INTERVAL_MS)");
+    expect(settlement).toContain("stableCanvasLayoutSignature(lastEvidence)");
+    expect(settlement).toContain("evidenceIssues(lastEvidence, direction)");
+    expect(source).toContain("const ROUND_SETTLEMENT_STABLE_SAMPLE_COUNT = 2");
+    expect(settlement).not.toContain("frameCount");
+    expect(settlement).toContain("viewportMutationCount > 0");
+    expect(settlement).toContain("idleForMs >= ROUND_SETTLEMENT_IDLE_MS");
+    expect(zoomRound).toContain("const settlement = await waitForRoundSettlement(cdp, direction, round)");
+    expect(zoomRound).not.toContain("SETTLE_DURATION_MS");
+    expect(zoomRound).toContain("settlement,");
+    expect(finalGate).toContain("const aggregateP95Passed");
+    expect(finalGate).toContain("aggregate.p95FrameIntervalMs <= THRESHOLDS.p95FrameIntervalMs");
+  });
+
+  it("stops wheel dispatch when the requested zoom bound is reached", () => {
+    const source = readBuildFile("build/smoke/measure-workflow-zoom-performance.mjs");
+    const zoomRound = source.slice(
+      source.indexOf("async function measureRound"),
+      source.indexOf("async function warmInputDispatch"),
+    );
+
+    expect(zoomRound).toContain("let dispatchedEventCount = 0");
+    expect(zoomRound).toContain("const currentZoom = await evaluate(");
+    expect(zoomRound).toContain("if (isAtZoomBound(direction, currentZoom)) break");
+  });
+
+  it("requires exact zero transparent and near-black-band pixel evidence", () => {
+    const source = readBuildFile("build/smoke/measure-workflow-zoom-performance.mjs");
+    const visualCapture = source.slice(
+      source.indexOf("async function captureCanvasVisualMetrics"),
+      source.indexOf("function summarizeRound"),
+    );
+
+    expect(source).toContain("const VISUAL_PIXEL_THRESHOLDS = Object.freeze({");
+    expect(source).toContain("transparentRatio: 0");
+    expect(source).toContain("maximumNearBlackBandHeightCss: 0");
+    expect(visualCapture).toContain(
+      "transparentRatio === VISUAL_PIXEL_THRESHOLDS.transparentRatio",
+    );
+    expect(visualCapture).toContain(
+      "maximumNearBlackBandHeightCss === VISUAL_PIXEL_THRESHOLDS.maximumNearBlackBandHeightCss",
+    );
+    expect(visualCapture).toContain("transparentRatio,");
+    expect(visualCapture).toContain("maximumNearBlackBandHeightCss,");
+    expect(visualCapture).toContain("if (alpha < 255) transparentPixels += 1;");
+    expect(visualCapture).not.toContain("if (alpha < 240) transparentPixels += 1;");
+    expect(source).toContain("visualPixelThresholds: VISUAL_PIXEL_THRESHOLDS");
+  });
+
+  it("captures interaction and settled visual evidence only after frame timing stops", () => {
+    const source = readBuildFile("build/smoke/measure-workflow-zoom-performance.mjs");
+    const zoomRound = source.slice(
+      source.indexOf("async function measureRound"),
+      source.indexOf("async function warmInputDispatch"),
+    );
+    const roundSummary = source.slice(
+      source.indexOf("function summarizeRound"),
+      source.indexOf("async function waitForRoundSettlement"),
+    );
+
+    expect(zoomRound.indexOf("stopRoundExpression()"))
+      .toBeLessThan(zoomRound.indexOf("interactionVisualEvidence = await captureCanvasVisualMetrics"));
+    expect(zoomRound.indexOf("interactionVisualEvidence = await captureCanvasVisualMetrics"))
+      .toBeLessThan(zoomRound.lastIndexOf("await activateProbeApp(cdp, expectedProcessId)"));
+    expect(zoomRound).toContain("settledVisualEvidence = await captureCanvasVisualMetrics");
+    expect(roundSummary).toContain("interactionVisualEvidence,");
+    expect(roundSummary).toContain("settledVisualEvidence,");
+    expect(roundSummary).toContain("interactionVisualEvidence?.passed === true");
+    expect(roundSummary).toContain("settledVisualEvidence?.passed === true");
+    expect(source).toContain("rounds.length === 15");
+  });
+
+  it("requires before-and-after pixel evidence for window return stability", () => {
+    const source = readBuildFile("build/smoke/measure-workflow-zoom-performance.mjs");
+    const windowReturn = source.slice(
+      source.indexOf("async function measureWindowReturnStability"),
+      source.indexOf("async function positionViewportAtExactPublicZoom"),
+    );
+
+    expect(windowReturn).toContain("const beforeVisualEvidence = await captureCanvasVisualMetrics(cdp, before)");
+    expect(windowReturn).toContain("const afterVisualEvidence = await captureCanvasVisualMetrics(cdp, after)");
+    expect(windowReturn.indexOf("const beforeVisualEvidence"))
+      .toBeLessThan(windowReturn.indexOf('execFile("/usr/bin/open", ["-a", "Finder"]'));
+    expect(windowReturn).toContain("beforeVisualEvidence,");
+    expect(windowReturn).toContain("afterVisualEvidence,");
+    expect(windowReturn).toContain("beforeVisualEvidence.passed === true");
+    expect(windowReturn).toContain("afterVisualEvidence.passed === true");
+  });
+
+  it("centralizes full-node geometry checks at initial, fit, and resize checkpoints", () => {
+    const source = readBuildFile("build/smoke/measure-workflow-zoom-performance.mjs");
+    const geometryPolicy = source.slice(
+      source.indexOf("const FULL_NODE_GEOMETRY_CHECKPOINTS"),
+      source.indexOf("function stableCanvasLayoutSignature"),
+    );
+
+    expect(geometryPolicy).toContain('new Set(["initial", "fit", "resize"])');
+    expect(geometryPolicy).toContain("function requiresFullNodeGeometry(checkpoint)");
+    expect(geometryPolicy).toContain("FULL_NODE_GEOMETRY_CHECKPOINTS.has(checkpoint)");
+    expect(geometryPolicy).toContain("if (requiresFullNodeGeometry(checkpoint))");
+    expect(source).toContain("const includesFullNodeGeometry = requiresFullNodeGeometry(checkpoint)");
+    expect(source).toContain("const includesFullNodeGeometry = ${JSON.stringify(includesFullNodeGeometry)};");
+    expect(source).toContain("captureEvidenceExpression(direction)");
+    expect(source).toContain('captureEvidenceExpression("window-return")');
+    expect(source).toContain('evidenceIssues(lastEvidence, direction)');
+    expect(source).toContain('evidenceIssues(lastEvidence, "initial")');
+    expect(source).toContain('evidenceIssues(duringResize, "resize")');
+    expect(source).toContain('evidenceIssues(after, "resize")');
+    expect(source).toContain('evidenceIssues(after, "window-return")');
+  });
+
+  it("uses exact public zoom labels and real CDP pointer hits for viewport controls", () => {
+    const source = readBuildFile("build/smoke/measure-workflow-zoom-performance.mjs");
+    const controlGate = source.slice(
+      source.indexOf("const VIEWPORT_CONTROL_LABELS"),
+      source.indexOf("async function measureWindowResizeStability"),
+    );
+
+    expect(controlGate).toContain('"缩小画布"');
+    expect(controlGate).toContain('"放大画布"');
+    expect(controlGate).toContain('"适配画布"');
+    expect(controlGate).toContain("async function positionViewportAtExactPublicZoom");
+    expect(controlGate).toContain("state.publicZoomPercent === targetPercent");
+    expect(controlGate).toContain("publicZoomLabel === requestedPublicZoomLabel");
+    expect(controlGate).toContain("document.elementFromPoint(pointer.x, pointer.y)");
+    expect(controlGate).toContain("hitTargetAriaLabel === ariaLabel");
+    expect(controlGate).toContain('type: "mousePressed"');
+    expect(controlGate).toContain('type: "mouseReleased"');
+    expect(controlGate).not.toContain(".click()");
+    expect(controlGate).not.toContain("setViewport");
+    expect(controlGate).not.toContain("setZoom");
+    expect(controlGate).toContain("requestedAriaLabel: ariaLabel");
+    expect(controlGate).toContain("hitTarget:");
+    expect(controlGate).toContain("physicalButtonRect:");
+    expect(controlGate).toContain("actionApplied,");
+    expect(controlGate).toContain("controlsWithinCanvas");
+    expect(controlGate).toContain("physicalLayoutStable");
+    expect(controlGate).toContain(
+      "afterState.viewportTransform !== dispatched.state.viewportTransform",
+    );
+  });
+
+  it("defines the unified quality gate entry and deterministic stages", async () => {
+    const source = readBuildFile("build/scripts/run-quality-gate.mjs");
+    const packageJson = readBuildFile("package.json");
+    expect(packageJson).toContain('"test:all": "node ./build/scripts/run-quality-gate.mjs"');
+    expect(source).toContain("--plan");
+    expect(source).toContain("--skip-release");
+    expect(source).toContain("quality-gate-report.json");
+    const mod = await import("../../build/scripts/run-quality-gate.mjs");
+    const linuxPlan = mod.buildPlan({ platform: "linux" });
+    const names = linuxPlan.map((stage: { name: string }) => stage.name);
+    expect(names).toEqual([
+      "focused-tests",
+      "typecheck",
+      "lint",
+      "test",
+      "smoke:aitoearn-upgrade",
+      "build:mac",
+      "smoke:desktop",
+    ]);
+    expect(linuxPlan.slice(-2).every((stage: { enabled: boolean; skipReason: string }) =>
+      stage.enabled === false && stage.skipReason.includes("linux"))).toBe(true);
+    const focused = mod.discoverFocusedTests();
+    expect(focused).toContain("frontend/electron/aitoearn/task-runtime.test.ts");
+    expect(focused).toContain("build/scripts/sync-aitoearn-core.test.mjs");
+    expect(focused).toEqual([...focused].sort());
+    expect(mod.parseArgs(["--skip-release"]).skipRelease).toBe(true);
+    expect(() => mod.parseArgs(["--unknown"])).toThrow("Unknown argument");
+    const report = mod.createQualityGateReport({
+      platform: "linux",
+      releaseSkipped: true,
+      stages: [{ name: "typecheck", command: "npm run typecheck", status: "passed", durationMs: 3, exitCode: 0 }, { name: "build:mac", command: "npm run build:mac", status: "skipped", durationMs: 0, exitCode: null, reason: "release stages skipped on linux" }],
+    });
+    expect(report).toMatchObject({ mode: "quality-gate", platform: "linux", releaseSkipped: true, ok: true });
+    expect(report.stages[1]).toMatchObject({ status: "skipped", exitCode: null });
+  });
   it("exposes the deterministic AiToEarn upgrade smoke command", () => {
     const packageJson = readBuildFile("package.json");
     expect(packageJson).toContain('"smoke:aitoearn-upgrade": "node ./build/scripts/aitoearn-upgrade-smoke.mjs"');
@@ -309,7 +620,9 @@ describe("desktop build scripts", () => {
     expect(smokeScript).toContain("资产提取");
     expect(smokeScript).toContain("还没有剧本");
     expect(smokeScript).toContain("视频工作台");
-    expect(smokeScript).toContain("requiredText: ['一键成片', '旧拼接导出']");
+    expect(smokeScript).toContain("requiredText: ['原生 Remotion Studio']");
+    expect(smokeScript).toContain("forbiddenText: ['一键成片', '旧拼接导出', 'ffmpeg-local', 'track-candidate']");
+    expect(smokeScript).not.toContain("requiredText: ['一键成片', '旧拼接导出']");
     expect(smokeScript).not.toContain("requiredText: ['导出成片']");
     expect(smokeScript).toContain("forbiddenText");
     expect(smokeScript).toContain("workflow stage rendered removed content");
@@ -460,13 +773,17 @@ describe("desktop build scripts", () => {
     expect(smokeScript).toContain("MYSTUDIO_SMOKE_REMOTION_EXPORT");
     expect(smokeScript).toContain("verifyRemotionExport");
     expect(smokeScript).toContain("window.remotionRuntime");
-    expect(smokeScript).toContain("window.remotionPreview.create");
+    expect(smokeScript).toContain("window.remotionPreview.createShot");
     expect(smokeScript).toContain("window.remotionPreview.release");
-    expect(smokeScript).toContain("window.studioRenderer.renderTimeline");
-    expect(smokeScript).toContain("requestedRenderer: 'remotion'");
+    expect(smokeScript).toContain("window.remotionQueue.enqueueShot");
+    expect(smokeScript).toContain("window.remotionQueue.get");
+    expect(smokeScript).toContain("window.remotionQueue.onJob");
+    expect(smokeScript).not.toContain("window.studioRenderer.renderTimeline");
+    expect(smokeScript).not.toContain("window.studioRenderer.cancelTimelineRender");
+    expect(smokeScript).not.toContain("window.studioRenderer.onTimelineRenderProgress");
     expect(smokeScript).toContain("const expectBlockedExport = mode === 'blocked'");
     expect(smokeScript).toContain("MYSTUDIO_SMOKE_REMOTION_PREPARED_VERSION");
-    expect(smokeScript).toContain("result.player");
+    expect(smokeScript).toContain("result.studioHost");
     expect(smokeScript).toContain("noDownloadObserved");
     expect(smokeScript).toContain("realMediaGeneration");
     expect(smokeScript).toContain("remotionArtifact");
@@ -484,9 +801,9 @@ describe("desktop build scripts", () => {
     expect(remotionSmoke).toContain("const renderBrowserStatus = JSON.stringify");
     expect(remotionSmoke).toContain("const serializedPlan = JSON.stringify");
     expect(remotionSmoke).toContain("const expectCanceledExport = mode === 'cancel'");
-    expect(remotionSmoke).toContain("progress.stage === 'rendering'");
-    expect(remotionSmoke).toContain("cancelTimelineRender(plan.jobId)");
-    expect(remotionSmoke).toContain("progress.stage === 'canceled'");
+    expect(remotionSmoke).toContain("window.remotionQueue.cancel(jobId)");
+    expect(remotionSmoke).toContain("terminalJob.status === 'canceled'");
+    expect(remotionSmoke).toContain('iframe[title="原生 Remotion Studio"]');
     expect(remotionSmoke).toContain("__mystudioRemotionExportSmokePromise");
     expect(remotionSmoke).toContain("delete globalThis.${promiseKey}");
     expect(smokeScript).toContain("prepareRemotionBrowserDownload");
@@ -511,11 +828,9 @@ describe("desktop build scripts", () => {
       artifactInspection.indexOf("if (!remotionExport?.success ||"),
     );
     expect(canceledInspection).toContain("cancellationArtifactsPresent");
-    expect(canceledInspection).toContain("noSuccessfulOutput");
-    expect(canceledInspection).toContain('"editing-project.json"');
-    expect(canceledInspection).toContain('"render-plan.json"');
-    expect(canceledInspection).toContain('"input-manifest.json"');
-    expect(canceledInspection).toContain('"result.json"');
+    expect(canceledInspection).toContain("currentSlotPreserved");
+    expect(canceledInspection).toContain('"queue-state.json"');
+    expect(canceledInspection).toContain('"queue-events.jsonl"');
     expect(canceledInspection).toContain("realMediaGeneration: false");
 
     const pageInspection = smokeScript.slice(
@@ -749,6 +1064,8 @@ describe("desktop build scripts", () => {
     expect(workflowRunner).toContain("focusSamples");
     expect(workflowRunner).toContain("foregroundViolation");
     expect(focusHelper).toContain('spawnSync("/usr/bin/lsappinfo", ["front"]');
+    expect(focusHelper).toContain('"pid"');
+    expect(focusHelper).toContain('"bundlepath"');
     expect(focusHelper).not.toContain("osascript");
     expect(focusHelper).not.toContain("System Events");
     expect(videoScript).toContain("MYSTUDIO_SMOKE_BACKGROUND: '1'");
@@ -877,6 +1194,9 @@ describe("desktop build scripts", () => {
     expect(runnerScript).toContain("inspectClonedDaojieProjectData(userDataDir, realDaojieRun?.projectId)");
     expect(runnerScript).toContain("mystudio-daojie-workflow-run-");
     expect(runnerScript).toContain("copyProjectDirectoryIfExists");
+    expect(runnerScript).toContain("repairMissingCharacterThumbnails");
+    expect(runnerScript).toContain("readDaojieRoleAssets");
+    expect(runnerScript).toContain("cloneAssetReferenceRepairs");
     expect(runnerScript).not.toContain("symlinkSync");
     expect(runnerScript).toContain("sourceWorkflowImagesDir");
     expect(runnerScript).toContain("clonedWorkflowImagesDir");
@@ -924,6 +1244,10 @@ describe("desktop build scripts", () => {
     expect(runnerScript).toContain("hasNoVisibleDuplicateGeneratedPromptPanel");
     expect(runnerScript).toContain("data-toonflow-generated-prompt-panel");
     expect(runnerScript).toContain("hasEditableImageWorkflowPrompt");
+    expect(runnerScript).toMatch(
+      /const hasDaojieDerivativePromptStyle = promptTextValues\.some\(\(value\) =>[\s\S]*?value\.includes\('daojie-gongbi-v2'\)[\s\S]*?value\.includes\('连续白描和铁线描'\)[\s\S]*?value\.includes\('3D\/CGI'\)/,
+    );
+    expect(runnerScript).toContain("const detail = entry.url ? `${text} (${entry.url})` : text");
     expect(runnerScript).toContain("hasImageWorkflowSource");
     expect(runnerScript).toContain("hasImageWorkflowBackButton");
     expect(runnerScript).toContain("hasImageWorkflowRunAction");
@@ -1492,6 +1816,12 @@ describe("desktop build scripts", () => {
     const timelineRunnerScript = readBuildFile(
       "build/timeline/render-daojie-editing-timeline.ts",
     );
+    const remotionTimelineScript = readBuildFile(
+      "build/timeline/render-daojie-remotion-timeline.ts",
+    );
+    const shotRunnerScript = readBuildFile(
+      "build/remotion/render-daojie-shot-slots.ts",
+    );
     const timelineRunnerConfig = readBuildFile("build/timeline/vite-node.config.ts");
     const generatorScript = readFileSync(
       resolve(appsRoot, "build", "daojie", "build_daojie_chapter001_workflow.py"),
@@ -1500,6 +1830,9 @@ describe("desktop build scripts", () => {
 
     expect(packageJson).toContain(
       '"video:daojie:chapter001": "node ./build/daojie/automate-daojie-chapter001-video.mjs"',
+    );
+    expect(packageJson).toContain(
+      '"video:daojie:chapter001:remotion": "MYSTUDIO_DAOJIE_REMOTION_RUNNER=1 MYSTUDIO_DAOJIE_REMOTION_ONLY=1 vite-node --config build/timeline/vite-node.config.ts build/timeline/render-daojie-remotion-timeline.ts"',
     );
     expect(packageJson).toContain(
       '"video:daojie:chapter001:visual-preflight": "MYSTUDIO_DAOJIE_VISUAL_PREFLIGHT=1 ./node_modules/.bin/vite-node --config build/timeline/vite-node.config.ts build/daojie/audit-daojie-visual-continuity.ts"',
@@ -1618,12 +1951,12 @@ describe("desktop build scripts", () => {
     expect(videoScript).toContain("matchedAssetImages");
     expect(videoScript).toContain("storyboardMediaManifest");
     expect(videoScript).toContain("assetImageManifest");
-    expect(videoScript).toContain("trackCandidateManifest");
+    expect(videoScript).toContain("remotionShotRunnerScript");
     expect(videoScript).toContain("derivedAssetPlan");
     expect(videoScript).toContain("derivedAssetManifest");
     expect(videoScript).toContain("finalVideoEvidence");
-    expect(videoScript).toContain("legacyCompatibilityVideo");
-    expect(videoScript).toContain("legacyCompatibilityVideoEvidence");
+    expect(videoScript).not.toContain("legacyCompatibilityVideo");
+    expect(videoScript).not.toContain("legacyCompatibilityVideoEvidence");
     expect(videoScript).toContain("let failureReportWritten = false;");
     expect(videoScript).toContain("let failureStage = 'startup';");
     expect(videoScript).toContain("failureStage,");
@@ -1633,32 +1966,39 @@ describe("desktop build scripts", () => {
     expect(videoScript).toContain("failureStage = 'final-media-checks';");
     expect(videoScript).toContain("timelineRenderRecord");
     expect(videoScript).toContain(
-      "const finalVideo = timelineResult.timelineRenderRecord.evidence.path;",
+      "const finalVideo = timelineResult.finalVideoEvidence.path;",
     );
     expect(videoScript).toContain(
-      "finalVideoEvidence: timelineResult.timelineRenderRecord.evidence",
+      "finalVideoEvidence: remotionResult.evidence",
     );
     expect(videoScript).not.toContain("const finalVideo = generated.final;");
     expect(timelineRunnerScript).toContain("studio-workflow-store.json");
     expect(timelineRunnerScript).toContain("mystudio-project-store.json");
     expect(timelineRunnerScript).toContain("buildChapterEditingProject");
-    expect(timelineRunnerScript).toContain("renderChapterEditingProject");
-    expect(timelineRunnerScript).toContain("createTimelineRenderRecord");
-    expect(timelineRunnerScript).toContain("createTimelineRenderRuntime");
-    expect(timelineRunnerScript).toContain("resolveProjectFileUrl");
-    expect(timelineRunnerScript).toContain("resolveLocalMediaPath");
+    expect(timelineRunnerScript).toContain("remotionShotSlots");
+    expect(timelineRunnerScript).toContain("loadRemotionShotSlots");
+    expect(timelineRunnerScript).toContain("compileTimelineRenderPlan");
     expect(timelineRunnerScript).toContain("editingProjectPath");
     expect(timelineRunnerScript).toContain("autoEditingRunPath");
     expect(timelineRunnerScript).toContain("timelineRenderPlanPath");
     expect(timelineRunnerScript).toContain("progressHistoryPath");
     expect(timelineRunnerScript).toContain("timelineRenderRecordPath");
     expect(timelineRunnerScript).toContain('MYSTUDIO_DAOJIE_TIMELINE_RUNNER === "1"');
+    expect(shotRunnerScript).toContain("runDaojieRemotionShotSlots");
+    expect(shotRunnerScript).toContain("STORYBOARD_SHOT_COMPOSITION_ID");
+    expect(shotRunnerScript).toContain("publishCurrentSlot");
+    expect(shotRunnerScript).toContain("chapterManifestPath");
+    expect(shotRunnerScript).toContain('MYSTUDIO_DAOJIE_SHOT_SLOTS === "1"');
+    expect(shotRunnerScript).not.toContain("ffmpeg-local");
+    expect(shotRunnerScript).not.toContain("concat_segments");
+    expect(remotionTimelineScript).toContain("resolveRemotionCurrentSlotOutputPath");
+    expect(remotionTimelineScript).toContain('path.join(projectDir, "remotion")');
     expect(timelineRunnerConfig).toContain("defineConfig");
     expect(timelineRunnerConfig).toContain("path.resolve(appsRoot, \"frontend\")");
     expect(timelineRunnerConfig).not.toContain("vite-plugin-electron");
     expect(videoScript).toContain("分镜媒体明细缺失");
     expect(videoScript).toContain("资产图片明细缺失");
-    expect(videoScript).toContain("生产轨候选明细缺失");
+    expect(videoScript).toContain("分镜媒体明细缺失");
     expect(videoScript).toContain("衍生资产预划缺失");
     expect(videoScript).toContain("衍生资产落地明细缺失");
     expect(videoScript).toContain("衍生资产图片不存在");
@@ -1720,7 +2060,7 @@ describe("desktop build scripts", () => {
     expect(generatorScript).toContain('"storyboardSourceSegments": source_segment_count');
     expect(generatorScript).toContain('"storyboardMediaManifest": storyboard_media_manifest');
     expect(generatorScript).toContain('"assetImageManifest": asset_image_manifest');
-    expect(generatorScript).toContain('"trackCandidateManifest": track_candidate_manifest');
+    expect(generatorScript).toContain('"remotion_shot_render"');
     expect(generatorScript).toContain('"derivedAssetPlan": DERIVED_ASSET_PLAN');
     expect(generatorScript).toContain('"derivedAssetManifest": derived_asset_sync["manifest"]');
     expect(generatorScript).toContain('"finalVideoEvidence": final_video_evidence');
@@ -1773,8 +2113,6 @@ describe("desktop build scripts", () => {
     expect(videoScript).toContain("最终视频缺少 video stream");
     expect(videoScript).toContain("最终视频缺少 audio stream");
     expect(videoScript).toContain("audio duration");
-    expect(videoScript).toContain("finalAudioMeanVolumeDb");
-    expect(videoScript).toContain("最终视频音量过低");
     expect(videoScript).toContain("speakerAudioSamples");
     expect(videoScript).toContain("角色音频样本缺失");
     expect(generatorScript).toContain("MIN_SHOT_DURATION = 3.0");

@@ -8,7 +8,7 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
-import { ReactFlowProvider } from "@xyflow/react";
+import { Position, ReactFlowProvider } from "@xyflow/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   ProductionFlowNode,
@@ -19,6 +19,7 @@ import {
   AssetFlowCard,
   StoryboardGridPreview,
   StoryboardTablePreview,
+  WorkbenchLanePreview,
   buildPreviewMarkdown,
 } from "./WorkflowNodePreviews";
 import type {
@@ -52,6 +53,9 @@ describe("workflow node component boundaries", () => {
     expect(productionNodeSource).toContain("export function ProductionFlowNode");
     expect(productionNodeSource).toContain("function NodeSkillDisclosure");
     expect(productionNodeSource).toContain("data-flow-node-id={data.node.id}");
+    expect(productionNodeSource).toContain("position={sourcePosition}");
+    expect(productionNodeSource).toContain("position={targetPosition}");
+    expect(productionNodeSource).toContain("sourcePosition === Position.Bottom ? Position.Right : Position.Bottom");
     expect(productionNodeSource).toContain("data.onStageChange(data.node.targetStage)");
     expect(productionNodeSource).toContain("data.onNodeAction?.({");
 
@@ -124,11 +128,19 @@ describe("workflow node component boundaries", () => {
   it("keeps production workflow chrome tied to theme tokens", () => {
     const productionNodeSource = readLocalSource("WorkflowProductionNode.tsx");
     const canvasSource = readLocalSource("WorkflowNodeCanvas.tsx");
+    const globalCssSource = readFileSync(
+      resolve(process.cwd(), "frontend/index.css"),
+      "utf8",
+    );
 
-    expect(productionNodeSource).toContain("bg-card/95");
+    expect(productionNodeSource).toContain("production-flow-node-card");
     expect(productionNodeSource).toContain("text-card-foreground");
     expect(productionNodeSource).toContain("border-border");
     expect(productionNodeSource).toContain("bg-muted/20");
+    expect(productionNodeSource).not.toContain("backdrop-blur");
+    expect(productionNodeSource).not.toContain("hover:-translate");
+    expect(productionNodeSource).not.toContain("shadow-[");
+    expect(productionNodeSource).not.toContain(" transition");
     expect(productionNodeSource).not.toContain("border-white/");
     expect(productionNodeSource).not.toContain("bg-black/");
     expect(productionNodeSource).not.toContain("bg-white/[");
@@ -136,10 +148,17 @@ describe("workflow node component boundaries", () => {
     expect(canvasSource).toContain('const PRODUCTION_EDGE_COLOR = "hsl(var(--primary))"');
     expect(canvasSource).toContain("markerEnd: { type: MarkerType.ArrowClosed, color: PRODUCTION_EDGE_COLOR }");
     expect(canvasSource).toContain("style: { stroke: PRODUCTION_EDGE_COLOR");
-    expect(canvasSource).toContain('Background color="hsl(var(--border))"');
+    expect(canvasSource).toContain("workflow-node-static-background");
+    expect(canvasSource).not.toContain("<Background");
     expect(canvasSource).not.toContain('Background color="rgba(255,255,255,0.055)"');
     expect(canvasSource).not.toContain('color: "#0f0f0f"');
     expect(canvasSource).not.toContain('stroke: "#0f0f0f"');
+    expect(globalCssSource).toContain(".workflow-node-static-background");
+    expect(globalCssSource).toContain("background-color: hsl(var(--background));");
+    expect(globalCssSource).toContain(".production-flow-node-card");
+    expect(globalCssSource).not.toContain(
+      ".workflow-node-canvas-interacting .production-flow-reactflow .react-flow__node > [data-flow-node-id]",
+    );
   });
 
   it("replaces a running node action button with a clear status surface", async () => {
@@ -304,6 +323,35 @@ describe("workflow node component boundaries", () => {
     expect(previewsSource).toContain("node.workbenchTracks");
     expect(previewsSource).toContain("selectedVideoPath");
     expect(previewsSource).toContain("最终导出");
+  });
+
+  it("shows requested, actual, fallback, and unverified renderer truth in the workbench preview", () => {
+    const base = {
+      id: "workbench" as const,
+      label: "视频工作台",
+      description: "",
+      status: "empty" as const,
+      metrics: [],
+      previewTitle: "视频工作台",
+      previewLines: [],
+      previewKind: "workbench-lanes" as const,
+      targetStage: "workbench" as const,
+      workbenchTracks: [],
+    };
+    const { rerender } = render(<WorkbenchLanePreview node={{ ...base, rendererSummary: { requested: "remotion" } }} />);
+    expect(screen.getByText("请求渲染器 Remotion")).toBeTruthy();
+    expect(screen.getByText("尚未验证成片")).toBeTruthy();
+
+    rerender(<WorkbenchLanePreview node={{ ...base, rendererSummary: { requested: "remotion", actual: "ffmpeg", fallbackEffectIds: ["glitch"], lastJobId: "job-1", outputPath: "/tmp/final.mp4" } }} />);
+    expect(screen.getByText("Remotion → FFmpeg")).toBeTruthy();
+    expect(screen.getByText("回退效果：glitch")).toBeTruthy();
+    expect(screen.getByText("job-1")).toBeTruthy();
+    expect(screen.getByText("/tmp/final.mp4")).toBeTruthy();
+
+    rerender(<WorkbenchLanePreview node={{ ...base, rendererSummary: { requested: "remotion", actual: "remotion", lastJobId: "job-remotion", outputPath: "/tmp/remotion-final.mp4" } }} />);
+    expect(screen.getByText("Remotion → Remotion")).toBeTruthy();
+    expect(screen.getByText("job-remotion")).toBeTruthy();
+    expect(screen.getByText("/tmp/remotion-final.mp4")).toBeTruthy();
   });
 
   it("renders derived asset nodes with Toonflow-style type and keeps technical ids machine-readable", () => {
@@ -497,6 +545,59 @@ describe("workflow node component boundaries", () => {
       sourceStageLabel: "分镜视频生成",
       sourceLabel: "衍生资产 · 夜景版",
     });
+  });
+
+  it("keeps preview image decoding, lazy loading, URLs, and alt text for assets and storyboards", () => {
+    const assetCard: ProductionFlowAssetCard = {
+      id: "scene-night",
+      name: "夜景版",
+      typeLabel: "场景",
+      runtimeType: "scene",
+      mediaPath: "project-file://daojie/assets/scenes/night.png",
+      isDerived: true,
+      imageWorkflowTarget: {
+        kind: "asset",
+        assetType: "scene",
+        parentId: "scene-base",
+        id: "scene-night",
+      },
+    };
+    const storyboardNode = {
+      id: "storyboard",
+      label: "分镜面板",
+      description: "分镜图、台词、配音与视频节点绑定。",
+      status: "ready",
+      metrics: ["1 个分镜"],
+      previewTitle: "分镜面板",
+      previewLines: [],
+      previewKind: "storyboard-grid",
+      targetStage: "storyboard",
+      storyboardTiles: [
+        {
+          id: "sb-1",
+          index: 1,
+          mediaPath: "project-file://dao/storyboard-images/shot-001.png",
+          title: "矿场醒来",
+          state: "ready",
+        },
+      ],
+    } satisfies ProductionFlowNodeModel;
+
+    const { rerender } = render(<AssetFlowCard card={assetCard} />);
+    const assetImage = screen.getByAltText("夜景版");
+    expect(assetImage.getAttribute("src")).toBe(assetCard.mediaPath);
+    expect(assetImage.getAttribute("alt")).toBe(assetCard.name);
+    expect(assetImage.getAttribute("loading")).toBe("lazy");
+    expect(assetImage.getAttribute("decoding")).toBe("async");
+
+    rerender(<StoryboardGridPreview node={storyboardNode} />);
+    const storyboardImage = screen.getByAltText("矿场醒来");
+    expect(storyboardImage.getAttribute("src")).toBe(
+      "project-file://dao/storyboard-images/shot-001.png",
+    );
+    expect(storyboardImage.getAttribute("alt")).toBe("矿场醒来");
+    expect(storyboardImage.getAttribute("loading")).toBe("lazy");
+    expect(storyboardImage.getAttribute("decoding")).toBe("async");
   });
 
   it("hides completed-state and technical ids from derived asset card copy", () => {

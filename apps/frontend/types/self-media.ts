@@ -4,7 +4,17 @@ export type SelfMediaPlatform =
   | "douyin"
   | "xhs"
   | "wxSph"
-  | "KWAI";
+  | "KWAI"
+  | "tiktok"
+  | "youtube"
+  | "bilibili"
+  | "twitter"
+  | "wxGzh"
+  | "facebook"
+  | "instagram"
+  | "threads"
+  | "pinterest"
+  | "linkedin";
 
 export type SelfMediaAccountStatus = "online" | "offline" | "expired" | "error";
 export type SelfMediaContentType = "video" | "image-text";
@@ -102,4 +112,5 @@ export interface SelfMediaProviderSummary {
   displayName: string;
   enabled: boolean;
   reason?: string;
+  availablePlatforms?: SelfMediaPlatform[];
 }

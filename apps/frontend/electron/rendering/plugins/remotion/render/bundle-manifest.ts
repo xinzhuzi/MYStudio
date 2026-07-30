@@ -1,13 +1,22 @@
 import path from "node:path";
+import {
+  BUNDLED_REMOTION_COMPOSITION_IDS,
+  DAOJIE_TIMELINE_COMPATIBILITY_COMPOSITION_ID,
+} from "../composition/composition-id";
 
 export const REMOTION_BUNDLE_DIR_NAME = "remotion-bundle";
 export const BUNDLE_MANIFEST_FILE_NAME = "manifest.json";
-export const BUNDLE_MANIFEST_SCHEMA_VERSION = 1;
+export const BUNDLE_MANIFEST_SCHEMA_VERSION = 2;
+export const REMOTION_TEMPLATE_ID = "mystudio-remotion-v1";
+export const REMOTION_TEMPLATE_VERSION = "1.0.0";
 
 export interface RemotionBundleManifest {
-  schemaVersion: 1;
+  schemaVersion: 2;
+  templateId: typeof REMOTION_TEMPLATE_ID;
+  templateVersion: typeof REMOTION_TEMPLATE_VERSION;
   remotionVersion: string;
-  compositionId: string;
+  compositionIds: ["StoryboardShot", "ChapterVideo", "DaojieTimeline"];
+  compositionId: typeof DAOJIE_TIMELINE_COMPATIBILITY_COMPOSITION_ID;
   contentHash: string;
 }
 
@@ -32,13 +41,31 @@ export function validateBundleManifest(
   }
   const issues: Array<{ path: string; message: string }> = [];
   if (value.schemaVersion !== BUNDLE_MANIFEST_SCHEMA_VERSION) {
-    issues.push({ path: "schemaVersion", message: "仅支持 bundle manifest schemaVersion=1" });
+    issues.push({ path: "schemaVersion", message: "仅支持 bundle manifest schemaVersion=2" });
+  }
+  if (value.templateId !== REMOTION_TEMPLATE_ID) {
+    issues.push({ path: "templateId", message: `bundle templateId 必须为 ${REMOTION_TEMPLATE_ID}` });
+  }
+  if (value.templateVersion !== REMOTION_TEMPLATE_VERSION) {
+    issues.push({
+      path: "templateVersion",
+      message: `bundle templateVersion 必须为 ${REMOTION_TEMPLATE_VERSION}`,
+    });
   }
   if (!isExactSemver(value.remotionVersion)) {
     issues.push({ path: "remotionVersion", message: "bundle manifest 需要精确 Remotion semver" });
   }
-  if (!isNonEmptyString(value.compositionId)) {
-    issues.push({ path: "compositionId", message: "bundle manifest 需要非空 compositionId" });
+  if (value.compositionId !== DAOJIE_TIMELINE_COMPATIBILITY_COMPOSITION_ID) {
+    issues.push({
+      path: "compositionId",
+      message: `bundle compositionId 必须为 ${DAOJIE_TIMELINE_COMPATIBILITY_COMPOSITION_ID}`,
+    });
+  }
+  if (!sameOrderedStrings(value.compositionIds, BUNDLED_REMOTION_COMPOSITION_IDS)) {
+    issues.push({
+      path: "compositionIds",
+      message: `bundle compositionIds 必须为 ${BUNDLED_REMOTION_COMPOSITION_IDS.join(", ")}`,
+    });
   }
   if (!isSha256(value.contentHash)) {
     issues.push({ path: "contentHash", message: "bundle manifest 需要 sha256 contentHash" });
@@ -74,10 +101,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function isNonEmptyString(value: unknown): value is string {
-  return typeof value === "string" && value.trim().length > 0;
-}
-
 function isExactSemver(value: unknown): value is string {
   return typeof value === "string"
     && /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(value);
@@ -85,4 +108,10 @@ function isExactSemver(value: unknown): value is string {
 
 function isSha256(value: unknown): value is string {
   return typeof value === "string" && /^[a-f0-9]{64}$/.test(value);
+}
+
+function sameOrderedStrings(value: unknown, expected: readonly string[]): boolean {
+  return Array.isArray(value)
+    && value.length === expected.length
+    && value.every((item, index) => item === expected[index]);
 }

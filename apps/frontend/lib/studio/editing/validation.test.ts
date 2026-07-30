@@ -250,6 +250,102 @@ describe("editing boundary validation", () => {
     ]));
   });
 
+  it("rejects typed Remotion session and capability fields at the top level", () => {
+    const plan = validRenderPlan(validProject()) as unknown as Record<string, unknown>;
+    Object.assign(plan, {
+      token: "a".repeat(64),
+      sessionId: "preview-1",
+      assetId: "asset-1",
+      url: "http://127.0.0.1:43123/capability/asset-1",
+      src: "http://127.0.0.1:43123/capability/clip-1",
+      mediaUrlByClipId: {
+        "clip-1": "http://127.0.0.1:43123/capability/clip-1",
+      },
+      composition: { visualClips: [] },
+    });
+
+    const result = validateTimelineRenderPlan(plan);
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.issues).toEqual(expect.arrayContaining([
+      ...[
+        "token",
+        "sessionId",
+        "assetId",
+        "url",
+        "src",
+        "mediaUrlByClipId",
+        "composition",
+      ].map((key) => expect.objectContaining({
+        code: "editing.render.forbidden_key",
+        path: `$.${key}`,
+      })),
+    ]));
+  });
+
+  it("rejects deeply nested Remotion capability fields in snapshot sources", () => {
+    const plan = validRenderPlan(validProject()) as unknown as Record<string, unknown>;
+    const snapshot = plan.editingProjectSnapshot as Record<string, unknown>;
+    const clips = snapshot.clips as Array<Record<string, unknown>>;
+    const source = clips[0]!.source as Record<string, unknown>;
+    source.runtime = {
+      preview: {
+        sessionId: "preview-1",
+        composition: {
+          visualClips: [{
+            src: "http://127.0.0.1:43123/capability/clip-1",
+          }],
+        },
+      },
+      mediaBridge: {
+        token: "a".repeat(64),
+        capability: {
+          assetId: "asset-1",
+          url: "http://127.0.0.1:43123/capability/asset-1",
+        },
+      },
+      worker: {
+        mediaUrlByClipId: {
+          "clip-1": "http://127.0.0.1:43123/capability/clip-1",
+        },
+      },
+    };
+
+    const result = validateTimelineRenderPlan(plan);
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.issues).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        code: "editing.render.forbidden_key",
+        path: "$.editingProjectSnapshot.clips[0].source.runtime.preview.sessionId",
+      }),
+      expect.objectContaining({
+        code: "editing.render.forbidden_key",
+        path: "$.editingProjectSnapshot.clips[0].source.runtime.preview.composition",
+      }),
+      expect.objectContaining({
+        code: "editing.render.forbidden_key",
+        path: "$.editingProjectSnapshot.clips[0].source.runtime.preview.composition.visualClips[0].src",
+      }),
+      expect.objectContaining({
+        code: "editing.render.forbidden_key",
+        path: "$.editingProjectSnapshot.clips[0].source.runtime.mediaBridge.token",
+      }),
+      expect.objectContaining({
+        code: "editing.render.forbidden_key",
+        path: "$.editingProjectSnapshot.clips[0].source.runtime.mediaBridge.capability.assetId",
+      }),
+      expect.objectContaining({
+        code: "editing.render.forbidden_key",
+        path: "$.editingProjectSnapshot.clips[0].source.runtime.mediaBridge.capability.url",
+      }),
+      expect.objectContaining({
+        code: "editing.render.forbidden_key",
+        path: "$.editingProjectSnapshot.clips[0].source.runtime.worker.mediaUrlByClipId",
+      }),
+    ]));
+  });
+
   it("rejects proposal targets and windows the v1 renderer cannot execute", () => {
     const invalidCases = [
       { proposal: proposal({ effectId: "fade" }), code: "editing.effect.category" },

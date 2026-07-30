@@ -34,7 +34,11 @@ vi.mock("node:fs", () => ({
   },
 }));
 
-import { registerFileStorageIpcHandlers } from "./file-storage-ipc";
+import {
+  registerFileStorageIpcHandlers,
+  withFileStorageMutationLock,
+  withFileStorageMutationLocks,
+} from "./file-storage-ipc";
 
 describe("registerFileStorageIpcHandlers", () => {
   beforeEach(() => {
@@ -92,5 +96,42 @@ describe("registerFileStorageIpcHandlers", () => {
     await expect(mocks.handlers.get("file-storage-remove-dir")?.({}, "projects")).resolves.toBe(true);
     expect(mocks.readdir).not.toHaveBeenCalled();
     expect(mocks.removeDirectory).not.toHaveBeenCalled();
+  });
+
+  it("serializes renderer persistence and Studio writeback mutations per file", async () => {
+    let releaseFirst!: () => void;
+    const firstStarted = new Promise<void>((resolve) => {
+      void withFileStorageMutationLock("/data/_p/project-a/editing.json", async () => {
+        resolve();
+        await new Promise<void>((resolveGate) => { releaseFirst = resolveGate; });
+      });
+    });
+    await firstStarted;
+
+    const order: string[] = [];
+    const second = withFileStorageMutationLock("/data/_p/project-a/editing.json", () => {
+      order.push("second");
+    });
+    await Promise.resolve();
+    expect(order).toEqual([]);
+
+    releaseFirst();
+    await second;
+    expect(order).toEqual(["second"]);
+  });
+
+  it("acquires multi-file mutation locks in stable order", async () => {
+    const order: string[] = [];
+    await Promise.all([
+      withFileStorageMutationLocks(["/data/b", "/data/a"], async () => {
+        order.push("first-start");
+        await Promise.resolve();
+        order.push("first-end");
+      }),
+      withFileStorageMutationLocks(["/data/a", "/data/b"], () => {
+        order.push("second");
+      }),
+    ]);
+    expect(order).toEqual(["first-start", "first-end", "second"]);
   });
 });

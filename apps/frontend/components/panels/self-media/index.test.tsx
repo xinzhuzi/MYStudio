@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { SelfMediaDraft, SelfMediaTask } from "@/types/self-media";
+import { SELF_MEDIA_CAPABILITY_MANIFEST } from "@/lib/self-media/capabilities";
+import type { SelfMediaAccount, SelfMediaDraft, SelfMediaTask } from "@/types/self-media";
 import { SelfMediaPanel } from "./index";
 
 const mocks = vi.hoisted(() => ({
@@ -11,11 +12,16 @@ const mocks = vi.hoisted(() => ({
   addHistoryRecord: vi.fn(),
   ensureProject: vi.fn(),
   replaceProjectTasks: vi.fn(),
+  setAccounts: vi.fn(),
+  accounts: [] as SelfMediaAccount[],
 }));
 
 vi.mock("@/stores/project/project-store", () => ({
   useProjectStore: Object.assign(
-    <T,>(selector: (state: { activeProjectId: string | null }) => T) => selector({ activeProjectId: "project-1" }),
+    <T,>(selector?: (state: { activeProjectId: string | null }) => T) => {
+      const state = { activeProjectId: "project-1" };
+      return selector ? selector(state) : state;
+    },
     { getState: () => ({ activeProjectId: "project-1" }) },
   ),
 }));
@@ -26,20 +32,22 @@ vi.mock("@/stores/self-media/self-media-store", () => {
       activeProjectId: string | null;
       tasks: SelfMediaTask[];
       drafts: SelfMediaDraft[];
-      accounts: [];
+      accounts: SelfMediaAccount[];
       ensureProject: typeof mocks.ensureProject;
       upsertTask: typeof mocks.upsertTask;
       addHistoryRecord: typeof mocks.addHistoryRecord;
       replaceProjectTasks: typeof mocks.replaceProjectTasks;
+      setAccounts: typeof mocks.setAccounts;
     }) => unknown) => selector({
       activeProjectId: "project-1",
       tasks: mocks.tasks,
       drafts: mocks.drafts,
-      accounts: [],
+      accounts: mocks.accounts,
       ensureProject: mocks.ensureProject,
       upsertTask: mocks.upsertTask,
       addHistoryRecord: mocks.addHistoryRecord,
       replaceProjectTasks: mocks.replaceProjectTasks,
+      setAccounts: mocks.setAccounts,
     }),
     { getState: () => ({ activeProjectId: "project-1", tasks: mocks.tasks }) },
   );
@@ -62,18 +70,50 @@ function createTask(overrides: Partial<SelfMediaTask> = {}): SelfMediaTask {
   };
 }
 
-function installBridge(cancelTask = vi.fn(), createTask = vi.fn()) {
+function createAccount(platform: keyof typeof SELF_MEDIA_CAPABILITY_MANIFEST): SelfMediaAccount {
+  return {
+    id: `account-${platform}`,
+    providerId: "aitoearn-local",
+    platform,
+    displayName: `${SELF_MEDIA_CAPABILITY_MANIFEST[platform].displayName}账号`,
+    status: "online",
+    capabilities: SELF_MEDIA_CAPABILITY_MANIFEST[platform],
+  };
+}
+
+function installBridge(
+  cancelTask = vi.fn(),
+  createTask = vi.fn(),
+  options: {
+    listProviders?: ReturnType<typeof vi.fn>;
+    listAccounts?: ReturnType<typeof vi.fn>;
+    startLogin?: ReturnType<typeof vi.fn>;
+  } = {},
+) {
+  const listProviders = options.listProviders ?? vi.fn().mockResolvedValue({
+    success: true,
+    value: [{
+      id: "aitoearn-local",
+      displayName: "本地发布",
+      enabled: true,
+      availablePlatforms: ["douyin", "xhs", "wxSph", "KWAI"],
+    }],
+  });
+  const listAccounts = options.listAccounts ?? vi.fn().mockResolvedValue({ success: true, value: [] });
+  const startLogin = options.startLogin ?? vi.fn().mockResolvedValue({ success: true, value: { started: true } });
   Object.defineProperty(window, "selfMedia", {
     configurable: true,
     value: {
-      listProviders: vi.fn().mockResolvedValue({ success: true, value: [] }),
+      listProviders,
+      listAccounts,
+      startLogin,
       listTasks: vi.fn().mockResolvedValue({ success: true, value: mocks.tasks }),
       cancelTask,
       createTask,
       onProgress: vi.fn(() => () => {}),
     },
   });
-  return cancelTask;
+  return { cancelTask, createTask, listProviders, listAccounts, startLogin };
 }
 
 function openTasks() {
@@ -88,6 +128,8 @@ beforeEach(() => {
   mocks.addHistoryRecord.mockReset();
   mocks.ensureProject.mockReset();
   mocks.replaceProjectTasks.mockReset();
+  mocks.setAccounts.mockReset();
+  mocks.accounts = [];
 });
 
 afterEach(() => {
@@ -97,6 +139,15 @@ afterEach(() => {
 });
 
 describe("SelfMediaPanel task controls", () => {
+  it("keeps the self-media header focused on its title", () => {
+    render(<SelfMediaPanel />);
+
+    expect(screen.getByRole("heading", { name: "自媒体发布台" })).toBeTruthy();
+    expect(screen.queryByText("Self-media workspace")).toBeNull();
+    expect(screen.queryByText("把 MYStudio 产物交给明确的发布 provider，账号、任务、历史与项目一起可追溯。")).toBeNull();
+    expect(screen.queryByText("本地优先 · 不嵌入 Web")).toBeNull();
+  });
+
   it("does not expose provider implementation status in the accounts view", () => {
     installBridge();
 
@@ -104,6 +155,110 @@ describe("SelfMediaPanel task controls", () => {
 
     expect(screen.queryByText("Provider 状态")).toBeNull();
     expect(screen.queryByText("AiToEarn 本地适配器")).toBeNull();
+  });
+
+  it("renders every platform from the shared capability manifest in account and compose controls", async () => {
+    mocks.accounts = ["douyin", "xhs", "wxSph", "KWAI"].map((platform) => createAccount(platform as keyof typeof SELF_MEDIA_CAPABILITY_MANIFEST));
+    installBridge();
+
+    render(<SelfMediaPanel />);
+
+    expect(Object.values(SELF_MEDIA_CAPABILITY_MANIFEST)).toHaveLength(14);
+    expect(screen.getAllByRole("button", { name: "登录" })).toHaveLength(14);
+    for (const capability of Object.values(SELF_MEDIA_CAPABILITY_MANIFEST)) expect(screen.getByText(capability.displayName)).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "发布" }));
+
+    await waitFor(() => {
+      for (const capability of Object.values(SELF_MEDIA_CAPABILITY_MANIFEST)) {
+        const hasLocalTransport = ["douyin", "xhs", "wxSph", "KWAI"].includes(capability.platform);
+        expect((screen.getByRole("button", { name: capability.displayName }) as HTMLButtonElement).disabled).toBe(!hasLocalTransport);
+      }
+    });
+    expect((screen.getByRole("button", { name: "立即发布" }) as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it("keeps all 14 account entries visible while disabling platforms without a configured transport", async () => {
+    installBridge();
+    render(<SelfMediaPanel />);
+
+    for (const displayName of ["TikTok", "YouTube", "B站", "X（Twitter）", "微信公众号", "Facebook", "Instagram", "Threads", "Pinterest", "LinkedIn"]) {
+      await waitFor(() => {
+        const card = screen.getByRole("heading", { name: displayName }).parentElement?.parentElement?.parentElement;
+        expect(card).toBeTruthy();
+        expect((within(card as HTMLElement).getByRole("button", { name: "登录" }) as HTMLButtonElement).disabled).toBe(true);
+      });
+    }
+    for (const displayName of ["抖音", "小红书", "视频号", "快手"]) {
+      const card = screen.getByRole("heading", { name: displayName }).parentElement?.parentElement?.parentElement;
+      expect(card).toBeTruthy();
+      expect((within(card as HTMLElement).getByRole("button", { name: "登录" }) as HTMLButtonElement).disabled).toBe(false);
+    }
+  });
+
+  it("refreshes accounts through the enabled provider", async () => {
+    const account = { id: "account-1", providerId: "aitoearn-local" as const, platform: "xhs" as const, displayName: "小红书账号", status: "online" as const, capabilities: SELF_MEDIA_CAPABILITY_MANIFEST.xhs };
+    const listAccounts = vi.fn().mockResolvedValue({ success: true, value: [account] });
+    const bridge = installBridge(vi.fn(), vi.fn(), { listAccounts });
+
+    render(<SelfMediaPanel />);
+
+    await waitFor(() => expect(listAccounts).toHaveBeenCalledWith({ projectId: "project-1", providerId: "aitoearn-local" }));
+    expect(mocks.setAccounts).toHaveBeenCalledWith([account]);
+    fireEvent.click(screen.getByRole("button", { name: "刷新" }));
+    await waitFor(() => expect(listAccounts).toHaveBeenCalledTimes(2));
+    expect(bridge.listProviders).toHaveBeenCalledTimes(2);
+  });
+
+  it("starts login for a platform and refreshes its account list", async () => {
+    const startLogin = vi.fn().mockResolvedValue({ success: true, value: { started: true } });
+    const listAccounts = vi.fn().mockResolvedValue({ success: true, value: [] });
+    installBridge(vi.fn(), vi.fn(), { listAccounts, startLogin });
+
+    render(<SelfMediaPanel />);
+    await waitFor(() => expect(listAccounts).toHaveBeenCalled());
+    const xhsCard = screen.getByRole("heading", { name: "小红书" }).parentElement?.parentElement?.parentElement;
+    expect(xhsCard).toBeTruthy();
+    fireEvent.click(within(xhsCard as HTMLElement).getByRole("button", { name: "登录" }));
+
+    await waitFor(() => expect(startLogin).toHaveBeenCalledWith({ projectId: "project-1", providerId: "aitoearn-local", platform: "xhs" }));
+    await waitFor(() => expect(listAccounts).toHaveBeenCalledTimes(2));
+  });
+
+  it("shows a connected account and its status inside the platform card", () => {
+    mocks.accounts = [{ id: "account-1", providerId: "aitoearn-local", platform: "xhs", displayName: "已连接的小红书", status: "online", capabilities: SELF_MEDIA_CAPABILITY_MANIFEST.xhs }];
+    installBridge();
+
+    render(<SelfMediaPanel />);
+
+    expect(screen.getByText("已连接的小红书")).toBeTruthy();
+    expect(screen.getByText("在线")).toBeTruthy();
+    expect(screen.getAllByText("1 个账号").length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("only enables content types and publish actions supported by the selected platform", async () => {
+    mocks.accounts = [createAccount("xhs"), createAccount("KWAI")];
+    installBridge();
+    render(<SelfMediaPanel />);
+    fireEvent.click(screen.getByRole("button", { name: "发布" }));
+
+    expect((screen.getByRole("button", { name: "LinkedIn" }) as HTMLButtonElement).disabled).toBe(true);
+    await waitFor(() => {
+      expect((screen.getByRole("button", { name: "视频" }) as HTMLButtonElement).disabled).toBe(false);
+      expect((screen.getByRole("button", { name: "图文" }) as HTMLButtonElement).disabled).toBe(false);
+      expect((screen.getByRole("button", { name: "保存草稿" }) as HTMLButtonElement).disabled).toBe(false);
+      expect((screen.getByRole("button", { name: "立即发布" }) as HTMLButtonElement).disabled).toBe(false);
+    });
+
+    await waitFor(() => expect((screen.getByRole("button", { name: "快手" }) as HTMLButtonElement).disabled).toBe(false));
+    fireEvent.click(screen.getByRole("button", { name: "快手" }));
+    expect((screen.getByRole("button", { name: "视频" }) as HTMLButtonElement).disabled).toBe(false);
+    expect((screen.getByRole("button", { name: "图文" }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole("button", { name: "保存草稿" }) as HTMLButtonElement).disabled).toBe(false);
+
+    fireEvent.click(screen.getByRole("button", { name: "小红书" }));
+    expect((screen.getByRole("button", { name: "视频" }) as HTMLButtonElement).disabled).toBe(false);
+    expect((screen.getByRole("button", { name: "图文" }) as HTMLButtonElement).disabled).toBe(false);
   });
 
   it("rehydrates recovered main-process tasks for the active project", async () => {
@@ -120,7 +275,7 @@ describe("SelfMediaPanel task controls", () => {
     const task = createTask();
     mocks.tasks = [task];
     const canceled = { ...task, status: "canceled" as const, updatedAt: "2026-07-26T01:00:00.000Z" };
-    const cancelTask = installBridge(vi.fn().mockResolvedValue({ success: true, value: canceled }));
+    const { cancelTask } = installBridge(vi.fn().mockResolvedValue({ success: true, value: canceled }));
 
     openTasks();
     fireEvent.click(screen.getByRole("button", { name: "取消任务" }));

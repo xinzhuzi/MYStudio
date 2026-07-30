@@ -45,14 +45,17 @@ describe("useAppSettingsStore development settings", () => {
     });
   });
 
-  it("keeps the gated FFmpeg default for legacy or invalid persisted renderer state", () => {
+  it("uses Remotion as the default and migrates legacy or invalid persisted renderer state", () => {
     const current = useAppSettingsStore.getState();
 
-    expect(current.renderingSettings.renderer).toBe("ffmpeg");
-    expect(mergeAppSettingsState({}, current).renderingSettings.renderer).toBe("ffmpeg");
+    expect(current.renderingSettings.renderer).toBe("remotion");
+    expect(mergeAppSettingsState({}, current).renderingSettings.renderer).toBe("remotion");
+    expect(mergeAppSettingsState({
+      renderingSettings: { renderer: "ffmpeg" },
+    }, current).renderingSettings.renderer).toBe("remotion");
     expect(mergeAppSettingsState({
       renderingSettings: { renderer: "auto" },
-    }, current).renderingSettings.renderer).toBe("ffmpeg");
+    }, current).renderingSettings.renderer).toBe("remotion");
   });
 
   it("restores an exact persisted renderer selection", () => {

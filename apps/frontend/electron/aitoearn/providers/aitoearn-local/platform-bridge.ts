@@ -2,7 +2,10 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { createHash } from "node:crypto";
-import { getSelfMediaCapabilities } from "../../../../lib/self-media/capabilities";
+import {
+  getSelfMediaCapabilities,
+  isSelfMediaPublishable,
+} from "../../../../lib/self-media/capabilities";
 import type { SelfMediaAccount, SelfMediaDraft, SelfMediaPlatform } from "../../../../types/self-media";
 import {
   SelfMediaProviderError,
@@ -10,14 +13,25 @@ import {
   type SelfMediaProviderPublishContext,
   type SelfMediaProviderTaskResult,
 } from "../../provider-registry";
-import { createLocalAccountVault, type LocalAccountCredential, type LocalAccountRecord } from "../../local-account-vault";
+import { createLocalAccountVault, isLocalSessionAccountCredential, type LocalAccountCredential, type LocalAccountRecord } from "../../local-account-vault";
 import { parseSafeRemoteAssetUrl, resolveSafeLocalAssetPath } from "./asset-safety";
+import {
+  createPlatformAdapterRegistry,
+  PlatformAdapterError,
+  type PlatformAdapterTransport,
+  type PlatformId,
+  type PlatformTaskProjection,
+} from "./platforms";
 import { xiaohongshuService } from "@aitoearn/xhs";
 import { douyinService } from "@aitoearn/douyin";
 import { shipinhaoService } from "@aitoearn/wx";
 import { kwaiPub } from "@aitoearn/kwai";
+import {
+  withDestroyedWindowDevToolsGuard,
+  withLoginWindowCloseCancellation,
+} from "./compatibility/login-window";
 
-type LocalPlatform = SelfMediaPlatform;
+type LocalPlatform = Extract<SelfMediaPlatform, "xhs" | "douyin" | "wxSph" | "KWAI">;
 type Cookie = Electron.Cookie;
 
 const PLATFORM_NAMES: Record<LocalPlatform, string> = {
@@ -29,6 +43,10 @@ const PLATFORM_NAMES: Record<LocalPlatform, string> = {
 
 function isLocalPlatform(value: SelfMediaPlatform): value is LocalPlatform {
   return value === "xhs" || value === "douyin" || value === "wxSph" || value === "KWAI";
+}
+
+function isKnownPlatform(value: unknown): value is SelfMediaPlatform {
+  return typeof value === "string" && Boolean(getSelfMediaCapabilities("aitoearn-local", value as SelfMediaPlatform));
 }
 
 function parseCookies(value: unknown): Cookie[] {
@@ -86,6 +104,9 @@ function toAccount(record: LocalAccountRecord, status: SelfMediaAccount["status"
 }
 
 function credentialCookies(credential: LocalAccountCredential) {
+  if (!isLocalSessionAccountCredential(credential)) {
+    throw new SelfMediaProviderError("aitoearn-local", "credential-invalid", "本地平台凭据类型无效，请重新登录", false);
+  }
   try {
     return parseCookies(credential.cookies);
   } catch {
@@ -94,7 +115,7 @@ function credentialCookies(credential: LocalAccountCredential) {
 }
 
 function redactValue(value: unknown, seen = new WeakSet<object>()): unknown {
-  if (typeof value === "string") return value.length > 160 ? "[redacted]" : value;
+  if (typeof value === "string") return "[redacted]";
   if (!value || typeof value !== "object") return value;
   if (seen.has(value)) return "[circular]";
   seen.add(value);
@@ -106,18 +127,38 @@ function redactValue(value: unknown, seen = new WeakSet<object>()): unknown {
   return result;
 }
 
+let credentialRedactionQueue = Promise.resolve();
+
 async function withCredentialRedaction<T>(operation: () => Promise<T>) {
-  const original = { log: console.log, error: console.error, warn: console.warn };
+  let releaseQueue: () => void = () => undefined;
+  const previous = credentialRedactionQueue;
+  credentialRedactionQueue = new Promise<void>((resolve) => { releaseQueue = resolve; });
+  await previous;
+  const original = {
+    log: console.log,
+    error: console.error,
+    warn: console.warn,
+    info: console.info,
+    debug: console.debug,
+    trace: console.trace,
+  };
   const wrap = (fn: (...args: unknown[]) => void) => (...args: unknown[]) => fn(...args.map((item) => redactValue(item)));
   console.log = wrap(original.log);
   console.error = wrap(original.error);
   console.warn = wrap(original.warn);
+  console.info = wrap(original.info);
+  console.debug = wrap(original.debug);
+  console.trace = wrap(original.trace);
   try {
     return await operation();
   } finally {
     console.log = original.log;
     console.error = original.error;
     console.warn = original.warn;
+    console.info = original.info;
+    console.debug = original.debug;
+    console.trace = original.trace;
+    releaseQueue();
   }
 }
 
@@ -164,12 +205,40 @@ function normalizeResult(result: unknown): SelfMediaProviderTaskResult {
   return { status: "success", progress: 100, providerTaskId: publishId, resultUrl: shareLink };
 }
 
+function projectOfficialTask(result: PlatformTaskProjection): SelfMediaProviderTaskResult {
+  return {
+    status: result.status,
+    progress: result.progress,
+    providerTaskId: result.providerTaskId ?? result.taskId,
+    resultUrl: result.resultUrl,
+    error: result.error
+      ? { ...result.error, providerId: "aitoearn-local" }
+      : undefined,
+  };
+}
+
+function officialProviderError(error: unknown): never {
+  if (error instanceof PlatformAdapterError) {
+    throw new SelfMediaProviderError("aitoearn-local", "platform-transport-unavailable", error.message, false);
+  }
+  throw error;
+}
+
 export function createAitoearnLocalPlatformBridge(bridgeOptions: {
   userDataPath: string;
   allowedAssetRoots?: () => readonly string[];
   allowedRemoteAssetHosts?: () => readonly string[];
+  platformTransports?: Partial<Record<PlatformId, PlatformAdapterTransport>>;
 }): AitoearnLocalPlatformBridge {
   const vault = createLocalAccountVault(bridgeOptions.userDataPath);
+  const platformRegistry = createPlatformAdapterRegistry(bridgeOptions.platformTransports);
+  const availablePlatforms: SelfMediaPlatform[] = [
+    "douyin",
+    "xhs",
+    "wxSph",
+    "KWAI",
+    ...Object.keys(bridgeOptions.platformTransports ?? {}) as PlatformId[],
+  ];
 
   async function listAccounts() {
     const summaries = await vault.list();
@@ -181,6 +250,9 @@ export function createAitoearnLocalPlatformBridge(bridgeOptions: {
         continue;
       }
       try {
+        if (!isLocalPlatform(record.platform)) {
+          continue;
+        }
         const cookies = credentialCookies(record.credential);
         const online = await checkOnline(record.platform, cookies);
         accounts.push(toAccount(record, online ? "online" : "expired", online ? undefined : "login-expired"));
@@ -188,41 +260,121 @@ export function createAitoearnLocalPlatformBridge(bridgeOptions: {
         accounts.push(toAccount(record, "error", "account-check-failed"));
       }
     }
+    for (const manifest of platformRegistry.list()) {
+      if (isLocalPlatform(manifest.id)) continue;
+      const adapter = platformRegistry.get(manifest.id);
+      if (!adapter) continue;
+      try {
+        const projected = await adapter.listAccounts();
+        const capabilities = getSelfMediaCapabilities("aitoearn-local", manifest.id);
+        if (!capabilities) continue;
+        accounts.push(...projected.map((account) => ({
+          id: account.accountId,
+          providerId: "aitoearn-local" as const,
+          platform: manifest.id,
+          displayName: account.displayName,
+          avatarUrl: account.avatarUrl,
+          status: account.status,
+          capabilities,
+          lastCheckedAt: new Date().toISOString(),
+        })));
+      } catch (error) {
+        if (!(error instanceof PlatformAdapterError) || error.code !== "transport-unavailable") throw error;
+      }
+    }
     return accounts;
   }
 
   async function startLogin(_projectId: string, platform: SelfMediaPlatform) {
-    if (!isLocalPlatform(platform)) throw new SelfMediaProviderError("aitoearn-local", "platform-not-supported", "本地 provider 不支持该平台");
+    if (!isKnownPlatform(platform)) throw new SelfMediaProviderError("aitoearn-local", "platform-not-supported", "本地 provider 不支持该平台");
+    if (!isLocalPlatform(platform)) {
+      const adapter = platformRegistry.get(platform);
+      if (!adapter || !availablePlatforms.includes(platform)) {
+        throw new SelfMediaProviderError("aitoearn-local", "platform-transport-unavailable", "当前平台尚未完成应用凭据配置", false);
+      }
+      try {
+        const result = await adapter.authenticate();
+        if (!result.authenticated) throw new SelfMediaProviderError("aitoearn-local", "login-failed", "平台授权未完成", false);
+        return { started: true };
+      } catch (error) {
+        officialProviderError(error);
+      }
+    }
     const login = await withCredentialRedaction(async () => {
-      if (platform === "xhs") return xiaohongshuService.loginOrView("login");
-      if (platform === "douyin") return douyinService.loginOrView("login");
-      if (platform === "wxSph") return shipinhaoService.loginOrView("login");
-      return kwaiPub.login();
+      if (platform === "xhs") return withLoginWindowCloseCancellation(() => xiaohongshuService.loginOrView("login"));
+      if (platform === "douyin") {
+        return withDestroyedWindowDevToolsGuard(
+          () => withLoginWindowCloseCancellation(() => douyinService.loginOrView("login")),
+        );
+      }
+      if (platform === "wxSph") return withLoginWindowCloseCancellation(() => shipinhaoService.loginOrView("login"));
+      return withLoginWindowCloseCancellation(() => kwaiPub.login());
     });
     const result = login as Record<string, unknown>;
     if (result.success === false) throw new SelfMediaProviderError("aitoearn-local", "login-failed", typeof result.error === "string" ? result.error : "平台登录失败", false);
     const data = result.data && typeof result.data === "object" ? result.data as Record<string, unknown> : result;
     const cookies = parseCookies(data.cookie ?? data.cookies);
     const userInfo = data.userInfo;
-    const identity = identityFromUserInfo(userInfo, `${Date.now()}`);
+    const fallbackIdentity = "unidentified";
+    const identity = identityFromUserInfo(userInfo, fallbackIdentity);
     const record: LocalAccountRecord = {
       id: accountId(platform, identity),
       platform,
-      displayName: `${PLATFORM_NAMES[platform]} · ${displayNameFromUserInfo(userInfo, identity)}`,
+      displayName: `${PLATFORM_NAMES[platform]} · ${displayNameFromUserInfo(userInfo, identity === fallbackIdentity ? "未命名账号" : identity)}`,
       avatarUrl: avatarFromUserInfo(userInfo),
       credential: { cookies, localStorage: typeof data.localStorage === "string" ? data.localStorage : undefined },
       updatedAt: new Date().toISOString(),
     };
-    await vault.upsert(record);
+    try {
+      await vault.upsert(record);
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("safeStorage 不可用")) {
+        throw new SelfMediaProviderError("aitoearn-local", "credential-unavailable", "系统凭据加密不可用，账号未保存", false);
+      }
+      throw error;
+    }
     return { started: true };
   }
 
   async function publish(context: SelfMediaProviderPublishContext): Promise<SelfMediaProviderTaskResult> {
-    const platform = context.draft.platformOptions.platform;
-    if (typeof platform !== "string" || !isLocalPlatform(platform as SelfMediaPlatform)) throw new SelfMediaProviderError("aitoearn-local", "platform-not-supported", "草稿未选择本地平台");
+    const platformValue = context.draft.platformOptions.platform;
+    if (!isKnownPlatform(platformValue)) throw new SelfMediaProviderError("aitoearn-local", "platform-not-supported", "草稿未选择已注册平台");
+    const platform = platformValue;
+    if (!isSelfMediaPublishable("aitoearn-local", platform, context.draft.contentType)) {
+      throw new SelfMediaProviderError("aitoearn-local", "platform-transport-unavailable", "当前平台暂未接入本地发布能力", false);
+    }
     const record = await vault.get(context.task.accountId);
     if (!record || record.platform !== platform) throw new SelfMediaProviderError("aitoearn-local", "account-not-found", "本地平台账号不存在，请先登录", false);
-    const cookies = credentialCookies(record.credential);
+    if (!isLocalPlatform(platform)) {
+      const adapter = platformRegistry.get(platform);
+      if (!adapter || !availablePlatforms.includes(platform)) {
+        throw new SelfMediaProviderError("aitoearn-local", "platform-transport-unavailable", "当前平台尚未完成应用凭据配置", false);
+      }
+      const assets = await Promise.all(context.draft.assets.map((asset) => context.resolveAsset(asset.assetId)));
+      const cover = context.draft.cover ? await context.resolveAsset(context.draft.cover.assetId) : undefined;
+      try {
+        const result = await adapter.publish({
+          accountId: context.task.accountId,
+          contentType: context.draft.contentType,
+          assets,
+          cover,
+          title: context.draft.title,
+          description: context.draft.description,
+          topics: context.draft.topics,
+          visibility: context.draft.visibility,
+          scheduledAt: context.draft.scheduledAt,
+          options: context.draft.platformOptions,
+        });
+        return projectOfficialTask(result);
+      } catch (error) {
+        officialProviderError(error);
+      }
+    }
+    const sessionCredential = record.credential;
+    if (!isLocalSessionAccountCredential(sessionCredential)) {
+      throw new SelfMediaProviderError("aitoearn-local", "credential-invalid", "本地平台凭据类型无效，请重新登录", false);
+    }
+    const cookies = credentialCookies(sessionCredential);
     const assets = await Promise.all(context.draft.assets.map((asset) => context.resolveAsset(asset.assetId)));
     const video = assets.find((asset) => asset.kind === "video");
     const images = assets.filter((asset) => asset.kind === "image");
@@ -250,7 +402,7 @@ export function createAitoearnLocalPlatformBridge(bridgeOptions: {
         }
         if (platform === "douyin") {
           const settings = { title, caption: description, topics, cover: coverPath, visibility_type: visibilityForDouyin(context.draft.visibility), proxyIp: "", ...(typeof options.allowComment === "boolean" ? { allowComment: options.allowComment } : {}) };
-          const tokens = record.credential.localStorage ? JSON.parse(record.credential.localStorage) : {};
+          const tokens = sessionCredential.localStorage ? JSON.parse(sessionCredential.localStorage) : {};
           if (context.draft.contentType === "image-text") return douyinService.publishImageWorkApi(JSON.stringify(cookies), tokens, imagePaths, settings);
           return douyinService.publishVideoWorkApi(JSON.stringify(cookies), tokens, videoPath as string, settings, context.emitProgress);
         }
@@ -283,11 +435,40 @@ export function createAitoearnLocalPlatformBridge(bridgeOptions: {
   }
 
   return {
+    availablePlatforms,
     listAccounts,
     startLogin,
     publish,
-    poll: async (task) => task.status === "success" ? { status: "success", progress: 100 } : { status: task.status },
-    cancel: async () => { throw new SelfMediaProviderError("aitoearn-local", "cancel-not-supported", "本地平台发布不支持取消已提交请求", false); },
+    poll: async (task) => {
+      const record = await vault.get(task.accountId);
+      if (!record) throw new SelfMediaProviderError("aitoearn-local", "account-not-found", "本地平台账号不存在，无法查询任务", false);
+      if (isLocalPlatform(record.platform)) throw new SelfMediaProviderError("aitoearn-local", "poll-not-supported", "本地平台不支持查询已提交请求", false);
+      const adapter = platformRegistry.get(record.platform);
+      if (!adapter || !availablePlatforms.includes(record.platform)) {
+        throw new SelfMediaProviderError("aitoearn-local", "platform-transport-unavailable", "当前平台尚未完成应用凭据配置", false);
+      }
+      try {
+        return projectOfficialTask(await adapter.poll({ accountId: task.accountId, taskId: task.providerTaskId ?? task.id }));
+      } catch (error) {
+        officialProviderError(error);
+      }
+    },
+    cancel: async (task) => {
+      const record = await vault.get(task.accountId);
+      if (!record) throw new SelfMediaProviderError("aitoearn-local", "account-not-found", "本地平台账号不存在，无法取消任务", false);
+      if (isLocalPlatform(record.platform)) {
+        throw new SelfMediaProviderError("aitoearn-local", "cancel-not-supported", "本地平台发布不支持取消已提交请求", false);
+      }
+      const adapter = platformRegistry.get(record.platform);
+      if (!adapter || !availablePlatforms.includes(record.platform)) {
+        throw new SelfMediaProviderError("aitoearn-local", "platform-transport-unavailable", "当前平台尚未完成应用凭据配置", false);
+      }
+      try {
+        return projectOfficialTask(await adapter.cancel({ accountId: task.accountId, taskId: task.providerTaskId ?? task.id }));
+      } catch (error) {
+        officialProviderError(error);
+      }
+    },
     dispose: async () => undefined,
   };
 }

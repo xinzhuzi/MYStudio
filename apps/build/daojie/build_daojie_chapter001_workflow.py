@@ -89,6 +89,7 @@ BACKEND_ROOT = REPO_ROOT / "apps" / "backend"
 NODE_STORYBOARD_IMAGE_HELPER = REPO_ROOT / "apps" / "build" / "daojie" / "generate-storyboard-image.mjs"
 SKIP_PROJECT_WRITE = os.environ.get("MYSTUDIO_DAOJIE_SKIP_PROJECT_WRITE") == "1"
 SKIP_SCENE_EXPORTS = os.environ.get("MYSTUDIO_DAOJIE_SKIP_SCENE_EXPORTS") == "1"
+REMOTION_ONLY = os.environ.get("MYSTUDIO_DAOJIE_REMOTION_ONLY") == "1"
 ALLOW_STORYBOARD_BOOTSTRAP = os.environ.get("MYSTUDIO_DAOJIE_ALLOW_STORYBOARD_BOOTSTRAP") == "1"
 USE_APPROVED_STORYBOARD_IMAGES = os.environ.get("MYSTUDIO_DAOJIE_USE_APPROVED_STORYBOARDS") == "1"
 REAL_STORYBOARD_IMAGE_MODE = "real-ai-reference-image-workflow"
@@ -5544,7 +5545,7 @@ def build_workflow_steps(
     image_asset_count = sum(1 for item in asset_catalog.values() if item.get("imagePath"))
     frame_count = sum(1 for path in frame_paths if Path(path).exists())
     audio_count = sum(1 for path in audio_paths if Path(path).exists())
-    segment_count = sum(1 for path in segment_paths if Path(path).exists())
+    segment_count = sum(1 for path in segment_paths if path and Path(path).exists())
     return [
         workflow_step(
             "novel_import",
@@ -5606,23 +5607,16 @@ def build_workflow_steps(
             f"audio={audio_count}/{len(storyboards)}, speakers={len(speaker_audio_stats)}, modes={'+'.join(sorted(tts_modes))}",
         ),
         workflow_step(
-            "segment_render",
-            "分段视频渲染",
-            segment_count == len(storyboards) and len(storyboards) > 0,
-            f"segments={segment_count}/{len(storyboards)}",
+            "remotion_shot_render",
+            "Remotion 逐镜渲染",
+            REMOTION_ONLY or (segment_count == len(storyboards) and len(storyboards) > 0),
+            "deferred-to-remotion-shot-runner" if REMOTION_ONLY else f"segments={segment_count}/{len(storyboards)}",
         ),
         workflow_step(
-            "track_candidates",
-            "生产轨道候选",
-            len(production_tracks) > 0
-            and len(video_candidates) == len(production_tracks) + 1,
-            f"tracks={len(production_tracks)}, candidates={len(video_candidates)}",
-        ),
-        workflow_step(
-            "final_merge",
-            "整集合成",
-            Path(final_path).exists() and {"video", "audio"}.issubset(streams) and final_audio_mean_volume_db is not None,
-            f"final={final_path}, streams={','.join(sorted(streams))}, meanVolume={final_audio_mean_volume_db}",
+            "remotion_chapter_render",
+            "Remotion 章节合成",
+            REMOTION_ONLY or (Path(final_path).exists() and {"video", "audio"}.issubset(streams)),
+            "deferred-to-remotion-chapter-runner" if REMOTION_ONLY else f"final={final_path}, streams={','.join(sorted(streams))}",
         ),
         workflow_step(
             "project_writeback",
@@ -5634,14 +5628,15 @@ def build_workflow_steps(
 
 
 def main():
-    required_tools = ["ffmpeg", "ffprobe"]
+    required_tools = [] if REMOTION_ONLY else ["ffmpeg", "ffprobe"]
     if ALLOW_TTS_FALLBACK:
         required_tools.append("say")
     for tool in required_tools:
         if not shutil.which(tool):
             raise RuntimeError(f"缺少命令: {tool}")
 
-    for path in (EXPORTS, FRAMES, AUDIO, SEGMENTS):
+    output_dirs = (EXPORTS, FRAMES, AUDIO) if REMOTION_ONLY else (EXPORTS, FRAMES, AUDIO, SEGMENTS)
+    for path in output_dirs:
         path.mkdir(parents=True, exist_ok=True)
 
     storyboard_image_config = storyboard_image_provider_config()
@@ -5893,7 +5888,8 @@ def main():
                 voiceover["durationTarget"],
                 audio_duration(audio) + 0.4,
             )
-            render_segment(index, frame, audio, segment, actual_duration)
+            if not REMOTION_ONLY:
+                render_segment(index, frame, audio, segment, actual_duration)
             frame_paths.append(frame)
             audio_paths.append(audio)
             segment_paths.append(segment)
@@ -6010,7 +6006,8 @@ def main():
         raise RuntimeError(f"{EPISODE_ID} 成片时长超过目标规格: {total_storyboard_duration:.1f}s/{target_duration_seconds:.1f}s")
 
     final_path = EXPORTS / FINAL_NAME
-    concat_segments(segment_paths, final_path)
+    if not REMOTION_ONLY:
+        concat_segments(segment_paths, final_path)
 
     production_tracks = []
     video_candidates = []
@@ -6029,7 +6026,7 @@ def main():
             if sb["trackKey"] == track_key
         ]
         scene_output = EXPORTS / f"道劫_EP01_scene_{scene_no:02d}.mp4"
-        if not SKIP_SCENE_EXPORTS:
+        if not REMOTION_ONLY and not SKIP_SCENE_EXPORTS:
             concat_segments([Path(p) for p in scene_segments], scene_output)
         production_tracks.append({
             "id": track_id,
@@ -6038,26 +6035,28 @@ def main():
             "storyboardIds": ids,
             "prompt": "\n".join(sb["prompt"] for sb in storyboards if sb["id"] in ids),
             "duration": duration,
-            "candidateVideoIds": [candidate_id],
-            "selectedVideoId": candidate_id,
-            "state": "ready",
+            "candidateVideoIds": [] if REMOTION_ONLY else [candidate_id],
+            "selectedVideoId": None if REMOTION_ONLY else candidate_id,
+            "state": "ready" if not REMOTION_ONLY else "awaiting-remotion",
         })
+        if not REMOTION_ONLY:
+            video_candidates.append({
+                "id": candidate_id,
+                "trackId": track_id,
+                "provider": "ffmpeg-local",
+                "filePath": str(scene_output if not SKIP_SCENE_EXPORTS else final_path),
+                "state": "ready",
+                "createdAt": 1780299999000 + scene_no,
+            })
+    if not REMOTION_ONLY:
         video_candidates.append({
-            "id": candidate_id,
-            "trackId": track_id,
+            "id": "video-chapter-001-final",
+            "trackId": "episode-chapter-001",
             "provider": "ffmpeg-local",
-            "filePath": str(scene_output if not SKIP_SCENE_EXPORTS else final_path),
+            "filePath": str(final_path),
             "state": "ready",
-            "createdAt": 1780299999000 + scene_no,
+            "createdAt": 1780300000000,
         })
-    video_candidates.append({
-        "id": "video-chapter-001-final",
-        "trackId": "episode-chapter-001",
-        "provider": "ffmpeg-local",
-        "filePath": str(final_path),
-        "state": "ready",
-        "createdAt": 1780300000000,
-    })
 
     state["scriptPlans"] = [p for p in state.get("scriptPlans", []) if p.get("episodeId") != EPISODE_ID]
     state["scriptPlans"].append(structured_script_plan)
@@ -6073,7 +6072,7 @@ def main():
     generated_work = [
         {"id": "work-chapter-001-director-plan", "key": "directorPlan", "episodeId": EPISODE_ID, "data": script_plan_xml, "createdAt": now, "updatedAt": now},
         {"id": "work-chapter-001-storyboard-panel", "key": "storyboardPanel", "episodeId": EPISODE_ID, "data": f"已写入 {len(storyboards)} 条分镜面板，全部绑定资产静帧、完整台词音频和多角色资产库音色参考。", "createdAt": now + 2, "updatedAt": now + 2},
-        {"id": "work-chapter-001-production-plan", "key": "productionPlan", "episodeId": EPISODE_ID, "data": f"本地成片输出: {final_path}", "createdAt": now + 3, "updatedAt": now + 3},
+        {"id": "work-chapter-001-production-plan", "key": "productionPlan", "episodeId": EPISODE_ID, "data": "Remotion 将按逐镜 current slot 合成章节成片。" if REMOTION_ONLY else f"本地成片输出: {final_path}", "createdAt": now + 3, "updatedAt": now + 3},
     ]
     if storyboard_source["kind"] == "bootstrap-fixture":
         generated_work.insert(1, {
@@ -6120,16 +6119,20 @@ def main():
             "updatedAt": now,
         })
 
-    probe = subprocess.check_output([
-        "ffprobe", "-v", "error", "-show_entries", "stream=codec_type", "-of", "json", str(final_path)
-    ], text=True)
-    streams = {s["codec_type"] for s in json.loads(probe).get("streams", [])}
-    if not {"video", "audio"}.issubset(streams):
-        raise RuntimeError(f"最终视频缺少音视频流: {streams}")
-    final_audio_mean_volume_db = audio_mean_volume_db(final_path)
-    if not SILENT_PREVIEW and (final_audio_mean_volume_db is None or final_audio_mean_volume_db < MIN_AUDIO_MEAN_VOLUME_DB):
-        raise RuntimeError(f"最终视频音量过低: {final_audio_mean_volume_db}")
-    final_video_evidence_data = final_video_evidence(final_path)
+    streams = set()
+    final_audio_mean_volume_db = None
+    final_video_evidence_data = None
+    if not REMOTION_ONLY:
+        probe = subprocess.check_output([
+            "ffprobe", "-v", "error", "-show_entries", "stream=codec_type", "-of", "json", str(final_path)
+        ], text=True)
+        streams = {s["codec_type"] for s in json.loads(probe).get("streams", [])}
+        if not {"video", "audio"}.issubset(streams):
+            raise RuntimeError(f"最终视频缺少音视频流: {streams}")
+        final_audio_mean_volume_db = audio_mean_volume_db(final_path)
+        if not SILENT_PREVIEW and (final_audio_mean_volume_db is None or final_audio_mean_volume_db < MIN_AUDIO_MEAN_VOLUME_DB):
+            raise RuntimeError(f"最终视频音量过低: {final_audio_mean_volume_db}")
+        final_video_evidence_data = final_video_evidence(final_path)
     linked_storyboards = sum(1 for sb in storyboards if sb.get("assetIds"))
     total_asset_links = sum(len(sb.get("assetIds", [])) for sb in storyboards)
     image_backed_storyboards = sum(1 for sb in storyboards if sb.get("imageAssetPaths"))
@@ -6145,8 +6148,8 @@ def main():
             "frameExists": Path(frame_path_by_storyboard[sb["id"]]).exists(),
             "audioPath": str(audio_path_by_storyboard[sb["id"]]),
             "audioExists": Path(audio_path_by_storyboard[sb["id"]]).exists(),
-            "segmentPath": str(segment_path_by_storyboard[sb["id"]]),
-            "segmentExists": Path(segment_path_by_storyboard[sb["id"]]).exists(),
+            "segmentPath": "" if REMOTION_ONLY else str(segment_path_by_storyboard[sb["id"]]),
+            "segmentExists": False if REMOTION_ONLY else Path(segment_path_by_storyboard[sb["id"]]).exists(),
             "assetIds": sb.get("assetIds", []),
             "assetNames": sb.get("associateAssetsNames", []),
             "imageAssetNames": sb.get("imageAssetNames", []),
@@ -6336,7 +6339,7 @@ def main():
         "frameSize": {"width": first_frame.width, "height": first_frame.height},
         "tracks": len(production_tracks),
         "videoCandidates": len(video_candidates),
-        "final": str(final_path),
+        "final": None if REMOTION_ONLY else str(final_path),
         "streams": sorted(streams),
     }
     save_json(EXPORTS / "automation_report.json", report)

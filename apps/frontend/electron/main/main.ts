@@ -36,15 +36,18 @@ import { registerTtsIpcHandlers } from '../ipc/tts/tts-ipc'
 import { registerSelfMediaIpcHandlers } from '../ipc/self-media/self-media-ipc'
 import { createCredentialVault } from '../aitoearn/credential-vault'
 import { createAitoearnLocalPlatformBridge } from '../aitoearn/providers/aitoearn-local/platform-bridge'
+import { createOfficialPlatformTransports } from '../aitoearn/providers/aitoearn-local/platforms/official/transports'
 import { registerDiagnosticsIpcHandlers } from '../ipc/diagnostics/diagnostics-ipc'
 import { registerStorageMediaIpcHandlers } from '../ipc/media/storage-media-ipc'
 import { registerAppUpdaterIpcHandlers } from '../ipc/app/app-updater-ipc'
 import {
   parseLocalMediaPath,
   resolveLocalMediaPath,
+  resolveProjectScopedFilePath,
   resolveProjectFileUrl,
 } from '../storage/storage-paths'
 import { registerProjectFileIpcHandlers } from '../ipc/files/project-file-ipc'
+import { withFileStorageMutationLock } from '../ipc/files/file-storage-ipc'
 import { registerStudioContentIpcHandlers } from '../ipc/assets/studio-content-ipc'
 import { registerAppShellIpcHandlers } from '../ipc/app/app-shell-ipc'
 import { registerApiRequestIpcHandlers } from '../ipc/ai/api-request-ipc'
@@ -53,9 +56,39 @@ import { registerAssetLibraryIpcHandlers } from '../ipc/assets/asset-library-ipc
 import { registerStudioRenderIpcHandlers } from '../ipc/studio/studio-render-ipc'
 import { registerRemotionRuntimeIpcHandlers } from '../ipc/studio/remotion-runtime-ipc'
 import { registerRemotionPreviewIpcHandlers } from '../ipc/studio/remotion-preview-ipc'
-import { createRemotionRendererAdapter } from '@rendering/plugins/remotion/renderer/remotion-renderer-adapter'
+import { registerRemotionShotIpcHandlers } from '../ipc/studio/remotion-shot-ipc'
+import { registerRemotionQueueIpcHandlers } from '../ipc/studio/remotion-queue-ipc'
+import { registerRemotionStudioIpcHandlers, REMOTION_STUDIO_EDITING_UPDATED_EVENT } from '../ipc/studio/remotion-studio-ipc'
+import { RemotionShotRenderer } from '@rendering/plugins/remotion/renderer/remotion-shot-renderer'
+import { RemotionChapterRenderer } from '@rendering/plugins/remotion/renderer/remotion-chapter-renderer'
+import {
+  createRemotionQueueFilePersistence,
+  RemotionRenderQueue,
+} from '@rendering/plugins/remotion/queue/remotion-render-queue'
 import { resolveRemotionRuntimeDir } from '@rendering/plugins/remotion/browser/remotion-runtime-manifest'
 import { createStorageManager } from '../storage/storage-manager'
+import { resolveDataFilePath } from '../storage/storage-paths'
+import { validateEditingProject } from '../../lib/studio/editing/validation'
+import type { RemotionCurrentSlotV1 } from '../../types/remotion-workspace'
+import { compileTimelineRenderPlan } from '../../lib/studio/editing/timeline-render-compiler'
+import {
+  buildMinimalRemotionStudioStartOptions,
+  RemotionStudioRenderQueueBridge,
+  generateChapterStudioProjection,
+  RemotionStudioService,
+  resolveProjectFixedStudioEntryPoint,
+  type RemotionStudioChapterRenderContext,
+} from '@rendering/plugins/remotion/studio'
+import {
+  createReadyRemotionChapterJob,
+} from '@rendering/plugins/remotion/studio'
+import { watchChapterStudioProjection } from '@rendering/plugins/remotion/studio'
+import {
+  readRemotionCurrentShotSlot,
+  resolveRemotionCurrentSlotOutputPath,
+} from '../../lib/studio/remotion/remotion-current-slot'
+import { MediaBridgeServer } from '@rendering/plugins/remotion/media-bridge/media-bridge-server'
+import { buildMediaUrlMap } from '@rendering/plugins/remotion/media-bridge/media-bridge-source-map'
 import { createImageSourceReader } from '../media/image-source'
 import {
   getProtocolMimeType as getMimeType,
@@ -174,11 +207,16 @@ const ttsRuntimeController = createTtsRuntimeController({
 let stopLocalSidecarsPromise: Promise<void> | null = null
 let disposeRemotionRuntime: (() => void | Promise<void>) | null = null
 const selfMediaCredentialVault = createCredentialVault(app.getPath('userData'))
+const officialPlatformTransports = createOfficialPlatformTransports({
+  userDataPath: app.getPath('userData'),
+  allowedAssetRoots: () => [getDataDir(), getMediaRoot()],
+})
 const selfMediaIpc = registerSelfMediaIpcHandlers({
   credentialVault: selfMediaCredentialVault,
   localBridge: createAitoearnLocalPlatformBridge({
     userDataPath: app.getPath('userData'),
     allowedAssetRoots: () => [getDataDir(), getMediaRoot()],
+    platformTransports: officialPlatformTransports.transports,
   }),
   taskStorePath: path.join(app.getPath('userData'), 'self-media', 'tasks.json'),
   resolveAsset: async (_projectId, asset) => {
@@ -350,6 +388,9 @@ function createWindow() {
 
   // Open external links in system browser instead of inside Electron
   win.webContents.setWindowOpenHandler(({ url }) => {
+    if (hostedStudio.isNavigationAllowed(url)) {
+      return { action: 'deny' }
+    }
     if (url.startsWith('http://') || url.startsWith('https://')) {
       shell.openExternal(url)
     }
@@ -363,6 +404,13 @@ function createWindow() {
     // Block and open externally
     event.preventDefault()
     shell.openExternal(url)
+  })
+
+  win.webContents.on('will-frame-navigate', (details) => {
+    const { url, isMainFrame } = details
+    if (!isMainFrame && hostedStudio.isNavigationAllowed(url)) return
+    if (isMainFrame && ((VITE_DEV_SERVER_URL && url.startsWith(VITE_DEV_SERVER_URL)) || url.startsWith('file://'))) return
+    details.preventDefault()
   })
 
   if (VITE_DEV_SERVER_URL) {
@@ -546,23 +594,25 @@ registerApiRequestIpcHandlers({
 registerFileExportIpcHandlers({ getDataDir, getMediaRoot })
 
 const remotionUserDataDir = app.getPath('userData')
+const remotionBundlePath = app.isPackaged
+  ? path.join(process.resourcesPath, 'remotion-bundle')
+  : path.join(process.env.APP_ROOT ?? path.join(__dirname, '../..'), '.cache/remotion-bundle')
 const remotionRuntime = registerRemotionRuntimeIpcHandlers({
   userDataDir: remotionUserDataDir,
   remotionVersion,
   workerPath: path.join(MAIN_DIST, 'remotion-browser-worker.cjs'),
+  bundlePath: remotionBundlePath,
 })
 const remotionPreview = registerRemotionPreviewIpcHandlers({
   resolveSourcePath: resolveStudioSourcePath,
 })
-const remotionBundlePath = app.isPackaged
-  ? path.join(process.resourcesPath, 'remotion-bundle')
-  : path.join(process.env.APP_ROOT ?? path.join(__dirname, '../..'), '.cache/remotion-bundle')
 const remotionRuntimeDir = resolveRemotionRuntimeDir(remotionUserDataDir)
 const remotionBinariesDirectory = app.isPackaged
   ? path.join(process.resourcesPath, 'app.asar.unpacked', 'node_modules/@remotion/compositor-darwin-arm64')
   : path.join(process.env.APP_ROOT ?? path.join(__dirname, '../..'), 'node_modules/@remotion/compositor-darwin-arm64')
-const remotionAdapter = createRemotionRendererAdapter({
-  renderRoot: path.join(getMediaRoot(), 'studio-render'),
+const remotionShotRenderer = new RemotionShotRenderer({
+  workspaceRoot: getDataDir(),
+  workspaceRootForProject: (projectId) => path.join(getDataDir(), "_p", projectId, "remotion"),
   bundlePath: remotionBundlePath,
   workerPath: path.join(MAIN_DIST, 'remotion-render-worker.cjs'),
   cwd: remotionRuntimeDir,
@@ -571,16 +621,334 @@ const remotionAdapter = createRemotionRendererAdapter({
   probeBrowser: () => remotionRuntime.controller.probeStatus(),
   fork: (modulePath, args, options) => utilityProcess.fork(modulePath, [...args], options),
   remotionVersion,
-  emitProgress: (progress) => {
-    for (const window of BrowserWindow.getAllWindows()) {
-      if (!window.isDestroyed()) window.webContents.send('studio-timeline-render-progress', progress)
-    }
+  emitProgress: () => undefined,
+})
+const remotionChapterRenderer = new RemotionChapterRenderer({
+  workspaceRoot: getDataDir(),
+  workspaceRootForProject: (projectId) => path.join(getDataDir(), "_p", projectId, "remotion"),
+  bundlePath: remotionBundlePath,
+  workerPath: path.join(MAIN_DIST, 'remotion-render-worker.cjs'),
+  cwd: remotionRuntimeDir,
+  binariesDirectory: remotionBinariesDirectory,
+  resolveSourcePath: resolveStudioSourcePath,
+  probeBrowser: () => remotionRuntime.controller.probeStatus(),
+  fork: (modulePath, args, options) => utilityProcess.fork(modulePath, [...args], options),
+  remotionVersion,
+  emitProgress: () => undefined,
+})
+const remotionShotIpc = registerRemotionShotIpcHandlers(remotionShotRenderer)
+const remotionQueue = new RemotionRenderQueue({
+  persistence: createRemotionQueueFilePersistence(path.join(getDataDir(), '_remotion', 'queue')),
+  executor: {
+    render: remotionShotRenderer.render.bind(remotionShotRenderer),
+    renderChapter: remotionChapterRenderer.render.bind(remotionChapterRenderer),
+    cancel: (jobId) => {
+      const shot = remotionShotRenderer.cancel(jobId)
+      if (shot.success) return shot
+      return remotionChapterRenderer.cancel(jobId)
+    },
   },
+})
+const remotionQueueIpc = registerRemotionQueueIpcHandlers(remotionQueue)
+let hostedStudioChapterContext: RemotionStudioChapterRenderContext | null = null
+const nativeStudioQueueBridge = new RemotionStudioRenderQueueBridge({
+  getContext: () => hostedStudioChapterContext ?? undefined,
+  enqueueChapter: async ({ context }) => {
+    const browser = await remotionRuntime.controller.probeStatus()
+    if (browser.status.state !== 'ready') {
+      return { accepted: false, message: `Remotion Headless Shell 未就绪: ${browser.status.message ?? browser.status.state}` }
+    }
+    const manifest = JSON.parse(await fs.promises.readFile(path.join(remotionBundlePath, 'manifest.json'), 'utf8')) as {
+      contentHash?: unknown;
+      templateVersion?: unknown;
+    }
+    if (typeof manifest.contentHash !== 'string' || typeof manifest.templateVersion !== 'string') {
+      return { accepted: false, message: 'Remotion bundle manifest 缺少 template/content hash' }
+    }
+    const job = await createReadyRemotionChapterJob({
+      plan: context.plan,
+      currentShotSlots: context.currentShotSlots,
+      chapterAudioClipIds: context.chapterAudioClipIds,
+      bundleContentHash: manifest.contentHash,
+      templateVersion: manifest.templateVersion,
+      remotionVersion,
+    })
+    const result = await remotionQueue.enqueueChapter({
+      kind: 'chapter',
+      job,
+      dependencyJobIds: context.currentShotSlots.map((slot) => slot.job.jobId),
+      plan: context.plan,
+      currentShotSlots: [...context.currentShotSlots],
+      chapterAudioClipIds: [...context.chapterAudioClipIds],
+    })
+    if (!result.accepted) {
+      return { accepted: false, message: 'message' in result ? result.message : `ChapterVideo 队列拒绝: ${result.reason}` }
+    }
+    return { accepted: true, job: result.job }
+  },
+  getJob: (jobId) => remotionQueue.getJob(jobId),
+  cancelJob: (jobId) => remotionQueue.cancel(jobId),
+})
+
+async function loadChapterStudioProjection(request: { projectId: string; chapterId: string; revision: number }) {
+  const editingPath = resolveDataFilePath(getDataDir(), `_p/${request.projectId}/editing`)
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(await fs.promises.readFile(editingPath, 'utf8'))
+  } catch {
+    throw new Error('当前项目缺少可验证的 editing 持久化状态')
+  }
+  const state = isRecord(parsed) && isRecord(parsed.state) ? parsed.state : parsed
+  if (!isRecord(state) || !isRecord(state.editingProjects) || !isRecord(state.currentEditingProjectIdByEpisode)) {
+    throw new Error('editing 持久化状态结构无效')
+  }
+  const editingProjectId = state.currentEditingProjectIdByEpisode[request.chapterId]
+  const rawProject = typeof editingProjectId === 'string' ? state.editingProjects[editingProjectId] : undefined
+  const project = validateEditingProject(rawProject)
+  if (!project.success || project.value.projectId !== request.projectId || project.value.episodeId !== request.chapterId || project.value.revision !== request.revision) {
+    throw new Error('当前章节 editing revision 不存在或与 Studio identity 不一致')
+  }
+  const plan = compileTimelineRenderPlan(project.value, {
+    jobId: `studio-${request.projectId}-${request.chapterId}-r${request.revision}`,
+    createdAt: project.value.updatedAt,
+  })
+  if (!plan.success) throw new Error(`当前章节无法编译为 Studio projection: ${plan.issues[0]?.message ?? '未知错误'}`)
+  const visualClips = plan.value.clips.filter((clip) => clip.trackKind === 'video' || clip.trackKind === 'image')
+  if (visualClips.length === 0) throw new Error('当前章节缺少合法 current shot 输出')
+  const remotionWorkspaceRoot = path.join(getDataDir(), '_p', request.projectId, 'remotion')
+  const currentShotSlots: RemotionCurrentSlotV1[] = []
+  for (const clip of visualClips) {
+    const storyboardId = clip.source.evidence.storyboardId
+    const shotRevision = clip.source.evidence.outputVersion
+    if (clip.source.kind !== 'storyboardVideo' || !storyboardId || typeof shotRevision !== 'number' || !Number.isInteger(shotRevision) || shotRevision <= 0) {
+      throw new Error(`当前章节镜头不是 Remotion current StoryboardShot: ${clip.id}`)
+    }
+    const verifiedShotRevision = shotRevision
+    if (!clip.source.evidence.remotionJobId || !clip.source.evidence.remotionEvidenceSha256 || !clip.source.evidence.remotionInputHash) {
+      throw new Error(`当前章节镜头不是可验证的 Remotion current shot: ${clip.id}`)
+    }
+    const slotResult = await readRemotionCurrentShotSlot(remotionWorkspaceRoot, request.projectId, {
+      kind: 'shot', chapterId: request.chapterId, shotId: storyboardId, shotRevision: verifiedShotRevision,
+    })
+    if (!slotResult.success) {
+      throw new Error(`当前章节镜头 current slot 无效: ${clip.id}: ${slotResult.issues.map((issue) => issue.message).join('；')}`)
+    }
+    const slot = slotResult.value
+    if (clip.source.path !== slot.outputPath
+      || clip.source.evidence.remotionJobId !== slot.job.jobId
+      || clip.source.evidence.remotionEvidenceSha256 !== slot.evidence.sha256
+      || clip.source.evidence.remotionInputHash !== slot.job.inputHash
+      || slot.evidence.compositionId !== 'StoryboardShot'
+      || slot.evidence.renderer.requested !== 'remotion'
+      || slot.evidence.renderer.actual !== 'remotion') {
+      throw new Error(`当前章节镜头与 Remotion current slot identity 不一致: ${clip.id}`)
+    }
+    if (currentShotSlots.some((candidate) => candidate.target.kind === 'shot' && candidate.target.shotId === storyboardId)) {
+      throw new Error(`当前章节重复绑定 Remotion shot: ${storyboardId}`)
+    }
+    currentShotSlots.push(slot)
+  }
+  const fps = plan.value.renderSettings.fps
+  const durationInFrames = visualClips.reduce((total, clip) => total + Math.max(1, Math.ceil((clip.durationUs * fps) / 1_000_000)), 0)
+  const currentShotSlotById = new Map(
+    currentShotSlots.map((slot) => [slot.target.kind === 'shot' ? slot.target.shotId : '', slot] as const),
+  )
+  return {
+    entryPoint: resolveProjectFixedStudioEntryPoint(
+      path.join(app.getPath('userData'), 'remotion-studio'),
+      request.projectId,
+    ),
+    sources: visualClips.map((clip) => {
+      const shotId = clip.source.evidence.storyboardId
+      const slot = shotId ? currentShotSlotById.get(shotId) : undefined
+      if (!shotId || !slot || slot.target.kind !== 'shot') {
+        throw new Error(`当前章节镜头缺少合法 current slot: ${clip.id}`)
+      }
+      return {
+        clipId: shotId,
+        absolutePath: resolveRemotionCurrentSlotOutputPath(remotionWorkspaceRoot, slot),
+      }
+    }),
+    input: {
+      schemaVersion: 1 as const,
+      projectId: request.projectId,
+      chapterId: request.chapterId,
+      editingProjectId: project.value.id,
+      editingRevision: request.revision,
+      width: plan.value.renderSettings.width,
+      height: plan.value.renderSettings.height,
+      fps,
+      durationInFrames,
+      clips: visualClips.map((clip) => ({
+        shotId: clip.source.evidence.storyboardId!,
+        src: '',
+        durationInFrames: Math.max(1, Math.ceil((clip.durationUs * fps) / 1_000_000)),
+        trimBeforeFrames: Math.max(0, Math.floor((clip.trimStartUs * fps) / 1_000_000)),
+        crop: { x: 0, y: 0, width: plan.value.renderSettings.width, height: plan.value.renderSettings.height },
+        transform: clip.transform ?? { x: 0, y: 0, scaleX: 1, scaleY: 1, rotation: 0, opacity: 1 },
+        volume: clip.muted ? 0 : clip.volume,
+        subtitle: plan.value.clips.find((candidate) => candidate.trackKind === 'text'
+          && candidate.source.evidence.storyboardId === clip.source.evidence.storyboardId)?.source.text ?? '',
+      })),
+    },
+    plan: plan.value,
+    currentShotSlots,
+    chapterAudioClipIds: plan.value.clips
+      .filter((clip) => clip.trackKind === 'voice' || clip.trackKind === 'bgm' || clip.trackKind === 'sfx')
+      .map((clip) => clip.id),
+  }
+}
+
+async function readEditingProjectSnapshot(request: { projectId: string; chapterId: string }): Promise<import('../../types/editing').EditingProjectV1 | undefined> {
+  try {
+    const editingPath = resolveDataFilePath(getDataDir(), `_p/${request.projectId}/editing`)
+    const parsed = JSON.parse(await fs.promises.readFile(editingPath, 'utf8')) as unknown
+    const state = isRecord(parsed) && isRecord(parsed.state) ? parsed.state : parsed
+    if (!isRecord(state) || !isRecord(state.editingProjects) || !isRecord(state.currentEditingProjectIdByEpisode)) return undefined
+    const id = state.currentEditingProjectIdByEpisode[request.chapterId]
+    const result = validateEditingProject(typeof id === 'string' ? state.editingProjects[id] : undefined)
+    return result.success && result.value.projectId === request.projectId && result.value.episodeId === request.chapterId
+      ? result.value
+      : undefined
+  } catch {
+    return undefined
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+const hostedStudio = new RemotionStudioService()
+const hostedStudioMedia = new MediaBridgeServer()
+let hostedStudioMediaSession: ReturnType<MediaBridgeServer['createSession']> | null = null
+let hostedStudioIdentity: { projectId: string; chapterId: string; revision: number } | null = null
+let hostedStudioProjectionWatcher: { close: () => void } | null = null
+async function closeHostedStudioSession(projectId: string): Promise<void> {
+  if (hostedStudioIdentity && hostedStudioIdentity.projectId !== projectId) {
+    throw new Error(`当前 Studio 会话属于项目 ${hostedStudioIdentity.projectId}，拒绝关闭 ${projectId}`)
+  }
+  hostedStudioProjectionWatcher?.close()
+  hostedStudioProjectionWatcher = null
+  hostedStudioChapterContext = null
+  await hostedStudio.close()
+  if (hostedStudioMediaSession) await hostedStudioMedia.revokeSession(hostedStudioMediaSession)
+  else await hostedStudioMedia.close()
+  hostedStudioMediaSession = null
+  hostedStudioIdentity = null
+}
+
+async function persistStudioEditingRevision(project: import('../../types/editing').EditingProjectV1): Promise<void> {
+  const editingPath = resolveDataFilePath(getDataDir(), `_p/${project.projectId}/editing`)
+  await withFileStorageMutationLock(editingPath, async () => {
+    const raw = JSON.parse(await fs.promises.readFile(editingPath, 'utf8')) as unknown
+    const state = isRecord(raw) && isRecord(raw.state) ? raw.state : raw
+    if (!isRecord(state) || !isRecord(state.editingProjects) || !isRecord(state.currentEditingProjectIdByEpisode)) {
+      throw new Error('Studio 回写时 editing 持久化状态结构无效')
+    }
+    const current = state.editingProjects[project.id]
+    const validated = validateEditingProject(current)
+    if (!validated.success || validated.value.revision !== project.revision - 1) {
+      throw new Error('Studio 回写目标已被更新或基线 revision 不连续，拒绝覆盖更新版本')
+    }
+    if (validated.value.projectId !== project.projectId || validated.value.episodeId !== project.episodeId) {
+      throw new Error('Studio 回写目标项目/章节不一致')
+    }
+    if (state.currentEditingProjectIdByEpisode[project.episodeId] !== project.id) {
+      throw new Error('Studio 回写目标不是当前章节工程，拒绝覆盖')
+    }
+    state.editingProjects[project.id] = project
+    state.currentEditingProjectIdByEpisode[project.episodeId] = project.id
+    const temporaryPath = `${editingPath}.${process.pid}.tmp`
+    await fs.promises.writeFile(temporaryPath, `${JSON.stringify(raw, null, 2)}\n`, 'utf8')
+    await fs.promises.rename(temporaryPath, editingPath)
+    for (const window of BrowserWindow.getAllWindows()) {
+      if (!window.isDestroyed()) {
+        window.webContents.send(REMOTION_STUDIO_EDITING_UPDATED_EVENT, {
+          projectId: project.projectId,
+          chapterId: project.episodeId,
+          revision: project.revision,
+        })
+      }
+    }
+  })
+}
+const remotionStudioIpc = registerRemotionStudioIpcHandlers({
+  ensureSession: async (request) => {
+    hostedStudio.assertProjectCanEnsure(request.projectId)
+    const projection = await loadChapterStudioProjection(request)
+    const sameIdentity = hostedStudioIdentity?.projectId === request.projectId
+      && hostedStudioIdentity?.chapterId === request.chapterId
+      && hostedStudioIdentity?.revision === request.revision
+    if (!sameIdentity) {
+      hostedStudioProjectionWatcher?.close()
+      hostedStudioProjectionWatcher = null
+      await hostedStudioMedia.listen()
+      const nextMediaSession = hostedStudioMedia.createSession()
+      try {
+        const urls = buildMediaUrlMap(hostedStudioMedia, nextMediaSession, projection.sources)
+        const generated = generateChapterStudioProjection({
+          ...projection.input,
+          clips: projection.input.clips.map((clip) => ({ ...clip, src: urls[clip.shotId] ?? "" })),
+        })
+        await fs.promises.mkdir(path.dirname(projection.entryPoint), { recursive: true })
+        await fs.promises.writeFile(projection.entryPoint, generated.source, 'utf8')
+        const session = await hostedStudio.ensureSession(request, buildMinimalRemotionStudioStartOptions({
+          appsRoot: process.env.APP_ROOT ?? path.join(__dirname, '../..'),
+          entryPoint: projection.entryPoint,
+          renderQueue: nativeStudioQueueBridge,
+        }))
+        const previousMediaSession = hostedStudioMediaSession
+        hostedStudioMediaSession = nextMediaSession
+        hostedStudioIdentity = request
+        hostedStudioChapterContext = {
+          projectId: request.projectId,
+          chapterId: request.chapterId,
+          revision: request.revision,
+          plan: projection.plan,
+          currentShotSlots: projection.currentShotSlots,
+          chapterAudioClipIds: projection.chapterAudioClipIds,
+        }
+        const expectedIdentity = {
+          projectId: request.projectId,
+          chapterId: request.chapterId,
+          editingProjectId: projection.input.editingProjectId,
+          editingRevision: request.revision,
+          clips: projection.input.clips.map((clip) => ({ shotId: clip.shotId, src: urls[clip.shotId] ?? '' })),
+        }
+        hostedStudioProjectionWatcher = watchChapterStudioProjection({
+          sourcePath: projection.entryPoint,
+          expectedIdentity,
+          getCurrentProject: async () => readEditingProjectSnapshot(request),
+          onWriteback: async (result) => {
+            await persistStudioEditingRevision(result.project)
+            hostedStudioProjectionWatcher?.close()
+            hostedStudioProjectionWatcher = null
+          },
+        })
+        if (previousMediaSession) await hostedStudioMedia.revokeSession(previousMediaSession)
+        return session
+      } catch (error) {
+        await hostedStudioMedia.revokeSession(nextMediaSession).catch(() => undefined)
+        throw error
+      }
+    }
+    return hostedStudio.ensureSession(request, buildMinimalRemotionStudioStartOptions({
+      appsRoot: process.env.APP_ROOT ?? path.join(__dirname, '../..'),
+      entryPoint: projection.entryPoint,
+      renderQueue: nativeStudioQueueBridge,
+    }))
+  },
+  closeSession: closeHostedStudioSession,
 })
 
 disposeRemotionRuntime = async () => {
+  await remotionStudioIpc.dispose()
+  if (hostedStudioIdentity) await closeHostedStudioSession(hostedStudioIdentity.projectId)
+  else await hostedStudioMedia.close()
+  remotionQueueIpc.dispose()
   await remotionPreview.dispose()
-  await remotionAdapter.dispose()
+  await remotionShotIpc.dispose()
+  await remotionChapterRenderer.dispose()
   remotionRuntime.dispose()
 }
 
@@ -589,7 +957,6 @@ registerStudioRenderIpcHandlers({
   resolveSourcePath: resolveStudioSourcePath,
   createOperationId: createDiagnosticsOperationId,
   writeDiagnosticsLog,
-  remotionAdapter,
 })
 
 registerAssetLibraryIpcHandlers({

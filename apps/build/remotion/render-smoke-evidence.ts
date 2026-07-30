@@ -48,8 +48,11 @@ export type LoudnessMeasurementExec = (
 interface ProbeStream {
   codec_type?: string;
   codec_name?: string;
+  duration?: string;
   width?: number;
   height?: number;
+  channels?: number;
+  sample_rate?: number | string;
 }
 
 export interface RenderedMediaProbe {
@@ -62,10 +65,15 @@ export interface RenderedMediaProbe {
   audioCodec: string;
 }
 
+export function selectRenderedVideoDuration(raw: RenderedMediaProbe["raw"]): number {
+  const video = raw.streams?.find((stream) => stream.codec_type === "video");
+  return Number(video?.duration || raw.format?.duration || 0);
+}
+
 export async function probeRenderedMedia(filePath: string): Promise<RenderedMediaProbe> {
   const { stdout } = await execFileAsync("ffprobe", [
     "-v", "error",
-    "-show_entries", "format=duration:stream=codec_type,codec_name,width,height",
+    "-show_entries", "format=duration:stream=codec_type,codec_name,duration,width,height,channels,sample_rate",
     "-of", "json",
     filePath,
   ]);
@@ -74,7 +82,11 @@ export async function probeRenderedMedia(filePath: string): Promise<RenderedMedi
   const audio = raw.streams?.find((stream) => stream.codec_type === "audio");
   return {
     raw,
-    duration: Number(raw.format?.duration || 0),
+    // AAC commonly carries encoder padding (for example 2.048s for a 2.0s
+    // 60-frame video).  The frame-accurate duration contract is the video
+    // stream; only fall back to the container duration when ffprobe cannot
+    // provide it.
+    duration: selectRenderedVideoDuration(raw),
     width: Number(video?.width || 0),
     height: Number(video?.height || 0),
     streams: (raw.streams ?? []).map((stream) => stream.codec_type ?? "").filter(Boolean),

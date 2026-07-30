@@ -39,4 +39,22 @@ describe("local account vault security boundaries", () => {
     expect(listed[0]).not.toHaveProperty("credential");
     expect(JSON.stringify(listed)).not.toContain("secret");
   });
+
+  it("stores OAuth tokens encrypted while keeping them out of account summaries", async () => {
+    const vault = createLocalAccountVault(root);
+    await vault.upsert({
+      id: "youtube:channel-1",
+      platform: "youtube",
+      providerAccountId: "channel-1",
+      displayName: "YouTube · channel-1",
+      credential: { kind: "oauth", accessToken: "access-secret", refreshToken: "refresh-secret" },
+      updatedAt: "2026-07-27T00:00:00.000Z",
+    });
+    expect(JSON.stringify(await vault.list())).not.toContain("access-secret");
+    await expect(vault.get("youtube:channel-1")).resolves.toMatchObject({
+      platform: "youtube",
+      providerAccountId: "channel-1",
+      credential: { kind: "oauth", accessToken: "access-secret", refreshToken: "refresh-secret" },
+    });
+  });
 });

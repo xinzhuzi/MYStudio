@@ -12,7 +12,15 @@ function fixture() {
   const dir = path.join(root, ".cache", "remotion-bundle");
   for (const file of ["index.html", "bundle.js", "bundle.js.map"]) fs.writeFileSync(path.join(dir, file), file);
   const contentHash = hashBundleContent(dir);
-  fs.writeFileSync(path.join(dir, "manifest.json"), JSON.stringify({ schemaVersion: 1, remotionVersion: "4.0.499", compositionId: "DaojieTimeline", contentHash }));
+  fs.writeFileSync(path.join(dir, "manifest.json"), JSON.stringify({
+    schemaVersion: 2,
+    templateId: "mystudio-remotion-v1",
+    templateVersion: "1.0.0",
+    remotionVersion: "4.0.499",
+    compositionIds: ["StoryboardShot", "ChapterVideo", "DaojieTimeline"],
+    compositionId: "DaojieTimeline",
+    contentHash,
+  }));
   return { root, dir };
 }
 
@@ -27,5 +35,12 @@ describe("fixed Remotion bundle preflight", () => {
     expect(() => verifyFixedRemotionBundle({ appRoot: root })).toThrow(/版本漂移/);
     fs.writeFileSync(path.join(root, "package.json"), JSON.stringify({ dependencies: { remotion: "4.0.499" }})); fs.appendFileSync(path.join(dir, "bundle.js"), "drift");
     expect(() => verifyFixedRemotionBundle({ appRoot: root })).toThrow(/contentHash/);
+  });
+  it("rejects a reordered or incomplete composition registry", () => {
+    const { root, dir } = fixture();
+    const manifest = JSON.parse(fs.readFileSync(path.join(dir, "manifest.json"), "utf8"));
+    manifest.compositionIds = ["ChapterVideo", "StoryboardShot", "DaojieTimeline"];
+    fs.writeFileSync(path.join(dir, "manifest.json"), JSON.stringify(manifest));
+    expect(() => verifyFixedRemotionBundle({ appRoot: root })).toThrow(/compositionIds/);
   });
 });

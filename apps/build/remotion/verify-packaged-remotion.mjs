@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
-import { listPackage } from "@electron/asar";
+import { extractFile, listPackage } from "@electron/asar";
+import { hashBundleContent } from "./bundle-preflight.mjs";
 
 const forbiddenAsarPathPrefixes = [
   "node_modules/@remotion/bundler/",
@@ -14,6 +15,8 @@ const forbiddenAsarFiles = new Set([
   ".agents/skills-lock.json",
   ".codex/skills-lock.json",
 ]);
+const expectedCompositionIds = ["StoryboardShot", "ChapterVideo", "DaojieTimeline"];
+const SEMVER = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/;
 
 export function inspectPackagedRemotionApp(appPath, options = {}) {
   if (typeof appPath !== "string" || !path.isAbsolute(appPath)) {
@@ -25,6 +28,7 @@ export function inspectPackagedRemotionApp(appPath, options = {}) {
   const manifestPath = path.join(bundlePath, "manifest.json");
   const bundleEntryPath = path.join(bundlePath, "bundle.js");
   const bundleSourceMapPath = path.join(bundlePath, "bundle.js.map");
+  const bundleIndexPath = path.join(bundlePath, "index.html");
   const compositorPath = path.join(
     resourcesPath,
     "app.asar.unpacked",
@@ -33,13 +37,16 @@ export function inspectPackagedRemotionApp(appPath, options = {}) {
     "compositor-darwin-arm64",
   );
   const manifest = readJson(manifestPath, "Remotion bundle manifest");
-  if (manifest.schemaVersion !== 1
+  if (manifest.schemaVersion !== 2
+    || manifest.templateId !== "mystudio-remotion-v1"
+    || manifest.templateVersion !== "1.0.0"
     || typeof manifest.remotionVersion !== "string"
-    || typeof manifest.compositionId !== "string"
+    || !sameOrderedStrings(manifest.compositionIds, expectedCompositionIds)
+    || manifest.compositionId !== "DaojieTimeline"
     || !/^[a-f0-9]{64}$/.test(String(manifest.contentHash))) {
     throw new Error(`Remotion bundle manifest 无效: ${manifestPath}`);
   }
-  const missingBundleFiles = [bundleEntryPath, bundleSourceMapPath]
+  const missingBundleFiles = [bundleEntryPath, bundleSourceMapPath, bundleIndexPath]
     .filter((filePath) => !isFile(filePath))
     .map((filePath) => path.basename(filePath));
   if (missingBundleFiles.length > 0) {
@@ -56,6 +63,15 @@ export function inspectPackagedRemotionApp(appPath, options = {}) {
     throw new Error(`app.asar不存在: ${appAsarPath}`);
   }
   const asarEntries = readAsarEntries(appAsarPath, options.listAsarEntries);
+  const packagedRemotionVersion = (options.readRemotionVersion ?? readPackagedRemotionVersion)(appAsarPath);
+  if (!SEMVER.test(String(manifest.remotionVersion))
+    || !SEMVER.test(String(packagedRemotionVersion))
+    || manifest.remotionVersion !== packagedRemotionVersion) {
+    throw new Error(`Remotion runtime 版本不一致: bundle=${manifest.remotionVersion ?? "missing"}, packaged=${packagedRemotionVersion ?? "missing"}`);
+  }
+  if (hashBundleContent(bundlePath) !== manifest.contentHash) {
+    throw new Error(`Remotion bundle contentHash 与实际内容不一致: ${bundlePath}`);
+  }
   const forbiddenEntries = asarEntries.filter(isForbiddenAsarEntry);
   if (forbiddenEntries.length > 0) {
     throw new Error(`安装包包含禁止的 Remotion 开发/浏览器资源: ${forbiddenEntries.join(", ")}`);
@@ -68,9 +84,16 @@ export function inspectPackagedRemotionApp(appPath, options = {}) {
     manifestPath,
     bundleEntryPath,
     bundleSourceMapPath,
+    bundleIndexPath,
     compositorPath,
     manifest,
   };
+}
+
+function sameOrderedStrings(value, expected) {
+  return Array.isArray(value)
+    && value.length === expected.length
+    && value.every((item, index) => item === expected[index]);
 }
 
 function readAsarEntries(appAsarPath, listAsarEntries = listPackage) {
@@ -82,6 +105,15 @@ function readAsarEntries(appAsarPath, listAsarEntries = listPackage) {
     return entries;
   } catch (error) {
     throw new Error(`app.asar无法检查: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+function readPackagedRemotionVersion(appAsarPath) {
+  try {
+    const packageJson = JSON.parse(extractFile(appAsarPath, "node_modules/remotion/package.json").toString("utf8"));
+    return typeof packageJson.version === "string" ? packageJson.version : undefined;
+  } catch {
+    return undefined;
   }
 }
 

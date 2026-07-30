@@ -1,6 +1,10 @@
 # 漫影工作室基本工作流教程
 
-本文说明当前 `工作流` 页面从小说原文到候选片段、最终成片的基础流程。更细的按钮、状态、弹窗和数据关系见 [工作流阶段操作手册](./WORKFLOW_STAGE_OPERATIONS.md)。小说导入、事件分析和策划编剧细节见 [小说导入与策划编剧操作参考](./WORKFLOW_NOVEL_SCRIPT_OPERATIONS.md)，剧本资产提取和剧本资产管理细节见 [剧本资产管理操作参考](./WORKFLOW_ASSET_GENERATION_OPERATIONS.md)，分镜面板与视频工作台细节见 [分镜面板与视频工作台操作参考](./WORKFLOW_STORYBOARD_EDITING_OPERATIONS.md)。安装、配置和排错入口见 [文档中心](../README.md)。
+本文说明当前 `工作流` 页面从小说原文到 Remotion 章节成片的基础流程。更细的按钮、状态、弹窗和数据关系见 [工作流阶段操作手册](./WORKFLOW_STAGE_OPERATIONS.md)。小说导入、事件分析和策划编剧细节见 [小说导入与策划编剧操作参考](./WORKFLOW_NOVEL_SCRIPT_OPERATIONS.md)，剧本资产提取和剧本资产管理细节见 [剧本资产管理操作参考](./WORKFLOW_ASSET_GENERATION_OPERATIONS.md)，分镜面板与视频工作台细节见 [分镜面板与视频工作台操作参考](./WORKFLOW_STORYBOARD_EDITING_OPERATIONS.md)。安装、配置和排错入口见 [文档中心](../README.md)。
+
+如果需要从“第一步”一直看到最终 MP4 的数据交接、节点职责、JSON 边界和 Remotion 原生渲染细节，请先读 [从分镜到最终视频的完整链路](./WORKFLOW_FULL_VIDEO_PIPELINE.md)。
+
+> 当前正式链（2026-07-30）是 `AI 物料 -> Remotion StoryboardShot MP4 -> 原生 Remotion Studio -> Remotion ChapterVideo MP4`。FFmpeg 不再是正式 renderer、concat、loudnorm 或 Remotion 失败回退；`ffprobe` 仅做只读证据校验。每章分镜数量为动态 M，不受示例数量限制；一次只处理一个 active project/chapter。
 
 ## 流程总览
 
@@ -10,11 +14,12 @@
   -> 策划编剧
   -> 剧本资产提取
   -> 剧本资产管理
-  -> 分镜面板
-  -> 视频工作台
+  -> 分镜面板（每镜 Remotion 配置与 shot jobs）
+  -> 视频工作台（原生 Remotion Studio）
+  -> ChapterVideo 章节 MP4
 ```
 
-工作流页本身按阶段推进。每一章按当前阶段输入、生成和验收，完成一章后再进入下一章。整体重心参考 Toonflow 的 `策划 -> 编剧 -> 分镜 -> 出片`：策划编剧负责故事骨架、改编策略和结构化剧本；剧本资产管理负责导演规划、衍生资产、分镜表、分镜面板和分镜图；视频工作台负责候选视频和最终导出。
+工作流页本身按阶段推进。每一章按当前阶段输入、生成和验收，完成一章后再进入下一章。整体重心参考 Toonflow 的 `策划 -> 编剧 -> 分镜 -> 出片`：策划编剧负责故事骨架、改编策略和结构化剧本；剧本资产管理负责导演规划、衍生资产和分镜表；分镜面板负责逐镜物料审核、配置和 `StoryboardShot` 生成；视频工作台负责托管原生 Studio 并由 `ChapterVideo` 输出章节视频。
 
 ## 准备配置
 
@@ -109,24 +114,19 @@ Python 和 TTS 依赖不会在应用启动时自动配置。详细说明见 [Pyt
 
 角色音色分配可在这里的角色列表或 `资产 -> 角色库` 角色详情中完成；本地 TTS 配置仍在设置页。
 
-## 7. 视频工作台
+## 7. 视频工作台（原生 Remotion Studio）
 
 进入 `工作流 -> 视频工作台`。
 
-这里会根据分镜生成制作 track：
+这里不是第二套自研时间线，而是当前章节的原生 Remotion Studio 宿主：
 
-1. 确认每条 track 的分镜和时长。
-2. 对单条 track 点击生成候选片段。
-3. 选择可用候选片段。
-4. 点击 `一键剪辑`，创建或复用当前章节的 `EditingProject` 剪辑草案。
-5. 在剪辑工作台检查画面、口播、字幕、转场和当前 revision。
-6. 点击 `一键成片`，把当前 `EditingProject` 编译成时间线计划，并由 renderer host 按全局设置选择 Remotion 或 FFmpeg 输出 MP4。
+1. 等待当前章动态 M 个 `StoryboardShot` jobs 都有 current MP4/evidence。
+2. 点击 `准备 Remotion 章节工程`，系统将同章 shot slots 编译成 `EditingProjectV1` 和静态 TSX projection。
+3. 应用托管一个 loopback 动态端口 Studio server；同项目切章复用 server，切项目先释放 A 的 session/page/watcher/media/port。
+4. 在 Remotion 原生 Timeline、Inspector、Preview、Render 中编辑本章；MYStudio 只显示 job、blocked/error、revision 和 evidence。
+5. Studio 的 Render 通过 queue bridge 创建唯一 `ChapterVideo` job。Remotion `renderMedia` 直接生成章节 MP4，失败保持 blocked/error，不转 FFmpeg。
 
-单轨 `本地合成` 仍是独立的 FFmpeg 兼容入口；最终成片的 FFmpeg 直出和 Remotion 音频后处理都依赖系统 `ffmpeg`。如果提示未找到 FFmpeg，先确认命令行中 `ffmpeg -version` 可用。选择 Remotion 时，MP4 导出还要求在设置页主动下载/更新匹配版本的 Chrome Headless Shell；Player 预览仍可在没有 Headless Shell 时运行。打包和 smoke 流程见 [打包、安装与 Smoke 测试](../engineering/PACKAGING_AND_SMOKE_TESTING.md)。
-
-当前权威成片链是 `分镜/候选 -> EditingProject -> TimelineRenderPlan -> renderer host -> MP4 + 完整媒体证据`。只有证据对应当前 EditingProject revision，并且最终 MP4、snapshot、render plan、input manifest、renderer diagnostics、日志和 ffprobe 文件都存在时，工作流才把视频工作台视为完成；filter graph 仅适用于 FFmpeg 直出，Remotion 还必须有 raw MP4 与 postprocess log。
-
-旧 `拼接成片` 仍作为人工兼容导出保留，但不会被自动成片、工作流完成度或真实《道劫》验收当作权威最终视频。track 分组、候选片段状态、选择规则和兼容拼接失败处理见 [分镜表与剪辑工作台操作参考](./WORKFLOW_STORYBOARD_EDITING_OPERATIONS.md)。`成片与导出` 页面主要用于查看和导出已有素材/产物。
+每章 workspace 记录位于 `_p/<projectId>/remotion/`：chapter manifest、shot/chapter jobs、evidence、current outputs 和 queue state 分开保存。新版只有在 probe、SHA、revision、input fingerprint 和 bundle identity 全部通过后才替换 current；失败/取消保留旧 current。完整字段和验收见 [从分镜到最终视频的完整链路](./WORKFLOW_FULL_VIDEO_PIPELINE.md)。
 
 ## 兼容与高级入口
 
@@ -152,9 +152,11 @@ Python 和 TTS 依赖不会在应用启动时自动配置。详细说明见 [Pyt
 
 确认当前章节有剧本草稿。没有剧本时，`剧本资产提取` 无法提取角色、场景和道具。
 
-### 分镜不能生成候选片段
+### 分镜不能生成 Remotion shot
 
-确认分镜已经绑定图片或视频素材。纯音频素材不会作为视觉合成输入。
+确认分镜已经绑定图片或视频素材、音频路径和当前审核门禁。纯音频素材不会作为
+`StoryboardShot` 的视觉输入；缺少素材、审核 receipt 或不支持效果时，队列会保持
+`blocked/error`，不会生成旧候选片段。
 
 ### 角色试听没有声音
 

@@ -1,4 +1,5 @@
 import type { ScriptPlan, StoryboardItem, ProductionTrack, VideoCandidate } from "@/types/studio";
+import type { RemotionCurrentSlotV1 } from "@/types/remotion-workspace";
 
 export interface EditingSourceSnapshotInput {
   projectId: string;
@@ -8,6 +9,7 @@ export interface EditingSourceSnapshotInput {
   storyboards: StoryboardItem[];
   productionTracks: ProductionTrack[];
   videoCandidates: VideoCandidate[];
+  remotionShotSlots?: RemotionCurrentSlotV1[];
 }
 
 export async function buildEditingSourceSnapshotHash(
@@ -57,6 +59,19 @@ export async function buildEditingSourceSnapshotHash(
         sourceFingerprint: item.sourceFingerprint,
         outputVersion: item.outputVersion,
         stale: item.stale,
+      })),
+    remotionShotSlots: (input.remotionShotSlots ?? [])
+      .slice()
+      .sort((left, right) => left.target.kind === "shot" && right.target.kind === "shot"
+        ? left.target.shotId.localeCompare(right.target.shotId)
+        : left.target.kind.localeCompare(right.target.kind))
+      .map((slot) => ({
+        projectId: slot.projectId,
+        target: slot.target,
+        jobId: slot.job.jobId,
+        inputHash: slot.job.inputHash,
+        evidenceSha256: slot.evidence.sha256,
+        outputPath: slot.outputPath,
       })),
   });
   const digest = await crypto.subtle.digest(

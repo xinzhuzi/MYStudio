@@ -1,1 +1,16 @@
-export const REMOTION_COMPOSITION_ID = "DaojieTimeline";
+export const STORYBOARD_SHOT_COMPOSITION_ID = "StoryboardShot";
+export const CHAPTER_VIDEO_COMPOSITION_ID = "ChapterVideo";
+export const DAOJIE_TIMELINE_COMPATIBILITY_COMPOSITION_ID = "DaojieTimeline";
+
+export const PRIMARY_REMOTION_COMPOSITION_IDS = [
+  STORYBOARD_SHOT_COMPOSITION_ID,
+  CHAPTER_VIDEO_COMPOSITION_ID,
+] as const;
+
+export const BUNDLED_REMOTION_COMPOSITION_IDS = [
+  ...PRIMARY_REMOTION_COMPOSITION_IDS,
+  DAOJIE_TIMELINE_COMPATIBILITY_COMPOSITION_ID,
+] as const;
+
+/** @deprecated Migration-only alias. New shot/chapter jobs select their target ID. */
+export const REMOTION_COMPOSITION_ID = DAOJIE_TIMELINE_COMPATIBILITY_COMPOSITION_ID;

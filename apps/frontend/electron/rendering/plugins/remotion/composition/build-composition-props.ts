@@ -4,6 +4,7 @@ import type {
   TimelineRenderPlan,
 } from "@/types/editing";
 import type {
+  ChapterVideoCompositionProps,
   CompositionAudioClipProps,
   CompositionEnvelopePoint,
   CompositionFade,
@@ -13,6 +14,9 @@ import type {
   CompositionTransitionProps,
   CompositionVisualClipProps,
 } from "./composition-props";
+import { validateChapterVideoCompositionProps } from "./composition-props-validation";
+import type { RemotionCurrentSlotV1 } from "@/types/remotion-workspace";
+import { validateCurrentSlot } from "@/lib/studio/remotion/remotion-current-slot";
 import {
   clipDurationInFrames,
   layoutVisualTimeline,
@@ -111,6 +115,133 @@ export function buildCompositionProps(
     audioClips,
     subtitles,
   };
+}
+
+export interface ChapterVideoCompositionInput {
+  plan: TimelineRenderPlan;
+  currentShotSlots: readonly RemotionCurrentSlotV1[];
+  mediaUrlByClipId: Readonly<Record<string, string>>;
+  chapterAudioClipIds: readonly string[];
+}
+
+export type ChapterVideoCompositionResult =
+  | { success: true; value: ChapterVideoCompositionProps }
+  | { success: false; issues: Array<{ path: string; message: string }> };
+
+/**
+ * Projects a validated chapter plan into the ChapterVideo target. Every
+ * visual clip must be backed by the matching current Remotion shot slot; the
+ * chapter audio allow-list makes the once-only mix boundary explicit.
+ */
+export function buildChapterVideoCompositionProps(
+  input: ChapterVideoCompositionInput,
+): ChapterVideoCompositionResult {
+  const issues: Array<{ path: string; message: string }> = [];
+  const slotsByShotId = new Map<string, RemotionCurrentSlotV1>();
+  const validShotSlots: Array<{ index: number; shotId: string }> = [];
+  for (const [index, slot] of input.currentShotSlots.entries()) {
+    const validation = validateCurrentSlot(slot);
+    if (!validation.success) {
+      issues.push({ path: `currentShotSlots[${index}]`, message: validation.issues.map((issue) => issue.message).join("；") });
+      continue;
+    }
+    if (validation.value.projectId !== input.plan.projectId
+      || validation.value.target.kind !== "shot"
+      || validation.value.target.chapterId !== input.plan.episodeId
+      || validation.value.evidence.compositionId !== "StoryboardShot"
+      || validation.value.evidence.renderer.actual !== "remotion") {
+      issues.push({ path: `currentShotSlots[${index}]`, message: "shot current slot 不属于当前项目/章节或不是 Remotion 成功输出" });
+      continue;
+    }
+    if (slotsByShotId.has(validation.value.target.shotId)) {
+      issues.push({ path: `currentShotSlots[${index}]`, message: "同一 shot 不得提供多个 current slot" });
+      continue;
+    }
+    slotsByShotId.set(validation.value.target.shotId, validation.value);
+    validShotSlots.push({ index, shotId: validation.value.target.shotId });
+  }
+
+  const visualClips = input.plan.clips
+    .filter((clip) => clip.trackKind === "video" || clip.trackKind === "image")
+    .sort(compareTimelineClips);
+  if (visualClips.length === 0) {
+    issues.push({ path: "plan.clips", message: "章节必须包含至少一个 Remotion shot visual clip" });
+  }
+  const requiredShotIds = new Set<string>();
+  for (const [index, clip] of visualClips.entries()) {
+    const sourceKind = clip.source.kind;
+    const storyboardId = typeof clip.source.evidence?.storyboardId === "string"
+      ? clip.source.evidence.storyboardId
+      : undefined;
+    if (storyboardId) {
+      if (requiredShotIds.has(storyboardId)) {
+        issues.push({ path: `visualClips[${index}].source.evidence.storyboardId`, message: "章节不得重复绑定同一 Remotion shot" });
+      }
+      requiredShotIds.add(storyboardId);
+    }
+    const slot = storyboardId ? slotsByShotId.get(storyboardId) : undefined;
+    if (sourceKind !== "storyboardVideo" || !storyboardId || !slot) {
+      issues.push({ path: `visualClips[${index}]`, message: "章节视觉片段必须绑定当前 Remotion shot MP4" });
+      continue;
+    }
+    if (clip.source.path !== slot.outputPath) {
+      issues.push({ path: `visualClips[${index}].source.path`, message: "视觉片段路径与 current shot slot 不一致" });
+    }
+    if (clip.source.evidence?.remotionJobId !== slot.job.jobId
+      || clip.source.evidence?.remotionEvidenceSha256 !== slot.evidence.sha256) {
+      issues.push({ path: `visualClips[${index}].source.evidence`, message: "视觉片段缺少匹配的 Remotion job/evidence identity" });
+    }
+    if (slot.target.kind !== "shot" || clip.source.evidence?.outputVersion !== slot.target.shotRevision) {
+      issues.push({ path: `visualClips[${index}].source.evidence.outputVersion`, message: "视觉片段 shot revision 与 current slot 不一致" });
+    }
+  }
+  for (const { index, shotId } of validShotSlots) {
+    if (!requiredShotIds.has(shotId)) {
+      issues.push({ path: `currentShotSlots[${index}]`, message: "current shot slot 不得包含章节未引用的额外 shot" });
+    }
+  }
+
+  const audioClips = input.plan.clips.filter((candidate) => (
+    candidate.trackKind === "voice" || candidate.trackKind === "bgm" || candidate.trackKind === "sfx"
+  ));
+  const audioClipIds = new Set(audioClips.map((clip) => clip.id));
+  const audioIds = new Set<string>();
+  for (const [index, clipId] of input.chapterAudioClipIds.entries()) {
+    if (typeof clipId !== "string" || !clipId.trim()) {
+      issues.push({ path: `chapterAudioClipIds[${index}]`, message: "chapter audio ID 必须是非空字符串" });
+      continue;
+    }
+    if (audioIds.has(clipId)) {
+      issues.push({ path: `chapterAudioClipIds[${index}]`, message: "chapter audio ID 不得重复" });
+    }
+    audioIds.add(clipId);
+    if (!audioClipIds.has(clipId)) {
+      issues.push({ path: `chapterAudioClipIds[${index}]`, message: "chapter audio ID 未在当前章节计划中声明" });
+    }
+  }
+  for (const clip of audioClips) {
+    if (!audioIds.has(clip.id)) {
+      issues.push({ path: `audioClips.${clip.id}`, message: "未显式声明为 chapter-scoped 音频，拒绝重复混音" });
+    }
+  }
+  if (issues.length > 0) return { success: false, issues };
+
+  const base = buildCompositionProps(input.plan, input.mediaUrlByClipId);
+  const props: ChapterVideoCompositionProps = {
+    ...base,
+    target: "chapter",
+    projectId: input.plan.projectId,
+    chapterId: input.plan.episodeId,
+    editingProjectId: input.plan.editingProjectId,
+    editingRevision: input.plan.editingRevision,
+    visualClips: base.visualClips.map((clip) => ({ ...clip, muted: false })),
+    audioClips: base.audioClips
+      .filter((clip) => audioIds.has(clip.clipId))
+      .map((clip) => ({ ...clip, renderScope: "chapter" as const })),
+  };
+  const validation = validateChapterVideoCompositionProps(props);
+  if (!validation.success) return { success: false, issues: validation.issues };
+  return { success: true, value: validation.value };
 }
 
 function panZoomForClip(effect: Pick<EditingEffect, "params"> | undefined): CompositionPanZoom | undefined {

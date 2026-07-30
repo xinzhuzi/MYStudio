@@ -97,7 +97,7 @@ const defaultState: AppSettingsState = {
     compatibilityRetryResolution: DEFAULT_COMPATIBILITY_RETRY_RESOLUTION,
   },
   renderingSettings: {
-    renderer: "ffmpeg",
+    renderer: "remotion",
   },
 };
 
@@ -162,12 +162,15 @@ export function mergeAppSettingsState(
     ? persisted as Partial<AppSettingsState>
     : {};
   const persistedRenderer = persistedState.renderingSettings?.renderer;
+  // FFmpeg was the pre-Remotion default. Migrate persisted legacy settings to
+  // the single normal production renderer instead of silently reopening the old chain.
+  const normalizedRenderer = persistedRenderer === "ffmpeg" ? "remotion" : persistedRenderer;
   return {
     ...current,
     ...persistedState,
     renderingSettings: {
-      renderer: isTimelineRendererId(persistedRenderer)
-        ? persistedRenderer
+      renderer: isTimelineRendererId(normalizedRenderer)
+        ? normalizedRenderer
         : current.renderingSettings.renderer,
     },
   };

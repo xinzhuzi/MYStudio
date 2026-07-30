@@ -65,8 +65,8 @@ describe("useRemotionPlayerPreview", () => {
     const ffmpeg = renderHook(() => useRemotionPlayerPreview(source, "ffmpeg"));
     expect(ffmpeg.result.current.status).toBe("idle");
     const remotion = renderHook(() => useRemotionPlayerPreview(source, "remotion"));
-    await waitFor(() => expect(remotion.result.current.status).toBe("fallback"));
-    expect(remotion.result.current.decision?.fallback?.effectIds).toEqual(["blur"]);
+    await waitFor(() => expect(remotion.result.current.status).toBe("error"));
+    expect(remotion.result.current.error).toContain("Remotion 暂不支持效果：blur");
     expect(create).not.toHaveBeenCalled();
   });
 });

@@ -9,6 +9,8 @@ import type {
   VideoCandidate,
 } from "@/types/studio";
 import type { StudioAssetSummary } from "@/types/studio-assets";
+import type { TimelineRendererId } from "@rendering/contracts/timeline-renderer";
+import type { RemotionBrowserState } from "@rendering/contracts/remotion-browser-status";
 import {
   buildStudioFlowData,
 } from "@/lib/studio/studio-flow-data";
@@ -100,10 +102,21 @@ export interface ProductionFlowNodeModel {
   assetSummary?: ProductionFlowAssetSummary;
   workbenchTracks?: ProductionFlowWorkbenchTrack[];
   finalExportPath?: string;
+  rendererSummary?: ProductionFlowRendererSummary;
   skills?: ProductionFlowNodeSkill[];
   skill?: ProductionFlowNodeSkill;
   actions?: ProductionFlowNodeAction[];
   targetStage: ProductionFlowStage;
+}
+
+export interface ProductionFlowRendererSummary {
+  requested: TimelineRendererId;
+  actual?: TimelineRendererId;
+  lastRequested?: TimelineRendererId;
+  fallbackEffectIds?: string[];
+  lastJobId?: string;
+  outputPath?: string;
+  runtimeStatus?: RemotionBrowserState;
 }
 
 export interface ProductionFlowNodeAction {
@@ -177,7 +190,7 @@ export interface ProductionFlowModel {
 }
 
 export function buildProductionFlowModel(
-  input: ProductionFlowModelInput,
+  input: ProductionFlowModelInput & { rendererSummary?: ProductionFlowRendererSummary },
 ): ProductionFlowModel {
   const flowData = buildStudioFlowData(input);
   const directorPlanSkill = buildNodeSkill("production_execution_director_plan");
@@ -278,6 +291,17 @@ export function buildProductionFlowModel(
     ].join(" · "),
   );
   const workbenchPreviewLines = [
+    ...(input.rendererSummary?.actual
+      ? [
+          `最后渲染 · ${formatRendererLabel(input.rendererSummary.lastRequested ?? input.rendererSummary.requested)} → ${formatRendererLabel(input.rendererSummary.actual)}`,
+          ...(input.rendererSummary.fallbackEffectIds?.length
+            ? [`回退效果 · ${input.rendererSummary.fallbackEffectIds.join("、")}`]
+            : []),
+          ...(input.rendererSummary.outputPath
+            ? [`时间线成片 · ${input.rendererSummary.outputPath}`]
+            : []),
+        ]
+      : ["尚未验证成片"]),
     ...workbenchPreview,
     ...(flowData.workbench.finalExportPath
       ? [`成片 · ${flowData.workbench.finalExportPath}`]
@@ -415,11 +439,21 @@ export function buildProductionFlowModel(
             : "empty",
         metrics: input.productionTracks.length
           ? [
+              `请求渲染器 ${formatRendererLabel(input.rendererSummary?.requested ?? "ffmpeg")}`,
+              ...(input.rendererSummary?.actual
+                ? [`${formatRendererLabel(input.rendererSummary.lastRequested ?? input.rendererSummary.requested)} → ${formatRendererLabel(input.rendererSummary.actual)}`]
+                : ["尚未验证成片"]),
               `${input.productionTracks.length} 条轨道`,
               `${readyCandidateCount} 个候选`,
               finalExportReady ? "已导出成片" : "待导出成片",
             ]
-          : ["待重建轨道"],
+          : [
+              `请求渲染器 ${formatRendererLabel(input.rendererSummary?.requested ?? "ffmpeg")}`,
+              ...(input.rendererSummary?.actual
+                ? [`${formatRendererLabel(input.rendererSummary.lastRequested ?? input.rendererSummary.requested)} → ${formatRendererLabel(input.rendererSummary.actual)}`]
+                : ["尚未验证成片"]),
+              "待重建轨道",
+            ],
         previewTitle: "视频工作台",
         previewLines: workbenchPreviewLines.length
           ? workbenchPreviewLines
@@ -427,11 +461,16 @@ export function buildProductionFlowModel(
         previewKind: "workbench-lanes",
         workbenchTracks,
         finalExportPath: flowData.workbench.finalExportPath,
+        rendererSummary: input.rendererSummary ?? { requested: "ffmpeg" },
         targetStage: "workbench",
       },
     ],
     edges: PRODUCTION_FLOW_EDGES,
   };
+}
+
+export function formatRendererLabel(renderer: TimelineRendererId) {
+  return renderer === "remotion" ? "Remotion" : "FFmpeg";
 }
 
 function buildNodeSkill(id: string): ProductionFlowNodeSkill | undefined {

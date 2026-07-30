@@ -26,6 +26,7 @@ import type {
   ProductionFlowNodeId,
   ProductionFlowNodeModel,
 } from "./workflow-node-model";
+import { formatRendererLabel } from "./workflow-node-model";
 
 const NODE_PREVIEW_CLASS = {
   script: "max-h-[560px]",
@@ -221,6 +222,7 @@ export function AssetFlowCard({
           alt={card.name}
           className="h-full w-full object-contain"
           loading="lazy"
+          decoding="async"
         />
       ) : status === "生成中" ? (
         <RefreshCw className="h-8 w-8 animate-spin text-sky-300/70" />
@@ -461,6 +463,7 @@ export function StoryboardGridPreview({
                   alt={tile.title}
                   className="h-full w-full object-cover"
                   loading="lazy"
+                  decoding="async"
                 />
               ) : (
                 <div className="flex h-full items-center justify-center text-[10px] text-muted-foreground">
@@ -528,9 +531,28 @@ export function WorkbenchLanePreview({
   node: ProductionFlowNodeModel;
 }) {
   const tracks = node.workbenchTracks ?? [];
-  if (!tracks.length) return <TextPreview node={node} />;
+  const rendererSummary = node.rendererSummary ?? { requested: "ffmpeg" as const };
   return (
     <div className="workbench-lane-preview nodrag nowheel max-h-[320px] space-y-3 overflow-y-auto overscroll-contain pr-1">
+      <div className="rounded-md border border-border bg-card px-3 py-2 text-[10px] text-card-foreground">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="font-medium">请求渲染器 {formatRendererLabel(rendererSummary.requested)}</span>
+          <span className="text-muted-foreground">
+            {rendererSummary.actual
+              ? `${formatRendererLabel(rendererSummary.lastRequested ?? rendererSummary.requested)} → ${formatRendererLabel(rendererSummary.actual)}`
+              : "尚未验证成片"}
+          </span>
+        </div>
+        {rendererSummary.fallbackEffectIds?.length ? (
+          <div className="mt-1 text-amber-200">回退效果：{rendererSummary.fallbackEffectIds.join("、")}</div>
+        ) : null}
+        {rendererSummary.lastJobId || rendererSummary.outputPath ? (
+          <div className="mt-1 grid gap-1 text-muted-foreground">
+            {rendererSummary.lastJobId ? <span>{rendererSummary.lastJobId}</span> : null}
+            {rendererSummary.outputPath ? <span className="truncate" title={rendererSummary.outputPath}>{rendererSummary.outputPath}</span> : null}
+          </div>
+        ) : null}
+      </div>
       <div className="grid grid-cols-[1fr_auto] items-center gap-3 rounded-md border border-border bg-card px-3 py-2 text-card-foreground">
         <div className="min-w-0">
           <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
@@ -549,7 +571,7 @@ export function WorkbenchLanePreview({
           {node.finalExportPath ? "READY" : "PENDING"}
         </span>
       </div>
-      <div className="grid grid-cols-2 gap-2">
+      {tracks.length ? <div className="grid grid-cols-2 gap-2">
         {tracks.map((track, index) => (
           <div
             key={track.id}
@@ -603,7 +625,7 @@ export function WorkbenchLanePreview({
             </div>
           </div>
         ))}
-      </div>
+      </div> : null}
     </div>
   );
 }

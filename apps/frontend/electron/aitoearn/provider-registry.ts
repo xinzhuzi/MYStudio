@@ -56,6 +56,7 @@ export class SelfMediaProviderError extends Error {
 }
 
 export interface AitoearnLocalPlatformBridge {
+  readonly availablePlatforms?: readonly SelfMediaPlatform[];
   listAccounts: (projectId: string) => Promise<SelfMediaAccount[]>;
   startLogin: (projectId: string, platform: SelfMediaPlatform) => Promise<{ started: boolean }>;
   publish: (context: SelfMediaProviderPublishContext) => Promise<SelfMediaProviderTaskResult>;
@@ -66,7 +67,7 @@ export interface AitoearnLocalPlatformBridge {
 
 export function createAitoearnLocalAdapter(bridge?: AitoearnLocalPlatformBridge): SelfMediaProviderAdapter {
   const summary: SelfMediaProviderSummary = bridge
-    ? { id: "aitoearn-local", displayName: "AiToEarn 本地适配器", enabled: true }
+    ? { id: "aitoearn-local", displayName: "AiToEarn 本地适配器", enabled: true, availablePlatforms: [...(bridge.availablePlatforms ?? [])] }
     : { id: "aitoearn-local", displayName: "AiToEarn 本地适配器", enabled: false, reason: "本地平台适配器正在迁移" };
 
   const unavailable = () => {

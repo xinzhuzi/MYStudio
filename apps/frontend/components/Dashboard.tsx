@@ -12,6 +12,10 @@ import { useState, useCallback } from "react";
 import { useProjectStore } from "@/stores/project/project-store";
 import { useMediaPanelStore } from "@/stores/navigation/media-panel-store";
 import { switchProject } from "@/lib/project/project-switcher";
+import {
+  DEFAULT_REMOTION_RENDER_SETTINGS,
+  ensureRemotionWorkspace,
+} from "@/lib/studio/remotion/remotion-workspace-storage";
 import { getFileStorageBridge } from "@/lib/bridge/file-storage";
 import {
   copyProjectScopedStoreFiles,
@@ -63,6 +67,27 @@ interface DashboardProps {
   onToggleSidebar?: () => void;
 }
 
+async function initializeRemotionWorkspace(projectId: string): Promise<void> {
+  const bridge = typeof window !== "undefined" ? window.remotionRuntime : undefined;
+  if (!bridge?.workspaceRuntime) return;
+  try {
+    const runtime = await bridge.workspaceRuntime();
+    const result = await ensureRemotionWorkspace(projectId, {
+      templateVersion: runtime.templateVersion,
+      remotionVersion: runtime.remotionVersion,
+      bundleContentHash: runtime.bundleContentHash,
+      defaultRenderSettings: DEFAULT_REMOTION_RENDER_SETTINGS,
+    });
+    if (result.status === "blocked") {
+      toast.error("Remotion 工作区初始化被阻止", { description: result.message });
+    }
+  } catch (error) {
+    toast.error("Remotion 工作区初始化失败", {
+      description: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
+
 const dashboardStages = [
   { label: "小说", detail: "故事核", icon: Layers3 },
   { label: "剧本", detail: "场次", icon: Film },
@@ -111,6 +136,7 @@ export function Dashboard({
       setNewProjectName("");
       setShowNewProject(false);
       await switchProject(project.id);
+      await initializeRemotionWorkspace(project.id);
       setActiveTab("overview");
     }
   };
@@ -118,6 +144,7 @@ export function Dashboard({
   const handleOpenProject = async (projectId: string) => {
     if (selectionMode) return; // Don't open in selection mode
     await switchProject(projectId);
+    await initializeRemotionWorkspace(projectId);
     setActiveTab("overview");
   };
 

@@ -12,6 +12,7 @@ import type {
   StoryboardItem,
   VideoCandidate,
 } from "@/types/studio";
+import type { RemotionCurrentSlotV1 } from "@/types/remotion-workspace";
 import {
   runAutoEditingDraft,
   STORY_DRIVEN_V1_PRESET,
@@ -30,6 +31,7 @@ export interface BuildChapterEditingProjectInput {
   storyboards: StoryboardItem[];
   productionTracks: ProductionTrack[];
   videoCandidates: VideoCandidate[];
+  remotionShotSlots?: RemotionCurrentSlotV1[];
   existingProjects: EditingProjectV1[];
   runId: string;
   editingProjectId: string;
@@ -50,6 +52,7 @@ export async function buildChapterEditingProject(
     storyboards: input.storyboards,
     productionTracks: input.productionTracks,
     videoCandidates: input.videoCandidates,
+    remotionShotSlots: input.remotionShotSlots,
   });
   return runAutoEditingDraft({
     request: {
@@ -67,6 +70,7 @@ export async function buildChapterEditingProject(
       storyboards: input.storyboards,
       productionTracks: input.productionTracks,
       videoCandidates: input.videoCandidates,
+      remotionShotSlots: input.remotionShotSlots,
       directorPlan: input.directorPlan,
     },
     existingProjects: input.existingProjects,

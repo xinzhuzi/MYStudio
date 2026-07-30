@@ -4,8 +4,7 @@ import {
   runChapterAutoVideo,
   type ChapterAutoVideoDependencies,
 } from "./chapter-auto-video";
-import type { ContinuityAssetVersion, ProductionTrack, StoryboardItem, VideoCandidate } from "@/types/studio";
-import type { EditingProjectV1, TimelineRenderEvidence } from "@/types/editing";
+import type { ContinuityAssetVersion, StoryboardItem } from "@/types/studio";
 import type { VoiceProfile } from "@/types/tts";
 import {
   approvedVisualReview,
@@ -149,70 +148,6 @@ function createDependencies(options: { missingMedia?: boolean } = {}) {
     storyboard(1),
     storyboard(2),
   ];
-  const track: ProductionTrack = {
-    id: "track-1",
-    episodeId: "chapter-001",
-    trackKey: "chapter-001-scene-1",
-    storyboardIds: storyboards.map((item) => item.id),
-    prompt: "第一场",
-    duration: 8,
-    candidateVideoIds: [],
-    state: "ready",
-  };
-  const rendered: VideoCandidate = {
-    id: "candidate-1",
-    trackId: track.id,
-    provider: "ffmpeg-local",
-    filePath: "/track.mp4",
-    state: "ready",
-    createdAt: 1,
-  };
-  const editingProject: EditingProjectV1 = {
-    schemaVersion: 1,
-    id: "editing-chapter-001",
-    projectId: "project-1",
-    episodeId: "chapter-001",
-    name: "第一章自动剪辑",
-    revision: 1,
-    sourceSnapshotHash: "snapshot-1",
-    createdBy: "auto",
-    manuallyEdited: false,
-    stale: false,
-    renderSettings: {
-      width: 1080,
-      height: 1920,
-      fps: 30,
-      codec: "h264",
-      subtitleMode: "burn-in",
-      loudnessLufs: -14,
-      truePeakDbtp: -1.5,
-    },
-    tracks: [],
-    clips: [],
-    transitions: [],
-    effects: [],
-    proposals: [],
-    createdAt: 1,
-    updatedAt: 1,
-  };
-  const evidence: TimelineRenderEvidence = {
-    jobId: "timeline-render-1",
-    path: "/final.mp4",
-    sizeBytes: 1024,
-    mtimeMs: 1_700_000_000_000,
-    sha256: "a".repeat(64),
-    duration: 120,
-    width: 1080,
-    height: 1920,
-    streams: ["video", "audio"],
-    snapshotHash: "b".repeat(64),
-    snapshotPath: "/editing-project.json",
-    renderPlanPath: "/render-plan.json",
-    inputManifestPath: "/input-manifest.json",
-    filterGraphPath: "/filter-graph.txt",
-    logPath: "/ffmpeg.log",
-    ffprobePath: "/ffprobe.json",
-  };
   const dependencies: ChapterAutoVideoDependencies = {
     ensurePlanning: vi.fn(async () => {
       calls.push("planning");
@@ -240,22 +175,32 @@ function createDependencies(options: { missingMedia?: boolean } = {}) {
         item.id === storyboardId ? { ...item, audioRef: result.audioRef } : item,
       );
     },
-    rebuildTracks: vi.fn(() => calls.push("rebuild")),
-    loadTracks: () => [track],
-    loadCandidates: () => [],
-    renderTrack: vi.fn(async () => {
-      calls.push("render");
-      return rendered;
+    enqueueRemotionShots: vi.fn(async ({ projectId, chapterId, storyboards }) => {
+      calls.push("remotion-queue");
+      return {
+        jobs: storyboards.map((item, index) => ({
+          schemaVersion: 1 as const,
+          projectId,
+          target: {
+            kind: "shot" as const,
+            chapterId,
+            shotId: item.id,
+            shotRevision: 1,
+          },
+          inputHash: `${index}`.padStart(64, "a"),
+          bundleContentHash: "b".repeat(64),
+          renderSettingsHash: "c".repeat(64),
+          jobId: `remotion-${item.id}`,
+          templateVersion: "1.0.0",
+          remotionVersion: "4.0.499",
+          status: "queued" as const,
+          attempt: 0,
+          progress: 0,
+          createdAt: 1,
+        })),
+        blockedShotIds: [],
+      };
     }),
-    createEditingProject: vi.fn(async () => {
-      calls.push("editing");
-      return editingProject;
-    }),
-    renderEditingProject: vi.fn(async () => {
-      calls.push("timeline-render");
-      return evidence;
-    }),
-    writeFinalEvidence: vi.fn(() => calls.push("write-final")),
   };
   return { dependencies, calls };
 }
@@ -281,35 +226,29 @@ describe("chapter auto video orchestration", () => {
       "tts",
       "media",
     ]);
-    expect(dependencies.rebuildTracks).not.toHaveBeenCalled();
-    expect(dependencies.renderTrack).not.toHaveBeenCalled();
-    expect(dependencies.createEditingProject).not.toHaveBeenCalled();
   });
 
-  it("runs planning, fixed voice, candidates, editing, timeline render, and evidence in order", async () => {
+  it("runs planning, fixed voice, and every storyboard through the Remotion shot queue", async () => {
     const { dependencies, calls } = createDependencies();
     const statuses: string[] = [];
     const result = await runChapterAutoVideo({
+      projectId: "project-1",
       episodeId: "chapter-001",
       dependencies,
       onStatus: (status) => statuses.push(status.stage),
     });
 
     expect(result).toMatchObject({
-      finalPath: "/final.mp4",
-      editingProjectId: "editing-chapter-001",
-      editingRevision: 1,
       storyboards: 2,
+      queueStatus: "queued",
+      blockedShotIds: [],
     });
+    expect(result.remotionJobs).toHaveLength(2);
     expect(calls).toEqual([
       "planning",
       "binding",
       "tts:sb-2",
-      "rebuild",
-      "render",
-      "editing",
-      "timeline-render",
-      "write-final",
+      "remotion-queue",
     ]);
     expect(statuses).toEqual([
       "planning",
@@ -318,10 +257,7 @@ describe("chapter auto video orchestration", () => {
       "tts",
       "media",
       "render",
-      "editing",
-      "rendering",
-      "probing",
-      "completed",
+      "queued",
     ]);
   });
 
@@ -330,13 +266,12 @@ describe("chapter auto video orchestration", () => {
     const statuses: string[] = [];
     await expect(
       runChapterAutoVideo({
+        projectId: "project-1",
         episodeId: "chapter-001",
         dependencies,
         onStatus: (status) => statuses.push(status.stage),
       }),
     ).rejects.toThrow("缺少可读分镜图");
-    expect(calls).not.toContain("render");
-    expect(calls).not.toContain("editing");
     expect(statuses.at(-1)).toBe("failed");
   });
 
@@ -347,6 +282,7 @@ describe("chapter auto video orchestration", () => {
 
     await expect(
       runChapterAutoVideo({
+        projectId: "project-1",
         episodeId: "chapter-001",
         dependencies: run.dependencies,
         onStatus: (status) => statuses.push(status.stage),
@@ -355,7 +291,6 @@ describe("chapter auto video orchestration", () => {
 
     expect(run.dependencies.ensureFixedVoiceProfiles).not.toHaveBeenCalled();
     expect(run.dependencies.generateAudio).not.toHaveBeenCalled();
-    expect(run.dependencies.renderTrack).not.toHaveBeenCalled();
     expect(statuses.at(-1)).toBe("failed");
   });
 
@@ -374,8 +309,6 @@ describe("chapter auto video orchestration", () => {
     ).rejects.toThrow("分镜 sb-2 TTS 未返回真实音频路径");
 
     expect(run.dependencies.writeStoryboardAudio).not.toHaveBeenCalled();
-    expect(run.dependencies.rebuildTracks).not.toHaveBeenCalled();
-    expect(run.dependencies.renderTrack).not.toHaveBeenCalled();
   });
 
   it("blocks generated audio that cannot be resolved after TTS writeback", async () => {
@@ -395,27 +328,6 @@ describe("chapter auto video orchestration", () => {
       expect.objectContaining({ id: "sb-2" }),
       profiles["character:dugu"],
     );
-    expect(run.dependencies.rebuildTracks).not.toHaveBeenCalled();
-    expect(run.dependencies.renderTrack).not.toHaveBeenCalled();
-  });
-
-  it("stops after media preparation when no production track exists", async () => {
-    const run = createDependencies();
-    const statuses: string[] = [];
-    run.dependencies.loadTracks = () => [];
-
-    await expect(
-      runChapterAutoVideo({
-        episodeId: "chapter-001",
-        dependencies: run.dependencies,
-        onStatus: (status) => statuses.push(status.stage),
-      }),
-    ).rejects.toThrow("chapter-001 没有可渲染生产轨道");
-
-    expect(run.dependencies.rebuildTracks).toHaveBeenCalled();
-    expect(run.dependencies.renderTrack).not.toHaveBeenCalled();
-    expect(run.dependencies.createEditingProject).not.toHaveBeenCalled();
-    expect(statuses.at(-1)).toBe("failed");
   });
 
   it.each([
@@ -442,6 +354,7 @@ describe("chapter auto video orchestration", () => {
 
     await expect(
       runChapterAutoVideo({
+        projectId: "project-1",
         episodeId: "chapter-001",
         dependencies: run.dependencies,
       }),
@@ -449,51 +362,6 @@ describe("chapter auto video orchestration", () => {
 
     expect(run.dependencies.ensureFixedVoiceProfiles).not.toHaveBeenCalled();
     expect(run.dependencies.generateAudio).not.toHaveBeenCalled();
-    expect(run.dependencies.renderTrack).not.toHaveBeenCalled();
-    expect(run.dependencies.createEditingProject).not.toHaveBeenCalled();
-  });
-
-  it("reuses a ready selected candidate instead of rendering a track again", async () => {
-    const run = createDependencies();
-    const [baseTrack] = run.dependencies.loadTracks();
-    if (!baseTrack) throw new Error("test fixture missing production track");
-    const readyCandidate: VideoCandidate = {
-      id: "candidate-1",
-      trackId: baseTrack.id,
-      provider: "ffmpeg-local",
-      filePath: "/track.mp4",
-      state: "ready",
-      createdAt: 1,
-    };
-    run.dependencies.loadTracks = () => [{
-      ...baseTrack,
-      selectedVideoId: readyCandidate.id,
-    }];
-    run.dependencies.loadCandidates = () => [readyCandidate];
-
-    const result = await runChapterAutoVideo({
-      episodeId: "chapter-001",
-      dependencies: run.dependencies,
-    });
-
-    expect(result.finalPath).toBe("/final.mp4");
-    expect(run.calls).toEqual([
-      "planning",
-      "binding",
-      "tts:sb-2",
-      "rebuild",
-      "editing",
-      "timeline-render",
-      "write-final",
-    ]);
-    expect(run.dependencies.renderTrack).not.toHaveBeenCalled();
-    expect(run.dependencies.createEditingProject).toHaveBeenCalledWith(
-      expect.arrayContaining([
-        expect.objectContaining({ id: "sb-1" }),
-        expect.objectContaining({ id: "sb-2" }),
-      ]),
-      [readyCandidate],
-    );
   });
 
   it("stops before rendering when visual continuity is pending, rejected, or stale", async () => {
@@ -505,13 +373,12 @@ describe("chapter auto video orchestration", () => {
       const run = createDependencies();
       run.dependencies.loadStoryboards = () => [storyboard(1, invalid)];
       await expect(runChapterAutoVideo({
+        projectId: "project-1",
         episodeId: "chapter-001",
         dependencies: run.dependencies,
       })).rejects.toThrow("视觉连续性未通过");
       expect(run.dependencies.ensureFixedVoiceProfiles).not.toHaveBeenCalled();
       expect(run.dependencies.generateAudio).not.toHaveBeenCalled();
-      expect(run.dependencies.renderTrack).not.toHaveBeenCalled();
-      expect(run.dependencies.createEditingProject).not.toHaveBeenCalled();
     }
   });
 
@@ -522,6 +389,7 @@ describe("chapter auto video orchestration", () => {
     ];
     await expect(
       runChapterAutoVideo({
+        projectId: "project-1",
         episodeId: "chapter-001",
         dependencies: incomplete.dependencies,
       }),
@@ -534,6 +402,7 @@ describe("chapter auto video orchestration", () => {
     });
     await expect(
       runChapterAutoVideo({
+        projectId: "project-1",
         episodeId: "chapter-001",
         dependencies: missingProfile.dependencies,
       }),

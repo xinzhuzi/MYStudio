@@ -6,6 +6,9 @@ import os from "node:os";
 import path from "node:path";
 import {
   BUNDLE_MANIFEST_SCHEMA_VERSION,
+  BUNDLED_COMPOSITION_IDS,
+  REMOTION_TEMPLATE_ID,
+  REMOTION_TEMPLATE_VERSION,
   bundleManifestSchema,
   buildBundleManifest,
   hashBundleContent,
@@ -18,23 +21,33 @@ describe("Remotion fixed bundle", () => {
   it("exposes a stable manifest schema with the fixed fields", () => {
     expect(bundleManifestSchema()).toEqual({
       schemaVersion: BUNDLE_MANIFEST_SCHEMA_VERSION,
-      fields: ["schemaVersion", "remotionVersion", "compositionId", "contentHash"],
+      fields: [
+        "schemaVersion",
+        "templateId",
+        "templateVersion",
+        "remotionVersion",
+        "compositionIds",
+        "compositionId",
+        "contentHash",
+      ],
     });
   });
 
-  it("builds a manifest only from exact version, non-empty id and sha256 hash", () => {
+  it("builds a v2 manifest with the ordered parameterized registry and compatibility alias", () => {
     const contentHash = hashBundleContent("fixed-composition");
     expect(contentHash).toMatch(/^[a-f0-9]{64}$/);
     expect(
       buildBundleManifest({
         remotionVersion: "4.0.499",
-        compositionId: "mystudio-timeline",
         contentHash,
       }),
     ).toEqual({
       schemaVersion: BUNDLE_MANIFEST_SCHEMA_VERSION,
+      templateId: REMOTION_TEMPLATE_ID,
+      templateVersion: REMOTION_TEMPLATE_VERSION,
       remotionVersion: "4.0.499",
-      compositionId: "mystudio-timeline",
+      compositionIds: BUNDLED_COMPOSITION_IDS,
+      compositionId: "DaojieTimeline",
       contentHash,
     });
   });
@@ -42,13 +55,10 @@ describe("Remotion fixed bundle", () => {
   it("rejects drifted or incomplete manifest inputs", () => {
     const hash = hashBundleContent("x");
     expect(() =>
-      buildBundleManifest({ remotionVersion: "^4.0.499", compositionId: "id", contentHash: hash }),
+      buildBundleManifest({ remotionVersion: "^4.0.499", contentHash: hash }),
     ).toThrow("精确 Remotion semver");
     expect(() =>
-      buildBundleManifest({ remotionVersion: "4.0.499", compositionId: "", contentHash: hash }),
-    ).toThrow("非空 compositionId");
-    expect(() =>
-      buildBundleManifest({ remotionVersion: "4.0.499", compositionId: "id", contentHash: "nope" }),
+      buildBundleManifest({ remotionVersion: "4.0.499", contentHash: "nope" }),
     ).toThrow("sha256 contentHash");
   });
 
@@ -84,7 +94,10 @@ describe("Remotion fixed bundle", () => {
       expect(result.outputDir).toBe(path.join(root, ".cache/remotion-bundle"));
       expect(result.manifest).toMatchObject({
         schemaVersion: BUNDLE_MANIFEST_SCHEMA_VERSION,
+        templateId: REMOTION_TEMPLATE_ID,
+        templateVersion: REMOTION_TEMPLATE_VERSION,
         remotionVersion: "4.0.499",
+        compositionIds: BUNDLED_COMPOSITION_IDS,
         compositionId: "DaojieTimeline",
       });
       expect(fs.existsSync(path.join(result.outputDir, "manifest.json"))).toBe(true);

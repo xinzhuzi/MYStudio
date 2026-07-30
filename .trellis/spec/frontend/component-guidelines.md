@@ -63,6 +63,36 @@ export function BrandMark({ className, alt = "漫影工作室" }: BrandMarkProps
 - Keep layout responsive and avoid fixed dimensions unless the workflow canvas
   or media aspect ratio requires them.
 
+### Performance-sensitive viewport interactions
+
+Heavy React Flow nodes must not use React state for a per-gesture decorative
+class. Toggle the class on the canvas root through a ref in `onMoveStart` and
+`onMoveEnd`, so the first wheel event does not re-render every preview subtree.
+Automatic fit operations scheduled after node measurement should use an
+immediate viewport update (`duration: 0`); explicit user-triggered fit and zoom
+controls may retain their smooth animation.
+
+Production workflow canvases use one opaque background on the non-transformed
+canvas container. Do not mount React Flow `<Background>` patterns, animated
+gradients, blur, or heavy glow effects inside the transformed viewport. Keep
+zoom, fit, and percentage controls in a fixed overlay outside that viewport.
+
+Every delayed measurement/layout fit must be cancelable. Store scheduled
+`requestAnimationFrame` ids, cancel superseded callbacks, and invalidate all
+pending automatic fits as soon as the user pans or zooms. A focus return or
+resize may refresh measurements, but it must preserve a user-owned viewport;
+only an explicit fit command may replace it.
+
+```tsx
+const canvasRef = useRef<HTMLElement | null>(null);
+const onMoveStart = useCallback(() => {
+  canvasRef.current?.classList.add("workflow-node-canvas-interacting");
+}, []);
+const onMoveEnd = useCallback(() => {
+  canvasRef.current?.classList.remove("workflow-node-canvas-interacting");
+}, []);
+```
+
 ---
 
 ## Accessibility

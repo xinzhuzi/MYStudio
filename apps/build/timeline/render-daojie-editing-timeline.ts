@@ -1,29 +1,27 @@
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { createHash } from "node:crypto";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { pathToFileURL } from "node:url";
 import {
   buildChapterEditingProject,
-  createTimelineRenderRecord,
-  renderChapterEditingProject,
 } from "@/lib/studio/editing/chapter-editing-pipeline";
+import { compileTimelineRenderPlan } from "@/lib/studio/editing/timeline-render-compiler";
 import {
   validateAutoEditingRun,
   validateEditingProject,
 } from "@/lib/studio/editing/validation";
-import { createTimelineRenderRuntime } from "@/electron/rendering/timeline-render-runtime";
-import { createFfmpegRendererAdapter } from "@rendering/runtime/ffmpeg/ffmpeg-renderer-adapter";
-import { createTimelineRenderHost } from "@rendering/runtime/timeline-render-host";
 import {
-  resolveLocalMediaPath,
-  resolveProjectFileUrl,
-} from "@/electron/storage/storage-paths";
+  deriveStorageRoots,
+  resolveProjectDir,
+  resolveStorageBasePath,
+  resolveProjectId,
+  resolveTimelineSourcePath,
+  resolveUserDataDir,
+} from "./daojie-storage-paths";
 import type {
   AutoEditingRun,
   EditingProjectV1,
   TimelineRenderEvidence,
-  TimelineRenderProgress,
 } from "@/types/editing";
 import type {
   ProductionTrack,
@@ -31,11 +29,10 @@ import type {
   StoryboardItem,
   VideoCandidate,
 } from "@/types/studio";
-import { createTimelineRenderRequest } from "@rendering/contracts/timeline-renderer";
+import type { RemotionCurrentSlotV1 } from "@/types/remotion-workspace";
+import { validateCurrentSlot } from "@/lib/studio/remotion/remotion-current-slot";
 
 const EPISODE_ID = "chapter-001";
-const APP_PROCESS_NAME = "漫影工作室";
-const DAOJIE_PROJECT_NAME = "道劫";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -140,78 +137,6 @@ function writeJson(filePath: string, value: unknown) {
   return filePath;
 }
 
-function envPath(name: string) {
-  const value = process.env[name]?.trim();
-  return value ? path.resolve(value) : undefined;
-}
-
-function readStorageBasePathFromConfig(userDataDir: string) {
-  const configPath = path.join(userDataDir, "storage-config.json");
-  if (!fs.existsSync(configPath)) return undefined;
-  let config: Record<string, unknown>;
-  try {
-    config = JSON.parse(fs.readFileSync(configPath, "utf8")) as Record<string, unknown>;
-  } catch {
-    return undefined;
-  }
-  const basePath = typeof config.basePath === "string" ? config.basePath.trim() : "";
-  if (basePath) return path.resolve(basePath);
-  const legacyProjectPath = typeof config.projectPath === "string" ? config.projectPath.trim() : "";
-  return legacyProjectPath ? path.dirname(path.resolve(legacyProjectPath)) : undefined;
-}
-
-export function resolveUserDataDir() {
-  return envPath("MYSTUDIO_DAOJIE_USER_DATA_DIR") || path.join(os.homedir(), "Library", "Application Support", APP_PROCESS_NAME);
-}
-
-export function resolveStorageBasePath(userDataDir = resolveUserDataDir()) {
-  return envPath("MYSTUDIO_STORAGE_BASE_PATH") || readStorageBasePathFromConfig(userDataDir) || userDataDir;
-}
-
-export function resolveProjectId(storageBasePath = resolveStorageBasePath()) {
-  const explicit = process.env.MYSTUDIO_DAOJIE_PROJECT_ID?.trim();
-  if (explicit) return explicit;
-  const catalogPath = path.join(storageBasePath, "projects", "mystudio-project-store.json");
-  const catalog = requireRecord(readJson(catalogPath), "project catalog");
-  const state = requireRecord(catalog.state, "project catalog.state");
-  const projects = requireArray(state.projects, "project catalog.state.projects");
-  for (const [index, value] of projects.entries()) {
-    const project = requireRecord(value, `project catalog.projects[${index}]`);
-    const id = typeof project.id === "string" ? project.id.trim() : "";
-    const name = typeof project.name === "string" ? project.name.trim() : "";
-    if (id && (name === DAOJIE_PROJECT_NAME || name.includes(DAOJIE_PROJECT_NAME))) return id;
-  }
-  throw new Error(
-    `项目索引中未找到名称包含 ${DAOJIE_PROJECT_NAME} 的项目；请设置 MYSTUDIO_DAOJIE_PROJECT_DIR 或 MYSTUDIO_DAOJIE_PROJECT_ID`,
-  );
-}
-
-export function resolveProjectDir() {
-  if (process.env.MYSTUDIO_DAOJIE_PROJECT_DIR?.trim()) {
-    return path.resolve(process.env.MYSTUDIO_DAOJIE_PROJECT_DIR);
-  }
-  const storageBasePath = resolveStorageBasePath();
-  return path.join(storageBasePath, "projects", "_p", resolveProjectId(storageBasePath));
-}
-
-export function deriveStorageRoots(projectDir: string) {
-  const projectBucket = path.dirname(projectDir);
-  if (path.basename(projectBucket) !== "_p") {
-    throw new Error(`项目目录必须位于 projects/_p/<projectId>: ${projectDir}`);
-  }
-  const dataRoot = path.dirname(projectBucket);
-  if (path.basename(dataRoot) !== "projects") {
-    throw new Error(`项目数据根目录必须命名为 projects: ${dataRoot}`);
-  }
-  const storageBase = path.dirname(dataRoot);
-  return {
-    projectId: path.basename(projectDir),
-    dataRoot,
-    mediaRoot: path.join(storageBase, "media"),
-    renderRoot: path.join(storageBase, "media", "studio-render"),
-  };
-}
-
 function loadProjectName(dataRoot: string, projectId: string) {
   const catalogPath = path.join(dataRoot, "mystudio-project-store.json");
   const catalog = requireRecord(readJson(catalogPath), "project catalog");
@@ -226,34 +151,14 @@ function loadProjectName(dataRoot: string, projectId: string) {
   throw new Error(`项目目录未在 mystudio-project-store.json 注册: ${projectId}`);
 }
 
-export function resolveTimelineSourcePath(input: {
-  sourcePath: string;
-  dataRoot: string;
-  mediaRoot: string;
-}) {
-  let resolved: string;
-  if (input.sourcePath.startsWith("file://")) {
-    resolved = fileURLToPath(input.sourcePath);
-  } else if (input.sourcePath.startsWith("project-file://")) {
-    resolved = resolveProjectFileUrl(input.dataRoot, input.sourcePath);
-  } else if (
-    input.sourcePath.startsWith("local-image://")
-    || input.sourcePath.startsWith("local-video://")
-  ) {
-    resolved = resolveLocalMediaPath(input.mediaRoot, input.sourcePath);
-  } else {
-    resolved = input.sourcePath;
-  }
-  if (!path.isAbsolute(resolved)) {
-    throw new Error(`时间线素材路径不是绝对路径: ${input.sourcePath}`);
-  }
-  const stat = fs.statSync(resolved);
-  if (!stat.isFile() || stat.size <= 0) {
-    throw new Error(`时间线素材不可读或为空: ${input.sourcePath}`);
-  }
-  fs.accessSync(resolved, fs.constants.R_OK);
-  return resolved;
-}
+export {
+  deriveStorageRoots,
+  resolveProjectDir,
+  resolveStorageBasePath,
+  resolveProjectId,
+  resolveTimelineSourcePath,
+  resolveUserDataDir,
+} from "./daojie-storage-paths";
 
 function loadExistingEditingProject(editingProjectPath: string): EditingProjectV1[] {
   if (!fs.existsSync(editingProjectPath)) return [];
@@ -264,6 +169,42 @@ function loadExistingEditingProject(editingProjectPath: string): EditingProjectV
     );
   }
   return [validation.value];
+}
+
+function loadRemotionShotSlots(artifactDir: string, projectId: string, episodeId: string): RemotionCurrentSlotV1[] {
+  const reportPath = process.env.MYSTUDIO_DAOJIE_SHOT_REPORT
+    || path.join(process.cwd(), "output", "automation", "daojie-chapter001-shot-slots.json");
+  if (!fs.existsSync(reportPath)) {
+    throw new Error(`Remotion shot slot report 不存在，请先执行逐镜渲染: ${reportPath}`);
+  }
+  const report = requireRecord(readJson(reportPath), "Remotion shot slot report");
+  if (report.projectId !== projectId || report.chapterId !== episodeId || report.renderer && requireRecord(report.renderer, "report.renderer").actual !== "remotion") {
+    throw new Error(`Remotion shot slot report identity 不匹配: ${reportPath}`);
+  }
+  const rawSlots = requireArray(report.slots, "report.slots");
+  const slots = rawSlots.map((value, index) => {
+    const validation = validateCurrentSlot(value);
+    if (!validation.success) {
+      throw new Error(`Remotion shot slot ${index} 无效: ${validation.issues.map((issue) => issue.message).join("；")}`);
+    }
+    if (validation.value.projectId !== projectId || validation.value.target.kind !== "shot" || validation.value.target.chapterId !== episodeId) {
+      throw new Error(`Remotion shot slot ${index} 不属于当前项目/章节`);
+    }
+    return validation.value;
+  });
+  if (slots.length === 0) throw new Error(`Remotion shot slot report 为空: ${artifactDir}`);
+  return slots;
+}
+
+function removeEmbeddedShotVoiceTracks(project: EditingProjectV1): EditingProjectV1 {
+  const voiceTrackIds = new Set(project.tracks.filter((track) => track.kind === "voice").map((track) => track.id));
+  if (voiceTrackIds.size === 0) return project;
+  return {
+    ...project,
+    tracks: project.tracks.filter((track) => !voiceTrackIds.has(track.id)),
+    clips: project.clips.filter((clip) => !voiceTrackIds.has(clip.trackId)),
+    updatedAt: Date.now(),
+  };
 }
 
 function sha256File(filePath: string) {
@@ -341,7 +282,7 @@ export function requireTimelineArtifacts(
 
 async function main() {
   const projectDir = resolveProjectDir();
-  const { projectId, dataRoot, mediaRoot, renderRoot } = deriveStorageRoots(projectDir);
+  const { projectId, dataRoot } = deriveStorageRoots(projectDir);
   const projectName = loadProjectName(dataRoot, projectId);
   const storePath = path.join(projectDir, "studio-workflow-store.json");
   const store = requireRecord(readJson(storePath), "studio-workflow-store");
@@ -379,6 +320,8 @@ async function main() {
   const progressHistoryPath = path.join(artifactDir, "progress-history.json");
   const timelineRenderRecordPath = path.join(artifactDir, "timeline-render-record.json");
   const runnerReportPath = path.join(artifactDir, "timeline-runner-report.json");
+  const remotionOnly = process.env.MYSTUDIO_DAOJIE_REMOTION_ONLY === "1";
+  const remotionShotSlots = remotionOnly ? loadRemotionShotSlots(artifactDir, projectId, EPISODE_ID) : undefined;
   const startedAt = Date.now();
   let clock = startedAt;
   const nextTime = () => clock++;
@@ -391,6 +334,7 @@ async function main() {
     storyboards,
     productionTracks,
     videoCandidates,
+    remotionShotSlots,
     existingProjects: loadExistingEditingProject(editingProjectPath),
     runId: `auto-edit-${projectId}-${EPISODE_ID}-${startedAt}`,
     editingProjectId: `editing-${projectId}-${EPISODE_ID}-${startedAt}`,
@@ -401,48 +345,24 @@ async function main() {
     throw new Error(`自动剪辑失败: ${buildResult.run.error || buildResult.run.stage}`);
   }
 
-  const editingProject = buildResult.result.project;
+  const editingProject = remotionOnly
+    ? removeEmbeddedShotVoiceTracks(buildResult.result.project)
+    : buildResult.result.project;
   const jobId = `timeline-${projectId}-${EPISODE_ID}-${startedAt}`;
-  const progressHistory: TimelineRenderProgress[] = [];
   writeJson(editingProjectPath, editingProject);
   writeJson(autoEditingRunPath, buildResult.result.run);
-  const emitProgress = (progress: TimelineRenderProgress) => progressHistory.push(progress);
-  const ffmpegRuntime = createTimelineRenderRuntime({
-    renderRoot,
-    resolveSourcePath: (sourcePath) => resolveTimelineSourcePath({ sourcePath, dataRoot, mediaRoot }),
-    emitProgress,
-  });
-  const renderHost = createTimelineRenderHost({
-    adapters: [createFfmpegRendererAdapter(ffmpegRuntime)],
-    emitProgress,
-  });
-  const renderResult = await renderChapterEditingProject({
-    project: editingProject,
+  const compiled = compileTimelineRenderPlan(editingProject, {
     jobId,
     createdAt: nextTime(),
-    render: (plan) => renderHost.render(createTimelineRenderRequest("ffmpeg", plan)),
   });
+  if (!compiled.success) {
+    throw new Error(`TimelineRenderPlan 编译失败: ${compiled.issues.map((issue) => issue.message).join("；")}`);
+  }
+  const progressHistory: unknown[] = [];
   writeJson(progressHistoryPath, progressHistory);
-  if (!renderResult.success) {
-    throw new Error(`timeline runtime 失败: ${renderResult.jobId} / ${renderResult.error}`);
-  }
-  requireTimelineArtifacts(renderResult.evidence, {
-    renderRoot,
-    minimumMtimeMs: startedAt,
-  });
-  const recordValidation = createTimelineRenderRecord(
-    editingProject,
-    renderResult.evidence,
-    nextTime(),
-  );
-  if (!recordValidation.success) {
-    throw new Error(
-      `TimelineRenderRecord 无效: ${recordValidation.issues.map((issue) => issue.message).join("；")}`,
-    );
-  }
+  writeJson(timelineRenderPlanPath, compiled.value);
   const autoRunValidation = validateAutoEditingRun({
     ...buildResult.result.run,
-    renderJobId: jobId,
     updatedAt: nextTime(),
   } satisfies AutoEditingRun);
   if (!autoRunValidation.success) {
@@ -452,10 +372,21 @@ async function main() {
   }
 
   writeJson(autoEditingRunPath, autoRunValidation.value);
-  writeJson(timelineRenderPlanPath, renderResult.plan);
-  writeJson(timelineRenderRecordPath, recordValidation.value);
+  // The Remotion runner owns final rendering and TimelineRenderRecord publication.
+  // Invalidate any previous record so a compile-only run cannot expose an old MP4 as current.
+  writeJson(timelineRenderRecordPath, {
+    schemaVersion: 1,
+    status: "stale",
+    projectId,
+    episodeId: EPISODE_ID,
+    editingProjectId: editingProject.id,
+    editingRevision: editingProject.revision,
+    sourceSnapshotHash: editingProject.sourceSnapshotHash,
+    reason: "awaiting-remotion-render",
+  });
   const report = {
     ok: true,
+    stage: "compiled",
     generatedAt: new Date().toISOString(),
     projectDir,
     projectId,
@@ -466,21 +397,19 @@ async function main() {
       storyboards: storyboards.length,
       productionTracks: productionTracks.length,
       videoCandidates: videoCandidates.length,
+      remotionShotSlots: remotionShotSlots?.length ?? 0,
     },
     reusedExistingDraft: buildResult.result.reusedExistingDraft,
     editingProject: editingProject,
     autoEditingRun: autoRunValidation.value,
-    timelineRenderPlan: renderResult.plan,
+    timelineRenderPlan: compiled.value,
     progressHistory,
-    timelineRenderRecord: recordValidation.value,
     editingProjectPath,
     autoEditingRunPath,
     timelineRenderPlanPath,
     progressHistoryPath,
     timelineRenderRecordPath,
     runnerReportPath,
-    finalVideo: recordValidation.value.evidence.path,
-    finalVideoEvidence: recordValidation.value.evidence,
   };
   writeJson(runnerReportPath, report);
   process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);

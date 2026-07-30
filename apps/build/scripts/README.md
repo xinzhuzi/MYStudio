@@ -15,3 +15,12 @@
 - **不需要删除**,长期保留可追溯。
 
 > 通用大文本脚本放本目录;daojie 成片流水线脚本放 `../daojie/` 与 `../daojie/pipeline/`。
+
+## 统一质量门禁
+
+`run-quality-gate.mjs` 是 MYStudio 验证链的唯一编排入口，由
+`npm run test:all` 调用。它只组合现有命令，不复制测试实现：默认顺序为聚焦测试、
+typecheck、lint、完整 Vitest、AiToEarn upgrade smoke、macOS 打包/覆盖安装/installed
+smoke，以及 packaged desktop smoke。报告写入
+`apps/output/automation/quality-gate-report.json`；`--plan` 只打印顺序，
+`--skip-release` 跳过发布相关阶段。

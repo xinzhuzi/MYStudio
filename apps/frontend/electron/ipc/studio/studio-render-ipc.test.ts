@@ -5,7 +5,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { handlers } = vi.hoisted(() => ({ handlers: new Map<string, (...args: unknown[]) => unknown>() }));
 vi.mock("electron", () => ({
-  BrowserWindow: { getAllWindows: vi.fn(() => []) },
   ipcMain: { handle: vi.fn((channel: string, handler: (...args: unknown[]) => unknown) => handlers.set(channel, handler)) },
 }));
 
@@ -22,7 +21,7 @@ function getHandler(channel: string) {
 }
 
 describe("registerStudioRenderIpcHandlers", () => {
-  it("registers all Studio render and evidence channels", () => {
+  it("registers only material and read-only evidence channels", () => {
     registerStudioRenderIpcHandlers({
       getMediaRoot: () => "/media",
       resolveSourcePath: (value) => value,
@@ -30,9 +29,7 @@ describe("registerStudioRenderIpcHandlers", () => {
       writeDiagnosticsLog: vi.fn(),
     });
     expect([...handlers.keys()].sort()).toEqual([
-      "studio-list-assets", "studio-merge-episode", "studio-probe-media-evidence",
-      "studio-render-track-candidate", "studio-save-material", "studio-timeline-render",
-      "studio-timeline-render-cancel",
+      "studio-list-assets", "studio-probe-media-evidence", "studio-save-material",
     ]);
   });
 
@@ -55,24 +52,4 @@ describe("registerStudioRenderIpcHandlers", () => {
     }
   });
 
-  it("rejects an invalid timeline render request envelope before FFmpeg", async () => {
-    const mediaRoot = mkdtempSync(join(tmpdir(), "mystudio-timeline-ipc-"));
-    try {
-      registerStudioRenderIpcHandlers({
-        getMediaRoot: () => mediaRoot,
-        resolveSourcePath: (value) => value,
-        createOperationId: (prefix) => `${prefix}-1`,
-        writeDiagnosticsLog: vi.fn(),
-      });
-
-      await expect(getHandler("studio-timeline-render")({}, {})).resolves.toEqual({
-        success: false,
-        jobId: "unknown",
-        canceled: false,
-        error: "schemaVersion: 仅支持渲染请求 schemaVersion=1; requestedRenderer: 渲染器必须是 remotion 或 ffmpeg; plan: 渲染计划必须是对象",
-      });
-    } finally {
-      rmSync(mediaRoot, { recursive: true, force: true });
-    }
-  });
 });

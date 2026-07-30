@@ -22,7 +22,10 @@ import { registerSelfMediaIpcHandlers } from "./self-media-ipc";
 import { SELF_MEDIA_IPC, type SelfMediaCreateTaskReply } from "../../../lib/self-media/ipc-contract";
 import { createAitoearnLocalAdapter, createSelfMediaProviderRegistry } from "../../aitoearn/provider-registry";
 import { SelfMediaProviderError } from "../../aitoearn/provider-registry";
+import { SELF_MEDIA_LOCAL_TRANSPORT_PLATFORMS } from "../../../lib/self-media/capabilities";
 import type { SelfMediaTask } from "../../../types/self-media";
+
+const SELF_MEDIA_PLATFORMS = SELF_MEDIA_LOCAL_TRANSPORT_PLATFORMS;
 
 describe("registerSelfMediaIpcHandlers", () => {
   const taskStorePath = path.join(os.tmpdir(), `mystudio-self-media-${process.pid}.json`);
@@ -134,6 +137,64 @@ describe("registerSelfMediaIpcHandlers", () => {
     registerSelfMediaIpcHandlers({ credentialVault, registry });
     await expect(handlers.get(SELF_MEDIA_IPC.startLogin)?.({}, { projectId: "project-1", providerId: "aitoearn-local", platform: "xhs" }))
       .resolves.toEqual({ success: false, error: { code: "login-failed", message: "平台拒绝登录" } });
+  });
+
+  it("accepts login requests for all 14 registered platforms", async () => {
+    const startLogin = vi.fn(async () => ({ started: true }));
+    const registry = createSelfMediaProviderRegistry({
+      local: createAitoearnLocalAdapter({
+        listAccounts: async () => [],
+        startLogin,
+        publish: async () => ({ status: "success" }),
+        poll: async () => ({ status: "success" }),
+        cancel: async () => ({ status: "canceled" }),
+      }),
+    });
+    registerSelfMediaIpcHandlers({ credentialVault, registry });
+
+    for (const platform of SELF_MEDIA_PLATFORMS) {
+      await expect(handlers.get(SELF_MEDIA_IPC.startLogin)?.({}, {
+        projectId: "project-1",
+        providerId: "aitoearn-local",
+        platform,
+      })).resolves.toEqual({ success: true, value: { started: true } });
+    }
+    expect(startLogin).toHaveBeenCalledTimes(SELF_MEDIA_PLATFORMS.length);
+  });
+
+  it("blocks an explicitly unsupported platform before task creation", async () => {
+    const publish = vi.fn(async () => ({ status: "success" as const }));
+    const registry = createSelfMediaProviderRegistry({
+      local: createAitoearnLocalAdapter({
+        listAccounts: async () => [],
+        startLogin: async () => ({ started: true }),
+        publish,
+        poll: async () => ({ status: "success" }),
+        cancel: async () => ({ status: "canceled" }),
+      }),
+    });
+    const registration = registerSelfMediaIpcHandlers({ credentialVault, registry });
+    const reply = await handlers.get(SELF_MEDIA_IPC.createTask)?.({}, {
+      projectId: "project-1",
+      providerId: "aitoearn-local",
+      draft: {
+        id: "draft-unsupported-platform",
+        projectId: "project-1",
+        contentType: "image-text",
+        title: "不应发布",
+        description: "",
+        topics: [],
+        assets: [{ assetId: "image-1", projectId: "project-1", kind: "image", approvedUrl: "project-file://project-1/image.png" }],
+        accountIds: ["account-a"],
+        visibility: "public",
+        platformOptions: { platform: "youtube" },
+        updatedAt: "2026-07-26T00:00:00.000Z",
+      },
+    });
+    expect(reply).toEqual({ success: false, error: { code: "invalid-draft", message: "contentType：YouTube 不支持当前内容类型" } });
+    expect(publish).not.toHaveBeenCalled();
+    expect(registration.tasks.size).toBe(0);
+    await registration.dispose();
   });
 
   it("returns account summaries without credential fields", async () => {

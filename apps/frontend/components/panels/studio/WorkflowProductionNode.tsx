@@ -30,6 +30,8 @@ import {
 
 export interface ProductionNodeData extends Record<string, unknown> {
   node: ProductionFlowNodeModel;
+  sourcePosition?: Position;
+  targetPosition?: Position;
   onStageChange: (stage: ProductionFlowStage) => void;
   onNodeEdit?: (nodeId: ProductionFlowNodeId) => void;
   onNodeAction?: (action: ProductionFlowNodeAction) => void | Promise<void>;
@@ -76,6 +78,10 @@ const UNFRAMED_PREVIEW_NODE_IDS: readonly ProductionFlowNodeId[] = [
 
 export function ProductionFlowNode({ data }: NodeProps<Node<ProductionNodeData>>) {
   const Icon = NODE_ICONS[data.node.id];
+  const sourcePosition = data.sourcePosition ?? Position.Right;
+  const targetPosition = data.targetPosition ?? (
+    data.node.id === "assets" ? Position.Top : Position.Left
+  );
   const [actionInputs, setActionInputs] = useState<Record<string, string>>({});
   const [runningActionId, setRunningActionId] = useState<string | null>(null);
   const canEditNode = Boolean(
@@ -136,8 +142,8 @@ export function ProductionFlowNode({ data }: NodeProps<Node<ProductionNodeData>>
     <div
       data-flow-node-id={data.node.id}
       className={cn(
-        "group rounded-md border bg-card/95 p-4 text-left text-card-foreground shadow-[0_24px_64px_rgba(0,0,0,0.32)] outline-none backdrop-blur transition",
-        "hover:-translate-y-0.5 hover:border-sky-300/55 hover:shadow-[0_26px_72px_rgba(37,99,235,0.16)]",
+        "production-flow-node-card group rounded-md border p-4 text-left text-card-foreground outline-none",
+        "hover:border-sky-300/55",
         NODE_SIZE_CLASS[data.node.id],
         data.node.status === "ready" && "border-emerald-300/30",
         data.node.status === "warning" && "border-amber-300/40",
@@ -148,20 +154,20 @@ export function ProductionFlowNode({ data }: NodeProps<Node<ProductionNodeData>>
       <Handle
         type="target"
         id={`${data.node.id}-target`}
-        position={data.node.id === "assets" ? Position.Top : Position.Left}
+        position={targetPosition}
         className="!h-2.5 !w-2.5 !border !border-sky-100/70 !bg-sky-300"
       />
       <Handle
         type="source"
         id={`${data.node.id}-source`}
-        position={Position.Right}
+        position={sourcePosition}
         className="!h-2.5 !w-2.5 !border !border-sky-100/70 !bg-sky-300"
       />
       {data.node.id === "script" ? (
         <Handle
           type="source"
           id="script-assets-source"
-          position={Position.Bottom}
+          position={sourcePosition === Position.Bottom ? Position.Right : Position.Bottom}
           className="!h-2.5 !w-2.5 !border !border-sky-100/70 !bg-sky-300"
         />
       ) : null}
@@ -274,7 +280,7 @@ export function ProductionFlowNode({ data }: NodeProps<Node<ProductionNodeData>>
               className={cn(
                 "rounded-md border border-sky-300/15 bg-sky-300/[0.055] p-2.5",
                 runningActionId === action.id &&
-                  "border-sky-300/45 bg-sky-300/[0.105] shadow-[0_0_0_1px_rgba(125,211,252,0.16),0_14px_40px_rgba(14,165,233,0.12)]",
+                  "border-sky-300/45 bg-sky-300/[0.105]",
               )}
               aria-busy={runningActionId === action.id}
             >
@@ -315,7 +321,7 @@ export function ProductionFlowNode({ data }: NodeProps<Node<ProductionNodeData>>
                       {isRunning ? (
                         <div
                           role="status"
-                          className="inline-flex h-8 shrink-0 items-center gap-2 rounded-md border border-sky-300/45 bg-sky-300/18 px-3 text-xs font-semibold text-sky-50 shadow-[0_0_22px_rgba(56,189,248,0.16)]"
+                          className="inline-flex h-8 shrink-0 items-center gap-2 rounded-md border border-sky-300/45 bg-sky-300/18 px-3 text-xs font-semibold text-sky-50"
                         >
                           <Loader2 className="h-3.5 w-3.5 animate-spin" />
                           正在生成中，请稍候

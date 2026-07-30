@@ -81,7 +81,7 @@ export interface CompositionTransitionProps {
 // Audio
 // ---------------------------------------------------------------------------
 
-export type CompositionAudioKind = "voice" | "bgm" | "sfx";
+export type CompositionAudioKind = "voice" | "bgm" | "sfx" | "ambience";
 
 // An audio clip mounted by time. Volume is combined by the host/composition from
 // clip volume, fades, envelope and ducking; `src` is a capability URL.
@@ -92,6 +92,9 @@ export interface CompositionAudioClipProps {
   from: number;
   durationInFrames: number;
   volume: number;
+  // Legacy DaojieTimeline props omit scope. Parameterized shot/chapter inputs
+  // require it and are validated by their target-specific metadata boundary.
+  renderScope?: "shot" | "chapter";
   trimStartFrames?: number;
   playbackRate?: number;
   fade?: CompositionFade;
@@ -124,3 +127,26 @@ export type CompositionProps = Record<string, unknown> & {
   audioClips: CompositionAudioClipProps[];
   subtitles: CompositionSubtitleCueProps[];
 };
+
+type TargetCompositionIdentity = {
+  projectId: string;
+  chapterId: string;
+};
+
+export type StoryboardShotCompositionProps = CompositionProps
+  & TargetCompositionIdentity
+  & {
+    target: "shot";
+    shotId: string;
+    shotRevision: number;
+    audioClips: Array<CompositionAudioClipProps & { renderScope: "shot" }>;
+  };
+
+export type ChapterVideoCompositionProps = CompositionProps
+  & TargetCompositionIdentity
+  & {
+    target: "chapter";
+    editingProjectId: string;
+    editingRevision: number;
+    audioClips: Array<CompositionAudioClipProps & { renderScope: "chapter" }>;
+  };

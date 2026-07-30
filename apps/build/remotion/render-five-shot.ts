@@ -12,7 +12,6 @@ import { buildCompositionProps } from "@rendering/plugins/remotion/composition/b
 import { REMOTION_COMPOSITION_ID } from "@rendering/plugins/remotion/composition/composition-id";
 import { createRemotionEnsureBrowserAdapters, type RemotionEnsureBrowser } from "@rendering/plugins/remotion/browser/remotion-browser-worker-service";
 import { buildRemotionRuntimeManifest } from "@rendering/plugins/remotion/browser/remotion-runtime-manifest";
-import { runTimelineAudioPostProcess } from "@rendering/runtime/ffmpeg/timeline-audio-postprocess";
 import { layoutVisualTimeline, MICROSECONDS_PER_SECOND } from "@rendering/plugins/remotion/composition/timing";
 import {
   assertRenderedMediaEvidence,
@@ -30,7 +29,7 @@ export interface FiveShotReport {
   ok: true;
   generatedAt: string;
   renderer: { requested: "remotion"; actual: "remotion"; version: string; bundleVersion: string };
-  audioPostProcess: { engine: "ffmpeg"; loudnessLufs: number; truePeakDbtp: number; logPath: string };
+  audioPostProcess: null;
   loudnessMeasurement: RenderedMediaLoudnessMeasurement;
   outputPath: string;
   reportPath: string;
@@ -156,9 +155,7 @@ export async function runFiveShotSmoke(): Promise<FiveShotReport> {
       const compositionProps = buildCompositionProps(plan, mediaUrlByClipId);
       const propsValidation = validateCompositionProps(compositionProps);
       if (!propsValidation.success) throw new Error(propsValidation.issues.map((issue) => `${issue.path}: ${issue.message}`).join("; "));
-      const rawPath = path.join(outputRoot, "raw-remotion.mp4");
       const outputPath = path.join(outputRoot, "output.mp4");
-      const postProcessLogPath = path.join(outputRoot, "audio-postprocess.log");
       const composition = await selectComposition({
         serveUrl: bundlePath,
         id: REMOTION_COMPOSITION_ID,
@@ -172,7 +169,7 @@ export async function runFiveShotSmoke(): Promise<FiveShotReport> {
         serveUrl: bundlePath,
         composition,
         inputProps: compositionProps,
-        outputLocation: rawPath,
+        outputLocation: outputPath,
         codec: "h264",
         pixelFormat: "yuv420p",
         audioCodec: "aac",
@@ -182,13 +179,6 @@ export async function runFiveShotSmoke(): Promise<FiveShotReport> {
         enforceAudioTrack: true,
         overwrite: true,
         onBrowserDownload: () => { throw new Error("five-shot 禁止隐式下载 Headless Shell"); },
-      });
-      const audioPostProcess = await runTimelineAudioPostProcess({
-        rawInputPath: rawPath,
-        outputPath,
-        logPath: postProcessLogPath,
-        loudnessLufs: plan.renderSettings.loudnessLufs,
-        truePeakDbtp: plan.renderSettings.truePeakDbtp,
       });
       const probePath = path.join(outputRoot, "ffprobe.json");
       const probe = await probeRenderedMedia(outputPath);
@@ -206,17 +196,13 @@ export async function runFiveShotSmoke(): Promise<FiveShotReport> {
         filePath: outputPath,
         rawLogPath: path.join(outputRoot, "loudness-measurement.log"),
         reportPath: path.join(outputRoot, "loudness-measurement.json"),
-        target: {
-          integratedLufs: plan.renderSettings.loudnessLufs,
-          truePeakDbtp: plan.renderSettings.truePeakDbtp,
-        },
       });
       const reportPath = path.resolve(process.env.MYSTUDIO_REMOTION_FIXTURE_REPORT || path.join(outputRoot, "report.json"));
       const report: FiveShotReport = {
         ok: true,
         generatedAt: new Date().toISOString(),
         renderer: { requested: "remotion", actual: "remotion", version: remotionVersion, bundleVersion: manifest.contentHash },
-        audioPostProcess,
+        audioPostProcess: null,
         loudnessMeasurement,
         outputPath,
         reportPath,

@@ -10,30 +10,23 @@ import {
   runChapterAutoVideo,
   type ChapterAutoVideoStatus,
 } from "@/lib/studio/chapter-auto-video";
-import {
-  runProductionTrackRender,
-} from "@/lib/studio/production-runners";
-import {
-  buildChapterEditingProject,
-  createTimelineRenderRecord,
-  renderChapterEditingProject,
-} from "@/lib/studio/editing/chapter-editing-pipeline";
+import { buildRemotionShotPlans } from "@/lib/studio/remotion/remotion-shot-plan-builder";
+import { DEFAULT_REMOTION_RENDER_SETTINGS } from "@/lib/studio/remotion/remotion-workspace-storage";
+import { createReadyShotJob } from "@rendering/plugins/remotion/queue/remotion-render-queue";
 import { runStoryboardTtsGeneration } from "@/lib/studio/storyboard-tts-runner";
 import {
   parseStoryboardTable,
   toStoryboardItems,
 } from "@/lib/studio/storyboard-table";
 import { useProjectStore } from "@/stores/project/project-store";
-import { useEditingStore } from "@/stores/editing/editing-store";
-import { useAppSettingsStore } from "@/stores/app/app-settings-store";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import { useTtsStore } from "@/stores/tts/tts-store";
 import type { StudioAssetSummary } from "@/types/studio-assets";
+import type { RemotionRenderJobV1 } from "@/types/remotion-workspace";
 import type { TtsSpeakerId, VoiceProfile } from "@/types/tts";
 import { latestAgentWork } from "./workflow-helpers";
 import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";
 import { getTtsRuntimeBridge } from "@/lib/bridge/tts-runtime";
-import { createTimelineRenderRequest } from "@rendering/contracts/timeline-renderer";
 
 const INITIAL_STATUS: ChapterAutoVideoStatus = {
   stage: "idle",
@@ -54,8 +47,7 @@ export function useChapterAutoVideoActions({
   }) => void | Promise<void>;
 }) {
   const [status, setStatus] = useState<ChapterAutoVideoStatus>(INITIAL_STATUS);
-  const requestedRenderer = useAppSettingsStore((state) => state.renderingSettings.renderer);
-  const running = !["idle", "completed", "failed"].includes(status.stage);
+  const running = !["idle", "completed", "failed", "blocked"].includes(status.stage);
 
   const assertProjectStillActive = useCallback(() => {
     const currentProjectId = useProjectStore.getState().activeProjectId;
@@ -74,6 +66,7 @@ export function useChapterAutoVideoActions({
 
     try {
       const result = await runChapterAutoVideo({
+        projectId: activeProjectId,
         episodeId,
         onStatus: setStatus,
         dependencies: {
@@ -224,6 +217,9 @@ export function useChapterAutoVideoActions({
           },
           resolveMediaPath: async (mediaPath) => {
             assertProjectStillActive();
+            if (mediaPath.startsWith("project-file://")) {
+              return window.projectFiles?.getAbsolutePath(mediaPath) ?? null;
+            }
             return getTtsRuntimeBridge()?.resolveReferenceAudioPath(mediaPath) ?? null;
           },
           generateAudio: (storyboard, profile) =>
@@ -238,145 +234,51 @@ export function useChapterAutoVideoActions({
               ttsWarning: result.ttsWarning,
             });
           },
-          rebuildTracks: () => {
-            assertProjectStillActive();
-            useStudioStore.getState().rebuildTracks();
-          },
-          loadTracks: () => useStudioStore.getState().productionTracks,
-          loadCandidates: () => useStudioStore.getState().videoCandidates,
-          renderTrack: async (track, storyboards) => {
-            assertProjectStillActive();
-            const studio = useStudioStore.getState();
-            const candidateId = studio.addVideoCandidate({
-              trackId: track.id,
-              provider: "ffmpeg-local",
-              state: "rendering",
-            });
-            try {
-              const rendered = await runProductionTrackRender({
-                track,
-                storyboards,
-              });
-              assertProjectStillActive();
-              useStudioStore.getState().updateVideoCandidate(candidateId, {
-                state: "ready",
-                filePath: rendered.filePath,
-              });
-              useStudioStore
-                .getState()
-                .selectVideoCandidate(track.id, candidateId);
-              const candidate = useStudioStore
-                .getState()
-                .videoCandidates.find((item) => item.id === candidateId);
-              if (!candidate) throw new Error(`轨道 ${track.id} 候选写回失败`);
-              return candidate;
-            } catch (error) {
-              useStudioStore.getState().updateVideoCandidate(candidateId, {
-                state: "failed",
-                errorReason:
-                  error instanceof Error ? error.message : String(error),
-              });
-              throw error;
+          enqueueRemotionShots: async ({ projectId, chapterId, storyboards }) => {
+            const runtime = await window.remotionRuntime?.workspaceRuntime?.();
+            const queue = window.remotionQueue;
+            if (!runtime || !queue?.enqueueShot) {
+              throw new Error("Remotion workspace runtime 或持久队列接口不可用");
             }
-          },
-          createEditingProject: async (storyboards) => {
             const studio = useStudioStore.getState();
-            const projectState = useProjectStore.getState();
-            const editingState = useEditingStore.getState();
-            if (editingState.activeProjectId !== activeProjectId) {
-              editingState.setActiveProjectId(activeProjectId);
-            }
-            const now = Date.now;
-            const result = await buildChapterEditingProject({
-              projectId: activeProjectId,
-              episodeId,
-              projectName: projectState.activeProject?.name ?? "漫影工作室",
-              aspectRatio:
-                studio.seriesBible?.aspectRatio ??
-                studio.workflowConfig.platformSpec,
-              directorPlan: studio.scriptPlans.find(
-                (plan) => plan.episodeId === episodeId,
-              ),
+            const firstChapter = studio.novelChapters
+              .slice()
+              .sort((left, right) => left.index - right.index)[0]?.id;
+            const plans = await buildRemotionShotPlans({
+              projectId,
+              chapterId,
+              chapterRevision: 1,
+              renderSettings: DEFAULT_REMOTION_RENDER_SETTINGS,
               storyboards,
-              productionTracks: studio.productionTracks,
-              videoCandidates: studio.videoCandidates,
-              existingProjects: Object.values(editingState.editingProjects).filter(
-                (project) =>
-                  project.projectId === activeProjectId &&
-                  project.episodeId === episodeId,
-              ),
-              runId: uniqueId("auto-edit"),
-              editingProjectId: uniqueId(`editing-${episodeId}`),
-              now,
-              onRun: (run) => {
-                const saved = useEditingStore.getState().saveAutoEditingRun(run);
-                if (!saved.success) throw new Error(saved.issue.message);
-              },
+              requireHumanApproval: !firstChapter || firstChapter === chapterId,
+              continuityPolicy: "required",
+              assetVersions: studio.continuityAssetVersions,
             });
-            assertProjectStillActive();
-            if (!result.success) {
-              throw new Error(result.run.error ?? "一键剪辑失败");
+            const jobs: RemotionRenderJobV1[] = [];
+            const blockedShotIds = plans.success ? [] : [...plans.blockedShotIds];
+            for (const plan of plans.plans) {
+              const job = await createReadyShotJob({
+                plan,
+                bundleContentHash: runtime.bundleContentHash,
+                templateVersion: runtime.templateVersion,
+                remotionVersion: runtime.remotionVersion,
+              });
+              const result = await queue.enqueueShot({ job, plan });
+              if (result.accepted || result.reason === "already-succeeded" || result.reason === "duplicate-active") {
+                jobs.push(result.job);
+              } else {
+                blockedShotIds.push(plan.shot.shotId);
+              }
             }
-            const committed = useEditingStore.getState().commitAutoEditingResult(
-              result.result,
-              result.staleEditingProjectIds,
-              now(),
-            );
-            if (!committed.success) throw new Error(committed.issue.message);
-            return (
-              useEditingStore.getState().editingProjects[
-                committed.editingProjectId
-              ] ?? result.result.project
-            );
-          },
-          renderEditingProject: async (project) => {
-            const renderer = window.studioRenderer;
-            if (!renderer?.renderTimeline) {
-              throw new Error("时间线渲染接口仅在桌面应用中可用");
-            }
-            const result = await renderChapterEditingProject({
-              project,
-              jobId: uniqueId("timeline-render"),
-              createdAt: Date.now(),
-              render: (plan) => renderer.renderTimeline(
-                createTimelineRenderRequest(requestedRenderer, plan),
-              ),
-            });
-            assertProjectStillActive();
-            if (!result.success) throw new Error(result.error);
-            return result.evidence;
-          },
-          writeFinalEvidence: (project, evidence) => {
-            assertProjectStillActive();
-            const record = createTimelineRenderRecord(
-              project,
-              evidence,
-              Date.now(),
-            );
-            if (!record.success) {
-              throw new Error(
-                record.issues.map((issue) => issue.message).join("；"),
-              );
-            }
-            const saved = useEditingStore
-              .getState()
-              .saveTimelineRenderRecord(record.value);
-            if (!saved.success) throw new Error(saved.issue.message);
-            useStudioStore.getState().saveAgentWorkData(
-              "productionPlan",
-              [
-                `时间线成片输出: ${evidence.path}`,
-                `EditingProject: ${project.id}@${project.revision}`,
-                `TimelineRenderJob: ${evidence.jobId}`,
-                `本地成片输出: ${evidence.path}`,
-                `媒体证据: ${JSON.stringify(evidence)}`,
-              ].join("\n"),
-              episodeId,
-            );
+            return { jobs, blockedShotIds };
           },
         },
       });
-      toast.success(`第一章自动成片完成：${result.finalPath}`);
+      if (result.queueStatus === "blocked") {
+        toast.error(`Remotion 分镜队列已阻塞：${result.blockedShotIds?.join("、") || "请检查分镜物料"}`);
+      } else {
+        toast.success(`已提交 ${result.remotionJobs?.length ?? 0} 个 Remotion 分镜任务，等待章节合成`);
+      }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "第一章自动成片失败");
     }
@@ -385,7 +287,6 @@ export function useChapterAutoVideoActions({
     assertProjectStillActive,
     handleProductionNodeAction,
     productionEpisodeId,
-    requestedRenderer,
     running,
   ]);
 
@@ -403,8 +304,4 @@ export function useChapterAutoVideoActions({
     handleRunChapterAutoVideo,
     handleOpenFinalVideo,
   };
-}
-
-function uniqueId(prefix: string) {
-  return `${prefix}-${crypto.randomUUID()}`;
 }

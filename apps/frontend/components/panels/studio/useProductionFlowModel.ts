@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useCharacterLibraryStore } from "@/stores/library/character-library-store";
 import { useProjectStore } from "@/stores/project/project-store";
+import { useAppSettingsStore } from "@/stores/app/app-settings-store";
+import { useEditingStore } from "@/stores/editing/editing-store";
 import { usePropsLibraryStore } from "@/stores/library/props-library-store";
 import { useSceneStore } from "@/stores/library/scene-store";
 import {
@@ -9,16 +11,18 @@ import {
   buildProductionFlowModel,
   type ProductionFlowModel,
   type ProductionFlowAssetLibraryMatches,
+  type ProductionFlowRendererSummary,
 } from "./workflow-node-model";
 import { buildWorkbenchAssetMediaMap } from "./WorkbenchTab";
 import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";
 
 type ProductionFlowModelInput = Omit<
   Parameters<typeof buildProductionFlowModel>[0],
-  "assetMediaById"
->;
+  "assetMediaById" | "rendererSummary"
+> & { productionEpisodeId: string };
 
 export function useProductionFlowModel({
+  productionEpisodeId,
   agentWorkData,
   entityExtractions,
   scriptPlans,
@@ -34,6 +38,54 @@ export function useProductionFlowModel({
   const productionFlowScenes = useSceneStore((state) => state.scenes);
   const productionFlowProps = usePropsLibraryStore((state) => state.items);
   const activeProjectId = useProjectStore((state) => state.activeProjectId);
+  const requestedRenderer = useAppSettingsStore((state) => state.renderingSettings.renderer);
+  const editingProjectId = useEditingStore(
+    (state) => state.currentEditingProjectIdByEpisode[productionEpisodeId],
+  );
+  const editingProject = useEditingStore(
+    (state) => editingProjectId ? state.editingProjects[editingProjectId] : undefined,
+  );
+  const timelineRenderRecord = useEditingStore(
+    (state) => editingProjectId
+      ? state.timelineRenderRecordsByEditingProjectId[editingProjectId]
+      : undefined,
+  );
+  const rendererSummary = useMemo<ProductionFlowRendererSummary>(() => {
+    const evidenceRenderer = timelineRenderRecord?.evidence.renderer;
+    const isCurrentRecord = Boolean(
+      activeProjectId
+      && editingProjectId
+      && editingProject
+      && timelineRenderRecord
+      && evidenceRenderer
+      && editingProject.id === editingProjectId
+      && editingProject.projectId === activeProjectId
+      && editingProject.episodeId === productionEpisodeId
+      && timelineRenderRecord.projectId === activeProjectId
+      && timelineRenderRecord.episodeId === productionEpisodeId
+      && timelineRenderRecord.editingProjectId === editingProjectId
+      && timelineRenderRecord.editingRevision === editingProject.revision
+      && timelineRenderRecord.sourceSnapshotHash === editingProject.sourceSnapshotHash,
+    );
+    if (!isCurrentRecord || !timelineRenderRecord || !evidenceRenderer) {
+      return { requested: requestedRenderer };
+    }
+    return {
+      requested: requestedRenderer,
+      lastRequested: evidenceRenderer.requested,
+      actual: evidenceRenderer.actual,
+      fallbackEffectIds: evidenceRenderer.fallback?.effectIds,
+      lastJobId: timelineRenderRecord.evidence.jobId,
+      outputPath: timelineRenderRecord.evidence.path,
+    };
+  }, [
+    activeProjectId,
+    editingProject,
+    editingProjectId,
+    productionEpisodeId,
+    requestedRenderer,
+    timelineRenderRecord,
+  ]);
   const projectAssetMediaById = useMemo(
     () =>
       buildWorkbenchAssetMediaMap(
@@ -124,6 +176,7 @@ export function useProductionFlowModel({
         videoCandidates,
         workflowConfig,
         manualCatalog,
+        rendererSummary,
         assetMediaById: productionFlowAssetMediaById,
       }),
     [
@@ -136,6 +189,7 @@ export function useProductionFlowModel({
       videoCandidates,
       workflowConfig,
       manualCatalog,
+      rendererSummary,
     ],
   );
 }

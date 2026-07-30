@@ -62,6 +62,9 @@ vi.mock("./settings/ImageHostSettingsContainer", () => ({
 vi.mock("./settings/StorageSettingsTab", () => ({
   StorageSettingsTab: () => <div>storage settings panel</div>,
 }));
+vi.mock("./settings/RenderingSettingsTab", () => ({
+  RenderingSettingsTab: () => <div>rendering settings panel</div>,
+}));
 vi.mock("./settings/DevelopmentSettingsContainer", () => ({
   DevelopmentSettingsContainer: () => <div>development settings panel</div>,
 }));
@@ -100,5 +103,16 @@ describe("SettingsPanel tab navigation", () => {
       expect(screen.getByRole("tab", { name: label }).getAttribute("aria-selected")).toBe("true");
       await waitFor(() => expect(screen.getByText(panelText)).toBeTruthy());
     }
+  });
+
+  it("honors a one-shot initial rendering tab request", async () => {
+    const onInitialTabConsumed = vi.fn();
+    render(<SettingsPanel initialTab="rendering" onInitialTabConsumed={onInitialTabConsumed} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("tab", { name: "渲染" }).getAttribute("aria-selected")).toBe("true");
+      expect(screen.getByText("rendering settings panel")).toBeTruthy();
+    });
+    expect(onInitialTabConsumed).toHaveBeenCalledOnce();
   });
 });

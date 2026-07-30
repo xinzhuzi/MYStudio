@@ -45,6 +45,24 @@ export async function switchProject(newProjectId: string): Promise<void> {
   // No-op if same project
   if (currentId === newProjectId) return;
 
+  if (typeof window !== "undefined" && window.remotionQueue?.canSwitchProject) {
+    const decision = await window.remotionQueue.canSwitchProject(newProjectId);
+    if (!decision.allowed) {
+      throw new Error(`Remotion 任务仍在运行，暂不能切换项目: ${decision.jobIds.join(", ")}`);
+    }
+  }
+
+  if (currentId && typeof window !== "undefined" && window.remotionStudio?.closeSession) {
+    await window.remotionStudio.closeSession(currentId);
+  }
+
+  if (typeof window !== "undefined" && window.remotionQueue?.switchProject) {
+    const decision = await window.remotionQueue.switchProject(newProjectId);
+    if (!decision.allowed) {
+      throw new Error(`Remotion 任务仍在运行，暂不能切换项目: ${decision.jobIds.join(", ")}`);
+    }
+  }
+
   console.log(`[ProjectSwitcher] Switching from ${currentId?.substring(0, 8) ?? 'none'} to ${newProjectId.substring(0, 8)}`);
 
   // 1. Wait briefly for any pending persist writes to complete

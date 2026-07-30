@@ -20,6 +20,16 @@ Zustand is the default global state layer. Small transient UI state stays in
 React components; reusable workflow and project data lives in typed stores.
 Persisted project data is routed through the existing storage adapters.
 
+## Remotion Workspace and Active-Session State
+
+Remotion production state is project-scoped under `_p/<projectId>/remotion/`. The workspace manifest, chapter manifest, shot/chapter jobs, current-slot evidence and outputs are separate records; no temporary Studio URL, auth token, absolute runtime path or browser session is persisted.
+
+- A project may have many chapters and each chapter may have dynamic M shots, but the application has at most one active project session, one Studio service and one active chapter session.
+- Queue records are keyed by `projectId + chapterId + target + revision + inputHash + bundleHash + settingsHash`. Duplicate active identity is rejected; succeeded identity is reused; input/template/settings changes create `stale` and a new attempt.
+- `A -> B` project switching is blocked while A has a running shot/chapter job or any Studio/page/watcher/media/port resource. Explicit cancellation must first persist a terminal job state and release renderer/session resources.
+- Current slots are evidence-first and atomic: staged MP4 + probe + SHA + evidence + identity must complete before replacing current. Failed/canceled/crashed replacement never deletes the previous current slot.
+- Renderer subscriptions use explicit `projectId + chapterId`; an async completion must not call the current global project after `await` and write into B.
+
 ---
 
 ## State Categories
@@ -56,12 +66,12 @@ AI/provider results are modeled as explicit workflow records and task states,
 not as an implicit cache. Preserve request IDs, fingerprints, terminal status,
 and error evidence where the workflow contract requires resumability.
 
-## Editing Timeline Records
+## Editing and Remotion Evidence Records
 
-Timeline render completion is persisted in the project-scoped editing store,
-not in component state or a global browser key. `TimelineRenderRecord` entries
-live under `timelineRenderRecordsByEditingProjectId` and are keyed by the
-current `EditingProject` ID.
+Remotion completion is persisted in the project-scoped workspace and editing
+store, not in component state or a global browser key. Shot/chapter current
+slots are keyed by the Remotion job identity; any derived timeline record is
+keyed by the current `EditingProject` ID.
 
 - A saved record must match the active project, episode, editing project ID,
   editing revision, and source snapshot hash.
@@ -70,12 +80,13 @@ current `EditingProject` ID.
 - Readiness must only consider the record for the current episode's current
   editing project. A stale record from an older manual edit remains audit data,
   but it cannot make the workflow ready.
-- A complete record must point to an existing MP4 plus the timeline artifacts:
-  editing snapshot, render plan, input manifest, filter graph, render log, and
-  ffprobe JSON.
-- `productionPlan` text, legacy concat output, or seeded smoke evidence may be
-  displayed as compatibility evidence, but none of them replace the current
-  `TimelineRenderRecord`.
+- A complete Remotion slot must point to an existing current MP4 plus the
+  chapter/shot manifest, render plan (chapter target), input manifest, job,
+  evidence, ffprobe data and SHA. `renderer.requested` and `renderer.actual`
+  must both be `remotion`.
+- `productionPlan` text, legacy concat output, `VideoCandidate` and seeded
+  smoke evidence may be retained for migration audit, but none can make a
+  current Remotion slot or chapter ready.
 
 ---
 

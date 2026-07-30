@@ -59,6 +59,7 @@ remotion-preview-create
 remotion-preview-release
 remotion-runtime-download
 remotion-runtime-status
+remotion-studio-ensure-session
 save-file-dialog
 save-image
 self-media:cancel-task
@@ -89,9 +90,7 @@ storage-update-config
 storage-validate-data-dir
 storage-validate-project-dir
 studio-list-assets
-studio-merge-episode
 studio-probe-media-evidence
-studio-render-track-candidate
 studio-save-material
 studio-skill-create-text
 studio-skill-delete-text
@@ -99,8 +98,6 @@ studio-skill-list
 studio-skill-read-text
 studio-skill-restore-text
 studio-skill-write-text
-studio-timeline-render
-studio-timeline-render-cancel
 studio-visual-manual-create
 studio-visual-manual-duplicate
 studio-visual-manual-list
@@ -125,6 +122,7 @@ const NAMED_IPC_CHANNELS = {
   REMOTION_PREVIEW_RELEASE_CHANNEL: "remotion-preview-release",
   REMOTION_RUNTIME_DOWNLOAD_CHANNEL: "remotion-runtime-download",
   REMOTION_RUNTIME_STATUS_CHANNEL: "remotion-runtime-status",
+  REMOTION_STUDIO_ENSURE_SESSION_CHANNEL: "remotion-studio-ensure-session",
   "SELF_MEDIA_IPC.cancelTask": "self-media:cancel-task",
   "SELF_MEDIA_IPC.configureProvider": "self-media:configure-provider",
   "SELF_MEDIA_IPC.createTask": "self-media:create-task",
@@ -141,7 +139,7 @@ function listTypeScriptFiles(root: string): string[] {
     // The AiToEarn snapshot is an isolated source lane. Its upstream modules
     // may contain their own ipcMain handlers, but they are not registered by
     // MYStudio and must not expand the app-owned IPC contract.
-    if (entry.isDirectory() && entry.name === "vendor" && path.basename(root) === "self-media") return [];
+    if (entry.isDirectory() && path.resolve(fullPath) === AITOEARN_VENDOR_ROOT) return [];
     if (entry.isDirectory()) return listTypeScriptFiles(fullPath);
     return entry.name.endsWith(".ts") && !entry.name.includes(".test.") ? [fullPath] : [];
   });
@@ -161,6 +159,7 @@ function listIpcCallChannels(
 }
 
 const electronRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const AITOEARN_VENDOR_ROOT = path.resolve(electronRoot, "aitoearn", "vendor");
 
 describe("Electron IPC contract", () => {
   it("registers the established channel list exactly once", () => {

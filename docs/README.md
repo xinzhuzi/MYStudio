@@ -19,10 +19,11 @@
 | 文档 | 用途 |
 |---|---|
 | [基本工作流教程](./workflow/WORKFLOW_GUIDE.md) | 从剧本导入到分镜、素材、视频生成的基础流程 |
+| [从分镜到最终视频的完整链路](./workflow/WORKFLOW_FULL_VIDEO_PIPELINE.md) | 当前工作流每个阶段/节点的输入、输出、门禁，以及 TimelineRenderPlan、原生 Remotion Studio 和最终证据链 |
 | [工作流阶段操作手册](./workflow/WORKFLOW_STAGE_OPERATIONS.md) | 七阶段按钮、状态、弹窗和数据关系 |
 | [小说导入与策划编剧操作参考](./workflow/WORKFLOW_NOVEL_SCRIPT_OPERATIONS.md) | 风格/导演手册、小说章节导入、事件分析、三阶段剧本生成和审核修复 |
 | [剧本资产与 ProductionAgent 操作参考](./workflow/WORKFLOW_ASSET_GENERATION_OPERATIONS.md) | 资产提取、资产库匹配、提示词润色、缺失资产生成和角色音色入口 |
-| [分镜面板与视频工作台操作参考](./workflow/WORKFLOW_STORYBOARD_EDITING_OPERATIONS.md) | 素材导入、媒体引用、AI 分镜表协议、track 分组、本地合成和拼接成片 |
+| [分镜面板与视频工作台操作参考](./workflow/WORKFLOW_STORYBOARD_EDITING_OPERATIONS.md) | 素材导入、媒体引用、AI 分镜表协议、每镜 Remotion shot、原生 Studio 和章节成片 |
 | [剧本导入格式示例](./workflow/SCRIPT_FORMAT_EXAMPLE.md) | 标准剧本格式、场景头、人物、对白和舞台指示示例 |
 | [项目概览](./workflow/OVERVIEW_PANEL_GUIDE.md) | 编辑故事核心、世界观、制作设定和查看分集目录 |
 | [项目概览操作手册](./workflow/OVERVIEW_PANEL_OPERATIONS.md) | 项目入口、内联编辑、分集目录、新建集和右侧资料摘要 |

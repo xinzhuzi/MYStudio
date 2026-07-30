@@ -5,7 +5,6 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
-  readdirSync,
   readFileSync,
   rmSync,
   statSync,
@@ -137,15 +136,21 @@ const CORE_ROUTE_CHECKS = [
 // Keep each smoke run's fixture private. The packaged Remotion preview uses
 // the same asset bridge as export, so a concurrent smoke must not be able to
 // delete another run's source while its session is still serving it.
+const REMOTION_SMOKE_PROJECT_ID = "desktop-remotion-smoke-project";
+const REMOTION_SMOKE_CHAPTER_ID = "desktop-remotion-smoke-chapter";
+const REMOTION_SMOKE_SHOT_ID = "desktop-remotion-smoke-shot";
+const REMOTION_SMOKE_MEDIA_RELATIVE_PATH = "media/mystudio-smoke-final.mp4";
+const SMOKE_PROJECT_DATA_ROOT = resolve(userDataDir, "projects");
 const SMOKE_VIDEO_PATH = resolve(
-  userDataDir,
-  "media",
-  "mystudio-smoke-final.mp4",
+  SMOKE_PROJECT_DATA_ROOT,
+  "_p",
+  REMOTION_SMOKE_PROJECT_ID,
+  REMOTION_SMOKE_MEDIA_RELATIVE_PATH,
 );
 const SMOKE_VIDEO_WIDTH = 320;
 const SMOKE_VIDEO_HEIGHT = 180;
 const SMOKE_VIDEO_FPS = 30;
-const SMOKE_VIDEO_DURATION_US = 200_000;
+const SMOKE_VIDEO_DURATION_US = 1_000_000;
 const smokeReportPath =
   process.env.MYSTUDIO_SMOKE_REPORT_PATH ||
   resolve(process.cwd(), "output", "automation", "desktop-smoke-report.json");
@@ -229,18 +234,27 @@ function prepareSmokeMedia() {
   }
 }
 
-function buildRemotionSmokePlan(durationUs = SMOKE_VIDEO_DURATION_US) {
-  const createdAt = Date.now();
-  const jobId = `desktop-remotion-smoke-${createdAt}`;
-  const projectId = "desktop-remotion-smoke-project";
-  const episodeId = "desktop-remotion-smoke-episode";
-  const editingProjectId = "desktop-remotion-smoke-editing";
-  const sourceSnapshotHash = "desktop-remotion-smoke-snapshot-v1";
-  const source = {
-    kind: "storyboardVideo",
-    path: SMOKE_VIDEO_PATH,
-    evidence: { mediaId: "desktop-remotion-smoke-media" },
+function canonicalJson(value) {
+  const normalize = (current) => {
+    if (Array.isArray(current)) return current.map(normalize);
+    if (current && typeof current === "object") {
+      return Object.fromEntries(
+        Object.keys(current).sort().map((key) => [key, normalize(current[key])]),
+      );
+    }
+    return current;
   };
+  return JSON.stringify(normalize(value));
+}
+
+function sha256CanonicalJson(value) {
+  return createHash("sha256").update(canonicalJson(value)).digest("hex");
+}
+
+function buildRemotionSmokeShotPlan(durationUs = SMOKE_VIDEO_DURATION_US) {
+  const sourceFingerprint = createHash("sha256")
+    .update(readFileSync(SMOKE_VIDEO_PATH))
+    .digest("hex");
   const renderSettings = {
     width: SMOKE_VIDEO_WIDTH,
     height: SMOKE_VIDEO_HEIGHT,
@@ -255,75 +269,63 @@ function buildRemotionSmokePlan(durationUs = SMOKE_VIDEO_DURATION_US) {
       releaseUs: 400_000,
     },
   };
-  const snapshotClip = {
-    id: "desktop-remotion-smoke-clip",
-    trackId: "desktop-remotion-smoke-track",
-    name: "Remotion smoke clip",
-    source,
-    startUs: 0,
-    durationUs,
-    trimStartUs: 0,
-    speed: 1,
-    volume: 0,
-    muted: true,
+  const visualSource = {
+    kind: "project-file",
+    projectId: REMOTION_SMOKE_PROJECT_ID,
+    relativePath: REMOTION_SMOKE_MEDIA_RELATIVE_PATH,
+    contentSha256: sourceFingerprint,
+    provenance: {
+      sourceKind: "generated",
+      sourceId: "desktop-remotion-smoke-media",
+      sourceVersion: "1",
+    },
   };
-  const editingProjectSnapshot = {
-    schemaVersion: 1,
-    id: editingProjectId,
-    projectId,
-    episodeId,
-    name: "Remotion packaged export smoke",
+  const shot = {
+    shotId: REMOTION_SMOKE_SHOT_ID,
+    storyboardId: "desktop-remotion-smoke-storyboard",
+    index: 0,
     revision: 1,
-    sourceSnapshotHash,
-    createdBy: "manual",
-    manuallyEdited: false,
-    stale: false,
+    sourceFingerprint,
+    durationUs,
+    visualSource,
+    audioBindings: [],
+    motion: { kind: "static" },
+    transform: {
+      x: 0,
+      y: 0,
+      scaleX: 1,
+      scaleY: 1,
+      rotation: 0,
+      opacity: 1,
+    },
+  };
+  const hashInput = {
+    schemaVersion: 1,
+    target: "shot",
+    projectId: REMOTION_SMOKE_PROJECT_ID,
+    chapterId: REMOTION_SMOKE_CHAPTER_ID,
     renderSettings,
-    tracks: [
-      {
-        id: "desktop-remotion-smoke-track",
-        kind: "video",
-        name: "主画面",
-        order: 0,
-        clipIds: [snapshotClip.id],
-        muted: false,
-        locked: false,
-      },
-    ],
-    clips: [snapshotClip],
-    transitions: [],
-    effects: [],
-    proposals: [],
-    createdAt,
-    updatedAt: createdAt,
+    visualKind: "video",
+    shot,
+    sharedAudioTracks: [],
   };
   return {
     schemaVersion: 1,
-    jobId,
-    projectId,
-    episodeId,
-    editingProjectId,
-    editingRevision: 1,
-    sourceSnapshotHash,
-    editingProjectSnapshot,
+    target: "shot",
+    projectId: REMOTION_SMOKE_PROJECT_ID,
+    chapterId: REMOTION_SMOKE_CHAPTER_ID,
+    chapterRevision: 1,
+    sourceSnapshotHash: sha256CanonicalJson({
+      projectId: REMOTION_SMOKE_PROJECT_ID,
+      chapterId: REMOTION_SMOKE_CHAPTER_ID,
+      shotId: REMOTION_SMOKE_SHOT_ID,
+      sourceFingerprint,
+    }),
     renderSettings,
-    clips: [
-      {
-        id: snapshotClip.id,
-        trackId: snapshotClip.trackId,
-        trackKind: "video",
-        source,
-        startUs: snapshotClip.startUs,
-        durationUs: snapshotClip.durationUs,
-        trimStartUs: snapshotClip.trimStartUs,
-        speed: snapshotClip.speed,
-        volume: snapshotClip.volume,
-        muted: snapshotClip.muted,
-      },
-    ],
-    transitions: [],
-    effects: [],
-    createdAt,
+    visualKind: "video",
+    shot,
+    sharedAudioTracks: [],
+    inputHash: sha256CanonicalJson(hashInput),
   };
 }
 
@@ -348,50 +350,37 @@ function inspectRemotionExportArtifact(remotionExport) {
       };
     }
     if (remotionExportSmokeMode === "cancel") {
-      const jobsRoot = resolve(
-        userDataDir,
-        "media",
-        "studio-render",
-        "timeline-jobs",
+      const queueRoot = resolve(SMOKE_PROJECT_DATA_ROOT, "_remotion", "queue");
+      const queueStatePath = resolve(queueRoot, "queue-state.json");
+      const queueEventsPath = resolve(queueRoot, "queue-events.jsonl");
+      const artifactPaths = [queueStatePath, queueEventsPath];
+      const cancellationArtifactsPresent = artifactPaths.every((artifactPath) => existsSync(artifactPath));
+      const currentOutputPath = resolve(
+        SMOKE_PROJECT_DATA_ROOT,
+        "_p",
+        REMOTION_SMOKE_PROJECT_ID,
+        "remotion",
+        "outputs",
+        "shots",
+        REMOTION_SMOKE_CHAPTER_ID,
+        REMOTION_SMOKE_SHOT_ID,
+        "current.mp4",
       );
-      const jobPrefix = `${remotionExport?.jobId || "missing-job"}-`;
-      const jobDirectoryName = existsSync(jobsRoot)
-        ? readdirSync(jobsRoot, { withFileTypes: true })
-          .filter((entry) => entry.isDirectory() && entry.name.startsWith(jobPrefix))
-          .map((entry) => entry.name)
-          .sort()
-          .at(-1)
-        : undefined;
-      const jobDirectory = jobDirectoryName
-        ? resolve(jobsRoot, jobDirectoryName)
-        : undefined;
-      const requiredArtifactNames = [
-        "editing-project.json",
-        "render-plan.json",
-        "input-manifest.json",
-        "result.json",
-      ];
-      const artifactPaths = jobDirectory
-        ? requiredArtifactNames.map((name) => resolve(jobDirectory, name))
-        : [];
-      const cancellationArtifactsPresent = artifactPaths.length === requiredArtifactNames.length
-        && artifactPaths.every((artifactPath) => existsSync(artifactPath));
-      const persistedResult = cancellationArtifactsPresent
-        ? JSON.parse(readFileSync(resolve(jobDirectory, "result.json"), "utf8"))
-        : undefined;
-      const noSuccessfulOutput = Boolean(jobDirectory)
-        && !existsSync(resolve(jobDirectory, "output.mp4"))
-        && !existsSync(resolve(jobDirectory, "raw-remotion.mp4"));
+      const currentAfter = existsSync(currentOutputPath)
+        ? createHash("sha256").update(readFileSync(currentOutputPath)).digest("hex")
+        : null;
+      const currentSlotPreserved = remotionExport?.currentBefore
+        ? currentAfter === remotionExport.currentBefore.sha256
+        : currentAfter === null;
       if (!remotionExport?.success
         || remotionExport?.cancel?.success !== true
         || remotionExport?.cancel?.canceled !== true
         || remotionExport?.render?.success !== false
         || remotionExport?.render?.canceled !== true
-        || persistedResult?.success !== false
-        || persistedResult?.canceled !== true
+        || remotionExport?.render?.job?.status !== "canceled"
         || !cancellationArtifactsPresent
-        || !noSuccessfulOutput) {
-        issues.push(remotionExport?.error || "Remotion cancellation evidence was incomplete");
+        || !currentSlotPreserved) {
+        issues.push(remotionExport?.error || "Remotion queue cancellation evidence was incomplete");
       }
       return {
         enabled: true,
@@ -400,8 +389,7 @@ function inspectRemotionExportArtifact(remotionExport) {
         issues,
         realMediaGeneration: false,
         cancellationArtifactsPresent,
-        noSuccessfulOutput,
-        jobDirectory,
+        currentSlotPreserved,
         artifactPaths,
       };
     }
@@ -410,41 +398,84 @@ function inspectRemotionExportArtifact(remotionExport) {
       return { enabled: true, ok: false, issues };
     }
 
-    const evidence = remotionExport.render.evidence;
+    const job = remotionExport.render.job;
+    const workspaceRoot = resolve(
+      SMOKE_PROJECT_DATA_ROOT,
+      "_p",
+      REMOTION_SMOKE_PROJECT_ID,
+      "remotion",
+    );
+    const expectedJobRelativePath = `jobs/shot/${REMOTION_SMOKE_CHAPTER_ID}/${REMOTION_SMOKE_SHOT_ID}/current.json`;
+    const expectedEvidenceRelativePath = `evidence/shots/${REMOTION_SMOKE_CHAPTER_ID}/${REMOTION_SMOKE_SHOT_ID}/current.json`;
+    const expectedOutputRelativePath = `outputs/shots/${REMOTION_SMOKE_CHAPTER_ID}/${REMOTION_SMOKE_SHOT_ID}/current.mp4`;
+    if (job?.evidencePath !== expectedEvidenceRelativePath
+      || job?.outputPath !== expectedOutputRelativePath) {
+      issues.push("Remotion queue job does not point to the canonical shot current slot");
+      return { enabled: true, ok: false, issues };
+    }
+    const evidencePath = resolve(workspaceRoot, expectedEvidenceRelativePath);
+    const jobPath = resolve(workspaceRoot, expectedJobRelativePath);
+    if (!evidencePath || !existsSync(evidencePath) || !existsSync(jobPath)) {
+      issues.push(`Remotion current job/evidence is missing: ${jobPath}, ${evidencePath || "missing"}`);
+      return { enabled: true, ok: false, issues };
+    }
+    const persistedJob = JSON.parse(readFileSync(jobPath, "utf8"));
+    const evidence = JSON.parse(readFileSync(evidencePath, "utf8"));
+    const identityKeys = [
+      "jobId",
+      "projectId",
+      "inputHash",
+      "bundleContentHash",
+      "renderSettingsHash",
+      "templateVersion",
+      "remotionVersion",
+      "attempt",
+    ];
+    for (const key of identityKeys) {
+      if (persistedJob?.[key] !== job?.[key] || evidence?.[key] !== job?.[key]) {
+        issues.push(`Remotion job/evidence identity mismatch: ${key}`);
+      }
+    }
+    if (JSON.stringify(persistedJob?.target) !== JSON.stringify(job?.target)
+      || JSON.stringify(evidence?.target) !== JSON.stringify(job?.target)) {
+      issues.push("Remotion job/evidence target identity mismatch");
+    }
+    if (persistedJob?.status !== "succeeded" || job?.status !== "succeeded") {
+      issues.push("Remotion current job is not succeeded");
+    }
     const renderer = evidence?.renderer;
-    const postProcess = evidence?.audioPostProcess;
     if (renderer?.requested !== "remotion" || renderer?.actual !== "remotion") {
       issues.push(`renderer evidence mismatch: ${renderer?.requested || "missing"}/${renderer?.actual || "missing"}`);
     }
-    if (renderer?.version !== remotionExport.browserStatus?.remotionVersion) {
+    if (evidence?.remotionVersion !== remotionExport.browserStatus?.remotionVersion) {
       issues.push("renderer version does not match the prepared browser status");
     }
-    if (!/^[a-f0-9]{64}$/.test(renderer?.bundleVersion || "")) {
-      issues.push("bundleVersion is not a SHA-256 content hash");
+    if (!/^[a-f0-9]{64}$/.test(evidence?.bundleContentHash || "")) {
+      issues.push("bundleContentHash is not a SHA-256 content hash");
     }
-    if (postProcess?.engine !== "ffmpeg"
-      || postProcess?.loudnessLufs !== -14
-      || postProcess?.truePeakDbtp !== -1.5) {
-      issues.push("audio post-process evidence does not match the loudnorm contract");
+    if (evidence?.compositionId !== "StoryboardShot") {
+      issues.push(`compositionId is ${evidence?.compositionId || "missing"}, expected StoryboardShot`);
+    }
+    if (Object.prototype.hasOwnProperty.call(evidence, "audioPostProcess")) {
+      issues.push("shot evidence must not contain external audio post-processing");
     }
 
-    if (!evidence?.path || !existsSync(evidence.path)) {
-      issues.push(`rendered output is missing: ${evidence?.path || "missing"}`);
+    if (evidence?.outputPath !== expectedOutputRelativePath) {
+      issues.push("Remotion evidence does not point to the canonical shot current output");
       return { enabled: true, ok: false, issues };
     }
-    const outputStat = statSync(evidence.path);
-    const sha256 = createHash("sha256").update(readFileSync(evidence.path)).digest("hex");
+    const outputPath = resolve(workspaceRoot, expectedOutputRelativePath);
+    if (!outputPath || !existsSync(outputPath)) {
+      issues.push(`rendered output is missing: ${outputPath || "missing"}`);
+      return { enabled: true, ok: false, issues };
+    }
+    const outputStat = statSync(outputPath);
+    const sha256 = createHash("sha256").update(readFileSync(outputPath)).digest("hex");
     if (evidence.sizeBytes !== outputStat.size) issues.push("output size does not match render evidence");
-    if (evidence.mtimeMs !== outputStat.mtimeMs) issues.push("output mtime does not match render evidence");
+    if (evidence.mtimeMs !== Math.floor(outputStat.mtimeMs)) issues.push("output mtime does not match render evidence");
     if (evidence.sha256 !== sha256) issues.push("output SHA-256 does not match render evidence");
 
-    const artifactPaths = [
-      evidence.snapshotPath,
-      evidence.renderPlanPath,
-      evidence.inputManifestPath,
-      evidence.ffprobePath,
-      postProcess?.logPath,
-    ];
+    const artifactPaths = [jobPath, evidencePath, outputPath];
     const missingArtifactPaths = artifactPaths.filter(
       (artifactPath) => typeof artifactPath !== "string" || !existsSync(artifactPath),
     );
@@ -461,13 +492,13 @@ function inspectRemotionExportArtifact(remotionExport) {
         "format=duration:stream=codec_type,codec_name,width,height",
         "-of",
         "json",
-        evidence.path,
+        outputPath,
       ],
       { encoding: "utf8", maxBuffer: 4 * 1024 * 1024 },
     );
     if (probeResult.status !== 0) {
       issues.push(`ffprobe failed: ${(probeResult.stderr || "").trim() || `exit ${probeResult.status}`}`);
-      return { enabled: true, ok: false, issues, path: evidence.path, sha256 };
+      return { enabled: true, ok: false, issues, path: outputPath, sha256 };
     }
     const probe = JSON.parse(probeResult.stdout);
     const video = probe.streams?.find((stream) => stream.codec_type === "video");
@@ -482,23 +513,32 @@ function inspectRemotionExportArtifact(remotionExport) {
       || Math.abs(duration - SMOKE_VIDEO_DURATION_US / 1_000_000) > 1 / SMOKE_VIDEO_FPS) {
       issues.push(`video duration is outside one frame: ${duration}`);
     }
-    if (!Number.isFinite(evidence.duration)
+    const evidenceDuration = Number(evidence.durationUs) / 1_000_000;
+    if (!Number.isFinite(evidenceDuration)
       || !Number.isFinite(duration)
-      || Math.abs(evidence.duration - duration) > 1 / SMOKE_VIDEO_FPS) {
-      issues.push(`render evidence duration does not match ffprobe: ${evidence.duration}/${duration}`);
+      || Math.abs(evidenceDuration - duration) > 1 / SMOKE_VIDEO_FPS) {
+      issues.push(`render evidence duration does not match ffprobe: ${evidenceDuration}/${duration}`);
     }
     if (evidence.width !== SMOKE_VIDEO_WIDTH || evidence.height !== SMOKE_VIDEO_HEIGHT) {
       issues.push(`render evidence dimensions are ${evidence.width || 0}x${evidence.height || 0}`);
     }
-    if (!evidence.streams?.includes("video") || !evidence.streams?.includes("audio")) {
-      issues.push(`render evidence streams are incomplete: ${(evidence.streams || []).join(",")}`);
+    const evidenceVideoStreams = (evidence.streams || []).filter((stream) => stream.kind === "video");
+    const evidenceAudioStreams = (evidence.streams || []).filter((stream) => stream.kind === "audio");
+    const evidenceStreamKinds = (evidence.streams || []).map((stream) => stream.kind);
+    if (evidenceVideoStreams.length !== 1
+      || evidenceAudioStreams.length !== 1
+      || evidenceVideoStreams[0]?.codec !== "h264"
+      || evidenceVideoStreams[0]?.width !== SMOKE_VIDEO_WIDTH
+      || evidenceVideoStreams[0]?.height !== SMOKE_VIDEO_HEIGHT
+      || evidenceAudioStreams[0]?.codec !== "aac") {
+      issues.push(`render evidence streams are incomplete: ${evidenceStreamKinds.join(",")}`);
     }
 
     return {
       enabled: true,
       ok: issues.length === 0,
       issues,
-      path: evidence.path,
+      path: outputPath,
       sizeBytes: outputStat.size,
       sha256,
       duration,
@@ -1057,7 +1097,12 @@ async function verifyWorkflowStages(evaluate) {
         requiredText: ['自动排版'],
         forbiddenText: ['分镜表与分镜视频生成', '运行 AI 分镜计划', '添加分镜', '生成配音', '试听配音', '进入待处理阶段'],
       },
-      { id: 'workbench', label: '视频工作台', requiredText: ['一键成片', '旧拼接导出'] },
+      {
+        id: 'workbench',
+        label: '视频工作台',
+        requiredText: ['原生 Remotion Studio'],
+        forbiddenText: ['一键成片', '旧拼接导出', 'ffmpeg-local', 'track-candidate'],
+      },
     ];
 
     const results = [];
@@ -1218,8 +1263,8 @@ async function prepareRemotionBrowserDownload(evaluate) {
         browserProgress: [],
         browserDownloadStarted: false,
       };
-      if (!window.remotionRuntime || !window.remotionPreview || !window.studioRenderer) {
-        throw new Error('Remotion runtime, preview, or studio renderer bridge is unavailable');
+      if (!window.remotionRuntime || !window.remotionPreview?.createShot || !window.remotionQueue) {
+        throw new Error('Remotion runtime, shot preview, or queue bridge is unavailable');
       }
 
       const navButtons = Array.from(document.querySelectorAll('.studio-nav-button'))
@@ -1283,10 +1328,27 @@ async function prepareRemotionBrowserDownload(evaluate) {
 
 async function verifyRemotionExport(evaluate) {
   const serializedPlan = JSON.stringify(
-    buildRemotionSmokePlan(SMOKE_VIDEO_DURATION_US),
+    buildRemotionSmokeShotPlan(SMOKE_VIDEO_DURATION_US),
   );
   const mode = JSON.stringify(remotionExportSmokeMode);
   const promiseKey = "__mystudioRemotionExportSmokePromise";
+  const currentOutputPath = resolve(
+    SMOKE_PROJECT_DATA_ROOT,
+    "_p",
+    REMOTION_SMOKE_PROJECT_ID,
+    "remotion",
+    "outputs",
+    "shots",
+    REMOTION_SMOKE_CHAPTER_ID,
+    REMOTION_SMOKE_SHOT_ID,
+    "current.mp4",
+  );
+  const currentBefore = existsSync(currentOutputPath)
+    ? {
+        path: currentOutputPath,
+        sha256: createHash("sha256").update(readFileSync(currentOutputPath)).digest("hex"),
+      }
+    : null;
   let prepared;
   let browserStatus;
   let browserProgress = [];
@@ -1399,13 +1461,14 @@ async function verifyRemotionExport(evaluate) {
           if (target.length > 20) target.shift();
         }
       };
-      let unsubscribeRenderProgress;
+      let unsubscribeQueue;
       let previewSessionId = '';
-      let renderPromise;
 
       try {
-        if (!window.remotionRuntime || !window.remotionPreview || !window.studioRenderer) {
-          throw new Error('Remotion runtime, preview, or studio renderer bridge is unavailable');
+        if (!window.remotionRuntime?.workspaceRuntime
+          || !window.remotionPreview?.createShot
+          || !window.remotionQueue) {
+          throw new Error('Remotion runtime, shot preview, or queue bridge is unavailable');
         }
 
         const navButtons = Array.from(document.querySelectorAll('.studio-nav-button'))
@@ -1437,7 +1500,7 @@ async function verifyRemotionExport(evaluate) {
         );
         result.initialBrowserStatus = ${renderBrowserStatus};
 
-        const preview = await window.remotionPreview.create(plan);
+        const preview = await window.remotionPreview.createShot(plan);
         previewSessionId = preview.sessionId;
         result.preview = {
           sessionId: preview.sessionId,
@@ -1459,102 +1522,132 @@ async function verifyRemotionExport(evaluate) {
 
         const workflowButton = Array.from(document.querySelectorAll('.studio-nav-button'))
           .find((node) => node.tagName === 'BUTTON' && normalize(node).includes('工作流'));
-        result.player = { clickedWorkflow: activate(workflowButton), mounted: false };
+        result.studioHost = { clickedWorkflow: activate(workflowButton), mounted: false };
         if (!window.mystudioWorkflowSmoke?.seedCompleteWorkflow) {
-          throw new Error('Workflow smoke bridge is unavailable for the Remotion Player check');
+          throw new Error('Workflow smoke bridge is unavailable for the native Studio host check');
         }
         await window.mystudioWorkflowSmoke.seedCompleteWorkflow();
         await window.mystudioWorkflowSmoke.setWorkflowStage('workbench');
-        result.player = await waitFor(() => {
-          const previewPanel = document.querySelector('[aria-label="预览区"]');
-          const playerRoot = previewPanel
-            ? Array.from(previewPanel.querySelectorAll('div')).find((node) =>
-              typeof node.className === 'string'
-              && node.className.includes('max-h-[330px]')
-              && node.className.includes('w-full'))
-            : null;
-          if (!previewPanel || !playerRoot) return null;
+        result.studioHost = await waitFor(() => {
+          const iframe = document.querySelector('iframe[title="原生 Remotion Studio"]');
+          if (!iframe) return null;
           return {
             clickedWorkflow: true,
             mounted: true,
-            label: normalize(previewPanel),
-            hasVideoElement: Boolean(previewPanel.querySelector('video')),
-            browserStateAtMount: result.browserStatus.state,
+            iframeMounted: true,
+            title: iframe.getAttribute('title'),
           };
-        }, 30_000, 'Remotion Player UI');
+        }, 30_000, 'native Remotion Studio host');
 
-        unsubscribeRenderProgress = window.studioRenderer.onTimelineRenderProgress((progress) => {
-          if (progress.jobId !== plan.jobId) return;
-          rememberProgress(result.renderProgress, progress);
-        });
-        renderPromise = window.studioRenderer.renderTimeline({
+        const runtime = await window.remotionRuntime.workspaceRuntime();
+        const canonical = (value) => JSON.stringify(Array.isArray(value)
+          ? value.map((item) => JSON.parse(canonical(item)))
+          : value && typeof value === 'object'
+            ? Object.fromEntries(Object.keys(value).sort().map((key) => [key, JSON.parse(canonical(value[key]))]))
+            : value);
+        const sha256 = async (value) => Array.from(new Uint8Array(await crypto.subtle.digest(
+          'SHA-256',
+          new TextEncoder().encode(canonical(value)),
+        )), (byte) => byte.toString(16).padStart(2, '0')).join('');
+        const target = {
+          kind: 'shot',
+          chapterId: plan.chapterId,
+          shotId: plan.shot.shotId,
+          shotRevision: plan.shot.revision,
+        };
+        const renderSettingsHash = await sha256(plan.renderSettings);
+        const identity = {
+          projectId: plan.projectId,
+          target,
+          inputHash: plan.inputHash,
+          bundleContentHash: runtime.bundleContentHash,
+          renderSettingsHash,
+        };
+        const jobId = 'shot:' + await sha256(identity);
+        const job = {
           schemaVersion: 1,
-          requestedRenderer: 'remotion',
-          plan,
+          jobId,
+          ...identity,
+          templateVersion: runtime.templateVersion,
+          remotionVersion: runtime.remotionVersion,
+          status: 'ready',
+          attempt: 0,
+          progress: 0,
+          createdAt: Date.now(),
+        };
+        result.jobId = jobId;
+        result.queueStates = [];
+        unsubscribeQueue = window.remotionQueue.onJob((notification) => {
+          if (notification.jobId !== jobId) return;
+          result.queueStates.push(notification.status);
+          rememberProgress(result.renderProgress, {
+            stage: notification.status,
+            ratio: notification.status === 'succeeded' ? 1 : 0,
+            message: '',
+          });
         });
+        result.enqueue = await window.remotionQueue.enqueueShot({ job, plan });
+        if (result.enqueue.accepted !== true) {
+          throw new Error(result.enqueue.message || ('Remotion queue rejected shot job: ' + result.enqueue.reason));
+        }
         if (expectCanceledExport) {
-          await waitFor(
-            () => result.renderProgress.some((progress) => progress.stage === 'rendering'),
-            30_000,
-            'Remotion rendering progress before cancellation',
-          );
-          result.cancel = await window.studioRenderer.cancelTimelineRender(plan.jobId);
-          result.render = await renderPromise;
-          renderPromise = null;
-          await waitFor(
-            () => result.renderProgress.some((progress) => progress.stage === 'canceled'),
-            10_000,
-            'Remotion canceled progress',
-          );
+          result.cancel = await window.remotionQueue.cancel(jobId);
+        }
+        const terminalJob = await waitFor(
+          async () => {
+            const scope = await window.remotionQueue.get({ projectId: plan.projectId, chapterId: plan.chapterId });
+            return scope.jobs.find((item) => item.jobId === jobId
+              && ['succeeded', 'failed', 'canceled'].includes(item.status));
+          },
+          120_000,
+          'Remotion shot queue terminal state',
+        );
+        result.render = {
+          success: terminalJob.status === 'succeeded',
+          canceled: terminalJob.status === 'canceled',
+          job: terminalJob,
+          error: terminalJob.error?.message,
+        };
+        if (expectCanceledExport) {
           result.success = result.settings.rendererSelected
             && result.settings.hasRuntimeStatus
             && result.previewReleased
-            && result.player?.mounted
+            && result.studioHost?.mounted
             && result.cancel?.success === true
             && result.cancel?.canceled === true
-            && result.render?.success === false
-            && result.render?.canceled === true;
-          if (!result.success) throw new Error('Remotion cancellation evidence was incomplete');
+            && result.render.success === false
+            && result.render.canceled === true;
+          if (!result.success) throw new Error('Remotion queue cancellation evidence was incomplete');
           return result;
         }
-        result.render = await renderPromise;
-        renderPromise = null;
         if (expectBlockedExport) {
           result.noDownloadObserved = result.browserProgress.length === 0
             && !result.settings.clickedBrowserDownload;
           result.success = result.settings.rendererSelected
             && result.settings.hasRuntimeStatus
             && result.previewReleased
-            && result.player?.mounted
+            && result.studioHost?.mounted
             && result.browserStatus.state !== 'ready'
             && result.render.success === false
             && result.render.canceled === false
+            && terminalJob.status === 'failed'
             && result.noDownloadObserved;
-          if (!result.success) throw new Error('Remotion no-download export block evidence was incomplete');
+          if (!result.success) throw new Error('Remotion no-download shot queue block evidence was incomplete');
           return result;
         }
-        if (!result.render.success) throw new Error(result.render.error);
         result.success = result.settings.rendererSelected
           && result.settings.hasRuntimeStatus
           && result.previewReleased
-          && result.player?.mounted
-          && result.render.evidence?.renderer?.requested === 'remotion'
-          && result.render.evidence?.renderer?.actual === 'remotion';
-        if (!result.success) throw new Error('Remotion smoke evidence was incomplete');
+          && result.studioHost?.mounted
+          && result.render.success
+          && terminalJob.status === 'succeeded';
+        if (!result.success) throw new Error('Remotion shot queue smoke evidence was incomplete');
         return result;
       } catch (error) {
         result.error = error instanceof Error ? error.message : String(error);
         return result;
       } finally {
-        if (renderPromise) {
-          try {
-            await window.studioRenderer?.cancelTimelineRender(plan.jobId);
-            result.render = await renderPromise;
-          } catch (error) {
-            result.renderCleanupError = error instanceof Error ? error.message : String(error);
-          }
-        }
-        unsubscribeRenderProgress?.();
+        unsubscribeQueue?.();
         if (previewSessionId) {
           try {
             const released = await window.remotionPreview?.release(previewSessionId);
@@ -1573,6 +1666,7 @@ async function verifyRemotionExport(evaluate) {
     );
     return {
       ...renderResult,
+      currentBefore,
       settings: {
         ...(prepared?.settings || {}),
         ...(renderResult?.settings || {}),
@@ -1593,6 +1687,7 @@ async function verifyRemotionExport(evaluate) {
       initialBrowserStatus: prepared?.initialBrowserStatus,
       browserStatus,
       browserProgress,
+      currentBefore,
       error: error instanceof Error ? error.message : String(error),
     };
   } finally {
@@ -2776,10 +2871,10 @@ function assertHealthy(
       || remotionExport?.preview?.height !== SMOKE_VIDEO_HEIGHT
       || remotionExport?.preview?.fps !== SMOKE_VIDEO_FPS
       || remotionExport?.preview?.visualClipCount !== 1) {
-      failures.push("Remotion Player preview session evidence is incomplete");
+      failures.push("Remotion shot preview session evidence is incomplete");
     }
-    if (!remotionExport?.player?.mounted) {
-      failures.push("Remotion Player did not mount inside the packaged workbench");
+    if (!remotionExport?.studioHost?.mounted) {
+      failures.push("native Remotion Studio host did not mount inside the packaged workbench");
     }
     if (expectBlockedExport
       && (remotionExport?.render?.success !== false
@@ -2794,14 +2889,14 @@ function assertHealthy(
         || remotionExport?.render?.canceled !== true
         || !remotionExport?.renderProgress?.some((progress) => progress.stage === "canceled")
         || remotionArtifact?.cancellationArtifactsPresent !== true
-        || remotionArtifact?.noSuccessfulOutput !== true
+        || remotionArtifact?.currentSlotPreserved !== true
         || remotionArtifact?.realMediaGeneration !== false)) {
       failures.push("Remotion cancellation did not preserve artifacts or quarantine partial output");
     }
     if (!expectBlockedExport
       && !expectCanceledExport
-      && !remotionExport?.renderProgress?.some((progress) => progress.stage === "completed")) {
-      failures.push("Remotion export progress did not report completed");
+      && !remotionExport?.queueStates?.includes("succeeded")) {
+      failures.push("Remotion shot queue did not report succeeded");
     }
     if (!remotionArtifact?.ok) {
       failures.push(`Remotion artifact verification failed: ${(remotionArtifact?.issues || []).join(", ")}`);

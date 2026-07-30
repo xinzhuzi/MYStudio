@@ -44,6 +44,13 @@ describe("preload IPC surface", () => {
     expect(electronTypesSource).toContain("openFolder: () => Promise<DiagnosticsLogOpenFolderResult>");
   });
 
+  it("exposes fixed Remotion workspace runtime metadata through a validated facade", () => {
+    expect(preloadSource).toContain("workspaceRuntime: async ()");
+    expect(preloadSource).toContain("REMOTION_WORKSPACE_RUNTIME_CHANNEL");
+    expect(preloadSource).toContain("validateRemotionWorkspaceRuntimeReply");
+    expect(electronTypesSource).toContain("workspaceRuntime?: () => Promise<RemotionWorkspaceRuntimeReply>");
+  });
+
   it("exposes image API requests through electronAPI without raw IPC", () => {
     expect(preloadSource).toContain("imageRequest: (payload: ImageRequestPayload): Promise<ImageRequestResult>");
     expect(preloadSource).toContain("ipcRenderer.invoke('api-image-request', payload)");
@@ -149,15 +156,17 @@ describe("preload IPC surface", () => {
     expect(electronTypesSource).toContain("openExternalLink: (url: string)");
   });
 
-  it("exposes typed timeline render, cancellation and progress without raw execution fields", () => {
-    expect(preloadSource).toContain("renderTimeline: (request: TimelineRenderRequest): Promise<TimelineRenderResult>");
-    expect(preloadSource).toContain("ipcRenderer.invoke('studio-timeline-render', request)");
-    expect(preloadSource).toContain("cancelTimelineRender: (jobId: string): Promise<TimelineRenderCancelResult>");
-    expect(preloadSource).toContain("ipcRenderer.invoke('studio-timeline-render-cancel', jobId)");
-    expect(preloadSource).toContain("ipcRenderer.on('studio-timeline-render-progress', wrapped)");
-    expect(preloadSource).not.toContain("renderTimeline: (args:");
-    expect(preloadSource).not.toContain("renderTimeline: (outputPath:");
-    expect(preloadSource).not.toContain("renderTimeline: (filterGraph:");
+  it("exposes only read-only studio media evidence", () => {
+    const studioRendererBlock = preloadSource.slice(
+      preloadSource.indexOf("exposeInMainWorld('studioRenderer'"),
+      preloadSource.indexOf("function parseRemotionRuntimeStatus"),
+    );
+    expect(studioRendererBlock).toContain("probeMedia: (filePath: string)");
+    expect(studioRendererBlock).not.toContain("renderTimeline");
+    expect(studioRendererBlock).not.toContain("cancelTimelineRender");
+    expect(studioRendererBlock).not.toContain("studio-timeline-render");
+    expect(electronTypesSource).not.toContain("renderTimeline:");
+    expect(electronTypesSource).not.toContain("cancelTimelineRender:");
   });
 
   it("exposes a validated Remotion browser runtime without raw download options", () => {
@@ -200,7 +209,7 @@ describe("preload IPC surface", () => {
     expect(preloadSource).toContain("ipcRenderer.invoke(REMOTION_PREVIEW_RELEASE_CHANNEL, { sessionId })");
     expect(preloadSource).toContain("validateRemotionPreviewReleaseReply");
     expect(electronTypesSource).toContain("remotionPreview?:");
-    expect(electronTypesSource).toContain("create: (plan: TimelineRenderRequest[\"plan\"])");
+    expect(electronTypesSource).toContain("create: (plan: TimelineRenderPlan)");
     expect(electronTypesSource).toContain("release: (sessionId: string)");
 
     const previewTypeBlock = electronTypesSource.slice(
@@ -211,15 +220,11 @@ describe("preload IPC surface", () => {
     expect(previewTypeBlock).not.toContain("sourcePath");
   });
 
-  it("keeps studio renderer inputs aligned with the shared render plans", () => {
-    expect(preloadSource).toContain(
-      "renderTrackCandidate: (plan: TrackRenderPlan) => ipcRenderer.invoke('studio-render-track-candidate', plan)",
-    );
-    expect(preloadSource).toContain(
-      "mergeEpisode: (plan: EpisodeMergePlan) => ipcRenderer.invoke('studio-merge-episode', plan)",
-    );
-    expect(preloadSource).not.toContain("renderTrackCandidate: (plan: unknown)");
-    expect(preloadSource).not.toContain("mergeEpisode: (plan: unknown)");
+  it("does not expose legacy FFmpeg candidate or concat operations", () => {
+    expect(preloadSource).not.toContain("studio-render-track-candidate");
+    expect(preloadSource).not.toContain("studio-merge-episode");
+    expect(electronTypesSource).not.toContain("renderTrackCandidate:");
+    expect(electronTypesSource).not.toContain("mergeEpisode:");
   });
 
   it("keeps the storage manager facade mapped to the unified IPC channels", () => {

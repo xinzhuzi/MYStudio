@@ -65,7 +65,7 @@ apps/frontend/
 │   ├── diagnostics/ # diagnostics service
 │   ├── storage/ # storage manager, paths, and Studio persistence services
 │   ├── media/   # Node-only media source and picker helpers
-│   ├── rendering/ # FFmpeg/Remotion adapters, timeline runtime, and render contracts
+│   ├── rendering/ # Remotion runtime, Studio/queue plugins, and render contracts
 │   ├── tts/     # local TTS sidecar runtime
 │   ├── aitoearn/ # sole AiToEarn main-process integration and upstream upgrade root
 │   └── types/   # Electron-only ambient declarations

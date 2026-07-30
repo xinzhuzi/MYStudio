@@ -284,11 +284,14 @@ export interface ContactSheetPromptSet {
 
 interface MediaPanelStore {
   activeTab: Tab;
+  settingsTabRequest: "rendering" | null;
   activeStage: Stage;
   inProject: boolean; // Whether viewing a project or dashboard
   navigationBackStack: NavigationSnapshot[];
   navigationForwardStack: NavigationSnapshot[];
   setActiveTab: (tab: Tab) => void;
+  requestSettingsTab: (tab: "rendering") => void;
+  clearSettingsTabRequest: () => void;
   setActiveStage: (stage: Stage) => void;
   setInProject: (inProject: boolean) => void;
   canGoBack: () => boolean;
@@ -319,6 +322,7 @@ interface MediaPanelStore {
 
 export const useMediaPanelStore = create<MediaPanelStore>((set) => ({
   activeTab: "dashboard",
+  settingsTabRequest: null,
   activeStage: "script",
   inProject: false,
   navigationBackStack: [],
@@ -326,6 +330,8 @@ export const useMediaPanelStore = create<MediaPanelStore>((set) => ({
   setActiveTab: (tab) => {
     set((state) => pushNavigation(state, resolveTabNavigation(state, tab)));
   },
+  requestSettingsTab: (tab) => set({ settingsTabRequest: tab }),
+  clearSettingsTabRequest: () => set({ settingsTabRequest: null }),
   setActiveStage: (stage) => {
     // Switch to first tab of the stage
     const stageConfig = stages.find(s => s.id === stage);

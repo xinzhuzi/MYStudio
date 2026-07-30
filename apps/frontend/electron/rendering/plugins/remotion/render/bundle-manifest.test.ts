@@ -14,8 +14,11 @@ const VALID_HASH = "a".repeat(64);
 
 function validManifest(overrides: Record<string, unknown> = {}) {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
+    templateId: "mystudio-remotion-v1",
+    templateVersion: "1.0.0",
     remotionVersion: "4.0.499",
+    compositionIds: ["StoryboardShot", "ChapterVideo", "DaojieTimeline"],
     compositionId: "DaojieTimeline",
     contentHash: VALID_HASH,
     ...overrides,
@@ -52,7 +55,7 @@ describe("validateBundleManifest", () => {
   });
 
   it("rejects a wrong schema version", () => {
-    const result = validateBundleManifest(validManifest({ schemaVersion: 2 }));
+    const result = validateBundleManifest(validManifest({ schemaVersion: 1 }));
     expect(result.success).toBe(false);
   });
 
@@ -64,6 +67,14 @@ describe("validateBundleManifest", () => {
   it("rejects an empty compositionId", () => {
     const result = validateBundleManifest(validManifest({ compositionId: "" }));
     expect(result.success).toBe(false);
+  });
+
+  it("rejects template drift and reordered composition IDs", () => {
+    expect(validateBundleManifest(validManifest({ templateVersion: "2.0.0" })).success)
+      .toBe(false);
+    expect(validateBundleManifest(validManifest({
+      compositionIds: ["ChapterVideo", "StoryboardShot", "DaojieTimeline"],
+    })).success).toBe(false);
   });
 
   it("rejects a malformed contentHash", () => {

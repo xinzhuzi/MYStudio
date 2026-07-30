@@ -33,12 +33,39 @@ Use this skill for MYStudio release confidence after code changes, especially wh
 - Pure logic or store change: run the focused Vitest file first, then `typecheck`, `lint`, and full `test`.
 - Electron main/preload/build config change: run `typecheck`, `lint`, full `test`, `build:mac`, and packaged `smoke:desktop`.
 - UI route, startup, settings, TTS, workflow, asset, or shell change: run full gate through packaged `smoke:desktop`.
-- Release/install request: use a worker sub-agent to run the full gate, overwrite `/Applications/漫影工作室.app`, compare `app.asar` hashes, then run installed app smoke with an isolated temp user data dir. If sub-agents are unavailable, run the same chain locally.
+- Release/install request: use a worker sub-agent to run the full `npm run test:all` gate. Its macOS release stages already overwrite `/Applications/漫影工作室.app`, compare `app.asar` hashes, and run installed app smoke with an isolated temp user data dir. If sub-agents are unavailable, run the same single entry locally.
 - White-screen or packaged-only bug: do not rely on dev server. Run packaged or installed `smoke:desktop` and inspect console output from that run.
+
+## Unified Quality Gate
+
+For a complete repository verification, use the single aggregate entry from
+`<repo-root>/apps`; do not manually reassemble the stages:
+
+```bash
+cd /Users/zhengbingjin/Project/Github/MYStudio/apps
+npm run test:all
+```
+
+`test:all` runs the curated AiToEarn/build-contract tests, `typecheck`,
+`lint`, the full Vitest suite, local-only upgrade smoke, and on macOS the
+packaging/overwrite-install and packaged desktop smoke in fixed fail-fast
+order. It writes `apps/output/automation/quality-gate-report.json`. Use
+`npm run test:all -- --plan` to inspect the current stages, or
+`npm run test:all -- --skip-release` for a non-packaging iteration.
+
+When a change has a focused test, run that narrow test first; the aggregate
+entry remains the final repository gate:
+
+```bash
+cd apps
+npm test -- path-or-name.test.ts
+npm run test:all
+```
 
 ## Standard Gate
 
-Run the narrow test first when a change has a focused test, then run the full gate:
+The underlying commands remain available for focused debugging or failure
+triage:
 
 ```bash
 cd apps
@@ -87,9 +114,14 @@ Useful focused tests:
 - `smoke:desktop` exists in `package.json`.
 - `smoke-desktop.mjs` checks project entry, route verification, screenshots, timeout handling, and DOM visual fallback.
 
-## Installed App Smoke
+## Installed App Smoke (independent re-check only)
 
-After `npm run build:mac` and `npm run smoke:desktop` pass, install the packaged app without making a backup:
+The standard `npm run test:all` path already invokes `build:mac`, which owns
+packaging, overwrite installation, hash verification, and installed smoke. Use
+the commands below only when independently re-checking a non-standard packaged
+artifact; do not repeat them after a normal quality-gate run.
+
+Install the packaged app without making a backup:
 
 ```bash
 ditto "/Users/zhengbingjin/Project/Github/MYStudio/apps/release/build/mac-arm64/mac-arm64/漫影工作室.app" "/Applications/漫影工作室.app"

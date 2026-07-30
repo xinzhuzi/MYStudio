@@ -6,13 +6,7 @@ import type { ModelTestRequest, ModelTestResult } from '../../lib/ai/model-test'
 import type { TextCompletionRequest, TextCompletionResult } from '../../lib/ai/text-completion'
 import type { ImageRequestPayload, ImageRequestResult } from '../../types/api-image-request'
 import type { DiagnosticsLogEntryInput, DiagnosticsLogQuery } from '../../types/diagnostics'
-import type {
-  TimelineRenderCancelResult,
-  TimelineRenderProgress,
-  TimelineRenderRequest,
-  TimelineRenderResult,
-} from '../../types/editing'
-import type { EpisodeMergePlan, TrackRenderPlan } from '../../types/studio'
+import type { TimelineRenderPlan } from '../../types/editing'
 import type { StudioVisualManualCreatePayload, StudioVisualManualImagesWritePayload, StudioVisualManualWritePayload } from '../../types/studio-visual-manual'
 import type { TtsRuntimeCommandResult, TtsRuntimeConfig, TtsRuntimeStatus } from '../../types/tts'
 import type { UpdateCheckOptions } from '../../types/update'
@@ -46,13 +40,55 @@ import {
 } from '@rendering/contracts/remotion-runtime-ipc'
 import type { RemotionBrowserDownloadProgress, RemotionBrowserStatus } from '@rendering/contracts/remotion-browser-status'
 import {
+  REMOTION_WORKSPACE_RUNTIME_CHANNEL,
+  validateRemotionWorkspaceRuntimeReply,
+  type RemotionWorkspaceRuntimeReply,
+} from '@rendering/contracts/remotion-workspace-runtime'
+import {
   REMOTION_PREVIEW_CREATE_CHANNEL,
   REMOTION_PREVIEW_RELEASE_CHANNEL,
+  REMOTION_SHOT_PREVIEW_CREATE_CHANNEL,
   validateRemotionPreviewCreateReply,
   validateRemotionPreviewReleaseReply,
+  validateRemotionShotPreviewCreateReply,
   type RemotionPreviewCreateReply,
   type RemotionPreviewReleaseReply,
+  type RemotionShotPreviewCreateReply,
 } from '@rendering/plugins/remotion/preview/remotion-preview-ipc'
+import type { RemotionShotPlanV1 } from '@/lib/studio/remotion/shot-plan'
+import {
+  REMOTION_SHOT_RENDER_CANCEL_CHANNEL,
+  REMOTION_SHOT_RENDER_CHANNEL,
+  type RemotionShotRenderRequest,
+} from '@rendering/plugins/remotion/renderer/remotion-shot-ipc'
+import type { RemotionShotRenderResult } from '@rendering/plugins/remotion/renderer/remotion-shot-renderer'
+import {
+  REMOTION_QUEUE_CANCEL_CHANNEL,
+  REMOTION_QUEUE_CHECK_SWITCH_CHANNEL,
+  REMOTION_QUEUE_ENQUEUE_SHOT_CHANNEL,
+  REMOTION_QUEUE_GET_CHANNEL,
+  REMOTION_QUEUE_JOB_EVENT,
+  REMOTION_QUEUE_RETRY_CHANNEL,
+  REMOTION_QUEUE_SWITCH_CHANNEL,
+  decodeRemotionQueueNotification,
+  decodeRemotionQueueScopeReply,
+  type RemotionQueueCancelReply,
+  type RemotionQueueEnqueueShotRequest,
+  type RemotionQueueRetryReply,
+  type RemotionQueueScopeReply,
+  type RemotionQueueSwitchReply,
+} from '@rendering/plugins/remotion/queue/remotion-queue-ipc'
+import type { RemotionQueueNotification } from '@rendering/plugins/remotion/queue/remotion-render-queue'
+import {
+  REMOTION_STUDIO_CLOSE_SESSION_CHANNEL,
+  REMOTION_STUDIO_EDITING_UPDATED_EVENT,
+  REMOTION_STUDIO_ENSURE_SESSION_CHANNEL,
+  validateRemotionStudioEnsureSessionReply,
+  validateRemotionStudioEditingUpdatedEvent,
+  type RemotionStudioEnsureSessionReply,
+  type RemotionStudioEnsureSessionRequest,
+  type RemotionStudioEditingUpdatedEvent,
+} from '../ipc/studio/remotion-studio-ipc'
 
 contextBridge.exposeInMainWorld('appEvents', {
   onMainProcessMessage(listener: (message: string) => void) {
@@ -248,18 +284,7 @@ contextBridge.exposeInMainWorld('imageHostUploader', {
 })
 
 contextBridge.exposeInMainWorld('studioRenderer', {
-  renderTrackCandidate: (plan: TrackRenderPlan) => ipcRenderer.invoke('studio-render-track-candidate', plan),
-  mergeEpisode: (plan: EpisodeMergePlan) => ipcRenderer.invoke('studio-merge-episode', plan),
   probeMedia: (filePath: string) => ipcRenderer.invoke('studio-probe-media-evidence', filePath),
-  renderTimeline: (request: TimelineRenderRequest): Promise<TimelineRenderResult> =>
-    ipcRenderer.invoke('studio-timeline-render', request),
-  cancelTimelineRender: (jobId: string): Promise<TimelineRenderCancelResult> =>
-    ipcRenderer.invoke('studio-timeline-render-cancel', jobId),
-  onTimelineRenderProgress(listener: (progress: TimelineRenderProgress) => void) {
-    const wrapped = (_event: IpcRendererEvent, progress: TimelineRenderProgress) => listener(progress)
-    ipcRenderer.on('studio-timeline-render-progress', wrapped)
-    return () => ipcRenderer.removeListener('studio-timeline-render-progress', wrapped)
-  },
 })
 
 function parseRemotionRuntimeStatus(value: unknown): RemotionBrowserStatus {
@@ -283,12 +308,30 @@ contextBridge.exposeInMainWorld('remotionRuntime', {
     ipcRenderer.on(REMOTION_RUNTIME_DOWNLOAD_PROGRESS_EVENT, wrapped)
     return () => ipcRenderer.removeListener(REMOTION_RUNTIME_DOWNLOAD_PROGRESS_EVENT, wrapped)
   },
+  workspaceRuntime: async (): Promise<RemotionWorkspaceRuntimeReply> => {
+    const result = validateRemotionWorkspaceRuntimeReply(
+      await ipcRenderer.invoke(REMOTION_WORKSPACE_RUNTIME_CHANNEL, {}),
+    )
+    if (!result.success) {
+      throw new Error(result.issues.map((issue) => `${issue.path}: ${issue.message}`).join('; '))
+    }
+    return result.value
+  },
 })
 
 contextBridge.exposeInMainWorld('remotionPreview', {
-  create: async (plan: TimelineRenderRequest['plan']): Promise<RemotionPreviewCreateReply> => {
+  create: async (plan: TimelineRenderPlan): Promise<RemotionPreviewCreateReply> => {
     const result = validateRemotionPreviewCreateReply(
       await ipcRenderer.invoke(REMOTION_PREVIEW_CREATE_CHANNEL, { plan }),
+    )
+    if (!result.success) {
+      throw new Error(result.issues.map((issue) => `${issue.path}: ${issue.message}`).join('; '))
+    }
+    return result.value
+  },
+  createShot: async (shotPlan: RemotionShotPlanV1): Promise<RemotionShotPreviewCreateReply> => {
+    const result = validateRemotionShotPreviewCreateReply(
+      await ipcRenderer.invoke(REMOTION_SHOT_PREVIEW_CREATE_CHANNEL, { shotPlan }),
     )
     if (!result.success) {
       throw new Error(result.issues.map((issue) => `${issue.path}: ${issue.message}`).join('; '))
@@ -303,6 +346,64 @@ contextBridge.exposeInMainWorld('remotionPreview', {
       throw new Error(result.issues.map((issue) => `${issue.path}: ${issue.message}`).join('; '))
     }
     return result.value
+  },
+})
+
+contextBridge.exposeInMainWorld('remotionShotRenderer', {
+  render: (request: RemotionShotRenderRequest): Promise<RemotionShotRenderResult> =>
+    ipcRenderer.invoke(REMOTION_SHOT_RENDER_CHANNEL, request),
+  cancel: (jobId: string): Promise<{ success: boolean; jobId: string; canceled: boolean; error?: string }> =>
+    ipcRenderer.invoke(REMOTION_SHOT_RENDER_CANCEL_CHANNEL, { jobId }),
+})
+
+contextBridge.exposeInMainWorld('remotionQueue', {
+  get: async (scope: { projectId: string; chapterId: string }): Promise<RemotionQueueScopeReply> => {
+    const result = decodeRemotionQueueScopeReply(await ipcRenderer.invoke(REMOTION_QUEUE_GET_CHANNEL, scope))
+    if (!result) throw new Error('Remotion queue scope 响应无效')
+    return result
+  },
+  enqueueShot: (request: RemotionQueueEnqueueShotRequest): Promise<RemotionQueueRetryReply> =>
+    ipcRenderer.invoke(REMOTION_QUEUE_ENQUEUE_SHOT_CHANNEL, request),
+  retry: (jobId: string): Promise<RemotionQueueRetryReply> =>
+    ipcRenderer.invoke(REMOTION_QUEUE_RETRY_CHANNEL, { jobId }),
+  cancel: (jobId: string): Promise<RemotionQueueCancelReply> =>
+    ipcRenderer.invoke(REMOTION_QUEUE_CANCEL_CHANNEL, { jobId }),
+  switchProject: (toProjectId: string): Promise<RemotionQueueSwitchReply> =>
+    ipcRenderer.invoke(REMOTION_QUEUE_SWITCH_CHANNEL, { toProjectId }),
+  canSwitchProject: (toProjectId: string): Promise<RemotionQueueSwitchReply> =>
+    ipcRenderer.invoke(REMOTION_QUEUE_CHECK_SWITCH_CHANNEL, { toProjectId }),
+  onJob(listener: (notification: RemotionQueueNotification) => void) {
+    const wrapped = (_event: IpcRendererEvent, payload: unknown) => {
+      const notification = decodeRemotionQueueNotification(payload)
+      if (notification) listener(notification)
+    }
+    ipcRenderer.on(REMOTION_QUEUE_JOB_EVENT, wrapped)
+    return () => ipcRenderer.removeListener(REMOTION_QUEUE_JOB_EVENT, wrapped)
+  },
+})
+
+contextBridge.exposeInMainWorld('remotionStudio', {
+  ensureSession: async (request: RemotionStudioEnsureSessionRequest): Promise<RemotionStudioEnsureSessionReply> => {
+    const result = validateRemotionStudioEnsureSessionReply(
+      await ipcRenderer.invoke(REMOTION_STUDIO_ENSURE_SESSION_CHANNEL, request),
+    )
+    if (!result.success) throw new Error(result.issues.map((issue) => `${issue.path}: ${issue.message}`).join('; '))
+    return result.value
+  },
+  closeSession: async (projectId: string): Promise<{ status: "closed"; projectId: string }> => {
+    const result = await ipcRenderer.invoke(REMOTION_STUDIO_CLOSE_SESSION_CHANNEL, { projectId }) as unknown
+    if (!result || typeof result !== "object" || (result as { status?: unknown }).status !== "closed" || (result as { projectId?: unknown }).projectId !== projectId) {
+      throw new Error("Remotion Studio close 响应无效")
+    }
+    return result as { status: "closed"; projectId: string }
+  },
+  onEditingUpdated(listener: (event: RemotionStudioEditingUpdatedEvent) => void) {
+    const wrapped = (_event: IpcRendererEvent, payload: unknown) => {
+      const result = validateRemotionStudioEditingUpdatedEvent(payload)
+      if (result.success) listener(result.value)
+    }
+    ipcRenderer.on(REMOTION_STUDIO_EDITING_UPDATED_EVENT, wrapped)
+    return () => ipcRenderer.removeListener(REMOTION_STUDIO_EDITING_UPDATED_EVENT, wrapped)
   },
 })
 

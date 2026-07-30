@@ -3,14 +3,18 @@
 // trusts a raw payload that crossed an IPC/bundle boundary. Pure and dependency
 // free beyond the prop types it checks.
 
-import type { CompositionProps } from "./composition-props";
+import type {
+  ChapterVideoCompositionProps,
+  CompositionProps,
+  StoryboardShotCompositionProps,
+} from "./composition-props";
 import {
   COMPOSITION_TRANSITION_EFFECTS,
   type CompositionTransitionEffect,
 } from "./timing";
 
 const VISUAL_KINDS = ["image", "video"] as const;
-const AUDIO_KINDS = ["voice", "bgm", "sfx"] as const;
+const AUDIO_KINDS = ["voice", "bgm", "sfx", "ambience"] as const;
 
 export type CompositionValidationResult<T> =
   | { success: true; value: T }
@@ -36,6 +40,84 @@ export function validateCompositionProps(
   validateRelationships(value, issues);
   if (issues.length > 0) return { success: false, issues };
   return { success: true, value: value as unknown as CompositionProps };
+}
+
+export function validateStoryboardShotCompositionProps(
+  value: unknown,
+): CompositionValidationResult<StoryboardShotCompositionProps> {
+  const base = validateCompositionProps(value);
+  const issues = base.success ? [] : [...base.issues];
+  if (!isRecord(value)) return { success: false, issues };
+  requireExactValue(value.target, "shot", "target", issues);
+  validateTargetIdentity(value, issues);
+  requireNonEmptyString(value.shotId, "shotId", issues);
+  requirePositiveInteger(value.shotRevision, "shotRevision", issues);
+  if (Array.isArray(value.visualClips) && value.visualClips.length !== 1) {
+    issues.push({ path: "visualClips", message: "StoryboardShot 必须且只能包含一个视觉片段" });
+  }
+  validateAudioScope(value.audioClips, "shot", issues);
+  return issues.length > 0
+    ? { success: false, issues }
+    : { success: true, value: value as unknown as StoryboardShotCompositionProps };
+}
+
+export function validateChapterVideoCompositionProps(
+  value: unknown,
+): CompositionValidationResult<ChapterVideoCompositionProps> {
+  const base = validateCompositionProps(value);
+  const issues = base.success ? [] : [...base.issues];
+  if (!isRecord(value)) return { success: false, issues };
+  requireExactValue(value.target, "chapter", "target", issues);
+  validateTargetIdentity(value, issues);
+  requireNonEmptyString(value.editingProjectId, "editingProjectId", issues);
+  requirePositiveInteger(value.editingRevision, "editingRevision", issues);
+  if (Array.isArray(value.visualClips) && value.visualClips.length === 0) {
+    issues.push({ path: "visualClips", message: "ChapterVideo 至少需要一个 current shot MP4" });
+  }
+  if (Array.isArray(value.visualClips)) {
+    value.visualClips.forEach((clip, index) => {
+      if (isRecord(clip) && clip.kind !== "video") {
+        issues.push({
+          path: `visualClips[${index}].kind`,
+          message: "ChapterVideo 视觉输入必须是 current shot MP4",
+        });
+      }
+    });
+  }
+  validateAudioScope(value.audioClips, "chapter", issues);
+  return issues.length > 0
+    ? { success: false, issues }
+    : { success: true, value: value as unknown as ChapterVideoCompositionProps };
+}
+
+function validateTargetIdentity(value: Record<string, unknown>, issues: Issue[]): void {
+  requireNonEmptyString(value.projectId, "projectId", issues);
+  requireNonEmptyString(value.chapterId, "chapterId", issues);
+}
+
+function validateAudioScope(
+  value: unknown,
+  expected: "shot" | "chapter",
+  issues: Issue[],
+): void {
+  if (!Array.isArray(value)) return;
+  value.forEach((clip, index) => {
+    if (isRecord(clip) && clip.renderScope !== expected) {
+      issues.push({
+        path: `audioClips[${index}].renderScope`,
+        message: `renderScope 必须为 ${expected}`,
+      });
+    }
+  });
+}
+
+function requireExactValue(
+  value: unknown,
+  expected: string,
+  path: string,
+  issues: Issue[],
+): void {
+  if (value !== expected) issues.push({ path, message: `${path} 必须为 ${expected}` });
 }
 
 function validateVisualClip(clip: unknown, path: string, issues: Issue[]): void {

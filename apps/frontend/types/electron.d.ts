@@ -15,13 +15,7 @@ import type {
   DiagnosticsLogQuery,
   DiagnosticsLogQueryResult,
 } from "./diagnostics";
-import type { EpisodeMergePlan, TrackRenderPlan } from "./studio";
-import type {
-  TimelineRenderCancelResult,
-  TimelineRenderProgress,
-  TimelineRenderRequest,
-  TimelineRenderResult,
-} from "./editing";
+import type { TimelineRenderPlan } from "./editing";
 import type { StudioAssetListRequest, StudioAssetListResponse, StudioAssetSummary } from "./studio-assets";
 import type {
   StudioVisualManualCreatePayload,
@@ -32,10 +26,28 @@ import type {
 } from "./studio-visual-manual";
 import type { TtsRuntimeCommandResult, TtsRuntimeConfig, TtsRuntimeStatus } from "./tts";
 import type { RemotionBrowserDownloadProgress, RemotionBrowserStatus } from "@rendering/contracts/remotion-browser-status";
+import type { RemotionWorkspaceRuntimeReply } from "@rendering/contracts/remotion-workspace-runtime";
 import type {
   RemotionPreviewCreateReply,
   RemotionPreviewReleaseReply,
+  RemotionShotPreviewCreateReply,
 } from "@rendering/plugins/remotion/preview/remotion-preview-ipc";
+import type { RemotionShotPlanV1 } from "@/lib/studio/remotion/shot-plan";
+import type { RemotionShotRenderRequest } from "@rendering/plugins/remotion/renderer/remotion-shot-ipc";
+import type { RemotionShotRenderResult } from "@rendering/plugins/remotion/renderer/remotion-shot-renderer";
+import type { RemotionStudioEditingUpdatedEvent } from "@/electron/ipc/studio/remotion-studio-ipc";
+import type {
+  RemotionQueueCancelReply,
+  RemotionQueueEnqueueShotRequest,
+  RemotionQueueRetryReply,
+  RemotionQueueScopeReply,
+  RemotionQueueSwitchReply,
+} from "@rendering/plugins/remotion/queue/remotion-queue-ipc";
+import type { RemotionQueueNotification } from "@rendering/plugins/remotion/queue/remotion-render-queue";
+import type {
+  RemotionStudioEnsureSessionReply,
+  RemotionStudioEnsureSessionRequest,
+} from "@/electron/ipc/studio/remotion-studio-ipc";
 import type {
   SelfMediaAccountListReply,
   SelfMediaConfigureProviderReply,
@@ -276,18 +288,6 @@ declare global {
       }>;
     };
     studioRenderer?: {
-      renderTrackCandidate: (plan: TrackRenderPlan) => Promise<{
-        success: boolean;
-        filePath?: string;
-        previewUrl?: string;
-        error?: string;
-      }>;
-      mergeEpisode: (plan: EpisodeMergePlan) => Promise<{
-        success: boolean;
-        filePath?: string;
-        previewUrl?: string;
-        error?: string;
-      }>;
       probeMedia: (filePath: string) => Promise<{
         path: string;
         sizeBytes: number;
@@ -296,11 +296,6 @@ declare global {
         duration: number;
         streams: string[];
       }>;
-      renderTimeline: (request: TimelineRenderRequest) => Promise<TimelineRenderResult>;
-      cancelTimelineRender: (jobId: string) => Promise<TimelineRenderCancelResult>;
-      onTimelineRenderProgress: (
-        listener: (progress: TimelineRenderProgress) => void,
-      ) => () => void;
     };
     remotionRuntime?: {
       status: () => Promise<RemotionBrowserStatus>;
@@ -308,10 +303,30 @@ declare global {
       onDownloadProgress: (
         listener: (progress: RemotionBrowserDownloadProgress) => void,
       ) => () => void;
+      workspaceRuntime?: () => Promise<RemotionWorkspaceRuntimeReply>;
     };
     remotionPreview?: {
-      create: (plan: TimelineRenderRequest["plan"]) => Promise<RemotionPreviewCreateReply>;
+      create: (plan: TimelineRenderPlan) => Promise<RemotionPreviewCreateReply>;
+      createShot?: (shotPlan: RemotionShotPlanV1) => Promise<RemotionShotPreviewCreateReply>;
       release: (sessionId: string) => Promise<RemotionPreviewReleaseReply>;
+    };
+    remotionShotRenderer?: {
+      render: (request: RemotionShotRenderRequest) => Promise<RemotionShotRenderResult>;
+      cancel: (jobId: string) => Promise<{ success: boolean; jobId: string; canceled: boolean; error?: string }>;
+    };
+    remotionQueue?: {
+      get: (scope: { projectId: string; chapterId: string }) => Promise<RemotionQueueScopeReply>;
+      enqueueShot: (request: RemotionQueueEnqueueShotRequest) => Promise<RemotionQueueRetryReply>;
+      retry: (jobId: string) => Promise<RemotionQueueRetryReply>;
+      cancel: (jobId: string) => Promise<RemotionQueueCancelReply>;
+      switchProject: (toProjectId: string) => Promise<RemotionQueueSwitchReply>;
+      canSwitchProject?: (toProjectId: string) => Promise<RemotionQueueSwitchReply>;
+      onJob: (listener: (notification: RemotionQueueNotification) => void) => () => void;
+    };
+    remotionStudio?: {
+      ensureSession: (request: RemotionStudioEnsureSessionRequest) => Promise<RemotionStudioEnsureSessionReply>;
+      closeSession: (projectId: string) => Promise<{ status: "closed"; projectId: string }>;
+      onEditingUpdated: (listener: (event: RemotionStudioEditingUpdatedEvent) => void) => () => void;
     };
     studioAssets?: {
       saveMaterial: (payload: { name: string; bytes: ArrayBuffer }) => Promise<{

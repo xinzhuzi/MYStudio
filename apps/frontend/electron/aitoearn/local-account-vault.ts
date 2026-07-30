@@ -3,14 +3,35 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import type { SelfMediaPlatform } from "../../types/self-media";
 
-export interface LocalAccountCredential {
+export interface LocalSessionAccountCredential {
+  kind?: "session";
   cookies: unknown;
   localStorage?: string;
+}
+
+export interface LocalOAuthAccountCredential {
+  kind: "oauth";
+  accessToken: string;
+  refreshToken?: string;
+  expiresAt?: string;
+  tokenType?: string;
+  scope?: string;
+}
+
+export type LocalAccountCredential = LocalSessionAccountCredential | LocalOAuthAccountCredential;
+
+export function isLocalSessionAccountCredential(value: LocalAccountCredential): value is LocalSessionAccountCredential {
+  return value.kind !== "oauth" && "cookies" in value;
+}
+
+export function isLocalOAuthAccountCredential(value: LocalAccountCredential): value is LocalOAuthAccountCredential {
+  return value.kind === "oauth" && typeof value.accessToken === "string" && value.accessToken.length > 0;
 }
 
 export interface LocalAccountRecord {
   id: string;
   platform: SelfMediaPlatform;
+  providerAccountId?: string;
   displayName: string;
   avatarUrl?: string;
   credential: LocalAccountCredential;
@@ -22,6 +43,7 @@ export interface LocalAccountSummary extends Omit<LocalAccountRecord, "credentia
 interface PersistedLocalAccount {
   id: string;
   platform: LocalAccountRecord["platform"];
+  providerAccountId?: string;
   displayName: string;
   avatarUrl?: string;
   encryptedCredential: string;
@@ -61,6 +83,7 @@ export function createLocalAccountVault(userDataPath: string) {
     return value.accounts.map((account) => ({
       id: account.id,
       platform: account.platform,
+      providerAccountId: account.providerAccountId,
       displayName: account.displayName,
       avatarUrl: account.avatarUrl,
       updatedAt: account.updatedAt,
@@ -86,6 +109,7 @@ export function createLocalAccountVault(userDataPath: string) {
     const persisted: PersistedLocalAccount = {
       id: record.id,
       platform: record.platform,
+      providerAccountId: record.providerAccountId,
       displayName: record.displayName,
       avatarUrl: record.avatarUrl,
       encryptedCredential,

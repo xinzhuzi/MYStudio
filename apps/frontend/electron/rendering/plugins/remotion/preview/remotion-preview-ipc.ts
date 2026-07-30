@@ -1,10 +1,18 @@
 import { validateTimelineRenderPlan } from "@/lib/studio/editing/validation";
+import {
+  validateRemotionShotPlan,
+  type RemotionShotPlanV1,
+} from "@/lib/studio/remotion/shot-plan";
 import type { TimelineRenderPlan } from "@/types/editing";
-import type { CompositionProps } from "../composition/composition-props";
-import { validateCompositionProps } from "../composition/composition-props-validation";
+import type { CompositionProps, StoryboardShotCompositionProps } from "../composition/composition-props";
+import {
+  validateCompositionProps,
+  validateStoryboardShotCompositionProps,
+} from "../composition/composition-props-validation";
 
 export const REMOTION_PREVIEW_CREATE_CHANNEL = "remotion-preview-create";
 export const REMOTION_PREVIEW_RELEASE_CHANNEL = "remotion-preview-release";
+export const REMOTION_SHOT_PREVIEW_CREATE_CHANNEL = "remotion-shot-preview-create";
 
 export interface RemotionPreviewCreateRequest {
   plan: TimelineRenderPlan;
@@ -22,6 +30,15 @@ export interface RemotionPreviewReleaseRequest {
 export interface RemotionPreviewReleaseReply {
   sessionId: string;
   released: true;
+}
+
+export interface RemotionShotPreviewCreateRequest {
+  shotPlan: RemotionShotPlanV1;
+}
+
+export interface RemotionShotPreviewCreateReply {
+  sessionId: string;
+  composition: StoryboardShotCompositionProps;
 }
 
 export type RemotionPreviewValidationResult<T> =
@@ -93,6 +110,42 @@ export function validateRemotionPreviewReleaseReply(
     success: true,
     value: { sessionId: value.sessionId, released: true },
   };
+}
+
+export async function validateRemotionShotPreviewCreateRequest(
+  value: unknown,
+): Promise<RemotionPreviewValidationResult<RemotionShotPreviewCreateRequest>> {
+  if (!isRecordWithOnlyKeys(value, ["shotPlan"])) {
+    return failure("$", "Remotion shot 预览创建请求只允许 shotPlan 字段");
+  }
+  const plan = await validateRemotionShotPlan(value.shotPlan);
+  if (!plan.success) {
+    return {
+      success: false,
+      issues: plan.issues.map((issue) => ({
+        path: `shotPlan${issue.path.startsWith("$") ? issue.path.slice(1) : `.${issue.path}`}`,
+        message: issue.message,
+      })),
+    };
+  }
+  return { success: true, value: { shotPlan: plan.value } };
+}
+
+export function validateRemotionShotPreviewCreateReply(
+  value: unknown,
+): RemotionPreviewValidationResult<RemotionShotPreviewCreateReply> {
+  if (!isRecordWithOnlyKeys(value, ["sessionId", "composition"])) {
+    return failure("$", "Remotion shot 预览创建结果字段无效");
+  }
+  if (!isNonEmptyString(value.sessionId)) return failure("sessionId", "Remotion shot 预览 session ID 必须是非空字符串");
+  const composition = validateStoryboardShotCompositionProps(value.composition);
+  if (!composition.success) {
+    return {
+      success: false,
+      issues: composition.issues.map((issue) => ({ path: `composition.${issue.path}`, message: issue.message })),
+    };
+  }
+  return { success: true, value: { sessionId: value.sessionId, composition: composition.value } };
 }
 
 function isRecordWithOnlyKeys(

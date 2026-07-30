@@ -9,7 +9,7 @@
  * Based on AionUi's ModelModalContent pattern
  */
 
-import { useState, lazy, Suspense } from "react";
+import { useEffect, useState, lazy, Suspense } from "react";
 
 const LocalTtsPanelLazy = lazy(() => import("@/components/panels/tts/LocalTtsPanel").then((m) => ({ default: m.LocalTtsPanel })));
 import { useAPIConfigStore } from "@/stores/ai/api-config-store";
@@ -48,12 +48,16 @@ interface SettingsPanelProps {
   sidebarCollapsed?: boolean;
   onToggleSidebar?: () => void;
   showHomeChrome?: boolean;
+  initialTab?: SettingsTabId;
+  onInitialTabConsumed?: () => void;
 }
 
 export function SettingsPanel({
   sidebarCollapsed = false,
   onToggleSidebar,
   showHomeChrome = false,
+  initialTab,
+  onInitialTabConsumed,
 }: SettingsPanelProps) {
   const {
     advancedOptions,
@@ -66,7 +70,13 @@ export function SettingsPanel({
     setImageGenerationSettings,
   } = useAppSettingsStore();
 
-  const [activeTab, setActiveTab] = useState<SettingsTabId>(DEFAULT_SETTINGS_TAB);
+  const [activeTab, setActiveTab] = useState<SettingsTabId>(initialTab ?? DEFAULT_SETTINGS_TAB);
+
+  useEffect(() => {
+    if (!initialTab) return;
+    setActiveTab(initialTab);
+    onInitialTabConsumed?.();
+  }, [initialTab, onInitialTabConsumed]);
   return (
     <div className="settings-workspace flex flex-col h-full bg-background overflow-hidden">
       <ApiSettingsMigration />

@@ -3,12 +3,14 @@ import { createTimelineRenderRequest } from "../contracts/timeline-renderer";
 import { routeTimelineRenderer } from "./renderer-router";
 
 describe("routeTimelineRenderer", () => {
-  it("keeps an explicit FFmpeg request on FFmpeg", () => {
+  it("rejects an explicit legacy FFmpeg request", () => {
     expect(routeTimelineRenderer(createTimelineRenderRequest("ffmpeg", {
       effects: [{ effectId: "blur", enabled: true }],
     }))).toEqual({
-      success: true,
-      decision: { requested: "ffmpeg", actual: "ffmpeg" },
+      success: false,
+      code: "legacy-ffmpeg-renderer",
+      effectIds: [],
+      message: "正式时间线仅支持 Remotion 渲染；FFmpeg 渲染器已停用",
     });
   });
 
@@ -25,7 +27,7 @@ describe("routeTimelineRenderer", () => {
     });
   });
 
-  it("routes enabled unsupported effects to FFmpeg in stable deduplicated order", () => {
+  it("rejects enabled unsupported effects without a FFmpeg fallback", () => {
     expect(routeTimelineRenderer(createTimelineRenderRequest("remotion", {
       effects: [
         { effectId: "grain", enabled: true },
@@ -33,16 +35,10 @@ describe("routeTimelineRenderer", () => {
         { effectId: "grain", enabled: true },
       ],
     }))).toEqual({
-      success: true,
-      decision: {
-        requested: "remotion",
-        actual: "ffmpeg",
-        fallback: {
-          code: "unsupported-effects",
-          effectIds: ["blur", "grain"],
-          message: "Remotion 暂不支持效果：blur、grain",
-        },
-      },
+      success: false,
+      code: "unsupported-remotion-effects",
+      effectIds: ["blur", "grain"],
+      message: "Remotion 暂不支持效果：blur、grain；正式流程不会回退 FFmpeg",
     });
   });
 

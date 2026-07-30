@@ -209,6 +209,10 @@ function validateSourceEvidence(
   optionalString(value.mediaId, issues, `${path}.mediaId`);
   optionalString(value.sourceRunId, issues, `${path}.sourceRunId`);
   optionalString(value.sourceFingerprint, issues, `${path}.sourceFingerprint`);
+  optionalString(value.remotionJobId, issues, `${path}.remotionJobId`);
+  optionalString(value.remotionEvidenceSha256, issues, `${path}.remotionEvidenceSha256`);
+  optionalString(value.remotionInputHash, issues, `${path}.remotionInputHash`);
+  optionalString(value.remotionBundleContentHash, issues, `${path}.remotionBundleContentHash`);
   if (value.outputVersion !== undefined) {
     positiveInteger(value.outputVersion, issues, `${path}.outputVersion`, "editing.source.output_version");
   }
@@ -429,6 +433,13 @@ const FORBIDDEN_RENDER_KEYS = new Set([
   "shell",
   "filterGraph",
   "filter_complex",
+  "token",
+  "sessionId",
+  "assetId",
+  "url",
+  "src",
+  "mediaUrlByClipId",
+  "composition",
 ]);
 
 export function validateAutoEditingRun(

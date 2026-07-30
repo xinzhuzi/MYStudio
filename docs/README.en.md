@@ -23,17 +23,16 @@ From novel to final cut — scripts, storyboards, assets, voice-over, and editin
 
 ## Overview
 
-MYStudio is a desktop production tool for AI-driven animated series, short dramas, and novel-to-film adaptation. It brings long-text adaptation, screenplay editing, character and scene assets, storyboard production, video candidate generation, local editing/compositing, and project configuration together into a single, traceable workflow.
+MYStudio is a desktop production tool for AI-driven animated series, short dramas, and novel-to-film adaptation. It brings long-text adaptation, screenplay editing, character and scene assets, storyboard production, Remotion shot rendering, native chapter editing, and project configuration together into a single, traceable workflow.
 
-The project emphasizes a local-first approach with creator control: assets, project data, and generation records are stored on the user's machine first; AI output enters the project as drafts, candidates, and editable data rather than overwriting final content directly; timeline rendering uses an engine-neutral host with Remotion and FFmpeg kept as separate renderers, making it easy to produce previewable, reviewable, and re-editable cuts on the desktop.
+The project emphasizes a local-first approach with creator control: assets, project data, and generation records are stored on the user's machine first; AI output enters the project as drafts and editable data rather than overwriting final content directly; Remotion renders each storyboard shot, hosts the native chapter Studio, and publishes the final chapter MP4 with traceable evidence.
 
 ### Core Positioning
 
 - A unified workbench for novel adaptation, AI animated drama, short-drama storyboarding, and local final cuts.
 - A structured workflow that carries the full production process from text to video.
-- Project-level storage for source text, scripts, storyboards, assets, candidate videos, and configuration.
-- Local FFmpeg support for track candidates, compatible stitching, and Remotion audio post-processing.
-- A Remotion 4.0.499 renderer with Electron Chromium preview, explicit Headless Shell preparation for MP4 export, fixed bundles, and same-major upgrade governance; the global selector still keeps FFmpeg available, and new installs remain on FFmpeg until both real Daojie chains pass.
+- Project-level storage for source text, scripts, storyboards, shot/chapter jobs, current MP4 evidence, and configuration.
+- A Remotion 4.0.499 runtime with Electron Chromium preview, explicit Headless Shell preparation for MP4 export, fixed bundles, and same-major upgrade governance.
 - A configuration center for managing models, provider capabilities, and per-task model bindings.
 
 ### Production Pipeline
@@ -41,10 +40,10 @@ The project emphasizes a local-first approach with creator control: assets, proj
 The core pipeline is:
 
 ```text
-Novel Import -> Script Planning -> Asset Extraction -> Production Generation -> Storyboard Table -> Editing Workbench
+Novel Import -> Script Planning -> Asset Extraction -> Production Generation -> Storyboard Table -> Remotion Shot Jobs -> Native Remotion Studio -> ChapterVideo MP4
 ```
 
-The pipeline supports phased progress: you can stop at scripts and storyboards, or continue to bind assets, generate candidate clips, and produce a full video through the renderer host. Each stage keeps a manual revision entry point, so creators retain control when AI output quality is unstable.
+The pipeline supports phased progress: you can stop at scripts and storyboards, or continue to bind assets, render independent shot MP4s, and produce one chapter video through native Remotion Studio. Each stage keeps a manual revision entry point, so creators retain control when AI output quality is unstable.
 
 ### Architecture
 
@@ -53,7 +52,7 @@ The pipeline supports phased progress: you can stop at scripts and storyboards, 
 - State management: Zustand manages project workflow, assets, storyboards, candidates, and configuration state.
 - File-based storage: aimed at personal creative projects, reducing database deployment and backend maintenance cost.
 - Asset library storage: production assets use a separate SQLite-backed library under `<storageBasePath>/assets`, while project JSON data stays under `<storageBasePath>/projects`.
-- Rendering: the Electron host routes the validated timeline plan to FFmpeg or Remotion; the existing FFmpeg path remains independent, while Remotion uses a fixed composition and an isolated utility worker. Remotion raw output receives host-owned FFmpeg loudness/AAC post-processing.
+- Rendering: the Electron host validates a Remotion timeline plan, serves capability URLs through the loopback media bridge, and invokes `renderMedia` in an isolated utility worker. The host performs only read-only probe/SHA evidence checks; no concat, loudnorm, or renderer fallback is used.
 
 ### Design Goals
 
@@ -87,7 +86,8 @@ After opening a project, open `Workflow` on the left:
 3. `Script Asset Management`: extract characters, scenes, and props from scripts and match them with the asset library.
 4. `Production Generation`: run director planning and fill missing character, scene, and prop images.
 5. `Storyboard Table`: generate storyboard rows and maintain duration, dialogue, and visual assets.
-6. `Editing Workbench`: render candidate clips with the independent local FFmpeg path, then send the validated timeline to the selected Remotion or FFmpeg renderer for a final cut.
+6. `Storyboard / Shot Jobs`: review each shot's AI material and render one Remotion `StoryboardShot` MP4 per shot.
+7. `Video Workbench`: open the native Remotion Studio for the current chapter and render one Remotion `ChapterVideo` MP4.
 
 ## Current Documentation Map
 
@@ -104,6 +104,7 @@ Most detailed guides are currently maintained in Chinese. Use these entry points
 | [Project Overview](workflow/OVERVIEW_PANEL_GUIDE.md) | Story core, worldbuilding, production settings, and episode list |
 | [Project Overview Operations](workflow/OVERVIEW_PANEL_OPERATIONS.md) | Chinese guide for workflow cards, inline editing, episode catalog, and right-side metadata summaries |
 | [Workflow Guide](workflow/WORKFLOW_GUIDE.md) | Novel import, script planning, asset generation, storyboard, and editing workflow |
+| [Full Storyboard-to-Video Pipeline](workflow/WORKFLOW_FULL_VIDEO_PIPELINE.md) | Chinese end-to-end explanation of stage/node responsibilities, TimelineRenderPlan, Remotion/FFmpeg routing, and final evidence |
 | [Workflow Stage Operations](workflow/WORKFLOW_STAGE_OPERATIONS.md) | Detailed Chinese reference for workflow stage buttons, status, dialogs, and data flow |
 | [Novel Import and Script Planning Operations](workflow/WORKFLOW_NOVEL_SCRIPT_OPERATIONS.md) | Chinese reference for manual selection, chapter import, event analysis, staged script generation, review, and repair |
 | [Script Asset and Generation Operations](workflow/WORKFLOW_ASSET_GENERATION_OPERATIONS.md) | Chinese reference for script asset extraction, asset matching, prompt polishing, missing asset generation, and role voice entry points |

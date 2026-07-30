@@ -7,6 +7,52 @@ type RegisterFileStorageIpcHandlersContext = {
   getDataDir: () => string;
 };
 
+const mutationTails = new Map<string, Promise<void>>();
+
+/**
+ * Serializes all main-process mutations for one storage file. The renderer's
+ * Zustand persistence and the Studio writeback both use this boundary, so a
+ * read/validate/rename writeback cannot be interleaved with a renderer save.
+ */
+export async function withFileStorageMutationLock<T>(
+  filePath: string,
+  action: () => Promise<T> | T,
+): Promise<T> {
+  return withOneFileStorageMutationLock(filePath, action);
+}
+
+/** Serializes a mutation that touches multiple storage files in stable order. */
+export async function withFileStorageMutationLocks<T>(
+  filePaths: readonly string[],
+  action: () => Promise<T> | T,
+): Promise<T> {
+  const uniquePaths = [...new Set(filePaths)].sort();
+  const run = (index: number): Promise<T> => {
+    if (index >= uniquePaths.length) return Promise.resolve().then(action);
+    return withOneFileStorageMutationLock(uniquePaths[index]!, () => run(index + 1));
+  };
+  return run(0);
+}
+
+async function withOneFileStorageMutationLock<T>(
+  filePath: string,
+  action: () => Promise<T> | T,
+): Promise<T> {
+  const previous = mutationTails.get(filePath) ?? Promise.resolve();
+  let release!: () => void;
+  const current = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  mutationTails.set(filePath, current);
+  await previous;
+  try {
+    return await action();
+  } finally {
+    release();
+    if (mutationTails.get(filePath) === current) mutationTails.delete(filePath);
+  }
+}
+
 export function registerFileStorageIpcHandlers({ getDataDir }: RegisterFileStorageIpcHandlersContext) {
   ipcMain.handle("file-storage-get", async (_event, key: string) => {
     try {
@@ -20,8 +66,10 @@ export function registerFileStorageIpcHandlers({ getDataDir }: RegisterFileStora
   ipcMain.handle("file-storage-set", async (_event, key: string, value: string) => {
     try {
       const filePath = resolveDataFilePath(getDataDir(), key);
-      fs.mkdirSync(path.dirname(filePath), { recursive: true });
-      fs.writeFileSync(filePath, value, "utf-8");
+      await withFileStorageMutationLock(filePath, () => {
+        fs.mkdirSync(path.dirname(filePath), { recursive: true });
+        fs.writeFileSync(filePath, value, "utf-8");
+      });
       console.log(`Saved to file: ${filePath} (${Math.round(value.length / 1024)}KB)`);
       return true;
     } catch (error) {
@@ -32,7 +80,9 @@ export function registerFileStorageIpcHandlers({ getDataDir }: RegisterFileStora
   ipcMain.handle("file-storage-remove", async (_event, key: string) => {
     try {
       const filePath = resolveDataFilePath(getDataDir(), key);
-      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+      await withFileStorageMutationLock(filePath, () => {
+        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+      });
       return true;
     } catch (error) {
       console.error("Failed to remove file storage:", error);
@@ -43,10 +93,12 @@ export function registerFileStorageIpcHandlers({ getDataDir }: RegisterFileStora
     try {
       const fromPath = resolveDataFilePath(getDataDir(), fromKey);
       const toPath = resolveDataFilePath(getDataDir(), toKey);
-      if (!fs.existsSync(fromPath) || fs.existsSync(toPath)) return false;
-      fs.mkdirSync(path.dirname(toPath), { recursive: true });
-      fs.renameSync(fromPath, toPath);
-      return true;
+      return await withFileStorageMutationLocks([fromPath, toPath], () => {
+        if (!fs.existsSync(fromPath) || fs.existsSync(toPath)) return false;
+        fs.mkdirSync(path.dirname(toPath), { recursive: true });
+        fs.renameSync(fromPath, toPath);
+        return true;
+      });
     } catch (error) {
       console.error("Failed to rename file storage:", error);
       return false;

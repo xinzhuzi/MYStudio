@@ -57,6 +57,10 @@ export interface EditingSourceEvidence {
   sourceRunId?: string;
   sourceFingerprint?: string;
   outputVersion?: number;
+  remotionJobId?: string;
+  remotionEvidenceSha256?: string;
+  remotionInputHash?: string;
+  remotionBundleContentHash?: string;
 }
 
 export interface EditingClipSource {

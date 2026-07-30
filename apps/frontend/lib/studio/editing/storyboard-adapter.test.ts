@@ -15,8 +15,86 @@ import {
   indexSelectedCandidates,
   indexTracksByStoryboard,
 } from "./storyboard-indexes";
+import { makeCurrentSlot } from "@/lib/studio/remotion/remotion-workspace-test-fixtures";
 
 describe("storyboard editing adapter", () => {
+  it("uses only current Remotion shot slots when the Remotion boundary is supplied", () => {
+    const shot = storyboard(1, {
+      id: "shot-001",
+      episodeId: "chapter-001",
+      mediaRef: { kind: "image", path: "/old-image.png" },
+      audioRef: { kind: "audio", path: "/voice.wav" },
+      outputVersion: 1,
+    });
+    const result = buildStoryboardEditingProject({
+      ...baseInput([shot]),
+      projectId: "project-a",
+      episodeId: "chapter-001",
+      remotionShotSlots: [makeCurrentSlot()],
+      productionTracks: [track([shot])],
+      videoCandidates: [candidate("candidate-1")],
+    });
+
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    const visual = result.project.clips.find((clip) => clip.trackId === "editing-1-main-visual");
+    expect(visual?.source).toMatchObject({
+      kind: "storyboardVideo",
+      path: "outputs/shots/chapter-001/shot-001/current.mp4",
+      evidence: {
+        remotionJobId: "shot:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        remotionEvidenceSha256: "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      },
+    });
+    expect(visual?.source.kind).not.toBe("videoCandidate");
+  });
+
+  it("blocks a missing Remotion shot slot without falling back to candidates or source images", () => {
+    const shot = storyboard(1, {
+      id: "shot-001",
+      episodeId: "chapter-001",
+      audioRef: { kind: "audio", path: "/voice.wav" },
+    });
+    const result = buildStoryboardEditingProject({
+      ...baseInput([shot]),
+      projectId: "project-a",
+      episodeId: "chapter-001",
+      remotionShotSlots: [],
+      productionTracks: [track([shot], "candidate-1")],
+      videoCandidates: [candidate("candidate-1")],
+    });
+
+    expect(result).toEqual(expect.objectContaining({
+      success: false,
+      missingVisualStoryboardIds: ["shot-001"],
+    }));
+  });
+
+  it("does not revive an invalidated storyboard through a matching Remotion current slot", () => {
+    const shot = storyboard(1, {
+      id: "shot-001",
+      episodeId: "chapter-001",
+      stale: true,
+      staleReason: "上游分镜图已替换",
+      mediaRef: { kind: "image", path: "/invalidated-image.png" },
+      audioRef: { kind: "audio", path: "/voice.wav" },
+      outputVersion: 1,
+    });
+    const result = buildStoryboardEditingProject({
+      ...baseInput([shot]),
+      projectId: "project-a",
+      episodeId: "chapter-001",
+      remotionShotSlots: [makeCurrentSlot()],
+      productionTracks: [track([shot], "candidate-1")],
+      videoCandidates: [candidate("candidate-1")],
+    });
+
+    expect(result).toEqual(expect.objectContaining({
+      success: false,
+      missingVisualStoryboardIds: ["shot-001"],
+    }));
+  });
+
   it("uses the selected ready candidate first and segments grouped tracks", () => {
     const storyboards = [
       storyboard(1, {

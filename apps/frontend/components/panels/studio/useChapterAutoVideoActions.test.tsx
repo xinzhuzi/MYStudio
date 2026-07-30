@@ -3,19 +3,8 @@ import { act, cleanup, renderHook } from "@testing-library/react";
 import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { runChapterAutoVideo } from "@/lib/studio/chapter-auto-video";
-import { useEditingStore } from "@/stores/editing/editing-store";
 import { useProjectStore } from "@/stores/project/project-store";
 import { useStudioStore } from "@/stores/studio/studio-store";
-import type {
-  TimelineRenderEvidence,
-  TimelineRenderPlan,
-  TimelineRenderRequest,
-} from "@/types/editing";
-import type {
-  ProductionTrack,
-  StoryboardItem,
-  VideoCandidate,
-} from "@/types/studio";
 import { useChapterAutoVideoActions } from "./useChapterAutoVideoActions";
 
 vi.mock("sonner", () => ({
@@ -59,19 +48,7 @@ beforeEach(() => {
       aspectRatio: "9:16",
       stylePositioning: "水墨动画",
     },
-    storyboards: [storyboard(1), storyboard(2)],
-    productionTracks: [track(1), track(2, "candidate-2")],
-    videoCandidates: [candidate()],
-  });
-  useEditingStore.setState({
-    activeProjectId: null,
-    editingProjects: {},
-    currentEditingProjectIdByEpisode: {},
-    autoEditingRuns: {},
-    autoEditingRunIdsByEpisode: {},
-    timelineRenderRecordsByEditingProjectId: {},
-    historyByEditingProjectId: {},
-    persistenceWarnings: [],
+    storyboards: [],
   });
 });
 
@@ -185,10 +162,6 @@ describe("useChapterAutoVideoActions", () => {
         finalPath: "/tmp/chapter-001-final.mp4",
       });
       return {
-        finalPath: "/tmp/chapter-001-final.mp4",
-        evidence: timelineEvidenceFromIds("render-1"),
-        editingProjectId: "editing-1",
-        editingRevision: 1,
         storyboards: 2,
       };
     });
@@ -215,83 +188,6 @@ describe("useChapterAutoVideoActions", () => {
     resolveRun();
     await act(async () => {
       await firstRun;
-    });
-    expect(result.current.chapterAutoVideoStatus).toMatchObject({
-      stage: "completed",
-      finalPath: "/tmp/chapter-001-final.mp4",
-    });
-  });
-
-  it("persists the rendered current EditingProject evidence from the auto-video action", async () => {
-    const renderTimeline = vi.fn(async (request: TimelineRenderRequest) => ({
-      success: true as const,
-      evidence: timelineEvidence(request.plan),
-    }));
-    (window as { studioRenderer?: { renderTimeline: typeof renderTimeline } }).studioRenderer = {
-      renderTimeline,
-    };
-    const autoVideo = vi.mocked(runChapterAutoVideo);
-    autoVideo.mockImplementationOnce(async ({ dependencies, onStatus }) => {
-      const state = useStudioStore.getState();
-      const project = await dependencies.createEditingProject(
-        state.storyboards,
-        state.videoCandidates,
-      );
-      const evidence = await dependencies.renderEditingProject(project);
-      dependencies.writeFinalEvidence(project, evidence);
-      onStatus?.({
-        stage: "completed",
-        detail: "第一章自动成片完成",
-        finalPath: evidence.path,
-      });
-      return {
-        finalPath: evidence.path,
-        evidence,
-        editingProjectId: project.id,
-        editingRevision: project.revision,
-        storyboards: state.storyboards.length,
-      };
-    });
-
-    const { result } = renderHook(() =>
-      useChapterAutoVideoActions({
-        activeProjectId: "project-1",
-        productionEpisodeId: "chapter-001",
-        handleProductionNodeAction: vi.fn(),
-      }),
-    );
-
-    await act(async () => {
-      await result.current.handleRunChapterAutoVideo();
-    });
-
-    expect(autoVideo).toHaveBeenCalledOnce();
-    expect(toast.error).not.toHaveBeenCalled();
-    expect(renderTimeline).toHaveBeenCalledWith(expect.objectContaining({
-      schemaVersion: 1,
-      requestedRenderer: "ffmpeg",
-      plan: expect.objectContaining({
-        projectId: "project-1",
-        episodeId: "chapter-001",
-        editingProjectId: expect.stringMatching(/^editing-chapter-001-/),
-        editingRevision: 1,
-      }),
-    }));
-    const plan = renderTimeline.mock.calls[0]?.[0]?.plan;
-    if (!plan) throw new Error("测试未收到时间线渲染计划");
-    expect(
-      useEditingStore.getState().timelineRenderRecordsByEditingProjectId[
-        plan.editingProjectId
-      ],
-    ).toMatchObject({
-      projectId: "project-1",
-      episodeId: "chapter-001",
-      editingProjectId: plan.editingProjectId,
-      editingRevision: plan.editingRevision,
-      evidence: {
-        jobId: plan.jobId,
-        path: "/tmp/chapter-001-final.mp4",
-      },
     });
     expect(result.current.chapterAutoVideoStatus).toMatchObject({
       stage: "completed",
@@ -328,10 +224,6 @@ describe("useChapterAutoVideoActions", () => {
         finalPath: "/tmp/chapter-001-final.mp4",
       });
       return {
-        finalPath: "/tmp/chapter-001-final.mp4",
-        evidence: timelineEvidenceFromIds("render-1"),
-        editingProjectId: "editing-1",
-        editingRevision: 1,
         storyboards: 2,
       };
     });
@@ -363,82 +255,5 @@ function scriptPlan() {
     soundDirection: "雨声",
     transitions: "cut",
     derivedAssetPlan: [],
-  };
-}
-
-function storyboard(index: number): StoryboardItem {
-  return {
-    id: `sb-${index}`,
-    episodeId: "chapter-001",
-    index,
-    trackKey: `track-key-${index}`,
-    trackId: `track-${index}`,
-    duration: 4,
-    durationTarget: 4,
-    prompt: `prompt ${index}`,
-    videoDesc: `video ${index}`,
-    assetIds: [],
-    mediaRef: { kind: "image", path: `/shot-${index}.png` },
-    audioRef: { kind: "audio", path: `/voice-${index}.wav` },
-    state: "ready",
-    line: `台词 ${index}`,
-    ttsSpokenText: `口播 ${index}`,
-    sourceFingerprint: `storyboard-fingerprint-${index}`,
-    outputVersion: 1,
-  };
-}
-
-function track(index: number, selectedVideoId?: string): ProductionTrack {
-  return {
-    id: `track-${index}`,
-    episodeId: "chapter-001",
-    trackKey: `track-key-${index}`,
-    storyboardIds: [`sb-${index}`],
-    prompt: `track prompt ${index}`,
-    duration: 4,
-    candidateVideoIds: selectedVideoId ? [selectedVideoId] : [],
-    selectedVideoId,
-    state: "ready",
-    stale: false,
-  };
-}
-
-function candidate(): VideoCandidate {
-  return {
-    id: "candidate-2",
-    trackId: "track-2",
-    provider: "ffmpeg-local",
-    filePath: "/track-2.mp4",
-    state: "ready",
-    stale: false,
-    sourceFingerprint: "candidate-fingerprint-2",
-    outputVersion: 1,
-    createdAt: 1,
-  };
-}
-
-function timelineEvidence(plan: TimelineRenderPlan): TimelineRenderEvidence {
-  return timelineEvidenceFromIds(plan.jobId);
-}
-
-function timelineEvidenceFromIds(jobId: string): TimelineRenderEvidence {
-  const hash = "a".repeat(64);
-  return {
-    jobId,
-    path: "/tmp/chapter-001-final.mp4",
-    sizeBytes: 2048,
-    mtimeMs: 10,
-    sha256: hash,
-    duration: 8,
-    width: 1080,
-    height: 1920,
-    streams: ["video", "audio"],
-    snapshotHash: hash,
-    snapshotPath: "/tmp/editing-project.json",
-    renderPlanPath: "/tmp/render-plan.json",
-    inputManifestPath: "/tmp/input-manifest.json",
-    filterGraphPath: "/tmp/filter-graph.txt",
-    logPath: "/tmp/ffmpeg.log",
-    ffprobePath: "/tmp/ffprobe.json",
   };
 }

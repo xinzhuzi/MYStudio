@@ -33,7 +33,12 @@ import { TTSView } from "@/components/panels/tts";
 import { SelfMediaPanel } from "@/components/panels/self-media";
 
 export function Layout() {
-  const { activeTab, inProject } = useMediaPanelStore();
+  const {
+    activeTab,
+    inProject,
+    settingsTabRequest,
+    clearSettingsTabRequest,
+  } = useMediaPanelStore();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const previousInProjectRef = useRef(inProject);
   const toggleSidebar = () => setSidebarCollapsed((collapsed) => !collapsed);
@@ -70,6 +75,8 @@ export function Layout() {
                 sidebarCollapsed={sidebarCollapsed}
                 onToggleSidebar={toggleSidebar}
                 showHomeChrome
+                initialTab={settingsTabRequest ?? undefined}
+                onInitialTabConsumed={clearSettingsTabRequest}
               />
             ) : (
               <Dashboard
@@ -103,6 +110,8 @@ export function Layout() {
                 <SettingsPanel
                   sidebarCollapsed={sidebarCollapsed}
                   onToggleSidebar={toggleSidebar}
+                  initialTab={settingsTabRequest ?? undefined}
+                  onInitialTabConsumed={clearSettingsTabRequest}
                 />
               )}
               {activeTab === "overview" && <OverviewPanel />}

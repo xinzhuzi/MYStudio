@@ -1,7 +1,9 @@
 import path from "node:path";
 import type { RemotionBrowserStatus } from "../../../contracts/remotion-browser-status";
 import type {
-  RemotionRenderInput,
+  RemotionShotRenderInput,
+  RemotionChapterRenderInput,
+  RemotionTimelineRenderInput,
   RemotionRenderProgress,
   RemotionRenderWorkerResult,
 } from "./remotion-render-worker";
@@ -19,9 +21,10 @@ export interface UtilityProcessLike {
   kill(): boolean;
 }
 
-export interface RemotionRenderUtilityInput extends Omit<RemotionRenderInput, "browserExecutable"> {
-  browserExecutable?: never;
-}
+export type RemotionRenderUtilityInput =
+  | Omit<RemotionTimelineRenderInput, "browserExecutable">
+  | Omit<RemotionShotRenderInput, "browserExecutable">
+  | Omit<RemotionChapterRenderInput, "browserExecutable">;
 
 export interface RemotionRenderBrowserProbe {
   status: RemotionBrowserStatus;
@@ -69,7 +72,7 @@ export class RemotionRenderUtilitySupervisor {
   }
 
   render(input: RemotionRenderUtilityInput): Promise<RemotionRenderWorkerResult> {
-    const fallbackJobId = readJobId(input.plan);
+    const fallbackJobId = readJobId(input);
     if (this.disposed) {
       return Promise.resolve(failed(fallbackJobId, "Remotion render utility process 已关闭"));
     }
@@ -288,6 +291,7 @@ function failed(jobId: string, error: string): RemotionRenderWorkerResult {
 
 function readJobId(value: unknown): string {
   if (!value || typeof value !== "object") return "unknown";
-  const jobId = (value as { jobId?: unknown }).jobId;
+  const record = value as { jobId?: unknown; plan?: { jobId?: unknown } };
+  const jobId = record.jobId ?? record.plan?.jobId;
   return typeof jobId === "string" && jobId.trim() ? jobId.trim() : "unknown";
 }

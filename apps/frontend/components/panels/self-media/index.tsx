@@ -3,15 +3,12 @@ import type { ReactNode } from "react";
 import {
   AlertCircle,
   CheckCircle2,
-  Clock3,
   FileVideo2,
   History,
-  LayoutGrid,
   Loader2,
   Radio,
   RotateCcw,
   Send,
-  ShieldCheck,
   Users2,
   XCircle,
 } from "lucide-react";
@@ -24,9 +21,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { useProjectStore } from "@/stores/project/project-store";
 import { useMediaStore } from "@/stores/media/media-store";
 import { useSelfMediaStore } from "@/stores/self-media/self-media-store";
-import { getSelfMediaCapabilities } from "@/lib/self-media/capabilities";
+import {
+  getSelfMediaCapabilities,
+  isSelfMediaPublishable,
+  SELF_MEDIA_CAPABILITY_MANIFEST,
+} from "@/lib/self-media/capabilities";
 import { validateSelfMediaDraft } from "@/lib/self-media/contracts";
-import type { SelfMediaContentType, SelfMediaDraft, SelfMediaProviderSummary, SelfMediaTask } from "@/types/self-media";
+import type { SelfMediaContentType, SelfMediaDraft, SelfMediaPlatform, SelfMediaProviderSummary, SelfMediaTask } from "@/types/self-media";
 
 type SelfMediaSection = "accounts" | "compose" | "tasks" | "history";
 
@@ -40,6 +41,8 @@ const sections: Array<{ id: SelfMediaSection; label: string; icon: typeof Users2
   { id: "tasks", label: "任务", icon: Radio },
   { id: "history", label: "历史", icon: History },
 ];
+
+const selfMediaPlatformCapabilities = Object.values(SELF_MEDIA_CAPABILITY_MANIFEST);
 
 function statusLabel(status: string) {
   const labels: Record<string, string> = {
@@ -76,7 +79,7 @@ function AccountsView() {
   const setAccounts = useSelfMediaStore((state) => state.setAccounts);
   const [loading, setLoading] = useState(false);
   const [providers, setProviders] = useState<SelfMediaProviderSummary[]>([]);
-  const [loginPlatform, setLoginPlatform] = useState<"xhs" | "douyin" | "wxSph" | "KWAI" | null>(null);
+  const [loginPlatform, setLoginPlatform] = useState<SelfMediaPlatform | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
 
   async function refreshAccounts() {
@@ -101,7 +104,7 @@ function AccountsView() {
     }
   }
 
-  async function login(platform: "xhs" | "douyin" | "wxSph" | "KWAI") {
+  async function login(platform: SelfMediaPlatform) {
     const bridge = getSelfMediaBridge();
     if (!bridge || !activeProjectId) return;
     setLoginPlatform(platform);
@@ -123,57 +126,25 @@ function AccountsView() {
   }, [activeProjectId]);
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
-      <Card className="border-border/70 bg-card/70 shadow-2xl shadow-black/10">
-        <CardHeader>
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <CardTitle className="flex items-center gap-2 text-base"><Users2 className="h-4 w-4 text-primary" />已连接账号</CardTitle>
-              <CardDescription className="mt-1">凭据只由 Electron 主进程管理，渲染层只接收脱敏摘要。</CardDescription>
-            </div>
-            <div className="flex items-center gap-2"><Badge variant="outline">{accounts.length} 个账号</Badge><Button size="sm" variant="outline" onClick={refreshAccounts} disabled={loading || !activeProjectId || !getSelfMediaBridge()}>{loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "刷新"}</Button></div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {accounts.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-border/80 bg-background/40 px-5 py-10 text-center">
-              <ShieldCheck className="mx-auto h-8 w-8 text-muted-foreground/60" />
-              <p className="mt-3 text-sm font-medium">还没有连接账号</p>
-              <p className="mt-1 text-xs text-muted-foreground">选择平台后会打开原生 Electron 登录窗口，凭据不会进入渲染层。</p>
-              <div className="mt-4 flex flex-wrap justify-center gap-2">
-                {(["xhs", "douyin", "wxSph", "KWAI"] as const).map((platform) => (
-                  <Button key={platform} size="sm" variant="outline" onClick={() => login(platform)} disabled={loading || loginPlatform !== null || !getSelfMediaBridge()}>
-                    {loginPlatform === platform ? <Loader2 className="h-4 w-4 animate-spin" /> : getSelfMediaCapabilities("aitoearn-local", platform)?.displayName}
-                  </Button>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <div className="grid gap-3 sm:grid-cols-2">
-              {accounts.map((account) => (
-                <div key={account.id} className="rounded-xl border border-border/70 bg-background/50 p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="font-medium">{account.displayName}</p>
-                      <p className="mt-1 text-xs text-muted-foreground">{account.capabilities.displayName}</p>
-                    </div>
-                    <Badge variant={statusVariant(account.status)}>{statusLabel(account.status)}</Badge>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-          <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-border/60 pt-4">
-            <span className="text-xs text-muted-foreground">连接新账号</span>
-            {(["xhs", "douyin", "wxSph", "KWAI"] as const).map((platform) => (
-              <Button key={platform} size="sm" variant="outline" onClick={() => login(platform)} disabled={loading || loginPlatform !== null || !getSelfMediaBridge()}>
-                {loginPlatform === platform ? <Loader2 className="h-4 w-4 animate-spin" /> : getSelfMediaCapabilities("aitoearn-local", platform)?.displayName}
-              </Button>
-            ))}
-          </div>
-          {feedback && <p className="mt-3 text-xs text-muted-foreground">{feedback}</p>}
-        </CardContent>
-      </Card>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-3">
+        <div><h2 className="flex items-center gap-2 text-base font-semibold"><Users2 className="h-4 w-4 text-primary" />平台账号</h2><p className="mt-1 text-xs text-muted-foreground">管理各平台已连接账号，凭据由 Electron 主进程保管。</p></div>
+        <div className="flex items-center gap-2"><Badge variant="outline">{accounts.length} 个账号</Badge><Button size="sm" variant="outline" onClick={refreshAccounts} disabled={loading || !activeProjectId || !getSelfMediaBridge()}>{loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}刷新</Button></div>
+      </div>
+      <div className="columns-1 gap-4 md:columns-2 xl:columns-3">
+        {selfMediaPlatformCapabilities.map((capability) => {
+          const platformAccounts = accounts.filter((account) => account.platform === capability.platform);
+          const provider = providers.find((item) => item.id === capability.providerId);
+          const platformAvailable = provider?.availablePlatforms?.includes(capability.platform) === true;
+          const unavailable = provider?.enabled === false || !platformAvailable;
+          const emptyLabel = unavailable ? "当前平台暂不可用" : "尚未连接账号";
+          return <Card key={capability.platform} className="mb-4 break-inside-avoid border-border/70 bg-card/70 shadow-lg shadow-black/5">
+            <CardHeader className="pb-3"><div className="flex items-start justify-between gap-2"><div className="flex min-w-0 items-center gap-2"><span aria-hidden="true" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-sm font-semibold text-primary">{capability.displayName.slice(0, 1)}</span><div className="min-w-0"><CardTitle role="heading" aria-level={3} className="truncate text-sm">{capability.displayName}</CardTitle><CardDescription className="mt-1">{platformAccounts.length} 个账号</CardDescription></div></div><Button size="sm" variant="outline" onClick={() => login(capability.platform)} disabled={loading || loginPlatform !== null || unavailable || !getSelfMediaBridge()}>{loginPlatform === capability.platform ? <Loader2 className="h-4 w-4 animate-spin" /> : "登录"}</Button></div><div className="mt-3 flex flex-wrap gap-1.5">{capability.supportsVideo && <Badge variant="secondary">视频</Badge>}{capability.supportsImageText && <Badge variant="secondary">图文</Badge>}{capability.supportsScheduling && <Badge variant="outline">定时</Badge>}</div></CardHeader>
+            <CardContent className="space-y-2">{platformAccounts.length === 0 ? <div className="rounded-lg border border-dashed border-border/70 px-3 py-5 text-center text-xs text-muted-foreground">{emptyLabel}</div> : platformAccounts.map((account) => <div key={account.id} className="flex items-center justify-between gap-2 rounded-lg border border-border/60 bg-background/40 px-3 py-2"><span className="truncate text-sm">{account.displayName}</span><Badge variant={statusVariant(account.status)}>{statusLabel(account.status)}</Badge></div>)}</CardContent>
+          </Card>;
+        })}
+      </div>
+      {feedback && <p className="text-xs text-muted-foreground">{feedback}</p>}
     </div>
   );
 }
@@ -191,7 +162,7 @@ function ComposeView() {
   const [topics, setTopics] = useState("");
   const [assetIds, setAssetIds] = useState<string[]>([]);
   const [coverAssetId, setCoverAssetId] = useState("");
-  const [platform, setPlatform] = useState<"xhs" | "douyin" | "wxSph" | "KWAI">("xhs");
+  const [platform, setPlatform] = useState<SelfMediaPlatform>("xhs");
   const [publishMode, setPublishMode] = useState<"immediate" | "scheduled">("immediate");
   const [visibility, setVisibility] = useState<"public" | "private" | "friends">("public");
   const [selectedAccountIds, setSelectedAccountIds] = useState<string[]>([]);
@@ -201,6 +172,7 @@ function ComposeView() {
   const [publishing, setPublishing] = useState(false);
 
   const capability = useMemo(() => getSelfMediaCapabilities("aitoearn-local", platform), [platform]);
+  const supportsCurrentContentType = isSelfMediaPublishable("aitoearn-local", platform, contentType);
   const projectMedia = useMemo(
     () => mediaFiles.filter((media) => media.projectId === activeProjectId && (media.type === "video" || media.type === "image") && !media.ephemeral),
     [activeProjectId, mediaFiles],
@@ -288,16 +260,22 @@ function ComposeView() {
     <Card className="border-border/70 bg-card/70 shadow-2xl shadow-black/10">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base"><FileVideo2 className="h-4 w-4 text-primary" />内容草稿</CardTitle>
-        <CardDescription>先完成 MYStudio 资产与文案校验，再交给明确选择的 provider。</CardDescription>
+        <CardDescription>先完成 MYStudio 资产与文案校验，再提交到明确选择的平台。</CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
         <div className="flex flex-wrap gap-2">
           {(["video", "image-text"] as const).map((type) => (
-            <Button key={type} variant={contentType === type ? "primary" : "outline"} size="sm" onClick={() => setContentType(type)}>
+            <Button
+              key={type}
+              variant={contentType === type ? "primary" : "outline"}
+              size="sm"
+              onClick={() => setContentType(type)}
+              disabled={type === "video" ? !capability?.supportsVideo : !capability?.supportsImageText}
+            >
               {type === "video" ? "视频" : "图文"}
             </Button>
           ))}
-          <span className="ml-auto text-xs text-muted-foreground">当前能力：{capability?.displayName ?? "未支持"}</span>
+          <span className="ml-auto text-xs text-muted-foreground">当前平台：{capability?.displayName ?? "未支持"}</span>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
           <label className="space-y-1.5 text-sm"><span className="text-muted-foreground">标题</span><Input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="例如：三分钟看懂这一集" maxLength={100} /></label>
@@ -317,7 +295,7 @@ function ComposeView() {
               {projectMedia.filter((media) => media.type === "image").map((media) => <option key={media.id} value={media.id}>{media.name}</option>)}
             </select>
           </label>
-          <label className="space-y-1.5 text-sm"><span className="text-muted-foreground">发布方式</span><select aria-label="发布方式" value={publishMode} onChange={(event) => setPublishMode(event.target.value as "immediate" | "scheduled")} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"><option value="immediate">立即发布</option><option value="scheduled" disabled={!capability?.supportsScheduling}>定时发布</option></select>{publishMode === "scheduled" && <Input aria-label="定时发布时间" type="datetime-local" value={scheduledAt ? scheduledAt.slice(0, 16) : ""} onChange={(event) => setScheduledAt(event.target.value ? new Date(event.target.value).toISOString() : "")} disabled={!capability?.supportsScheduling} />}<span className="block text-xs text-muted-foreground">{capability?.supportsScheduling ? "由 MYStudio 主进程持久化，到点后交给本地 provider" : "当前 provider 不支持定时发布，已安全禁用"}</span></label>
+          <label className="space-y-1.5 text-sm"><span className="text-muted-foreground">发布方式</span><select aria-label="发布方式" value={publishMode} onChange={(event) => setPublishMode(event.target.value as "immediate" | "scheduled")} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"><option value="immediate">立即发布</option><option value="scheduled" disabled={!capability?.supportsScheduling}>定时发布</option></select>{publishMode === "scheduled" && <Input aria-label="定时发布时间" type="datetime-local" value={scheduledAt ? scheduledAt.slice(0, 16) : ""} onChange={(event) => setScheduledAt(event.target.value ? new Date(event.target.value).toISOString() : "")} disabled={!capability?.supportsScheduling} />}<span className="block text-xs text-muted-foreground">{capability?.supportsScheduling ? "由 MYStudio 保存，到点后提交" : "当前平台不支持定时发布，已安全禁用"}</span></label>
           <label className="space-y-1.5 text-sm"><span className="text-muted-foreground">可见范围</span><select aria-label="可见范围" value={visibility} onChange={(event) => setVisibility(event.target.value as "public" | "private" | "friends")} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"><option value="public">公开</option><option value="private">仅自己</option><option value="friends">好友可见</option></select></label>
         </div>
         {capability && capability.optionKeys.length > 0 && (
@@ -325,17 +303,27 @@ function ComposeView() {
             {capability.optionKeys.includes("location") && <label className="space-y-1.5 text-sm"><span className="text-muted-foreground">位置（可选）</span><Input aria-label="平台位置" value={typeof platformOptions.location === "string" ? platformOptions.location : ""} onChange={(event) => setPlatformOptions((current) => ({ ...current, location: event.target.value }))} /></label>}
             {capability.optionKeys.includes("collection") && <label className="space-y-1.5 text-sm"><span className="text-muted-foreground">合集（可选）</span><Input aria-label="平台合集" value={typeof platformOptions.collection === "string" ? platformOptions.collection : ""} onChange={(event) => setPlatformOptions((current) => ({ ...current, collection: event.target.value }))} /></label>}
             {capability.optionKeys.includes("allowComment") && <label className="flex items-center gap-2 self-end pb-2 text-sm"><input aria-label="允许评论" type="checkbox" checked={platformOptions.allowComment !== false} onChange={(event) => setPlatformOptions((current) => ({ ...current, allowComment: event.target.checked }))} />允许评论</label>}
+            {capability.optionKeys.includes("tid") && <label className="space-y-1.5 text-sm"><span className="text-muted-foreground">B站分区 ID</span><Input aria-label="B站分区 ID" inputMode="numeric" value={typeof platformOptions.tid === "string" ? platformOptions.tid : ""} onChange={(event) => setPlatformOptions((current) => ({ ...current, tid: event.target.value }))} placeholder="例如：171" /></label>}
+            {capability.optionKeys.includes("boardId") && <label className="space-y-1.5 text-sm"><span className="text-muted-foreground">Pinterest 画板 ID</span><Input aria-label="Pinterest 画板 ID" value={typeof platformOptions.boardId === "string" ? platformOptions.boardId : ""} onChange={(event) => setPlatformOptions((current) => ({ ...current, boardId: event.target.value }))} /></label>}
           </div>
         )}
         <div className="flex flex-wrap items-center gap-2 border-t border-border/60 pt-4">
           <span className="text-xs text-muted-foreground">目标平台</span>
-          {(["xhs", "douyin", "wxSph", "KWAI"] as const).map((item) => {
-            const itemCapability = getSelfMediaCapabilities("aitoearn-local", item);
-            const disabled = contentType === "image-text" && !itemCapability?.supportsImageText;
-            return <Button key={item} size="sm" variant={platform === item ? "secondary" : "outline"} disabled={disabled} onClick={() => { setPlatform(item); setAssetIds([]); setCoverAssetId(""); setPlatformOptions({}); }}>{itemCapability?.displayName ?? item}</Button>;
+          {selfMediaPlatformCapabilities.map((itemCapability) => {
+            const item = itemCapability.platform;
+            const available = accounts.some((account) => account.platform === item);
+            return <Button key={item} size="sm" variant={platform === item ? "secondary" : "outline"} disabled={!available} onClick={() => {
+              setPlatform(item);
+              if (itemCapability.supportsVideo) setContentType("video");
+              else if (itemCapability.supportsImageText) setContentType("image-text");
+              setAssetIds([]);
+              setCoverAssetId("");
+              setSelectedAccountIds([]);
+              setPlatformOptions({});
+            }}>{itemCapability.displayName}</Button>;
           })}
-          <Button className="ml-auto gap-2" onClick={save}><CheckCircle2 className="h-4 w-4" />保存草稿</Button>
-          <Button className="gap-2" onClick={publish} disabled={publishing || !getSelfMediaBridge()}>{publishing && <Loader2 className="h-4 w-4 animate-spin" />}{publishMode === "scheduled" ? "创建定时任务" : "立即发布"}</Button>
+          <Button className="ml-auto gap-2" onClick={save} disabled={!supportsCurrentContentType}><CheckCircle2 className="h-4 w-4" />保存草稿</Button>
+          <Button className="gap-2" onClick={publish} disabled={publishing || !supportsCurrentContentType || !getSelfMediaBridge()}>{publishing && <Loader2 className="h-4 w-4 animate-spin" />}{publishMode === "scheduled" ? "创建定时任务" : "立即发布"}</Button>
         </div>
         <div className="rounded-lg border border-border/60 bg-background/30 p-3"><p className="mb-2 text-xs text-muted-foreground">明确选择发布账号（仅展示支持当前内容类型的在线账号）</p>{selectedAccounts.length === 0 ? <p className="text-xs text-muted-foreground">当前平台没有可用账号，请先在“账号”视图连接并刷新。</p> : <div className="grid gap-2 sm:grid-cols-2">{selectedAccounts.map((account) => <label key={account.id} className="flex items-center gap-2 text-sm"><input type="checkbox" checked={selectedAccountIds.includes(account.id)} onChange={(event) => setSelectedAccountIds((ids) => event.target.checked ? [...ids, account.id] : ids.filter((id) => id !== account.id))} />{account.displayName}</label>)}</div>}</div>
         {feedback && <div className="flex items-start gap-2 rounded-lg border border-border/70 bg-background/50 px-3 py-2 text-xs text-muted-foreground"><AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-primary" />{feedback}</div>}
@@ -426,7 +414,7 @@ function TasksView() {
       feedback={feedback}
       items={tasks.map((task) => ({
         id: task.id,
-        title: `${task.providerId} · ${task.accountId}`,
+        title: "平台发布任务",
         description: `${statusLabel(task.status)} · ${task.progress}%${task.previousTaskId ? ` · 重试自 ${task.previousTaskId}` : ""}`,
         status: task.status,
         task,
@@ -507,9 +495,8 @@ export function SelfMediaPanel() {
     <div className="h-full min-h-0 overflow-hidden bg-[radial-gradient(circle_at_top_right,hsl(var(--primary)/0.12),transparent_34%),linear-gradient(135deg,hsl(var(--background)),hsl(var(--muted)/0.18))]">
       <div className="flex h-full min-h-0 flex-col">
         <header className="border-b border-border/60 bg-background/50 px-6 py-5 backdrop-blur-xl">
-          <div className="mx-auto flex w-full max-w-7xl items-end justify-between gap-4">
-            <div><div className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-primary"><LayoutGrid className="h-3.5 w-3.5" />Self-media workspace</div><h1 className="mt-2 text-2xl font-semibold tracking-tight">自媒体发布台</h1><p className="mt-1 max-w-2xl text-sm text-muted-foreground">把 MYStudio 产物交给明确的发布 provider，账号、任务、历史与项目一起可追溯。</p></div>
-            <div className="hidden items-center gap-2 text-xs text-muted-foreground md:flex"><Clock3 className="h-4 w-4" />本地优先 · 不嵌入 Web</div>
+          <div className="mx-auto w-full max-w-7xl">
+            <h1 className="text-2xl font-semibold tracking-tight">自媒体发布台</h1>
           </div>
         </header>
         <div className="flex min-h-0 flex-1 flex-col md:flex-row">

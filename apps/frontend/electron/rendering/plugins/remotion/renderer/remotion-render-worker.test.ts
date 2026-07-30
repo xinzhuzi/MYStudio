@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import type { TimelineRenderPlan } from "@/types/editing";
 import { buildCompositionProps } from "../composition/build-composition-props";
 import { RemotionRenderWorker } from "./remotion-render-worker";
+import type { ChapterVideoCompositionProps } from "../composition/composition-props";
 
 const TOKEN = "a".repeat(64);
 const imageUrl = `http://127.0.0.1:43123/${TOKEN}/image-1`;
@@ -42,14 +43,30 @@ describe("buildCompositionProps", () => {
 });
 
 describe("RemotionRenderWorker", () => {
+  it("accepts ChapterVideo input boundary", async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "mystudio-remotion-chapter-"));
+    const bundlePath = path.join(root, "bundle");
+    const outputPath = path.join(root, "chapter.mp4");
+    fs.mkdirSync(bundlePath, { recursive: true });
+    fs.writeFileSync(path.join(bundlePath, "manifest.json"), JSON.stringify({ schemaVersion: 2, templateId: "mystudio-remotion-v1", templateVersion: "1.0.0", remotionVersion: "4.0.499", compositionIds: ["StoryboardShot", "ChapterVideo", "DaojieTimeline"], compositionId: "DaojieTimeline", contentHash: "b".repeat(64) }));
+    const props: ChapterVideoCompositionProps = { width: 1080, height: 1920, fps: 30, durationInFrames: 30, target: "chapter", projectId: "p", chapterId: "c", editingProjectId: "e", editingRevision: 1, visualClips: [{ clipId: "shot-1", kind: "video", src: `http://127.0.0.1:43123/${TOKEN}/current.mp4`, from: 0, durationInFrames: 30, transform: { x: 0, y: 0, scaleX: 1, scaleY: 1, rotation: 0, opacity: 1 } }], transitions: [], audioClips: [{ clipId: "bgm", kind: "bgm", renderScope: "chapter", src: audioUrl, from: 0, durationInFrames: 30, volume: 1 }], subtitles: [] };
+    let renderOptions: Record<string, unknown> | undefined;
+    const worker = new RemotionRenderWorker({ emitProgress: () => undefined, api: { makeCancelSignal: () => ({ cancelSignal: () => undefined, cancel: () => undefined }), selectComposition: async (o) => ({ id: o.id, width: 1080, height: 1920, fps: 30, durationInFrames: 30 } as never), renderMedia: async (o) => { renderOptions = o as unknown as Record<string, unknown>; fs.writeFileSync(outputPath, "mp4"); return {} as never; } } });
+    const result = await worker.render({ target: "chapter", jobId: "chapter-job", compositionProps: props, compositionId: "ChapterVideo", bundlePath, outputPath, browserExecutable: "/bin/true", remotionVersion: "4.0.499" });
+    expect(result.success).toBe(true);
+    expect(renderOptions).toMatchObject({ codec: "h264", audioCodec: "aac", outputLocation: outputPath });
+  });
   it("selects the fixed composition, renders H.264/AAC, and forwards progress", async () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "mystudio-remotion-worker-"));
     const bundlePath = path.join(root, "bundle");
     const outputPath = path.join(root, "raw.mp4");
     fs.mkdirSync(bundlePath, { recursive: true });
     fs.writeFileSync(path.join(bundlePath, "manifest.json"), JSON.stringify({
-      schemaVersion: 1,
+      schemaVersion: 2,
+      templateId: "mystudio-remotion-v1",
+      templateVersion: "1.0.0",
       remotionVersion: "4.0.499",
+      compositionIds: ["StoryboardShot", "ChapterVideo", "DaojieTimeline"],
       compositionId: "DaojieTimeline",
       contentHash: "b".repeat(64),
     }), "utf8");
@@ -109,8 +126,11 @@ describe("RemotionRenderWorker", () => {
     const outputPath = path.join(root, "raw.mp4");
     fs.mkdirSync(bundlePath, { recursive: true });
     fs.writeFileSync(path.join(bundlePath, "manifest.json"), JSON.stringify({
-      schemaVersion: 1,
+      schemaVersion: 2,
+      templateId: "mystudio-remotion-v1",
+      templateVersion: "1.0.0",
       remotionVersion: "4.0.499",
+      compositionIds: ["StoryboardShot", "ChapterVideo", "DaojieTimeline"],
       compositionId: "DaojieTimeline",
       contentHash: "c".repeat(64),
     }), "utf8");
@@ -148,8 +168,11 @@ describe("RemotionRenderWorker", () => {
     const outputPath = path.join(root, "raw.mp4");
     fs.mkdirSync(bundlePath, { recursive: true });
     fs.writeFileSync(path.join(bundlePath, "manifest.json"), JSON.stringify({
-      schemaVersion: 1,
+      schemaVersion: 2,
+      templateId: "mystudio-remotion-v1",
+      templateVersion: "1.0.0",
       remotionVersion: "4.0.499",
+      compositionIds: ["StoryboardShot", "ChapterVideo", "DaojieTimeline"],
       compositionId: "DaojieTimeline",
       contentHash: "d".repeat(64),
     }), "utf8");
@@ -186,8 +209,11 @@ describe("RemotionRenderWorker", () => {
     const bundlePath = path.join(root, "bundle");
     fs.mkdirSync(bundlePath, { recursive: true });
     fs.writeFileSync(path.join(bundlePath, "manifest.json"), JSON.stringify({
-      schemaVersion: 1,
+      schemaVersion: 2,
+      templateId: "mystudio-remotion-v1",
+      templateVersion: "1.0.0",
       remotionVersion: "4.0.498",
+      compositionIds: ["StoryboardShot", "ChapterVideo", "DaojieTimeline"],
       compositionId: "DaojieTimeline",
       contentHash: "f".repeat(64),
     }), "utf8");

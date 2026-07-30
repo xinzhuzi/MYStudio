@@ -44,6 +44,29 @@ navigation smoke must not be reported as real MP4 generation success.
 - Sanitize diagnostics before writing logs.
 - Add regression tests beside the affected code.
 
+## Packaged production-canvas interaction gate
+
+Production workflow canvas changes are not complete on unit tests alone. Build
+and overwrite-install the current source through `npm run build:mac`, verify
+the packaged and installed `app.asar` hashes match, then seed a real Daojie
+clone and run the packaged 15-round zoom probe:
+
+```bash
+MYSTUDIO_BACKGROUND_WORKFLOW_REPORT_PATH=output/automation/background-workflow-daojie-current.json \
+  npm run smoke:workflow:background:daojie
+
+MYSTUDIO_ZOOM_PROBE_INPUT_REPORT_PATH=output/automation/background-workflow-daojie-current.json \
+MYSTUDIO_ZOOM_PROBE_REPORT_PATH=output/automation/workflow-zoom-performance-current.json \
+  node ./build/smoke/measure-workflow-zoom-performance.mjs
+```
+
+Acceptance requires 5 zoom-out, 5 zoom-in, and 5 fit rounds; every round must
+have `transparentRatio=0`, `maximumNearBlackBandHeightCss=0`, empty
+`geometryFailureReasons`, and `frameIntervalsOver100Ms=0`. Window return, pan,
+25%/100%/200% controls, and resize must pass. A navigation/installed smoke or
+Daojie clone alone does not prove a real Remotion MP4; keep that evidence in the
+separate Remotion media gate.
+
 ## Source-contract test stability
 
 Tests that inspect Electron source text should assert the stable boundary
@@ -92,8 +115,11 @@ ships exactly one provider: the Electron-local `aitoearn-local` adapter.
 
 ### 3. Contracts
 
-- Only `aitoearn-local` may reach the adapter path; it owns the four platform
-  bridges (`douyin`, `xhs`, `wxSph`, `KWAI`).
+- Only `aitoearn-local` may reach the adapter path. Its MYStudio-owned package
+  registry contains the exact 14 platform IDs. `douyin`, `xhs`, `wxSph`, and
+  `KWAI` retain vendor-backed Electron transports; the other platform packages
+  use injectable OAuth/API transports and fail with `transport-unavailable`
+  when no transport is configured.
 - The renderer has no MCP client, remote provider, API-key configuration, or
   fallback provider path. Login credentials remain main-process-only.
 - An unknown provider returns `{ success: false, error: { code:
@@ -125,6 +151,8 @@ ships exactly one provider: the Electron-local `aitoearn-local` adapter.
 - Send an unknown provider to list and create handlers and assert the exact
   error code/message.
 - Keep valid provider publish, progress, and task state tests.
+- Assert the shared capability manifest, native panel controls, typed login
+  boundary, and main-process platform registry contain the same exact 14 IDs.
 - Search product code, package manifest, and lockfile for
   `aitoearn-mcp`, `@modelcontextprotocol/sdk`, and `remote:`; all must be
   absent.
@@ -161,6 +189,9 @@ creates a retry/cancel task through the Electron main process.
 - `pollTask/cancelTask({ projectId, taskId }): SelfMediaIpcReply<SelfMediaTask>`
 - `decodeSelfMediaTaskRecord(value): SelfMediaTask`
 - `SelfMediaTaskRuntime.poll/execute/cancel(task): Promise<SelfMediaTask>`
+- `listOfficialAccounts(runtime): Promise<PlatformAccountInput[]>`
+- `requestJson(runtime, url, init?): Promise<T>`
+- `readOfficialAsset(runtime, url): Promise<OfficialAssetBytes>`
 
 ### 3. Contracts
 
@@ -178,6 +209,15 @@ creates a retry/cancel task through the Electron main process.
 - An asynchronous poll, scheduled publish, or cancel may commit only when the
   current record still has the same `attemptId`, is non-terminal, and permits
   the requested state transition.
+- Official OAuth accounts require a decryptable OAuth credential and a finite,
+  future `expiresAt`. Account projections expose only account id, name, avatar
+  and status; they never expose credential or token fields.
+- Official API failures expose platform id plus HTTP status only, never raw
+  response text. Vendor calls serialize their temporary console override and
+  redact every string passed through `log`, `error`, `warn`, `info`, `debug`
+  and `trace` before the original console method receives it.
+- Official transports re-check absolute asset paths against configured roots
+  after `realpath`; lexical containment alone is insufficient for symlinks.
 
 ### 4. Validation & Error Matrix
 
@@ -191,17 +231,27 @@ creates a retry/cancel task through the Electron main process.
   remains the persisted terminal state.
 - Missing typed `createTask` bridge during retry -> a visible failure; no
   renderer-only task or apparent success.
+- Missing/unreadable OAuth credential -> account `error`; no publish call.
+- Missing/invalid `expiresAt` -> account `error`; expired `expiresAt` -> account
+  `expired` and publish/login refresh required.
+- Platform error body contains token/cookie text -> normalized HTTP-status
+  error; raw body is discarded.
+- Absolute path is lexically inside a root but canonicalizes outside it ->
+  provider failure; no file read.
 
 ### 5. Good/Base/Bad Cases
 
 - Good: resolve `project-file://` and `local-image://` in main, then enforce
   canonical roots again in the local adapter.
+- Good: project official account summaries from the encrypted vault and redact
+  every standard string console method during vendor execution.
 - Base: retain one immutable task record per attempt and link retries with
   `previousTaskId`.
 - Base: retain only the documented task/draft fields after a journal round trip.
 - Bad: pass `approvedUrl` directly to a local adapter when no resolver is
   installed, fetch arbitrary HTTP URLs, let a late result overwrite a terminal
-  task, or persist cookies/tokens with a draft.
+  task, persist cookies/tokens with a draft, or append raw platform error text
+  to a renderer-visible exception.
 
 ### 6. Tests Required
 
@@ -213,6 +263,14 @@ creates a retry/cancel task through the Electron main process.
 - Assert late poll and scheduled results cannot overwrite cancellation; assert
   credential-like and unknown fields are rejected at IPC, journal, and store
   persistence boundaries.
+- Assert OAuth online/expired/error projection, cross-platform vault filtering,
+  and absence of `credential`, `accessToken` and `refreshToken` fields.
+- Assert token/profile endpoint method, body and authorization headers for each
+  official transport without external network calls.
+- Assert all six standard vendor console methods receive redacted strings and
+  are restored after serialized execution.
+- Assert official absolute asset reads accept an in-root canonical file and
+  reject an existing file outside the configured roots.
 
 ### 7. Wrong vs Correct
 
@@ -227,6 +285,18 @@ if (asset.approvedUrl) return { assetId, url: asset.approvedUrl, kind };
 ```ts
 if (resolveAsset) return resolveAsset(projectId, asset);
 if (localBridge) throw new SelfMediaProviderError(providerId, "asset-resolver-unavailable", "主进程未提供受控资产解析器");
+```
+
+#### Wrong
+
+```ts
+throw new Error(`${platformId} API failed: ${providerResponse.message}`);
+```
+
+#### Correct
+
+```ts
+throw new Error(`${platformId} API 请求失败 (${response.status})`);
 ```
 
 ## Scenario: reviewed local AiToEarn snapshot upgrade
@@ -387,6 +457,23 @@ export default function sharp(buffer: Buffer): SharpInstance {
 ## Testing Requirements
 
 <!-- What level of testing is expected -->
+
+For the complete repository gate, run the single orchestration entry from
+`apps/`:
+
+```bash
+npm run test:all
+```
+
+This command is the only aggregate runner to maintain. It invokes the curated
+AiToEarn/build-contract tests, `typecheck`, `lint`, the full Vitest suite, the
+local-only upgrade smoke, and on macOS the packaging/overwrite-install and
+packaged desktop smoke stages in a fixed fail-fast order. Its durable report is
+`apps/output/automation/quality-gate-report.json`; use `--plan` to inspect the
+current stage list and `--skip-release` for non-release iteration. Individual
+commands below remain useful for focused debugging, but new verification logic
+should be added to the underlying command or test rather than duplicated in
+the aggregate runner.
 
 Run from `apps/`:
 

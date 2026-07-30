@@ -7,27 +7,56 @@ import {
 } from "@remotion/renderer";
 import type { VideoConfig } from "remotion/no-react";
 import type { TimelineRenderPlan } from "@/types/editing";
+import type { RemotionShotPlanV1 } from "@/lib/studio/remotion/shot-plan";
 import {
   validateTimelineRenderPlan,
 } from "@/lib/studio/editing/validation";
 import {
   validateCompositionProps,
+  validateChapterVideoCompositionProps,
+  validateStoryboardShotCompositionProps,
 } from "../composition/composition-props-validation";
+import type { StoryboardShotCompositionProps, ChapterVideoCompositionProps } from "../composition/composition-props";
 import { buildCompositionProps } from "../composition/build-composition-props";
-import { REMOTION_COMPOSITION_ID } from "../composition/composition-id";
+import {
+  REMOTION_COMPOSITION_ID,
+  STORYBOARD_SHOT_COMPOSITION_ID,
+} from "../composition/composition-id";
+import { CHAPTER_VIDEO_COMPOSITION_ID } from "../composition/composition-id";
+import { assertBundleMatchesRuntime } from "../render/bundle-manifest";
 import { quarantineRemotionPartialOutput } from "./remotion-render-output";
+import { validateRemotionShotPlan } from "@/lib/studio/remotion/shot-plan";
 
-const BUNDLE_MANIFEST_SCHEMA_VERSION = 1;
-
-export interface RemotionRenderInput {
-  plan: TimelineRenderPlan;
+interface RemotionRenderInputBase {
   bundlePath: string;
   outputPath: string;
   browserExecutable: string;
   remotionVersion: string;
-  mediaUrlByClipId: Readonly<Record<string, string>>;
   binariesDirectory?: string;
 }
+
+export interface RemotionTimelineRenderInput extends RemotionRenderInputBase {
+  plan: TimelineRenderPlan;
+  mediaUrlByClipId: Readonly<Record<string, string>>;
+  compositionId?: typeof REMOTION_COMPOSITION_ID;
+}
+
+export interface RemotionShotRenderInput extends RemotionRenderInputBase {
+  target: "shot";
+  jobId: string;
+  shotPlan: RemotionShotPlanV1;
+  compositionProps: StoryboardShotCompositionProps;
+  compositionId: typeof STORYBOARD_SHOT_COMPOSITION_ID;
+}
+
+export interface RemotionChapterRenderInput extends RemotionRenderInputBase {
+  target: "chapter";
+  jobId: string;
+  compositionProps: ChapterVideoCompositionProps;
+  compositionId: typeof CHAPTER_VIDEO_COMPOSITION_ID;
+}
+
+export type RemotionRenderInput = RemotionTimelineRenderInput | RemotionShotRenderInput | RemotionChapterRenderInput;
 
 export interface RemotionRenderProgress {
   jobId: string;
@@ -76,18 +105,58 @@ export class RemotionRenderWorker {
   }
 
   async render(input: RemotionRenderInput): Promise<RemotionRenderWorkerResult> {
-    const fallbackJobId = readJobId(input?.plan);
-    const planValidation = validateTimelineRenderPlan(input?.plan);
-    if (!planValidation.success) {
-      return this.fail(
-        fallbackJobId,
-        planValidation.issues.map((issue) => `${issue.path}: ${issue.message}`).join("; "),
-        false,
-      );
+    const fallbackJobId = readJobId(input);
+    let jobId = fallbackJobId;
+    let compositionId: string = REMOTION_COMPOSITION_ID;
+    let compositionProps: Record<string, unknown>;
+    if ("shotPlan" in input) {
+      const shotPlanValidation = await validateRemotionShotPlan(input.shotPlan);
+      if (!shotPlanValidation.success) {
+        return this.fail(
+          jobId,
+          shotPlanValidation.issues.map((issue) => `${issue.path}: ${issue.message}`).join("; "),
+          false,
+        );
+      }
+      const propsValidation = validateStoryboardShotCompositionProps(input.compositionProps);
+      if (!propsValidation.success) {
+        return this.fail(
+          jobId,
+          propsValidation.issues.map((issue) => `${issue.path}: ${issue.message}`).join("; "),
+          false,
+        );
+      }
+      compositionId = STORYBOARD_SHOT_COMPOSITION_ID;
+      compositionProps = propsValidation.value;
+    } else if ("target" in input && input.target === "chapter") {
+      const propsValidation = validateChapterVideoCompositionProps(input.compositionProps);
+      if (!propsValidation.success) {
+        return this.fail(jobId, propsValidation.issues.map((issue) => `${issue.path}: ${issue.message}`).join("; "), false);
+      }
+      compositionId = CHAPTER_VIDEO_COMPOSITION_ID;
+      compositionProps = propsValidation.value;
+    } else {
+      const planValidation = validateTimelineRenderPlan(input.plan);
+      if (!planValidation.success) {
+        return this.fail(
+          jobId,
+          planValidation.issues.map((issue) => `${issue.path}: ${issue.message}`).join("; "),
+          false,
+        );
+      }
+      jobId = planValidation.value.jobId;
+      compositionProps = buildCompositionProps(planValidation.value, input.mediaUrlByClipId);
+      const propsValidation = validateCompositionProps(compositionProps);
+      if (!propsValidation.success) {
+        return this.fail(
+          jobId,
+          propsValidation.issues.map((issue) => `${issue.path}: ${issue.message}`).join("; "),
+          false,
+        );
+      }
     }
-    const plan = planValidation.value;
-    if (this.active.has(plan.jobId)) {
-      return this.fail(plan.jobId, `渲染任务正在运行: ${plan.jobId}`, false);
+    if (this.active.has(jobId)) {
+      return this.fail(jobId, `渲染任务正在运行: ${jobId}`, false);
     }
 
     try {
@@ -100,29 +169,19 @@ export class RemotionRenderWorker {
         throw new Error(`固定 Remotion bundle 不存在: ${input.bundlePath}`);
       }
       assertBundleManifest(input.bundlePath, input.remotionVersion);
-      const compositionProps = buildCompositionProps(plan, input.mediaUrlByClipId);
-      const propsValidation = validateCompositionProps(compositionProps);
-      if (!propsValidation.success) {
-        throw new Error(
-          propsValidation.issues
-            .map((issue) => `${issue.path}: ${issue.message}`)
-            .join("; "),
-        );
-      }
-
-      this.emit(plan.jobId, "validating", 0, "Remotion 渲染计划校验通过");
+      this.emit(jobId, "validating", 0, "Remotion 渲染计划校验通过");
       const outputParent = path.dirname(input.outputPath);
       await fs.promises.mkdir(outputParent, { recursive: true });
       const cancelState = this.api.makeCancelSignal();
-      this.active.set(plan.jobId, {
+      this.active.set(jobId, {
         cancel: cancelState.cancel,
         cancelRequested: false,
       });
-      this.emit(plan.jobId, "preparing", 0.04, "加载固定 Remotion bundle");
+      this.emit(jobId, "preparing", 0.04, "加载固定 Remotion bundle");
 
       const composition = await this.api.selectComposition({
         serveUrl: input.bundlePath,
-        id: REMOTION_COMPOSITION_ID,
+        id: compositionId,
         inputProps: compositionProps,
         browserExecutable: input.browserExecutable,
         binariesDirectory: input.binariesDirectory,
@@ -131,7 +190,7 @@ export class RemotionRenderWorker {
           throw new Error("Remotion 导出禁止隐式下载 Headless Shell");
         },
       });
-      this.emit(plan.jobId, "rendering", 0.08, "Remotion 渲染中");
+      this.emit(jobId, "rendering", 0.08, "Remotion 渲染中");
       await this.api.renderMedia({
         serveUrl: input.bundlePath,
         composition,
@@ -154,7 +213,7 @@ export class RemotionRenderWorker {
             ? Math.max(0, Math.min(1, progress.progress))
             : 0;
           this.emit(
-            plan.jobId,
+            jobId,
             "rendering",
             Math.min(0.94, 0.08 + innerRatio * 0.86),
           );
@@ -169,12 +228,12 @@ export class RemotionRenderWorker {
       }
       return {
         success: true,
-        jobId: plan.jobId,
+        jobId,
         outputPath: input.outputPath,
         composition,
       };
     } catch (error) {
-      const active = this.active.get(plan.jobId);
+      const active = this.active.get(jobId);
       const canceled = active?.cancelRequested === true || isRemotionCancelError(error);
       const quarantineError = await quarantineRemotionPartialOutput(input.outputPath);
       const message = [
@@ -182,12 +241,12 @@ export class RemotionRenderWorker {
         quarantineError,
       ].filter(Boolean).join("; ");
       return this.fail(
-        plan.jobId,
-        canceled ? `Remotion 渲染已取消: ${plan.jobId}` : message,
+        jobId,
+        canceled ? `Remotion 渲染已取消: ${jobId}` : message,
         canceled,
       );
     } finally {
-      this.active.delete(plan.jobId);
+      this.active.delete(jobId);
     }
   }
 
@@ -228,21 +287,19 @@ function assertAbsolutePath(value: string, label: string): void {
 
 function assertBundleManifest(bundlePath: string, expectedVersion: string): void {
   const manifestPath = path.join(bundlePath, "manifest.json");
-  const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8")) as Record<string, unknown>;
-  if (manifest.schemaVersion !== BUNDLE_MANIFEST_SCHEMA_VERSION
-    || manifest.remotionVersion !== expectedVersion
-    || manifest.compositionId !== REMOTION_COMPOSITION_ID
-    || typeof manifest.contentHash !== "string") {
-    throw new Error("Remotion bundle manifest 与当前运行时版本或 composition 不一致");
-  }
+  assertBundleMatchesRuntime(
+    JSON.parse(fs.readFileSync(manifestPath, "utf8")) as unknown,
+    expectedVersion,
+  );
 }
 
 function isRemotionCancelError(error: unknown): boolean {
   return error instanceof Error && error.message.includes("renderMedia() got cancelled");
 }
 
-function readJobId(plan: unknown): string {
-  if (!plan || typeof plan !== "object") return "unknown";
-  const value = (plan as { jobId?: unknown }).jobId;
+function readJobId(input: unknown): string {
+  if (!input || typeof input !== "object") return "unknown";
+  const record = input as { jobId?: unknown; plan?: { jobId?: unknown } };
+  const value = record.jobId ?? record.plan?.jobId;
   return typeof value === "string" && value.trim() ? value.trim() : "unknown";
 }

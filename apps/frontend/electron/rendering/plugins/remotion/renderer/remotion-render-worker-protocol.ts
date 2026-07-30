@@ -117,17 +117,39 @@ function validateResult(
 
 function validateRenderInput(value: unknown): RemotionRenderWorkerValidationResult<RemotionRenderInput> {
   if (!isRecord(value)) return failure("input", "render worker input 必须是对象");
-  if (!hasOnlyKeys(value, ["plan", "bundlePath", "outputPath", "browserExecutable", "remotionVersion", "mediaUrlByClipId", "binariesDirectory"])) {
-    return failure("input", "render worker input 包含未知字段");
-  }
-  if (!isRecord(value.plan)) return failure("input.plan", "render worker plan 必须是对象");
   for (const field of ["bundlePath", "outputPath", "browserExecutable"] as const) {
     if (!isAbsolutePath(value[field])) return failure(`input.${field}`, `${field} 必须是绝对路径`);
   }
   if (!isNonEmptyString(value.remotionVersion)) return failure("input.remotionVersion", "Remotion 版本必须是非空字符串");
-  if (!isRecord(value.mediaUrlByClipId)) return failure("input.mediaUrlByClipId", "媒体 URL 映射必须是对象");
   if (value.binariesDirectory !== undefined && !isAbsolutePath(value.binariesDirectory)) {
     return failure("input.binariesDirectory", "binariesDirectory 必须是绝对路径");
+  }
+  if (value.target === "shot") {
+    if (!hasOnlyKeys(value, ["target", "jobId", "shotPlan", "compositionProps", "compositionId", "bundlePath", "outputPath", "browserExecutable", "remotionVersion", "binariesDirectory"])) {
+      return failure("input", "shot render worker input 包含未知字段");
+    }
+    if (!isNonEmptyString(value.jobId)) return failure("input.jobId", "shot render jobId 必须是非空字符串");
+    if (value.compositionId !== "StoryboardShot") return failure("input.compositionId", "shot render 必须使用 StoryboardShot");
+    if (!isRecord(value.shotPlan)) return failure("input.shotPlan", "shot render plan 必须是对象");
+    if (!isRecord(value.compositionProps)) return failure("input.compositionProps", "shot Composition props 必须是对象");
+    return { success: true, value: value as unknown as RemotionRenderInput };
+  }
+  if (value.target === "chapter") {
+    if (!hasOnlyKeys(value, ["target", "jobId", "compositionProps", "compositionId", "bundlePath", "outputPath", "browserExecutable", "remotionVersion", "binariesDirectory"])) {
+      return failure("input", "chapter render worker input 包含未知字段");
+    }
+    if (!isNonEmptyString(value.jobId)) return failure("input.jobId", "chapter render jobId 必须是非空字符串");
+    if (value.compositionId !== "ChapterVideo") return failure("input.compositionId", "chapter render 必须使用 ChapterVideo");
+    if (!isRecord(value.compositionProps)) return failure("input.compositionProps", "chapter Composition props 必须是对象");
+    return { success: true, value: value as unknown as RemotionRenderInput };
+  }
+  if (!hasOnlyKeys(value, ["plan", "bundlePath", "outputPath", "browserExecutable", "remotionVersion", "mediaUrlByClipId", "binariesDirectory", "compositionId"])) {
+    return failure("input", "render worker input 包含未知字段");
+  }
+  if (!isRecord(value.plan)) return failure("input.plan", "render worker plan 必须是对象");
+  if (!isRecord(value.mediaUrlByClipId)) return failure("input.mediaUrlByClipId", "媒体 URL 映射必须是对象");
+  if (value.compositionId !== undefined && value.compositionId !== "DaojieTimeline") {
+    return failure("input.compositionId", "timeline render 只能使用 DaojieTimeline");
   }
   return { success: true, value: value as unknown as RemotionRenderInput };
 }

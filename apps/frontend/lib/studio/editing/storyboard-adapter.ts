@@ -13,6 +13,8 @@ import type {
   StoryboardItem,
   VideoCandidate,
 } from "@/types/studio";
+import type { RemotionCurrentSlotV1 } from "@/types/remotion-workspace";
+import { validateCurrentSlot } from "@/lib/studio/remotion/remotion-current-slot";
 import { validateEditingProject } from "./validation";
 import {
   indexCandidateTrimStarts,
@@ -35,6 +37,8 @@ export interface BuildStoryboardEditingProjectInput {
   storyboards: StoryboardItem[];
   productionTracks: ProductionTrack[];
   videoCandidates: VideoCandidate[];
+  /** When provided, Remotion current shot slots are the only visual source. */
+  remotionShotSlots?: RemotionCurrentSlotV1[];
   voiceDurationsUs?: Record<string, number>;
   voiceTailPaddingUs?: number;
   directorPlan?: ScriptPlan;
@@ -144,6 +148,13 @@ export function buildStoryboardEditingProject(
   const visualSelectionByStoryboardId = new Map<string, VisualSelection>();
   const missingVisualStoryboardIds: string[] = [];
   const missingAudioStoryboardIds: string[] = [];
+  const remotionSlotByShotId = input.remotionShotSlots === undefined
+    ? undefined
+    : new Map(
+        input.remotionShotSlots
+          .map((slot) => [remotionShotId(slot), slot] as const)
+          .filter((entry): entry is readonly [string, RemotionCurrentSlotV1] => Boolean(entry[0])),
+      );
 
   for (const storyboard of storyboards) {
     const track = trackByStoryboardId.get(storyboard.id);
@@ -155,6 +166,10 @@ export function buildStoryboardEditingProject(
       track,
       candidate,
       candidateTrimStartByStoryboardId.get(storyboard.id) ?? 0,
+      remotionSlotByShotId?.get(storyboard.id),
+      input.remotionShotSlots !== undefined,
+      input.projectId,
+      input.episodeId,
     );
     if (selection) visualSelectionByStoryboardId.set(storyboard.id, selection);
     else missingVisualStoryboardIds.push(storyboard.id);
@@ -395,7 +410,37 @@ function selectVisualSource(
   track: ProductionTrack | undefined,
   candidate: VideoCandidate | undefined,
   candidateTrimStartUs: number,
+  remotionSlot: RemotionCurrentSlotV1 | undefined,
+  remotionOnly: boolean,
+  projectId: string,
+  episodeId: string,
 ): VisualSelection | null {
+  if (storyboard.stale || storyboard.state !== "ready") {
+    return null;
+  }
+  if (remotionOnly) {
+    if (!remotionSlot || !isUsableRemotionShotSlot(remotionSlot, projectId, episodeId, storyboard)) {
+      return null;
+    }
+    return {
+      source: {
+        kind: "storyboardVideo",
+        path: remotionSlot.outputPath,
+        evidence: {
+          storyboardId: storyboard.id,
+          sourceRunId: remotionSlot.job.jobId,
+          sourceFingerprint: remotionSlot.job.inputHash,
+          outputVersion: remotionSlot.target.kind === "shot" ? remotionSlot.target.shotRevision : undefined,
+          mediaId: remotionSlot.evidence.sha256,
+          remotionJobId: remotionSlot.job.jobId,
+          remotionEvidenceSha256: remotionSlot.evidence.sha256,
+          remotionInputHash: remotionSlot.job.inputHash,
+          remotionBundleContentHash: remotionSlot.job.bundleContentHash,
+        },
+      },
+      trimStartUs: 0,
+    };
+  }
   if (track && candidate?.filePath) {
     return {
       source: {
@@ -434,6 +479,29 @@ function selectVisualSource(
     };
   }
   return null;
+}
+
+function remotionShotId(slot: RemotionCurrentSlotV1): string | undefined {
+  return slot.target.kind === "shot" ? slot.target.shotId : undefined;
+}
+
+function isUsableRemotionShotSlot(
+  slot: RemotionCurrentSlotV1,
+  projectId: string,
+  episodeId: string,
+  storyboard: StoryboardItem,
+): boolean {
+  if (slot.projectId !== projectId || slot.target.kind !== "shot"
+    || slot.target.chapterId !== episodeId || slot.target.shotId !== storyboard.id
+    || slot.target.shotRevision !== Math.max(1, storyboard.outputVersion ?? 1)) {
+    return false;
+  }
+  const validation = validateCurrentSlot(slot);
+  if (!validation.success) return false;
+  return validation.value.job.status === "succeeded"
+    && validation.value.evidence.compositionId === "StoryboardShot"
+    && validation.value.evidence.renderer.requested === "remotion"
+    && validation.value.evidence.renderer.actual === "remotion";
 }
 
 function storyboardBaseDurationUs(storyboard: StoryboardItem) {

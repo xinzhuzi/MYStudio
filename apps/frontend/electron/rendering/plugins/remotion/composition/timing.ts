@@ -79,8 +79,8 @@ export function transitionOverlapFrames(
     0,
     Math.min(fromDurationInFrames, toDurationInFrames) - 1,
   );
-  // FFmpeg caps every non-cut transition at 15% of the shorter clip before
-  // blending (timeline-ffmpeg-command.ts:119-123).
+  // The timeline render compiler caps every non-cut transition at 15% of the
+  // shorter clip before blending (timeline-render-compiler.ts).
   const maxByFfmpegTransition = Math.floor(Math.min(fromDurationInFrames, toDurationInFrames) * 0.15);
   return Math.max(0, Math.min(requested, maxByNeighbours, maxByFfmpegTransition));
 }

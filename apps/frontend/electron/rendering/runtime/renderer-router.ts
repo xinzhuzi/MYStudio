@@ -18,6 +18,7 @@ interface TimelineRendererRoutingPlan {
 export interface TimelineRendererRouteDecision {
   requested: TimelineRendererId;
   actual: TimelineRendererId;
+  /** Compatibility display contract only; this router never returns a fallback. */
   fallback?: RendererFallbackReason<RemotionUnsupportedEffectId>;
 }
 
@@ -25,7 +26,7 @@ export type TimelineRendererRouteResult =
   | { success: true; decision: TimelineRendererRouteDecision }
   | {
     success: false;
-    code: "unknown-remotion-effects";
+    code: "legacy-ffmpeg-renderer" | "unsupported-remotion-effects" | "unknown-remotion-effects";
     effectIds: string[];
     message: string;
   };
@@ -35,8 +36,10 @@ export function routeTimelineRenderer(
 ): TimelineRendererRouteResult {
   if (request.requestedRenderer === "ffmpeg") {
     return {
-      success: true,
-      decision: { requested: "ffmpeg", actual: "ffmpeg" },
+      success: false,
+      code: "legacy-ffmpeg-renderer",
+      effectIds: [],
+      message: "正式时间线仅支持 Remotion 渲染；FFmpeg 渲染器已停用",
     };
   }
 
@@ -65,16 +68,10 @@ export function routeTimelineRenderer(
     .filter((effectId) => enabledEffectIds.has(effectId));
   if (fallbackEffectIds.length > 0) {
     return {
-      success: true,
-      decision: {
-        requested: "remotion",
-        actual: "ffmpeg",
-        fallback: {
-          code: "unsupported-effects",
-          effectIds: [...fallbackEffectIds],
-          message: `Remotion 暂不支持效果：${fallbackEffectIds.join("、")}`,
-        },
-      },
+      success: false,
+      code: "unsupported-remotion-effects",
+      effectIds: [...fallbackEffectIds],
+      message: `Remotion 暂不支持效果：${fallbackEffectIds.join("、")}；正式流程不会回退 FFmpeg`,
     };
   }
 

@@ -50,6 +50,42 @@ const manualCatalog: StudioManualCatalog = {
 };
 
 describe("production workflow node model", () => {
+  it("projects requested renderer and current render evidence into the workbench node", () => {
+    const withoutEvidence = buildProductionFlowModel({
+      agentWorkData: [],
+      entityExtractions: [],
+      scriptPlans: [],
+      storyboards: [],
+      productionTracks: [],
+      videoCandidates: [],
+      rendererSummary: { requested: "remotion" },
+    });
+    const emptyWorkbench = withoutEvidence.nodes.find((node) => node.id === "workbench");
+    expect(emptyWorkbench?.rendererSummary).toEqual({ requested: "remotion" });
+    expect(emptyWorkbench?.metrics).toContain("请求渲染器 Remotion");
+    expect(emptyWorkbench?.metrics).toContain("尚未验证成片");
+
+    const withFallback = buildProductionFlowModel({
+      agentWorkData: [],
+      entityExtractions: [],
+      scriptPlans: [],
+      storyboards: [],
+      productionTracks: [],
+      videoCandidates: [],
+      rendererSummary: {
+        requested: "remotion",
+        actual: "ffmpeg",
+        fallbackEffectIds: ["glitch", "grain"],
+        lastJobId: "job-1",
+        outputPath: "/tmp/final.mp4",
+      },
+    });
+    const fallbackWorkbench = withFallback.nodes.find((node) => node.id === "workbench");
+    expect(fallbackWorkbench?.metrics).toContain("Remotion → FFmpeg");
+    expect(fallbackWorkbench?.previewLines).toContain("回退效果 · glitch、grain");
+    expect(fallbackWorkbench?.previewLines).toContain("时间线成片 · /tmp/final.mp4");
+  });
+
   it("defines the Toonflow production nodes and fixed edges", () => {
     expect(PRODUCTION_FLOW_NODE_IDS).toEqual([
       "script",

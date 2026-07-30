@@ -4,6 +4,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
+import { hashBundleContent } from "./bundle-preflight.mjs";
 import { inspectPackagedRemotionApp } from "./verify-packaged-remotion.mjs";
 
 describe("packaged Remotion runtime", () => {
@@ -20,12 +21,27 @@ describe("packaged Remotion runtime", () => {
     for (const name of ["ffmpeg", "ffprobe", "remotion"]) fs.writeFileSync(path.join(compositor, name), "fixture", "utf8");
     try {
       const listAsarEntries = () => ["/out/main.js", "/node_modules/remotion/index.js"];
-      expect(inspectPackagedRemotionApp(appPath, { listAsarEntries }).manifest.remotionVersion).toBe("4.0.499");
+      expect(inspectPackagedRemotionApp(appPath, {
+        listAsarEntries,
+        readRemotionVersion: () => "4.0.499",
+      }).manifest.remotionVersion).toBe("4.0.499");
+      fs.appendFileSync(path.join(bundle, "bundle.js"), "tampered");
+      expect(() => inspectPackagedRemotionApp(appPath, {
+        listAsarEntries,
+        readRemotionVersion: () => "4.0.499",
+      })).toThrow("contentHash");
+      fs.writeFileSync(path.join(bundle, "bundle.js"), "//# sourceMappingURL=bundle.js.map\n", "utf8");
       fs.rmSync(path.join(bundle, "bundle.js.map"));
-      expect(() => inspectPackagedRemotionApp(appPath, { listAsarEntries })).toThrow("bundle.js.map");
+      expect(() => inspectPackagedRemotionApp(appPath, {
+        listAsarEntries,
+        readRemotionVersion: () => "4.0.499",
+      })).toThrow("bundle.js.map");
       fs.writeFileSync(path.join(bundle, "bundle.js.map"), "{}", "utf8");
       fs.rmSync(path.join(compositor, "ffprobe"));
-      expect(() => inspectPackagedRemotionApp(appPath, { listAsarEntries })).toThrow("ffprobe");
+      expect(() => inspectPackagedRemotionApp(appPath, {
+        listAsarEntries,
+        readRemotionVersion: () => "4.0.499",
+      })).toThrow("ffprobe");
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }
@@ -43,6 +59,7 @@ describe("packaged Remotion runtime", () => {
     try {
       expect(() => inspectPackagedRemotionApp(appPath, {
         listAsarEntries: () => ["/out/main.js", forbiddenEntry],
+        readRemotionVersion: () => "4.0.499",
       })).toThrow("禁止的 Remotion 开发/浏览器资源");
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
@@ -64,12 +81,16 @@ function createPackagedFixture(root: string): string {
 }
 
 function writeFixedBundleFixture(bundle: string): void {
-  fs.writeFileSync(path.join(bundle, "manifest.json"), JSON.stringify({
-    schemaVersion: 1,
-    remotionVersion: "4.0.499",
-    compositionId: "DaojieTimeline",
-    contentHash: "a".repeat(64),
-  }), "utf8");
+  fs.writeFileSync(path.join(bundle, "index.html"), "<!doctype html>", "utf8");
   fs.writeFileSync(path.join(bundle, "bundle.js"), "//# sourceMappingURL=bundle.js.map\n", "utf8");
   fs.writeFileSync(path.join(bundle, "bundle.js.map"), "{}", "utf8");
+  fs.writeFileSync(path.join(bundle, "manifest.json"), JSON.stringify({
+    schemaVersion: 2,
+    templateId: "mystudio-remotion-v1",
+    templateVersion: "1.0.0",
+    remotionVersion: "4.0.499",
+    compositionIds: ["StoryboardShot", "ChapterVideo", "DaojieTimeline"],
+    compositionId: "DaojieTimeline",
+    contentHash: hashBundleContent(bundle),
+  }), "utf8");
 }

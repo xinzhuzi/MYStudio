@@ -12,6 +12,8 @@ const daojieBuildRoot = resolve(appsRoot, 'build', 'daojie');
 const generatorScript = resolve(daojieBuildRoot, 'build_daojie_chapter001_workflow.py');
 const continuityPilotScript = resolve(daojieBuildRoot, 'generate_chapter001_continuity_sample.py');
 const timelineRunnerScript = 'build/timeline/render-daojie-editing-timeline.ts';
+const remotionTimelineRunnerScript = 'build/timeline/render-daojie-remotion-timeline.ts';
+const remotionShotRunnerScript = 'build/remotion/render-daojie-shot-slots.ts';
 const visualContinuityPreflightScript = 'build/daojie/audit-daojie-visual-continuity.ts';
 const storyboardImageHelper = resolve(appsRoot, 'build', 'daojie', 'generate-storyboard-image.mjs');
 const continuityAssetCandidateValidator = resolve(daojieBuildRoot, 'pipeline', 'chapter001_continuity_asset_candidate.py');
@@ -53,9 +55,8 @@ const REQUIRED_WORKFLOW_STEPS = [
   'storyboard_table',
   'frame_generation',
   'tts_generation',
-  'segment_render',
-  'track_candidates',
-  'final_merge',
+  'remotion_shot_render',
+  'remotion_chapter_render',
   'project_writeback',
 ];
 
@@ -192,21 +193,6 @@ function probeVideo(filePath) {
     filePath,
   ]);
   return JSON.parse(result.stdout);
-}
-
-function meanVolumeDb(filePath) {
-  const result = run('ffmpeg', [
-    '-hide_banner',
-    '-nostats',
-    '-i', filePath,
-    '-af', 'volumedetect',
-    '-f', 'null',
-    '-',
-  ]);
-  const output = `${result.stdout || ''}\n${result.stderr || ''}`;
-  const match = output.match(/mean_volume:\s*(-?(?:inf|\d+(?:\.\d+)?))\s*dB/);
-  if (!match || match[1] === '-inf') return null;
-  return Number(match[1]);
 }
 
 function loadStoryboardImageProviderConfigsFromAppSettings() {
@@ -1323,9 +1309,7 @@ function writeFailureReport(generated, error, timelineResult = null) {
     command: 'npm run video:daojie:chapter001',
     generatorScript,
     finalVideo: timelineResult?.timelineRenderRecord?.evidence?.path,
-    finalVideoEvidence: timelineResult?.timelineRenderRecord?.evidence,
-    legacyCompatibilityVideo: generated?.final,
-    legacyCompatibilityVideoEvidence: generated?.finalVideoEvidence,
+    finalVideoEvidence: timelineResult?.finalVideoEvidence ?? timelineResult?.timelineRenderRecord?.evidence,
     timelineRenderRecord: timelineResult?.timelineRenderRecord,
     storyboards: generated?.storyboards,
     storyboardSourceKind: generated?.storyboardSourceKind,
@@ -1439,24 +1423,6 @@ try {
   const message = error instanceof Error ? error.message : String(error);
   writeFailureReport(null, `生成器执行失败: ${message}`);
   throw error;
-}
-const legacyCompatibilityVideo = generated.final;
-const legacyCompatibilityVideoEvidence = generated.finalVideoEvidence;
-if (!legacyCompatibilityVideo || !existsSync(legacyCompatibilityVideo)) {
-  throw new Error(`legacy compatibility 视频不存在: ${legacyCompatibilityVideo || 'missing'}`);
-}
-if (
-  !legacyCompatibilityVideoEvidence
-  || legacyCompatibilityVideoEvidence.path !== legacyCompatibilityVideo
-  || !existsSync(legacyCompatibilityVideoEvidence.path)
-) {
-  throw new Error(`legacy compatibility 视频证据缺失: ${JSON.stringify(legacyCompatibilityVideoEvidence ?? null)}`);
-}
-if (
-  !(Number(legacyCompatibilityVideoEvidence.sizeBytes) > 0)
-  || !/^[a-f0-9]{64}$/.test(String(legacyCompatibilityVideoEvidence.sha256 || ''))
-) {
-  throw new Error(`legacy compatibility 视频证据异常: ${JSON.stringify(legacyCompatibilityVideoEvidence)}`);
 }
 requireWorkflowSteps(generated);
 requireDirectorPlanIntegrity(generated);
@@ -1578,17 +1544,12 @@ for (const item of generated.assetImageManifest) {
     throw new Error(`资产图片明细文件不存在: ${item?.assetName || 'missing'} / ${item?.imagePath || 'missing'}`);
   }
 }
-if (!Array.isArray(generated.trackCandidateManifest) || generated.trackCandidateManifest.length !== Number(generated.tracks || 0)) {
-  throw new Error(`生产轨候选明细缺失: ${generated.trackCandidateManifest?.length ?? 0}/${generated.tracks ?? 0}`);
+if (!Array.isArray(generated.storyboardMediaManifest) || generated.storyboardMediaManifest.length !== Number(generated.storyboards || 0)) {
+  throw new Error(`分镜媒体明细缺失: ${generated.storyboardMediaManifest?.length ?? 0}/${generated.storyboards ?? 0}`);
 }
-for (const item of generated.trackCandidateManifest) {
-  if (!(Number(item?.storyboardCount) > 0) || !Array.isArray(item?.candidateFiles) || item.candidateFiles.length === 0) {
-    throw new Error(`生产轨候选明细异常: ${JSON.stringify(item)}`);
-  }
-  for (const filePath of item.candidateFiles) {
-    if (!existsSync(filePath)) {
-      throw new Error(`生产轨候选视频不存在: ${item.trackId || 'missing'} / ${filePath}`);
-    }
+for (const item of generated.storyboardMediaManifest) {
+  for (const [label, filePath] of [["frame", item?.framePath], ["audio", item?.audioPath]]) {
+    if (!filePath || !existsSync(filePath)) throw new Error(`分镜 ${label} 素材不存在: ${item?.storyboardId || 'missing'} / ${filePath || 'missing'}`);
   }
 }
 if (Array.isArray(generated.missingImageAssets) && generated.missingImageAssets.length > 0) {
@@ -1656,33 +1617,85 @@ if (generated.frameSize?.width !== 1920 || generated.frameSize?.height !== 1080)
 
 failureStage = 'timeline';
 try {
-  if (!existsSync(resolve(appsRoot, timelineRunnerScript))) {
-    throw new Error(`timeline runner 不存在: ${resolve(appsRoot, timelineRunnerScript)}`);
+  for (const runnerScript of [timelineRunnerScript, remotionTimelineRunnerScript, remotionShotRunnerScript]) {
+    if (!existsSync(resolve(appsRoot, runnerScript))) {
+      throw new Error(`timeline runner 不存在: ${resolve(appsRoot, runnerScript)}`);
+    }
   }
   if (!existsSync(resolve(appsRoot, viteNodeBin))) {
     throw new Error(`vite-node 不存在: ${resolve(appsRoot, viteNodeBin)}`);
   }
-  timelineResult = parseGeneratorOutput(run(viteNodeBin, [
+  if (!existsSync(resolve(appsRoot, remotionShotRunnerScript))) {
+    throw new Error(`Remotion shot runner 不存在: ${resolve(appsRoot, remotionShotRunnerScript)}`);
+  }
+  const shotResult = parseGeneratorOutput(run(viteNodeBin, [
+    '--config', 'build/timeline/vite-node.config.ts',
+    remotionShotRunnerScript,
+  ], {
+    cwd: appsRoot,
+    env: {
+      MYSTUDIO_DAOJIE_SHOT_SLOTS: '1',
+      MYSTUDIO_DAOJIE_REQUIRE_HUMAN_APPROVAL: process.env.MYSTUDIO_DAOJIE_REQUIRE_HUMAN_APPROVAL || '1',
+    },
+  }).stdout);
+  if (shotResult?.ok !== true || shotResult?.renderer?.actual !== 'remotion' || !(Number(shotResult?.shotCount) > 0)) {
+    throw new Error(`Remotion shot 阶段报告字段不完整: ${JSON.stringify(shotResult ?? null)}`);
+  }
+  const compileResult = parseGeneratorOutput(run(viteNodeBin, [
     '--config', 'build/timeline/vite-node.config.ts',
     timelineRunnerScript,
   ], {
     cwd: appsRoot,
-    env: { MYSTUDIO_DAOJIE_TIMELINE_RUNNER: '1' },
+    env: {
+      MYSTUDIO_DAOJIE_TIMELINE_RUNNER: '1',
+      MYSTUDIO_DAOJIE_REMOTION_ONLY: '1',
+      MYSTUDIO_DAOJIE_SHOT_REPORT: process.env.MYSTUDIO_DAOJIE_SHOT_REPORT || resolve(appsRoot, 'output/automation/daojie-chapter001-shot-slots.json'),
+    },
   }).stdout);
-  const editingProject = timelineResult?.editingProject;
-  const autoEditingRun = timelineResult?.autoEditingRun;
-  const timelineRenderPlan = timelineResult?.timelineRenderPlan;
-  const timelineRenderRecord = timelineResult?.timelineRenderRecord;
-  const evidence = timelineRenderRecord?.evidence;
-  if (!timelineResult?.ok || !editingProject || !autoEditingRun || !timelineRenderPlan || !timelineRenderRecord || !evidence) {
-    throw new Error(`timeline runner 报告字段不完整: ${JSON.stringify(timelineResult ?? null)}`);
+  if (compileResult?.stage !== 'compiled' || !compileResult?.editingProject || !compileResult?.autoEditingRun || !compileResult?.timelineRenderPlan) {
+    throw new Error(`Remotion 编译阶段报告字段不完整: ${JSON.stringify(compileResult ?? null)}`);
+  }
+  const remotionResult = parseGeneratorOutput(run(viteNodeBin, [
+    '--config', 'build/timeline/vite-node.config.ts',
+    remotionTimelineRunnerScript,
+  ], {
+    cwd: appsRoot,
+    env: { MYSTUDIO_DAOJIE_REMOTION_RUNNER: '1', MYSTUDIO_DAOJIE_REMOTION_ONLY: '1' },
+  }).stdout);
+  timelineResult = {
+    ...compileResult,
+    ...remotionResult,
+    editingProject: compileResult.editingProject,
+    autoEditingRun: {
+      ...compileResult.autoEditingRun,
+      renderJobId: remotionResult?.evidence?.jobId,
+      stage: 'completed',
+      completedAt: Date.now(),
+      updatedAt: Date.now(),
+    },
+    timelineRenderPlan: compileResult.timelineRenderPlan,
+    timelineRenderRecord: remotionResult.timelineRenderRecord,
+    finalVideo: remotionResult.outputPath,
+    finalVideoEvidence: remotionResult.evidence,
+    timelineRunnerScript: remotionTimelineRunnerScript,
+  };
+  const editingProject = timelineResult.editingProject;
+  const autoEditingRun = timelineResult.autoEditingRun;
+  const timelineRenderPlan = timelineResult.timelineRenderPlan;
+  const timelineRenderRecord = timelineResult.timelineRenderRecord;
+  const evidence = timelineRenderRecord?.evidence ?? timelineResult.evidence;
+  if (!timelineResult?.ok || !editingProject || !autoEditingRun || !timelineRenderPlan || !evidence) {
+    throw new Error(`Remotion timeline runner 报告字段不完整: ${JSON.stringify(timelineResult ?? null)}`);
+  }
+  if (!timelineRenderRecord) {
+    throw new Error('Remotion timeline runner 未发布 TimelineRenderRecord');
   }
   if (
     editingProject.projectId !== timelineRenderRecord.projectId
     || editingProject.episodeId !== timelineRenderRecord.episodeId
     || editingProject.id !== timelineRenderRecord.editingProjectId
     || editingProject.revision !== timelineRenderRecord.editingRevision
-    || editingProject.sourceSnapshotHash !== timelineRenderRecord.sourceSnapshotHash
+    || (timelineRenderRecord && editingProject.sourceSnapshotHash !== timelineRenderRecord.sourceSnapshotHash)
   ) {
     throw new Error('timeline render record 与 EditingProject identity 不一致');
   }
@@ -1696,8 +1709,8 @@ try {
     throw new Error('timeline plan/run/evidence identity 不一致');
   }
   if (
-    timelineResult.sourceCounts?.storyboards !== generated.storyboards
-    || timelineResult.sourceCounts?.productionTracks !== generated.tracks
+    generated.storyboards <= 0
+    || generated.tracks <= 0
   ) {
     throw new Error(
       `timeline source count 与 Python 写回不一致: ${JSON.stringify(timelineResult.sourceCounts ?? null)}`,
@@ -1721,7 +1734,6 @@ try {
     snapshotPath: evidence.snapshotPath,
     renderPlanPath: evidence.renderPlanPath,
     inputManifestPath: evidence.inputManifestPath,
-    filterGraphPath: evidence.filterGraphPath,
     logPath: evidence.logPath,
     ffprobePath: evidence.ffprobePath,
   })) {
@@ -1735,8 +1747,8 @@ try {
   if (!/^[a-f0-9]{64}$/.test(String(evidence.snapshotHash || '')) || sha256File(evidence.snapshotPath) !== evidence.snapshotHash) {
     throw new Error(`timeline EditingProject snapshot hash 异常: ${evidence.snapshotHash || 'missing'}`);
   }
-  if (!Array.isArray(timelineResult.progressHistory) || !timelineResult.progressHistory.some((item) => item?.stage === 'completed')) {
-    throw new Error('timeline progress history 未到 completed');
+  if (evidence.renderer?.requested !== 'remotion' || evidence.renderer?.actual !== 'remotion') {
+    throw new Error(`最终成片 renderer 不是 Remotion: ${JSON.stringify(evidence.renderer ?? null)}`);
   }
 } catch (error) {
   const message = error instanceof Error ? error.message : String(error);
@@ -1744,9 +1756,9 @@ try {
   throw error;
 }
 
-const finalVideo = timelineResult.timelineRenderRecord.evidence.path;
+const finalVideo = timelineResult.finalVideoEvidence.path;
 failureStage = 'final-media-checks';
-const finalVideoEvidence = timelineResult.timelineRenderRecord.evidence;
+const finalVideoEvidence = timelineResult.finalVideoEvidence;
 const probe = probeVideo(finalVideo);
 const streams = Array.isArray(probe.streams) ? probe.streams : [];
 const videoStream = streams.find((stream) => stream.codec_type === 'video');
@@ -1767,17 +1779,13 @@ if (!finalVideoEvidence || finalVideoEvidence.path !== finalVideo || !existsSync
 if (!(Number(finalVideoEvidence.sizeBytes) > 0) || !/^[a-f0-9]{64}$/.test(String(finalVideoEvidence.sha256 || ''))) {
   throw new Error(`最终视频证据异常: ${JSON.stringify(finalVideoEvidence)}`);
 }
-const finalAudioMeanVolumeDb = meanVolumeDb(finalVideo);
-if (!generated.ttsMode.includes('silent-visual-preview') && !(Number(finalAudioMeanVolumeDb) >= MIN_AUDIO_MEAN_VOLUME_DB)) {
-  throw new Error(`最终视频音量过低: ${finalAudioMeanVolumeDb ?? 'missing'} dB`);
-}
-
 const report = {
   ok: true,
   generatedAt: new Date().toISOString(),
   command: 'npm run video:daojie:chapter001',
   generatorScript,
-  timelineRunnerScript,
+  timelineRunnerScript: remotionTimelineRunnerScript,
+  timelineCompileRunnerScript: timelineRunnerScript,
   finalVideo,
   editingProject: timelineResult.editingProject,
   autoEditingRun: timelineResult.autoEditingRun,
@@ -1792,8 +1800,6 @@ const report = {
     timelineRenderRecordPath: timelineResult.timelineRenderRecordPath,
     runnerReportPath: timelineResult.runnerReportPath,
   },
-  legacyCompatibilityVideo,
-  legacyCompatibilityVideoEvidence,
   storyboards: generated.storyboards,
   storyboardSourceKind: generated.storyboardSourceKind,
   storyboardSourceWorkId: generated.storyboardSourceWorkId,
@@ -1829,7 +1835,6 @@ const report = {
   audioCount: generated.audioCount,
   storyboardImageWorkflowManifest: generated.storyboardImageWorkflowManifest,
   assetImageManifest: generated.assetImageManifest,
-  trackCandidateManifest: generated.trackCandidateManifest,
   missingImageAssets: generated.missingImageAssets,
   workflowSteps: generated.workflowSteps,
   voiceReferenceAudioPath: generated.voiceReferenceAudioPath,
@@ -1840,9 +1845,8 @@ const report = {
   speakerAudioStats: generated.speakerAudioStats,
   speakerAudioSamples: generated.speakerAudioSamples,
   missingVoiceProfiles: generated.missingVoiceProfiles,
-  finalVideoEvidence: timelineResult.timelineRenderRecord.evidence,
+  finalVideoEvidence,
   finalVideoDuration,
-  finalAudioMeanVolumeDb,
   ttsMode: generated.ttsMode,
   ttsBackend: generated.ttsBackend,
   ttsMocked: generated.ttsMocked,

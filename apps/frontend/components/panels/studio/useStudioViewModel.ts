@@ -6,7 +6,6 @@ import { resolveProductionEpisodeId } from "./workflow-helpers";
 import { useNovelPipelineActions } from "./useNovelPipelineActions";
 import { useProductionFlowModel } from "./useProductionFlowModel";
 import { useProductionPlanningActions } from "./useProductionPlanningActions";
-import { useProductionRenderActions } from "./useProductionRenderActions";
 import { useScriptStageActions } from "./useScriptStageActions";
 import { useStudioManualCatalog } from "./useStudioManualCatalog";
 import { useWorkflowNodeEditor } from "./useWorkflowNodeEditor";
@@ -35,11 +34,6 @@ export function useStudioViewModel() {
     saveEntityExtraction,
     saveScriptPlan,
     saveSeriesBible,
-    rebuildTracks,
-    addVideoCandidate,
-    updateVideoCandidate,
-    selectVideoCandidate,
-    deleteVideoCandidate,
   } = useStudioStore();
   const [novelDraft, setNovelDraft] = useState("");
   const { activeWorkflowTab, handleStageChange } = useWorkflowStageState({
@@ -77,6 +71,7 @@ export function useStudioViewModel() {
     episodeId: productionEpisodeId,
   });
   const productionFlowModel = useProductionFlowModel({
+    productionEpisodeId,
     agentWorkData,
     entityExtractions,
     scriptPlans,
@@ -150,22 +145,6 @@ export function useStudioViewModel() {
     agentWorkData,
     saveAgentWorkData,
   });
-  const {
-    renderingTrackId,
-    merging,
-    mergeOutput,
-    handleRenderTrack,
-    handleMergeEpisode,
-  } = useProductionRenderActions({
-    productionTracks,
-    storyboards,
-    videoCandidates,
-    addVideoCandidate,
-    updateVideoCandidate,
-    selectVideoCandidate,
-    saveAgentWorkData,
-  });
-
   const handleEnterWorkflowNodeStage = () => {
     if (editingWorkflowNodeId) {
       const node = productionFlowModel.nodes.find(
@@ -239,14 +218,6 @@ export function useStudioViewModel() {
     storyboards,
     productionTracks,
     videoCandidates,
-    renderingTrackId,
-    merging,
-    mergeOutput,
-    rebuildTracks,
-    handleRenderTrack,
-    selectVideoCandidate,
-    deleteVideoCandidate,
-    handleMergeEpisode,
     editingWorkflowNodeId,
     workflowNodeDraft,
     workflowNodeEditTitle,

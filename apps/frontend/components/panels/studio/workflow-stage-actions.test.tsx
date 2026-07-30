@@ -1696,7 +1696,7 @@ describe("workflow stage action surfaces", () => {
     expect(hookSource).toContain("reviewFeedback: useReviewFeedback && hasReviewIssues(review) ? review : undefined");
   });
 
-  it("routes production render actions through the split hook", () => {
+  it("does not wire the legacy production renderer into the workflow", () => {
     const indexSource = readFileSync(
       join(
         process.cwd(),
@@ -1711,13 +1711,6 @@ describe("workflow stage action surfaces", () => {
       ),
       "utf8",
     );
-    const hookSource = readFileSync(
-      join(
-        process.cwd(),
-        "frontend/components/panels/studio/useProductionRenderActions.ts",
-      ),
-      "utf8",
-    );
     const runnerSource = readFileSync(
       join(
         process.cwd(),
@@ -1726,15 +1719,12 @@ describe("workflow stage action surfaces", () => {
       "utf8",
     );
 
-    expect(viewModelSource).toContain("useProductionRenderActions");
+    expect(viewModelSource).not.toContain("useProductionRenderActions");
     expect(indexSource).not.toContain("createTrackRenderPlan");
     expect(indexSource).not.toContain("createEpisodeMergePlan");
     expect(indexSource).not.toContain("setRenderingTrackId");
-    expect(hookSource).toContain("runProductionTrackRender");
-    expect(hookSource).toContain("runProductionEpisodeMerge");
-    expect(hookSource).toContain("selectedCandidates");
-    expect(runnerSource).toContain("renderTrackCandidate");
-    expect(runnerSource).toContain("mergeEpisode");
+    expect(runnerSource).not.toContain("renderTrackCandidate");
+    expect(runnerSource).not.toContain("mergeEpisode");
   });
 
   it("routes novel analysis and asset extraction through the split hook", () => {
@@ -1804,7 +1794,7 @@ describe("workflow stage action surfaces", () => {
     expect(hookSource).toContain("studioRenderer");
   });
 
-  it("renders the Toonflow style workbench parameter bar and track actions", () => {
+  it("renders the native Remotion chapter workbench entry point", () => {
     render(
       <WorkbenchTab
         storyboards={[]}
@@ -1821,33 +1811,29 @@ describe("workflow stage action surfaces", () => {
           },
         ]}
         candidates={[]}
-        renderingTrackId={null}
-        merging={false}
-        mergeOutput={null}
-        rebuildTracks={vi.fn()}
-        renderTrack={vi.fn()}
-        selectVideoCandidate={vi.fn()}
-        deleteVideoCandidate={vi.fn()}
-        mergeEpisode={vi.fn()}
       />,
     );
 
-    expect(screen.getByText("ffmpeg-local")).toBeTruthy();
-    expect(screen.getByText("track-candidate")).toBeTruthy();
-    expect(screen.getByText("16:9")).toBeTruthy();
-    expect(screen.getByText("audio")).toBeTruthy();
-    expect(screen.getByText("添加 track")).toBeTruthy();
-    expect(screen.getByText("生成提示词")).toBeTruthy();
-    expect(screen.getByText("生成视频")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "一键成片" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "旧拼接导出" })).toBeTruthy();
-    expect(screen.queryByText("本地合成")).toBeNull();
+    expect(screen.getByText("原生 Remotion Studio 章节工作台")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "准备当前章" })).toBeTruthy();
+    expect(screen.queryByText("ffmpeg-local")).toBeNull();
+    expect(screen.queryByRole("button", { name: "旧拼接导出" })).toBeNull();
   });
 
-  it("renders track medias and video candidates with selection actions", () => {
-    const renderTrack = vi.fn();
-    const selectVideoCandidate = vi.fn();
-    const deleteVideoCandidate = vi.fn();
+  it("keeps the native Studio entry point when the chapter editing project is not prepared", () => {
+    render(
+      <WorkbenchTab
+        storyboards={[]}
+        tracks={[]}
+        candidates={[]}
+      />,
+    );
+
+    expect(screen.getByRole("region", { name: "Remotion 章节工作台准备" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "打开渲染设置" })).toBeNull();
+  });
+
+  it("does not expose the legacy track candidate controls", () => {
     render(
       <WorkbenchTab
         storyboards={[
@@ -1892,34 +1878,18 @@ describe("workflow stage action surfaces", () => {
             createdAt: 1,
           },
         ]}
-        renderingTrackId={null}
-        merging={false}
-        mergeOutput={null}
-        rebuildTracks={vi.fn()}
-        renderTrack={renderTrack}
-        selectVideoCandidate={selectVideoCandidate}
-        deleteVideoCandidate={deleteVideoCandidate}
-        mergeEpisode={vi.fn()}
       />,
     );
 
-    expect(screen.getByText("storyboard/image")).toBeTruthy();
-    expect(screen.getByText("storyboard/audio")).toBeTruthy();
-    expect(screen.getByAltText("分镜 1").getAttribute("src")).toBe(
-      "project-file://daojie/workflow-images/shot.png",
-    );
-    expect(screen.getAllByText("ready").length).toBeGreaterThanOrEqual(2);
-
-    fireEvent.click(screen.getByRole("button", { name: /生成视频/ }));
-    fireEvent.click(screen.getByRole("button", { name: /选择/ }));
-    fireEvent.click(screen.getByRole("button", { name: /删除/ }));
-
-    expect(renderTrack).toHaveBeenCalledWith("track-1");
-    expect(selectVideoCandidate).toHaveBeenCalledWith("track-1", "video-1");
-    expect(deleteVideoCandidate).toHaveBeenCalledWith("video-1");
+    expect(screen.getByRole("button", { name: "准备当前章" })).toBeTruthy();
+    expect(screen.queryByText("ffmpeg-local")).toBeNull();
+    expect(screen.queryByText("track-candidate")).toBeNull();
+    expect(screen.queryByRole("button", { name: /生成视频/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /选择/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /删除/ })).toBeNull();
   });
 
-  it("disables final merge until a ready selected candidate exists", () => {
+  it("does not expose the legacy final merge control", () => {
     render(
       <WorkbenchTab
         storyboards={[]}
@@ -1936,20 +1906,11 @@ describe("workflow stage action surfaces", () => {
           },
         ]}
         candidates={[]}
-        renderingTrackId={null}
-        merging={false}
-        mergeOutput={null}
-        rebuildTracks={vi.fn()}
-        renderTrack={vi.fn()}
-        selectVideoCandidate={vi.fn()}
-        deleteVideoCandidate={vi.fn()}
-        mergeEpisode={vi.fn()}
       />,
     );
 
-    expect(screen.getByRole("button", { name: "旧拼接导出" })).toHaveProperty(
-      "disabled",
-      true,
-    );
+    expect(screen.queryByRole("button", { name: "旧拼接导出" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "一键成片" })).toBeNull();
+    expect(screen.getByRole("button", { name: "准备当前章" })).toBeTruthy();
   });
 });

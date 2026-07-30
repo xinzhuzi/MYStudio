@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   REMOTION_PREVIEW_CREATE_CHANNEL,
   REMOTION_PREVIEW_RELEASE_CHANNEL,
+  REMOTION_SHOT_PREVIEW_CREATE_CHANNEL,
 } from "@rendering/plugins/remotion/preview/remotion-preview-ipc";
 
 type IpcHandler = (...args: unknown[]) => unknown;
@@ -45,6 +46,7 @@ describe("registerRemotionPreviewIpcHandlers", () => {
     expect([...electronState.handlers.keys()].sort()).toEqual([
       REMOTION_PREVIEW_CREATE_CHANNEL,
       REMOTION_PREVIEW_RELEASE_CHANNEL,
+      REMOTION_SHOT_PREVIEW_CREATE_CHANNEL,
     ].sort());
     await expect(electronState.handlers.get(REMOTION_PREVIEW_CREATE_CHANNEL)!({}, {
       plan: {},
@@ -62,6 +64,7 @@ describe("registerRemotionPreviewIpcHandlers", () => {
     expect(electronState.removed.sort()).toEqual([
       REMOTION_PREVIEW_CREATE_CHANNEL,
       REMOTION_PREVIEW_RELEASE_CHANNEL,
+      REMOTION_SHOT_PREVIEW_CREATE_CHANNEL,
     ].sort());
   });
 });

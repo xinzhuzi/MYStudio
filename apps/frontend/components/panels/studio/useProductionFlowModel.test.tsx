@@ -3,6 +3,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, renderHook, waitFor } from "@testing-library/react";
 import { useCharacterLibraryStore } from "@/stores/library/character-library-store";
 import { useProjectStore } from "@/stores/project/project-store";
+import { useAppSettingsStore } from "@/stores/app/app-settings-store";
+import { useEditingStore } from "@/stores/editing/editing-store";
 import { usePropsLibraryStore } from "@/stores/library/props-library-store";
 import { useSceneStore } from "@/stores/library/scene-store";
 import { useProductionFlowModel } from "./useProductionFlowModel";
@@ -15,9 +17,82 @@ afterEach(() => {
   useSceneStore.getState().reset();
   usePropsLibraryStore.getState().reset();
   useProjectStore.setState({ activeProjectId: "default-project" });
+  useAppSettingsStore.setState({ renderingSettings: { renderer: "ffmpeg" } });
+  useEditingStore.setState({
+    activeProjectId: "default-project",
+    editingProjects: {},
+    currentEditingProjectIdByEpisode: {},
+    timelineRenderRecordsByEditingProjectId: {},
+  });
 });
 
 describe("useProductionFlowModel", () => {
+  it("uses only render evidence matching the active project, episode, editing project, and revision", () => {
+    useProjectStore.setState({ activeProjectId: "project-1" });
+    useAppSettingsStore.setState({ renderingSettings: { renderer: "remotion" } });
+    const project = {
+      schemaVersion: 1 as const,
+      id: "editing-1",
+      projectId: "project-1",
+      episodeId: "episode-1",
+      name: "剪辑工程",
+      revision: 3,
+      sourceSnapshotHash: "snapshot-1",
+      createdBy: "manual" as const,
+      manuallyEdited: false,
+      stale: false,
+      renderSettings: { width: 1080, height: 1920, fps: 30, codec: "h264" as const, subtitleMode: "burn-in" as const, loudnessLufs: -14, truePeakDbtp: -1.5 },
+      tracks: [], clips: [], transitions: [], effects: [], proposals: [],
+      createdAt: 1, updatedAt: 2,
+    };
+    const record = {
+      projectId: "project-1",
+      episodeId: "episode-1",
+      editingProjectId: "editing-1",
+      editingRevision: 3,
+      sourceSnapshotHash: "snapshot-1",
+      completedAt: 3,
+      evidence: {
+        jobId: "job-1", path: "/tmp/final.mp4", sizeBytes: 1, mtimeMs: 3,
+        sha256: "a".repeat(64), duration: 4, width: 1080, height: 1920,
+        streams: ["video", "audio"], snapshotHash: "snapshot-1", snapshotPath: "/tmp/snapshot.json",
+        renderer: { requested: "remotion" as const, actual: "ffmpeg" as const, fallback: { code: "unsupported-effects" as const, effectIds: ["glitch" as const], message: "unsupported" } },
+      },
+    };
+    useEditingStore.setState({
+      activeProjectId: "project-1",
+      editingProjects: { "editing-1": project },
+      currentEditingProjectIdByEpisode: { "episode-1": "editing-1" },
+      timelineRenderRecordsByEditingProjectId: { "editing-1": record },
+    });
+
+    const emptyInput = {
+      agentWorkData: [], entityExtractions: [], scriptPlans: [], storyboards: [],
+      productionTracks: [], videoCandidates: [],
+    };
+    const renderModel = (episodeId: string) => renderHook(() => useProductionFlowModel({
+      productionEpisodeId: episodeId,
+      ...emptyInput,
+    }));
+    const current = renderModel("episode-1");
+    expect(current.result.current.nodes.find((node) => node.id === "workbench")?.rendererSummary).toMatchObject({
+      requested: "remotion", actual: "ffmpeg", fallbackEffectIds: ["glitch"], lastJobId: "job-1", outputPath: "/tmp/final.mp4",
+    });
+    current.unmount();
+
+    for (const mismatched of [
+      { projectId: "project-2" },
+      { episodeId: "episode-2" },
+      { editingProjectId: "editing-2" },
+      { editingRevision: 2 },
+    ]) {
+      useEditingStore.setState({ timelineRenderRecordsByEditingProjectId: { "editing-1": { ...record, ...mismatched } } });
+      const stale = renderModel("episode-1");
+      expect(stale.result.current.nodes.find((node) => node.id === "workbench")?.rendererSummary).toEqual({ requested: "remotion" });
+      stale.unmount();
+    }
+  });
+
   it("links independent asset-library batch matches into the derived asset node", async () => {
     useProjectStore.setState({ activeProjectId: "default-project" });
     const batchMatch = vi.fn(async ({ names }: { type: string; names: string[] }) =>
@@ -51,6 +126,7 @@ describe("useProductionFlowModel", () => {
 
     const { result } = renderHook(() =>
       useProductionFlowModel({
+        productionEpisodeId: "chapter-001",
         agentWorkData: [],
         entityExtractions: [
           {

@@ -4,35 +4,46 @@ import { pathToFileURL } from "node:url";
 import { bundle as remotionBundle } from "@remotion/bundler";
 import { sha256 } from "../shared/paid-image-request-ledger.mjs";
 
-export const BUNDLE_MANIFEST_SCHEMA_VERSION = 1;
+export const BUNDLE_MANIFEST_SCHEMA_VERSION = 2;
+export const REMOTION_TEMPLATE_ID = "mystudio-remotion-v1";
+export const REMOTION_TEMPLATE_VERSION = "1.0.0";
 
 // The composition entry and manifest are deliberately fixed. Export paths only
 // consume this output; they never invoke the bundler per render job.
 export const FIXED_COMPOSITION_ENTRY = "frontend/electron/rendering/plugins/remotion/composition/entry.tsx";
 export const FIXED_COMPOSITION_ID = "DaojieTimeline";
+export const BUNDLED_COMPOSITION_IDS = ["StoryboardShot", "ChapterVideo", FIXED_COMPOSITION_ID];
 export const BUNDLE_OUTPUT_DIR = ".cache/remotion-bundle";
 
 export function bundleManifestSchema() {
   return {
     schemaVersion: BUNDLE_MANIFEST_SCHEMA_VERSION,
-    fields: ["schemaVersion", "remotionVersion", "compositionId", "contentHash"],
+    fields: [
+      "schemaVersion",
+      "templateId",
+      "templateVersion",
+      "remotionVersion",
+      "compositionIds",
+      "compositionId",
+      "contentHash",
+    ],
   };
 }
 
-export function buildBundleManifest({ remotionVersion, compositionId, contentHash }) {
+export function buildBundleManifest({ remotionVersion, contentHash }) {
   if (!isExactSemver(remotionVersion)) {
     throw new Error("bundle manifest 需要精确 Remotion semver");
-  }
-  if (typeof compositionId !== "string" || compositionId.length === 0) {
-    throw new Error("bundle manifest 需要非空 compositionId");
   }
   if (!/^[a-f0-9]{64}$/.test(String(contentHash))) {
     throw new Error("bundle manifest 需要 sha256 contentHash");
   }
   return {
     schemaVersion: BUNDLE_MANIFEST_SCHEMA_VERSION,
+    templateId: REMOTION_TEMPLATE_ID,
+    templateVersion: REMOTION_TEMPLATE_VERSION,
     remotionVersion,
-    compositionId,
+    compositionIds: [...BUNDLED_COMPOSITION_IDS],
+    compositionId: FIXED_COMPOSITION_ID,
     contentHash,
   };
 }
@@ -74,7 +85,6 @@ export async function runBundle({
     const contentHash = hashDirectory(temporaryDir);
     const manifest = buildBundleManifest({
       remotionVersion,
-      compositionId: FIXED_COMPOSITION_ID,
       contentHash,
     });
     fs.writeFileSync(

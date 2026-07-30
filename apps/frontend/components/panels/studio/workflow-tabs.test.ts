@@ -101,9 +101,9 @@ describe("studio workflow tabs", () => {
     expect(canvasSource).toContain("void onOpenFinalVideo?.()");
     expect(hookSource).toContain("runChapterAutoVideo");
     expect(hookSource).toContain("runStoryboardTtsGeneration");
-    expect(hookSource).toContain("runProductionTrackRender");
-    expect(hookSource).toContain("buildChapterEditingProject");
-    expect(hookSource).toContain("renderChapterEditingProject");
+    expect(hookSource).toContain("buildRemotionShotPlans");
+    expect(hookSource).toContain("createReadyShotJob");
+    expect(hookSource).toContain("window.remotionQueue");
     expect(hookSource).not.toContain("runProductionEpisodeMerge");
     expect(hookSource).toContain("window.electronAPI?.openPath(status.finalPath)");
   });
@@ -396,6 +396,12 @@ describe("studio workflow tabs", () => {
       ),
       "utf8",
     );
+    const zoomProbeSource = readFileSync(
+      fileURLToPath(
+        new URL("../../../../build/smoke/measure-workflow-zoom-performance.mjs", import.meta.url),
+      ),
+      "utf8",
+    );
 
     expect(indexSource).toContain("WorkflowNodeCanvas");
     expect(indexSource).not.toContain('TabsContent value="flow"');
@@ -403,6 +409,9 @@ describe("studio workflow tabs", () => {
     expect(indexSource).toContain("flex h-full min-h-0 flex-col bg-background p-5");
     expect(indexSource).toContain('value="storyboard"');
     expect(indexSource).toContain("data-[state=active]:flex data-[state=inactive]:hidden");
+    expect(indexSource).toContain(
+      'isVisible={viewModel.activeWorkflowTab === "storyboard"}',
+    );
     expect(indexSource).not.toContain("flex min-h-full flex-col bg-background p-5");
     expect(indexSource).not.toContain("<StoryboardTab");
     expect(indexSource).not.toContain(
@@ -413,20 +422,36 @@ describe("studio workflow tabs", () => {
     expect(canvasSource).not.toContain("<Controls");
     expect(canvasSource).toContain("CanvasViewportControls");
     expect(canvasSource).toContain("workflow-node-viewport-controls");
-    expect(canvasSource).toContain("bg-card/95");
+    expect(canvasSource).toContain("bg-card p-1 text-xs text-card-foreground");
     expect(canvasSource).toContain("useNodesState");
     expect(canvasSource).toContain("useReactFlow");
     expect(canvasSource).toContain("useOnViewportChange");
+    expect(canvasSource).toContain("useUpdateNodeInternals");
+    expect(canvasSource).toContain("CanvasVisibilityMeasurementRefresh");
     expect(canvasSource).toContain('aria-label="缩小画布"');
     expect(canvasSource).toContain('aria-label="放大画布"');
     expect(canvasSource).toContain('aria-label="适配画布"');
     expect(canvasSource).toContain('aria-label="重排当前画布"');
     expect(canvasSource).toContain("const PRODUCTION_CANVAS_MIN_ZOOM = 0.18");
+    expect(canvasSource).toContain("const PRODUCTION_CANVAS_MAX_ZOOM = 2.0");
+    expect(canvasSource).toContain("maxZoom: 0.72,");
+    expect(canvasSource).toContain(
+      "flowInstance.fitView({ ...FIT_VIEW_OPTIONS, duration: 0 })",
+    );
     expect(canvasSource).toContain("minZoom={PRODUCTION_CANVAS_MIN_ZOOM}");
     expect(canvasSource).toContain("maxZoom={PRODUCTION_CANVAS_MAX_ZOOM}");
+    expect(canvasSource).toContain("onlyRenderVisibleElements");
+    expect(canvasSource).toContain(
+      'canvasSectionRef.current?.classList.add("workflow-node-canvas-interacting")',
+    );
+    expect(canvasSource).toContain(
+      'canvasSectionRef.current?.classList.remove("workflow-node-canvas-interacting")',
+    );
     expect(canvasSource).toContain("{zoomPercent}%");
-    expect(canvasSource).toContain("Background");
+    expect(canvasSource).not.toContain("Background,");
+    expect(canvasSource).not.toContain("<Background");
     expect(canvasSource).toContain("workflow-node-canvas");
+    expect(canvasSource).toContain("workflow-node-static-background");
     expect(canvasSource).toContain("workflow-node-toolbar");
     expect(canvasSource).toContain("pointer-events-none absolute left-5 top-5 z-30");
     expect(canvasSource).toContain("pointer-events-auto inline-flex h-9");
@@ -440,8 +465,14 @@ describe("studio workflow tabs", () => {
     expect(canvasSource).toContain("const PRODUCTION_BRANCH_GUTTER = 200");
     expect(canvasSource).toContain("function measuredProductionPositions");
     expect(canvasSource).toContain("instance.getInternalNode(nodeId)");
-    expect(canvasSource).toContain("const hasAllMeasurements = nodes.every");
-    expect(canvasSource).toContain("flowInstance.getInternalNode(node.id)?.measured");
+    expect(canvasSource).toContain("const hasAllMeasurements = currentNodeIds.every");
+    expect(canvasSource).toContain("flowInstance.getInternalNode(nodeId)?.measured");
+    expect(canvasSource).toContain("const PRODUCTION_LAYOUT_MEASUREMENT_TIMEOUT_MS = 10_000");
+    expect(canvasSource).toContain("const retryMeasurementUntil = performance.now()");
+    expect(canvasSource).toContain(
+      "pendingLayoutFrameRef.current = window.requestAnimationFrame(applyMeasuredLayout)",
+    );
+    expect(canvasSource).not.toContain("if (!hasAllMeasurements) return;");
     expect(canvasSource).toContain("function nextProductionNodeX");
     expect(canvasSource).toContain("const scriptPlanX = nextProductionNodeX(\"script\", scriptX, measuredNodes)");
     expect(canvasSource).toContain("const storyboardTableX = nextProductionNodeX(\"scriptPlan\", scriptPlanX, measuredNodes)");
@@ -453,8 +484,17 @@ describe("studio workflow tabs", () => {
     expect(canvasSource).toContain("const resetLayout = useCallback");
     expect(canvasSource).toContain("onClick={resetLayout}");
     expect(canvasSource).not.toContain("assets: { x: 0, y: 660 }");
-    expect(canvasSource).toContain("fitCanvasAfterLayout");
+    expect(canvasSource).not.toContain("fitCanvasAfterLayout");
     expect(canvasSource).toContain("onInit={(instance)");
+    expect(canvasSource).toContain("pendingLayoutFrameRef");
+    expect(canvasSource).toContain("cancelPendingLayoutWork");
+    expect(canvasSource).toContain("userViewportOwnedRef");
+    expect(canvasSource).toContain("measuredLayoutKeyRef");
+    expect(canvasSource).toContain("layoutVersionRef");
+    expect(canvasSource).toContain("measuredNodeDimensionsRef");
+    expect(canvasSource).toContain("dimensionsChanged");
+    expect(canvasSource).toContain("if (event)");
+    expect(canvasSource).not.toContain("\n          fitView\n");
     expect(productionNodeSource).toContain('id="script-assets-source"');
     expect(canvasSource).toContain('sourceHandle:');
     expect(canvasSource).toContain('targetHandle: `${target}-target`');
@@ -610,6 +650,14 @@ describe("studio workflow tabs", () => {
     expect(canvasSource).toContain("onNodesChange={onNodesChange}");
     expect(canvasSource).not.toContain("nodeDragHandle");
     expect(indexSource).not.toContain("activeValue={activeWorkflowTab}");
+    expect(zoomProbeSource).toContain("MYSTUDIO_ZOOM_PROBE_INPUT_REPORT_PATH");
+    expect(zoomProbeSource).toContain('report.result?.source !== "real-daojie-chapter001-clone"');
+    expect(zoomProbeSource).toContain("for (let cycle = 1; cycle <= 5; cycle += 1)");
+    expect(zoomProbeSource).toContain('measureRound(cdp, "fit", cycle, child.pid)');
+    expect(zoomProbeSource).toContain("nodeRects");
+    expect(zoomProbeSource).toContain("overlappingNodePairs");
+    expect(zoomProbeSource).toContain("clippedNodeIds");
+    expect(zoomProbeSource).toContain("panStability");
   });
 
   it("keeps the workflow status and stage entry surface above stage content", () => {

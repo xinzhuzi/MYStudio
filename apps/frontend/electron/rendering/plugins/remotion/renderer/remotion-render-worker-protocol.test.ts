@@ -18,6 +18,37 @@ describe("Remotion render worker protocol", () => {
     expect(validateRemotionRenderWorkerCommand({ schemaVersion: 1, requestId: "r1", action: "render", input })).toMatchObject({ success: true });
     expect(validateRemotionRenderWorkerCommand({ schemaVersion: 1, requestId: "r1", action: "cancel", jobId: "job-1" })).toMatchObject({ success: true });
     expect(validateRemotionRenderWorkerCommand({ schemaVersion: 1, requestId: "r1", action: "render", input, source: "unsafe" })).toMatchObject({ success: false });
+    expect(validateRemotionRenderWorkerCommand({
+      schemaVersion: 1,
+      requestId: "shot-r1",
+      action: "render",
+      input: {
+        target: "shot",
+        jobId: "shot:job-1",
+        shotPlan: {},
+        compositionProps: {},
+        compositionId: "StoryboardShot",
+        bundlePath: "/tmp/bundle",
+        outputPath: "/tmp/output.mp4",
+        browserExecutable: "/tmp/headless-shell",
+        remotionVersion: "4.0.499",
+      },
+    })).toMatchObject({ success: true });
+    expect(validateRemotionRenderWorkerCommand({
+      schemaVersion: 1,
+      requestId: "chapter-r1",
+      action: "render",
+      input: {
+        target: "chapter",
+        jobId: "chapter:job-1",
+        compositionProps: {},
+        compositionId: "ChapterVideo",
+        bundlePath: "/tmp/bundle",
+        outputPath: "/tmp/chapter.mp4",
+        browserExecutable: "/tmp/headless-shell",
+        remotionVersion: "4.0.499",
+      },
+    })).toMatchObject({ success: true });
   });
 
   it("validates progress and terminal events", () => {

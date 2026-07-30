@@ -1,7 +1,11 @@
 import { BrowserWindow, ipcMain } from "electron";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { getSelfMediaCapabilities } from "../../../lib/self-media/capabilities";
+import {
+  getSelfMediaCapabilities,
+  isSelfMediaLocalTransportPlatform,
+  isSelfMediaPublishable,
+} from "../../../lib/self-media/capabilities";
 import { containsSelfMediaCredentialLikeKey, validateSelfMediaDraft } from "../../../lib/self-media/contracts";
 import {
   decodeSelfMediaTaskRecord,
@@ -89,6 +93,9 @@ function sanitizeScheduledDraft(value: unknown, scheduledAtOverride?: string): S
   const draft = validation.value;
   const platform = typeof draft.platformOptions.platform === "string" ? draft.platformOptions.platform : undefined;
   const capability = platform ? getSelfMediaCapabilities("aitoearn-local", platform as SelfMediaPlatform) : undefined;
+  if (!platform || !isSelfMediaLocalTransportPlatform("aitoearn-local", platform as SelfMediaPlatform) || !isSelfMediaPublishable("aitoearn-local", platform as SelfMediaPlatform, draft.contentType)) {
+    return { success: false, message: "定时草稿的平台发布能力尚未接入" };
+  }
   const allowedOptionKeys = new Set(["platform", ...(capability?.optionKeys ?? [])]);
   const platformOptions = Object.fromEntries(
     Object.entries(draft.platformOptions).filter(([key, item]) => (
@@ -125,8 +132,9 @@ function validProjectId(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0 && !value.includes("/") && !value.includes("\\");
 }
 
-function isLocalPlatform(value: unknown): value is "xhs" | "douyin" | "wxSph" | "KWAI" {
-  return value === "xhs" || value === "douyin" || value === "wxSph" || value === "KWAI";
+function isSelfMediaPlatform(value: unknown): value is SelfMediaPlatform {
+  if (typeof value !== "string") return false;
+  return Boolean(getSelfMediaCapabilities("aitoearn-local", value as SelfMediaPlatform));
 }
 
 function isProviderId(value: unknown): value is "aitoearn-local" {
@@ -363,8 +371,11 @@ export function registerSelfMediaIpcHandlers({ credentialVault, registry: suppli
 
   ipcMain.handle(SELF_MEDIA_IPC.startLogin, async (_event, request: SelfMediaStartLoginRequest): Promise<SelfMediaLoginReply> => {
     await tasksReady;
-    if (!validProjectId(request?.projectId) || request.providerId !== "aitoearn-local" || !isLocalPlatform(request.platform) || !getSelfMediaCapabilities("aitoearn-local", request.platform)) {
+    if (!validProjectId(request?.projectId) || request.providerId !== "aitoearn-local" || !isSelfMediaPlatform(request.platform)) {
       return disabled("invalid-login-request", "登录请求无效");
+    }
+    if (!isSelfMediaLocalTransportPlatform("aitoearn-local", request.platform)) {
+      return disabled("platform-transport-unavailable", "当前平台暂未接入本地登录能力");
     }
     const adapter = getAdapter("aitoearn-local");
     if (!adapter) return disabled("invalid-provider", "provider 无效");
@@ -388,6 +399,10 @@ export function registerSelfMediaIpcHandlers({ credentialVault, registry: suppli
     const validation = validateSelfMediaDraft(request.draft);
     if (!validation.success) return disabled("invalid-draft", validation.issues.map((issue) => `${issue.path || "草稿"}：${issue.message}`).join("；"));
     const draft = validation.value;
+    const platform = typeof draft.platformOptions.platform === "string" ? draft.platformOptions.platform : undefined;
+    if (platform && !isSelfMediaPublishable("aitoearn-local", platform as SelfMediaPlatform, draft.contentType)) {
+      return disabled("platform-transport-unavailable", "当前平台暂未接入本地发布能力，未创建任务");
+    }
     if (!adapter.summary.enabled) return disabled("provider-disabled", adapter.summary.reason ?? "发布 provider 尚未启用，未发起任何请求");
     const scheduledDraft = request.providerId === "aitoearn-local" && draft.scheduledAt
       ? sanitizeScheduledDraft(draft)

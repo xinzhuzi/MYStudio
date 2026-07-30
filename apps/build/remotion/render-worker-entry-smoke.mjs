@@ -5,7 +5,8 @@ import { fileURLToPath } from "node:url";
 import { app, utilityProcess } from "electron";
 
 export async function runRenderWorkerEntrySmoke({
-  workerPath = path.resolve(process.cwd(), "out/main/remotion-render-worker.cjs"),
+  workerPath = process.env.MYSTUDIO_REMOTION_WORKER_SMOKE_PATH
+    || path.resolve(process.cwd(), "out/main/remotion-render-worker.cjs"),
 } = {}) {
   if (!path.isAbsolute(workerPath) || !fs.existsSync(workerPath)) {
     throw new Error(`Remotion render worker 构建产物不存在: ${workerPath}`);
@@ -30,7 +31,7 @@ export async function runRenderWorkerEntrySmoke({
         if (message?.kind !== "error"
           || message.requestId !== "entry-smoke"
           || typeof message.message !== "string"
-          || !message.message.includes("input.plan")) {
+          || !message.message.includes("input.bundlePath")) {
           completed = true;
           clearTimeout(timer);
           reject(new Error(`Remotion render worker 返回异常事件: ${JSON.stringify(message)}`));
@@ -64,7 +65,6 @@ export async function runRenderWorkerEntrySmoke({
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   runRenderWorkerEntrySmoke().catch((error) => {
     console.error(error instanceof Error ? error.message : String(error));
-    process.exitCode = 1;
-    app.quit();
+    process.exit(1);
   });
 }

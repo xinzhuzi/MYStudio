@@ -18,6 +18,7 @@ import {
   hasMYStudioForegroundViolation,
   sampleFrontmostApplication,
 } from "./smoke-focus.mjs";
+import { repairMissingCharacterThumbnails } from "./repair-cloned-daojie-assets.mjs";
 
 const appBinCandidates = [
   process.env.MYSTUDIO_SMOKE_APP_BIN,
@@ -264,6 +265,26 @@ function copyProjectDirectoryIfExists(sourcePath, targetPath) {
   });
 }
 
+function readDaojieRoleAssets() {
+  const databasePath = resolve(daojieSourceStorageBasePath, "assets", "assets.db");
+  if (!existsSync(databasePath)) return [];
+  const result = spawnSync(
+    "sqlite3",
+    [
+      "-readonly",
+      "-json",
+      databasePath,
+      "SELECT id, type, name, filePath FROM assets WHERE type = 'role'",
+    ],
+    { encoding: "utf8", maxBuffer: 10 * 1024 * 1024 },
+  );
+  if (result.status !== 0) {
+    throw new Error(`Unable to read Daojie role assets: ${String(result.stderr || "").trim()}`);
+  }
+  const output = String(result.stdout || "").trim();
+  return output ? JSON.parse(output) : [];
+}
+
 function cloneRealDaojieUserData() {
   const sourceProjectsDir = resolve(daojieSourceStorageBasePath, "projects");
   const projectStorePath = resolve(sourceProjectsDir, "mystudio-project-store.json");
@@ -355,6 +376,12 @@ function cloneRealDaojieUserData() {
     );
   }
 
+  const assetReferenceRepairs = repairMissingCharacterThumbnails({
+    characterStorePath: resolve(clonedProjectDir, "characters.json"),
+    sourceAssetFilesRoot: resolve(daojieSourceStorageBasePath, "assets", "files"),
+    roleAssets: readDaojieRoleAssets(),
+  });
+
   const sourceExportsDir = resolve(projectDir, "exports");
   const clonedExportsDir = resolve(clonedProjectDir, "exports");
   copyProjectDirectoryIfExists(sourceExportsDir, clonedExportsDir);
@@ -369,6 +396,7 @@ function cloneRealDaojieUserData() {
     expectedStoryboards: chapterStoryboards.length,
     projectId: project.id,
     projectName: project.name,
+    assetReferenceRepairs,
     sourceProjectsDir,
     userDataDir: clonedUserDataDir,
   };
@@ -612,8 +640,9 @@ async function runVisibleWorkflow(pageTarget, childPid, focusSamples) {
       const entry = message.params?.entry;
       if (entry?.level === "error") {
         const text = entry.text || "Log.entryAdded error";
-        runtimeProblems.push(String(text));
-        console.error(`[visible-run] Log.entryAdded ${text}`);
+        const detail = entry.url ? `${text} (${entry.url})` : text;
+        runtimeProblems.push(String(detail));
+        console.error(`[visible-run] Log.entryAdded ${detail}`);
       }
       return;
     }
@@ -1289,10 +1318,11 @@ function realDaojieWorkflowExpression(
         const hasNoVisibleDuplicateGeneratedPromptPanel = !hasVisibleDuplicateGeneratedPromptPanel;
         const hasEditableImageWorkflowPrompt = promptTextValues.some((value) => value.trim().length > 0);
         const hasDaojieDerivativePromptStyle = promptTextValues.some((value) =>
-          value.includes('水墨国风修仙') &&
+          value.includes('daojie-gongbi-v2') &&
+          value.includes('连续白描和铁线描') &&
           value.includes('@图1') &&
           value.includes('禁止写实摄影') &&
-          value.includes('禁止3D写实渲染')
+          value.includes('3D/CGI')
         );
         const hasImageWorkflowSource = text.includes('来源') && text.includes('分镜视频生成') && text.includes('衍生资产');
         const imageWorkflowScope = document.querySelector('[data-scoped-image-workflow-summary]')?.closest('section') || document;
@@ -1620,6 +1650,7 @@ try {
     documentHasFocus: result.documentHasFocus,
     focusSamples,
     foregroundViolation,
+    cloneAssetReferenceRepairs: realDaojieRun?.assetReferenceRepairs || [],
     result,
     failedStages,
     runtimeProblems,

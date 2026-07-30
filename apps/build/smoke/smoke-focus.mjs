@@ -7,6 +7,8 @@ export function sampleFrontmostApplication(reason) {
     at: new Date().toISOString(),
     reason,
     applicationName: "",
+    processId: null,
+    bundlePath: "",
   };
   if (process.platform !== "darwin") {
     return { ...sample, error: "frontmost application sampling is macOS-only" };
@@ -23,17 +25,31 @@ export function sampleFrontmostApplication(reason) {
     };
   }
 
-  const info = spawnSync("/usr/bin/lsappinfo", ["info", "-only", "name", asn], {
+  const info = spawnSync("/usr/bin/lsappinfo", [
+    "info",
+    "-only",
+    "name",
+    "pid",
+    "bundlepath",
+    asn,
+  ], {
     encoding: "utf8",
   });
   const nameMatch = info.stdout.match(/"LSDisplayName"="([^"]*)"/);
+  const processIdMatch = info.stdout.match(/"pid"=(\d+)/);
+  const bundlePathMatch = info.stdout.match(/"LSBundlePath"="([^"]*)"/);
   if (info.status !== 0 || !nameMatch) {
     return {
       ...sample,
       error: info.stderr.trim() || "lsappinfo did not return LSDisplayName",
     };
   }
-  return { ...sample, applicationName: nameMatch[1] };
+  return {
+    ...sample,
+    applicationName: nameMatch[1],
+    processId: processIdMatch ? Number(processIdMatch[1]) : null,
+    bundlePath: bundlePathMatch?.[1] ?? "",
+  };
 }
 
 export function hasMYStudioForegroundViolation(samples) {

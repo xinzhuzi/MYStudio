@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 
 const REQUIRED_FILES = ["manifest.json", "index.html", "bundle.js", "bundle.js.map"];
 const SEMVER = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/;
+const EXPECTED_COMPOSITION_IDS = ["StoryboardShot", "ChapterVideo", "DaojieTimeline"];
 
 export function hashBundleContent(directory) {
   const files = collectFiles(directory)
@@ -31,8 +32,13 @@ export function verifyFixedRemotionBundle({ appRoot = process.cwd() } = {}) {
   const expectedVersion = packageJson.dependencies?.remotion;
   if (!SEMVER.test(expectedVersion ?? "")) errors.push("package.json 的 remotion 必须是精确 semver");
   if (manifest) {
-    if (manifest.schemaVersion !== 1) errors.push("bundle manifest schemaVersion 必须为 1");
+    if (manifest.schemaVersion !== 2) errors.push("bundle manifest schemaVersion 必须为 2");
+    if (manifest.templateId !== "mystudio-remotion-v1") errors.push("bundle templateId 必须为 mystudio-remotion-v1");
+    if (manifest.templateVersion !== "1.0.0") errors.push("bundle templateVersion 必须为 1.0.0");
     if (manifest.remotionVersion !== expectedVersion) errors.push(`bundle Remotion 版本漂移: ${manifest.remotionVersion ?? "missing"} != ${expectedVersion}`);
+    if (!sameOrderedStrings(manifest.compositionIds, EXPECTED_COMPOSITION_IDS)) {
+      errors.push(`bundle compositionIds 必须为 ${EXPECTED_COMPOSITION_IDS.join(", ")}`);
+    }
     if (manifest.compositionId !== "DaojieTimeline") errors.push(`bundle compositionId 必须为 DaojieTimeline: ${manifest.compositionId ?? "missing"}`);
     if (!/^[a-f0-9]{64}$/.test(manifest.contentHash ?? "")) errors.push("bundle manifest contentHash 无效");
     else if (fs.existsSync(bundleDir) && hashBundleContent(bundleDir) !== manifest.contentHash) errors.push("bundle contentHash 与固定目录内容不一致");
@@ -43,6 +49,12 @@ export function verifyFixedRemotionBundle({ appRoot = process.cwd() } = {}) {
     throw new Error(message);
   }
   return { bundleDir, manifest };
+}
+
+function sameOrderedStrings(value, expected) {
+  return Array.isArray(value)
+    && value.length === expected.length
+    && value.every((item, index) => item === expected[index]);
 }
 
 function collectFiles(directory) {

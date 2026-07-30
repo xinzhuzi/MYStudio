@@ -7,6 +7,7 @@ import {
   buildLoudnessMeasurementArgs,
   evaluateLoudnessMeasurement,
   parseEbur128Summary,
+  selectRenderedVideoDuration,
   type RenderedMediaProbe,
 } from "./render-smoke-evidence";
 
@@ -26,6 +27,34 @@ describe("Remotion real media evidence", () => {
       label: "five-shot",
       probe: { ...validProbe, duration: 6 + (1 / 30) },
       expectedDuration: 6,
+      fps: 30,
+      width: 1080,
+      height: 1920,
+    })).not.toThrow();
+  });
+
+  it("uses the video stream duration instead of AAC container padding", () => {
+    const raw: RenderedMediaProbe["raw"] = {
+      format: { duration: "2.048" },
+      streams: [
+        { codec_type: "video", codec_name: "h264", duration: "2.000", width: 1080, height: 1920 },
+        { codec_type: "audio", codec_name: "aac", duration: "2.048" },
+      ],
+    };
+    expect(selectRenderedVideoDuration(raw)).toBe(2);
+    const probe: RenderedMediaProbe = {
+      raw,
+      duration: selectRenderedVideoDuration(raw),
+      width: 1080,
+      height: 1920,
+      streams: ["video", "audio"],
+      videoCodec: "h264",
+      audioCodec: "aac",
+    };
+    expect(() => assertRenderedMediaEvidence({
+      label: "shot",
+      probe,
+      expectedDuration: 2,
       fps: 30,
       width: 1080,
       height: 1920,

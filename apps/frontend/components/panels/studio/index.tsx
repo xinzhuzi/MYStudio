@@ -108,6 +108,7 @@ export function StudioView() {
               className="m-0 min-h-0 flex-1 data-[state=active]:flex data-[state=inactive]:hidden"
             >
               <WorkflowNodeCanvas
+                isVisible={viewModel.activeWorkflowTab === "storyboard"}
                 projectName={viewModel.projectName}
                 nodes={viewModel.productionFlowNodes}
                 onStageChange={viewModel.handleStageChange}
@@ -140,16 +141,6 @@ export function StudioView() {
                 directorPlan={viewModel.directorPlan}
                 aspectRatio={viewModel.aspectRatio}
                 storyboards={viewModel.storyboards}
-                tracks={viewModel.productionTracks}
-                candidates={viewModel.videoCandidates}
-                renderingTrackId={viewModel.renderingTrackId}
-                merging={viewModel.merging}
-                mergeOutput={viewModel.mergeOutput}
-                rebuildTracks={viewModel.rebuildTracks}
-                renderTrack={viewModel.handleRenderTrack}
-                selectVideoCandidate={viewModel.selectVideoCandidate}
-                deleteVideoCandidate={viewModel.deleteVideoCandidate}
-                mergeEpisode={viewModel.handleMergeEpisode}
               />
             </TabsContent>
           </div>

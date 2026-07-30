@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => {
   const events: string[] = [];
@@ -87,6 +87,27 @@ describe("switchProject", () => {
     vi.clearAllMocks();
     mocks.events.length = 0;
     mocks.projectState.activeProjectId = "project-1";
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("fails before closing project A when the queue blocks switching to B", async () => {
+    const closeSession = vi.fn(async () => undefined);
+    const queueSwitch = vi.fn(async () => ({ allowed: true, jobIds: [] }));
+    vi.stubGlobal("window", {
+      remotionStudio: { closeSession },
+      remotionQueue: {
+        canSwitchProject: vi.fn(async () => ({ allowed: false, jobIds: ["job-a"] })),
+        switchProject: queueSwitch,
+      },
+    });
+
+    await expect(switchProject("project-2")).rejects.toThrow("job-a");
+    expect(closeSession).not.toHaveBeenCalled();
+    expect(queueSwitch).not.toHaveBeenCalled();
+    expect(mocks.projectState.setActiveProject).not.toHaveBeenCalled();
   });
 
   it("rehydrates editing state before synchronizing its active project", async () => {

@@ -9,6 +9,7 @@ import {
   REMOTION_RUNTIME_DOWNLOAD_PROGRESS_EVENT,
   REMOTION_RUNTIME_STATUS_CHANNEL,
 } from "@rendering/contracts/remotion-runtime-ipc";
+import { REMOTION_WORKSPACE_RUNTIME_CHANNEL } from "@rendering/contracts/remotion-workspace-runtime";
 
 type IpcHandler = (...args: unknown[]) => unknown;
 type MessageListener = (message: unknown) => void;
@@ -100,11 +101,12 @@ function getHandler(channel: string): IpcHandler {
   return handler!;
 }
 
-function register(userDataDir: string) {
+function register(userDataDir: string, bundlePath?: string) {
   return registerRemotionRuntimeIpcHandlers({
     userDataDir,
     remotionVersion: "4.0.499",
     workerPath: "/app/remotion-browser-worker.cjs",
+    bundlePath,
   });
 }
 
@@ -197,5 +199,38 @@ describe("registerRemotionRuntimeIpcHandlers", () => {
       message: "Remotion 浏览器 utility process 已关闭",
     });
     fs.rmSync(userDataDir, { recursive: true, force: true });
+  });
+
+  it("exposes only validated fixed bundle metadata for workspace initialization", async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "mystudio-remotion-workspace-runtime-"));
+    const bundle = path.join(root, "bundle");
+    fs.mkdirSync(bundle, { recursive: true });
+    fs.writeFileSync(path.join(bundle, "manifest.json"), JSON.stringify({
+      schemaVersion: 2,
+      templateId: "mystudio-remotion-v1",
+      templateVersion: "1.0.0",
+      remotionVersion: "4.0.499",
+      compositionIds: ["StoryboardShot", "ChapterVideo", "DaojieTimeline"],
+      compositionId: "DaojieTimeline",
+      contentHash: "a".repeat(64),
+    }), "utf8");
+    const registration = register(root, bundle);
+    try {
+      const result = await getHandler(REMOTION_WORKSPACE_RUNTIME_CHANNEL)({}, {});
+      expect(result).toEqual({
+        schemaVersion: 1,
+        templateId: "mystudio-remotion-v1",
+        templateVersion: "1.0.0",
+        remotionVersion: "4.0.499",
+        bundleContentHash: "a".repeat(64),
+        compositionIds: ["StoryboardShot", "ChapterVideo", "DaojieTimeline"],
+      });
+      await expect(getHandler(REMOTION_WORKSPACE_RUNTIME_CHANNEL)({}, { bundlePath: "/tmp/escape" }))
+        .rejects.toThrow("状态请求不接受任何字段");
+    } finally {
+      registration.dispose();
+      expect(electronState.removed).toContain(REMOTION_WORKSPACE_RUNTIME_CHANNEL);
+      fs.rmSync(root, { recursive: true, force: true });
+    }
   });
 });

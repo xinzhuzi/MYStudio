@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { validateCompositionProps } from "./composition-props-validation";
+import {
+  validateChapterVideoCompositionProps,
+  validateCompositionProps,
+} from "./composition-props-validation";
 import type { CompositionProps } from "./composition-props";
 
 function validProps(): CompositionProps {
@@ -183,5 +186,34 @@ describe("validateCompositionProps", () => {
         "subtitles[0].durationInFrames",
       ]));
     }
+  });
+
+  it("rejects an empty ChapterVideo visual input", () => {
+    const props = {
+      ...validProps(),
+      target: "chapter" as const,
+      projectId: "project-a",
+      chapterId: "chapter-001",
+      editingProjectId: "editing-001",
+      editingRevision: 1,
+      visualClips: [],
+    };
+    const result = validateChapterVideoCompositionProps(props);
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.issues.some((issue) => issue.path === "visualClips")).toBe(true);
+  });
+
+  it("rejects zero target revisions", () => {
+    const props = {
+      ...validProps(),
+      target: "chapter" as const,
+      projectId: "project-a",
+      chapterId: "chapter-001",
+      editingProjectId: "editing-001",
+      editingRevision: 0,
+    };
+    const result = validateChapterVideoCompositionProps(props);
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.issues.some((issue) => issue.path === "editingRevision")).toBe(true);
   });
 });

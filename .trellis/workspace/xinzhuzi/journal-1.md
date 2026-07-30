@@ -52,6 +52,87 @@
 
 - None - task complete
 
+## Session 7: Remotion runtime 设置入口补齐
+
+**Date**: 2026-07-29
+**Task**: 07-28-remotion-workbench-canvas-stability
+**Branch**: `main` (no-git)
+
+### Summary
+
+补齐 Remotion Headless Shell 未准备时的可点击设置入口。工作台状态条显示“打开渲染设置”，导航先记录一次性 `rendering` 标签请求，再切换到设置页；设置页消费请求并保持只读状态检查，不触发自动下载。
+
+### Testing
+
+- 聚焦：17 tests passed；工作流/渲染模型：46 tests passed。
+- 全量：522 test files passed, 1 skipped；2522 tests passed, 3 skipped。
+- `npm run typecheck` passed；`npm run lint -- --quiet` passed；`task.py validate` passed。
+- Fresh Remotion evidence remains valid: 4.0.499, Remotion → Remotion, 1080×1920, 5.333333s, H.264/AAC, SHA-256 independently matched, loudness acceptance passed。
+- Fresh canvas evidence remains valid: `workflow-zoom-performance-0729-final.json` passed。
+
+### Status
+
+[OK] **Implementation and verification complete; keep task in_progress until user approves archive**
+
+## Session 8: 当前盘面最终门禁复验
+
+**Date**: 2026-07-29
+**Task**: 07-28-remotion-workbench-canvas-stability
+**Branch**: `main` (no-git)
+
+### Testing
+
+- [OK] 主线程 `npm run typecheck`。
+- [OK] 主线程 `npm run lint -- --quiet`。
+- [OK] 主线程全量 `npm test`：522 个测试文件通过、1 个跳过；2525 个测试通过、3 个跳过。
+- [OK] 主线程 focused：6 个文件、77 个测试通过；包含同一 revision 连续两次渲染计划导出字节一致、`validateTimelineRenderPlan` 接受、取消保存静默、Remotion 未准备设置导航和画布缩放/适配回归。
+- [OK] 当前 packaged 画布报告仍为 15 轮通过、透明帧 0、近黑横带 0、固定控件 25%/100%/200% 与窗口返回通过。
+- [OK] 当前 Remotion 4.0.499 five-shot 产物、H.264/AAC、1080×1920、5.333333s、bundle hash、独立 SHA 和响度验收一致。
+
+### Status
+
+[OPEN] **Source and Remotion evidence passed, but packaged canvas evidence is stale versus the latest source; R2/P1 remain open pending rebuilt packaged verification.**
+
+## Session 9: 当前源码与 packaged 证据边界复核
+
+**Date**: 2026-07-29
+**Task**: 07-28-remotion-workbench-canvas-stability
+**Branch**: `main` (no-git)
+
+### Testing
+
+- [OK] 主线程 `npm run typecheck`。
+- [OK] 主线程 `npm run lint -- --quiet`。
+- [OK] 主线程全量 `npm test`：522 个测试文件通过、1 个跳过；2529 个测试通过、3 个跳过。
+- [OK] 修复 TB 自动排版的 Handle 方向：画布向节点传递 source/target position，主线与分支连线在 TB 下不再固定为左右方向；新增回归测试。
+- [OK] `task.py validate 07-28-remotion-workbench-canvas-stability`：implement/check context 均通过。
+- [OK] Remotion five-shot 当前报告仍为 `requested=remotion`、`actual=remotion`、4.0.499、1080×1920、5.333333s、H.264/AAC，独立 SHA 一致。
+- [OPEN] 最新源码（`WorkflowNodeCanvas.tsx` 03:55:12、`WorkflowProductionNode.tsx` 03:55:27）晚于 packaged app.asar（00:19:18）；较新的 zoom 报告针对旧包出现一次 `241.4ms` 长帧并标记 `passed=false`。此前 15 轮通过报告只能作为历史证据，R2 需在重建 packaged binary 后复验。
+- [OK] Remotion five-shot、bundle manifest、MP4、ffprobe、loudness 与独立 SHA 仍为同一 03:17 运行批次，`requested=actual=remotion`、4.0.499、1080×1920、H.264/AAC。
+
+### Status
+
+[OPEN] **源码/UI/Remotion 证据已复核；当前任务继续 `in_progress`，不得把旧 packaged 报告标为当前源码通过，也不执行归档。**
+
+## Session 10: 打包覆盖安装与当前源码画布门禁
+
+**Date**: 2026-07-29
+**Task**: 07-28-remotion-workbench-canvas-stability
+**Branch**: `main` (no-git)
+
+### Testing
+
+- [OK] Trellis 默认 check worker 因 Claude 未登录未执行命令；按自动化技能的 fallback 使用本地 worker，未重复触发打包。
+- [OK] `cd apps && npm run build:mac`：exit 0；通过唯一 `build/packaging/build-mac.sh` 入口完成 arm64 构建、覆盖安装和 installed desktop smoke。
+- [OK] packaged 与 `/Applications` 的 `app.asar` SHA-256 一致：`8b78d2bfb698bd62d624eb4174bb7be2e4f0a3b72c22e557a829ae53b61adbb5`。
+- [OK] `smoke:workflow:background:daojie`：exit 0；`ok=true`、`result.source=real-daojie-chapter001-clone`、43/43 storyboards 完成且 43/43 media/workflow/ready。
+- [OK] 当前 packaged 15 轮缩放探针：`passed=true`；透明帧 0、近黑横带 0、几何失败 0、>100ms 长帧 0，max 41.6ms、p95 9.2ms；窗口返回、平移、25%/100%/200% 控件和 resize 均通过。
+- [OK] Phase 3.3 spec 同步完成：记录生产 ReactFlow 静态背景、可取消自动 fit、固定控件层与 packaged 15 轮验收合同。
+
+### Status
+
+[OK] **R2 packaged current-source gate and P1 dependency closed; implementation remains `in_progress` only because archive requires explicit user approval.**
+
 ## Session 3: Wave151 SQLite lifecycle cleanup
 
 **Date**: 2026-07-25
@@ -211,6 +292,37 @@ Archived the completed local AC11 visual review slice with no-git mode. Added de
 - Validation evidence from final pass: source/docs/Trellis hardcoded path scans passed, affected tests passed, npm run typecheck passed, npm run lint passed, task.py validate passed.
 - No git commands and no worktree operations were executed for this archive confirmation.
 
+
+### Git Commits
+
+(No commits - planning session)
+
+### Testing
+
+- Validation was not recorded for this session.
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 6: AiToEarn 本地自媒体质量门禁收口
+
+**Date**: 2026-07-27
+**Task**: AiToEarn 本地自媒体质量门禁收口
+**Branch**: `-`
+
+### Summary
+
+完成 14 平台 Electron 自媒体集成与本地边界收口；统一入口 npm run test:all 七阶段全通过（521 个测试文件，2485 个测试，3 个 skipped），MCP/remote 全量扫描为空，macOS 打包覆盖安装与 desktop smoke 通过；已按 no-commit 归档 07-27-aitoearn-local-only-hardening。
+
+### Main Changes
+
+- Detailed change bullets were not supplied; see the summary above.
 
 ### Git Commits
 

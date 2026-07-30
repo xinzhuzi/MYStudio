@@ -4,6 +4,7 @@ import { useCharacterLibraryStore } from "@/stores/library/character-library-sto
 import { usePropsLibraryStore } from "@/stores/library/props-library-store";
 import { useSceneStore } from "@/stores/library/scene-store";
 import { useEditingStore } from "@/stores/editing/editing-store";
+import { useProjectStore } from "@/stores/project/project-store";
 import {
   buildWorkflowReadiness,
   type WorkflowStageReadiness,
@@ -535,8 +536,9 @@ function applyWorkbenchStep(now: number) {
 
 async function seedCompleteWorkflow(): Promise<WorkflowSmokeResult> {
   const studio = useStudioStore.getState();
+  const projectId = useProjectStore.getState().activeProjectId ?? SMOKE_PROJECT_ID;
   studio.resetStudioWorkflow();
-  resetSmokeEditingStore(SMOKE_PROJECT_ID);
+  resetSmokeEditingStore(projectId);
 
   const now = Date.now();
   const chapterId = "smoke-chapter-1";
@@ -557,7 +559,7 @@ async function seedCompleteWorkflow(): Promise<WorkflowSmokeResult> {
         name: "独孤剑尘",
         description: "青年剑修，冷静克制。",
         visualTraits: "ink-wash young swordsman, black robe, broken sword",
-        projectId: "default-project",
+        projectId,
         views: [],
         variations: [
           {
@@ -585,7 +587,7 @@ async function seedCompleteWorkflow(): Promise<WorkflowSmokeResult> {
         location: "暗色矿坑",
         time: "夜",
         atmosphere: "铁链与尘雾",
-        projectId: "default-project",
+        projectId,
         referenceImage: framePath,
         createdAt: now,
         updatedAt: now,
@@ -596,7 +598,7 @@ async function seedCompleteWorkflow(): Promise<WorkflowSmokeResult> {
         location: "暗色矿坑",
         time: "夜",
         atmosphere: "压迫",
-        projectId: "default-project",
+        projectId,
         parentSceneId: sceneId,
         viewpointName: "低机位推进",
         referenceImage: framePath,
@@ -614,7 +616,7 @@ async function seedCompleteWorkflow(): Promise<WorkflowSmokeResult> {
         name: "断剑",
         description: "主线道具，剑身断裂。",
         imageUrl: framePath,
-        projectId: "default-project",
+        projectId,
         folderId: null,
         createdAt: now,
         updatedAt: now,
@@ -627,7 +629,7 @@ async function seedCompleteWorkflow(): Promise<WorkflowSmokeResult> {
         parentId: propId,
         category: "断剑破损版",
         imageWorkflowId: "smoke-flow-prop-broken",
-        projectId: "default-project",
+        projectId,
         folderId: null,
         createdAt: now,
         updatedAt: now,
@@ -710,7 +712,7 @@ async function seedCompleteWorkflow(): Promise<WorkflowSmokeResult> {
     ],
     seriesBible: {
       id: "smoke-bible-1",
-      projectId: "default-project",
+      projectId,
       characterLocks: [{ characterId: roleId, appearance: "玄色长衣，束发，断剑在手。", voiceId: "smoke-voice-profile" }],
       sceneLocks: [sceneId],
       visualManualId: "2d_ink_xianxia",
@@ -744,7 +746,7 @@ async function seedCompleteWorkflow(): Promise<WorkflowSmokeResult> {
         speakerId: "narrator",
         sourceEvidence: {
           source: "smoke-seed",
-          sourceProjectId: "default-project",
+          sourceProjectId: projectId,
           sourceEpisodeId: chapterId,
           sourceStoryboardId: storyboardId,
         },
@@ -793,7 +795,7 @@ async function seedCompleteWorkflow(): Promise<WorkflowSmokeResult> {
     ],
   });
   seedSmokeEditingEvidence({
-    projectId: SMOKE_PROJECT_ID,
+    projectId,
     editingProjectId: SMOKE_EDITING_PROJECT_ID,
     episodeId: chapterId,
     storyboardId,

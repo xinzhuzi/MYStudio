@@ -1,14 +1,9 @@
 import type {
-  EditingProjectV1,
-  TimelineRenderEvidence,
-} from "@/types/editing";
-import type {
-  ProductionTrack,
   ContinuityAssetVersion,
   StoryboardItem,
-  VideoCandidate,
 } from "@/types/studio";
 import type { TtsSpeakerId, VoiceProfile } from "@/types/tts";
+import type { RemotionRenderJobV1 } from "@/types/remotion-workspace";
 import { assertVisualContinuityApproved } from "./visual-continuity";
 
 export type ChapterAutoVideoStage =
@@ -22,6 +17,8 @@ export type ChapterAutoVideoStage =
   | "editing"
   | "rendering"
   | "probing"
+  | "queued"
+  | "blocked"
   | "completed"
   | "failed";
 
@@ -54,24 +51,25 @@ export interface ChapterAutoVideoDependencies {
     storyboardId: string,
     result: Awaited<ReturnType<ChapterAutoVideoDependencies["generateAudio"]>>,
   ) => void;
-  rebuildTracks: () => void;
-  loadTracks: () => ProductionTrack[];
-  loadCandidates: () => VideoCandidate[];
-  renderTrack: (
-    track: ProductionTrack,
-    storyboards: StoryboardItem[],
-  ) => Promise<VideoCandidate>;
-  createEditingProject: (
-    storyboards: StoryboardItem[],
-    candidates: VideoCandidate[],
-  ) => Promise<EditingProjectV1>;
-  renderEditingProject: (
-    project: EditingProjectV1,
-  ) => Promise<TimelineRenderEvidence>;
-  writeFinalEvidence: (
-    project: EditingProjectV1,
-    evidence: TimelineRenderEvidence,
-  ) => void;
+  enqueueRemotionShots: (input: {
+    projectId: string;
+    chapterId: string;
+    storyboards: StoryboardItem[];
+  }) => Promise<RemotionShotQueueSubmission>;
+}
+
+export interface RemotionShotQueueSubmission {
+  jobs: RemotionRenderJobV1[];
+  blockedShotIds: string[];
+  chapterJobId?: string;
+}
+
+export interface ChapterAutoVideoResult {
+  storyboards: number;
+  remotionJobs?: RemotionRenderJobV1[];
+  blockedShotIds?: string[];
+  queueStatus?: "queued" | "blocked";
+  chapterJobId?: string;
 }
 
 function emit(
@@ -194,14 +192,16 @@ export async function prepareChapterMedia({
 }
 
 export async function runChapterAutoVideo({
+  projectId,
   episodeId,
   dependencies,
   onStatus,
 }: {
+  projectId?: string;
   episodeId: string;
   dependencies: ChapterAutoVideoDependencies;
   onStatus?: (status: ChapterAutoVideoStatus) => void;
-}) {
+}): Promise<ChapterAutoVideoResult> {
   try {
     const { storyboards } = await prepareChapterMedia({
       episodeId,
@@ -209,55 +209,27 @@ export async function runChapterAutoVideo({
       onStatus,
     });
 
-    dependencies.rebuildTracks();
-    const tracks = dependencies
-      .loadTracks()
-      .filter((track) => track.episodeId === episodeId);
-    if (tracks.length === 0) throw new Error(`${episodeId} 没有可渲染生产轨道`);
-
-    emit(onStatus, { stage: "render", detail: `渲染 ${tracks.length} 条生产轨道` });
-    const candidates: VideoCandidate[] = [];
-    for (const track of tracks) {
-      const existing = dependencies
-        .loadCandidates()
-        .find(
-          (candidate) =>
-            candidate.id === track.selectedVideoId
-            && candidate.state === "ready"
-            && candidate.filePath,
-        );
-      if (
-        existing?.filePath
-        && (await dependencies.resolveMediaPath(existing.filePath))
-      ) {
-        candidates.push(existing);
-        continue;
-      }
-      candidates.push(await dependencies.renderTrack(track, storyboards));
-    }
-
-    emit(onStatus, { stage: "editing", detail: "创建或复用 EditingProject 自动剪辑草案" });
-    const project = await dependencies.createEditingProject(
+    if (!projectId) throw new Error("Remotion 自动成片缺少 projectId");
+    emit(onStatus, { stage: "render", detail: `提交 ${storyboards.length} 个 Remotion 分镜任务` });
+    const submission = await dependencies.enqueueRemotionShots({
+      projectId,
+      chapterId: episodeId,
       storyboards,
-      candidates,
-    );
-    emit(onStatus, { stage: "rendering", detail: "编译时间线并执行最终成片" });
-    const evidence = await dependencies.renderEditingProject(project);
-    emit(onStatus, { stage: "probing", detail: "核验时间线快照、媒体流与哈希证据" });
-    dependencies.writeFinalEvidence(project, evidence);
-    const result = {
-      finalPath: evidence.path,
-      evidence,
-      editingProjectId: project.id,
-      editingRevision: project.revision,
-      storyboards: storyboards.length,
-    };
-    emit(onStatus, {
-      stage: "completed",
-      detail: "第一章自动成片完成",
-      finalPath: evidence.path,
     });
-    return result;
+    const queueStatus = submission.blockedShotIds.length > 0 ? "blocked" : "queued";
+    emit(onStatus, {
+      stage: queueStatus,
+      detail: queueStatus === "blocked"
+        ? `Remotion 分镜存在阻塞：${submission.blockedShotIds.join("、")}`
+        : `已提交 ${submission.jobs.length} 个 Remotion 分镜任务，等待章节合成`,
+    });
+    return {
+      storyboards: storyboards.length,
+      remotionJobs: submission.jobs,
+      blockedShotIds: submission.blockedShotIds,
+      chapterJobId: submission.chapterJobId,
+      queueStatus,
+    };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     emit(onStatus, { stage: "failed", detail: "第一章自动成片失败", error: message });

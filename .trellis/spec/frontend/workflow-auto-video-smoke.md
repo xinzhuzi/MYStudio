@@ -16,6 +16,10 @@ npm run video:daojie:chapter001
 MYSTUDIO_DAOJIE_TIMELINE_RUNNER=1 ./node_modules/.bin/vite-node \
   --config build/timeline/vite-node.config.ts \
   build/timeline/render-daojie-editing-timeline.ts
+
+MYSTUDIO_DAOJIE_REMOTION_RUNNER=1 ./node_modules/.bin/vite-node \
+  --config build/timeline/vite-node.config.ts \
+  build/timeline/render-daojie-remotion-timeline.ts
 ```
 
 Equivalent opt-in and supported environment keys:
@@ -52,10 +56,10 @@ MYSTUDIO_DAOJIE_REUSE_STORYBOARD_IMAGES=1 MYSTUDIO_DAOJIE_REUSE_STORYBOARD_IMAGE
 - Every voiceover item must have non-empty `storyboardId`, `speaker`, `speakerId`, `line`, `ttsSpokenText`, and `voiceStyle`, positive `durationTarget`, and `requiresFixedVoice=true`.
 - Project `tts.json` is the shared UI/CLI source for voice profiles and canonical speaker bindings. Existing bindings are read-only across reruns; missing profiles, reference text, or readable reference audio are hard failures.
 - A successful final report must have `audioCount === storyboards`, complete `speakerVoiceMap` coverage, `ttsMocked=false`, no `fallback-system-voice` or `silent-visual-preview`, audio and video streams, duration at most 180 seconds, and non-empty `finalVideoEvidence.sha256`.
-- `finalVideo` and `finalVideoEvidence` must come from `timelineRenderRecord.evidence`, and must match the current EditingProject ID, revision, source snapshot, timeline plan job, AutoEditingRun render job, disk SHA-256, and all required timeline artifact paths.
+- `finalVideo` and `finalVideoEvidence` must come from the Remotion `ChapterVideo` evidence, and must match the current EditingProject ID, revision, source snapshot, timeline plan job, AutoEditingRun render job, disk SHA-256, and all required chapter artifact paths.
 - Python `generated.final` and `generated.finalVideoEvidence` remain in the final report only as `legacyCompatibilityVideo` and `legacyCompatibilityVideoEvidence`. They must never satisfy the authoritative final gate.
-- The TypeScript runner reads the current store after Python writeback, filters the current episode and selected production-track candidates, and uses the shared EditingProject/timeline runtime path. Runner failure exits non-zero and preserves the legacy artifact without promoting it.
-- The runner report is written under `apps/output/automation/daojie-chapter001-timeline/` and includes EditingProject, AutoEditingRun, TimelineRenderPlan, progress history, TimelineRenderRecord, and artifact paths.
+- The TypeScript runners read the current store after Python writeback, resolve the current episode's Remotion shot slots, compile the shared EditingProject/TimelineRenderPlan, and render the chapter with `ChapterVideo`. Runner failure exits non-zero and never promotes an old slot.
+- The runner report is written under `apps/output/automation/daojie-chapter001-timeline/` and includes EditingProject, AutoEditingRun, TimelineRenderPlan, Remotion shot/chapter evidence, progress history, and artifact paths.
 - Two-run fixed-voice acceptance compares each canonical speaker's `profileId`, `voiceReferenceAudioPath`, and `resolvedVoiceReferenceAudioPath`; the second run must report every binding as `match=fixed` and no AI-selected bindings.
 
 ## 4. Validation & Error Matrix
@@ -76,19 +80,19 @@ MYSTUDIO_DAOJIE_REUSE_STORYBOARD_IMAGES=1 MYSTUDIO_DAOJIE_REUSE_STORYBOARD_IMAGE
 | Binding points to a missing profile, reference text, or audio file | Fail without changing the existing binding |
 | Final TTS is mock, system fallback, or silent preview | Fail even if an MP4 exists |
 | Second-run profile or reference path differs | Fail the fixed-voice acceptance gate |
-| Timeline runner or Vite config fails | Write a failure report and exit non-zero; never assign the Python concat path to `finalVideo` |
+| Shot/chapter runner or Vite config fails | Write a failure report and exit non-zero; never assign a Python/legacy concat path to `finalVideo` |
 | Timeline record identity/revision/job/hash/artifact differs | Fail before the final report is accepted |
-| Legacy compatibility MP4 exists but timeline MP4 is missing | Keep the legacy artifact for diagnosis; the command still fails |
+| Legacy compatibility MP4 exists but current Remotion MP4 is missing | Keep the historical artifact for diagnosis; the command still fails |
 
 ## 5. Good / Base / Bad Cases
 
-- Good: a real Daojie temporary clone reaches `idle -> planning -> voiceover -> binding -> tts -> media -> render -> editing -> rendering -> probing -> completed`, exposes an existing timeline MP4 path, and leaves the original project hashes unchanged.
+- Good: a real Daojie temporary clone reaches `idle -> planning -> voiceover -> binding -> tts -> media -> remotion_shot_render -> remotion_chapter_render -> project_writeback -> completed`, exposes an existing Remotion MP4 path, and leaves the original project hashes unchanged.
 - Base: `npm run smoke:workflow:run:daojie` completes the stage click-through without requesting auto-video; report it as navigation evidence only.
 - Bad: the UI reaches `completed` but no existing MP4 path is exposed. The command must exit non-zero and AC6 remains open.
 - Good: two current-code chapter runs keep all canonical speaker profiles and reference paths identical, produce one real local-TTS audio file per storyboard, and emit a final MP4 with audio/video streams and SHA-256 evidence.
 - Good: the second direct timeline run reports `reusedExistingDraft=true`, keeps the EditingProject revision/source snapshot stable, creates a new render job, and reproduces the same MP4 SHA-256.
 - Bad: a rerun silently replaces a bound voice, generates fewer audio files than storyboards, or passes with a silent preview. The command must exit non-zero.
-- Bad: the Python concat MP4 exists and is reported as `finalVideo` after the typed timeline runner failed.
+- Bad: a Python/legacy concat MP4 exists and is reported as `finalVideo` after a Remotion shot or chapter runner failed.
 
 ## 6. Tests Required
 
@@ -106,8 +110,8 @@ MYSTUDIO_DAOJIE_REUSE_STORYBOARD_IMAGES=1 MYSTUDIO_DAOJIE_REUSE_STORYBOARD_IMAGE
 - Run `npm run video:daojie:chapter001:probe-providers` when checking configured image providers without spending generation quota; verify the report contains no API keys and `generationEndpointCalled=false`.
 - Run the focused voiceover, storyboard, TTS persistence, auto-video, readiness, and build-script tests; assert dynamic 2-shot/43-shot fixtures, canonical identity errors, fixed binding reuse, complete voiceover fields, and hard failures for missing voice assets.
 - Run `npm run video:daojie:chapter001` twice on current code. Preserve both reports and compare the complete canonical speaker profile/reference map, not only display names or a single sample.
-- Run `npm test -- build/timeline/render-daojie-editing-timeline.test.ts frontend/config/build-scripts.test.ts`; assert the Node-only Vite config, explicit runner handshake, supported path schemes, current store shape, authoritative final fields, and forbidden legacy fallback.
-- Run the direct timeline command against the current store before the provider-heavy full command. Verify `reusedExistingDraft`, EditingProject/plan/record identity, progress stages, MP4 streams/dimensions/duration, disk hash, snapshot hash, and every artifact path.
+- Run `npm test -- build/timeline/render-daojie-editing-timeline.test.ts frontend/config/build-scripts.test.ts`; assert the Node-only Vite config, explicit compile/Remotion handshakes, current store shape, authoritative final fields, and forbidden legacy fallback.
+- Run the shot and chapter Remotion commands against the current store before the provider-heavy full command. Verify `reusedExistingDraft`, EditingProject/plan/record identity, shot/chapter progress stages, MP4 streams/dimensions/duration, disk hash, snapshot hash, and every artifact path.
 
 ## 7. Wrong vs Correct
 
@@ -269,4 +273,56 @@ mutually exclusive review operations.
 Wrong: validate every continuity-pilot response as a generated-image payload.
 Correct: validate approved/rejected review receipts first, then use image-count
 checks only for generation payloads.
+```
+
+## 10. Packaged Remotion render-worker entry smoke
+
+### 1. Scope / Trigger
+
+Apply this contract when the Remotion utility-process entry, desktop packaging,
+or `remotion:worker:smoke` changes. The smoke must execute the worker inside the
+fresh packaged `app.asar`; a missing development `apps/out/` file is a failure.
+
+### 2. Signatures
+
+```bash
+MYSTUDIO_REMOTION_WORKER_SMOKE_PATH="<absolute-app.asar-worker-path>" \
+  npm run remotion:worker:smoke
+```
+
+### 3. Contracts
+
+- `MYSTUDIO_REMOTION_WORKER_SMOKE_PATH` is optional, but when set it must be an
+  existing absolute path to `out/main/remotion-render-worker.cjs`.
+- The smoke forks the real worker, sends request `entry-smoke`, and accepts only
+  the current fail-closed validation event containing `input.bundlePath`.
+- Any harness error must exit non-zero; `app.quit()` must not erase the failure
+  status.
+
+### 4. Validation & Error Matrix
+
+| Condition | Required result |
+| --- | --- |
+| Worker path missing or relative | Exit non-zero before fork |
+| Worker exits or times out before reply | Exit non-zero |
+| Reply request ID/kind/message differs | Exit non-zero |
+| Real worker rejects empty input at `input.bundlePath` | Pass entry smoke |
+
+### 5. Good / Base / Bad Cases
+
+- Good: the packaged worker replies with the expected validation error.
+- Base: an explicit valid absolute worker override is used after packaging cleans `apps/out`.
+- Bad: the script prints “构建产物不存在” but exits zero.
+
+### 6. Tests Required
+
+- `node --check apps/build/remotion/render-worker-entry-smoke.mjs`.
+- Run once without a worker and assert non-zero, then run against the fresh
+  packaged `app.asar` worker and assert zero plus the pass message.
+
+### 7. Wrong vs Correct
+
+```text
+Wrong: process.exitCode = 1; app.quit(), then count Electron exit 0 as a pass.
+Correct: terminate the failed harness non-zero and verify the packaged worker explicitly.
 ```
