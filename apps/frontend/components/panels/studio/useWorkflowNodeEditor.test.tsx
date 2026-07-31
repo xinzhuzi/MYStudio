@@ -2,6 +2,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, renderHook } from "@testing-library/react";
 import { useStudioStore } from "@/stores/studio/studio-store";
+import { serializeStoryboardTable } from "@/lib/studio/storyboard-table";
+import type { StoryboardItem } from "@/types/studio";
 import { useWorkflowNodeEditor } from "./useWorkflowNodeEditor";
 import {
   PRODUCTION_FLOW_EDGES,
@@ -115,5 +117,52 @@ describe("useWorkflowNodeEditor", () => {
     expect(saveAgentWorkData).not.toHaveBeenCalled();
     expect(saveScriptPlan).not.toHaveBeenCalled();
     expect(result.current.editingWorkflowNodeId).toBe("scriptPlan");
+  });
+
+  it("does not open another chapter's storyboard source in canonical JSON mode", () => {
+    const otherChapterStoryboard = {
+      id: "sb-chapter-2-001",
+      episodeId: "chapter-2",
+      index: 1,
+      trackKey: "chapter-2-scene-1",
+      trackId: "",
+      duration: 2,
+      prompt: "另一章画面",
+      videoDesc: "另一章镜头",
+      assetIds: [],
+      state: "ready",
+      shotSemantics: {
+        sceneViewpointId: "chapter-2-scene-1",
+        personFree: true,
+        visibleCharacters: [],
+        visibleProps: [],
+        actionIn: "起",
+        actionOut: "止",
+      },
+    } as StoryboardItem;
+    useStudioStore.setState({
+      storyboards: [],
+      agentWorkData: [{
+        id: "work-chapter-2",
+        key: "storyboardTable",
+        episodeId: "chapter-2",
+        data: serializeStoryboardTable([otherChapterStoryboard]),
+        createdAt: 1,
+        updatedAt: 1,
+      }],
+    });
+    const { result } = renderHook(() =>
+      useWorkflowNodeEditor({
+        productionFlowModel: flowModel,
+        projectId: "project-1",
+        productionEpisodeId: "chapter-1",
+        saveAgentWorkData: useStudioStore.getState().saveAgentWorkData,
+        saveScriptPlan: useStudioStore.getState().saveScriptPlan,
+      }),
+    );
+
+    act(() => result.current.openNodeJson("storyboardTable"));
+
+    expect(result.current.workflowNodeDraft).toBe("[]");
   });
 });

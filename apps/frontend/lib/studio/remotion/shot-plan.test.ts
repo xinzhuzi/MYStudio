@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { StoryboardItem } from "@/types/studio";
 import {
-  makeChapterManifest,
+  makeChapterManifestV2,
   TEST_SHA_A,
   TEST_SHA_B,
   TEST_SHA_C,
 } from "./remotion-workspace-test-fixtures";
+import { createRemotionAudioBindingFingerprint } from "./remotion-audio-fingerprint";
 import {
   compileRemotionShotPlan,
   projectStoryboardShotCompositionProps,
@@ -21,12 +22,12 @@ const MEDIA_URL = "http://127.0.0.1:43123/" + "a".repeat(64) + "/media";
 
 describe("Remotion shot plan compiler", () => {
   it("compiles image and video shots without hard-coded shot counts", async () => {
-    const image = await compileRemotionShotPlan(input());
+    const image = await compileRemotionShotPlan(await input());
     expect(image.success).toBe(true);
     if (!image.success) return;
     expect(image.value.visualKind).toBe("image");
 
-    const videoInput = input();
+    const videoInput = await input();
     videoInput.storyboard.mediaRef = { kind: "video", path: "videos/shot-001.mp4", contentSha256: TEST_SHA_A };
     const video = await compileRemotionShotPlan(videoInput);
     expect(video.success).toBe(true);
@@ -35,7 +36,7 @@ describe("Remotion shot plan compiler", () => {
   });
 
   it("projects only shot-scoped audio into capability-only Composition props", async () => {
-    const compiled = await compileRemotionShotPlan(input());
+    const compiled = await compileRemotionShotPlan(await input());
     expect(compiled.success).toBe(true);
     if (!compiled.success) return;
     const projected = projectStoryboardShotCompositionProps(compiled.value, () => MEDIA_URL);
@@ -47,61 +48,69 @@ describe("Remotion shot plan compiler", () => {
     expect(projected.value.audioClips).toHaveLength(1);
     expect(projected.value.audioClips[0]?.renderScope).toBe("shot");
     expect(projected.value.audioClips[0]?.src).toBe(MEDIA_URL);
+    expect(projected.value.audioClips[0]).toMatchObject({
+      kind: "voice",
+      trimStartFrames: 3,
+      durationInFrames: 45,
+      volume: 1,
+      fade: { fadeInFrames: 1, fadeOutFrames: 1 },
+      envelope: [
+        { frame: 0, gain: 1 },
+        { frame: 45, gain: 0.9 },
+      ],
+    });
   });
 
-  it("accepts ambience as shot-scoped Composition audio", async () => {
-    const planInput = input();
-    const shotAudio = planInput.shot.audioBindings.find((binding) => binding.renderScope === "shot");
-    if (!shotAudio || shotAudio.renderScope !== "shot") throw new Error("shot audio fixture missing");
-    shotAudio.role = "ambience";
-    const compiled = await compileRemotionShotPlan(planInput);
-    expect(compiled.success).toBe(true);
-    if (!compiled.success) return;
-    const projected = projectStoryboardShotCompositionProps(compiled.value, () => MEDIA_URL);
-    expect(projected.success).toBe(true);
-    if (!projected.success) return;
-    expect(projected.value.audioClips).toMatchObject([{ kind: "ambience", renderScope: "shot" }]);
+  it.each(["bgm", "ambience"] as const)("rejects %s as shot-scoped audio", async (role) => {
+    const planInput = await input();
+    const shotAudio = planInput.shot.audioBindings[0]!;
+    const invalid = shotAudio as unknown as { role: string; bindingFingerprint: string };
+    invalid.role = role;
+    invalid.bindingFingerprint = await createRemotionAudioBindingFingerprint(
+      shotAudio as never,
+    );
+    expectIssue(await compileRemotionShotPlan(planInput), "$.shots[0].audioBindings[0].role");
   });
 
   it("rejects missing visual material, required dialogue audio, and invalid duration", async () => {
-    const missingVisual = input();
+    const missingVisual = await input();
     missingVisual.storyboard.mediaRef = undefined;
     expectIssue(await compileRemotionShotPlan(missingVisual), "$.storyboard.mediaRef");
 
-    const missingAudio = input();
+    const missingAudio = await input();
     missingAudio.storyboard.lines = "需要口播";
     missingAudio.shot.audioBindings = missingAudio.shot.audioBindings.filter(
       (binding) => binding.renderScope !== "shot" || binding.role !== "voice",
     );
     expectIssue(await compileRemotionShotPlan(missingAudio), "$.shot.audioBindings");
 
-    const invalidDuration = input();
+    const invalidDuration = await input();
     invalidDuration.shot.durationUs = 0;
     expectIssue(await compileRemotionShotPlan(invalidDuration), "$.shots[0].durationUs");
   });
 
   it("rejects stale continuity and cross-project media references", async () => {
-    const stale = input();
+    const stale = await input();
     stale.storyboard.stale = true;
     stale.storyboard.staleReason = "上游图像已替换";
     expectIssue(await compileRemotionShotPlan(stale), "$.storyboard.stale");
 
-    const missingContinuity = input();
+    const missingContinuity = await input();
     missingContinuity.storyboard.continuityState = undefined;
     expectIssue(await compileRemotionShotPlan(missingContinuity), "$.storyboard.continuityState");
 
-    const staleContinuity = input();
+    const staleContinuity = await input();
     staleContinuity.storyboard.prompt = "已变更的视觉输入";
     expectIssue(await compileRemotionShotPlan(staleContinuity), "$.storyboard.continuityState");
 
-    const crossProject = input();
+    const crossProject = await input();
     crossProject.shot.visualSource.projectId = "project-b";
     expectIssue(await compileRemotionShotPlan(crossProject), "$.shots[0].visualSource.projectId");
   });
 
   it("keeps the input hash stable for equivalent key order and unrelated chapter revisions", async () => {
-    const first = await compileRemotionShotPlan(input());
-    const secondInput = input();
+    const first = await compileRemotionShotPlan(await input());
+    const secondInput = await input();
     const transform = secondInput.shot.transform;
     secondInput.shot.transform = {
       opacity: transform.opacity,
@@ -119,71 +128,63 @@ describe("Remotion shot plan compiler", () => {
     expect(first.value.inputHash).toBe(second.value.inputHash);
   });
 
-  it("changes the input hash for render-relevant shot and referenced shared-audio changes only", async () => {
-    const baseline = await compileRemotionShotPlan(input());
+  it("changes the input hash for shot audio fields while ignoring chapter shared audio", async () => {
+    const baselineInput = await input();
+    const baseline = await compileRemotionShotPlan(baselineInput);
     expect(baseline.success).toBe(true);
     if (!baseline.success) return;
 
-    const motionChanged = input();
+    const motionChanged = await input();
     motionChanged.shot.motion = { ...motionChanged.shot.motion, toScale: 1.12 };
     const motion = await compileRemotionShotPlan(motionChanged);
     expect(motion.success).toBe(true);
     if (!motion.success) return;
     expect(motion.value.inputHash).not.toBe(baseline.value.inputHash);
 
-    const referencedTrackChanged = input();
-    referencedTrackChanged.sharedAudioTracks[0]!.source.contentSha256 = TEST_SHA_B;
-    referencedTrackChanged.sharedAudioTracks[0]!.sourceFingerprint = TEST_SHA_B;
-    const referencedTrack = await compileRemotionShotPlan(referencedTrackChanged);
-    expect(referencedTrack.success).toBe(true);
-    if (!referencedTrack.success) return;
-    expect(referencedTrack.value.inputHash).not.toBe(baseline.value.inputHash);
+    const audioChanged = await input();
+    audioChanged.shot.audioBindings[0]!.volume = 0.75;
+    audioChanged.shot.audioBindings[0]!.bindingFingerprint = await createRemotionAudioBindingFingerprint(
+      audioChanged.shot.audioBindings[0]!,
+    );
+    const audio = await compileRemotionShotPlan(audioChanged);
+    expect(audio.success).toBe(true);
+    if (!audio.success) return;
+    expect(audio.value.inputHash).not.toBe(baseline.value.inputHash);
 
-    const unreferencedTrackChanged = input();
-    unreferencedTrackChanged.sharedAudioTracks.push({
-      trackId: "unused-ambience",
-      role: "ambience",
-      source: {
-        ...structuredClone(unreferencedTrackChanged.sharedAudioTracks[0]!.source),
-        relativePath: "audio/unused-ambience.wav",
-      },
-      sourceFingerprint: unreferencedTrackChanged.sharedAudioTracks[0]!.sourceFingerprint,
-    });
-    const unreferencedTrack = await compileRemotionShotPlan(unreferencedTrackChanged);
-    expect(unreferencedTrack.success).toBe(true);
-    if (!unreferencedTrack.success) return;
-    expect(unreferencedTrack.value.inputHash).toBe(baseline.value.inputHash);
+    const legacySharedInput = {
+      ...await input(),
+      sharedAudioTracks: [{ trackId: "legacy-chapter-bgm", role: "bgm" }],
+    };
+    const legacyShared = await compileRemotionShotPlan(legacySharedInput);
+    expect(legacyShared.success).toBe(true);
+    if (!legacyShared.success) return;
+    expect(legacyShared.value.inputHash).toBe(baseline.value.inputHash);
   });
 
   it("rejects storyboard identity, state, and stale source fingerprints", async () => {
-    const wrongIndex = input();
+    const wrongIndex = await input();
     wrongIndex.storyboard.index = 1;
     expectIssue(await compileRemotionShotPlan(wrongIndex), "$.storyboard.index");
 
-    const notReady = input();
+    const notReady = await input();
     notReady.storyboard.state = "rendering";
     expectIssue(await compileRemotionShotPlan(notReady), "$.storyboard.state");
 
-    const missingFingerprint = input();
+    const missingFingerprint = await input();
     missingFingerprint.storyboard.mediaRef!.contentSha256 = undefined;
     expectIssue(await compileRemotionShotPlan(missingFingerprint), "$.storyboard.mediaRef.contentSha256");
 
-    const staleFingerprint = input();
+    const staleFingerprint = await input();
     staleFingerprint.storyboard.mediaRef!.contentSha256 = TEST_SHA_B;
     expectIssue(await compileRemotionShotPlan(staleFingerprint), "$.storyboard.mediaRef.contentSha256");
   });
 
   it("requires current dialogue audio to match a shot-scoped voice binding", async () => {
-    const validDialogue = input();
+    const validDialogue = await input();
     validDialogue.storyboard.lines = "需要口播";
-    validDialogue.storyboard.audioRef = {
-      kind: "audio",
-      path: "audio/shot-001.wav",
-      contentSha256: TEST_SHA_B,
-    };
     expect((await compileRemotionShotPlan(validDialogue)).success).toBe(true);
 
-    const staleDialogue = input();
+    const staleDialogue = await input();
     staleDialogue.storyboard.lines = "需要口播";
     staleDialogue.storyboard.audioRef = {
       kind: "audio",
@@ -194,7 +195,7 @@ describe("Remotion shot plan compiler", () => {
   });
 
   it("runtime-validates persisted plans and their canonical hash", async () => {
-    const compiled = await compileRemotionShotPlan(input());
+    const compiled = await compileRemotionShotPlan(await input());
     expect(compiled.success).toBe(true);
     if (!compiled.success) return;
     expect((await validateRemotionShotPlan(structuredClone(compiled.value))).success).toBe(true);
@@ -205,23 +206,27 @@ describe("Remotion shot plan compiler", () => {
 
     const wrongTarget = { ...structuredClone(compiled.value), target: "chapter" };
     expectIssue(await validateRemotionShotPlan(wrongTarget), "$.target");
+
+    const legacyShared = { ...structuredClone(compiled.value), sharedAudioTracks: [] };
+    expectIssue(await validateRemotionShotPlan(legacyShared), "$.sharedAudioTracks");
   });
 
   it("reports the original binding index when shot audio capability resolution fails", async () => {
-    const planInput = input();
-    planInput.shot.audioBindings.reverse();
+    const planInput = await input();
     const compiled = await compileRemotionShotPlan(planInput);
     expect(compiled.success).toBe(true);
     if (!compiled.success) return;
     const projected = projectStoryboardShotCompositionProps(compiled.value, (reference) => {
-      if (reference.relativePath.startsWith("audio/shot-")) throw new Error("audio capability unavailable");
+      if (reference.relativePath.includes("/audio/") || reference.relativePath.startsWith("remotion/audio/")) {
+        throw new Error("audio capability unavailable");
+      }
       return MEDIA_URL;
     });
-    expectIssue(projected, "$.shot.audioBindings[1].source");
+    expectIssue(projected, "$.shot.audioBindings[0].source");
   });
 
   it("requires current-revision human approval when the first chapter policy is enabled", async () => {
-    const result = await compileRemotionShotPlan({ ...input(), requireHumanApproval: true });
+    const result = await compileRemotionShotPlan({ ...await input(), requireHumanApproval: true });
     expectIssue(result, "$.storyboard.visualReview");
   });
 
@@ -259,8 +264,10 @@ function expectIssue(result: { success: boolean; issues?: Array<{ path: string }
   expect(result.issues?.some((issue) => issue.path === path)).toBe(true);
 }
 
-function input() {
-  const chapter = makeChapterManifest();
+async function input() {
+  const chapter = await makeChapterManifestV2();
+  const shot = structuredClone(chapter.shots[0]!);
+  const voice = shot.audioBindings[0]!;
   const storyboard: StoryboardItem = {
     id: "storyboard-001",
     episodeId: "chapter-001",
@@ -272,6 +279,25 @@ function input() {
     videoDesc: "静态镜头",
     assetIds: [],
     mediaRef: { kind: "image", path: "images/shot-001.png", contentSha256: TEST_SHA_A },
+    audioRef: {
+      kind: "audio",
+      path: `project-file://project-a/${voice.source.relativePath}`,
+      contentSha256: voice.source.contentSha256,
+    },
+    shotAudioBindings: structuredClone(shot.audioBindings),
+    ttsJob: {
+      schemaVersion: 1,
+      projectId: chapter.projectId,
+      chapterId: chapter.chapterId,
+      shotId: shot.shotId,
+      shotRevision: shot.revision,
+      inputFingerprint: voice.ttsInputFingerprint!,
+      status: "completed",
+      attempt: 1,
+      generationId: "generation-shot-001",
+      createdAt: 100,
+      updatedAt: 200,
+    },
     state: "ready",
   };
   storyboard.shotSemantics = {
@@ -301,8 +327,7 @@ function input() {
     chapterRevision: chapter.revision,
     sourceSnapshotHash: chapter.sourceSnapshotHash,
     renderSettings: chapter.renderSettings,
-    shot: structuredClone(chapter.shots[0]),
+    shot,
     storyboard,
-    sharedAudioTracks: structuredClone(chapter.sharedAudioTracks),
   };
 }

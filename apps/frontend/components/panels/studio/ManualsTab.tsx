@@ -22,14 +22,14 @@ export function ManualsTab(props: {
   } | null>(null);
 
   return (
-    <div className="grid grid-cols-[320px_1fr] gap-5">
+    <div className="grid grid-cols-[320px_1fr] items-stretch gap-5">
       {/* 左：项目配置（ToonFlow 风格）*/}
-      <Card className="h-fit rounded-lg">
+      <Card className="flex h-full min-h-0 flex-col rounded-lg">
         <CardHeader>
           <CardTitle className="text-sm">项目配置</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="space-y-1">
+        <CardContent className="flex min-h-0 flex-1 flex-col gap-3">
+          <div className="shrink-0 space-y-1">
             <Label className="text-xs text-muted-foreground">项目类型</Label>
             <select
               className="h-8 w-full rounded-md border border-input bg-background px-2 text-sm"
@@ -42,9 +42,9 @@ export function ManualsTab(props: {
               <option value="script">基于剧本</option>
             </select>
           </div>
-          <div className="space-y-1">
+          <div className="shrink-0 space-y-1">
             <Label className="text-xs text-muted-foreground">
-              单集时长（分钟）
+              单集参考时长（分钟）
             </Label>
             <Input
               type="number"
@@ -61,7 +61,7 @@ export function ManualsTab(props: {
               placeholder="例如 3"
             />
           </div>
-          <div className="space-y-1">
+          <div className="shrink-0 space-y-1">
             <Label className="text-xs text-muted-foreground">集数</Label>
             <Input
               type="number"
@@ -78,7 +78,7 @@ export function ManualsTab(props: {
               placeholder="例如 12"
             />
           </div>
-          <div className="space-y-1">
+          <div className="shrink-0 space-y-1">
             <Label className="text-xs text-muted-foreground">小说类型</Label>
             <Input
               value={props.workflowConfig.novelGenre ?? ""}
@@ -91,7 +91,7 @@ export function ManualsTab(props: {
               placeholder="例如 玄幻、科幻、言情"
             />
           </div>
-          <div className="space-y-1">
+          <div className="shrink-0 space-y-1">
             <Label className="text-xs text-muted-foreground">平台规格</Label>
             <select
               className="h-8 w-full rounded-md border border-input bg-background px-2 text-sm"
@@ -108,7 +108,7 @@ export function ManualsTab(props: {
               <option value="1:1">1:1 方形</option>
             </select>
           </div>
-          <div className="space-y-1">
+          <div className="flex min-h-0 flex-1 flex-col gap-1">
             <Label className="text-xs text-muted-foreground">小说简介</Label>
             <Textarea
               value={props.workflowConfig.novelSynopsis ?? ""}
@@ -117,7 +117,7 @@ export function ManualsTab(props: {
                   novelSynopsis: e.target.value || undefined,
                 })
               }
-              className="min-h-[120px] text-sm"
+              className="min-h-[120px] flex-1 resize-none overflow-y-auto text-sm"
               placeholder="请输入小说简介"
             />
           </div>

@@ -44,6 +44,7 @@ import type {
   RemotionQueueSwitchReply,
 } from "@rendering/plugins/remotion/queue/remotion-queue-ipc";
 import type { RemotionQueueNotification } from "@rendering/plugins/remotion/queue/remotion-render-queue";
+import type { RemotionChapterManifestBridge } from "@rendering/plugins/remotion/manifest/remotion-chapter-manifest-ipc";
 import type {
   RemotionStudioEnsureSessionReply,
   RemotionStudioEnsureSessionRequest,
@@ -314,6 +315,7 @@ declare global {
       render: (request: RemotionShotRenderRequest) => Promise<RemotionShotRenderResult>;
       cancel: (jobId: string) => Promise<{ success: boolean; jobId: string; canceled: boolean; error?: string }>;
     };
+    remotionChapterManifest?: RemotionChapterManifestBridge;
     remotionQueue?: {
       get: (scope: { projectId: string; chapterId: string }) => Promise<RemotionQueueScopeReply>;
       enqueueShot: (request: RemotionQueueEnqueueShotRequest) => Promise<RemotionQueueRetryReply>;

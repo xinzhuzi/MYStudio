@@ -74,9 +74,28 @@ describe("useProductionFlowModel", () => {
       productionEpisodeId: episodeId,
       ...emptyInput,
     }));
+    const rejectedFallback = renderModel("episode-1");
+    expect(rejectedFallback.result.current.nodes.find((node) => node.id === "workbench")?.rendererSummary).toEqual({
+      requested: "remotion",
+    });
+    rejectedFallback.unmount();
+
+    const remotionRecord = {
+      ...record,
+      evidence: {
+        ...record.evidence,
+        renderer: { requested: "remotion" as const, actual: "remotion" as const },
+      },
+    };
+    useEditingStore.setState({
+      timelineRenderRecordsByEditingProjectId: { "editing-1": remotionRecord },
+    });
     const current = renderModel("episode-1");
     expect(current.result.current.nodes.find((node) => node.id === "workbench")?.rendererSummary).toMatchObject({
-      requested: "remotion", actual: "ffmpeg", fallbackEffectIds: ["glitch"], lastJobId: "job-1", outputPath: "/tmp/final.mp4",
+      requested: "remotion",
+      actual: "remotion",
+      lastJobId: "job-1",
+      outputPath: "/tmp/final.mp4",
     });
     current.unmount();
 
@@ -86,7 +105,7 @@ describe("useProductionFlowModel", () => {
       { editingProjectId: "editing-2" },
       { editingRevision: 2 },
     ]) {
-      useEditingStore.setState({ timelineRenderRecordsByEditingProjectId: { "editing-1": { ...record, ...mismatched } } });
+      useEditingStore.setState({ timelineRenderRecordsByEditingProjectId: { "editing-1": { ...remotionRecord, ...mismatched } } });
       const stale = renderModel("episode-1");
       expect(stale.result.current.nodes.find((node) => node.id === "workbench")?.rendererSummary).toEqual({ requested: "remotion" });
       stale.unmount();

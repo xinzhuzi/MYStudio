@@ -52,11 +52,12 @@ export function latestAgentWork(
   items: WorkflowStoreSnapshot["agentWorkData"],
   key: AgentWorkKey,
   episodeId?: string,
+  options: { allowUnscopedFallback?: boolean } = {},
 ): string {
   const scoped = items
     .filter((item) => item.key === key && item.data.trim())
     .filter((item) => !episodeId || item.episodeId === episodeId);
-  const candidates = scoped.length
+  const candidates = scoped.length || options.allowUnscopedFallback === false
     ? scoped
     : items.filter((item) => item.key === key && item.data.trim());
   return (

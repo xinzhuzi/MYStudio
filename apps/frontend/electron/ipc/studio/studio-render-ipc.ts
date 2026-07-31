@@ -18,6 +18,35 @@ type RegisterStudioRenderIpcHandlersContext = {
 
 const execFileAsync = promisify(execFile);
 
+export interface StudioMediaProbeEvidence {
+  path: string;
+  sizeBytes: number;
+  mtimeMs: number;
+  sha256: string;
+  duration: number;
+  streams: string[];
+}
+
+export async function probeStudioMediaEvidence(resolvedPath: string): Promise<StudioMediaProbeEvidence> {
+  const { stdout } = await execFileAsync("ffprobe", [
+    "-v", "error", "-show_entries", "format=duration:stream=codec_type", "-of", "json", resolvedPath,
+  ], { maxBuffer: 4 * 1024 * 1024 });
+  const probe = JSON.parse(stdout || "{}") as {
+    format?: { duration?: string | number };
+    streams?: Array<{ codec_type?: string }>;
+  };
+  const stat = await fs.promises.stat(resolvedPath);
+  const sha256 = crypto.createHash("sha256").update(await fs.promises.readFile(resolvedPath)).digest("hex");
+  return {
+    path: resolvedPath,
+    sizeBytes: stat.size,
+    mtimeMs: stat.mtimeMs,
+    sha256,
+    duration: Number(probe.format?.duration || 0),
+    streams: (probe.streams || []).map((stream) => stream.codec_type || "").filter(Boolean),
+  };
+}
+
 export function registerStudioRenderIpcHandlers({
   getMediaRoot,
   resolveSourcePath,
@@ -76,22 +105,6 @@ export function registerStudioRenderIpcHandlers({
   ipcMain.handle("studio-list-assets", async (_event, payload: StudioAssetListRequest) => listStudioRuntimeAssets(payload));
   ipcMain.handle("studio-probe-media-evidence", async (_event, sourcePath: string) => {
     const resolvedPath = ensureReadableStudioSource(sourcePath);
-    const { stdout } = await execFileAsync("ffprobe", [
-      "-v", "error", "-show_entries", "format=duration:stream=codec_type", "-of", "json", resolvedPath,
-    ], { maxBuffer: 4 * 1024 * 1024 });
-    const probe = JSON.parse(stdout || "{}") as {
-      format?: { duration?: string | number };
-      streams?: Array<{ codec_type?: string }>;
-    };
-    const stat = await fs.promises.stat(resolvedPath);
-    const sha256 = crypto.createHash("sha256").update(await fs.promises.readFile(resolvedPath)).digest("hex");
-    return {
-      path: resolvedPath,
-      sizeBytes: stat.size,
-      mtimeMs: stat.mtimeMs,
-      sha256,
-      duration: Number(probe.format?.duration || 0),
-      streams: (probe.streams || []).map((stream) => stream.codec_type || "").filter(Boolean),
-    };
+    return probeStudioMediaEvidence(resolvedPath);
   });
 }

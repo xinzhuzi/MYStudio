@@ -56,10 +56,12 @@ describe("ManualsTab", () => {
     );
 
     expect(screen.getByText("项目配置")).toBeTruthy();
+    expect(screen.getByText("单集参考时长（分钟）")).toBeTruthy();
     expect(screen.getByText("视觉手册（画风）")).toBeTruthy();
     expect(screen.getByText("导演手册")).toBeTruthy();
     expect(screen.getByText("水墨国风")).toBeTruthy();
     expect(screen.getByText("叙事导演")).toBeTruthy();
+    expect(screen.getByPlaceholderText("请输入小说简介").className).toContain("flex-1");
   });
 
   it("loads studio manual catalogs through the split hook", () => {

@@ -16,7 +16,7 @@ import type {
 } from "./composition-props";
 import { validateChapterVideoCompositionProps } from "./composition-props-validation";
 import type { RemotionCurrentSlotV1 } from "@/types/remotion-workspace";
-import { validateCurrentSlot } from "@/lib/studio/remotion/remotion-current-slot";
+import { validateRemotionCurrentSlot as validateCurrentSlot } from "@/lib/studio/remotion/remotion-slot-validation";
 import {
   clipDurationInFrames,
   layoutVisualTimeline,

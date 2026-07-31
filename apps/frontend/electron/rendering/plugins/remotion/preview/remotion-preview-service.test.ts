@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import type { TimelineRenderPlan } from "@/types/editing";
 import { sha256CanonicalJson } from "@/lib/studio/remotion/canonical-json";
 import type { RemotionShotPlanV1 } from "@/lib/studio/remotion/shot-plan";
-import { makeChapterManifest } from "@/lib/studio/remotion/remotion-workspace-test-fixtures";
+import { makeChapterManifestV2 } from "@/lib/studio/remotion/remotion-workspace-test-fixtures";
 import { RemotionPreviewService } from "./remotion-preview-service";
 
 describe("RemotionPreviewService", () => {
@@ -40,7 +40,7 @@ describe("RemotionPreviewService", () => {
     const service = new RemotionPreviewService({
       resolveSourcePath: (source) => source.endsWith("images/shot-001.png") ? imagePath : audioPath,
     });
-    const chapter = makeChapterManifest();
+    const chapter = await makeChapterManifestV2();
     const shotPlan: RemotionShotPlanV1 = {
       schemaVersion: 1,
       target: "shot",
@@ -51,7 +51,6 @@ describe("RemotionPreviewService", () => {
       renderSettings: chapter.renderSettings,
       visualKind: "image",
       shot: chapter.shots[0]!,
-      sharedAudioTracks: chapter.sharedAudioTracks,
       inputHash: await sha256CanonicalJson({
         schemaVersion: 1,
         target: "shot",
@@ -60,7 +59,6 @@ describe("RemotionPreviewService", () => {
         renderSettings: chapter.renderSettings,
         visualKind: "image",
         shot: chapter.shots[0],
-        sharedAudioTracks: chapter.sharedAudioTracks,
       }),
     };
 

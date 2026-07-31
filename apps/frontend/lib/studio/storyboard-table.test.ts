@@ -4,6 +4,7 @@ import {
   parseStoryboardTable,
   computeDurationSec,
   resolveSpeed,
+  serializeStoryboardTable,
   toStoryboardItems,
 } from "./storyboard-table";
 
@@ -27,6 +28,42 @@ describe("studio storyboard duration math", () => {
 });
 
 describe("studio storyboard table parsing", () => {
+  it("serializes canonical storyboards to a Markdown source record without embedding media paths", () => {
+    const parsedSource = parseStoryboardTable([
+        "<storyboardTable>",
+        "| 序号 | 画面描述 | 场景 | 关联资产名称 | 时长 | 景别 | 运镜 | 角色动作 | 朝向 | 空间关系 | 情绪 | 台词 | 音效 | 关联资产ID | 出镜语义JSON |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+        `| 1 | 雨夜码头 | 码头 | [码头] | 2 | 近景 | 静止 | 镜头推进 | 面向右 | 中景 | 紧张 | 旁白：雨声压低 | 风声 | [scene-dock] | ${JSON.stringify({
+          sceneViewpointId: "dock",
+          personFree: true,
+          visibleCharacters: [],
+          visibleProps: [{ name: "码头", position: "中景", state: "湿润" }],
+          actionIn: "雨落",
+          actionOut: "雨声延续",
+        })} |`,
+        "</storyboardTable>",
+      ].join("\n"),
+      "episode-1",
+    );
+    const item = toStoryboardItems(parsedSource.rows, "episode-1", [])[0]!;
+    const canonical = {
+      ...item,
+      mediaRef: { kind: "image" as const, path: "/project/media/shot.png" },
+    };
+    const source = serializeStoryboardTable([canonical]);
+    const parsed = parseStoryboardTable(source, "episode-1");
+
+    expect(source).toContain("<storyboardTable>");
+    expect(source).not.toContain("/project/media/shot.png");
+    expect(parsed.errors).toHaveLength(0);
+    expect(parsed.rows[0]).toMatchObject({
+      index: 1,
+      description: "雨夜码头",
+      duration: 2,
+      lines: "旁白：雨声压低",
+    });
+  });
+
   it("parses Toonflow grouped scene/segment storyboard tables", () => {
     const output = [
       "<storyboardTable>",

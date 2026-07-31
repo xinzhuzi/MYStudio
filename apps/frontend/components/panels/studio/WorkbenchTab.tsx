@@ -37,6 +37,11 @@ export function WorkbenchTab(props: {
     storyboards: props.storyboards,
     remotionShotSlots: props.remotionShotSlots,
   });
+  const chapterReady = isCurrentChapterReady(
+    props.episodeId ?? "episode-1",
+    props.storyboards,
+    props.remotionShotSlots ?? [],
+  );
   return (
     <div className="space-y-3">
       <VisualContinuityReviewPanel
@@ -45,7 +50,7 @@ export function WorkbenchTab(props: {
         onReview={reviewStoryboardHuman}
         onReviewAsset={reviewContinuityAssetVersionHuman}
       />
-      {editing.currentProject ? <NativeRemotionStudioHost
+      {editing.currentProject && chapterReady ? <NativeRemotionStudioHost
         projectId={editing.currentProject.projectId}
         chapterId={editing.currentProject.episodeId}
         revision={editing.currentProject.revision}
@@ -58,18 +63,51 @@ export function WorkbenchTab(props: {
           <p className="mt-2 text-sm text-muted-foreground">
             当前章节尚未生成可编辑工程。先完成当前章的 Remotion 分镜队列，系统会据此加载原生 Studio。
           </p>
+          <div className="mt-3 rounded-md border border-cyan-300/20 bg-cyan-300/[0.06] px-3 py-2 text-xs text-cyan-100">
+            分镜物料 → <strong>StoryboardShot</strong> 单镜 MP4 → 原生 Remotion Studio → <strong>ChapterVideo</strong> 章节合成 → 章节 MP4
+          </div>
           <Button
             className="mt-4"
-            disabled={editing.drafting || !props.remotionShotSlots?.length}
+            disabled={editing.drafting || !chapterReady}
             onClick={() => { void editing.createDraft().catch(() => undefined); }}
           >
             {editing.drafting ? "正在准备…" : "准备当前章"}
           </Button>
+          {!chapterReady ? (
+            <p className="mt-3 text-xs text-muted-foreground">
+              已验证单镜槽位：{countCurrentShotSlots(props.episodeId ?? "episode-1", props.storyboards, props.remotionShotSlots ?? [])}/{props.storyboards.length}；全部成功后才能进入章节工作台。
+            </p>
+          ) : null}
           {editing.error && <p className="mt-3 text-sm text-destructive">{editing.error}</p>}
         </section>
       )}
     </div>
   );
+}
+
+function isCurrentChapterReady(
+  episodeId: string,
+  storyboards: ReturnType<typeof useStudioStore.getState>["storyboards"],
+  slots: RemotionCurrentSlotV1[],
+) {
+  return storyboards.length > 0
+    && countCurrentShotSlots(episodeId, storyboards, slots) === storyboards.length;
+}
+
+function countCurrentShotSlots(
+  episodeId: string,
+  storyboards: ReturnType<typeof useStudioStore.getState>["storyboards"],
+  slots: RemotionCurrentSlotV1[],
+) {
+  const storyboardIds = new Set(storyboards.map((storyboard) => storyboard.id));
+  return new Set(
+    slots
+      .filter((slot) => slot.target.kind === "shot"
+        && slot.target.chapterId === episodeId
+        && storyboardIds.has(slot.target.shotId)
+        && slot.job.status === "succeeded")
+      .map((slot) => slot.target.kind === "shot" ? slot.target.shotId : ""),
+  ).size;
 }
 
 function filterProjectItems<T extends { projectId?: string }>(

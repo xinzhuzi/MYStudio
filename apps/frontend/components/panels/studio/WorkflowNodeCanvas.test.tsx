@@ -89,6 +89,7 @@ const stageByNodeId: Record<(typeof PRODUCTION_FLOW_NODE_IDS)[number], Productio
   assets: "assets",
   storyboardTable: "storyboard",
   storyboard: "storyboard",
+  remotionProduction: "workbench",
   workbench: "workbench",
 };
 
@@ -449,7 +450,7 @@ describe("WorkflowNodeCanvas visibility lifecycle", () => {
     fireEvent.click(screen.getByRole("button", { name: "自动排版 LR" }));
 
     const mainline = reactFlowMock.latestNodes.filter((node) => node.id !== "assets");
-    expect(mainline).toHaveLength(5);
+    expect(mainline).toHaveLength(6);
     expect(mainline.every((node) => node.sourcePosition === Position.Bottom)).toBe(true);
     expect(mainline.every((node) => node.targetPosition === Position.Top)).toBe(true);
     expect(reactFlowMock.latestNodes.find((node) => node.id === "assets")).toMatchObject({

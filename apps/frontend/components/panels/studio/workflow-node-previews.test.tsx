@@ -17,6 +17,7 @@ import {
 import {
   AssetDerivationPreview,
   AssetFlowCard,
+  RemotionShotPreview,
   StoryboardGridPreview,
   StoryboardTablePreview,
   WorkbenchLanePreview,
@@ -352,6 +353,126 @@ describe("workflow node component boundaries", () => {
     expect(screen.getByText("Remotion → Remotion")).toBeTruthy();
     expect(screen.getByText("job-remotion")).toBeTruthy();
     expect(screen.getByText("/tmp/remotion-final.mp4")).toBeTruthy();
+  });
+
+  it("makes the Remotion shot-to-chapter pipeline explicit in the production node", () => {
+    const node = {
+      id: "remotionProduction" as const,
+      label: "Remotion 视频生产",
+      description: "",
+      status: "pending" as const,
+      metrics: [],
+      previewTitle: "逐镜 Remotion 队列",
+      previewLines: [],
+      previewKind: "remotion-shots" as const,
+      targetStage: "workbench" as const,
+      remotionShots: [{
+        shotId: "shot-1",
+        index: 1,
+        title: "雨夜码头",
+        status: "succeeded" as const,
+        progress: 1,
+        outputPath: "/tmp/shot-1.mp4",
+        evidencePath: "/tmp/shot-1.json",
+      }],
+      remotionSummary: {
+        total: 1,
+        succeeded: 1,
+        running: 0,
+        queued: 0,
+        failed: 0,
+        blocked: 0,
+        stale: 0,
+        pending: 0,
+        chapterReady: true,
+      },
+    } satisfies ProductionFlowNodeModel;
+
+    render(<RemotionShotPreview node={node} />);
+
+    expect(screen.getByText("StoryboardShot")).toBeTruthy();
+    expect(screen.getByText("单镜 MP4")).toBeTruthy();
+    expect(screen.queryByText("ChapterVideo")).toBeNull();
+    expect(screen.queryByText("原生 Studio")).toBeNull();
+  });
+
+  it("keeps ChapterVideo assembly inside the native Studio workbench", () => {
+    const node = {
+      id: "workbench" as const,
+      label: "Remotion 视频工作台",
+      description: "",
+      status: "pending" as const,
+      metrics: [],
+      previewTitle: "原生 Remotion Studio",
+      previewLines: [],
+      previewKind: "workbench-lanes" as const,
+      targetStage: "workbench" as const,
+      workbenchTracks: [],
+      remotionSummary: {
+        total: 1,
+        succeeded: 1,
+        running: 0,
+        queued: 0,
+        failed: 0,
+        blocked: 0,
+        stale: 0,
+        pending: 0,
+        chapterReady: true,
+      },
+    } satisfies ProductionFlowNodeModel;
+
+    render(<WorkbenchLanePreview node={node} />);
+
+    expect(screen.getByText("StoryboardShot MP4")).toBeTruthy();
+    expect(screen.getByText("原生 Remotion Studio")).toBeTruthy();
+    expect(screen.getByText("ChapterVideo")).toBeTruthy();
+    expect(screen.getByText("章节 MP4")).toBeTruthy();
+  });
+
+  it("does not let a legacy export path mark a Remotion chapter ready", () => {
+    const node = {
+      id: "workbench" as const,
+      label: "Remotion 视频工作台",
+      description: "",
+      status: "pending" as const,
+      metrics: [],
+      previewTitle: "原生 Remotion Studio",
+      previewLines: [],
+      previewKind: "workbench-lanes" as const,
+      targetStage: "workbench" as const,
+      workbenchTracks: [],
+      finalExportPath: "/tmp/legacy-final.mp4",
+      remotionSummary: {
+        total: 1,
+        succeeded: 1,
+        running: 0,
+        queued: 0,
+        failed: 0,
+        blocked: 0,
+        stale: 0,
+        pending: 0,
+        chapterReady: true,
+      },
+    };
+    const { rerender } = render(
+      <WorkbenchLanePreview node={{
+        ...node,
+        rendererSummary: { requested: "remotion" },
+      }} />,
+    );
+    expect(screen.getByText("PENDING")).toBeTruthy();
+
+    rerender(
+      <WorkbenchLanePreview node={{
+        ...node,
+        rendererSummary: {
+          requested: "remotion",
+          actual: "remotion",
+          outputPath: "/tmp/current-chapter.mp4",
+        },
+      }} />,
+    );
+    expect(screen.getByText("READY")).toBeTruthy();
   });
 
   it("renders derived asset nodes with Toonflow-style type and keeps technical ids machine-readable", () => {

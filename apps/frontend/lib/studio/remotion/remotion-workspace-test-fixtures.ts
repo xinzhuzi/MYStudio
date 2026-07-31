@@ -1,14 +1,21 @@
 import {
   REMOTION_STUDIO_ALLOWED_WRITE_FIELDS,
+  type RemotionChapterAudioBindingV2,
   type RemotionChapterManifestV1,
+  type RemotionChapterManifestV2,
   type RemotionCurrentSlotPublicationV1,
   type RemotionCurrentSlotV1,
   type RemotionEvidenceV1,
   type RemotionRenderJobV1,
+  type RemotionShotAudioBindingV2,
   type RemotionStudioSessionContractV1,
   type RemotionStudioWriteRequestV1,
   type RemotionWorkspaceManifestV1,
 } from "@/types/remotion-workspace";
+import {
+  createRemotionAudioBindingFingerprint,
+  createRemotionChapterManifestFingerprint,
+} from "./remotion-audio-fingerprint";
 
 export const TEST_SHA_A = "a".repeat(64);
 export const TEST_SHA_B = "b".repeat(64);
@@ -100,6 +107,134 @@ export function makeChapterManifest(): RemotionChapterManifestV1 {
     createdAt: 100,
     updatedAt: 100,
   };
+}
+
+export async function makeShotAudioBindingV2(
+  overrides: Partial<RemotionShotAudioBindingV2> = {},
+): Promise<RemotionShotAudioBindingV2> {
+  const projectId = overrides.projectId ?? "project-a";
+  const chapterId = overrides.chapterId ?? "chapter-001";
+  const shotId = overrides.shotId ?? "shot-001";
+  const shotRevision = overrides.shotRevision ?? 1;
+  const role = overrides.role ?? "voice";
+  const sourceFingerprint = overrides.sourceFingerprint
+    ?? overrides.source?.contentSha256
+    ?? TEST_SHA_B;
+  const binding: RemotionShotAudioBindingV2 = {
+    schemaVersion: 2,
+    bindingId: `${role}-${shotId}`,
+    bindingFingerprint: TEST_SHA_C,
+    renderScope: "shot",
+    projectId,
+    chapterId,
+    shotId,
+    shotRevision,
+    role,
+    source: makeMediaReference(
+      `remotion/audio/${chapterId}/shots/${shotId}/${role}/${sourceFingerprint}.wav`,
+      sourceFingerprint,
+      projectId,
+    ),
+    sourceFingerprint,
+    sourceDurationUs: 1_600_000,
+    sourceStartUs: 100_000,
+    shotStartUs: 0,
+    durationUs: 1_500_000,
+    volume: 1,
+    fadeInUs: 20_000,
+    fadeOutUs: 40_000,
+    envelope: [
+      { timeUs: 0, gain: 1 },
+      { timeUs: 1_500_000, gain: 0.9 },
+    ],
+    ...(role === "voice" ? { ttsInputFingerprint: TEST_SHA_C } : {}),
+    ...overrides,
+  };
+  binding.bindingFingerprint = await createRemotionAudioBindingFingerprint(binding);
+  return binding;
+}
+
+export async function makeChapterAudioBindingV2(
+  overrides: Partial<RemotionChapterAudioBindingV2> = {},
+): Promise<RemotionChapterAudioBindingV2> {
+  const projectId = overrides.projectId ?? "project-a";
+  const chapterId = overrides.chapterId ?? "chapter-001";
+  const role = overrides.role ?? "bgm";
+  const sourceFingerprint = overrides.sourceFingerprint
+    ?? overrides.source?.contentSha256
+    ?? TEST_SHA_C;
+  const binding: RemotionChapterAudioBindingV2 = {
+    schemaVersion: 2,
+    bindingId: `${role}-${chapterId}`,
+    bindingFingerprint: TEST_SHA_B,
+    renderScope: "chapter",
+    projectId,
+    chapterId,
+    role,
+    source: makeMediaReference(
+      `remotion/audio/${chapterId}/shared/${role}/${sourceFingerprint}.wav`,
+      sourceFingerprint,
+      projectId,
+    ),
+    sourceFingerprint,
+    sourceDurationUs: 8_000_000,
+    sourceStartUs: 0,
+    chapterStartUs: 250_000,
+    durationUs: 7_000_000,
+    volume: 0.25,
+    fadeInUs: 500_000,
+    fadeOutUs: 800_000,
+    envelope: [{ timeUs: 0, gain: 1 }],
+    ducking: {
+      enabled: role === "bgm",
+      reductionDb: -12,
+      attackUs: 120_000,
+      releaseUs: 400_000,
+    },
+    ...overrides,
+  };
+  binding.bindingFingerprint = await createRemotionAudioBindingFingerprint(binding);
+  return binding;
+}
+
+export async function makeChapterManifestV2(): Promise<RemotionChapterManifestV2> {
+  const voice = await makeShotAudioBindingV2();
+  const bgm = await makeChapterAudioBindingV2();
+  const manifest: RemotionChapterManifestV2 = {
+    schemaVersion: 2,
+    manifestFingerprint: TEST_SHA_A,
+    projectId: "project-a",
+    chapterId: "chapter-001",
+    revision: 1,
+    sourceSnapshotHash: TEST_SHA_B,
+    requiredShotIds: ["shot-001"],
+    sharedAudioBindings: [bgm],
+    shots: [{
+      shotId: "shot-001",
+      storyboardId: "storyboard-001",
+      index: 0,
+      revision: 1,
+      sourceFingerprint: TEST_SHA_A,
+      durationUs: 2_000_000,
+      visualSource: makeMediaReference("images/shot-001.png", TEST_SHA_A),
+      subtitleText: "第一镜",
+      audioBindings: [voice],
+      motion: {
+        kind: "pan-zoom",
+        fromScale: 1,
+        toScale: 1.08,
+        originX: 0.5,
+        originY: 0.5,
+      },
+      transform: { x: 0, y: 0, scaleX: 1, scaleY: 1, rotation: 0, opacity: 1 },
+      approvedContinuityVersion: "continuity-v1",
+    }],
+    renderSettings: makeWorkspaceManifest().defaultRenderSettings,
+    createdAt: 100,
+    updatedAt: 100,
+  };
+  manifest.manifestFingerprint = await createRemotionChapterManifestFingerprint(manifest);
+  return manifest;
 }
 
 export function makeSucceededShotJob(): RemotionRenderJobV1 {
@@ -236,10 +371,14 @@ export function makeStudioWriteRequest(): RemotionStudioWriteRequestV1 {
   };
 }
 
-function makeMediaReference(relativePath: string, contentSha256: string) {
+function makeMediaReference(
+  relativePath: string,
+  contentSha256: string,
+  projectId = "project-a",
+) {
   return {
     kind: "project-file" as const,
-    projectId: "project-a",
+    projectId,
     relativePath,
     contentSha256,
     provenance: {

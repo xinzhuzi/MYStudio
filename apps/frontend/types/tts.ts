@@ -159,6 +159,13 @@ export interface TtsGenerateRequest {
   modelSize?: string;
   language?: string;
   seed?: number;
+  projectId?: string;
+  chapterId?: string;
+  shotId?: string;
+  shotRevision?: number;
+  inputFingerprint?: string;
+  referenceAudioSha256?: string;
+  retry?: boolean;
 }
 
 export interface TtsGenerateResponse {
@@ -170,6 +177,12 @@ export interface TtsGenerateResponse {
   mocked?: boolean | number;
   warning?: string;
   error?: string;
+  errorCode?: string;
+  retryable?: boolean | number;
+  attempt?: number;
+  inputFingerprint?: string;
+  reused?: boolean;
+  resumed?: boolean;
 }
 
 export interface TtsActiveTask {

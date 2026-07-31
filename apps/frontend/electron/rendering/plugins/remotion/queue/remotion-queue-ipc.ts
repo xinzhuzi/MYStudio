@@ -3,7 +3,11 @@ import type {
   RemotionQueueNotification,
   RemotionQueueSwitchResult,
 } from "./remotion-render-queue";
-import type { RemotionRenderJobV1 } from "@/types/remotion-workspace";
+import type {
+  RemotionCurrentSlotV1,
+  RemotionRenderJobV1,
+} from "@/types/remotion-workspace";
+import { validateRemotionCurrentSlotCollection } from "@/lib/studio/remotion/remotion-slot-validation";
 import { validateRemotionRenderJob } from "@/lib/studio/remotion/remotion-render-validation";
 
 export const REMOTION_QUEUE_GET_CHANNEL = "remotion-queue-get";
@@ -31,6 +35,7 @@ export interface RemotionQueueScopeReply {
   projectId: string;
   chapterId: string;
   jobs: RemotionRenderJobV1[];
+  currentShotSlots: RemotionCurrentSlotV1[];
 }
 
 export interface RemotionQueueEnqueueShotRequest {
@@ -51,7 +56,8 @@ export function decodeRemotionQueueScopeReply(value: unknown): RemotionQueueScop
   if (!isRecord(value)
     || typeof value.projectId !== "string"
     || typeof value.chapterId !== "string"
-    || !Array.isArray(value.jobs)) {
+    || !Array.isArray(value.jobs)
+    || !Array.isArray(value.currentShotSlots)) {
     return undefined;
   }
   const jobs: RemotionRenderJobV1[] = [];
@@ -60,7 +66,15 @@ export function decodeRemotionQueueScopeReply(value: unknown): RemotionQueueScop
     if (!result.success) return undefined;
     jobs.push(result.value);
   }
-  return { projectId: value.projectId, chapterId: value.chapterId, jobs };
+  const slotResult = validateRemotionCurrentSlotCollection(value.currentShotSlots);
+  if (!slotResult.success) return undefined;
+  const currentShotSlots = slotResult.value.filter((slot) =>
+    slot.projectId === value.projectId
+      && slot.target.kind === "shot"
+      && slot.target.chapterId === value.chapterId,
+  );
+  if (currentShotSlots.length !== slotResult.value.length) return undefined;
+  return { projectId: value.projectId, chapterId: value.chapterId, jobs, currentShotSlots };
 }
 
 export function decodeRemotionQueueNotification(value: unknown): RemotionQueueNotification | undefined {

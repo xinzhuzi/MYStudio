@@ -1,5 +1,6 @@
 import type { TtsSpeakerId } from "./tts";
 import type { CharacterIdentityAnchors, CharacterNegativePrompt } from "./script";
+import type { RemotionShotAudioBindingV2 } from "./remotion-workspace";
 
 export type CharacterReferenceViewType = "front" | "side" | "back" | "three-quarter";
 
@@ -290,6 +291,31 @@ export interface StudioMaterial {
   imageWorkflowNodeId?: string;
 }
 
+export type StoryboardTtsJobStatus =
+  | "queued"
+  | "generating"
+  | "completed"
+  | "failed"
+  | "canceled";
+
+export interface StoryboardTtsJobV1 {
+  schemaVersion: 1;
+  projectId: string;
+  chapterId: string;
+  shotId: string;
+  shotRevision: number;
+  inputFingerprint: string;
+  status: StoryboardTtsJobStatus;
+  attempt: number;
+  generationId?: string;
+  retryRequested?: boolean;
+  cancelRequested?: boolean;
+  errorCode?: string;
+  errorMessage?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
 export interface StoryboardItem extends StudioStaleEvidence {
   id: string;
   episodeId: string;
@@ -309,6 +335,8 @@ export interface StoryboardItem extends StudioStaleEvidence {
   continuityState?: ShotContinuityState;
   visualReview?: VisualReviewResult;
   audioRef?: StoryboardMediaRef;
+  shotAudioBindings?: RemotionShotAudioBindingV2[];
+  ttsJob?: StoryboardTtsJobV1;
   state: StoryboardState;
   reason?: string;
   /** ToonFlow 一致性字段（对齐统一工作流计划 §3.2）。可选：旧数据/精简流程无需提供 */

@@ -2,10 +2,23 @@ from __future__ import annotations
 
 from http import HTTPStatus
 from pathlib import Path
+import re
 
 from .catalog import get_model
 from .engine import synthesize_to_wav
 from .model_cache import find_cached_model
+
+
+def _generation_failure_metadata(exc: Exception) -> tuple[bool, str]:
+    if isinstance(exc, (TimeoutError, ConnectionError)):
+        return True, "transient_transport"
+    status = getattr(exc, "status", None) or getattr(exc, "status_code", None)
+    response = getattr(exc, "response", None)
+    if status is None and response is not None:
+        status = getattr(response, "status", None) or getattr(response, "status_code", None)
+    if isinstance(status, int) and (status in {408, 429} or status >= 500):
+        return True, "transient_http"
+    return False, "synthesis_failed"
 
 
 class GenerationRoutesMixin:
@@ -25,15 +38,94 @@ class GenerationRoutesMixin:
         engine = payload.get("engine") or profile.get("default_engine") or "qwen"
         model_size = payload.get("model_size") or payload.get("modelSize") or profile.get("default_model_size")
         language = payload.get("language") or profile.get("language") or "zh"
-        generation = self.state.store.create_generation(profile_id, text, engine, model_size, language)
-        self.state.start_generation(generation["id"], profile_id, text)
-        self.state.inference_queue.put(
-            (
-                self.generate_audio,
-                (generation["id"], text, profile, engine, model_size, language, payload.get("seed")),
+        try:
+            scope = self._parse_generation_scope(payload, profile)
+            generation, action = self.state.store.create_or_reuse_generation(
+                profile_id=profile_id,
+                text=text,
+                engine=engine,
+                model_size=model_size,
+                language=language,
+                project_id=scope["project_id"],
+                chapter_id=scope["chapter_id"],
+                shot_id=scope["shot_id"],
+                shot_revision=scope["shot_revision"],
+                input_fingerprint=scope["input_fingerprint"],
+                reference_audio_sha256=scope["reference_audio_sha256"],
+                seed=scope["seed"],
+                retry_failed=scope["retry_failed"],
             )
+        except ValueError as exc:
+            status = HTTPStatus.CONFLICT if str(exc) == "fingerprint_collision" else HTTPStatus.BAD_REQUEST
+            self.send_error_json(status, str(exc))
+            return
+        should_enqueue = action in {"created", "restarted"} or (
+            generation["status"] == "generating"
+            and not self.state.is_generation_active(generation["id"])
         )
-        self.send_json(generation, status=HTTPStatus.CREATED)
+        if should_enqueue:
+            self.state.start_generation(generation["id"], profile_id, text)
+            self.state.inference_queue.put(
+                (
+                    self.generate_audio,
+                    (generation["id"], text, profile, engine, model_size, language, scope["seed"]),
+                )
+            )
+        response = {**generation, "reused": action == "reused", "resumed": action == "reused" and should_enqueue}
+        self.send_json(response, status=HTTPStatus.OK if action == "reused" else HTTPStatus.CREATED)
+
+    @staticmethod
+    def _parse_generation_scope(payload: dict, profile: dict) -> dict:
+        input_fingerprint = payload.get("input_fingerprint") or payload.get("inputFingerprint")
+        project_id = payload.get("project_id") or payload.get("projectId")
+        chapter_id = payload.get("chapter_id") or payload.get("chapterId")
+        shot_id = payload.get("shot_id") or payload.get("shotId")
+        shot_revision = payload.get("shot_revision") or payload.get("shotRevision")
+        reference_audio_sha256 = payload.get("reference_audio_sha256") or payload.get("referenceAudioSha256")
+        seed = payload.get("seed")
+        retry_failed = payload.get("retry") is True
+        scope_values = (project_id, chapter_id, shot_id, shot_revision)
+        if input_fingerprint is None and all(value is None for value in scope_values):
+            return {
+                "project_id": None,
+                "chapter_id": None,
+                "shot_id": None,
+                "shot_revision": None,
+                "input_fingerprint": None,
+                "reference_audio_sha256": None,
+                "seed": seed,
+                "retry_failed": retry_failed,
+            }
+        if not isinstance(input_fingerprint, str) or not re.fullmatch(r"[a-f0-9]{64}", input_fingerprint):
+            raise ValueError("input_fingerprint_invalid")
+        for label, value in (
+            ("project_id", project_id),
+            ("chapter_id", chapter_id),
+            ("shot_id", shot_id),
+        ):
+            if not isinstance(value, str) or not value.strip() or re.search(r"[\\/\x00]", value):
+                raise ValueError(f"{label}_invalid")
+        if not isinstance(shot_revision, int) or isinstance(shot_revision, bool) or shot_revision < 1:
+            raise ValueError("shot_revision_invalid")
+        if seed is not None and (not isinstance(seed, int) or isinstance(seed, bool)):
+            raise ValueError("seed_invalid")
+        if reference_audio_sha256 is not None and (
+            not isinstance(reference_audio_sha256, str)
+            or not re.fullmatch(r"[a-f0-9]{64}", reference_audio_sha256)
+        ):
+            raise ValueError("reference_audio_sha256_invalid")
+        if profile.get("reference_audio_path") and reference_audio_sha256 is None:
+            raise ValueError("reference_audio_sha256_required")
+        return {
+            "project_id": project_id,
+            "chapter_id": chapter_id,
+            "shot_id": shot_id,
+            "shot_revision": shot_revision,
+            "input_fingerprint": input_fingerprint,
+            "reference_audio_sha256": reference_audio_sha256,
+            "seed": seed,
+            "retry_failed": retry_failed,
+        }
 
     def generate_audio(
         self,
@@ -68,7 +160,14 @@ class GenerationRoutesMixin:
             )
             self.state.finish_generation(generation_id)
         except Exception as exc:
-            self.state.store.update_generation(generation_id, status="failed", error=str(exc))
+            retryable, error_code = _generation_failure_metadata(exc)
+            self.state.store.update_generation(
+                generation_id,
+                status="failed",
+                error=str(exc),
+                retryable=1 if retryable else 0,
+                error_code=error_code,
+            )
             self.state.finish_generation(generation_id, str(exc))
 
     def handle_transcribe(self, payload: dict):

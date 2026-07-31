@@ -101,11 +101,23 @@ function validateAudioScope(
   issues: Issue[],
 ): void {
   if (!Array.isArray(value)) return;
+  const allowedKinds: readonly string[] = expected === "shot"
+    ? ["voice", "sfx"]
+    : ["bgm", "ambience"];
   value.forEach((clip, index) => {
-    if (isRecord(clip) && clip.renderScope !== expected) {
+    if (!isRecord(clip)) return;
+    if (clip.renderScope !== expected) {
       issues.push({
         path: `audioClips[${index}].renderScope`,
         message: `renderScope 必须为 ${expected}`,
+      });
+    }
+    if (typeof clip.kind === "string" && !allowedKinds.includes(clip.kind)) {
+      issues.push({
+        path: `audioClips[${index}].kind`,
+        message: expected === "shot"
+          ? "StoryboardShot 音频只允许 voice 或 sfx"
+          : "ChapterVideo 音频只允许 bgm 或 ambience",
       });
     }
   });

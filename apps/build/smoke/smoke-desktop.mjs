@@ -1893,7 +1893,7 @@ async function verifyWorkflowEndToEnd(evaluate) {
       ['独孤剑尘'],
       ['序号', '画面描述', '台词'],
       ['旁白：他在尘土里醒来。'],
-      ['mystudio-smoke-final.mp4'],
+      ['ChapterVideo', '章节 MP4'],
     ];
     const missingNodePreviewText = requiredNodePreviewText
       .filter((texts) => !nodeCardTexts.some((node) => texts.every((text) => node.text.includes(text))))

@@ -90,10 +90,27 @@ class RuntimeStore:
             "backend": "ALTER TABLE generations ADD COLUMN backend TEXT DEFAULT ''",
             "mocked": "ALTER TABLE generations ADD COLUMN mocked INTEGER DEFAULT 0",
             "warning": "ALTER TABLE generations ADD COLUMN warning TEXT",
+            "project_id": "ALTER TABLE generations ADD COLUMN project_id TEXT",
+            "chapter_id": "ALTER TABLE generations ADD COLUMN chapter_id TEXT",
+            "shot_id": "ALTER TABLE generations ADD COLUMN shot_id TEXT",
+            "shot_revision": "ALTER TABLE generations ADD COLUMN shot_revision INTEGER",
+            "input_fingerprint": "ALTER TABLE generations ADD COLUMN input_fingerprint TEXT",
+            "reference_audio_sha256": "ALTER TABLE generations ADD COLUMN reference_audio_sha256 TEXT",
+            "seed": "ALTER TABLE generations ADD COLUMN seed INTEGER",
+            "attempt": "ALTER TABLE generations ADD COLUMN attempt INTEGER DEFAULT 1",
+            "retryable": "ALTER TABLE generations ADD COLUMN retryable INTEGER DEFAULT 0",
+            "error_code": "ALTER TABLE generations ADD COLUMN error_code TEXT",
         }
         for column, statement in migrations.items():
             if column not in columns:
                 conn.execute(statement)
+        conn.execute(
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS generations_input_fingerprint_unique
+            ON generations(input_fingerprint)
+            WHERE input_fingerprint IS NOT NULL AND input_fingerprint != ''
+            """
+        )
 
     @staticmethod
     def _now_ms() -> int:
@@ -169,6 +186,32 @@ class RuntimeStore:
         return profile
 
     def create_generation(self, profile_id: str, text: str, engine: str, model_size: str | None, language: str = "zh") -> dict:
+        generation, _action = self.create_or_reuse_generation(
+            profile_id=profile_id,
+            text=text,
+            engine=engine,
+            model_size=model_size,
+            language=language,
+        )
+        return generation
+
+    def create_or_reuse_generation(
+        self,
+        *,
+        profile_id: str,
+        text: str,
+        engine: str,
+        model_size: str | None,
+        language: str = "zh",
+        project_id: str | None = None,
+        chapter_id: str | None = None,
+        shot_id: str | None = None,
+        shot_revision: int | None = None,
+        input_fingerprint: str | None = None,
+        reference_audio_sha256: str | None = None,
+        seed: int | None = None,
+        retry_failed: bool = False,
+    ) -> tuple[dict, str]:
         now = self._now_ms()
         generation = {
             "id": str(uuid.uuid4()),
@@ -184,20 +227,87 @@ class RuntimeStore:
             "mocked": 0,
             "warning": None,
             "error": None,
+            "project_id": project_id,
+            "chapter_id": chapter_id,
+            "shot_id": shot_id,
+            "shot_revision": shot_revision,
+            "input_fingerprint": input_fingerprint,
+            "reference_audio_sha256": reference_audio_sha256,
+            "seed": seed,
+            "attempt": 1,
+            "retryable": 0,
+            "error_code": None,
             "created_at": now,
             "updated_at": now,
         }
         with self._connect() as conn:
+            # Serialize the fingerprint lookup and insert. Without an immediate
+            # transaction, two renderer workers can both miss the row and one
+            # then fails the unique index instead of reusing the logical job.
+            conn.execute("BEGIN IMMEDIATE")
+            if input_fingerprint:
+                existing_row = conn.execute(
+                    "SELECT * FROM generations WHERE input_fingerprint = ?",
+                    (input_fingerprint,),
+                ).fetchone()
+                if existing_row is not None:
+                    existing = dict(existing_row)
+                    self._assert_same_generation_input(existing, generation)
+                    if existing["status"] not in {"failed", "canceled"} or not retry_failed:
+                        return existing, "reused"
+                    next_attempt = max(1, int(existing.get("attempt") or 1)) + 1
+                    conn.execute(
+                        """
+                        UPDATE generations
+                        SET status = 'generating', audio_path = '', duration = 0,
+                            backend = '', mocked = 0, warning = NULL, error = NULL,
+                            retryable = 0, error_code = NULL, attempt = ?, updated_at = ?
+                        WHERE id = ?
+                        """,
+                        (next_attempt, now, existing["id"]),
+                    )
+                    restarted_row = conn.execute(
+                        "SELECT * FROM generations WHERE id = ?",
+                        (existing["id"],),
+                    ).fetchone()
+                    return dict(restarted_row), "restarted"
             conn.execute(
                 """
-                INSERT INTO generations VALUES (
+                INSERT INTO generations (
+                    id, profile_id, text, language, engine, model_size, status,
+                    audio_path, duration, backend, mocked, warning, error,
+                    created_at, updated_at, project_id, chapter_id, shot_id,
+                    shot_revision, input_fingerprint, reference_audio_sha256,
+                    seed, attempt, retryable, error_code
+                ) VALUES (
                     :id, :profile_id, :text, :language, :engine, :model_size, :status,
-                    :audio_path, :duration, :backend, :mocked, :warning, :error, :created_at, :updated_at
+                    :audio_path, :duration, :backend, :mocked, :warning, :error,
+                    :created_at, :updated_at, :project_id, :chapter_id, :shot_id,
+                    :shot_revision, :input_fingerprint, :reference_audio_sha256,
+                    :seed, :attempt, :retryable, :error_code
                 )
                 """,
                 generation,
             )
-        return generation
+        return generation, "created"
+
+    @staticmethod
+    def _assert_same_generation_input(existing: dict, requested: dict):
+        keys = (
+            "profile_id",
+            "text",
+            "language",
+            "engine",
+            "model_size",
+            "project_id",
+            "chapter_id",
+            "shot_id",
+            "shot_revision",
+            "reference_audio_sha256",
+            "seed",
+        )
+        if any(existing.get(key) != requested.get(key) for key in keys):
+            raise ValueError("fingerprint_collision")
 
     def get_generation(self, generation_id: str) -> dict | None:
         with self._connect() as conn:

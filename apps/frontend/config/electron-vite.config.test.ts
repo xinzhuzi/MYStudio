@@ -24,4 +24,20 @@ describe("Electron Vite Remotion entries", () => {
     expect(configSource).toContain("'frontend/electron/rendering/plugins/remotion/renderer/remotion-render-worker-entry.ts'");
     expect(configSource).toContain("entryFileNames: '[name].cjs'");
   });
+
+  it("keeps Node-only Remotion persistence out of the renderer dependency graph", () => {
+    const autoVideoSource = readFileSync(
+      new URL("../components/panels/studio/useChapterAutoVideoActions.ts", import.meta.url),
+      "utf8",
+    );
+    const storyboardAdapterSource = readFileSync(
+      new URL("../lib/studio/editing/storyboard-adapter.ts", import.meta.url),
+      "utf8",
+    );
+
+    expect(autoVideoSource).toContain("@/lib/studio/remotion/remotion-job-factory");
+    expect(autoVideoSource).not.toContain("@rendering/plugins/remotion/queue/remotion-render-queue");
+    expect(storyboardAdapterSource).toContain("@/lib/studio/remotion/remotion-slot-validation");
+    expect(storyboardAdapterSource).not.toContain("@/lib/studio/remotion/remotion-current-slot");
+  });
 });

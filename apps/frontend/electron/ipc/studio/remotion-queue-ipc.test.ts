@@ -7,7 +7,9 @@ import {
   REMOTION_QUEUE_JOB_EVENT,
   REMOTION_QUEUE_RETRY_CHANNEL,
   REMOTION_QUEUE_SWITCH_CHANNEL,
+  decodeRemotionQueueScopeReply,
 } from "@rendering/plugins/remotion/queue/remotion-queue-ipc";
+import { makeCurrentSlot } from "@/lib/studio/remotion/remotion-workspace-test-fixtures";
 
 type Handler = (...args: unknown[]) => unknown;
 const electronState = vi.hoisted(() => ({
@@ -50,12 +52,14 @@ describe("Remotion queue IPC", () => {
       cancel: vi.fn((jobId: string) => ({ success: true, jobId, canceled: true })),
       activateProject: vi.fn(async (toProjectId: string) => ({ allowed: true, toProjectId })),
     };
-    const registration = registerRemotionQueueIpcHandlers(queue as never);
+    const registration = registerRemotionQueueIpcHandlers(queue as never, {
+      getCurrentShotSlots: vi.fn(async () => []),
+    });
 
     await expect(electronState.handlers.get(REMOTION_QUEUE_GET_CHANNEL)!({}, { projectId: "../bad", chapterId: "chapter-1" }))
       .rejects.toThrow("projectId 无效");
     await expect(electronState.handlers.get(REMOTION_QUEUE_GET_CHANNEL)!({}, { projectId: "project-a", chapterId: "chapter-1" }))
-      .resolves.toEqual({ projectId: "project-a", chapterId: "chapter-1", jobs: [] });
+      .resolves.toEqual({ projectId: "project-a", chapterId: "chapter-1", jobs: [], currentShotSlots: [] });
     expect(queue.getJobs).toHaveBeenCalledWith({ projectId: "project-a", chapterId: "chapter-1" });
 
     await expect(electronState.handlers.get(REMOTION_QUEUE_ENQUEUE_SHOT_CHANNEL)!({}, { job: {}, plan: {}, extra: true }))
@@ -81,5 +85,21 @@ describe("Remotion queue IPC", () => {
       REMOTION_QUEUE_CANCEL_CHANNEL,
       REMOTION_QUEUE_SWITCH_CHANNEL,
     ]));
+  });
+
+  it("accepts only current slots scoped to the requested project and chapter", () => {
+    const slot = makeCurrentSlot();
+    expect(decodeRemotionQueueScopeReply({
+      projectId: "project-a",
+      chapterId: "chapter-001",
+      jobs: [slot.job],
+      currentShotSlots: [slot],
+    })?.currentShotSlots).toHaveLength(1);
+    expect(decodeRemotionQueueScopeReply({
+      projectId: "project-a",
+      chapterId: "chapter-002",
+      jobs: [slot.job],
+      currentShotSlots: [slot],
+    })).toBeUndefined();
   });
 });

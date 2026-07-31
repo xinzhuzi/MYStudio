@@ -250,6 +250,78 @@ export function toStoryboardItems(
   });
 }
 
+/**
+ * 将 canonical 分镜投影回工作流使用的 Markdown 源记录。
+ *
+ * JSON 编辑器只修改结构化 StoryboardItem；这里把同一批镜头同步成
+ * 传统分镜表，避免把 JSON 原文写入 storyboardTable 后被下游当成 Markdown
+ * 再次解析。媒体路径不写进 Markdown，生成物仍由 canonical mediaRef 保留。
+ */
+export function serializeStoryboardTable(items: readonly StoryboardItem[]): string {
+  const ordered = items.slice().sort((left, right) => left.index - right.index);
+  const header = [
+    "序号",
+    "画面描述",
+    "场景",
+    "关联资产名称",
+    "时长",
+    "景别",
+    "运镜",
+    "角色动作",
+    "朝向",
+    "空间关系",
+    "情绪",
+    "台词",
+    "音效",
+    "关联资产ID",
+    "出镜语义JSON",
+  ];
+  const rows = ordered.map((item) => [
+    item.index,
+    item.prompt,
+    item.trackKey || "—",
+    formatTableList(item.associateAssetsNames),
+    formatTableValue(item.duration),
+    "—",
+    "—",
+    item.videoDesc,
+    item.orientation,
+    item.spatialRelation,
+    item.emotion,
+    item.lines || formatSpeakerLine(item),
+    item.sound,
+    formatTableList(item.assetIds),
+    item.shotSemantics ? JSON.stringify(item.shotSemantics) : "—",
+  ]);
+  return [
+    "<storyboardTable>",
+    `| ${header.join(" | ")} |`,
+    `| ${header.map(() => "---").join(" | ")} |`,
+    ...rows.map((row) => `| ${row.map((value) => escapeTableCell(value)).join(" | ")} |`),
+    "</storyboardTable>",
+  ].join("\n");
+}
+
+function formatTableList(values: readonly string[] | undefined): string {
+  return values?.length ? `[${values.join(", ")}]` : "—";
+}
+
+function formatTableValue(value: number | undefined): string {
+  return typeof value === "number" && Number.isFinite(value) ? String(value) : "—";
+}
+
+function formatSpeakerLine(item: StoryboardItem): string {
+  const speaker = item.speaker || item.speakerId || "旁白";
+  const line = item.line || item.ttsSpokenText || "无台词";
+  return `${speaker}：${line}`;
+}
+
+function escapeTableCell(value: unknown): string {
+  return String(value ?? "")
+    .replace(/\r?\n/g, "<br>")
+    .replace(/\|/g, "／");
+}
+
 /** 取出所有 <storyboardTable>…</storyboardTable> 段并拼接；无标签则回退整段。 */
 function extractStoryboardSegments(output: string): string {
   const matches = [...output.matchAll(/<storyboardTable>([\s\S]*?)<\/storyboardTable>/g)].map((m) => m[1]!.trim());

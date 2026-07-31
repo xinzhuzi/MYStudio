@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   validateChapterVideoCompositionProps,
   validateCompositionProps,
+  validateStoryboardShotCompositionProps,
 } from "./composition-props-validation";
 import type { CompositionProps } from "./composition-props";
 
@@ -215,5 +216,47 @@ describe("validateCompositionProps", () => {
     const result = validateChapterVideoCompositionProps(props);
     expect(result.success).toBe(false);
     if (!result.success) expect(result.issues.some((issue) => issue.path === "editingRevision")).toBe(true);
+  });
+
+  it("rejects chapter roles in StoryboardShot and shot roles in ChapterVideo", () => {
+    const shot = {
+      ...validProps(),
+      target: "shot" as const,
+      projectId: "project-a",
+      chapterId: "chapter-001",
+      shotId: "shot-001",
+      shotRevision: 1,
+      visualClips: [validProps().visualClips[0]],
+      audioClips: [{
+        ...validProps().audioClips[0],
+        kind: "bgm" as const,
+        renderScope: "shot" as const,
+      }],
+    };
+    const chapter = {
+      ...validProps(),
+      target: "chapter" as const,
+      projectId: "project-a",
+      chapterId: "chapter-001",
+      editingProjectId: "editing-001",
+      editingRevision: 1,
+      visualClips: [{ ...validProps().visualClips[0], kind: "video" as const }],
+      audioClips: [{
+        ...validProps().audioClips[0],
+        kind: "voice" as const,
+        renderScope: "chapter" as const,
+      }],
+    };
+
+    const shotResult = validateStoryboardShotCompositionProps(shot);
+    const chapterResult = validateChapterVideoCompositionProps(chapter);
+    expect(shotResult.success).toBe(false);
+    expect(chapterResult.success).toBe(false);
+    if (!shotResult.success) {
+      expect(shotResult.issues.some((issue) => issue.path === "audioClips[0].kind")).toBe(true);
+    }
+    if (!chapterResult.success) {
+      expect(chapterResult.issues.some((issue) => issue.path === "audioClips[0].kind")).toBe(true);
+    }
   });
 });

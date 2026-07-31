@@ -31,6 +31,7 @@ import {
   Volume2,
 } from "lucide-react";
 import { toast } from "sonner";
+import { eventBus } from "@/lib/events/event-bus";
 import { polishAssetPrompt, type PolishResult } from "@/lib/ai/prompt-polisher";
 import { generateAsset } from "@/lib/studio/asset-generation-orchestrator";
 import { parseAssetNames } from "@/lib/studio/asset-names";
@@ -253,7 +254,6 @@ export function StudioAssetDetailDialog({
 
     if (success) {
       toast.success("已删除");
-      const { eventBus } = await import("@/lib/events/event-bus");
       eventBus.emit("asset:deleted", { id: asset.id, type: asset.type });
       onOpenChange(false);
     } else {
@@ -386,7 +386,6 @@ export function StudioAssetDetailDialog({
     }
 
     // 监听图片生成完成事件，自动保存回素材
-    const { eventBus } = await import("@/lib/events/event-bus");
     eventBus.once("image:generated", async (data: { url: string }) => {
       if (!data.url) return;
       try {

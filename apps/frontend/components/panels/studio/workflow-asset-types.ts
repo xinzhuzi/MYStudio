@@ -10,6 +10,11 @@ import type {
 } from "@/types/studio";
 import type { StudioAssetKind, StudioAssetSummary } from "@/types/studio-assets";
 import type { StudioManualCatalog } from "@/lib/studio/manuals";
+import type {
+  RemotionCurrentSlotV1,
+  RemotionRenderJobV1,
+  RemotionStageStatus,
+} from "@/types/remotion-workspace";
 
 export interface ProductionFlowAssetCard {
   id: string;
@@ -76,6 +81,11 @@ export interface ProductionFlowModelInput {
   storyboards: StoryboardItem[];
   productionTracks: ProductionTrack[];
   videoCandidates: VideoCandidate[];
+  episodeId?: string;
+  remotionQueueJobs?: RemotionRenderJobV1[];
+  remotionCurrentShotSlots?: RemotionCurrentSlotV1[];
+  remotionQueueLoading?: boolean;
+  remotionQueueError?: string;
   workflowConfig?: Pick<StudioWorkflowConfig, "visualManualId" | "directorManualId">;
   manualCatalog?: StudioManualCatalog;
   assetMediaById?: Record<string, ProductionFlowAssetMedia | undefined>;

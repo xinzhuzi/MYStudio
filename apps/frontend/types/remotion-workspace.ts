@@ -1,4 +1,8 @@
-import type { EditingRenderSettings, EditingTransform } from "./editing";
+import type {
+  EditingAudioEnvelopePoint,
+  EditingRenderSettings,
+  EditingTransform,
+} from "./editing";
 
 export const REMOTION_STAGE_STATUSES = [
   "pending",
@@ -22,6 +26,12 @@ export type RemotionCompositionId = typeof REMOTION_COMPOSITION_IDS[number];
 
 export const REMOTION_MEDIA_ROLES = ["voice", "bgm", "sfx", "ambience"] as const;
 export type RemotionMediaRole = typeof REMOTION_MEDIA_ROLES[number];
+
+export const REMOTION_SHOT_AUDIO_ROLES = ["voice", "sfx"] as const;
+export type RemotionShotAudioRole = typeof REMOTION_SHOT_AUDIO_ROLES[number];
+
+export const REMOTION_CHAPTER_AUDIO_ROLES = ["bgm", "ambience"] as const;
+export type RemotionChapterAudioRole = typeof REMOTION_CHAPTER_AUDIO_ROLES[number];
 
 export const REMOTION_STUDIO_ALLOWED_WRITE_FIELDS = [
   "shotOrder",
@@ -57,6 +67,15 @@ export interface ShotMotionSpec {
   originY?: number;
 }
 
+export interface RemotionProductionProfileV1 {
+  schemaVersion: 1;
+  referenceEpisodeDurationMin?: number;
+  platformSpec?: string;
+  visualManualId?: string;
+  directorManualId?: string;
+  stylePositioning?: string;
+}
+
 export interface RemotionWorkspaceManifestV1 {
   schemaVersion: 1;
   projectId: string;
@@ -67,6 +86,7 @@ export interface RemotionWorkspaceManifestV1 {
   bundleContentHash: string;
   compositionIds: ["StoryboardShot", "ChapterVideo"];
   defaultRenderSettings: EditingRenderSettings;
+  productionProfile?: RemotionProductionProfileV1;
   createdAt: number;
   updatedAt: number;
 }
@@ -80,6 +100,66 @@ export interface RemotionChapterManifestV1 {
   requiredShotIds: string[];
   sharedAudioTracks: RemotionSharedAudioTrackV1[];
   shots: RemotionShotDefinitionV1[];
+  renderSettings: EditingRenderSettings;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface RemotionAudioBindingBaseV2 {
+  schemaVersion: 2;
+  bindingId: string;
+  bindingFingerprint: string;
+  projectId: string;
+  chapterId: string;
+  source: ProjectMediaReference;
+  sourceFingerprint: string;
+  sourceDurationUs: number;
+  sourceStartUs: number;
+  durationUs: number;
+  volume: number;
+  fadeInUs: number;
+  fadeOutUs: number;
+  envelope: EditingAudioEnvelopePoint[];
+}
+
+export interface RemotionShotAudioBindingV2 extends RemotionAudioBindingBaseV2 {
+  renderScope: "shot";
+  shotId: string;
+  shotRevision: number;
+  role: RemotionShotAudioRole;
+  shotStartUs: number;
+  ttsInputFingerprint?: string;
+}
+
+export interface RemotionChapterAudioDuckingV2 {
+  enabled: boolean;
+  reductionDb: number;
+  attackUs: number;
+  releaseUs: number;
+}
+
+export interface RemotionChapterAudioBindingV2 extends RemotionAudioBindingBaseV2 {
+  renderScope: "chapter";
+  role: RemotionChapterAudioRole;
+  chapterStartUs: number;
+  ducking: RemotionChapterAudioDuckingV2;
+}
+
+export interface RemotionShotDefinitionV2
+  extends Omit<RemotionShotDefinitionV1, "audioBindings"> {
+  audioBindings: RemotionShotAudioBindingV2[];
+}
+
+export interface RemotionChapterManifestV2 {
+  schemaVersion: 2;
+  manifestFingerprint: string;
+  projectId: string;
+  chapterId: string;
+  revision: number;
+  sourceSnapshotHash: string;
+  requiredShotIds: string[];
+  sharedAudioBindings: RemotionChapterAudioBindingV2[];
+  shots: RemotionShotDefinitionV2[];
   renderSettings: EditingRenderSettings;
   createdAt: number;
   updatedAt: number;

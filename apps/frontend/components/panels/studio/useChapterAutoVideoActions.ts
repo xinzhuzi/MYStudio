@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   buildRoleAudioCandidates,
@@ -7,12 +7,13 @@ import {
   type FixedVoiceTarget,
 } from "@/components/panels/assets/role-audio-auto-assign";
 import {
+  ChapterTtsCancellationController,
   runChapterAutoVideo,
   type ChapterAutoVideoStatus,
 } from "@/lib/studio/chapter-auto-video";
 import { buildRemotionShotPlans } from "@/lib/studio/remotion/remotion-shot-plan-builder";
 import { DEFAULT_REMOTION_RENDER_SETTINGS } from "@/lib/studio/remotion/remotion-workspace-storage";
-import { createReadyShotJob } from "@rendering/plugins/remotion/queue/remotion-render-queue";
+import { createReadyShotJob } from "@/lib/studio/remotion/remotion-job-factory";
 import { runStoryboardTtsGeneration } from "@/lib/studio/storyboard-tts-runner";
 import {
   parseStoryboardTable,
@@ -47,6 +48,7 @@ export function useChapterAutoVideoActions({
   }) => void | Promise<void>;
 }) {
   const [status, setStatus] = useState<ChapterAutoVideoStatus>(INITIAL_STATUS);
+  const ttsCancellationRef = useRef<ChapterTtsCancellationController | null>(null);
   const running = !["idle", "completed", "failed", "blocked"].includes(status.stage);
 
   const assertProjectStillActive = useCallback(() => {
@@ -63,6 +65,8 @@ export function useChapterAutoVideoActions({
       return;
     }
     const episodeId = productionEpisodeId;
+    const ttsCancellation = new ChapterTtsCancellationController();
+    ttsCancellationRef.current = ttsCancellation;
 
     try {
       const result = await runChapterAutoVideo({
@@ -85,10 +89,20 @@ export function useChapterAutoVideoActions({
               }
             }
 
+            const canonicalStoryboards = store.storyboards.filter(
+              (item) => item.episodeId === episodeId,
+            );
+            if (canonicalStoryboards.length > 0) {
+              // JSON 编辑器和 Markdown 节点都已通过同一 store 合同写入
+              // canonical records；优先使用它们，避免把同步后的 Markdown
+              // 之外的 JSON/运行时字段再次当成分镜表解析。
+              return;
+            }
             let storyboardTable = latestAgentWork(
               store.agentWorkData,
               "storyboardTable",
               episodeId,
+              { allowUnscopedFallback: false },
             );
             if (!storyboardTable) {
               await handleProductionNodeAction({
@@ -101,6 +115,7 @@ export function useChapterAutoVideoActions({
                 store.agentWorkData,
                 "storyboardTable",
                 episodeId,
+                { allowUnscopedFallback: false },
               );
             }
             if (!storyboardTable) {
@@ -222,12 +237,32 @@ export function useChapterAutoVideoActions({
             }
             return getTtsRuntimeBridge()?.resolveReferenceAudioPath(mediaPath) ?? null;
           },
+          ttsConcurrency: 2,
+          isTtsCanceled: (storyboardId) => ttsCancellation.isCanceled(storyboardId),
           generateAudio: (storyboard, profile) =>
-            runStoryboardTtsGeneration({ storyboard, profile }),
+            runStoryboardTtsGeneration({
+              projectId: activeProjectId,
+              chapterId: episodeId,
+              storyboard,
+              profile,
+              isCanceled: () => ttsCancellation.isCanceled(storyboard.id),
+              onJob: (ttsJob) => {
+                assertProjectStillActive();
+                useStudioStore.getState().updateStoryboard(storyboard.id, { ttsJob });
+              },
+            }),
           writeStoryboardAudio: (storyboardId, result) => {
             assertProjectStillActive();
+            const current = useStudioStore
+              .getState()
+              .storyboards.find((storyboard) => storyboard.id === storyboardId);
+            const retainedBindings = current?.shotAudioBindings?.filter(
+              (binding) => binding.role !== "voice",
+            ) ?? [];
             useStudioStore.getState().updateStoryboard(storyboardId, {
               audioRef: result.audioRef,
+              shotAudioBindings: [...retainedBindings, result.shotAudioBinding],
+              ttsJob: result.ttsJob,
               ttsGenerationId: result.generationId,
               ttsBackend: result.ttsBackend,
               ttsMocked: result.ttsMocked,
@@ -281,6 +316,10 @@ export function useChapterAutoVideoActions({
       }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "第一章自动成片失败");
+    } finally {
+      if (ttsCancellationRef.current === ttsCancellation) {
+        ttsCancellationRef.current = null;
+      }
     }
   }, [
     activeProjectId,
@@ -298,10 +337,20 @@ export function useChapterAutoVideoActions({
     }
   }, [status.finalPath]);
 
+  const handleCancelChapterTts = useCallback(() => {
+    ttsCancellationRef.current?.cancelAll();
+  }, []);
+
+  const handleCancelShotTts = useCallback((storyboardId: string) => {
+    ttsCancellationRef.current?.cancelShot(storyboardId);
+  }, []);
+
   return {
     chapterAutoVideoStatus: status,
     chapterAutoVideoRunning: running,
     handleRunChapterAutoVideo,
+    handleCancelChapterTts,
+    handleCancelShotTts,
     handleOpenFinalVideo,
   };
 }

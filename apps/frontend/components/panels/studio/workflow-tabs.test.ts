@@ -477,7 +477,8 @@ describe("studio workflow tabs", () => {
     expect(canvasSource).toContain("const scriptPlanX = nextProductionNodeX(\"script\", scriptX, measuredNodes)");
     expect(canvasSource).toContain("const storyboardTableX = nextProductionNodeX(\"scriptPlan\", scriptPlanX, measuredNodes)");
     expect(canvasSource).toContain("const storyboardX = nextProductionNodeX(\"storyboardTable\", storyboardTableX, measuredNodes)");
-    expect(canvasSource).toContain("const workbenchX = nextProductionNodeX(\"storyboard\", storyboardX, measuredNodes)");
+    expect(canvasSource).toContain("const remotionProductionX = nextProductionNodeX(\"storyboard\", storyboardX, measuredNodes)");
+    expect(canvasSource).toContain("const workbenchX = nextProductionNodeX(\"remotionProduction\", remotionProductionX, measuredNodes)");
     expect(canvasSource).toContain("x: centerProductionNodeUnder(\"script\", \"assets\", scriptX, measuredNodes)");
     expect(canvasSource).toContain("type: \"smoothstep\"");
     expect(canvasSource).toContain("interactionWidth: 18");
@@ -506,6 +507,9 @@ describe("studio workflow tabs", () => {
     expect(productionNodeSource).toContain("Edit3");
     expect(productionNodeSource).toContain("WRITABLE_NODE_IDS");
     expect(productionNodeSource).toContain("canEditNode");
+    expect(productionNodeSource).toContain("canOpenJson");
+    expect(productionNodeSource).toContain('data.node.id === "storyboardTable" || data.node.id === "storyboard"');
+    expect(productionNodeSource).toContain('data.node.id === "storyboard" ? "Remotion JSON" : "JSON"');
     expect(productionNodeSource).toContain("COMPACT_HEADER_NODE_IDS");
     expect(productionNodeSource).toContain('const useCompactHeader = COMPACT_HEADER_NODE_IDS.includes(data.node.id);');
     expect(productionNodeSource).toContain("showStatusChip");
@@ -518,6 +522,7 @@ describe("studio workflow tabs", () => {
       "rounded-md border border-border bg-muted/30 px-2 py-1",
     );
     expect(canvasSource).toContain("onNodeEdit?: (nodeId: ProductionFlowNodeId) => void");
+    expect(canvasSource).toContain("onNodeJson?: (nodeId: ProductionFlowNodeId) => void");
     expect(productionNodeSource).toContain("data.onNodeEdit?.(data.node.id)");
     expect(productionNodeSource).toContain("data.onStageChange(data.node.targetStage)");
     expect(canvasSource).not.toContain("workflow-node-connector");
@@ -527,6 +532,7 @@ describe("studio workflow tabs", () => {
       "assets",
       "storyboardTable",
       "storyboard",
+      "remotionProduction",
       "workbench",
     ]) {
       expect(modelSource).toContain(`"${node}"`);
@@ -536,7 +542,8 @@ describe("studio workflow tabs", () => {
       '["script", "assets"]',
       '["scriptPlan", "storyboardTable"]',
       '["storyboardTable", "storyboard"]',
-      '["storyboard", "workbench"]',
+      '["storyboard", "remotionProduction"]',
+      '["remotionProduction", "workbench"]',
     ]) {
       expect(modelSource).toContain(edge);
     }
@@ -600,7 +607,7 @@ describe("studio workflow tabs", () => {
     expect(productionNodeSource).toContain("onPointerDown={(event) => event.stopPropagation()}");
     expect(modelSource).toContain("generate-director-plan");
     expect(modelSource).toContain("generate-storyboard-table");
-    expect(modelSource).not.toContain("showPromptInput: false");
+    expect(modelSource).toContain("showPromptInput: false");
     expect(viewModelSource).toContain("useProductionPlanningActions");
     expect(productionPlanningHookSource).toContain("handleDirectorPlan");
     expect(productionPlanningHookSource).toContain("handleStoryboardTable");
@@ -633,7 +640,7 @@ describe("studio workflow tabs", () => {
     expect(modelSource).toContain('label: "衍生资产"');
     expect(modelSource).toContain('previewTitle: "分镜表"');
     expect(modelSource).toContain('previewTitle: "分镜面板"');
-    expect(modelSource).toContain('previewTitle: "视频工作台"');
+    expect(modelSource).toContain('previewTitle: "原生 Remotion Studio"');
     expect(canvasSource).toContain("fitView");
     expect(canvasSource).toContain("grid h-full min-h-[calc(100vh-190px)] w-full flex-1");
     expect(canvasSource).not.toContain("h-[calc(100vh-176px)]");

@@ -61,9 +61,7 @@ export class RemotionPreviewService {
     try {
       const references = [
         validated.value.shot.visualSource,
-        ...validated.value.shot.audioBindings
-          .filter((binding): binding is Extract<typeof binding, { renderScope: "shot" }> => binding.renderScope === "shot")
-          .map((binding) => binding.source),
+        ...validated.value.shot.audioBindings.map((binding) => binding.source),
       ];
       const uniqueReferences = [...new Map(references.map((reference) => [referenceKey(reference), reference])).values()];
       const sources: MediaBridgeClipSource[] = uniqueReferences.map((reference) => ({

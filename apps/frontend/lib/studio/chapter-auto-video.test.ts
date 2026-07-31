@@ -1,10 +1,16 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  ChapterTtsCancellationController,
   prepareChapterMedia,
   runChapterAutoVideo,
   type ChapterAutoVideoDependencies,
 } from "./chapter-auto-video";
-import type { ContinuityAssetVersion, StoryboardItem } from "@/types/studio";
+import type {
+  ContinuityAssetVersion,
+  StoryboardItem,
+  StoryboardTtsJobV1,
+} from "@/types/studio";
+import type { RemotionShotAudioBindingV2 } from "@/types/remotion-workspace";
 import type { VoiceProfile } from "@/types/tts";
 import {
   approvedVisualReview,
@@ -142,12 +148,75 @@ const profiles = {
   },
 } satisfies Record<string, VoiceProfile>;
 
-function createDependencies(options: { missingMedia?: boolean } = {}) {
+function generatedAudioResult(item: StoryboardItem) {
+  const inputFingerprint = item.index.toString(16).padStart(64, "0");
+  const contentSha256 = "c".repeat(64);
+  const shotRevision = Math.max(1, item.outputVersion ?? 1);
+  const ttsJob: StoryboardTtsJobV1 = {
+    schemaVersion: 1,
+    projectId: "project-1",
+    chapterId: item.episodeId,
+    shotId: item.id,
+    shotRevision,
+    inputFingerprint,
+    status: "completed",
+    attempt: 1,
+    generationId: `generation-${item.id}`,
+    createdAt: 1,
+    updatedAt: 2,
+  };
+  const shotAudioBinding: RemotionShotAudioBindingV2 = {
+    schemaVersion: 2,
+    bindingId: `voice:${item.id}:${inputFingerprint}`,
+    bindingFingerprint: item.index.toString(16).padStart(64, "a"),
+    renderScope: "shot",
+    projectId: "project-1",
+    chapterId: item.episodeId,
+    shotId: item.id,
+    shotRevision,
+    role: "voice",
+    source: {
+      kind: "project-file",
+      projectId: "project-1",
+      relativePath: `remotion/audio/${item.episodeId}/shots/${item.id}/voice/${contentSha256}.wav`,
+      contentSha256,
+      provenance: {
+        sourceKind: "generated",
+        sourceId: contentSha256,
+        sourceVersion: `sha256:${contentSha256}`,
+      },
+    },
+    sourceFingerprint: contentSha256,
+    sourceDurationUs: 1_000_000,
+    sourceStartUs: 0,
+    shotStartUs: 0,
+    durationUs: 1_000_000,
+    volume: 1,
+    fadeInUs: 0,
+    fadeOutUs: 0,
+    envelope: [{ timeUs: 0, gain: 1 }],
+    ttsInputFingerprint: inputFingerprint,
+  };
+  return {
+    audioRef: {
+      kind: "audio" as const,
+      path: `project-file://project-1/${shotAudioBinding.source.relativePath}`,
+      contentSha256,
+    },
+    shotAudioBinding,
+    ttsJob,
+    generationId: ttsJob.generationId,
+    ttsBackend: "qwen-mlx",
+    ttsMocked: false as const,
+  };
+}
+
+function createDependencies(options: { missingMedia?: boolean; storyboardCount?: number } = {}) {
   const calls: string[] = [];
-  let storyboards = [
-    storyboard(1),
-    storyboard(2),
-  ];
+  let storyboards = Array.from(
+    { length: options.storyboardCount ?? 2 },
+    (_, index) => storyboard(index + 1),
+  );
   const dependencies: ChapterAutoVideoDependencies = {
     ensurePlanning: vi.fn(async () => {
       calls.push("planning");
@@ -163,16 +232,21 @@ function createDependencies(options: { missingMedia?: boolean } = {}) {
     )),
     generateAudio: vi.fn(async (item) => {
       calls.push(`tts:${item.id}`);
-      return {
-        audioRef: { kind: "audio" as const, path: `/generated-${item.id}.wav` },
-        generationId: `generation-${item.id}`,
-        ttsBackend: "qwen-mlx",
-        ttsMocked: false as const,
-      };
+      return generatedAudioResult(item);
     }),
     writeStoryboardAudio: (storyboardId, result) => {
       storyboards = storyboards.map((item) =>
-        item.id === storyboardId ? { ...item, audioRef: result.audioRef } : item,
+        item.id === storyboardId
+          ? {
+            ...item,
+            audioRef: result.audioRef,
+            shotAudioBindings: [
+              ...(item.shotAudioBindings?.filter((binding) => binding.role !== "voice") ?? []),
+              result.shotAudioBinding,
+            ],
+            ttsJob: result.ttsJob,
+          }
+          : item,
       );
     },
     enqueueRemotionShots: vi.fn(async ({ projectId, chapterId, storyboards }) => {
@@ -211,6 +285,7 @@ describe("chapter auto video orchestration", () => {
     const statuses: string[] = [];
 
     const result = await prepareChapterMedia({
+      projectId: "project-1",
       episodeId: "chapter-001",
       dependencies,
       onStatus: (status) => statuses.push(status.stage),
@@ -218,13 +293,14 @@ describe("chapter auto video orchestration", () => {
 
     expect(result.storyboards.map((item) => item.id)).toEqual(["sb-1", "sb-2"]);
     expect(result.storyboards.every((item) => item.audioRef?.path)).toBe(true);
-    expect(calls).toEqual(["planning", "binding", "tts:sb-2"]);
+    expect(calls).toEqual(["planning", "binding", "tts:sb-1", "tts:sb-2"]);
     expect(statuses).toEqual([
       "planning",
       "voiceover",
       "binding",
       "tts",
       "media",
+      "tts",
     ]);
   });
 
@@ -247,6 +323,7 @@ describe("chapter auto video orchestration", () => {
     expect(calls).toEqual([
       "planning",
       "binding",
+      "tts:sb-1",
       "tts:sb-2",
       "remotion-queue",
     ]);
@@ -256,6 +333,7 @@ describe("chapter auto video orchestration", () => {
       "binding",
       "tts",
       "media",
+      "tts",
       "render",
       "queued",
     ]);
@@ -294,39 +372,142 @@ describe("chapter auto video orchestration", () => {
     expect(statuses.at(-1)).toBe("failed");
   });
 
-  it("blocks TTS results without a real audio path", async () => {
+  it("isolates TTS results without a real audio path and blocks the chapter", async () => {
     const run = createDependencies();
-    run.dependencies.generateAudio = vi.fn(async () => ({
+    run.dependencies.generateAudio = vi.fn(async (item) => ({
+      ...generatedAudioResult(item),
       audioRef: { kind: "audio" as const, path: "" },
     }));
     run.dependencies.writeStoryboardAudio = vi.fn();
 
-    await expect(
-      prepareChapterMedia({
-        episodeId: "chapter-001",
-        dependencies: run.dependencies,
-      }),
-    ).rejects.toThrow("分镜 sb-2 TTS 未返回真实音频路径");
+    const result = await prepareChapterMedia({
+      projectId: "project-1",
+      episodeId: "chapter-001",
+      dependencies: run.dependencies,
+    });
 
+    expect(result.blockedShotIds).toEqual(["sb-1", "sb-2"]);
+    expect(result.ttsErrors["sb-1"]).toContain("未返回真实音频路径");
     expect(run.dependencies.writeStoryboardAudio).not.toHaveBeenCalled();
   });
 
-  it("blocks generated audio that cannot be resolved after TTS writeback", async () => {
+  it("isolates generated audio that cannot be resolved after TTS writeback", async () => {
     const run = createDependencies();
     run.dependencies.resolveMediaPath = vi.fn(async (path) => (
-      path.startsWith("/generated-") ? "" : path
+      path.startsWith("project-file://") ? "" : path
     ));
 
-    await expect(
-      prepareChapterMedia({
-        episodeId: "chapter-001",
-        dependencies: run.dependencies,
-      }),
-    ).rejects.toThrow("分镜 sb-2 缺少可读真实音频");
+    const result = await prepareChapterMedia({
+      projectId: "project-1",
+      episodeId: "chapter-001",
+      dependencies: run.dependencies,
+    });
 
+    expect(result.blockedShotIds).toEqual(["sb-1", "sb-2"]);
+    expect(result.ttsErrors["sb-2"]).toContain("缺少可读真实音频");
     expect(run.dependencies.generateAudio).toHaveBeenCalledWith(
       expect.objectContaining({ id: "sb-2" }),
       profiles["character:dugu"],
+    );
+  });
+
+  it("continues independent shots after one TTS failure and queues only valid shots", async () => {
+    const run = createDependencies();
+    const baseGenerate = run.dependencies.generateAudio;
+    run.dependencies.generateAudio = vi.fn(async (item, voiceProfile) => {
+      if (item.id === "sb-1") throw new Error("provider terminal failure");
+      return baseGenerate(item, voiceProfile);
+    });
+
+    const result = await runChapterAutoVideo({
+      projectId: "project-1",
+      episodeId: "chapter-001",
+      dependencies: run.dependencies,
+    });
+
+    expect(result.queueStatus).toBe("blocked");
+    expect(result.blockedShotIds).toEqual(["sb-1"]);
+    expect(result.remotionJobs?.map((job) => (
+      job.target.kind === "shot" ? job.target.shotId : undefined
+    ))).toEqual(["sb-2"]);
+    expect(run.dependencies.enqueueRemotionShots).toHaveBeenCalledWith(
+      expect.objectContaining({
+        storyboards: [expect.objectContaining({ id: "sb-2" })],
+      }),
+    );
+  });
+
+  it("limits the per-shot worker pool to the configured concurrency", async () => {
+    const run = createDependencies({ storyboardCount: 4 });
+    const baseGenerate = run.dependencies.generateAudio;
+    let active = 0;
+    let maximumActive = 0;
+    run.dependencies.ttsConcurrency = 2;
+    run.dependencies.generateAudio = vi.fn(async (item, voiceProfile) => {
+      active += 1;
+      maximumActive = Math.max(maximumActive, active);
+      await new Promise<void>((resolve) => queueMicrotask(resolve));
+      const result = await baseGenerate(item, voiceProfile);
+      active -= 1;
+      return result;
+    });
+
+    const result = await prepareChapterMedia({
+      projectId: "project-1",
+      episodeId: "chapter-001",
+      dependencies: run.dependencies,
+    });
+
+    expect(result.blockedShotIds).toEqual([]);
+    expect(maximumActive).toBe(2);
+    expect(run.dependencies.generateAudio).toHaveBeenCalledTimes(4);
+  });
+
+  it("cancels queued shots immediately without canceling later independent work", async () => {
+    const run = createDependencies({ storyboardCount: 3 });
+    const cancellation = new ChapterTtsCancellationController();
+    cancellation.cancelShot("sb-2");
+    run.dependencies.ttsConcurrency = 1;
+    run.dependencies.isTtsCanceled = (storyboardId) => cancellation.isCanceled(storyboardId);
+
+    const result = await prepareChapterMedia({
+      projectId: "project-1",
+      episodeId: "chapter-001",
+      dependencies: run.dependencies,
+    });
+
+    expect(result.blockedShotIds).toEqual(["sb-2"]);
+    expect(run.dependencies.generateAudio).toHaveBeenCalledTimes(2);
+    expect(run.dependencies.generateAudio).not.toHaveBeenCalledWith(
+      expect.objectContaining({ id: "sb-2" }),
+      expect.anything(),
+    );
+  });
+
+  it("discards a running shot result canceled before writeback", async () => {
+    const run = createDependencies();
+    const cancellation = new ChapterTtsCancellationController();
+    const baseGenerate = run.dependencies.generateAudio;
+    const baseWrite = run.dependencies.writeStoryboardAudio;
+    run.dependencies.isTtsCanceled = (storyboardId) => cancellation.isCanceled(storyboardId);
+    run.dependencies.generateAudio = vi.fn(async (item, voiceProfile) => {
+      const result = await baseGenerate(item, voiceProfile);
+      if (item.id === "sb-1") cancellation.cancelShot(item.id);
+      return result;
+    });
+    run.dependencies.writeStoryboardAudio = vi.fn(baseWrite);
+
+    const result = await prepareChapterMedia({
+      projectId: "project-1",
+      episodeId: "chapter-001",
+      dependencies: run.dependencies,
+    });
+
+    expect(result.blockedShotIds).toEqual(["sb-1"]);
+    expect(run.dependencies.writeStoryboardAudio).toHaveBeenCalledTimes(1);
+    expect(run.dependencies.writeStoryboardAudio).toHaveBeenCalledWith(
+      "sb-2",
+      expect.objectContaining({ generationId: "generation-sb-2" }),
     );
   });
 

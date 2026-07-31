@@ -88,6 +88,30 @@ keyed by the current `EditingProject` ID.
   smoke evidence may be retained for migration audit, but none can make a
   current Remotion slot or chapter ready.
 
+## Canonical Storyboard JSON Editing
+
+The production-flow `storyboardTable` node is the only writable JSON boundary
+for the current episode. The editor serializes the project-scoped
+`StoryboardItem[]` records, including generated `mediaRef`/`audioRef`, content
+hashes, image-workflow provenance, continuity, review and stale/revision
+fields. JSON is parsed and validated before any Zustand action runs; invalid
+JSON, duplicate shot IDs/indexes, cross-episode records, invalid durations,
+states, asset IDs or media references leave the store unchanged.
+
+Saving a valid JSON document writes the current episode's `storyboardTable`
+Markdown projection (never the JSON editor text itself) and calls
+`replaceStoryboardsForEpisode`. That action merges
+matching shots by stable ID or episode/index, preserving generated media and
+review metadata while routing changed source fingerprints through the existing
+track and Remotion stale/revision gates. The active project store is the
+project-isolation boundary; JSON actions never read or write another project's
+records.
+
+The `storyboard` node's `Remotion JSON` action is read-only. It is a derived
+shot-plan summary and may show media filenames, content hashes, revisions,
+continuity and render state, but must not persist capability URLs, session
+tokens, absolute runtime paths or Remotion-private props.
+
 ---
 
 ## Common Mistakes

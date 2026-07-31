@@ -59,7 +59,7 @@ export function useScriptStageActions({
       workflowConfig.episodeCount
         ? `集数：${workflowConfig.episodeCount}集`
         : "",
-      `单集时长：${workflowConfig.episodeDurationMin ?? 3}分钟`,
+      `单集参考时长：${workflowConfig.episodeDurationMin ?? 3}分钟`,
       `章节数量：${novelChapterCount}章`,
     ]
       .filter(Boolean)

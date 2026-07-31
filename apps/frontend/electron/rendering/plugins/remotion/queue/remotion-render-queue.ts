@@ -9,15 +9,11 @@ import {
   canTransitionRemotionStatus,
   transitionRemotionRenderJob,
 } from "@/lib/studio/remotion/remotion-workspace-state";
-import {
-  validateCurrentSlot as validateRemotionCurrentSlot,
-} from "@/lib/studio/remotion/remotion-current-slot";
+import { validateRemotionCurrentSlot } from "@/lib/studio/remotion/remotion-slot-validation";
 import {
   validateRemotionRenderJob,
   validateRemotionRenderJobIdentity,
 } from "@/lib/studio/remotion/remotion-render-validation";
-import { createRemotionRenderJobId } from "@/lib/studio/remotion/remotion-job-identity";
-import { sha256CanonicalJson } from "@/lib/studio/remotion/canonical-json";
 import type {
   RemotionCurrentSlotV1,
   RemotionJobError,
@@ -611,42 +607,6 @@ export class RemotionRenderQueue {
       if (dependencyError) throw new Error(dependencyError);
     }
   }
-}
-
-export function createReadyShotJob(input: {
-  plan: RemotionShotPlanV1;
-  bundleContentHash: string;
-  templateVersion: string;
-  remotionVersion: string;
-  now?: number;
-}): Promise<RemotionRenderJobV1> {
-  const renderSettingsHash = sha256CanonicalJson(input.plan.renderSettings);
-  return renderSettingsHash.then(async (settingsHash) => {
-    const target = {
-      kind: "shot" as const,
-      chapterId: input.plan.chapterId,
-      shotId: input.plan.shot.shotId,
-      shotRevision: input.plan.shot.revision,
-    };
-    const identity = {
-      projectId: input.plan.projectId,
-      target,
-      inputHash: input.plan.inputHash,
-      bundleContentHash: input.bundleContentHash,
-      renderSettingsHash: settingsHash,
-    };
-    return {
-      schemaVersion: 1,
-      jobId: await createRemotionRenderJobId(identity),
-      ...identity,
-      templateVersion: input.templateVersion,
-      remotionVersion: input.remotionVersion,
-      status: "ready",
-      attempt: 0,
-      progress: 0,
-      createdAt: input.now ?? Date.now(),
-    } satisfies RemotionRenderJobV1;
-  });
 }
 
 function targetChapterId(target: RemotionRenderJobTarget): string {

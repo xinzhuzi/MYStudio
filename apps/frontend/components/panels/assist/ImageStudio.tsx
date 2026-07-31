@@ -11,6 +11,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { eventBus } from '@/lib/events/event-bus';
 import { useFreedomStore } from '@/stores/assist/freedom-store';
 import { ModelSelector } from './ModelSelector';
 import { GenerationHistory } from './GenerationHistory';
@@ -91,7 +92,6 @@ export function ImageStudio() {
       setImageResult(result.url);
       
       // 通知其他面板图片已生成
-      const { eventBus } = await import('@/lib/events/event-bus');
       eventBus.emit('image:generated', { url: result.url, prompt: imagePrompt, model: selectedImageModel });
 
       // Add to history

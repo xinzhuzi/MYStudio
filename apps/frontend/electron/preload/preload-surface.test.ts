@@ -220,6 +220,22 @@ describe("preload IPC surface", () => {
     expect(previewTypeBlock).not.toContain("sourcePath");
   });
 
+  it("exposes the project-scoped chapter manifest and audio bridge without destination paths", () => {
+    expect(preloadSource).toContain("exposeInMainWorld('remotionChapterManifest'");
+    expect(preloadSource).toContain("ipcRenderer.invoke(REMOTION_CHAPTER_MANIFEST_READ_CHANNEL, scope)");
+    expect(preloadSource).toContain("ipcRenderer.invoke(REMOTION_CHAPTER_MANIFEST_WRITE_CHANNEL, request)");
+    expect(preloadSource).toContain("ipcRenderer.invoke(REMOTION_CHAPTER_AUDIO_IMPORT_CHANNEL, request)");
+    expect(preloadSource).toContain("ipcRenderer.invoke(REMOTION_SHOT_AUDIO_WRITE_GENERATED_CHANNEL, request)");
+    expect(preloadSource).toContain("ipcRenderer.invoke(REMOTION_CHAPTER_AUDIO_PROBE_CHANNEL, request)");
+    expect(electronTypesSource).toContain("remotionChapterManifest?: RemotionChapterManifestBridge");
+    const bridgeBlock = preloadSource.slice(
+      preloadSource.indexOf("exposeInMainWorld('remotionChapterManifest'"),
+      preloadSource.indexOf("exposeInMainWorld('remotionQueue'"),
+    );
+    expect(bridgeBlock).not.toContain("destinationPath");
+    expect(bridgeBlock).not.toContain("outputPath");
+  });
+
   it("does not expose legacy FFmpeg candidate or concat operations", () => {
     expect(preloadSource).not.toContain("studio-render-track-candidate");
     expect(preloadSource).not.toContain("studio-merge-episode");

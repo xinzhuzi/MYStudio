@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildRemotionProductionProfile,
   ensureRemotionWorkspace,
   remotionWorkspaceStorageKey,
+  syncRemotionWorkspaceProductionProfile,
   type RemotionWorkspaceRuntimeInfo,
 } from "./remotion-workspace-storage";
 
@@ -51,6 +53,42 @@ describe("Remotion workspace storage", () => {
     }
     expect(writes).toHaveLength(1);
     expect(writes[0]?.[0]).toBe(remotionWorkspaceStorageKey("project-a"));
+  });
+
+  it("stores only the Remotion-relevant production profile", async () => {
+    const { storage, writes } = memoryStorage();
+    const profile = buildRemotionProductionProfile({
+      episodeDurationMin: 3,
+      platformSpec: "16:9",
+      visualManualId: "ink",
+      directorManualId: "narrative",
+      stylePositioning: "冷色水墨、低饱和",
+    });
+    const result = await ensureRemotionWorkspace("project-a", runtime, {
+      storage,
+      productionProfile: profile,
+      now: () => 123,
+    });
+
+    expect(result.status).toBe("ready");
+    if (result.status === "ready") expect(result.manifest.productionProfile).toEqual(profile);
+    expect(writes).toHaveLength(1);
+  });
+
+  it("updates the production profile without duplicating novel prose", async () => {
+    const { storage } = memoryStorage();
+    await ensureRemotionWorkspace("project-a", runtime, { storage, now: () => 123 });
+    const profile = buildRemotionProductionProfile({
+      episodeDurationMin: 3,
+      platformSpec: "9:16",
+      visualManualId: "ink",
+      directorManualId: "narrative",
+    });
+
+    await expect(syncRemotionWorkspaceProductionProfile("project-a", profile, storage)).resolves.toBe("updated");
+    const raw = await storage.getItem(remotionWorkspaceStorageKey("project-a"));
+    expect(raw).toContain('"productionProfile"');
+    expect(raw).not.toContain("小说简介");
   });
 
   it("is idempotent and never overwrites an existing valid workspace", async () => {

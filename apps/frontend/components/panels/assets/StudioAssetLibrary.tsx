@@ -16,6 +16,7 @@ import { AddAssetDialog } from "./AddAssetDialog";
 import { AssetGenerationBar } from "./AssetGenerationBar";
 import { AudioGroupedGrid } from "./audio-grouped-grid";
 import { cn } from "@/lib/utils";
+import { eventBus } from "@/lib/events/event-bus";
 import {
   assignAudioToRolesWithAi,
   buildRoleAudioCandidates,
@@ -231,15 +232,12 @@ export function StudioAssetLibrary({ type }: { type: StudioAssetKind }) {
 
   // 监听素材删除事件，强制刷新
   useEffect(() => {
-    let unsub: (() => void) | undefined;
-    import("@/lib/events/event-bus").then(({ eventBus }) => {
-      unsub = eventBus.on("asset:deleted", () => {
-        delete assetCache[getCacheKey(type, search, category)];
-        setRuntimeItems([]);
-        void loadAssets(0, "replace", true);
-      });
+    const unsub = eventBus.on("asset:deleted", () => {
+      delete assetCache[getCacheKey(type, search, category)];
+      setRuntimeItems([]);
+      void loadAssets(0, "replace", true);
     });
-    return () => unsub?.();
+    return unsub;
   }, [type, search, loadAssets]);
 
   const canLoadMore = runtimeItems.length < total;

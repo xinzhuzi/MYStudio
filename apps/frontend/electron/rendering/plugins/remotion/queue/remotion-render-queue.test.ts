@@ -3,17 +3,20 @@ import { describe, expect, it } from "vitest";
 import { sha256CanonicalJson } from "@/lib/studio/remotion/canonical-json";
 import { buildRemotionCurrentSlot } from "@/lib/studio/remotion/remotion-current-slot";
 import { createRemotionRenderJobId } from "@/lib/studio/remotion/remotion-job-identity";
-import { makeChapterManifest } from "@/lib/studio/remotion/remotion-workspace-test-fixtures";
+import {
+  makeChapterManifestV2,
+  makeShotAudioBindingV2,
+} from "@/lib/studio/remotion/remotion-workspace-test-fixtures";
 import type { RemotionShotPlanV1 } from "@/lib/studio/remotion/shot-plan";
 import type { TimelineRenderPlan } from "@/types/editing";
 import type { RemotionCurrentSlotV1, RemotionRenderJobV1 } from "@/types/remotion-workspace";
 import {
-  createReadyShotJob,
   RemotionRenderQueue,
   type RemotionQueueEventV1,
   type RemotionQueuePersistence,
   type RemotionQueueShotInput,
 } from "./remotion-render-queue";
+import { createReadyShotJob } from "@/lib/studio/remotion/remotion-job-factory";
 
 class MemoryPersistence implements RemotionQueuePersistence {
   snapshot: unknown;
@@ -24,22 +27,16 @@ class MemoryPersistence implements RemotionQueuePersistence {
   async writeSnapshot(snapshot: unknown) { this.snapshot = snapshot; }
 }
 
-function makePlan(chapterId = "chapter-001", shotIndex = 0, projectId = "project-a"): Promise<RemotionShotPlanV1> {
-  const chapter = makeChapterManifest();
-  const sharedAudioTracks = chapter.sharedAudioTracks.map((track) => ({
-    ...track,
-    source: { ...track.source, projectId },
-  }));
+async function makePlan(chapterId = "chapter-001", shotIndex = 0, projectId = "project-a"): Promise<RemotionShotPlanV1> {
+  const chapter = await makeChapterManifestV2();
+  const shotId = `shot-${String(shotIndex + 1).padStart(3, "0")}`;
+  const voice = await makeShotAudioBindingV2({ projectId, chapterId, shotId });
   const shot = {
     ...chapter.shots[0]!,
-    shotId: `shot-${String(shotIndex + 1).padStart(3, "0")}`,
+    shotId,
     index: shotIndex,
     visualSource: { ...chapter.shots[0]!.visualSource, projectId },
-    audioBindings: chapter.shots[0]!.audioBindings.map((binding) => (
-      binding.renderScope === "shot"
-        ? { ...binding, source: { ...binding.source, projectId } }
-        : binding
-    )),
+    audioBindings: [voice],
   };
   const hashInput = {
     schemaVersion: 1 as const,
@@ -49,9 +46,8 @@ function makePlan(chapterId = "chapter-001", shotIndex = 0, projectId = "project
     renderSettings: chapter.renderSettings,
     visualKind: "image" as const,
     shot,
-    sharedAudioTracks,
   };
-  return sha256CanonicalJson(hashInput).then((inputHash) => ({
+  return {
     schemaVersion: 1,
     target: "shot",
     projectId,
@@ -61,9 +57,8 @@ function makePlan(chapterId = "chapter-001", shotIndex = 0, projectId = "project
     renderSettings: chapter.renderSettings,
     visualKind: "image",
     shot,
-    sharedAudioTracks,
-    inputHash,
-  }));
+    inputHash: await sha256CanonicalJson(hashInput),
+  };
 }
 
 async function makeInput(shotIndex = 0, projectId = "project-a"): Promise<RemotionQueueShotInput> {

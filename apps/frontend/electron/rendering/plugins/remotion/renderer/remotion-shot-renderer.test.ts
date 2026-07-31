@@ -1,10 +1,14 @@
+import crypto from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { sha256CanonicalJson } from "@/lib/studio/remotion/canonical-json";
 import type { RemotionShotPlanV1 } from "@/lib/studio/remotion/shot-plan";
-import { makeChapterManifest } from "@/lib/studio/remotion/remotion-workspace-test-fixtures";
+import {
+  makeChapterManifestV2,
+  makeShotAudioBindingV2,
+} from "@/lib/studio/remotion/remotion-workspace-test-fixtures";
 import { RemotionShotRenderer, selectRemotionShotVideoDuration } from "./remotion-shot-renderer";
 
 class FakeUtilityProcess {
@@ -45,13 +49,18 @@ describe("RemotionShotRenderer", () => {
 
   it("renders StoryboardShot through Remotion and publishes one current slot", async () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "mystudio-shot-renderer-"));
+    const projectRoot = path.join(root, "project");
     const bundlePath = path.join(root, "bundle");
     const imagePath = path.join(root, "shot.png");
-    const audioPath = path.join(root, "voice.wav");
+    const audioBytes = Buffer.from("audio", "utf8");
+    const audioSha256 = crypto.createHash("sha256").update(audioBytes).digest("hex");
+    const voice = await makeShotAudioBindingV2({ sourceFingerprint: audioSha256 });
+    const audioPath = path.join(projectRoot, voice.source.relativePath);
     const child = new FakeUtilityProcess();
     fs.mkdirSync(bundlePath, { recursive: true });
+    fs.mkdirSync(path.dirname(audioPath), { recursive: true });
     fs.writeFileSync(imagePath, "image", "utf8");
-    fs.writeFileSync(audioPath, "audio", "utf8");
+    fs.writeFileSync(audioPath, audioBytes);
     fs.writeFileSync(path.join(bundlePath, "manifest.json"), JSON.stringify({
       schemaVersion: 2,
       templateId: "mystudio-remotion-v1",
@@ -61,16 +70,18 @@ describe("RemotionShotRenderer", () => {
       compositionId: "DaojieTimeline",
       contentHash: "a".repeat(64),
     }), "utf8");
-    const chapter = makeChapterManifest();
+    const chapter = await makeChapterManifestV2();
+    chapter.shots[0]!.audioBindings = [voice];
     const plan = await makePlan(chapter);
     const renderer = new RemotionShotRenderer({
       workspaceRoot: path.join(root, "workspace"),
+      projectRootForProject: () => projectRoot,
       bundlePath,
       workerPath: "/app/remotion-render-worker.cjs",
       cwd: "/runtime/remotion",
       binariesDirectory: "/app/binaries",
       remotionVersion: "4.0.499",
-      resolveSourcePath: (source) => source.endsWith("images/shot-001.png") ? imagePath : audioPath,
+      resolveSourcePath: () => imagePath,
       probeBrowser: async () => ({
         status: { state: "ready", remotionVersion: "4.0.499" },
         executablePath: "/runtime/headless-shell",
@@ -118,9 +129,36 @@ describe("RemotionShotRenderer", () => {
       fs.rmSync(root, { recursive: true, force: true });
     }
   });
+
+  it("rejects audio byte drift before invoking the render worker", async () => {
+    const fixture = await makeRejectFixture("byte-drift");
+    fs.writeFileSync(fixture.audioPath, "changed-after-binding", "utf8");
+    try {
+      const result = await fixture.renderer.render(fixture.plan);
+      expect(result).toMatchObject({ success: false, canceled: false });
+      if (!result.success) expect(result.error).toContain("source_sha256_mismatch");
+      expect(fixture.child.posted).toHaveLength(0);
+    } finally {
+      await fixture.renderer.dispose();
+      fs.rmSync(fixture.root, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects a symlinked audio parent before invoking the render worker", async () => {
+    const fixture = await makeRejectFixture("parent-symlink", true);
+    try {
+      const result = await fixture.renderer.render(fixture.plan);
+      expect(result).toMatchObject({ success: false, canceled: false });
+      if (!result.success) expect(result.error).toContain("path_escape");
+      expect(fixture.child.posted).toHaveLength(0);
+    } finally {
+      await fixture.renderer.dispose();
+      fs.rmSync(fixture.root, { recursive: true, force: true });
+    }
+  });
 });
 
-async function makePlan(chapter: ReturnType<typeof makeChapterManifest>): Promise<RemotionShotPlanV1> {
+async function makePlan(chapter: Awaited<ReturnType<typeof makeChapterManifestV2>>): Promise<RemotionShotPlanV1> {
   const shot = chapter.shots[0]!;
   const hashInput = {
     schemaVersion: 1 as const,
@@ -130,7 +168,6 @@ async function makePlan(chapter: ReturnType<typeof makeChapterManifest>): Promis
     renderSettings: chapter.renderSettings,
     visualKind: "image" as const,
     shot,
-    sharedAudioTracks: chapter.sharedAudioTracks,
   };
   return {
     schemaVersion: 1,
@@ -142,9 +179,62 @@ async function makePlan(chapter: ReturnType<typeof makeChapterManifest>): Promis
     renderSettings: chapter.renderSettings,
     visualKind: "image",
     shot,
-    sharedAudioTracks: chapter.sharedAudioTracks,
     inputHash: await sha256CanonicalJson(hashInput),
   };
+}
+
+async function makeRejectFixture(label: string, symlinkParent = false) {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), `mystudio-shot-${label}-`));
+  const projectRoot = path.join(root, "project");
+  const bundlePath = path.join(root, "bundle");
+  const imagePath = path.join(root, "shot.png");
+  const audioBytes = Buffer.from("bound-audio", "utf8");
+  const audioSha256 = crypto.createHash("sha256").update(audioBytes).digest("hex");
+  const voice = await makeShotAudioBindingV2({ sourceFingerprint: audioSha256 });
+  const audioPath = path.join(projectRoot, voice.source.relativePath);
+  const child = new FakeUtilityProcess();
+  fs.mkdirSync(bundlePath, { recursive: true });
+  fs.writeFileSync(imagePath, "image", "utf8");
+  fs.writeFileSync(path.join(bundlePath, "manifest.json"), JSON.stringify({
+    schemaVersion: 2,
+    templateId: "mystudio-remotion-v1",
+    templateVersion: "1.0.0",
+    remotionVersion: "4.0.499",
+    compositionIds: ["StoryboardShot", "ChapterVideo", "DaojieTimeline"],
+    compositionId: "DaojieTimeline",
+    contentHash: "a".repeat(64),
+  }), "utf8");
+  if (symlinkParent) {
+    const shotParent = path.dirname(path.dirname(audioPath));
+    const outsideShot = path.join(root, "outside-shot");
+    fs.mkdirSync(path.join(outsideShot, "voice"), { recursive: true });
+    fs.mkdirSync(path.dirname(shotParent), { recursive: true });
+    fs.symlinkSync(outsideShot, shotParent, "dir");
+    fs.writeFileSync(path.join(outsideShot, "voice", path.basename(audioPath)), audioBytes);
+  } else {
+    fs.mkdirSync(path.dirname(audioPath), { recursive: true });
+    fs.writeFileSync(audioPath, audioBytes);
+  }
+  const chapter = await makeChapterManifestV2();
+  chapter.shots[0]!.audioBindings = [voice];
+  const plan = await makePlan(chapter);
+  const renderer = new RemotionShotRenderer({
+    workspaceRoot: path.join(root, "workspace"),
+    projectRootForProject: () => projectRoot,
+    bundlePath,
+    workerPath: "/app/remotion-render-worker.cjs",
+    cwd: "/runtime/remotion",
+    binariesDirectory: "/app/binaries",
+    remotionVersion: "4.0.499",
+    resolveSourcePath: () => imagePath,
+    probeBrowser: async () => ({
+      status: { state: "ready", remotionVersion: "4.0.499" },
+      executablePath: "/runtime/headless-shell",
+    }),
+    fork: () => child,
+    emitProgress: () => undefined,
+  });
+  return { root, audioPath, child, plan, renderer };
 }
 
 async function waitFor(predicate: () => boolean): Promise<void> {

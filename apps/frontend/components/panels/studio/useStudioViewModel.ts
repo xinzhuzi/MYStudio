@@ -1,6 +1,10 @@
-import { useCallback, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { useProjectStore } from "@/stores/project/project-store";
 import { useStudioStore } from "@/stores/studio/studio-store";
+import {
+  buildRemotionProductionProfile,
+  syncRemotionWorkspaceProductionProfile,
+} from "@/lib/studio/remotion/remotion-workspace-storage";
 import type { ImageWorkflowOpenContext } from "@/types/studio";
 import { resolveProductionEpisodeId } from "./workflow-helpers";
 import { useNovelPipelineActions } from "./useNovelPipelineActions";
@@ -12,6 +16,7 @@ import { useWorkflowNodeEditor } from "./useWorkflowNodeEditor";
 import { useWorkflowReadiness } from "./useWorkflowReadiness";
 import { useWorkflowStageState } from "./useWorkflowStageState";
 import { useChapterAutoVideoActions } from "./useChapterAutoVideoActions";
+import type { ProductionFlowNodeAction } from "./workflow-node-model";
 
 export function useStudioViewModel() {
   const activeProject = useProjectStore((state) => state.activeProject);
@@ -49,10 +54,32 @@ export function useStudioViewModel() {
     useState<ImageWorkflowOpenContext>();
   const manualCatalog = useStudioManualCatalog();
 
+  useEffect(() => {
+    const projectId = activeProject?.id;
+    if (!projectId || typeof window === "undefined" || !window.fileStorage) return;
+    const profile = buildRemotionProductionProfile(workflowConfig);
+    const timer = window.setTimeout(() => {
+      void syncRemotionWorkspaceProductionProfile(projectId, profile).catch((error: unknown) => {
+        console.warn("[StudioView] Failed to sync Remotion production profile:", error);
+      });
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [
+    activeProject?.id,
+    workflowConfig.episodeDurationMin,
+    workflowConfig.platformSpec,
+    workflowConfig.visualManualId,
+    workflowConfig.directorManualId,
+    workflowConfig.stylePositioning,
+  ]);
+
   const projectName = activeProject?.name ?? "漫影工作室";
 
   const productionEpisodeId = resolveProductionEpisodeId(
     useStudioStore.getState(),
+  );
+  const chapterStoryboards = storyboards.filter(
+    (storyboard) => storyboard.episodeId === productionEpisodeId,
   );
   const directorPlan = scriptPlans.find(
     (item) => item.episodeId === productionEpisodeId,
@@ -86,12 +113,16 @@ export function useStudioViewModel() {
     workflowNodeDraft,
     workflowNodeEditTitle,
     workflowNodeEditWritable,
+    workflowNodeEditJson,
+    workflowNodeEditReadOnlyJson,
     setWorkflowNodeDraft,
     openNodeEditor,
+    openNodeJson,
     closeNodeEditor,
     saveWorkflowNodeEdit,
   } = useWorkflowNodeEditor({
     productionFlowModel,
+    projectId: activeProject?.id,
     productionEpisodeId,
     saveAgentWorkData,
     saveScriptPlan,
@@ -130,6 +161,16 @@ export function useStudioViewModel() {
     productionEpisodeId,
     handleProductionNodeAction,
   });
+  const handleProductionFlowNodeAction = useCallback(
+    async (action: ProductionFlowNodeAction) => {
+      if (action.id === "enqueue-remotion-shots") {
+        await handleRunChapterAutoVideo();
+        return;
+      }
+      await handleProductionNodeAction(action);
+    },
+    [handleProductionNodeAction, handleRunChapterAutoVideo],
+  );
 
   const {
     scriptStyleSummary,
@@ -206,8 +247,10 @@ export function useStudioViewModel() {
     directorPlan,
     aspectRatio,
     productionFlowNodes: productionFlowModel.nodes,
+    remotionShotSlots: productionFlowModel.remotionShotSlots,
     openNodeEditor,
-    handleProductionNodeAction,
+    openNodeJson,
+    handleProductionNodeAction: handleProductionFlowNodeAction,
     chapterAutoVideoStatus,
     chapterAutoVideoRunning,
     handleRunChapterAutoVideo,
@@ -216,12 +259,15 @@ export function useStudioViewModel() {
     openAssetImageWorkflow,
     closeAssetImageWorkflow,
     storyboards,
+    chapterStoryboards,
     productionTracks,
     videoCandidates,
     editingWorkflowNodeId,
     workflowNodeDraft,
     workflowNodeEditTitle,
     workflowNodeEditWritable,
+    workflowNodeEditJson,
+    workflowNodeEditReadOnlyJson,
     setWorkflowNodeDraft,
     closeNodeEditor,
     saveWorkflowNodeEdit,

@@ -1,9 +1,13 @@
 import type {
   ContinuityAssetVersion,
   StoryboardItem,
+  StoryboardTtsJobV1,
 } from "@/types/studio";
 import type { TtsSpeakerId, VoiceProfile } from "@/types/tts";
-import type { RemotionRenderJobV1 } from "@/types/remotion-workspace";
+import type {
+  RemotionRenderJobV1,
+  RemotionShotAudioBindingV2,
+} from "@/types/remotion-workspace";
 import { assertVisualContinuityApproved } from "./visual-continuity";
 
 export type ChapterAutoVideoStage =
@@ -42,6 +46,8 @@ export interface ChapterAutoVideoDependencies {
     profile: VoiceProfile,
   ) => Promise<{
     audioRef: StoryboardItem["audioRef"];
+    shotAudioBinding: RemotionShotAudioBindingV2;
+    ttsJob: StoryboardTtsJobV1;
     generationId?: string;
     ttsBackend?: string;
     ttsMocked?: false;
@@ -51,6 +57,8 @@ export interface ChapterAutoVideoDependencies {
     storyboardId: string,
     result: Awaited<ReturnType<ChapterAutoVideoDependencies["generateAudio"]>>,
   ) => void;
+  ttsConcurrency?: number;
+  isTtsCanceled?: (storyboardId: string) => boolean;
   enqueueRemotionShots: (input: {
     projectId: string;
     chapterId: string;
@@ -115,13 +123,17 @@ function auditVoiceoverStoryboards(
 
 export interface PreparedChapterMedia {
   storyboards: StoryboardItem[];
+  blockedShotIds: string[];
+  ttsErrors: Record<string, string>;
 }
 
 export async function prepareChapterMedia({
+  projectId,
   episodeId,
   dependencies,
   onStatus,
 }: {
+  projectId: string;
   episodeId: string;
   dependencies: ChapterAutoVideoDependencies;
   onStatus?: (status: ChapterAutoVideoStatus) => void;
@@ -149,33 +161,42 @@ export async function prepareChapterMedia({
   }
 
   emit(onStatus, { stage: "tts", detail: "生成或复用逐镜真实 TTS" });
-  for (const storyboard of storyboards) {
-    const existingAudioPath = storyboard.audioRef?.path;
-    if (
-      existingAudioPath
-      && (await dependencies.resolveMediaPath(existingAudioPath))
-    ) {
-      continue;
+  const concurrency = validateTtsConcurrency(dependencies.ttsConcurrency ?? 2);
+  const ttsErrors: Record<string, string> = {};
+  await runBoundedShotTasks(storyboards, concurrency, async (storyboard) => {
+    if (dependencies.isTtsCanceled?.(storyboard.id)) {
+      ttsErrors[storyboard.id] = "逐镜 TTS 已取消";
+      return;
     }
     const profile = profiles[storyboard.speakerId!];
-    const generated = await dependencies.generateAudio(storyboard, profile);
-    if (!generated.audioRef?.path) {
-      throw new Error(`分镜 ${storyboard.id} TTS 未返回真实音频路径`);
+    try {
+      const generated = await dependencies.generateAudio(storyboard, profile);
+      if (!generated.audioRef?.path) {
+        throw new Error(`分镜 ${storyboard.id} TTS 未返回真实音频路径`);
+      }
+      if (dependencies.isTtsCanceled?.(storyboard.id)) {
+        ttsErrors[storyboard.id] = "逐镜 TTS 已取消";
+        return;
+      }
+      dependencies.writeStoryboardAudio(storyboard.id, generated);
+    } catch (error) {
+      ttsErrors[storyboard.id] = error instanceof Error ? error.message : String(error);
     }
-    dependencies.writeStoryboardAudio(storyboard.id, generated);
-  }
+  });
 
   storyboards = dependencies
     .loadStoryboards()
     .filter((item) => item.episodeId === episodeId)
     .sort((left, right) => left.index - right.index);
   for (const storyboard of storyboards) {
-    if (
-      !storyboard.audioRef?.path
-      || !(await dependencies.resolveMediaPath(storyboard.audioRef.path))
-    ) {
-      throw new Error(`分镜 ${storyboard.id} 缺少可读真实音频`);
-    }
+    if (ttsErrors[storyboard.id]) continue;
+    const bindingError = await validateCanonicalVoiceWriteback(
+      projectId,
+      episodeId,
+      storyboard,
+      dependencies.resolveMediaPath,
+    );
+    if (bindingError) ttsErrors[storyboard.id] = bindingError;
   }
 
   emit(onStatus, { stage: "media", detail: "校验全部分镜画面媒体" });
@@ -188,7 +209,16 @@ export async function prepareChapterMedia({
     }
   }
 
-  return { storyboards };
+  const blockedShotIds = storyboards
+    .filter((storyboard) => Boolean(ttsErrors[storyboard.id]))
+    .map((storyboard) => storyboard.id);
+  emit(onStatus, {
+    stage: "tts",
+    detail: blockedShotIds.length > 0
+      ? `逐镜 TTS 完成，${blockedShotIds.length} 镜失败或取消；其他分镜继续`
+      : `逐镜 TTS 完成，并发上限 ${concurrency}`,
+  });
+  return { storyboards, blockedShotIds, ttsErrors };
 }
 
 export async function runChapterAutoVideo({
@@ -203,30 +233,45 @@ export async function runChapterAutoVideo({
   onStatus?: (status: ChapterAutoVideoStatus) => void;
 }): Promise<ChapterAutoVideoResult> {
   try {
-    const { storyboards } = await prepareChapterMedia({
+    if (!projectId) throw new Error("Remotion 自动成片缺少 projectId");
+    const prepared = await prepareChapterMedia({
+      projectId,
       episodeId,
       dependencies,
       onStatus,
     });
 
-    if (!projectId) throw new Error("Remotion 自动成片缺少 projectId");
-    emit(onStatus, { stage: "render", detail: `提交 ${storyboards.length} 个 Remotion 分镜任务` });
-    const submission = await dependencies.enqueueRemotionShots({
-      projectId,
-      chapterId: episodeId,
-      storyboards,
+    const { storyboards } = prepared;
+    const blockedBeforeRender = new Set(prepared.blockedShotIds);
+    const renderableStoryboards = storyboards.filter(
+      (storyboard) => !blockedBeforeRender.has(storyboard.id),
+    );
+    emit(onStatus, {
+      stage: "render",
+      detail: `提交 ${renderableStoryboards.length} 个 Remotion 分镜任务`,
     });
-    const queueStatus = submission.blockedShotIds.length > 0 ? "blocked" : "queued";
+    const submission = renderableStoryboards.length > 0
+      ? await dependencies.enqueueRemotionShots({
+        projectId,
+        chapterId: episodeId,
+        storyboards: renderableStoryboards,
+      })
+      : { jobs: [], blockedShotIds: [] };
+    const blockedShotIds = [...new Set([
+      ...prepared.blockedShotIds,
+      ...submission.blockedShotIds,
+    ])];
+    const queueStatus = blockedShotIds.length > 0 ? "blocked" : "queued";
     emit(onStatus, {
       stage: queueStatus,
       detail: queueStatus === "blocked"
-        ? `Remotion 分镜存在阻塞：${submission.blockedShotIds.join("、")}`
+        ? `Remotion 分镜存在阻塞：${blockedShotIds.join("、")}`
         : `已提交 ${submission.jobs.length} 个 Remotion 分镜任务，等待章节合成`,
     });
     return {
       storyboards: storyboards.length,
       remotionJobs: submission.jobs,
-      blockedShotIds: submission.blockedShotIds,
+      blockedShotIds,
       chapterJobId: submission.chapterJobId,
       queueStatus,
     };
@@ -235,4 +280,71 @@ export async function runChapterAutoVideo({
     emit(onStatus, { stage: "failed", detail: "第一章自动成片失败", error: message });
     throw error;
   }
+}
+
+export class ChapterTtsCancellationController {
+  private readonly canceledShotIds = new Set<string>();
+  private canceledAll = false;
+
+  cancelShot(storyboardId: string): void {
+    this.canceledShotIds.add(storyboardId);
+  }
+
+  cancelAll(): void {
+    this.canceledAll = true;
+  }
+
+  isCanceled(storyboardId: string): boolean {
+    return this.canceledAll || this.canceledShotIds.has(storyboardId);
+  }
+}
+
+function validateTtsConcurrency(value: number): number {
+  if (!Number.isInteger(value) || value < 1 || value > 4) {
+    throw new Error("TTS 并发必须是 1–4 的整数");
+  }
+  return value;
+}
+
+async function runBoundedShotTasks<T>(
+  items: readonly T[],
+  concurrency: number,
+  operation: (item: T) => Promise<void>,
+): Promise<void> {
+  let cursor = 0;
+  const workers = Array.from({ length: Math.min(concurrency, items.length) }, async () => {
+    while (cursor < items.length) {
+      const index = cursor;
+      cursor += 1;
+      await operation(items[index]);
+    }
+  });
+  await Promise.all(workers);
+}
+
+async function validateCanonicalVoiceWriteback(
+  projectId: string,
+  chapterId: string,
+  storyboard: StoryboardItem,
+  resolveMediaPath: (mediaPath: string) => Promise<string | null>,
+): Promise<string | undefined> {
+  const shotRevision = Math.max(1, storyboard.outputVersion ?? 1);
+  const voiceBindings = storyboard.shotAudioBindings?.filter((binding) => binding.role === "voice") ?? [];
+  if (voiceBindings.length !== 1) return `分镜 ${storyboard.id} 必须有且仅有一个 canonical voice binding`;
+  const binding = voiceBindings[0];
+  if (binding.projectId !== projectId || binding.chapterId !== chapterId
+    || binding.shotId !== storyboard.id || binding.shotRevision !== shotRevision) {
+    return `分镜 ${storyboard.id} voice binding 身份或 revision 不匹配`;
+  }
+  if (!storyboard.ttsJob || storyboard.ttsJob.status !== "completed"
+    || storyboard.ttsJob.inputFingerprint !== binding.ttsInputFingerprint
+    || storyboard.ttsJob.shotRevision !== shotRevision) {
+    return `分镜 ${storyboard.id} TTS job 与 voice binding fingerprint/revision 不匹配`;
+  }
+  const audioRef = storyboard.audioRef;
+  if (!audioRef?.path || audioRef.contentSha256 !== binding.sourceFingerprint) {
+    return `分镜 ${storyboard.id} audioRef 与 canonical voice binding 不一致`;
+  }
+  if (!(await resolveMediaPath(audioRef.path))) return `分镜 ${storyboard.id} 缺少可读真实音频`;
+  return undefined;
 }

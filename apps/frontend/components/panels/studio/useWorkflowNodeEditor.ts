@@ -8,11 +8,17 @@ import {
 import { captureError, createOperationId, logEvent } from "@/lib/diagnostics/logger";
 import {
   parseStoryboardTable,
+  serializeStoryboardTable,
   toStoryboardItems,
 } from "@/lib/studio/storyboard-table";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import type { ScriptPlan } from "@/types/studio";
 import { toast } from "sonner";
+import {
+  formatRemotionStoryboardJson,
+  formatStoryboardJson,
+  validateStoryboardJson,
+} from "@/lib/studio/storyboard-json";
 import {
   formatScriptPlanContext,
   latestAgentWork,
@@ -26,11 +32,13 @@ import type {
 
 export function useWorkflowNodeEditor({
   productionFlowModel,
+  projectId,
   productionEpisodeId,
   saveAgentWorkData,
   saveScriptPlan,
 }: {
   productionFlowModel: ProductionFlowModel;
+  projectId?: string;
   productionEpisodeId: string;
   saveAgentWorkData: ReturnType<
     typeof useStudioStore.getState
@@ -40,21 +48,27 @@ export function useWorkflowNodeEditor({
   const [editingWorkflowNodeId, setEditingWorkflowNodeId] =
     useState<ProductionFlowNodeId | null>(null);
   const [workflowNodeDraft, setWorkflowNodeDraft] = useState("");
+  const [workflowNodeJsonMode, setWorkflowNodeJsonMode] = useState<"canonical" | "remotion" | null>(null);
 
   const workflowNodeEditTitle = useMemo(() => {
     const node = productionFlowModel.nodes.find(
       (item) => item.id === editingWorkflowNodeId,
     );
-    return node ? `编辑${node.label}` : "编辑节点";
-  }, [editingWorkflowNodeId, productionFlowModel.nodes]);
+    if (!node) return "编辑节点";
+    if (workflowNodeJsonMode === "canonical") return `${node.label} JSON`;
+    if (workflowNodeJsonMode === "remotion") return `Remotion JSON · ${node.label}`;
+    return `编辑${node.label}`;
+  }, [editingWorkflowNodeId, productionFlowModel.nodes, workflowNodeJsonMode]);
 
   const workflowNodeEditWritable =
-    editingWorkflowNodeId === "script" ||
-    editingWorkflowNodeId === "scriptPlan" ||
-    editingWorkflowNodeId === "storyboardTable";
+    workflowNodeJsonMode !== "remotion" && (
+      editingWorkflowNodeId === "script" ||
+      editingWorkflowNodeId === "scriptPlan" ||
+      editingWorkflowNodeId === "storyboardTable"
+    );
 
   const buildWorkflowNodeDraft = useCallback(
-    (nodeId: ProductionFlowNodeId) => {
+    (nodeId: ProductionFlowNodeId, jsonMode = workflowNodeJsonMode) => {
       const store = useStudioStore.getState();
       const episodeId = resolveProductionEpisodeId(store, productionEpisodeId);
       if (nodeId === "script") {
@@ -76,11 +90,36 @@ export function useWorkflowNodeEditor({
         return plan ? formatScriptPlanContext(plan) : "";
       }
       if (nodeId === "storyboardTable") {
+        if (jsonMode === "canonical") {
+          const canonical = store.storyboards
+            .filter((item) => item.episodeId === episodeId)
+            .sort((a, b) => a.index - b.index);
+          if (canonical.length) return formatStoryboardJson(canonical);
+          const source = latestAgentWork(
+            store.agentWorkData,
+            "storyboardTable",
+            episodeId,
+            { allowUnscopedFallback: false },
+          );
+          if (!source) return "[]";
+          const parsed = parseStoryboardTable(source, episodeId, { requireShotSemantics: true });
+          if (parsed.errors.length || !parsed.rows.length) return "[]";
+          const characters = store.entityExtractions.find((item) => item.episodeId === episodeId)?.characters ?? [];
+          return formatStoryboardJson(toStoryboardItems(parsed.rows, episodeId, characters));
+        }
         return latestAgentWork(
           store.agentWorkData,
           "storyboardTable",
           episodeId,
+          { allowUnscopedFallback: false },
         );
+      }
+      if (nodeId === "storyboard" && jsonMode === "remotion") {
+        return formatRemotionStoryboardJson({
+          projectId,
+          episodeId,
+          items: store.storyboards.filter((item) => item.episodeId === episodeId),
+        });
       }
       if (nodeId === "assets") {
         return store.entityExtractions
@@ -139,23 +178,44 @@ export function useWorkflowNodeEditor({
         ),
       ].join("\n");
     },
-    [productionEpisodeId],
+    [projectId, productionEpisodeId, workflowNodeJsonMode],
   );
 
   const openNodeEditor = useCallback(
     (nodeId: ProductionFlowNodeId) => {
+      setWorkflowNodeJsonMode(null);
       setEditingWorkflowNodeId(nodeId);
-      setWorkflowNodeDraft(buildWorkflowNodeDraft(nodeId));
+      setWorkflowNodeDraft(buildWorkflowNodeDraft(nodeId, null));
     },
-    [buildWorkflowNodeDraft],
+    [buildWorkflowNodeDraft, projectId],
+  );
+
+  const openNodeJson = useCallback(
+    (nodeId: ProductionFlowNodeId) => {
+      if (nodeId !== "storyboardTable" && nodeId !== "storyboard") return;
+      if (!projectId) {
+        toast.error("请先选择项目，再查看章节 JSON");
+        return;
+      }
+      const mode = nodeId === "storyboardTable" ? "canonical" : "remotion";
+      setWorkflowNodeJsonMode(mode);
+      setEditingWorkflowNodeId(nodeId);
+      setWorkflowNodeDraft(buildWorkflowNodeDraft(nodeId, mode));
+    },
+    [buildWorkflowNodeDraft, projectId],
   );
 
   const closeNodeEditor = useCallback(() => {
     setEditingWorkflowNodeId(null);
+    setWorkflowNodeJsonMode(null);
   }, []);
 
   const saveWorkflowNodeEdit = useCallback(async () => {
-    if (!editingWorkflowNodeId) return;
+    if (!editingWorkflowNodeId || workflowNodeJsonMode === "remotion") return;
+    if (!projectId) {
+      toast.error("请先选择项目，再保存章节 JSON");
+      return;
+    }
     const store = useStudioStore.getState();
     const episodeId = resolveProductionEpisodeId(store, productionEpisodeId);
     const text = workflowNodeDraft.trim();
@@ -244,6 +304,18 @@ export function useWorkflowNodeEditor({
       return;
     }
     if (editingWorkflowNodeId === "storyboardTable") {
+      const jsonResult = validateStoryboardJson(workflowNodeDraft, episodeId, projectId);
+      if (jsonResult.items) {
+        saveAgentWorkData(
+          "storyboardTable",
+          serializeStoryboardTable(jsonResult.items),
+          episodeId,
+        );
+        useStudioStore.getState().replaceStoryboardsForEpisode(episodeId, jsonResult.items);
+        toast.success(`分镜表已保存：${jsonResult.items.length} 条分镜`);
+        setEditingWorkflowNodeId(null);
+        return;
+      }
       const parsed = parseStoryboardTable(text, episodeId, {
         requireShotSemantics: true,
       });
@@ -265,10 +337,12 @@ export function useWorkflowNodeEditor({
     toast.info("该节点是结构化数据，请进入对应阶段编辑。");
   }, [
     editingWorkflowNodeId,
+    projectId,
     productionEpisodeId,
     saveAgentWorkData,
     saveScriptPlan,
     workflowNodeDraft,
+    workflowNodeJsonMode,
   ]);
 
   return {
@@ -276,8 +350,11 @@ export function useWorkflowNodeEditor({
     workflowNodeDraft,
     workflowNodeEditTitle,
     workflowNodeEditWritable,
+    workflowNodeEditJson: workflowNodeJsonMode !== null,
+    workflowNodeEditReadOnlyJson: workflowNodeJsonMode === "remotion",
     setWorkflowNodeDraft,
     openNodeEditor,
+    openNodeJson,
     closeNodeEditor,
     saveWorkflowNodeEdit,
   };

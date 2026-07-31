@@ -8,7 +8,7 @@ import type {
   RemotionEvidenceV1,
   RemotionMediaProbeStreamV1,
   RemotionRenderJobV1,
-  RemotionShotDefinitionV1,
+  RemotionShotDefinitionV2,
 } from "@/types/remotion-workspace";
 import type { RemotionShotPlanV1 } from "@/lib/studio/remotion/shot-plan";
 import {
@@ -29,6 +29,7 @@ import {
 import { assertBundleMatchesRuntime } from "../render/bundle-manifest";
 import { MediaBridgeServer } from "../media-bridge/media-bridge-server";
 import { buildMediaUrlMap, type MediaBridgeClipSource } from "../media-bridge/media-bridge-source-map";
+import { verifyRemotionAudioBindingSource } from "../manifest/remotion-audio-source-verification";
 import {
   RemotionRenderUtilitySupervisor,
   type RemotionRenderBrowserProbe,
@@ -40,6 +41,7 @@ const execFileAsync = promisify(execFile);
 export interface RemotionShotRendererOptions {
   workspaceRoot: string;
   workspaceRootForProject?: (projectId: string) => string;
+  projectRootForProject: (projectId: string) => string;
   bundlePath: string;
   workerPath: string;
   cwd: string;
@@ -137,11 +139,11 @@ export class RemotionShotRenderer {
       await fs.promises.mkdir(stagingDir, { recursive: true });
       await this.mediaBridge.listen();
       session = this.mediaBridge.createSession();
-      const references = collectReferences(validated.value.shot);
-      const sources: MediaBridgeClipSource[] = references.map((reference) => ({
-        clipId: referenceKey(reference),
-        absolutePath: this.options.resolveSourcePath(toProjectFileUrl(reference.projectId, reference.relativePath)),
-      }));
+      const sources = await collectVerifiedSources(
+        validated.value.shot,
+        this.options.projectRootForProject(identity.projectId),
+        this.options.resolveSourcePath,
+      );
       const urlByReference = buildMediaUrlMap(this.mediaBridge, session, sources);
       const projection = projectStoryboardShotCompositionProps(validated.value, (reference) => {
         const url = urlByReference[referenceKey(reference)];
@@ -277,12 +279,27 @@ export async function publishCurrentSlot(
   await fs.promises.rm(stagingDir, { recursive: true, force: true });
 }
 
-function collectReferences(shot: RemotionShotDefinitionV1) {
-  const references = [
-    shot.visualSource,
-    ...shot.audioBindings.flatMap((binding) => binding.renderScope === "shot" ? [binding.source] : []),
-  ];
-  return [...new Map(references.map((reference) => [referenceKey(reference), reference])).values()];
+async function collectVerifiedSources(
+  shot: RemotionShotDefinitionV2,
+  projectRoot: string,
+  resolveSourcePath: (sourcePath: string) => string,
+): Promise<MediaBridgeClipSource[]> {
+  const sources = new Map<string, MediaBridgeClipSource>();
+  sources.set(referenceKey(shot.visualSource), {
+    clipId: referenceKey(shot.visualSource),
+    absolutePath: resolveSourcePath(toProjectFileUrl(
+      shot.visualSource.projectId,
+      shot.visualSource.relativePath,
+    )),
+  });
+  for (const binding of shot.audioBindings) {
+    const verified = await verifyRemotionAudioBindingSource(binding, projectRoot);
+    sources.set(referenceKey(binding.source), {
+      clipId: referenceKey(binding.source),
+      absolutePath: verified.filePath,
+    });
+  }
+  return [...sources.values()];
 }
 
 function referenceKey(reference: { kind: string; projectId: string; relativePath: string; contentSha256: string }): string {

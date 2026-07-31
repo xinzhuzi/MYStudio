@@ -14,7 +14,7 @@ import type {
   VideoCandidate,
 } from "@/types/studio";
 import type { RemotionCurrentSlotV1 } from "@/types/remotion-workspace";
-import { validateCurrentSlot } from "@/lib/studio/remotion/remotion-current-slot";
+import { validateRemotionCurrentSlot as validateCurrentSlot } from "@/lib/studio/remotion/remotion-slot-validation";
 import { validateEditingProject } from "./validation";
 import {
   indexCandidateTrimStarts,

@@ -2,6 +2,7 @@ import { useCallback, useState } from "react";
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
 import {
   ArrowRight,
+  Braces,
   Boxes,
   ClipboardList,
   Clapperboard,
@@ -22,6 +23,7 @@ import type {
 } from "./workflow-node-model";
 import {
   AssetDerivationPreview,
+  RemotionShotPreview,
   StoryboardGridPreview,
   StoryboardTablePreview,
   TextPreview,
@@ -34,6 +36,7 @@ export interface ProductionNodeData extends Record<string, unknown> {
   targetPosition?: Position;
   onStageChange: (stage: ProductionFlowStage) => void;
   onNodeEdit?: (nodeId: ProductionFlowNodeId) => void;
+  onNodeJson?: (nodeId: ProductionFlowNodeId) => void;
   onNodeAction?: (action: ProductionFlowNodeAction) => void | Promise<void>;
   onOpenAssetImageWorkflow?: (context: ImageWorkflowOpenContext) => void;
 }
@@ -44,6 +47,7 @@ const NODE_ICONS = {
   assets: Boxes,
   storyboardTable: Table2,
   storyboard: Split,
+  remotionProduction: Clapperboard,
   workbench: Film,
 } satisfies Record<ProductionFlowNodeId, typeof FileText>;
 
@@ -53,6 +57,7 @@ const NODE_SIZE_CLASS = {
   assets: "w-[760px]",
   storyboardTable: "w-[700px]",
   storyboard: "w-[640px]",
+  remotionProduction: "w-[760px]",
   workbench: "w-[760px]",
 } satisfies Record<ProductionFlowNodeId, string>;
 
@@ -87,6 +92,9 @@ export function ProductionFlowNode({ data }: NodeProps<Node<ProductionNodeData>>
   const canEditNode = Boolean(
     data.onNodeEdit && WRITABLE_NODE_IDS.includes(data.node.id),
   );
+  const canOpenJson = Boolean(
+    data.onNodeJson && (data.node.id === "storyboardTable" || data.node.id === "storyboard"),
+  );
   const useCompactHeader = COMPACT_HEADER_NODE_IDS.includes(data.node.id);
   const titleMetrics = data.node.id === "script" ? data.node.metrics : [];
   const bodyMetrics =
@@ -101,6 +109,8 @@ export function ProductionFlowNode({ data }: NodeProps<Node<ProductionNodeData>>
         ? "处理中"
         : "待处理";
   const showPreviewChrome = !UNFRAMED_PREVIEW_NODE_IDS.includes(data.node.id);
+  const isStageEntryBlocked = (data.node.id === "remotionProduction" || data.node.id === "workbench")
+    && !data.node.remotionSummary?.chapterReady;
   const previewContent =
     data.node.previewKind === "table" ? (
       <StoryboardTablePreview node={data.node} />
@@ -116,6 +126,8 @@ export function ProductionFlowNode({ data }: NodeProps<Node<ProductionNodeData>>
       />
     ) : data.node.previewKind === "workbench-lanes" ? (
       <WorkbenchLanePreview node={data.node} />
+    ) : data.node.previewKind === "remotion-shots" ? (
+      <RemotionShotPreview node={data.node} />
     ) : (
       <TextPreview node={data.node} />
     );
@@ -191,6 +203,19 @@ export function ProductionFlowNode({ data }: NodeProps<Node<ProductionNodeData>>
           </span>
         </div>
         <div className="nodrag nopan flex shrink-0 items-center gap-2">
+          {canOpenJson ? (
+            <button
+              type="button"
+              className="inline-flex h-7 items-center gap-1.5 rounded-md border border-sky-300/30 bg-sky-300/10 px-2 text-[11px] font-medium text-sky-100 hover:border-sky-200/60 hover:bg-sky-300/18"
+              onClick={(event) => {
+                event.stopPropagation();
+                data.onNodeJson?.(data.node.id);
+              }}
+            >
+              {data.node.id === "storyboard" ? "Remotion JSON" : "JSON"}
+              <Braces className="h-3 w-3" />
+            </button>
+          ) : null}
           {showStatusChip ? (
             <span
               className={cn(
@@ -218,6 +243,7 @@ export function ProductionFlowNode({ data }: NodeProps<Node<ProductionNodeData>>
           ) : null}
           <button
             type="button"
+            disabled={isStageEntryBlocked}
             className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border bg-muted/35 px-2 text-[11px] font-medium text-card-foreground hover:border-sky-300/45 hover:bg-sky-300/12"
             onClick={(event) => {
               event.stopPropagation();

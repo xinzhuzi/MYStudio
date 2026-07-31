@@ -10,10 +10,12 @@
 
 import { useState, useCallback } from "react";
 import { useProjectStore } from "@/stores/project/project-store";
+import { useStudioStore } from "@/stores/studio/studio-store";
 import { useMediaPanelStore } from "@/stores/navigation/media-panel-store";
 import { switchProject } from "@/lib/project/project-switcher";
 import {
   DEFAULT_REMOTION_RENDER_SETTINGS,
+  buildRemotionProductionProfile,
   ensureRemotionWorkspace,
 } from "@/lib/studio/remotion/remotion-workspace-storage";
 import { getFileStorageBridge } from "@/lib/bridge/file-storage";
@@ -72,12 +74,15 @@ async function initializeRemotionWorkspace(projectId: string): Promise<void> {
   if (!bridge?.workspaceRuntime) return;
   try {
     const runtime = await bridge.workspaceRuntime();
+    const productionProfile = buildRemotionProductionProfile(
+      useStudioStore.getState().workflowConfig,
+    );
     const result = await ensureRemotionWorkspace(projectId, {
       templateVersion: runtime.templateVersion,
       remotionVersion: runtime.remotionVersion,
       bundleContentHash: runtime.bundleContentHash,
       defaultRenderSettings: DEFAULT_REMOTION_RENDER_SETTINGS,
-    });
+    }, { productionProfile });
     if (result.status === "blocked") {
       toast.error("Remotion 工作区初始化被阻止", { description: result.message });
     }

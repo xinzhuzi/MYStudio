@@ -55,10 +55,15 @@ project-file-save-image
 project-file-write-binary
 project-file-write-text
 read-image-base64
+remotion-chapter-audio-import
+remotion-chapter-audio-probe
+remotion-chapter-manifest-read
+remotion-chapter-manifest-write
 remotion-preview-create
 remotion-preview-release
 remotion-runtime-download
 remotion-runtime-status
+remotion-shot-audio-write-generated
 remotion-studio-ensure-session
 save-file-dialog
 save-image
@@ -118,11 +123,16 @@ tts-runtime-stop
 `.trim().split("\n");
 
 const NAMED_IPC_CHANNELS = {
+  REMOTION_CHAPTER_AUDIO_IMPORT_CHANNEL: "remotion-chapter-audio-import",
+  REMOTION_CHAPTER_AUDIO_PROBE_CHANNEL: "remotion-chapter-audio-probe",
+  REMOTION_CHAPTER_MANIFEST_READ_CHANNEL: "remotion-chapter-manifest-read",
+  REMOTION_CHAPTER_MANIFEST_WRITE_CHANNEL: "remotion-chapter-manifest-write",
   REMOTION_PREVIEW_CREATE_CHANNEL: "remotion-preview-create",
   REMOTION_PREVIEW_RELEASE_CHANNEL: "remotion-preview-release",
   REMOTION_RUNTIME_DOWNLOAD_CHANNEL: "remotion-runtime-download",
   REMOTION_RUNTIME_STATUS_CHANNEL: "remotion-runtime-status",
   REMOTION_STUDIO_ENSURE_SESSION_CHANNEL: "remotion-studio-ensure-session",
+  REMOTION_SHOT_AUDIO_WRITE_GENERATED_CHANNEL: "remotion-shot-audio-write-generated",
   "SELF_MEDIA_IPC.cancelTask": "self-media:cancel-task",
   "SELF_MEDIA_IPC.configureProvider": "self-media:configure-provider",
   "SELF_MEDIA_IPC.createTask": "self-media:create-task",

@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { StoryboardItem } from "@/types/studio";
 import { buildRemotionShotPlans } from "./remotion-shot-plan-builder";
+import { makeShotAudioBindingV2 } from "./remotion-workspace-test-fixtures";
 
 const HASH_A = "a".repeat(64);
-const HASH_B = "b".repeat(64);
 
 function storyboard(index: number, chapterId = "chapter-001"): StoryboardItem {
   return {
@@ -17,7 +17,6 @@ function storyboard(index: number, chapterId = "chapter-001"): StoryboardItem {
     videoDesc: "静态镜头",
     assetIds: [],
     mediaRef: { kind: "image", path: `project-file://project-a/shots/${index}.png`, contentSha256: HASH_A },
-    audioRef: { kind: "audio", path: `project-file://project-a/audio/${index}.wav`, contentSha256: HASH_B },
     state: "ready",
     lines: "",
   };
@@ -185,5 +184,73 @@ describe("buildRemotionShotPlans", () => {
     });
     expect(many.success).toBe(true);
     if (many.success) expect(many.plans).toHaveLength(3);
+  });
+
+  it("projects canonical voice timing and extends the shot by the voice tail", async () => {
+    const item = storyboard(0);
+    item.duration = 1;
+    item.lines = "逐镜对白";
+    const voice = await makeShotAudioBindingV2({
+      shotId: item.id,
+      durationUs: 1_500_000,
+      sourceStartUs: 0,
+      sourceDurationUs: 1_500_000,
+      volume: 0.8,
+      fadeInUs: 100_000,
+      fadeOutUs: 200_000,
+      envelope: [
+        { timeUs: 0, gain: 0.5 },
+        { timeUs: 1_500_000, gain: 1 },
+      ],
+    });
+    item.shotAudioBindings = [voice];
+    item.audioRef = {
+      kind: "audio",
+      path: `project-file://project-a/${voice.source.relativePath}`,
+      contentSha256: voice.source.contentSha256,
+    };
+    item.ttsJob = {
+      schemaVersion: 1,
+      projectId: "project-a",
+      chapterId: "chapter-001",
+      shotId: item.id,
+      shotRevision: 1,
+      inputFingerprint: voice.ttsInputFingerprint!,
+      status: "completed",
+      attempt: 1,
+      createdAt: 100,
+      updatedAt: 200,
+    };
+
+    const result = await buildRemotionShotPlans({
+      projectId: "project-a",
+      chapterId: "chapter-001",
+      chapterRevision: 1,
+      renderSettings: {
+        width: 1080,
+        height: 1920,
+        fps: 30,
+        codec: "h264",
+        subtitleMode: "burn-in",
+        loudnessLufs: -14,
+        truePeakDbtp: -1.5,
+      },
+      storyboards: [item],
+      continuityPolicy: "skip",
+    });
+
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.plans[0]?.shot.durationUs).toBe(1_900_000);
+    expect(result.plans[0]?.shot.audioBindings).toMatchObject([{
+      role: "voice",
+      volume: 0.8,
+      fadeInUs: 100_000,
+      fadeOutUs: 200_000,
+      envelope: [
+        { timeUs: 0, gain: 0.5 },
+        { timeUs: 1_500_000, gain: 1 },
+      ],
+    }]);
   });
 });

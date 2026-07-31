@@ -638,6 +638,19 @@ describe("desktop build scripts", () => {
     expect(smokeScript).toContain("storyboardStage");
     expect(smokeScript).toContain("nodeCardTexts");
     expect(smokeScript).toContain("requiredNodePreviewText");
+    const nodePreviewContractStart = smokeScript.indexOf(
+      "const requiredNodePreviewText",
+    );
+    const nodePreviewContractEnd = smokeScript.indexOf(
+      "const bodyText",
+      nodePreviewContractStart,
+    );
+    const nodePreviewContract = smokeScript.slice(
+      nodePreviewContractStart,
+      nodePreviewContractEnd,
+    );
+    expect(nodePreviewContract).toContain("['ChapterVideo', '章节 MP4']");
+    expect(nodePreviewContract).not.toContain("mystudio-smoke-final.mp4");
     expect(smokeScript).toContain("hasNodeFlowDataPreview");
     expect(smokeScript).toContain("hasDirectorPlanPreview");
     expect(smokeScript).toContain("hasToonflowDerivativeLinks");

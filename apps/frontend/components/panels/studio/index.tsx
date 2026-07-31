@@ -113,6 +113,7 @@ export function StudioView() {
                 nodes={viewModel.productionFlowNodes}
                 onStageChange={viewModel.handleStageChange}
                 onNodeEdit={viewModel.openNodeEditor}
+                onNodeJson={viewModel.openNodeJson}
                 onNodeAction={viewModel.handleProductionNodeAction}
                 onOpenAssetImageWorkflow={viewModel.openAssetImageWorkflow}
                 chapterAutoVideoStatus={viewModel.chapterAutoVideoStatus}
@@ -140,7 +141,8 @@ export function StudioView() {
                 episodeId={viewModel.productionEpisodeId}
                 directorPlan={viewModel.directorPlan}
                 aspectRatio={viewModel.aspectRatio}
-                storyboards={viewModel.storyboards}
+                storyboards={viewModel.chapterStoryboards}
+                remotionShotSlots={viewModel.remotionShotSlots ?? []}
               />
             </TabsContent>
           </div>
@@ -151,6 +153,8 @@ export function StudioView() {
         title={viewModel.workflowNodeEditTitle}
         value={viewModel.workflowNodeDraft}
         writable={viewModel.workflowNodeEditWritable}
+        jsonMode={viewModel.workflowNodeEditJson}
+        readOnlyJson={viewModel.workflowNodeEditReadOnlyJson}
         onValueChange={viewModel.setWorkflowNodeDraft}
         onClose={viewModel.closeNodeEditor}
         onSave={viewModel.saveWorkflowNodeEdit}

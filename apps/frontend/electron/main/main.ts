@@ -53,11 +53,12 @@ import { registerAppShellIpcHandlers } from '../ipc/app/app-shell-ipc'
 import { registerApiRequestIpcHandlers } from '../ipc/ai/api-request-ipc'
 import { registerFileExportIpcHandlers } from '../ipc/files/file-export-ipc'
 import { registerAssetLibraryIpcHandlers } from '../ipc/assets/asset-library-ipc'
-import { registerStudioRenderIpcHandlers } from '../ipc/studio/studio-render-ipc'
+import { probeStudioMediaEvidence, registerStudioRenderIpcHandlers } from '../ipc/studio/studio-render-ipc'
 import { registerRemotionRuntimeIpcHandlers } from '../ipc/studio/remotion-runtime-ipc'
 import { registerRemotionPreviewIpcHandlers } from '../ipc/studio/remotion-preview-ipc'
 import { registerRemotionShotIpcHandlers } from '../ipc/studio/remotion-shot-ipc'
 import { registerRemotionQueueIpcHandlers } from '../ipc/studio/remotion-queue-ipc'
+import { registerRemotionChapterManifestIpcHandlers } from '../ipc/studio/remotion-chapter-manifest-ipc'
 import { registerRemotionStudioIpcHandlers, REMOTION_STUDIO_EDITING_UPDATED_EVENT } from '../ipc/studio/remotion-studio-ipc'
 import { RemotionShotRenderer } from '@rendering/plugins/remotion/renderer/remotion-shot-renderer'
 import { RemotionChapterRenderer } from '@rendering/plugins/remotion/renderer/remotion-chapter-renderer'
@@ -66,6 +67,7 @@ import {
   RemotionRenderQueue,
 } from '@rendering/plugins/remotion/queue/remotion-render-queue'
 import { resolveRemotionRuntimeDir } from '@rendering/plugins/remotion/browser/remotion-runtime-manifest'
+import { RemotionChapterManifestService } from '@rendering/plugins/remotion/manifest/remotion-chapter-manifest-service'
 import { createStorageManager } from '../storage/storage-manager'
 import { resolveDataFilePath } from '../storage/storage-paths'
 import { validateEditingProject } from '../../lib/studio/editing/validation'
@@ -606,6 +608,17 @@ const remotionRuntime = registerRemotionRuntimeIpcHandlers({
 const remotionPreview = registerRemotionPreviewIpcHandlers({
   resolveSourcePath: resolveStudioSourcePath,
 })
+const remotionChapterManifestService = new RemotionChapterManifestService({
+  projectRootForProject: (projectId) => path.join(getDataDir(), '_p', projectId),
+  probeMedia: async (filePath) => {
+    const evidence = await probeStudioMediaEvidence(filePath)
+    return {
+      durationUs: Math.round(evidence.duration * 1_000_000),
+      streams: evidence.streams,
+    }
+  },
+})
+const remotionChapterManifestIpc = registerRemotionChapterManifestIpcHandlers(remotionChapterManifestService)
 const remotionRuntimeDir = resolveRemotionRuntimeDir(remotionUserDataDir)
 const remotionBinariesDirectory = app.isPackaged
   ? path.join(process.resourcesPath, 'app.asar.unpacked', 'node_modules/@remotion/compositor-darwin-arm64')
@@ -613,6 +626,7 @@ const remotionBinariesDirectory = app.isPackaged
 const remotionShotRenderer = new RemotionShotRenderer({
   workspaceRoot: getDataDir(),
   workspaceRootForProject: (projectId) => path.join(getDataDir(), "_p", projectId, "remotion"),
+  projectRootForProject: (projectId) => path.join(getDataDir(), "_p", projectId),
   bundlePath: remotionBundlePath,
   workerPath: path.join(MAIN_DIST, 'remotion-render-worker.cjs'),
   cwd: remotionRuntimeDir,
@@ -649,7 +663,9 @@ const remotionQueue = new RemotionRenderQueue({
     },
   },
 })
-const remotionQueueIpc = registerRemotionQueueIpcHandlers(remotionQueue)
+const remotionQueueIpc = registerRemotionQueueIpcHandlers(remotionQueue, {
+  getCurrentShotSlots: readRemotionCurrentShotSlots,
+})
 let hostedStudioChapterContext: RemotionStudioChapterRenderContext | null = null
 const nativeStudioQueueBridge = new RemotionStudioRenderQueueBridge({
   getContext: () => hostedStudioChapterContext ?? undefined,
@@ -815,6 +831,34 @@ async function readEditingProjectSnapshot(request: { projectId: string; chapterI
   }
 }
 
+/**
+ * Project/chapter-scoped projection for the renderer.  A succeeded queue job
+ * is not enough to unlock Studio: the current MP4, job and evidence must be
+ * re-read from the target-derived current slot and agree on their identity.
+ */
+async function readRemotionCurrentShotSlots(scope: { projectId: string; chapterId: string }): Promise<RemotionCurrentSlotV1[]> {
+  const workspaceRoot = path.join(getDataDir(), '_p', scope.projectId, 'remotion')
+  const jobs = remotionQueue.getJobs(scope).filter((job) =>
+    job.status === 'succeeded'
+      && job.target.kind === 'shot'
+      && job.target.chapterId === scope.chapterId,
+  )
+  const slots = await Promise.all(jobs.map(async (job) => {
+    if (job.target.kind !== 'shot') return undefined
+    const result = await readRemotionCurrentShotSlot(workspaceRoot, scope.projectId, job.target)
+    if (!result.success) return undefined
+    const slot = result.value
+    if (slot.job.jobId !== job.jobId
+      || slot.job.inputHash !== job.inputHash
+      || slot.job.bundleContentHash !== job.bundleContentHash
+      || slot.job.renderSettingsHash !== job.renderSettingsHash) {
+      return undefined
+    }
+    return slot
+  }))
+  return slots.filter((slot): slot is RemotionCurrentSlotV1 => Boolean(slot))
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
@@ -946,6 +990,7 @@ disposeRemotionRuntime = async () => {
   if (hostedStudioIdentity) await closeHostedStudioSession(hostedStudioIdentity.projectId)
   else await hostedStudioMedia.close()
   remotionQueueIpc.dispose()
+  remotionChapterManifestIpc.dispose()
   await remotionPreview.dispose()
   await remotionShotIpc.dispose()
   await remotionChapterRenderer.dispose()

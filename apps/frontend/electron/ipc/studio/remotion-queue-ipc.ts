@@ -13,6 +13,7 @@ import {
   type RemotionQueueScopeRequest,
   type RemotionQueueSwitchRequest,
 } from "@rendering/plugins/remotion/queue/remotion-queue-ipc";
+import type { RemotionCurrentSlotV1 } from "@/types/remotion-workspace";
 import { RemotionRenderQueue, type RemotionQueueNotification } from "@rendering/plugins/remotion/queue/remotion-render-queue";
 
 export {
@@ -25,15 +26,27 @@ export {
   REMOTION_QUEUE_CHECK_SWITCH_CHANNEL,
 } from "@rendering/plugins/remotion/queue/remotion-queue-ipc";
 
-export function registerRemotionQueueIpcHandlers(queue: RemotionRenderQueue): { dispose: () => void } {
+export interface RemotionQueueIpcOptions {
+  getCurrentShotSlots?: (scope: RemotionQueueScopeRequest) => Promise<RemotionCurrentSlotV1[]>;
+}
+
+export function registerRemotionQueueIpcHandlers(
+  queue: RemotionRenderQueue,
+  options: RemotionQueueIpcOptions = {},
+): { dispose: () => void } {
   const unsubscribe = queue.subscribe((notification) => broadcast(notification));
   ipcMain.handle(REMOTION_QUEUE_GET_CHANNEL, async (_event, payload: unknown): Promise<RemotionQueueScopeReply> => {
     const request = parseScope(payload);
     await queue.init();
+    const jobs = queue.getJobs(request);
+    const currentShotSlots = options.getCurrentShotSlots
+      ? await options.getCurrentShotSlots(request)
+      : [];
     return {
       projectId: request.projectId,
       chapterId: request.chapterId,
-      jobs: queue.getJobs(request),
+      jobs,
+      currentShotSlots,
     };
   });
   ipcMain.handle(REMOTION_QUEUE_ENQUEUE_SHOT_CHANNEL, async (_event, payload: unknown) => {

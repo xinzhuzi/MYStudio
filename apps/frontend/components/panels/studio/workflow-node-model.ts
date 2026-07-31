@@ -11,6 +11,11 @@ import type {
 import type { StudioAssetSummary } from "@/types/studio-assets";
 import type { TimelineRendererId } from "@rendering/contracts/timeline-renderer";
 import type { RemotionBrowserState } from "@rendering/contracts/remotion-browser-status";
+import type {
+  RemotionCurrentSlotV1,
+  RemotionRenderJobV1,
+  RemotionStageStatus,
+} from "@/types/remotion-workspace";
 import {
   buildStudioFlowData,
 } from "@/lib/studio/studio-flow-data";
@@ -65,6 +70,7 @@ export const PRODUCTION_FLOW_NODE_IDS = [
   "assets",
   "storyboardTable",
   "storyboard",
+  "remotionProduction",
   "workbench",
 ] as const;
 
@@ -95,12 +101,15 @@ export interface ProductionFlowNodeModel {
     | "table"
     | "storyboard-grid"
     | "asset-derivation"
+    | "remotion-shots"
     | "workbench-lanes";
   tableRows?: ProductionFlowTableRow[];
   storyboardTiles?: ProductionFlowStoryboardTile[];
   assetGroups?: ProductionFlowAssetGroup[];
   assetSummary?: ProductionFlowAssetSummary;
   workbenchTracks?: ProductionFlowWorkbenchTrack[];
+  remotionShots?: ProductionFlowRemotionShot[];
+  remotionSummary?: ProductionFlowRemotionSummary;
   finalExportPath?: string;
   rendererSummary?: ProductionFlowRendererSummary;
   skills?: ProductionFlowNodeSkill[];
@@ -119,11 +128,40 @@ export interface ProductionFlowRendererSummary {
   runtimeStatus?: RemotionBrowserState;
 }
 
+export interface ProductionFlowRemotionShot {
+  shotId: string;
+  index: number;
+  title: string;
+  mediaPath?: string;
+  jobId?: string;
+  status: RemotionStageStatus;
+  progress: number;
+  outputPath?: string;
+  evidencePath?: string;
+  error?: string;
+  revision?: number;
+}
+
+export interface ProductionFlowRemotionSummary {
+  total: number;
+  succeeded: number;
+  running: number;
+  queued: number;
+  failed: number;
+  blocked: number;
+  stale: number;
+  pending: number;
+  chapterReady: boolean;
+  loading?: boolean;
+  error?: string;
+}
+
 export interface ProductionFlowNodeAction {
   id:
     | "generate-director-plan"
     | "rebuild-workbench-tracks"
-    | "generate-storyboard-table";
+    | "generate-storyboard-table"
+    | "enqueue-remotion-shots";
   label: string;
   targetStage: ProductionFlowStage;
   disabled?: boolean;
@@ -177,7 +215,8 @@ export const PRODUCTION_FLOW_EDGES = [
   ["script", "assets"],
   ["scriptPlan", "storyboardTable"],
   ["storyboardTable", "storyboard"],
-  ["storyboard", "workbench"],
+  ["storyboard", "remotionProduction"],
+  ["remotionProduction", "workbench"],
 ] as const satisfies readonly (readonly [
   ProductionFlowNodeId,
   ProductionFlowNodeId,
@@ -187,12 +226,23 @@ export const PRODUCTION_FLOW_EDGES = [
 export interface ProductionFlowModel {
   nodes: ProductionFlowNodeModel[];
   edges: typeof PRODUCTION_FLOW_EDGES;
+  remotionShotSlots?: RemotionCurrentSlotV1[];
 }
 
 export function buildProductionFlowModel(
   input: ProductionFlowModelInput & { rendererSummary?: ProductionFlowRendererSummary },
 ): ProductionFlowModel {
-  const flowData = buildStudioFlowData(input);
+  const chapterStoryboards = input.episodeId
+    ? input.storyboards.filter((storyboard) => storyboard.episodeId === input.episodeId)
+    : input.storyboards;
+  const remotionShotSlots = (input.remotionCurrentShotSlots ?? []).filter(
+    (slot) => slot.target.kind === "shot"
+      && (!input.episodeId || slot.target.chapterId === input.episodeId),
+  );
+  const flowData = buildStudioFlowData({
+    ...input,
+    storyboards: chapterStoryboards,
+  });
   const directorPlanSkill = buildNodeSkill("production_execution_director_plan");
   const directorPlanSkills = buildDirectorPlanSkills(
     input.workflowConfig,
@@ -253,10 +303,9 @@ export function buildProductionFlowModel(
   const visualStoryboardCount = flowData.storyboard.filter(
     (item) => item.mediaPath,
   ).length;
-  const readyCandidateCount = input.videoCandidates.filter(
-    (item) => item.state === "ready" && item.filePath,
-  ).length;
-  const finalExportReady = Boolean(flowData.workbench.finalExportPath);
+  const rendererSummary = normalizeRemotionRendererSummary(input.rendererSummary);
+  const remotionFinalExportReady = rendererSummary.actual === "remotion"
+    && Boolean(rendererSummary.outputPath);
   const storyboardPreview = flowData.storyboard.slice(0, 4).map((item) =>
     [
       `#${item.id}`,
@@ -264,7 +313,7 @@ export function buildProductionFlowModel(
       item.videoDesc || item.prompt || item.lines || "未填写分镜内容",
     ].join(" · "),
   );
-  const storyboardTiles = input.storyboards
+  const storyboardTiles = chapterStoryboards
     .slice()
     .sort((a, b) => a.index - b.index)
     .map<ProductionFlowStoryboardTile>((item) => ({
@@ -281,32 +330,6 @@ export function buildProductionFlowModel(
       imageWorkflowNodeId: item.imageWorkflowNodeId ?? item.mediaRef?.imageWorkflowNodeId,
       shouldGenerateImage: item.shouldGenerateImage,
     }));
-  const workbenchPreview = flowData.workbench.tracks.slice(0, 4).map((track) =>
-    [
-      track.id,
-      `${track.duration}s`,
-      track.state,
-      `${track.medias.length} medias`,
-      `${track.videoList.length} videos`,
-    ].join(" · "),
-  );
-  const workbenchPreviewLines = [
-    ...(input.rendererSummary?.actual
-      ? [
-          `最后渲染 · ${formatRendererLabel(input.rendererSummary.lastRequested ?? input.rendererSummary.requested)} → ${formatRendererLabel(input.rendererSummary.actual)}`,
-          ...(input.rendererSummary.fallbackEffectIds?.length
-            ? [`回退效果 · ${input.rendererSummary.fallbackEffectIds.join("、")}`]
-            : []),
-          ...(input.rendererSummary.outputPath
-            ? [`时间线成片 · ${input.rendererSummary.outputPath}`]
-            : []),
-        ]
-      : ["尚未验证成片"]),
-    ...workbenchPreview,
-    ...(flowData.workbench.finalExportPath
-      ? [`成片 · ${flowData.workbench.finalExportPath}`]
-      : []),
-  ];
   const workbenchTracks = flowData.workbench.tracks
     .slice(0, 8)
     .map<ProductionFlowWorkbenchTrack>((track) => ({
@@ -320,6 +343,62 @@ export function buildProductionFlowModel(
       prompt: track.prompt,
       reason: track.reason,
     }));
+  const remotionJobs = input.remotionQueueJobs ?? [];
+  const shotJobs = new Map(
+    remotionJobs
+      .filter((job): job is RemotionRenderJobV1 & { target: { kind: "shot" } } => job.target.kind === "shot")
+      .map((job) => [job.target.shotId, job]),
+  );
+  const currentSlotByShotId = new Map(
+    remotionShotSlots.map((slot) => [slot.target.kind === "shot" ? slot.target.shotId : "", slot] as const),
+  );
+  const remotionShots = chapterStoryboards
+    .slice()
+    .sort((a, b) => a.index - b.index)
+    .map<ProductionFlowRemotionShot>((storyboard) => {
+      const job = shotJobs.get(storyboard.id);
+      const currentSlot = job && job.status === "succeeded"
+        ? currentSlotByShotId.get(storyboard.id)
+        : undefined;
+      const currentSlotMatchesJob = Boolean(
+        currentSlot
+          && job
+          && currentSlot.job.jobId === job.jobId
+          && currentSlot.job.inputHash === job.inputHash
+          && currentSlot.job.bundleContentHash === job.bundleContentHash
+          && currentSlot.job.renderSettingsHash === job.renderSettingsHash,
+      );
+      const status: RemotionStageStatus = job?.status === "succeeded" && !currentSlotMatchesJob
+        ? "blocked"
+        : job?.status ?? "pending";
+      const mediaPath = storyboard.mediaRef?.kind === "image" || storyboard.mediaRef?.kind === "video"
+        ? storyboard.mediaRef.path
+        : undefined;
+      return {
+        shotId: storyboard.id,
+        index: storyboard.index,
+        title: storyboard.videoDesc || storyboard.prompt || `分镜 ${storyboard.index}`,
+        mediaPath,
+        ...(job ? {
+          jobId: job.jobId,
+          status,
+          progress: job.progress,
+          outputPath: currentSlotMatchesJob ? currentSlot?.outputPath : undefined,
+          evidencePath: currentSlotMatchesJob ? currentSlot?.evidencePath : undefined,
+          error: job.error?.message ?? (status === "blocked" ? "队列 job 成功但 current slot 尚未验证" : undefined),
+          revision: job.target.shotRevision,
+        } : {
+          status: "pending" as const,
+          progress: 0,
+          revision: Math.max(1, storyboard.outputVersion ?? 1),
+        }),
+      };
+    });
+  const remotionSummary = summarizeRemotionShots(
+    remotionShots,
+    input.remotionQueueLoading,
+    input.remotionQueueError,
+  );
   return {
     nodes: [
       {
@@ -404,10 +483,10 @@ export function buildProductionFlowModel(
         id: "storyboard",
         label: "分镜面板",
         description: "分镜图、台词、配音与视频节点绑定。",
-        status: input.storyboards.length > 0 ? "ready" : "empty",
-        metrics: input.storyboards.length
+        status: chapterStoryboards.length > 0 ? "ready" : "empty",
+        metrics: chapterStoryboards.length
           ? [
-              `${input.storyboards.length} 个分镜`,
+              `${chapterStoryboards.length} 个分镜`,
               `${visualStoryboardCount} 个画面`,
             ]
           : ["待生成分镜"],
@@ -418,59 +497,141 @@ export function buildProductionFlowModel(
         previewKind: "storyboard-grid",
         storyboardTiles,
         skills: storyboardSkills,
-        actions: [
-          {
-            id: "rebuild-workbench-tracks",
-            label: "重建视频轨道",
-            targetStage: "workbench",
-            disabled: input.storyboards.length === 0,
-          },
-        ],
+        actions: [],
         targetStage: "storyboard",
       },
       {
+        id: "remotionProduction",
+        label: "Remotion 视频生产",
+        description: "将当前章节的每个分镜分别生成 StoryboardShot MP4；全部通过后才能进入章节工作台。",
+        status: remotionSummary.failed || remotionSummary.blocked
+          ? "warning"
+          : remotionSummary.running || remotionSummary.queued
+            ? "pending"
+            : remotionSummary.chapterReady
+              ? "ready"
+              : "empty",
+        metrics: [
+          "Remotion renderer",
+          `${remotionSummary.succeeded}/${remotionSummary.total} 个分镜 MP4`,
+          ...(remotionSummary.running ? [`渲染中 ${remotionSummary.running}`] : []),
+          ...(remotionSummary.failed ? [`失败 ${remotionSummary.failed}`] : []),
+          ...(remotionSummary.blocked ? [`阻塞 ${remotionSummary.blocked}`] : []),
+        ],
+        previewTitle: "逐镜 Remotion 队列",
+        previewLines: remotionShots.length
+          ? remotionShots.slice(0, 6).map((shot) => `${String(shot.index).padStart(2, "0")} · ${shot.status} · ${Math.round(shot.progress * 100)}% · ${shot.title}`)
+          : ["等待分镜面板提供当前章节的分镜"],
+        previewKind: "remotion-shots",
+        remotionShots,
+        remotionSummary,
+        actions: [
+          {
+            id: "enqueue-remotion-shots",
+            label: remotionSummary.chapterReady
+              ? "分镜视频已完成"
+              : remotionSummary.running || remotionSummary.queued
+                ? "Remotion 生产中"
+                : "生成当前章分镜视频",
+            targetStage: "workbench",
+            disabled: chapterStoryboards.length === 0 || remotionSummary.chapterReady || Boolean(remotionSummary.running || remotionSummary.queued),
+            showPromptInput: false,
+          },
+        ],
+        targetStage: "workbench",
+      },
+      {
         id: "workbench",
-        label: "视频工作台",
-        description: "候选片段、剪辑合成和最终导出。",
-        status: finalExportReady
+        label: "Remotion 视频工作台",
+        description: "加载当前章节的原生 Remotion Studio，进行时间线预览、剪辑和章节导出。",
+        status: remotionSummary.chapterReady || remotionFinalExportReady
           ? "ready"
-          : readyCandidateCount > 0
+          : remotionSummary.succeeded > 0
             ? "pending"
             : "empty",
-        metrics: input.productionTracks.length
-          ? [
-              `请求渲染器 ${formatRendererLabel(input.rendererSummary?.requested ?? "ffmpeg")}`,
-              ...(input.rendererSummary?.actual
-                ? [`${formatRendererLabel(input.rendererSummary.lastRequested ?? input.rendererSummary.requested)} → ${formatRendererLabel(input.rendererSummary.actual)}`]
-                : ["尚未验证成片"]),
-              `${input.productionTracks.length} 条轨道`,
-              `${readyCandidateCount} 个候选`,
-              finalExportReady ? "已导出成片" : "待导出成片",
-            ]
-          : [
-              `请求渲染器 ${formatRendererLabel(input.rendererSummary?.requested ?? "ffmpeg")}`,
-              ...(input.rendererSummary?.actual
-                ? [`${formatRendererLabel(input.rendererSummary.lastRequested ?? input.rendererSummary.requested)} → ${formatRendererLabel(input.rendererSummary.actual)}`]
-                : ["尚未验证成片"]),
-              "待重建轨道",
-            ],
-        previewTitle: "视频工作台",
-        previewLines: workbenchPreviewLines.length
-          ? workbenchPreviewLines
-          : ["暂无 track、候选视频和导出成片"],
+        metrics: [
+          "原生 Remotion Studio",
+          `${remotionSummary.succeeded}/${remotionSummary.total} 个分镜已就绪`,
+          rendererSummary.actual
+            ? `${formatRendererLabel(rendererSummary.lastRequested ?? rendererSummary.requested)} → ${formatRendererLabel(rendererSummary.actual)}`
+            : "章节成片待渲染",
+          remotionFinalExportReady ? "已导出章节成片" : "等待 ChapterVideo",
+        ],
+        previewTitle: "原生 Remotion Studio",
+        previewLines: [
+          `章节工作台 · ${remotionSummary.chapterReady ? "可进入" : "等待全部分镜成功"}`,
+          `${remotionSummary.succeeded}/${remotionSummary.total} StoryboardShot MP4 已就绪`,
+          "Studio Timeline / Preview / Inspector / Render",
+          ...(rendererSummary.outputPath ? [`ChapterVideo · ${rendererSummary.outputPath}`] : []),
+        ],
         previewKind: "workbench-lanes",
         workbenchTracks,
         finalExportPath: flowData.workbench.finalExportPath,
-        rendererSummary: input.rendererSummary ?? { requested: "ffmpeg" },
+        rendererSummary,
+        remotionSummary,
         targetStage: "workbench",
       },
     ],
     edges: PRODUCTION_FLOW_EDGES,
+    remotionShotSlots,
+  };
+}
+
+function summarizeRemotionShots(
+  shots: ProductionFlowRemotionShot[],
+  loading = false,
+  error?: string,
+): ProductionFlowRemotionSummary {
+  const counts = shots.reduce<Record<RemotionStageStatus, number>>((result, shot) => {
+    result[shot.status] = (result[shot.status] ?? 0) + 1;
+    return result;
+  }, {
+    pending: 0,
+    blocked: 0,
+    ready: 0,
+    queued: 0,
+    running: 0,
+    succeeded: 0,
+    failed: 0,
+    canceled: 0,
+    stale: 0,
+  });
+  return {
+    total: shots.length,
+    succeeded: counts.succeeded,
+    running: counts.running,
+    queued: counts.queued,
+    failed: counts.failed + counts.canceled,
+    blocked: counts.blocked,
+    stale: counts.stale,
+    pending: counts.pending + counts.ready,
+    chapterReady: shots.length > 0 && shots.every((shot) => shot.status === "succeeded" && Boolean(shot.outputPath && shot.evidencePath)),
+    ...(loading ? { loading: true } : {}),
+    ...(error ? { error } : {}),
   };
 }
 
 export function formatRendererLabel(renderer: TimelineRendererId) {
   return renderer === "remotion" ? "Remotion" : "FFmpeg";
+}
+
+export function normalizeRemotionRendererSummary(
+  summary?: ProductionFlowRendererSummary,
+): ProductionFlowRendererSummary {
+  const evidenceRequested = summary?.lastRequested ?? summary?.requested;
+  if (evidenceRequested !== "remotion" || summary?.actual !== "remotion") {
+    return {
+      requested: "remotion",
+      ...(summary?.runtimeStatus ? { runtimeStatus: summary.runtimeStatus } : {}),
+    };
+  }
+  const { fallbackEffectIds: _ignoredFallbackEffectIds, ...accepted } = summary;
+  return {
+    ...accepted,
+    requested: "remotion",
+    lastRequested: "remotion",
+    actual: "remotion",
+  };
 }
 
 function buildNodeSkill(id: string): ProductionFlowNodeSkill | undefined {

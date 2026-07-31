@@ -148,19 +148,51 @@ export async function findBackendProfileByName(name: string): Promise<VoiceProfi
   return profiles.find((p) => p.name === name);
 }
 
-export function generateSpeech(payload: TtsGenerateRequest): Promise<TtsGenerateResponse> {
-  return request<TtsGenerateResponse>("POST", "/generate", {
+export async function generateSpeech(payload: TtsGenerateRequest): Promise<TtsGenerateResponse> {
+  const response = await request<TtsGenerateResponse & Record<string, unknown>>("POST", "/generate", {
     text: payload.text,
     profile_id: payload.profileId,
     engine: payload.engine,
     model_size: payload.modelSize,
     language: payload.language,
     seed: payload.seed,
+    project_id: payload.projectId,
+    chapter_id: payload.chapterId,
+    shot_id: payload.shotId,
+    shot_revision: payload.shotRevision,
+    input_fingerprint: payload.inputFingerprint,
+    reference_audio_sha256: payload.referenceAudioSha256,
+    retry: payload.retry,
   });
+  return normalizeGenerationResponse(response);
 }
 
-export function getGenerationStatus(generationId: string): Promise<TtsGenerateResponse> {
-  return request<TtsGenerateResponse>("GET", `/generate/${encodeURIComponent(generationId)}/status`);
+export async function getGenerationStatus(generationId: string): Promise<TtsGenerateResponse> {
+  return normalizeGenerationResponse(
+    await request<TtsGenerateResponse & Record<string, unknown>>(
+      "GET",
+      `/generate/${encodeURIComponent(generationId)}/status`,
+    ),
+  );
+}
+
+function normalizeGenerationResponse(
+  value: TtsGenerateResponse & Record<string, unknown>,
+): TtsGenerateResponse {
+  return {
+    ...value,
+    audioPath: value.audioPath ?? stringField(value.audio_path),
+    errorCode: value.errorCode ?? stringField(value.error_code),
+    inputFingerprint: value.inputFingerprint ?? stringField(value.input_fingerprint),
+    retryable: value.retryable,
+    attempt: typeof value.attempt === "number" ? value.attempt : undefined,
+    reused: typeof value.reused === "boolean" ? value.reused : undefined,
+    resumed: typeof value.resumed === "boolean" ? value.resumed : undefined,
+  };
+}
+
+function stringField(value: unknown): string | undefined {
+  return typeof value === "string" && value ? value : undefined;
 }
 
 export async function getTtsBaseUrl() {

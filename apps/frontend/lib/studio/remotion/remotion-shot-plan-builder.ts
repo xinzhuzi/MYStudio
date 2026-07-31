@@ -8,8 +8,7 @@ import type {
 } from "@/types/editing";
 import type {
   ProjectMediaReference,
-  RemotionChapterManifestV1,
-  RemotionShotDefinitionV1,
+  RemotionShotDefinitionV2,
   RemotionShotHumanApprovalV1,
 } from "@/types/remotion-workspace";
 import { sha256CanonicalJson } from "./canonical-json";
@@ -25,7 +24,6 @@ export interface BuildRemotionShotPlansInput {
   chapterRevision: number;
   renderSettings: EditingRenderSettings;
   storyboards: StoryboardItem[];
-  sharedAudioTracks?: RemotionChapterManifestV1["sharedAudioTracks"];
   requireHumanApproval?: boolean;
   continuityPolicy?: "required" | "if-present" | "skip";
   assetVersions?: ContinuityAssetVersion[];
@@ -59,7 +57,7 @@ export async function buildRemotionShotPlans(
       state: storyboard.state,
       stale: storyboard.stale ?? false,
       ...(storyboard.mediaRef ? { media: storyboard.mediaRef } : {}),
-      ...(storyboard.audioRef ? { audio: storyboard.audioRef } : {}),
+      ...(storyboard.shotAudioBindings ? { shotAudioBindings: storyboard.shotAudioBindings } : {}),
       ...(storyboard.visualReview ? { visualReview: storyboard.visualReview } : {}),
       ...(storyboard.continuityState ? { continuity: storyboard.continuityState } : {}),
     })),
@@ -93,7 +91,6 @@ export async function buildRemotionShotPlans(
       renderSettings: input.renderSettings,
       shot,
       storyboard,
-      sharedAudioTracks: input.sharedAudioTracks,
       requireHumanApproval: input.requireHumanApproval,
       humanApproval,
       continuityPolicy: input.continuityPolicy,
@@ -133,7 +130,7 @@ function buildShotDefinition(
   projectId: string,
   storyboard: StoryboardItem,
   issues: ShotPlanIssue[],
-): RemotionShotDefinitionV1 | undefined {
+): RemotionShotDefinitionV2 | undefined {
   const visualSource = toProjectMediaReference(
     projectId,
     storyboard.mediaRef,
@@ -142,11 +139,27 @@ function buildShotDefinition(
     issues,
     "mediaRef",
   );
-  const audioSource = storyboard.audioRef
-    ? toProjectMediaReference(projectId, storyboard.audioRef, `${storyboard.id}:audio`, "generated", issues, "audioRef")
-    : undefined;
   if (!visualSource) return undefined;
-  const durationUs = Math.max(1, Math.round((storyboard.durationTarget ?? storyboard.duration) * 1_000_000));
+  const audioBindings = structuredClone(storyboard.shotAudioBindings ?? []);
+  const requestedDurationUs = Math.round(
+    (storyboard.durationTarget ?? storyboard.duration) * 1_000_000,
+  );
+  const audioEndUs = audioBindings.reduce(
+    (maximum, binding) => Math.max(maximum, binding.shotStartUs + binding.durationUs),
+    0,
+  );
+  const voiceEndUs = audioBindings
+    .filter((binding) => binding.role === "voice")
+    .reduce(
+      (maximum, binding) => Math.max(maximum, binding.shotStartUs + binding.durationUs),
+      0,
+    );
+  const durationUs = Math.max(
+    1,
+    requestedDurationUs,
+    audioEndUs,
+    voiceEndUs > 0 ? voiceEndUs + 400_000 : 0,
+  );
   if (!Number.isSafeInteger(durationUs) || durationUs <= 0) {
     issues.push({ code: "shot-plan.duration", path: `shots.${storyboard.id}.duration`, message: "分镜时长必须是正数" });
     return undefined;
@@ -164,17 +177,7 @@ function buildShotDefinition(
     durationUs,
     visualSource,
     ...(subtitleText ? { subtitleText } : {}),
-    audioBindings: audioSource
-      ? [{
-        renderScope: "shot",
-        role: "voice",
-        source: audioSource,
-        sourceStartUs: 0,
-        shotStartUs: 0,
-        durationUs,
-        volume: 1,
-      }]
-      : [],
+    audioBindings,
     motion: { kind: "static" },
     transform: { x: 0, y: 0, scaleX: 1, scaleY: 1, rotation: 0, opacity: 1 },
     ...(approvedContinuityVersion ? { approvedContinuityVersion } : {}),
@@ -232,7 +235,7 @@ function buildHumanApproval(
   projectId: string,
   chapterId: string,
   storyboard: StoryboardItem,
-  shot: RemotionShotDefinitionV1,
+  shot: RemotionShotDefinitionV2,
 ): RemotionShotHumanApprovalV1 | undefined {
   const review = storyboard.visualReview;
   if (review?.status !== "approved" || review.reviewer !== "human" || !review.evidencePaths[0]) return undefined;

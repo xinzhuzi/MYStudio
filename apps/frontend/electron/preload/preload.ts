@@ -80,6 +80,14 @@ import {
 } from '@rendering/plugins/remotion/queue/remotion-queue-ipc'
 import type { RemotionQueueNotification } from '@rendering/plugins/remotion/queue/remotion-render-queue'
 import {
+  REMOTION_CHAPTER_AUDIO_IMPORT_CHANNEL,
+  REMOTION_CHAPTER_AUDIO_PROBE_CHANNEL,
+  REMOTION_CHAPTER_MANIFEST_READ_CHANNEL,
+  REMOTION_CHAPTER_MANIFEST_WRITE_CHANNEL,
+  REMOTION_SHOT_AUDIO_WRITE_GENERATED_CHANNEL,
+  type RemotionChapterManifestBridge,
+} from '@rendering/plugins/remotion/manifest/remotion-chapter-manifest-ipc'
+import {
   REMOTION_STUDIO_CLOSE_SESSION_CHANNEL,
   REMOTION_STUDIO_EDITING_UPDATED_EVENT,
   REMOTION_STUDIO_ENSURE_SESSION_CHANNEL,
@@ -355,6 +363,14 @@ contextBridge.exposeInMainWorld('remotionShotRenderer', {
   cancel: (jobId: string): Promise<{ success: boolean; jobId: string; canceled: boolean; error?: string }> =>
     ipcRenderer.invoke(REMOTION_SHOT_RENDER_CANCEL_CHANNEL, { jobId }),
 })
+
+contextBridge.exposeInMainWorld('remotionChapterManifest', {
+  read: (scope) => ipcRenderer.invoke(REMOTION_CHAPTER_MANIFEST_READ_CHANNEL, scope),
+  write: (request) => ipcRenderer.invoke(REMOTION_CHAPTER_MANIFEST_WRITE_CHANNEL, request),
+  importAudio: (request) => ipcRenderer.invoke(REMOTION_CHAPTER_AUDIO_IMPORT_CHANNEL, request),
+  writeGeneratedShotAudio: (request) => ipcRenderer.invoke(REMOTION_SHOT_AUDIO_WRITE_GENERATED_CHANNEL, request),
+  probeAudio: (request) => ipcRenderer.invoke(REMOTION_CHAPTER_AUDIO_PROBE_CHANNEL, request),
+} satisfies RemotionChapterManifestBridge)
 
 contextBridge.exposeInMainWorld('remotionQueue', {
   get: async (scope: { projectId: string; chapterId: string }): Promise<RemotionQueueScopeReply> => {

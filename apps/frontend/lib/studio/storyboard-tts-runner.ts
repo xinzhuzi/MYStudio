@@ -1,5 +1,4 @@
 import { aiManager } from "@/lib/ai/ai-manager";
-import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";
 import { getTtsRuntimeBridge } from "@/lib/bridge/tts-runtime";
 import {
   ensureBackendVoiceProfile,
@@ -8,19 +7,42 @@ import {
   startTtsRuntime,
 } from "@/lib/tts/client";
 import { validateVoiceProfileForGeneration } from "@/lib/tts/voice-profile-capabilities";
-import type { StoryboardItem, StoryboardMediaRef } from "@/types/studio";
+import type {
+  StoryboardItem,
+  StoryboardMediaRef,
+  StoryboardTtsJobV1,
+} from "@/types/studio";
+import type {
+  RemotionImportedAudioV2,
+} from "@rendering/plugins/remotion/manifest/remotion-chapter-manifest-service";
+import type { RemotionShotAudioBindingV2 } from "@/types/remotion-workspace";
 import type {
   TtsGenerateRequest,
   TtsGenerateResponse,
   TtsRuntimeCommandResult,
   VoiceProfile,
 } from "@/types/tts";
+import { sha256CanonicalJson } from "./remotion/canonical-json";
+import { createRemotionAudioBindingFingerprint } from "./remotion/remotion-audio-fingerprint";
 
-interface SavedAudioMaterial {
-  success: boolean;
-  localPath?: string;
-  filePath?: string;
-  error?: string;
+export const DEFAULT_STORYBOARD_TTS_MAX_ATTEMPTS = 3;
+
+export class StoryboardTtsCanceledError extends Error {
+  constructor() {
+    super("逐镜 TTS 已取消");
+    this.name = "StoryboardTtsCanceledError";
+  }
+}
+
+class StoryboardTtsOperationError extends Error {
+  constructor(
+    message: string,
+    readonly code: string,
+    readonly retryable: boolean,
+  ) {
+    super(message);
+    this.name = "StoryboardTtsOperationError";
+  }
 }
 
 export interface StoryboardTtsRunnerDependencies {
@@ -29,33 +51,47 @@ export interface StoryboardTtsRunnerDependencies {
   submit: (payload: TtsGenerateRequest) => Promise<TtsGenerateResponse>;
   getStatus: (generationId: string) => Promise<TtsGenerateResponse>;
   fetchAudio: (generationId: string) => Promise<ArrayBuffer>;
-  saveMaterial: (payload: {
-    name: string;
+  writeGeneratedAudio: (payload: {
+    projectId: string;
+    chapterId: string;
+    shotId: string;
+    role: "voice";
+    extension: "wav";
     bytes: ArrayBuffer;
-  }) => Promise<SavedAudioMaterial>;
+  }) => Promise<RemotionImportedAudioV2>;
   resolveReferenceAudioPath: (audioPath: string) => Promise<string | null>;
+  hashReferenceAudio: (resolvedAudioPath: string) => Promise<string>;
   delay: (ms: number) => Promise<void>;
+  now: () => number;
 }
 
 function defaultDependencies(): StoryboardTtsRunnerDependencies {
-  const studioAssets = getStudioAssetsBridge();
-  if (!studioAssets?.saveMaterial) {
-    throw new Error("素材保存接口仅在桌面应用中可用");
-  }
   const ttsRuntime = getTtsRuntimeBridge();
   if (!ttsRuntime?.resolveReferenceAudioPath) {
     throw new Error("固定音色文件校验接口仅在桌面应用中可用");
   }
+  const audioBridge = window.remotionChapterManifest;
+  if (!audioBridge?.writeGeneratedShotAudio) {
+    throw new Error("Remotion 项目音频写入接口仅在桌面应用中可用");
+  }
+  const probeMedia = window.studioRenderer?.probeMedia;
+  if (!probeMedia) throw new Error("参考音频 SHA 校验接口仅在桌面应用中可用");
   return {
     startRuntime: startTtsRuntime,
     ensureProfile: ensureBackendVoiceProfile,
     submit: (payload) => aiManager.tts(payload),
     getStatus: getGenerationStatus,
     fetchAudio: fetchGenerationAudio,
-    saveMaterial: (payload) => studioAssets.saveMaterial(payload),
+    writeGeneratedAudio: (payload) => audioBridge.writeGeneratedShotAudio(payload),
     resolveReferenceAudioPath: (audioPath) =>
       ttsRuntime.resolveReferenceAudioPath(audioPath),
+    hashReferenceAudio: async (resolvedAudioPath) => {
+      const evidence = await probeMedia(resolvedAudioPath);
+      if (!/^[a-f0-9]{64}$/.test(evidence.sha256)) throw new Error("参考音频 SHA-256 无效");
+      return evidence.sha256;
+    },
     delay: (ms) => new Promise((resolve) => window.setTimeout(resolve, ms)),
+    now: Date.now,
   };
 }
 
@@ -70,31 +106,83 @@ function isMocked(value: boolean | number | undefined) {
 async function waitForCompletedGeneration(
   generationId: string,
   dependencies: StoryboardTtsRunnerDependencies,
+  isCanceled: () => boolean,
 ) {
   for (let attempt = 0; attempt < 120; attempt += 1) {
+    throwIfCanceled(isCanceled);
     const status = await dependencies.getStatus(generationId);
+    throwIfCanceled(isCanceled);
     if (status.status === "completed") return status;
-    if (status.status === "failed") throw new Error(generationError(status));
+    if (status.status === "failed") {
+      throw new StoryboardTtsOperationError(
+        generationError(status),
+        status.errorCode || "generation_failed",
+        isRetryableFlag(status.retryable),
+      );
+    }
     await dependencies.delay(1000);
   }
-  throw new Error("口播生成超时");
+  throw new StoryboardTtsOperationError("口播生成超时", "timeout", true);
+}
+
+export async function createStoryboardTtsInputFingerprint(input: {
+  projectId: string;
+  chapterId: string;
+  storyboard: StoryboardItem;
+  profile: VoiceProfile;
+  referenceAudioSha256?: string;
+}): Promise<string> {
+  const shotRevision = Math.max(1, input.storyboard.outputVersion ?? 1);
+  const seed = 41001 + input.storyboard.index;
+  return sha256CanonicalJson({
+    schemaVersion: 1,
+    projectId: input.projectId,
+    chapterId: input.chapterId,
+    shotId: input.storyboard.id,
+    shotRevision,
+    text: input.storyboard.ttsSpokenText?.trim() ?? "",
+    speakerId: input.storyboard.speakerId ?? "",
+    profile: {
+      id: input.profile.id,
+      type: input.profile.type,
+      language: input.profile.language,
+      engine: input.profile.defaultEngine,
+      modelSize: input.profile.defaultModelSize ?? null,
+      presetVoiceId: input.profile.presetVoiceId ?? null,
+      referenceText: input.profile.referenceText ?? null,
+      instruct: input.profile.instruct ?? null,
+      referenceAudioSha256: input.referenceAudioSha256 ?? null,
+    },
+    seed,
+  });
 }
 
 export async function runStoryboardTtsGeneration({
+  projectId,
+  chapterId,
   storyboard,
   profile,
   dependencies = defaultDependencies(),
+  isCanceled = () => false,
+  onJob,
 }: {
+  projectId: string;
+  chapterId: string;
   storyboard: StoryboardItem;
   profile: VoiceProfile;
   dependencies?: StoryboardTtsRunnerDependencies;
+  isCanceled?: () => boolean;
+  onJob?: (job: StoryboardTtsJobV1) => void | Promise<void>;
 }): Promise<{
   audioRef: StoryboardMediaRef;
+  shotAudioBinding: RemotionShotAudioBindingV2;
+  ttsJob: StoryboardTtsJobV1;
   generationId: string;
   ttsBackend: string;
   ttsMocked: false;
   ttsWarning?: string;
 }> {
+  const shotRevision = Math.max(1, storyboard.outputVersion ?? 1);
   if (!storyboard.speakerId?.trim()) {
     throw new Error(`分镜 ${storyboard.id} 缺少 canonical speakerId`);
   }
@@ -108,60 +196,280 @@ export async function runStoryboardTtsGeneration({
   if (validationError) {
     throw new Error(`分镜 ${storyboard.id} 固定音色不可用: ${validationError}`);
   }
-  if (
-    profile.referenceAudioPath
-    && !(await dependencies.resolveReferenceAudioPath(profile.referenceAudioPath))
-  ) {
-    throw new Error(
-      `分镜 ${storyboard.id} 固定音色文件不可读: ${profile.referenceAudioPath}`,
-    );
+  throwIfCanceled(isCanceled);
+  let referenceAudioSha256: string | undefined;
+  if (profile.referenceAudioPath) {
+    const resolved = await dependencies.resolveReferenceAudioPath(profile.referenceAudioPath);
+    throwIfCanceled(isCanceled);
+    if (!resolved) {
+      throw new Error(`分镜 ${storyboard.id} 固定音色文件不可读: ${profile.referenceAudioPath}`);
+    }
+    referenceAudioSha256 = await dependencies.hashReferenceAudio(resolved);
+    throwIfCanceled(isCanceled);
   }
 
-  const runtime = await dependencies.startRuntime();
-  if (!runtime.success) {
-    throw new Error(runtime.error || "TTS 后端启动失败");
-  }
-  await dependencies.ensureProfile(profile);
-  const generation = await dependencies.submit({
-    text: storyboard.ttsSpokenText.trim(),
-    profileId: profile.id,
-    engine: profile.defaultEngine,
-    modelSize: profile.defaultModelSize,
-    language: profile.language,
-    seed: 41001 + storyboard.index,
+  const inputFingerprint = await createStoryboardTtsInputFingerprint({
+    projectId,
+    chapterId,
+    storyboard,
+    profile,
+    referenceAudioSha256,
   });
-  const completed = await waitForCompletedGeneration(
-    generation.id,
-    dependencies,
+  const existingJob = storyboard.ttsJob?.inputFingerprint === inputFingerprint
+    && storyboard.ttsJob.projectId === projectId
+    && storyboard.ttsJob.chapterId === chapterId
+    && storyboard.ttsJob.shotId === storyboard.id
+    && storyboard.ttsJob.shotRevision === shotRevision
+    ? storyboard.ttsJob
+    : undefined;
+  const existingBinding = storyboard.shotAudioBindings?.find(
+    (binding) => binding.role === "voice"
+      && binding.ttsInputFingerprint === inputFingerprint
+      && binding.shotRevision === shotRevision,
   );
-  if (isMocked(completed.mocked)) {
-    throw new Error(`分镜 ${storyboard.id} TTS 返回 mock 音频`);
+  if (existingJob?.status === "completed" && existingBinding) {
+    return completedResult(existingJob, existingBinding, storyboard);
   }
-  const backend = String(completed.backend || "").trim();
-  if (!backend || /mock|fallback|system-voice|silent/i.test(backend)) {
-    throw new Error(`分镜 ${storyboard.id} TTS backend 非真实生成: ${backend || "missing"}`);
-  }
-  if (!completed.audioPath && !completed.audioUrl) {
-    throw new Error(`分镜 ${storyboard.id} 生成完成但没有音频路径`);
-  }
-  const bytes = await dependencies.fetchAudio(generation.id);
-  if (!(bytes.byteLength > 0)) {
-    throw new Error(`分镜 ${storyboard.id} 生成音频为空`);
-  }
-  const material = await dependencies.saveMaterial({
-    name: `${storyboard.id}-voice-${Date.now()}.wav`,
-    bytes,
-  });
-  const audioPath = material.filePath || material.localPath;
-  if (!material.success || !audioPath) {
-    throw new Error(material.error || `分镜 ${storyboard.id} 保存音频素材失败`);
+  if (["failed", "canceled"].includes(existingJob?.status ?? "") && existingJob?.retryRequested !== true) {
+    throw new Error(`分镜 ${storyboard.id} TTS 已${existingJob?.status === "failed" ? "失败" : "取消"}，必须显式重试`);
   }
 
+  const createdAt = existingJob?.createdAt ?? dependencies.now();
+  let job: StoryboardTtsJobV1 = {
+    schemaVersion: 1,
+    projectId,
+    chapterId,
+    shotId: storyboard.id,
+    shotRevision,
+    inputFingerprint,
+    status: "queued",
+    attempt: Math.max(0, existingJob?.attempt ?? 0),
+    ...(existingJob?.generationId ? { generationId: existingJob.generationId } : {}),
+    createdAt,
+    updatedAt: dependencies.now(),
+  };
+  await persistJob(job, onJob);
+
+  try {
+    throwIfCanceled(isCanceled);
+    const runtime = await dependencies.startRuntime();
+    throwIfCanceled(isCanceled);
+    if (!runtime.success) throw terminal(runtime.error || "TTS 后端启动失败", "runtime_start_failed");
+    await dependencies.ensureProfile(profile);
+    throwIfCanceled(isCanceled);
+
+    let resumeGenerationId = existingJob?.status === "generating" || existingJob?.status === "queued"
+      ? existingJob.generationId
+      : undefined;
+    const firstAttempt = Math.max(1, (existingJob?.retryRequested ? (existingJob.attempt + 1) : existingJob?.attempt) ?? 1);
+    for (let offset = 0; offset < DEFAULT_STORYBOARD_TTS_MAX_ATTEMPTS; offset += 1) {
+      const attempt = firstAttempt + offset;
+      job = {
+        ...job,
+        status: "generating",
+        attempt,
+        retryRequested: false,
+        cancelRequested: false,
+        errorCode: undefined,
+        errorMessage: undefined,
+        updatedAt: dependencies.now(),
+      };
+      await persistJob(job, onJob);
+      try {
+        let generationId = resumeGenerationId;
+        resumeGenerationId = undefined;
+        let completed: TtsGenerateResponse;
+        if (generationId) {
+          completed = await waitForCompletedGeneration(generationId, dependencies, isCanceled);
+        } else {
+          throwIfCanceled(isCanceled);
+          const generation = await dependencies.submit({
+            text: storyboard.ttsSpokenText.trim(),
+            profileId: profile.id,
+            engine: profile.defaultEngine,
+            modelSize: profile.defaultModelSize,
+            language: profile.language,
+            seed: 41001 + storyboard.index,
+            projectId,
+            chapterId,
+            shotId: storyboard.id,
+            shotRevision,
+            inputFingerprint,
+            referenceAudioSha256,
+            retry: attempt > 1,
+          });
+          throwIfCanceled(isCanceled);
+          generationId = generation.id;
+          job = { ...job, generationId, updatedAt: dependencies.now() };
+          await persistJob(job, onJob);
+          completed = generation.status === "completed"
+            ? generation
+            : await waitForCompletedGeneration(generationId, dependencies, isCanceled);
+        }
+        if (isMocked(completed.mocked)) throw terminal(`分镜 ${storyboard.id} TTS 返回 mock 音频`, "mock_audio");
+        const backend = String(completed.backend || "").trim();
+        if (!backend || /mock|fallback|system-voice|silent/i.test(backend)) {
+          throw terminal(`分镜 ${storyboard.id} TTS backend 非真实生成: ${backend || "missing"}`, "backend_invalid");
+        }
+        if (!completed.audioPath && !completed.audioUrl) {
+          throw terminal(`分镜 ${storyboard.id} 生成完成但没有音频路径`, "audio_path_missing");
+        }
+        throwIfCanceled(isCanceled);
+        const bytes = await dependencies.fetchAudio(generationId);
+        throwIfCanceled(isCanceled);
+        if (!(bytes.byteLength > 0)) throw terminal(`分镜 ${storyboard.id} 生成音频为空`, "audio_empty");
+        const imported = await dependencies.writeGeneratedAudio({
+          projectId,
+          chapterId,
+          shotId: storyboard.id,
+          role: "voice",
+          extension: "wav",
+          bytes,
+        });
+        throwIfCanceled(isCanceled);
+        const binding = await createVoiceBinding({
+          projectId,
+          chapterId,
+          storyboard,
+          shotRevision,
+          inputFingerprint,
+          imported,
+        });
+        job = {
+          ...job,
+          status: "completed",
+          generationId,
+          updatedAt: dependencies.now(),
+        };
+        await persistJob(job, onJob);
+        return {
+          audioRef: bindingAudioRef(binding),
+          shotAudioBinding: binding,
+          ttsJob: job,
+          generationId,
+          ttsBackend: backend,
+          ttsMocked: false,
+          ttsWarning: completed.warning,
+        };
+      } catch (error) {
+        if (error instanceof StoryboardTtsCanceledError) throw error;
+        if (isRetryableTtsError(error) && offset + 1 < DEFAULT_STORYBOARD_TTS_MAX_ATTEMPTS) continue;
+        throw error;
+      }
+    }
+    throw terminal("逐镜 TTS 重试耗尽", "retry_exhausted");
+  } catch (error) {
+    const canceled = error instanceof StoryboardTtsCanceledError || isCanceled();
+    job = {
+      ...job,
+      status: canceled ? "canceled" : "failed",
+      cancelRequested: canceled,
+      errorCode: canceled ? "user_canceled" : ttsErrorCode(error),
+      errorMessage: error instanceof Error ? error.message : String(error),
+      updatedAt: dependencies.now(),
+    };
+    await persistJob(job, onJob);
+    throw error;
+  }
+}
+
+export function isRetryableTtsError(error: unknown): boolean {
+  if (error instanceof StoryboardTtsOperationError) return error.retryable;
+  if (!error || typeof error !== "object") return false;
+  const value = error as { retryable?: unknown; status?: unknown; code?: unknown };
+  if (value.retryable === true) return true;
+  if (typeof value.status === "number") {
+    return value.status === 408 || value.status === 429 || value.status >= 500;
+  }
+  return ["network", "timeout", "ECONNRESET", "ECONNREFUSED", "ETIMEDOUT"].includes(String(value.code ?? ""));
+}
+
+function terminal(message: string, code: string): StoryboardTtsOperationError {
+  return new StoryboardTtsOperationError(message, code, false);
+}
+
+function throwIfCanceled(isCanceled: () => boolean): void {
+  if (isCanceled()) throw new StoryboardTtsCanceledError();
+}
+
+function isRetryableFlag(value: boolean | number | undefined): boolean {
+  return value === true || value === 1;
+}
+
+function ttsErrorCode(error: unknown): string {
+  if (error instanceof StoryboardTtsOperationError) return error.code;
+  if (error && typeof error === "object" && "code" in error && typeof (error as { code?: unknown }).code === "string") {
+    return (error as { code: string }).code;
+  }
+  return "tts_failed";
+}
+
+async function persistJob(
+  job: StoryboardTtsJobV1,
+  onJob: ((job: StoryboardTtsJobV1) => void | Promise<void>) | undefined,
+): Promise<void> {
+  await onJob?.(job);
+}
+
+async function createVoiceBinding(input: {
+  projectId: string;
+  chapterId: string;
+  storyboard: StoryboardItem;
+  shotRevision: number;
+  inputFingerprint: string;
+  imported: RemotionImportedAudioV2;
+}): Promise<RemotionShotAudioBindingV2> {
+  const binding: RemotionShotAudioBindingV2 = {
+    schemaVersion: 2,
+    bindingId: `voice:${input.storyboard.id}:${input.inputFingerprint}`,
+    bindingFingerprint: "0".repeat(64),
+    renderScope: "shot",
+    projectId: input.projectId,
+    chapterId: input.chapterId,
+    shotId: input.storyboard.id,
+    shotRevision: input.shotRevision,
+    role: "voice",
+    source: input.imported.source,
+    sourceFingerprint: input.imported.source.contentSha256,
+    sourceDurationUs: input.imported.durationUs,
+    sourceStartUs: 0,
+    shotStartUs: 0,
+    durationUs: input.imported.durationUs,
+    volume: 1,
+    fadeInUs: 0,
+    fadeOutUs: 0,
+    envelope: [{ timeUs: 0, gain: 1 }],
+    ttsInputFingerprint: input.inputFingerprint,
+  };
+  binding.bindingFingerprint = await createRemotionAudioBindingFingerprint(binding);
+  return binding;
+}
+
+function bindingAudioRef(binding: RemotionShotAudioBindingV2): StoryboardMediaRef {
+  const encodedPath = binding.source.relativePath
+    .split("/")
+    .map((segment) => encodeURIComponent(segment))
+    .join("/");
   return {
-    audioRef: { kind: "audio", path: audioPath },
-    generationId: generation.id,
-    ttsBackend: backend,
-    ttsMocked: false,
-    ttsWarning: completed.warning,
+    kind: "audio",
+    path: `project-file://${encodeURIComponent(binding.projectId)}/${encodedPath}`,
+    contentSha256: binding.source.contentSha256,
+  };
+}
+
+function completedResult(
+  job: StoryboardTtsJobV1,
+  binding: RemotionShotAudioBindingV2,
+  storyboard: StoryboardItem,
+) {
+  if (!job.generationId) throw new Error(`分镜 ${storyboard.id} completed TTS job 缺少 generationId`);
+  return {
+    audioRef: bindingAudioRef(binding),
+    shotAudioBinding: binding,
+    ttsJob: job,
+    generationId: job.generationId,
+    ttsBackend: storyboard.ttsBackend || "reused",
+    ttsMocked: false as const,
+    ttsWarning: storyboard.ttsWarning,
   };
 }

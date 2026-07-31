@@ -9,6 +9,7 @@ import {
 import { buildWorkbenchAssetMediaMap } from "./WorkbenchTab";
 import type { StudioManualCatalog } from "@/lib/studio/manuals";
 import type { StoryboardItem } from "@/types/studio";
+import { makeCurrentSlot } from "@/lib/studio/remotion/remotion-workspace-test-fixtures";
 
 const manualCatalog: StudioManualCatalog = {
   visual: [
@@ -50,6 +51,69 @@ const manualCatalog: StudioManualCatalog = {
 };
 
 describe("production workflow node model", () => {
+  it("keeps the Remotion production scope chapter-local and requires a matching current slot", () => {
+    const slot = makeCurrentSlot();
+    const storyboards = [
+      {
+        id: "shot-001",
+        episodeId: "chapter-001",
+        index: 1,
+        trackKey: "track-1",
+        trackId: "track-1",
+        duration: 2,
+        prompt: "第一镜",
+        videoDesc: "第一镜",
+        assetIds: [],
+        state: "ready",
+      },
+      {
+        id: "shot-002",
+        episodeId: "chapter-002",
+        index: 1,
+        trackKey: "track-2",
+        trackId: "track-2",
+        duration: 2,
+        prompt: "另一章",
+        videoDesc: "另一章",
+        assetIds: [],
+        state: "ready",
+      },
+    ] satisfies StoryboardItem[];
+    const model = buildProductionFlowModel({
+      episodeId: "chapter-001",
+      agentWorkData: [],
+      entityExtractions: [],
+      scriptPlans: [],
+      storyboards,
+      productionTracks: [],
+      videoCandidates: [],
+      remotionQueueJobs: [slot.job],
+      remotionCurrentShotSlots: [slot],
+    });
+    const production = model.nodes.find((node) => node.id === "remotionProduction");
+    expect(production?.remotionSummary).toMatchObject({ total: 1, succeeded: 1, chapterReady: true });
+    expect(production?.remotionShots?.map((shot) => shot.shotId)).toEqual(["shot-001"]);
+    expect(model.remotionShotSlots).toHaveLength(1);
+
+    const withoutSlot = buildProductionFlowModel({
+      episodeId: "chapter-001",
+      agentWorkData: [],
+      entityExtractions: [],
+      scriptPlans: [],
+      storyboards: [storyboards[0]],
+      productionTracks: [],
+      videoCandidates: [],
+      remotionQueueJobs: [slot.job],
+      remotionCurrentShotSlots: [],
+    });
+    expect(withoutSlot.nodes.find((node) => node.id === "remotionProduction")?.remotionSummary).toMatchObject({
+      total: 1,
+      succeeded: 0,
+      blocked: 1,
+      chapterReady: false,
+    });
+  });
+
   it("projects requested renderer and current render evidence into the workbench node", () => {
     const withoutEvidence = buildProductionFlowModel({
       agentWorkData: [],
@@ -62,8 +126,8 @@ describe("production workflow node model", () => {
     });
     const emptyWorkbench = withoutEvidence.nodes.find((node) => node.id === "workbench");
     expect(emptyWorkbench?.rendererSummary).toEqual({ requested: "remotion" });
-    expect(emptyWorkbench?.metrics).toContain("请求渲染器 Remotion");
-    expect(emptyWorkbench?.metrics).toContain("尚未验证成片");
+    expect(emptyWorkbench?.metrics).toContain("原生 Remotion Studio");
+    expect(emptyWorkbench?.metrics).toContain("章节成片待渲染");
 
     const withFallback = buildProductionFlowModel({
       agentWorkData: [],
@@ -81,9 +145,12 @@ describe("production workflow node model", () => {
       },
     });
     const fallbackWorkbench = withFallback.nodes.find((node) => node.id === "workbench");
-    expect(fallbackWorkbench?.metrics).toContain("Remotion → FFmpeg");
-    expect(fallbackWorkbench?.previewLines).toContain("回退效果 · glitch、grain");
-    expect(fallbackWorkbench?.previewLines).toContain("时间线成片 · /tmp/final.mp4");
+    expect(fallbackWorkbench?.rendererSummary).toEqual({ requested: "remotion" });
+    expect(fallbackWorkbench?.metrics).not.toContain("Remotion → FFmpeg");
+    expect(fallbackWorkbench?.metrics).toContain("章节成片待渲染");
+    expect(fallbackWorkbench?.previewLines).not.toContain(
+      "ChapterVideo · /tmp/final.mp4",
+    );
   });
 
   it("defines the Toonflow production nodes and fixed edges", () => {
@@ -93,6 +160,7 @@ describe("production workflow node model", () => {
       "assets",
       "storyboardTable",
       "storyboard",
+      "remotionProduction",
       "workbench",
     ]);
 
@@ -101,7 +169,8 @@ describe("production workflow node model", () => {
       ["script", "assets"],
       ["scriptPlan", "storyboardTable"],
       ["storyboardTable", "storyboard"],
-      ["storyboard", "workbench"],
+      ["storyboard", "remotionProduction"],
+      ["remotionProduction", "workbench"],
     ]);
   });
 
@@ -236,8 +305,14 @@ describe("production workflow node model", () => {
       "storyboard",
       "storyboard",
       "workbench",
+      "workbench",
     ]);
-    expect(model.nodes.every((node) => node.status === "ready")).toBe(true);
+    expect(model.nodes
+      .filter((node) => node.id !== "remotionProduction" && node.id !== "workbench")
+      .every((node) => node.status === "ready"))
+      .toBe(true);
+    expect(model.nodes.find((node) => node.id === "remotionProduction")?.status).toBe("empty");
+    expect(model.nodes.find((node) => node.id === "workbench")?.status).toBe("empty");
     expect(model.nodes.map((node) => node.id)).toContain("assets");
     expect(model.nodes.find((node) => node.id === "assets")?.label).toBe(
       "衍生资产",
@@ -284,12 +359,8 @@ describe("production workflow node model", () => {
         .find((node) => node.id === "storyboard")
         ?.metrics.join("\n"),
     ).not.toContain("资产");
-    expect(
-      model.nodes.find((node) => node.id === "workbench")?.metrics,
-    ).toContain("1 个候选");
-    expect(
-      model.nodes.find((node) => node.id === "workbench")?.metrics,
-    ).toContain("已导出成片");
+    expect(model.nodes.find((node) => node.id === "remotionProduction")?.metrics).toContain("0/1 个分镜 MP4");
+    expect(model.nodes.find((node) => node.id === "workbench")?.metrics).toContain("原生 Remotion Studio");
     expect(model.nodes.find((node) => node.id === "script")?.metrics).toEqual([
       expect.stringMatching(/^\d+ 字$/),
     ]);
@@ -402,21 +473,20 @@ describe("production workflow node model", () => {
         .find((node) => node.id === "storyboard")
         ?.previewLines.join("\n"),
     ).toContain("镜头推进");
-    expect(model.nodes.find((node) => node.id === "storyboard")?.actions).toEqual([
+    expect(model.nodes.find((node) => node.id === "storyboard")?.actions).toEqual([]);
+    expect(model.nodes.find((node) => node.id === "remotionProduction")?.actions).toEqual([
       expect.objectContaining({
-        id: "rebuild-workbench-tracks",
-        label: "重建视频轨道",
+        id: "enqueue-remotion-shots",
+        label: "生成当前章分镜视频",
         disabled: false,
       }),
     ]);
     expect(
       model.nodes.find((node) => node.id === "storyboard")?.actions?.map((action) => action.id),
     ).not.toContain("generate-storyboard-images");
-    expect(
-      model.nodes
-        .find((node) => node.id === "workbench")
-        ?.previewLines.join("\n"),
-    ).toContain("SMOKE_FINAL_EXPORT.mp4");
+    expect(model.nodes.find((node) => node.id === "workbench")?.previewLines).toContain(
+      "Studio Timeline / Preview / Inspector / Render",
+    );
     const workbench = model.nodes.find((node) => node.id === "workbench") as
       | (NonNullable<(typeof model.nodes)[number]> & {
           workbenchTracks?: Array<{
@@ -474,8 +544,8 @@ describe("production workflow node model", () => {
     });
 
     const workbench = model.nodes.find((node) => node.id === "workbench");
-    expect(workbench?.status).toBe("pending");
-    expect(workbench?.metrics).toContain("待导出成片");
+    expect(workbench?.status).toBe("empty");
+    expect(workbench?.metrics).toContain("等待 ChapterVideo");
   });
 
   it("exposes node-local generate actions and AI prompt inputs for incomplete workflow nodes", () => {
@@ -508,7 +578,7 @@ describe("production workflow node model", () => {
       videoCandidates: [],
     });
 
-    expect(model.nodes).toHaveLength(6);
+    expect(model.nodes).toHaveLength(7);
     expect(model.nodes.find((node) => node.id === "scriptPlan")?.actions).toEqual([
       expect.objectContaining({
         id: "generate-director-plan",
@@ -525,10 +595,11 @@ describe("production workflow node model", () => {
         promptPlaceholder: expect.stringContaining("给分镜表补充要求"),
       }),
     ]);
-    expect(model.nodes.find((node) => node.id === "storyboard")?.actions).toEqual([
+    expect(model.nodes.find((node) => node.id === "storyboard")?.actions).toEqual([]);
+    expect(model.nodes.find((node) => node.id === "remotionProduction")?.actions).toEqual([
       expect.objectContaining({
-        id: "rebuild-workbench-tracks",
-        label: "重建视频轨道",
+        id: "enqueue-remotion-shots",
+        label: "生成当前章分镜视频",
         disabled: true,
       }),
     ]);

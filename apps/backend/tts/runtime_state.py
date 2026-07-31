@@ -80,3 +80,8 @@ class RuntimeState:
     def active_generations(self):
         with self.lock:
             return [dict(task) for task in self.generations.values()]
+
+    def is_generation_active(self, generation_id: str) -> bool:
+        with self.lock:
+            task = self.generations.get(generation_id)
+            return bool(task and task.get("status") == "generating")

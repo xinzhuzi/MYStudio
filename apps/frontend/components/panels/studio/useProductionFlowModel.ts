@@ -15,6 +15,7 @@ import {
 } from "./workflow-node-model";
 import { buildWorkbenchAssetMediaMap } from "./WorkbenchTab";
 import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";
+import { useRemotionQueueScope } from "./useRemotionQueueScope";
 
 type ProductionFlowModelInput = Omit<
   Parameters<typeof buildProductionFlowModel>[0],
@@ -39,6 +40,7 @@ export function useProductionFlowModel({
   const productionFlowProps = usePropsLibraryStore((state) => state.items);
   const activeProjectId = useProjectStore((state) => state.activeProjectId);
   const requestedRenderer = useAppSettingsStore((state) => state.renderingSettings.renderer);
+  const remotionQueueScope = useRemotionQueueScope(activeProjectId ?? undefined, productionEpisodeId);
   const editingProjectId = useEditingStore(
     (state) => state.currentEditingProjectIdByEpisode[productionEpisodeId],
   );
@@ -171,9 +173,14 @@ export function useProductionFlowModel({
         agentWorkData,
         entityExtractions,
         scriptPlans,
+        episodeId: productionEpisodeId,
         storyboards,
         productionTracks,
         videoCandidates,
+        remotionQueueJobs: remotionQueueScope.jobs,
+        remotionCurrentShotSlots: remotionQueueScope.currentShotSlots,
+        remotionQueueLoading: remotionQueueScope.loading,
+        remotionQueueError: remotionQueueScope.error,
         workflowConfig,
         manualCatalog,
         rendererSummary,
@@ -184,12 +191,17 @@ export function useProductionFlowModel({
       entityExtractions,
       productionFlowAssetMediaById,
       productionTracks,
+      productionEpisodeId,
       scriptPlans,
       storyboards,
       videoCandidates,
       workflowConfig,
       manualCatalog,
       rendererSummary,
+      remotionQueueScope.currentShotSlots,
+      remotionQueueScope.error,
+      remotionQueueScope.jobs,
+      remotionQueueScope.loading,
     ],
   );
 }

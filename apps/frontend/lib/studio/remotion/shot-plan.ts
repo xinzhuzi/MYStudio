@@ -3,9 +3,9 @@ import type {
 } from "@/types/editing";
 import type {
   ProjectMediaReference,
-  RemotionChapterManifestV1,
+  RemotionChapterManifestV2,
   RemotionShotHumanApprovalV1,
-  RemotionShotDefinitionV1,
+  RemotionShotDefinitionV2,
 } from "@/types/remotion-workspace";
 import type {
   ContinuityAssetVersion,
@@ -25,7 +25,8 @@ import {
   usToFrames,
 } from "@/electron/rendering/plugins/remotion/composition/timing";
 import { sha256CanonicalJson } from "./canonical-json";
-import { validateRemotionChapterManifest } from "./remotion-manifest-validation";
+import { validateRemotionAudioBindingFingerprint } from "./remotion-audio-fingerprint";
+import { validateRemotionChapterManifestV2 } from "./remotion-manifest-validation";
 import {
   approvedVisualReviewIssues,
   storyboardContinuityStateIssues,
@@ -45,8 +46,7 @@ export interface RemotionShotPlanV1 {
   sourceSnapshotHash: string;
   renderSettings: EditingRenderSettings;
   visualKind: "image" | "video";
-  shot: RemotionShotDefinitionV1;
-  sharedAudioTracks: RemotionChapterManifestV1["sharedAudioTracks"];
+  shot: RemotionShotDefinitionV2;
   inputHash: string;
 }
 
@@ -56,9 +56,8 @@ export interface CompileRemotionShotPlanInput {
   chapterRevision: number;
   sourceSnapshotHash: string;
   renderSettings: EditingRenderSettings;
-  shot: RemotionShotDefinitionV1;
+  shot: RemotionShotDefinitionV2;
   storyboard: StoryboardItem;
-  sharedAudioTracks?: RemotionChapterManifestV1["sharedAudioTracks"];
   /** The first project chapter uses this gate; later chapters can use AI gates. */
   requireHumanApproval?: boolean;
   /** Persisted first-chapter receipt bound to the current shot revision. */
@@ -191,23 +190,23 @@ export async function compileRemotionShotPlan(
     }
   }
 
-  const chapterForValidation: RemotionChapterManifestV1 = {
-    schemaVersion: 1,
-    projectId: input.projectId,
-    chapterId: input.chapterId,
-    revision: input.chapterRevision,
-    sourceSnapshotHash: input.sourceSnapshotHash,
-    requiredShotIds: [input.shot.shotId],
-    sharedAudioTracks: input.sharedAudioTracks ?? [],
-    shots: [input.shot],
-    renderSettings: input.renderSettings,
-    createdAt: 0,
-    updatedAt: 0,
-  };
-  const chapterValidation = validateRemotionChapterManifest(chapterForValidation);
+  const chapterValidation = validateRemotionChapterManifestV2(
+    shotValidationManifest(input),
+  );
   if (!chapterValidation.success) {
     for (const validationIssue of chapterValidation.issues) {
       issue(issues, validationIssue.path, validationIssue.message, validationIssue.code);
+    }
+  }
+  for (let index = 0; index < input.shot.audioBindings.length; index += 1) {
+    const fingerprint = await validateRemotionAudioBindingFingerprint(
+      input.shot.audioBindings[index],
+      `$.shot.audioBindings[${index}]`,
+    );
+    if (!fingerprint.success) {
+      for (const fingerprintIssue of fingerprint.issues) {
+        issue(issues, fingerprintIssue.path, fingerprintIssue.message, fingerprintIssue.code);
+      }
     }
   }
   if (input.shot.visualSource.contentSha256 !== input.shot.sourceFingerprint) {
@@ -222,16 +221,12 @@ export async function compileRemotionShotPlan(
   if (!input.storyboard.mediaRef?.contentSha256) {
     issue(issues, "$.storyboard.mediaRef.contentSha256", "当前分镜素材缺少内容 fingerprint");
   }
-  validateStoryboardAudioReference(input.storyboard, input.shot, issues);
+  validateStoryboardAudioReference(input.storyboard, input.shot, input.projectId, issues);
+  validateStoryboardTtsBinding(input.storyboard, input.shot, input.projectId, input.chapterId, issues);
   if (issues.length > 0 || visualKind === undefined || visualKind === "audio") {
     return { success: false, issues };
   }
 
-  const sharedAudioTracks = (input.sharedAudioTracks ?? []).filter((track) => (
-    input.shot.audioBindings.some((binding) => (
-      binding.renderScope === "chapter" && binding.sharedTrackId === track.trackId
-    ))
-  ));
   const planWithoutHash = {
     schemaVersion: 1 as const,
     target: "shot" as const,
@@ -242,7 +237,6 @@ export async function compileRemotionShotPlan(
     renderSettings: input.renderSettings,
     visualKind,
     shot: input.shot,
-    sharedAudioTracks,
   };
   const hashInput = {
     schemaVersion: 1 as const,
@@ -252,7 +246,6 @@ export async function compileRemotionShotPlan(
     renderSettings: input.renderSettings,
     visualKind,
     shot: input.shot,
-    sharedAudioTracks,
   };
   return {
     success: true,
@@ -273,9 +266,8 @@ export function projectStoryboardShotCompositionProps(
   const durationInFrames = clipDurationInFrames(plan.shot.durationUs, fps);
   const visualUrl = resolveUrl(plan.shot.visualSource, resolveCapabilityUrl, "$.shot.visualSource", issues);
   const audioClips: Array<CompositionAudioClipProps & { renderScope: "shot" }> = plan.shot.audioBindings
-    .flatMap((binding, index) => binding.renderScope === "shot" ? [{ binding, index }] : [])
-    .map(({ binding, index }) => ({
-      clipId: `${plan.shot.shotId}:audio:${index}`,
+    .map((binding, index) => ({
+      clipId: binding.bindingId,
       kind: binding.role,
       src: resolveUrl(binding.source, resolveCapabilityUrl, `$.shot.audioBindings[${index}].source`, issues),
       from: usToFrames(binding.shotStartUs, fps),
@@ -283,6 +275,14 @@ export function projectStoryboardShotCompositionProps(
       volume: binding.volume,
       renderScope: "shot" as const,
       trimStartFrames: usToFrames(binding.sourceStartUs, fps),
+      fade: {
+        fadeInFrames: usToFrames(binding.fadeInUs, fps),
+        fadeOutFrames: usToFrames(binding.fadeOutUs, fps),
+      },
+      envelope: binding.envelope.map((point) => ({
+        frame: usToFrames(point.timeUs, fps),
+        gain: point.gain,
+      })),
     }));
   const props: StoryboardShotCompositionProps = {
     target: "shot",
@@ -332,25 +332,39 @@ export async function validateRemotionShotPlan(
   if (!isPositiveInteger(value.chapterRevision)) issue(issues, "$.chapterRevision", "章节 revision 必须为正整数");
   if (!isSha256(value.sourceSnapshotHash)) issue(issues, "$.sourceSnapshotHash", "sourceSnapshotHash 必须是 SHA-256");
   if (value.visualKind !== "image" && value.visualKind !== "video") issue(issues, "$.visualKind", "visualKind 无效");
-  if (!Array.isArray(value.sharedAudioTracks)) issue(issues, "$.sharedAudioTracks", "sharedAudioTracks 必须是数组");
+  if (Object.prototype.hasOwnProperty.call(value, "sharedAudioTracks")) {
+    issue(issues, "$.sharedAudioTracks", "StoryboardShot plan 禁止携带 chapter shared audio");
+  }
   if (!isSha256(value.inputHash)) issue(issues, "$.inputHash", "inputHash 必须是 SHA-256");
   if (issues.length > 0) return { success: false, issues };
   const plan = value as unknown as RemotionShotPlanV1;
-  const chapterValidation = validateRemotionChapterManifest({
-    schemaVersion: 1,
+  const chapterValidation = validateRemotionChapterManifestV2({
+    schemaVersion: 2,
+    manifestFingerprint: "0".repeat(64),
     projectId: plan.projectId,
     chapterId: plan.chapterId,
     revision: plan.chapterRevision,
     sourceSnapshotHash: plan.sourceSnapshotHash,
     requiredShotIds: [plan.shot.shotId],
-    sharedAudioTracks: plan.sharedAudioTracks,
+    sharedAudioBindings: [],
     shots: [plan.shot],
     renderSettings: plan.renderSettings,
-    createdAt: 0,
-    updatedAt: 0,
+    createdAt: 1,
+    updatedAt: 1,
   });
   if (!chapterValidation.success) {
     for (const validationIssue of chapterValidation.issues) issue(issues, validationIssue.path, validationIssue.message, validationIssue.code);
+  }
+  for (let index = 0; index < plan.shot.audioBindings.length; index += 1) {
+    const fingerprint = await validateRemotionAudioBindingFingerprint(
+      plan.shot.audioBindings[index],
+      `$.shot.audioBindings[${index}]`,
+    );
+    if (!fingerprint.success) {
+      for (const fingerprintIssue of fingerprint.issues) {
+        issue(issues, fingerprintIssue.path, fingerprintIssue.message, fingerprintIssue.code);
+      }
+    }
   }
   const expectedHash = await sha256CanonicalJson({
     schemaVersion: 1 as const,
@@ -360,7 +374,6 @@ export async function validateRemotionShotPlan(
     renderSettings: plan.renderSettings,
     visualKind: plan.visualKind,
     shot: plan.shot,
-    sharedAudioTracks: plan.sharedAudioTracks,
   });
   if (expectedHash !== plan.inputHash) {
     issue(issues, "$.inputHash", "inputHash 与当前 shot plan 内容不一致");
@@ -384,7 +397,7 @@ function resolveUrl(
   }
 }
 
-function motionToPanZoom(motion: RemotionShotDefinitionV1["motion"]): CompositionPanZoom | undefined {
+function motionToPanZoom(motion: RemotionShotDefinitionV2["motion"]): CompositionPanZoom | undefined {
   if (motion.kind !== "pan-zoom") return undefined;
   return {
     fromScale: motion.fromScale ?? 1,
@@ -418,13 +431,42 @@ function requiresDialogueAudio(storyboard: StoryboardItem): boolean {
     });
 }
 
+function shotValidationManifest(
+  input: Pick<
+    CompileRemotionShotPlanInput,
+    "projectId" | "chapterId" | "chapterRevision" | "sourceSnapshotHash" | "renderSettings" | "shot"
+  >,
+): RemotionChapterManifestV2 {
+  return {
+    schemaVersion: 2,
+    manifestFingerprint: "0".repeat(64),
+    projectId: input.projectId,
+    chapterId: input.chapterId,
+    revision: input.chapterRevision,
+    sourceSnapshotHash: input.sourceSnapshotHash,
+    requiredShotIds: [input.shot.shotId],
+    sharedAudioBindings: [],
+    shots: [input.shot],
+    renderSettings: input.renderSettings,
+    createdAt: 1,
+    updatedAt: 1,
+  };
+}
+
 function validateStoryboardAudioReference(
   storyboard: StoryboardItem,
-  shot: RemotionShotDefinitionV1,
+  shot: RemotionShotDefinitionV2,
+  projectId: string,
   issues: ShotPlanIssue[],
 ): void {
   const audioRef = storyboard.audioRef;
-  if (!audioRef) return;
+  const voices = shot.audioBindings.filter((binding) => binding.role === "voice");
+  if (!audioRef) {
+    if (voices.length > 0) {
+      issue(issues, "$.storyboard.audioRef", "canonical voice binding 必须有一致的 audioRef 兼容镜像");
+    }
+    return;
+  }
   if (audioRef.kind !== "audio" || !audioRef.path.trim()) {
     issue(issues, "$.storyboard.audioRef", "audioRef 必须是非空音频引用");
     return;
@@ -433,9 +475,44 @@ function validateStoryboardAudioReference(
     issue(issues, "$.storyboard.audioRef.contentSha256", "当前口播素材缺少内容 fingerprint");
     return;
   }
-  const voice = shot.audioBindings.find((binding) => binding.renderScope === "shot" && binding.role === "voice");
-  if (!voice || voice.renderScope !== "shot" || voice.source.contentSha256 !== audioRef.contentSha256) {
+  const voice = voices[0];
+  if (!voice || voice.source.contentSha256 !== audioRef.contentSha256) {
     issue(issues, "$.storyboard.audioRef.contentSha256", "当前口播素材 fingerprint 与 shot voice binding 不一致");
+    return;
+  }
+  const expectedPath = `project-file://${encodeURIComponent(projectId)}/${voice.source.relativePath
+    .split("/").map((part) => encodeURIComponent(part)).join("/")}`;
+  if (audioRef.path !== expectedPath) {
+    issue(issues, "$.storyboard.audioRef.path", "audioRef 必须精确镜像 canonical voice binding source");
+  }
+}
+
+function validateStoryboardTtsBinding(
+  storyboard: StoryboardItem,
+  shot: RemotionShotDefinitionV2,
+  projectId: string,
+  chapterId: string,
+  issues: ShotPlanIssue[],
+): void {
+  const voices = shot.audioBindings.filter((binding) => binding.role === "voice");
+  if (voices.length > 1) {
+    issue(issues, "$.shot.audioBindings", "每个 StoryboardShot 最多只能有一个 canonical voice binding");
+    return;
+  }
+  const voice = voices[0];
+  if (!voice) return;
+  const job = storyboard.ttsJob;
+  if (!job || job.status !== "completed"
+    || job.projectId !== projectId
+    || job.chapterId !== chapterId
+    || job.shotId !== shot.shotId
+    || job.shotRevision !== shot.revision
+    || job.inputFingerprint !== voice.ttsInputFingerprint) {
+    issue(
+      issues,
+      "$.storyboard.ttsJob",
+      "completed TTS job 必须与当前 project/chapter/shot revision 和 voice fingerprint 一致",
+    );
   }
 }
 

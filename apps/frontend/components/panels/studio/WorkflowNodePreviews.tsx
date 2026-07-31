@@ -1,14 +1,17 @@
 import {
+  ArrowRight,
   CheckCircle2,
   ChevronRight,
   CircleDot,
   Clock3,
   Film,
+  Gauge,
   Image as ImageIcon,
   ImageOff,
   Layers3,
   PackageOpen,
   RefreshCw,
+  TriangleAlert,
 } from "lucide-react";
 import { useState } from "react";
 import type { ReactNode } from "react";
@@ -25,8 +28,12 @@ import type {
   ProductionFlowAssetCard,
   ProductionFlowNodeId,
   ProductionFlowNodeModel,
+  ProductionFlowRemotionShot,
 } from "./workflow-node-model";
-import { formatRendererLabel } from "./workflow-node-model";
+import {
+  formatRendererLabel,
+  normalizeRemotionRendererSummary,
+} from "./workflow-node-model";
 
 const NODE_PREVIEW_CLASS = {
   script: "max-h-[560px]",
@@ -34,6 +41,7 @@ const NODE_PREVIEW_CLASS = {
   assets: "max-h-[560px]",
   storyboardTable: "max-h-[430px]",
   storyboard: "max-h-[320px]",
+  remotionProduction: "max-h-[520px]",
   workbench: "max-h-[420px]",
 } satisfies Record<ProductionFlowNodeId, string>;
 
@@ -531,9 +539,25 @@ export function WorkbenchLanePreview({
   node: ProductionFlowNodeModel;
 }) {
   const tracks = node.workbenchTracks ?? [];
-  const rendererSummary = node.rendererSummary ?? { requested: "ffmpeg" as const };
+  const rendererSummary = node.remotionSummary
+    ? normalizeRemotionRendererSummary(node.rendererSummary)
+    : node.rendererSummary ?? { requested: "ffmpeg" as const };
+  const exportReady = node.remotionSummary
+    ? rendererSummary.actual === "remotion" && Boolean(rendererSummary.outputPath)
+    : Boolean(node.finalExportPath);
   return (
     <div className="workbench-lane-preview nodrag nowheel max-h-[320px] space-y-3 overflow-y-auto overscroll-contain pr-1">
+      {node.remotionSummary ? (
+        <div className="flex items-center gap-2 rounded-md border border-emerald-300/20 bg-emerald-300/[0.06] px-3 py-2 text-[10px] text-emerald-50">
+          <span>StoryboardShot MP4</span>
+          <ArrowRight className="h-3.5 w-3.5 text-emerald-300/70" />
+          <span>原生 Remotion Studio</span>
+          <ArrowRight className="h-3.5 w-3.5 text-emerald-300/70" />
+          <span>ChapterVideo</span>
+          <ArrowRight className="h-3.5 w-3.5 text-emerald-300/70" />
+          <span>章节 MP4</span>
+        </div>
+      ) : null}
       <div className="rounded-md border border-border bg-card px-3 py-2 text-[10px] text-card-foreground">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span className="font-medium">请求渲染器 {formatRendererLabel(rendererSummary.requested)}</span>
@@ -543,7 +567,7 @@ export function WorkbenchLanePreview({
               : "尚未验证成片"}
           </span>
         </div>
-        {rendererSummary.fallbackEffectIds?.length ? (
+        {!node.remotionSummary && rendererSummary.fallbackEffectIds?.length ? (
           <div className="mt-1 text-amber-200">回退效果：{rendererSummary.fallbackEffectIds.join("、")}</div>
         ) : null}
         {rendererSummary.lastJobId || rendererSummary.outputPath ? (
@@ -556,22 +580,24 @@ export function WorkbenchLanePreview({
       <div className="grid grid-cols-[1fr_auto] items-center gap-3 rounded-md border border-border bg-card px-3 py-2 text-card-foreground">
         <div className="min-w-0">
           <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-            最终导出
+            {node.remotionSummary ? "章节 Remotion 导出" : "最终导出"}
           </div>
           <div className="mt-1 truncate text-[11px] text-card-foreground">
-            {node.finalExportPath || "等待候选片段全部选中后导出"}
+            {node.remotionSummary
+              ? rendererSummary.outputPath || "等待 ChapterVideo 通过原生 Studio 导出"
+              : node.finalExportPath || "等待候选片段全部选中后导出"}
           </div>
         </div>
         <span className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border bg-muted/30 px-2 text-[10px] font-medium text-foreground">
-          {node.finalExportPath ? (
+          {exportReady ? (
             <CheckCircle2 className="h-3.5 w-3.5 text-emerald-300" />
           ) : (
             <CircleDot className="h-3.5 w-3.5 text-muted-foreground" />
           )}
-          {node.finalExportPath ? "READY" : "PENDING"}
+          {exportReady ? "READY" : "PENDING"}
         </span>
       </div>
-      {tracks.length ? <div className="grid grid-cols-2 gap-2">
+      {tracks.length && !node.remotionSummary ? <div className="grid grid-cols-2 gap-2">
         {tracks.map((track, index) => (
           <div
             key={track.id}
@@ -628,6 +654,164 @@ export function WorkbenchLanePreview({
       </div> : null}
     </div>
   );
+}
+
+export function RemotionShotPreview({
+  node,
+}: {
+  node: ProductionFlowNodeModel;
+}) {
+  const shots = node.remotionShots ?? [];
+  const summary = node.remotionSummary;
+  return (
+    <div className="remotion-shot-preview nodrag nowheel max-h-[480px] space-y-3 overflow-y-auto overscroll-contain pr-1">
+      <div className="flex items-center justify-between gap-2 rounded-md border border-cyan-300/25 bg-cyan-300/[0.06] px-3 py-2 text-[10px] text-cyan-50">
+        <span className="font-semibold">当前章节 · {summary?.total ?? shots.length} 个分镜</span>
+        <span className="text-cyan-100/70">每个分镜独立生成一个 StoryboardShot MP4</span>
+      </div>
+      <div
+        aria-label="Remotion 分镜生产链路"
+        className="grid grid-cols-[1fr_auto_1fr_auto_1fr] items-center gap-1 rounded-md border border-cyan-300/25 bg-cyan-300/[0.06] px-2 py-2 text-[10px] text-cyan-50"
+      >
+        <RemotionFlowStep label="分镜物料" detail="图像 · 音频 · 字幕" />
+        <ArrowRight className="h-3.5 w-3.5 text-cyan-300/70" />
+        <RemotionFlowStep label="StoryboardShot" detail="逐镜 renderMedia" />
+        <ArrowRight className="h-3.5 w-3.5 text-cyan-300/70" />
+        <RemotionFlowStep label="单镜 MP4" detail="每镜独立输出" />
+      </div>
+      <div className="grid grid-cols-4 gap-2 rounded-md border border-cyan-300/25 bg-cyan-300/[0.06] p-2 text-card-foreground">
+        <RemotionSummaryCell label="分镜" value={`${summary?.total ?? shots.length}`} />
+        <RemotionSummaryCell label="已完成" value={`${summary?.succeeded ?? 0}`} tone="success" />
+        <RemotionSummaryCell label="进行中" value={`${(summary?.running ?? 0) + (summary?.queued ?? 0)}`} tone="active" />
+        <RemotionSummaryCell label="阻塞/失败" value={`${(summary?.blocked ?? 0) + (summary?.failed ?? 0)}`} tone="warning" />
+      </div>
+      <div className="flex items-center justify-between gap-2 rounded-md border border-border bg-card px-3 py-2 text-[10px] text-muted-foreground">
+        <span className="inline-flex items-center gap-1.5 font-medium text-cyan-100">
+          <Gauge className="h-3.5 w-3.5" />
+          Remotion · StoryboardShot · 并发 1
+        </span>
+        <span>{summary?.chapterReady ? "全部单镜 MP4 已就绪，可进入原生 Studio" : "全部单镜成功后才可进入原生 Studio"}</span>
+      </div>
+      {shots.length ? (
+        <div className="grid grid-cols-2 gap-2">
+          {shots.map((shot) => (
+          <div
+            key={shot.shotId}
+            className={cn(
+              "min-w-0 rounded-md border border-border bg-card p-2.5 text-card-foreground",
+              shot.status === "running" && "border-sky-300/45",
+              shot.status === "succeeded" && "border-emerald-300/35",
+              (shot.status === "failed" || shot.status === "blocked" || shot.status === "canceled") && "border-amber-300/45",
+            )}
+            data-remotion-shot-id={shot.shotId}
+            data-remotion-shot-status={shot.status}
+          >
+            <div className="flex gap-2">
+              <div className="relative h-14 w-20 shrink-0 overflow-hidden rounded border border-border/70 bg-muted/30">
+                {shot.mediaPath ? (
+                  <img src={toPreviewSrc(shot.mediaPath)} alt={shot.title} className="h-full w-full object-cover" loading="lazy" decoding="async" />
+                ) : (
+                  <div className="flex h-full items-center justify-center text-[9px] text-muted-foreground">无首帧</div>
+                )}
+                <span className="absolute left-1 top-1 rounded bg-background/85 px-1 text-[9px] font-semibold text-foreground">
+                  S{String(shot.index).padStart(2, "0")}
+                </span>
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-start justify-between gap-2">
+                  <span className="truncate text-[10px] font-medium">{shot.title}</span>
+                  <RemotionStatusIcon status={shot.status} />
+                </div>
+                <div className="mt-1 flex items-center justify-between gap-2 text-[9px] text-muted-foreground">
+                  <span>{remotionStatusLabel(shot.status)}</span>
+                  <span className="tabular-nums">{Math.round(shot.progress * 100)}%</span>
+                </div>
+                <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-muted">
+                  <div
+                    className={cn(
+                      "h-full rounded-full transition-[width]",
+                      shot.status === "failed" || shot.status === "blocked" ? "bg-amber-300" : "bg-cyan-300",
+                    )}
+                    style={{ width: `${Math.max(0, Math.min(1, shot.progress)) * 100}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="mt-2 truncate text-[9px] text-muted-foreground" title={shot.outputPath ?? shot.error}>
+              {shot.error ? `失败：${shot.error}` : shot.outputPath ? `MP4 · ${basename(shot.outputPath)}` : shot.jobId ? `Job · ${shot.jobId}` : "等待提交 Remotion job"}
+            </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="rounded-md border border-dashed border-border bg-card/70 px-3 py-6 text-center text-[10px] text-muted-foreground">
+          分镜面板尚未提供当前章节的分镜物料；生成分镜后，这里会按顺序显示每个 Remotion shot job、进度和 MP4。
+        </div>
+      )}
+      {summary?.error ? (
+        <div className="rounded-md border border-amber-300/35 bg-amber-300/10 px-3 py-2 text-[10px] text-amber-100">
+          队列读取失败：{summary.error}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function RemotionFlowStep({ label, detail }: { label: string; detail: string }) {
+  return (
+    <div className="min-w-0 rounded border border-cyan-200/15 bg-background/20 px-2 py-1.5">
+      <div className="truncate font-semibold">{label}</div>
+      <div className="mt-0.5 truncate text-[9px] text-cyan-100/65">{detail}</div>
+    </div>
+  );
+}
+
+function RemotionSummaryCell({
+  label,
+  value,
+  tone = "default",
+}: {
+  label: string;
+  value: string;
+  tone?: "default" | "success" | "active" | "warning";
+}) {
+  return (
+    <div className="rounded border border-border bg-muted/30 px-2 py-1.5">
+      <div className="text-[9px] text-muted-foreground">{label}</div>
+      <div className={cn(
+        "mt-0.5 text-[13px] font-semibold tabular-nums",
+        tone === "success" && "text-emerald-200",
+        tone === "active" && "text-cyan-200",
+        tone === "warning" && "text-amber-200",
+      )}>{value}</div>
+    </div>
+  );
+}
+
+function RemotionStatusIcon({ status }: { status: ProductionFlowRemotionShot["status"] }) {
+  if (status === "succeeded") return <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-300" />;
+  if (status === "running" || status === "queued") return <RefreshCw className="h-3.5 w-3.5 shrink-0 animate-spin text-cyan-300" />;
+  if (status === "failed" || status === "blocked" || status === "canceled") return <TriangleAlert className="h-3.5 w-3.5 shrink-0 text-amber-300" />;
+  return <CircleDot className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />;
+}
+
+function remotionStatusLabel(status: ProductionFlowRemotionShot["status"]) {
+  return {
+    pending: "待提交",
+    ready: "待排队",
+    queued: "排队中",
+    running: "渲染中",
+    succeeded: "已完成",
+    failed: "失败",
+    blocked: "阻塞",
+    canceled: "已取消",
+    stale: "需重渲",
+  }[status];
+}
+
+function basename(value: string) {
+  const normalized = value.split("\\").join("/");
+  return normalized.slice(normalized.lastIndexOf("/") + 1) || normalized;
 }
 
 function WorkbenchStat({

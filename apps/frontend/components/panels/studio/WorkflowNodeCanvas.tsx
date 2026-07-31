@@ -43,6 +43,7 @@ const PRODUCTION_NODE_WIDTHS = {
   assets: 760,
   storyboardTable: 700,
   storyboard: 640,
+  remotionProduction: 760,
   workbench: 760,
 } satisfies Record<ProductionFlowNodeId, number>;
 
@@ -56,6 +57,7 @@ const PRODUCTION_NODE_FALLBACK_HEIGHTS = {
   assets: 760,
   storyboardTable: 760,
   storyboard: 760,
+  remotionProduction: 720,
   workbench: 520,
 } satisfies Record<ProductionFlowNodeId, number>;
 const PRODUCTION_CANVAS_MIN_ZOOM = 0.18;
@@ -105,7 +107,8 @@ function buildMeasuredProductionPositions(
   const scriptPlanX = nextProductionNodeX("script", scriptX, measuredNodes);
   const storyboardTableX = nextProductionNodeX("scriptPlan", scriptPlanX, measuredNodes);
   const storyboardX = nextProductionNodeX("storyboardTable", storyboardTableX, measuredNodes);
-  const workbenchX = nextProductionNodeX("storyboard", storyboardX, measuredNodes);
+  const remotionProductionX = nextProductionNodeX("storyboard", storyboardX, measuredNodes);
+  const workbenchX = nextProductionNodeX("remotionProduction", remotionProductionX, measuredNodes);
 
   return {
     script: { x: scriptX, y: PRODUCTION_MAINLINE_Y },
@@ -116,6 +119,7 @@ function buildMeasuredProductionPositions(
     },
     storyboardTable: { x: storyboardTableX, y: PRODUCTION_MAINLINE_Y },
     storyboard: { x: storyboardX, y: PRODUCTION_MAINLINE_Y },
+    remotionProduction: { x: remotionProductionX, y: PRODUCTION_MAINLINE_Y },
     workbench: { x: workbenchX, y: PRODUCTION_MAINLINE_Y },
   } satisfies Record<ProductionFlowNodeId, { x: number; y: number }>;
 }
@@ -136,6 +140,7 @@ function buildMeasuredTopBottomPositions(
     "scriptPlan",
     "storyboardTable",
     "storyboard",
+    "remotionProduction",
     "workbench",
   ];
   const result = {} as Record<ProductionFlowNodeId, { x: number; y: number }>;
@@ -276,6 +281,7 @@ export function WorkflowNodeCanvas({
   nodes,
   onStageChange,
   onNodeEdit,
+  onNodeJson,
   onNodeAction,
   onOpenAssetImageWorkflow,
   chapterAutoVideoStatus,
@@ -288,6 +294,7 @@ export function WorkflowNodeCanvas({
   nodes: ProductionFlowNodeModel[];
   onStageChange: (stage: ProductionFlowStage) => void;
   onNodeEdit?: (nodeId: ProductionFlowNodeId) => void;
+  onNodeJson?: (nodeId: ProductionFlowNodeId) => void;
   onNodeAction?: (action: ProductionFlowNodeAction) => void | Promise<void>;
   onOpenAssetImageWorkflow?: (context: ImageWorkflowOpenContext) => void;
   chapterAutoVideoStatus?: ChapterAutoVideoStatus;
@@ -334,6 +341,7 @@ export function WorkflowNodeCanvas({
             node.id === "assets" ? Position.Top : layout === "LR" ? Position.Left : Position.Top,
           onStageChange,
           onNodeEdit,
+          onNodeJson,
           onNodeAction,
           onOpenAssetImageWorkflow,
         },
@@ -343,6 +351,7 @@ export function WorkflowNodeCanvas({
       nodes,
       onNodeAction,
       onNodeEdit,
+      onNodeJson,
       onOpenAssetImageWorkflow,
       onStageChange,
       positions,
