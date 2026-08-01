@@ -9,7 +9,7 @@ type AutoEditingPlanningInput = {
   request: AutoEditingRequest;
   adapterInput: Pick<
     BuildStoryboardEditingProjectInput,
-    "projectId" | "episodeId" | "sourceSnapshotHash"
+    "projectId" | "episodeId" | "sourceSnapshotHash" | "remotionShotSlots"
   >;
   existingProjects: EditingProjectV1[];
   runId: string;
@@ -44,7 +44,9 @@ export function findReusableDraft(input: AutoEditingPlanningInput): EditingProje
   return [...input.existingProjects].filter((project) =>
     project.projectId === input.request.projectId && project.episodeId === input.request.episodeId &&
     project.createdBy === "auto" && !project.manuallyEdited && !project.stale &&
-    project.sourceSnapshotHash === input.adapterInput.sourceSnapshotHash,
+    project.sourceSnapshotHash === input.adapterInput.sourceSnapshotHash &&
+    (input.adapterInput.remotionShotSlots === undefined
+      || project.tracks.every((track) => track.kind !== "voice" && track.kind !== "bgm" && track.kind !== "sfx")),
   ).sort((left, right) => left.createdAt - right.createdAt || left.id.localeCompare(right.id)).at(-1);
 }
 

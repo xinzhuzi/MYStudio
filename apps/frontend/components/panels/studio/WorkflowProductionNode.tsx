@@ -212,7 +212,7 @@ export function ProductionFlowNode({ data }: NodeProps<Node<ProductionNodeData>>
                 data.onNodeJson?.(data.node.id);
               }}
             >
-              {data.node.id === "storyboard" ? "Remotion JSON" : "JSON"}
+              {data.node.id === "storyboard" ? "Remotion JSON" : "Remotion 分镜源数据"}
               <Braces className="h-3 w-3" />
             </button>
           ) : null}

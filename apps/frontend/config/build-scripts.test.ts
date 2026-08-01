@@ -2001,6 +2001,13 @@ describe("desktop build scripts", () => {
     expect(shotRunnerScript).toContain("STORYBOARD_SHOT_COMPOSITION_ID");
     expect(shotRunnerScript).toContain("publishCurrentSlot");
     expect(shotRunnerScript).toContain("chapterManifestPath");
+    expect(shotRunnerScript).toContain("RemotionChapterManifestService");
+    expect(shotRunnerScript).toContain("createRemotionChapterManifestFingerprint");
+    expect(shotRunnerScript).toContain("schemaVersion: 2");
+    expect(shotRunnerScript).toContain("sharedAudioBindings: currentChapterManifest?.sharedAudioBindings ?? []");
+    expect(shotRunnerScript).toContain("chapterManifestService.writeCas");
+    expect(shotRunnerScript).not.toContain("RemotionChapterManifestV1");
+    expect(shotRunnerScript).not.toContain("sharedAudioTracks");
     expect(shotRunnerScript).toContain('MYSTUDIO_DAOJIE_SHOT_SLOTS === "1"');
     expect(shotRunnerScript).not.toContain("ffmpeg-local");
     expect(shotRunnerScript).not.toContain("concat_segments");

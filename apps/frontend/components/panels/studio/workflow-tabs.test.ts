@@ -509,7 +509,7 @@ describe("studio workflow tabs", () => {
     expect(productionNodeSource).toContain("canEditNode");
     expect(productionNodeSource).toContain("canOpenJson");
     expect(productionNodeSource).toContain('data.node.id === "storyboardTable" || data.node.id === "storyboard"');
-    expect(productionNodeSource).toContain('data.node.id === "storyboard" ? "Remotion JSON" : "JSON"');
+    expect(productionNodeSource).toContain('data.node.id === "storyboard" ? "Remotion JSON" : "Remotion 分镜源数据"');
     expect(productionNodeSource).toContain("COMPACT_HEADER_NODE_IDS");
     expect(productionNodeSource).toContain('const useCompactHeader = COMPACT_HEADER_NODE_IDS.includes(data.node.id);');
     expect(productionNodeSource).toContain("showStatusChip");

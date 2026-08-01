@@ -55,7 +55,7 @@ export function useWorkflowNodeEditor({
       (item) => item.id === editingWorkflowNodeId,
     );
     if (!node) return "编辑节点";
-    if (workflowNodeJsonMode === "canonical") return `${node.label} JSON`;
+    if (workflowNodeJsonMode === "canonical") return "Remotion 分镜源数据";
     if (workflowNodeJsonMode === "remotion") return `Remotion JSON · ${node.label}`;
     return `编辑${node.label}`;
   }, [editingWorkflowNodeId, productionFlowModel.nodes, workflowNodeJsonMode]);
@@ -314,6 +314,10 @@ export function useWorkflowNodeEditor({
         useStudioStore.getState().replaceStoryboardsForEpisode(episodeId, jsonResult.items);
         toast.success(`分镜表已保存：${jsonResult.items.length} 条分镜`);
         setEditingWorkflowNodeId(null);
+        return;
+      }
+      if (workflowNodeJsonMode === "canonical") {
+        toast.error(`Remotion 分镜源数据不可保存: ${jsonResult.error ?? "JSON 格式无效"}`);
         return;
       }
       const parsed = parseStoryboardTable(text, episodeId, {

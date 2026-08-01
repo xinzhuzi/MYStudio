@@ -8,6 +8,7 @@ import { buildChapterVideoCompositionProps, buildCompositionProps } from "@rende
 import { CHAPTER_VIDEO_COMPOSITION_ID, REMOTION_COMPOSITION_ID } from "@rendering/plugins/remotion/composition/composition-id";
 import { createRemotionEnsureBrowserAdapters, type RemotionEnsureBrowser } from "@rendering/plugins/remotion/browser/remotion-browser-worker-service";
 import { buildRemotionRuntimeManifest } from "@rendering/plugins/remotion/browser/remotion-runtime-manifest";
+import { RemotionChapterManifestService } from "@rendering/plugins/remotion/manifest/remotion-chapter-manifest-service";
 import { createTimelineRenderRecord } from "@/lib/studio/editing/chapter-editing-pipeline";
 import { validateEditingProject, validateTimelineRenderPlan } from "@/lib/studio/editing/validation";
 import {
@@ -47,6 +48,20 @@ export async function runDaojieRemotionTimeline(): Promise<Record<string, unknow
   if (!remotionOnly && manifest.compositionId !== REMOTION_COMPOSITION_ID) throw new Error("兼容 Daojie Timeline bundle manifest 与运行时不一致");
   const projectDir = resolveProjectDir();
   const roots = deriveStorageRoots(projectDir);
+  const chapterManifestService = new RemotionChapterManifestService({
+    projectRootForProject: (projectId) => {
+      if (projectId !== plan.projectId) throw new Error("Daojie chapter manifest project identity 不一致");
+      return projectDir;
+    },
+    probeMedia: async (filePath) => {
+      const probe = await probeRenderedMedia(filePath);
+      return { durationUs: Math.round(probe.duration * 1_000_000), streams: probe.streams };
+    },
+  });
+  const chapterManifest = remotionOnly
+    ? await chapterManifestService.read(plan.projectId, plan.episodeId)
+    : undefined;
+  if (remotionOnly && !chapterManifest) throw new Error("当前章节缺少 RemotionChapterManifestV2");
   const runtimeDir = path.resolve(process.env.MYSTUDIO_REMOTION_RUNTIME_DIR || path.join(resolveUserDataDir(), "remotion-runtime"));
   fs.mkdirSync(runtimeDir, { recursive: true });
   fs.writeFileSync(
@@ -78,9 +93,9 @@ export async function runDaojieRemotionTimeline(): Promise<Record<string, unknow
               ),
             };
           }),
-          ...plan.clips.filter((clip) => ["voice", "bgm", "sfx"].includes(clip.trackKind) && clip.source.path).map((clip) => ({
-            clipId: clip.id,
-            absolutePath: resolveTimelineSourcePath({ sourcePath: clip.source.path!, dataRoot: roots.dataRoot, mediaRoot: roots.mediaRoot }),
+          ...chapterManifest!.sharedAudioBindings.map((binding) => ({
+            clipId: chapterAudioMediaId(binding.bindingId),
+            absolutePath: path.resolve(projectDir, binding.source.relativePath),
           })),
         ]
       : plan.clips.filter((clip) => clip.source.path).map((clip) => ({
@@ -88,10 +103,19 @@ export async function runDaojieRemotionTimeline(): Promise<Record<string, unknow
           absolutePath: resolveTimelineSourcePath({ sourcePath: clip.source.path!, dataRoot: roots.dataRoot, mediaRoot: roots.mediaRoot }),
         }));
     const mediaUrlByClipId = buildMediaUrlMap(mediaBridge, session, mediaSources);
-      const chapterAudioClipIds = plan.clips.filter((clip) => ["voice", "bgm", "sfx"].includes(clip.trackKind)).map((clip) => clip.id);
       const props = remotionOnly
         ? (() => {
-            const projected = buildChapterVideoCompositionProps({ plan, currentShotSlots, mediaUrlByClipId, chapterAudioClipIds });
+            const mediaUrlByBindingId = Object.fromEntries(chapterManifest!.sharedAudioBindings.map((binding) => [
+              binding.bindingId,
+              mediaUrlByClipId[chapterAudioMediaId(binding.bindingId)],
+            ]));
+            const projected = buildChapterVideoCompositionProps({
+              plan,
+              currentShotSlots,
+              chapterManifest: chapterManifest!,
+              mediaUrlByClipId,
+              mediaUrlByBindingId,
+            });
             if (!projected.success) throw new Error(projected.issues.map((issue) => `${issue.path}: ${issue.message}`).join("；"));
             return projected.value;
           })()
@@ -220,6 +244,10 @@ export async function runDaojieRemotionTimeline(): Promise<Record<string, unknow
   } finally {
     process.chdir(previousCwd);
   }
+}
+
+function chapterAudioMediaId(bindingId: string): string {
+  return `chapter-audio:${bindingId}`;
 }
 
 async function resolveBrowser(): Promise<string> {

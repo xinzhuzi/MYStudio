@@ -29,7 +29,6 @@ function context(): RemotionStudioChapterRenderContext {
     revision: 1,
     plan: {} as RemotionStudioChapterRenderContext["plan"],
     currentShotSlots: [],
-    chapterAudioClipIds: [],
   };
 }
 

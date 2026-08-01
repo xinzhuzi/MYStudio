@@ -7,13 +7,14 @@ import { buildRemotionShotPlans } from "@/lib/studio/remotion/remotion-shot-plan
 import { projectStoryboardShotCompositionProps } from "@/lib/studio/remotion/shot-plan";
 import { DEFAULT_REMOTION_RENDER_SETTINGS } from "@/lib/studio/remotion/remotion-workspace-storage";
 import { sha256CanonicalJson } from "@/lib/studio/remotion/canonical-json";
+import { createRemotionChapterManifestFingerprint } from "@/lib/studio/remotion/remotion-audio-fingerprint";
 import { createRemotionRenderJobId } from "@/lib/studio/remotion/remotion-job-identity";
 import {
   buildRemotionCurrentSlot,
   remotionCurrentSlotPaths,
 } from "@/lib/studio/remotion/remotion-current-slot";
 import type {
-  RemotionChapterManifestV1,
+  RemotionChapterManifestV2,
   RemotionCurrentSlotV1,
   RemotionEvidenceV1,
   RemotionMediaProbeStreamV1,
@@ -28,6 +29,7 @@ import { MediaBridgeServer } from "@rendering/plugins/remotion/media-bridge/medi
 import { buildMediaUrlMap } from "@rendering/plugins/remotion/media-bridge/media-bridge-source-map";
 import { buildRemotionRuntimeManifest } from "@rendering/plugins/remotion/browser/remotion-runtime-manifest";
 import { publishCurrentSlot } from "@rendering/plugins/remotion/renderer/remotion-shot-renderer";
+import { RemotionChapterManifestService } from "@rendering/plugins/remotion/manifest/remotion-chapter-manifest-service";
 import { createRemotionEnsureBrowserAdapters, type RemotionEnsureBrowser } from "@rendering/plugins/remotion/browser/remotion-browser-worker-service";
 import {
   assertRenderedMediaEvidence,
@@ -76,10 +78,25 @@ export async function runDaojieRemotionShotSlots(): Promise<DaojieShotSlotReport
   if (storyboards.length === 0) throw new Error(`未找到可渲染分镜: ${projectId}/${chapterId}`);
 
   const renderSettings = { ...DEFAULT_REMOTION_RENDER_SETTINGS };
+  const chapterManifestService = new RemotionChapterManifestService({
+    projectRootForProject: (candidateProjectId) => {
+      if (candidateProjectId !== projectId) throw new Error("Daojie chapter manifest project identity 不一致");
+      return projectDir;
+    },
+    probeMedia: async (filePath) => {
+      const probe = await probeRenderedMedia(filePath);
+      return {
+        durationUs: Math.round(probe.duration * 1_000_000),
+        streams: probe.streams,
+      };
+    },
+  });
+  const currentChapterManifest = await chapterManifestService.read(projectId, chapterId);
+  const nextChapterRevision = (currentChapterManifest?.revision ?? 0) + 1;
   const plans = await buildRemotionShotPlans({
     projectId,
     chapterId,
-    chapterRevision: 1,
+    chapterRevision: nextChapterRevision,
     renderSettings,
     storyboards,
     requireHumanApproval: process.env.MYSTUDIO_DAOJIE_REQUIRE_HUMAN_APPROVAL !== "0",
@@ -99,22 +116,29 @@ export async function runDaojieRemotionShotSlots(): Promise<DaojieShotSlotReport
   const runtimeDir = path.resolve(process.env.MYSTUDIO_REMOTION_RUNTIME_DIR || path.join(resolveUserDataDir(), "remotion-runtime"));
   await fs.promises.mkdir(runtimeDir, { recursive: true });
   await fs.promises.writeFile(path.join(runtimeDir, "package.json"), `${JSON.stringify(buildRemotionRuntimeManifest(remotionVersion), null, 2)}\n`, "utf8");
-  const chapterManifest: RemotionChapterManifestV1 = {
-    schemaVersion: 1,
+  const now = Date.now();
+  const chapterManifest: RemotionChapterManifestV2 = {
+    schemaVersion: 2,
+    manifestFingerprint: "",
     projectId,
     chapterId,
-    revision: 1,
+    revision: nextChapterRevision,
     sourceSnapshotHash: plans.sourceSnapshotHash,
     requiredShotIds: plans.plans.map((plan) => plan.shot.shotId),
-    sharedAudioTracks: [],
+    sharedAudioBindings: currentChapterManifest?.sharedAudioBindings ?? [],
     shots: plans.plans.map((plan) => plan.shot),
     renderSettings,
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
+    createdAt: currentChapterManifest?.createdAt ?? now,
+    updatedAt: now,
   };
+  chapterManifest.manifestFingerprint = await createRemotionChapterManifestFingerprint(chapterManifest);
   const chapterManifestPath = path.join(workspaceRoot, "chapters", `${chapterId}.json`);
-  await fs.promises.mkdir(path.dirname(chapterManifestPath), { recursive: true });
-  await fs.promises.writeFile(chapterManifestPath, `${JSON.stringify(chapterManifest, null, 2)}\n`, "utf8");
+  await chapterManifestService.writeCas({
+    projectId,
+    chapterId,
+    expectedRevision: currentChapterManifest?.revision ?? 0,
+    manifest: chapterManifest,
+  });
 
   const previousCwd = process.cwd();
   process.chdir(runtimeDir);

@@ -86,6 +86,7 @@ export interface ProductionFlowModelInput {
   remotionCurrentShotSlots?: RemotionCurrentSlotV1[];
   remotionQueueLoading?: boolean;
   remotionQueueError?: string;
+  chapterSharedAudioRoles?: Array<"bgm" | "ambience">;
   workflowConfig?: Pick<StudioWorkflowConfig, "visualManualId" | "directorManualId">;
   manualCatalog?: StudioManualCatalog;
   assetMediaById?: Record<string, ProductionFlowAssetMedia | undefined>;

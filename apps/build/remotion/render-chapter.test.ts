@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { afterEach, describe, expect, it } from "vitest";
+import { parseChapterSmokeShotCount } from "./render-chapter";
 
 const originalEnv = { ...process.env };
 
@@ -14,6 +15,36 @@ afterEach(() => {
 });
 
 describe("runChapterSmoke lifecycle", () => {
+  it.each(["1", "2", "5"])("accepts dynamic chapter shot count %s", (rawValue) => {
+    expect(parseChapterSmokeShotCount(rawValue)).toBe(Number(rawValue));
+  });
+
+  it("rejects invalid chapter shot counts", () => {
+    expect(() => parseChapterSmokeShotCount("0")).toThrow("大于等于 1");
+    expect(() => parseChapterSmokeShotCount("1.5")).toThrow("大于等于 1");
+  });
+
+  it("projects ChapterVideo from a V2 manifest without legacy audio bypasses", () => {
+    const source = fs.readFileSync(
+      path.resolve(process.cwd(), "build/remotion/render-chapter.ts"),
+      "utf8",
+    );
+    expect(source).toContain("createRemotionChapterManifestFingerprint");
+    expect(source).toContain("chapterManifest,");
+    expect(source).toContain("mediaUrlByBindingId: Object.fromEntries");
+    expect(source).toContain("sharedAudioBindings");
+    expect(source).toContain("analyzeRenderedAudioWindows");
+    expect(source).toContain("role: \"voice\"");
+    expect(source).toContain("role: role as \"bgm\" | \"ambience\"");
+    expect(source).toContain("fadeInUs");
+    expect(source).toContain("ducking: { enabled: duckingEnabled");
+    expect(source).toContain("audioWindows");
+    expect(source).toContain("ffmpegPostProcess: false");
+    expect(source).toContain("path.resolve(previousCwd, process.env.MYSTUDIO_REMOTION_CHAPTER_REPORT)");
+    expect(source).not.toContain("chapterAudioClipIds");
+    expect(source).not.toContain("sharedAudioTracks");
+  });
+
   it("restores the caller cwd when the browser preflight fails", async () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "mystudio-remotion-chapter-test-"));
     const bundlePath = path.join(root, "bundle");

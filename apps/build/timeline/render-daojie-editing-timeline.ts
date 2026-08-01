@@ -196,13 +196,15 @@ function loadRemotionShotSlots(artifactDir: string, projectId: string, episodeId
   return slots;
 }
 
-function removeEmbeddedShotVoiceTracks(project: EditingProjectV1): EditingProjectV1 {
-  const voiceTrackIds = new Set(project.tracks.filter((track) => track.kind === "voice").map((track) => track.id));
-  if (voiceTrackIds.size === 0) return project;
+export function removeRemotionEditingAudioTracks(project: EditingProjectV1): EditingProjectV1 {
+  const audioTrackIds = new Set(project.tracks
+    .filter((track) => track.kind === "voice" || track.kind === "bgm" || track.kind === "sfx")
+    .map((track) => track.id));
+  if (audioTrackIds.size === 0) return project;
   return {
     ...project,
-    tracks: project.tracks.filter((track) => !voiceTrackIds.has(track.id)),
-    clips: project.clips.filter((clip) => !voiceTrackIds.has(clip.trackId)),
+    tracks: project.tracks.filter((track) => !audioTrackIds.has(track.id)),
+    clips: project.clips.filter((clip) => !audioTrackIds.has(clip.trackId)),
     updatedAt: Date.now(),
   };
 }
@@ -346,7 +348,7 @@ async function main() {
   }
 
   const editingProject = remotionOnly
-    ? removeEmbeddedShotVoiceTracks(buildResult.result.project)
+    ? removeRemotionEditingAudioTracks(buildResult.result.project)
     : buildResult.result.project;
   const jobId = `timeline-${projectId}-${EPISODE_ID}-${startedAt}`;
   writeJson(editingProjectPath, editingProject);

@@ -33,7 +33,7 @@ describe("audioVolumeAtFrame", () => {
     expect(audioVolumeAtFrame(60, input)).toBeCloseTo(0);
   });
 
-  it("multiplies clip volume, fade and envelope together", () => {
+  it("multiplies clip volume, fade, user envelope and ducking envelope together", () => {
     const input: AudioVolumeInput = {
       volume: 0.5,
       durationInFrames: 60,
@@ -42,10 +42,15 @@ describe("audioVolumeAtFrame", () => {
         { frame: 0, gain: 1 },
         { frame: 60, gain: 0.2 },
       ],
+      duckingEnvelope: [
+        { frame: 0, gain: 1 },
+        { frame: 10, gain: 0.25 },
+      ],
     };
-    // frame 5: volume 0.5 * fadeIn 0.5 * envelope(5) = 0.5*0.5*(1 + (0.2-1)*5/60)
+    // frame 5: volume * fade * user envelope * ducking envelope.
     const envAt5 = 1 + (0.2 - 1) * (5 / 60);
-    expect(audioVolumeAtFrame(5, input)).toBeCloseTo(0.5 * 0.5 * envAt5);
+    const duckAt5 = 1 + (0.25 - 1) * (5 / 10);
+    expect(audioVolumeAtFrame(5, input)).toBeCloseTo(0.5 * 0.5 * envAt5 * duckAt5);
   });
 
   it("holds envelope endpoints outside the point range", () => {

@@ -16,6 +16,30 @@
 
 > 通用大文本脚本放本目录;daojie 成片流水线脚本放 `../daojie/` 与 `../daojie/pipeline/`。
 
+## 路径治理脚本
+
+`project-path-governance.mjs scan` 默认只读生成 manifest，记录文件级
+SHA-256、字节数、mtime 和硬保护分类。实际处理只能使用已批准的精确
+manifest、小批次 `batch-id` 和 `applied-output`：
+
+```bash
+node apps/build/scripts/project-path-governance.mjs trash \
+  --manifest .trellis/tasks/08-01-audit-project-paths-and-cleanup/research/<approved>.json \
+  --batch-id batch-a-001 \
+  --applied-output .trellis/tasks/08-01-audit-project-paths-and-cleanup/research/<applied>.json
+```
+
+`trash` 只调用 `/usr/bin/trash --stopOnError --verbose`，拒绝 glob、路径
+逃逸、保护目录、证据漂移、重复/重叠目标和超过 20 个顶层目标。批准
+manifest 必须位于上述 task `research/`，其 `batchId` 必须与命令完全一致；
+`scan` 与 `trash` 不接受彼此的参数。
+
+执行器在调用 trash 前以独占方式持久写入 `status=pending` 的 applied evidence；
+runner 抛错或非零退出会把同一路径更新为 `status=failed`，成功则更新为
+`status=applied`。既有 `applied-output` 永不覆盖，未经精确清单批准不得运行。
+自动化测试只能在临时夹具上注入 `trashRunner`；禁止从测试调用生产 CLI
+`trash` 或真实 `/usr/bin/trash`。
+
 ## 统一质量门禁
 
 `run-quality-gate.mjs` 是 MYStudio 验证链的唯一编排入口，由

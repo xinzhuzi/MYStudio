@@ -6,11 +6,19 @@ import { useSceneStore } from "@/stores/library/scene-store";
 import { useProjectStore } from "@/stores/project/project-store";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import type { ScriptPlan } from "@/types/studio";
-import type { RemotionCurrentSlotV1 } from "@/types/remotion-workspace";
+import { createRemotionAudioBindingFingerprint, createRemotionChapterManifestFingerprint } from "@/lib/studio/remotion/remotion-audio-fingerprint";
+import type {
+  RemotionChapterAudioBindingV2,
+  RemotionChapterManifestV2,
+  RemotionCurrentSlotV1,
+  RemotionRenderJobV1,
+} from "@/types/remotion-workspace";
 import { Film } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
 import { NativeRemotionStudioHost } from "./NativeRemotionStudioHost";
 import { VisualContinuityReviewPanel } from "./VisualContinuityReviewPanel";
 import { useEditingWorkbenchActions } from "./useEditingWorkbenchActions";
+import { useRemotionQueueScope } from "./useRemotionQueueScope";
 
 export function WorkbenchTab(props: {
   projectId?: string;
@@ -42,6 +50,205 @@ export function WorkbenchTab(props: {
     props.storyboards,
     props.remotionShotSlots ?? [],
   );
+  const chapterId = props.episodeId ?? "episode-1";
+  const queueScope = useRemotionQueueScope(props.projectId ?? activeProjectId ?? undefined, chapterId);
+  const [chapterManifest, setChapterManifest] = useState<RemotionChapterManifestV2 | null>(null);
+  const [chapterAudioStatus, setChapterAudioStatus] = useState("未读取");
+  const [chapterAudioBusy, setChapterAudioBusy] = useState(false);
+  const [chapterAudioError, setChapterAudioError] = useState<string | null>(null);
+  const refreshChapterManifest = useCallback(async () => {
+    const bridge = window.remotionChapterManifest;
+    if (!bridge || !props.projectId) {
+      setChapterManifest(null);
+      setChapterAudioStatus("桌面 bridge 不可用");
+      return;
+    }
+    try {
+      const reply = await bridge.read({ projectId: props.projectId, chapterId });
+      if (reply.status === "ready") {
+        setChapterManifest(reply.manifest);
+        setChapterAudioStatus("已加载");
+      } else {
+        setChapterManifest(null);
+        setChapterAudioStatus("未配置");
+      }
+      setChapterAudioError(null);
+    } catch (error) {
+      setChapterAudioStatus("读取失败");
+      setChapterAudioError(error instanceof Error ? error.message : String(error));
+    }
+  }, [chapterId, props.projectId]);
+  useEffect(() => {
+    void refreshChapterManifest();
+  }, [refreshChapterManifest]);
+  const writeSharedAudio = useCallback(async (
+    binding: RemotionChapterAudioBindingV2,
+  ) => {
+    const bridge = window.remotionChapterManifest;
+    const current = chapterManifest;
+    if (!bridge || !props.projectId || !current) throw new Error("当前章节缺少可写的 V2 manifest");
+    setChapterAudioBusy(true);
+    try {
+      const next: RemotionChapterManifestV2 = {
+        ...current,
+        revision: current.revision + 1,
+        updatedAt: Date.now(),
+        sharedAudioBindings: [
+          ...current.sharedAudioBindings.filter((item) => item.role !== binding.role),
+          binding,
+        ],
+        manifestFingerprint: "",
+      };
+      next.manifestFingerprint = await createRemotionChapterManifestFingerprint(next);
+      await bridge.write({
+        projectId: props.projectId,
+        chapterId,
+        expectedRevision: current.revision,
+        manifest: next,
+      });
+      setChapterManifest(next);
+      setChapterAudioStatus("已保存");
+      await window.remotionStudio?.closeSession(props.projectId);
+    } finally {
+      setChapterAudioBusy(false);
+    }
+  }, [chapterId, chapterManifest, props.projectId]);
+  const importSharedAudio = useCallback(async (role: "bgm" | "ambience") => {
+    const bridge = window.remotionChapterManifest;
+    const picker = window.studioAssets?.selectAudioFile;
+    if (!bridge || !picker || !props.projectId) {
+      setChapterAudioError("音频导入 bridge 不可用");
+      return;
+    }
+    const sourcePath = await picker();
+    if (!sourcePath || !chapterManifest) return;
+    setChapterAudioBusy(true);
+    try {
+      const imported = await bridge.importAudio({ projectId: props.projectId, chapterId, role, sourcePath });
+      const durationUs = imported.durationUs;
+      const binding: RemotionChapterAudioBindingV2 = {
+        schemaVersion: 2,
+        bindingId: `${role}:${imported.source.contentSha256.slice(0, 16)}`,
+        bindingFingerprint: "",
+        projectId: props.projectId,
+        chapterId,
+        source: imported.source,
+        sourceFingerprint: imported.source.contentSha256,
+        sourceDurationUs: durationUs,
+        sourceStartUs: 0,
+        chapterStartUs: 0,
+        durationUs,
+        volume: role === "bgm" ? 0.25 : 0.2,
+        fadeInUs: 120_000,
+        fadeOutUs: 400_000,
+        envelope: [{ timeUs: 0, gain: 1 }, { timeUs: durationUs, gain: 1 }],
+        renderScope: "chapter",
+        role,
+        ducking: {
+          enabled: role === "bgm",
+          reductionDb: -12,
+          attackUs: 120_000,
+          releaseUs: 400_000,
+        },
+      };
+      binding.bindingFingerprint = await createRemotionAudioBindingFingerprint(binding);
+      await writeSharedAudio(binding);
+      setChapterAudioError(null);
+    } catch (error) {
+      setChapterAudioError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setChapterAudioBusy(false);
+    }
+  }, [chapterId, chapterManifest, props.projectId, writeSharedAudio]);
+  const updateSharedAudio = useCallback(async (
+    binding: RemotionChapterAudioBindingV2,
+    patch: Partial<RemotionChapterAudioBindingV2>,
+  ) => {
+    try {
+      const next = { ...binding, ...patch, bindingFingerprint: "" };
+      next.bindingFingerprint = await createRemotionAudioBindingFingerprint(next);
+      await writeSharedAudio(next);
+      setChapterAudioError(null);
+    } catch (error) {
+      setChapterAudioError(error instanceof Error ? error.message : String(error));
+    }
+  }, [writeSharedAudio]);
+  const handleShotQueueAction = useCallback(async (job: RemotionRenderJobV1, action: "retry" | "cancel") => {
+    const queue = window.remotionQueue;
+    if (!queue) return;
+    setChapterAudioBusy(true);
+    try {
+      if (action === "retry") await queue.retry(job.jobId);
+      else await queue.cancel(job.jobId);
+      setChapterAudioError(null);
+    } catch (error) {
+      setChapterAudioError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setChapterAudioBusy(false);
+    }
+  }, []);
+  const importShotSfx = useCallback(async (shotId: string) => {
+    const bridge = window.remotionChapterManifest;
+    const picker = window.studioAssets?.selectAudioFile;
+    const current = chapterManifest;
+    const storyboard = props.storyboards.find((item) => item.id === shotId);
+    if (!bridge || !picker || !props.projectId || !current || !storyboard) {
+      setChapterAudioError("当前分镜缺少音频导入所需的 bridge、manifest 或身份");
+      return;
+    }
+    const sourcePath = await picker();
+    if (!sourcePath) return;
+    setChapterAudioBusy(true);
+    try {
+      const imported = await bridge.importAudio({ projectId: props.projectId, chapterId, shotId, role: "sfx", sourcePath });
+      const targetShot = current.shots.find((shot) => shot.shotId === shotId);
+      if (!targetShot) throw new Error("当前章节 manifest 缺少目标分镜");
+      const shotRevision = Math.max(1, targetShot.revision);
+      const binding = {
+        schemaVersion: 2 as const,
+        bindingId: `sfx:${shotId}:${imported.source.contentSha256.slice(0, 16)}`,
+        bindingFingerprint: "",
+        renderScope: "shot" as const,
+        projectId: props.projectId,
+        chapterId,
+        shotId,
+        shotRevision,
+        role: "sfx" as const,
+        source: imported.source,
+        sourceFingerprint: imported.source.contentSha256,
+        sourceDurationUs: imported.durationUs,
+        sourceStartUs: 0,
+        shotStartUs: 0,
+        durationUs: imported.durationUs,
+        volume: 1,
+        fadeInUs: 0,
+        fadeOutUs: 0,
+        envelope: [{ timeUs: 0, gain: 1 }, { timeUs: imported.durationUs, gain: 1 }],
+      };
+      binding.bindingFingerprint = await createRemotionAudioBindingFingerprint(binding);
+      const next: RemotionChapterManifestV2 = {
+        ...current,
+        revision: current.revision + 1,
+        updatedAt: Date.now(),
+        shots: current.shots.map((shot) => shot.shotId === shotId
+          ? { ...shot, revision: shotRevision, audioBindings: [...shot.audioBindings.filter((item) => item.role !== "sfx"), binding] }
+          : shot),
+        manifestFingerprint: "",
+      };
+      next.manifestFingerprint = await createRemotionChapterManifestFingerprint(next);
+      await bridge.write({ projectId: props.projectId, chapterId, expectedRevision: current.revision, manifest: next });
+      setChapterManifest(next);
+      useStudioStore.getState().updateStoryboard(shotId, {
+        shotAudioBindings: [...(storyboard.shotAudioBindings ?? []).filter((item) => item.role !== "sfx"), binding],
+      });
+      await window.remotionStudio?.closeSession(props.projectId);
+      setChapterAudioError(null);
+    } catch (error) {
+      setChapterAudioError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setChapterAudioBusy(false);
+    }
+  }, [chapterId, chapterManifest, props.projectId, props.storyboards]);
   return (
     <div className="space-y-3">
       <VisualContinuityReviewPanel
@@ -50,6 +257,134 @@ export function WorkbenchTab(props: {
         onReview={reviewStoryboardHuman}
         onReviewAsset={reviewContinuityAssetVersionHuman}
       />
+      <section aria-label="章节共享音频配置" className="rounded-lg border border-border bg-card px-4 py-3 text-xs">
+        <div className="flex items-center justify-between"><span className="font-semibold">章节共享音频（BGM / 环境）</span><span className="text-muted-foreground">{chapterAudioStatus}{chapterManifest ? ` · 修订 ${chapterManifest.revision}` : ""}</span></div>
+        <p className="mt-1 text-muted-foreground">非时间线配置：{chapterManifest?.sharedAudioBindings.length ?? 0} 条共享音频绑定。voice/SFX 已烘入 StoryboardShot MP4；BGM/环境声只由 ChapterVideo 统一混入。编辑仍由原生 Remotion Studio 负责。</p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {(["bgm", "ambience"] as const).map((role) => (
+            <Button key={role} size="sm" variant="outline" disabled={!chapterManifest || chapterAudioBusy} onClick={() => { void importSharedAudio(role); }}>
+              导入{role === "bgm" ? "BGM" : "环境声"}
+            </Button>
+          ))}
+        </div>
+        {chapterManifest?.sharedAudioBindings.map((binding) => (
+          <div key={binding.bindingId} className="mt-3 grid gap-2 rounded-md border border-border/70 bg-background/30 p-3">
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-medium">{binding.role === "bgm" ? "BGM" : "环境声"} · {binding.bindingId}</span>
+              <span className="text-[10px] text-muted-foreground">仅 chapter-scoped · 未烘入单镜</span>
+            </div>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {[
+                ["源起点(s)", binding.sourceStartUs / 1_000_000, (value: number) => ({ sourceStartUs: Math.round(value * 1_000_000) }), 0],
+                ["章节起点(s)", binding.chapterStartUs / 1_000_000, (value: number) => ({ chapterStartUs: Math.round(value * 1_000_000) }), 0],
+                ["时长(s)", binding.durationUs / 1_000_000, (value: number) => ({ durationUs: Math.round(value * 1_000_000) }), 0.001],
+                ["音量", binding.volume, (value: number) => ({ volume: value }), 0.01],
+              ].map(([label, value, toPatch, step]) => (
+                <label key={String(label)} className="grid gap-1 text-[10px] text-muted-foreground">
+                  {String(label)}
+                  <input className="h-7 rounded border border-border bg-background px-2 text-foreground" type="number" min="0" step={String(step)} defaultValue={Number(value).toFixed(3)} onBlur={(event) => { const parsed = Number(event.currentTarget.value); if (Number.isFinite(parsed)) void updateSharedAudio(binding, (toPatch as (value: number) => Partial<RemotionChapterAudioBindingV2>)(parsed)); }} />
+                </label>
+              ))}
+              {[
+                ["淡入(s)", binding.fadeInUs / 1_000_000, (value: number) => ({ fadeInUs: Math.round(value * 1_000_000) })],
+                ["淡出(s)", binding.fadeOutUs / 1_000_000, (value: number) => ({ fadeOutUs: Math.round(value * 1_000_000) })],
+                ["包络增益", binding.envelope[0]?.gain ?? 1, (value: number) => ({ envelope: [{ timeUs: 0, gain: value }, { timeUs: binding.durationUs, gain: value }] })],
+              ].map(([label, value, toPatch]) => (
+                <label key={String(label)} className="grid gap-1 text-[10px] text-muted-foreground">
+                  {String(label)}
+                  <input className="h-7 rounded border border-border bg-background px-2 text-foreground" type="number" min="0" step="0.01" defaultValue={Number(value).toFixed(3)} onBlur={(event) => { const parsed = Number(event.currentTarget.value); if (Number.isFinite(parsed)) void updateSharedAudio(binding, (toPatch as (value: number) => Partial<RemotionChapterAudioBindingV2>)(parsed)); }} />
+                </label>
+              ))}
+            </div>
+            <label className="flex items-center gap-2 text-[10px] text-muted-foreground">
+              <input type="checkbox" checked={binding.ducking.enabled} onChange={(event) => { void updateSharedAudio(binding, { ducking: { ...binding.ducking, enabled: event.currentTarget.checked } }); }} />
+              对白 ducking
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              <label className="grid gap-1 text-[10px] text-muted-foreground">
+                对白 ducking reduction(dB)
+                <input
+                  aria-label="对白 ducking reduction(dB)"
+                  className="h-7 rounded border border-border bg-background px-2 text-foreground"
+                  type="number"
+                  min="-60"
+                  max="0"
+                  step="0.5"
+                  defaultValue={binding.ducking.reductionDb}
+                  onBlur={(event) => {
+                    const parsed = Number(event.currentTarget.value);
+                    if (Number.isFinite(parsed)) void updateSharedAudio(binding, { ducking: { ...binding.ducking, reductionDb: parsed } });
+                  }}
+                />
+              </label>
+              <label className="grid gap-1 text-[10px] text-muted-foreground">
+                对白 ducking attack(ms)
+                <input
+                  aria-label="对白 ducking attack(ms)"
+                  className="h-7 rounded border border-border bg-background px-2 text-foreground"
+                  type="number"
+                  min="0"
+                  step="1"
+                  defaultValue={binding.ducking.attackUs / 1000}
+                  onBlur={(event) => {
+                    const parsed = Number(event.currentTarget.value);
+                    if (Number.isFinite(parsed)) void updateSharedAudio(binding, { ducking: { ...binding.ducking, attackUs: Math.round(parsed * 1000) } });
+                  }}
+                />
+              </label>
+              <label className="grid gap-1 text-[10px] text-muted-foreground">
+                对白 ducking release(ms)
+                <input
+                  aria-label="对白 ducking release(ms)"
+                  className="h-7 rounded border border-border bg-background px-2 text-foreground"
+                  type="number"
+                  min="0"
+                  step="1"
+                  defaultValue={binding.ducking.releaseUs / 1000}
+                  onBlur={(event) => {
+                    const parsed = Number(event.currentTarget.value);
+                    if (Number.isFinite(parsed)) void updateSharedAudio(binding, { ducking: { ...binding.ducking, releaseUs: Math.round(parsed * 1000) } });
+                  }}
+                />
+              </label>
+            </div>
+          </div>
+        ))}
+        {chapterAudioError ? <p className="mt-2 text-destructive">{chapterAudioError}</p> : null}
+      </section>
+      <section aria-label="分镜音频操作" className="rounded-lg border border-border bg-card px-4 py-3 text-xs">
+        <div className="flex items-center justify-between gap-2">
+          <span className="font-semibold">分镜音频状态与操作</span>
+          <span className="text-muted-foreground">{queueScope.loading ? "读取队列…" : `${props.storyboards.length} 个分镜`}</span>
+        </div>
+        <p className="mt-1 text-muted-foreground">voice/TTS 与 SFX 只进入对应 StoryboardShot MP4；章节共享 BGM/环境声不会重复烘入单镜。</p>
+        <div className="mt-3 space-y-2">
+          {props.storyboards.slice().sort((left, right) => left.index - right.index).map((storyboard) => {
+            const job = queueScope.jobs.find((item) => item.target.kind === "shot" && item.target.shotId === storyboard.id);
+            const voice = storyboard.shotAudioBindings?.find((binding) => binding.role === "voice");
+            const sfx = storyboard.shotAudioBindings?.find((binding) => binding.role === "sfx");
+            return (
+              <div key={storyboard.id} className="flex flex-wrap items-center justify-between gap-2 rounded border border-border/70 bg-background/30 p-2">
+                <div className="min-w-0">
+                  <div className="truncate font-medium">S{String(storyboard.index).padStart(2, "0")} · {storyboard.videoDesc || storyboard.prompt || storyboard.id}</div>
+                  <div className="mt-1 text-[10px] text-muted-foreground">
+                    TTS {voice?.ttsInputFingerprint ? "已绑定" : "缺失"} · SFX {sfx ? "已绑定" : "未引用"} · revision {storyboard.outputVersion ?? 1}
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  <Button size="sm" variant="outline" disabled={!chapterManifest || chapterAudioBusy} onClick={() => { void importShotSfx(storyboard.id); }}>导入 SFX</Button>
+                  {job && (job.status === "failed" || job.status === "canceled" || job.status === "stale") ? (
+                    <Button size="sm" variant="outline" disabled={chapterAudioBusy} onClick={() => { void handleShotQueueAction(job, "retry"); }}>重试分镜</Button>
+                  ) : null}
+                  {job && (job.status === "queued" || job.status === "running") ? (
+                    <Button size="sm" variant="outline" disabled={chapterAudioBusy} onClick={() => { void handleShotQueueAction(job, "cancel"); }}>取消分镜</Button>
+                  ) : null}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
       {editing.currentProject && chapterReady ? <NativeRemotionStudioHost
         projectId={editing.currentProject.projectId}
         chapterId={editing.currentProject.episodeId}

@@ -41,6 +41,24 @@ export function useProductionFlowModel({
   const activeProjectId = useProjectStore((state) => state.activeProjectId);
   const requestedRenderer = useAppSettingsStore((state) => state.renderingSettings.renderer);
   const remotionQueueScope = useRemotionQueueScope(activeProjectId ?? undefined, productionEpisodeId);
+  const [chapterSharedAudioRoles, setChapterSharedAudioRoles] = useState<Array<"bgm" | "ambience">>([]);
+  useEffect(() => {
+    let cancelled = false;
+    const bridge = typeof window === "undefined" ? undefined : window.remotionChapterManifest;
+    if (!bridge || !activeProjectId) {
+      setChapterSharedAudioRoles([]);
+      return;
+    }
+    void bridge.read({ projectId: activeProjectId, chapterId: productionEpisodeId }).then((reply) => {
+      if (cancelled) return;
+      setChapterSharedAudioRoles(reply.status === "ready"
+        ? reply.manifest.sharedAudioBindings.map((binding) => binding.role)
+        : []);
+    }).catch(() => {
+      if (!cancelled) setChapterSharedAudioRoles([]);
+    });
+    return () => { cancelled = true; };
+  }, [activeProjectId, productionEpisodeId]);
   const editingProjectId = useEditingStore(
     (state) => state.currentEditingProjectIdByEpisode[productionEpisodeId],
   );
@@ -181,6 +199,7 @@ export function useProductionFlowModel({
         remotionCurrentShotSlots: remotionQueueScope.currentShotSlots,
         remotionQueueLoading: remotionQueueScope.loading,
         remotionQueueError: remotionQueueScope.error,
+        chapterSharedAudioRoles,
         workflowConfig,
         manualCatalog,
         rendererSummary,
@@ -202,6 +221,7 @@ export function useProductionFlowModel({
       remotionQueueScope.error,
       remotionQueueScope.jobs,
       remotionQueueScope.loading,
+      chapterSharedAudioRoles,
     ],
   );
 }

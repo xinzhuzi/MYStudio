@@ -5,6 +5,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import type { TimelineRenderPlan } from "@/types/editing";
 import type {
+  RemotionChapterManifestV2,
   RemotionCurrentSlotV1,
   RemotionEvidenceV1,
   RemotionMediaProbeStreamV1,
@@ -26,6 +27,7 @@ import {
 import { validateTimelineRenderPlan } from "@/lib/studio/editing/validation";
 import {
   buildChapterVideoCompositionProps,
+  mapEditedVoiceIntervals,
   type ChapterVideoCompositionResult,
 } from "../composition/build-composition-props";
 import { CHAPTER_VIDEO_COMPOSITION_ID } from "../composition/composition-id";
@@ -39,6 +41,11 @@ import {
 import { publishCurrentSlot } from "./remotion-shot-renderer";
 import { quarantineRemotionPartialOutput } from "./remotion-render-output";
 import { assertBundleMatchesRuntime } from "../render/bundle-manifest";
+import type { RemotionChapterManifestService } from "../manifest/remotion-chapter-manifest-service";
+import {
+  verifyRemotionAudioBindingSource,
+  verifyRemotionProjectFileSource,
+} from "../manifest/remotion-audio-source-verification";
 
 const execFileAsync = promisify(execFile);
 
@@ -51,6 +58,8 @@ export interface RemotionChapterRendererOptions {
   binariesDirectory: string;
   remotionVersion: string;
   resolveSourcePath: (sourcePath: string) => string;
+  projectRootForProject: (projectId: string) => string;
+  chapterManifestService: Pick<RemotionChapterManifestService, "read">;
   probeBrowser: () => Promise<RemotionRenderBrowserProbe>;
   fork: RemotionRenderUtilityOptions["fork"];
   emitProgress: (progress: { jobId: string; stage: string; ratio: number; message?: string }) => void;
@@ -60,7 +69,7 @@ export interface RemotionChapterRendererOptions {
 export interface RemotionChapterRenderRequest {
   plan: TimelineRenderPlan;
   currentShotSlots: readonly RemotionCurrentSlotV1[];
-  chapterAudioClipIds: readonly string[];
+  expectedJobId?: string;
 }
 
 export interface RemotionChapterProbe {
@@ -83,25 +92,51 @@ export interface RemotionChapterRenderIdentity extends RemotionRenderJobIdentity
 export async function createRemotionChapterRenderIdentity(input: {
   plan: TimelineRenderPlan;
   currentShotSlots: readonly RemotionCurrentSlotV1[];
-  chapterAudioClipIds: readonly string[];
+  chapterManifest: RemotionChapterManifestV2;
   bundleContentHash: string;
 }): Promise<RemotionChapterRenderIdentity> {
+  const voiceIntervals = mapEditedVoiceIntervals(input);
+  if (!voiceIntervals.success) {
+    throw new Error(voiceIntervals.issues.map((issue) => `${issue.path}: ${issue.message}`).join("；"));
+  }
   const renderSettingsHash = await sha256CanonicalJson(input.plan.renderSettings);
-  const inputHash = await sha256CanonicalJson({
+  const inputHash = await sha256CanonicalJson(jsonValueWithoutUndefined({
     schemaVersion: 1,
     target: "chapter",
     projectId: input.plan.projectId,
     chapterId: input.plan.episodeId,
-    editingProjectId: input.plan.editingProjectId,
-    editingRevision: input.plan.editingRevision,
-    sourceSnapshotHash: input.plan.sourceSnapshotHash,
-    chapterAudioClipIds: [...input.chapterAudioClipIds],
-    shotSlots: input.currentShotSlots.map((slot) => ({
+    plan: {
+      schemaVersion: input.plan.schemaVersion,
+      projectId: input.plan.projectId,
+      episodeId: input.plan.episodeId,
+      editingProjectId: input.plan.editingProjectId,
+      editingRevision: input.plan.editingRevision,
+      sourceSnapshotHash: input.plan.sourceSnapshotHash,
+      renderSettings: input.plan.renderSettings,
+      clips: input.plan.clips,
+      transitions: input.plan.transitions,
+      effects: input.plan.effects,
+    },
+    chapterManifest: input.chapterManifest,
+    mappedVoiceIntervals: voiceIntervals.value,
+    shotSlots: [...input.currentShotSlots].sort(compareShotSlots).map((slot) => ({
       target: slot.target,
-      jobId: slot.job.jobId,
-      evidenceSha256: slot.evidence.sha256,
+      job: {
+        jobId: slot.job.jobId,
+        inputHash: slot.job.inputHash,
+        bundleContentHash: slot.job.bundleContentHash,
+        renderSettingsHash: slot.job.renderSettingsHash,
+      },
+      evidence: {
+        jobId: slot.evidence.jobId,
+        inputHash: slot.evidence.inputHash,
+        bundleContentHash: slot.evidence.bundleContentHash,
+        renderSettingsHash: slot.evidence.renderSettingsHash,
+        outputPath: slot.evidence.outputPath,
+        outputSha256: slot.evidence.sha256,
+      },
     })),
-  });
+  }));
   const target = {
     kind: "chapter" as const,
     chapterId: input.plan.episodeId,
@@ -121,7 +156,7 @@ export async function createRemotionChapterRenderIdentity(input: {
 export async function createReadyRemotionChapterJob(input: {
   plan: TimelineRenderPlan;
   currentShotSlots: readonly RemotionCurrentSlotV1[];
-  chapterAudioClipIds: readonly string[];
+  chapterManifest: RemotionChapterManifestV2;
   bundleContentHash: string;
   templateVersion: string;
   remotionVersion: string;
@@ -164,14 +199,43 @@ export class RemotionChapterRenderer {
     }
     if (this.disposed) return { success: false, jobId: "chapter:pending", canceled: false, error: "Remotion chapter renderer 已关闭" };
     const plan = planValidation.value;
+    let chapterManifest: RemotionChapterManifestV2;
+    try {
+      const current = await this.options.chapterManifestService.read(plan.projectId, plan.episodeId);
+      if (!current) throw new Error("chapter_manifest_missing");
+      chapterManifest = current;
+      const sourceValidation = mapEditedVoiceIntervals({
+        plan,
+        currentShotSlots: input.currentShotSlots,
+        chapterManifest,
+      });
+      if (!sourceValidation.success) {
+        throw new Error(sourceValidation.issues.map((issue) => `${issue.path}: ${issue.message}`).join("；"));
+      }
+    } catch (error) {
+      return {
+        success: false,
+        jobId: input.expectedJobId ?? "chapter:pending",
+        canceled: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
     const bundle = readBundle(this.options.bundlePath, this.options.remotionVersion);
     const identity = await createRemotionChapterRenderIdentity({
       plan,
       currentShotSlots: input.currentShotSlots,
-      chapterAudioClipIds: input.chapterAudioClipIds,
+      chapterManifest,
       bundleContentHash: bundle.contentHash,
     });
     const { target, jobId } = identity;
+    if (input.expectedJobId && input.expectedJobId !== jobId) {
+      return {
+        success: false,
+        jobId: input.expectedJobId,
+        canceled: false,
+        error: "chapter manifest、voice intervals 或 shot evidence 已变化，render identity 失效",
+      };
+    }
     const workspaceRoot = this.options.workspaceRootForProject?.(identity.projectId) ?? this.options.workspaceRoot;
     const publicationId = crypto.randomUUID();
     const stagingDir = path.join(workspaceRoot, "staging", publicationId);
@@ -188,22 +252,37 @@ export class RemotionChapterRenderer {
         const slot = input.currentShotSlots.find((candidate) => candidate.target.kind === "shot" && candidate.target.shotId === storyboardId);
         if (!slot || slot.target.kind !== "shot") throw new Error(`缺少当前 shot slot: ${storyboardId ?? clip.id}`);
         const sourcePath = this.options.resolveSourcePath(toProjectFileUrl(plan.projectId, slot.outputPath));
-        await assertReadableFile(sourcePath, clip.id);
-        mediaSources.push({ clipId: clip.id, absolutePath: sourcePath });
+        const verified = await verifyRemotionProjectFileSource(
+          sourcePath,
+          workspaceRoot,
+          slot.evidence.sha256,
+          "shot_slot",
+        );
+        await assertReadableFile(verified.filePath, clip.id);
+        mediaSources.push({ clipId: clip.id, absolutePath: verified.filePath });
       }
-      for (const clip of plan.clips.filter((candidate) => ["voice", "bgm", "sfx"].includes(candidate.trackKind))) {
-        if (!input.chapterAudioClipIds.includes(clip.id)) continue;
-        if (!clip.source.path) throw new Error(`chapter 音频缺少路径: ${clip.id}`);
-        const sourcePath = this.options.resolveSourcePath(clip.source.path);
-        await assertReadableFile(sourcePath, clip.id);
-        mediaSources.push({ clipId: clip.id, absolutePath: sourcePath });
+      for (const binding of chapterManifest.sharedAudioBindings) {
+        const mediaId = chapterAudioMediaId(binding.bindingId);
+        const { filePath: sourcePath } = await verifyRemotionAudioBindingSource(
+          binding,
+          this.options.projectRootForProject(plan.projectId),
+        );
+        await assertReadableFile(sourcePath, binding.bindingId);
+        mediaSources.push({ clipId: mediaId, absolutePath: sourcePath });
       }
       const mediaUrlByClipId = buildMediaUrlMap(this.mediaBridge, session, mediaSources);
+      const mediaUrlByBindingId = Object.fromEntries(
+        chapterManifest.sharedAudioBindings.map((binding) => [
+          binding.bindingId,
+          mediaUrlByClipId[chapterAudioMediaId(binding.bindingId)],
+        ]),
+      );
       const projected: ChapterVideoCompositionResult = buildChapterVideoCompositionProps({
         plan,
         currentShotSlots: input.currentShotSlots,
+        chapterManifest,
         mediaUrlByClipId,
-        chapterAudioClipIds: input.chapterAudioClipIds,
+        mediaUrlByBindingId,
       });
       if (!projected.success) throw new Error(projected.issues.map((issue) => `${issue.path}: ${issue.message}`).join("；"));
       const render = await this.utility.render({
@@ -307,6 +386,20 @@ async function assertReadableFile(filePath: string, clipId: string): Promise<voi
   const stat = await fs.promises.stat(filePath);
   if (!stat.isFile() || stat.size <= 0) throw new Error(`chapter 素材不可读或为空: ${clipId}`);
   await fs.promises.access(filePath, fs.constants.R_OK);
+}
+
+function chapterAudioMediaId(bindingId: string): string {
+  return `chapter-audio:${bindingId}`;
+}
+
+function compareShotSlots(left: RemotionCurrentSlotV1, right: RemotionCurrentSlotV1): number {
+  const leftShotId = left.target.kind === "shot" ? left.target.shotId : "";
+  const rightShotId = right.target.kind === "shot" ? right.target.shotId : "";
+  return leftShotId.localeCompare(rightShotId);
+}
+
+function jsonValueWithoutUndefined(value: unknown): unknown {
+  return JSON.parse(JSON.stringify(value)) as unknown;
 }
 
 function readBundle(bundlePath: string, remotionVersion: string) {

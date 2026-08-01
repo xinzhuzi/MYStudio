@@ -645,6 +645,8 @@ const remotionChapterRenderer = new RemotionChapterRenderer({
   cwd: remotionRuntimeDir,
   binariesDirectory: remotionBinariesDirectory,
   resolveSourcePath: resolveStudioSourcePath,
+  projectRootForProject: (projectId) => path.join(getDataDir(), '_p', projectId),
+  chapterManifestService: remotionChapterManifestService,
   probeBrowser: () => remotionRuntime.controller.probeStatus(),
   fork: (modulePath, args, options) => utilityProcess.fork(modulePath, [...args], options),
   remotionVersion,
@@ -681,10 +683,12 @@ const nativeStudioQueueBridge = new RemotionStudioRenderQueueBridge({
     if (typeof manifest.contentHash !== 'string' || typeof manifest.templateVersion !== 'string') {
       return { accepted: false, message: 'Remotion bundle manifest 缺少 template/content hash' }
     }
+    const chapterManifest = await remotionChapterManifestService.read(context.projectId, context.chapterId)
+    if (!chapterManifest) return { accepted: false, message: '当前章节缺少 RemotionChapterManifestV2' }
     const job = await createReadyRemotionChapterJob({
       plan: context.plan,
       currentShotSlots: context.currentShotSlots,
-      chapterAudioClipIds: context.chapterAudioClipIds,
+      chapterManifest,
       bundleContentHash: manifest.contentHash,
       templateVersion: manifest.templateVersion,
       remotionVersion,
@@ -695,7 +699,6 @@ const nativeStudioQueueBridge = new RemotionStudioRenderQueueBridge({
       dependencyJobIds: context.currentShotSlots.map((slot) => slot.job.jobId),
       plan: context.plan,
       currentShotSlots: [...context.currentShotSlots],
-      chapterAudioClipIds: [...context.chapterAudioClipIds],
     })
     if (!result.accepted) {
       return { accepted: false, message: 'message' in result ? result.message : `ChapterVideo 队列拒绝: ${result.reason}` }
@@ -809,9 +812,6 @@ async function loadChapterStudioProjection(request: { projectId: string; chapter
     },
     plan: plan.value,
     currentShotSlots,
-    chapterAudioClipIds: plan.value.clips
-      .filter((clip) => clip.trackKind === 'voice' || clip.trackKind === 'bgm' || clip.trackKind === 'sfx')
-      .map((clip) => clip.id),
   }
 }
 
@@ -950,7 +950,6 @@ const remotionStudioIpc = registerRemotionStudioIpcHandlers({
           revision: request.revision,
           plan: projection.plan,
           currentShotSlots: projection.currentShotSlots,
-          chapterAudioClipIds: projection.chapterAudioClipIds,
         }
         const expectedIdentity = {
           projectId: request.projectId,

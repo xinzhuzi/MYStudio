@@ -269,4 +269,112 @@ describe("RemotionChapterManifestService", () => {
       manifest: escaped,
     })).rejects.toThrow("path_escape");
   });
+
+  it("rejects symlinked import destinations before copying bytes", async () => {
+    const { root, sourcePath, service, projectRootForProject } = await createHarness();
+    const outsideDirectory = path.join(root, "outside-import");
+    await fs.promises.mkdir(outsideDirectory, { recursive: true });
+    const roleRoot = path.join(
+      projectRootForProject("project-a"),
+      "remotion/audio/chapter-001/shots/shot-001",
+    );
+    await fs.promises.mkdir(path.dirname(roleRoot), { recursive: true });
+    await fs.promises.symlink(outsideDirectory, roleRoot);
+    await expect(service.importAudio({
+      projectId: "project-a",
+      chapterId: "chapter-001",
+      shotId: "shot-001",
+      role: "voice",
+      sourcePath,
+    })).rejects.toThrow("path_escape");
+    await expect(fs.promises.readdir(outsideDirectory)).resolves.toEqual([]);
+  });
+
+  it("rejects symlinked generated destinations before writing bytes", async () => {
+    const { root, service, projectRootForProject } = await createHarness();
+    const bytes = new Uint8Array([82, 73, 70, 70, 9, 8, 7, 6]);
+    const sha256 = crypto.createHash("sha256").update(bytes).digest("hex");
+    const outsideDirectory = path.join(root, "outside-generated");
+    await fs.promises.mkdir(outsideDirectory, { recursive: true });
+    const roleRoot = path.join(
+      projectRootForProject("project-a"),
+      "remotion/audio/chapter-001/shots/shot-001",
+    );
+    await fs.promises.mkdir(path.dirname(roleRoot), { recursive: true });
+    await fs.promises.symlink(outsideDirectory, roleRoot);
+    await expect(service.writeGeneratedShotAudio({
+      projectId: "project-a",
+      chapterId: "chapter-001",
+      shotId: "shot-001",
+      role: "voice",
+      extension: "wav",
+      bytes,
+    })).rejects.toThrow("path_escape");
+    await expect(fs.promises.access(path.join(outsideDirectory, `${sha256}.wav`))).rejects.toThrow();
+  });
+
+  it("rejects symlinked content-addressed destination files", async () => {
+    const { root, sourcePath, service, projectRootForProject } = await createHarness();
+    const outsideFile = path.join(root, "outside-destination.wav");
+    await fs.promises.writeFile(outsideFile, Buffer.from("outside"));
+    const importedSha = crypto.createHash("sha256").update("shot-voice-bytes").digest("hex");
+    const voiceRoot = path.join(
+      projectRootForProject("project-a"),
+      "remotion/audio/chapter-001/shots/shot-001/voice",
+    );
+    await fs.promises.mkdir(voiceRoot, { recursive: true });
+    await fs.promises.symlink(outsideFile, path.join(voiceRoot, `${importedSha}.wav`));
+    await expect(service.importAudio({
+      projectId: "project-a",
+      chapterId: "chapter-001",
+      shotId: "shot-001",
+      role: "voice",
+      sourcePath,
+    })).rejects.toThrow("path_escape");
+
+    const generatedBytes = new Uint8Array([1, 3, 5, 7]);
+    const generatedSha = crypto.createHash("sha256").update(generatedBytes).digest("hex");
+    const sfxRoot = path.join(
+      projectRootForProject("project-a"),
+      "remotion/audio/chapter-001/shots/shot-001/sfx",
+    );
+    await fs.promises.mkdir(sfxRoot, { recursive: true });
+    await fs.promises.symlink(outsideFile, path.join(sfxRoot, `${generatedSha}.wav`));
+    await expect(service.writeGeneratedShotAudio({
+      projectId: "project-a",
+      chapterId: "chapter-001",
+      shotId: "shot-001",
+      role: "sfx",
+      extension: "wav",
+      bytes: generatedBytes,
+    })).rejects.toThrow("path_escape");
+  });
+
+  it("rejects a symlinked chapter manifest before reading it", async () => {
+    const { root, sourcePath, service, projectRootForProject } = await createHarness();
+    const imported = await service.importAudio({
+      projectId: "project-a",
+      chapterId: "chapter-001",
+      shotId: "shot-001",
+      role: "voice",
+      sourcePath,
+    });
+    const manifest = await makeManifest(imported);
+    await service.writeCas({
+      projectId: "project-a",
+      chapterId: "chapter-001",
+      expectedRevision: 0,
+      manifest,
+    });
+
+    const manifestPath = path.join(
+      projectRootForProject("project-a"),
+      "remotion/chapters/chapter-001.json",
+    );
+    const outsideManifest = path.join(root, "outside-manifest.json");
+    await fs.promises.rename(manifestPath, outsideManifest);
+    await fs.promises.symlink(outsideManifest, manifestPath);
+
+    await expect(service.read("project-a", "chapter-001")).rejects.toThrow("path_escape");
+  });
 });

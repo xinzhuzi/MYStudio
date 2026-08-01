@@ -62,7 +62,7 @@ describe("registerAssetLibraryIpcHandlers", () => {
     expect([...handlers.keys()].sort()).toEqual([
       "assets:add", "assets:add-image", "assets:batch-match", "assets:delete", "assets:get",
       "assets:get-by-name", "assets:import-from-toonflow", "assets:list", "assets:remove-image",
-      "assets:rename-image", "assets:replace-image", "assets:select-image-file", "assets:select-image-files", "assets:update",
+      "assets:rename-image", "assets:replace-image", "assets:select-audio-file", "assets:select-image-file", "assets:select-image-files", "assets:update",
     ]);
     expect(assetStorageMocks.initAssetsStorage).not.toHaveBeenCalled();
   });
@@ -88,6 +88,21 @@ describe("registerAssetLibraryIpcHandlers", () => {
     await expect(getHandler("assets:select-image-file")({})).resolves.toBeNull();
     expect(dialog.showOpenDialog).toHaveBeenCalledWith(expect.objectContaining({
       properties: ["openFile"],
+    }));
+  });
+
+  it("returns the selected audio file from the audio picker", async () => {
+    registerHandlers();
+    vi.mocked(dialog.showOpenDialog).mockResolvedValue({
+      canceled: false,
+      filePaths: ["/media/dialogue.wav"],
+    });
+
+    await expect(getHandler("assets:select-audio-file")({})).resolves.toBe("/media/dialogue.wav");
+    expect(dialog.showOpenDialog).toHaveBeenCalledWith(expect.objectContaining({
+      defaultPath: "/media",
+      properties: ["openFile"],
+      filters: [{ name: "音频", extensions: ["aac", "flac", "m4a", "mp3", "ogg", "wav"] }],
     }));
   });
 

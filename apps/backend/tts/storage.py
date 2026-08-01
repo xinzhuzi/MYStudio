@@ -100,6 +100,7 @@ class RuntimeStore:
             "attempt": "ALTER TABLE generations ADD COLUMN attempt INTEGER DEFAULT 1",
             "retryable": "ALTER TABLE generations ADD COLUMN retryable INTEGER DEFAULT 0",
             "error_code": "ALTER TABLE generations ADD COLUMN error_code TEXT",
+            "generation_kind": "ALTER TABLE generations ADD COLUMN generation_kind TEXT",
         }
         for column, statement in migrations.items():
             if column not in columns:
@@ -209,6 +210,7 @@ class RuntimeStore:
         shot_revision: int | None = None,
         input_fingerprint: str | None = None,
         reference_audio_sha256: str | None = None,
+        generation_kind: str | None = None,
         seed: int | None = None,
         retry_failed: bool = False,
     ) -> tuple[dict, str]:
@@ -233,6 +235,7 @@ class RuntimeStore:
             "shot_revision": shot_revision,
             "input_fingerprint": input_fingerprint,
             "reference_audio_sha256": reference_audio_sha256,
+            "generation_kind": generation_kind,
             "seed": seed,
             "attempt": 1,
             "retryable": 0,
@@ -278,13 +281,13 @@ class RuntimeStore:
                     audio_path, duration, backend, mocked, warning, error,
                     created_at, updated_at, project_id, chapter_id, shot_id,
                     shot_revision, input_fingerprint, reference_audio_sha256,
-                    seed, attempt, retryable, error_code
+                    generation_kind, seed, attempt, retryable, error_code
                 ) VALUES (
                     :id, :profile_id, :text, :language, :engine, :model_size, :status,
                     :audio_path, :duration, :backend, :mocked, :warning, :error,
                     :created_at, :updated_at, :project_id, :chapter_id, :shot_id,
                     :shot_revision, :input_fingerprint, :reference_audio_sha256,
-                    :seed, :attempt, :retryable, :error_code
+                    :generation_kind, :seed, :attempt, :retryable, :error_code
                 )
                 """,
                 generation,
@@ -304,6 +307,7 @@ class RuntimeStore:
             "shot_id",
             "shot_revision",
             "reference_audio_sha256",
+            "generation_kind",
             "seed",
         )
         if any(existing.get(key) != requested.get(key) for key in keys):

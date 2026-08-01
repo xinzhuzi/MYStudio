@@ -15,7 +15,10 @@ import type {
   CompositionVisualClipProps,
 } from "./composition-props";
 import { validateChapterVideoCompositionProps } from "./composition-props-validation";
-import type { RemotionCurrentSlotV1 } from "@/types/remotion-workspace";
+import type {
+  RemotionChapterManifestV2,
+  RemotionCurrentSlotV1,
+} from "@/types/remotion-workspace";
 import { validateRemotionCurrentSlot as validateCurrentSlot } from "@/lib/studio/remotion/remotion-slot-validation";
 import {
   clipDurationInFrames,
@@ -117,12 +120,25 @@ export function buildCompositionProps(
   };
 }
 
-export interface ChapterVideoCompositionInput {
+export interface ChapterVideoSourceInput {
   plan: TimelineRenderPlan;
   currentShotSlots: readonly RemotionCurrentSlotV1[];
-  mediaUrlByClipId: Readonly<Record<string, string>>;
-  chapterAudioClipIds: readonly string[];
+  chapterManifest: RemotionChapterManifestV2;
 }
+
+export interface ChapterVideoCompositionInput extends ChapterVideoSourceInput {
+  mediaUrlByClipId: Readonly<Record<string, string>>;
+  mediaUrlByBindingId: Readonly<Record<string, string>>;
+}
+
+export interface ChapterVoiceInterval {
+  startFrame: number;
+  endFrame: number;
+}
+
+export type ChapterVoiceIntervalResult =
+  | { success: true; value: ChapterVoiceInterval[] }
+  | { success: false; issues: Array<{ path: string; message: string }> };
 
 export type ChapterVideoCompositionResult =
   | { success: true; value: ChapterVideoCompositionProps }
@@ -130,13 +146,109 @@ export type ChapterVideoCompositionResult =
 
 /**
  * Projects a validated chapter plan into the ChapterVideo target. Every
- * visual clip must be backed by the matching current Remotion shot slot; the
- * chapter audio allow-list makes the once-only mix boundary explicit.
+ * visual clip must be backed by the matching current Remotion shot slot. Shared
+ * audio is projected only from the validated current chapter manifest.
  */
 export function buildChapterVideoCompositionProps(
   input: ChapterVideoCompositionInput,
 ): ChapterVideoCompositionResult {
+  const sourceValidation = inspectChapterVideoSource(input);
+  if (!sourceValidation.success) return sourceValidation;
+
+  const base = buildCompositionProps(input.plan, input.mediaUrlByClipId);
+  const audioClips: Array<CompositionAudioClipProps & { renderScope: "chapter" }> =
+    input.chapterManifest.sharedAudioBindings.flatMap((binding) => {
+      const from = usToFrames(binding.chapterStartUs, base.fps);
+      const requestedDurationInFrames = clipDurationInFrames(binding.durationUs, base.fps);
+      const durationInFrames = Math.min(
+        requestedDurationInFrames,
+        Math.max(0, base.durationInFrames - from),
+      );
+      // A shared track may intentionally outlive the edited chapter. It is
+      // still valid manifest data, but there is no frame to render after the
+      // chapter boundary; omit that empty projection instead of handing
+      // Remotion an out-of-range Sequence.
+      if (durationInFrames <= 0) return [];
+      return {
+        clipId: binding.bindingId,
+        kind: binding.role,
+        src: requireCapabilityUrl(input.mediaUrlByBindingId[binding.bindingId], binding.bindingId),
+        from,
+        durationInFrames,
+        volume: binding.volume,
+        renderScope: "chapter",
+        trimStartFrames: usToFrames(binding.sourceStartUs, base.fps),
+        playbackRate: 1,
+        fade: {
+          fadeInFrames: Math.min(usToFrames(binding.fadeInUs, base.fps), durationInFrames),
+          fadeOutFrames: Math.min(usToFrames(binding.fadeOutUs, base.fps), durationInFrames),
+        },
+        envelope: projectEnvelopeForDuration(binding.envelope, durationInFrames, base.fps),
+        duckingEnvelope: buildDuckingEnvelope({
+          voiceIntervals: sourceValidation.value,
+          clipFrom: from,
+          durationInFrames,
+          ducking: binding.ducking,
+          fps: base.fps,
+        }),
+      };
+    });
+  const props: ChapterVideoCompositionProps = {
+    ...base,
+    target: "chapter",
+    projectId: input.plan.projectId,
+    chapterId: input.plan.episodeId,
+    editingProjectId: input.plan.editingProjectId,
+    editingRevision: input.plan.editingRevision,
+    visualClips: base.visualClips.map((clip) => ({ ...clip, muted: false })),
+    audioClips,
+  };
+  const validation = validateChapterVideoCompositionProps(props);
+  if (!validation.success) return { success: false, issues: validation.issues };
+  return { success: true, value: validation.value };
+}
+
+function projectEnvelopeForDuration(
+  envelope: RemotionChapterManifestV2["sharedAudioBindings"][number]["envelope"],
+  durationInFrames: number,
+  fps: number,
+): CompositionEnvelopePoint[] {
+  const projected = envelope
+    .map((point) => ({ frame: usToFrames(point.timeUs, fps), gain: point.gain }))
+    .filter((point) => point.frame <= durationInFrames);
+  if (projected.length === 0) return [];
+  if (projected[0]!.frame > 0) {
+    projected.unshift({ frame: 0, gain: projected[0]!.gain });
+  }
+  const last = projected[projected.length - 1]!;
+  if (last.frame < durationInFrames) {
+    projected.push({ frame: durationInFrames, gain: last.gain });
+  }
+  return projected;
+}
+
+export function mapEditedVoiceIntervals(
+  input: ChapterVideoSourceInput,
+): ChapterVoiceIntervalResult {
+  return inspectChapterVideoSource(input);
+}
+
+function inspectChapterVideoSource(
+  input: ChapterVideoSourceInput,
+): ChapterVoiceIntervalResult {
   const issues: Array<{ path: string; message: string }> = [];
+  const manifest = input.chapterManifest;
+  if (manifest.projectId !== input.plan.projectId
+    || manifest.chapterId !== input.plan.episodeId
+    || manifest.sourceSnapshotHash !== input.plan.sourceSnapshotHash) {
+    issues.push({ path: "chapterManifest", message: "chapter manifest 与当前 plan 的 project/chapter/source identity 不一致" });
+  }
+  const editingAudio = input.plan.clips.filter((clip) => (
+    clip.trackKind === "voice" || clip.trackKind === "bgm" || clip.trackKind === "sfx"
+  ));
+  if (editingAudio.length > 0) {
+    issues.push({ path: "plan.clips", message: "ChapterVideo 禁止从 EditingProject 投影 voice/BGM/SFX 音频" });
+  }
   const slotsByShotId = new Map<string, RemotionCurrentSlotV1>();
   const validShotSlots: Array<{ index: number; shotId: string }> = [];
   for (const [index, slot] of input.currentShotSlots.entries()) {
@@ -168,6 +280,7 @@ export function buildChapterVideoCompositionProps(
     issues.push({ path: "plan.clips", message: "章节必须包含至少一个 Remotion shot visual clip" });
   }
   const requiredShotIds = new Set<string>();
+  const manifestShotById = new Map(manifest.shots.map((shot) => [shot.shotId, shot]));
   for (const [index, clip] of visualClips.entries()) {
     const sourceKind = clip.source.kind;
     const storyboardId = typeof clip.source.evidence?.storyboardId === "string"
@@ -180,8 +293,17 @@ export function buildChapterVideoCompositionProps(
       requiredShotIds.add(storyboardId);
     }
     const slot = storyboardId ? slotsByShotId.get(storyboardId) : undefined;
+    const manifestShot = storyboardId ? manifestShotById.get(storyboardId) : undefined;
     if (sourceKind !== "storyboardVideo" || !storyboardId || !slot) {
       issues.push({ path: `visualClips[${index}]`, message: "章节视觉片段必须绑定当前 Remotion shot MP4" });
+      continue;
+    }
+    if (slot.target.kind !== "shot") {
+      issues.push({ path: `visualClips[${index}]`, message: "章节视觉片段 current slot target 必须是 shot" });
+      continue;
+    }
+    if (!manifestShot || manifestShot.storyboardId !== storyboardId) {
+      issues.push({ path: `visualClips[${index}].source.evidence.storyboardId`, message: "视觉片段未精确匹配 chapter manifest shot/storyboard identity" });
       continue;
     }
     if (clip.source.path !== slot.outputPath) {
@@ -194,54 +316,134 @@ export function buildChapterVideoCompositionProps(
     if (slot.target.kind !== "shot" || clip.source.evidence?.outputVersion !== slot.target.shotRevision) {
       issues.push({ path: `visualClips[${index}].source.evidence.outputVersion`, message: "视觉片段 shot revision 与 current slot 不一致" });
     }
+    if (manifestShot.revision !== slot.target.shotRevision) {
+      issues.push({ path: `chapterManifest.shots.${manifestShot.shotId}.revision`, message: "chapter manifest shot revision 与 current slot 不一致" });
+    }
   }
   for (const { index, shotId } of validShotSlots) {
     if (!requiredShotIds.has(shotId)) {
       issues.push({ path: `currentShotSlots[${index}]`, message: "current shot slot 不得包含章节未引用的额外 shot" });
     }
   }
-
-  const audioClips = input.plan.clips.filter((candidate) => (
-    candidate.trackKind === "voice" || candidate.trackKind === "bgm" || candidate.trackKind === "sfx"
-  ));
-  const audioClipIds = new Set(audioClips.map((clip) => clip.id));
-  const audioIds = new Set<string>();
-  for (const [index, clipId] of input.chapterAudioClipIds.entries()) {
-    if (typeof clipId !== "string" || !clipId.trim()) {
-      issues.push({ path: `chapterAudioClipIds[${index}]`, message: "chapter audio ID 必须是非空字符串" });
-      continue;
-    }
-    if (audioIds.has(clipId)) {
-      issues.push({ path: `chapterAudioClipIds[${index}]`, message: "chapter audio ID 不得重复" });
-    }
-    audioIds.add(clipId);
-    if (!audioClipIds.has(clipId)) {
-      issues.push({ path: `chapterAudioClipIds[${index}]`, message: "chapter audio ID 未在当前章节计划中声明" });
-    }
+  const manifestRequired = new Set(manifest.requiredShotIds);
+  if (manifestRequired.size !== requiredShotIds.size
+    || [...requiredShotIds].some((shotId) => !manifestRequired.has(shotId))) {
+    issues.push({ path: "chapterManifest.requiredShotIds", message: "chapter manifest required shots 与编辑后的视觉片段不一致" });
   }
-  for (const clip of audioClips) {
-    if (!audioIds.has(clip.id)) {
-      issues.push({ path: `audioClips.${clip.id}`, message: "未显式声明为 chapter-scoped 音频，拒绝重复混音" });
+  for (const binding of manifest.sharedAudioBindings) {
+    if (binding.renderScope !== "chapter" || (binding.role !== "bgm" && binding.role !== "ambience")) {
+      issues.push({ path: `chapterManifest.sharedAudioBindings.${binding.bindingId}`, message: "ChapterVideo 共享音频只允许 chapter-scoped BGM/ambience" });
     }
   }
   if (issues.length > 0) return { success: false, issues };
 
-  const base = buildCompositionProps(input.plan, input.mediaUrlByClipId);
-  const props: ChapterVideoCompositionProps = {
-    ...base,
-    target: "chapter",
-    projectId: input.plan.projectId,
-    chapterId: input.plan.episodeId,
-    editingProjectId: input.plan.editingProjectId,
-    editingRevision: input.plan.editingRevision,
-    visualClips: base.visualClips.map((clip) => ({ ...clip, muted: false })),
-    audioClips: base.audioClips
-      .filter((clip) => audioIds.has(clip.clipId))
-      .map((clip) => ({ ...clip, renderScope: "chapter" as const })),
-  };
-  const validation = validateChapterVideoCompositionProps(props);
-  if (!validation.success) return { success: false, issues: validation.issues };
-  return { success: true, value: validation.value };
+  const visualTiming = layoutVisualTimeline(
+    visualClips.map((clip) => ({ clipId: clip.id, durationUs: clip.durationUs })),
+    input.plan.transitions.map((transition) => ({
+      fromClipId: transition.fromClipId,
+      toClipId: transition.toClipId,
+      effectId: transition.effectId,
+      durationUs: transition.durationUs,
+    })),
+    input.plan.renderSettings.fps,
+  );
+  const timingById = new Map(visualTiming.clips.map((timing) => [timing.clipId, timing]));
+  const voiceIntervals: ChapterVoiceInterval[] = [];
+  for (const clip of visualClips) {
+    const storyboardId = clip.source.evidence.storyboardId;
+    const shot = manifestShotById.get(storyboardId!);
+    const timing = timingById.get(clip.id);
+    if (!shot || !timing) continue;
+    const sourceEndUs = clip.trimStartUs + clip.durationUs * clip.speed;
+    for (const binding of shot.audioBindings) {
+      if (binding.role !== "voice") continue;
+      const intersectionStartUs = Math.max(binding.shotStartUs, clip.trimStartUs);
+      const intersectionEndUs = Math.min(binding.shotStartUs + binding.durationUs, sourceEndUs);
+      if (intersectionEndUs <= intersectionStartUs) continue;
+      const startFrame = Math.max(
+        timing.from,
+        timing.from + usToFrames((intersectionStartUs - clip.trimStartUs) / clip.speed, visualTiming.fps),
+      );
+      const endFrame = Math.min(
+        timing.from + timing.durationInFrames,
+        timing.from + usToFrames((intersectionEndUs - clip.trimStartUs) / clip.speed, visualTiming.fps),
+      );
+      if (endFrame > startFrame) voiceIntervals.push({ startFrame, endFrame });
+    }
+  }
+  return { success: true, value: mergeVoiceIntervals(voiceIntervals) };
+}
+
+export function buildDuckingEnvelope(input: {
+  voiceIntervals: readonly ChapterVoiceInterval[];
+  clipFrom: number;
+  durationInFrames: number;
+  ducking: RemotionChapterManifestV2["sharedAudioBindings"][number]["ducking"];
+  fps: number;
+}): CompositionEnvelopePoint[] {
+  if (!input.ducking.enabled || input.voiceIntervals.length === 0) {
+    return [{ frame: 0, gain: 1 }, { frame: input.durationInFrames, gain: 1 }];
+  }
+  const holdGain = 10 ** (input.ducking.reductionDb / 20);
+  const attackFrames = usToFrames(input.ducking.attackUs, input.fps);
+  const releaseFrames = usToFrames(input.ducking.releaseUs, input.fps);
+  const values = Array.from({ length: input.durationInFrames + 1 }, (_, localFrame) => {
+    const chapterFrame = input.clipFrom + localFrame;
+    let gain = 1;
+    for (const interval of input.voiceIntervals) {
+      gain = Math.min(gain, duckGainAtFrame(chapterFrame, interval, holdGain, attackFrames, releaseFrames));
+    }
+    return gain;
+  });
+  return compressFrameEnvelope(values);
+}
+
+function duckGainAtFrame(
+  frame: number,
+  interval: ChapterVoiceInterval,
+  holdGain: number,
+  attackFrames: number,
+  releaseFrames: number,
+): number {
+  if (frame < interval.startFrame) {
+    if (attackFrames === 0 || frame <= interval.startFrame - attackFrames) return 1;
+    const progress = (frame - (interval.startFrame - attackFrames)) / attackFrames;
+    return 1 + (holdGain - 1) * progress;
+  }
+  if (frame <= interval.endFrame) return holdGain;
+  if (releaseFrames === 0 || frame >= interval.endFrame + releaseFrames) return 1;
+  const progress = (frame - interval.endFrame) / releaseFrames;
+  return holdGain + (1 - holdGain) * progress;
+}
+
+function compressFrameEnvelope(values: readonly number[]): CompositionEnvelopePoint[] {
+  if (values.length <= 1) return [{ frame: 0, gain: values[0] ?? 1 }];
+  const points: CompositionEnvelopePoint[] = [{ frame: 0, gain: values[0]! }];
+  let previousSlope = values[1]! - values[0]!;
+  for (let frame = 2; frame < values.length; frame += 1) {
+    const slope = values[frame]! - values[frame - 1]!;
+    if (Math.abs(slope - previousSlope) > 1e-12) {
+      points.push({ frame: frame - 1, gain: values[frame - 1]! });
+    }
+    previousSlope = slope;
+  }
+  const lastFrame = values.length - 1;
+  if (points.at(-1)?.frame !== lastFrame) points.push({ frame: lastFrame, gain: values[lastFrame]! });
+  return points;
+}
+
+function mergeVoiceIntervals(intervals: readonly ChapterVoiceInterval[]): ChapterVoiceInterval[] {
+  const ordered = [...intervals].sort((left, right) => left.startFrame - right.startFrame || left.endFrame - right.endFrame);
+  const merged: ChapterVoiceInterval[] = [];
+  for (const interval of ordered) {
+    const previous = merged.at(-1);
+    if (previous && interval.startFrame <= previous.endFrame) {
+      previous.endFrame = Math.max(previous.endFrame, interval.endFrame);
+    } else {
+      merged.push({ ...interval });
+    }
+  }
+  return merged;
 }
 
 function panZoomForClip(effect: Pick<EditingEffect, "params"> | undefined): CompositionPanZoom | undefined {

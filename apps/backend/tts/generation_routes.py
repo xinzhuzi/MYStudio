@@ -52,6 +52,7 @@ class GenerationRoutesMixin:
                 shot_revision=scope["shot_revision"],
                 input_fingerprint=scope["input_fingerprint"],
                 reference_audio_sha256=scope["reference_audio_sha256"],
+                generation_kind=scope["generation_kind"],
                 seed=scope["seed"],
                 retry_failed=scope["retry_failed"],
             )
@@ -82,9 +83,16 @@ class GenerationRoutesMixin:
         shot_id = payload.get("shot_id") or payload.get("shotId")
         shot_revision = payload.get("shot_revision") or payload.get("shotRevision")
         reference_audio_sha256 = payload.get("reference_audio_sha256") or payload.get("referenceAudioSha256")
+        generation_kind = payload.get("generation_kind") or payload.get("generationKind")
         seed = payload.get("seed")
         retry_failed = payload.get("retry") is True
         scope_values = (project_id, chapter_id, shot_id, shot_revision)
+        if generation_kind is not None and generation_kind != "storyboard-shot":
+            raise ValueError("generation_kind_invalid")
+        if generation_kind == "storyboard-shot" and (
+            input_fingerprint is None or any(value is None for value in scope_values)
+        ):
+            raise ValueError("storyboard_scope_required")
         if input_fingerprint is None and all(value is None for value in scope_values):
             return {
                 "project_id": None,
@@ -93,6 +101,7 @@ class GenerationRoutesMixin:
                 "shot_revision": None,
                 "input_fingerprint": None,
                 "reference_audio_sha256": None,
+                "generation_kind": None,
                 "seed": seed,
                 "retry_failed": retry_failed,
             }
@@ -123,6 +132,7 @@ class GenerationRoutesMixin:
             "shot_revision": shot_revision,
             "input_fingerprint": input_fingerprint,
             "reference_audio_sha256": reference_audio_sha256,
+            "generation_kind": generation_kind,
             "seed": seed,
             "retry_failed": retry_failed,
         }

@@ -4,11 +4,13 @@ import { createHash } from "node:crypto";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
+import type { EditingProjectV1 } from "@/types/editing";
 import {
   deriveStorageRoots,
   resolveProjectDir,
   resolveStorageBasePath,
   parseStoryboard,
+  removeRemotionEditingAudioTracks,
   requireTimelineArtifacts,
   resolveTimelineSourcePath,
 } from "./render-daojie-editing-timeline";
@@ -31,6 +33,30 @@ afterEach(() => {
 });
 
 describe("Daojie editing timeline runner", () => {
+  it("keeps only visual and text tracks for the formal Remotion chapter projection", () => {
+    const project = {
+      tracks: [
+        { id: "video", kind: "video" },
+        { id: "voice", kind: "voice" },
+        { id: "bgm", kind: "bgm" },
+        { id: "sfx", kind: "sfx" },
+        { id: "text", kind: "text" },
+      ],
+      clips: [
+        { id: "visual", trackId: "video" },
+        { id: "voice-clip", trackId: "voice" },
+        { id: "bgm-clip", trackId: "bgm" },
+        { id: "sfx-clip", trackId: "sfx" },
+        { id: "subtitle", trackId: "text" },
+      ],
+    } as EditingProjectV1;
+
+    const projected = removeRemotionEditingAudioTracks(project);
+
+    expect(projected.tracks.map((track) => track.kind)).toEqual(["video", "text"]);
+    expect(projected.clips.map((clip) => clip.id)).toEqual(["visual", "subtitle"]);
+  });
+
   it("accepts the persisted chapter storyboard shape with an empty trackId", () => {
     expect(parseStoryboard({
       id: "sb-chapter-001-001",

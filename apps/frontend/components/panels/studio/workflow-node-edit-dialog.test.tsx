@@ -50,4 +50,36 @@ describe("WorkflowNodeEditDialog", () => {
     expect(source).not.toContain("border-white/10");
     expect(source).not.toContain("text-zinc-100");
   });
+
+  it("keeps the Remotion source JSON editor vertically scrollable", () => {
+    render(
+      <WorkflowNodeEditDialog
+        open
+        title="Remotion 分镜源数据"
+        value={JSON.stringify(Array.from({ length: 40 }, (_, index) => ({ index })), null, 2)}
+        writable
+        jsonMode
+        onValueChange={vi.fn()}
+        onClose={vi.fn()}
+        onSave={vi.fn()}
+        onEnterStage={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByText(
+        "编辑当前章节供 Remotion 视频生产使用的 canonical 分镜源数据。保存前会校验章节、镜头序号、素材引用和渲染状态；生成图片等 mediaRef 会保留。",
+      ),
+    ).toBeTruthy();
+    expect(document.querySelector(".cm-scroller")).toBeTruthy();
+    expect(
+      document.querySelector('[class*="cm-theme"]')?.classList.contains("h-full"),
+    ).toBe(true);
+
+    expect(
+      [...document.querySelectorAll("style")].some((style) =>
+        style.textContent?.includes("overflow-y: auto"),
+      ),
+    ).toBe(true);
+  });
 });

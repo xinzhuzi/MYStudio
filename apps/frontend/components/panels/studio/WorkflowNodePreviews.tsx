@@ -550,10 +550,12 @@ export function WorkbenchLanePreview({
       {node.remotionSummary ? (
         <div className="flex items-center gap-2 rounded-md border border-emerald-300/20 bg-emerald-300/[0.06] px-3 py-2 text-[10px] text-emerald-50">
           <span>StoryboardShot MP4</span>
+          <span className="text-emerald-100/70">voice/SFX 已烘入</span>
           <ArrowRight className="h-3.5 w-3.5 text-emerald-300/70" />
           <span>原生 Remotion Studio</span>
           <ArrowRight className="h-3.5 w-3.5 text-emerald-300/70" />
           <span>ChapterVideo</span>
+          <span className="text-emerald-100/70">仅混入 BGM/环境</span>
           <ArrowRight className="h-3.5 w-3.5 text-emerald-300/70" />
           <span>章节 MP4</span>
         </div>
@@ -740,6 +742,26 @@ export function RemotionShotPreview({
             <div className="mt-2 truncate text-[9px] text-muted-foreground" title={shot.outputPath ?? shot.error}>
               {shot.error ? `失败：${shot.error}` : shot.outputPath ? `MP4 · ${basename(shot.outputPath)}` : shot.jobId ? `Job · ${shot.jobId}` : "等待提交 Remotion job"}
             </div>
+            <div className="mt-1 flex flex-wrap gap-1 text-[9px]">
+              <span className="rounded border border-border px-1.5 py-0.5">修订 {shot.revision ?? 1}</span>
+              <span className={cn("rounded border px-1.5 py-0.5", shot.ttsStatus === "ready" ? "border-emerald-300/35 text-emerald-200" : "border-amber-300/35 text-amber-200")}>
+                TTS {shot.ttsStatus === "ready" ? "已就绪" : shot.ttsStatus === "pending" ? "待生成" : shot.ttsStatus === "failed" ? "失败" : "缺失"}
+              </span>
+              <span className="rounded border border-border px-1.5 py-0.5">音频绑定 {shot.shotAudioBindingCount ?? 0}</span>
+              <span className="rounded border border-border px-1.5 py-0.5" title={shot.ttsInputFingerprint ?? "未生成 TTS 指纹"}>
+                TTS 指纹 {shortFingerprint(shot.ttsInputFingerprint)}
+              </span>
+              <span className="rounded border border-border px-1.5 py-0.5" title={shot.bindingFingerprints?.join("\n") ?? "未生成音频绑定指纹"}>
+                绑定指纹 {shortFingerprint(shot.bindingFingerprints?.[0])}
+              </span>
+              <span className={cn("rounded border px-1.5 py-0.5", shot.sfxStatus === "ready" ? "border-emerald-300/35 text-emerald-200" : "border-border text-muted-foreground")}>
+                SFX {shot.sfxStatus === "ready" ? "已就绪" : "未引用"}
+              </span>
+              <span className={cn("rounded border px-1.5 py-0.5", shot.chapterSharedAudioReferenced ? "border-sky-300/35 text-sky-200" : "border-border text-muted-foreground")}>
+                章级 BGM/环境 {shot.chapterSharedAudioReferenced ? "仅引用" : "未配置"}
+              </span>
+              {shot.duplicateMixRisk ? <span className="rounded border border-rose-300/45 px-1.5 py-0.5 text-rose-200">重复混音风险</span> : null}
+            </div>
             </div>
           ))}
         </div>
@@ -755,6 +777,11 @@ export function RemotionShotPreview({
       ) : null}
     </div>
   );
+}
+
+function shortFingerprint(value: string | undefined) {
+  if (!value) return "—";
+  return value.length > 12 ? `${value.slice(0, 8)}…${value.slice(-4)}` : value;
 }
 
 function RemotionFlowStep({ label, detail }: { label: string; detail: string }) {

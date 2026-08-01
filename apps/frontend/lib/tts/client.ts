@@ -162,6 +162,7 @@ export async function generateSpeech(payload: TtsGenerateRequest): Promise<TtsGe
     shot_revision: payload.shotRevision,
     input_fingerprint: payload.inputFingerprint,
     reference_audio_sha256: payload.referenceAudioSha256,
+    generation_kind: payload.generationKind,
     retry: payload.retry,
   });
   return normalizeGenerationResponse(response);
@@ -184,6 +185,11 @@ function normalizeGenerationResponse(
     audioPath: value.audioPath ?? stringField(value.audio_path),
     errorCode: value.errorCode ?? stringField(value.error_code),
     inputFingerprint: value.inputFingerprint ?? stringField(value.input_fingerprint),
+    generationKind: value.generationKind === "storyboard-shot"
+      ? value.generationKind
+      : value.generation_kind === "storyboard-shot"
+        ? "storyboard-shot"
+        : undefined,
     retryable: value.retryable,
     attempt: typeof value.attempt === "number" ? value.attempt : undefined,
     reused: typeof value.reused === "boolean" ? value.reused : undefined,

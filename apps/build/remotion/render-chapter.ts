@@ -6,10 +6,16 @@ import { PNG } from "pngjs";
 import type { RemotionShotPlanV1 } from "@/lib/studio/remotion/shot-plan";
 import { projectStoryboardShotCompositionProps } from "@/lib/studio/remotion/shot-plan";
 import { sha256CanonicalJson } from "@/lib/studio/remotion/canonical-json";
+import { createRemotionAudioBindingFingerprint, createRemotionChapterManifestFingerprint } from "@/lib/studio/remotion/remotion-audio-fingerprint";
 import { createRemotionRenderJobId } from "@/lib/studio/remotion/remotion-job-identity";
 import { buildRemotionCurrentSlot } from "@/lib/studio/remotion/remotion-current-slot";
 import type { TimelineRenderPlan } from "@/types/editing";
-import type { RemotionCurrentSlotV1, RemotionShotDefinitionV1 } from "@/types/remotion-workspace";
+import type {
+  RemotionChapterManifestV2,
+  RemotionChapterAudioBindingV2,
+  RemotionCurrentSlotV1,
+  RemotionShotDefinitionV2,
+} from "@/types/remotion-workspace";
 import { buildChapterVideoCompositionProps } from "@rendering/plugins/remotion/composition/build-composition-props";
 import { validateChapterVideoCompositionProps } from "@rendering/plugins/remotion/composition/composition-props-validation";
 import { CHAPTER_VIDEO_COMPOSITION_ID, STORYBOARD_SHOT_COMPOSITION_ID } from "@rendering/plugins/remotion/composition/composition-id";
@@ -17,7 +23,7 @@ import { MediaBridgeServer } from "@rendering/plugins/remotion/media-bridge/medi
 import { buildMediaUrlMap } from "@rendering/plugins/remotion/media-bridge/media-bridge-source-map";
 import { createRemotionEnsureBrowserAdapters, type RemotionEnsureBrowser } from "@rendering/plugins/remotion/browser/remotion-browser-worker-service";
 import { buildRemotionRuntimeManifest } from "@rendering/plugins/remotion/browser/remotion-runtime-manifest";
-import { assertRenderedMediaEvidence, hashFileSha256, probeRenderedMedia } from "./render-smoke-evidence";
+import { analyzeRenderedAudioWindows, assertRenderedMediaEvidence, hashFileSha256, probeRenderedMedia } from "./render-smoke-evidence";
 
 const appsRoot = path.resolve(new URL("../..", import.meta.url).pathname);
 const remotionVersion = "4.0.499";
@@ -36,13 +42,23 @@ export interface ChapterSmokeReport {
   streams: string[];
   sha256: string;
   ffmpegPostProcess: false;
+  audioWindows: Awaited<ReturnType<typeof analyzeRenderedAudioWindows>>;
+  chapterSharedAudioRoles: string[];
+}
+
+export function parseChapterSmokeShotCount(rawValue = process.env.MYSTUDIO_REMOTION_CHAPTER_SHOTS): number {
+  const value = rawValue === undefined || rawValue.trim() === "" ? 2 : Number(rawValue);
+  if (!Number.isSafeInteger(value) || value < 1) {
+    throw new Error("MYSTUDIO_REMOTION_CHAPTER_SHOTS 必须是大于等于 1 的安全整数");
+  }
+  return value;
 }
 
 /** Real multi-shot gate: shot MP4s and the chapter MP4 are all renderMedia outputs. */
 export async function runChapterSmoke(): Promise<ChapterSmokeReport> {
   const outputRoot = path.resolve(process.env.MYSTUDIO_REMOTION_CHAPTER_DIR || path.join(appsRoot, "output", "automation", "remotion-chapter"));
   await fs.promises.mkdir(outputRoot, { recursive: true });
-  const assets = await createFixtureImages(path.join(outputRoot, "assets"));
+  const assets = await createFixtureImages(path.join(outputRoot, "assets"), parseChapterSmokeShotCount());
   const bundlePath = path.resolve(process.env.MYSTUDIO_REMOTION_BUNDLE || path.join(appsRoot, ".cache", "remotion-bundle"));
   const manifest = JSON.parse(await fs.promises.readFile(path.join(bundlePath, "manifest.json"), "utf8")) as Record<string, unknown>;
   if (manifest.remotionVersion !== remotionVersion || !Array.isArray(manifest.compositionIds) || !manifest.compositionIds.includes(CHAPTER_VIDEO_COMPOSITION_ID)) {
@@ -52,6 +68,9 @@ export async function runChapterSmoke(): Promise<ChapterSmokeReport> {
   await fs.promises.mkdir(runtimeDir, { recursive: true });
   await fs.promises.writeFile(path.join(runtimeDir, "package.json"), `${JSON.stringify(buildRemotionRuntimeManifest(remotionVersion), null, 2)}\n`, "utf8");
   const previousCwd = process.cwd();
+  const reportPath = process.env.MYSTUDIO_REMOTION_CHAPTER_REPORT
+    ? path.resolve(previousCwd, process.env.MYSTUDIO_REMOTION_CHAPTER_REPORT)
+    : path.join(outputRoot, "report.json");
   process.chdir(runtimeDir);
   try {
   const configuredBrowserPath = process.env.MYSTUDIO_REMOTION_BROWSER_EXECUTABLE;
@@ -65,14 +84,16 @@ export async function runChapterSmoke(): Promise<ChapterSmokeReport> {
   const chapterId = "chapter-fixture";
   const shotOutputs: string[] = [];
   const shotSlots: RemotionCurrentSlotV1[] = [];
+  const shotPlans: RemotionShotPlanV1[] = [];
   const shotBridge = new MediaBridgeServer();
   await shotBridge.listen();
   const shotSession = shotBridge.createSession();
   try {
-    for (const [index, imagePath] of assets.entries()) {
-      const shotPlan = await makeShotPlan(projectId, chapterId, index, imagePath);
+    for (const [index, imagePath] of assets.images.entries()) {
+      const shotPlan = await makeShotPlan(projectId, chapterId, index, imagePath, assets.voices[index]!);
+      shotPlans.push(shotPlan);
       const sourceKey = referenceKey(shotPlan.shot.visualSource);
-      const urls = buildMediaUrlMap(shotBridge, shotSession, [{ clipId: sourceKey, absolutePath: imagePath }]);
+      const urls = buildMediaUrlMap(shotBridge, shotSession, [{ clipId: sourceKey, absolutePath: imagePath }, ...shotPlan.shot.audioBindings.map((b) => ({ clipId: referenceKey(b.source), absolutePath: assets.voices[index]! }))]);
       const projected = projectStoryboardShotCompositionProps(shotPlan, (reference) => {
         const url = urls[referenceKey(reference)];
         if (!url) throw new Error(`shot capability 缺失: ${reference.relativePath}`);
@@ -112,12 +133,19 @@ export async function runChapterSmoke(): Promise<ChapterSmokeReport> {
   }
 
   const chapterPlan = makeChapterPlan(projectId, chapterId, shotSlots);
+    const chapterManifest = await makeChapterManifest(chapterPlan, shotPlans, assets);
   const chapterBridge = new MediaBridgeServer();
   await chapterBridge.listen();
   const chapterSession = chapterBridge.createSession();
   try {
-    const chapterUrls = buildMediaUrlMap(chapterBridge, chapterSession, shotSlots.map((slot, index) => ({ clipId: `visual-shot-${String(index + 1).padStart(3, "0")}`, absolutePath: shotOutputs[index]! })));
-    const propsResult = buildChapterVideoCompositionProps({ plan: chapterPlan, currentShotSlots: shotSlots, mediaUrlByClipId: chapterUrls, chapterAudioClipIds: [] });
+    const chapterUrls = buildMediaUrlMap(chapterBridge, chapterSession, [...shotSlots.map((slot, index) => ({ clipId: `visual-shot-${String(index + 1).padStart(3, "0")}`, absolutePath: shotOutputs[index]! })), ...chapterManifest.sharedAudioBindings.map((b) => ({ clipId: b.bindingId, absolutePath: b.source.relativePath.endsWith("bgm.wav") ? assets.bgm : assets.ambience }))]);
+    const propsResult = buildChapterVideoCompositionProps({
+      plan: chapterPlan,
+      currentShotSlots: shotSlots,
+      chapterManifest,
+      mediaUrlByClipId: chapterUrls,
+      mediaUrlByBindingId: Object.fromEntries(chapterManifest.sharedAudioBindings.map((b) => [b.bindingId, chapterUrls[b.bindingId]])),
+    });
     if (!propsResult.success) throw new Error(propsResult.issues.map((issue) => issue.message).join("；"));
     const propsValidation = validateChapterVideoCompositionProps(propsResult.value);
     if (!propsValidation.success) throw new Error(propsValidation.issues.map((issue) => issue.message).join("；"));
@@ -148,6 +176,11 @@ export async function runChapterSmoke(): Promise<ChapterSmokeReport> {
     });
     const probe = await probeRenderedMedia(outputPath);
     assertRenderedMediaEvidence({ label: "ChapterVideo", probe, expectedDuration: composition.durationInFrames / composition.fps, fps: composition.fps, width: chapterPlan.renderSettings.width, height: chapterPlan.renderSettings.height });
+    const audioWindows = await analyzeRenderedAudioWindows({
+      filePath: outputPath,
+      windows: shotSlots.map((_slot, index) => ({ startUs: index * 1_000_000, endUs: index * 1_000_000 + 400_000 })),
+      frequenciesHz: [110, 220, ...shotSlots.map((_slot, index) => 440 + index * 110)],
+    });
     const report: ChapterSmokeReport = {
       ok: true,
       generatedAt: new Date().toISOString(),
@@ -162,8 +195,9 @@ export async function runChapterSmoke(): Promise<ChapterSmokeReport> {
       streams: probe.streams,
       sha256: await hashFileSha256(outputPath),
       ffmpegPostProcess: false,
+      audioWindows,
+      chapterSharedAudioRoles: chapterManifest.sharedAudioBindings.map((binding) => binding.role),
     };
-    const reportPath = path.resolve(process.env.MYSTUDIO_REMOTION_CHAPTER_REPORT || path.join(outputRoot, "report.json"));
     await fs.promises.writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
     return report;
   } finally {
@@ -182,9 +216,33 @@ async function assertBrowserExecutable(browserPath: string): Promise<string> {
   return browserPath;
 }
 
-async function makeShotPlan(projectId: string, chapterId: string, index: number, imagePath: string): Promise<RemotionShotPlanV1> {
+async function makeShotPlan(projectId: string, chapterId: string, index: number, imagePath: string, voicePath: string): Promise<RemotionShotPlanV1> {
   const contentSha256 = await hashFileSha256(imagePath);
-  const shot: RemotionShotDefinitionV1 = {
+  const voiceHash = await hashFileSha256(voicePath);
+  const voiceBinding: RemotionShotAudioBindingV2 = {
+    schemaVersion: 2,
+    bindingId: `voice-${index + 1}`,
+    bindingFingerprint: "0".repeat(64),
+    renderScope: "shot",
+    projectId,
+    chapterId,
+    shotId: `shot-${String(index + 1).padStart(3, "0")}`,
+    shotRevision: 1,
+    role: "voice",
+    source: { kind: "project-file", projectId, relativePath: `remotion/audio/${chapterId}/shots/shot-${String(index + 1).padStart(3, "0")}/voice/voice-${index + 1}.wav`, contentSha256: voiceHash, provenance: { sourceKind: "generated", sourceId: "chapter-smoke", sourceVersion: "1" } },
+    sourceFingerprint: voiceHash,
+    sourceDurationUs: 1_000_000,
+    sourceStartUs: 0,
+    shotStartUs: 0,
+    durationUs: 1_000_000,
+    volume: 1,
+    fadeInUs: 0,
+    fadeOutUs: 0,
+    envelope: [{ timeUs: 0, gain: 1 }],
+    ttsInputFingerprint: await sha256CanonicalJson({ projectId, chapterId, shotId: `shot-${index + 1}`, text: `chapter smoke voice ${index + 1}`, profile: "fixture" }),
+  };
+  voiceBinding.bindingFingerprint = await createRemotionAudioBindingFingerprint(voiceBinding);
+  const shot: RemotionShotDefinitionV2 = {
     shotId: `shot-${String(index + 1).padStart(3, "0")}`,
     storyboardId: `shot-${String(index + 1).padStart(3, "0")}`,
     index,
@@ -192,13 +250,13 @@ async function makeShotPlan(projectId: string, chapterId: string, index: number,
     sourceFingerprint: contentSha256,
     durationUs: 1_000_000,
     visualSource: { kind: "project-file", projectId, relativePath: `fixture/shot-${index + 1}.png`, contentSha256, provenance: { sourceKind: "generated", sourceId: "chapter-smoke", sourceVersion: "1" } },
-    audioBindings: [],
+    audioBindings: [voiceBinding],
     motion: { kind: "pan-zoom", fromScale: 1, toScale: 1.04, originX: 0.5, originY: 0.5 },
     transform: { x: 0, y: 0, scaleX: 1, scaleY: 1, rotation: 0, opacity: 1 },
   };
   const renderSettings = { width: 1080, height: 1920, fps: 30, codec: "h264" as const, subtitleMode: "burn-in" as const, loudnessLufs: -14, truePeakDbtp: -1.5 };
-  const hashInput = { schemaVersion: 1 as const, target: "shot" as const, projectId, chapterId, renderSettings, visualKind: "image" as const, shot, sharedAudioTracks: [] };
-  return { schemaVersion: 1, target: "shot", projectId, chapterId, chapterRevision: 1, sourceSnapshotHash: "a".repeat(64), renderSettings, visualKind: "image", shot, sharedAudioTracks: [], inputHash: await sha256CanonicalJson(hashInput) };
+  const hashInput = { schemaVersion: 1 as const, target: "shot" as const, projectId, chapterId, renderSettings, visualKind: "image" as const, shot };
+  return { schemaVersion: 1, target: "shot", projectId, chapterId, chapterRevision: 1, sourceSnapshotHash: "a".repeat(64), renderSettings, visualKind: "image", shot, inputHash: await sha256CanonicalJson(hashInput) };
 }
 
 async function makeShotSlot(plan: RemotionShotPlanV1, outputPath: string, bundleContentHash: string): Promise<RemotionCurrentSlotV1> {
@@ -234,10 +292,66 @@ function makeChapterPlan(projectId: string, chapterId: string, slots: readonly R
   };
 }
 
-async function createFixtureImages(root: string): Promise<string[]> {
+async function makeChapterManifest(
+  plan: TimelineRenderPlan,
+  shotPlans: readonly RemotionShotPlanV1[],
+  assets: { bgm: string; ambience: string },
+): Promise<RemotionChapterManifestV2> {
+  const timestamp = 1;
+  const manifest: RemotionChapterManifestV2 = {
+    schemaVersion: 2,
+    manifestFingerprint: "",
+    projectId: plan.projectId,
+    chapterId: plan.episodeId,
+    revision: 1,
+    sourceSnapshotHash: plan.sourceSnapshotHash,
+    requiredShotIds: shotPlans.map((shotPlan) => shotPlan.shot.shotId),
+    sharedAudioBindings: await Promise.all([
+      ["bgm", assets.bgm, "bgm", true, 200_000, 300_000],
+      ["ambience", assets.ambience, "ambience", false, 100_000, 200_000],
+    ].map(async ([id, file, role, duckingEnabled, fadeInUs, fadeOutUs]) => {
+      const hash = await hashFileSha256(file);
+      const binding: RemotionChapterAudioBindingV2 = {
+        schemaVersion: 2,
+        bindingId: id,
+        bindingFingerprint: "0".repeat(64),
+        projectId: plan.projectId,
+        chapterId: plan.episodeId,
+        source: { kind: "project-file", projectId: plan.projectId, relativePath: `remotion/audio/${plan.episodeId}/shared/${role}/${id}.wav`, contentSha256: hash, provenance: { sourceKind: "generated", sourceId: "chapter-smoke", sourceVersion: "1" } },
+        sourceFingerprint: hash,
+        sourceDurationUs: 2_000_000,
+        sourceStartUs: 0,
+        durationUs: 2_000_000,
+        volume: 0.25,
+        fadeInUs,
+        fadeOutUs,
+        envelope: [{ timeUs: 0, gain: 1 }, { timeUs: 2_000_000, gain: 1 }],
+        renderScope: "chapter",
+        role: role as "bgm" | "ambience",
+        chapterStartUs: 0,
+        ducking: { enabled: duckingEnabled, reductionDb: -12, attackUs: 120_000, releaseUs: 400_000 },
+      };
+      binding.bindingFingerprint = await createRemotionAudioBindingFingerprint(binding);
+      return binding;
+    })),
+    shots: shotPlans.map((shotPlan) => shotPlan.shot),
+    renderSettings: plan.renderSettings,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  };
+  manifest.manifestFingerprint = await createRemotionChapterManifestFingerprint(manifest);
+  return manifest;
+}
+
+async function createFixtureImages(root: string, shotCount: number): Promise<{ images: string[]; voices: string[]; bgm: string; ambience: string }> {
   await fs.promises.mkdir(root, { recursive: true });
-  const colors = [[30, 55, 90], [100, 45, 60]];
+  const colors = Array.from({ length: shotCount }, (_value, index) => [
+    (30 + index * 37) % 220,
+    (55 + index * 29) % 220,
+    (90 + index * 47) % 220,
+  ]);
   const output: string[] = [];
+  const voices: string[] = [];
   for (const [index, color] of colors.entries()) {
     const imagePath = path.join(root, `shot-${index + 1}.png`);
     const png = new PNG({ width: 270, height: 480 });
@@ -249,8 +363,15 @@ async function createFixtureImages(root: string): Promise<string[]> {
     }
     await fs.promises.writeFile(imagePath, PNG.sync.write(png));
     output.push(imagePath);
+    const voice = path.join(root, `voice-${index + 1}.wav`); await writeSineWav(voice, 1, 440 + index * 110); voices.push(voice);
   }
-  return output;
+  const bgm = path.join(root, "bgm.wav"); const ambience = path.join(root, "ambience.wav"); await writeSineWav(bgm, 2, 220); await writeSineWav(ambience, 2, 110); return { images: output, voices, bgm, ambience };
+}
+
+async function writeSineWav(file: string, seconds: number, frequency: number): Promise<void> {
+  const rate = 48_000; const samples = rate * seconds; const data = Buffer.alloc(samples * 2);
+  for (let i = 0; i < samples; i += 1) data.writeInt16LE(Math.round(Math.sin(i * 2 * Math.PI * frequency / rate) * 7000), i * 2);
+  const h = Buffer.alloc(44); h.write("RIFF"); h.writeUInt32LE(36 + data.length, 4); h.write("WAVEfmt ", 8); h.writeUInt32LE(16, 16); h.writeUInt16LE(1, 20); h.writeUInt16LE(1, 22); h.writeUInt32LE(rate, 24); h.writeUInt32LE(rate * 2, 28); h.writeUInt16LE(2, 32); h.writeUInt16LE(16, 34); h.write("data", 36); h.writeUInt32LE(data.length, 40); await fs.promises.writeFile(file, Buffer.concat([h, data]));
 }
 
 function referenceKey(reference: { kind: string; projectId: string; relativePath: string; contentSha256: string }): string {

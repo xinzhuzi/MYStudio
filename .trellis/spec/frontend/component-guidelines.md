@@ -63,6 +63,44 @@ export function BrandMark({ className, alt = "漫影工作室" }: BrandMarkProps
 - Keep layout responsive and avoid fixed dimensions unless the workflow canvas
   or media aspect ratio requires them.
 
+### Fixed-height CodeMirror editors
+
+When `@uiw/react-codemirror` is placed in a fixed-height flex dialog, setting
+`height="100%"` alone does not guarantee vertical scrolling: the bundled
+`.cm-scroller` style only establishes horizontal overflow. Add a stable editor
+theme that explicitly enables vertical overflow, give the CodeMirror wrapper a
+definite `h-full` height, and keep the parent at `min-h-0`:
+
+```tsx
+const editorScrollTheme = EditorView.theme({
+  ".cm-scroller": { overflowY: "auto" },
+});
+
+<div className="min-h-0 flex-1 overflow-hidden">
+  <CodeMirror className="h-full" height="100%" extensions={[editorScrollTheme]} />
+</div>;
+```
+
+This keeps the dialog header and footer fixed while the editor content scrolls.
+
+### Canonical JSON editor save boundary
+
+When a node editor is in canonical JSON mode, a failed JSON validation must
+return before any Markdown parser fallback. Markdown writeback is reserved for
+the non-JSON node editor path; otherwise invalid JSON can be silently converted
+into a different source format and persisted.
+
+```tsx
+const jsonResult = validateStoryboardJson(draft, episodeId, projectId);
+if (!jsonResult.items && jsonMode === "canonical") {
+  toast.error(jsonResult.error ?? "JSON 格式无效");
+  return;
+}
+```
+
+Keep a regression test that supplies Markdown accepted by the fallback parser
+while canonical mode is active, and assert that no writeback occurs.
+
 ### Performance-sensitive viewport interactions
 
 Heavy React Flow nodes must not use React state for a per-gesture decorative

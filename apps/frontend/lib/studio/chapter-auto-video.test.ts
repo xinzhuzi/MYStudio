@@ -433,6 +433,10 @@ describe("chapter auto video orchestration", () => {
     expect(run.dependencies.enqueueRemotionShots).toHaveBeenCalledWith(
       expect.objectContaining({
         storyboards: [expect.objectContaining({ id: "sb-2" })],
+        allStoryboards: [
+          expect.objectContaining({ id: "sb-1" }),
+          expect.objectContaining({ id: "sb-2" }),
+        ],
       }),
     );
   });

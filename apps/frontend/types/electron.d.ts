@@ -349,6 +349,7 @@ declare global {
       renameImage: (payload: { assetId: string; imageFilePath: string; newName: string }) => Promise<StudioAssetSummary | null>;
       selectImageFile: () => Promise<string | null>;
       selectImageFiles: () => Promise<string[]>;
+      selectAudioFile: () => Promise<string | null>;
       importFromToonflow: (payload: { type: string }) => Promise<{ success: boolean; imported: number }>;
       getByName: (payload: { type: string; name: string }) => Promise<StudioAssetSummary | null>;
       batchMatch: (payload: { type: string; names: string[] }) => Promise<Array<{ name: string; asset: StudioAssetSummary | null }>>;

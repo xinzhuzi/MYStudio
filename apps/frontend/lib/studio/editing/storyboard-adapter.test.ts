@@ -47,6 +47,9 @@ describe("storyboard editing adapter", () => {
       },
     });
     expect(visual?.source.kind).not.toBe("videoCandidate");
+    expect(visual).toMatchObject({ muted: false, volume: 1 });
+    expect(result.project.tracks.map((track) => track.kind)).toEqual(["video", "text"]);
+    expect(result.project.clips.some((clip) => clip.source.kind === "audio")).toBe(false);
   });
 
   it("blocks a missing Remotion shot slot without falling back to candidates or source images", () => {

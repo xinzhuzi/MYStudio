@@ -12,6 +12,8 @@ import {
   type ChapterAutoVideoStatus,
 } from "@/lib/studio/chapter-auto-video";
 import { buildRemotionShotPlans } from "@/lib/studio/remotion/remotion-shot-plan-builder";
+import { createRemotionChapterManifestFingerprint } from "@/lib/studio/remotion/remotion-audio-fingerprint";
+import { sha256CanonicalJson } from "@/lib/studio/remotion/canonical-json";
 import { DEFAULT_REMOTION_RENDER_SETTINGS } from "@/lib/studio/remotion/remotion-workspace-storage";
 import { createReadyShotJob } from "@/lib/studio/remotion/remotion-job-factory";
 import { runStoryboardTtsGeneration } from "@/lib/studio/storyboard-tts-runner";
@@ -23,7 +25,10 @@ import { useProjectStore } from "@/stores/project/project-store";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import { useTtsStore } from "@/stores/tts/tts-store";
 import type { StudioAssetSummary } from "@/types/studio-assets";
-import type { RemotionRenderJobV1 } from "@/types/remotion-workspace";
+import type {
+  RemotionChapterManifestV2,
+  RemotionRenderJobV1,
+} from "@/types/remotion-workspace";
 import type { TtsSpeakerId, VoiceProfile } from "@/types/tts";
 import { latestAgentWork } from "./workflow-helpers";
 import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";
@@ -269,26 +274,74 @@ export function useChapterAutoVideoActions({
               ttsWarning: result.ttsWarning,
             });
           },
-          enqueueRemotionShots: async ({ projectId, chapterId, storyboards }) => {
+          enqueueRemotionShots: async ({ projectId, chapterId, storyboards, allStoryboards }) => {
             const runtime = await window.remotionRuntime?.workspaceRuntime?.();
             const queue = window.remotionQueue;
             if (!runtime || !queue?.enqueueShot) {
               throw new Error("Remotion workspace runtime 或持久队列接口不可用");
             }
+            const manifestBridge = window.remotionChapterManifest;
+            if (!manifestBridge?.read || !manifestBridge.write) {
+              throw new Error("Remotion chapter manifest bridge 不可用，已阻止章节队列提交");
+            }
+            const manifestReply = await manifestBridge.read({ projectId, chapterId });
+            const currentManifest = manifestReply.status === "ready"
+              ? manifestReply.manifest
+              : undefined;
+            const manifestRevision = Math.max(1, currentManifest?.revision ?? 1);
             const studio = useStudioStore.getState();
             const firstChapter = studio.novelChapters
               .slice()
               .sort((left, right) => left.index - right.index)[0]?.id;
-            const plans = await buildRemotionShotPlans({
+            let plans = await buildRemotionShotPlans({
               projectId,
               chapterId,
-              chapterRevision: 1,
+              chapterRevision: manifestRevision,
               renderSettings: DEFAULT_REMOTION_RENDER_SETTINGS,
               storyboards,
               requireHumanApproval: !firstChapter || firstChapter === chapterId,
               continuityPolicy: "required",
               assetVersions: studio.continuityAssetVersions,
             });
+            const completeShotSet = !allStoryboards || sameShotSet(storyboards, allStoryboards);
+            if (plans.success && completeShotSet) {
+              let manifest = await createChapterManifestForPlans({
+                projectId,
+                chapterId,
+                revision: currentManifest?.revision ?? 1,
+                sourceSnapshotHash: plans.sourceSnapshotHash,
+                renderSettings: DEFAULT_REMOTION_RENDER_SETTINGS,
+                plans: plans.plans,
+                existing: currentManifest,
+              });
+              const unchanged = currentManifest
+                ? await chapterManifestContentHash(currentManifest) === await chapterManifestContentHash(manifest)
+                : false;
+              if (!unchanged) {
+                const nextRevision = currentManifest ? currentManifest.revision + 1 : 1;
+                if (plans.success && plans.plans.some((plan) => plan.chapterRevision !== nextRevision)) {
+                  plans = {
+                    ...plans,
+                    plans: plans.plans.map((plan) => ({ ...plan, chapterRevision: nextRevision })),
+                  };
+                }
+                manifest = await createChapterManifestForPlans({
+                  projectId,
+                  chapterId,
+                  revision: nextRevision,
+                  sourceSnapshotHash: plans.sourceSnapshotHash,
+                  renderSettings: DEFAULT_REMOTION_RENDER_SETTINGS,
+                  plans: plans.plans,
+                  existing: currentManifest,
+                });
+                await manifestBridge.write({
+                  projectId,
+                  chapterId,
+                  expectedRevision: currentManifest?.revision ?? 0,
+                  manifest,
+                });
+              }
+            }
             const jobs: RemotionRenderJobV1[] = [];
             const blockedShotIds = plans.success ? [] : [...plans.blockedShotIds];
             for (const plan of plans.plans) {
@@ -353,4 +406,58 @@ export function useChapterAutoVideoActions({
     handleCancelShotTts,
     handleOpenFinalVideo,
   };
+}
+
+async function createChapterManifestForPlans({
+  projectId,
+  chapterId,
+  revision,
+  sourceSnapshotHash,
+  renderSettings,
+  plans,
+  existing,
+}: {
+  projectId: string;
+  chapterId: string;
+  revision: number;
+  sourceSnapshotHash: string;
+  renderSettings: typeof DEFAULT_REMOTION_RENDER_SETTINGS;
+  plans: ReadonlyArray<{ shot: RemotionChapterManifestV2["shots"][number] }>;
+  existing?: RemotionChapterManifestV2;
+}): Promise<RemotionChapterManifestV2> {
+  const now = Date.now();
+  const manifest: RemotionChapterManifestV2 = {
+    schemaVersion: 2,
+    manifestFingerprint: "",
+    projectId,
+    chapterId,
+    revision,
+    sourceSnapshotHash,
+    requiredShotIds: plans.map((plan) => plan.shot.shotId),
+    sharedAudioBindings: existing?.sharedAudioBindings ?? [],
+    shots: plans.map((plan) => plan.shot),
+    renderSettings,
+    createdAt: existing?.createdAt ?? now,
+    updatedAt: now,
+  };
+  manifest.manifestFingerprint = await createRemotionChapterManifestFingerprint(manifest);
+  return manifest;
+}
+
+function sameShotSet(left: readonly { id: string }[], right: readonly { id: string }[]): boolean {
+  if (left.length !== right.length) return false;
+  const rightIds = new Set(right.map((item) => item.id));
+  return left.every((item) => rightIds.has(item.id));
+}
+
+async function chapterManifestContentHash(manifest: RemotionChapterManifestV2): Promise<string> {
+  return sha256CanonicalJson({
+    projectId: manifest.projectId,
+    chapterId: manifest.chapterId,
+    sourceSnapshotHash: manifest.sourceSnapshotHash,
+    requiredShotIds: manifest.requiredShotIds,
+    sharedAudioBindings: manifest.sharedAudioBindings,
+    shots: manifest.shots,
+    renderSettings: manifest.renderSettings,
+  });
 }

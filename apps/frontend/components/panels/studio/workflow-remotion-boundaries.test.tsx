@@ -27,6 +27,13 @@ describe("Remotion production UI boundaries", () => {
         progress: 1,
         outputPath: "/tmp/shot-1.mp4",
         evidencePath: "/tmp/shot-1.json",
+        revision: 3,
+        ttsStatus: "ready",
+        sfxStatus: "ready",
+        shotAudioBindingCount: 2,
+        ttsInputFingerprint: "tts-input-1234567890",
+        bindingFingerprints: ["binding-abcdef123456"],
+        chapterSharedAudioReferenced: true,
       }],
       remotionSummary: {
         total: 1,
@@ -49,6 +56,12 @@ describe("Remotion production UI boundaries", () => {
     expect(flow).not.toContain("原生 Studio");
     expect(flow).not.toContain("ChapterVideo");
     expect(flow).not.toContain("章节 MP4");
+    expect(screen.getByText("TTS 已就绪")).toBeTruthy();
+    expect(screen.getByText("SFX 已就绪")).toBeTruthy();
+    expect(screen.getByText("章级 BGM/环境 仅引用")).toBeTruthy();
+    expect(screen.getByText("音频绑定 2")).toBeTruthy();
+    expect(screen.getByText("TTS 指纹 tts-inpu…7890")).toBeTruthy();
+    expect(screen.getByText("绑定指纹 binding-…3456")).toBeTruthy();
   });
 
   it("orders Studio before ChapterVideo and hides non-Remotion evidence", () => {

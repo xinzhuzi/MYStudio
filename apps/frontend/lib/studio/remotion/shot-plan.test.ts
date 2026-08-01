@@ -211,6 +211,35 @@ describe("Remotion shot plan compiler", () => {
     expectIssue(await validateRemotionShotPlan(legacyShared), "$.sharedAudioTracks");
   });
 
+  it("fails closed on malformed persisted shot audio structure", async () => {
+    const malformed = {
+      schemaVersion: 1,
+      target: "shot",
+      projectId: "project-a",
+      chapterId: "chapter-001",
+      chapterRevision: 1,
+      sourceSnapshotHash: TEST_SHA_A,
+      renderSettings: (await input()).renderSettings,
+      visualKind: "image",
+      shot: null,
+      inputHash: TEST_SHA_A,
+    };
+    await expect(validateRemotionShotPlan(malformed)).resolves.toMatchObject({
+      success: false,
+    });
+
+    const valid = await compileRemotionShotPlan(await input());
+    expect(valid.success).toBe(true);
+    if (!valid.success) return;
+    const malformedAudio = {
+      ...structuredClone(valid.value),
+      shot: { ...structuredClone(valid.value.shot), audioBindings: "not-an-array" },
+    };
+    await expect(validateRemotionShotPlan(malformedAudio)).resolves.toMatchObject({
+      success: false,
+    });
+  });
+
   it("reports the original binding index when shot audio capability resolution fails", async () => {
     const planInput = await input();
     const compiled = await compileRemotionShotPlan(planInput);

@@ -52,6 +52,31 @@
 
 - None - task complete
 
+
+## Session 7: Remotion 混合音频链路当前源码复验
+
+**Date**: 2026-08-01
+**Task**: 07-31-remotion-hybrid-audio-pipeline
+**Branch**: `-`
+
+### Summary
+
+继续验证当前源码：非发布质量门 `17:36:03Z` 为 `ok=true`，全量 Vitest
+549/2722；backend 30/30；Electron build 与 Remotion bundle 通过。17:29Z
+shot/chapter M=2/M=3 是最新 direct Remotion H.264/AAC fixture 证据。
+
+### Evidence boundary
+
+- shot 仅含 voice/SFX；chapter 仅含 BGM/ambience，chapter report
+  `ffmpegPostProcess=false`；ffprobe 仅读取并确认 H.264/AAC。
+- 17:09Z package/install 与 app.asar `3c4a23be…636b0` 归为 retry 修复前的
+  历史 UI/安装证据；本次未重复覆盖安装，遵守 no-overwrite 约束。
+- 未执行 live provider TTS/network；任务保持 active，等待 human review。
+
+### Status
+
+[OK] **Current source gates complete; task remains active for human review**
+
 ## Session 7: Remotion runtime 设置入口补齐
 
 **Date**: 2026-07-29

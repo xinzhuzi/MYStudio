@@ -64,6 +64,8 @@ afterEach(() => {
   delete (window as any).projectFiles;
   delete (window as any).electronAPI;
   delete (window as any).diagnosticsLog;
+  delete (window as any).remotionChapterManifest;
+  delete (window as any).remotionStudio;
 });
 
 function weakThreeBlockDirectorPlan() {
@@ -1833,6 +1835,34 @@ describe("workflow stage action surfaces", () => {
     expect(screen.queryByRole("button", { name: "打开渲染设置" })).toBeNull();
   });
 
+  it("shows hybrid shot audio status and SFX controls without introducing a timeline", () => {
+    render(
+      <WorkbenchTab
+        projectId="project-a"
+        storyboards={[{
+          id: "shot-1",
+          episodeId: "episode-1",
+          index: 1,
+          trackKey: "opening",
+          trackId: "track-1",
+          duration: 2,
+          prompt: "shot prompt",
+          videoDesc: "雨夜码头",
+          assetIds: [],
+          state: "ready",
+          shotAudioBindings: [],
+        }]}
+        tracks={[]}
+        candidates={[]}
+      />,
+    );
+
+    expect(screen.getByRole("region", { name: "分镜音频操作" })).toBeTruthy();
+    expect(screen.getByText("TTS 缺失 · SFX 未引用 · revision 1")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "导入 SFX" }).hasAttribute("disabled")).toBe(true);
+    expect(screen.queryByText("时间线")).toBeNull();
+  });
+
   it("does not expose the legacy track candidate controls", () => {
     render(
       <WorkbenchTab
@@ -1887,6 +1917,86 @@ describe("workflow stage action surfaces", () => {
     expect(screen.queryByRole("button", { name: /生成视频/ })).toBeNull();
     expect(screen.queryByRole("button", { name: /选择/ })).toBeNull();
     expect(screen.queryByRole("button", { name: /删除/ })).toBeNull();
+  });
+
+  it("edits chapter ducking controls through a nested manifest CAS write", async () => {
+    const binding = {
+      schemaVersion: 2,
+      bindingId: "bgm-1",
+      bindingFingerprint: "f".repeat(64),
+      projectId: "project-a",
+      chapterId: "episode-1",
+      source: {
+        kind: "project-file",
+        projectId: "project-a",
+        relativePath: "remotion/audio/episode-1/shared/bgm/bgm.wav",
+        contentSha256: "a".repeat(64),
+      },
+      sourceFingerprint: "a".repeat(64),
+      sourceDurationUs: 5_000_000,
+      sourceStartUs: 0,
+      chapterStartUs: 0,
+      durationUs: 5_000_000,
+      volume: 0.25,
+      fadeInUs: 120_000,
+      fadeOutUs: 400_000,
+      envelope: [{ timeUs: 0, gain: 1 }, { timeUs: 5_000_000, gain: 1 }],
+      renderScope: "chapter",
+      role: "bgm",
+      ducking: { enabled: true, reductionDb: -12, attackUs: 120_000, releaseUs: 400_000 },
+    };
+    const manifest = {
+      schemaVersion: 2,
+      manifestFingerprint: "m".repeat(64),
+      projectId: "project-a",
+      chapterId: "episode-1",
+      revision: 7,
+      sourceSnapshotHash: "s".repeat(64),
+      requiredShotIds: [],
+      sharedAudioBindings: [binding],
+      shots: [],
+      renderSettings: {},
+      createdAt: 1,
+      updatedAt: 1,
+    } as unknown as import("@/types/remotion-workspace").RemotionChapterManifestV2;
+    const read = vi.fn(async () => ({ status: "ready" as const, manifest }));
+    const write = vi.fn(async (_request: unknown) => ({ status: "written" as const, revision: 8 }));
+    Object.defineProperty(window, "remotionChapterManifest", {
+      configurable: true,
+      value: { read, write },
+    });
+    Object.defineProperty(window, "remotionStudio", {
+      configurable: true,
+      value: { closeSession: vi.fn(async () => ({ status: "closed", projectId: "project-a" })) },
+    });
+
+    render(<WorkbenchTab projectId="project-a" episodeId="episode-1" storyboards={[]} tracks={[]} candidates={[]} />);
+    await waitFor(() => expect(screen.getByRole("spinbutton", { name: "对白 ducking reduction(dB)" })).toBeTruthy());
+
+    fireEvent.change(screen.getByRole("spinbutton", { name: "对白 ducking reduction(dB)" }), { target: { value: "-18" } });
+    fireEvent.blur(screen.getByRole("spinbutton", { name: "对白 ducking reduction(dB)" }));
+    await waitFor(() => expect(write).toHaveBeenCalledTimes(1));
+    fireEvent.change(screen.getByRole("spinbutton", { name: "对白 ducking attack(ms)" }), { target: { value: "250" } });
+    fireEvent.blur(screen.getByRole("spinbutton", { name: "对白 ducking attack(ms)" }));
+    await waitFor(() => expect(write).toHaveBeenCalledTimes(2));
+    fireEvent.change(screen.getByRole("spinbutton", { name: "对白 ducking release(ms)" }), { target: { value: "600" } });
+    fireEvent.blur(screen.getByRole("spinbutton", { name: "对白 ducking release(ms)" }));
+
+    await waitFor(() => expect(write).toHaveBeenCalledTimes(3));
+    const firstRequest = write.mock.calls[0]?.[0] as unknown as { expectedRevision: number; manifest: typeof manifest };
+    const request = write.mock.calls.at(-1)?.[0] as unknown as { expectedRevision: number; manifest: typeof manifest };
+    expect(firstRequest.expectedRevision).toBe(7);
+    expect(firstRequest.manifest.revision).toBe(8);
+    expect(request.expectedRevision).toBe(9);
+    expect(request.manifest.revision).toBe(10);
+    expect(request.manifest.sharedAudioBindings[0].ducking).toMatchObject({
+      enabled: true,
+      reductionDb: -18,
+      attackUs: 250_000,
+      releaseUs: 600_000,
+    });
+    expect(request.manifest.sharedAudioBindings[0].bindingFingerprint).toMatch(/^[a-f0-9]{64}$/);
+    expect(request.manifest.manifestFingerprint).toMatch(/^[a-f0-9]{64}$/);
   });
 
   it("does not expose the legacy final merge control", () => {

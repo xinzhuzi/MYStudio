@@ -310,7 +310,6 @@ describe("RemotionRenderQueue", () => {
       dependencyJobIds: [first.job.jobId, second.job.jobId],
       plan: chapterPlan,
       currentShotSlots: shotSlots,
-      chapterAudioClipIds: [],
     });
     expect(result).toMatchObject({ accepted: true, job: { status: "ready" } });
     await queue.waitForIdle();
@@ -318,7 +317,7 @@ describe("RemotionRenderQueue", () => {
     expect(queue.getJob(chapter.jobId)?.status).toBe("succeeded");
   });
 
-  it("recovers running jobs as failed and blocks project switch until queue cleanup", async () => {
+  it("recovers running jobs as ready so restart can drain them", async () => {
     const persistence = new MemoryPersistence();
     const input = await makeInput();
     const running = { ...input, job: { ...input.job, status: "running" as const, attempt: 1, startedAt: 110 } };
@@ -328,7 +327,7 @@ describe("RemotionRenderQueue", () => {
       executor: { render: async () => { throw new Error("must not auto-render recovery"); }, cancel: (jobId) => ({ success: true, jobId, canceled: true }) },
     });
     await queue.init();
-    expect(queue.getJob(input.job.jobId)).toMatchObject({ status: "failed", error: { code: "app-restart-recovery" } });
+    expect(queue.getJob(input.job.jobId)).toMatchObject({ status: "ready" });
     expect(queue.requestProjectSwitch("project-b")).toMatchObject({ allowed: true });
     await queue.retry(input.job.jobId);
     expect(queue.requestProjectSwitch("project-b")).toMatchObject({ allowed: false, code: "queued-jobs" });

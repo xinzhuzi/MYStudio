@@ -29,7 +29,10 @@ import {
 import { assertBundleMatchesRuntime } from "../render/bundle-manifest";
 import { MediaBridgeServer } from "../media-bridge/media-bridge-server";
 import { buildMediaUrlMap, type MediaBridgeClipSource } from "../media-bridge/media-bridge-source-map";
-import { verifyRemotionAudioBindingSource } from "../manifest/remotion-audio-source-verification";
+import {
+  verifyRemotionAudioBindingSource,
+  verifyRemotionProjectFileSource,
+} from "../manifest/remotion-audio-source-verification";
 import {
   RemotionRenderUtilitySupervisor,
   type RemotionRenderBrowserProbe,
@@ -285,12 +288,19 @@ async function collectVerifiedSources(
   resolveSourcePath: (sourcePath: string) => string,
 ): Promise<MediaBridgeClipSource[]> {
   const sources = new Map<string, MediaBridgeClipSource>();
+  const visualSourcePath = resolveSourcePath(toProjectFileUrl(
+    shot.visualSource.projectId,
+    shot.visualSource.relativePath,
+  ));
+  const verifiedVisualSource = await verifyRemotionProjectFileSource(
+    visualSourcePath,
+    projectRoot,
+    shot.visualSource.contentSha256,
+    "visual_source",
+  );
   sources.set(referenceKey(shot.visualSource), {
     clipId: referenceKey(shot.visualSource),
-    absolutePath: resolveSourcePath(toProjectFileUrl(
-      shot.visualSource.projectId,
-      shot.visualSource.relativePath,
-    )),
+    absolutePath: verifiedVisualSource.filePath,
   });
   for (const binding of shot.audioBindings) {
     const verified = await verifyRemotionAudioBindingSource(binding, projectRoot);

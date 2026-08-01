@@ -23,7 +23,11 @@ import type {
   VoiceProfile,
 } from "@/types/tts";
 import { sha256CanonicalJson } from "./remotion/canonical-json";
-import { createRemotionAudioBindingFingerprint } from "./remotion/remotion-audio-fingerprint";
+import {
+  createRemotionAudioBindingFingerprint,
+  validateRemotionAudioBindingFingerprint,
+} from "./remotion/remotion-audio-fingerprint";
+import { validateRemotionShotAudioBindingV2 } from "./remotion/remotion-manifest-validation";
 
 export const DEFAULT_STORYBOARD_TTS_MAX_ATTEMPTS = 3;
 
@@ -99,6 +103,14 @@ function generationError(result: TtsGenerateResponse) {
   return result.error || "口播生成失败";
 }
 
+function throwGenerationFailure(result: TtsGenerateResponse): never {
+  throw new StoryboardTtsOperationError(
+    generationError(result),
+    result.errorCode || "generation_failed",
+    isRetryableFlag(result.retryable),
+  );
+}
+
 function isMocked(value: boolean | number | undefined) {
   return typeof value === "number" ? value === 1 : value === true;
 }
@@ -113,13 +125,7 @@ async function waitForCompletedGeneration(
     const status = await dependencies.getStatus(generationId);
     throwIfCanceled(isCanceled);
     if (status.status === "completed") return status;
-    if (status.status === "failed") {
-      throw new StoryboardTtsOperationError(
-        generationError(status),
-        status.errorCode || "generation_failed",
-        isRetryableFlag(status.retryable),
-      );
-    }
+    if (status.status === "failed") throwGenerationFailure(status);
     await dependencies.delay(1000);
   }
   throw new StoryboardTtsOperationError("口播生成超时", "timeout", true);
@@ -222,12 +228,27 @@ export async function runStoryboardTtsGeneration({
     && storyboard.ttsJob.shotRevision === shotRevision
     ? storyboard.ttsJob
     : undefined;
-  const existingBinding = storyboard.shotAudioBindings?.find(
+  const existingBindings = storyboard.shotAudioBindings?.filter(
     (binding) => binding.role === "voice"
       && binding.ttsInputFingerprint === inputFingerprint
       && binding.shotRevision === shotRevision,
-  );
-  if (existingJob?.status === "completed" && existingBinding) {
+  ) ?? [];
+  if (existingJob?.status === "completed" && existingBindings.length > 0) {
+    if (existingBindings.length !== 1) {
+      throw new Error(`分镜 ${storyboard.id} completed TTS job 必须有且仅有一个 canonical voice binding`);
+    }
+    const existingBinding = existingBindings[0];
+    const bindingValidation = validateRemotionShotAudioBindingV2(existingBinding, {
+      projectId,
+      chapterId,
+      shotId: storyboard.id,
+      shotRevision,
+      shotDurationUs: Math.max(1, existingBinding.shotStartUs + existingBinding.durationUs),
+    });
+    const fingerprintValidation = await validateRemotionAudioBindingFingerprint(existingBinding);
+    if (!bindingValidation.success || !fingerprintValidation.success) {
+      throw new Error(`分镜 ${storyboard.id} completed TTS voice binding 身份或 fingerprint 不匹配`);
+    }
     return completedResult(existingJob, existingBinding, storyboard);
   }
   if (["failed", "canceled"].includes(existingJob?.status ?? "") && existingJob?.retryRequested !== true) {
@@ -261,8 +282,15 @@ export async function runStoryboardTtsGeneration({
     let resumeGenerationId = existingJob?.status === "generating" || existingJob?.status === "queued"
       ? existingJob.generationId
       : undefined;
-    const firstAttempt = Math.max(1, (existingJob?.retryRequested ? (existingJob.attempt + 1) : existingJob?.attempt) ?? 1);
-    for (let offset = 0; offset < DEFAULT_STORYBOARD_TTS_MAX_ATTEMPTS; offset += 1) {
+    // An explicit retry starts a new logical run. Keep its attempt budget bounded
+    // to DEFAULT_STORYBOARD_TTS_MAX_ATTEMPTS instead of carrying the prior run's
+    // terminal attempt into the automatic retry loop.
+    const firstAttempt = existingJob?.retryRequested === true
+      ? 1
+      : Math.max(1, existingJob?.attempt ?? 1);
+    const remainingAttempts = Math.max(0, DEFAULT_STORYBOARD_TTS_MAX_ATTEMPTS - firstAttempt + 1);
+    let lastRetryableError: unknown;
+    for (let offset = 0; offset < remainingAttempts; offset += 1) {
       const attempt = firstAttempt + offset;
       job = {
         ...job,
@@ -296,12 +324,14 @@ export async function runStoryboardTtsGeneration({
             shotRevision,
             inputFingerprint,
             referenceAudioSha256,
+            generationKind: "storyboard-shot",
             retry: attempt > 1,
           });
           throwIfCanceled(isCanceled);
           generationId = generation.id;
           job = { ...job, generationId, updatedAt: dependencies.now() };
           await persistJob(job, onJob);
+          if (generation.status === "failed") throwGenerationFailure(generation);
           completed = generation.status === "completed"
             ? generation
             : await waitForCompletedGeneration(generationId, dependencies, isCanceled);
@@ -353,11 +383,14 @@ export async function runStoryboardTtsGeneration({
         };
       } catch (error) {
         if (error instanceof StoryboardTtsCanceledError) throw error;
-        if (isRetryableTtsError(error) && offset + 1 < DEFAULT_STORYBOARD_TTS_MAX_ATTEMPTS) continue;
+        if (isRetryableTtsError(error) && offset + 1 < remainingAttempts) {
+          lastRetryableError = error;
+          continue;
+        }
         throw error;
       }
     }
-    throw terminal("逐镜 TTS 重试耗尽", "retry_exhausted");
+    throw lastRetryableError ?? terminal("逐镜 TTS 重试耗尽", "retry_exhausted");
   } catch (error) {
     const canceled = error instanceof StoryboardTtsCanceledError || isCanceled();
     job = {

@@ -46,7 +46,6 @@ export interface RemotionQueueChapterInput {
   dependencyJobIds: string[];
   plan?: TimelineRenderPlan;
   currentShotSlots?: RemotionCurrentSlotV1[];
-  chapterAudioClipIds?: string[];
 }
 
 export type RemotionQueueWorkItem = RemotionQueueShotInput | RemotionQueueChapterInput;
@@ -221,8 +220,8 @@ export class RemotionRenderQueue {
         stage: "S5",
       });
     } else {
-      if (!input.plan || !input.currentShotSlots || !input.chapterAudioClipIds) {
-        return invalid("chapter job 在依赖成功后必须携带当前 TimelineRenderPlan、shot slots 与 chapter audio allow-list");
+      if (!input.plan || !input.currentShotSlots) {
+        return invalid("chapter job 在依赖成功后必须携带当前 TimelineRenderPlan 与 shot slots");
       }
       job = asReady(job);
     }
@@ -232,7 +231,6 @@ export class RemotionRenderQueue {
       dependencyJobIds,
       ...(input.plan ? { plan: input.plan } : {}),
       ...(input.currentShotSlots ? { currentShotSlots: input.currentShotSlots } : {}),
-      ...(input.chapterAudioClipIds ? { chapterAudioClipIds: input.chapterAudioClipIds } : {}),
     });
     if (job.status === "ready") this.schedulePump();
     return { accepted: true, job, reused: false };
@@ -377,13 +375,13 @@ export class RemotionRenderQueue {
     try {
       if (next.kind === "shot") {
         result = await this.options.executor.render(next.plan);
-      } else if (next.plan && next.currentShotSlots && next.chapterAudioClipIds
+      } else if (next.plan && next.currentShotSlots
         && "renderChapter" in this.options.executor
         && this.options.executor.renderChapter) {
         result = await this.options.executor.renderChapter({
           plan: next.plan,
           currentShotSlots: next.currentShotSlots,
-          chapterAudioClipIds: next.chapterAudioClipIds,
+          expectedJobId: running.jobId,
         });
       } else {
         result = { success: false, jobId: running.jobId, canceled: false, error: "chapter job 缺少渲染输入或 executor.renderChapter" };
@@ -564,9 +562,14 @@ export class RemotionRenderQueue {
     if (!isRecord(value) || (value.kind !== "shot" && value.kind !== "chapter")) throw new Error("Remotion queue item kind 无效");
     const jobResult = validateRemotionRenderJob(value.job);
     if (!jobResult.success) throw new Error(jobResult.issues.map((issue) => `${issue.path}: ${issue.message}`).join("; "));
+    // A persisted running job has no trustworthy in-memory executor after restart.
+    // Requeue it as ready so the scheduler can drain it again safely.
+    const restoredJob = jobResult.value.status === "running"
+      ? { ...jobResult.value, status: "ready" as const, progress: 0, startedAt: undefined, completedAt: undefined, error: undefined, outputPath: undefined, evidencePath: undefined }
+      : jobResult.value;
     if (value.kind === "shot") {
       if (!isRecord(value.plan)) throw new Error("shot queue item 缺少 plan");
-      this.jobs.set(jobResult.value.jobId, { kind: "shot", job: jobResult.value, plan: value.plan as unknown as RemotionShotPlanV1 });
+      this.jobs.set(restoredJob.jobId, { kind: "shot", job: restoredJob, plan: value.plan as unknown as RemotionShotPlanV1 });
       return;
     }
     if (!Array.isArray(value.dependencyJobIds)
@@ -579,16 +582,12 @@ export class RemotionRenderQueue {
     const currentShotSlots = Array.isArray(value.currentShotSlots)
       ? value.currentShotSlots as RemotionCurrentSlotV1[]
       : undefined;
-    const chapterAudioClipIds = Array.isArray(value.chapterAudioClipIds)
-      ? value.chapterAudioClipIds.filter((id): id is string => typeof id === "string")
-      : undefined;
     this.jobs.set(jobResult.value.jobId, {
       kind: "chapter",
-      job: jobResult.value,
+      job: restoredJob,
       dependencyJobIds: value.dependencyJobIds as string[],
       ...(plan ? { plan } : {}),
       ...(currentShotSlots ? { currentShotSlots } : {}),
-      ...(chapterAudioClipIds ? { chapterAudioClipIds } : {}),
     });
   }
 

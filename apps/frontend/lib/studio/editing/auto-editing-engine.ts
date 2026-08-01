@@ -191,12 +191,14 @@ export async function runAutoEditingDraft(
   project = deterministicValidation.value;
   run = await advanceRun(input, { ...run, decisions }, "arrangingClips");
 
-  const audioArrangement = arrangeAudio(
-    project,
-    adapterResult.hints,
-    input.selectedBgm,
-    input.approvedSfx ?? [],
-  );
+  const audioArrangement = input.adapterInput.remotionShotSlots !== undefined
+    ? { project, decisions: [], warnings: [] }
+    : arrangeAudio(
+        project,
+        adapterResult.hints,
+        input.selectedBgm,
+        input.approvedSfx ?? [],
+      );
   const audioValidation = validateEditingProject(audioArrangement.project);
   if (!audioValidation.success) {
     run = await failRun(

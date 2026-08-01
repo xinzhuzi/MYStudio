@@ -140,6 +140,13 @@ export interface ProductionFlowRemotionShot {
   evidencePath?: string;
   error?: string;
   revision?: number;
+  ttsStatus?: "missing" | "pending" | "ready" | "failed";
+  sfxStatus?: "missing" | "ready";
+  shotAudioBindingCount?: number;
+  ttsInputFingerprint?: string;
+  bindingFingerprints?: string[];
+  duplicateMixRisk?: boolean;
+  chapterSharedAudioReferenced?: boolean;
 }
 
 export interface ProductionFlowRemotionSummary {
@@ -374,6 +381,14 @@ export function buildProductionFlowModel(
       const mediaPath = storyboard.mediaRef?.kind === "image" || storyboard.mediaRef?.kind === "video"
         ? storyboard.mediaRef.path
         : undefined;
+      const bindings = storyboard.shotAudioBindings ?? [];
+      const voice = bindings.find((binding) => binding.role === "voice");
+      const sfx = bindings.find((binding) => binding.role === "sfx");
+      const ttsStatus = storyboard.ttsJob?.status === "failed"
+        ? "failed"
+        : voice?.ttsInputFingerprint
+          ? storyboard.ttsJob?.status === "completed" ? "ready" : "pending"
+          : "missing";
       return {
         shotId: storyboard.id,
         index: storyboard.index,
@@ -392,6 +407,13 @@ export function buildProductionFlowModel(
           progress: 0,
           revision: Math.max(1, storyboard.outputVersion ?? 1),
         }),
+        ttsStatus,
+        sfxStatus: sfx ? "ready" : "missing",
+        shotAudioBindingCount: bindings.length,
+        ttsInputFingerprint: voice?.ttsInputFingerprint,
+        bindingFingerprints: bindings.map((binding) => binding.bindingFingerprint),
+        duplicateMixRisk: new Set(bindings.map((binding) => binding.sourceFingerprint)).size < bindings.length,
+        chapterSharedAudioReferenced: (input.chapterSharedAudioRoles?.length ?? 0) > 0,
       };
     });
   const remotionSummary = summarizeRemotionShots(

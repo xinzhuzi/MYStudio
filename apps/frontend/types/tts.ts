@@ -165,6 +165,7 @@ export interface TtsGenerateRequest {
   shotRevision?: number;
   inputFingerprint?: string;
   referenceAudioSha256?: string;
+  generationKind?: "storyboard-shot";
   retry?: boolean;
 }
 
@@ -178,6 +179,7 @@ export interface TtsGenerateResponse {
   warning?: string;
   error?: string;
   errorCode?: string;
+  generationKind?: "storyboard-shot";
   retryable?: boolean | number;
   attempt?: number;
   inputFingerprint?: string;

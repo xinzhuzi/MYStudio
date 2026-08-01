@@ -40,7 +40,6 @@ export interface RemotionStudioChapterRenderContext {
   readonly revision: number;
   readonly plan: TimelineRenderPlan;
   readonly currentShotSlots: readonly RemotionCurrentSlotV1[];
-  readonly chapterAudioClipIds: readonly string[];
 }
 
 export interface RemotionStudioRenderQueueBridgeOptions {

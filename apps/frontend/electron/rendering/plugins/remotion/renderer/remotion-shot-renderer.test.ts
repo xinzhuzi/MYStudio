@@ -51,7 +51,9 @@ describe("RemotionShotRenderer", () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "mystudio-shot-renderer-"));
     const projectRoot = path.join(root, "project");
     const bundlePath = path.join(root, "bundle");
-    const imagePath = path.join(root, "shot.png");
+    const imagePath = path.join(projectRoot, "images", "shot-001.png");
+    const imageBytes = Buffer.from("image", "utf8");
+    const imageSha256 = crypto.createHash("sha256").update(imageBytes).digest("hex");
     const audioBytes = Buffer.from("audio", "utf8");
     const audioSha256 = crypto.createHash("sha256").update(audioBytes).digest("hex");
     const voice = await makeShotAudioBindingV2({ sourceFingerprint: audioSha256 });
@@ -59,7 +61,8 @@ describe("RemotionShotRenderer", () => {
     const child = new FakeUtilityProcess();
     fs.mkdirSync(bundlePath, { recursive: true });
     fs.mkdirSync(path.dirname(audioPath), { recursive: true });
-    fs.writeFileSync(imagePath, "image", "utf8");
+    fs.mkdirSync(path.dirname(imagePath), { recursive: true });
+    fs.writeFileSync(imagePath, imageBytes);
     fs.writeFileSync(audioPath, audioBytes);
     fs.writeFileSync(path.join(bundlePath, "manifest.json"), JSON.stringify({
       schemaVersion: 2,
@@ -71,6 +74,11 @@ describe("RemotionShotRenderer", () => {
       contentHash: "a".repeat(64),
     }), "utf8");
     const chapter = await makeChapterManifestV2();
+    chapter.shots[0]!.visualSource = {
+      ...chapter.shots[0]!.visualSource,
+      contentSha256: imageSha256,
+    };
+    chapter.shots[0]!.sourceFingerprint = imageSha256;
     chapter.shots[0]!.audioBindings = [voice];
     const plan = await makePlan(chapter);
     const renderer = new RemotionShotRenderer({
@@ -156,6 +164,36 @@ describe("RemotionShotRenderer", () => {
       fs.rmSync(fixture.root, { recursive: true, force: true });
     }
   });
+
+  it("rejects visual byte drift before invoking the render worker", async () => {
+    const fixture = await makeRejectFixture("visual-byte-drift");
+    fs.writeFileSync(fixture.imagePath, "changed-image", "utf8");
+    try {
+      const result = await fixture.renderer.render(fixture.plan);
+      expect(result).toMatchObject({ success: false, canceled: false });
+      if (!result.success) expect(result.error).toContain("visual_source_sha256_mismatch");
+      expect(fixture.child.posted).toHaveLength(0);
+    } finally {
+      await fixture.renderer.dispose();
+      fs.rmSync(fixture.root, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects a visual source outside the project root before invoking the render worker", async () => {
+    const fixture = await makeRejectFixture("visual-path-escape");
+    const outsidePath = path.join(fixture.root, "outside.png");
+    fs.writeFileSync(outsidePath, "outside-image", "utf8");
+    fixture.setResolveSourcePath(outsidePath);
+    try {
+      const result = await fixture.renderer.render(fixture.plan);
+      expect(result).toMatchObject({ success: false, canceled: false });
+      if (!result.success) expect(result.error).toContain("path_escape");
+      expect(fixture.child.posted).toHaveLength(0);
+    } finally {
+      await fixture.renderer.dispose();
+      fs.rmSync(fixture.root, { recursive: true, force: true });
+    }
+  });
 });
 
 async function makePlan(chapter: Awaited<ReturnType<typeof makeChapterManifestV2>>): Promise<RemotionShotPlanV1> {
@@ -187,14 +225,18 @@ async function makeRejectFixture(label: string, symlinkParent = false) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), `mystudio-shot-${label}-`));
   const projectRoot = path.join(root, "project");
   const bundlePath = path.join(root, "bundle");
-  const imagePath = path.join(root, "shot.png");
+  const imagePath = path.join(projectRoot, "images", "shot-001.png");
+  const imageBytes = Buffer.from("image", "utf8");
+  const imageSha256 = crypto.createHash("sha256").update(imageBytes).digest("hex");
   const audioBytes = Buffer.from("bound-audio", "utf8");
   const audioSha256 = crypto.createHash("sha256").update(audioBytes).digest("hex");
   const voice = await makeShotAudioBindingV2({ sourceFingerprint: audioSha256 });
   const audioPath = path.join(projectRoot, voice.source.relativePath);
   const child = new FakeUtilityProcess();
+  let resolvedVisualPath = imagePath;
   fs.mkdirSync(bundlePath, { recursive: true });
-  fs.writeFileSync(imagePath, "image", "utf8");
+  fs.mkdirSync(path.dirname(imagePath), { recursive: true });
+  fs.writeFileSync(imagePath, imageBytes);
   fs.writeFileSync(path.join(bundlePath, "manifest.json"), JSON.stringify({
     schemaVersion: 2,
     templateId: "mystudio-remotion-v1",
@@ -216,6 +258,11 @@ async function makeRejectFixture(label: string, symlinkParent = false) {
     fs.writeFileSync(audioPath, audioBytes);
   }
   const chapter = await makeChapterManifestV2();
+  chapter.shots[0]!.visualSource = {
+    ...chapter.shots[0]!.visualSource,
+    contentSha256: imageSha256,
+  };
+  chapter.shots[0]!.sourceFingerprint = imageSha256;
   chapter.shots[0]!.audioBindings = [voice];
   const plan = await makePlan(chapter);
   const renderer = new RemotionShotRenderer({
@@ -226,7 +273,7 @@ async function makeRejectFixture(label: string, symlinkParent = false) {
     cwd: "/runtime/remotion",
     binariesDirectory: "/app/binaries",
     remotionVersion: "4.0.499",
-    resolveSourcePath: () => imagePath,
+      resolveSourcePath: () => resolvedVisualPath,
     probeBrowser: async () => ({
       status: { state: "ready", remotionVersion: "4.0.499" },
       executablePath: "/runtime/headless-shell",
@@ -234,7 +281,15 @@ async function makeRejectFixture(label: string, symlinkParent = false) {
     fork: () => child,
     emitProgress: () => undefined,
   });
-  return { root, audioPath, child, plan, renderer };
+  return {
+    root,
+    audioPath,
+    imagePath,
+    child,
+    plan,
+    renderer,
+    setResolveSourcePath: (value: string) => { resolvedVisualPath = value; },
+  };
 }
 
 async function waitFor(predicate: () => boolean): Promise<void> {

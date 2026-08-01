@@ -63,6 +63,7 @@ export interface ChapterAutoVideoDependencies {
     projectId: string;
     chapterId: string;
     storyboards: StoryboardItem[];
+    allStoryboards?: StoryboardItem[];
   }) => Promise<RemotionShotQueueSubmission>;
 }
 
@@ -255,6 +256,7 @@ export async function runChapterAutoVideo({
         projectId,
         chapterId: episodeId,
         storyboards: renderableStoryboards,
+        allStoryboards: storyboards,
       })
       : { jobs: [], blockedShotIds: [] };
     const blockedShotIds = [...new Set([

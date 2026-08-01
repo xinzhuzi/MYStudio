@@ -13,7 +13,10 @@ import {
 } from "@/lib/studio/remotion/remotion-audio-fingerprint";
 import { canonicalJson } from "@/lib/studio/remotion/canonical-json";
 import { validateRemotionChapterManifestV2 } from "@/lib/studio/remotion/remotion-manifest-validation";
-import { verifyRemotionAudioBindingSource } from "./remotion-audio-source-verification";
+import {
+  rejectSymlinkComponentsUnderRoot,
+  verifyRemotionAudioBindingSource,
+} from "./remotion-audio-source-verification";
 
 export type RemotionAudioImportRequest =
   | {
@@ -108,7 +111,9 @@ export class RemotionChapterManifestService {
     const relativePath = `${relativeDir}/${sourceSha256}${extension}`;
     const projectRoot = this.projectRoot(projectId);
     const destination = resolveInside(projectRoot, relativePath, "path_escape");
+    await rejectSymlinkComponentsUnderRoot(projectRoot, destination);
     await fs.promises.mkdir(path.dirname(destination), { recursive: true });
+    await rejectSymlinkComponentsUnderRoot(projectRoot, destination);
     try {
       await fs.promises.copyFile(request.sourcePath, destination, fs.constants.COPYFILE_EXCL);
     } catch (error) {
@@ -155,8 +160,11 @@ export class RemotionChapterManifestService {
     if (buffer.byteLength === 0) throw new Error("audio_bytes_empty");
     const sourceSha256 = crypto.createHash("sha256").update(buffer).digest("hex");
     const relativePath = `remotion/audio/${chapterId}/shots/${shotId}/${request.role}/${sourceSha256}.wav`;
-    const destination = resolveInside(this.projectRoot(projectId), relativePath, "path_escape");
+    const projectRoot = this.projectRoot(projectId);
+    const destination = resolveInside(projectRoot, relativePath, "path_escape");
+    await rejectSymlinkComponentsUnderRoot(projectRoot, destination);
     await fs.promises.mkdir(path.dirname(destination), { recursive: true });
+    await rejectSymlinkComponentsUnderRoot(projectRoot, destination);
     try {
       await fs.promises.writeFile(destination, buffer, { flag: "wx" });
     } catch (error) {
@@ -190,6 +198,7 @@ export class RemotionChapterManifestService {
     const projectId = parseId(projectIdValue, "projectId");
     const chapterId = parseId(chapterIdValue, "chapterId");
     const manifestPath = this.manifestPath(projectId, chapterId);
+    await rejectSymlinkComponentsUnderRoot(this.projectRoot(projectId), manifestPath);
     let raw: string;
     try {
       raw = await fs.promises.readFile(manifestPath, "utf8");
@@ -226,7 +235,9 @@ export class RemotionChapterManifestService {
       }
       const manifest = await this.validateManifest(request.manifest, projectId, chapterId);
       await this.verifyManifestAudioBytes(manifest);
+      await rejectSymlinkComponentsUnderRoot(this.projectRoot(projectId), manifestPath);
       await fs.promises.mkdir(path.dirname(manifestPath), { recursive: true });
+      await rejectSymlinkComponentsUnderRoot(this.projectRoot(projectId), manifestPath);
       const temporaryPath = path.join(
         path.dirname(manifestPath),
         `.${chapterId}.${this.now()}.${crypto.randomUUID()}.tmp`,

@@ -148,6 +148,7 @@ export function buildStoryboardEditingProject(
   const visualSelectionByStoryboardId = new Map<string, VisualSelection>();
   const missingVisualStoryboardIds: string[] = [];
   const missingAudioStoryboardIds: string[] = [];
+  const remotionOnly = input.remotionShotSlots !== undefined;
   const remotionSlotByShotId = input.remotionShotSlots === undefined
     ? undefined
     : new Map(
@@ -174,7 +175,7 @@ export function buildStoryboardEditingProject(
     if (selection) visualSelectionByStoryboardId.set(storyboard.id, selection);
     else missingVisualStoryboardIds.push(storyboard.id);
 
-    if (subtitleText(storyboard) && !isAudioRef(storyboard.audioRef)) {
+    if (!remotionOnly && subtitleText(storyboard) && !isAudioRef(storyboard.audioRef)) {
       missingAudioStoryboardIds.push(storyboard.id);
     }
   }
@@ -234,11 +235,11 @@ export function buildStoryboardEditingProject(
       durationUs: timing.durationUs,
       trimStartUs: visual.trimStartUs,
       speed: 1,
-      volume: 0,
-      muted: true,
+      volume: remotionOnly ? 1 : 0,
+      muted: !remotionOnly,
     });
 
-    if (isAudioRef(storyboard.audioRef)) {
+    if (!remotionOnly && isAudioRef(storyboard.audioRef)) {
       voiceClips.push({
         id: `voice-${storyboard.id}`,
         trackId: voiceTrackId,

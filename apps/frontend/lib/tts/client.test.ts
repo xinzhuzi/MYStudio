@@ -9,6 +9,7 @@ import {
   getModelStatus,
   getTtsRuntimeStatus,
   unloadModel,
+  generateSpeech,
 } from "./client";
 
 describe("TTS client", () => {
@@ -78,6 +79,46 @@ describe("TTS client", () => {
         reference_text: "这是参考音频内容。",
         instruct: "克制、低沉",
       },
+    });
+  });
+
+  it("serializes the storyboard-shot generation kind without changing generic callers", async () => {
+    const request = vi.fn().mockResolvedValue({
+      id: "generation-shot-1",
+      status: "queued",
+      generation_kind: "storyboard-shot",
+    });
+    (globalThis as { window?: unknown }).window = {
+      ttsRuntime: { request },
+    };
+
+    await expect(generateSpeech({
+      text: "逐镜对白",
+      profileId: "profile-1",
+      engine: "qwen",
+      projectId: "project-a",
+      chapterId: "chapter-001",
+      shotId: "shot-001",
+      shotRevision: 3,
+      inputFingerprint: "a".repeat(64),
+      referenceAudioSha256: "b".repeat(64),
+      generationKind: "storyboard-shot",
+    })).resolves.toMatchObject({
+      id: "generation-shot-1",
+      generationKind: "storyboard-shot",
+    });
+    expect(request).toHaveBeenCalledWith({
+      method: "POST",
+      path: "/generate",
+      body: expect.objectContaining({
+        project_id: "project-a",
+        chapter_id: "chapter-001",
+        shot_id: "shot-001",
+        shot_revision: 3,
+        input_fingerprint: "a".repeat(64),
+        reference_audio_sha256: "b".repeat(64),
+        generation_kind: "storyboard-shot",
+      }),
     });
   });
 });

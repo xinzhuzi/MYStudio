@@ -31,6 +31,24 @@ const flowModel: ProductionFlowModel = {
   ],
 };
 
+const storyboardFlowModel: ProductionFlowModel = {
+  ...flowModel,
+  nodes: [
+    ...flowModel.nodes,
+    {
+      id: "storyboardTable",
+      label: "分镜表",
+      description: "测试分镜表节点",
+      targetStage: "storyboard",
+      status: "ready",
+      previewTitle: "分镜表",
+      previewLines: [],
+      metrics: [],
+      actions: [],
+    },
+  ],
+};
+
 describe("useWorkflowNodeEditor", () => {
   it("opens script node draft from latest saved script work", () => {
     useStudioStore.setState({
@@ -77,6 +95,25 @@ describe("useWorkflowNodeEditor", () => {
     expect(result.current.editingWorkflowNodeId).toBe("script");
     expect(result.current.workflowNodeDraft).toBe("最新剧本");
     expect(result.current.workflowNodeEditTitle).toBe("编辑剧本");
+    expect(result.current.workflowNodeEditWritable).toBe(true);
+  });
+
+  it("names the canonical storyboard source for Remotion", () => {
+    const { result } = renderHook(() =>
+      useWorkflowNodeEditor({
+        productionFlowModel: storyboardFlowModel,
+        projectId: "project-1",
+        productionEpisodeId: "chapter-1",
+        saveAgentWorkData: useStudioStore.getState().saveAgentWorkData,
+        saveScriptPlan: useStudioStore.getState().saveScriptPlan,
+      }),
+    );
+
+    act(() => result.current.openNodeJson("storyboardTable"));
+
+    expect(result.current.workflowNodeEditTitle).toBe("Remotion 分镜源数据");
+    expect(result.current.workflowNodeEditJson).toBe(true);
+    expect(result.current.workflowNodeEditReadOnlyJson).toBe(false);
     expect(result.current.workflowNodeEditWritable).toBe(true);
   });
 
@@ -164,5 +201,47 @@ describe("useWorkflowNodeEditor", () => {
     act(() => result.current.openNodeJson("storyboardTable"));
 
     expect(result.current.workflowNodeDraft).toBe("[]");
+  });
+
+  it("blocks invalid canonical JSON instead of falling back to Markdown writeback", async () => {
+    const saveAgentWorkData = vi.fn();
+    const validStoryboard = {
+      id: "sb-chapter-1-001",
+      episodeId: "chapter-1",
+      index: 1,
+      trackKey: "chapter-1-scene-1",
+      trackId: "",
+      duration: 2,
+      prompt: "雨夜码头",
+      videoDesc: "镜头向前推进",
+      assetIds: [],
+      state: "ready",
+      shotSemantics: {
+        sceneViewpointId: "dock",
+        personFree: true,
+        visibleCharacters: [],
+        visibleProps: [],
+        actionIn: "雨落",
+        actionOut: "雨声延续",
+      },
+    } as StoryboardItem;
+    const { result } = renderHook(() =>
+      useWorkflowNodeEditor({
+        productionFlowModel: storyboardFlowModel,
+        projectId: "project-1",
+        productionEpisodeId: "chapter-1",
+        saveAgentWorkData,
+        saveScriptPlan: vi.fn(),
+      }),
+    );
+
+    act(() => result.current.openNodeJson("storyboardTable"));
+    act(() => result.current.setWorkflowNodeDraft(serializeStoryboardTable([validStoryboard])));
+    await act(async () => {
+      await result.current.saveWorkflowNodeEdit();
+    });
+
+    expect(saveAgentWorkData).not.toHaveBeenCalled();
+    expect(result.current.editingWorkflowNodeId).toBe("storyboardTable");
   });
 });

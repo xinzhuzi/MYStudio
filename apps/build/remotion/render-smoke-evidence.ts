@@ -65,6 +65,14 @@ export interface RenderedMediaProbe {
   audioCodec: string;
 }
 
+export interface RenderedAudioWindowEvidence {
+  startUs: number;
+  endUs: number;
+  sampleRate: number;
+  rms: number;
+  frequencyPower: Record<string, number>;
+}
+
 export function selectRenderedVideoDuration(raw: RenderedMediaProbe["raw"]): number {
   const video = raw.streams?.find((stream) => stream.codec_type === "video");
   return Number(video?.duration || raw.format?.duration || 0);
@@ -93,6 +101,63 @@ export async function probeRenderedMedia(filePath: string): Promise<RenderedMedi
     videoCodec: video?.codec_name ?? "",
     audioCodec: audio?.codec_name ?? "",
   };
+}
+
+/** Decode-only evidence helper. It never writes or transforms the input media. */
+export async function analyzeRenderedAudioWindows(input: {
+  filePath: string;
+  windows: readonly { startUs: number; endUs: number }[];
+  frequenciesHz: readonly number[];
+}): Promise<RenderedAudioWindowEvidence[]> {
+  const filePath = path.resolve(input.filePath);
+  if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) {
+    throw new Error(`音频分析输入不存在或不是普通文件: ${filePath}`);
+  }
+  const sampleRate = 48_000;
+  const stdout = await new Promise<Buffer>((resolve, reject) => {
+    execFile(
+      "ffmpeg",
+      ["-v", "error", "-i", filePath, "-map", "0:a:0", "-ac", "1", "-ar", String(sampleRate), "-f", "s16le", "pipe:1"],
+      { encoding: "buffer", maxBuffer: 64 * 1024 * 1024 },
+      (error, output) => error ? reject(error) : resolve(output),
+    );
+  });
+  const samples = new Int16Array(stdout.buffer, stdout.byteOffset, Math.floor(stdout.byteLength / 2));
+  return input.windows.map((window) => {
+    if (!Number.isSafeInteger(window.startUs) || !Number.isSafeInteger(window.endUs) || window.startUs < 0 || window.endUs <= window.startUs) {
+      throw new Error("音频分析窗口无效");
+    }
+    const start = Math.min(samples.length, Math.floor(window.startUs * sampleRate / 1_000_000));
+    const end = Math.min(samples.length, Math.ceil(window.endUs * sampleRate / 1_000_000));
+    if (end <= start) throw new Error("音频分析窗口没有解码样本");
+    const windowSamples = samples.subarray(start, end);
+    const frequencyPower: Record<string, number> = {};
+    for (const frequency of input.frequenciesHz) {
+      if (!Number.isFinite(frequency) || frequency <= 0 || frequency >= sampleRate / 2) throw new Error("音频分析频率无效");
+      frequencyPower[String(frequency)] = goertzelPower(windowSamples, frequency, sampleRate);
+    }
+    let sumSquares = 0;
+    for (const sample of windowSamples) sumSquares += sample * sample;
+    return {
+      startUs: window.startUs,
+      endUs: window.endUs,
+      sampleRate,
+      rms: Math.sqrt(sumSquares / windowSamples.length) / 32768,
+      frequencyPower,
+    };
+  });
+}
+
+function goertzelPower(samples: Int16Array, frequency: number, sampleRate: number): number {
+  const coefficient = 2 * Math.cos(2 * Math.PI * frequency / sampleRate);
+  let previous = 0;
+  let previous2 = 0;
+  for (const sample of samples) {
+    const current = sample + coefficient * previous - previous2;
+    previous2 = previous;
+    previous = current;
+  }
+  return Math.sqrt(Math.max(0, previous2 * previous2 + previous * previous - coefficient * previous * previous2)) / samples.length;
 }
 
 export function buildLoudnessMeasurementArgs(filePath: string): string[] {

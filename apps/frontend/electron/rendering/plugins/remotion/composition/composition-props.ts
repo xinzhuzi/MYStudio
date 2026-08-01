@@ -99,6 +99,7 @@ export interface CompositionAudioClipProps {
   playbackRate?: number;
   fade?: CompositionFade;
   envelope?: CompositionEnvelopePoint[];
+  duckingEnvelope?: CompositionEnvelopePoint[];
 }
 
 // ---------------------------------------------------------------------------

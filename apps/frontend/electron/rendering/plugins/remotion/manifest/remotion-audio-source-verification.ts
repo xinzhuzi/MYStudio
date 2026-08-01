@@ -8,6 +8,30 @@ export interface VerifiedRemotionAudioSource {
   sha256: string;
 }
 
+export async function verifyRemotionProjectFileSource(
+  filePathValue: string,
+  projectRootValue: string,
+  expectedSha256: string,
+  sourceLabel: string,
+): Promise<VerifiedRemotionAudioSource> {
+  if (!path.isAbsolute(filePathValue) || !path.isAbsolute(projectRootValue)) {
+    throw new Error(`${sourceLabel}_path_not_absolute`);
+  }
+  const projectRoot = path.resolve(projectRootValue);
+  const filePath = assertInside(projectRoot, path.resolve(filePathValue));
+  await rejectSymlinkComponents(projectRoot, filePath);
+  const [realProjectRoot, realFilePath] = await Promise.all([
+    fs.promises.realpath(projectRoot),
+    fs.promises.realpath(filePath),
+  ]);
+  assertInside(realProjectRoot, realFilePath);
+  const stat = await fs.promises.stat(realFilePath);
+  if (!stat.isFile() || stat.size <= 0) throw new Error(`${sourceLabel}_not_file`);
+  const sha256 = await sha256File(realFilePath);
+  if (sha256 !== expectedSha256) throw new Error(`${sourceLabel}_sha256_mismatch`);
+  return { filePath: realFilePath, sha256 };
+}
+
 export async function verifyRemotionAudioBindingSource(
   binding: RemotionAudioBindingV2,
   projectRootValue: string,
@@ -54,6 +78,35 @@ async function rejectSymlinkComponents(root: string, target: string): Promise<vo
   for (const segment of relative.split(path.sep)) {
     current = path.join(current, segment);
     const stat = await fs.promises.lstat(current);
+    if (stat.isSymbolicLink()) throw new Error("path_escape");
+  }
+}
+
+export async function rejectSymlinkComponentsUnderRoot(
+  rootValue: string,
+  targetValue: string,
+): Promise<void> {
+  if (!path.isAbsolute(rootValue) || !path.isAbsolute(targetValue)) {
+    throw new Error("path_not_absolute");
+  }
+  const root = path.resolve(rootValue);
+  const target = path.resolve(targetValue);
+  const relative = path.relative(root, target);
+  if (!relative || relative.startsWith("..") || path.isAbsolute(relative)) {
+    throw new Error("path_escape");
+  }
+  let current = root;
+  for (const segment of ["", ...relative.split(path.sep)]) {
+    current = segment ? path.join(current, segment) : current;
+    let stat: fs.Stats;
+    try {
+      stat = await fs.promises.lstat(current);
+    } catch (error) {
+      if (error instanceof Error && "code" in error && (error as NodeJS.ErrnoException).code === "ENOENT") {
+        return;
+      }
+      throw error;
+    }
     if (stat.isSymbolicLink()) throw new Error("path_escape");
   }
 }

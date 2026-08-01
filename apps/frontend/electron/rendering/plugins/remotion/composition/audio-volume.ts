@@ -19,6 +19,8 @@ export interface AudioVolumeInput {
   fade?: CompositionFade;
   // Envelope points in clip-relative frames, gain >= 0. Order-independent.
   envelope?: CompositionEnvelopePoint[];
+  // Persisted per-track ducking projected independently from the user envelope.
+  duckingEnvelope?: CompositionEnvelopePoint[];
 }
 
 // Linear fade-in over the first `fadeInFrames` and fade-out over the last
@@ -64,7 +66,7 @@ function envelopeGain(
   return last.gain;
 }
 
-// Combined gain for a single frame: clip volume × fade × envelope, floored at 0.
+// Combined gain for a single frame: volume × fade × user envelope × ducking.
 export function audioVolumeAtFrame(frame: number, input: AudioVolumeInput): number {
   if (!Number.isFinite(input.volume) || input.volume < 0) {
     throw new Error(`音频音量必须是非负有限数值: ${input.volume}`);
@@ -72,6 +74,9 @@ export function audioVolumeAtFrame(frame: number, input: AudioVolumeInput): numb
   let gain = input.volume * fadeGain(frame, input);
   if (input.envelope && input.envelope.length > 0) {
     gain *= envelopeGain(frame, input.envelope);
+  }
+  if (input.duckingEnvelope && input.duckingEnvelope.length > 0) {
+    gain *= envelopeGain(frame, input.duckingEnvelope);
   }
   return Math.max(0, gain);
 }

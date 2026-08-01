@@ -4,8 +4,9 @@ import {
   runStoryboardTtsGeneration,
   type StoryboardTtsRunnerDependencies,
 } from "./storyboard-tts-runner";
+import { createRemotionAudioBindingFingerprint } from "./remotion/remotion-audio-fingerprint";
 import type { StoryboardItem } from "@/types/studio";
-import type { VoiceProfile } from "@/types/tts";
+import type { TtsGenerateRequest, VoiceProfile } from "@/types/tts";
 
 const storyboard: StoryboardItem = {
   id: "sb-chapter-001-001",
@@ -133,6 +134,9 @@ describe("storyboard TTS runner", () => {
         chapterId: "chapter-001",
         shotId: storyboard.id,
         inputFingerprint: expect.stringMatching(/^[a-f0-9]{64}$/),
+        shotRevision: 1,
+        referenceAudioSha256: "d".repeat(64),
+        generationKind: "storyboard-shot",
       }),
     );
   });
@@ -254,6 +258,137 @@ describe("storyboard TTS runner", () => {
     expect(deps.getStatus).toHaveBeenCalledWith("generation-existing");
   });
 
+  it("fails closed instead of reusing a completed voice binding from another scope", async () => {
+    const initial = await runStoryboardTtsGeneration({
+      ...scope,
+      storyboard,
+      profile,
+      dependencies: dependencies(),
+    });
+    const crossScopeBinding = {
+      ...initial.shotAudioBinding,
+      projectId: "project-b",
+      chapterId: "chapter-999",
+      shotId: "other-shot",
+      source: {
+        ...initial.shotAudioBinding.source,
+        projectId: "project-b",
+      },
+    };
+    crossScopeBinding.bindingFingerprint = await createRemotionAudioBindingFingerprint(crossScopeBinding);
+    const deps = dependencies();
+
+    await expect(runStoryboardTtsGeneration({
+      ...scope,
+      storyboard: {
+        ...storyboard,
+        ttsJob: initial.ttsJob,
+        shotAudioBindings: [crossScopeBinding],
+      },
+      profile,
+      dependencies: deps,
+    })).rejects.toThrow("voice binding 身份或 fingerprint 不匹配");
+    expect(deps.startRuntime).not.toHaveBeenCalled();
+    expect(deps.submit).not.toHaveBeenCalled();
+  });
+
+  it("reuses an exact completed voice binding without restarting the provider", async () => {
+    const initial = await runStoryboardTtsGeneration({
+      ...scope,
+      storyboard,
+      profile,
+      dependencies: dependencies(),
+    });
+    const deps = dependencies();
+
+    const reused = await runStoryboardTtsGeneration({
+      ...scope,
+      storyboard: {
+        ...storyboard,
+        ttsJob: initial.ttsJob,
+        shotAudioBindings: [initial.shotAudioBinding],
+        ttsBackend: initial.ttsBackend,
+      },
+      profile,
+      dependencies: deps,
+    });
+
+    expect(reused.generationId).toBe(initial.generationId);
+    expect(reused.shotAudioBinding).toEqual(initial.shotAudioBinding);
+    expect(deps.startRuntime).not.toHaveBeenCalled();
+    expect(deps.submit).not.toHaveBeenCalled();
+  });
+
+  it("fails closed when a completed voice binding fingerprint is corrupted", async () => {
+    const initial = await runStoryboardTtsGeneration({
+      ...scope,
+      storyboard,
+      profile,
+      dependencies: dependencies(),
+    });
+    const deps = dependencies();
+
+    await expect(runStoryboardTtsGeneration({
+      ...scope,
+      storyboard: {
+        ...storyboard,
+        ttsJob: initial.ttsJob,
+        shotAudioBindings: [{
+          ...initial.shotAudioBinding,
+          bindingFingerprint: "0".repeat(64),
+        }],
+      },
+      profile,
+      dependencies: deps,
+    })).rejects.toThrow("voice binding 身份或 fingerprint 不匹配");
+    expect(deps.startRuntime).not.toHaveBeenCalled();
+    expect(deps.submit).not.toHaveBeenCalled();
+  });
+
+  it("does not exceed the three-attempt budget when a retry resumes at attempt two", async () => {
+    const inputFingerprint = await createStoryboardTtsInputFingerprint({
+      ...scope,
+      storyboard,
+      profile,
+      referenceAudioSha256: "d".repeat(64),
+    });
+    const submit = vi.fn(async () => ({ id: "generation-after-restart", status: "queued" as const }));
+    const deps = dependencies({
+      submit,
+      getStatus: vi.fn(async () => ({
+        id: "generation-existing-attempt-two",
+        status: "failed" as const,
+        error: "temporary outage",
+        errorCode: "network",
+        retryable: true,
+      })),
+    });
+
+    await expect(runStoryboardTtsGeneration({
+      ...scope,
+      storyboard: {
+        ...storyboard,
+        ttsJob: {
+          schemaVersion: 1,
+          ...scope,
+          shotId: storyboard.id,
+          shotRevision: 1,
+          inputFingerprint,
+          status: "generating",
+          attempt: 2,
+          generationId: "generation-existing-attempt-two",
+          createdAt: 1,
+          updatedAt: 1,
+        },
+      },
+      profile,
+      dependencies: deps,
+    })).rejects.toThrow("temporary outage");
+    expect(submit).toHaveBeenCalledOnce();
+    const submittedPayload = (submit.mock.calls as unknown as Array<[TtsGenerateRequest]>)[0]?.[0];
+    expect(submittedPayload).toMatchObject({ retry: true, inputFingerprint });
+  });
+
   it("retries only structured transient failures and keeps one logical fingerprint", async () => {
     const submit = vi.fn()
       .mockRejectedValueOnce(Object.assign(new Error("rate"), { status: 429 }))
@@ -273,6 +408,83 @@ describe("storyboard TTS runner", () => {
     await expect(runStoryboardTtsGeneration({ ...scope, storyboard, profile, dependencies: terminal }))
       .rejects.toThrow("bad profile");
     expect(terminal.submit).toHaveBeenCalledOnce();
+  });
+
+  it("retries a submit response that is already failed and retryable", async () => {
+    const submit = vi.fn()
+      .mockResolvedValueOnce({
+        id: "generation-submit-failed",
+        status: "failed" as const,
+        error: "temporary provider outage",
+        errorCode: "provider-unavailable",
+        retryable: true,
+      })
+      .mockResolvedValueOnce({
+        id: "generation-submit-recovered",
+        status: "completed" as const,
+        audioPath: "/runtime/audio.wav",
+        backend: "qwen-mlx",
+        mocked: false,
+      });
+    const getStatus = vi.fn(async () => ({
+      id: "unexpected-poll",
+      status: "completed" as const,
+      audioPath: "/runtime/audio.wav",
+      backend: "qwen-mlx",
+      mocked: false,
+    }));
+    const deps = dependencies({ submit, getStatus });
+
+    const result = await runStoryboardTtsGeneration({
+      ...scope,
+      storyboard,
+      profile,
+      dependencies: deps,
+    });
+
+    expect(result.generationId).toBe("generation-submit-recovered");
+    expect(submit).toHaveBeenCalledTimes(2);
+    expect(getStatus).not.toHaveBeenCalled();
+    expect(submit.mock.calls.map(([payload]) => payload.retry)).toEqual([false, true]);
+  });
+
+  it("bounds an explicit retry to three attempts even after a prior run exhausted its budget", async () => {
+    const inputFingerprint = await createStoryboardTtsInputFingerprint({
+      ...scope,
+      storyboard,
+      profile,
+      referenceAudioSha256: "d".repeat(64),
+    });
+    const submit = vi.fn()
+      .mockRejectedValueOnce(Object.assign(new Error("rate"), { status: 429 }))
+      .mockRejectedValueOnce(Object.assign(new Error("network"), { code: "network" }))
+      .mockResolvedValue({ id: "generation-retry", status: "queued" as const });
+    const attempts: number[] = [];
+    const deps = dependencies({ submit });
+    await runStoryboardTtsGeneration({
+      ...scope,
+      storyboard: {
+        ...storyboard,
+        ttsJob: {
+          schemaVersion: 1,
+          ...scope,
+          shotId: storyboard.id,
+          shotRevision: 1,
+          inputFingerprint,
+          status: "failed",
+          attempt: 3,
+          retryRequested: true,
+          createdAt: 1,
+          updatedAt: 1,
+        },
+      },
+      profile,
+      dependencies: deps,
+      onJob: (job) => { if (job.status === "generating") attempts.push(job.attempt); },
+    });
+    expect(submit).toHaveBeenCalledTimes(3);
+    expect(attempts.slice(0, 3)).toEqual([1, 2, 3]);
+    expect(Math.max(...attempts)).toBe(3);
   });
 
   it("cooperatively cancels after project audio save and never reports completion", async () => {

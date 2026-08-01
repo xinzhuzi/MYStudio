@@ -43,6 +43,14 @@ results must remain distinguishable.
   imports.
 - Preserve explicit terminal task states and output-file evidence.
 - Reuse `RuntimeStore`, `RuntimeState`, and existing route mixins.
+- TTS generation is keyed by the exact shot input fingerprint (project/chapter/shot
+  identity, shot revision, text, resolved voice profile/engine/model/language/seed,
+  and reference-audio SHA). A chapter-wide dialogue file must not be generated and
+  blindly sliced into shots.
+- Generation persistence is additive and idempotent: the same fingerprint reuses a
+  generating/completed record, transient transport failures may retry twice, and a
+  terminal shot failure is isolated from independent shots. Cancellation checks at
+  submit/poll/fetch/save/writeback boundaries must discard late results.
 
 ---
 
@@ -70,4 +78,7 @@ quality gate.
 - Tokens, keys, prompts, and binary payloads are not leaked.
 - Runtime state cannot remain stuck after failure.
 - SQLite changes are additive and tested against an existing database shape.
+- Python contract tests cover fingerprint/revision isolation, bounded concurrency,
+  retry classification, cancellation, restart recovery, and independent shot
+  failure without falsely marking mock/fallback audio as real.
 - macOS ARM and Windows/Linux dependency branches remain valid.

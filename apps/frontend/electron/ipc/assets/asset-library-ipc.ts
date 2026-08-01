@@ -175,6 +175,15 @@ export function registerAssetLibraryIpcHandlers({
     if (result.canceled) return [];
     return result.filePaths;
   });
+  ipcMain.handle("assets:select-audio-file", async () => {
+    const result = await dialog.showOpenDialog({
+      defaultPath: getMediaRoot(),
+      properties: ["openFile"],
+      filters: [{ name: "音频", extensions: ["aac", "flac", "m4a", "mp3", "ogg", "wav"] }],
+    });
+    if (result.canceled || !result.filePaths[0]) return null;
+    return result.filePaths[0];
+  });
   ipcMain.handle("assets:import-from-toonflow", async (_event, payload: { type: string }) => (
     runAssetDiagnostics("import-from-toonflow", payload, async () => {
       const toonflowResult = await listStudioRuntimeAssets({

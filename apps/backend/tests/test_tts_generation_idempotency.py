@@ -56,6 +56,7 @@ class TtsGenerationIdempotencyTest(unittest.TestCase):
             "shot_id": "shot-001",
             "shot_revision": 1,
             "input_fingerprint": "a" * 64,
+            "generation_kind": "storyboard-shot",
             "seed": 41001,
         }
 
@@ -107,6 +108,7 @@ class TtsGenerationIdempotencyTest(unittest.TestCase):
                 "attempt",
                 "retryable",
                 "error_code",
+                "generation_kind",
             }.issubset(columns))
 
     def test_exact_fingerprint_reuses_active_or_completed_and_retry_is_explicit(self):
@@ -125,10 +127,12 @@ class TtsGenerationIdempotencyTest(unittest.TestCase):
                 shot_revision=1,
                 input_fingerprint="a" * 64,
                 reference_audio_sha256="b" * 64,
+                generation_kind="storyboard-shot",
                 seed=41001,
             )
             created, action = store.create_or_reuse_generation(**request)
             self.assertEqual(action, "created")
+            self.assertEqual(created["generation_kind"], "storyboard-shot")
             reused, action = store.create_or_reuse_generation(**request)
             self.assertEqual(action, "reused")
             self.assertEqual(reused["id"], created["id"])
@@ -164,6 +168,7 @@ class TtsGenerationIdempotencyTest(unittest.TestCase):
                 shot_revision=1,
                 input_fingerprint="a" * 64,
                 reference_audio_sha256="b" * 64,
+                generation_kind="storyboard-shot",
                 seed=41001,
             )
             first, _ = store.create_or_reuse_generation(**base)
@@ -173,6 +178,10 @@ class TtsGenerationIdempotencyTest(unittest.TestCase):
             self.assertNotEqual(first["id"], second["id"])
             with self.assertRaisesRegex(ValueError, "fingerprint_collision"):
                 store.create_or_reuse_generation(**{**base, "text": "不同对白"})
+            with self.assertRaisesRegex(ValueError, "fingerprint_collision"):
+                store.create_or_reuse_generation(**{**base, "reference_audio_sha256": "d" * 64})
+            with self.assertRaisesRegex(ValueError, "fingerprint_collision"):
+                store.create_or_reuse_generation(**{**base, "generation_kind": None})
 
     def test_concurrent_exact_fingerprint_creates_one_logical_generation(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -250,6 +259,42 @@ class TtsGenerationIdempotencyTest(unittest.TestCase):
                 (HTTPStatus.BAD_REQUEST, "input_fingerprint_invalid"),
             ])
             self.assertEqual(handler.state.inference_queue.qsize(), 0)
+
+    def test_storyboard_generation_kind_requires_complete_shot_scope_but_generic_is_unscoped_compatible(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = RuntimeStore(Path(tmp))
+            profile = store.create_profile({"id": "profile-1", "name": "旁白"})
+
+            storyboard = _GenerationRouteHarness(store)
+            storyboard.handle_generate({
+                "profile_id": profile["id"],
+                "text": "逐镜对白",
+                "generation_kind": "storyboard-shot",
+            })
+            self.assertEqual(storyboard.errors, [
+                (HTTPStatus.BAD_REQUEST, "storyboard_scope_required"),
+            ])
+            self.assertEqual(storyboard.state.inference_queue.qsize(), 0)
+
+            invalid = _GenerationRouteHarness(store)
+            invalid.handle_generate({
+                "profile_id": profile["id"],
+                "text": "未知类型",
+                "generation_kind": "chapter-dialogue",
+            })
+            self.assertEqual(invalid.errors, [
+                (HTTPStatus.BAD_REQUEST, "generation_kind_invalid"),
+            ])
+
+            generic = _GenerationRouteHarness(store)
+            generic.handle_generate({
+                "profile_id": profile["id"],
+                "text": "通用试听",
+            })
+            generated, status = generic.responses[-1]
+            self.assertEqual(status, HTTPStatus.CREATED)
+            self.assertIsNone(generated["generation_kind"])
+            self.assertIsNone(generated["project_id"])
 
     def test_generation_failure_metadata_distinguishes_transient_and_terminal_errors(self):
         class HttpFailure(RuntimeError):

@@ -211,6 +211,7 @@ function validateOptionalClipFields(value: Record<string, unknown>, path: string
   }
   validateFade(value.fade, value.durationInFrames, `${path}.fade`, issues);
   validateEnvelope(value.envelope, value.durationInFrames, `${path}.envelope`, issues);
+  validateEnvelope(value.duckingEnvelope, value.durationInFrames, `${path}.duckingEnvelope`, issues);
   validatePanZoom(value.panZoom, `${path}.panZoom`, issues);
 }
 

@@ -17,6 +17,7 @@ export function AudioClip(props: CompositionAudioClipProps): React.ReactElement 
       durationInFrames: props.durationInFrames,
       fade: props.fade,
       envelope: props.envelope,
+      duckingEnvelope: props.duckingEnvelope,
     });
 
   return (

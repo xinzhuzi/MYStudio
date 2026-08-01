@@ -337,6 +337,10 @@ export async function validateRemotionShotPlan(
   }
   if (!isSha256(value.inputHash)) issue(issues, "$.inputHash", "inputHash 必须是 SHA-256");
   if (issues.length > 0) return { success: false, issues };
+  if (!isRecord(value.shot)) {
+    issue(issues, "$.shot", "shot plan 必须包含结构化 shot 对象");
+    return { success: false, issues };
+  }
   const plan = value as unknown as RemotionShotPlanV1;
   const chapterValidation = validateRemotionChapterManifestV2({
     schemaVersion: 2,
@@ -354,6 +358,7 @@ export async function validateRemotionShotPlan(
   });
   if (!chapterValidation.success) {
     for (const validationIssue of chapterValidation.issues) issue(issues, validationIssue.path, validationIssue.message, validationIssue.code);
+    return { success: false, issues };
   }
   for (let index = 0; index < plan.shot.audioBindings.length; index += 1) {
     const fingerprint = await validateRemotionAudioBindingFingerprint(
