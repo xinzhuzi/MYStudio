@@ -156,7 +156,7 @@ export function ProductionFlowNode({ data }: NodeProps<Node<ProductionNodeData>>
       className={cn(
         "production-flow-node-card group rounded-md border p-4 text-left text-card-foreground outline-none",
         "hover:border-sky-300/55",
-        NODE_SIZE_CLASS[data.node.id],
+        NODE_SIZE_CLASS[data.node.id as ProductionFlowNodeId] ?? 'w-[640px]',
         data.node.status === "ready" && "border-emerald-300/30",
         data.node.status === "warning" && "border-amber-300/40",
         data.node.status === "pending" && "border-sky-300/35",

@@ -76,7 +76,14 @@ export const PRODUCTION_FLOW_NODE_IDS = [
 
 const DIRECTOR_PLAN_PREVIEW_MAX_LINES = 600;
 
-export type ProductionFlowNodeId = (typeof PRODUCTION_FLOW_NODE_IDS)[number];
+export type ProductionFlowNodeId =
+  | 'script'
+  | 'scriptPlan'
+  | 'assets'
+  | 'storyboardTable'
+  | 'storyboard'
+  | 'remotionProduction'
+  | 'workbench';
 export type ProductionFlowStage =
   | "script"
   | "assets"

@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import socket
 import threading
 import time
 from http import HTTPStatus
@@ -216,6 +217,17 @@ class Handler(ModelRoutesMixin, GenerationRoutesMixin, BaseHTTPRequestHandler):
 def run(host: str, port: int, data_dir: Path):
     global STATE
     STATE = RuntimeState(RuntimeStore(data_dir))
+
+    # Pre-check port availability before creating server
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    try:
+        sock.bind((host, port))
+    except OSError as e:
+        raise SystemExit(f"Error: Port {port} is already in use. Choose another port.") from e
+    finally:
+        sock.close()
+
     server = ThreadingHTTPServer((host, port), Handler)
     print(f"[tts-sidecar] listening on http://{host}:{port}, data={data_dir}", flush=True)
     server.serve_forever()

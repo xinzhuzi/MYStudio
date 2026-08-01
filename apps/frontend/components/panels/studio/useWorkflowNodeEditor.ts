@@ -187,7 +187,7 @@ export function useWorkflowNodeEditor({
       setEditingWorkflowNodeId(nodeId);
       setWorkflowNodeDraft(buildWorkflowNodeDraft(nodeId, null));
     },
-    [buildWorkflowNodeDraft, projectId],
+    [buildWorkflowNodeDraft],
   );
 
   const openNodeJson = useCallback(
@@ -197,12 +197,21 @@ export function useWorkflowNodeEditor({
         toast.error("请先选择项目，再查看章节 JSON");
         return;
       }
+
+      // Validate episode data resolvable before setting draft state
+      const store = useStudioStore.getState();
+      const episodeId = resolveProductionEpisodeId(store, productionEpisodeId);
+      if (!episodeId) {
+        toast.error("无效的章节数据");
+        return;
+      }
+
       const mode = nodeId === "storyboardTable" ? "canonical" : "remotion";
       setWorkflowNodeJsonMode(mode);
       setEditingWorkflowNodeId(nodeId);
       setWorkflowNodeDraft(buildWorkflowNodeDraft(nodeId, mode));
     },
-    [buildWorkflowNodeDraft, projectId],
+    [buildWorkflowNodeDraft, projectId, productionEpisodeId],
   );
 
   const closeNodeEditor = useCallback(() => {

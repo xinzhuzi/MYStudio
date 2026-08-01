@@ -167,7 +167,7 @@ def _synthesize_single(
 def split_text_into_chunks(text: str, max_chars: int = 800) -> list[str]:
     remaining = text.strip()
     if not remaining:
-        return []
+        raise ValueError("text cannot be empty")
     if max_chars <= 0:
         raise ValueError("max_chars must be positive")
 

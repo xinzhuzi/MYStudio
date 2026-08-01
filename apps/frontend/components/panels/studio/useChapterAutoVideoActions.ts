@@ -54,6 +54,7 @@ export function useChapterAutoVideoActions({
 }) {
   const [status, setStatus] = useState<ChapterAutoVideoStatus>(INITIAL_STATUS);
   const ttsCancellationRef = useRef<ChapterTtsCancellationController | null>(null);
+  const manifestWriteAbortRef = useRef<AbortController | null>(null);
   const running = !["idle", "completed", "failed", "blocked"].includes(status.stage);
 
   const assertProjectStillActive = useCallback(() => {
@@ -275,6 +276,11 @@ export function useChapterAutoVideoActions({
             });
           },
           enqueueRemotionShots: async ({ projectId, chapterId, storyboards, allStoryboards }) => {
+            // Abort previous in-progress manifest write to prevent race conditions
+            manifestWriteAbortRef.current?.abort();
+            const abortController = new AbortController();
+            manifestWriteAbortRef.current = abortController;
+
             const runtime = await window.remotionRuntime?.workspaceRuntime?.();
             const queue = window.remotionQueue;
             if (!runtime || !queue?.enqueueShot) {
@@ -334,6 +340,12 @@ export function useChapterAutoVideoActions({
                   plans: plans.plans,
                   existing: currentManifest,
                 });
+
+                // Check for abort before writing
+                if (abortController.signal.aborted) {
+                  return { jobs: [], blockedShotIds: [] };
+                }
+
                 await manifestBridge.write({
                   projectId,
                   chapterId,
@@ -351,6 +363,12 @@ export function useChapterAutoVideoActions({
                 templateVersion: runtime.templateVersion,
                 remotionVersion: runtime.remotionVersion,
               });
+
+              // Check for abort before enqueueing shots
+              if (abortController.signal.aborted) {
+                return { jobs, blockedShotIds };
+              }
+
               const result = await queue.enqueueShot({ job, plan });
               if (result.accepted || result.reason === "already-succeeded" || result.reason === "duplicate-active") {
                 jobs.push(result.job);

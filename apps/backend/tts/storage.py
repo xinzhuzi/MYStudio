@@ -326,7 +326,11 @@ class RuntimeStore:
         values = list(updates.values())
         values.append(generation_id)
         with self._connect() as conn:
-            conn.execute(f"UPDATE generations SET {assignments} WHERE id = ?", values)
+            try:
+                conn.execute(f"UPDATE generations SET {assignments} WHERE id = ?", values)
+            except sqlite3.Error as e:
+                logger.error(f"update_generation failed for id={generation_id}: {e}")
+                raise
         return self.get_generation(generation_id)
 
     def export_debug(self) -> str:

@@ -114,7 +114,7 @@ class GenerationRoutesMixin:
         ):
             if not isinstance(value, str) or not value.strip() or re.search(r"[\\/\x00]", value):
                 raise ValueError(f"{label}_invalid")
-        if not isinstance(shot_revision, int) or isinstance(shot_revision, bool) or shot_revision < 1:
+        if shot_revision is not None and (not isinstance(shot_revision, int) or isinstance(shot_revision, bool) or shot_revision < 1):
             raise ValueError("shot_revision_invalid")
         if seed is not None and (not isinstance(seed, int) or isinstance(seed, bool)):
             raise ValueError("seed_invalid")
