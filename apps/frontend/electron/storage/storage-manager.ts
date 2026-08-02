@@ -22,13 +22,22 @@ const DEFAULT_STORAGE_CONFIG: Required<StorageConfig> = {
 
 type CreateStorageManagerOptions = {
   userDataPath: string;
+  fileOps?: {
+    cp?: typeof fs.promises.cp;
+    remove?: typeof fs.promises.rm;
+    unlink?: typeof fs.promises.unlink;
+  };
+};
+
+type RootOptions = {
+  ensure?: boolean;
 };
 
 type RegisterStorageIpcHandlersOptions = {
   getStudioManualsSourceRoot: () => string;
 };
 
-export function createStorageManager({ userDataPath }: CreateStorageManagerOptions) {
+export function createStorageManager({ userDataPath, fileOps }: CreateStorageManagerOptions) {
   const storageConfigPath = path.join(userDataPath, "storage-config.json");
   let autoCleanInterval: NodeJS.Timeout | null = null;
   const ensureDir = (dirPath: string) => {
@@ -49,10 +58,15 @@ export function createStorageManager({ userDataPath }: CreateStorageManagerOptio
   const saveStorageConfig = () => {
     try {
       fs.writeFileSync(storageConfigPath, JSON.stringify(storageConfig, null, 2), "utf-8");
+      return true;
     } catch (error) {
       console.warn("Failed to save storage config:", error);
+      return false;
     }
   };
+  const copy = fileOps?.cp ?? fs.promises.cp;
+  const remove = fileOps?.remove ?? fs.promises.rm;
+  const unlink = fileOps?.unlink ?? fs.promises.unlink;
   const normalizePath = (inputPath: string) => (
     path.isAbsolute(inputPath) ? inputPath : path.resolve(inputPath)
   );
@@ -60,6 +74,24 @@ export function createStorageManager({ userDataPath }: CreateStorageManagerOptio
     const normalizedParent = path.resolve(parentPath).toLowerCase() + path.sep;
     const normalizedChild = path.resolve(childPath).toLowerCase() + path.sep;
     return normalizedChild.startsWith(normalizedParent);
+  };
+  const canonicalPath = (inputPath: string) => {
+    const resolved = path.resolve(inputPath);
+    try {
+      const realpathSync = (fs as typeof fs & { realpathSync?: (value: string) => string }).realpathSync;
+      return realpathSync ? realpathSync(resolved) : resolved;
+    } catch {
+      return resolved;
+    }
+  };
+  const samePath = (left: string, right: string) => canonicalPath(left).toLowerCase() === canonicalPath(right).toLowerCase();
+  const containmentError = (source: string, target: string) => {
+    const sourceCanonical = canonicalPath(source);
+    const targetCanonical = canonicalPath(target);
+    if (samePath(sourceCanonical, targetCanonical)) return "路径相同";
+    if (isSubdirectory(sourceCanonical, targetCanonical)) return "目标路径不能是当前路径的子目录";
+    if (isSubdirectory(targetCanonical, sourceCanonical)) return "当前路径不能是目标路径的子目录";
+    return null;
   };
   const pathsConflict = (source: string, dest: string): string | null => {
     if (path.resolve(source).toLowerCase() === path.resolve(dest).toLowerCase()) return null;
@@ -74,24 +106,24 @@ export function createStorageManager({ userDataPath }: CreateStorageManagerOptio
     if (legacyProject) return path.dirname(normalizePath(legacyProject));
     return userDataPath;
   };
-  const getProjectDataRoot = () => {
+  const getProjectDataRoot = ({ ensure = true }: RootOptions = {}) => {
     const base = path.join(getStorageBasePath(), "projects");
-    ensureDir(base);
+    if (ensure) ensureDir(base);
     return base;
   };
-  const getMediaRoot = () => {
+  const getMediaRoot = ({ ensure = true }: RootOptions = {}) => {
     const base = path.join(getStorageBasePath(), "media");
-    ensureDir(base);
+    if (ensure) ensureDir(base);
     return base;
   };
-  const getSkillsRoot = () => {
+  const getSkillsRoot = ({ ensure = true }: RootOptions = {}) => {
     const base = getStudioSkillStorageRoot(getStorageBasePath());
-    ensureDir(base);
+    if (ensure) ensureDir(base);
     return base;
   };
-  const getAssetsRoot = () => {
+  const getAssetsRoot = ({ ensure = true }: RootOptions = {}) => {
     const base = path.join(getStorageBasePath(), "assets");
-    ensureDir(base);
+    if (ensure) ensureDir(base);
     return base;
   };
   const getPythonRuntimeDir = () => path.join(getStorageBasePath(), "python");
@@ -118,9 +150,9 @@ export function createStorageManager({ userDataPath }: CreateStorageManagerOptio
   };
   const copyDir = async (source: string, destination: string) => {
     ensureDir(destination);
-    await fs.promises.cp(source, destination, { recursive: true, force: true });
+    await copy(source, destination, { recursive: true, force: true });
   };
-  const removeDir = (dirPath: string) => fs.promises.rm(dirPath, { recursive: true, force: true });
+  const removeDir = (dirPath: string) => remove(dirPath, { recursive: true, force: true });
   const deleteOldFiles = async (dirPath: string, cutoffTime: number): Promise<number> => {
     let cleared = 0;
     try {
@@ -174,7 +206,27 @@ export function createStorageManager({ userDataPath }: CreateStorageManagerOptio
     storageConfig.basePath = basePath;
     storageConfig.projectPath = "";
     storageConfig.mediaPath = "";
-    saveStorageConfig();
+    if (!saveStorageConfig()) throw new Error("无法保存存储配置");
+  };
+  const captureStorageConfig = () => {
+    const fileExists = fs.existsSync(storageConfigPath);
+    return {
+      value: { ...storageConfig },
+      fileExists,
+      fileContents: fileExists ? fs.readFileSync(storageConfigPath, "utf-8") : undefined,
+    };
+  };
+  const restoreStorageConfig = (snapshot: ReturnType<typeof captureStorageConfig>) => {
+    storageConfig = { ...snapshot.value };
+    try {
+      if (snapshot.fileExists) {
+        fs.writeFileSync(storageConfigPath, snapshot.fileContents ?? "", "utf-8");
+      } else if (fs.existsSync(storageConfigPath)) {
+        fs.rmSync(storageConfigPath, { force: true });
+      }
+    } catch (error) {
+      console.warn("Failed to restore storage config:", error);
+    }
   };
   const createExportDir = (targetPath: string) => path.join(
     normalizePath(targetPath),
@@ -256,18 +308,32 @@ export function createStorageManager({ userDataPath }: CreateStorageManagerOptio
         if (!newPath) return { success: false, error: "路径不能为空" };
         const target = normalizePath(newPath);
         const currentBase = getStorageBasePath();
-        if (currentBase === target) return { success: true, path: currentBase };
-        const conflictError = pathsConflict(currentBase, target);
-        if (conflictError) return { success: false, error: conflictError };
+        if (samePath(currentBase, target)) return { success: true, path: currentBase };
+        const conflictError = containmentError(currentBase, target) ?? pathsConflict(currentBase, target);
+        if (conflictError && conflictError !== "路径相同") return { success: false, error: conflictError };
         const targetProjectsDir = path.join(target, "projects");
         const targetMediaDir = path.join(target, "media");
         const targetAssetsDir = path.join(target, "assets");
         const targetSkillsDir = path.join(target, "skills");
-        [targetProjectsDir, targetMediaDir, targetAssetsDir, targetSkillsDir].forEach(ensureDir);
-        const currentProjectsDir = getProjectDataRoot();
-        const currentMediaDir = getMediaRoot();
-        const currentAssetsDir = getAssetsRoot();
-        const currentSkillsDir = getSkillsRoot();
+        const currentProjectsDir = getProjectDataRoot({ ensure: false });
+        const currentMediaDir = getMediaRoot({ ensure: false });
+        const currentAssetsDir = getAssetsRoot({ ensure: false });
+        const currentSkillsDir = getSkillsRoot({ ensure: false });
+        const targetBackup = path.join(os.tmpdir(), `mystudio-move-backup-${Date.now()}`);
+        const targetState = new Map<string, { existed: boolean; nonEmpty: boolean }>();
+        const configSnapshot = captureStorageConfig();
+        try {
+          for (const destination of [targetProjectsDir, targetMediaDir, targetAssetsDir, targetSkillsDir]) {
+            const existed = fs.existsSync(destination);
+            const nonEmpty = existed && (await fs.promises.readdir(destination)).length > 0;
+            targetState.set(destination, { existed, nonEmpty });
+            if (nonEmpty) await copyDir(destination, path.join(targetBackup, path.basename(destination)));
+          }
+        } catch (snapshotError) {
+          await removeDir(targetBackup).catch(() => undefined);
+          throw snapshotError;
+        }
+        try {
         for (const [source, destination] of [
           [currentProjectsDir, targetProjectsDir],
           [currentMediaDir, targetMediaDir],
@@ -275,30 +341,48 @@ export function createStorageManager({ userDataPath }: CreateStorageManagerOptio
           [currentSkillsDir, targetSkillsDir],
         ] as const) {
           if (!fs.existsSync(source)) continue;
+          ensureDir(destination);
           for (const file of await fs.promises.readdir(source)) {
-            await fs.promises.cp(path.join(source, file), path.join(destination, file), { recursive: true, force: true });
+            await copy(path.join(source, file), path.join(destination, file), { recursive: true, force: true });
           }
         }
         updateBasePath(target);
         for (const currentDir of [currentProjectsDir, currentMediaDir, currentAssetsDir, currentSkillsDir]) {
-          if (!currentDir.startsWith(userDataPath)) await removeDir(currentDir).catch(() => undefined);
+          const insideUserData = samePath(userDataPath, currentDir) || isSubdirectory(userDataPath, currentDir);
+          if (!insideUserData && fs.existsSync(currentDir)) await removeDir(currentDir);
         }
+        await removeDir(targetBackup).catch(() => undefined);
         return { success: true, path: target };
+        } catch (moveError) {
+          for (const destination of [targetProjectsDir, targetMediaDir, targetAssetsDir, targetSkillsDir]) {
+            await removeDir(destination).catch(() => undefined);
+            const backup = path.join(targetBackup, path.basename(destination));
+            const state = targetState.get(destination);
+            if (state?.nonEmpty && fs.existsSync(backup)) await copyDir(backup, destination).catch(() => undefined);
+            else if (state?.existed) ensureDir(destination);
+          }
+          restoreStorageConfig(configSnapshot);
+          await removeDir(targetBackup).catch(() => undefined);
+          throw moveError;
+        }
       } catch (error) {
         console.error("Failed to move data:", error);
         return { success: false, error: String(error) };
       }
     });
     ipcMain.handle("storage-export-data", async (_event, targetPath: string) => {
+      let exportDir: string | undefined;
       try {
         if (!targetPath) return { success: false, error: "路径不能为空" };
-        const exportDir = createExportDir(targetPath);
+        exportDir = createExportDir(targetPath);
+        if (containmentError(getStorageBasePath(), exportDir)) return { success: false, error: "导出目录不能位于当前存储路径内或与其重叠" };
         await copyDir(getProjectDataRoot(), path.join(exportDir, "projects"));
         await copyDir(getMediaRoot(), path.join(exportDir, "media"));
         await copyDir(getAssetsRoot(), path.join(exportDir, "assets"));
         await copyDir(getSkillsRoot(), path.join(exportDir, "skills"));
         return { success: true, path: exportDir };
       } catch (error) {
+        if (exportDir) await removeDir(exportDir).catch(() => undefined);
         console.error("Failed to export data:", error);
         return { success: false, error: String(error) };
       }
@@ -307,6 +391,10 @@ export function createStorageManager({ userDataPath }: CreateStorageManagerOptio
       try {
         if (!sourcePath) return { success: false, error: "路径不能为空" };
         const source = normalizePath(sourcePath);
+        const sourceConflict = containmentError(source, getStorageBasePath());
+        if (sourceConflict) return sourceConflict === "路径相同"
+          ? { success: true }
+          : { success: false, error: "导入源不能位于当前存储路径内或与其重叠" };
         const sources = {
           projects: path.join(source, "projects"),
           media: path.join(source, "media"),
@@ -319,34 +407,36 @@ export function createStorageManager({ userDataPath }: CreateStorageManagerOptio
         }
         const backupDir = path.join(os.tmpdir(), `mystudio-backup-${Date.now()}`);
         const targets = {
-          projects: getProjectDataRoot(),
-          media: getMediaRoot(),
-          assets: getAssetsRoot(),
-          skills: getSkillsRoot(),
+          projects: getProjectDataRoot({ ensure: false }),
+          media: getMediaRoot({ ensure: false }),
+          assets: getAssetsRoot({ ensure: false }),
+          skills: getSkillsRoot({ ensure: false }),
         };
+        const targetState = new Map<string, { existed: boolean; nonEmpty: boolean }>();
         try {
           for (const key of Object.keys(sources) as Array<keyof typeof sources>) {
-            if (!present[key] || !fs.existsSync(targets[key])) continue;
-            if ((await fs.promises.readdir(targets[key])).length > 0) {
-              await copyDir(targets[key], path.join(backupDir, key));
-            }
+            const existed = fs.existsSync(targets[key]);
+            const nonEmpty = existed && (await fs.promises.readdir(targets[key])).length > 0;
+            targetState.set(key, { existed, nonEmpty });
+            if (existed && present[key] && nonEmpty) await copyDir(targets[key], path.join(backupDir, key));
           }
           for (const key of Object.keys(sources) as Array<keyof typeof sources>) {
             if (!present[key]) continue;
-            await removeDir(targets[key]).catch(() => undefined);
+            await removeDir(targets[key]);
             await copyDir(sources[key], targets[key]);
           }
           const migrationFlagPath = path.join(targets.projects, "_p", "_migrated.json");
-          if (fs.existsSync(migrationFlagPath)) fs.unlinkSync(migrationFlagPath);
+          if (fs.existsSync(migrationFlagPath)) await unlink(migrationFlagPath);
           await removeDir(backupDir).catch(() => undefined);
           return { success: true };
         } catch (importError) {
           console.error("Import failed, rolling back:", importError);
           for (const key of Object.keys(sources) as Array<keyof typeof sources>) {
             const backup = path.join(backupDir, key);
-            if (!fs.existsSync(backup)) continue;
             await removeDir(targets[key]).catch(() => undefined);
-            await copyDir(backup, targets[key]).catch(() => undefined);
+            const state = targetState.get(key);
+            if (state?.nonEmpty && fs.existsSync(backup)) await copyDir(backup, targets[key]).catch(() => undefined);
+            else if (state?.existed) ensureDir(targets[key]);
           }
           await removeDir(backupDir).catch(() => undefined);
           throw importError;
@@ -373,9 +463,15 @@ export function createStorageManager({ userDataPath }: CreateStorageManagerOptio
     const legacyExport = async (targetPath: string) => {
       if (!targetPath) return { success: false, error: "路径不能为空" };
       const exportDir = createExportDir(targetPath);
-      await copyDir(getProjectDataRoot(), path.join(exportDir, "projects"));
-      await copyDir(getMediaRoot(), path.join(exportDir, "media"));
-      return { success: true, path: exportDir };
+      try {
+        if (containmentError(getStorageBasePath(), exportDir)) return { success: false, error: "导出目录不能位于当前存储路径内或与其重叠" };
+        await copyDir(getProjectDataRoot(), path.join(exportDir, "projects"));
+        await copyDir(getMediaRoot(), path.join(exportDir, "media"));
+        return { success: true, path: exportDir };
+      } catch (error) {
+        await removeDir(exportDir).catch(() => undefined);
+        throw error;
+      }
     };
     ipcMain.handle("storage-export-project-data", async (_event, targetPath: string) => {
       try { return await legacyExport(targetPath); } catch (error) { return { success: false, error: String(error) }; }
@@ -392,24 +488,30 @@ export function createStorageManager({ userDataPath }: CreateStorageManagerOptio
         const source = normalizePath(sourcePath);
         const projectsDir = path.join(source, "projects");
         const mediaDir = path.join(source, "media");
-        const currentProjectsDir = getProjectDataRoot();
-        const currentMediaDir = getMediaRoot();
+        const currentProjectsDir = getProjectDataRoot({ ensure: false });
+        const currentMediaDir = getMediaRoot({ ensure: false });
         const currentStorageBase = path.resolve(getStorageBasePath());
-        const sourceResolved = path.resolve(source);
-        if ([currentStorageBase, path.resolve(currentProjectsDir), path.resolve(currentMediaDir)].includes(sourceResolved)) {
-          return { success: true };
-        }
+        const sourceConflict = containmentError(source, currentStorageBase);
+        if (sourceConflict) return sourceConflict === "路径相同"
+          || samePath(source, currentProjectsDir)
+          || samePath(source, currentMediaDir)
+          ? { success: true }
+          : { success: false, error: "导入源不能位于当前存储路径内或与其重叠" };
         const backupDir = path.join(os.tmpdir(), `mystudio-legacy-import-backup-${Date.now()}`);
+        const targetState = new Map<string, { existed: boolean; nonEmpty: boolean }>();
         try {
           for (const [current, name] of [[currentProjectsDir, "projects"], [currentMediaDir, "media"]] as const) {
-            if (fs.existsSync(current) && (await fs.promises.readdir(current)).length > 0) {
+            const existed = fs.existsSync(current);
+            const nonEmpty = existed && (await fs.promises.readdir(current)).length > 0;
+            targetState.set(current, { existed, nonEmpty });
+            if (nonEmpty) {
               await copyDir(current, path.join(backupDir, name));
             }
           }
-          await removeDir(currentProjectsDir).catch(() => undefined);
+          await removeDir(currentProjectsDir);
           await copyDir(fs.existsSync(projectsDir) ? projectsDir : source, currentProjectsDir);
           if (fs.existsSync(mediaDir)) {
-            await removeDir(currentMediaDir).catch(() => undefined);
+            await removeDir(currentMediaDir);
             await copyDir(mediaDir, currentMediaDir);
           }
           await removeDir(backupDir).catch(() => undefined);
@@ -418,9 +520,10 @@ export function createStorageManager({ userDataPath }: CreateStorageManagerOptio
           console.error("Legacy import failed, rolling back:", importError);
           for (const [current, name] of [[currentProjectsDir, "projects"], [currentMediaDir, "media"]] as const) {
             const backup = path.join(backupDir, name);
-            if (!fs.existsSync(backup)) continue;
             await removeDir(current).catch(() => undefined);
-            await copyDir(backup, current).catch(() => undefined);
+            const state = targetState.get(current);
+            if (state?.nonEmpty && fs.existsSync(backup)) await copyDir(backup, current).catch(() => undefined);
+            else if (state?.existed) ensureDir(current);
           }
           await removeDir(backupDir).catch(() => undefined);
           throw importError;
@@ -432,22 +535,24 @@ export function createStorageManager({ userDataPath }: CreateStorageManagerOptio
     ipcMain.handle("storage-import-media-data", async (_event, sourcePath: string) => {
       try {
         if (!sourcePath) return { success: false, error: "路径不能为空" };
-        const target = getMediaRoot();
+        const target = getMediaRoot({ ensure: false });
         const source = normalizePath(sourcePath);
-        if (source === target) return { success: true };
+        if (samePath(source, target)) return { success: true };
+        if (containmentError(source, target)) return { success: false, error: "导入源不能位于当前媒体目录内或与其重叠" };
         const backupDir = path.join(os.tmpdir(), `mystudio-media-import-backup-${Date.now()}`);
+        const targetExisted = fs.existsSync(target);
+        const targetNonEmpty = targetExisted && (await fs.promises.readdir(target)).length > 0;
         try {
-          if (fs.existsSync(target) && (await fs.promises.readdir(target)).length > 0) await copyDir(target, backupDir);
+          if (targetNonEmpty) await copyDir(target, backupDir);
           await removeDir(target);
           await copyDir(source, target);
           await removeDir(backupDir).catch(() => undefined);
           return { success: true };
         } catch (importError) {
           console.error("Media import failed, rolling back:", importError);
-          if (fs.existsSync(backupDir)) {
-            await removeDir(target).catch(() => undefined);
-            await copyDir(backupDir, target).catch(() => undefined);
-          }
+          await removeDir(target).catch(() => undefined);
+          if (targetNonEmpty && fs.existsSync(backupDir)) await copyDir(backupDir, target).catch(() => undefined);
+          else if (targetExisted) ensureDir(target);
           await removeDir(backupDir).catch(() => undefined);
           throw importError;
         }

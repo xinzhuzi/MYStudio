@@ -13,6 +13,8 @@ import {
   removeRemotionEditingAudioTracks,
   requireTimelineArtifacts,
   resolveTimelineSourcePath,
+  resolveUserDataDir,
+  resolveRemotionRuntimeDir,
 } from "./render-daojie-editing-timeline";
 
 const temporaryRoots: string[] = [];
@@ -20,6 +22,8 @@ const ENV_KEYS = [
   "MYSTUDIO_DAOJIE_PROJECT_DIR",
   "MYSTUDIO_DAOJIE_PROJECT_ID",
   "MYSTUDIO_DAOJIE_USER_DATA_DIR",
+  "MYSTUDIO_USER_DATA_DIR",
+  "MYSTUDIO_REMOTION_RUNTIME_DIR",
   "MYSTUDIO_STORAGE_BASE_PATH",
 ] as const;
 
@@ -33,6 +37,18 @@ afterEach(() => {
 });
 
 describe("Daojie editing timeline runner", () => {
+  it("uses injected Electron userData, then canonical and legacy env aliases", () => {
+    const injected = path.join(os.tmpdir(), "mystudio-injected-user-data");
+    process.env.MYSTUDIO_USER_DATA_DIR = path.join(os.tmpdir(), "mystudio-canonical-user-data");
+    process.env.MYSTUDIO_DAOJIE_USER_DATA_DIR = path.join(os.tmpdir(), "mystudio-legacy-user-data");
+    expect(resolveUserDataDir(injected)).toBe(path.resolve(injected));
+    expect(resolveUserDataDir()).toBe(path.resolve(process.env.MYSTUDIO_USER_DATA_DIR));
+    delete process.env.MYSTUDIO_USER_DATA_DIR;
+    expect(resolveUserDataDir()).toBe(path.resolve(process.env.MYSTUDIO_DAOJIE_USER_DATA_DIR!));
+    process.env.MYSTUDIO_REMOTION_RUNTIME_DIR = path.join(os.tmpdir(), "mystudio-remotion-runtime");
+    expect(resolveRemotionRuntimeDir(injected)).toBe(path.resolve(process.env.MYSTUDIO_REMOTION_RUNTIME_DIR));
+  });
+
   it("keeps only visual and text tracks for the formal Remotion chapter projection", () => {
     const project = {
       tracks: [

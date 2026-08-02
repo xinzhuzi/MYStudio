@@ -402,3 +402,22 @@ state correctly, but several commands still re-parsed event payload fields with
 local casts. The fix was to make the core event layer own `ThreadChannelEvent`
 and `isThreadEvent`, make `reduceChannelMetadata` the only channel metadata
 projection, and make `reduceThreads` the only thread replay reducer.
+
+## Filesystem Evidence And Reversible Cleanup Boundary
+
+When a governance scanner crosses filesystem state, runtime code, and operator
+cleanup, keep the same evidence contract across all three layers:
+
+- A read-only scan records path, type, bytes, mtime and SHA-256 before any
+  disposition is considered.
+- A cleanup candidate must be narrower than the scan and remain
+  `approved=false` until a human records the exact batch and reason.
+- An apply command re-stats and re-hashes every target, rejects symlinks and
+  evidence drift, requires an explicit stopped-runtime confirmation, and uses
+  one recoverable Trash runner with durable pending/failed/applied evidence.
+- A re-creatable cache, runtime marker, legacy database, migration source or
+  unresolved link is not disposable merely because it is large, old-looking or
+  currently unused.
+
+This prevents a documentation-only disposition from silently becoming a
+destructive filesystem action.

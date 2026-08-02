@@ -44,9 +44,15 @@ function readStorageBasePathFromConfig(userDataDir: string) {
   return legacyProjectPath ? path.dirname(path.resolve(legacyProjectPath)) : undefined;
 }
 
-export function resolveUserDataDir() {
-  return envPath("MYSTUDIO_DAOJIE_USER_DATA_DIR")
+export function resolveUserDataDir(explicitUserDataDir?: string) {
+  return (explicitUserDataDir?.trim() ? path.resolve(explicitUserDataDir) : undefined)
+    || envPath("MYSTUDIO_USER_DATA_DIR")
+    || envPath("MYSTUDIO_DAOJIE_USER_DATA_DIR")
     || path.join(os.homedir(), "Library", "Application Support", APP_PROCESS_NAME);
+}
+
+export function resolveRemotionRuntimeDir(userDataDir = resolveUserDataDir()) {
+  return envPath("MYSTUDIO_REMOTION_RUNTIME_DIR") || path.join(userDataDir, "remotion-runtime");
 }
 
 export function resolveStorageBasePath(userDataDir = resolveUserDataDir()) {
@@ -127,4 +133,3 @@ export function resolveTimelineSourcePath(input: {
   fs.accessSync(resolved, fs.constants.R_OK);
   return resolved;
 }
-

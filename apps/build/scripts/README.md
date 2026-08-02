@@ -40,6 +40,68 @@ runner 抛错或非零退出会把同一路径更新为 `status=failed`，成功
 自动化测试只能在临时夹具上注入 `trashRunner`；禁止从测试调用生产 CLI
 `trash` 或真实 `/usr/bin/trash`。
 
+## userData 只读治理扫描
+
+`user-data-governance.mjs` 默认只生成 Application Support 的文件级 dry-run 证据；
+它还提供一个只筛选 `.DS_Store` 的候选批次和一个必须经过人工批准、应用已退出确认的
+Trash 执行门。`--output` 必须位于 `<userData>` 外，且已有文件永不覆盖：
+
+```bash
+node apps/build/scripts/user-data-governance.mjs \
+  --user-data "<userData>" \
+  --output "/tmp/mystudio-user-data-manifest.json"
+```
+
+生成只含 Finder 元数据的候选批次（不会移动任何文件）：
+
+```bash
+node apps/build/scripts/user-data-governance.mjs batch \
+  --user-data "<userData>" \
+  --output ".trellis/tasks/<task>/research/finder-metadata-trash-candidate.json" \
+  --batch-id batch-userdata-ds-YYYYMMDD
+```
+
+候选清单的 `approved=false`。人工确认精确目标后，用 `approve` 写出不可覆盖的
+`mode=approved-trash`/`approved=true` 清单（这一步本身就是批准记录）：
+
+```bash
+node apps/build/scripts/user-data-governance.mjs approve \
+  --user-data "<userData>" \
+  --manifest ".trellis/tasks/<task>/research/finder-metadata-trash-candidate.json" \
+  --output ".trellis/tasks/<task>/research/finder-metadata-trash-approved.json" \
+  --approval-note "人工确认仅处理列出的 Finder 元数据"
+```
+
+只有该批准清单并明确传入 `--confirm-app-exited`，才允许：
+
+```bash
+node apps/build/scripts/user-data-governance.mjs trash \
+  --user-data "<userData>" \
+  --manifest ".trellis/tasks/<task>/research/finder-metadata-trash-approved.json" \
+  --batch-id batch-userdata-ds-YYYYMMDD \
+  --applied-output ".trellis/tasks/<task>/research/finder-metadata-trash-applied.json" \
+  --confirm-app-exited
+```
+
+执行器只调用 `/usr/bin/trash --stopOnError --verbose`，并在调用前写入
+`status=pending` 的 applied/recovery evidence；失败写 `status=failed`，成功写
+`status=applied`。它重新核对每个目标的路径、类型、字节数、mtime 和 SHA-256，
+任何漂移、符号链接、非 `.DS_Store` 或未批准目标都会停止。
+
+每条记录包含路径、类型、字节数、mtime、SHA-256、分类依据和建议 disposition；
+JSON、SQLite、symlink 另带结构化证据。SQLite 状态固定为 `ok`、`locked`、
+`corrupt-or-unreadable`，其中 `locked` 只表示运行时占用，不能据此清理。symlink
+的 SHA-256 对 link target 文本取值，不跟随链接读取根外内容；只有 realpath 成功落到
+userData 外才标记 `hold-symlink-escape`。断链或
+`Singleton*` / `.com.github.Electron.*` marker 会保留不可解析/marker 证据。
+
+分类边界如下：
+
+- `.DS_Store` 普通文件是 `finder-metadata / trash-eligible-after-approval`，仍需后续精确 manifest 和人工批准。
+- Chromium/Electron cache、会话、Cookie、IndexedDB、DevTools 和锁标记全部保留，扫描器不把“可重建”解释为自动清理。
+- 顶层 `assets.db`、`assets/assets.db.bak-*`、`assets/db.json.migrated` 是 legacy/orphan、恢复或迁移证据，全部保留。
+- Python/模型 symlink、项目、资产、媒体、技能、TTS/Remotion runtime 以及未知条目都不会进入自动清理批次。
+
 ## 统一质量门禁
 
 `run-quality-gate.mjs` 是 MYStudio 验证链的唯一编排入口，由

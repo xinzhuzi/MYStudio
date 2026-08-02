@@ -17,6 +17,7 @@ import {
   resolveProjectId,
   resolveTimelineSourcePath,
   resolveUserDataDir,
+  resolveRemotionRuntimeDir,
 } from "./daojie-storage-paths";
 import type {
   AutoEditingRun,
@@ -158,6 +159,7 @@ export {
   resolveProjectId,
   resolveTimelineSourcePath,
   resolveUserDataDir,
+  resolveRemotionRuntimeDir,
 } from "./daojie-storage-paths";
 
 function loadExistingEditingProject(editingProjectPath: string): EditingProjectV1[] {

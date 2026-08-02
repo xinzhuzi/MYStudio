@@ -1,5 +1,4 @@
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { ensureBrowser, renderMedia, selectComposition } from "@remotion/renderer";
 import { PNG } from "pngjs";
@@ -24,6 +23,7 @@ import { buildMediaUrlMap } from "@rendering/plugins/remotion/media-bridge/media
 import { createRemotionEnsureBrowserAdapters, type RemotionEnsureBrowser } from "@rendering/plugins/remotion/browser/remotion-browser-worker-service";
 import { buildRemotionRuntimeManifest } from "@rendering/plugins/remotion/browser/remotion-runtime-manifest";
 import { analyzeRenderedAudioWindows, assertRenderedMediaEvidence, hashFileSha256, probeRenderedMedia } from "./render-smoke-evidence";
+import { resolveRemotionRuntimeDir } from "../timeline/daojie-storage-paths";
 
 const appsRoot = path.resolve(new URL("../..", import.meta.url).pathname);
 const remotionVersion = "4.0.499";
@@ -64,7 +64,7 @@ export async function runChapterSmoke(): Promise<ChapterSmokeReport> {
   if (manifest.remotionVersion !== remotionVersion || !Array.isArray(manifest.compositionIds) || !manifest.compositionIds.includes(CHAPTER_VIDEO_COMPOSITION_ID)) {
     throw new Error("ChapterVideo bundle manifest 与运行时不一致");
   }
-  const runtimeDir = path.resolve(process.env.MYSTUDIO_REMOTION_RUNTIME_DIR || path.join(os.homedir(), "Library", "Application Support", "漫影工作室", "remotion-runtime"));
+  const runtimeDir = path.resolve(resolveRemotionRuntimeDir());
   await fs.promises.mkdir(runtimeDir, { recursive: true });
   await fs.promises.writeFile(path.join(runtimeDir, "package.json"), `${JSON.stringify(buildRemotionRuntimeManifest(remotionVersion), null, 2)}\n`, "utf8");
   const previousCwd = process.cwd();

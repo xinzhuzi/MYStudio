@@ -1,3 +1,6 @@
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   createProjectFileUrl,
@@ -33,6 +36,20 @@ describe("storage path helpers", () => {
   it("resolves local media paths inside the media root", () => {
     expect(resolveLocalMediaPath("/media", "local-image://studio-assets/cover.png")).toBe("/media/studio-assets/cover.png");
     expect(() => resolveLocalMediaPath("/media", "local-image://studio-assets/../../secret.png")).toThrow("escapes");
+  });
+
+  it("rejects a local media path whose existing parent symlink escapes the media root", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "mystudio-storage-paths-"));
+    const mediaRoot = path.join(root, "media");
+    const outsideRoot = fs.mkdtempSync(path.join(os.tmpdir(), "mystudio-storage-outside-"));
+    fs.mkdirSync(mediaRoot);
+    fs.symlinkSync(outsideRoot, path.join(mediaRoot, "link"));
+    try {
+      expect(() => resolveLocalMediaPath(mediaRoot, "local-image://link/secret.png")).toThrow("escapes");
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+      fs.rmSync(outsideRoot, { recursive: true, force: true });
+    }
   });
 
   it("keeps project workflow files inside the active project directory", () => {

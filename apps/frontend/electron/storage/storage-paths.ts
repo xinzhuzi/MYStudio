@@ -1,9 +1,28 @@
+import fs from "node:fs";
 import path from "node:path";
+
+function canonicalPath(input: string) {
+  const unresolved: string[] = [];
+  let current = path.resolve(input);
+  while (true) {
+    try {
+      const resolved = fs.realpathSync(current);
+      return path.join(resolved, ...unresolved);
+    } catch {
+      const parent = path.dirname(current);
+      if (parent === current) return path.resolve(input);
+      unresolved.unshift(path.basename(current));
+      current = parent;
+    }
+  }
+}
 
 function assertInsideRoot(root: string, target: string, label: string) {
   const normalizedRoot = path.resolve(root);
   const normalizedTarget = path.resolve(target);
-  if (normalizedTarget !== normalizedRoot && !normalizedTarget.startsWith(normalizedRoot + path.sep)) {
+  const canonicalRoot = canonicalPath(normalizedRoot).toLowerCase();
+  const canonicalTarget = canonicalPath(normalizedTarget).toLowerCase();
+  if (canonicalTarget !== canonicalRoot && !canonicalTarget.startsWith(`${canonicalRoot}${path.sep}`)) {
     throw new Error(`${label} escapes storage root`);
   }
   return normalizedTarget;

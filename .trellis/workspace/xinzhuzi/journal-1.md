@@ -364,3 +364,34 @@ Archived the completed local AC11 visual review slice with no-git mode. Added de
 ### Next Steps
 
 - None - task complete
+
+
+## Session 7: 用户数据路径治理 Phase A 收口
+
+**Date**: 2026-08-02
+**Task**: 用户数据路径治理 Phase A 收口
+**Branch**: `main`
+
+### Summary
+
+完成 userData/Remotion 路径契约统一、storage 事务回滚、只读 governance manifest；fresh Vitest/typecheck/lint/Python、packaged/installed smoke 和真实目录只读复验全部通过。M1 物理目录迁移保留为需单独批准的阻塞项；任务已 no-commit 归档。
+
+### Main Changes
+
+- Detailed change bullets were not supplied; see the summary above.
+
+### Git Commits
+
+(No commits - planning session)
+
+### Testing
+
+- Validation was not recorded for this session.
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

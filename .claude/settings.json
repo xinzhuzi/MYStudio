@@ -37,6 +37,15 @@
     ],
     "PreToolUse": [
       {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 .claude/hooks/deny-worktree-use.py"
+          }
+        ]
+      },
+      {
         "matcher": "Task",
         "hooks": [
           {

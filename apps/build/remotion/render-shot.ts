@@ -1,5 +1,4 @@
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { PNG } from "pngjs";
 import { ensureBrowser, renderMedia, selectComposition } from "@remotion/renderer";
@@ -14,6 +13,7 @@ import { sha256CanonicalJson } from "@/lib/studio/remotion/canonical-json";
 import { createRemotionAudioBindingFingerprint } from "@/lib/studio/remotion/remotion-audio-fingerprint";
 import type { RemotionShotAudioBindingV2 } from "@/types/remotion-workspace";
 import { analyzeRenderedAudioWindows, hashFileSha256, probeRenderedMedia, assertRenderedMediaEvidence } from "./render-smoke-evidence";
+import { resolveRemotionRuntimeDir } from "../timeline/daojie-storage-paths";
 
 const appsRoot = path.resolve(new URL("../..", import.meta.url).pathname);
 const remotionVersion = "4.0.499";
@@ -42,7 +42,7 @@ export async function runShotSmoke(): Promise<ShotSmokeReport> {
   if (manifest.remotionVersion !== remotionVersion || manifest.compositionIds instanceof Array === false || !manifest.compositionIds.includes(STORYBOARD_SHOT_COMPOSITION_ID)) {
     throw new Error("StoryboardShot bundle manifest 与运行时不一致");
   }
-  const runtimeDir = path.resolve(process.env.MYSTUDIO_REMOTION_RUNTIME_DIR || path.join(os.homedir(), "Library", "Application Support", "漫影工作室", "remotion-runtime"));
+  const runtimeDir = path.resolve(resolveRemotionRuntimeDir());
   await fs.promises.mkdir(runtimeDir, { recursive: true });
   await fs.promises.writeFile(
     path.join(runtimeDir, "package.json"),

@@ -1,12 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { handlers, existsSync, mkdirSync, readdir, rm, cp } = vi.hoisted(() => ({
+const { handlers, existsSync, mkdirSync, readdir, rm, cp, readFileSync, writeFileSync, rmSync } = vi.hoisted(() => ({
   handlers: new Map<string, (...args: unknown[]) => unknown>(),
   existsSync: vi.fn((..._args: unknown[]) => false),
   mkdirSync: vi.fn(),
   readdir: vi.fn(async (..._args: unknown[]) => [] as string[]),
   rm: vi.fn(async (..._args: unknown[]) => undefined),
   cp: vi.fn(async (..._args: unknown[]) => undefined),
+  readFileSync: vi.fn(),
+  writeFileSync: vi.fn(),
+  rmSync: vi.fn(),
 }));
 vi.mock("electron", () => ({
   dialog: { showOpenDialog: vi.fn() },
@@ -19,8 +22,9 @@ vi.mock("node:fs", () => ({
   default: {
     existsSync,
     mkdirSync,
-    readFileSync: vi.fn(),
-    writeFileSync: vi.fn(),
+    readFileSync,
+    writeFileSync,
+    rmSync,
     promises: { readdir, rm, cp },
   },
 }));
@@ -32,12 +36,18 @@ describe("createStorageManager", () => {
     handlers.clear();
     existsSync.mockReset();
     existsSync.mockReturnValue(false);
+    mkdirSync.mockReset();
     readdir.mockReset();
     readdir.mockResolvedValue([]);
     rm.mockReset();
     rm.mockResolvedValue(undefined);
     cp.mockReset();
     cp.mockResolvedValue(undefined);
+    readFileSync.mockReset();
+    readFileSync.mockReturnValue(undefined);
+    writeFileSync.mockReset();
+    writeFileSync.mockImplementation(() => undefined);
+    rmSync.mockReset();
   });
 
   it("keeps default paths project-scoped and registers the complete storage channel set", async () => {
@@ -178,5 +188,59 @@ describe("createStorageManager", () => {
     });
     expect(rm).not.toHaveBeenCalled();
     expect(cp).not.toHaveBeenCalled();
+  });
+
+  it("rolls back a partial unified import when the injected copy fails", async () => {
+    const copyFailure = vi.fn(async () => { throw new Error("copy failed"); });
+    const remove = vi.fn(async () => undefined);
+    const manager = createStorageManager({
+      userDataPath: "/user-data",
+      fileOps: { cp: copyFailure, remove },
+    });
+    manager.registerIpcHandlers({ getStudioManualsSourceRoot: () => "/manuals" });
+    existsSync.mockImplementation((candidate?: unknown) => candidate === "/incoming/assets");
+
+    await expect(handlers.get("storage-import-data")?.(null, "/incoming")).resolves.toMatchObject({
+      success: false,
+      error: expect.stringContaining("copy failed"),
+    });
+    expect(remove).toHaveBeenCalledWith("/user-data/assets", { recursive: true, force: true });
+  });
+
+  it("cleans an incomplete export when a later category copy fails", async () => {
+    let copyCount = 0;
+    const copy = vi.fn(async () => {
+      copyCount += 1;
+      if (copyCount === 2) throw new Error("export copy failed");
+    });
+    const remove = vi.fn(async () => undefined);
+    const manager = createStorageManager({ userDataPath: "/user-data", fileOps: { cp: copy, remove } });
+    manager.registerIpcHandlers({ getStudioManualsSourceRoot: () => "/manuals" });
+
+    await expect(handlers.get("storage-export-data")?.(null, "/backup")).resolves.toMatchObject({
+      success: false,
+      error: expect.stringContaining("export copy failed"),
+    });
+    expect(remove).toHaveBeenCalledWith(expect.stringMatching(/^\/backup\/mystudio-data-/), { recursive: true, force: true });
+  });
+
+  it("keeps the old storage config when a move cannot persist its new root", async () => {
+    const manager = createStorageManager({ userDataPath: "/user-data" });
+    manager.registerIpcHandlers({ getStudioManualsSourceRoot: () => "/manuals" });
+    existsSync.mockImplementation((candidate?: unknown) => (
+      candidate === "/user-data/storage-config.json"
+      || candidate === "/user-data/projects"
+      || candidate === "/user-data/projects/entry"
+    ));
+    readFileSync.mockReturnValue('{"basePath":""}');
+    readdir.mockResolvedValue(["entry"]);
+    writeFileSync.mockImplementation(() => { throw new Error("config write failed"); });
+
+    await expect(handlers.get("storage-move-data")?.(null, "/new-data")).resolves.toMatchObject({
+      success: false,
+      error: expect.stringContaining("无法保存存储配置"),
+    });
+    expect(manager.getStorageBasePath()).toBe("/user-data");
+    expect(mkdirSync).not.toHaveBeenCalledWith("/new-data/assets", { recursive: true });
   });
 });

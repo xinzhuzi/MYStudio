@@ -1,5 +1,4 @@
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
@@ -20,6 +19,7 @@ import {
   probeRenderedMedia,
   type RenderedMediaLoudnessMeasurement,
 } from "./render-smoke-evidence";
+import { resolveRemotionRuntimeDir } from "../timeline/daojie-storage-paths";
 
 const execFileAsync = promisify(execFile);
 const appsRoot = path.resolve(new URL("../..", import.meta.url).pathname);
@@ -129,7 +129,7 @@ export async function runFiveShotSmoke(): Promise<FiveShotReport> {
   if (manifest.remotionVersion !== remotionVersion || manifest.compositionId !== REMOTION_COMPOSITION_ID) {
     throw new Error("Remotion five-shot bundle manifest 与运行时不一致");
   }
-  const runtimeDir = path.resolve(process.env.MYSTUDIO_REMOTION_RUNTIME_DIR || path.join(os.homedir(), "Library", "Application Support", "漫影工作室", "remotion-runtime"));
+  const runtimeDir = path.resolve(resolveRemotionRuntimeDir());
   fs.mkdirSync(runtimeDir, { recursive: true });
   fs.writeFileSync(
     path.join(runtimeDir, "package.json"),
