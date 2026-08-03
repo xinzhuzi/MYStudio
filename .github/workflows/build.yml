@@ -179,6 +179,8 @@ jobs:
       - resolve-version
       - release-prep
     runs-on: macos-14
+    env:
+      MYSTUDIO_DISABLE_ELECTRON_PUBLISH: "1"
     steps:
       - uses: actions/checkout@v4
 
@@ -243,6 +245,8 @@ jobs:
       - resolve-version
       - release-prep
     runs-on: windows-latest
+    env:
+      MYSTUDIO_DISABLE_ELECTRON_PUBLISH: "1"
     steps:
       - uses: actions/checkout@v4
 
@@ -278,9 +282,6 @@ jobs:
 
       - name: Build Windows package
         working-directory: apps
-        env:
-          CSC_LINK: ""
-          CSC_KEY_PASSWORD: ""
         run: npm run build:win
 
       - name: Collect Windows release assets
