@@ -81,6 +81,13 @@ jobs:
           cache: npm
           cache-dependency-path: apps/package-lock.json
 
+      - name: Install ffmpeg toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y ffmpeg
+          ffmpeg -version
+          ffprobe -version
+
       - name: Install Node dependencies
         working-directory: apps
         run: npm ci
@@ -116,6 +123,13 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
           cache-dependency-path: apps/package-lock.json
+
+      - name: Install ffmpeg toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y ffmpeg
+          ffmpeg -version
+          ffprobe -version
 
       - name: Sync package version in CI workspace
         working-directory: apps

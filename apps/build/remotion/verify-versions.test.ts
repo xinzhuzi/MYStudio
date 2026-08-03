@@ -61,6 +61,27 @@ describe("verifyRemotionVersions", () => {
       "package-lock node_modules/mediabunny 版本漂移: 1.50.6",
     ]));
   });
+
+  it("only requires a platform-specific optional native package on its matching runner", () => {
+    const root = fixtureRoot();
+    const optionalPackagePath = path.join(
+      root,
+      "node_modules",
+      "@remotion",
+      "compositor-darwin-arm64",
+      "package.json",
+    );
+    fs.rmSync(path.dirname(optionalPackagePath), { recursive: true, force: true });
+
+    expect(verifyRemotionVersions({ root, platform: "linux", arch: "x64" })).toMatchObject({
+      success: true,
+      errors: [],
+    });
+
+    const matchingRunner = verifyRemotionVersions({ root, platform: "darwin", arch: "arm64" });
+    expect(matchingRunner.success).toBe(false);
+    expect(matchingRunner.errors).toContain("缺少已安装包: @remotion/compositor-darwin-arm64");
+  });
 });
 
 function fixtureRoot() {

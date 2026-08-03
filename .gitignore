@@ -61,6 +61,7 @@ docs/*/**
 # Script files (internal tools)
 *.ps1
 !apps/build/setup-win.ps1
+!apps/build/packaging/setup-win.ps1
 
 # Story/script content
 沪商通途*

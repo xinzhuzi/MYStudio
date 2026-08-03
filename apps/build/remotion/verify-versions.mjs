@@ -13,6 +13,10 @@ export const REQUIRED_REMOTION_PACKAGES = {
   optionalDependencies: ["@remotion/compositor-darwin-arm64"],
 };
 
+const PLATFORM_OPTIONAL_PACKAGES = {
+  "@remotion/compositor-darwin-arm64": { platform: "darwin", arch: "arm64" },
+};
+
 const DEPENDENCY_SECTIONS = [
   "dependencies",
   "devDependencies",
@@ -20,7 +24,11 @@ const DEPENDENCY_SECTIONS = [
   "peerDependencies",
 ];
 
-export function verifyRemotionVersions({ root = process.cwd() } = {}) {
+export function verifyRemotionVersions({
+  root = process.cwd(),
+  platform = process.platform,
+  arch = process.arch,
+} = {}) {
   const manifest = readJson(path.join(root, "package.json"));
   const lock = readJson(path.join(root, "package-lock.json"));
   const errors = [];
@@ -75,6 +83,7 @@ export function verifyRemotionVersions({ root = process.cwd() } = {}) {
 
   for (const packageNames of Object.values(REQUIRED_REMOTION_PACKAGES)) {
     for (const packageName of packageNames) {
+      if (!isInstalledPackageRequired(packageName, { platform, arch })) continue;
       const installed = readInstalledPackage(root, packageName, errors);
       if (installed && installed.version !== expectedRemotionVersion) {
         errors.push(`${packageName} 已安装版本漂移: ${installed.version}`);
@@ -111,6 +120,11 @@ function readInstalledPackage(root, packageName, errors) {
     return null;
   }
   return readJson(packagePath);
+}
+
+function isInstalledPackageRequired(packageName, { platform, arch }) {
+  const requirement = PLATFORM_OPTIONAL_PACKAGES[packageName];
+  return !requirement || (requirement.platform === platform && requirement.arch === arch);
 }
 
 function readJson(filePath) {
