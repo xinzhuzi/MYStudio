@@ -23,6 +23,7 @@ const tempDir = resolve(cacheRoot, 'tmp');
 const electronCacheDir = resolve(cacheRoot, 'electron');
 const electronBuilderCacheDir = resolve(cacheRoot, 'electron-builder');
 const desktopBuilderConfigPath = resolve(projectRoot, 'frontend', 'config', 'electron-builder.yml');
+const disableElectronBuilderPublish = process.env.MYSTUDIO_DISABLE_ELECTRON_PUBLISH === '1';
 const brandDir = resolve(projectRoot, 'frontend', 'assets', 'brand');
 const cliArgs = process.argv.slice(2);
 const supportedTargets = ['mac', 'win', 'linux'];
@@ -107,6 +108,10 @@ function resolveBuilderArgs(arch) {
 
   if (arch) {
     builderArgs.push(`--${arch}`);
+  }
+
+  if (disableElectronBuilderPublish) {
+    builderArgs.push('--publish', 'never');
   }
 
   return builderArgs;
