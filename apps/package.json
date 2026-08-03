@@ -1,21 +1,21 @@
 {
   "name": "manying-studio",
   "productName": "漫影工作室",
-  "version": "0.1.0",
+  "version": "0.0.1",
   "description": "本地优先的 AI 漫剧与短剧制作工作台",
   "author": "zhengbingjin",
   "license": "AGPL-3.0-or-later",
   "repository": {
     "type": "git",
-    "url": "https://github.com/zhengbingjin/MYStudio.git"
+    "url": "https://github.com/xinzhuzi/MYStudio.git"
   },
-  "homepage": "https://github.com/zhengbingjin/MYStudio",
+  "homepage": "https://github.com/xinzhuzi/MYStudio",
   "bugs": {
-    "url": "https://github.com/zhengbingjin/MYStudio/issues"
+    "url": "https://github.com/xinzhuzi/MYStudio/issues"
   },
   "updateConfig": {
     "manifestUrl": "http://68.64.176.186/manying-studio/version.json",
-    "defaultGithubUrl": "https://github.com/zhengbingjin/MYStudio",
+    "defaultGithubUrl": "https://github.com/xinzhuzi/MYStudio",
     "defaultBaiduUrl": "https://pan.baidu.com/s/1ImH6tOIiuFxIDXC0fC-6Lg",
     "defaultBaiduCode": "8888"
   },
