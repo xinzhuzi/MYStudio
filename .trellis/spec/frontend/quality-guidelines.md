@@ -44,6 +44,30 @@ navigation smoke must not be reported as real MP4 generation success.
 - Sanitize diagnostics before writing logs.
 - Add regression tests beside the affected code.
 
+## Scenario: audio asset creation from the asset library
+
+### Contract
+
+- `AddAssetDialog` with `type === "audio"` must call the existing
+  `window.studioAssets.selectAudioFile` bridge, display the returned path, and
+  pass that exact value as `sourceFilePath` to the existing `assets:add` IPC.
+- The audio branch must not call `selectImageFile`; image asset behavior stays
+  unchanged.
+
+### Tests Required
+
+- Render the dialog as an audio asset, resolve a deterministic audio path from
+  `selectAudioFile`, assert the path is visible, and assert the `assets:add`
+  payload contains the same `sourceFilePath`.
+- Keep the packaged/installed smoke assertion that the asset voice flow can
+  discover and play an audio asset (`assetVoiceFlow=ok`).
+
+### Common Mistake
+
+The dialog previously rendered no audio picker while still submitting the
+image state as `sourceFilePath`; this made audio creation appear successful
+without a selectable source file.
+
 ## Packaged production-canvas interaction gate
 
 Production workflow canvas changes are not complete on unit tests alone. Build

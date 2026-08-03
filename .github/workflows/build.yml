@@ -188,6 +188,12 @@ jobs:
           cache: npm
           cache-dependency-path: apps/package-lock.json
 
+      - name: Install ffmpeg toolchain
+        run: |
+          brew install ffmpeg
+          ffmpeg -version
+          ffprobe -version
+
       - name: Sync package version in CI workspace
         working-directory: apps
         env:
@@ -245,6 +251,13 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
           cache-dependency-path: apps/package-lock.json
+
+      - name: Install ffmpeg toolchain
+        shell: pwsh
+        run: |
+          choco install ffmpeg -y --no-progress
+          ffmpeg -version
+          ffprobe -version
 
       - name: Sync package version in CI workspace
         working-directory: apps

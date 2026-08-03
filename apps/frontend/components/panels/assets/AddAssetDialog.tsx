@@ -11,7 +11,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";
 import type { StudioAssetKind } from "@/types/studio-assets";
-import { ImageIcon, Plus } from "lucide-react";
+import { ImageIcon, Music2, Plus } from "lucide-react";
 import { toast } from "sonner";
 
 const TYPE_LABEL = {
@@ -31,7 +31,7 @@ export function AddAssetDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const [imagePath, setImagePath] = useState("");
+  const [sourceFilePath, setSourceFilePath] = useState("");
   const [imagePreview, setImagePreview] = useState("");
   const nameRef = useRef<HTMLInputElement>(null);
   const descRef = useRef<HTMLTextAreaElement>(null);
@@ -44,15 +44,26 @@ export function AddAssetDialog({
     if (!studioAssets?.selectImageFile) return;
     const filePath = await studioAssets.selectImageFile();
     if (filePath) {
-      setImagePath(filePath);
+      setSourceFilePath(filePath);
       setImagePreview(`file://${filePath}`);
     }
+  };
+
+  const handleSelectAudio = async () => {
+    const studioAssets = getStudioAssetsBridge();
+    if (!studioAssets?.selectAudioFile) return;
+    const filePath = await studioAssets.selectAudioFile();
+    if (filePath) setSourceFilePath(filePath);
   };
 
   const handleSave = async () => {
     const name = nameRef.current?.value?.trim();
     if (!name) {
       toast.error("请填写名称");
+      return;
+    }
+    if (type === "audio" && !sourceFilePath.trim()) {
+      toast.error("请选择音频文件");
       return;
     }
     const studioAssets = getStudioAssetsBridge();
@@ -65,7 +76,7 @@ export function AddAssetDialog({
       const result = await studioAssets.add({
         type,
         name,
-        sourceFilePath: imagePath || "",
+        sourceFilePath: sourceFilePath || "",
         description: descRef.current?.value || "",
         prompt: promptRef.current?.value || "",
         setting: settingRef.current?.value || "",
@@ -73,7 +84,7 @@ export function AddAssetDialog({
       if (result) {
         toast.success(`已添加「${name}」`);
         // 重置表单
-        setImagePath("");
+        setSourceFilePath("");
         setImagePreview("");
         onOpenChange(false);
       } else {
@@ -108,6 +119,22 @@ export function AddAssetDialog({
                   </div>
                 )}
               </div>
+            </div>
+          )}
+
+          {type === "audio" && (
+            <div className="space-y-2">
+              <div className="text-xs font-medium text-muted-foreground">音频文件 *</div>
+              <button
+                type="button"
+                className="flex min-h-16 w-full items-center gap-3 rounded-lg border border-dashed border-border bg-muted/30 px-4 text-left hover:border-primary/50"
+                onClick={handleSelectAudio}
+              >
+                <Music2 className="h-7 w-7 shrink-0 text-primary" />
+                <span className="min-w-0 truncate text-xs text-muted-foreground" title={sourceFilePath}>
+                  {sourceFilePath || "点击选择音频文件（mp3、wav、m4a 等）"}
+                </span>
+              </button>
             </div>
           )}
 

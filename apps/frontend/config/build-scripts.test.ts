@@ -3820,12 +3820,54 @@ print("近黑长袍、纯黑整套服装、黑色武服、把服装主色渲染�
   it("requires the current project storyboard table to provide per-shot semantics", () => {
     const result = runPythonSnippet(`
 import importlib.util
+import json
 
 spec = importlib.util.spec_from_file_location("dao", "apps/build/daojie/build_daojie_chapter001_workflow.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
-state = module.load_json(module.STORE).setdefault("state", {})
+semantics = {
+    "sceneViewpointId": "dock-main-axis",
+    "personFree": False,
+    "visibleCharacters": [{
+        "name": "独孤剑尘",
+        "position": "左中格",
+        "orientation": "背部三分之四朝右",
+        "actionIn": "从河雾外沿入画",
+        "actionOut": "停在左中格",
+    }],
+    "visibleProps": [],
+    "actionIn": "独孤剑尘从河雾外沿入画",
+    "actionOut": "独孤剑尘停在左中格",
+}
+rows = []
+for index in range(1, 44):
+    fields = [
+        index,
+        f"独孤剑尘在码头停步 {index}",
+        "金水河码头",
+        "独孤剑尘",
+        "3",
+        "中景",
+        "固定",
+        "停步",
+        "背部三分之四朝右",
+        "左中格",
+        "克制",
+        "旁白：河雾压低了码头",
+        "河水与缆绳声",
+        "",
+        json.dumps(semantics, ensure_ascii=False),
+    ]
+    rows.append("|" + "|".join(str(field) for field in fields) + "|")
+state = {
+    "agentWorkData": [{
+        "key": "storyboardTable",
+        "episodeId": module.EPISODE_ID,
+        "updatedAt": 1,
+        "data": "<storyboardTable>\\n" + "\\n".join(rows) + "\\n</storyboardTable>",
+    }],
+}
 source = module.resolve_storyboard_source(state, module.EPISODE_ID)
 print(
     len(source["shots"]) == 43
@@ -3842,61 +3884,140 @@ print(
     const result = runPythonSnippet(`
 import importlib.util
 import json
+import tempfile
+from pathlib import Path
+from PIL import Image
 
 spec = importlib.util.spec_from_file_location("dao", "apps/build/daojie/build_daojie_chapter001_workflow.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
-state = module.load_json(module.STORE).setdefault("state", {})
-catalog = module.build_asset_catalog(state)
-existing_versions = {
-    f"{item.get('assetId', '')}:{item.get('versionId', '')}": item
-    for item in state.get("continuityAssetVersions") or []
-}
-shot = {
-    "index": 6,
-    "scene": "金水河码头",
-    "assets": ["独孤剑尘", "油布剑包"],
-    "shotSemantics": {
-        "sceneViewpointId": "dock-main-axis",
-        "personFree": False,
-        "visibleCharacters": [{
-            "name": "独孤剑尘", "position": "左中格", "orientation": "背部三分之四朝右",
-            "actionIn": "从河雾外沿入画", "actionOut": "停在左中格",
+with tempfile.TemporaryDirectory() as temp:
+    root = Path(temp)
+    source_dir = root / "source"
+    approved_dir = root / "v5"
+    source_dir.mkdir()
+    approved_dir.mkdir()
+    source_paths = {
+        "scene": source_dir / "scene.png",
+        "front": source_dir / "front.png",
+        "side": source_dir / "side.png",
+        "back": source_dir / "back.png",
+        "prop": source_dir / "prop.png",
+    }
+    approved_paths = {
+        "scene": approved_dir / "scene_thumb.png",
+        "front": approved_dir / "front_thumb.png",
+        "side": approved_dir / "side_thumb.png",
+        "back": approved_dir / "back_thumb.png",
+        "prop": approved_dir / "prop_thumb.png",
+    }
+    for path in [*source_paths.values(), *approved_paths.values()]:
+        Image.new("RGB", (8, 8), (128, 128, 128)).save(path, format="PNG")
+
+    module.CHARACTERS_JSON = root / "characters.json"
+    module.SCENES_JSON = root / "scenes.json"
+    def attach_fixture_images(catalog):
+        catalog["金水河码头"]["imagePath"] = str(source_paths["scene"])
+        catalog["独孤剑尘"]["imagePath"] = str(source_paths["front"])
+        catalog["油布剑包"]["imagePath"] = str(source_paths["prop"])
+    module.attach_asset_images = attach_fixture_images
+    module.CHARACTERS_JSON.write_text(json.dumps({"state": {"characters": [{
+        "id": "char-1",
+        "name": "独孤剑尘",
+        "identityAnchors": {"uniqueMarks": ["灰衫"]},
+        "negativePrompt": {"avoid": ["换脸"]},
+        "views": [
+            {"viewType": "front", "imageUrl": str(source_paths["front"])},
+            {"viewType": "side", "imageUrl": str(source_paths["side"])},
+            {"viewType": "back", "imageUrl": str(source_paths["back"])},
+        ],
+    }]}}, ensure_ascii=False), encoding="utf-8")
+    module.SCENES_JSON.write_text(json.dumps({"state": {"scenes": [{
+        "id": "scene-1",
+        "name": "金水河码头",
+        "spatialLayout": "前景缆绳，中景码头，后景河雾",
+        "lightingDesign": "冷月平光",
+        "colorPalette": "石青与靛青",
+        "viewpoints": [{"id": "dock-main-axis"}],
+    }]}}, ensure_ascii=False), encoding="utf-8")
+    state = {
+        "entityExtractions": [{
+            "episodeId": module.EPISODE_ID,
+            "props": [{"name": "油布剑包", "assetId": "prop-1"}],
         }],
-        "visibleProps": [{"name": "油布剑包", "position": "左后景", "state": "背负且未露剑"}],
-        "actionIn": "独孤剑尘从河雾外沿入画",
-        "actionOut": "独孤剑尘停在左中格",
-    },
-}
-image_assets = module.resolve_continuity_image_assets(shot, catalog)
-manifest, versions = module.build_ordered_continuity_manifest(
-    image_assets,
-    shot["shotSemantics"]["sceneViewpointId"],
-    shot["scene"],
-)
-old_paths = [item.get("imagePath") for item in manifest]
-manifest, versions = module.reuse_approved_continuity_versions(
-    manifest,
-    versions,
-    existing_versions,
-)
-print(json.dumps({
-    "approved": sum(item.get("approved") is True for item in versions),
-    "reused": sum(
-        item.get("referenceImagePaths")
-        and item.get("referenceImagePaths") != [old_paths[index]]
-        for index, item in enumerate(versions)
-    ),
-    "pathsMatchStore": all(
-        item.get("referenceImagePaths") == existing_versions[
-            f"{item.get('assetId', '')}:{item.get('versionId', '')}"
-        ].get("referenceImagePaths")
-        for item in versions
-        if f"{item.get('assetId', '')}:{item.get('versionId', '')}" in existing_versions
-        and existing_versions[f"{item.get('assetId', '')}:{item.get('versionId', '')}"].get("approved") is True
-    ),
-}, ensure_ascii=False))
+    }
+    catalog = module.build_asset_catalog(state)
+    shot = {
+        "index": 6,
+        "scene": "金水河码头",
+        "assets": ["独孤剑尘", "油布剑包"],
+        "shotSemantics": {
+            "sceneViewpointId": "dock-main-axis",
+            "personFree": False,
+            "visibleCharacters": [{
+                "name": "独孤剑尘", "position": "左中格", "orientation": "背部三分之四朝右",
+                "actionIn": "从河雾外沿入画", "actionOut": "停在左中格",
+            }],
+            "visibleProps": [{"name": "油布剑包", "position": "左后景", "state": "背负且未露剑"}],
+            "actionIn": "独孤剑尘从河雾外沿入画",
+            "actionOut": "独孤剑尘停在左中格",
+        },
+    }
+    image_assets = module.resolve_continuity_image_assets(shot, catalog)
+    manifest, versions = module.build_ordered_continuity_manifest(
+        image_assets,
+        shot["shotSemantics"]["sceneViewpointId"],
+        shot["scene"],
+    )
+    existing_versions = {}
+    approved_targets = {
+        "scene": [approved_paths["scene"]],
+        "character": [approved_paths["front"], approved_paths["side"], approved_paths["back"]],
+        "prop": [approved_paths["prop"]],
+    }
+    for version in versions:
+        approved = json.loads(json.dumps(version))
+        paths = [str(path) for path in approved_targets[approved["assetKind"]]]
+        hashes = module.reference_image_sha256(paths)
+        approved["referenceImagePaths"] = paths
+        approved["referenceImageSha256"] = hashes
+        approved["reviewEvidencePaths"] = paths
+        approved["reviewEvidenceSha256"] = hashes
+        approved["reviewEvidenceVerifiedAt"] = 1
+        approved["contentFingerprint"] = module.continuity_asset_content_fingerprint(approved)
+        approved["approval"] = {
+            "status": "approved",
+            "reviewer": "human",
+            "reviewedAt": 1,
+            "evidencePaths": paths,
+            "reviewEvidenceSha256": hashes,
+            "contentFingerprint": approved["contentFingerprint"],
+        }
+        approved["approvalFingerprint"] = module.continuity_asset_approval_fingerprint(approved, approved["approval"])
+        existing_versions[f"{approved['assetId']}:{approved['versionId']}"] = approved
+    old_paths = [item.get("imagePath") for item in manifest]
+    manifest, versions = module.reuse_approved_continuity_versions(
+        manifest,
+        versions,
+        existing_versions,
+    )
+    print(json.dumps({
+        "approved": sum(item.get("approved") is True for item in versions),
+        "reused": sum(
+            item.get("referenceImagePaths")
+            and item.get("referenceImagePaths") != [old_paths[index]]
+            for index, item in enumerate(versions)
+        ),
+        "pathsMatchStore": all(
+            item.get("referenceImagePaths") == existing_versions[
+                f"{item.get('assetId', '')}:{item.get('versionId', '')}"
+            ].get("referenceImagePaths")
+            for item in versions
+            if f"{item.get('assetId', '')}:{item.get('versionId', '')}" in existing_versions
+            and existing_versions[f"{item.get('assetId', '')}:{item.get('versionId', '')}"].get("approval")
+        ),
+    }, ensure_ascii=False))
 `);
 
     expect(result.status).toBe(0);
