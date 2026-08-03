@@ -1,0 +1,6 @@
+# Lightweight dependencies used by the Daojie build-script tests and helpers.
+# Keep this separate from apps/backend/requirements.txt so CI does not install
+# the local TTS/STT model runtime or platform-specific inference packages.
+numpy>=1.24.0
+scipy>=1.10.0
+Pillow>=10.0.0

@@ -81,12 +81,26 @@ jobs:
           cache: npm
           cache-dependency-path: apps/package-lock.json
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: apps/build/requirements-ci.txt
+
       - name: Install ffmpeg toolchain
         run: |
           sudo apt-get update
           sudo apt-get install --no-install-recommends -y ffmpeg
           ffmpeg -version
           ffprobe -version
+
+      - name: Install Python build-test dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m venv "${RUNNER_TEMP}/mystudio-ci-venv"
+          echo "${RUNNER_TEMP}/mystudio-ci-venv/bin" >> "${GITHUB_PATH}"
+          "${RUNNER_TEMP}/mystudio-ci-venv/bin/python" -m pip install --requirement apps/build/requirements-ci.txt
 
       - name: Install Node dependencies
         working-directory: apps

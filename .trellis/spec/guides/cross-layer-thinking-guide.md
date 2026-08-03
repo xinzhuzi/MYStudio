@@ -121,6 +121,19 @@ After implementation:
 - [ ] Checked that derived state points back to the source event identifier
       (`seq`, `id`, `version`) instead of inventing a second cursor
 
+## CI Runtime Dependency Boundary
+
+When a Node/Vitest test spawns a Python helper, the repository's local Python
+environment is not the CI contract. The workflow must provision the exact
+lightweight Python dependencies required by those helpers before the test step.
+
+- [ ] Inventory imports reached by the spawned Python command
+- [ ] Keep build-test dependencies separate from heavyweight TTS/STT runtimes
+- [ ] Create a temporary venv and add its bin directory to the workflow PATH
+- [ ] Run an import or focused test probe in the same interpreter used by
+      `spawnSync("python3")`
+- [ ] Treat a local pass without CI dependency provisioning as unverified
+
 ---
 
 ## Cross-Platform Template Consistency
