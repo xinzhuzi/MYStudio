@@ -94,7 +94,7 @@ win:
 
 # NSIS 安装包配置
 nsis:
-  include: config/installer.nsh
+  include: frontend/config/installer.nsh
   artifactName: ${name}-${version}-setup.${ext}
   shortcutName: 漫影工作室
   uninstallDisplayName: ${productName}
