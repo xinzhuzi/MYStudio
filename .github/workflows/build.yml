@@ -21,7 +21,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  NODE_VERSION: "20"
+  NODE_VERSION: "22"
 
 jobs:
   resolve-version:
@@ -191,6 +191,8 @@ jobs:
           cache-dependency-path: apps/package-lock.json
 
       - name: Install ffmpeg toolchain
+        env:
+          HOMEBREW_NO_REQUIRE_TAP_TRUST: "1"
         run: |
           brew install ffmpeg
           ffmpeg -version
