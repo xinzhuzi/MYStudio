@@ -2,7 +2,7 @@
 // Licensed under AGPL-3.0-or-larger. See LICENSE for details.
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 
-import type { ArtifactRecord, DeletePolicy, PlanItem, DeletionPlan, BackupImpact } from "@/types/artifacts";
+import type { ArtifactRecord, DeletePolicy, PlanItem, DeletionPlan, BackupImpact, PhysicalRef } from "@/types/artifacts";
 
 /**
  * Exclusive downstream cascade: collect all artifacts that are exclusively
@@ -421,6 +421,7 @@ function groupArtifactsByCategory(
       bytes: artifact.bytes,
       physicalPath,
       physicalHash256: physicalRef?.hash256,
+      physicalRefs: artifact.physicalRefs.map((ref): PhysicalRef => ({ ...ref })),
       reason,
       upstreamOwnerIds: artifact.upstreamIds.filter((uid) => allArtifacts.has(uid)),
     };

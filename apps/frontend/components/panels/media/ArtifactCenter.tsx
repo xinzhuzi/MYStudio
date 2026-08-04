@@ -157,7 +157,10 @@ export function ArtifactCenter({
     else setScanError(result.error);
   }, [activeProjectId, mockArtifacts, startScan, finishScan, setScanError]);
 
-  useEffect(() => { void refreshInventory(); }, [refreshInventory]);
+  useEffect(() => {
+    console.log("[ArtifactCenter] Starting inventory refresh...");
+    void refreshInventory();
+  }, [refreshInventory]);
 
   // Use provided mock data or fall back to store
   const storeArtifacts = useArtifactStore((state) => state.getFilteredArtifacts());
@@ -165,6 +168,12 @@ export function ArtifactCenter({
 
   // Filter and sort artifacts
   const filteredArtifacts = useMemo(() => {
+    console.log("[ArtifactCenter] Computing filtered artifacts...");
+    console.log("  - Source artifacts count:", artifacts.length);
+    console.log("  - Selected chapter:", selectedChapterId);
+    console.log("  - Stage filter:", stageFilter);
+    console.log("  - State filter:", stateFilter);
+
     let result = [...artifacts];
 
     // Chapter filter
@@ -200,6 +209,7 @@ export function ArtifactCenter({
       return 0;
     });
 
+    console.log("  - Filtered result:", result.length, "artifacts");
     return result;
   }, [artifacts, selectedChapterId, stageFilter, stateFilter, sortBy, sortOrder]);
 
@@ -252,6 +262,21 @@ export function ArtifactCenter({
       chapters: Array.from(project.chapters.values()),
     }));
   }, [artifacts, mockProjects]);
+
+  // Debug state exposure for devtools inspection
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      (window as any).debugArtifactCenter = {
+        artifacts,
+        filteredArtifacts,
+        currentTab,
+        stageFilter,
+        stateFilter,
+        selectedChapterId,
+        projects,
+      };
+    }
+  }, [artifacts, filteredArtifacts, currentTab, stageFilter, stateFilter, selectedChapterId, projects]);
 
   const handleChapterClick = useCallback((chapterId: string) => {
     setSelectedChapterId(chapterId === selectedChapterId ? null : chapterId);
@@ -357,6 +382,7 @@ export function ArtifactCenter({
   }, [deletePlan, refreshInventory]);
 
   const handleTabChange = (tab: string) => {
+    console.log("[ArtifactCenter] Tab changed:", tab);
     setCurrentTab(tab as 'workflow' | 'media-library');
     if (tab !== "workflow") setSelectedIds(new Set());
     onTabChange?.(tab as 'workflow' | 'media-library');
@@ -392,46 +418,39 @@ export function ArtifactCenter({
           </TabsList>
         </div>
 
-        <TabsContent value={currentTab} className="flex-1 m-0 overflow-hidden">
-          {currentTab === "media-library" ? (
-            <MediaView />
-          ) : (
-          <div className="flex-1 flex overflow-hidden">
+        <TabsContent value="workflow" className="flex-1 m-0 overflow-hidden">
+          <div className="flex h-full min-h-0">
             {/* Left Navigation Tree */}
-            {currentTab === 'workflow' && (
-              <aside className="w-64 border-r bg-panel flex flex-col">
-                <div className="p-3 font-medium text-sm border-b">项目导航</div>
-                <div className="flex-1 overflow-y-auto">
-                  <ArtifactTree
-                    projects={projects}
-                    selectedChapterId={selectedChapterId}
-                    onChapterClick={handleChapterClick}
-                    expandedNodes={expandedNodes}
-                    onExpandToggle={handleExpandToggle}
-                  />
-                </div>
-              </aside>
-            )}
+            <aside className="w-64 border-r bg-panel flex flex-col min-h-0">
+              <div className="p-3 font-medium text-sm border-b shrink-0">项目导航</div>
+              <ArtifactTree
+                projects={projects}
+                selectedChapterId={selectedChapterId}
+                onChapterClick={handleChapterClick}
+                expandedNodes={expandedNodes}
+                onExpandToggle={handleExpandToggle}
+              />
+            </aside>
 
             {/* Center Table */}
-            <main className="flex-1 flex flex-col min-w-0">
-          <div className="flex items-center justify-between border-b px-3 py-2">
-            <FilterBar
-                stageFilter={stageFilter}
-                stateFilter={stateFilter}
-                onStageFilterChange={setStageFilter}
-                onStateFilterChange={setStateFilter}
-                totalArtifacts={filteredArtifacts.length}
-            />
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" disabled={!selectedChapterId || selectedIds.size === 0} onClick={() => void openSelectedDelete()}>
-                <Trash2 className="mr-1 h-4 w-4" />删除选中 ({selectedIds.size})
-              </Button>
-              <Button variant="destructive" size="sm" disabled={!selectedChapterId} onClick={() => void openChapterDelete()}>
-                <Trash2 className="mr-1 h-4 w-4" />删除当前章节
-              </Button>
-            </div>
-          </div>
+            <main className="flex-1 flex flex-col min-w-0 min-h-0">
+              <div className="flex items-center justify-between border-b px-3 py-2 shrink-0">
+                <FilterBar
+                  stageFilter={stageFilter}
+                  stateFilter={stateFilter}
+                  onStageFilterChange={setStageFilter}
+                  onStateFilterChange={setStateFilter}
+                  totalArtifacts={filteredArtifacts.length}
+                />
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" disabled={!selectedChapterId || selectedIds.size === 0} onClick={() => void openSelectedDelete()}>
+                    <Trash2 className="mr-1 h-4 w-4" />删除选中 ({selectedIds.size})
+                  </Button>
+                  <Button variant="destructive" size="sm" disabled={!selectedChapterId} onClick={() => void openChapterDelete()}>
+                    <Trash2 className="mr-1 h-4 w-4" />删除当前章节
+                  </Button>
+                </div>
+              </div>
               <div className="flex-1 overflow-hidden">
                 <table className="w-full text-sm">
                   <thead className="bg-muted/30 sticky top-0">
@@ -523,7 +542,10 @@ export function ArtifactCenter({
               </aside>
             )}
           </div>
-          )}
+        </TabsContent>
+
+        <TabsContent value="media-library" className="flex-1 m-0 overflow-hidden">
+          <MediaView />
         </TabsContent>
       </Tabs>
       <ArtifactDeleteDialog isOpen={deleteOpen} plan={deletePlan} onClose={() => { setDeleteOpen(false); setDeletePlan(null); }} onExecute={executePlan} />

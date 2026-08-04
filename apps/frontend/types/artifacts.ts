@@ -273,6 +273,7 @@ export interface PlanItem {
   bytes?: number;
   physicalPath?: string;
   physicalHash256?: string;
+  physicalRefs?: PhysicalRef[];
   reason?: string; // why delete/migrate/retain/block
   upstreamOwnerIds?: string[]; // for retain/blocked items
 }
