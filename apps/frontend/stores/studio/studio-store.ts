@@ -97,6 +97,8 @@ interface StudioWorkflowState {
   workflowConfig: StudioWorkflowConfig;
 }
 
+export type { StudioWorkflowState };
+
 interface StudioWorkflowActions {
   addMaterial: (input: { name: string; localPath: string; size: number; importedAt?: number }) => string;
   deleteMaterial: (id: string) => void;
@@ -152,6 +154,20 @@ interface StudioWorkflowActions {
   ) => void;
   replaceStoryboardsForEpisode: (episodeId: string, items: StoryboardItem[]) => void;
   updateStoryboard: (id: string, updates: Partial<StoryboardItem>) => void;
+  writeStoryboardAudio: (
+    id: string,
+    updates: Pick<
+      StoryboardItem,
+      | "audioRef"
+      | "shotAudioBindings"
+      | "ttsJob"
+      | "ttsGenerationId"
+      | "ttsBackend"
+      | "ttsMocked"
+      | "ttsEmotionCapability"
+      | "ttsWarning"
+    >,
+  ) => void;
   reviewStoryboardHuman: (id: string, review: HumanVisualReviewInput) => void;
   bindStoryboardMedia: (id: string, mediaRef: StoryboardMediaRef) => void;
   createImageWorkflow: (input?: Parameters<typeof createImageWorkflowGraph>[0]) => string;
@@ -707,6 +723,15 @@ export const useStudioStore = create<StudioWorkflowStore>()(
             ),
           }));
         }
+        get().rebuildTracks();
+      },
+
+      writeStoryboardAudio: (id, updates) => {
+        set((state) => ({
+          storyboards: state.storyboards.map((item) => (
+            item.id === id ? { ...item, ...updates } : item
+          )),
+        }));
         get().rebuildTracks();
       },
 

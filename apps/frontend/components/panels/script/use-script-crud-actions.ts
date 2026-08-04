@@ -1,6 +1,8 @@
 import { useCallback } from "react";
 
 import type { Episode, ScriptCharacter, ScriptScene, Shot } from "@/types/script";
+import { requestChapterDeletion } from "@/stores/artifacts/artifact-store";
+import { toast } from "sonner";
 
 type SelectedItemType = "character" | "scene" | "shot" | "episode" | null;
 
@@ -34,7 +36,6 @@ export function useScriptCrudActions({
   setSelectedItemType,
   addEpisodeBundle,
   updateEpisodeBundle,
-  deleteEpisodeBundle,
   addScene,
   updateScene,
   deleteScene,
@@ -58,11 +59,19 @@ export function useScriptCrudActions({
     updateEpisodeBundle(projectId, episodeIndex, updates);
   }, [projectId, updateEpisodeBundle]);
 
-  const handleDeleteEpisodeBundle = useCallback((episodeIndex: number) => {
-    deleteEpisodeBundle(projectId, episodeIndex);
+  const handleDeleteEpisodeBundle = useCallback(async (episodeIndex: number) => {
     const episode = episodes?.find((item) => item.index === episodeIndex);
-    if (episode) clearSelectionIfDeleted(episode.id);
-  }, [projectId, deleteEpisodeBundle, episodes, clearSelectionIfDeleted]);
+    if (!episode) return;
+
+    // Route planning, confirmation, and execution through the shared controller.
+    const result = await requestChapterDeletion(projectId, episode.id, "chapter");
+
+    if (result.success) {
+      clearSelectionIfDeleted(episode.id);
+    } else if (result.error !== "confirmation-mismatch") {
+      toast.error(`删除失败：${result.error}`);
+    }
+  }, [projectId, episodes, clearSelectionIfDeleted]);
 
   const handleAddScene = useCallback((scene: ScriptScene, episodeId?: string) => {
     addScene(projectId, scene, episodeId);

@@ -47,6 +47,7 @@ import {
   resolveProjectFileUrl,
 } from '../storage/storage-paths'
 import { registerProjectFileIpcHandlers } from '../ipc/files/project-file-ipc'
+import { configureArtifactManagementIpc } from '../ipc/files/artifact-management-ipc'
 import { withFileStorageMutationLock } from '../ipc/files/file-storage-ipc'
 import { registerStudioContentIpcHandlers } from '../ipc/assets/studio-content-ipc'
 import { registerAppShellIpcHandlers } from '../ipc/app/app-shell-ipc'
@@ -554,6 +555,11 @@ registerProjectFileIpcHandlers({
   getDataDir,
   readImageSource,
   getMimeType,
+})
+
+configureArtifactManagementIpc({
+  getDataDir,
+  getMediaRoot,
 })
 
 registerStudioContentIpcHandlers({

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { TtsRuntimeController } from "../../tts/tts-runtime";
+import { TtsRuntimeError, type TtsRuntimeController } from "../../tts/tts-runtime";
 
 const mocks = vi.hoisted(() => ({
   access: vi.fn(async () => undefined),
@@ -35,7 +35,13 @@ vi.mock("node:fs", () => ({
   },
 }));
 
-import { registerTtsIpcHandlers } from "./tts-ipc";
+import {
+  decodeTtsRuntimeConfigPayload,
+  decodeTtsRuntimeFormDataPayload,
+  decodeTtsRuntimeModelCacheDirPayload,
+  decodeTtsRuntimeRequestPayload,
+  registerTtsIpcHandlers,
+} from "./tts-ipc";
 
 const diagnosticsCalls: Array<{ action: string; context: Record<string, unknown> }> = [];
 
@@ -148,6 +154,112 @@ describe("registerTtsIpcHandlers", () => {
       context: { path: "/reference", audioFilePath: "/tmp/reference.wav", referenceTextLength: 2 },
     });
     expect(JSON.stringify(diagnosticsCalls)).not.toContain("台词");
+  });
+
+  it("accepts the established camelCase and backend-compatible snake_case upload fields", async () => {
+    const decoded = decodeTtsRuntimeFormDataPayload({
+      path: "/reference",
+      audio_file_path: "/tmp/reference.wav",
+      reference_text: "台词",
+    });
+    expect(decoded).toEqual({
+      path: "/reference",
+      audioFilePath: "/tmp/reference.wav",
+      referenceText: "台词",
+    });
+
+    await expect(mocks.handlers.get("tts-runtime-request-formdata")?.({}, {
+      path: "/reference",
+      audio_file_path: "/tmp/reference.wav",
+      reference_text: "台词",
+    })).resolves.toEqual({ success: true });
+    expect(mocks.requestFormData).toHaveBeenCalledWith("/reference", "/tmp/reference.wav", "台词");
+  });
+
+  it("rejects conflicting camelCase and snake_case upload fields", () => {
+    expect(() => decodeTtsRuntimeFormDataPayload({
+      path: "/reference",
+      audioFilePath: "/tmp/one.wav",
+      audio_file_path: "/tmp/two.wav",
+    })).toThrow("TTS 字段 audioFilePath/audio_file_path 冲突");
+    expect(() => decodeTtsRuntimeFormDataPayload({
+      path: "/reference",
+      audioFilePath: "/tmp/reference.wav",
+      referenceText: "first",
+      reference_text: "second",
+    })).toThrow("TTS 字段 referenceText/reference_text 冲突");
+  });
+
+  it("decodes lifecycle payloads before diagnostics or controller calls", async () => {
+    expect(decodeTtsRuntimeConfigPayload({ pythonRuntimeUrl: "https://example.test/python.zip" }))
+      .toEqual({ pythonRuntimeUrl: "https://example.test/python.zip" });
+    expect(decodeTtsRuntimeConfigPayload({})).toEqual({});
+    expect(decodeTtsRuntimeModelCacheDirPayload(" /models/cache ")).toBe(" /models/cache ");
+
+    await expect(mocks.handlers.get("tts-runtime-set-config")?.({}, null)).rejects.toMatchObject({
+      code: "invalid-request",
+      retryable: false,
+    });
+    await expect(mocks.handlers.get("tts-runtime-set-config")?.({}, {
+      pythonRuntimeUrl: "https://example.test/python.zip",
+      extra: true,
+    })).rejects.toMatchObject({ code: "invalid-request" });
+    await expect(mocks.handlers.get("tts-runtime-set-config")?.({}, {
+      pythonRuntimeUrl: 42,
+    })).rejects.toMatchObject({ code: "invalid-request" });
+    await expect(mocks.handlers.get("tts-runtime-set-model-cache-dir")?.({}, null)).rejects.toMatchObject({
+      code: "invalid-request",
+      retryable: false,
+    });
+    await expect(mocks.handlers.get("tts-runtime-set-model-cache-dir")?.({}, "   ")).rejects.toMatchObject({
+      code: "invalid-request",
+    });
+
+    expect(mocks.setConfig).not.toHaveBeenCalled();
+    expect(mocks.setModelCacheDir).not.toHaveBeenCalled();
+    expect(diagnosticsCalls).toEqual([]);
+  });
+
+  it("rejects malformed renderer payloads before the controller or diagnostics run", async () => {
+    expect(() => decodeTtsRuntimeRequestPayload({ method: "GET", path: "/models", signal: {} }))
+      .toThrow("TTS 请求 payload 字段无效");
+
+    await expect(mocks.handlers.get("tts-runtime-request")?.({}, null)).rejects.toMatchObject({
+      code: "invalid-request",
+      retryable: false,
+      envelope: { code: "invalid-request", retryable: false },
+    });
+    await expect(mocks.handlers.get("tts-runtime-request-formdata")?.({}, {
+      path: "/reference",
+      audioFilePath: "/tmp/reference.wav",
+      referenceText: "台词",
+      signal: {},
+    })).rejects.toMatchObject({ code: "invalid-request" });
+    expect(mocks.request).not.toHaveBeenCalled();
+    expect(diagnosticsCalls).toEqual([]);
+  });
+
+  it("propagates the runtime error envelope without replacing its thrown message", async () => {
+    const error = new TtsRuntimeError({
+      code: "provider-unavailable",
+      message: "模型暂不可用",
+      retryable: true,
+      status: 503,
+    }, "legacy TTS failure message");
+    mocks.request.mockRejectedValueOnce(error);
+
+    await expect(mocks.handlers.get("tts-runtime-request")?.({}, {
+      method: "POST",
+      path: "/generate",
+      body: { text: "台词" },
+    })).rejects.toBe(error);
+    expect(error.message).toBe("legacy TTS failure message");
+    expect(error.envelope).toEqual({
+      code: "provider-unavailable",
+      message: "模型暂不可用",
+      retryable: true,
+      status: 503,
+    });
   });
 
   it("returns null for unsafe or unreadable reference audio paths", async () => {

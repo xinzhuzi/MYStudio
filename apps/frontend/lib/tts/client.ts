@@ -162,6 +162,8 @@ export async function generateSpeech(payload: TtsGenerateRequest): Promise<TtsGe
     shot_revision: payload.shotRevision,
     input_fingerprint: payload.inputFingerprint,
     reference_audio_sha256: payload.referenceAudioSha256,
+    emotion: payload.emotion,
+    voice_style: payload.voiceStyle,
     generation_kind: payload.generationKind,
     retry: payload.retry,
   });
@@ -177,6 +179,15 @@ export async function getGenerationStatus(generationId: string): Promise<TtsGene
   );
 }
 
+export async function cancelGeneration(generationId: string): Promise<TtsGenerateResponse> {
+  return normalizeGenerationResponse(
+    await request<TtsGenerateResponse & Record<string, unknown>>(
+      "POST",
+      `/generate/${encodeURIComponent(generationId)}/cancel`,
+    ),
+  );
+}
+
 function normalizeGenerationResponse(
   value: TtsGenerateResponse & Record<string, unknown>,
 ): TtsGenerateResponse {
@@ -185,6 +196,8 @@ function normalizeGenerationResponse(
     audioPath: value.audioPath ?? stringField(value.audio_path),
     errorCode: value.errorCode ?? stringField(value.error_code),
     inputFingerprint: value.inputFingerprint ?? stringField(value.input_fingerprint),
+    emotionCapability: value.emotionCapability ?? emotionCapabilityField(value.emotion_capability),
+    emotionWarning: value.emotionWarning ?? stringField(value.emotion_warning),
     generationKind: value.generationKind === "storyboard-shot"
       ? value.generationKind
       : value.generation_kind === "storyboard-shot"
@@ -199,6 +212,12 @@ function normalizeGenerationResponse(
 
 function stringField(value: unknown): string | undefined {
   return typeof value === "string" && value ? value : undefined;
+}
+
+function emotionCapabilityField(value: unknown): TtsGenerateResponse["emotionCapability"] {
+  return value === "applied" || value === "metadata-only" || value === "unsupported" || value === "not-requested"
+    ? value
+    : undefined;
 }
 
 export async function getTtsBaseUrl() {

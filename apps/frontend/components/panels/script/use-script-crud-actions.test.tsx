@@ -49,17 +49,15 @@ describe("useScriptCrudActions", () => {
     expect(options.updateShot).toHaveBeenCalledWith("project-1", "shot-1", { dialogue: "台词" });
   });
 
-  it("clears selection when deleting the selected episode or entity", () => {
+  it("does not bypass the shared chapter deletion controller", async () => {
     const options = createOptions("episode-1");
     const { result, rerender } = renderHook(
       ({ current }) => useScriptCrudActions(current),
       { initialProps: { current: options } },
     );
 
-    result.current.handleDeleteEpisodeBundle(1);
-    expect(options.deleteEpisodeBundle).toHaveBeenCalledWith("project-1", 1);
-    expect(options.setSelectedItemId).toHaveBeenCalledWith(null);
-    expect(options.setSelectedItemType).toHaveBeenCalledWith(null);
+    await result.current.handleDeleteEpisodeBundle(1);
+    expect(options.deleteEpisodeBundle).not.toHaveBeenCalled();
 
     const selectedSceneOptions = createOptions("scene-1");
     rerender({ current: selectedSceneOptions });

@@ -289,6 +289,36 @@ describe("studio director plan parsing", () => {
     expect(plan.derivedAssetPlan).toEqual([]);
   });
 
+  it("keeps section ⑦ optional when the six core sections are complete", () => {
+    const detail = "人物动作、空间关系、声音线索和连续性锚点共同推进本场冲突，镜头只保留可执行的视线与动作变化。".repeat(3);
+    const output = [
+      "<scriptPlan>",
+      "## ① 主题立意与叙事核心",
+      detail,
+      "## ② 视觉风格与画面基调",
+      detail,
+      "## ③ 叙事结构与节奏规划",
+      detail,
+      "## ④ 分场景情绪与画面意图",
+      "### Sc 1 道口镇客栈",
+      `- **情绪目标**：${detail}`,
+      `- **镜头意图**：${detail}`,
+      `- **空间叙事**：${detail}`,
+      "## ⑤ 声音方向",
+      detail,
+      "## ⑥ 转场与视觉连续性",
+      detail,
+      "</scriptPlan>",
+    ].join("\n");
+
+    const audit = auditDirectorPlanStructure(output);
+    const { plan } = parseDirectorPlan(output, "episode-optional-derive");
+
+    expect(audit.passed).toBe(true);
+    expect(audit.issues.join("\n")).not.toContain("⑦");
+    expect(plan.derivedAssetPlan).toEqual([]);
+  });
+
   it("preserves Toonflow numeric assetsId and flowId in derived asset rows", () => {
     const output = [
       "<scriptPlan>",

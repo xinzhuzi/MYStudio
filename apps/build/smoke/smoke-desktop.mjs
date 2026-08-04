@@ -1751,9 +1751,8 @@ async function verifyWorkflowEndToEnd(evaluate) {
     const openDerivativeImageWorkflowDetail = async (workflowId, generatedTitle, writebackTarget) => {
       clickButtonByText('工作流');
       await window.mystudioWorkflowSmoke?.setWorkflowStage?.('storyboard');
-      await wait(500);
-      const currentAssetsNode = nodeById('assets');
-      const workflowButton = currentAssetsNode?.querySelector('[data-asset-workflow-id="' + workflowId + '"]');
+      const workflowButton = await waitFor(() => document
+        .querySelector('[data-flow-node-id="assets"] [data-asset-workflow-id="' + workflowId + '"]'), 8000);
       const clicked = activate(workflowButton);
       if (!clicked) return { workflowId, ready: false, clicked: false, missingChecks: ['clicked'] };
       const captureDetail = () => {

@@ -435,6 +435,16 @@ export function addAsset(input: {
   tags?: string[];
   sourceFilePath?: string;
 }): StudioAssetSummary {
+  if (input.type === "audio") {
+    try {
+      if (!input.sourceFilePath || !fs.statSync(input.sourceFilePath).isFile()) {
+        throw new Error("invalid audio source");
+      }
+    } catch {
+      throw new Error("音频文件不存在或无法读取");
+    }
+  }
+
   const dbPath = getDbPath();
   const now = new Date().toISOString();
   const exactRows = runSqliteJsonSync<any[]>(

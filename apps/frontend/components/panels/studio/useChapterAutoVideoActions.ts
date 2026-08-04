@@ -265,13 +265,14 @@ export function useChapterAutoVideoActions({
             const retainedBindings = current?.shotAudioBindings?.filter(
               (binding) => binding.role !== "voice",
             ) ?? [];
-            useStudioStore.getState().updateStoryboard(storyboardId, {
+            useStudioStore.getState().writeStoryboardAudio(storyboardId, {
               audioRef: result.audioRef,
               shotAudioBindings: [...retainedBindings, result.shotAudioBinding],
               ttsJob: result.ttsJob,
               ttsGenerationId: result.generationId,
               ttsBackend: result.ttsBackend,
               ttsMocked: result.ttsMocked,
+              ttsEmotionCapability: result.ttsEmotionCapability,
               ttsWarning: result.ttsWarning,
             });
           },

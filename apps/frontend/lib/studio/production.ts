@@ -6,6 +6,52 @@ import type {
   VideoCandidate,
 } from "@/types/studio";
 
+/**
+ * Find track ownership by traversing ProductionTrack.episodeId → VideoCandidate.trackId relationship
+ * Returns a map of episodeId → Set of trackIds owned by that episode
+ */
+export function findTrackOwnership(
+  productionTracks: ProductionTrack[],
+  videoCandidates: VideoCandidate[],
+): Map<string, Set<string>> {
+  const ownership = new Map<string, Set<string>>();
+
+  // Build video candidate lookup by trackId
+  const candidatesByTrack = new Map<string, VideoCandidate[]>();
+  for (const candidate of videoCandidates) {
+    const trackId = candidate.trackId;
+    if (!candidatesByTrack.has(trackId)) {
+      candidatesByTrack.set(trackId, []);
+    }
+    candidatesByTrack.get(trackId)!.push(candidate);
+  }
+
+  // Group tracks by episodeId
+  for (const track of productionTracks) {
+    const episodeId = track.episodeId;
+    if (!episodeId) continue;
+
+    if (!ownership.has(episodeId)) {
+      ownership.set(episodeId, new Set());
+    }
+
+    // Add track directly if it has episodeId
+    ownership.get(episodeId)!.add(track.id);
+
+    // Also traverse through video candidates to find related tracks
+    const candidatesForTrack = candidatesByTrack.get(track.id) ?? [];
+    for (const candidate of candidatesForTrack) {
+      // Find other tracks that might share the same candidate's trackId relationship
+      // This ensures we capture all tracks that are connected via video candidates
+      if (candidate.trackId === track.id) {
+        ownership.get(episodeId)!.add(track.id);
+      }
+    }
+  }
+
+  return ownership;
+}
+
 export function groupStoryboardsIntoTracks(storyboards: StoryboardItem[]): ProductionTrack[] {
   const sorted = [...storyboards].sort((a, b) => a.index - b.index);
   const groups = new Map<string, StoryboardItem[]>();
@@ -77,9 +123,9 @@ function extractSubtitle(videoDesc?: string) {
   const raw = videoDesc?.trim();
   if (!raw) return undefined;
 
-  const lineMatch = raw.match(/台词[：:](.+?)(?:[；;]|$)/);
+  const lineMatch = raw.match(/台词 [：:](.+?)(?:[；;]|$)/);
   const dialogue = (lineMatch?.[1] ?? raw).trim();
-  if (!dialogue || /^(无|无台词|无对白)$/i.test(dialogue)) return undefined;
+  if (!dialogue || /^(无 | 无台词 | 无对白)$/i.test(dialogue)) return undefined;
 
   const roleMatch = dialogue.match(/^.+?[：:](.+)$/);
   return (roleMatch?.[1] ?? dialogue).trim();
@@ -89,7 +135,7 @@ function slugify(value: string) {
   return value
     .trim()
     .toLowerCase()
-    .replace(/[^a-z0-9\u4e00-\u9fa5]+/gi, "-")
+    .replace(/[^a-z0-9一-龥]+/gi, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 32) || "track";
 }

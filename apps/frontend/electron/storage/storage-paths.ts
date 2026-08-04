@@ -108,6 +108,30 @@ export function resolveProjectScopedFilePath(dataRoot: string, projectId: string
   );
 }
 
+/**
+ * Resolve project root directory path: ${dataRoot}/_p/{normalizedProjectId}
+ *
+ * SECURITY CRITICAL: Uses realpath containment check via assertInsideRoot().
+ * This prevents symlink escape attacks where someone creates:
+ *   dataRoot/_p/malicious -> symlink -> /etc/passwd
+ *
+ * Use this instead of resolveProjectScopedFilePath(..., "") which throws on empty string.
+ *
+ * @param dataRoot - Base application data directory
+ * @param projectId - Normalized project ID string
+ * @returns Absolute path to project root directory (_p/{projectId})
+ * @throws AssertionError if path escapes dataRoot containment
+ */
+export function resolveProjectRootPath(dataRoot: string, projectId: string): string {
+  const normalizedProjectId = normalizePathSegment(projectId, "project id");
+  const resolved = path.resolve(dataRoot, "_p", normalizedProjectId);
+
+  // Ensure we haven't escaped dataRoot via symlink attack
+  assertInsideRoot(dataRoot, resolved, "Project root path");
+
+  return resolved;
+}
+
 export function resolveProjectFileUrl(dataRoot: string, projectFileUrl: string) {
   const parsed = parseProjectFileUrl(projectFileUrl);
   if (!parsed) throw new Error("Invalid project file URL");

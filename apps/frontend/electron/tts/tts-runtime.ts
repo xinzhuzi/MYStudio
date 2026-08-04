@@ -9,6 +9,7 @@ import type { TtsRuntimeCommandResult, TtsRuntimeConfig, TtsRuntimeInstalledItem
 
 const DEFAULT_TTS_PORT = LOCAL_TTS_PORT;
 const DEFAULT_TTS_HOST = LOCAL_TTS_HOST;
+const DEFAULT_TTS_REQUEST_TIMEOUT_MS = 180_000;
 
 type SpawnedProcess = Pick<ChildProcessWithoutNullStreams, "pid" | "kill">;
 type BackendHealth = {
@@ -21,6 +22,7 @@ interface FetchJsonOptions {
   method: string;
   headers?: Record<string, string>;
   body?: string;
+  signal?: AbortSignal;
 }
 
 interface FetchBytesResult {
@@ -48,6 +50,29 @@ interface RuntimeArchiveResult {
   totalBytes?: number;
 }
 
+export interface TtsRuntimeErrorEnvelope {
+  code: string;
+  message: string;
+  retryable: boolean;
+  status?: number;
+}
+
+export class TtsRuntimeError extends Error {
+  readonly envelope: TtsRuntimeErrorEnvelope;
+  readonly code: string;
+  readonly retryable: boolean;
+  readonly status?: number;
+
+  constructor(envelope: TtsRuntimeErrorEnvelope, legacyMessage = envelope.message) {
+    super(legacyMessage);
+    this.name = "TtsRuntimeError";
+    this.envelope = envelope;
+    this.code = envelope.code;
+    this.retryable = envelope.retryable;
+    this.status = envelope.status;
+  }
+}
+
 export interface TtsRuntimeControllerDeps {
   appRoot: string;
   userDataPath: string;
@@ -67,6 +92,7 @@ export interface TtsRuntimeControllerDeps {
   spawnProcess?: (command: string, args: string[], options: SpawnOptionsWithoutStdio) => SpawnedProcess;
   fetchJson?: (url: string, options: FetchJsonOptions) => Promise<unknown>;
   fetchBytes?: (url: string, options: FetchJsonOptions) => Promise<FetchBytesResult>;
+  requestTimeoutMs?: number;
   fetchRuntimeArchive?: (
     url: string,
     destinationPath: string,
@@ -93,7 +119,7 @@ function defaultFetchJson(url: string, options: FetchJsonOptions) {
   return fetch(url, options).then(async (response) => {
     if (!response.ok) {
       const text = await response.text().catch(() => "");
-      throw new Error(text || `TTS backend request failed (${response.status})`);
+      throw createTtsBackendHttpError(text, response.status);
     }
     const contentType = response.headers.get("content-type") ?? "";
     if (!contentType.includes("application/json")) {
@@ -107,7 +133,7 @@ function defaultFetchBytes(url: string, options: FetchJsonOptions) {
   return fetch(url, options).then(async (response) => {
     if (!response.ok) {
       const text = await response.text().catch(() => "");
-      throw new Error(text || `TTS backend request failed (${response.status})`);
+      throw createTtsBackendHttpError(text, response.status);
     }
     return {
       data: await response.arrayBuffer(),
@@ -191,6 +217,165 @@ function defaultKillProcess(pid: number) {
 
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function parseJsonString(value: unknown): unknown {
+  if (typeof value !== "string") return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return undefined;
+  }
+}
+
+function readStringField(record: Record<string, unknown>, keys: readonly string[]): string | undefined {
+  for (const key of keys) {
+    const value = record[key];
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return undefined;
+}
+
+function readBooleanField(record: Record<string, unknown>, keys: readonly string[]): boolean | undefined {
+  for (const key of keys) {
+    const value = record[key];
+    if (typeof value === "boolean") return value;
+    if (value === 1 || value === "1" || value === "true") return true;
+    if (value === 0 || value === "0" || value === "false") return false;
+  }
+  return undefined;
+}
+
+function readStatusField(record: Record<string, unknown>): number | undefined {
+  for (const key of ["status", "statusCode", "status_code"] as const) {
+    const value = record[key];
+    const status = typeof value === "number" ? value : typeof value === "string" ? Number(value) : NaN;
+    if (Number.isInteger(status) && status >= 100 && status <= 599) return status;
+  }
+  return undefined;
+}
+
+function findTtsErrorRecord(value: unknown): Record<string, unknown> | undefined {
+  const parsed = parseJsonString(value);
+  if (!isRecord(parsed)) return undefined;
+
+  for (const key of ["error", "detail", "result", "data"] as const) {
+    const nested = parsed[key];
+    if (isRecord(nested)) {
+      const found = findTtsErrorRecord(nested);
+      if (found) return found;
+    }
+  }
+
+  const hasErrorField = [
+    "code",
+    "errorCode",
+    "error_code",
+    "message",
+    "detail",
+    "error",
+    "retryable",
+    "status",
+    "statusCode",
+    "status_code",
+  ].some((key) => Object.prototype.hasOwnProperty.call(parsed, key));
+  return hasErrorField ? parsed : undefined;
+}
+
+function isRetryableTtsStatus(status: number): boolean {
+  return status === 408 || status === 425 || status === 429 || status >= 500;
+}
+
+export function decodeTtsErrorEnvelope(value: unknown, fallbackStatus?: number): TtsRuntimeErrorEnvelope | undefined {
+  const record = findTtsErrorRecord(value);
+  if (!record) return undefined;
+
+  const message = readStringField(record, ["message", "detail", "error"]);
+  if (!message) return undefined;
+  const status = readStatusField(record) ?? fallbackStatus;
+  const explicitRetryable = readBooleanField(record, ["retryable"]);
+  return {
+    code: readStringField(record, ["code", "errorCode", "error_code"]) ?? "http-error",
+    message,
+    retryable: explicitRetryable ?? (status !== undefined && isRetryableTtsStatus(status)),
+    status,
+  };
+}
+
+function createTtsBackendHttpError(bodyText: string, status: number): TtsRuntimeError {
+  let body: unknown;
+  try {
+    body = bodyText ? JSON.parse(bodyText) : undefined;
+  } catch {
+    body = undefined;
+  }
+  const envelope = decodeTtsErrorEnvelope(body, status) ?? {
+    code: "http-error",
+    message: bodyText || `TTS backend request failed (${status})`,
+    retryable: isRetryableTtsStatus(status),
+    status,
+  };
+  return new TtsRuntimeError(envelope, bodyText || `TTS backend request failed (${status})`);
+}
+
+function isAbortError(error: unknown): boolean {
+  return error instanceof Error && error.name === "AbortError";
+}
+
+function normalizeTtsTransportError(error: unknown): TtsRuntimeError {
+  if (error instanceof TtsRuntimeError) return error;
+  if (isAbortError(error)) {
+    return new TtsRuntimeError({
+      code: "aborted",
+      message: "TTS backend request was aborted",
+      retryable: false,
+    }, getErrorMessage(error));
+  }
+  const message = getErrorMessage(error) || "TTS backend request failed";
+  const decoded = decodeTtsErrorEnvelope(error) ?? decodeTtsErrorEnvelope(message);
+  return decoded
+    ? new TtsRuntimeError(decoded, message)
+    : new TtsRuntimeError({ code: "network-error", message, retryable: true }, message);
+}
+
+function formatTtsTimeout(timeoutMs: number): string {
+  return timeoutMs >= 1000 ? `${timeoutMs / 1000}s` : `${timeoutMs}ms`;
+}
+
+async function fetchWithTtsDeadline<T>(
+  timeoutMs: number,
+  run: (signal: AbortSignal) => Promise<T>,
+): Promise<T> {
+  const controller = new AbortController();
+  let timedOut = false;
+  const timer = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, timeoutMs);
+  try {
+    return await run(controller.signal);
+  } catch (error) {
+    if (timedOut) {
+      throw new TtsRuntimeError({
+        code: "timeout",
+        message: `TTS backend request timed out after ${formatTtsTimeout(timeoutMs)}`,
+        retryable: true,
+      });
+    }
+    throw normalizeTtsTransportError(error);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function withTtsRequestContext(error: unknown, method: string, requestUrl: string): TtsRuntimeError {
+  const message = `本地 TTS 后端请求失败: ${method.toUpperCase()} ${requestUrl}: ${getErrorMessage(error)}`;
+  const normalized = normalizeTtsTransportError(error);
+  return new TtsRuntimeError(normalized.envelope, message);
 }
 
 function normalizeRoutePath(routePath: string) {
@@ -297,6 +482,9 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
   const fetchRuntimeArchive = deps.fetchRuntimeArchive ?? defaultFetchRuntimeArchive;
   const findListeningPids = deps.findListeningPids ?? defaultFindListeningPids;
   const killProcess = deps.killProcess ?? defaultKillProcess;
+  const requestTimeoutMs = Number.isFinite(deps.requestTimeoutMs) && (deps.requestTimeoutMs ?? 0) > 0
+    ? Math.max(1, Math.floor(deps.requestTimeoutMs ?? DEFAULT_TTS_REQUEST_TIMEOUT_MS))
+    : DEFAULT_TTS_REQUEST_TIMEOUT_MS;
   const sidecarRoots = uniquePaths([
     ...(deps.sidecarRoots ?? []),
     path.join(deps.appRoot, "..", "backend"),
@@ -858,18 +1046,22 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
   async function request(method: string, routePath: string, body?: unknown) {
     const requestUrl = `${baseUrl}${normalizeRoutePath(routePath)}`;
     try {
-      return await fetchJson(requestUrl, buildRequestOptions(method, body));
+      return await fetchWithTtsDeadline(requestTimeoutMs, (signal) => (
+        fetchJson(requestUrl, { ...buildRequestOptions(method, body), signal })
+      ));
     } catch (error) {
-      throw new Error(`本地 TTS 后端请求失败: ${method.toUpperCase()} ${requestUrl}: ${getErrorMessage(error)}`);
+      throw withTtsRequestContext(error, method, requestUrl);
     }
   }
 
   async function requestBytes(method: string, routePath: string, body?: unknown) {
     const requestUrl = `${baseUrl}${normalizeRoutePath(routePath)}`;
     try {
-      return await fetchBytes(requestUrl, buildRequestOptions(method, body));
+      return await fetchWithTtsDeadline(requestTimeoutMs, (signal) => (
+        fetchBytes(requestUrl, { ...buildRequestOptions(method, body), signal })
+      ));
     } catch (error) {
-      throw new Error(`本地 TTS 后端请求失败: ${method.toUpperCase()} ${requestUrl}: ${getErrorMessage(error)}`);
+      throw withTtsRequestContext(error, method, requestUrl);
     }
   }
 
@@ -900,18 +1092,19 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
 
       parts.push(Buffer.from(`--${boundary}--\r\n`));
 
-      const response = await fetch(requestUrl, {
+      const response = await fetchWithTtsDeadline(requestTimeoutMs, (signal) => fetch(requestUrl, {
         method: "POST",
         headers: {
           "X-Manying-TTS-Token": getControlToken(),
           "Content-Type": `multipart/form-data; boundary=${boundary}`,
         },
         body: Buffer.concat(parts),
-      });
+        signal,
+      }));
 
       if (!response.ok) {
         const text = await response.text().catch(() => "");
-        throw new Error(text || `TTS backend request failed (${response.status})`);
+        throw createTtsBackendHttpError(text, response.status);
       }
       const contentType = response.headers.get("content-type") ?? "";
       if (contentType.includes("application/json")) {
@@ -919,7 +1112,7 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
       }
       return response.text();
     } catch (error) {
-      throw new Error(`本地 TTS 后端请求失败: POST ${requestUrl}: ${getErrorMessage(error)}`);
+      throw withTtsRequestContext(error, "POST", requestUrl);
     }
   }
 

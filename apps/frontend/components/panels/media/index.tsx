@@ -41,6 +41,7 @@ import { useAppSettingsStore } from "@/stores/app/app-settings-store";
 import { usePreviewStore } from "@/stores/playback/preview-store";
 import { useDirectorStore } from "@/stores/director/director-store";
 import { useMediaPanelStore } from "@/stores/navigation/media-panel-store";
+import { createArtifactDeletionPlan, formatDeletionPlanConfirmation } from "@/stores/artifacts/artifact-store";
 import { processMediaFiles } from "@/lib/media/media-processing";
 import {
   generateVideoThumbnail,
@@ -160,6 +161,68 @@ export function MediaView() {
       toast.error("没有活动项目");
       return;
     }
+    const item = mediaFiles.find((media) => media.id === id);
+    if (!item) return;
+
+    // Project-owned media must go through artifact planning controller
+    if (item.projectId && !item.ephemeral) {
+      try {
+        if (!item.chapterId) {
+          toast.error("该项目媒体缺少章节归属，已阻止删除");
+          return;
+        }
+        // Generate deletion plan via shared controller
+        const planResult = await createArtifactDeletionPlan({
+          projectId: activeProject.id,
+          chapterId: item.chapterId,
+          scope: "artifacts",
+          artifactIds: [item.id],
+        });
+
+        if (!planResult.success) {
+          toast.error(`生成删除计划失败：${planResult.error}`);
+          return;
+        }
+
+        const plan = planResult.data;
+
+        if (!plan.executionAllowed || plan.blockerItems.length > 0) {
+          toast.error("删除计划存在阻塞项，已停止；请结束运行中的任务后重新盘点");
+          return;
+        }
+
+        // Confirm before execution
+        if (typeof window.confirm === "function" && !window.confirm(
+          formatDeletionPlanConfirmation(plan)
+        )) {
+          return;
+        }
+
+        // Execute deletion via shared controller
+        if (!window.artifactDeletion) {
+          toast.error("删除服务不可用，未执行任何写入");
+          return;
+        }
+        const result = await window.artifactDeletion.execute({
+          planId: plan.planId,
+          fingerprint: plan.fingerprint,
+          confirmation: { type: "artifacts", artifactCount: plan.deleteItems.length + plan.migrateItems.length },
+        });
+
+        if (result.success) {
+          toast.success("已删除");
+        } else if (result.error !== "confirmation-mismatch") {
+          toast.error(`删除失败：${result.error}`);
+        }
+        return;
+      } catch (err) {
+        toast.error(`删除失败：${err instanceof Error ? err.message : String(err)}`);
+        return;
+      }
+    }
+
+    // Ephemeral media can be deleted directly
+    if (typeof window.confirm === "function" && !window.confirm("删除后无法恢复。确认删除这个临时媒体文件吗？")) return;
     await removeMediaFile(activeProject.id, id);
     toast.success("已删除");
   };

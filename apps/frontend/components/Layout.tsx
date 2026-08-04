@@ -23,6 +23,7 @@ import { CharactersView } from "@/components/panels/characters";
 import { ScenesView } from "@/components/panels/scenes";
 import { FreedomView } from "@/components/panels/assist";
 import { MediaView } from "@/components/panels/media";
+import { ArtifactCenter } from "@/components/panels/media/ArtifactCenter";
 import { SettingsPanel } from "@/components/panels/SettingsPanel";
 import { ExportView } from "@/components/panels/export";
 import { OverviewPanel } from "@/components/panels/overview";
@@ -92,7 +93,7 @@ export function Layout() {
 
   // Full-screen views (no resizable panels)
   // 这些板块有自己的多栏布局，不需要全局的预览和属性面板
-  const fullScreenTabs = ["export", "settings", "overview", "studio", "script", "characters", "scenes", "freedom", "assets", "skills", "tts", "self-media"];
+  const fullScreenTabs = ["export", "settings", "overview", "studio", "script", "characters", "scenes", "freedom", "assets", "skills", "tts", "self-media", "media"];
   if (fullScreenTabs.includes(activeTab)) {
     return (
       <>
@@ -121,6 +122,16 @@ export function Layout() {
               {activeTab === "scenes" && <ScenesView />}
               {activeTab === "freedom" && <FreedomView />}
               {activeTab === "self-media" && <SelfMediaPanel />}
+              {activeTab === "media" && (
+                <div className="h-full flex flex-col min-h-0">
+                  <div className="flex-1 min-h-0 overflow-hidden">
+                    <ArtifactCenter />
+                  </div>
+                  <div className="h-[18%] min-h-[120px] border-t border-border">
+                    <SimpleTimeline />
+                  </div>
+                </div>
+              )}
               {/* 重型面板：懒挂载 + hidden 保活 */}
               {mountedTabs.has("assets") && <div className={activeTab === "assets" ? "h-full" : "hidden"}><AssetsView /></div>}
               {mountedTabs.has("skills") && <div className={activeTab === "skills" ? "h-full" : "hidden"}><SkillsView sidebarCollapsed={sidebarCollapsed} onToggleSidebar={toggleSidebar} /></div>}

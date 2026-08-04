@@ -55,4 +55,39 @@ describe("AddAssetDialog", () => {
     await waitFor(() => expect(toastError).toHaveBeenCalledWith("请选择音频文件"));
     expect(add).not.toHaveBeenCalled();
   });
+
+  it("clears the selected audio file when the dialog is canceled", async () => {
+    const selectAudioFile = vi.fn().mockResolvedValue("/音色库/木成-平静.wav");
+    const onOpenChange = vi.fn();
+    getStudioAssetsBridge.mockReturnValue({ selectAudioFile });
+
+    const view = render(<AddAssetDialog type="audio" open onOpenChange={onOpenChange} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /点击选择音频文件/ }));
+    await waitFor(() => expect(screen.getByText("/音色库/木成-平静.wav")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "取消" }));
+
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+    view.rerender(<AddAssetDialog type="audio" open={false} onOpenChange={onOpenChange} />);
+    view.rerender(<AddAssetDialog type="audio" open onOpenChange={onOpenChange} />);
+    expect(screen.queryByText("/音色库/木成-平静.wav")).toBeNull();
+    expect(screen.getByRole("button", { name: /点击选择音频文件/ })).toBeTruthy();
+  });
+
+  it("reports an audio file that becomes unreadable before submission", async () => {
+    const selectAudioFile = vi.fn().mockResolvedValue("/音色库/已删除.wav");
+    const add = vi.fn().mockRejectedValue(new Error("音频文件不存在或无法读取"));
+    getStudioAssetsBridge.mockReturnValue({ selectAudioFile, add });
+
+    render(<AddAssetDialog type="audio" open onOpenChange={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /点击选择音频文件/ }));
+    await waitFor(() => expect(screen.getByText("/音色库/已删除.wav")).toBeTruthy());
+    fireEvent.change(screen.getAllByRole("textbox")[0], {
+      target: { value: "失效音频" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /^添加$/ }));
+
+    await waitFor(() => expect(toastError).toHaveBeenCalledWith("添加失败，请确认音频文件仍可读取"));
+  });
 });

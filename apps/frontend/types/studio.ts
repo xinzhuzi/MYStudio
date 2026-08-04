@@ -1,4 +1,4 @@
-import type { TtsSpeakerId } from "./tts";
+import type { TtsEmotionCapability, TtsSpeakerId } from "./tts";
 import type { CharacterIdentityAnchors, CharacterNegativePrompt } from "./script";
 import type { RemotionShotAudioBindingV2 } from "./remotion-workspace";
 
@@ -310,6 +310,7 @@ export interface StoryboardTtsJobV1 {
   generationId?: string;
   retryRequested?: boolean;
   cancelRequested?: boolean;
+  emotionCapability?: TtsEmotionCapability;
   errorCode?: string;
   errorMessage?: string;
   createdAt: number;
@@ -356,6 +357,7 @@ export interface StoryboardItem extends StudioStaleEvidence {
   ttsBackend?: string;
   ttsMocked?: boolean;
   ttsWarning?: string;
+  ttsEmotionCapability?: TtsEmotionCapability;
   voiceProfileId?: string;
   voiceReferenceAudioPath?: string;
   voiceMatch?: "fixed" | "ai-selected";

@@ -87,6 +87,7 @@ describe("TTS client", () => {
       id: "generation-shot-1",
       status: "queued",
       generation_kind: "storyboard-shot",
+      emotion_capability: "applied",
     });
     (globalThis as { window?: unknown }).window = {
       ttsRuntime: { request },
@@ -102,10 +103,13 @@ describe("TTS client", () => {
       shotRevision: 3,
       inputFingerprint: "a".repeat(64),
       referenceAudioSha256: "b".repeat(64),
+      emotion: "紧张",
+      voiceStyle: "中文角色对白，紧张，停顿自然。",
       generationKind: "storyboard-shot",
     })).resolves.toMatchObject({
       id: "generation-shot-1",
       generationKind: "storyboard-shot",
+      emotionCapability: "applied",
     });
     expect(request).toHaveBeenCalledWith({
       method: "POST",
@@ -117,6 +121,8 @@ describe("TTS client", () => {
         shot_revision: 3,
         input_fingerprint: "a".repeat(64),
         reference_audio_sha256: "b".repeat(64),
+        emotion: "紧张",
+        voice_style: "中文角色对白，紧张，停顿自然。",
         generation_kind: "storyboard-shot",
       }),
     });

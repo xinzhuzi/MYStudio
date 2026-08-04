@@ -41,6 +41,7 @@ const CANONICAL_STORYBOARD_FIELDS = [
   "ttsBackend",
   "ttsMocked",
   "ttsWarning",
+  "ttsEmotionCapability",
   "voiceProfileId",
   "voiceMatch",
   "sound",

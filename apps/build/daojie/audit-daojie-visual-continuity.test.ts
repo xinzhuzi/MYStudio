@@ -37,7 +37,7 @@ function approvedFixture() {
     id: "sb-chapter-001-001",
     episodeId: "chapter-001",
     index: 1,
-    trackKey: "chapter-001-scene-1",
+    trackKey: "001", // Dynamic runtime key: {episodeNumber} (matches production.ts resolution)
     trackId: "track-1",
     duration: 4,
     prompt: "码头建立镜头",

@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 import { createTtsRuntimeController } from "./tts-runtime";
 
@@ -733,6 +734,36 @@ describe("TTS runtime controller", () => {
         "X-Manying-TTS-Token": "token-1",
       },
       body: undefined,
+      signal: expect.any(AbortSignal),
+    });
+  });
+
+  it("preserves storyboard emotion fields across the Electron JSON bridge", async () => {
+    const fetchJson = vi.fn().mockResolvedValue({ id: "generation-1", status: "queued" });
+    const controller = createTtsRuntimeController({
+      appRoot: "/repo",
+      userDataPath: "/user-data",
+      fileExists: () => true,
+      readTextFile: () => JSON.stringify({ controlToken: "token-1" }),
+      spawnProcess: vi.fn(),
+      fetchJson,
+    });
+    const body = {
+      text: "逐镜对白",
+      emotion: "紧张",
+      voice_style: "中文角色对白，紧张，停顿自然。",
+    };
+
+    await controller.request("POST", "/generate", body);
+
+    expect(fetchJson).toHaveBeenCalledWith("http://127.0.0.1:17593/generate", {
+      method: "POST",
+      headers: {
+        "X-Manying-TTS-Token": "token-1",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+      signal: expect.any(AbortSignal),
     });
   });
 
@@ -749,5 +780,234 @@ describe("TTS runtime controller", () => {
     await expect(controller.request("GET", "/models/status")).rejects.toThrow(
       "本地 TTS 后端请求失败: GET http://127.0.0.1:17593/models/status: fetch failed",
     );
+  });
+
+  it("decodes nested backend errors without losing the legacy thrown message", async () => {
+    const body = {
+      error: {
+        detail: {
+          error_code: "provider-unavailable",
+          message: "模型暂不可用",
+          retryable: true,
+          status_code: 503,
+        },
+      },
+    };
+    const rawBody = JSON.stringify(body);
+    const fetchMock = vi.fn().mockResolvedValue(new Response(rawBody, {
+      status: 503,
+      headers: { "content-type": "application/json" },
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+    const controller = createTtsRuntimeController({
+      appRoot: "/repo",
+      userDataPath: "/user-data",
+      fileExists: () => true,
+      readTextFile: () => JSON.stringify({ controlToken: "token-1" }),
+      spawnProcess: vi.fn(),
+    });
+
+    const rejection = controller.request("GET", "/models/status");
+    await expect(rejection).rejects.toMatchObject({
+      code: "provider-unavailable",
+      retryable: true,
+      status: 503,
+      envelope: {
+        code: "provider-unavailable",
+        message: "模型暂不可用",
+        retryable: true,
+        status: 503,
+      },
+      message: `本地 TTS 后端请求失败: GET http://127.0.0.1:17593/models/status: ${rawBody}`,
+    });
+  });
+
+  it("classifies an aborted transport as non-retryable", async () => {
+    const controller = createTtsRuntimeController({
+      appRoot: "/repo",
+      userDataPath: "/user-data",
+      fileExists: () => true,
+      readTextFile: () => JSON.stringify({ controlToken: "token-1" }),
+      spawnProcess: vi.fn(),
+      fetchJson: vi.fn().mockRejectedValue(Object.assign(new Error("aborted"), { name: "AbortError" })),
+    });
+
+    await expect(controller.request("GET", "/models/status")).rejects.toMatchObject({
+      code: "aborted",
+      retryable: false,
+      message: "本地 TTS 后端请求失败: GET http://127.0.0.1:17593/models/status: aborted",
+    });
+  });
+
+  it("classifies transient HTTP statuses as retryable and validation errors as terminal", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ detail: "请求参数无效" }), { status: 400 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ detail: "服务繁忙" }), { status: 429 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const controller = createTtsRuntimeController({
+      appRoot: "/repo",
+      userDataPath: "/user-data",
+      fileExists: () => true,
+      readTextFile: () => JSON.stringify({ controlToken: "token-1" }),
+      spawnProcess: vi.fn(),
+    });
+
+    await expect(controller.request("POST", "/generate", { text: "台词" })).rejects.toMatchObject({
+      status: 400,
+      retryable: false,
+      envelope: { code: "http-error", retryable: false, status: 400 },
+    });
+    await expect(controller.request("POST", "/generate", { text: "台词" })).rejects.toMatchObject({
+      status: 429,
+      retryable: true,
+      envelope: { code: "http-error", retryable: true, status: 429 },
+    });
+  });
+
+  it("uploads multipart voice samples with a bounded request and decodes JSON responses", async () => {
+    const readFileSync = vi.spyOn(fs, "readFileSync").mockReturnValue(Buffer.from("wav-bytes"));
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ id: "sample-1" }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      const controller = createTtsRuntimeController({
+        appRoot: "/repo",
+        userDataPath: "/user-data",
+        fileExists: () => true,
+        readTextFile: () => JSON.stringify({ controlToken: "token-1" }),
+        spawnProcess: vi.fn(),
+      });
+
+      await expect(controller.requestFormData("/profiles/profile-1/samples", "/tmp/reference.wav", "台词"))
+        .resolves.toEqual({ id: "sample-1" });
+
+      expect(readFileSync).toHaveBeenCalledWith("/tmp/reference.wav");
+      const [url, options] = fetchMock.mock.calls[0] as [string, RequestInit];
+      expect(url).toBe("http://127.0.0.1:17593/profiles/profile-1/samples");
+      expect(options.method).toBe("POST");
+      expect(options.headers).toMatchObject({ "X-Manying-TTS-Token": "token-1" });
+      expect(options.headers?.["Content-Type"] ?? "").toMatch(/^multipart\/form-data; boundary=/);
+      const multipartBody = Buffer.from(options.body as Uint8Array).toString("utf8");
+      expect(multipartBody).toContain('name="file"');
+      expect(multipartBody).toContain("wav-bytes");
+      expect(multipartBody).toContain('name="reference_text"');
+      expect(multipartBody).toContain("台词");
+      expect(options.signal).toBeInstanceOf(AbortSignal);
+    } finally {
+      readFileSync.mockRestore();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("surfaces multipart HTTP errors with the shared retry envelope", async () => {
+    const readFileSync = vi.spyOn(fs, "readFileSync").mockReturnValue(Buffer.from("wav-bytes"));
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ detail: "服务繁忙" }), {
+      status: 503,
+      headers: { "content-type": "application/json" },
+    })));
+    try {
+      const controller = createTtsRuntimeController({
+        appRoot: "/repo",
+        userDataPath: "/user-data",
+        fileExists: () => true,
+        readTextFile: () => JSON.stringify({ controlToken: "token-1" }),
+        spawnProcess: vi.fn(),
+      });
+
+      await expect(controller.requestFormData("/profiles/profile-1/samples", "/tmp/reference.wav"))
+        .rejects.toMatchObject({
+          code: "http-error",
+          status: 503,
+          retryable: true,
+          envelope: { code: "http-error", status: 503, retryable: true },
+        });
+    } finally {
+      readFileSync.mockRestore();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("classifies multipart aborts and deadline timeouts distinctly", async () => {
+    const readFileSync = vi.spyOn(fs, "readFileSync").mockReturnValue(Buffer.from("wav-bytes"));
+    try {
+      vi.stubGlobal("fetch", vi.fn().mockRejectedValue(Object.assign(new Error("aborted"), { name: "AbortError" })));
+      const abortedController = createTtsRuntimeController({
+        appRoot: "/repo",
+        userDataPath: "/user-data",
+        fileExists: () => true,
+        readTextFile: () => JSON.stringify({ controlToken: "token-1" }),
+        spawnProcess: vi.fn(),
+      });
+      await expect(abortedController.requestFormData("/profiles/profile-1/samples", "/tmp/reference.wav"))
+        .rejects.toMatchObject({ code: "aborted", retryable: false });
+
+      vi.unstubAllGlobals();
+      vi.useFakeTimers();
+      const fetchMock = vi.fn((_url: string, options: RequestInit) => new Promise<Response>((_resolve, reject) => {
+        options.signal?.addEventListener("abort", () => {
+          reject(Object.assign(new Error("aborted"), { name: "AbortError" }));
+        }, { once: true });
+      }));
+      vi.stubGlobal("fetch", fetchMock);
+      const timeoutController = createTtsRuntimeController({
+        appRoot: "/repo",
+        userDataPath: "/user-data",
+        fileExists: () => true,
+        readTextFile: () => JSON.stringify({ controlToken: "token-1" }),
+        spawnProcess: vi.fn(),
+        requestTimeoutMs: 25,
+      });
+      const rejection = timeoutController.requestFormData("/profiles/profile-1/samples", "/tmp/reference.wav");
+      const expected = expect(rejection).rejects.toMatchObject({ code: "timeout", retryable: true });
+      await vi.advanceTimersByTimeAsync(25);
+      await expected;
+      expect(fetchMock).toHaveBeenCalledWith(
+        "http://127.0.0.1:17593/profiles/profile-1/samples",
+        expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      );
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+      readFileSync.mockRestore();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("aborts a stalled request at the bounded runtime deadline", async () => {
+    vi.useFakeTimers();
+    try {
+      const fetchJson = vi.fn((_url: string, options: { signal?: AbortSignal }) => new Promise<unknown>((_resolve, reject) => {
+        options.signal?.addEventListener("abort", () => {
+          reject(Object.assign(new Error("aborted"), { name: "AbortError" }));
+        }, { once: true });
+      }));
+      const controller = createTtsRuntimeController({
+        appRoot: "/repo",
+        userDataPath: "/user-data",
+        fileExists: () => true,
+        readTextFile: () => JSON.stringify({ controlToken: "token-1" }),
+        spawnProcess: vi.fn(),
+        fetchJson,
+        requestTimeoutMs: 25,
+      });
+
+      const rejection = controller.request("GET", "/models/status");
+      const expected = expect(rejection).rejects.toMatchObject({
+        code: "timeout",
+        retryable: true,
+        message: "本地 TTS 后端请求失败: GET http://127.0.0.1:17593/models/status: TTS backend request timed out after 25ms",
+      });
+      await vi.advanceTimersByTimeAsync(25);
+      await expected;
+      expect(fetchJson).toHaveBeenCalledWith(
+        "http://127.0.0.1:17593/models/status",
+        expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      );
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

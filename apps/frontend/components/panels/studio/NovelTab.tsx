@@ -18,9 +18,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import aiEventAnalysisIconUrl from "@/assets/brand/ai-event-analysis-icon.svg";
 import { useStudioStore } from "@/stores/studio/studio-store";
+import { useProjectStore } from "@/stores/project/project-store";
 import type { NovelChapter } from "@/types/studio";
 import { Edit3, Plus, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { formatDeletionPlanConfirmation } from "@/stores/artifacts/artifact-store";
 import { NovelChapterTable } from "./NovelChapterTable";
 import { NovelEditDialog, type NovelEditDraft } from "./NovelEditDialog";
 import { NovelImportDialog } from "./NovelImportDialog";
@@ -86,6 +88,7 @@ export function NovelTab(props: {
     eventSummary: "",
     eventState: "",
   });
+  const activeProjectId = useProjectStore((state) => state.activeProjectId);
 
   const query = searchText.trim().toLowerCase();
   const filteredChapters = query
@@ -177,22 +180,72 @@ export function NovelTab(props: {
     props.analyzeEvents(selectedChapters);
   }, [props.analyzeEvents, selectedChapters]);
 
-  const handleConfirmDelete = () => {
-    const ids = deletingChapter
-      ? [deletingChapter.id]
-      : Array.from(selectedIds);
-    props.deleteNovelChapters(ids);
-    setSelectedIds((current) => {
-      const next = new Set(current);
-      for (const id of ids) {
-        next.delete(id);
-      }
-      return next;
+  const handleConfirmDelete = async () => {
+    const idsToDelete = deletingChapter ? [deletingChapter.id] : Array.from(selectedIds);
+    if (!deletingChapter && idsToDelete.length !== 1) {
+      toast.error("章节删除必须逐章确认，不能跨章节批量删除");
+      return;
+    }
+
+    const chapterId = idsToDelete[0];
+    if (!chapterId || !activeProjectId) {
+      toast.error("缺少必要参数，未执行任何操作");
+      return;
+    }
+
+    // Generate deletion plan via shared controller
+    const planResult = await window.artifactPlanDeletion?.plan({
+      projectId: activeProjectId,
+      chapterId,
+      scope: "chapter",
     });
-    const deletedCount = ids.length;
-    setDeletingChapter(null);
-    setDeleteOpen(false);
-    toast.success(`已删除 ${deletedCount} 个章节`);
+
+    if (!planResult?.success) {
+      toast.error(planResult?.error ?? "生成删除计划失败");
+      return;
+    }
+
+    const plan = planResult.data;
+
+    if (!plan.executionAllowed || plan.blockerItems.length > 0) {
+      toast.error("删除计划存在阻塞项，已停止；请结束运行中的任务后重新盘点");
+      return;
+    }
+
+    // The native confirmation contains the complete plan so this entry point
+    // has the same review boundary as the Artifact Center.
+    if (typeof window.confirm === "function" && !window.confirm(formatDeletionPlanConfirmation(plan))) {
+      return;
+    }
+
+    // Execute deletion via shared controller - NO MOCK WRAPPER
+    if (!window.artifactDeletion) {
+      toast.error("删除服务不可用");
+      return;
+    }
+    const result = await window.artifactDeletion.execute({
+      planId: plan.planId,
+      fingerprint: plan.fingerprint,
+      confirmation: { type: "chapter", chapterId },
+    });
+
+    if (result.success) {
+      toast.success("章节及其后续产物已删除");
+
+      // Clear selection on success
+      setSelectedIds((current) => {
+        const next = new Set(current);
+        for (const id of idsToDelete) {
+          next.delete(id);
+        }
+        return next;
+      });
+      setDeletingChapter(null);
+      setDeleteOpen(false);
+
+    } else {
+      toast.error(`删除失败：${result.error}`);
+    }
   };
 
   const openEdit = (chapter: NovelChapter) => {
@@ -299,8 +352,8 @@ export function NovelTab(props: {
             <AlertDialogTitle>删除选中章节</AlertDialogTitle>
             <AlertDialogDescription>
               {deletingChapter
-                ? `将删除「${deletingChapter.title}」，并移除项目存储位置下对应的章节文档。`
-                : `将删除 ${selectedIds.size} 个章节，并移除项目存储位置下对应的章节文档。`}
+                ? `将生成该章的完整级联清单。删除后无法恢复，人物、场景、道具基础资产会按引用规则保留。`
+                : `章节删除必须逐章确认。删除后无法恢复，历史备份与后续产物也会一并处理。`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

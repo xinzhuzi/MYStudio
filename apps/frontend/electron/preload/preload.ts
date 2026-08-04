@@ -10,6 +10,7 @@ import type { TimelineRenderPlan } from '../../types/editing'
 import type { StudioVisualManualCreatePayload, StudioVisualManualImagesWritePayload, StudioVisualManualWritePayload } from '../../types/studio-visual-manual'
 import type { TtsRuntimeCommandResult, TtsRuntimeConfig, TtsRuntimeStatus } from '../../types/tts'
 import type { UpdateCheckOptions } from '../../types/update'
+import type { ExecuteResult, RecoveryQueryResult, MetadataUpdateResult } from '../../types/artifacts'
 import {
   SELF_MEDIA_IPC,
   decodeSelfMediaIpcReply,
@@ -460,4 +461,45 @@ contextBridge.exposeInMainWorld('ttsRuntime', {
     ipcRenderer.invoke('tts-runtime-request-formdata', payload),
   resolveReferenceAudioPath: (audioPath: string): Promise<string | null> =>
     ipcRenderer.invoke('tts-reference-audio-resolve', audioPath),
+})
+
+// Artifact Inventory API - read-only project/chapter scan
+contextBridge.exposeInMainWorld('artifactInventory', {
+  scan: (projectId: string, chapterId?: string) =>
+    ipcRenderer.invoke('artifact-inventory-scan', { projectId, chapterId }),
+  list: (projectId: string) =>
+    ipcRenderer.invoke('artifact-get-project-artifacts', { projectId }),
+})
+
+// Artifact Deletion Planning API (read-only plan generation)
+contextBridge.exposeInMainWorld('artifactPlanDeletion', {
+  plan: (request: {
+    projectId: string;
+    chapterId: string;
+    scope: 'chapter' | 'artifacts';
+    artifactIds?: string[];
+  }) => ipcRenderer.invoke('artifact-plan-deletion', request),
+})
+
+contextBridge.exposeInMainWorld('artifactDeletion', {
+  execute: (request: {
+    planId: string;
+    fingerprint: string;
+    confirmation: {
+      type: 'chapter' | 'artifacts';
+      chapterTitle?: string;
+      chapterId?: string;
+      artifactCount?: number;
+    };
+  }): Promise<ExecuteResult> => ipcRenderer.invoke('artifact-execute-deletion', request),
+  recovery: (projectId: string): Promise<RecoveryQueryResult> =>
+    ipcRenderer.invoke('artifact-deletion-recovery-query', { projectId }),
+})
+
+contextBridge.exposeInMainWorld('artifactMetadata', {
+  update: (request: {
+    projectId: string;
+    artifactId: string;
+    updates: { name?: string; tags?: string[]; notes?: string };
+  }): Promise<MetadataUpdateResult> => ipcRenderer.invoke('artifact-update-metadata', request),
 })

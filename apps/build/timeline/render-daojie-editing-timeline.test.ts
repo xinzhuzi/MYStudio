@@ -78,7 +78,7 @@ describe("Daojie editing timeline runner", () => {
       id: "sb-chapter-001-001",
       episodeId: "chapter-001",
       index: 1,
-      trackKey: "chapter-001-scene-1",
+      trackKey: "001", // Dynamic runtime key: {episodeNumber} (matches production.ts resolution)
       trackId: "",
       duration: 4.2,
       prompt: "分镜提示",

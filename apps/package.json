@@ -38,6 +38,7 @@
     "remotion:smoke:shot": "MYSTUDIO_REMOTION_SHOT=1 vite-node --config build/timeline/vite-node.config.ts build/remotion/render-shot.ts",
     "remotion:smoke:chapter": "MYSTUDIO_REMOTION_CHAPTER=1 vite-node --config build/timeline/vite-node.config.ts build/remotion/render-chapter.ts",
     "remotion:daojie:chapter001:shots": "MYSTUDIO_DAOJIE_SHOT_SLOTS=1 vite-node --config build/timeline/vite-node.config.ts build/remotion/render-daojie-shot-slots.ts",
+    "remotion:smoke:daojie:first-shot": "MYSTUDIO_DAOJIE_FIRST_SHOT=1 vite-node --config build/timeline/vite-node.config.ts build/remotion/render-daojie-first-shot.ts",
     "remotion:smoke:five-shot": "MYSTUDIO_REMOTION_FIVE_SHOT=1 vite-node --config build/timeline/vite-node.config.ts build/remotion/render-five-shot.ts",
     "remotion:measure:loudness": "MYSTUDIO_REMOTION_LOUDNESS_RUNNER=1 vite-node --config build/timeline/vite-node.config.ts build/remotion/measure-loudness.ts",
     "remotion:upgrade": "node ./build/remotion/upgrade.mjs",

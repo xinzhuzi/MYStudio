@@ -56,6 +56,8 @@ import {
   SectionCard,
 } from "./OverviewFields";
 import { OVERVIEW_WORKFLOW_GUIDE } from "./workflow-guide";
+import { requestChapterDeletion } from "@/stores/artifacts/artifact-store";
+import { toast } from "sonner";
 
 // ==================== Main Component ====================
 
@@ -65,7 +67,6 @@ export function OverviewPanel() {
   const {
     updateSeriesMeta,
     addEpisodeBundle,
-    deleteEpisodeBundle,
     updateEpisodeBundle,
   } = useScriptStore();
   const { enterEpisode, setActiveTab } = useMediaPanelStore();
@@ -382,12 +383,21 @@ export function OverviewPanel() {
                                     size="icon"
                                     variant="ghost"
                                     className="h-5 w-5 text-red-500 hover:text-red-400"
-                                    onClick={() => {
-                                      deleteEpisodeBundle(
-                                        projectId,
-                                        ep.episodeIndex,
-                                      );
-                                      setDeletingEpIndex(null);
+                                    onClick={async () => {
+                                      const chapterId = scriptData?.episodes.find((episode) => episode.index === ep.episodeIndex)?.id;
+                                      if (!chapterId) {
+                                        toast.error("该章节缺少稳定 ID，已阻止删除");
+                                        return;
+                                      }
+
+                                      // Route planning, confirmation, and execution through the shared controller.
+                                      const result = await requestChapterDeletion(projectId, chapterId, "chapter");
+
+                                      if (result.success) {
+                                        setDeletingEpIndex(null);
+                                      } else if (result.error !== "confirmation-mismatch") {
+                                        toast.error(`删除失败：${result.error}`);
+                                      }
                                     }}
                                   >
                                     <Check className="h-3 w-3" />

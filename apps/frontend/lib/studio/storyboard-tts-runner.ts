@@ -2,6 +2,7 @@ import { aiManager } from "@/lib/ai/ai-manager";
 import { getTtsRuntimeBridge } from "@/lib/bridge/tts-runtime";
 import {
   ensureBackendVoiceProfile,
+  cancelGeneration,
   fetchGenerationAudio,
   getGenerationStatus,
   startTtsRuntime,
@@ -17,6 +18,7 @@ import type {
 } from "@rendering/plugins/remotion/manifest/remotion-chapter-manifest-service";
 import type { RemotionShotAudioBindingV2 } from "@/types/remotion-workspace";
 import type {
+  TtsEmotionCapability,
   TtsGenerateRequest,
   TtsGenerateResponse,
   TtsRuntimeCommandResult,
@@ -54,6 +56,7 @@ export interface StoryboardTtsRunnerDependencies {
   ensureProfile: (profile: VoiceProfile) => Promise<unknown>;
   submit: (payload: TtsGenerateRequest) => Promise<TtsGenerateResponse>;
   getStatus: (generationId: string) => Promise<TtsGenerateResponse>;
+  cancelGeneration?: (generationId: string) => Promise<TtsGenerateResponse>;
   fetchAudio: (generationId: string) => Promise<ArrayBuffer>;
   writeGeneratedAudio: (payload: {
     projectId: string;
@@ -85,6 +88,7 @@ function defaultDependencies(): StoryboardTtsRunnerDependencies {
     ensureProfile: ensureBackendVoiceProfile,
     submit: (payload) => aiManager.tts(payload),
     getStatus: getGenerationStatus,
+    cancelGeneration,
     fetchAudio: fetchGenerationAudio,
     writeGeneratedAudio: (payload) => audioBridge.writeGeneratedShotAudio(payload),
     resolveReferenceAudioPath: (audioPath) =>
@@ -141,12 +145,14 @@ export async function createStoryboardTtsInputFingerprint(input: {
   const shotRevision = Math.max(1, input.storyboard.outputVersion ?? 1);
   const seed = 41001 + input.storyboard.index;
   return sha256CanonicalJson({
-    schemaVersion: 1,
+    schemaVersion: 2,
     projectId: input.projectId,
     chapterId: input.chapterId,
     shotId: input.storyboard.id,
     shotRevision,
     text: input.storyboard.ttsSpokenText?.trim() ?? "",
+    emotion: input.storyboard.emotion?.trim() ?? null,
+    voiceStyle: input.storyboard.voiceStyle?.trim() ?? null,
     speakerId: input.storyboard.speakerId ?? "",
     profile: {
       id: input.profile.id,
@@ -186,6 +192,7 @@ export async function runStoryboardTtsGeneration({
   generationId: string;
   ttsBackend: string;
   ttsMocked: false;
+  ttsEmotionCapability: TtsEmotionCapability;
   ttsWarning?: string;
 }> {
   const shotRevision = Math.max(1, storyboard.outputVersion ?? 1);
@@ -324,13 +331,15 @@ export async function runStoryboardTtsGeneration({
             shotRevision,
             inputFingerprint,
             referenceAudioSha256,
+            emotion: storyboard.emotion?.trim(),
+            voiceStyle: storyboard.voiceStyle?.trim(),
             generationKind: "storyboard-shot",
             retry: attempt > 1,
           });
-          throwIfCanceled(isCanceled);
           generationId = generation.id;
           job = { ...job, generationId, updatedAt: dependencies.now() };
           await persistJob(job, onJob);
+          throwIfCanceled(isCanceled);
           if (generation.status === "failed") throwGenerationFailure(generation);
           completed = generation.status === "completed"
             ? generation
@@ -369,6 +378,7 @@ export async function runStoryboardTtsGeneration({
           ...job,
           status: "completed",
           generationId,
+          emotionCapability: completed.emotionCapability ?? "metadata-only",
           updatedAt: dependencies.now(),
         };
         await persistJob(job, onJob);
@@ -379,6 +389,7 @@ export async function runStoryboardTtsGeneration({
           generationId,
           ttsBackend: backend,
           ttsMocked: false,
+          ttsEmotionCapability: completed.emotionCapability ?? "metadata-only",
           ttsWarning: completed.warning,
         };
       } catch (error) {
@@ -393,6 +404,9 @@ export async function runStoryboardTtsGeneration({
     throw lastRetryableError ?? terminal("逐镜 TTS 重试耗尽", "retry_exhausted");
   } catch (error) {
     const canceled = error instanceof StoryboardTtsCanceledError || isCanceled();
+    if (canceled && job.generationId && dependencies.cancelGeneration) {
+      await dependencies.cancelGeneration(job.generationId).catch(() => undefined);
+    }
     job = {
       ...job,
       status: canceled ? "canceled" : "failed",
@@ -503,6 +517,7 @@ function completedResult(
     generationId: job.generationId,
     ttsBackend: storyboard.ttsBackend || "reused",
     ttsMocked: false as const,
+    ttsEmotionCapability: job.emotionCapability ?? "metadata-only",
     ttsWarning: storyboard.ttsWarning,
   };
 }

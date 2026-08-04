@@ -15,6 +15,12 @@ app-open-path
 app-updater-check
 app-updater-get-current-version
 app-updater-open-link
+artifact-deletion-recovery-query
+artifact-execute-deletion
+artifact-get-project-artifacts
+artifact-inventory-scan
+artifact-plan-deletion
+artifact-update-metadata
 assets:add
 assets:add-image
 assets:batch-match

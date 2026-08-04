@@ -23,6 +23,20 @@ from .storage import RuntimeStore
 
 STATE: RuntimeState | None = None
 
+_HTTP_ERROR_CODES = {
+    HTTPStatus.BAD_REQUEST: "bad_request",
+    HTTPStatus.FORBIDDEN: "forbidden",
+    HTTPStatus.NOT_FOUND: "not_found",
+    HTTPStatus.CONFLICT: "conflict",
+    HTTPStatus.INTERNAL_SERVER_ERROR: "internal_error",
+}
+
+
+class RequestPayloadError(ValueError):
+    def __init__(self, message: str, code: str):
+        super().__init__(message)
+        self.code = code
+
 
 def json_bytes(payload) -> bytes:
     return json.dumps(payload, ensure_ascii=False).encode("utf-8")
@@ -41,11 +55,22 @@ class Handler(ModelRoutesMixin, GenerationRoutesMixin, BaseHTTPRequestHandler):
         return STATE
 
     def read_json(self) -> dict:
-        length = int(self.headers.get("content-length", "0"))
+        try:
+            length = int(self.headers.get("content-length", "0"))
+        except (TypeError, ValueError) as exc:
+            raise RequestPayloadError("Invalid Content-Length header", "invalid_request") from exc
+        if length < 0:
+            raise RequestPayloadError("Invalid Content-Length header", "invalid_request")
         if length <= 0:
             return {}
         raw = self.rfile.read(length)
-        return json.loads(raw.decode("utf-8"))
+        try:
+            payload = json.loads(raw.decode("utf-8"))
+        except UnicodeDecodeError as exc:
+            raise RequestPayloadError("Invalid UTF-8 JSON body", "invalid_json") from exc
+        if not isinstance(payload, dict):
+            raise RequestPayloadError("JSON body must be an object", "invalid_payload")
+        return payload
 
     def send_json(self, payload, status=HTTPStatus.OK):
         data = json_bytes(payload)
@@ -58,8 +83,27 @@ class Handler(ModelRoutesMixin, GenerationRoutesMixin, BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
-    def send_error_json(self, status: HTTPStatus, message: str):
-        self.send_json({"detail": message, "error": message}, status=status)
+    def send_error_json(
+        self,
+        status: HTTPStatus,
+        message: str,
+        *,
+        code: str | None = None,
+        error_code: str | None = None,
+        retryable: bool | None = False,
+    ):
+        status_code = int(status)
+        resolved_code = code or error_code or _HTTP_ERROR_CODES.get(status, "http_error")
+        payload = {
+            "detail": message,
+            "error": message,
+            "status": status_code,
+            "code": resolved_code,
+            "error_code": error_code or resolved_code,
+        }
+        if retryable is not None:
+            payload["retryable"] = bool(retryable)
+        self.send_json(payload, status=status)
 
     def do_OPTIONS(self):
         self.send_response(HTTPStatus.NO_CONTENT)
@@ -72,7 +116,11 @@ class Handler(ModelRoutesMixin, GenerationRoutesMixin, BaseHTTPRequestHandler):
         expected = os.environ.get("MANYING_TTS_CONTROL_TOKEN")
         provided = self.headers.get("X-Manying-TTS-Token")
         if not expected or provided != expected:
-            self.send_error_json(HTTPStatus.FORBIDDEN, "TTS control token is invalid")
+            self.send_error_json(
+                HTTPStatus.FORBIDDEN,
+                "TTS control token is invalid",
+                code="invalid_control_token",
+            )
             return False
         return True
 
@@ -149,6 +197,9 @@ class Handler(ModelRoutesMixin, GenerationRoutesMixin, BaseHTTPRequestHandler):
             if route.endswith("/unload") and route.startswith("/models/"):
                 self.handle_model_unload(unquote(route.removeprefix("/models/").removesuffix("/unload")))
                 return
+            if route.startswith("/generate/") and route.endswith("/cancel"):
+                self.handle_cancel_generation(unquote(route.removeprefix("/generate/").removesuffix("/cancel")))
+                return
             if route == "/profiles":
                 self.send_json(self.state.store.create_profile(payload), status=HTTPStatus.CREATED)
                 return
@@ -158,11 +209,18 @@ class Handler(ModelRoutesMixin, GenerationRoutesMixin, BaseHTTPRequestHandler):
             if route == "/transcribe":
                 self.handle_transcribe(payload)
                 return
+        except RequestPayloadError as exc:
+            self.send_error_json(HTTPStatus.BAD_REQUEST, str(exc), code=exc.code)
+            return
         except json.JSONDecodeError:
-            self.send_error_json(HTTPStatus.BAD_REQUEST, "Invalid JSON body")
+            self.send_error_json(HTTPStatus.BAD_REQUEST, "Invalid JSON body", code="invalid_json")
             return
         except Exception as exc:
-            self.send_error_json(HTTPStatus.INTERNAL_SERVER_ERROR, str(exc))
+            self.send_error_json(
+                HTTPStatus.INTERNAL_SERVER_ERROR,
+                str(exc),
+                code="internal_error",
+            )
             return
         self.send_error_json(HTTPStatus.NOT_FOUND, "Route not found")
 

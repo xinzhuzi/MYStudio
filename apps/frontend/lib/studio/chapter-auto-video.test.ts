@@ -52,7 +52,7 @@ function storyboard(index: number, overrides: Partial<StoryboardItem> = {}): Sto
     id: `sb-${index}`,
     episodeId: "chapter-001",
     index,
-    trackKey: "chapter-001-scene-1",
+    trackKey: "001", // Dynamic runtime key: {episodeNumber} (matches production.ts resolution)
     trackId: "track-1",
     duration: 4,
     prompt: `画面 ${index}`,

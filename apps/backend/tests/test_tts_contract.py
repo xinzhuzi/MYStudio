@@ -1,15 +1,21 @@
 import importlib
+import json
 import os
 import tempfile
 import types
+import wave
 import unittest
+from io import BytesIO
 from pathlib import Path
 from unittest.mock import MagicMock, patch
+
+import numpy as np
 
 from tts.catalog import TTS_MODELS, get_model
 import tts.main as main_module
 import tts.engine as engine_module
-from tts.engine import is_engine_loaded, synthesize_to_wav, unload_engine
+import tts.server as server_module
+from tts.engine import is_engine_loaded, resolve_emotion_capability, synthesize_to_wav, unload_engine
 from tts.model_cache import download_hf_cache_dir, find_cached_model, is_model_downloaded
 from tts.storage import RuntimeStore
 from tts.tts import generate_mock_wav
@@ -72,6 +78,98 @@ class TtsContractTest(unittest.TestCase):
         with patch.dict("os.environ", {"MANYING_TTS_CONTROL_TOKEN": "token-1"}):
             self.assertTrue(main_module.Handler.authorize_control(handler))
         handler.send_error_json.assert_not_called()
+
+    def test_error_envelope_preserves_legacy_fields_and_adds_stable_metadata(self):
+        handler = types.SimpleNamespace(send_json=MagicMock())
+
+        server_module.Handler.send_error_json(
+            handler,
+            400,
+            "Invalid JSON body",
+            code="invalid_json",
+            retryable=False,
+        )
+
+        payload = handler.send_json.call_args.args[0]
+        self.assertEqual(payload["detail"], "Invalid JSON body")
+        self.assertEqual(payload["error"], "Invalid JSON body")
+        self.assertEqual(payload["status"], 400)
+        self.assertEqual(payload["code"], "invalid_json")
+        self.assertEqual(payload["error_code"], "invalid_json")
+        self.assertFalse(payload["retryable"])
+
+    def test_read_json_rejects_malformed_and_non_object_payloads(self):
+        malformed = types.SimpleNamespace(
+            headers={"content-length": "8"},
+            rfile=BytesIO(b"{broken}"),
+        )
+        with self.assertRaises(json.JSONDecodeError):
+            server_module.Handler.read_json(malformed)
+
+        non_object_body = b"[1, 2]"
+        non_object = types.SimpleNamespace(
+            headers={"content-length": str(len(non_object_body))},
+            rfile=BytesIO(non_object_body),
+        )
+        with self.assertRaisesRegex(server_module.RequestPayloadError, "JSON body must be an object"):
+            server_module.Handler.read_json(non_object)
+
+    def test_post_malformed_payloads_return_structured_bad_request(self):
+        class PostHarness(server_module.Handler):
+            def __init__(self, body: bytes):
+                self.path = "/generate"
+                self.headers = {"content-length": str(len(body))}
+                self.rfile = BytesIO(body)
+                self.responses = []
+
+            def send_json(self, payload, status=200):
+                self.responses.append((payload, status))
+
+        for body, error_code in ((b"{broken}", "invalid_json"), (b"[]", "invalid_payload")):
+            with self.subTest(error_code=error_code):
+                handler = PostHarness(body)
+                handler.do_POST()
+                payload, status = handler.responses[-1]
+                self.assertEqual(status, 400)
+                self.assertEqual(payload["detail"], payload["error"])
+                self.assertEqual(payload["status"], 400)
+                self.assertEqual(payload["code"], error_code)
+                self.assertEqual(payload["error_code"], error_code)
+                self.assertFalse(payload["retryable"])
+
+    def test_post_generation_cancel_route_persists_canceled_state(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = RuntimeStore(Path(tmp))
+            profile = store.create_profile({"id": "profile-1", "name": "旁白"})
+            generation = store.create_generation(profile["id"], "逐镜对白", "qwen", "0.6B")
+            state = types.SimpleNamespace(store=store, finish_generation=MagicMock())
+
+            class CancelHarness(server_module.Handler):
+                def __init__(self):
+                    self.path = f"/generate/{generation['id']}/cancel"
+                    self.headers = {
+                        "content-length": "0",
+                        "X-Manying-TTS-Token": "token-1",
+                    }
+                    self.rfile = BytesIO()
+                    self.responses = []
+
+                @property
+                def state(self):
+                    return state
+
+                def send_json(self, payload, status=200):
+                    self.responses.append((payload, status))
+
+            with patch.dict("os.environ", {"MANYING_TTS_CONTROL_TOKEN": "token-1"}):
+                handler = CancelHarness()
+                handler.do_POST()
+
+            payload, status = handler.responses[-1]
+            self.assertEqual(status, 200)
+            self.assertTrue(payload["canceled"])
+            self.assertEqual(payload["status"], "canceled")
+            state.finish_generation.assert_called_once_with(generation["id"])
 
     def test_runtime_store_creates_profiles_and_generations(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -308,7 +406,10 @@ class TtsContractTest(unittest.TestCase):
         )
         with (
             tempfile.TemporaryDirectory() as tmp,
-            patch.dict("os.environ", {"MANYING_TTS_ENGINE_MODE": "real"}),
+            patch.dict("os.environ", {
+                "MANYING_TTS_ENGINE_MODE": "real",
+                "MANYING_TTS_QWEN_BACKEND": "pytorch",
+            }),
             patch.dict("sys.modules", {"qwen_tts": fake_qwen_module, "torch": fake_torch_module}),
             patch.object(engine_module, "_qwen_custom_voice_model", None, create=True),
             patch.object(engine_module, "_qwen_custom_voice_model_size", None, create=True),
@@ -321,17 +422,153 @@ class TtsContractTest(unittest.TestCase):
                 engine="qwen_custom_voice",
                 model_size="0.6B",
                 language="zh",
+                emotion="紧张",
+                voice_style="中文角色对白，紧张，停顿自然。",
             )
 
             self.assertFalse(result.mocked)
             self.assertEqual(result.backend, "qwen-custom-voice")
+            self.assertEqual(result.emotion_capability, "applied")
+            self.assertIsNone(result.emotion_warning)
             self.assertTrue(output.exists())
             fake_model.generate_custom_voice.assert_called_once_with(
                 text="今夜请留在这里。",
                 language="Chinese",
                 speaker="Vivian",
-                instruct="温柔、缓慢地叙述。",
+                instruct="温柔、缓慢地叙述。\n逐镜情绪：紧张\n逐镜风格：中文角色对白，紧张，停顿自然。",
             )
+
+    def test_qwen_custom_voice_emotion_changes_request_with_same_voice_style(self):
+        # 同一逐镜风格下只改变情绪，最终 instruct 必须随请求变化。
+        calm_request = engine_module._custom_voice_request(
+            "今夜请留在这里。",
+            {"preset_voice_id": "Vivian", "instruct": "温柔、缓慢地叙述。"},
+            "zh",
+            "平静",
+            "中文角色对白，停顿自然。",
+        )
+        tense_request = engine_module._custom_voice_request(
+            "今夜请留在这里。",
+            {"preset_voice_id": "Vivian", "instruct": "温柔、缓慢地叙述。"},
+            "zh",
+            "紧张",
+            "中文角色对白，停顿自然。",
+        )
+
+        self.assertNotEqual(calm_request, tense_request)
+        self.assertIn("逐镜情绪：平静", calm_request["instruct"])
+        self.assertIn("逐镜情绪：紧张", tense_request["instruct"])
+        self.assertIn("逐镜风格：中文角色对白，停顿自然。", tense_request["instruct"])
+
+        profile_only_request = engine_module._custom_voice_request(
+            "今夜请留在这里。",
+            {"preset_voice_id": "Vivian", "instruct": "温柔、缓慢地叙述。"},
+            "zh",
+            " ",
+            "\t",
+        )
+        self.assertEqual(profile_only_request["instruct"], "温柔、缓慢地叙述。")
+
+        emotion_only_capability = resolve_emotion_capability(
+            "qwen_custom_voice",
+            emotion="紧张",
+        )
+        self.assertEqual(emotion_only_capability, ("applied", None))
+
+    def test_qwen_backend_selection_uses_mlx_on_apple_silicon_and_honors_override(self):
+        with (
+            patch.dict("os.environ", {"MANYING_TTS_QWEN_BACKEND": ""}),
+            patch.object(engine_module.platform, "system", return_value="Darwin"),
+            patch.object(engine_module.platform, "machine", return_value="arm64"),
+        ):
+            self.assertEqual(engine_module._preferred_qwen_backend(), "mlx")
+
+        with (
+            patch.dict("os.environ", {"MANYING_TTS_QWEN_BACKEND": ""}),
+            patch.object(engine_module.platform, "system", return_value="Linux"),
+            patch.object(engine_module.platform, "machine", return_value="x86_64"),
+        ):
+            self.assertEqual(engine_module._preferred_qwen_backend(), "pytorch")
+
+        with patch.dict("os.environ", {"MANYING_TTS_QWEN_BACKEND": "pytorch"}):
+            self.assertEqual(engine_module._preferred_qwen_backend(), "pytorch")
+
+    def test_qwen_custom_voice_mlx_adapts_generation_result_from_cached_snapshot(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo_cache = Path(tmp) / "models--Qwen--Qwen3-TTS-12Hz-1.7B-CustomVoice"
+            snapshot = repo_cache / "snapshots" / "revision-1"
+            snapshot.mkdir(parents=True)
+            (repo_cache / "refs").mkdir()
+            (repo_cache / "refs" / "main").write_text("revision-1\n", encoding="utf-8")
+
+            fake_model = MagicMock()
+            fake_model.generate_custom_voice.return_value = iter([
+                types.SimpleNamespace(audio=np.asarray([0.0, 0.25, -0.25]), sample_rate=24000),
+            ])
+            fake_load = MagicMock(return_value=fake_model)
+            fake_mlx_package = types.ModuleType("mlx_audio")
+            fake_mlx_package.__path__ = []
+            fake_mlx_tts = types.ModuleType("mlx_audio.tts")
+            fake_mlx_tts.load = fake_load
+            cached = types.SimpleNamespace(repo_cache_dir=repo_cache)
+
+            with (
+                patch.dict("os.environ", {
+                    "MANYING_TTS_ENGINE_MODE": "real",
+                    "MANYING_TTS_QWEN_BACKEND": "mlx",
+                }),
+                patch.dict("sys.modules", {
+                    "mlx_audio": fake_mlx_package,
+                    "mlx_audio.tts": fake_mlx_tts,
+                }),
+                patch("tts.model_cache.find_cached_model", return_value=cached),
+                patch.object(engine_module, "_qwen_custom_voice_model", None, create=True),
+                patch.object(engine_module, "_qwen_custom_voice_model_size", None, create=True),
+                patch.object(engine_module, "_qwen_custom_voice_backend", None, create=True),
+            ):
+                output = Path(tmp) / "custom-voice-mlx.wav"
+                result = synthesize_to_wav(
+                    output=output,
+                    text="今夜请留在这里。",
+                    profile={"preset_voice_id": "Ryan", "instruct": "温柔地说。"},
+                    engine="qwen_custom_voice",
+                    model_size="1.7B",
+                    language="zh",
+                    emotion="紧张",
+                    voice_style="中文角色对白，紧张，停顿自然。",
+                )
+
+            self.assertFalse(result.mocked)
+            self.assertEqual(result.backend, "qwen-custom-voice")
+            self.assertEqual(result.emotion_capability, "applied")
+            fake_load.assert_called_once_with(snapshot, lazy=True, strict=False)
+            fake_model.generate_custom_voice.assert_called_once_with(
+                text="今夜请留在这里。",
+                language="Chinese",
+                speaker="Ryan",
+                instruct="温柔地说。\n逐镜情绪：紧张\n逐镜风格：中文角色对白，紧张，停顿自然。",
+            )
+            with wave.open(str(output), "rb") as wav:
+                self.assertEqual(wav.getframerate(), 24000)
+                self.assertEqual(wav.getnframes(), 3)
+
+    def test_non_dynamic_engine_reports_metadata_only_emotion_capability(self):
+        capability, warning = resolve_emotion_capability(
+            "qwen",
+            emotion="紧张",
+            voice_style="中文角色对白，紧张，停顿自然。",
+        )
+
+        self.assertEqual(capability, "metadata-only")
+        self.assertIn("仅作为审计元数据", warning or "")
+
+        unsupported, unsupported_warning = resolve_emotion_capability(
+            "luxtts",
+            emotion="紧张",
+            voice_style="中文角色对白，紧张，停顿自然。",
+        )
+        self.assertEqual(unsupported, "unsupported")
+        self.assertIn("仅作为审计元数据", unsupported_warning or "")
 
     def test_runtime_store_updates_existing_profile_on_resync(self):
         with tempfile.TemporaryDirectory() as tmp:

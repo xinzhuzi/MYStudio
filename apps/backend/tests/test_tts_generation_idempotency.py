@@ -9,7 +9,8 @@ from pathlib import Path
 from queue import Queue
 from unittest.mock import patch
 
-from tts.generation_routes import GenerationRoutesMixin
+from tts.generation_routes import GenerationRoutesMixin, _generation_failure_metadata
+from tts.engine import SynthesisResult
 from tts.storage import RuntimeStore
 
 
@@ -34,12 +35,14 @@ class _GenerationRouteHarness(GenerationRoutesMixin):
         self.state = _RouteState(store)
         self.responses: list[tuple[dict, HTTPStatus]] = []
         self.errors: list[tuple[HTTPStatus, str]] = []
+        self.error_metadata: list[dict] = []
 
     def send_json(self, payload: dict, status=HTTPStatus.OK):
         self.responses.append((payload, status))
 
-    def send_error_json(self, status: HTTPStatus, message: str):
+    def send_error_json(self, status: HTTPStatus, message: str, **metadata):
         self.errors.append((status, message))
+        self.error_metadata.append(metadata)
 
 
 class TtsGenerationIdempotencyTest(unittest.TestCase):
@@ -56,6 +59,8 @@ class TtsGenerationIdempotencyTest(unittest.TestCase):
             "shot_id": "shot-001",
             "shot_revision": 1,
             "input_fingerprint": "a" * 64,
+            "emotion": "紧张",
+            "voice_style": "中文角色对白，紧张，停顿自然。",
             "generation_kind": "storyboard-shot",
             "seed": 41001,
         }
@@ -104,6 +109,10 @@ class TtsGenerationIdempotencyTest(unittest.TestCase):
                 "shot_revision",
                 "input_fingerprint",
                 "reference_audio_sha256",
+                "emotion",
+                "voice_style",
+                "emotion_capability",
+                "emotion_warning",
                 "seed",
                 "attempt",
                 "retryable",
@@ -127,6 +136,8 @@ class TtsGenerationIdempotencyTest(unittest.TestCase):
                 shot_revision=1,
                 input_fingerprint="a" * 64,
                 reference_audio_sha256="b" * 64,
+                emotion="克制",
+                voice_style="电影级中文旁白，克制，停顿自然。",
                 generation_kind="storyboard-shot",
                 seed=41001,
             )
@@ -168,6 +179,8 @@ class TtsGenerationIdempotencyTest(unittest.TestCase):
                 shot_revision=1,
                 input_fingerprint="a" * 64,
                 reference_audio_sha256="b" * 64,
+                emotion="克制",
+                voice_style="电影级中文旁白，克制，停顿自然。",
                 generation_kind="storyboard-shot",
                 seed=41001,
             )
@@ -180,6 +193,10 @@ class TtsGenerationIdempotencyTest(unittest.TestCase):
                 store.create_or_reuse_generation(**{**base, "text": "不同对白"})
             with self.assertRaisesRegex(ValueError, "fingerprint_collision"):
                 store.create_or_reuse_generation(**{**base, "reference_audio_sha256": "d" * 64})
+            with self.assertRaisesRegex(ValueError, "fingerprint_collision"):
+                store.create_or_reuse_generation(**{**base, "emotion": "愤怒"})
+            with self.assertRaisesRegex(ValueError, "fingerprint_collision"):
+                store.create_or_reuse_generation(**{**base, "voice_style": "中文角色对白，愤怒。"})
             with self.assertRaisesRegex(ValueError, "fingerprint_collision"):
                 store.create_or_reuse_generation(**{**base, "generation_kind": None})
 
@@ -245,6 +262,50 @@ class TtsGenerationIdempotencyTest(unittest.TestCase):
             self.assertEqual(retried["attempt"], 2)
             self.assertEqual(explicit_retry.state.inference_queue.qsize(), 1)
 
+    def test_generate_route_forwards_storyboard_emotion_and_voice_style(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = RuntimeStore(Path(tmp))
+            profile = store.create_profile({"id": "profile-1", "name": "旁白"})
+            handler = _GenerationRouteHarness(store)
+
+            handler.handle_generate(self._shot_request(profile["id"]))
+
+            _generate_audio, args = handler.state.inference_queue.get_nowait()
+            self.assertEqual(args[-2:], ("紧张", "中文角色对白，紧张，停顿自然。"))
+
+    def test_generate_audio_persists_explicit_emotion_capability(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = RuntimeStore(Path(tmp))
+            profile = store.create_profile({"id": "profile-1", "name": "旁白"})
+            generation = store.create_generation(profile["id"], "逐镜对白", "qwen", "0.6B")
+            handler = _GenerationRouteHarness(store)
+
+            with patch(
+                "tts.generation_routes.synthesize_to_wav",
+                return_value=SynthesisResult(
+                    duration=0.5,
+                    backend="qwen-mlx",
+                    mocked=False,
+                    emotion_capability="metadata-only",
+                    emotion_warning="qwen 未应用逐镜动态情绪",
+                ),
+            ):
+                handler.generate_audio(
+                    generation["id"],
+                    generation["text"],
+                    profile,
+                    "qwen",
+                    "0.6B",
+                    "zh",
+                    41001,
+                    "紧张",
+                    "中文旁白，紧张，停顿自然。",
+                )
+
+            stored = store.get_generation(generation["id"])
+            self.assertEqual(stored["emotion_capability"], "metadata-only")
+            self.assertEqual(stored["emotion_warning"], "qwen 未应用逐镜动态情绪")
+
     def test_generate_route_rejects_partial_shot_scope(self):
         with tempfile.TemporaryDirectory() as tmp:
             store = RuntimeStore(Path(tmp))
@@ -259,6 +320,27 @@ class TtsGenerationIdempotencyTest(unittest.TestCase):
                 (HTTPStatus.BAD_REQUEST, "input_fingerprint_invalid"),
             ])
             self.assertEqual(handler.state.inference_queue.qsize(), 0)
+
+    def test_generate_route_rejects_malformed_field_types(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = RuntimeStore(Path(tmp))
+            profile = store.create_profile({"id": "profile-1", "name": "旁白"})
+            base = {"profile_id": profile["id"], "text": "逐镜对白"}
+            cases = [
+                ({"profile_id": []}, "profile_id_invalid"),
+                ({"text": []}, "text_invalid"),
+                ({"engine": []}, "engine_invalid"),
+                ({"seed": []}, "seed_invalid"),
+                ({"emotion": []}, "emotion_invalid"),
+            ]
+
+            for overrides, error_code in cases:
+                with self.subTest(error_code=error_code):
+                    handler = _GenerationRouteHarness(store)
+                    handler.handle_generate({**base, **overrides})
+                    self.assertEqual(handler.errors[-1][0], HTTPStatus.BAD_REQUEST)
+                    self.assertEqual(handler.error_metadata[-1]["code"], error_code)
+                    self.assertEqual(handler.state.inference_queue.qsize(), 0)
 
     def test_storyboard_generation_kind_requires_complete_shot_scope_but_generic_is_unscoped_compatible(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -329,6 +411,102 @@ class TtsGenerationIdempotencyTest(unittest.TestCase):
                     self.assertEqual(failed["status"], "failed")
                     self.assertEqual(failed["retryable"], retryable)
                     self.assertEqual(failed["error_code"], error_code)
+
+    def test_generation_failure_metadata_reads_nested_provider_error(self):
+        class NestedProviderFailure(RuntimeError):
+            def __init__(self):
+                super().__init__("provider request failed")
+                self.response = {
+                    "error": {
+                        "status_code": 503,
+                        "code": "upstream_busy",
+                        "retryable": True,
+                    }
+                }
+
+        failure = NestedProviderFailure()
+        self.assertEqual(_generation_failure_metadata(failure), (True, "upstream_busy"))
+
+        with tempfile.TemporaryDirectory() as tmp:
+            store = RuntimeStore(Path(tmp))
+            profile = store.create_profile({"id": "profile-1", "name": "旁白"})
+            generation = store.create_generation(profile["id"], "逐镜对白", "qwen", "0.6B")
+            handler = _GenerationRouteHarness(store)
+            with patch("tts.generation_routes.synthesize_to_wav", side_effect=failure):
+                handler.generate_audio(
+                    generation["id"], generation["text"], profile,
+                    "qwen", "0.6B", "zh", 41001,
+                )
+            failed = store.get_generation(generation["id"])
+            self.assertEqual(failed["status"], "failed")
+            self.assertEqual(failed["retryable"], 1)
+            self.assertEqual(failed["error_code"], "upstream_busy")
+
+    def test_late_success_does_not_replace_canceled_generation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = RuntimeStore(Path(tmp))
+            profile = store.create_profile({"id": "profile-1", "name": "旁白"})
+            generation = store.create_generation(profile["id"], "逐镜对白", "qwen", "0.6B")
+            store.update_generation(
+                generation["id"],
+                status="canceled",
+                error="canceled by caller",
+                error_code="canceled",
+                retryable=0,
+            )
+            handler = _GenerationRouteHarness(store)
+            handler.state.active.add(generation["id"])
+
+            def late_synthesis(**kwargs):
+                kwargs["output"].write_bytes(b"late audio")
+                return SynthesisResult(duration=0.5, backend="qwen-mlx", mocked=False)
+
+            with patch("tts.generation_routes.synthesize_to_wav", side_effect=late_synthesis):
+                handler.generate_audio(
+                    generation["id"], generation["text"], profile,
+                    "qwen", "0.6B", "zh", 41001,
+                )
+
+            canceled = store.get_generation(generation["id"])
+            self.assertEqual(canceled["status"], "canceled")
+            self.assertEqual(canceled["error"], "canceled by caller")
+            self.assertEqual(canceled["error_code"], "canceled")
+            self.assertEqual(canceled["audio_path"], "")
+            self.assertFalse((store.audio_dir / f"{generation['id']}.wav").exists())
+            self.assertNotIn(generation["id"], handler.state.active)
+
+    def test_cancel_generation_persists_terminal_state_and_blocks_late_success(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = RuntimeStore(Path(tmp))
+            profile = store.create_profile({"id": "profile-1", "name": "旁白"})
+            generation = store.create_generation(profile["id"], "逐镜对白", "qwen", "0.6B")
+
+            canceled = store.cancel_generation(generation["id"])
+            self.assertEqual(canceled["status"], "canceled")
+            self.assertEqual(canceled["error_code"], "canceled")
+            self.assertEqual(canceled["audio_path"], "")
+            self.assertEqual(store.cancel_generation(generation["id"])["status"], "canceled")
+
+    def test_cancel_route_is_idempotent_and_removes_active_generation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = RuntimeStore(Path(tmp))
+            profile = store.create_profile({"id": "profile-1", "name": "旁白"})
+            generation = store.create_generation(profile["id"], "逐镜对白", "qwen", "0.6B")
+            handler = _GenerationRouteHarness(store)
+            handler.state.active.add(generation["id"])
+
+            handler.handle_cancel_generation(generation["id"])
+            payload, status = handler.responses[-1]
+            self.assertEqual(status, HTTPStatus.OK)
+            self.assertTrue(payload["canceled"])
+            self.assertEqual(payload["status"], "canceled")
+            self.assertNotIn(generation["id"], handler.state.active)
+
+            handler.handle_cancel_generation(generation["id"])
+            payload, status = handler.responses[-1]
+            self.assertEqual(status, HTTPStatus.OK)
+            self.assertFalse(payload["canceled"])
+            self.assertEqual(payload["status"], "canceled")
 
 
 if __name__ == "__main__":

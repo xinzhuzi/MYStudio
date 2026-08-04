@@ -21,7 +21,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  NODE_VERSION: "20"
+  NODE_VERSION: "22"
 
 jobs:
   resolve-version:
@@ -179,6 +179,8 @@ jobs:
       - resolve-version
       - release-prep
     runs-on: macos-14
+    env:
+      MYSTUDIO_DISABLE_ELECTRON_PUBLISH: "1"
     steps:
       - uses: actions/checkout@v4
 
@@ -189,6 +191,8 @@ jobs:
           cache-dependency-path: apps/package-lock.json
 
       - name: Install ffmpeg toolchain
+        env:
+          HOMEBREW_NO_REQUIRE_TAP_TRUST: "1"
         run: |
           brew install ffmpeg
           ffmpeg -version
@@ -243,6 +247,8 @@ jobs:
       - resolve-version
       - release-prep
     runs-on: windows-latest
+    env:
+      MYSTUDIO_DISABLE_ELECTRON_PUBLISH: "1"
     steps:
       - uses: actions/checkout@v4
 
@@ -278,9 +284,6 @@ jobs:
 
       - name: Build Windows package
         working-directory: apps
-        env:
-          CSC_LINK: ""
-          CSC_KEY_PASSWORD: ""
         run: npm run build:win
 
       - name: Collect Windows release assets

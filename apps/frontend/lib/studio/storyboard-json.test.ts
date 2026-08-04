@@ -48,10 +48,12 @@ describe("storyboard JSON contracts", () => {
         sourcePath: "/tmp/private-source.md",
       },
       voiceReferenceAudioPath: "/tmp/private-voice.wav",
+      ttsEmotionCapability: "metadata-only",
     })]);
     expect(json).toContain('"mediaRef"');
     expect(json).toContain("generated-shot.png");
     expect(json).toContain("image-sha");
+    expect(json).toContain('"ttsEmotionCapability": "metadata-only"');
     expect(json).not.toContain("private-source.md");
     expect(json).not.toContain("private-voice.wav");
     expect(json).not.toContain("sourceEvidence");

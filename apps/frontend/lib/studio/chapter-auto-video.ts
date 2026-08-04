@@ -3,7 +3,7 @@ import type {
   StoryboardItem,
   StoryboardTtsJobV1,
 } from "@/types/studio";
-import type { TtsSpeakerId, VoiceProfile } from "@/types/tts";
+import type { TtsEmotionCapability, TtsSpeakerId, VoiceProfile } from "@/types/tts";
 import type {
   RemotionRenderJobV1,
   RemotionShotAudioBindingV2,
@@ -51,6 +51,7 @@ export interface ChapterAutoVideoDependencies {
     generationId?: string;
     ttsBackend?: string;
     ttsMocked?: false;
+    ttsEmotionCapability?: TtsEmotionCapability;
     ttsWarning?: string;
   }>;
   writeStoryboardAudio: (

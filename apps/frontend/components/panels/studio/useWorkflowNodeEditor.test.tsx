@@ -161,7 +161,7 @@ describe("useWorkflowNodeEditor", () => {
       id: "sb-chapter-2-001",
       episodeId: "chapter-2",
       index: 1,
-      trackKey: "chapter-2-scene-1",
+      trackKey: "2", // Dynamic runtime key: {episodeNumber} (matches production.ts resolution)
       trackId: "",
       duration: 2,
       prompt: "另一章画面",
@@ -209,7 +209,7 @@ describe("useWorkflowNodeEditor", () => {
       id: "sb-chapter-1-001",
       episodeId: "chapter-1",
       index: 1,
-      trackKey: "chapter-1-scene-1",
+      trackKey: "1", // Dynamic runtime key: {episodeNumber} (matches production.ts resolution)
       trackId: "",
       duration: 2,
       prompt: "雨夜码头",

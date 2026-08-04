@@ -12,7 +12,7 @@ const storyboard: StoryboardItem = {
   id: "sb-chapter-001-001",
   episodeId: "chapter-001",
   index: 1,
-  trackKey: "chapter-001-scene-1",
+  trackKey: "001", // Dynamic runtime key: {episodeNumber} (matches production.ts resolution)
   trackId: "",
   duration: 4,
   prompt: "雨落码头",
@@ -24,6 +24,7 @@ const storyboard: StoryboardItem = {
   line: "雨落码头。",
   ttsSpokenText: "雨落码头。",
   durationTarget: 4,
+  emotion: "克制",
   voiceStyle: "电影级中文旁白",
   requiresFixedVoice: true,
 };
@@ -136,6 +137,8 @@ describe("storyboard TTS runner", () => {
         inputFingerprint: expect.stringMatching(/^[a-f0-9]{64}$/),
         shotRevision: 1,
         referenceAudioSha256: "d".repeat(64),
+        emotion: storyboard.emotion,
+        voiceStyle: storyboard.voiceStyle,
         generationKind: "storyboard-shot",
       }),
     );
@@ -211,6 +214,18 @@ describe("storyboard TTS runner", () => {
       }),
       createStoryboardTtsInputFingerprint({
         ...scope,
+        storyboard: { ...storyboard, emotion: "紧张" },
+        profile,
+        referenceAudioSha256: "d".repeat(64),
+      }),
+      createStoryboardTtsInputFingerprint({
+        ...scope,
+        storyboard: { ...storyboard, voiceStyle: "中文角色对白，紧张，停顿自然。" },
+        profile,
+        referenceAudioSha256: "d".repeat(64),
+      }),
+      createStoryboardTtsInputFingerprint({
+        ...scope,
         storyboard,
         profile: { ...profile, defaultModelSize: "0.6B" },
         referenceAudioSha256: "d".repeat(64),
@@ -222,7 +237,66 @@ describe("storyboard TTS runner", () => {
         referenceAudioSha256: "e".repeat(64),
       }),
     ]);
-    expect(new Set([base, ...variants])).toHaveLength(5);
+    expect(new Set([base, ...variants])).toHaveLength(7);
+  });
+
+  it("does not reuse a completed audio job when only storyboard emotion changes", async () => {
+    const initial = await runStoryboardTtsGeneration({
+      ...scope,
+      storyboard: { ...storyboard, emotion: "克制" },
+      profile,
+      dependencies: dependencies(),
+    });
+    const deps = dependencies();
+
+    const regenerated = await runStoryboardTtsGeneration({
+      ...scope,
+      storyboard: {
+        ...storyboard,
+        emotion: "愤怒",
+        ttsJob: initial.ttsJob,
+        shotAudioBindings: [initial.shotAudioBinding],
+      },
+      profile,
+      dependencies: deps,
+    });
+
+    expect(regenerated.generationId).toBe("generation-1");
+    expect(regenerated.ttsJob.inputFingerprint).not.toBe(initial.ttsJob.inputFingerprint);
+    expect(deps.submit).toHaveBeenCalledOnce();
+    expect(deps.submit).toHaveBeenCalledWith(expect.objectContaining({
+      emotion: "愤怒",
+      voiceStyle: storyboard.voiceStyle,
+    }));
+  });
+
+  it("does not reuse a completed audio job when only storyboard voiceStyle changes", async () => {
+    const initial = await runStoryboardTtsGeneration({
+      ...scope,
+      storyboard: { ...storyboard, voiceStyle: "电影级中文旁白，克制。" },
+      profile,
+      dependencies: dependencies(),
+    });
+    const deps = dependencies();
+
+    const regenerated = await runStoryboardTtsGeneration({
+      ...scope,
+      storyboard: {
+        ...storyboard,
+        voiceStyle: "电影级中文旁白，愤怒。",
+        ttsJob: initial.ttsJob,
+        shotAudioBindings: [initial.shotAudioBinding],
+      },
+      profile,
+      dependencies: deps,
+    });
+
+    expect(regenerated.ttsJob.inputFingerprint).not.toBe(initial.ttsJob.inputFingerprint);
+    expect(deps.submit).toHaveBeenCalledOnce();
+    expect(deps.submit).toHaveBeenCalledWith(expect.objectContaining({
+      emotion: storyboard.emotion,
+      voiceStyle: "电影级中文旁白，愤怒。",
+    }));
   });
 
   it("resumes an exact persisted generation without a duplicate submit", async () => {
@@ -490,7 +564,11 @@ describe("storyboard TTS runner", () => {
   it("cooperatively cancels after project audio save and never reports completion", async () => {
     let canceled = false;
     const jobs: string[] = [];
-    const deps = dependencies();
+    const cancelGeneration = vi.fn(async () => ({
+      id: "generation-1",
+      status: "failed" as const,
+    }));
+    const deps = dependencies({ cancelGeneration });
     const writeGeneratedAudio = deps.writeGeneratedAudio;
     deps.writeGeneratedAudio = vi.fn(async (payload) => {
       const result = await writeGeneratedAudio(payload);
@@ -507,5 +585,6 @@ describe("storyboard TTS runner", () => {
     })).rejects.toThrow("已取消");
     expect(jobs.at(-1)).toBe("canceled");
     expect(jobs).not.toContain("completed");
+    expect(cancelGeneration).toHaveBeenCalledWith("generation-1");
   });
 });

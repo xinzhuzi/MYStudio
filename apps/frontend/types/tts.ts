@@ -11,6 +11,12 @@ export type TtsEngine =
 
 export type TtsModelPurpose = "voiceClone" | "presetVoice" | "longAudio" | "stt";
 
+export type TtsEmotionCapability =
+  | "applied"
+  | "metadata-only"
+  | "unsupported"
+  | "not-requested";
+
 export type TtsSpeakerId = "narrator" | `character:${string}`;
 
 export type SceneVoiceLineStatus = "idle" | "queued" | "generating" | "completed" | "failed";
@@ -165,6 +171,8 @@ export interface TtsGenerateRequest {
   shotRevision?: number;
   inputFingerprint?: string;
   referenceAudioSha256?: string;
+  emotion?: string;
+  voiceStyle?: string;
   generationKind?: "storyboard-shot";
   retry?: boolean;
 }
@@ -183,6 +191,8 @@ export interface TtsGenerateResponse {
   retryable?: boolean | number;
   attempt?: number;
   inputFingerprint?: string;
+  emotionCapability?: TtsEmotionCapability;
+  emotionWarning?: string;
   reused?: boolean;
   resumed?: boolean;
 }

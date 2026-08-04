@@ -108,8 +108,8 @@ describe("studio storyboard table parsing", () => {
     ]);
     expect(items).toHaveLength(2);
     expect(items.map(({ id, trackKey }) => ({ id, trackKey }))).toEqual([
-      { id: "sb-chapter-001-001", trackKey: "chapter-001-scene-1" },
-      { id: "sb-chapter-001-002", trackKey: "chapter-001-scene-1" },
+      { id: "sb-chapter-001-001", trackKey: "001-1" },
+      { id: "sb-chapter-001-002", trackKey: "001-2" },
     ]);
     expect(items[0]?.speakerId).toBe("character:char-keeper");
     expect(items[1]?.speakerId).toBe("character:char-dugu");
@@ -283,7 +283,7 @@ describe("studio storyboard table parsing", () => {
       toStoryboardItems(rows, "ep1", [
         { characterId: "char-su", name: "苏晚卿", aliases: [] },
       ]).map((item) => item.trackKey),
-    ).toEqual(["ep1-scene-1", "ep1-scene-2"]);
+    ).toEqual(["ep1-1", "ep1-2"]);
     expect(errors).toHaveLength(1);
   });
 

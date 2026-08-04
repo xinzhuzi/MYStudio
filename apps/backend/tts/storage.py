@@ -96,6 +96,10 @@ class RuntimeStore:
             "shot_revision": "ALTER TABLE generations ADD COLUMN shot_revision INTEGER",
             "input_fingerprint": "ALTER TABLE generations ADD COLUMN input_fingerprint TEXT",
             "reference_audio_sha256": "ALTER TABLE generations ADD COLUMN reference_audio_sha256 TEXT",
+            "emotion": "ALTER TABLE generations ADD COLUMN emotion TEXT",
+            "voice_style": "ALTER TABLE generations ADD COLUMN voice_style TEXT",
+            "emotion_capability": "ALTER TABLE generations ADD COLUMN emotion_capability TEXT",
+            "emotion_warning": "ALTER TABLE generations ADD COLUMN emotion_warning TEXT",
             "seed": "ALTER TABLE generations ADD COLUMN seed INTEGER",
             "attempt": "ALTER TABLE generations ADD COLUMN attempt INTEGER DEFAULT 1",
             "retryable": "ALTER TABLE generations ADD COLUMN retryable INTEGER DEFAULT 0",
@@ -210,6 +214,8 @@ class RuntimeStore:
         shot_revision: int | None = None,
         input_fingerprint: str | None = None,
         reference_audio_sha256: str | None = None,
+        emotion: str | None = None,
+        voice_style: str | None = None,
         generation_kind: str | None = None,
         seed: int | None = None,
         retry_failed: bool = False,
@@ -235,6 +241,10 @@ class RuntimeStore:
             "shot_revision": shot_revision,
             "input_fingerprint": input_fingerprint,
             "reference_audio_sha256": reference_audio_sha256,
+            "emotion": emotion,
+            "voice_style": voice_style,
+            "emotion_capability": None,
+            "emotion_warning": None,
             "generation_kind": generation_kind,
             "seed": seed,
             "attempt": 1,
@@ -281,12 +291,14 @@ class RuntimeStore:
                     audio_path, duration, backend, mocked, warning, error,
                     created_at, updated_at, project_id, chapter_id, shot_id,
                     shot_revision, input_fingerprint, reference_audio_sha256,
+                    emotion, voice_style, emotion_capability, emotion_warning,
                     generation_kind, seed, attempt, retryable, error_code
                 ) VALUES (
                     :id, :profile_id, :text, :language, :engine, :model_size, :status,
                     :audio_path, :duration, :backend, :mocked, :warning, :error,
                     :created_at, :updated_at, :project_id, :chapter_id, :shot_id,
                     :shot_revision, :input_fingerprint, :reference_audio_sha256,
+                    :emotion, :voice_style, :emotion_capability, :emotion_warning,
                     :generation_kind, :seed, :attempt, :retryable, :error_code
                 )
                 """,
@@ -307,6 +319,8 @@ class RuntimeStore:
             "shot_id",
             "shot_revision",
             "reference_audio_sha256",
+            "emotion",
+            "voice_style",
             "generation_kind",
             "seed",
         )
@@ -331,6 +345,51 @@ class RuntimeStore:
             except sqlite3.Error as e:
                 logger.error(f"update_generation failed for id={generation_id}: {e}")
                 raise
+        return self.get_generation(generation_id)
+
+    def update_generation_if_status(
+        self,
+        generation_id: str,
+        *,
+        expected_status: str,
+        **updates: Any,
+    ) -> dict | None:
+        """Update a generation only while it still owns the expected state.
+
+        Background inference can finish after a cancellation or another terminal
+        transition.  The conditional update keeps that late result from
+        publishing audio or replacing the durable terminal state.
+        """
+        if not updates:
+            return self.get_generation(generation_id)
+        updates["updated_at"] = self._now_ms()
+        assignments = ", ".join(f"{key} = ?" for key in updates)
+        values = list(updates.values())
+        values.extend((generation_id, expected_status))
+        with self._connect() as conn:
+            cursor = conn.execute(
+                f"UPDATE generations SET {assignments} WHERE id = ? AND status = ?",
+                values,
+            )
+            if cursor.rowcount != 1:
+                return None
+        return self.get_generation(generation_id)
+
+    def cancel_generation(self, generation_id: str, reason: str = "canceled by caller") -> dict | None:
+        """Move an active generation to a durable canceled terminal state."""
+        now = self._now_ms()
+        with self._connect() as conn:
+            conn.execute(
+                """
+                UPDATE generations
+                SET status = 'canceled', audio_path = '', duration = 0,
+                    backend = '', mocked = 0, warning = NULL,
+                    error = ?, error_code = 'canceled', retryable = 0,
+                    updated_at = ?
+                WHERE id = ? AND status IN ('queued', 'generating')
+                """,
+                (reason, now, generation_id),
+            )
         return self.get_generation(generation_id)
 
     def export_debug(self) -> str:

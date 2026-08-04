@@ -65,6 +65,21 @@ describe("asset file safety", () => {
     expect(shouldCreateAssetThumbnail("role")).toBe(true);
   });
 
+  it("rejects an audio asset whose source file no longer exists", async () => {
+    initTempAssetsStorage();
+    const missingSource = join(tempAssetRoot!, "missing.wav");
+
+    expect(() => addAsset({
+      type: "audio",
+      name: "失效音频",
+      sourceFilePath: missingSource,
+    })).toThrow("音频文件不存在或无法读取");
+
+    const assets = await listAssets("audio", "失效音频", 0, 10);
+    expect(assets.items).toHaveLength(0);
+    expect(assets.total).toBe(0);
+  });
+
   it("rejects asset file paths that escape the managed asset root", () => {
     expect(() => resolveAssetManagedPath("/assets/files", "../outside.png")).toThrow("escapes");
     expect(resolveAssetManagedPath("/assets/files", "audio/voice.wav")).toBe("/assets/files/audio/voice.wav");

@@ -224,7 +224,7 @@ export function toStoryboardItems(
       id: storyboardId,
       episodeId,
       index: row.index,
-      trackKey: `${episodeId}-scene-${row.sceneIndex ?? 1}`,
+      trackKey: `${episodeId.split('-').at(-1) || 'ep'}-${row.index}`, // Dynamic runtime key: {episodeNumber}-{index} (e.g., "001-1" for chapter-001 scene 1)
       trackId: "",
       duration: voiceover.durationTarget,
       prompt: row.description,

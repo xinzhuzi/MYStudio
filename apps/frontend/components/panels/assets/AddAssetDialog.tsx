@@ -39,6 +39,14 @@ export function AddAssetDialog({
   const settingRef = useRef<HTMLTextAreaElement>(null);
   const [saving, setSaving] = useState(false);
 
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (!nextOpen) {
+      setSourceFilePath("");
+      setImagePreview("");
+    }
+    onOpenChange(nextOpen);
+  };
+
   const handleSelectImage = async () => {
     const studioAssets = getStudioAssetsBridge();
     if (!studioAssets?.selectImageFile) return;
@@ -83,20 +91,19 @@ export function AddAssetDialog({
       });
       if (result) {
         toast.success(`已添加「${name}」`);
-        // 重置表单
-        setSourceFilePath("");
-        setImagePreview("");
-        onOpenChange(false);
+        handleOpenChange(false);
       } else {
         toast.error("添加失败");
       }
+    } catch {
+      toast.error(type === "audio" ? "添加失败，请确认音频文件仍可读取" : "添加失败");
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="w-[min(600px,90vw)] max-w-none">
         <DialogHeader>
           <DialogTitle>添加{TYPE_LABEL[type]}</DialogTitle>
@@ -185,7 +192,7 @@ export function AddAssetDialog({
         </div>
 
         <div className="flex justify-end gap-2 pt-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>取消</Button>
+          <Button variant="outline" onClick={() => handleOpenChange(false)}>取消</Button>
           <Button onClick={handleSave} disabled={saving}>
             <Plus className="mr-1.5 h-3.5 w-3.5" />
             {saving ? "添加中..." : "添加"}

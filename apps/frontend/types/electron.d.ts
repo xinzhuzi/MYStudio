@@ -65,6 +65,13 @@ import type {
   SelfMediaTaskReply,
   SelfMediaTaskRequest,
 } from "../lib/self-media/ipc-contract";
+import type {
+  ExecuteResult,
+  InventoryResult,
+  RecoveryQueryResult,
+  DeletionConfirmation,
+  MetadataUpdateResult,
+} from "@/types/artifacts";
 
 export {};
 
@@ -74,6 +81,38 @@ declare global {
       mode?: "read" | "readwrite";
       startIn?: string;
     }) => Promise<FileSystemDirectoryHandle>;
+
+    // Artifact management (new for artifact deletion task)
+    electron?: {
+      artifactInventory?: {
+        scan: (projectId: string, chapterId?: string) => Promise<InventoryResult>;
+        list: (projectId: string) => Promise<InventoryResult>;
+      };
+      artifactPlanDeletion?: {
+        plan: (request: {
+          projectId: string;
+          chapterId: string;
+          scope: "chapter" | "artifacts";
+          artifactIds?: string[];
+        }) => Promise<import("@/types/artifacts").PlanResult>;
+      };
+      artifactDeletion?: {
+        execute: (request: {
+          planId: string;
+          fingerprint: string;
+          confirmation: DeletionConfirmation;
+        }) => Promise<ExecuteResult>;
+        recovery: (projectId: string) => Promise<RecoveryQueryResult>;
+      };
+      artifactMetadata?: {
+        update: (request: {
+          projectId: string;
+          artifactId: string;
+          updates: { name?: string; tags?: string[]; notes?: string };
+        }) => Promise<MetadataUpdateResult>;
+      };
+    };
+
     appEvents?: {
       onMainProcessMessage: (listener: (message: string) => void) => () => void;
     };
@@ -366,6 +405,33 @@ declare global {
       requestBytes: (payload: { method: string; path: string; body?: unknown }) => Promise<{ data: ArrayBuffer; mimeType?: string }>;
       requestFormData: (payload: { path: string; audioFilePath: string; referenceText?: string }) => Promise<unknown>;
       resolveReferenceAudioPath: (audioPath: string) => Promise<string | null>;
+    };
+    artifactInventory?: {
+      scan: (projectId: string, chapterId?: string) => Promise<InventoryResult>;
+      list: (projectId: string) => Promise<InventoryResult>;
+    };
+    artifactPlanDeletion?: {
+      plan: (request: {
+        projectId: string;
+        chapterId: string;
+        scope: "chapter" | "artifacts";
+        artifactIds?: string[];
+      }) => Promise<import("@/types/artifacts").PlanResult>;
+    };
+    artifactDeletion?: {
+      execute: (request: {
+        planId: string;
+        fingerprint: string;
+        confirmation: DeletionConfirmation;
+      }) => Promise<ExecuteResult>;
+      recovery: (projectId: string) => Promise<RecoveryQueryResult>;
+    };
+    artifactMetadata?: {
+      update: (request: {
+        projectId: string;
+        artifactId: string;
+        updates: { name?: string; tags?: string[]; notes?: string };
+      }) => Promise<MetadataUpdateResult>;
     };
   }
 }

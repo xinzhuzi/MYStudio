@@ -6,7 +6,7 @@ import tempfile
 import struct
 import wave
 from array import array
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
@@ -69,6 +69,8 @@ class SynthesisResult:
     backend: str
     mocked: bool
     warning: str | None = None
+    emotion_capability: str = "not-requested"
+    emotion_warning: str | None = None
 
 
 _kokoro_model: Any | None = None
@@ -78,7 +80,44 @@ _qwen_backend: str | None = None
 _qwen_model_size: str | None = None
 _qwen_custom_voice_model: Any | None = None
 _qwen_custom_voice_model_size: str | None = None
+_qwen_custom_voice_backend: str | None = None
 _RETRYABLE_REAL_ENGINES = {"qwen", "qwen_custom_voice", "kokoro"}
+
+
+def resolve_emotion_capability(
+    engine: str,
+    *,
+    emotion: str | None = None,
+    voice_style: str | None = None,
+) -> tuple[str, str | None]:
+    requested = bool((emotion or "").strip() or (voice_style or "").strip())
+    if not requested:
+        return "not-requested", None
+    if engine == "qwen_custom_voice" and ((emotion or "").strip() or (voice_style or "").strip()):
+        return "applied", None
+    if engine in {"qwen_custom_voice", "qwen", "kokoro"}:
+        return "metadata-only", f"{engine} 未应用逐镜动态情绪，emotion/voiceStyle 仅作为审计元数据"
+    return "unsupported", f"{engine} 不支持逐镜动态情绪，emotion/voiceStyle 仅作为审计元数据"
+
+
+def _with_emotion_capability(
+    result: SynthesisResult,
+    engine: str,
+    emotion: str | None,
+    voice_style: str | None,
+) -> SynthesisResult:
+    capability, warning = resolve_emotion_capability(
+        engine,
+        emotion=emotion,
+        voice_style=voice_style,
+    )
+    if result.mocked and capability == "applied":
+        return replace(
+            result,
+            emotion_capability="metadata-only",
+            emotion_warning="mock 音频未应用逐镜动态情绪，emotion/voiceStyle 仅作为审计元数据",
+        )
+    return replace(result, emotion_capability=capability, emotion_warning=warning)
 
 
 def synthesize_to_wav(
@@ -90,12 +129,14 @@ def synthesize_to_wav(
     model_size: str | None,
     language: str,
     seed: int | None = None,
+    emotion: str | None = None,
+    voice_style: str | None = None,
     max_chunk_chars: int = 800,
     crossfade_ms: int = 50,
 ) -> SynthesisResult:
     chunks = split_text_into_chunks(text, max_chunk_chars)
     if len(chunks) > 1:
-        return _synthesize_chunks(
+        result = _synthesize_chunks(
             output=output,
             chunks=chunks,
             profile=profile,
@@ -103,17 +144,23 @@ def synthesize_to_wav(
             model_size=model_size,
             language=language,
             seed=seed,
+            emotion=emotion,
+            voice_style=voice_style,
             crossfade_ms=crossfade_ms,
         )
-    return _synthesize_single(
-        output=output,
-        text=text,
-        profile=profile,
-        engine=engine,
-        model_size=model_size,
-        language=language,
-        seed=seed,
-    )
+    else:
+        result = _synthesize_single(
+            output=output,
+            text=text,
+            profile=profile,
+            engine=engine,
+            model_size=model_size,
+            language=language,
+            seed=seed,
+            emotion=emotion,
+            voice_style=voice_style,
+        )
+    return _with_emotion_capability(result, engine, emotion, voice_style)
 
 
 def _synthesize_single(
@@ -125,6 +172,8 @@ def _synthesize_single(
     model_size: str | None,
     language: str,
     seed: int | None,
+    emotion: str | None,
+    voice_style: str | None,
 ) -> SynthesisResult:
     mode = os.environ.get("MANYING_TTS_ENGINE_MODE", "auto").strip().lower()
     if mode not in {"auto", "mock", "real"}:
@@ -137,7 +186,16 @@ def _synthesize_single(
         if engine == "qwen":
             return _generate_qwen(output, text, profile, model_size, language, seed)
         if engine == "qwen_custom_voice":
-            return _generate_qwen_custom_voice(output, text, profile, model_size, language, seed)
+            return _generate_qwen_custom_voice(
+                output,
+                text,
+                profile,
+                model_size,
+                language,
+                seed,
+                emotion,
+                voice_style,
+            )
         if engine == "kokoro":
             return _generate_kokoro(output, text, profile, language, seed)
         raise RuntimeError(f"No real TTS adapter for engine: {engine}")
@@ -201,6 +259,8 @@ def _synthesize_chunks(
     model_size: str | None,
     language: str,
     seed: int | None,
+    emotion: str | None,
+    voice_style: str | None,
     crossfade_ms: int,
 ) -> SynthesisResult:
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -219,6 +279,8 @@ def _synthesize_chunks(
                     model_size=model_size,
                     language=language,
                     seed=seed + index if seed is not None else None,
+                    emotion=emotion,
+                    voice_style=voice_style,
                 )
             )
         duration = _join_wavs(part_paths, output, crossfade_ms)
@@ -282,7 +344,8 @@ def is_engine_loaded(engine: str) -> bool:
 
 
 def unload_engine(engine: str) -> bool:
-    global _kokoro_model, _qwen_model, _qwen_backend, _qwen_model_size, _qwen_custom_voice_model, _qwen_custom_voice_model_size
+    global _kokoro_model, _qwen_model, _qwen_backend, _qwen_model_size
+    global _qwen_custom_voice_model, _qwen_custom_voice_model_size, _qwen_custom_voice_backend
     if engine == "qwen" and _qwen_model is not None:
         _qwen_model = None
         _qwen_backend = None
@@ -291,6 +354,7 @@ def unload_engine(engine: str) -> bool:
     if engine == "qwen_custom_voice" and _qwen_custom_voice_model is not None:
         _qwen_custom_voice_model = None
         _qwen_custom_voice_model_size = None
+        _qwen_custom_voice_backend = None
         return True
     if engine == "kokoro" and _kokoro_model is not None:
         _kokoro_model = None
@@ -502,8 +566,185 @@ def _generate_qwen_custom_voice(
     model_size: str | None,
     language: str,
     seed: int | None,
+    emotion: str | None,
+    voice_style: str | None,
 ) -> SynthesisResult:
-    global _qwen_custom_voice_model, _qwen_custom_voice_model_size
+    if _preferred_qwen_backend() == "mlx":
+        return _generate_qwen_custom_voice_mlx(
+            output,
+            text,
+            profile,
+            model_size,
+            language,
+            seed,
+            emotion,
+            voice_style,
+        )
+    return _generate_qwen_custom_voice_pytorch(
+        output,
+        text,
+        profile,
+        model_size,
+        language,
+        seed,
+        emotion,
+        voice_style,
+    )
+
+
+# MLX 与 PyTorch 共用此拼接逻辑，确保逐镜情绪和风格进入同一模型请求。
+def _custom_voice_instruct(
+    profile: dict[str, Any],
+    emotion: str | None,
+    voice_style: str | None,
+) -> str | None:
+    profile_instruct = profile.get("instruct") or profile.get("style_instruction") or profile.get("styleInstruction")
+    dynamic_emotion = (emotion or "").strip()
+    dynamic_style = (voice_style or "").strip()
+    instruct_parts: list[str] = []
+    if profile_instruct:
+        instruct_parts.append(str(profile_instruct))
+    if dynamic_emotion:
+        instruct_parts.append(f"逐镜情绪：{dynamic_emotion}")
+    if dynamic_style:
+        instruct_parts.append(f"逐镜风格：{dynamic_style}")
+    return "\n".join(instruct_parts) or None
+
+
+def _custom_voice_request(
+    text: str,
+    profile: dict[str, Any],
+    language: str,
+    emotion: str | None,
+    voice_style: str | None,
+) -> dict[str, str]:
+    language_name = LANGUAGE_CODE_TO_NAME.get(language, "auto")
+    request = {
+        "text": text,
+        "language": language_name.capitalize() if language_name != "auto" else "Auto",
+        "speaker": profile.get("preset_voice_id") or profile.get("presetVoiceId") or QWEN_CUSTOM_DEFAULT_SPEAKER,
+    }
+    instruct = _custom_voice_instruct(profile, emotion, voice_style)
+    if instruct:
+        request["instruct"] = instruct
+    return request
+
+
+def _resolve_qwen_custom_voice_mlx_snapshot(model_size: str) -> Path:
+    from .catalog import get_model
+    from .model_cache import find_cached_model
+
+    model = get_model(f"qwen-custom-voice-{model_size}")
+    if model is None:
+        raise RuntimeError(f"Unknown Qwen CustomVoice model size: {model_size}")
+    cached = find_cached_model(model)
+    if cached is None:
+        raise RuntimeError(
+            f"Qwen CustomVoice MLX model is not cached locally: {model.hf_repo_id}"
+        )
+
+    snapshots_dir = cached.repo_cache_dir / "snapshots"
+    snapshots = [path for path in snapshots_dir.iterdir() if path.is_dir()] if snapshots_dir.is_dir() else []
+    if not snapshots:
+        raise RuntimeError(f"Qwen CustomVoice MLX cache has no snapshot: {cached.repo_cache_dir}")
+
+    main_ref = cached.repo_cache_dir / "refs" / "main"
+    revision = main_ref.read_text(encoding="utf-8").strip() if main_ref.is_file() else ""
+    if revision:
+        snapshot = snapshots_dir / revision
+        if snapshot.is_dir():
+            return snapshot
+    if len(snapshots) == 1:
+        return snapshots[0]
+    raise RuntimeError(f"Qwen CustomVoice MLX cache has no unambiguous snapshot: {cached.repo_cache_dir}")
+
+
+def _adapt_mlx_generation_results(
+    output: Path,
+    generation_results: Any,
+    default_sample_rate: int = 24000,
+) -> SynthesisResult:
+    import numpy as np
+
+    chunks: list[Any] = []
+    sample_rate: int | None = None
+    for result in generation_results:
+        audio = getattr(result, "audio", None)
+        if audio is None:
+            continue
+        current_sample_rate = int(getattr(result, "sample_rate", default_sample_rate))
+        if current_sample_rate <= 0:
+            raise RuntimeError("MLX TTS returned an invalid sample rate")
+        if sample_rate is None:
+            sample_rate = current_sample_rate
+        elif sample_rate != current_sample_rate:
+            raise RuntimeError("MLX TTS results use different sample rates")
+        chunks.append(np.asarray(audio, dtype=np.float32).reshape(-1))
+
+    if not chunks or sample_rate is None:
+        raise RuntimeError("Qwen CustomVoice MLX generated empty audio")
+
+    samples = np.concatenate(chunks).astype(np.float32)
+    _write_float_wav(output, samples, sample_rate)
+    return SynthesisResult(
+        duration=float(len(samples) / sample_rate),
+        backend="qwen-custom-voice",
+        mocked=False,
+    )
+
+
+def _generate_qwen_custom_voice_mlx(
+    output: Path,
+    text: str,
+    profile: dict[str, Any],
+    model_size: str | None,
+    language: str,
+    seed: int | None,
+    emotion: str | None,
+    voice_style: str | None,
+) -> SynthesisResult:
+    global _qwen_custom_voice_model, _qwen_custom_voice_model_size, _qwen_custom_voice_backend
+
+    import numpy as np
+    from mlx_audio.tts import load
+
+    size = model_size or "0.6B"
+    if size not in QWEN_CUSTOM_VOICE_REPOS:
+        raise RuntimeError(f"Unknown Qwen CustomVoice model size: {size}")
+    if (
+        _qwen_custom_voice_model is None
+        or _qwen_custom_voice_backend != "mlx"
+        or _qwen_custom_voice_model_size != size
+    ):
+        snapshot = _resolve_qwen_custom_voice_mlx_snapshot(size)
+        _qwen_custom_voice_model = load(snapshot, lazy=True, strict=False)
+        _qwen_custom_voice_backend = "mlx"
+        _qwen_custom_voice_model_size = size
+
+    if seed is not None:
+        import mlx.core as mx
+
+        np.random.seed(seed)
+        mx.random.seed(seed)
+
+    request = _custom_voice_request(text, profile, language, emotion, voice_style)
+    return _adapt_mlx_generation_results(
+        output,
+        _qwen_custom_voice_model.generate_custom_voice(**request),
+    )
+
+
+def _generate_qwen_custom_voice_pytorch(
+    output: Path,
+    text: str,
+    profile: dict[str, Any],
+    model_size: str | None,
+    language: str,
+    seed: int | None,
+    emotion: str | None,
+    voice_style: str | None,
+) -> SynthesisResult:
+    global _qwen_custom_voice_model, _qwen_custom_voice_model_size, _qwen_custom_voice_backend
 
     import numpy as np
     import torch
@@ -513,7 +754,7 @@ def _generate_qwen_custom_voice(
     if size not in QWEN_CUSTOM_VOICE_REPOS:
         raise RuntimeError(f"Unknown Qwen CustomVoice model size: {size}")
 
-    if _qwen_custom_voice_model is None or _qwen_custom_voice_model_size != size:
+    if _qwen_custom_voice_model is None or _qwen_custom_voice_backend != "pytorch" or _qwen_custom_voice_model_size != size:
         device = "cuda" if torch.cuda.is_available() else "cpu"
         dtype = torch.float32 if device == "cpu" else torch.bfloat16
         kwargs: dict[str, Any] = {"torch_dtype": dtype}
@@ -522,6 +763,7 @@ def _generate_qwen_custom_voice(
         else:
             kwargs["low_cpu_mem_usage"] = False
         _qwen_custom_voice_model = Qwen3TTSModel.from_pretrained(QWEN_CUSTOM_VOICE_REPOS[size], **kwargs)
+        _qwen_custom_voice_backend = "pytorch"
         _qwen_custom_voice_model_size = size
 
     if seed is not None:
@@ -529,15 +771,7 @@ def _generate_qwen_custom_voice(
         if torch.cuda.is_available():
             torch.cuda.manual_seed(seed)
 
-    language_name = LANGUAGE_CODE_TO_NAME.get(language, "auto")
-    kwargs = {
-        "text": text,
-        "language": language_name.capitalize() if language_name != "auto" else "Auto",
-        "speaker": profile.get("preset_voice_id") or profile.get("presetVoiceId") or QWEN_CUSTOM_DEFAULT_SPEAKER,
-    }
-    instruct = profile.get("instruct") or profile.get("style_instruction") or profile.get("styleInstruction")
-    if instruct:
-        kwargs["instruct"] = instruct
+    kwargs = _custom_voice_request(text, profile, language, emotion, voice_style)
 
     wavs, sample_rate = _qwen_custom_voice_model.generate_custom_voice(**kwargs)
     if not wavs:

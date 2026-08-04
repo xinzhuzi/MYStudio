@@ -38,6 +38,11 @@ export interface MediaFile {
   folderId?: string | null; // null = root folder
   // Source tracking for AI-generated content
   source?: MediaSource;
-  // Project association (for isolation)
+  // Artifact center/project association (for isolation)
   projectId?: string;
+  chapterId?: string;
+  /** Optional persisted relative path used by project-scoped artifact transforms. */
+  relativePath?: string;
 }
+
+export type { StoryboardItem } from "./studio";

@@ -158,7 +158,7 @@ describe("useChapterAutoVideoActions", () => {
       id: "sb-chapter-001-001",
       episodeId: "chapter-001",
       index: 1,
-      trackKey: "chapter-001-scene-1",
+      trackKey: "001", // Dynamic runtime key: {episodeNumber} (matches production.ts resolution)
       trackId: "",
       duration: 2,
       prompt: "雨夜码头",
@@ -205,7 +205,7 @@ describe("useChapterAutoVideoActions", () => {
       id: "sb-chapter-001-001",
       episodeId: "chapter-001",
       index: 1,
-      trackKey: "chapter-001-scene-1",
+      trackKey: "001", // Dynamic runtime key: {episodeNumber} (matches production.ts resolution)
       trackId: "track-1",
       duration: 2,
       prompt: "雨夜码头",
@@ -218,6 +218,7 @@ describe("useChapterAutoVideoActions", () => {
       line: "雨落。",
       ttsSpokenText: "雨落。",
       durationTarget: 2,
+      emotion: "克制",
       voiceStyle: "克制",
       requiresFixedVoice: true,
       shotAudioBindings: [makeShotAudioBinding("sfx")],
@@ -257,6 +258,7 @@ describe("useChapterAutoVideoActions", () => {
         generationId: "generation-1",
         ttsBackend: "qwen-mlx",
         ttsMocked: false,
+        ttsEmotionCapability: "applied" as const,
       };
     });
     vi.mocked(runChapterAutoVideo).mockImplementationOnce(async (input) => {
@@ -291,6 +293,9 @@ describe("useChapterAutoVideoActions", () => {
     expect(written.audioRef).toEqual(audioRef);
     expect(written.shotAudioBindings?.map((binding) => binding.role)).toEqual(["sfx", "voice"]);
     expect(written.ttsGenerationId).toBe("generation-1");
+    expect(written.emotion).toBe("克制");
+    expect(written.voiceStyle).toBe("克制");
+    expect(written.outputVersion).toBe(3);
   });
 
   it("does not consume another chapter's storyboard source record", async () => {
@@ -298,7 +303,7 @@ describe("useChapterAutoVideoActions", () => {
       id: "sb-chapter-002-001",
       episodeId: "chapter-002",
       index: 1,
-      trackKey: "chapter-002-scene-1",
+      trackKey: "002", // Dynamic runtime key: {episodeNumber} (matches production.ts resolution)
       trackId: "",
       duration: 2,
       prompt: "另一章的雨夜码头",
