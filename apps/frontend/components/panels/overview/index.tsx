@@ -56,7 +56,12 @@ import {
   SectionCard,
 } from "./OverviewFields";
 import { OVERVIEW_WORKFLOW_GUIDE } from "./workflow-guide";
-import { requestChapterDeletion } from "@/stores/artifacts/artifact-store";
+import {
+  createArtifactDeletionPlan,
+  executeArtifactDeletionPlan,
+} from "@/stores/artifacts/artifact-store";
+import type { DeletionPlan } from "@/types/artifacts";
+import { ArtifactDeleteDialog } from "../media/ArtifactDeleteDialog";
 import { toast } from "sonner";
 
 // ==================== Main Component ====================
@@ -81,6 +86,34 @@ export function OverviewPanel() {
   const [newEpTitle, setNewEpTitle] = useState("");
   // 删除确认状态
   const [deletingEpIndex, setDeletingEpIndex] = useState<number | null>(null);
+  const [chapterDeletePlan, setChapterDeletePlan] = useState<DeletionPlan | null>(null);
+  const [chapterDeleteOpen, setChapterDeleteOpen] = useState(false);
+
+  const openChapterDeletePlan = useCallback(async (chapterId: string) => {
+    const result = await createArtifactDeletionPlan({ projectId, chapterId, scope: "chapter" });
+    if (!result.success) {
+      setDeletingEpIndex(null);
+      toast.error(`生成删除计划失败：${result.error}`);
+      return;
+    }
+    setChapterDeletePlan(result.data);
+    setChapterDeleteOpen(true);
+  }, [projectId]);
+
+  const executeChapterDeletePlan = useCallback(async () => {
+    if (!chapterDeletePlan) throw new Error("删除服务不可用");
+    const result = await executeArtifactDeletionPlan(chapterDeletePlan, {
+      type: "chapter",
+      chapterId: chapterDeletePlan.chapterId,
+    });
+    if (!result.success) {
+      toast.error(`删除失败：${result.error}`);
+      throw new Error(result.error);
+    }
+    setDeletingEpIndex(null);
+    setChapterDeletePlan(null);
+    toast.success("章节及其后续产物已删除");
+  }, [chapterDeletePlan]);
 
   const update = useCallback(
     (updates: Partial<SeriesMeta>) => {
@@ -390,14 +423,7 @@ export function OverviewPanel() {
                                         return;
                                       }
 
-                                      // Route planning, confirmation, and execution through the shared controller.
-                                      const result = await requestChapterDeletion(projectId, chapterId, "chapter");
-
-                                      if (result.success) {
-                                        setDeletingEpIndex(null);
-                                      } else if (result.error !== "confirmation-mismatch") {
-                                        toast.error(`删除失败：${result.error}`);
-                                      }
+                                      await openChapterDeletePlan(chapterId);
                                     }}
                                   >
                                     <Check className="h-3 w-3" />
@@ -651,6 +677,16 @@ export function OverviewPanel() {
           </ScrollArea>
         </ResizablePanel>
       </ResizablePanelGroup>
+      <ArtifactDeleteDialog
+        isOpen={chapterDeleteOpen}
+        plan={chapterDeletePlan}
+        onClose={() => {
+          setChapterDeleteOpen(false);
+          setChapterDeletePlan(null);
+          setDeletingEpIndex(null);
+        }}
+        onExecute={executeChapterDeletePlan}
+      />
     </div>
   );
 }

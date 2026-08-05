@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ArtifactRecord, ArtifactStage, ArtifactState } from "@/types/artifacts";
+import { STAGE_LABELS } from "@/lib/artifacts/stage-labels";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 /**
@@ -59,22 +60,6 @@ export interface ArtifactTableProps {
   /** Custom className for root element */
   className?: string;
 }
-
-const STAGE_LABELS: Record<ArtifactStage, string> = {
-  "novel": "小说导入",
-  "analysis": "内容分析",
-  "script": "剧本生成",
-  "assets": "素材准备",
-  "storyboard": "分镜设计",
-  "image": "图像生成",
-  "voice": "语音合成",
-  "production": "视频生产",
-  "editing": "剪辑编辑",
-  "remotion": "Remotion 编排",
-  "export": "导出输出",
-  "backup": "备份归档",
-  "media-library": "媒体库",
-};
 
 const STATE_ICONS_AND_COLORS: Record<ArtifactState, { icon: React.ReactNode; color: string }> = {
   "active": { icon: <CheckCircle className="h-4 w-4" />, color: "text-green-600 dark:text-green-400" },

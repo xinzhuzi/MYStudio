@@ -19,6 +19,7 @@ describe("getProjectFilesBridge", () => {
       writeBinary: async () => ({ success: true }),
       saveImage: async () => ({ success: true }),
       readAsBase64: async () => ({ success: true }),
+      readText: async () => ({ success: true }),
       getAbsolutePath: async () => null,
       removeText: async () => ({ success: true }),
     };

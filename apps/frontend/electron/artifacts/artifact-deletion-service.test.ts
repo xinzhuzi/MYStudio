@@ -4,7 +4,14 @@ import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ArtifactKind, ArtifactStage, ArtifactState, DeletionPlan } from "@/types/artifacts";
 
-vi.mock("electron", () => ({ ipcMain: { handle: vi.fn() } }));
+vi.mock("electron", () => ({
+  ipcMain: { handle: vi.fn() },
+  // shell.trashItem moves a file to the system Trash. In the unit test we model
+  // the observable effect (the file leaves its original path) by unlinking it,
+  // so the post-delete fs.access assertions still hold. The real handler uses
+  // Electron's native trashItem (Finder/Recycle Bin) — see deletion service.
+  shell: { trashItem: async (target: string) => { await fs.unlink(target); } },
+}));
 vi.mock("../ipc/files/file-storage-ipc", () => ({
   withFileStorageMutationLocks: async (_paths: readonly string[], action: () => Promise<unknown>) => action(),
 }));

@@ -24,6 +24,8 @@ export function parseNovelChapters(sourceText: string, options: ParseNovelOption
     return [
       {
         id: createChapterId(index),
+        sourceId: createChapterId(index),
+        revision: 1,
         index,
         volume,
         title: "未分章正文",
@@ -42,6 +44,8 @@ export function parseNovelChapters(sourceText: string, options: ParseNovelOption
     const index = startIndex + idx;
     return {
       id: createChapterId(index),
+      sourceId: createChapterId(index),
+      revision: 1,
       index,
       volume,
       title: cleanHeading(match[1] ?? match[0]),

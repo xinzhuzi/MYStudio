@@ -41,7 +41,11 @@ import { useAppSettingsStore } from "@/stores/app/app-settings-store";
 import { usePreviewStore } from "@/stores/playback/preview-store";
 import { useDirectorStore } from "@/stores/director/director-store";
 import { useMediaPanelStore } from "@/stores/navigation/media-panel-store";
-import { createArtifactDeletionPlan, formatDeletionPlanConfirmation } from "@/stores/artifacts/artifact-store";
+import {
+  createArtifactDeletionPlan,
+  executeArtifactDeletionPlan,
+  formatDeletionPlanConfirmation,
+} from "@/stores/artifacts/artifact-store";
 import { processMediaFiles } from "@/lib/media/media-processing";
 import {
   generateVideoThumbnail,
@@ -199,14 +203,9 @@ export function MediaView() {
         }
 
         // Execute deletion via shared controller
-        if (!window.artifactDeletion) {
-          toast.error("删除服务不可用，未执行任何写入");
-          return;
-        }
-        const result = await window.artifactDeletion.execute({
-          planId: plan.planId,
-          fingerprint: plan.fingerprint,
-          confirmation: { type: "artifacts", artifactCount: plan.deleteItems.length + plan.migrateItems.length },
+        const result = await executeArtifactDeletionPlan(plan, {
+          type: "artifacts",
+          artifactCount: plan.deleteItems.length + plan.migrateItems.length,
         });
 
         if (result.success) {

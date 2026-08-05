@@ -289,6 +289,21 @@ function generateExportsMetadata(chapterIndex) {
   };
 }
 
+function generateRemotionData(chapterIndex) {
+  return {
+    chapterId: `chapter-${chapterIndex}`,
+    manifestId: `remotion-manifest-${generateShortId()}`,
+    compositionId: `chapter-${chapterIndex}-composition`,
+    jobs: [{
+      jobId: `remotion-job-${generateShortId()}`,
+      chapterId: `chapter-${chapterIndex}`,
+      status: 'succeeded',
+      outputPath: `remotion/chapter-${chapterIndex}/final.mp4`
+    }],
+    updatedAt: new Date().toISOString()
+  };
+}
+
 // ============================================================================
 // FULL PROJECT CONSTRUCTION
 // ============================================================================
@@ -306,6 +321,7 @@ async function generateChapterData(chapterIndex) {
     storyboard: generateStoryboardData(chapterIndex),
     continuity: generateContinuityData(chapterIndex),
     exports: generateExportsMetadata(chapterIndex),
+    remotion: generateRemotionData(chapterIndex),
 
     // Add generated asset refs to continuity
     _internal: {
@@ -419,7 +435,7 @@ async function generateMixedBackupSample(filePath, projectId) {
     // Individual chapter artifacts (inline snapshots)
     chapters: {
       'chapter-1': {
-        novel_v1.json: {
+        'novel_v1.json': {
           chapterId: 'chapter-1',
           title: 'The Awakening',
           version: '1.0.0',
@@ -430,7 +446,7 @@ async function generateMixedBackupSample(filePath, projectId) {
             themes: ['discovery', 'transformation']
           }
         },
-        script_v2.json: {
+        'script_v2.json': {
           chapterId: 'chapter-1',
           formatVersion: '2.1.0',
           sceneCount: 5,
@@ -441,7 +457,7 @@ async function generateMixedBackupSample(filePath, projectId) {
             actionBlocks: 18
           }
         },
-        storyboard_v1.json: {
+        'storyboard_v1.json': {
           chapterId: 'chapter-1',
           resolution: { width: 1920, height: 1080 },
           panelCount: 16,
@@ -455,7 +471,7 @@ async function generateMixedBackupSample(filePath, projectId) {
       },
 
       'chapter-2': {
-        novel_v1.json: {
+        'novel_v1.json': {
           chapterId: 'chapter-2',
           title: 'The Confrontation',
           version: '1.0.0',
@@ -466,7 +482,7 @@ async function generateMixedBackupSample(filePath, projectId) {
             themes: ['confrontation', 'destiny']
           }
         },
-        script_v2.json: {
+        'script_v2.json': {
           chapterId: 'chapter-2',
           formatVersion: '2.1.0',
           sceneCount: 7,
@@ -477,7 +493,7 @@ async function generateMixedBackupSample(filePath, projectId) {
             actionBlocks: 28
           }
         },
-        storyboard_v1.json: {
+        'storyboard_v1.json': {
           chapterId: 'chapter-2',
           resolution: { width: 1920, height: 1080 },
           panelCount: 22,
@@ -721,6 +737,15 @@ async function generateFixture() {
     const studioStorePath = join(pDir, 'studio-store.json');
     await writeFile(studioStorePath, JSON.stringify(studioStore, null, 2));
 
+    // Persist shared assets separately so the fixture exercises retain/shared
+    // handling instead of keeping everything only inside the studio envelope.
+    const sharedAssetsDir = join(pDir, 'workflow-images', 'assets', 'shared');
+    await ensureDir(sharedAssetsDir);
+    await writeFile(join(sharedAssetsDir, 'shared-assets.json'), JSON.stringify(sharedAssets, null, 2));
+    await writeFile(join(sharedAssetsDir, 'shared-character.png'), `shared-character-${projectId}`);
+    await writeFile(join(sharedAssetsDir, 'shared-scene.png'), `shared-scene-${projectId}`);
+    await writeFile(join(sharedAssetsDir, 'shared-prop.png'), `shared-prop-${projectId}`);
+
     // Write individual chapter artifacts
     console.log('✍️  Writing chapter artifacts...');
 
@@ -747,6 +772,22 @@ async function generateFixture() {
       // Exports metadata
       await writeFile(join(chapterPDir, 'exports.json'),
                      JSON.stringify(data.exports, null, 2));
+
+      // Remotion manifest and representative physical outputs
+      await writeFile(join(chapterPDir, 'remotion.json'),
+                     JSON.stringify(data.remotion, null, 2));
+      const storyboardDir = join(pDir, 'workflow-images', 'storyboards', `chapter-${index}`);
+      const exportDir = join(pDir, 'exports', `chapter-${index}`);
+      const remotionDir = join(pDir, 'remotion', `chapter-${index}`);
+      const chapterAssetsDir = join(pDir, 'workflow-images', 'assets', `chapter-${index}`);
+      await ensureDir(storyboardDir);
+      await ensureDir(exportDir);
+      await ensureDir(remotionDir);
+      await ensureDir(chapterAssetsDir);
+      await writeFile(join(storyboardDir, 'shot-001.png'), `storyboard-${projectId}-chapter-${index}`);
+      await writeFile(join(exportDir, 'final.mp4'), `export-${projectId}-chapter-${index}`);
+      await writeFile(join(remotionDir, 'final.mp4'), `remotion-${projectId}-chapter-${index}`);
+      await writeFile(join(chapterAssetsDir, 'character-variant.png'), `variant-${projectId}-chapter-${index}`);
 
       console.log(`    ✓ Chapter ${index} artifacts written`);
     }

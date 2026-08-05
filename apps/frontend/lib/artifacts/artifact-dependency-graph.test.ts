@@ -94,6 +94,27 @@ describe("artifact-dependency-graph", () => {
       expect(result.migrateSet).not.toContain(derivedAsset.id);
       expect(result.retainSet).not.toContain(baseCharacter.id);
     });
+
+    test("retains a downstream artifact with another same-chapter upstream", () => {
+      const selectedParent = createArtifacts("delete-exclusive-downstream");
+      const sharedParent = createArtifacts("delete-exclusive-downstream");
+      const downstream = createArtifacts(
+        "delete-exclusive-downstream",
+        selectedParent.id,
+        "shared downstream",
+      );
+      downstream.upstreamIds = [selectedParent.id, sharedParent.id];
+
+      const result = buildDeletionScope(
+        [selectedParent, sharedParent, downstream],
+        [selectedParent.id],
+        "chapter-001",
+      );
+
+      expect(result.deleteSet).toContain(selectedParent.id);
+      expect(result.deleteSet).not.toContain(downstream.id);
+      expect(result.retainSet).toContain(downstream.id);
+    });
   });
 
   describe("buildDeletionScope - legacy ambiguity blockers", () => {
@@ -116,6 +137,18 @@ describe("artifact-dependency-graph", () => {
       const result = buildDeletionScope(allArtifacts, [unownedMedia.id], "chapter-001");
 
       expect(result.blockerSet).toContain(unownedMedia.id);
+    });
+
+    test("does not block a chapter with an unrelated unowned project artifact", () => {
+      const chapterArtifact = createArtifacts("delete-exclusive-downstream");
+      const unrelated = createArtifacts("blocker-missing-ownership");
+      unrelated.chapterId = undefined;
+      unrelated.physicalRefs = [{ type: "project-file", path: "shared/base.png" }];
+
+      const result = buildDeletionScope([chapterArtifact, unrelated], [], "chapter-001");
+
+      expect(result.deleteSet).toContain(chapterArtifact.id);
+      expect(result.blockerSet).not.toContain(unrelated.id);
     });
   });
 

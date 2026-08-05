@@ -20,6 +20,10 @@ describe("Manying Studio workflow core", () => {
     );
 
     expect(chapters).toHaveLength(2);
+    expect(chapters.map(({ sourceId, revision }) => ({ sourceId, revision }))).toEqual([
+      { sourceId: "chapter-001", revision: 1 },
+      { sourceId: "chapter-002", revision: 1 },
+    ]);
     expect(chapters[0]).toMatchObject({
       id: "chapter-001",
       index: 1,

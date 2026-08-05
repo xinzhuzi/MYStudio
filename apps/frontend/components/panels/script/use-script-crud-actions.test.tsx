@@ -13,7 +13,6 @@ function createOptions(selectedItemId: string | null = null) {
     setSelectedItemType: vi.fn(),
     addEpisodeBundle: vi.fn(),
     updateEpisodeBundle: vi.fn(),
-    deleteEpisodeBundle: vi.fn(),
     addScene: vi.fn(),
     updateScene: vi.fn(),
     deleteScene: vi.fn(),
@@ -57,7 +56,6 @@ describe("useScriptCrudActions", () => {
     );
 
     await result.current.handleDeleteEpisodeBundle(1);
-    expect(options.deleteEpisodeBundle).not.toHaveBeenCalled();
 
     const selectedSceneOptions = createOptions("scene-1");
     rerender({ current: selectedSceneOptions });

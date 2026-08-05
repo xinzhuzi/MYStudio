@@ -328,10 +328,15 @@ ipcMain.handle('artifact-plan-deletion', async (event, payload: PlanRequest['pay
       };
     }
 
-    if (!payload.chapterId || typeof payload.chapterId !== 'string') {
+    // chapterId is required for chapter-wide deletion (a chapter delete must
+    // have an explicit scope to avoid unbounded expansion). For artifacts-scope
+    // deletion (selected items, file, or folder cascade) chapterId may be empty:
+    // the dependency graph deletes by artifactId set and already supports a
+    // cross-chapter selection (see buildDeletionPlan isInRequestedScope).
+    if (payload.scope === 'chapter' && (!payload.chapterId || typeof payload.chapterId !== 'string')) {
       return {
         success: false,
-        error: 'INVALID_PAYLOAD: chapterId is required and must be a string',
+        error: 'INVALID_PAYLOAD: chapterId is required and must be a string for chapter-scope deletion',
       };
     }
 

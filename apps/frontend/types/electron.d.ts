@@ -180,6 +180,14 @@ declare global {
         size?: number;
         error?: string;
       }>;
+      readText: (payload: { projectId: string; relativePath: string }) => Promise<{
+        success: boolean;
+        text?: string;
+        size?: number;
+        mimeType?: string;
+        truncated?: boolean;
+        error?: string;
+      }>;
       getAbsolutePath: (url: string) => Promise<string | null>;
       removeText: (key: string) => Promise<{ success: boolean; error?: string }>;
     };

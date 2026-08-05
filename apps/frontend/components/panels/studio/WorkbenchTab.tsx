@@ -38,7 +38,7 @@ export function WorkbenchTab(props: {
   const reviewContinuityAssetVersionHuman = useStudioStore((state) => state.reviewContinuityAssetVersionHuman);
   const editing = useEditingWorkbenchActions({
     projectId: props.projectId ?? activeProjectId ?? undefined,
-    projectName: props.projectName ?? "漫影工作室",
+    projectName: props.projectName ?? "漫影工作室项目",
     episodeId: props.episodeId ?? "episode-1",
     directorPlan: props.directorPlan,
     aspectRatio: props.aspectRatio,

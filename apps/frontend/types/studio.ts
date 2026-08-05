@@ -37,6 +37,8 @@ export interface NovelEventAnalysis {
 
 export interface NovelChapter {
   id: string;
+  sourceId?: string;
+  revision?: number;
   index: number;
   volume?: string;
   title: string;

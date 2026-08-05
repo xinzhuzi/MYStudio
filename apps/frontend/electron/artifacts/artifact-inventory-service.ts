@@ -26,6 +26,7 @@ import type {
   InventoryResult,
   InventoryData,
   ArtifactRecord,
+  ArtifactKind,
   Discrepancy,
   RunningJob,
   InventorySummary,
@@ -107,6 +108,104 @@ async function calculateFileFingerprint(filePath: string): Promise<{
   });
 }
 
+function physicalRefType(fileKind: "json" | "backup" | "media" | "other"): PhysicalRef["type"] {
+  return fileKind === "backup" ? "backup" : "project-file";
+}
+
+function mergeArtifactRecords(existing: ArtifactRecord, incoming: ArtifactRecord): ArtifactRecord {
+  const refs = new Map<string, PhysicalRef>();
+  for (const ref of [...existing.physicalRefs, ...incoming.physicalRefs]) {
+    refs.set(`${ref.type}:${ref.path}`, ref);
+  }
+  const physicalRefs = [...refs.values()];
+  const referencedBytes = physicalRefs.reduce((sum, ref) => sum + (ref.bytes ?? 0), 0);
+  return {
+    ...existing,
+    chapterId: existing.chapterId ?? incoming.chapterId,
+    state: existing.state === "blocked" || incoming.state === "blocked"
+      ? "blocked"
+      : existing.state === "active" || incoming.state === "active"
+        ? "active"
+        : existing.state,
+    bytes: referencedBytes || existing.bytes || incoming.bytes,
+    physicalRefs,
+  };
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+}
+
+function firstText(data: Record<string, unknown>, keys: string[]): string | undefined {
+  for (const key of keys) {
+    const value = data[key];
+    if (typeof value === "string" && value.trim()) return value.trim();
+    if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  }
+  return undefined;
+}
+
+function inferMixedArtifactKind(stage: string, rawData: unknown): ArtifactKind {
+  const data = asRecord(rawData);
+  switch (stage) {
+    case "novel":
+      return "novel-chapter";
+    case "analysis":
+      return Array.isArray(data.entities) || Array.isArray(data.extractions)
+        ? "director-entity-extraction"
+        : "agent-workflow-result";
+    case "script":
+      return typeof data.sceneId === "string" || Array.isArray(data.dialogue) || Array.isArray(data.shots)
+        ? "script-scene"
+        : "script-episode";
+    case "assets": {
+      const subtype = firstText(data, ["subtype", "type", "assetType"]);
+      if (subtype === "character") return data.category === "chapter-exclusive" ? "character-variant" : "base-character";
+      if (subtype === "scene") return data.category === "chapter-exclusive" ? "scene-derivative" : "base-scene";
+      if (subtype === "prop") return data.category === "chapter-exclusive" ? "prop-derivative" : "base-prop";
+      return "media-file";
+    }
+    case "storyboard":
+      return "storyboard-item";
+    case "image":
+      return "storyboard-image-workflow";
+    case "voice":
+      return "tts-scene-voice-line";
+    case "production":
+      return Array.isArray(data.candidateVideoIds) || Array.isArray(data.storyboardIds)
+        ? "production-track"
+        : "video-candidate";
+    case "editing":
+      return data.outputPath || data.outputRef ? "editing-render" : data.startedAt ? "editing-run" : "editing-project";
+    case "remotion":
+      return data.jobId || data.status ? "remotion-job" : data.manifestId || data.compositionId ? "remotion-manifest" : "remotion-output";
+    case "export": {
+      const pathValue = firstText(data, ["path", "filePath", "outputPath"]);
+      if (/\.(?:mp4|webm|mov)$/i.test(pathValue ?? "")) return "export-video";
+      if (/\.(?:wav|mp3|m4a|aac|flac)$/i.test(pathValue ?? "")) return "export-audio";
+      if (/\.(?:png|jpe?g|webp|gif)$/i.test(pathValue ?? "")) return "export-frame";
+      return "export-report";
+    }
+    default:
+      return "media-file";
+  }
+}
+
+function inferMixedArtifactName(stage: string, rawData: unknown, index: number): string {
+  const data = asRecord(rawData);
+  const name = firstText(data, ["name", "title", "displayName", "chapterTitle", "label", "filename", "fileName"]);
+  if (name) return name;
+  const id = firstText(data, ["id", "chapterId", "episodeId", "sceneId", "panelId", "jobId"]);
+  return id ? `${stage} · ${id}` : `${stage} · 条目 ${index + 1}`;
+}
+
+function legacyArtifactIdFor(artifact: ArtifactRecord): string {
+  const parts = artifact.id.split(":");
+  return parts.length >= 3 ? `${parts[0]}:media-file:${parts.slice(2).join(":")}` : artifact.id;
+}
+
 /**
  * Scan all JSON files in project root directory
  */
@@ -126,6 +225,11 @@ async function scanProjectFiles(dataRoot: string, projectId: string): Promise<
     const entries = await fsp.readdir(dirPath, { withFileTypes: true });
 
     for (const entry of entries) {
+      if (entry.name === ".artifact-delete-journal.json" || /^\.artifact-delete-.*\.bundle\.json$/i.test(entry.name)) continue;
+      // Skip macOS Finder metadata — pure noise, never a real artifact. Prevents
+      // .DS_Store files from polluting the artifact inventory in cross-platform
+      // copies of a project data dir.
+      if (entry.name === ".DS_Store" || entry.name === "._.DS_Store") continue;
       const fullPath = path.join(dirPath, entry.name);
       const relativePath = relativePrefix
         ? `${relativePrefix}/${entry.name}`
@@ -188,12 +292,7 @@ function decodeRawContent(
           name: `Unknown backup: ${path.basename(filePath)}`,
           createdAt: Date.now(),
           updatedAt: Date.now(),
-          physicalRefs: [
-            {
-              type: "backup",
-              path: filePath,
-            },
-          ],
+          physicalRefs: [],
           upstreamIds: [],
           downstreamIds: [],
           deletePolicy: "blocker-missing-ownership",
@@ -209,18 +308,19 @@ function decodeRawContent(
     // Handle different decoder types
     if ("artifacts" in result && Array.isArray(result.artifacts)) {
       // MixedBackupDecoder format
-      const records: ArtifactRecord[] = result.artifacts.map((artifact, index) => ({
-        id: buildArtifactId(
-          artifact.stage as any,
-          "media-file",
-          `${artifact.projectId || projectId}-${typeof artifact.data === "object" && artifact.data !== null && typeof (artifact.data as { id?: unknown }).id === "string" ? (artifact.data as { id: string }).id : `${artifact.chapterId || "root"}-${index}`}`,
-        ),
+      const records: ArtifactRecord[] = result.artifacts.map((artifact, index) => {
+        const kind = inferMixedArtifactKind(artifact.stage, artifact.data);
+        const artifactId = typeof artifact.data === "object" && artifact.data !== null && typeof (artifact.data as { id?: unknown }).id === "string"
+          ? (artifact.data as { id: string }).id
+          : `${artifact.chapterId || "root"}-${index}`;
+        return {
+        id: `${artifact.stage}:${kind}:${artifact.projectId || projectId}-${artifactId}`,
         projectId: artifact.projectId || projectId,
         chapterId: artifact.chapterId,
         stage: artifact.stage as any,
-        kind: "media-file",
+        kind,
         state: artifact.chapterId ? "active" : "unknown",
-        name: `${artifact.stage}:media-file`,
+        name: inferMixedArtifactName(artifact.stage, artifact.data, index),
         createdAt: Date.now(),
         updatedAt: Date.now(),
         physicalRefs: [],
@@ -228,7 +328,8 @@ function decodeRawContent(
         downstreamIds: [],
         deletePolicy: artifact.chapterId ? "delete-exclusive-downstream" : "blocker-missing-ownership",
         blockerReason: artifact.chapterId ? undefined : "Artifact has no unique chapter ownership",
-      }));
+        };
+      });
 
       return {
         artifacts: records,
@@ -341,12 +442,7 @@ function decodeRawContent(
           name: `Decode error: ${path.basename(filePath)}`,
           createdAt: Date.now(),
           updatedAt: Date.now(),
-          physicalRefs: [
-            {
-              type: "backup",
-              path: filePath,
-            },
-          ],
+          physicalRefs: [],
           upstreamIds: [],
           downstreamIds: [],
           deletePolicy: "blocker-missing-ownership",
@@ -598,7 +694,7 @@ export async function scanProjectInventory(
           const fingerprint = await calculateFileFingerprint(file.filePath);
           const stage: ArtifactStage = file.relativePath.includes("remotion") ? "remotion" : file.relativePath.includes("exports") ? "export" : file.relativePath.includes("workflow-images") ? "image" : "media-library";
           const mediaRefType: PhysicalRef["type"] = stage === "remotion" ? "remotion" : stage === "export" ? "exports" : "project-file";
-          const inferredChapter = chapterId ?? file.relativePath.match(/((?:chapter|episode)[-_][A-Za-z0-9-]+)/i)?.[1];
+          const inferredChapter = file.relativePath.match(/((?:chapter|episode)[-_][A-Za-z0-9-]+)/i)?.[1];
           artifacts.push({
             id: buildArtifactId("media-library", "media-file", file.relativePath),
             projectId,
@@ -634,19 +730,21 @@ export async function scanProjectInventory(
 
           artifact.bytes = artifact.bytes || fingerprint.bytes;
           artifact.physicalRefs = [
-            ...artifact.physicalRefs,
+            ...artifact.physicalRefs.filter((ref) => ref.path),
             {
-              type: "backup",
+              type: physicalRefType(file.kind),
               path: file.relativePath,
               bytes: fingerprint.bytes,
               hash256: fingerprint.hash256,
             },
           ];
 
-          diskArtifactsMap.set(artifact.id, artifact);
+          const previous = diskArtifactsMap.get(artifact.id);
+          diskArtifactsMap.set(
+            artifact.id,
+            previous ? mergeArtifactRecords(previous, artifact) : artifact,
+          );
         }
-
-        artifacts.push(...decodedArtifacts.map((artifact) => ({ ...artifact, physicalRefs: artifact.physicalRefs.map((ref) => ({ ...ref, path: ref.path || file.relativePath })) })));
       } catch (error) {
         console.error(`Failed to process ${file.relativePath}:`, error);
 
@@ -663,7 +761,7 @@ export async function scanProjectInventory(
           updatedAt: Date.now(),
           physicalRefs: [
             {
-              type: "backup",
+              type: file.kind === "backup" ? "backup" : "project-file",
               path: file.relativePath,
             },
           ],
@@ -676,6 +774,8 @@ export async function scanProjectInventory(
         artifacts.push(errorArtifact);
       }
     }
+
+    artifacts.push(...diskArtifactsMap.values());
 
     // Step 3: Detect running jobs as blockers
     const blockers = await detectRunningJobs(dataRoot, projectId, chapterId);
@@ -702,7 +802,7 @@ export async function scanProjectInventory(
         const metadata = JSON.parse(await fsp.readFile(metadataPath, "utf8")) as { overlays?: Record<string, ArtifactRecord["metadata"]> };
         if (metadata.overlays && typeof metadata.overlays === "object") {
           for (const artifact of artifacts) {
-            const overlay = metadata.overlays[artifact.id];
+            const overlay = metadata.overlays[artifact.id] ?? metadata.overlays[legacyArtifactIdFor(artifact)];
             if (overlay) artifact.metadata = overlay;
           }
         }

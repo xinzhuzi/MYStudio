@@ -18,9 +18,9 @@ import {
 import { useProjectStore } from "@/stores/project/project-store";
 import { toast } from "sonner";
 import type { ArtifactRecord, ArtifactStage, ArtifactState } from "@/types/artifacts";
-import { FIXED_NAV_STAGES, STAGE_LABELS } from "@/lib/artifacts/stage-labels";
-import { ChapterTree, type ChapterNode } from "./ChapterTree";
-import { ArtifactDetailPanel } from "./artifact-detail";
+import { STAGE_LABELS } from "@/lib/artifacts/stage-labels";
+import { ArtifactTree, type FileTreeNode } from "./ArtifactTree";
+import { ArtifactDetailPanel } from "./ArtifactDetailPanel";
 import { ArtifactDeleteDialog } from "./ArtifactDeleteDialog";
 import { MediaView } from "./index";
 
@@ -62,20 +62,6 @@ export interface ArtifactCenterProps {
   className?: string;
 }
 
-/**
- * File-tree node shape for a project's on-disk artifact file tree. Migrated
- * from the (removed) ArtifactTree component — ArtifactCenter now owns this
- * type since it is the sole consumer. See task #19.
- */
-export interface FileTreeNode {
-  path: string;
-  name: string;
-  type: "directory" | "file";
-  children?: FileTreeNode[];
-  artifactIds?: string[];
-  bytes?: number;
-}
-
 type ArtifactProjectNode = {
   id: string;
   name: string;
@@ -87,31 +73,6 @@ function normalizePhysicalPath(value: string): string | null {
   if (!value || value.includes("://")) return null;
   const normalized = value.replace(/\\/g, "/").replace(/^\.\//, "").replace(/^\/+/, "");
   return normalized && normalized !== "." ? normalized : null;
-}
-
-// Match the real chapter-directory naming on disk: exports/chapter-001,
-// workflow-images/storyboards/chapter-001, continuity-bibles/chapter-001, and
-// the fixture variants chapter-1 / chapter-mixed. Case-insensitive so a
-// WindowsCapitalized "Chapter-001" still resolves. This is an INVERSE
-// extraction (build a chapter list FROM artifacts); it is NOT the forward
-// match at artifact-inventory-service.ts:825 (known chapterId → artifacts).
-const CHAPTER_PATH_PATTERN = /chapter-[0-9a-z]+/i;
-
-/**
- * Resolve a chapter id for an artifact. Prefer the explicit top-level
- * `chapterId` field persisted by the inventory service; when absent, infer
- * from the first physicalRef path segment that matches the chapter pattern.
- * Returns null when neither yields a chapter (the "杂项" bucket).
- */
-function inferChapterId(artifact: ArtifactRecord): string | null {
-  if (artifact.chapterId) return artifact.chapterId;
-  for (const ref of artifact.physicalRefs) {
-    const physicalPath = normalizePhysicalPath(ref.path);
-    if (!physicalPath) continue;
-    const match = physicalPath.match(CHAPTER_PATH_PATTERN);
-    if (match) return match[0];
-  }
-  return null;
 }
 
 function buildArtifactFileTree(artifacts: ArtifactRecord[]): FileTreeNode[] {
@@ -229,8 +190,8 @@ function FilterBar({
           className="px-2 py-1 text-xs border rounded bg-background h-8"
         >
           <option value="all">所有阶段</option>
-          {FIXED_NAV_STAGES.map((stage) => (
-            <option key={stage} value={stage}>{STAGE_LABELS[stage]}</option>
+          {Object.entries(STAGE_LABELS).map(([stage, label]) => (
+            <option key={stage} value={stage}>{label}</option>
           ))}
         </select>
 
@@ -262,6 +223,7 @@ export function ArtifactCenter({
   const [currentTab, setCurrentTab] = useState<'workflow' | 'media-library'>('workflow');
   const [selectedChapterId, setSelectedChapterId] = useState<string | null>(null);
   const [currentDirectoryPath, setCurrentDirectoryPath] = useState("");
+  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [detailArtifactId, setDetailArtifactId] = useState<string | null>(null);
 
@@ -306,16 +268,9 @@ export function ArtifactCenter({
 
     let result = [...artifacts];
 
-    // Chapter filter. Must mirror how the left chapter column is grouped
-    // (inferChapterId, with "__none__" for ungrouped), otherwise inferred-
-    // chapter artifacts are counted in the column but filtered out of the
-    // table. See chapters useMemo and inferChapterId.
+    // Chapter filter
     if (selectedChapterId) {
-      if (selectedChapterId === "__none__") {
-        result = result.filter(a => inferChapterId(a) === null);
-      } else {
-        result = result.filter(a => inferChapterId(a) === selectedChapterId);
-      }
+      result = result.filter(a => a.chapterId === selectedChapterId);
     }
 
     // Stage filter
@@ -375,24 +330,19 @@ export function ArtifactCenter({
       ? projectList
       : Array.from(stageCountByProject.keys()).map(id => ({ id, name: `项目 ${id.substring(0, 8)}` }));
 
-    // Per-project stage breakdown over the FIXED stage set (FIXED_NAV_STAGES).
-    // The middle "工作流阶段" column was removed; stage filtering now lives in
-    // the FilterBar toolbar dropdown (also FIXED_NAV_STAGES). This `stages`
-    // field remains part of the ArtifactProjectNode / mockProjects prop
-    // contract. Every fixed stage always renders regardless of count
-    // (zero-count stages show with no badge).
-    const fixedStageEntries = FIXED_NAV_STAGES.map(stageId => [stageId, STAGE_LABELS[stageId]] as const);
+    const stageEntries = Object.entries(STAGE_LABELS);
 
     return sourceProjects
       .filter(p => p.id === activeProjectId || stageCountByProject.has(p.id))
       .map(project => {
         const stageMap = stageCountByProject.get(project.id) ?? new Map<string, number>();
-        const stages = fixedStageEntries
+        const stages = stageEntries
           .map(([stageId, label]) => ({
             id: stageId,
             label,
             count: stageMap.get(stageId) ?? 0,
-          }));
+          }))
+          .filter(stage => stage.count > 0);
         return {
           id: project.id,
           name: project.name,
@@ -401,33 +351,6 @@ export function ArtifactCenter({
         };
       });
   }, [artifacts, mockProjects, projectList, activeProjectId]);
-
-  // Distinct chapter list for the active project. Drives the left chapter
-  // column. One node per distinct chapter id (explicit artifact.chapterId, or
-  // inferred via inferChapterId from physicalRefs paths). No-chapter artifacts
-  // fall into the synthetic "__none__" bucket labelled "杂项".
-  // Sort order: "杂项" first (these are special/unclassified files the user
-  // wants surfaced up top), then real chapters in ascending numeric order.
-  const chapters = useMemo<ChapterNode[]>(() => {
-    if (!activeProjectId) return [];
-    const projectArtifacts = artifacts.filter((artifact) => artifact.projectId === activeProjectId);
-    const counts = new Map<string, number>();
-    for (const artifact of projectArtifacts) {
-      const chapterId = inferChapterId(artifact) ?? "__none__";
-      counts.set(chapterId, (counts.get(chapterId) ?? 0) + 1);
-    }
-    return [...counts.entries()]
-      .sort(([a], [b]) => {
-        if (a === "__none__") return -1;
-        if (b === "__none__") return 1;
-        return a.localeCompare(b, undefined, { numeric: true });
-      })
-      .map(([id, count]) => ({
-        id,
-        label: id === "__none__" ? "杂项" : `第 ${id} 章`,
-        count,
-      }));
-  }, [artifacts, activeProjectId]);
 
   const activeProjectNode = projects.find((project) => project.id === activeProjectId) ?? null;
   const currentDirectoryNode = useMemo(
@@ -440,7 +363,7 @@ export function ArtifactCenter({
   );
   const visibleDirectoryFolders = useMemo(() => {
     const candidates = currentDirectoryNode?.children ?? (currentDirectoryPath ? [] : activeProjectNode?.fileTree ?? []);
-    return candidates.filter((entry) => entry.type === "directory");
+    return candidates.filter((entry) => entry.type === "directory" && fileTreeContainsArtifact(entry, directoryArtifactIds));
   }, [activeProjectNode, currentDirectoryNode, currentDirectoryPath, directoryArtifactIds]);
   const visibleDirectoryArtifacts = useMemo(() => filteredArtifacts.filter((artifact) => {
     const paths = artifact.physicalRefs
@@ -471,10 +394,15 @@ export function ArtifactCenter({
     }
   }, [artifacts, filteredArtifacts, currentTab, stageFilter, stateFilter, selectedChapterId, currentDirectoryPath, projects]);
 
-  // Pure assignment (not toggle): a chapter must always stay selected, so
-  // clicking the currently-selected chapter is a no-op rather than deselect.
   const handleChapterClick = useCallback((chapterId: string) => {
-    setSelectedChapterId(chapterId);
+    setSelectedChapterId(chapterId === selectedChapterId ? null : chapterId);
+  }, [selectedChapterId]);
+
+  const handleProjectClick = useCallback(() => {
+    setSelectedChapterId(null);
+    setStageFilter("all");
+    setCurrentDirectoryPath("");
+    setDetailArtifactId(null);
   }, []);
 
   const handleDirectoryClick = useCallback((directoryPath: string) => {
@@ -482,32 +410,45 @@ export function ArtifactCenter({
     setDetailArtifactId(null);
   }, []);
 
-  // Clear multiselect whenever a navigation filter changes.
+  const handleFileClick = useCallback((filePath: string) => {
+    setCurrentDirectoryPath(parentDirectory(filePath));
+    const artifact = artifacts.find((item) => item.physicalRefs.some((ref) => normalizePhysicalPath(ref.path) === filePath));
+    if (artifact) setDetailArtifactId(artifact.id);
+  }, [artifacts]);
+
+  // Tree → stage folder click: toggle the stage filter.
+  const handleStageClick = useCallback((stageId: string) => {
+    setStageFilter(prev => (prev === stageId ? 'all' : stageId as ArtifactStage));
+    setSelectedChapterId(null);
+  }, []);
+
   useEffect(() => {
     setSelectedIds(new Set());
-  }, [selectedChapterId, activeProjectId, currentDirectoryPath, stageFilter]);
+  }, [selectedChapterId, activeProjectId, currentDirectoryPath]);
 
-  // Reset all navigated filters when the active project changes — covers
-  // store-driven switches (setActiveProject, project deletion fallback,
-  // persisted-store rehydration). Without this, a stale selectedChapterId can
-  // survive a project switch and drive the "删除当前章节" IPC against the wrong
-  // project (cross-project risk).
+  // Auto-expand the active project node so its stage folders are visible.
   useEffect(() => {
-    setSelectedChapterId(null);
-    setStageFilter("all");
-    setCurrentDirectoryPath("");
-    setDetailArtifactId(null);
+    if (!activeProjectId) return;
+    setExpandedNodes(prev => {
+      const nodeId = `proj-${activeProjectId}`;
+      if (prev.has(nodeId)) return prev;
+      const next = new Set(prev);
+      next.add(nodeId);
+      return next;
+    });
   }, [activeProjectId]);
 
-  // Default-select the first chapter so a chapter is always active (PRD: a
-  // chapter must always be selected — the user cannot return to "no chapter").
-  // Runs after the project-switch reset effect above; when selectedChapterId
-  // is null and chapters exist, it picks the first one.
-  useEffect(() => {
-    if (selectedChapterId === null && chapters.length > 0) {
-      setSelectedChapterId(chapters[0].id);
-    }
-  }, [selectedChapterId, chapters]);
+  const handleExpandToggle = useCallback((nodeId: string) => {
+    setExpandedNodes(prev => {
+      const next = new Set(prev);
+      if (next.has(nodeId)) {
+        next.delete(nodeId);
+      } else {
+        next.add(nodeId);
+      }
+      return next;
+    });
+  }, []);
 
   const handleArtifactClick = useCallback((artifact: ArtifactRecord) => {
     if (onArtifactSelect) {
@@ -540,49 +481,6 @@ export function ArtifactCenter({
     await refreshInventory();
     toast.success("产物元数据已保存");
   }, [activeProjectId, refreshInventory]);
-
-  // Delete a folder and ALL artifacts inside it (cascade through the subtree).
-  // The file tree is aggregated from artifact physicalRefs, so a folder maps to
-  // the full set of artifactIds under it via collectFileTreeArtifactIds. Files
-  // are physically moved to the system Trash (shell.trashItem) by the backend,
-  // not permanently deleted — recoverable from Finder/Recycle Bin.
-  const openDirectoryDelete = useCallback(async (folder: FileTreeNode) => {
-    if (!activeProjectId) return;
-    const cascadeIds = [...new Set(collectFileTreeArtifactIds(folder))];
-    if (cascadeIds.length === 0) {
-      toast.error("该文件夹没有可删除的产物");
-      return;
-    }
-    const result = await createArtifactDeletionPlan({
-      projectId: activeProjectId,
-      chapterId: "",
-      scope: "artifacts",
-      artifactIds: cascadeIds,
-    });
-    if (!result.success) {
-      toast.error(result.error);
-      return;
-    }
-    setDeletePlan(result.data);
-    setDeleteOpen(true);
-  }, [activeProjectId]);
-
-  // Delete a single file's artifact (move physical file to Trash via backend).
-  const openFileDelete = useCallback(async (artifact: ArtifactRecord) => {
-    if (!activeProjectId) return;
-    const result = await createArtifactDeletionPlan({
-      projectId: activeProjectId,
-      chapterId: "",
-      scope: "artifacts",
-      artifactIds: [artifact.id],
-    });
-    if (!result.success) {
-      toast.error(result.error);
-      return;
-    }
-    setDeletePlan(result.data);
-    setDeleteOpen(true);
-  }, [activeProjectId]);
 
   const openChapterDelete = useCallback(async () => {
     if (!activeProjectId || !selectedChapterId) return;
@@ -636,6 +534,19 @@ export function ArtifactCenter({
     onTabChange?.(tab as 'workflow' | 'media-library');
   };
 
+  const toggleNodeExpansion = (projectId: string) => {
+    const nodeId = `proj-${projectId}`;
+    setExpandedNodes(prev => {
+      const next = new Set(prev);
+      if (next.has(nodeId)) {
+        next.delete(nodeId);
+      } else {
+        next.add(nodeId);
+      }
+      return next;
+    });
+  };
+
   return (
     <div className={cn("h-full flex flex-col bg-background", className)}>
       {/* Header Tabs */}
@@ -648,20 +559,28 @@ export function ArtifactCenter({
             </TabsTrigger>
             <TabsTrigger value="media-library" className="flex items-center gap-2">
               <MediaLibrary className="h-4 w-4" />
-              可交付物
+              媒体库
             </TabsTrigger>
           </TabsList>
         </div>
 
         <TabsContent value="workflow" className="flex-1 m-0 overflow-hidden min-h-0">
           <div className="flex h-full min-h-0">
-            {/* Left Column - Chapter Tree (PRD R1: 项目→章节→工作流阶段→产物) */}
-            <aside className="w-56 border-r bg-panel flex flex-col min-h-0">
+            {/* Left Navigation Tree */}
+            <aside className="w-64 border-r bg-panel flex flex-col min-h-0">
+              <div className="px-3 py-2 font-medium text-sm border-b shrink-0">项目导航</div>
               <div className="flex-1 min-h-0 overflow-hidden">
-                <ChapterTree
-                  chapters={chapters}
-                  selectedChapterId={selectedChapterId}
-                  onChapterClick={handleChapterClick}
+                <ArtifactTree
+                  projects={projects}
+                  activeProjectId={activeProjectId}
+                  selectedStageId={stageFilter === 'all' ? null : stageFilter}
+                  onStageClick={handleStageClick}
+                  onProjectClick={handleProjectClick}
+                  onDirectoryClick={handleDirectoryClick}
+                  onFileClick={handleFileClick}
+                  selectedDirectoryPath={currentDirectoryPath}
+                  expandedNodes={expandedNodes}
+                  onExpandToggle={handleExpandToggle}
                 />
               </div>
             </aside>
@@ -680,7 +599,7 @@ export function ArtifactCenter({
                   <Button variant="outline" size="sm" disabled={!selectedChapterId || selectedIds.size === 0} onClick={() => void openSelectedDelete()}>
                     <Trash2 className="mr-1 h-4 w-4" />删除选中 ({selectedIds.size})
                   </Button>
-                  <Button variant="destructive" size="sm" disabled={!selectedChapterId || selectedChapterId === "__none__"} onClick={() => void openChapterDelete()}>
+                  <Button variant="destructive" size="sm" disabled={!selectedChapterId} onClick={() => void openChapterDelete()}>
                     <Trash2 className="mr-1 h-4 w-4" />删除当前章节
                   </Button>
                 </div>
@@ -689,11 +608,10 @@ export function ArtifactCenter({
                 <div className="flex items-center gap-1 border-b bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
                   <button
                     type="button"
-                    className={cn("inline-flex items-center gap-1 hover:text-foreground", !currentDirectoryPath && "font-medium text-foreground")}
+                    className={cn("hover:text-foreground", !currentDirectoryPath && "font-medium text-foreground")}
                     onClick={() => handleDirectoryClick("")}
                   >
-                    <FolderKanban className="h-3.5 w-3.5" />
-                    项目文件
+                    {activeProjectNode?.name ?? "项目文件"}
                   </button>
                   {directoryBreadcrumbs.map((crumb) => (
                     <span key={crumb.path} className="inline-flex items-center gap-1">
@@ -755,23 +673,7 @@ export function ArtifactCenter({
                         <td className="p-2"><Badge variant="outline" className="text-xs">文件夹</Badge></td>
                         <td className="p-2 text-muted-foreground text-xs">可进入</td>
                         <td className="p-2 font-mono text-xs">{formatBytes(folder.bytes)}</td>
-                        <td className="p-2 text-muted-foreground text-xs flex items-center justify-between gap-2">
-                          <span>{countFileTreeArtifacts(folder)} 项</span>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                            aria-label={`删除文件夹 ${folder.name} 及内部全部`}
-                            title="移动到废纸篓（含内部全部）"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              void openDirectoryDelete(folder);
-                            }}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </td>
+                        <td className="p-2 text-muted-foreground text-xs">{countFileTreeArtifacts(folder)} 项</td>
                       </tr>
                     ))}
                     {visibleDirectoryArtifacts.map((artifact) => (
@@ -789,7 +691,7 @@ export function ArtifactCenter({
                             type="checkbox"
                             aria-label={`选择产物 ${artifact.name}`}
                             checked={selectedIds.has(artifact.id)}
-                            disabled={!selectedChapterId || (selectedChapterId !== "__none__" && artifact.chapterId !== selectedChapterId)}
+                            disabled={!selectedChapterId || artifact.chapterId !== selectedChapterId}
                             onChange={(event) => toggleArtifactSelection(artifact.id, event.target.checked)}
                           />
                         </td>
@@ -798,7 +700,7 @@ export function ArtifactCenter({
                           <Badge variant="secondary" className="text-xs">
                             {currentTab === 'workflow'
                               ? STAGE_LABELS[artifact.stage] || artifact.stage
-                              : '可交付物'}
+                              : '媒体库'}
                           </Badge>
                         </td>
                         <td className="p-2">
@@ -815,23 +717,7 @@ export function ArtifactCenter({
                           {formatBytes(artifact.bytes)}
                         </td>
                         <td className="p-2 text-muted-foreground text-xs">
-                          <span className="flex items-center justify-between gap-2">
-                            <span>{new Date(artifact.updatedAt).toLocaleString('zh-CN')}</span>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                              aria-label={`删除产物 ${artifact.name}`}
-                              title="移动到废纸篓"
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                void openFileDelete(artifact);
-                              }}
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
-                          </span>
+                          {new Date(artifact.updatedAt).toLocaleString('zh-CN')}
                         </td>
                       </tr>
                     ))}

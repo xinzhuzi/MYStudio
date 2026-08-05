@@ -51,9 +51,15 @@ import { useScriptCharacterReviewActions } from "./use-script-character-review-a
 import { useScriptProjectLifecycle } from "./use-script-project-lifecycle";
 import { useScriptBatchShotRegeneration } from "./use-script-batch-shot-regeneration";
 import { useScriptMissingEpisodeCounts } from "./use-script-missing-episode-counts";
+import { ArtifactDeleteDialog } from "../media/ArtifactDeleteDialog";
 import { FileText } from "lucide-react";
 import { toast } from "sonner";
 import { DEFAULT_STYLE_ID } from "@/lib/constants/visual-styles";
+import {
+  createArtifactDeletionPlan,
+  executeArtifactDeletionPlan,
+} from "@/stores/artifacts/artifact-store";
+import type { DeletionPlan } from "@/types/artifacts";
 import {
   ResizableHandle,
   ResizablePanel,
@@ -86,14 +92,9 @@ export function ScriptView() {
     setParseStatus,
     setShots,
     setShotStatus,
-    // CRUD operations
-    addEpisode,
-    updateEpisode,
-    deleteEpisode,
     // Bundle 操作（同步 episodeRawScripts）
     addEpisodeBundle,
     updateEpisodeBundle,
-    deleteEpisodeBundle,
     addScene,
     updateScene,
     deleteScene,
@@ -122,6 +123,22 @@ export function ScriptView() {
 
   // 完整剧本导入状态
   const [importError, setImportError] = useState<string | undefined>();
+  const [chapterDeletePlan, setChapterDeletePlan] = useState<DeletionPlan | null>(null);
+  const [chapterDeleteOpen, setChapterDeleteOpen] = useState(false);
+
+  const openChapterDeletePlan = useCallback(async (chapterId: string) => {
+    if (!activeProjectId) {
+      toast.error("没有活动项目，未执行任何操作");
+      return;
+    }
+    const result = await createArtifactDeletionPlan({ projectId: activeProjectId, chapterId, scope: "chapter" });
+    if (!result.success) {
+      toast.error(`生成删除计划失败：${result.error}`);
+      return;
+    }
+    setChapterDeletePlan(result.data);
+    setChapterDeleteOpen(true);
+  }, [activeProjectId]);
 
   // AI校准状态
   const calibrationState = scriptProject?.calibrationState;
@@ -451,12 +468,12 @@ export function ScriptView() {
   } = useScriptCrudActions({
     projectId,
     episodes: scriptData?.episodes,
+    onRequestChapterDeletion: openChapterDeletePlan,
     selectedItemId,
     setSelectedItemId,
     setSelectedItemType,
     addEpisodeBundle,
     updateEpisodeBundle,
-    deleteEpisodeBundle,
     addScene,
     updateScene,
     deleteScene,
@@ -466,6 +483,20 @@ export function ScriptView() {
     updateShot,
     deleteShot,
   });
+
+  const executeChapterDeletePlan = useCallback(async () => {
+    if (!chapterDeletePlan) throw new Error("删除服务不可用");
+    const result = await executeArtifactDeletionPlan(chapterDeletePlan, {
+      type: "chapter",
+      chapterId: chapterDeletePlan.chapterId,
+    });
+    if (!result.success) {
+      toast.error(`删除失败：${result.error}`);
+      throw new Error(result.error);
+    }
+    setChapterDeletePlan(null);
+    toast.success("章节及其后续产物已删除");
+  }, [chapterDeletePlan]);
 
   const {
     handleAIFindCharacter,
@@ -668,6 +699,16 @@ export function ScriptView() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ArtifactDeleteDialog
+        isOpen={chapterDeleteOpen}
+        plan={chapterDeletePlan}
+        onClose={() => {
+          setChapterDeleteOpen(false);
+          setChapterDeletePlan(null);
+        }}
+        onExecute={executeChapterDeletePlan}
+      />
     </div>
   );
 }

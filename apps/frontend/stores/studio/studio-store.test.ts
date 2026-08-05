@@ -8,7 +8,7 @@ import {
 import { useCharacterLibraryStore } from "@/stores/library/character-library-store";
 import { usePropsLibraryStore } from "@/stores/library/props-library-store";
 import { useSceneStore } from "@/stores/library/scene-store";
-import type { ContinuityAssetVersion, StoryboardItem } from "@/types/studio";
+import type { ContinuityAssetVersion, NovelChapter, StoryboardItem } from "@/types/studio";
 import { useStudioStore } from "./studio-store";
 import {
   approvedVisualReview,
@@ -38,6 +38,72 @@ describe("studio workflow store", () => {
     } finally {
       vi.unstubAllGlobals();
     }
+  });
+
+  it("normalizes legacy chapter identity and advances revision only for source changes", () => {
+    const legacyChapter: NovelChapter = {
+      id: "chapter-001",
+      index: 1,
+      title: "第1章 雨夜",
+      sourceText: "王离进城。",
+      importedAt: 1710000000000,
+    };
+    useStudioStore.setState({ novelChapters: [legacyChapter] });
+
+    const update = useStudioStore.getState().updateNovelChapter;
+    update("chapter-001", {
+      sourceId: "caller-controlled-id",
+      revision: 99,
+      eventTaskState: "success",
+    });
+    expect(useStudioStore.getState().novelChapters[0]).toMatchObject({
+      sourceId: "chapter-001",
+      revision: 1,
+      eventTaskState: "success",
+    });
+
+    update("chapter-001", {
+      title: "第1章 雨夜",
+      volume: undefined,
+      sourceText: "王离进城。",
+      eventState: "状态已更新",
+      sourceId: "caller-controlled-id",
+      revision: 99,
+    });
+    expect(useStudioStore.getState().novelChapters[0]?.revision).toBe(1);
+
+    update("chapter-001", { title: "第1章 新标题", sourceId: "caller-controlled-id", revision: 99 });
+    expect(useStudioStore.getState().novelChapters[0]).toMatchObject({
+      title: "第1章 新标题",
+      sourceId: "chapter-001",
+      revision: 2,
+    });
+
+    update("chapter-001", { volume: "第二卷", sourceId: "caller-controlled-id", revision: 99 });
+    update("chapter-001", { sourceText: "王离进入新卷。", sourceId: "caller-controlled-id", revision: 99 });
+    expect(useStudioStore.getState().novelChapters[0]?.revision).toBe(4);
+
+    update("chapter-001", {
+      eventAnalysis: {
+        chapterLabel: "第1章 新标题",
+        characters: ["王离"],
+        coreEvent: "王离进入新卷",
+        mainlineRelation: "强（线索推进）",
+        informationDensity: "中",
+        estimatedDurationSec: 40,
+        emotionTags: ["转折"],
+        rawLine: "",
+      },
+      eventTaskState: "success",
+      eventSummary: "王离进入新卷",
+      sourceId: "caller-controlled-id",
+      revision: 99,
+    });
+    expect(useStudioStore.getState().novelChapters[0]).toMatchObject({
+      sourceId: "chapter-001",
+      revision: 4,
+      eventTaskState: "success",
+    });
   });
 
   it("rehydrates the full persisted state while preserving action identity", async () => {

@@ -48,6 +48,7 @@ describe("registerProjectFileIpcHandlers", () => {
     expect([...mocks.handlers.keys()].sort()).toEqual([
       "project-file-get-absolute-path",
       "project-file-read-base64",
+      "project-file-read-text",
       "project-file-remove-text",
       "project-file-save-image",
       "project-file-write-binary",

@@ -37,7 +37,6 @@ function renderNovelTab() {
       handleNovelFile={vi.fn()}
       appendNovelText={vi.fn()}
       replaceNovelText={vi.fn()}
-      deleteNovelChapters={vi.fn()}
       novelChapters={[chapter]}
       updateNovelChapter={vi.fn()}
       analyzeEvents={vi.fn()}

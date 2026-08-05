@@ -8,7 +8,6 @@ import { OverviewPanel } from "./index";
 const mocks = vi.hoisted(() => ({
   updateSeriesMeta: vi.fn(),
   addEpisodeBundle: vi.fn(),
-  deleteEpisodeBundle: vi.fn(),
   updateEpisodeBundle: vi.fn(),
   enterEpisode: vi.fn(),
   setActiveTab: vi.fn(),
@@ -23,7 +22,6 @@ vi.mock("@/stores/script/script-store", () => ({
   useScriptStore: () => ({
     updateSeriesMeta: mocks.updateSeriesMeta,
     addEpisodeBundle: mocks.addEpisodeBundle,
-    deleteEpisodeBundle: mocks.deleteEpisodeBundle,
     updateEpisodeBundle: mocks.updateEpisodeBundle,
   }),
   useActiveScriptProject: () => ({

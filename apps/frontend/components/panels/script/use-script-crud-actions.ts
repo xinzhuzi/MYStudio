@@ -1,7 +1,6 @@
 import { useCallback } from "react";
 
 import type { Episode, ScriptCharacter, ScriptScene, Shot } from "@/types/script";
-import { requestChapterDeletion } from "@/stores/artifacts/artifact-store";
 import { toast } from "sonner";
 
 type SelectedItemType = "character" | "scene" | "shot" | "episode" | null;
@@ -9,7 +8,6 @@ type SelectedItemType = "character" | "scene" | "shot" | "episode" | null;
 interface ScriptCrudActions {
   addEpisodeBundle: (projectId: string, title: string, synopsis?: string) => void;
   updateEpisodeBundle: (projectId: string, episodeIndex: number, updates: { title?: string; synopsis?: string }) => void;
-  deleteEpisodeBundle: (projectId: string, episodeIndex: number) => void;
   addScene: (projectId: string, scene: ScriptScene, episodeId?: string) => void;
   updateScene: (projectId: string, sceneId: string, updates: Partial<ScriptScene>) => void;
   deleteScene: (projectId: string, sceneId: string) => void;
@@ -23,6 +21,7 @@ interface ScriptCrudActions {
 interface UseScriptCrudActionsOptions extends ScriptCrudActions {
   projectId: string;
   episodes?: Episode[];
+  onRequestChapterDeletion?: (chapterId: string) => Promise<void>;
   selectedItemId: string | null;
   setSelectedItemId: (id: string | null) => void;
   setSelectedItemType: (type: SelectedItemType) => void;
@@ -31,6 +30,7 @@ interface UseScriptCrudActionsOptions extends ScriptCrudActions {
 export function useScriptCrudActions({
   projectId,
   episodes,
+  onRequestChapterDeletion,
   selectedItemId,
   setSelectedItemId,
   setSelectedItemType,
@@ -63,15 +63,13 @@ export function useScriptCrudActions({
     const episode = episodes?.find((item) => item.index === episodeIndex);
     if (!episode) return;
 
-    // Route planning, confirmation, and execution through the shared controller.
-    const result = await requestChapterDeletion(projectId, episode.id, "chapter");
-
-    if (result.success) {
-      clearSelectionIfDeleted(episode.id);
-    } else if (result.error !== "confirmation-mismatch") {
-      toast.error(`删除失败：${result.error}`);
+    if (!onRequestChapterDeletion) {
+      toast.error("章节删除服务不可用，未执行任何操作");
+      return;
     }
-  }, [projectId, episodes, clearSelectionIfDeleted]);
+    await onRequestChapterDeletion(episode.id);
+    clearSelectionIfDeleted(episode.id);
+  }, [episodes, onRequestChapterDeletion, clearSelectionIfDeleted]);
 
   const handleAddScene = useCallback((scene: ScriptScene, episodeId?: string) => {
     addScene(projectId, scene, episodeId);

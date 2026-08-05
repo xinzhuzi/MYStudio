@@ -43,10 +43,8 @@ export interface ScriptStoreActions {
   // Episode CRUD
   addEpisode: (projectId: string, episode: Episode) => void;
   updateEpisode: (projectId: string, episodeId: string, updates: Partial<Episode>) => void;
-  deleteEpisode: (projectId: string, episodeId: string) => void;
   // Episode Bundle 原子操作（同步 scriptData.episodes 与 episodeRawScripts）
   addEpisodeBundle: (projectId: string, title: string, synopsis?: string) => void;
-  deleteEpisodeBundle: (projectId: string, episodeIndex: number) => void;
   reindexEpisodes: (projectId: string) => void;
   updateEpisodeBundle: (projectId: string, episodeIndex: number, updates: { title?: string; synopsis?: string }) => void;
   // Scene CRUD
@@ -353,32 +351,6 @@ export const useScriptStore = create<ScriptStore>()(
         });
       },
 
-      deleteEpisode: (projectId, episodeId) => {
-        get().ensureProject(projectId);
-        set((state) => {
-          const project = state.projects[projectId];
-          if (!project.scriptData) return state;
-          // Also remove scenes belonging to this episode
-          const episode = project.scriptData.episodes?.find((e) => e.id === episodeId);
-          const sceneIdsToRemove = new Set(episode?.sceneIds || []);
-          return {
-            projects: {
-              ...state.projects,
-              [projectId]: {
-                ...project,
-                scriptData: {
-                  ...project.scriptData,
-                  episodes: (project.scriptData.episodes || []).filter((e) => e.id !== episodeId),
-                  scenes: project.scriptData.scenes.filter((s) => !sceneIdsToRemove.has(s.id)),
-                },
-                shots: project.shots.filter((s) => !sceneIdsToRemove.has(s.sceneRefId)),
-                updatedAt: Date.now(),
-              },
-            },
-          };
-        });
-      },
-
       // ==================== Episode Bundle 原子操作 ====================
 
       addEpisodeBundle: (projectId, title, synopsis) => {
@@ -418,41 +390,6 @@ export const useScriptStore = create<ScriptStore>()(
                   episodes: [...existingEpisodes, newEpisode],
                 },
                 episodeRawScripts: [...existingRawScripts, newRawScript],
-                updatedAt: Date.now(),
-              },
-            },
-          };
-        });
-      },
-
-      deleteEpisodeBundle: (projectId, episodeIndex) => {
-        get().ensureProject(projectId);
-        set((state) => {
-          const project = state.projects[projectId];
-          if (!project.scriptData) return state;
-          const episode = project.scriptData.episodes?.find(e => e.index === episodeIndex);
-          const sceneIdsToRemove = new Set(episode?.sceneIds || []);
-          const newEpisodes = (project.scriptData.episodes || []).filter(e => e.index !== episodeIndex);
-          const newRawScripts = (project.episodeRawScripts || []).filter(e => e.episodeIndex !== episodeIndex);
-          // Reindex
-          const reindexed = newEpisodes.map((e, i) => ({ ...e, index: i + 1 }));
-          const reindexedRaw = newRawScripts.map((e, i) => ({
-            ...e,
-            episodeIndex: i + 1,
-            title: e.title.replace(/^第\d+集/, `第${i + 1}集`),
-          }));
-          return {
-            projects: {
-              ...state.projects,
-              [projectId]: {
-                ...project,
-                scriptData: {
-                  ...project.scriptData,
-                  episodes: reindexed,
-                  scenes: project.scriptData.scenes.filter(s => !sceneIdsToRemove.has(s.id)),
-                },
-                shots: project.shots.filter(s => !sceneIdsToRemove.has(s.sceneRefId)),
-                episodeRawScripts: reindexedRaw,
                 updatedAt: Date.now(),
               },
             },

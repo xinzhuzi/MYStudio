@@ -47,11 +47,16 @@ export function buildDeletionScope(
     });
   });
 
-  // Unknown ownership is a project-wide safety blocker. Protected/shared
-  // assets are listed for migration when an explicit selection is being
-  // reviewed; buildDeletionPlan still rejects selections that cross chapters.
+  // Unknown ownership is a blocker only when it can affect the requested
+  // scope. Unrelated project-level files (for example a shared asset with no
+  // chapter id) must not make an otherwise valid chapter deletion impossible.
+  const selectedIds = new Set(selectedArtifactIds);
   allArtifacts.forEach((artifact) => {
-    if (artifact.deletePolicy === "blocker-missing-ownership" || artifact.deletePolicy === "blocker-running-job") {
+    const isInRequestedScope = !chapterId
+      || selectedIds.has(artifact.id)
+      || artifact.chapterId === chapterId
+      || artifact.physicalRefs.some((ref) => ref.path.includes(chapterId));
+    if (isInRequestedScope && (artifact.deletePolicy === "blocker-missing-ownership" || artifact.deletePolicy === "blocker-running-job")) {
       blockerSet.add(artifact.id);
     }
   });
@@ -102,7 +107,10 @@ export function buildDeletionScope(
         const upstream = artifactMap.get(uid);
         if (!upstream) return true;
         if (deleteSet.has(uid) || visited.has(uid)) return false;
-        return !chapterId || upstream.chapterId !== chapterId;
+        // For an artifact-only plan, an unselected upstream is shared even
+        // when it belongs to the same chapter. Chapter-wide plans may cascade
+        // through all roots in the requested chapter as one unit.
+        return selectedArtifactIds.length > 0 || !chapterId || upstream.chapterId !== chapterId;
       });
       if (otherUpstream) retainSet.add(currentId);
       else deleteSet.add(currentId);

@@ -24,6 +24,7 @@ import fs from "node:fs";
 import fsp from "node:fs/promises";
 import path from "node:path";
 import { createHash, randomUUID } from "node:crypto";
+import { shell } from "electron";
 import type {
   DeletionPlan,
   ExecuteResult,
@@ -31,6 +32,7 @@ import type {
   RecoveryQueryResult,
   RecoveryState,
   TypedExecuteError,
+  PhysicalRef,
 } from "@/types/artifacts";
 import {
   createProjectFileUrl,
@@ -64,6 +66,7 @@ type CapturedFile = {
 };
 
 type MigrationEntry = { from: string; to: string; sha256: string };
+type PlannedTarget = { path: string; type: PhysicalRef["type"]; hash256?: string };
 
 type Journal = {
   schemaVersion: 1;
@@ -387,6 +390,8 @@ async function postScan(context: DeletionContext, projectId: string, chapterId: 
   }
   const files = await collectPersistedFiles(projectRoot);
   for (const file of files) {
+    const baseName = path.basename(file);
+    if (baseName === ".artifact-delete-journal.json" || /^\.artifact-delete-.*\.bundle\.json$/i.test(baseName)) continue;
     if (file.includes(chapterId)) result.residualChapterFiles++;
     const text = await fsp.readFile(file, "utf8").catch(() => null);
     if (text !== null) {
@@ -418,6 +423,21 @@ function mapError(message: string): TypedExecuteError {
   return "physical-delete-failed";
 }
 
+function inferPhysicalRefType(physicalPath: string): PhysicalRef["type"] {
+  if (/\.bak$/i.test(physicalPath)) return "backup";
+  if (/\.json$/i.test(physicalPath)) return "project-file";
+  return "local-media";
+}
+
+function getPlanItemTargets(item: DeletionPlan["deleteItems"][number]): PlannedTarget[] {
+  if (item.physicalRefs && item.physicalRefs.length > 0) {
+    return item.physicalRefs.map((ref) => ({ path: ref.path, type: ref.type, hash256: ref.hash256 }));
+  }
+  return item.physicalPath
+    ? [{ path: item.physicalPath, type: inferPhysicalRefType(item.physicalPath), hash256: item.physicalHash256 }]
+    : [];
+}
+
 export async function executeDeletion(
   context: DeletionContext,
   input: { planId: string; fingerprint: string; confirmation: Confirmation },
@@ -436,12 +456,15 @@ export async function executeDeletion(
     const projectRoot = resolveProjectRootPath(context.dataRoot, plan.projectId);
     const journalPath = path.join(projectRoot, ".artifact-delete-journal.json");
     const bundlePath = path.join(projectRoot, `.artifact-delete-${plan.planId}.bundle.json`);
-    let plannedTargets: string[];
+    let plannedTargets: Array<PlannedTarget & { resolved: string }>;
     try {
       plannedTargets = (await Promise.all(
-        [...plan.deleteItems, ...plan.migrateItems]
-          .filter((item) => Boolean(item.physicalPath))
-          .map((item) => resolveTarget(context, projectRoot, item.physicalPath!, plan.projectId)),
+        [...plan.deleteItems, ...plan.migrateItems].flatMap((item) =>
+          getPlanItemTargets(item).map(async (target) => ({
+            ...target,
+            resolved: await resolveTarget(context, projectRoot, target.path, plan.projectId),
+          })),
+        ),
       ));
     } catch (error) {
       return {
@@ -455,7 +478,7 @@ export async function executeDeletion(
     // race the transaction and invalidate the reviewed fingerprint.
     const lockFiles = [
       ...(await collectPersistedFiles(projectRoot)),
-      ...plannedTargets,
+      ...plannedTargets.map((target) => target.resolved),
       journalPath,
       bundlePath,
       path.join(projectRoot, ".artifact-delete-project.lock"),
@@ -466,34 +489,47 @@ export async function executeDeletion(
       const journalStateForResult = existingJournal.journal.state === "commit-ready" ? "commit-ready" : "prepared";
       return { success: false, error: "project-lock-hold", journalState: journalStateForResult };
     }
-    const rawIds = new Set(plan.deleteItems.map((item) => item.artifactId.split(":").pop() ?? item.artifactId));
-    const targets = new Set<string>(plannedTargets);
+    // Projected IDs may be namespaced as `${projectId}-${chapterId}`. Keep
+    // both the stable chapter identity and the projected suffix so persisted
+    // records and registered backups are pruned consistently.
+    const rawIds = new Set<string>([plan.chapterId]);
+    for (const item of plan.deleteItems) {
+      const suffix = item.artifactId.split(":").pop() ?? item.artifactId;
+      rawIds.add(suffix);
+      if (suffix.startsWith(`${plan.projectId}-`)) rawIds.add(suffix.slice(plan.projectId.length + 1));
+    }
+    const targets = new Set<string>(plannedTargets.map((target) => target.resolved));
+    const targetTypes = new Map(plannedTargets.map((target) => [target.resolved, target.type]));
     const migrations: MigrationEntry[] = [];
     const bundle: RollbackBundle = { schemaVersion: 1, files: [], migrations };
     let journal: Journal | undefined;
     try {
       for (const item of [...plan.deleteItems, ...plan.migrateItems]) {
-        if (!item.physicalPath || !item.physicalHash256) continue;
-        const target = await resolveTarget(context, projectRoot, item.physicalPath, plan.projectId);
-        const data = await fsp.readFile(target).catch(() => null);
-        if (!data || fileHash(data) !== item.physicalHash256) throw new Error("fingerprint-drift");
+        for (const planned of getPlanItemTargets(item)) {
+          if (!planned.hash256) continue;
+          const target = await resolveTarget(context, projectRoot, planned.path, plan.projectId);
+          const data = await fsp.readFile(target).catch(() => null);
+          if (!data || fileHash(data) !== planned.hash256) throw new Error("fingerprint-drift");
+        }
       }
       for (const item of plan.migrateItems) {
-        if (!item.physicalPath) continue;
-        const source = await resolveTarget(context, projectRoot, item.physicalPath, plan.projectId);
-        if (!/\.(?:png|jpe?g|webp|gif|mp4|webm|mov|wav|mp3|m4a)$/i.test(source)) continue;
-        const sourceData = await fsp.readFile(source);
-        const destination = path.join(projectRoot, "workflow-images", "assets", "protected", `${fileHash(sourceData).slice(0, 16)}-${path.basename(source)}`);
-        if (!isInside(projectRoot, destination)) throw new Error("cross-root");
-        if (!bundle.files.some((file) => file.file === source)) bundle.files.push(await captureFile(source));
-        if (fs.existsSync(destination)) bundle.files.push(await captureFile(destination));
-        await fsp.mkdir(path.dirname(destination), { recursive: true });
-        await fsp.copyFile(source, destination);
-        const copied = await fsp.readFile(destination);
-        const sha256 = fileHash(copied);
-        if (sha256 !== fileHash(sourceData)) throw new Error("protected-asset-copy-failed");
-        migrations.push({ from: source, to: destination, sha256 });
-        targets.add(source);
+        for (const planned of getPlanItemTargets(item)) {
+          const source = await resolveTarget(context, projectRoot, planned.path, plan.projectId);
+          if (!/\.(?:png|jpe?g|webp|gif|mp4|webm|mov|wav|mp3|m4a)$/i.test(source)) continue;
+          const sourceData = await fsp.readFile(source);
+          const destination = path.join(projectRoot, "workflow-images", "assets", "protected", `${fileHash(sourceData).slice(0, 16)}-${path.basename(source)}`);
+          if (!isInside(projectRoot, destination)) throw new Error("cross-root");
+          if (!bundle.files.some((file) => file.file === source)) bundle.files.push(await captureFile(source));
+          if (fs.existsSync(destination)) bundle.files.push(await captureFile(destination));
+          await fsp.mkdir(path.dirname(destination), { recursive: true });
+          await fsp.copyFile(source, destination);
+          const copied = await fsp.readFile(destination);
+          const sha256 = fileHash(copied);
+          if (sha256 !== fileHash(sourceData)) throw new Error("protected-asset-copy-failed");
+          migrations.push({ from: source, to: destination, sha256 });
+          targets.add(source);
+          targetTypes.set(source, planned.type);
+        }
       }
       for (const file of await collectPersistedFiles(projectRoot)) {
         if (!bundle.files.some((captured) => captured.file === file)) bundle.files.push(await captureFile(file));
@@ -508,6 +544,7 @@ export async function executeDeletion(
       await atomicWrite(journalPath, JSON.stringify(journal));
 
       const rewritten = await rewritePersistedFiles(projectRoot, plan.chapterId, rawIds);
+      const rewrittenPaths = new Set(rewritten.map((file) => file.file));
       bundle.files.push(...rewritten.filter((file) => !bundle.files.some((existing) => existing.file === file.file)));
       bundle.migrations = migrations;
       journal.bundleSha256 = await writeBundle(bundlePath, bundle);
@@ -563,11 +600,17 @@ export async function executeDeletion(
         throw new Error("store-rehydration-failed");
       }
 
+      // User-facing deletion: move to the system Trash (Finder recycle bin on
+      // macOS, Recycle Bin on Windows) via shell.trashItem so it is recoverable,
+      // NOT a permanent unlink. The rollback bundle + journal still guard the
+      // surrounding transaction; a trashItem failure rejects and triggers
+      // restoreFiles from the bundle. See task 08-04-artifact-output-management.
       for (const target of targets) {
         if (!fs.existsSync(target)) throw new Error("physical-delete-failed");
+        if (targetTypes.get(target) === "project-file" && /\.json$/i.test(target) && rewrittenPaths.has(target)) continue;
         const backupImpact = plan.backupImpact.find((impact) => impact.filePath === target || path.resolve(projectRoot, impact.filePath) === target);
         if (backupImpact?.action === "rewrite") continue;
-        await fsp.unlink(target);
+        await shell.trashItem(target);
       }
       const scan = await postScan(context, plan.projectId, plan.chapterId, projectRoot, rawIds);
       if (Object.values(scan).some((count) => count > 0)) throw new Error("post-scan");

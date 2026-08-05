@@ -75,6 +75,8 @@ export interface DaojieFirstShotReport {
   ok: true;
   generatedAt: string;
   verificationAt: string;
+  renderStartedAt: string;
+  renderCompletedAt: string;
   projectWriteback: false;
   source: DaojieFirstShotSource;
   gate: {
@@ -92,7 +94,10 @@ export interface DaojieFirstShotReport {
   compositionId: typeof STORYBOARD_SHOT_COMPOSITION_ID;
   bundle: {
     manifestPath: string;
+    manifestMtimeMs: number;
     schemaVersion: number;
+    templateId: string;
+    templateVersion: string;
     remotionVersion: string;
     compositionIds: string[];
     compositionId: string;
@@ -112,6 +117,8 @@ export interface DaojieFirstShotReport {
   sha256: string;
   outputSizeBytes: number;
   outputMtimeMs: number;
+  ffprobeMtimeMs: number;
+  loudnessReportMtimeMs: number;
   loudnessMeasurement: Awaited<ReturnType<typeof measureRenderedMediaLoudness>>;
 }
 
@@ -270,6 +277,7 @@ export async function runDaojieFirstShot(): Promise<DaojieFirstShotReport> {
       visual: urls[`visual:${source.shotId}`]!,
       voice: urls[`voice:${source.shotId}`]!,
     });
+    const renderStartedAt = new Date().toISOString();
     const composition = await selectComposition({
       serveUrl: bundlePath,
       id: STORYBOARD_SHOT_COMPOSITION_ID,
@@ -294,6 +302,7 @@ export async function runDaojieFirstShot(): Promise<DaojieFirstShotReport> {
       overwrite: true,
       onBrowserDownload: () => { throw new Error("首镜预览 renderMedia 禁止下载 Headless Shell"); },
     });
+    const renderCompletedAt = new Date().toISOString();
     const outputStat = await fs.promises.stat(outputPath).catch(() => undefined);
     if (!outputStat?.isFile() || outputStat.size <= 0) throw new Error(`首镜 MP4 不存在或为空: ${outputPath}`);
     const probe = await probeRenderedMedia(outputPath);
@@ -306,11 +315,13 @@ export async function runDaojieFirstShot(): Promise<DaojieFirstShotReport> {
       height,
     });
     await fs.promises.writeFile(ffprobePath, `${JSON.stringify(probe.raw, null, 2)}\n`, "utf8");
+    const ffprobeStat = await fs.promises.stat(ffprobePath);
     const loudnessMeasurement = await measureRenderedMediaLoudness({
       filePath: outputPath,
       rawLogPath: loudnessLogPath,
       reportPath: loudnessReportPath,
     });
+    const loudnessReportStat = await fs.promises.stat(loudnessReportPath);
     const outputSha256 = await hashFileSha256(outputPath);
     const generatedAt = new Date().toISOString();
     const verificationAt = new Date().toISOString();
@@ -318,6 +329,8 @@ export async function runDaojieFirstShot(): Promise<DaojieFirstShotReport> {
       ok: true,
       generatedAt,
       verificationAt,
+      renderStartedAt,
+      renderCompletedAt,
       projectWriteback: false,
       source,
       gate: {
@@ -348,6 +361,8 @@ export async function runDaojieFirstShot(): Promise<DaojieFirstShotReport> {
       sha256: outputSha256,
       outputSizeBytes: outputStat.size,
       outputMtimeMs: outputStat.mtimeMs,
+      ffprobeMtimeMs: ffprobeStat.mtimeMs,
+      loudnessReportMtimeMs: loudnessReportStat.mtimeMs,
       loudnessMeasurement,
     };
     await fs.promises.writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
@@ -361,18 +376,23 @@ export async function runDaojieFirstShot(): Promise<DaojieFirstShotReport> {
 
 function readBundleManifest(): DaojieFirstShotReport["bundle"] {
   const manifestPath = path.join(bundlePath, "manifest.json");
+  const manifestStat = fs.statSync(manifestPath);
   const value = JSON.parse(fs.readFileSync(manifestPath, "utf8")) as Record<string, unknown>;
   const compositionIds = Array.isArray(value.compositionIds)
     ? value.compositionIds.filter((item): item is string => typeof item === "string")
     : [];
-  if (value.schemaVersion !== 2 || value.remotionVersion !== remotionVersion || value.compositionId !== "DaojieTimeline"
+  if (value.schemaVersion !== 2 || value.templateId !== "mystudio-remotion-v1" || value.templateVersion !== "1.0.0"
+    || value.remotionVersion !== remotionVersion || value.compositionId !== "DaojieTimeline"
     || !["StoryboardShot", "ChapterVideo", "DaojieTimeline"].every((id) => compositionIds.includes(id))
     || typeof value.contentHash !== "string" || !/^[a-f0-9]{64}$/.test(value.contentHash)) {
     throw new Error("Remotion bundle manifest 与固定首镜预览合同不一致");
   }
   return {
     manifestPath,
+    manifestMtimeMs: manifestStat.mtimeMs,
     schemaVersion: 2,
+    templateId: "mystudio-remotion-v1",
+    templateVersion: "1.0.0",
     remotionVersion,
     compositionIds,
     compositionId: "DaojieTimeline",

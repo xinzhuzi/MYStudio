@@ -4,28 +4,22 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import aiEventAnalysisIconUrl from "@/assets/brand/ai-event-analysis-icon.svg";
-import { useStudioStore } from "@/stores/studio/studio-store";
 import { useProjectStore } from "@/stores/project/project-store";
 import type { NovelChapter } from "@/types/studio";
 import { Edit3, Plus, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { formatDeletionPlanConfirmation } from "@/stores/artifacts/artifact-store";
+import {
+  createArtifactDeletionPlan,
+  executeArtifactDeletionPlan,
+} from "@/stores/artifacts/artifact-store";
+import type { DeletionPlan } from "@/types/artifacts";
 import { NovelChapterTable } from "./NovelChapterTable";
 import { NovelEditDialog, type NovelEditDraft } from "./NovelEditDialog";
 import { NovelImportDialog } from "./NovelImportDialog";
+import { ArtifactDeleteDialog } from "../media/ArtifactDeleteDialog";
 
 export function NovelEmptyState({
   hasNovelChapters,
@@ -59,13 +53,8 @@ export function NovelTab(props: {
   handleNovelFile: (file?: File) => void | Promise<void>;
   appendNovelText: (value: string, sourceName?: string) => void;
   replaceNovelText: (value: string, sourceName?: string) => void;
-  deleteNovelChapters: ReturnType<
-    typeof useStudioStore.getState
-  >["deleteNovelChapters"];
-  novelChapters: ReturnType<typeof useStudioStore.getState>["novelChapters"];
-  updateNovelChapter: ReturnType<
-    typeof useStudioStore.getState
-  >["updateNovelChapter"];
+  novelChapters: NovelChapter[];
+  updateNovelChapter: (id: string, updates: Partial<NovelChapter>) => void;
   analyzeEvents: (chapters: NovelChapter[]) => void | Promise<void>;
   setHeaderActions: (actions: ReactNode) => void;
 }) {
@@ -81,6 +70,7 @@ export function NovelTab(props: {
     null,
   );
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deletePlan, setDeletePlan] = useState<DeletionPlan | null>(null);
   const [editDraft, setEditDraft] = useState<NovelEditDraft>({
     volume: "",
     title: "",
@@ -166,86 +156,59 @@ export function NovelTab(props: {
     });
   };
 
-  const openSingleDelete = (chapter: NovelChapter) => {
+  const openSingleDelete = async (chapter: NovelChapter) => {
+    if (!activeProjectId) {
+      toast.error("没有活动项目，未执行任何操作");
+      return;
+    }
     setDeletingChapter(chapter);
+    setDeletePlan(null);
+    const result = await createArtifactDeletionPlan({
+      projectId: activeProjectId,
+      chapterId: chapter.id,
+      scope: "chapter",
+    });
+    if (!result.success) {
+      setDeletingChapter(null);
+      toast.error(`生成删除计划失败：${result.error}`);
+      return;
+    }
+    setDeletePlan(result.data);
     setDeleteOpen(true);
   };
 
   const openBatchDelete = useCallback(() => {
-    setDeletingChapter(null);
-    setDeleteOpen(true);
-  }, []);
+    if (selectedChapters.length !== 1) {
+      toast.error("章节删除必须逐章确认，不能跨章节批量删除");
+      return;
+    }
+    void openSingleDelete(selectedChapters[0]);
+  }, [openSingleDelete, selectedChapters]);
 
   const handleAnalyzeSelectedChapters = useCallback(() => {
     props.analyzeEvents(selectedChapters);
   }, [props.analyzeEvents, selectedChapters]);
 
-  const handleConfirmDelete = async () => {
-    const idsToDelete = deletingChapter ? [deletingChapter.id] : Array.from(selectedIds);
-    if (!deletingChapter && idsToDelete.length !== 1) {
-      toast.error("章节删除必须逐章确认，不能跨章节批量删除");
-      return;
+  const executeDeletePlan = async () => {
+    if (!deletePlan) {
+      throw new Error("删除服务不可用");
     }
-
-    const chapterId = idsToDelete[0];
-    if (!chapterId || !activeProjectId) {
-      toast.error("缺少必要参数，未执行任何操作");
-      return;
-    }
-
-    // Generate deletion plan via shared controller
-    const planResult = await window.artifactPlanDeletion?.plan({
-      projectId: activeProjectId,
-      chapterId,
-      scope: "chapter",
+    const result = await executeArtifactDeletionPlan(deletePlan, {
+      type: "chapter",
+      chapterId: deletePlan.chapterId,
     });
-
-    if (!planResult?.success) {
-      toast.error(planResult?.error ?? "生成删除计划失败");
-      return;
-    }
-
-    const plan = planResult.data;
-
-    if (!plan.executionAllowed || plan.blockerItems.length > 0) {
-      toast.error("删除计划存在阻塞项，已停止；请结束运行中的任务后重新盘点");
-      return;
-    }
-
-    // The native confirmation contains the complete plan so this entry point
-    // has the same review boundary as the Artifact Center.
-    if (typeof window.confirm === "function" && !window.confirm(formatDeletionPlanConfirmation(plan))) {
-      return;
-    }
-
-    // Execute deletion via shared controller - NO MOCK WRAPPER
-    if (!window.artifactDeletion) {
-      toast.error("删除服务不可用");
-      return;
-    }
-    const result = await window.artifactDeletion.execute({
-      planId: plan.planId,
-      fingerprint: plan.fingerprint,
-      confirmation: { type: "chapter", chapterId },
-    });
-
-    if (result.success) {
-      toast.success("章节及其后续产物已删除");
-
-      // Clear selection on success
-      setSelectedIds((current) => {
-        const next = new Set(current);
-        for (const id of idsToDelete) {
-          next.delete(id);
-        }
-        return next;
-      });
-      setDeletingChapter(null);
-      setDeleteOpen(false);
-
-    } else {
+    if (!result.success) {
       toast.error(`删除失败：${result.error}`);
+      throw new Error(result.error);
     }
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (deletingChapter) next.delete(deletingChapter.id);
+      return next;
+    });
+    setDeletingChapter(null);
+    setDeletePlan(null);
+    toast.success("章节及其后续产物已删除");
   };
 
   const openEdit = (chapter: NovelChapter) => {
@@ -346,29 +309,16 @@ export function NovelTab(props: {
         onSave={saveEdit}
       />
 
-      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>删除选中章节</AlertDialogTitle>
-            <AlertDialogDescription>
-              {deletingChapter
-                ? `将生成该章的完整级联清单。删除后无法恢复，人物、场景、道具基础资产会按引用规则保留。`
-                : `章节删除必须逐章确认。删除后无法恢复，历史备份与后续产物也会一并处理。`}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setDeletingChapter(null)}>
-              取消
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleConfirmDelete}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              删除
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ArtifactDeleteDialog
+        isOpen={deleteOpen}
+        plan={deletePlan}
+        onClose={() => {
+          setDeleteOpen(false);
+          setDeletePlan(null);
+          setDeletingChapter(null);
+        }}
+        onExecute={executeDeletePlan}
+      />
     </div>
   );
 }

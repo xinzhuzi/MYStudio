@@ -32,7 +32,6 @@ export function useStudioViewModel() {
     workflowConfig,
     appendNovelText,
     replaceNovelText,
-    deleteNovelChapters,
     updateNovelChapter,
     setWorkflowConfig,
     saveAgentWorkData,
@@ -73,7 +72,10 @@ export function useStudioViewModel() {
     workflowConfig.stylePositioning,
   ]);
 
-  const projectName = activeProject?.name ?? "漫影工作室";
+  // Fallback aligns with the default project name in project-store.ts
+  // ("漫影工作室项目"), not the bare brand name, so a project-less state still
+  // shows a valid project name rather than a mismatched placeholder. See task #12.
+  const projectName = activeProject?.name ?? "漫影工作室项目";
 
   const productionEpisodeId = resolveProductionEpisodeId(
     useStudioStore.getState(),
@@ -218,7 +220,6 @@ export function useStudioViewModel() {
     handleNovelFile,
     appendNovelText,
     replaceNovelText,
-    deleteNovelChapters,
     novelChapters,
     updateNovelChapter,
     handleNovelEventAnalysis,

@@ -58,7 +58,6 @@ export function StudioView() {
                 handleNovelFile={viewModel.handleNovelFile}
                 appendNovelText={viewModel.appendNovelText}
                 replaceNovelText={viewModel.replaceNovelText}
-                deleteNovelChapters={viewModel.deleteNovelChapters}
                 novelChapters={viewModel.novelChapters}
                 updateNovelChapter={viewModel.updateNovelChapter}
                 analyzeEvents={viewModel.handleNovelEventAnalysis}

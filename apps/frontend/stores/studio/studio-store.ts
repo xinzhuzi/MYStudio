@@ -107,8 +107,6 @@ interface StudioWorkflowActions {
   appendNovelText: (sourceText: string, sourceName?: string) => void;
   replaceNovelText: (sourceText: string, sourceName?: string) => void;
   updateNovelChapter: (id: string, updates: Partial<NovelChapter>) => void;
-  deleteNovelChapter: (id: string) => void;
-  deleteNovelChapters: (ids: string[]) => void;
   setWorkflowConfig: (updates: Partial<StudioWorkflowConfig>) => void;
   startAgentRun: (input: {
     key: AgentWorkKey;
@@ -265,28 +263,33 @@ export const useStudioStore = create<StudioWorkflowStore>()(
       },
 
       updateNovelChapter: (id, updates) => {
+        const chapterUpdates = { ...updates };
+        delete chapterUpdates.sourceId;
+        delete chapterUpdates.revision;
         set((state) => ({
-          novelChapters: state.novelChapters.map((chapter) =>
-            chapter.id === id ? { ...chapter, ...updates, updatedAt: Date.now() } : chapter,
-          ),
+          novelChapters: state.novelChapters.map((chapter) => {
+            if (chapter.id !== id) return chapter;
+
+            const sourceId = chapter.sourceId ?? chapter.id;
+            const revision = chapter.revision ?? 1;
+            const nextChapter = { ...chapter, ...chapterUpdates };
+            const sourceIdentityChanged =
+              nextChapter.title !== chapter.title ||
+              nextChapter.volume !== chapter.volume ||
+              nextChapter.sourceText !== chapter.sourceText;
+
+            return {
+              ...nextChapter,
+              sourceId,
+              revision: sourceIdentityChanged ? revision + 1 : revision,
+              updatedAt: Date.now(),
+            };
+          }),
         }));
         const updatedChapter = get().novelChapters.find((chapter) => chapter.id === id);
         if (updatedChapter) {
           syncNovelChapterMirrors([updatedChapter]);
         }
-      },
-
-      deleteNovelChapter: (id) => {
-        get().deleteNovelChapters([id]);
-      },
-
-      deleteNovelChapters: (ids) => {
-        const idSet = new Set(ids);
-        const removedChapters = get().novelChapters.filter((chapter) => idSet.has(chapter.id));
-        set((state) => ({
-          novelChapters: state.novelChapters.filter((chapter) => !idSet.has(chapter.id)),
-        }));
-        removeNovelChapterMirrors(removedChapters);
       },
 
       setWorkflowConfig: (updates) => {

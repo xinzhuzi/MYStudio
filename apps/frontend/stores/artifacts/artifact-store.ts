@@ -10,6 +10,7 @@ import type {
   InventoryResult,
   PlanResult,
   MetadataUpdateResult,
+  DeletionConfirmation,
 } from "@/types/artifacts";
 
 /**
@@ -128,6 +129,8 @@ export async function loadArtifactInventory(projectId: string, chapterId?: strin
 
 export async function createArtifactDeletionPlan(request: {
   projectId: string;
+  /** Required for chapter scope. Empty string allowed for artifacts scope
+   *  (folder/file/selection delete that may span chapters). */
   chapterId: string;
   scope: "chapter" | "artifacts";
   artifactIds?: string[];
@@ -143,6 +146,44 @@ export async function updateArtifactMetadata(request: {
 }): Promise<MetadataUpdateResult> {
   if (typeof window === "undefined" || !window.artifactMetadata) return { success: false, error: "产物元数据桥接不可用" };
   return window.artifactMetadata.update(request);
+}
+
+export function getDeletionPlanConfirmation(plan: DeletionPlan): DeletionConfirmation {
+  return plan.scope === "chapter"
+    ? { type: "chapter", chapterId: plan.chapterId }
+    : { type: "artifacts", artifactCount: plan.deleteItems.length + plan.migrateItems.length };
+}
+
+export function isDeletionPlanConfirmationValid(
+  plan: DeletionPlan,
+  confirmation: DeletionConfirmation,
+): boolean {
+  if (confirmation.type === "chapter") {
+    return plan.scope === "chapter" && confirmation.chapterId === plan.chapterId;
+  }
+  return plan.scope === "artifacts"
+    && confirmation.artifactCount === plan.deleteItems.length + plan.migrateItems.length;
+}
+
+/** Execute only a registered, reviewed plan through the single renderer controller. */
+export async function executeArtifactDeletionPlan(
+  plan: DeletionPlan,
+  confirmation = getDeletionPlanConfirmation(plan),
+): Promise<ExecuteResult> {
+  if (!plan.executionAllowed || plan.blockerItems.length > 0) {
+    return { success: false, error: "post-scan-orphans", journalState: "none" };
+  }
+  if (!isDeletionPlanConfirmationValid(plan, confirmation)) {
+    return { success: false, error: "confirmation-mismatch", journalState: "none" };
+  }
+  if (typeof window === "undefined" || !window.artifactDeletion) {
+    return { success: false, error: "journal-transition-failed", journalState: "none" };
+  }
+  return window.artifactDeletion.execute({
+    planId: plan.planId,
+    fingerprint: plan.fingerprint,
+    confirmation,
+  });
 }
 
 /** Build the irreversible confirmation text shared by every workflow entry. */
@@ -179,6 +220,7 @@ export async function requestChapterDeletion(
   chapterId: string,
   scope: "chapter" | "artifacts",
   artifactIds?: string[],
+  confirmation?: { chapterId?: string; artifactCount?: number },
 ): Promise<ExecuteResult> {
   const planResult = await createArtifactDeletionPlan({ projectId, chapterId, scope, artifactIds });
   if (!planResult.success) return { success: false, error: "post-scan-orphans", journalState: "none" };
@@ -187,20 +229,13 @@ export async function requestChapterDeletion(
     return { success: false, error: "post-scan-orphans", journalState: "none" };
   }
   if (typeof window === "undefined" || !window.artifactDeletion) return { success: false, error: "journal-transition-failed", journalState: "none" };
-  const confirmationText = formatDeletionPlanConfirmation(plan);
-  if (scope === "chapter" && typeof window.prompt === "function") {
-    const expected = plan.confirmationRequired.value ?? plan.chapterId;
-    if (window.prompt(`${confirmationText}\n请输入章节 ID 以确认：${expected}`) !== expected) {
-      return { success: false, error: "confirmation-mismatch", journalState: "none" };
-    }
-  } else if (typeof window.confirm === "function" && !window.confirm(confirmationText)) {
+  if (scope === "chapter" && confirmation?.chapterId !== plan.chapterId) {
     return { success: false, error: "confirmation-mismatch", journalState: "none" };
   }
-  return window.artifactDeletion.execute({
-    planId: plan.planId,
-    fingerprint: plan.fingerprint,
-    confirmation: scope === "chapter"
-      ? { type: "chapter", chapterId }
-      : { type: "artifacts", artifactCount: plan.deleteItems.length + plan.migrateItems.length },
-  });
+  if (scope === "artifacts" && confirmation?.artifactCount !== plan.deleteItems.length + plan.migrateItems.length) {
+    return { success: false, error: "confirmation-mismatch", journalState: "none" };
+  }
+  return executeArtifactDeletionPlan(plan, scope === "chapter"
+    ? { type: "chapter", chapterId }
+    : { type: "artifacts", artifactCount: plan.deleteItems.length + plan.migrateItems.length });
 }

@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 vi.mock("electron", () => ({ ipcMain: { handle: vi.fn() } }));
 
 import { scanProjectInventory } from "./artifact-inventory-service";
+import { buildDeletionPlan } from "@/lib/artifacts/artifact-dependency-graph";
 
 const roots: string[] = [];
 
@@ -72,6 +73,8 @@ describe("artifact inventory persisted project state", () => {
     expect(full.data.artifacts.filter((artifact) => artifact.chapterId === "chapter-fixture").length).toBeGreaterThan(0);
     expect(full.data.artifacts.filter((artifact) => artifact.chapterId === "chapter-keep").length).toBeGreaterThan(0);
     expect(full.data.artifacts.some((artifact) => artifact.metadata?.name === "第一章覆盖名称")).toBe(true);
+    expect(full.data.artifacts.some((artifact) => /^(novel|analysis|script|storyboard|production):media-file:/.test(artifact.id))).toBe(false);
+    expect(full.data.artifacts.some((artifact) => artifact.kind === "novel-chapter" && artifact.chapterId === "chapter-fixture")).toBe(true);
 
     const chapter = await scanProjectInventory(dataRoot, "project-fixture", "chapter-fixture");
     expect(chapter.success).toBe(true);
@@ -79,5 +82,49 @@ describe("artifact inventory persisted project state", () => {
     expect(chapter.data.artifacts.every((artifact) => artifact.chapterId === "chapter-fixture")).toBe(true);
     expect(chapter.data.artifacts.some((artifact) => artifact.name === "shot-001.png")).toBe(true);
     expect(chapter.data.discrepancies).toHaveLength(0);
+  });
+
+  it("merges active JSON and backup physical references without treating active JSON as backup impact", async () => {
+    const dataRoot = await fs.mkdtemp(path.join(os.tmpdir(), "mystudio-artifact-physical-refs-"));
+    roots.push(dataRoot);
+    const projectRoot = path.join(dataRoot, "_p", "project-refs");
+    await fs.mkdir(projectRoot, { recursive: true });
+
+    const state = {
+      projectId: "project-refs",
+      state: {
+        novelChapters: [{ id: "chapter-refs", title: "Physical refs" }],
+      },
+      version: 1,
+    };
+    await fs.writeFile(path.join(projectRoot, "studio.json"), JSON.stringify(state));
+    await fs.writeFile(path.join(projectRoot, "chapter-refs-history.bak"), JSON.stringify(state));
+
+    const inventory = await scanProjectInventory(dataRoot, "project-refs", "chapter-refs");
+    expect(inventory.success).toBe(true);
+    if (!inventory.success) return;
+
+    const chapterArtifact = inventory.data.artifacts.find((artifact) => artifact.chapterId === "chapter-refs");
+    expect(chapterArtifact).toBeDefined();
+    const refs = chapterArtifact?.physicalRefs ?? [];
+    expect(refs.map((ref) => `${ref.type}:${ref.path}`).sort()).toEqual([
+      "backup:chapter-refs-history.bak",
+      "project-file:studio.json",
+    ]);
+
+    const planned = buildDeletionPlan(inventory.data.artifacts, [], "chapter-refs");
+    expect(planned.valid).toBe(true);
+    expect(planned.plan.deleteItems[0]?.physicalRefs?.map((ref) => ref.type).sort()).toEqual([
+      "backup",
+      "project-file",
+    ]);
+    expect(planned.plan.backupImpact).toEqual([
+      expect.objectContaining({
+        filePath: "chapter-refs-history.bak",
+        action: "delete",
+        format: "chapter-only-backup",
+      }),
+    ]);
+    expect(planned.plan.backupImpact.some((impact) => impact.filePath === "studio.json")).toBe(false);
   });
 });

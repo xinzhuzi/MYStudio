@@ -25,6 +25,11 @@ type RegisterProjectFileIpcHandlersContext = {
   getMimeType: (filePath: string) => string;
 };
 
+/** Hard size cap for project-file-read-text preview: refuse files larger than this. */
+const PREVIEW_HARD_LIMIT = 2 * 1024 * 1024; // 2MB
+/** Soft truncation limit (in BYTES) for project-file-read-text preview. */
+const PREVIEW_SOFT_LIMIT = 256 * 1024; // 256KB
+
 function resolveProjectTextFilePath(dataRoot: string, key: string) {
   const normalizedKey = key.replace(/\\/g, "/").replace(/^\/+/, "");
   if (!normalizedKey || normalizedKey.includes("../") || normalizedKey.includes("..\\")) {
@@ -103,6 +108,46 @@ export function registerProjectFileIpcHandlers({
         base64: `data:${getMimeType(filePath)};base64,${data.toString("base64")}`,
         mimeType: getMimeType(filePath),
         size: data.length,
+      };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  });
+
+  // Read a (small, text) project file as UTF-8 for in-app content preview.
+  // Guards: hard size cap (2MB), soft truncation (256KB) with a truncated flag,
+  // and a NUL-byte heuristic to refuse binary content. The containment check
+  // inside resolveProjectScopedFilePath already prevents path escape.
+  ipcMain.handle("project-file-read-text", async (
+    _event,
+    payload: { projectId: string; relativePath: string },
+  ) => {
+    try {
+      const filePath = resolveProjectScopedFilePath(
+        getDataDir(),
+        payload.projectId,
+        payload.relativePath,
+      );
+      const stat = await fs.promises.stat(filePath);
+      if (stat.size > PREVIEW_HARD_LIMIT) {
+        return { success: false, error: "文件过大(超过 2MB),请使用外部编辑器打开" };
+      }
+      const data = await fs.promises.readFile(filePath);
+      if (data.length > 0 && data.includes(0x00)) {
+        return { success: false, error: "文件包含二进制内容,无法预览" };
+      }
+      // Truncate by BYTES so the "256KB" cap (and the UI text) matches
+      // stat.size semantics. Slicing the Buffer at a UTF-8 boundary then
+      // decoding is surrogate-safe: a partial multi-byte sequence decodes to
+      // a replacement char at most, never a lone UTF-16 surrogate.
+      const truncated = data.length > PREVIEW_SOFT_LIMIT;
+      const fullText = (truncated ? data.subarray(0, PREVIEW_SOFT_LIMIT) : data).toString("utf-8");
+      return {
+        success: true,
+        text: fullText,
+        size: stat.size,
+        mimeType: getMimeType(filePath),
+        truncated,
       };
     } catch (error) {
       return { success: false, error: error instanceof Error ? error.message : String(error) };

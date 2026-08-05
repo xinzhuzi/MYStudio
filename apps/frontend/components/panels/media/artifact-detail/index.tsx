@@ -4,20 +4,16 @@
 
 import { useMemo, useState, useEffect } from "react";
 import {
-  X,
-  Save,
-  Link as LinkIcon,
   FileText,
   Folder,
   Clock,
   Hash,
   Tag,
+  Link as LinkIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { ArtifactRecord, PhysicalRef, DeletePolicy } from "@/types/artifacts";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Button } from "@/components/ui/button";
+import type { ArtifactRecord, PhysicalRef } from "@/types/artifacts";
+import { STAGE_LABELS_BY_KEY as STAGE_LABELS } from "@/lib/artifacts/stage-labels";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
@@ -27,122 +23,32 @@ import {
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { RefPreview } from "../RefPreview";
+import { EditableField, STATE_INFO, formatBytes, formatTimestamp } from "./helpers";
+import { JsonViewer } from "./json-viewer";
 
 /**
- * Artifact Detail Panel Component
+ * Artifact Detail Panel
  *
- * Full metadata display with inline editing
- * Shows physical refs and dependency chains
- * Pure props - uses hooks for side effects
+ * Full metadata display with inline editing for name/notes (tags are read-only
+ * JSON). Shows physical refs (with full structure as JSON) and dependency
+ * chains. Pure props — side effects live in the parent via onMetadataUpdate.
  */
 
 export interface ArtifactDetailPanelProps {
   /** Artifact record to display */
   artifact?: ArtifactRecord | null;
-
   /** Is panel open? */
   isOpen: boolean;
-
   /** Callback when panel is closed */
   onClose: () => void;
-
-  /** Callback when metadata is updated */
+  /** Callback when metadata is updated (name / notes — tags is read-only) */
   onMetadataUpdate?: (
     artifactId: string,
     updates: { name?: string; tags?: string[]; notes?: string }
   ) => Promise<void>;
-
   /** Custom className for root element */
   className?: string;
-}
-
-interface EditableFieldProps<T extends string | string[] | undefined> {
-  label: string;
-  value: T;
-  onSave: (newValue: T) => Promise<void>;
-  isEditing: boolean;
-  setIsEditing: (editing: boolean) => void;
-  placeholder?: string;
-}
-
-function EditableField({
-  label,
-  value,
-  onSave,
-  isEditing,
-  setIsEditing,
-  placeholder,
-}: EditableFieldProps<any>) {
-  const [tempValue, setTempValue] = useState<string>(
-    typeof value === 'string' ? value : JSON.stringify(value)
-  );
-
-  useEffect(() => {
-    if (!isEditing) {
-      setTempValue(typeof value === 'string' ? value : JSON.stringify(value));
-    }
-  }, [isEditing, value]);
-
-  const handleSave = async () => {
-    try {
-      let newValue: any = tempValue;
-      if (typeof value === 'object' && value !== null) {
-        try {
-          newValue = JSON.parse(tempValue);
-        } catch {
-          // Keep original if parse fails
-          return;
-        }
-      }
-      await onSave(newValue);
-    } finally {
-      setIsEditing(false);
-    }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      handleSave();
-    } else if (e.key === 'Escape') {
-      setTempValue(typeof value === 'string' ? value : JSON.stringify(value));
-      setIsEditing(false);
-    }
-  };
-
-  if (isEditing) {
-    return (
-      <div className="flex items-center gap-2">
-        <Input
-          value={tempValue}
-          onChange={(e) => setTempValue(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder={placeholder}
-          autoFocus
-          className="flex-1"
-        />
-        <Button size="icon" variant="ghost" onClick={handleSave}>
-          <Save className="h-3 w-3" />
-        </Button>
-        <Button size="icon" variant="ghost" onClick={() => setIsEditing(false)}>
-          <X className="h-3 w-3" />
-        </Button>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex items-center justify-between group">
-      <div className="text-sm text-muted-foreground flex-1 truncate">
-        {value || <span className="italic text-muted-foreground">未设置</span>}
-      </div>
-      <button
-        onClick={() => setIsEditing(true)}
-        className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-muted rounded"
-      >
-        <FileText className="h-3 w-3 text-muted-foreground" />
-      </button>
-    </div>
-  );
 }
 
 export function ArtifactDetailPanel({
@@ -152,7 +58,15 @@ export function ArtifactDetailPanel({
   onMetadataUpdate,
   className,
 }: ArtifactDetailPanelProps) {
-  const [editingField, setEditingField] = useState<null | 'name' | 'tags' | 'notes'>(null);
+  const [editingField, setEditingField] = useState<null | "name" | "notes">(null);
+  const [activeTab, setActiveTab] = useState<string>("metadata");
+  const [selectedRef, setSelectedRef] = useState<PhysicalRef | null>(null);
+
+  // Reset tab + selection whenever the displayed artifact changes.
+  useEffect(() => {
+    setActiveTab("metadata");
+    setSelectedRef(null);
+  }, [artifact?.id]);
 
   const handleMetadataUpdate = async (updates: {
     name?: string;
@@ -176,55 +90,11 @@ export function ArtifactDetailPanel({
     return groups;
   }, [artifact?.physicalRefs]);
 
-  // Format stage for display
-  const STAGE_LABELS: Record<string, string> = {
-    "novel": "小说导入",
-    "analysis": "内容分析",
-    "script": "剧本生成",
-    "assets": "素材准备",
-    "storyboard": "分镜设计",
-    "image": "图像生成",
-    "voice": "语音合成",
-    "production": "视频生产",
-    "editing": "剪辑编辑",
-    "remotion": "Remotion 编排",
-    "export": "导出输出",
-    "backup": "备份归档",
-    "media-library": "媒体库",
-  };
-
-  // State icons
-  const STATE_INFO: Record<string, { color: string; label: string }> = {
-    "active": { color: "bg-green-600", label: "活跃" },
-    "archived": { color: "bg-gray-600", label: "已归档" },
-    "orphaned": { color: "bg-orange-600", label: "孤儿" },
-    "blocked": { color: "bg-red-600", label: "已阻塞" },
-    "unknown": { color: "bg-yellow-600", label: "未知" },
-  };
-
-  const formatTimestamp = (ts: number) => {
-    return new Date(ts).toLocaleString('zh-CN', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    });
-  };
-
-  const formatBytes = (bytes?: number): string => {
-    if (!bytes) return "-";
-    if (bytes === 0) return "0 B";
-    const k = 1024;
-    const sizes = ["B", "KB", "MB", "GB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
-  };
-
   if (!isOpen || !artifact) {
     return null;
   }
+
+  const tags = artifact.metadata?.tags ?? [];
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -237,11 +107,12 @@ export function ArtifactDetailPanel({
         </DialogHeader>
 
         <ScrollArea className="max-h-[calc(90vh-120px)]">
-          <Tabs defaultValue="metadata" className="w-full">
-            <TabsList className="grid w-full grid-cols-3 mb-4">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="grid w-full grid-cols-4 mb-4">
               <TabsTrigger value="metadata">元数据</TabsTrigger>
               <TabsTrigger value="physical">物理文件</TabsTrigger>
               <TabsTrigger value="dependencies">依赖关系</TabsTrigger>
+              <TabsTrigger value="preview">内容预览</TabsTrigger>
             </TabsList>
 
             {/* Metadata Tab */}
@@ -259,8 +130,8 @@ export function ArtifactDetailPanel({
                     label="名称"
                     value={artifact.name}
                     onSave={(v) => handleMetadataUpdate({ name: v })}
-                    isEditing={editingField === 'name'}
-                    setIsEditing={(e) => setEditingField(e ? 'name' : null)}
+                    isEditing={editingField === "name"}
+                    setIsEditing={(e) => setEditingField(e ? "name" : null)}
                     placeholder="输入名称..."
                   />
                 </div>
@@ -275,7 +146,7 @@ export function ArtifactDetailPanel({
 
                   <div className="space-y-2">
                     <label className="text-xs font-medium text-muted-foreground">项目 ID</label>
-                    <code className="block text-xs bg-muted p-2 rounded">
+                    <code className="block text-xs bg-muted p-2 rounded break-all">
                       {artifact.projectId}
                     </code>
                   </div>
@@ -284,7 +155,7 @@ export function ArtifactDetailPanel({
                 {artifact.chapterId && (
                   <div className="space-y-2">
                     <label className="text-xs font-medium text-muted-foreground">章节 ID</label>
-                    <code className="block text-xs bg-muted p-2 rounded">
+                    <code className="block text-xs bg-muted p-2 rounded break-all">
                       {artifact.chapterId}
                     </code>
                   </div>
@@ -363,26 +234,24 @@ export function ArtifactDetailPanel({
                   标签与备注
                 </h3>
 
+                {/* Tags — read-only JSON viewer (no longer editable) */}
                 <div className="space-y-2">
                   <label className="text-xs font-medium text-muted-foreground">标签</label>
-                  <EditableField
-                    label="标签"
-                    value={artifact.metadata?.tags || []}
-                    onSave={(v) => handleMetadataUpdate({ tags: v })}
-                    isEditing={editingField === 'tags'}
-                    setIsEditing={(e) => setEditingField(e ? 'tags' : null)}
-                    placeholder='["tag1", "tag2"]'
-                  />
+                  {tags.length > 0 ? (
+                    <JsonViewer value={tags} maxHeight="12rem" />
+                  ) : (
+                    <p className="text-sm italic text-muted-foreground">未设置</p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
                   <label className="text-xs font-medium text-muted-foreground">备注</label>
                   <EditableField
                     label="备注"
-                    value={artifact.metadata?.notes || ''}
+                    value={artifact.metadata?.notes || ""}
                     onSave={(v) => handleMetadataUpdate({ notes: v })}
-                    isEditing={editingField === 'notes'}
-                    setIsEditing={(e) => setEditingField(e ? 'notes' : null)}
+                    isEditing={editingField === "notes"}
+                    setIsEditing={(e) => setEditingField(e ? "notes" : null)}
                     placeholder="输入备注..."
                   />
                 </div>
@@ -403,33 +272,44 @@ export function ArtifactDetailPanel({
                 {Object.entries(groupedRefs).map(([type, refs]) => (
                   <div key={type} className="space-y-2">
                     <h4 className="font-medium flex items-center gap-2 text-sm">
-                      {type === 'local-media' && <Folder className="h-4 w-4" />}
-                      {type === 'project-file' && <FileText className="h-4 w-4" />}
-                      {type === 'exports' && <Folder className="h-4 w-4" />}
-                      {type === 'remotion' && <Folder className="h-4 w-4" />}
-                      {type === 'backup' && <Folder className="h-4 w-4" />}
-                      {type.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} ({refs.length})
+                      {type === "local-media" && <Folder className="h-4 w-4" />}
+                      {type === "project-file" && <FileText className="h-4 w-4" />}
+                      {type === "exports" && <Folder className="h-4 w-4" />}
+                      {type === "remotion" && <Folder className="h-4 w-4" />}
+                      {type === "backup" && <Folder className="h-4 w-4" />}
+                      {type.replace(/-/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())} ({refs.length})
                     </h4>
 
-                    <div className="space-y-1">
+                    <div className="space-y-2">
                       {refs.map((ref, idx) => (
                         <div
                           key={idx}
-                          className="text-xs bg-muted p-2 rounded break-all hover:bg-muted/80 transition-colors cursor-pointer group relative"
+                          className="text-xs bg-muted/40 p-2 rounded hover:bg-muted/80 transition-colors cursor-pointer group relative"
                           title={ref.path}
+                          onClick={() => {
+                            setSelectedRef(ref);
+                            setActiveTab("preview");
+                          }}
                         >
-                          <code>{ref.path}</code>
-                          {ref.bytes && (
-                            <span className="ml-2 text-xs text-muted-foreground">
-                              ({formatBytes(ref.bytes)})
-                            </span>
-                          )}
+                          <div className="flex items-center gap-2 pr-16">
+                            <code className="break-all">{ref.path}</code>
+                            {ref.bytes && (
+                              <span className="shrink-0 text-xs text-muted-foreground">
+                                ({formatBytes(ref.bytes)})
+                              </span>
+                            )}
+                          </div>
 
-                          {/* Preview button (future feature) */}
+                          {/* Full PhysicalRef structure as JSON */}
+                          <JsonViewer value={ref} maxHeight="8rem" className="mt-2" />
+
+                          {/* Preview button: explicit trigger to content-preview tab */}
                           <button
-                            className="opacity-0 group-hover:opacity-100 absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 bg-background border rounded text-xs"
-                            onClick={() => {
-                              // Future: trigger preview
+                            className="opacity-0 group-hover:opacity-100 absolute right-2 top-2 px-2 py-1 bg-background border rounded text-xs"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedRef(ref);
+                              setActiveTab("preview");
                             }}
                           >
                             预览
@@ -462,7 +342,7 @@ export function ArtifactDetailPanel({
                     <p className="text-xs text-muted-foreground">无上游依赖（根节点）</p>
                   ) : (
                     <div className="space-y-1 max-h-40 overflow-y-auto">
-                      {artifact.upstreamIds.map(id => (
+                      {artifact.upstreamIds.map((id) => (
                         <Badge key={id} variant="outline" className="cursor-pointer hover:bg-blue-50">
                           {id.substring(0, 16)}...
                         </Badge>
@@ -474,7 +354,7 @@ export function ArtifactDetailPanel({
                 {/* Downstream References */}
                 <div className="space-y-2">
                   <h4 className="font-medium flex items-center gap-2 text-sm">
-                    LinkIcon className="h-4 w-4"/
+                    <LinkIcon className="h-4 w-4" />
                     下游引用 ({artifact.downstreamIds.length})
                   </h4>
 
@@ -482,7 +362,7 @@ export function ArtifactDetailPanel({
                     <p className="text-xs text-muted-foreground">无下游引用（叶子节点）</p>
                   ) : (
                     <div className="space-y-1 max-h-40 overflow-y-auto">
-                      {artifact.downstreamIds.map(id => (
+                      {artifact.downstreamIds.map((id) => (
                         <Badge key={id} variant="secondary" className="cursor-pointer hover:bg-green-50">
                           {id.substring(0, 16)}...
                         </Badge>
@@ -498,6 +378,23 @@ export function ArtifactDetailPanel({
                   </p>
                 </div>
               </div>
+            </TabsContent>
+
+            {/* Content Preview Tab */}
+            <TabsContent value="preview">
+              {selectedRef && artifact.projectId ? (
+                <div className="h-[60vh] min-h-0 rounded-md border border-border bg-card">
+                  <RefPreview
+                    ref={selectedRef}
+                    projectId={artifact.projectId}
+                    className="h-full"
+                  />
+                </div>
+              ) : (
+                <div className="flex h-40 items-center justify-center text-center text-muted-foreground">
+                  <p className="text-sm">在「物理文件」标签页中点击任意文件以预览内容。</p>
+                </div>
+              )}
             </TabsContent>
           </Tabs>
         </ScrollArea>
