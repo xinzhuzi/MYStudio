@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { buildProjectFileUrl } from "@/lib/artifacts/ref-preview-loader";
 import type { ToonflowWorkbenchAssetMedia } from "@/lib/studio/workbench-view-model";
 import { useCharacterLibraryStore } from "@/stores/library/character-library-store";
 import { usePropsLibraryStore } from "@/stores/library/props-library-store";
@@ -14,11 +15,13 @@ import type {
   RemotionRenderJobV1,
 } from "@/types/remotion-workspace";
 import { Film } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { NativeRemotionStudioHost } from "./NativeRemotionStudioHost";
 import { VisualContinuityReviewPanel } from "./VisualContinuityReviewPanel";
 import { useEditingWorkbenchActions } from "./useEditingWorkbenchActions";
+import { selectFirstStoryboard, useFirstShotPreviewActions } from "./use-first-shot-preview-actions";
 import { useRemotionQueueScope } from "./useRemotionQueueScope";
+import { toast } from "sonner";
 
 export function WorkbenchTab(props: {
   projectId?: string;
@@ -51,20 +54,67 @@ export function WorkbenchTab(props: {
     props.remotionShotSlots ?? [],
   );
   const chapterId = props.episodeId ?? "episode-1";
+  const currentChapterStoryboards = props.storyboards
+    .filter((storyboard) => storyboard.episodeId === chapterId)
+    .slice()
+    .sort((left, right) => left.index - right.index);
   const queueScope = useRemotionQueueScope(props.projectId ?? activeProjectId ?? undefined, chapterId);
+  const firstShotPreview = useFirstShotPreviewActions({
+    projectId: props.projectId ?? activeProjectId ?? undefined,
+    chapterId,
+    storyboards: props.storyboards,
+    continuityAssetVersions: continuityAssetVersions,
+  });
+  const firstStoryboard = selectFirstStoryboard(props.storyboards, chapterId);
+  const firstShotRevision = Math.max(1, firstStoryboard?.outputVersion ?? 1);
+  const firstShotJob = firstStoryboard
+    ? selectCurrentShotJobForStoryboard(firstStoryboard, queueScope.jobs, queueScope.currentShotSlots)
+    : undefined;
+  const firstShotSlot = firstStoryboard
+    ? queueScope.currentShotSlots.find((slot) => slot.target.kind === "shot" && slot.target.shotId === firstStoryboard.id && slot.target.shotRevision === firstShotRevision)
+    : undefined;
+  const firstShotOutputRequestVersion = useRef(0);
+  const [firstShotAbsoluteOutputPath, setFirstShotAbsoluteOutputPath] = useState<string>();
+  const [firstShotOutputPathError, setFirstShotOutputPathError] = useState<string>();
+  useEffect(() => {
+    const requestVersion = ++firstShotOutputRequestVersion.current;
+    const projectId = props.projectId ?? activeProjectId ?? undefined;
+    const relativeOutputPath = firstShotSlot?.outputPath;
+    setFirstShotAbsoluteOutputPath(undefined);
+    setFirstShotOutputPathError(undefined);
+    if (!relativeOutputPath) return;
+    const resolveAbsolutePath = window.projectFiles?.getAbsolutePath;
+    if (!projectId || !resolveAbsolutePath) {
+      setFirstShotOutputPathError("当前环境无法解析首镜输出路径");
+      return;
+    }
+    const projectFileUrl = buildProjectFileUrl(projectId, `remotion/${relativeOutputPath}`);
+    void resolveAbsolutePath(projectFileUrl).then((absolutePath) => {
+      if (requestVersion !== firstShotOutputRequestVersion.current) return;
+      if (absolutePath) setFirstShotAbsoluteOutputPath(absolutePath);
+      else setFirstShotOutputPathError("首镜 current slot 文件不存在或路径无效");
+    }).catch((error) => {
+      if (requestVersion !== firstShotOutputRequestVersion.current) return;
+      setFirstShotOutputPathError(error instanceof Error ? error.message : String(error));
+    });
+  }, [activeProjectId, firstShotSlot?.outputPath, props.projectId]);
   const [chapterManifest, setChapterManifest] = useState<RemotionChapterManifestV2 | null>(null);
   const [chapterAudioStatus, setChapterAudioStatus] = useState("未读取");
   const [chapterAudioBusy, setChapterAudioBusy] = useState(false);
   const [chapterAudioError, setChapterAudioError] = useState<string | null>(null);
+  const manifestRequestVersion = useRef(0);
   const refreshChapterManifest = useCallback(async () => {
+    const requestVersion = ++manifestRequestVersion.current;
     const bridge = window.remotionChapterManifest;
-    if (!bridge || !props.projectId) {
+    const projectId = props.projectId;
+    if (!bridge || !projectId) {
       setChapterManifest(null);
       setChapterAudioStatus("桌面 bridge 不可用");
       return;
     }
     try {
-      const reply = await bridge.read({ projectId: props.projectId, chapterId });
+      const reply = await bridge.read({ projectId, chapterId });
+      if (requestVersion !== manifestRequestVersion.current) return;
       if (reply.status === "ready") {
         setChapterManifest(reply.manifest);
         setChapterAudioStatus("已加载");
@@ -249,6 +299,24 @@ export function WorkbenchTab(props: {
       setChapterAudioBusy(false);
     }
   }, [chapterId, chapterManifest, props.projectId, props.storyboards]);
+  const openFirstShotVideo = useCallback(async () => {
+    const outputPath = firstShotAbsoluteOutputPath;
+    if (!outputPath || !window.electronAPI?.openPath) {
+      toast.error("首镜视频尚未生成或当前环境不支持打开本地文件");
+      return;
+    }
+    const result = await window.electronAPI.openPath(outputPath);
+    if (!result.success) toast.error(result.error || "无法打开首镜视频");
+  }, [firstShotAbsoluteOutputPath]);
+  const showFirstShotFolder = useCallback(async () => {
+    const outputPath = firstShotAbsoluteOutputPath;
+    if (!outputPath || !window.electronAPI?.showItemInFolder) {
+      toast.error("首镜视频尚未生成或当前环境不支持显示文件夹");
+      return;
+    }
+    const result = await window.electronAPI.showItemInFolder(outputPath);
+    if (!result.success) toast.error(result.error || "无法显示首镜视频所在文件夹");
+  }, [firstShotAbsoluteOutputPath]);
   return (
     <div className="space-y-3">
       <VisualContinuityReviewPanel
@@ -352,6 +420,55 @@ export function WorkbenchTab(props: {
         ))}
         {chapterAudioError ? <p className="mt-2 text-destructive">{chapterAudioError}</p> : null}
       </section>
+      <section aria-label="首镜横屏预览" data-first-shot-preview className="rounded-lg border border-cyan-300/20 bg-cyan-300/[0.06] px-4 py-3 text-xs">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <span className="font-semibold">首镜横屏预览</span>
+            <span className="ml-2 text-muted-foreground">StoryboardShot · 1920×1080 · 30fps</span>
+          </div>
+          <span className="text-muted-foreground" data-first-shot-preview-status>
+            {firstShotJob ? formatFirstShotStatus(firstShotJob.status) : "尚未提交"}
+          </span>
+        </div>
+        <p className="mt-1 text-muted-foreground">
+          直接使用当前章节 S01 的真实画面与 voice/SFX 绑定，通过 Remotion 队列生成项目内单镜 MP4，不需要终端命令。
+        </p>
+        {firstStoryboard ? (
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded border border-border/70 bg-background/30 p-2">
+            <div className="min-w-0">
+              <div className="truncate font-medium">S01 · {firstStoryboard.videoDesc || firstStoryboard.prompt || firstStoryboard.id}</div>
+              <div className="mt-1 text-[10px] text-muted-foreground">
+                {firstStoryboard.id} · {firstStoryboard.durationTarget ?? firstStoryboard.duration}s · voice {firstStoryboard.shotAudioBindings?.some((binding) => binding.role === "voice") ? "已绑定" : "缺失"}
+              </div>
+            </div>
+            <Button
+              size="sm"
+              data-first-shot-preview-action
+              onClick={() => { void firstShotPreview.generateFirstShotPreview(); }}
+              disabled={firstShotPreview.busy || firstShotJob?.status === "queued" || firstShotJob?.status === "running"}
+            >
+              {firstShotPreview.busy ? "正在提交…" : "生成首镜横屏预览"}
+            </Button>
+          </div>
+        ) : (
+          <p className="mt-3 text-destructive">当前章节没有 index=1 的首镜分镜，已停止提交。</p>
+        )}
+        {firstShotPreview.error ? <p className="mt-2 text-destructive">{firstShotPreview.error}</p> : null}
+        {firstShotJob?.error ? <p className="mt-2 text-destructive">{firstShotJob.error.message}</p> : null}
+        {firstShotSlot?.outputPath ? (
+          <div className="mt-3 rounded border border-border/70 bg-background/40 p-2">
+            <div className="text-[10px] text-muted-foreground">当前槽位输出路径</div>
+            <code className="mt-1 block break-all text-[10px] text-foreground" data-first-shot-preview-output>
+              {firstShotAbsoluteOutputPath ?? "正在定位输出文件…"}
+            </code>
+            {firstShotOutputPathError ? <p className="mt-1 text-destructive">{firstShotOutputPathError}</p> : null}
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              <Button size="sm" variant="outline" disabled={!firstShotAbsoluteOutputPath} onClick={() => { void openFirstShotVideo(); }}>打开视频</Button>
+              <Button size="sm" variant="outline" disabled={!firstShotAbsoluteOutputPath} onClick={() => { void showFirstShotFolder(); }}>在文件夹中显示</Button>
+            </div>
+          </div>
+        ) : null}
+      </section>
       <section aria-label="分镜音频操作" className="rounded-lg border border-border bg-card px-4 py-3 text-xs">
         <div className="flex items-center justify-between gap-2">
           <span className="font-semibold">分镜音频状态与操作</span>
@@ -359,8 +476,8 @@ export function WorkbenchTab(props: {
         </div>
         <p className="mt-1 text-muted-foreground">voice/TTS 与 SFX 只进入对应 StoryboardShot MP4；章节共享 BGM/环境声不会重复烘入单镜。</p>
         <div className="mt-3 space-y-2">
-          {props.storyboards.slice().sort((left, right) => left.index - right.index).map((storyboard) => {
-            const job = queueScope.jobs.find((item) => item.target.kind === "shot" && item.target.shotId === storyboard.id);
+          {currentChapterStoryboards.map((storyboard) => {
+            const job = selectCurrentShotJobForStoryboard(storyboard, queueScope.jobs, queueScope.currentShotSlots);
             const voice = storyboard.shotAudioBindings?.find((binding) => binding.role === "voice");
             const sfx = storyboard.shotAudioBindings?.find((binding) => binding.role === "sfx");
             return (
@@ -410,7 +527,7 @@ export function WorkbenchTab(props: {
           </Button>
           {!chapterReady ? (
             <p className="mt-3 text-xs text-muted-foreground">
-              已验证单镜槽位：{countCurrentShotSlots(props.episodeId ?? "episode-1", props.storyboards, props.remotionShotSlots ?? [])}/{props.storyboards.length}；全部成功后才能进入章节工作台。
+              已验证单镜槽位：{countCurrentShotSlots(props.episodeId ?? "episode-1", props.storyboards, props.remotionShotSlots ?? [])}/{props.storyboards.filter((storyboard) => storyboard.episodeId === (props.episodeId ?? "episode-1")).length}；全部成功后才能进入章节工作台。
             </p>
           ) : null}
           {editing.error && <p className="mt-3 text-sm text-destructive">{editing.error}</p>}
@@ -420,29 +537,71 @@ export function WorkbenchTab(props: {
   );
 }
 
-function isCurrentChapterReady(
+export function isCurrentChapterReady(
   episodeId: string,
   storyboards: ReturnType<typeof useStudioStore.getState>["storyboards"],
   slots: RemotionCurrentSlotV1[],
 ) {
-  return storyboards.length > 0
-    && countCurrentShotSlots(episodeId, storyboards, slots) === storyboards.length;
+  const currentStoryboards = storyboards.filter((storyboard) => storyboard.episodeId === episodeId);
+  return currentStoryboards.length > 0
+    && countCurrentShotSlots(episodeId, currentStoryboards, slots) === currentStoryboards.length;
 }
 
-function countCurrentShotSlots(
+export function countCurrentShotSlots(
   episodeId: string,
   storyboards: ReturnType<typeof useStudioStore.getState>["storyboards"],
   slots: RemotionCurrentSlotV1[],
 ) {
-  const storyboardIds = new Set(storyboards.map((storyboard) => storyboard.id));
-  return new Set(
-    slots
-      .filter((slot) => slot.target.kind === "shot"
-        && slot.target.chapterId === episodeId
-        && storyboardIds.has(slot.target.shotId)
-        && slot.job.status === "succeeded")
-      .map((slot) => slot.target.kind === "shot" ? slot.target.shotId : ""),
-  ).size;
+  const currentStoryboards = storyboards.filter((storyboard) => storyboard.episodeId === episodeId);
+  return currentStoryboards.filter((storyboard) => slots.some((slot) => slot.target.kind === "shot"
+    && slot.target.chapterId === episodeId
+    && slot.target.shotId === storyboard.id
+    && slot.target.shotRevision === Math.max(1, storyboard.outputVersion ?? 1)
+    && slot.job.status === "succeeded")).length;
+}
+
+export function selectCurrentShotJobForStoryboard(
+  storyboard: ReturnType<typeof useStudioStore.getState>["storyboards"][number],
+  jobs: RemotionRenderJobV1[],
+  slots: RemotionCurrentSlotV1[],
+): RemotionRenderJobV1 | undefined {
+  const revision = Math.max(1, storyboard.outputVersion ?? 1);
+  const currentSlot = slots.find((slot) => slot.target.kind === "shot"
+    && slot.target.chapterId === storyboard.episodeId
+    && slot.target.shotId === storyboard.id
+    && slot.target.shotRevision === revision);
+  if (currentSlot) return currentSlot.job;
+  return jobs
+    .filter((item) => item.target.kind === "shot"
+      && item.target.chapterId === storyboard.episodeId
+      && item.target.shotId === storyboard.id
+      && item.target.shotRevision === revision)
+    .slice()
+    .sort((left, right) => (right.createdAt ?? 0) - (left.createdAt ?? 0))[0];
+}
+
+function formatFirstShotStatus(status: RemotionRenderJobV1["status"]): string {
+  switch (status) {
+    case "queued":
+    case "running":
+      return status === "queued" ? "排队中" : "渲染中";
+    case "succeeded":
+      return "已生成";
+    case "failed":
+      return "生成失败";
+    case "canceled":
+      return "已取消";
+    case "stale":
+      return "已过期";
+    case "blocked":
+      return "已阻塞";
+    case "ready":
+      return "待执行";
+    case "pending":
+      return "待准备";
+    default:
+      return status;
+  }
 }
 
 function filterProjectItems<T extends { projectId?: string }>(

@@ -131,6 +131,22 @@ describe("validateCompositionProps", () => {
     }
   });
 
+  it("accepts contain and rejects an unknown visual fit", () => {
+    const props = validProps();
+    props.visualClips[0].fit = "contain";
+    expect(validateCompositionProps(props).success).toBe(true);
+
+    (props.visualClips[0] as { fit: string }).fit = "stretch";
+    const result = validateCompositionProps(props);
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.issues).toContainEqual({
+        path: "visualClips[0].fit",
+        message: "visualClips[0].fit 必须是 cover / contain 之一",
+      });
+    }
+  });
+
   it("rejects negative audio volume", () => {
     const props = validProps();
     (props.audioClips[0] as { volume: number }).volume = -0.5;

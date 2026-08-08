@@ -42,8 +42,8 @@ import {
   resolveProjectRootPath,
 } from "../storage/storage-paths";
 import { withFileStorageMutationLocks } from "../ipc/files/file-storage-ipc";
-import { rewriteRegisteredBackup } from "./backup-decoder-registry";
 import { scanProjectInventory } from "./artifact-inventory-service";
+import { rewriteRegisteredBackup } from "./backup-decoder-registry";
 import { studioTransformDeleteNovelChapters, scriptTransformDeleteEpisodes } from "@/lib/stores/store-transforms";
 import type { NovelChaptersSnapshot, ScriptDataSnapshot } from "@/lib/stores/store-transforms";
 import type { Episode } from "@/types/script";
@@ -281,14 +281,26 @@ function reindexScriptState(value: unknown): unknown {
   return next;
 }
 
-async function rewritePersistedFiles(projectRoot: string, chapterId: string, rawIds: Set<string>): Promise<CapturedFile[]> {
+async function rewritePersistedFiles(
+  projectRoot: string,
+  chapterId: string,
+  rawIds: Set<string>,
+  backupImpacts: DeletionPlan["backupImpact"],
+): Promise<CapturedFile[]> {
   const originals: CapturedFile[] = [];
   for (const file of await collectPersistedFiles(projectRoot)) {
     const text = await fsp.readFile(file, "utf8").catch(() => null);
     if (text === null) continue;
     let parsed: unknown;
     try { parsed = JSON.parse(text); } catch { continue; }
-    const changed = path.basename(file) === "artifacts.json"
+    const relativePath = path.relative(projectRoot, file).split(path.sep).join("/");
+    const backupImpact = backupImpacts.find((impact) => impact.filePath === relativePath);
+    if (backupImpact?.action === "block") throw new Error("backup format blocked");
+    if (backupImpact?.action === "delete") continue;
+    if (/\.bak$/i.test(file) && !backupImpact) continue;
+    const changed = backupImpact?.action === "rewrite"
+      ? rewriteRegisteredBackup(parsed, chapterId, rawIds)
+      : path.basename(file) === "artifacts.json"
       ? (() => {
           const root = parsed as Record<string, unknown>;
           const overlays = root.overlays;
@@ -296,12 +308,7 @@ async function rewritePersistedFiles(projectRoot: string, chapterId: string, raw
           const nextOverlays = Object.fromEntries(Object.entries(overlays as Record<string, unknown>).filter(([id]) => !rawIds.has(id) && !rawIds.has(id.split(":").pop() ?? id)));
           return { value: { ...root, overlays: nextOverlays }, changed: Object.keys(nextOverlays).length !== Object.keys(overlays as Record<string, unknown>).length };
         })()
-      : /\.bak$/i.test(file)
-      ? (() => {
-          const rewritten = rewriteRegisteredBackup(parsed, chapterId, rawIds);
-          return { value: rewritten.value, changed: rewritten.changed };
-        })()
-      : pruneChapter(parsed, chapterId, rawIds);
+        : pruneChapter(parsed, chapterId, rawIds);
     if (!changed.changed) continue;
     const normalized = reindexScriptState(changed.value);
     originals.push(await captureFile(file));
@@ -398,7 +405,6 @@ async function postScan(context: DeletionContext, projectId: string, chapterId: 
       try {
         if (containsChapterRecord(JSON.parse(text), chapterId, rawIds)) {
           result.residualChapterFiles++;
-          if (/\.bak$/i.test(file)) result.backupResidue++;
         }
       } catch {
         // Invalid JSON is already represented as an inventory discrepancy.
@@ -445,10 +451,17 @@ export async function executeDeletion(
   const plan = plans.get(input.planId);
   if (!plan || input.fingerprint !== plan.fingerprint) return { success: false, error: "fingerprint-drift", journalState: "none" };
   if (!plan.executionAllowed || plan.blockerItems.length > 0) return { success: false, error: "post-scan-orphans", journalState: "none" };
-  if (input.confirmation.type === "chapter" && (input.confirmation.chapterId !== plan.chapterId || input.confirmation.chapterTitle !== undefined && input.confirmation.chapterTitle !== plan.chapterId)) {
-    return { success: false, error: "confirmation-mismatch", journalState: "none" };
-  }
-  if (input.confirmation.type === "artifacts" && input.confirmation.artifactCount !== plan.deleteItems.length + plan.migrateItems.length) {
+  const confirmationMatches = plan.scope === "chapter"
+    ? input.confirmation.type === "chapter" && (
+        plan.confirmationRequired.type === "chapter-id"
+          ? input.confirmation.chapterId === plan.confirmationRequired.value
+          : plan.confirmationRequired.type === "chapter-title"
+            ? input.confirmation.chapterTitle === plan.confirmationRequired.value
+            : false
+      )
+    : input.confirmation.type === "artifacts"
+      && input.confirmation.artifactCount === plan.deleteItems.length + plan.migrateItems.length;
+  if (!confirmationMatches) {
     return { success: false, error: "confirmation-mismatch", journalState: "none" };
   }
 
@@ -543,7 +556,7 @@ export async function executeDeletion(
       journal = { schemaVersion: 1, state: "prepared", planId: plan.planId, bundlePath, bundleSha256, preFingerprint, migrationManifest: migrations };
       await atomicWrite(journalPath, JSON.stringify(journal));
 
-      const rewritten = await rewritePersistedFiles(projectRoot, plan.chapterId, rawIds);
+      const rewritten = await rewritePersistedFiles(projectRoot, plan.chapterId, rawIds, plan.backupImpact);
       const rewrittenPaths = new Set(rewritten.map((file) => file.file));
       bundle.files.push(...rewritten.filter((file) => !bundle.files.some((existing) => existing.file === file.file)));
       bundle.migrations = migrations;

@@ -108,6 +108,37 @@ class PromoteChapter001StoryboardContinuityTest(unittest.TestCase):
         }), encoding="utf-8")
         return project, store_path, report_path
 
+    def select_shot_fixture(self, report_path: Path, shot: int = 1):
+        report = promotion.load_json(report_path)
+        entry = next(item for item in report["entries"] if item["index"] == shot)
+        entry["styleContractVersion"] = "daojie-gongbi-v2"
+        report.update({
+            "ok": True,
+            "mode": "selected-shots",
+            "shots": [shot],
+            "generatedImages": 1,
+            "approvedShots": [shot],
+            "awaitingApprovalShot": None,
+            "entries": [entry],
+        })
+        report_path.write_text(json.dumps(report), encoding="utf-8")
+
+        approvals_path = report_path.parent / "human-approvals.json"
+        approvals = promotion.load_json(approvals_path)
+        approval = approvals["approvals"][str(shot)]
+        approval["reviewChecklist"] = {
+            "linework": True,
+            "colorBalance": True,
+            "clothingIntegrity": True,
+            "cleanliness": True,
+            "continuity": True,
+            "text": True,
+            "watermark": True,
+        }
+        sample = promotion.load_sample_module()
+        approval["approvalFingerprint"] = sample.human_approval_fingerprint(approval)
+        approvals_path.write_text(json.dumps(approvals), encoding="utf-8")
+
     def test_dry_run_validates_all_frames_without_mutating_project(self):
         with tempfile.TemporaryDirectory() as temp:
             project, store_path, report_path = self.build_fixture(Path(temp))
@@ -119,6 +150,87 @@ class PromoteChapter001StoryboardContinuityTest(unittest.TestCase):
             self.assertEqual(plan["shots"], 43)
             self.assertEqual(store_path.read_bytes(), before)
             self.assertTrue(all(not Path(item["destination"]).exists() for item in plan["updates"]))
+
+    def test_selected_shot_report_requires_explicit_scope(self):
+        with tempfile.TemporaryDirectory() as temp:
+            project, store_path, report_path = self.build_fixture(Path(temp))
+            self.select_shot_fixture(report_path)
+
+            with self.assertRaisesRegex(RuntimeError, "full-chapter"):
+                promotion.build_promotion_plan(report_path, store_path, project)
+
+    def test_selected_shot_dry_run_builds_one_update(self):
+        with tempfile.TemporaryDirectory() as temp:
+            project, store_path, report_path = self.build_fixture(Path(temp))
+            self.select_shot_fixture(report_path)
+            before = store_path.read_bytes()
+
+            plan = promotion.build_promotion_plan(
+                report_path,
+                store_path,
+                project,
+                selected_shot=1,
+            )
+
+            self.assertEqual(plan["shots"], 1)
+            self.assertEqual(plan["updates"][0]["index"], 1)
+            self.assertEqual(plan["updates"][0]["storyboardId"], "sb-chapter-001-001")
+            self.assertEqual(plan["backupRoot"], str(project / "visual-continuity-backups"))
+            self.assertEqual(plan["backupStoreFilename"], "studio-workflow-store.json")
+            self.assertEqual(store_path.read_bytes(), before)
+
+    def test_selected_shot_rejects_incomplete_report_approval_state(self):
+        with tempfile.TemporaryDirectory() as temp:
+            project, store_path, report_path = self.build_fixture(Path(temp))
+            self.select_shot_fixture(report_path)
+            report = promotion.load_json(report_path)
+            report["approvedShots"] = []
+            report_path.write_text(json.dumps(report), encoding="utf-8")
+
+            with self.assertRaisesRegex(RuntimeError, "approvedShots"):
+                promotion.build_promotion_plan(
+                    report_path,
+                    store_path,
+                    project,
+                    selected_shot=1,
+                )
+
+    def test_selected_shot_rejects_a_different_explicit_scope(self):
+        with tempfile.TemporaryDirectory() as temp:
+            project, store_path, report_path = self.build_fixture(Path(temp))
+            self.select_shot_fixture(report_path)
+
+            with self.assertRaisesRegex(RuntimeError, r"shots 必须精确等于 \[2\]"):
+                promotion.build_promotion_plan(
+                    report_path,
+                    store_path,
+                    project,
+                    selected_shot=2,
+                )
+
+    def test_selected_shot_apply_only_mutates_target_storyboard(self):
+        with tempfile.TemporaryDirectory() as temp:
+            project, store_path, report_path = self.build_fixture(Path(temp))
+            self.select_shot_fixture(report_path)
+            before = promotion.load_json(store_path)["state"]["storyboards"]
+            plan = promotion.build_promotion_plan(
+                report_path,
+                store_path,
+                project,
+                selected_shot=1,
+            )
+
+            result = promotion.apply_promotion(plan, True)
+
+            after = promotion.load_json(store_path)["state"]["storyboards"]
+            self.assertEqual(result["promotedImages"], 1)
+            self.assertEqual(after[1:], before[1:])
+            self.assertFalse(after[0]["stale"])
+            self.assertEqual(after[0]["visualReview"]["status"], "pending")
+            self.assertEqual(after[0]["visualReview"]["reviewer"], "automated")
+            self.assertEqual(len(list(project.glob(
+                "workflow-images/storyboards/chapter-001/approved-revisions/*.png"
+            ))), 1)
 
     def test_apply_requires_human_confirmation(self):
         with tempfile.TemporaryDirectory() as temp:

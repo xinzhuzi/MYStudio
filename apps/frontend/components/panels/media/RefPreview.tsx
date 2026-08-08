@@ -22,7 +22,11 @@ const editorScrollTheme = EditorView.theme({
  * readOnly for .json/.text, <audio>/<video> for media, or a binary fallback.
  */
 export interface RefPreviewProps {
-  ref: PhysicalRef;
+  /** The physical reference to preview. Named `physicalRef` (not `ref`) because
+   *  `ref` is a React reserved prop — using it here would cause React to attach
+   *  the value to the fiber as a DOM ref instead of passing it through props,
+   *  silently dropping it (the original "无效的物理文件引用" bug). */
+  physicalRef: PhysicalRef;
   projectId: string;
   className?: string;
 }
@@ -32,18 +36,30 @@ type LoadState =
   | { status: "ready"; result: ResolvedRefPreview }
   | { status: "error"; message: string };
 
-export function RefPreview({ ref: physicalRef, projectId, className }: RefPreviewProps) {
+export function RefPreview({ physicalRef, projectId, className }: RefPreviewProps) {
   const [state, setState] = useState<LoadState>({ status: "loading" });
   const theme = useThemeStore((state) => state.theme);
 
+  const safePath = physicalRef?.path;
+  const safeType = physicalRef?.type;
+
   useEffect(() => {
+    // Defensive: a caller may pass an undefined ref (e.g. a malformed
+    // physicalRefs entry or a state race). Dereferencing physicalRef.path in
+    // the deps array below would throw "reading 'path'" during render and
+    // crash the whole renderer. Guard here so the component degrades to an
+    // error UI instead of taking down the app.
+    if (!physicalRef || typeof safePath !== "string") {
+      setState({ status: "error", message: "无效的物理文件引用" });
+      return;
+    }
     let cancelled = false;
     setState({ status: "loading" });
     resolveRefPreview(physicalRef, projectId)
       .then((result) => { if (!cancelled) setState({ status: "ready", result }); })
       .catch((err) => { if (!cancelled) setState({ status: "error", message: err instanceof Error ? err.message : String(err) }); });
     return () => { cancelled = true; };
-  }, [physicalRef.path, physicalRef.type, projectId]);
+  }, [safePath, safeType, projectId]);
 
   if (state.status === "loading") {
     return (
@@ -84,7 +100,7 @@ export function RefPreview({ ref: physicalRef, projectId, className }: RefPrevie
       <div className="flex h-full items-center justify-center bg-black/5 p-4 dark:bg-black/20">
         <img
           src={result.dataUrl}
-          alt={physicalRef.path}
+          alt={safePath ?? ""}
           className="max-h-full max-w-full object-contain"
           draggable={false}
         />
@@ -96,7 +112,7 @@ export function RefPreview({ ref: physicalRef, projectId, className }: RefPrevie
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 p-6">
         <audio controls src={toFileUrl(result.absolutePath)} className="w-full max-w-md" />
-        <p className="truncate text-xs text-muted-foreground" title={physicalRef.path}>{physicalRef.path}</p>
+        <p className="truncate text-xs text-muted-foreground" title={safePath ?? ""}>{safePath}</p>
       </div>
     );
   }
@@ -109,7 +125,7 @@ export function RefPreview({ ref: physicalRef, projectId, className }: RefPrevie
           src={toFileUrl(result.absolutePath)}
           className="max-h-full max-w-full"
         />
-        <p className="truncate text-xs text-muted-foreground" title={physicalRef.path}>{physicalRef.path}</p>
+        <p className="truncate text-xs text-muted-foreground" title={safePath ?? ""}>{safePath}</p>
       </div>
     );
   }

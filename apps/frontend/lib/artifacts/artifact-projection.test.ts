@@ -3,7 +3,7 @@
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 
 import { describe, test, expect } from "vitest";
-import { buildArtifactId, projectAllFromStores } from "./artifact-projection";
+import { buildArtifactId, projectAllFromStores, projectTTSVoiceLines } from "./artifact-projection";
 import { buildSingleChapterFixture } from "./__fixtures__/fixture-builders";
 
 describe("artifact-projection", () => {
@@ -42,6 +42,26 @@ describe("artifact-projection", () => {
       expect(result.artifacts.length).toBeGreaterThan(0);
       expect(result.artifacts.some((artifact) => artifact.kind === "editing-project")).toBe(true);
       expect(result.legacyMappings.some((mapping) => mapping.rule === "numeric-tts-sceneid")).toBe(true);
+    });
+
+    test("keeps owned TTS lines deletable and legacy numeric lines blocked", () => {
+      const [owned] = projectTTSVoiceLines([
+        { sceneId: 1, projectId: "project-1", chapterId: "chapter-001", audioRef: "exports/chapter-001/voice.wav" },
+      ], "project-1", "chapter-001");
+      const [legacy] = projectTTSVoiceLines([
+        { sceneId: 2, projectId: "project-1", audioRef: "exports/chapter-001/legacy.wav" },
+      ], "project-1", "chapter-001");
+
+      expect(owned).toMatchObject({
+        projectId: "project-1",
+        chapterId: "chapter-001",
+        deletePolicy: "delete-exclusive-downstream",
+      });
+      expect(legacy).toMatchObject({
+        projectId: "project-1",
+        chapterId: undefined,
+        deletePolicy: "blocker-missing-ownership",
+      });
     });
   });
 });

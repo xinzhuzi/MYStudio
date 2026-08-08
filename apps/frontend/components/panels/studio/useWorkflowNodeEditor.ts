@@ -105,7 +105,11 @@ export function useWorkflowNodeEditor({
           const parsed = parseStoryboardTable(source, episodeId, { requireShotSemantics: true });
           if (parsed.errors.length || !parsed.rows.length) return "[]";
           const characters = store.entityExtractions.find((item) => item.episodeId === episodeId)?.characters ?? [];
-          return formatStoryboardJson(toStoryboardItems(parsed.rows, episodeId, characters));
+          const chapter = store.novelChapters.find((item) => item.id === episodeId);
+          return formatStoryboardJson(toStoryboardItems(parsed.rows, episodeId, characters, {
+            sourceId: chapter?.sourceId ?? episodeId,
+            revision: chapter?.revision ?? 1,
+          }));
         }
         return latestAgentWork(
           store.agentWorkData,
@@ -227,9 +231,14 @@ export function useWorkflowNodeEditor({
     }
     const store = useStudioStore.getState();
     const episodeId = resolveProductionEpisodeId(store, productionEpisodeId);
+    const chapterIdentity = store.novelChapters.find((chapter) => chapter.id === episodeId);
+    const sourceIdentity = {
+      sourceId: chapterIdentity?.sourceId ?? episodeId,
+      revision: chapterIdentity?.revision ?? 1,
+    };
     const text = workflowNodeDraft.trim();
     if (editingWorkflowNodeId === "script") {
-      saveAgentWorkData("scriptDraft", workflowNodeDraft, episodeId);
+      saveAgentWorkData("scriptDraft", workflowNodeDraft, episodeId, sourceIdentity);
       toast.success("剧本已保存");
       setEditingWorkflowNodeId(null);
       return;
@@ -269,8 +278,9 @@ export function useWorkflowNodeEditor({
         const { plan, warnings } = parseDirectorPlan(
           workflowNodeDraft,
           episodeId,
+          sourceIdentity,
         );
-        saveAgentWorkData("directorPlan", workflowNodeDraft, episodeId);
+        saveAgentWorkData("directorPlan", workflowNodeDraft, episodeId, sourceIdentity);
         saveScriptPlan(plan);
         await logEvent({
           level: "info",
@@ -319,6 +329,7 @@ export function useWorkflowNodeEditor({
           "storyboardTable",
           serializeStoryboardTable(jsonResult.items),
           episodeId,
+          sourceIdentity,
         );
         useStudioStore.getState().replaceStoryboardsForEpisode(episodeId, jsonResult.items);
         toast.success(`分镜表已保存：${jsonResult.items.length} 条分镜`);
@@ -336,12 +347,16 @@ export function useWorkflowNodeEditor({
         toast.error(`分镜表不可保存: ${parsed.errors.join("；") || "没有分镜"}`);
         return;
       }
-      saveAgentWorkData("storyboardTable", workflowNodeDraft, episodeId);
+      saveAgentWorkData("storyboardTable", workflowNodeDraft, episodeId, sourceIdentity);
       const workflowStore = useStudioStore.getState();
       const characters = workflowStore.entityExtractions.find(
         (item) => item.episodeId === episodeId,
       )?.characters ?? [];
-      const items = toStoryboardItems(parsed.rows, episodeId, characters);
+      const chapter = workflowStore.novelChapters.find((item) => item.id === episodeId);
+      const items = toStoryboardItems(parsed.rows, episodeId, characters, {
+        sourceId: chapter?.sourceId ?? episodeId,
+        revision: chapter?.revision ?? 1,
+      });
       workflowStore.replaceStoryboardsForEpisode(episodeId, items);
       toast.success(`分镜表已保存：${items.length} 条分镜`);
       setEditingWorkflowNodeId(null);

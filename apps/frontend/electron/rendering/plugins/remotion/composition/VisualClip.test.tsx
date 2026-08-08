@@ -16,14 +16,17 @@ vi.mock("remotion", () => ({
     <div data-testid="absolute-fill" data-style={JSON.stringify(style)}>
       {children as never}
     </div>,
-  Img: ({ src }: { src: string }) => <img data-testid="img" src={src} alt="" />,
-  OffthreadVideo: (props: { src: string; trimBefore?: number; playbackRate?: number; muted?: boolean }) =>
+  Img: ({ src, style }: { src: string; style?: unknown }) => (
+    <img data-testid="img" data-style={JSON.stringify(style)} src={src} alt="" />
+  ),
+  OffthreadVideo: (props: { src: string; trimBefore?: number; playbackRate?: number; muted?: boolean; style?: unknown }) =>
     <div
       data-testid="offthread-video"
       data-src={props.src}
       data-trim={String(props.trimBefore)}
       data-rate={String(props.playbackRate)}
       data-muted={String(props.muted)}
+      data-style={JSON.stringify(props.style)}
     />,
 }));
 
@@ -48,7 +51,13 @@ describe("VisualClip", () => {
     currentFrame.value = 0;
     const { getByTestId, queryByTestId } = render(<VisualClip {...imageClip()} />);
     expect(getByTestId("img").getAttribute("src")).toBe("http://127.0.0.1:1/tok/a");
+    expect(JSON.parse(getByTestId("img").getAttribute("data-style") ?? "{}").objectFit).toBe("cover");
     expect(queryByTestId("offthread-video")).toBeNull();
+  });
+
+  it("uses contain only when the visual clip requests it", () => {
+    const { getByTestId } = render(<VisualClip {...imageClip({ fit: "contain" })} />);
+    expect(JSON.parse(getByTestId("img").getAttribute("data-style") ?? "{}").objectFit).toBe("contain");
   });
 
   it("renders OffthreadVideo with frame trim, rate and muted for a video clip", () => {

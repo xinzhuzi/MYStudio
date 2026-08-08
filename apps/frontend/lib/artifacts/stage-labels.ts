@@ -14,33 +14,44 @@ import type { ArtifactStage } from "@/types/artifacts";
 export const STAGE_LABELS: Record<ArtifactStage, string> = {
   "novel": "小说导入",
   "analysis": "内容分析",
-  "script": "剧本生成",
-  "assets": "素材准备",
-  "storyboard": "分镜设计",
-  "image": "图像生成",
-  "voice": "语音合成",
-  "production": "视频生产",
-  "editing": "剪辑编辑",
-  "remotion": "Remotion 编排",
+  "script": "剧本生产阶段",
+  "assets": "剧本资产管理",
+  "storyboard": "分镜视频生成",
+  "image": "图像节点图",
+  "voice": "视频工作台：语音合成",
+  "production": "视频工作台：视频生产",
+  "editing": "视频工作台：剪辑编辑",
+  "remotion": "视频工作台：Remotion 编排",
   "export": "导出输出",
   "media-library": "媒体库",
   "backup": "备份归档",
 };
 
 /**
- * Fixed navigation stage set — the 6 workflow stages always shown in the
- * middle "工作流阶段" column, regardless of whether the project currently has
- * artifacts in each stage. Stages with zero artifacts still render (count 0).
+ * Fixed navigation stage set — all 13 artifact stages always shown in the
+ * product-center FilterBar dropdown and navigation tree, regardless of
+ * whether the project currently has artifacts in each stage. Stages with
+ * zero artifacts still render (count 0), so every workflow stage is filterable
+ * and visible as a group even when empty.
  *
- * Order is the display order. These keys MUST exist in {@link STAGE_LABELS}.
+ * Order is the display order and matches {@link STAGE_LABELS} (novel import →
+ * final export → media library → backup last). These keys MUST exist in
+ * {@link STAGE_LABELS}.
  */
 export const FIXED_NAV_STAGES: readonly ArtifactStage[] = [
   "novel",
+  "analysis",
+  "script",
+  "assets",
   "storyboard",
   "image",
+  "voice",
   "production",
+  "editing",
+  "remotion",
   "export",
   "media-library",
+  "backup",
 ];
 
 /**

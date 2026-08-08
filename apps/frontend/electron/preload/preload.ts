@@ -246,6 +246,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   saveFileDialog: (options: { localPath: string, defaultPath: string, filters: { name: string, extensions: string[] }[] }) =>
     ipcRenderer.invoke('save-file-dialog', options),
   openPath: (targetPath: string) => ipcRenderer.invoke('app-open-path', targetPath),
+  showItemInFolder: (targetPath: string) => ipcRenderer.invoke('app-show-in-folder', targetPath),
   openDevTools: () => ipcRenderer.invoke('app-devtools-open'),
   testModel: (payload: ModelTestRequest): Promise<ModelTestResult> => ipcRenderer.invoke('api-model-test', payload),
   textCompletion: (payload: TextCompletionRequest): Promise<TextCompletionResult> => ipcRenderer.invoke('api-text-completion', payload),

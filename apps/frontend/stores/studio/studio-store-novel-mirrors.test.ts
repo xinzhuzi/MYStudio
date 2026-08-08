@@ -19,7 +19,15 @@ describe("studio novel mirror side effects", () => {
 
     expect(writeText).toHaveBeenCalledWith(
       "_p/project-1/novel/chapters/chapter-001.md",
-      ["# 第1章 雨夜", "", "> 卷：正文卷", "", "王离进城。"].join("\n"),
+      [
+        "# 第1章 雨夜",
+        "",
+        "> 卷：正文卷",
+        "> 源ID：chapter-source-id",
+        "> 修订：1",
+        "",
+        "王离进城。",
+      ].join("\n"),
     );
   });
 

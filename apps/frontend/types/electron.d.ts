@@ -293,6 +293,7 @@ declare global {
         filters: { name: string; extensions: string[] }[];
       }) => Promise<{ success: boolean; filePath?: string; canceled?: boolean; error?: string }>;
       openPath: (targetPath: string) => Promise<{ success: boolean; error?: string }>;
+      showItemInFolder: (targetPath: string) => Promise<{ success: boolean; error?: string }>;
       openDevTools: () => Promise<{ success: boolean; error?: string }>;
       testModel: (payload: ModelTestRequest) => Promise<ModelTestResult>;
       textCompletion: (payload: TextCompletionRequest) => Promise<TextCompletionResult>;

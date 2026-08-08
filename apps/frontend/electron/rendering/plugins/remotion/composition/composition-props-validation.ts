@@ -14,6 +14,7 @@ import {
 } from "./timing";
 
 const VISUAL_KINDS = ["image", "video"] as const;
+const VISUAL_FITS = ["cover", "contain"] as const;
 const AUDIO_KINDS = ["voice", "bgm", "sfx", "ambience"] as const;
 
 export type CompositionValidationResult<T> =
@@ -144,6 +145,7 @@ function validateVisualClip(clip: unknown, path: string, issues: Issue[]): void 
   requireNonNegativeInteger(clip.from, `${path}.from`, issues);
   requirePositiveInteger(clip.durationInFrames, `${path}.durationInFrames`, issues);
   validateTransform(clip.transform, `${path}.transform`, issues);
+  if (clip.fit !== undefined) requireEnum(clip.fit, VISUAL_FITS, `${path}.fit`, issues);
   validateOptionalClipFields(clip, path, issues);
 }
 

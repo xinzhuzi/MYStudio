@@ -1,4 +1,4 @@
-import type { NovelChapter, NovelEventAnalysis } from "@/types/studio";
+import type { NovelChapter, NovelEventAnalysis, StudioSourceIdentity } from "@/types/studio";
 
 const eventExtractionPrompt = `
 # 事件提取指令
@@ -59,7 +59,10 @@ export function buildNovelEventAnalysisMessages(chapter: NovelChapter): NovelEve
   };
 }
 
-export function parseNovelEventAnalysisLine(output: string): NovelEventAnalysis {
+export function parseNovelEventAnalysisLine(
+  output: string,
+  identity?: StudioSourceIdentity,
+): NovelEventAnalysis {
   const rawLine = extractEventLine(output);
   const fields = rawLine
     .slice(1, -1)
@@ -71,6 +74,7 @@ export function parseNovelEventAnalysisLine(output: string): NovelEventAnalysis 
   }
 
   return {
+    ...normalizeSourceIdentity(identity),
     chapterLabel: fields[0]!,
     characters: splitList(fields[1]!),
     coreEvent: fields[2]!,
@@ -79,6 +83,15 @@ export function parseNovelEventAnalysisLine(output: string): NovelEventAnalysis 
     estimatedDurationSec: parseDurationSec(fields[5]!),
     emotionTags: splitList(fields[6]!, /[+、,，/]+/),
     rawLine,
+  };
+}
+
+function normalizeSourceIdentity(identity?: StudioSourceIdentity): StudioSourceIdentity {
+  const sourceId = identity?.sourceId?.trim();
+  const revision = identity?.revision;
+  return {
+    ...(sourceId ? { sourceId } : {}),
+    ...(typeof revision === "number" && Number.isInteger(revision) && revision > 0 ? { revision } : {}),
   };
 }
 

@@ -57,6 +57,8 @@ export interface CompositionVisualClipProps {
   from: number;
   durationInFrames: number;
   transform: CompositionTransform;
+  // Defaults to cover. Use contain when the complete source frame must remain visible.
+  fit?: "cover" | "contain";
   panZoom?: CompositionPanZoom;
   // Video-only playback controls; ignored for images.
   trimStartFrames?: number;

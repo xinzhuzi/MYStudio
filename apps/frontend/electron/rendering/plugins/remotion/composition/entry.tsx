@@ -30,7 +30,7 @@ export {
   STORYBOARD_SHOT_COMPOSITION_ID,
 } from "./composition-id";
 export const defaultCompositionProps: CompositionProps = {
-  width: 1080, height: 1920, fps: 30, durationInFrames: 1,
+  width: 1920, height: 1080, fps: 30, durationInFrames: 1,
   visualClips: [], transitions: [], audioClips: [], subtitles: [],
 };
 

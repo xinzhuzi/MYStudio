@@ -15,7 +15,7 @@ import {
   createArtifactDeletionPlan,
   executeArtifactDeletionPlan,
 } from "@/stores/artifacts/artifact-store";
-import type { DeletionPlan } from "@/types/artifacts";
+import type { DeletionConfirmation, DeletionPlan } from "@/types/artifacts";
 import { NovelChapterTable } from "./NovelChapterTable";
 import { NovelEditDialog, type NovelEditDraft } from "./NovelEditDialog";
 import { NovelImportDialog } from "./NovelImportDialog";
@@ -189,14 +189,11 @@ export function NovelTab(props: {
     props.analyzeEvents(selectedChapters);
   }, [props.analyzeEvents, selectedChapters]);
 
-  const executeDeletePlan = async () => {
+  const executeDeletePlan = async (confirmation: DeletionConfirmation) => {
     if (!deletePlan) {
       throw new Error("删除服务不可用");
     }
-    const result = await executeArtifactDeletionPlan(deletePlan, {
-      type: "chapter",
-      chapterId: deletePlan.chapterId,
-    });
+    const result = await executeArtifactDeletionPlan(deletePlan, confirmation);
     if (!result.success) {
       toast.error(`删除失败：${result.error}`);
       throw new Error(result.error);

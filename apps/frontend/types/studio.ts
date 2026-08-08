@@ -4,6 +4,12 @@ import type { RemotionShotAudioBindingV2 } from "./remotion-workspace";
 
 export type CharacterReferenceViewType = "front" | "side" | "back" | "three-quarter";
 
+/** Stable source identity shared by chapter-derived workflow artifacts. */
+export interface StudioSourceIdentity {
+  sourceId?: string;
+  revision?: number;
+}
+
 export type AgentWorkKey =
   | "eventAnalysis"
   | "storySkeleton"
@@ -24,7 +30,7 @@ export type AgentWorkKey =
   | "episodeOutline"
   | "voiceAssign";
 
-export interface NovelEventAnalysis {
+export interface NovelEventAnalysis extends StudioSourceIdentity {
   chapterLabel: string;
   characters: string[];
   coreEvent: string;
@@ -54,7 +60,7 @@ export interface NovelChapter {
   updatedAt?: number;
 }
 
-export interface ProjectEventGraphRecord {
+export interface ProjectEventGraphRecord extends StudioSourceIdentity {
   id: string;
   projectId: string;
   episodeId: string;
@@ -102,7 +108,7 @@ export interface ProjectMemoryContext {
   markdown: string;
 }
 
-export interface AgentWorkData {
+export interface AgentWorkData extends StudioSourceIdentity {
   id: string;
   key: AgentWorkKey;
   episodeId?: string;
@@ -319,7 +325,7 @@ export interface StoryboardTtsJobV1 {
   updatedAt: number;
 }
 
-export interface StoryboardItem extends StudioStaleEvidence {
+export interface StoryboardItem extends StudioStaleEvidence, StudioSourceIdentity {
   id: string;
   episodeId: string;
   index: number;
@@ -676,7 +682,7 @@ export interface StorySkeleton {
   payWalls: number[];
 }
 
-export interface EntityExtractionResult {
+export interface EntityExtractionResult extends StudioSourceIdentity {
   id: string;
   episodeId: string;
   characters: { characterId: string; name: string; aliases: string[]; note?: string }[];
@@ -684,7 +690,7 @@ export interface EntityExtractionResult {
   props: { assetId: string; name: string; note?: string }[];
 }
 
-export interface ScriptPlan {
+export interface ScriptPlan extends StudioSourceIdentity {
   id: string;
   episodeId: string;
   theme: string;
@@ -722,7 +728,7 @@ export interface SeriesBible {
   stylePositioning: string;
 }
 
-export interface EpisodeOutline {
+export interface EpisodeOutline extends StudioSourceIdentity {
   id: string;
   episodeId: string;
   beats: { sceneIndex: number; location: string; beat: string; durationSec: number }[];

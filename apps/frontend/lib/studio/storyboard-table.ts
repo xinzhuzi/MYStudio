@@ -9,6 +9,7 @@ import type {
   StoryboardShotSemantics,
   StoryboardVisibleCharacterSemantic,
   StoryboardVisiblePropSemantic,
+  StudioSourceIdentity,
 } from "@/types/studio";
 
 export interface BuildStoryboardTableInput {
@@ -202,6 +203,7 @@ export function toStoryboardItems(
   rows: StoryboardTableRow[],
   episodeId: string,
   characters: VoiceoverCharacterIdentity[],
+  identity?: StudioSourceIdentity,
 ): StoryboardItem[] {
   const indexError = storyboardIndexContinuityError(rows);
   if (indexError) throw new Error(indexError);
@@ -212,6 +214,8 @@ export function toStoryboardItems(
       : computeDurationSec(extractSpeech(row.lines), resolveSpeed(row.emotion));
     const storyboardId = `sb-${episodeId}-${String(row.index).padStart(3, "0")}`;
     const voiceover = buildStoryboardVoiceoverItem({
+      ...identity,
+      chapterId: episodeId,
       storyboardId,
       index: row.index,
       description: row.description,
@@ -221,6 +225,7 @@ export function toStoryboardItems(
       characters,
     });
     return {
+      ...identity,
       id: storyboardId,
       episodeId,
       index: row.index,

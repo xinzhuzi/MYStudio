@@ -24,6 +24,8 @@ export function buildProjectEventGraph(input: {
         `情绪：${analysis.emotionTags.join("+")}`,
       ].join("\n");
       return {
+        sourceId: analysis.sourceId ?? chapter.sourceId ?? chapter.id,
+        revision: analysis.revision ?? chapter.revision ?? 1,
         id: `event-${input.projectId}-${chapter.id}`,
         projectId: input.projectId,
         episodeId: chapter.id,

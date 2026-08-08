@@ -1,5 +1,6 @@
 import type { GenerationConfig } from '@/lib/ai/core';
 import { assertImageTransferPayloadSize } from '@/lib/ai/image-transfer';
+import { isRetryableHttpStatus, retryDelayMs } from '@/lib/ai/retry-policy';
 
 export interface WorkerApiContext {
   getApiBaseUrl: () => string;
@@ -245,7 +246,7 @@ function formatTimeoutDuration(timeoutMs: number): string {
   return timeoutMs >= 1000 ? `${timeoutMs / 1000}s` : `${timeoutMs}ms`;
 }
 
-async function fetchWithDeadline(
+export async function fetchWithDeadline(
   request: RequestInfo | URL,
   init: RequestInit,
   timeoutMs: number,
@@ -282,7 +283,7 @@ async function fetchWithDeadline(
 }
 
 function isRetryableStatus(status: number): boolean {
-  return status === 408 || status === 425 || status === 429 || status >= 500;
+  return isRetryableHttpStatus(status);
 }
 
 function httpErrorMessage(operation: 'image' | 'video' | 'poll' | 'download', status: number): string {
@@ -395,6 +396,32 @@ export function createWorkerApi(context: WorkerApiContext) {
     if (context.signal?.aborted) throw createAbortedError();
   };
 
+  const submitWithRetry = async (
+    fetchPayload: () => Promise<DecodedWorkerApiPayload>,
+    provider: string,
+  ): Promise<DecodedWorkerApiPayload> => {
+    const maxSubmitAttempts = 3;
+    for (let attempt = 0; attempt < maxSubmitAttempts; attempt++) {
+      ensureActive();
+      try {
+        return await fetchPayload();
+      } catch (error) {
+        const normalized = normalizeTransportError(error, context.signal, provider);
+        if (normalized.envelope.retryable && attempt < maxSubmitAttempts - 1) {
+          await waitForRetry(retryDelayMs(attempt), context.signal);
+          continue;
+        }
+        throw normalized;
+      }
+    }
+    throw createWorkerApiError({
+      code: 'network-error',
+      message: 'Media submission failed after retries',
+      retryable: true,
+      provider,
+    });
+  };
+
   const pollTaskCompletion = async (
     taskId: string,
     type: 'image' | 'video',
@@ -417,7 +444,7 @@ export function createWorkerApi(context: WorkerApiContext) {
       } catch (error) {
         const normalized = normalizeTransportError(error, context.signal, provider);
         if (normalized.envelope.retryable) {
-          await waitForRetry(2000, context.signal);
+          await waitForRetry(retryDelayMs(attempt), context.signal);
           continue;
         }
         throw normalized;
@@ -474,24 +501,28 @@ export function createWorkerApi(context: WorkerApiContext) {
     if (!apiKey) throw new Error('未配置图片生成 API Key');
     ensureActive();
     for (const source of referenceImages || []) assertImageReady(source);
-    const data = await fetchWorkerPayload(
-      url('/api/ai/image'),
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          prompt,
-          negativePrompt,
-          aspectRatio: config.aspectRatio || '9:16',
-          apiKey,
+    const data = await submitWithRetry(
+      () =>
+        fetchWorkerPayload(
+          url('/api/ai/image'),
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              prompt,
+              negativePrompt,
+              aspectRatio: config.aspectRatio || '9:16',
+              apiKey,
+              provider,
+              referenceImages: referenceImages?.length ? referenceImages : undefined,
+            }),
+            signal: context.signal,
+          },
+          'image',
           provider,
-          referenceImages: referenceImages?.length ? referenceImages : undefined,
-        }),
-        signal: context.signal,
-      },
-      'image',
+          requestTimeoutMs,
+        ),
       provider,
-      requestTimeoutMs,
     );
     const directImageUrl = getCompletedResultUrl(data, 'image');
     if (data.status === 'completed' || (data.status === undefined && directImageUrl)) {
@@ -526,25 +557,29 @@ export function createWorkerApi(context: WorkerApiContext) {
     ensureActive();
     assertImageReady(imageUrl);
     for (const source of referenceImages || []) assertImageReady(source);
-    const data = await fetchWorkerPayload(
-      url('/api/ai/video'),
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          imageUrl,
-          prompt,
-          aspectRatio: config.aspectRatio || '9:16',
-          duration: config.duration || 5,
-          apiKey,
+    const data = await submitWithRetry(
+      () =>
+        fetchWorkerPayload(
+          url('/api/ai/video'),
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              imageUrl,
+              prompt,
+              aspectRatio: config.aspectRatio || '9:16',
+              duration: config.duration || 5,
+              apiKey,
+              provider,
+              referenceImages: referenceImages?.length ? referenceImages : undefined,
+            }),
+            signal: context.signal,
+          },
+          'video',
           provider,
-          referenceImages: referenceImages?.length ? referenceImages : undefined,
-        }),
-        signal: context.signal,
-      },
-      'video',
+          requestTimeoutMs,
+        ),
       provider,
-      requestTimeoutMs,
     );
     const directVideoUrl = getCompletedResultUrl(data, 'video');
     if (data.status === 'completed' || (data.status === undefined && directVideoUrl)) {
@@ -568,25 +603,39 @@ export function createWorkerApi(context: WorkerApiContext) {
 
   const fetchAsBlob = async (mediaUrl: string): Promise<Blob> => {
     ensureActive();
-    let response: Response;
-    try {
-      response = await fetchWithDeadline(mediaUrl, { signal: context.signal }, requestTimeoutMs);
-    } catch (error) {
-      throw normalizeTransportError(error, context.signal);
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      ensureActive();
+      let response: Response;
+      try {
+        response = await fetchWithDeadline(mediaUrl, { signal: context.signal }, requestTimeoutMs);
+      } catch (error) {
+        const normalized = normalizeTransportError(error, context.signal);
+        if (normalized.envelope.retryable && attempt < 2) {
+          await waitForRetry(retryDelayMs(attempt), context.signal);
+          continue;
+        }
+        throw normalized;
+      }
+      if (!response.ok) {
+        const error = createWorkerApiError({
+          code: 'http-error',
+          message: httpErrorMessage('download', response.status),
+          retryable: isRetryableStatus(response.status),
+          status: response.status,
+        });
+        if (error.envelope.retryable && attempt < 2) {
+          await waitForRetry(retryDelayMs(attempt), context.signal);
+          continue;
+        }
+        throw error;
+      }
+      try {
+        return await response.blob();
+      } catch (error) {
+        throw normalizeTransportError(error, context.signal);
+      }
     }
-    if (!response.ok) {
-      throw createWorkerApiError({
-        code: 'http-error',
-        message: httpErrorMessage('download', response.status),
-        retryable: isRetryableStatus(response.status),
-        status: response.status,
-      });
-    }
-    try {
-      return await response.blob();
-    } catch (error) {
-      throw normalizeTransportError(error, context.signal);
-    }
+    throw createWorkerApiError({ code: 'network-error', message: 'Media download failed', retryable: true });
   };
 
   return { generateImage, generateVideo, fetchAsBlob, pollTaskCompletion };

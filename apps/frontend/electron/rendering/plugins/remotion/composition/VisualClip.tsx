@@ -14,18 +14,19 @@ export function VisualClip(props: CompositionVisualClipProps): React.ReactElemen
     ? panZoomAtFrame(frame, props.durationInFrames, props.panZoom)
     : undefined;
   const style = buildVisualStyle(props.transform, panZoom);
+  const mediaStyle = props.fit === "contain" ? CONTAIN_STYLE : COVER_STYLE;
 
   return (
     <AbsoluteFill style={style}>
       {props.kind === "image" ? (
-        <Img src={props.src} style={COVER_STYLE} />
+        <Img src={props.src} style={mediaStyle} />
       ) : (
         <OffthreadVideo
           src={props.src}
           trimBefore={props.trimStartFrames}
           playbackRate={props.playbackRate ?? 1}
           muted={props.muted ?? true}
-          style={COVER_STYLE}
+          style={mediaStyle}
         />
       )}
     </AbsoluteFill>
@@ -37,4 +38,10 @@ const COVER_STYLE: React.CSSProperties = {
   width: "100%",
   height: "100%",
   objectFit: "cover",
+};
+
+const CONTAIN_STYLE: React.CSSProperties = {
+  width: "100%",
+  height: "100%",
+  objectFit: "contain",
 };

@@ -78,7 +78,12 @@ describe("production agent typed tools", () => {
 
     expect(result.approved).toBe(true);
     expect(result.workId).toBe("work-director");
-    expect(saveAgentWorkData).toHaveBeenCalledWith("directorPlan", validDirectorPlanFixture, "chapter-001");
+    expect(saveAgentWorkData).toHaveBeenCalledWith(
+      "directorPlan",
+      validDirectorPlanFixture,
+      "chapter-001",
+      undefined,
+    );
     expect(saveScriptPlan).toHaveBeenCalledTimes(1);
   });
 

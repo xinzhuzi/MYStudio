@@ -572,11 +572,10 @@ function editingTrack(
   } as const;
 }
 
-function renderSettings(aspectRatio: string | undefined): EditingRenderSettings {
-  const landscape = aspectRatio?.trim() === "16:9";
+function renderSettings(_aspectRatio: string | undefined): EditingRenderSettings {
   return {
-    width: landscape ? 1920 : 1080,
-    height: landscape ? 1080 : 1920,
+    width: 1920,
+    height: 1080,
     fps: 30,
     codec: "h264",
     subtitleMode: "burn-in",

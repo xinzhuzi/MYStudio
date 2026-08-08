@@ -107,6 +107,8 @@ export function useScriptStageActions({
       scopeId: string;
       label: string;
       revised?: boolean;
+      sourceId?: string;
+      revision?: number;
     }) => {
       setScriptStreaming({
         key: opts.stageKey,
@@ -138,6 +140,7 @@ export function useScriptStageActions({
         opts.stageKey,
         parseStageOutput(result.text),
         opts.scopeId,
+        { sourceId: opts.sourceId ?? opts.scopeId, revision: opts.revision ?? 1 },
       );
       toast.success(
         opts.revised
@@ -207,6 +210,8 @@ export function useScriptStageActions({
         scopeId: chapter.id,
         label: SCRIPT_STAGE_LABEL[stage],
         revised: useReviewFeedback && hasReviewIssues(review),
+        sourceId: chapter.sourceId ?? chapter.id,
+        revision: chapter.revision ?? 1,
       });
     },
     [
@@ -239,6 +244,8 @@ export function useScriptStageActions({
         stageKey: SCRIPT_STAGE_REVIEW_KEY[stage],
         scopeId: chapter.id,
         label: `${SCRIPT_STAGE_LABEL[stage]}审核`,
+        sourceId: chapter.sourceId ?? chapter.id,
+        revision: chapter.revision ?? 1,
       });
     },
     [runScriptStage, latestScriptStage, scriptStyleSummary],

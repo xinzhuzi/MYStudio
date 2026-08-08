@@ -75,6 +75,7 @@ import type {
   StoryboardMediaRef,
   StudioMaterial,
   VideoCandidate,
+  StudioSourceIdentity,
 } from "@/types/studio";
 
 interface StudioWorkflowState {
@@ -138,7 +139,7 @@ interface StudioWorkflowActions {
   rebuildProjectMemoryFromChapters: (projectId: string) => void;
   retrieveProjectMemory: (query: ProjectMemoryQuery) => ProjectMemoryContext;
   purgeProjectMemory: (projectId: string) => void;
-  saveAgentWorkData: (key: AgentWorkKey, data: string, episodeId?: string) => string;
+  saveAgentWorkData: (key: AgentWorkKey, data: string, episodeId?: string, identity?: StudioSourceIdentity) => string;
   saveEntityExtraction: (result: EntityExtractionResult) => void;
   saveScriptPlan: (plan: ScriptPlan) => void;
   saveSeriesBible: (bible: SeriesBible) => void;
@@ -510,10 +511,19 @@ export const useStudioStore = create<StudioWorkflowStore>()(
         }));
       },
 
-      saveAgentWorkData: (key, data, episodeId) => {
+      saveAgentWorkData: (key, data, episodeId, identity) => {
         const now = Date.now();
         const id = createStudioWorkflowId("work");
-        const item: AgentWorkData = { id, key, episodeId, data, createdAt: now, updatedAt: now };
+        const item: AgentWorkData = {
+          id,
+          key,
+          episodeId,
+          data,
+          sourceId: identity?.sourceId,
+          revision: identity?.revision,
+          createdAt: now,
+          updatedAt: now,
+        };
         set((state) => ({ agentWorkData: [...state.agentWorkData, item] }));
         if (key === "productionPlan" && /本地成片输出[:：]\s*\S+/.test(data)) {
           const taskId = get().startMediaTask({

@@ -104,7 +104,8 @@ describe("studio director plan parsing", () => {
     ].join("\n");
 
     const audit = auditDirectorPlanStructure(output);
-    const { plan } = parseDirectorPlan(output, "chapter-001");
+    const { plan } = parseDirectorPlan(output, "chapter-001", { sourceId: "source-001", revision: 2 });
+    expect(plan).toMatchObject({ sourceId: "source-001", revision: 2 });
 
     expect(audit.passed).toBe(true);
     expect(audit.metrics.sceneSections).toBe(2);

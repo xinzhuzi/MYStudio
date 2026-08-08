@@ -44,7 +44,7 @@ export function JsonViewer({ value, maxHeight, className }: JsonViewerProps) {
         extensions={[jsonLang(), EditorView.lineWrapping, editorScrollTheme]}
         readOnly
         editable={false}
-        basicSetup={{ lineNumbers: true, foldGutter: true, highlightActiveLineGutter: false, highlightActiveLine: false }}
+        basicSetup={{ lineNumbers: true, foldGutter: false, highlightActiveLineGutter: false, highlightActiveLine: false }}
       />
     </div>
   );

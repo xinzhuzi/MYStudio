@@ -119,6 +119,12 @@ describe("artifact deletion transaction", () => {
       confirmation: { type: "chapter", chapterId: "other-chapter" },
     });
     expect(result).toMatchObject({ success: false, error: "confirmation-mismatch" });
+    const wrongConfirmationType = await executeDeletion({ dataRoot: fixture.dataRoot }, {
+      planId: registered.planId,
+      fingerprint: registered.fingerprint,
+      confirmation: { type: "artifacts", artifactCount: 1 },
+    });
+    expect(wrongConfirmationType).toMatchObject({ success: false, error: "confirmation-mismatch" });
     expect(await fs.readFile(path.join(fixture.projectRoot, "novel.json"), "utf8")).toBe(before);
     await expect(fs.access(path.join(fixture.projectRoot, "chapter-data.bin"))).resolves.toBeUndefined();
   });

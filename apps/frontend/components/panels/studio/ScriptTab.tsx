@@ -420,10 +420,16 @@ export function ScriptTab(props: {
               if (!editor) return;
               if (editor.target === "output") {
                 if (chapter)
-                  props.saveAgentWorkData(activeStage, editor.value, chapter.id);
+                  props.saveAgentWorkData(activeStage, editor.value, chapter.id, {
+                    sourceId: chapter.sourceId ?? chapter.id,
+                    revision: chapter.revision ?? 1,
+                  });
               } else if (editor.target === "review") {
                 if (chapter && reviewKey)
-                  props.saveAgentWorkData(reviewKey, editor.value, chapter.id);
+                  props.saveAgentWorkData(reviewKey, editor.value, chapter.id, {
+                    sourceId: chapter.sourceId ?? chapter.id,
+                    revision: chapter.revision ?? 1,
+                  });
               } else {
                 setUserDraft(editor.value);
               }

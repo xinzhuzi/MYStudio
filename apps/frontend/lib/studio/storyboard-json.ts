@@ -10,6 +10,8 @@ const STORYBOARD_STATES = new Set<StoryboardItem["state"]>([
 
 const CANONICAL_STORYBOARD_FIELDS = [
   "id",
+  "sourceId",
+  "revision",
   "episodeId",
   "index",
   "trackKey",
@@ -79,6 +81,8 @@ export function formatRemotionStoryboardJson(input: {
       .sort((left, right) => left.index - right.index)
       .map((item) => ({
         shotId: item.id,
+        sourceId: item.sourceId,
+        sourceRevision: item.revision,
         index: item.index,
         revision: item.outputVersion ?? 0,
         state: item.state,
@@ -186,6 +190,12 @@ export function validateStoryboardJson(raw: string, episodeId: string, projectId
     if (unknownFields.length) return { error: `分镜存在不可编辑字段: ${unknownFields.join(", ")}` };
     const shot = item as Partial<StoryboardItem>;
     if (typeof shot.id !== "string" || !shot.id) return { error: "分镜 id 必须存在" };
+    if (shot.sourceId !== undefined && (typeof shot.sourceId !== "string" || !shot.sourceId.trim())) {
+      return { error: `分镜 ${shot.id} sourceId 无效` };
+    }
+    if (shot.revision !== undefined && (!Number.isInteger(shot.revision) || (shot.revision as number) < 1)) {
+      return { error: `分镜 ${shot.id} revision 无效` };
+    }
     if (ids.has(shot.id)) return { error: `重复分镜 id: ${shot.id}` }; ids.add(shot.id);
     if (shot.episodeId !== episodeId) return { error: `分镜 ${shot.id} 不属于当前章节` };
     if (!Number.isInteger(shot.index) || (shot.index as number) < 1 || indexes.has(shot.index as number)) return { error: `分镜 ${shot.id} 序号无效或重复` }; indexes.add(shot.index as number);

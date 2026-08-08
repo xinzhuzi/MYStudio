@@ -360,17 +360,61 @@ export function projectVideoCandidates(
  * Map TTS voice lines to tts-scene-voice-line artifacts
  * Legacy numeric sceneId blocks unless uniquely mappable
  */
+export type LegacyTtsSceneOwnership = ReadonlyMap<number, readonly string[]>;
+
+/**
+ * Build an exact legacy scene-id -> episode ownership index.
+ *
+ * Legacy TTS records only carry a numeric sceneId.  We may resolve one only
+ * when the script graph contains the same numeric id as a string and exactly
+ * one Episode references that scene id.  No positional or title-based
+ * fallback is allowed because those values are not stable ownership keys.
+ */
+export function buildLegacyTtsSceneOwnership(
+  episodes: Episode[],
+  scriptScenes: Scene[],
+): Map<number, string[]> {
+  const knownSceneIds = new Set(scriptScenes.map((scene) => scene.id));
+  const ownership = new Map<number, Set<string>>();
+
+  for (const episode of episodes) {
+    for (const sceneId of episode.sceneIds) {
+      if (!knownSceneIds.has(sceneId) || !/^\d+$/.test(sceneId)) continue;
+      const numericSceneId = Number(sceneId);
+      if (!Number.isSafeInteger(numericSceneId)) continue;
+      const chapterIds = ownership.get(numericSceneId) ?? new Set<string>();
+      chapterIds.add(episode.id);
+      ownership.set(numericSceneId, chapterIds);
+    }
+  }
+
+  return new Map(
+    Array.from(ownership.entries(), ([sceneId, chapterIds]) => [
+      sceneId,
+      Array.from(chapterIds).sort(),
+    ]),
+  );
+}
+
 export function projectTTSVoiceLines(
   lines: SceneVoiceLine[],
   projectId: string,
   chapterId?: string,
-  scriptScenes?: Scene[]
+  scriptScenes?: Scene[],
+  legacySceneOwnership?: LegacyTtsSceneOwnership,
 ): ArtifactRecord[] {
   return lines
-    .filter((l) => l.projectId === projectId && (!l.chapterId || l.chapterId === chapterId))
-    .map((line) => {
+    .filter((line) => line.projectId === projectId)
+    .map((line): ArtifactRecord => {
       const artId = buildArtifactId("voice", "tts-scene-voice-line", line.id ?? `tts-${line.sceneId}`);
-      const ownedChapterId = line.chapterId;
+      const exactScriptScene = scriptScenes?.some((scene) => scene.id === String(line.sceneId)) ?? false;
+      const mappedChapterIds = legacySceneOwnership?.get(line.sceneId) ?? [];
+      const mappedChapterId = mappedChapterIds.length === 1 && exactScriptScene
+        ? mappedChapterIds[0]
+        : chapterId && mappedChapterIds.length === 0 && exactScriptScene
+          ? chapterId
+          : undefined;
+      const ownedChapterId = line.chapterId ?? mappedChapterId;
       return {
         id: artId,
         projectId,
@@ -400,7 +444,8 @@ export function projectTTSVoiceLines(
         retainedReason: undefined,
         blockerReason: !ownedChapterId ? "Missing chapter ownership (legacy numeric sceneId)" : undefined,
       };
-    });
+    })
+    .filter((artifact) => !chapterId || !artifact.chapterId || artifact.chapterId === chapterId);
 }
 
 /**
@@ -777,8 +822,7 @@ export function projectAllFromStores(
   const ttsVoiceLines = Object.entries(ttsState.projects[projectId]?.voiceLines ?? {}).map(([id, line]) => ({
     ...line,
     id,
-    projectId,
-    chapterId: undefined,
+    projectId: line.projectId ?? projectId,
     audioRef: line.audioLocalPath ?? line.audioFilePath,
   }));
 

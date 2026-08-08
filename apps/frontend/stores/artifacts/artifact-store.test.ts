@@ -34,6 +34,18 @@ function makePlan(scope: DeletionPlan["scope"]): DeletionPlan {
 }
 
 describe("artifact deletion controller", () => {
+  it("rejects a chapter plan when no typed confirmation reached the controller", async () => {
+    const execute = vi.fn();
+    vi.stubGlobal("window", { artifactDeletion: { execute } });
+
+    await expect(executeArtifactDeletionPlan(makePlan("chapter"))).resolves.toMatchObject({
+      success: false,
+      error: "confirmation-mismatch",
+    });
+    expect(execute).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
+
   it("rejects a mismatched confirmation before touching IPC", async () => {
     const execute = vi.fn();
     vi.stubGlobal("window", { artifactDeletion: { execute } });
@@ -51,10 +63,11 @@ describe("artifact deletion controller", () => {
     const execute = vi.fn().mockResolvedValue({ success: true, journalState: "committed", data: {} });
     vi.stubGlobal("window", { artifactDeletion: { execute } });
     const plan = makePlan("artifacts");
+    const confirmation = getDeletionPlanConfirmation(plan);
 
     expect(getDeletionPlanConfirmation(plan)).toEqual({ type: "artifacts", artifactCount: 1 });
     expect(isDeletionPlanConfirmationValid(plan, { type: "artifacts", artifactCount: 1 })).toBe(true);
-    await expect(executeArtifactDeletionPlan(plan)).resolves.toMatchObject({ success: true });
+    await expect(executeArtifactDeletionPlan(plan, confirmation)).resolves.toMatchObject({ success: true });
     expect(execute).toHaveBeenCalledWith({
       planId: plan.planId,
       fingerprint: plan.fingerprint,

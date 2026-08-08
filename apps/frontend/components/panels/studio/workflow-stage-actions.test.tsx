@@ -280,7 +280,12 @@ describe("workflow stage action surfaces", () => {
     expect(aiManagerMocks.textStream).toHaveBeenCalledTimes(2);
     expect(String(aiManagerMocks.textStream.mock.calls[1]?.[0]?.messages?.[1]?.content)).toContain("结构修复任务");
     expect(saveAgentWorkData).toHaveBeenCalledTimes(1);
-    expect(saveAgentWorkData).toHaveBeenCalledWith("directorPlan", validPlan, "chapter-001");
+    expect(saveAgentWorkData).toHaveBeenCalledWith(
+      "directorPlan",
+      validPlan,
+      "chapter-001",
+      { sourceId: "chapter-001", revision: 1 },
+    );
     expect(saveScriptPlan).toHaveBeenCalledTimes(1);
     expect(saveScriptPlan.mock.calls[0]?.[0]).toMatchObject({
       episodeId: "chapter-001",

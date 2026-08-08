@@ -28,6 +28,8 @@ interface EnsureSceneVoiceLineInput {
   sceneId: number;
   dialogue: string;
   characterIds: string[];
+  /** Optional chapter identity supplied by the chapter-scoped workflow. */
+  chapterId?: string;
 }
 
 type VoiceProfileInput = Omit<VoiceProfile, "id" | "createdAt" | "updatedAt">;
@@ -86,9 +88,12 @@ function resolveProject(get: () => TtsStore): [string, TtsProjectState] | null {
 
 function createDefaultLine(
   input: EnsureSceneVoiceLineInput,
+  projectId: string,
   binding?: ProjectVoiceBinding,
 ): SceneVoiceLine {
   return {
+    projectId,
+    chapterId: input.chapterId,
     sceneId: input.sceneId,
     speakerId: "narrator",
     text: input.dialogue.trim(),
@@ -195,7 +200,7 @@ function createStoreState(set: (partial: Partial<TtsStore> | ((state: TtsStore) 
       const existing = project.voiceLines[sceneKey];
       if (existing) return existing;
 
-      const line = createDefaultLine(input, project.bindings.narrator);
+      const line = createDefaultLine(input, projectId, project.bindings.narrator);
       set((state) => ({
         projects: {
           ...state.projects,
@@ -222,6 +227,8 @@ function createStoreState(set: (partial: Partial<TtsStore> | ((state: TtsStore) 
         const hasModelSize = Object.prototype.hasOwnProperty.call(line, "modelSize");
         const hasError = Object.prototype.hasOwnProperty.call(line, "error");
         const nextLine: SceneVoiceLine = {
+          projectId: line.projectId ?? existing?.projectId ?? get().activeProjectId ?? undefined,
+          chapterId: line.chapterId ?? existing?.chapterId,
           sceneId: line.sceneId,
           speakerId,
           text: line.text ?? existing?.text ?? "",
@@ -382,12 +389,13 @@ export function mergeTtsStoreState(
   const persisted = persistedState as Partial<PersistedTtsState>;
   const routerProjectId = useProjectStore.getState().activeProjectId;
   const activeProjectId = routerProjectId ?? persisted.activeProjectId ?? null;
+  const rawProjects =
+    persisted.projects && typeof persisted.projects === "object"
+      ? persisted.projects
+      : {};
   const candidate: PersistedTtsState = {
     activeProjectId,
-    projects:
-      persisted.projects && typeof persisted.projects === "object"
-        ? persisted.projects
-        : {},
+    projects: normalizeProjectOwnership(rawProjects),
     voiceProfiles:
       persisted.voiceProfiles && typeof persisted.voiceProfiles === "object"
         ? persisted.voiceProfiles
@@ -400,6 +408,25 @@ export function mergeTtsStoreState(
     projects: scoped.projects ?? {},
     voiceProfiles: scoped.voiceProfiles ?? {},
   };
+}
+
+function normalizeProjectOwnership(
+  projects: Record<string, TtsProjectState>,
+): Record<string, TtsProjectState> {
+  return Object.fromEntries(
+    Object.entries(projects).map(([projectId, project]) => [
+      projectId,
+      {
+        ...project,
+        voiceLines: Object.fromEntries(
+          Object.entries(project.voiceLines ?? {}).map(([lineId, line]) => [
+            lineId,
+            { ...line, projectId: line.projectId ?? projectId },
+          ]),
+        ),
+      },
+    ]),
+  );
 }
 
 function scopeTtsStateToProject(

@@ -84,7 +84,7 @@ describe("artifact inventory persisted project state", () => {
     expect(chapter.data.discrepancies).toHaveLength(0);
   });
 
-  it("merges active JSON and backup physical references without treating active JSON as backup impact", async () => {
+  it("merges duplicate logical IDs across active and backup sources with complete physical coverage", async () => {
     const dataRoot = await fs.mkdtemp(path.join(os.tmpdir(), "mystudio-artifact-physical-refs-"));
     roots.push(dataRoot);
     const projectRoot = path.join(dataRoot, "_p", "project-refs");
@@ -98,7 +98,11 @@ describe("artifact inventory persisted project state", () => {
       version: 1,
     };
     await fs.writeFile(path.join(projectRoot, "studio.json"), JSON.stringify(state));
-    await fs.writeFile(path.join(projectRoot, "chapter-refs-history.bak"), JSON.stringify(state));
+    await fs.writeFile(path.join(projectRoot, "history.bak"), JSON.stringify(state));
+    await fs.writeFile(path.join(projectRoot, "project-refs-history.json"), JSON.stringify({
+      ...state,
+      timestamp: 1,
+    }));
 
     const inventory = await scanProjectInventory(dataRoot, "project-refs", "chapter-refs");
     expect(inventory.success).toBe(true);
@@ -108,23 +112,23 @@ describe("artifact inventory persisted project state", () => {
     expect(chapterArtifact).toBeDefined();
     const refs = chapterArtifact?.physicalRefs ?? [];
     expect(refs.map((ref) => `${ref.type}:${ref.path}`).sort()).toEqual([
-      "backup:chapter-refs-history.bak",
+      "backup:history.bak",
+      "project-file:project-refs-history.json",
       "project-file:studio.json",
     ]);
+    expect(inventory.data.artifacts.filter((artifact) => artifact.id === chapterArtifact?.id)).toHaveLength(1);
 
     const planned = buildDeletionPlan(inventory.data.artifacts, [], "chapter-refs");
     expect(planned.valid).toBe(true);
-    expect(planned.plan.deleteItems[0]?.physicalRefs?.map((ref) => ref.type).sort()).toEqual([
-      "backup",
-      "project-file",
-    ]);
-    expect(planned.plan.backupImpact).toEqual([
-      expect.objectContaining({
-        filePath: "chapter-refs-history.bak",
-        action: "delete",
-        format: "chapter-only-backup",
-      }),
+    expect(planned.plan.backupImpact.map((impact) => impact.filePath).sort()).toEqual([
+      "history.bak",
     ]);
     expect(planned.plan.backupImpact.some((impact) => impact.filePath === "studio.json")).toBe(false);
+    const plannedArtifact = planned.plan.deleteItems.find((item) => item.artifactId === chapterArtifact?.id);
+    expect(plannedArtifact?.physicalRefs?.map((ref) => `${ref.type}:${ref.path}`).sort()).toEqual([
+      "backup:history.bak",
+      "project-file:project-refs-history.json",
+      "project-file:studio.json",
+    ]);
   });
 });

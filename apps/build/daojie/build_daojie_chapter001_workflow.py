@@ -56,9 +56,9 @@ SCENES_JSON = PROJECT / "scenes.json"
 PROPS_JSON = PROJECT / "props.json"
 EXPORTS = PROJECT / "exports" / "chapter-001"
 EXPORTS = Path(os.environ.get("MYSTUDIO_DAOJIE_EXPORTS_DIR", str(EXPORTS)))
-FRAMES = EXPORTS / "toonflow_frames"
-AUDIO = EXPORTS / "toonflow_audio"
-SEGMENTS = EXPORTS / "toonflow_segments"
+FRAMES = EXPORTS / "storyboard-frames"
+AUDIO = EXPORTS / "voice-audio"
+SEGMENTS = EXPORTS / "clip-segments"
 ASSET_DB = STORAGE_BASE_PATH / "assets" / "assets.db"
 ASSET_FILES = resolve_asset_files_dir(STORAGE_BASE_PATH)
 PYTHON_RUNTIME_DIR = STORAGE_BASE_PATH / "python"
@@ -66,7 +66,7 @@ TTS_RUNTIME_DIR = USER_DATA_DIR / "tts-runtime"
 TTS_MODELS_DIR = STORAGE_BASE_PATH / "tts-models"
 
 EPISODE_ID = "chapter-001"
-FINAL_NAME = "道劫_EP01_断剑夜访道口镇_toonflow_workflow.mp4"
+FINAL_NAME = "道劫_EP01_断剑夜访道口镇.mp4"
 VOICE_REFERENCE_NAME = "中年男声（45岁±）"
 VOICE_REFERENCE_ENGINE = "qwen"
 VOICE_REFERENCE_MODEL_SIZE = "1.7B"
@@ -3269,7 +3269,7 @@ def build_script_plan(shots=None):
 
 def build_structured_script_plan():
     return {
-        "id": "script-plan-chapter-001-toonflow",
+        "id": "script-plan-chapter-001",
         "episodeId": EPISODE_ID,
         "theme": "灰衫剑修在被宗门火印碾压的小镇里守住旧誓，码头暗救不露锋芒，客栈断剑揭出旧案，塾馆晏燎燃起一息暗红，尾声以灵舟逼近把希望推进倒计时。",
         "visualStyle": "宣纸淡彩工笔、连续白描、石青石绿靛青配赭石朱砂旧金的矿物色区、均匀平光；侧偏留白、前中后景层次、框中框空间压迫；禁止写实摄影、3D写实渲染、赛璐璐色块和白底设定页。",
@@ -4086,7 +4086,7 @@ def sync_project_derived_assets(state, asset_catalog):
             prop["imageUrl"] = image_path
 
     manifest = []
-    derived_dir = EXPORTS / "toonflow_derived_assets"
+    derived_dir = EXPORTS / "derived-assets"
     image_workflows = [
         graph
         for graph in state.get("imageWorkflows", [])
@@ -5486,7 +5486,7 @@ def render_segment(index, frame, audio, output, duration):
 
 
 def concat_segments(segments, output):
-    concat = EXPORTS / "toonflow_concat.txt"
+    concat = EXPORTS / "clip-concat.txt"
     concat.write_text("\n".join(f"file '{p}'" for p in segments), encoding="utf-8")
     temp_output = output.with_suffix(f".tmp{output.suffix}")
     temp_output.unlink(missing_ok=True)

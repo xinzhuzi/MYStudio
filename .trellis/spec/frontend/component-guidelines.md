@@ -51,6 +51,45 @@ export function BrandMark({ className, alt = "漫影工作室" }: BrandMarkProps
   `is`, `has`, `can`, or `should`.
 - Do not pass raw IPC payloads through component trees; normalize them first.
 
+### Artifact detail panel — tags stay read-only
+
+`ArtifactDetailPanel` (`components/panels/media/artifact-detail/index.tsx`)
+edits only safe metadata: `name` and `notes`. Tags, state, physical path,
+dependencies, and generated content are read-only in the UI; content editing
+happens via "go to owning workflow", the single edit entry point.
+
+The `onMetadataUpdate` contract reflects this exactly:
+
+```tsx
+onMetadataUpdate?: (
+  artifactId: string,
+  updates: { name?: string; notes?: string }
+) => Promise<void>;
+```
+
+Do **not** re-add `tags?: string[]` to this type. The backend still accepts
+tags, but the UI deliberately does not expose tag editing — widening the type
+re-introduces a "lying type" (a field the UI never sends). If tag editing is
+needed, update the PRD (`R3`) first, then widen the contract end-to-end
+(panel props → `handleMetadataUpdate` → `ArtifactCenter.handleMetadataUpdate`)
+in one change.
+
+### List keys for physical refs
+
+When rendering `physicalRefs`, use a semantic key, never an array index. The
+dedup identity used by `artifact-inventory-service` is `${ref.type}:${ref.path}`
+— reuse it as the React `key`. `ref.type` is a non-empty literal union and
+`ref.path` is unique per ref, so the composite is stable across re-orders:
+
+```tsx
+{refs.map((ref) => (
+  <div key={`${ref.type}:${ref.path}`} ...>
+))}
+```
+
+Array-index keys (`key={idx}`) break state/animation continuity when refs are
+re-ordered or filtered.
+
 ---
 
 ## Styling Patterns
@@ -82,6 +121,29 @@ const editorScrollTheme = EditorView.theme({
 ```
 
 This keeps the dialog header and footer fixed while the editor content scrolls.
+
+### Read-only structured viewers (JsonViewer)
+
+For read-only structured values (arrays/objects such as `tags` or a full
+`PhysicalRef`), reuse `components/panels/media/artifact-detail/json-viewer.tsx`
+instead of a plain `<pre>`. It is built on the project's CodeMirror stack
+(`@uiw/react-codemirror` + `@codemirror/lang-json`) with `readOnly` +
+`editable={false}`, and mirrors the `RefPreview` scroll theme.
+
+Two CodeMirror behaviors must be preserved when extending it:
+
+- **Cap height via the `maxHeight` prop, not CSS.** A wrapper `max-height` is a
+  no-op for CodeMirror — the `.cm-editor` keeps growing. Pass `maxHeight="12rem"`
+  to `CodeMirror`, which correctly caps the editor and enables internal
+  scrolling.
+- **Disable interactive editor affordances.** Keep `foldGutter: false`,
+  `highlightActiveLineGutter: false`, and `highlightActiveLine: false` in
+  `basicSetup` — this is a viewer, not an editor; fold gutters and active-line
+  highlights mislead users into thinking the value is editable.
+
+```tsx
+<JsonViewer value={tags} maxHeight="12rem" />
+```
 
 ### Canonical JSON editor save boundary
 

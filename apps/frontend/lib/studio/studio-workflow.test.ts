@@ -6,6 +6,7 @@ import { validateVendorConfig, resolveModelBinding } from "@/lib/studio/model-co
 import {
   appendNovelChapters,
   buildNovelChapterMirror,
+  parseNovelChapterMirrorIdentity,
   parseNovelChapters,
   replaceNovelChapters,
 } from "@/lib/studio/novel";
@@ -90,10 +91,17 @@ describe("Manying Studio workflow core", () => {
         "# 第1章 雨夜",
         "",
         "> 卷：正文卷",
+        "> 源ID：chapter-001",
+        "> 修订：1",
         "> 来源：novel.txt",
         "",
         "王离进城。",
       ].join("\n"),
+    });
+
+    expect(parseNovelChapterMirrorIdentity(buildNovelChapterMirror("project-1", chapter).content)).toEqual({
+      sourceId: "chapter-001",
+      revision: 1,
     });
   });
 

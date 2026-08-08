@@ -92,6 +92,7 @@ function emit(
 function auditVoiceoverStoryboards(
   storyboards: StoryboardItem[],
   episodeId: string,
+  expectedIdentity?: { sourceId: string; revision: number },
 ): TtsSpeakerId[] {
   const episodeStoryboards = storyboards
     .filter((item) => item.episodeId === episodeId)
@@ -101,6 +102,12 @@ function auditVoiceoverStoryboards(
   }
   const speakerIds = new Set<TtsSpeakerId>();
   for (const storyboard of episodeStoryboards) {
+    if (expectedIdentity && storyboard.sourceId !== undefined && storyboard.sourceId !== expectedIdentity.sourceId) {
+      throw new Error(`分镜 ${storyboard.id} sourceId 与期望不一致: ${storyboard.sourceId}/${expectedIdentity.sourceId}`);
+    }
+    if (expectedIdentity && storyboard.revision !== undefined && storyboard.revision !== expectedIdentity.revision) {
+      throw new Error(`分镜 ${storyboard.id} revision 与期望不一致: ${storyboard.revision}/${expectedIdentity.revision}`);
+    }
     for (const field of [
       "speaker",
       "speakerId",
@@ -132,11 +139,13 @@ export interface PreparedChapterMedia {
 export async function prepareChapterMedia({
   projectId,
   episodeId,
+  expectedIdentity,
   dependencies,
   onStatus,
 }: {
   projectId: string;
   episodeId: string;
+  expectedIdentity?: { sourceId: string; revision: number };
   dependencies: ChapterAutoVideoDependencies;
   onStatus?: (status: ChapterAutoVideoStatus) => void;
 }): Promise<PreparedChapterMedia> {
@@ -145,7 +154,7 @@ export async function prepareChapterMedia({
 
   emit(onStatus, { stage: "voiceover", detail: "校验逐镜口播与 canonical speaker" });
   let storyboards = dependencies.loadStoryboards();
-  const speakerIds = auditVoiceoverStoryboards(storyboards, episodeId);
+  const speakerIds = auditVoiceoverStoryboards(storyboards, episodeId, expectedIdentity);
   storyboards = storyboards
     .filter((item) => item.episodeId === episodeId)
     .sort((left, right) => left.index - right.index);
@@ -226,11 +235,13 @@ export async function prepareChapterMedia({
 export async function runChapterAutoVideo({
   projectId,
   episodeId,
+  expectedIdentity,
   dependencies,
   onStatus,
 }: {
   projectId?: string;
   episodeId: string;
+  expectedIdentity?: { sourceId: string; revision: number };
   dependencies: ChapterAutoVideoDependencies;
   onStatus?: (status: ChapterAutoVideoStatus) => void;
 }): Promise<ChapterAutoVideoResult> {
@@ -239,6 +250,7 @@ export async function runChapterAutoVideo({
     const prepared = await prepareChapterMedia({
       projectId,
       episodeId,
+      expectedIdentity,
       dependencies,
       onStatus,
     });

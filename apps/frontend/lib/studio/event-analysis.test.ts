@@ -9,6 +9,7 @@ describe("studio novel event analysis", () => {
   it("parses Toonflow event extraction rows into structured chapter data", () => {
     const parsed = parseNovelEventAnalysisLine(
       "| 第1章 职业危机与许愿 | 林逸、白有容 | 林逸因事业崩塌而许愿，意外触发魔法系统绑定 | 强（动机建立+系统激活） | 高 | 50秒 | 转折+悬疑 |",
+      { sourceId: "source-001", revision: 4 },
     );
 
     expect(parsed).toEqual({
@@ -21,6 +22,8 @@ describe("studio novel event analysis", () => {
       emotionTags: ["转折", "悬疑"],
       rawLine:
         "| 第1章 职业危机与许愿 | 林逸、白有容 | 林逸因事业崩塌而许愿，意外触发魔法系统绑定 | 强（动机建立+系统激活） | 高 | 50秒 | 转折+悬疑 |",
+      sourceId: "source-001",
+      revision: 4,
     });
   });
 

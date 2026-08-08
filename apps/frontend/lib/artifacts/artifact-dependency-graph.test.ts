@@ -3,7 +3,7 @@
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 
 import { describe, test, expect } from "vitest";
-import { buildDeletionScope, computeDeletionOrder, validateDeletionPlan, detectOrphanedReferences } from "./artifact-dependency-graph";
+import { buildDeletionScope, buildDeletionPlan, computeDeletionOrder, validateDeletionPlan, detectOrphanedReferences } from "./artifact-dependency-graph";
 import type { ArtifactRecord, DeletePolicy } from "@/types/artifacts";
 import { buildSingleChapterFixture, buildMultiChapterFixture, buildLegacyAmbiguousFixture, buildCrossProjectFixture, generateDerivedAssetId } from "./__fixtures__/fixture-builders";
 
@@ -264,6 +264,66 @@ describe("artifact-dependency-graph", () => {
       expect(result.deleteSet).toContain(ch1Novel.id);
       expect(result.deleteSet).not.toContain(ch2Novel.id);
       expect(result.blockerSet).not.toContain(ch2Novel.id);
+    });
+  });
+
+  describe("buildDeletionPlan - artifact-scope blocker isolation", () => {
+    test("selecting one orphan backup is not polluted by unrelated project blockers", () => {
+      // Regression: a single backup orphan must produce a plan whose blocker
+      // list is empty. Before the fix, buildDeletionScope scanned the whole
+      // project for blocker-missing-ownership items and dumped every one of
+      // them into the dialog, disabling the confirm button.
+      const orphanBackup: ArtifactRecord = {
+        id: "backup:media-file:studio.json.bak-codex-1",
+        projectId: "test-project",
+        chapterId: undefined,
+        stage: "backup",
+        kind: "media-file",
+        state: "orphaned",
+        name: "studio.json.bak-codex-1",
+        createdAt: 0,
+        updatedAt: 0,
+        physicalRefs: [{ type: "backup", path: "studio.json.bak-codex-1" }],
+        upstreamIds: [],
+        downstreamIds: [],
+        deletePolicy: "delete-exclusive-downstream",
+      };
+
+      const unrelatedBlocker1: ArtifactRecord = {
+        ...createArtifacts("blocker-missing-ownership"),
+        id: "blocker:exports/chapter-001/automation_report.json",
+        name: "automation_report.json",
+        chapterId: undefined,
+      };
+      const unrelatedBlocker2: ArtifactRecord = {
+        ...createArtifacts("blocker-missing-ownership"),
+        id: "blocker:remotion/project.json.json",
+        name: "project.json.json",
+        chapterId: undefined,
+      };
+
+      const allArtifacts = [orphanBackup, unrelatedBlocker1, unrelatedBlocker2];
+      const { plan, valid } = buildDeletionPlan(allArtifacts, [orphanBackup.id], "");
+
+      expect(valid).toBe(true);
+      expect(plan.deleteItems.map((i) => i.artifactId)).toEqual([orphanBackup.id]);
+      expect(plan.blockerItems).toHaveLength(0);
+      expect(plan.executionAllowed).toBe(true);
+      expect(plan.confirmationRequired).toEqual({ type: "artifact-count", count: 1 });
+    });
+
+    test("selecting an unowned item itself stays blocked", () => {
+      const unowned = createArtifacts("blocker-missing-ownership");
+      const other = createArtifacts("delete-exclusive-downstream");
+      const { plan, valid, errors } = buildDeletionPlan([unowned, other], [unowned.id], "");
+
+      // The selected item is itself a blocker, so it must surface and block
+      // execution. valid also reflects executionAllowed (no planning errors,
+      // but the plan cannot run).
+      expect(errors).toHaveLength(0);
+      expect(valid).toBe(false);
+      expect(plan.blockerItems.some((i) => i.artifactId === unowned.id)).toBe(true);
+      expect(plan.executionAllowed).toBe(false);
     });
   });
 });

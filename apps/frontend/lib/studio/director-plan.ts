@@ -1,5 +1,5 @@
 import { getAgentSkillPreset } from "@/lib/studio/manuals";
-import type { ScriptPlan } from "@/types/studio";
+import type { ScriptPlan, StudioSourceIdentity } from "@/types/studio";
 
 export interface BuildDirectorPlanInput {
   episodeId: string;
@@ -260,10 +260,14 @@ export function formatDirectorPlanAuditError(audit: DirectorPlanAuditResult): st
   return `导演规划结构不合格：${audit.issues.slice(0, 4).join("；")}`;
 }
 
-export function parseDirectorPlan(output: string, episodeId: string): ParseDirectorPlanResult {
+export function parseDirectorPlan(
+  output: string,
+  episodeId: string,
+  identity?: StudioSourceIdentity,
+): ParseDirectorPlanResult {
   const body = extractScriptPlanSegments(output);
   if (!hasLegacySections(body) && isToonflowScriptPlan(body)) {
-    return parseToonflowDirectorPlan(body, episodeId);
+    return parseToonflowDirectorPlan(body, episodeId, identity);
   }
 
   const sections = splitSections(body);
@@ -284,6 +288,7 @@ export function parseDirectorPlan(output: string, episodeId: string): ParseDirec
   const derivedAssetPlan = parseDerivedAssetTable(sections["⑦"] ?? "");
 
   const plan: ScriptPlan = {
+    ...normalizeSourceIdentity(identity),
     id: `script-plan-${episodeId}-${Date.now()}`,
     episodeId,
     theme: clean(sections["①"]),
@@ -306,7 +311,11 @@ function isToonflowScriptPlan(body: string): boolean {
   return body.includes("分场汇总表") || body.includes("逐场注意事项") || body.includes("场间过渡");
 }
 
-function parseToonflowDirectorPlan(body: string, episodeId: string): ParseDirectorPlanResult {
+function parseToonflowDirectorPlan(
+  body: string,
+  episodeId: string,
+  identity?: StudioSourceIdentity,
+): ParseDirectorPlanResult {
   const warnings: string[] = [];
   const sceneSummary = extractToonflowSection(body, "分场汇总表", ["逐场注意事项", "场间过渡"]);
   const sceneNotes = extractToonflowSection(body, "逐场注意事项", ["场间过渡", "衍生资产"]);
@@ -324,6 +333,7 @@ function parseToonflowDirectorPlan(body: string, episodeId: string): ParseDirect
 
   return {
     plan: {
+      ...normalizeSourceIdentity(identity),
       id: `script-plan-${episodeId}-${Date.now()}`,
       episodeId,
       theme: stripLightingTerms(sceneSummary),
@@ -335,6 +345,15 @@ function parseToonflowDirectorPlan(body: string, episodeId: string): ParseDirect
       derivedAssetPlan: parseDerivedAssetTable(derivedAssetSection),
     },
     warnings,
+  };
+}
+
+function normalizeSourceIdentity(identity?: StudioSourceIdentity): StudioSourceIdentity {
+  const sourceId = identity?.sourceId?.trim();
+  const revision = identity?.revision;
+  return {
+    ...(sourceId ? { sourceId } : {}),
+    ...(typeof revision === "number" && Number.isInteger(revision) && revision > 0 ? { revision } : {}),
   };
 }
 

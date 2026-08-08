@@ -366,7 +366,7 @@ export async function runStoryboardTtsGeneration({
           bytes,
         });
         throwIfCanceled(isCanceled);
-        const binding = await createVoiceBinding({
+        const binding = await createStoryboardVoiceBinding({
           projectId,
           chapterId,
           storyboard,
@@ -383,7 +383,7 @@ export async function runStoryboardTtsGeneration({
         };
         await persistJob(job, onJob);
         return {
-          audioRef: bindingAudioRef(binding),
+          audioRef: createStoryboardAudioRefFromBinding(binding),
           shotAudioBinding: binding,
           ttsJob: job,
           generationId,
@@ -458,7 +458,7 @@ async function persistJob(
   await onJob?.(job);
 }
 
-async function createVoiceBinding(input: {
+export async function createStoryboardVoiceBinding(input: {
   projectId: string;
   chapterId: string;
   storyboard: StoryboardItem;
@@ -492,7 +492,7 @@ async function createVoiceBinding(input: {
   return binding;
 }
 
-function bindingAudioRef(binding: RemotionShotAudioBindingV2): StoryboardMediaRef {
+export function createStoryboardAudioRefFromBinding(binding: RemotionShotAudioBindingV2): StoryboardMediaRef {
   const encodedPath = binding.source.relativePath
     .split("/")
     .map((segment) => encodeURIComponent(segment))
@@ -511,7 +511,7 @@ function completedResult(
 ) {
   if (!job.generationId) throw new Error(`分镜 ${storyboard.id} completed TTS job 缺少 generationId`);
   return {
-    audioRef: bindingAudioRef(binding),
+    audioRef: createStoryboardAudioRefFromBinding(binding),
     shotAudioBinding: binding,
     ttsJob: job,
     generationId: job.generationId,

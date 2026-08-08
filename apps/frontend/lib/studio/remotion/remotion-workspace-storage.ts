@@ -10,8 +10,8 @@ import { validateRemotionWorkspaceManifest } from "./remotion-manifest-validatio
 export const REMOTION_WORKSPACE_STORAGE_SUFFIX = "remotion/project.json";
 
 export const DEFAULT_REMOTION_RENDER_SETTINGS: EditingRenderSettings = {
-  width: 1080,
-  height: 1920,
+  width: 1920,
+  height: 1080,
   fps: 30,
   codec: "h264",
   subtitleMode: "burn-in",

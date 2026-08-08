@@ -1,4 +1,4 @@
-import type { NovelChapter } from "@/types/studio";
+import type { NovelChapter, StudioSourceIdentity } from "@/types/studio";
 
 export interface ParseNovelOptions {
   importedAt?: number;
@@ -73,7 +73,11 @@ export function replaceNovelChapters(sourceText: string, options: ParseNovelOpti
 
 export function buildNovelChapterMirror(projectId: string, chapter: NovelChapter) {
   const chapterId = createChapterId(chapter.index);
-  const metaLines = [`> 卷：${chapter.volume ?? defaultVolume}`];
+  const metaLines = [
+    `> 卷：${chapter.volume ?? defaultVolume}`,
+    `> 源ID：${chapter.sourceId ?? chapter.id}`,
+    `> 修订：${chapter.revision ?? 1}`,
+  ];
   if (chapter.sourceName) {
     metaLines.push(`> 来源：${chapter.sourceName}`);
   }
@@ -93,6 +97,17 @@ export function buildNovelChapterMirror(projectId: string, chapter: NovelChapter
       chapter.sourceText,
       ...(eventLines.length ? ["", "## 事件分析", "", ...eventLines] : []),
     ].join("\n"),
+  };
+}
+
+/** Read the stable chapter identity from a persisted Markdown mirror. */
+export function parseNovelChapterMirrorIdentity(markdown: string): StudioSourceIdentity {
+  const sourceId = markdown.match(/^>\s*源ID：([^\n]+)$/m)?.[1]?.trim();
+  const revisionValue = markdown.match(/^>\s*修订：(\d+)$/m)?.[1];
+  const revision = revisionValue ? Number(revisionValue) : undefined;
+  return {
+    ...(sourceId ? { sourceId } : {}),
+    ...(typeof revision === "number" && Number.isInteger(revision) && revision > 0 ? { revision } : {}),
   };
 }
 

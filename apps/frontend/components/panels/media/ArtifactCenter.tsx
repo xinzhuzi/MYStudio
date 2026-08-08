@@ -3,10 +3,12 @@
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 
 import { useMemo, useState, useCallback, useEffect } from "react";
-import { ArrowUp, ChevronRight, FolderOpen, FolderKanban, LucideImage as MediaLibrary, Trash2 } from "lucide-react";
+import { ArrowUp, ChevronRight, FolderOpen, FolderKanban, Loader2, LucideImage as MediaLibrary, Trash2 } from "lucide-react";
+import { getArtifactDeleteImpact } from "@/lib/artifacts/delete-impact";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { cn } from "@/lib/utils";
 import { useArtifactStore } from "@/stores/artifacts/artifact-store";
 import {
@@ -17,7 +19,7 @@ import {
 } from "@/stores/artifacts/artifact-store";
 import { useProjectStore } from "@/stores/project/project-store";
 import { toast } from "sonner";
-import type { ArtifactRecord, ArtifactStage, ArtifactState } from "@/types/artifacts";
+import type { ArtifactRecord, ArtifactStage, ArtifactState, DeletionConfirmation } from "@/types/artifacts";
 import { FIXED_NAV_STAGES, STAGE_LABELS } from "@/lib/artifacts/stage-labels";
 import { ChapterTree, type ChapterNode } from "./ChapterTree";
 import { ArtifactDetailPanel } from "./artifact-detail";
@@ -112,6 +114,42 @@ function inferChapterId(artifact: ArtifactRecord): string | null {
     if (match) return match[0];
   }
   return null;
+}
+
+/**
+ * Synthetic bucket ids (kept distinct from any real chapter id shape so they
+ * can never collide with `chapter-NNN` / `episode-N` values from the data).
+ */
+const BACKUP_BUCKET_ID = "__backup__";
+const NONE_BUCKET_ID = "__none__";
+
+/**
+ * An artifact whose ONLY physical presence is inside backup files
+ * (`.bak-*` / `.codex-*`). The inventory service marks backup-sourced refs
+ * with `type: "backup"` (artifact-inventory-service.ts:115). When every ref
+ * is a backup ref, the artifact is a historical archive copy — it has no live
+ * project-file footprint and should not pollute the chapter tree. An artifact
+ * that also has a `project-file`/`remotion`/`exports` ref is a live artifact
+ * that merely also appears in backups, so it stays in its chapter.
+ */
+function isBackupOnlyArtifact(artifact: ArtifactRecord): boolean {
+  if (artifact.physicalRefs.length === 0) return false;
+  return artifact.physicalRefs.every((ref) => ref.type === "backup");
+}
+
+/**
+ * Human-readable chapter label from a raw chapter id. Extracts the first
+ * digit group and drops the `chapter-` prefix / leading zeros, so
+ * `chapter-001` / `chapter-1` both render as "第 1 章". Falls back to the raw
+ * id when no digits are present (rare, e.g. a slug-only id).
+ */
+function formatChapterLabel(id: string): string {
+  const digitMatch = id.match(/(\d+)/);
+  if (digitMatch) {
+    const num = parseInt(digitMatch[1], 10);
+    return `第 ${num} 章`;
+  }
+  return `第 ${id} 章`;
 }
 
 function buildArtifactFileTree(artifacts: ArtifactRecord[]): FileTreeNode[] {
@@ -216,7 +254,7 @@ function FilterBar({
   totalArtifacts,
 }: FilterBarProps) {
   return (
-    <div className="flex items-center justify-between p-3 border-b bg-panel">
+    <div className="flex items-center justify-between p-3 bg-panel">
       <div className="text-sm text-muted-foreground">
         共 {totalArtifacts} 个产物
       </div>
@@ -251,6 +289,27 @@ function FilterBar({
   );
 }
 
+// 产物表格加载骨架(镜像真实表 6 列列宽,加载→真实无 layout shift)
+// 遵循 emil-design-eng:用 Skeleton 自带 animate-pulse(opacity),主线程忙时比 JS 动画流畅
+function ArtifactTableSkeleton() {
+  return (
+    <table className="w-full text-sm" aria-hidden="true">
+      <tbody>
+        {Array.from({ length: 6 }).map((_, i) => (
+          <tr key={i} className="border-t">
+            <td className="p-2 w-10"><Skeleton className="h-4 w-4" /></td>
+            <td className="p-2"><Skeleton className="h-4 w-[60%]" /></td>
+            <td className="p-2 w-[110px]"><Skeleton className="h-3.5 w-16" /></td>
+            <td className="p-2 w-[100px]"><Skeleton className="h-5 w-16 rounded-full" /></td>
+            <td className="p-2 w-[100px]"><Skeleton className="h-3.5 w-12" /></td>
+            <td className="p-2 w-[180px]"><Skeleton className="h-3.5 w-28" /></td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
 export function ArtifactCenter({
   mockArtifacts,
   mockProjects,
@@ -279,6 +338,7 @@ export function ArtifactCenter({
   const startScan = useArtifactStore((state) => state.startScan);
   const finishScan = useArtifactStore((state) => state.finishScan);
   const setScanError = useArtifactStore((state) => state.setError);
+  const loading = useArtifactStore((state) => state.loading);
   const refreshInventory = useCallback(async () => {
     if (!activeProjectId || mockArtifacts) return;
     startScan();
@@ -311,10 +371,17 @@ export function ArtifactCenter({
     // chapter artifacts are counted in the column but filtered out of the
     // table. See chapters useMemo and inferChapterId.
     if (selectedChapterId) {
-      if (selectedChapterId === "__none__") {
-        result = result.filter(a => inferChapterId(a) === null);
+      if (selectedChapterId === NONE_BUCKET_ID) {
+        // 杂项: non-backup artifacts with no inferred chapter.
+        result = result.filter(a => !isBackupOnlyArtifact(a) && inferChapterId(a) === null);
+      } else if (selectedChapterId === BACKUP_BUCKET_ID) {
+        // 备份: backup-only artifacts.
+        result = result.filter(a => isBackupOnlyArtifact(a));
       } else {
-        result = result.filter(a => inferChapterId(a) === selectedChapterId);
+        // Real chapter: non-backup artifacts whose inferred chapter matches.
+        // Must mirror the chapters useMemo bucketing so backup-only artifacts
+        // (which may carry the same chapterId from a backup file) are excluded.
+        result = result.filter(a => !isBackupOnlyArtifact(a) && inferChapterId(a) === selectedChapterId);
       }
     }
 
@@ -403,28 +470,42 @@ export function ArtifactCenter({
   }, [artifacts, mockProjects, projectList, activeProjectId]);
 
   // Distinct chapter list for the active project. Drives the left chapter
-  // column. One node per distinct chapter id (explicit artifact.chapterId, or
-  // inferred via inferChapterId from physicalRefs paths). No-chapter artifacts
-  // fall into the synthetic "__none__" bucket labelled "杂项".
-  // Sort order: "杂项" first (these are special/unclassified files the user
-  // wants surfaced up top), then real chapters in ascending numeric order.
+  // column. Each artifact is bucketed into one of three synthetic groups or a
+  // real chapter:
+  //   - "__backup__" (备份): artifacts whose only physical refs are backups
+  //     (`.bak-*` / `.codex-*`). Historical archive copies — kept out of the
+  //     chapter tree so stale ids like `episode-1` / `smoke-chapter-1` from
+  //     old backups don't spawn phantom "第X章" categories.
+  //   - "__none__" (杂项): no chapter inferred (special/unclassified files).
+  //   - real chapter id: formatted via formatChapterLabel ("第 N 章").
+  // Sort order: "杂项" first, then "备份", then real chapters ascending.
   const chapters = useMemo<ChapterNode[]>(() => {
     if (!activeProjectId) return [];
     const projectArtifacts = artifacts.filter((artifact) => artifact.projectId === activeProjectId);
     const counts = new Map<string, number>();
     for (const artifact of projectArtifacts) {
-      const chapterId = inferChapterId(artifact) ?? "__none__";
-      counts.set(chapterId, (counts.get(chapterId) ?? 0) + 1);
+      const bucket = isBackupOnlyArtifact(artifact)
+        ? BACKUP_BUCKET_ID
+        : inferChapterId(artifact) ?? NONE_BUCKET_ID;
+      counts.set(bucket, (counts.get(bucket) ?? 0) + 1);
     }
+    const bucketRank = (id: string): number =>
+      id === NONE_BUCKET_ID ? 0 : id === BACKUP_BUCKET_ID ? 1 : 2;
     return [...counts.entries()]
       .sort(([a], [b]) => {
-        if (a === "__none__") return -1;
-        if (b === "__none__") return 1;
+        const ra = bucketRank(a);
+        const rb = bucketRank(b);
+        if (ra !== rb) return ra - rb;
         return a.localeCompare(b, undefined, { numeric: true });
       })
       .map(([id, count]) => ({
         id,
-        label: id === "__none__" ? "杂项" : `第 ${id} 章`,
+        label:
+          id === NONE_BUCKET_ID
+            ? "杂项"
+            : id === BACKUP_BUCKET_ID
+              ? "备份"
+              : formatChapterLabel(id),
         count,
       }));
   }, [artifacts, activeProjectId]);
@@ -449,6 +530,38 @@ export function ArtifactCenter({
     if (paths.length === 0) return currentDirectoryPath === "";
     return paths.some((physicalPath) => parentDirectory(physicalPath) === currentDirectoryPath);
   }), [filteredArtifacts, currentDirectoryPath]);
+
+  // Flat grouping by stage — replaces the folder-navigation view. All artifacts
+  // are flattened out of their physical directory tree and grouped under their
+  // 13 ArtifactStage in STAGE_LABELS order; empty stages still render (count 0)
+  // so every workflow stage is visible as a classification group.
+  const artifactsByStage = useMemo(() => {
+    const buckets = new Map<ArtifactStage, ArtifactRecord[]>();
+    for (const stage of FIXED_NAV_STAGES) buckets.set(stage, []);
+    for (const artifact of filteredArtifacts) {
+      const bucket = buckets.get(artifact.stage);
+      if (bucket) bucket.push(artifact);
+    }
+    return FIXED_NAV_STAGES.map((stage) => ({
+      stage,
+      label: STAGE_LABELS[stage],
+      artifacts: buckets.get(stage) ?? [],
+    }));
+  }, [filteredArtifacts]);
+
+  // When a specific stage is selected in the toolbar dropdown, only that stage
+  // group is relevant — rendering the other 12 (empty) stage headers is noise.
+  // "所有阶段" keeps the full 13-group breakdown.
+  const visibleStageGroups = useMemo(() => {
+    if (stageFilter === "all") return artifactsByStage;
+    return artifactsByStage.filter((group) => group.stage === stageFilter);
+  }, [artifactsByStage, stageFilter]);
+  // Flat artifact list for the file-only view — no per-stage section headers.
+  // "展示文件列表，就只管展示文件列表"：不再按阶段分组，所有文件平铺为单一列表。
+  const flatArtifactList = useMemo(
+    () => visibleStageGroups.flatMap((group) => group.artifacts),
+    [visibleStageGroups],
+  );
   const directoryBreadcrumbs = useMemo(() => {
     if (!currentDirectoryPath) return [] as Array<{ label: string; path: string }>;
     const parts = currentDirectoryPath.split("/");
@@ -502,10 +615,13 @@ export function ArtifactCenter({
   // Default-select the first chapter so a chapter is always active (PRD: a
   // chapter must always be selected — the user cannot return to "no chapter").
   // Runs after the project-switch reset effect above; when selectedChapterId
-  // is null and chapters exist, it picks the first one.
+  // is null and chapters exist, it picks the first non-backup node (杂项 first,
+  // else the first real chapter). Backup is a passive archive bucket and is
+  // only selected if it is the sole node.
   useEffect(() => {
     if (selectedChapterId === null && chapters.length > 0) {
-      setSelectedChapterId(chapters[0].id);
+      const preferred = chapters.find((c) => c.id !== BACKUP_BUCKET_ID) ?? chapters[0];
+      setSelectedChapterId(preferred.id);
     }
   }, [selectedChapterId, chapters]);
 
@@ -526,7 +642,7 @@ export function ArtifactCenter({
 
   const handleMetadataUpdate = useCallback(async (
     artifactId: string,
-    updates: { name?: string; tags?: string[]; notes?: string }
+    updates: { name?: string; notes?: string }
   ) => {
     if (!activeProjectId) {
       toast.error("没有活动项目，元数据未保存");
@@ -597,9 +713,16 @@ export function ArtifactCenter({
 
   const openSelectedDelete = useCallback(async () => {
     if (!activeProjectId || !selectedChapterId || selectedIds.size === 0) return;
+    // "__none__" is the UI-only synthetic bucket for ungrouped/project-level
+    // artifacts (ChapterTree.tsx). It is NOT a real chapter id — passing it as
+    // chapterId makes buildDeletionPlan reject the plan ("outside chapter
+    // __none__"). For artifacts-scope deletion the store/IPC both accept an
+    // empty chapterId (cross-chapter selection; see artifact-management-ipc.ts
+    // L331-336), so strip the synthetic sentinel here.
+    const chapterIdForPlan = selectedChapterId === "__none__" ? "" : selectedChapterId;
     const result = await createArtifactDeletionPlan({
       projectId: activeProjectId,
-      chapterId: selectedChapterId,
+      chapterId: chapterIdForPlan,
       scope: "artifacts",
       artifactIds: Array.from(selectedIds),
     });
@@ -621,9 +744,9 @@ export function ArtifactCenter({
     });
   }, [selectedChapterId]);
 
-  const executePlan = useCallback(async () => {
+  const executePlan = useCallback(async (confirmation: DeletionConfirmation) => {
     if (!deletePlan) throw new Error("删除服务不可用");
-    const result = await executeArtifactDeletionPlan(deletePlan);
+    const result = await executeArtifactDeletionPlan(deletePlan, confirmation);
     if (!result.success) throw new Error(result.error);
     await refreshInventory();
     setDeletePlan(null);
@@ -655,19 +778,25 @@ export function ArtifactCenter({
 
         <TabsContent value="workflow" className="flex-1 m-0 overflow-hidden min-h-0">
           <div className="flex h-full min-h-0">
+          <ResizablePanelGroup direction="horizontal" className="flex-1 min-w-0 h-full" autoSaveId="artifact-center-left">
             {/* Left Column - Chapter Tree (PRD R1: 项目→章节→工作流阶段→产物) */}
-            <aside className="w-56 border-r bg-panel flex flex-col min-h-0">
-              <div className="flex-1 min-h-0 overflow-hidden">
-                <ChapterTree
-                  chapters={chapters}
-                  selectedChapterId={selectedChapterId}
-                  onChapterClick={handleChapterClick}
-                />
-              </div>
-            </aside>
+            <ResizablePanel defaultSize={22} minSize={18} maxSize={50} className="bg-panel">
+              <aside className="h-full flex flex-col min-h-0">
+                <div className="flex-1 min-h-0 overflow-hidden">
+                  <ChapterTree
+                    chapters={chapters}
+                    selectedChapterId={selectedChapterId}
+                    onChapterClick={handleChapterClick}
+                  />
+                </div>
+              </aside>
+            </ResizablePanel>
+
+            <ResizableHandle withHandle />
 
             {/* Center Table */}
-            <main className="flex-1 flex flex-col min-w-0 min-h-0">
+            <ResizablePanel defaultSize={78} minSize={50} className="min-w-0">
+              <main className="h-full flex flex-col min-w-0 min-h-0">
               <div className="flex items-center justify-between border-b px-3 py-2 shrink-0">
                 <FilterBar
                   stageFilter={stageFilter}
@@ -676,7 +805,23 @@ export function ArtifactCenter({
                   onStateFilterChange={setStateFilter}
                   totalArtifacts={filteredArtifacts.length}
                 />
+                {loading && (
+                  <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+                    扫描产物中…
+                  </span>
+                )}
                 <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    aria-label="选择全部产物"
+                    className="ml-auto"
+                    checked={flatArtifactList.length > 0 && flatArtifactList.every((artifact) => selectedIds.has(artifact.id))}
+                    onChange={(event) => {
+                      for (const artifact of flatArtifactList) toggleArtifactSelection(artifact.id, event.target.checked);
+                    }}
+                    onClick={(event) => event.stopPropagation()}
+                  />
                   <Button variant="outline" size="sm" disabled={!selectedChapterId || selectedIds.size === 0} onClick={() => void openSelectedDelete()}>
                     <Trash2 className="mr-1 h-4 w-4" />删除选中 ({selectedIds.size})
                   </Button>
@@ -685,166 +830,92 @@ export function ArtifactCenter({
                   </Button>
                 </div>
               </div>
-              <div className="flex-1 overflow-auto min-h-0">
-                <div className="flex items-center gap-1 border-b bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
-                  <button
-                    type="button"
-                    className={cn("inline-flex items-center gap-1 hover:text-foreground", !currentDirectoryPath && "font-medium text-foreground")}
-                    onClick={() => handleDirectoryClick("")}
-                  >
-                    <FolderKanban className="h-3.5 w-3.5" />
-                    项目文件
-                  </button>
-                  {directoryBreadcrumbs.map((crumb) => (
-                    <span key={crumb.path} className="inline-flex items-center gap-1">
-                      <ChevronRight className="h-3 w-3" />
-                      <button type="button" className="hover:text-foreground" onClick={() => handleDirectoryClick(crumb.path)}>
-                        {crumb.label}
-                      </button>
-                    </span>
-                  ))}
-                  {currentDirectoryPath && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="ml-auto h-6 w-6"
-                      aria-label="返回上级目录"
-                      onClick={() => handleDirectoryClick(parentDirectory(currentDirectoryPath))}
-                    >
-                      <ArrowUp className="h-3.5 w-3.5" />
-                    </Button>
-                  )}
-                </div>
-                <table className="w-full text-sm">
-                  <thead className="bg-muted/30 sticky top-0">
-                    <tr>
-                      <th className="text-left p-2 w-10">
-                        <input
-                          type="checkbox"
-                          aria-label="选择当前章节可见产物"
-                          checked={Boolean(selectedChapterId) && visibleDirectoryArtifacts.length > 0 && visibleDirectoryArtifacts.every((artifact) => selectedIds.has(artifact.id))}
-                          disabled={!selectedChapterId || visibleDirectoryArtifacts.length === 0}
-                          onChange={(event) => {
-                            for (const artifact of visibleDirectoryArtifacts) toggleArtifactSelection(artifact.id, event.target.checked);
-                          }}
-                          onClick={(event) => event.stopPropagation()}
-                        />
-                      </th>
-                      <th className="text-left p-2 font-medium">名称</th>
-                      <th className="text-left p-2 font-medium w-[120px]">阶段</th>
-                      <th className="text-left p-2 font-medium w-[100px]">状态</th>
-                      <th className="text-left p-2 font-medium w-[100px]">大小</th>
-                      <th className="text-left p-2 font-medium w-[150px]">更新时间</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {visibleDirectoryFolders.map((folder) => (
-                      <tr
-                        key={`folder:${folder.path}`}
-                        className="cursor-pointer border-t hover:bg-muted/50 transition-colors"
-                        onClick={() => handleDirectoryClick(folder.path)}
-                      >
-                        <td className="p-2" />
-                        <td className="p-2 font-medium">
-                          <span className="inline-flex items-center gap-2">
-                            <FolderOpen className="h-4 w-4 text-primary" />
-                            {folder.name}
-                          </span>
-                        </td>
-                        <td className="p-2"><Badge variant="outline" className="text-xs">文件夹</Badge></td>
-                        <td className="p-2 text-muted-foreground text-xs">可进入</td>
-                        <td className="p-2 font-mono text-xs">{formatBytes(folder.bytes)}</td>
-                        <td className="p-2 text-muted-foreground text-xs flex items-center justify-between gap-2">
-                          <span>{countFileTreeArtifacts(folder)} 项</span>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                            aria-label={`删除文件夹 ${folder.name} 及内部全部`}
-                            title="移动到废纸篓（含内部全部）"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              void openDirectoryDelete(folder);
-                            }}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                    {visibleDirectoryArtifacts.map((artifact) => (
-                      <tr
-                        key={artifact.id}
-                        title={formatArtifactTooltip(artifact)}
-                        onClick={() => handleArtifactClick(artifact)}
-                        className={cn(
-                          "cursor-pointer border-t hover:bg-muted/50 transition-colors",
-                          selectedIds.has(artifact.id) && "bg-muted/50"
-                        )}
-                      >
-                        <td className="p-2" onClick={(event) => event.stopPropagation()}>
-                          <input
-                            type="checkbox"
-                            aria-label={`选择产物 ${artifact.name}`}
-                            checked={selectedIds.has(artifact.id)}
-                            disabled={!selectedChapterId || (selectedChapterId !== "__none__" && artifact.chapterId !== selectedChapterId)}
-                            onChange={(event) => toggleArtifactSelection(artifact.id, event.target.checked)}
-                          />
-                        </td>
-                        <td className="p-2 font-medium">{artifact.name}</td>
-                        <td className="p-2">
-                          <Badge variant="secondary" className="text-xs">
-                            {currentTab === 'workflow'
-                              ? STAGE_LABELS[artifact.stage] || artifact.stage
-                              : '可交付物'}
-                          </Badge>
-                        </td>
-                        <td className="p-2">
-                          <span className={cn(
-                            "text-xs px-2 py-1 rounded capitalize",
-                            artifact.state === 'active' && "bg-green-600/20 text-green-600",
-                            artifact.state === 'blocked' && "bg-red-600/20 text-red-600",
-                            artifact.state === 'orphaned' && "bg-orange-600/20 text-orange-600"
-                          )}>
-                            {artifact.state}
-                          </span>
-                        </td>
-                        <td className="p-2 font-mono text-xs">
-                          {formatBytes(artifact.bytes)}
-                        </td>
-                        <td className="p-2 text-muted-foreground text-xs">
-                          <span className="flex items-center justify-between gap-2">
-                            <span>{new Date(artifact.updatedAt).toLocaleString('zh-CN')}</span>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                              aria-label={`删除产物 ${artifact.name}`}
-                              title="移动到废纸篓"
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                void openFileDelete(artifact);
-                              }}
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-
-                {visibleDirectoryFolders.length === 0 && visibleDirectoryArtifacts.length === 0 && (
+              <div className="flex-1 overflow-auto min-h-0" aria-busy={loading}>
+                {loading ? (
+                  <ArtifactTableSkeleton />
+                ) : filteredArtifacts.length === 0 ? (
                   <div className="h-full flex items-center justify-center text-center text-muted-foreground py-12">
-                    当前目录没有符合条件的产物
+                    当前章节没有符合条件的产物
                   </div>
+                ) : (
+                  <table className="w-full text-sm">
+                    <tbody>
+                      {flatArtifactList.map((artifact) => (
+                            <tr
+                              key={artifact.id}
+                              title={formatArtifactTooltip(artifact)}
+                              onClick={() => handleArtifactClick(artifact)}
+                              className={cn(
+                                "cursor-pointer border-t hover:bg-muted/50 transition-colors",
+                                selectedIds.has(artifact.id) && "bg-muted/50"
+                              )}
+                            >
+                              <td className="p-2 w-10" onClick={(event) => event.stopPropagation()}>
+                                <input
+                                  type="checkbox"
+                                  aria-label={`选择产物 ${artifact.name}`}
+                                  checked={selectedIds.has(artifact.id)}
+                                  disabled={!selectedChapterId || (selectedChapterId !== "__none__" && artifact.chapterId !== selectedChapterId)}
+                                  onChange={(event) => toggleArtifactSelection(artifact.id, event.target.checked)}
+                                />
+                              </td>
+                              <td className="p-2 font-medium">{artifact.name}</td>
+                              <td className="p-2 w-[110px]">
+                                {(() => {
+                                  const impact = getArtifactDeleteImpact(artifact);
+                                  const Icon = impact.icon;
+                                  return (
+                                    <span
+                                      className={cn("inline-flex items-center gap-1 text-xs", impact.className)}
+                                      title={impact.hint}
+                                    >
+                                      <Icon className="h-3.5 w-3.5" />
+                                      {impact.label}
+                                    </span>
+                                  );
+                                })()}
+                              </td>
+                              <td className="p-2 w-[100px]">
+                                <span className={cn(
+                                  "text-xs px-2 py-1 rounded capitalize",
+                                  artifact.state === 'active' && "bg-green-600/20 text-green-600",
+                                  artifact.state === 'blocked' && "bg-red-600/20 text-red-600",
+                                  artifact.state === 'orphaned' && "bg-orange-600/20 text-orange-600"
+                                )}>
+                                  {STATE_LABELS[artifact.state] || artifact.state}
+                                </span>
+                              </td>
+                              <td className="p-2 font-mono text-xs w-[100px]">
+                                {formatBytes(artifact.bytes)}
+                              </td>
+                              <td className="p-2 text-muted-foreground text-xs w-[180px]">
+                                <span className="flex items-center justify-between gap-2">
+                                  <span>{new Date(artifact.updatedAt).toLocaleString('zh-CN')}</span>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                                    aria-label={`删除产物 ${artifact.name}`}
+                                    title="移动到废纸篓"
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      void openFileDelete(artifact);
+                                    }}
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                </span>
+                              </td>
+                            </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 )}
               </div>
             </main>
+            </ResizablePanel>
+          </ResizablePanelGroup>
 
             {/* Right Detail Panel */}
             {getDetailArtifact() && (
@@ -898,7 +969,7 @@ const formatArtifactTooltip = (artifact: ArtifactRecord): string => {
   const updated = new Date(artifact.updatedAt).toLocaleString('zh-CN');
   const created = new Date(artifact.createdAt).toLocaleString('zh-CN');
   const chapter = artifact.chapterId
-    ? `第 ${artifact.chapterId} 章`
+    ? formatChapterLabel(artifact.chapterId)
     : '根目录';
   const tags = artifact.metadata?.tags?.length
     ? artifact.metadata.tags.join('、')

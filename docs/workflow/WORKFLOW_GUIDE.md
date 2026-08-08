@@ -14,12 +14,13 @@
   -> 策划编剧
   -> 剧本资产提取
   -> 剧本资产管理
-  -> 分镜面板（每镜 Remotion 配置与 shot jobs）
+  -> 分镜面板（每镜 Remotion 配置与 shot definitions）
+  -> Remotion 视频生产（StoryboardShot 队列、current MP4/evidence）
   -> 视频工作台（原生 Remotion Studio）
   -> ChapterVideo 章节 MP4
 ```
 
-工作流页本身按阶段推进。每一章按当前阶段输入、生成和验收，完成一章后再进入下一章。整体重心参考 Toonflow 的 `策划 -> 编剧 -> 分镜 -> 出片`：策划编剧负责故事骨架、改编策略和结构化剧本；剧本资产管理负责导演规划、衍生资产和分镜表；分镜面板负责逐镜物料审核、配置和 `StoryboardShot` 生成；视频工作台负责托管原生 Studio 并由 `ChapterVideo` 输出章节视频。
+工作流页本身按阶段推进。每一章按当前阶段输入、生成和验收，完成一章后再进入下一章。整体重心参考 Toonflow 的 `策划 -> 编剧 -> 分镜 -> 出片`：策划编剧负责故事骨架、改编策略和结构化剧本；剧本资产管理负责导演规划、衍生资产和分镜表；分镜面板负责逐镜物料审核与配置；Remotion 视频生产节点负责 `StoryboardShot` 队列和 current evidence；视频工作台负责托管原生 Studio 并由 `ChapterVideo` 输出章节视频。
 
 ## 准备配置
 
@@ -114,7 +115,16 @@ Python 和 TTS 依赖不会在应用启动时自动配置。详细说明见 [Pyt
 
 角色音色分配可在这里的角色列表或 `资产 -> 角色库` 角色详情中完成；本地 TTS 配置仍在设置页。
 
-## 7. 视频工作台（原生 Remotion Studio）
+## 7. Remotion 视频生产
+
+分镜面板审核通过后，在生产流程画布的 `Remotion 视频生产` 节点点击 `生成当前章分镜视频`。系统只提交当前章节的 `StoryboardShot` jobs，不生成章节级 `ChapterVideo`，也不回退到旧候选片段或 FFmpeg。
+
+1. 节点按当前章节动态 M 个分镜构建逐镜 plan，并检查图片/音频绑定、人工视觉审核、连续性和当前 revision。
+2. 队列显示 queued/running/succeeded/failed/blocked；每个成功镜头必须同时有 current MP4 和 evidence，输出保持项目级 `remotion/outputs/shots/<chapterId>/<shotId>/current.mp4`。
+3. 任一镜头缺素材、审核 receipt、runtime/bridge 或证据时保持 fail-closed，只允许修正分镜或重试对应 job。
+4. 全部 required shot current slots 成功后，节点才满足进入工作台的门禁。按钮的模型 `targetStage` 是 `workbench`，但一次提交不等于章节工作台或 ChapterVideo 已完成。
+
+## 8. 视频工作台（原生 Remotion Studio）
 
 进入 `工作流 -> 视频工作台`。
 

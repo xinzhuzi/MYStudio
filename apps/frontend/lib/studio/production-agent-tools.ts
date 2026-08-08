@@ -5,7 +5,7 @@ import {
   summarizeDirectorPlanAudit,
   type DirectorPlanAuditSummary,
 } from "@/lib/studio/director-plan";
-import type { AgentWorkKey, ScriptPlan } from "@/types/studio";
+import type { AgentWorkKey, ScriptPlan, StudioSourceIdentity } from "@/types/studio";
 
 export type ProductionAgentDeploymentKey =
   | "productionAgent:decisionAgent"
@@ -93,7 +93,8 @@ export interface ProductionAgentToolRegistry {
   writeDirectorPlan: (input: {
     text: string;
     episodeId: string;
-    saveAgentWorkData: (key: AgentWorkKey, data: string, episodeId?: string) => string;
+    identity?: StudioSourceIdentity;
+      saveAgentWorkData: (key: AgentWorkKey, data: string, episodeId?: string, identity?: StudioSourceIdentity) => string;
     saveScriptPlan: (plan: ScriptPlan) => void;
   }) => DirectorPlanWriteResult;
 }
@@ -101,7 +102,7 @@ export interface ProductionAgentToolRegistry {
 export function createProductionAgentToolRegistry(): ProductionAgentToolRegistry {
   return {
     reviewDirectorPlan: ({ text }) => reviewDirectorPlan(text),
-    writeDirectorPlan: ({ text, episodeId, saveAgentWorkData, saveScriptPlan }) => {
+    writeDirectorPlan: ({ text, episodeId, identity, saveAgentWorkData, saveScriptPlan }) => {
       const review = reviewDirectorPlan(text);
       if (!review.approved) {
         return {
@@ -113,8 +114,8 @@ export function createProductionAgentToolRegistry(): ProductionAgentToolRegistry
         };
       }
 
-      const { plan, warnings } = parseDirectorPlan(text, episodeId);
-      const workId = saveAgentWorkData("directorPlan", text, episodeId);
+      const { plan, warnings } = parseDirectorPlan(text, episodeId, identity);
+      const workId = saveAgentWorkData("directorPlan", text, episodeId, identity);
       saveScriptPlan(plan);
       return {
         approved: true,

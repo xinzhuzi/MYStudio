@@ -53,12 +53,36 @@ describe("TTS store", () => {
     });
 
     expect(store.getState().getSceneVoiceLine(7)).toMatchObject({
+      projectId: "project-1",
       sceneId: 7,
       speakerId: "narrator",
       text: "旁白：雨落在旧街尽头。",
       engine: "qwen",
       modelSize: "0.6B",
       status: "idle",
+    });
+  });
+
+  it("persists chapter ownership for newly created voice lines", () => {
+    const store = createTtsStore();
+
+    store.getState().setActiveProjectId("project-owned");
+    store.getState().ensureSceneVoiceLine({
+      sceneId: 8,
+      chapterId: "chapter-008",
+      dialogue: "带章节归属的台词",
+      characterIds: [],
+    });
+    store.getState().upsertSceneVoiceLine({
+      sceneId: 8,
+      chapterId: "chapter-008",
+      text: "更新后的台词",
+    });
+
+    expect(store.getState().getSceneVoiceLine(8)).toMatchObject({
+      projectId: "project-owned",
+      chapterId: "chapter-008",
+      text: "更新后的台词",
     });
   });
 

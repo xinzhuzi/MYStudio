@@ -51,12 +51,20 @@ export function buildDeletionScope(
   // scope. Unrelated project-level files (for example a shared asset with no
   // chapter id) must not make an otherwise valid chapter deletion impossible.
   const selectedIds = new Set(selectedArtifactIds);
+  // Artifact-level selection (scope="artifacts"): block the plan ONLY for the
+  // selected items themselves (you cannot delete an item you selected that has
+  // no unique chapter ownership) — never scan the whole project for unrelated
+  // blockers. Otherwise picking one orphan backup surfaces dozens of unrelated
+  // project-level blockers in the dialog and disables the confirm button.
+  // Chapter-wide plans keep the full-tree scan (chapter delete cascades).
+  const isArtifactScope = selectedIds.size > 0;
   allArtifacts.forEach((artifact) => {
-    const isInRequestedScope = !chapterId
-      || selectedIds.has(artifact.id)
-      || artifact.chapterId === chapterId
-      || artifact.physicalRefs.some((ref) => ref.path.includes(chapterId));
-    if (isInRequestedScope && (artifact.deletePolicy === "blocker-missing-ownership" || artifact.deletePolicy === "blocker-running-job")) {
+    const inScopeForBlocker = isArtifactScope
+      ? selectedIds.has(artifact.id)
+      : (!chapterId
+        || artifact.chapterId === chapterId
+        || artifact.physicalRefs.some((ref) => ref.path.includes(chapterId)));
+    if (inScopeForBlocker && (artifact.deletePolicy === "blocker-missing-ownership" || artifact.deletePolicy === "blocker-running-job")) {
       blockerSet.add(artifact.id);
     }
   });

@@ -8,6 +8,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { spawn, spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
@@ -1197,9 +1198,14 @@ describe("desktop build scripts", () => {
     expect(packageJson).toContain(
       '"smoke:workflow:run:daojie": "node ./build/smoke/run-visible-workflow-smoke.mjs --daojie"',
     );
+    expect(packageJson).toContain(
+      '"smoke:workflow:background:daojie:production-canvas": "node ./build/smoke/run-visible-workflow-smoke.mjs --background --daojie --production-canvas-video"',
+    );
     expect(runnerScript).toContain('process.argv.includes("--auto-video")');
+    expect(runnerScript).toContain('process.argv.includes("--first-shot-preview")');
     expect(runnerScript).toContain("MYSTUDIO_WORKFLOW_AUTO_VIDEO");
     expect(runnerScript).toContain("MYSTUDIO_AUTO_VIDEO_TIMEOUT_MS");
+    expect(runnerScript).toContain("MYSTUDIO_FIRST_SHOT_PREVIEW_TIMEOUT_MS");
     expect(runnerScript).toContain("npm run smoke:workflow:run:daojie -- --auto-video");
     expect(runnerScript).toContain("MYSTUDIO_WORKFLOW_REAL_DAOJIE");
     expect(runnerScript).toContain("cloneRealDaojieUserData");
@@ -1297,6 +1303,32 @@ describe("desktop build scripts", () => {
     expect(runnerScript).toContain("hasPostClickStageTransition");
     expect(runnerScript).toContain("finalVideoEvidence");
     expect(runnerScript).toContain("auditVisibleAutoVideo");
+    expect(runnerScript).toContain("auditVisibleFirstShotPreview");
+    expect(runnerScript).toContain("data-first-shot-preview-action");
+    expect(runnerScript).toContain("data-first-shot-preview-status");
+    expect(runnerScript).toContain("data-first-shot-preview-output");
+    expect(runnerScript).toContain("生成首镜横屏预览");
+    expect(runnerScript).toContain("window.remotionQueue.get({ projectId, chapterId })");
+    expect(runnerScript).toContain("window.remotionRuntime.status()");
+    expect(runnerScript).toContain("window.remotionRuntime.workspaceRuntime()");
+    expect(runnerScript).toContain(
+      "copyInstalledRemotionCache(daojieSourceUserDataDir, clonedUserDataDir)",
+    );
+    expect(runnerScript).toContain(
+      'resolve(sourceUserDataDir, "remotion-runtime")',
+    );
+    expect(runnerScript).toContain(
+      "sourceCacheRealPath.startsWith(`${sourceRuntimeRealPath}/`)",
+    );
+    expect(runnerScript).toContain(
+      "copyProjectDirectoryIfExists(sourceCacheRealPath, clonedCachePath)",
+    );
+    expect(runnerScript).toContain(
+      "remotionRuntimeReuse: realDaojieRun?.remotionRuntimeReuse || null",
+    );
+    expect(runnerScript).not.toContain(
+      'copyProjectDirectoryIfExists(resolve(daojieSourceUserDataDir, "remotion-runtime")',
+    );
     expect(runnerScript).toContain('mode: "observation"');
     expect(runnerScript).toContain('mode: "strict"');
     expect(runnerScript).toContain("timelineEvidenceStatus");
@@ -1305,6 +1337,18 @@ describe("desktop build scripts", () => {
     expect(autoVideoAudit).toContain("final MP4 predates the one-click action");
     expect(autoVideoAudit).toContain("final MP4 is outside the cloned studio-render root");
     expect(autoVideoAudit).toContain("evidence lacks audio or video stream");
+    expect(runnerScript).toContain('process.argv.includes("--production-canvas-video")');
+    expect(runnerScript).toContain("MYSTUDIO_WORKFLOW_PRODUCTION_CANVAS_VIDEO");
+    expect(runnerScript).toContain("MYSTUDIO_PRODUCTION_CANVAS_VIDEO_TIMEOUT_MS");
+    expect(runnerScript).toContain("npm run smoke:workflow:run:daojie -- --production-canvas-video");
+    expect(runnerScript).toContain("runProductionCanvasVideoFlow");
+    expect(runnerScript).toContain("auditVisibleProductionCanvasVideo");
+    expect(runnerScript).toContain("[data-flow-node-id=\"remotionProduction\"]");
+    expect(runnerScript).toContain("生成当前章分镜视频");
+    expect(runnerScript).toContain("productionCanvasVideo");
+    expect(runnerScript).toContain("preClickReviewCounts");
+    expect(runnerScript).toContain("window.remotionQueue?.get");
+    expect(runnerScript).toContain("copyInstalledRemotionCache");
     expect(runnerScript).toContain("verifyRealDaojieStageEvidence");
     expect(runnerScript).toContain("manualsReady");
     expect(runnerScript).toContain("workbenchReady");
@@ -1336,6 +1380,264 @@ describe("desktop build scripts", () => {
 
     expect(result.status).not.toBe(0);
     expect(result.stderr).toContain("--auto-video requires --daojie");
+  });
+
+  it("rejects first-shot preview outside Daojie mode and alongside chapter auto-video", () => {
+    const env = {
+      ...process.env,
+      MYSTUDIO_WORKFLOW_REAL_DAOJIE: "0",
+      MYSTUDIO_WORKFLOW_AUTO_VIDEO: "0",
+    };
+    const outsideDaojie = spawnSync(
+      "node",
+      ["build/smoke/run-visible-workflow-smoke.mjs", "--first-shot-preview"],
+      { cwd: appsRoot, encoding: "utf8", env },
+    );
+    expect(outsideDaojie.status).not.toBe(0);
+    expect(outsideDaojie.stderr).toContain("--first-shot-preview requires --daojie");
+
+    const conflictingMode = spawnSync(
+      "node",
+      [
+        "build/smoke/run-visible-workflow-smoke.mjs",
+        "--daojie",
+        "--auto-video",
+        "--first-shot-preview",
+      ],
+      { cwd: appsRoot, encoding: "utf8", env },
+    );
+    expect(conflictingMode.status).not.toBe(0);
+    expect(conflictingMode.stderr).toContain(
+      "--first-shot-preview cannot be combined with --auto-video",
+    );
+
+    const invalidTimeout = spawnSync(
+      "node",
+      ["build/smoke/run-visible-workflow-smoke.mjs", "--daojie", "--first-shot-preview"],
+      {
+        cwd: appsRoot,
+        encoding: "utf8",
+        env: { ...env, MYSTUDIO_FIRST_SHOT_PREVIEW_TIMEOUT_MS: "0" },
+      },
+    );
+    expect(invalidTimeout.status).not.toBe(0);
+    expect(invalidTimeout.stderr).toContain(
+      "MYSTUDIO_FIRST_SHOT_PREVIEW_TIMEOUT_MS must be a positive number",
+    );
+  });
+
+  it("rejects production-canvas-video outside Daojie mode and alongside conflicting flags", () => {
+    const env = {
+      ...process.env,
+      MYSTUDIO_WORKFLOW_REAL_DAOJIE: "0",
+      MYSTUDIO_WORKFLOW_PRODUCTION_CANVAS_VIDEO: "0",
+    };
+    const outsideDaojie = spawnSync(
+      "node",
+      ["build/smoke/run-visible-workflow-smoke.mjs", "--production-canvas-video"],
+      { cwd: appsRoot, encoding: "utf8", env },
+    );
+    expect(outsideDaojie.status).not.toBe(0);
+    expect(outsideDaojie.stderr).toContain("--production-canvas-video requires --daojie");
+
+    const conflictAutoVideo = spawnSync(
+      "node",
+      [
+        "build/smoke/run-visible-workflow-smoke.mjs",
+        "--daojie",
+        "--auto-video",
+        "--production-canvas-video",
+      ],
+      { cwd: appsRoot, encoding: "utf8", env },
+    );
+    expect(conflictAutoVideo.status).not.toBe(0);
+    expect(conflictAutoVideo.stderr).toContain(
+      "--production-canvas-video cannot be combined with --auto-video",
+    );
+
+    const conflictFirstShot = spawnSync(
+      "node",
+      [
+        "build/smoke/run-visible-workflow-smoke.mjs",
+        "--daojie",
+        "--first-shot-preview",
+        "--production-canvas-video",
+      ],
+      { cwd: appsRoot, encoding: "utf8", env },
+    );
+    expect(conflictFirstShot.status).not.toBe(0);
+    expect(conflictFirstShot.stderr).toContain(
+      "--production-canvas-video cannot be combined with --first-shot-preview",
+    );
+
+    const invalidTimeout = spawnSync(
+      "node",
+      ["build/smoke/run-visible-workflow-smoke.mjs", "--daojie", "--production-canvas-video"],
+      {
+        cwd: appsRoot,
+        encoding: "utf8",
+        env: { ...env, MYSTUDIO_PRODUCTION_CANVAS_VIDEO_TIMEOUT_MS: "0" },
+      },
+    );
+    expect(invalidTimeout.status).not.toBe(0);
+    expect(invalidTimeout.stderr).toContain(
+      "MYSTUDIO_PRODUCTION_CANVAS_VIDEO_TIMEOUT_MS must be a positive number",
+    );
+  });
+
+  it("audits a fresh project-scoped first-shot current slot and rejects identity drift", async () => {
+    const auditModuleUrl = pathToFileURL(
+      resolve(appsRoot, "build/smoke/visible-workflow-auto-video-audit.mjs"),
+    ).href;
+    const { auditVisibleFirstShotPreview } = await import(auditModuleUrl);
+    const userDataDir = createTempRoot("mystudio-first-shot-audit-");
+    const expected = {
+      projectId: "49dce4c1-64b1-42de-85c2-9f266698aec0",
+      chapterId: "chapter-001",
+      shotId: "sb-chapter-001-001",
+      shotRevision: 7,
+    };
+    const relativeOutputPath = "outputs/shots/chapter-001/sb-chapter-001-001/current.mp4";
+    const outputPath = resolve(
+      userDataDir,
+      "projects",
+      "_p",
+      expected.projectId,
+      "remotion",
+      relativeOutputPath,
+    );
+    mkdirSync(resolve(outputPath, ".."), { recursive: true });
+    const renderFixture = spawnSync(
+      "ffmpeg",
+      [
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-f",
+        "lavfi",
+        "-i",
+        "color=c=black:s=1920x1080:r=30:d=0.2",
+        "-f",
+        "lavfi",
+        "-i",
+        "anullsrc=r=48000:cl=stereo",
+        "-t",
+        "0.2",
+        "-c:v",
+        "libx264",
+        "-pix_fmt",
+        "yuv420p",
+        "-c:a",
+        "aac",
+        "-shortest",
+        "-y",
+        outputPath,
+      ],
+      { encoding: "utf8" },
+    );
+    expect(renderFixture.status, renderFixture.stderr).toBe(0);
+    const outputStat = statSync(outputPath);
+    const sha256 = createHash("sha256").update(readFileSync(outputPath)).digest("hex");
+    const startedAtMs = Math.floor(outputStat.mtimeMs) - 1;
+    const target = { kind: "shot", chapterId: expected.chapterId, shotId: expected.shotId, shotRevision: 7 };
+    const coreIdentity = {
+      jobId: "first-shot-job",
+      projectId: expected.projectId,
+      target,
+      inputHash: "a".repeat(64),
+      bundleContentHash: "b".repeat(64),
+      renderSettingsHash: "c".repeat(64),
+      templateVersion: "1.0.0",
+      remotionVersion: "4.0.499",
+      attempt: 1,
+    };
+    const evidence = {
+      ...coreIdentity,
+      schemaVersion: 1,
+      compositionId: "StoryboardShot",
+      renderer: { requested: "remotion", actual: "remotion" },
+      outputPath: relativeOutputPath,
+      sizeBytes: outputStat.size,
+      mtimeMs: Math.floor(outputStat.mtimeMs),
+      sha256,
+      width: 1920,
+      height: 1080,
+      durationUs: 200_000,
+      streams: [
+        { kind: "video", codec: "h264", width: 1920, height: 1080 },
+        { kind: "audio", codec: "aac", channels: 2, sampleRate: 48_000 },
+      ],
+      inputManifestPath: "chapters/chapter-001.json",
+      startedAt: startedAtMs,
+      completedAt: startedAtMs + 1,
+    };
+    const currentSlot = {
+      schemaVersion: 1,
+      projectId: expected.projectId,
+      target,
+      outputPath: relativeOutputPath,
+      evidencePath: "evidence/shots/chapter-001/sb-chapter-001-001/current.json",
+      jobPath: "jobs/shot/chapter-001/sb-chapter-001-001/current.json",
+      job: {
+        ...coreIdentity,
+        schemaVersion: 1,
+        status: "succeeded",
+        progress: 1,
+        createdAt: startedAtMs,
+        startedAt: startedAtMs,
+        completedAt: startedAtMs + 1,
+        outputPath: relativeOutputPath,
+        evidencePath: "evidence/shots/chapter-001/sb-chapter-001-001/current.json",
+      },
+      evidence,
+      publishedAt: startedAtMs + 2,
+    };
+    const firstShotPreview = {
+      enabled: true,
+      stageClicked: true,
+      clicked: true,
+      clickedText: "生成首镜横屏预览",
+      startedAtMs,
+      terminalStatus: "succeeded",
+      timedOut: false,
+      firstStoryboardId: expected.shotId,
+      firstShotRevision: 7,
+      uiOutputPath: outputPath,
+      browserStatus: {
+        state: "ready",
+        remotionVersion: "4.0.499",
+        preparedForRemotionVersion: "4.0.499",
+      },
+      workspaceRuntime: {
+        schemaVersion: 1,
+        templateId: "mystudio-remotion-v1",
+        templateVersion: "1.0.0",
+        remotionVersion: "4.0.499",
+        bundleContentHash: "b".repeat(64),
+        compositionIds: ["StoryboardShot", "ChapterVideo", "DaojieTimeline"],
+      },
+      downloadProgressEvents: [],
+      currentSlot,
+    };
+
+    expect(auditVisibleFirstShotPreview({ firstShotPreview, userDataDir, expected })).toMatchObject({
+      ok: true,
+      actualSha256: sha256,
+      mediaProbe: { fps: 30 },
+      issues: [],
+    });
+    const drifted = auditVisibleFirstShotPreview({
+      firstShotPreview: {
+        ...firstShotPreview,
+        downloadProgressEvents: [{ phase: "downloading", ratio: 0.5, remotionVersion: "4.0.499" }],
+      },
+      userDataDir,
+      expected: { ...expected, shotRevision: 8 },
+    });
+    expect(drifted.ok).toBe(false);
+    expect(drifted.issues.map((item: { code: string }) => item.code)).toEqual(
+      expect.arrayContaining(["first-shot.source-identity", "first-shot.target", "first-shot.download"]),
+    );
   });
 
   it("keeps failed background auto-video reports from counting as media evidence", async () => {

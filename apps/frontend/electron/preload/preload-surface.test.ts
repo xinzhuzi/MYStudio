@@ -142,6 +142,7 @@ describe("preload IPC surface", () => {
     expect(preloadSource).toContain("saveFileDialog: (options:");
     expect(preloadSource).toContain("ipcRenderer.invoke('save-file-dialog', options)");
     expect(preloadSource).toContain("openPath: (targetPath: string) => ipcRenderer.invoke('app-open-path', targetPath)");
+    expect(preloadSource).toContain("showItemInFolder: (targetPath: string) => ipcRenderer.invoke('app-show-in-folder', targetPath)");
     expect(preloadSource).toContain("openDevTools: () => ipcRenderer.invoke('app-devtools-open')");
     expect(preloadSource).toContain("getCurrentVersion: () => ipcRenderer.invoke('app-updater-get-current-version')");
     expect(preloadSource).toContain("openExternalLink: (url: string) => ipcRenderer.invoke('app-updater-open-link', url)");
@@ -150,6 +151,7 @@ describe("preload IPC surface", () => {
     expect(electronTypesSource).toContain("electronAPI?:");
     expect(electronTypesSource).toContain("saveFileDialog: (options:");
     expect(electronTypesSource).toContain("openPath: (targetPath: string)");
+    expect(electronTypesSource).toContain("showItemInFolder: (targetPath: string)");
     expect(electronTypesSource).toContain("openDevTools: ()");
     expect(electronTypesSource).toContain("appUpdater?:");
     expect(electronTypesSource).toContain("getCurrentVersion: () => Promise<string>");

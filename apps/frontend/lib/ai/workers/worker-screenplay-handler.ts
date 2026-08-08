@@ -1,6 +1,6 @@
 import type { AIScreenplay, GenerationConfig } from '@/lib/ai/core';
 import type { GenerateScreenplayCommand, WorkerEvent } from '@/lib/ai/core/protocol';
-import { buildApiUrl } from './ai-worker-api';
+import { buildApiUrl, decodeWorkerApiPayload, fetchWithDeadline, WorkerApiError } from './ai-worker-api';
 import type { WorkerRun } from './worker-run-lifecycle';
 
 type ScreenplayGenerationConfig = Partial<GenerationConfig> & {
@@ -46,28 +46,43 @@ export async function handleGenerateScreenplayCommand(
       throw new Error('未配置 API Key，请在设置中添加或启用 Mock 模式');
     }
 
-    const response = await fetch(buildApiUrl('/api/ai/screenplay', deps.getApiBaseUrl()), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      signal: run.controller.signal,
-      body: JSON.stringify({
-        prompt,
-        sceneCount,
-        aspectRatio: config.aspectRatio || '9:16',
-        apiKey,
-        provider,
-        mockMode,
-      }),
-    });
+    const response = await fetchWithDeadline(
+      buildApiUrl('/api/ai/screenplay', deps.getApiBaseUrl()),
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        signal: run.controller.signal,
+        body: JSON.stringify({
+          prompt,
+          sceneCount,
+          aspectRatio: config.aspectRatio || '9:16',
+          apiKey,
+          provider,
+          mockMode,
+        }),
+      },
+      180_000,
+      provider,
+    );
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      const errorMsg = errorData.message || errorData.error || `API request failed: ${response.status}`;
-      console.error('[AI Worker] Screenplay API error:', response.status, errorData);
-      throw new Error(errorMsg);
+      let errorMessage: string | undefined;
+      try {
+        const data = decodeWorkerApiPayload(await response.json().catch(() => undefined));
+        errorMessage = data.errorMessage;
+      } catch {}
+      throw new WorkerApiError({
+        code: 'http-error',
+        message: errorMessage || `API request failed: ${response.status}`,
+        retryable: response.status === 429 || response.status >= 500,
+        status: response.status,
+        provider,
+      });
     }
 
-    const screenplay: AIScreenplay = await response.json();
+    const rawPayload = await response.json();
+    const decoded = decodeWorkerApiPayload(rawPayload);
+    const screenplay: AIScreenplay = rawPayload as AIScreenplay;
     if (deps.isCancelled(run)) return;
 
     deps.postEvent({
@@ -78,10 +93,11 @@ export async function handleGenerateScreenplayCommand(
     const err = error as Error;
     if (deps.isCancelled(run)) return;
     console.error('[AI Worker] Screenplay generation error:', err);
+    const errorMessage = err instanceof WorkerApiError ? err.envelope.message : err.message;
     deps.postEvent({
       type: 'SCREENPLAY_ERROR',
       payload: {
-        error: err.message,
+        error: errorMessage,
         details: err.stack,
       },
     }, run);

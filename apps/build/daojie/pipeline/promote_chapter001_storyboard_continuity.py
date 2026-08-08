@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Promote fully human-approved chapter-001 continuity frames without auto-approval."""
+"""Promote explicitly scoped, human-approved chapter-001 continuity frames."""
 
 from __future__ import annotations
 
@@ -102,21 +102,49 @@ def validate_thumbnail(entry: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def validate_report(report_path: Path) -> tuple[dict[str, Any], list[dict[str, Any]], dict[str, Any]]:
+def expected_report_shots(selected_shot: int | None) -> list[int]:
+    if selected_shot is None:
+        return EXPECTED_SHOTS
+    if selected_shot not in EXPECTED_SHOTS:
+        raise RuntimeError("--shot 必须是 chapter-001 的 1-43 镜")
+    return [selected_shot]
+
+
+def validate_report(
+    report_path: Path,
+    selected_shot: int | None = None,
+) -> tuple[dict[str, Any], list[dict[str, Any]], dict[str, Any]]:
     report = load_json(report_path)
-    if report.get("mode") != "full-chapter" or report.get("status") != "completed":
-        raise RuntimeError("只允许推广 completed 的 full-chapter 连续性报告")
-    if [int(value) for value in report.get("shots") or []] != EXPECTED_SHOTS:
-        raise RuntimeError("全章推广报告必须精确覆盖 1-43 镜")
+    expected_shots = expected_report_shots(selected_shot)
+    expected_mode = "full-chapter" if selected_shot is None else "selected-shots"
+    if report.get("mode") != expected_mode or report.get("status") != "completed":
+        if selected_shot is None:
+            raise RuntimeError("只允许推广 completed 的 full-chapter 连续性报告")
+        raise RuntimeError(f"--shot {selected_shot} 只允许对应的 completed selected-shots 报告")
+    if [int(value) for value in report.get("shots") or []] != expected_shots:
+        if selected_shot is None:
+            raise RuntimeError("全章推广报告必须精确覆盖 1-43 镜")
+        raise RuntimeError(f"单镜推广报告 shots 必须精确等于 [{selected_shot}]")
+    expected_count = len(expected_shots)
     if (
-        int(report.get("generatedImages") or 0) != 43
+        int(report.get("generatedImages") or 0) != expected_count
         or int(report.get("reusedImages") or 0) != 0
         or report.get("mutatedProductionProject") is not False
     ):
-        raise RuntimeError("全章推广报告必须证明 43 张全新生成且未修改生产项目")
+        raise RuntimeError(
+            f"推广报告必须证明 {expected_count} 张全新生成、零复用且未修改生产项目"
+        )
     entries = sorted(report.get("entries") or [], key=lambda item: int(item.get("index") or 0))
-    if [int(item.get("index") or 0) for item in entries] != EXPECTED_SHOTS:
-        raise RuntimeError("全章推广 entries 必须是 43 个唯一镜头")
+    if [int(item.get("index") or 0) for item in entries] != expected_shots:
+        raise RuntimeError(f"推广 entries 必须是精确且唯一的镜头集合: {expected_shots}")
+    if selected_shot is not None:
+        expected_storyboard_id = f"sb-chapter-001-{selected_shot:03d}"
+        if report.get("ok") is not True or entries[0].get("storyboardId") != expected_storyboard_id:
+            raise RuntimeError(f"单镜推广报告 identity 无效: {expected_storyboard_id}")
+        if [int(value) for value in report.get("approvedShots") or []] != expected_shots:
+            raise RuntimeError(f"单镜推广报告 approvedShots 必须精确等于 [{selected_shot}]")
+        if report.get("awaitingApprovalShot") is not None:
+            raise RuntimeError("单镜推广报告仍有等待人工批准的镜头")
     approvals_path = report_path.parent / "human-approvals.json"
     approvals = load_json(approvals_path)
     sample = load_sample_module()
@@ -203,8 +231,13 @@ def storyboard_matches_promotion(
     )
 
 
-def build_promotion_plan(report_path: Path, store_path: Path, project: Path) -> dict[str, Any]:
-    report, entries, _approvals = validate_report(report_path)
+def build_promotion_plan(
+    report_path: Path,
+    store_path: Path,
+    project: Path,
+    selected_shot: int | None = None,
+) -> dict[str, Any]:
+    report, entries, _approvals = validate_report(report_path, selected_shot)
     store_payload = store_path.read_bytes()
     store = load_json_bytes(store_path, store_payload)
     state = store.get("state") or store
@@ -215,10 +248,17 @@ def build_promotion_plan(report_path: Path, store_path: Path, project: Path) -> 
         if item.get("episodeId") == "chapter-001" and item.get("id")
     }
     entry_ids = [str(item.get("storyboardId") or "") for item in entries]
-    if len(storyboards_by_id) != 43 or set(entry_ids) != set(storyboards_by_id):
+    if len(storyboards_by_id) != 43:
         raise RuntimeError(
-            f"生产 store 与推广报告镜头不一致: store={len(storyboards_by_id)}, report={len(set(entry_ids))}"
+            f"生产 store 必须保留完整 43 镜: store={len(storyboards_by_id)}"
         )
+    if selected_shot is None and set(entry_ids) != set(storyboards_by_id):
+        raise RuntimeError(
+            f"生产 store 与全章推广报告镜头不一致: store={len(storyboards_by_id)}, report={len(set(entry_ids))}"
+        )
+    missing_entry_ids = [storyboard_id for storyboard_id in entry_ids if storyboard_id not in storyboards_by_id]
+    if missing_entry_ids:
+        raise RuntimeError(f"生产 store 缺少推广目标: {missing_entry_ids}")
     updates = []
     for entry in entries:
         index = int(entry["index"])
@@ -267,6 +307,8 @@ def build_promotion_plan(report_path: Path, store_path: Path, project: Path) -> 
         "storePath": str(store_path),
         "storeSha256": sha256_bytes(store_payload),
         "project": str(project),
+        "backupRoot": str(project / "visual-continuity-backups"),
+        "backupStoreFilename": "studio-workflow-store.json",
         "alreadyApplied": already_applied,
         "shots": len(updates),
         "generatedImages": report["generatedImages"],
@@ -431,7 +473,7 @@ def apply_promotion(plan: dict[str, Any], human_confirmed: bool) -> dict[str, An
     result_store_payload = stable_json_bytes(store)
     result_store_sha256 = sha256_bytes(result_store_payload)
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
-    backup_dir = Path(plan["project"]) / "visual-continuity-backups" / (
+    backup_dir = Path(plan["backupRoot"]) / (
         f"storyboard-promotion-{timestamp}-{plan['storeSha256'][:12]}"
     )
     applied = {
@@ -451,7 +493,7 @@ def apply_promotion(plan: dict[str, Any], human_confirmed: bool) -> dict[str, An
     staged_paths: list[Path] = []
     committed_new_paths: list[Path] = []
     try:
-        backup_path = backup_dir / "studio-workflow-store.json"
+        backup_path = backup_dir / str(plan["backupStoreFilename"])
         staged_backup = stage_payload(backup_path, store_payload, created_directories)
         staged_paths.append(staged_backup)
         staged_images: list[tuple[Path, Path]] = []
@@ -498,6 +540,12 @@ def apply_promotion(plan: dict[str, Any], human_confirmed: bool) -> dict[str, An
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--report", type=Path, required=True)
+    parser.add_argument(
+        "--shot",
+        type=int,
+        choices=EXPECTED_SHOTS,
+        help="显式推广 selected-shots 报告中的一个镜头；省略时仅接受完整 1-43 镜报告",
+    )
     parser.add_argument("--project", type=Path)
     parser.add_argument("--store", type=Path)
     parser.add_argument("--apply", action="store_true")
@@ -509,7 +557,12 @@ def main() -> None:
     args = parse_args()
     project = (args.project or resolve_project_dir()).resolve()
     store_path = (args.store or (project / "studio-workflow-store.json")).resolve()
-    plan = build_promotion_plan(args.report.resolve(), store_path, project)
+    plan = build_promotion_plan(
+        args.report.resolve(),
+        store_path,
+        project,
+        selected_shot=args.shot,
+    )
     if args.human_confirmed and not args.apply:
         raise RuntimeError("--human-confirmed 只能与 --apply 同时使用")
     result = apply_promotion(plan, args.human_confirmed) if args.apply else plan

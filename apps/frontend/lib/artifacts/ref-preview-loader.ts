@@ -37,7 +37,7 @@ export type ResolvedRefPreview =
  * The main process re-validates containment, so exact encoding only needs to
  * match what createProjectFileUrl produces for ordinary paths.
  */
-function buildProjectFileUrl(projectId: string, relativePath: string): string {
+export function buildProjectFileUrl(projectId: string, relativePath: string): string {
   return `project-file://${encodeURIComponent(projectId)}/${relativePath
     .split("/")
     .map((part) => encodeURIComponent(part))

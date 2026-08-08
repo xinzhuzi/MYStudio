@@ -53,8 +53,8 @@ Verify the workflow in layers:
 
 1. **Model contract**
    - Check `apps/frontend/components/panels/studio/workflow-node-model.ts`.
-   - Expected node ids: `script`, `scriptPlan`, `assets`, `storyboardTable`, `storyboard`, `workbench`.
-   - Expected edges: `script -> scriptPlan`, `script -> assets`, `scriptPlan -> storyboardTable`, `storyboardTable -> storyboard`, `storyboard -> workbench`.
+   - Expected node ids: `script`, `scriptPlan`, `assets`, `storyboardTable`, `storyboard`, `remotionProduction`, `workbench`.
+   - Expected edges: `script -> scriptPlan`, `script -> assets`, `scriptPlan -> storyboardTable`, `storyboardTable -> storyboard`, `storyboard -> remotionProduction`, `remotionProduction -> workbench`.
 
 2. **Preview contract**
    - Check `WorkflowNodePreviews.tsx`, `WorkflowProductionNode.tsx`, and `WorkflowNodeCanvas.tsx`.
@@ -62,11 +62,12 @@ Verify the workflow in layers:
    - `assets` must show Toonflow-style source/derived cards, parent asset ids, flow ids, states, prompts/reasons, and real image previews when linked.
    - Clicking a derived asset card must open the asset image workflow detail with the parent image as the reference node, the derived result as the generated node, and the existing flow id reused when present.
    - `storyboard` must show generated image tiles when `mediaRef.path` exists.
-   - `workbench` must show track, media count, selected video, and final export state.
+   - `remotionProduction` must show the current chapter's StoryboardShot queue, per-shot state, current MP4/evidence readiness, and fail-closed blockers.
+   - `workbench` must show the native Remotion Studio boundary, ChapterVideo renderer/evidence state, and project-scoped chapter output. Legacy track/candidate fields are compatibility metadata, not the current production path.
 
 3. **Smoke bridge seed**
    - Check `apps/frontend/lib/studio/workflow-smoke-bridge.ts`.
-   - Seed data should include script, director plan, derived asset plan, character/scene/prop media, storyboard image, voice binding, track, candidate video, and final export.
+   - Seed data should include script, director plan, derived asset plan, character/scene/prop media, storyboard image, voice binding, and isolated project-scoped editing evidence. Legacy track/candidate fields may remain in the seed for projection compatibility, but they must not be used as proof of Remotion production; the model contract must still expose the `remotionProduction` node.
    - Smoke seed must use isolated smoke user data and project-scoped stores.
 
 4. **Packaged smoke assertions**
@@ -83,15 +84,15 @@ Review evidence before running the matching test. Do not collapse the checklist 
    - Test: `npm test -- frontend/config/build-scripts.test.ts`.
 
 2. **Step 2 - Model contract test**
-   - Review node ids, edges, metrics, target stages, and storage/project assumptions in `workflow-node-model.ts`.
+   - Review node ids, edges, metrics, target stages, the `enqueue-remotion-shots` action, and storage/project assumptions in `workflow-node-model.ts`.
    - Test: `npm test -- frontend/components/panels/studio/workflow-node-model.test.ts`.
 
 3. **Step 3 - Preview contract test**
-   - Review markdown previews, derived asset cards, storyboard images, workbench lanes, and theme-aware canvas controls.
+   - Review markdown previews, derived asset cards, storyboard images, the Remotion shot-production preview, native Studio workbench lanes, and theme-aware canvas controls.
    - Test: `npm test -- frontend/components/panels/studio/workflow-node-previews.test.tsx frontend/components/panels/studio/workflow-tabs.test.ts`.
 
 4. **Step 4 - Smoke bridge seed test**
-   - Review `workflow-smoke-bridge.ts` for director plan, derived assets, image refs, voice binding, track, selected candidate, final export, and isolated project-scoped seed data.
+   - Review `workflow-smoke-bridge.ts` for director plan, derived assets, image refs, voice binding, isolated project-scoped editing evidence, and the explicit boundary that seeded track/candidate fields are compatibility-only rather than Remotion production evidence.
    - Test: `npm test -- frontend/lib/studio/workflow-smoke-bridge.test.ts`.
 
 5. **Step 5 - Step-by-step app execution smoke**
@@ -108,7 +109,7 @@ Review evidence before running the matching test. Do not collapse the checklist 
    - Normal visible app startup: `npm run smoke:workflow:open`. This starts the packaged app with isolated smoke data and leaves it open for human inspection.
    - Visible step-by-step workflow runner: `npm run smoke:workflow:run`. This starts the packaged app with isolated smoke data, clicks through each workflow stage with a visible delay, waits for stage evidence, and leaves the app open.
    - Required visible evidence: stage logs like `[visible-run] stage script clicked ...`, final `progress=100`, and final `frontmostApp=漫影工作室`.
-   - Real Daojie first-chapter visible runner: `npm run smoke:workflow:run:daojie`. This clones the real `道劫` project data into a temporary userData dir, opens `chapter-001`, clicks all workflow stages, verifies real chapter evidence such as storyboards, video candidates, derived asset project records, and asset image workflows with reference/generated nodes, then clicks at least one real `asset-flow-chapter-001*` derived asset card and waits for the image workflow detail to show the parent reference node, generated node, and writeback target.
+   - Real Daojie first-chapter visible runner: `npm run smoke:workflow:run:daojie`. This clones the real `道劫` project data into a temporary userData dir, opens `chapter-001`, clicks all workflow stages, verifies real chapter evidence such as storyboards, Remotion StoryboardShot jobs/current-slot MP4/evidence, derived asset project records, and asset image workflows with reference/generated nodes, then clicks at least one real `asset-flow-chapter-001*` derived asset card and waits for the image workflow detail to show the parent reference node, generated node, and writeback target.
    - Default real Daojie automatic-video runner: `npm run smoke:workflow:background:daojie -- --auto-video`. `MYSTUDIO_WORKFLOW_AUTO_VIDEO=1 npm run smoke:workflow:background:daojie` enables the same path; set `MYSTUDIO_AUTO_VIDEO_TIMEOUT_MS` to a positive millisecond value when the default `600000` is insufficient.
    - AC6 passes only when `chapterAutoVideo.terminalStage` is `completed`, the run did not time out, and `chapterAutoVideo.finalPath` in `apps/output/automation/background-workflow-daojie-report.json` ends in `.mp4` and exists on disk. A failed, timed-out, foreground-violating, or missing-MP4 auto-video run must not count toward AC6.
 
@@ -119,7 +120,7 @@ Review evidence before running the matching test. Do not collapse the checklist 
 
 7. **Step 7 - Visual inspection**
    - Open the packaged app with an isolated `mystudio-smoke-*` user data dir, seed `window.mystudioWorkflowSmoke.seedCompleteWorkflow()`, switch to `storyboard`, and capture `/tmp` evidence.
-   - Confirm all six nodes, markdown director plan, derived asset image/link cards, storyboard image, workbench export state, no default white React Flow controls, and themed viewport controls.
+   - Confirm all seven nodes, including the Remotion shot-production queue, markdown director plan, derived asset image/link cards, storyboard image, native Studio/ChapterVideo state, no default white React Flow controls, and themed viewport controls.
 
 ## Required Commands
 
@@ -170,11 +171,11 @@ Packaged smoke is the main automated gate. If the user asks whether the graph wa
 The screenshot/DOM summary should confirm:
 
 - React Flow canvas exists.
-- All six nodes are visible.
+- All seven nodes are visible, including `remotionProduction`.
 - `scriptPlan` has markdown preview content.
 - `assets` has parent and derived cards with image elements.
 - `storyboard` has image preview elements.
-- `workbench` shows selected video/final export state.
+- `remotionProduction` shows StoryboardShot state/current MP4 evidence when seeded; `workbench` shows native Studio/ChapterVideo state.
 
 ## Failure Triage
 

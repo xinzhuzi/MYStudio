@@ -60,7 +60,7 @@ import {
   createArtifactDeletionPlan,
   executeArtifactDeletionPlan,
 } from "@/stores/artifacts/artifact-store";
-import type { DeletionPlan } from "@/types/artifacts";
+import type { DeletionConfirmation, DeletionPlan } from "@/types/artifacts";
 import { ArtifactDeleteDialog } from "../media/ArtifactDeleteDialog";
 import { toast } from "sonner";
 
@@ -100,12 +100,9 @@ export function OverviewPanel() {
     setChapterDeleteOpen(true);
   }, [projectId]);
 
-  const executeChapterDeletePlan = useCallback(async () => {
+  const executeChapterDeletePlan = useCallback(async (confirmation: DeletionConfirmation) => {
     if (!chapterDeletePlan) throw new Error("删除服务不可用");
-    const result = await executeArtifactDeletionPlan(chapterDeletePlan, {
-      type: "chapter",
-      chapterId: chapterDeletePlan.chapterId,
-    });
+    const result = await executeArtifactDeletionPlan(chapterDeletePlan, confirmation);
     if (!result.success) {
       toast.error(`删除失败：${result.error}`);
       throw new Error(result.error);

@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   fromWebContents: vi.fn(),
   existsSync: vi.fn(() => true),
   openPath: vi.fn(async () => ""),
+  showItemInFolder: vi.fn(),
 }));
 
 vi.mock("electron", () => ({
@@ -14,7 +15,7 @@ vi.mock("electron", () => ({
       mocks.handlers.set(channel, handler);
     }),
   },
-  shell: { openPath: mocks.openPath },
+  shell: { openPath: mocks.openPath, showItemInFolder: mocks.showItemInFolder },
 }));
 
 vi.mock("node:fs", () => ({ default: { existsSync: mocks.existsSync } }));
@@ -93,5 +94,30 @@ describe("registerAppShellIpcHandlers", () => {
     });
     expect(mocks.existsSync).not.toHaveBeenCalled();
     expect(mocks.openPath).not.toHaveBeenCalled();
+  });
+
+  it("reveals a file in the OS file manager via app-show-in-folder", async () => {
+    await expect(mocks.handlers.get("app-show-in-folder")?.({}, "shot.png")).resolves.toEqual({ success: true });
+    expect(mocks.showItemInFolder).toHaveBeenCalledWith("/resolved/shot.png");
+  });
+
+  it("validates app-show-in-folder paths with the same rules as open-path", async () => {
+    await expect(mocks.handlers.get("app-show-in-folder")?.({}, "\0unsafe")).resolves.toEqual({
+      success: false,
+      error: "无效文件路径",
+    });
+    await expect(mocks.handlers.get("app-show-in-folder")?.({}, "")).resolves.toEqual({
+      success: false,
+      error: "无效文件路径",
+    });
+    expect(mocks.existsSync).not.toHaveBeenCalled();
+    expect(mocks.showItemInFolder).not.toHaveBeenCalled();
+
+    mocks.existsSync.mockReturnValueOnce(false);
+    await expect(mocks.handlers.get("app-show-in-folder")?.({}, "missing.png")).resolves.toEqual({
+      success: false,
+      error: "文件不存在",
+    });
+    expect(mocks.showItemInFolder).not.toHaveBeenCalled();
   });
 });

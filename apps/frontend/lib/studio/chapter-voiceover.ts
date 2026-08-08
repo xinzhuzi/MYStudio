@@ -1,4 +1,5 @@
 import type { TtsSpeakerId } from "@/types/tts";
+import type { StudioSourceIdentity } from "@/types/studio";
 
 const NARRATOR_LABELS = new Set(["旁白", "vo", "画外音", "解说"]);
 const EMPTY_SPEECH = new Set(["", "—", "-", "无", "无台词", "无对白"]);
@@ -9,7 +10,8 @@ export interface VoiceoverCharacterIdentity {
   aliases: string[];
 }
 
-export interface StoryboardVoiceoverInput {
+export interface StoryboardVoiceoverInput extends StudioSourceIdentity {
+  chapterId?: string;
   storyboardId: string;
   index: number;
   description: string;
@@ -19,7 +21,8 @@ export interface StoryboardVoiceoverInput {
   characters: VoiceoverCharacterIdentity[];
 }
 
-export interface StoryboardVoiceoverItem {
+export interface StoryboardVoiceoverItem extends StudioSourceIdentity {
+  chapterId?: string;
   storyboardId: string;
   index: number;
   speaker: string;
@@ -35,6 +38,10 @@ export interface ChapterVoiceoverAudit {
   passed: boolean;
   errors: string[];
   speakerIds: TtsSpeakerId[];
+}
+
+export interface ChapterVoiceoverAuditExpectation extends StudioSourceIdentity {
+  chapterId?: string;
 }
 
 export function buildStoryboardVoiceoverItem(
@@ -54,6 +61,8 @@ export function buildStoryboardVoiceoverItem(
   }
 
   return {
+    ...normalizeSourceIdentity(input),
+    ...(input.chapterId ? { chapterId: input.chapterId } : {}),
     storyboardId: input.storyboardId,
     index: input.index,
     speaker: speech.speaker,
@@ -93,6 +102,7 @@ export function resolveCanonicalSpeakerId(
 export function auditChapterVoiceoverPlan(
   items: StoryboardVoiceoverItem[],
   sourceStoryboardCount: number,
+  expected: ChapterVoiceoverAuditExpectation = {},
 ): ChapterVoiceoverAudit {
   const errors: string[] = [];
   if (!(sourceStoryboardCount > 0)) errors.push("源分镜数量必须大于 0");
@@ -102,6 +112,15 @@ export function auditChapterVoiceoverPlan(
 
   const speakerIds = new Set<TtsSpeakerId>();
   for (const item of items) {
+    if (expected.chapterId && item.chapterId !== expected.chapterId) {
+      errors.push(`分镜 ${item.storyboardId} chapterId 与期望不一致: ${item.chapterId ?? "缺失"}/${expected.chapterId}`);
+    }
+    if (expected.sourceId && item.sourceId !== expected.sourceId) {
+      errors.push(`分镜 ${item.storyboardId} sourceId 与期望不一致: ${item.sourceId ?? "缺失"}/${expected.sourceId}`);
+    }
+    if (expected.revision !== undefined && item.revision !== expected.revision) {
+      errors.push(`分镜 ${item.storyboardId} revision 与期望不一致: ${item.revision ?? "缺失"}/${expected.revision}`);
+    }
     const missing = [
       ["speaker", item.speaker],
       ["speakerId", item.speakerId],
@@ -133,10 +152,20 @@ export function auditChapterVoiceoverPlan(
 export function assertChapterVoiceoverPlan(
   items: StoryboardVoiceoverItem[],
   sourceStoryboardCount: number,
+  expected: ChapterVoiceoverAuditExpectation = {},
 ) {
-  const audit = auditChapterVoiceoverPlan(items, sourceStoryboardCount);
+  const audit = auditChapterVoiceoverPlan(items, sourceStoryboardCount, expected);
   if (!audit.passed) throw new Error(audit.errors.join("；"));
   return audit;
+}
+
+function normalizeSourceIdentity(identity: StudioSourceIdentity): StudioSourceIdentity {
+  const sourceId = identity.sourceId?.trim();
+  const revision = identity.revision;
+  return {
+    ...(sourceId ? { sourceId } : {}),
+    ...(typeof revision === "number" && Number.isInteger(revision) && revision > 0 ? { revision } : {}),
+  };
 }
 
 function parseStoryboardSpeech(lines: string | undefined, description: string) {

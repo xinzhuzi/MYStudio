@@ -22,6 +22,10 @@ export type TtsSpeakerId = "narrator" | `character:${string}`;
 export type SceneVoiceLineStatus = "idle" | "queued" | "generating" | "completed" | "failed";
 
 export interface SceneVoiceLine {
+  /** Owning project is normalized from the project-scoped persistence key. */
+  projectId?: string;
+  /** Chapter identity is required for chapter-scoped deletion planning. */
+  chapterId?: string;
   sceneId: number;
   speakerId: TtsSpeakerId;
   text: string;

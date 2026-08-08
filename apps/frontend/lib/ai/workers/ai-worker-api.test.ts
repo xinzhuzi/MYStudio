@@ -134,7 +134,7 @@ describe("ai worker API boundary", () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce(jsonResponse({ message: "image down" }, 400)));
     await expect(api.generateImage("prompt", "negative", { apiKey: "key" })).rejects.toThrow("image down");
 
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce(jsonResponse({ error: "video down" }, 500)));
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce(jsonResponse({ error: "video down" }, 400)));
     await expect(api.generateVideo("data:image/png;base64,AA==", "prompt", { apiKey: "key" })).rejects.toThrow("video down");
 
     vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce(jsonResponse({ status: "processing" })));
@@ -146,6 +146,73 @@ describe("ai worker API boundary", () => {
         message: "Invalid API response: no taskId or videoUrl",
         envelope: { code: "invalid-response", retryable: false },
       });
+  });
+
+  it("retries media submission on retryable status and returns the completed URL", async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(jsonResponse({ error: "temporary submit failure" }, 503))
+      .mockResolvedValueOnce(jsonResponse({ status: "completed", imageUrl: "https://cdn.test/retried-submit.png" }));
+    vi.stubGlobal("fetch", fetchMock);
+    const api = createWorkerApi({ getApiBaseUrl: () => "https://api.test", isCancelled: () => false });
+
+    const result = api.generateImage("prompt", "negative", { apiKey: "key" });
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    await vi.advanceTimersByTimeAsync(2000);
+
+    await expect(result).resolves.toBe("https://cdn.test/retried-submit.png");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("retries media submission after a network error", async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn()
+      .mockRejectedValueOnce(new Error("socket hang up"))
+      .mockResolvedValueOnce(jsonResponse({ status: "completed", videoUrl: "https://cdn.test/net-retry.mp4" }));
+    vi.stubGlobal("fetch", fetchMock);
+    const api = createWorkerApi({ getApiBaseUrl: () => "https://api.test", isCancelled: () => false });
+
+    const result = api.generateVideo("data:image/png;base64,AA==", "prompt", { apiKey: "key" });
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    await vi.advanceTimersByTimeAsync(2000);
+
+    await expect(result).resolves.toBe("https://cdn.test/net-retry.mp4");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not retry media submission on non-retryable status", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(jsonResponse({ error: "bad request" }, 400));
+    vi.stubGlobal("fetch", fetchMock);
+    const api = createWorkerApi({ getApiBaseUrl: () => "https://api.test", isCancelled: () => false });
+
+    await expect(api.generateImage("prompt", "negative", { apiKey: "key" }))
+      .rejects.toMatchObject({ envelope: { code: "http-error", status: 400, retryable: false } });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("exhausts submission retries on persistent retryable failure", async () => {
+    vi.useFakeTimers();
+    let callCount = 0;
+    const fetchMock = vi.fn().mockImplementation(() => {
+      callCount++;
+      return jsonResponse({ error: `persistent 503 #${callCount}` }, 503);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const api = createWorkerApi({ getApiBaseUrl: () => "https://api.test", isCancelled: () => false });
+
+    const request = api.generateImage("prompt", "negative", { apiKey: "key" });
+    const rejectionCaught = request.catch(() => {}); // register handler to avoid unhandled rejection
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    await vi.advanceTimersByTimeAsync(2000);
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    await vi.advanceTimersByTimeAsync(4000);
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+
+    await rejectionCaught;
+    await expect(request).rejects.toMatchObject({
+      envelope: { code: "http-error", status: 503, retryable: true },
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 
   it("rejects malformed payloads and completed tasks without a URL", async () => {
@@ -257,7 +324,7 @@ describe("ai worker API boundary", () => {
     await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
     await vi.advanceTimersByTimeAsync(2000);
     await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
-    await vi.advanceTimersByTimeAsync(2000);
+    await vi.advanceTimersByTimeAsync(4000);
 
     await expect(result).resolves.toBe("https://cdn.test/video.mp4");
     expect(onProgress).toHaveBeenCalledWith(25);
@@ -269,6 +336,88 @@ describe("ai worker API boundary", () => {
     expect(fetchMock.mock.calls[0][1]).toMatchObject({
       headers: { Authorization: "Bearer key" },
     });
+  });
+
+  it("retries polling after a network error", async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn()
+      .mockRejectedValueOnce(new Error("socket reset"))
+      .mockResolvedValueOnce(jsonResponse({ status: "completed", imageUrl: "https://cdn.test/retried.png" }));
+    vi.stubGlobal("fetch", fetchMock);
+    const api = createWorkerApi({ getApiBaseUrl: () => "https://api.test", isCancelled: () => false });
+
+    const result = api.pollTaskCompletion("network-task", "image", "key", "memefast");
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    await vi.advanceTimersByTimeAsync(2000);
+
+    await expect(result).resolves.toBe("https://cdn.test/retried.png");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("retries polling after a request timeout", async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn()
+      .mockImplementationOnce((_input: RequestInfo | URL, init?: RequestInit) => new Promise<Response>((_resolve, reject) => {
+        (init?.signal as AbortSignal).addEventListener("abort", () => {
+          reject(Object.assign(new Error("aborted"), { name: "AbortError" }));
+        }, { once: true });
+      }))
+      .mockResolvedValueOnce(jsonResponse({ status: "completed", imageUrl: "https://cdn.test/timeout-retried.png" }));
+    vi.stubGlobal("fetch", fetchMock);
+    const api = createWorkerApi({
+      getApiBaseUrl: () => "https://api.test",
+      isCancelled: () => false,
+      requestTimeoutMs: 25,
+    });
+
+    const result = api.pollTaskCompletion("timeout-task", "image", "key", "memefast");
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    await vi.advanceTimersByTimeAsync(25);
+    await vi.advanceTimersByTimeAsync(2000);
+
+    await expect(result).resolves.toBe("https://cdn.test/timeout-retried.png");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it.each([408, 425, 429, 500])("retries polling status %s", async (status) => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(jsonResponse({ error: "temporary" }, status))
+      .mockResolvedValueOnce(jsonResponse({ status: "completed", imageUrl: `https://cdn.test/status-${status}.png` }));
+    vi.stubGlobal("fetch", fetchMock);
+    const api = createWorkerApi({ getApiBaseUrl: () => "https://api.test", isCancelled: () => false });
+
+    const result = api.pollTaskCompletion(`status-${status}`, "image", "key", "memefast");
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    await vi.advanceTimersByTimeAsync(2000);
+
+    await expect(result).resolves.toBe(`https://cdn.test/status-${status}.png`);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not retry a non-retryable polling status", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(jsonResponse({ error: "bad request" }, 400));
+    vi.stubGlobal("fetch", fetchMock);
+    const api = createWorkerApi({ getApiBaseUrl: () => "https://api.test", isCancelled: () => false });
+
+    await expect(api.pollTaskCompletion("bad-status", "image", "key", "memefast"))
+      .rejects.toMatchObject({ envelope: { code: "http-error", status: 400, retryable: false } });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("aborts while polling is waiting to retry", async () => {
+    vi.useFakeTimers();
+    const controller = new AbortController();
+    const fetchMock = vi.fn().mockResolvedValueOnce(jsonResponse({ status: "processing" }));
+    vi.stubGlobal("fetch", fetchMock);
+    const api = createWorkerApi({ getApiBaseUrl: () => "https://api.test", isCancelled: () => false, signal: controller.signal });
+
+    const result = api.pollTaskCompletion("abort-task", "image", "key", "memefast");
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    controller.abort();
+
+    await expect(result).rejects.toMatchObject({ envelope: { code: "aborted", retryable: false } });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("surfaces failed, completed-without-url, and timed-out task polling states", async () => {
@@ -313,7 +462,7 @@ describe("ai worker API boundary", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it("applies a request deadline and reports timeout separately from caller abort", async () => {
+  it("applies a request deadline and surfaces timeout after exhausting submission retries", async () => {
     vi.useFakeTimers();
     const fetchMock = vi.fn((_input: RequestInfo | URL, init?: RequestInit) => new Promise<Response>((_resolve, reject) => {
       const signal = init?.signal as AbortSignal;
@@ -329,13 +478,26 @@ describe("ai worker API boundary", () => {
     });
 
     const request = api.generateImage("prompt", "negative", { apiKey: "key" });
-    const timeout = expect(request).rejects.toMatchObject({
+    const rejection = request.catch(() => {});
+    // first attempt times out
+    await vi.advanceTimersByTimeAsync(50);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    // retry wait 2000ms
+    await vi.advanceTimersByTimeAsync(2000);
+    // second attempt times out
+    await vi.advanceTimersByTimeAsync(50);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    // retry wait 4000ms
+    await vi.advanceTimersByTimeAsync(4000);
+    // third attempt times out (last retry, exhausts)
+    await vi.advanceTimersByTimeAsync(50);
+
+    await rejection;
+    await expect(request).rejects.toMatchObject({
       message: "API request timed out after 50ms",
       envelope: { code: "timeout", retryable: true, provider: "memefast" },
     });
-    await vi.advanceTimersByTimeAsync(50);
-
-    await timeout;
+    expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(vi.getTimerCount()).toBe(0);
   });
 
@@ -364,5 +526,24 @@ describe("ai worker API boundary", () => {
     vi.stubGlobal("fetch", cancelledFetch);
     await expect(cancelledApi.fetchAsBlob("https://cdn.test/cancel.mp4")).rejects.toThrow("Cancelled");
     expect(cancelledFetch).not.toHaveBeenCalled();
+  });
+
+  it("retries idempotent media downloads but never retries a non-retryable status", async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(jsonResponse({ error: "temporary" }, 503))
+      .mockResolvedValueOnce(new Response("video-bytes", { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const api = createWorkerApi({ getApiBaseUrl: () => "https://api.test", isCancelled: () => false });
+    const result = api.fetchAsBlob("https://cdn.test/video.mp4");
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    await vi.advanceTimersByTimeAsync(2000);
+    await expect(result).resolves.toBeInstanceOf(Blob);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce(jsonResponse({ error: "forbidden" }, 403)));
+    await expect(api.fetchAsBlob("https://cdn.test/forbidden.mp4")).rejects.toMatchObject({
+      envelope: { code: "http-error", status: 403, retryable: false },
+    });
   });
 });

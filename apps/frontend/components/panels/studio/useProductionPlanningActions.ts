@@ -69,6 +69,7 @@ export function useProductionPlanningActions({
 
       const store = useStudioStore.getState();
       const targetEpisodeId = resolveProductionEpisodeId(store, episodeId);
+      const chapterIdentity = store.novelChapters.find((chapter) => chapter.id === targetEpisodeId);
       const scriptText = resolveScriptTextForEpisode(store, targetEpisodeId);
       if (!scriptText.trim()) {
         toast.error("没有可规划的剧本：请先保存剧本草稿或导入小说正文");
@@ -205,6 +206,10 @@ export function useProductionPlanningActions({
         const writeResult = tools.writeDirectorPlan({
           text: finalText,
           episodeId: targetEpisodeId,
+          identity: {
+            sourceId: chapterIdentity?.sourceId ?? targetEpisodeId,
+            revision: chapterIdentity?.revision ?? 1,
+          },
           saveAgentWorkData,
           saveScriptPlan,
         });
@@ -316,7 +321,12 @@ export function useProductionPlanningActions({
         if (parsed.errors.length) {
           throw new Error(`分镜表结构无效：${parsed.errors.join("；")}`);
         }
-        const workId = saveAgentWorkData("storyboardTable", result.text, targetEpisodeId);
+        const chapter = store.novelChapters.find((item) => item.id === targetEpisodeId);
+        const sourceIdentity = {
+          sourceId: chapter?.sourceId ?? targetEpisodeId,
+          revision: chapter?.revision ?? 1,
+        };
+        const workId = saveAgentWorkData("storyboardTable", result.text, targetEpisodeId, sourceIdentity);
         const workflowStore = useStudioStore.getState();
         const characters = workflowStore.entityExtractions.find(
           (item) => item.episodeId === targetEpisodeId,
@@ -325,6 +335,7 @@ export function useProductionPlanningActions({
           parsed.rows,
           targetEpisodeId,
           characters,
+          sourceIdentity,
         );
         workflowStore.replaceStoryboardsForEpisode(targetEpisodeId, items);
         workflowStore.finishAgentRun(runId, {

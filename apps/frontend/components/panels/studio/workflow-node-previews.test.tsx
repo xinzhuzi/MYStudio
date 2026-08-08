@@ -1036,7 +1036,7 @@ describe("workflow node component boundaries", () => {
         {
           id: "sb-legacy-1",
           index: 1,
-          mediaPath: "project-file://dao/exports/chapter-001/toonflow_frames/shot-001.png",
+          mediaPath: "project-file://dao/exports/chapter-001/storyboard-frames/shot-001.png",
           title: "赤练蛇皮鞭撕开河雾",
           state: "ready",
         },
@@ -1056,8 +1056,8 @@ describe("workflow node component boundaries", () => {
       target: { kind: "storyboard", id: "sb-legacy-1" },
       title: "分镜 1",
       prompt: "赤练蛇皮鞭撕开河雾",
-      sourceImagePath: "project-file://dao/exports/chapter-001/toonflow_frames/shot-001.png",
-      resultImagePath: "project-file://dao/exports/chapter-001/toonflow_frames/shot-001.png",
+      sourceImagePath: "project-file://dao/exports/chapter-001/storyboard-frames/shot-001.png",
+      resultImagePath: "project-file://dao/exports/chapter-001/storyboard-frames/shot-001.png",
       imageWorkflowId: undefined,
       sourceStage: "storyboard",
       sourceStageLabel: "分镜视频生成",
@@ -1111,5 +1111,58 @@ describe("workflow node component boundaries", () => {
       sourceStageLabel: "分镜视频生成",
       sourceLabel: "衍生资产 · 夜景版",
     });
+  });
+
+  it("dispatches enqueue-remotion-shots without prompt input, passing action id and empty userInstruction", async () => {
+    const onNodeAction = vi.fn();
+    const node = {
+      id: "remotionProduction" as const,
+      label: "Remotion 视频生产",
+      description: "",
+      status: "pending" as const,
+      metrics: [],
+      previewTitle: "逐镜 Remotion 队列",
+      previewLines: [],
+      previewKind: "remotion-shots" as const,
+      targetStage: "workbench" as const,
+      actions: [
+        {
+          id: "enqueue-remotion-shots" as const,
+          label: "生成当前章分镜视频",
+          targetStage: "workbench" as const,
+          showPromptInput: false,
+        },
+      ],
+    } satisfies ProductionFlowNodeModel;
+    const props = {
+      id: "remotion-production-node",
+      type: "productionFlow",
+      selected: false,
+      dragging: false,
+      zIndex: 0,
+      isConnectable: false,
+      xPos: 0,
+      yPos: 0,
+      data: {
+        node,
+        onStageChange: vi.fn(),
+        onNodeAction,
+      } satisfies ProductionNodeData,
+    } as unknown as Parameters<typeof ProductionFlowNode>[0];
+
+    render(
+      <ReactFlowProvider>
+        <ProductionFlowNode {...props} />
+      </ReactFlowProvider>,
+    );
+
+    const button = screen.getByRole("button", { name: "生成当前章分镜视频" });
+    expect(button).toBeTruthy();
+    fireEvent.click(button);
+
+    expect(onNodeAction).toHaveBeenCalledTimes(1);
+    const callArg = onNodeAction.mock.calls[0][0];
+    expect(callArg.id).toBe("enqueue-remotion-shots");
+    expect(callArg.userInstruction).toBe("");
   });
 });

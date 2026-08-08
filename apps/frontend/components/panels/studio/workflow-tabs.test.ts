@@ -87,6 +87,7 @@ describe("studio workflow tabs", () => {
     expect(viewModelSource).toContain("useChapterAutoVideoActions");
     expect(viewModelSource).toContain("chapterAutoVideoStatus");
     expect(viewModelSource).toContain("handleRunChapterAutoVideo");
+    expect(viewModelSource).toContain("enqueue-remotion-shots");
     expect(viewModelSource).toContain("handleOpenFinalVideo");
     expect(indexSource).toContain("chapterAutoVideoStatus={viewModel.chapterAutoVideoStatus}");
     expect(indexSource).toContain("onRunChapterAutoVideo={viewModel.handleRunChapterAutoVideo}");

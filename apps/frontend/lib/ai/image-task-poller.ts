@@ -1,5 +1,6 @@
 import { buildEndpoint } from '@/lib/ai/image-generator-helpers';
 import { observedFetch } from '@/lib/diagnostics/network';
+import { isRetryableHttpStatus, retryDelayMs, waitForRetry } from '@/lib/ai/retry-policy';
 
 const TERMINAL_POLL_ERROR = Symbol('terminalPollError');
 type TerminalPollError = Error & { [TERMINAL_POLL_ERROR]: true };
@@ -25,6 +26,7 @@ export async function pollTaskStatus(
 ): Promise<string> {
   const maxAttempts = 120;
   const pollInterval = 2000;
+  let transientRetryAttempt = 0;
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     if (signal?.aborted) throw (signal.reason instanceof Error ? signal.reason : new Error('用户已取消'));
@@ -39,6 +41,9 @@ export async function pollTaskStatus(
       }, { operationId, endpointFamily: 'images-generations-poll', taskId, pollAttempt: attempt + 1, maxRetries: maxAttempts });
       if (!response.ok) {
         if (response.status === 404) throw markTerminalPollError(new Error('Task not found'));
+        if (!isRetryableHttpStatus(response.status)) {
+          throw markTerminalPollError(new Error(`Failed to check task status: ${response.status}`));
+        }
         throw new Error(`Failed to check task status: ${response.status}`);
       }
       const data = await response.json();
@@ -59,12 +64,13 @@ export async function pollTaskStatus(
         const rawError = data.error || data.error_message || data.data?.error;
         throw markTerminalPollError(new Error(rawError ? String(rawError) : 'Task failed'));
       }
-      await new Promise(resolve => setTimeout(resolve, pollInterval));
+      transientRetryAttempt = 0;
+      await waitForRetry(pollInterval, signal);
     } catch (error) {
       if (signal?.aborted) throw (signal.reason instanceof Error ? signal.reason : new Error('用户已取消'));
       if (isTerminalPollError(error)) throw error;
       console.error(`[ImageGenerator] Poll attempt ${attempt} failed:`, error);
-      await new Promise(resolve => setTimeout(resolve, pollInterval));
+      await waitForRetry(retryDelayMs(transientRetryAttempt++, pollInterval), signal);
     }
   }
   throw new Error('图片生成超时');

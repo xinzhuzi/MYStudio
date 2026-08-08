@@ -108,8 +108,16 @@ async function calculateFileFingerprint(filePath: string): Promise<{
   });
 }
 
-function physicalRefType(fileKind: "json" | "backup" | "media" | "other"): PhysicalRef["type"] {
-  return fileKind === "backup" ? "backup" : "project-file";
+function physicalRefType(
+  fileKind: "json" | "backup" | "media" | "other",
+  _decoderFormat?: string,
+): PhysicalRef["type"] {
+  if (fileKind === "backup") return "backup";
+  // Decoder format describes the JSON payload, not its physical provenance.
+  // Active project JSON must remain a project-file even when it uses a legacy
+  // or mixed-backup decoder; only the scanner's suffix classification can mark
+  // a source as backup.
+  return "project-file";
 }
 
 function mergeArtifactRecords(existing: ArtifactRecord, incoming: ArtifactRecord): ArtifactRecord {
@@ -207,7 +215,29 @@ function legacyArtifactIdFor(artifact: ArtifactRecord): string {
 }
 
 /**
- * Scan all JSON files in project root directory
+ * Matches historical backup file suffixes so their physical source is
+ * classified as `kind:"backup"`. Registered JSON content is still decoded;
+ * unregistered or malformed content remains a fail-closed backup blocker.
+ *
+ * Matches (against the basename, anchored to end):
+ * - `.bak`, `.bak-xxx`, `.bak_xxx`
+ * - `.codex-xxx`, `.codex-white-screen-test-backup`
+ * - `.smoke-xxx`
+ *
+ * Design notes:
+ * - Every alternative ends with `$` and uses the no-dot class `[^.]*` after
+ *   the separator, so `.codex-` / `.smoke-` only match as the FINAL suffix.
+ *   This prevents false positives like `data.codex-backup.json`,
+ *   `chapter.codex-snapshot.json` or `report.smoke-test.json` (the `.json`
+ *   after `.codex-...` would otherwise be swallowed by a greedy `.*`).
+ * - The char class is `[-_]` only — `-` at the start of a class is a literal,
+ *   so this is a valid range-free class (no SyntaxError, unlike the addendum's
+ *   invalid `[-_-.]` range).
+ */
+const BACKUP_SUFFIX_RE = /\.(?:bak(?:[-_][^.]*)?$|codex[-_][^.]*$|smoke[-_][^.]*$)/i;
+
+/**
+ * Scan persisted JSON, backup, media and other files in the project root.
  */
 async function scanProjectFiles(dataRoot: string, projectId: string): Promise<
   Array<{ filePath: string; relativePath: string; kind: "json" | "backup" | "media" | "other"; special?: "symlink" | "special-file" }>
@@ -244,10 +274,10 @@ async function scanProjectFiles(dataRoot: string, projectId: string): Promise<
           await scanDirectory(fullPath, relativePath);
         }
       } else if (entry.isFile()) {
-        const kind = /\.json$/i.test(entry.name)
-          ? "json"
-          : /\.bak$/i.test(entry.name)
-            ? "backup"
+        const kind = BACKUP_SUFFIX_RE.test(entry.name)
+          ? "backup"
+          : /\.json$/i.test(entry.name)
+            ? "json"
             : /\.(?:png|jpe?g|webp|gif|mp4|webm|mov|wav|mp3|m4a|aac|flac)$/i.test(entry.name)
               ? "media"
               : "other";
@@ -280,6 +310,7 @@ function decodeRawContent(
   if (!decoder) {
     // Mark as explicit 'unknown' artifact type instead of crashing
     console.warn(`No decoder found for ${filePath}`);
+    const isTopLevelConfig = !filePath.includes("/");
 
     return {
       artifacts: [
@@ -296,7 +327,12 @@ function decodeRawContent(
           upstreamIds: [],
           downstreamIds: [],
           deletePolicy: "blocker-missing-ownership",
-          retainedReason: "No decoder found for backup format",
+          blockerReason: isTopLevelConfig
+            ? "项目级配置文件,不属于任何章节,不可删除"
+            : "无解码器的未识别格式,归属未决,当前不可删除",
+          retainedReason: isTopLevelConfig
+            ? "项目级配置文件,不属于任何章节"
+            : "No decoder found for backup format",
         },
       ],
     };
@@ -732,7 +768,7 @@ export async function scanProjectInventory(
           artifact.physicalRefs = [
             ...artifact.physicalRefs.filter((ref) => ref.path),
             {
-              type: physicalRefType(file.kind),
+              type: physicalRefType(file.kind, decoderFormat),
               path: file.relativePath,
               bytes: fingerprint.bytes,
               hash256: fingerprint.hash256,

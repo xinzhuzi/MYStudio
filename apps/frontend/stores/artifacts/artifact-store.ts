@@ -148,10 +148,10 @@ export async function updateArtifactMetadata(request: {
   return window.artifactMetadata.update(request);
 }
 
-export function getDeletionPlanConfirmation(plan: DeletionPlan): DeletionConfirmation {
-  return plan.scope === "chapter"
-    ? { type: "chapter", chapterId: plan.chapterId }
-    : { type: "artifacts", artifactCount: plan.deleteItems.length + plan.migrateItems.length };
+export function getDeletionPlanConfirmation(plan: DeletionPlan): DeletionConfirmation | undefined {
+  return plan.scope === "artifacts"
+    ? { type: "artifacts", artifactCount: plan.deleteItems.length + plan.migrateItems.length }
+    : undefined;
 }
 
 export function isDeletionPlanConfirmationValid(
@@ -159,7 +159,14 @@ export function isDeletionPlanConfirmationValid(
   confirmation: DeletionConfirmation,
 ): boolean {
   if (confirmation.type === "chapter") {
-    return plan.scope === "chapter" && confirmation.chapterId === plan.chapterId;
+    if (plan.scope !== "chapter") return false;
+    if (plan.confirmationRequired.type === "chapter-id") {
+      return confirmation.chapterId === plan.confirmationRequired.value;
+    }
+    if (plan.confirmationRequired.type === "chapter-title") {
+      return confirmation.chapterTitle === plan.confirmationRequired.value;
+    }
+    return false;
   }
   return plan.scope === "artifacts"
     && confirmation.artifactCount === plan.deleteItems.length + plan.migrateItems.length;
@@ -168,12 +175,12 @@ export function isDeletionPlanConfirmationValid(
 /** Execute only a registered, reviewed plan through the single renderer controller. */
 export async function executeArtifactDeletionPlan(
   plan: DeletionPlan,
-  confirmation = getDeletionPlanConfirmation(plan),
+  confirmation?: DeletionConfirmation,
 ): Promise<ExecuteResult> {
   if (!plan.executionAllowed || plan.blockerItems.length > 0) {
     return { success: false, error: "post-scan-orphans", journalState: "none" };
   }
-  if (!isDeletionPlanConfirmationValid(plan, confirmation)) {
+  if (!confirmation || !isDeletionPlanConfirmationValid(plan, confirmation)) {
     return { success: false, error: "confirmation-mismatch", journalState: "none" };
   }
   if (typeof window === "undefined" || !window.artifactDeletion) {

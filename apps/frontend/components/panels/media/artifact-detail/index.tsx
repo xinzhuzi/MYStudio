@@ -2,10 +2,11 @@
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import {
   FileText,
-  Folder,
+  FolderOpen,
+  Copy,
   Clock,
   Hash,
   Tag,
@@ -24,8 +25,10 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { RefPreview } from "../RefPreview";
+import { buildProjectFileUrl } from "@/lib/artifacts/ref-preview-loader";
 import { EditableField, STATE_INFO, formatBytes, formatTimestamp } from "./helpers";
 import { JsonViewer } from "./json-viewer";
+import { getArtifactDeleteImpact } from "@/lib/artifacts/delete-impact";
 
 /**
  * Artifact Detail Panel
@@ -42,10 +45,10 @@ export interface ArtifactDetailPanelProps {
   isOpen: boolean;
   /** Callback when panel is closed */
   onClose: () => void;
-  /** Callback when metadata is updated (name / notes — tags is read-only) */
+  /** Callback when metadata is updated (name / notes only — tags is read-only in the UI; backend still accepts tags) */
   onMetadataUpdate?: (
     artifactId: string,
-    updates: { name?: string; tags?: string[]; notes?: string }
+    updates: { name?: string; notes?: string }
   ) => Promise<void>;
   /** Custom className for root element */
   className?: string;
@@ -62,15 +65,20 @@ export function ArtifactDetailPanel({
   const [activeTab, setActiveTab] = useState<string>("metadata");
   const [selectedRef, setSelectedRef] = useState<PhysicalRef | null>(null);
 
-  // Reset tab + selection whenever the displayed artifact changes.
+  // Reset tab + selection whenever the displayed artifact changes. Default to
+  // the first physical ref so the content-preview tab has something to render
+  // without requiring the user to pick from the physical-files tab first.
+  // Skip refs without a usable path so we never hand an invalid object to
+  // RefPreview (which would degrade gracefully, but better to not select it).
   useEffect(() => {
     setActiveTab("metadata");
-    setSelectedRef(null);
-  }, [artifact?.id]);
+    const firstValid =
+      artifact?.physicalRefs?.find((r) => r && typeof r.path === "string") ?? null;
+    setSelectedRef(firstValid);
+  }, [artifact?.id, artifact?.physicalRefs]);
 
   const handleMetadataUpdate = async (updates: {
     name?: string;
-    tags?: string[];
     notes?: string;
   }) => {
     if (!artifact || !onMetadataUpdate) return;
@@ -78,17 +86,52 @@ export function ArtifactDetailPanel({
     setEditingField(null);
   };
 
-  // Group physical refs by type
-  const groupedRefs = useMemo(() => {
-    const groups: Record<string, PhysicalRef[]> = {};
-    for (const ref of artifact?.physicalRefs ?? []) {
-      if (!groups[ref.type]) {
-        groups[ref.type] = [];
+  // Keep the latest artifact in a ref so async handlers (which may be invoked
+  // from a stale render's onClick closure) always read the current projectId.
+  // Without this, the reveal handler captured an artifact that was null/empty
+  // at the time the button's render happened, hit the early-return guard, and
+  // silently did nothing — even though the current artifact was valid.
+  const artifactRef = useRef(artifact);
+  artifactRef.current = artifact;
+
+  // Resolve a PhysicalRef to an absolute filesystem path and reveal it in the
+  // OS file manager. `ref.path` is a project-relative path (e.g.
+  // "backups/.../scenes.json") or a local-media id; the main process's path
+  // resolver only understands file://, project-file://, local-image://
+  // prefixes, so we must route through the correct preload surface to obtain
+  // an absolute path before calling showItemInFolder. Previously we passed the
+  // bare relative path, which silently failed with "文件不存在".
+  const handleRevealRef = async (ref: PhysicalRef) => {
+    // Read from the ref (always current), not the closure-captured `artifact`
+    // (which may be stale in an old onClick closure).
+    const currentArtifact = artifactRef.current;
+    if (!currentArtifact?.projectId || typeof ref.path !== "string") return;
+    try {
+      let absolutePath: string | null | undefined;
+      if (ref.type === "local-media") {
+        absolutePath = await window.imageStorage?.getAbsolutePath?.(ref.path);
+      } else {
+        const url = buildProjectFileUrl(currentArtifact.projectId, ref.path);
+        absolutePath = await window.projectFiles?.getAbsolutePath?.(url);
       }
-      groups[ref.type].push(ref);
+      if (!absolutePath) {
+        console.warn("[artifact-detail] 无法解析物理文件绝对路径", ref.path);
+        return;
+      }
+      const result = await window.electronAPI?.showItemInFolder?.(absolutePath);
+      if (result && !result.success) {
+        console.warn("[artifact-detail] 定位失败:", result.error, absolutePath);
+      }
+    } catch (error) {
+      console.error("[artifact-detail] 定位异常:", error);
     }
-    return groups;
-  }, [artifact?.physicalRefs]);
+  };
+
+  // Physical files are shown flat (no type grouping) on the 「物理文件」tab —
+  // each ref is a row with its full path, a copy button, and a "reveal in
+  // folder" action. The type-grouped view was removed per the artifact
+  // management simplification (only show what is actually on disk locally).
+  const flatRefs = useMemo(() => artifact?.physicalRefs ?? [], [artifact?.physicalRefs]);
 
   if (!isOpen || !artifact) {
     return null;
@@ -201,9 +244,26 @@ export function ArtifactDetailPanel({
 
                 <div className="space-y-2">
                   <label className="text-xs font-medium text-muted-foreground">删除策略</label>
-                  <code className="block text-xs bg-muted p-2 rounded">
-                    {artifact.deletePolicy}
-                  </code>
+                  {(() => {
+                    const impact = getArtifactDeleteImpact(artifact);
+                    const Icon = impact.icon;
+                    return (
+                      <div className="space-y-1.5 rounded-md bg-muted p-2">
+                        <div className="flex items-center gap-1.5">
+                          <Icon className={cn("h-4 w-4", impact.className)} />
+                          <span className={cn("text-sm font-medium", impact.className)}>
+                            {impact.label}
+                          </span>
+                          <code className="text-[10px] text-muted-foreground ml-auto">
+                            {artifact.deletePolicy}
+                          </code>
+                        </div>
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                          {impact.hint}
+                        </p>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
 
@@ -268,59 +328,43 @@ export function ArtifactDetailPanel({
 
             {/* Physical Files Tab */}
             <TabsContent value="physical">
-              <div className="space-y-4">
-                {Object.entries(groupedRefs).map(([type, refs]) => (
-                  <div key={type} className="space-y-2">
-                    <h4 className="font-medium flex items-center gap-2 text-sm">
-                      {type === "local-media" && <Folder className="h-4 w-4" />}
-                      {type === "project-file" && <FileText className="h-4 w-4" />}
-                      {type === "exports" && <Folder className="h-4 w-4" />}
-                      {type === "remotion" && <Folder className="h-4 w-4" />}
-                      {type === "backup" && <Folder className="h-4 w-4" />}
-                      {type.replace(/-/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())} ({refs.length})
-                    </h4>
-
-                    <div className="space-y-2">
-                      {refs.map((ref, idx) => (
-                        <div
-                          key={idx}
-                          className="text-xs bg-muted/40 p-2 rounded hover:bg-muted/80 transition-colors cursor-pointer group relative"
-                          title={ref.path}
-                          onClick={() => {
-                            setSelectedRef(ref);
-                            setActiveTab("preview");
-                          }}
-                        >
-                          <div className="flex items-center gap-2 pr-16">
-                            <code className="break-all">{ref.path}</code>
-                            {ref.bytes && (
-                              <span className="shrink-0 text-xs text-muted-foreground">
-                                ({formatBytes(ref.bytes)})
-                              </span>
-                            )}
-                          </div>
-
-                          {/* Full PhysicalRef structure as JSON */}
-                          <JsonViewer value={ref} maxHeight="8rem" className="mt-2" />
-
-                          {/* Preview button: explicit trigger to content-preview tab */}
-                          <button
-                            className="opacity-0 group-hover:opacity-100 absolute right-2 top-2 px-2 py-1 bg-background border rounded text-xs"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedRef(ref);
-                              setActiveTab("preview");
-                            }}
-                          >
-                            预览
-                          </button>
-                        </div>
-                      ))}
-                    </div>
+              <div className="space-y-2">
+                {flatRefs.map((ref) => (
+                  <div
+                    key={`${ref.type}:${ref.path}`}
+                    className="flex items-center gap-2 text-xs bg-muted/40 p-2 rounded hover:bg-muted/80 transition-colors group"
+                  >
+                    <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    <code className="flex-1 break-all" title={ref.path}>{ref.path}</code>
+                    {ref.bytes != null && ref.bytes > 0 && (
+                      <span className="shrink-0 text-muted-foreground">
+                        ({formatBytes(ref.bytes)})
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      className="shrink-0 inline-flex items-center gap-1 px-2 py-1 bg-background border rounded hover:bg-muted"
+                      title="复制完整路径"
+                      onClick={() => {
+                        void navigator.clipboard?.writeText(ref.path);
+                      }}
+                    >
+                      <Copy className="h-3.5 w-3.5" />复制
+                    </button>
+                    <button
+                      type="button"
+                      className="shrink-0 inline-flex items-center gap-1 px-2 py-1 bg-background border rounded hover:bg-muted"
+                      title="在文件夹中显示"
+                      onClick={() => {
+                        void handleRevealRef(ref);
+                      }}
+                    >
+                      <FolderOpen className="h-3.5 w-3.5" />定位
+                    </button>
                   </div>
                 ))}
 
-                {artifact.physicalRefs.length === 0 && (
+                {flatRefs.length === 0 && (
                   <div className="text-center text-muted-foreground py-8">
                     暂无物理文件引用
                   </div>
@@ -382,17 +426,42 @@ export function ArtifactDetailPanel({
 
             {/* Content Preview Tab */}
             <TabsContent value="preview">
-              {selectedRef && artifact.projectId ? (
-                <div className="h-[60vh] min-h-0 rounded-md border border-border bg-card">
-                  <RefPreview
-                    ref={selectedRef}
-                    projectId={artifact.projectId}
-                    className="h-full"
-                  />
+              {artifact.physicalRefs.length === 0 || !artifact.projectId ? (
+                <div className="flex h-40 items-center justify-center text-center text-muted-foreground">
+                  <p className="text-sm">暂无物理文件可预览。</p>
                 </div>
               ) : (
-                <div className="flex h-40 items-center justify-center text-center text-muted-foreground">
-                  <p className="text-sm">在「物理文件」标签页中点击任意文件以预览内容。</p>
+                <div className="space-y-2">
+                  <select
+                    aria-label="选择要预览的物理文件"
+                    className="w-full text-xs bg-background border rounded px-2 py-1.5"
+                    value={selectedRef?.path ? `${selectedRef.type}:${selectedRef.path}` : ""}
+                    onChange={(e) => {
+                      const next = artifact.physicalRefs.find(
+                        (r) => `${r.type}:${r.path}` === e.target.value,
+                      );
+                      setSelectedRef(next ?? null);
+                    }}
+                  >
+                    {artifact.physicalRefs.map((ref) => (
+                      <option key={`${ref.type}:${ref.path}`} value={`${ref.type}:${ref.path}`}>
+                        {ref.path}
+                      </option>
+                    ))}
+                  </select>
+                  {selectedRef?.path ? (
+                    <div className="h-[56vh] min-h-0 rounded-md border border-border bg-card">
+                      <RefPreview
+                        physicalRef={selectedRef}
+                        projectId={artifact.projectId}
+                        className="h-full"
+                      />
+                    </div>
+                  ) : (
+                    <div className="flex h-40 items-center justify-center text-center text-muted-foreground">
+                      <p className="text-sm">请选择一个文件进行预览。</p>
+                    </div>
+                  )}
                 </div>
               )}
             </TabsContent>

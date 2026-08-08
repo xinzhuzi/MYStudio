@@ -101,6 +101,9 @@ describe("chapter voiceover item contract", () => {
   it("audits source count and every required field", () => {
     const items = [
       buildStoryboardVoiceoverItem({
+        chapterId: "chapter-001",
+        sourceId: "source-001",
+        revision: 2,
         storyboardId: "sb-1",
         index: 1,
         description: "掌柜收住算盘。",
@@ -109,6 +112,9 @@ describe("chapter voiceover item contract", () => {
         characters: CHARACTERS,
       }),
       buildStoryboardVoiceoverItem({
+        chapterId: "chapter-001",
+        sourceId: "source-001",
+        revision: 2,
         storyboardId: "sb-2",
         index: 2,
         description: "独孤剑尘侧身避雨。",
@@ -118,7 +124,11 @@ describe("chapter voiceover item contract", () => {
       }),
     ];
 
-    expect(assertChapterVoiceoverPlan(items, 2)).toMatchObject({
+    expect(assertChapterVoiceoverPlan(items, 2, {
+      chapterId: "chapter-001",
+      sourceId: "source-001",
+      revision: 2,
+    })).toMatchObject({
       passed: true,
       speakerIds: ["character:char-dugu", "character:char-keeper"],
     });
@@ -126,6 +136,7 @@ describe("chapter voiceover item contract", () => {
       passed: false,
       errors: ["口播数量与源分镜不一致: 2/1"],
     });
+    expect(auditChapterVoiceoverPlan(items, 2, { revision: 3 }).errors[0]).toContain("revision 与期望不一致");
 
     const invalid = {
       ...items[0],

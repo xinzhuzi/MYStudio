@@ -12,6 +12,7 @@ api-text-completion
 api-text-completion-stream
 app-devtools-open
 app-open-path
+app-show-in-folder
 app-updater-check
 app-updater-get-current-version
 app-updater-open-link

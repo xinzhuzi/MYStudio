@@ -51,6 +51,8 @@ function storyboard(index: number, overrides: Partial<StoryboardItem> = {}): Sto
   const item: StoryboardItem = {
     id: `sb-${index}`,
     episodeId: "chapter-001",
+    sourceId: "source-001",
+    revision: 2,
     index,
     trackKey: "001", // Dynamic runtime key: {episodeNumber} (matches production.ts resolution)
     trackId: "track-1",
@@ -302,6 +304,30 @@ describe("chapter auto video orchestration", () => {
       "media",
       "tts",
     ]);
+  });
+
+  it("rejects storyboards with a stale source revision before TTS", async () => {
+    const { dependencies } = createDependencies();
+    await expect(prepareChapterMedia({
+      projectId: "project-1",
+      episodeId: "chapter-001",
+      expectedIdentity: { sourceId: "source-001", revision: 3 },
+      dependencies,
+    })).rejects.toThrow("revision 与期望不一致: 2/3");
+  });
+
+  it("allows missing source identity when storyboards predate identity tracking", async () => {
+    const { dependencies, calls } = createDependencies();
+    const originalLoad = dependencies.loadStoryboards;
+    dependencies.loadStoryboards = () => originalLoad().map(({ sourceId: _sourceId, revision: _revision, ...item }) => item);
+    const result = await runChapterAutoVideo({
+      projectId: "project-1",
+      episodeId: "chapter-001",
+      expectedIdentity: { sourceId: "source-001", revision: 2 },
+      dependencies,
+      onStatus: () => {},
+    });
+    expect(result).toMatchObject({ storyboards: 2, queueStatus: "queued" });
   });
 
   it("runs planning, fixed voice, and every storyboard through the Remotion shot queue", async () => {

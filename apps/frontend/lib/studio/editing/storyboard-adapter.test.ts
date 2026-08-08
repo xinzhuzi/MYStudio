@@ -263,8 +263,8 @@ describe("storyboard editing adapter", () => {
     expect(result.success).toBe(true);
     if (!result.success) return;
     expect(result.project.renderSettings).toMatchObject({
-      width: 1080,
-      height: 1920,
+      width: 1920,
+      height: 1080,
       fps: 30,
       loudnessLufs: -14,
       truePeakDbtp: -1.5,

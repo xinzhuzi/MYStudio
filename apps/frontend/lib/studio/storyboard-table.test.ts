@@ -105,7 +105,7 @@ describe("studio storyboard table parsing", () => {
     const items = toStoryboardItems(rows, "chapter-001", [
       { characterId: "char-dugu", name: "独孤剑尘", aliases: ["剑尘"] },
       { characterId: "char-keeper", name: "掌柜", aliases: [] },
-    ]);
+    ], { sourceId: "source-001", revision: 3 });
     expect(items).toHaveLength(2);
     expect(items.map(({ id, trackKey }) => ({ id, trackKey }))).toEqual([
       { id: "sb-chapter-001-001", trackKey: "001-1" },
@@ -114,6 +114,7 @@ describe("studio storyboard table parsing", () => {
     expect(items[0]?.speakerId).toBe("character:char-keeper");
     expect(items[1]?.speakerId).toBe("character:char-dugu");
     expect(items[0]?.assetIds).toEqual(["role-001", "role-002", "scene-001"]);
+    expect(items[0]).toMatchObject({ sourceId: "source-001", revision: 3 });
   });
 
   it("preserves decimal duration budgets from the source table", () => {

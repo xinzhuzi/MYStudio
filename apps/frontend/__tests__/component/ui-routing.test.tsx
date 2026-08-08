@@ -31,11 +31,16 @@ describe("ArtifactDeleteDialog", () => {
   });
 
   it("keeps execute disabled until the exact chapter id is entered", () => {
-    const onExecute = vi.fn();
+    const onExecute = vi.fn().mockResolvedValue(undefined);
     render(<ArtifactDeleteDialog isOpen plan={plan} onClose={vi.fn()} onExecute={onExecute} />);
-    const button = screen.getByRole("button", { name: /delete/i });
+    const button = screen.getByRole("button", { name: /确认删除/ });
     expect((button as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "chapter-fixtur" } });
+    expect((button as HTMLButtonElement).disabled).toBe(true);
+    expect(onExecute).not.toHaveBeenCalled();
     fireEvent.change(screen.getByRole("textbox"), { target: { value: "chapter-fixture" } });
     expect((button as HTMLButtonElement).disabled).toBe(false);
+    fireEvent.click(button);
+    expect(onExecute).toHaveBeenCalledWith({ type: "chapter", chapterId: "chapter-fixture" });
   });
 });

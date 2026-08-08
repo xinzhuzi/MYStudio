@@ -6,14 +6,20 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  realpathSync,
   rmSync,
+  statSync,
   writeFileSync,
 } from "node:fs";
 import http from "node:http";
 import { homedir, tmpdir } from "node:os";
 import { dirname, resolve } from "node:path";
 import { terminateSpawnedApp } from "./smoke-process-lifecycle.mjs";
-import { auditVisibleAutoVideo } from "./visible-workflow-auto-video-audit.mjs";
+import {
+  auditVisibleAutoVideo,
+  auditVisibleFirstShotPreview,
+  auditVisibleProductionCanvasVideo,
+} from "./visible-workflow-auto-video-audit.mjs";
 import {
   hasMYStudioForegroundViolation,
   sampleFrontmostApplication,
@@ -70,21 +76,60 @@ const runRealDaojie =
 const runChapterAutoVideo =
   process.argv.includes("--auto-video") ||
   process.env.MYSTUDIO_WORKFLOW_AUTO_VIDEO === "1";
+const runFirstShotPreview = process.argv.includes("--first-shot-preview");
+const runProductionCanvasVideo =
+  process.argv.includes("--production-canvas-video") ||
+  process.env.MYSTUDIO_WORKFLOW_PRODUCTION_CANVAS_VIDEO === "1";
 const autoVideoTimeoutMs = Number(
   process.env.MYSTUDIO_AUTO_VIDEO_TIMEOUT_MS || 600_000,
+);
+const firstShotPreviewTimeoutMs = Number(
+  process.env.MYSTUDIO_FIRST_SHOT_PREVIEW_TIMEOUT_MS || 600_000,
+);
+const productionCanvasVideoTimeoutMs = Number(
+  process.env.MYSTUDIO_PRODUCTION_CANVAS_VIDEO_TIMEOUT_MS || 600_000,
 );
 if (runChapterAutoVideo && !runRealDaojie) {
   throw new Error("--auto-video requires --daojie or MYSTUDIO_WORKFLOW_REAL_DAOJIE=1");
 }
+if (runFirstShotPreview && !runRealDaojie) {
+  throw new Error("--first-shot-preview requires --daojie or MYSTUDIO_WORKFLOW_REAL_DAOJIE=1");
+}
+if (runProductionCanvasVideo && !runRealDaojie) {
+  throw new Error("--production-canvas-video requires --daojie or MYSTUDIO_WORKFLOW_REAL_DAOJIE=1");
+}
+if (runFirstShotPreview && runChapterAutoVideo) {
+  throw new Error("--first-shot-preview cannot be combined with --auto-video");
+}
+if (runProductionCanvasVideo && runChapterAutoVideo) {
+  throw new Error("--production-canvas-video cannot be combined with --auto-video");
+}
+if (runProductionCanvasVideo && runFirstShotPreview) {
+  throw new Error("--production-canvas-video cannot be combined with --first-shot-preview");
+}
 if (runChapterAutoVideo && (!Number.isFinite(autoVideoTimeoutMs) || autoVideoTimeoutMs <= 0)) {
   throw new Error("MYSTUDIO_AUTO_VIDEO_TIMEOUT_MS must be a positive number");
+}
+if (runFirstShotPreview && (!Number.isFinite(firstShotPreviewTimeoutMs) || firstShotPreviewTimeoutMs <= 0)) {
+  throw new Error("MYSTUDIO_FIRST_SHOT_PREVIEW_TIMEOUT_MS must be a positive number");
+}
+if (runProductionCanvasVideo && (!Number.isFinite(productionCanvasVideoTimeoutMs) || productionCanvasVideoTimeoutMs <= 0)) {
+  throw new Error("MYSTUDIO_PRODUCTION_CANVAS_VIDEO_TIMEOUT_MS must be a positive number");
 }
 const safeAutoVideoTimeoutMs = Number.isFinite(autoVideoTimeoutMs) && autoVideoTimeoutMs > 0
   ? Math.floor(autoVideoTimeoutMs)
   : 600_000;
+const safeFirstShotPreviewTimeoutMs = Number.isFinite(firstShotPreviewTimeoutMs) && firstShotPreviewTimeoutMs > 0
+  ? Math.floor(firstShotPreviewTimeoutMs)
+  : 600_000;
+const safeProductionCanvasVideoTimeoutMs = Number.isFinite(productionCanvasVideoTimeoutMs) && productionCanvasVideoTimeoutMs > 0
+  ? Math.floor(productionCanvasVideoTimeoutMs)
+  : 600_000;
   const daojieProjectName = "道劫";
   const daojieChapterId = "chapter-001";
   const daojieChapterTitle = "第1章：剑主夜访道口镇";
+  const daojieFirstShotProjectId = "49dce4c1-64b1-42de-85c2-9f266698aec0";
+  const daojieFirstShotId = "sb-chapter-001-001";
   const daojieProjectId = process.env.MYSTUDIO_DAOJIE_PROJECT_ID?.trim() || null;
 const daojieSourceUserDataDir =
   process.env.MYSTUDIO_DAOJIE_USER_DATA_DIR ||
@@ -229,14 +274,22 @@ function writeVisibleRunReport(report) {
         generatedAt: new Date().toISOString(),
         command: runInBackground
           ? runRealDaojie
-            ? runChapterAutoVideo
-              ? "npm run smoke:workflow:background:daojie -- --auto-video"
-              : "npm run smoke:workflow:background:daojie"
+            ? runProductionCanvasVideo
+              ? "npm run smoke:workflow:background:daojie -- --production-canvas-video"
+              : runFirstShotPreview
+                ? "npm run smoke:workflow:background:daojie -- --first-shot-preview"
+                : runChapterAutoVideo
+                  ? "npm run smoke:workflow:background:daojie -- --auto-video"
+                  : "npm run smoke:workflow:background:daojie"
             : "npm run smoke:workflow:background"
           : runRealDaojie
-            ? runChapterAutoVideo
-              ? "npm run smoke:workflow:run:daojie -- --auto-video"
-              : "npm run smoke:workflow:run:daojie"
+            ? runProductionCanvasVideo
+              ? "npm run smoke:workflow:run:daojie -- --production-canvas-video"
+              : runFirstShotPreview
+                ? "npm run smoke:workflow:run:daojie -- --first-shot-preview"
+                : runChapterAutoVideo
+                  ? "npm run smoke:workflow:run:daojie -- --auto-video"
+                  : "npm run smoke:workflow:run:daojie"
             : "npm run smoke:workflow:run",
         reportPath: visibleRunReportPath,
         mode: runMode,
@@ -263,6 +316,38 @@ function copyProjectDirectoryIfExists(sourcePath, targetPath) {
     dereference: true,
     preserveTimestamps: true,
   });
+}
+
+function copyInstalledRemotionCache(sourceUserDataDir, clonedUserDataDir) {
+  const sourceRuntimePath = resolve(sourceUserDataDir, "remotion-runtime");
+  const sourceCachePath = resolve(sourceRuntimePath, "node_modules", ".remotion");
+  if (!existsSync(sourceRuntimePath) || !existsSync(sourceCachePath)) {
+    throw new Error(`Installed Remotion cache was not found: ${sourceCachePath}`);
+  }
+  const sourceRuntimeRealPath = realpathSync(sourceRuntimePath);
+  const sourceCacheRealPath = realpathSync(sourceCachePath);
+  if (!sourceCacheRealPath.startsWith(`${sourceRuntimeRealPath}/`)) {
+    throw new Error(`Installed Remotion cache escaped its runtime root: ${sourceCacheRealPath}`);
+  }
+  if (!statSync(sourceCacheRealPath).isDirectory()) {
+    throw new Error(`Installed Remotion cache is not a directory: ${sourceCacheRealPath}`);
+  }
+
+  const clonedCachePath = resolve(
+    clonedUserDataDir,
+    "remotion-runtime",
+    "node_modules",
+    ".remotion",
+  );
+  if (existsSync(clonedCachePath)) {
+    throw new Error(`Cloned Remotion cache already exists: ${clonedCachePath}`);
+  }
+  copyProjectDirectoryIfExists(sourceCacheRealPath, clonedCachePath);
+  return {
+    mode: "copy",
+    sourceCachePath: sourceCacheRealPath,
+    clonedCachePath,
+  };
 }
 
 function readDaojieRoleAssets() {
@@ -327,6 +412,16 @@ function cloneRealDaojieUserData() {
       `Daojie ${daojieChapterId} has no source storyboards in ${workflowStorePath}`,
     );
   }
+  const firstStoryboard = chapterStoryboards
+    .slice()
+    .sort((left, right) => Number(left.index) - Number(right.index))[0];
+  const firstShotRevision = Math.max(1, Number(firstStoryboard?.outputVersion) || 1);
+  if (runFirstShotPreview && project.id !== daojieFirstShotProjectId) {
+    throw new Error(`First-shot preview requires project ${daojieFirstShotProjectId}, received ${project.id}`);
+  }
+  if (runFirstShotPreview && (firstStoryboard?.index !== 1 || firstStoryboard?.id !== daojieFirstShotId)) {
+    throw new Error(`Daojie first storyboard identity is invalid: ${firstStoryboard?.id || "missing"}`);
+  }
   const sourceDerivedPlans = (workflowState.scriptPlans || []).flatMap(
     (plan) => plan.derivedAssetPlan || [],
   );
@@ -343,6 +438,9 @@ function cloneRealDaojieUserData() {
   const clonedProjectsDir = resolve(clonedUserDataDir, "projects");
   const clonedProjectDir = resolve(clonedProjectsDir, "_p", project.id);
   mkdirSync(clonedProjectDir, { recursive: true });
+  const remotionRuntimeReuse = (runFirstShotPreview || runProductionCanvasVideo)
+    ? copyInstalledRemotionCache(daojieSourceUserDataDir, clonedUserDataDir)
+    : null;
 
   for (const fileName of [
     "mystudio-app-settings.json",
@@ -367,6 +465,28 @@ function cloneRealDaojieUserData() {
       resolve(projectDir, `${storeName}.json`),
       resolve(clonedProjectDir, `${storeName}.json`),
     );
+  }
+
+  // Patch cloned storyboards with sourceId/revision so chapter auto-video identity checks pass.
+  const clonedWorkflowStorePath = resolve(clonedProjectDir, "studio-workflow-store.json");
+  if (existsSync(clonedWorkflowStorePath)) {
+    const workflowStore = JSON.parse(readFileSync(clonedWorkflowStorePath, "utf8"));
+    const state = workflowStore?.state || {};
+    const storyboards = state.storyboards || [];
+    if (storyboards.length > 0) {
+      const chapterSourceId = chapter.sourceId || chapter.id;
+      const chapterRevision = chapter.revision || 1;
+      for (const storyboard of storyboards) {
+        if (storyboard.sourceId === undefined || storyboard.sourceId === null) {
+          storyboard.sourceId = chapterSourceId;
+        }
+        if (storyboard.revision === undefined || storyboard.revision === null) {
+          storyboard.revision = chapterRevision;
+        }
+      }
+      workflowStore.state = { ...state, storyboards };
+      writeFileSync(clonedWorkflowStorePath, JSON.stringify(workflowStore), "utf8");
+    }
   }
 
   for (const storeName of ["scenes", "characters", "media"]) {
@@ -396,7 +516,10 @@ function cloneRealDaojieUserData() {
     expectedStoryboards: chapterStoryboards.length,
     projectId: project.id,
     projectName: project.name,
+    firstStoryboardId: firstStoryboard?.id || "",
+    firstShotRevision,
     assetReferenceRepairs,
+    remotionRuntimeReuse,
     sourceProjectsDir,
     userDataDir: clonedUserDataDir,
   };
@@ -683,6 +806,10 @@ async function runVisibleWorkflow(pageTarget, childPid, focusSamples) {
           realDaojieRun,
           runChapterAutoVideo,
           safeAutoVideoTimeoutMs,
+          runFirstShotPreview,
+          safeFirstShotPreviewTimeoutMs,
+          runProductionCanvasVideo,
+          safeProductionCanvasVideoTimeoutMs,
           !runInBackground,
         )
       : visibleWorkflowExpression(safeStepDelayMs, !runInBackground);
@@ -693,7 +820,13 @@ async function runVisibleWorkflow(pageTarget, childPid, focusSamples) {
         expression,
       }),
       "visible step-by-step workflow run",
-      runChapterAutoVideo ? safeAutoVideoTimeoutMs + 180_000 : 120_000,
+      runProductionCanvasVideo
+        ? safeProductionCanvasVideoTimeoutMs + 180_000
+        : runFirstShotPreview
+          ? safeFirstShotPreviewTimeoutMs + 180_000
+          : runChapterAutoVideo
+            ? safeAutoVideoTimeoutMs + 180_000
+            : 120_000,
     );
     const pageFocus = await send("Runtime.evaluate", {
       returnByValue: true,
@@ -845,6 +978,10 @@ function realDaojieWorkflowExpression(
   daojieRun,
   autoVideoEnabled,
   autoVideoTimeoutMs,
+  firstShotPreviewEnabled,
+  firstShotPreviewTimeoutMs,
+  productionCanvasVideoEnabled,
+  productionCanvasVideoTimeoutMs,
   focusWindow,
 ) {
   const projectId = JSON.stringify(daojieRun.projectId);
@@ -852,6 +989,8 @@ function realDaojieWorkflowExpression(
   const chapterId = JSON.stringify(daojieRun.chapterId);
   const chapterTitle = JSON.stringify(daojieRun.chapterTitle);
   const expectedStoryboards = Number(daojieRun.expectedStoryboards);
+  const expectedFirstStoryboardId = JSON.stringify(daojieRun.firstStoryboardId);
+  const expectedFirstShotRevision = Number(daojieRun.firstShotRevision);
   const focusWindowStatement = focusWindow ? "window.focus();" : "";
   return `(async () => {
     // Daojie mode does not use resetForStepwiseExecution or seed smoke data.
@@ -863,6 +1002,12 @@ function realDaojieWorkflowExpression(
     const expectedStoryboards = ${expectedStoryboards};
     const autoVideoEnabled = ${Boolean(autoVideoEnabled)};
     const autoVideoTimeoutMs = ${Number(autoVideoTimeoutMs)};
+    const firstShotPreviewEnabled = ${Boolean(firstShotPreviewEnabled)};
+    const firstShotPreviewTimeoutMs = ${Number(firstShotPreviewTimeoutMs)};
+    const productionCanvasVideoEnabled = ${Boolean(productionCanvasVideoEnabled)};
+    const productionCanvasVideoTimeoutMs = ${Number(productionCanvasVideoTimeoutMs)};
+    const expectedFirstStoryboardId = ${expectedFirstStoryboardId};
+    const expectedFirstShotRevision = ${expectedFirstShotRevision};
     const normalize = (node) => (node.textContent || '').replace(/\\s+/g, ' ').trim();
     const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     const visibleDelay = () => wait(${delayMs});
@@ -982,6 +1127,10 @@ function realDaojieWorkflowExpression(
       const project = (projectStore?.state?.projects || []).find((candidate) => candidate.id === projectId);
       const chapter = (workflowState.novelChapters || []).find((candidate) => candidate.id === chapterId);
        const storyboards = (workflowState.storyboards || []).filter((candidate) => candidate.episodeId === chapterId);
+       const firstStoryboard = storyboards
+         .slice()
+         .sort((left, right) => Number(left.index) - Number(right.index))[0] || null;
+       const firstShotRevision = Math.max(1, Number(firstStoryboard?.outputVersion) || 1);
        const productionTracks = (workflowState.productionTracks || []).filter((candidate) => candidate.episodeId === chapterId);
       const productionTrackIds = new Set(productionTracks.map((track) => track.id));
       const videoCandidates = (workflowState.videoCandidates || []).filter(
@@ -1066,6 +1215,9 @@ function realDaojieWorkflowExpression(
         agentWorkItems: agentWorkData.length,
          storyboards: storyboards.length,
          expectedStoryboards,
+         firstStoryboardId: firstStoryboard?.id || '',
+         firstStoryboardIndex: firstStoryboard?.index ?? null,
+         firstShotRevision,
          storyboardsWithMediaPath: storyboardsWithMediaPath.length,
          storyboardsWithWorkflow: storyboardsWithWorkflow.length,
          storyboardImageWorkflows: storyboardImageWorkflows.length,
@@ -1090,8 +1242,11 @@ function realDaojieWorkflowExpression(
         timelineArtifactPaths,
         hasCompleteTimelineArtifactPaths,
         hasCurrentTimelineEvidence,
+        storyboardsApproved: storyboards.filter((s) => s.visualReview?.status === 'approved').length,
+        storyboardsPending: storyboards.filter((s) => !s.visualReview || s.visualReview?.status !== 'approved').length,
+        storyboardsStale: storyboards.filter((s) => Boolean(s.stale)).length,
         firstFramePath: storyboards[0]?.mediaRef?.path || '',
-        finalVideoPath: videoCandidates.find((candidate) => String(candidate.filePath || '').includes('toonflow_workflow'))?.filePath || videoCandidates[0]?.filePath || '',
+        finalVideoPath: videoCandidates[0]?.filePath || '',
         hasSmokeTemplate: normalize(document.body).includes('Smoke 第一章') || chapter?.title?.includes('Smoke') || false,
       };
     };
@@ -1234,6 +1389,231 @@ function realDaojieWorkflowExpression(
         hasCompleteTimelineArtifactPaths: postAutoVideoData.hasCompleteTimelineArtifactPaths,
         hasCurrentTimelineEvidence: postAutoVideoData.hasCurrentTimelineEvidence,
         timedOut: Boolean(actionClick.clicked && !terminal),
+      };
+    };
+    const runFirstShotPreviewFlow = async () => {
+      if (!firstShotPreviewEnabled) return { enabled: false };
+      const workbenchClick = await clickStage({ id: 'workbench', label: '视频工作台' });
+      const sourceData = await inspectDaojieProjectData();
+      const startedAtMs = Date.now();
+      const downloadProgressEvents = [];
+      const unsubscribeDownload = window.remotionRuntime?.onDownloadProgress?.((progress) => {
+        downloadProgressEvents.push(progress);
+      });
+      let browserStatus = null;
+      let workspaceRuntime = null;
+      let preflightError = '';
+      try {
+        if (!window.remotionRuntime?.status || !window.remotionRuntime?.workspaceRuntime) {
+          throw new Error('Remotion runtime status/workspace bridge is unavailable');
+        }
+        browserStatus = await window.remotionRuntime.status();
+        workspaceRuntime = await window.remotionRuntime.workspaceRuntime();
+        if (browserStatus.state !== 'ready') {
+          throw new Error('Remotion Headless Shell is not ready: ' + browserStatus.state);
+        }
+        if (sourceData.firstStoryboardId !== expectedFirstStoryboardId
+          || sourceData.firstStoryboardIndex !== 1
+          || sourceData.firstShotRevision !== expectedFirstShotRevision) {
+          throw new Error('Daojie first storyboard identity changed after clone preflight');
+        }
+      } catch (error) {
+        preflightError = error instanceof Error ? error.message : String(error);
+      }
+
+      const matchesFirstShot = (target) => Boolean(
+        target
+        && target.kind === 'shot'
+        && target.chapterId === chapterId
+        && target.shotId === expectedFirstStoryboardId
+        && target.shotRevision === expectedFirstShotRevision,
+      );
+      const captureQueueState = async () => {
+        if (!window.remotionQueue?.get) {
+          return { scope: null, currentSlot: null, currentJob: null, terminalStatus: 'failed', error: 'Remotion queue get bridge is unavailable' };
+        }
+        const scope = await window.remotionQueue.get({ projectId, chapterId });
+        const currentSlot = (scope.currentShotSlots || []).find((slot) => matchesFirstShot(slot.target)) || null;
+        const currentJob = (scope.jobs || [])
+          .filter((job) => matchesFirstShot(job.target))
+          .sort((left, right) => Number(right.createdAt || 0) - Number(left.createdAt || 0))[0] || null;
+        const terminalStatus = currentSlot?.job?.status === 'succeeded'
+          ? 'succeeded'
+          : currentJob?.status === 'failed' || currentJob?.status === 'canceled'
+            ? currentJob.status
+            : currentJob?.status || '';
+        return {
+          scope: {
+            projectId: scope.projectId,
+            chapterId: scope.chapterId,
+            jobCount: (scope.jobs || []).length,
+            currentShotSlotCount: (scope.currentShotSlots || []).length,
+          },
+          currentSlot,
+          currentJob,
+          terminalStatus,
+          error: currentJob?.error?.message || '',
+        };
+      };
+
+      let actionClick = { clicked: false, text: '' };
+      let terminal = null;
+      try {
+        if (!preflightError) {
+          const actionNode = document.querySelector('[data-first-shot-preview-action]');
+          const actionText = actionNode ? normalize(actionNode) : '';
+          actionClick = {
+            clicked: actionText === '生成首镜横屏预览' && activate(actionNode),
+            text: actionText,
+          };
+          if (actionClick.clicked) {
+            terminal = await waitFor(async () => {
+              const queueState = await captureQueueState();
+              if (queueState.terminalStatus === 'succeeded'
+                || queueState.terminalStatus === 'failed'
+                || queueState.terminalStatus === 'canceled') {
+                return queueState;
+              }
+              return null;
+            }, firstShotPreviewTimeoutMs);
+          }
+        }
+        const finalQueueState = terminal || await captureQueueState();
+        const statusNode = document.querySelector('[data-first-shot-preview-status]');
+        const uiOutputPath = finalQueueState.terminalStatus === 'succeeded'
+          ? await waitFor(() => {
+              const outputNode = document.querySelector('[data-first-shot-preview-output]');
+              const outputText = outputNode ? normalize(outputNode) : '';
+              return outputText && outputText !== '正在定位输出文件…' ? outputText : null;
+            }, 10_000) || ''
+          : '';
+        return {
+          enabled: true,
+          stageClicked: Boolean(workbenchClick.clicked),
+          clicked: Boolean(actionClick.clicked),
+          clickedText: actionClick.text,
+          startedAtMs,
+          firstStoryboardId: sourceData.firstStoryboardId,
+          firstShotRevision: sourceData.firstShotRevision,
+          terminalStatus: finalQueueState.terminalStatus,
+          statusText: statusNode ? normalize(statusNode) : '',
+          timedOut: Boolean(actionClick.clicked && !terminal),
+          uiOutputPath,
+          browserStatus,
+          workspaceRuntime,
+          downloadProgressEvents,
+          queueScope: finalQueueState.scope,
+          currentSlot: finalQueueState.currentSlot,
+          error: preflightError || finalQueueState.error || '',
+        };
+      } finally {
+        unsubscribeDownload?.();
+      }
+    };
+    const runProductionCanvasVideoFlow = async () => {
+      if (!productionCanvasVideoEnabled) return { enabled: false };
+      const storyboardClick = await clickStage({ id: 'storyboard', label: '分镜视频生成' });
+      await visibleDelay();
+      const preClickData = await inspectDaojieProjectData();
+      const preClickReviewCounts = {
+        approved: preClickData.storyboardsApproved ?? 0,
+        pending: preClickData.storyboardsPending ?? 0,
+        stale: preClickData.storyboardsStale ?? 0,
+        total: preClickData.storyboards ?? 0,
+      };
+      const preClickQueue = await (async () => {
+        if (!window.remotionQueue?.get) return { jobCount: -1, error: 'queue unavailable' };
+        try {
+          const scope = await window.remotionQueue.get({ projectId, chapterId });
+          return { jobCount: (scope.jobs || []).length, currentSlotCount: (scope.currentShotSlots || []).length };
+        } catch (err) {
+          return { jobCount: -1, error: err instanceof Error ? err.message : String(err) };
+        }
+      })();
+      const downloadProgressEvents = [];
+      const unsubscribeDownload = window.remotionRuntime?.onDownloadProgress?.((progress) => {
+        downloadProgressEvents.push(progress);
+      });
+      let browserStatus = null;
+      let workspaceRuntime = null;
+      let preflightError = '';
+      try {
+        if (!window.remotionRuntime?.status || !window.remotionRuntime?.workspaceRuntime) {
+          throw new Error('Remotion runtime status/workspace bridge is unavailable');
+        }
+        browserStatus = await window.remotionRuntime.status();
+        workspaceRuntime = await window.remotionRuntime.workspaceRuntime();
+        if (browserStatus.state !== 'ready') {
+          throw new Error('Remotion Headless Shell is not ready: ' + browserStatus.state);
+        }
+      } catch (error) {
+        preflightError = error instanceof Error ? error.message : String(error);
+      }
+      const startedAtMs = Date.now();
+      const stageHistory = [];
+      let actionClick = { clicked: false, text: '' };
+      let terminal = null;
+      try {
+        if (!preflightError) {
+          const productionNode = document.querySelector('[data-flow-node-id="remotionProduction"]');
+          const actionButtons = productionNode
+            ? Array.from(productionNode.querySelectorAll('button'))
+            : [];
+          const targetButton = actionButtons.find((btn) => {
+            const text = normalize(btn);
+            return text === '生成当前章分镜视频';
+          });
+          actionClick = {
+            clicked: Boolean(targetButton && activate(targetButton)),
+            text: targetButton ? normalize(targetButton) : (actionButtons.map(normalize).join('|') || ''),
+          };
+          if (actionClick.clicked) {
+            terminal = await waitFor(() => {
+              const statusNode = document.querySelector('[data-auto-video-stage]');
+              const current = {
+                stage: statusNode?.getAttribute('data-auto-video-stage') || '',
+                statusText: statusNode ? normalize(statusNode) : '',
+              };
+              if (current.stage && current.stage !== (stageHistory[stageHistory.length - 1]?.stage || '')) {
+                stageHistory.push({ ...current, observedAt: new Date().toISOString() });
+                console.info('[visible-run] production-canvas stage ' + current.stage + ' ' + current.statusText);
+              }
+              return current.stage === 'completed' || current.stage === 'failed'
+                ? current
+                : null;
+            }, productionCanvasVideoTimeoutMs);
+          }
+        }
+      } finally {
+        unsubscribeDownload?.();
+      }
+      const finalStatus = terminal || { stage: preflightError ? 'preflight-failed' : '', statusText: preflightError };
+      const postClickQueue = await (async () => {
+        if (!window.remotionQueue?.get) return { jobCount: -1, error: 'queue unavailable' };
+        try {
+          const scope = await window.remotionQueue.get({ projectId, chapterId });
+          return { jobCount: (scope.jobs || []).length, currentSlotCount: (scope.currentShotSlots || []).length };
+        } catch (err) {
+          return { jobCount: -1, error: err instanceof Error ? err.message : String(err) };
+        }
+      })();
+      return {
+        enabled: true,
+        stageClicked: Boolean(storyboardClick.clicked),
+        clicked: Boolean(actionClick.clicked),
+        clickedText: actionClick.text,
+        startedAtMs,
+        preClickReviewCounts,
+        terminalStage: finalStatus.stage,
+        statusText: finalStatus.statusText,
+        timedOut: Boolean(actionClick.clicked && !terminal),
+        stageHistory,
+        browserStatus,
+        workspaceRuntime,
+        downloadProgressEvents,
+        preClickQueue,
+        postClickQueue,
+        preflightError,
       };
     };
     const openRealDaojieDerivativeImageWorkflowDetail = async () => {
@@ -1520,6 +1900,8 @@ function realDaojieWorkflowExpression(
         progress: 0,
         results: [],
         chapterAutoVideo: { enabled: autoVideoEnabled },
+        firstShotPreview: { enabled: firstShotPreviewEnabled },
+        productionCanvasVideo: { enabled: productionCanvasVideoEnabled },
         daojie,
         error: 'stage switcher was not visible',
         domEvidence,
@@ -1556,17 +1938,23 @@ function realDaojieWorkflowExpression(
     }
 
     const chapterAutoVideo = await runChapterAutoVideoFlow();
-    const stopAfterAutoVideo = autoVideoEnabled && (
+    const firstShotPreview = await runFirstShotPreviewFlow();
+    const productionCanvasVideo = await runProductionCanvasVideoFlow();
+    const stopAfterMediaAction = (autoVideoEnabled && (
       chapterAutoVideo.terminalStage !== 'completed'
       || chapterAutoVideo.timedOut
       || chapterAutoVideo.finalVideoEvidenceError
       || !chapterAutoVideo.finalVideoEvidence
-    );
-    const storyboardImageWorkflowDetail = stopAfterAutoVideo
-      ? { ready: false, skippedAfterAutoVideoFailure: true }
+    )) || (firstShotPreviewEnabled && (
+      firstShotPreview.terminalStatus !== 'succeeded'
+      || firstShotPreview.timedOut
+      || !firstShotPreview.currentSlot
+    ));
+    const storyboardImageWorkflowDetail = stopAfterMediaAction
+      ? { ready: false, skippedAfterMediaActionFailure: true }
       : await openRealDaojieStoryboardImageWorkflowDetail();
-    const derivativeImageWorkflowDetail = stopAfterAutoVideo
-      ? { ready: false, skippedAfterAutoVideoFailure: true }
+    const derivativeImageWorkflowDetail = stopAfterMediaAction
+      ? { ready: false, skippedAfterMediaActionFailure: true }
       : await openRealDaojieDerivativeImageWorkflowDetail();
     const daojie = await inspectDaojieProjectData();
     return {
@@ -1577,6 +1965,8 @@ function realDaojieWorkflowExpression(
       progress: results.filter((item) => item.ready).length / results.length * 100,
       results,
       chapterAutoVideo,
+      firstShotPreview,
+      productionCanvasVideo,
       storyboardImageWorkflowDetail,
       derivativeImageWorkflowDetail,
       daojie,
@@ -1644,13 +2034,18 @@ try {
     debugPort,
     runRealDaojie,
     runChapterAutoVideo,
+    runFirstShotPreview,
+    runProductionCanvasVideo,
     chapterAutoVideo: result.chapterAutoVideo,
+    firstShotPreview: result.firstShotPreview,
+    productionCanvasVideo: result.productionCanvasVideo,
     frontmostApp,
     windowVisibility: result.windowVisibility,
     documentHasFocus: result.documentHasFocus,
     focusSamples,
     foregroundViolation,
     cloneAssetReferenceRepairs: realDaojieRun?.assetReferenceRepairs || [],
+    remotionRuntimeReuse: realDaojieRun?.remotionRuntimeReuse || null,
     result,
     failedStages,
     runtimeProblems,
@@ -1662,6 +2057,7 @@ try {
     const storyboardPaletteImages = result.derivativeImageWorkflowDetail?.storyboardPaletteImages;
     const scopedDerivativePaletteAbsent = storyboardPaletteImages?.sectionFound === false;
     const chapterAutoVideo = result.chapterAutoVideo || { enabled: false };
+    const firstShotPreview = result.firstShotPreview || { enabled: false };
     const autoVideoAudit = runChapterAutoVideo
       ? {
           ...auditVisibleAutoVideo({ chapterAutoVideo, userDataDir }),
@@ -1681,6 +2077,52 @@ try {
               : "not-observed",
         };
     const autoVideoFailed = runChapterAutoVideo && !autoVideoAudit.ok;
+    const firstShotPreviewAudit = runFirstShotPreview
+      ? {
+          ...auditVisibleFirstShotPreview({
+            firstShotPreview,
+            userDataDir,
+            expected: {
+              projectId: realDaojieRun.projectId,
+              chapterId: realDaojieRun.chapterId,
+              shotId: realDaojieRun.firstStoryboardId,
+              shotRevision: realDaojieRun.firstShotRevision,
+            },
+          }),
+          mode: "strict",
+          required: true,
+        }
+      : {
+          ok: true,
+          expectedRoot: "",
+          expectedOutputPath: "",
+          actualSha256: "",
+          mediaProbe: null,
+          issues: [],
+          mode: "observation",
+          required: false,
+        };
+    const firstShotPreviewFailed = runFirstShotPreview && !firstShotPreviewAudit.ok;
+    const productionCanvasVideo = result.productionCanvasVideo || { enabled: false };
+    const productionCanvasVideoAudit = runProductionCanvasVideo
+      ? {
+          ...auditVisibleProductionCanvasVideo({
+            productionCanvasVideo,
+            expected: {
+              chapterId: realDaojieRun.chapterId,
+              expectedStoryboards: Number(realDaojieRun?.expectedStoryboards),
+            },
+          }),
+          mode: "strict",
+          required: true,
+        }
+      : {
+          ok: true,
+          issues: [],
+          mode: "observation",
+          required: false,
+        };
+    const productionCanvasVideoFailed = runProductionCanvasVideo && !productionCanvasVideoAudit.ok;
     const failed =
       !(expectedStoryboards > 0) ||
       result.source !== "real-daojie-chapter001-clone" ||
@@ -1709,13 +2151,19 @@ try {
       daojie.videoCandidates < 1 ||
       daojie.hasSmokeTemplate ||
       autoVideoFailed ||
-      focusFailure;
+      focusFailure ||
+      firstShotPreviewFailed ||
+      productionCanvasVideoFailed;
     writeVisibleRunReport({
       ...baseReport,
       source: result.source,
       ok: !failed,
       autoVideoFailed,
       autoVideoAudit,
+      firstShotPreviewFailed,
+      firstShotPreviewAudit,
+      productionCanvasVideoFailed,
+      productionCanvasVideoAudit,
       daojie: { ...daojie, expectedStoryboards },
     });
     if (failed) {
@@ -1724,7 +2172,7 @@ try {
     } else {
       runPassed = true;
       console.log(
-        `[${runMode}-run] Daojie chapter001 clicked through${runInBackground ? " in background" : " and left open"}: pid=${child.pid}, project=${daojie.projectName}, chapter=${daojie.chapterId}, storyboards=${daojie.storyboards}/${expectedStoryboards}, derivedAssets=${daojie.derivedAssets}, derivedImageWorkflows=${daojie.derivedImageWorkflowsReady}/${daojie.derivedImageWorkflows}, videoCandidates=${daojie.videoCandidates}, autoVideoStage=${chapterAutoVideo.terminalStage || "disabled"}, frontmostApp=${frontmostApp || "unchanged"}, userDataDir=${userDataDir}`,
+        `[${runMode}-run] Daojie chapter001 clicked through${runInBackground ? " in background" : " and left open"}: pid=${child.pid}, project=${daojie.projectName}, chapter=${daojie.chapterId}, storyboards=${daojie.storyboards}/${expectedStoryboards}, derivedAssets=${daojie.derivedAssets}, derivedImageWorkflows=${daojie.derivedImageWorkflowsReady}/${daojie.derivedImageWorkflows}, videoCandidates=${daojie.videoCandidates}, autoVideoStage=${chapterAutoVideo.terminalStage || "disabled"}, firstShotStatus=${firstShotPreview.terminalStatus || "disabled"}, frontmostApp=${frontmostApp || "unchanged"}, userDataDir=${userDataDir}`,
       );
     }
   } else if (
@@ -1771,6 +2219,7 @@ try {
       debugPort,
       runRealDaojie,
       runChapterAutoVideo,
+      runFirstShotPreview,
       windowVisibility: null,
       documentHasFocus: null,
       focusSamples,

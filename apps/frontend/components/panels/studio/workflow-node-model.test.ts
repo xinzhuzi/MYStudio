@@ -478,6 +478,7 @@ describe("production workflow node model", () => {
       expect.objectContaining({
         id: "enqueue-remotion-shots",
         label: "生成当前章分镜视频",
+        targetStage: "workbench",
         disabled: false,
       }),
     ]);
@@ -600,6 +601,7 @@ describe("production workflow node model", () => {
       expect.objectContaining({
         id: "enqueue-remotion-shots",
         label: "生成当前章分镜视频",
+        targetStage: "workbench",
         disabled: true,
       }),
     ]);

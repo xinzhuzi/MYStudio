@@ -77,6 +77,14 @@ describe("validateBundleManifest", () => {
     })).success).toBe(false);
   });
 
+  it.each([
+    ["duplicate", ["StoryboardShot", "ChapterVideo", "ChapterVideo"]],
+    ["missing", ["StoryboardShot", "ChapterVideo"]],
+    ["extra", ["StoryboardShot", "ChapterVideo", "DaojieTimeline", "Extra"]],
+  ])("rejects a %s composition registry", (_label, compositionIds) => {
+    expect(validateBundleManifest(validManifest({ compositionIds })).success).toBe(false);
+  });
+
   it("rejects a malformed contentHash", () => {
     const result = validateBundleManifest(validManifest({ contentHash: "short" }));
     expect(result.success).toBe(false);

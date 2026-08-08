@@ -71,6 +71,13 @@ export function useChapterAutoVideoActions({
       return;
     }
     const episodeId = productionEpisodeId;
+    const chapterIdentity = useStudioStore.getState().novelChapters.find(
+      (chapter) => chapter.id === episodeId,
+    );
+    const expectedIdentity = {
+      sourceId: chapterIdentity?.sourceId ?? episodeId,
+      revision: chapterIdentity?.revision ?? 1,
+    };
     const ttsCancellation = new ChapterTtsCancellationController();
     ttsCancellationRef.current = ttsCancellation;
 
@@ -78,6 +85,7 @@ export function useChapterAutoVideoActions({
       const result = await runChapterAutoVideo({
         projectId: activeProjectId,
         episodeId,
+        expectedIdentity,
         onStatus: setStatus,
         dependencies: {
           ensurePlanning: async () => {
@@ -142,6 +150,10 @@ export function useChapterAutoVideoActions({
               parsed.rows,
               episodeId,
               characters,
+              {
+                sourceId: store.novelChapters.find((chapter) => chapter.id === episodeId)?.sourceId ?? episodeId,
+                revision: store.novelChapters.find((chapter) => chapter.id === episodeId)?.revision ?? 1,
+              },
             );
             useStudioStore
               .getState()

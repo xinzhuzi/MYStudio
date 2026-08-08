@@ -395,3 +395,29 @@ Archived the completed local AC11 visual review slice with no-git mode. Added de
 ### Next Steps
 
 - None - task complete
+
+---
+
+## 2026-08-07 产物模块定位按钮 + 内容预览修复(续)
+
+### 根因(两个独立 bug)
+
+1. **内容预览崩溃 "无效的物理文件引用"**: `ref` 是 React 保留 prop 名。`<RefPreview ref={x}>` 时 React 把 x 绑到 `fiber.ref`(DOM ref 语义),不透传 props。函数组件 `function Comp({ref: physicalRef})` 收到 `physicalRef === undefined`。**修复**: prop 改名 `physicalRef`(`RefPreview.tsx` + 调用点 `artifact-detail/index.tsx`)。
+
+2. **定位按钮无效**: stale closure。`handleRevealRef` 闭包捕获组件作用域 `artifact`,按钮 onClick 是某次旧 render 的闭包,那次 `artifact` 为 null/空 → guard `!artifact?.projectId` 提前 return,IPC 从未发出。**修复**: `useRef` 持有最新 artifact,handler 读 `artifactRef.current` 而非闭包 artifact(`artifact-detail/index.tsx` L88-94, L103-107)。
+
+### 调试陷阱(重要,避免重蹈)
+
+- **contextBridge wrapper 陷阱**: `window.projectFiles`/`window.electronAPI` 是 preload `contextBridge.exposer` 暴露的**只读冻结代理**。在 renderer 里 `o[k] = wrappedFn` **不会真正修改它**(静默失败或不生效),导致 IPC 调用计数器永远为空,造成"handler 没调用 IPC"的**假象**。验证 IPC 是否真正执行,应改用:① 在 handler 内 `console.warn` 打每步 + 用 CDP `Runtime.consoleAPICalled` 捕获并 `JSON.stringify` 对象(CDP 默认把对象显示为 "Object" 丢内容);② 或在 main 进程侧 `ipcMain.handle` 加日志。
+- **CDP `consoleAPICalled` 对象丢内容**: 第二参数对象只显示 "Object"。需在 renderer 侧 patch `console.warn` 把对象 `JSON.stringify` 后存到 `window.__warns`,再读回。
+
+### 验证(已安装 app,真实数据 道劫/scenes.json)
+
+- 内容预览: CodeMirror 渲染 `{state:{scenes:[{name:"道口镇"...}`,无"无效的物理文件引用",无崩溃。
+- 定位按钮: `getAbsolutePath`→绝对路径,`showItemInFolder`→`{success:true}`(Finder 打开)。
+
+### 验证命令
+
+- 打包: `cd apps && npm run build:mac:install`(skill 脚本,打包+覆盖安装+smoke,非裸命令)
+- typecheck: `npm run typecheck`;lint: `npx eslint <file> --config frontend/config/eslint.cjs`
+- CDP 调试: `open -a "/Applications/漫影工作室.app" --args --remote-debugging-port=9361`

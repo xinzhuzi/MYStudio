@@ -6,6 +6,7 @@ import { MediaBridgeServer } from "@rendering/plugins/remotion/media-bridge/medi
 import { buildMediaUrlMap } from "@rendering/plugins/remotion/media-bridge/media-bridge-source-map";
 import { STORYBOARD_SHOT_COMPOSITION_ID } from "@rendering/plugins/remotion/composition/composition-id";
 import { validateStoryboardShotCompositionProps } from "@rendering/plugins/remotion/composition/composition-props-validation";
+import { assertBundleMatchesRuntime } from "@rendering/plugins/remotion/render/bundle-manifest";
 import { createRemotionEnsureBrowserAdapters, type RemotionEnsureBrowser } from "@rendering/plugins/remotion/browser/remotion-browser-worker-service";
 import { buildRemotionRuntimeManifest } from "@rendering/plugins/remotion/browser/remotion-runtime-manifest";
 import { validateRemotionShotPlan, projectStoryboardShotCompositionProps, type RemotionShotPlanV1 } from "@/lib/studio/remotion/shot-plan";
@@ -38,10 +39,10 @@ export async function runShotSmoke(): Promise<ShotSmokeReport> {
   await fs.promises.mkdir(outputRoot, { recursive: true });
   const assets = await createShotFixtureAssets(path.join(outputRoot, "assets"));
   const bundlePath = path.resolve(process.env.MYSTUDIO_REMOTION_BUNDLE || path.join(appsRoot, ".cache", "remotion-bundle"));
-  const manifest = JSON.parse(await fs.promises.readFile(path.join(bundlePath, "manifest.json"), "utf8")) as Record<string, unknown>;
-  if (manifest.remotionVersion !== remotionVersion || manifest.compositionIds instanceof Array === false || !manifest.compositionIds.includes(STORYBOARD_SHOT_COMPOSITION_ID)) {
-    throw new Error("StoryboardShot bundle manifest 与运行时不一致");
-  }
+  const manifest = assertBundleMatchesRuntime(
+    JSON.parse(await fs.promises.readFile(path.join(bundlePath, "manifest.json"), "utf8")),
+    remotionVersion,
+  );
   const runtimeDir = path.resolve(resolveRemotionRuntimeDir());
   await fs.promises.mkdir(runtimeDir, { recursive: true });
   await fs.promises.writeFile(

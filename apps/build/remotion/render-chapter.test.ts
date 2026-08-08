@@ -41,6 +41,8 @@ describe("runChapterSmoke lifecycle", () => {
     expect(source).toContain("audioWindows");
     expect(source).toContain("ffmpegPostProcess: false");
     expect(source).toContain("path.resolve(previousCwd, process.env.MYSTUDIO_REMOTION_CHAPTER_REPORT)");
+    expect(source).toContain("assertBundleMatchesRuntime");
+    expect(source).not.toContain("compositionIds.includes");
     expect(source).not.toContain("chapterAudioClipIds");
     expect(source).not.toContain("sharedAudioTracks");
   });
@@ -52,8 +54,12 @@ describe("runChapterSmoke lifecycle", () => {
     fs.writeFileSync(
       path.join(bundlePath, "manifest.json"),
       JSON.stringify({
+        schemaVersion: 2,
+        templateId: "mystudio-remotion-v1",
+        templateVersion: "1.0.0",
         remotionVersion: "4.0.499",
-        compositionIds: ["ChapterVideo"],
+        compositionIds: ["StoryboardShot", "ChapterVideo", "DaojieTimeline"],
+        compositionId: "DaojieTimeline",
         contentHash: "a".repeat(64),
       }),
       "utf8",

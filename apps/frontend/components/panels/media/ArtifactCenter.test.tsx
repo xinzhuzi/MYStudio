@@ -76,7 +76,7 @@ describe("ArtifactCenter", () => {
     render(
       <ArtifactCenter
         mockArtifacts={[artifact]}
-        mockProjects={[{ id: "project-1", name: "项目一", stages: [{ id: "storyboard", label: "分镜设计", count: 1 }] }]}
+        mockProjects={[{ id: "project-1", name: "项目一", stages: [{ id: "storyboard", label: "分镜视频生成", count: 1 }] }]}
       />,
     );
 
@@ -89,19 +89,20 @@ describe("ArtifactCenter", () => {
     // selection STATE (not just the label): the "删除当前章节" button is disabled
     // when no chapter is selected, so it being enabled proves the default-select
     // effect ran and set selectedChapterId.
-    expect(screen.getByText("第 chapter-001 章")).toBeTruthy();
+    expect(screen.getByText("第 1 章")).toBeTruthy();
     expect(screen.getByRole("button", { name: "删除当前章节" }).hasAttribute("disabled")).toBe(false);
 
-    // The FilterBar stage dropdown offers ONLY the 6 fixed stages (not all 13).
+    // The FilterBar stage dropdown offers ALL 13 artifact stages (FIXED_NAV_STAGES),
+    // so every workflow stage is filterable — including the previously-hidden
+    // middle stages (analysis/script/assets/voice/editing/remotion) and backup.
     const stageSelect = screen
       .getAllByRole("combobox")
       .find((select) => [...select.querySelectorAll("option")].some((opt) => (opt.textContent ?? "") === "所有阶段")) as HTMLSelectElement;
     const stageValues = [...stageSelect.querySelectorAll("option")].map((opt) => (opt as HTMLOptionElement).value);
-    expect(stageValues).toEqual(["all", "novel", "storyboard", "image", "production", "export", "media-library"]);
-    // The 7 non-fixed stages must NOT reappear in the dropdown.
-    for (const dropped of ["analysis", "script", "assets", "voice", "editing", "remotion", "backup"]) {
-      expect(stageValues).not.toContain(dropped);
-    }
+    expect(stageValues).toEqual([
+      "all", "novel", "analysis", "script", "assets", "storyboard", "image",
+      "voice", "production", "editing", "remotion", "export", "media-library", "backup",
+    ]);
 
     fireEvent.click(screen.getByRole("button", { name: "可交付物" }));
     expect(screen.getByTestId("media-library-view")).toBeTruthy();
@@ -134,7 +135,47 @@ describe("ArtifactCenter", () => {
     expect(screen.getByLabelText(`选择产物 ${unchaptered.name}`).hasAttribute("disabled")).toBe(false);
   });
 
-  it("opens a physical folder from the center table and shows its files", () => {
+  it("collapses backup-only artifacts into a 备份 bucket and beautifies chapter labels", () => {
+    // A backup-only artifact (every physicalRef is type "backup") must land in
+    // the synthetic "__backup__" bucket labelled "备份", NOT spawn its own
+    // "第 episode-1 章" / "第 smoke-chapter-1 章" category. This is the fix for
+    // stale ids leaking out of historical .bak-/.codex- backups. A live
+    // chapter-001 artifact in the same project must still render as "第 1 章"
+    // (digits extracted, "chapter-" prefix dropped).
+    const liveChapter: ArtifactRecord = {
+      ...artifact,
+      id: "storyboard:storyboard-item:live-001",
+      chapterId: "chapter-001",
+      physicalRefs: [{ type: "project-file", path: "workflow-images/chapter-001/live.png", bytes: 64 }],
+    };
+    const backupOnly: ArtifactRecord = {
+      ...artifact,
+      id: "storyboard:storyboard-item:ep1-from-backup",
+      chapterId: "episode-1",
+      physicalRefs: [{ type: "backup", path: "studio-workflow-store.json.codex-white-screen-test-backup", bytes: 32 }],
+    };
+    render(
+      <ArtifactCenter
+        mockArtifacts={[liveChapter, backupOnly]}
+        mockProjects={[{ id: "project-1", name: "项目一", stages: [{ id: "storyboard", label: "分镜视频生成", count: 2 }] }]}
+      />,
+    );
+
+    // Live chapter renders with extracted digits (chapter-001 → "第 1 章"),
+    // NOT the raw "第 chapter-001 章".
+    expect(screen.getByText("第 1 章")).toBeTruthy();
+    expect(screen.queryByText("第 chapter-001 章")).toBeNull();
+    // The stale backup id does NOT spawn its own chapter category.
+    expect(screen.queryByText("第 episode-1 章")).toBeNull();
+    // Backup-only artifact is collapsed into the synthetic 备份 bucket.
+    expect(screen.getByText("备份")).toBeTruthy();
+  });
+
+  it("flattens artifacts by stage instead of showing a folder tree", () => {
+    // The folder-navigation view was removed: artifacts are now flattened out
+    // of their physical directory tree and grouped under their 13 ArtifactStage
+    // headers in STAGE_LABELS order. No folder rows, no breadcrumb, no
+    // "返回上级目录" button — the directory is no longer a navigable dimension.
     const fileArtifact: ArtifactRecord = {
       ...artifact,
       id: "export:export-video:file-001",
@@ -156,43 +197,19 @@ describe("ArtifactCenter", () => {
       />,
     );
 
-    // Drill into the directory via the center-table folder row (the tree→file
-    // entry point was removed when the middle column became stages-only).
-    fireEvent.click(screen.getByText("exports"));
+    // The artifact is rendered flat under its stage header (the same label also
+    // appears in the left chapter tree, so matchAll), even though its
+    // physicalRef lives under exports/. Folder navigation is gone.
+    expect(screen.getAllByText("导出输出").length).toBeGreaterThan(0);
     expect(screen.getByText("shot.png")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "返回上级目录" })).toBeTruthy();
+    expect(screen.queryByText("exports")).toBeNull();
+    expect(screen.queryByRole("button", { name: "返回上级目录" })).toBeNull();
   });
 
-  it("keeps project folders visible and enterable when files have no artifact record", () => {
-    render(
-      <ArtifactCenter
-        mockArtifacts={[{ ...artifact, physicalRefs: [] }]}
-        mockProjects={[{
-          id: "project-1",
-          name: "项目一",
-          stages: [],
-          fileTree: [{
-            path: "unindexed",
-            name: "unindexed",
-            type: "directory",
-            children: [{ path: "unindexed/readme.txt", name: "readme.txt", type: "file" }],
-          }],
-        }]}
-      />,
-    );
-
-    expect(screen.getByText("unindexed")).toBeTruthy();
-    fireEvent.click(screen.getByText("unindexed"));
-    expect(screen.getByRole("button", { name: "unindexed" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "返回上级目录" })).toBeTruthy();
-  });
-
-  it("renders a trash button on folder and file rows that opens a deletion plan", () => {
-    // Folder node mirrors the real aggregated tree shape: the directory node
-    // holds NO artifactIds itself — they live on the leaf file node and are
-    // collected recursively by collectFileTreeArtifactIds. Cascading folder
-    // delete must therefore gather the subtree's artifactIds, not the (empty)
-    // folder-level list.
+  it("renders a trash button on every artifact row that opens a deletion plan", () => {
+    // Folder cascading delete was removed with the folder view; per-artifact
+    // delete remains on each row and routes to the deletion plan with the
+    // row's own artifactId.
     const inner: ArtifactRecord = {
       ...artifact,
       id: "export:export-video:inner-001",
@@ -225,21 +242,10 @@ describe("ArtifactCenter", () => {
       />,
     );
 
-    // Root folder row exposes a trash button whose aria-label announces the
-    // cascade ("及内部全部").
-    const folderTrash = screen.getByRole("button", { name: "删除文件夹 exports 及内部全部" });
-    expect(folderTrash).toBeTruthy();
-    fireEvent.click(folderTrash);
-    expect(planMock).toHaveBeenCalledWith(
-      expect.objectContaining({ scope: "artifacts", artifactIds: [inner.id], chapterId: "" }),
-    );
-
-    // Drill into the folder; the file row also exposes its own trash button.
-    fireEvent.click(screen.getByText("exports"));
-    fireEvent.click(screen.getByText("sub"));
+    // No folder trash button anymore — only the per-artifact row button.
+    expect(screen.queryByRole("button", { name: /删除文件夹/ })).toBeNull();
     const fileTrash = screen.getByRole("button", { name: "删除产物 inner.png" });
     expect(fileTrash).toBeTruthy();
-    planMock.mockClear();
     fireEvent.click(fileTrash);
     expect(planMock).toHaveBeenCalledWith(
       expect.objectContaining({ scope: "artifacts", artifactIds: [inner.id], chapterId: "" }),

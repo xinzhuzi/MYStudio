@@ -586,6 +586,15 @@ describe("pollTaskStatus contract", () => {
     await expect(pollTaskStatus("task-2", "sk-test", "https://api.test/v1")).rejects.toThrow("render failed");
   });
 
+  it("does not retry non-idempotent polling failures", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ error: "bad request" }), { status: 400 }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(pollTaskStatus("task-400", "sk-test", "https://api.test/v1")).rejects.toThrow("400");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it("times out after the bounded polling window", async () => {
     vi.useFakeTimers();
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({

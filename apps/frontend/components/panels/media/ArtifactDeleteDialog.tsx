@@ -5,7 +5,7 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { X, AlertTriangle, Trash2, Copy, ShieldAlert, Lock, HardDrive, FileWarning } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { DeletionPlan, PlanItem, BackupImpact } from "@/types/artifacts";
+import type { DeletionConfirmation, DeletionPlan, PlanItem, BackupImpact } from "@/types/artifacts";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -30,7 +30,7 @@ export interface ArtifactDeleteDialogProps {
   onClose: () => void;
 
   /** Callback when deletion is confirmed and executed */
-  onExecute: () => Promise<void>;
+  onExecute: (confirmation: DeletionConfirmation) => Promise<void>;
 
   /** Custom className for root element */
   className?: string;
@@ -120,7 +120,12 @@ export function ArtifactDeleteDialog({
 
     try {
       setIsExecuting(true);
-      await onExecute();
+      const confirmation: DeletionConfirmation = plan.confirmationRequired.type === "artifact-count"
+        ? { type: "artifacts", artifactCount: plan.confirmationRequired.count }
+        : plan.confirmationRequired.type === "chapter-title"
+          ? { type: "chapter", chapterTitle: confirmedText }
+          : { type: "chapter", chapterId: confirmedText };
+      await onExecute(confirmation);
       onClose();
     } finally {
       setIsExecuting(false);
@@ -151,10 +156,10 @@ export function ArtifactDeleteDialog({
         <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <AlertTriangle className="w-6 h-6 text-red-500" />
-            Delete Artifacts - {plan.scope === "chapter" ? "Chapter" : "Selected Items"}
+            确认删除产物 — {plan.scope === "chapter" ? "整章" : "选中项"}
           </DialogTitle>
           <DialogDescription>
-            这是永久删除操作。请核对下方完整清单后再输入精确确认值。
+            这是永久删除操作，不可撤销。请核对下方完整清单后再确认。
           </DialogDescription>
         </DialogHeader>
 
@@ -167,7 +172,7 @@ export function ArtifactDeleteDialog({
             {/* Delete Group */}
             {plan.deleteItems.length > 0 && (
               <DeletionGroup
-                title="To Be Deleted"
+                title="将删除"
                 items={plan.deleteItems}
                 stats={stats?.deleteStats}
                 icon={<Trash2 className="w-5 h-5" />}
@@ -178,36 +183,36 @@ export function ArtifactDeleteDialog({
             {/* Migrate Group */}
             {plan.migrateItems.length > 0 && (
               <DeletionGroup
-                title="To Be Migrated (Copied)"
+                title="将迁移（复制保留）"
                 items={plan.migrateItems}
                 stats={stats?.migrateStats}
                 icon={<Copy className="w-5 h-5" />}
                 color="yellow"
-                description="Protected assets will be copied to stable location before deletion"
+                description="受保护资产会先复制到稳定位置，再删除原文件"
               />
             )}
 
             {/* Retain Group */}
             {plan.retainItems.length > 0 && (
               <DeletionGroup
-                title="Retained (Shared References)"
+                title="保留（被其它产物共享）"
                 items={plan.retainItems}
                 stats={stats?.retainStats}
                 icon={<ShieldAlert className="w-5 h-5" />}
                 color="blue"
-                description="These items are shared with other artifacts and cannot be deleted"
+                description="这些产物被其它产物引用，不会删除"
               />
             )}
 
             {/* Blocker Group */}
             {plan.blockerItems.length > 0 && (
               <DeletionGroup
-                title="Blocked from Deletion"
+                title="无法删除（存在阻塞）"
                 items={plan.blockerItems}
                 stats={stats?.blockerStats}
                 icon={<Lock className="w-5 h-5" />}
                 color="orange"
-                description="These items have blockers preventing deletion"
+                description="这些产物有阻塞项，本次无法删除"
               />
             )}
 
@@ -239,14 +244,18 @@ export function ArtifactDeleteDialog({
 
           <div className="flex gap-2 ml-auto">
             <Button variant="outline" onClick={onClose}>
-              Cancel
+              取消
             </Button>
             <Button
               variant="destructive"
               onClick={handleExecute}
               disabled={!isConfirmationValid || isExecuting}
             >
-              {isExecuting ? "Executing..." : `Delete ${plan.confirmationRequired.count ?? "-"}`}
+              {isExecuting
+                ? "正在删除…"
+                : plan.confirmationRequired.type === "artifact-count" && typeof plan.confirmationRequired.count === "number"
+                  ? `确认删除（${plan.confirmationRequired.count} 项）`
+                  : "确认删除"}
             </Button>
           </div>
         </DialogFooter>
@@ -256,13 +265,22 @@ export function ArtifactDeleteDialog({
 }
 
 /**
- * Warning banner showing irreversible nature of deletion
+ * Warning banner showing irreversible nature of deletion. When the plan
+ * touches items that disturb the pipeline (migrate / retain / blocker), an
+ * extra highlighted notice reminds the user that downstream work may need to
+ * be regenerated in the workflow.
  */
 function WarningBanner({ plan }: { plan: DeletionPlan }) {
   const totalItems = plan.deleteItems.length + plan.migrateItems.length + plan.retainItems.length + plan.blockerItems.length;
 
+  // Items outside the "safe delete" group disturb the pipeline: migrating
+  // protected assets, retained shared references, or blocked items all imply
+  // downstream artifacts can break and may have to be remade.
+  const flowBreakingCount =
+    plan.migrateItems.length + plan.retainItems.length + plan.blockerItems.length;
+
   return (
-    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+    <div className="bg-red-50 border border-red-200 rounded-lg p-4 space-y-3">
       <div className="flex items-start gap-3">
         <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
         <div>
@@ -272,6 +290,19 @@ function WarningBanner({ plan }: { plan: DeletionPlan }) {
           </p>
         </div>
       </div>
+      {flowBreakingCount > 0 && (
+        <div className="flex items-start gap-3 bg-orange-100 border border-orange-300 rounded-md p-3">
+          <ShieldAlert className="w-5 h-5 text-orange-700 flex-shrink-0 mt-0.5" />
+          <div>
+            <h5 className="font-semibold text-orange-900">将影响整体流程</h5>
+            <p className="text-sm text-orange-800 mt-1">
+              其中有 <strong>{flowBreakingCount}</strong> 项被其它产物依赖或受保护:
+              删除后<strong>会破坏整体流程</strong>,你可能需要回到工作流中
+              <strong>重新制作</strong>相关的下游产物。请确认后再继续。
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -294,27 +325,23 @@ function DeletionGroup({
   color: "red" | "yellow" | "blue" | "orange";
   description?: string;
 }) {
-  const colorClasses = {
-    red: "border-red-200 bg-red-50",
-    yellow: "border-yellow-200 bg-yellow-50",
-    blue: "border-blue-200 bg-blue-50",
-    orange: "border-orange-200 bg-orange-50",
-  };
-
-  const badgeColors: Record<string, string> = {
-    delete: "bg-destructive text-destructive-foreground",
-    migrate: "bg-yellow-100 text-yellow-800",
-    retain: "bg-blue-100 text-blue-800",
-    blocker: "bg-orange-100 text-orange-800",
+  // Unified neutral container (white card + thin border) with a semantic
+  // accent only on the left edge and the heading icon. Keeps the dialog calm
+  // and consistent with the rest of the app instead of four saturated blocks.
+  const accentClasses = {
+    red: "border-l-red-500 [&_svg]:text-red-500",
+    yellow: "border-l-yellow-500 [&_svg]:text-yellow-600",
+    blue: "border-l-blue-500 [&_svg]:text-blue-500",
+    orange: "border-l-orange-500 [&_svg]:text-orange-500",
   };
 
   return (
-    <div className={cn("border rounded-lg p-4", colorClasses[color])}>
+    <div className={cn("border border-l-4 border-muted rounded-lg p-4 bg-card", accentClasses[color])}>
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           {icon}
           <h3 className="font-semibold text-gray-900">{title}</h3>
-          <Badge variant="secondary">{items.length} items</Badge>
+          <Badge variant="secondary">{items.length} 项</Badge>
           {stats && Object.values(stats).reduce((a, b) => a + b, 0) > 0 && (
             <Badge variant="outline">{formatBytes(Object.values(stats).reduce((a, b) => a + b, 0))}</Badge>
           )}
@@ -327,7 +354,7 @@ function DeletionGroup({
       {/* Summary by stage/kind */}
       {stats && Object.keys(stats).length > 0 && (
         <div className="mb-3">
-          <div className="text-xs text-gray-600 mb-2">Breakdown:</div>
+          <div className="text-xs text-gray-600 mb-2">分类统计：</div>
           <div className="flex flex-wrap gap-2">
             {Object.entries(stats).map(([category, count]) => (
               <Badge key={category} variant="outline" className="text-xs">
@@ -375,8 +402,8 @@ function BackupImpactSection({ impacts }: { impacts: BackupImpact[] }) {
     <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
       <div className="flex items-center gap-2 mb-3">
         <HardDrive className="w-5 h-5 text-gray-700" />
-        <h3 className="font-semibold text-gray-900">Backup Impact</h3>
-        <Badge variant="secondary">{impacts.length} file(s) affected</Badge>
+        <h3 className="font-semibold text-gray-900">历史备份影响</h3>
+        <Badge variant="secondary">影响 {impacts.length} 个文件</Badge>
       </div>
 
       <div className="space-y-2">
@@ -428,7 +455,7 @@ function ConfirmInput({
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder="Enter to confirm"
+        placeholder="输入确认值"
         className={cn(
           "flex-1",
           isValid ? "border-green-500 bg-green-50" : "border-red-500"
@@ -436,12 +463,12 @@ function ConfirmInput({
       />
       {!isValid && value.length > 0 && (
         <div className="text-xs text-red-600 mt-1">
-          Must match exactly: "{placeholder}"
+          必须完全一致："{placeholder}"
         </div>
       )}
       {isValid && (
         <div className="text-xs text-green-600 mt-1">
-          ✓ Confirmed
+          ✓ 已确认
         </div>
       )}
     </div>
@@ -455,7 +482,7 @@ function EmptyState() {
   return (
     <div className="text-center py-8">
       <FileWarning className="w-12 h-12 text-gray-400 mx-auto mb-2" />
-      <p className="text-gray-600">No artifacts found matching criteria</p>
+      <p className="text-gray-600">没有符合条件的产物</p>
     </div>
   );
 }
@@ -480,11 +507,11 @@ function groupByKindStage(items: PlanItem[]) {
 function getConfirmationLabel(conf: DeletionPlan["confirmationRequired"]): string {
   switch (conf.type) {
     case "chapter-title":
-      return "Type chapter title to confirm";
+      return "输入章节标题以确认";
     case "chapter-id":
-      return "Type chapter ID to confirm";
+      return "输入章节 ID 以确认";
     case "artifact-count":
-      return "Click delete to confirm";
+      return "点击「确认删除」即可";
     default:
       return "";
   }

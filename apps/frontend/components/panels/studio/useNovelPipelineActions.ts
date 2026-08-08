@@ -81,7 +81,10 @@ export function useNovelPipelineActions({
           if (!result.success || !result.text) {
             throw new Error(result.error || "事件分析失败");
           }
-          const analysis = parseNovelEventAnalysisLine(result.text);
+          const analysis = parseNovelEventAnalysisLine(result.text, {
+            sourceId: chapter.sourceId ?? chapter.id,
+            revision: chapter.revision ?? 1,
+          });
           updateNovelChapter(chapter.id, {
             eventTaskState: "success",
             eventAnalysis: analysis,
@@ -246,7 +249,12 @@ export function useNovelPipelineActions({
           },
           sinks,
         );
-        saveEntityExtraction(batch);
+        const chapterIdentity = store.novelChapters.find((chapter) => chapter.id === targetEpisodeId);
+        saveEntityExtraction({
+          ...batch,
+          sourceId: chapterIdentity?.sourceId ?? targetEpisodeId,
+          revision: chapterIdentity?.revision ?? 1,
+        });
 
         const detail = `角色 ${batch.characters.length} / 场景 ${batch.scenes.length} / 道具 ${batch.props.length}`;
         if (parsed.errors.length) {
