@@ -1,4 +1,4 @@
-import { AbsoluteFill, Sequence, useCurrentFrame } from "remotion";
+import { AbsoluteFill, OffthreadVideo, Sequence, useCurrentFrame } from "remotion";
 import { AudioClip } from "./AudioClip";
 import type {
   CompositionProps,
@@ -34,6 +34,7 @@ export function RemotionComposition(props: CompositionProps): React.ReactElement
           clips={props.visualClips}
         />
       ))}
+      <OverlayTrack clips={props.overlayClips ?? []} />
       {props.audioClips.length === 0
         ? <SilentAudioTrack durationInFrames={props.durationInFrames} />
         : props.audioClips.map((clip) => (
@@ -47,6 +48,27 @@ export function RemotionComposition(props: CompositionProps): React.ReactElement
           </Sequence>
         ))}
       <SubtitleTrack cues={props.subtitles} />
+    </AbsoluteFill>
+  );
+}
+
+function OverlayTrack({
+  clips,
+}: {
+  clips: NonNullable<CompositionProps["overlayClips"]>;
+}): React.ReactElement {
+  return (
+    <AbsoluteFill>
+      {clips.map((clip) => (
+        <Sequence
+          key={clip.clipId}
+          from={clip.from}
+          durationInFrames={clip.durationInFrames}
+          layout="none"
+        >
+          <OffthreadVideo src={clip.src} muted style={OVERLAY_STYLE} />
+        </Sequence>
+      ))}
     </AbsoluteFill>
   );
 }
@@ -114,3 +136,9 @@ function TransitionOverlayFrame({
     />
   );
 }
+
+const OVERLAY_STYLE: React.CSSProperties = {
+  width: "100%",
+  height: "100%",
+  objectFit: "contain",
+};

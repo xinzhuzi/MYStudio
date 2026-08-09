@@ -2,29 +2,26 @@
   "_format": "daojie-multichapter-mixed-json",
   "_version": "1.0.0",
   "_registeredIn": "DAO-2024-009",
-  "projectId": "fixture-proj-1785865646304",
-  "createdAt": "2026-08-04T17:47:26.313Z",
+  "projectId": "fixture-proj-redacted-1234567890",
+  "createdAt": "2024-08-15T10:30:00.000Z",
   "exportedBy": "system-autobackup",
   "projectEnvelope": {
-    "id": "fixture-proj-1785865646304",
+    "id": "fixture-proj-redacted-1234567890",
     "name": "Multi-Chapter Test Project",
     "version": "2.1.0",
-    "lastSaved": "2026-08-04T17:47:26.313Z",
+    "lastSaved": "2024-08-15T10:29:45.000Z",
     "stage": "production",
     "chapterCount": 2,
     "configSnapshot": {
       "renderingEngine": "ffmpeg-6.0",
-      "exportProfiles": [
-        "1080p-h264",
-        "4k-hevc"
-      ],
+      "exportProfiles": ["1080p-h264", "4k-hevc"],
       "ttsBackend": "local-sidecar-v3"
     }
   },
   "studio-store.json": {
-    "projectId": "fixture-proj-1785865646304",
-    "createdAt": "2026-08-04T17:47:26.313Z",
-    "updatedAt": "2026-08-04T17:47:26.313Z",
+    "projectId": "fixture-proj-redacted-1234567890",
+    "createdAt": "2024-08-15T08:00:00.000Z",
+    "updatedAt": "2024-08-15T10:29:45.000Z",
     "novelChapters": [
       {
         "id": "chapter-1",
@@ -33,14 +30,8 @@
         "status": "finalized",
         "chapterHash": "sha256:[REDACTED]",
         "assetReferences": [
-          {
-            "type": "character",
-            "refId": "char-shared-a1b2c3"
-          },
-          {
-            "type": "scene",
-            "refId": "scene-shared-d4e5f6"
-          }
+          { "type": "character", "refId": "char-shared-a1b2c3" },
+          { "type": "scene", "refId": "scene-shared-d4e5f6" }
         ]
       },
       {
@@ -50,14 +41,8 @@
         "status": "draft",
         "chapterHash": "sha256:[REDACTED]",
         "assetReferences": [
-          {
-            "type": "character",
-            "refId": "char-excl-g7h8i9"
-          },
-          {
-            "type": "prop",
-            "refId": "prop-shared-j0k1l2"
-          }
+          { "type": "character", "refId": "char-excl-g7h8i9" },
+          { "type": "prop", "refId": "prop-shared-j0k1l2" }
         ]
       }
     ],
@@ -83,10 +68,7 @@
         "metadata": {
           "wordCount": 3420,
           "paragraphCount": 12,
-          "themes": [
-            "discovery",
-            "transformation"
-          ]
+          "themes": ["discovery", "transformation"]
         }
       },
       "script_v2.json": {
@@ -108,10 +90,7 @@
       },
       "storyboard_v1.json": {
         "chapterId": "chapter-1",
-        "resolution": {
-          "width": 1920,
-          "height": 1080
-        },
+        "resolution": { "width": 1920, "height": 1080 },
         "panelCount": 16,
         "panelsSummary": [
           "panel-01-camera-wide",
@@ -134,10 +113,7 @@
         "metadata": {
           "wordCount": 4180,
           "paragraphCount": 15,
-          "themes": [
-            "confrontation",
-            "destiny"
-          ]
+          "themes": ["confrontation", "destiny"]
         }
       },
       "script_v2.json": {
@@ -158,10 +134,7 @@
       },
       "storyboard_v1.json": {
         "chapterId": "chapter-2",
-        "resolution": {
-          "width": 1920,
-          "height": 1080
-        },
+        "resolution": { "width": 1920, "height": 1080 },
         "panelCount": 22,
         "panelsSummary": [
           "panel-01-tension-build",
@@ -185,30 +158,24 @@
           {
             "id": "char-shared-a1b2c3",
             "displayName": "Protagonist-A",
-            "roles": [
-              "protagonist"
-            ],
+            "roles": ["protagonist"],
             "shared": true
           },
           {
             "id": "char-shared-b2c3d4",
             "displayName": "Supporter-B",
-            "roles": [
-              "supporting"
-            ],
+            "roles": ["supporting"],
             "shared": true
           },
           {
             "id": "char-excl-g7h8i9",
             "displayName": "Antagonist-C",
-            "roles": [
-              "antagonist"
-            ],
+            "roles": ["antagonist"],
             "exclusiveToChapter": 2
           }
         ],
         "metadata": {
-          "lastModified": "2026-08-04T17:47:26.313Z",
+          "lastModified": "2024-08-15T09:00:00.000Z",
           "compatibility": ">=1.5.0"
         }
       },
@@ -219,23 +186,17 @@
           {
             "id": "char-excl-g7h8i9",
             "displayName": "Antagonist-C",
-            "variants": [
-              "normal",
-              "battle-mode",
-              "defeated"
-            ]
+            "variants": ["normal", "battle-mode", "defeated"]
           },
           {
             "id": "char-excl-h8i9j0",
             "displayName": "Minion-D",
-            "roles": [
-              " minion"
-            ],
+            "roles": ["minion"],
             "chapterSpecific": 2
           }
         ],
         "metadata": {
-          "lastModified": "2026-08-04T17:47:26.313Z",
+          "lastModified": "2024-08-15T10:00:00.000Z",
           "dependencyOn": "chars-shared-v1"
         }
       }
@@ -248,18 +209,12 @@
           {
             "id": "scene-shared-d4e5f6",
             "displayName": "Ancient-Forest",
-            "categories": [
-              "nature",
-              "encounter"
-            ]
+            "categories": ["nature", "encounter"]
           },
           {
             "id": "scene-shared-e5f6g7",
             "displayName": "Castle-Ruins",
-            "categories": [
-              "architecture",
-              "climax"
-            ]
+            "categories": ["architecture", "climax"]
           }
         ],
         "metadata": {
@@ -276,18 +231,12 @@
           {
             "id": "prop-shared-j0k1l2",
             "displayName": "Magic-Totem",
-            "categories": [
-              "artifact",
-              "key-item"
-            ]
+            "categories": ["artifact", "key-item"]
           },
           {
             "id": "prop-shared-k1l2m3",
             "displayName": "Weathered-Sword",
-            "categories": [
-              "weapon",
-              "legacy"
-            ]
+            "categories": ["weapon", "legacy"]
           }
         ],
         "metadata": {
@@ -301,7 +250,7 @@
     "continuity_chapter1.json": {
       "chapterId": "chapter-1",
       "version": "1.0.0",
-      "validatedAt": "2026-08-04T17:47:26.313Z",
+      "validatedAt": "2024-08-15T09:30:00.000Z",
       "crossReferenceStatus": {
         "novelConsistency": "verified",
         "scriptAlignment": "verified",
@@ -311,19 +260,12 @@
         {
           "assetId": "char-shared-a1b2c3",
           "usageCount": 8,
-          "scenes": [
-            "sc-1-1",
-            "sc-1-3",
-            "sc-1-5"
-          ]
+          "scenes": ["sc-1-1", "sc-1-3", "sc-1-5"]
         },
         {
           "assetId": "scene-shared-d4e5f6",
           "usageCount": 4,
-          "scenes": [
-            "sc-1-1",
-            "sc-1-2"
-          ]
+          "scenes": ["sc-1-1", "sc-1-2"]
         }
       ],
       "notes": "[REDACTED]"
@@ -331,7 +273,7 @@
     "continuity_chapter2.json": {
       "chapterId": "chapter-2",
       "version": "1.0.0",
-      "validatedAt": "2026-08-04T17:47:26.313Z",
+      "validatedAt": "2024-08-15T10:15:00.000Z",
       "crossReferenceStatus": {
         "novelConsistency": "pending",
         "scriptAlignment": "verified",
@@ -341,19 +283,12 @@
         {
           "assetId": "char-excl-g7h8i9",
           "usageCount": 12,
-          "scenes": [
-            "sc-2-2",
-            "sc-2-5",
-            "sc-2-7"
-          ]
+          "scenes": ["sc-2-2", "sc-2-5", "sc-2-7"]
         },
         {
           "assetId": "prop-shared-j0k1l2",
           "usageCount": 3,
-          "scenes": [
-            "sc-2-1",
-            "sc-2-4"
-          ]
+          "scenes": ["sc-2-1", "sc-2-4"]
         }
       ],
       "notes": "[REDACTED]"
@@ -361,27 +296,22 @@
   },
   "exports": {
     "exports_manifest.json": {
-      "projectId": "fixture-proj-1785865646304",
+      "projectId": "fixture-proj-redacted-1234567890",
       "versions": [
         {
           "version": "v1.0.0",
-          "exportedAt": "2026-08-03T17:47:26.313Z",
+          "exportedAt": "2024-08-14T10:30:00.000Z",
           "format": "mp4-1080p",
           "outputRef": "output/v1.0.0/",
-          "chapters": [
-            "chapter-1"
-          ],
+          "chapters": ["chapter-1"],
           "checksum": "sha256:[REDACTED]"
         },
         {
           "version": "v1.1.0",
-          "exportedAt": "2026-08-04T05:47:26.313Z",
+          "exportedAt": "2024-08-15T10:00:00.000Z",
           "format": "mp4-1080p",
           "outputRef": "output/v1.1.0/",
-          "chapters": [
-            "chapter-1",
-            "chapter-2"
-          ],
+          "chapters": ["chapter-1", "chapter-2"],
           "checksum": "sha256:[REDACTED]"
         }
       ],
@@ -390,10 +320,7 @@
   },
   "legacyCompat": {
     "migrationToken": "migr-[REDACTED]",
-    "previousFormatVersions": [
-      "0.9.0",
-      "1.0.0-alpha"
-    ],
+    "previousFormatVersions": ["0.9.0", "1.0.0-alpha"],
     "legacyRefs": {
       "oldProjectId": "proj-legacy-[REDACTED]",
       "oldWorkspacePath": "/Volumes/OldDrive/[REDACTED]/"
@@ -407,7 +334,7 @@
     ]
   },
   "backupMeta": {
-    "backupId": "dc5f131e136890d2",
+    "backupId": "abcd1234efgh5678",
     "compressedSize": 524288,
     "uncompressedSize": 1572864,
     "compressionRatio": 0.33,
@@ -417,10 +344,6 @@
     },
     "storageLocation": "[REDACTED-PATH]",
     "retentionPolicy": "30days",
-    "tags": [
-      "auto-backup",
-      "multichapter",
-      "regression-test"
-    ]
+    "tags": ["auto-backup", "multichapter", "regression-test"]
   }
 }

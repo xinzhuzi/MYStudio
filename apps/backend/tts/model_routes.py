@@ -9,13 +9,27 @@ from pathlib import Path
 
 from .catalog import get_model
 from .engine import is_engine_loaded
-from .model_cache import download_hf_cache_dir, find_cached_model, repo_cache_dir
+from .model_cache import download_hf_cache_dir, find_cached_model, has_cached_repo_files, repo_cache_dir
+
+
+ALIGNMENT_MODEL_NAME = "whisper-large-v3-turbo"
+ALIGNMENT_TOKENIZER_REPO = "openai/whisper-large-v3-turbo"
+ALIGNMENT_TOKENIZER_FILES = ("tokenizer.json",)
 
 
 class ModelRoutesMixin:
     def model_status(self, model):
-        cached = find_cached_model(model)
+        configured_cache_dirs = [download_hf_cache_dir()] if (
+            os.environ.get("MANYING_TTS_MODELS_DIR") or os.environ.get("VOICEBOX_MODELS_DIR")
+        ) else None
+        cached = find_cached_model(model, cache_dirs=configured_cache_dirs)
         downloaded = cached is not None
+        if model.model_name == ALIGNMENT_MODEL_NAME:
+            downloaded = downloaded and has_cached_repo_files(
+                ALIGNMENT_TOKENIZER_REPO,
+                ALIGNMENT_TOKENIZER_FILES,
+                cache_dirs=[cached.cache_dir] if cached else None,
+            )
         size_mb = cached.size_mb if cached else None
         progress = self.state.get_progress(model.model_name)
         downloading = progress is not None and progress.get("status") == "downloading"
@@ -125,6 +139,11 @@ class ModelRoutesMixin:
                         snapshot_download(repo_id=model.hf_repo_id, cache_dir=cache_dir, endpoint="https://modelscope.cn")
                     except Exception:
                         snapshot_download(repo_id=model.hf_repo_id, cache_dir=cache_dir, endpoint="https://huggingface.co")
+                    if model_name == ALIGNMENT_MODEL_NAME:
+                        try:
+                            snapshot_download(repo_id=ALIGNMENT_TOKENIZER_REPO, cache_dir=cache_dir, endpoint="https://modelscope.cn")
+                        except Exception:
+                            snapshot_download(repo_id=ALIGNMENT_TOKENIZER_REPO, cache_dir=cache_dir, endpoint="https://huggingface.co")
                 finally:
                     stop_monitor.set()
             self.state.set_progress(

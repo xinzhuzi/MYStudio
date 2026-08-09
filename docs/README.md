@@ -86,7 +86,7 @@
 | [设置与 API 管理](./settings/API_SETTINGS_GUIDE.md) | 模型服务、模型映射、Agent 配置、渲染器选择、Headless Shell、图床和本地 TTS 服务说明 |
 | [API 管理操作手册](./settings/API_MANAGER_OPERATIONS.md) | 添加供应商、同步模型、测试模型、思考模式、模型映射和 Agent 绑定 |
 | [API 供应商字段与模型测试参考](./settings/API_PROVIDER_MODEL_TEST_REFERENCE.md) | 添加/编辑供应商字段、同步模型规则、模型测试范围、协议和错误说明 |
-| [Python 与本地 TTS 配置](./settings/PYTHON_TTS_SETUP.md) | 设置页手动配置 Python 3.12、本地 TTS 依赖、模型缓存和启动方式 |
+| [Python 与本地 TTS 配置](./settings/PYTHON_TTS_SETUP.md) | 区分开发 shell Python 与安装后设置页下载的 Python 3.12，说明本地 TTS 依赖、模型缓存和启动方式 |
 | [TTS 配置页](./settings/TTS_CONFIG_GUIDE.md) | 启动本地 TTS 后端、管理模型缓存、下载模型和创建声线 profile |
 | [高级选项](./settings/ADVANCED_OPTIONS_GUIDE.md) | 视觉连续性、断点续传、内容审核容错和多模型自动切换 |
 | [图床配置](./settings/IMAGE_HOST_CONFIG.md) | SCDN、ImgBB、Catbox、自定义图床和跨分镜图片上传配置 |
@@ -116,6 +116,8 @@
 | [小说到成片统一工作流计划](./融合/小说到成片·统一工作流计划.md) | 从小说导入到成片生产的完整产品链路 |
 | [数据模型与接口规范](./融合/数据模型与接口规范.md) | 工作流、资产、分镜、导出等核心数据结构 |
 | [部署打包与工程化手册](./融合/部署打包与工程化手册.md) | Electron 打包、安装、测试和工程化约束 |
+| [四个视频 Skill 与 MYStudio 融合研究](./融合/参考/四个视频Skill与MYStudio融合研究.md) | Remotion 主链、HyperFrames/video-use sidecar、Seedance Prompt Skill、两套 Python、共享 FFmpeg 与 UI-first 边界 |
+| [四个视频 Skill 版本更新与升级方案](./融合/参考/四个视频Skill与MYStudio版本更新与升级方案.md) | 四个组件的版本锁定、候选验证、UI/后台更新、证据、激活与回滚方案 |
 | [错误处理与测试策略](./融合/错误处理与测试策略.md) | 运行时错误、回归测试、打包 smoke 和故障处理 |
 | [工作流全链路追溯矩阵](./融合/MYStudio_Toonflow_工作流全链路追溯矩阵.md) | MYStudio / Toonflow 工作流节点、输入输出和验证证据追溯 |
 | [工作流缺口与分目标推进计划](./融合/MYStudio_Toonflow_工作流缺口与分目标推进计划.md) | 当前 Toonflow 对照缺口、未迁移能力和 Trellis 目标 |

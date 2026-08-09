@@ -350,5 +350,99 @@ const ZUSTAND_PROJECT_STATE_DECODER: MixedBackupDecoder = {
 };
 registerBackupDecoder(ZUSTAND_PROJECT_STATE_DECODER);
 
+/**
+ * Redacted Daojie multi-chapter backup shape used by the on-disk inventory
+ * regression fixture.  It is intentionally strict on the format marker so a
+ * normal project JSON file cannot be treated as a backup just because it has
+ * a similarly-shaped nested object.
+ */
+const DAOJIE_MULTICHAPTER_DECODER: MixedBackupDecoder = {
+  type: "mixed-backup",
+  formatName: "daojie-multichapter-mixed-json",
+  versionRange: [1, 1] as [number, number],
+  matches(raw): boolean {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return false;
+    const data = raw as Record<string, unknown>;
+    return data._format === "daojie-multichapter-mixed-json"
+      && typeof data.projectId === "string"
+      && Boolean(data.chapters && typeof data.chapters === "object" && !Array.isArray(data.chapters));
+  },
+  decode(raw) {
+    const data = raw as Record<string, any>;
+    const artifacts: MixedBackupArtifact[] = [];
+    const projectId = data.projectId as string;
+    const add = (chapterId: string | undefined, stage: string, value: unknown) => {
+      if (!value || typeof value !== "object") return;
+      artifacts.push({ projectId, chapterId, stage, data: value });
+    };
+
+    for (const [chapterId, entries] of Object.entries(data.chapters as Record<string, unknown>)) {
+      if (!entries || typeof entries !== "object") continue;
+      for (const [name, value] of Object.entries(entries as Record<string, unknown>)) {
+        const stage = /novel/i.test(name) ? "novel"
+          : /script/i.test(name) ? "script"
+            : /storyboard/i.test(name) ? "storyboard"
+              : "analysis";
+        add(chapterId, stage, value);
+      }
+    }
+
+    const studioStore = data["studio-store.json"];
+    if (studioStore && typeof studioStore === "object" && Array.isArray(studioStore.novelChapters)) {
+      for (const chapter of studioStore.novelChapters) {
+        const chapterId = chapter && typeof chapter.id === "string" ? chapter.id : undefined;
+        add(chapterId, "novel", chapter);
+      }
+    }
+
+    for (const [assetType, bundle] of Object.entries(data.assets ?? {})) {
+      if (!bundle || typeof bundle !== "object") continue;
+      for (const value of Object.values(bundle as Record<string, any>)) {
+        const records = Array.isArray(value?.[assetType === "chars" ? "characters" : assetType])
+          ? value[assetType === "chars" ? "characters" : assetType]
+          : [];
+        for (const record of records) {
+          const exclusive = record && typeof record.exclusiveToChapter === "number"
+            ? `chapter-${record.exclusiveToChapter}`
+            : undefined;
+          add(exclusive, "assets", { ...record, subtype: assetType === "chars" ? "character" : assetType.slice(0, -1) });
+        }
+      }
+    }
+
+    for (const value of Object.values(data.continuity ?? {})) {
+      const record = value && typeof value === "object" ? value as Record<string, any> : undefined;
+      add(typeof record?.chapterId === "string" ? record.chapterId : undefined, "analysis", value);
+    }
+
+    const versions = data.exports?.["exports_manifest.json"]?.versions;
+    if (Array.isArray(versions)) {
+      for (const version of versions) {
+        for (const chapterId of Array.isArray(version.chapters) ? version.chapters : []) {
+          if (typeof chapterId === "string") add(chapterId, "export", { ...version, chapters: [chapterId], chapterId });
+        }
+      }
+    }
+
+    return { artifacts, untouchedProjectionHash: cryptoHash(JSON.stringify(artifacts)) };
+  },
+  rewrite(raw, chapterId, artifactIds) {
+    const next = rewriteRecordTree(raw, chapterId, artifactIds) as Record<string, any>;
+    if (next.chapters && typeof next.chapters === "object") delete next.chapters[chapterId];
+    for (const [key, value] of Object.entries(next.continuity ?? {})) {
+      const record = value && typeof value === "object" ? value as Record<string, unknown> : undefined;
+      if (record?.chapterId === chapterId) delete next.continuity[key];
+    }
+    const versions = next.exports?.["exports_manifest.json"]?.versions;
+    if (Array.isArray(versions)) {
+      next.exports["exports_manifest.json"].versions = versions
+        .map((version: any) => ({ ...version, chapters: version.chapters?.filter((id: unknown) => id !== chapterId) }))
+        .filter((version: any) => version.chapters?.length !== 0);
+    }
+    return next;
+  },
+};
+registerBackupDecoder(DAOJIE_MULTICHAPTER_DECODER);
+
 // Export templates for regression tests and tooling
-export { LEGACY_SINGLECHAPTER_DECODER, MULTICHAPTER_STATE_DECODER };
+export { DAOJIE_MULTICHAPTER_DECODER, LEGACY_SINGLECHAPTER_DECODER, MULTICHAPTER_STATE_DECODER };

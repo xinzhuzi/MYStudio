@@ -64,6 +64,9 @@ function composition(): CompositionProps {
     subtitles: [
       { cueId: "cue", text: "字幕", from: 3, durationInFrames: 4 },
     ],
+    overlayClips: [
+      { clipId: "hyperframes-overlay", src: "http://127.0.0.1:1/t/overlay", from: 0, durationInFrames: 12 },
+    ],
   };
 }
 
@@ -74,14 +77,16 @@ describe("RemotionComposition", () => {
   });
 
   it("mounts visual, transition, audio and subtitle ranges on one frame grid", () => {
-    render(<RemotionComposition {...composition()} />);
+    const rendered = render(<RemotionComposition {...composition()} />);
     expect(sequenceLog.items).toEqual(expect.arrayContaining([
       { from: 0, durationInFrames: 10, layout: "none" },
       { from: 5, durationInFrames: 10, layout: "none" },
       { from: 5, durationInFrames: 5, layout: "none" },
       { from: 2, durationInFrames: 8, layout: "none" },
       { from: 3, durationInFrames: 4, layout: "none" },
+      { from: 0, durationInFrames: 12, layout: "none" },
     ]));
     expect(screen.getByText("字幕")).toBeTruthy();
+    expect(rendered.container.querySelector('video[src="http://127.0.0.1:1/t/overlay"]')).toBeTruthy();
   });
 });

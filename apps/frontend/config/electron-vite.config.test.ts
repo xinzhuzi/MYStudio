@@ -22,6 +22,8 @@ describe("Electron Vite Remotion entries", () => {
     expect(configSource).toContain("'frontend/electron/rendering/plugins/remotion/browser/remotion-browser-worker.ts'");
     expect(configSource).toContain("'remotion-render-worker': path.resolve(");
     expect(configSource).toContain("'frontend/electron/rendering/plugins/remotion/renderer/remotion-render-worker-entry.ts'");
+    expect(configSource).toContain("'hyperframes-worker': path.resolve(");
+    expect(configSource).toContain("'frontend/electron/rendering/plugins/hyperframes/hyperframes-worker.ts'");
     expect(configSource).toContain("entryFileNames: '[name].cjs'");
   });
 

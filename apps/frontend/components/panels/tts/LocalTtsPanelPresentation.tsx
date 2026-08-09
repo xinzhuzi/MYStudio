@@ -59,6 +59,7 @@ const runtimeSetupMessages: Record<NonNullable<TtsRuntimeStatus["setupStage"]>, 
   "extracting-python": "正在配置 Python 仓库",
   "installing-deps": "正在安装 TTS 依赖",
   "starting-backend": "本地 TTS 后端启动中",
+  "downloading-model": "正在准备 Whisper 对齐模型",
   ready: "本地 TTS 后端已就绪",
   failed: "本地 TTS 后端启动失败",
 };
@@ -71,7 +72,7 @@ export function RuntimeSetupProgress({
   starting: boolean;
 }) {
   const setupStage = status?.setupStage ?? "idle";
-  const active = starting || ["checking", "downloading-python", "extracting-python", "installing-deps", "starting-backend"].includes(setupStage);
+  const active = starting || ["checking", "downloading-python", "extracting-python", "installing-deps", "starting-backend", "downloading-model"].includes(setupStage);
   const failed = setupStage === "failed";
   if (!active && !failed) return null;
 

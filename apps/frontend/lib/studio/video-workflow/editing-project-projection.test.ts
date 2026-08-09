@@ -1,0 +1,89 @@
+import { describe, expect, it } from "vitest";
+import type { EditingProjectV1 } from "@/types/editing";
+import type { VideoUseChapterArtifactV1 } from "@rendering/contracts/video-workflow";
+import { projectVideoUseArtifactToEditingProject } from "./editing-project-projection";
+
+const hash = "a".repeat(64);
+
+function project(): EditingProjectV1 {
+  return {
+    schemaVersion: 1,
+    id: "editing-1",
+    projectId: "project-1",
+    episodeId: "chapter-1",
+    name: "chapter",
+    revision: 1,
+    sourceSnapshotHash: hash,
+    createdBy: "auto",
+    manuallyEdited: false,
+    stale: false,
+    renderSettings: { width: 1080, height: 1920, fps: 30, codec: "h264", subtitleMode: "burn-in", loudnessLufs: -14, truePeakDbtp: -1.5 },
+    tracks: [{ id: "video", kind: "video", name: "video", order: 0, clipIds: ["old-1"], muted: false, locked: false }],
+    clips: [{ id: "old-1", trackId: "video", name: "old", source: { kind: "storyboardVideo", path: "/tmp/old.mp4", evidence: { storyboardId: "shot-1" } }, startUs: 0, durationUs: 1_000_000, trimStartUs: 0, speed: 1, volume: 1, muted: false }],
+    transitions: [],
+    effects: [],
+    proposals: [],
+    createdAt: 1,
+    updatedAt: 1,
+  };
+}
+
+function artifact(mode: VideoUseChapterArtifactV1["mode"]): VideoUseChapterArtifactV1 {
+  return {
+    schemaVersion: 1,
+    projectId: "project-1",
+    chapterId: "chapter-1",
+    revision: 2,
+    mode,
+    stage: "ready",
+    status: "accepted",
+    timeUnit: "seconds",
+    timelineTimeUnit: "microseconds",
+    sourceSha256: hash,
+    audioSha256: hash,
+    textSha256: hash,
+    alignment: [],
+    edl: [
+      { shotId: "shot-1", sourcePath: "/tmp/shot-1.mp4", sourceInS: 0, sourceOutS: 1, timelineStartS: 0, durationS: 1 },
+      { shotId: "shot-2", sourcePath: "/tmp/shot-2.mp4", sourceInS: 0.1, sourceOutS: 1.6, timelineStartS: 1, durationS: 1.5 },
+    ],
+    subtitles: [{ cueId: "cue-1", shotId: "shot-1", text: "你好", startUs: 0, durationUs: 500_000, source: "alignment" }],
+    grade: { filter: "auto", parameters: {} },
+    overlaySlots: [{ slotId: "caption-1", startUs: 500_000, durationUs: 500_000 }],
+    preview: { path: "/tmp/preview.mp4", sha256: hash, subtitlesBurnedIn: true, durationS: 2.5 },
+    selfEval: { passed: true, score: 1, notes: [], evaluatedAt: 2 },
+    ...(mode === "flat-shot-mp4" ? { flatShotMp4Path: "/tmp/clean-flat.mp4" } : {}),
+    evidence: { inputSha256: hash, artifactSha256: "b".repeat(64), toolVersion: "video-use@test", acceptedAt: 2 },
+    review: { projectId: "project-1", chapterId: "chapter-1", revision: 2, artifactSha256: "b".repeat(64), reviewer: "user", decision: "accepted", timestamp: 3 },
+  };
+}
+
+describe("video-use to EditingProject projection", () => {
+  it("projects editable EDL into TimelineTimeUs and advances the editing revision", () => {
+    const result = projectVideoUseArtifactToEditingProject({ project: project(), artifact: artifact("editable-edl"), now: 10 });
+    expect(result).toMatchObject({ success: true, project: { revision: 2 } });
+    if (!result.success) return;
+    expect(result.project.tracks[0]?.clipIds).toHaveLength(2);
+    expect(result.project.clips.filter((clip) => clip.trackId === "video")).toHaveLength(2);
+    expect(result.project.clips.find((clip) => clip.source.evidence.storyboardId === "shot-2")).toMatchObject({ startUs: 1_000_000, durationUs: 1_500_000, trimStartUs: 100_000 });
+    expect(result.artifactRefs.subtitleCues).toHaveLength(1);
+  });
+
+  it("uses clean flat MP4 as the only visual clip and keeps subtitle/overlay metadata separate", () => {
+    const result = projectVideoUseArtifactToEditingProject({ project: project(), artifact: artifact("flat-shot-mp4"), now: 10 });
+    expect(result).toMatchObject({ success: true, project: { revision: 2 } });
+    if (!result.success) return;
+    const visuals = result.project.clips.filter((clip) => clip.trackId === "video");
+    expect(visuals).toHaveLength(1);
+    expect(visuals[0]?.source.path).toBe("/tmp/clean-flat.mp4");
+    expect(result.project.clips.some((clip) => clip.trackId.includes("subtitle") || clip.trackId.includes("overlay"))).toBe(false);
+    expect(result.artifactRefs.subtitleCues).toHaveLength(1);
+    expect(result.artifactRefs.overlaySlots).toHaveLength(1);
+  });
+
+  it("blocks stale artifact revisions", () => {
+    const stale = artifact("editable-edl");
+    stale.revision = 1;
+    expect(projectVideoUseArtifactToEditingProject({ project: project(), artifact: stale, now: 10 })).toMatchObject({ success: false, issues: [{ path: "revision" }] });
+  });
+});

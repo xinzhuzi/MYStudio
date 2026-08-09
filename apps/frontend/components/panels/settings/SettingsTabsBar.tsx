@@ -21,7 +21,7 @@ export const SETTINGS_TABS = [
   { value: "advanced", label: "高级选项" },
   { value: "imagehost", label: "图床配置" },
   { value: "storage", label: "存储" },
-  { value: "rendering", label: "渲染" },
+  { value: "rendering", label: "视频工作流插件" },
   { value: "development", label: "开发" },
   { value: "support", label: "请作者喝杯咖啡" },
 ] as const;

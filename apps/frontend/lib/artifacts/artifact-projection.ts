@@ -411,9 +411,7 @@ export function projectTTSVoiceLines(
       const mappedChapterIds = legacySceneOwnership?.get(line.sceneId) ?? [];
       const mappedChapterId = mappedChapterIds.length === 1 && exactScriptScene
         ? mappedChapterIds[0]
-        : chapterId && mappedChapterIds.length === 0 && exactScriptScene
-          ? chapterId
-          : undefined;
+        : undefined;
       const ownedChapterId = line.chapterId ?? mappedChapterId;
       return {
         id: artId,
@@ -810,6 +808,7 @@ export function projectAllFromStores(
   const artifacts: ArtifactRecord[] = [];
   const legacyMappings: LegacyMappingResult[] = [];
   const scriptData = "scriptData" in scriptState ? scriptState.scriptData : scriptState;
+  const legacyTtsSceneOwnership = buildLegacyTtsSceneOwnership(scriptData.episodes, scriptData.scenes);
   const remotionSnapshot = Array.isArray(remotionState)
     ? {
         jobs: remotionState.map((job) => ({
@@ -857,7 +856,13 @@ export function projectAllFromStores(
   artifacts.push(...projectStoryboards(studioState.storyboards, projectId, chapterId));
   artifacts.push(...projectProductionTracks(studioState.productionTracks, projectId, chapterId));
   artifacts.push(...projectVideoCandidates(studioState.videoCandidates, projectId, chapterId));
-  artifacts.push(...projectTTSVoiceLines(ttsVoiceLines, projectId, chapterId));
+  artifacts.push(...projectTTSVoiceLines(
+    ttsVoiceLines,
+    projectId,
+    chapterId,
+    scriptData.scenes,
+    legacyTtsSceneOwnership,
+  ));
   artifacts.push(...projectEditingProjects(Object.values(editingState.editingProjects), projectId, chapterId));
   artifacts.push(...projectEditingRuns(Object.values(editingState.autoEditingRuns), projectId, chapterId));
   artifacts.push(...projectEditingRenders(
@@ -885,14 +890,31 @@ export function projectAllFromStores(
   const prps = libraryProps ?? [];
   artifacts.push(...projectBaseAssets(chars, scns, prps, projectId, chapterId));
 
-  // Check for TTS legacy numeric sceneId ambiguity
-  const ambiguousTTS = ttsVoiceLines.filter((l) => !l.chapterId);
-  if (ambiguousTTS.length > 0 && chapterId) {
+  // Check for TTS legacy numeric sceneId mappings.  Only exact script-graph
+  // ownership is resolved; zero/multiple matches remain fail-closed blockers.
+  const legacyTTS = ttsVoiceLines.filter((line) => !line.chapterId);
+  const resolvedLegacyTTS = legacyTTS.filter((line) => {
+    const matches = legacyTtsSceneOwnership.get(line.sceneId) ?? [];
+    return matches.length === 1;
+  });
+  const blockedLegacyTTS = legacyTTS.filter((line) => {
+    const matches = legacyTtsSceneOwnership.get(line.sceneId) ?? [];
+    return matches.length !== 1;
+  });
+  if (resolvedLegacyTTS.length > 0) {
+    legacyMappings.push({
+      rule: "numeric-tts-sceneid",
+      status: "resolved",
+      input: { count: resolvedLegacyTTS.length, sampleIds: resolvedLegacyTTS.slice(0, 3).map((line) => line.sceneId) },
+      reason: "Resolved by exact numeric ScriptScene.id and unique Episode.sceneIds ownership",
+    });
+  }
+  if (blockedLegacyTTS.length > 0) {
     legacyMappings.push({
       rule: "numeric-tts-sceneid",
       status: "blocked",
-      input: { count: ambiguousTTS.length, sampleIds: ambiguousTTS.slice(0, 3).map(l => l.sceneId) },
-      reason: "Ambiguous numeric sceneId cannot be uniquely mapped to chapter without script scene graph",
+      input: { count: blockedLegacyTTS.length, sampleIds: blockedLegacyTTS.slice(0, 3).map((line) => line.sceneId) },
+      reason: "Numeric sceneId has no unique exact ScriptScene/Episode ownership mapping",
     });
   }
 

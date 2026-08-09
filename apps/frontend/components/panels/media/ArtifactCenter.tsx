@@ -348,7 +348,6 @@ export function ArtifactCenter({
   }, [activeProjectId, mockArtifacts, startScan, finishScan, setScanError]);
 
   useEffect(() => {
-    console.log("[ArtifactCenter] Starting inventory refresh...");
     void refreshInventory();
   }, [refreshInventory]);
 
@@ -358,12 +357,6 @@ export function ArtifactCenter({
 
   // Filter and sort artifacts
   const filteredArtifacts = useMemo(() => {
-    console.log("[ArtifactCenter] Computing filtered artifacts...");
-    console.log("  - Source artifacts count:", artifacts.length);
-    console.log("  - Selected chapter:", selectedChapterId);
-    console.log("  - Stage filter:", stageFilter);
-    console.log("  - State filter:", stateFilter);
-
     let result = [...artifacts];
 
     // Chapter filter. Must mirror how the left chapter column is grouped
@@ -413,7 +406,6 @@ export function ArtifactCenter({
       return 0;
     });
 
-    console.log("  - Filtered result:", result.length, "artifacts");
     return result;
   }, [artifacts, selectedChapterId, stageFilter, stateFilter, sortBy, sortOrder]);
 
@@ -658,10 +650,8 @@ export function ArtifactCenter({
   }, [activeProjectId, refreshInventory]);
 
   // Delete a folder and ALL artifacts inside it (cascade through the subtree).
-  // The file tree is aggregated from artifact physicalRefs, so a folder maps to
-  // the full set of artifactIds under it via collectFileTreeArtifactIds. Files
-  // are physically moved to the system Trash (shell.trashItem) by the backend,
-  // not permanently deleted — recoverable from Finder/Recycle Bin.
+  // Batch deletion is chapter-scoped: a directory spanning multiple chapters
+  // must be split into independent plans instead of silently widening scope.
   const openDirectoryDelete = useCallback(async (folder: FileTreeNode) => {
     if (!activeProjectId) return;
     const cascadeIds = [...new Set(collectFileTreeArtifactIds(folder))];
@@ -669,9 +659,19 @@ export function ArtifactCenter({
       toast.error("该文件夹没有可删除的产物");
       return;
     }
+    const chapterIds = new Set(
+      cascadeIds
+        .map((id) => artifacts.find((artifact) => artifact.id === id))
+        .map((artifact) => artifact ? inferChapterId(artifact) ?? NONE_BUCKET_ID : NONE_BUCKET_ID),
+    );
+    if (chapterIds.size > 1) {
+      toast.error("批量删除必须限定在同一章节，请按章节分别确认");
+      return;
+    }
+    const chapterId = [...chapterIds][0] === NONE_BUCKET_ID ? "" : [...chapterIds][0];
     const result = await createArtifactDeletionPlan({
       projectId: activeProjectId,
-      chapterId: "",
+      chapterId,
       scope: "artifacts",
       artifactIds: cascadeIds,
     });
@@ -681,9 +681,9 @@ export function ArtifactCenter({
     }
     setDeletePlan(result.data);
     setDeleteOpen(true);
-  }, [activeProjectId]);
+  }, [activeProjectId, artifacts]);
 
-  // Delete a single file's artifact (move physical file to Trash via backend).
+  // Delete a single file's artifact through the reviewed deletion plan.
   const openFileDelete = useCallback(async (artifact: ArtifactRecord) => {
     if (!activeProjectId) return;
     const result = await createArtifactDeletionPlan({
@@ -713,6 +713,15 @@ export function ArtifactCenter({
 
   const openSelectedDelete = useCallback(async () => {
     if (!activeProjectId || !selectedChapterId || selectedIds.size === 0) return;
+    const selectedChapterIds = new Set(
+      [...selectedIds]
+        .map((id) => artifacts.find((artifact) => artifact.id === id))
+        .map((artifact) => artifact ? inferChapterId(artifact) ?? NONE_BUCKET_ID : NONE_BUCKET_ID),
+    );
+    if (selectedChapterIds.size > 1) {
+      toast.error("批量删除必须限定在同一章节，请先取消跨章节选择");
+      return;
+    }
     // "__none__" is the UI-only synthetic bucket for ungrouped/project-level
     // artifacts (ChapterTree.tsx). It is NOT a real chapter id — passing it as
     // chapterId makes buildDeletionPlan reject the plan ("outside chapter
@@ -732,7 +741,7 @@ export function ArtifactCenter({
     }
     setDeletePlan(result.data);
     setDeleteOpen(true);
-  }, [activeProjectId, selectedChapterId, selectedIds]);
+  }, [activeProjectId, artifacts, selectedChapterId, selectedIds]);
 
   const toggleArtifactSelection = useCallback((artifactId: string, checked: boolean) => {
     if (!selectedChapterId) return;
@@ -753,7 +762,6 @@ export function ArtifactCenter({
   }, [deletePlan, refreshInventory]);
 
   const handleTabChange = (tab: string) => {
-    console.log("[ArtifactCenter] Tab changed:", tab);
     setCurrentTab(tab as 'workflow' | 'media-library');
     if (tab !== "workflow") setSelectedIds(new Set());
     onTabChange?.(tab as 'workflow' | 'media-library');
@@ -917,16 +925,16 @@ export function ArtifactCenter({
             </ResizablePanel>
           </ResizablePanelGroup>
 
-            {/* Right Detail Panel */}
+            {/* Right Detail Panel:ArtifactDetailPanel 内部是 Radix Dialog(Portal),
+                渲染到 document.body,不占文档流宽度。去掉原 aside(w-80)包裹,
+                避免选中产物时表格被挤、右侧露出 320px 深色条。 */}
             {getDetailArtifact() && (
-              <aside className="w-80 border-l bg-panel overflow-y-auto">
-                <ArtifactDetailPanel
-                  artifact={getDetailArtifact()}
-                  isOpen={!!getDetailArtifact()}
-                  onClose={handleCloseDetail}
-                  onMetadataUpdate={handleMetadataUpdate}
-                />
-              </aside>
+              <ArtifactDetailPanel
+                artifact={getDetailArtifact()}
+                isOpen={!!getDetailArtifact()}
+                onClose={handleCloseDetail}
+                onMetadataUpdate={handleMetadataUpdate}
+              />
             )}
           </div>
         </TabsContent>

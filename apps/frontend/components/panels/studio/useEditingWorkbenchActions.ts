@@ -3,11 +3,18 @@ import { toast } from "sonner";
 import {
   buildChapterEditingProject,
 } from "@/lib/studio/editing/chapter-editing-pipeline";
+import { buildVideoWorkflowChapterRunRequest } from "@/lib/studio/video-workflow/chapter-run-request";
+import { projectVideoUseArtifactToEditingProject } from "@/lib/studio/video-workflow/editing-project-projection";
 import { useEditingStore } from "@/stores/editing/editing-store";
 import { useProjectStore } from "@/stores/project/project-store";
 import type { EditingProjectV1 } from "@/types/editing";
 import type { ScriptPlan, StoryboardItem } from "@/types/studio";
 import type { RemotionCurrentSlotV1 } from "@/types/remotion-workspace";
+import type {
+  VideoWorkflowChapterRunReplyV1,
+  VideoWorkflowChapterApplyReplyV1,
+} from "@rendering/contracts/video-workflow-ipc";
+import type { VideoUseDerivedInputPolicy } from "@rendering/contracts/video-workflow";
 
 export interface UseEditingWorkbenchActionsInput {
   projectId?: string;
@@ -41,12 +48,43 @@ export function useEditingWorkbenchActions(
   );
   const [drafting, setDrafting] = useState(false);
   const [error, setError] = useState<string>();
+  const [videoUseState, setVideoUseState] = useState<"idle" | "pending" | "accepted" | "blocked">("idle");
+  const [videoUseRevision, setVideoUseRevision] = useState<number>();
+  const [videoUseInputSha, setVideoUseInputSha] = useState<string>();
+  const [videoUseBusy, setVideoUseBusy] = useState(false);
+  const [applying, setApplying] = useState(false);
+  const [hyperFramesState, setHyperFramesState] = useState<"idle" | "accepted" | "noop" | "blocked">("idle");
 
   useEffect(() => {
     useEditingStore.getState().setActiveProjectId(input.projectId ?? null);
   }, [input.projectId]);
 
-  const createDraft = useCallback(async (): Promise<EditingProjectV1> => {
+  useEffect(() => {
+    const bridge = typeof window !== "undefined" ? window.videoWorkflowPlugins : undefined;
+    if (!input.projectId || !input.episodeId || !bridge?.readChapter) {
+      setVideoUseState("idle"); setVideoUseRevision(undefined); setVideoUseInputSha(undefined); setHyperFramesState("idle"); return;
+    }
+    let cancelled = false;
+    void bridge.readChapter({ schemaVersion: 1, projectId: input.projectId, chapterId: input.episodeId }).then((status) => {
+      if (cancelled) return;
+      setVideoUseState(status.videoUseState);
+      setHyperFramesState(status.hyperFramesState);
+      setVideoUseRevision(status.revision);
+      setVideoUseInputSha(status.inputSha256);
+      setError(status.videoUseState === "blocked" ? status.message ?? "视频工作流 artifact 恢复被阻塞" : undefined);
+    }).catch((caught) => {
+      if (!cancelled) {
+        setVideoUseState("blocked");
+        setHyperFramesState("blocked");
+        setVideoUseRevision(undefined);
+        setVideoUseInputSha(undefined);
+        setError(errorMessage(caught));
+      }
+    });
+    return () => { cancelled = true; };
+  }, [input.projectId, input.episodeId]);
+
+  const createDraft = useCallback(async (options: { preserveVideoWorkflowState?: boolean } = {}): Promise<EditingProjectV1> => {
     const projectId = input.projectId;
     if (!projectId) throw new Error("请先选择项目再准备 Remotion 章节工作台");
     if (!input.episodeId) throw new Error("当前工作流缺少章节 ID");
@@ -89,6 +127,12 @@ export function useEditingWorkbenchActions(
         now(),
       );
       if (!committed.success) throw new Error(committed.issue.message);
+      if (!options.preserveVideoWorkflowState) {
+        setVideoUseState("idle");
+        setVideoUseRevision(undefined);
+        setVideoUseInputSha(undefined);
+        setHyperFramesState("idle");
+      }
       toast.success(result.result.reusedExistingDraft ? "已打开当前章节 Remotion 工程" : "当前章节 Remotion 工程已准备");
       return useEditingStore.getState().editingProjects[committed.editingProjectId]
         ?? result.result.project;
@@ -102,11 +146,127 @@ export function useEditingWorkbenchActions(
     }
   }, [input]);
 
+  const runVideoUse = useCallback(async (
+    mode: "editable-edl" | "flat-shot-mp4" = "editable-edl",
+    derivedInputPolicy: VideoUseDerivedInputPolicy = "reject",
+  ): Promise<VideoWorkflowChapterRunReplyV1> => {
+    const projectId = input.projectId;
+    const project = useEditingStore.getState().getCurrentEditingProject(input.episodeId);
+    const bridge = typeof window !== "undefined" ? window.videoWorkflowPlugins : undefined;
+    if (!projectId) throw new Error("请先选择项目再运行 video-use");
+    if (!bridge?.runChapter) throw new Error("当前环境未接入 video-use 章节 bridge");
+    assertProjectActive(projectId);
+    const revision = (project?.revision ?? 1) + 1;
+    setVideoUseBusy(true);
+    setError(undefined);
+    try {
+      const request = await buildVideoWorkflowChapterRunRequest({
+        projectId,
+        chapterId: input.episodeId,
+        revision,
+        mode,
+        derivedInputPolicy,
+        storyboards: input.storyboards,
+        remotionShotSlots: input.remotionShotSlots ?? [],
+      });
+      const reply = await bridge.runChapter(request);
+      if (!reply.success || !reply.artifact) {
+        setVideoUseState("blocked");
+        const message = reply.message ?? "video-use 章节执行被阻塞";
+        setError(message);
+        throw new Error(message);
+      }
+      setVideoUseRevision(reply.revision);
+      setVideoUseInputSha(reply.artifact.evidence.inputSha256);
+      // A worker result is still awaiting human review. The accepted state is
+      // reserved for the post-review HyperFrames application below.
+      setVideoUseState("pending");
+      setHyperFramesState("idle");
+      return reply;
+    } catch (caught) {
+      const message = errorMessage(caught);
+      setVideoUseState("blocked");
+      setError(message);
+      throw caught;
+    } finally {
+      setVideoUseBusy(false);
+    }
+  }, [input]);
+
+  const applyVideoWorkflow = useCallback(async (): Promise<VideoWorkflowChapterApplyReplyV1> => {
+    const projectId = input.projectId;
+    const bridge = typeof window !== "undefined" ? window.videoWorkflowPlugins : undefined;
+    if (!projectId || !videoUseRevision || !videoUseInputSha) throw new Error("请先完成 video-use preview 并确认当前 revision");
+    if (!bridge?.applyChapter) throw new Error("当前环境未接入 HyperFrames 应用 bridge");
+    assertProjectActive(projectId);
+    setApplying(true);
+    // The review sidecar is accepted before this callback runs. Keep that
+    // state visible when HyperFrames/projection fails so the UI exposes a
+    // retry action instead of asking the user to re-run the whole chapter.
+    setVideoUseState("accepted");
+    setError(undefined);
+    try {
+      // The first EditingProject is created only after the review sidecar is
+      // accepted, so video-use remains the first executable chapter stage.
+      const project = useEditingStore.getState().getCurrentEditingProject(input.episodeId)
+        ?? await createDraft({ preserveVideoWorkflowState: true });
+      const reply = await bridge.applyChapter({
+        schemaVersion: 1,
+        projectId,
+        chapterId: input.episodeId,
+        revision: videoUseRevision,
+        inputSha256: videoUseInputSha,
+        width: project.renderSettings.width,
+        height: project.renderSettings.height,
+        fps: project.renderSettings.fps,
+        alphaFormat: "prores-4444-mov",
+      });
+      if (!reply.success || !reply.videoUseArtifact || !reply.hyperFramesArtifact) {
+        setHyperFramesState("blocked");
+        const message = reply.message ?? "HyperFrames overlay/no-op 应用被阻塞";
+        setError(message);
+        throw new Error(message);
+      }
+      const projected = projectVideoUseArtifactToEditingProject({ project, artifact: reply.videoUseArtifact, now: Date.now() });
+      if (!projected.success) {
+        const message = projected.issues.map((issue) => `${issue.path}: ${issue.message}`).join("；");
+        setError(message);
+        throw new Error(message);
+      }
+      assertProjectActive(projectId);
+      const saved = useEditingStore.getState().saveEditingProject(projected.project);
+      if (!saved.success) {
+        const message = saved.issue.message;
+        setError(message);
+        throw new Error(message);
+      }
+      setVideoUseState("accepted");
+      setHyperFramesState(reply.hyperFramesArtifact.status === "noop" ? "noop" : "accepted");
+      setError(undefined);
+      toast.success(reply.hyperFramesArtifact.status === "noop" ? "video-use 已应用；HyperFrames 记录 no-op" : "video-use 与 HyperFrames 已应用到章节工程");
+      return reply;
+    } catch (caught) {
+      const message = errorMessage(caught);
+      setError(message);
+      throw caught;
+    } finally {
+      setApplying(false);
+    }
+  }, [createDraft, input, videoUseInputSha, videoUseRevision]);
+
   return {
     currentProject,
     drafting,
     error,
     createDraft,
+    runVideoUse,
+    applyVideoWorkflow,
+    videoUseBusy,
+    applying,
+    videoUseState,
+    videoUseRevision,
+    videoUseInputSha,
+    hyperFramesState,
   };
 }
 

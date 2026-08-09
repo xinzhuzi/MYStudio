@@ -11,6 +11,9 @@ import {
   Hash,
   Tag,
   Link as LinkIcon,
+  Archive,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ArtifactRecord, PhysicalRef } from "@/types/artifacts";
@@ -19,6 +22,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -66,14 +70,17 @@ export function ArtifactDetailPanel({
   const [selectedRef, setSelectedRef] = useState<PhysicalRef | null>(null);
 
   // Reset tab + selection whenever the displayed artifact changes. Default to
-  // the first physical ref so the content-preview tab has something to render
-  // without requiring the user to pick from the physical-files tab first.
-  // Skip refs without a usable path so we never hand an invalid object to
-  // RefPreview (which would degrade gracefully, but better to not select it).
+  // the first live physical ref so the content-preview tab has something to
+  // render without requiring the user to pick from the physical-files tab
+  // first. Skip backup refs (historical snapshots are not previewable) and refs
+  // without a usable path so we never hand an invalid object to RefPreview
+  // (which would degrade gracefully, but better to not select it).
   useEffect(() => {
     setActiveTab("metadata");
     const firstValid =
-      artifact?.physicalRefs?.find((r) => r && typeof r.path === "string") ?? null;
+      artifact?.physicalRefs?.find(
+        (r) => r && r.type !== "backup" && typeof r.path === "string",
+      ) ?? null;
     setSelectedRef(firstValid);
   }, [artifact?.id, artifact?.physicalRefs]);
 
@@ -131,7 +138,27 @@ export function ArtifactDetailPanel({
   // each ref is a row with its full path, a copy button, and a "reveal in
   // folder" action. The type-grouped view was removed per the artifact
   // management simplification (only show what is actually on disk locally).
+  //
+  // Backup refs (ref.type === "backup") are historical snapshots decoded from
+  // store/backup files by the inventory merge — they are real files on disk and
+  // we keep them for provenance tracing, but a single live artifact can carry
+  // dozens of them (e.g. ~60 backup copies of the same mp4 across snapshots),
+  // which floods the list. We split them out and collapse them behind a toggle
+  // so the main list only shows the files the user actually cares about, while
+  // the backup history remains accessible (display-only, not deleted).
   const flatRefs = useMemo(() => artifact?.physicalRefs ?? [], [artifact?.physicalRefs]);
+  const liveRefs = useMemo(
+    () => flatRefs.filter((ref) => ref.type !== "backup"),
+    [flatRefs],
+  );
+  const backupRefs = useMemo(
+    () => flatRefs.filter((ref) => ref.type === "backup"),
+    [flatRefs],
+  );
+
+  // Whether the collapsed historical-backup section is expanded on the
+  // 「物理文件」tab. Default collapsed so the list stays uncluttered.
+  const [showBackups, setShowBackups] = useState(false);
 
   if (!isOpen || !artifact) {
     return null;
@@ -147,6 +174,12 @@ export function ArtifactDetailPanel({
             <FileText className="h-5 w-5 text-primary" />
             {artifact.name}
           </DialogTitle>
+          {/* Provide an accessible description so Radix DialogContent doesn't
+              warn about missing Description/aria-describedby. Visually hidden:
+              screen readers announce it, sighted users see the tabs below. */}
+          <DialogDescription className="sr-only">
+            产物详情:查看元数据、物理文件、依赖关系与内容预览。
+          </DialogDescription>
         </DialogHeader>
 
         <ScrollArea className="max-h-[calc(90vh-120px)]">
@@ -329,7 +362,7 @@ export function ArtifactDetailPanel({
             {/* Physical Files Tab */}
             <TabsContent value="physical">
               <div className="space-y-2">
-                {flatRefs.map((ref) => (
+                {liveRefs.map((ref) => (
                   <div
                     key={`${ref.type}:${ref.path}`}
                     className="flex items-center gap-2 text-xs bg-muted/40 p-2 rounded hover:bg-muted/80 transition-colors group"
@@ -364,9 +397,84 @@ export function ArtifactDetailPanel({
                   </div>
                 ))}
 
-                {flatRefs.length === 0 && (
+                {/*
+                  Live list empty state. Only show "暂无物理文件引用" when there
+                  are neither live nor backup refs; if live is empty but backups
+                  exist, the collapsed backup row below still renders so the user
+                  sees there is history to expand.
+                */}
+                {liveRefs.length === 0 && backupRefs.length === 0 && (
                   <div className="text-center text-muted-foreground py-8">
                     暂无物理文件引用
+                  </div>
+                )}
+
+                {/*
+                  Collapsed historical-backup section. Backup refs are inventory-
+                  merged historical snapshots (store/backup files); they are real
+                  files kept for provenance, but collapsed by default to avoid
+                  flooding the list (a live artifact can carry ~60 backup copies
+                  of the same file). Display-only: copy path + reveal-in-folder.
+                */}
+                {backupRefs.length > 0 && (
+                  <div className="rounded border border-dashed border-muted-foreground/30">
+                    <button
+                      type="button"
+                      className="flex w-full items-center gap-2 px-2 py-1.5 text-xs text-muted-foreground hover:bg-muted/60 rounded"
+                      onClick={() => setShowBackups((prev) => !prev)}
+                      aria-expanded={showBackups}
+                    >
+                      {showBackups ? (
+                        <ChevronDown className="h-3.5 w-3.5 shrink-0" />
+                      ) : (
+                        <ChevronRight className="h-3.5 w-3.5 shrink-0" />
+                      )}
+                      <Archive className="h-3.5 w-3.5 shrink-0" />
+                      <span>历史备份 ×{backupRefs.length}</span>
+                      <span className="ml-auto text-[10px]">
+                        {showBackups ? "收起" : "展开"}
+                      </span>
+                    </button>
+                    {showBackups &&
+                      backupRefs.map((ref) => (
+                        <div
+                          key={`${ref.type}:${ref.path}`}
+                          className="flex items-center gap-2 text-xs bg-muted/20 px-2 py-1.5 border-t border-dashed border-muted-foreground/20 group"
+                        >
+                          <Archive className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" />
+                          <code
+                            className="flex-1 break-all text-muted-foreground"
+                            title={ref.path}
+                          >
+                            {ref.path}
+                          </code>
+                          {ref.bytes != null && ref.bytes > 0 && (
+                            <span className="shrink-0 text-muted-foreground/70">
+                              ({formatBytes(ref.bytes)})
+                            </span>
+                          )}
+                          <button
+                            type="button"
+                            className="shrink-0 inline-flex items-center gap-1 px-2 py-1 bg-background border rounded hover:bg-muted"
+                            title="复制完整路径"
+                            onClick={() => {
+                              void navigator.clipboard?.writeText(ref.path);
+                            }}
+                          >
+                            <Copy className="h-3 w-3" />复制
+                          </button>
+                          <button
+                            type="button"
+                            className="shrink-0 inline-flex items-center gap-1 px-2 py-1 bg-background border rounded hover:bg-muted"
+                            title="在文件夹中显示（备份为快照文件）"
+                            onClick={() => {
+                              void handleRevealRef(ref);
+                            }}
+                          >
+                            <FolderOpen className="h-3 w-3" />定位
+                          </button>
+                        </div>
+                      ))}
                   </div>
                 )}
               </div>
@@ -426,7 +534,9 @@ export function ArtifactDetailPanel({
 
             {/* Content Preview Tab */}
             <TabsContent value="preview">
-              {artifact.physicalRefs.length === 0 || !artifact.projectId ? (
+              {/* Backup refs are historical snapshots and cannot be previewed —
+                  only live refs are eligible for the preview dropdown. */}
+              {liveRefs.length === 0 || !artifact.projectId ? (
                 <div className="flex h-40 items-center justify-center text-center text-muted-foreground">
                   <p className="text-sm">暂无物理文件可预览。</p>
                 </div>
@@ -437,13 +547,13 @@ export function ArtifactDetailPanel({
                     className="w-full text-xs bg-background border rounded px-2 py-1.5"
                     value={selectedRef?.path ? `${selectedRef.type}:${selectedRef.path}` : ""}
                     onChange={(e) => {
-                      const next = artifact.physicalRefs.find(
+                      const next = liveRefs.find(
                         (r) => `${r.type}:${r.path}` === e.target.value,
                       );
                       setSelectedRef(next ?? null);
                     }}
                   >
-                    {artifact.physicalRefs.map((ref) => (
+                    {liveRefs.map((ref) => (
                       <option key={`${ref.type}:${ref.path}`} value={`${ref.type}:${ref.path}`}>
                         {ref.path}
                       </option>

@@ -1822,7 +1822,14 @@ describe("workflow stage action surfaces", () => {
     );
 
     expect(screen.getByText("原生 Remotion Studio 章节工作台")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "准备当前章" })).toBeTruthy();
+    const preview = screen.getByRole("region", { name: "video-use 章节执行" });
+    expect(preview.hasAttribute("data-video-use-preview")).toBe(true);
+    expect(preview.getAttribute("data-video-use-status")).toBe("idle");
+    expect(preview.getAttribute("data-video-use-mode")).toBe("editable-edl");
+    expect(preview.getAttribute("data-video-use-derived-input-policy")).toBe("reject");
+    expect(screen.getByRole("button", { name: "运行 video-use 预览" }).hasAttribute("data-video-use-run")).toBe(true);
+    expect(preview.querySelector("[data-video-use-input-sha]")?.getAttribute("data-video-use-input-sha")).toBe("");
+    expect(preview.querySelector("[data-hyperframes-status]")?.getAttribute("data-hyperframes-status")).toBe("idle");
     expect(screen.queryByText("ffmpeg-local")).toBeNull();
     expect(screen.queryByRole("button", { name: "旧拼接导出" })).toBeNull();
   });
@@ -1836,7 +1843,10 @@ describe("workflow stage action surfaces", () => {
       />,
     );
 
-    expect(screen.getByRole("region", { name: "Remotion 章节工作台准备" })).toBeTruthy();
+    const handoff = screen.getByRole("region", { name: "Remotion 章节工作台准备" });
+    expect(handoff.hasAttribute("data-remotion-handoff")).toBe(true);
+    expect(handoff.getAttribute("data-remotion-host-readiness")).toBe("blocked");
+    expect(handoff.getAttribute("data-remotion-current-slot-ready")).toBe("false");
     expect(screen.queryByRole("button", { name: "打开渲染设置" })).toBeNull();
   });
 
@@ -1865,6 +1875,9 @@ describe("workflow stage action surfaces", () => {
     expect(screen.getByRole("region", { name: "分镜音频操作" })).toBeTruthy();
     expect(screen.getByText("TTS 缺失 · SFX 未引用 · revision 1")).toBeTruthy();
     expect(screen.getByRole("button", { name: "导入 SFX" }).hasAttribute("disabled")).toBe(true);
+    const slot = document.querySelector("[data-storyboard-shot-current-slot]");
+    expect(slot?.getAttribute("data-storyboard-shot-id")).toBe("shot-1");
+    expect(slot?.getAttribute("data-storyboard-shot-slot-status")).toBe("missing");
     expect(screen.queryByText("时间线")).toBeNull();
   });
 
@@ -1916,7 +1929,7 @@ describe("workflow stage action surfaces", () => {
       />,
     );
 
-    expect(screen.getByRole("button", { name: "准备当前章" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "运行 video-use 预览" })).toBeTruthy();
     expect(screen.queryByText("ffmpeg-local")).toBeNull();
     expect(screen.queryByText("track-candidate")).toBeNull();
     expect(screen.queryByRole("button", { name: /生成视频/ })).toBeNull();
@@ -2026,6 +2039,6 @@ describe("workflow stage action surfaces", () => {
 
     expect(screen.queryByRole("button", { name: "旧拼接导出" })).toBeNull();
     expect(screen.queryByRole("button", { name: "一键成片" })).toBeNull();
-    expect(screen.getByRole("button", { name: "准备当前章" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "运行 video-use 预览" })).toBeTruthy();
   });
 });

@@ -46,6 +46,11 @@ import {
   verifyRemotionAudioBindingSource,
   verifyRemotionProjectFileSource,
 } from "../manifest/remotion-audio-source-verification";
+import type {
+  HyperFramesOverlayWindowV1,
+  RemotionChapterGateInputV1,
+  RemotionChapterGateResult,
+} from "@rendering/contracts/video-workflow";
 
 const execFileAsync = promisify(execFile);
 
@@ -64,6 +69,7 @@ export interface RemotionChapterRendererOptions {
   fork: RemotionRenderUtilityOptions["fork"];
   emitProgress: (progress: { jobId: string; stage: string; ratio: number; message?: string }) => void;
   probeMedia?: (filePath: string) => Promise<RemotionChapterProbe>;
+  videoWorkflowGate?: (input: RemotionChapterGateInputV1) => Promise<RemotionChapterGateResult> | RemotionChapterGateResult;
 }
 
 export interface RemotionChapterRenderRequest {
@@ -236,6 +242,33 @@ export class RemotionChapterRenderer {
         error: "chapter manifest、voice intervals 或 shot evidence 已变化，render identity 失效",
       };
     }
+    let videoWorkflowGateResult: RemotionChapterGateResult | undefined;
+    if (this.options.videoWorkflowGate) {
+      try {
+        const gate = await this.options.videoWorkflowGate({
+          projectId: identity.projectId,
+          chapterId: identity.target.chapterId,
+          revision: identity.target.editingRevision,
+          inputSha256: identity.inputHash,
+        });
+        if (!gate.accepted) {
+          return {
+            success: false,
+            jobId: input.expectedJobId ?? jobId,
+            canceled: false,
+            error: `视频工作流章节 gate blocked: ${gate.code} ${gate.message}`,
+          };
+        }
+        videoWorkflowGateResult = gate;
+      } catch (error) {
+        return {
+          success: false,
+          jobId: input.expectedJobId ?? jobId,
+          canceled: false,
+          error: `视频工作流章节 gate 检查失败: ${error instanceof Error ? error.message : String(error)}`,
+        };
+      }
+    }
     const workspaceRoot = this.options.workspaceRootForProject?.(identity.projectId) ?? this.options.workspaceRoot;
     const publicationId = crypto.randomUUID();
     const stagingDir = path.join(workspaceRoot, "staging", publicationId);
@@ -270,6 +303,26 @@ export class RemotionChapterRenderer {
         await assertReadableFile(sourcePath, binding.bindingId);
         mediaSources.push({ clipId: mediaId, absolutePath: sourcePath });
       }
+      let hyperFramesOverlay: { src: string; windows: readonly HyperFramesOverlayWindowV1[] } | undefined;
+      if (videoWorkflowGateResult?.accepted && videoWorkflowGateResult.hyperFramesOutputPath) {
+        if (videoWorkflowGateResult.hyperFramesAlphaFormat === "png-sequence") {
+          throw new Error("ChapterVideo 暂不支持 PNG sequence overlay；请改用 ProRes 4444 MOV 或 WebM alpha");
+        }
+        await assertReadableFile(videoWorkflowGateResult.hyperFramesOutputPath, "hyperframes-overlay");
+        const actualSha256 = await hashFile(videoWorkflowGateResult.hyperFramesOutputPath);
+        if (videoWorkflowGateResult.hyperFramesOutputSha256
+          && actualSha256 !== videoWorkflowGateResult.hyperFramesOutputSha256) {
+          throw new Error("HyperFrames overlay 输出 SHA-256 已漂移");
+        }
+        mediaSources.push({
+          clipId: "hyperframes-overlay",
+          absolutePath: videoWorkflowGateResult.hyperFramesOutputPath,
+        });
+        hyperFramesOverlay = {
+          src: "",
+          windows: videoWorkflowGateResult.hyperFramesWindows ?? [],
+        };
+      }
       const mediaUrlByClipId = buildMediaUrlMap(this.mediaBridge, session, mediaSources);
       const mediaUrlByBindingId = Object.fromEntries(
         chapterManifest.sharedAudioBindings.map((binding) => [
@@ -283,6 +336,9 @@ export class RemotionChapterRenderer {
         chapterManifest,
         mediaUrlByClipId,
         mediaUrlByBindingId,
+        ...(hyperFramesOverlay
+          ? { hyperFramesOverlay: { ...hyperFramesOverlay, src: mediaUrlByClipId["hyperframes-overlay"] ?? "" } }
+          : {}),
       });
       if (!projected.success) throw new Error(projected.issues.map((issue) => `${issue.path}: ${issue.message}`).join("；"));
       const render = await this.utility.render({

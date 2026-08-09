@@ -426,7 +426,10 @@ describe('ai worker protocol harness', () => {
 
     await dispatch(workerSelf, generateScreenplayCommand(22, 'bad screenplay'));
 
-    expect(consoleError).toHaveBeenCalledWith('[AI Worker] Screenplay API error:', 500, { message: 'provider boom' });
+    expect(consoleError).toHaveBeenCalledWith(
+      '[AI Worker] Screenplay generation error:',
+      expect.objectContaining({ message: 'provider boom' }),
+    );
     expect(eventsOfType(workerSelf, 'SCREENPLAY_ERROR')).toEqual([
       expect.objectContaining({
         runId: 22,
@@ -634,13 +637,14 @@ describe('ai worker protocol harness', () => {
   });
 
   it('reports non-mock screenplay image failures as retryable scene failures', async () => {
+    vi.useFakeTimers();
     const workerSelf = await loadWorker();
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
-    const fetchMock = vi.fn().mockRejectedValueOnce(new Error('network down'));
+    const fetchMock = vi.fn().mockRejectedValue(new Error('network down'));
     vi.stubGlobal('fetch', fetchMock);
     const screenplay = screenplayWithScenes('non-mock-failure', [sceneFixture(1)]);
 
-    await dispatch(workerSelf, {
+    const turn = dispatch(workerSelf, {
       type: 'EXECUTE_SCREENPLAY',
       runId: 27,
       payload: {
@@ -654,8 +658,14 @@ describe('ai worker protocol harness', () => {
         }),
       },
     });
+    await vi.advanceTimersByTimeAsync(10_000);
+    await turn;
 
-    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual(['https://api.test/api/ai/image']);
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
+      'https://api.test/api/ai/image',
+      'https://api.test/api/ai/image',
+      'https://api.test/api/ai/image',
+    ]);
     expect(consoleError).toHaveBeenCalledWith('[AI Worker] Scene 1 failed:', 'network down');
     expect(eventsOfType(workerSelf, 'SCENE_FAILED')).toEqual([
       expect.objectContaining({

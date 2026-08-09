@@ -10,6 +10,9 @@ import type { TtsRuntimeCommandResult, TtsRuntimeConfig, TtsRuntimeInstalledItem
 const DEFAULT_TTS_PORT = LOCAL_TTS_PORT;
 const DEFAULT_TTS_HOST = LOCAL_TTS_HOST;
 const DEFAULT_TTS_REQUEST_TIMEOUT_MS = 180_000;
+const ALIGNMENT_MODEL_NAME = "whisper-large-v3-turbo";
+const DEFAULT_ALIGNMENT_MODEL_POLL_INTERVAL_MS = 1_000;
+const DEFAULT_ALIGNMENT_MODEL_POLL_ATTEMPTS = 1_800;
 
 type SpawnedProcess = Pick<ChildProcessWithoutNullStreams, "pid" | "kill">;
 type BackendHealth = {
@@ -93,6 +96,9 @@ export interface TtsRuntimeControllerDeps {
   fetchJson?: (url: string, options: FetchJsonOptions) => Promise<unknown>;
   fetchBytes?: (url: string, options: FetchJsonOptions) => Promise<FetchBytesResult>;
   requestTimeoutMs?: number;
+  sleep?: (milliseconds: number) => Promise<void>;
+  alignmentModelPollIntervalMs?: number;
+  alignmentModelPollAttempts?: number;
   fetchRuntimeArchive?: (
     url: string,
     destinationPath: string,
@@ -106,8 +112,10 @@ export interface TtsRuntimeController {
   status: () => Promise<TtsRuntimeStatus>;
   start: () => Promise<TtsRuntimeCommandResult>;
   setup: () => Promise<TtsRuntimeCommandResult>;
+  prepareAlignmentModel: () => Promise<TtsRuntimeCommandResult>;
   stop: () => Promise<TtsRuntimeCommandResult>;
   getConfig: () => Promise<TtsRuntimeConfig>;
+  getModelCacheDir: () => string;
   setConfig: (config: Partial<TtsRuntimeConfig>) => Promise<TtsRuntimeCommandResult>;
   setModelCacheDir: (dirPath: string) => Promise<TtsRuntimeCommandResult>;
   request: (method: string, routePath: string, body?: unknown) => Promise<unknown>;
@@ -485,6 +493,13 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
   const requestTimeoutMs = Number.isFinite(deps.requestTimeoutMs) && (deps.requestTimeoutMs ?? 0) > 0
     ? Math.max(1, Math.floor(deps.requestTimeoutMs ?? DEFAULT_TTS_REQUEST_TIMEOUT_MS))
     : DEFAULT_TTS_REQUEST_TIMEOUT_MS;
+  const sleep = deps.sleep ?? ((milliseconds: number) => new Promise<void>((resolve) => setTimeout(resolve, milliseconds)));
+  const alignmentModelPollIntervalMs = Number.isFinite(deps.alignmentModelPollIntervalMs)
+    ? Math.max(0, Math.floor(deps.alignmentModelPollIntervalMs ?? DEFAULT_ALIGNMENT_MODEL_POLL_INTERVAL_MS))
+    : DEFAULT_ALIGNMENT_MODEL_POLL_INTERVAL_MS;
+  const alignmentModelPollAttempts = Number.isFinite(deps.alignmentModelPollAttempts)
+    ? Math.max(1, Math.floor(deps.alignmentModelPollAttempts ?? DEFAULT_ALIGNMENT_MODEL_POLL_ATTEMPTS))
+    : DEFAULT_ALIGNMENT_MODEL_POLL_ATTEMPTS;
   const sidecarRoots = uniquePaths([
     ...(deps.sidecarRoots ?? []),
     path.join(deps.appRoot, "..", "backend"),
@@ -962,6 +977,64 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
     return { success: true, status: await status() };
   }
 
+  async function prepareAlignmentModel(): Promise<TtsRuntimeCommandResult> {
+    const setupResult = await setup();
+    if (!setupResult.success) return setupResult;
+
+    const startResult = await start();
+    if (!startResult.success) return startResult;
+
+    type ModelStatusPayload = {
+      models?: Array<{ model_name?: unknown; downloaded?: unknown; downloading?: unknown }>;
+    };
+    type ProgressPayload = { status?: unknown; error?: unknown };
+
+    const readModelStatus = async () => {
+      const payload = await request("GET", "/models/status") as ModelStatusPayload;
+      const model = Array.isArray(payload.models)
+        ? payload.models.find((item) => item?.model_name === ALIGNMENT_MODEL_NAME)
+        : undefined;
+      if (!model) throw new Error(`TTS 后端未提供 ${ALIGNMENT_MODEL_NAME} 模型`);
+      return model;
+    };
+
+    try {
+      const current = await readModelStatus();
+      if (current.downloaded === true) {
+        updateSetupState({ setupStage: "ready", setupMessage: "Whisper 对齐模型已就绪", setupProgress: 100 });
+        return { success: true, status: await status() };
+      }
+      if (current.downloading !== true) {
+        await request("POST", "/models/download", { model_name: ALIGNMENT_MODEL_NAME });
+      }
+
+      for (let attempt = 0; attempt < alignmentModelPollAttempts; attempt += 1) {
+        updateSetupState({
+          setupStage: "downloading-model",
+          setupMessage: "正在准备 Whisper 原文对齐模型",
+          setupProgress: undefined,
+        });
+        const progress = await request("GET", `/models/progress-json/${encodeURIComponent(ALIGNMENT_MODEL_NAME)}`) as ProgressPayload;
+        if (progress.status === "error") {
+          const detail = typeof progress.error === "string" && progress.error.trim() ? `: ${progress.error}` : "";
+          updateSetupState({ setupStage: "failed", setupMessage: "Whisper 对齐模型下载失败", setupProgress: undefined });
+          return { success: false, status: await status(), error: `Whisper 对齐模型下载失败${detail}` };
+        }
+        const next = await readModelStatus();
+        if (next.downloaded === true) {
+          updateSetupState({ setupStage: "ready", setupMessage: "Whisper 对齐模型已就绪", setupProgress: 100 });
+          return { success: true, status: await status() };
+        }
+        await sleep(alignmentModelPollIntervalMs);
+      }
+      updateSetupState({ setupStage: "failed", setupMessage: "Whisper 对齐模型下载超时", setupProgress: undefined });
+      return { success: false, status: await status(), error: "Whisper 对齐模型下载超时，请检查网络后重试" };
+    } catch (error) {
+      updateSetupState({ setupStage: "failed", setupMessage: "Whisper 对齐模型准备失败", setupProgress: undefined });
+      return { success: false, status: await status(), error: `Whisper 对齐模型准备失败: ${getErrorMessage(error)}` };
+    }
+  }
+
   async function setModelCacheDir(dirPath: string): Promise<TtsRuntimeCommandResult> {
     if (await isBackendHealthy()) {
       return {
@@ -1120,8 +1193,10 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
     status,
     start,
     setup,
+    prepareAlignmentModel,
     stop,
     getConfig,
+    getModelCacheDir,
     setConfig,
     setModelCacheDir,
     request,

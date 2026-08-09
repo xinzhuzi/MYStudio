@@ -29,6 +29,7 @@ describe("TTS runtime controller", () => {
       modelCacheDir: "/user-data/tts-models",
       defaultModelCacheDir: "/user-data/tts-models",
     });
+    expect(controller.getModelCacheDir()).toBe("/user-data/tts-models");
   });
 
   it("starts the Python sidecar with isolated runtime data", async () => {
@@ -691,6 +692,7 @@ describe("TTS runtime controller", () => {
     const spawnProcess = vi.fn(() => ({ pid: 99, kill: vi.fn() }));
     const fetchJson = vi.fn()
       .mockRejectedValueOnce(new Error("offline"))
+      .mockRejectedValueOnce(new Error("offline"))
       .mockResolvedValueOnce({ ok: true })
       .mockRejectedValue(new Error("offline"));
     const controller = createTtsRuntimeController({
@@ -735,6 +737,90 @@ describe("TTS runtime controller", () => {
       },
       body: undefined,
       signal: expect.any(AbortSignal),
+    });
+  });
+
+  it("prepares Whisper alignment through the managed TTS runtime and shared model cache", async () => {
+    const spawnProcess = vi.fn(() => ({ pid: 101, kill: vi.fn() }));
+    const fetchJson = vi.fn()
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockResolvedValueOnce({ ok: true })
+      .mockResolvedValueOnce({ ok: true })
+      .mockResolvedValueOnce({ models: [{ model_name: "whisper-large-v3-turbo", downloaded: false, downloading: false }] })
+      .mockResolvedValueOnce({ message: "download started" })
+      .mockResolvedValueOnce({ status: "downloading", progress: 50 })
+      .mockResolvedValueOnce({ models: [{ model_name: "whisper-large-v3-turbo", downloaded: true, downloading: false }] })
+      .mockResolvedValue({ ok: true });
+    const controller = createTtsRuntimeController({
+      appRoot: "/repo",
+      userDataPath: "/user-data",
+      storageBasePath: () => "/project-storage",
+      fileExists: (filePath) => (
+        filePath.includes("tts/main.py")
+        || filePath === "/project-storage/python/bin/python3"
+      ),
+      ensureDir: vi.fn(),
+      readTextFile: (filePath) => (filePath.endsWith(".deps-hash") ? "ready" : null),
+      writeTextFile: vi.fn(),
+      runPython: mockPython312(),
+      spawnProcess,
+      fetchJson,
+      sleep: vi.fn(async () => undefined),
+      alignmentModelPollIntervalMs: 0,
+      alignmentModelPollAttempts: 2,
+    });
+
+    await expect(controller.prepareAlignmentModel()).resolves.toMatchObject({ success: true });
+    expect(fetchJson).toHaveBeenCalledWith(
+      "http://127.0.0.1:17593/models/download",
+      expect.objectContaining({ body: JSON.stringify({ model_name: "whisper-large-v3-turbo" }) }),
+    );
+    expect(spawnProcess).toHaveBeenCalledWith(
+      "/project-storage/python/bin/python3",
+      expect.any(Array),
+      expect.objectContaining({
+        env: expect.objectContaining({
+          MANYING_TTS_MODELS_DIR: "/project-storage/tts-models",
+          VOICEBOX_MODELS_DIR: "/project-storage/tts-models",
+        }),
+      }),
+    );
+  });
+
+  it("fails closed when Whisper model download reports an error", async () => {
+    const fetchJson = vi.fn()
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockResolvedValueOnce({ ok: true })
+      .mockResolvedValueOnce({ ok: true })
+      .mockResolvedValueOnce({ models: [{ model_name: "whisper-large-v3-turbo", downloaded: false, downloading: false }] })
+      .mockResolvedValueOnce({ message: "download started" })
+      .mockResolvedValueOnce({ status: "error", error: "network unavailable" })
+      .mockResolvedValue({ ok: true });
+    const controller = createTtsRuntimeController({
+      appRoot: "/repo",
+      userDataPath: "/user-data",
+      storageBasePath: () => "/project-storage",
+      fileExists: (filePath) => filePath.includes("tts/main.py") || filePath === "/project-storage/python/bin/python3",
+      ensureDir: vi.fn(),
+      readTextFile: (filePath) => (filePath.endsWith(".deps-hash") ? "ready" : null),
+      writeTextFile: vi.fn(),
+      runPython: mockPython312(),
+      spawnProcess: vi.fn(() => ({ pid: 102, kill: vi.fn() })),
+      fetchJson,
+      sleep: vi.fn(async () => undefined),
+      alignmentModelPollIntervalMs: 0,
+      alignmentModelPollAttempts: 1,
+    });
+
+    await expect(controller.prepareAlignmentModel()).resolves.toMatchObject({
+      success: false,
+      error: expect.stringContaining("network unavailable"),
+    });
+    await expect(controller.status()).resolves.toMatchObject({
+      setupStage: "failed",
+      setupMessage: "Whisper 对齐模型下载失败",
     });
   });
 

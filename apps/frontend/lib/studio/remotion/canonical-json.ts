@@ -11,6 +11,13 @@ export async function sha256CanonicalJson(value: unknown): Promise<string> {
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
+export async function sha256Text(value: string): Promise<string> {
+  const subtle = globalThis.crypto?.subtle;
+  if (!subtle) throw new Error("SHA-256 Web Crypto is unavailable");
+  const digest = await subtle.digest("SHA-256", new TextEncoder().encode(value));
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
 function normalize(value: unknown, path: string, ancestors: Set<object>): unknown {
   if (value === null || typeof value === "string" || typeof value === "boolean") {
     return value;

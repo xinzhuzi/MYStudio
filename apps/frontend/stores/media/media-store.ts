@@ -216,6 +216,14 @@ export const getMediaAspectRatio = (item: MediaFile): number => {
   return 16 / 9; // Default aspect ratio
 };
 
+export function assertProjectMediaDeleteAllowed(
+  item: Pick<MediaFile, "projectId" | "ephemeral"> | undefined,
+): void {
+  if (item?.projectId && !item.ephemeral) {
+    throw new Error("project-owned media must be deleted through the artifact plan");
+  }
+}
+
 export const useMediaStore = create<MediaStore>()(
   persist<MediaStore, [], [], MediaPersistedState>(
     (set, get) => ({
@@ -297,6 +305,11 @@ export const useMediaStore = create<MediaStore>()(
     const state = get();
     const item = state.mediaFiles.find((media) => media.id === id);
 
+    // Project-owned media is part of the artifact graph.  The media-library
+    // UI routes it through the reviewed plan/controller; keep this store
+    // fallback fail-closed so another caller cannot silently bypass that plan.
+    assertProjectMediaDeleteAllowed(item);
+
     // Cleanup object URLs to prevent memory leaks
     if (item?.url) {
       URL.revokeObjectURL(item.url);
@@ -366,6 +379,7 @@ export const useMediaStore = create<MediaStore>()(
     const state = get();
 
     const projectFiles = state.mediaFiles.filter((item) => item.projectId === projectId);
+    projectFiles.forEach(assertProjectMediaDeleteAllowed);
     const otherFiles = state.mediaFiles.filter((item) => item.projectId !== projectId);
 
     projectFiles.forEach((item) => {

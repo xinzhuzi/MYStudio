@@ -26,6 +26,19 @@ import type {
 } from "./studio-visual-manual";
 import type { TtsRuntimeCommandResult, TtsRuntimeConfig, TtsRuntimeStatus } from "./tts";
 import type { RemotionBrowserDownloadProgress, RemotionBrowserStatus } from "@rendering/contracts/remotion-browser-status";
+import type {
+  VideoWorkflowActionReplyV1,
+  VideoWorkflowPluginActionRequestV1,
+  VideoWorkflowReviewReplyV1,
+  VideoWorkflowReviewRequestV1,
+  VideoWorkflowStatusReplyV1,
+  VideoWorkflowChapterRunReplyV1,
+  VideoWorkflowChapterRunRequestV1,
+  VideoWorkflowChapterApplyReplyV1,
+  VideoWorkflowChapterApplyRequestV1,
+  VideoWorkflowChapterReadReplyV1,
+  VideoWorkflowChapterReadRequestV1,
+} from "@rendering/contracts/video-workflow-ipc";
 import type { RemotionWorkspaceRuntimeReply } from "@rendering/contracts/remotion-workspace-runtime";
 import type {
   RemotionPreviewCreateReply,
@@ -353,6 +366,16 @@ declare global {
         listener: (progress: RemotionBrowserDownloadProgress) => void,
       ) => () => void;
       workspaceRuntime?: () => Promise<RemotionWorkspaceRuntimeReply>;
+    };
+    videoWorkflowPlugins?: {
+      status: () => Promise<VideoWorkflowStatusReplyV1>;
+      prepare: (request: VideoWorkflowPluginActionRequestV1) => Promise<VideoWorkflowActionReplyV1>;
+      repair: (request: VideoWorkflowPluginActionRequestV1) => Promise<VideoWorkflowActionReplyV1>;
+      rollback: (request: VideoWorkflowPluginActionRequestV1) => Promise<VideoWorkflowActionReplyV1>;
+      review: (request: VideoWorkflowReviewRequestV1) => Promise<VideoWorkflowReviewReplyV1>;
+      runChapter: (request: VideoWorkflowChapterRunRequestV1) => Promise<VideoWorkflowChapterRunReplyV1>;
+      applyChapter: (request: VideoWorkflowChapterApplyRequestV1) => Promise<VideoWorkflowChapterApplyReplyV1>;
+      readChapter: (request: VideoWorkflowChapterReadRequestV1) => Promise<VideoWorkflowChapterReadReplyV1>;
     };
     remotionPreview?: {
       create: (plan: TimelineRenderPlan) => Promise<RemotionPreviewCreateReply>;

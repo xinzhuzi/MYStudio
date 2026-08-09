@@ -117,7 +117,7 @@ Python 和 TTS 依赖不会在应用启动时自动配置。详细说明见 [Pyt
 
 ## 7. Remotion 视频生产
 
-分镜面板审核通过后，在生产流程画布的 `Remotion 视频生产` 节点点击 `生成当前章分镜视频`。系统只提交当前章节的 `StoryboardShot` jobs，不生成章节级 `ChapterVideo`，也不回退到旧候选片段或 FFmpeg。
+分镜面板审核通过后，在生产流程画布的 `Remotion 视频生产` 节点点击 `生成当前章分镜视频`。系统只提交当前章节的 `StoryboardShot` jobs，不生成章节级 `ChapterVideo`，也不回退到旧迁移草稿片段或 FFmpeg。
 
 1. 节点按当前章节动态 M 个分镜构建逐镜 plan，并检查图片/音频绑定、人工视觉审核、连续性和当前 revision。
 2. 队列显示 queued/running/succeeded/failed/blocked；每个成功镜头必须同时有 current MP4 和 evidence，输出保持项目级 `remotion/outputs/shots/<chapterId>/<shotId>/current.mp4`。
@@ -166,7 +166,7 @@ Python 和 TTS 依赖不会在应用启动时自动配置。详细说明见 [Pyt
 
 确认分镜已经绑定图片或视频素材、音频路径和当前审核门禁。纯音频素材不会作为
 `StoryboardShot` 的视觉输入；缺少素材、审核 receipt 或不支持效果时，队列会保持
-`blocked/error`，不会生成旧候选片段。
+`blocked/error`，不会生成旧迁移草稿片段。
 
 ### 角色试听没有声音
 

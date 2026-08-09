@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { createHash } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ArtifactKind, ArtifactStage, ArtifactState, DeletionPlan } from "@/types/artifacts";
 
@@ -87,6 +88,42 @@ function plan(): DeletionPlan {
   };
 }
 
+async function writeRecoveryJournal(
+  dataRoot: string,
+  state: "prepared" | "commit-ready" | "committed",
+  options: { includeBundle?: boolean; corruptBundleHash?: boolean } = {},
+) {
+  const projectRoot = path.join(dataRoot, "_p", "project-fixture");
+  const restorePath = path.join(projectRoot, "recovery-target.json");
+  const bundlePath = path.join(projectRoot, ".artifact-delete-recovery.bundle.json");
+  const journalPath = path.join(projectRoot, ".artifact-delete-journal.json");
+  const original = Buffer.from("original-recovery-state");
+  await fs.writeFile(restorePath, "current-state");
+  const captured = {
+    file: restorePath,
+    data: original.toString("base64"),
+    mode: 0o100644,
+    bytes: original.byteLength,
+    sha256: createHash("sha256").update(original).digest("hex"),
+  };
+  const bundle = { schemaVersion: 1, files: [captured], migrations: [] };
+  const bundleText = JSON.stringify(bundle);
+  if (options.includeBundle !== false) await fs.writeFile(bundlePath, bundleText);
+  const bundleSha256 = options.corruptBundleHash
+    ? "0".repeat(64)
+    : createHash("sha256").update(bundleText).digest("hex");
+  await fs.writeFile(journalPath, JSON.stringify({
+    schemaVersion: 1,
+    state,
+    planId: "recovery-plan",
+    bundlePath,
+    bundleSha256,
+    preFingerprint: "pre-fingerprint",
+    migrationManifest: [],
+  }));
+  return { projectRoot, restorePath, bundlePath, journalPath };
+}
+
 afterEach(async () => {
   while (roots.length > 0) await fs.rm(roots.pop()!, { recursive: true, force: true });
 });
@@ -161,5 +198,71 @@ describe("artifact deletion transaction", () => {
     expect(recovery).toMatchObject({ success: true, data: { journalState: "none", bundleExists: false } });
     await expect(fs.access(path.join(fixture.projectRoot, ".artifact-delete-journal.json"))).rejects.toThrow();
     await expect(fs.access(path.join(fixture.projectRoot, ".artifact-delete-plan-fixture.bundle.json"))).rejects.toThrow();
+  });
+
+  it("fails closed when a codex backup is not part of the reviewed backup impact", async () => {
+    const fixture = await makeFixture();
+    const backupPath = path.join(fixture.projectRoot, "history.json.codex-test-backup");
+    const backupText = JSON.stringify({ state: { chapters: [{ id: "chapter-fixture" }, { id: "chapter-keep" }] } });
+    await fs.writeFile(backupPath, backupText);
+    const registered = registerDeletionPlan(plan());
+
+    const result = await executeDeletion({ dataRoot: fixture.dataRoot }, {
+      planId: registered.planId,
+      fingerprint: registered.fingerprint,
+      confirmation: { type: "chapter", chapterId: "chapter-fixture" },
+    });
+
+    expect(result).toMatchObject({ success: false, error: "post-scan-orphans", journalState: "prepared" });
+    await expect(fs.readFile(backupPath, "utf8")).resolves.toBe(backupText);
+  });
+
+  it.each(["prepared", "commit-ready"] as const)("recovers a %s journal from its verified bundle", async (state) => {
+    const fixture = await makeFixture();
+    const recovery = await writeRecoveryJournal(fixture.dataRoot, state);
+
+    await expect(queryRecovery(fixture.dataRoot, "project-fixture")).resolves.toMatchObject({
+      success: true,
+      data: { journalState: "none", bundleExists: false, bundleValid: true },
+    });
+    await expect(fs.readFile(recovery.restorePath, "utf8")).resolves.toBe("original-recovery-state");
+    await expect(fs.access(recovery.bundlePath)).rejects.toThrow();
+    await expect(fs.access(recovery.journalPath)).rejects.toThrow();
+  });
+
+  it("treats a commit-ready journal without a bundle as unrecoverable", async () => {
+    const fixture = await makeFixture();
+    await writeRecoveryJournal(fixture.dataRoot, "commit-ready", { includeBundle: false });
+
+    await expect(queryRecovery(fixture.dataRoot, "project-fixture")).resolves.toMatchObject({
+      success: false,
+      error: "missing-bundle-at-commit-ready",
+    });
+  });
+
+  it("blocks recovery when the rollback bundle hash is corrupt", async () => {
+    const fixture = await makeFixture();
+    await writeRecoveryJournal(fixture.dataRoot, "prepared", { corruptBundleHash: true });
+
+    await expect(queryRecovery(fixture.dataRoot, "project-fixture")).resolves.toMatchObject({
+      success: false,
+      error: "bundle-corrupt",
+    });
+  });
+
+  it("blocks mutation when the transaction journal is corrupt", async () => {
+    const fixture = await makeFixture();
+    await fs.writeFile(path.join(fixture.projectRoot, ".artifact-delete-journal.json"), "{");
+    const registered = registerDeletionPlan(plan());
+
+    const result = await executeDeletion({ dataRoot: fixture.dataRoot }, {
+      planId: registered.planId,
+      fingerprint: registered.fingerprint,
+      confirmation: { type: "chapter", chapterId: "chapter-fixture" },
+    });
+
+    expect(result).toMatchObject({ success: false, error: "journal-transition-failed", journalState: "none" });
+    await expect(fs.readFile(path.join(fixture.projectRoot, "chapter-data.bin"), "utf8")).resolves.toBe("chapter-bytes");
+    await expect(queryRecovery(fixture.dataRoot, "project-fixture")).resolves.toMatchObject({ success: false, error: "journal-corrupt" });
   });
 });

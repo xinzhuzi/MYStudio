@@ -41,6 +41,35 @@ import {
 } from '@rendering/contracts/remotion-runtime-ipc'
 import type { RemotionBrowserDownloadProgress, RemotionBrowserStatus } from '@rendering/contracts/remotion-browser-status'
 import {
+  VIDEO_WORKFLOW_PREPARE_CHANNEL,
+  VIDEO_WORKFLOW_REPAIR_CHANNEL,
+  VIDEO_WORKFLOW_ROLLBACK_CHANNEL,
+  VIDEO_WORKFLOW_REVIEW_CHANNEL,
+  VIDEO_WORKFLOW_RUN_CHAPTER_CHANNEL,
+  VIDEO_WORKFLOW_APPLY_CHAPTER_CHANNEL,
+  VIDEO_WORKFLOW_STATUS_CHANNEL,
+  VIDEO_WORKFLOW_READ_CHAPTER_CHANNEL,
+  validateVideoWorkflowActionReply,
+  validateVideoWorkflowReviewReply,
+  validateVideoWorkflowChapterRunReply,
+  validateVideoWorkflowChapterApplyReply,
+  validateVideoWorkflowStatusReply,
+  validateVideoWorkflowChapterReadReply,
+} from '@rendering/contracts/video-workflow-ipc'
+import type {
+  VideoWorkflowActionReplyV1,
+  VideoWorkflowPluginActionRequestV1,
+  VideoWorkflowReviewReplyV1,
+  VideoWorkflowReviewRequestV1,
+  VideoWorkflowStatusReplyV1,
+  VideoWorkflowChapterRunReplyV1,
+  VideoWorkflowChapterRunRequestV1,
+  VideoWorkflowChapterApplyReplyV1,
+  VideoWorkflowChapterApplyRequestV1,
+  VideoWorkflowChapterReadReplyV1,
+  VideoWorkflowChapterReadRequestV1,
+} from '@rendering/contracts/video-workflow-ipc'
+import {
   REMOTION_WORKSPACE_RUNTIME_CHANNEL,
   validateRemotionWorkspaceRuntimeReply,
   type RemotionWorkspaceRuntimeReply,
@@ -329,6 +358,60 @@ contextBridge.exposeInMainWorld('remotionRuntime', {
     }
     return result.value
   },
+})
+
+function parseVideoWorkflowStatus(value: unknown): VideoWorkflowStatusReplyV1 {
+  const result = validateVideoWorkflowStatusReply(value)
+  if (!result.success) throw new Error(result.issues.map((issue) => `${issue.path}: ${issue.message}`).join('; '))
+  return result.value
+}
+
+function parseVideoWorkflowAction(value: unknown): VideoWorkflowActionReplyV1 {
+  const result = validateVideoWorkflowActionReply(value)
+  if (!result.success) throw new Error(result.issues.map((issue) => `${issue.path}: ${issue.message}`).join('; '))
+  return result.value
+}
+
+function parseVideoWorkflowReview(value: unknown): VideoWorkflowReviewReplyV1 {
+  const result = validateVideoWorkflowReviewReply(value)
+  if (!result.success) throw new Error(result.issues.map((issue) => `${issue.path}: ${issue.message}`).join('; '))
+  return result.value
+}
+
+function parseVideoWorkflowChapterRun(value: unknown): VideoWorkflowChapterRunReplyV1 {
+  const result = validateVideoWorkflowChapterRunReply(value)
+  if (!result.success) throw new Error(result.issues.map((issue) => `${issue.path}: ${issue.message}`).join('; '))
+  return result.value
+}
+
+function parseVideoWorkflowChapterApply(value: unknown): VideoWorkflowChapterApplyReplyV1 {
+  const result = validateVideoWorkflowChapterApplyReply(value)
+  if (!result.success) throw new Error(result.issues.map((issue) => `${issue.path}: ${issue.message}`).join('; '))
+  return result.value
+}
+function parseVideoWorkflowChapterRead(value: unknown): VideoWorkflowChapterReadReplyV1 {
+  const result = validateVideoWorkflowChapterReadReply(value)
+  if (!result.success) throw new Error(result.issues.map((issue) => `${issue.path}: ${issue.message}`).join('; '))
+  return result.value
+}
+
+contextBridge.exposeInMainWorld('videoWorkflowPlugins', {
+  status: async (): Promise<VideoWorkflowStatusReplyV1> =>
+    parseVideoWorkflowStatus(await ipcRenderer.invoke(VIDEO_WORKFLOW_STATUS_CHANNEL)),
+  prepare: async (request: VideoWorkflowPluginActionRequestV1): Promise<VideoWorkflowActionReplyV1> =>
+    parseVideoWorkflowAction(await ipcRenderer.invoke(VIDEO_WORKFLOW_PREPARE_CHANNEL, request)),
+  repair: async (request: VideoWorkflowPluginActionRequestV1): Promise<VideoWorkflowActionReplyV1> =>
+    parseVideoWorkflowAction(await ipcRenderer.invoke(VIDEO_WORKFLOW_REPAIR_CHANNEL, request)),
+  rollback: async (request: VideoWorkflowPluginActionRequestV1): Promise<VideoWorkflowActionReplyV1> =>
+    parseVideoWorkflowAction(await ipcRenderer.invoke(VIDEO_WORKFLOW_ROLLBACK_CHANNEL, request)),
+  review: async (request: VideoWorkflowReviewRequestV1): Promise<VideoWorkflowReviewReplyV1> =>
+    parseVideoWorkflowReview(await ipcRenderer.invoke(VIDEO_WORKFLOW_REVIEW_CHANNEL, request)),
+  runChapter: async (request: VideoWorkflowChapterRunRequestV1): Promise<VideoWorkflowChapterRunReplyV1> =>
+    parseVideoWorkflowChapterRun(await ipcRenderer.invoke(VIDEO_WORKFLOW_RUN_CHAPTER_CHANNEL, request)),
+  applyChapter: async (request: VideoWorkflowChapterApplyRequestV1): Promise<VideoWorkflowChapterApplyReplyV1> =>
+    parseVideoWorkflowChapterApply(await ipcRenderer.invoke(VIDEO_WORKFLOW_APPLY_CHAPTER_CHANNEL, request)),
+  readChapter: async (request: VideoWorkflowChapterReadRequestV1): Promise<VideoWorkflowChapterReadReplyV1> =>
+    parseVideoWorkflowChapterRead(await ipcRenderer.invoke(VIDEO_WORKFLOW_READ_CHAPTER_CHANNEL, request)),
 })
 
 contextBridge.exposeInMainWorld('remotionPreview', {

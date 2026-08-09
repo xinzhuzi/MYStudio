@@ -153,6 +153,7 @@ export type TtsRuntimeSetupStage =
   | "extracting-python"
   | "installing-deps"
   | "starting-backend"
+  | "downloading-model"
   | "ready"
   | "failed";
 

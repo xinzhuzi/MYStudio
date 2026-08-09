@@ -38,6 +38,9 @@ export function validateCompositionProps(
   validateArray(value.transitions, "transitions", issues, validateTransition);
   validateArray(value.audioClips, "audioClips", issues, validateAudioClip);
   validateArray(value.subtitles, "subtitles", issues, validateSubtitle);
+  if (value.overlayClips !== undefined) {
+    validateArray(value.overlayClips, "overlayClips", issues, validateOverlayClip);
+  }
   validateRelationships(value, issues);
   if (issues.length > 0) return { success: false, issues };
   return { success: true, value: value as unknown as CompositionProps };
@@ -315,6 +318,18 @@ function validateSubtitle(value: unknown, path: string, issues: Issue[]): void {
   requirePositiveInteger(value.durationInFrames, `${path}.durationInFrames`, issues);
 }
 
+function validateOverlayClip(value: unknown, path: string, issues: Issue[]): void {
+  if (!isRecord(value)) {
+    issues.push({ path, message: "透明 overlay 片段必须是对象" });
+    return;
+  }
+  requireNonEmptyString(value.clipId, `${path}.clipId`, issues);
+  requireNonEmptyString(value.src, `${path}.src`, issues);
+  requireCapabilityUrl(value.src, `${path}.src`, issues);
+  requireNonNegativeInteger(value.from, `${path}.from`, issues);
+  requirePositiveInteger(value.durationInFrames, `${path}.durationInFrames`, issues);
+}
+
 function validateRelationships(value: Record<string, unknown>, issues: Issue[]): void {
   const compositionDuration = value.durationInFrames;
   const visuals = Array.isArray(value.visualClips)
@@ -400,6 +415,7 @@ function validateRelationships(value: Record<string, unknown>, issues: Issue[]):
   for (const [collectionName, collection] of [
     ["audioClips", value.audioClips],
     ["subtitles", value.subtitles],
+    ["overlayClips", value.overlayClips],
   ] as const) {
     if (!Array.isArray(collection)) continue;
     collection.forEach((item, index) => {

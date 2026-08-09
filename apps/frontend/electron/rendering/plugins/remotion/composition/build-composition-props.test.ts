@@ -62,6 +62,38 @@ describe("buildChapterVideoCompositionProps", () => {
     if (!result.success) expect(result.issues.map((issue) => issue.message).join(";")).toContain("Remotion shot MP4");
   });
 
+  it("projects an accepted HyperFrames overlay into the ChapterVideo composition", async () => {
+    const slot = makeCurrentSlot();
+    const plan = chapterPlan(slot, "shot-001", "storyboardVideo");
+    const chapterManifest = await manifestForPlan(plan);
+    const result = buildChapterVideoCompositionProps({
+      plan,
+      currentShotSlots: [slot],
+      chapterManifest,
+      mediaUrlByClipId: { "visual-shot-001": mediaUrl, "hyperframes-overlay": mediaUrl },
+      mediaUrlByBindingId: {},
+      hyperFramesOverlay: {
+        src: mediaUrl,
+        windows: [{
+          slotId: "shot-001",
+          startUs: 250_000,
+          durationUs: 500_000,
+          templateId: "kinetic-caption",
+          parameters: { text: "字幕" },
+        }],
+      },
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.value.overlayClips).toEqual([{
+        clipId: "hyperframes-overlay",
+        src: mediaUrl,
+        from: 0,
+        durationInFrames: 23,
+      }]);
+    }
+  });
+
   it("requires exact manifest, plan and shot-slot identities", async () => {
     const slot = makeCurrentSlot();
     const extraSlot = slotForShot("shot-002");

@@ -205,6 +205,23 @@ describe("validateCompositionProps", () => {
     }
   });
 
+  it("validates HyperFrames overlay capability URLs and frame ranges", () => {
+    const props = {
+      ...validProps(),
+      overlayClips: [{
+        clipId: "hyperframes-overlay",
+        src: `http://127.0.0.1:1/${"a".repeat(64)}/overlay`,
+        from: 0,
+        durationInFrames: 30,
+      }],
+    };
+    expect(validateCompositionProps(props).success).toBe(true);
+    props.overlayClips[0]!.src = "https://example.com/overlay.mov";
+    const invalid = validateCompositionProps(props);
+    expect(invalid.success).toBe(false);
+    if (!invalid.success) expect(invalid.issues.some((issue) => issue.path === "overlayClips[0].src")).toBe(true);
+  });
+
   it("rejects an empty ChapterVideo visual input", () => {
     const props = {
       ...validProps(),

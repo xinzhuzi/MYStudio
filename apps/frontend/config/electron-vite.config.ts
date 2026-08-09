@@ -46,6 +46,10 @@ export default defineConfig({
             projectRoot,
             'frontend/electron/rendering/plugins/remotion/renderer/remotion-render-worker-entry.ts',
           ),
+          'hyperframes-worker': path.resolve(
+            projectRoot,
+            'frontend/electron/rendering/plugins/hyperframes/hyperframes-worker.ts',
+          ),
         },
         output: {
           format: 'cjs',

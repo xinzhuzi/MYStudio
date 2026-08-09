@@ -56,6 +56,7 @@ import { registerFileExportIpcHandlers } from '../ipc/files/file-export-ipc'
 import { registerAssetLibraryIpcHandlers } from '../ipc/assets/asset-library-ipc'
 import { probeStudioMediaEvidence, registerStudioRenderIpcHandlers } from '../ipc/studio/studio-render-ipc'
 import { registerRemotionRuntimeIpcHandlers } from '../ipc/studio/remotion-runtime-ipc'
+import { registerVideoWorkflowIpcHandlers } from '../ipc/studio/video-workflow-ipc'
 import { registerRemotionPreviewIpcHandlers } from '../ipc/studio/remotion-preview-ipc'
 import { registerRemotionShotIpcHandlers } from '../ipc/studio/remotion-shot-ipc'
 import { registerRemotionQueueIpcHandlers } from '../ipc/studio/remotion-queue-ipc'
@@ -69,6 +70,17 @@ import {
 } from '@rendering/plugins/remotion/queue/remotion-render-queue'
 import { resolveRemotionRuntimeDir } from '@rendering/plugins/remotion/browser/remotion-runtime-manifest'
 import { RemotionChapterManifestService } from '@rendering/plugins/remotion/manifest/remotion-chapter-manifest-service'
+import { createVideoWorkflowChapterService } from '@rendering/plugins/video-workflow/video-workflow-chapter-service'
+import { acceptVideoUseArtifact } from '@rendering/plugins/video-workflow/video-workflow-artifact-store'
+import { createVideoUseAdapter } from '@rendering/plugins/video-use/video-use-adapter'
+import { createHyperFramesAdapter } from '@rendering/plugins/hyperframes/hyperframes-adapter'
+import { createVideoWorkflowRuntimeManager } from '@rendering/plugins/video-workflow/video-workflow-runtime-manager'
+import type {
+  RemotionChapterGateInputV1,
+  RemotionChapterGateResult,
+  VideoUseChapterRunV1,
+} from '@rendering/contracts/video-workflow'
+import type { VideoWorkflowChapterRunRequestV1 } from '../rendering/contracts/video-workflow-ipc'
 import { createStorageManager } from '../storage/storage-manager'
 import { resolveDataFilePath } from '../storage/storage-paths'
 import { validateEditingProject } from '../../lib/studio/editing/validation'
@@ -121,6 +133,13 @@ process.env.VITE_PUBLIC = RENDERER_DIST
 
 let win: BrowserWindow | null
 const hasSingleInstanceLock = app.requestSingleInstanceLock()
+
+// 开发调试:MYSTUDIO_REMOTE_DEBUG=1 时开放 9222 远程调试端口,
+// 供 chrome-devtools-mcp(--browser-url http://127.0.0.1:9222)接入做自动布局/盒模型诊断。
+// 必须在 app.whenReady 之前 appendSwitch。默认不开,打包/smoke/正常运行无影响。
+if (process.env.MYSTUDIO_REMOTE_DEBUG === '1') {
+  app.commandLine.appendSwitch('remote-debugging-port', '9222')
+}
 const diagnosticsLogService = createDiagnosticsLogService({
   rootDir: path.join(app.getPath('userData'), 'logs', 'diagnostics'),
   retentionDays: 30,
@@ -605,6 +624,14 @@ const remotionUserDataDir = app.getPath('userData')
 const remotionBundlePath = app.isPackaged
   ? path.join(process.resourcesPath, 'remotion-bundle')
   : path.join(process.env.APP_ROOT ?? path.join(__dirname, '../..'), '.cache/remotion-bundle')
+const remotionBinariesDirectory = app.isPackaged
+  ? path.join(process.resourcesPath, 'app.asar.unpacked', 'node_modules/@remotion/compositor-darwin-arm64')
+  : path.join(process.env.APP_ROOT ?? path.join(__dirname, '../..'), 'node_modules/@remotion/compositor-darwin-arm64')
+// All video-workflow adapters consume this same Remotion FFmpeg toolchain.
+// The settings/runtime layer may override it with another verified absolute
+// path, but no adapter is allowed to download a private copy.
+if (!process.env.MYSTUDIO_FFMPEG_PATH) process.env.MYSTUDIO_FFMPEG_PATH = path.join(remotionBinariesDirectory, 'ffmpeg')
+if (!process.env.MYSTUDIO_FFPROBE_PATH) process.env.MYSTUDIO_FFPROBE_PATH = path.join(remotionBinariesDirectory, 'ffprobe')
 const remotionRuntime = registerRemotionRuntimeIpcHandlers({
   userDataDir: remotionUserDataDir,
   remotionVersion,
@@ -625,10 +652,121 @@ const remotionChapterManifestService = new RemotionChapterManifestService({
   },
 })
 const remotionChapterManifestIpc = registerRemotionChapterManifestIpcHandlers(remotionChapterManifestService)
+const videoWorkflowWorkspaceRootForProject = (projectId: string) => path.join(getDataDir(), '_p', projectId, 'video-use')
+// electron-builder ships Python sources through extraResources, outside the
+// asar archive. A packaged app must use Resources/backend as the subprocess
+// cwd; app.asar/backend is a virtual path and causes spawn ENOTDIR.
+const videoWorkflowBackendRoot = app.isPackaged
+  ? path.join(process.resourcesPath, 'backend')
+  : path.join(process.env.APP_ROOT ?? path.join(__dirname, '../..'), 'backend')
+const videoUseAdapter = createVideoUseAdapter({
+  storageBasePath: getStorageBasePath,
+  modelCacheDir: () => ttsRuntimeController.getModelCacheDir(),
+  backendRoot: videoWorkflowBackendRoot,
+  workspaceRootForProject: videoWorkflowWorkspaceRootForProject,
+})
+const hyperFramesAdapter = createHyperFramesAdapter({
+  storageBasePath: getStorageBasePath,
+  workspaceRootForProject: videoWorkflowWorkspaceRootForProject,
+  workerPath: path.join(MAIN_DIST, 'hyperframes-worker.cjs'),
+  resolveBrowserPath: async () => (await remotionRuntime.controller.probeStatus()).executablePath,
+})
+const videoWorkflowRuntimeManager = createVideoWorkflowRuntimeManager(getStorageBasePath())
+const videoWorkflowChapterService = createVideoWorkflowChapterService({
+  workspaceRootForProject: videoWorkflowWorkspaceRootForProject,
+  runVideoUse: videoUseAdapter.runChapter,
+  renderHyperFrames: hyperFramesAdapter.renderOverlay,
+})
+const buildManagedVideoUseChapterRun = (request: VideoWorkflowChapterRunRequestV1): VideoUseChapterRunV1 => {
+  const paths = videoUseAdapter.paths
+  const now = Date.now()
+  const packageLockSha256 = fs.existsSync(paths.videoUseLockPath)
+    ? crypto.createHash('sha256').update(fs.readFileSync(paths.videoUseLockPath)).digest('hex')
+    : '0'.repeat(64)
+  return {
+    schemaVersion: 1,
+    projectId: request.projectId,
+    chapterId: request.chapterId,
+    revision: request.revision,
+    mode: request.mode,
+    derivedInputPolicy: request.derivedInputPolicy,
+    stage: 'preparing',
+    timeUnit: 'seconds',
+    shots: request.shots.map((shot) => ({
+      ...shot,
+      videoPath: resolveStudioSourcePath(shot.videoPath),
+      audioPath: resolveStudioSourcePath(shot.audioPath),
+    })),
+    sourceSha256: request.sourceSha256,
+    audioSha256: request.audioSha256,
+    textSha256: request.textSha256,
+    featureFlags: request.featureFlags,
+    runtime: {
+      profileId: 'video-use-managed-python-v1',
+      pythonExecutable: paths.pythonExecutable,
+      ffmpegExecutable: paths.ffmpegExecutable,
+      ffprobeExecutable: paths.ffprobeExecutable,
+      packageLockSha256,
+      markerPath: paths.videoUseMarkerPath,
+    },
+    createdAt: now,
+    updatedAt: now,
+  }
+}
+const evaluateVideoWorkflowChapterGate = async (input: RemotionChapterGateInputV1): Promise<RemotionChapterGateResult> => {
+  // Remotion's inputSha256 identifies the final ChapterVideo job, while the
+  // video-use artifact is keyed by the earlier StoryboardShot/TTS input. Read
+  // the persisted artifact and pass that second fingerprint explicitly so a
+  // valid post-review revision is not rejected merely because the two stages
+  // hash different payloads.
+  const artifacts = await videoWorkflowChapterService.readArtifacts(input)
+  const videoUseInputSha256 = artifacts.success
+    ? artifacts.value.videoUseArtifact?.evidence.inputSha256
+    : undefined
+  return videoWorkflowChapterService.evaluateGate({ ...input, videoUseInputSha256 })
+}
+const videoWorkflowIpc = registerVideoWorkflowIpcHandlers({
+  getStorageBasePath,
+  appVersion: app.getVersion(),
+  remotionVersion,
+  probeRemotion: () => remotionRuntime.controller.status(),
+  prepareRemotion: () => remotionRuntime.controller.download(() => undefined),
+  probeVideoUse: videoUseAdapter.probe,
+  probeHyperFrames: hyperFramesAdapter.probe,
+  prepareVideoUseModel: async () => {
+    const result = await ttsRuntimeController.prepareAlignmentModel()
+    return { success: result.success, ...(result.error ? { error: result.error } : {}) }
+  },
+  runtimeManager: videoWorkflowRuntimeManager,
+  reviewVideoUse: async (request) => {
+    const result = await acceptVideoUseArtifact(videoWorkflowWorkspaceRootForProject, request)
+    if (!result.success) {
+      return {
+        schemaVersion: 1,
+        success: false,
+        projectId: request.projectId,
+        chapterId: request.chapterId,
+        revision: request.revision,
+        status: 'blocked',
+        artifactPath: result.artifactPath,
+        message: result.issues.map((issue) => `${issue.path}: ${issue.message}`).join('；'),
+      }
+    }
+    return {
+      schemaVersion: 1,
+      success: true,
+      projectId: request.projectId,
+      chapterId: request.chapterId,
+      revision: request.revision,
+      status: 'accepted',
+      artifactPath: result.artifactPath,
+    }
+  },
+  runVideoUseChapter: videoUseAdapter.runChapter,
+  applyVideoWorkflowChapter: videoWorkflowChapterService.applyAcceptedArtifact,
+  buildVideoUseChapterRun: buildManagedVideoUseChapterRun,
+})
 const remotionRuntimeDir = resolveRemotionRuntimeDir(remotionUserDataDir)
-const remotionBinariesDirectory = app.isPackaged
-  ? path.join(process.resourcesPath, 'app.asar.unpacked', 'node_modules/@remotion/compositor-darwin-arm64')
-  : path.join(process.env.APP_ROOT ?? path.join(__dirname, '../..'), 'node_modules/@remotion/compositor-darwin-arm64')
 const remotionShotRenderer = new RemotionShotRenderer({
   workspaceRoot: getDataDir(),
   workspaceRootForProject: (projectId) => path.join(getDataDir(), "_p", projectId, "remotion"),
@@ -657,6 +795,7 @@ const remotionChapterRenderer = new RemotionChapterRenderer({
   fork: (modulePath, args, options) => utilityProcess.fork(modulePath, [...args], options),
   remotionVersion,
   emitProgress: () => undefined,
+  videoWorkflowGate: evaluateVideoWorkflowChapterGate,
 })
 const remotionShotIpc = registerRemotionShotIpcHandlers(remotionShotRenderer)
 const remotionQueue = new RemotionRenderQueue({
@@ -699,6 +838,15 @@ const nativeStudioQueueBridge = new RemotionStudioRenderQueueBridge({
       templateVersion: manifest.templateVersion,
       remotionVersion,
     })
+    const gate = await evaluateVideoWorkflowChapterGate({
+      projectId: context.projectId,
+      chapterId: context.chapterId,
+      revision: context.revision,
+      inputSha256: job.inputHash,
+    })
+    if (!gate.accepted) {
+      return { accepted: false, message: `视频工作流章节 gate blocked: ${gate.code} ${gate.message}` }
+    }
     const result = await remotionQueue.enqueueChapter({
       kind: 'chapter',
       job,
@@ -999,6 +1147,7 @@ disposeRemotionRuntime = async () => {
   await remotionPreview.dispose()
   await remotionShotIpc.dispose()
   await remotionChapterRenderer.dispose()
+  videoWorkflowIpc.dispose()
   remotionRuntime.dispose()
 }
 

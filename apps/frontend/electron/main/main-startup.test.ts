@@ -53,6 +53,12 @@ describe("main process startup", () => {
     expect(mainSource).toContain("workerPath: path.join(MAIN_DIST, 'remotion-render-worker.cjs')");
   });
 
+  it("uses extraResources backend sources instead of an app.asar cwd when packaged", () => {
+    expect(mainSource).toContain("const videoWorkflowBackendRoot = app.isPackaged");
+    expect(mainSource).toContain("path.join(process.resourcesPath, 'backend')");
+    expect(mainSource).toContain("path.join(process.env.APP_ROOT ?? path.join(__dirname, '../..'), 'backend')");
+  });
+
   it("does not initialize the independent asset library before asset IPC is used", () => {
     const readyBlock = mainSource.slice(
       mainSource.indexOf("app.whenReady().then"),

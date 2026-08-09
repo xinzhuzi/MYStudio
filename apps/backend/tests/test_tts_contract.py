@@ -16,7 +16,7 @@ import tts.main as main_module
 import tts.engine as engine_module
 import tts.server as server_module
 from tts.engine import is_engine_loaded, resolve_emotion_capability, synthesize_to_wav, unload_engine
-from tts.model_cache import download_hf_cache_dir, find_cached_model, is_model_downloaded
+from tts.model_cache import download_hf_cache_dir, find_cached_model, has_cached_repo_files, is_model_downloaded
 from tts.storage import RuntimeStore
 from tts.tts import generate_mock_wav
 
@@ -273,6 +273,36 @@ class TtsContractTest(unittest.TestCase):
 
             self.assertFalse(downloaded)
             self.assertIsNone(size_mb)
+
+    def test_model_cache_accepts_tokenizer_repository_without_weight_files(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tokenizer_cache = Path(tmp) / "models--openai--whisper-large-v3-turbo"
+            snapshot = tokenizer_cache / "snapshots" / "main"
+            snapshot.mkdir(parents=True)
+            (snapshot / "tokenizer.json").write_text("{}", encoding="utf-8")
+
+            self.assertTrue(has_cached_repo_files(
+                "openai/whisper-large-v3-turbo",
+                ("tokenizer.json",),
+                cache_dirs=[Path(tmp)],
+            ))
+
+    def test_managed_tts_status_does_not_report_global_whisper_cache_as_ready(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            app_cache = Path(tmp) / "app-models"
+            global_cache = Path(tmp) / "global-models"
+            model_snapshot = global_cache / "models--mlx-community--whisper-large-v3-turbo" / "snapshots" / "main"
+            model_snapshot.mkdir(parents=True)
+            (model_snapshot / "model.safetensors").write_bytes(b"weights")
+            tokenizer_snapshot = global_cache / "models--openai--whisper-large-v3-turbo" / "snapshots" / "main"
+            tokenizer_snapshot.mkdir(parents=True)
+            (tokenizer_snapshot / "tokenizer.json").write_text("{}", encoding="utf-8")
+            handler = types.SimpleNamespace(state=types.SimpleNamespace(get_progress=lambda _name: None))
+
+            with patch.dict("os.environ", {"MANYING_TTS_MODELS_DIR": str(app_cache)}, clear=False):
+                status = main_module.Handler.model_status(handler, get_model("whisper-large-v3-turbo"))
+
+            self.assertFalse(status["downloaded"])
 
     def test_mock_generation_writes_valid_wav(self):
         with tempfile.TemporaryDirectory() as tmp:

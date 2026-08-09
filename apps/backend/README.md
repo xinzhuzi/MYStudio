@@ -44,7 +44,7 @@ http://127.0.0.1:17593
 
 `storageBasePath` 由应用存储设置决定；用户迁移项目存储目录后，Python runtime 和默认模型缓存的解析路径会指向新的存储根目录，但现有 `python/` 和 `tts-models/` 内容不会随 move/export/import 自动复制。
 
-`apps/backend/` 是 sidecar 源码和依赖声明，不是 Python runtime 的安装位置。此前遗留在源码树中的 `apps/backend/python` 已于 2026-07-25 移出；该路径不再是开发或运行时入口。`.gitignore` 仍忽略它，electron-builder 也继续排除 `backend/python/**`，防止本地 runtime 被重新带入源码包。Electron 不把它作为可选 Python 候选；正式 runtime 只从 `<storageBasePath>/python` 获取。
+`apps/backend/` 是 sidecar 源码和依赖声明，不是 Python runtime 的安装位置。此前遗留在源码树中的 `apps/backend/python` 已于 2026-07-25 移出；该路径不再是开发或运行时入口。`.gitignore` 仍忽略它，electron-builder 也继续排除 `backend/python/**`，防止本地 runtime 被重新带入源码包。Electron 不把它作为备用 Python 来源；正式 runtime 只从 `<storageBasePath>/python` 获取。
 
 ## 服务实现
 
@@ -78,7 +78,7 @@ Electron 会先从开发时的 `apps/backend` 或打包后的 `Resources/backend
 | `GET` | `/models/cache-dir` | 返回模型缓存路径和扫描路径 |
 | `GET` | `/models/progress-json/{model}` | JSON 模型下载进度 |
 | `GET` | `/models/progress/{model}` | SSE 模型下载进度 |
-| `POST` | `/models/download` | 开始下载模型 |
+| `POST` | `/models/download` | 开始下载模型；`whisper-large-v3-turbo` 会同时准备 `openai/whisper-large-v3-turbo` 的本地 tokenizer，供 video-use 原文强制对齐使用 |
 | `POST` | `/models/download/cancel` | 标记取消模型下载 |
 | `POST` | `/models/{model}/unload` | 从内存卸载模型 |
 | `DELETE` | `/models/{model}` | 删除已缓存模型 |
@@ -97,6 +97,22 @@ Electron 会先从开发时的 `apps/backend` 或打包后的 `Resources/backend
 - 依赖安装由 `设置 -> Python 配置 -> 开始配置` 触发，不随应用启动自动执行。
 - Electron runtime 使用 `requirements.txt` 内容和 Python 路径计算 hash marker；未变化时跳过重复安装。
 - 安装目标是 `<storageBasePath>/python/lib/python3.12/site-packages` 对应的 Python 运行环境，不写入应用安装目录。
+
+## video-use 依赖边界
+
+`apps/backend/requirements.txt` 当前只服务 TTS；现有安装器读取一个清单、生成一个 `.deps-hash`，不会按“用户是否点击 video-use”拆分依赖。因此不能把 `librosa`、`matplotlib`、`pillow` 等 video-use 依赖直接追加到该文件后再期待安装器按功能判断，这会让 TTS 配置时无条件安装并把两套升级/回滚绑定在一起。
+
+video-use 运行时必须复用设置页下载的 `<storageBasePath>/python` 解释器来源。默认方案是在 video-use 准备时复用该 managed Python 3.12 的同一 site-packages，并使用独立 `requirements-video-use.lock`、profile marker、`pip check`/import/fixture smoke、TTS 全量回归和整套 runtime 回滚；禁止创建 `video-use-runtime` venv。用户仍只通过 MYStudio UI 操作，安装动作由 Electron 后台 worker 完成，不要求用户打开终端。共享依赖发生硬冲突时，必须恢复最近一次已验证组合并将当前章节置为 `blocked`，不得静默换环境或继续正式渲染。
+
+TTS 依赖更新后必须重新检查 video-use profile 的兼容状态；不能因为 TTS 自己的 `.deps-hash` 未变化，就跳过 video-use 的 profile smoke。
+
+## 视频章节交接边界
+
+后端不承担正式视频 renderer。工作流由上游传入 `StoryboardItem.ttsSpokenText`、本地 TTS WAV binding、`StoryboardShot` 媒体和输入 SHA；MLX 0.4.1 的原文强制对齐在 video-use 之前完成。每章 video-use 与 HyperFrames 默认启用，状态为 `preparing`、`aligning`、`editing`、`previewing`、`evaluating`、`awaiting-review`、`applying`、`ready` 或 `blocked`。
+
+video-use 完整产出 EDL、字幕时间、调色、preview 和 self-eval。adapter 保留上游秒制 evidence，并把通过校验的 EDL 转换为 `TimelineTimeUs`。用户确认后默认生成可编辑 `editable-edl`，或在高级模式交接未烧录字幕/overlay 的 clean `flat-shot-mp4`；两者都保留独立字幕和 overlay metadata，禁止重复烧录。HyperFrames 位于时间线确定后、Remotion `ChapterVideo` 前，只产出透明 overlay 或有证据的 `no-op` artifact。Remotion 仍是唯一 `EditingProject -> MP4 -> evidence` renderer，最终输出后的 `final-output-qc` 只读。
+
+外部 video-use 的 ElevenLabs Scribe 仅作为上游可选研究能力；本地 TTS 文本、WAV 和 MLX 对齐是 MYStudio 默认输入。缺输入、对齐、EDL、preview/self-eval、用户确认、overlay 或 evidence 时，后端只返回 `blocked`/可重试错误，不提供失败继续或静默 fallback。
 
 ## Daojie 直跑与 HTTP TTS
 

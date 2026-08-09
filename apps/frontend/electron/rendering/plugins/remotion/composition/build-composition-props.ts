@@ -8,6 +8,7 @@ import type {
   CompositionAudioClipProps,
   CompositionEnvelopePoint,
   CompositionFade,
+  CompositionOverlayClipProps,
   CompositionPanZoom,
   CompositionProps,
   CompositionTransform,
@@ -15,6 +16,7 @@ import type {
   CompositionVisualClipProps,
 } from "./composition-props";
 import { validateChapterVideoCompositionProps } from "./composition-props-validation";
+import type { HyperFramesOverlayWindowV1 } from "@rendering/contracts/video-workflow";
 import type {
   RemotionChapterManifestV2,
   RemotionCurrentSlotV1,
@@ -129,6 +131,10 @@ export interface ChapterVideoSourceInput {
 export interface ChapterVideoCompositionInput extends ChapterVideoSourceInput {
   mediaUrlByClipId: Readonly<Record<string, string>>;
   mediaUrlByBindingId: Readonly<Record<string, string>>;
+  hyperFramesOverlay?: {
+    src: string;
+    windows: readonly HyperFramesOverlayWindowV1[];
+  };
 }
 
 export interface ChapterVoiceInterval {
@@ -193,6 +199,7 @@ export function buildChapterVideoCompositionProps(
         }),
       };
     });
+  const overlayClips = projectHyperFramesOverlay(input.hyperFramesOverlay, base.durationInFrames, base.fps);
   const props: ChapterVideoCompositionProps = {
     ...base,
     target: "chapter",
@@ -202,6 +209,7 @@ export function buildChapterVideoCompositionProps(
     editingRevision: input.plan.editingRevision,
     visualClips: base.visualClips.map((clip) => ({ ...clip, muted: false })),
     audioClips,
+    ...(overlayClips.length > 0 ? { overlayClips } : {}),
   };
   const validation = validateChapterVideoCompositionProps(props);
   if (!validation.success) return { success: false, issues: validation.issues };
@@ -231,6 +239,25 @@ export function mapEditedVoiceIntervals(
   input: ChapterVideoSourceInput,
 ): ChapterVoiceIntervalResult {
   return inspectChapterVideoSource(input);
+}
+
+function projectHyperFramesOverlay(
+  overlay: ChapterVideoCompositionInput["hyperFramesOverlay"],
+  compositionDurationInFrames: number,
+  fps: number,
+): CompositionOverlayClipProps[] {
+  if (!overlay || overlay.windows.length === 0) return [];
+  const endUs = Math.max(...overlay.windows.map((window) => window.startUs + window.durationUs));
+  const durationInFrames = clipDurationInFrames(endUs, fps);
+  if (durationInFrames > compositionDurationInFrames) {
+    throw new Error("HyperFrames overlay 时长超出 ChapterVideo composition");
+  }
+  return [{
+    clipId: "hyperframes-overlay",
+    src: overlay.src,
+    from: 0,
+    durationInFrames,
+  }];
 }
 
 function inspectChapterVideoSource(

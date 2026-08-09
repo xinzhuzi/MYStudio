@@ -110,7 +110,7 @@ describe("SettingsPanel tab navigation", () => {
     render(<SettingsPanel initialTab="rendering" onInitialTabConsumed={onInitialTabConsumed} />);
 
     await waitFor(() => {
-      expect(screen.getByRole("tab", { name: "渲染" }).getAttribute("aria-selected")).toBe("true");
+    expect(screen.getByRole("tab", { name: "视频工作流插件" }).getAttribute("aria-selected")).toBe("true");
       expect(screen.getByText("rendering settings panel")).toBeTruthy();
     });
     expect(onInitialTabConsumed).toHaveBeenCalledOnce();

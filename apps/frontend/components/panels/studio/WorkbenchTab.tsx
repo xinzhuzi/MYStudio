@@ -22,6 +22,8 @@ import { useEditingWorkbenchActions } from "./useEditingWorkbenchActions";
 import { selectFirstStoryboard, useFirstShotPreviewActions } from "./use-first-shot-preview-actions";
 import { useRemotionQueueScope } from "./useRemotionQueueScope";
 import { toast } from "sonner";
+import { VideoWorkflowReviewPanel } from "./VideoWorkflowReviewPanel";
+import type { VideoUseDerivedInputPolicy } from "@rendering/contracts/video-workflow";
 
 export function WorkbenchTab(props: {
   projectId?: string;
@@ -58,6 +60,7 @@ export function WorkbenchTab(props: {
     .filter((storyboard) => storyboard.episodeId === chapterId)
     .slice()
     .sort((left, right) => left.index - right.index);
+  const currentChapterSlotCount = countCurrentShotSlots(chapterId, props.storyboards, props.remotionShotSlots ?? []);
   const queueScope = useRemotionQueueScope(props.projectId ?? activeProjectId ?? undefined, chapterId);
   const firstShotPreview = useFirstShotPreviewActions({
     projectId: props.projectId ?? activeProjectId ?? undefined,
@@ -76,6 +79,15 @@ export function WorkbenchTab(props: {
   const firstShotOutputRequestVersion = useRef(0);
   const [firstShotAbsoluteOutputPath, setFirstShotAbsoluteOutputPath] = useState<string>();
   const [firstShotOutputPathError, setFirstShotOutputPathError] = useState<string>();
+  const [videoUseMode, setVideoUseMode] = useState<"editable-edl" | "flat-shot-mp4">("editable-edl");
+  const [videoUseDerivedInputPolicy, setVideoUseDerivedInputPolicy] = useState<VideoUseDerivedInputPolicy>("reject");
+  const hyperFramesReady = editing.hyperFramesState === "accepted" || editing.hyperFramesState === "noop";
+  const remotionHostReady = Boolean(
+    editing.currentProject
+    && chapterReady
+    && editing.videoUseState === "accepted"
+    && hyperFramesReady,
+  );
   useEffect(() => {
     const requestVersion = ++firstShotOutputRequestVersion.current;
     const projectId = props.projectId ?? activeProjectId ?? undefined;
@@ -318,12 +330,86 @@ export function WorkbenchTab(props: {
     if (!result.success) toast.error(result.error || "无法显示首镜视频所在文件夹");
   }, [firstShotAbsoluteOutputPath]);
   return (
-    <div className="space-y-3">
+    <div className="space-y-3" data-studio-workbench>
       <VisualContinuityReviewPanel
         storyboards={props.storyboards}
         continuityAssetVersions={continuityAssetVersions}
         onReview={reviewStoryboardHuman}
         onReviewAsset={reviewContinuityAssetVersionHuman}
+      />
+      <section
+        aria-label="video-use 章节执行"
+        className="rounded-lg border border-cyan-300/30 bg-cyan-300/[0.06] px-4 py-3 text-xs"
+        data-video-use-preview
+        data-video-use-status={editing.videoUseState}
+        data-video-use-mode={videoUseMode}
+        data-video-use-derived-input-policy={videoUseDerivedInputPolicy}
+      >
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="font-semibold">第一阶段：video-use 章节预览</span>
+          <span className="text-muted-foreground">
+            {editing.videoUseBusy ? "执行中" : editing.videoUseState === "pending" ? `待确认 · revision ${editing.videoUseRevision ?? "-"}` : editing.videoUseState === "blocked" ? "已阻塞" : editing.videoUseState === "accepted" ? "已应用" : "未执行"}
+          </span>
+        </div>
+        <p className="mt-1 text-muted-foreground">先消费已完成的 Remotion StoryboardShot 和本地 TTS，执行原文对齐、EDL、字幕时间、调色、preview 与自评；确认前不会生成正式章节视频。</p>
+        <div className="mt-3 flex flex-wrap items-end gap-2">
+          <label className="grid gap-1 text-muted-foreground">
+            交接模式
+            <select
+              className="h-8 rounded border border-border bg-background px-2 text-foreground"
+              value={videoUseMode}
+              data-video-use-mode-select
+              onChange={(event) => setVideoUseMode(event.currentTarget.value as "editable-edl" | "flat-shot-mp4")}
+            >
+              <option value="editable-edl">editable-edl（默认）</option>
+              <option value="flat-shot-mp4">flat-shot-mp4（高级）</option>
+            </select>
+          </label>
+          <label className="grid gap-1 text-muted-foreground">
+            时长不匹配处理
+            <select
+              className="h-8 rounded border border-border bg-background px-2 text-foreground"
+              value={videoUseDerivedInputPolicy}
+              data-video-use-derived-input-policy-select
+              onChange={(event) => setVideoUseDerivedInputPolicy(event.currentTarget.value as VideoUseDerivedInputPolicy)}
+            >
+              <option value="reject">不派生，直接阻塞（默认）</option>
+              <option value="pad-video-to-audio">允许生成可追溯派生视频</option>
+            </select>
+          </label>
+          <Button
+            size="sm"
+            data-video-use-run
+            disabled={!chapterReady || editing.videoUseBusy || editing.applying || editing.videoUseState === "pending"}
+            onClick={() => { void editing.runVideoUse(videoUseMode, videoUseDerivedInputPolicy).catch(() => undefined); }}
+          >
+            {editing.videoUseBusy ? "正在运行…" : editing.videoUseState === "blocked" ? "重试 video-use" : "运行 video-use 预览"}
+          </Button>
+          <span
+            className="pb-2 text-muted-foreground"
+            data-video-use-revision={editing.videoUseRevision ? String(editing.videoUseRevision) : ""}
+            data-video-use-input-sha={editing.videoUseInputSha ?? ""}
+          >
+            输入指纹 {editing.videoUseInputSha ? `${editing.videoUseInputSha.slice(0, 12)}…` : "-"}
+          </span>
+        </div>
+        <output
+          className="sr-only"
+          data-hyperframes-status={editing.hyperFramesState}
+          data-hyperframes-accepted={String(editing.hyperFramesState === "accepted")}
+          data-hyperframes-noop={String(editing.hyperFramesState === "noop")}
+          data-hyperframes-blocked={String(editing.hyperFramesState === "blocked")}
+        >
+          HyperFrames {editing.hyperFramesState}
+        </output>
+        {!chapterReady ? <p className="mt-2 text-muted-foreground">需先完成本章全部 Remotion StoryboardShot current slot。</p> : null}
+        {editing.error ? <p className="mt-2 text-destructive" role="alert">{editing.error}</p> : null}
+      </section>
+      <VideoWorkflowReviewPanel
+        projectId={props.projectId ?? activeProjectId ?? undefined}
+        chapterId={chapterId}
+        revision={editing.videoUseRevision}
+        onAccepted={async () => { await editing.applyVideoWorkflow(); }}
       />
       <section aria-label="章节共享音频配置" className="rounded-lg border border-border bg-card px-4 py-3 text-xs">
         <div className="flex items-center justify-between"><span className="font-semibold">章节共享音频（BGM / 环境）</span><span className="text-muted-foreground">{chapterAudioStatus}{chapterManifest ? ` · 修订 ${chapterManifest.revision}` : ""}</span></div>
@@ -478,10 +564,21 @@ export function WorkbenchTab(props: {
         <div className="mt-3 space-y-2">
           {currentChapterStoryboards.map((storyboard) => {
             const job = selectCurrentShotJobForStoryboard(storyboard, queueScope.jobs, queueScope.currentShotSlots);
+            const currentSlot = (props.remotionShotSlots ?? []).find((slot) => slot.target.kind === "shot"
+              && slot.target.chapterId === chapterId
+              && slot.target.shotId === storyboard.id
+              && slot.target.shotRevision === Math.max(1, storyboard.outputVersion ?? 1));
             const voice = storyboard.shotAudioBindings?.find((binding) => binding.role === "voice");
             const sfx = storyboard.shotAudioBindings?.find((binding) => binding.role === "sfx");
             return (
-              <div key={storyboard.id} className="flex flex-wrap items-center justify-between gap-2 rounded border border-border/70 bg-background/30 p-2">
+              <div
+                key={storyboard.id}
+                className="flex flex-wrap items-center justify-between gap-2 rounded border border-border/70 bg-background/30 p-2"
+                data-storyboard-shot-current-slot
+                data-storyboard-shot-id={storyboard.id}
+                data-storyboard-shot-revision={String(Math.max(1, storyboard.outputVersion ?? 1))}
+                data-storyboard-shot-slot-status={currentSlot?.job.status ?? "missing"}
+              >
                 <div className="min-w-0">
                   <div className="truncate font-medium">S{String(storyboard.index).padStart(2, "0")} · {storyboard.videoDesc || storyboard.prompt || storyboard.id}</div>
                   <div className="mt-1 text-[10px] text-muted-foreground">
@@ -502,35 +599,43 @@ export function WorkbenchTab(props: {
           })}
         </div>
       </section>
-      {editing.currentProject && chapterReady ? <NativeRemotionStudioHost
-        projectId={editing.currentProject.projectId}
-        chapterId={editing.currentProject.episodeId}
-        revision={editing.currentProject.revision}
-      /> : (
-        <section aria-label="Remotion 章节工作台准备" className="rounded-lg border border-border bg-card p-4">
+      {remotionHostReady && editing.currentProject ? (
+        <div data-remotion-handoff data-remotion-host-readiness="ready">
+          <NativeRemotionStudioHost
+            projectId={editing.currentProject.projectId}
+            chapterId={editing.currentProject.episodeId}
+            revision={editing.currentProject.revision}
+          />
+        </div>
+      ) : (
+        <section
+          aria-label="Remotion 章节工作台准备"
+          className="rounded-lg border border-border bg-card p-4"
+          data-remotion-handoff
+          data-remotion-host-readiness="blocked"
+          data-remotion-current-slot-count={String(currentChapterSlotCount)}
+          data-remotion-current-slot-ready={String(chapterReady)}
+        >
           <div className="flex items-center gap-2 text-sm font-semibold">
             <Film className="h-4 w-4" />
             原生 Remotion Studio 章节工作台
           </div>
           <p className="mt-2 text-sm text-muted-foreground">
-            当前章节尚未生成可编辑工程。先完成当前章的 Remotion 分镜队列，系统会据此加载原生 Studio。
+            当前章节仍在 video-use / HyperFrames 门禁之前。完成 video-use 预览、用户确认与 overlay/no-op 应用后，系统才会加载原生 Remotion Studio。
           </p>
           <div className="mt-3 rounded-md border border-cyan-300/20 bg-cyan-300/[0.06] px-3 py-2 text-xs text-cyan-100">
-            分镜物料 → <strong>StoryboardShot</strong> 单镜 MP4 → 原生 Remotion Studio → <strong>ChapterVideo</strong> 章节合成 → 章节 MP4
+            分镜物料 → <strong>StoryboardShot</strong> 单镜 MP4 → video-use → 用户确认 → HyperFrames overlay/no-op → 原生 Remotion Studio → <strong>ChapterVideo</strong>
           </div>
-          <Button
-            className="mt-4"
-            disabled={editing.drafting || !chapterReady}
-            onClick={() => { void editing.createDraft().catch(() => undefined); }}
-          >
-            {editing.drafting ? "正在准备…" : "准备当前章"}
-          </Button>
+          {editing.videoUseState === "accepted" && editing.hyperFramesState === "blocked" ? (
+            <Button className="mt-4" disabled={editing.applying} onClick={() => { void editing.applyVideoWorkflow().catch(() => undefined); }}>
+              {editing.applying ? "正在重试应用…" : "重试 HyperFrames / 工程应用"}
+            </Button>
+          ) : null}
           {!chapterReady ? (
             <p className="mt-3 text-xs text-muted-foreground">
-              已验证单镜槽位：{countCurrentShotSlots(props.episodeId ?? "episode-1", props.storyboards, props.remotionShotSlots ?? [])}/{props.storyboards.filter((storyboard) => storyboard.episodeId === (props.episodeId ?? "episode-1")).length}；全部成功后才能进入章节工作台。
+              已验证单镜槽位：{currentChapterSlotCount}/{props.storyboards.filter((storyboard) => storyboard.episodeId === (props.episodeId ?? "episode-1")).length}；全部成功后才能进入章节工作台。
             </p>
           ) : null}
-          {editing.error && <p className="mt-3 text-sm text-destructive">{editing.error}</p>}
         </section>
       )}
     </div>

@@ -108,18 +108,26 @@ function findBackupDecoder(raw: unknown): MixedBackupDecoder | null;
 function decodeMixedBackup(raw: unknown): any;
 ```
 
-### Known Formats (Implemented Templates)
-1. **legacy-single-chapter** (`LEGACY_SINGLECHAPTER_DECODER_TEMPLATE`)
+### Known Formats (Implemented)
+1. **legacy-single-chapter** (`LEGACY_SINGLECHAPTER_DECODER`)
    - Structure: `{ chapters: [{id, content}], meta: {version} }`
    - Version: 1.x
    
-2. **multi-chapter-state** (`MULTICHAPTER_STATE_DECODER_TEMPLATE`)
+2. **multi-chapter-state** (`MULTICHAPTER_STATE_DECODER`)
    - Structure: `{ state: { novelChapters, scriptData, ... }, timestamp }`
    - Versions: 1.x, 2.x
 
+3. **zustand-project-state** (`ZUSTAND_PROJECT_STATE_DECODER`)
+   - Structure: `{ projectId?, state: { novelChapters, episodes, storyboards, tracks, mediaFiles, ... } }`
+   - Versions: 0.x and later
+
+4. **daojie-multichapter-mixed-json** (`DAOJIE_MULTICHAPTER_DECODER`)
+   - Structure: redacted Daojie multi-chapter mixed JSON with an explicit format marker
+   - Version: 1.x
+
 ### File Locations
 - Registry: `apps/frontend/electron/artifacts/backup-decoder-registry.ts`
-- Template implementations included as TODO examples
+- Implementations and registrations live in `backup-decoder-registry.ts`; unknown formats remain blockers.
 
 ### Integration with Deletion Service
 During plan generation:

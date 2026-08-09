@@ -108,7 +108,7 @@ function App() {
 
   return (
     <InteractionEffects>
-      <div className="h-screen w-screen overflow-hidden">
+      <div className="h-screen w-full overflow-hidden">
         <Layout />
         <UpdateDialog
           open={updateDialogOpen}

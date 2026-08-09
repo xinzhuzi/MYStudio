@@ -93,6 +93,13 @@ export function DevelopmentSettingsTab({
             </div>
           )}
           {!hasDevTools && <p className="text-xs text-muted-foreground">控制台入口仅在桌面应用窗口中可用。</p>}
+
+          <div className="rounded-lg border border-dashed border-border bg-muted/20 px-3 py-3 space-y-1">
+            <p className="text-sm font-medium">远程调试端口（供 MCP / 自动诊断接入）</p>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              用 <code className="px-1 py-0.5 rounded bg-muted text-foreground">MYSTUDIO_REMOTE_DEBUG=1 npm run dev</code> 启动时，应用开放本地 9222 调试端口，供 chrome-devtools-mcp 接入做自动布局/盒模型诊断。默认不开，打包版与正常运行不受影响。
+            </p>
+          </div>
         </div>
 
         <div className="p-6 border border-border rounded-xl bg-card space-y-5">

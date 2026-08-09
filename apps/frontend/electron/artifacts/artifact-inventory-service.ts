@@ -237,6 +237,22 @@ function legacyArtifactIdFor(artifact: ArtifactRecord): string {
 const BACKUP_SUFFIX_RE = /\.(?:bak(?:[-_][^.]*)?$|codex[-_][^.]*$|smoke[-_][^.]*$)/i;
 
 /**
+ * Project-root subdirectories that hold whole-store snapshots rather than live
+ * data. Their contents are plain-named `.json` (e.g. `studio-workflow-store.json`)
+ * with no `.bak`/`.codex` suffix, so without a directory-level skip they would
+ * be classified `kind:"json"` (LIVE), decoded into a full duplicate artifact
+ * set, and surface in the product popup as extra physical files.
+ *
+ * - `visual-continuity-backups` — written by the daojie promote pipeline
+ *   (`apps/build/daojie/pipeline/promote_chapter001_storyboard_continuity.py`)
+ *   as `storyboard-promotion-<timestamp>-<sha>/studio-workflow-store.json`
+ *   snapshots during storyboard promotion.
+ *
+ * Add further whole-store-snapshot roots here as they are introduced.
+ */
+const BACKUP_ROOT_DIRS = new Set<string>(["visual-continuity-backups"]);
+
+/**
  * Scan persisted JSON, backup, media and other files in the project root.
  */
 async function scanProjectFiles(dataRoot: string, projectId: string): Promise<
@@ -270,7 +286,7 @@ async function scanProjectFiles(dataRoot: string, projectId: string): Promise<
         files.push({ filePath: fullPath, relativePath, kind: "other", special: "symlink" });
       } else if (entry.isDirectory()) {
         // Skip hidden directories and node_modules
-        if (!entry.name.startsWith(".") && entry.name !== "node_modules") {
+        if (!entry.name.startsWith(".") && entry.name !== "node_modules" && !BACKUP_ROOT_DIRS.has(entry.name)) {
           await scanDirectory(fullPath, relativePath);
         }
       } else if (entry.isFile()) {

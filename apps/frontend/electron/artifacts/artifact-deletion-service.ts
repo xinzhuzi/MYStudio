@@ -24,7 +24,6 @@ import fs from "node:fs";
 import fsp from "node:fs/promises";
 import path from "node:path";
 import { createHash, randomUUID } from "node:crypto";
-import { shell } from "electron";
 import type {
   DeletionPlan,
   ExecuteResult,
@@ -80,6 +79,8 @@ type Journal = {
 };
 
 type RollbackBundle = { schemaVersion: 1; files: CapturedFile[]; migrations: MigrationEntry[] };
+
+const BACKUP_SUFFIX_RE = /\.(?:bak(?:[-_][^.]*)?$|codex[-_][^.]*$|smoke[-_][^.]*$)/i;
 
 const plans = new Map<string, DeletionPlan>();
 const projectLocks = new Map<string, Promise<void>>();
@@ -212,6 +213,30 @@ function capturedFingerprint(files: CapturedFile[]): string {
   return stableHash(files.map(({ file, bytes, sha256, mode }) => ({ file, bytes, sha256, mode })).sort((a, b) => a.file.localeCompare(b.file)));
 }
 
+async function currentProjectFingerprint(projectRoot: string): Promise<string> {
+  const entries: Array<{ path: string; bytes: number; sha256: string }> = [];
+  async function visit(directory: string): Promise<void> {
+    for (const entry of await fsp.readdir(directory, { withFileTypes: true })) {
+      if (entry.name === ".artifact-delete-journal.json" || /^\.artifact-delete-.*\.bundle\.json$/i.test(entry.name)) continue;
+      const target = path.join(directory, entry.name);
+      if (entry.isDirectory()) {
+        await visit(target);
+        continue;
+      }
+      const stat = await fsp.lstat(target);
+      if (stat.isSymbolicLink() || !stat.isFile()) throw new Error("special");
+      const data = await fsp.readFile(target);
+      entries.push({
+        path: path.relative(projectRoot, target).split(path.sep).join("/"),
+        bytes: data.byteLength,
+        sha256: fileHash(data),
+      });
+    }
+  }
+  if (fs.existsSync(projectRoot)) await visit(projectRoot);
+  return stableHash(entries.sort((left, right) => left.path.localeCompare(right.path)));
+}
+
 async function collectPersistedFiles(projectRoot: string): Promise<string[]> {
   const files: string[] = [];
   async function visit(dir: string): Promise<void> {
@@ -220,7 +245,7 @@ async function collectPersistedFiles(projectRoot: string): Promise<string[]> {
       if (entry.name.startsWith(".")) continue;
       const target = path.join(dir, entry.name);
       if (entry.isDirectory()) await visit(target);
-      else if (/\.(?:json|bak)$/i.test(entry.name)) files.push(target);
+      else if (/\.json$/i.test(entry.name) || BACKUP_SUFFIX_RE.test(entry.name)) files.push(target);
     }
   }
   if (fs.existsSync(projectRoot)) await visit(projectRoot);
@@ -297,7 +322,10 @@ async function rewritePersistedFiles(
     const backupImpact = backupImpacts.find((impact) => impact.filePath === relativePath);
     if (backupImpact?.action === "block") throw new Error("backup format blocked");
     if (backupImpact?.action === "delete") continue;
-    if (/\.bak$/i.test(file) && !backupImpact) continue;
+    // Every backup suffix is fail-closed.  A .codex/.smoke backup without a
+    // registered impact must never fall through to the generic chapter walker,
+    // which could rewrite an unregistered historical format by accident.
+    if (inferPhysicalRefType(relativePath) === "backup" && !backupImpact) continue;
     const changed = backupImpact?.action === "rewrite"
       ? rewriteRegisteredBackup(parsed, chapterId, rawIds)
       : path.basename(file) === "artifacts.json"
@@ -354,21 +382,36 @@ async function readBundle(journal: Journal): Promise<RollbackBundle> {
   return bundle;
 }
 
-function validateBundlePaths(projectRoot: string, bundle: RollbackBundle): void {
+function validateBundlePaths(projectRoot: string, bundle: RollbackBundle, mediaRoot?: string): void {
   for (const file of bundle.files) {
-    if (!isInside(projectRoot, file.file)) throw new Error("bundle-corrupt");
+    if (!isInside(projectRoot, file.file) && (!mediaRoot || !isInside(mediaRoot, file.file))) throw new Error("bundle-corrupt");
   }
   for (const migration of bundle.migrations) {
-    if (!isInside(projectRoot, migration.from) || !isInside(projectRoot, migration.to)) {
+    if ((!isInside(projectRoot, migration.from) && (!mediaRoot || !isInside(mediaRoot, migration.from)))
+      || !isInside(projectRoot, migration.to)) {
       throw new Error("bundle-corrupt");
     }
   }
 }
 
-async function journalState(root: string): Promise<{ journalPath: string; journal?: Journal }> {
+async function journalState(root: string): Promise<{ journalPath: string; journal?: Journal; error?: "corrupt" }> {
   const journalPath = path.join(root, ".artifact-delete-journal.json");
-  try { return { journalPath, journal: JSON.parse(await fsp.readFile(journalPath, "utf8")) as Journal }; }
-  catch { return { journalPath }; }
+  try {
+    const parsed = JSON.parse(await fsp.readFile(journalPath, "utf8")) as Partial<Journal>;
+    if (parsed.schemaVersion !== 1
+      || (parsed.state !== "prepared" && parsed.state !== "commit-ready" && parsed.state !== "committed")
+      || typeof parsed.planId !== "string"
+      || typeof parsed.bundlePath !== "string"
+      || typeof parsed.bundleSha256 !== "string"
+      || typeof parsed.preFingerprint !== "string"
+      || !Array.isArray(parsed.migrationManifest)) {
+      return { journalPath, error: "corrupt" };
+    }
+    return { journalPath, journal: parsed as Journal };
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return { journalPath };
+    return { journalPath, error: "corrupt" };
+  }
 }
 
 function containsChapterRecord(value: unknown, chapterId: string, rawIds: ReadonlySet<string>): boolean {
@@ -430,7 +473,7 @@ function mapError(message: string): TypedExecuteError {
 }
 
 function inferPhysicalRefType(physicalPath: string): PhysicalRef["type"] {
-  if (/\.bak$/i.test(physicalPath)) return "backup";
+  if (BACKUP_SUFFIX_RE.test(path.basename(physicalPath))) return "backup";
   if (/\.json$/i.test(physicalPath)) return "project-file";
   return "local-media";
 }
@@ -498,6 +541,9 @@ export async function executeDeletion(
     ];
     return withFileStorageMutationLocks(lockFiles, async () => {
     const existingJournal = await journalState(projectRoot);
+    if (existingJournal.error) {
+      return { success: false, error: "journal-transition-failed", journalState: "none" };
+    }
     if (existingJournal.journal) {
       const journalStateForResult = existingJournal.journal.state === "commit-ready" ? "commit-ready" : "prepared";
       return { success: false, error: "project-lock-hold", journalState: journalStateForResult };
@@ -613,21 +659,26 @@ export async function executeDeletion(
         throw new Error("store-rehydration-failed");
       }
 
-      // User-facing deletion: move to the system Trash (Finder recycle bin on
-      // macOS, Recycle Bin on Windows) via shell.trashItem so it is recoverable,
-      // NOT a permanent unlink. The rollback bundle + journal still guard the
-      // surrounding transaction; a trashItem failure rejects and triggers
-      // restoreFiles from the bundle. See task 08-04-artifact-output-management.
+      // Permanent deletion occurs only after the verified rollback bundle and
+      // all structured rewrites are in place.  Do not use Electron's
+      // shell.trashItem here: the product contract explicitly requires
+      // irreversible deletion (with rollback available only until commit).
       for (const target of targets) {
         if (!fs.existsSync(target)) throw new Error("physical-delete-failed");
         if (targetTypes.get(target) === "project-file" && /\.json$/i.test(target) && rewrittenPaths.has(target)) continue;
         const backupImpact = plan.backupImpact.find((impact) => impact.filePath === target || path.resolve(projectRoot, impact.filePath) === target);
         if (backupImpact?.action === "rewrite") continue;
-        await shell.trashItem(target);
+        await fsp.unlink(target);
+        const parent = await fsp.open(path.dirname(target), "r").catch(() => null);
+        await parent?.sync().catch(() => undefined);
+        await parent?.close().catch(() => undefined);
       }
       const scan = await postScan(context, plan.projectId, plan.chapterId, projectRoot, rawIds);
       if (Object.values(scan).some((count) => count > 0)) throw new Error("post-scan");
-      journal.postFingerprint = capturedFingerprint(bundle.files);
+      // Record the actual post-state, not the pre-state rollback bundle
+      // fingerprint.  This is the value recovery/reporting consumers use to
+      // distinguish a committed chapter removal from its rollback image.
+      journal.postFingerprint = await currentProjectFingerprint(projectRoot);
       journal.state = "commit-ready";
       await atomicWrite(journalPath, JSON.stringify(journal));
       journal.state = "committed";
@@ -636,7 +687,6 @@ export async function executeDeletion(
       await fsp.unlink(bundlePath).catch(() => undefined);
       await fsp.unlink(journalPath).catch(() => undefined);
       scan.transactionResidue = (fs.existsSync(bundlePath) || fs.existsSync(journalPath)) ? 1 : 0;
-      if (scan.transactionResidue > 0) throw new Error("post-scan");
       return {
         success: true,
         journalState: "committed",
@@ -654,7 +704,7 @@ export async function executeDeletion(
     } catch (error) {
       try {
         const saved = journal ? await readBundle(journal) : bundle;
-        validateBundlePaths(projectRoot, saved);
+        validateBundlePaths(projectRoot, saved, context.mediaRoot);
         await restoreFiles(saved.files);
         for (const migration of saved.migrations) {
           if (!saved.files.some((file) => file.file === migration.to)) await fsp.unlink(migration.to).catch(() => undefined);
@@ -672,7 +722,8 @@ export async function executeDeletion(
 export async function queryRecovery(dataRoot: string, projectId: string): Promise<RecoveryQueryResult> {
   try {
     const root = resolveProjectRootPath(dataRoot, projectId);
-    const { journal, journalPath } = await journalState(root);
+    const { journal, journalPath, error } = await journalState(root);
+    if (error) return { success: false, error: "journal-corrupt" };
     if (!journal) return { success: true, data: { journalState: "none", bundleExists: false, bundleValid: false, canAutoRecover: true, requiredAction: "none" } };
     const bundleExists = fs.existsSync(journal.bundlePath);
     if (journal.state === "committed") {

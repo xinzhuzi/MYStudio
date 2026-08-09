@@ -137,8 +137,15 @@ def _cache_size_mb(cache: Path) -> float:
     return round(size / 1024 / 1024, 2)
 
 
-def find_cached_repo(repo_ids: tuple[str, ...]) -> CachedModel | None:
-    for cache_dir in hf_cache_dirs():
+def find_cached_repo(repo_ids: tuple[str, ...], cache_dirs: list[Path] | None = None) -> CachedModel | None:
+    """Find a complete cached repo, optionally within an explicit cache set.
+
+    The optional list lets managed workers reuse the application's configured
+    cache without silently falling back to a user's unrelated global cache.
+    Existing TTS callers keep the historical multi-location scan when the
+    argument is omitted.
+    """
+    for cache_dir in cache_dirs or hf_cache_dirs():
         for repo_id in repo_ids:
             cache = repo_cache_dir(repo_id, cache_dir)
             if _has_complete_model_files(cache):
@@ -151,8 +158,32 @@ def find_cached_repo(repo_ids: tuple[str, ...]) -> CachedModel | None:
     return None
 
 
-def find_cached_model(model: TtsModel) -> CachedModel | None:
-    return find_cached_repo(model_repo_ids(model))
+def has_cached_repo_files(
+    repo_id: str,
+    required_files: tuple[str, ...],
+    cache_dirs: list[Path] | None = None,
+) -> bool:
+    """Check a cached repository whose files are not model-weight files.
+
+    Tokenizer repositories commonly contain JSON/vocabulary files but no
+    ``safetensors`` weight.  They therefore cannot use ``find_cached_repo``'s
+    model-weight completeness rule.
+    """
+    if not required_files:
+        return False
+    for cache_dir in cache_dirs or hf_cache_dirs():
+        cache = repo_cache_dir(repo_id, cache_dir)
+        snapshots_dir = cache / "snapshots"
+        if not snapshots_dir.exists() or any(cache.glob("blobs/*.incomplete")):
+            continue
+        for snapshot in snapshots_dir.iterdir():
+            if snapshot.is_dir() and all((snapshot / relative).is_file() for relative in required_files):
+                return True
+    return False
+
+
+def find_cached_model(model: TtsModel, cache_dirs: list[Path] | None = None) -> CachedModel | None:
+    return find_cached_repo(model_repo_ids(model), cache_dirs=cache_dirs)
 
 
 def is_model_downloaded(model: TtsModel) -> tuple[bool, float | None]:

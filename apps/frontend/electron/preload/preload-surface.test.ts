@@ -222,6 +222,19 @@ describe("preload IPC surface", () => {
     expect(previewTypeBlock).not.toContain("sourcePath");
   });
 
+  it("exposes validated video-workflow chapter restore without filesystem access", () => {
+    expect(preloadSource).toContain("exposeInMainWorld('videoWorkflowPlugins'");
+    expect(preloadSource).toContain("ipcRenderer.invoke(VIDEO_WORKFLOW_READ_CHAPTER_CHANNEL, request)");
+    expect(preloadSource).toContain("validateVideoWorkflowChapterReadReply(value)");
+    expect(electronTypesSource).toContain("readChapter: (request: VideoWorkflowChapterReadRequestV1)");
+    const bridgeBlock = preloadSource.slice(
+      preloadSource.indexOf("exposeInMainWorld('videoWorkflowPlugins'"),
+      preloadSource.indexOf("exposeInMainWorld('remotionPreview'"),
+    );
+    expect(bridgeBlock).not.toContain("readFile");
+    expect(bridgeBlock).not.toContain("artifactPath");
+  });
+
   it("exposes the project-scoped chapter manifest and audio bridge without destination paths", () => {
     expect(preloadSource).toContain("exposeInMainWorld('remotionChapterManifest'");
     expect(preloadSource).toContain("ipcRenderer.invoke(REMOTION_CHAPTER_MANIFEST_READ_CHANNEL, scope)");

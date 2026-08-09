@@ -12,9 +12,10 @@
  */
 
 import { mkdir, writeFile } from 'fs/promises';
-import { join } from 'path';
+import { dirname, join } from 'path';
 import { existsSync, mkdirSync } from 'fs';
 import crypto from 'crypto';
+
 
 // ============================================================================
 // UTILITIES
@@ -31,6 +32,40 @@ function generateShortId() {
 async function ensureDir(dirPath) {
   if (!existsSync(dirPath)) {
     await mkdir(dirPath, { recursive: true });
+  }
+}
+
+function rewriteMixedBackupForChapter(raw, chapterId) {
+  const next = JSON.parse(JSON.stringify(raw));
+  const studioStore = next['studio-store.json'];
+  if (studioStore && Array.isArray(studioStore.novelChapters)) {
+    studioStore.novelChapters = studioStore.novelChapters.filter((chapter) => chapter.id !== chapterId);
+  }
+  if (next.chapters && typeof next.chapters === 'object') delete next.chapters[chapterId];
+  for (const [key, value] of Object.entries(next.continuity ?? {})) {
+    if (value?.chapterId === chapterId) delete next.continuity[key];
+  }
+  const versions = next.exports?.['exports_manifest.json']?.versions;
+  if (Array.isArray(versions)) {
+    next.exports['exports_manifest.json'].versions = versions
+      .map((version) => ({ ...version, chapters: version.chapters?.filter((id) => id !== chapterId) }))
+      .filter((version) => version.chapters?.length !== 0);
+  }
+  return next;
+}
+
+function assertMixedBackupRoundTrip(raw, targetChapterId, untouchedChapterId) {
+  const untouchedBefore = JSON.stringify(raw.chapters?.[untouchedChapterId]);
+  const rewritten = rewriteMixedBackupForChapter(raw, targetChapterId);
+  if (rewritten.chapters?.[targetChapterId]) {
+    throw new Error(`Round-trip left target chapter ${targetChapterId} in mixed backup`);
+  }
+  if (JSON.stringify(rewritten.chapters?.[untouchedChapterId]) !== untouchedBefore) {
+    throw new Error(`Round-trip changed untouched chapter ${untouchedChapterId}`);
+  }
+  const reparsed = JSON.parse(JSON.stringify(rewritten));
+  if (JSON.stringify(reparsed.chapters?.[untouchedChapterId]) !== untouchedBefore) {
+    throw new Error(`Round-trip serialization changed untouched chapter ${untouchedChapterId}`);
   }
 }
 
@@ -659,8 +694,9 @@ async function generateMixedBackupSample(filePath, projectId) {
     }
   };
 
-  await ensureDir(filePath);
+  await ensureDir(dirname(filePath));
   await writeFile(filePath, JSON.stringify(mixedBackup, null, 2));
+  return mixedBackup;
 }
 
 // ============================================================================
@@ -822,14 +858,18 @@ async function generateFixture() {
 
     // Write registered multi-chapter mixed-JSON backup format
     console.log('🗄️  Writing mixed-backup-sample-v1.json (registered DAO-2024-009 format)...');
-    const fixturesDir = join('/Users/zhengbingjin/Project/Github/MYStudio',
-                            'apps/frontend/electron/artifacts/__fixtures__');
+    // Keep generated data entirely inside the temporary fixture.  The checked-in
+    // redacted regression fixture is a stable input and must never be overwritten
+    // with timestamped synthetic data by this generator.
+    const fixturesDir = join(baseTempDir, 'fixtures');
     await ensureDir(fixturesDir);
 
-    await generateMixedBackupSample(
-      join(fixturesDir, 'mixed-backup-sample-v1.json'),
+    const mixedBackupPath = join(fixturesDir, 'mixed-backup-sample-v1.json.bak');
+    const mixedBackup = await generateMixedBackupSample(
+      mixedBackupPath,
       projectId
     );
+    assertMixedBackupRoundTrip(mixedBackup, 'chapter-1', 'chapter-2');
 
     // Final summary
     console.log('\n✅ Fixture generation complete!');
@@ -839,17 +879,17 @@ async function generateFixture() {
     console.log(`   Shared assets: ${Object.keys(sharedAssets).filter(k => k !== 'metadata').length} bundles`);
     console.log(`   Backup files: 2 (.bak + mixed JSON)`);
     console.log(`   Temp directory: ${baseTempDir}`);
-    console.log(`   Fixture registry: ${fixturesDir}/mixed-backup-sample-v1.json`);
+    console.log(`   Fixture registry: ${mixedBackupPath}`);
 
     // Output for downstream agents
     console.log(`\n🎯 TEMP_DIR=${baseTempDir}`);
     console.log(`🎯 PROJECT_ID=${projectId}`);
-    console.log(`🎯 FIXTURE_PATH=${fixturesDir}/mixed-backup-sample-v1.json`);
+    console.log(`🎯 FIXTURE_PATH=${mixedBackupPath}`);
 
     return {
       tempDir: baseTempDir,
       projectId,
-      fixturePath: join(fixturesDir, 'mixed-backup-sample-v1.json'),
+      fixturePath: mixedBackupPath,
       chapterCount: chapters.length
     };
 
