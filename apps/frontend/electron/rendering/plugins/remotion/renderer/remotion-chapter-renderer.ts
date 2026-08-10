@@ -48,6 +48,7 @@ import {
 } from "../manifest/remotion-audio-source-verification";
 import type {
   HyperFramesOverlayWindowV1,
+  RemotionChapterGateAcceptedV1,
   RemotionChapterGateInputV1,
   RemotionChapterGateResult,
 } from "@rendering/contracts/video-workflow";
@@ -93,6 +94,48 @@ export type RemotionChapterRenderResult =
 export interface RemotionChapterRenderIdentity extends RemotionRenderJobIdentityV1 {
   jobId: string;
   target: Extract<RemotionRenderJobTarget, { kind: "chapter" }>;
+}
+
+export type ChapterVisualInputResolution = {
+  sourcePath: string;
+  expectedSha256: string;
+  label: "shot_slot" | "derived_input";
+};
+
+/** Compare filesystem paths by canonical identity when available (macOS /var aliases /private/var). */
+export function pathsEquivalent(left: string, right: string): boolean {
+  const resolveReal = (value: string) => {
+    const macAlias = value.replace(/^\/private\/var(?:\/|$)/, "/var/");
+    try {
+      return fs.realpathSync.native(macAlias);
+    } catch {
+      return path.resolve(macAlias);
+    }
+  };
+  return resolveReal(left) === resolveReal(right);
+}
+
+/** Selects the byte-verified source for an editable EDL visual clip. */
+export function resolveEditableChapterVisualInput(input: {
+  requestedSourcePath?: string;
+  currentSlotPath: string;
+  currentSlotSha256: string;
+  sourceFingerprint?: string;
+  gate?: RemotionChapterGateAcceptedV1;
+}): ChapterVisualInputResolution {
+  const sourcePath = input.requestedSourcePath?.trim() || input.currentSlotPath;
+  if (pathsEquivalent(sourcePath, input.currentSlotPath)) {
+    return { sourcePath, expectedSha256: input.currentSlotSha256, label: "shot_slot" };
+  }
+  if (!input.gate || input.gate.mode !== "editable-edl") {
+    throw new Error("EDL 派生输入未通过 video-use gate");
+  }
+  if (input.sourceFingerprint !== input.gate.videoUseArtifactSha256) {
+    throw new Error("EDL 派生输入未绑定当前 video-use artifact");
+  }
+  const derived = input.gate.videoUseDerivedInputs?.find((entry) => pathsEquivalent(entry.derivedPath, sourcePath));
+  if (!derived) throw new Error("缺少 EDL 派生输入 SHA-256 证据");
+  return { sourcePath, expectedSha256: derived.derivedSha256, label: "derived_input" };
 }
 
 export async function createRemotionChapterRenderIdentity(input: {
@@ -280,16 +323,54 @@ export class RemotionChapterRenderer {
       session = this.mediaBridge.createSession();
       const visualClips = plan.clips.filter((clip) => clip.trackKind === "video" || clip.trackKind === "image");
       const mediaSources: MediaBridgeClipSource[] = [];
+      const currentShotSlotPaths: Record<string, string> = {};
+      for (const slot of input.currentShotSlots) {
+        if (slot.target.kind === "shot") {
+          currentShotSlotPaths[slot.target.shotId] = this.options.resolveSourcePath(
+            toProjectFileUrl(plan.projectId, slot.outputPath),
+          );
+        }
+      }
       for (const clip of visualClips) {
         const storyboardId = clip.source.evidence.storyboardId;
-        const slot = input.currentShotSlots.find((candidate) => candidate.target.kind === "shot" && candidate.target.shotId === storyboardId);
+        const slot = storyboardId
+          ? input.currentShotSlots.find((candidate) => candidate.target.kind === "shot" && candidate.target.shotId === storyboardId)
+          : undefined;
+        const requestedSourcePath = clip.source.path?.trim();
+        if (videoWorkflowGateResult?.accepted && videoWorkflowGateResult.mode === "flat-shot-mp4") {
+          if (visualClips.length !== 1) throw new Error("flat-shot-mp4 EditingProject 必须只有一个视觉片段");
+          if (!videoWorkflowGateResult.videoUseFlatShotMp4Path || !videoWorkflowGateResult.videoUseFlatShotMp4Sha256) {
+            throw new Error("flat-shot-mp4 gate 缺少 clean MP4 路径或 SHA-256");
+          }
+          const sourcePath = this.options.resolveSourcePath(requestedSourcePath || videoWorkflowGateResult.videoUseFlatShotMp4Path);
+          if (!pathsEquivalent(sourcePath, this.options.resolveSourcePath(videoWorkflowGateResult.videoUseFlatShotMp4Path))) {
+            throw new Error("EditingProject flat source 与 video-use clean MP4 不一致");
+          }
+          const verified = await verifyRemotionProjectFileSource(
+            sourcePath,
+            workspaceRoot,
+            videoWorkflowGateResult.videoUseFlatShotMp4Sha256,
+            "flat_shot",
+          );
+          await assertReadableFile(verified.filePath, clip.id);
+          mediaSources.push({ clipId: clip.id, absolutePath: verified.filePath });
+          continue;
+        }
         if (!slot || slot.target.kind !== "shot") throw new Error(`缺少当前 shot slot: ${storyboardId ?? clip.id}`);
-        const sourcePath = this.options.resolveSourcePath(toProjectFileUrl(plan.projectId, slot.outputPath));
+        const currentSlotPath = this.options.resolveSourcePath(toProjectFileUrl(plan.projectId, slot.outputPath));
+        const sourcePath = this.options.resolveSourcePath(requestedSourcePath || toProjectFileUrl(plan.projectId, slot.outputPath));
+        const resolution = resolveEditableChapterVisualInput({
+          requestedSourcePath: sourcePath,
+          currentSlotPath,
+          currentSlotSha256: slot.evidence.sha256,
+          sourceFingerprint: clip.source.evidence.sourceFingerprint,
+          gate: videoWorkflowGateResult?.accepted ? videoWorkflowGateResult : undefined,
+        });
         const verified = await verifyRemotionProjectFileSource(
-          sourcePath,
+          resolution.sourcePath,
           workspaceRoot,
-          slot.evidence.sha256,
-          "shot_slot",
+          resolution.expectedSha256,
+          resolution.label,
         );
         await assertReadableFile(verified.filePath, clip.id);
         mediaSources.push({ clipId: clip.id, absolutePath: verified.filePath });
@@ -334,8 +415,10 @@ export class RemotionChapterRenderer {
         plan,
         currentShotSlots: input.currentShotSlots,
         chapterManifest,
+        currentShotSlotPaths,
         mediaUrlByClipId,
         mediaUrlByBindingId,
+        ...(videoWorkflowGateResult?.accepted ? { videoWorkflowGate: videoWorkflowGateResult } : {}),
         ...(hyperFramesOverlay
           ? { hyperFramesOverlay: { ...hyperFramesOverlay, src: mediaUrlByClipId["hyperframes-overlay"] ?? "" } }
           : {}),

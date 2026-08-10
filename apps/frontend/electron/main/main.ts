@@ -75,6 +75,7 @@ import { acceptVideoUseArtifact } from '@rendering/plugins/video-workflow/video-
 import { createVideoUseAdapter } from '@rendering/plugins/video-use/video-use-adapter'
 import { createHyperFramesAdapter } from '@rendering/plugins/hyperframes/hyperframes-adapter'
 import { createVideoWorkflowRuntimeManager } from '@rendering/plugins/video-workflow/video-workflow-runtime-manager'
+import { selectSharedVideoToolchain } from '@rendering/plugins/video-workflow/video-workflow-runtime'
 import type {
   RemotionChapterGateInputV1,
   RemotionChapterGateResult,
@@ -100,6 +101,7 @@ import {
 import { watchChapterStudioProjection } from '@rendering/plugins/remotion/studio'
 import {
   readRemotionCurrentShotSlot,
+  readRemotionCurrentShotSlotsFromWorkspace,
   resolveRemotionCurrentSlotOutputPath,
 } from '../../lib/studio/remotion/remotion-current-slot'
 import { MediaBridgeServer } from '@rendering/plugins/remotion/media-bridge/media-bridge-server'
@@ -606,6 +608,20 @@ function resolveStudioSourcePath(sourcePath: string) {
   return sourcePath
 }
 
+// macOS may expose the same inode as /var and /private/var; prefer realpath
+// identity while retaining lexical resolution for paths that do not exist yet.
+function pathsEquivalent(left: string, right: string): boolean {
+  const resolveReal = (value: string) => {
+    const macAlias = value.replace(/^\/private\/var(?:\/|$)/, '/var/')
+    try {
+      return fs.realpathSync.native(macAlias)
+    } catch {
+      return path.resolve(macAlias)
+    }
+  }
+  return resolveReal(left) === resolveReal(right)
+}
+
 registerAppShellIpcHandlers({ resolveSourcePath: resolveStudioSourcePath })
 
 registerDiagnosticsIpcHandlers({
@@ -627,11 +643,18 @@ const remotionBundlePath = app.isPackaged
 const remotionBinariesDirectory = app.isPackaged
   ? path.join(process.resourcesPath, 'app.asar.unpacked', 'node_modules/@remotion/compositor-darwin-arm64')
   : path.join(process.env.APP_ROOT ?? path.join(__dirname, '../..'), 'node_modules/@remotion/compositor-darwin-arm64')
-// All video-workflow adapters consume this same Remotion FFmpeg toolchain.
-// The settings/runtime layer may override it with another verified absolute
-// path, but no adapter is allowed to download a private copy.
-if (!process.env.MYSTUDIO_FFMPEG_PATH) process.env.MYSTUDIO_FFMPEG_PATH = path.join(remotionBinariesDirectory, 'ffmpeg')
-if (!process.env.MYSTUDIO_FFPROBE_PATH) process.env.MYSTUDIO_FFPROBE_PATH = path.join(remotionBinariesDirectory, 'ffprobe')
+// All adapters consume one process-wide FFmpeg/ffprobe pair. Prefer an explicit
+// operator pair, then reuse an existing Apple Silicon Homebrew installation.
+// The runtime probe blocks unsupported bundled binaries; it never downloads a
+// private toolchain or silently swaps a partial explicit override.
+const sharedVideoToolchain = selectSharedVideoToolchain({
+  configuredFfmpeg: process.env.MYSTUDIO_FFMPEG_PATH,
+  configuredFfprobe: process.env.MYSTUDIO_FFPROBE_PATH,
+  bundledFfmpeg: path.join(remotionBinariesDirectory, 'ffmpeg'),
+  bundledFfprobe: path.join(remotionBinariesDirectory, 'ffprobe'),
+})
+process.env.MYSTUDIO_FFMPEG_PATH = sharedVideoToolchain.ffmpegExecutable
+process.env.MYSTUDIO_FFPROBE_PATH = sharedVideoToolchain.ffprobeExecutable
 const remotionRuntime = registerRemotionRuntimeIpcHandlers({
   userDataDir: remotionUserDataDir,
   remotionVersion,
@@ -676,6 +699,10 @@ const videoWorkflowChapterService = createVideoWorkflowChapterService({
   workspaceRootForProject: videoWorkflowWorkspaceRootForProject,
   runVideoUse: videoUseAdapter.runChapter,
   renderHyperFrames: hyperFramesAdapter.renderOverlay,
+  getCurrentEditingProject: readEditingProjectSnapshot,
+  persistEditingProject: persistStudioEditingRevision,
+  readChapterManifest: remotionChapterManifestService.read.bind(remotionChapterManifestService),
+  writeChapterManifest: remotionChapterManifestService.writeCas.bind(remotionChapterManifestService),
 })
 const buildManagedVideoUseChapterRun = (request: VideoWorkflowChapterRunRequestV1): VideoUseChapterRunV1 => {
   const paths = videoUseAdapter.paths
@@ -690,6 +717,7 @@ const buildManagedVideoUseChapterRun = (request: VideoWorkflowChapterRunRequestV
     revision: request.revision,
     mode: request.mode,
     derivedInputPolicy: request.derivedInputPolicy,
+    storyboardSourcePolicy: request.storyboardSourcePolicy ?? 'current-ready',
     stage: 'preparing',
     timeUnit: 'seconds',
     shots: request.shots.map((shot) => ({
@@ -889,7 +917,70 @@ async function loadChapterStudioProjection(request: { projectId: string; chapter
   const visualClips = plan.value.clips.filter((clip) => clip.trackKind === 'video' || clip.trackKind === 'image')
   if (visualClips.length === 0) throw new Error('当前章节缺少合法 current shot 输出')
   const remotionWorkspaceRoot = path.join(getDataDir(), '_p', request.projectId, 'remotion')
+  // Applying an accepted video-use artifact may replace individual EDL clip
+  // sources with byte-tracked derived MP4s. Resolve that gate before building
+  // the Studio projection so preview and formal ChapterVideo share the same
+  // source selection rules.
+  const projectionGate = await evaluateVideoWorkflowChapterGate({
+    projectId: request.projectId,
+    chapterId: request.chapterId,
+    revision: request.revision,
+    inputSha256: '0'.repeat(64),
+  })
+  if (projectionGate.accepted && projectionGate.mode === 'flat-shot-mp4') {
+    if (visualClips.length !== 1) throw new Error('flat-shot-mp4 Studio projection 必须只有一个视觉片段')
+    const clip = visualClips[0]!
+    if (clip.source.kind !== 'storyboardVideo') throw new Error(`flat-shot-mp4 Studio projection 视觉片段类型无效: ${clip.id}`)
+    const sourcePath = clip.source.path?.trim()
+    const gatePath = projectionGate.videoUseFlatShotMp4Path
+    const gateSha256 = projectionGate.videoUseFlatShotMp4Sha256
+    if (!sourcePath || !path.isAbsolute(sourcePath) || !gatePath || !gateSha256 || !pathsEquivalent(sourcePath, gatePath)) {
+      throw new Error(`flat-shot-mp4 Studio source 与 video-use clean MP4 不一致: ${clip.id}`)
+    }
+    if (clip.source.evidence.sourceFingerprint !== projectionGate.videoUseArtifactSha256) {
+      throw new Error(`flat-shot-mp4 Studio source 未绑定当前 video-use artifact: ${clip.id}`)
+    }
+    const stat = await fs.promises.stat(sourcePath).catch(() => undefined)
+    if (!stat?.isFile() || stat.size <= 0) throw new Error(`flat-shot-mp4 clean MP4 不存在或为空: ${sourcePath}`)
+    const sourceSha256 = crypto.createHash('sha256').update(await fs.promises.readFile(sourcePath)).digest('hex')
+    if (sourceSha256 !== gateSha256) throw new Error(`flat-shot-mp4 clean MP4 SHA-256 已漂移: ${sourcePath}`)
+    const currentShotSlots = await readRemotionCurrentShotSlotsFromWorkspace(remotionWorkspaceRoot, request.projectId, request.chapterId)
+    const fps = plan.value.renderSettings.fps
+    const durationInFrames = Math.max(1, Math.ceil((clip.durationUs * fps) / 1_000_000))
+    const flatClipId = clip.id
+    return {
+      entryPoint: resolveProjectFixedStudioEntryPoint(
+        path.join(app.getPath('userData'), 'remotion-studio'),
+        request.projectId,
+      ),
+      sources: [{ clipId: flatClipId, absolutePath: sourcePath }],
+      input: {
+        schemaVersion: 1 as const,
+        projectId: request.projectId,
+        chapterId: request.chapterId,
+        editingProjectId: project.value.id,
+        editingRevision: request.revision,
+        width: plan.value.renderSettings.width,
+        height: plan.value.renderSettings.height,
+        fps,
+        durationInFrames,
+        clips: [{
+          shotId: flatClipId,
+          src: '',
+          durationInFrames,
+          trimBeforeFrames: Math.max(0, Math.floor((clip.trimStartUs * fps) / 1_000_000)),
+          crop: { x: 0, y: 0, width: plan.value.renderSettings.width, height: plan.value.renderSettings.height },
+          transform: clip.transform ?? { x: 0, y: 0, scaleX: 1, scaleY: 1, rotation: 0, opacity: 1 },
+          volume: clip.muted ? 0 : clip.volume,
+          subtitle: '',
+        }],
+      },
+      plan: plan.value,
+      currentShotSlots,
+    }
+  }
   const currentShotSlots: RemotionCurrentSlotV1[] = []
+  const sourcePathByShotId = new Map<string, string>()
   for (const clip of visualClips) {
     const storyboardId = clip.source.evidence.storyboardId
     const shotRevision = clip.source.evidence.outputVersion
@@ -907,7 +998,44 @@ async function loadChapterStudioProjection(request: { projectId: string; chapter
       throw new Error(`当前章节镜头 current slot 无效: ${clip.id}: ${slotResult.issues.map((issue) => issue.message).join('；')}`)
     }
     const slot = slotResult.value
-    if (clip.source.path !== slot.outputPath
+    const slotOutputPath = resolveRemotionCurrentSlotOutputPath(remotionWorkspaceRoot, slot)
+    const requestedSourcePath = clip.source.path?.trim()
+    let projectedSourcePath = slotOutputPath
+    if (requestedSourcePath && requestedSourcePath !== slot.outputPath) {
+      const resolvedRequestedPath = requestedSourcePath.startsWith('project-file://')
+        ? resolveStudioSourcePath(requestedSourcePath)
+        : path.isAbsolute(requestedSourcePath) ? requestedSourcePath : undefined
+      if (!resolvedRequestedPath) {
+        throw new Error(`当前章节镜头 source.path 不是可解析的绝对路径或 project-file URL: ${clip.id}`)
+      }
+      if (!pathsEquivalent(resolvedRequestedPath, slotOutputPath)) {
+        if (!projectionGate.accepted || projectionGate.mode !== 'editable-edl') {
+          throw new Error(`当前章节镜头派生输入未通过 video-use gate: ${clip.id}`)
+        }
+        if (clip.source.evidence.sourceFingerprint !== projectionGate.videoUseArtifactSha256) {
+          throw new Error(`当前章节镜头派生输入未绑定当前 video-use artifact: ${clip.id}`)
+        }
+        const derived = projectionGate.videoUseDerivedInputs?.find((entry) =>
+          pathsEquivalent(entry.derivedPath, resolvedRequestedPath),
+        )
+        if (!derived) {
+          throw new Error(`当前章节镜头缺少可追溯派生输入 evidence: ${clip.id}`)
+        }
+        const stat = await fs.promises.stat(resolvedRequestedPath)
+        if (!stat.isFile() || stat.size <= 0) {
+          throw new Error(`当前章节镜头派生输入不存在或为空: ${clip.id}`)
+        }
+        projectedSourcePath = resolvedRequestedPath
+      }
+    }
+    const sourcePathBound = pathsEquivalent(projectedSourcePath, slotOutputPath)
+      || (projectionGate.accepted
+        && projectionGate.mode === 'editable-edl'
+        && clip.source.evidence.sourceFingerprint === projectionGate.videoUseArtifactSha256
+        && projectionGate.videoUseDerivedInputs?.some((entry) =>
+          pathsEquivalent(entry.derivedPath, projectedSourcePath),
+        ) === true)
+    if (!sourcePathBound
       || clip.source.evidence.remotionJobId !== slot.job.jobId
       || clip.source.evidence.remotionEvidenceSha256 !== slot.evidence.sha256
       || clip.source.evidence.remotionInputHash !== slot.job.inputHash
@@ -919,6 +1047,7 @@ async function loadChapterStudioProjection(request: { projectId: string; chapter
     if (currentShotSlots.some((candidate) => candidate.target.kind === 'shot' && candidate.target.shotId === storyboardId)) {
       throw new Error(`当前章节重复绑定 Remotion shot: ${storyboardId}`)
     }
+    sourcePathByShotId.set(storyboardId, projectedSourcePath)
     currentShotSlots.push(slot)
   }
   const fps = plan.value.renderSettings.fps
@@ -937,9 +1066,13 @@ async function loadChapterStudioProjection(request: { projectId: string; chapter
       if (!shotId || !slot || slot.target.kind !== 'shot') {
         throw new Error(`当前章节镜头缺少合法 current slot: ${clip.id}`)
       }
+      const absolutePath = sourcePathByShotId.get(shotId)
+      if (!absolutePath) {
+        throw new Error(`当前章节镜头缺少已解析的 Studio source path: ${shotId}`)
+      }
       return {
         clipId: shotId,
-        absolutePath: resolveRemotionCurrentSlotOutputPath(remotionWorkspaceRoot, slot),
+        absolutePath,
       }
     }),
     input: {
@@ -986,31 +1119,12 @@ async function readEditingProjectSnapshot(request: { projectId: string; chapterI
 }
 
 /**
- * Project/chapter-scoped projection for the renderer.  A succeeded queue job
- * is not enough to unlock Studio: the current MP4, job and evidence must be
- * re-read from the target-derived current slot and agree on their identity.
+ * Queue state schedules new work. Persisted current triples restore verified
+ * outputs after restart without treating volatile queue state as render proof.
  */
 async function readRemotionCurrentShotSlots(scope: { projectId: string; chapterId: string }): Promise<RemotionCurrentSlotV1[]> {
   const workspaceRoot = path.join(getDataDir(), '_p', scope.projectId, 'remotion')
-  const jobs = remotionQueue.getJobs(scope).filter((job) =>
-    job.status === 'succeeded'
-      && job.target.kind === 'shot'
-      && job.target.chapterId === scope.chapterId,
-  )
-  const slots = await Promise.all(jobs.map(async (job) => {
-    if (job.target.kind !== 'shot') return undefined
-    const result = await readRemotionCurrentShotSlot(workspaceRoot, scope.projectId, job.target)
-    if (!result.success) return undefined
-    const slot = result.value
-    if (slot.job.jobId !== job.jobId
-      || slot.job.inputHash !== job.inputHash
-      || slot.job.bundleContentHash !== job.bundleContentHash
-      || slot.job.renderSettingsHash !== job.renderSettingsHash) {
-      return undefined
-    }
-    return slot
-  }))
-  return slots.filter((slot): slot is RemotionCurrentSlotV1 => Boolean(slot))
+  return readRemotionCurrentShotSlotsFromWorkspace(workspaceRoot, scope.projectId, scope.chapterId)
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

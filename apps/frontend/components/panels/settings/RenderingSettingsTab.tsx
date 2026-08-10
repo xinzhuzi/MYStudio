@@ -13,7 +13,18 @@ const RENDERER_OPTIONS = [
   },
 ];
 
-export function RenderingSettingsTab() {
+const PLUGIN_DEFINITIONS: Array<{ id: VideoWorkflowPluginId; title: string; description: string }> = [
+  { id: "remotion", title: "Remotion", description: "正式的 Composition、Studio 与章节渲染路径。" },
+  { id: "hyperframes", title: "HyperFrames", description: "时间线确认后的透明动效 overlay；无动效也会记录 no-op artifact。" },
+  { id: "video-use", title: "video-use", description: "原文对齐、EDL、字幕时间、调色、preview 与自评。" },
+  { id: "seedance-prompt", title: "Seedance Prompt Skill", description: "仅提供 Seedance 提示词能力，不进入视频执行门禁。" },
+];
+
+type RenderingSettingsTabProps = {
+  embedded?: boolean;
+};
+
+export function RenderingSettingsTab({ embedded = false }: RenderingSettingsTabProps) {
   const runtime = useRemotionRuntimeSettings();
   const plugins = useVideoWorkflowPlugins();
   const statusLabel = runtime.isCheckingStatus
@@ -41,23 +52,17 @@ export function RenderingSettingsTab() {
       default: return "检查中";
     }
   };
-  const pluginDefinitions: Array<{ id: VideoWorkflowPluginId; title: string; description: string }> = [
-    { id: "remotion", title: "Remotion", description: "唯一正式 renderer：StoryboardShot、ChapterVideo 与 evidence。" },
-    { id: "video-use", title: "video-use", description: "分镜完成后的原文对齐、EDL、字幕时间、调色、preview 与自评。" },
-    { id: "hyperframes", title: "HyperFrames", description: "时间线确认后的透明动效 overlay；无动效也记录 no-op artifact。" },
-    { id: "seedance-prompt", title: "Seedance Prompt Skill", description: "仅保留提示词能力来源，本轮不进入执行门禁。" },
-  ];
-
-  return (
-    <ScrollArea className="h-full">
-      <div className="p-8 w-full space-y-8">
-        <div>
-          <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
-            <Film className="h-5 w-5" />
-            视频工作流插件
-          </h3>
-          <p className="text-sm text-muted-foreground mt-1">按“本地 TTS → 对齐 → video-use → HyperFrames → Remotion”准备当前章节；所有失败都在 UI 中阻塞并可重试。</p>
-        </div>
+  const content = (
+    <div className="p-8 w-full space-y-8">
+        {embedded ? null : (
+          <div>
+            <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
+              <Film className="h-5 w-5" />
+              视频工作流插件
+            </h3>
+            <p className="text-sm text-muted-foreground mt-1">在同一区域查看和管理 Remotion、HyperFrames、video-use 与 Seedance Prompt Skill；所有失败都在 UI 中阻塞并可重试。</p>
+          </div>
+        )}
 
         <div className="p-6 border border-border rounded-xl bg-card space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -74,15 +79,16 @@ export function RenderingSettingsTab() {
               </Button>
             </div>
           </div>
-          <div className="grid gap-3 md:grid-cols-2" aria-label="视频工作流插件状态">
-            {pluginDefinitions.map((definition) => {
+          <div className="space-y-4" aria-label="视频工作流插件状态">
+            {PLUGIN_DEFINITIONS.map((definition) => {
               const plugin = plugins.getPlugin(definition.id);
               const deferred = plugin?.runtimeState === "deferred" || definition.id === "seedance-prompt";
+              const updateAvailable = plugin?.runtimeState === "update-available";
               const busy = plugins.busyAction?.pluginId === definition.id;
               return (
-                <div key={definition.id} className="rounded-lg border border-border p-4 space-y-3">
+                <article key={definition.id} aria-labelledby={`video-plugin-${definition.id}`} className="rounded-lg border border-border p-4 space-y-3">
                   <div className="flex items-center justify-between gap-3">
-                    <span className="font-medium text-foreground">{definition.title}</span>
+                    <h4 id={`video-plugin-${definition.id}`} className="font-medium text-foreground">{definition.title}</h4>
                     <span className="text-xs text-muted-foreground">{statusText(plugin)}</span>
                   </div>
                   <p className="text-xs leading-5 text-muted-foreground">{definition.description}</p>
@@ -109,9 +115,69 @@ export function RenderingSettingsTab() {
                       ) : null)}
                     </dl>
                   ) : null}
+                  {definition.id === "remotion" ? (
+                    <div className="space-y-4 border-t border-border pt-4">
+                      <div className="space-y-1">
+                        <h5 className="font-medium text-foreground">全局渲染器</h5>
+                        <p className="text-xs text-muted-foreground">Remotion 是正式生产路径，不按项目复制工程或依赖。</p>
+                      </div>
+                      <div className="grid gap-3 md:grid-cols-2" role="radiogroup" aria-label="时间线渲染器">
+                        {RENDERER_OPTIONS.map((option) => {
+                          const selected = runtime.renderer === option.id;
+                          return (
+                            <button
+                              key={option.id}
+                              type="button"
+                              role="radio"
+                              aria-checked={selected}
+                              onClick={() => runtime.selectRenderer(option.id)}
+                              className={`rounded-xl border p-4 text-left transition-colors ${selected ? "border-primary bg-primary/10" : "border-border hover:bg-muted/40"}`}
+                            >
+                              <div className="flex items-center justify-between gap-3">
+                                <span className="font-medium text-foreground">{option.title}</span>
+                                {selected && <Check className="h-4 w-4 text-primary" aria-hidden="true" />}
+                              </div>
+                              <p className="mt-2 text-xs leading-5 text-muted-foreground">{option.description}</p>
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      <div className="space-y-5">
+                        <div>
+                          <h5 className="font-medium text-foreground">Remotion Headless Shell</h5>
+                          <p className="text-xs text-muted-foreground mt-1">导出前先下载官方浏览器运行时。</p>
+                        </div>
+
+                        {!runtime.runtimeAvailable ? (
+                          <p className="text-sm text-muted-foreground rounded-lg border border-border bg-muted/30 p-4">浏览器运行时设置仅在桌面版中可用。</p>
+                        ) : (
+                          <>
+                            <div className="flex items-center justify-between gap-4 text-sm">
+                              <span className="text-muted-foreground">下载状态</span>
+                              <span className="font-medium text-foreground">{statusLabel}</span>
+                            </div>
+                            <div className="flex flex-wrap gap-3" aria-live="polite">
+                              <Button onClick={() => void runtime.downloadBrowser()} disabled={!runtime.canDownload || runtime.isBusy}>
+                                {runtime.isLoading
+                                  ? <Loader2 className="h-4 w-4 animate-spin" />
+                                  : runtime.verificationState === "ready"
+                                    ? <Check className="h-4 w-4" />
+                                    : <Download className="h-4 w-4" />}
+                                {downloadLabel}
+                              </Button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  ) : null}
                   <div className="flex flex-wrap gap-2">
                     <Button size="sm" variant="outline" onClick={() => void plugins.prepare(definition.id)} disabled={deferred || plugins.isBusy}>
                       {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wrench className="h-4 w-4" />} 准备
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => void plugins.update(definition.id)} disabled={deferred || !updateAvailable || plugins.isBusy}>
+                      <RefreshCw className="h-4 w-4" /> 更新
                     </Button>
                     <Button size="sm" variant="ghost" onClick={() => void plugins.repair(definition.id)} disabled={deferred || plugins.isBusy}>
                       <Wrench className="h-4 w-4" /> 修复
@@ -120,69 +186,15 @@ export function RenderingSettingsTab() {
                       <RotateCcw className="h-4 w-4" /> 回滚
                     </Button>
                   </div>
-                </div>
+                </article>
               );
             })}
           </div>
           {plugins.error && <p className="text-sm text-destructive" role="alert">{plugins.error}</p>}
         </div>
 
-        <div className="p-6 border border-border rounded-xl bg-card space-y-4" role="radiogroup" aria-label="时间线渲染器">
-          <div className="space-y-1">
-            <h4 className="font-medium text-foreground">全局渲染器</h4>
-            <p className="text-xs text-muted-foreground">Remotion 是正式生产路径，不按项目复制工程或依赖。</p>
-          </div>
-          <div className="grid gap-3 md:grid-cols-2">
-            {RENDERER_OPTIONS.map((option) => {
-              const selected = runtime.renderer === option.id;
-              return (
-                <button
-                  key={option.id}
-                  type="button"
-                  role="radio"
-                  aria-checked={selected}
-                  onClick={() => runtime.selectRenderer(option.id)}
-                  className={`rounded-xl border p-4 text-left transition-colors ${selected ? "border-primary bg-primary/10" : "border-border hover:bg-muted/40"}`}
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="font-medium text-foreground">{option.title}</span>
-                    {selected && <Check className="h-4 w-4 text-primary" aria-hidden="true" />}
-                  </div>
-                  <p className="mt-2 text-xs leading-5 text-muted-foreground">{option.description}</p>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="p-6 border border-border rounded-xl bg-card space-y-5">
-          <div>
-            <h4 className="font-medium text-foreground">Remotion Headless Shell</h4>
-            <p className="text-xs text-muted-foreground mt-1">导出前先下载官方浏览器运行时。</p>
-          </div>
-
-          {!runtime.runtimeAvailable ? (
-            <p className="text-sm text-muted-foreground rounded-lg border border-border bg-muted/30 p-4">浏览器运行时设置仅在桌面版中可用。</p>
-          ) : (
-            <>
-              <div className="flex items-center justify-between gap-4 text-sm">
-                <span className="text-muted-foreground">下载状态</span>
-                <span className="font-medium text-foreground">{statusLabel}</span>
-              </div>
-              <div className="flex flex-wrap gap-3" aria-live="polite">
-                <Button onClick={() => void runtime.downloadBrowser()} disabled={!runtime.canDownload || runtime.isBusy}>
-                  {runtime.isLoading
-                    ? <Loader2 className="h-4 w-4 animate-spin" />
-                    : runtime.verificationState === "ready"
-                      ? <Check className="h-4 w-4" />
-                      : <Download className="h-4 w-4" />}
-                  {downloadLabel}
-                </Button>
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-    </ScrollArea>
+    </div>
   );
+
+  return embedded ? content : <ScrollArea className="h-full">{content}</ScrollArea>;
 }

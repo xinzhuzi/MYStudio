@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { buildProjectFileUrl } from "@/lib/artifacts/ref-preview-loader";
+import { isStoryboardReadyForVideoWorkflow } from "@/lib/studio/video-workflow/chapter-run-request";
 import type { ToonflowWorkbenchAssetMedia } from "@/lib/studio/workbench-view-model";
 import { useCharacterLibraryStore } from "@/stores/library/character-library-store";
 import { usePropsLibraryStore } from "@/stores/library/props-library-store";
@@ -21,9 +22,10 @@ import { VisualContinuityReviewPanel } from "./VisualContinuityReviewPanel";
 import { useEditingWorkbenchActions } from "./useEditingWorkbenchActions";
 import { selectFirstStoryboard, useFirstShotPreviewActions } from "./use-first-shot-preview-actions";
 import { useRemotionQueueScope } from "./useRemotionQueueScope";
+import type { RemotionQueueScopeState } from "./useRemotionQueueScope";
 import { toast } from "sonner";
 import { VideoWorkflowReviewPanel } from "./VideoWorkflowReviewPanel";
-import type { VideoUseDerivedInputPolicy } from "@rendering/contracts/video-workflow";
+import type { VideoUseDerivedInputPolicy, VideoUseStoryboardSourcePolicy } from "@rendering/contracts/video-workflow";
 
 export function WorkbenchTab(props: {
   projectId?: string;
@@ -41,6 +43,10 @@ export function WorkbenchTab(props: {
   const reviewStoryboardHuman = useStudioStore((state) => state.reviewStoryboardHuman);
   const continuityAssetVersions = useStudioStore((state) => state.continuityAssetVersions);
   const reviewContinuityAssetVersionHuman = useStudioStore((state) => state.reviewContinuityAssetVersionHuman);
+  const chapterId = props.episodeId ?? "episode-1";
+  const queueScope = useRemotionQueueScope(props.projectId ?? activeProjectId ?? undefined, chapterId);
+  const remotionShotSlots = resolveWorkbenchRemotionShotSlots(queueScope, props.remotionShotSlots);
+  const [videoUseStoryboardSourcePolicy, setVideoUseStoryboardSourcePolicy] = useState<VideoUseStoryboardSourcePolicy>("current-ready");
   const editing = useEditingWorkbenchActions({
     projectId: props.projectId ?? activeProjectId ?? undefined,
     projectName: props.projectName ?? "漫影工作室项目",
@@ -48,20 +54,20 @@ export function WorkbenchTab(props: {
     directorPlan: props.directorPlan,
     aspectRatio: props.aspectRatio,
     storyboards: props.storyboards,
-    remotionShotSlots: props.remotionShotSlots,
+    remotionShotSlots,
+    storyboardSourcePolicy: videoUseStoryboardSourcePolicy,
   });
   const chapterReady = isCurrentChapterReady(
-    props.episodeId ?? "episode-1",
+    chapterId,
     props.storyboards,
-    props.remotionShotSlots ?? [],
+    remotionShotSlots,
+    videoUseStoryboardSourcePolicy,
   );
-  const chapterId = props.episodeId ?? "episode-1";
   const currentChapterStoryboards = props.storyboards
     .filter((storyboard) => storyboard.episodeId === chapterId)
     .slice()
     .sort((left, right) => left.index - right.index);
-  const currentChapterSlotCount = countCurrentShotSlots(chapterId, props.storyboards, props.remotionShotSlots ?? []);
-  const queueScope = useRemotionQueueScope(props.projectId ?? activeProjectId ?? undefined, chapterId);
+  const currentChapterSlotCount = countCurrentShotSlots(chapterId, props.storyboards, remotionShotSlots, videoUseStoryboardSourcePolicy);
   const firstShotPreview = useFirstShotPreviewActions({
     projectId: props.projectId ?? activeProjectId ?? undefined,
     chapterId,
@@ -341,18 +347,31 @@ export function WorkbenchTab(props: {
         aria-label="video-use 章节执行"
         className="rounded-lg border border-cyan-300/30 bg-cyan-300/[0.06] px-4 py-3 text-xs"
         data-video-use-preview
-        data-video-use-status={editing.videoUseState}
+        data-video-use-status={editing.applying ? "applying" : editing.videoUseState}
         data-video-use-mode={videoUseMode}
         data-video-use-derived-input-policy={videoUseDerivedInputPolicy}
+        data-video-use-storyboard-source-policy={videoUseStoryboardSourcePolicy}
       >
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span className="font-semibold">第一阶段：video-use 章节预览</span>
           <span className="text-muted-foreground">
-            {editing.videoUseBusy ? "执行中" : editing.videoUseState === "pending" ? `待确认 · revision ${editing.videoUseRevision ?? "-"}` : editing.videoUseState === "blocked" ? "已阻塞" : editing.videoUseState === "accepted" ? "已应用" : "未执行"}
+            {editing.videoUseBusy ? "执行中" : editing.applying ? "正在应用" : editing.videoUseState === "pending" ? `待确认 · revision ${editing.videoUseRevision ?? "-"}` : editing.videoUseState === "blocked" ? "已阻塞" : editing.videoUseState === "accepted" ? "已应用" : "未执行"}
           </span>
         </div>
         <p className="mt-1 text-muted-foreground">先消费已完成的 Remotion StoryboardShot 和本地 TTS，执行原文对齐、EDL、字幕时间、调色、preview 与自评；确认前不会生成正式章节视频。</p>
         <div className="mt-3 flex flex-wrap items-end gap-2">
+          <label className="grid gap-1 text-muted-foreground">
+            分镜来源
+            <select
+              className="h-8 rounded border border-border bg-background px-2 text-foreground"
+              value={videoUseStoryboardSourcePolicy}
+              data-video-use-storyboard-source-policy-select
+              onChange={(event) => setVideoUseStoryboardSourcePolicy(event.currentTarget.value as VideoUseStoryboardSourcePolicy)}
+            >
+              <option value="current-ready">仅使用当前未过期分镜（默认）</option>
+              <option value="reuse-existing">复用已有分镜（跳过付费重生成，仍需确认）</option>
+            </select>
+          </label>
           <label className="grid gap-1 text-muted-foreground">
             交接模式
             <select
@@ -381,7 +400,7 @@ export function WorkbenchTab(props: {
             size="sm"
             data-video-use-run
             disabled={!chapterReady || editing.videoUseBusy || editing.applying || editing.videoUseState === "pending"}
-            onClick={() => { void editing.runVideoUse(videoUseMode, videoUseDerivedInputPolicy).catch(() => undefined); }}
+            onClick={() => { void editing.runVideoUse(videoUseMode, videoUseDerivedInputPolicy, videoUseStoryboardSourcePolicy).catch(() => undefined); }}
           >
             {editing.videoUseBusy ? "正在运行…" : editing.videoUseState === "blocked" ? "重试 video-use" : "运行 video-use 预览"}
           </Button>
@@ -402,7 +421,7 @@ export function WorkbenchTab(props: {
         >
           HyperFrames {editing.hyperFramesState}
         </output>
-        {!chapterReady ? <p className="mt-2 text-muted-foreground">需先完成本章全部 Remotion StoryboardShot current slot。</p> : null}
+        {!chapterReady ? <p className="mt-2 text-muted-foreground">需先完成本章{videoUseStoryboardSourcePolicy === "reuse-existing" ? "可复用" : "未过期的"} Remotion StoryboardShot current slot。</p> : null}
         {editing.error ? <p className="mt-2 text-destructive" role="alert">{editing.error}</p> : null}
       </section>
       <VideoWorkflowReviewPanel
@@ -564,7 +583,7 @@ export function WorkbenchTab(props: {
         <div className="mt-3 space-y-2">
           {currentChapterStoryboards.map((storyboard) => {
             const job = selectCurrentShotJobForStoryboard(storyboard, queueScope.jobs, queueScope.currentShotSlots);
-            const currentSlot = (props.remotionShotSlots ?? []).find((slot) => slot.target.kind === "shot"
+            const currentSlot = remotionShotSlots.find((slot) => slot.target.kind === "shot"
               && slot.target.chapterId === chapterId
               && slot.target.shotId === storyboard.id
               && slot.target.shotRevision === Math.max(1, storyboard.outputVersion ?? 1));
@@ -600,7 +619,12 @@ export function WorkbenchTab(props: {
         </div>
       </section>
       {remotionHostReady && editing.currentProject ? (
-        <div data-remotion-handoff data-remotion-host-readiness="ready">
+        <div
+          data-remotion-handoff
+          data-remotion-host-readiness="ready"
+          data-remotion-current-slot-count={String(currentChapterSlotCount)}
+          data-remotion-current-slot-ready={String(chapterReady)}
+        >
           <NativeRemotionStudioHost
             projectId={editing.currentProject.projectId}
             chapterId={editing.currentProject.episodeId}
@@ -646,19 +670,33 @@ export function isCurrentChapterReady(
   episodeId: string,
   storyboards: ReturnType<typeof useStudioStore.getState>["storyboards"],
   slots: RemotionCurrentSlotV1[],
+  storyboardSourcePolicy: VideoUseStoryboardSourcePolicy = "current-ready",
 ) {
   const currentStoryboards = storyboards.filter((storyboard) => storyboard.episodeId === episodeId);
   return currentStoryboards.length > 0
-    && countCurrentShotSlots(episodeId, currentStoryboards, slots) === currentStoryboards.length;
+    && countCurrentShotSlots(episodeId, currentStoryboards, slots, storyboardSourcePolicy) === currentStoryboards.length;
+}
+
+/**
+ * The workbench must create an EditingProject from the direct, chapter-scoped
+ * queue read. Props only keep standalone renderer tests usable before the
+ * desktop bridge has answered; a loaded empty/error scope remains fail-closed.
+ */
+export function resolveWorkbenchRemotionShotSlots(
+  queueScope: Pick<RemotionQueueScopeState, "loaded" | "currentShotSlots">,
+  fallbackSlots?: RemotionCurrentSlotV1[],
+): RemotionCurrentSlotV1[] {
+  return queueScope.loaded ? queueScope.currentShotSlots : fallbackSlots ?? [];
 }
 
 export function countCurrentShotSlots(
   episodeId: string,
   storyboards: ReturnType<typeof useStudioStore.getState>["storyboards"],
   slots: RemotionCurrentSlotV1[],
+  storyboardSourcePolicy: VideoUseStoryboardSourcePolicy = "current-ready",
 ) {
   const currentStoryboards = storyboards.filter((storyboard) => storyboard.episodeId === episodeId);
-  return currentStoryboards.filter((storyboard) => slots.some((slot) => slot.target.kind === "shot"
+  return currentStoryboards.filter((storyboard) => isStoryboardReadyForVideoWorkflow(storyboard, storyboardSourcePolicy) && slots.some((slot) => slot.target.kind === "shot"
     && slot.target.chapterId === episodeId
     && slot.target.shotId === storyboard.id
     && slot.target.shotRevision === Math.max(1, storyboard.outputVersion ?? 1)

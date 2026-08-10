@@ -47,11 +47,8 @@ vi.mock("./settings/ApiSettingsContainer", () => ({
 vi.mock("./settings/ImageSizeSettingsTab", () => ({
   ImageSizeSettingsTab: () => <div>image-size settings panel</div>,
 }));
-vi.mock("./settings/PythonSettingsTab", () => ({
-  PythonSettingsTab: () => <div>python settings panel</div>,
-}));
-vi.mock("@/components/panels/tts/LocalTtsPanel", () => ({
-  LocalTtsPanel: () => <div>tts settings panel</div>,
+vi.mock("./settings/PluginSettingsTab", () => ({
+  PluginSettingsTab: () => <div>plugin settings panel</div>,
 }));
 vi.mock("./settings/AdvancedSettingsTab", () => ({
   AdvancedSettingsTab: () => <div>advanced settings panel</div>,
@@ -61,9 +58,6 @@ vi.mock("./settings/ImageHostSettingsContainer", () => ({
 }));
 vi.mock("./settings/StorageSettingsTab", () => ({
   StorageSettingsTab: () => <div>storage settings panel</div>,
-}));
-vi.mock("./settings/RenderingSettingsTab", () => ({
-  RenderingSettingsTab: () => <div>rendering settings panel</div>,
 }));
 vi.mock("./settings/DevelopmentSettingsContainer", () => ({
   DevelopmentSettingsContainer: () => <div>development settings panel</div>,
@@ -89,8 +83,7 @@ describe("SettingsPanel tab navigation", () => {
     const navigations = [
       ["API 管理", "api settings panel"],
       ["图片规格", "image-size settings panel"],
-      ["Python 配置", "python settings panel"],
-      ["TTS 配置", "tts settings panel"],
+      ["插件配置", "plugin settings panel"],
       ["高级选项", "advanced settings panel"],
       ["图床配置", "image-host settings panel"],
       ["存储", "storage settings panel"],
@@ -105,14 +98,23 @@ describe("SettingsPanel tab navigation", () => {
     }
   });
 
-  it("honors a one-shot initial rendering tab request", async () => {
+  it("normalizes legacy rendering deep links to the unified plugin tab", async () => {
     const onInitialTabConsumed = vi.fn();
     render(<SettingsPanel initialTab="rendering" onInitialTabConsumed={onInitialTabConsumed} />);
 
     await waitFor(() => {
-    expect(screen.getByRole("tab", { name: "视频工作流插件" }).getAttribute("aria-selected")).toBe("true");
-      expect(screen.getByText("rendering settings panel")).toBeTruthy();
+      expect(screen.getByRole("tab", { name: "插件配置" }).getAttribute("aria-selected")).toBe("true");
+      expect(screen.getByText("plugin settings panel")).toBeTruthy();
     });
     expect(onInitialTabConsumed).toHaveBeenCalledOnce();
+  });
+
+  it.each(["python", "tts"] as const)("normalizes legacy %s deep links to plugin configuration", async (legacyTab) => {
+    render(<SettingsPanel initialTab={legacyTab} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("tab", { name: "插件配置" }).getAttribute("aria-selected")).toBe("true");
+      expect(screen.getByText("plugin settings panel")).toBeTruthy();
+    });
   });
 });

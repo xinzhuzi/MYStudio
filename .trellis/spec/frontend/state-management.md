@@ -137,6 +137,20 @@ During plan generation:
 4. Identify which chapters are contained
 5. Mark as BLOCKER if no decoder found
 
+### Plan request scope boundary
+
+`PlanRequestDecoder` mirrors the renderer/IPC transport contract:
+
+| Scope | `chapterId` | `artifactIds` | Behavior |
+|---|---|---|---|
+| `chapter` | non-empty | optional/ignored | Delete one explicitly named chapter; an empty value is rejected. |
+| `artifacts` | may be empty | selected IDs supplied by the caller | The dependency graph resolves the one chapter from the selected records; mixed chapters or unresolved ownership fail closed. |
+
+An empty `chapterId` is a transport sentinel only for an artifact-scoped
+request. It must not be interpreted as “all chapters”, and the request must
+not be registered or executed until graph validation returns
+`executionAllowed: true`.
+
 ---
 
 ## Task Reference

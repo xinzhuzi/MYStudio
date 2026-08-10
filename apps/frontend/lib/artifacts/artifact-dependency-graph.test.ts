@@ -268,6 +268,31 @@ describe("artifact-dependency-graph", () => {
   });
 
   describe("buildDeletionPlan - artifact-scope blocker isolation", () => {
+    test("rejects a batch that resolves to multiple chapters even when chapterId is omitted", () => {
+      const chapterOne = createArtifacts("delete-exclusive-downstream");
+      const chapterTwo = createArtifacts("delete-exclusive-downstream");
+      chapterTwo.chapterId = "chapter-002";
+
+      const result = buildDeletionPlan([chapterOne, chapterTwo], [chapterOne.id, chapterTwo.id], "");
+
+      expect(result.valid).toBe(false);
+      expect(result.errors).toContain("scope-expanded-across-chapters: selected artifacts must belong to one chapter");
+      expect(result.plan.executionAllowed).toBe(false);
+    });
+
+    test("derives the selected chapter before traversing an artifact batch", () => {
+      const chapterOne = createArtifacts("delete-exclusive-downstream");
+      const chapterTwo = createArtifacts("delete-exclusive-downstream");
+      chapterTwo.chapterId = "chapter-002";
+
+      const result = buildDeletionPlan([chapterOne, chapterTwo], [chapterOne.id], "");
+
+      expect(result.valid).toBe(true);
+      expect(result.plan.chapterId).toBe("chapter-001");
+      expect(result.plan.deleteItems.map((item) => item.artifactId)).toEqual([chapterOne.id]);
+      expect(result.plan.deleteItems.map((item) => item.artifactId)).not.toContain(chapterTwo.id);
+    });
+
     test("selecting one orphan backup is not polluted by unrelated project blockers", () => {
       // Regression: a single backup orphan must produce a plan whose blocker
       // list is empty. Before the fix, buildDeletionScope scanned the whole

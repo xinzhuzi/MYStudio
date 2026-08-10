@@ -191,6 +191,19 @@ describe("Artifact IPC Request Decoders - Contract Tests", () => {
       });
       expect(result.success).toBe(true);
     });
+
+    it("accepts empty chapterId for artifact scope when the graph will derive it", () => {
+      const result = PlanRequestDecoder.safeParse({
+        type: "plan",
+        payload: {
+          projectId: "test-id",
+          chapterId: "",
+          scope: "artifacts",
+          artifactIds: ["artifact-1"],
+        },
+      });
+      expect(result.success).toBe(true);
+    });
   });
 
   describe("ExecuteRequestDecoder - Invalid Inputs", () => {

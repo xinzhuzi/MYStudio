@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   validateVideoWorkflowChapterReadReply,
   validateVideoWorkflowChapterReadRequest,
+  validateVideoWorkflowChapterApplyRequest,
   validateVideoWorkflowChapterRunRequest,
   validateVideoWorkflowActionReply,
   validateVideoWorkflowPluginActionRequest,
@@ -71,5 +72,19 @@ describe("video workflow IPC contracts", () => {
     expect(validateVideoWorkflowChapterRunRequest(base).success).toBe(true);
     expect(validateVideoWorkflowChapterRunRequest({ ...base, derivedInputPolicy: "pad-video-to-audio" }).success).toBe(true);
     expect(validateVideoWorkflowChapterRunRequest({ ...base, derivedInputPolicy: "always-pad" }).success).toBe(false);
+  });
+
+  it("rejects PNG sequence at the typed apply boundary", () => {
+    expect(validateVideoWorkflowChapterApplyRequest({
+      schemaVersion: 1,
+      projectId: "p",
+      chapterId: "c",
+      revision: 1,
+      inputSha256: hash,
+      width: 640,
+      height: 360,
+      fps: 30,
+      alphaFormat: "png-sequence",
+    }).success).toBe(false);
   });
 });

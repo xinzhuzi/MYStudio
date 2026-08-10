@@ -186,16 +186,29 @@ export const InventoryRequestDecoder = BaseRequestSchema.extend({
 });
 
 /**
- * Plan request decoder - validates project/chapter identity + scope
+ * Plan request decoder - validates project identity + deletion scope.
+ *
+ * Artifact-scoped requests may carry an empty chapterId because the
+ * dependency graph derives the single chapter from artifactIds. Chapter-wide
+ * requests must still provide an explicit non-empty chapterId so a malformed
+ * caller can never widen the deletion scope.
  */
 export const PlanRequestDecoder = BaseRequestSchema.extend({
   type: z.literal("plan"),
   payload: z.object({
     projectId: z.string().min(1),
-    chapterId: z.string().min(1),
+    chapterId: z.string(),
     scope: z.enum(["chapter", "artifacts"]),
     artifactIds: z.array(z.string()).optional(),
-  }).catchall(z.never()),
+  }).catchall(z.never()).superRefine((payload, ctx) => {
+    if (payload.scope === "chapter" && payload.chapterId.length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["chapterId"],
+        message: "chapterId is required for chapter-scope deletion",
+      });
+    }
+  }),
 });
 
 /**

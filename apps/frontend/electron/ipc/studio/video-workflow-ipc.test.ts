@@ -4,6 +4,7 @@ import {
   VIDEO_WORKFLOW_READ_CHAPTER_CHANNEL,
   VIDEO_WORKFLOW_REPAIR_CHANNEL,
   VIDEO_WORKFLOW_ROLLBACK_CHANNEL,
+  VIDEO_WORKFLOW_UPDATE_CHANNEL,
   VIDEO_WORKFLOW_REVIEW_CHANNEL,
   VIDEO_WORKFLOW_STATUS_CHANNEL,
 } from "@rendering/contracts/video-workflow-ipc";
@@ -31,6 +32,7 @@ import { registerVideoWorkflowIpcHandlers } from "./video-workflow-ipc";
 function createManager() {
   return {
     prepare: vi.fn(async (_pluginId: "video-use" | "hyperframes"): Promise<{ success: boolean; message?: string }> => ({ success: true })),
+    update: vi.fn(async (_pluginId: "video-use" | "hyperframes"): Promise<{ success: boolean; message?: string }> => ({ success: true })),
     repair: vi.fn(async (_pluginId: "video-use" | "hyperframes"): Promise<{ success: boolean; message?: string }> => ({ success: true })),
     rollback: vi.fn(async (_pluginId: "video-use" | "hyperframes"): Promise<{ success: boolean; message?: string }> => ({ success: true })),
     prepareVideoUse: vi.fn(),
@@ -64,6 +66,29 @@ describe("video workflow runtime IPC actions", () => {
       plugins: expect.arrayContaining([
         expect.objectContaining({ pluginId: "video-use", runtimeState: "blocked", runtimeCode: "alignment-model-missing" }),
       ]),
+    });
+    registration.dispose();
+  });
+
+  it("surfaces automatic app/runtime version checks as update-available", async () => {
+    const registration = registerVideoWorkflowIpcHandlers({
+      getStorageBasePath: () => "/tmp/mystudio-ipc-test",
+      appVersion: "0.0.1",
+      remotionVersion: "4.0.0",
+      probeRemotion: async () => ({ state: "update-required", remotionVersion: "4.0.0", preparedForRemotionVersion: "3.0.0" }),
+      probeVideoUse: async () => ({ state: "blocked", message: "video-use update", runtime: { state: "update-available" } as never }),
+      probeHyperFrames: async () => ({ state: "blocked", message: "HyperFrames update", runtime: { state: "update-available" } as never }),
+      now: () => 122,
+    });
+
+    const reply = await handlers.get(VIDEO_WORKFLOW_STATUS_CHANNEL)?.({});
+    expect(reply).toMatchObject({
+      plugins: [
+        expect.objectContaining({ pluginId: "remotion", runtimeState: "update-available" }),
+        expect.objectContaining({ pluginId: "video-use", runtimeState: "update-available" }),
+        expect.objectContaining({ pluginId: "hyperframes", runtimeState: "update-available" }),
+        expect.objectContaining({ pluginId: "seedance-prompt", runtimeState: "deferred" }),
+      ],
     });
     registration.dispose();
   });
@@ -152,6 +177,28 @@ describe("video workflow runtime IPC actions", () => {
     registration.dispose();
   });
 
+  it("applies a user-requested update through the managed runtime and model gates", async () => {
+    const manager = createManager();
+    const prepareVideoUseModel = vi.fn(async () => ({ success: true }));
+    const registration = registerVideoWorkflowIpcHandlers({
+      getStorageBasePath: () => "/tmp/mystudio-ipc-test",
+      appVersion: "0.0.1",
+      remotionVersion: "4.0.0",
+      probeRemotion: async () => ({ state: "ready", remotionVersion: "4.0.0" }),
+      probeVideoUse: async () => ({ state: "ready", message: "video-use ok", runtime: {} as never }),
+      probeHyperFrames: async () => ({ state: "ready", message: "HyperFrames ok", runtime: {} as never }),
+      prepareVideoUseModel,
+      runtimeManager: manager,
+      now: () => 457,
+    });
+
+    const reply = await handlers.get(VIDEO_WORKFLOW_UPDATE_CHANNEL)?.({}, { pluginId: "video-use" });
+    expect(prepareVideoUseModel).toHaveBeenCalledOnce();
+    expect(manager.update).toHaveBeenCalledWith("video-use");
+    expect(reply).toMatchObject({ success: true, checkedAt: 457 });
+    registration.dispose();
+  });
+
   it("returns a failed runtime action without claiming readiness", async () => {
     const manager = createManager();
     manager.prepare.mockResolvedValueOnce({ success: false, message: "Node 22 SHA-256 不匹配" });
@@ -224,6 +271,8 @@ describe("video workflow runtime IPC actions", () => {
       chapterId: "chapter-1",
     });
     expect(reply).toMatchObject({ revision: 4, videoUseState: "accepted", hyperFramesState: "noop", inputSha256: "a".repeat(64) });
+    const [workspaceRootForProject] = artifactStore.readLatest.mock.calls[0];
+    expect(workspaceRootForProject("project-1")).toBe("/tmp/mystudio-ipc-test/projects/_p/project-1/video-use");
     registration.dispose();
   });
 

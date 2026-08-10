@@ -39,6 +39,8 @@ export interface BuildStoryboardEditingProjectInput {
   videoCandidates: VideoCandidate[];
   /** When provided, Remotion current shot slots are the only visual source. */
   remotionShotSlots?: RemotionCurrentSlotV1[];
+  /** Explicit reuse-existing policy may consume ready but stale StoryboardShots. */
+  allowStaleStoryboards?: boolean;
   voiceDurationsUs?: Record<string, number>;
   voiceTailPaddingUs?: number;
   directorPlan?: ScriptPlan;
@@ -169,6 +171,7 @@ export function buildStoryboardEditingProject(
       candidateTrimStartByStoryboardId.get(storyboard.id) ?? 0,
       remotionSlotByShotId?.get(storyboard.id),
       input.remotionShotSlots !== undefined,
+      input.allowStaleStoryboards === true,
       input.projectId,
       input.episodeId,
     );
@@ -413,10 +416,11 @@ function selectVisualSource(
   candidateTrimStartUs: number,
   remotionSlot: RemotionCurrentSlotV1 | undefined,
   remotionOnly: boolean,
+  allowStaleStoryboards: boolean,
   projectId: string,
   episodeId: string,
 ): VisualSelection | null {
-  if (storyboard.stale || storyboard.state !== "ready") {
+  if ((!allowStaleStoryboards && storyboard.stale) || storyboard.state !== "ready") {
     return null;
   }
   if (remotionOnly) {

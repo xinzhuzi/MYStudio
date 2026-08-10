@@ -1,12 +1,11 @@
 import {
   Coffee,
-  Film,
   HardDrive,
   Image as ImageIcon,
   Key,
   Layers,
-  Mic2,
   Palette,
+  Plug,
   Terminal,
   Upload,
 } from "lucide-react";
@@ -16,12 +15,10 @@ export const SETTINGS_TABS = [
   { value: "appearance", label: "外观" },
   { value: "api", label: "API 管理" },
   { value: "imageSize", label: "图片规格" },
-  { value: "python", label: "Python 配置" },
-  { value: "tts", label: "TTS 配置" },
+  { value: "plugins", label: "插件配置" },
   { value: "advanced", label: "高级选项" },
   { value: "imagehost", label: "图床配置" },
   { value: "storage", label: "存储" },
-  { value: "rendering", label: "视频工作流插件" },
   { value: "development", label: "开发" },
   { value: "support", label: "请作者喝杯咖啡" },
 ] as const;
@@ -37,18 +34,14 @@ function renderSettingsTabIcon(value: SettingsTabId) {
       return <Key className="h-4 w-4 mr-2" />;
     case "imageSize":
       return <ImageIcon className="h-4 w-4 mr-2" />;
-    case "python":
-      return <Terminal className="h-4 w-4 mr-2" />;
-    case "tts":
-      return <Mic2 className="h-4 w-4 mr-2" />;
+    case "plugins":
+      return <Plug className="h-4 w-4 mr-2" />;
     case "advanced":
       return <Layers className="h-4 w-4 mr-2" />;
     case "imagehost":
       return <Upload className="h-4 w-4 mr-2" />;
     case "storage":
       return <HardDrive className="h-4 w-4 mr-2" />;
-    case "rendering":
-      return <Film className="h-4 w-4 mr-2" />;
     case "development":
       return <Terminal className="h-4 w-4 mr-2" />;
     case "support":

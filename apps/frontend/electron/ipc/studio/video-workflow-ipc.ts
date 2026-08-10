@@ -4,6 +4,7 @@ import type { RemotionBrowserStatus } from "@rendering/contracts/remotion-browse
 import {
   assertVideoWorkflowIpcRequest,
   VIDEO_WORKFLOW_PREPARE_CHANNEL,
+  VIDEO_WORKFLOW_UPDATE_CHANNEL,
   VIDEO_WORKFLOW_REPAIR_CHANNEL,
   VIDEO_WORKFLOW_ROLLBACK_CHANNEL,
   VIDEO_WORKFLOW_REVIEW_CHANNEL,
@@ -147,7 +148,9 @@ export function registerVideoWorkflowIpcHandlers({
     ]);
     const remotionState: VideoWorkflowPluginStatusV1["runtimeState"] = remotion.state === "ready"
       ? "ready"
-      : remotion.state === "not-installed" || remotion.state === "update-required"
+      : remotion.state === "update-required"
+        ? "update-available"
+        : remotion.state === "not-installed"
         ? "needs-runtime"
         : "error";
     const dependencies = {
@@ -161,14 +164,14 @@ export function registerVideoWorkflowIpcHandlers({
       checkedAt,
       plugins: [
         pluginStatus("remotion", appVersion, remotionVersion, "bundled-app", remotionState, checkedAt, { browser: remotionState, ffmpeg: dependencies.ffmpeg, ffprobe: dependencies.ffprobe }, remotion.message),
-        pluginStatus("video-use", appVersion, VIDEO_USE_SOURCE_COMMIT, VIDEO_USE_SOURCE_COMMIT, videoUse ? (videoUse.state === "ready" ? "ready" : videoUse.state === "blocked" ? "blocked" : "error") : runtimeStateToPluginState(runtime), checkedAt, dependencies, videoUse?.message ?? runtime.message, { runtimePath: paths.pythonExecutable, profilePath: paths.videoUseMarkerPath }, videoUse?.code),
-        pluginStatus("hyperframes", appVersion, HYPERFRAMES_NPM_VERSION, HYPERFRAMES_SOURCE_COMMIT, hyperFrames ? (hyperFrames.state === "ready" ? "ready" : hyperFrames.state === "blocked" ? "blocked" : "error") : runtimeStateToPluginState(runtime), checkedAt, { node: dependencies.node, browser: remotionState, ffmpeg: dependencies.ffmpeg, ffprobe: dependencies.ffprobe }, hyperFrames?.message ?? runtime.message, { runtimePath: paths.nodeExecutable, profilePath: paths.hyperFramesMarkerPath }),
+        pluginStatus("video-use", appVersion, VIDEO_USE_SOURCE_COMMIT, VIDEO_USE_SOURCE_COMMIT, videoUse ? (videoUse.runtime.state === "update-available" ? "update-available" : videoUse.state === "ready" ? "ready" : videoUse.state === "blocked" ? "blocked" : "error") : runtimeStateToPluginState(runtime), checkedAt, dependencies, videoUse?.message ?? runtime.message, { runtimePath: paths.pythonExecutable, profilePath: paths.videoUseMarkerPath }, videoUse?.code),
+        pluginStatus("hyperframes", appVersion, HYPERFRAMES_NPM_VERSION, HYPERFRAMES_SOURCE_COMMIT, hyperFrames ? (hyperFrames.runtime.state === "update-available" ? "update-available" : hyperFrames.state === "ready" ? "ready" : hyperFrames.state === "blocked" ? "blocked" : "error") : runtimeStateToPluginState(runtime), checkedAt, { node: dependencies.node, browser: remotionState, ffmpeg: dependencies.ffmpeg, ffprobe: dependencies.ffprobe }, hyperFrames?.message ?? runtime.message, { runtimePath: paths.nodeExecutable, profilePath: paths.hyperFramesMarkerPath }),
         pluginStatus("seedance-prompt", appVersion, "deferred", "deferred", "deferred", checkedAt, {}, "本轮仅保留提示词来源，不进入执行门禁"),
       ],
     };
   };
 
-  const handleAction = async (payload: unknown, action: "prepare" | "repair" | "rollback"): Promise<VideoWorkflowActionReplyV1> => {
+  const handleAction = async (payload: unknown, action: "prepare" | "update" | "repair" | "rollback"): Promise<VideoWorkflowActionReplyV1> => {
     const request = assertVideoWorkflowIpcRequest(validateVideoWorkflowPluginActionRequest(payload));
     let actionMessage: string | undefined;
     let success = false;
@@ -183,9 +186,11 @@ export function registerVideoWorkflowIpcHandlers({
       if (!runtimeManager) return;
       const result: RuntimeActionResult = action === "prepare"
         ? await runtimeManager.prepare(pluginId)
-        : action === "repair"
-          ? await runtimeManager.repair(pluginId)
-          : await runtimeManager.rollback(pluginId);
+        : action === "update"
+          ? await runtimeManager.update(pluginId)
+          : action === "repair"
+            ? await runtimeManager.repair(pluginId)
+            : await runtimeManager.rollback(pluginId);
       success = result.success;
       if (!result.success) {
         actionMessage = result.message;
@@ -193,11 +198,11 @@ export function registerVideoWorkflowIpcHandlers({
       }
       await verifyPlugin(pluginId);
     };
-    if (request.pluginId === "remotion" && (action === "prepare" || action === "repair") && prepareRemotion) {
+    if (request.pluginId === "remotion" && (action === "prepare" || action === "update" || action === "repair") && prepareRemotion) {
       await prepareRemotion();
       success = true;
     } else if (request.pluginId === "video-use" && runtimeManager) {
-      if ((action === "prepare" || action === "repair") && prepareVideoUseModel) {
+      if ((action === "prepare" || action === "update" || action === "repair") && prepareVideoUseModel) {
         const modelResult = await prepareVideoUseModel();
         if (!modelResult.success) {
           success = false;
@@ -289,7 +294,7 @@ export function registerVideoWorkflowIpcHandlers({
 
   const handleReadChapter = async (payload: unknown): Promise<VideoWorkflowChapterReadReplyV1> => {
     const request = assertVideoWorkflowIpcRequest(validateVideoWorkflowChapterReadRequest(payload));
-    const workspaceRootForProject = (projectId: string) => path.join(getStorageBasePath(), "_p", projectId, "video-use");
+    const workspaceRootForProject = (projectId: string) => path.join(getStorageBasePath(), "projects", "_p", projectId, "video-use");
     const base = { schemaVersion: 1 as const, projectId: request.projectId, chapterId: request.chapterId };
     let revision: number | undefined;
     let artifacts: VideoWorkflowChapterArtifacts | undefined;
@@ -320,6 +325,7 @@ export function registerVideoWorkflowIpcHandlers({
 
   ipcMain.handle(VIDEO_WORKFLOW_STATUS_CHANNEL, async () => buildStatus());
   ipcMain.handle(VIDEO_WORKFLOW_PREPARE_CHANNEL, async (_event, payload: unknown) => handleAction(payload, "prepare"));
+  ipcMain.handle(VIDEO_WORKFLOW_UPDATE_CHANNEL, async (_event, payload: unknown) => handleAction(payload, "update"));
   ipcMain.handle(VIDEO_WORKFLOW_REPAIR_CHANNEL, async (_event, payload: unknown) => handleAction(payload, "repair"));
   ipcMain.handle(VIDEO_WORKFLOW_ROLLBACK_CHANNEL, async (_event, payload: unknown) => handleAction(payload, "rollback"));
   ipcMain.handle(VIDEO_WORKFLOW_REVIEW_CHANNEL, async (_event, payload: unknown) => handleReview(payload));
@@ -331,6 +337,7 @@ export function registerVideoWorkflowIpcHandlers({
     dispose() {
       ipcMain.removeHandler(VIDEO_WORKFLOW_STATUS_CHANNEL);
       ipcMain.removeHandler(VIDEO_WORKFLOW_PREPARE_CHANNEL);
+      ipcMain.removeHandler(VIDEO_WORKFLOW_UPDATE_CHANNEL);
       ipcMain.removeHandler(VIDEO_WORKFLOW_REPAIR_CHANNEL);
       ipcMain.removeHandler(VIDEO_WORKFLOW_ROLLBACK_CHANNEL);
       ipcMain.removeHandler(VIDEO_WORKFLOW_REVIEW_CHANNEL);

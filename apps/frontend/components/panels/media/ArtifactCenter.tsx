@@ -3,7 +3,7 @@
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 
 import { useMemo, useState, useCallback, useEffect } from "react";
-import { ArrowUp, ChevronRight, FolderOpen, FolderKanban, Loader2, LucideImage as MediaLibrary, Trash2 } from "lucide-react";
+import { FolderKanban, Loader2, LucideImage as MediaLibrary, Trash2 } from "lucide-react";
 import { getArtifactDeleteImpact } from "@/lib/artifacts/delete-impact";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -51,7 +51,6 @@ export interface ArtifactCenterProps {
       label: string;
       count: number;
     }>;
-    fileTree?: FileTreeNode[];
   }>;
 
   /** Callback for artifact selection */
@@ -64,25 +63,10 @@ export interface ArtifactCenterProps {
   className?: string;
 }
 
-/**
- * File-tree node shape for a project's on-disk artifact file tree. Migrated
- * from the (removed) ArtifactTree component — ArtifactCenter now owns this
- * type since it is the sole consumer. See task #19.
- */
-export interface FileTreeNode {
-  path: string;
-  name: string;
-  type: "directory" | "file";
-  children?: FileTreeNode[];
-  artifactIds?: string[];
-  bytes?: number;
-}
-
 type ArtifactProjectNode = {
   id: string;
   name: string;
   stages: Array<{ id: string; label: string; count: number }>;
-  fileTree: FileTreeNode[];
 };
 
 function normalizePhysicalPath(value: string): string | null {
@@ -124,6 +108,21 @@ const BACKUP_BUCKET_ID = "__backup__";
 const NONE_BUCKET_ID = "__none__";
 
 /**
+ * The synthetic buckets (`__none__` 杂项, `__backup__` 备份) are UI-only
+ * sentinels and NEVER real chapter ids. Passing either to buildDeletionPlan
+ * makes it reject the plan ("Chapter not found in project inventory: __x__" /
+ * "Selected artifact ... is outside chapter __x__" — artifact-dependency-
+ * graph.ts:574/582). Artifact-scope deletion derives and validates the
+ * selected chapter at the dependency-graph boundary even when this UI
+ * sentinel becomes "", so strip both sentinels to "".
+ */
+function chapterIdForDeletionPlan(selectedChapterId: string): string {
+  return selectedChapterId === NONE_BUCKET_ID || selectedChapterId === BACKUP_BUCKET_ID
+    ? ""
+    : selectedChapterId;
+}
+
+/**
  * An artifact whose ONLY physical presence is inside backup files
  * (`.bak-*` / `.codex-*`). The inventory service marks backup-sourced refs
  * with `type: "backup"` (artifact-inventory-service.ts:115). When every ref
@@ -152,92 +151,6 @@ function formatChapterLabel(id: string): string {
   return `第 ${id} 章`;
 }
 
-function buildArtifactFileTree(artifacts: ArtifactRecord[]): FileTreeNode[] {
-  type MutableNode = FileTreeNode & { childMap: Map<string, MutableNode> };
-  const roots = new Map<string, MutableNode>();
-
-  for (const artifact of artifacts) {
-    for (const ref of artifact.physicalRefs) {
-      const physicalPath = normalizePhysicalPath(ref.path);
-      if (!physicalPath) continue;
-      const parts = physicalPath.split("/").filter(Boolean);
-      let map = roots;
-      let currentPath = "";
-      parts.forEach((part, index) => {
-        currentPath = currentPath ? `${currentPath}/${part}` : part;
-        const isFile = index === parts.length - 1;
-        let node = map.get(part);
-        if (!node) {
-          node = {
-            path: currentPath,
-            name: part,
-            type: isFile ? "file" : "directory",
-            children: [],
-            artifactIds: [],
-            bytes: 0,
-            childMap: new Map(),
-          };
-          map.set(part, node);
-        }
-        if (isFile) {
-          if (!node.artifactIds?.includes(artifact.id)) node.artifactIds?.push(artifact.id);
-          node.bytes = (node.bytes ?? 0) + (ref.bytes ?? artifact.bytes ?? 0);
-        }
-        map = node.childMap;
-      });
-    }
-  }
-
-  const finalize = (nodes: Map<string, MutableNode>): FileTreeNode[] => [...nodes.values()]
-    .sort((left, right) => left.type === right.type ? left.name.localeCompare(right.name) : left.type === "directory" ? -1 : 1)
-    .map((node) => {
-      const children = node.type === "directory" ? finalize(node.childMap) : undefined;
-      return {
-        path: node.path,
-        name: node.name,
-        type: node.type,
-        artifactIds: node.artifactIds,
-        bytes: node.type === "directory"
-          ? children?.reduce((total, child) => total + (child.bytes ?? 0), node.bytes ?? 0)
-          : node.bytes,
-        children,
-      };
-    });
-
-  return finalize(roots);
-}
-
-function findFileTreeNode(nodes: FileTreeNode[], directoryPath: string): FileTreeNode | null {
-  if (!directoryPath) return null;
-  for (const node of nodes) {
-    if (node.path === directoryPath) return node;
-    const nested = node.children ? findFileTreeNode(node.children, directoryPath) : null;
-    if (nested) return nested;
-  }
-  return null;
-}
-
-function fileTreeContainsArtifact(node: FileTreeNode, artifactIds: Set<string>): boolean {
-  if (node.artifactIds?.some((id) => artifactIds.has(id))) return true;
-  return node.children?.some((child) => fileTreeContainsArtifact(child, artifactIds)) ?? false;
-}
-
-function collectFileTreeArtifactIds(node: FileTreeNode): string[] {
-  return [
-    ...(node.artifactIds ?? []),
-    ...(node.children ?? []).flatMap((child) => collectFileTreeArtifactIds(child)),
-  ];
-}
-
-function countFileTreeArtifacts(node: FileTreeNode): number {
-  return new Set(collectFileTreeArtifactIds(node)).size;
-}
-
-function parentDirectory(directoryPath: string): string {
-  const slash = directoryPath.lastIndexOf("/");
-  return slash === -1 ? "" : directoryPath.slice(0, slash);
-}
-
 interface FilterBarProps {
   stageFilter: ArtifactStage | 'all';
   stateFilter: ArtifactState | 'all';
@@ -254,14 +167,13 @@ function FilterBar({
   totalArtifacts,
 }: FilterBarProps) {
   return (
-    <div className="flex items-center justify-between p-3 bg-panel">
-      <div className="text-sm text-muted-foreground">
+    <>
+      <div className="text-xs text-muted-foreground whitespace-nowrap">
         共 {totalArtifacts} 个产物
       </div>
 
-      <div className="flex items-center gap-2">
-        {/* Stage filter */}
-        <select
+      {/* Stage filter */}
+      <select
           value={stageFilter}
           onChange={(e) => onStageFilterChange(e.target.value as any)}
           className="px-2 py-1 text-xs border rounded bg-background h-8"
@@ -284,8 +196,7 @@ function FilterBar({
           <option value="orphaned">孤儿</option>
           <option value="blocked">已阻塞</option>
         </select>
-      </div>
-    </div>
+    </>
   );
 }
 
@@ -320,7 +231,6 @@ export function ArtifactCenter({
   // Local state for UI controls (independent of store for mocking)
   const [currentTab, setCurrentTab] = useState<'workflow' | 'media-library'>('workflow');
   const [selectedChapterId, setSelectedChapterId] = useState<string | null>(null);
-  const [currentDirectoryPath, setCurrentDirectoryPath] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [detailArtifactId, setDetailArtifactId] = useState<string | null>(null);
 
@@ -414,7 +324,7 @@ export function ArtifactCenter({
   // current inventory artifacts by stage. Stage order follows STAGE_LABELS.
   const projects = useMemo<ArtifactProjectNode[]>(() => {
     if (mockProjects) {
-      return mockProjects.map((project) => ({ ...project, fileTree: project.fileTree ?? [] }));
+      return mockProjects;
     }
 
     // Aggregate artifact counts by stage, keyed by projectId.
@@ -456,7 +366,6 @@ export function ArtifactCenter({
           id: project.id,
           name: project.name,
           stages,
-          fileTree: buildArtifactFileTree(artifacts.filter((artifact) => artifact.projectId === project.id)),
         };
       });
   }, [artifacts, mockProjects, projectList, activeProjectId]);
@@ -503,62 +412,11 @@ export function ArtifactCenter({
   }, [artifacts, activeProjectId]);
 
   const activeProjectNode = projects.find((project) => project.id === activeProjectId) ?? null;
-  const currentDirectoryNode = useMemo(
-    () => findFileTreeNode(activeProjectNode?.fileTree ?? [], currentDirectoryPath),
-    [activeProjectNode, currentDirectoryPath],
-  );
-  const directoryArtifactIds = useMemo(
-    () => new Set(filteredArtifacts.map((artifact) => artifact.id)),
-    [filteredArtifacts],
-  );
-  const visibleDirectoryFolders = useMemo(() => {
-    const candidates = currentDirectoryNode?.children ?? (currentDirectoryPath ? [] : activeProjectNode?.fileTree ?? []);
-    return candidates.filter((entry) => entry.type === "directory");
-  }, [activeProjectNode, currentDirectoryNode, currentDirectoryPath, directoryArtifactIds]);
-  const visibleDirectoryArtifacts = useMemo(() => filteredArtifacts.filter((artifact) => {
-    const paths = artifact.physicalRefs
-      .map((ref) => normalizePhysicalPath(ref.path))
-      .filter((value): value is string => Boolean(value));
-    if (paths.length === 0) return currentDirectoryPath === "";
-    return paths.some((physicalPath) => parentDirectory(physicalPath) === currentDirectoryPath);
-  }), [filteredArtifacts, currentDirectoryPath]);
 
-  // Flat grouping by stage — replaces the folder-navigation view. All artifacts
-  // are flattened out of their physical directory tree and grouped under their
-  // 13 ArtifactStage in STAGE_LABELS order; empty stages still render (count 0)
-  // so every workflow stage is visible as a classification group.
-  const artifactsByStage = useMemo(() => {
-    const buckets = new Map<ArtifactStage, ArtifactRecord[]>();
-    for (const stage of FIXED_NAV_STAGES) buckets.set(stage, []);
-    for (const artifact of filteredArtifacts) {
-      const bucket = buckets.get(artifact.stage);
-      if (bucket) bucket.push(artifact);
-    }
-    return FIXED_NAV_STAGES.map((stage) => ({
-      stage,
-      label: STAGE_LABELS[stage],
-      artifacts: buckets.get(stage) ?? [],
-    }));
-  }, [filteredArtifacts]);
-
-  // When a specific stage is selected in the toolbar dropdown, only that stage
-  // group is relevant — rendering the other 12 (empty) stage headers is noise.
-  // "所有阶段" keeps the full 13-group breakdown.
-  const visibleStageGroups = useMemo(() => {
-    if (stageFilter === "all") return artifactsByStage;
-    return artifactsByStage.filter((group) => group.stage === stageFilter);
-  }, [artifactsByStage, stageFilter]);
-  // Flat artifact list for the file-only view — no per-stage section headers.
-  // "展示文件列表，就只管展示文件列表"：不再按阶段分组，所有文件平铺为单一列表。
-  const flatArtifactList = useMemo(
-    () => visibleStageGroups.flatMap((group) => group.artifacts),
-    [visibleStageGroups],
-  );
-  const directoryBreadcrumbs = useMemo(() => {
-    if (!currentDirectoryPath) return [] as Array<{ label: string; path: string }>;
-    const parts = currentDirectoryPath.split("/");
-    return parts.map((part, index) => ({ label: part, path: parts.slice(0, index + 1).join("/") }));
-  }, [currentDirectoryPath]);
+  // The center list shows all artifacts in the selected chapter (already
+  // filtered by chapter/stage/state in `filteredArtifacts`). There is no
+  // directory-navigation layer; the table is a flat chapter-scoped list.
+  const flatArtifactList = filteredArtifacts;
 
   // Debug state exposure for devtools inspection
   useEffect(() => {
@@ -570,11 +428,10 @@ export function ArtifactCenter({
         stageFilter,
         stateFilter,
         selectedChapterId,
-        currentDirectoryPath,
         projects,
       };
     }
-  }, [artifacts, filteredArtifacts, currentTab, stageFilter, stateFilter, selectedChapterId, currentDirectoryPath, projects]);
+  }, [artifacts, filteredArtifacts, currentTab, stageFilter, stateFilter, selectedChapterId, projects]);
 
   // Pure assignment (not toggle): a chapter must always stay selected, so
   // clicking the currently-selected chapter is a no-op rather than deselect.
@@ -582,15 +439,11 @@ export function ArtifactCenter({
     setSelectedChapterId(chapterId);
   }, []);
 
-  const handleDirectoryClick = useCallback((directoryPath: string) => {
-    setCurrentDirectoryPath(directoryPath);
-    setDetailArtifactId(null);
-  }, []);
-
   // Clear multiselect whenever a navigation filter changes.
   useEffect(() => {
     setSelectedIds(new Set());
-  }, [selectedChapterId, activeProjectId, currentDirectoryPath, stageFilter]);
+    setDetailArtifactId(null);
+  }, [selectedChapterId, activeProjectId, stageFilter, stateFilter]);
 
   // Reset all navigated filters when the active project changes — covers
   // store-driven switches (setActiveProject, project deletion fallback,
@@ -600,7 +453,6 @@ export function ArtifactCenter({
   useEffect(() => {
     setSelectedChapterId(null);
     setStageFilter("all");
-    setCurrentDirectoryPath("");
     setDetailArtifactId(null);
   }, [activeProjectId]);
 
@@ -649,40 +501,6 @@ export function ArtifactCenter({
     toast.success("产物元数据已保存");
   }, [activeProjectId, refreshInventory]);
 
-  // Delete a folder and ALL artifacts inside it (cascade through the subtree).
-  // Batch deletion is chapter-scoped: a directory spanning multiple chapters
-  // must be split into independent plans instead of silently widening scope.
-  const openDirectoryDelete = useCallback(async (folder: FileTreeNode) => {
-    if (!activeProjectId) return;
-    const cascadeIds = [...new Set(collectFileTreeArtifactIds(folder))];
-    if (cascadeIds.length === 0) {
-      toast.error("该文件夹没有可删除的产物");
-      return;
-    }
-    const chapterIds = new Set(
-      cascadeIds
-        .map((id) => artifacts.find((artifact) => artifact.id === id))
-        .map((artifact) => artifact ? inferChapterId(artifact) ?? NONE_BUCKET_ID : NONE_BUCKET_ID),
-    );
-    if (chapterIds.size > 1) {
-      toast.error("批量删除必须限定在同一章节，请按章节分别确认");
-      return;
-    }
-    const chapterId = [...chapterIds][0] === NONE_BUCKET_ID ? "" : [...chapterIds][0];
-    const result = await createArtifactDeletionPlan({
-      projectId: activeProjectId,
-      chapterId,
-      scope: "artifacts",
-      artifactIds: cascadeIds,
-    });
-    if (!result.success) {
-      toast.error(result.error);
-      return;
-    }
-    setDeletePlan(result.data);
-    setDeleteOpen(true);
-  }, [activeProjectId, artifacts]);
-
   // Delete a single file's artifact through the reviewed deletion plan.
   const openFileDelete = useCallback(async (artifact: ArtifactRecord) => {
     if (!activeProjectId) return;
@@ -712,33 +530,59 @@ export function ArtifactCenter({
   }, [activeProjectId, selectedChapterId]);
 
   const openSelectedDelete = useCallback(async () => {
-    if (!activeProjectId || !selectedChapterId || selectedIds.size === 0) return;
+    if (!activeProjectId || !selectedChapterId || selectedIds.size === 0) {
+      console.error("[artifact-delete] openSelectedDelete aborted: missing preconditions", {
+        hasProjectId: Boolean(activeProjectId),
+        selectedChapterId,
+        selectedCount: selectedIds.size,
+      });
+      return;
+    }
     const selectedChapterIds = new Set(
       [...selectedIds]
         .map((id) => artifacts.find((artifact) => artifact.id === id))
         .map((artifact) => artifact ? inferChapterId(artifact) ?? NONE_BUCKET_ID : NONE_BUCKET_ID),
     );
     if (selectedChapterIds.size > 1) {
+      console.error("[artifact-delete] openSelectedDelete aborted: cross-chapter selection", {
+        selectedChapterIds: [...selectedChapterIds],
+      });
       toast.error("批量删除必须限定在同一章节，请先取消跨章节选择");
       return;
     }
-    // "__none__" is the UI-only synthetic bucket for ungrouped/project-level
-    // artifacts (ChapterTree.tsx). It is NOT a real chapter id — passing it as
-    // chapterId makes buildDeletionPlan reject the plan ("outside chapter
-    // __none__"). For artifacts-scope deletion the store/IPC both accept an
-    // empty chapterId (cross-chapter selection; see artifact-management-ipc.ts
-    // L331-336), so strip the synthetic sentinel here.
-    const chapterIdForPlan = selectedChapterId === "__none__" ? "" : selectedChapterId;
+    // The selected bucket may be a UI-only synthetic sentinel (__none__ 杂项
+    // or __backup__ 备份). Both must be stripped to "" before reaching the
+    // store/IPC: buildDeletionPlan rejects them as "Chapter not found" /
+    // "outside chapter __x__" (artifact-dependency-graph.ts:574/582), and
+    // artifacts-scope deletion derives and validates the selected chapter at
+    // the dependency-graph boundary even when this UI sentinel becomes "".
+    // See chapterIdForDeletionPlan.
+    const chapterIdForPlan = chapterIdForDeletionPlan(selectedChapterId);
+    const artifactIds = Array.from(selectedIds);
     const result = await createArtifactDeletionPlan({
       projectId: activeProjectId,
       chapterId: chapterIdForPlan,
       scope: "artifacts",
-      artifactIds: Array.from(selectedIds),
+      artifactIds,
     });
     if (!result.success) {
+      console.error("[artifact-delete] createArtifactDeletionPlan failed", {
+        projectId: activeProjectId,
+        rawChapterId: selectedChapterId,
+        chapterIdForPlan,
+        scope: "artifacts",
+        artifactIds,
+        error: result.error,
+      });
       toast.error(result.error);
       return;
     }
+    console.info("[artifact-delete] deletion plan created, opening dialog", {
+      projectId: activeProjectId,
+      chapterIdForPlan,
+      deleteItems: result.data.deleteItems.length,
+      blockerItems: result.data.blockerItems.length,
+    });
     setDeletePlan(result.data);
     setDeleteOpen(true);
   }, [activeProjectId, artifacts, selectedChapterId, selectedIds]);
@@ -787,9 +631,17 @@ export function ArtifactCenter({
         <TabsContent value="workflow" className="flex-1 m-0 overflow-hidden min-h-0">
           <div className="flex h-full min-h-0">
           <ResizablePanelGroup direction="horizontal" className="flex-1 min-w-0 h-full" autoSaveId="artifact-center-left">
-            {/* Left Column - Chapter Tree (PRD R1: 项目→章节→工作流阶段→产物) */}
+            {/* Left Column - chapter tree */}
             <ResizablePanel defaultSize={22} minSize={18} maxSize={50} className="bg-panel">
               <aside className="h-full flex flex-col min-h-0">
+                <div className="shrink-0 border-b px-3 py-2">
+                  <div className="flex items-center gap-2 text-sm font-medium">
+                    <FolderKanban className="h-4 w-4 text-primary" />
+                    <span className="truncate" title={activeProjectNode?.name ?? "项目章节"}>
+                      {activeProjectNode?.name ?? "项目章节"}
+                    </span>
+                  </div>
+                </div>
                 <div className="flex-1 min-h-0 overflow-hidden">
                   <ChapterTree
                     chapters={chapters}
@@ -805,7 +657,7 @@ export function ArtifactCenter({
             {/* Center Table */}
             <ResizablePanel defaultSize={78} minSize={50} className="min-w-0">
               <main className="h-full flex flex-col min-w-0 min-h-0">
-              <div className="flex items-center justify-between border-b px-3 py-2 shrink-0">
+              <div className="flex items-center gap-2 border-b px-3 py-1.5 shrink-0 h-[42px]">
                 <FilterBar
                   stageFilter={stageFilter}
                   stateFilter={stateFilter}
@@ -819,11 +671,11 @@ export function ArtifactCenter({
                     扫描产物中…
                   </span>
                 )}
-                <div className="flex items-center gap-2">
+                <div className="ml-auto flex items-center gap-2">
                   <input
                     type="checkbox"
                     aria-label="选择全部产物"
-                    className="ml-auto"
+                    className="h-4 w-4 shrink-0"
                     checked={flatArtifactList.length > 0 && flatArtifactList.every((artifact) => selectedIds.has(artifact.id))}
                     onChange={(event) => {
                       for (const artifact of flatArtifactList) toggleArtifactSelection(artifact.id, event.target.checked);
@@ -833,7 +685,7 @@ export function ArtifactCenter({
                   <Button variant="outline" size="sm" disabled={!selectedChapterId || selectedIds.size === 0} onClick={() => void openSelectedDelete()}>
                     <Trash2 className="mr-1 h-4 w-4" />删除选中 ({selectedIds.size})
                   </Button>
-                  <Button variant="destructive" size="sm" disabled={!selectedChapterId || selectedChapterId === "__none__"} onClick={() => void openChapterDelete()}>
+                  <Button variant="destructive" size="sm" disabled={!selectedChapterId || selectedChapterId === NONE_BUCKET_ID || selectedChapterId === BACKUP_BUCKET_ID} onClick={() => void openChapterDelete()}>
                     <Trash2 className="mr-1 h-4 w-4" />删除当前章节
                   </Button>
                 </div>
@@ -841,7 +693,7 @@ export function ArtifactCenter({
               <div className="flex-1 overflow-auto min-h-0" aria-busy={loading}>
                 {loading ? (
                   <ArtifactTableSkeleton />
-                ) : filteredArtifacts.length === 0 ? (
+                ) : flatArtifactList.length === 0 ? (
                   <div className="h-full flex items-center justify-center text-center text-muted-foreground py-12">
                     当前章节没有符合条件的产物
                   </div>
@@ -863,7 +715,7 @@ export function ArtifactCenter({
                                   type="checkbox"
                                   aria-label={`选择产物 ${artifact.name}`}
                                   checked={selectedIds.has(artifact.id)}
-                                  disabled={!selectedChapterId || (selectedChapterId !== "__none__" && artifact.chapterId !== selectedChapterId)}
+                                  disabled={!selectedChapterId || (selectedChapterId !== "__none__" && selectedChapterId !== "__backup__" && inferChapterId(artifact) !== selectedChapterId)}
                                   onChange={(event) => toggleArtifactSelection(artifact.id, event.target.checked)}
                                 />
                               </td>
@@ -925,9 +777,10 @@ export function ArtifactCenter({
             </ResizablePanel>
           </ResizablePanelGroup>
 
-            {/* Right Detail Panel:ArtifactDetailPanel 内部是 Radix Dialog(Portal),
-                渲染到 document.body,不占文档流宽度。去掉原 aside(w-80)包裹,
-                避免选中产物时表格被挤、右侧露出 320px 深色条。 */}
+            {/* Right detail panel: ArtifactDetailPanel is a Radix Sheet
+                rendered through a portal, so it does not reserve layout width.
+                Keeping it outside the resizable panels avoids squeezing the
+                artifact table when a row is selected. */}
             {getDetailArtifact() && (
               <ArtifactDetailPanel
                 artifact={getDetailArtifact()}

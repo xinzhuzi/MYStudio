@@ -2,9 +2,9 @@
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 import {
+  BoxesIcon,
   ClapperboardIcon,
   UsersIcon,
-  VideoIcon,
   SettingsIcon,
   MapPinIcon,
   FileTextIcon,
@@ -46,7 +46,7 @@ export const mainNavItems: NavItem[] = [
   { id: "freedom", label: "辅助", icon: PaletteIcon },
   { id: "tts", label: "TTS", icon: Mic2Icon },
   { id: "export", label: "导出", icon: FilmIcon },
-  { id: "media", label: "产物", icon: VideoIcon },
+  { id: "media", label: "产物", icon: BoxesIcon },
   { id: "self-media", label: "自媒体", icon: Share2Icon },
 ];
 
@@ -81,7 +81,7 @@ export const tabs: { [key in Tab]: { icon: LucideIcon; label: string; stage?: St
   director: { icon: ClapperboardIcon, label: "导演", stage: "director" },
   sclass: { icon: SparklesIcon, label: "S级", stage: "director" },
   assets: { icon: FolderOpenIcon, label: "资产" },
-  media: { icon: VideoIcon, label: "产物" },
+  media: { icon: BoxesIcon, label: "产物" },
   "self-media": { icon: Share2Icon, label: "自媒体" },
   skills: { icon: BookOpenTextIcon, label: "技能" },
   tts: { icon: Mic2Icon, label: "TTS" },
@@ -284,13 +284,13 @@ export interface ContactSheetPromptSet {
 
 interface MediaPanelStore {
   activeTab: Tab;
-  settingsTabRequest: "rendering" | null;
+  settingsTabRequest: "plugins" | "rendering" | null;
   activeStage: Stage;
   inProject: boolean; // Whether viewing a project or dashboard
   navigationBackStack: NavigationSnapshot[];
   navigationForwardStack: NavigationSnapshot[];
   setActiveTab: (tab: Tab) => void;
-  requestSettingsTab: (tab: "rendering") => void;
+  requestSettingsTab: (tab: "plugins" | "rendering") => void;
   clearSettingsTabRequest: () => void;
   setActiveStage: (stage: Stage) => void;
   setInProject: (inProject: boolean) => void;

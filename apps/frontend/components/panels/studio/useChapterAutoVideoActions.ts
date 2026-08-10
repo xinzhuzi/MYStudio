@@ -9,8 +9,10 @@ import {
 import {
   ChapterTtsCancellationController,
   runChapterAutoVideo,
+  type RunVideoUseChapterInput,
   type ChapterAutoVideoStatus,
 } from "@/lib/studio/chapter-auto-video";
+import { buildVideoWorkflowChapterRunRequest } from "@/lib/studio/video-workflow/chapter-run-request";
 import { buildRemotionShotPlans } from "@/lib/studio/remotion/remotion-shot-plan-builder";
 import { createRemotionChapterManifestFingerprint } from "@/lib/studio/remotion/remotion-audio-fingerprint";
 import { sha256CanonicalJson } from "@/lib/studio/remotion/canonical-json";
@@ -22,11 +24,13 @@ import {
   toStoryboardItems,
 } from "@/lib/studio/storyboard-table";
 import { useProjectStore } from "@/stores/project/project-store";
+import { useEditingStore } from "@/stores/editing/editing-store";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import { useTtsStore } from "@/stores/tts/tts-store";
 import type { StudioAssetSummary } from "@/types/studio-assets";
 import type {
   RemotionChapterManifestV2,
+  RemotionCurrentSlotV1,
   RemotionRenderJobV1,
 } from "@/types/remotion-workspace";
 import type { TtsSpeakerId, VoiceProfile } from "@/types/tts";
@@ -43,6 +47,7 @@ export function useChapterAutoVideoActions({
   activeProjectId,
   productionEpisodeId,
   handleProductionNodeAction,
+  onVideoUseReviewRequired,
 }: {
   activeProjectId?: string;
   productionEpisodeId: string;
@@ -51,6 +56,7 @@ export function useChapterAutoVideoActions({
     targetStage: string;
     userInstruction?: string;
   }) => void | Promise<void>;
+  onVideoUseReviewRequired?: () => void;
 }) {
   const [status, setStatus] = useState<ChapterAutoVideoStatus>(INITIAL_STATUS);
   const ttsCancellationRef = useRef<ChapterTtsCancellationController | null>(null);
@@ -391,10 +397,62 @@ export function useChapterAutoVideoActions({
             }
             return { jobs, blockedShotIds };
           },
+          runVideoUseChapter: async (input) => {
+            assertProjectStillActive();
+            const bridge = typeof window !== "undefined" ? window.videoWorkflowPlugins : undefined;
+            if (!bridge?.runChapter || !bridge.readChapter) {
+              throw new Error("当前环境未接入 video-use 章节 bridge");
+            }
+            const currentShotSlots = await waitForCurrentChapterShotSlots({
+              projectId: input.projectId,
+              chapterId: input.chapterId,
+              storyboards: input.storyboards,
+              submission: input.submission,
+              assertProjectStillActive,
+            });
+            const chapterState = await bridge.readChapter({
+              schemaVersion: 1,
+              projectId: input.projectId,
+              chapterId: input.chapterId,
+            });
+            const currentEditingProject = useEditingStore
+              .getState()
+              .getCurrentEditingProject(input.chapterId);
+            const revision = Math.max(
+              (currentEditingProject?.revision ?? 0) + 1,
+              (chapterState.revision ?? 0) + 1,
+            );
+            const request = await buildVideoWorkflowChapterRunRequest({
+              projectId: input.projectId,
+              chapterId: input.chapterId,
+              revision,
+              mode: "editable-edl",
+              storyboards: input.storyboards,
+              remotionShotSlots: currentShotSlots,
+            });
+            const reply = await bridge.runChapter(request);
+            if (!reply.success || !reply.artifact || reply.state === "blocked") {
+              return {
+                state: "blocked" as const,
+                revision: reply.revision,
+                inputSha256: reply.artifact?.evidence.inputSha256,
+              };
+            }
+            return {
+              state: reply.state === "ready" ? "ready" as const : "pending" as const,
+              revision: reply.revision,
+              inputSha256: reply.artifact.evidence.inputSha256,
+            };
+          },
+          onVideoUseReviewRequired,
         },
       });
       if (result.queueStatus === "blocked") {
-        toast.error(`Remotion 分镜队列已阻塞：${result.blockedShotIds?.join("、") || "请检查分镜物料"}`);
+        toast.error(result.videoUseState === "blocked"
+          ? "video-use preview 被阻塞，已暂停正式章节合成"
+          : `Remotion 分镜队列已阻塞：${result.blockedShotIds?.join("、") || "请检查分镜物料"}`);
+      } else if (result.queueStatus === "awaiting-review") {
+        toast.success(`video-use 预览已生成 revision ${result.videoUseRevision ?? "-"}，请在视频工作台确认`);
       } else {
         toast.success(`已提交 ${result.remotionJobs?.length ?? 0} 个 Remotion 分镜任务，等待章节合成`);
       }
@@ -409,6 +467,7 @@ export function useChapterAutoVideoActions({
     activeProjectId,
     assertProjectStillActive,
     handleProductionNodeAction,
+    onVideoUseReviewRequired,
     productionEpisodeId,
     running,
   ]);
@@ -491,4 +550,44 @@ async function chapterManifestContentHash(manifest: RemotionChapterManifestV2): 
     shots: manifest.shots,
     renderSettings: manifest.renderSettings,
   });
+}
+
+const REMOTION_SHOT_WAIT_TIMEOUT_MS = 15 * 60 * 1000;
+const REMOTION_SHOT_POLL_INTERVAL_MS = 500;
+
+async function waitForCurrentChapterShotSlots(
+  input: RunVideoUseChapterInput & { assertProjectStillActive: () => void },
+): Promise<RemotionCurrentSlotV1[]> {
+  const queue = typeof window !== "undefined" ? window.remotionQueue : undefined;
+  if (!queue?.get) throw new Error("Remotion 队列读取接口不可用，已停止 video-use preview");
+  const expectedRevisions = new Map(
+    input.storyboards.map((storyboard) => [
+      storyboard.id,
+      Math.max(1, storyboard.outputVersion ?? 1),
+    ]),
+  );
+  const submittedJobs = new Map(input.submission.jobs.map((job) => [job.jobId, job]));
+  const startedAt = Date.now();
+  const terminalFailureStatuses = new Set(["failed", "blocked", "canceled", "stale"]);
+  while (Date.now() - startedAt <= REMOTION_SHOT_WAIT_TIMEOUT_MS) {
+    input.assertProjectStillActive();
+    const scope = await queue.get({ projectId: input.projectId, chapterId: input.chapterId });
+    const failedJob = scope.jobs.find((job) =>
+      input.submission.jobs.some((submitted) => submitted.jobId === job.jobId)
+      && terminalFailureStatuses.has(job.status),
+    );
+    if (failedJob) {
+      throw new Error(`Remotion 分镜 ${failedJob.jobId} ${failedJob.status}，已阻止 video-use preview`);
+    }
+    const currentSlots = scope.currentShotSlots.filter((slot) =>
+      slot.target.kind === "shot"
+      && expectedRevisions.get(slot.target.shotId) === slot.target.shotRevision
+      && submittedJobs.has(slot.job.jobId)
+      && submittedJobs.get(slot.job.jobId)?.inputHash === slot.job.inputHash
+      && slot.job.status === "succeeded",
+    );
+    if (currentSlots.length === expectedRevisions.size) return currentSlots;
+    await new Promise<void>((resolve) => setTimeout(resolve, REMOTION_SHOT_POLL_INTERVAL_MS));
+  }
+  throw new Error("等待全部 Remotion StoryboardShot MP4 超时，已阻止 video-use preview");
 }

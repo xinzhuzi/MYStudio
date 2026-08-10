@@ -4,6 +4,8 @@ import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { runChapterAutoVideo } from "@/lib/studio/chapter-auto-video";
 import { runStoryboardTtsGeneration } from "@/lib/studio/storyboard-tts-runner";
+import { makeCurrentSlot } from "@/lib/studio/remotion/remotion-workspace-test-fixtures";
+import { createRemotionRenderJobId } from "@/lib/studio/remotion/remotion-job-identity";
 import { serializeStoryboardTable } from "@/lib/studio/storyboard-table";
 import { useProjectStore } from "@/stores/project/project-store";
 import { useStudioStore } from "@/stores/studio/studio-store";
@@ -36,7 +38,9 @@ const initialStudioState = useStudioStore.getState();
 
 beforeEach(() => {
   let sequence = 0;
+  const subtle = globalThis.crypto?.subtle;
   vi.stubGlobal("crypto", {
+    subtle,
     randomUUID: vi.fn(() => `test-uuid-${++sequence}`),
   });
   useProjectStore.setState({
@@ -125,6 +129,155 @@ describe("useChapterAutoVideoActions", () => {
       detail: "第一章自动成片失败",
       error: "render boom",
     });
+  });
+
+  it("hands the video-use review transition to the runner and preserves awaiting-review", async () => {
+    const autoVideo = vi.mocked(runChapterAutoVideo);
+    const onVideoUseReviewRequired = vi.fn();
+    autoVideo.mockImplementationOnce(async ({ dependencies, onStatus }) => {
+      expect(dependencies.onVideoUseReviewRequired).toBe(onVideoUseReviewRequired);
+      dependencies.onVideoUseReviewRequired?.();
+      onStatus?.({
+        stage: "awaiting-review",
+        detail: "video-use preview 已生成，等待用户确认",
+      });
+      return {
+        storyboards: 1,
+        queueStatus: "awaiting-review",
+        videoUseState: "pending",
+        videoUseRevision: 1,
+      };
+    });
+    const { result } = renderHook(() =>
+      useChapterAutoVideoActions({
+        activeProjectId: "project-1",
+        productionEpisodeId: "chapter-001",
+        handleProductionNodeAction: vi.fn(),
+        onVideoUseReviewRequired,
+      }),
+    );
+
+    await act(async () => {
+      await result.current.handleRunChapterAutoVideo();
+    });
+
+    expect(onVideoUseReviewRequired).toHaveBeenCalledOnce();
+    expect(result.current.chapterAutoVideoStatus).toMatchObject({
+      stage: "awaiting-review",
+      detail: "video-use preview 已生成，等待用户确认",
+    });
+  });
+
+  it("builds video-use preview input only from the current Remotion slot", async () => {
+    const storyboard = {
+      id: "sb-preview-001",
+      episodeId: "chapter-001",
+      index: 1,
+      duration: 2,
+      durationTarget: 2,
+      outputVersion: 1,
+      state: "ready",
+      stale: false,
+      ttsSpokenText: "雨落。",
+      audioRef: {
+        kind: "audio" as const,
+        path: "project-file://project-1/remotion/audio/chapter-001/sb-preview-001.wav",
+        contentSha256: "c".repeat(64),
+      },
+    } as StoryboardItem;
+    const initialSlot = makeCurrentSlot();
+    const target = {
+      kind: "shot" as const,
+      chapterId: "chapter-001",
+      shotId: storyboard.id,
+      shotRevision: 1,
+    };
+    const job = {
+      ...initialSlot.job,
+      projectId: "project-1",
+      target,
+      outputPath: `outputs/shots/chapter-001/${storyboard.id}/current.mp4`,
+      evidencePath: `evidence/shots/chapter-001/${storyboard.id}/current.json`,
+    };
+    job.jobId = await createRemotionRenderJobId(job);
+    const evidence = {
+      ...initialSlot.evidence,
+      projectId: "project-1",
+      target,
+      jobId: job.jobId,
+      inputHash: job.inputHash,
+      outputPath: job.outputPath,
+    };
+    const slot = {
+      ...initialSlot,
+      projectId: "project-1",
+      target,
+      jobPath: `jobs/shot/chapter-001/${storyboard.id}/current.json`,
+      evidencePath: job.evidencePath,
+      outputPath: job.outputPath,
+      job,
+      evidence,
+    };
+    const queueGet = vi.fn(async () => ({
+      projectId: "project-1",
+      chapterId: "chapter-001",
+      jobs: [slot.job],
+      currentShotSlots: [slot],
+    }));
+    const runChapter = vi.fn(async (request: { revision: number }) => ({
+      schemaVersion: 1 as const,
+      success: true,
+      projectId: "project-1",
+      chapterId: "chapter-001",
+      revision: request.revision,
+      state: "pending" as const,
+      artifact: { evidence: { inputSha256: "d".repeat(64) } },
+    }));
+    window.remotionQueue = {
+      get: queueGet,
+    } as unknown as NonNullable<Window["remotionQueue"]>;
+    window.videoWorkflowPlugins = {
+      readChapter: vi.fn(async () => ({
+        schemaVersion: 1 as const,
+        projectId: "project-1",
+        chapterId: "chapter-001",
+        videoUseState: "idle",
+        hyperFramesState: "idle",
+      })),
+      runChapter,
+    } as unknown as NonNullable<Window["videoWorkflowPlugins"]>;
+    const autoVideo = vi.mocked(runChapterAutoVideo);
+    autoVideo.mockImplementationOnce(async ({ dependencies, onStatus }) => {
+      const preview = await dependencies.runVideoUseChapter?.({
+        projectId: "project-1",
+        chapterId: "chapter-001",
+        storyboards: [storyboard],
+        submission: { jobs: [slot.job], blockedShotIds: [] },
+      });
+      onStatus?.({ stage: "awaiting-review", detail: "video-use preview 已生成" });
+      expect(preview).toMatchObject({ state: "pending", revision: 1 });
+      return { storyboards: 1, queueStatus: "awaiting-review", videoUseState: "pending", videoUseRevision: 1 };
+    });
+    const { result } = renderHook(() =>
+      useChapterAutoVideoActions({
+        activeProjectId: "project-1",
+        productionEpisodeId: "chapter-001",
+        handleProductionNodeAction: vi.fn(),
+      }),
+    );
+
+    await act(async () => {
+      await result.current.handleRunChapterAutoVideo();
+    });
+
+    expect(queueGet).toHaveBeenCalledOnce();
+    expect(runChapter).toHaveBeenCalledWith(expect.objectContaining({
+      projectId: "project-1",
+      chapterId: "chapter-001",
+      revision: 1,
+      mode: "editable-edl",
+      shots: [expect.objectContaining({ shotId: storyboard.id })],
+    }));
   });
 
   it("keeps the fixed-voice validation error when the TTS bridge is unavailable", async () => {

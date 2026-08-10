@@ -1,6 +1,8 @@
 import type { EditingClip, EditingProjectV1 } from "@/types/editing";
+import { validateEditingProject } from "@/lib/studio/editing/validation";
 import {
   createTimelineEdlEntries,
+  isSubtitleCueOwnedByOverlay,
   validateVideoUseChapterArtifact,
   type VideoUseChapterArtifactV1,
 } from "@rendering/contracts/video-workflow";
@@ -18,8 +20,9 @@ export type VideoWorkflowEditingProjectProjectionResult =
   | { success: false; issues: Array<{ path: string; message: string }> };
 
 /** Projects an accepted video-use artifact into the persisted editing timeline.
- * In flat mode the clean MP4 is the sole new visual source; subtitle/audio/
- * overlay metadata stays in artifactRefs and is never duplicated as clips.
+ * In flat mode the clean MP4 is the sole new visual source. Ordinary subtitle
+ * cues become the one Remotion subtitle track; cues assigned to HyperFrames
+ * remain overlay metadata and are not duplicated as text clips.
  */
 export function projectVideoUseArtifactToEditingProject(input: {
   project: EditingProjectV1;
@@ -45,6 +48,11 @@ export function projectVideoUseArtifactToEditingProject(input: {
   const visualTrack = project.tracks.find((track) => track.kind === "video" || track.kind === "image");
   if (!visualTrack) return { success: false, issues: [{ path: "tracks", message: "EditingProject 缺少视觉轨道" }] };
   const oldVisual = new Map(project.clips.filter((clip) => clip.trackId === visualTrack.id).map((clip) => [clip.source.evidence.storyboardId, clip]));
+  const subtitleTrack = project.tracks.find((track) => track.kind === "text" && track.name === "字幕");
+  const subtitleTrackId = subtitleTrack?.id ?? `${project.id}-video-use-subtitles`;
+  const oldSubtitles = subtitleTrack
+    ? project.clips.filter((clip) => clip.trackId === subtitleTrack.id)
+    : [];
   const edl = createTimelineEdlEntries(artifact.edl);
   const refs: VideoWorkflowEditingProjectArtifactRefs = {
     mode: artifact.mode,
@@ -79,8 +87,53 @@ export function projectVideoUseArtifactToEditingProject(input: {
       };
     });
   }
-  const replacedIds = new Set(oldVisual.values());
-  const clips = [...project.clips.filter((clip) => !replacedIds.has(clip)), ...nextVisual];
-  const next: EditingProjectV1 = { ...project, revision: artifact.revision, manuallyEdited: true, clips, tracks: project.tracks.map((track) => track.id === visualTrack.id ? { ...track, clipIds: nextVisual.map((clip) => clip.id) } : track), updatedAt: input.now };
-  return { success: true, project: next, artifactRefs: refs };
+  const nextSubtitles: EditingClip[] = artifact.subtitles
+    .filter((cue) => !isSubtitleCueOwnedByOverlay(cue, artifact.overlaySlots))
+    .map((cue, index) => ({
+      id: `video-use-subtitle-${artifact.revision}-${cue.cueId}`,
+      trackId: subtitleTrackId,
+      name: `字幕 ${index + 1}`,
+      source: {
+        kind: "text",
+        text: cue.text,
+        evidence: {
+          storyboardId: cue.shotId,
+          sourceFingerprint: artifact.evidence.artifactSha256,
+        },
+      },
+      startUs: cue.startUs,
+      durationUs: cue.durationUs,
+      trimStartUs: 0,
+      speed: 1,
+      volume: 0,
+      muted: true,
+      subtitle: { sourceFormat: "generated" },
+    }));
+  const replacedClips = new Set<EditingClip>([...oldVisual.values(), ...oldSubtitles]);
+  const clips = [...project.clips.filter((clip) => !replacedClips.has(clip)), ...nextVisual, ...nextSubtitles];
+  const mappedTracks = project.tracks.map((track) => {
+    if (track.id === visualTrack.id) return { ...track, clipIds: nextVisual.map((clip) => clip.id) };
+    if (track.id === subtitleTrackId) return { ...track, clipIds: nextSubtitles.map((clip) => clip.id) };
+    return track;
+  });
+  const tracks = subtitleTrack || nextSubtitles.length === 0
+    ? mappedTracks
+    : [...mappedTracks, {
+        id: subtitleTrackId,
+        kind: "text" as const,
+        name: "字幕",
+        order: Math.max(-1, ...project.tracks.map((track) => track.order)) + 1,
+        clipIds: nextSubtitles.map((clip) => clip.id),
+        muted: false,
+        locked: false,
+      }];
+  const next: EditingProjectV1 = { ...project, revision: artifact.revision, manuallyEdited: true, clips, tracks, updatedAt: input.now };
+  const validated = validateEditingProject(next);
+  if (!validated.success) {
+    return {
+      success: false,
+      issues: validated.issues.map((issue) => ({ path: issue.path, message: issue.message })),
+    };
+  }
+  return { success: true, project: validated.value, artifactRefs: refs };
 }

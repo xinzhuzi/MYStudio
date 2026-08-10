@@ -549,7 +549,12 @@ describe("desktop build scripts", () => {
     expect(smokeScript).toContain("CORE_ROUTE_CHECKS");
     expect(smokeScript).toContain("requiredText");
     expect(smokeScript).toContain("forbiddenText");
-    expect(smokeScript).toContain("verifyPythonSettings");
+    expect(smokeScript).toContain("verifyPluginSettings");
+    expect(smokeScript).toContain('requiredText: ["系统设置", "外观", "插件配置"]');
+    expect(smokeScript).toContain("normalize(node) === '插件配置'");
+    expect(smokeScript).not.toContain("normalize(node) === 'Python 配置'");
+    expect(smokeScript).not.toContain("normalize(node).includes('Python 配置')");
+    expect(smokeScript).not.toContain("normalize(node) === '渲染'");
     expect(smokeScript).toContain("missingRequiredText");
     expect(smokeScript).toContain("verifyWorkflowEndToEnd");
     expect(smokeScript).toContain("mystudioWorkflowSmoke");
@@ -711,8 +716,8 @@ describe("desktop build scripts", () => {
     expect(smokeScript).toContain(
       "workflow node canvas rendered inside 剧本资产管理 instead of 分镜视频生成",
     );
-    expect(smokeScript).toContain("Python 运行环境");
-    expect(smokeScript).toContain("不随应用启动自动配置");
+    expect(smokeScript).toContain("Python 依赖");
+    expect(smokeScript).toContain("所有本地 TTS、video-use Python worker 和 MLX 对齐都复用应用管理的 Python");
     expect(smokeScript).toContain("开始配置");
     expect(smokeScript).toContain("安装明细");
     expect(smokeScript).toContain("Python 使用路径");

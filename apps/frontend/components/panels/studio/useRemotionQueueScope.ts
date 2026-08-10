@@ -8,6 +8,8 @@ export interface RemotionQueueScopeState {
   jobs: RemotionRenderJobV1[];
   currentShotSlots: RemotionCurrentSlotV1[];
   loading: boolean;
+  /** True only after the desktop queue scope has answered for this chapter. */
+  loaded: boolean;
   error?: string;
 }
 
@@ -15,6 +17,7 @@ const EMPTY_SCOPE: RemotionQueueScopeState = {
   jobs: [],
   currentShotSlots: [],
   loading: false,
+  loaded: false,
 };
 
 /**
@@ -39,17 +42,18 @@ export function useRemotionQueueScope(
 
     const load = async (showLoading = false) => {
       const version = ++requestVersion;
-      if (showLoading) setState({ jobs: [], currentShotSlots: [], loading: true });
+      if (showLoading) setState({ jobs: [], currentShotSlots: [], loading: true, loaded: false });
       try {
         const scope = await queue.get({ projectId, chapterId });
         if (disposed || version !== requestVersion) return;
-        setState({ jobs: scope.jobs, currentShotSlots: scope.currentShotSlots, loading: false });
+        setState({ jobs: scope.jobs, currentShotSlots: scope.currentShotSlots, loading: false, loaded: true });
       } catch (error) {
         if (disposed || version !== requestVersion) return;
         setState({
           jobs: [],
           currentShotSlots: [],
           loading: false,
+          loaded: true,
           error: error instanceof Error ? error.message : String(error),
         });
       }

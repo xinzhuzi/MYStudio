@@ -27,7 +27,15 @@ import fs from 'node:fs';
 import fsp from 'node:fs/promises';
 import path from 'node:path';
 import { scanProjectInventory } from '@/electron/artifacts/artifact-inventory-service';
-import type { InventoryResult, PlanRequest, PlanResult, RecoveryQueryResult, MetadataUpdateResult } from '@/types/artifacts';
+import type {
+  Discrepancy,
+  DeletionPlan,
+  InventoryResult,
+  PlanRequest,
+  PlanResult,
+  RecoveryQueryResult,
+  MetadataUpdateResult,
+} from '@/types/artifacts';
 import { buildDeletionPlan } from '@/lib/artifacts/artifact-dependency-graph';
 import { executeDeletion, queryRecovery, registerDeletionPlan } from '@/electron/artifacts/artifact-deletion-service';
 import { resolveProjectRootPath } from '@/electron/storage/storage-paths';
@@ -45,6 +53,39 @@ let artifactContext: ArtifactManagementIpcContext = {
 
 export function configureArtifactManagementIpc(context: ArtifactManagementIpcContext): void {
   artifactContext = context;
+}
+
+/**
+ * Add inventory discrepancies to the reviewed blocker section. A deletion
+ * plan must stay fail-closed until live and persisted state agree; surfacing
+ * these as plan items keeps the exact reason visible in the confirmation
+ * dialog instead of silently returning an executable plan.
+ */
+export function applyInventoryDiscrepancyBlockers(
+  plan: DeletionPlan,
+  discrepancies: readonly Discrepancy[],
+): DeletionPlan {
+  if (discrepancies.length === 0) return plan;
+  const existing = new Set(plan.blockerItems.map((item) => item.artifactId));
+  const discrepancyItems = discrepancies.flatMap((discrepancy, index) => {
+    const artifactId = `__inventory_discrepancy__${index}`;
+    if (existing.has(artifactId)) return [];
+    const affected = discrepancy.affectedArtifacts.length > 0
+      ? `；受影响记录：${discrepancy.affectedArtifacts.join("、")}`
+      : "";
+    return [{
+      artifactId,
+      kind: "media-file" as const,
+      stage: "media-library" as const,
+      name: `盘面不一致 #${index + 1}`,
+      reason: `${discrepancy.type}：${discrepancy.description}${affected}。请先同步结构化状态并刷新盘点。`,
+    }];
+  });
+  return {
+    ...plan,
+    blockerItems: [...plan.blockerItems, ...discrepancyItems],
+    executionAllowed: false,
+  };
 }
 
 // ============================================================================
@@ -329,10 +370,10 @@ ipcMain.handle('artifact-plan-deletion', async (event, payload: PlanRequest['pay
     }
 
     // chapterId is required for chapter-wide deletion (a chapter delete must
-    // have an explicit scope to avoid unbounded expansion). For artifacts-scope
-    // deletion (selected items, file, or folder cascade) chapterId may be empty:
-    // the dependency graph deletes by artifactId set and already supports a
-    // cross-chapter selection (see buildDeletionPlan isInRequestedScope).
+    // have an explicit scope to avoid unbounded expansion). Artifact-scope
+    // deletion is also constrained by the dependency graph to one resolved
+    // chapter; an empty chapterId is only a transport convenience for a
+    // single selected record whose chapter can be derived from inventory.
     if (payload.scope === 'chapter' && (!payload.chapterId || typeof payload.chapterId !== 'string')) {
       return {
         success: false,
@@ -377,10 +418,11 @@ ipcMain.handle('artifact-plan-deletion', async (event, payload: PlanRequest['pay
       };
     }
 
-    registerDeletionPlan(plan);
+    const gatedPlan = applyInventoryDiscrepancyBlockers(plan, allArtifactsResult.data.discrepancies);
+    registerDeletionPlan(gatedPlan);
     return {
       success: true,
-      data: plan,
+      data: gatedPlan,
     };
 
   } catch (error) {

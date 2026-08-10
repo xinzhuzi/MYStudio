@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 7
-- **Last Active**: 2026-08-02
+- **Total Sessions**: 8
+- **Last Active**: 2026-08-10
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~397 | Active |
+| `journal-1.md` | ~454 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 8 | 2026-08-10 | 归档视频工作流插件融合任务 | - | `main` |
 | 7 | 2026-08-02 | 用户数据路径治理 Phase A 收口 | - | `main` |
 | 6 | 2026-07-27 | AiToEarn 本地自媒体质量门禁收口 | - | `-` |
 | 5 | 2026-07-27 | 统一项目路径规划归档确认 | - | `no-git-user-managed` |

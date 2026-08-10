@@ -125,7 +125,7 @@ python_bin = BACKEND_ROOT / "python" / "bin" / "python3.12"
 ```python
 python_bin = managed_python_executable_path(PYTHON_RUNTIME_DIR)
 if not python_bin.exists():
-    raise RuntimeError("请先到设置里的 Python 配置页点击开始配置，完成 TTS 依赖安装")
+    raise RuntimeError("请先到设置里的插件配置页点击开始配置，完成 TTS 依赖安装")
 ```
 
 ---

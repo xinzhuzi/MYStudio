@@ -9,9 +9,7 @@
  * Based on AionUi's ModelModalContent pattern
  */
 
-import { useEffect, useState, lazy, Suspense } from "react";
-
-const LocalTtsPanelLazy = lazy(() => import("@/components/panels/tts/LocalTtsPanel").then((m) => ({ default: m.LocalTtsPanel })));
+import { useEffect, useState } from "react";
 import { useAPIConfigStore } from "@/stores/ai/api-config-store";
 import { useAppSettingsStore } from "@/stores/app/app-settings-store";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
@@ -22,9 +20,8 @@ import { ImageSizeSettingsTab } from "./settings/ImageSizeSettingsTab";
 import { AdvancedSettingsTab } from "./settings/AdvancedSettingsTab";
 import { ImageHostSettingsContainer } from "./settings/ImageHostSettingsContainer";
 import { DevelopmentSettingsContainer } from "./settings/DevelopmentSettingsContainer";
-import { PythonSettingsTab } from "./settings/PythonSettingsTab";
 import { StorageSettingsTab } from "./settings/StorageSettingsTab";
-import { RenderingSettingsTab } from "./settings/RenderingSettingsTab";
+import { PluginSettingsTab } from "./settings/PluginSettingsTab";
 import { ApiSettingsContainer, ApiSettingsMigration } from "./settings/ApiSettingsContainer";
 import {
   DEFAULT_SETTINGS_TAB,
@@ -48,8 +45,13 @@ interface SettingsPanelProps {
   sidebarCollapsed?: boolean;
   onToggleSidebar?: () => void;
   showHomeChrome?: boolean;
-  initialTab?: SettingsTabId;
+  initialTab?: SettingsTabId | "python" | "tts" | "rendering";
   onInitialTabConsumed?: () => void;
+}
+
+function normalizeSettingsTab(tab: SettingsPanelProps["initialTab"]): SettingsTabId | undefined {
+  if (tab === "python" || tab === "tts" || tab === "rendering") return "plugins";
+  return tab;
 }
 
 export function SettingsPanel({
@@ -70,13 +72,14 @@ export function SettingsPanel({
     setImageGenerationSettings,
   } = useAppSettingsStore();
 
-  const [activeTab, setActiveTab] = useState<SettingsTabId>(initialTab ?? DEFAULT_SETTINGS_TAB);
+  const normalizedInitialTab = normalizeSettingsTab(initialTab);
+  const [activeTab, setActiveTab] = useState<SettingsTabId>(normalizedInitialTab ?? DEFAULT_SETTINGS_TAB);
 
   useEffect(() => {
-    if (!initialTab) return;
-    setActiveTab(initialTab);
+    if (!normalizedInitialTab) return;
+    setActiveTab(normalizedInitialTab);
     onInitialTabConsumed?.();
-  }, [initialTab, onInitialTabConsumed]);
+  }, [normalizedInitialTab, onInitialTabConsumed]);
   return (
     <div className="settings-workspace flex flex-col h-full bg-background overflow-hidden">
       <ApiSettingsMigration />
@@ -116,16 +119,9 @@ export function SettingsPanel({
           />
         </TabsContent>
 
-        {/* Python Config Tab */}
-        <TabsContent value="python" className="flex-1 overflow-hidden mt-0">
-          <PythonSettingsTab />
-        </TabsContent>
-
-        {/* TTS Config Tab */}
-        <TabsContent value="tts" className="flex-1 overflow-hidden mt-0">
-          <Suspense fallback={<div className="flex h-40 items-center justify-center text-muted-foreground text-sm">加载中...</div>}>
-            <LocalTtsPanelLazy />
-          </Suspense>
+        {/* Plugin Config Tab: Python → TTS → video workflow plugins */}
+        <TabsContent value="plugins" className="flex-1 overflow-hidden mt-0">
+          <PluginSettingsTab />
         </TabsContent>
 
         {/* Advanced Options Tab */}
@@ -145,10 +141,6 @@ export function SettingsPanel({
         {/* Storage Tab */}
         <TabsContent value="storage" className="flex-1 overflow-hidden mt-0">
           <StorageSettingsTab />
-        </TabsContent>
-
-        <TabsContent value="rendering" className="flex-1 overflow-hidden mt-0">
-          <RenderingSettingsTab />
         </TabsContent>
 
         <TabsContent value="development" className="flex-1 overflow-hidden mt-0">

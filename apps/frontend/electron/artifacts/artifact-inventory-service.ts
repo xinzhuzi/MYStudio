@@ -324,31 +324,38 @@ function decodeRawContent(
   const decoder = findBackupDecoder(rawData);
 
   if (!decoder) {
-    // Mark as explicit 'unknown' artifact type instead of crashing
+    // Unknown project-level JSON remains fail-closed. A file inside an
+    // explicitly chapter-scoped path is different: the path is the ownership
+    // boundary for render/edit/continuity outputs, so it can be removed as an
+    // opaque chapter artifact without rewriting its unknown JSON shape.
     console.warn(`No decoder found for ${filePath}`);
     const isTopLevelConfig = !filePath.includes("/");
+    const inferredChapter = filePath.match(/((?:chapter|episode)[-_]\d+)/i)?.[1];
 
     return {
       artifacts: [
         {
           id: buildArtifactId("media-library", "media-file", filePath),
           projectId,
+          chapterId: inferredChapter,
           stage: "media-library",
           kind: "media-file",
-          state: "unknown",
-          name: `Unknown backup: ${path.basename(filePath)}`,
+          state: inferredChapter ? "active" : "unknown",
+          name: isTopLevelConfig
+            ? `未识别项目文件: ${path.basename(filePath)}`
+            : `未识别产物: ${path.basename(filePath)}`,
           createdAt: Date.now(),
           updatedAt: Date.now(),
           physicalRefs: [],
           upstreamIds: [],
           downstreamIds: [],
-          deletePolicy: "blocker-missing-ownership",
+          deletePolicy: inferredChapter ? "delete-exclusive-downstream" : "blocker-missing-ownership",
           blockerReason: isTopLevelConfig
-            ? "项目级配置文件,不属于任何章节,不可删除"
-            : "无解码器的未识别格式,归属未决,当前不可删除",
+            ? "项目级文件无注册解码器,归属未决,当前不可删除"
+            : undefined,
           retainedReason: isTopLevelConfig
             ? "项目级配置文件,不属于任何章节"
-            : "No decoder found for backup format",
+            : undefined,
         },
       ],
     };

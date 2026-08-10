@@ -22,6 +22,7 @@ export type ChapterAutoVideoStage =
   | "rendering"
   | "probing"
   | "queued"
+  | "awaiting-review"
   | "blocked"
   | "completed"
   | "failed";
@@ -66,6 +67,10 @@ export interface ChapterAutoVideoDependencies {
     storyboards: StoryboardItem[];
     allStoryboards?: StoryboardItem[];
   }) => Promise<RemotionShotQueueSubmission>;
+  runVideoUseChapter?: (
+    input: RunVideoUseChapterInput,
+  ) => Promise<VideoUseChapterPreviewResult>;
+  onVideoUseReviewRequired?: () => void;
 }
 
 export interface RemotionShotQueueSubmission {
@@ -74,12 +79,27 @@ export interface RemotionShotQueueSubmission {
   chapterJobId?: string;
 }
 
+export interface VideoUseChapterPreviewResult {
+  state: "pending" | "ready" | "blocked";
+  revision: number;
+  inputSha256?: string;
+}
+
+export interface RunVideoUseChapterInput {
+  projectId: string;
+  chapterId: string;
+  storyboards: StoryboardItem[];
+  submission: RemotionShotQueueSubmission;
+}
+
 export interface ChapterAutoVideoResult {
   storyboards: number;
   remotionJobs?: RemotionRenderJobV1[];
   blockedShotIds?: string[];
-  queueStatus?: "queued" | "blocked";
+  queueStatus?: "queued" | "awaiting-review" | "blocked";
   chapterJobId?: string;
+  videoUseState?: VideoUseChapterPreviewResult["state"];
+  videoUseRevision?: number;
 }
 
 function emit(
@@ -256,10 +276,17 @@ export async function runChapterAutoVideo({
     });
 
     const { storyboards } = prepared;
-    const blockedBeforeRender = new Set(prepared.blockedShotIds);
-    const renderableStoryboards = storyboards.filter(
-      (storyboard) => !blockedBeforeRender.has(storyboard.id),
-    );
+    if (prepared.blockedShotIds.length > 0) {
+      const detail = `Remotion 分镜存在阻塞：${prepared.blockedShotIds.join("、")}；整章停止入队`;
+      emit(onStatus, { stage: "blocked", detail });
+      return {
+        storyboards: storyboards.length,
+        remotionJobs: [],
+        blockedShotIds: prepared.blockedShotIds,
+        queueStatus: "blocked",
+      };
+    }
+    const renderableStoryboards = storyboards;
     emit(onStatus, {
       stage: "render",
       detail: `提交 ${renderableStoryboards.length} 个 Remotion 分镜任务`,
@@ -272,10 +299,48 @@ export async function runChapterAutoVideo({
         allStoryboards: storyboards,
       })
       : { jobs: [], blockedShotIds: [] };
-    const blockedShotIds = [...new Set([
-      ...prepared.blockedShotIds,
-      ...submission.blockedShotIds,
-    ])];
+    const blockedShotIds = [...new Set(submission.blockedShotIds)];
+    if (blockedShotIds.length === 0 && dependencies.runVideoUseChapter) {
+      emit(onStatus, {
+        stage: "probing",
+        detail: "等待全部 Remotion StoryboardShot MP4 完成后运行 video-use preview",
+      });
+      const preview = await dependencies.runVideoUseChapter({
+        projectId,
+        chapterId: episodeId,
+        storyboards,
+        submission,
+      });
+      if (preview.state === "blocked") {
+        emit(onStatus, {
+          stage: "blocked",
+          detail: "video-use preview 被阻塞，整章暂停",
+        });
+        return {
+          storyboards: storyboards.length,
+          remotionJobs: submission.jobs,
+          blockedShotIds: [],
+          chapterJobId: submission.chapterJobId,
+          queueStatus: "blocked",
+          videoUseState: preview.state,
+          videoUseRevision: preview.revision,
+        };
+      }
+      dependencies.onVideoUseReviewRequired?.();
+      emit(onStatus, {
+        stage: "awaiting-review",
+        detail: `video-use preview 已生成 revision ${preview.revision}，等待用户确认后继续正式合成`,
+      });
+      return {
+        storyboards: storyboards.length,
+        remotionJobs: submission.jobs,
+        blockedShotIds: [],
+        chapterJobId: submission.chapterJobId,
+        queueStatus: "awaiting-review",
+        videoUseState: "pending",
+        videoUseRevision: preview.revision,
+      };
+    }
     const queueStatus = blockedShotIds.length > 0 ? "blocked" : "queued";
     emit(onStatus, {
       stage: queueStatus,

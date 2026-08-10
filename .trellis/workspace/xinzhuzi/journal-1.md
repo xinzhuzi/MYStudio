@@ -421,3 +421,34 @@ Archived the completed local AC11 visual review slice with no-git mode. Added de
 - 打包: `cd apps && npm run build:mac:install`(skill 脚本,打包+覆盖安装+smoke,非裸命令)
 - typecheck: `npm run typecheck`;lint: `npx eslint <file> --config frontend/config/eslint.cjs`
 - CDP 调试: `open -a "/Applications/漫影工作室.app" --args --remote-debugging-port=9361`
+
+
+## Session 8: 归档视频工作流插件融合任务
+
+**Date**: 2026-08-10
+**Task**: 归档视频工作流插件融合任务
+**Branch**: `main`
+
+### Summary
+
+完成插件配置统一入口、旧导航文案清理与最终回归；598 files/3210 tests、typecheck、lint、文档链接和 Trellis validate 通过。已按 no-git 规则归档 08-08-video-workflow-plugin-docs；未修改真实用户 Python/Node/FFmpeg/model runtime。
+
+### Main Changes
+
+- Detailed change bullets were not supplied; see the summary above.
+
+### Git Commits
+
+(No commits - planning session)
+
+### Testing
+
+- Validation was not recorded for this session.
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

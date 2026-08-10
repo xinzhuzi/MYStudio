@@ -31,7 +31,7 @@ export interface VideoWorkflowRuntimePaths {
 }
 
 export interface VideoWorkflowRuntimeProbeResult {
-  state: "ready" | "needs-runtime" | "blocked" | "error";
+  state: "ready" | "needs-runtime" | "update-available" | "blocked" | "error";
   paths: VideoWorkflowRuntimePaths;
   missing: string[];
   versions: { python?: string; node?: string; browser?: string; ffmpeg?: string; ffprobe?: string };
@@ -45,6 +45,21 @@ export interface VideoWorkflowRuntimeProbeDeps {
     args: string[],
     options: { timeout: number; maxBuffer: number; cwd?: string; env?: NodeJS.ProcessEnv },
   ) => Promise<{ stdout?: string; stderr?: string }>;
+}
+
+export interface SharedVideoToolchainPair {
+  ffmpegExecutable: string;
+  ffprobeExecutable: string;
+}
+
+export interface SharedVideoToolchainSelectionOptions {
+  configuredFfmpeg?: string;
+  configuredFfprobe?: string;
+  bundledFfmpeg: string;
+  bundledFfprobe: string;
+  platform?: NodeJS.Platform;
+  fileExists?: (filePath: string) => boolean;
+  homebrewBinDir?: string;
 }
 
 export interface VideoUseProfileMarkerV1 {
@@ -122,6 +137,39 @@ function resolveSharedExecutable(...environmentKeys: string[]): string {
 }
 
 /**
+ * Resolve one process-wide FFmpeg/ffprobe pair without downloading tools.
+ * A partial explicit override is preserved so the runtime probe can surface it
+ * as blocked instead of silently selecting a different installation.
+ */
+export function selectSharedVideoToolchain(
+  options: SharedVideoToolchainSelectionOptions,
+): SharedVideoToolchainPair {
+  const configuredFfmpeg = options.configuredFfmpeg?.trim() ?? "";
+  const configuredFfprobe = options.configuredFfprobe?.trim() ?? "";
+  if (configuredFfmpeg || configuredFfprobe) {
+    return {
+      ffmpegExecutable: configuredFfmpeg,
+      ffprobeExecutable: configuredFfprobe,
+    };
+  }
+  const fileExists = options.fileExists ?? fs.existsSync;
+  if ((options.platform ?? process.platform) === "darwin") {
+    const homebrewBinDir = options.homebrewBinDir ?? "/opt/homebrew/bin";
+    const homebrewPair = {
+      ffmpegExecutable: path.join(homebrewBinDir, "ffmpeg"),
+      ffprobeExecutable: path.join(homebrewBinDir, "ffprobe"),
+    };
+    if (fileExists(homebrewPair.ffmpegExecutable) && fileExists(homebrewPair.ffprobeExecutable)) {
+      return homebrewPair;
+    }
+  }
+  return {
+    ffmpegExecutable: options.bundledFfmpeg,
+    ffprobeExecutable: options.bundledFfprobe,
+  };
+}
+
+/**
  * Every video-workflow process receives the same absolute FFmpeg/ffprobe pair.
  * Remotion's macOS compositor binaries ship their dylibs beside the executable,
  * so child processes must inherit that directory through DYLD_LIBRARY_PATH.
@@ -147,6 +195,52 @@ export function buildSharedToolchainEnv(
       ? { DYLD_LIBRARY_PATH: [...toolDirectories, requestedDylibPath, inheritedDylibPath].filter(Boolean).join(path.delimiter) }
       : {}),
   } as NodeJS.ProcessEnv;
+}
+
+async function probeSharedVideoToolchain(
+  paths: VideoWorkflowRuntimePaths,
+  run: NonNullable<VideoWorkflowRuntimeProbeDeps["execFile"]>,
+): Promise<Pick<VideoWorkflowRuntimeProbeResult, "missing" | "versions">> {
+  const missing: string[] = [];
+  const versions: VideoWorkflowRuntimeProbeResult["versions"] = {};
+  const pair: Array<["ffmpeg" | "ffprobe", string]> = [
+    ["ffmpeg", paths.ffmpegExecutable],
+    ["ffprobe", paths.ffprobeExecutable],
+  ];
+  for (const [key, executable] of pair) {
+    if (!path.isAbsolute(executable)) {
+      missing.push(`${key}-path`);
+      continue;
+    }
+    try {
+      const result = await run(executable, ["-version"], {
+        timeout: 15_000,
+        maxBuffer: 2 * 1024 * 1024,
+        env: buildSharedToolchainEnv(paths),
+      });
+      versions[key] = `${result.stdout ?? ""}${result.stderr ?? ""}`.trim().split("\n")[0];
+    } catch {
+      missing.push(key);
+    }
+  }
+  if (!missing.includes("ffmpeg") && !missing.includes("ffmpeg-path")) {
+    try {
+      const result = await run(paths.ffmpegExecutable, ["-hide_banner", "-filters"], {
+        timeout: 15_000,
+        maxBuffer: 4 * 1024 * 1024,
+        env: buildSharedToolchainEnv(paths),
+      });
+      const filters = `${result.stdout ?? ""}\n${result.stderr ?? ""}`;
+      for (const requiredFilter of ["tpad", "apad"]) {
+        if (!new RegExp(`^\\s*[TSC.]{3}\\s+${requiredFilter}\\s`, "m").test(filters)) {
+          missing.push(`ffmpeg-filter-${requiredFilter}`);
+        }
+      }
+    } catch {
+      missing.push("ffmpeg-filters");
+    }
+  }
+  return { missing, versions };
 }
 
 export function resolveVideoWorkflowRuntimePaths(
@@ -203,8 +297,6 @@ export async function probeVideoWorkflowRuntime(
   const probes: Array<[keyof typeof versions, string, string[]]> = [
     ["python", paths.pythonExecutable, ["--version"]],
     ["node", paths.nodeExecutable, ["--version"]],
-    ["ffmpeg", paths.ffmpegExecutable, ["-version"]],
-    ["ffprobe", paths.ffprobeExecutable, ["-version"]],
   ];
   for (const [key, executable, args] of probes) {
     if (!path.isAbsolute(executable)) {
@@ -222,6 +314,9 @@ export async function probeVideoWorkflowRuntime(
       missing.push(key);
     }
   }
+  const toolchain = await probeSharedVideoToolchain(paths, run);
+  missing.push(...toolchain.missing);
+  Object.assign(versions, toolchain.versions);
   if (missing.includes("managed-python") || missing.includes("node22")) {
     return { state: "needs-runtime", paths, missing, versions, message: "请先在视频工作流插件设置中准备共享运行时" };
   }
@@ -286,32 +381,16 @@ export async function probeVideoUseRuntime(
   const missing: string[] = [];
   if (!fileExists(paths.videoUseMarkerPath)) missing.push("video-use-profile");
   const versions = { ...alignment.versions };
-  for (const [key, executable, args] of [
-    ["ffmpeg", paths.ffmpegExecutable, ["-version"]],
-    ["ffprobe", paths.ffprobeExecutable, ["-version"]],
-  ] as Array<[keyof typeof versions, string, string[]]>) {
-    if (!path.isAbsolute(executable)) {
-      missing.push(`${key}-path`);
-      continue;
-    }
-    try {
-      const result = await run(executable, args, {
-        timeout: 15_000,
-        maxBuffer: 2 * 1024 * 1024,
-        env: buildSharedToolchainEnv(paths),
-      });
-      versions[key] = `${result.stdout ?? ""}${result.stderr ?? ""}`.trim().split("\n")[0];
-    } catch {
-      missing.push(key);
-    }
-  }
+  const toolchain = await probeSharedVideoToolchain(paths, run);
+  missing.push(...toolchain.missing);
+  Object.assign(versions, toolchain.versions);
   if (missing.includes("video-use-profile")) {
     return { state: "needs-runtime", paths, missing, versions, message: "请先准备 video-use profile" };
   }
   const profile = readJsonFile(paths.videoUseMarkerPath);
   if (!profile
+    || profile.schemaVersion !== 1
     || profile.profileId !== VIDEO_USE_PROFILE_ID
-    || profile.sourceCommit !== VIDEO_USE_SOURCE_COMMIT
     || profile.pythonExecutable !== paths.pythonExecutable
     || profile.upstreamRoot !== paths.videoUseUpstreamRoot
     || profile.lockPath !== paths.videoUseLockPath
@@ -324,6 +403,15 @@ export async function probeVideoUseRuntime(
       missing: ["video-use-profile-invalid"],
       versions,
       message: "video-use profile marker、lock 或 managed Python 路径不一致",
+    };
+  }
+  if (profile.sourceCommit !== VIDEO_USE_SOURCE_COMMIT) {
+    return {
+      state: "update-available",
+      paths,
+      missing: ["video-use-update-available"],
+      versions,
+      message: `video-use 可更新到应用锁定版本 ${VIDEO_USE_SOURCE_COMMIT}`,
     };
   }
   try {
@@ -382,8 +470,6 @@ export async function probeHyperFramesRuntime(
   const versions: VideoWorkflowRuntimeProbeResult["versions"] = {};
   for (const [key, executable, args] of [
     ["node", paths.nodeExecutable, ["--version"]],
-    ["ffmpeg", paths.ffmpegExecutable, ["-version"]],
-    ["ffprobe", paths.ffprobeExecutable, ["-version"]],
   ] as Array<[keyof VideoWorkflowRuntimeProbeResult["versions"], string, string[]]>) {
     if (!path.isAbsolute(executable)) {
       missing.push(`${key}-path`);
@@ -400,6 +486,9 @@ export async function probeHyperFramesRuntime(
       missing.push(key);
     }
   }
+  const toolchain = await probeSharedVideoToolchain(paths, run);
+  missing.push(...toolchain.missing);
+  Object.assign(versions, toolchain.versions);
   if (missing.includes("node22")) {
     return { state: "needs-runtime", paths, missing, versions, message: "请先准备 Node 22 运行时" };
   }
@@ -408,6 +497,29 @@ export async function probeHyperFramesRuntime(
   }
   if (!/^v?22\./.test(versions.node ?? "")) {
     return { state: "blocked", paths, missing: ["node-version"], versions, message: "HyperFrames 必须使用 Node 22" };
+  }
+  const profile = readJsonFile(paths.hyperFramesMarkerPath);
+  if (!profile
+    || profile.schemaVersion !== 1
+    || profile.profileId !== HYPERFRAMES_PROFILE_ID
+    || profile.nodeExecutable !== paths.nodeExecutable
+    || profile.cliPath !== paths.hyperFramesCliPath) {
+    return {
+      state: "blocked",
+      paths,
+      missing: ["hyperframes-profile-invalid"],
+      versions,
+      message: "HyperFrames profile marker 与应用级 Node 22 路径不一致",
+    };
+  }
+  if (profile.sourceCommit !== HYPERFRAMES_SOURCE_COMMIT || profile.npmVersion !== HYPERFRAMES_NPM_VERSION) {
+    return {
+      state: "update-available",
+      paths,
+      missing: ["hyperframes-update-available"],
+      versions,
+      message: `HyperFrames 可更新到应用锁定版本 ${HYPERFRAMES_NPM_VERSION}`,
+    };
   }
   const browserPath = options.browserPath?.trim() || paths.hyperFramesBrowserPath;
   if (!browserPath || !path.isAbsolute(browserPath)) {

@@ -50,6 +50,10 @@ export interface ArtifactTableProps {
   /** Current filter by state */
   stateFilter?: ArtifactState | 'all';
 
+  /** Optional callbacks for the toolbar filters. */
+  onStageFilterChange?: (stage: ArtifactStage | 'all') => void;
+  onStateFilterChange?: (state: ArtifactState | 'all') => void;
+
   /** Sort configuration */
   sortBy?: keyof ArtifactRecord;
   sortOrder?: 'asc' | 'desc';
@@ -106,6 +110,8 @@ export function ArtifactTable({
   onArtifactClick,
   stageFilter = 'all',
   stateFilter = 'all',
+  onStageFilterChange,
+  onStateFilterChange,
   sortBy = 'name',
   sortOrder = 'asc',
   onSortChange,
@@ -246,7 +252,7 @@ export function ArtifactTable({
         {/* Stage filter dropdown */}
         <select
           value={stageFilter}
-          onChange={(e) => {}}
+          onChange={(e) => onStageFilterChange?.(e.target.value as ArtifactStage | 'all')}
           className="px-2 py-1 text-xs border rounded bg-background"
         >
           <option value="all">所有阶段</option>
@@ -258,7 +264,7 @@ export function ArtifactTable({
         {/* State filter dropdown */}
         <select
           value={stateFilter}
-          onChange={(e) => {}}
+          onChange={(e) => onStateFilterChange?.(e.target.value as ArtifactState | 'all')}
           className="px-2 py-1 text-xs border rounded bg-background ml-2"
         >
           <option value="all">所有状态</option>

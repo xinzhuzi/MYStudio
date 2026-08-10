@@ -42,6 +42,7 @@ import {
 import type { RemotionBrowserDownloadProgress, RemotionBrowserStatus } from '@rendering/contracts/remotion-browser-status'
 import {
   VIDEO_WORKFLOW_PREPARE_CHANNEL,
+  VIDEO_WORKFLOW_UPDATE_CHANNEL,
   VIDEO_WORKFLOW_REPAIR_CHANNEL,
   VIDEO_WORKFLOW_ROLLBACK_CHANNEL,
   VIDEO_WORKFLOW_REVIEW_CHANNEL,
@@ -400,6 +401,8 @@ contextBridge.exposeInMainWorld('videoWorkflowPlugins', {
     parseVideoWorkflowStatus(await ipcRenderer.invoke(VIDEO_WORKFLOW_STATUS_CHANNEL)),
   prepare: async (request: VideoWorkflowPluginActionRequestV1): Promise<VideoWorkflowActionReplyV1> =>
     parseVideoWorkflowAction(await ipcRenderer.invoke(VIDEO_WORKFLOW_PREPARE_CHANNEL, request)),
+  update: async (request: VideoWorkflowPluginActionRequestV1): Promise<VideoWorkflowActionReplyV1> =>
+    parseVideoWorkflowAction(await ipcRenderer.invoke(VIDEO_WORKFLOW_UPDATE_CHANNEL, request)),
   repair: async (request: VideoWorkflowPluginActionRequestV1): Promise<VideoWorkflowActionReplyV1> =>
     parseVideoWorkflowAction(await ipcRenderer.invoke(VIDEO_WORKFLOW_REPAIR_CHANNEL, request)),
   rollback: async (request: VideoWorkflowPluginActionRequestV1): Promise<VideoWorkflowActionReplyV1> =>

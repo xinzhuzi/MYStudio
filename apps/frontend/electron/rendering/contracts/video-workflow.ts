@@ -19,6 +19,8 @@ export type VideoWorkflowStage =
 export type VideoWorkflowArtifactStatus = "pending" | "accepted" | "blocked";
 export type HyperFramesArtifactStatus = "accepted" | "noop" | "blocked";
 export type VideoUseDerivedInputPolicy = "reject" | "pad-video-to-audio";
+/** Explicit operator choice for a storyboard whose source row is stale. */
+export type VideoUseStoryboardSourcePolicy = "current-ready" | "reuse-existing";
 
 export interface VideoUseDerivedInputEvidenceV1 {
   schemaVersion: typeof VIDEO_WORKFLOW_SCHEMA_VERSION;
@@ -80,6 +82,7 @@ export interface VideoUseChapterRunV1 {
   revision: number;
   mode: VideoWorkflowMode;
   derivedInputPolicy?: VideoUseDerivedInputPolicy;
+  storyboardSourcePolicy?: VideoUseStoryboardSourcePolicy;
   stage: VideoWorkflowStage;
   timeUnit: typeof VIDEO_WORKFLOW_TIME_UNIT;
   shots: VideoUseShotInputV1[];
@@ -128,6 +131,12 @@ export interface VideoUseSubtitleCueV1 {
   source: "alignment";
 }
 
+export interface VideoUseOverlaySlotV1 {
+  slotId: string;
+  startUs: TimelineTimeUs;
+  durationUs: TimelineTimeUs;
+}
+
 export interface VideoUseGradeV1 {
   filter: string;
   parameters: Record<string, number | string | boolean>;
@@ -170,6 +179,7 @@ export interface VideoUseChapterArtifactV1 {
   chapterId: string;
   revision: number;
   mode: VideoWorkflowMode;
+  storyboardSourcePolicy?: VideoUseStoryboardSourcePolicy;
   stage: Exclude<VideoWorkflowStage, "preparing" | "aligning" | "editing" | "previewing">;
   status: VideoWorkflowArtifactStatus;
   timeUnit: typeof VIDEO_WORKFLOW_TIME_UNIT;
@@ -181,10 +191,11 @@ export interface VideoUseChapterArtifactV1 {
   edl: VideoUseEdlEntryV1[];
   subtitles: VideoUseSubtitleCueV1[];
   grade: VideoUseGradeV1;
-  overlaySlots: Array<{ slotId: string; startUs: TimelineTimeUs; durationUs: TimelineTimeUs }>;
+  overlaySlots: VideoUseOverlaySlotV1[];
   preview: VideoUsePreviewV1;
   selfEval: VideoUseSelfEvaluationV1;
   flatShotMp4Path?: string;
+  flatShotMp4Sha256?: string;
   evidence: VideoUseArtifactEvidenceV1;
   derivedInputs?: VideoUseDerivedInputEvidenceV1[];
   review?: VideoUseReviewSidecarV1;
@@ -286,6 +297,11 @@ export interface RemotionChapterGateAcceptedV1 {
   hyperFramesOutputSha256?: string;
   hyperFramesAlphaFormat?: HyperFramesAlphaFormat;
   hyperFramesWindows?: HyperFramesOverlayWindowV1[];
+  /** Present only for flat-shot-mp4; Remotion verifies this clean source before rendering. */
+  videoUseFlatShotMp4Path?: string;
+  videoUseFlatShotMp4Sha256?: string;
+  /** Derived editable-EDL inputs and their byte hashes. */
+  videoUseDerivedInputs?: VideoUseDerivedInputEvidenceV1[];
 }
 
 export interface RemotionChapterGateBlockedV1 {
@@ -314,6 +330,7 @@ const VIDEO_WORKFLOW_STAGES: readonly VideoWorkflowStage[] = [
 ];
 const VIDEO_WORKFLOW_MODES: readonly VideoWorkflowMode[] = ["editable-edl", "flat-shot-mp4"];
 const ALPHA_FORMATS: readonly HyperFramesAlphaFormat[] = ["prores-4444-mov", "webm-vp9-alpha", "png-sequence"];
+export const SUPPORTED_ALPHA_FORMATS: readonly HyperFramesAlphaFormat[] = ["prores-4444-mov", "webm-vp9-alpha"];
 const PLUGIN_IDS: readonly VideoWorkflowPluginId[] = ["remotion", "video-use", "hyperframes", "seedance-prompt"];
 
 function issue(path: string, message: string): VideoWorkflowValidationIssue {
@@ -408,6 +425,9 @@ export function validateVideoUseChapterRun(value: unknown): VideoWorkflowValidat
   if (!VIDEO_WORKFLOW_MODES.includes(value.mode as VideoWorkflowMode)) issues.push(issue("$.mode", "模式必须是 editable-edl 或 flat-shot-mp4"));
   if (value.derivedInputPolicy !== undefined && !["reject", "pad-video-to-audio"].includes(String(value.derivedInputPolicy))) {
     issues.push(issue("$.derivedInputPolicy", "derivedInputPolicy 无效"));
+  }
+  if (value.storyboardSourcePolicy !== undefined && !["current-ready", "reuse-existing"].includes(String(value.storyboardSourcePolicy))) {
+    issues.push(issue("$.storyboardSourcePolicy", "storyboardSourcePolicy 无效"));
   }
   if (!VIDEO_WORKFLOW_STAGES.includes(value.stage as VideoWorkflowStage)) issues.push(issue("$.stage", "阶段无效"));
   if (value.timeUnit !== VIDEO_WORKFLOW_TIME_UNIT) issues.push(issue("$.timeUnit", "video-use 原始 EDL 必须使用 seconds"));
@@ -524,6 +544,9 @@ export function validateVideoUseChapterArtifact(value: unknown): VideoWorkflowVa
   if (value.schemaVersion !== VIDEO_WORKFLOW_SCHEMA_VERSION) issues.push(issue("$.schemaVersion", "不支持的 schemaVersion"));
   validateIdentity(value, "$", issues);
   if (!VIDEO_WORKFLOW_MODES.includes(value.mode as VideoWorkflowMode)) issues.push(issue("$.mode", "模式无效"));
+  if (value.storyboardSourcePolicy !== undefined && !["current-ready", "reuse-existing"].includes(String(value.storyboardSourcePolicy))) {
+    issues.push(issue("$.storyboardSourcePolicy", "storyboardSourcePolicy 无效"));
+  }
   if (!["evaluating", "awaiting-review", "applying", "ready", "blocked"].includes(String(value.stage))) issues.push(issue("$.stage", "artifact 阶段无效"));
   if (!["pending", "accepted", "blocked"].includes(String(value.status))) issues.push(issue("$.status", "artifact 状态无效"));
   if (value.timeUnit !== VIDEO_WORKFLOW_TIME_UNIT) issues.push(issue("$.timeUnit", "必须是 seconds"));
@@ -555,7 +578,21 @@ export function validateVideoUseChapterArtifact(value: unknown): VideoWorkflowVa
   }
   if (!isRecord(value.preview) || typeof value.preview.path !== "string" || !isSha256(value.preview.sha256) || typeof value.preview.subtitlesBurnedIn !== "boolean" || !isFiniteNonNegative(value.preview.durationS)) issues.push(issue("$.preview", "preview 结构无效"));
   if (!isRecord(value.selfEval) || typeof value.selfEval.passed !== "boolean" || !isFiniteRatio(value.selfEval.score) || !Array.isArray(value.selfEval.notes) || !isFiniteNonNegative(value.selfEval.evaluatedAt)) issues.push(issue("$.selfEval", "self-eval 结构无效"));
-  if (value.mode === "flat-shot-mp4" && (typeof value.flatShotMp4Path !== "string" || value.flatShotMp4Path.length === 0)) issues.push(issue("$.flatShotMp4Path", "flat-shot-mp4 模式必须保留 clean MP4 路径"));
+  if (value.mode === "flat-shot-mp4") {
+    if (typeof value.flatShotMp4Path !== "string" || value.flatShotMp4Path.length === 0) {
+      issues.push(issue("$.flatShotMp4Path", "flat-shot-mp4 模式必须保留 clean MP4 路径"));
+    } else {
+      if (!/\.mp4$/i.test(value.flatShotMp4Path)) issues.push(issue("$.flatShotMp4Path", "flat-shot-mp4 必须指向 MP4 文件"));
+      if (isRecord(value.preview) && value.flatShotMp4Path === value.preview.path) {
+        issues.push(issue("$.flatShotMp4Path", "flat-shot-mp4 不得复用带字幕 preview"));
+      }
+      if (value.flatShotMp4Sha256 !== undefined && !isSha256(value.flatShotMp4Sha256)) {
+        issues.push(issue("$.flatShotMp4Sha256", "flatShotMp4Sha256 必须是 64 位小写 SHA-256"));
+      }
+    }
+  } else if (value.flatShotMp4Sha256 !== undefined && !isSha256(value.flatShotMp4Sha256)) {
+    issues.push(issue("$.flatShotMp4Sha256", "flatShotMp4Sha256 必须是 64 位小写 SHA-256"));
+  }
   if (!isRecord(value.evidence) || !isSha256(value.evidence.inputSha256) || !isSha256(value.evidence.artifactSha256) || typeof value.evidence.toolVersion !== "string") issues.push(issue("$.evidence", "evidence 结构无效"));
   if (value.derivedInputs !== undefined) {
     if (!Array.isArray(value.derivedInputs)) issues.push(issue("$.derivedInputs", "derivedInputs 必须是数组"));
@@ -587,6 +624,7 @@ export function validateHyperFramesOverlayRequest(value: unknown): VideoWorkflow
   if (!isPositiveInteger(value.width) || !isPositiveInteger(value.height)) issues.push(issue("$.width/height", "必须是正整数"));
   if (typeof value.fps !== "number" || !Number.isFinite(value.fps) || value.fps <= 0) issues.push(issue("$.fps", "必须是正数"));
   if (!ALPHA_FORMATS.includes(value.alphaFormat as HyperFramesAlphaFormat)) issues.push(issue("$.alphaFormat", "透明格式无效"));
+  else if (!SUPPORTED_ALPHA_FORMATS.includes(value.alphaFormat as HyperFramesAlphaFormat)) issues.push(issue("$.alphaFormat", "png-sequence 暂不支持，必须使用 ProRes 4444 MOV 或 WebM VP9 alpha"));
   if (typeof value.outputPath !== "string" || value.outputPath.length === 0) issues.push(issue("$.outputPath", "必须是非空字符串"));
   if (!Array.isArray(value.windows)) issues.push(issue("$.windows", "必须是数组"));
   else {
@@ -604,6 +642,7 @@ export function validateHyperFramesOverlayArtifact(value: unknown): VideoWorkflo
   if (!(["accepted", "noop", "blocked"] as const).includes(value.status as HyperFramesArtifactStatus)) issues.push(issue("$.status", "状态无效"));
   if (!isSha256(value.sourceArtifactSha256) || !isSha256(value.inputSha256)) issues.push(issue("$.sourceArtifactSha256/inputSha256", "必须是 SHA-256"));
   if (!ALPHA_FORMATS.includes(value.alphaFormat as HyperFramesAlphaFormat)) issues.push(issue("$.alphaFormat", "透明格式无效"));
+  else if (!SUPPORTED_ALPHA_FORMATS.includes(value.alphaFormat as HyperFramesAlphaFormat)) issues.push(issue("$.alphaFormat", "png-sequence 暂不支持，不能进入 accepted/no-op artifact"));
   if (!Array.isArray(value.windows)) issues.push(issue("$.windows", "必须是数组"));
   else {
     value.windows.forEach((window, index) => validateOverlayWindow(window, `$.windows[${index}]`, issues));
@@ -643,6 +682,15 @@ export function createTimelineEdlEntries(edl: VideoUseEdlEntryV1[]): Array<Video
     timelineStartUs: Math.round(entry.timelineStartS * 1_000_000),
     durationUs: Math.round(entry.durationS * 1_000_000),
   }));
+}
+
+export function isSubtitleCueOwnedByOverlay(
+  cue: VideoUseSubtitleCueV1,
+  slots: readonly VideoUseOverlaySlotV1[],
+): boolean {
+  return slots.some((slot) => cue.shotId === slot.slotId
+    || (cue.startUs < slot.startUs + slot.durationUs
+      && cue.startUs + cue.durationUs > slot.startUs));
 }
 
 export function isVideoWorkflowStage(value: unknown): value is VideoWorkflowStage {

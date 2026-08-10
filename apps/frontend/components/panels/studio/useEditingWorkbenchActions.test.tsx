@@ -1,9 +1,12 @@
 // @vitest-environment jsdom
+import { webcrypto } from "node:crypto";
 import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useEditingStore } from "@/stores/editing/editing-store";
 import { useProjectStore } from "@/stores/project/project-store";
 import { makeCurrentSlot } from "@/lib/studio/remotion/remotion-workspace-test-fixtures";
+import { createRemotionRenderJobId } from "@/lib/studio/remotion/remotion-job-identity";
+import type { RemotionCurrentSlotV1 } from "@/types/remotion-workspace";
 import type { StoryboardItem } from "@/types/studio";
 import { useEditingWorkbenchActions } from "./useEditingWorkbenchActions";
 
@@ -11,24 +14,28 @@ vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock("@/lib/studio/editing/source-snapshot", () => ({
   buildEditingSourceSnapshotHash: vi.fn(async () => "snapshot-test"),
 }));
-vi.mock("@/lib/studio/video-workflow/chapter-run-request", () => ({
-  buildVideoWorkflowChapterRunRequest: vi.fn(async (input: { projectId: string; chapterId: string; revision: number; mode?: string; derivedInputPolicy?: string }) => ({
-    schemaVersion: 1 as const,
-    projectId: input.projectId,
-    chapterId: input.chapterId,
-    revision: input.revision,
-    mode: input.mode ?? "editable-edl",
-    ...(input.derivedInputPolicy ? { derivedInputPolicy: input.derivedInputPolicy } : {}),
-    shots: [],
-    sourceSha256: "a".repeat(64),
-    audioSha256: "b".repeat(64),
-    textSha256: "c".repeat(64),
-    featureFlags: { alignment: true, edl: true, subtitles: true, grade: true, preview: true, selfEval: true },
-  })),
-}));
+vi.mock("@/lib/studio/video-workflow/chapter-run-request", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/studio/video-workflow/chapter-run-request")>();
+  return {
+    ...actual,
+    buildVideoWorkflowChapterRunRequest: vi.fn(async (input: { projectId: string; chapterId: string; revision: number; mode?: string; derivedInputPolicy?: string }) => ({
+      schemaVersion: 1 as const,
+      projectId: input.projectId,
+      chapterId: input.chapterId,
+      revision: input.revision,
+      mode: input.mode ?? "editable-edl",
+      ...(input.derivedInputPolicy ? { derivedInputPolicy: input.derivedInputPolicy } : {}),
+      shots: [],
+      sourceSha256: "a".repeat(64),
+      audioSha256: "b".repeat(64),
+      textSha256: "c".repeat(64),
+      featureFlags: { alignment: true, edl: true, subtitles: true, grade: true, preview: true, selfEval: true },
+    })),
+  };
+});
 
 beforeEach(() => {
-  vi.stubGlobal("crypto", { randomUUID: vi.fn(() => "test-uuid") });
+  vi.stubGlobal("crypto", { randomUUID: vi.fn(() => "test-uuid"), subtle: webcrypto.subtle });
   useProjectStore.setState({
     projects: [{ id: "project-a", name: "道劫", createdAt: 1, updatedAt: 1 }],
     activeProjectId: "project-a",
@@ -49,6 +56,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   Reflect.deleteProperty(window, "videoWorkflowPlugins");
+  Reflect.deleteProperty(window, "remotionQueue");
   vi.unstubAllGlobals();
 });
 
@@ -70,7 +78,60 @@ describe("useEditingWorkbenchActions", () => {
     expect(result.current.currentProject?.clips[0]?.source.kind).toBe("storyboardVideo");
   });
 
+  it("refreshes the persisted chapter scope at draft time instead of using a stale one-shot prop", async () => {
+    const staleSlot = await makeCurrentSlotFor("shot-001");
+    const currentSlots = [
+      staleSlot,
+      await makeCurrentSlotFor("shot-002"),
+    ];
+    const get = vi.fn(async () => ({
+      projectId: "project-a",
+      chapterId: "chapter-001",
+      jobs: [],
+      currentShotSlots: currentSlots,
+    }));
+    window.remotionQueue = { get } as unknown as NonNullable<Window["remotionQueue"]>;
+    const first = input().storyboards[0]!;
+    const { result } = renderHook(() => useEditingWorkbenchActions(input({
+      storyboards: [
+        { ...first, id: "shot-001", outputVersion: 1 },
+        { ...first, id: "shot-002", index: 2, outputVersion: 1 },
+      ],
+      remotionShotSlots: [staleSlot],
+    })));
+
+    await act(async () => { await result.current.createDraft(); });
+
+    expect(get).toHaveBeenCalledWith({ projectId: "project-a", chapterId: "chapter-001" });
+    expect(result.current.currentProject?.clips.filter((clip) => clip.source.kind === "storyboardVideo"))
+      .toHaveLength(2);
+  });
+
+  it("does not fall back to stale props when the desktop chapter scope is empty", async () => {
+    const staleSlot = await makeCurrentSlotFor("shot-001");
+    window.remotionQueue = {
+      get: vi.fn(async () => ({
+        projectId: "project-a",
+        chapterId: "chapter-001",
+        jobs: [],
+        currentShotSlots: [],
+      })),
+    } as unknown as NonNullable<Window["remotionQueue"]>;
+    const { result } = renderHook(() => useEditingWorkbenchActions(input({ remotionShotSlots: [staleSlot] })));
+
+    await expect(act(async () => result.current.createDraft()))
+      .rejects.toThrow("缺少已完成的 Remotion 分镜输出");
+    expect(result.current.currentProject).toBeUndefined();
+  });
+
   it("runs video-use before creating an EditingProject", async () => {
+    const readChapter = vi.fn(async () => ({
+      schemaVersion: 1 as const,
+      projectId: "project-a",
+      chapterId: "chapter-001",
+      videoUseState: "idle" as const,
+      hyperFramesState: "idle" as const,
+    }));
     const runChapter = vi.fn(async (request: { revision: number }) => ({
       schemaVersion: 1 as const,
       success: true,
@@ -80,7 +141,7 @@ describe("useEditingWorkbenchActions", () => {
       state: "ready" as const,
       artifact: { evidence: { inputSha256: "a".repeat(64) } },
     }));
-    Object.defineProperty(window, "videoWorkflowPlugins", { configurable: true, value: { runChapter } });
+    Object.defineProperty(window, "videoWorkflowPlugins", { configurable: true, value: { readChapter, runChapter } });
     const slot = makeCurrentSlot();
     const { result } = renderHook(() => useEditingWorkbenchActions(input({
       remotionShotSlots: [slot],
@@ -89,6 +150,7 @@ describe("useEditingWorkbenchActions", () => {
         audioRef: { kind: "audio", path: "project-file://voice.wav", contentSha256: "b".repeat(64) },
       }],
     })));
+    await waitFor(() => expect(readChapter).toHaveBeenCalled());
     await act(async () => { await result.current.runVideoUse(); });
     expect(runChapter).toHaveBeenCalledWith(expect.objectContaining({ revision: 2, mode: "editable-edl", derivedInputPolicy: "reject" }));
     expect(result.current.currentProject).toBeUndefined();
@@ -148,6 +210,26 @@ describe("useEditingWorkbenchActions", () => {
     expect(result.current.hyperFramesState).toBe("noop");
   });
 
+  it("blocks a restored accepted artifact when the current storyboard source is stale", async () => {
+    const readChapter = vi.fn(async () => ({
+      schemaVersion: 1 as const,
+      projectId: "project-a",
+      chapterId: "chapter-001",
+      revision: 5,
+      videoUseState: "accepted" as const,
+      hyperFramesState: "noop" as const,
+      inputSha256: "b".repeat(64),
+    }));
+    Object.defineProperty(window, "videoWorkflowPlugins", { configurable: true, value: { readChapter } });
+    const storyboard = { ...input().storyboards[0], stale: true, staleReason: "上游素材已替换" };
+    const { result } = renderHook(() => useEditingWorkbenchActions(input({ storyboards: [storyboard] })));
+
+    await waitFor(() => expect(result.current.videoUseState).toBe("blocked"));
+    expect(result.current.hyperFramesState).toBe("blocked");
+    expect(result.current.error).toContain("上游素材已替换");
+    expect(readChapter).not.toHaveBeenCalled();
+  });
+
   it("restores a blocked diagnostic without treating a malformed artifact as idle", async () => {
     const readChapter = vi.fn(async () => ({
       schemaVersion: 1 as const,
@@ -197,5 +279,32 @@ function input(overrides: Partial<Parameters<typeof useEditingWorkbenchActions>[
     }] satisfies StoryboardItem[],
     remotionShotSlots: overrides.remotionShotSlots,
     ...overrides,
+  };
+}
+
+async function makeCurrentSlotFor(shotId: string): Promise<RemotionCurrentSlotV1> {
+  const current = makeCurrentSlot();
+  const target = { kind: "shot" as const, chapterId: "chapter-001", shotId, shotRevision: 1 };
+  const job = {
+    ...current.job,
+    target,
+    outputPath: `outputs/shots/chapter-001/${shotId}/current.mp4`,
+    evidencePath: `evidence/shots/chapter-001/${shotId}/current.json`,
+  };
+  job.jobId = await createRemotionRenderJobId(job);
+  const evidence = {
+    ...current.evidence,
+    jobId: job.jobId,
+    target,
+    outputPath: job.outputPath,
+  };
+  return {
+    ...current,
+    target,
+    jobPath: `jobs/shot/chapter-001/${shotId}/current.json`,
+    evidencePath: job.evidencePath,
+    outputPath: job.outputPath,
+    job,
+    evidence,
   };
 }

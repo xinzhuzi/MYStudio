@@ -60,6 +60,42 @@ describe("HyperFrames adapter", () => {
     expect(result).toMatchObject({ state: "blocked", code: "runtime-not-ready" });
   });
 
+  it("rejects PNG sequence before probing or spawning the worker", async () => {
+    let probeCalls = 0;
+    let spawnCalls = 0;
+    const adapter = createHyperFramesAdapter({
+      storageBasePath: "/storage",
+      workspaceRootForProject: (projectId) => `/storage/projects/${projectId}/video-workflow`,
+      probeRuntime: async (paths) => {
+        probeCalls += 1;
+        return { state: "ready", paths, missing: [], versions: {} };
+      },
+      workerPath: "/storage/hyperframes-worker.cjs",
+      resolveBrowserPath: async () => "/storage/chrome-headless-shell",
+      execFile: async () => {
+        spawnCalls += 1;
+        throw new Error("must not spawn");
+      },
+    });
+    const result = await adapter.renderOverlay({
+      schemaVersion: 1,
+      projectId: "project-1",
+      chapterId: "chapter-1",
+      revision: 1,
+      sourceArtifactSha256: hash,
+      inputSha256: hash,
+      width: 1920,
+      height: 1080,
+      fps: 30,
+      alphaFormat: "png-sequence",
+      outputPath: "/storage/overlay-frames",
+      windows: [{ slotId: "title", startUs: 0, durationUs: 1_000_000, templateId: "title-card", parameters: {} }],
+    });
+    expect(result).toMatchObject({ state: "blocked", code: "invalid-request" });
+    expect(probeCalls).toBe(0);
+    expect(spawnCalls).toBe(0);
+  });
+
   it("passes the managed Node/CLI and shared FFmpeg paths to the worker", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "mystudio-hyperframes-worker-"));
     const workerPath = path.join(root, "hyperframes-worker.cjs");

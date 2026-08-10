@@ -32,6 +32,7 @@ export interface BuildChapterEditingProjectInput {
   productionTracks: ProductionTrack[];
   videoCandidates: VideoCandidate[];
   remotionShotSlots?: RemotionCurrentSlotV1[];
+  allowStaleStoryboards?: boolean;
   existingProjects: EditingProjectV1[];
   runId: string;
   editingProjectId: string;
@@ -71,6 +72,7 @@ export async function buildChapterEditingProject(
       productionTracks: input.productionTracks,
       videoCandidates: input.videoCandidates,
       remotionShotSlots: input.remotionShotSlots,
+      allowStaleStoryboards: input.allowStaleStoryboards,
       directorPlan: input.directorPlan,
     },
     existingProjects: input.existingProjects,

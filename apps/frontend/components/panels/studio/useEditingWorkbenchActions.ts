@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   buildChapterEditingProject,
 } from "@/lib/studio/editing/chapter-editing-pipeline";
 import { buildVideoWorkflowChapterRunRequest } from "@/lib/studio/video-workflow/chapter-run-request";
+import { videoWorkflowStoryboardBlocker } from "@/lib/studio/video-workflow/chapter-run-request";
 import { projectVideoUseArtifactToEditingProject } from "@/lib/studio/video-workflow/editing-project-projection";
 import { useEditingStore } from "@/stores/editing/editing-store";
 import { useProjectStore } from "@/stores/project/project-store";
@@ -14,7 +15,7 @@ import type {
   VideoWorkflowChapterRunReplyV1,
   VideoWorkflowChapterApplyReplyV1,
 } from "@rendering/contracts/video-workflow-ipc";
-import type { VideoUseDerivedInputPolicy } from "@rendering/contracts/video-workflow";
+import type { VideoUseDerivedInputPolicy, VideoUseStoryboardSourcePolicy } from "@rendering/contracts/video-workflow";
 
 export interface UseEditingWorkbenchActionsInput {
   projectId?: string;
@@ -24,6 +25,7 @@ export interface UseEditingWorkbenchActionsInput {
   directorPlan?: ScriptPlan;
   storyboards: StoryboardItem[];
   remotionShotSlots?: RemotionCurrentSlotV1[];
+  storyboardSourcePolicy?: VideoUseStoryboardSourcePolicy;
 }
 
 /**
@@ -54,26 +56,38 @@ export function useEditingWorkbenchActions(
   const [videoUseBusy, setVideoUseBusy] = useState(false);
   const [applying, setApplying] = useState(false);
   const [hyperFramesState, setHyperFramesState] = useState<"idle" | "accepted" | "noop" | "blocked">("idle");
+  const chapterStatusRequestVersion = useRef(0);
+  const storyboardSourcePolicy = input.storyboardSourcePolicy ?? "current-ready";
+  const storyboardBlocker = videoWorkflowStoryboardBlocker(input.storyboards, input.episodeId, storyboardSourcePolicy);
 
   useEffect(() => {
     useEditingStore.getState().setActiveProjectId(input.projectId ?? null);
   }, [input.projectId]);
 
   useEffect(() => {
+    const requestVersion = ++chapterStatusRequestVersion.current;
     const bridge = typeof window !== "undefined" ? window.videoWorkflowPlugins : undefined;
     if (!input.projectId || !input.episodeId || !bridge?.readChapter) {
       setVideoUseState("idle"); setVideoUseRevision(undefined); setVideoUseInputSha(undefined); setHyperFramesState("idle"); return;
     }
+    if (storyboardBlocker) {
+      setVideoUseState("blocked");
+      setHyperFramesState("blocked");
+      setVideoUseRevision(undefined);
+      setVideoUseInputSha(undefined);
+      setError(storyboardBlocker);
+      return;
+    }
     let cancelled = false;
     void bridge.readChapter({ schemaVersion: 1, projectId: input.projectId, chapterId: input.episodeId }).then((status) => {
-      if (cancelled) return;
+      if (cancelled || requestVersion !== chapterStatusRequestVersion.current) return;
       setVideoUseState(status.videoUseState);
       setHyperFramesState(status.hyperFramesState);
       setVideoUseRevision(status.revision);
       setVideoUseInputSha(status.inputSha256);
       setError(status.videoUseState === "blocked" ? status.message ?? "视频工作流 artifact 恢复被阻塞" : undefined);
     }).catch((caught) => {
-      if (!cancelled) {
+      if (!cancelled && requestVersion === chapterStatusRequestVersion.current) {
         setVideoUseState("blocked");
         setHyperFramesState("blocked");
         setVideoUseRevision(undefined);
@@ -82,13 +96,18 @@ export function useEditingWorkbenchActions(
       }
     });
     return () => { cancelled = true; };
-  }, [input.projectId, input.episodeId]);
+  }, [input.episodeId, input.projectId, storyboardBlocker, storyboardSourcePolicy]);
 
   const createDraft = useCallback(async (options: { preserveVideoWorkflowState?: boolean } = {}): Promise<EditingProjectV1> => {
     const projectId = input.projectId;
     if (!projectId) throw new Error("请先选择项目再准备 Remotion 章节工作台");
     if (!input.episodeId) throw new Error("当前工作流缺少章节 ID");
-    if (!input.remotionShotSlots || input.remotionShotSlots.length === 0) {
+    const remotionShotSlots = await readCurrentRemotionShotSlotsForDraft({
+      projectId,
+      chapterId: input.episodeId,
+      fallbackSlots: input.remotionShotSlots,
+    });
+    if (remotionShotSlots.length === 0) {
       throw new Error("当前章节缺少已完成的 Remotion 分镜输出，请先完成分镜队列");
     }
     setDrafting(true);
@@ -107,7 +126,8 @@ export function useEditingWorkbenchActions(
         storyboards: input.storyboards,
         productionTracks: [],
         videoCandidates: [],
-        remotionShotSlots: input.remotionShotSlots,
+        remotionShotSlots,
+        allowStaleStoryboards: storyboardSourcePolicy === "reuse-existing",
         existingProjects: Object.values(state.editingProjects).filter(
           (project) => project.projectId === projectId && project.episodeId === input.episodeId,
         ),
@@ -120,7 +140,9 @@ export function useEditingWorkbenchActions(
         },
       });
       assertProjectActive(projectId);
-      if (!result.success) throw new Error(formatDraftFailure(result));
+      if (!result.success) {
+        throw new Error(`${formatDraftFailure(result)}；本次读取 ${remotionShotSlots.length} 个 Remotion current slot，章节输入 ${input.storyboards.filter((storyboard) => storyboard.episodeId === input.episodeId).length} 个分镜`);
+      }
       const committed = useEditingStore.getState().commitAutoEditingResult(
         result.result,
         result.staleEditingProjectIds,
@@ -149,6 +171,7 @@ export function useEditingWorkbenchActions(
   const runVideoUse = useCallback(async (
     mode: "editable-edl" | "flat-shot-mp4" = "editable-edl",
     derivedInputPolicy: VideoUseDerivedInputPolicy = "reject",
+    requestedStoryboardSourcePolicy: VideoUseStoryboardSourcePolicy = storyboardSourcePolicy,
   ): Promise<VideoWorkflowChapterRunReplyV1> => {
     const projectId = input.projectId;
     const project = useEditingStore.getState().getCurrentEditingProject(input.episodeId);
@@ -156,6 +179,7 @@ export function useEditingWorkbenchActions(
     if (!projectId) throw new Error("请先选择项目再运行 video-use");
     if (!bridge?.runChapter) throw new Error("当前环境未接入 video-use 章节 bridge");
     assertProjectActive(projectId);
+    chapterStatusRequestVersion.current += 1;
     const revision = (project?.revision ?? 1) + 1;
     setVideoUseBusy(true);
     setError(undefined);
@@ -166,8 +190,13 @@ export function useEditingWorkbenchActions(
         revision,
         mode,
         derivedInputPolicy,
+        storyboardSourcePolicy: requestedStoryboardSourcePolicy,
         storyboards: input.storyboards,
-        remotionShotSlots: input.remotionShotSlots ?? [],
+        remotionShotSlots: await readCurrentRemotionShotSlotsForDraft({
+          projectId,
+          chapterId: input.episodeId,
+          fallbackSlots: input.remotionShotSlots,
+        }),
       });
       const reply = await bridge.runChapter(request);
       if (!reply.success || !reply.artifact) {
@@ -191,7 +220,7 @@ export function useEditingWorkbenchActions(
     } finally {
       setVideoUseBusy(false);
     }
-  }, [input]);
+  }, [input, storyboardSourcePolicy]);
 
   const applyVideoWorkflow = useCallback(async (): Promise<VideoWorkflowChapterApplyReplyV1> => {
     const projectId = input.projectId;
@@ -296,6 +325,23 @@ function formatDraftFailure(
 
 function uniqueId(prefix: string) {
   return `${prefix}-${crypto.randomUUID()}`;
+}
+
+/**
+ * The persisted chapter scope is authoritative at the moment a draft is
+ * committed. A render-time prop can lag the workspace after a reload or a
+ * completed queue restoration. If the desktop bridge answers, its empty or
+ * failed result must stay fail-closed instead of falling back to stale props.
+ */
+async function readCurrentRemotionShotSlotsForDraft(input: {
+  projectId: string;
+  chapterId: string;
+  fallbackSlots?: RemotionCurrentSlotV1[];
+}): Promise<RemotionCurrentSlotV1[]> {
+  const queue = typeof window === "undefined" ? undefined : window.remotionQueue;
+  if (!queue?.get) return input.fallbackSlots ?? [];
+  const scope = await queue.get({ projectId: input.projectId, chapterId: input.chapterId });
+  return scope.currentShotSlots;
 }
 
 function errorMessage(error: unknown) {

@@ -7,6 +7,7 @@ import {
   makeCurrentSlot,
   makeShotAudioBindingV2,
 } from "@/lib/studio/remotion/remotion-workspace-test-fixtures";
+import type { RemotionChapterGateAcceptedV1 } from "@rendering/contracts/video-workflow";
 import { remotionCurrentSlotPaths } from "@/lib/studio/remotion/remotion-current-slot";
 import {
   buildChapterVideoCompositionProps,
@@ -62,6 +63,63 @@ describe("buildChapterVideoCompositionProps", () => {
     if (!result.success) expect(result.issues.map((issue) => issue.message).join(";")).toContain("Remotion shot MP4");
   });
 
+  it("accepts a byte-tracked video-use derived input only with the matching gate", async () => {
+    const slot = makeCurrentSlot();
+    const plan = chapterPlan(slot, "shot-001", "storyboardVideo");
+    const artifactSha256 = "c".repeat(64);
+    const derivedPath = "/tmp/video-use-derived-shot-001.mp4";
+    plan.clips[0]!.source.path = derivedPath;
+    plan.clips[0]!.source.evidence.sourceFingerprint = artifactSha256;
+    const target = slot.target;
+    if (target.kind !== "shot") throw new Error("fixture target must be shot");
+    const gate: RemotionChapterGateAcceptedV1 = {
+      accepted: true,
+      mode: "editable-edl",
+      videoUseArtifactSha256: artifactSha256,
+      hyperFramesStatus: "noop",
+      videoUseDerivedInputs: [{
+        schemaVersion: 1,
+        kind: "padded-video",
+        derivation: "ffmpeg-tpad-clone-apad",
+        sourcePath: "/tmp/original-shot-001.mp4",
+        sourceSha256: "d".repeat(64),
+        sourceDurationUs: 1_000_000,
+        derivedPath,
+        derivedSha256: "e".repeat(64),
+        derivedDurationUs: 1_000_000,
+        derivedRevision: target.shotRevision,
+        createdAt: 2,
+      }],
+    };
+    const chapterManifest = await manifestForPlan(plan);
+    const result = buildChapterVideoCompositionProps({
+      plan,
+      currentShotSlots: [slot],
+      chapterManifest,
+      videoWorkflowGate: gate,
+      mediaUrlByClipId: { "visual-shot-001": mediaUrl },
+      mediaUrlByBindingId: {},
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts an absolute projected shot path when the host supplies the slot identity", async () => {
+    const slot = makeCurrentSlot();
+    const plan = chapterPlan(slot, "shot-001", "storyboardVideo");
+    const absoluteSlotPath = "/private/var/folders/test/remotion/outputs/shots/shot-001/current.mp4";
+    plan.clips[0]!.source.path = "/var/folders/test/remotion/outputs/shots/shot-001/current.mp4";
+    const chapterManifest = await manifestForPlan(plan);
+    const result = buildChapterVideoCompositionProps({
+      plan,
+      currentShotSlots: [slot],
+      currentShotSlotPaths: { "shot-001": absoluteSlotPath },
+      chapterManifest,
+      mediaUrlByClipId: { "visual-shot-001": mediaUrl },
+      mediaUrlByBindingId: {},
+    });
+    expect(result.success).toBe(true);
+  });
+
   it("projects an accepted HyperFrames overlay into the ChapterVideo composition", async () => {
     const slot = makeCurrentSlot();
     const plan = chapterPlan(slot, "shot-001", "storyboardVideo");
@@ -94,6 +152,47 @@ describe("buildChapterVideoCompositionProps", () => {
     }
   });
 
+  it("burns the canonical Remotion subtitle track only when subtitleMode is enabled", async () => {
+    const slot = makeCurrentSlot();
+    const plan = chapterPlan(slot, "shot-001", "storyboardVideo");
+    plan.clips.push({
+      id: "video-use-subtitle-1-cue-1",
+      trackId: "subtitles",
+      trackKind: "text",
+      source: { kind: "text", text: "对齐后的字幕", evidence: { storyboardId: "shot-001", sourceFingerprint: "c".repeat(64) } },
+      startUs: 250_000,
+      durationUs: 500_000,
+      trimStartUs: 0,
+      speed: 1,
+      volume: 0,
+      muted: true,
+      subtitle: { sourceFormat: "generated" },
+    });
+    const chapterManifest = await manifestForPlan(plan);
+    const enabled = buildChapterVideoCompositionProps({
+      plan,
+      currentShotSlots: [slot],
+      chapterManifest,
+      mediaUrlByClipId: { "visual-shot-001": mediaUrl },
+      mediaUrlByBindingId: {},
+    });
+    expect(enabled.success).toBe(true);
+    if (enabled.success) expect(enabled.value.subtitles).toEqual([
+      expect.objectContaining({ cueId: "video-use-subtitle-1-cue-1", text: "对齐后的字幕" }),
+    ]);
+
+    plan.renderSettings.subtitleMode = "none";
+    const disabled = buildChapterVideoCompositionProps({
+      plan,
+      currentShotSlots: [slot],
+      chapterManifest,
+      mediaUrlByClipId: { "visual-shot-001": mediaUrl },
+      mediaUrlByBindingId: {},
+    });
+    expect(disabled.success).toBe(true);
+    if (disabled.success) expect(disabled.value.subtitles).toEqual([]);
+  });
+
   it("requires exact manifest, plan and shot-slot identities", async () => {
     const slot = makeCurrentSlot();
     const extraSlot = slotForShot("shot-002");
@@ -119,6 +218,38 @@ describe("buildChapterVideoCompositionProps", () => {
     });
     expect(revisionResult.success).toBe(false);
     if (!revisionResult.success) expect(revisionResult.issues.map((issue) => issue.message).join(";")).toContain("revision");
+  });
+
+  it("accepts a flat clean MP4 projection without requiring every storyboard slot", async () => {
+    const firstSlot = makeCurrentSlot();
+    const plan = chapterPlan(firstSlot, "shot-001", "storyboardVideo");
+    const flatPath = "/tmp/video-use-clean-flat.mp4";
+    const artifactSha256 = "f".repeat(64);
+    plan.clips[0]!.source.path = flatPath;
+    plan.clips[0]!.source.evidence = { sourceFingerprint: artifactSha256 };
+    const chapterManifest = await manifestForPlan(plan);
+    const gate: RemotionChapterGateAcceptedV1 = {
+      accepted: true,
+      mode: "flat-shot-mp4",
+      videoUseArtifactSha256: artifactSha256,
+      videoUseFlatShotMp4Path: flatPath,
+      videoUseFlatShotMp4Sha256: "e".repeat(64),
+      hyperFramesStatus: "noop",
+    };
+    const result = buildChapterVideoCompositionProps({
+      plan,
+      currentShotSlots: [firstSlot, slotForShot("shot-002")],
+      chapterManifest,
+      videoWorkflowGate: gate,
+      mediaUrlByClipId: { "visual-shot-001": mediaUrl },
+      mediaUrlByBindingId: {},
+    });
+    expect(result.success).toBe(true);
+    expect(mapEditedVoiceIntervals({
+      plan,
+      currentShotSlots: [firstSlot, slotForShot("shot-002")],
+      chapterManifest,
+    })).toEqual({ success: true, value: [] });
   });
 
   it("projects manifest BGM range, trim, fades, user envelope and per-track ducking", async () => {

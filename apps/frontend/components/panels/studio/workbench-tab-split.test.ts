@@ -6,11 +6,12 @@ import type { RemotionCurrentSlotV1, RemotionRenderJobV1 } from "@/types/remotio
 import {
   countCurrentShotSlots,
   isCurrentChapterReady,
+  resolveWorkbenchRemotionShotSlots,
   selectCurrentShotJobForStoryboard,
 } from "./WorkbenchTab";
 
 function storyboard(id: string, episodeId: string, outputVersion: number): StoryboardItem {
-  return { id, episodeId, index: 1, outputVersion } as StoryboardItem;
+  return { id, episodeId, index: 1, outputVersion, state: "ready", stale: false } as StoryboardItem;
 }
 
 function job(
@@ -78,6 +79,9 @@ describe("WorkbenchTab split boundaries", () => {
     expect(tabSource).toContain("requestVersion !== firstShotOutputRequestVersion.current");
     expect(tabSource).toContain("data-first-shot-preview-output");
     expect(tabSource).toContain("disabled={!firstShotAbsoluteOutputPath}");
+    expect(tabSource).toContain('data-remotion-host-readiness="ready"');
+    expect(tabSource).toContain("data-remotion-current-slot-count={String(currentChapterSlotCount)}");
+    expect(tabSource).toContain("data-remotion-current-slot-ready={String(chapterReady)}");
   });
 
   it("counts only exact-revision succeeded slots from the current chapter", () => {
@@ -90,6 +94,32 @@ describe("WorkbenchTab split boundaries", () => {
     expect(isCurrentChapterReady("chapter-001", [current, otherChapter], [staleSlot])).toBe(false);
     expect(countCurrentShotSlots("chapter-001", [current, otherChapter], [staleSlot, currentSlot])).toBe(1);
     expect(isCurrentChapterReady("chapter-001", [current, otherChapter], [staleSlot, currentSlot])).toBe(true);
+  });
+
+  it("does not treat an invalidated storyboard as ready when its old slot still exists", () => {
+    const current = { ...storyboard("shot-current", "chapter-001", 1), stale: true, staleReason: "source changed" };
+    const currentSlot = slot(job(current.id, "chapter-001", 1, "succeeded", 1));
+
+    expect(countCurrentShotSlots("chapter-001", [current], [currentSlot])).toBe(0);
+    expect(isCurrentChapterReady("chapter-001", [current], [currentSlot])).toBe(false);
+  });
+
+  it("uses the loaded chapter queue scope and fails closed on its empty result", () => {
+    const first = slot(job("shot-001", "chapter-001", 1, "succeeded", 1));
+    const second = slot(job("shot-002", "chapter-001", 1, "succeeded", 2));
+
+    expect(resolveWorkbenchRemotionShotSlots(
+      { loaded: false, currentShotSlots: [] },
+      [first],
+    )).toEqual([first]);
+    expect(resolveWorkbenchRemotionShotSlots(
+      { loaded: true, currentShotSlots: [first, second] },
+      [first],
+    )).toEqual([first, second]);
+    expect(resolveWorkbenchRemotionShotSlots(
+      { loaded: true, currentShotSlots: [] },
+      [first],
+    )).toEqual([]);
   });
 
   it("uses the exact current slot job before any matching historical job", () => {

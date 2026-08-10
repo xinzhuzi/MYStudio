@@ -326,6 +326,12 @@ async function rewritePersistedFiles(
     // registered impact must never fall through to the generic chapter walker,
     // which could rewrite an unregistered historical format by accident.
     if (inferPhysicalRefType(relativePath) === "backup" && !backupImpact) continue;
+    const rootChapterId = parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>).chapterId
+      : undefined;
+    // A registered chapter-scoped store is already represented by a physical
+    // deletion target.  Do not partially rewrite it and leave a top-level
+    // chapterId behind; the unlink phase removes the whole file atomically.
     const changed = backupImpact?.action === "rewrite"
       ? rewriteRegisteredBackup(parsed, chapterId, rawIds)
       : path.basename(file) === "artifacts.json"
@@ -336,7 +342,9 @@ async function rewritePersistedFiles(
           const nextOverlays = Object.fromEntries(Object.entries(overlays as Record<string, unknown>).filter(([id]) => !rawIds.has(id) && !rawIds.has(id.split(":").pop() ?? id)));
           return { value: { ...root, overlays: nextOverlays }, changed: Object.keys(nextOverlays).length !== Object.keys(overlays as Record<string, unknown>).length };
         })()
-        : pruneChapter(parsed, chapterId, rawIds);
+        : rootChapterId === chapterId
+          ? { value: parsed, changed: false }
+          : pruneChapter(parsed, chapterId, rawIds);
     if (!changed.changed) continue;
     const normalized = reindexScriptState(changed.value);
     originals.push(await captureFile(file));

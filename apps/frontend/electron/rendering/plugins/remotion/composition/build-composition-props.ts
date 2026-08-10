@@ -1,3 +1,4 @@
+import path from "node:path";
 import type {
   EditingEffect,
   TimelineRenderClip,
@@ -16,7 +17,10 @@ import type {
   CompositionVisualClipProps,
 } from "./composition-props";
 import { validateChapterVideoCompositionProps } from "./composition-props-validation";
-import type { HyperFramesOverlayWindowV1 } from "@rendering/contracts/video-workflow";
+import type {
+  HyperFramesOverlayWindowV1,
+  RemotionChapterGateAcceptedV1,
+} from "@rendering/contracts/video-workflow";
 import type {
   RemotionChapterManifestV2,
   RemotionCurrentSlotV1,
@@ -89,16 +93,18 @@ export function buildCompositionProps(
       fade: fadeForClip(clip, fps),
       envelope: envelopeForClip(clip, fps),
     }));
-  const subtitles = plan.clips
-    .filter((clip) => clip.trackKind === "text" && typeof clip.source.text === "string")
-    .sort(compareTimelineClips)
-    .map((clip) => ({
-      cueId: clip.id,
-      text: clip.source.text!.trim(),
-      from: usToFrames(clip.startUs, fps),
-      durationInFrames: clipDurationInFrames(clip.durationUs, fps),
-    }))
-    .filter((cue) => cue.text.length > 0);
+  const subtitles = plan.renderSettings.subtitleMode === "burn-in"
+    ? plan.clips
+        .filter((clip) => clip.trackKind === "text" && typeof clip.source.text === "string")
+        .sort(compareTimelineClips)
+        .map((clip) => ({
+          cueId: clip.id,
+          text: clip.source.text!.trim(),
+          from: usToFrames(clip.startUs, fps),
+          durationInFrames: clipDurationInFrames(clip.durationUs, fps),
+        }))
+        .filter((cue) => cue.text.length > 0)
+    : [];
   const transitions: CompositionTransitionProps[] = plan.transitions.map((transition) => {
     const from = timingById.get(transition.fromClipId);
     const to = timingById.get(transition.toClipId);
@@ -126,6 +132,12 @@ export interface ChapterVideoSourceInput {
   plan: TimelineRenderPlan;
   currentShotSlots: readonly RemotionCurrentSlotV1[];
   chapterManifest: RemotionChapterManifestV2;
+  /** Absolute paths resolved by the host for the current shot slots. The
+   * persisted slot keeps project-relative outputPath, while video-use EDL
+   * projection may persist an absolute path; both must resolve to one source. */
+  currentShotSlotPaths?: Readonly<Record<string, string>>;
+  /** Accepted video-use evidence authorizes editable EDL derived inputs. */
+  videoWorkflowGate?: RemotionChapterGateAcceptedV1;
 }
 
 export interface ChapterVideoCompositionInput extends ChapterVideoSourceInput {
@@ -306,9 +318,39 @@ function inspectChapterVideoSource(
   if (visualClips.length === 0) {
     issues.push({ path: "plan.clips", message: "章节必须包含至少一个 Remotion shot visual clip" });
   }
+  // flat-shot-mp4 projection deliberately has one clean MP4 visual clip and
+  // no storyboardId. It still carries the accepted artifact fingerprint so
+  // the final gate can bind the source without pretending it is 43 shots.
+  const flatProjection = visualClips.length === 1
+    && visualClips[0]?.source.kind === "storyboardVideo"
+    && typeof visualClips[0]?.source.evidence?.storyboardId !== "string";
+  if (flatProjection) {
+    const clip = visualClips[0]!;
+    const sourcePath = clip.source.path?.trim() ?? "";
+    if (!path.isAbsolute(sourcePath)) {
+      issues.push({ path: "visualClips[0].source.path", message: "flat-shot-mp4 必须绑定绝对 clean MP4 路径" });
+    }
+    if (!isSha256(clip.source.evidence?.sourceFingerprint)) {
+      issues.push({ path: "visualClips[0].source.evidence.sourceFingerprint", message: "flat-shot-mp4 缺少 video-use artifact SHA-256" });
+    }
+    if (input.videoWorkflowGate) {
+      if (input.videoWorkflowGate.mode !== "flat-shot-mp4") {
+        issues.push({ path: "videoWorkflowGate.mode", message: "flat projection 必须绑定 flat-shot-mp4 gate" });
+      } else {
+        if (clip.source.evidence?.sourceFingerprint !== input.videoWorkflowGate.videoUseArtifactSha256) {
+          issues.push({ path: "visualClips[0].source.evidence.sourceFingerprint", message: "flat clean MP4 未绑定当前 video-use artifact" });
+        }
+        if (!input.videoWorkflowGate.videoUseFlatShotMp4Path
+          || !pathsEquivalentForComposition(sourcePath, input.videoWorkflowGate.videoUseFlatShotMp4Path)) {
+          issues.push({ path: "visualClips[0].source.path", message: "flat clean MP4 路径与 video-use gate 不一致" });
+        }
+      }
+    }
+  }
   const requiredShotIds = new Set<string>();
   const manifestShotById = new Map(manifest.shots.map((shot) => [shot.shotId, shot]));
   for (const [index, clip] of visualClips.entries()) {
+    if (flatProjection) continue;
     const sourceKind = clip.source.kind;
     const storyboardId = typeof clip.source.evidence?.storyboardId === "string"
       ? clip.source.evidence.storyboardId
@@ -333,7 +375,25 @@ function inspectChapterVideoSource(
       issues.push({ path: `visualClips[${index}].source.evidence.storyboardId`, message: "视觉片段未精确匹配 chapter manifest shot/storyboard identity" });
       continue;
     }
-    if (clip.source.path !== slot.outputPath) {
+    const requestedSourcePath = clip.source.path?.trim() ?? "";
+    const resolvedCurrentSlotPath = input.currentShotSlotPaths?.[storyboardId] ?? slot.outputPath;
+    const matchesCurrentSlot = requestedSourcePath === slot.outputPath
+      || pathsEquivalentForComposition(requestedSourcePath, resolvedCurrentSlotPath);
+    const matchesAcceptedDerivedInput = !matchesCurrentSlot
+      && input.videoWorkflowGate?.mode === "editable-edl"
+      && clip.source.evidence?.sourceFingerprint === input.videoWorkflowGate.videoUseArtifactSha256
+      && path.isAbsolute(requestedSourcePath)
+      && input.videoWorkflowGate.videoUseDerivedInputs?.some((entry) =>
+        path.resolve(entry.derivedPath) === path.resolve(requestedSourcePath),
+      );
+    // Identity construction runs before the final gate is available. Allow a
+    // clearly marked absolute derived path to participate in the hash, while
+    // the accepted gate below remains mandatory before any media is rendered.
+    const provisionalDerivedInput = !matchesCurrentSlot
+      && !input.videoWorkflowGate
+      && path.isAbsolute(requestedSourcePath)
+      && isSha256(clip.source.evidence?.sourceFingerprint);
+    if (!matchesCurrentSlot && !matchesAcceptedDerivedInput && !provisionalDerivedInput) {
       issues.push({ path: `visualClips[${index}].source.path`, message: "视觉片段路径与 current shot slot 不一致" });
     }
     if (clip.source.evidence?.remotionJobId !== slot.job.jobId
@@ -347,14 +407,16 @@ function inspectChapterVideoSource(
       issues.push({ path: `chapterManifest.shots.${manifestShot.shotId}.revision`, message: "chapter manifest shot revision 与 current slot 不一致" });
     }
   }
-  for (const { index, shotId } of validShotSlots) {
-    if (!requiredShotIds.has(shotId)) {
-      issues.push({ path: `currentShotSlots[${index}]`, message: "current shot slot 不得包含章节未引用的额外 shot" });
+  if (!flatProjection) {
+    for (const { index, shotId } of validShotSlots) {
+      if (!requiredShotIds.has(shotId)) {
+        issues.push({ path: `currentShotSlots[${index}]`, message: "current shot slot 不得包含章节未引用的额外 shot" });
+      }
     }
   }
   const manifestRequired = new Set(manifest.requiredShotIds);
-  if (manifestRequired.size !== requiredShotIds.size
-    || [...requiredShotIds].some((shotId) => !manifestRequired.has(shotId))) {
+  if (!flatProjection && (manifestRequired.size !== requiredShotIds.size
+    || [...requiredShotIds].some((shotId) => !manifestRequired.has(shotId)))) {
     issues.push({ path: "chapterManifest.requiredShotIds", message: "chapter manifest required shots 与编辑后的视觉片段不一致" });
   }
   for (const binding of manifest.sharedAudioBindings) {
@@ -363,6 +425,8 @@ function inspectChapterVideoSource(
     }
   }
   if (issues.length > 0) return { success: false, issues };
+
+  if (flatProjection) return { success: true, value: [] };
 
   const visualTiming = layoutVisualTimeline(
     visualClips.map((clip) => ({ clipId: clip.id, durationUs: clip.durationUs })),
@@ -399,6 +463,16 @@ function inspectChapterVideoSource(
     }
   }
   return { success: true, value: mergeVoiceIntervals(voiceIntervals) };
+}
+
+function pathsEquivalentForComposition(left: string, right: string): boolean {
+  if (!left || !right) return false;
+  const normalize = (value: string) => path.normalize(value.replace(/^\/private\/var(?:\/|$)/, "/var/"));
+  return normalize(left) === normalize(right);
+}
+
+function isSha256(value: unknown): value is string {
+  return typeof value === "string" && /^[a-f0-9]{64}$/.test(value);
 }
 
 export function buildDuckingEnvelope(input: {

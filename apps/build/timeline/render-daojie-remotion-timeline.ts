@@ -11,6 +11,7 @@ import { assertBundleMatchesRuntime, type RemotionBundleManifest } from "@render
 import { buildRemotionRuntimeManifest } from "@rendering/plugins/remotion/browser/remotion-runtime-manifest";
 import { RemotionChapterManifestService } from "@rendering/plugins/remotion/manifest/remotion-chapter-manifest-service";
 import { createTimelineRenderRecord } from "@/lib/studio/editing/chapter-editing-pipeline";
+import { sha256CanonicalJson } from "@/lib/studio/remotion/canonical-json";
 import { validateEditingProject, validateTimelineRenderPlan } from "@/lib/studio/editing/validation";
 import {
   deriveStorageRoots,
@@ -127,6 +128,7 @@ export async function runDaojieRemotionTimeline(): Promise<Record<string, unknow
       const compositionId = remotionOnly ? CHAPTER_VIDEO_COMPOSITION_ID : REMOTION_COMPOSITION_ID;
       const rawPath = path.join(outputDir, "raw-remotion.mp4");
       const outputPath = path.join(outputDir, "output.mp4");
+      const renderStartedAt = Date.now();
       const binariesDirectory = path.join(appsRoot, "node_modules", "@remotion", "compositor-darwin-arm64");
       const composition = await selectComposition({
       serveUrl: bundlePath,
@@ -183,13 +185,39 @@ export async function runDaojieRemotionTimeline(): Promise<Record<string, unknow
       const snapshotHash = editingProject?.success
         ? await hashFileSha256(editingProjectPath)
         : plan.sourceSnapshotHash;
+      const target = {
+        kind: "chapter" as const,
+        chapterId: plan.episodeId,
+        editingProjectId: plan.editingProjectId,
+        editingRevision: plan.editingRevision,
+      };
+      const inputHash = await sha256CanonicalJson({
+        plan,
+        currentShotSlots,
+        chapterManifest: chapterManifest ?? null,
+      });
+      const renderSettingsHash = await sha256CanonicalJson(plan.renderSettings);
+      const completedAt = Date.now();
       const evidence = {
+        schemaVersion: 1 as const,
+        projectId: plan.projectId,
+        target,
+        inputHash,
+        bundleContentHash: manifest.contentHash,
+        renderSettingsHash,
         jobId: plan.jobId,
+        templateVersion: manifest.templateVersion,
+        remotionVersion,
+        attempt: 1,
+        compositionId: CHAPTER_VIDEO_COMPOSITION_ID,
+        renderer: { requested: "remotion" as const, actual: "remotion" as const },
         path: outputPath,
+        outputPath,
         sizeBytes: fs.statSync(outputPath).size,
         mtimeMs: fs.statSync(outputPath).mtimeMs,
         sha256: await hashFileSha256(outputPath),
         duration: probe.duration,
+        durationUs: Math.round(probe.duration * 1_000_000),
         width: probe.width,
         height: probe.height,
         streams: probe.streams,
@@ -200,7 +228,8 @@ export async function runDaojieRemotionTimeline(): Promise<Record<string, unknow
         filterGraphPath,
         logPath: path.join(outputDir, "remotion-render.log"),
         ffprobePath: probePath,
-        renderer: { requested: "remotion" as const, actual: "remotion" as const, version: remotionVersion, bundleVersion: manifest.contentHash },
+        startedAt: renderStartedAt,
+        completedAt,
       };
       fs.writeFileSync(evidence.logPath, "renderer=remotion\npostprocess=none\n", "utf8");
       const timelineRenderRecord = editingProject?.success

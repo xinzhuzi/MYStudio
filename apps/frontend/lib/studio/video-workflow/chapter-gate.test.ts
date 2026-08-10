@@ -66,6 +66,36 @@ describe("evaluateRemotionChapterGate", () => {
     expect(result.accepted).toBe(true);
   });
 
+  it("passes flat clean-source and derived-input evidence to the Remotion renderer", () => {
+    const flat = {
+      ...videoUseArtifact,
+      mode: "flat-shot-mp4" as const,
+      flatShotMp4Path: "/tmp/clean-flat.mp4",
+      flatShotMp4Sha256: "c".repeat(64),
+      derivedInputs: [{
+        schemaVersion: 1 as const,
+        kind: "padded-video" as const,
+        derivation: "ffmpeg-tpad-clone-apad" as const,
+        sourcePath: "/tmp/source.mp4",
+        sourceSha256: hash,
+        sourceDurationUs: 1,
+        derivedPath: "/tmp/derived.mp4",
+        derivedSha256: "d".repeat(64),
+        derivedDurationUs: 2,
+        derivedRevision: 2,
+        createdAt: 1,
+      }],
+    };
+    const result = evaluateRemotionChapterGate({ projectId: "project-1", chapterId: "chapter-1", revision: 2, inputSha256: hash, videoUseArtifact: flat, hyperFramesArtifact });
+    expect(result).toMatchObject({
+      accepted: true,
+      mode: "flat-shot-mp4",
+      videoUseFlatShotMp4Path: "/tmp/clean-flat.mp4",
+      videoUseFlatShotMp4Sha256: "c".repeat(64),
+      videoUseDerivedInputs: flat.derivedInputs,
+    });
+  });
+
   it("blocks missing or drifted artifacts", () => {
     const missingVideo = evaluateRemotionChapterGate({ projectId: "project-1", chapterId: "chapter-1", revision: 2, inputSha256: hash });
     const missingOverlay = evaluateRemotionChapterGate({ projectId: "project-1", chapterId: "chapter-1", revision: 2, inputSha256: hash, videoUseArtifact });

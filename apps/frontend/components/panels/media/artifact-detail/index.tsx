@@ -20,12 +20,12 @@ import type { ArtifactRecord, PhysicalRef } from "@/types/artifacts";
 import { STAGE_LABELS_BY_KEY as STAGE_LABELS } from "@/lib/artifacts/stage-labels";
 import { Badge } from "@/components/ui/badge";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { RefPreview } from "../RefPreview";
@@ -54,6 +54,8 @@ export interface ArtifactDetailPanelProps {
     artifactId: string,
     updates: { name?: string; notes?: string }
   ) => Promise<void>;
+  /** Open the containing project directory in the artifact center. */
+  onOpenFolder?: (directoryPath: string) => void;
   /** Custom className for root element */
   className?: string;
 }
@@ -63,6 +65,7 @@ export function ArtifactDetailPanel({
   isOpen,
   onClose,
   onMetadataUpdate,
+  onOpenFolder,
   className,
 }: ArtifactDetailPanelProps) {
   const [editingField, setEditingField] = useState<null | "name" | "notes">(null);
@@ -134,6 +137,22 @@ export function ArtifactDetailPanel({
     }
   };
 
+  const getRefDirectoryPath = (ref: PhysicalRef): string | null => {
+    if (ref.type === "local-media" || typeof ref.path !== "string" || ref.path.includes("://")) {
+      return null;
+    }
+    const normalizedPath = ref.path.replace(/\\/g, "/").replace(/^\/+/, "");
+    const separator = normalizedPath.lastIndexOf("/");
+    return separator === -1 ? "" : normalizedPath.slice(0, separator);
+  };
+
+  const handleOpenFolder = (ref: PhysicalRef) => {
+    const directoryPath = getRefDirectoryPath(ref);
+    if (directoryPath === null || !onOpenFolder) return;
+    onOpenFolder(directoryPath);
+    onClose();
+  };
+
   // Physical files are shown flat (no type grouping) on the 「物理文件」tab —
   // each ref is a row with its full path, a copy button, and a "reveal in
   // folder" action. The type-grouped view was removed per the artifact
@@ -167,22 +186,22 @@ export function ArtifactDetailPanel({
   const tags = artifact.metadata?.tags ?? [];
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-3xl max-h-[90vh]">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+    <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <SheetContent className={cn("w-[min(720px,calc(100vw-1rem))] max-w-none flex flex-col", className)}>
+        <SheetHeader className="shrink-0 pr-10">
+          <SheetTitle className="flex items-center gap-2">
             <FileText className="h-5 w-5 text-primary" />
             {artifact.name}
-          </DialogTitle>
-          {/* Provide an accessible description so Radix DialogContent doesn't
+          </SheetTitle>
+          {/* Provide an accessible description so Radix SheetContent doesn't
               warn about missing Description/aria-describedby. Visually hidden:
               screen readers announce it, sighted users see the tabs below. */}
-          <DialogDescription className="sr-only">
+          <SheetDescription className="sr-only">
             产物详情:查看元数据、物理文件、依赖关系与内容预览。
-          </DialogDescription>
-        </DialogHeader>
+          </SheetDescription>
+        </SheetHeader>
 
-        <ScrollArea className="max-h-[calc(90vh-120px)]">
+        <ScrollArea className="min-h-0 flex-1">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid w-full grid-cols-4 mb-4">
               <TabsTrigger value="metadata">元数据</TabsTrigger>
@@ -384,6 +403,16 @@ export function ArtifactDetailPanel({
                     >
                       <Copy className="h-3.5 w-3.5" />复制
                     </button>
+                    {getRefDirectoryPath(ref) !== null && onOpenFolder && (
+                      <button
+                        type="button"
+                        className="shrink-0 inline-flex items-center gap-1 px-2 py-1 bg-background border rounded hover:bg-muted"
+                        title="在产物中心打开所在文件夹"
+                        onClick={() => handleOpenFolder(ref)}
+                      >
+                        <FolderOpen className="h-3.5 w-3.5" />打开目录
+                      </button>
+                    )}
                     <button
                       type="button"
                       className="shrink-0 inline-flex items-center gap-1 px-2 py-1 bg-background border rounded hover:bg-muted"
@@ -463,6 +492,16 @@ export function ArtifactDetailPanel({
                           >
                             <Copy className="h-3 w-3" />复制
                           </button>
+                          {getRefDirectoryPath(ref) !== null && onOpenFolder && (
+                            <button
+                              type="button"
+                              className="shrink-0 inline-flex items-center gap-1 px-2 py-1 bg-background border rounded hover:bg-muted"
+                              title="在产物中心打开所在文件夹"
+                              onClick={() => handleOpenFolder(ref)}
+                            >
+                              <FolderOpen className="h-3 w-3" />打开目录
+                            </button>
+                          )}
                           <button
                             type="button"
                             className="shrink-0 inline-flex items-center gap-1 px-2 py-1 bg-background border rounded hover:bg-muted"
@@ -577,8 +616,8 @@ export function ArtifactDetailPanel({
             </TabsContent>
           </Tabs>
         </ScrollArea>
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   );
 }
 

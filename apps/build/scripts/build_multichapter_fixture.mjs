@@ -29,6 +29,18 @@ function generateShortId() {
   return crypto.randomBytes(4).toString('hex').slice(0, 8);
 }
 
+const FIXTURE_ARTIFACT_FORMAT = 'mystudio-chapter-artifact-snapshot';
+const FIXTURE_PROJECT_STATE_FORMAT = 'mystudio-project-state-snapshot';
+
+function markChapterArtifact(data, projectId, stage) {
+  return {
+    ...data,
+    _artifactFormat: FIXTURE_ARTIFACT_FORMAT,
+    projectId,
+    stage,
+  };
+}
+
 async function ensureDir(dirPath) {
   if (!existsSync(dirPath)) {
     await mkdir(dirPath, { recursive: true });
@@ -744,6 +756,7 @@ async function generateFixture() {
     console.log('📦 Building studio-store.json...');
 
     const studioStore = {
+      _artifactFormat: FIXTURE_PROJECT_STATE_FORMAT,
       projectId,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -791,27 +804,27 @@ async function generateFixture() {
 
       // Novel
       await writeFile(join(chapterPDir, 'novel.json'),
-                     JSON.stringify(data.novel, null, 2));
+                     JSON.stringify(markChapterArtifact(data.novel, projectId, 'novel'), null, 2));
 
       // Script
       await writeFile(join(chapterPDir, 'script.json'),
-                     JSON.stringify(data.script, null, 2));
+                     JSON.stringify(markChapterArtifact(data.script, projectId, 'script'), null, 2));
 
       // Storyboard
       await writeFile(join(chapterPDir, 'storyboard.json'),
-                     JSON.stringify(data.storyboard, null, 2));
+                     JSON.stringify(markChapterArtifact(data.storyboard, projectId, 'storyboard'), null, 2));
 
       // Continuity
       await writeFile(join(chapterPDir, 'continuity.json'),
-                     JSON.stringify(data.continuity, null, 2));
+                     JSON.stringify(markChapterArtifact(data.continuity, projectId, 'analysis'), null, 2));
 
       // Exports metadata
       await writeFile(join(chapterPDir, 'exports.json'),
-                     JSON.stringify(data.exports, null, 2));
+                     JSON.stringify(markChapterArtifact(data.exports, projectId, 'export'), null, 2));
 
       // Remotion manifest and representative physical outputs
       await writeFile(join(chapterPDir, 'remotion.json'),
-                     JSON.stringify(data.remotion, null, 2));
+                     JSON.stringify(markChapterArtifact(data.remotion, projectId, 'remotion'), null, 2));
       const storyboardDir = join(pDir, 'workflow-images', 'storyboards', `chapter-${index}`);
       const exportDir = join(pDir, 'exports', `chapter-${index}`);
       const remotionDir = join(pDir, 'remotion', `chapter-${index}`);
@@ -828,43 +841,43 @@ async function generateFixture() {
       console.log(`    ✓ Chapter ${index} artifacts written`);
     }
 
-    // Write chapter-exclusive backup file (.bak)
-    console.log('💾 Writing chapter-exclusive backup file...');
-    const backupDir = join(pDir, '.backups');
+    // Write one registered chapter-exclusive backup per chapter.  The
+    // directory is intentionally visible to the inventory scanner (a hidden
+    // directory would be skipped as implementation noise).
+    console.log('💾 Writing chapter-exclusive backup files...');
+    const backupDir = join(pDir, 'backups');
     await ensureDir(backupDir);
+    for (const { index, data } of chapterDataList) {
+      const backupData = {
+        _type: 'chapter-exclusive-backup',
+        _version: '1.0.0',
+        _generatedAt: new Date().toISOString(),
+        projectId,
+        chapterIndex: index,
+        backupRef: `chapter-${index}-pre-export-checkpoint`,
+        snapshot: {
+          novel: data.novel,
+          script: data.script,
+          includesVariantAssets: true,
+          variantIds: data._internal.characters.map(c => c.id)
+        },
+        metadata: {
+          purpose: 'pre-export-snapshot',
+          recoverable: true,
+          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+        }
+      };
 
-    const backupData = {
-      _type: 'chapter-exclusive-backup',
-      _version: '1.0.0',
-      _generatedAt: new Date().toISOString(),
-      projectId,
-      chapterIndex: 2,
-      backupRef: 'chapter-2-pre-export-checkpoint',
-      snapshot: {
-        novel: chapterDataList.find(c => c.index === 2)?.data.novel,
-        script: chapterDataList.find(c => c.index === 2)?.data.script,
-        includesVariantAssets: true,
-        variantIds: chapterDataList.find(c => c.index === 2)?.data._internal.characters.map(c => c.id)
-      },
-      metadata: {
-        purpose: 'pre-export-snapshot',
-        recoverable: true,
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
-      }
-    };
-
-    await writeFile(join(backupDir, 'chapter-2-pre-export.json.bak'),
-                   JSON.stringify(backupData, null, 2));
+      await writeFile(join(backupDir, `chapter-${index}-pre-export.json.bak`),
+                     JSON.stringify(backupData, null, 2));
+    }
 
     // Write registered multi-chapter mixed-JSON backup format
     console.log('🗄️  Writing mixed-backup-sample-v1.json (registered DAO-2024-009 format)...');
     // Keep generated data entirely inside the temporary fixture.  The checked-in
     // redacted regression fixture is a stable input and must never be overwritten
     // with timestamped synthetic data by this generator.
-    const fixturesDir = join(baseTempDir, 'fixtures');
-    await ensureDir(fixturesDir);
-
-    const mixedBackupPath = join(fixturesDir, 'mixed-backup-sample-v1.json.bak');
+    const mixedBackupPath = join(backupDir, 'mixed-backup-sample-v1.json.bak');
     const mixedBackup = await generateMixedBackupSample(
       mixedBackupPath,
       projectId
@@ -877,7 +890,7 @@ async function generateFixture() {
     console.log(`   Total chapters: ${chapters.length}`);
     console.log(`   Chapters: ${chapters.map(c => c.id).join(', ')}`);
     console.log(`   Shared assets: ${Object.keys(sharedAssets).filter(k => k !== 'metadata').length} bundles`);
-    console.log(`   Backup files: 2 (.bak + mixed JSON)`);
+    console.log(`   Backup files: ${chapters.length + 1} (.bak + mixed JSON)`);
     console.log(`   Temp directory: ${baseTempDir}`);
     console.log(`   Fixture registry: ${mixedBackupPath}`);
 

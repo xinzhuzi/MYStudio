@@ -12,6 +12,7 @@ import {
   probeVideoWorkflowAlignmentRuntime,
   probeVideoWorkflowRuntime,
   resolveVideoWorkflowRuntimePaths,
+  selectSharedVideoToolchain,
   isHyperFramesDoctorReady,
 } from "./video-workflow-runtime";
 
@@ -64,6 +65,26 @@ describe("video workflow runtime", () => {
     expect(paths.ffmpegExecutable).toBe("/shared/ffmpeg");
   });
 
+  it("selects one existing shared pair without replacing a partial explicit override", () => {
+    expect(selectSharedVideoToolchain({
+      configuredFfmpeg: "/custom/ffmpeg",
+      configuredFfprobe: "",
+      bundledFfmpeg: "/bundle/ffmpeg",
+      bundledFfprobe: "/bundle/ffprobe",
+      platform: "darwin",
+      fileExists: () => true,
+    })).toEqual({ ffmpegExecutable: "/custom/ffmpeg", ffprobeExecutable: "" });
+    expect(selectSharedVideoToolchain({
+      bundledFfmpeg: "/bundle/ffmpeg",
+      bundledFfprobe: "/bundle/ffprobe",
+      platform: "darwin",
+      fileExists: (filePath) => filePath.startsWith("/opt/homebrew/bin/"),
+    })).toEqual({
+      ffmpegExecutable: "/opt/homebrew/bin/ffmpeg",
+      ffprobeExecutable: "/opt/homebrew/bin/ffprobe",
+    });
+  });
+
   it("reports missing shared runtimes without downloading or creating a venv", async () => {
     const paths = resolveVideoWorkflowRuntimePaths("/tmp/mystudio-storage", "darwin");
     const result = await probeVideoWorkflowRuntime(paths, {
@@ -101,7 +122,11 @@ describe("video workflow runtime", () => {
           || filePath === paths.videoUseMarkerPath
           || filePath === paths.videoUseLockPath,
         execFile: async (_file, args) => ({
-          stdout: args[0] === "--version" ? "Python 3.12.7" : "ffmpeg version 7.1.1",
+          stdout: args[0] === "--version"
+            ? "Python 3.12.7"
+            : args.includes("-filters")
+              ? " T.. apad A->A Pad audio\n ... tpad V->V Pad video"
+              : "ffmpeg version 7.1.1",
           stderr: "",
         }),
       });
@@ -113,38 +138,142 @@ describe("video workflow runtime", () => {
     }
   });
 
+  it("reports a pinned video-use revision change as update-available", async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "mystudio-video-use-runtime-"));
+    try {
+      const paths = resolveVideoWorkflowRuntimePaths(root, "darwin");
+      fs.mkdirSync(path.dirname(paths.videoUseLockPath), { recursive: true });
+      fs.writeFileSync(paths.videoUseLockPath, "lock\n", "utf8");
+      fs.writeFileSync(paths.videoUseMarkerPath, JSON.stringify({
+        ...buildVideoUseProfileMarker(paths, crypto.createHash("sha256").update("lock\n").digest("hex")),
+        sourceCommit: "previous-video-use-commit",
+      }), "utf8");
+      const result = await probeVideoUseRuntime(paths, {
+        fileExists: (filePath) => filePath === paths.pythonExecutable
+          || filePath === paths.videoUseMarkerPath
+          || filePath === paths.videoUseLockPath,
+        execFile: async (_file, args) => ({
+          stdout: args[0] === "--version"
+            ? "Python 3.12.7"
+            : args.includes("-filters")
+              ? " T.. apad A->A Pad audio\n ... tpad V->V Pad video"
+              : "ffmpeg version 7.1.1",
+          stderr: "",
+        }),
+      });
+      expect(result.state).toBe("update-available");
+      expect(result.missing).toEqual(["video-use-update-available"]);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("blocks video-use when the shared FFmpeg pair lacks required padding filters", async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "mystudio-video-use-runtime-"));
+    try {
+      const paths = resolveVideoWorkflowRuntimePaths(root, "darwin");
+      fs.mkdirSync(path.dirname(paths.videoUseLockPath), { recursive: true });
+      fs.writeFileSync(paths.videoUseLockPath, "lock\n", "utf8");
+      fs.writeFileSync(paths.videoUseMarkerPath, JSON.stringify(buildVideoUseProfileMarker(
+        paths,
+        crypto.createHash("sha256").update("lock\n").digest("hex"),
+      )), "utf8");
+      const result = await probeVideoUseRuntime(paths, {
+        fileExists: (filePath) => filePath === paths.pythonExecutable
+          || filePath === paths.videoUseMarkerPath
+          || filePath === paths.videoUseLockPath,
+        execFile: async (_file, args) => ({
+          stdout: args[0] === "--version"
+            ? "Python 3.12.7"
+            : args.includes("-filters")
+              ? " T.. apad A->A Pad audio"
+              : "ffmpeg version 7.1.1",
+          stderr: "",
+        }),
+      });
+      expect(result.state).toBe("blocked");
+      expect(result.missing).toContain("ffmpeg-filter-tpad");
+      expect(result.message).toContain("ffmpeg-filter-tpad");
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("allows HyperFrames to probe independently from managed Python", async () => {
-    const paths = resolveVideoWorkflowRuntimePaths("/tmp/mystudio-storage", "darwin");
-    const result = await probeHyperFramesRuntime(paths, {
-      fileExists: (filePath) => filePath === paths.nodeExecutable
-        || filePath === paths.hyperFramesMarkerPath
-        || filePath === paths.hyperFramesCliPath
-        || filePath === paths.hyperFramesBrowserPath
-        || filePath === paths.ffmpegExecutable
-        || filePath === paths.ffprobeExecutable,
-      execFile: async (_file, args) => {
-        if (args[0] === "--version") return { stdout: "v22.14.0", stderr: "" };
-        if (args.includes("doctor") && args.includes("--json")) return { stdout: JSON.stringify({
-          ok: true,
-          checks: [
-            { name: "Version", ok: true },
-            { name: "Node.js", ok: true },
-            { name: "FFmpeg", ok: true },
-            { name: "FFprobe", ok: true },
-            { name: "Chrome", ok: true },
-          ],
-        }), stderr: "" };
-        if (args.includes("browser") && args.includes("path")) return { stdout: `${paths.hyperFramesBrowserPath}\n`, stderr: "" };
-        return { stdout: "ffmpeg version 7.1.1", stderr: "" };
-      },
-    });
-    expect(result.state).toBe("ready");
-    expect(result.missing).toEqual([]);
-    expect(result.versions.browser).toBe(paths.hyperFramesBrowserPath);
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "mystudio-hyperframes-runtime-"));
+    try {
+      const paths = resolveVideoWorkflowRuntimePaths(root, "darwin");
+      fs.mkdirSync(path.dirname(paths.hyperFramesMarkerPath), { recursive: true });
+      fs.writeFileSync(paths.hyperFramesMarkerPath, JSON.stringify(buildHyperFramesProfileMarker(paths)), "utf8");
+      const result = await probeHyperFramesRuntime(paths, {
+        fileExists: (filePath) => filePath === paths.nodeExecutable
+          || filePath === paths.hyperFramesMarkerPath
+          || filePath === paths.hyperFramesCliPath
+          || filePath === paths.hyperFramesBrowserPath
+          || filePath === paths.ffmpegExecutable
+          || filePath === paths.ffprobeExecutable,
+        execFile: async (_file, args) => {
+          if (args[0] === "--version") return { stdout: "v22.14.0", stderr: "" };
+          if (args.includes("-filters")) return { stdout: " T.. apad A->A Pad audio\n ... tpad V->V Pad video", stderr: "" };
+          if (args.includes("doctor") && args.includes("--json")) return { stdout: JSON.stringify({
+            ok: true,
+            checks: [
+              { name: "Version", ok: true },
+              { name: "Node.js", ok: true },
+              { name: "FFmpeg", ok: true },
+              { name: "FFprobe", ok: true },
+              { name: "Chrome", ok: true },
+            ],
+          }), stderr: "" };
+          if (args.includes("browser") && args.includes("path")) return { stdout: `${paths.hyperFramesBrowserPath}\n`, stderr: "" };
+          return { stdout: "ffmpeg version 7.1.1", stderr: "" };
+        },
+      });
+      expect(result.state).toBe("ready");
+      expect(result.missing).toEqual([]);
+      expect(result.versions.browser).toBe(paths.hyperFramesBrowserPath);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("reports a pinned HyperFrames package change as update-available", async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "mystudio-hyperframes-runtime-"));
+    try {
+      const paths = resolveVideoWorkflowRuntimePaths(root, "darwin");
+      fs.mkdirSync(path.dirname(paths.hyperFramesMarkerPath), { recursive: true });
+      fs.writeFileSync(paths.hyperFramesMarkerPath, JSON.stringify({
+        ...buildHyperFramesProfileMarker(paths),
+        sourceCommit: "previous-hyperframes-commit",
+        npmVersion: "0.7.100",
+      }), "utf8");
+      const result = await probeHyperFramesRuntime(paths, {
+        fileExists: (filePath) => filePath === paths.nodeExecutable
+          || filePath === paths.hyperFramesMarkerPath
+          || filePath === paths.hyperFramesCliPath
+          || filePath === paths.ffmpegExecutable
+          || filePath === paths.ffprobeExecutable,
+        execFile: async (_file, args) => ({
+          stdout: args[0] === "--version"
+            ? "v22.14.0"
+            : args.includes("-filters")
+              ? " T.. apad A->A Pad audio\n ... tpad V->V Pad video"
+              : "ffmpeg version 7.1.1",
+          stderr: "",
+        }),
+      });
+      expect(result.state).toBe("update-available");
+      expect(result.missing).toEqual(["hyperframes-update-available"]);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
   });
 
   it("fails closed on doctor ok=false without attempting browser path or ensure", async () => {
-    const paths = resolveVideoWorkflowRuntimePaths("/tmp/mystudio-storage", "darwin");
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "mystudio-hyperframes-runtime-"));
+    const paths = resolveVideoWorkflowRuntimePaths(root, "darwin");
+    fs.mkdirSync(path.dirname(paths.hyperFramesMarkerPath), { recursive: true });
+    fs.writeFileSync(paths.hyperFramesMarkerPath, JSON.stringify(buildHyperFramesProfileMarker(paths)), "utf8");
     const calls: string[][] = [];
     const result = await probeHyperFramesRuntime(paths, {
       fileExists: (filePath) => filePath === paths.nodeExecutable
@@ -156,12 +285,14 @@ describe("video workflow runtime", () => {
       execFile: async (_file, args) => {
         calls.push(args);
         if (args[0] === "--version") return { stdout: "v22.14.0", stderr: "" };
+        if (args.includes("-filters")) return { stdout: " T.. apad A->A Pad audio\n ... tpad V->V Pad video", stderr: "" };
         return { stdout: JSON.stringify({ ok: false, checks: [{ name: "Chrome", ok: false }] }), stderr: "" };
       },
     });
     expect(result.state).toBe("blocked");
     expect(result.missing).toContain("hyperframes-doctor");
     expect(calls.some((args) => args.includes("browser") && args.includes("path"))).toBe(false);
+    fs.rmSync(root, { recursive: true, force: true });
   });
 
   it("accepts HyperFrames doctor failures that are optional authoring integrations", () => {
@@ -190,7 +321,10 @@ describe("video workflow runtime", () => {
   });
 
   it("requires an absolute browser path and never invokes browser ensure implicitly", async () => {
-    const paths = resolveVideoWorkflowRuntimePaths("/tmp/mystudio-storage", "darwin");
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "mystudio-hyperframes-runtime-"));
+    const paths = resolveVideoWorkflowRuntimePaths(root, "darwin");
+    fs.mkdirSync(path.dirname(paths.hyperFramesMarkerPath), { recursive: true });
+    fs.writeFileSync(paths.hyperFramesMarkerPath, JSON.stringify(buildHyperFramesProfileMarker(paths)), "utf8");
     const result = await probeHyperFramesRuntime({ ...paths, hyperFramesBrowserPath: "" }, {
       fileExists: (filePath) => filePath === paths.nodeExecutable
         || filePath === paths.hyperFramesMarkerPath
@@ -198,12 +332,17 @@ describe("video workflow runtime", () => {
         || filePath === paths.ffmpegExecutable
         || filePath === paths.ffprobeExecutable,
       execFile: async (_file, args) => ({
-        stdout: args[0] === "--version" ? "v22.14.0" : "",
+        stdout: args[0] === "--version"
+          ? "v22.14.0"
+          : args.includes("-filters")
+            ? " T.. apad A->A Pad audio\n ... tpad V->V Pad video"
+            : "",
         stderr: "",
       }),
     });
     expect(result.state).toBe("needs-runtime");
     expect(result.missing).toEqual(["browser-path"]);
+    fs.rmSync(root, { recursive: true, force: true });
   });
 
   it("does not leave a partial marker when writing a valid marker", () => {

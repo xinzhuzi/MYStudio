@@ -59,6 +59,17 @@ describe("main process startup", () => {
     expect(mainSource).toContain("path.join(process.env.APP_ROOT ?? path.join(__dirname, '../..'), 'backend')");
   });
 
+  it("binds flat-shot projection to the accepted artifact and clean MP4 SHA", () => {
+    const flatProjectionBlock = mainSource.slice(
+      mainSource.indexOf("projectionGate.mode === 'flat-shot-mp4'"),
+      mainSource.indexOf("const currentShotSlots: RemotionCurrentSlotV1[] = []"),
+    );
+    expect(flatProjectionBlock).toContain("videoUseFlatShotMp4Sha256");
+    expect(flatProjectionBlock).toContain("clip.source.evidence.sourceFingerprint !== projectionGate.videoUseArtifactSha256");
+    expect(flatProjectionBlock).toContain("crypto.createHash('sha256')");
+    expect(flatProjectionBlock).toContain("flat-shot-mp4 clean MP4 SHA-256 已漂移");
+  });
+
   it("does not initialize the independent asset library before asset IPC is used", () => {
     const readyBlock = mainSource.slice(
       mainSource.indexOf("app.whenReady().then"),

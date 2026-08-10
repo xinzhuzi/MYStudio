@@ -8,7 +8,7 @@ import type {
 } from "@rendering/contracts/video-workflow-ipc";
 import type { VideoWorkflowPluginId, VideoWorkflowPluginStatusV1 } from "@rendering/contracts/video-workflow";
 
-type PluginAction = "prepare" | "repair" | "rollback";
+type PluginAction = "prepare" | "update" | "repair" | "rollback";
 
 function caughtMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
@@ -57,9 +57,11 @@ export function useVideoWorkflowPlugins() {
       const request: VideoWorkflowPluginActionRequestV1 = { pluginId };
       const reply = action === "prepare"
         ? await bridge.prepare(request)
-        : action === "repair"
-          ? await bridge.repair(request)
-          : await bridge.rollback(request);
+        : action === "update"
+          ? await bridge.update(request)
+          : action === "repair"
+            ? await bridge.repair(request)
+            : await bridge.rollback(request);
       applyReply(reply);
       return reply;
     } catch (errorValue) {
@@ -118,6 +120,7 @@ export function useVideoWorkflowPlugins() {
     busyAction,
     refresh,
     prepare: (pluginId: VideoWorkflowPluginId) => runAction(pluginId, "prepare"),
+    update: (pluginId: VideoWorkflowPluginId) => runAction(pluginId, "update"),
     repair: (pluginId: VideoWorkflowPluginId) => runAction(pluginId, "repair"),
     rollback: (pluginId: VideoWorkflowPluginId) => runAction(pluginId, "rollback"),
     review,

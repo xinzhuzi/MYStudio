@@ -10,6 +10,8 @@ import {
 import {
   createRemotionChapterRenderIdentity,
   RemotionChapterRenderer,
+  pathsEquivalent,
+  resolveEditableChapterVisualInput,
 } from "./remotion-chapter-renderer";
 
 describe("Remotion chapter identity", () => {
@@ -59,6 +61,62 @@ describe("Remotion chapter identity", () => {
       changedVoiceIdentity.inputHash,
       changedSlotIdentity.inputHash,
     ])).toHaveLength(4);
+  });
+});
+
+describe("Remotion chapter source projection", () => {
+  it("treats macOS /var and /private/var aliases as the same source path", () => {
+    expect(pathsEquivalent("/var/tmp/shot-001.mp4", "/private/var/tmp/shot-001.mp4")).toBe(true);
+    expect(resolveEditableChapterVisualInput({
+      requestedSourcePath: "/private/var/tmp/shot-001.mp4",
+      currentSlotPath: "/var/tmp/shot-001.mp4",
+      currentSlotSha256: "a".repeat(64),
+    })).toEqual({
+      sourcePath: "/private/var/tmp/shot-001.mp4",
+      expectedSha256: "a".repeat(64),
+      label: "shot_slot",
+    });
+  });
+
+  it("still requires derived evidence for a different source file", () => {
+    expect(() => resolveEditableChapterVisualInput({
+      requestedSourcePath: "/var/tmp/shot-002.mp4",
+      currentSlotPath: "/var/tmp/shot-001.mp4",
+      currentSlotSha256: "a".repeat(64),
+    })).toThrow("EDL 派生输入未通过 video-use gate");
+  });
+
+  it("consumes a verified video-use derived EDL input instead of silently reverting to the shot slot", () => {
+    const derived = resolveEditableChapterVisualInput({
+      requestedSourcePath: "/project/video-use/r2/derived-inputs/shot-001.mp4",
+      currentSlotPath: "/project/remotion/outputs/shots/chapter-001/shot-001/current.mp4",
+      currentSlotSha256: "a".repeat(64),
+      sourceFingerprint: "b".repeat(64),
+      gate: {
+        accepted: true,
+        mode: "editable-edl",
+        videoUseArtifactSha256: "b".repeat(64),
+        hyperFramesStatus: "noop",
+        videoUseDerivedInputs: [{
+          schemaVersion: 1,
+          kind: "padded-video",
+          derivation: "ffmpeg-tpad-clone-apad",
+          sourcePath: "/project/remotion/outputs/shots/chapter-001/shot-001/current.mp4",
+          sourceSha256: "a".repeat(64),
+          sourceDurationUs: 1,
+          derivedPath: "/project/video-use/r2/derived-inputs/shot-001.mp4",
+          derivedSha256: "c".repeat(64),
+          derivedDurationUs: 2,
+          derivedRevision: 2,
+          createdAt: 1,
+        }],
+      },
+    });
+    expect(derived).toEqual({
+      sourcePath: "/project/video-use/r2/derived-inputs/shot-001.mp4",
+      expectedSha256: "c".repeat(64),
+      label: "derived_input",
+    });
   });
 });
 

@@ -370,6 +370,7 @@ declare global {
     videoWorkflowPlugins?: {
       status: () => Promise<VideoWorkflowStatusReplyV1>;
       prepare: (request: VideoWorkflowPluginActionRequestV1) => Promise<VideoWorkflowActionReplyV1>;
+      update: (request: VideoWorkflowPluginActionRequestV1) => Promise<VideoWorkflowActionReplyV1>;
       repair: (request: VideoWorkflowPluginActionRequestV1) => Promise<VideoWorkflowActionReplyV1>;
       rollback: (request: VideoWorkflowPluginActionRequestV1) => Promise<VideoWorkflowActionReplyV1>;
       review: (request: VideoWorkflowReviewRequestV1) => Promise<VideoWorkflowReviewReplyV1>;

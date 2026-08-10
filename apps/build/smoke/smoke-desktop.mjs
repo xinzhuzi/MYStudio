@@ -125,7 +125,7 @@ const CORE_ROUTE_CHECKS = [
   },
   {
     label: "设置",
-    requiredText: ["系统设置", "外观", "Python 配置"],
+    requiredText: ["系统设置", "外观", "插件配置"],
   },
   {
     label: "自媒体",
@@ -953,8 +953,8 @@ async function inspectPage(pageTarget) {
     const scriptAssetGenerationVoiceFlow =
       await verifyScriptAssetGenerationVoiceFlow(evaluate);
 
-    console.log("[smoke] checking Python settings");
-    const pythonSettings = await verifyPythonSettings(evaluate);
+    console.log("[smoke] checking plugin settings");
+    const pluginSettings = await verifyPluginSettings(evaluate);
 
     const remotionExport = runRemotionExportSmoke
       ? await verifyRemotionExport(evaluate)
@@ -975,7 +975,7 @@ async function inspectPage(pageTarget) {
       workflowStepwise,
       assetVoiceFlow,
       scriptAssetGenerationVoiceFlow,
-      pythonSettings,
+      pluginSettings,
       remotionExport,
       screenshot,
     };
@@ -1152,7 +1152,7 @@ async function verifyWorkflowStages(evaluate) {
   );
 }
 
-async function verifyPythonSettings(evaluate) {
+async function verifyPluginSettings(evaluate) {
   return evaluate(
     `(() => {
     const normalize = (node) => (node.textContent || '').replace(/\\s+/g, ' ').trim();
@@ -1172,14 +1172,14 @@ async function verifyPythonSettings(evaluate) {
 
     return new Promise((resolve) => setTimeout(() => {
       const tabButtons = Array.from(document.querySelectorAll('button'));
-      const pythonTab = tabButtons.find((node) => normalize(node) === 'Python 配置' || normalize(node).includes('Python 配置'));
-      activate(pythonTab);
+      const pluginTab = tabButtons.find((node) => normalize(node) === '插件配置' || normalize(node).includes('插件配置'));
+      activate(pluginTab);
 
       setTimeout(() => {
         const bodyText = document.body.innerText;
         const requiredText = [
-          'Python 运行环境',
-          '不随应用启动自动配置',
+          'Python 依赖',
+          '所有本地 TTS、video-use Python worker 和 MLX 对齐都复用应用管理的 Python',
           '开始配置',
           '安装明细',
           'Python 使用路径',
@@ -1191,8 +1191,8 @@ async function verifyPythonSettings(evaluate) {
         ];
         resolve({
           clickedSettings: Boolean(settingsButton),
-          clickedPythonTab: Boolean(pythonTab),
-          pythonTabState: pythonTab?.getAttribute('data-state') || '',
+          clickedPluginTab: Boolean(pluginTab),
+          pluginTabState: pluginTab?.getAttribute('data-state') || '',
           activeTabText: tabButtons.find((node) => node.getAttribute('data-state') === 'active')?.textContent?.replace(/\\s+/g, ' ').trim() || '',
           hasRequiredText: requiredText.every((text) => bodyText.includes(text)),
           missingRequiredText: requiredText.filter((text) => !bodyText.includes(text)),
@@ -1272,13 +1272,13 @@ async function prepareRemotionBrowserDownload(evaluate) {
       const settingsButton = navButtons.find((node) => normalize(node).includes('设置'));
       result.settings.clickedSettings = activate(settingsButton);
       await waitFor(
-        () => Array.from(document.querySelectorAll('.settings-tabs-bar button')).some((node) => normalize(node) === '渲染'),
+        () => Array.from(document.querySelectorAll('.settings-tabs-bar button')).some((node) => normalize(node) === '插件配置'),
         10_000,
-        'rendering settings tab',
+        'plugin settings tab',
       );
-      const renderingTab = Array.from(document.querySelectorAll('.settings-tabs-bar button'))
-        .find((node) => normalize(node) === '渲染');
-      result.settings.clickedRenderingTab = activate(renderingTab);
+      const pluginTab = Array.from(document.querySelectorAll('.settings-tabs-bar button'))
+        .find((node) => normalize(node) === '插件配置');
+      result.settings.clickedPluginTab = activate(pluginTab);
       await waitFor(() => document.body.innerText.includes('Remotion Headless Shell'), 10_000, 'Remotion settings panel');
 
       const remotionOption = Array.from(document.querySelectorAll('[role="radio"]'))
@@ -1476,13 +1476,13 @@ async function verifyRemotionExport(evaluate) {
         const settingsButton = navButtons.find((node) => normalize(node).includes('设置'));
         result.settings.clickedSettings = activate(settingsButton);
         await waitFor(
-          () => Array.from(document.querySelectorAll('.settings-tabs-bar button')).some((node) => normalize(node) === '渲染'),
+          () => Array.from(document.querySelectorAll('.settings-tabs-bar button')).some((node) => normalize(node) === '插件配置'),
           10_000,
-          'rendering settings tab',
+          'plugin settings tab',
         );
-        const renderingTab = Array.from(document.querySelectorAll('.settings-tabs-bar button'))
-          .find((node) => normalize(node) === '渲染');
-        result.settings.clickedRenderingTab = activate(renderingTab);
+        const pluginTab = Array.from(document.querySelectorAll('.settings-tabs-bar button'))
+          .find((node) => normalize(node) === '插件配置');
+        result.settings.clickedPluginTab = activate(pluginTab);
         await waitFor(() => document.body.innerText.includes('Remotion Headless Shell'), 10_000, 'Remotion settings panel');
 
         const remotionOption = Array.from(document.querySelectorAll('[role="radio"]'))
@@ -2541,7 +2541,7 @@ function assertHealthy(
   workflowStepwise,
   assetVoiceFlow,
   scriptAssetGenerationVoiceFlow,
-  pythonSettings,
+  pluginSettings,
   remotionExport,
   remotionArtifact,
   screenshot,
@@ -2830,18 +2830,18 @@ function assertHealthy(
       "script asset generation voice assignment did not bind a character voice",
     );
   }
-  if (!pythonSettings.clickedSettings)
-    failures.push("settings route button not found for Python settings check");
-  if (!pythonSettings.clickedPythonTab)
-    failures.push("Python settings tab was not found");
-  if (!pythonSettings.hasRequiredText) {
+  if (!pluginSettings.clickedSettings)
+    failures.push("settings route button not found for plugin settings check");
+  if (!pluginSettings.clickedPluginTab)
+    failures.push("plugin settings tab was not found");
+  if (!pluginSettings.hasRequiredText) {
     failures.push(
-      `Python settings missing required content: ${pythonSettings.missingRequiredText.join(", ")}`,
+      `plugin settings missing Python section content: ${pluginSettings.missingRequiredText.join(", ")}`,
     );
   }
-  if (pythonSettings.forbiddenTextFound.length > 0) {
+  if (pluginSettings.forbiddenTextFound.length > 0) {
     failures.push(
-      `Python settings appears to auto-configure before user action: ${pythonSettings.forbiddenTextFound.join(", ")}`,
+      `plugin settings appears to auto-configure before user action: ${pluginSettings.forbiddenTextFound.join(", ")}`,
     );
   }
   if (runRemotionExportSmoke) {
@@ -2851,7 +2851,7 @@ function assertHealthy(
       failures.push(`Remotion export smoke failed: ${remotionExport?.error || "missing result"}`);
     }
     if (!remotionExport?.settings?.clickedSettings
-      || !remotionExport?.settings?.clickedRenderingTab
+      || !remotionExport?.settings?.clickedPluginTab
       || !remotionExport?.settings?.clickedRemotion
       || !remotionExport?.settings?.rendererSelected
       || !remotionExport?.settings?.hasRuntimeStatus) {
@@ -2932,7 +2932,7 @@ function assertHealthy(
           workflowStepwise,
           assetVoiceFlow,
           scriptAssetGenerationVoiceFlow,
-          pythonSettings,
+          pluginSettings,
           remotionExport,
           remotionArtifact,
           screenshot,
@@ -2957,7 +2957,7 @@ function assertHealthy(
         : `, remotionExport=ok, remotionSha256=${remotionArtifact.sha256}`
     : "";
   console.log(
-    `Desktop smoke passed: ${state.title}, rootChildren=${state.rootChildren}, bodyBg=${state.bodyBg}, routes=${routeChecks.length}, workflowE2E=ok${workflowStepwiseSummary}, assetVoiceFlow=ok, scriptAssetGenerationVoiceFlow=ok, pythonSettings=ok${remotionSummary}, whiteRatio=${screenshot.whiteRatio.toFixed(3)}, appBin=${appBin}`,
+    `Desktop smoke passed: ${state.title}, rootChildren=${state.rootChildren}, bodyBg=${state.bodyBg}, routes=${routeChecks.length}, workflowE2E=ok${workflowStepwiseSummary}, assetVoiceFlow=ok, scriptAssetGenerationVoiceFlow=ok, pluginSettings=ok${remotionSummary}, whiteRatio=${screenshot.whiteRatio.toFixed(3)}, appBin=${appBin}`,
   );
 }
 
@@ -3052,7 +3052,7 @@ try {
     workflowStepwise,
     assetVoiceFlow,
     scriptAssetGenerationVoiceFlow,
-    pythonSettings,
+    pluginSettings,
     remotionExport,
     screenshot,
   } = await inspectPage(page);
@@ -3078,7 +3078,7 @@ try {
     workflowStepwise,
     assetVoiceFlow,
     scriptAssetGenerationVoiceFlow,
-    pythonSettings,
+    pluginSettings,
     remotionExport,
     remotionArtifact,
     realMediaGeneration: runRemotionExportSmoke
@@ -3099,7 +3099,7 @@ try {
     workflowStepwise,
     assetVoiceFlow,
     scriptAssetGenerationVoiceFlow,
-    pythonSettings,
+    pluginSettings,
     remotionExport,
     remotionArtifact,
     screenshot,

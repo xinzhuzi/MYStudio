@@ -224,7 +224,9 @@ describe("preload IPC surface", () => {
 
   it("exposes validated video-workflow chapter restore without filesystem access", () => {
     expect(preloadSource).toContain("exposeInMainWorld('videoWorkflowPlugins'");
+    expect(preloadSource).toContain("ipcRenderer.invoke(VIDEO_WORKFLOW_UPDATE_CHANNEL, request)");
     expect(preloadSource).toContain("ipcRenderer.invoke(VIDEO_WORKFLOW_READ_CHAPTER_CHANNEL, request)");
+    expect(electronTypesSource).toContain("update: (request: VideoWorkflowPluginActionRequestV1)");
     expect(preloadSource).toContain("validateVideoWorkflowChapterReadReply(value)");
     expect(electronTypesSource).toContain("readChapter: (request: VideoWorkflowChapterReadRequestV1)");
     const bridgeBlock = preloadSource.slice(

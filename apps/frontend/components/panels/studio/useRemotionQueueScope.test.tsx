@@ -49,6 +49,7 @@ describe("useRemotionQueueScope", () => {
 
     const view = renderHook(() => useRemotionQueueScope("project-a", "chapter-001"));
     await waitFor(() => expect(view.result.current.jobs[0]?.status).toBe("running"));
+    expect(view.result.current.loaded).toBe(true);
     expect(get).toHaveBeenCalledWith({ projectId: "project-a", chapterId: "chapter-001" });
 
     jobs = [makeJob("succeeded")];
@@ -74,6 +75,7 @@ describe("useRemotionQueueScope", () => {
 
     const view = renderHook(() => useRemotionQueueScope("project-a", "chapter-001"));
     await waitFor(() => expect(view.result.current.currentShotSlots).toHaveLength(1));
+    expect(view.result.current.loaded).toBe(true);
     expect(view.result.current.currentShotSlots[0]?.target).toEqual(slot.target);
   });
 });

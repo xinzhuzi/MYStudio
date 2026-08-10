@@ -117,8 +117,8 @@ describe("LocalTtsPanel select controls", () => {
     const pythonSource = readFileSync(new URL("../settings/PythonSettingsTab.tsx", import.meta.url), "utf8");
     const hookSource = readFileSync(new URL("../settings/usePythonRuntimeSettings.ts", import.meta.url), "utf8");
 
-    expect(tabsSource).toContain('value: "python"');
-    expect(settingsSource).toContain("PythonSettingsTab");
+    expect(tabsSource).toContain('value: "plugins"');
+    expect(settingsSource).toContain("PluginSettingsTab");
     expect(pythonSource).toContain("Python 运行环境");
     expect(pythonSource).toContain("开始配置");
     expect(pythonSource).toContain("安装明细");

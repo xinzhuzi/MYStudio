@@ -571,6 +571,29 @@ export function buildDeletionPlan(
   const artifactMap = new Map<string, ArtifactRecord>();
   allArtifacts.forEach((a) => artifactMap.set(a.id, a));
 
+  // R18 is a contract-boundary rule, not only a UI convention: a batch must
+  // resolve to one concrete chapter before dependency traversal starts. When
+  // the renderer sends an empty chapterId for an artifact selection, derive
+  // the chapter from the selected records so traversal cannot widen into a
+  // sibling chapter. Unowned records remain individually reviewable (and are
+  // still blocked by their ownership policy), but they cannot form a batch.
+  const uniqueSelectedIds = [...new Set(selectedArtifactIds ?? [])];
+  if (uniqueSelectedIds.length > 0) {
+    const selectedChapterKeys = new Set(uniqueSelectedIds.map((id) => {
+      const selected = artifactMap.get(id);
+      return selected?.chapterId ?? "__unassigned__";
+    }));
+    const hasUnassigned = selectedChapterKeys.has("__unassigned__");
+    if (selectedChapterKeys.size > 1 || (hasUnassigned && uniqueSelectedIds.length > 1)) {
+      errors.push("scope-expanded-across-chapters: selected artifacts must belong to one chapter");
+    } else if (!chapterId) {
+      const [resolvedChapterId] = selectedChapterKeys;
+      if (resolvedChapterId && resolvedChapterId !== "__unassigned__") {
+        chapterId = resolvedChapterId;
+      }
+    }
+  }
+
   if (chapterId && !allArtifacts.some((artifact) => artifact.chapterId === chapterId)) {
     errors.push(`Chapter not found in project inventory: ${chapterId}`);
   }
@@ -667,8 +690,12 @@ export function buildDeletionPlan(
     sortedBlockers
   );
 
-  // Determine if execution is allowed (only blockers prevent it)
-  const executionAllowed = sortedBlockers.length === 0 && !backupImpact.some((impact) => impact.action === "block");
+  // Determine if execution is allowed. Validation errors (including a
+  // cross-chapter batch) fail closed just like dependency/backup blockers;
+  // callers must never be able to register the partially computed plan.
+  const executionAllowed = errors.length === 0
+    && sortedBlockers.length === 0
+    && !backupImpact.some((impact) => impact.action === "block");
 
   // Assemble final plan object
   const plan: DeletionPlan = {

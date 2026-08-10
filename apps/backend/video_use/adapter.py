@@ -600,6 +600,7 @@ def execute_pinned_adapter(
         "chapterId": request.get("chapterId"),
         "revision": request.get("revision"),
         "mode": mode,
+        **({"storyboardSourcePolicy": request["storyboardSourcePolicy"]} if request.get("storyboardSourcePolicy") in {"current-ready", "reuse-existing"} else {}),
         # The worker has completed the mechanical edit, but a person has not
         # approved the preview yet.  The Electron review boundary upgrades
         # this same revision to ready/accepted and writes the review sidecar.
@@ -638,6 +639,7 @@ def execute_pinned_adapter(
             "evaluatedAt": accepted_at,
         },
         **({"flatShotMp4Path": str(flat_path)} if flat_path else {}),
+        **({"flatShotMp4Sha256": sha256_file(flat_path)} if flat_path else {}),
         "evidence": {
             "inputSha256": input_sha,
             "artifactSha256": "0" * 64,

@@ -4,7 +4,7 @@
 
 如果需要从“第一步”一直看到最终 MP4 的数据交接、节点职责、JSON 边界和 Remotion 原生渲染细节，请先读 [从分镜到最终视频的完整链路](./WORKFLOW_FULL_VIDEO_PIPELINE.md)。
 
-> 当前正式链（2026-07-30）是 `AI 物料 -> Remotion StoryboardShot MP4 -> 原生 Remotion Studio -> Remotion ChapterVideo MP4`。FFmpeg 不再是正式 renderer、concat、loudnorm 或 Remotion 失败回退；`ffprobe` 仅做只读证据校验。每章分镜数量为动态 M，不受示例数量限制；一次只处理一个 active project/chapter。
+> 当前正式链（2026-08-10）是 `本地 TTS/shot binding -> Remotion StoryboardShot MP4 -> MLX 原文强制对齐 -> video-use 完整 EDL/字幕时间/调色/preview/self-eval -> 用户确认 -> EditingProject -> HyperFrames overlay/no-op -> 原生 Remotion Studio -> Remotion ChapterVideo MP4 -> final-output-qc`。video-use 必须先于 HyperFrames，且二者是每章默认必经门禁；失败、artifact 缺失、revision/input SHA 漂移或重复烧录均进入 `blocked`，不允许静默跳过。video-use 生成字幕时间与普通字幕数据并唯一投影到 Remotion；动效字幕只由 HyperFrames 生成透明 overlay，再交给 Remotion 合成。preview 可烧录字幕用于审阅，但该 preview 不得作为正式 MP4 输入。FFmpeg 不再是正式 renderer、concat、loudnorm 或 Remotion 失败回退，`ffprobe` 仅做共享工具链与只读证据校验。每章分镜数量为动态 M，不受示例数量限制；一次只处理一个 active project/chapter。
 
 ## 流程总览
 
@@ -16,8 +16,12 @@
   -> 剧本资产管理
   -> 分镜面板（每镜 Remotion 配置与 shot definitions）
   -> Remotion 视频生产（StoryboardShot 队列、current MP4/evidence）
+  -> 本地 MLX 对齐与 video-use（EDL、字幕时间、普通字幕、调色、preview、自评）
+  -> 用户确认并写入 EditingProject（默认 editable-edl，可切换 clean flat-shot-mp4）
+  -> HyperFrames（动效字幕/动效透明 overlay/no-op）
   -> 视频工作台（原生 Remotion Studio）
   -> ChapterVideo 章节 MP4
+  -> final-output-qc（只读）
 ```
 
 工作流页本身按阶段推进。每一章按当前阶段输入、生成和验收，完成一章后再进入下一章。整体重心参考 Toonflow 的 `策划 -> 编剧 -> 分镜 -> 出片`：策划编剧负责故事骨架、改编策略和结构化剧本；剧本资产管理负责导演规划、衍生资产和分镜表；分镜面板负责逐镜物料审核与配置；Remotion 视频生产节点负责 `StoryboardShot` 队列和 current evidence；视频工作台负责托管原生 Studio 并由 `ChapterVideo` 输出章节视频。
@@ -29,7 +33,7 @@
 1. 进入 `设置 -> API 管理 -> 模型服务`，添加供应商、Base URL、API Key 和模型列表。
 2. 进入 `设置 -> API 管理`，在 `服务映射` 区域为文本、图片、视频、TTS、视觉理解等能力绑定模型。
 3. 进入 `设置 -> API 管理 -> Agent 配置`，为通用AI、剧本草稿、事件分析、分镜分析、视觉提示词润色等任务绑定模型。
-4. 如果要使用本地 TTS、声音克隆或角色试听，进入 `设置 -> Python 配置`，点击 `开始配置`。
+4. 如果要使用本地 TTS、声音克隆或角色试听，进入 `设置 -> 插件配置`，在 `Python 运行环境` 区块点击 `开始配置`。
 5. 如果视频接口需要公网图片 URL，进入 `设置 -> 图床配置` 配置图床服务。
 
 Python 和 TTS 依赖不会在应用启动时自动配置。详细说明见 [Python 与本地 TTS 配置](../settings/PYTHON_TTS_SETUP.md)。
@@ -124,7 +128,18 @@ Python 和 TTS 依赖不会在应用启动时自动配置。详细说明见 [Pyt
 3. 任一镜头缺素材、审核 receipt、runtime/bridge 或证据时保持 fail-closed，只允许修正分镜或重试对应 job。
 4. 全部 required shot current slots 成功后，节点才满足进入工作台的门禁。按钮的模型 `targetStage` 是 `workbench`，但一次提交不等于章节工作台或 ChapterVideo 已完成。
 
-## 8. 视频工作台（原生 Remotion Studio）
+## 8. video-use 章节审阅与交接
+
+Remotion 分镜 current MP4/evidence 全部就绪后，章节先进入 video-use，而不是直接打开总时间线：
+
+1. 系统使用 `ttsSpokenText`、本地 TTS WAV 和 MLX Whisper alignment 生成单调的词/字及句子时间；不重新改写口播文本，也不以 Scribe 或 ElevenLabs 作为默认依赖。
+2. video-use 必须完整执行 EDL、普通字幕时间、调色、preview 和 self-eval。preview 可以带烧录字幕供审阅，但烧录层仅属于 preview artifact。
+3. 用户在视频工作台确认当前 revision 后，默认把秒制 EDL 转为可编辑 `EditingProjectV1`（`editable-edl`）；高级 `flat-shot-mp4` 只接收无最终字幕的 clean MP4，同时保留独立字幕与 overlay metadata。
+4. 缺少 alignment、EDL、preview/self-eval、用户确认、输入 SHA/revision 不一致，或发现 preview 字幕将被再次烧录时，章节保持 `blocked`，只能从失败阶段重试。
+
+普通字幕的唯一正式投影目标是 Remotion Caption track；动效字幕、装饰字和其他时间线动效只交给 HyperFrames 输出透明 overlay。两者不得对同一字幕再次烧录。
+
+## 9. 视频工作台（原生 Remotion Studio）
 
 进入 `工作流 -> 视频工作台`。
 
@@ -134,9 +149,9 @@ Python 和 TTS 依赖不会在应用启动时自动配置。详细说明见 [Pyt
 2. 点击 `准备 Remotion 章节工程`，系统将同章 shot slots 编译成 `EditingProjectV1` 和静态 TSX projection。
 3. 应用托管一个 loopback 动态端口 Studio server；同项目切章复用 server，切项目先释放 A 的 session/page/watcher/media/port。
 4. 在 Remotion 原生 Timeline、Inspector、Preview、Render 中编辑本章；MYStudio 只显示 job、blocked/error、revision 和 evidence。
-5. Studio 的 Render 通过 queue bridge 创建唯一 `ChapterVideo` job。Remotion `renderMedia` 直接生成章节 MP4，失败保持 blocked/error，不转 FFmpeg。
+5. Studio 的 Render 通过 queue bridge 创建唯一 `ChapterVideo` job。Remotion `renderMedia` 直接生成章节 MP4，失败保持 `blocked/error`，不转 FFmpeg；总视频输出后只执行只读 `final-output-qc`，任何修正都必须创建新 revision，重新经过 video-use、HyperFrames 和 Remotion gate。
 
-每章 workspace 记录位于 `_p/<projectId>/remotion/`：chapter manifest、shot/chapter jobs、evidence、current outputs 和 queue state 分开保存。新版只有在 probe、SHA、revision、input fingerprint 和 bundle identity 全部通过后才替换 current；失败/取消保留旧 current。完整字段和验收见 [从分镜到最终视频的完整链路](./WORKFLOW_FULL_VIDEO_PIPELINE.md)。
+每章 workspace 记录位于 `_p/<projectId>/remotion/`：chapter manifest、shot/chapter jobs、evidence、current outputs 和 queue state 分开保存。新版只有在 probe、SHA、revision、input fingerprint、video-use artifact、HyperFrames artifact 和 bundle identity 全部通过后才替换 current；失败/取消保留旧 current。完整字段和验收见 [从分镜到最终视频的完整链路](./WORKFLOW_FULL_VIDEO_PIPELINE.md)。
 
 ## 兼容与高级入口
 
@@ -147,7 +162,7 @@ Python 和 TTS 依赖不会在应用启动时自动配置。详细说明见 [Pyt
 | [视觉风格管理](../assets/VISUAL_STYLE_MANAGEMENT.md) | 默认风格、我的风格、视觉手册编辑和 AI 提取风格词 |
 | [兼容剧本编辑工作区](../director/LEGACY_SCRIPT_WORKSPACE_GUIDE.md) | 三栏剧本编辑、AI 校准、预告片挑选和角色/场景/导演跳转 |
 | [角色生成与衣橱](../assets/CHARACTER_GENERATION_GUIDE.md) | 角色定妆图、三视图、表情设定和造型变体 |
-| [高级导演与 S级镜头](../director/ADVANCED_DIRECTOR_TOOLS.md) | 单张图片切割、首尾帧、视角切换、四宫格和 Seedance 组级生成 |
+| [高级导演与 S级镜头](../director/ADVANCED_DIRECTOR_TOOLS.md) | 单张图片切割、首尾帧、视角切换和四宫格；Seedance Prompt Skill 仅保留为后续提示词研究，本轮不进入现行生成入口 |
 | [场景库多视角与四视图](../assets/SCENE_MULTIVIEW_GUIDE.md) | 场景单图、联合图、四视图和批量四视图 |
 
 新项目不需要先进入这些内部页面；只有当主流程中的按钮跳转过去，或需要做精修、兼容旧数据时再使用。
@@ -172,7 +187,7 @@ Python 和 TTS 依赖不会在应用启动时自动配置。详细说明见 [Pyt
 
 确认：
 
-- `设置 -> Python 配置` 已完成。
-- `设置 -> TTS 配置` 可以启动本地 TTS。
+- `设置 -> 插件配置 -> Python 运行环境` 已完成。
+- `设置 -> 插件配置 -> TTS 运行时与模型` 可以启动本地 TTS。
 - 角色已分配音色。
 - 音频样本路径仍然存在。

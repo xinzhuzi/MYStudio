@@ -53,6 +53,7 @@ describe("useVideoWorkflowPlugins", () => {
         calls.push(pluginId);
         return action(true);
       }),
+      update: vi.fn(async () => action(true)),
       repair: vi.fn(async () => action(true)),
       rollback: vi.fn(async () => action(true)),
     };
@@ -72,6 +73,7 @@ describe("useVideoWorkflowPlugins", () => {
     const bridge = {
       status: vi.fn(async () => status({ "video-use": "blocked" })),
       prepare: vi.fn(async () => action(false, "本地模型未准备")),
+      update: vi.fn(async () => action(true)),
       repair: vi.fn(async () => action(true)),
       rollback: vi.fn(async () => action(true)),
     };
@@ -89,10 +91,31 @@ describe("useVideoWorkflowPlugins", () => {
     expect(result.current.error).toBe("本地模型未准备");
   });
 
+  it("routes a manual plugin update through the typed bridge", async () => {
+    const bridge = {
+      status: vi.fn(async () => status({ "video-use": "update-available" })),
+      prepare: vi.fn(async () => action(true)),
+      update: vi.fn(async () => action(true)),
+      repair: vi.fn(async () => action(true)),
+      rollback: vi.fn(async () => action(true)),
+    };
+    Object.defineProperty(window, "videoWorkflowPlugins", { value: bridge, configurable: true });
+
+    const { result } = renderHook(() => useVideoWorkflowPlugins());
+    await waitFor(() => expect(bridge.status).toHaveBeenCalledOnce());
+
+    await act(async () => {
+      await result.current.update("video-use");
+    });
+
+    expect(bridge.update).toHaveBeenCalledWith({ pluginId: "video-use" });
+  });
+
   it("reports unsupported review bridge instead of pretending acceptance", async () => {
     const bridge = {
       status: vi.fn(async () => status()),
       prepare: vi.fn(async () => action(true)),
+      update: vi.fn(async () => action(true)),
       repair: vi.fn(async () => action(true)),
       rollback: vi.fn(async () => action(true)),
     };

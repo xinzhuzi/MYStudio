@@ -162,6 +162,7 @@ export function useStudioViewModel() {
     activeProjectId: activeProject?.id,
     productionEpisodeId,
     handleProductionNodeAction,
+    onVideoUseReviewRequired: () => handleStageChange("workbench"),
   });
   const handleProductionFlowNodeAction = useCallback(
     async (action: ProductionFlowNodeAction) => {

@@ -49,7 +49,11 @@ import {
 
 const purposeGroups = groupTtsModelsByPurpose();
 
-export function LocalTtsPanel() {
+type LocalTtsPanelProps = {
+  embedded?: boolean;
+};
+
+export function LocalTtsPanel({ embedded = false }: LocalTtsPanelProps) {
   const [runtimeStatus, setRuntimeStatus] = useState<TtsRuntimeStatus | null>(null);
   const [modelCacheInfo, setModelCacheInfo] = useState<TtsModelCacheInfo | null>(null);
   const [rows, setRows] = useState<TtsModelRow[]>(() => applyModelStatuses([]));
@@ -456,9 +460,8 @@ export function LocalTtsPanel() {
   const selectedProgress = selectedModel ? progressByModel[selectedModel.modelName] : undefined;
   const selectedState = selectedModel ? getLocalTtsModelState(selectedModel, selectedProgress) : "missing";
 
-  return (
-    <ScrollArea className="h-full">
-      <div className="p-8 max-w-6xl mx-auto space-y-6">
+  const content = (
+    <div className="p-8 max-w-6xl mx-auto space-y-6">
         <LocalTtsRuntimeCard
           runtimeStatus={runtimeStatus}
           modelCacheInfo={modelCacheInfo}
@@ -523,8 +526,12 @@ export function LocalTtsPanel() {
           onReferencePath={setNewProfileReferencePath} onReferenceText={setNewProfileReferenceText} onInstruct={setNewProfileInstruct}
           onUpload={event => void handleReferenceAudioUpload(event)} onCreate={handleCreateProfile}
         />
-      </div>
+    </div>
+  );
 
+  return (
+    <>
+      {embedded ? content : <ScrollArea className="h-full">{content}</ScrollArea>}
       <LocalTtsModelDetailsDialog
         selectedModel={selectedModel}
         selectedState={selectedState}
@@ -536,6 +543,6 @@ export function LocalTtsPanel() {
         onUnload={(row) => void handleUnload(row)}
         onDelete={(row) => void handleDelete(row)}
       />
-    </ScrollArea>
+    </>
   );
 }

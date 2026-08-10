@@ -1827,6 +1827,8 @@ describe("workflow stage action surfaces", () => {
     expect(preview.getAttribute("data-video-use-status")).toBe("idle");
     expect(preview.getAttribute("data-video-use-mode")).toBe("editable-edl");
     expect(preview.getAttribute("data-video-use-derived-input-policy")).toBe("reject");
+    expect(preview.getAttribute("data-video-use-storyboard-source-policy")).toBe("current-ready");
+    expect((screen.getByRole("combobox", { name: "分镜来源" }) as HTMLSelectElement).value).toBe("current-ready");
     expect(screen.getByRole("button", { name: "运行 video-use 预览" }).hasAttribute("data-video-use-run")).toBe(true);
     expect(preview.querySelector("[data-video-use-input-sha]")?.getAttribute("data-video-use-input-sha")).toBe("");
     expect(preview.querySelector("[data-hyperframes-status]")?.getAttribute("data-hyperframes-status")).toBe("idle");

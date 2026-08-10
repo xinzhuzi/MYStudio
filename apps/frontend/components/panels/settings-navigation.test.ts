@@ -38,9 +38,13 @@ describe("SettingsPanel navigation", () => {
     const labels = SETTINGS_TABS.map((tab) => tab.label);
     expect(labels).not.toContain("工作流配置");
     expect(labels).not.toContain("本地 TTS");
+    expect(labels).not.toContain("Python 配置");
+    expect(labels).not.toContain("TTS 配置");
+    expect(labels).not.toContain("视频工作流插件");
     expect(labels).toEqual(expect.arrayContaining([
       "API 管理",
       "图片规格",
+      "插件配置",
       "高级选项",
       "图床配置",
       "存储",
@@ -117,7 +121,7 @@ describe("SettingsPanel navigation", () => {
       "utf8",
     );
 
-    expect(settingsSource).toContain("<PythonSettingsTab />");
+    expect(settingsSource).toContain("<PluginSettingsTab />");
     expect(settingsSource).not.toContain("setupTtsRuntime");
     expect(pythonSource).toContain("usePythonRuntimeSettings");
     expect(hookSource).toContain("stopSetupPolling");

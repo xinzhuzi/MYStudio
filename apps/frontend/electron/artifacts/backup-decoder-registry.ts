@@ -351,6 +351,108 @@ const ZUSTAND_PROJECT_STATE_DECODER: MixedBackupDecoder = {
 registerBackupDecoder(ZUSTAND_PROJECT_STATE_DECODER);
 
 /**
+ * Explicit snapshot format used by the generated multi-chapter deletion
+ * fixture.  The marker is intentionally mandatory: a chapterId in an
+ * arbitrary JSON file is not enough evidence to make that file deletable.
+ * This keeps the production scanner fail-closed for unknown persisted data
+ * while giving the fixture a real registered decoder to exercise.
+ */
+const FIXTURE_CHAPTER_ARTIFACT_DECODER: MixedBackupDecoder = {
+  type: "mixed-backup",
+  formatName: "mystudio-chapter-artifact-snapshot-v1",
+  versionRange: [1, 1] as [number, number],
+  matches(raw): boolean {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return false;
+    const data = raw as Record<string, unknown>;
+    return data._artifactFormat === "mystudio-chapter-artifact-snapshot"
+      && typeof data.projectId === "string"
+      && typeof data.chapterId === "string"
+      && typeof data.stage === "string";
+  },
+  decode(raw) {
+    const data = raw as Record<string, unknown>;
+    return {
+      artifacts: [{
+        projectId: data.projectId as string,
+        chapterId: data.chapterId as string,
+        stage: data.stage as string,
+        data: raw,
+      }],
+    };
+  },
+};
+registerBackupDecoder(FIXTURE_CHAPTER_ARTIFACT_DECODER);
+
+/**
+ * Explicit project-state format used by the generated fixture.  It mirrors
+ * the live project envelope without relying on filename or path inference.
+ */
+const FIXTURE_PROJECT_STATE_DECODER: MixedBackupDecoder = {
+  type: "mixed-backup",
+  formatName: "mystudio-project-state-snapshot-v1",
+  versionRange: [1, 1] as [number, number],
+  matches(raw): boolean {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return false;
+    const data = raw as Record<string, unknown>;
+    return data._artifactFormat === "mystudio-project-state-snapshot"
+      && typeof data.projectId === "string"
+      && Array.isArray(data.novelChapters);
+  },
+  decode(raw) {
+    const data = raw as Record<string, unknown>;
+    const chapters = Array.isArray(data.novelChapters) ? data.novelChapters : [];
+    return {
+      artifacts: chapters.flatMap((chapter) => {
+        if (!chapter || typeof chapter !== "object") return [];
+        const record = chapter as Record<string, unknown>;
+        return typeof record.id === "string"
+          ? [{
+              projectId: data.projectId as string,
+              chapterId: record.id,
+              stage: "novel",
+              data: chapter,
+            }]
+          : [];
+      }),
+    };
+  },
+};
+registerBackupDecoder(FIXTURE_PROJECT_STATE_DECODER);
+
+/**
+ * Chapter-only backup shape emitted by the multi-chapter fixture.  The
+ * explicit type and numeric chapter index make the ownership proof strict;
+ * arbitrary `.bak` files continue to block until a decoder is registered.
+ */
+const FIXTURE_CHAPTER_BACKUP_DECODER: MixedBackupDecoder = {
+  type: "mixed-backup",
+  formatName: "mystudio-chapter-only-backup-v1",
+  versionRange: [1, 1] as [number, number],
+  matches(raw): boolean {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return false;
+    const data = raw as Record<string, unknown>;
+    return data._type === "chapter-exclusive-backup"
+      && typeof data.projectId === "string"
+      && typeof data.chapterIndex === "number"
+      && Number.isInteger(data.chapterIndex)
+      && data.chapterIndex > 0;
+  },
+  decode(raw) {
+    const data = raw as Record<string, unknown>;
+    const chapterId = `chapter-${data.chapterIndex as number}`;
+    return {
+      artifacts: [{
+        projectId: data.projectId as string,
+        chapterId,
+        stage: "backup",
+        data: raw,
+      }],
+    };
+  },
+};
+registerBackupDecoder(FIXTURE_CHAPTER_BACKUP_DECODER);
+
+/**
  * Redacted Daojie multi-chapter backup shape used by the on-disk inventory
  * regression fixture.  It is intentionally strict on the format marker so a
  * normal project JSON file cannot be treated as a backup just because it has

@@ -41,6 +41,7 @@ function installRuntime(
 afterEach(() => {
   cleanup();
   Reflect.deleteProperty(window, "remotionRuntime");
+  Reflect.deleteProperty(window, "videoWorkflowPlugins");
   vi.restoreAllMocks();
 });
 
@@ -55,6 +56,93 @@ describe("RenderingSettingsTab", () => {
     await waitFor(() => expect(screen.getByText("未下载")).toBeTruthy());
     fireEvent.click(screen.getByRole("radio", { name: /Remotion/ }));
     expect(useAppSettingsStore.getState().renderingSettings.renderer).toBe("remotion");
+  });
+
+  it("keeps Remotion controls together before HyperFrames, video-use and Seedance Prompt Skill", async () => {
+    const checkedAt = 1_700_000_000_000;
+    const plugins = (["remotion", "hyperframes", "video-use", "seedance-prompt"] as const).map((pluginId) => ({
+      schemaVersion: 1 as const,
+      pluginId,
+      displayName: pluginId,
+      sourceUrl: `https://example.test/${pluginId}`,
+      sourceCommit: "test",
+      license: "MIT",
+      appVersion: "test",
+      pluginVersion: "test",
+      runtimeState: "ready" as const,
+      dependencies: {},
+      checkedAt,
+    }));
+    Object.defineProperty(window, "videoWorkflowPlugins", {
+      configurable: true,
+      value: {
+        status: vi.fn(async () => ({ schemaVersion: 1 as const, checkedAt, plugins })),
+        prepare: vi.fn(),
+        update: vi.fn(),
+        repair: vi.fn(),
+        rollback: vi.fn(),
+      },
+    });
+
+    render(<RenderingSettingsTab />);
+
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Seedance Prompt Skill" })).toBeTruthy());
+    expect(screen.getAllByRole("heading").map((heading) => heading.textContent)).toEqual([
+      "视频工作流插件",
+      "插件运行时",
+      "Remotion",
+      "全局渲染器",
+      "Remotion Headless Shell",
+      "HyperFrames",
+      "video-use",
+      "Seedance Prompt Skill",
+    ]);
+  });
+
+  it("enables only the plugin whose automatic check reports an update", async () => {
+    const checkedAt = 1_700_000_000_000;
+    const pluginStatus = (pluginId: "remotion" | "video-use" | "hyperframes" | "seedance-prompt", runtimeState: "ready" | "update-available" | "deferred") => ({
+      schemaVersion: 1 as const,
+      pluginId,
+      displayName: pluginId,
+      sourceUrl: `https://example.test/${pluginId}`,
+      sourceCommit: "test",
+      license: "MIT",
+      appVersion: "test",
+      pluginVersion: "test",
+      runtimeState,
+      dependencies: {},
+      checkedAt,
+    });
+    const readyStatus = {
+      schemaVersion: 1 as const,
+      checkedAt,
+      plugins: [
+        pluginStatus("remotion", "ready"),
+        pluginStatus("video-use", "update-available"),
+        pluginStatus("hyperframes", "ready"),
+        pluginStatus("seedance-prompt", "deferred"),
+      ],
+    };
+    const update = vi.fn(async () => ({ ...readyStatus, success: true }));
+    Object.defineProperty(window, "videoWorkflowPlugins", {
+      configurable: true,
+      value: {
+        status: vi.fn(async () => readyStatus),
+        prepare: vi.fn(),
+        update,
+        repair: vi.fn(),
+        rollback: vi.fn(),
+      },
+    });
+
+    render(<RenderingSettingsTab />);
+    await waitFor(() => expect(screen.getByText("有可用更新")).toBeTruthy());
+    const updateButtons = screen.getAllByRole("button", { name: "更新" });
+    const enabled = updateButtons.filter((button) => !button.hasAttribute("disabled"));
+    expect(enabled).toHaveLength(1);
+    fireEvent.click(enabled[0]!);
+    await waitFor(() => expect(update).toHaveBeenCalledWith({ pluginId: "video-use" }));
   });
 
   it("exposes an explicit manual download action", async () => {

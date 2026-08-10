@@ -100,5 +100,12 @@ export function evaluateRemotionChapterGate(
     ...(hyperFrames.outputPath && hyperFrames.outputSha256 ? { hyperFramesOutputSha256: hyperFrames.outputSha256 } : {}),
     ...(hyperFrames.outputPath ? { hyperFramesAlphaFormat: hyperFrames.alphaFormat } : {}),
     ...(hyperFrames.outputPath ? { hyperFramesWindows: hyperFrames.windows } : {}),
+    ...(videoUse.mode === "flat-shot-mp4" && videoUse.flatShotMp4Path
+      ? { videoUseFlatShotMp4Path: videoUse.flatShotMp4Path }
+      : {}),
+    ...(videoUse.mode === "flat-shot-mp4" && videoUse.flatShotMp4Sha256
+      ? { videoUseFlatShotMp4Sha256: videoUse.flatShotMp4Sha256 }
+      : {}),
+    ...(videoUse.derivedInputs ? { videoUseDerivedInputs: videoUse.derivedInputs } : {}),
   };
 }

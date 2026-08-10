@@ -16,6 +16,7 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import {
+  Check,
   Clapperboard,
   ExternalLink,
   Loader2,
@@ -576,12 +577,18 @@ export function WorkflowNodeCanvas({
             disabled={chapterAutoVideoRunning || !onRunChapterAutoVideo}
             onClick={() => void onRunChapterAutoVideo?.()}
           >
-            {chapterAutoVideoRunning ? (
+            {chapterAutoVideoStatus?.stage === "awaiting-review" ? (
+              <Check className="h-4 w-4" />
+            ) : chapterAutoVideoRunning ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
               <Play className="h-4 w-4" />
             )}
-            {chapterAutoVideoRunning ? "第一章成片中" : "一键第一章成片"}
+            {chapterAutoVideoStatus?.stage === "awaiting-review"
+              ? "等待 video-use 确认"
+              : chapterAutoVideoRunning
+                ? "第一章成片中"
+                : "一键第一章成片"}
           </button>
           {chapterAutoVideoStatus ? (
             <div

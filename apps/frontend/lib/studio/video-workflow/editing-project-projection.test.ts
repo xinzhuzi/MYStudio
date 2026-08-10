@@ -18,8 +18,14 @@ function project(): EditingProjectV1 {
     manuallyEdited: false,
     stale: false,
     renderSettings: { width: 1080, height: 1920, fps: 30, codec: "h264", subtitleMode: "burn-in", loudnessLufs: -14, truePeakDbtp: -1.5 },
-    tracks: [{ id: "video", kind: "video", name: "video", order: 0, clipIds: ["old-1"], muted: false, locked: false }],
-    clips: [{ id: "old-1", trackId: "video", name: "old", source: { kind: "storyboardVideo", path: "/tmp/old.mp4", evidence: { storyboardId: "shot-1" } }, startUs: 0, durationUs: 1_000_000, trimStartUs: 0, speed: 1, volume: 1, muted: false }],
+    tracks: [
+      { id: "video", kind: "video", name: "video", order: 0, clipIds: ["old-1"], muted: false, locked: false },
+      { id: "subtitles", kind: "text", name: "字幕", order: 1, clipIds: ["old-subtitle"], muted: false, locked: false },
+    ],
+    clips: [
+      { id: "old-1", trackId: "video", name: "old", source: { kind: "storyboardVideo", path: "/tmp/old.mp4", evidence: { storyboardId: "shot-1" } }, startUs: 0, durationUs: 1_000_000, trimStartUs: 0, speed: 1, volume: 1, muted: false },
+      { id: "old-subtitle", trackId: "subtitles", name: "old subtitle", source: { kind: "text", text: "旧字幕", evidence: { storyboardId: "shot-1" } }, startUs: 0, durationUs: 1_000_000, trimStartUs: 0, speed: 1, volume: 0, muted: true },
+    ],
     transitions: [],
     effects: [],
     proposals: [],
@@ -49,7 +55,7 @@ function artifact(mode: VideoUseChapterArtifactV1["mode"]): VideoUseChapterArtif
     ],
     subtitles: [{ cueId: "cue-1", shotId: "shot-1", text: "你好", startUs: 0, durationUs: 500_000, source: "alignment" }],
     grade: { filter: "auto", parameters: {} },
-    overlaySlots: [{ slotId: "caption-1", startUs: 500_000, durationUs: 500_000 }],
+    overlaySlots: [{ slotId: "caption-1", startUs: 250_000, durationUs: 500_000 }],
     preview: { path: "/tmp/preview.mp4", sha256: hash, subtitlesBurnedIn: true, durationS: 2.5 },
     selfEval: { passed: true, score: 1, notes: [], evaluatedAt: 2 },
     ...(mode === "flat-shot-mp4" ? { flatShotMp4Path: "/tmp/clean-flat.mp4" } : {}),
@@ -60,16 +66,26 @@ function artifact(mode: VideoUseChapterArtifactV1["mode"]): VideoUseChapterArtif
 
 describe("video-use to EditingProject projection", () => {
   it("projects editable EDL into TimelineTimeUs and advances the editing revision", () => {
-    const result = projectVideoUseArtifactToEditingProject({ project: project(), artifact: artifact("editable-edl"), now: 10 });
+    const sourceArtifact = artifact("editable-edl");
+    sourceArtifact.overlaySlots = [];
+    const result = projectVideoUseArtifactToEditingProject({ project: project(), artifact: sourceArtifact, now: 10 });
     expect(result).toMatchObject({ success: true, project: { revision: 2 } });
     if (!result.success) return;
     expect(result.project.tracks[0]?.clipIds).toHaveLength(2);
     expect(result.project.clips.filter((clip) => clip.trackId === "video")).toHaveLength(2);
     expect(result.project.clips.find((clip) => clip.source.evidence.storyboardId === "shot-2")).toMatchObject({ startUs: 1_000_000, durationUs: 1_500_000, trimStartUs: 100_000 });
+    expect(result.project.clips.filter((clip) => clip.trackId === "subtitles")).toEqual([
+      expect.objectContaining({
+        source: { kind: "text", text: "你好", evidence: { storyboardId: "shot-1", sourceFingerprint: "b".repeat(64) } },
+        startUs: 0,
+        durationUs: 500_000,
+        subtitle: { sourceFormat: "generated" },
+      }),
+    ]);
     expect(result.artifactRefs.subtitleCues).toHaveLength(1);
   });
 
-  it("uses clean flat MP4 as the only visual clip and keeps subtitle/overlay metadata separate", () => {
+  it("uses clean flat MP4 as the only visual clip and leaves animated subtitles to HyperFrames", () => {
     const result = projectVideoUseArtifactToEditingProject({ project: project(), artifact: artifact("flat-shot-mp4"), now: 10 });
     expect(result).toMatchObject({ success: true, project: { revision: 2 } });
     if (!result.success) return;
@@ -79,6 +95,16 @@ describe("video-use to EditingProject projection", () => {
     expect(result.project.clips.some((clip) => clip.trackId.includes("subtitle") || clip.trackId.includes("overlay"))).toBe(false);
     expect(result.artifactRefs.subtitleCues).toHaveLength(1);
     expect(result.artifactRefs.overlaySlots).toHaveLength(1);
+  });
+
+  it("keeps ordinary subtitles separate from a flat visual while Remotion remains their owner", () => {
+    const sourceArtifact = artifact("flat-shot-mp4");
+    sourceArtifact.overlaySlots = [];
+    const result = projectVideoUseArtifactToEditingProject({ project: project(), artifact: sourceArtifact, now: 10 });
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.project.clips.filter((clip) => clip.trackId === "video")).toHaveLength(1);
+    expect(result.project.clips.filter((clip) => clip.trackId === "subtitles")).toHaveLength(1);
   });
 
   it("blocks stale artifact revisions", () => {

@@ -144,6 +144,38 @@ describe("artifact inventory persisted project state", () => {
     ]);
   });
 
+  it("deletes an unregistered backup when its path is chapter-scoped", async () => {
+    const dataRoot = await fs.mkdtemp(path.join(os.tmpdir(), "mystudio-artifact-unknown-backup-"));
+    roots.push(dataRoot);
+    const projectRoot = path.join(dataRoot, "_p", "project-unknown-backup");
+    await fs.mkdir(path.join(projectRoot, "backups"), { recursive: true });
+    const backupPath = path.join(projectRoot, "backups", "chapter-9001-unregistered.json.codex-test");
+    await fs.writeFile(backupPath, JSON.stringify({ opaque: true, records: [{ value: "not-decoded" }] }));
+
+    const inventory = await scanProjectInventory(dataRoot, "project-unknown-backup", "chapter-9001");
+    expect(inventory.success).toBe(true);
+    if (!inventory.success) return;
+
+    const unknown = inventory.data.artifacts.find((artifact) =>
+      artifact.physicalRefs.some((ref) => ref.path === "backups/chapter-9001-unregistered.json.codex-test"),
+    );
+    expect(unknown).toMatchObject({
+      state: "active",
+      deletePolicy: "delete-exclusive-downstream",
+      chapterId: "chapter-9001",
+    });
+    expect(unknown?.physicalRefs).toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: "backup" }),
+    ]));
+
+    const planned = buildDeletionPlan(inventory.data.artifacts, [], "chapter-9001");
+    expect(planned.valid).toBe(true);
+    expect(planned.plan.executionAllowed).toBe(true);
+    expect(planned.plan.blockerItems).toHaveLength(0);
+    expect(planned.plan.deleteItems.some((item) => item.physicalPath?.endsWith("chapter-9001-unregistered.json.codex-test"))).toBe(true);
+    await expect(fs.access(backupPath)).resolves.toBeUndefined();
+  });
+
   it("skips whole-store snapshot dirs (visual-continuity-backups) so they don't duplicate live artifacts", async () => {
     // The daojie promote pipeline writes whole-store snapshots under
     // visual-continuity-backups/<promotion-id>/studio-workflow-store.json.

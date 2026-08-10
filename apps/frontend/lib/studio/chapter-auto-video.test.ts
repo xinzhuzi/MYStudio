@@ -365,6 +365,53 @@ describe("chapter auto video orchestration", () => {
     ]);
   });
 
+  it("waits for Remotion shots, runs video-use preview, and pauses for human review", async () => {
+    const { dependencies, calls } = createDependencies();
+    const statuses: string[] = [];
+    const reviewRequired = vi.fn();
+    dependencies.runVideoUseChapter = vi.fn(async ({ storyboards: queuedStoryboards, submission }) => {
+      calls.push("video-use");
+      expect(queuedStoryboards).toHaveLength(2);
+      expect(submission.jobs).toHaveLength(2);
+      return { state: "pending" as const, revision: 1, inputSha256: "d".repeat(64) };
+    });
+    dependencies.onVideoUseReviewRequired = reviewRequired;
+
+    const result = await runChapterAutoVideo({
+      projectId: "project-1",
+      episodeId: "chapter-001",
+      dependencies,
+      onStatus: (status) => statuses.push(status.stage),
+    });
+
+    expect(result).toMatchObject({
+      storyboards: 2,
+      queueStatus: "awaiting-review",
+      videoUseState: "pending",
+      videoUseRevision: 1,
+    });
+    expect(calls).toEqual([
+      "planning",
+      "binding",
+      "tts:sb-1",
+      "tts:sb-2",
+      "remotion-queue",
+      "video-use",
+    ]);
+    expect(reviewRequired).toHaveBeenCalledOnce();
+    expect(statuses).toEqual([
+      "planning",
+      "voiceover",
+      "binding",
+      "tts",
+      "media",
+      "tts",
+      "render",
+      "probing",
+      "awaiting-review",
+    ]);
+  });
+
   it("stops before rendering when a storyboard image is missing", async () => {
     const { dependencies, calls } = createDependencies({ missingMedia: true });
     const statuses: string[] = [];
@@ -437,7 +484,7 @@ describe("chapter auto video orchestration", () => {
     );
   });
 
-  it("continues independent shots after one TTS failure and queues only valid shots", async () => {
+  it("blocks the whole chapter after one TTS failure and never queues a partial shot set", async () => {
     const run = createDependencies();
     const baseGenerate = run.dependencies.generateAudio;
     run.dependencies.generateAudio = vi.fn(async (item, voiceProfile) => {
@@ -453,18 +500,8 @@ describe("chapter auto video orchestration", () => {
 
     expect(result.queueStatus).toBe("blocked");
     expect(result.blockedShotIds).toEqual(["sb-1"]);
-    expect(result.remotionJobs?.map((job) => (
-      job.target.kind === "shot" ? job.target.shotId : undefined
-    ))).toEqual(["sb-2"]);
-    expect(run.dependencies.enqueueRemotionShots).toHaveBeenCalledWith(
-      expect.objectContaining({
-        storyboards: [expect.objectContaining({ id: "sb-2" })],
-        allStoryboards: [
-          expect.objectContaining({ id: "sb-1" }),
-          expect.objectContaining({ id: "sb-2" }),
-        ],
-      }),
-    );
+    expect(result.remotionJobs).toEqual([]);
+    expect(run.dependencies.enqueueRemotionShots).not.toHaveBeenCalled();
   });
 
   it("limits the per-shot worker pool to the configured concurrency", async () => {

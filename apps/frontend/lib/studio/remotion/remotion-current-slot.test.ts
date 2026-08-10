@@ -1,10 +1,17 @@
+// @vitest-environment node
+import { createHash } from "node:crypto";
+import { mkdtempSync, promises as fsPromises, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   hashRemotionCurrentSlot,
   prepareRemotionCurrentSlotPublication,
+  readRemotionCurrentShotSlotsFromWorkspace,
   remotionCurrentSlotPaths,
   resolveRemotionCurrentSlotOutputPath,
 } from "./remotion-current-slot";
+import { createRemotionRenderJobId } from "./remotion-job-identity";
 import { makeCurrentSlot, makePublication } from "./remotion-workspace-test-fixtures";
 
 describe("Remotion current-slot publication", () => {
@@ -61,6 +68,45 @@ describe("Remotion current-slot publication", () => {
         outputPath: "outputs/shots/../../outside/shot-001/current.mp4",
       },
     )).toThrow("current slot 无效");
+  });
+
+  it("recovers verified persisted shot slots without depending on transient queue state", async () => {
+    const workspaceRoot = mkdtempSync(path.join(tmpdir(), "mystudio-remotion-current-slot-"));
+    try {
+      const current = makeCurrentSlot();
+      const job = { ...current.job, jobId: await createRemotionRenderJobId(current.job) };
+      const outputPath = path.join(workspaceRoot, current.outputPath);
+      const bytes = Buffer.alloc(42_000, 7);
+      await fsPromises.mkdir(path.dirname(outputPath), { recursive: true });
+      await fsPromises.writeFile(outputPath, bytes);
+      const outputStat = await fsPromises.stat(outputPath);
+      const evidence = {
+        ...current.evidence,
+        jobId: job.jobId,
+        sizeBytes: outputStat.size,
+        mtimeMs: Math.floor(outputStat.mtimeMs),
+        sha256: createHash("sha256").update(bytes).digest("hex"),
+      };
+      await fsPromises.mkdir(path.dirname(path.join(workspaceRoot, current.jobPath)), { recursive: true });
+      await fsPromises.mkdir(path.dirname(path.join(workspaceRoot, current.evidencePath)), { recursive: true });
+      await fsPromises.writeFile(path.join(workspaceRoot, current.jobPath), JSON.stringify(job));
+      await fsPromises.writeFile(path.join(workspaceRoot, current.evidencePath), JSON.stringify(evidence));
+
+      // A copied or malformed directory name must not create a second slot.
+      const misleadingPath = path.join(workspaceRoot, "jobs", "shot", "chapter-001", "not-the-shot-id", "current.json");
+      await fsPromises.mkdir(path.dirname(misleadingPath), { recursive: true });
+      await fsPromises.writeFile(misleadingPath, JSON.stringify(job));
+
+      await expect(readRemotionCurrentShotSlotsFromWorkspace(workspaceRoot, "project-a", "chapter-001"))
+        .resolves.toEqual([expect.objectContaining({
+          projectId: "project-a",
+          target: current.target,
+          job,
+          evidence,
+        })]);
+    } finally {
+      rmSync(workspaceRoot, { recursive: true, force: true });
+    }
   });
 
   it("prepares a complete next slot without mutating the previous current", () => {

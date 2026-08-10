@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  isSubtitleCueOwnedByOverlay,
   validateHyperFramesOverlayArtifact,
   validateHyperFramesOverlayRequest,
   validateVideoUseChapterArtifact,
@@ -51,6 +52,12 @@ function validOverlayWindow() {
 }
 
 describe("video workflow persisted child contracts", () => {
+  it("assigns overlapping animated cues to HyperFrames and leaves ordinary cues to Remotion", () => {
+    const cue = { cueId: "cue-1", shotId: "shot-1", text: "你好", startUs: 100_000, durationUs: 400_000, source: "alignment" as const };
+    expect(isSubtitleCueOwnedByOverlay(cue, [{ slotId: "caption-1", startUs: 200_000, durationUs: 100_000 }])).toBe(true);
+    expect(isSubtitleCueOwnedByOverlay(cue, [{ slotId: "caption-2", startUs: 500_000, durationUs: 100_000 }])).toBe(false);
+  });
+
   it("rejects alignment words without their timing fields", () => {
     const artifact = validVideoUseArtifact();
     artifact.alignment[0].words = [{ id: "word-1", text: "你好", confidence: 1 }];
@@ -112,6 +119,41 @@ describe("video workflow persisted child contracts", () => {
     expect(validateHyperFramesOverlayArtifact(artifact).success).toBe(false);
   });
 
+  it("rejects PNG sequence before HyperFrames can create an artifact", () => {
+    const request = {
+      schemaVersion: 1,
+      projectId: "project-1",
+      chapterId: "chapter-1",
+      revision: 1,
+      sourceArtifactSha256: hash,
+      inputSha256: hash,
+      width: 640,
+      height: 360,
+      fps: 30,
+      alphaFormat: "png-sequence",
+      outputPath: "/tmp/overlay-frames",
+      windows: [validOverlayWindow()],
+    };
+    const artifact = {
+      schemaVersion: 1,
+      projectId: "project-1",
+      chapterId: "chapter-1",
+      revision: 1,
+      status: "accepted",
+      sourceArtifactSha256: hash,
+      inputSha256: hash,
+      alphaFormat: "png-sequence",
+      outputPath: "/tmp/overlay-frames",
+      outputSha256: hash,
+      windows: [validOverlayWindow()],
+      toolVersion: "hyperframes@test",
+      generatedAt: 1,
+    };
+
+    expect(validateHyperFramesOverlayRequest(request).success).toBe(false);
+    expect(validateHyperFramesOverlayArtifact(artifact).success).toBe(false);
+  });
+
   it("accepts auditable derived-input evidence and rejects incomplete hashes", () => {
     const artifact = validVideoUseArtifact();
     artifact.derivedInputs = [{
@@ -130,5 +172,22 @@ describe("video workflow persisted child contracts", () => {
     expect(validateVideoUseChapterArtifact(artifact).success).toBe(true);
     artifact.derivedInputs[0].derivedSha256 = "bad";
     expect(validateVideoUseChapterArtifact(artifact).success).toBe(false);
+  });
+
+  it("requires a clean standalone MP4 for flat-shot artifacts", () => {
+    const artifact = validVideoUseArtifact();
+    artifact.mode = "flat-shot-mp4";
+    artifact.flatShotMp4Path = (artifact.preview as { path: string }).path;
+
+    const reusedPreview = validateVideoUseChapterArtifact(artifact);
+
+    expect(reusedPreview.success).toBe(false);
+    expect(reusedPreview.success ? [] : reusedPreview.issues.map((item) => item.path)).toContain("$.flatShotMp4Path");
+
+    artifact.flatShotMp4Path = "/tmp/clean-flat.mov";
+    expect(validateVideoUseChapterArtifact(artifact).success).toBe(false);
+
+    artifact.flatShotMp4Path = "/tmp/clean-flat.mp4";
+    expect(validateVideoUseChapterArtifact(artifact).success).toBe(true);
   });
 });

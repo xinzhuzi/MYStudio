@@ -10,7 +10,7 @@
 | [assets/](./assets/) | 资产库、角色、场景、道具、视觉风格、音色 |
 | [director/](./director/) | 导演工作台、S级镜头、视角切换、四宫格、旧剧本 |
 | [panels/](./panels/) | 应用外壳、导航、项目、技能、辅助、产物、导出、TTS 面板 |
-| [settings/](./settings/) | 设置页、API、Python/TTS 配置、图床、更新、许可证 |
+| [settings/](./settings/) | 设置页、API、统一插件配置、图床、更新、许可证 |
 | [engineering/](./engineering/) | 架构、打包、故障排查、三方声明、存储、文档维护 |
 | [融合/](./融合/) | 规划与调查（含外部参考资料） |
 
@@ -82,12 +82,12 @@
 
 | 文档 | 用途 |
 |---|---|
-| [设置页操作手册](./settings/SETTINGS_PANEL_OPERATIONS.md) | 设置标签页、外观、API、Python、渲染、存储、更新、开发和支持入口的按钮状态 |
-| [设置与 API 管理](./settings/API_SETTINGS_GUIDE.md) | 模型服务、模型映射、Agent 配置、渲染器选择、Headless Shell、图床和本地 TTS 服务说明 |
+| [设置页操作手册](./settings/SETTINGS_PANEL_OPERATIONS.md) | 设置标签页、外观、API、统一插件配置、存储、更新、开发和支持入口的按钮状态 |
+| [设置与 API 管理](./settings/API_SETTINGS_GUIDE.md) | 模型服务、模型映射、Agent 配置、统一插件配置、渲染器选择、Headless Shell、图床和本地 TTS 服务说明 |
 | [API 管理操作手册](./settings/API_MANAGER_OPERATIONS.md) | 添加供应商、同步模型、测试模型、思考模式、模型映射和 Agent 绑定 |
 | [API 供应商字段与模型测试参考](./settings/API_PROVIDER_MODEL_TEST_REFERENCE.md) | 添加/编辑供应商字段、同步模型规则、模型测试范围、协议和错误说明 |
 | [Python 与本地 TTS 配置](./settings/PYTHON_TTS_SETUP.md) | 区分开发 shell Python 与安装后设置页下载的 Python 3.12，说明本地 TTS 依赖、模型缓存和启动方式 |
-| [TTS 配置页](./settings/TTS_CONFIG_GUIDE.md) | 启动本地 TTS 后端、管理模型缓存、下载模型和创建声线 profile |
+| [TTS 运行时与模型区块指南](./settings/TTS_CONFIG_GUIDE.md) | 说明插件配置页中启动本地 TTS 后端、管理模型缓存、下载模型和创建声线 profile |
 | [高级选项](./settings/ADVANCED_OPTIONS_GUIDE.md) | 视觉连续性、断点续传、内容审核容错和多模型自动切换 |
 | [图床配置](./settings/IMAGE_HOST_CONFIG.md) | SCDN、ImgBB、Catbox、自定义图床和跨分镜图片上传配置 |
 | [应用更新](./settings/APP_UPDATE_GUIDE.md) | 手动检查更新、启动自动检查、忽略版本和版本清单字段 |

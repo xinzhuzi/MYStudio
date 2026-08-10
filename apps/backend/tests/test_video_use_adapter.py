@@ -155,6 +155,42 @@ class VideoUseAdapterTest(unittest.TestCase):
             self.assertIn("--no-loudnorm", helper_calls[0])
             self.assertNotIn("--no-loudnorm", helper_calls[-1])
 
+    def test_flat_mode_records_clean_mp4_sha_separately_from_burned_preview(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            request, alignment = self._fixtures(root)
+            request["mode"] = "flat-shot-mp4"
+            upstream = root / "upstream"
+            (upstream / "helpers").mkdir(parents=True)
+            for name in ("render.py", "timeline_view.py"):
+                (upstream / "helpers" / name).write_text("# helper", encoding="utf-8")
+            ffmpeg = root / "ffmpeg"
+            ffprobe = root / "ffprobe"
+            ffmpeg.write_text("", encoding="utf-8")
+            ffprobe.write_text("", encoding="utf-8")
+
+            def fake_helper(_helper, args, *, cwd, env):
+                output = Path(args[args.index("-o") + 1])
+                output.parent.mkdir(parents=True, exist_ok=True)
+                output.write_bytes(b"flat-generated" if "--no-subtitles" in args else b"preview-generated")
+
+            with patch("video_use.adapter._run_helper", side_effect=fake_helper), patch(
+                "video_use.adapter._probe_output", return_value=(1.2, ["video", "audio"])
+            ), patch("video_use.adapter._probe_media_duration", return_value=1.0):
+                artifact = run_pinned_adapter(
+                    request,
+                    alignment,
+                    upstream_root=upstream,
+                    ffmpeg_path=str(ffmpeg),
+                    ffprobe_path=str(ffprobe),
+                    artifact_path=root / "artifact.json",
+                    now_ms=123,
+                )
+
+            self.assertEqual(artifact["mode"], "flat-shot-mp4")
+            self.assertNotEqual(artifact["flatShotMp4Path"], artifact["preview"]["path"])
+            self.assertEqual(artifact["flatShotMp4Sha256"], sha256_bytes(b"flat-generated"))
+
     def test_default_policy_blocks_video_shorter_than_tts(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

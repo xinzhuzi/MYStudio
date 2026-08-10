@@ -209,7 +209,7 @@ describe("video workflow runtime manager", () => {
     const harness = createHarness();
     await harness.manager.prepareVideoUse();
     fs.writeFileSync(path.join(harness.paths.videoUseProfileDir, "release.txt"), "old", "utf8");
-    await harness.manager.prepareVideoUse();
+    await expect(harness.manager.update("video-use")).resolves.toMatchObject({ success: true });
     expect(fs.existsSync(`${harness.paths.videoUseProfileDir}.previous`)).toBe(true);
 
     await harness.manager.rollbackVideoUse();

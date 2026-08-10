@@ -53,6 +53,7 @@
     "smoke:workflow:background:daojie": "node ./build/smoke/run-visible-workflow-smoke.mjs --background --daojie",
     "smoke:workflow:background:daojie:production-canvas": "node ./build/smoke/run-visible-workflow-smoke.mjs --background --daojie --production-canvas-video",
     "smoke:video-workflow": "node ./build/smoke/video-workflow-smoke.mjs",
+    "smoke:video-workflow:rollback": "vite-node --config build/timeline/vite-node.config.ts build/smoke/video-workflow-runtime-rollback-smoke.ts",
     "video:final-output-qc": "node ./build/remotion/final-output-qc.mjs",
     "smoke:installed": "node ./build/packaging/install-and-smoke.mjs",
     "video:daojie:chapter001": "node ./build/daojie/automate-daojie-chapter001-video.mjs",
@@ -158,5 +159,6 @@
   "main": "out/main/index.cjs",
   "optionalDependencies": {
     "@remotion/compositor-darwin-arm64": "4.0.499"
-  }
+  },
+  "packageManager": "pnpm@10.26.2+sha512.0e308ff2005fc7410366f154f625f6631ab2b16b1d2e70238444dd6ae9d630a8482d92a451144debc492416896ed16f7b114a86ec68b8404b2443869e68ffda6"
 }

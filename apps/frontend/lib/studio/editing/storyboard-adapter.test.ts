@@ -98,6 +98,31 @@ describe("storyboard editing adapter", () => {
     }));
   });
 
+  it("allows an explicit reuse-existing policy to project a ready stale storyboard", () => {
+    const shot = storyboard(1, {
+      id: "shot-001",
+      episodeId: "chapter-001",
+      stale: true,
+      staleReason: "上游分镜图已替换",
+      audioRef: { kind: "audio", path: "/voice.wav" },
+      outputVersion: 1,
+    });
+    const result = buildStoryboardEditingProject({
+      ...baseInput([shot]),
+      projectId: "project-a",
+      episodeId: "chapter-001",
+      remotionShotSlots: [makeCurrentSlot()],
+      allowStaleStoryboards: true,
+    });
+
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.project.clips[0]?.source).toMatchObject({
+      kind: "storyboardVideo",
+      path: "outputs/shots/chapter-001/shot-001/current.mp4",
+    });
+  });
+
   it("uses the selected ready candidate first and segments grouped tracks", () => {
     const storyboards = [
       storyboard(1, {

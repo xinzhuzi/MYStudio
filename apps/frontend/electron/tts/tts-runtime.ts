@@ -665,7 +665,7 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
       return { python: managedPython };
     }
     updateSetupState({ setupStage: "failed", setupMessage: "Python 3.12 运行环境未配置", setupProgress: 0 });
-    return { error: "请先到设置里的 Python 配置页完成配置" };
+    return { error: "请先到设置里的插件配置页的 Python 运行环境区块完成配置" };
   }
 
   async function ensurePython(): Promise<{ python?: string; error?: string }> {
@@ -906,7 +906,7 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
       return {
         success: false,
         status: await status(),
-        error: "请先到设置里的 Python 配置页点击开始配置，完成 TTS 依赖安装",
+        error: "请先到设置里的插件配置页的 Python 运行环境区块点击开始配置，完成 TTS 依赖安装",
       };
     }
     const controlToken = getControlToken();

@@ -148,8 +148,77 @@ export async function readRemotionCurrentShotSlot(
   }
 }
 
+/**
+ * Queue state schedules new work. A completed current slot remains valid after
+ * restart only when its target-derived job, evidence, and output agree again.
+ */
+export async function readRemotionCurrentShotSlotsFromWorkspace(
+  workspaceRoot: string,
+  projectId: string,
+  chapterId: string,
+): Promise<RemotionCurrentSlotV1[]> {
+  if (!path.isAbsolute(workspaceRoot)) {
+    throw new Error("current slot workspaceRoot 必须是绝对路径");
+  }
+  if (!isSafeSegment(projectId) || !isSafeSegment(chapterId)) {
+    throw new Error("current slot projectId 或 chapterId 无效");
+  }
+
+  const currentJobsRoot = path.join(workspaceRoot, "jobs", "shot", chapterId);
+  let entries: fs.Dirent[];
+  try {
+    entries = await fs.promises.readdir(currentJobsRoot, { withFileTypes: true });
+  } catch (error) {
+    if (isMissingFile(error)) return [];
+    throw error;
+  }
+
+  const slots = await Promise.all(entries.filter((entry) => entry.isDirectory()).map(async (entry) => {
+    const currentJobPath = path.join(currentJobsRoot, entry.name, "current.json");
+    try {
+      const jobResult = await validateRemotionRenderJobIdentity(await readJson(currentJobPath));
+      if (!jobResult.success) return undefined;
+      const job = jobResult.value;
+      if (job.status !== "succeeded"
+        || job.projectId !== projectId
+        || job.target.kind !== "shot"
+        || job.target.chapterId !== chapterId
+        || job.target.shotId !== entry.name) {
+        return undefined;
+      }
+      const slotResult = await readRemotionCurrentShotSlot(workspaceRoot, projectId, job.target);
+      if (!slotResult.success) return undefined;
+      const slot = slotResult.value;
+      if (slot.job.jobId !== job.jobId
+        || slot.job.inputHash !== job.inputHash
+        || slot.job.bundleContentHash !== job.bundleContentHash
+        || slot.job.renderSettingsHash !== job.renderSettingsHash) {
+        return undefined;
+      }
+      return slot;
+    } catch {
+      return undefined;
+    }
+  }));
+
+  return slots
+    .filter((slot): slot is RemotionCurrentSlotV1 => Boolean(slot))
+    .sort((left, right) => {
+      if (left.target.kind !== "shot" || right.target.kind !== "shot") return 0;
+      return left.target.shotId.localeCompare(right.target.shotId);
+    });
+}
+
 async function readJson(filePath: string): Promise<unknown> {
   return JSON.parse(await fs.promises.readFile(filePath, "utf8")) as unknown;
+}
+
+function isSafeSegment(value: string): boolean {
+  return Boolean(value.trim()) && !/[\\/\0]/.test(value);
+}
+
+function isMissingFile(error: unknown): error is NodeJS.ErrnoException {
+  return error instanceof Error && "code" in error && error.code === "ENOENT";
 }
 
 async function hashFile(filePath: string): Promise<string> {

@@ -6,24 +6,29 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { usePythonRuntimeSettings } from "./usePythonRuntimeSettings";
 
-export function PythonSettingsTab() {
+type PythonSettingsTabProps = {
+  embedded?: boolean;
+};
+
+export function PythonSettingsTab({ embedded = false }: PythonSettingsTabProps) {
   const runtime = usePythonRuntimeSettings();
   const progress = runtime.status?.setupProgress;
 
-  return (
-    <ScrollArea className="h-full">
-      <div className="p-8 w-full space-y-6">
+  const content = (
+    <div className="p-8 w-full space-y-6">
         <div className="rounded-xl border border-border bg-card p-5">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div>
-              <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
-                <Terminal className="h-5 w-5 text-primary" />
-                Python 运行环境
-              </h3>
-              <p className="mt-1 text-sm text-muted-foreground">
-                不随应用启动自动配置；点击开始配置后，才会下载 Python 并安装 TTS 依赖到项目存储路径。
-              </p>
-            </div>
+          <div className={`flex gap-4 ${embedded ? "flex-row items-center justify-end" : "flex-col lg:flex-row lg:items-start lg:justify-between"}`}>
+            {embedded ? null : (
+              <div>
+                <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                  <Terminal className="h-5 w-5 text-primary" />
+                  Python 运行环境
+                </h3>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  不随应用启动自动配置；点击开始配置后，才会下载 Python 并安装 TTS 依赖到项目存储路径。
+                </p>
+              </div>
+            )}
             <div className="flex flex-wrap gap-2">
               <Button
                 onClick={() => void runtime.setupRuntime()}
@@ -161,7 +166,8 @@ export function PythonSettingsTab() {
             )}
           </div>
         </div>
-      </div>
-    </ScrollArea>
+    </div>
   );
+
+  return embedded ? content : <ScrollArea className="h-full">{content}</ScrollArea>;
 }

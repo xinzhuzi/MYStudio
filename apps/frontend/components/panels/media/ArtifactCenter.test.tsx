@@ -135,6 +135,123 @@ describe("ArtifactCenter", () => {
     expect(screen.getByLabelText(`选择产物 ${unchaptered.name}`).hasAttribute("disabled")).toBe(false);
   });
 
+  it("keeps a real-chapter row checkbox usable when chapterId is inferred from path", () => {
+    // Regression (checkbox-disabled bug): the per-row checkbox `disabled` guard
+    // used to compare the bare `artifact.chapterId` field against the selected
+    // chapter, while the table FILTER uses `inferChapterId` (field-first, then
+    // path inference from physicalRefs). When an artifact's chapterId field is
+    // absent but its physicalRef path names a real chapter, it PASSES the filter
+    // and shows up under that chapter — yet the old guard left its checkbox
+    // greyed out (undefined !== "chapter-001"). The guard must use the SAME
+    // inferChapterId resolution as the filter so such rows stay selectable.
+    const pathInferred: ArtifactRecord = {
+      ...artifact,
+      id: "export:export-video:path-inferred",
+      chapterId: undefined,
+      physicalRefs: [{ type: "project-file", path: "exports/chapter-001/final.mp4", bytes: 64 }],
+    };
+    render(
+      <ArtifactCenter
+        mockArtifacts={[pathInferred]}
+        mockProjects={[{ id: "project-1", name: "项目一", stages: [{ id: "export", label: "导出输出", count: 1 }] }]}
+      />,
+    );
+
+    // The artifact shows under "第 1 章" (path-inferred chapter), proving it
+    // passed the table filter.
+    expect(screen.getByText("第 1 章")).toBeTruthy();
+    expect(screen.getByText(pathInferred.name)).toBeTruthy();
+    // The row checkbox is NOT disabled — same resolution as the filter, so a
+    // path-inferred chapter match keeps the checkbox usable (the bug).
+    const checkbox = screen.getByLabelText(`选择产物 ${pathInferred.name}`) as HTMLInputElement;
+    expect(checkbox.hasAttribute("disabled")).toBe(false);
+    // And toggling it actually selects the artifact.
+    fireEvent.click(checkbox);
+    expect(checkbox.checked).toBe(true);
+    expect(screen.getByRole("button", { name: /删除选中 \(1\)/ })).toBeTruthy();
+  });
+
+  it("keeps the backup-bucket row checkbox usable when only backup-only artifacts exist", () => {
+    // Regression (backup-bucket checkbox-disabled bug): when a project has ONLY
+    // backup-only artifacts, the chapter list has a single "__backup__" node and
+    // the default-select effect picks it. The per-row checkbox `disabled` guard
+    // used to only exempt "__none__"; since inferChapterId never returns
+    // "__backup__", the guard left every backup-bucket row greyed out even
+    // though the filter (:367-372) shows them. The guard must exempt both
+    // synthetic buckets so backup rows stay selectable too.
+    const backupOnly: ArtifactRecord = {
+      ...artifact,
+      id: "storyboard:storyboard-item:backup-only-001",
+      name: "backup-shot.png",
+      chapterId: "episode-1",
+      physicalRefs: [{ type: "backup", path: "studio.bak-123", bytes: 32 }],
+    };
+    render(
+      <ArtifactCenter
+        mockArtifacts={[backupOnly]}
+        mockProjects={[{ id: "project-1", name: "项目一", stages: [{ id: "storyboard", label: "分镜视频生成", count: 1 }] }]}
+      />,
+    );
+
+    // The backup-only artifact is folded into the synthetic 备份 bucket, which
+    // is default-selected (sole chapter node).
+    expect(screen.getByText("备份")).toBeTruthy();
+    expect(screen.getByText(backupOnly.name)).toBeTruthy();
+    // The row checkbox is NOT disabled (the bug exempted only __none__).
+    const checkbox = screen.getByLabelText(`选择产物 ${backupOnly.name}`) as HTMLInputElement;
+    expect(checkbox.hasAttribute("disabled")).toBe(false);
+    // Toggling it selects the artifact and arms the bulk-delete button.
+    fireEvent.click(checkbox);
+    expect(checkbox.checked).toBe(true);
+    expect(screen.getByRole("button", { name: /删除选中 \(1\)/ })).toBeTruthy();
+  });
+
+  it("strips the __backup__ sentinel before building the deletion plan (PLAN_INVALID regression)", () => {
+    // Regression (backup-bucket delete bug): once the per-row checkbox was made
+    // usable for the 备份 bucket, clicking "删除选中" used to pass the raw
+    // "__backup__" sentinel as chapterId to createArtifactDeletionPlan. The
+    // backend buildDeletionPlan rejects it ("Chapter not found in project
+    // inventory: __backup__" / "Selected artifact ... is outside chapter
+    // __backup__" — artifact-dependency-graph.ts:574/582), so the delete dialog
+    // never opened and a red toast appeared instead. Both synthetic buckets
+    // (__none__ and __backup__) must be stripped to "" for artifacts-scope
+    // deletion (cross-chapter selection; IPC only requires chapterId for
+    // chapter scope, artifact-management-ipc.ts:336).
+    const backupOnly: ArtifactRecord = {
+      ...artifact,
+      id: "storyboard:storyboard-item:backup-delete-001",
+      name: "backup-to-delete.png",
+      chapterId: "episode-1",
+      physicalRefs: [{ type: "backup", path: "studio.bak-456", bytes: 32 }],
+    };
+    const planMock = vi.mocked(createArtifactDeletionPlan);
+    planMock.mockClear();
+
+    render(
+      <ArtifactCenter
+        mockArtifacts={[backupOnly]}
+        mockProjects={[{ id: "project-1", name: "项目一", stages: [{ id: "storyboard", label: "分镜视频生成", count: 1 }] }]}
+      />,
+    );
+
+    // The 备份 bucket is the sole chapter node and is default-selected.
+    expect(screen.getByText("备份")).toBeTruthy();
+    // Select the backup-only artifact.
+    const checkbox = screen.getByLabelText(`选择产物 ${backupOnly.name}`) as HTMLInputElement;
+    fireEvent.click(checkbox);
+    expect(checkbox.checked).toBe(true);
+
+    // Click "删除选中" — must open the dialog, i.e. createArtifactDeletionPlan
+    // is called with chapterId "" (sentinel stripped), NOT "__backup__".
+    fireEvent.click(screen.getByRole("button", { name: /删除选中 \(1\)/ }));
+    expect(planMock).toHaveBeenCalledTimes(1);
+    expect(planMock).toHaveBeenCalledWith(expect.objectContaining({
+      scope: "artifacts",
+      chapterId: "",
+      artifactIds: [backupOnly.id],
+    }));
+  });
+
   it("collapses backup-only artifacts into a 备份 bucket and beautifies chapter labels", () => {
     // A backup-only artifact (every physicalRef is type "backup") must land in
     // the synthetic "__backup__" bucket labelled "备份", NOT spawn its own
@@ -171,45 +288,10 @@ describe("ArtifactCenter", () => {
     expect(screen.getByText("备份")).toBeTruthy();
   });
 
-  it("flattens artifacts by stage instead of showing a folder tree", () => {
-    // The folder-navigation view was removed: artifacts are now flattened out
-    // of their physical directory tree and grouped under their 13 ArtifactStage
-    // headers in STAGE_LABELS order. No folder rows, no breadcrumb, no
-    // "返回上级目录" button — the directory is no longer a navigable dimension.
-    const fileArtifact: ArtifactRecord = {
-      ...artifact,
-      id: "export:export-video:file-001",
-      name: "shot.png",
-      stage: "export",
-      kind: "export-video",
-      bytes: 12,
-      physicalRefs: [{ type: "project-file", path: "exports/shot.png", bytes: 12 }],
-    };
-    render(
-      <ArtifactCenter
-        mockArtifacts={[fileArtifact]}
-        mockProjects={[{
-          id: "project-1",
-          name: "项目一",
-          stages: [{ id: "export", label: "导出输出", count: 1 }],
-          fileTree: [{ path: "exports", name: "exports", type: "directory", artifactIds: [fileArtifact.id], bytes: 12 }],
-        }]}
-      />,
-    );
-
-    // The artifact is rendered flat under its stage header (the same label also
-    // appears in the left chapter tree, so matchAll), even though its
-    // physicalRef lives under exports/. Folder navigation is gone.
-    expect(screen.getAllByText("导出输出").length).toBeGreaterThan(0);
-    expect(screen.getByText("shot.png")).toBeTruthy();
-    expect(screen.queryByText("exports")).toBeNull();
-    expect(screen.queryByRole("button", { name: "返回上级目录" })).toBeNull();
-  });
-
   it("renders a trash button on every artifact row that opens a deletion plan", () => {
-    // Folder cascading delete was removed with the folder view; per-artifact
-    // delete remains on each row and routes to the deletion plan with the
-    // row's own artifactId.
+    // Per-artifact delete remains on each row and routes to the deletion plan
+    // with the row's own artifactId. The directory-navigation layer was
+    // removed; artifacts now render flat in the chapter-scoped table.
     const inner: ArtifactRecord = {
       ...artifact,
       id: "export:export-video:inner-001",
@@ -228,22 +310,11 @@ describe("ArtifactCenter", () => {
           id: "project-1",
           name: "项目一",
           stages: [{ id: "export", label: "导出输出", count: 1 }],
-          fileTree: [{
-            path: "exports",
-            name: "exports",
-            type: "directory",
-            artifactIds: [],
-            children: [
-              { path: "exports/sub", name: "sub", type: "directory", artifactIds: [] },
-              { path: "exports/sub/inner.png", name: "inner.png", type: "file", artifactIds: [inner.id], bytes: 8 },
-            ],
-          }],
         }]}
       />,
     );
 
-    // No folder trash button anymore — only the per-artifact row button.
-    expect(screen.queryByRole("button", { name: /删除文件夹/ })).toBeNull();
+    // The row renders directly in the chapter-scoped table (no folder nav).
     const fileTrash = screen.getByRole("button", { name: "删除产物 inner.png" });
     expect(fileTrash).toBeTruthy();
     fireEvent.click(fileTrash);

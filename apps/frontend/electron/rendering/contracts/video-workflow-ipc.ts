@@ -7,7 +7,9 @@ import {
   type VideoWorkflowValidationResult,
   type VideoUseChapterArtifactV1,
   type VideoUseChapterRunV1,
+  type VideoUseStoryboardSourcePolicy,
   type VideoWorkflowMode,
+  SUPPORTED_ALPHA_FORMATS,
   validateVideoWorkflowPluginStatus,
   validateHyperFramesOverlayArtifact,
   validateVideoUseChapterArtifact,
@@ -15,6 +17,7 @@ import {
 
 export const VIDEO_WORKFLOW_STATUS_CHANNEL = "video-workflow-plugin-status";
 export const VIDEO_WORKFLOW_PREPARE_CHANNEL = "video-workflow-plugin-prepare";
+export const VIDEO_WORKFLOW_UPDATE_CHANNEL = "video-workflow-plugin-update";
 export const VIDEO_WORKFLOW_REPAIR_CHANNEL = "video-workflow-plugin-repair";
 export const VIDEO_WORKFLOW_ROLLBACK_CHANNEL = "video-workflow-plugin-rollback";
 export const VIDEO_WORKFLOW_REVIEW_CHANNEL = "video-workflow-review";
@@ -25,6 +28,7 @@ export const VIDEO_WORKFLOW_READ_CHAPTER_CHANNEL = "video-workflow-read-chapter"
 export const VIDEO_WORKFLOW_CHANNELS = [
   VIDEO_WORKFLOW_STATUS_CHANNEL,
   VIDEO_WORKFLOW_PREPARE_CHANNEL,
+  VIDEO_WORKFLOW_UPDATE_CHANNEL,
   VIDEO_WORKFLOW_REPAIR_CHANNEL,
   VIDEO_WORKFLOW_ROLLBACK_CHANNEL,
   VIDEO_WORKFLOW_REVIEW_CHANNEL,
@@ -81,6 +85,8 @@ export interface VideoWorkflowChapterRunRequestV1 {
   mode: VideoWorkflowMode;
   /** Defaults to reject; padding is an explicit, auditable derived-input opt-in. */
   derivedInputPolicy?: VideoUseChapterRunV1["derivedInputPolicy"];
+  /** Defaults to current-ready; reuse-existing is an explicit operator choice. */
+  storyboardSourcePolicy?: VideoUseStoryboardSourcePolicy;
   shots: VideoUseChapterRunV1["shots"];
   sourceSha256: string;
   audioSha256: string;
@@ -260,7 +266,10 @@ export function validateVideoWorkflowChapterRunRequest(
   if (record.derivedInputPolicy !== undefined && record.derivedInputPolicy !== "reject" && record.derivedInputPolicy !== "pad-video-to-audio") {
     issues.push({ path: "$.derivedInputPolicy", message: "derivedInputPolicy 无效" });
   }
-  const allowed = new Set(["schemaVersion", "projectId", "chapterId", "revision", "mode", "derivedInputPolicy", "shots", "sourceSha256", "audioSha256", "textSha256", "featureFlags"]);
+  if (record.storyboardSourcePolicy !== undefined && record.storyboardSourcePolicy !== "current-ready" && record.storyboardSourcePolicy !== "reuse-existing") {
+    issues.push({ path: "$.storyboardSourcePolicy", message: "storyboardSourcePolicy 无效" });
+  }
+  const allowed = new Set(["schemaVersion", "projectId", "chapterId", "revision", "mode", "derivedInputPolicy", "storyboardSourcePolicy", "shots", "sourceSha256", "audioSha256", "textSha256", "featureFlags"]);
   if (Object.keys(record).some((key) => !allowed.has(key))) issues.push({ path: "$", message: "video-use 章节请求包含未知字段" });
   return issues.length > 0 ? { success: false, issues } : { success: true, value: record as unknown as VideoWorkflowChapterRunRequestV1 };
 }
@@ -294,7 +303,7 @@ export function validateVideoWorkflowChapterApplyRequest(
   validateSha(record.inputSha256, "$.inputSha256", issues);
   for (const key of ["width", "height"] as const) if (typeof record[key] !== "number" || !Number.isInteger(record[key]) || record[key] <= 0) issues.push({ path: `$.${key}`, message: "必须是正整数" });
   if (typeof record.fps !== "number" || !Number.isFinite(record.fps) || record.fps <= 0) issues.push({ path: "$.fps", message: "必须是正数" });
-  if (!["prores-4444-mov", "webm-vp9-alpha", "png-sequence"].includes(String(record.alphaFormat))) issues.push({ path: "$.alphaFormat", message: "透明格式无效" });
+  if (!(SUPPORTED_ALPHA_FORMATS as readonly string[]).includes(String(record.alphaFormat))) issues.push({ path: "$.alphaFormat", message: "透明格式无效或暂不支持，必须使用 ProRes 4444 MOV 或 WebM VP9 alpha" });
   const allowed = new Set(["schemaVersion", "projectId", "chapterId", "revision", "inputSha256", "width", "height", "fps", "alphaFormat"]);
   if (Object.keys(record).some((key) => !allowed.has(key))) issues.push({ path: "$", message: "视频工作流应用请求包含未知字段" });
   return issues.length > 0 ? { success: false, issues } : { success: true, value: record as unknown as VideoWorkflowChapterApplyRequestV1 };
