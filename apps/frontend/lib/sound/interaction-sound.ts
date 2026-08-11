@@ -126,12 +126,19 @@ export function getInteractionSoundIntentFromTarget(
   });
 }
 
-/** intent 到合成引擎音色的唯一映射 */
+/**
+ * intent → 合成引擎音色的映射。
+ *
+ * 按需求：所有按钮点击统一为「摄像机快门」音（即 `activate`，双瞬态开帘/
+ * 合帘）。intent 解析仍然负责「是否发声」的闸门（disabled / 文本输入框 /
+ * textarea 不发声），但只要决定发声，一律走快门音，不再区分轻触 / 确认 /
+ * 取消的差异化音色。
+ */
 export const INTENT_TO_EFFECT: Record<InteractionSoundIntent, SoundEffect> = {
   primary: "activate",
-  soft: "click",
-  confirm: "success",
-  cancel: "cancel",
+  soft: "activate",
+  confirm: "activate",
+  cancel: "activate",
 };
 
 /**

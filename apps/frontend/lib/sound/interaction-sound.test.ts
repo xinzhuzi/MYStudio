@@ -40,12 +40,12 @@ describe("resolveInteractionSoundIntent", () => {
 });
 
 describe("INTENT_TO_EFFECT", () => {
-  it("maps every intent onto exactly one synthesized voice", () => {
+  it("routes every interaction to the camera-shutter voice", () => {
     expect(INTENT_TO_EFFECT).toEqual({
       primary: "activate",
-      soft: "click",
-      confirm: "success",
-      cancel: "cancel",
+      soft: "activate",
+      confirm: "activate",
+      cancel: "activate",
     });
   });
 });

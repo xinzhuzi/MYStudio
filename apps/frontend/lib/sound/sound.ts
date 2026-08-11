@@ -1,5 +1,7 @@
 "use client";
 
+import shutterUrl from "@/assets/sounds/shutter.mp3";
+
 /**
  * MYStudio 电影级 UI 音效系统
  *
@@ -207,10 +209,7 @@ export const SUCCESS_TAIL_PROFILE: VoiceProfile = {
   attack: 0.008, decay: 0.20, lowpass: 1400,
 };
 
-/** 快门音的第二声延迟（秒），模拟机械快门帘开合的双瞬态听感 */
-const ACTIVATE_TAIL_DELAY = 0.045;
-
-/** 摄影快门音的第二声：落镜/合帘的声音，更量感、更低沉 */
+/** 摄影快门音的第二声：落镜/合帘的声音，更量感、更低沉（合成 palette，保留备用） */
 export const ACTIVATE_TAIL_PROFILE: VoiceProfile = {
   bodyFreq: 80, bodyDrop: 0.65, bodyLevel: 0.20, subLevel: 0.10,
   sparkleFreq: 3200, sparkleLevel: 0.04,
@@ -221,16 +220,60 @@ export const ACTIVATE_TAIL_PROFILE: VoiceProfile = {
 /** 播放音效 */
 export function playSound(effect: SoundEffect) {
   if (_muted) return;
+  // activate（摄像机快门）改用真实 mp3 采样，听感比合成更扎实。
+  // 所有按钮点击都经 interaction-sound 的 INTENT_TO_EFFECT 落到 activate，
+  // 因此这里一处接管即可让全部按钮声变成快门采样。
+  if (effect === "activate") {
+    playShutter();
+    return;
+  }
   try {
     const ctx = getCtx();
     if (!ctx || !_masterGain) return;
     const now = ctx.currentTime;
     playVoice(ctx, _masterGain, SOUND_PROFILES[effect], now);
-    if (effect === "activate") {
-      playVoice(ctx, _masterGain, ACTIVATE_TAIL_PROFILE, now + ACTIVATE_TAIL_DELAY);
-    } else if (effect === "success") {
+    if (effect === "success") {
       playVoice(ctx, _masterGain, SUCCESS_TAIL_PROFILE, now + SUCCESS_TAIL_DELAY);
     }
+  } catch {
+    // ignore
+  }
+}
+
+/** 快门采样音量（独立于合成的 MASTER_GAIN，因为 mp3 是成品录音，电平不同） */
+const SHUTTER_VOLUME = 0.5;
+
+let _shutterAudio: HTMLAudioElement | null = null;
+
+function getShutterAudio(): HTMLAudioElement | null {
+  if (typeof window === "undefined") return null;
+  if (!_shutterAudio) {
+    try {
+      const audio = new Audio(shutterUrl);
+      audio.preload = "auto";
+      audio.volume = SHUTTER_VOLUME;
+      _shutterAudio = audio;
+    } catch {
+      return null;
+    }
+  }
+  return _shutterAudio;
+}
+
+/**
+ * 播放摄像机快门采样（`assets/sounds/shutter.mp3`）。
+ * 受全局静音 `_muted` 控制；用单一共享元素 + currentTime 重置实现快速重触发，
+ * 极速连击会被 interaction-sound 的 MIN_REPLAY_INTERVAL_MS 节流。
+ */
+export function playShutter(): void {
+  if (_muted) return;
+  const audio = getShutterAudio();
+  if (!audio) return;
+  try {
+    audio.currentTime = 0;
+    void audio.play().catch(() => {
+      // 自动播放策略或极速重触发可能 reject，忽略
+    });
   } catch {
     // ignore
   }
