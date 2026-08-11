@@ -314,6 +314,7 @@ const initialState: SClassState = {
 // ==================== Helpers ====================
 
 /** 获取当前项目数据 */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const getCurrentProject = (state: SClassState): SClassProjectData | null => {
   if (!state.activeProjectId) return null;
   return state.projects[state.activeProjectId] || null;

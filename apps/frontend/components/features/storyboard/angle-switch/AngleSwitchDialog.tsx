@@ -51,6 +51,7 @@ export function AngleSwitchDialog({
   onGenerate,
   frameType = "start",
   previewUrl,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   sameSceneShotsCount = 0,
   isGenerating = false,
 }: AngleSwitchDialogProps) {

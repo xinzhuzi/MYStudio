@@ -40,6 +40,7 @@ export function findBackupDecoder(raw: unknown): MixedBackupDecoder | null {
  * Decode a mixed backup using the best available decoder
  * Throws error "No decoder found for backup format" if no match
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function decodeMixedBackup(raw: unknown): any {
   const decoder = findBackupDecoder(raw);
   if (!decoder) {
@@ -145,6 +146,7 @@ const LEGACY_SINGLECHAPTER_DECODER: MixedBackupDecoder = {
 
   matches(raw): boolean {
     if (typeof raw !== "object" || raw === null) return false;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
     const data = raw as any;
 
     // Check required fields
@@ -154,12 +156,15 @@ const LEGACY_SINGLECHAPTER_DECODER: MixedBackupDecoder = {
 
     // Verify all chapters have valid ID strings
     return data.chapters.every(
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
       (c: any) => typeof c.id === "string" && c.id.length > 0,
     );
   },
 
   decode(raw): { artifacts: MixedBackupArtifact[]; untouchedProjectionHash?: string } {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
     const data = raw as any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
     const artifacts: MixedBackupArtifact[] = data.chapters.map((c: any) => ({
       projectId: data.projectId,
       chapterId: c.id,
@@ -173,6 +178,7 @@ const LEGACY_SINGLECHAPTER_DECODER: MixedBackupDecoder = {
 
     // Generate hash of unchanged projection for verification
     const untouchedHash = cryptoHash(JSON.stringify({
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
       chapters: data.chapters.filter((c: any) => c.id !== "current-chapter"),
       meta: data.meta,
     }));
@@ -210,6 +216,7 @@ const MULTICHAPTER_STATE_DECODER: MixedBackupDecoder = {
 
   matches(raw): boolean {
     if (typeof raw !== "object" || raw === null) return false;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
     const data = raw as any;
 
     // Check for nested state object
@@ -232,12 +239,14 @@ const MULTICHAPTER_STATE_DECODER: MixedBackupDecoder = {
   },
 
   decode(raw): { artifacts: MixedBackupArtifact[]; untouchedProjectionHash?: string } {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
     const data = raw as any;
     const state = data.state;
     const artifacts: MixedBackupArtifact[] = [];
 
     // Extract novel chapters
     if (Array.isArray(state.novelChapters)) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
       state.novelChapters.forEach((c: any) => {
         if (c && typeof c.id === "string") {
           artifacts.push({
@@ -252,6 +261,7 @@ const MULTICHAPTER_STATE_DECODER: MixedBackupDecoder = {
 
     // Extract script episodes
     if (state.scriptData?.episodes && Array.isArray(state.scriptData.episodes)) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
       state.scriptData.episodes.forEach((e: any) => {
         if (e && typeof e.id === "string") {
           artifacts.push({
@@ -483,6 +493,7 @@ const DAOJIE_MULTICHAPTER_DECODER: MixedBackupDecoder = {
       && Boolean(data.chapters && typeof data.chapters === "object" && !Array.isArray(data.chapters));
   },
   decode(raw) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
     const data = raw as Record<string, any>;
     const artifacts: MixedBackupArtifact[] = [];
     const projectId = data.projectId as string;
@@ -512,6 +523,7 @@ const DAOJIE_MULTICHAPTER_DECODER: MixedBackupDecoder = {
 
     for (const [assetType, bundle] of Object.entries(data.assets ?? {})) {
       if (!bundle || typeof bundle !== "object") continue;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
       for (const [bundleName, value] of Object.entries(bundle as Record<string, any>)) {
         const records = Array.isArray(value?.[assetType === "chars" ? "characters" : assetType])
           ? value[assetType === "chars" ? "characters" : assetType]
@@ -534,6 +546,7 @@ const DAOJIE_MULTICHAPTER_DECODER: MixedBackupDecoder = {
     }
 
     for (const value of Object.values(data.continuity ?? {})) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
       const record = value && typeof value === "object" ? value as Record<string, any> : undefined;
       add(typeof record?.chapterId === "string" ? record.chapterId : undefined, "analysis", value);
     }
@@ -550,12 +563,14 @@ const DAOJIE_MULTICHAPTER_DECODER: MixedBackupDecoder = {
     return { artifacts, untouchedProjectionHash: cryptoHash(JSON.stringify(artifacts)) };
   },
   rewrite(raw, chapterId, artifactIds) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
     const next = rewriteRecordTree(raw, chapterId, artifactIds) as Record<string, any>;
     if (next.chapters && typeof next.chapters === "object") delete next.chapters[chapterId];
     const chapterIndex = chapterId.match(/^chapter-(\d+)$/)?.[1];
     if (chapterIndex && next.assets && typeof next.assets === "object") {
       for (const [assetType, rawBundles] of Object.entries(next.assets as Record<string, unknown>)) {
         if (!rawBundles || typeof rawBundles !== "object" || Array.isArray(rawBundles)) continue;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
         const bundles = rawBundles as Record<string, any>;
         const recordsKey = assetType === "chars" ? "characters" : assetType;
         for (const [bundleName, value] of Object.entries(bundles)) {
@@ -577,7 +592,9 @@ const DAOJIE_MULTICHAPTER_DECODER: MixedBackupDecoder = {
     const versions = next.exports?.["exports_manifest.json"]?.versions;
     if (Array.isArray(versions)) {
       next.exports["exports_manifest.json"].versions = versions
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
         .map((version: any) => ({ ...version, chapters: version.chapters?.filter((id: unknown) => id !== chapterId) }))
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
         .filter((version: any) => version.chapters?.length !== 0);
     }
     return next;

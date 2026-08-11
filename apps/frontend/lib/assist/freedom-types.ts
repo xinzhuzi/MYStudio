@@ -9,6 +9,7 @@ export interface FreedomImageParams {
   height?: number;
   negativePrompt?: string;
   referenceImages?: string[];
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   extraParams?: Record<string, any>;
   signal?: AbortSignal;
 }

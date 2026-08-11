@@ -10,8 +10,7 @@
 
 import React, { useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
-import { Check, ImageIcon, FolderOpen, X } from "lucide-react";
-import { Label } from "@/components/ui/label";
+import { Check, ImageIcon, FolderOpen } from "lucide-react";
 import { useMediaStore } from "@/stores/media/media-store";
 import { useAppSettingsStore } from "@/stores/app/app-settings-store";
 import { useProjectStore } from "@/stores/project/project-store";

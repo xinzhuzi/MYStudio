@@ -16,6 +16,7 @@ import type {
   DiagnosticsLogQueryResult,
 } from "./diagnostics";
 import type { TimelineRenderPlan } from "./editing";
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import type { StudioAssetListRequest, StudioAssetListResponse, StudioAssetSummary } from "./studio-assets";
 import type {
   StudioVisualManualCreatePayload,

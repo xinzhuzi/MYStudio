@@ -4,7 +4,6 @@ import type {
   RemotionRenderJobV1,
   RemotionStageStatus,
 } from "@/types/remotion-workspace";
-import { sha256CanonicalJson } from "./canonical-json";
 import { createRemotionRenderJobId as createJobId } from "./remotion-job-identity";
 import { validateRemotionRenderJob } from "./remotion-render-validation";
 import type { RemotionValidationResult } from "./remotion-validation-utils";

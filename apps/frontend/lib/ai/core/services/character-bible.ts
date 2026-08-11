@@ -49,6 +49,7 @@ export interface CharacterBible {
 export interface ReferenceImage {
   id: string;
   url: string;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   analysisResult?: any;
   isPrimary: boolean;
 }
@@ -159,6 +160,7 @@ export class CharacterBibleManager {
    */
   createFromAnalysis(
     screenplayId: string,
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
     analysisResult: any,
     referenceImageUrl?: string
   ): CharacterBible {
@@ -253,6 +255,7 @@ export function generateConsistencyPrompt(character: CharacterBible): string {
  * Merge multiple character analyses to find common traits
  * Useful when analyzing multiple reference images of same character
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function mergeCharacterAnalyses(analyses: any[]): Partial<CharacterBible> {
   if (analyses.length === 0) return {};
   

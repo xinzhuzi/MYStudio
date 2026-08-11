@@ -2,8 +2,8 @@
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 
-import { useState, useMemo, useEffect, useCallback } from "react";
-import { X, AlertTriangle, Trash2, Copy, ShieldAlert, Lock, HardDrive, FileWarning } from "lucide-react";
+import { useState, useMemo, useEffect } from "react";
+import { AlertTriangle, Trash2, Copy, ShieldAlert, Lock, HardDrive, FileWarning } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { DeletionConfirmation, DeletionPlan, PlanItem, BackupImpact } from "@/types/artifacts";
 import { Button } from "@/components/ui/button";

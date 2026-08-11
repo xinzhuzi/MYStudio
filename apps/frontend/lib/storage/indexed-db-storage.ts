@@ -95,7 +95,6 @@ const hasRichData = (jsonStr: string | null): boolean => {
 
 export const fileStorage: StateStorage = {
   getItem: async (name: string): Promise<string | null> => {
-    console.log(`[Storage] getItem: ${name}, isElectron: ${isElectron()}`);
     if (isElectron()) {
       try {
         // Get data from all sources
@@ -118,47 +117,38 @@ export const fileStorage: StateStorage = {
         const resolvedLocalData = localData || legacyLocalData;
         const resolvedIdbData = idbData || legacyIdbData;
 
-        console.log(`[Storage] Data sizes for ${name}: file=${resolvedFileData?.length || 0}, local=${resolvedLocalData?.length || 0}, idb=${resolvedIdbData?.length || 0}`);
         
         // Determine which data source has the richest data
         const fileHasData = hasRichData(resolvedFileData);
         const localHasData = hasRichData(resolvedLocalData);
         const idbHasData = hasRichData(resolvedIdbData);
         
-        console.log(`[Storage] Rich data check for ${name}: file=${fileHasData}, local=${localHasData}, idb=${idbHasData}`);
         
         // Priority: localStorage > IndexedDB > file (for migration)
         // If localStorage or IndexedDB has richer data, migrate it
         if (localHasData && !fileHasData) {
-          console.log(`[Storage] Migrating ${name} from localStorage to file storage (richer data)...`);
           await window.fileStorage!.setItem(name, resolvedLocalData!);
           browserStorage?.removeItem(name);
           if (legacyName) browserStorage?.removeItem(legacyName);
-          console.log(`[Storage] Migration complete for ${name}`);
           return resolvedLocalData;
         }
         
         if (idbHasData && !fileHasData && !localHasData) {
-          console.log(`[Storage] Migrating ${name} from IndexedDB to file storage (richer data)...`);
           await window.fileStorage!.setItem(name, resolvedIdbData!);
           await removeFromIndexedDB(name);
           if (legacyName) await removeFromIndexedDB(legacyName);
-          console.log(`[Storage] Migration complete for ${name}`);
           return resolvedIdbData;
         }
         
         // Clean up old data if file storage has the data
         if (fileHasData) {
           if (localData) {
-            console.log(`[Storage] Cleaning up localStorage for ${name}`);
             browserStorage?.removeItem(name);
           }
           if (idbData) {
-            console.log(`[Storage] Cleaning up IndexedDB for ${name}`);
             await removeFromIndexedDB(name);
           }
           if (legacyFileData && !fileData && legacyName) {
-            console.log(`[Storage] Migrating legacy file ${legacyName} to ${name}`);
             const renamed = await window.fileStorage!.renameItem?.(legacyName, name);
             if (!renamed) await window.fileStorage!.setItem(name, legacyFileData);
           }
@@ -176,11 +166,10 @@ export const fileStorage: StateStorage = {
   },
 
   setItem: async (name: string, value: string): Promise<void> => {
-    console.log(`[Storage] setItem: ${name}, size: ${value.length} chars, isElectron: ${isElectron()}`);
     if (isElectron()) {
       try {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
         const result = await window.fileStorage!.setItem(name, value);
-        console.log(`[Storage] File save result for ${name}:`, result);
         return;
       } catch (error) {
         console.error('[Storage] File storage setItem error:', error);

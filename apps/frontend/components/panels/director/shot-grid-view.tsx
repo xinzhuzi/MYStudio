@@ -38,9 +38,11 @@ export function ShotGridView({ onGenerateImage, onGenerateVideo }: ShotGridViewP
   const { activeProjectId } = useProjectStore();
   const scriptProject = useActiveScriptProject();
   const { updateShot } = useScriptStore();
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { characters, getCharacterById } = useCharacterLibraryStore();
 
   const [activeShotId, setActiveShotId] = useState<string | null>(null);
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [processingType, setProcessingType] = useState<"start" | "end" | "video" | null>(null);
   const [batchProgress, setBatchProgress] = useState<{
@@ -58,6 +60,7 @@ export function ShotGridView({ onGenerateImage, onGenerateVideo }: ShotGridViewP
   const [isAngleSwitching, setIsAngleSwitching] = useState(false);
 
   const projectId = activeProjectId || "";
+// eslint-disable-next-line react-hooks/exhaustive-deps
   const shots = scriptProject?.shots || [];
   const scriptData = scriptProject?.scriptData;
 
@@ -266,8 +269,8 @@ export function ShotGridView({ onGenerateImage, onGenerateVideo }: ShotGridViewP
         apiKey,
         baseUrl,
         appId,
-        onProgress: (progress, status) => {
-          console.log(`[AngleSwitch] Progress: ${progress}%, Status: ${status}`);
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+        onProgress: (progress, _status) => {
         },
       });
 

@@ -71,6 +71,7 @@ export function delay(ms: number): Promise<void> {
  * Create a rate-limited version of an async function
  * Ensures minimum time between calls
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function createRateLimitedFn<T extends (...args: any[]) => Promise<any>>(
   fn: T,
   minDelayMs: number = 3000

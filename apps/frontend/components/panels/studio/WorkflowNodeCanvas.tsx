@@ -419,6 +419,7 @@ export function WorkflowNodeCanvas({
       });
     };
     pendingLayoutFrameRef.current = window.requestAnimationFrame(applyMeasuredLayout);
+// eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cancelPendingLayoutWork, flowInstance, isVisible, layout, layoutKey, positions, setReactFlowNodes]);
   useEffect(() => {
     setReactFlowNodes((currentNodes) => {

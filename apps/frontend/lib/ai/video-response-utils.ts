@@ -8,6 +8,7 @@ export function normalizeUrl(url: unknown): string | undefined {
 }
 
 /** Extract a video URL from the response shapes used by supported providers. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function extractVideoUrl(data: Record<string, any>): string | null {
   const url =
     data.data?.[0]?.url ||

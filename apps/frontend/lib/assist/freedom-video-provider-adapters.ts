@@ -61,13 +61,16 @@ async function buildVeoUnifiedVideoBody(
   params: FreedomVideoParams,
   model: string,
   endpointTypes: string[] | undefined,
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): Promise<Record<string, any>> {
   const capability = resolveVeoUploadCapability(model, endpointTypes);
   const grouped = validateVeoVideoUploads(model, endpointTypes, params.uploadFiles);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   const body: Record<string, any> = {
     model,
     prompt: params.prompt,
   };
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   const metadata: Record<string, any> = {};
 
   if (params.duration) body.duration = params.duration;
@@ -155,6 +158,7 @@ export async function generateVideoViaUnified(
 ): Promise<GenerationResult> {
   const endpointTypes = getModelEndpointTypes(model);
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   let body: Record<string, any>;
   if (isVeoModel(model)) {
     body = await buildVeoUnifiedVideoBody(params, model, endpointTypes);
@@ -164,6 +168,7 @@ export async function generateVideoViaUnified(
     const isGrok = (endpointTypes || []).some(t => /grok/i.test(t)) || /grok/i.test(model);
 
     body = { model, prompt: params.prompt };
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
     const metadata: Record<string, any> = {};
 
     // Duration: Luma requires string with unit ("5s"), other models use number
@@ -347,6 +352,7 @@ export async function generateVideoViaWan(
   baseUrl: string,
 ): Promise<GenerationResult> {
   const rootBase = getRootBaseUrl(baseUrl);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   const body: Record<string, any> = {
     model,
     input: { prompt: params.prompt },
@@ -433,6 +439,7 @@ export async function generateVideoViaKling(
     endpointPath = firstFrame ? 'image2video' : 'text2video';
   }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   const body: Record<string, any> = {
     model_name: resolveKlingModelName(model),
     prompt: params.prompt,

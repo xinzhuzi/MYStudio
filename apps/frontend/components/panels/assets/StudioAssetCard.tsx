@@ -1,7 +1,6 @@
 "use client";
 
 import { memo, useEffect, useRef, useState, type CSSProperties } from "react";
-import { cn } from "@/lib/utils";
 import { getPrimaryAssetName } from "@/lib/studio/asset-names";
 import type { StudioAssetSummary } from "@/types/studio-assets";
 import { Box, Film, Map, Music2, UserCircle } from "lucide-react";

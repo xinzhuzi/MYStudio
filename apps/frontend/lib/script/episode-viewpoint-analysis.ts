@@ -47,14 +47,6 @@ export async function analyzeEpisodeViewpoints({
   let analysisExecuted = false;
   let viewpointCount = 0;
 
-  console.log("\n============================================");
-  console.log("[generateEpisodeShots] === 开始 AI 视角分析 ===");
-  console.log("[generateEpisodeShots] apiKey:", options.apiKey ? `已配置(长度${options.apiKey.length})` : "未配置");
-  console.log("[generateEpisodeShots] provider:", options.provider);
-  console.log("[generateEpisodeShots] baseUrl:", options.baseUrl || "默认");
-  console.log("[generateEpisodeShots] episodeScenes.length:", episodeScenes.length);
-  console.log("[generateEpisodeShots] newShots.length:", newShots.length);
-  console.log("============================================\n");
 
   if (!options.apiKey) {
     console.error("[generateEpisodeShots] ❌ 跳过 AI 视角分析: apiKey 未配置");
@@ -87,13 +79,11 @@ export async function analyzeEpisodeViewpoints({
       }))
       .filter((task) => task.sceneShots.length > 0);
 
-    console.log(`[generateEpisodeShots] 🚀 待分析场景: ${sceneAnalysisTasks.length} 个，并发数: ${concurrency}`);
 
     const settledResults = await runStaggered(
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
       sceneAnalysisTasks.map((task, taskIndex) => async () => {
         const { scene, index, sceneShots } = task;
-        console.log(`[generateEpisodeShots] 🚀 启动场景 ${taskIndex + 1}/${sceneAnalysisTasks.length}`);
-        console.log(`[generateEpisodeShots] 场景 ${index + 1}/${episodeScenes.length}: "${scene.location}" 有 ${sceneShots.length} 个分镜`);
         analysisExecuted = true;
         onProgress?.(`AI 分析场景 ${index + 1}/${episodeScenes.length}: ${scene.location}...`);
         const result = await analyzeSceneViewpoints(scene, sceneShots, viewpointOptions);
@@ -164,10 +154,10 @@ export async function analyzeEpisodeViewpoints({
       viewpointCount += viewpointsData.length;
     }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
     for (const scene of episodeScenes.filter(
       (item) => !sceneAnalysisTasks.some((task) => task.scene.id === item.id),
     )) {
-      console.log(`[generateEpisodeShots] ⏭️ 跳过场景 "${scene.location}" (无分镜)`);
     }
 
     setScriptData(projectId, { ...scriptData, scenes: updatedScenes });

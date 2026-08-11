@@ -82,6 +82,7 @@ export function SaveToPropsDialog({
       // 重置表单
       setPropName('');
       setLocalFolderId(null);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       toast.error(`保存失败：${err.message}`);
     } finally {

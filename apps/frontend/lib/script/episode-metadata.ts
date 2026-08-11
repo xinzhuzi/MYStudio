@@ -7,6 +7,7 @@ export function extractTimelineInfo(outline: string, characterBios: string): {
   const fullText = `${outline}\n${characterBios}`;
   
   // 1. 提取具体年份（如"2002年"、"1990-2020年"、"2022年夏天"）
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   const yearPatterns = [
     // 年份范围：1990-2020年、1990年到2020年
     /(\d{4})\s*[-至到~]\s*(\d{4})\s*年?/,

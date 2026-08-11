@@ -103,7 +103,6 @@ async function pollTaskCompletion(
       }
 
       const data = await response.json();
-      console.log(`[StoryboardService] Task ${taskId} status:`, data);
 
       // Parse status (matching director_ai)
       const status = (data.status ?? data.data?.status ?? 'unknown').toString().toLowerCase();
@@ -195,6 +194,7 @@ export async function generateStoryboardImage(
     styleTokens = [],
     characterDescriptions = [],
     apiKey,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
     provider = 'memefast',
     mockMode = false,
   } = config;
@@ -223,10 +223,9 @@ export async function generateStoryboardImage(
   };
 
   const prompt = buildStoryboardPrompt(promptConfig);
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   const negativePrompt = getDefaultNegativePrompt();
 
-  console.log('[StoryboardService] Generated prompt:', prompt.substring(0, 200));
-  console.log('[StoryboardService] Grid config:', gridConfig);
 
   // Get output dimensions from resolution preset
   const outputSize = RESOLUTION_PRESETS[resolution][aspectRatio];
@@ -377,12 +376,6 @@ async function submitVideoGenTask(
     image_with_roles: roles,
   };
 
-  console.log('[StoryboardService] Submitting video to:', actualBaseUrl, {
-    model: requestBody.model,
-    aspectRatio: requestBody.aspect_ratio,
-    promptPreview: prompt.substring(0, 100),
-    imageRolesCount: roles.length,
-  });
 
   // Use retry wrapper for 429 rate limit handling
   const data = await retryOperation(async () => {
@@ -426,7 +419,6 @@ async function submitVideoGenTask(
     retryOn429: true,
   });
 
-  console.log('[StoryboardService] Video API response:', data);
 
   // Parse response
   let taskId: string | undefined;

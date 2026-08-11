@@ -24,6 +24,7 @@ export async function generateViaKlingImageEndpoint(
   const nativePath = model === "kling-omni-image"
     ? "kling/v1/images/omni-image"
     : "kling/v1/images/generations";
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   const body: Record<string, any> = { prompt: params.prompt, model: resolveKlingModelName(model) };
   if (params.aspectRatio) body.aspect_ratio = params.aspectRatio;
   if (params.negativePrompt) body.negative_prompt = params.negativePrompt;

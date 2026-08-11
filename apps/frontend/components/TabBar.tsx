@@ -18,8 +18,9 @@ interface TabBarProps {
   onToggleSidebar: () => void;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function TabBar({ sidebarCollapsed, onToggleSidebar }: TabBarProps) {
-  const { activeTab, inProject, setActiveTab } = useMediaPanelStore();
+  const { activeTab, inProject, setActiveTab, setInProject } = useMediaPanelStore();
 
   const sidebarClassName = cn(
     "studio-sidebar flex flex-col bg-panel/90 backdrop-blur-xl border-r border-border/50",
@@ -102,6 +103,27 @@ export function TabBar({ sidebarCollapsed, onToggleSidebar }: TabBarProps) {
     <div className={sidebarClassName}>
       {sidebarSpacer}
       <nav className="flex-1 py-1">
+        {/* Home — exit the current project and return to the Dashboard
+            (project list). Mirrors the dashboard-mode "项目" button (same
+            LayoutDashboard icon) so the affordance is consistent across
+            modes. setInProject(false) also clears episode scope and forces
+            activeTab back to "dashboard". Separated from the in-project
+            panel buttons by a divider. */}
+        <TooltipProvider delayDuration={300}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={() => setInProject(false)}
+                className="studio-nav-button w-full flex flex-col items-center py-2.5 text-muted-foreground transition-colors hover:text-foreground hover:bg-muted/50"
+              >
+                <LayoutDashboard className="h-5 w-5 mb-0.5" />
+                <span className="text-[9px]">主页</span>
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right">返回项目列表</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+        <div className="mx-3 my-1 border-t border-border/40" role="separator" />
         {mainNavItems.map((item) => {
           const isActive = activeTab === item.id;
           const Icon = item.icon;

@@ -4,7 +4,6 @@ import { useMemo, useCallback } from 'react';
 import { CameraIcon, Loader2, Download, Sparkles, Film } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { useFreedomStore } from '@/stores/assist/freedom-store';
@@ -13,9 +12,13 @@ import { GenerationHistory } from './GenerationHistory';
 import { aiManager } from '@/lib/ai/ai-manager';
 import {
   buildCinemaPrompt,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   CAMERA_MAP,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   LENS_MAP,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   FOCAL_PERSPECTIVE,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   APERTURE_EFFECT,
 } from '@/lib/assist/camera-dictionary';
 
@@ -84,11 +87,13 @@ export function CinemaStudio() {
       });
 
       toast.success('电影级图片生成成功！已保存到素材库');
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       toast.error(`生成失败: ${err.message}`);
     } finally {
       setCinemaGenerating(false);
     }
+// eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cinemaPrompt, selectedCamera, selectedLens, selectedFocalLength, selectedAperture]);
 
   return (

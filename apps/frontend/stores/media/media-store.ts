@@ -17,6 +17,7 @@ import {
 } from "./media-file-move";
 import {
   mergeMediaData,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   normalizeMediaUrl,
   partializeMediaData,
   splitMediaData,
@@ -277,7 +278,6 @@ export const useMediaStore = create<MediaStore>()(
                 f.id === newItem.id ? { ...f, url: localPath } : f
               ),
             }));
-            console.log('[MediaStore] Upload saved locally:', localPath);
           }
           
           // Save video thumbnail locally too
@@ -553,7 +553,6 @@ export const useMediaStore = create<MediaStore>()(
                 f.id === id ? { ...f, url: localPath } : f
               ),
             }));
-            console.log(`[MediaStore] Saved ${type} locally:`, localPath);
           }
           
           // Also save thumbnailUrl if it's a data: URL
@@ -566,7 +565,6 @@ export const useMediaStore = create<MediaStore>()(
                   f.id === id ? { ...f, thumbnailUrl: thumbLocalPath } : f
                 ),
               }));
-              console.log(`[MediaStore] Saved thumbnail locally:`, thumbLocalPath);
             }
           }
         } catch (error) {
@@ -648,7 +646,6 @@ export const useMediaStore = create<MediaStore>()(
       set((state) => ({
         folders: [...state.folders, ...newFolders],
       }));
-      console.log('[MediaStore] Initialized system folders:', newFolders.map((f) => f.name).join(', '));
     }
   },
   
@@ -671,6 +668,7 @@ export const useMediaStore = create<MediaStore>()(
         'media', splitMediaData, mergeMediaData, 'shareMedia'
       )),
       partialize: partializeMediaData,
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
       merge: (persisted: any, current: any) => {
         if (!persisted) return current;
         // Replace arrays completely on rehydrate (don't merge/append)
@@ -735,7 +733,6 @@ async function migrateMediaDataUrls(state: MediaStore) {
   );
   
   if (filesToMigrate.length === 0) return;
-  console.log(`[MediaStore] Migrating ${filesToMigrate.length} media files with data: URLs...`);
   
   for (const file of filesToMigrate) {
     try {
@@ -772,5 +769,4 @@ async function migrateMediaDataUrls(state: MediaStore) {
     }
   }
   
-  console.log('[MediaStore] Migration complete.');
 }

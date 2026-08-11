@@ -21,12 +21,12 @@ import type { ArtifactRecord, PhysicalRef } from "@/types/artifacts";
 import { STAGE_LABELS_BY_KEY as STAGE_LABELS } from "@/lib/artifacts/stage-labels";
 import { Badge } from "@/components/ui/badge";
 import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { RefPreview } from "../RefPreview";
@@ -225,19 +225,19 @@ export function ArtifactDetailPanel({
   const tags = artifact.metadata?.tags ?? [];
 
   return (
-    <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <SheetContent className={cn("w-[min(720px,calc(100vw-1rem))] max-w-none flex flex-col", className)}>
-        <SheetHeader className="shrink-0 pr-10">
-          <SheetTitle className="flex items-center gap-2">
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className={cn("max-w-[720px] max-h-[calc(100vh-4rem)] flex flex-col", className)}>
+        <DialogHeader className="shrink-0 pr-10">
+          <DialogTitle className="flex items-center gap-2">
             <FileText className="h-5 w-5 text-primary" />
             {artifact.name}
-          </SheetTitle>
-          {/* Provide an accessible description so Radix SheetContent doesn't
+          </DialogTitle>
+          {/* Provide an accessible description so Radix DialogContent doesn't
               warn about missing Description/aria-describedby. Visually hidden:
               screen readers announce it, sighted users see the tabs below. */}
-          <SheetDescription className="sr-only">
+          <DialogDescription className="sr-only">
             产物详情:查看元数据、物理文件、依赖关系与内容预览。
-          </SheetDescription>
+          </DialogDescription>
           {artifact.editRoute && onOpenWorkflow && (
             <button
               type="button"
@@ -274,7 +274,7 @@ export function ArtifactDetailPanel({
               }
             </div>
           )}
-        </SheetHeader>
+        </DialogHeader>
 
         <ScrollArea className="min-h-0 flex-1">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -711,8 +711,8 @@ export function ArtifactDetailPanel({
             </TabsContent>
           </Tabs>
         </ScrollArea>
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   );
 }
 

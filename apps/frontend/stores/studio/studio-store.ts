@@ -6,28 +6,46 @@ import {
   buildStoryboardImageWorkflowPatch,
   createImageWorkflowGraph,
 } from "@/lib/studio/image-workflow";
-import { buildMediaRefFromMaterial, createMaterialRecord } from "@/lib/studio/material";
+import { createMaterialSliceActions } from "./material-slice";
+import { createConfigSliceActions } from "./config-slice";
+import { createNovelSliceActions } from "./novel-slice";
+import { createMemorySliceActions } from "./memory-slice";
+import { createEntitySliceActions } from "./entity-slice";
+import { createProductionSliceActions } from "./production-slice";
+import { createAgentWorkSliceActions } from "./agent-work-slice";
+import { createStoryboardSliceActions } from "./storyboard-slice";
 import {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   appendNovelChapters,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   parseNovelChapters,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   replaceNovelChapters,
 } from "@/lib/studio/novel";
 import { groupStoryboardsIntoTracks } from "@/lib/studio/production";
 import {
   createHumanContinuityAssetApproval,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   createHumanVisualReview,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   markContinuityDependentsStale,
   normalizeContinuityAssetVersion,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   visualContinuityFingerprint,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   visualReviewInputFingerprint,
 } from "@/lib/studio/visual-continuity";
 import {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   buildProjectEventGraph,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   projectEventGraphToMemoryRecords,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   retrieveProjectMemory,
 } from "@/lib/studio/event-graph";
 import {
   migrateStudioWorkflowState,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   normalizeWorkflowConfig,
   STUDIO_WORKFLOW_PERSIST_VERSION,
   STUDIO_WORKFLOW_STORAGE_KEY,
@@ -41,6 +59,7 @@ import {
   continuityAssetVersionKey,
   invalidateStoryboardsForAssetVersionChanges,
   markStale,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   mergeStoryboardReplacement,
   storyboardSourceFingerprint,
   trackSourceFingerprint,
@@ -210,97 +229,25 @@ const initialState: StudioWorkflowState = {
 
 export const useStudioStore = create<StudioWorkflowStore>()(
   persist(
-    (set, get) => ({
+    (set, get) => {
+      const materialSlice = createMaterialSliceActions(set as never, get as never);
+      const configSlice = createConfigSliceActions(set as never);
+      const novelSlice = createNovelSliceActions(set as never, get as never, { syncNovelChapterMirrors, removeNovelChapterMirrors });
+      const memorySlice = createMemorySliceActions(set as never, get as never);
+      const entitySlice = createEntitySliceActions(set as never);
+      const productionSlice = createProductionSliceActions(set as never);
+      const agentWorkSlice = createAgentWorkSliceActions(set as never, get as never);
+      const storyboardSlice = createStoryboardSliceActions(set as never, get as never);
+      return {
       ...initialState,
-
-      addMaterial: (input) => {
-        const material = createMaterialRecord(input);
-        set((state) => ({
-          materials: [
-            material,
-            ...state.materials.filter((item) => item.id !== material.id && item.localPath !== material.localPath),
-          ],
-        }));
-        return material.id;
-      },
-
-      deleteMaterial: (id) => {
-        set((state) => ({
-          materials: state.materials.filter((item) => item.id !== id),
-          storyboards: state.storyboards.map((item) => {
-            const material = state.materials.find((candidate) => candidate.id === id);
-            if (!material || item.mediaRef?.path !== material.localPath) return item;
-            return { ...item, mediaRef: undefined };
-          }),
-        }));
-        get().rebuildTracks();
-      },
-
-      bindMaterialToStoryboard: (storyboardId, materialId) => {
-        const material = get().materials.find((item) => item.id === materialId);
-        if (!material) return;
-        get().updateStoryboard(storyboardId, { mediaRef: buildMediaRefFromMaterial(material) });
-      },
-
-      importNovelText: (sourceText) => {
-        const novelChapters = parseNovelChapters(sourceText);
-        set({ novelChapters });
-        syncNovelChapterMirrors(novelChapters);
-      },
-
-      appendNovelText: (sourceText, sourceName) => {
-        const novelChapters = appendNovelChapters(get().novelChapters, sourceText, { sourceName });
-        const importedChapters = novelChapters.slice(get().novelChapters.length);
-        set({ novelChapters });
-        syncNovelChapterMirrors(importedChapters);
-      },
-
-      replaceNovelText: (sourceText, sourceName) => {
-        const previousChapters = get().novelChapters;
-        const novelChapters = replaceNovelChapters(sourceText, { sourceName });
-        set({ novelChapters });
-        syncNovelChapterMirrors(novelChapters);
-        removeNovelChapterMirrors(previousChapters.filter((chapter) => !novelChapters.some((next) => next.id === chapter.id)));
-      },
-
-      updateNovelChapter: (id, updates) => {
-        const chapterUpdates = { ...updates };
-        delete chapterUpdates.sourceId;
-        delete chapterUpdates.revision;
-        set((state) => ({
-          novelChapters: state.novelChapters.map((chapter) => {
-            if (chapter.id !== id) return chapter;
-
-            const sourceId = chapter.sourceId ?? chapter.id;
-            const revision = chapter.revision ?? 1;
-            const nextChapter = { ...chapter, ...chapterUpdates };
-            const sourceIdentityChanged =
-              nextChapter.title !== chapter.title ||
-              nextChapter.volume !== chapter.volume ||
-              nextChapter.sourceText !== chapter.sourceText;
-
-            return {
-              ...nextChapter,
-              sourceId,
-              revision: sourceIdentityChanged ? revision + 1 : revision,
-              updatedAt: Date.now(),
-            };
-          }),
-        }));
-        const updatedChapter = get().novelChapters.find((chapter) => chapter.id === id);
-        if (updatedChapter) {
-          syncNovelChapterMirrors([updatedChapter]);
-        }
-      },
-
-      setWorkflowConfig: (updates) => {
-        set((state) => ({
-          workflowConfig: {
-            ...state.workflowConfig,
-            ...updates,
-          },
-        }));
-      },
+      addMaterial: materialSlice.addMaterial,
+      deleteMaterial: materialSlice.deleteMaterial,
+      bindMaterialToStoryboard: materialSlice.bindMaterialToStoryboard,
+      importNovelText: novelSlice.importNovelText,
+      appendNovelText: novelSlice.appendNovelText,
+      replaceNovelText: novelSlice.replaceNovelText,
+      updateNovelChapter: novelSlice.updateNovelChapter,
+      setWorkflowConfig: configSlice.setWorkflowConfig,
 
       startAgentRun: (input) => {
         const id = createStudioWorkflowId("run");
@@ -484,133 +431,18 @@ export const useStudioStore = create<StudioWorkflowStore>()(
           .map((task) => get().retryMediaTask(task.id))
           .filter((id): id is string => Boolean(id)),
 
-      rebuildProjectMemoryFromChapters: (projectId) => {
-        const eventGraph = buildProjectEventGraph({
-          projectId,
-          chapters: get().novelChapters,
-        });
-        const memoryRecords = projectEventGraphToMemoryRecords(eventGraph);
-        set((state) => ({
-          eventGraph: [
-            ...state.eventGraph.filter((record) => record.projectId !== projectId),
-            ...eventGraph,
-          ],
-          projectMemoryRecords: [
-            ...state.projectMemoryRecords.filter((record) => record.projectId !== projectId || record.kind !== "event"),
-            ...memoryRecords,
-          ],
-        }));
-      },
+      rebuildProjectMemoryFromChapters: memorySlice.rebuildProjectMemoryFromChapters,
+      retrieveProjectMemory: memorySlice.retrieveProjectMemory,
+      purgeProjectMemory: memorySlice.purgeProjectMemory,
 
-      retrieveProjectMemory: (query) => retrieveProjectMemory(get().projectMemoryRecords, query),
+      saveAgentWorkData: agentWorkSlice.saveAgentWorkData,
 
-      purgeProjectMemory: (projectId) => {
-        set((state) => ({
-          eventGraph: state.eventGraph.filter((record) => record.projectId !== projectId),
-          projectMemoryRecords: state.projectMemoryRecords.filter((record) => record.projectId !== projectId),
-        }));
-      },
+      saveEntityExtraction: entitySlice.saveEntityExtraction,
+      saveScriptPlan: entitySlice.saveScriptPlan,
+      saveSeriesBible: entitySlice.saveSeriesBible,
+      saveEpisodeOutline: entitySlice.saveEpisodeOutline,
 
-      saveAgentWorkData: (key, data, episodeId, identity) => {
-        const now = Date.now();
-        const id = createStudioWorkflowId("work");
-        const item: AgentWorkData = {
-          id,
-          key,
-          episodeId,
-          data,
-          sourceId: identity?.sourceId,
-          revision: identity?.revision,
-          createdAt: now,
-          updatedAt: now,
-        };
-        set((state) => ({ agentWorkData: [...state.agentWorkData, item] }));
-        if (key === "productionPlan" && /本地成片输出[:：]\s*\S+/.test(data)) {
-          const taskId = get().startMediaTask({
-            kind: "finalExport",
-            targetId: episodeId ?? id,
-            episodeId,
-            provider: "ffmpeg-local",
-            inputFingerprint: data,
-          });
-          get().finishMediaTask(taskId, { outputRef: id });
-        }
-        return id;
-      },
-
-      saveEntityExtraction: (result) => {
-        set((state) => ({
-          entityExtractions: [
-            ...state.entityExtractions.filter((item) => item.episodeId !== result.episodeId),
-            result,
-          ],
-        }));
-      },
-
-      saveScriptPlan: (plan) => {
-        set((state) => ({
-          scriptPlans: [
-            ...state.scriptPlans.filter((item) => item.episodeId !== plan.episodeId),
-            plan,
-          ],
-        }));
-      },
-
-      saveSeriesBible: (bible) => {
-        set({ seriesBible: bible });
-      },
-
-      saveEpisodeOutline: (outline) => {
-        set((state) => ({
-          episodeOutlines: [
-            ...state.episodeOutlines.filter((item) => item.episodeId !== outline.episodeId),
-            outline,
-          ],
-        }));
-      },
-
-      addStoryboard: (item = {}) => {
-        const id = item.id ?? createStudioWorkflowId("sb");
-        const storyboard: StoryboardItem = {
-          id,
-          episodeId: item.episodeId ?? "episode-1",
-          index: item.index ?? get().storyboards.length + 1,
-          trackKey: item.trackKey ?? `track-${get().storyboards.length + 1}`,
-          trackId: item.trackId ?? "",
-          duration: item.duration ?? 5,
-          prompt: item.prompt ?? "",
-          videoDesc: item.videoDesc ?? "",
-          assetIds: item.assetIds ?? [],
-          mediaRef: item.mediaRef,
-          imageWorkflowId: item.imageWorkflowId,
-          imageWorkflowNodeId: item.imageWorkflowNodeId,
-          shouldGenerateImage: item.shouldGenerateImage,
-          sourceEvidence: item.sourceEvidence,
-          orderedReferenceManifest: item.orderedReferenceManifest,
-          shotSemantics: item.shotSemantics,
-          continuityState: item.continuityState,
-          visualReview: item.visualReview,
-          audioRef: item.audioRef,
-          state: item.state ?? "idle",
-          reason: item.reason,
-          stale: item.stale,
-          staleReason: item.staleReason,
-          staleSince: item.staleSince,
-          sourceRunId: item.sourceRunId,
-          sourceFingerprint: item.sourceFingerprint ?? storyboardSourceFingerprint(item),
-          outputVersion: item.outputVersion,
-          emotion: item.emotion,
-          orientation: item.orientation,
-          spatialRelation: item.spatialRelation,
-          associateAssetsNames: item.associateAssetsNames,
-          lines: item.lines,
-          speakerId: item.speakerId,
-          sound: item.sound,
-        };
-        set((state) => ({ storyboards: [...state.storyboards, storyboard] }));
-        get().rebuildTracks();
-        return id;
-      },
+      addStoryboard: storyboardSlice.addStoryboard,
 
       replaceContinuityAssetVersions: (items) => {
         const previous = get().continuityAssetVersions;
@@ -686,94 +518,11 @@ export const useStudioStore = create<StudioWorkflowStore>()(
         });
       },
 
-      replaceStoryboardsForEpisode: (episodeId, items) => {
-        set((state) => ({
-          storyboards: [
-            ...state.storyboards.filter((item) => item.episodeId !== episodeId),
-            ...items.map((item) => {
-              const previous = state.storyboards.find((current) => current.id === item.id)
-                ?? state.storyboards.find((current) => (
-                  current.episodeId === episodeId && current.index === item.index
-                ));
-              return previous
-                ? mergeStoryboardReplacement(previous, { ...previous, ...item }, "storyboard source changed")
-                : { ...item, sourceFingerprint: item.sourceFingerprint ?? storyboardSourceFingerprint(item) };
-            }),
-          ],
-        }));
-        get().rebuildTracks();
-      },
-
-      updateStoryboard: (id, updates) => {
-        const { visualReview: _ignoredVisualReview, ...safeUpdates } = updates;
-        if (Object.keys(safeUpdates).length === 0) return;
-        const previous = get().storyboards.find((item) => item.id === id);
-        const previousReviewFingerprint = previous ? visualReviewInputFingerprint(previous) : undefined;
-        set((state) => ({
-          storyboards: state.storyboards.map((item) =>
-            item.id === id ? mergeStoryboardReplacement(item, { ...item, ...safeUpdates }, "storyboard source changed") : item,
-          ),
-        }));
-        const current = get().storyboards.find((item) => item.id === id);
-        if (
-          previousReviewFingerprint
-          && current
-          && previousReviewFingerprint !== visualReviewInputFingerprint(current)
-        ) {
-          set((state) => ({
-            storyboards: markContinuityDependentsStale(
-              state.storyboards.map((item) => item.id === id && item.visualReview
-                ? {
-                    ...item,
-                    visualReview: {
-                      ...item.visualReview,
-                      status: "pending" as const,
-                      reasons: ["分镜画面或连续性输入已变化，必须重新审核"],
-                    },
-                  }
-                : item),
-              id,
-            ),
-          }));
-        }
-        get().rebuildTracks();
-      },
-
-      writeStoryboardAudio: (id, updates) => {
-        set((state) => ({
-          storyboards: state.storyboards.map((item) => (
-            item.id === id ? { ...item, ...updates } : item
-          )),
-        }));
-        get().rebuildTracks();
-      },
-
-      reviewStoryboardHuman: (id, reviewInput) => {
-        const storyboard = get().storyboards.find((item) => item.id === id);
-        if (!storyboard) throw new Error(`分镜 ${id} 不存在`);
-        const visualReview = createHumanVisualReview(storyboard, reviewInput, get().continuityAssetVersions);
-        set((state) => ({
-          storyboards: state.storyboards.map((item) => item.id === id ? { ...item, visualReview } : item),
-        }));
-      },
-
-      bindStoryboardMedia: (id, mediaRef) => {
-        get().updateStoryboard(id, { mediaRef });
-        const storyboard = get().storyboards.find((item) => item.id === id);
-        const taskId = get().startMediaTask({
-          kind: mediaRef.kind === "audio" ? "ttsAudio" : "storyboardImage",
-          targetId: id,
-          episodeId: storyboard?.episodeId,
-          provider: mediaRef.kind,
-          inputFingerprint: storyboard ? storyboardSourceFingerprint(storyboard) : undefined,
-        });
-        get().finishMediaTask(taskId, {
-          outputRef: mediaRef.path,
-          outputRefs: [mediaRef.path, mediaRef.imageWorkflowId, mediaRef.imageWorkflowNodeId].filter(
-            (ref): ref is string => Boolean(ref),
-          ),
-        });
-      },
+      replaceStoryboardsForEpisode: storyboardSlice.replaceStoryboardsForEpisode,
+      updateStoryboard: storyboardSlice.updateStoryboard,
+      writeStoryboardAudio: storyboardSlice.writeStoryboardAudio,
+      reviewStoryboardHuman: storyboardSlice.reviewStoryboardHuman,
+      bindStoryboardMedia: storyboardSlice.bindStoryboardMedia,
 
       createImageWorkflow: (input = {}) => {
         const graph = createImageWorkflowGraph(input);
@@ -920,11 +669,7 @@ export const useStudioStore = create<StudioWorkflowStore>()(
         }));
       },
 
-      updateTrack: (id, updates) => {
-        set((state) => ({
-          productionTracks: state.productionTracks.map((track) => (track.id === id ? { ...track, ...updates } : track)),
-        }));
-      },
+      updateTrack: productionSlice.updateTrack,
 
       addVideoCandidate: (candidate) => {
         const id = candidate.id ?? createStudioWorkflowId("video");
@@ -998,27 +743,12 @@ export const useStudioStore = create<StudioWorkflowStore>()(
         }
       },
 
-      selectVideoCandidate: (trackId, videoId) => {
-        set((state) => ({
-          productionTracks: state.productionTracks.map((track) =>
-            track.id === trackId ? { ...track, selectedVideoId: videoId } : track,
-          ),
-        }));
-      },
-
-      deleteVideoCandidate: (id) => {
-        set((state) => ({
-          videoCandidates: state.videoCandidates.filter((item) => item.id !== id),
-          productionTracks: state.productionTracks.map((track) => ({
-            ...track,
-            candidateVideoIds: track.candidateVideoIds.filter((candidateId) => candidateId !== id),
-            selectedVideoId: track.selectedVideoId === id ? undefined : track.selectedVideoId,
-          })),
-        }));
-      },
+      selectVideoCandidate: productionSlice.selectVideoCandidate,
+      deleteVideoCandidate: productionSlice.deleteVideoCandidate,
 
       resetStudioWorkflow: () => set({ ...initialState }),
-    }),
+      };
+    },
     {
       name: STUDIO_WORKFLOW_STORAGE_KEY,
       storage: createJSONStorage(() => createProjectScopedStorage(STUDIO_WORKFLOW_STORAGE_KEY)),

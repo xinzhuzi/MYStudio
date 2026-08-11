@@ -161,7 +161,6 @@ function matchByViewpointNameKeywords(
     // 检查动作描述是否包含这些关键词
     for (const keyword of keywords) {
       if (keyword.length >= 2 && actionSummary.includes(keyword)) {
-        console.log(`[ViewpointMatcher] Matched viewpoint "${viewpointName}" by keyword "${keyword}"`);
         return variant;
       }
     }

@@ -48,6 +48,7 @@ export function StoryboardPreview({ onBack, onSplitComplete }: StoryboardPreview
   const storyboardImage = projectData?.storyboardImage || null;
   const storyboardStatus = projectData?.storyboardStatus || 'idle';
   const storyboardError = projectData?.storyboardError || null;
+// eslint-disable-next-line react-hooks/exhaustive-deps
   const storyboardConfig = projectData?.storyboardConfig || {
     aspectRatio: normalizeHorizontalVerticalAspectRatio(imageGenerationSettings.defaultAspectRatio),
     resolution: imageGenerationSettings.defaultResolution === '4K' ? '4K' as const : '2K' as const,

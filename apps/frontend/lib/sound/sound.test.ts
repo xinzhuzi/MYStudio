@@ -3,13 +3,18 @@ import {
   LEGACY_PEAK,
   SOUND_PROFILES,
   SUCCESS_TAIL_PROFILE,
+  ACTIVATE_TAIL_PROFILE,
   voicePeak,
   type SoundEffect,
   type VoiceProfile,
 } from "./sound";
 
 const EFFECTS: SoundEffect[] = ["activate", "click", "success", "cancel", "slide"];
-const ALL_PROFILES: VoiceProfile[] = [...EFFECTS.map((e) => SOUND_PROFILES[e]), SUCCESS_TAIL_PROFILE];
+const ALL_PROFILES: VoiceProfile[] = [
+  ...EFFECTS.map((e) => SOUND_PROFILES[e]),
+  SUCCESS_TAIL_PROFILE,
+  ACTIVATE_TAIL_PROFILE,
+];
 
 describe("sound profiles", () => {
   it("defines a voice for every effect", () => {

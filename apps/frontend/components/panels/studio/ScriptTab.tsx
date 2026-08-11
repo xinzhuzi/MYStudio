@@ -118,6 +118,7 @@ export function ScriptTab(props: {
       </div>,
     );
     return () => setHeaderActions(null);
+// eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     setHeaderActions,
     props.novelChapters,

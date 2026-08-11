@@ -20,8 +20,6 @@ export function useScriptEpisodeGeneration({
 }) {
   return useCallback(async (episodeIndex: number) => {
     const featureConfig = aiManager.featureConfig("script_analysis");
-    console.log("[handleGenerateEpisodeShots] featureConfig:", featureConfig ? "已配置" : "未配置");
-    console.log("[handleGenerateEpisodeShots] allApiKeys:", featureConfig?.allApiKeys?.length || 0);
     if (!featureConfig) {
       toast.warning("未配置智谱 API，AI 视角分析将跳过");
     }
@@ -31,14 +29,6 @@ export function useScriptEpisodeGeneration({
       setViewpointAnalysisStatus("analyzing");
       const apiKey = featureConfig?.allApiKeys?.join(",") || "";
       const provider = featureConfig?.platform === "zhipu" ? "zhipu" : "openai";
-      console.log("[handleGenerateEpisodeShots] apiKey length:", apiKey.length);
-      console.log(
-        "[handleGenerateEpisodeShots] provider:",
-        provider,
-        "(from config:",
-        featureConfig?.platform,
-        ")",
-      );
       const result = await generateEpisodeShots(
         episodeIndex,
         projectId,

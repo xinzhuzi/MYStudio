@@ -102,8 +102,8 @@ export function createStoryboardMergedPageGenerator(options: StoryboardMergedPag
   return async (pageTasks: MergedFrameTask[], references: string[]): Promise<string[]> => {
     const actualCount = pageTasks.length;
     const { cols, rows, paddedCount } = calculateMergedGridLayout(actualCount);
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
     const emptySlots = paddedCount - actualCount;
-    console.log(`[MergedGen] Grid: ${actualCount} scenes → ${paddedCount} cells (${rows}×${cols}), ${emptySlots} empty slots, grid aspect: ${aspect}`);
 
     const gridPromptParts: string[] = [
       "<instruction>",
@@ -172,7 +172,6 @@ export function createStoryboardMergedPageGenerator(options: StoryboardMergedPag
     const styleNegative = fullStyleNegative ? `, ${fullStyleNegative}` : "";
     gridPromptParts.push(`Negative constraints: text, watermark, split screen borders, speech bubbles, blur, distortion, bad anatomy${styleNegative}`);
     const gridPrompt = gridPromptParts.join("\n");
-    console.log("[MergedGen] Grid prompt:", `${gridPrompt.substring(0, 200)}...`);
 
     pageTasks.forEach((task) => {
       if (task.type === "end") {
@@ -184,12 +183,10 @@ export function createStoryboardMergedPageGenerator(options: StoryboardMergedPag
     const apiReferenceImages = await processReferenceImagesForApi(references, "[MergedGen]");
     const finalReferences = references.slice(0, 14);
     const processedReferences = await processReferenceImagesForApi(finalReferences, "[MergedGen]");
-    console.log("[MergedGen] Processed refs:", processedReferences.length, "valid from", finalReferences.length, "total");
-    processedReferences.forEach((reference, index) => {
-      console.log(`[MergedGen] Ref[${index}] format:`, `${reference.substring(0, 50)}...`);
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+    processedReferences.forEach((reference, _index) => {
     });
 
-    console.log("[MergedGen] Calling API with", apiReferenceImages.length, "reference images, model:", model);
     const apiResult = await aiManager.imageGrid({
       model,
       prompt: gridPrompt,
@@ -207,9 +204,7 @@ export function createStoryboardMergedPageGenerator(options: StoryboardMergedPag
 
     let gridImageUrl = apiResult.imageUrl;
     const taskId = apiResult.taskId;
-    console.log("[MergedGen] API result: gridImageUrl=", gridImageUrl?.substring(0, 50), "taskId=", taskId);
     if (!gridImageUrl && taskId) {
-      console.log("[MergedGen] Polling task:", taskId);
       gridImageUrl = await pollImageTaskUrl({
         taskId,
         apiKey,
@@ -238,7 +233,6 @@ export function createStoryboardMergedPageGenerator(options: StoryboardMergedPag
       throw new Error("未获取到九宫格图片 URL，请检查 API 响应");
     }
 
-    console.log("[MergedGen] Grid image URL:", gridImageUrl.substring(0, 80));
     const slicedImages = await sliceStoryboardMergedGridImage(
       gridImageUrl,
       actualCount,
@@ -247,7 +241,6 @@ export function createStoryboardMergedPageGenerator(options: StoryboardMergedPag
       aspect,
     );
     signal.throwIfAborted();
-    console.log("[MergedGen] Sliced into", slicedImages.length, "images (from", paddedCount, "grid cells, target aspect:", aspect, ")");
     await writeStoryboardMergedImages({
       tasks: pageTasks,
       images: slicedImages,

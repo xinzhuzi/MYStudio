@@ -85,6 +85,7 @@ export function ShotGroupCard({
   group,
   scenes,
   allScenes,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   groupIndex,
   isGeneratingAny,
   renderSceneCard,

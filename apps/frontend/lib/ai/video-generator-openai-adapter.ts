@@ -36,7 +36,6 @@ export async function callOpenAIOfficialVideoApiAdapter(
   form.append('seconds', String(duration || 10));
 
   const submitUrl = `${baseUrl}/v1/videos`;
-  console.log('[VideoGen] OpenAI Official format → POST /v1/videos', { model, size: toSoraSize(aspectRatio, videoResolution) });
 
   const submitResponse = await fetch(submitUrl, {
     method: 'POST',
@@ -51,7 +50,6 @@ export async function callOpenAIOfficialVideoApiAdapter(
   }
 
   const submitData = await submitResponse.json();
-  console.log('[VideoGen] Sora submit response:', submitData);
 
   const taskId = (submitData.id || submitData.video_id)?.toString();
   const directUrl = extractVideoUrl(submitData);
@@ -76,7 +74,6 @@ export async function callOpenAIOfficialVideoApiAdapter(
     if (!statusResponse.ok) continue;
 
     const statusData = await statusResponse.json();
-    console.log(`[VideoGen] Sora task ${taskId} status:`, statusData);
 
     const status = String(statusData.status || '').toLowerCase();
 

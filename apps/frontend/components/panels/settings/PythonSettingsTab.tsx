@@ -1,5 +1,5 @@
 import { Fragment, useCallback, useEffect, useRef, useState } from "react";
-import { Check, Download, FolderOpen, Loader2, RefreshCw, RotateCcw, Trash2 } from "lucide-react";
+import { Check, Download, FolderOpen, Loader2, RefreshCw, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -61,6 +61,7 @@ export function PythonSettingsTab({ embedded = false }: PythonSettingsTabProps) 
     }
   };
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleDeleteRuntime = async () => {
     if (!window.confirm("确认删除整个 Python 运行环境目录？将清空已安装内容并停止 TTS，需重新配置。")) return;
     await runtime.deleteRuntime();
@@ -240,6 +241,7 @@ type InstallSummaryProps = {
   requirements?: { content: string; path: string } | null;
 };
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function InstallSummary({ installedItems, pythonExecutablePath, requirements }: InstallSummaryProps) {
   const pythonItem = installedItems.find((item) => item.label.toLowerCase().includes("python"));
   const dependencyItems = installedItems.filter((item) => item !== pythonItem);

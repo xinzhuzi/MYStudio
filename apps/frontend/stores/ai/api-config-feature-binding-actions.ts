@@ -28,7 +28,6 @@ export function createAPIConfigFeatureBindingActions(
       set((state) => ({
         featureBindings: { ...state.featureBindings, [feature]: bindings },
       }));
-      console.log(`[APIConfig] Set ${feature} -> [${bindings?.join(', ') || '无'}]`);
     },
     
     // 切换单个绑定（添加/移除）
@@ -58,14 +57,12 @@ export function createAPIConfigFeatureBindingActions(
         set((state) => ({
           featureBindings: { ...state.featureBindings, [feature]: newBindings.length > 0 ? newBindings : null },
         }));
-        console.log(`[APIConfig] Toggle ${feature}: ${binding} -> removed${legacyMatch ? ` (also removed legacy: ${legacyMatch})` : ''}`);
       } else {
         // 添加
         const newBindings = [...current, binding];
         set((state) => ({
           featureBindings: { ...state.featureBindings, [feature]: newBindings.length > 0 ? newBindings : null },
         }));
-        console.log(`[APIConfig] Toggle ${feature}: ${binding} -> added`);
       }
     },
     

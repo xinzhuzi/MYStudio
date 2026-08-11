@@ -64,7 +64,6 @@ export async function analyzeCharacterStages(
   );
   
   if (mainCharacters.length === 0) {
-    console.log('[CharacterStageAnalyzer] 没有找到需要分析的主要角色');
     return [];
   }
   
@@ -285,14 +284,6 @@ export function detectMultiStageHints(outline: string, totalEpisodes: number): {
     (totalEpisodes >= 40) // 40集以上的主角剧默认需要
   );
   
-  console.log('[detectMultiStageHints]', {
-    totalEpisodes,
-    hasTimeSpan,
-    hasAgeChange,
-    foundKeywords,
-    suggestMultiStage,
-    hints,
-  });
   
   return {
     hasTimeSpan,

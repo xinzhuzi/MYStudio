@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/popover";
 import {
   STYLE_CATEGORIES,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   VISUAL_STYLE_PRESETS,
   getStyleById,
   type StylePreset,

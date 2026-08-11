@@ -47,7 +47,6 @@ export async function pollTaskStatus(
         throw new Error(`Failed to check task status: ${response.status}`);
       }
       const data = await response.json();
-      console.log(`[ImageGenerator] Task ${taskId} status:`, data);
       const status = (data.status ?? data.data?.status ?? 'unknown').toString().toLowerCase();
       const statusMap: Record<string, string> = { pending: 'pending', submitted: 'pending', queued: 'pending', processing: 'processing', running: 'processing', in_progress: 'processing', completed: 'completed', succeeded: 'completed', success: 'completed', failed: 'failed', error: 'failed' };
       const mappedStatus = statusMap[status] || 'processing';

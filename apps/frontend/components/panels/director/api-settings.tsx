@@ -23,7 +23,6 @@ import {
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
 import type { ProviderId } from "@/lib/ai/core";
 
 interface APISettingsProps {

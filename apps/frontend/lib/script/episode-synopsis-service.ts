@@ -163,7 +163,6 @@ ${characterBios.slice(0, 800)}
     // 大纲生成完成后，更新项目元数据 MD
     const updatedMetadata = exportProjectMetadata(projectId);
     store.setMetadataMarkdown(projectId, updatedMetadata);
-    console.log('[generateSynopses] 元数据已更新，包含新生成的大纲');
     
     return {
       success: true,

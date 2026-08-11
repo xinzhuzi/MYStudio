@@ -96,12 +96,10 @@ export function createProjectScopedStorage(storeName: string): StateStorage {
       // Try project-scoped path first
       const projectData = await fileStorage.getItem(projectKey);
       if (projectData) {
-        console.log(`[ProjectStorage] Loaded ${storeName} for project ${pid.substring(0, 8)}`);
         return projectData;
       }
 
       // Fall back to legacy monolithic file (pre-migration)
-      console.log(`[ProjectStorage] Project file not found for ${storeName}, trying legacy key: ${name}`);
       return fileStorage.getItem(name);
     },
 
@@ -140,7 +138,6 @@ export function createProjectScopedStorage(storeName: string): StateStorage {
       }
 
       const projectKey = `_p/${pid}/${storeName}`;
-      console.log(`[ProjectStorage] Saving ${storeName} for project ${pid.substring(0, 8)} (${Math.round(value.length / 1024)}KB)`);
       await fileStorage.setItem(projectKey, value);
     },
 
@@ -211,7 +208,6 @@ export function createSplitStorage<T = unknown>(
       
       // If project file doesn't exist, try legacy file (pre-migration)
       if (!projectRaw) {
-        console.log(`[SplitStorage] Project file not found for ${storeName}, trying legacy key: ${name}`);
         return fileStorage.getItem(name);
       }
 
@@ -262,14 +258,12 @@ export function createSplitStorage<T = unknown>(
           }
           merged = mergeFn(projectPayload, merged);
 
-          console.log(`[SplitStorage] Loaded ${storeName}: ${allPids.length} projects merged (sharing ON)`);
           return JSON.stringify({
             state: merged,
             version: projectState?.version ?? 0,
           });
         } else {
           // Cross-project sharing OFF: only current project's data
-          console.log(`[SplitStorage] Loaded ${storeName}: project-only for ${pid.substring(0, 8)} (sharing OFF)`);
           return JSON.stringify({
             state: projectPayload,
             version: projectState?.version ?? 0,
@@ -329,7 +323,6 @@ export function createSplitStorage<T = unknown>(
         const sharedPayload = JSON.stringify({ state: sharedData, version });
         await fileStorage.setItem(sharedKey, sharedPayload);
         
-        console.log(`[SplitStorage] Saved ${storeName} to ${allPids.size} project(s) + shared`);
       } catch (error) {
         console.error(`[SplitStorage] Failed to split ${storeName}, saving to legacy:`, error);
         await fileStorage.setItem(name, value);

@@ -202,6 +202,7 @@ export function TtsStudio() {
     } finally {
       setGenerating(false);
     }
+// eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedAssetPath, text, selectedModel, localAudio]);
 
   const handlePlay = () => {

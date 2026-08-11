@@ -12,6 +12,7 @@
  * - 磁吸效果：接近标准角度时自动吸附，解决"太丝滑"问题
  */
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import React, { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { cn } from "@/lib/utils";
 import {
@@ -106,6 +107,7 @@ export function AngleController({
       const targetPhi = [130, 90, 60, 40][elevIdx];
       setPhi(targetPhi);
     }
+// eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // 仅在挂载时执行一次
 
   // 动画循环

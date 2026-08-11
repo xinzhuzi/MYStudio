@@ -105,6 +105,7 @@ function RefThumbnail({
 
 /** 配额进度条 */
 function QuotaBar({
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   label,
   icon,
   current,
@@ -228,6 +229,7 @@ export function GroupRefManager({
         toast.success(`已添加 ${type === "video" ? "视频" : "音频"}引用: ${file.name}`);
       }
     },
+// eslint-disable-next-line react-hooks/exhaustive-deps
     [group.id, videoRefs.length, audioRefs.length, addAssetRef]
   );
 

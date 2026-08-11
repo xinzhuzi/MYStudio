@@ -58,7 +58,6 @@ function parseCompactBioFormat(bios: string, matches: RegExpMatchArray[]): Scrip
     index++;
   }
   
-  console.log(`[parseCharacterBios] 紧凑格式检测到 ${characters.length} 个角色`);
   return characters;
 }
 

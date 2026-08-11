@@ -23,6 +23,7 @@ const ResizablePanelGroup = ({
 const ResizablePanel = ResizablePrimitive.Panel;
 
 const ResizableHandle = ({
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   withHandle,
   className,
   ...props

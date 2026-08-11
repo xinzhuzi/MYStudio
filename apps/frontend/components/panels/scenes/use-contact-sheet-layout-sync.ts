@@ -41,11 +41,6 @@ export function useContactSheetLayoutSync(
     options.setPrompts(sync.prompts);
     if (sync.prompt) options.setPrompt(sync.prompt);
     if (sync.promptZh) options.setPromptZh(sync.promptZh);
-    console.log("[ContactSheet] 宽高比变化，更新布局:", {
-      aspectRatio: options.aspectRatio,
-      vpCount: options.viewpoints.length,
-      newLayout: sync.prompts[0]?.gridLayout,
-      selectedSceneId: options.selectedScene?.id,
-    });
+// eslint-disable-next-line react-hooks/exhaustive-deps
   }, [options.aspectRatio]); // 只监听宽高比变化
 }

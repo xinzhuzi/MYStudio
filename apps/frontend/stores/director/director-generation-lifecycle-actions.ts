@@ -28,7 +28,8 @@ export function createDirectorGenerationLifecycleActions(
   initialState: Partial<DirectorStore>,
 ): DirectorGenerationLifecycleActions {
   return {
-    startScreenplayGeneration: (prompt, images) => {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+    startScreenplayGeneration: (prompt, _images) => {
       const { activeProjectId, projects } = get();
       if (!activeProjectId) return;
       set({
@@ -43,7 +44,6 @@ export function createDirectorGenerationLifecycleActions(
         },
       });
       
-      console.log('[DirectorStore] Starting screenplay generation for:', prompt.substring(0, 50));
     },
   
     // Step 1: Start generating images only
@@ -78,7 +78,6 @@ export function createDirectorGenerationLifecycleActions(
       }
       set({ sceneProgress: progressMap });
       
-      console.log('[DirectorStore] Starting image generation for', screenplay.scenes.length, 'scenes');
     },
     
     // Step 2: Start generating videos from confirmed images
@@ -115,7 +114,6 @@ export function createDirectorGenerationLifecycleActions(
       }
       set({ sceneProgress: progressMap });
       
-      console.log('[DirectorStore] Starting video generation for', screenplay.scenes.length, 'scenes');
     },
     
     // Retry generating image for a single scene
@@ -127,7 +125,6 @@ export function createDirectorGenerationLifecycleActions(
         imageUrl: undefined,
         error: undefined,
       });
-      console.log('[DirectorStore] Retrying image for scene', sceneId);
     },
   
     retryScene: (sceneId) => {
@@ -137,7 +134,6 @@ export function createDirectorGenerationLifecycleActions(
         progress: 0,
         error: undefined,
       });
-      console.log('[DirectorStore] Retrying scene', sceneId);
     },
   
     cancelAll: () => {
@@ -165,7 +161,6 @@ export function createDirectorGenerationLifecycleActions(
         }
       }
       
-      console.log('[DirectorStore] Cancelled all operations');
     },
   
     reset: () => set(initialState),
@@ -185,7 +180,6 @@ export function createDirectorGenerationLifecycleActions(
           },
         },
       });
-      console.log('[DirectorStore] Screenplay generated:', screenplay.title);
     },
   
     onSceneProgressUpdate: (sceneId, progress) => {
@@ -219,7 +213,6 @@ export function createDirectorGenerationLifecycleActions(
         }
       }
       
-      console.log('[DirectorStore] Scene image completed:', sceneId, imageUrl?.substring(0, 50));
     },
   
     onSceneCompleted: (sceneId, mediaId) => {
@@ -245,7 +238,6 @@ export function createDirectorGenerationLifecycleActions(
         }
       }
       
-      console.log('[DirectorStore] Scene completed:', sceneId, 'mediaId:', mediaId);
     },
   
     onSceneFailed: (sceneId, error) => {
@@ -269,7 +261,6 @@ export function createDirectorGenerationLifecycleActions(
           },
         },
       });
-      console.log('[DirectorStore] All images completed, ready for review');
     },
   
     onAllCompleted: () => {
@@ -284,7 +275,6 @@ export function createDirectorGenerationLifecycleActions(
           },
         },
       });
-      console.log('[DirectorStore] All scenes completed');
     },
   };
 }

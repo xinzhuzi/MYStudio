@@ -43,7 +43,6 @@ export async function callReplicateVideoApiAdapter(
   if (lastFrame?.url) input.tail_image = lastFrame.url;
 
   const submitUrl = `${rootBase}/replicate/v1/predictions`;
-  console.log('[VideoGen] Replicate format → POST /replicate/v1/predictions', { model });
 
   const submitResponse = await fetch(submitUrl, {
     method: 'POST',
@@ -61,7 +60,6 @@ export async function callReplicateVideoApiAdapter(
   }
 
   const submitData = await submitResponse.json();
-  console.log('[VideoGen] Replicate submit response:', submitData);
 
   const directUrl = extractVideoUrl(submitData);
   if (directUrl) return directUrl;
@@ -86,7 +84,6 @@ export async function callReplicateVideoApiAdapter(
     if (!statusResponse.ok) continue;
 
     const statusData = await statusResponse.json();
-    console.log(`[VideoGen] Replicate prediction ${predictionId} status:`, statusData);
 
     const status = String(statusData.status || '').toLowerCase();
 

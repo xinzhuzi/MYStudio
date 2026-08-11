@@ -16,6 +16,7 @@ import type {
   ProjectBackground,
   ScriptData,
   NamedEntity,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   Faction,
   PromptLanguage,
 } from '@/types/script';
@@ -79,7 +80,6 @@ export function populateSeriesMetaFromImport(
       keyActions: c.keyActions,
       tags: c.faction ? [c.faction] : undefined,
     }));
-    console.log(`[populateSeriesMeta] AI 角色作为主数据源: ${meta.characters.length} 个`);
   }
 
   // 如果 AI 提取了阵营信息但角色没有 faction tag，补充 faction
@@ -97,15 +97,6 @@ export function populateSeriesMetaFromImport(
     }
   }
 
-  console.log('[populateSeriesMeta] 剧级数据已构建:', {
-    title: meta.title,
-    characters: meta.characters.length,
-    factions: meta.factions?.length || 0,
-    keyItems: meta.keyItems?.length || 0,
-    geography: meta.geography?.length || 0,
-    hasOutline: !!meta.outline,
-    hasLogline: !!meta.logline,
-  });
 
   return meta;
 }
@@ -232,7 +223,6 @@ export function syncToSeriesMeta(
           };
         });
         updates.characters = updatedChars;
-        console.log(`[syncToSeriesMeta:character] 回写 ${results.characters.length} 个角色校准结果`);
       }
       break;
     }
@@ -256,7 +246,6 @@ export function syncToSeriesMeta(
               ...(meta.recurringLocations || []),
               ...newRecurring,
             ];
-            console.log(`[syncToSeriesMeta:scene] 新增 ${newRecurring.length} 个常驻场景`);
           }
         }
 
@@ -274,7 +263,6 @@ export function syncToSeriesMeta(
         }
         if (newGeo.length > 0) {
           updates.geography = [...(meta.geography || []), ...newGeo];
-          console.log(`[syncToSeriesMeta:scene] 新增 ${newGeo.length} 个地理设定`);
         }
       }
       break;
@@ -291,7 +279,6 @@ export function syncToSeriesMeta(
         );
         if (newItems.length > 0) {
           updates.keyItems = [...(meta.keyItems || []), ...newItems];
-          console.log(`[syncToSeriesMeta:shot] 新增 ${newItems.length} 个关键物品`);
         }
       }
       break;

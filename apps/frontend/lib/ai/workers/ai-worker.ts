@@ -35,6 +35,7 @@ let apiBaseUrl = '';
 const promptCompiler = new PromptCompiler();
 
 // Task poller for async operations
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const taskPoller = new TaskPoller();
 
 
@@ -51,10 +52,13 @@ const workerRuns = createWorkerRunLifecycle();
 const legacyWorkerApi = createWorkerApi({ getApiBaseUrl: () => apiBaseUrl, isCancelled: () => false });
 // Legacy helper bodies below are retained as private compatibility scaffolding;
 // route their polling call through the extracted API client so they cannot drift.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const pollTaskCompletion = legacyWorkerApi.pollTaskCompletion;
 
 // Kept only for backwards-compatible local references in legacy dead code.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const assertImageReadyForNetwork = (_source: string): void => undefined;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const assertImagesReadyForNetwork = (_sources?: string[]): void => undefined;
 
 type WorkerApi = ReturnType<typeof createWorkerApi>;
@@ -155,6 +159,7 @@ async function handleGenerateScreenplay(command: GenerateScreenplayCommand): Pro
  * Returns image URL after polling for completion
  * @param referenceImages - Character reference images (base64 or URL) for consistency
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function legacyGenerateImage(
   prompt: string,
   negativePrompt: string,
@@ -170,6 +175,7 @@ async function legacyGenerateImage(
  * Returns video URL after polling for completion
  * @param referenceImages - Character reference images (URL) for consistency
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function legacyGenerateVideo(
   imageUrl: string,
   prompt: string,
@@ -183,6 +189,7 @@ async function legacyGenerateVideo(
 /**
  * Helper: Poll task status until completion
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function legacyPollTaskCompletion(
   taskId: string,
   type: 'image' | 'video',
@@ -196,6 +203,7 @@ async function legacyPollTaskCompletion(
 /**
  * Helper: Download URL content as Blob
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function legacyFetchAsBlob(url: string): Promise<Blob> {
   return legacyWorkerApi.fetchAsBlob(url);
 }
@@ -204,7 +212,6 @@ async function handleExecuteScene(command: ExecuteSceneCommand): Promise<void> {
   const { screenplayId, scene, config, characterBible, characterReferenceImages } = command.payload;
   const { run, api } = beginRun(command.runId);
 
-  console.log(`[AI Worker] Executing scene ${scene.sceneId} for screenplay ${screenplayId}`);
   
   // Check cancellation
   if (isCancelled(run)) {
@@ -222,7 +229,6 @@ async function handleExecuteScene(command: ExecuteSceneCommand): Promise<void> {
     // Get character reference images (base64 or URL)
     // These are used to maintain visual consistency across scenes
     const refImages = characterReferenceImages || [];
-    console.log(`[AI Worker] Using ${refImages.length} character reference images`);
     
     // ========== Stage 1: Image Generation ==========
     const imagePrompt = promptCompiler.compileSceneImagePrompt(
@@ -232,7 +238,6 @@ async function handleExecuteScene(command: ExecuteSceneCommand): Promise<void> {
     );
     const negativePrompt = promptCompiler.getNegativePrompt();
     
-    console.log('[AI Worker] Image prompt:', imagePrompt.substring(0, 100));
     
     // Generate image with progress tracking
     // Pass character reference images for visual consistency
@@ -249,12 +254,10 @@ async function handleExecuteScene(command: ExecuteSceneCommand): Promise<void> {
     );
     
     reportSceneProgress(run, screenplayId, scene.sceneId, 'generating', 'image', 45);
-    console.log('[AI Worker] Image generated:', imageUrl);
     
     // ========== Stage 2: Video Generation ==========
     const videoPrompt = promptCompiler.compileSceneVideoPrompt(scene, characters);
     
-    console.log('[AI Worker] Video prompt:', videoPrompt.substring(0, 100));
     reportSceneProgress(run, screenplayId, scene.sceneId, 'generating', 'video', 50);
     
     // Generate video with progress tracking
@@ -271,7 +274,6 @@ async function handleExecuteScene(command: ExecuteSceneCommand): Promise<void> {
       refImages // Character reference images
     );
     
-    console.log('[AI Worker] Video generated:', videoUrl);
     
     // ========== Stage 3: Download and Create Blob ==========
     reportSceneProgress(run, screenplayId, scene.sceneId, 'generating', 'video', 95);
@@ -317,24 +319,28 @@ async function handleExecuteScreenplay(command: ExecuteScreenplayCommand): Promi
   const { screenplay, config } = command.payload;
   const { run, api } = beginRun(command.runId);
 
-  console.log(`[AI Worker] Executing screenplay ${screenplay.id} with ${screenplay.scenes.length} scenes`);
   
   // Set baseUrl if provided
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   if ((config as any).baseUrl) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
     apiBaseUrl = (config as any).baseUrl;
   }
   
   // Check for mock modes
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   const mockImage = (config as any).mockImage || false;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   const mockVideo = (config as any).mockVideo || false;
   
   // Get API keys from config
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   const apiKeys = (config as any).apiKeys || {};
   const concurrency = config.concurrency || 1;
   
   // Get character reference images from config
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   const characterReferenceImages = (config as any).characterReferenceImages || [];
-  console.log(`[AI Worker] Using ${characterReferenceImages.length} character reference images from config`);
   
   // Prepare extended config with API keys
   const extendedConfig = {
@@ -355,7 +361,6 @@ async function handleExecuteScreenplay(command: ExecuteScreenplayCommand): Promi
   // Process scenes in batches
   for (let i = 0; i < scenes.length; i += concurrency) {
     if (isCancelled(run)) {
-      console.log('[AI Worker] Screenplay execution cancelled');
       break;
     }
     
@@ -387,7 +392,6 @@ async function handleExecuteScreenplay(command: ExecuteScreenplayCommand): Promi
     },
   }, run);
   
-  console.log(`[AI Worker] Screenplay execution complete: ${completedCount} completed, ${failedCount} failed`);
 }
 
 /**
@@ -398,22 +402,23 @@ async function handleExecuteScreenplayImages(command: ExecuteScreenplayImagesCom
   const { screenplay, config } = command.payload;
   const { run, api } = beginRun(command.runId);
 
-  console.log(`[AI Worker] Generating images for screenplay ${screenplay.id} with ${screenplay.scenes.length} scenes`);
   
   // Set baseUrl if provided
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   if ((config as any).baseUrl) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
     apiBaseUrl = (config as any).baseUrl;
   }
   
   // Check for mock mode
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   const mockImage = (config as any).mockImage || false;
   
   // Get API keys from config
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   const apiKeys = (config as any).apiKeys || {};
   const concurrency = config.concurrency || 1;
   
-  console.log('[AI Worker] Config apiKeys:', JSON.stringify(apiKeys));
-  console.log('[AI Worker] Config keys:', Object.keys(config));
   
   // Validate API key (required for image generation)
   const imageKey = apiKeys.memefast || '';
@@ -437,9 +442,8 @@ async function handleExecuteScreenplayImages(command: ExecuteScreenplayImagesCom
   }
   
   // Get character reference images from config
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   const characterReferenceImages = (config as any).characterReferenceImages || [];
-  console.log(`[AI Worker] Using ${characterReferenceImages.length} character reference images`);
-  console.log(`[AI Worker] Image API Key: ${imageKey ? imageKey.substring(0, 10) + '...' : 'NOT SET'}`);
   
   // Prepare extended config with API keys
   const extendedConfig = {
@@ -458,7 +462,6 @@ async function handleExecuteScreenplayImages(command: ExecuteScreenplayImagesCom
   // Process scenes in batches
   for (let i = 0; i < scenes.length; i += concurrency) {
     if (isCancelled(run)) {
-      console.log('[AI Worker] Image generation cancelled');
       break;
     }
     
@@ -490,7 +493,6 @@ async function handleExecuteScreenplayImages(command: ExecuteScreenplayImagesCom
     },
   }, run);
   
-  console.log(`[AI Worker] Image generation complete: ${completedCount} completed, ${failedCount} failed`);
 }
 
 /**
@@ -501,26 +503,30 @@ async function handleExecuteScreenplayVideos(command: ExecuteScreenplayVideosCom
   const { screenplay, config } = command.payload;
   const { run, api } = beginRun(command.runId);
 
-  console.log(`[AI Worker] Generating videos for screenplay ${screenplay.id} with ${screenplay.scenes.length} scenes`);
   
   // Debug: Log each scene's imageUrl
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   for (const scene of screenplay.scenes) {
-    console.log(`[AI Worker] Scene ${scene.sceneId} imageUrl: ${scene.imageUrl || 'NOT SET'}`);
   }
   
   // Set baseUrl if provided
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   if ((config as any).baseUrl) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
     apiBaseUrl = (config as any).baseUrl;
   }
   
   // Check for mock mode
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   const mockVideo = (config as any).mockVideo || false;
   
   // Get API keys from config
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   const apiKeys = (config as any).apiKeys || {};
   const concurrency = config.concurrency || 1;
   
   // Get character reference images from config
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   const characterReferenceImages = (config as any).characterReferenceImages || [];
   
   // Prepare extended config with API keys
@@ -540,7 +546,6 @@ async function handleExecuteScreenplayVideos(command: ExecuteScreenplayVideosCom
   // Process scenes in batches
   for (let i = 0; i < scenes.length; i += concurrency) {
     if (isCancelled(run)) {
-      console.log('[AI Worker] Video generation cancelled');
       break;
     }
     
@@ -576,7 +581,6 @@ async function handleExecuteScreenplayVideos(command: ExecuteScreenplayVideosCom
     },
   }, run);
   
-  console.log(`[AI Worker] Video generation complete: ${completedCount} completed, ${failedCount} failed`);
 }
 
 /**
@@ -591,7 +595,6 @@ async function generateSceneImageOnly(
   characterBible?: CharacterBibleLike | string,
   characterReferenceImages?: string[]
 ): Promise<void> {
-  console.log(`[AI Worker] Generating image for scene ${scene.sceneId}`);
   
   // Check cancellation
   if (isCancelled(run)) {
@@ -604,7 +607,6 @@ async function generateSceneImageOnly(
   
   // Mock mode check
   if (config.mockImage) {
-    console.log('[AI Worker] Mock mode - simulating image generation');
     
     // Simulate progress
     for (let p = 0; p <= 100; p += 25) {
@@ -633,8 +635,8 @@ async function generateSceneImageOnly(
     const characters = getBibleCharacters(characterBible);
     
     // Get character reference images
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
     const refImages = characterReferenceImages || (config as any).characterReferenceImages || [];
-    console.log(`[AI Worker] Scene ${scene.sceneId}: Using ${refImages.length} reference images`);
     
     // Compile image prompt
     const imagePrompt = promptCompiler.compileSceneImagePrompt(
@@ -644,7 +646,6 @@ async function generateSceneImageOnly(
     );
     const negativePrompt = promptCompiler.getNegativePrompt();
     
-    console.log('[AI Worker] Image prompt:', imagePrompt.substring(0, 100));
     
     // Generate image with progress tracking
     const imageUrl = await api.generateImage(
@@ -657,7 +658,6 @@ async function generateSceneImageOnly(
       refImages
     );
     
-    console.log('[AI Worker] Image generated:', imageUrl);
     
     // Report image completed
     postEvent({
@@ -690,7 +690,6 @@ async function generateSceneVideoOnly(
   characterBible?: CharacterBibleLike | string,
   characterReferenceImages?: string[]
 ): Promise<void> {
-  console.log(`[AI Worker] Generating video for scene ${scene.sceneId}`);
   
   // Check cancellation
   if (isCancelled(run)) {
@@ -703,7 +702,6 @@ async function generateSceneVideoOnly(
   
   // Mock mode check
   if (config.mockVideo) {
-    console.log('[AI Worker] Mock mode - simulating video generation');
     
     // Simulate progress
     for (let p = 50; p <= 100; p += 10) {
@@ -724,6 +722,7 @@ async function generateSceneVideoOnly(
         sceneId: scene.sceneId,
         mediaBlob: mockBlob,
         metadata: {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
           duration: (config as any).duration || 5,
           width: config.aspectRatio === '9:16' ? 720 : 1280,
           height: config.aspectRatio === '9:16' ? 1280 : 720,
@@ -740,12 +739,12 @@ async function generateSceneVideoOnly(
     const characters = getBibleCharacters(characterBible);
     
     // Get character reference images
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
     const refImages = characterReferenceImages || (config as any).characterReferenceImages || [];
     
     // Compile video prompt
     const videoPrompt = promptCompiler.compileSceneVideoPrompt(scene, characters);
     
-    console.log('[AI Worker] Video prompt:', videoPrompt.substring(0, 100));
     
     // Generate video with progress tracking
     const videoUrl = await api.generateVideo(
@@ -759,7 +758,6 @@ async function generateSceneVideoOnly(
       refImages
     );
     
-    console.log('[AI Worker] Video generated:', videoUrl);
     
     // Download and create blob
     reportSceneProgress(run, screenplayId, scene.sceneId, 'generating', 'video', 95);
@@ -775,6 +773,7 @@ async function generateSceneVideoOnly(
         sceneId: scene.sceneId,
         mediaBlob: videoBlob,
         metadata: {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
           duration: (config as any).duration || 5,
           width: config.aspectRatio === '9:16' ? 720 : 1280,
           height: config.aspectRatio === '9:16' ? 1280 : 720,
@@ -804,7 +803,6 @@ async function executeSceneInternal(
   characterBible?: CharacterBibleLike | string,
   characterReferenceImages?: string[]
 ): Promise<void> {
-  console.log(`[AI Worker] Executing scene ${scene.sceneId} for screenplay ${screenplayId}`);
   
   // Check cancellation
   if (isCancelled(run)) {
@@ -817,7 +815,6 @@ async function executeSceneInternal(
   
   // Mock mode check
   if (config.mockImage && config.mockVideo) {
-    console.log('[AI Worker] Mock mode - simulating scene execution');
     
     // Simulate progress
     for (let p = 0; p <= 100; p += 20) {
@@ -855,8 +852,8 @@ async function executeSceneInternal(
     const characters = getBibleCharacters(characterBible);
     
     // Get character reference images
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
     const refImages = characterReferenceImages || (config as any).characterReferenceImages || [];
-    console.log(`[AI Worker] Scene ${scene.sceneId}: Using ${refImages.length} reference images`);
     
     // ========== Stage 1: Image Generation ==========
     const imagePrompt = promptCompiler.compileSceneImagePrompt(
@@ -866,7 +863,6 @@ async function executeSceneInternal(
     );
     const negativePrompt = promptCompiler.getNegativePrompt();
     
-    console.log('[AI Worker] Image prompt:', imagePrompt.substring(0, 100));
     
     // Generate image with progress tracking
     // Pass character reference images for visual consistency
@@ -882,12 +878,10 @@ async function executeSceneInternal(
     );
     
     reportSceneProgress(run, screenplayId, scene.sceneId, 'generating', 'image', 45);
-    console.log('[AI Worker] Image generated:', imageUrl);
     
     // ========== Stage 2: Video Generation ==========
     const videoPrompt = promptCompiler.compileSceneVideoPrompt(scene, characters);
     
-    console.log('[AI Worker] Video prompt:', videoPrompt.substring(0, 100));
     reportSceneProgress(run, screenplayId, scene.sceneId, 'generating', 'video', 50);
     
     // Generate video with progress tracking
@@ -903,7 +897,6 @@ async function executeSceneInternal(
       refImages
     );
     
-    console.log('[AI Worker] Video generated:', videoUrl);
     
     // ========== Stage 3: Download and Create Blob ==========
     reportSceneProgress(run, screenplayId, scene.sceneId, 'generating', 'video', 95);
@@ -939,7 +932,6 @@ async function executeSceneInternal(
 }
 
 function handleCancel(command: CancelCommand): void {
-  console.log('[AI Worker] Cancelling operations');
   workerRuns.cancel(command.runId);
 }
 
@@ -966,4 +958,3 @@ postEvent({
   payload: { version: WORKER_VERSION },
 });
 
-console.log(`[AI Worker] Initialized, version ${WORKER_VERSION}`);

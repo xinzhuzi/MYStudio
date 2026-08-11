@@ -132,5 +132,6 @@ export function usePendingSceneIntake(options: UsePendingSceneIntakeOptions): vo
     if (data.visualPrompt) setVisualPrompt(data.visualPrompt);
     if (data.tags) setTags(data.tags);
     if (data.notes) setNotes(data.notes);
+// eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingSceneData, setPendingSceneData, addScene, selectScene, onSceneCreated, currentFolderId]);
 }

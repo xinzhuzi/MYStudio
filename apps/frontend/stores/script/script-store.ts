@@ -5,15 +5,15 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { createProjectScopedStorage } from "@/lib/storage/project-storage";
 import type { ScriptData, Shot, Episode, ScriptScene, ScriptCharacter, EpisodeRawScript, ProjectBackground, PromptLanguage, CalibrationStrictness, FilteredCharacterRecord, SeriesMeta } from "@/types/script";
-import type { ParseStatus, ShotListStatus, BatchProgress, ScriptInputDraft, ScriptCalibrationStatus, ScriptViewpointStatus, ScriptStructureStatus, ScriptImportStatus, ScriptSynopsisStatus, ScriptCalibrationState, ScriptProjectData } from "./script-store-types";
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+import type { ParseStatus, ShotListStatus, BatchProgress, ScriptInputDraft, ScriptCalibrationStatus, ScriptViewpointStatus, ScriptCalibrationState, ScriptProjectData } from "./script-store-types";
 export type { ParseStatus, ShotListStatus, BatchProgress, ScriptInputDraft, ScriptCalibrationStatus, ScriptViewpointStatus, ScriptStructureStatus, ScriptImportStatus, ScriptSynopsisStatus, ScriptCalibrationState, ScriptProjectData } from "./script-store-types";
 import {
   cloneScriptCharacters,
   createDefaultScriptProjectData,
   createScriptPersistOptions,
   defaultCalibrationState,
-  defaultScriptInputDraft,
-} from "./script-store-persistence";
+  defaultScriptInputDraft } from "./script-store-persistence";
 import { selectActiveScriptProject } from "./script-store-selectors";
 export { selectActiveScriptProject } from "./script-store-selectors";
 
@@ -88,8 +88,7 @@ export const useScriptStore = create<ScriptStore>()(
         const { projects } = get();
         if (projects[projectId]) return;
         set({
-          projects: { ...projects, [projectId]: defaultProjectData() },
-        });
+          projects: { ...projects, [projectId]: defaultProjectData() } });
       },
 
       setRawScript: (projectId, rawScript) => {
@@ -100,10 +99,7 @@ export const useScriptStore = create<ScriptStore>()(
             [projectId]: {
               ...state.projects[projectId],
               rawScript,
-              updatedAt: Date.now(),
-            },
-          },
-        }));
+              updatedAt: Date.now() } } }));
       },
 
       setLanguage: (projectId, language) => {
@@ -114,10 +110,7 @@ export const useScriptStore = create<ScriptStore>()(
             [projectId]: {
               ...state.projects[projectId],
               language,
-              updatedAt: Date.now(),
-            },
-          },
-        }));
+              updatedAt: Date.now() } } }));
       },
 
       setTargetDuration: (projectId, duration) => {
@@ -128,10 +121,7 @@ export const useScriptStore = create<ScriptStore>()(
             [projectId]: {
               ...state.projects[projectId],
               targetDuration: duration,
-              updatedAt: Date.now(),
-            },
-          },
-        }));
+              updatedAt: Date.now() } } }));
       },
 
       setStyleId: (projectId, styleId) => {
@@ -142,10 +132,7 @@ export const useScriptStore = create<ScriptStore>()(
             [projectId]: {
               ...state.projects[projectId],
               styleId,
-              updatedAt: Date.now(),
-            },
-          },
-        }));
+              updatedAt: Date.now() } } }));
       },
 
       setInputDraft: (projectId, draft) => {
@@ -158,12 +145,8 @@ export const useScriptStore = create<ScriptStore>()(
               inputDraft: {
                 ...(state.projects[projectId]?.inputDraft || defaultScriptInputDraft),
                 ...draft,
-                updatedAt: Date.now(),
-              },
-              updatedAt: Date.now(),
-            },
-          },
-        }));
+                updatedAt: Date.now() },
+              updatedAt: Date.now() } } }));
       },
 
       setSceneCount: (projectId, sceneCount) => {
@@ -174,10 +157,7 @@ export const useScriptStore = create<ScriptStore>()(
             [projectId]: {
               ...state.projects[projectId],
               sceneCount,
-              updatedAt: Date.now(),
-            },
-          },
-        }));
+              updatedAt: Date.now() } } }));
       },
 
       setShotCount: (projectId, shotCount) => {
@@ -188,10 +168,7 @@ export const useScriptStore = create<ScriptStore>()(
             [projectId]: {
               ...state.projects[projectId],
               shotCount,
-              updatedAt: Date.now(),
-            },
-          },
-        }));
+              updatedAt: Date.now() } } }));
       },
 
       setScriptData: (projectId, data) => {
@@ -202,10 +179,7 @@ export const useScriptStore = create<ScriptStore>()(
             [projectId]: {
               ...state.projects[projectId],
               scriptData: data,
-              updatedAt: Date.now(),
-            },
-          },
-        }));
+              updatedAt: Date.now() } } }));
       },
 
       setParseStatus: (projectId, status, error) => {
@@ -217,10 +191,7 @@ export const useScriptStore = create<ScriptStore>()(
               ...state.projects[projectId],
               parseStatus: status,
               parseError: error,
-              updatedAt: Date.now(),
-            },
-          },
-        }));
+              updatedAt: Date.now() } } }));
       },
 
       setShots: (projectId, shots) => {
@@ -231,10 +202,7 @@ export const useScriptStore = create<ScriptStore>()(
             [projectId]: {
               ...state.projects[projectId],
               shots,
-              updatedAt: Date.now(),
-            },
-          },
-        }));
+              updatedAt: Date.now() } } }));
       },
 
       updateShot: (projectId, shotId, updates) => {
@@ -247,10 +215,7 @@ export const useScriptStore = create<ScriptStore>()(
               shots: state.projects[projectId].shots.map((s) =>
                 s.id === shotId ? { ...s, ...updates } : s
               ),
-              updatedAt: Date.now(),
-            },
-          },
-        }));
+              updatedAt: Date.now() } } }));
       },
 
       setShotStatus: (projectId, status, error) => {
@@ -262,10 +227,7 @@ export const useScriptStore = create<ScriptStore>()(
               ...state.projects[projectId],
               shotStatus: status,
               shotError: error,
-              updatedAt: Date.now(),
-            },
-          },
-        }));
+              updatedAt: Date.now() } } }));
       },
 
       setBatchProgress: (projectId, progress) => {
@@ -276,10 +238,7 @@ export const useScriptStore = create<ScriptStore>()(
             [projectId]: {
               ...state.projects[projectId],
               batchProgress: progress,
-              updatedAt: Date.now(),
-            },
-          },
-        }));
+              updatedAt: Date.now() } } }));
       },
 
       setMappings: (projectId, mappings) => {
@@ -291,19 +250,14 @@ export const useScriptStore = create<ScriptStore>()(
               ...state.projects[projectId],
               characterIdMap: mappings.characterIdMap || state.projects[projectId].characterIdMap,
               sceneIdMap: mappings.sceneIdMap || state.projects[projectId].sceneIdMap,
-              updatedAt: Date.now(),
-            },
-          },
-        }));
+              updatedAt: Date.now() } } }));
       },
 
       resetProjectData: (projectId) => {
         set((state) => ({
           projects: {
             ...state.projects,
-            [projectId]: defaultProjectData(),
-          },
-        }));
+            [projectId]: defaultProjectData() } }));
       },
 
       // Episode CRUD
@@ -319,12 +273,8 @@ export const useScriptStore = create<ScriptStore>()(
                 ...project,
                 scriptData: {
                   ...project.scriptData,
-                  episodes: [...(project.scriptData.episodes || []), episode],
-                },
-                updatedAt: Date.now(),
-              },
-            },
-          };
+                  episodes: [...(project.scriptData.episodes || []), episode] },
+                updatedAt: Date.now() } } };
         });
       },
 
@@ -342,12 +292,8 @@ export const useScriptStore = create<ScriptStore>()(
                   ...project.scriptData,
                   episodes: (project.scriptData.episodes || []).map((e) =>
                     e.id === episodeId ? { ...e, ...updates } : e
-                  ),
-                },
-                updatedAt: Date.now(),
-              },
-            },
-          };
+                  ) },
+                updatedAt: Date.now() } } };
         });
       },
 
@@ -369,8 +315,7 @@ export const useScriptStore = create<ScriptStore>()(
             index: newIndex,
             title: title || `第${newIndex}集`,
             description: synopsis || '',
-            sceneIds: [],
-          };
+            sceneIds: [] };
           const newRawScript: EpisodeRawScript = {
             episodeIndex: newIndex,
             title: title || `第${newIndex}集`,
@@ -378,8 +323,7 @@ export const useScriptStore = create<ScriptStore>()(
             keyEvents: [],
             rawContent: '',
             scenes: [],
-            shotGenerationStatus: 'idle',
-          };
+            shotGenerationStatus: 'idle' };
           return {
             projects: {
               ...state.projects,
@@ -387,13 +331,9 @@ export const useScriptStore = create<ScriptStore>()(
                 ...project,
                 scriptData: {
                   ...project.scriptData,
-                  episodes: [...existingEpisodes, newEpisode],
-                },
+                  episodes: [...existingEpisodes, newEpisode] },
                 episodeRawScripts: [...existingRawScripts, newRawScript],
-                updatedAt: Date.now(),
-              },
-            },
-          };
+                updatedAt: Date.now() } } };
         });
       },
 
@@ -411,13 +351,9 @@ export const useScriptStore = create<ScriptStore>()(
                 ...project,
                 scriptData: {
                   ...project.scriptData,
-                  episodes: episodes.map((e, i) => ({ ...e, index: i + 1 })),
-                },
+                  episodes: episodes.map((e, i) => ({ ...e, index: i + 1 })) },
                 episodeRawScripts: rawScripts.map((e, i) => ({ ...e, episodeIndex: i + 1 })),
-                updatedAt: Date.now(),
-              },
-            },
-          };
+                updatedAt: Date.now() } } };
         });
       },
 
@@ -437,17 +373,13 @@ export const useScriptStore = create<ScriptStore>()(
                     e.index === episodeIndex
                       ? { ...e, ...(updates.title !== undefined ? { title: updates.title } : {}), ...(updates.synopsis !== undefined ? { description: updates.synopsis } : {}) }
                       : e
-                  ),
-                },
+                  ) },
                 episodeRawScripts: (project.episodeRawScripts || []).map(e =>
                   e.episodeIndex === episodeIndex
                     ? { ...e, ...(updates.title !== undefined ? { title: updates.title } : {}), ...(updates.synopsis !== undefined ? { synopsis: updates.synopsis } : {}) }
                     : e
                 ),
-                updatedAt: Date.now(),
-              },
-            },
-          };
+                updatedAt: Date.now() } } };
         });
       },
 
@@ -477,12 +409,8 @@ export const useScriptStore = create<ScriptStore>()(
                 scriptData: {
                   ...project.scriptData,
                   scenes: newScenes,
-                  episodes: newEpisodes,
-                },
-                updatedAt: Date.now(),
-              },
-            },
-          };
+                  episodes: newEpisodes },
+                updatedAt: Date.now() } } };
         });
       },
 
@@ -500,12 +428,8 @@ export const useScriptStore = create<ScriptStore>()(
                   ...project.scriptData,
                   scenes: project.scriptData.scenes.map((s) =>
                     s.id === sceneId ? { ...s, ...updates } : s
-                  ),
-                },
-                updatedAt: Date.now(),
-              },
-            },
-          };
+                  ) },
+                updatedAt: Date.now() } } };
         });
       },
 
@@ -524,14 +448,9 @@ export const useScriptStore = create<ScriptStore>()(
                   scenes: project.scriptData.scenes.filter((s) => s.id !== sceneId),
                   episodes: (project.scriptData.episodes || []).map((e) => ({
                     ...e,
-                    sceneIds: e.sceneIds.filter((id) => id !== sceneId),
-                  })),
-                },
+                    sceneIds: e.sceneIds.filter((id) => id !== sceneId) })) },
                 shots: project.shots.filter((s) => s.sceneRefId !== sceneId),
-                updatedAt: Date.now(),
-              },
-            },
-          };
+                updatedAt: Date.now() } } };
         });
       },
 
@@ -548,12 +467,8 @@ export const useScriptStore = create<ScriptStore>()(
                 ...project,
                 scriptData: {
                   ...project.scriptData,
-                  characters: [...project.scriptData.characters, character],
-                },
-                updatedAt: Date.now(),
-              },
-            },
-          };
+                  characters: [...project.scriptData.characters, character] },
+                updatedAt: Date.now() } } };
         });
       },
 
@@ -571,12 +486,8 @@ export const useScriptStore = create<ScriptStore>()(
                   ...project.scriptData,
                   characters: project.scriptData.characters.map((c) =>
                     c.id === characterId ? { ...c, ...updates } : c
-                  ),
-                },
-                updatedAt: Date.now(),
-              },
-            },
-          };
+                  ) },
+                updatedAt: Date.now() } } };
         });
       },
 
@@ -592,12 +503,8 @@ export const useScriptStore = create<ScriptStore>()(
                 ...project,
                 scriptData: {
                   ...project.scriptData,
-                  characters: project.scriptData.characters.filter((c) => c.id !== characterId),
-                },
-                updatedAt: Date.now(),
-              },
-            },
-          };
+                  characters: project.scriptData.characters.filter((c) => c.id !== characterId) },
+                updatedAt: Date.now() } } };
         });
       },
 
@@ -612,10 +519,7 @@ export const useScriptStore = create<ScriptStore>()(
               [projectId]: {
                 ...project,
                 shots: [...project.shots, shot],
-                updatedAt: Date.now(),
-              },
-            },
-          };
+                updatedAt: Date.now() } } };
         });
       },
 
@@ -629,10 +533,7 @@ export const useScriptStore = create<ScriptStore>()(
               [projectId]: {
                 ...project,
                 shots: project.shots.filter((s) => s.id !== shotId),
-                updatedAt: Date.now(),
-              },
-            },
-          };
+                updatedAt: Date.now() } } };
         });
       },
 
@@ -645,10 +546,7 @@ export const useScriptStore = create<ScriptStore>()(
             [projectId]: {
               ...state.projects[projectId],
               projectBackground: background,
-              updatedAt: Date.now(),
-            },
-          },
-        }));
+              updatedAt: Date.now() } } }));
       },
 
       setEpisodeRawScripts: (projectId, scripts) => {
@@ -659,10 +557,7 @@ export const useScriptStore = create<ScriptStore>()(
             [projectId]: {
               ...state.projects[projectId],
               episodeRawScripts: scripts,
-              updatedAt: Date.now(),
-            },
-          },
-        }));
+              updatedAt: Date.now() } } }));
       },
 
       updateEpisodeRawScript: (projectId, episodeIndex, updates) => {
@@ -675,10 +570,7 @@ export const useScriptStore = create<ScriptStore>()(
               episodeRawScripts: state.projects[projectId].episodeRawScripts.map((ep) =>
                 ep.episodeIndex === episodeIndex ? { ...ep, ...updates } : ep
               ),
-              updatedAt: Date.now(),
-            },
-          },
-        }));
+              updatedAt: Date.now() } } }));
       },
 
       setMetadataMarkdown: (projectId, markdown) => {
@@ -690,10 +582,7 @@ export const useScriptStore = create<ScriptStore>()(
               ...state.projects[projectId],
               metadataMarkdown: markdown,
               metadataGeneratedAt: Date.now(),
-              updatedAt: Date.now(),
-            },
-          },
-        }));
+              updatedAt: Date.now() } } }));
       },
 
       setPromptLanguage: (projectId, lang) => {
@@ -704,10 +593,7 @@ export const useScriptStore = create<ScriptStore>()(
             [projectId]: {
               ...state.projects[projectId],
               promptLanguage: lang,
-              updatedAt: Date.now(),
-            },
-          },
-        }));
+              updatedAt: Date.now() } } }));
       },
 
       setCalibrationState: (projectId, updates) => {
@@ -735,12 +621,8 @@ export const useScriptStore = create<ScriptStore>()(
                     : currentCalibration.pendingFilteredCharacters,
                   singleShotCalibrationStatus: hasSingleShotStatus
                     ? (updates.singleShotCalibrationStatus ?? currentCalibration.singleShotCalibrationStatus)
-                    : currentCalibration.singleShotCalibrationStatus,
-                },
-                updatedAt: Date.now(),
-              },
-            },
-          };
+                    : currentCalibration.singleShotCalibrationStatus },
+                updatedAt: Date.now() } } };
         });
       },
 
@@ -758,13 +640,8 @@ export const useScriptStore = create<ScriptStore>()(
                   ...currentCalibration,
                   singleShotCalibrationStatus: {
                     ...(currentCalibration.singleShotCalibrationStatus || {}),
-                    [shotId]: status,
-                  },
-                },
-                updatedAt: Date.now(),
-              },
-            },
-          };
+                    [shotId]: status } },
+                updatedAt: Date.now() } } };
         });
       },
 
@@ -776,10 +653,7 @@ export const useScriptStore = create<ScriptStore>()(
             [projectId]: {
               ...state.projects[projectId],
               calibrationStrictness: strictness,
-              updatedAt: Date.now(),
-            },
-          },
-        }));
+              updatedAt: Date.now() } } }));
       },
 
       setLastFilteredCharacters: (projectId, filtered) => {
@@ -790,10 +664,7 @@ export const useScriptStore = create<ScriptStore>()(
             [projectId]: {
               ...state.projects[projectId],
               lastFilteredCharacters: filtered,
-              updatedAt: Date.now(),
-            },
-          },
-        }));
+              updatedAt: Date.now() } } }));
       },
 
       setSeriesMeta: (projectId, meta) => {
@@ -809,14 +680,10 @@ export const useScriptStore = create<ScriptStore>()(
                 meta.characters?.length
                   ? {
                       ...state.projects[projectId].scriptData,
-                      characters: cloneScriptCharacters(meta.characters),
-                    }
+                      characters: cloneScriptCharacters(meta.characters) }
                   : state.projects[projectId]?.scriptData ?? null,
               seriesMeta: meta,
-              updatedAt: Date.now(),
-            },
-          },
-        }));
+              updatedAt: Date.now() } } }));
       },
 
       updateSeriesMeta: (projectId, updates) => {
@@ -835,17 +702,12 @@ export const useScriptStore = create<ScriptStore>()(
                   updates.characters?.length
                     ? {
                         ...project.scriptData,
-                        characters: cloneScriptCharacters(updates.characters),
-                      }
+                        characters: cloneScriptCharacters(updates.characters) }
                     : project.scriptData,
                 seriesMeta: { ...project.seriesMeta, ...updates },
-                updatedAt: Date.now(),
-              },
-            },
-          };
+                updatedAt: Date.now() } } };
         });
-      },
-    }),
+      } }),
     createScriptPersistOptions<ScriptStore>(
       createJSONStorage(() => createProjectScopedStorage("script")),
     ),

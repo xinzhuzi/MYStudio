@@ -7,9 +7,6 @@ import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createDeepSeek } from "@ai-sdk/deepseek";
-import { createXai } from "@ai-sdk/xai";
-import { createQwen } from "qwen-ai-provider-v5";
-import { createZhipu } from "zhipu-ai-provider";
 import { createMinimax } from "vercel-minimax-ai-provider";
 import { generateImage, generateText, streamText } from "ai";
 import type { IProvider } from "./core";
@@ -19,6 +16,7 @@ import {
   DEFAULT_IMAGE_ASPECT_RATIO,
   DEFAULT_IMAGE_RESOLUTION,
   resolveGptImageSize,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   validateGptImageSize,
   type ImageRequestTemplateName,
 } from "./image-size-presets";
@@ -39,6 +37,7 @@ export function createProviderInstance(params: ProviderInstanceParams) {
   const { baseUrl, apiKey, platform, name } = params;
   const safeName = name || platform || 'default';
   const safeBaseURL = baseUrl || '';
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   const fetchOption = params.fetch ? { fetch: params.fetch as any } : {};
 
   switch (platform) {
@@ -100,8 +99,11 @@ export function getLanguageModel(
 ) {
   const instance = createProviderInstance(provider);
   // OpenAI 系: .chat(); OpenAI-compatible 系: .chatModel(); 其他: 直接调用
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   if ("chat" in instance) return (instance as any).chat(modelName);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   if ("chatModel" in instance) return (instance as any).chatModel(modelName);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   return (instance as any)(modelName);
 }
 
@@ -124,6 +126,7 @@ export async function sdkGenerateText(options: {
       ...(options.providerOptions && { providerOptions: options.providerOptions }),
     });
     return { success: true, text: result.text };
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (e: any) {
     return { success: false, error: e?.message || String(e) };
   }
@@ -363,7 +366,9 @@ export function getImageModel(
   fetcher?: typeof fetch,
 ) {
   const instance = createProviderInstance({ ...provider, fetch: fetcher });
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   if ("imageModel" in instance) return (instance as any).imageModel(modelName);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   if ("image" in instance) return (instance as any).image(modelName);
   throw new Error(`供应商 ${provider.name || provider.platform} 不支持 AI SDK 图片模型`);
 }
@@ -469,6 +474,7 @@ export async function sdkGenerateImage(options: SdkGenerateImageOptions): Promis
       ? builtRequest.body.prompt
       : options.prompt;
     const prompt = options.referenceImages?.length
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
       ? { text: sdkPromptText, images: options.referenceImages as any[] }
       : sdkPromptText;
     const result = await generateImage({

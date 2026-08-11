@@ -166,6 +166,7 @@ export function useEditingWorkbenchActions(
     } finally {
       setDrafting(false);
     }
+// eslint-disable-next-line react-hooks/exhaustive-deps
   }, [input]);
 
   const runVideoUse = useCallback(async (

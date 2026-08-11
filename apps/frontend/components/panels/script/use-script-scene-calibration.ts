@@ -67,10 +67,10 @@ export function useScriptSceneCalibration({
         baseUrl: featureConfig.baseUrl,
         promptLanguage,
       });
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
       const newScenes = currentScenes.map((original, index) => {
         const calibrated = result.scenes.find((scene) => scene.id === original.id);
         if (!calibrated) {
-          console.log(`[handleCalibrateScenes] 场景 #${index + 1} "${original.name}" 未找到校准结果，保持原样`);
           return original;
         }
         const nextVisualPromptZh = calibrated.visualPromptZh || original.visualPrompt;
@@ -90,7 +90,6 @@ export function useScriptSceneCalibration({
         };
       });
 
-      console.log("[handleCalibrateScenes] 轻量级校准完成：场景数保持", newScenes.length, "，顺序不变");
       if (scriptData) setScriptData(projectId, { ...scriptData, scenes: newScenes });
 
       setSceneCalibrationStatus("completed");
@@ -110,7 +109,6 @@ export function useScriptSceneCalibration({
       }
 
       if (result.mergeRecords.length > 0) {
-        console.log("[handleCalibrateScenes] 合并建议:", result.mergeRecords);
         toast.info(`发现 ${result.mergeRecords.length} 个合并建议，请在控制台查看`);
       }
     } catch (error) {

@@ -56,6 +56,7 @@ export function useSClassGeneration() {
   } = useSClassStore();
 
   const projectData = useActiveDirectorProject();
+// eslint-disable-next-line react-hooks/exhaustive-deps
   const splitScenes = projectData?.splitScenes || [];
   const characters = useCharacterLibraryStore((s) => s.characters);
   const scenes = useSceneStore((s) => s.scenes);
@@ -211,18 +212,6 @@ export function useSClassGeneration() {
         updateGroupVideoStatus(group.id, { videoProgress: 10 });
 
         // 6. 调用视频生成 API
-        console.log("[SClassGen] Generating group video:", {
-          groupId: group.id,
-          groupName: group.name,
-          scenesCount: groupScenes.length,
-          promptLength: prompt.length,
-          imagesCount: imageWithRoles.length,
-          videoRefsCount: videoRefUrls.length,
-          audioRefsCount: audioRefUrls.length,
-          duration,
-          aspectRatio,
-          videoResolution,
-        });
 
         const videoUrl = await runSClassVideoWithKeyRotation({
           keyManager,
@@ -305,6 +294,7 @@ export function useSClassGeneration() {
         };
       }
     },
+// eslint-disable-next-line react-hooks/exhaustive-deps
     [
       activeProjectId,
       getProjectData,

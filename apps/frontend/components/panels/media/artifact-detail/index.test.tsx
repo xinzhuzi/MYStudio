@@ -6,12 +6,12 @@ import type { ArtifactRecord } from "@/types/artifacts";
 import { ArtifactDetailPanel } from ".";
 import { formatBytes } from "./helpers";
 
-vi.mock("@/components/ui/sheet", () => ({
-  Sheet: ({ open, children }: { open: boolean; children: ReactNode }) => open ? <div data-testid="artifact-sheet">{children}</div> : null,
-  SheetContent: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-  SheetHeader: ({ children }: { children: ReactNode }) => <header>{children}</header>,
-  SheetTitle: ({ children }: { children: ReactNode }) => <h2>{children}</h2>,
-  SheetDescription: ({ children }: { children: ReactNode }) => <p>{children}</p>,
+vi.mock("@/components/ui/dialog", () => ({
+  Dialog: ({ open, children }: { open: boolean; children: ReactNode }) => open ? <div data-testid="artifact-dialog">{children}</div> : null,
+  DialogContent: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  DialogHeader: ({ children }: { children: ReactNode }) => <header>{children}</header>,
+  DialogTitle: ({ children }: { children: ReactNode }) => <h2>{children}</h2>,
+  DialogDescription: ({ children }: { children: ReactNode }) => <p>{children}</p>,
 }));
 
 vi.mock("@/components/ui/tabs", () => ({

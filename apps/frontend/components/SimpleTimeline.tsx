@@ -113,6 +113,7 @@ export function SimpleTimeline() {
             // Fallback: try to get from media store if URL not provided
             try {
               const mediaStore = useMediaStore.getState();
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
               const mediaFile = mediaStore.mediaFiles.find((m: any) => m.id === data.id);
               
               if (mediaFile?.url) {

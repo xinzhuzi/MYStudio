@@ -22,7 +22,6 @@
  * - Scene transitions
  */
 
-import { type SplitScene } from '@/stores/director/director-store';
 import { aiManager } from '@/lib/ai/ai-manager';
 import { prepareReferenceImageForTransfer } from '@/lib/ai/image-transfer';
 
@@ -127,6 +126,7 @@ function inferNeedsEndFrame(scene: ScenePromptRequest['scenes'][0]): { needs: bo
 /**
  * Generate prompt from text description (no API call)
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function generatePromptFromText(scene: ScenePromptRequest['scenes'][0], storyContext: string): GeneratedPrompt {
   const action = scene.actionSummary || '';
   const camera = scene.cameraMovement || '';
@@ -196,17 +196,14 @@ export async function generateScenePrompts(
 ): Promise<GeneratedPrompt[]> {
   const { storyboardImage, storyPrompt, scenes, baseUrl, model } = config;
 
-  console.log(`[ScenePromptGenerator] Generating three-tier prompts for ${scenes.length} scenes`);
   
   // Check which scenes have text descriptions
   const scenesWithText = scenes.filter(s => sceneHasTextDescription(s));
   const scenesWithoutText = scenes.filter(s => !sceneHasTextDescription(s));
   
-  console.log(`[ScenePromptGenerator] ${scenesWithText.length} scenes have text descriptions, ${scenesWithoutText.length} need Vision API`);
   
   // If ALL scenes have text, generate directly without API
   if (scenesWithoutText.length === 0) {
-    console.log('[ScenePromptGenerator] All scenes have text descriptions, generating from text (no API call)');
     return scenes.map(s => generatePromptFromText(s, storyPrompt));
   }
   
@@ -215,7 +212,6 @@ export async function generateScenePrompts(
   
   // For scenes without text, we need Vision API
   if (scenesWithoutText.length > 0) {
-    console.log(`[ScenePromptGenerator] Falling back to Vision API for ${scenesWithoutText.length} scenes`);
     
     // Validate API config only when needed
     const normalizedBaseUrl = baseUrl?.replace(/\/+$/, '');
@@ -293,7 +289,6 @@ async function generatePromptsViaVisionAPI(
   storyPrompt: string,
   scenes: ScenePromptRequest['scenes'],
 ): Promise<GeneratedPrompt[]> {
-  console.log(`[ScenePromptGenerator] Calling Vision API for ${scenes.length} scenes`);
 
 
   // Build the scene list with optional context
@@ -405,6 +400,7 @@ Return a RAW JSON array (no markdown code block). BILINGUAL output required.
     // Handle markdown code blocks if present
     const cleanContent = content.replace(/```json\n?|\n?```/g, '').trim();
     
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
     let parsed: any[];
     try {
       parsed = JSON.parse(cleanContent);
@@ -418,6 +414,7 @@ Return a RAW JSON array (no markdown code block). BILINGUAL output required.
     }
 
     // Validate and map to three-tier prompt result
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
     const results: GeneratedPrompt[] = parsed.map((item: any) => {
       const needsEndFrame = Boolean(item.needsEndFrame);
       
@@ -450,11 +447,10 @@ Return a RAW JSON array (no markdown code block). BILINGUAL output required.
       };
     }).filter(p => (p.videoPrompt || p.imagePrompt) && !isNaN(p.id));
 
-    console.log(`[ScenePromptGenerator] Generated ${results.length} three-tier prompts`);
     
     // Log end frame statistics
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
     const endFrameCount = results.filter(r => r.needsEndFrame).length;
-    console.log(`[ScenePromptGenerator] ${endFrameCount}/${results.length} scenes need end frames`);
     
     return results;
 

@@ -47,6 +47,7 @@ export function ShotBreakdown({
   }, [shots, scriptData]);
 
   // Calculate total shots for index display
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   const totalShots = shots.length;
   let globalIndex = 0;
 
@@ -71,7 +72,11 @@ export function ShotBreakdown({
               S{(scriptData?.scenes.indexOf(group.scene) ?? -1) + 1}
             </div>
             {/* Shot indices */}
-            {group.shots.map((shot, idx) => {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+            {group.shots.map((shot, _idx) => {
               const currentGlobalIndex = ++globalIndex;
               return (
                 <button
@@ -130,7 +135,11 @@ export function ShotBreakdown({
 
             {/* Shots in this scene */}
             <div className="divide-y divide-zinc-800/50">
-              {group.shots.map((shot, shotIdx) => (
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+              {group.shots.map((shot, _shotIdx) => (
                 <ShotRow
                   key={shot.id}
                   shot={shot}

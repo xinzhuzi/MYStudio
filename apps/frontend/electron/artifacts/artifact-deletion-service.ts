@@ -34,6 +34,7 @@ import type {
   PhysicalRef,
 } from "@/types/artifacts";
 import {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   createProjectFileUrl,
   parseLocalMediaPath,
   parseProjectFileUrl,
@@ -47,6 +48,7 @@ import { buildDeletionPlan } from "@/lib/artifacts/artifact-dependency-graph";
 import { rewriteRegisteredBackup } from "./backup-decoder-registry";
 import { studioTransformDeleteNovelChapters, scriptTransformDeleteEpisodes } from "@/lib/stores/store-transforms";
 import type { NovelChaptersSnapshot, ScriptDataSnapshot } from "@/lib/stores/store-transforms";
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import type { Episode } from "@/types/script";
 
 type Confirmation = {
@@ -326,7 +328,9 @@ function reindexScriptState(value: unknown): unknown {
     return { ...(episode as Record<string, unknown>), index: index + 1 };
   });
   const next = { ...root, scriptData: { ...data, episodes } };
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   if (Array.isArray((next as any).episodeRawScripts)) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
     (next as any).episodeRawScripts = (next as any).episodeRawScripts.map((raw, index) => {
       if (!raw || typeof raw !== "object") return raw;
       return { ...(raw as Record<string, unknown>), episodeIndex: index + 1 };

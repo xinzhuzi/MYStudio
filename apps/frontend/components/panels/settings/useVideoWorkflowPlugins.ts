@@ -106,6 +106,7 @@ export function useVideoWorkflowPlugins() {
     void refresh();
   }, [refresh]);
 
+// eslint-disable-next-line react-hooks/exhaustive-deps
   const plugins = status?.plugins ?? [];
   const pluginById = useMemo(() => new Map(plugins.map((plugin) => [plugin.pluginId, plugin])), [plugins]);
   const getPlugin = useCallback((pluginId: VideoWorkflowPluginId): VideoWorkflowPluginStatusV1 | undefined => pluginById.get(pluginId), [pluginById]);

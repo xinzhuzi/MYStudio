@@ -146,15 +146,10 @@ ${shotSummaries}
 请根据以上本集大纲和分镜内容，分析该场景需要的视角，返回 JSON。`;
 
   try {
-    console.log('[analyzeSceneViewpoints] 🚀 开始调用 AI API...');
-    console.log('[analyzeSceneViewpoints] 场景:', scene.location || scene.name);
-    console.log('[analyzeSceneViewpoints] 分镜数量:', shots.length);
     
     // 统一从服务映射获取配置
     const result = await aiManager.featureText('script_analysis', systemPrompt, userPrompt);
     
-    console.log('[analyzeSceneViewpoints] ✅ AI API 调用成功，返回内容长度:', result.length);
-    console.log('[analyzeSceneViewpoints] 原始响应前 200 字符:', result.slice(0, 200));
     
     // 解析 JSON
     let cleaned = result.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
@@ -166,8 +161,8 @@ ${shotSummaries}
     
     const parsed = JSON.parse(cleaned);
     
-    console.log('[analyzeSceneViewpoints] 🎯 JSON 解析成功，视角数量:', parsed.viewpoints?.length || 0);
     
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
     const viewpoints = (parsed.viewpoints || []).map((v: any, idx: number) => ({
       id: v.id || `viewpoint_${idx}`,
       name: v.name || '未命名视角',
@@ -179,7 +174,6 @@ ${shotSummaries}
       shotIndexes: v.shotIndexes || [],
     }));
     
-    console.log('[analyzeSceneViewpoints] 📦 返回视角:', viewpoints.map((v: any) => v.name).join(', '));
     
     return {
       viewpoints,

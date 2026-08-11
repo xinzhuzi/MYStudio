@@ -52,7 +52,6 @@ export async function saveImageToLocal(
     const result = await window.imageStorage!.saveImage(url, category, filename);
     
     if (result.success && result.localPath) {
-      console.log(`Image saved locally: ${result.localPath}`);
       return result.localPath;
     } else {
       console.error('Failed to save image:', result.error);
@@ -202,7 +201,6 @@ export async function saveVideoToLocal(
     const result = await window.imageStorage!.saveImage(url, 'videos', filename);
     
     if (result.success && result.localPath) {
-      console.log(`Video saved locally: ${result.localPath}`);
       return result.localPath;
     } else {
       console.error('Failed to save video:', result.error);

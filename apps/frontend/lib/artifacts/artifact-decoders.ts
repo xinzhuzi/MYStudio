@@ -602,6 +602,7 @@ export function getRegisteredStoreDecoders(): Array<{
 /**
  * Validate a raw JSON object against an IPC request schema and return typed result
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function validateIpcRequest<T extends z.ZodType>(schema: T, rawData: unknown): any {
   return schema.safeParse(rawData);
 }

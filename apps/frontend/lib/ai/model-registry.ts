@@ -238,11 +238,6 @@ export function cacheDiscoveredLimits(
 ): boolean {
   if (!_setDiscoveredLimits) return false;
   _setDiscoveredLimits(modelName.toLowerCase(), limits);
-  console.log(
-    `[ModelRegistry] 🧠 已学习 ${modelName} 的限制:`,
-    limits.maxOutput != null ? `maxOutput=${limits.maxOutput}` : '',
-    limits.contextWindow != null ? `contextWindow=${limits.contextWindow}` : '',
-  );
   return true;
 }
 

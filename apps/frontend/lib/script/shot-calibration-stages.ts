@@ -18,8 +18,6 @@ import { processBatched } from '@/lib/ai/batch-processor';
 import { getStyleDescription, getMediaType } from '@/lib/constants/visual-styles';
 import { buildCinematographyGuidance } from '@/lib/constants/cinematography-profiles';
 import { getMediaTypeGuidance } from '@/lib/generation/media-type-tokens';
-import { useScriptStore } from '@/stores/script/script-store';
-import { buildSeriesContextSummary } from './series-meta-sync';
 
 export interface ShotInputData {
   shotId: string;
@@ -73,6 +71,7 @@ export async function calibrateShotsMultiStage(
   options: CalibrationOptions,
   globalContext: GlobalContext,
   onStageProgress?: (stage: number, totalStages: number, stageName: string) => void
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): Promise<Record<string, any>> {
   const { styleId, cinematographyProfileId, promptLanguage = 'zh+en' } = options;
   const {
@@ -123,6 +122,7 @@ export async function calibrateShotsMultiStage(
     : '';
 
   // JSON 解析辅助
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   function parseStageJSON(raw: string): Record<string, any> {
     let cleaned = raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
     const jsonStart = cleaned.indexOf('{');
@@ -141,13 +141,14 @@ export async function calibrateShotsMultiStage(
     outputTokensPerItem: number,
     maxTokens: number,
   ): Promise<void> {
-    console.log(`[MultiStage] ${stageName}`);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { results, failedBatches } = await processBatched<ShotInputData, Record<string, any>>({
       items: shots,
       feature: 'script_analysis',
       buildPrompts,
       parseResult: (raw, batch) => {
         const shotsResult = parseStageJSON(raw);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
         const result = new Map<string, Record<string, any>>();
         for (const item of batch) {
           if (shotsResult[item.shotId]) {
@@ -172,6 +173,7 @@ export async function calibrateShotsMultiStage(
   }
 
   // 初始化合并结果
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   const merged: Record<string, any> = {};
   for (const shot of shots) {
     merged[shot.shotId] = {};
@@ -179,7 +181,6 @@ export async function calibrateShotsMultiStage(
 
   // ===================== Stage 1: 叙事骨架 =====================
   onStageProgress?.(1, 5, '叙事骨架');
-  console.log('[MultiStage] Stage 1/5: 叙事骨架');
 
   const s1System = `你是电影叙事分析师，精通镜头语言和叙事结构。分析每个分镜的叙事功能并确定镜头参数。
 
@@ -221,7 +222,6 @@ ${contextLine}${narrativeAnchorBlock}${episodeSynopsis ? `\n\n【本集大纲】
 
   // ===================== Stage 2: 视觉描述 + 音频 =====================
   onStageProgress?.(2, 5, '视觉描述');
-  console.log('[MultiStage] Stage 2/5: 视觉描述');
   const includeEnVisualPrompt = promptLanguage !== 'zh';
   const s2VisualPromptRule = includeEnVisualPrompt
     ? '\n- visualPrompt: 纯英文，40词内，AI绘图用'
@@ -257,7 +257,6 @@ ${s2VisualPromptRule}
 
   // ===================== Stage 3: 拍摄控制 =====================
   onStageProgress?.(3, 5, '拍摄控制');
-  console.log('[MultiStage] Stage 3/5: 拍摄控制');
 
   const s3System = `你是电影摄影指导(DP)。根据视觉描述确定专业拍摄参数。${cinematographyGuidance ? `\n\n${cinematographyGuidance}` : ''}
 
@@ -300,7 +299,6 @@ ${s2VisualPromptRule}
 
   // ===================== Stage 4: 首帧提示词 =====================
   onStageProgress?.(4, 5, '首帧提示词');
-  console.log('[MultiStage] Stage 4/5: 首帧提示词');
 
   // Stage 4: 根据 promptLanguage 动态调整输出字段
   const s4Fields = promptLanguage === 'zh'
@@ -355,7 +353,6 @@ needsEndFrame 判断：
 
   // ===================== Stage 5: 动态 + 尾帧提示词 =====================
   onStageProgress?.(5, 5, '动态+尾帧提示词');
-  console.log('[MultiStage] Stage 5/5: 动态+尾帧提示词');
 
   // Stage 5: 根据 promptLanguage 动态调整输出字段
   const s5VideoFields = promptLanguage === 'zh'
@@ -408,6 +405,5 @@ ${s5LangWarning}
     console.error('[MultiStage] Stage 5 failed:', e);
   }
 
-  console.log('[MultiStage] 全部 5 阶段完成，已校准字段:', Object.keys(merged[shots[0]?.shotId] || {}).length);
   return merged;
 }

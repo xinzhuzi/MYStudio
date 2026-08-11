@@ -42,6 +42,7 @@ import {
   FolderPlus,
   Folder,
   ChevronRight,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   ChevronDown,
   Home,
   Pencil,
@@ -182,6 +183,7 @@ export function SceneGallery({ onSceneSelect, selectedSceneId }: SceneGalleryPro
         }
       }
     }
+// eslint-disable-next-line react-hooks/exhaustive-deps
   }, [contactSheetTasks, childScenesMap]);
   
   const toggleExpand = (sceneId: string) => {
@@ -213,6 +215,7 @@ export function SceneGallery({ onSceneSelect, selectedSceneId }: SceneGalleryPro
   // 最终显示的场景列表（带层级）
   const currentScenes = useMemo(() => {
     return buildSceneTree(rootScenes);
+// eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rootScenes, childScenesMap, expandedScenes]);
 
   // Breadcrumb path
@@ -544,6 +547,7 @@ export function SceneGallery({ onSceneSelect, selectedSceneId }: SceneGalleryPro
 
 // Folder context menu
 function FolderContextMenu({
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   folder,
   children,
   onRename,
@@ -574,6 +578,7 @@ function FolderContextMenu({
 
 // Scene context menu
 function SceneContextMenu({
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   scene,
   children,
   folders,

@@ -59,6 +59,7 @@ export function RefPreview({ physicalRef, projectId, className }: RefPreviewProp
       .then((result) => { if (!cancelled) setState({ status: "ready", result }); })
       .catch((err) => { if (!cancelled) setState({ status: "error", message: err instanceof Error ? err.message : String(err) }); });
     return () => { cancelled = true; };
+// eslint-disable-next-line react-hooks/exhaustive-deps
   }, [safePath, safeType, projectId]);
 
   if (state.status === "loading") {

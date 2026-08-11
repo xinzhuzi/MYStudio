@@ -115,6 +115,7 @@ async function downloadFile(url: string): Promise<Blob> {
 /**
  * Convert Blob to base64 data URL
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function blobToBase64(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -280,11 +281,11 @@ export async function exportProjectToFolder(
   // Check if File System Access API is available
   const showDirectoryPicker = window.showDirectoryPicker;
   if (!showDirectoryPicker) {
-    console.log('[ExportService] File System Access API not available, falling back to downloads');
     await exportProjectFiles(config, onProgress);
     return false;
   }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { shots, includeImages, includeVideos, projectName, scriptData } = config;
 
   try {
@@ -368,7 +369,6 @@ export async function exportProjectToFolder(
   } catch (error) {
     // User cancelled or API error
     if ((error as Error).name === 'AbortError') {
-      console.log('[ExportService] User cancelled folder selection');
       return false;
     }
     console.error('[ExportService] Export failed:', error);
@@ -485,7 +485,6 @@ export async function exportDirectorToFolder(
 ): Promise<boolean> {
   const showDirectoryPicker = window.showDirectoryPicker;
   if (!showDirectoryPicker) {
-    console.log('[ExportService] File System Access API not available, falling back to downloads');
     await exportDirectorFiles(config, onProgress);
     return false;
   }
@@ -588,7 +587,6 @@ export async function exportDirectorToFolder(
     return true;
   } catch (error) {
     if ((error as Error).name === 'AbortError') {
-      console.log('[ExportService] User cancelled folder selection');
       return false;
     }
     console.error('[ExportService] Director export failed:', error);

@@ -94,6 +94,7 @@ export function usePythonRuntimeSettings() {
     if (!config?.defaultPythonRuntimeUrl) return;
     setPythonRuntimeUrlDraft(config.defaultPythonRuntimeUrl);
     void saveConfig(config.defaultPythonRuntimeUrl);
+// eslint-disable-next-line react-hooks/exhaustive-deps
   }, [config, config?.defaultPythonRuntimeUrl, saveConfig]);
 
   const DEFAULT_PYTHON_RUNTIME_DIR = "/Users/zhengbingjin/Library/Application Support/漫影工作室/python";

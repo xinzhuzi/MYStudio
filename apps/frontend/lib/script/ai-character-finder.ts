@@ -204,17 +204,9 @@ async function generateCharacterData(
     const outline = (background.outline || '');
     const startYear = background.storyStartYear;
     
-    console.log('[detectStoryType] background:', {
-      era,
-      timeline,
-      genre,
-      storyStartYear: startYear,
-      hasOutline: !!outline,
-    });
     
     // 如果有明确的 storyStartYear 且是近现代年份（1800年以后），直接判定为现代剧
     if (startYear && startYear >= 1800) {
-      console.log('[detectStoryType] 检测结果: modern (基于 storyStartYear:', startYear, ')');
       return 'modern';
     }
     
@@ -222,8 +214,8 @@ async function generateCharacterData(
     const textForYearExtraction = `${era} ${timeline} ${outline}`;
     const yearMatch = textForYearExtraction.match(/(19\d{2}|20\d{2})\s*年/);
     if (yearMatch) {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
       const extractedYear = parseInt(yearMatch[1]);
-      console.log('[detectStoryType] 检测结果: modern (从文本提取年份:', extractedYear, ')');
       return 'modern';
     }
     
@@ -235,14 +227,11 @@ async function generateCharacterData(
     const allText = `${era} ${timeline} ${genre} ${outline}`;
     
     if (ancientKeywords.some(kw => allText.includes(kw))) {
-      console.log('[detectStoryType] 检测结果: ancient (基于关键词)');
       return 'ancient';
     }
     if (futureKeywords.some(kw => allText.includes(kw))) {
-      console.log('[detectStoryType] 检测结果: future (基于关键词)');
       return 'future';
     }
-    console.log('[detectStoryType] 检测结果: modern (默认)');
     return 'modern';
   };
   
@@ -385,6 +374,7 @@ ${dialogueSamples.join('\n')}
     const parsed = JSON.parse(cleaned);
     
     // 确保所有字段都是字符串类型（AI 可能返回对象）
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
     const ensureString = (val: any): string | undefined => {
       if (val === null || val === undefined) return undefined;
       if (typeof val === 'string') return val;
@@ -435,7 +425,6 @@ export async function findCharacterByDescription(
   existingCharacters: ScriptCharacter[],
   _options?: FinderOptions // 不再需要，保留以兼容
 ): Promise<CharacterSearchResult> {
-  console.log('[findCharacterByDescription] 用户查询:', userQuery);
   
   // 1. 解析用户输入
   const { name, episodeNumber } = parseUserQuery(userQuery);
@@ -451,7 +440,6 @@ export async function findCharacterByDescription(
     };
   }
   
-  console.log('[findCharacterByDescription] 解析结果:', { name, episodeNumber });
   
   // 2. 检查是否已存在
   const existing = existingCharacters.find(c => 
@@ -488,7 +476,6 @@ export async function findCharacterByDescription(
   }
   
   // 4. 使用 AI 生成完整角色数据
-  console.log('[findCharacterByDescription] 正在生成角色数据...');
   
   const character = await generateCharacterData(
     name,

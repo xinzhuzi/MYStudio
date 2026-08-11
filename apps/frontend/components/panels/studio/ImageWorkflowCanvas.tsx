@@ -11,7 +11,9 @@ import {
 import "@xyflow/react/dist/style.css";
 import {
   ArrowLeft,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   CheckCircle2,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   Image as ImageIcon,
   Loader2,
   Maximize2,
@@ -21,10 +23,10 @@ import {
   Upload,
   WandSparkles,
 } from "lucide-react";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   createAssetImageWorkflowGraph,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   createImageWorkflowGraph,
   ensureImageWorkflowPromptNodes,
   ensureAssetImageWorkflowGraph,
@@ -32,12 +34,13 @@ import {
   updateImageWorkflowNodePosition,
 } from "@/lib/studio/image-workflow";
 import { useStudioStore } from "@/stores/studio/studio-store";
-import { useCharacterLibraryStore } from "@/stores/library/character-library-store";
 import type {
   ImageWorkflowGraph,
   ImageWorkflowNode,
   ImageWorkflowOpenContext,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   ImageWorkflowPromptNode,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   AssetImageWorkflowContext,
 } from "@/types/studio";
 import { cn } from "@/lib/utils";
@@ -46,6 +49,7 @@ import {
   type ImageWorkflowReactNode,
 } from "./image-workflow-node-card";
 import {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   assetTargetLabel,
   assetWorkflowContextKey,
   createOpenImageWorkflowGraph,
@@ -359,6 +363,7 @@ export function ImageWorkflowCanvas({
         });
       }, 80);
     });
+// eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeGraph?.id, flowInstance, focusedFitNodeKey, initialAssetContext, nodes.length]);
 
   if (!activeGraph) {

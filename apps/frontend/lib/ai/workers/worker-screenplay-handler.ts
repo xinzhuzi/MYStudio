@@ -26,8 +26,6 @@ export async function handleGenerateScreenplayCommand(
   const runtimeConfig = config as ScreenplayGenerationConfig;
   const { run } = deps.beginRun(command.runId);
 
-  console.log('[AI Worker] Generating screenplay for prompt:', prompt.substring(0, 100));
-  console.log('[AI Worker] Config received:', JSON.stringify(config, null, 2));
 
   try {
     const mockMode = runtimeConfig.mockMode || false;
@@ -40,7 +38,6 @@ export async function handleGenerateScreenplayCommand(
     const provider = runtimeConfig.chatProvider || 'memefast';
     const sceneCount = config.sceneCount || 5;
 
-    console.log('[AI Worker] Using sceneCount:', sceneCount);
 
     if (!apiKey && !mockMode) {
       throw new Error('未配置 API Key，请在设置中添加或启用 Mock 模式');
@@ -81,6 +78,7 @@ export async function handleGenerateScreenplayCommand(
     }
 
     const rawPayload = await response.json();
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
     const decoded = decodeWorkerApiPayload(rawPayload);
     const screenplay: AIScreenplay = rawPayload as AIScreenplay;
     if (deps.isCancelled(run)) return;

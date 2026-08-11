@@ -26,7 +26,6 @@ export function createDirectorTrailerActions(
           },
         },
       });
-      console.log("[DirectorStore] Trailer duration set to:", duration);
     },
 
     setTrailerScenes: (scenes) => {
@@ -47,7 +46,6 @@ export function createDirectorTrailerActions(
           },
         },
       });
-      console.log("[DirectorStore] Trailer scenes set:", scenes.length, "scenes");
     },
 
     setTrailerConfig: (config) => {
@@ -63,7 +61,6 @@ export function createDirectorTrailerActions(
           },
         },
       });
-      console.log("[DirectorStore] Trailer config updated:", config);
     },
 
     clearTrailer: () => {
@@ -80,7 +77,6 @@ export function createDirectorTrailerActions(
           },
         },
       });
-      console.log("[DirectorStore] Trailer cleared");
     },
   };
 }

@@ -1,0 +1,29 @@
+#!/usr/bin/env sh
+# Pre-commit hook: typecheck + eslint for TS/TSX files
+# 对项目根目录执行验证
+
+# 确保在项目根目录执行
+cd "$(dirname "$0")" || exit
+
+# 直接调用 apps 目录的验证命令
+(
+  cd apps
+  
+  # 运行 typecheck
+  npx tsc --noEmit -p frontend/config/tsconfig.json
+  if [ $? -ne 0 ]; then
+    echo "❌ Pre-commit failed: TypeScript errors"
+    exit 1
+  fi
+  
+  # 运行 eslint
+  npx eslint . --ext ts,tsx --max-warnings 0
+  if [ $? -ne 0 ]; then
+    echo "❌ Pre-commit failed: ESLint errors"
+    exit 1
+  fi
+  
+  echo "✅ Pre-commit passed: typecheck + lint green"
+)
+
+exit $?

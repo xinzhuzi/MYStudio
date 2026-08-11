@@ -63,7 +63,6 @@ export async function switchProject(newProjectId: string): Promise<void> {
     }
   }
 
-  console.log(`[ProjectSwitcher] Switching from ${currentId?.substring(0, 8) ?? 'none'} to ${newProjectId.substring(0, 8)}`);
 
   // 1. Wait briefly for any pending persist writes to complete
   //    (persist middleware fires setItem synchronously on state change,
@@ -156,5 +155,4 @@ export async function switchProject(newProjectId: string): Promise<void> {
   useTtsStore.getState().ensureProject(newProjectId);
   useSelfMediaStore.getState().ensureProject(newProjectId);
 
-  console.log(`[ProjectSwitcher] Switch complete → ${newProjectId.substring(0, 8)}`);
 }

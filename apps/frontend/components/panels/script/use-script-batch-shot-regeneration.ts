@@ -38,8 +38,8 @@ export function useScriptBatchShotRegeneration({
           targetDuration,
           promptLanguage,
         },
-        (current, total, message) => {
-          console.log(`[ScriptView] ${message} (${current}/${total})`);
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+        (current, _total, _message) => {
         },
       );
       toast.success(`全部 ${episodeCount} 集分镜生成完成！`);

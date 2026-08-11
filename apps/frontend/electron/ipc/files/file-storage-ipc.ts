@@ -70,7 +70,6 @@ export function registerFileStorageIpcHandlers({ getDataDir }: RegisterFileStora
         fs.mkdirSync(path.dirname(filePath), { recursive: true });
         fs.writeFileSync(filePath, value, "utf-8");
       });
-      console.log(`Saved to file: ${filePath} (${Math.round(value.length / 1024)}KB)`);
       return true;
     } catch (error) {
       console.error("Failed to write file storage:", error);

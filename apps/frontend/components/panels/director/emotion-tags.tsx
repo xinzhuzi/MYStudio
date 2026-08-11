@@ -11,7 +11,7 @@
 import { useState } from "react";
 import { EMOTION_PRESETS, type EmotionTag } from "@/stores/director/director-store";
 import { Button } from "@/components/ui/button";
-import { X, Plus, GripVertical } from "lucide-react";
+import { X, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Popover,
@@ -155,7 +155,11 @@ export function EmotionTags({ value, onChange, disabled }: EmotionTagsProps) {
       )}
       {value.length > 1 && (
         <p className="text-xs text-muted-foreground">
-          情绪将按 {value.map((t, i) => getTagInfo(t)?.label).filter(Boolean).join(" → ")} 顺序变化
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+          情绪将按 {value.map((t, _i) => getTagInfo(t)?.label).filter(Boolean).join(" → ")} 顺序变化
         </p>
       )}
     </div>

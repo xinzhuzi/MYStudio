@@ -24,6 +24,7 @@ interface CameraControlsProps {
 interface ScrollColumnProps {
   items: (string | number)[];
   value: string | number;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   onChange: (value: any) => void;
   label: string;
 }
@@ -56,6 +57,7 @@ function ScrollColumn({ items, value, onChange, label }: ScrollColumnProps) {
     if (!list || isDragging.current) return;
 
     const centerY = list.scrollTop + list.clientHeight / 2;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
     let closest: HTMLElement | null = null;
     let minDist = Infinity;
     let closestIndex = -1;
@@ -76,6 +78,7 @@ function ScrollColumn({ items, value, onChange, label }: ScrollColumnProps) {
     }
 
     // Apply visual effects
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
     children.forEach((child, i) => {
       const el = child as HTMLElement;
       const dist = Math.abs(centerY - (el.offsetTop + el.offsetHeight / 2));

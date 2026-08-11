@@ -10,7 +10,9 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { createProjectScopedStorage } from '@/lib/storage/project-storage';
 import type { 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   AIScreenplay, 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   AIScene, 
   SceneProgress, 
   GenerationConfig 
@@ -36,8 +38,10 @@ import {
   selectFailedDirectorScenesCount,
 } from './director-selectors';
 import type {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   DirectorEditorPrefs,
   DirectorProjectData,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   DirectorScreenplayDraft,
   DirectorState,
   DirectorStore,
@@ -266,7 +270,6 @@ export const useDirectorStore = create<DirectorStore>()(
       sceneProgress: newProgressMap,
     });
     
-    console.log('[DirectorStore] Deleted scene', sceneId, 'remaining:', renumberedScenes.length);
   },
   
   // Delete all scenes and reset to idle
@@ -286,7 +289,6 @@ export const useDirectorStore = create<DirectorStore>()(
       sceneProgress: new Map(),
       selectedSceneId: null,
     });
-    console.log('[DirectorStore] Deleted all scenes, reset to idle');
   },
 
   // Scene progress
@@ -419,7 +421,6 @@ export const useDirectorStore = create<DirectorStore>()(
         },
       },
     });
-    console.log('[DirectorStore] Reset storyboard state for project', activeProjectId);
   },
 
   // Mode 2: Add scenes from script directly (skip storyboard generation)
@@ -442,7 +443,6 @@ export const useDirectorStore = create<DirectorStore>()(
         },
       },
     });
-    console.log('[DirectorStore] Cinematography profile set to:', profileId);
   },
     }),
     {

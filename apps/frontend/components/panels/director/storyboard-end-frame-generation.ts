@@ -139,7 +139,6 @@ export function createStoryboardEndFrameGenerator(
     } catch (error) {
       const err = error as Error;
       if (err.name === "AbortError" || err.message === "用户已取消") {
-        console.log(`[Storyboard] Scene ${sceneId} end frame generation cancelled by user`);
         return;
       }
 

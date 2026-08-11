@@ -25,6 +25,7 @@ import {
   Loader2,
   Map,
   Music2,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   Pencil,
   Sparkles,
   UserCircle,
@@ -41,7 +42,7 @@ import { useStudioStore } from "@/stores/studio/studio-store";
 import { useTtsStore } from "@/stores/tts/tts-store";
 import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";
 import { getTtsRuntimeBridge } from "@/lib/bridge/tts-runtime";
-import { buildAssetRegenerationPrompt, getAssetDisplayName, getAssetImageOpenTarget, getAssetOperationError, getAssetSpokenText, updateImagesAfterReplacingMainImage } from "./studio-asset-detail-utils";
+import { buildAssetRegenerationPrompt, getAssetDisplayName, getAssetImageOpenTarget, getAssetOperationError, updateImagesAfterReplacingMainImage } from "./studio-asset-detail-utils";
 import { persistGeneratedAssetPromptToLibrary, saveGeneratedAssetImageToLibrary } from "./studio-asset-generation-persistence";
 import { StudioAssetDetailPreviewPane } from "./studio-asset-detail-preview-pane";
 import { subscribeAssetCarouselIndex } from "./studio-asset-detail-carousel";
@@ -157,6 +158,7 @@ export function StudioAssetDetailDialog({
     return () => {
       cancelled = true;
     };
+// eslint-disable-next-line react-hooks/exhaustive-deps
   }, [asset?.id]);
 
   if (!asset) return null;
@@ -536,6 +538,7 @@ export function StudioAssetDetailDialog({
     }
   };
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleRenameImage = async (img: AssetImage, idx: number) => {
     if (idx === 0 && img.name === "主图") return;
     if (!getStudioAssetsBridge()?.renameImage) return;

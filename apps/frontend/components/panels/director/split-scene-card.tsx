@@ -12,7 +12,6 @@
 import React from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
   type SplitScene,
@@ -87,6 +86,7 @@ export interface SplitSceneCardProps extends StoryboardSceneFrameSectionProps {
   onSaveToLibrary?: (scene: SplitScene, type: 'image' | 'video') => void;
   onGenerateImage?: (sceneId: number) => void;
   onGenerateVideo?: (sceneId: number) => void;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   onUpdateField?: (sceneId: number, field: keyof SplitScene, value: any) => void;
   onExtractVideoLastFrame?: (sceneId: number) => void;
   onStopVideoGeneration?: (sceneId: number) => void;
@@ -106,10 +106,12 @@ export function SplitSceneCard({
   onUpdateShotSize,
   onUpdateDuration,
   onUpdateAmbientSound,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   onUpdateSoundEffects,
   onUpdateSceneReference,
   onUpdateEndFrameSceneReference,
   onDelete,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   onSaveToLibrary,
   onGenerateImage,
   onGenerateVideo,

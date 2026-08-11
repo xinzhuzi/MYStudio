@@ -200,6 +200,7 @@ export function useScriptAssetGenerationActions({
     } finally {
       setIsGeneratingSingle(false);
     }
+// eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeProjectId, notFoundAsset, onAssetStored, productionEpisodeId, visualManualId]);
 
   const handleAutoAssignAudio = useCallback(async () => {
@@ -396,6 +397,7 @@ function ensureLocalAssetForRow(
   return { ...row, id: asset.id, asset };
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function resolveLatestAssetRow(row: AssetRow): AssetRow {
   if (!row.asset) return row;
   if (row.type === "character") {

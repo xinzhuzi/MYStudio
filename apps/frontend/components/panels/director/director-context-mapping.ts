@@ -68,9 +68,6 @@ export function mapScriptCharactersToLibraryIds({
     if (libraryCharacter && !addedIds.has(libraryCharacter.id)) {
       libraryIds.push(libraryCharacter.id);
       addedIds.add(libraryCharacter.id);
-      console.log(
-        `[ContextPanel] Matched character "${characterName}" to library "${libraryCharacter.name}"`,
-      );
     }
   }
 
@@ -100,18 +97,12 @@ export function findQuickSceneViewpointMatch({
   );
 
   if (!parentScene) {
-    console.log(
-      `[findMatchingSceneAndViewpointQuick] 未找到匹配的父场景: "${sceneName}"`,
-    );
     return null;
   }
 
   const variants = sceneLibraryScenes
     .filter((libraryScene) => libraryScene.parentSceneId === parentScene.id)
     .sort((left, right) => left.createdAt - right.createdAt);
-  console.log(
-    `[findMatchingSceneAndViewpointQuick] 场景 "${sceneName}" 有 ${variants.length} 个视角变体`,
-  );
 
   if (variants.length === 0) {
     return {
@@ -129,9 +120,6 @@ export function findQuickSceneViewpointMatch({
     variant.shotIds?.includes(shot.id),
   );
   if (variantWithShot) {
-    console.log(
-      `[findMatchingSceneAndViewpointQuick] 通过场景库shotIds匹配: 分镜${shot.id} -> 视角 "${variantWithShot.viewpointName || variantWithShot.name}"`,
-    );
     return {
       sceneLibraryId: variantWithShot.id,
       viewpointId: variantWithShot.viewpointId,
@@ -155,9 +143,6 @@ export function findQuickSceneViewpointMatch({
       );
     });
     if (matchedVariant) {
-      console.log(
-        `[findMatchingSceneAndViewpointQuick] 通过剧本shotIds匹配: 分镜${shot.id} -> 视角 "${matchedVariant.viewpointName || matchedVariant.name}"`,
-      );
       return {
         sceneLibraryId: matchedVariant.id,
         viewpointId: matchedVariant.viewpointId,
@@ -173,9 +158,6 @@ export function findQuickSceneViewpointMatch({
   const variantIndex =
     shotIndexInScene !== undefined ? shotIndexInScene % variants.length : 0;
   const matchedVariant = variants[variantIndex];
-  console.log(
-    `[findMatchingSceneAndViewpointQuick] 通过序号匹配: 分镜序号 ${(shotIndexInScene ?? 0) + 1} -> 视角变体 ${variantIndex + 1}: "${matchedVariant.viewpointName || matchedVariant.name}"`,
-  );
 
   return {
     sceneLibraryId: matchedVariant.id,

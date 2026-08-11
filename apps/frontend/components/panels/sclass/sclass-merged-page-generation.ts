@@ -1,6 +1,7 @@
 import { aiManager } from "@/lib/ai/ai-manager";
 import { pollImageTaskUrl } from "@/lib/storyboard/image-task-transport";
 import type { PersistResult } from "@/lib/utils/image-persist";
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import type { SplitScene } from "@/stores/director/director-store";
 import { normalizeStoryboardReferenceImages } from "../director/storyboard-reference-image-normalizer";
 import { sliceStoryboardMergedGridImage } from "../director/storyboard-merged-grid-image-slicer";
@@ -90,10 +91,10 @@ export function createSClassMergedPageGenerator(options: SClassMergedPageGenerat
   return async (pageTasks: MergedFrameTask[], references: string[]): Promise<string[]> => {
     const actualCount = pageTasks.length;
     const { cols, rows, paddedCount } = calculateMergedGridLayout(actualCount);
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
     const emptySlots = paddedCount - actualCount;
     const gridAspect = aspect;
 
-    console.log(`[MergedGen] Grid: ${actualCount} scenes → ${paddedCount} cells (${rows}×${cols}), ${emptySlots} empty slots, grid aspect: ${gridAspect}`);
 
     const gridPromptParts: string[] = [];
     gridPromptParts.push("<instruction>");
@@ -157,7 +158,6 @@ export function createSClassMergedPageGenerator(options: SClassMergedPageGenerat
       validateLocalDataUri: true,
       onReadError: (url) => console.warn("[MergedGen] Failed to read local image:", url),
     });
-    console.log("[MergedGen] Processed refs:", processedReferences.length, "valid from", finalReferences.length, "total");
 
     const apiResult = await aiManager.imageGrid({
       model,

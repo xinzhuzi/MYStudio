@@ -9,7 +9,7 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useCustomStyleStore, type CustomStyle } from "@/stores/library/custom-style-store";
+import { useCustomStyleStore } from "@/stores/library/custom-style-store";
 import { saveImageToLocal } from "@/lib/media/image-storage";
 import { aiManager } from "@/lib/ai/ai-manager";
 import { LocalImage } from "@/components/ui/local-image";
@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { X, ImagePlus, Save, ArrowLeft, Trash2, Sparkles, Loader2 } from "lucide-react";
+import { X, ImagePlus, Save, ArrowLeft, Sparkles, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 interface StyleEditorProps {

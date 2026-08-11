@@ -64,7 +64,6 @@ export function buildScenePrompt(
     ? extractPropsFromActions(actionDescriptions.join(" "))
     : [];
   if (extractedProps.length > 0) {
-    console.log("[buildScenePrompt] 提取的道具:", extractedProps);
   }
   const propsPrompt = extractedProps.length > 0 ? `, with ${extractedProps.join(", ")}` : "";
 

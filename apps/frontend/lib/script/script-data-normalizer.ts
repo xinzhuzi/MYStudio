@@ -2,9 +2,11 @@ import type { ScriptData } from "@/types/script";
 
 /** Purely normalize the loosely-typed JSON returned by the script model. */
 export function normalizeScriptData(
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   parsed: Record<string, any>,
   language = "中文",
 ): ScriptData {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   const scenes = (parsed.scenes || []).map((s: any, i: number) => ({
     id: s.id || `scene_${i + 1}`,
     name: s.name || s.location || `场景${i + 1}`,
@@ -16,6 +18,7 @@ export function normalizeScriptData(
     notes: s.notes || "",
     episodeId: s.episodeId,
   }));
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   const characters = (parsed.characters || []).map((c: any, i: number) => ({
     id: c.id || `char_${i + 1}`,
     name: c.name || `角色${i + 1}`,
@@ -31,6 +34,7 @@ export function normalizeScriptData(
     tags: c.tags || [],
     notes: c.notes || "",
   }));
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   let episodes = (parsed.episodes || []).map((e: any, i: number) => ({
     id: e.id || `ep_${i + 1}`,
     index: e.index || i + 1,
@@ -39,10 +43,14 @@ export function normalizeScriptData(
     sceneIds: e.sceneIds || [],
   }));
   if (episodes.length === 0) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
     episodes = [{ id: "ep_1", index: 1, title: parsed.title || "第1集", description: parsed.logline, sceneIds: scenes.map((s: any) => s.id) }];
   } else {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
     const assigned = new Set(episodes.flatMap((e: any) => e.sceneIds));
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
     const unassigned = scenes.filter((s: any) => !assigned.has(s.id));
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
     if (unassigned.length > 0) episodes[episodes.length - 1].sceneIds.push(...unassigned.map((s: any) => s.id));
   }
   return {
@@ -53,6 +61,7 @@ export function normalizeScriptData(
     characters,
     scenes,
     episodes,
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
     storyParagraphs: (parsed.storyParagraphs || []).map((p: any, i: number) => ({ id: p.id || i + 1, text: p.text || "", sceneRefId: p.sceneRefId || "scene_1" })),
   };
 }

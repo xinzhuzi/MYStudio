@@ -12,7 +12,7 @@
  * - sceneStore.updateScene(id, updates)
  */
 
-import { aiManager, type AIBinding } from "@/lib/ai/ai-manager";
+import { aiManager } from "@/lib/ai/ai-manager";
 import { getProjectFilesBridge } from "@/lib/bridge/project-files";
 import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";
 import {
@@ -52,6 +52,7 @@ export interface AssetGenerationTask {
   /** 视觉手册 ID */
   visualManualId: string;
   /** 身份锚点（仅角色） */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   identityAnchors?: any;
   /** 现有负面提示词 */
   negativePrompt?: string;
@@ -260,7 +261,6 @@ export async function polishAssetsAndUpdateStore(
   let reusedCount = 0;
   if (matched.length > 0) {
     reusedCount = applyMatchedAssets(assetType, matched);
-    console.log(`[asset-orchestrator] 从资产库复用了 ${reusedCount} 个${assetType === "character" ? "角色" : assetType === "scene" ? "场景" : "道具"}`);
   }
 
   if (pending.length === 0) {
@@ -285,6 +285,7 @@ export async function polishAssetsAndUpdateStore(
   const results = await batchPolishAssetPrompts(requests, undefined, {
     concurrency: options?.concurrency ?? 3,
     onProgress: options?.onProgress,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
     onCancel: (key) => !!options?.onCancel?.(),
   });
 
@@ -488,6 +489,7 @@ interface PendingAsset {
   id: string;
   name: string;
   description: string;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   identityAnchors?: any;
 }
 
@@ -531,11 +533,13 @@ function collectPendingAssets(assetType: AssetType): PendingAsset[] {
  */
 export async function collectAndMatchAssets(
   assetType: AssetType,
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): Promise<{ pending: PendingAsset[]; matched: Array<{ id: string; name: string; assetDbData: any }> }> {
   const all = collectPendingAssets(assetType);
   if (all.length === 0) return { pending: [], matched: [] };
 
   // 调 IPC 批量匹配资产库
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   let matchedEntries: Array<{ name: string; asset: any }> = [];
   try {
     const dbType = assetType === "prop" ? "tool" : assetType === "character" ? "role" : assetType;
@@ -547,6 +551,7 @@ export async function collectAndMatchAssets(
     matchedEntries = [];
   }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   const matchedMap = new Map<string, any>();
   for (const entry of matchedEntries) {
     if (entry?.name && entry?.asset) {
@@ -554,6 +559,7 @@ export async function collectAndMatchAssets(
     }
   }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   const matched: Array<{ id: string; name: string; assetDbData: any }> = [];
   const pending: PendingAsset[] = [];
 
@@ -574,6 +580,7 @@ export async function collectAndMatchAssets(
  */
 export function applyMatchedAssets(
   assetType: AssetType,
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   matched: Array<{ id: string; name: string; assetDbData: any }>,
 ): number {
   let applied = 0;

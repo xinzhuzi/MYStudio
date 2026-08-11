@@ -39,7 +39,6 @@ import {
   Plus,
   Box,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { ImagePreviewModal } from "@/components/features/media/media-preview-modal";
 

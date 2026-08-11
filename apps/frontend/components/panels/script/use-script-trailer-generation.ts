@@ -102,15 +102,10 @@ export function useScriptTrailerGeneration(options: UseScriptTrailerGenerationOp
         return;
       }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
       const startId = splitScenes.length > 0 ? Math.max(...splitScenes.map((scene) => scene.id)) + 1 : 1;
-      console.log("[handleGenerateTrailer] startId calculation:", {
-        latestSplitScenesLength: splitScenes.length,
-        latestIds: splitScenes.map((scene) => scene.id),
-        calculatedStartId: startId,
-      });
       addScenesFromScript(result.selectedShots.map(toTrailerScene));
       const shotIds = result.selectedShots.map((shot) => shot.id);
-      console.log("[handleGenerateTrailer] originalShotIds:", shotIds);
       setTrailerConfig({
         duration,
         shotIds,

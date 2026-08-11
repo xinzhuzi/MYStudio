@@ -91,6 +91,7 @@ export async function extractStyleTokens(
   ], { temperature: 0.3, responseFormat: 'json_object' });
   const cleanContent = content.replace(/```json\s*|\s*```/g, '').trim();
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   let parsed: any;
   try {
     parsed = JSON.parse(cleanContent);
@@ -106,11 +107,6 @@ export async function extractStyleTokens(
     summaryZh: String(parsed.summaryZh || parsed.summary_zh || '').trim(),
   };
 
-  console.log('[StyleExtractor] Extracted:', {
-    styleTokens: `${result.styleTokens.substring(0, 80)}...`,
-    sceneTokens: `${result.sceneTokens.substring(0, 80)}...`,
-    category: result.category,
-  });
 
   return result;
 }

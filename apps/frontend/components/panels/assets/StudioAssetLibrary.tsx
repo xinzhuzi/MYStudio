@@ -228,6 +228,7 @@ export function StudioAssetLibrary({ type }: { type: StudioAssetKind }) {
       setTotal(0);
     }
     void loadAssets(0, "replace");
+// eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadAssets]);
 
   // 监听素材删除事件，强制刷新
@@ -238,6 +239,7 @@ export function StudioAssetLibrary({ type }: { type: StudioAssetKind }) {
       void loadAssets(0, "replace", true);
     });
     return unsub;
+// eslint-disable-next-line react-hooks/exhaustive-deps
   }, [type, search, loadAssets]);
 
   const canLoadMore = runtimeItems.length < total;

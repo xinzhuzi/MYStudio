@@ -50,7 +50,6 @@ export async function sliceStoryboardMergedGridImage(
         outputWidth = Math.round(outputHeight * 9 / 16);
       }
 
-      console.log(`[MergedGen] Slice: raw ${rawTileWidth}×${rawTileHeight} → crop ${cropWidth}×${cropHeight} (margin ${marginWidth}px) → output ${outputWidth}×${outputHeight} (Strict ${targetAspect})`);
 
       const results: string[] = [];
       for (let index = 0; index < actualCount; index += 1) {

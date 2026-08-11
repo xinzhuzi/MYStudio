@@ -22,7 +22,6 @@ export function createAPIConfigImageHostActions(
       set((state) => ({
         imageHostProviders: [...state.imageHostProviders, newProvider],
       }));
-      console.log(`[APIConfig] Added image host: ${newProvider.name}`);
       return newProvider;
     },
 
@@ -33,7 +32,6 @@ export function createAPIConfigImageHostActions(
           item.id === normalizedProvider.id ? normalizedProvider : item
         )),
       }));
-      console.log(`[APIConfig] Updated image host: ${normalizedProvider.name}`);
     },
 
     removeImageHostProvider: (id) => {

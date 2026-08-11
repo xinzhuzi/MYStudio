@@ -109,12 +109,6 @@ export function useScriptNavigation({
         getStyleTokens(styleId),
         "16:9",
       );
-      console.log("[handleGoToSceneLibrary] 使用 AI 分析数据生成联合图:", {
-        sceneId: scene.id,
-        viewpointsCount: scene.viewpoints!.length,
-        pendingViewpointsCount: contactSheetData.viewpoints.length,
-        contactSheetPromptsCount: contactSheetData.contactSheetPrompts.length,
-      });
       goToSceneWithData({
         name: scene.name || scene.location,
         location: scene.location,

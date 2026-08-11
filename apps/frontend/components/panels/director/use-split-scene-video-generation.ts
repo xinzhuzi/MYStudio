@@ -11,6 +11,7 @@ import { useAPIConfigStore } from "@/stores/ai/api-config-store";
 import type { DirectorProjectData, DirectorStore, SplitScene } from "@/stores/director/director-store";
 import {
   convertStoryboardFrameToHttpUrl,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   isDiscouragedExternalImageUrl,
   isHttpImageUrl,
   isLocalImageSource,
@@ -69,24 +70,13 @@ export function useSplitSceneVideoGeneration({
     const scene = scenes.find((candidate) => candidate.id === sceneId);
     if (!scene) return;
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
     const apiStore = useAPIConfigStore.getState();
     if (process.env.NODE_ENV === "development") {
-      console.log("[SplitScenes] API Store state:", {
-        providers: apiStore.providers.length,
-        apiKeys: Object.keys(apiStore.apiKeys),
-        memefastKey: apiStore.apiKeys.memefast ? "set" : "not set",
-        getApiKey_memefast: apiStore.getApiKey("memefast") ? "set" : "not set",
-      });
     }
 
     const featureConfig = aiManager.featureConfig("video_generation");
     if (process.env.NODE_ENV === "development") {
-      console.log("[SplitScenes] Feature config for video_generation:", featureConfig ? {
-        platform: featureConfig.platform,
-        model: featureConfig.models?.[0],
-        apiKey: featureConfig.apiKey ? `${featureConfig.apiKey.substring(0, 8)}...` : "empty",
-        providerId: featureConfig.provider?.id,
-      } : "null");
     }
 
     if (!featureConfig) {
@@ -107,7 +97,6 @@ export function useSplitSceneVideoGeneration({
     }
 
     if (process.env.NODE_ENV === "development") {
-      console.log("[SplitScenes] Using video config:", { platform, model, videoBaseUrl });
     }
 
     const keyManager = featureConfig.keyManager;
@@ -118,7 +107,6 @@ export function useSplitSceneVideoGeneration({
     }
 
     if (process.env.NODE_ENV === "development") {
-      console.log(`[SplitScenes] Using API key ${keyManager.getTotalKeyCount()} keys, current index available: ${keyManager.getAvailableKeyCount()}`);
     }
 
     setIsGenerating(true);
@@ -142,22 +130,12 @@ export function useSplitSceneVideoGeneration({
       if (isLocalImageSource(scene.imageDataUrl)) {
         if (shouldRefreshFirstFrame) {
           if (hasValidHttpUrl) {
-            console.log(
-              `[SplitScenes] Using local first frame and refreshing via configured image host${isDiscouragedExternalImageUrl(scene.imageHttpUrl) ? " (skipping discouraged external URL)" : ""}:`,
-              scene.imageHttpUrl!.substring(0, 60),
-            );
           } else {
-            console.log("[SplitScenes] Using local first frame and uploading to configured image host");
           }
           firstFrameUrl = scene.imageDataUrl;
         } else if (hasValidHttpUrl && scene.imageSource === "ai-generated") {
-          console.log("[SplitScenes] Using imageHttpUrl for AI-generated image:", scene.imageHttpUrl!.substring(0, 60));
           firstFrameUrl = scene.imageHttpUrl!;
         } else {
-          console.log(
-            "[SplitScenes] Using imageDataUrl (will upload to image host):",
-            hasValidHttpUrl ? `has old httpUrl but imageSource=${scene.imageSource}` : "no valid httpUrl",
-          );
         }
       }
 
@@ -167,22 +145,16 @@ export function useSplitSceneVideoGeneration({
         setCurrentGeneratingId(null);
         return;
       }
-      console.log("[SplitScenes] First frame source:", firstFrameUrl.startsWith("http") ? "HTTP URL" : "local/base64");
 
       let lastFrameUrl: string | null | undefined = null;
       if (scene.needsEndFrame && (scene.endFrameImageUrl || scene.endFrameHttpUrl)) {
         const shouldRefreshEndFrame = shouldRefreshImageViaCurrentHost(scene.endFrameImageUrl);
         if (shouldRefreshEndFrame && scene.endFrameImageUrl) {
           lastFrameUrl = scene.endFrameImageUrl;
-          console.log(
-            `[SplitScenes] Using local end frame and refreshing via configured image host${isDiscouragedExternalImageUrl(scene.endFrameHttpUrl) ? " (skipping discouraged external URL)" : ""}`,
-          );
         } else {
           lastFrameUrl = scene.endFrameImageUrl || scene.endFrameHttpUrl;
-          console.log("[SplitScenes] Using end frame for video generation");
         }
       } else {
-        console.log("[SplitScenes] Skipping end frame: needsEndFrame=", scene.needsEndFrame, "hasEndFrame=", Boolean(scene.endFrameImageUrl));
       }
 
       const characterRefs = scene.characterIds?.length
@@ -205,22 +177,9 @@ export function useSplitSceneVideoGeneration({
       const rawDuration = scene.duration || 5;
       const videoDuration = Math.max(4, Math.min(12, rawDuration));
 
-      console.log("[SplitScenes] Video generation params:", {
-        sceneId,
-        hasFirstFrame: Boolean(firstFrameUrl),
-        hasLastFrame: Boolean(lastFrameUrl),
-        characterRefCount: characterRefs.length,
-        shotSize: scene.shotSize,
-        duration: videoDuration,
-        ambientSound: scene.ambientSound,
-        soundEffects: scene.soundEffects,
-        emotionTags: scene.emotionTags,
-        fullPrompt,
-      });
 
       const imageWithRoles: Array<{ url: string; role: "first_frame" | "last_frame" }> = [];
       const normalizedFirstFrame = normalizeStoryboardVideoFrameUrl(firstFrameUrl);
-      console.log("[SplitScenes] First frame URL (normalized):", normalizedFirstFrame.substring(0, 80));
       const firstFrameConverted = await convertStoryboardFrameToHttpUrl(normalizedFirstFrame, {
         localFallback: scene.imageDataUrl,
         frameLabel: "First frame",
@@ -230,7 +189,6 @@ export function useSplitSceneVideoGeneration({
         throw new Error("无法获取首帧图片的 HTTP URL，请重新生成图片");
       }
       imageWithRoles.push({ url: firstFrameConverted, role: "first_frame" });
-      console.log("[SplitScenes] First frame HTTP URL:", firstFrameConverted.substring(0, 60));
 
       if (lastFrameUrl) {
         const lastFrameConverted = await convertStoryboardFrameToHttpUrl(lastFrameUrl, {
@@ -240,15 +198,12 @@ export function useSplitSceneVideoGeneration({
         });
         if (lastFrameConverted) {
           imageWithRoles.push({ url: lastFrameConverted, role: "last_frame" });
-          console.log("[SplitScenes] Last frame HTTP URL:", lastFrameConverted.substring(0, 60));
         }
       }
 
       if (characterRefs.length > 0) {
-        console.log("[SplitScenes] Skipping", characterRefs.length, "character refs - cannot mix with first_frame");
       }
 
-      console.log("[SplitScenes] image_with_roles:", imageWithRoles.length, "images", imageWithRoles.map((image) => image.role));
       const videoUrl = await aiManager.video(
         apiKey,
         fullPrompt,
@@ -270,7 +225,6 @@ export function useSplitSceneVideoGeneration({
       try {
         const filename = `scene_${sceneId + 1}_${Date.now()}.mp4`;
         finalVideoUrl = await saveVideoToLocal(videoUrl, filename);
-        console.log("[SplitScenes] Video saved locally:", finalVideoUrl);
       } catch (error) {
         console.warn("[SplitScenes] Failed to save video locally, using URL:", error);
       }
@@ -296,13 +250,11 @@ export function useSplitSceneVideoGeneration({
             }
             const persistResult = await persistSceneImage(lastFrameBase64, sceneId, "end");
             updateSplitSceneEndFrame(sceneId, persistResult.localPath, "video-extracted", persistResult.httpUrl || undefined);
-            console.log("[SplitScenes] Saved video last frame locally:", persistResult.localPath);
           } catch (error) {
             console.warn("[SplitScenes] Error during frame extraction:", error);
           }
         })();
       } else {
-        console.log("[SplitScenes] Skipping end frame extraction: needsEndFrame=", currentScene?.needsEndFrame, "hasEndFrame=", Boolean(currentScene?.endFrameImageUrl));
       }
 
       setIsGenerating(false);
@@ -310,7 +262,6 @@ export function useSplitSceneVideoGeneration({
     } catch (error) {
       const err = error as Error;
       if (err.name === "AbortError" || err.message === "用户已取消") {
-        console.log(`[SplitScenes] Scene ${sceneId} video generation cancelled by user`);
         setIsGenerating(false);
         setCurrentGeneratingId(null);
         return;
@@ -324,7 +275,6 @@ export function useSplitSceneVideoGeneration({
           videoError: `MODERATION_SKIPPED:${err.message}`,
         });
         toast.warning(`分镜 ${sceneId + 1} 因内容审核跳过`);
-        console.log(`[SplitScenes] Scene ${sceneId} skipped due to content moderation`);
       } else {
         updateSplitSceneVideo(sceneId, {
           videoStatus: "failed",

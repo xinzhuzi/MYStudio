@@ -84,6 +84,7 @@ export function useScriptAuthoringActions({
           shotCount: shotCount ? Number.parseInt(shotCount) : undefined,
         },
         (completed, total) => console.log(`[ScriptView] 进度: ${completed}/${total} 场景`),
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
         (newShots, sceneIndex) => {
           const reindexedShots = newShots.map((shot, index) => ({
             ...shot,
@@ -92,7 +93,6 @@ export function useScriptAuthoringActions({
           }));
           accumulatedShots = [...accumulatedShots, ...reindexedShots];
           setShots(projectId, [...accumulatedShots]);
-          console.log(`[ScriptView] 场景 ${sceneIndex + 1} 完成，已生成 ${accumulatedShots.length} 个分镜`);
         },
       );
       setShots(projectId, result);

@@ -1,7 +1,7 @@
 // Copyright (c) 2025 hotflow2024
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
-import { app, BrowserWindow, ipcMain, protocol, net, dialog, shell, utilityProcess } from 'electron'
+import { app, BrowserWindow, protocol, net, shell, utilityProcess } from 'electron'
 import path from 'node:path'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -11,10 +11,13 @@ import { createDiagnosticsLogService } from '../diagnostics/diagnostics-log'
 import { createTtsRuntimeController } from '../tts/tts-runtime'
 import {
   ensureStudioSkillsSynced,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   getStudioSkillStorageRoot,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   listStoredStudioSkillFiles,
 } from '../storage/studio-skills-storage'
 import {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   listStudioRuntimeAssets,
 } from '../storage/studio-runtime-assets'
 import { observedFetch } from '../../lib/diagnostics/network'
@@ -26,6 +29,11 @@ import {
   normalizeUpdateManifest,
   sanitizeExternalUrl,
 } from '../runtime/update-policy'
+import {
+  getUpdateManifestUrl, getDefaultGithubUrl, getDefaultBaiduUrl, getDefaultBaiduCode,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+  encodePathForProtocol, makeStudioSkillFileUrl,
+} from './main-utils'
 import {
   createBeforeQuitCleanup,
   createWindowAllClosedHandler,
@@ -41,8 +49,10 @@ import { registerDiagnosticsIpcHandlers } from '../ipc/diagnostics/diagnostics-i
 import { registerStorageMediaIpcHandlers } from '../ipc/media/storage-media-ipc'
 import { registerAppUpdaterIpcHandlers } from '../ipc/app/app-updater-ipc'
 import {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   parseLocalMediaPath,
   resolveLocalMediaPath,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   resolveProjectScopedFilePath,
   resolveProjectFileUrl,
 } from '../storage/storage-paths'
@@ -274,26 +284,8 @@ async function stopAllLocalServices() {
   await stopLocalSidecars()
 }
 
-function getUpdateManifestUrl() {
-  return sanitizeExternalUrl(packageUpdateConfig.manifestUrl)
-}
-
-function getDefaultGithubUrl() {
-  return sanitizeExternalUrl(packageUpdateConfig.defaultGithubUrl)
-}
-
-function getDefaultBaiduUrl() {
-  return sanitizeExternalUrl(packageUpdateConfig.defaultBaiduUrl)
-}
-
-function getDefaultBaiduCode() {
-  return isNonEmptyString(packageUpdateConfig.defaultBaiduCode)
-    ? packageUpdateConfig.defaultBaiduCode.trim()
-    : undefined
-}
-
 async function fetchUpdateManifest() {
-  const manifestUrl = getUpdateManifestUrl()
+  const manifestUrl = getUpdateManifestUrl(packageUpdateConfig)
   if (!manifestUrl) {
     throw new Error('未配置版本清单地址')
   }
@@ -308,9 +300,9 @@ async function fetchUpdateManifest() {
 
   const rawManifest = await response.json() as Partial<UpdateManifest>
   return normalizeUpdateManifest(rawManifest, {
-    githubUrl: getDefaultGithubUrl(),
-    baiduUrl: getDefaultBaiduUrl(),
-    baiduCode: getDefaultBaiduCode(),
+    githubUrl: getDefaultGithubUrl(packageUpdateConfig),
+    baiduUrl: getDefaultBaiduUrl(packageUpdateConfig),
+    baiduCode: getDefaultBaiduCode(packageUpdateConfig),
   })
 }
 
@@ -554,14 +546,6 @@ function getStudioSkillSyncOptions() {
     fallbackSourceRoots: getStudioManualsFallbackSourceRoots(),
     storageRoot: getSkillsRoot(),
   }
-}
-
-function encodePathForProtocol(relativePath: string) {
-  return relativePath.split('/').map((part) => encodeURIComponent(part)).join('/')
-}
-
-function makeStudioSkillFileUrl(relativePath: string) {
-  return `studio-skill://${encodePathForProtocol(relativePath)}`
 }
 
 async function ensureStudioSkillsAvailableAtStartup() {

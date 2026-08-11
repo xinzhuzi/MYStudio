@@ -508,6 +508,7 @@ export function CharacterGallery({ onCharacterSelect, selectedCharacterId }: Cha
 
 // Folder context menu component
 function FolderContextMenu({
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   folder,
   children,
   onRename,
@@ -538,6 +539,7 @@ function FolderContextMenu({
 
 // Character context menu component
 function CharacterContextMenu({
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   character,
   children,
   folders,

@@ -57,7 +57,6 @@ export function useSClassGroupingController({
       }));
       setShotGroups(named);
       setHasAutoGrouped(true);
-      console.log("[SClassScenes] Auto-grouped:", named.length, "groups from", splitScenes.length, "scenes");
       return;
     }
 
@@ -71,7 +70,6 @@ export function useSClassGroupingController({
       name: generateGroupName(group, unassigned, existingCount + index),
     }));
     setShotGroups([...shotGroups, ...namedNew]);
-    console.log("[SClassScenes] Incremental grouping:", namedNew.length, "new groups for", unassigned.length, "new scenes");
   }, [hasAutoGrouped, setHasAutoGrouped, setShotGroups, shotGroups, splitScenes]);
 
   const getGroupScenes = useCallback((groupId: string) => {

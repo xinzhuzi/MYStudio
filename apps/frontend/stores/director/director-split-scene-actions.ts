@@ -376,7 +376,6 @@ export function createDirectorSplitSceneActions(
           [activeProjectId]: { ...project, splitScenes: updated },
         },
       });
-      console.log('[DirectorStore] Updated scene reference for shot', sceneId, ':', sceneLibraryId, viewpointId, subViewId);
     },
   
     // 场景库关联更新方法（尾帧）
@@ -395,7 +394,6 @@ export function createDirectorSplitSceneActions(
           [activeProjectId]: { ...project, splitScenes: updated },
         },
       });
-      console.log('[DirectorStore] Updated end frame scene reference for shot', sceneId, ':', sceneLibraryId, viewpointId, subViewId);
     },
   
     // 通用字段更新方法（用于双击编辑）
@@ -449,7 +447,6 @@ export function createDirectorSplitSceneActions(
           [activeProjectId]: { ...project, splitScenes: renumbered },
         },
       });
-      console.log('[DirectorStore] Deleted split scene', sceneId, 'remaining:', renumbered.length);
     },
   };
 }

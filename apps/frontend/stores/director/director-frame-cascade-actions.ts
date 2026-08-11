@@ -66,7 +66,6 @@ export function createDirectorFrameCascadeActions(
           [activeProjectId]: { ...project, splitScenes },
         },
       });
-      console.log("[DirectorStore] Cascade frames to next scene:", nextSceneId);
     },
   };
 }

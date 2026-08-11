@@ -27,7 +27,6 @@ export async function importSingleEpisodeContent(
     if (!episode) return { success: false, sceneCount: 0, error: `找不到第 ${episodeIndex} 集` };
 
     const rawScenes = parseScenes(preprocessLineBreaks(rawContent).text);
-    console.log(`${tag} 解析出 ${rawScenes.length} 个场景`);
     if (rawScenes.length === 0) {
       store.updateEpisodeRawScript(projectId, episodeIndex, { rawContent, scenes: [] });
       return { success: true, sceneCount: 0 };
@@ -82,9 +81,7 @@ export async function importSingleEpisodeContent(
     });
     if (remainingShots.length !== project.shots.length) {
       store.setShots(projectId, remainingShots);
-      console.log(`${tag} 清理旧 shot: ${project.shots.length - remainingShots.length} 个`);
     }
-    console.log(`${tag} 结构补全完成: ${newScenes.length} 个场景`);
 
     generateSingleEpisodeTitleAndSynopsis(projectId, episodeIndex).catch((error) => {
       console.warn(`${tag} 标题/大纲生成失败（不影响结构补全）:`, error);
@@ -155,7 +152,6 @@ ${background?.era ? `时代：${background.era}` : ""}
     }
     if (Object.keys(updates).length > 0) {
       useScriptStore.getState().updateEpisodeRawScript(projectId, episodeIndex, updates);
-      console.log(`[generateSingleEpisodeTitleAndSynopsis] 第${episodeIndex}集标题/大纲已生成`);
     }
   } catch (error) {
     console.warn("[generateSingleEpisodeTitleAndSynopsis] AI 调用失败:", error);

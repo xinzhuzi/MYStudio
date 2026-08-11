@@ -164,7 +164,6 @@ export async function generateShotImage(
   // Add cinematic quality tokens
   prompt = `cinematic, highly detailed, 8k resolution, professional lighting, ${prompt}`;
 
-  console.log('[ShotGenerator] Generating image for shot:', shot.id, prompt.substring(0, 100));
 
   onProgress?.(10);
 
@@ -211,7 +210,6 @@ export async function generateShotVideo(
   // Build video prompt
   const prompt = shot.videoPrompt || shot.actionSummary;
 
-  console.log('[ShotGenerator] Generating video for shot:', shot.id, prompt.substring(0, 100));
 
   // Build image_with_roles
   interface ImageWithRole {

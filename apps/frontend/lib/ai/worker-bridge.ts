@@ -14,6 +14,7 @@ import type {
   AIScreenplay,
   AIScene,
   GenerationConfig,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   SceneProgress,
   SceneCompletedEvent,
   SceneFailedEvent,
@@ -87,7 +88,6 @@ export class AIWorkerBridge {
 
     // Wait for worker to signal ready
     await this.readyPromise;
-    console.log('[WorkerBridge] Worker initialized and ready');
   }
 
   /**
@@ -306,7 +306,6 @@ export class AIWorkerBridge {
       case 'WORKER_READY':
         this.isReady = true;
         this.readyResolve?.();
-        console.log(`[WorkerBridge] Worker ready, version ${event.payload.version}`);
         break;
 
       case 'PONG':
@@ -405,6 +404,7 @@ export class AIWorkerBridge {
     console.error('[WorkerBridge] Worker error event:', error);
     
     // Reject all pending promises
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
     for (const [id, callbacks] of this.pendingPromises) {
       callbacks.reject(new Error(`Worker error: ${error.message}`));
     }
@@ -417,9 +417,9 @@ export class AIWorkerBridge {
   private async handleSceneCompleted(
     payload: SceneCompletedEvent['payload']
   ): Promise<void> {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { screenplayId, sceneId, mediaBlob, metadata } = payload;
     
-    console.log(`[WorkerBridge] Scene ${sceneId} completed, injecting media...`);
     
     try {
       const projectId = useProjectStore.getState().activeProject?.id;
@@ -454,7 +454,6 @@ export class AIWorkerBridge {
       const directorStore = useDirectorStore.getState();
       if (mediaFile) {
         directorStore.onSceneCompleted(sceneId, mediaFile.id);
-        console.log(`[WorkerBridge] Scene ${sceneId} media injected: ${mediaFile.id}`);
       }
       
     } catch (error) {
@@ -468,9 +467,9 @@ export class AIWorkerBridge {
   private async handleSceneFailed(
     payload: SceneFailedEvent['payload']
   ): Promise<void> {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { screenplayId, sceneId, error, retryable } = payload;
     
-    console.log(`[WorkerBridge] Scene ${sceneId} failed:`, error);
     
     try {
       // Update director store

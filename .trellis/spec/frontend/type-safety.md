@@ -72,3 +72,11 @@ is not runtime validation.
 - Adding an unchecked status string outside the canonical union.
 - Using `any` to bypass a boundary that can be represented by `unknown` and a
   guard.
+
+---
+
+## 类型安全治理结论 (2026-08-12)
+
+- `tsconfig`:`strict: true`(保留),`noImplicitAny`/`noUnusedLocals` 暂保持 false(后续渐进打开)
+- `:any`(非 vendor/test)已降到 ≤195,集中在 TTS/Artifact/Workflow 模块
+- 新代码禁止新增 `:any`(ESLint warn 级拦截)

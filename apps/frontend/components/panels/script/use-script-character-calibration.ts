@@ -86,11 +86,6 @@ export function useScriptCharacterCalibration({
       return;
     }
 
-    console.log("[handleCalibrateCharacters] 开始校准:", {
-      rawCharacterCount: rawCharacters.length,
-      episodeCount: episodeRawScripts.length,
-      hasBackground: true,
-    });
     addSecondPass("characters");
     setCalibrationState(projectId, {
       characterCalibrationStatus: "calibrating",

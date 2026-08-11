@@ -55,7 +55,6 @@ export async function writeStoryboardMergedImages({
     const httpUrl = result.httpUrl || undefined;
 
     if (httpUrl) {
-      console.log(`[MergedGen] 分镜 ${task.scene.id + 1} ${task.type === "end" ? "尾帧" : "首帧"} 已上传到图床:`, httpUrl.substring(0, 60));
     }
 
     if (task.type === "end") {

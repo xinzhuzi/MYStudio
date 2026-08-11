@@ -83,6 +83,7 @@ function parseBindingValue(binding: string): { platform: string; model?: string 
  * featureBindings now stores: string[] (array of platform:model)
  * 这个函数仅用于兼容旧代码，新代码应使用 getProvidersForFeature
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function getBoundPlatformAndModel(store: AIConfigStore, feature: AIFeature): { platform: string; model?: string } | null {
   const bindings = store.getFeatureBindings(feature);
   if (!bindings || bindings.length === 0) return null;
@@ -210,7 +211,6 @@ export function getFeatureConfig(feature: AIFeature): FeatureConfig | null {
   // 更新索引（下次调用使用下一个）
   featureRoundRobinIndex.set(feature, currentIndex + 1);
   
-  console.log(`[FeatureRouter] 多模型轮询: ${feature} -> ${config.provider.name}:${config.model} (${currentIndex % configs.length + 1}/${configs.length})`);
   
   return config;
 }
@@ -297,10 +297,6 @@ export async function callFeatureAPI(
     throw new Error('请先在设置中配置模型');
   }
   
-  console.log(`[callFeatureAPI] 功能: ${feature}`);
-  console.log(`[callFeatureAPI] 供应商: ${config.provider.name} (${config.platform})`);
-  console.log(`[callFeatureAPI] 模型: ${model}`);
-  console.log(`[callFeatureAPI] BaseURL: ${baseUrl}`);
 
   const disableThinking = options?.disableThinking;
   const thinkingEnabled = getAIConfigStore().getModelThinkingOverride(model);
@@ -434,6 +430,7 @@ export async function callFeatureMultimodalAPI(
     // 将 MYStudio 消息格式转为 AI SDK 格式
     const sdkMessages = messages.map((m) => ({
       role: m.role as 'system' | 'user' | 'assistant',
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
       content: m.content as any,
     }));
     const result = await generateText({

@@ -34,7 +34,6 @@ export function createDirectorSceneImportActions(
           },
         },
       });
-      console.log("[DirectorStore] Added", newScenes.length, "scenes from script, total:", splitScenes.length + newScenes.length);
     },
 
     addBlankSplitScene: () => {
@@ -102,7 +101,6 @@ export function createDirectorSceneImportActions(
           },
         },
       });
-      console.log("[DirectorStore] Added blank scene, id:", newId, "total:", splitScenes.length + 1);
     },
   };
 }

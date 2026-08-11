@@ -526,7 +526,6 @@ async function migrateBase64ToLocalImages(state: SceneStore) {
   }
 
   if (migratedCount > 0) {
-    console.log(`[Migration] Migrated ${migratedCount} scene images from base64 to local files`);
   }
 }
 

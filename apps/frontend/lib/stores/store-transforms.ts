@@ -24,6 +24,7 @@ import type { AutoEditingRun, EditingProjectV1, TimelineRenderRecord } from "@/t
 import type { SceneVoiceLine } from "@/types/tts";
 import type { MediaFile } from "@/types/media";
 import type { StoryboardItem } from "@/types/studio";
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import type { RemotionChapterManifestV1, RemotionShotDefinitionV2 } from "@/types/remotion-workspace";
 
 // ============================================================================

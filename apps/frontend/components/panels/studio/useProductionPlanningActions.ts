@@ -39,6 +39,7 @@ import {
   resolveScriptPlanEpisodeId,
   resolveScriptTextForEpisode,
 } from "./workflow-helpers";
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import type { ScriptPlan, StoryboardItem } from "@/types/studio";
 
 type StudioStore = ReturnType<typeof useStudioStore.getState>;

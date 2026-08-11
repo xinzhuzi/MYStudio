@@ -13,11 +13,13 @@ export function toDataImageUrl(b64: unknown, format: unknown): string | undefine
   return `data:image/${imageFormat};base64,${b64}`;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function getFirstDataItem(data: any): any {
   const dataField = data?.data;
   return Array.isArray(dataField) ? dataField[0] : dataField;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function extractDirectImageUrl(data: any): string | undefined {
   const firstItem = getFirstDataItem(data);
   return normalizeResponseUrl(firstItem?.url)

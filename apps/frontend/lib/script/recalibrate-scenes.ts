@@ -94,6 +94,7 @@ function buildGlobalContext(scriptProjectId?: string): GlobalContext {
  */
 function applyCalibrationToScene(
   scene: SplitScene,
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   calibration: Record<string, any>,
 ): SplitScene {
   return {

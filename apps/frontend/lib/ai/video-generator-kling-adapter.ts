@@ -57,7 +57,6 @@ export async function callKlingVideoApiAdapter(
   }
 
   const submitUrl = `${baseUrl}/kling/v1/videos/${endpointPath}`;
-  console.log('[VideoGen] Kling format →', endpointPath, { model, submitUrl });
 
   const submitResponse = await fetch(submitUrl, {
     method: 'POST',
@@ -76,7 +75,6 @@ export async function callKlingVideoApiAdapter(
   }
 
   const submitData = await submitResponse.json();
-  console.log('[VideoGen] Kling submit response:', submitData);
 
   // Kling response: { code, message, data: { task_id, task_status } }
   const taskId = submitData.data?.task_id;
@@ -106,7 +104,6 @@ export async function callKlingVideoApiAdapter(
     }
 
     const statusData = await statusResponse.json();
-    console.log(`[VideoGen] Kling task ${taskId} status:`, statusData);
 
     const taskStatus = (statusData.data?.task_status ?? '').toLowerCase();
 

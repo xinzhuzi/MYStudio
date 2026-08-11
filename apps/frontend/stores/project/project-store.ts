@@ -250,10 +250,6 @@ export async function discoverProjectsFromDisk(): Promise<void> {
     const missingIds = diskProjectIds.filter((id) => !knownIds.has(id));
     if (missingIds.length === 0) return;
 
-    console.log(
-      `[ProjectStore] Found ${missingIds.length} projects on disk not in store:`,
-      missingIds.map((id) => id.substring(0, 8))
-    );
 
     const recoveredProjects = await Promise.all(
       missingIds.map((pid) => recoverProjectFromDisk(pid, storage))
@@ -269,10 +265,6 @@ export async function discoverProjectsFromDisk(): Promise<void> {
             }
           : {}),
       }));
-      console.log(
-        `[ProjectStore] Recovered ${recoveredProjects.length} projects from disk:`,
-        recoveredProjects.map((p) => `${p.id.substring(0, 8)}:${p.name}`)
-      );
     }
   } catch (err) {
     console.error('[ProjectStore] discoverProjectsFromDisk error:', err);

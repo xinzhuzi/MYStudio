@@ -47,14 +47,12 @@ export class TaskPoller {
     let effectiveTimeout = timeout;
     let pollCount = 0;
 
-    console.log(`[TaskPoller] Starting poll for ${type} task: ${taskId}`);
 
     while (true) {
       pollCount++;
 
       // Check cancellation
       if (isCancelled?.()) {
-        console.log(`[TaskPoller] Task ${taskId} cancelled by user`);
         throw new Error('Task cancelled');
       }
 
@@ -79,13 +77,11 @@ export class TaskPoller {
           const newTimeout = Math.min(buffered, this.maxTimeout);
           if (newTimeout > effectiveTimeout) {
             effectiveTimeout = newTimeout;
-            console.log(`[TaskPoller] Extended timeout to ${Math.floor(effectiveTimeout / 60000)} minutes based on server estimate`);
           }
         }
 
         // Check completion
         if (result.status === 'completed') {
-          console.log(`[TaskPoller] Task ${taskId} completed after ${pollCount} polls`);
           return result;
         }
 
@@ -97,7 +93,6 @@ export class TaskPoller {
 
         // Log progress periodically
         if (pollCount % 10 === 0) {
-          console.log(`[TaskPoller] Task ${taskId} still ${result.status}, progress: ${result.progress ?? 'unknown'}%, poll #${pollCount}`);
         }
 
       } catch (e) {

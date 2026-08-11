@@ -164,7 +164,6 @@ export function useContactSheetController(options: UseContactSheetControllerOpti
             reader.onerror = reject;
             reader.readAsDataURL(blob);
           });
-          console.log("[ContactSheet] HTTP→base64 转换成功");
         } catch {
           console.warn("[ContactSheet] HTTP→base64 转换失败，使用原URL");
         }

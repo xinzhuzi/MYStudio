@@ -16,7 +16,6 @@ export function useStoryboardMediaLibrary(projectId?: string) {
       folderId: getOrCreateCategoryFolder("ai-video"),
       projectId,
     });
-    console.log("[StoryboardMediaLibrary] Auto-saved video:", mediaId);
     return mediaId;
   }, [addMediaFromUrl, getOrCreateCategoryFolder, projectId]);
 
@@ -29,7 +28,6 @@ export function useStoryboardMediaLibrary(projectId?: string) {
       folderId: getOrCreateCategoryFolder("ai-image"),
       projectId,
     });
-    console.log("[StoryboardMediaLibrary] Auto-saved image:", mediaId);
     return mediaId;
   }, [addMediaFromUrl, getOrCreateCategoryFolder, projectId]);
 

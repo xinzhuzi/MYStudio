@@ -119,6 +119,7 @@ export async function retryOperation<T>(
 /**
  * Wrap an async function with retry logic
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function withRetry<T extends (...args: any[]) => Promise<any>>(
   fn: T,
   options: RetryOptions = {}

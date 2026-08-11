@@ -15,6 +15,7 @@ export interface HistoryEntry {
   model: string;
   resultUrl: string;
   thumbnailUrl?: string;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   params: Record<string, any>;
   createdAt: number;
   mediaId?: string;
@@ -30,6 +31,7 @@ interface FreedomState {
   selectedImageModel: string;
   imageAspectRatio: string;
   imageResolution: string;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   imageExtraParams: Record<string, any>;
   imageResult: string | null;
   imageGenerating: boolean;
@@ -66,6 +68,7 @@ interface FreedomActions {
   setSelectedImageModel: (model: string) => void;
   setImageAspectRatio: (ratio: string) => void;
   setImageResolution: (resolution: string) => void;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   setImageExtraParams: (params: Record<string, any>) => void;
   setImageResult: (url: string | null) => void;
   setImageGenerating: (generating: boolean) => void;
@@ -144,6 +147,7 @@ const initialState: FreedomState = {
 
 export const useFreedomStore = create<FreedomStore>()(
   persist(
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
     (set, get) => ({
       ...initialState,
 

@@ -60,7 +60,6 @@ export async function migrateToProjectStorage(): Promise<void> {
   try {
     const flagExists = await storage.exists(MIGRATION_FLAG_KEY);
     if (flagExists) {
-      console.log('[Migration] Already migrated, skipping.');
       return;
     }
   } catch {
@@ -69,13 +68,11 @@ export async function migrateToProjectStorage(): Promise<void> {
     if (flag) return;
   }
 
-  console.log('[Migration] Starting per-project migration...');
 
   try {
     // 1. Read project index to get all project IDs
     const projectStoreRaw = await fileStorage.getItem('mystudio-project-store');
     if (!projectStoreRaw) {
-      console.log('[Migration] No project store found, nothing to migrate.');
       await writeMigrationFlag();
       return;
     }
@@ -85,12 +82,10 @@ export async function migrateToProjectStorage(): Promise<void> {
     const projectIds = normalizeProjectIds(projectState.projects);
 
     if (projectIds.length === 0) {
-      console.log('[Migration] No projects found, nothing to migrate.');
       await writeMigrationFlag();
       return;
     }
 
-    console.log(`[Migration] Found ${projectIds.length} projects: ${projectIds.map(id => id.substring(0, 8)).join(', ')}`);
 
     // 2. Migrate Record-based stores (script, director)
     await migrateRecordStore('mystudio-script-store', 'script', projectIds);
@@ -135,7 +130,6 @@ export async function migrateToProjectStorage(): Promise<void> {
 
     // 6. Rename old files to .bak (via a special IPC or just leave them)
     // The old files will be ignored by the new storage adapters since they check _p/ first
-    console.log('[Migration] ✅ Migration complete! Old files remain as fallback.');
 
   } catch (error) {
     console.error('[Migration] ❌ Migration failed:', error);
@@ -152,7 +146,6 @@ async function migrateRecordStore(
 ): Promise<void> {
   const raw = await fileStorage.getItem(legacyKey);
   if (!raw) {
-    console.log(`[Migration] ${legacyKey} not found, skipping.`);
     return;
   }
 
@@ -162,7 +155,6 @@ async function migrateRecordStore(
     const projects = state.projects;
 
     if (!projects || typeof projects !== 'object') {
-      console.log(`[Migration] ${legacyKey} has no projects record, skipping.`);
       return;
     }
 
@@ -185,10 +177,10 @@ async function migrateRecordStore(
       });
 
       await fileStorage.setItem(key, payload);
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
       migratedCount++;
     }
 
-    console.log(`[Migration] ${legacyKey}: migrated ${migratedCount} projects to per-project files.`);
   } catch (error) {
     console.error(`[Migration] Failed to migrate ${legacyKey}:`, error);
     throw error;
@@ -217,7 +209,6 @@ async function migrateFlatStore(
 ): Promise<void> {
   const raw = await fileStorage.getItem(legacyKey);
   if (!raw) {
-    console.log(`[Migration] ${legacyKey} not found, skipping.`);
     return;
   }
 
@@ -262,11 +253,11 @@ async function migrateFlatStore(
       if (hasData) {
         const projectKey = `_p/${pid}/${storeName}`;
         await fileStorage.setItem(projectKey, JSON.stringify({ state: projectState, version }));
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
         migratedCount++;
       }
     }
 
-    console.log(`[Migration] ${legacyKey}: migrated ${migratedCount} project files + 1 shared file.`);
   } catch (error) {
     console.error(`[Migration] Failed to migrate ${legacyKey}:`, error);
     throw error;
@@ -287,7 +278,6 @@ async function migrateTimelineStore(activeProjectId: string): Promise<void> {
     if (state.clips && state.clips.length > 0) {
       const key = `_p/${activeProjectId}/timeline`;
       await fileStorage.setItem(key, raw);
-      console.log(`[Migration] Timeline: migrated ${state.clips.length} clips to project ${activeProjectId.substring(0, 8)}`);
     }
   } catch (error) {
     console.error('[Migration] Failed to migrate timeline:', error);
@@ -320,7 +310,6 @@ export async function recoverFromLegacy(): Promise<void> {
     return;
   }
 
-  console.log('[Recovery] Checking for data that needs recovery from legacy files...');
 
   try {
     const knownProjectIds = await readKnownProjectIds();
@@ -330,7 +319,6 @@ export async function recoverFromLegacy(): Promise<void> {
     await recoverRecordStore('mystudio-script-store', 'script', isScriptDataRich, knownProjectIds, storage);
     await recoverRecordStore('mystudio-director-store', 'director', isDirectorDataRich, knownProjectIds, storage);
 
-    console.log('[Recovery] Recovery check complete.');
   } catch (error) {
     console.error('[Recovery] Recovery failed:', error);
   }
@@ -413,12 +401,10 @@ async function recoverRecordStore(
 
         await fileStorage.setItem(projectKey, payload);
         recoveredCount++;
-        console.log(`[Recovery] Restored ${storeName} for project ${pid.substring(0, 8)} from legacy data`);
       }
     }
 
     if (recoveredCount > 0) {
-      console.log(`[Recovery] ${legacyKey}: recovered ${recoveredCount} projects`);
     }
   } catch (error) {
     console.error(`[Recovery] Failed to recover ${legacyKey}:`, error);
@@ -433,5 +419,4 @@ async function writeMigrationFlag(): Promise<void> {
     version: 1,
   });
   await fileStorage.setItem(MIGRATION_FLAG_KEY, flag);
-  console.log('[Migration] Migration flag written.');
 }

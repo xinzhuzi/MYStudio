@@ -13,6 +13,7 @@ import type { StudioManualCatalog } from "@/lib/studio/manuals";
 import type {
   RemotionCurrentSlotV1,
   RemotionRenderJobV1,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   RemotionStageStatus,
 } from "@/types/remotion-workspace";
 

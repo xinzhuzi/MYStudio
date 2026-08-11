@@ -20,10 +20,13 @@ import { processBatched } from '@/lib/ai/batch-processor';
 import { estimateTokens, safeTruncate } from '@/lib/ai/model-registry';
 import { useScriptStore } from '@/stores/script/script-store';
 import { buildSeriesContextSummary } from './series-meta-sync';
-import { buildCharacterPriorityRecords, collectCharacterStats, extractAllCharactersFromEpisodes } from './character-calibrator-utils';
+import { buildCharacterPriorityRecords, collectCharacterStats } from './character-calibrator-utils';
 import {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   convertToScriptCharacters,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   resolveSafeScriptCharacters,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   sortByImportance,
   type CalibratedCharacter,
 } from './character-calibrator-normalizers';
@@ -103,6 +106,7 @@ export async function calibrateCharacters(
   // 优先保留有名字的角色
   const maxCharsToSend = 150;
   const charsToProcess = charsWithStats.slice(0, maxCharsToSend);
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   const skippedCount = charsWithStats.length - charsToProcess.length;
   
   // 3. 准备批处理 items（每个角色带上统计信息和对白样本）
@@ -208,9 +212,9 @@ ${strictness !== 'strict' ? `【极其重要 - 宽松筛选原则】
   const biosContext = safeTruncate(background.characterBios || '', 1000);
 
   // === 第一步：AI 角色分析（自动分批）===
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   let parsed: any;
   try {
-    console.log('[CharacterCalibrator] 开始 AI 角色分析...');
     
     // 闭包收集跨批次的聚合字段
     const allFilteredWords: string[] = [];
@@ -220,6 +224,7 @@ ${strictness !== 'strict' ? `【极其重要 - 宽松筛选原则】
     
     const { results: charResults, failedBatches } = await processBatched<
       typeof batchItems[number],
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
       any
     >({
       items: batchItems,
@@ -302,6 +307,7 @@ ${batchDialogues.slice(0, 100).join('\n')}
           cleaned = cleaned.slice(jsonStart, jsonEnd + 1);
         }
         
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
         let batchParsed: any;
         try {
           batchParsed = JSON.parse(cleaned);
@@ -334,6 +340,7 @@ ${batchDialogues.slice(0, 100).join('\n')}
         // 收集聚合字段
         allFilteredWords.push(...(batchParsed.filteredWords || []));
         if (batchParsed.filteredCharacters) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
           allFilteredCharacters.push(...batchParsed.filteredCharacters.map((fc: any) => ({
             name: fc.name || '',
             reason: fc.reason || '未说明',
@@ -343,6 +350,7 @@ ${batchDialogues.slice(0, 100).join('\n')}
         if (batchParsed.analysisNotes) allAnalysisNotes.push(batchParsed.analysisNotes);
         
         // 返回 Map<角色名, 角色数据>
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
         const map = new Map<string, any>();
         for (const c of (batchParsed.characters || [])) {
           if (c.name) map.set(c.name, c);
@@ -372,7 +380,6 @@ ${batchDialogues.slice(0, 100).join('\n')}
       analysisNotes: allAnalysisNotes.join('; ') || '批处理完成',
     };
     
-    console.log('[CharacterCalibrator] AI 角色分析成功，解析到', parsed.characters.length, '个角色');
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
     console.error('[CharacterCalibrator] AI角色分析失败:', err.message);
@@ -385,6 +392,7 @@ ${batchDialogues.slice(0, 100).join('\n')}
           id: c.id || `char_${i + 1}`,
           name: c.name,
           importance: (s && s.sceneCount > 20 ? 'supporting' : 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
                        s && s.sceneCount > 5 ? 'minor' : 'extra') as any,
           appearanceCount: s?.sceneCount || 1,
           role: c.role,
@@ -399,6 +407,7 @@ ${batchDialogues.slice(0, 100).join('\n')}
   }
     
   // === 第二步：转换为标准格式并添加ID ===
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   const characters: CalibratedCharacter[] = (parsed.characters || []).map((c: any, i: number) => ({
     id: `char_${i + 1}`,
     name: c.name,
@@ -421,7 +430,6 @@ ${batchDialogues.slice(0, 100).join('\n')}
       episodeScripts,
       promptLanguage
     );
-    console.log('[CharacterCalibrator] 视觉提示词生成完成');
   } catch (enrichError) {
     const err = enrichError instanceof Error ? enrichError : new Error(String(enrichError));
     console.warn('[CharacterCalibrator] 视觉提示词生成失败（不影响角色校准结果）:', err.message);
@@ -454,8 +462,6 @@ ${batchDialogues.slice(0, 100).join('\n')}
     });
     
     if (missingCharacters.length > 0) {
-      console.log(`[CharacterCalibrator] 合并上次校准丢失的 ${missingCharacters.length} 个角色:`, 
-        missingCharacters.map(c => c.name));
       
       // 为丢失的角色重新分配 ID
       const maxId = Math.max(...finalCharacters.map(c => {
@@ -496,6 +502,7 @@ ${batchDialogues.slice(0, 100).join('\n')}
 /**
  * 收集角色出场上下文（用于AI分析）
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function collectCharacterContexts(
   characters: ScriptCharacter[],
   episodeScripts: EpisodeRawScript[]
@@ -552,7 +559,6 @@ async function enrichCharactersWithVisualPrompts(
     return characters;
   }
   
-  console.log(`[enrichCharactersWithVisualPrompts] 为 ${keyCharacters.length} 个关键角色生成专业提示词...`);
   
   // 构建时代服装指导
   const getEraFashionGuidance = () => {
@@ -796,12 +802,13 @@ ${promptLanguage === 'zh' ? `    "avoid": ["金色头发", "蓝色眼睛", "胡�
 }`;
 
   // 逐个角色调用 AI，避免一次性输出过多 JSON 导致推理模型 token 耗尽
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   const designMap = new Map<string, any>();
   
   for (let i = 0; i < keyCharacters.length; i++) {
     const c = keyCharacters[i];
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
     const charLabel = `${c.name}（${c.importance === 'protagonist' ? '主角' : '重要配角'}）`;
-    console.log(`[enrichCharactersWithVisualPrompts] [${i + 1}/${keyCharacters.length}] 生成: ${charLabel}`);
     
     const userPrompt = `请为以下角色生成专业视觉提示词和6层身份锚点：
 
@@ -829,7 +836,6 @@ ${c.name}（${c.importance === 'protagonist' ? '主角' : '重要配角'}）
       const design = parsed.characters ? parsed.characters[0] : parsed;
       if (design) {
         designMap.set(design.name || c.name, design);
-        console.log(`[enrichCharactersWithVisualPrompts] ✅ ${c.name} 生成成功`);
       }
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
@@ -838,7 +844,6 @@ ${c.name}（${c.importance === 'protagonist' ? '主角' : '重要配角'}）
     }
   }
   
-  console.log(`[enrichCharactersWithVisualPrompts] 完成: ${designMap.size}/${keyCharacters.length} 个角色生成成功`);
   
   // 合并到角色数据
   return characters.map(c => {

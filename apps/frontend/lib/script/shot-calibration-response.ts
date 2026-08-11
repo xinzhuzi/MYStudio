@@ -73,7 +73,6 @@ export function parseShotCalibrationResponse(
       }
     }
     if (Object.keys(partialResult).length > 0) {
-      console.log(`[calibrateShots] 部分解析成功，恢复了 ${Object.keys(partialResult).length} 个分镜`);
       return partialResult;
     }
     throw new Error("解析 AI 响应失败");

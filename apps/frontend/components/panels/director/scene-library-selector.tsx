@@ -161,6 +161,7 @@ export function SceneLibrarySelector({
     || selectedViewpoint?.referenceImage || selectedViewpoint?.referenceImageBase64
     || selectedScene?.referenceImage || selectedScene?.contactSheetImage || selectedScene?.referenceImageBase64
     || null;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   const resolvedPreview = useResolvedImageUrl(previewRefImage);
   
   return (

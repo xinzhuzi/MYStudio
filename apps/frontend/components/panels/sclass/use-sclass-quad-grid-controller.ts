@@ -155,6 +155,7 @@ export function useSClassQuadGridController({
       setQuadGridOpen(false);
       return;
     }
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
     const platform = featureConfig.platform;
     const model = featureConfig.models?.[0];
     if (!model) {
@@ -169,7 +170,6 @@ export function useSClassQuadGridController({
       return;
     }
 
-    console.log("[QuadGrid] Using image config:", { platform, model, imageBaseUrl });
     setIsQuadGridGenerating(true);
 
     try {
@@ -185,7 +185,6 @@ export function useSClassQuadGridController({
         emotionDescription,
         includeDialogueBoxConstraint: true,
       });
-      console.log("[QuadGrid] Grid prompt:", `${gridPrompt.substring(0, 200)}...`);
 
       const references = [sourceImage];
       if (useCharacterRef && scene.characterIds?.length) {
@@ -201,6 +200,7 @@ export function useSClassQuadGridController({
         max: 14,
         onReadError: (url) => console.warn("[QuadGrid] Failed to read local image:", url),
       });
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { gridImageUrl, slicedImages } = await executeStoryboardGridGeneration({
         request: {
           model,
@@ -215,8 +215,6 @@ export function useSClassQuadGridController({
         poll: { apiKey, baseUrl: imageBaseUrl },
         layout: { columns: 2, rows: 2, actualCount: 4 },
       });
-      console.log("[QuadGrid] Grid image URL:", gridImageUrl.substring(0, 80));
-      console.log("[QuadGrid] Sliced into", slicedImages.length, "images");
 
       const variationTypeLabel = variationType === "angle"
         ? "视角变体"

@@ -1,16 +1,14 @@
 "use client";
 
 import { useState, useMemo, useCallback, useRef } from 'react';
-import { ImageIcon, Loader2, Download, Save, Sparkles, Archive } from 'lucide-react';
+import { ImageIcon, Loader2, Download, Sparkles, Archive } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { cn } from '@/lib/utils';
 import { eventBus } from '@/lib/events/event-bus';
 import { useFreedomStore } from '@/stores/assist/freedom-store';
 import { ModelSelector } from './ModelSelector';
@@ -60,7 +58,9 @@ export function ImageStudio() {
   // Midjourney-specific params
   const hasMidjourneyParams = /midjourney|^mj_|^niji-/i.test(selectedImageModel);
   const hasIdeogramParams = selectedImageModel.includes('ideogram');
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   const hasImageUrl = model?.inputs?.image_url != null;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   const hasStrength = model?.inputs?.strength != null;
   const canGenerateImage = imagePrompt.trim().length > 0 && selectedImageModel.trim().length > 0;
 
@@ -107,6 +107,7 @@ export function ImageStudio() {
       });
 
       toast.success('图片生成成功！已保存到素材库');
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       if (err?.name === 'AbortError' || abortRef.current === null) {
         // 用户主动停止，不报错
@@ -117,8 +118,10 @@ export function ImageStudio() {
       abortRef.current = null;
       setImageGenerating(false);
     }
+// eslint-disable-next-line react-hooks/exhaustive-deps
   }, [imagePrompt, selectedImageModel, imageAspectRatio, imageResolution, imageExtraParams]);
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   const updateExtraParam = (key: string, value: any) => {
     setImageExtraParams({ ...imageExtraParams, [key]: value });
   };

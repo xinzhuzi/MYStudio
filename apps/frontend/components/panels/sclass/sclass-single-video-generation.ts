@@ -105,7 +105,6 @@ export function createSClassSingleVideoGenerator(options: SClassSingleVideoGener
         if (lastFrameConverted) imageWithRoles.push({ url: lastFrameConverted, role: "last_frame" });
       }
       if (characterRefs.length > 0) {
-        console.log("[SClassScenes] Skipping character refs for first/last-frame video mode");
       }
 
       const videoUrl = await aiManager.video(

@@ -52,12 +52,14 @@ interface EditableFieldProps<T extends string | string[] | undefined> {
  * array values edit as a JSON string and parse on save.
  */
 export function EditableField({
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   label,
   value,
   onSave,
   isEditing,
   setIsEditing,
   placeholder,
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 }: EditableFieldProps<any>) {
   const [tempValue, setTempValue] = useState<string>(
     typeof value === "string" ? value : JSON.stringify(value)
@@ -71,6 +73,7 @@ export function EditableField({
 
   const handleSave = async () => {
     try {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
       let newValue: any = tempValue;
       if (typeof value === "object" && value !== null) {
         try {

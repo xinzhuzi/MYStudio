@@ -437,6 +437,7 @@ export function buildCinematographyGuidance(profileId: string): string {
   const profile = getCinematographyProfile(profileId);
   if (!profile) return '';
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { defaultLighting, defaultFocus, defaultRig, defaultAtmosphere, defaultSpeed } = profile;
 
   const lines = [

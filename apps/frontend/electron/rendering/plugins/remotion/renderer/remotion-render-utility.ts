@@ -9,6 +9,7 @@ import type {
 } from "./remotion-render-worker";
 import {
   validateRemotionRenderWorkerEvent,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   type RemotionRenderWorkerEvent,
 } from "./remotion-render-worker-protocol";
 

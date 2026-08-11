@@ -26,7 +26,7 @@ import { useSceneStore } from '@/stores/library/scene-store';
 import { useAppSettingsStore } from '@/stores/app/app-settings-store';
 import { useProjectStore } from '@/stores/project/project-store';
 import { toast } from "sonner";
-import { matchSceneAndViewpoint, matchSceneAndViewpointSync, type ViewpointMatchResult } from '@/lib/scene/viewpoint-matcher';
+import { matchSceneAndViewpoint, type ViewpointMatchResult } from '@/lib/scene/viewpoint-matcher';
 import { DirectorContextTree } from "./director-context-tree";
 import {
   findQuickSceneViewpointMatch,
@@ -44,6 +44,7 @@ export function DirectorContextPanel() {
   // Get current project data
   const projectData = useActiveDirectorProject();
   const splitScenes = projectData?.splitScenes || [];
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   const storyboardStatus = projectData?.storyboardStatus || 'idle';
   
   // 获取场景库数据
@@ -60,6 +61,7 @@ export function DirectorContextPanel() {
   const [selectedShotId, setSelectedShotId] = useState<string | null>(null);
 
   const scriptData = scriptProject?.scriptData || null;
+// eslint-disable-next-line react-hooks/exhaustive-deps
   const shots = scriptProject?.shots || [];
   const styleId = scriptProject?.styleId ?? DEFAULT_STYLE_ID;
 
@@ -72,7 +74,6 @@ export function DirectorContextPanel() {
       const style = getStyleById(scriptProject.styleId);
       if (style) {
         setStoryboardConfig({ visualStyleId: style.id, styleTokens: [style.prompt] });
-        console.log('[ContextPanel] Synced script styleId to director:', style.id);
       }
     }
   }, [addScenesFromScript, setStoryboardConfig, projectData?.storyboardConfig?.visualStyleId, scriptProject?.styleId]);
@@ -134,9 +135,8 @@ export function DirectorContextPanel() {
   }, [characters, resourceSharing.shareCharacters, activeProjectId]);
   
   // 在场景库中查找匹配的视角
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   const findViewpointInLibrary = (sceneName: string, viewpointName: string): ViewpointMatchResult | null => {
-    console.log(`[findViewpointInLibrary] 查找场景: "${sceneName}", 视角: "${viewpointName}"`);
-    console.log(`[findViewpointInLibrary] 场景库总数: ${sceneLibraryScenes.length}`);
     
     // 找到匹配的父场景
     const parentScenes = sceneLibraryScenes.filter(s => 
@@ -144,31 +144,21 @@ export function DirectorContextPanel() {
       (s.name.includes(sceneName) || sceneName.includes(s.name))
     );
     
-    console.log(`[findViewpointInLibrary] 匹配的父场景数: ${parentScenes.length}`, parentScenes.map(s => s.name));
     
     if (parentScenes.length === 0) return null;
     
     // 在父场景的视角变体中查找匹配的视角
     for (const parent of parentScenes) {
       const variants = sceneLibraryScenes.filter(s => s.parentSceneId === parent.id);
-      console.log(`[findViewpointInLibrary] 父场景 "${parent.name}" 的视角变体数: ${variants.length}`, 
-        variants.map(v => ({ name: v.name, viewpointName: v.viewpointName, id: v.id })));
       
       // 模糊匹配视角名称
       const matchedVariant = variants.find(v => {
         const variantName = v.viewpointName || v.name || '';
         const isMatch = variantName.includes(viewpointName) || viewpointName.includes(variantName);
-        console.log(`[findViewpointInLibrary] 对比: "${variantName}" vs "${viewpointName}" => ${isMatch}`);
         return isMatch;
       });
       
       if (matchedVariant) {
-        console.log(`[findViewpointInLibrary] ✅ 匹配成功: ${matchedVariant.viewpointName || matchedVariant.name}`);
-        console.log(`[findViewpointInLibrary] 图片字段:`, {
-          id: matchedVariant.id,
-          referenceImage: matchedVariant.referenceImage ? `有(${matchedVariant.referenceImage.substring(0, 50)}...)` : '无',
-          referenceImageBase64: matchedVariant.referenceImageBase64 ? `有(${matchedVariant.referenceImageBase64.substring(0, 50)}...)` : '无',
-        });
         return {
           sceneLibraryId: matchedVariant.id,
           viewpointId: matchedVariant.viewpointId,
@@ -180,7 +170,6 @@ export function DirectorContextPanel() {
       }
     }
     
-    console.log(`[findViewpointInLibrary] ❌ 未找到视角，返回父场景`);
     // 没找到视角，返回父场景
     const bestParent = parentScenes[0];
     return {
@@ -194,6 +183,7 @@ export function DirectorContextPanel() {
   };
   
   // 异步版本：关键词 + AI 匹配（用于批量添加）
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   const findMatchingSceneAndViewpointWithAI = async (sceneName: string, actionSummary: string): Promise<ViewpointMatchResult | null> => {
     return matchSceneAndViewpoint(sceneName, actionSummary, sceneLibraryScenes);
   };
@@ -201,17 +191,6 @@ export function DirectorContextPanel() {
   // 添加单个分镜到分镜编辑（模式二）
   const handleAddShotToSplitScenes = (shot: Shot, scene: ScriptScene) => {
     // Debug: 检查 Shot 中的三层提示词数据
-    console.log('[ContextPanel] Adding shot to split scenes:', {
-      shotId: shot.id,
-      imagePrompt: shot.imagePrompt?.substring(0, 50),
-      imagePromptZh: shot.imagePromptZh?.substring(0, 50),
-      videoPrompt: shot.videoPrompt?.substring(0, 50),
-      videoPromptZh: shot.videoPromptZh?.substring(0, 50),
-      endFramePrompt: shot.endFramePrompt?.substring(0, 50),
-      needsEndFrame: shot.needsEndFrame,
-      narrativeFunction: shot.narrativeFunction,
-      shotPurpose: shot.shotPurpose,
-    });
     // 使用详细的视觉描述作为提示词（优先）
     let promptZh = shot.visualDescription || '';
     if (!promptZh) {

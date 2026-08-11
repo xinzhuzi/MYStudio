@@ -136,6 +136,7 @@ calibratedPrompt 必须覆盖全部 ${scenes.length} 个镜头，保持镜头编
     cleaned = cleaned.slice(jsonStart, jsonEnd + 1);
   }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   let parsed: any;
   try {
     parsed = JSON.parse(cleaned);
@@ -209,7 +210,6 @@ export async function runCalibration(
       calibrationError: null,
     });
 
-    console.log(`[SClassCalibrator] ✅ 组「${group.name}」校准完成`);
     return true;
   } catch (error) {
     const errMsg = error instanceof Error ? error.message : String(error);

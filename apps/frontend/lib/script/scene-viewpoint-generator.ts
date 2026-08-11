@@ -21,7 +21,9 @@ import {
 } from './scene-viewpoint-extraction';
 import { VIEWPOINT_KEYWORDS } from './scene-viewpoint-keywords';
 import {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   getDefaultViewpointsForEnvironment,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   isViewpointCompatibleWithEnvironment,
 } from './scene-viewpoint-defaults';
 import {
@@ -195,7 +197,6 @@ export function generateContactSheetPrompt(config: ContactSheetConfig): ContactS
   
   if (scene.viewpoints && scene.viewpoints.length > 0) {
     // 使用 AI 分析的视角
-    console.log(`[generateContactSheetPrompt] 使用 AI 分析视角: ${scene.viewpoints.length} 个`);
     const sourceViewpoints: SceneViewpointSource[] = scene.viewpoints;
     viewpoints = sourceViewpoints.slice(0, maxViewpoints).map((v, idx) => ({
       id: v.id || `viewpoint_${idx}`,
@@ -211,7 +212,6 @@ export function generateContactSheetPrompt(config: ContactSheetConfig): ContactS
     isAIAnalyzed = true;
   } else {
     // 回退到关键词提取
-    console.log('[generateContactSheetPrompt] 没有 AI 视角，回退到关键词提取');
     viewpoints = extractViewpointsFromShots(shots, maxViewpoints);
   }
   
@@ -219,6 +219,7 @@ export function generateContactSheetPrompt(config: ContactSheetConfig): ContactS
   const { sceneDescEn, sceneDescZh } = buildSceneDescriptions(scene);
   
   // 为每个视角生成描述
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   viewpoints.forEach((vp, index) => {
     const propsZh = vp.keyProps.length > 0 ? `，包含${vp.keyProps.join('、')}` : '';
     const propsEn = vp.keyPropsEn.length > 0 ? ` with ${vp.keyPropsEn.join(', ')}` : '';
@@ -328,7 +329,6 @@ export function generateMultiPageContactSheetData(
   const vpCount = allViewpoints.length;
   const { gridLayout, viewpointsPerPage } = selectContactSheetLayout(vpCount);
   
-  console.log('[ContactSheet] 布局选择:', { vpCount, aspectRatio, gridLayout, viewpointsPerPage });
   
   // 分页
   const pages = groupViewpointsIntoPages(allViewpoints, viewpointsPerPage);
@@ -497,20 +497,6 @@ export function buildContactSheetDataFromViewpoints(
   const vpCount = viewpoints.length;
   const { gridLayout, viewpointsPerPage } = selectContactSheetLayout(vpCount);
   
-  console.log('[buildContactSheetDataFromViewpoints] 使用 AI 视角构建联合图数据:', {
-    vpCount,
-    gridLayout,
-    viewpointsPerPage,
-    // 调试：场景美术设计字段
-    sceneFields: {
-      name: scene.name,
-      location: scene.location,
-      architectureStyle: scene.architectureStyle,
-      lightingDesign: scene.lightingDesign,
-      colorPalette: scene.colorPalette,
-      eraDetails: scene.eraDetails,
-    },
-  });
   
   // 分页
   const pages: typeof viewpoints[] = [];
@@ -528,12 +514,6 @@ export function buildContactSheetDataFromViewpoints(
   const visualPromptZh = scene.visualPrompt || '';
   const visualPromptEn = scene.visualPromptEn || '';
   
-  console.log('[buildContactSheetDataFromViewpoints] 场景描述:', {
-    sceneDescZh,
-    sceneDescEn,
-    visualPromptZh: visualPromptZh ? visualPromptZh.substring(0, 50) + '...' : '(无)',
-    visualPromptEn: visualPromptEn ? visualPromptEn.substring(0, 50) + '...' : '(无)',
-  });
   
   const styleStr = styleTokens.length > 0 
     ? styleTokens.join(', ') 

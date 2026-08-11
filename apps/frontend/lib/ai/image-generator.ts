@@ -130,16 +130,6 @@ async function generateImage(
     const endpointTypes = getModelEndpointTypes(model);
     const apiFormat = resolveImageApiFormat(endpointTypes, model);
 
-    console.log('[ImageGenerator] Generating image', {
-      model,
-      apiFormat,
-      endpointTypes,
-      aspectRatio,
-      resolution,
-      promptPreview: generationParams.prompt.substring(0, 100) + '...',
-      attempt: attemptIndex + 1,
-      attempts: attemptConfigs.length,
-    });
     void logEvent({
       level: 'info',
       category: 'ai',
@@ -277,12 +267,6 @@ async function submitViaChatCompletions(
 
   const requestBody = buildChatCompletionsImageRequest({ model, prompt, aspectRatio, resolution, referenceImages });
 
-  console.log('[ImageGenerator] Submitting via chat completions:', {
-    model,
-    endpoint,
-    isGemini: Object.prototype.hasOwnProperty.call(requestBody, 'generation_config'),
-    geminiImageSize: (requestBody as { image_size?: string }).image_size || 'N/A',
-  });
 
   const response = await retryOperation(async () => {
     // 每次重试独立创建 AbortController，避免共享 controller 在重试时已超时
@@ -345,6 +329,7 @@ async function submitViaChatCompletions(
       }
 
       return resp;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (fetchErr: any) {
       // 将 DOMException abort 转换为可读错误信息
       if (fetchErr instanceof DOMException && fetchErr.name === 'AbortError') {
@@ -372,7 +357,6 @@ async function submitViaChatCompletions(
   // Parse response — some providers return SSE "data: {...}" even with stream:false
   const responseText = await response.text();
   const data = parseChatCompletionsImageResponseText(responseText);
-  console.log('[ImageGenerator] Chat completions response received');
 
   // Extract image from response - multiple possible formats
   const imageUrl = extractChatCompletionsImageUrl(data);
@@ -419,14 +403,6 @@ async function submitImageTask(
     }
   }
 
-  console.log('[ImageGenerator] Submitting image task:', {
-    templateName: builtRequest.templateName,
-    model: requestData.model,
-    size: requestData.size,
-    aspectRatio: requestData.aspect_ratio,
-    resolution: requestData.resolution,
-    hasImageUrls: !!requestData.image_urls,
-  });
 
   if (usesDefaultImagesEndpoint && model && provider && isGptImageModel(model)) {
     const currentApiKey = keyManager?.getCurrentKey?.() || apiKey;
@@ -600,7 +576,6 @@ async function submitImageTask(
         console.warn(`[ImageGenerator] Retryable error, retrying in ${delay}ms... (Attempt ${attempt}/3)`);
       },
     });
-    console.log('[ImageGenerator] API response:', data);
 
     // 标准格式: { data: [{ url }] } 或 OpenAI-compatible { data: [{ b64_json }] }
     const extracted = extractImageGenerationResult(data);
@@ -678,7 +653,6 @@ export async function submitGridImageRequest(params: {
   // 检测 API 格式（与 generateImage 一致）
   const endpointTypes = getModelEndpointTypes(model);
   const apiFormat = resolveImageApiFormat(endpointTypes, model);
-  console.log('[GridImageAPI] format:', apiFormat, 'model:', model);
 
   if (apiFormat === 'openai_chat') {
     // Gemini 等模型通过 chat completions 生图
@@ -704,7 +678,6 @@ export async function submitGridImageRequest(params: {
     : buildProviderExtensionImageRequestBody({ model, prompt: normalizedPrompt.prompt, aspectRatio, resolution, referenceImages: transferReferenceImages, negativePrompt: normalizedPrompt.negativePrompt });
   const requestBody = builtRequest.body;
 
-  console.log('[GridImageAPI] Submitting to', endpoint, { templateName: builtRequest.templateName });
 
   if (usesDefaultImagesEndpoint && isGptImageModel(model)) {
     const currentApiKey = keyManager?.getCurrentKey?.() || apiKey;
@@ -738,6 +711,7 @@ export async function submitGridImageRequest(params: {
     throw new Error(sdkResult.error || 'AI SDK 图片生成失败');
   }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   let data: Record<string, any>;
   try {
     data = await retryOperation(async () => {
@@ -788,7 +762,6 @@ export async function submitGridImageRequest(params: {
     }
     throw error;
   }
-  console.log('[GridImageAPI] Response received');
 
   // 标准格式: { data: [{ url, task_id }] } 或 OpenAI-compatible { data: [{ b64_json }] }
   const extracted = extractImageGenerationResult(data);
@@ -797,7 +770,6 @@ export async function submitGridImageRequest(params: {
 
   // 如果只有 taskId 没有 imageUrl，自动轮询获取结果（与 generateImage 行为一致）
   if (!imageUrl && taskId) {
-    console.log('[GridImageAPI] Got taskId without imageUrl, polling...', taskId);
     const pollUrl = `${rootBase}${imagePaths.poll(taskId)}`;
     const polledUrl = await pollTaskStatus(taskId, params.keyManager?.getCurrentKey?.() || apiKey, normalizedBase, undefined, pollUrl, operationId, signal);
     return { imageUrl: polledUrl, taskId };
@@ -832,11 +804,11 @@ async function submitViaKlingImages(
     ? 'kling/v1/images/omni-image'
     : 'kling/v1/images/generations';
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   const body: Record<string, any> = { prompt: params.prompt, model };
   if (aspectRatio) body.aspect_ratio = aspectRatio;
   if (params.negativePrompt) body.negative_prompt = params.negativePrompt;
 
-  console.log('[ImageGenerator] Kling image →', nativePath, { model });
 
   const data = await retryOperation(async () => {
     const currentApiKey = keyManager?.getCurrentKey?.() || apiKey;
@@ -944,7 +916,6 @@ export async function imageUrlToBase64(url: string): Promise<string> {
       const filename = `image_${Date.now()}.png`;
       const result = await imageStorage.saveImage(url, 'shots', filename);
       if (result.success && result.localPath) {
-        console.log('[ImageGenerator] Saved image locally:', result.localPath);
         return result.localPath;
       }
     } catch (error) {

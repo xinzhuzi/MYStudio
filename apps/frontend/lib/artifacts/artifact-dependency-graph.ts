@@ -419,7 +419,9 @@ function groupArtifactsByCategory(
     if (!artifact) {
       return {
         artifactId: id,
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
         kind: "unknown" as any,
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
         stage: "unknown" as any,
         name: `Unknown artifact ${id}`,
       } as unknown as PlanItem;
@@ -733,6 +735,7 @@ export function buildDeletionPlan(
 /**
  * Create empty plan for error cases
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function createEmptyPlan(errors: string[]): DeletionPlan {
   return {
     planId: `plan-empty-${Date.now()}`,

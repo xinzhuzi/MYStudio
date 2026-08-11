@@ -13,10 +13,13 @@ import {
 } from "@/lib/ai/video-generator-routing";
 import {
   extractVideoUrl,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   normalizeUrl,
 } from "@/lib/ai/video-response-utils";
 import {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   buildImageWithRoles,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   convertToHttpUrl,
   prepareVideoImageRolesForTransfer,
 } from "@/lib/ai/video-generator-image-transfer";
@@ -125,8 +128,8 @@ function handleVideoSubmitError(
 ): never {
   if (keyManager?.handleError(status, errorText)) {
     const nextKey = keyManager.getCurrentKey?.();
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
     const keyHint = nextKey ? `${nextKey.substring(0, 8)}…` : '(none)';
-    console.log(`[VideoGen] Rotated to next key: ${keyHint} (due to ${status})`);
   }
   let errorMessage = `视频 API 错误: ${status}`;
   try {
@@ -197,7 +200,6 @@ async function ensureMinImageSize(
     const newWidth = Math.ceil(naturalWidth * scale);
     const newHeight = Math.ceil(naturalHeight * scale);
 
-    console.log(`[VideoGen] Image too small (${naturalWidth}×${naturalHeight}), upscaling to ${newWidth}×${newHeight}`);
 
     // Canvas 放大
     const canvas = document.createElement('canvas');
@@ -221,7 +223,6 @@ async function ensureMinImageSize(
       expiration: 15552000,
     });
     if (result.success && result.url) {
-      console.log(`[VideoGen] Upscaled & re-uploaded: ${result.url.substring(0, 60)}`);
       return result.url;
     }
 
@@ -290,14 +291,13 @@ export async function callVideoGenerationApi(
 
   // 根据元数据/模型名检测 API 格式并路由，包裹重试（覆盖 429/503/529 等）
   const format = detectVideoApiFormat(model);
-  console.log('[VideoGen] Detected API format:', { model, format, platform: resolvedPlatform });
 
   return retryOperation(() => {
     if (signal?.aborted) return Promise.reject(new Error('用户已取消'));
     // 每次重试动态取当前 key（keyManager.handleError 已 rotate，需要用新 key）
     const currentApiKey = keyManager?.getCurrentKey?.() || apiKey;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
     const keyHint = currentApiKey ? `${currentApiKey.substring(0, 8)}…` : '(none)';
-    console.log(`[VideoGen] Using key: ${keyHint}, format: ${format}`);
     switch (format) {
       case 'openai_official':
         return callOpenAIOfficialVideoApi(currentApiKey, prompt, videoBaseUrl, model, aspectRatio, duration, videoResolution, onProgress, keyManager, signal);
@@ -397,7 +397,6 @@ async function callUnifiedVideoApi(
   // 绝对路径拼接：从域名根开始
   const rootBase = baseUrl.replace(/\/v\d+$/, '');
   const submitUrl = `${rootBase}${endpointPaths.submit}`;
-  console.log(`[VideoGen] Unified format → POST ${endpointPaths.submit}`, { model, metadata, hasImage: !!firstFrame?.url });
 
   // 提交：直接使用端点类型对应的 URL
   const resp = await fetch(submitUrl, {
@@ -415,7 +414,6 @@ async function callUnifiedVideoApi(
   }
   const submitData = await resp.json();
 
-  console.log('[VideoGen] Unified submit response:', submitData);
 
   // 提取任务 ID（覆盖各平台的嵌套响应格式）
   const taskId = (
@@ -461,7 +459,6 @@ async function callUnifiedVideoApi(
     if (!statusResponse.ok) continue;
 
     const statusData = await statusResponse.json();
-    console.log(`[VideoGen] Unified task ${taskId} status:`, statusData);
 
     const status = String(statusData.status || statusData.state || statusData.data?.status || '').toLowerCase();
 
@@ -483,6 +480,7 @@ async function callUnifiedVideoApi(
 // MemeFast 文档: POST /volc/v1/contents/generations/tasks + GET /volc/v1/contents/generations/tasks/{taskId}
 // 火山方舟文档: https://www.volcengine.com/docs/82379/1520757
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function callVolcVideoApi(
   apiKey: string,
   prompt: string,
@@ -635,7 +633,6 @@ export async function saveVideoLocally(videoUrl: string, sceneId: number): Promi
   try {
     const filename = `scene_${sceneId + 1}_${Date.now()}.mp4`;
     const localUrl = await saveVideoToLocal(videoUrl, filename);
-    console.log('[VideoGen] Video saved locally:', localUrl);
     return localUrl;
   } catch (e) {
     console.warn('[VideoGen] Failed to save video locally, using URL:', e);
@@ -657,7 +654,6 @@ export async function extractLastFrameFromVideo(
   // local-image:// 是 Electron 注册的自定义协议，可以直接使用
   // 不需要转换为 file://
   const resolvedUrl = videoUrl;
-  console.log('[VideoGen] Loading video for frame extraction:', resolvedUrl);
   
   return new Promise((resolve) => {
     const video = document.createElement('video');
@@ -724,13 +720,6 @@ export async function extractLastFrameFromVideo(
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
         
-        console.log('[VideoGen] Extracted last frame:', {
-          width: canvas.width,
-          height: canvas.height,
-          duration: video.duration,
-          currentTime: video.currentTime,
-          targetWas: targetTime,
-        });
         
         hasResolved = true;
         clearTimeout(timeoutId);
@@ -757,7 +746,6 @@ export async function extractLastFrameFromVideo(
       
       isSeekStarted = true;
       targetTime = Math.max(0.1, duration - seekOffset);
-      console.log('[VideoGen] Starting seek, duration:', duration, 'target:', targetTime);
       
       video.currentTime = targetTime;
     };
@@ -768,7 +756,6 @@ export async function extractLastFrameFromVideo(
       
       // 当播放到目标时间附近时捕获帧
       if (video.currentTime >= targetTime - 0.05) {
-        console.log('[VideoGen] timeupdate reached target, currentTime:', video.currentTime, 'target:', targetTime);
         captureFrame();
       }
     };
@@ -776,7 +763,6 @@ export async function extractLastFrameFromVideo(
     // 当 seek 完成时捕获
     video.onseeked = () => {
       if (hasResolved || targetTime < 0) return;
-      console.log('[VideoGen] onseeked fired, currentTime:', video.currentTime, 'target:', targetTime);
       
       // 检查是否真的 seek 到了目标位置
       if (Math.abs(video.currentTime - targetTime) < 0.5) {
@@ -784,7 +770,6 @@ export async function extractLastFrameFromVideo(
         setTimeout(captureFrame, 200);
       } else {
         // seek 可能失败，尝试播放到目标位置
-        console.log('[VideoGen] Seek may have failed, trying play approach...');
         video.playbackRate = 16; // 快速播放
         video.play().catch(() => {
           // 如果播放失败，直接捕获当前帧
@@ -797,14 +782,12 @@ export async function extractLastFrameFromVideo(
     // 当视频数据加载完成时尝试 seek
     video.onloadeddata = () => {
       if (hasResolved) return;
-      console.log('[VideoGen] onloadeddata, readyState:', video.readyState, 'duration:', video.duration);
       startSeek();
     };
     
     // 当可以播放时也尝试 seek（备选）
     video.oncanplaythrough = () => {
       if (hasResolved) return;
-      console.log('[VideoGen] oncanplaythrough, readyState:', video.readyState, 'duration:', video.duration);
       startSeek();
     };
     
@@ -861,7 +844,6 @@ export async function callJuxinVideoGenerationApi(
   if (!model) {
     throw new Error('请先在设置中配置视频生成模型');
   }
-  console.log('[VideoGen] Using JuxinAPI (Grok) for video generation');
   
   // Extract first frame URL for Grok
   const images: string[] = [];
@@ -878,7 +860,6 @@ export async function callJuxinVideoGenerationApi(
     images,
   };
   
-  console.log('[VideoGen] Grok request:', requestBody);
 
   // Submit video generation request（带重试，覆盖 429/503/529，每次重试动态取 key）
   const submitData = await retryOperation(async () => {
@@ -899,8 +880,8 @@ export async function callJuxinVideoGenerationApi(
       console.error('[VideoGen] Grok video error:', submitResponse.status, errorText);
 
       if (keyManager?.handleError(submitResponse.status, errorText)) {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
         const nextKey = keyManager.getCurrentKey?.();
-        console.log(`[VideoGen] Grok: rotated to key ${nextKey?.substring(0, 8)}… (due to ${submitResponse.status})`);
       }
 
       let errorMessage = `Grok API failed: ${submitResponse.status}`;
@@ -928,7 +909,6 @@ export async function callJuxinVideoGenerationApi(
       console.warn(`[VideoGen][Grok] Retryable error, retrying in ${delay}ms... (Attempt ${attempt}/3)`);
     },
   });
-  console.log('[VideoGen] Grok submit response:', submitData);
 
   // Extract task ID from response
   const taskId = submitData.id;
@@ -936,7 +916,6 @@ export async function callJuxinVideoGenerationApi(
     throw new Error('Grok API 返回空的任务 ID');
   }
 
-  console.log('[VideoGen] Grok task ID:', taskId);
 
   // Poll for completion
   const pollInterval = 5000; // 5 seconds for Grok (longer video generation)
@@ -970,7 +949,6 @@ export async function callJuxinVideoGenerationApi(
     }
 
     const statusData = await statusResponse.json();
-    console.log(`[VideoGen] Grok task ${taskId} status:`, statusData);
 
     const status = (statusData.status ?? 'unknown').toString().toLowerCase();
 
@@ -982,7 +960,6 @@ export async function callJuxinVideoGenerationApi(
         throw new Error('任务完成但没有视频 URL');
       }
       
-      console.log('[VideoGen] Grok video completed:', videoUrl);
       return videoUrl;
     }
 

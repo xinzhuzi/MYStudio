@@ -124,15 +124,6 @@ export function useAutoContactSheet(options: UseAutoContactSheetOptions) {
     const snapshotNotes = notes;
     const snapshotProjectId = resourceProjectId;
 
-    console.log("[AutoContactSheet] 快照状态:", {
-      promptLength: contactSheetPrompt.length,
-      aspectRatio: snapshotAspectRatio,
-      layout: snapshotLayout,
-      viewpointsCount: snapshotViewpoints.length,
-      pendingViewpointsTotal: pendingViewpoints.length,
-      extractedViewpointsCount: extractedViewpoints.length,
-      currentPageIndex,
-    });
 
     let parentSceneId: string;
     if (selectedScene) {

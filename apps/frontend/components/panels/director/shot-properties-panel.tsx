@@ -62,6 +62,7 @@ export function ShotPropertiesPanel({
   const { setPreviewItem } = usePreviewStore();
 
   const projectId = activeProjectId || "";
+// eslint-disable-next-line react-hooks/exhaustive-deps
   const shots = scriptProject?.shots || [];
   const scriptData = scriptProject?.scriptData;
 
@@ -90,7 +91,9 @@ export function ShotPropertiesPanel({
   // Get keyframes
   const startKf = selectedShot?.keyframes?.find((k) => k.type === "start");
   const endKf = selectedShot?.keyframes?.find((k) => k.type === "end");
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   const hasStartImage = !!(startKf?.imageUrl || selectedShot?.imageUrl);
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   const hasEndImage = !!endKf?.imageUrl;
   const hasVideo = !!(selectedShot?.videoUrl || selectedShot?.interval?.videoUrl);
 
@@ -166,8 +169,8 @@ export function ShotPropertiesPanel({
         apiKey,
         baseUrl,
         appId,
-        onProgress: (progress, status) => {
-          console.log(`[AngleSwitch] Progress: ${progress}%, Status: ${status}`);
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+        onProgress: (progress, _status) => {
         },
       });
 

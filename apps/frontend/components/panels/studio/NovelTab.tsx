@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import aiEventAnalysisIconUrl from "@/assets/brand/ai-event-analysis-icon.svg";
 import { useProjectStore } from "@/stores/project/project-store";
 import type { NovelChapter } from "@/types/studio";
-import { Edit3, Plus, Search, Trash2 } from "lucide-react";
+import { Plus, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   createArtifactDeletionPlan,
@@ -156,6 +156,7 @@ export function NovelTab(props: {
     });
   };
 
+// eslint-disable-next-line react-hooks/exhaustive-deps
   const openSingleDelete = async (chapter: NovelChapter) => {
     if (!activeProjectId) {
       toast.error("没有活动项目，未执行任何操作");
@@ -193,6 +194,7 @@ export function NovelTab(props: {
 
   const handleAnalyzeSelectedChapters = useCallback(() => {
     props.analyzeEvents(selectedChapters);
+// eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.analyzeEvents, selectedChapters]);
 
   const executeDeletePlan = async (confirmation: DeletionConfirmation) => {

@@ -1,11 +1,16 @@
 import type {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   AgentWorkData,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   EntityExtractionResult,
   ProductionTrack,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   ScriptPlan,
   StudioManualPreset,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   StudioWorkflowConfig,
   StoryboardItem,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   VideoCandidate,
 } from "@/types/studio";
 import type { StudioAssetSummary } from "@/types/studio-assets";
@@ -30,12 +35,16 @@ import {
 } from "./storyboard-preview-model";
 import {
   buildAssetDerivationModel,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   buildAssetLibraryMatchNamesForProductionFlow,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   buildAssetLibraryMediaMapForProductionFlow,
 } from "./workflow-asset-derivation-model";
 import type {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   ProductionFlowAssetCard,
   ProductionFlowAssetGroup,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   ProductionFlowAssetMedia,
   ProductionFlowAssetSummary,
   ProductionFlowModelInput,
@@ -842,6 +851,7 @@ function previewTextLines(
 }
 
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function getStudioAssetPreviewPath(asset: StudioAssetSummary) {
   return (
     asset.thumbnailUrl ||

@@ -122,7 +122,6 @@ export function createStoryboardSingleImageGenerator(
     } catch (error) {
       const err = error as Error;
       if (err.name === "AbortError" || err.message === "用户已取消") {
-        console.log(`[Storyboard] Scene ${sceneId} image generation cancelled by user`);
         return;
       }
       console.error(`[Storyboard] Scene ${sceneId} image generation failed:`, err);

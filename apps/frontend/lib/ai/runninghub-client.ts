@@ -44,11 +44,6 @@ export async function submitAngleSwitchTask(
     throw new Error('RunningHub App ID 未配置');
   }
 
-  console.log('[RunningHub] Submitting angle switch task:', {
-    anglePrompt,
-    instanceType,
-    hasReferenceImage: !!referenceImage,
-  });
 
   const requestData = {
     nodeInfoList: [
@@ -108,7 +103,6 @@ export async function submitAngleSwitchTask(
       retryOn429: true,
     });
 
-    console.log('[RunningHub] Submit response:', data);
 
     const taskId = data.taskId || data.task_id;
     if (!taskId) {
@@ -155,7 +149,6 @@ export async function queryTaskStatus(
     }
 
     const data = await response.json();
-    console.log(`[RunningHub] Task ${taskId} status:`, data);
 
     const status = (data.status || 'RUNNING').toUpperCase();
     let resultUrl: string | undefined;
@@ -242,12 +235,6 @@ export async function generateAngleSwitch(params: {
   // 生成提示词
   const anglePrompt = generateAnglePrompt(direction, elevation, shotSize);
 
-  console.log('[RunningHub] Starting angle switch:', {
-    direction,
-    elevation,
-    shotSize,
-    prompt: anglePrompt,
-  });
 
   // 提交任务
   onProgress?.(0, 'SUBMITTING');

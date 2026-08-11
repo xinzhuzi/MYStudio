@@ -44,7 +44,6 @@ export function migrateAPIConfigState(
         const result = {
           ...(isRecord(persistedState) ? persistedState : {}),
         } as Partial<APIConfigState> & { imageHostConfig?: LegacyImageHostConfig };
-        console.log(`[APIConfig] Chained migration: v${version} → v17`);
         
         // Default feature bindings for migration
         const defaultBindings: FeatureBindings = {
@@ -149,7 +148,6 @@ export function migrateAPIConfigState(
             });
           }
           
-          console.log(`[APIConfig] v0/v1→v2: Migrated ${providers.length} providers from apiKeys`);
           result.providers = providers;
           result.featureBindings = defaultBindings;
           result.apiKeys = oldApiKeys;
@@ -194,7 +192,6 @@ export function migrateAPIConfigState(
             const feature = key as AIFeature;
             if (typeof value === 'string' && value) {
               newBindings[feature] = [value];
-              console.log(`[APIConfig] v5→v6: Migrated ${feature}: "${value}" -> ["${value}"]`);
             } else if (Array.isArray(value)) {
               newBindings[feature] = value.filter((binding): binding is string => typeof binding === 'string');
             } else {
@@ -203,7 +200,6 @@ export function migrateAPIConfigState(
           }
           
           result.featureBindings = newBindings;
-          console.log(`[APIConfig] v5→v6: Migrated featureBindings to multi-select format`);
           version = 6;
         }
 
@@ -216,7 +212,6 @@ export function migrateAPIConfigState(
           );
           const removedCount = oldProviders.length - cleanedProviders.length;
           if (removedCount > 0) {
-            console.log(`[APIConfig] v6→v7: Removed ${removedCount} deprecated providers`);
           }
           
           const oldBindings = isRecord(result.featureBindings) ? result.featureBindings : {};
@@ -276,7 +271,6 @@ export function migrateAPIConfigState(
                 const newBinding = `${matches[0].id}:${model}`;
                 converted.push(newBinding);
                 convertedCount++;
-                console.log(`[APIConfig] v8→v9: Converted binding "${binding}" -> "${newBinding}"`);
               } else if (matches.length > 1) {
                 removedCount++;
                 console.warn(`[APIConfig] v8→v9: Removed ambiguous binding "${binding}" (${matches.length} providers with platform "${platformOrId}")`);
@@ -288,7 +282,6 @@ export function migrateAPIConfigState(
           }
           
           if (convertedCount > 0 || removedCount > 0) {
-            console.log(`[APIConfig] v8→v9: Converted ${convertedCount} bindings, removed ${removedCount} ambiguous`);
           }
           
           result.featureBindings = newBindings;
@@ -314,7 +307,6 @@ export function migrateAPIConfigState(
         // This fixes the issue where cached modelEndpointTypes / modelEnableGroups / modelTypes / modelTags
         // from an old version cause incorrect API routing after an in-place upgrade (覆盖安装)
         if (version <= 12) {
-          console.log(`[APIConfig] v12→v13: Clearing stale API metadata caches (modelEndpointTypes, modelTypes, modelTags, modelEnableGroups, discoveredModelLimits)`);
           result.modelEndpointTypes = {};
           result.modelTypes = {};
           result.modelTags = {};
@@ -332,7 +324,6 @@ export function migrateAPIConfigState(
                   name: p.name?.trim() ? p.name : template.name,
                 };
                 if (updated.baseUrl !== p.baseUrl || updated.name !== p.name) {
-                  console.log(`[APIConfig] v12→v13: Updated ${p.platform} baseUrl: "${p.baseUrl}" -> "${template.baseUrl}"`);
                 }
                 return updated;
               }
@@ -410,7 +401,6 @@ export function migrateAPIConfigState(
         // Resolve image host providers (handles all legacy formats)
         result.imageHostProviders = resolveImageHostProviders();
 
-        console.log(`[APIConfig] Migration complete: v${version}`);
         return result;
 
 }

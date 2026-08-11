@@ -14,6 +14,7 @@
  * 5. 大师级场景视觉设计（专业提示词生成）
  */
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import type { ScriptScene, ProjectBackground, EpisodeRawScript, SceneRawContent, PromptLanguage } from '@/types/script';
 import { aiManager } from '@/lib/ai/ai-manager';
 import { processBatched } from '@/lib/ai/batch-processor';
@@ -233,7 +234,6 @@ export async function calibrateScenes(
     };
   }
   
-  console.log('[calibrateScenes] 轻量级模式：为', currentScenes.length, '个现有场景补充美术设计');
   
   // 1. 收集场景的动作描写样本（用于推断道具）
   const stats = collectSceneStats(episodeScripts);
@@ -298,6 +298,7 @@ export async function calibrateScenes(
     
     const { results: sceneResults, failedBatches } = await processBatched<
       typeof batchItems[number],
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
       any
     >({
       items: batchItems,
@@ -364,11 +365,13 @@ ${sceneList}
           cleaned = cleaned.slice(jsonStart, jsonEnd + 1);
         }
         
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
         let batchParsed: { scenes?: any[]; mergeRecords?: any[]; analysisNotes?: string } = { scenes: [] };
         try {
           batchParsed = JSON.parse(cleaned);
         } catch (parseErr) {
           console.warn('[calibrateScenes] 批次JSON解析失败，尝试部分解析...');
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
           const partialScenes: any[] = [];
           const scenePattern = /\{\s*"sceneId"\s*:\s*"([^"]+)"[^{}]*(?:\{[^{}]*\}[^{}]*)*\}/g;
           let match;
@@ -390,6 +393,7 @@ ${sceneList}
         if (batchParsed.analysisNotes) allAnalysisNotes.push(batchParsed.analysisNotes);
         
         // 返回 Map<sceneId, 场景数据>
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
         const map = new Map<string, any>();
         for (const s of (batchParsed.scenes || [])) {
           if (s.sceneId) {
@@ -412,16 +416,16 @@ ${sceneList}
       console.warn(`[SceneCalibrator] ${failedBatches} 批次失败，使用部分结果`);
     }
     
-    console.log('[calibrateScenes] AI 返回', sceneResults.size, '个场景结果');
     
     // 【关键】按原始顺序遍历 currentScenes，只更新美术字段
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
     const scenes: CalibratedScene[] = currentScenes.map((orig, i) => {
       let aiData = sceneResults.get(orig.id);
       if (!aiData) aiData = sceneResults.get('loc:' + normalizeLocation(orig.location || ''));
       if (!aiData) aiData = sceneResults.get('loc:' + normalizeLocation(orig.name || ''));
       
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
       const matched = !!aiData;
-      console.log(`[calibrateScenes] 场景 #${i + 1} "${orig.name || orig.location}" (${orig.id}) -> AI 匹配: ${matched ? '✓' : '✗'}`);
       
       return {
         id: orig.id,
@@ -429,14 +433,23 @@ ${sceneList}
         location: orig.location,
         time: orig.time || 'day',
         atmosphere: aiData?.atmosphere || orig.atmosphere || '平静',
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
         importance: aiData?.importance || (orig as any).importance || 'secondary',
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
         episodeNumbers: (orig as any).episodeNumbers || [],
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
         appearanceCount: (orig as any).appearanceCount || 1,
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
         architectureStyle: aiData?.architectureStyle || (orig as any).architectureStyle,
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
         lightingDesign: aiData?.lightingDesign || (orig as any).lightingDesign,
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
         colorPalette: aiData?.colorPalette || (orig as any).colorPalette,
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
         keyProps: aiData?.keyProps || (orig as any).keyProps,
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
         spatialLayout: aiData?.spatialLayout || (orig as any).spatialLayout,
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
         eraDetails: aiData?.eraDetails || (orig as any).eraDetails,
         nameVariants: [orig.name || orig.location],
       };
@@ -465,6 +478,7 @@ ${sceneList}
         time: s.times[0] || 'day',
         atmosphere: '平静',
         importance: (s.appearanceCount >= 5 ? 'main' : 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
                     s.appearanceCount >= 2 ? 'secondary' : 'transition') as any,
         episodeNumbers: s.episodeNumbers,
         appearanceCount: s.appearanceCount,
@@ -521,7 +535,6 @@ async function enrichScenesWithVisualPrompts(
     return scenes;
   }
   
-  console.log(`[enrichScenesWithVisualPrompts] 为 ${keyScenes.length} 个关键场景生成专业提示词...`);
   
   const systemPrompt = `你是好莱坞顶级美术指导，曾为《盗梦空间》《布达佩斯大饭店》等电影设计场景。
 
@@ -577,6 +590,7 @@ ${promptLanguage !== 'zh' ? '- 英文视觉提示词（50-80词，适合AI图像
     }
     
     const parsed = JSON.parse(cleaned);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
     const designMap = new Map<string, any>();
     for (const s of (parsed.scenes || [])) {
       designMap.set(s.name, s);

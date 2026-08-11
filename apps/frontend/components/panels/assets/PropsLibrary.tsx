@@ -7,7 +7,7 @@
  * 左侧目录树 + 右侧道具网格，支持自定义目录管理
  */
 
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { usePropsLibraryStore, PropItem, PropFolder } from '@/stores/library/props-library-store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';

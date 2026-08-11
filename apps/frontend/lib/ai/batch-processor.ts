@@ -132,12 +132,6 @@ export async function processBatched<TItem, TResult>(
   const inputBudget = Math.min(Math.floor(limits.contextWindow * 0.6), HARD_CAP_TOKENS);
   const outputBudget = Math.floor(limits.maxOutput * 0.8); // 留 20% 给 JSON 格式开销
 
-  console.log(
-    `[BatchProcessor] ${feature}: model=${modelName}, ` +
-    `ctx=${limits.contextWindow}, maxOutput=${limits.maxOutput}, ` +
-    `inputBudget=${inputBudget}, outputBudget=${outputBudget}, ` +
-    `items=${items.length}`,
-  );
 
   // === 2. 估算 system prompt 的 token 开销（用第一个 item 试算） ===
   const samplePrompts = buildPrompts([items[0]]);
@@ -159,10 +153,6 @@ export async function processBatched<TItem, TResult>(
     systemPromptTokens,
   );
 
-  console.log(
-    `[BatchProcessor] 分批结果: ${batches.length} 批次 ` +
-    `(${batches.map(b => b.length).join(', ')} items)`,
-  );
 
   // 单批次无需并发调度
   if (batches.length === 1) {

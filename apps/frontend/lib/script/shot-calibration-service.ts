@@ -105,6 +105,7 @@ export async function calibrateEpisodeShots(
     const updatedShots: Shot[] = [...project.shots];
     
     // 准备所有批次任务
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
     const allBatches: { batch: Shot[]; batchNum: number; batchData: any[] }[] = [];
     for (let i = 0; i < episodeShots.length; i += batchSize) {
       const batch = episodeShots.slice(i, i + batchSize);
@@ -149,16 +150,16 @@ export async function calibrateEpisodeShots(
     }
     
     const totalBatches = allBatches.length;
-    console.log(`🚀 [calibrateShots] 待处理: ${totalShots} 个分镜，${totalBatches} 批，并发数: ${concurrency}`);
     
     // 错开启动的并发控制：每5秒启动一个新批次，同时最多 concurrency 个
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
     let completedBatches = 0;
     const settledBatchResults = await runStaggered(
       allBatches.map(({ batch, batchNum, batchData }) => async () => {
-        console.log(`[calibrateShots] 🚀 启动批次 ${batchNum}/${totalBatches}`);
         onProgress?.(calibratedCount, totalShots, `🚀 处理批次 ${batchNum}/${totalBatches}...`);
         
         // 带重试机制的 AI 调用
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
         let calibrations: Record<string, any> = {};
         let retryCount = 0;
         const maxRetries = 3;
@@ -170,12 +171,10 @@ export async function calibrateEpisodeShots(
               { styleId: options.styleId, cinematographyProfileId: options.cinematographyProfileId, promptLanguage: options.promptLanguage },
               globalContext,
               (stage, total, name) => {
-                console.log(`[calibrateShots] 批次 ${batchNum}/${totalBatches} - Stage ${stage}/${total}: ${name}`);
                 onProgress?.(calibratedCount, totalShots, `批次 ${batchNum} Stage ${stage}/${total}: ${name}`);
               }
             );
             completedBatches++;
-            console.log(`[calibrateShots] ✅ 批次 ${batchNum} 完成，进度: ${completedBatches}/${totalBatches}`);
             return { batch, calibrations, success: true as const };
           } catch (err) {
             retryCount++;
@@ -183,6 +182,7 @@ export async function calibrateEpisodeShots(
             if (retryCount >= maxRetries) {
               console.error(`[calibrateShots] 批次 ${batchNum} 达到最大重试次数，跳过`);
               completedBatches++;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
               return { batch, calibrations: {} as Record<string, any>, success: false as const };
             }
             await new Promise(r => setTimeout(r, 2000 * retryCount));
@@ -195,6 +195,7 @@ export async function calibrateEpisodeShots(
       5000
     );
     const results = settledBatchResults
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
       .filter((r): r is { status: 'fulfilled'; value: any } => r.status === 'fulfilled')
       .map(r => r.value);
     

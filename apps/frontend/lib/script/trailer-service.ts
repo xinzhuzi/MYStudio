@@ -129,7 +129,6 @@ ${shotSummaries.map(s =>
     // 解析 AI 返回的 JSON - 支持多种格式
     let selectedIndices: number[] = [];
     
-    console.log('[TrailerService] AI raw response (first 1000 chars):', result.slice(0, 1000));
     
     // 尝试匹配 { "selectedIndices": [...] } 格式
     const jsonMatch = result.match(/\{[\s\S]*?"selectedIndices"\s*:\s*\[[\d,\s]*\][\s\S]*?\}/);
@@ -169,7 +168,6 @@ ${shotSummaries.map(s =>
       throw new Error('AI 返回格式错误，无法解析序号');
     }
     
-    console.log('[TrailerService] Parsed selectedIndices:', selectedIndices);
 
     // 根据序号获取对应的分镜
     const selectedShots = selectedIndices

@@ -94,6 +94,7 @@ export function ShotGroupPrompt({
   );
 
   // @引用预估（轻量）
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   const refEstimate = useMemo(
     () => estimateGroupRefs(group, scenes),
     [group, scenes]

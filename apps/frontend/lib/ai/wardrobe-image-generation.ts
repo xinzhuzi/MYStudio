@@ -113,14 +113,6 @@ export async function generateVariationImage(params: {
     }
   }
 
-  console.log("[Wardrobe] Generating character sheet variation:", {
-    variationName: variation.name,
-    model,
-    isRealistic,
-    hasClothingRefs,
-    refCount: referenceImages.length,
-    promptPreview: prompt.substring(0, 150),
-  });
 
   const imageSettings =
     useAppSettingsStore.getState().imageGenerationSettings;

@@ -37,9 +37,7 @@ export async function importFullScript(
       : normalizeScriptFormat(processedText);
 
     if (aiAnalysis) {
-      console.log("[importFullScript] AI 结构检测完成:", normalizeResult.changes);
     } else if (normalizeResult.changes.length > 0) {
-      console.log("[importFullScript] 正则兜底归一化:", normalizeResult.changes);
     }
 
     const { background, episodes } = parseFullScript(normalizeResult.normalized);
@@ -73,7 +71,6 @@ export async function importFullScript(
     store.setSeriesMeta(projectId, seriesMeta);
     const metadataMd = exportProjectMetadata(projectId);
     store.setMetadataMarkdown(projectId, metadataMd);
-    console.log("[importFullScript] 元数据已自动生成，长度:", metadataMd.length);
 
     return {
       success: true,

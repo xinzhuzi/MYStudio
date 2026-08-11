@@ -8,6 +8,7 @@ import { EventEmitter } from 'events';
 import { vi } from 'vitest';
 
 export class MockElectronAPI extends EventEmitter {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   ipcRenderer: any;
 
   constructor() {
@@ -30,7 +31,9 @@ export class MockElectronAPI extends EventEmitter {
   /**
    * Register a mock handler response
    */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   registerHandler(channel: string, response: any): void {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
     (this.ipcRenderer.invoke as ReturnType<typeof vi.fn>).mockImplementation(async (arg: string, ...args: unknown[]) => {
       if (arg === channel) {
         return response;

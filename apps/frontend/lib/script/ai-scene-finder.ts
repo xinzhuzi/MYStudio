@@ -235,6 +235,7 @@ ${contexts.slice(0, 3).join('\n\n')}
     const parsed = JSON.parse(cleaned);
     
     // 确保所有字段都是字符串类型（AI 可能返回对象）
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
     const ensureString = (val: any): string | undefined => {
       if (val === null || val === undefined) return undefined;
       if (typeof val === 'string') return val;
@@ -250,6 +251,7 @@ ${contexts.slice(0, 3).join('\n\n')}
     };
     
     // 确保 tags 是字符串数组
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
     const ensureTags = (val: any): string[] | undefined => {
       if (!val) return undefined;
       if (Array.isArray(val)) {
@@ -294,7 +296,6 @@ export async function findSceneByDescription(
   existingScenes: ScriptScene[],
   _options?: SceneFinderOptions // 不再需要，保留以兼容
 ): Promise<SceneSearchResult> {
-  console.log('[findSceneByDescription] 用户查询:', userQuery);
   
   // 1. 解析用户输入
   const { name, episodeNumber } = parseSceneQuery(userQuery);
@@ -310,7 +311,6 @@ export async function findSceneByDescription(
     };
   }
   
-  console.log('[findSceneByDescription] 解析结果:', { name, episodeNumber });
   
   // 2. 检查是否已存在
   const existing = existingScenes.find(s => 
@@ -351,7 +351,6 @@ export async function findSceneByDescription(
   }
   
   // 4. 使用 AI 生成完整场景数据
-  console.log('[findSceneByDescription] 正在生成场景数据...');
   
   const scene = await generateSceneData(
     name,

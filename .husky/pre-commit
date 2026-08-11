@@ -1,0 +1,25 @@
+#!/usr/bin/env sh
+# Pre-commit hook: typecheck + eslint for TS/TSX files
+# 使用绝对路径避免 cd 问题
+
+HUSKY_DIR="/Users/zhengbingjin/Project/Github/MYStudio/.husky"
+APPS_DIR="/Users/zhengbingjin/Project/Github/MYStudio/apps"
+
+cd "$APPS_DIR" || { echo "❌ Cannot access apps directory"; exit 1; }
+
+# 运行 typecheck
+node_modules/.bin/tsc --noEmit -p frontend/config/tsconfig.json
+if [ $? -ne 0 ]; then
+    echo "❌ Pre-commit failed: TypeScript errors"
+    exit 1
+fi
+
+# 运行 eslint
+node_modules/.bin/eslint . --config frontend/config/eslint.cjs --ext ts,tsx --max-warnings 0
+if [ $? -ne 0 ]; then
+    echo "❌ Pre-commit failed: ESLint errors"
+    exit 1
+fi
+
+echo "✅ Pre-commit passed: typecheck + lint green"
+exit 0

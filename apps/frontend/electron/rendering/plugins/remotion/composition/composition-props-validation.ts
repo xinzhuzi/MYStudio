@@ -451,6 +451,7 @@ function isTransitionEffect(value: unknown): value is CompositionTransitionEffec
     && (COMPOSITION_TRANSITION_EFFECTS as readonly string[]).includes(value);
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function validateArray<T>(
   value: unknown,
   path: string,

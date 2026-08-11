@@ -17,6 +17,7 @@ import {
 import { createPreparedVersionFileStore } from "./remotion-browser-worker-service";
 import {
   type RemotionBrowserWorkerAction,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   type RemotionBrowserWorkerEvent,
   validateRemotionBrowserWorkerEvent,
 } from "./remotion-browser-worker-protocol";

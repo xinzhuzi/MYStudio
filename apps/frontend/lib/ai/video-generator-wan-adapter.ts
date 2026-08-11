@@ -45,7 +45,6 @@ export async function callWanVideoApiAdapter(
     },
   };
 
-  console.log('[VideoGen] Wan format → POST /alibailian/api/v1/services/aigc/video-generation/video-synthesis', { model });
 
   const submitResponse = await fetch(
     `${baseUrl}/alibailian/api/v1/services/aigc/video-generation/video-synthesis`,
@@ -66,7 +65,6 @@ export async function callWanVideoApiAdapter(
   }
 
   const submitData = await submitResponse.json();
-  console.log('[VideoGen] Wan submit response:', submitData);
 
   // Bailian response: { request_id, output: { task_id, task_status: "PENDING" } }
   const taskId = submitData.output?.task_id;
@@ -95,7 +93,6 @@ export async function callWanVideoApiAdapter(
     }
 
     const statusData = await statusResponse.json();
-    console.log(`[VideoGen] Wan task ${taskId} status:`, statusData);
 
     const taskStatus = (statusData.output?.task_status ?? '').toUpperCase();
 

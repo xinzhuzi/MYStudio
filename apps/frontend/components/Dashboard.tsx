@@ -44,6 +44,7 @@ import {
 import {
   Plus,
   Trash2,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   FolderOpen,
   Clock,
   Clapperboard,
@@ -466,7 +467,7 @@ export function Dashboard({
 
           {/* Project Grid */}
           <div className="dashboard-project-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {sortedProjects.map((project) => {
+            {sortedProjects.map((project, index) => {
               const isSelected = selectedIds.has(project.id);
               const isDuplicating = duplicatingId === project.id;
 
@@ -520,13 +521,16 @@ export function Dashboard({
 
                   {/* Project Info */}
                   <div className="p-4">
-                    <h3 className="font-medium text-foreground truncate mb-2">
+                    <div className="metadata-mono text-[9px] text-accent/80 tracking-widest mb-1.5 font-medium">
+                      REEL // {(sortedProjects.length - index).toString().padStart(3, "0")}
+                    </div>
+                    <h3 className="font-semibold text-foreground truncate mb-2 text-[15px]">
                       {project.name}
                     </h3>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-1 text-xs text-muted-foreground">
                         <Clock className="w-3 h-3" />
-                        <span>{formatDate(project.updatedAt)}</span>
+                        <span className="metadata-mono">{formatDate(project.updatedAt)}</span>
                       </div>
 
                       {/* Actions menu (hidden in selection mode) */}

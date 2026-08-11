@@ -4,6 +4,7 @@ export interface ModelInput {
   minValue?: number;
   maxValue?: number;
   step?: number;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   default?: any;
   description?: string;
   isEdit?: boolean;

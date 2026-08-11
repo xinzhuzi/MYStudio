@@ -96,7 +96,6 @@ export function StoryboardMergedGenerationControls({
           className="h-8 px-4 text-xs font-medium"
           disabled={isGenerating || isMergedRunning || sceneCount === 0}
           onClick={() => {
-            console.log("[MergedGenControls] 执行合并生成按钮点击, frameMode:", frameMode, "refStrategy:", refStrategy, "useExemplar:", useExemplar);
             onGenerate(frameMode, refStrategy, useExemplar);
           }}
         >

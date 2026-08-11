@@ -40,7 +40,6 @@ export function extractAllCharactersFromEpisodes(episodeScripts: EpisodeRawScrip
     id: `char_raw_${index + 1}`,
     name,
   }));
-  console.log(`[extractAllCharactersFromEpisodes] 从 ${episodeScripts.length} 集剧本中提取到 ${characters.length} 个角色`);
   return characters;
 }
 

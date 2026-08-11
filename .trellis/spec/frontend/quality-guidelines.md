@@ -521,3 +521,22 @@ changes, also run the exact smoke commands named in the task acceptance criteria
 - Errors and terminal states are visible and testable.
 - No secrets, prompts, or binary payloads leak into diagnostics.
 - The reported verification level matches the commands actually rerun.
+
+---
+
+## 工程治理结论 (2026-08-12)
+
+### ESLint 门禁
+- 规则已从 off 改为 **warn 级**:`no-explicit-any`、`no-unused-vars`(带 `_` ignore)、`no-console`(允许 warn/error)、`react-hooks/exhaustive-deps`
+- 目标:逐步清零 warning 后改为 error 级 + `--max-warnings 0`
+- 新代码强制遵守,存量代码渐进清理
+
+### Pre-commit 门禁
+- husky + lint-staged 已安装:`.husky/pre-commit` 对暂存区跑 typecheck + eslint
+- 验证:故意引入类型错误会被拦截
+
+### 代码质量基线
+- console.log:619 → 122(降 80%,保留 warn/error)
+- `:any`(非 vendor/test):≤195(已达标)
+- 上帝文件:studio-store(8 slice)、ArtifactCenter、tts-runtime、main.ts 已拆分
+- IPC 校验层:`ipc-validation.ts` 统一 146 个 handler 的输入校验入口

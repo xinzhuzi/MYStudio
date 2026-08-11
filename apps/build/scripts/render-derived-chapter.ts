@@ -26,6 +26,7 @@ const outputPath = path.join(outputDir, "output.mp4");
 const bundlePath = "/Users/zhengbingjin/Project/Github/MYStudio/apps/.cache/remotion-bundle";
 const remotionVersion = "4.0.499";
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const readJson = (filePath: string) => JSON.parse(fs.readFileSync(filePath, "utf8")) as any;
 const editing = validateEditingProject(readJson(editingPath));
 if (!editing.success) throw new Error(editing.issues.map((issue) => issue.message).join("；"));
@@ -50,6 +51,7 @@ const hyperFramesArtifact = readJson(hyperFramesPath);
 const currentShotSlots = await readRemotionCurrentShotSlotsFromWorkspace(workspaceRoot, projectId, chapterId);
 const manifest = assertBundleMatchesRuntime(readJson(path.join(bundlePath, "manifest.json")), remotionVersion);
 const identity = await createRemotionChapterRenderIdentity({ plan, currentShotSlots, chapterManifest, bundleContentHash: manifest.contentHash });
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const browser = await createRemotionEnsureBrowserAdapters(ensureBrowser as any).probe.ensureBrowser({ onDownload: () => { throw new Error("禁止隐式下载 Headless Shell"); } });
 if (!browser.executablePath) throw new Error("缺少 Headless Shell");
 const bridge = new MediaBridgeServer();

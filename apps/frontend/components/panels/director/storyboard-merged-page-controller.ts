@@ -60,7 +60,6 @@ export async function runStoryboardMergedPages<Task>({
 
   for (let pageIndex = 0; pageIndex < pages.length; pageIndex += 1) {
     if (isAborted()) {
-      console.log("[MergedGen] 用户停止合并生成");
       notify.info("合并生成已停止");
       setRunning(false);
       return;
@@ -69,7 +68,6 @@ export async function runStoryboardMergedPages<Task>({
     const tasks = pages[pageIndex];
     const references = collectReferences(tasks);
     const info = pageInfo(tasks, getTaskType);
-    console.log(`[MergedGen] 第 ${pageIndex + 1}/${pages.length} 页，${tasks.length} 个任务（${info}），${references.length} 张参考图`);
 
     try {
       await generatePage(tasks, references);
@@ -90,7 +88,6 @@ export async function runStoryboardMergedPages<Task>({
   }
 
   if (failedPages.length > 0 && !isAborted()) {
-    console.log(`[MergedGen] ${failedPages.length} 页失败，5 秒后自动重试...`);
     notify.info(`${failedPages.length} 页生成失败，5 秒后自动重试...`);
     try {
       await waitForRetry(5000, signal);
@@ -106,7 +103,6 @@ export async function runStoryboardMergedPages<Task>({
     for (const failedPage of failedPages) {
       if (isAborted()) break;
       const info = pageInfo(failedPage.tasks, getTaskType);
-      console.log(`[MergedGen] 自动重试第 ${failedPage.index + 1} 页（${info}）`);
       try {
         const references = collectReferences(failedPage.tasks);
         await generatePage(failedPage.tasks, references);

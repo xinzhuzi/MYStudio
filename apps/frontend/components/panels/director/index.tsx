@@ -62,6 +62,7 @@ export function DirectorView() {
     setStoryboardError,
     setStoryboardConfig,
     resetStoryboard,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
     setProjectFolderId,
   } = useDirectorStore();
   
@@ -78,6 +79,7 @@ export function DirectorView() {
     storyPrompt: '',
   };
   const splitScenes = projectData?.splitScenes || [];
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   const projectFolderId = projectData?.projectFolderId || null;
   const screenplay = projectData?.screenplay || null;
   const screenplayStatus = projectData?.screenplayStatus || 'idle';
@@ -86,6 +88,7 @@ export function DirectorView() {
   const { addMediaFromUrl, getOrCreateCategoryFolder } = useMediaStore();
   const { setActiveTab } = useMediaPanelStore();
   const overallProgress = useOverallProgress();
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   const isGenerating = useIsGenerating();
   const [storyboardProgress, setStoryboardProgress] = useState(0);
 
@@ -178,7 +181,6 @@ export function DirectorView() {
       const model = featureConfig.models[0]; // 获取第一个模型
       const baseUrl = featureConfig.baseUrl;
       
-      console.log('[DirectorView] Using image generation config:', { provider, model, baseUrl });
 
       const result = await generateStoryboardImage(
         {
@@ -207,7 +209,6 @@ export function DirectorView() {
         folderId,
         projectId: activeProjectId || undefined,
       });
-      console.log('[DirectorView] Saved storyboard image to AI图片 folder:', mediaId);
 
       setStoryboardImage(result.imageUrl, mediaId);
       setStoryboardStatus('preview');

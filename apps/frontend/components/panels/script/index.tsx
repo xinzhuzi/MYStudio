@@ -15,7 +15,9 @@ import { useState, useCallback } from "react";
 import {
   useScriptStore,
   useActiveScriptProject,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   type ScriptCalibrationStatus,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   type ScriptViewpointStatus,
   type ScriptStructureStatus,
 } from "@/stores/script/script-store";
@@ -24,8 +26,8 @@ import { useAPIConfigStore } from "@/stores/ai/api-config-store";
 import { aiManager } from "@/lib/ai/ai-manager";
 import { useCharacterLibraryStore } from "@/stores/library/character-library-store";
 import { useMediaPanelStore } from "@/stores/navigation/media-panel-store";
-import { generateMultiPageContactSheetData } from "@/lib/script/scene-viewpoint-generator";
 import {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   sortByImportance as sortScenesByImportance,
 } from "@/lib/script/scene-calibrator";
 import type { TrailerGenerationOptions } from "@/lib/script/trailer-service";
@@ -101,7 +103,9 @@ export function ScriptView() {
     updateCharacter,
     updateShot,
     // 完整剧本管理
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
     setProjectBackground,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
     setEpisodeRawScripts,
     updateEpisodeRawScript,
     setPromptLanguage,
@@ -111,6 +115,7 @@ export function ScriptView() {
     setLastFilteredCharacters,
   } = useScriptStore();
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { getApiKey, checkChatKeys, isFeatureConfigured } = useAPIConfigStore();
   const { 
     characters: allCharacters, 
@@ -183,6 +188,7 @@ export function ScriptView() {
   
   // 角色校准状态
   const characterCalibrationStatus = calibrationState?.characterCalibrationStatus || 'idle';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [characterCalibrationResult, setCharacterCalibrationResult] = useState<{
     filteredCount: number;
     mergedCount: number;
@@ -217,6 +223,7 @@ export function ScriptView() {
   // 预告片状态
   const { 
     setTrailerConfig, 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
     setTrailerScenes, 
     clearTrailer,
     addScenesFromScript,

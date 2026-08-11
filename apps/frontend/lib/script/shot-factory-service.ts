@@ -21,9 +21,6 @@ export function matchCharacterVariationsForEpisode(
           const matchedVariation = getVariationForEpisode(libraryCharacter.variations, episodeIndex);
           if (matchedVariation) {
             characterVariations[characterId] = matchedVariation.id;
-            console.log(
-              `[VariationMatch] 角色 ${scriptCharacter.name} 第${episodeIndex}集 -> 使用变体 "${matchedVariation.name}"`,
-            );
           }
         }
         break;

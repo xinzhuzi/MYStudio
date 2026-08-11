@@ -25,6 +25,7 @@ import {
   BookOpen,
   Globe,
   Users,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   Swords,
   MapPin,
   Gem,
@@ -42,9 +43,11 @@ import {
   Trash2,
   ChevronRight,
   ArrowRight,
+  Workflow,
 } from "lucide-react";
 import type {
   SeriesMeta,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   Faction,
   EpisodeRawScript,
 } from "@/types/script";
@@ -56,6 +59,7 @@ import {
   SectionCard,
 } from "./OverviewFields";
 import { OVERVIEW_WORKFLOW_GUIDE } from "./workflow-guide";
+import { OVERVIEW_STAGE_GUIDE } from "./stage-guide";
 import {
   createArtifactDeletionPlan,
   executeArtifactDeletionPlan,
@@ -182,6 +186,38 @@ export function OverviewPanel() {
                   <ChevronRight className="h-4 w-4" />
                 </Button>
               </div>
+            </div>
+          </div>
+
+          {/* 制作阶段说明 — 把工作流各阶段的功能讲清楚，让用户在进入
+              工作流前就理解整条生产流水线。阶段 id/label/icon 与工作流
+              页的 WORKFLOW_TABS 完全一致（见 stage-guide.ts）。 */}
+          <div className="px-5 py-4">
+            <div className="mb-3 flex items-center gap-2 text-sm font-medium">
+              <Workflow className="h-4 w-4 text-primary" />
+              制作阶段
+              <span className="text-xs font-normal text-muted-foreground">
+                · 各阶段功能说明
+              </span>
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {OVERVIEW_STAGE_GUIDE.map((stage) => {
+                const StageIcon = stage.Icon;
+                return (
+                  <div
+                    key={stage.id}
+                    className="rounded-lg border bg-card p-3"
+                  >
+                    <div className="mb-1 flex items-center gap-2">
+                      <StageIcon className="h-4 w-4 text-primary" />
+                      <span className="text-sm font-medium">{stage.label}</span>
+                    </div>
+                    <p className="text-xs leading-5 text-muted-foreground">
+                      {stage.description}
+                    </p>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
@@ -352,6 +388,7 @@ export function OverviewPanel() {
                   <div className="space-y-2">
                     {episodes.map((ep) => {
                       const epSceneCount = ep.scenes?.length || 0;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
                       const episode = scriptData?.episodes?.find(
                         (e) => e.index === ep.episodeIndex,
                       );

@@ -12,9 +12,12 @@ import type { ScriptData } from "@/types/script";
 import type { DirectorState } from "@/stores/director/director-store-types";
 import type { EditingStore } from "@/stores/editing/editing-store";
 import type { TtsStore } from "@/stores/tts/tts-store";
-import type { SceneVoiceLine, VoiceProfile } from "@/types/tts";
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+import type { SceneVoiceLine } from "@/types/tts";
 import type { RemotionRenderJobV1 } from "@/types/remotion-workspace";
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import type { MediaFile } from "@/types/media";
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import type { EntityExtractionResult } from "@/types/studio";
 import { useMediaStore } from "@/stores/media/media-store";
 type MediaStore = ReturnType<typeof useMediaStore.getState>;
@@ -67,16 +70,14 @@ export function createEmptyStores(): {
       mediaTasks: [],
       eventGraph: [],
       projectMemoryRecords: [],
-      workflowConfig: {},
-    },
+      workflowConfig: {} },
     script: {
       title: "Test Script",
       language: "zh",
       characters: [],
       scenes: [],
       episodes: [],
-      storyParagraphs: [],
-    },
+      storyParagraphs: [] },
     director: ({
       activeProjectId: null,
       projects: {},
@@ -92,8 +93,7 @@ export function createEmptyStores(): {
         concurrency: 3,
         imageProvider: 'mock',
         videoProvider: 'mock',
-        chatProvider: 'mock',
-      },
+        chatProvider: 'mock' },
       isExpanded: false,
       selectedSceneId: null,
       setActiveProjectId: () => {},
@@ -110,8 +110,7 @@ export function createEmptyStores(): {
           resolution: '2K',
           videoResolution: '1080p',
           sceneCount: 0,
-          storyPrompt: '',
-        },
+          storyPrompt: '' },
         screenplay: null,
         screenplayStatus: 'idle',
         screenplayError: null,
@@ -124,9 +123,7 @@ export function createEmptyStores(): {
           refStrategy: 'cluster',
           useExemplar: true,
           activeTab: 'editing',
-          episodeViewScope: 'all',
-        },
-      }),
+          episodeViewScope: 'all' } }),
       setScreenplay: () => {},
       setScreenplayStatus: () => {},
       setScreenplayError: () => {},
@@ -192,8 +189,7 @@ export function createEmptyStores(): {
       setTrailerConfig: () => {},
       clearTrailer: () => {},
       setCinematographyProfileId: () => {},
-      cascadeFramesToNextScene: () => {},
-    } as unknown as DirectorState),
+      cascadeFramesToNextScene: () => {} } as unknown as DirectorState),
     editing: {
       activeProjectId: null,
       editingProjects: {},
@@ -212,8 +208,7 @@ export function createEmptyStores(): {
       getCurrentEditingProject: () => undefined,
       executeCommand: () => ({ success: false, issue: { code: 'test', path: '$', message: 'test' } }),
       undo: () => ({ success: false, issue: { code: 'test', path: '$', message: 'test' } }),
-      redo: () => ({ success: false, issue: { code: 'test', path: '$', message: 'test' } }),
-    },
+      redo: () => ({ success: false, issue: { code: 'test', path: '$', message: 'test' } }) },
     tts: {
       activeProjectId: null,
       projects: {},
@@ -227,8 +222,7 @@ export function createEmptyStores(): {
         language: 'en',
         defaultEngine: 'kokoro' as const,
         createdAt: Date.now(),
-        updatedAt: Date.now(),
-      }),
+        updatedAt: Date.now() }),
       updateVoiceProfile: () => {},
       bindSpeaker: () => {},
       getBinding: () => undefined,
@@ -239,8 +233,7 @@ export function createEmptyStores(): {
       markGenerating: () => {},
       markCompleted: () => {},
       markFailed: () => {},
-      clearSceneAudio: () => {},
-    },
+      clearSceneAudio: () => {} },
     media: {
       mediaFiles: [],
       folders: [],
@@ -262,8 +255,7 @@ export function createEmptyStores(): {
         source: undefined,
         file: undefined,
         createdAt: Date.now(),
-        updatedAt: Date.now(),
-      }),
+        updatedAt: Date.now() }),
       removeMediaFile: async () => {},
       loadProjectMedia: async () => {},
       clearProjectMedia: async () => {},
@@ -277,10 +269,8 @@ export function createEmptyStores(): {
       addMediaFromUrl: () => 'url-id',
       getOrCreateCategoryFolder: () => 'category-folder-id',
       initSystemFolders: () => {},
-      assignProjectToUnscoped: () => {},
-    },
-    remotion: [],
-  };
+      assignProjectToUnscoped: () => {} },
+    remotion: [] };
 }
 
 /**
@@ -312,8 +302,7 @@ export function buildSingleChapterFixture(chapterId: string = CHAPTER_ID_001): {
         size: 102400,
         importedAt: now - 1000000,
         imageWorkflowId: undefined,
-        imageWorkflowNodeId: undefined,
-      },
+        imageWorkflowNodeId: undefined },
     ],
     novelChapters: [
       {
@@ -322,8 +311,7 @@ export function buildSingleChapterFixture(chapterId: string = CHAPTER_ID_001): {
         title: `Chapter ${chapterIndex}: The Beginning`,
         sourceText: "Once upon a time...",
         importedAt: now - 2000000,
-        updatedAt: now - 1000000,
-      },
+        updatedAt: now - 1000000 },
     ],
     agentWorkData: [
       {
@@ -332,16 +320,14 @@ export function buildSingleChapterFixture(chapterId: string = CHAPTER_ID_001): {
         episodeId: chapterId,
         data: JSON.stringify({ coreEvent: "Hero meets villain" }),
         createdAt: now - 1500000,
-        updatedAt: now - 1500000,
-      },
+        updatedAt: now - 1500000 },
       {
         id: `agent-${chapterId}-entity-extraction`,
         key: "entityExtraction",
         episodeId: chapterId,
         data: JSON.stringify({ characters: ["hero", "villain"] }),
         createdAt: now - 1400000,
-        updatedAt: now - 1400000,
-      },
+        updatedAt: now - 1400000 },
     ],
     entityExtractions: [
       {
@@ -349,8 +335,7 @@ export function buildSingleChapterFixture(chapterId: string = CHAPTER_ID_001): {
         episodeId: chapterId,
         characters: [{ characterId: "hero-001", name: "Hero", aliases: ["the hero"], note: "Main protagonist" }],
         scenes: [{ sceneId: "scene-001", name: "Forest clearing", note: "Opening scene" }],
-        props: [],
-      },
+        props: [] },
     ],
     scriptPlans: [],
     seriesBible: null,
@@ -367,8 +352,7 @@ export function buildSingleChapterFixture(chapterId: string = CHAPTER_ID_001): {
       assetIds: [generateDerivedAssetId("character", chapterIndex, "main-hero")],
       state: "ready",
       createdAt: now - 500000,
-      updatedAt: now - 500000,
-    })),
+      updatedAt: now - 500000 })),
     continuityAssetVersions: [
       {
         assetId: generateDerivedAssetId("character", chapterIndex, "dugu-grey-town"),
@@ -396,8 +380,7 @@ export function buildSingleChapterFixture(chapterId: string = CHAPTER_ID_001): {
         approved: true,
         source: "human-approved",
         validFromStoryboardIndex: undefined,
-        validToStoryboardIndex: undefined,
-      },
+        validToStoryboardIndex: undefined },
     ],
     productionTracks: [
       {
@@ -409,8 +392,7 @@ export function buildSingleChapterFixture(chapterId: string = CHAPTER_ID_001): {
         duration: 10000,
         candidateVideoIds: [`video-candidate-${chapterId}-1`, `video-candidate-${chapterId}-2`],
         selectedVideoId: `video-candidate-${chapterId}-1`,
-        state: "ready",
-      },
+        state: "ready" },
     ],
     videoCandidates: [
       {
@@ -419,16 +401,14 @@ export function buildSingleChapterFixture(chapterId: string = CHAPTER_ID_001): {
         provider: "ffmpeg-local",
         filePath: `exports/${chapterId}/final-video.mp4`,
         state: "ready",
-        createdAt: now - 400000,
-      },
+        createdAt: now - 400000 },
       {
         id: `video-candidate-${chapterId}-2`,
         trackId: `track-${chapterId}`,
         provider: "model-placeholder",
         state: "failed",
         errorReason: "Model timeout",
-        createdAt: now - 450000,
-      },
+        createdAt: now - 450000 },
     ],
     imageWorkflows: [],
     agentRuns: [],
@@ -450,12 +430,10 @@ export function buildSingleChapterFixture(chapterId: string = CHAPTER_ID_001): {
         retrievalText: "hero meets villain",
         source: "novelEventAnalysis",
         createdAt: now - 1500000,
-        updatedAt: now - 1500000,
-      },
+        updatedAt: now - 1500000 },
     ],
     projectMemoryRecords: [],
-    workflowConfig: {},
-  };
+    workflowConfig: {} };
 
   const script: ScriptData = {
     title: "Test Script",
@@ -467,11 +445,9 @@ export function buildSingleChapterFixture(chapterId: string = CHAPTER_ID_001): {
         id: chapterId,
         index: chapterIndex,
         title: `Episode ${chapterIndex}`,
-        sceneIds: [`scene-${chapterId}-1`, `scene-${chapterId}-2`],
-      },
+        sceneIds: [`scene-${chapterId}-1`, `scene-${chapterId}-2`] },
     ],
-    storyParagraphs: [],
-  };
+    storyParagraphs: [] };
 
   const director: DirectorState = ({
     activeProjectId: null,
@@ -488,8 +464,7 @@ export function buildSingleChapterFixture(chapterId: string = CHAPTER_ID_001): {
       concurrency: 3,
       imageProvider: 'mock',
       videoProvider: 'mock',
-      chatProvider: 'mock',
-    },
+      chatProvider: 'mock' },
     isExpanded: false,
     selectedSceneId: null,
     setActiveProjectId: () => {},
@@ -547,8 +522,7 @@ export function buildSingleChapterFixture(chapterId: string = CHAPTER_ID_001): {
           col: 0,
           sourceRect: { x: 0, y: 0, width: 100, height: 100 },
           sourceEpisodeIndex: chapterIndex,
-          sourceEpisodeId: chapterId,
-        },
+          sourceEpisodeId: chapterId },
       ],
       projectFolderId: null,
       storyboardConfig: {
@@ -556,8 +530,7 @@ export function buildSingleChapterFixture(chapterId: string = CHAPTER_ID_001): {
         resolution: '2K',
         videoResolution: '1080p',
         sceneCount: 1,
-        storyPrompt: 'Test story',
-      },
+        storyPrompt: 'Test story' },
       screenplay: null,
       screenplayStatus: 'idle',
       screenplayError: null,
@@ -570,9 +543,7 @@ export function buildSingleChapterFixture(chapterId: string = CHAPTER_ID_001): {
         refStrategy: 'cluster',
         useExemplar: true,
         activeTab: 'editing',
-        episodeViewScope: 'all',
-      },
-    }),
+        episodeViewScope: 'all' } }),
     setScreenplay: () => {},
     setScreenplayStatus: () => {},
     setScreenplayError: () => {},
@@ -638,8 +609,7 @@ export function buildSingleChapterFixture(chapterId: string = CHAPTER_ID_001): {
     setTrailerConfig: () => {},
     clearTrailer: () => {},
     setCinematographyProfileId: () => {},
-    cascadeFramesToNextScene: () => {},
-  } as unknown as DirectorState);
+    cascadeFramesToNextScene: () => {} } as unknown as DirectorState);
 
   const editing: EditingStore = ({
     activeProjectId: PROJECT_ID,
@@ -655,9 +625,7 @@ export function buildSingleChapterFixture(chapterId: string = CHAPTER_ID_001): {
         updatedAt: now - 300000,
         createdAt: now - 300000,
         timeline: [],
-        metadata: {},
-      },
-    },
+        metadata: {} } },
     currentEditingProjectIdByEpisode: { [chapterId]: `editing-project-${chapterId}` },
     autoEditingRuns: {},
     autoEditingRunIdsByEpisode: {},
@@ -670,9 +638,7 @@ export function buildSingleChapterFixture(chapterId: string = CHAPTER_ID_001): {
         completedAt: now - 100000,
         outputPath: `exports/${chapterId}/render.mp4`,
         frameCount: 300,
-        frameRate: 30,
-      },
-    },
+        frameRate: 30 } },
     historyByEditingProjectId: {},
     persistenceWarnings: [],
     setActiveProjectId: () => {},
@@ -684,8 +650,7 @@ export function buildSingleChapterFixture(chapterId: string = CHAPTER_ID_001): {
     getCurrentEditingProject: () => undefined,
     executeCommand: () => ({ success: false, issue: { code: 'test', path: '$', message: 'test' } }),
     undo: () => ({ success: false, issue: { code: 'test', path: '$', message: 'test' } }),
-    redo: () => ({ success: false, issue: { code: 'test', path: '$', message: 'test' } }),
-  } as unknown as EditingStore);
+    redo: () => ({ success: false, issue: { code: 'test', path: '$', message: 'test' } }) } as unknown as EditingStore);
 
   const tts: TtsStore = {
     activeProjectId: PROJECT_ID,
@@ -708,8 +673,7 @@ export function buildSingleChapterFixture(chapterId: string = CHAPTER_ID_001): {
             mocked: false,
             warning: undefined,
             error: undefined,
-            updatedAt: now - 600000,
-          },
+            updatedAt: now - 600000 },
           [`tts-line-${chapterId}-2`]: {
             sceneId: 2,
             text: "Test dialogue 2",
@@ -726,12 +690,8 @@ export function buildSingleChapterFixture(chapterId: string = CHAPTER_ID_001): {
             mocked: false,
             warning: undefined,
             error: undefined,
-            updatedAt: now - 550000,
-          },
-        },
-        bindings: {},
-      },
-    },
+            updatedAt: now - 550000 } },
+        bindings: {} } },
     voiceProfiles: {
       "profile-1": {
         id: "profile-1",
@@ -740,8 +700,7 @@ export function buildSingleChapterFixture(chapterId: string = CHAPTER_ID_001): {
         language: 'en',
         defaultEngine: 'kokoro' as const,
         createdAt: now - 700000,
-        updatedAt: now - 700000,
-      },
+        updatedAt: now - 700000 },
       "profile-2": {
         id: "profile-2",
         name: "Villain Voice",
@@ -749,9 +708,7 @@ export function buildSingleChapterFixture(chapterId: string = CHAPTER_ID_001): {
         language: 'en',
         defaultEngine: 'kokoro' as const,
         createdAt: now - 650000,
-        updatedAt: now - 650000,
-      },
-    },
+        updatedAt: now - 650000 } },
     setActiveProjectId: () => {},
     ensureProject: () => {},
     createVoiceProfile: () => ({
@@ -761,8 +718,7 @@ export function buildSingleChapterFixture(chapterId: string = CHAPTER_ID_001): {
       language: 'en',
       defaultEngine: 'kokoro' as const,
       createdAt: Date.now(),
-      updatedAt: Date.now(),
-    }),
+      updatedAt: Date.now() }),
     updateVoiceProfile: () => {},
     bindSpeaker: () => {},
     getBinding: () => undefined,
@@ -773,8 +729,7 @@ export function buildSingleChapterFixture(chapterId: string = CHAPTER_ID_001): {
     markGenerating: () => {},
     markCompleted: () => {},
     markFailed: () => {},
-    clearSceneAudio: () => {},
-  };
+    clearSceneAudio: () => {} };
 
   const media: MediaStore = ({
     mediaFiles: [
@@ -797,8 +752,7 @@ export function buildSingleChapterFixture(chapterId: string = CHAPTER_ID_001): {
         fps: undefined,
         ephemeral: undefined,
         source: undefined,
-        file: undefined,
-      },
+        file: undefined },
     ],
     folders: [],
     currentFolderId: null,
@@ -819,8 +773,7 @@ export function buildSingleChapterFixture(chapterId: string = CHAPTER_ID_001): {
       source: undefined,
       file: undefined,
       createdAt: Date.now(),
-      updatedAt: Date.now(),
-    }),
+      updatedAt: Date.now() }),
     removeMediaFile: async () => {},
     loadProjectMedia: async () => {},
     clearProjectMedia: async () => {},
@@ -834,8 +787,7 @@ export function buildSingleChapterFixture(chapterId: string = CHAPTER_ID_001): {
     addMediaFromUrl: () => 'url-id',
     getOrCreateCategoryFolder: () => 'category-folder-id',
     initSystemFolders: () => {},
-    assignProjectToUnscoped: () => {},
-  } as unknown as MediaStore);
+    assignProjectToUnscoped: () => {} } as unknown as MediaStore);
 
   const remotion: RemotionRenderJobV1[] = ([
     {
@@ -853,8 +805,7 @@ export function buildSingleChapterFixture(chapterId: string = CHAPTER_ID_001): {
       completedAt: now - 700000,
       error: undefined,
       outputPath: `exports/${chapterId}/remotion-output.mp4`,
-      evidencePath: `exports/${chapterId}/evidence`,
-    },
+      evidencePath: `exports/${chapterId}/evidence` },
   ] as unknown as RemotionRenderJobV1[]);
 
   return {
@@ -866,8 +817,7 @@ export function buildSingleChapterFixture(chapterId: string = CHAPTER_ID_001): {
     media,
     remotion,
     projectId: PROJECT_ID,
-    chapterId,
-  };
+    chapterId };
 }
 
 /**
@@ -884,14 +834,12 @@ export function buildMultiChapterFixture(): {
   // Shared character asset referenced by both chapters
   const sharedCharacter = {
     id: "shared-character-hero",
-    chapterIds: [CHAPTER_ID_001, CHAPTER_ID_002],
-  };
+    chapterIds: [CHAPTER_ID_001, CHAPTER_ID_002] };
 
   return {
     chapter1,
     chapter2,
-    sharedAssets: [sharedCharacter],
-  };
+    sharedAssets: [sharedCharacter] };
 }
 
 /**
@@ -914,8 +862,7 @@ export function buildLegacyAmbiguousFixture(): {
         index: 1,
         title: "Legacy Episode 1",
         sourceText: "Old format chapter",
-        importedAt: now - 3000000,
-      },
+        importedAt: now - 3000000 },
     ],
     agentWorkData: [],
     entityExtractions: [],
@@ -931,8 +878,7 @@ export function buildLegacyAmbiguousFixture(): {
     mediaTasks: [],
     eventGraph: [],
     projectMemoryRecords: [],
-    workflowConfig: {},
-  };
+    workflowConfig: {} };
 
   const script: ScriptData = {
     title: "Script Chapter 1",
@@ -944,11 +890,9 @@ export function buildLegacyAmbiguousFixture(): {
         id: `script-chapter-1`,
         index: 1,
         title: "Script Chapter 1",
-        sceneIds: [],
-      },
+        sceneIds: [] },
     ],
-    storyParagraphs: [],
-  };
+    storyParagraphs: [] };
 
   // Legacy TTS lines with numeric sceneId only (no projectId/chapterId)
   const tts: TtsStore = {
@@ -972,8 +916,7 @@ export function buildLegacyAmbiguousFixture(): {
             mocked: false,
             warning: undefined,
             error: undefined,
-            updatedAt: now - 2000000,
-          },
+            updatedAt: now - 2000000 },
           "102": {
             sceneId: 102, // Same ambiguity
             text: "legacy-tts-2.mp3",
@@ -990,12 +933,8 @@ export function buildLegacyAmbiguousFixture(): {
             mocked: false,
             warning: undefined,
             error: undefined,
-            updatedAt: now - 1900000,
-          },
-        },
-        bindings: {},
-      },
-    },
+            updatedAt: now - 1900000 } },
+        bindings: {} } },
     voiceProfiles: {},
     setActiveProjectId: () => {},
     ensureProject: () => {},
@@ -1006,8 +945,7 @@ export function buildLegacyAmbiguousFixture(): {
       language: 'en',
       defaultEngine: 'kokoro' as const,
       createdAt: Date.now(),
-      updatedAt: Date.now(),
-    }),
+      updatedAt: Date.now() }),
     updateVoiceProfile: () => {},
     bindSpeaker: () => {},
     getBinding: () => undefined,
@@ -1018,8 +956,7 @@ export function buildLegacyAmbiguousFixture(): {
     markGenerating: () => {},
     markCompleted: () => {},
     markFailed: () => {},
-    clearSceneAudio: () => {},
-  };
+    clearSceneAudio: () => {} };
 
   // Media files without chapter ownership
   const media: MediaStore = {
@@ -1038,8 +975,7 @@ export function buildLegacyAmbiguousFixture(): {
         ephemeral: undefined,
         folderId: null,
         source: undefined,
-        file: undefined,
-      },
+        file: undefined },
       {
         id: `media-unowned-2`,
         projectId: PROJECT_ID,
@@ -1054,8 +990,7 @@ export function buildLegacyAmbiguousFixture(): {
         ephemeral: undefined,
         folderId: null,
         source: undefined,
-        file: undefined,
-      },
+        file: undefined },
     ],
     folders: [],
     currentFolderId: null,
@@ -1076,8 +1011,7 @@ export function buildLegacyAmbiguousFixture(): {
       source: undefined,
       file: undefined,
       createdAt: Date.now(),
-      updatedAt: Date.now(),
-    }),
+      updatedAt: Date.now() }),
     removeMediaFile: async () => {},
     loadProjectMedia: async () => {},
     clearProjectMedia: async () => {},
@@ -1091,8 +1025,7 @@ export function buildLegacyAmbiguousFixture(): {
     addMediaFromUrl: () => 'url-id',
     getOrCreateCategoryFolder: () => 'category-folder-id',
     initSystemFolders: () => {},
-    assignProjectToUnscoped: () => {},
-  };
+    assignProjectToUnscoped: () => {} };
 
   return {
     studio,
@@ -1104,8 +1037,7 @@ export function buildLegacyAmbiguousFixture(): {
       "numeric-tts-sceneid-102",
       "media-unowned-1",
       "media-unowned-2",
-    ],
-  };
+    ] };
 }
 
 /**
@@ -1153,8 +1085,7 @@ export function buildContinuityNoEpisodeIdFixture(): {
         approved: true,
         source: "human-approved",
         validFromStoryboardIndex: undefined,
-        validToStoryboardIndex: undefined,
-      },
+        validToStoryboardIndex: undefined },
     ],
     productionTracks: [],
     videoCandidates: [],
@@ -1163,14 +1094,12 @@ export function buildContinuityNoEpisodeIdFixture(): {
     mediaTasks: [],
     eventGraph: [],
     projectMemoryRecords: [],
-    workflowConfig: {},
-  };
+    workflowConfig: {} };
 
   // Blocker: continuity bible without episodeId context
   return {
     studio,
-    blockers: ["continuity-bible-character-dugu-version-gray-town"],
-  };
+    blockers: ["continuity-bible-character-dugu-version-gray-town"] };
 }
 
 /**
@@ -1192,8 +1121,7 @@ export function buildIndexDerivedTrackKeyFixture(): {
         index: chapterIndex,
         title: `Chapter ${chapterIndex}`,
         sourceText: "Test chapter",
-        importedAt: now - 3000000,
-      },
+        importedAt: now - 3000000 },
     ],
     agentWorkData: [],
     entityExtractions: [],
@@ -1211,8 +1139,7 @@ export function buildIndexDerivedTrackKeyFixture(): {
         prompt: "Test prompt",
         videoDesc: "Test video desc",
         assetIds: [],
-        state: "ready",
-      },
+        state: "ready" },
     ],
     continuityAssetVersions: [],
     productionTracks: [
@@ -1224,8 +1151,7 @@ export function buildIndexDerivedTrackKeyFixture(): {
         prompt: "Track",
         duration: 5000,
         candidateVideoIds: [],
-        state: "ready",
-      },
+        state: "ready" },
     ],
     videoCandidates: [],
     imageWorkflows: [],
@@ -1233,13 +1159,11 @@ export function buildIndexDerivedTrackKeyFixture(): {
     mediaTasks: [],
     eventGraph: [],
     projectMemoryRecords: [],
-    workflowConfig: {},
-  };
+    workflowConfig: {} };
 
   return {
     studio,
-    resolvesTo: chapterId,
-  };
+    resolvesTo: chapterId };
 }
 
 /**
@@ -1254,8 +1178,7 @@ export function buildScriptDataNoTopLevelEpisodeIdFixture(): {
       id: "real-episode-id-123",
       index: 5,
       title: "Real Episode 5",
-      sceneIds: ["scene-456"],
-    },
+      sceneIds: ["scene-456"] },
   ];
 
   const script: ScriptData = {
@@ -1264,13 +1187,11 @@ export function buildScriptDataNoTopLevelEpisodeIdFixture(): {
     characters: [],
     scenes: [],
     episodes,
-    storyParagraphs: [],
-  };
+    storyParagraphs: [] };
 
   return {
     script,
-    episodes,
-  };
+    episodes };
 }
 
 /**
@@ -1280,6 +1201,7 @@ export function buildCrossProjectFixture(): {
   media: MediaStore;
   rejectionReason: string;
 } {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   const now = Date.now();
 
   const media: MediaStore = {
@@ -1298,8 +1220,7 @@ export function buildCrossProjectFixture(): {
         ephemeral: undefined,
         folderId: null,
         source: undefined,
-        file: undefined,
-      },
+        file: undefined },
     ],
     folders: [],
     currentFolderId: null,
@@ -1320,8 +1241,7 @@ export function buildCrossProjectFixture(): {
       source: undefined,
       file: undefined,
       createdAt: Date.now(),
-      updatedAt: Date.now(),
-    }),
+      updatedAt: Date.now() }),
     removeMediaFile: async () => {},
     loadProjectMedia: async () => {},
     clearProjectMedia: async () => {},
@@ -1335,11 +1255,9 @@ export function buildCrossProjectFixture(): {
     addMediaFromUrl: () => 'url-id',
     getOrCreateCategoryFolder: () => 'category-folder-id',
     initSystemFolders: () => {},
-    assignProjectToUnscoped: () => {},
-  };
+    assignProjectToUnscoped: () => {} };
 
   return {
     media,
-    rejectionReason: "Media file belongs to different project",
-  };
+    rejectionReason: "Media file belongs to different project" };
 }

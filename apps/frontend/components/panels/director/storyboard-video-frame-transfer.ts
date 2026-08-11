@@ -51,16 +51,11 @@ export async function convertStoryboardFrameToHttpUrl(
 
   if (isHttpImageUrl(url)) {
     if (shouldRefreshImageViaCurrentHost(localFallback)) {
-      console.log(
-        `[SplitScenes] ${frameLabel}: refreshing via configured image host instead of reusing existing HTTP URL${isDiscouragedExternalImageUrl(url) ? " (discouraged external host)" : ""}:`,
-        url.substring(0, 60),
-      );
       return convertStoryboardFrameToHttpUrl(localFallback, options);
     }
     if (isDiscouragedExternalImageUrl(url)) {
       console.warn(`[SplitScenes] ${frameLabel}: using discouraged external URL because no local fallback is available:`, url.substring(0, 60));
     } else {
-      console.log("[SplitScenes] Using existing HTTP URL:", url.substring(0, 60));
     }
     return url;
   }
@@ -82,13 +77,11 @@ export async function convertStoryboardFrameToHttpUrl(
     }
 
     imageData = await prepareReferenceImageForTransfer(imageData);
-    console.log("[SplitScenes] Uploading image to image host...");
     const uploadResult = await uploadToImageHost(imageData, {
       name: options.uploadName,
       expiration: 15552000,
     });
     if (uploadResult.success && uploadResult.url) {
-      console.log("[SplitScenes] Uploaded image to image host:", uploadResult.url.substring(0, 60));
       return uploadResult.url;
     }
 

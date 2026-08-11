@@ -65,6 +65,7 @@ export async function callAIForShotCalibration(
   } = globalContext;
   
   // 截取原始剧本内容（避免过长，取前3000字）
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   const rawContentPreview = episodeRawContent ? episodeRawContent.slice(0, 3000) : '';
   
   // 使用共享的风格描述函数

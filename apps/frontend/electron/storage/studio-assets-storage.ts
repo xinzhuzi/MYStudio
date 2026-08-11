@@ -263,6 +263,7 @@ function migrateFromJson(jsonPath: string, dbPath: string) {
     const batchSize = 200;
     for (let i = 0; i < assets.length; i += batchSize) {
       const batch = assets.slice(i, i + batchSize);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
       const values = batch.map((a: any) => {
         const id = a.id || randomUUID();
         const tags = JSON.stringify(a.tags || []);
@@ -290,6 +291,7 @@ export async function listAssets(type: StudioAssetKind, search?: string, offset 
   const countResult = await runSqliteJson<{ cnt: number }[]>(dbPath, `SELECT count(*) as cnt FROM assets ${where};`);
   const total = countResult[0]?.cnt ?? 0;
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   const rows = await runSqliteJson<any[]>(dbPath,
     `SELECT id, type, name, description, filePath, tags FROM assets ${where} ORDER BY rowid ASC LIMIT ${limit} OFFSET ${offset};`
   );
@@ -330,6 +332,7 @@ function buildUsableAssetSqlCondition() {
 
 export async function getAsset(id: string): Promise<StudioAssetSummary | null> {
   const dbPath = getDbPath();
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   const rows = await runSqliteJson<any[]>(dbPath,
     `SELECT * FROM assets WHERE id='${escapeSql(id)}' LIMIT 1;`
   );
@@ -339,6 +342,7 @@ export async function getAsset(id: string): Promise<StudioAssetSummary | null> {
 
 export async function getAssetByName(type: StudioAssetKind, name: string): Promise<StudioAssetSummary | null> {
   const dbPath = getDbPath();
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   const rows = await runSqliteJson<any[]>(dbPath,
     `SELECT * FROM assets WHERE type='${escapeSql(type)}' AND ${buildAssetNameCandidateCondition(name)} LIMIT 50;`
   );
@@ -354,6 +358,7 @@ export async function batchMatchAssets(type: StudioAssetKind, names: string[]): 
 
   const conditions = names.map(buildAssetNameCandidateCondition).join(' OR ');
   const query = `SELECT * FROM assets WHERE type='${escapeSql(type)}' AND (${conditions});`;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   const rows = await runSqliteJson<any[]>(dbPath, query);
 
   for (const name of names) {
@@ -366,18 +371,21 @@ export async function batchMatchAssets(type: StudioAssetKind, names: string[]): 
   return result;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function pickBestAssetNameMatch(rows: any[], name: string) {
   const matches = rows.filter((row) => assetNameMatchesQuery(row.name, name));
   if (!matches.length) return null;
   return pickBestAssetRow(matches);
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function pickBestAssetRow(rows: any[]) {
   const usableRows = rows.filter(isUsableAssetRow);
   if (!usableRows.length) return null;
   return [...usableRows].sort((a, b) => assetCompletenessScore(b) - assetCompletenessScore(a))[0];
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function assetCompletenessScore(row: any) {
   return (
     (hasStoredText(row.filePath) ? 100 : 0) +
@@ -389,6 +397,7 @@ function assetCompletenessScore(row: any) {
   );
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function isUsableAssetRow(row: any) {
   return assetCompletenessScore(row) > 0;
 }
@@ -421,6 +430,7 @@ export function updateAsset(id: string, updates: Partial<{ name: string; descrip
   runSqliteExecSafe(dbPath, `UPDATE assets SET ${sets.join(",")} WHERE id='${escapeSql(id)}';`);
 
   // 同步返回
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   const rows = runSqliteJsonSync<any[]>(dbPath, `SELECT * FROM assets WHERE id='${escapeSql(id)}' LIMIT 1;`);
   return rows.length ? rowToSummary(rows[0]) : null;
 }
@@ -447,6 +457,7 @@ export function addAsset(input: {
 
   const dbPath = getDbPath();
   const now = new Date().toISOString();
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   const exactRows = runSqliteJsonSync<any[]>(
     dbPath,
     `SELECT * FROM assets WHERE type='${escapeSql(input.type)}' AND name='${escapeSql(input.name || "")}' ORDER BY rowid ASC LIMIT 20;`,
@@ -473,6 +484,7 @@ export function addAsset(input: {
 
 export function deleteAsset(id: string): boolean {
   const dbPath = getDbPath();
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   const rows = runSqliteJsonSync<any[]>(dbPath, `SELECT filePath, images FROM assets WHERE id='${escapeSql(id)}' LIMIT 1;`);
   if (!rows.length) return false;
 
@@ -501,6 +513,7 @@ export function deleteAsset(id: string): boolean {
 export function replaceAssetMainImage(assetId: string, sourceFilePath: string): StudioAssetSummary | null {
   if (!fs.existsSync(sourceFilePath)) return null;
   const dbPath = getDbPath();
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   const rows = runSqliteJsonSync<any[]>(dbPath, `SELECT * FROM assets WHERE id='${escapeSql(assetId)}' LIMIT 1;`);
   if (!rows.length) return null;
   const asset = rows[0];
@@ -527,6 +540,7 @@ export function replaceAssetMainImage(assetId: string, sourceFilePath: string): 
 export function addAssetImage(assetId: string, imageName: string, sourceFilePath: string): StudioAssetSummary | null {
   if (!fs.existsSync(sourceFilePath)) return null;
   const dbPath = getDbPath();
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   const rows = runSqliteJsonSync<any[]>(dbPath, `SELECT * FROM assets WHERE id='${escapeSql(assetId)}' LIMIT 1;`);
   if (!rows.length) return null;
 
@@ -553,6 +567,7 @@ export function addAssetImage(assetId: string, imageName: string, sourceFilePath
 
 export function removeAssetImage(assetId: string, imageFilePath: string): StudioAssetSummary | null {
   const dbPath = getDbPath();
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   const rows = runSqliteJsonSync<any[]>(dbPath, `SELECT * FROM assets WHERE id='${escapeSql(assetId)}' LIMIT 1;`);
   if (!rows.length) return null;
 
@@ -572,6 +587,7 @@ export function removeAssetImage(assetId: string, imageFilePath: string): Studio
 
 export function renameAssetImage(assetId: string, imageFilePath: string, newName: string): StudioAssetSummary | null {
   const dbPath = getDbPath();
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   const rows = runSqliteJsonSync<any[]>(dbPath, `SELECT * FROM assets WHERE id='${escapeSql(assetId)}' LIMIT 1;`);
   if (!rows.length) return null;
 
@@ -594,6 +610,7 @@ export function importFromToonflow(toonflowItems: StudioAssetSummary[]): number 
   const now = new Date().toISOString();
 
   for (const item of toonflowItems) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
     const existing = runSqliteJsonSync<any[]>(
       dbPath,
       `SELECT * FROM assets WHERE type='${escapeSql(item.type)}' AND name='${escapeSql(item.name)}' LIMIT 1;`,
@@ -616,6 +633,7 @@ export function importFromToonflow(toonflowItems: StudioAssetSummary[]): number 
   return changed;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function backfillAssetFromToonflow(row: any, item: StudioAssetSummary, now: string) {
   const sets: string[] = [];
 
@@ -646,6 +664,7 @@ function backfillAssetFromToonflow(row: any, item: StudioAssetSummary, now: stri
 }
 
 function backfillAssetFromLocalInput(
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   row: any,
   input: {
     type: StudioAssetKind;
@@ -715,10 +734,12 @@ function assetTagsCount(value: string | undefined) {
 
 function getAssetSync(id: string): StudioAssetSummary | null {
   const dbPath = getDbPath();
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   const rows = runSqliteJsonSync<any[]>(dbPath, `SELECT * FROM assets WHERE id='${escapeSql(id)}' LIMIT 1;`);
   return rows.length ? rowToSummary(rows[0]) : null;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function rowToSummary(row: any): StudioAssetSummary {
   const absPath = resolveManagedAssetPathOrUndefined(row.filePath);
   const previewUrl = absPath ? `file://${absPath}` : undefined;
@@ -727,6 +748,7 @@ function rowToSummary(row: any): StudioAssetSummary {
     const parsed = JSON.parse(row.images || "[]");
     if (parsed.length) {
       images = parsed
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
         .map((img: any) => {
           const imagePath = resolveManagedAssetPathOrUndefined(img.filePath);
           if (!imagePath) return null;

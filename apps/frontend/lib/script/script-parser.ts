@@ -7,10 +7,11 @@
  * Based on CineGen-AI geminiService.ts patterns
  */
 
-import type { ScriptData, ScriptCharacter, ScriptScene, ScriptParagraph, Shot } from "@/types/script";
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+import type { ScriptData, ScriptCharacter, Shot } from "@/types/script";
 import { retryOperation } from "@/lib/utils/retry";
-import { cleanJsonString, safeParseJson, normalizeIds } from "@/lib/utils/json-cleaner";
-import { delay, RATE_LIMITS } from "@/lib/utils/rate-limiter";
+import { cleanJsonString, safeParseJson } from "@/lib/utils/json-cleaner";
+import { delay } from "@/lib/utils/rate-limiter";
 import { ApiKeyManager } from "@/lib/ai/core";
 import { getModelLimits, parseModelLimitsFromError, cacheDiscoveredLimits, estimateTokens } from "@/lib/ai/model-registry";
 import { corsFetch } from "@/lib/network/cors-fetch";
@@ -50,8 +51,7 @@ import { detectInputType } from "./input-type-detector";
     'dawn': 'dawn',
     'dusk': 'dusk',
     'noon': 'noon',
-    'midnight': 'midnight',
-  };
+    'midnight': 'midnight' };
   
   const normalized = time.toLowerCase().trim();
   return timeMap[normalized] || timeMap[time] || 'day'; */
@@ -221,13 +221,6 @@ export async function callChatAPI(
 ): Promise<string> {
   const { apiKey, provider, baseUrl, model } = options;
   
-  console.log('\n[callChatAPI] ==================== API 调用开始 ====================');
-  console.log('[callChatAPI] provider:', provider);
-  console.log('[callChatAPI] apiKey 长度:', apiKey?.length || 0);
-  console.log('[callChatAPI] apiKey 是否为空:', !apiKey);
-  console.log('[callChatAPI] baseUrl:', baseUrl);
-  console.log('[callChatAPI] systemPrompt 长度:', systemPrompt.length);
-  console.log('[callChatAPI] userPrompt 长度:', userPrompt.length);
   
   if (!apiKey) {
     console.error('[callChatAPI] ❌ API Key 为空！');
@@ -238,7 +231,6 @@ export async function callChatAPI(
   const keyManager = options.keyManager || new ApiKeyManager(apiKey);
   
   const totalKeys = keyManager.getTotalKeyCount();
-  console.log(`[callChatAPI] 使用 ${provider}，共 ${totalKeys} 个 API keys`);
 
   if (!baseUrl) {
     throw new Error('Base URL 未配置');
@@ -256,19 +248,15 @@ export async function callChatAPI(
   const requestedMaxTokens = options.maxTokens ?? 4096;
   const effectiveMaxTokens = Math.min(requestedMaxTokens, modelLimits.maxOutput);
   if (effectiveMaxTokens < requestedMaxTokens) {
-    console.log(`[callChatAPI] max_tokens 自动 clamp: ${requestedMaxTokens} -> ${effectiveMaxTokens} (${model} maxOutput=${modelLimits.maxOutput})`);
   }
   
   // === Token Budget Calculator ===
   const inputTokens = estimateTokens(systemPrompt + userPrompt);
   const safetyMargin = Math.ceil(modelLimits.contextWindow * 0.1);
   const availableForOutput = modelLimits.contextWindow - inputTokens - safetyMargin;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   const utilization = Math.round((inputTokens / modelLimits.contextWindow) * 100);
   
-  console.log(
-    `[Dispatch] ${model}: input≈${inputTokens} / ctx=${modelLimits.contextWindow}, ` +
-    `output=${effectiveMaxTokens} (余量${100 - utilization}%)`
-  );
   
   // 输入已超过 context window 的 90% → 抛出错误（不发请求，省钱）
   if (inputTokens > modelLimits.contextWindow * 0.9) {
@@ -280,8 +268,7 @@ export async function callChatAPI(
       {
         code: 'TOKEN_BUDGET_EXCEEDED' as const,
         inputTokens,
-        contextWindow: modelLimits.contextWindow,
-      },
+        contextWindow: modelLimits.contextWindow },
     );
     throw err;
   }
@@ -294,7 +281,6 @@ export async function callChatAPI(
     );
   }
   
-  console.log('[callChatAPI] 请求 URL:', url);
 
   let thinkingParams: Record<string, unknown> = {};
   if (options.disableThinking) {
@@ -304,8 +290,7 @@ export async function callChatAPI(
       model,
       protocol: 'openai-compatible',
       maxTokens: effectiveMaxTokens,
-      enabled: options.thinkingEnabled,
-    });
+      enabled: options.thinkingEnabled });
   }
 
   // 优先使用 Vercel AI SDK（简化调用，跳过复杂的手写 HTTP 逻辑）
@@ -325,8 +310,7 @@ export async function callChatAPI(
         ],
         temperature: options.temperature ?? 0.7,
         maxOutputTokens: effectiveMaxTokens,
-        providerOptions: buildThinkingProviderOptions('openai-compatible', model, thinkingParams),
-      });
+        providerOptions: buildThinkingProviderOptions('openai-compatible', model, thinkingParams) });
       if (result.text) {
         if (totalKeys > 1) keyManager.rotateKey();
         return result.text;
@@ -334,7 +318,6 @@ export async function callChatAPI(
     }
   } catch (_e) {
     // AI SDK 失败，回退到手写 HTTP（保留 token 预算、thinking、错误发现等高级逻辑）
-    console.log('[callChatAPI] AI SDK 回退到手写 HTTP');
   }
 
   // Use retryOperation with key rotation on rate limit
@@ -345,17 +328,15 @@ export async function callChatAPI(
       throw new Error('No API keys available');
     }
     
-    console.log(`[callChatAPI] Using key index, available: ${keyManager.getAvailableKeyCount()}/${totalKeys}`);
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${currentKey}`,
-    };
+      'Authorization': `Bearer ${currentKey}` };
     
     // 模型选择逻辑：必须使用配置 model
     const modelName = model;
-    console.log('[callChatAPI] 使用模型:', modelName);
     
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
     const body: Record<string, any> = {
       model: modelName,
       messages: [
@@ -363,30 +344,25 @@ export async function callChatAPI(
         { role: 'user', content: userPrompt },
       ],
       temperature: options.temperature ?? 0.7,
-      max_tokens: effectiveMaxTokens,
-    };
+      max_tokens: effectiveMaxTokens };
 
     // 深度思考：显式 disableThinking 时强制关闭；否则按「显式 thinkingEnabled 配置 → 模型名自动判断」决定。
     if (options.disableThinking) {
       Object.assign(body, thinkingParams);
-      console.log('[callChatAPI] 已关闭深度思考 (thinking: disabled)');
     } else if (Object.keys(thinkingParams).length > 0) {
       Object.assign(body, thinkingParams);
-      console.log('[callChatAPI] 已开启最高深度思考:', JSON.stringify(thinkingParams));
     }
 
     const response = await corsFetch(url, {
       method: 'POST',
       headers,
-      body: JSON.stringify(body),
-    });
+      body: JSON.stringify(body) });
 
     if (!response.ok) {
       const errorText = await response.text();
       
       // Handle rate limit or auth error with key rotation
       if (keyManager.handleError(response.status, errorText)) {
-        console.log(`[callChatAPI] Rotated to next API key due to error ${response.status}, available: ${keyManager.getAvailableKeyCount()}/${totalKeys}`);
       }
       
       // === Error-driven Discovery: 400 错误自动发现模型限制并重试 ===
@@ -406,8 +382,7 @@ export async function callChatAPI(
             const retryResp = await corsFetch(url, {
               method: 'POST',
               headers,
-              body: JSON.stringify(retryBody),
-            });
+              body: JSON.stringify(retryBody) });
             if (retryResp.ok) {
               const retryData = await retryResp.json();
               const retryContent = retryData.choices?.[0]?.message?.content;
@@ -459,7 +434,6 @@ export async function callChatAPI(
         const jsonMatch = reasoningContent.match(/```json\s*([\s\S]*?)```/) ||
                           reasoningContent.match(/(\{[\s\S]*"characters"[\s\S]*\})/);
         if (jsonMatch) {
-          console.log('[callChatAPI] ✅ 从 reasoning_content 中提取到 JSON');
           return jsonMatch[1] || jsonMatch[0];
         }
         
@@ -482,18 +456,13 @@ export async function callChatAPI(
           const retryResp = await corsFetch(url, {
             method: 'POST',
             headers,
-            body: JSON.stringify(retryBody),
-          });
+            body: JSON.stringify(retryBody) });
           
           if (retryResp.ok) {
             const retryData = await retryResp.json();
             const retryContent = retryData.choices?.[0]?.message?.content;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
             const retryUsage = retryData.usage;
-            console.log(
-              `[callChatAPI] 重试结果: content=${retryContent?.length || 0}字, ` +
-              `reasoning=${retryUsage?.completion_tokens_details?.reasoning_tokens || '?'}, ` +
-              `completion=${retryUsage?.completion_tokens || '?'}`
-            );
             if (retryContent) {
               if (totalKeys > 1) keyManager.rotateKey();
               return retryContent;
@@ -590,9 +559,7 @@ export async function generateShotList(
   }
 
   if (targetShotCount) {
-    console.log(`[generateShotList] Target: ${targetShotCount} shots total, ${shotsPerScene} per scene (${totalScenes} scenes)`);
   } else if (durationSec > 0) {
-    console.log(`[generateShotList] Duration-based: ~${shotsPerScene} shots/scene for ${durationSec}s (${totalScenes} scenes)`);
   }
 
   // Determine concurrency based on available keys
@@ -606,7 +573,6 @@ export async function generateShotList(
     ? Math.min(keyCount, 4)
     : Math.max(1, Math.floor(requestedConcurrency)); // Max 4 parallel
   
-  console.log(`[generateShotList] Processing ${totalScenes} scenes with concurrency ${concurrency} (${keyCount} keys)`);
 
   // Helper function to process a single scene
   const processScene = async (sceneIndex: number): Promise<Shot[]> => {
@@ -663,6 +629,7 @@ ${scriptData.characters.map(c => `- ${c.name}: ${c.personality || ''} ${c.appear
     try {
       const response = await callChatAPI(SHOT_GENERATION_SYSTEM_PROMPT, userPrompt, options);
       const cleaned = cleanJsonString(response);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
       const shots = safeParseJson<any[]>(cleaned, []);
 
       // Validate and transform shots - FORCE TRUNCATE to shotsPerScene
@@ -670,7 +637,6 @@ ${scriptData.characters.map(c => `- ${c.name}: ${c.personality || ''} ${c.appear
       
       // 强制截取到每场景限制数量（AI可能返回更多）
       if (shotsPerScene && validShots.length > shotsPerScene) {
-        console.log(`[generateShotList] Scene ${sceneIndex + 1}: truncating ${validShots.length} shots to ${shotsPerScene}`);
         validShots = validShots.slice(0, shotsPerScene);
       }
       
@@ -686,17 +652,16 @@ ${scriptData.characters.map(c => `- ${c.name}: ${c.personality || ''} ${c.appear
 
         const keyframes: NonNullable<Shot['keyframes']> = [];
         if (s.keyframes && Array.isArray(s.keyframes)) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
           keyframes.push(...s.keyframes.map((k: any) => ({
             ...k,
-            status: 'pending' as const,
-          })));
+            status: 'pending' as const })));
         } else if (s.visualPrompt) {
           keyframes.push({
             id: `kf-${sceneIndex}-${sceneShots.length}-start`,
             type: 'start' as const,
             visualPrompt: s.visualPrompt,
-            status: 'pending' as const,
-          });
+            status: 'pending' as const });
         }
 
         sceneShots.push({
@@ -720,11 +685,9 @@ ${scriptData.characters.map(c => `- ${c.name}: ${c.personality || ''} ${c.appear
           imageStatus: 'idle' as const,
           imageProgress: 0,
           videoStatus: 'idle' as const,
-          videoProgress: 0,
-        });
+          videoProgress: 0 });
       }
       
-      console.log(`[generateShotList] Scene ${sceneIndex + 1} generated ${sceneShots.length} shots`);
       
       // 流式回调：立即通知新生成的分镜
       if (onShotsGenerated && sceneShots.length > 0) {
@@ -743,7 +706,6 @@ ${scriptData.characters.map(c => `- ${c.name}: ${c.personality || ''} ${c.appear
     const batch = scriptData.scenes.slice(i, i + concurrency);
     const batchIndices = batch.map((_, idx) => i + idx);
     
-    console.log(`[generateShotList] Processing batch ${Math.floor(i / concurrency) + 1}: scenes ${batchIndices.map(x => x + 1).join(', ')}`);
     
     // Process batch in parallel
     const batchResults = await Promise.all(
@@ -769,8 +731,7 @@ ${scriptData.characters.map(c => `- ${c.name}: ${c.personality || ''} ${c.appear
   let finalShots = allShots.map((s, idx) => ({
     ...s,
     id: `shot-${idx + 1}`,
-    index: idx + 1,
-  }));
+    index: idx + 1 }));
 
   // 如果设置了分镜数量限制，截取到指定数量
   if (targetShotCount && finalShots.length > targetShotCount) {
@@ -799,8 +760,7 @@ ${scriptData.characters.map(c => `- ${c.name}: ${c.personality || ''} ${c.appear
     finalShots = selectedShots.slice(0, targetShotCount).map((s, idx) => ({
       ...s,
       id: `shot-${idx + 1}`,
-      index: idx + 1,
-    }));
+      index: idx + 1 }));
   }
 
   return finalShots;
@@ -936,8 +896,6 @@ export async function generateScriptFromIdea(
   const sceneMatches = idea.match(/场景\s*\d+/g) || [];
   const originalShotCount = Math.max(shotMatches.length, sceneMatches.length);
   
-  console.log('[generateScriptFromIdea] 镜头匹配:', shotMatches);
-  console.log('[generateScriptFromIdea] 场景匹配:', sceneMatches);
   
   // 如果检测到已有分镜结构，强调保留
   const preserveStructureNote = originalShotCount > 0 
@@ -968,9 +926,6 @@ ${styleId ? `- 视觉风格：${styleId}` : ''}
 3. 人物小传（每个角色的基本信息）
 4. 完整的场景和对白${preserveStructureNote}`;
 
-  console.log('[generateScriptFromIdea] 输入类型:', inputType);
-  console.log('[generateScriptFromIdea] 创意内容:', idea.substring(0, 100));
-  console.log('[generateScriptFromIdea] 检测到原始镜头数:', originalShotCount);
   
   // 根据是否有分镜结构选择不同的 system prompt
   // - 有分镜结构：使用基础 + 分镜结构特殊指令（每个场景只能有一个动作行）
@@ -979,7 +934,6 @@ ${styleId ? `- 视觉风格：${styleId}` : ''}
     ? CREATIVE_SCRIPT_BASE_PROMPT + STORYBOARD_STRUCTURE_PROMPT
     : CREATIVE_SCRIPT_BASE_PROMPT;
   
-  console.log('[generateScriptFromIdea] 使用 prompt 类型:', originalShotCount > 0 ? '分镜结构模式' : '普通创意模式');
   
   // 对于详细分镜脚本，需要更高的 max_tokens
   const extendedOptions = {
@@ -989,7 +943,6 @@ ${styleId ? `- 视觉风格：${styleId}` : ''}
   
   const response = await callChatAPI(systemPrompt, userPrompt, extendedOptions);
   
-  console.log('[generateScriptFromIdea] 生成剧本长度:', response.length);
   
   return response;
 }

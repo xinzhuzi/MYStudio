@@ -141,7 +141,6 @@ export async function pollForFreedomResult(
       if (status === "failed" || status === "error" || status === "cancelled") {
         throw new Error(`Generation failed: ${data.error || data.message || status}`);
       }
-      console.log(`[Freedom] Polling attempt ${attempt + 1}/${maxAttempts}, status: ${status}`);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
       if (message.startsWith("Generation failed")) throw error;

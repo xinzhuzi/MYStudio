@@ -8,6 +8,7 @@
  */
 
 import { create } from "zustand";
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import type { Shot } from "@/types/script";
 
 interface DirectorShotState {

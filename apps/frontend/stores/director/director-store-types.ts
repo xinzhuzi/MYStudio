@@ -368,6 +368,7 @@ export interface DirectorActions {
   updateSplitSceneReference: (sceneId: number, sceneLibraryId?: string, viewpointId?: string, referenceImage?: string, subViewId?: string) => void;
   updateSplitSceneEndFrameReference: (sceneId: number, sceneLibraryId?: string, viewpointId?: string, referenceImage?: string, subViewId?: string) => void;
   // 通用字段更新方法（用于双击编辑）
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   updateSplitSceneField: (sceneId: number, field: keyof SplitScene, value: any) => void;
   // 视角切换历史记录
   addAngleSwitchHistory: (sceneId: number, type: 'start' | 'end', historyItem: { imageUrl: string; angleLabel: string; timestamp: number }) => void;

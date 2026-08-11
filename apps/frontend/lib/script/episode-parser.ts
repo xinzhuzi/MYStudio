@@ -24,6 +24,7 @@ import type {
   ScriptData,
   Episode,
   ScriptScene,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   ScriptCharacter,
 } from "@/types/script";
 import {
@@ -60,6 +61,7 @@ export function parseFullScript(fullText: string): {
   background: ProjectBackground;
   episodes: EpisodeRawScript[];
 } {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   const lines = fullText.split('\n');
   
   // 1. 提取标题
@@ -114,6 +116,7 @@ export function parseFullScript(fullText: string): {
  * Compatibility wrappers for the extracted metadata boundary.
  * Keeping these private names avoids changing legacy internal call sites.
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function extractTimelineInfo(outline: string, characterBios: string) {
   return extractMetadataTimelineInfo(outline, characterBios);
 }
@@ -122,10 +125,12 @@ function detectGenre(outline: string, characterBios: string) {
   return detectMetadataGenre(outline, characterBios);
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function extractWorldSetting(outline: string, characterBios: string) {
   return extractMetadataWorldSetting(outline, characterBios);
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function extractThemes(outline: string, characterBios: string) {
   return extractMetadataThemes(outline, characterBios);
 }
@@ -272,6 +277,7 @@ export function parseScenes(episodeText: string): SceneRawContent[] {
   
   for (let i = 0; i < sceneMatches.length; i++) {
     const match = sceneMatches[i];
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
     const sceneHeader = match[0].replace(/\*{1,2}/g, '').trim();
     const sceneNumber = match[1]; // 如 "1-1"
     const timeOfDay = match[2];   // 如 "日"、"夜"
@@ -513,6 +519,7 @@ function chineseToNumber(chinese: string): number {
       if (temp === 0) temp = 1;
       result += temp * num;
       temp = 0;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
       prevUnit = num;
     } else {
       temp = num;
@@ -539,7 +546,6 @@ export function convertToScriptData(
   // 3. 合并角色列表（人物小传的角色排在前面）
   const characters = [...mainCharacters, ...additionalCharacters];
   
-  console.log(`[convertToScriptData] 角色统计: 人物小传 ${mainCharacters.length} 个, 场景补充 ${additionalCharacters.length} 个, 共 ${characters.length} 个`);
   
   const episodes: Episode[] = [];
   const scenes: ScriptScene[] = [];

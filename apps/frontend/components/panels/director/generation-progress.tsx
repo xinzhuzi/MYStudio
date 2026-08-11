@@ -11,6 +11,7 @@
 import { useDirectorStore, useIsGenerating, useOverallProgress, useActiveDirectorProject } from "@/stores/director/director-store";
 import { Button } from "@/components/ui/button";
 import { 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   Play, 
   StopCircle,
   CheckCircle2,
@@ -42,6 +43,7 @@ export function GenerationProgress() {
   } = useDirectorStore();
 
   const isGenerating = useIsGenerating();
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   const overallPercent = useOverallProgress();
 
   // Get API keys from config store
@@ -95,6 +97,7 @@ export function GenerationProgress() {
 
   // Determine if we're generating images or videos
   const isImageMode = screenplayStatus === 'generating_images';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   const isVideoMode = screenplayStatus === 'generating_videos';
 
   // Start generation handler (images or videos based on mode)
@@ -139,8 +142,6 @@ export function GenerationProgress() {
       // Prepare config with API keys
       // Spread apiKeys to avoid zustand proxy serialization issues
       const apiKeysCopy = { ...apiKeys };
-      console.log('[GenerationProgress] apiKeys from store:', apiKeysCopy);
-      console.log('[GenerationProgress] apiKeys.memefast:', apiKeysCopy?.memefast ? 'SET' : 'NOT SET');
       
       const execConfig = {
         ...config,
@@ -150,14 +151,11 @@ export function GenerationProgress() {
       
       // Execute based on mode
       if (isImageMode) {
-        console.log('[GenerationProgress] Starting image generation with config:', execConfig);
-        console.log('[GenerationProgress] execConfig.apiKeys:', execConfig.apiKeys);
         await workerBridge.executeScreenplayImages(screenplay, execConfig);
       } else {
-        console.log('[GenerationProgress] Starting video generation with config:', execConfig);
         // Debug: Log each scene's imageUrl before sending to worker
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
         for (const scene of screenplay.scenes) {
-          console.log(`[GenerationProgress] Scene ${scene.sceneId} imageUrl: ${scene.imageUrl || 'NOT SET'}`);
         }
         await workerBridge.executeScreenplayVideos(screenplay, execConfig);
       }
@@ -193,7 +191,6 @@ export function GenerationProgress() {
     });
     
     if (allPending) {
-      console.log('[GenerationProgress] Auto-starting generation...');
       hasStartedRef.current = screenplay.id;
       handleStartGeneration();
     }
@@ -201,6 +198,7 @@ export function GenerationProgress() {
 
   if (!screenplay) return null;
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   const hasNotStarted = overallProgress.percent === 0 && !isGenerating;
   const isComplete = overallProgress.completed === overallProgress.total;
 

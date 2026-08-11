@@ -9,13 +9,16 @@ const TARGET_ID = "production:video-candidate:video-chapter-001-scene-5";
 async function main() {
   console.log("=== 调 scanProjectInventory ===");
   const inv = await scanProjectInventory(DATA_ROOT, PROJECT_ID);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   const all = (inv as any).artifacts ?? [];
   console.log("inventory 产物总数:", all.length);
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   const target = all.find((a: any) => a.id === TARGET_ID);
   if (!target) {
     console.log("!! inventory 没找到", TARGET_ID);
     // 列出所有 production 类产物
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
     const prods = all.filter((a:any)=>a.stage==="production").map((a:any)=>a.id);
     console.log("production 类产物 id:\n", prods.join("\n"));
     return;

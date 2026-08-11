@@ -10,6 +10,7 @@
  * - No complex image detection needed - coordinates are 100% deterministic
  */
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import type { AspectRatio, Resolution, GridConfig } from './grid-calculator';
 import { calculateGrid } from './grid-calculator';
 
@@ -240,7 +241,6 @@ export function findSegments(profile: Float32Array, length: number, expectedCoun
   
   // If we found fewer segments than expected, try uniform split based on expected count
   if (expectedCount && validSegments.length < expectedCount) {
-    console.log(`[findSegments] Found ${validSegments.length} segments, expected ${expectedCount}. Trying uniform split.`);
     // Fall back to uniform distribution
     const segmentSize = length / expectedCount;
     validSegments = [];
@@ -421,6 +421,7 @@ export function isCellEmpty(canvas: HTMLCanvasElement, threshold: number = 30): 
   const height = canvas.height;
   
   // Sample a subset of pixels for performance
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   const sampleSize = 100;
   const stepX = Math.max(1, Math.floor(width / 10));
   const stepY = Math.max(1, Math.floor(height / 10));
@@ -519,6 +520,7 @@ export async function splitStoryboardImage(
   const { threshold = 30, filterEmpty = true } = options;
   
   // Edge margin percentage for cropping separator line residue
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   const edgeMarginPercent = options.edgeMarginPercent ?? 0.03; // Default 3%
 
   const img = await loadImage(imageSrc);
@@ -532,12 +534,6 @@ export async function splitStoryboardImage(
   const expectedCols = options.expectedCols || gridConfig.cols;
   const expectedRows = options.expectedRows || gridConfig.rows;
 
-  console.log('[ImageSplitter] Using FIXED UNIFORM GRID (方案 D)', {
-    imageSize: `${totalWidth}x${totalHeight}`,
-    grid: `${expectedRows}x${expectedCols}`,
-    sceneCount,
-    edgeMarginPercent,
-  });
 
   // Calculate uniform cell dimensions (raw from source image)
   const cellWidth = Math.floor(totalWidth / expectedCols);
@@ -560,21 +556,18 @@ export async function splitStoryboardImage(
     // 宽高比已经接近目标，直接使用
     outputWidth = cellWidth;
     outputHeight = cellHeight;
-    console.log('[ImageSplitter] Ratio already matches target, no crop needed');
   } else if (rawRatio > targetRatio) {
     // 原图格子太宽，需要裁剪宽度（居中裁剪）
     cropW = Math.floor(cellHeight * targetRatio);
     cropX = Math.floor((cellWidth - cropW) / 2);
     outputWidth = cropW;
     outputHeight = cellHeight;
-    console.log(`[ImageSplitter] Cell too wide (${rawRatio.toFixed(3)} > ${targetRatio.toFixed(3)}), crop width: ${cellWidth} → ${cropW}, offsetX: ${cropX}`);
   } else {
     // 原图格子太高，需要裁剪高度（居中裁剪）
     cropH = Math.floor(cellWidth / targetRatio);
     cropY = Math.floor((cellHeight - cropH) / 2);
     outputWidth = cellWidth;
     outputHeight = cropH;
-    console.log(`[ImageSplitter] Cell too tall (${rawRatio.toFixed(3)} < ${targetRatio.toFixed(3)}), crop height: ${cellHeight} → ${cropH}, offsetY: ${cropY}`);
   }
   
   // 双重保险：强制输出尺寸严格符合目标宽高比
@@ -591,14 +584,6 @@ export async function splitStoryboardImage(
   const marginW = Math.floor(cropW * finalEdgeMargin);
   const marginH = Math.floor(cropH * finalEdgeMargin);
   
-  console.log('[ImageSplitter] Split params:', {
-    cellRaw: `${cellWidth}x${cellHeight}`,
-    rawRatio: rawRatio.toFixed(3),
-    targetRatio: targetRatio.toFixed(3),
-    cropRegion: `${cropW}x${cropH} (offset: ${cropX}, ${cropY})`,
-    outputStrict: `${outputWidth}x${outputHeight}`,
-    margin: `${marginW}px x ${marginH}px (${finalEdgeMargin * 100}%)`,
-  });
   
   // Generate cell definitions using uniform grid
   const cellDefs: Array<{ x: number; y: number; w: number; h: number; row: number; col: number }> = [];
@@ -648,7 +633,6 @@ export async function splitStoryboardImage(
     
     // Skip empty cells if filtering is enabled
     if (filterEmpty && isEmpty) {
-      console.log(`[ImageSplitter] Skipping empty cell ${i} (Row ${def.row}, Col ${def.col})`);
       continue;
     }
 
@@ -672,7 +656,6 @@ export async function splitStoryboardImage(
     });
   }
 
-  console.log(`[ImageSplitter] Split complete: ${results.length} valid cells from ${cellDefs.length} total`);
   return results;
 }
 

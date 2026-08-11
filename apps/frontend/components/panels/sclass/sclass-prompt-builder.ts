@@ -16,13 +16,13 @@
 import type { SplitScene } from '@/stores/director/director-store';
 import type { Character } from '@/stores/library/character-library-store';
 import type { Scene } from '@/stores/library/scene-store';
-import type { ShotGroup, AssetRef, AssetPurpose, SClassAspectRatio, SClassResolution, SClassDuration, EditType } from '@/stores/sclass/sclass-store';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+import type { ShotGroup, AssetRef, AssetPurpose, SClassAspectRatio, SClassResolution, EditType } from '@/stores/sclass/sclass-store';
 import {
   collectAllRefs,
   collectCharacterRefs,
   SEEDANCE_LIMITS,
-  type CollectedRefs,
-} from './sclass-reference-collector';
+  type CollectedRefs } from './sclass-reference-collector';
 
 export {
   collectAllRefs,
@@ -30,8 +30,7 @@ export {
   collectFirstFrameRefs,
   collectSceneRefs,
   SEEDANCE_LIMITS,
-  type CollectedRefs,
-} from './sclass-reference-collector';
+  type CollectedRefs } from './sclass-reference-collector';
 
 // ==================== Types ====================
 
@@ -209,8 +208,7 @@ export function extractDialogueSegments(
         sceneId: scene.id,
         characterName,
         text,
-        timeOffset,
-      });
+        timeOffset });
     }
 
     timeOffset += dur;
@@ -306,8 +304,7 @@ function buildShotSegment(
     shotIndex,
     description: parts.join(', '),
     dialogue: scene.dialogue || '',
-    duration: scene.duration > 0 ? scene.duration : 5,
-  };
+    duration: scene.duration > 0 ? scene.duration : 5 };
 }
 
 // ==================== Main Builder ====================
@@ -342,16 +339,14 @@ const PURPOSE_PROMPT_MAP: Record<AssetPurpose, string> = {
   prev_video: '接续前段视频，保持角色和场景一致',
   video_extend: '作为被延长的视频，平滑衔接',
   video_edit_src: '作为被编辑的源视频',
-  general: '作为参考',
-};
+  general: '作为参考' };
 
 /** 编辑类型 → prompt 模板前缀 */
 const EDIT_TYPE_TEMPLATE: Record<EditType, string> = {
   plot_change: '颠覆@视频1里的剧情，',
   character_swap: '视频1中的角色换成图片中的角色，动作完全模仿原视频，',
   attribute_modify: '将视频1中',
-  element_add: '在视频1的画面中添加',
-};
+  element_add: '在视频1的画面中添加' };
 
 /**
  * 构建组级 prompt — S级核心函数
@@ -381,8 +376,7 @@ export function buildGroupPrompt(options: BuildGroupPromptOptions): GroupPromptR
     styleTokens,
     aspectRatio,
     enableLipSync = true,
-    gridImageRef,
-  } = options;
+    gridImageRef } = options;
 
   // 0. 延长/编辑模式 — 走独立分支
   const genType = group.generationType || 'new';
@@ -411,8 +405,7 @@ export function buildGroupPrompt(options: BuildGroupPromptOptions): GroupPromptR
       overCharLimit: group.mergedPrompt.length > SEEDANCE_LIMITS.maxPromptChars,
       refs,
       shotSegments,
-      dialogueSegments: dialogueSegs,
-    };
+      dialogueSegments: dialogueSegs };
   }
 
   // 4.5 AI 校准后的 prompt 优先级在手动编辑之下、自动拼接之上
@@ -424,8 +417,7 @@ export function buildGroupPrompt(options: BuildGroupPromptOptions): GroupPromptR
       overCharLimit: group.calibratedPrompt.length > SEEDANCE_LIMITS.maxPromptChars,
       refs,
       shotSegments,
-      dialogueSegments: dialogueSegs,
-    };
+      dialogueSegments: dialogueSegs };
   }
 
   // 5. 自动组装 prompt（中文模板）
@@ -546,8 +538,7 @@ export function buildGroupPrompt(options: BuildGroupPromptOptions): GroupPromptR
     overCharLimit: prompt.length > SEEDANCE_LIMITS.maxPromptChars,
     refs,
     shotSegments,
-    dialogueSegments,
-  };
+    dialogueSegments };
 }
 
 // ==================== Extend / Edit Prompt Builder ====================
@@ -564,7 +555,9 @@ function buildExtendEditPrompt(
   group: ShotGroup,
   scenes: SplitScene[],
   characters: Character[],
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   sceneLibrary: Scene[],
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   styleTokens?: string[],
 ): GroupPromptResult {
   // --- 收集引用（不建格子图） ---
@@ -578,8 +571,7 @@ function buildExtendEditPrompt(
     fileName: '源视频',
     fileSize: 0,
     duration: null,
-    purpose: group.generationType === 'extend' ? 'video_extend' : 'video_edit_src',
-  } : null;
+    purpose: group.generationType === 'extend' ? 'video_extend' : 'video_edit_src' } : null;
 
   // 用户额外上传的视频/音频
   const userVideoRefs = (group.videoRefs || []).slice(0, sourceVideoRef ? SEEDANCE_LIMITS.maxVideos - 1 : SEEDANCE_LIMITS.maxVideos);
@@ -601,8 +593,7 @@ function buildExtendEditPrompt(
     audios: taggedAudios,
     totalFiles,
     overLimit: totalFiles > SEEDANCE_LIMITS.maxTotalFiles,
-    limitWarnings: totalFiles > SEEDANCE_LIMITS.maxTotalFiles ? [`总文件数 ${totalFiles} 超出限制 ${SEEDANCE_LIMITS.maxTotalFiles}`] : [],
-  };
+    limitWarnings: totalFiles > SEEDANCE_LIMITS.maxTotalFiles ? [`总文件数 ${totalFiles} 超出限制 ${SEEDANCE_LIMITS.maxTotalFiles}`] : [] };
 
   // --- 构建 prompt ---
   // 用户手动编辑优先
@@ -613,8 +604,7 @@ function buildExtendEditPrompt(
       overCharLimit: group.mergedPrompt.length > SEEDANCE_LIMITS.maxPromptChars,
       refs,
       shotSegments: [],
-      dialogueSegments: [],
-    };
+      dialogueSegments: [] };
   }
 
   const promptParts: string[] = [];
@@ -655,8 +645,7 @@ function buildExtendEditPrompt(
     overCharLimit: prompt.length > SEEDANCE_LIMITS.maxPromptChars,
     refs,
     shotSegments: [],
-    dialogueSegments: [],
-  };
+    dialogueSegments: [] };
 }
 
 /**

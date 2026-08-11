@@ -193,7 +193,6 @@ export const useCharacterLibraryStore = create<CharacterLibraryStore>()(
           )
         );
         if (existing) {
-          console.log(`Character already exists: ${existing.name} (${existing.id}), skipping duplicate`);
           return existing.id;
         }
 
@@ -201,6 +200,7 @@ export const useCharacterLibraryStore = create<CharacterLibraryStore>()(
         const now = Date.now();
         
         // Strip referenceImages (base64) to avoid localStorage quota issues
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { referenceImages, ...dataWithoutRef } = characterData;
         
         const newCharacter: Character = {
@@ -215,7 +215,6 @@ export const useCharacterLibraryStore = create<CharacterLibraryStore>()(
           characters: [...state.characters, newCharacter],
         }));
         
-        console.log(`Character added: ${newCharacter.name} (total: ${useCharacterLibraryStore.getState().characters.length})`);
         
         return id;
       },
@@ -307,6 +306,7 @@ export const useCharacterLibraryStore = create<CharacterLibraryStore>()(
             const filteredViews = char.views.filter((v) => v.viewType !== view.viewType);
             
             // Don't store imageBase64 in state to avoid localStorage quota issues
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
             const { imageBase64, ...viewWithoutBase64 } = view;
             
             return {
@@ -376,14 +376,8 @@ export const useCharacterLibraryStore = create<CharacterLibraryStore>()(
         }));
         // Debug: verify update took effect
         const updated = get().characters.find(c => c.id === characterId);
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
         const updatedVar = updated?.variations?.find(v => v.id === variationId);
-        console.log('[CharStore] updateVariation →', {
-          charId: characterId.substring(0, 12),
-          varId: variationId.substring(0, 12),
-          hasRef: !!updatedVar?.referenceImage,
-          ref: updatedVar?.referenceImage?.substring(0, 40),
-          totalVars: updated?.variations?.length,
-        });
       },
 
       deleteVariation: (characterId, variationId) => {

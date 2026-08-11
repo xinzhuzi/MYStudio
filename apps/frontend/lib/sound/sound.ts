@@ -162,35 +162,35 @@ export type SoundEffect = "activate" | "click" | "success" | "cancel" | "slide";
 const SUCCESS_TAIL_DELAY = 0.09;
 
 export const SOUND_PROFILES: Record<SoundEffect, VoiceProfile> = {
-  /** 主按钮：最完整的一击，body + sub + 微光 + 空气尾 */
+  /** 主按钮：模拟高端相机快门开帘/打板，body + sub + 瞬态微光 + 紧致余响 */
   activate: {
-    bodyFreq: 92, bodyDrop: 0.68, bodyLevel: 0.30, subLevel: 0.14,
-    sparkleFreq: 2600, sparkleLevel: 0.05,
-    airLevel: 0.06, airDecay: 0.18,
-    attack: 0.008, decay: 0.16, lowpass: 1200,
+    bodyFreq: 110, bodyDrop: 0.85, bodyLevel: 0.20, subLevel: 0.06,
+    sparkleFreq: 4200, sparkleLevel: 0.06,
+    airLevel: 0.04, airDecay: 0.16,
+    attack: 0.003, decay: 0.08, lowpass: 1300,
   },
-  /** 轻交互：同一把嗓子，压低并收短 */
+  /** 轻交互：同一口快门嗓音，缩短并提高频率，模拟镜间叶片快门（leaf shutter）的轻盈哒哒声 */
   click: {
-    bodyFreq: 110, bodyDrop: 0.72, bodyLevel: 0.20, subLevel: 0.08,
-    sparkleFreq: 2900, sparkleLevel: 0.035,
-    airLevel: 0.035, airDecay: 0.11,
-    attack: 0.006, decay: 0.10, lowpass: 1400,
+    bodyFreq: 120, bodyDrop: 0.80, bodyLevel: 0.16, subLevel: 0.04,
+    sparkleFreq: 4600, sparkleLevel: 0.055,
+    airLevel: 0.03, airDecay: 0.06,
+    attack: 0.002, decay: 0.05, lowpass: 1400,
   },
-  /** 成功：第一声偏亮，随后叠一层更暖的尾（见 playSuccess） */
+  /** 成功：亮丽 of 齿音配合短促的声调变化（见 playSuccess） */
   success: {
-    bodyFreq: 124, bodyDrop: 0.78, bodyLevel: 0.24, subLevel: 0.10,
-    sparkleFreq: 2800, sparkleLevel: 0.045,
-    airLevel: 0.05, airDecay: 0.16,
-    attack: 0.007, decay: 0.14, lowpass: 1300,
+    bodyFreq: 120, bodyDrop: 0.85, bodyLevel: 0.22, subLevel: 0.10,
+    sparkleFreq: 3200, sparkleLevel: 0.05,
+    airLevel: 0.05, airDecay: 0.18,
+    attack: 0.004, decay: 0.12, lowpass: 1200,
   },
-  /** 取消：更低、下滑更多、尾更长，是"沉下去"而不是"噗" */
+  /** 取消：低沉下坠，长尾自然消散 */
   cancel: {
-    bodyFreq: 78, bodyDrop: 0.55, bodyLevel: 0.26, subLevel: 0.16,
-    sparkleFreq: 1800, sparkleLevel: 0.02,
-    airLevel: 0.07, airDecay: 0.26,
-    attack: 0.010, decay: 0.24, lowpass: 900,
+    bodyFreq: 72, bodyDrop: 0.50, bodyLevel: 0.22, subLevel: 0.14,
+    sparkleFreq: 1600, sparkleLevel: 0.02,
+    airLevel: 0.06, airDecay: 0.28,
+    attack: 0.008, decay: 0.22, lowpass: 800,
   },
-  /** 滑动：唯一上扬的一条，几乎只剩气声 */
+  /** 滑动：上扬的呼啸声，主要保留气流声 */
   slide: {
     bodyFreq: 140, bodyDrop: 1.25, bodyLevel: 0.12, subLevel: 0,
     sparkleFreq: 3200, sparkleLevel: 0.02,
@@ -201,10 +201,21 @@ export const SOUND_PROFILES: Record<SoundEffect, VoiceProfile> = {
 
 /** 成功音的第二声：比第一声高一个五度、更暖、尾更长 */
 export const SUCCESS_TAIL_PROFILE: VoiceProfile = {
-  bodyFreq: 186, bodyDrop: 0.92, bodyLevel: 0.20, subLevel: 0.08,
-  sparkleFreq: 3000, sparkleLevel: 0.03,
-  airLevel: 0.07, airDecay: 0.30,
-  attack: 0.012, decay: 0.22, lowpass: 1500,
+  bodyFreq: 180, bodyDrop: 0.90, bodyLevel: 0.20, subLevel: 0.10,
+  sparkleFreq: 3100, sparkleLevel: 0.04,
+  airLevel: 0.07, airDecay: 0.32,
+  attack: 0.008, decay: 0.20, lowpass: 1400,
+};
+
+/** 快门音的第二声延迟（秒），模拟机械快门帘开合的双瞬态听感 */
+const ACTIVATE_TAIL_DELAY = 0.045;
+
+/** 摄影快门音的第二声：落镜/合帘的声音，更量感、更低沉 */
+export const ACTIVATE_TAIL_PROFILE: VoiceProfile = {
+  bodyFreq: 80, bodyDrop: 0.65, bodyLevel: 0.20, subLevel: 0.10,
+  sparkleFreq: 3200, sparkleLevel: 0.04,
+  airLevel: 0.05, airDecay: 0.15,
+  attack: 0.004, decay: 0.12, lowpass: 900,
 };
 
 /** 播放音效 */
@@ -215,7 +226,9 @@ export function playSound(effect: SoundEffect) {
     if (!ctx || !_masterGain) return;
     const now = ctx.currentTime;
     playVoice(ctx, _masterGain, SOUND_PROFILES[effect], now);
-    if (effect === "success") {
+    if (effect === "activate") {
+      playVoice(ctx, _masterGain, ACTIVATE_TAIL_PROFILE, now + ACTIVATE_TAIL_DELAY);
+    } else if (effect === "success") {
       playVoice(ctx, _masterGain, SUCCESS_TAIL_PROFILE, now + SUCCESS_TAIL_DELAY);
     }
   } catch {

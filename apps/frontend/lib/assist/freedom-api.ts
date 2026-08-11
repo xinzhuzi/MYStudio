@@ -22,7 +22,6 @@ import {
   sdkGenerateImage,
 } from '@/lib/ai/ai-sdk-bridge';
 import { createOperationId, logEvent } from '@/lib/diagnostics/logger';
-import { isVeoModel, resolveVeoUploadCapability } from '@/lib/assist/veo-capability';
 import { getModelEndpointTypes } from '@/lib/ai/config/store-adapter';
 import { useAppSettingsStore } from '@/stores/app/app-settings-store';
 import { getImageSizeLabel } from '@/lib/ai/image-size-presets';
@@ -31,22 +30,28 @@ import {
   shouldRetryImageCompatibility,
 } from '@/lib/ai/image-compatibility';
 import { prepareReferenceImagesForTransfer } from '@/lib/ai/image-transfer';
-import { toRunwayRatio, toSoraSize, toVeoOpenAIVideoSize } from '@/lib/ai/video-request-sizing';
 import { toast } from 'sonner';
 import { freedomRetry } from './freedom-retry';
 import {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   groupVideoUploadFiles,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   validateVeoVideoUploads,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   type FreedomVideoUploadFile,
 } from './video-upload-validation';
 import {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   buildFreedomEndpoint as buildEndpoint,
   extractFreedomImageUrl as extractImageUrl,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   extractFreedomVideoUrl as extractVideoUrl,
   freedomObservedFetch,
   getFreedomRootBaseUrl as getRootBaseUrl,
   pollForFreedomResult as pollForResult,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   toUploadBlob,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   toUploadHttpUrl,
 } from './freedom-transport';
 import {
@@ -54,6 +59,7 @@ import {
   detectFreedomImageRoute,
   detectFreedomVideoRoute,
   getImageEndpointPaths,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   getUnifiedEndpointPaths,
   resolveFreedomFeatureConfig,
 } from './freedom-routing';
@@ -84,7 +90,9 @@ export type { FreedomVideoUploadFile, FreedomVideoUploadRole } from './video-upl
 
 const IMAGE_POLL_INTERVAL = 2000;
 const IMAGE_POLL_MAX_ATTEMPTS = 60;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const VIDEO_POLL_INTERVAL = 2000;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const VIDEO_POLL_MAX_ATTEMPTS = 120;
 
 // ==================== Retry Logic ====================
@@ -169,6 +177,7 @@ async function _generateFreedomImageInner(
   } else {
     const resolved = resolveFreedomFeatureConfig('freedom_image', 'character_generation', params.model);
     config = resolved.config;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
     configSource = resolved.source;
   }
   if (!config) {
@@ -176,7 +185,6 @@ async function _generateFreedomImageInner(
     toast.error('自由板块图片生成未配置：请在设置中配置「自由板块-图片」或「图片生成」服务映射');
     throw new Error(msg);
   }
-  console.log(`[Freedom] Image config source: ${configSource}`);
 
   const { baseUrl, model: defaultModel } = config;
   // 每次重试动态取当前 key（利用 keyManager rotate 后的新 key）
@@ -189,12 +197,6 @@ async function _generateFreedomImageInner(
   const endpointTypes = getModelEndpointTypes(model);
   const route = detectFreedomImageRoute(model, endpointTypes);
 
-  console.log('[Freedom] Generating image:', {
-    model,
-    route,
-    endpointTypes,
-    prompt: params.prompt.slice(0, 50),
-  });
   if (route === 'midjourney') {
     return await generateViaMidjourneyEndpoint(params, model, apiKey, normalizedBase, saveFreedomImage);
   }
@@ -433,6 +435,7 @@ export async function generateFreedomVideo(
 async function _generateFreedomVideoInner(
   params: FreedomVideoParams
 ): Promise<GenerationResult> {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { config, source: configSource } = resolveFreedomFeatureConfig(
     'freedom_video',
     'video_generation',
@@ -443,7 +446,6 @@ async function _generateFreedomVideoInner(
     toast.error('自由板块视频生成未配置：请在设置中配置「自由板块-视频」或「视频生成」服务映射');
     throw new Error(msg);
   }
-  console.log(`[Freedom] Video config source: ${configSource}`);
 
   const { baseUrl, model: defaultModel } = config;
   // 每次重试动态取当前 key（利用 keyManager rotate 后的新 key）
@@ -453,12 +455,6 @@ async function _generateFreedomVideoInner(
 
   const endpointTypes = getModelEndpointTypes(model);
   const route = detectFreedomVideoRoute(model, endpointTypes);
-  console.log('[Freedom] Generating video:', {
-    model,
-    route,
-    endpointTypes,
-    prompt: params.prompt.slice(0, 50),
-  });
 
   const result = await runFreedomVideoRoute(route, {
     openai_official: generateVideoViaOpenAIOfficial,

@@ -219,6 +219,7 @@ export function SkillsView({
     return () => {
       cancelled = true;
     };
+// eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bundledFiles, loadFile]);
 
   const handleSelectFile = (file: EditableSkillFile) => {

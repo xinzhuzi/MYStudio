@@ -2,8 +2,10 @@
 // Licensed under AGPL-3.0-or-larger. See LICENSE for details.
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import type { ArtifactRecord, DeletePolicy, PhysicalRef, RemotionManifest, RemotionJob } from "@/types/artifacts";
-import type { NovelChapter, AgentWorkData, EntityExtractionResult, ScriptPlan, SeriesBible, EpisodeOutline, StoryboardItem, ProductionTrack, VideoCandidate, StudioMaterial, ImageWorkflowGraph, StudioAgentRun, MediaGenerationTask, ContinuityAssetVersion } from "@/types/studio";
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+import type { NovelChapter, AgentWorkData, EntityExtractionResult, ScriptPlan, StoryboardItem, ProductionTrack, VideoCandidate, ContinuityAssetVersion } from "@/types/studio";
 import type { Episode, ScriptData, ScriptScene as Scene } from "@/types/script";
 import type { StudioWorkflowState } from "@/stores/studio/studio-store";
 import type { DirectorState } from "@/stores/director/director-store-types";
@@ -44,6 +46,7 @@ type ProjectableMediaFile = Pick<
   localPath?: string;
   size?: number;
 };
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 type DirectorStoreState = unknown;
 type MediaStoreState = { mediaFiles: ProjectableMediaFile[] };
 type RemotionStoreState = { manifest?: RemotionManifest; jobs?: RemotionJob[] };
@@ -131,8 +134,7 @@ export function projectNovelChapters(
       upstreamIds: [],
       downstreamIds: [],
       deletePolicy: "delete-exclusive-downstream" as DeletePolicy,
-      editRoute: "/studio/novel",
-    };
+      editRoute: "/studio/novel" };
   });
 }
 
@@ -163,8 +165,7 @@ export function projectAgentWorkflows(
         upstreamIds: [],
         downstreamIds: [],
         deletePolicy: "delete-exclusive-downstream",
-        editRoute: `/studio/agent/${work.key}`,
-      };
+        editRoute: `/studio/agent/${work.key}` };
     });
 }
 
@@ -194,8 +195,7 @@ export function projectEntityExtractions(
         upstreamIds: [],
         downstreamIds: [],
         deletePolicy: "delete-exclusive-downstream",
-        editRoute: `/director/entities/${extraction.id}`,
-      };
+        editRoute: `/director/entities/${extraction.id}` };
     });
 }
 
@@ -230,8 +230,7 @@ export function projectScriptEpisodes(
       upstreamIds: [],
       downstreamIds: episode.sceneIds.map((sceneId) => buildArtifactId("script", "script-scene", sceneId)),
       deletePolicy: "delete-exclusive-downstream",
-      editRoute: `/script/episode/${episode.id}`,
-    };
+      editRoute: `/script/episode/${episode.id}` };
   });
 }
 
@@ -258,8 +257,7 @@ export function projectScriptScenes(
       upstreamIds: parentEpisodeId ? [buildArtifactId("script", "script-episode", parentEpisodeId)] : [],
       downstreamIds: [],
       deletePolicy: "delete-exclusive-downstream",
-      editRoute: `/script/scene/${scene.id}`,
-    };
+      editRoute: `/script/scene/${scene.id}` };
   });
 }
 
@@ -291,8 +289,7 @@ export function projectStoryboards(
                 type: "project-file",
                 path: sb.mediaRef.path,
                 bytes: undefined,
-                hash256: sb.mediaRef.contentSha256,
-              },
+                hash256: sb.mediaRef.contentSha256 },
             ]
           : [],
         upstreamIds: [buildArtifactId("script", "script-episode", sb.episodeId)],
@@ -300,8 +297,7 @@ export function projectStoryboards(
         deletePolicy: "delete-exclusive-downstream",
         editRoute: `/studio/storyboard/${sb.id}`,
         retainedReason: undefined,
-        blockerReason: sb.state === "failed" ? "Failed rendering state" : undefined,
-      };
+        blockerReason: sb.state === "failed" ? "Failed rendering state" : undefined };
     });
 }
 
@@ -336,8 +332,7 @@ export function projectProductionTracks(
         deletePolicy: "delete-exclusive-downstream",
         editRoute: `/studio/track/${track.id}`,
         retainedReason: undefined,
-        blockerReason: track.state === "failed" ? "Failed rendering state" : undefined,
-      };
+        blockerReason: track.state === "failed" ? "Failed rendering state" : undefined };
     });
 }
 
@@ -372,8 +367,7 @@ export function projectVideoCandidates(
                 type: "exports",
                 path: candidate.filePath,
                 bytes: undefined,
-                hash256: undefined,
-              },
+                hash256: undefined },
             ]
           : [],
         upstreamIds: [buildArtifactId("production", "production-track", candidate.trackId)],
@@ -387,8 +381,7 @@ export function projectVideoCandidates(
           ? "Video candidate chapter ownership requires ProductionTrack.episodeId resolution"
           : candidate.state === "failed"
             ? "Failed rendering state"
-            : undefined,
-      };
+            : undefined };
     });
 }
 
@@ -465,8 +458,7 @@ export function projectTTSVoiceLines(
                 type: "exports",
                 path: line.audioRef,
                 bytes: undefined,
-                hash256: undefined,
-              },
+                hash256: undefined },
             ]
           : [],
         upstreamIds: [],
@@ -476,8 +468,7 @@ export function projectTTSVoiceLines(
           : "blocker-missing-ownership",
         editRoute: `/tts/voice/${line.sceneId}`,
         retainedReason: undefined,
-        blockerReason: !ownedChapterId ? "Missing chapter ownership (legacy numeric sceneId)" : undefined,
-      };
+        blockerReason: !ownedChapterId ? "Missing chapter ownership (legacy numeric sceneId)" : undefined };
     })
     .filter((artifact) => !chapterId || !artifact.chapterId || artifact.chapterId === chapterId);
 }
@@ -508,8 +499,7 @@ export function projectEditingProjects(
         upstreamIds: [],
         downstreamIds: [],
         deletePolicy: "delete-exclusive-downstream",
-        editRoute: `/editing/project/${project.id}`,
-      };
+        editRoute: `/editing/project/${project.id}` };
     });
 }
 
@@ -539,8 +529,7 @@ export function projectEditingRuns(
         upstreamIds: [],
         downstreamIds: [],
         deletePolicy: "delete-exclusive-downstream",
-        editRoute: `/editing/run/${run.id}`,
-      };
+        editRoute: `/editing/run/${run.id}` };
     });
 }
 
@@ -572,15 +561,13 @@ export function projectEditingRenders(
                 type: "exports",
                 path: render.outputPath,
                 bytes: undefined,
-                hash256: undefined,
-              },
+                hash256: undefined },
             ]
           : [],
         upstreamIds: [],
         downstreamIds: [],
         deletePolicy: "delete-exclusive-downstream",
-        editRoute: `/editing/render/${render.id}`,
-      };
+        editRoute: `/editing/render/${render.id}` };
     });
 }
 
@@ -618,8 +605,7 @@ export function projectRemotionArtifacts(
       upstreamIds: [],
       downstreamIds: jobs?.map((j) => buildArtifactId("remotion", "remotion-job", j.id)) ?? [],
       deletePolicy: "delete-exclusive-downstream",
-      editRoute: `/remotion/manifest`,
-    });
+      editRoute: `/remotion/manifest` });
   }
 
   if (jobs) {
@@ -642,8 +628,7 @@ export function projectRemotionArtifacts(
           upstreamIds: [buildArtifactId("remotion", "remotion-manifest", job.chapterId ?? "manifest")],
           downstreamIds: [],
           deletePolicy: "delete-exclusive-downstream",
-          editRoute: `/remotion/job/${job.id}`,
-        });
+          editRoute: `/remotion/job/${job.id}` });
       });
   }
 
@@ -686,8 +671,7 @@ export function projectContinuityBibles(
           type: "project-file" as const,
           path,
           bytes: undefined,
-          hash256: version.referenceImageSha256?.[index],
-        })),
+          hash256: version.referenceImageSha256?.[index] })),
         upstreamIds: [],
         downstreamIds: [],
         deletePolicy: ownershipResolved
@@ -701,8 +685,7 @@ export function projectContinuityBibles(
           ? "Continuity version has no unique explicit chapter ownership"
           : !version.structurallyComplete
             ? "Incomplete structure"
-            : undefined,
-      };
+            : undefined };
     });
 }
 
@@ -735,8 +718,7 @@ export function projectBaseAssets(
       downstreamIds: [],
       deletePolicy: "protected-base-asset",
       editRoute: `/library/characters/${char.id}`,
-      retainedReason: "Base character asset - never delete, may need migration",
-    });
+      retainedReason: "Base character asset - never delete, may need migration" });
   });
 
   scenes.forEach((scene) => {
@@ -756,8 +738,7 @@ export function projectBaseAssets(
       downstreamIds: [],
       deletePolicy: "protected-base-asset",
       editRoute: `/library/scenes/${scene.id}`,
-      retainedReason: "Base scene asset - never delete, may need migration",
-    });
+      retainedReason: "Base scene asset - never delete, may need migration" });
   });
 
   props.forEach((prop) => {
@@ -777,8 +758,7 @@ export function projectBaseAssets(
       downstreamIds: [],
       deletePolicy: "protected-base-asset",
       editRoute: `/library/props/${prop.id}`,
-      retainedReason: "Base prop asset - never delete, may need migration",
-    });
+      retainedReason: "Base prop asset - never delete, may need migration" });
   });
 
   return records;
@@ -827,8 +807,7 @@ export function projectMediaFiles(
                 type: physicalPath.type,
                 path: physicalPath.path,
                 bytes: file.size,
-                hash256: undefined,
-              },
+                hash256: undefined },
             ]
           : [],
         upstreamIds: [],
@@ -840,8 +819,7 @@ export function projectMediaFiles(
           : "blocker-missing-ownership",
         editRoute: `/media/file/${file.id}`,
         retainedReason: isShared ? "Media not owned by target chapter" : undefined,
-        blockerReason: !file.chapterId ? "Missing chapter ownership" : undefined,
-      };
+        blockerReason: !file.chapterId ? "Missing chapter ownership" : undefined };
     });
 }
 
@@ -883,8 +861,7 @@ function resolveChapterProjectionScope(
       novelChapterIds: undefined,
       legacyEpisodeIds: new Set(),
       resolvedByIndex: false,
-      legacyMappingStatus: "ambiguous",
-    };
+      legacyMappingStatus: "ambiguous" };
   }
 
   const directEpisodeMatches = episodes.filter((episode) => episode.id === requestedId);
@@ -946,8 +923,7 @@ function resolveChapterProjectionScope(
       ? "ambiguous"
       : legacyMappingResolved
         ? "resolved"
-        : "blocked",
-  };
+        : "blocked" };
 }
 
 export function projectAllFromStores(
@@ -973,16 +949,13 @@ export function projectAllFromStores(
         jobs: remotionState.map((job) => ({
           id: job.jobId,
           projectId: job.projectId,
-          chapterId: job.target?.chapterId,
-        })),
-      }
+          chapterId: job.target?.chapterId })) }
     : remotionState;
   const ttsVoiceLines = Object.entries(ttsState.projects[projectId]?.voiceLines ?? {}).map(([id, line]) => ({
     ...line,
     id,
     projectId: line.projectId ?? projectId,
-    audioRef: line.audioLocalPath ?? line.audioFilePath,
-  }));
+    audioRef: line.audioLocalPath ?? line.audioFilePath }));
 
   const chapterScope = resolveChapterProjectionScope(studioState.novelChapters, scriptData.episodes, chapterId);
   const projectionChapterId = chapterScope.canonicalId;
@@ -1000,8 +973,7 @@ export function projectAllFromStores(
           : "Legacy episode index uniquely agrees with the target novel chapter and script episode"
         : chapterScope.legacyMappingStatus === "blocked"
           ? "Legacy episode index is missing or duplicated in novel chapters or script episodes"
-          : undefined,
-    });
+          : undefined });
   }
 
   // Project each domain
@@ -1060,8 +1032,7 @@ export function projectAllFromStores(
         episodeId: persisted.episodeId,
         startedAt: persisted.evidence?.mtimeMs ?? persisted.startedAt ?? persisted.completedAt ?? Date.now(),
         completedAt: persisted.completedAt,
-        outputPath: persisted.evidence?.path ?? persisted.outputPath,
-      };
+        outputPath: persisted.evidence?.path ?? persisted.outputPath };
     }),
     projectId,
     projectionChapterId,
@@ -1092,16 +1063,14 @@ export function projectAllFromStores(
       rule: "numeric-tts-sceneid",
       status: "resolved",
       input: { count: resolvedLegacyTTS.length, sampleIds: resolvedLegacyTTS.slice(0, 3).map((line) => line.sceneId) },
-      reason: "Resolved by exact numeric ScriptScene.id and unique Episode.sceneIds ownership",
-    });
+      reason: "Resolved by exact numeric ScriptScene.id and unique Episode.sceneIds ownership" });
   }
   if (blockedLegacyTTS.length > 0) {
     legacyMappings.push({
       rule: "numeric-tts-sceneid",
       status: "blocked",
       input: { count: blockedLegacyTTS.length, sampleIds: blockedLegacyTTS.slice(0, 3).map((line) => line.sceneId) },
-      reason: "Numeric sceneId has no unique exact ScriptScene/Episode ownership mapping",
-    });
+      reason: "Numeric sceneId has no unique exact ScriptScene/Episode ownership mapping" });
   }
 
   // Check for missing media ownership
@@ -1111,8 +1080,7 @@ export function projectAllFromStores(
       rule: "missing-media-ownership",
       status: "ambiguous",
       input: { count: unownedMedia.length, sampleIds: unownedMedia.slice(0, 3).map(f => f.id) },
-      reason: "Media files lack chapterId ownership field - requires reverse reference scan",
-    });
+      reason: "Media files lack chapterId ownership field - requires reverse reference scan" });
   }
 
   return { artifacts, legacyMappings };

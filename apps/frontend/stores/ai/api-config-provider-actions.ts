@@ -33,7 +33,6 @@ export function createAPIConfigProviderActions(
       const newProvider: IProvider = { ...providerData, id: dependencies.generateId() };
       set((state) => ({ providers: [...state.providers, newProvider] }));
       updateProviderKeys(newProvider.id, newProvider.apiKey);
-      console.log(`[APIConfig] Added provider: ${newProvider.name}`);
       return newProvider;
     },
 
@@ -42,7 +41,6 @@ export function createAPIConfigProviderActions(
         providers: state.providers.map((item) => item.id === provider.id ? provider : item),
       }));
       updateProviderKeys(provider.id, provider.apiKey);
-      console.log(`[APIConfig] Updated provider: ${provider.name}`);
     },
 
     removeProvider: (id) => {

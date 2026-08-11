@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import os from "node:os";
 import { ensureBrowser, renderMedia, selectComposition } from "@remotion/renderer";
 import { buildRemotionShotPlans } from "@/lib/studio/remotion/remotion-shot-plan-builder";

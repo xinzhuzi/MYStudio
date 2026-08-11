@@ -27,6 +27,11 @@ import { ArtifactTree, type ArtifactChapterTreeNode, type ArtifactFileTreeNode, 
 import { ArtifactDetailPanel } from "./artifact-detail";
 import { ArtifactDeleteDialog } from "./ArtifactDeleteDialog";
 import { MediaView } from "./index";
+import {
+  buildArtifactFileTree, findFileTreeNode, fileTreeContainsArtifact, countFileTreeArtifacts,
+  parentDirectory, inferChapterId, chapterIdForDeletionPlan, isBackupOnlyArtifact,
+  formatChapterLabel, formatBytes, formatArtifactTooltip, BACKUP_BUCKET_ID, NONE_BUCKET_ID, STATE_LABELS,
+} from "./artifact-center-utils";
 
 /**
  * Artifact Center Component - Main Entry Point
@@ -66,166 +71,6 @@ export interface ArtifactCenterProps {
   className?: string;
 }
 
-function buildArtifactFileTree(artifacts: ArtifactRecord[]): ArtifactFileTreeNode[] {
-  type MutableNode = ArtifactFileTreeNode & { childMap: Map<string, MutableNode> };
-  const roots = new Map<string, MutableNode>();
-
-  for (const artifact of artifacts) {
-    for (const ref of artifact.physicalRefs) {
-      const physicalPath = normalizeArtifactPhysicalPath(ref.path, artifact.projectId);
-      if (!physicalPath) continue;
-      const parts = physicalPath.split("/").filter(Boolean);
-      let children = roots;
-      let currentPath = "";
-      parts.forEach((part, index) => {
-        currentPath = currentPath ? `${currentPath}/${part}` : part;
-        const isFile = index === parts.length - 1;
-        let node = children.get(part);
-        if (!node) {
-          node = {
-            path: currentPath,
-            name: part,
-            type: isFile ? "file" : "directory",
-            artifactIds: [],
-            bytes: 0,
-            childMap: new Map(),
-          };
-          children.set(part, node);
-        }
-        if (isFile) {
-          if (!node.artifactIds?.includes(artifact.id)) node.artifactIds?.push(artifact.id);
-          node.bytes = (node.bytes ?? 0) + (ref.bytes ?? artifact.bytes ?? 0);
-        }
-        children = node.childMap;
-      });
-    }
-  }
-
-  const finalize = (nodes: Map<string, MutableNode>): ArtifactFileTreeNode[] => [...nodes.values()]
-    .sort((left, right) => left.type === right.type ? left.name.localeCompare(right.name) : left.type === "directory" ? -1 : 1)
-    .map((node) => {
-      const children = node.type === "directory" ? finalize(node.childMap) : undefined;
-      return {
-        path: node.path,
-        name: node.name,
-        type: node.type,
-        artifactIds: node.artifactIds,
-        bytes: node.type === "directory"
-          ? children?.reduce((total, child) => total + (child.bytes ?? 0), node.bytes ?? 0)
-          : node.bytes,
-        children,
-      };
-    });
-
-  return finalize(roots);
-}
-
-function findFileTreeNode(nodes: ArtifactFileTreeNode[], directoryPath: string): ArtifactFileTreeNode | null {
-  if (!directoryPath) return null;
-  for (const node of nodes) {
-    if (node.path === directoryPath) return node;
-    const nested = node.children ? findFileTreeNode(node.children, directoryPath) : null;
-    if (nested) return nested;
-  }
-  return null;
-}
-
-function fileTreeContainsArtifact(node: ArtifactFileTreeNode, artifactIds: Set<string>): boolean {
-  if (node.artifactIds?.some((id) => artifactIds.has(id))) return true;
-  return node.children?.some((child) => fileTreeContainsArtifact(child, artifactIds)) ?? false;
-}
-
-function countFileTreeArtifacts(node: ArtifactFileTreeNode): number {
-  const ids = new Set<string>();
-  const collect = (entry: ArtifactFileTreeNode) => {
-    entry.artifactIds?.forEach((id) => ids.add(id));
-    entry.children?.forEach(collect);
-  };
-  collect(node);
-  return ids.size;
-}
-
-function parentDirectory(directoryPath: string): string {
-  const slash = directoryPath.lastIndexOf("/");
-  return slash === -1 ? "" : directoryPath.slice(0, slash);
-}
-
-// Match the real chapter-directory naming on disk: exports/chapter-001,
-// workflow-images/storyboards/chapter-001, continuity-bibles/chapter-001, and
-// the fixture variants chapter-1 / chapter-mixed. Case-insensitive so a
-// WindowsCapitalized "Chapter-001" still resolves. This is an INVERSE
-// extraction (build a chapter list FROM artifacts); it is NOT the forward
-// match at artifact-inventory-service.ts:825 (known chapterId → artifacts).
-const CHAPTER_PATH_PATTERN = /chapter-[0-9a-z]+/i;
-
-/**
- * Resolve a chapter id for an artifact. Prefer the explicit top-level
- * `chapterId` field persisted by the inventory service; when absent, infer
- * from the first physicalRef path segment that matches the chapter pattern.
- * Returns null when neither yields a chapter (the "杂项" bucket).
- */
-function inferChapterId(artifact: ArtifactRecord): string | null {
-  if (artifact.chapterId) return artifact.chapterId;
-  for (const ref of artifact.physicalRefs) {
-    const physicalPath = normalizeArtifactPhysicalPath(ref.path, artifact.projectId);
-    if (!physicalPath) continue;
-    const match = physicalPath.match(CHAPTER_PATH_PATTERN);
-    if (match) return match[0];
-  }
-  return null;
-}
-
-/**
- * Synthetic bucket ids (kept distinct from any real chapter id shape so they
- * can never collide with `chapter-NNN` / `episode-N` values from the data).
- */
-const BACKUP_BUCKET_ID = "__backup__";
-const NONE_BUCKET_ID = "__none__";
-
-/**
- * The synthetic buckets (`__none__` 杂项, `__backup__` 备份) are UI-only
- * sentinels and NEVER real chapter ids. Passing either to buildDeletionPlan
- * makes it reject the plan ("Chapter not found in project inventory: __x__" /
- * "Selected artifact ... is outside chapter __x__" — artifact-dependency-
- * graph.ts:574/582). Artifact-scope deletion derives and validates the
- * selected chapter at the dependency-graph boundary even when this UI
- * sentinel becomes "", so strip both sentinels to "".
- */
-function chapterIdForDeletionPlan(selectedChapterId: string): string {
-  return selectedChapterId === NONE_BUCKET_ID || selectedChapterId === BACKUP_BUCKET_ID
-    ? ""
-    : selectedChapterId;
-}
-
-/**
- * An artifact whose ONLY physical presence is inside backup files
- * (`.bak-*` / `.codex-*`). The inventory service marks backup-sourced refs
- * with `type: "backup"` (artifact-inventory-service.ts:115). When every ref
- * is a backup ref, the artifact is a historical archive copy — it has no live
- * project-file footprint and should not pollute the chapter tree. An artifact
- * that also has a `project-file`/`remotion`/`exports` ref is a live artifact
- * that merely also appears in backups, so it stays in its chapter.
- */
-function isBackupOnlyArtifact(artifact: ArtifactRecord): boolean {
-  if (artifact.physicalRefs.length === 0) return false;
-  return artifact.physicalRefs.every((ref) => ref.type === "backup");
-}
-
-/**
- * Human-readable chapter label from a raw chapter id. Extracts the first
- * digit group and drops the `chapter-` prefix / leading zeros, so
- * `chapter-001` / `chapter-1` both render as "第 1 章". Falls back to the raw
- * id when no digits are present (rare, e.g. a slug-only id).
- */
-function formatChapterLabel(id: string): string {
-  const digitMatch = id.match(/(\d+)/);
-  if (digitMatch) {
-    const num = parseInt(digitMatch[1], 10);
-    return `第 ${num} 章`;
-  }
-  return `第 ${id} 章`;
-}
-
 interface FilterBarProps {
   stageFilter: ArtifactStage | 'all';
   stateFilter: ArtifactState | 'all';
@@ -250,6 +95,7 @@ function FilterBar({
       {/* Stage filter */}
       <select
           value={stageFilter}
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
           onChange={(e) => onStageFilterChange(e.target.value as any)}
           className="px-2 py-1 text-xs border rounded bg-background h-8"
         >
@@ -262,6 +108,7 @@ function FilterBar({
         {/* State filter */}
         <select
           value={stateFilter}
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
           onChange={(e) => onStateFilterChange(e.target.value as any)}
           className="px-2 py-1 text-xs border rounded bg-background h-8"
         >
@@ -320,7 +167,9 @@ export function ArtifactCenter({
   const [stateFilter, setStateFilter] = useState<ArtifactState | 'all'>('all');
 
   // Sort state
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [sortBy, setSortBy] = useState<keyof ArtifactRecord>('updatedAt');
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [deletePlan, setDeletePlan] = useState<import("@/types/artifacts").DeletionPlan | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -383,7 +232,9 @@ export function ArtifactCenter({
 
     // Sort
     result.sort((a, b) => {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
       let valueA: any = a[sortBy];
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
       let valueB: any = b[sortBy];
 
       if (sortBy === 'createdAt' || sortBy === 'updatedAt') {
@@ -529,6 +380,7 @@ export function ArtifactCenter({
   // Debug state exposure for devtools inspection
   useEffect(() => {
     if (typeof window !== 'undefined') {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
       (window as any).debugArtifactCenter = {
         artifacts,
         filteredArtifacts,
@@ -1049,10 +901,10 @@ export function ArtifactCenter({
             </ResizablePanel>
           </ResizablePanelGroup>
 
-            {/* Right detail panel: ArtifactDetailPanel is a Radix Sheet
-                rendered through a portal, so it does not reserve layout width.
-                Keeping it outside the resizable panels avoids squeezing the
-                artifact table when a row is selected. */}
+            {/* Detail panel: ArtifactDetailPanel is a Radix Dialog (centered
+                modal) rendered through a portal, so it does not reserve layout
+                width. Keeping it outside the resizable panels avoids squeezing
+                the artifact table when a row is selected. */}
             {getDetailArtifact() && (
               <ArtifactDetailPanel
                 artifact={getDetailArtifact()}
@@ -1075,57 +927,5 @@ export function ArtifactCenter({
   );
 }
 
-
-const formatBytes = (bytes?: number): string => {
-  if (bytes === undefined || bytes === null) return "-";
-  if (bytes === 0) return "0 B";
-  const k = 1024;
-  const sizes = ["B", "KB", "MB", "GB"];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
-};
-
-const STATE_LABELS: Record<ArtifactState, string> = {
-  "active": "活跃",
-  "archived": "已归档",
-  "orphaned": "孤儿",
-  "blocked": "已阻塞",
-  "unknown": "未知",
-};
-
-/**
- * 构造产物行的详细 tooltip 文本,鼠标悬停时显示完整信息。
- * 表格列空间有限(名称/阶段/状态/大小/更新时间),tooltip 补齐:
- * 创建时间、章节、类型、上下游依赖数量、标签与备注等。
- */
-const formatArtifactTooltip = (artifact: ArtifactRecord): string => {
-  const stageLabel = STAGE_LABELS[artifact.stage] || artifact.stage;
-  const stateLabel = STATE_LABELS[artifact.state] || artifact.state;
-  const updated = new Date(artifact.updatedAt).toLocaleString('zh-CN');
-  const created = new Date(artifact.createdAt).toLocaleString('zh-CN');
-  const chapter = artifact.chapterId
-    ? formatChapterLabel(artifact.chapterId)
-    : '根目录';
-  const tags = artifact.metadata?.tags?.length
-    ? artifact.metadata.tags.join('、')
-    : '无';
-  const notes = artifact.metadata?.notes?.trim() || '无';
-  const lines = [
-    `名称:${artifact.name}`,
-    `类型:${artifact.kind}`,
-    `阶段:${stageLabel}`,
-    `状态:${stateLabel}`,
-    `章节:${chapter}`,
-    `大小:${formatBytes(artifact.bytes)}`,
-    `更新:${updated}`,
-    `创建:${created}`,
-    `上游依赖:${artifact.upstreamIds.length}  下游引用:${artifact.downstreamIds.length}`,
-  ];
-  if (artifact.retainedReason) lines.push(`保留原因:${artifact.retainedReason}`);
-  if (artifact.blockerReason) lines.push(`阻塞原因:${artifact.blockerReason}`);
-  lines.push(`标签:${tags}`);
-  lines.push(`备注:${notes}`);
-  return lines.join('\n');
-};
 
 export default ArtifactCenter;

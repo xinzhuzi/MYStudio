@@ -54,7 +54,6 @@ export async function generateFreedomImageViaChat(
     content.push({ type: "image_url", image_url: { url: image } });
   }
 
-  console.log("[Freedom] Submitting via chat completions:", { model, endpoint });
   const response = await freedomObservedFetch(endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },

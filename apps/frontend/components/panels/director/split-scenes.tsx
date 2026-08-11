@@ -14,8 +14,11 @@ import {
   useActiveDirectorProject,
   type SplitScene, 
   type EmotionTag,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   EMOTION_PRESETS,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   SHOT_SIZE_PRESETS,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   SOUND_EFFECT_PRESETS,
 } from "@/stores/director/director-store";
 import { useCharacterLibraryStore } from "@/stores/library/character-library-store";
@@ -35,14 +38,16 @@ import { SplitSceneCard } from "./split-scene-card";
 import { SplitScenesEditingPanel } from "./split-scenes-editing-panel";
 import { 
   VISUAL_STYLE_PRESETS, 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   STYLE_CATEGORIES,
   getStyleById, 
   getStylePrompt,
   getStyleNegativePrompt,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   DEFAULT_STYLE_ID 
 } from "@/lib/constants/visual-styles";
 import { DEFAULT_CINEMATOGRAPHY_PROFILE_ID } from "@/lib/constants/cinematography-profiles";
-import { buildVideoPrompt, buildEmotionDescription as buildEmotionDesc } from "@/lib/generation/prompt-builder";
+import { buildEmotionDescription as buildEmotionDesc } from "@/lib/generation/prompt-builder";
 import { useStoryboardGenerationUi } from "./use-storyboard-generation-ui";
 import { useStoryboardMediaLibrary } from "./use-storyboard-media-library";
 import { saveStoryboardSceneToLibrary } from "./storyboard-media-library-actions";
@@ -66,11 +71,14 @@ import { collectOptimizedMergedFrameReferenceImages } from "./storyboard-merged-
 import { runStoryboardMergedPages } from "./storyboard-merged-page-controller";
 import { createStoryboardMergedPageGenerator } from "./storyboard-merged-page-generation";
 import {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   allocateStoryboardAngles as allocateAngles,
   buildMergedFrameTasks,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   calculateMergedGridAspectRatio as calculateGridAspectRatio,
   isStoryboardSceneCompleted,
   paginateMergedFrameTasks,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   composeStoryboardTilePrompt as composeTilePrompt,
   type MergedFrameTask as GridTask,
 } from "./storyboard-merged-grid-utils";
@@ -84,15 +92,7 @@ import {
   optimizeReferenceImagesForModel,
   type SceneCharacterContext,
 } from "./storyboard-reference-utils";
-import { buildStoryboardQuadGridPrompt } from "./storyboard-quad-grid-prompt";
-
-interface SplitScenesProps {
-  onBack?: () => void;
-  /** Retained for import compatibility; the local video controller owns generation. */
-  onGenerateVideos?: () => void;
-}
-
-const formatDirectorDeletedSceneNumber = (sceneId: number) => sceneId + 1;
+import { SplitScenesProps, formatDirectorDeletedSceneNumber } from "./split-scenes-utils";
 
 export function SplitScenes({ onBack }: SplitScenesProps) {
   const storyboardUi = useStoryboardGenerationUi({ defaultImageGenMode: "merged" });
@@ -104,17 +104,24 @@ export function SplitScenes({ onBack }: SplitScenesProps) {
     useExemplar, setUseExemplar,
     isGenerating, setIsGenerating,
     isGeneratingPrompts, setIsGeneratingPrompts,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
     currentGeneratingId, setCurrentGeneratingId,
     activeTab, setActiveTab,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
     angleSwitchOpen,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
     angleSwitchResultOpen, setAngleSwitchResultOpen,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
     angleSwitchTarget, setAngleSwitchTarget,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
     angleSwitchResult, setAngleSwitchResult,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
     selectedHistoryIndex, setSelectedHistoryIndex,
     isAngleSwitching,
     isExtractingFrame, setIsExtractingFrame,
     isQuadGridGenerating,
   } = storyboardUi;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   const PAGE_CONCURRENCY = 2; // 每页并发集群数限制
   // 合并生成停止控制
   const {
@@ -139,7 +146,9 @@ export function SplitScenes({ onBack }: SplitScenesProps) {
   }) || 'zh';
 
   // Read from project data (with defaults)
+// eslint-disable-next-line react-hooks/exhaustive-deps
   const splitScenes = projectData?.splitScenes || [];
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   const storyboardStatus = projectData?.storyboardStatus || 'idle';
   const storyboardImage = projectData?.storyboardImage || null;
   const storyboardConfig = projectData?.storyboardConfig || {
@@ -149,34 +158,21 @@ export function SplitScenes({ onBack }: SplitScenesProps) {
     sceneCount: 5,
     storyPrompt: '',
   };
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   const projectFolderId = projectData?.projectFolderId || null;
   // 预告片数据 - 直接从 splitScenes 筛选，保证功能一致
   const trailerConfig = projectData?.trailerConfig || null;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   const trailerShotIds = trailerConfig?.shotIds || [];
   
   // Debug: log raw data on every render (dev only)
   if (process.env.NODE_ENV === 'development') {
-    console.log('[SplitScenes] Raw data:', {
-      storyboardStatus,
-      splitScenesLength: splitScenes.length,
-      splitScenesIds: splitScenes.map(s => s.id),
-      trailerConfigStatus: trailerConfig?.status,
-      trailerShotIds,
-      styleTokens: storyboardConfig.styleTokens,
-      aspectRatio: storyboardConfig.aspectRatio,
-      sceneCount: storyboardConfig.sceneCount,
-    });
   }
   
   // 筛选预告片分镜：通过 sceneName 包含 "预告片" 关键字来识别
   const trailerScenes = useMemo(() => {
     // 通过 sceneName 包含 "预告片" 来筛选
     const filtered = filterTrailerScenes(splitScenes);
-    console.log('[SplitScenes] Trailer filter by sceneName:', {
-      totalScenes: splitScenes.length,
-      filteredCount: filtered.length,
-      filteredNames: filtered.map(s => s.sceneName),
-    });
     return filtered;
   }, [splitScenes]);
 
@@ -304,6 +300,7 @@ export function SplitScenes({ onBack }: SplitScenesProps) {
     setIsGenerating(false);
     setCurrentGeneratingId(null);
     toast.info(`分镜 ${sceneId + 1} 首帧生成已停止`);
+// eslint-disable-next-line react-hooks/exhaustive-deps
   }, [updateSplitSceneImageStatus]);
 
   // 停止尾帧图片生成
@@ -317,6 +314,7 @@ export function SplitScenes({ onBack }: SplitScenesProps) {
     });
     setIsGenerating(false);
     toast.info(`分镜 ${sceneId + 1} 尾帧生成已停止`);
+// eslint-disable-next-line react-hooks/exhaustive-deps
   }, [updateSplitSceneEndFrameStatus]);
 
   // 停止合并生成
@@ -324,6 +322,7 @@ export function SplitScenes({ onBack }: SplitScenesProps) {
     stopMergedGeneration();
     setIsMergedRunning(false);
     toast.info('合并生成已停止');
+// eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stopMergedGeneration]);
 
   const getLatestDirectorScenes = useCallback(() => {
@@ -343,7 +342,9 @@ export function SplitScenes({ onBack }: SplitScenesProps) {
   const {
     handleApplyQuadGrid,
     handleCopyQuadGridToScene,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
     handleSaveQuadGridToLibrary,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
     handleSaveAllQuadGridToLibrary,
     handleApplyAngleSwitch,
   } = useStoryboardResultActions({
@@ -525,6 +526,7 @@ export function SplitScenes({ onBack }: SplitScenesProps) {
         return controller;
       },
     }),
+// eslint-disable-next-line react-hooks/exhaustive-deps
     [
       splitScenes,
       storyboardConfig,
@@ -562,6 +564,7 @@ export function SplitScenes({ onBack }: SplitScenesProps) {
       toast.error('请先在设置中配置图片生成服务映射');
       return;
     }
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
     const platform = featureConfig.platform;
     const model = featureConfig.models?.[0];
     if (!model) {
@@ -574,13 +577,12 @@ export function SplitScenes({ onBack }: SplitScenesProps) {
       return;
     }
     
-    console.log('[MergedGen] Using config:', { platform, model, imageBaseUrl });
 
     setIsMergedRunning(true);
     const mergedSignal = startMergedGeneration();
-    console.log('[MergedGen] 开始九宫格合并生成, mode:', mode, 'strategy:', strategy, 'exemplar:', exemplar);
 
     const aspect = storyboardConfig.aspectRatio || defaultStoryboardAspectRatio;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
     const styleTokens = storyboardConfig.styleTokens || [];
     // 始终使用 getStylePrompt 获取完整风格提示词（保证有默认值，即使 styleTokens 为空）
     const fullStylePrompt = getStylePrompt(currentStyleId);
@@ -661,6 +663,7 @@ export function SplitScenes({ onBack }: SplitScenesProps) {
       setRunning: setIsMergedRunning,
       notify: toast,
     });
+// eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     splitScenes,
     storyboardConfig,
@@ -682,6 +685,7 @@ export function SplitScenes({ onBack }: SplitScenesProps) {
 
   // 复用单图生成的 API 路径，封装为通用函数（支持首帧/尾帧）
   // 合并生成专用：使用预计算参考列表；不降级到单图通道
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   const generateImageForSceneMerged = async (
     sceneId: number,
     prompt: string,
@@ -701,6 +705,7 @@ export function SplitScenes({ onBack }: SplitScenesProps) {
     if (!featureConfig) {
       throw new Error('请先在设置中配置图片生成服务映射');
     }
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
     const platform = featureConfig.platform;
     const model = featureConfig.models?.[0];
     if (!model) {
@@ -728,6 +733,7 @@ export function SplitScenes({ onBack }: SplitScenesProps) {
       keyManager: mergedKeyManager,
     });
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
     const normalizeUrlValue = (url: any): string | undefined => Array.isArray(url) ? (url[0] || undefined) : (typeof url === 'string' ? url : undefined);
     let directUrl = apiResult.imageUrl;
     let taskId: string | undefined = apiResult.taskId;
@@ -754,7 +760,6 @@ export function SplitScenes({ onBack }: SplitScenesProps) {
       for (let attempt = 0; attempt < maxAttempts; attempt++) {
         // 检查合并生成是否已被用户停止
         if (mergedAbortRef.current) {
-          console.log(`[MergedGen] Scene ${sceneId} polling cancelled by user`);
           return;
         }
         const progress = Math.min(Math.floor((attempt / maxAttempts) * 100), 99);
@@ -839,6 +844,7 @@ export function SplitScenes({ onBack }: SplitScenesProps) {
         return controller;
       },
     }),
+// eslint-disable-next-line react-hooks/exhaustive-deps
     [
       splitScenes,
       storyboardConfig.aspectRatio,

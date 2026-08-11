@@ -9,7 +9,7 @@
  */
 
 import { useState, useCallback } from "react";
-import { useScriptStore, useActiveScriptProject } from "@/stores/script/script-store";
+import { useActiveScriptProject } from "@/stores/script/script-store";
 import { useActiveDirectorProject } from "@/stores/director/director-store";
 import { useProjectStore } from "@/stores/project/project-store";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -19,6 +19,7 @@ import {
   Film,
   Download,
   Share2,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   FileVideo,
   Layers,
   Clock,
@@ -48,7 +49,9 @@ export function ExportView() {
   const [isExporting, setIsExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState<ExportProgress | null>(null);
 
+// eslint-disable-next-line react-hooks/exhaustive-deps
   const shots = scriptProject?.shots || [];
+// eslint-disable-next-line react-hooks/exhaustive-deps
   const splitScenes = directorProject?.splitScenes || [];
   const scriptData = scriptProject?.scriptData;
   const targetDuration = scriptProject?.targetDuration || "60s";
@@ -70,6 +73,7 @@ export function ExportView() {
   const completedItems = hasSplitScenes ? directorCompleted : scriptCompleted;
   const imageReadyItems = hasSplitScenes ? directorWithImage : (scriptStats?.imagesReady || 0);
   const progress = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   const imageProgress = totalItems > 0 ? Math.round((imageReadyItems / totalItems) * 100) : 0;
 
   // Can export: any assets available

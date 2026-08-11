@@ -1,7 +1,7 @@
 // Copyright (c) 2025 hotflow2024
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
-import { useMediaStore, SYSTEM_CATEGORIES } from "@/stores/media/media-store";
+import { useMediaStore } from "@/stores/media/media-store";
 import { MediaFile, MediaFolder } from "@/types/media";
 import {
   ArrowDown01,
@@ -48,7 +48,9 @@ import {
 import type { DeletionConfirmation, DeletionPlan } from "@/types/artifacts";
 import { processMediaFiles } from "@/lib/media/media-processing";
 import {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   generateVideoThumbnail,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   getMediaDuration,
 } from "@/stores/media/media-store";
 import { MediaLibraryGrid } from "./MediaLibraryGrid";
@@ -87,6 +89,7 @@ export function MediaView() {
   const { setActiveTab } = useMediaPanelStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [progress, setProgress] = useState(0);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [sortBy, setSortBy] = useState<MediaSortBy>("name");

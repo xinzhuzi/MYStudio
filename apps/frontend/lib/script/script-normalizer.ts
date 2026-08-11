@@ -98,8 +98,8 @@ export function preprocessLineBreaks(text: string): { text: string; inserted: bo
   
   const inserted = result !== text;
   if (inserted) {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
     const newLineCount = result.split('\n').length;
-    console.log(`[preprocessLineBreaks] 插入换行：${lineCount} 行 → ${newLineCount} 行`);
   }
   
   return { text: result, inserted };
@@ -207,7 +207,6 @@ export async function analyzeScriptStructureWithAI(text: string): Promise<Script
   // 检查 AI 是否可用
   const config = aiManager.featureConfig('script_analysis');
   if (!config) {
-    console.log('[scriptNormalizer] 无 AI 配置，跳过结构检测');
     return null;
   }
   
@@ -261,10 +260,8 @@ export async function analyzeScriptStructureWithAI(text: string): Promise<Script
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
       try {
         if (attempt > 0) {
-          console.log(`[scriptNormalizer] AI 结构检测重试 (${attempt}/${MAX_RETRIES})...`);
           await new Promise(r => setTimeout(r, 1500 * attempt));
         } else {
-          console.log('[scriptNormalizer] 调用 AI 分析剧本结构...');
         }
         result = await aiManager.featureText('script_analysis', systemPrompt, analysisText, {
           temperature: 0.1,
@@ -302,25 +299,11 @@ export async function analyzeScriptStructureWithAI(text: string): Promise<Script
       const fixedJson = jsonStr.replace(/([{,]\s*)(\w+)\s*:/g, '$1"$2":');
       try {
         analysis = JSON.parse(fixedJson);
-        console.log('[scriptNormalizer] 已修复 JS 对象格式为 JSON');
       } catch (e2) {
         console.warn('[scriptNormalizer] JSON 解析失败:', (e2 as Error).message, '\n原文:', jsonStr.substring(0, 300));
         return null;
       }
     }
-    console.log('[scriptNormalizer] AI 分析结果:', {
-      title: analysis.title,
-      era: analysis.era,
-      genre: analysis.genre,
-      hasOutline: analysis.hasOutline,
-      outlineLength: analysis.generatedOutline?.length || 0,
-      charKeyword: analysis.characterSectionKeyword?.substring(0, 20),
-      charactersCount: analysis.characters?.length || 0,
-      factionsCount: analysis.factions?.length || 0,
-      keyItemsCount: analysis.keyItems?.length || 0,
-      geographyCount: analysis.geography?.length || 0,
-      logline: analysis.logline?.substring(0, 30),
-    });
     
     return analysis;
   } catch (error) {
@@ -460,6 +443,7 @@ function normalizeTitle(text: string, changes: string[]): string {
     
     // 找到标题候选
     // 使用精确位置替换，避免替换到后续相同文本
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
     const lineStart = lines.slice(0, i).join('\n').length + (i > 0 ? 1 : 0);
     const originalLine = lines[i];
     const trimOffset = originalLine.indexOf(trimmed);

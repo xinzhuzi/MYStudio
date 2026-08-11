@@ -130,6 +130,7 @@ export function useDirectorQuadGridController({
       setQuadGridOpen(false);
       return;
     }
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
     const platform = featureConfig.platform;
     const model = featureConfig.models?.[0];
     if (!model) {
@@ -144,7 +145,6 @@ export function useDirectorQuadGridController({
       return;
     }
 
-    console.log("[QuadGrid] Using image config:", { platform, model, imageBaseUrl });
     setIsQuadGridGenerating(true);
     try {
       const styleTokens = storyboardConfig.styleTokens || [];
@@ -164,7 +164,6 @@ export function useDirectorQuadGridController({
         includeDialogueBoxConstraint: true,
       });
       const gridPrompt = buildPromptWithIdentityLock(baseGridPrompt, scene, model, hasCharacterRefs);
-      console.log("[QuadGrid] Grid prompt:", `${gridPrompt.substring(0, 200)}...`);
 
       const optimizedRefs = optimizeReferenceImagesForModel(model, [
         { kind: "anchor", images: [sourceImage] },
@@ -179,6 +178,7 @@ export function useDirectorQuadGridController({
       if (scene.sceneReferenceImage) references.push(scene.sceneReferenceImage);
       const processedReferences = await processReferenceImagesForApi(references.slice(0, 14), "[QuadGrid]", false);
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { gridImageUrl, slicedImages } = await executeStoryboardGridGeneration({
         request: {
           model,
@@ -195,8 +195,6 @@ export function useDirectorQuadGridController({
         poll: { apiKey, baseUrl: imageBaseUrl },
         layout: { columns: 2, rows: 2, actualCount: 4 },
       });
-      console.log("[QuadGrid] Grid image URL:", gridImageUrl.substring(0, 80));
-      console.log("[QuadGrid] Sliced into", slicedImages.length, "images");
 
       const variationTypeLabel = variationType === "angle"
         ? "视角变体"

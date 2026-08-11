@@ -26,7 +26,6 @@ export function detectEnvironmentType(
 ): SceneEnvironmentType {
   const cleanedLocation = cleanLocationString(location);
   const normalizedLocation = cleanedLocation.toLowerCase();
-  console.log(`[detectEnvironmentType] 原始: "${location}" -> 清理后: "${cleanedLocation}"`);
   const priorities: SceneEnvironmentType[] = [
     'ancient_vehicle', 'ancient_indoor', 'ancient_outdoor',
     'vehicle', 'outdoor', 'indoor_public', 'indoor_work', 'indoor_home',
@@ -34,11 +33,9 @@ export function detectEnvironmentType(
   for (const envType of priorities) {
     for (const keyword of keywords[envType]) {
       if (normalizedLocation.includes(keyword)) {
-        console.log(`[detectEnvironmentType] 匹配到关键词 "${keyword}" -> 环境类型: ${envType}`);
         return envType;
       }
     }
   }
-  console.log('[detectEnvironmentType] 未匹配到任何关键词 -> unknown');
   return 'unknown';
 }
