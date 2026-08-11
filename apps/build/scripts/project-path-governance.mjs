@@ -27,7 +27,6 @@ const PROTECTED_PREFIXES = [
   { prefix: 'apps/index.cjs', category: 'source', reason: 'Application entrypoint is hard-protected' },
   { prefix: 'apps/package.json', category: 'source', reason: 'Application package manifest is hard-protected' },
   { prefix: 'apps/package-lock.json', category: 'source', reason: 'Application dependency lockfile is hard-protected' },
-  { prefix: 'apps/skills-lock.json', category: 'source', reason: 'Application skill lockfile is hard-protected' },
   { prefix: 'apps/frontend', category: 'source', reason: 'Frontend source is hard-protected' },
   { prefix: 'apps/backend', category: 'source', reason: 'Backend source is hard-protected' },
   { prefix: 'apps/build', category: 'source', reason: 'Build scripts are hard-protected' },
@@ -45,6 +44,7 @@ const PROTECTED_PREFIXES = [
   { prefix: 'LICENSE', category: 'root-project-file', reason: 'Repository license is hard-protected' },
   { prefix: 'README.md', category: 'root-project-file', reason: 'Repository documentation is hard-protected' },
   { prefix: 'README_EN.md', category: 'root-project-file', reason: 'Repository documentation is hard-protected' },
+  { prefix: 'skills-lock.json', category: 'root-project-file', reason: 'Repository agent-skill lockfile is hard-protected' },
 ]
 
 function isPrefix(relativePath, prefix) {
