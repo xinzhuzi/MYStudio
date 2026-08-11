@@ -224,16 +224,6 @@ export function registerLocalMediaIpcHandlers({ getMediaRoot }: RegisterLocalMed
     return null;
   });
 
-  ipcMain.handle("delete-image", async (_event, localPath: string) => {
-    try {
-      const filePath = resolveLocalMediaPath(getMediaRoot(), localPath);
-      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-      return true;
-    } catch {
-      return false;
-    }
-  });
-
   ipcMain.handle("move-image", async (_event, payload: { localPath: string; category: string }) => {
     const { localPath } = payload;
     try {

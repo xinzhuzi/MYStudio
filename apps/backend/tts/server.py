@@ -295,6 +295,6 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=17593)
-    parser.add_argument("--data-dir", type=Path, default=Path(os.environ.get("MANYING_TTS_DATA_DIR", "./tts-runtime")))
+    parser.add_argument("--data-dir", type=Path, default=Path(os.environ.get("MANYING_TTS_DATA_DIR", "./TTS/runtime")))
     args = parser.parse_args()
     run(args.host, args.port, args.data_dir)

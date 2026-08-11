@@ -97,7 +97,7 @@ describe("PluginSettingsTab", () => {
     render(<PluginSettingsTab />);
 
     const headings = screen.getAllByRole("heading").map((heading) => heading.textContent);
-    expect(headings).toEqual(["插件配置", "Python 依赖", "TTS 运行时与模型", "视频工作流插件"]);
+    expect(headings).toEqual(["插件配置", "Python 运行环境", "TTS 运行时与模型", "视频工作流插件"]);
     expect(screen.getByTestId("python-section").textContent).toBe("true");
     expect(await screen.findByTestId("tts-section")).toBeTruthy();
     expect(screen.getByTestId("video-section").textContent).toBe("true");

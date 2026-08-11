@@ -104,7 +104,7 @@ describe("ArtifactCenter", () => {
       "voice", "production", "editing", "remotion", "export", "media-library", "backup",
     ]);
 
-    fireEvent.click(screen.getByRole("button", { name: "可交付物" }));
+    fireEvent.click(screen.getByRole("button", { name: "媒体库" }));
     expect(screen.getByTestId("media-library-view")).toBeTruthy();
   });
 
@@ -160,6 +160,8 @@ describe("ArtifactCenter", () => {
     // The artifact shows under "第 1 章" (path-inferred chapter), proving it
     // passed the table filter.
     expect(screen.getByText("第 1 章")).toBeTruthy();
+    fireEvent.click(screen.getByRole("row", { name: /exports 文件夹/ }));
+    fireEvent.click(screen.getByRole("row", { name: /chapter-001 文件夹/ }));
     expect(screen.getByText(pathInferred.name)).toBeTruthy();
     // The row checkbox is NOT disabled — same resolution as the filter, so a
     // path-inferred chapter match keeps the checkbox usable (the bug).
@@ -314,12 +316,98 @@ describe("ArtifactCenter", () => {
       />,
     );
 
-    // The row renders directly in the chapter-scoped table (no folder nav).
+    // The row is reached through the real project file tree.
+    fireEvent.click(screen.getByRole("row", { name: /exports 文件夹/ }));
+    fireEvent.click(screen.getByRole("row", { name: /sub 文件夹/ }));
     const fileTrash = screen.getByRole("button", { name: "删除产物 inner.png" });
     expect(fileTrash).toBeTruthy();
+    expect(fileTrash.getAttribute("title")).toBe("生成永久删除计划");
     fireEvent.click(fileTrash);
     expect(planMock).toHaveBeenCalledWith(
       expect.objectContaining({ scope: "artifacts", artifactIds: [inner.id], chapterId: "" }),
     );
+  });
+
+  it("shows zero-byte artifacts as 0 B instead of an unknown size", () => {
+    const emptyArtifact: ArtifactRecord = {
+      ...artifact,
+      id: "media-library:media-file:empty-001",
+      name: "empty.json",
+      bytes: 0,
+      physicalRefs: [{ type: "project-file", path: "exports/chapter-001/empty.json", bytes: 0 }],
+    };
+
+    render(
+      <ArtifactCenter
+        mockArtifacts={[emptyArtifact]}
+        mockProjects={[{ id: "project-1", name: "项目一", stages: [{ id: "export", label: "导出输出", count: 1 }] }]}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("treeitem", { name: /本地文件/ }));
+    fireEvent.click(screen.getByRole("row", { name: /exports 文件夹/ }));
+    fireEvent.click(screen.getByRole("row", { name: /chapter-001 文件夹/ }));
+    expect(screen.getByText("0 B")).toBeTruthy();
+  });
+
+  it("switches 本地文件 to a project-wide view instead of retaining the chapter filter", () => {
+    const chapterOneFile: ArtifactRecord = {
+      ...artifact,
+      id: "export:export-video:file-chapter-001",
+      name: "chapter-001.mp4",
+      physicalRefs: [{ type: "exports", path: "exports/chapter-001/chapter-001.mp4", bytes: 8 }],
+    };
+    const chapterTwoFile: ArtifactRecord = {
+      ...artifact,
+      id: "export:export-video:file-chapter-002",
+      chapterId: "chapter-002",
+      name: "chapter-002.mp4",
+      physicalRefs: [{ type: "exports", path: "exports/chapter-002/chapter-002.mp4", bytes: 8 }],
+    };
+
+    render(
+      <ArtifactCenter
+        mockArtifacts={[chapterOneFile, chapterTwoFile]}
+        mockProjects={[{ id: "project-1", name: "项目一", stages: [] }]}
+      />,
+    );
+
+    // The initial chapter selection is chapter one. Entering the actual local
+    // file tree must clear that filter so the project root can expose both
+    // chapter directories.
+    fireEvent.click(screen.getByRole("treeitem", { name: /本地文件/ }));
+    fireEvent.click(screen.getByRole("row", { name: /exports 文件夹/ }));
+
+    expect(screen.getByRole("row", { name: /chapter-001 文件夹/ })).toBeTruthy();
+    expect(screen.getByRole("row", { name: /chapter-002 文件夹/ })).toBeTruthy();
+    fireEvent.click(screen.getByRole("row", { name: /chapter-002 文件夹/ }));
+    expect(screen.getByText("chapter-002.mp4")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "删除当前章节" }).hasAttribute("disabled")).toBe(true);
+  });
+
+  it("projects live project-file URLs into the local file tree", () => {
+    const liveReference: ArtifactRecord = {
+      ...artifact,
+      id: "storyboard:storyboard-item:live-url",
+      name: "shot-from-live-store.png",
+      physicalRefs: [{
+        type: "project-file",
+        path: "project-file://project-1/workflow-images/storyboards/chapter-001/shot.png",
+        bytes: 16,
+      }],
+    };
+
+    render(
+      <ArtifactCenter
+        mockArtifacts={[liveReference]}
+        mockProjects={[{ id: "project-1", name: "项目一", stages: [] }]}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("treeitem", { name: /本地文件/ }));
+    fireEvent.click(screen.getByRole("row", { name: /workflow-images 文件夹/ }));
+    fireEvent.click(screen.getByRole("row", { name: /storyboards 文件夹/ }));
+    fireEvent.click(screen.getByRole("row", { name: /chapter-001 文件夹/ }));
+    expect(screen.getByText(liveReference.name)).toBeTruthy();
   });
 });

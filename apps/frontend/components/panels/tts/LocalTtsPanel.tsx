@@ -25,6 +25,7 @@ import {
   getModelCacheDir,
   getModelStatus,
   getTtsRuntimeStatus,
+  migrateTtsRuntimeStorage,
   setTtsModelCacheDir,
   startTtsRuntime,
   stopTtsRuntime,
@@ -63,6 +64,7 @@ export function LocalTtsPanel({ embedded = false }: LocalTtsPanelProps) {
   const [refreshing, setRefreshing] = useState(false);
   const [starting, setStarting] = useState(false);
   const [applyingModelCacheDir, setApplyingModelCacheDir] = useState(false);
+  const [migratingStorage, setMigratingStorage] = useState(false);
   const [draftModelCacheDir, setDraftModelCacheDir] = useState("");
   const [modelCacheDirty, setModelCacheDirty] = useState(false);
   const modelCacheDirtyRef = useRef(false);
@@ -289,12 +291,34 @@ export function LocalTtsPanel({ embedded = false }: LocalTtsPanelProps) {
     await refresh();
   };
 
+  const handleMigrateStorage = async () => {
+    if (!window.confirm("将停止本地 TTS，并把旧目录及 Hugging Face 模型按校验结果移动到 TTS 文件夹。内容不一致时会取消迁移。是否继续？")) return;
+    setMigratingStorage(true);
+    try {
+      const result = await migrateTtsRuntimeStorage();
+      if (result.success) {
+        toast.success("TTS 文件夹已迁移");
+      } else {
+        toast.error(result.error || "TTS 文件夹迁移失败");
+      }
+      await refresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "TTS 文件夹迁移失败");
+    } finally {
+      if (mountedRef.current) setMigratingStorage(false);
+    }
+  };
+
   const handleModelCacheInputChange = (value: string) => {
     setDraftModelCacheDir(value);
     setModelCacheDirty(true); modelCacheDirtyRef.current = true;
   };
 
   const handleApplyModelCacheDir = async (dirPath = draftModelCacheDir) => {
+    if (runtimeStatus?.running) {
+      toast.error("请先停止本地 TTS，再切换模型缓存路径");
+      return;
+    }
     const nextDir = dirPath.trim();
     if (!nextDir) {
       toast.error("请输入模型缓存路径");
@@ -330,6 +354,31 @@ export function LocalTtsPanel({ embedded = false }: LocalTtsPanelProps) {
     setDraftModelCacheDir(dir);
     setModelCacheDirty(true); modelCacheDirtyRef.current = true;
     await handleApplyModelCacheDir(dir);
+  };
+
+  const handleOpenModelCacheDir = async () => {
+    const target = runtimeStatus?.modelCacheDir?.trim();
+    if (!target || !window.electronAPI?.openPath) {
+      toast.error("没有可打开的模型目录");
+      return;
+    }
+    try {
+      const result = await window.electronAPI.openPath(target);
+      if (!result.success) toast.error(result.error || "打开模型目录失败");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "打开模型目录失败");
+    }
+  };
+
+  const handleResetModelCacheDir = async () => {
+    const defaultDir = runtimeStatus?.defaultModelCacheDir?.trim();
+    if (!defaultDir) {
+      toast.error("默认模型目录尚未读取");
+      return;
+    }
+    setDraftModelCacheDir(defaultDir);
+    setModelCacheDirty(true); modelCacheDirtyRef.current = true;
+    await handleApplyModelCacheDir(defaultDir);
   };
 
   const handleDownload = async (row: TtsModelRow) => {
@@ -461,7 +510,7 @@ export function LocalTtsPanel({ embedded = false }: LocalTtsPanelProps) {
   const selectedState = selectedModel ? getLocalTtsModelState(selectedModel, selectedProgress) : "missing";
 
   const content = (
-    <div className="p-8 max-w-6xl mx-auto space-y-6">
+    <div className={embedded ? "w-full space-y-6 p-5 sm:p-8 xl:p-10" : "mx-auto max-w-6xl space-y-6 p-8"}>
         <LocalTtsRuntimeCard
           runtimeStatus={runtimeStatus}
           modelCacheInfo={modelCacheInfo}
@@ -469,7 +518,14 @@ export function LocalTtsPanel({ embedded = false }: LocalTtsPanelProps) {
           starting={starting}
           refreshing={refreshing}
           applyingModelCacheDir={applyingModelCacheDir}
+          modelCacheDirty={modelCacheDirty}
+          migratingStorage={migratingStorage}
+          onModelCacheDirChange={handleModelCacheInputChange}
+          onApplyModelCacheDir={() => void handleApplyModelCacheDir()}
           onSelectModelCacheDir={() => void handleSelectModelCacheDir()}
+          onOpenModelCacheDir={() => void handleOpenModelCacheDir()}
+          onResetModelCacheDir={() => void handleResetModelCacheDir()}
+          onMigrateStorage={() => void handleMigrateStorage()}
           onManualRefresh={() => void handleManualRefresh()}
           onStart={() => void handleStart()}
           onStop={() => void handleStop()}

@@ -37,7 +37,6 @@ assets:select-audio-file
 assets:select-image-file
 assets:select-image-files
 assets:update
-delete-image
 diagnostics-log-clear
 diagnostics-log-export-bundle
 diagnostics-log-get-info
@@ -119,10 +118,14 @@ studio-visual-manual-read
 studio-visual-manual-write
 studio-visual-manual-write-images
 tts-reference-audio-resolve
+tts-runtime-delete
 tts-runtime-get-config
+tts-runtime-migrate-storage
+tts-runtime-read-requirements
 tts-runtime-request
 tts-runtime-request-bytes
 tts-runtime-request-formdata
+tts-runtime-reset-install-dir
 tts-runtime-set-config
 tts-runtime-set-model-cache-dir
 tts-runtime-setup

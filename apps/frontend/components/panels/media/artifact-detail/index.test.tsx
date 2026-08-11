@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
 import type { ArtifactRecord } from "@/types/artifacts";
 import { ArtifactDetailPanel } from ".";
+import { formatBytes } from "./helpers";
 
 vi.mock("@/components/ui/sheet", () => ({
   Sheet: ({ open, children }: { open: boolean; children: ReactNode }) => open ? <div data-testid="artifact-sheet">{children}</div> : null,
@@ -26,6 +27,8 @@ vi.mock("@/components/ui/scroll-area", () => ({
 
 vi.mock("../RefPreview", () => ({ RefPreview: () => <div data-testid="ref-preview" /> }));
 vi.mock("./json-viewer", () => ({ JsonViewer: () => <div data-testid="json-viewer" /> }));
+
+afterEach(() => cleanup());
 
 const artifact: ArtifactRecord = {
   id: "export:export-video:detail-001",
@@ -58,9 +61,95 @@ describe("ArtifactDetailPanel", () => {
       />,
     );
 
-    fireEvent.click(screen.getByTitle("在产物中心打开所在文件夹"));
+    fireEvent.click(
+      within(screen.getByRole("banner")).getByRole("button", {
+        name: "在产物中心打开文件夹",
+      }),
+    );
 
     expect(onOpenFolder).toHaveBeenCalledWith("exports/chapter-001");
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows a top-level folder action for live project-file URLs", () => {
+    const onOpenFolder = vi.fn();
+    render(
+      <ArtifactDetailPanel
+        artifact={{
+          ...artifact,
+          physicalRefs: [{
+            type: "project-file",
+            path: "project-file://project-1/exports/chapter-001/shot.png",
+            bytes: 12,
+          }],
+        }}
+        isOpen
+        onClose={vi.fn()}
+        onOpenFolder={onOpenFolder}
+      />,
+    );
+
+    fireEvent.click(within(screen.getByRole("banner")).getByRole("button", { name: "在产物中心打开文件夹" }));
+
+    expect(onOpenFolder).toHaveBeenCalledWith("exports/chapter-001");
+  });
+
+  it("opens the containing physical folder in the OS file manager", async () => {
+    const getAbsolutePath = vi.fn().mockResolvedValue("/tmp/project-1/exports/chapter-001/shot.png");
+    const openPath = vi.fn().mockResolvedValue({ success: true });
+    vi.stubGlobal("projectFiles", { getAbsolutePath });
+    vi.stubGlobal("electronAPI", { openPath });
+
+    render(
+      <ArtifactDetailPanel
+        artifact={artifact}
+        isOpen
+        onClose={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "弹出产物文件夹" }));
+
+    await vi.waitFor(() => {
+      expect(getAbsolutePath).toHaveBeenCalledWith("project-file://project-1/exports/chapter-001/shot.png");
+      expect(openPath).toHaveBeenCalledWith("/tmp/project-1/exports/chapter-001");
+    });
+    vi.unstubAllGlobals();
+  });
+
+  it("offers the owning workflow as the only content-editing entry point", () => {
+    const onOpenWorkflow = vi.fn();
+    const workflowArtifact = { ...artifact, editRoute: "/script/episode/1" };
+
+    render(
+      <ArtifactDetailPanel
+        artifact={workflowArtifact}
+        isOpen
+        onClose={vi.fn()}
+        onOpenWorkflow={onOpenWorkflow}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "前往所属工作流" }));
+    expect(onOpenWorkflow).toHaveBeenCalledWith(workflowArtifact);
+  });
+
+  it("shows zero-byte metadata and physical references as 0 B", () => {
+    const zeroByteArtifact = {
+      ...artifact,
+      bytes: 0,
+      physicalRefs: [{ type: "project-file" as const, path: "exports/chapter-001/empty.json", bytes: 0 }],
+    };
+
+    render(
+      <ArtifactDetailPanel
+        artifact={zeroByteArtifact}
+        isOpen
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(formatBytes(0)).toBe("0 B");
+    expect(screen.getByText("0 B")).toBeTruthy();
   });
 });

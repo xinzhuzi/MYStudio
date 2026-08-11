@@ -37,7 +37,10 @@ export class ProjectDeletionMutex {
     // Return release function that will:
     // 1. Remove from heldProjects
     // 2. Notify next waiter in FIFO order
+    let released = false;
     const release = async (): Promise<void> => {
+      if (released) return;
+      released = true;
       this.heldProjects.delete(projectId);
       this._notifyWaiters(projectId);
     };
@@ -86,5 +89,21 @@ export class ProjectDeletionMutex {
     if (queue.length === 0) {
       this.waitingQueues.delete(projectId);
     }
+  }
+}
+
+/** Shared main-process mutex used by inventory, deletion, and recovery. */
+export const projectDeletionMutex = new ProjectDeletionMutex();
+
+/** Run an operation while holding the project-scoped deletion mutex. */
+export async function withProjectDeletionLock<T>(
+  projectKey: string,
+  action: () => Promise<T> | T,
+): Promise<T> {
+  const release = await projectDeletionMutex.acquire(projectKey);
+  try {
+    return await action();
+  } finally {
+    await release();
   }
 }

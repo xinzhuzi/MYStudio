@@ -127,7 +127,7 @@ export function createStorageManager({ userDataPath, fileOps }: CreateStorageMan
     return base;
   };
   const getPythonRuntimeDir = () => path.join(getStorageBasePath(), "python");
-  const getModelCacheDir = () => path.join(getStorageBasePath(), "tts-models");
+  const getModelCacheDir = () => path.join(getStorageBasePath(), "TTS", "model");
   const getCacheDirs = () => [
     path.join(userDataPath, "Cache"),
     path.join(userDataPath, "Code Cache"),

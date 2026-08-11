@@ -142,7 +142,7 @@ export function createVideoUseAdapter(options: VideoUseAdapterOptions) {
     const configured = typeof options.modelCacheDir === "function"
       ? await options.modelCacheDir()
       : options.modelCacheDir;
-    const resolved = (configured ?? path.join(paths.storageBasePath, "tts-models")).trim();
+    const resolved = (configured ?? path.join(paths.storageBasePath, "TTS", "model")).trim();
     if (!path.isAbsolute(resolved)) throw new Error("TTS 模型缓存路径必须是绝对路径");
     return resolved;
   };

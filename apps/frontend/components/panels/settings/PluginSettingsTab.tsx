@@ -57,9 +57,9 @@ export function PluginSettingsTab() {
       // Python layer
       if (!pythonReady) {
         await python.setupRuntime();
-        reports.push("Python 依赖（已就绪）");
+        reports.push("Python 运行环境（已就绪）");
       } else {
-        reports.push("Python 依赖（已就绪）");
+        reports.push("Python 运行环境（已就绪）");
       }
 
       // TTS layer
@@ -118,7 +118,7 @@ export function PluginSettingsTab() {
 
         <section aria-labelledby="plugin-python-heading" className="rounded-xl border border-border bg-card/30">
           <div className="border-b border-border px-5 py-4 space-y-2">
-            <h4 id="plugin-python-heading" className="text-base font-semibold text-foreground">Python 依赖</h4>
+            <h4 id="plugin-python-heading" className="text-base font-semibold text-foreground">Python 运行环境</h4>
             <p className="text-xs text-muted-foreground">所有本地 TTS、video-use Python worker 和 MLX 对齐都复用应用管理的 Python。</p>
           </div>
           <PythonSettingsTab embedded />

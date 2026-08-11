@@ -190,9 +190,10 @@ describe("generated multi-chapter artifact transaction", () => {
     await expect(fs.access(path.join(projectRoot, chapterB, "remotion.json"))).resolves.toBeUndefined();
   });
 
-  // Chapter-scoped opaque outputs are owned by their path and are removed with
-  // the chapter. Project-level opaque JSON remains fail-closed below.
-  it("deletes chapter-scoped JSON with no decoder and keeps sibling/project files", async () => {
+  // Unknown persisted JSON remains fail-closed even when its path names the
+  // chapter. Only a clearly chapter-scoped backup may be deleted as an opaque
+  // whole-file snapshot.
+  it("blocks chapter-scoped JSON with no decoder but plans its chapter-only backup", async () => {
     vi.stubGlobal("fetch", undefined);
     const suffix = Math.random().toString(36).slice(2, 8);
     const projectId = `nodecoder-${suffix}`;
@@ -231,10 +232,13 @@ describe("generated multi-chapter artifact transaction", () => {
     if (!inventory.success) return;
 
     const planned = buildDeletionPlan(inventory.data.artifacts, [], chapterA);
-    expect(planned.valid).toBe(true);
-    expect(planned.plan.executionAllowed).toBe(true);
-    expect(planned.plan.blockerItems).toHaveLength(0);
-    expect(planned.plan.deleteItems.some((item) => item.physicalPath?.includes(chapterA))).toBe(true);
+    expect(planned.valid).toBe(false);
+    expect(planned.plan.executionAllowed).toBe(false);
+    expect(planned.plan.blockerItems.some((item) => item.physicalPath === path.relative(projectRoot, remotionManifestA))).toBe(true);
+    expect(planned.plan.deleteItems.some((item) => item.physicalPath === path.relative(projectRoot, bibleBackupA))).toBe(true);
+    expect(planned.plan.backupImpact).toEqual(expect.arrayContaining([
+      expect.objectContaining({ filePath: path.relative(projectRoot, bibleBackupA), action: "delete" }),
+    ]));
 
     const registered = registerDeletionPlan(planned.plan);
     const result = await executeDeletion({ dataRoot }, {
@@ -242,12 +246,12 @@ describe("generated multi-chapter artifact transaction", () => {
       fingerprint: registered.fingerprint,
       confirmation: { type: "chapter", chapterId: chapterA },
     });
-    expect(result).toMatchObject({ success: true, data: { postScan: { residualChapterFiles: 0, transactionResidue: 0 } } });
+    expect(result).toMatchObject({ success: false, error: "post-scan-orphans", journalState: "none" });
 
-    // Chapter-A opaque files are removed, while the sibling and project-level
-    // files remain untouched.
-    await expect(fs.access(remotionManifestA)).rejects.toThrow();
-    await expect(fs.access(bibleBackupA)).rejects.toThrow();
+    // A blocked plan performs zero writes, including to the otherwise eligible
+    // chapter-only backup.
+    await expect(fs.access(remotionManifestA)).resolves.toBeUndefined();
+    await expect(fs.access(bibleBackupA)).resolves.toBeUndefined();
     await expect(fs.access(remotionManifestB)).resolves.toBeUndefined();
     // Project-level JSON is retained (not in the deleted chapter's scope).
     await expect(fs.access(projectLevelJson)).resolves.toBeUndefined();

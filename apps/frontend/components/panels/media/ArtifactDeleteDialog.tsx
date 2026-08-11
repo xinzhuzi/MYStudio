@@ -168,6 +168,7 @@ export function ArtifactDeleteDialog({
           <div className="space-y-4 py-4">
             {/* Warning Banner */}
             <WarningBanner plan={plan} />
+            <PlanScopeSummary plan={plan} />
 
             {/* Delete Group */}
             {plan.deleteItems.length > 0 && (
@@ -175,6 +176,7 @@ export function ArtifactDeleteDialog({
                 title="将删除"
                 items={plan.deleteItems}
                 stats={stats?.deleteStats}
+                bytes={stats?.deleteBytes ?? 0}
                 icon={<Trash2 className="w-5 h-5" />}
                 color="red"
               />
@@ -186,6 +188,7 @@ export function ArtifactDeleteDialog({
                 title="将迁移（复制保留）"
                 items={plan.migrateItems}
                 stats={stats?.migrateStats}
+                bytes={stats?.migrateBytes ?? 0}
                 icon={<Copy className="w-5 h-5" />}
                 color="yellow"
                 description="受保护资产会先复制到稳定位置，再删除原文件"
@@ -198,6 +201,7 @@ export function ArtifactDeleteDialog({
                 title="保留（被其它产物共享）"
                 items={plan.retainItems}
                 stats={stats?.retainStats}
+                bytes={stats?.retainBytes ?? 0}
                 icon={<ShieldAlert className="w-5 h-5" />}
                 color="blue"
                 description="这些产物被其它产物引用，不会删除"
@@ -210,6 +214,7 @@ export function ArtifactDeleteDialog({
                 title="无法删除（存在阻塞）"
                 items={plan.blockerItems}
                 stats={stats?.blockerStats}
+                bytes={0}
                 icon={<Lock className="w-5 h-5" />}
                 color="orange"
                 description="这些产物有阻塞项，本次无法删除"
@@ -307,6 +312,49 @@ function WarningBanner({ plan }: { plan: DeletionPlan }) {
   );
 }
 
+function PlanScopeSummary({ plan }: { plan: DeletionPlan }) {
+  const confirmationValue = plan.confirmationRequired.type === "artifact-count"
+    ? `${plan.confirmationRequired.count ?? 0} 项`
+    : plan.confirmationRequired.value ?? "未提供";
+
+  return (
+    <section aria-label="删除范围摘要" className="border border-muted rounded-lg p-4 bg-card">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <ScopeValue label="项目 ID" value={plan.projectId} />
+        <ScopeValue label="章节 ID" value={plan.chapterId} />
+        <ScopeValue label="删除范围" value={plan.scope === "chapter" ? "整章" : "选中产物"} />
+        <ScopeValue label="精确确认值" value={confirmationValue} emphasize />
+      </div>
+      <div className="grid grid-cols-2 gap-2 mt-4 sm:grid-cols-4" aria-label="空间影响">
+        <ByteTotal label="删除释放" bytes={plan.byteTotals.deleteBytes} />
+        <ByteTotal label="迁移占用" bytes={plan.byteTotals.migrateBytes} />
+        <ByteTotal label="保留占用" bytes={plan.byteTotals.retainBytes} />
+        <ByteTotal label="计划总量" bytes={plan.byteTotals.totalBytes} />
+      </div>
+    </section>
+  );
+}
+
+function ScopeValue({ label, value, emphasize = false }: { label: string; value: string; emphasize?: boolean }) {
+  return (
+    <div className="min-w-0">
+      <div className="text-xs text-muted-foreground">{label}</div>
+      <div className={cn("mt-1 break-all font-mono text-sm", emphasize && "font-semibold text-red-600")}>
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function ByteTotal({ label, bytes }: { label: string; bytes: number }) {
+  return (
+    <div className="min-w-0 border-l-2 border-muted pl-2">
+      <div className="text-xs text-muted-foreground">{label}</div>
+      <div className="mt-1 font-mono text-sm">{formatBytes(bytes)}</div>
+    </div>
+  );
+}
+
 /**
  * Group section showing items in a category
  */
@@ -314,6 +362,7 @@ function DeletionGroup({
   title,
   items,
   stats,
+  bytes,
   icon,
   color,
   description,
@@ -321,6 +370,7 @@ function DeletionGroup({
   title: string;
   items: PlanItem[];
   stats?: Record<string, number>;
+  bytes: number;
   icon: React.ReactNode;
   color: "red" | "yellow" | "blue" | "orange";
   description?: string;
@@ -342,9 +392,7 @@ function DeletionGroup({
           {icon}
           <h3 className="font-semibold text-gray-900">{title}</h3>
           <Badge variant="secondary">{items.length} 项</Badge>
-          {stats && Object.values(stats).reduce((a, b) => a + b, 0) > 0 && (
-            <Badge variant="outline">{formatBytes(Object.values(stats).reduce((a, b) => a + b, 0))}</Badge>
-          )}
+          <Badge variant="outline">{formatBytes(bytes)}</Badge>
         </div>
         {description && (
           <span className="text-xs text-gray-600 italic">{description}</span>
@@ -370,12 +418,12 @@ function DeletionGroup({
         {items.map((item) => (
           <div
             key={item.artifactId}
-            className="text-sm p-2 bg-white/50 rounded hover:bg-white transition-colors cursor-default"
+            className="text-sm py-3 border-t first:border-t-0 border-muted"
           >
             <div className="flex items-center justify-between">
-              <div className="font-medium text-gray-900 truncate">{item.name}</div>
+              <div className="font-medium text-gray-900 break-all">{item.name}</div>
               <div className="text-xs text-gray-600 whitespace-nowrap ml-2">
-                {item.bytes ? formatBytes(item.bytes) : ""}
+                {item.bytes !== undefined ? formatBytes(item.bytes) : ""}
               </div>
             </div>
             <div className="flex items-center gap-2 mt-1 text-xs text-gray-600">
@@ -383,11 +431,46 @@ function DeletionGroup({
               <span>{item.stage}</span>
             </div>
             {item.reason && (
-              <div className="mt-1 text-xs text-gray-700 bg-white/70 p-1 rounded">
+              <div className="mt-2 text-xs text-gray-700">
                 {item.reason}
               </div>
             )}
+            <div className="mt-2 grid gap-2 text-xs sm:grid-cols-2">
+              <ItemEvidence label="产物 ID" values={[item.artifactId]} />
+              <ItemEvidence
+                label="上游归属"
+                values={item.upstreamOwnerIds?.length ? item.upstreamOwnerIds : ["无"]}
+              />
+              <ItemEvidence
+                label="物理路径"
+                values={item.physicalPath ? [item.physicalPath] : ["无"]}
+              />
+              <ItemEvidence
+                label="物理引用"
+                values={item.physicalRefs?.length
+                  ? item.physicalRefs.map((ref) => (
+                    `${ref.type} · ${ref.path} · ${ref.bytes === undefined ? "大小未知" : formatBytes(ref.bytes)}`
+                  ))
+                  : ["无"]}
+              />
+              {item.physicalHash256 && (
+                <ItemEvidence label="SHA-256" values={[item.physicalHash256]} />
+              )}
+            </div>
           </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ItemEvidence({ label, values }: { label: string; values: string[] }) {
+  return (
+    <div className="min-w-0">
+      <div className="text-muted-foreground">{label}</div>
+      <div className="mt-1 space-y-1 font-mono text-foreground">
+        {values.map((value) => (
+          <div key={value} className="break-all">{value}</div>
         ))}
       </div>
     </div>
@@ -407,8 +490,8 @@ function BackupImpactSection({ impacts }: { impacts: BackupImpact[] }) {
       </div>
 
       <div className="space-y-2">
-        {impacts.map((impact, idx) => (
-          <div key={idx} className="text-sm p-2 bg-white rounded border border-gray-200">
+        {impacts.map((impact) => (
+          <div key={`${impact.format}:${impact.action}:${impact.filePath}`} className="text-sm p-2 bg-white rounded border border-gray-200">
             <div className="flex items-center justify-between">
               <div className="font-mono text-xs text-gray-700 truncate flex-1">
                 {impact.filePath}

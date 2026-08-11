@@ -5,6 +5,9 @@ import {
   getTtsRuntimeStatus,
   setTtsRuntimeConfig,
   setupTtsRuntime,
+  readPythonRequirements,
+  deletePythonRuntime,
+  resetPythonRuntimeInstallDir,
 } from "@/lib/tts/client";
 import { getTtsRuntimeBridge } from "@/lib/bridge/tts-runtime";
 import type { TtsRuntimeConfig, TtsRuntimeStatus } from "@/types/tts";
@@ -21,8 +24,10 @@ export function usePythonRuntimeSettings() {
   const [config, setConfig] = useState<TtsRuntimeConfig | null>(null);
   const [status, setStatus] = useState<TtsRuntimeStatus | null>(null);
   const [pythonRuntimeUrlDraft, setPythonRuntimeUrlDraft] = useState("");
+  const [requirements, setRequirements] = useState<{ content: string; path: string } | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isSettingUp, setIsSettingUp] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const setupPollRef = useRef<number | null>(null);
   const hasRuntime = Boolean(getTtsRuntimeBridge());
 
@@ -39,6 +44,14 @@ export function usePythonRuntimeSettings() {
     return nextConfig;
   }, []);
 
+  const refreshRequirements = useCallback(async () => {
+    try {
+      setRequirements(await readPythonRequirements());
+    } catch {
+      setRequirements(null);
+    }
+  }, []);
+
   useEffect(() => {
     if (!hasRuntime) return;
     let cancelled = false;
@@ -52,11 +65,13 @@ export function usePythonRuntimeSettings() {
       })
       .catch(() => {});
 
+    void refreshRequirements();
+
     return () => {
       cancelled = true;
       stopSetupPolling();
     };
-  }, [hasRuntime, stopSetupPolling]);
+  }, [hasRuntime, refreshRequirements, stopSetupPolling]);
 
   const saveConfig = useCallback(async (pythonRuntimeUrl = pythonRuntimeUrlDraft) => {
     setIsSaving(true);
@@ -76,9 +91,26 @@ export function usePythonRuntimeSettings() {
   }, [pythonRuntimeUrlDraft, refreshConfig]);
 
   const resetRuntimeUrl = useCallback(() => {
-    setPythonRuntimeUrlDraft("");
-    void saveConfig("");
-  }, [saveConfig]);
+    if (!config?.defaultPythonRuntimeUrl) return;
+    setPythonRuntimeUrlDraft(config.defaultPythonRuntimeUrl);
+    void saveConfig(config.defaultPythonRuntimeUrl);
+  }, [config, config?.defaultPythonRuntimeUrl, saveConfig]);
+
+  const DEFAULT_PYTHON_RUNTIME_DIR = "/Users/zhengbingjin/Library/Application Support/漫影工作室/python";
+
+  const resetInstallDir = useCallback(async () => {
+    try {
+      const result = await resetPythonRuntimeInstallDir(DEFAULT_PYTHON_RUNTIME_DIR);
+      if (!result.success) {
+        toast.error(result.error || "恢复默认路径失败");
+        return;
+      }
+      await refreshConfig();
+      toast.success("Python 安装路径已恢复默认");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "恢复默认路径失败");
+    }
+  }, [refreshConfig]);
 
   const setupRuntime = useCallback(async () => {
     setIsSettingUp(true);
@@ -103,6 +135,26 @@ export function usePythonRuntimeSettings() {
     }
   }, [refreshConfig, stopSetupPolling]);
 
+  const deleteRuntime = useCallback(async () => {
+    setIsDeleting(true);
+    try {
+      const result = await deletePythonRuntime();
+      if (!result.success) {
+        toast.error(result.error || "删除失败");
+        return false;
+      }
+      await refreshConfig();
+      await refreshRequirements();
+      toast.success("已删除 Python 运行环境");
+      return true;
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "删除 Python 运行环境失败");
+      return false;
+    } finally {
+      setIsDeleting(false);
+    }
+  }, [refreshConfig, refreshRequirements]);
+
   const setupStage = status?.setupStage ?? "idle";
   const isSetupActive = ACTIVE_SETUP_STAGES.has(setupStage);
   const installedItems = config?.installedItems ?? [];
@@ -116,15 +168,20 @@ export function usePythonRuntimeSettings() {
     status,
     pythonRuntimeUrlDraft,
     setPythonRuntimeUrlDraft,
+    requirements,
     hasRuntime,
     isSaving,
     isSettingUp,
+    isDeleting,
     isSetupActive,
     installedItems,
     pythonExecutablePath,
     refreshConfig,
+    refreshRequirements,
     resetRuntimeUrl,
+    resetInstallDir,
     saveConfig,
     setupRuntime,
+    deleteRuntime,
   };
 }

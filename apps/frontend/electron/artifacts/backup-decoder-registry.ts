@@ -75,10 +75,11 @@ function rewriteRecordTree(value: unknown, chapterId: string, artifactIds: Reado
   }
   if (!value || typeof value !== "object") return value;
   const record = value as Record<string, unknown>;
-  return Object.fromEntries(Object.entries(record).map(([key, child]) => [
-    key,
-    rewriteRecordTree(child, chapterId, artifactIds),
-  ]));
+  return Object.fromEntries(
+    Object.entries(record)
+      .filter(([key]) => key !== chapterId && !artifactIds.has(key))
+      .map(([key, child]) => [key, rewriteRecordTree(child, chapterId, artifactIds)]),
+  );
 }
 
 function artifactBelongsToChapter(artifact: MixedBackupArtifact, chapterId: string, artifactIds: ReadonlySet<string>): boolean {
@@ -292,10 +293,19 @@ const ZUSTAND_PROJECT_STATE_DECODER: MixedBackupDecoder = {
     const data = raw as Record<string, unknown>;
     if (!data.state || typeof data.state !== "object" || Array.isArray(data.state)) return false;
     const state = data.state as Record<string, unknown>;
-    return typeof data.projectId === "string"
-      || Array.isArray(state.novelChapters)
+    return Array.isArray(state.novelChapters)
+      || Array.isArray(state.agentWorkData)
       || Array.isArray(state.storyboards)
+      || Array.isArray(state.storyboardItems)
+      || Array.isArray(state.entityExtractions)
       || Array.isArray(state.mediaFiles)
+      || Array.isArray(state.tracks)
+      || Array.isArray(state.productionTracks)
+      || Array.isArray(state.videoCandidates)
+      || Array.isArray(state.voiceLines)
+      || Array.isArray(state.editingProjects)
+      || Array.isArray(state.editingRuns)
+      || Array.isArray(state.editingRenders)
       || Boolean(state.scriptData)
       || Boolean(state.projects);
   },
@@ -317,6 +327,7 @@ const ZUSTAND_PROJECT_STATE_DECODER: MixedBackupDecoder = {
       }
     };
     add(data.state.novelChapters, "novel", true);
+    add(data.state.agentWorkData, "analysis");
     add(data.state.episodes, "script", true);
     add(data.state.storyboards, "storyboard");
     add(data.state.tracks, "production");
@@ -466,6 +477,8 @@ const DAOJIE_MULTICHAPTER_DECODER: MixedBackupDecoder = {
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) return false;
     const data = raw as Record<string, unknown>;
     return data._format === "daojie-multichapter-mixed-json"
+      && typeof data._version === "string"
+      && /^1\./.test(data._version)
       && typeof data.projectId === "string"
       && Boolean(data.chapters && typeof data.chapters === "object" && !Array.isArray(data.chapters));
   },
@@ -499,13 +512,21 @@ const DAOJIE_MULTICHAPTER_DECODER: MixedBackupDecoder = {
 
     for (const [assetType, bundle] of Object.entries(data.assets ?? {})) {
       if (!bundle || typeof bundle !== "object") continue;
-      for (const value of Object.values(bundle as Record<string, any>)) {
+      for (const [bundleName, value] of Object.entries(bundle as Record<string, any>)) {
         const records = Array.isArray(value?.[assetType === "chars" ? "characters" : assetType])
           ? value[assetType === "chars" ? "characters" : assetType]
           : [];
+        const bundleChapter = bundleName.match(/chapter(\d+)/i)?.[1];
         for (const record of records) {
-          const exclusive = record && typeof record.exclusiveToChapter === "number"
-            ? `chapter-${record.exclusiveToChapter}`
+          const exclusiveIndex = record && typeof record.exclusiveToChapter === "number"
+            ? record.exclusiveToChapter
+            : record && typeof record.chapterSpecific === "number"
+              ? record.chapterSpecific
+              : bundleChapter
+                ? Number(bundleChapter)
+                : undefined;
+          const exclusive = Number.isInteger(exclusiveIndex) && Number(exclusiveIndex) > 0
+            ? `chapter-${exclusiveIndex}`
             : undefined;
           add(exclusive, "assets", { ...record, subtype: assetType === "chars" ? "character" : assetType.slice(0, -1) });
         }
@@ -531,6 +552,24 @@ const DAOJIE_MULTICHAPTER_DECODER: MixedBackupDecoder = {
   rewrite(raw, chapterId, artifactIds) {
     const next = rewriteRecordTree(raw, chapterId, artifactIds) as Record<string, any>;
     if (next.chapters && typeof next.chapters === "object") delete next.chapters[chapterId];
+    const chapterIndex = chapterId.match(/^chapter-(\d+)$/)?.[1];
+    if (chapterIndex && next.assets && typeof next.assets === "object") {
+      for (const [assetType, rawBundles] of Object.entries(next.assets as Record<string, unknown>)) {
+        if (!rawBundles || typeof rawBundles !== "object" || Array.isArray(rawBundles)) continue;
+        const bundles = rawBundles as Record<string, any>;
+        const recordsKey = assetType === "chars" ? "characters" : assetType;
+        for (const [bundleName, value] of Object.entries(bundles)) {
+          if (new RegExp(`chapter${chapterIndex}(?:\\D|$)`, "i").test(bundleName)) {
+            delete bundles[bundleName];
+            continue;
+          }
+          if (!value || typeof value !== "object" || !Array.isArray(value[recordsKey])) continue;
+          value[recordsKey] = value[recordsKey].filter((record: Record<string, unknown>) =>
+            record?.exclusiveToChapter !== Number(chapterIndex)
+            && record?.chapterSpecific !== Number(chapterIndex));
+        }
+      }
+    }
     for (const [key, value] of Object.entries(next.continuity ?? {})) {
       const record = value && typeof value === "object" ? value as Record<string, unknown> : undefined;
       if (record?.chapterId === chapterId) delete next.continuity[key];

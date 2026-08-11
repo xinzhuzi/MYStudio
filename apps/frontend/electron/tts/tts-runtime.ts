@@ -5,7 +5,13 @@ import path from "node:path";
 import { execFile, spawn, type ChildProcessWithoutNullStreams, type SpawnOptionsWithoutStdio } from "node:child_process";
 import { promisify } from "node:util";
 import { LOCAL_TTS_HOST, LOCAL_TTS_PORT } from "../../lib/tts/constants";
-import type { TtsRuntimeCommandResult, TtsRuntimeConfig, TtsRuntimeInstalledItem, TtsRuntimeStatus } from "@/types/tts";
+import type {
+  TtsRuntimeCommandResult,
+  TtsRuntimeConfig,
+  TtsRuntimeInstalledItem,
+  TtsRuntimeStatus,
+  TtsStorageLayout,
+} from "@/types/tts";
 
 const DEFAULT_TTS_PORT = LOCAL_TTS_PORT;
 const DEFAULT_TTS_HOST = LOCAL_TTS_HOST;
@@ -37,6 +43,7 @@ interface RuntimeConfig {
   modelCacheDir?: string;
   controlToken?: string;
   pythonRuntimeUrl?: string;
+  pythonRuntimeDir?: string;
   installedItems?: TtsRuntimeInstalledItem[];
 }
 
@@ -80,6 +87,7 @@ export interface TtsRuntimeControllerDeps {
   appRoot: string;
   userDataPath: string;
   storageBasePath?: string | (() => string);
+  huggingFaceHubDir?: string | (() => string);
   port?: number;
   host?: string;
   sidecarRoots?: string[];
@@ -116,11 +124,16 @@ export interface TtsRuntimeController {
   stop: () => Promise<TtsRuntimeCommandResult>;
   getConfig: () => Promise<TtsRuntimeConfig>;
   getModelCacheDir: () => string;
+  getStorageLayout: () => TtsStorageLayout;
+  migrateStorage: () => Promise<TtsRuntimeCommandResult>;
   setConfig: (config: Partial<TtsRuntimeConfig>) => Promise<TtsRuntimeCommandResult>;
   setModelCacheDir: (dirPath: string) => Promise<TtsRuntimeCommandResult>;
   request: (method: string, routePath: string, body?: unknown) => Promise<unknown>;
   requestBytes: (method: string, routePath: string, body?: unknown) => Promise<FetchBytesResult>;
   requestFormData: (routePath: string, audioFilePath: string, referenceText?: string) => Promise<unknown>;
+  readRequirements: () => Promise<{ content: string; path: string } | null>;
+  deleteRuntime: () => Promise<TtsRuntimeCommandResult>;
+  resetInstallDir: (defaultDir: string) => Promise<TtsRuntimeCommandResult>;
 }
 
 function defaultFetchJson(url: string, options: FetchJsonOptions) {
@@ -418,6 +431,47 @@ function resolveHfHubCacheDir(modelCacheDir: string, fileExists: (filePath: stri
   return modelCacheDir;
 }
 
+type ModelMigrationAction =
+  | { kind: "move"; sourceDir: string; targetDir: string }
+  | { kind: "remove"; sourceDir: string };
+
+function sha256File(filePath: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const hash = crypto.createHash("sha256");
+    const stream = fs.createReadStream(filePath);
+    stream.on("data", (chunk) => {
+      hash.update(chunk);
+    });
+    stream.on("error", reject);
+    stream.on("end", () => resolve(hash.digest("hex")));
+  });
+}
+
+async function directoryIsCoveredBy(sourcePath: string, targetPath: string): Promise<boolean> {
+  try {
+    const source = fs.lstatSync(sourcePath);
+    const target = fs.lstatSync(targetPath);
+    if (source.isSymbolicLink() || target.isSymbolicLink()) {
+      return source.isSymbolicLink()
+        && target.isSymbolicLink()
+        && fs.readlinkSync(sourcePath) === fs.readlinkSync(targetPath);
+    }
+    if (source.isDirectory() || target.isDirectory()) {
+      if (!source.isDirectory() || !target.isDirectory()) return false;
+      const targetEntries = new Set(fs.readdirSync(targetPath));
+      for (const entry of fs.readdirSync(sourcePath)) {
+        if (!targetEntries.has(entry)) return false;
+        if (!await directoryIsCoveredBy(path.join(sourcePath, entry), path.join(targetPath, entry))) return false;
+      }
+      return true;
+    }
+    if (!source.isFile() || !target.isFile() || source.size !== target.size) return false;
+    return (await sha256File(sourcePath)) === (await sha256File(targetPath));
+  } catch {
+    return false;
+  }
+}
+
 function makeStatus(params: {
   installed: boolean;
   running: boolean;
@@ -429,7 +483,8 @@ function makeStatus(params: {
   cacheDir: string;
   modelCacheDir: string;
   defaultModelCacheDir: string;
-  systemModelCacheDir: string;
+  hfHubCacheDir: string;
+  storageLayout: TtsStorageLayout;
   pythonRuntimeDir: string;
   managed: boolean;
   pid?: number;
@@ -446,7 +501,8 @@ function makeStatus(params: {
     cacheDir: params.cacheDir,
     modelCacheDir: params.modelCacheDir,
     defaultModelCacheDir: params.defaultModelCacheDir,
-    systemModelCacheDir: params.systemModelCacheDir,
+    hfHubCacheDir: params.hfHubCacheDir,
+    storageLayout: params.storageLayout,
     pythonRuntimeDir: params.pythonRuntimeDir,
     managed: params.managed,
     pid: params.pid,
@@ -509,12 +565,19 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
     if (typeof deps.storageBasePath === "function") return deps.storageBasePath();
     return deps.storageBasePath || deps.userDataPath;
   };
-  const cacheDir = path.join(deps.userDataPath, "tts-runtime");
+  const huggingFaceHubDir = () => {
+    if (typeof deps.huggingFaceHubDir === "function") return deps.huggingFaceHubDir();
+    return deps.huggingFaceHubDir || path.join(os.homedir(), ".cache", "huggingface", "hub");
+  };
+  const ttsRootDir = () => path.join(storageBasePath(), "TTS");
+  const runtimeDataDir = () => path.join(ttsRootDir(), "runtime");
+  const legacyRuntimeDir = path.join(deps.userDataPath, "tts-runtime");
+  const legacyModelsDir = () => path.join(storageBasePath(), "tts-models");
+  const legacyDefaultModelsDir = () => path.join(ttsRootDir(), "models");
   const runtimePythonDir = () => path.join(storageBasePath(), "python");
   const runtimeArchiveDir = () => storageBasePath();
-  const configPath = path.join(cacheDir, "config.json");
-  const defaultModelCacheDir = () => path.join(storageBasePath(), "tts-models");
-  const systemModelCacheDir = path.join(os.homedir(), ".cache", "huggingface");
+  const configPath = () => path.join(runtimeDataDir(), "config.json");
+  const defaultModelCacheDir = () => path.join(ttsRootDir(), "model");
   let child: SpawnedProcess | null = null;
   let setupState: Pick<TtsRuntimeStatus, "setupStage" | "setupMessage" | "setupProgress"> = {
     setupStage: "idle",
@@ -523,7 +586,7 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
   };
 
   const readConfig = (): RuntimeConfig => {
-    const raw = readTextFile(configPath);
+    const raw = readTextFile(configPath());
     if (!raw) return {};
     try {
       return JSON.parse(raw) as RuntimeConfig;
@@ -533,13 +596,108 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
   };
 
   const writeConfig = (config: RuntimeConfig) => {
-    ensureDir(cacheDir);
-    writeTextFile(configPath, JSON.stringify(config, null, 2));
+    ensureDir(runtimeDataDir());
+    writeTextFile(configPath(), JSON.stringify(config, null, 2));
   };
 
   const getModelCacheDir = () => {
     const config = readConfig();
     return config.modelCacheDir ? normalizeUserPath(config.modelCacheDir) : defaultModelCacheDir();
+  };
+
+  const listModelRepositories = (rootDir: string) => {
+    if (!fileExists(rootDir)) return [];
+    try {
+      return fs.readdirSync(rootDir, { withFileTypes: true })
+        .filter((entry) => entry.isDirectory() && entry.name.startsWith("models--"))
+        .map((entry) => path.join(rootDir, entry.name))
+        .sort();
+    } catch {
+      return [];
+    }
+  };
+
+  const getModelRepositorySources = () => [
+    ...listModelRepositories(huggingFaceHubDir()),
+    ...listModelRepositories(legacyDefaultModelsDir()),
+    ...listModelRepositories(legacyModelsDir()),
+  ];
+
+  const getStorageLayout = (): TtsStorageLayout => {
+    const runtimeDir = runtimeDataDir();
+    const modelsDir = defaultModelCacheDir();
+    const legacyRuntimeExists = fileExists(legacyRuntimeDir);
+    const legacyModelsExists = fileExists(legacyModelsDir());
+    const legacyDefaultModelsExists = fileExists(legacyDefaultModelsDir());
+    const legacyHuggingFaceHubExists = fileExists(huggingFaceHubDir());
+    const hasRuntimeConflict = legacyRuntimeExists && fileExists(runtimeDir);
+    const hasModelRepositories = getModelRepositorySources().length > 0;
+    const migrationState = hasRuntimeConflict
+      ? "conflict"
+      : legacyRuntimeExists || hasModelRepositories
+        ? "ready"
+        : "up-to-date";
+    return {
+      rootDir: ttsRootDir(),
+      runtimeDir,
+      modelsDir,
+      legacyRuntimeDir,
+      legacyModelsDir: legacyModelsDir(),
+      legacyDefaultModelsDir: legacyDefaultModelsDir(),
+      legacyHuggingFaceHubDir: huggingFaceHubDir(),
+      legacyRuntimeExists,
+      legacyModelsExists,
+      legacyDefaultModelsExists,
+      legacyHuggingFaceHubExists,
+      migrationState,
+      migrationMessage: hasRuntimeConflict
+        ? "旧版运行数据目录与新的 TTS/runtime 同时存在，已阻止自动迁移。"
+        : legacyRuntimeExists || hasModelRepositories
+          ? "检测到旧版或 Hugging Face 模型，迁移时会逐项校验后移动。"
+          : undefined,
+    };
+  };
+
+  const buildModelMigrationPlan = async (modelsDir: string): Promise<{
+    actions: ModelMigrationAction[];
+    conflicts: string[];
+  }> => {
+    const byName = new Map<string, string[]>();
+    for (const sourceDir of getModelRepositorySources()) {
+      const modelName = path.basename(sourceDir);
+      const sources = byName.get(modelName) ?? [];
+      sources.push(sourceDir);
+      byName.set(modelName, sources);
+    }
+
+    const actions: ModelMigrationAction[] = [];
+    const conflicts: string[] = [];
+    for (const [modelName, sources] of byName) {
+      const targetDir = path.join(modelsDir, modelName);
+      if (fileExists(targetDir)) {
+        for (const sourceDir of sources) {
+          if (!await directoryIsCoveredBy(sourceDir, targetDir)) {
+            conflicts.push(modelName);
+            break;
+          }
+          actions.push({ kind: "remove", sourceDir });
+        }
+        continue;
+      }
+
+      const [primarySource, ...duplicateSources] = sources;
+      if (!primarySource) continue;
+      for (const sourceDir of duplicateSources) {
+        if (!await directoryIsCoveredBy(sourceDir, primarySource)) {
+          conflicts.push(modelName);
+          break;
+        }
+      }
+      if (conflicts.includes(modelName)) continue;
+      actions.push({ kind: "move", sourceDir: primarySource, targetDir });
+      actions.push(...duplicateSources.map((sourceDir) => ({ kind: "remove" as const, sourceDir })));
+    }
+    return { actions, conflicts };
   };
 
   const getControlToken = () => {
@@ -552,7 +710,7 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
 
   const saveModelCacheDir = (dirPath: string) => {
     const modelCacheDir = dirPath.trim() ? normalizeUserPath(dirPath) : defaultModelCacheDir();
-    ensureDir(cacheDir);
+    ensureDir(runtimeDataDir());
     ensureDir(modelCacheDir);
     const config = readConfig();
     writeConfig({ ...config, modelCacheDir });
@@ -743,7 +901,7 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
   } {
     const reqPath = path.join(sidecarRoot, "requirements.txt");
     if (!fileExists(reqPath)) return {};
-    const markerPath = path.join(cacheDir, ".deps-hash");
+    const markerPath = path.join(runtimeDataDir(), ".deps-hash");
     const reqContent = readTextFile(reqPath) ?? "";
     const reqHash = crypto.createHash("md5").update(`${python}\n${reqContent}`).digest("hex");
     return { reqPath, markerPath, reqHash };
@@ -770,7 +928,7 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
         await runPython(python, ["-m", "pip", "install", "torch", "--index-url", "https://download.pytorch.org/whl/cu121"], { timeout: 1_800_000, maxBuffer: 32 * 1024 * 1024 });
       }
       await runPython(python, ["-m", "pip", "install", "-r", reqPath], { timeout: 1_800_000, maxBuffer: 32 * 1024 * 1024 });
-      ensureDir(cacheDir);
+      ensureDir(runtimeDataDir());
       writeTextFile(markerPath, reqHash);
       setInstalledItem({ label: "TTS Python 依赖", detail: reqPath, status: "installed" });
     } catch (error) {
@@ -825,10 +983,11 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
       setupStage: setupState.setupStage ?? "idle",
       setupMessage: setupState.setupMessage,
       setupProgress: setupState.setupProgress,
-      cacheDir,
+      cacheDir: runtimeDataDir(),
       modelCacheDir: getModelCacheDir(),
       defaultModelCacheDir: defaultModelCacheDir(),
-      systemModelCacheDir,
+      hfHubCacheDir: resolveHfHubCacheDir(getModelCacheDir(), fileExists),
+      storageLayout: getStorageLayout(),
       pythonRuntimeDir: runtimePythonDir(),
       managed: child !== null,
       pid: child?.pid,
@@ -891,7 +1050,8 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
       }
     }
 
-    ensureDir(cacheDir);
+    const runtimeDir = runtimeDataDir();
+    ensureDir(runtimeDir);
     const modelCacheDir = getModelCacheDir();
     const hfHubCacheDir = resolveHfHubCacheDir(modelCacheDir, fileExists);
     ensureDir(modelCacheDir);
@@ -913,7 +1073,6 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
     const backendPython = pyResult.python;
 
     updateSetupState({ setupStage: "starting-backend", setupMessage: "本地 TTS 后端启动中", setupProgress: undefined });
-    const systemHfCache = path.join(os.homedir(), ".cache", "huggingface", "hub");
     child = spawnProcess(
       backendPython,
       [
@@ -924,17 +1083,17 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
         "--port",
         String(port),
         "--data-dir",
-        cacheDir,
+        runtimeDir,
       ],
       {
         cwd: sidecarRoot,
         env: {
           ...process.env,
           PYTHONPATH: sidecarRoot,
-          MANYING_TTS_DATA_DIR: cacheDir,
+          MANYING_TTS_DATA_DIR: runtimeDir,
           MANYING_TTS_MODELS_DIR: modelCacheDir,
           VOICEBOX_MODELS_DIR: modelCacheDir,
-          HF_HUB_CACHE: systemHfCache,
+          HF_HUB_CACHE: hfHubCacheDir,
           MANYING_TTS_CONTROL_TOKEN: controlToken,
         },
       },
@@ -1189,6 +1348,113 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
     }
   }
 
+  async function readRequirements(): Promise<{ content: string; path: string } | null> {
+    const config = readConfig();
+    const depsItem = (config.installedItems ?? []).find((item) => item.label.includes("Python 依赖"));
+    let reqPath = depsItem?.detail;
+    if (!reqPath) {
+      const sidecarRoot = resolveSidecarRoot();
+      if (!sidecarRoot) return null;
+      reqPath = path.join(sidecarRoot, "requirements.txt");
+    }
+    const content = readTextFile(reqPath);
+    if (content === null) return null;
+    return { content, path: reqPath };
+  }
+
+  async function migrateStorage(): Promise<TtsRuntimeCommandResult> {
+    const layout = getStorageLayout();
+    if (layout.migrationState === "conflict") {
+      return {
+        success: false,
+        status: await status(),
+        error: layout.migrationMessage ?? "新的 TTS 文件夹已存在，无法安全迁移旧数据",
+      };
+    }
+    if (layout.migrationState === "up-to-date") {
+      return { success: true, status: await status() };
+    }
+
+    const stopResult = await stop();
+    if (!stopResult.success) {
+      return { success: false, status: await status(), error: stopResult.error ?? "停止 TTS 后端失败" };
+    }
+
+    try {
+      const modelPlan = await buildModelMigrationPlan(layout.modelsDir);
+      if (modelPlan.conflicts.length > 0) {
+        return {
+          success: false,
+          status: await status(),
+          error: `以下模型目录内容不一致，未迁移：${modelPlan.conflicts.join("、")}`,
+        };
+      }
+
+      ensureDir(layout.rootDir);
+      if (layout.legacyRuntimeExists) renameFile(layout.legacyRuntimeDir, layout.runtimeDir);
+      ensureDir(layout.modelsDir);
+      for (const action of modelPlan.actions) {
+        if (action.kind === "move") {
+          renameFile(action.sourceDir, action.targetDir);
+        } else {
+          fs.rmSync(action.sourceDir, { recursive: true, force: true });
+        }
+      }
+
+      const config = readConfig();
+      const legacyModelPaths = [layout.legacyModelsDir, layout.legacyDefaultModelsDir];
+      const configuredModelCacheDir = config.modelCacheDir;
+      const usesLegacyOrUnsetModelDir = !configuredModelCacheDir || legacyModelPaths.some((legacyPath) => (
+        normalizeUserPath(configuredModelCacheDir) === normalizeUserPath(legacyPath)
+      ));
+      if (usesLegacyOrUnsetModelDir) {
+        writeConfig({ ...config, modelCacheDir: layout.modelsDir });
+      }
+      return { success: true, status: await status() };
+    } catch (error) {
+      return { success: false, status: await status(), error: `迁移 TTS 文件夹失败: ${getErrorMessage(error)}` };
+    }
+  }
+
+  async function deleteRuntime(): Promise<TtsRuntimeCommandResult> {
+    const targetDir = runtimePythonDir();
+    try {
+      const stopResult = await stop();
+      if (!stopResult.success) {
+        return { success: false, status: await status(), error: stopResult.error ?? "停止 TTS 后端失败" };
+      }
+      if (fileExists(targetDir)) {
+        fs.rmSync(targetDir, { recursive: true, force: true });
+      }
+      writeConfig({ ...readConfig(), installedItems: undefined });
+      updateSetupState({ setupStage: "idle", setupMessage: undefined, setupProgress: undefined });
+      return { success: true, status: await status() };
+    } catch (error) {
+      return { success: false, status: await status(), error: `删除 Python 运行环境失败: ${getErrorMessage(error)}` };
+    }
+  }
+
+
+  async function resetInstallDir(defaultDir: string): Promise<TtsRuntimeCommandResult> {
+    try {
+      const stopResult = await stop();
+      if (!stopResult.success) {
+        return { success: false, status: await status(), error: stopResult.error ?? "停止 TTS 后端失败" };
+      }
+      const currentDir = runtimePythonDir();
+      if (currentDir !== defaultDir && fileExists(currentDir)) {
+        fs.rmSync(currentDir, { recursive: true, force: true });
+      }
+      const config = readConfig();
+      config.pythonRuntimeDir = defaultDir;
+      writeConfig(config);
+      updateSetupState({ setupStage: "idle", setupMessage: undefined, setupProgress: undefined });
+      return { success: true, status: await status() };
+    } catch (error) {
+      return { success: false, status: await status(), error: `恢复默认路径失败：${getErrorMessage(error)}` };
+    }
+  }
+
   return {
     status,
     start,
@@ -1197,11 +1463,15 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
     stop,
     getConfig,
     getModelCacheDir,
+    getStorageLayout,
+    migrateStorage,
     setConfig,
     setModelCacheDir,
     request,
     requestBytes,
     requestFormData,
-
+    readRequirements,
+    deleteRuntime,
+    resetInstallDir,
   };
 }

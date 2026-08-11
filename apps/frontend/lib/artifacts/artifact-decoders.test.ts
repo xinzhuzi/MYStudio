@@ -9,9 +9,13 @@
 import { describe, it, expect } from "vitest";
 import {
   InventoryRequestDecoder,
+  ProjectArtifactsRequestDecoder,
   PlanRequestDecoder,
   ExecuteRequestDecoder,
+  InventoryResultDecoder,
+  PlanResultDecoder,
   RecoveryQueryRequestDecoder,
+  MetadataUpdateRequestDecoder,
 } from "./artifact-decoders";
 import { rewriteRegisteredBackup } from "@/electron/artifacts/backup-decoder-registry";
 
@@ -74,6 +78,15 @@ describe("Artifact IPC Request Decoders - Contract Tests", () => {
       expect(result.success).toBe(false);
     });
 
+    it("rejects unknown top-level fields", () => {
+      const result = InventoryRequestDecoder.safeParse({
+        type: "inventory",
+        payload: { projectId: "test-id" },
+        physicalPath: "/tmp/outside-contract",
+      });
+      expect(result.success).toBe(false);
+    });
+
     it("accepts valid projectId only", () => {
       const result = InventoryRequestDecoder.safeParse({
         type: "inventory",
@@ -99,6 +112,60 @@ describe("Artifact IPC Request Decoders - Contract Tests", () => {
         payload: { projectId: "test-id" },
       });
       expect(result.success).toBe(false);
+    });
+
+    it("rejects an empty optional chapterId", () => {
+      const result = InventoryRequestDecoder.safeParse({
+        type: "inventory",
+        payload: { projectId: "test-id", chapterId: "" },
+      });
+      expect(result.success).toBe(false);
+    });
+  });
+
+  describe("ProjectArtifactsRequestDecoder - Contract", () => {
+    it("accepts only a project identity", () => {
+      expect(ProjectArtifactsRequestDecoder.safeParse({
+        type: "project-artifacts",
+        payload: { projectId: "test-id" },
+      }).success).toBe(true);
+      expect(ProjectArtifactsRequestDecoder.safeParse({
+        type: "project-artifacts",
+        payload: { projectId: "test-id", chapterId: "chapter-001" },
+      }).success).toBe(false);
+    });
+  });
+
+  describe("MetadataUpdateRequestDecoder - Contract", () => {
+    it("accepts name or notes and rejects read-only fields", () => {
+      expect(MetadataUpdateRequestDecoder.safeParse({
+        type: "metadata-update",
+        payload: { projectId: "test-id", artifactId: "artifact-1", updates: { notes: "reviewed" } },
+      }).success).toBe(true);
+      expect(MetadataUpdateRequestDecoder.safeParse({
+        type: "metadata-update",
+        payload: {
+          projectId: "test-id",
+          artifactId: "artifact-1",
+          updates: { notes: "reviewed", physicalPath: "/tmp/forbidden" },
+        },
+      }).success).toBe(false);
+    });
+
+    it("rejects empty updates and unknown request fields", () => {
+      expect(MetadataUpdateRequestDecoder.safeParse({
+        type: "metadata-update",
+        payload: { projectId: "test-id", artifactId: "artifact-1", updates: {} },
+      }).success).toBe(false);
+      expect(MetadataUpdateRequestDecoder.safeParse({
+        type: "metadata-update",
+        payload: {
+          projectId: "test-id",
+          artifactId: "artifact-1",
+          updates: { name: "renamed" },
+          chapterId: "chapter-001",
+        },
+      }).success).toBe(false);
     });
   });
 
@@ -176,7 +243,7 @@ describe("Artifact IPC Request Decoders - Contract Tests", () => {
           scope: "chapter",
         },
       });
-      expect(result.success).toBe(true);
+      expect(result.success, result.success ? undefined : JSON.stringify(result.error.issues)).toBe(true);
     });
 
     it("accepts valid artifacts scope with artifactIds", () => {
@@ -189,7 +256,27 @@ describe("Artifact IPC Request Decoders - Contract Tests", () => {
           artifactIds: ["artifact-1", "artifact-2"],
         },
       });
-      expect(result.success).toBe(true);
+      expect(result.success, result.success ? undefined : JSON.stringify(result.error.issues)).toBe(true);
+    });
+
+    it("rejects an empty artifact scope", () => {
+      expect(PlanRequestDecoder.safeParse({
+        type: "plan",
+        payload: {
+          projectId: "test-id",
+          chapterId: "",
+          scope: "artifacts",
+          artifactIds: [],
+        },
+      }).success).toBe(false);
+      expect(PlanRequestDecoder.safeParse({
+        type: "plan",
+        payload: {
+          projectId: "test-id",
+          chapterId: "",
+          scope: "artifacts",
+        },
+      }).success).toBe(false);
     });
 
     it("accepts empty chapterId for artifact scope when the graph will derive it", () => {
@@ -231,7 +318,7 @@ describe("Artifact IPC Request Decoders - Contract Tests", () => {
       expect(result.success).toBe(false);
     });
 
-    it("rejects path-bearing execute payloads (physical paths in confirmation)", () => {
+    it("rejects path-bearing execute fields in confirmation", () => {
       const result = ExecuteRequestDecoder.safeParse({
         type: "execute",
         payload: {
@@ -239,13 +326,24 @@ describe("Artifact IPC Request Decoders - Contract Tests", () => {
           fingerprint: "abc123",
           confirmation: {
             type: "chapter",
-            chapterTitle: "/absolute/path/to/chapter", // should be rejected
+            chapterTitle: "第一章",
+            physicalPath: "/absolute/path/to/chapter",
           },
         },
       });
-      // Path-based chapterTitle is logically invalid even if string passes
-      // Schema accepts strings; business logic validation happens after decode
-      expect(result.success).toBe(true); // Decode succeeds, app-level validation will reject
+      expect(result.success).toBe(false);
+    });
+
+    it("rejects empty chapter confirmation values", () => {
+      const result = ExecuteRequestDecoder.safeParse({
+        type: "execute",
+        payload: {
+          planId: "plan-1",
+          fingerprint: "abc123",
+          confirmation: { type: "chapter", chapterId: "" },
+        },
+      });
+      expect(result.success).toBe(false);
     });
 
     it("rejects malformed chapter confirmation without required fields", () => {
@@ -435,8 +533,7 @@ describe("Artifact IPC Request Decoders - Contract Tests", () => {
       expect(result.success).toBe(false);
     });
 
-    it("prevents renderer-supplied physical paths in execute confirmation", () => {
-      // Confirmations are typed enums + strings, not arbitrary paths
+    it("prevents renderer-supplied physical path fields in execute confirmation", () => {
       const maliciousConfirmation = {
         type: "execute",
         payload: {
@@ -444,13 +541,85 @@ describe("Artifact IPC Request Decoders - Contract Tests", () => {
           fingerprint: "abc123",
           confirmation: {
             type: "chapter",
-            chapterTitle: "/p/49dce4c1-64b1-42de-85c2-9f266698aec0/novel/chapters",
+            chapterTitle: "第一章",
+            paths: ["/p/49dce4c1-64b1-42de-85c2-9f266698aec0/novel/chapters"],
           },
         },
       };
       const result = ExecuteRequestDecoder.safeParse(maliciousConfirmation);
-      // Decode passes (string is valid), but APP-LEVEL validation will reject path-based titles
-      expect(result.success).toBe(true); // Decoder allows strings; app validates semantic meaning
+      expect(result.success).toBe(false);
+    });
+  });
+
+  describe("IPC result decoders", () => {
+    it("accepts inventory metadata overlays declared by ArtifactRecord", () => {
+      const result = InventoryResultDecoder.safeParse({
+        success: true,
+        data: {
+          projectId: "project-1",
+          artifacts: [{
+            id: "novel:novel-chapter:chapter-001",
+            projectId: "project-1",
+            chapterId: "chapter-001",
+            stage: "novel",
+            kind: "novel-chapter",
+            state: "active",
+            name: "第一章",
+            createdAt: 1,
+            updatedAt: 2,
+            physicalRefs: [],
+            upstreamIds: [],
+            downstreamIds: [],
+            deletePolicy: "delete-exclusive-downstream",
+            metadata: { name: "新名称", tags: ["只读标签"], notes: "备注", updatedAt: 3 },
+          }],
+          discrepancies: [],
+          blockers: [],
+          summary: {
+            totalArtifacts: 1,
+            byStage: { novel: 1 },
+            byKind: { "novel-chapter": 1 },
+            byState: { active: 1 },
+            totalBytes: 0,
+            deleteEligible: 1,
+            retainDueToShared: 0,
+            blockedByJobs: 0,
+            blockedByUnknown: 0,
+          },
+        },
+      });
+      expect(result.success, result.success ? undefined : JSON.stringify(result.error.issues)).toBe(true);
+    });
+
+    it("accepts the complete physical reference list on deletion plan items", () => {
+      const result = PlanResultDecoder.safeParse({
+        success: true,
+        data: {
+          planId: "plan-1",
+          schemaVersion: "1",
+          projectId: "project-1",
+          chapterId: "chapter-001",
+          scope: "artifacts",
+          selectedArtifactIds: ["novel:novel-chapter:chapter-001"],
+          createdAt: 1,
+          fingerprint: "hash",
+          deleteItems: [{
+            artifactId: "novel:novel-chapter:chapter-001",
+            kind: "novel-chapter",
+            stage: "novel",
+            name: "第一章",
+            physicalRefs: [{ type: "project-file", path: "novel/chapters/chapter-001.md" }],
+          }],
+          migrateItems: [],
+          retainItems: [],
+          blockerItems: [],
+          backupImpact: [],
+          byteTotals: { deleteBytes: 0, migrateBytes: 0, retainBytes: 0, totalBytes: 0 },
+          confirmationRequired: { type: "artifact-count", count: 1 },
+          executionAllowed: true,
+        },
+      });
+      expect(result.success, result.success ? undefined : JSON.stringify(result.error.issues)).toBe(true);
     });
   });
 });

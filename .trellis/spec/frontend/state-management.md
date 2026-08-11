@@ -10,9 +10,10 @@ Provides atomicity across all files within a single project during deletion oper
 
 ### Interface
 ```typescript
+type ReleaseFn = () => Promise<void>;
+
 interface ProjectDeletionMutex {
-  acquire(projectId: string): Promise<ReleaseFn>;
-  release(): Promise<void>;
+  acquire(projectKey: string): Promise<ReleaseFn>;
 }
 ```
 

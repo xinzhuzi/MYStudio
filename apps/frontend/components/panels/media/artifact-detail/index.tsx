@@ -14,6 +14,7 @@ import {
   Archive,
   ChevronDown,
   ChevronRight,
+  ExternalLink,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ArtifactRecord, PhysicalRef } from "@/types/artifacts";
@@ -33,6 +34,10 @@ import { buildProjectFileUrl } from "@/lib/artifacts/ref-preview-loader";
 import { EditableField, STATE_INFO, formatBytes, formatTimestamp } from "./helpers";
 import { JsonViewer } from "./json-viewer";
 import { getArtifactDeleteImpact } from "@/lib/artifacts/delete-impact";
+import {
+  getArtifactPhysicalDirectory,
+  parseProjectFilePath,
+} from "@/lib/artifacts/physical-path";
 
 /**
  * Artifact Detail Panel
@@ -56,6 +61,10 @@ export interface ArtifactDetailPanelProps {
   ) => Promise<void>;
   /** Open the containing project directory in the artifact center. */
   onOpenFolder?: (directoryPath: string) => void;
+  /** Open the containing directory in the OS file manager (Finder/Explorer). */
+  onOpenSystemFolder?: (ref: PhysicalRef) => Promise<void> | void;
+  /** Navigate to the owning workflow's single editing entry point. */
+  onOpenWorkflow?: (artifact: ArtifactRecord) => void;
   /** Custom className for root element */
   className?: string;
 }
@@ -66,6 +75,8 @@ export function ArtifactDetailPanel({
   onClose,
   onMetadataUpdate,
   onOpenFolder,
+  onOpenSystemFolder,
+  onOpenWorkflow,
   className,
 }: ArtifactDetailPanelProps) {
   const [editingField, setEditingField] = useState<null | "name" | "notes">(null);
@@ -111,19 +122,21 @@ export function ArtifactDetailPanel({
   // prefixes, so we must route through the correct preload surface to obtain
   // an absolute path before calling showItemInFolder. Previously we passed the
   // bare relative path, which silently failed with "文件不存在".
-  const handleRevealRef = async (ref: PhysicalRef) => {
-    // Read from the ref (always current), not the closure-captured `artifact`
-    // (which may be stale in an old onClick closure).
+  const resolveRefAbsolutePath = async (ref: PhysicalRef): Promise<string | null> => {
     const currentArtifact = artifactRef.current;
-    if (!currentArtifact?.projectId || typeof ref.path !== "string") return;
+    if (!currentArtifact?.projectId || typeof ref.path !== "string") return null;
+    if (ref.type === "local-media") {
+      return await window.imageStorage?.getAbsolutePath?.(ref.path) ?? null;
+    }
+    const url = parseProjectFilePath(ref.path)
+      ? ref.path
+      : buildProjectFileUrl(currentArtifact.projectId, ref.path);
+    return await window.projectFiles?.getAbsolutePath?.(url) ?? null;
+  };
+
+  const handleRevealRef = async (ref: PhysicalRef) => {
     try {
-      let absolutePath: string | null | undefined;
-      if (ref.type === "local-media") {
-        absolutePath = await window.imageStorage?.getAbsolutePath?.(ref.path);
-      } else {
-        const url = buildProjectFileUrl(currentArtifact.projectId, ref.path);
-        absolutePath = await window.projectFiles?.getAbsolutePath?.(url);
-      }
+      const absolutePath = await resolveRefAbsolutePath(ref);
       if (!absolutePath) {
         console.warn("[artifact-detail] 无法解析物理文件绝对路径", ref.path);
         return;
@@ -137,13 +150,33 @@ export function ArtifactDetailPanel({
     }
   };
 
+  const handleOpenSystemFolder = async (ref: PhysicalRef) => {
+    if (onOpenSystemFolder) {
+      await onOpenSystemFolder(ref);
+      return;
+    }
+    try {
+      const absolutePath = await resolveRefAbsolutePath(ref);
+      if (!absolutePath) {
+        console.warn("[artifact-detail] 无法解析产物文件夹路径", ref.path);
+        return;
+      }
+      const slash = absolutePath.lastIndexOf("/");
+      const directory = slash > 0 ? absolutePath.slice(0, slash) : absolutePath;
+      const result = await window.electronAPI?.openPath?.(directory);
+      if (result && !result.success) {
+        console.warn("[artifact-detail] 打开产物文件夹失败:", result.error, directory);
+      }
+    } catch (error) {
+      console.error("[artifact-detail] 打开产物文件夹异常:", error);
+    }
+  };
+
   const getRefDirectoryPath = (ref: PhysicalRef): string | null => {
-    if (ref.type === "local-media" || typeof ref.path !== "string" || ref.path.includes("://")) {
+    if (ref.type === "local-media" || typeof ref.path !== "string") {
       return null;
     }
-    const normalizedPath = ref.path.replace(/\\/g, "/").replace(/^\/+/, "");
-    const separator = normalizedPath.lastIndexOf("/");
-    return separator === -1 ? "" : normalizedPath.slice(0, separator);
+    return getArtifactPhysicalDirectory(ref.path, artifact?.projectId);
   };
 
   const handleOpenFolder = (ref: PhysicalRef) => {
@@ -179,6 +212,12 @@ export function ArtifactDetailPanel({
   // 「物理文件」tab. Default collapsed so the list stays uncluttered.
   const [showBackups, setShowBackups] = useState(false);
 
+  useEffect(() => {
+    setShowBackups(false);
+  }, [artifact?.id]);
+
+  const firstFolderRef = liveRefs.find((ref) => getRefDirectoryPath(ref) !== null) ?? null;
+
   if (!isOpen || !artifact) {
     return null;
   }
@@ -199,6 +238,42 @@ export function ArtifactDetailPanel({
           <SheetDescription className="sr-only">
             产物详情:查看元数据、物理文件、依赖关系与内容预览。
           </SheetDescription>
+          {artifact.editRoute && onOpenWorkflow && (
+            <button
+              type="button"
+              className="inline-flex w-fit items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs hover:bg-muted"
+              onClick={() => onOpenWorkflow(artifact)}
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+              前往所属工作流
+            </button>
+          )}
+          {firstFolderRef && (
+            <div className="flex flex-wrap gap-2">
+              {onOpenFolder && (
+                <button
+                  type="button"
+                  className="inline-flex w-fit items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs hover:bg-muted"
+                  title="在产物中心打开所在文件夹"
+                  onClick={() => handleOpenFolder(firstFolderRef)}
+                >
+                  <FolderOpen className="h-3.5 w-3.5" />
+                  在产物中心打开文件夹
+                </button>
+              )}
+              {
+                <button
+                  type="button"
+                  className="inline-flex w-fit items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs hover:bg-muted"
+                  title="在 Finder 中打开产物文件夹"
+                  onClick={() => void handleOpenSystemFolder(firstFolderRef)}
+                >
+                  <FolderOpen className="h-3.5 w-3.5" />
+                  弹出产物文件夹
+                </button>
+              }
+            </div>
+          )}
         </SheetHeader>
 
         <ScrollArea className="min-h-0 flex-1">
@@ -370,7 +445,7 @@ export function ArtifactDetailPanel({
               </div>
 
               {/* Size Information */}
-              {artifact.bytes && (
+              {artifact.bytes !== undefined && (
                 <div className="space-y-2">
                   <label className="text-xs font-medium text-muted-foreground">文件大小</label>
                   <p className="text-sm font-mono">{formatBytes(artifact.bytes)}</p>
@@ -388,7 +463,7 @@ export function ArtifactDetailPanel({
                   >
                     <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
                     <code className="flex-1 break-all" title={ref.path}>{ref.path}</code>
-                    {ref.bytes != null && ref.bytes > 0 && (
+                    {ref.bytes != null && (
                       <span className="shrink-0 text-muted-foreground">
                         ({formatBytes(ref.bytes)})
                       </span>
@@ -413,6 +488,16 @@ export function ArtifactDetailPanel({
                         <FolderOpen className="h-3.5 w-3.5" />打开目录
                       </button>
                     )}
+                    {
+                      <button
+                        type="button"
+                        className="shrink-0 inline-flex items-center gap-1 px-2 py-1 bg-background border rounded hover:bg-muted"
+                        title="在 Finder 中打开产物文件夹"
+                        onClick={() => void handleOpenSystemFolder(ref)}
+                      >
+                        <FolderOpen className="h-3.5 w-3.5" />弹出文件夹
+                      </button>
+                    }
                     <button
                       type="button"
                       className="shrink-0 inline-flex items-center gap-1 px-2 py-1 bg-background border rounded hover:bg-muted"
@@ -477,7 +562,7 @@ export function ArtifactDetailPanel({
                           >
                             {ref.path}
                           </code>
-                          {ref.bytes != null && ref.bytes > 0 && (
+                          {ref.bytes != null && (
                             <span className="shrink-0 text-muted-foreground/70">
                               ({formatBytes(ref.bytes)})
                             </span>
@@ -502,6 +587,16 @@ export function ArtifactDetailPanel({
                               <FolderOpen className="h-3 w-3" />打开目录
                             </button>
                           )}
+                          {
+                            <button
+                              type="button"
+                              className="shrink-0 inline-flex items-center gap-1 px-2 py-1 bg-background border rounded hover:bg-muted"
+                              title="在 Finder 中打开产物文件夹"
+                              onClick={() => void handleOpenSystemFolder(ref)}
+                            >
+                              <FolderOpen className="h-3 w-3" />弹出文件夹
+                            </button>
+                          }
                           <button
                             type="button"
                             className="shrink-0 inline-flex items-center gap-1 px-2 py-1 bg-background border rounded hover:bg-muted"

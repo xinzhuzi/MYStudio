@@ -26,12 +26,12 @@ import { ipcMain } from 'electron';
 import fs from 'node:fs';
 import fsp from 'node:fs/promises';
 import path from 'node:path';
+import type { ZodIssue } from 'zod';
 import { scanProjectInventory } from '@/electron/artifacts/artifact-inventory-service';
 import type {
   Discrepancy,
   DeletionPlan,
   InventoryResult,
-  PlanRequest,
   PlanResult,
   RecoveryQueryResult,
   MetadataUpdateResult,
@@ -41,6 +41,14 @@ import { executeDeletion, queryRecovery, registerDeletionPlan } from '@/electron
 import { resolveProjectRootPath } from '@/electron/storage/storage-paths';
 import { withFileStorageMutationLocks } from './file-storage-ipc';
 import { validateMetadataOverlay } from '@/lib/artifacts/artifact-metadata';
+import {
+  ExecuteRequestDecoder,
+  InventoryRequestDecoder,
+  MetadataUpdateRequestDecoder,
+  PlanRequestDecoder,
+  ProjectArtifactsRequestDecoder,
+  RecoveryQueryRequestDecoder,
+} from '@/lib/artifacts/artifact-decoders';
 
 export interface ArtifactManagementIpcContext {
   getDataDir: () => string;
@@ -53,6 +61,13 @@ let artifactContext: ArtifactManagementIpcContext = {
 
 export function configureArtifactManagementIpc(context: ArtifactManagementIpcContext): void {
   artifactContext = context;
+}
+
+function formatInvalidPayload(issues: readonly ZodIssue[]): string {
+  const details = issues
+    .map((issue) => `${issue.path.join('.') || 'payload'}: ${issue.message}`)
+    .join('; ');
+  return `INVALID_PAYLOAD: ${details}`;
 }
 
 /**
@@ -111,24 +126,22 @@ export function applyInventoryDiscrepancyBlockers(
  * RETURNS:
  * InventoryResult (typed response from artifactInventoryService.scan())
  */
-ipcMain.handle('artifact-inventory-scan', async (event, payload: {
-  projectId: string;
-  chapterId?: string;
-}) => {
+ipcMain.handle('artifact-inventory-scan', async (_event, payload: unknown) => {
   try {
-    // Validate payload
-    if (!payload.projectId || typeof payload.projectId !== 'string') {
+    const decoded = InventoryRequestDecoder.safeParse({ type: 'inventory', payload });
+    if (!decoded.success) {
       return {
         success: false,
-        error: 'INVALID_PAYLOAD: projectId is required and must be a string',
+        error: formatInvalidPayload(decoded.error.issues),
       };
     }
+    const request = decoded.data.payload;
 
     // Perform the scan
     const result: InventoryResult = await scanProjectInventory(
       artifactContext.getDataDir(),
-      payload.projectId,
-      payload.chapterId,
+      request.projectId,
+      request.chapterId,
       artifactContext.getMediaRoot?.(),
     );
 
@@ -170,30 +183,17 @@ ipcMain.handle('artifact-inventory-scan', async (event, payload: {
  * SECURITY: Requires exact plan+confirmation match per slice spec.
  * The plan must be registered via registerDeletionPlan first.
  */
-ipcMain.handle('artifact-execute-deletion', async (_event, payload: {
-  planId: string;
-  fingerprint: string;
-  confirmation: {
-    type: 'chapter' | 'artifacts';
-    chapterTitle?: string;
-    chapterId?: string;
-    artifactCount?: number;
-  };
-}) => {
+ipcMain.handle('artifact-execute-deletion', async (_event, payload: unknown) => {
   try {
-    // Validate payload structure
-    if (!payload.planId || typeof payload.planId !== 'string') {
-      return { success: false, error: 'INVALID_PAYLOAD: planId required', journalState: 'none' };
+    const decoded = ExecuteRequestDecoder.safeParse({ type: 'execute', payload });
+    if (!decoded.success) {
+      return {
+        success: false,
+        error: formatInvalidPayload(decoded.error.issues),
+        journalState: 'none',
+      };
     }
-    if (!payload.fingerprint || typeof payload.fingerprint !== 'string') {
-      return { success: false, error: 'INVALID_PAYLOAD: fingerprint required', journalState: 'none' };
-    }
-    if (!payload.confirmation || typeof payload.confirmation.type !== 'string') {
-      return { success: false, error: 'INVALID_PAYLOAD: confirmation required', journalState: 'none' };
-    }
-    if (payload.confirmation.type !== 'chapter' && payload.confirmation.type !== 'artifacts') {
-      return { success: false, error: 'INVALID_PAYLOAD: invalid confirmation type', journalState: 'none' };
-    }
+    const request = decoded.data.payload;
 
     // Execute deletion via shared controller
     const result = await executeDeletion(
@@ -202,9 +202,9 @@ ipcMain.handle('artifact-execute-deletion', async (_event, payload: {
         mediaRoot: artifactContext.getMediaRoot?.(),
       },
       {
-        planId: payload.planId,
-        fingerprint: payload.fingerprint,
-        confirmation: payload.confirmation as any,
+        planId: request.planId,
+        fingerprint: request.fingerprint,
+        confirmation: request.confirmation,
       }
     );
     return result;
@@ -217,23 +217,26 @@ ipcMain.handle('artifact-execute-deletion', async (_event, payload: {
   }
 });
 
-ipcMain.handle('artifact-deletion-recovery-query', async (_event, payload: { projectId: string }): Promise<RecoveryQueryResult> => {
-  if (!payload || typeof payload.projectId !== 'string' || payload.projectId.length === 0) {
-    return { success: false, error: 'INVALID_PAYLOAD: projectId is required' };
+ipcMain.handle('artifact-deletion-recovery-query', async (_event, payload: unknown): Promise<RecoveryQueryResult> => {
+  const decoded = RecoveryQueryRequestDecoder.safeParse({ type: 'recovery-query', payload });
+  if (!decoded.success) {
+    return { success: false, error: formatInvalidPayload(decoded.error.issues) };
   }
-  return queryRecovery(artifactContext.getDataDir(), payload.projectId);
+  return queryRecovery(
+    artifactContext.getDataDir(),
+    decoded.data.payload.projectId,
+    artifactContext.getMediaRoot?.(),
+  );
 });
 
-ipcMain.handle('artifact-update-metadata', async (_event, payload: {
-  projectId: string;
-  artifactId: string;
-  updates: { name?: string; tags?: string[]; notes?: string };
-}): Promise<MetadataUpdateResult> => {
-  if (!payload || typeof payload.projectId !== 'string' || typeof payload.artifactId !== 'string' || !payload.updates || typeof payload.updates !== 'object') {
-    return { success: false, error: 'INVALID_PAYLOAD: projectId, artifactId and updates are required' };
+ipcMain.handle('artifact-update-metadata', async (_event, payload: unknown): Promise<MetadataUpdateResult> => {
+  const decoded = MetadataUpdateRequestDecoder.safeParse({ type: 'metadata-update', payload });
+  if (!decoded.success) {
+    return { success: false, error: formatInvalidPayload(decoded.error.issues) };
   }
+  const request = decoded.data.payload;
   try {
-    const projectRoot = resolveProjectRootPath(artifactContext.getDataDir(), payload.projectId);
+    const projectRoot = resolveProjectRootPath(artifactContext.getDataDir(), request.projectId);
     const metadataPath = path.join(projectRoot, 'artifacts.json');
     return await withFileStorageMutationLocks([metadataPath], async () => {
       let persisted: { version: 1; overlays: Record<string, Record<string, unknown>> } = { version: 1, overlays: {} };
@@ -244,16 +247,16 @@ ipcMain.handle('artifact-update-metadata', async (_event, payload: {
           persisted = { version: 1, overlays: overlays as Record<string, Record<string, unknown>> };
         }
       }
-      const existing = persisted.overlays[payload.artifactId];
-      const validation = validateMetadataOverlay(payload.updates, typeof existing?.name === 'string' ? existing.name : undefined);
+      const existing = persisted.overlays[request.artifactId];
+      const validation = validateMetadataOverlay(request.updates, typeof existing?.name === 'string' ? existing.name : undefined);
       if (!validation.valid) return { success: false, error: validation.errors.join('; ') };
       const overlay = {
         ...(existing ?? {}),
         ...validation.normalized,
-        artifactId: payload.artifactId,
+        artifactId: request.artifactId,
         updatedAt: Date.now(),
       };
-      const next = { version: 1, overlays: { ...persisted.overlays, [payload.artifactId]: overlay } };
+      const next = { version: 1, overlays: { ...persisted.overlays, [request.artifactId]: overlay } };
       const temporary = `${metadataPath}.${Date.now()}.tmp`;
       await fsp.mkdir(path.dirname(metadataPath), { recursive: true });
       await fsp.writeFile(temporary, JSON.stringify(next, null, 2), 'utf8');
@@ -283,22 +286,20 @@ ipcMain.handle('artifact-update-metadata', async (_event, payload: {
  * RETURNS:
  * InventoryResult (same as artifact-inventory-scan)
  */
-ipcMain.handle('artifact-get-project-artifacts', async (event, payload: {
-  projectId: string;
-}) => {
+ipcMain.handle('artifact-get-project-artifacts', async (_event, payload: unknown) => {
   try {
-    // Validate payload
-    if (!payload.projectId || typeof payload.projectId !== 'string') {
+    const decoded = ProjectArtifactsRequestDecoder.safeParse({ type: 'project-artifacts', payload });
+    if (!decoded.success) {
       return {
         success: false,
-        error: 'INVALID_PAYLOAD: projectId is required and must be a string',
+        error: formatInvalidPayload(decoded.error.issues),
       };
     }
 
     // Call scan without chapter filter to get all project artifacts
     const result: InventoryResult = await scanProjectInventory(
       artifactContext.getDataDir(),
-      payload.projectId,
+      decoded.data.payload.projectId,
       undefined,
       artifactContext.getMediaRoot?.(),
     );
@@ -359,34 +360,23 @@ ipcMain.handle('artifact-get-project-artifacts', async (event, payload: {
  * - Same-chapter selection enforcement (via validation in buildDeletionPlan)
  * - Cancel-zero-write guarantee (no writes occur, only plan computation)
  */
-ipcMain.handle('artifact-plan-deletion', async (event, payload: PlanRequest['payload']) => {
+ipcMain.handle('artifact-plan-deletion', async (_event, payload: unknown): Promise<PlanResult> => {
   try {
-    // Validate payload
-    if (!payload.projectId || typeof payload.projectId !== 'string') {
+    const decoded = PlanRequestDecoder.safeParse({ type: 'plan', payload });
+    if (!decoded.success) {
       return {
         success: false,
-        error: 'INVALID_PAYLOAD: projectId is required and must be a string',
+        error: formatInvalidPayload(decoded.error.issues),
       };
     }
-
-    // chapterId is required for chapter-wide deletion (a chapter delete must
-    // have an explicit scope to avoid unbounded expansion). Artifact-scope
-    // deletion is also constrained by the dependency graph to one resolved
-    // chapter; an empty chapterId is only a transport convenience for a
-    // single selected record whose chapter can be derived from inventory.
-    if (payload.scope === 'chapter' && (!payload.chapterId || typeof payload.chapterId !== 'string')) {
-      return {
-        success: false,
-        error: 'INVALID_PAYLOAD: chapterId is required and must be a string for chapter-scope deletion',
-      };
-    }
+    const request = decoded.data.payload;
 
     // Build the plan from the complete project inventory.  A chapter-filtered
     // inventory cannot see cross-chapter references, so it would incorrectly
     // classify shared characters/scenes/props as chapter-exclusive.
     const allArtifactsResult: InventoryResult = await scanProjectInventory(
       artifactContext.getDataDir(),
-      payload.projectId,
+      request.projectId,
       undefined,
       artifactContext.getMediaRoot?.(),
     );
@@ -401,12 +391,12 @@ ipcMain.handle('artifact-plan-deletion', async (event, payload: PlanRequest['pay
     }
 
     const allArtifacts = allArtifactsResult.data.artifacts;
-    const selectedArtifactIds = payload.scope === 'artifacts' && payload.artifactIds
-      ? payload.artifactIds
+    const selectedArtifactIds = request.scope === 'artifacts' && request.artifactIds
+      ? request.artifactIds
       : [];
 
     // Build deletion plan using dependency graph logic
-    const { plan, errors } = buildDeletionPlan(allArtifacts, selectedArtifactIds, payload.chapterId);
+    const { plan, errors } = buildDeletionPlan(allArtifacts, selectedArtifactIds, request.chapterId);
 
     // A plan with blockers is still useful to the user: the confirmation
     // dialog must show the exact blocking records and remain disabled.  Only
@@ -419,10 +409,10 @@ ipcMain.handle('artifact-plan-deletion', async (event, payload: PlanRequest['pay
     }
 
     const gatedPlan = applyInventoryDiscrepancyBlockers(plan, allArtifactsResult.data.discrepancies);
-    registerDeletionPlan(gatedPlan);
+    const registeredPlan = registerDeletionPlan(gatedPlan);
     return {
       success: true,
-      data: gatedPlan,
+      data: registeredPlan,
     };
 
   } catch (error) {

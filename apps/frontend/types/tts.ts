@@ -104,6 +104,24 @@ export interface TtsModelCacheInfo {
   scan_paths?: string[];
 }
 
+export type TtsStorageMigrationState = "up-to-date" | "ready" | "conflict";
+
+export interface TtsStorageLayout {
+  rootDir: string;
+  runtimeDir: string;
+  modelsDir: string;
+  legacyRuntimeDir: string;
+  legacyModelsDir: string;
+  legacyDefaultModelsDir: string;
+  legacyHuggingFaceHubDir: string;
+  legacyRuntimeExists: boolean;
+  legacyModelsExists: boolean;
+  legacyDefaultModelsExists: boolean;
+  legacyHuggingFaceHubExists: boolean;
+  migrationState: TtsStorageMigrationState;
+  migrationMessage?: string;
+}
+
 export interface TtsModelRow extends TtsModelDefinition {
   downloaded: boolean;
   downloading: boolean;
@@ -127,7 +145,8 @@ export interface TtsRuntimeStatus {
   cacheDir?: string;
   modelCacheDir?: string;
   defaultModelCacheDir?: string;
-  systemModelCacheDir?: string;
+  hfHubCacheDir?: string;
+  storageLayout?: TtsStorageLayout;
   pythonRuntimeDir?: string;
   pid?: number;
   error?: string;

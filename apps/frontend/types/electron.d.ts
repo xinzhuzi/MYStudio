@@ -121,7 +121,7 @@ declare global {
         update: (request: {
           projectId: string;
           artifactId: string;
-          updates: { name?: string; tags?: string[]; notes?: string };
+          updates: { name?: string; notes?: string };
         }) => Promise<MetadataUpdateResult>;
       };
     };
@@ -155,7 +155,6 @@ declare global {
     imageStorage?: {
       saveImage: (url: string, category: string, filename: string) => Promise<{ success: boolean; localPath?: string; error?: string }>;
       getImagePath: (localPath: string) => Promise<string | null>;
-      deleteImage: (localPath: string) => Promise<boolean>;
       moveImage: (localPath: string, category: string) => Promise<{ success: boolean; localPath?: string; error?: string }>;
       readAsBase64: (localPath: string) => Promise<string | null>;
       getAbsolutePath: (localPath: string) => Promise<string | null>;
@@ -431,12 +430,16 @@ declare global {
       start: () => Promise<TtsRuntimeCommandResult>;
       setup: () => Promise<TtsRuntimeCommandResult>;
       stop: () => Promise<TtsRuntimeCommandResult>;
+      migrateStorage: () => Promise<TtsRuntimeCommandResult>;
       getConfig: () => Promise<TtsRuntimeConfig>;
       setConfig: (config: Partial<TtsRuntimeConfig>) => Promise<TtsRuntimeCommandResult>;
       setModelCacheDir: (dirPath: string) => Promise<TtsRuntimeCommandResult>;
       request: (payload: { method: string; path: string; body?: unknown }) => Promise<unknown>;
       requestBytes: (payload: { method: string; path: string; body?: unknown }) => Promise<{ data: ArrayBuffer; mimeType?: string }>;
       requestFormData: (payload: { path: string; audioFilePath: string; referenceText?: string }) => Promise<unknown>;
+      readRequirements: () => Promise<{ content: string; path: string } | null>;
+      delete: () => Promise<TtsRuntimeCommandResult>;
+      resetInstallDir: (defaultDir: string) => Promise<TtsRuntimeCommandResult>;
       resolveReferenceAudioPath: (audioPath: string) => Promise<string | null>;
     };
     artifactInventory?: {
@@ -463,7 +466,7 @@ declare global {
       update: (request: {
         projectId: string;
         artifactId: string;
-        updates: { name?: string; tags?: string[]; notes?: string };
+        updates: { name?: string; notes?: string };
       }) => Promise<MetadataUpdateResult>;
     };
   }

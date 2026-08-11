@@ -40,8 +40,10 @@ import {
   resolveLocalMediaPath,
   resolveProjectRootPath,
 } from "../storage/storage-paths";
+import { withProjectDeletionLock } from "../storage/project-mutex";
 import { withFileStorageMutationLocks } from "../ipc/files/file-storage-ipc";
 import { scanProjectInventory } from "./artifact-inventory-service";
+import { buildDeletionPlan } from "@/lib/artifacts/artifact-dependency-graph";
 import { rewriteRegisteredBackup } from "./backup-decoder-registry";
 import { studioTransformDeleteNovelChapters, scriptTransformDeleteEpisodes } from "@/lib/stores/store-transforms";
 import type { NovelChaptersSnapshot, ScriptDataSnapshot } from "@/lib/stores/store-transforms";
@@ -81,9 +83,9 @@ type Journal = {
 type RollbackBundle = { schemaVersion: 1; files: CapturedFile[]; migrations: MigrationEntry[] };
 
 const BACKUP_SUFFIX_RE = /\.(?:bak(?:[-_][^.]*)?$|codex[-_][^.]*$|smoke[-_][^.]*$)/i;
+const BACKUP_ROOT_DIRS = new Set(["backups", "visual-continuity-backups"]);
 
 const plans = new Map<string, DeletionPlan>();
-const projectLocks = new Map<string, Promise<void>>();
 
 const EMPTY_SCAN: PostScanResult = {
   orphanRecords: 0,
@@ -103,22 +105,54 @@ function fileHash(data: Buffer): string {
 }
 
 export function fingerprintPlan(
-  plan: Pick<DeletionPlan, "projectId" | "chapterId" | "scope" | "deleteItems" | "migrateItems" | "retainItems" | "blockerItems">,
+  plan: Pick<DeletionPlan,
+    | "projectId"
+    | "chapterId"
+    | "scope"
+    | "selectedArtifactIds"
+    | "deleteItems"
+    | "migrateItems"
+    | "retainItems"
+    | "blockerItems"
+    | "backupImpact"
+    | "byteTotals"
+    | "confirmationRequired"
+    | "executionAllowed"
+  >,
 ): string {
+  const normalizeItems = (items: DeletionPlan["deleteItems"]) => items
+    .map((item) => ({
+      ...item,
+      physicalRefs: item.physicalRefs
+        ? [...item.physicalRefs].sort((left, right) => `${left.type}:${left.path}`.localeCompare(`${right.type}:${right.path}`))
+        : undefined,
+      upstreamOwnerIds: item.upstreamOwnerIds ? [...item.upstreamOwnerIds].sort() : undefined,
+    }))
+    .sort((left, right) => left.artifactId.localeCompare(right.artifactId));
   return stableHash({
     projectId: plan.projectId,
     chapterId: plan.chapterId,
     scope: plan.scope,
-    deleteItems: [...plan.deleteItems].sort((a, b) => a.artifactId.localeCompare(b.artifactId)),
-    migrateItems: [...plan.migrateItems].sort((a, b) => a.artifactId.localeCompare(b.artifactId)),
-    retainItems: [...plan.retainItems].sort((a, b) => a.artifactId.localeCompare(b.artifactId)),
-    blockerItems: [...plan.blockerItems].sort((a, b) => a.artifactId.localeCompare(b.artifactId)),
+    selectedArtifactIds: [...plan.selectedArtifactIds].sort(),
+    deleteItems: normalizeItems(plan.deleteItems),
+    migrateItems: normalizeItems(plan.migrateItems),
+    retainItems: normalizeItems(plan.retainItems),
+    blockerItems: normalizeItems(plan.blockerItems),
+    backupImpact: [...plan.backupImpact].sort((left, right) => left.filePath.localeCompare(right.filePath)),
+    byteTotals: plan.byteTotals,
+    confirmationRequired: plan.confirmationRequired,
+    executionAllowed: plan.executionAllowed,
   });
 }
 
 export function registerDeletionPlan(plan: DeletionPlan): DeletionPlan {
-  plans.set(plan.planId, structuredClone(plan));
-  return plan;
+  const registered = structuredClone({
+    ...plan,
+    selectedArtifactIds: [...plan.selectedArtifactIds],
+    fingerprint: fingerprintPlan(plan),
+  });
+  plans.set(registered.planId, registered);
+  return structuredClone(registered);
 }
 
 export function getDeletionPlan(planId: string): DeletionPlan | undefined {
@@ -126,17 +160,7 @@ export function getDeletionPlan(planId: string): DeletionPlan | undefined {
 }
 
 async function withProjectLock<T>(projectKey: string, action: () => Promise<T>): Promise<T> {
-  const previous = projectLocks.get(projectKey) ?? Promise.resolve();
-  let release!: () => void;
-  const current = new Promise<void>((resolve) => { release = resolve; });
-  projectLocks.set(projectKey, current);
-  await previous;
-  try {
-    return await action();
-  } finally {
-    release();
-    if (projectLocks.get(projectKey) === current) projectLocks.delete(projectKey);
-  }
+  return withProjectDeletionLock(projectKey, action);
 }
 
 function canonicalExistingPath(input: string): string {
@@ -155,8 +179,8 @@ function canonicalExistingPath(input: string): string {
 }
 
 function isInside(root: string, target: string): boolean {
-  const canonicalRoot = canonicalExistingPath(root).toLowerCase();
-  const canonicalTarget = canonicalExistingPath(target).toLowerCase();
+  const canonicalRoot = canonicalExistingPath(root);
+  const canonicalTarget = canonicalExistingPath(target);
   return canonicalTarget === canonicalRoot || canonicalTarget.startsWith(`${canonicalRoot}${path.sep}`);
 }
 
@@ -278,6 +302,11 @@ function pruneChapter(value: unknown, chapterId: string, rawIds: Set<string>, in
   let changed = false;
   const next: Record<string, unknown> = { ...source };
   for (const [key, item] of Object.entries(source)) {
+    if (key === chapterId || rawIds.has(key)) {
+      delete next[key];
+      changed = true;
+      continue;
+    }
     const child = pruneChapter(item, chapterId, rawIds, false);
     changed ||= child.changed;
     next[key] = child.value;
@@ -373,6 +402,57 @@ async function availableBytes(root: string): Promise<number | null> {
   }
 }
 
+async function hasRequiredFreeSpace(
+  root: string,
+  rollbackBundleBytes: number,
+  protectedAssetCopyBytes: number,
+  maxTempFileBytes: number,
+): Promise<boolean> {
+  const free = await availableBytes(root);
+  if (free === null) return true;
+  const required = (rollbackBundleBytes + protectedAssetCopyBytes + maxTempFileBytes) * 2;
+  return free >= required;
+}
+
+async function unlinkDurably(file: string): Promise<void> {
+  try {
+    await fsp.unlink(file);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return;
+    throw error;
+  }
+  const parent = await fsp.open(path.dirname(file), "r").catch(() => null);
+  await parent?.sync().catch(() => undefined);
+  await parent?.close().catch(() => undefined);
+}
+
+function isEnospc(error: unknown): boolean {
+  return (error as NodeJS.ErrnoException)?.code === "ENOSPC"
+    || (error instanceof Error && error.message.includes("ENOSPC"));
+}
+
+async function verifyCapturedFingerprint(files: CapturedFile[], expected: string): Promise<boolean> {
+  try {
+    const current = await Promise.all(files.map((file) => captureFile(file.file)));
+    return capturedFingerprint(current) === expected;
+  } catch {
+    return false;
+  }
+}
+
+async function removeCreatedMigrationCopies(
+  projectRoot: string,
+  bundle: RollbackBundle,
+): Promise<void> {
+  const protectedRoot = path.join(projectRoot, "workflow-images", "assets", "protected");
+  for (const migration of bundle.migrations) {
+    const destinationWasCaptured = bundle.files.some((file) => file.file === migration.to);
+    if (destinationWasCaptured) continue;
+    if (!isInside(protectedRoot, migration.to)) throw new Error("bundle-corrupt");
+    await unlinkDurably(migration.to);
+  }
+}
+
 async function writeBundle(bundlePath: string, bundle: RollbackBundle): Promise<string> {
   const serialized = JSON.stringify(bundle);
   await atomicWrite(bundlePath, serialized);
@@ -428,12 +508,19 @@ function containsChapterRecord(value: unknown, chapterId: string, rawIds: Readon
   const record = value as Record<string, unknown>;
   if (record.chapterId === chapterId || record.episodeId === chapterId || record.id === chapterId) return true;
   if (typeof record.id === "string" && rawIds.has(record.id)) return true;
+  if (Object.keys(record).some((key) => key === chapterId || rawIds.has(key))) return true;
   return Object.values(record).some((child) => containsChapterRecord(child, chapterId, rawIds));
 }
 
 async function postScan(context: DeletionContext, projectId: string, chapterId: string, projectRoot: string, rawIds: ReadonlySet<string>): Promise<PostScanResult> {
   const result: PostScanResult = { ...EMPTY_SCAN };
-  const inventory = await scanProjectInventory(context.dataRoot, projectId, chapterId);
+  const inventory = await scanProjectInventory(
+    context.dataRoot,
+    projectId,
+    chapterId,
+    undefined,
+    { projectLockAlreadyHeld: true },
+  );
   if (!inventory.success) {
     result.orphanRecords = 1;
     return result;
@@ -441,7 +528,16 @@ async function postScan(context: DeletionContext, projectId: string, chapterId: 
   result.orphanRecords = inventory.data.discrepancies.length;
   for (const artifact of inventory.data.artifacts) {
     for (const ref of artifact.physicalRefs) {
-      if (ref.special || (ref.type !== "local-media" && !fs.existsSync(path.resolve(projectRoot, ref.path)))) result.invalidPaths++;
+      if (ref.special) {
+        result.invalidPaths++;
+      } else {
+        try {
+          const resolved = await resolveTarget(context, projectRoot, ref.path, projectId);
+          if (!fs.existsSync(resolved)) result.invalidPaths++;
+        } catch {
+          result.invalidPaths++;
+        }
+      }
       if (ref.type === "backup" && ref.path.includes(chapterId)) result.backupResidue++;
       if (path.isAbsolute(ref.path) && !isInside(projectRoot, ref.path) && (!context.mediaRoot || !isInside(context.mediaRoot, ref.path))) result.crossProjectLeak++;
     }
@@ -469,6 +565,31 @@ async function postScan(context: DeletionContext, projectId: string, chapterId: 
 }
 
 function mapError(message: string): TypedExecuteError {
+  const typed: readonly TypedExecuteError[] = [
+    "fingerprint-drift",
+    "scope-expanded-across-chapters",
+    "confirmation-mismatch",
+    "insufficient-free-space",
+    "project-lock-hold",
+    "per-file-lock-failure",
+    "protected-asset-copy-failed",
+    "json-rewrite-failed",
+    "physical-delete-failed",
+    "store-rehydration-failed",
+    "post-scan-orphans",
+    "post-scan-invalid-paths",
+    "post-scan-residual-chapter",
+    "backup-rewrite-failed",
+    "rollback-bundle-write-failed",
+    "rollback-restore-failed",
+    "pre-fingerprint-mismatch",
+    "post-fingerprint-mismatch",
+    "journal-transition-failed",
+    "bundle-corrupt",
+    "missing-bundle-at-commit-ready",
+    "enospace-at-restore",
+  ];
+  if (typed.includes(message as TypedExecuteError)) return message as TypedExecuteError;
   if (message === "fingerprint-drift") return "fingerprint-drift";
   if (message === "symlink") return "symlink-detected";
   if (message === "special") return "special-file-detected";
@@ -481,7 +602,11 @@ function mapError(message: string): TypedExecuteError {
 }
 
 function inferPhysicalRefType(physicalPath: string): PhysicalRef["type"] {
-  if (BACKUP_SUFFIX_RE.test(path.basename(physicalPath))) return "backup";
+  const normalized = physicalPath.split(path.sep).join("/");
+  if (BACKUP_SUFFIX_RE.test(path.basename(normalized))
+    || normalized.split("/").some((segment) => BACKUP_ROOT_DIRS.has(segment))) {
+    return "backup";
+  }
   if (/\.json$/i.test(physicalPath)) return "project-file";
   return "local-media";
 }
@@ -556,6 +681,33 @@ export async function executeDeletion(
       const journalStateForResult = existingJournal.journal.state === "commit-ready" ? "commit-ready" : "prepared";
       return { success: false, error: "project-lock-hold", journalState: journalStateForResult };
     }
+    // The reviewed plan is only a snapshot. Rebuild it under the same project
+    // and file locks immediately before the first write so any changed file,
+    // backup, dependency edge, discrepancy, or active job invalidates it.
+    const currentInventory = await scanProjectInventory(
+      context.dataRoot,
+      plan.projectId,
+      undefined,
+      context.mediaRoot,
+      { projectLockAlreadyHeld: true },
+    );
+    if (!currentInventory.success
+      || currentInventory.data.discrepancies.length > 0
+      || currentInventory.data.blockers.some((job) => !job.chapterId || job.chapterId === plan.chapterId)) {
+      return { success: false, error: "fingerprint-drift", journalState: "none" };
+    }
+    const rebuilt = buildDeletionPlan(
+      currentInventory.data.artifacts,
+      plan.selectedArtifactIds,
+      plan.chapterId,
+    );
+    if (rebuilt.errors.length > 0
+      || rebuilt.plan.scope !== plan.scope
+      || rebuilt.plan.projectId !== plan.projectId
+      || rebuilt.plan.chapterId !== plan.chapterId
+      || fingerprintPlan(rebuilt.plan) !== plan.fingerprint) {
+      return { success: false, error: "fingerprint-drift", journalState: "none" };
+    }
     // Projected IDs may be namespaced as `${projectId}-${chapterId}`. Keep
     // both the stable chapter identity and the projected suffix so persisted
     // records and registered backups are pruned consistently.
@@ -579,6 +731,7 @@ export async function executeDeletion(
           if (!data || fileHash(data) !== planned.hash256) throw new Error("fingerprint-drift");
         }
       }
+      let protectedAssetCopyBytes = 0;
       for (const item of plan.migrateItems) {
         for (const planned of getPlanItemTargets(item)) {
           const source = await resolveTarget(context, projectRoot, planned.path, plan.projectId);
@@ -586,14 +739,12 @@ export async function executeDeletion(
           const sourceData = await fsp.readFile(source);
           const destination = path.join(projectRoot, "workflow-images", "assets", "protected", `${fileHash(sourceData).slice(0, 16)}-${path.basename(source)}`);
           if (!isInside(projectRoot, destination)) throw new Error("cross-root");
-          if (!bundle.files.some((file) => file.file === source)) bundle.files.push(await captureFile(source));
-          if (fs.existsSync(destination)) bundle.files.push(await captureFile(destination));
-          await fsp.mkdir(path.dirname(destination), { recursive: true });
-          await fsp.copyFile(source, destination);
-          const copied = await fsp.readFile(destination);
-          const sha256 = fileHash(copied);
-          if (sha256 !== fileHash(sourceData)) throw new Error("protected-asset-copy-failed");
+          const sha256 = fileHash(sourceData);
           migrations.push({ from: source, to: destination, sha256 });
+          protectedAssetCopyBytes += sourceData.byteLength;
+          if (fs.existsSync(destination) && !bundle.files.some((file) => file.file === destination)) {
+            bundle.files.push(await captureFile(destination));
+          }
           targets.add(source);
           targetTypes.set(source, planned.type);
         }
@@ -602,20 +753,32 @@ export async function executeDeletion(
         if (!bundle.files.some((captured) => captured.file === file)) bundle.files.push(await captureFile(file));
       }
       for (const target of targets) if (!bundle.files.some((captured) => captured.file === target)) bundle.files.push(await captureFile(target));
-      const bundleBytes = Buffer.byteLength(JSON.stringify({ schemaVersion: 1, files: bundle.files, migrations }));
-      const free = await availableBytes(projectRoot);
-      if (free !== null && free < (bundleBytes + Math.max(1, plan.byteTotals.migrateBytes)) * 2) return { success: false, error: "insufficient-free-space", journalState: "none" };
+      bundle.migrations = migrations;
+      const bundleBytes = Buffer.byteLength(JSON.stringify(bundle));
+      const maxTempFileBytes = Math.max(0, ...bundle.files.map((file) => file.bytes));
+      if (!await hasRequiredFreeSpace(projectRoot, bundleBytes, protectedAssetCopyBytes, maxTempFileBytes)) {
+        return { success: false, error: "insufficient-free-space", journalState: "none" };
+      }
       const preFingerprint = capturedFingerprint(bundle.files);
-      const bundleSha256 = await writeBundle(bundlePath, { ...bundle, migrations });
+      const bundleSha256 = await writeBundle(bundlePath, bundle);
       journal = { schemaVersion: 1, state: "prepared", planId: plan.planId, bundlePath, bundleSha256, preFingerprint, migrationManifest: migrations };
       await atomicWrite(journalPath, JSON.stringify(journal));
 
+      if (!await hasRequiredFreeSpace(projectRoot, bundleBytes, protectedAssetCopyBytes, maxTempFileBytes)) {
+        throw new Error("insufficient-free-space");
+      }
+      for (const migration of migrations) {
+        await fsp.mkdir(path.dirname(migration.to), { recursive: true });
+        await fsp.copyFile(migration.from, migration.to);
+        const copied = await fsp.readFile(migration.to);
+        if (fileHash(copied) !== migration.sha256) throw new Error("protected-asset-copy-failed");
+      }
+
+      if (!await hasRequiredFreeSpace(projectRoot, bundleBytes, 0, maxTempFileBytes)) {
+        throw new Error("insufficient-free-space");
+      }
       const rewritten = await rewritePersistedFiles(projectRoot, plan.chapterId, rawIds, plan.backupImpact);
       const rewrittenPaths = new Set(rewritten.map((file) => file.file));
-      bundle.files.push(...rewritten.filter((file) => !bundle.files.some((existing) => existing.file === file.file)));
-      bundle.migrations = migrations;
-      journal.bundleSha256 = await writeBundle(bundlePath, bundle);
-      await atomicWrite(journalPath, JSON.stringify(journal));
 
       // Rehydrate persisted store snapshots while the journal is still
       // prepared.  Any failure remains rollback-able from the bundle; no
@@ -676,24 +839,27 @@ export async function executeDeletion(
         if (targetTypes.get(target) === "project-file" && /\.json$/i.test(target) && rewrittenPaths.has(target)) continue;
         const backupImpact = plan.backupImpact.find((impact) => impact.filePath === target || path.resolve(projectRoot, impact.filePath) === target);
         if (backupImpact?.action === "rewrite") continue;
-        await fsp.unlink(target);
-        const parent = await fsp.open(path.dirname(target), "r").catch(() => null);
-        await parent?.sync().catch(() => undefined);
-        await parent?.close().catch(() => undefined);
+        await unlinkDurably(target);
       }
       const scan = await postScan(context, plan.projectId, plan.chapterId, projectRoot, rawIds);
       if (Object.values(scan).some((count) => count > 0)) throw new Error("post-scan");
-      // Record the actual post-state, not the pre-state rollback bundle
-      // fingerprint.  This is the value recovery/reporting consumers use to
-      // distinguish a committed chapter removal from its rollback image.
-      journal.postFingerprint = await currentProjectFingerprint(projectRoot);
+      const verifiedPostFingerprint = await currentProjectFingerprint(projectRoot);
+      if (await currentProjectFingerprint(projectRoot) !== verifiedPostFingerprint) {
+        throw new Error("post-fingerprint-mismatch");
+      }
+      journal.postFingerprint = verifiedPostFingerprint;
       journal.state = "commit-ready";
       await atomicWrite(journalPath, JSON.stringify(journal));
       journal.state = "committed";
       await atomicWrite(journalPath, JSON.stringify(journal));
 
-      await fsp.unlink(bundlePath).catch(() => undefined);
-      await fsp.unlink(journalPath).catch(() => undefined);
+      // The durable committed journal above is the only commit point. GC is a
+      // separate best-effort phase and never triggers rollback after commit.
+      const committedState = await journalState(projectRoot);
+      if (!committedState.error && committedState.journal?.state === "committed") {
+        await unlinkDurably(bundlePath).catch(() => undefined);
+        await unlinkDurably(journalPath).catch(() => undefined);
+      }
       scan.transactionResidue = (fs.existsSync(bundlePath) || fs.existsSync(journalPath)) ? 1 : 0;
       return {
         success: true,
@@ -710,46 +876,119 @@ export async function executeDeletion(
         },
       };
     } catch (error) {
+      if (!journal) {
+        return { success: false, error: mapError(error instanceof Error ? error.message : String(error)), journalState: "none" };
+      }
       try {
-        const saved = journal ? await readBundle(journal) : bundle;
+        const saved = await readBundle(journal);
         validateBundlePaths(projectRoot, saved, context.mediaRoot);
         await restoreFiles(saved.files);
-        for (const migration of saved.migrations) {
-          if (!saved.files.some((file) => file.file === migration.to)) await fsp.unlink(migration.to).catch(() => undefined);
+        await removeCreatedMigrationCopies(projectRoot, saved);
+        if (!await verifyCapturedFingerprint(saved.files, journal.preFingerprint)) {
+          throw new Error("pre-fingerprint-mismatch");
         }
-        if (journal) await atomicWrite(journalPath, JSON.stringify({ ...journal, state: "prepared" } satisfies Journal));
-      } catch {
-        return { success: false, error: "rollback-restore-failed", journalState: "prepared" };
+        const rollbackInventory = await scanProjectInventory(
+          context.dataRoot,
+          plan.projectId,
+          undefined,
+          context.mediaRoot,
+          { projectLockAlreadyHeld: true },
+        );
+        if (!rollbackInventory.success || rollbackInventory.data.discrepancies.length > 0) {
+          throw new Error("pre-fingerprint-mismatch");
+        }
+        await unlinkDurably(bundlePath);
+        await unlinkDurably(journalPath);
+      } catch (rollbackError) {
+        const rollbackFailure = isEnospc(rollbackError) ? "enospace-at-restore" : mapError(
+          rollbackError instanceof Error ? rollbackError.message : "rollback-restore-failed",
+        );
+        return {
+          success: false,
+          error: rollbackFailure === "pre-fingerprint-mismatch" || rollbackFailure === "enospace-at-restore"
+            ? rollbackFailure
+            : "rollback-restore-failed",
+          journalState: "prepared",
+        };
       }
-      return { success: false, error: mapError(error instanceof Error ? error.message : String(error)), journalState: "prepared" };
+      return { success: false, error: mapError(error instanceof Error ? error.message : String(error)), journalState: "none" };
     }
     });
   });
 }
 
-export async function queryRecovery(dataRoot: string, projectId: string): Promise<RecoveryQueryResult> {
+export async function queryRecovery(dataRoot: string, projectId: string, mediaRoot?: string): Promise<RecoveryQueryResult> {
   try {
     const root = resolveProjectRootPath(dataRoot, projectId);
-    const { journal, journalPath, error } = await journalState(root);
-    if (error) return { success: false, error: "journal-corrupt" };
-    if (!journal) return { success: true, data: { journalState: "none", bundleExists: false, bundleValid: false, canAutoRecover: true, requiredAction: "none" } };
-    const bundleExists = fs.existsSync(journal.bundlePath);
-    if (journal.state === "committed") {
-      if (bundleExists) await fsp.unlink(journal.bundlePath);
-      await fsp.unlink(journalPath).catch(() => undefined);
-      return { success: true, data: { journalState: "none", bundleExists: false, bundleValid: true, canAutoRecover: true, requiredAction: "none" } };
-    }
-    if (!bundleExists) return { success: false, error: "missing-bundle-at-commit-ready" };
-    const bundle = await readBundle(journal);
-    validateBundlePaths(root, bundle);
-    await restoreFiles(bundle.files);
-    for (const migration of bundle.migrations) {
-      if (!bundle.files.some((file) => file.file === migration.to)) await fsp.unlink(migration.to).catch(() => undefined);
-    }
-    await fsp.unlink(journal.bundlePath).catch(() => undefined);
-    await fsp.unlink(journalPath).catch(() => undefined);
-    const state: RecoveryState = { journalState: "none", bundleExists: false, bundleValid: true, preFingerprint: journal.preFingerprint, postFingerprint: journal.postFingerprint, canAutoRecover: true, requiredAction: "none" };
-    return { success: true, data: state };
+    const projectLockPath = path.join(root, ".artifact-delete-project.lock");
+    return await withProjectLock(`${dataRoot}:${projectId}`, async () => {
+      // Keep recovery behind the same on-disk project lock and deterministic
+      // mutation lock set as executeDeletion. This prevents a recovery query
+      // from deleting/restoring a journal while an execution transaction is
+      // writing its bundle or transitioning the journal.
+      return withFileStorageMutationLocks([projectLockPath, path.join(root, ".artifact-delete-journal.json")], async () => {
+        const { journal, journalPath, error } = await journalState(root);
+        if (error) return { success: false, error: "journal-corrupt" };
+        if (!journal) return { success: true, data: { journalState: "none", bundleExists: false, bundleValid: false, canAutoRecover: true, requiredAction: "none" } };
+        const bundleExists = fs.existsSync(journal.bundlePath);
+        if (journal.state === "committed") {
+          // POST fingerprint is advisory after commit because normal writers
+          // may already have resumed. The committed journal remains the sole
+          // source of truth and is never rolled back here.
+          await currentProjectFingerprint(root).catch(() => undefined);
+          try {
+            if (bundleExists) await unlinkDurably(journal.bundlePath);
+            await unlinkDurably(journalPath);
+          } catch {
+            return {
+              success: true,
+              data: {
+                journalState: "committed",
+                bundleExists: fs.existsSync(journal.bundlePath),
+                bundleValid: true,
+                preFingerprint: journal.preFingerprint,
+                postFingerprint: journal.postFingerprint,
+                canAutoRecover: true,
+                requiredAction: "gc-bundle",
+                errorMessage: "committed transaction requires GC retry",
+              },
+            };
+          }
+          return { success: true, data: { journalState: "none", bundleExists: false, bundleValid: true, canAutoRecover: true, requiredAction: "none" } };
+        }
+        if (!bundleExists) {
+          return {
+            success: false,
+            error: journal.state === "commit-ready" ? "missing-bundle-at-commit-ready" : "bundle-corrupt",
+          };
+        }
+        const bundle = await readBundle(journal);
+        validateBundlePaths(root, bundle, mediaRoot);
+        try {
+          await restoreFiles(bundle.files);
+          await removeCreatedMigrationCopies(root, bundle);
+          if (!await verifyCapturedFingerprint(bundle.files, journal.preFingerprint)) {
+            return { success: false, error: "pre-fingerprint-mismatch" };
+          }
+          const restoredInventory = await scanProjectInventory(
+            dataRoot,
+            projectId,
+            undefined,
+            mediaRoot,
+            { projectLockAlreadyHeld: true },
+          );
+          if (!restoredInventory.success || restoredInventory.data.discrepancies.length > 0) {
+            return { success: false, error: "pre-fingerprint-mismatch" };
+          }
+        } catch (restoreError) {
+          return { success: false, error: isEnospc(restoreError) ? "enospace-at-restore" : "rollback-restore-failed" };
+        }
+        await unlinkDurably(journal.bundlePath);
+        await unlinkDurably(journalPath);
+        const state: RecoveryState = { journalState: "none", bundleExists: false, bundleValid: true, preFingerprint: journal.preFingerprint, postFingerprint: journal.postFingerprint, canAutoRecover: true, requiredAction: "none" };
+        return { success: true, data: state };
+      });
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     return { success: false, error: message === "bundle-corrupt" ? "bundle-corrupt" : message };

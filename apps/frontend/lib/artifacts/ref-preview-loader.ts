@@ -1,5 +1,6 @@
 import type { PhysicalRef } from "@/types/artifacts";
 import { getRefPreviewMode } from "./ref-preview-mode";
+import { parseProjectFilePath } from "./physical-path";
 
 /**
  * Resolved preview descriptor for a PhysicalRef.
@@ -38,6 +39,13 @@ export type ResolvedRefPreview =
  * match what createProjectFileUrl produces for ordinary paths.
  */
 export function buildProjectFileUrl(projectId: string, relativePath: string): string {
+  const parsed = parseProjectFilePath(relativePath);
+  if (parsed) {
+    if (parsed.projectId !== projectId) {
+      throw new Error("项目文件引用属于其他项目");
+    }
+    return relativePath;
+  }
   return `project-file://${encodeURIComponent(projectId)}/${relativePath
     .split("/")
     .map((part) => encodeURIComponent(part))
@@ -105,9 +113,13 @@ export async function resolveRefPreview(
   if (isLocalMedia) {
     return { mode: "binary", message: "媒体库文件不支持文本预览" };
   }
+  const parsed = parseProjectFilePath(ref.path);
+  if (parsed && parsed.projectId !== projectId) {
+    return { mode: "binary", message: "项目文件引用属于其他项目" };
+  }
   const res = await window.projectFiles?.readText({
-    projectId,
-    relativePath: ref.path,
+    projectId: parsed?.projectId ?? projectId,
+    relativePath: parsed?.relativePath ?? ref.path,
   });
   if (!res?.success || res.text === undefined) {
     return { mode: "binary", message: res?.error || "文本读取失败" };

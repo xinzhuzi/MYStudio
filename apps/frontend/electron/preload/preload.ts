@@ -191,10 +191,6 @@ contextBridge.exposeInMainWorld('imageStorage', {
   getImagePath: (localPath: string) => 
     ipcRenderer.invoke('get-image-path', localPath),
   
-  // Delete a locally stored image
-  deleteImage: (localPath: string) => 
-    ipcRenderer.invoke('delete-image', localPath),
-
   // Move a local media file into another storage category
   moveImage: (localPath: string, category: string) =>
     ipcRenderer.invoke('move-image', { localPath, category }),
@@ -537,6 +533,7 @@ contextBridge.exposeInMainWorld('ttsRuntime', {
   start: (): Promise<TtsRuntimeCommandResult> => ipcRenderer.invoke('tts-runtime-start'),
   setup: (): Promise<TtsRuntimeCommandResult> => ipcRenderer.invoke('tts-runtime-setup'),
   stop: (): Promise<TtsRuntimeCommandResult> => ipcRenderer.invoke('tts-runtime-stop'),
+  migrateStorage: (): Promise<TtsRuntimeCommandResult> => ipcRenderer.invoke('tts-runtime-migrate-storage'),
   getConfig: (): Promise<TtsRuntimeConfig> => ipcRenderer.invoke('tts-runtime-get-config'),
   setConfig: (config: Partial<TtsRuntimeConfig>): Promise<TtsRuntimeCommandResult> =>
     ipcRenderer.invoke('tts-runtime-set-config', config),
@@ -548,6 +545,12 @@ contextBridge.exposeInMainWorld('ttsRuntime', {
     ipcRenderer.invoke('tts-runtime-request-bytes', payload),
   requestFormData: (payload: { path: string; audioFilePath: string; referenceText?: string }): Promise<unknown> =>
     ipcRenderer.invoke('tts-runtime-request-formdata', payload),
+  readRequirements: (): Promise<{ content: string; path: string } | null> =>
+    ipcRenderer.invoke('tts-runtime-read-requirements'),
+  delete: (): Promise<TtsRuntimeCommandResult> =>
+    ipcRenderer.invoke('tts-runtime-delete'),
+  resetInstallDir: (defaultDir: string): Promise<TtsRuntimeCommandResult> =>
+    ipcRenderer.invoke('tts-runtime-reset-install-dir', defaultDir),
   resolveReferenceAudioPath: (audioPath: string): Promise<string | null> =>
     ipcRenderer.invoke('tts-reference-audio-resolve', audioPath),
 })
@@ -589,6 +592,6 @@ contextBridge.exposeInMainWorld('artifactMetadata', {
   update: (request: {
     projectId: string;
     artifactId: string;
-    updates: { name?: string; tags?: string[]; notes?: string };
+    updates: { name?: string; notes?: string };
   }): Promise<MetadataUpdateResult> => ipcRenderer.invoke('artifact-update-metadata', request),
 })

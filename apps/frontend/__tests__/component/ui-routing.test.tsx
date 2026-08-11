@@ -10,6 +10,7 @@ const plan: DeletionPlan = {
   projectId: "project-fixture",
   chapterId: "chapter-fixture",
   scope: "chapter",
+  selectedArtifactIds: [],
   createdAt: 1,
   fingerprint: "fingerprint-fixture",
   deleteItems: [{ artifactId: "novel:novel-chapter:chapter-fixture", kind: "novel-chapter", stage: "novel", name: "第一章", bytes: 10 }],

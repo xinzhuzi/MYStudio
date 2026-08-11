@@ -62,6 +62,7 @@ export const useArtifactStore = create<ArtifactStoreState>((set, get) => ({
     artifacts,
     loading: false,
     error: null,
+    selectedArtifactIds: new Set<string>(),
     lastScanTime: Date.now(),
   }),
 
@@ -76,10 +77,21 @@ export const useArtifactStore = create<ArtifactStoreState>((set, get) => ({
   },
 
   toggleArtifactSelection: (id) => {
-    const current = new Set(get().selectedArtifactIds);
+    const { artifacts, selectedArtifactIds } = get();
+    const artifact = artifacts.find((item) => item.id === id);
+    if (!artifact) return;
+
+    const current = new Set(
+      [...selectedArtifactIds].filter((selectedId) => artifacts.some((item) => item.id === selectedId)),
+    );
     if (current.has(id)) {
       current.delete(id);
     } else {
+      const selectedArtifacts = artifacts.filter((item) => current.has(item.id));
+      const crossesScope = selectedArtifacts.some((item) =>
+        item.projectId !== artifact.projectId || item.chapterId !== artifact.chapterId,
+      );
+      if (crossesScope) return;
       current.add(id);
     }
     set({ selectedArtifactIds: current });
@@ -129,8 +141,8 @@ export async function loadArtifactInventory(projectId: string, chapterId?: strin
 
 export async function createArtifactDeletionPlan(request: {
   projectId: string;
-  /** Required for chapter scope. Empty string allowed for artifacts scope
-   *  (folder/file/selection delete that may span chapters). */
+  /** Required for chapter scope. Artifact scope may use an empty transport
+   * sentinel while the graph derives exactly one chapter from artifactIds. */
   chapterId: string;
   scope: "chapter" | "artifacts";
   artifactIds?: string[];
@@ -142,7 +154,7 @@ export async function createArtifactDeletionPlan(request: {
 export async function updateArtifactMetadata(request: {
   projectId: string;
   artifactId: string;
-  updates: { name?: string; tags?: string[]; notes?: string };
+  updates: { name?: string; notes?: string };
 }): Promise<MetadataUpdateResult> {
   if (typeof window === "undefined" || !window.artifactMetadata) return { success: false, error: "产物元数据桥接不可用" };
   return window.artifactMetadata.update(request);

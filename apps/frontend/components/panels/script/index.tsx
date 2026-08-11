@@ -97,12 +97,9 @@ export function ScriptView() {
     updateEpisodeBundle,
     addScene,
     updateScene,
-    deleteScene,
     addCharacter,
     updateCharacter,
-    deleteCharacter,
     updateShot,
-    deleteShot,
     // 完整剧本管理
     setProjectBackground,
     setEpisodeRawScripts,
@@ -131,7 +128,36 @@ export function ScriptView() {
       toast.error("没有活动项目，未执行任何操作");
       return;
     }
-    const result = await createArtifactDeletionPlan({ projectId: activeProjectId, chapterId, scope: "chapter" });
+    const requestedProjectId = activeProjectId;
+    const result = await createArtifactDeletionPlan({ projectId: requestedProjectId, chapterId, scope: "chapter" });
+    if (useProjectStore.getState().activeProjectId !== requestedProjectId) {
+      toast.error("活动项目已切换，旧删除计划已作废");
+      return;
+    }
+    if (!result.success) {
+      toast.error(`生成删除计划失败：${result.error}`);
+      return;
+    }
+    setChapterDeletePlan(result.data);
+    setChapterDeleteOpen(true);
+  }, [activeProjectId]);
+
+  const openArtifactDeletePlan = useCallback(async (artifactId: string) => {
+    if (!activeProjectId) {
+      toast.error("没有活动项目，未执行任何操作");
+      return;
+    }
+    const requestedProjectId = activeProjectId;
+    const result = await createArtifactDeletionPlan({
+      projectId: requestedProjectId,
+      chapterId: "",
+      scope: "artifacts",
+      artifactIds: [artifactId],
+    });
+    if (useProjectStore.getState().activeProjectId !== requestedProjectId) {
+      toast.error("活动项目已切换，旧删除计划已作废");
+      return;
+    }
     if (!result.success) {
       toast.error(`生成删除计划失败：${result.error}`);
       return;
@@ -469,6 +495,7 @@ export function ScriptView() {
     projectId,
     episodes: scriptData?.episodes,
     onRequestChapterDeletion: openChapterDeletePlan,
+    onRequestArtifactDeletion: openArtifactDeletePlan,
     selectedItemId,
     setSelectedItemId,
     setSelectedItemType,
@@ -476,23 +503,29 @@ export function ScriptView() {
     updateEpisodeBundle,
     addScene,
     updateScene,
-    deleteScene,
     addCharacter,
     updateCharacter,
-    deleteCharacter,
     updateShot,
-    deleteShot,
   });
 
   const executeChapterDeletePlan = useCallback(async (confirmation: DeletionConfirmation) => {
     if (!chapterDeletePlan) throw new Error("删除服务不可用");
+    const requestedProjectId = chapterDeletePlan.projectId;
+    if (useProjectStore.getState().activeProjectId !== requestedProjectId) {
+      toast.error("活动项目已切换，请重新生成删除计划");
+      throw new Error("活动项目已切换");
+    }
     const result = await executeArtifactDeletionPlan(chapterDeletePlan, confirmation);
     if (!result.success) {
       toast.error(`删除失败：${result.error}`);
       throw new Error(result.error);
     }
+    if (useProjectStore.getState().activeProjectId !== requestedProjectId) {
+      toast.error("原项目删除已完成；当前项目未应用旧项目状态");
+      return;
+    }
     setChapterDeletePlan(null);
-    toast.success("章节及其后续产物已删除");
+    toast.success(chapterDeletePlan.scope === "chapter" ? "章节及其后续产物已删除" : "产物及其独占下游已删除");
   }, [chapterDeletePlan]);
 
   const {

@@ -93,12 +93,37 @@ describe("resolveRefPreview", () => {
     expect(projectFiles.readAsBase64).toHaveBeenCalledWith("project-file://projX/assets/poster.png");
   });
 
+  it("does not wrap an existing project-file image URL a second time", async () => {
+    projectFiles.readAsBase64.mockResolvedValue({
+      success: true, base64: "data:image/png;base64,CCCC", mimeType: "image/png", size: 2,
+    });
+    await resolveRefPreview(
+      mk({ type: "project-file", path: "project-file://projX/assets/live-poster.png" }),
+      "projX",
+    );
+    expect(projectFiles.readAsBase64).toHaveBeenCalledWith(
+      "project-file://projX/assets/live-poster.png",
+    );
+  });
+
   it("project-file video builds URL and resolves absolute path via projectFiles", async () => {
     projectFiles.getAbsolutePath.mockResolvedValue("/data/_p/projX/exports/clip.mp4");
     const out = await resolveRefPreview(mk({ type: "exports", path: "exports/clip.mp4" }), "projX");
     expect(out.mode).toBe("video");
     if (out.mode === "video") expect(out.absolutePath).toBe("/data/_p/projX/exports/clip.mp4");
     expect(projectFiles.getAbsolutePath).toHaveBeenCalledWith("project-file://projX/exports/clip.mp4");
+  });
+
+  it("uses the relative path from an existing project-file text URL", async () => {
+    projectFiles.readText.mockResolvedValue({ success: true, text: "# live", size: 6, truncated: false });
+    await resolveRefPreview(
+      mk({ type: "project-file", path: "project-file://projX/novel/chapter-001.md" }),
+      "projX",
+    );
+    expect(projectFiles.readText).toHaveBeenCalledWith({
+      projectId: "projX",
+      relativePath: "novel/chapter-001.md",
+    });
   });
 
   it("project-file image with readAsBase64 failure degrades to binary", async () => {

@@ -146,7 +146,6 @@ describe("registerLocalMediaIpcHandlers", () => {
 
   it("registers the established local media channels", () => {
     expect([...mocks.handlers.keys()].sort()).toEqual([
-      "delete-image",
       "get-absolute-path",
       "get-image-path",
       "move-image",
@@ -321,7 +320,6 @@ describe("registerLocalMediaIpcHandlers", () => {
 
   it("keeps missing-file operations non-throwing", async () => {
     await expect(mocks.handlers.get("get-image-path")?.({}, "local-image://storyboards/missing.png")).resolves.toBeNull();
-    await expect(mocks.handlers.get("delete-image")?.({}, "local-image://storyboards/missing.png")).resolves.toBe(true);
     await expect(mocks.handlers.get("read-image-base64")?.({}, "local-image://storyboards/missing.png"))
       .resolves.toEqual({ success: false, error: "File not found" });
     await expect(mocks.handlers.get("get-absolute-path")?.({}, "local-image://storyboards/missing.png")).resolves.toBeNull();

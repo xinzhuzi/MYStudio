@@ -13,11 +13,11 @@ const baseStatus: TtsRuntimeStatus = {
   managed: true,
   port: 17593,
   baseUrl: "http://127.0.0.1:17593",
-  cacheDir: "/tmp/tts-runtime",
+  cacheDir: "/tmp/TTS/runtime",
   pythonRuntimeDir: "/tmp/python",
   setupStage: "idle",
   defaultModelCacheDir: "/tmp/project-models",
-  systemModelCacheDir: "/tmp/hf-models",
+  hfHubCacheDir: "/tmp/hf-models",
 };
 
 const baseCache: TtsModelCacheInfo = {
@@ -27,8 +27,13 @@ const baseCache: TtsModelCacheInfo = {
 };
 
 function renderCard(overrides: Partial<Parameters<typeof LocalTtsRuntimeCard>[0]> = {}) {
+  const onModelCacheDirChange = vi.fn();
+  const onApplyModelCacheDir = vi.fn();
   const onSelectModelCacheDir = vi.fn();
+  const onOpenModelCacheDir = vi.fn();
+  const onResetModelCacheDir = vi.fn();
   const onManualRefresh = vi.fn();
+  const onMigrateStorage = vi.fn();
   const onStart = vi.fn();
   const onStop = vi.fn();
   const result = render(
@@ -39,14 +44,32 @@ function renderCard(overrides: Partial<Parameters<typeof LocalTtsRuntimeCard>[0]
       starting={false}
       refreshing={false}
       applyingModelCacheDir={false}
+      modelCacheDirty={false}
+      migratingStorage={false}
+      onModelCacheDirChange={onModelCacheDirChange}
+      onApplyModelCacheDir={onApplyModelCacheDir}
       onSelectModelCacheDir={onSelectModelCacheDir}
+      onOpenModelCacheDir={onOpenModelCacheDir}
+      onResetModelCacheDir={onResetModelCacheDir}
+      onMigrateStorage={onMigrateStorage}
       onManualRefresh={onManualRefresh}
       onStart={onStart}
       onStop={onStop}
       {...overrides}
     />,
   );
-  return { ...result, onSelectModelCacheDir, onManualRefresh, onStart, onStop };
+  return {
+    ...result,
+    onModelCacheDirChange,
+    onApplyModelCacheDir,
+    onSelectModelCacheDir,
+    onOpenModelCacheDir,
+    onResetModelCacheDir,
+    onManualRefresh,
+    onMigrateStorage,
+    onStart,
+    onStop,
+  };
 }
 
 describe("LocalTtsRuntimeCard", () => {
@@ -75,8 +98,8 @@ describe("LocalTtsRuntimeCard", () => {
   it("wires refresh / start / select-directory callbacks", () => {
     const { onManualRefresh, onStart, onSelectModelCacheDir } = renderCard();
 
-    fireEvent.click(screen.getByRole("button", { name: /刷新/ }));
-    fireEvent.click(screen.getByRole("button", { name: /启动/ }));
+    fireEvent.click(screen.getByRole("button", { name: "刷新 TTS 状态" }));
+    fireEvent.click(screen.getByRole("button", { name: "启动 TTS 后端服务" }));
     fireEvent.click(screen.getByRole("button", { name: /选择模型目录/ }));
 
     expect(onManualRefresh).toHaveBeenCalledTimes(1);
@@ -90,7 +113,7 @@ describe("LocalTtsRuntimeCard", () => {
       starting: false,
     });
 
-    const startButton = screen.getByRole("button", { name: /启动/ });
+    const startButton = screen.getByRole("button", { name: "启动 TTS 后端服务" });
     expect((startButton as HTMLButtonElement).disabled).toBe(true);
     fireEvent.click(startButton);
     expect(onStart).not.toHaveBeenCalled();
@@ -103,7 +126,14 @@ describe("LocalTtsRuntimeCard", () => {
         starting={false}
         refreshing={false}
         applyingModelCacheDir={false}
+        modelCacheDirty={false}
+        migratingStorage={false}
+        onModelCacheDirChange={() => undefined}
+        onApplyModelCacheDir={() => undefined}
         onSelectModelCacheDir={onSelectModelCacheDir}
+        onOpenModelCacheDir={() => undefined}
+        onResetModelCacheDir={() => undefined}
+        onMigrateStorage={() => undefined}
         onManualRefresh={() => undefined}
         onStart={onStart}
         onStop={() => undefined}
@@ -111,16 +141,68 @@ describe("LocalTtsRuntimeCard", () => {
     );
 
     expect((screen.getByRole("button", { name: /选择模型目录/ }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole("textbox", { name: "模型缓存安装路径" }) as HTMLInputElement).disabled).toBe(true);
+    expect((screen.getByRole("button", { name: "保存" }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole("button", { name: "恢复默认" }) as HTMLButtonElement).disabled).toBe(true);
   });
 
-  it("shows project and HF path hints when they differ from the draft dir", () => {
-    const { container } = renderCard({ draftModelCacheDir: "/tmp/custom" });
+  it("renders the model installation path with save, open, and reset actions", () => {
+    const {
+      container,
+      onModelCacheDirChange,
+      onApplyModelCacheDir,
+    } = renderCard({ draftModelCacheDir: "/tmp/custom", modelCacheDirty: true });
 
-    expect(container.textContent).toContain("当前路径：");
-    expect(container.textContent).toContain("/tmp/custom");
-    expect(container.textContent).toContain("项目路径：");
-    expect(container.textContent).toContain("/tmp/project-models");
-    expect(container.textContent).toContain("HF 路径：");
+    const input = screen.getByRole("textbox", { name: "模型缓存安装路径" });
+    expect((input as HTMLInputElement).value).toBe("/tmp/custom");
+    expect(input.parentElement?.parentElement?.className).toContain("minmax(50%,1fr)");
+    fireEvent.change(input, { target: { value: "/tmp/another-models" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+
+    expect(onModelCacheDirChange).toHaveBeenCalledWith("/tmp/another-models");
+    expect(onApplyModelCacheDir).toHaveBeenCalledTimes(2);
+    expect((screen.getByRole("button", { name: "打开" }) as HTMLButtonElement).disabled).toBe(true);
+    expect(container.textContent).toContain("HF 缓存：");
     expect(container.textContent).toContain("/tmp/hf-models");
+  });
+
+  it("opens and restores the saved model cache path", () => {
+    const { onOpenModelCacheDir, onResetModelCacheDir } = renderCard();
+
+    fireEvent.click(screen.getByRole("button", { name: "打开" }));
+    fireEvent.click(screen.getByRole("button", { name: "恢复默认" }));
+
+    expect(onOpenModelCacheDir).toHaveBeenCalledOnce();
+    expect(onResetModelCacheDir).toHaveBeenCalledOnce();
+  });
+
+  it("renders the fixed TTS folder layout and wires the migration action", () => {
+    const { onMigrateStorage } = renderCard({
+      runtimeStatus: {
+        ...baseStatus,
+        storageLayout: {
+          rootDir: "/data/TTS",
+          runtimeDir: "/data/TTS/runtime",
+          modelsDir: "/data/TTS/model",
+          legacyRuntimeDir: "/data/tts-runtime",
+          legacyModelsDir: "/data/tts-models",
+          legacyDefaultModelsDir: "/data/TTS/models",
+          legacyHuggingFaceHubDir: "/Users/test/.cache/huggingface/hub",
+          legacyRuntimeExists: true,
+          legacyModelsExists: true,
+          legacyDefaultModelsExists: false,
+          legacyHuggingFaceHubExists: true,
+          migrationState: "ready",
+          migrationMessage: "检测到旧版 TTS 数据，可迁移到 TTS 文件夹。",
+        },
+      },
+    });
+
+    expect(screen.getByText("TTS 文件夹")).toBeTruthy();
+    expect(screen.getByText("/data/TTS/runtime")).toBeTruthy();
+    expect(screen.getByText("/data/TTS/model")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "迁移到 TTS 文件夹" }));
+    expect(onMigrateStorage).toHaveBeenCalledOnce();
   });
 });

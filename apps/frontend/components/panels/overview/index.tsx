@@ -67,7 +67,7 @@ import { toast } from "sonner";
 // ==================== Main Component ====================
 
 export function OverviewPanel() {
-  const { activeProjectId, activeProject } = useProjectStore();
+  const { activeProjectId } = useProjectStore();
   const scriptProject = useActiveScriptProject();
   const {
     updateSeriesMeta,
@@ -76,7 +76,7 @@ export function OverviewPanel() {
   } = useScriptStore();
   const { enterEpisode, setActiveTab } = useMediaPanelStore();
 
-  const projectId = activeProjectId || "default";
+  const projectId = activeProjectId ?? "";
   const meta: SeriesMeta | null = scriptProject?.seriesMeta || null;
   const episodes: EpisodeRawScript[] = scriptProject?.episodeRawScripts || [];
   const scriptData = scriptProject?.scriptData || null;
@@ -90,7 +90,18 @@ export function OverviewPanel() {
   const [chapterDeleteOpen, setChapterDeleteOpen] = useState(false);
 
   const openChapterDeletePlan = useCallback(async (chapterId: string) => {
-    const result = await createArtifactDeletionPlan({ projectId, chapterId, scope: "chapter" });
+    if (!activeProjectId) {
+      setDeletingEpIndex(null);
+      toast.error("没有活动项目，未执行任何操作");
+      return;
+    }
+    const requestedProjectId = activeProjectId;
+    const result = await createArtifactDeletionPlan({ projectId: requestedProjectId, chapterId, scope: "chapter" });
+    if (useProjectStore.getState().activeProjectId !== requestedProjectId) {
+      setDeletingEpIndex(null);
+      toast.error("活动项目已切换，旧删除计划已作废");
+      return;
+    }
     if (!result.success) {
       setDeletingEpIndex(null);
       toast.error(`生成删除计划失败：${result.error}`);
@@ -98,14 +109,23 @@ export function OverviewPanel() {
     }
     setChapterDeletePlan(result.data);
     setChapterDeleteOpen(true);
-  }, [projectId]);
+  }, [activeProjectId]);
 
   const executeChapterDeletePlan = useCallback(async (confirmation: DeletionConfirmation) => {
     if (!chapterDeletePlan) throw new Error("删除服务不可用");
+    const requestedProjectId = chapterDeletePlan.projectId;
+    if (useProjectStore.getState().activeProjectId !== requestedProjectId) {
+      toast.error("活动项目已切换，请重新生成删除计划");
+      throw new Error("活动项目已切换");
+    }
     const result = await executeArtifactDeletionPlan(chapterDeletePlan, confirmation);
     if (!result.success) {
       toast.error(`删除失败：${result.error}`);
       throw new Error(result.error);
+    }
+    if (useProjectStore.getState().activeProjectId !== requestedProjectId) {
+      toast.error("原项目删除已完成；当前项目未应用旧项目状态");
+      return;
     }
     setDeletingEpIndex(null);
     setChapterDeletePlan(null);

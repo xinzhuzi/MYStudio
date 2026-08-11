@@ -12,6 +12,7 @@ import { buildDeletionPlan } from "@/lib/artifacts/artifact-dependency-graph";
 const roots: string[] = [];
 
 afterEach(async () => {
+  vi.unstubAllGlobals();
   while (roots.length > 0) await fs.rm(roots.pop()!, { recursive: true, force: true });
 });
 
@@ -25,6 +26,110 @@ describe("artifact inventory persisted project state", () => {
     const rewritten = rewriteRegisteredBackup(raw, "chapter-1", new Set(["chapter-1"]));
     expect((rewritten.value as Record<string, any>).chapters["chapter-1"]).toBeUndefined();
     expect(JSON.stringify((rewritten.value as Record<string, any>).chapters["chapter-2"])).toBe(untouchedChapter);
+  });
+
+  it("rewrites Daojie chapter-2 assets without changing chapter-1 or project metadata", async () => {
+    const fixturePath = path.resolve(process.cwd(), "frontend/electron/artifacts/__fixtures__/mixed-backup-sample-v1.json");
+    const raw = JSON.parse(await fs.readFile(fixturePath, "utf8")) as Record<string, any>;
+    const chapterOneBefore = JSON.stringify(raw.chapters["chapter-1"]);
+    const projectEnvelopeBefore = JSON.stringify(raw.projectEnvelope);
+    const rewritten = rewriteRegisteredBackup(raw, "chapter-2", new Set(["chapter-2"]));
+    const value = rewritten.value as Record<string, any>;
+
+    expect(value.chapters["chapter-2"]).toBeUndefined();
+    expect(JSON.stringify(value.chapters["chapter-1"])).toBe(chapterOneBefore);
+    expect(JSON.stringify(value.projectEnvelope)).toBe(projectEnvelopeBefore);
+    expect(value["studio-store.json"].novelChapters.map((chapter: { id: string }) => chapter.id)).toEqual(["chapter-1"]);
+    expect(value.assets.chars["assets_chars_chapter2-v3.json"]).toBeUndefined();
+    expect(value.assets.chars["assets_chars.json"].characters.map((record: { id: string }) => record.id)).toEqual([
+      "char-shared-a1b2c3",
+      "char-shared-b2c3d4",
+    ]);
+    expect(value.continuity["continuity_chapter2.json"]).toBeUndefined();
+    expect(value.exports["exports_manifest.json"].versions.every(
+      (version: { chapters: string[] }) => !version.chapters.includes("chapter-2"),
+    )).toBe(true);
+  });
+
+  it("rejects unknown Zustand payloads and future Daojie backup versions", async () => {
+    expect(findBackupDecoder({ projectId: "project-opaque", state: { opaqueRecords: [] } })).toBeNull();
+    const fixturePath = path.resolve(process.cwd(), "frontend/electron/artifacts/__fixtures__/mixed-backup-sample-v1.json");
+    const raw = JSON.parse(await fs.readFile(fixturePath, "utf8")) as Record<string, unknown>;
+    expect(findBackupDecoder({ ...raw, _version: "2.0.0" })).toBeNull();
+  });
+
+  it("decodes agentWorkData-only Zustand snapshots using episode ownership", () => {
+    const work = {
+      id: "work-target",
+      key: "entityExtraction",
+      episodeId: "chapter-target",
+      data: '{"episodeId":"chapter-decoy","id":"opaque-payload"}',
+      createdAt: 1,
+      updatedAt: 2,
+    };
+    const raw = { state: { agentWorkData: [work] }, version: 0 };
+
+    const decoder = findBackupDecoder(raw);
+    expect(decoder?.formatName).toBe("zustand-project-state");
+    expect(decoder?.decode(raw).artifacts).toEqual([{
+      projectId: "",
+      chapterId: "chapter-target",
+      stage: "analysis",
+      data: work,
+    }]);
+    expect(findBackupDecoder({ state: { agentWorkData: work }, version: 0 })).toBeNull();
+  });
+
+  it("rewrites target agent work while preserving its sibling and opaque data", () => {
+    const target = {
+      id: "work-target",
+      key: "entityExtraction",
+      episodeId: "chapter-target",
+      data: "target output",
+      createdAt: 1,
+      updatedAt: 2,
+    };
+    const sibling = {
+      id: "work-sibling",
+      key: "scriptPlan",
+      episodeId: "chapter-sibling",
+      data: '{"episodeId":"chapter-target","id":"work-target"}',
+      createdAt: 3,
+      updatedAt: 4,
+    };
+    const raw = { state: { agentWorkData: [target, sibling] }, version: 0 };
+    const siblingBefore = JSON.stringify(sibling);
+
+    const rewritten = rewriteRegisteredBackup(raw, "chapter-target", new Set(["work-target"]));
+    const state = (rewritten.value as { state: { agentWorkData: unknown[] } }).state;
+
+    expect(rewritten.changed).toBe(true);
+    expect(state.agentWorkData).toEqual([sibling]);
+    expect(JSON.stringify(state.agentWorkData[0])).toBe(siblingBefore);
+    expect(raw.state.agentWorkData).toEqual([target, sibling]);
+  });
+
+  it("removes chapter-keyed mixed-backup maps while preserving sibling keys", () => {
+    const siblingProjection = { opaque: "sibling" };
+    const raw = {
+      state: {
+        novelChapters: [
+          { id: "chapter-target", title: "Target" },
+          { id: "chapter-sibling", title: "Sibling" },
+        ],
+        resultsByChapter: {
+          "chapter-target": { opaque: "target" },
+          "chapter-sibling": siblingProjection,
+        },
+      },
+      version: 1,
+    };
+
+    const rewritten = rewriteRegisteredBackup(raw, "chapter-target", new Set(["chapter-target"]));
+    const results = (rewritten.value as typeof raw).state.resultsByChapter;
+    expect(results["chapter-target"]).toBeUndefined();
+    expect(results["chapter-sibling"]).toEqual(siblingProjection);
+    expect(raw.state.resultsByChapter["chapter-target"]).toEqual({ opaque: "target" });
   });
 
   it("decodes Zustand project files and keeps chapter filters isolated", async () => {
@@ -176,14 +281,79 @@ describe("artifact inventory persisted project state", () => {
     await expect(fs.access(backupPath)).resolves.toBeUndefined();
   });
 
-  it("skips whole-store snapshot dirs (visual-continuity-backups) so they don't duplicate live artifacts", async () => {
-    // The daojie promote pipeline writes whole-store snapshots under
-    // visual-continuity-backups/<promotion-id>/studio-workflow-store.json.
-    // Those snapshots are plain .json (no .bak/.codex suffix), so without a
-    // directory-level skip they get classified kind:"json" (LIVE), decoded into
-    // a full duplicate artifact set, and surface in the product popup as extra
-    // physical files. The scanner must treat the whole snapshot dir as a backup
-    // root and never decode its contents as live stores.
+  it("blocks unregistered chapter JSON and mixed backups while retaining chapter-only backup deletion", async () => {
+    const dataRoot = await fs.mkdtemp(path.join(os.tmpdir(), "mystudio-artifact-unknown-scope-"));
+    roots.push(dataRoot);
+    const projectId = "project-unknown-scope";
+    const chapterId = "chapter-9005";
+    const projectRoot = path.join(dataRoot, "_p", projectId);
+    const chapterJson = path.join(projectRoot, "remotion", "jobs", chapterId, "current.json");
+    const mixedBackup = path.join(projectRoot, "history.json.bak");
+    const chapterBackup = path.join(projectRoot, "backups", `${chapterId}-continuity`, "characters.json");
+    await fs.mkdir(path.dirname(chapterJson), { recursive: true });
+    await fs.mkdir(path.dirname(chapterBackup), { recursive: true });
+    await fs.writeFile(chapterJson, JSON.stringify({ jobId: `job-${chapterId}`, opaque: true }));
+    await fs.writeFile(mixedBackup, JSON.stringify({
+      snapshots: {
+        [chapterId]: { opaque: "target" },
+        "chapter-9006": { opaque: "sibling" },
+      },
+    }));
+    await fs.writeFile(chapterBackup, JSON.stringify({ opaque: true }));
+
+    const inventory = await scanProjectInventory(dataRoot, projectId);
+    expect(inventory.success).toBe(true);
+    if (!inventory.success) return;
+
+    const recordsForPath = (relativePath: string) => inventory.data.artifacts.filter((artifact) =>
+      artifact.physicalRefs.some((ref) => ref.path === relativePath),
+    );
+    const chapterJsonRelative = path.relative(projectRoot, chapterJson);
+    const mixedBackupRelative = path.relative(projectRoot, mixedBackup);
+    const chapterBackupRelative = path.relative(projectRoot, chapterBackup);
+    expect(recordsForPath(chapterJsonRelative)).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        chapterId,
+        state: "unknown",
+        deletePolicy: "blocker-missing-ownership",
+      }),
+    ]));
+    expect(recordsForPath(mixedBackupRelative)).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        chapterId,
+        stage: "backup",
+        state: "unknown",
+        deletePolicy: "blocker-missing-ownership",
+      }),
+      expect.objectContaining({
+        chapterId: "chapter-9006",
+        state: "unknown",
+        deletePolicy: "blocker-missing-ownership",
+      }),
+    ]));
+    expect(recordsForPath(chapterBackupRelative)).toEqual([
+      expect.objectContaining({
+        chapterId,
+        stage: "backup",
+        state: "active",
+        deletePolicy: "delete-exclusive-downstream",
+      }),
+    ]);
+    expect(inventory.data.summary.blockedByUnknown).toBe(3);
+
+    const planned = buildDeletionPlan(inventory.data.artifacts, [], chapterId);
+    expect(planned.valid).toBe(false);
+    expect(planned.plan.executionAllowed).toBe(false);
+    expect(planned.plan.blockerItems.map((item) => item.physicalPath)).toEqual(expect.arrayContaining([
+      chapterJsonRelative,
+      mixedBackupRelative,
+    ]));
+    expect(planned.plan.backupImpact).toEqual(expect.arrayContaining([
+      expect.objectContaining({ filePath: chapterBackupRelative, action: "delete" }),
+    ]));
+  });
+
+  it("surfaces visual-continuity snapshots as backup impact while preserving sibling chapters", async () => {
     const dataRoot = await fs.mkdtemp(path.join(os.tmpdir(), "mystudio-artifact-vc-backup-"));
     roots.push(dataRoot);
     const projectRoot = path.join(dataRoot, "_p", "project-vc");
@@ -192,20 +362,43 @@ describe("artifact inventory persisted project state", () => {
     const state = {
       projectId: "project-vc",
       state: {
-        novelChapters: [{ id: "chapter-vc", title: "VC chapter" }],
+        novelChapters: [
+          { id: "chapter-vc", title: "VC chapter" },
+          { id: "chapter-keep", title: "Sibling chapter" },
+        ],
       },
       version: 1,
     };
     await fs.writeFile(path.join(projectRoot, "studio.json"), JSON.stringify(state));
 
-    // The offending whole-store snapshot directory the daojie pipeline creates.
     const snapshotDir = path.join(
       projectRoot,
       "visual-continuity-backups",
       "storyboard-promotion-20260807T103601978677Z-5e481542ae94",
     );
     await fs.mkdir(snapshotDir, { recursive: true });
-    await fs.writeFile(path.join(snapshotDir, "studio-workflow-store.json"), JSON.stringify(state));
+    const snapshotPath = path.join(snapshotDir, "studio-workflow-store.json");
+    const snapshotRelativePath = path.relative(projectRoot, snapshotPath);
+    const opaqueSnapshotPath = path.join(snapshotDir, "opaque.snapshot");
+    const opaqueSnapshotRelativePath = path.relative(projectRoot, opaqueSnapshotPath);
+    await fs.writeFile(snapshotPath, JSON.stringify(state));
+    await fs.writeFile(opaqueSnapshotPath, JSON.stringify({ opaque: true }));
+
+    expect(findBackupDecoder(state)?.formatName).toBe("zustand-project-state");
+
+    const fullInventory = await scanProjectInventory(dataRoot, "project-vc");
+    expect(fullInventory.success).toBe(true);
+    if (!fullInventory.success) return;
+    const siblingArtifact = fullInventory.data.artifacts.find((artifact) => artifact.chapterId === "chapter-keep");
+    expect(siblingArtifact?.physicalRefs).toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: "backup", path: snapshotRelativePath }),
+    ]));
+    const opaqueSnapshot = fullInventory.data.artifacts.find((artifact) =>
+      artifact.physicalRefs.some((ref) => ref.path === opaqueSnapshotRelativePath),
+    );
+    expect(opaqueSnapshot?.physicalRefs).toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: "backup", path: opaqueSnapshotRelativePath }),
+    ]));
 
     const inventory = await scanProjectInventory(dataRoot, "project-vc", "chapter-vc");
     expect(inventory.success).toBe(true);
@@ -213,18 +406,60 @@ describe("artifact inventory persisted project state", () => {
 
     const chapterArtifact = inventory.data.artifacts.find((artifact) => artifact.chapterId === "chapter-vc");
     expect(chapterArtifact).toBeDefined();
-    const refs = chapterArtifact?.physicalRefs ?? [];
-
-    // The live store must be the ONLY physical ref — the snapshot copy must NOT
-    // appear as a live project-file ref (it lives under visual-continuity-backups).
-    expect(refs.some((ref) => ref.path.includes("visual-continuity-backups"))).toBe(false);
-    expect(refs.map((ref) => `${ref.type}:${ref.path}`).sort()).toEqual([
+    expect(inventory.data.artifacts.every((artifact) => artifact.chapterId === "chapter-vc")).toBe(true);
+    expect(chapterArtifact?.physicalRefs.map((ref) => `${ref.type}:${ref.path}`).sort()).toEqual([
+      `backup:${snapshotRelativePath}`,
       "project-file:studio.json",
     ]);
 
-    // The snapshot directory must not contribute any artifacts of its own.
-    expect(inventory.data.artifacts.some((artifact) =>
-      (artifact.physicalRefs ?? []).some((ref) => ref.path.includes("visual-continuity-backups")),
-    )).toBe(false);
+    const planned = buildDeletionPlan(inventory.data.artifacts, [], "chapter-vc");
+    expect(planned.valid).toBe(true);
+    expect(planned.plan.backupImpact).toEqual(expect.arrayContaining([
+      expect.objectContaining({ filePath: snapshotRelativePath, action: "rewrite" }),
+    ]));
+
+    const rewritten = rewriteRegisteredBackup(
+      state,
+      "chapter-vc",
+      new Set(planned.plan.deleteItems.map((item) => item.artifactId)),
+    );
+    expect((rewritten.value as typeof state).state.novelChapters).toEqual([
+      { id: "chapter-keep", title: "Sibling chapter" },
+    ]);
+  });
+
+  it("filters TTS blockers to the requested chapter while retaining unowned active jobs", async () => {
+    const dataRoot = await fs.mkdtemp(path.join(os.tmpdir(), "mystudio-artifact-tts-blockers-"));
+    roots.push(dataRoot);
+    const projectId = "project-tts-blockers";
+    const projectRoot = path.join(dataRoot, "_p", projectId);
+    await fs.mkdir(projectRoot, { recursive: true });
+    await fs.writeFile(path.join(projectRoot, "studio.json"), JSON.stringify({
+      state: {
+        novelChapters: [
+          { id: "chapter-a", title: "A" },
+          { id: "chapter-b", title: "B" },
+        ],
+      },
+      version: 1,
+    }));
+    vi.stubGlobal("fetch", vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        generations: [
+          { id: "tts-a", projectId, chapterId: "chapter-a", status: "generating" },
+          { id: "tts-b", projectId, chapterId: "chapter-b", status: "queued" },
+          { id: "tts-unowned", projectId, status: "generating" },
+        ],
+      }),
+    })));
+
+    const inventory = await scanProjectInventory(dataRoot, projectId, "chapter-a");
+    expect(inventory.success).toBe(true);
+    if (!inventory.success) return;
+    expect(inventory.data.blockers.map((blocker) => blocker.jobId).sort()).toEqual([
+      "tts-a",
+      "tts-unowned",
+    ]);
   });
 });

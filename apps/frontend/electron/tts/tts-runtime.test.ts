@@ -1,4 +1,6 @@
 import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { createTtsRuntimeController } from "./tts-runtime";
 
@@ -25,11 +27,11 @@ describe("TTS runtime controller", () => {
       running: false,
       port: 17593,
       baseUrl: "http://127.0.0.1:17593",
-      cacheDir: "/user-data/tts-runtime",
-      modelCacheDir: "/user-data/tts-models",
-      defaultModelCacheDir: "/user-data/tts-models",
+      cacheDir: "/user-data/TTS/runtime",
+      modelCacheDir: "/user-data/TTS/model",
+      defaultModelCacheDir: "/user-data/TTS/model",
     });
-    expect(controller.getModelCacheDir()).toBe("/user-data/tts-models");
+    expect(controller.getModelCacheDir()).toBe("/user-data/TTS/model");
   });
 
   it("starts the Python sidecar with isolated runtime data", async () => {
@@ -65,15 +67,15 @@ describe("TTS runtime controller", () => {
         "--port",
         "17593",
         "--data-dir",
-        "/user-data/tts-runtime",
+        "/project-storage/TTS/runtime",
       ],
       expect.objectContaining({
         cwd: "/backend",
         env: expect.objectContaining({
-          MANYING_TTS_DATA_DIR: "/user-data/tts-runtime",
-          MANYING_TTS_MODELS_DIR: "/project-storage/tts-models",
-          VOICEBOX_MODELS_DIR: "/project-storage/tts-models",
-          HF_HUB_CACHE: expect.stringContaining("huggingface"),
+          MANYING_TTS_DATA_DIR: "/project-storage/TTS/runtime",
+          MANYING_TTS_MODELS_DIR: "/project-storage/TTS/model",
+          VOICEBOX_MODELS_DIR: "/project-storage/TTS/model",
+          HF_HUB_CACHE: "/project-storage/TTS/model",
           MANYING_TTS_CONTROL_TOKEN: expect.any(String),
         }),
       }),
@@ -96,6 +98,152 @@ describe("TTS runtime controller", () => {
     await expect(controller.status()).resolves.toMatchObject({
       pythonRuntimeDir: "/project-storage/python",
     });
+  });
+
+  it("migrates the fixed legacy TTS directories and preserves the default model override", async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "mystudio-tts-layout-"));
+    const userDataPath = path.join(root, "user-data");
+    const storageBasePath = path.join(root, "storage");
+    const legacyRuntimeDir = path.join(userDataPath, "tts-runtime");
+    const legacyModelsDir = path.join(storageBasePath, "tts-models");
+    const legacyModelRepoDir = path.join(legacyModelsDir, "models--example--voice");
+    try {
+      fs.mkdirSync(legacyRuntimeDir, { recursive: true });
+      fs.mkdirSync(legacyModelRepoDir, { recursive: true });
+      fs.writeFileSync(path.join(legacyRuntimeDir, "config.json"), JSON.stringify({
+        modelCacheDir: legacyModelsDir,
+        controlToken: "existing-token",
+      }));
+      fs.writeFileSync(path.join(legacyRuntimeDir, "tts.sqlite"), "sqlite-data");
+      fs.writeFileSync(path.join(legacyModelRepoDir, "model.bin"), "model-data");
+
+      const controller = createTtsRuntimeController({
+        appRoot: "/repo",
+        userDataPath,
+        storageBasePath,
+        huggingFaceHubDir: path.join(root, "huggingface", "hub"),
+        fetchJson: vi.fn().mockRejectedValue(new Error("offline")),
+        spawnProcess: vi.fn(),
+      });
+
+      expect(controller.getStorageLayout()).toMatchObject({
+        rootDir: path.join(storageBasePath, "TTS"),
+        runtimeDir: path.join(storageBasePath, "TTS", "runtime"),
+        modelsDir: path.join(storageBasePath, "TTS", "model"),
+        migrationState: "ready",
+      });
+
+      await expect(controller.migrateStorage()).resolves.toMatchObject({ success: true });
+      expect(fs.existsSync(legacyRuntimeDir)).toBe(false);
+      expect(fs.existsSync(legacyModelRepoDir)).toBe(false);
+      expect(fs.readFileSync(path.join(storageBasePath, "TTS", "runtime", "tts.sqlite"), "utf8")).toBe("sqlite-data");
+      expect(fs.readFileSync(path.join(storageBasePath, "TTS", "model", "models--example--voice", "model.bin"), "utf8")).toBe("model-data");
+      expect(JSON.parse(fs.readFileSync(path.join(storageBasePath, "TTS", "runtime", "config.json"), "utf8")))
+        .toMatchObject({ modelCacheDir: path.join(storageBasePath, "TTS", "model"), controlToken: "existing-token" });
+      expect(controller.getStorageLayout().migrationState).toBe("up-to-date");
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("moves the global Hugging Face model cache and removes an identical legacy copy", async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "mystudio-tts-hf-migration-"));
+    const userDataPath = path.join(root, "user-data");
+    const storageBasePath = path.join(root, "storage");
+    const huggingFaceHubDir = path.join(root, "huggingface", "hub");
+    const modelName = "models--example--voice";
+    const globalModelDir = path.join(huggingFaceHubDir, modelName);
+    const legacyModelDir = path.join(storageBasePath, "tts-models", modelName);
+    const targetModelDir = path.join(storageBasePath, "TTS", "model", modelName);
+    try {
+      fs.mkdirSync(globalModelDir, { recursive: true });
+      fs.mkdirSync(legacyModelDir, { recursive: true });
+      fs.writeFileSync(path.join(globalModelDir, "model.bin"), "model-data");
+      fs.writeFileSync(path.join(legacyModelDir, "model.bin"), "model-data");
+
+      const controller = createTtsRuntimeController({
+        appRoot: "/repo",
+        userDataPath,
+        storageBasePath,
+        huggingFaceHubDir,
+        fetchJson: vi.fn().mockRejectedValue(new Error("offline")),
+        spawnProcess: vi.fn(),
+      });
+
+      await expect(controller.migrateStorage()).resolves.toMatchObject({ success: true });
+      expect(fs.existsSync(globalModelDir)).toBe(false);
+      expect(fs.existsSync(legacyModelDir)).toBe(false);
+      expect(fs.readFileSync(path.join(targetModelDir, "model.bin"), "utf8")).toBe("model-data");
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("refuses conflicting Hugging Face model directories without writing a target", async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "mystudio-tts-hf-migration-"));
+    const userDataPath = path.join(root, "user-data");
+    const storageBasePath = path.join(root, "storage");
+    const huggingFaceHubDir = path.join(root, "huggingface", "hub");
+    const modelName = "models--example--voice";
+    const globalModelDir = path.join(huggingFaceHubDir, modelName);
+    const legacyModelDir = path.join(storageBasePath, "tts-models", modelName);
+    const targetModelDir = path.join(storageBasePath, "TTS", "model", modelName);
+    try {
+      fs.mkdirSync(globalModelDir, { recursive: true });
+      fs.mkdirSync(legacyModelDir, { recursive: true });
+      fs.writeFileSync(path.join(globalModelDir, "model.bin"), "global-model");
+      fs.writeFileSync(path.join(legacyModelDir, "model.bin"), "legacy-model");
+
+      const controller = createTtsRuntimeController({
+        appRoot: "/repo",
+        userDataPath,
+        storageBasePath,
+        huggingFaceHubDir,
+        fetchJson: vi.fn().mockRejectedValue(new Error("offline")),
+        spawnProcess: vi.fn(),
+      });
+
+      await expect(controller.migrateStorage()).resolves.toMatchObject({
+        success: false,
+        error: expect.stringContaining(modelName),
+      });
+      expect(fs.existsSync(globalModelDir)).toBe(true);
+      expect(fs.existsSync(legacyModelDir)).toBe(true);
+      expect(fs.existsSync(targetModelDir)).toBe(false);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("refuses to migrate when a fixed TTS target already exists", async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "mystudio-tts-layout-"));
+    const userDataPath = path.join(root, "user-data");
+    const storageBasePath = path.join(root, "storage");
+    const legacyRuntimeDir = path.join(userDataPath, "tts-runtime");
+    const targetRuntimeDir = path.join(storageBasePath, "TTS", "runtime");
+    try {
+      fs.mkdirSync(legacyRuntimeDir, { recursive: true });
+      fs.mkdirSync(targetRuntimeDir, { recursive: true });
+      fs.writeFileSync(path.join(legacyRuntimeDir, "config.json"), "{}");
+
+      const controller = createTtsRuntimeController({
+        appRoot: "/repo",
+        userDataPath,
+        storageBasePath,
+        huggingFaceHubDir: path.join(root, "huggingface", "hub"),
+        fetchJson: vi.fn().mockRejectedValue(new Error("offline")),
+        spawnProcess: vi.fn(),
+      });
+
+      await expect(controller.migrateStorage()).resolves.toMatchObject({
+        success: false,
+        error: expect.stringContaining("同时存在"),
+      });
+      expect(fs.existsSync(legacyRuntimeDir)).toBe(true);
+      expect(fs.existsSync(targetRuntimeDir)).toBe(true);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
   });
 
   it("persists Python runtime download URL config for settings", async () => {
@@ -781,8 +929,8 @@ describe("TTS runtime controller", () => {
       expect.any(Array),
       expect.objectContaining({
         env: expect.objectContaining({
-          MANYING_TTS_MODELS_DIR: "/project-storage/tts-models",
-          VOICEBOX_MODELS_DIR: "/project-storage/tts-models",
+          MANYING_TTS_MODELS_DIR: "/project-storage/TTS/model",
+          VOICEBOX_MODELS_DIR: "/project-storage/TTS/model",
         }),
       }),
     );

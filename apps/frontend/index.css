@@ -2058,9 +2058,14 @@
   --settings-cyan: 197 100% 52%;
   --settings-gold: 38 92% 54%;
   --settings-green: 152 58% 42%;
+  --settings-atmosphere-opacity: 0.56;
   position: relative;
   isolation: isolate;
+  overflow: hidden;
   background:
+    radial-gradient(ellipse 58% 68% at 8% 12%, hsl(var(--settings-cyan) / 0.12), transparent 70%),
+    radial-gradient(ellipse 48% 62% at 92% 18%, hsl(var(--settings-gold) / 0.09), transparent 72%),
+    radial-gradient(ellipse 72% 54% at 58% 108%, hsl(222 82% 58% / 0.08), transparent 76%),
     linear-gradient(104deg, hsl(var(--settings-cyan) / 0.16), transparent 22%),
     linear-gradient(118deg, transparent 48%, hsl(var(--settings-gold) / 0.11) 64%, transparent 82%),
     linear-gradient(90deg, hsl(220 32% 4% / 0.82), transparent 42%, hsl(34 28% 6% / 0.62)),
@@ -2089,13 +2094,17 @@
 }
 
 .settings-workspace::after {
-  opacity: 0.62;
+  opacity: var(--settings-atmosphere-opacity);
   background:
+    radial-gradient(ellipse 42% 58% at 14% 22%, hsl(var(--settings-cyan) / 0.22), transparent 72%),
+    radial-gradient(ellipse 36% 52% at 84% 30%, hsl(var(--settings-gold) / 0.16), transparent 74%),
+    radial-gradient(ellipse 58% 44% at 58% 90%, hsl(var(--settings-green) / 0.09), transparent 76%),
     repeating-linear-gradient(180deg, transparent 0 23px, hsl(var(--foreground) / 0.018) 23px 24px),
-    linear-gradient(112deg, hsl(var(--settings-cyan) / 0.11), transparent 28%, hsl(var(--settings-gold) / 0.09) 74%, transparent),
     linear-gradient(180deg, transparent, hsl(0 0% 0% / 0.16) 30%, hsl(0 0% 0% / 0.36));
-  background-size: 100% 24px, 138% 100%, 100% 100%;
+  background-size: 128% 128%, 124% 124%, 132% 132%, 100% 24px, 100% 100%;
   mix-blend-mode: screen;
+  transform: translate3d(0, 0, 0) scale(1.04);
+  transform-origin: center;
 }
 
 .settings-workspace > * {
@@ -2174,6 +2183,7 @@
 }
 
 .appearance-hero {
+  --settings-hero-grid-opacity: 0.5;
   position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(260px, 340px);
@@ -2198,12 +2208,14 @@
   position: absolute;
   inset: 0;
   pointer-events: none;
-  opacity: 0.5;
+  opacity: var(--settings-hero-grid-opacity);
   background:
     linear-gradient(90deg, hsl(var(--settings-cyan) / 0.06) 1px, transparent 1px),
     linear-gradient(0deg, hsl(var(--foreground) / 0.04) 1px, transparent 1px),
     repeating-linear-gradient(112deg, transparent 0 72px, hsl(var(--settings-gold) / 0.045) 72px 74px, transparent 74px 146px);
   background-size: 42px 42px, 42px 42px, 100% 100%;
+  transform: translate3d(0, 0, 0) scale(1.03);
+  transform-origin: center;
 }
 
 .appearance-hero > * {
@@ -2517,7 +2529,11 @@
 }
 
 :root:not(.dark) .settings-workspace {
+  --settings-atmosphere-opacity: 0.34;
   background:
+    radial-gradient(ellipse 58% 68% at 8% 12%, hsl(var(--settings-cyan) / 0.08), transparent 70%),
+    radial-gradient(ellipse 48% 62% at 92% 18%, hsl(var(--settings-gold) / 0.07), transparent 72%),
+    radial-gradient(ellipse 72% 54% at 58% 108%, hsl(222 82% 58% / 0.045), transparent 76%),
     linear-gradient(104deg, hsl(var(--settings-cyan) / 0.12), transparent 24%),
     linear-gradient(118deg, transparent 50%, hsl(var(--settings-gold) / 0.1) 66%, transparent 84%),
     linear-gradient(90deg, hsl(var(--panel) / 0.84), transparent 44%, hsl(var(--background) / 0.72)),
@@ -2537,10 +2553,12 @@
 :root:not(.dark) .settings-workspace::after {
   opacity: 0.34;
   background:
+    radial-gradient(ellipse 42% 58% at 14% 22%, hsl(var(--settings-cyan) / 0.1), transparent 72%),
+    radial-gradient(ellipse 36% 52% at 84% 30%, hsl(var(--settings-gold) / 0.08), transparent 74%),
+    radial-gradient(ellipse 58% 44% at 58% 90%, hsl(var(--settings-green) / 0.05), transparent 76%),
     repeating-linear-gradient(180deg, transparent 0 23px, hsl(var(--foreground) / 0.022) 23px 24px),
-    linear-gradient(112deg, hsl(var(--settings-cyan) / 0.1), transparent 30%, hsl(var(--settings-gold) / 0.08) 74%, transparent),
     linear-gradient(180deg, hsl(var(--foreground) / 0.06), transparent 34%, hsl(var(--foreground) / 0.08));
-  background-size: 100% 24px, 138% 100%, 100% 100%;
+  background-size: 128% 128%, 124% 124%, 132% 132%, 100% 24px, 100% 100%;
   mix-blend-mode: multiply;
 }
 
@@ -2811,30 +2829,56 @@ a:active,
 }
 
 @keyframes settings-atmosphere-drift {
-  from {
-    background-position: 0 0, 0 0, 0 0;
+  0%,
+  100% {
+    opacity: calc(var(--settings-atmosphere-opacity) - 0.05);
+    transform: translate3d(-1.6%, -0.8%, 0) scale(1.04) rotate(-0.35deg);
   }
-  to {
-    background-position: 0 18px, 34px 0, 0 0;
+  50% {
+    opacity: calc(var(--settings-atmosphere-opacity) + 0.05);
+    transform: translate3d(1.6%, 0.8%, 0) scale(1.08) rotate(0.35deg);
+  }
+}
+
+@keyframes settings-grid-drift {
+  0%,
+  100% {
+    transform: translate3d(-0.35%, -0.2%, 0) scale(1.015);
+  }
+  50% {
+    transform: translate3d(0.35%, 0.2%, 0) scale(1.015);
   }
 }
 
 @keyframes settings-hero-shift {
-  from {
-    background-position: 0 0, 0 0, 0 0, 0 0;
+  0%,
+  100% {
+    opacity: calc(var(--settings-hero-grid-opacity) - 0.03);
+    transform: translate3d(-0.45%, 0, 0) scale(1.03);
   }
-  to {
-    background-position: 16px 0, -18px 0, 0 0, 0 0;
+  50% {
+    opacity: calc(var(--settings-hero-grid-opacity) + 0.03);
+    transform: translate3d(0.45%, 0.2%, 0) scale(1.05);
   }
 }
 
 @media (prefers-reduced-motion: no-preference) {
+  .settings-workspace::after,
+  .appearance-hero::before {
+    will-change: transform, opacity;
+  }
+
   .settings-workspace::after {
-    animation: settings-atmosphere-drift 18s ease-in-out infinite alternate;
+    animation: settings-atmosphere-drift 26s cubic-bezier(0.77, 0, 0.175, 1) infinite;
+  }
+
+  .settings-workspace::before {
+    will-change: transform;
+    animation: settings-grid-drift 44s ease-in-out infinite;
   }
 
   .appearance-hero::before {
-    animation: settings-hero-shift 20s ease-in-out infinite alternate;
+    animation: settings-hero-shift 20s cubic-bezier(0.77, 0, 0.175, 1) infinite alternate;
   }
 }
 
@@ -2850,9 +2894,24 @@ a:active,
   .studio-asset-thumbnail,
   .asset-sidebar-item::before,
   .settings-workspace::after,
+  .settings-workspace::before,
   .appearance-hero::before {
     animation: none !important;
     transition-duration: 0.01ms !important;
+  }
+
+  .settings-workspace::after {
+    opacity: var(--settings-atmosphere-opacity);
+    transform: none;
+  }
+
+  .settings-workspace::before {
+    transform: none;
+  }
+
+  .appearance-hero::before {
+    opacity: var(--settings-hero-grid-opacity);
+    transform: none;
   }
 }
 

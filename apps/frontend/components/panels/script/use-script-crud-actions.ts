@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 
 import type { Episode, ScriptCharacter, ScriptScene, Shot } from "@/types/script";
+import { buildArtifactId } from "@/lib/artifacts/artifact-projection";
 import { toast } from "sonner";
 
 type SelectedItemType = "character" | "scene" | "shot" | "episode" | null;
@@ -10,18 +11,16 @@ interface ScriptCrudActions {
   updateEpisodeBundle: (projectId: string, episodeIndex: number, updates: { title?: string; synopsis?: string }) => void;
   addScene: (projectId: string, scene: ScriptScene, episodeId?: string) => void;
   updateScene: (projectId: string, sceneId: string, updates: Partial<ScriptScene>) => void;
-  deleteScene: (projectId: string, sceneId: string) => void;
   addCharacter: (projectId: string, character: ScriptCharacter) => void;
   updateCharacter: (projectId: string, characterId: string, updates: Partial<ScriptCharacter>) => void;
-  deleteCharacter: (projectId: string, characterId: string) => void;
   updateShot: (projectId: string, shotId: string, updates: Partial<Shot>) => void;
-  deleteShot: (projectId: string, shotId: string) => void;
 }
 
 interface UseScriptCrudActionsOptions extends ScriptCrudActions {
   projectId: string;
   episodes?: Episode[];
   onRequestChapterDeletion?: (chapterId: string) => Promise<void>;
+  onRequestArtifactDeletion?: (artifactId: string) => Promise<void>;
   selectedItemId: string | null;
   setSelectedItemId: (id: string | null) => void;
   setSelectedItemType: (type: SelectedItemType) => void;
@@ -31,6 +30,7 @@ export function useScriptCrudActions({
   projectId,
   episodes,
   onRequestChapterDeletion,
+  onRequestArtifactDeletion,
   selectedItemId,
   setSelectedItemId,
   setSelectedItemType,
@@ -38,12 +38,9 @@ export function useScriptCrudActions({
   updateEpisodeBundle,
   addScene,
   updateScene,
-  deleteScene,
   addCharacter,
   updateCharacter,
-  deleteCharacter,
   updateShot,
-  deleteShot,
 }: UseScriptCrudActionsOptions) {
   const clearSelectionIfDeleted = useCallback((id: string) => {
     if (selectedItemId !== id) return;
@@ -79,10 +76,14 @@ export function useScriptCrudActions({
     updateScene(projectId, id, updates);
   }, [projectId, updateScene]);
 
-  const handleDeleteScene = useCallback((id: string) => {
-    deleteScene(projectId, id);
+  const handleDeleteScene = useCallback(async (id: string) => {
+    if (!onRequestArtifactDeletion) {
+      toast.error("产物删除服务不可用，未执行任何操作");
+      return;
+    }
+    await onRequestArtifactDeletion(buildArtifactId("script", "script-scene", id));
     clearSelectionIfDeleted(id);
-  }, [projectId, deleteScene, clearSelectionIfDeleted]);
+  }, [onRequestArtifactDeletion, clearSelectionIfDeleted]);
 
   const handleAddCharacter = useCallback((character: ScriptCharacter) => {
     addCharacter(projectId, character);
@@ -92,19 +93,17 @@ export function useScriptCrudActions({
     updateCharacter(projectId, id, updates);
   }, [projectId, updateCharacter]);
 
-  const handleDeleteCharacter = useCallback((id: string) => {
-    deleteCharacter(projectId, id);
-    clearSelectionIfDeleted(id);
-  }, [projectId, deleteCharacter, clearSelectionIfDeleted]);
+  const handleDeleteCharacter = useCallback((_id: string) => {
+    toast.error("角色尚无可验证的产物映射，已阻止直接删除");
+  }, []);
 
   const handleUpdateShot = useCallback((id: string, updates: Partial<Shot>) => {
     updateShot(projectId, id, updates);
   }, [projectId, updateShot]);
 
-  const handleDeleteShot = useCallback((id: string) => {
-    deleteShot(projectId, id);
-    clearSelectionIfDeleted(id);
-  }, [projectId, deleteShot, clearSelectionIfDeleted]);
+  const handleDeleteShot = useCallback((_id: string) => {
+    toast.error("镜头尚无可验证的产物映射，已阻止直接删除");
+  }, []);
 
   return {
     handleAddEpisodeBundle,

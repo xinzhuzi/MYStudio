@@ -716,11 +716,11 @@ describe("desktop build scripts", () => {
     expect(smokeScript).toContain(
       "workflow node canvas rendered inside 剧本资产管理 instead of 分镜视频生成",
     );
-    expect(smokeScript).toContain("Python 依赖");
+    expect(smokeScript).not.toContain("'Python 依赖'");
     expect(smokeScript).toContain("所有本地 TTS、video-use Python worker 和 MLX 对齐都复用应用管理的 Python");
     expect(smokeScript).toContain("开始配置");
-    expect(smokeScript).toContain("安装明细");
-    expect(smokeScript).toContain("Python 使用路径");
+    expect(smokeScript).not.toContain("'安装明细'");
+    expect(smokeScript).toContain("Python 运行环境");
     expect(smokeScript).toContain("制作流程推进");
     expect(smokeScript).toContain("导演造景");
     expect(smokeScript).toContain("Page.captureScreenshot");

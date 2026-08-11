@@ -244,6 +244,8 @@ export interface DeletionPlan {
   projectId: string;
   chapterId: string;
   scope: "chapter" | "artifacts";
+  /** Exact renderer selection used to rebuild artifact-scoped plans at execute time. */
+  selectedArtifactIds: string[];
   createdAt: number;
   fingerprint: string;
   deleteItems: PlanItem[];

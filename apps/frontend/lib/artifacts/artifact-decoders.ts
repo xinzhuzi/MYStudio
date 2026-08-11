@@ -172,7 +172,7 @@ export type RequiredAction = z.infer<typeof RequiredActionSchema>;
  */
 const BaseRequestSchema = z.object({
   type: z.string(),
-});
+}).strict();
 
 /**
  * Inventory request decoder - validates projectId + optional chapterId
@@ -181,7 +181,18 @@ export const InventoryRequestDecoder = BaseRequestSchema.extend({
   type: z.literal("inventory"),
   payload: z.object({
     projectId: z.string().min(1),
-    chapterId: z.string().optional(),
+    chapterId: z.string().min(1).optional(),
+  }).catchall(z.never()),
+});
+
+/**
+ * Project artifact list request decoder - the list alias accepts only a
+ * project identity and cannot be widened to a chapter or filesystem scope.
+ */
+export const ProjectArtifactsRequestDecoder = BaseRequestSchema.extend({
+  type: z.literal("project-artifacts"),
+  payload: z.object({
+    projectId: z.string().min(1),
   }).catchall(z.never()),
 });
 
@@ -208,6 +219,13 @@ export const PlanRequestDecoder = BaseRequestSchema.extend({
         message: "chapterId is required for chapter-scope deletion",
       });
     }
+    if (payload.scope === "artifacts" && (!payload.artifactIds || payload.artifactIds.length === 0)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["artifactIds"],
+        message: "artifactIds must contain at least one item for artifact-scope deletion",
+      });
+    }
   }),
 });
 
@@ -222,15 +240,15 @@ export const ExecuteRequestDecoder = BaseRequestSchema.extend({
     confirmation: z.discriminatedUnion("type", [
       z.object({
         type: z.literal("chapter"),
-        chapterTitle: z.string().optional(),
-        chapterId: z.string().optional(),
-      }).refine(data => data.chapterTitle !== undefined || data.chapterId !== undefined, {
+        chapterTitle: z.string().min(1).optional(),
+        chapterId: z.string().min(1).optional(),
+      }).strict().refine(data => data.chapterTitle !== undefined || data.chapterId !== undefined, {
         message: "chapter confirmation requires either chapterTitle or chapterId",
       }),
       z.object({
         type: z.literal("artifacts"),
         artifactCount: z.number().int().positive(),
-      }),
+      }).strict(),
     ]),
   }).catchall(z.never()),
 });
@@ -245,6 +263,25 @@ export const RecoveryQueryRequestDecoder = BaseRequestSchema.extend({
   }).catchall(z.never()),
 });
 
+/**
+ * Metadata update request decoder - only the two renderer-editable overlay
+ * fields are accepted. Generated content and ownership fields stay read-only.
+ */
+export const MetadataUpdateRequestDecoder = BaseRequestSchema.extend({
+  type: z.literal("metadata-update"),
+  payload: z.object({
+    projectId: z.string().min(1),
+    artifactId: z.string().min(1),
+    updates: z.object({
+      name: z.string().optional(),
+      notes: z.string().optional(),
+    }).strict().refine(
+      (updates) => updates.name !== undefined || updates.notes !== undefined,
+      { message: "at least one metadata field is required" },
+    ),
+  }).catchall(z.never()),
+});
+
 // ============== IPC Result Decoders ==============
 
 /**
@@ -255,12 +292,12 @@ const SuccessWrapperSchema = <T extends z.ZodType>(dataSchema: T) =>
     z.object({
       success: z.literal(true),
       data: dataSchema,
-      error: z.undefined(),
+      error: z.undefined().optional(),
     }),
     z.object({
       success: z.literal(false),
       error: z.string(),
-      data: z.undefined(),
+      data: z.undefined().optional(),
     }),
   ]);
 
@@ -273,6 +310,14 @@ const PhysicalRefSchema = z.object({
   bytes: z.number().optional(),
   hash256: z.string().optional(),
   special: SpecialFileTypeSchema.optional(),
+}).strict();
+
+const ArtifactMetadataSchema = z.object({
+  artifactId: z.string().min(1).optional(),
+  name: z.string().optional(),
+  tags: z.array(z.string()).optional(),
+  notes: z.string().optional(),
+  updatedAt: z.number(),
 }).strict();
 
 const ArtifactRecordSchema = z.object({
@@ -293,6 +338,7 @@ const ArtifactRecordSchema = z.object({
   editRoute: z.string().optional(),
   retainedReason: z.string().optional(),
   blockerReason: z.string().optional(),
+  metadata: ArtifactMetadataSchema.optional(),
 }).strict();
 
 const RunningJobSchema = z.object({
@@ -305,9 +351,9 @@ const RunningJobSchema = z.object({
 
 const InventorySummarySchema = z.object({
   totalArtifacts: z.number().int().nonnegative(),
-  byStage: z.record(ArtifactStageSchema, z.number().int().nonnegative()),
-  byKind: z.record(ArtifactKindSchema, z.number().int().nonnegative()),
-  byState: z.record(ArtifactStateSchema, z.number().int().nonnegative()),
+  byStage: z.partialRecord(ArtifactStageSchema, z.number().int().nonnegative()),
+  byKind: z.partialRecord(ArtifactKindSchema, z.number().int().nonnegative()),
+  byState: z.partialRecord(ArtifactStateSchema, z.number().int().nonnegative()),
   totalBytes: z.number().int().nonnegative(),
   deleteEligible: z.number().int().nonnegative(),
   retainDueToShared: z.number().int().nonnegative(),
@@ -343,6 +389,7 @@ const PlanItemSchema = z.object({
   bytes: z.number().optional(),
   physicalPath: z.string().optional(),
   physicalHash256: z.string().optional(),
+  physicalRefs: z.array(PhysicalRefSchema).optional(),
   reason: z.string().optional(),
   upstreamOwnerIds: z.array(z.string()).optional(),
 }).strict();
@@ -373,6 +420,7 @@ const DeletionPlanSchema = z.object({
   projectId: z.string().min(1),
   chapterId: z.string().min(1),
   scope: z.enum(["chapter", "artifacts"]),
+  selectedArtifactIds: z.array(z.string().min(1)),
   createdAt: z.number(),
   fingerprint: z.string().min(1),
   deleteItems: z.array(PlanItemSchema),
@@ -413,14 +461,14 @@ const ExecutionSuccessDataSchema = z.object({
 const ExecuteSuccessVariant = z.object({
   success: z.literal(true),
   data: ExecutionSuccessDataSchema,
-  error: z.undefined(),
+  error: z.undefined().optional(),
   journalState: z.union([z.literal("committed"), z.literal("rollback-incomplete")]),
 });
 
 const ExecuteFailureVariant = z.object({
   success: z.literal(false),
   error: TypedExecuteErrorSchema,
-  data: z.undefined(),
+  data: z.undefined().optional(),
   journalState: z.union([z.literal("prepared"), z.literal("commit-ready"), z.literal("none")]),
 });
 
@@ -443,13 +491,13 @@ const RecoveryStateSchema = z.object({
 const RecoverySuccessVariant = z.object({
   success: z.literal(true),
   data: RecoveryStateSchema,
-  error: z.undefined(),
+  error: z.undefined().optional(),
 });
 
 const RecoveryFailureVariant = z.object({
   success: z.literal(false),
   error: z.string(),
-  data: z.undefined(),
+  data: z.undefined().optional(),
 });
 
 export const RecoveryQueryResultDecoder = z.union([RecoverySuccessVariant, RecoveryFailureVariant]);
@@ -468,13 +516,13 @@ const MetadataOverlaySchema = z.object({
 const MetadataSuccessVariant = z.object({
   success: z.literal(true),
   data: MetadataOverlaySchema,
-  error: z.undefined(),
+  error: z.undefined().optional(),
 });
 
 const MetadataFailureVariant = z.object({
   success: z.literal(false),
   error: z.string(),
-  data: z.undefined(),
+  data: z.undefined().optional(),
 });
 
 export const MetadataUpdateResultDecoder = z.union([MetadataSuccessVariant, MetadataFailureVariant]);

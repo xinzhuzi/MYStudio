@@ -31,7 +31,7 @@ export interface TtsRuntimeFormDataPayload {
   referenceText?: string;
 }
 
-export type TtsRuntimeConfigPayload = Pick<Partial<TtsRuntimeConfig>, "pythonRuntimeUrl">;
+export type TtsRuntimeConfigPayload = Pick<Partial<TtsRuntimeConfig>, "pythonRuntimeUrl" | "pythonRuntimeDir">;
 
 export function decodeTtsRuntimeRequestPayload(value: unknown): TtsRuntimeRequestPayload {
   if (!isRecord(value) || !hasOnlyKeys(value, ["method", "path", "body"])) {
@@ -67,13 +67,19 @@ export function decodeTtsRuntimeFormDataPayload(value: unknown): TtsRuntimeFormD
 }
 
 export function decodeTtsRuntimeConfigPayload(value: unknown): TtsRuntimeConfigPayload {
-  if (!isRecord(value) || !hasOnlyKeys(value, ["pythonRuntimeUrl"])) {
+  if (!isRecord(value) || !hasOnlyKeys(value, ["pythonRuntimeUrl", "pythonRuntimeDir"])) {
     throw invalidTtsRequest("TTS 运行环境配置字段无效");
   }
   if (value.pythonRuntimeUrl !== undefined && typeof value.pythonRuntimeUrl !== "string") {
     throw invalidTtsRequest("TTS 运行环境地址无效");
   }
-  return { pythonRuntimeUrl: value.pythonRuntimeUrl };
+  if (value.pythonRuntimeDir !== undefined && typeof value.pythonRuntimeDir !== "string") {
+    throw invalidTtsRequest("TTS 运行环境路径无效");
+  }
+  return {
+    pythonRuntimeUrl: value.pythonRuntimeUrl,
+    pythonRuntimeDir: value.pythonRuntimeDir,
+  };
 }
 
 export function decodeTtsRuntimeModelCacheDirPayload(value: unknown): string {
@@ -132,6 +138,13 @@ export function registerTtsIpcHandlers({
   ipcMain.handle("tts-runtime-stop", async () => (
     runDiagnostics("stop", {}, () => controller.stop())
   ));
+  ipcMain.handle("tts-runtime-migrate-storage", async () => (
+    runDiagnostics("migrate-storage", {}, () => controller.migrateStorage())
+  ));
+  ipcMain.handle("tts-runtime-read-requirements", async () => controller.readRequirements());
+  ipcMain.handle("tts-runtime-delete", async () => (
+    runDiagnostics("delete", {}, () => controller.deleteRuntime())
+  ));
   ipcMain.handle("tts-runtime-get-config", async () => controller.getConfig());
   ipcMain.handle("tts-runtime-set-config", async (
     _event,
@@ -139,6 +152,12 @@ export function registerTtsIpcHandlers({
   ) => {
     const config = decodeTtsRuntimeConfigPayload(payload);
     return runDiagnostics("set-config", { config }, () => controller.setConfig(config));
+  });
+  ipcMain.handle("tts-runtime-reset-install-dir", async (_event, defaultDir: string) => {
+    if (typeof defaultDir !== "string" || !defaultDir.trim()) {
+      throw new Error("默认安装路径无效");
+    }
+    return runDiagnostics("reset-install-dir", { defaultDir }, () => controller.resetInstallDir(defaultDir));
   });
   ipcMain.handle("tts-runtime-set-model-cache-dir", async (_event, payload: unknown) => {
     const dirPath = decodeTtsRuntimeModelCacheDirPayload(payload);

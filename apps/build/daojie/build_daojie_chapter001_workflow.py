@@ -62,8 +62,9 @@ SEGMENTS = EXPORTS / "clip-segments"
 ASSET_DB = STORAGE_BASE_PATH / "assets" / "assets.db"
 ASSET_FILES = resolve_asset_files_dir(STORAGE_BASE_PATH)
 PYTHON_RUNTIME_DIR = STORAGE_BASE_PATH / "python"
-TTS_RUNTIME_DIR = USER_DATA_DIR / "tts-runtime"
-TTS_MODELS_DIR = STORAGE_BASE_PATH / "tts-models"
+TTS_ROOT_DIR = STORAGE_BASE_PATH / "TTS"
+TTS_RUNTIME_DIR = TTS_ROOT_DIR / "runtime"
+TTS_MODELS_DIR = TTS_ROOT_DIR / "model"
 
 EPISODE_ID = "chapter-001"
 FINAL_NAME = "道劫_EP01_断剑夜访道口镇.mp4"
@@ -4336,7 +4337,7 @@ def start_tts_backend():
         "MANYING_TTS_DATA_DIR": str(TTS_RUNTIME_DIR),
         "MANYING_TTS_MODELS_DIR": str(TTS_MODELS_DIR),
         "VOICEBOX_MODELS_DIR": str(TTS_MODELS_DIR),
-        "HF_HUB_CACHE": str(Path.home() / ".cache" / "huggingface" / "hub"),
+        "HF_HUB_CACHE": str(TTS_MODELS_DIR),
         "MANYING_TTS_CONTROL_TOKEN": TTS_TOKEN,
         "MANYING_TTS_ENGINE_MODE": os.environ.get("MANYING_TTS_ENGINE_MODE", "real"),
         "MANYING_TTS_QWEN_BACKEND": os.environ.get("MANYING_TTS_QWEN_BACKEND", "mlx"),
@@ -4440,7 +4441,7 @@ def create_direct_tts_audio(path, text, voice_profile, seed):
     os.environ.setdefault("MANYING_TTS_QWEN_BACKEND", "mlx")
     os.environ.setdefault("MANYING_TTS_MODELS_DIR", str(TTS_MODELS_DIR))
     os.environ.setdefault("VOICEBOX_MODELS_DIR", str(TTS_MODELS_DIR))
-    os.environ.setdefault("HF_HUB_CACHE", str(Path.home() / ".cache" / "huggingface" / "hub"))
+    os.environ.setdefault("HF_HUB_CACHE", str(TTS_MODELS_DIR))
     from tts.engine import synthesize_to_wav
 
     profile = {

@@ -60,7 +60,7 @@ describe("createStorageManager", () => {
       assetsPath: "/user-data/assets",
       skillsPath: "/user-data/skills",
       pythonRuntimeDir: "/user-data/python",
-      modelCacheDir: "/user-data/tts-models",
+      modelCacheDir: "/user-data/TTS/model",
       cachePath: "/user-data/Cache",
     });
     expect(handlers.size).toBe(19);

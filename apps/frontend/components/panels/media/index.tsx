@@ -44,8 +44,8 @@ import { useMediaPanelStore } from "@/stores/navigation/media-panel-store";
 import {
   createArtifactDeletionPlan,
   executeArtifactDeletionPlan,
-  formatDeletionPlanConfirmation,
 } from "@/stores/artifacts/artifact-store";
+import type { DeletionConfirmation, DeletionPlan } from "@/types/artifacts";
 import { processMediaFiles } from "@/lib/media/media-processing";
 import {
   generateVideoThumbnail,
@@ -53,6 +53,7 @@ import {
 } from "@/stores/media/media-store";
 import { MediaLibraryGrid } from "./MediaLibraryGrid";
 import { MediaLibraryList } from "./MediaLibraryList";
+import { ArtifactDeleteDialog } from "./ArtifactDeleteDialog";
 import {
   getCurrentMediaFolders,
   getFilteredMediaItems,
@@ -96,6 +97,8 @@ export function MediaView() {
   const [newFolderName, setNewFolderName] = useState("");
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
   const [renameTarget, setRenameTarget] = useState<{ type: 'folder' | 'file'; id: string; name: string } | null>(null);
+  const [mediaDeletePlan, setMediaDeletePlan] = useState<DeletionPlan | null>(null);
+  const [mediaDeleteOpen, setMediaDeleteOpen] = useState(false);
 
   const visibleFolders = useMemo(() => {
     return getVisibleMediaFolders(
@@ -168,20 +171,38 @@ export function MediaView() {
     const item = mediaFiles.find((media) => media.id === id);
     if (!item) return;
 
-    // Project-owned media must go through artifact planning controller
-    if (item.projectId && !item.ephemeral) {
+    const isUnownedEphemeralCleanup = item.ephemeral === true && !item.projectId;
+
+    // Every persistent or project-owned media item must go through artifact
+    // planning. Only an explicitly ephemeral item with no project ownership
+    // can use the legacy direct cleanup path.
+    if (!isUnownedEphemeralCleanup) {
       try {
+        if (!item.projectId) {
+          toast.error("该持久媒体缺少项目归属，已阻止删除");
+          return;
+        }
+        if (item.projectId !== activeProject.id) {
+          toast.error("该媒体不属于当前项目，已阻止删除");
+          return;
+        }
         if (!item.chapterId) {
           toast.error("该项目媒体缺少章节归属，已阻止删除");
           return;
         }
+        const requestedProjectId = activeProject.id;
         // Generate deletion plan via shared controller
         const planResult = await createArtifactDeletionPlan({
-          projectId: activeProject.id,
+          projectId: requestedProjectId,
           chapterId: item.chapterId,
           scope: "artifacts",
           artifactIds: [item.id],
         });
+
+        if (useProjectStore.getState().activeProjectId !== requestedProjectId) {
+          toast.error("活动项目已切换，旧删除计划已作废");
+          return;
+        }
 
         if (!planResult.success) {
           toast.error(`生成删除计划失败：${planResult.error}`);
@@ -190,29 +211,11 @@ export function MediaView() {
 
         const plan = planResult.data;
 
-        if (!plan.executionAllowed || plan.blockerItems.length > 0) {
-          toast.error("删除计划存在阻塞项，已停止；请结束运行中的任务后重新盘点");
-          return;
-        }
-
-        // Confirm before execution
-        if (typeof window.confirm === "function" && !window.confirm(
-          formatDeletionPlanConfirmation(plan)
-        )) {
-          return;
-        }
-
-        // Execute deletion via shared controller
-        const result = await executeArtifactDeletionPlan(plan, {
-          type: "artifacts",
-          artifactCount: plan.deleteItems.length + plan.migrateItems.length,
-        });
-
-        if (result.success) {
-          toast.success("已删除");
-        } else if (result.error !== "confirmation-mismatch") {
-          toast.error(`删除失败：${result.error}`);
-        }
+        // Project-owned media uses the same structured, irreversible plan
+        // dialog as the artifact center.  This keeps the legacy media library
+        // from bypassing the full delete/retain/migrate/blocker review.
+        setMediaDeletePlan(plan);
+        setMediaDeleteOpen(true);
         return;
       } catch (err) {
         toast.error(`删除失败：${err instanceof Error ? err.message : String(err)}`);
@@ -220,9 +223,29 @@ export function MediaView() {
       }
     }
 
-    // Ephemeral media can be deleted directly
+    // Only unowned ephemeral media can be deleted directly.
     if (typeof window.confirm === "function" && !window.confirm("删除后无法恢复。确认删除这个临时媒体文件吗？")) return;
     await removeMediaFile(activeProject.id, id);
+    toast.success("已删除");
+  };
+
+  const executeMediaDeletePlan = async (confirmation: DeletionConfirmation) => {
+    if (!mediaDeletePlan) throw new Error("删除计划不可用");
+    const requestedProjectId = mediaDeletePlan.projectId;
+    if (useProjectStore.getState().activeProjectId !== requestedProjectId) {
+      toast.error("活动项目已切换，请重新生成删除计划");
+      throw new Error("活动项目已切换");
+    }
+    const result = await executeArtifactDeletionPlan(mediaDeletePlan, confirmation);
+    if (!result.success) {
+      toast.error(`删除失败：${result.error}`);
+      throw new Error(result.error);
+    }
+    if (useProjectStore.getState().activeProjectId !== requestedProjectId) {
+      toast.error("原项目删除已完成；当前项目未加载旧项目媒体状态");
+      return;
+    }
+    await useMediaStore.getState().loadProjectMedia(requestedProjectId);
     toast.success("已删除");
   };
 
@@ -684,6 +707,16 @@ export function MediaView() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ArtifactDeleteDialog
+        isOpen={mediaDeleteOpen}
+        plan={mediaDeletePlan}
+        onClose={() => {
+          setMediaDeleteOpen(false);
+          setMediaDeletePlan(null);
+        }}
+        onExecute={executeMediaDeletePlan}
+      />
     </div>
   );
 }

@@ -3,15 +3,16 @@
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 
 import type { ArtifactRecord, DeletePolicy, PhysicalRef, RemotionManifest, RemotionJob } from "@/types/artifacts";
-import type { NovelChapter, AgentWorkData, EntityExtractionResult, ScriptPlan, SeriesBible, EpisodeOutline, StoryboardItem, ProductionTrack, VideoCandidate, StudioMaterial, ImageWorkflowGraph, StudioAgentRun, MediaGenerationTask } from "@/types/studio";
+import type { NovelChapter, AgentWorkData, EntityExtractionResult, ScriptPlan, SeriesBible, EpisodeOutline, StoryboardItem, ProductionTrack, VideoCandidate, StudioMaterial, ImageWorkflowGraph, StudioAgentRun, MediaGenerationTask, ContinuityAssetVersion } from "@/types/studio";
 import type { Episode, ScriptData, ScriptScene as Scene } from "@/types/script";
 import type { StudioWorkflowState } from "@/stores/studio/studio-store";
 import type { DirectorState } from "@/stores/director/director-store-types";
 import type { EditingStore } from "@/stores/editing/editing-store";
 import type { AutoEditingRun, EditingProjectV1 } from "@/types/editing";
 import type { TtsStore } from "@/stores/tts/tts-store";
+import type { SceneVoiceLine } from "@/types/tts";
+import type { MediaFile as CurrentMediaFile } from "@/types/media";
 import type { RemotionRenderJobV1 } from "@/types/remotion-workspace";
-type SceneVoiceLine = { sceneId: number; projectId?: string; chapterId?: string; id?: string; audioRef?: string };
 
 // These projections consume persisted slices whose shapes intentionally vary by
 // store version; keep the adapter boundary structural rather than importing
@@ -28,11 +29,29 @@ type LegacyEditingRenderRecord = {
   outputPath?: string;
   evidence?: { jobId: string; path: string; mtimeMs: number };
 };
-type MediaFile = { id: string; name: string; projectId?: string; chapterId?: string; createdAt?: number; updatedAt?: number; localPath?: string; size?: number };
+type ProjectableSceneVoiceLine = Pick<SceneVoiceLine, "sceneId" | "projectId" | "chapterId"> & {
+  id?: string;
+  audioRef?: string;
+  updatedAt?: number;
+};
+type ProjectableMediaFile = Pick<
+  CurrentMediaFile,
+  "id" | "name" | "type" | "projectId" | "chapterId" | "url" | "relativePath"
+> & {
+  /** Legacy persisted fields remain readable, but current writes use url/relativePath. */
+  createdAt?: number;
+  updatedAt?: number;
+  localPath?: string;
+  size?: number;
+};
 type DirectorStoreState = unknown;
-type MediaStoreState = { mediaFiles: MediaFile[] };
+type MediaStoreState = { mediaFiles: ProjectableMediaFile[] };
 type RemotionStoreState = { manifest?: RemotionManifest; jobs?: RemotionJob[] };
 type ScriptStoreState = ScriptData | { scriptData: ScriptData };
+type ContinuityAssetVersionWithOwnership = ContinuityAssetVersion & {
+  chapterId?: string;
+  episodeId?: string;
+};
 
 /**
  * Artifact stage identifier types
@@ -87,14 +106,21 @@ export function buildArtifactId(stage: ArtifactStage, kind: ArtifactKind, id: st
 export function projectNovelChapters(
   chapters: NovelChapter[],
   projectId: string,
-  chapterId?: string
+  chapterId?: string,
+  includedChapterIds?: ReadonlySet<string>,
 ): ArtifactRecord[] {
-  return chapters.map((chapter) => {
+  return chapters
+    .filter((chapter) => !chapterId || (
+      includedChapterIds
+        ? includedChapterIds.has(chapter.id)
+        : chapter.id === chapterId
+    ))
+    .map((chapter) => {
     const artId = buildArtifactId("novel", "novel-chapter", chapter.id);
     return {
       id: artId,
       projectId,
-      chapterId,
+      chapterId: chapterId ?? chapter.id,
       stage: "novel",
       kind: "novel-chapter",
       state: "active",
@@ -116,16 +142,17 @@ export function projectNovelChapters(
 export function projectAgentWorkflows(
   works: AgentWorkData[],
   projectId: string,
-  chapterId?: string
+  chapterId?: string,
+  legacyEpisodeIds: ReadonlySet<string> = new Set(),
 ): ArtifactRecord[] {
   return works
-    .filter((w) => w.episodeId === chapterId)
+    .filter((w) => !chapterId || w.episodeId === chapterId || (w.episodeId !== undefined && legacyEpisodeIds.has(w.episodeId)))
     .map((work) => {
       const artId = buildArtifactId("analysis", "agent-workflow-result", work.id);
       return {
         id: artId,
         projectId,
-        chapterId,
+        chapterId: chapterId ?? work.episodeId,
         stage: "analysis",
         kind: "agent-workflow-result",
         state: "active",
@@ -150,7 +177,7 @@ export function projectEntityExtractions(
   chapterId?: string
 ): ArtifactRecord[] {
   return extractions
-    .filter((e) => e.episodeId === chapterId)
+    .filter((e) => !chapterId || e.episodeId === chapterId)
     .map((extraction) => {
       const artId = buildArtifactId("analysis", "director-entity-extraction", extraction.id);
       return {
@@ -184,13 +211,15 @@ export function projectScriptEpisodes(
   projectId: string,
   chapterId?: string
 ): ArtifactRecord[] {
-  return episodes.map((episode) => {
+  return episodes
+    .filter((episode) => !chapterId || episode.id === chapterId)
+    .map((episode) => {
     const artId = buildArtifactId("script", "script-episode", episode.id);
 
     return {
       id: artId,
       projectId,
-      chapterId,
+      chapterId: episode.id,
       stage: "script",
       kind: "script-episode",
       state: "active",
@@ -243,7 +272,7 @@ export function projectStoryboards(
   chapterId?: string
 ): ArtifactRecord[] {
   return storyboards
-    .filter((sb) => sb.episodeId === chapterId)
+    .filter((sb) => !chapterId || sb.episodeId === chapterId)
     .map((sb) => {
       const artId = buildArtifactId("storyboard", "storyboard-item", sb.id);
       return {
@@ -286,7 +315,7 @@ export function projectProductionTracks(
   chapterId?: string
 ): ArtifactRecord[] {
   return tracks
-    .filter((t) => t.episodeId === chapterId)
+    .filter((t) => !chapterId || t.episodeId === chapterId)
     .map((track) => {
       const artId = buildArtifactId("production", "production-track", track.id);
       const candidateIds = track.candidateVideoIds.map((vid) => buildArtifactId("production", "video-candidate", vid));
@@ -323,13 +352,14 @@ export function projectVideoCandidates(
   trackId?: string
 ): ArtifactRecord[] {
   return candidates
-    .filter((c) => c.trackId === trackId)
+    .filter((c) => !trackId || c.trackId === trackId)
     .map((candidate) => {
       const artId = buildArtifactId("production", "video-candidate", candidate.id);
+      const hasResolvedTrack = Boolean(trackId);
       return {
         id: artId,
         projectId,
-        chapterId,
+        chapterId: hasResolvedTrack ? chapterId : undefined,
         stage: "production",
         kind: "video-candidate",
         state: candidate.state === "failed" ? "blocked" : "active",
@@ -346,12 +376,18 @@ export function projectVideoCandidates(
               },
             ]
           : [],
-        upstreamIds: trackId ? [buildArtifactId("production", "production-track", trackId)] : [],
+        upstreamIds: [buildArtifactId("production", "production-track", candidate.trackId)],
         downstreamIds: [],
-        deletePolicy: "delete-exclusive-downstream",
+        deletePolicy: hasResolvedTrack
+          ? "delete-exclusive-downstream"
+          : "blocker-missing-ownership",
         editRoute: `/studio/video/${candidate.id}`,
         retainedReason: undefined,
-        blockerReason: candidate.state === "failed" ? "Failed rendering state" : undefined,
+        blockerReason: !hasResolvedTrack
+          ? "Video candidate chapter ownership requires ProductionTrack.episodeId resolution"
+          : candidate.state === "failed"
+            ? "Failed rendering state"
+            : undefined,
       };
     });
 }
@@ -397,7 +433,7 @@ export function buildLegacyTtsSceneOwnership(
 }
 
 export function projectTTSVoiceLines(
-  lines: SceneVoiceLine[],
+  lines: ProjectableSceneVoiceLine[],
   projectId: string,
   chapterId?: string,
   scriptScenes?: Scene[],
@@ -421,8 +457,8 @@ export function projectTTSVoiceLines(
         kind: "tts-scene-voice-line",
         state: "active",
         name: `Voice Line Scene ${line.sceneId}`,
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
+        createdAt: line.updatedAt ?? 0,
+        updatedAt: line.updatedAt ?? 0,
         physicalRefs: line.audioRef
           ? [
               {
@@ -455,7 +491,7 @@ export function projectEditingProjects(
   chapterId?: string
 ): ArtifactRecord[] {
   return projects
-    .filter((p) => p.projectId === projectId && p.episodeId === chapterId)
+    .filter((p) => p.projectId === projectId && (!chapterId || p.episodeId === chapterId))
     .map((project) => {
       const artId = buildArtifactId("editing", "editing-project", project.id);
       return {
@@ -486,7 +522,7 @@ export function projectEditingRuns(
   chapterId?: string
 ): ArtifactRecord[] {
   return runs
-    .filter((r) => r.projectId === projectId && r.episodeId === chapterId)
+    .filter((r) => r.projectId === projectId && (!chapterId || r.episodeId === chapterId))
     .map((run) => {
       const artId = buildArtifactId("editing", "editing-run", run.id);
       return {
@@ -517,7 +553,7 @@ export function projectEditingRenders(
   chapterId?: string
 ): ArtifactRecord[] {
   return renders
-    .filter((r) => r.projectId === projectId && r.episodeId === chapterId)
+    .filter((r) => r.projectId === projectId && (!chapterId || r.episodeId === chapterId))
     .map((render) => {
       const artId = buildArtifactId("editing", "editing-render", render.id);
       return {
@@ -561,12 +597,17 @@ export function projectRemotionArtifacts(
 ): ArtifactRecord[] {
   const records: ArtifactRecord[] = [];
 
-  if (manifest?.chapterId === chapterId) {
-    const artId = buildArtifactId("remotion", "remotion-manifest", "manifest");
+  if (
+    manifest
+    && (!manifest.projectId || manifest.projectId === projectId)
+    && (!chapterId || manifest.chapterId === chapterId)
+  ) {
+    const manifestChapterId = manifest.chapterId;
+    const artId = buildArtifactId("remotion", "remotion-manifest", manifestChapterId ?? "manifest");
     records.push({
       id: artId,
       projectId,
-      chapterId,
+      chapterId: manifestChapterId,
       stage: "remotion",
       kind: "remotion-manifest",
       state: "active",
@@ -584,13 +625,13 @@ export function projectRemotionArtifacts(
   if (jobs) {
     // All Remotion records use chapterId, NEVER episodeId
     jobs
-      .filter((j) => j.chapterId === chapterId)
+      .filter((j) => (!j.projectId || j.projectId === projectId) && (!chapterId || j.chapterId === chapterId))
       .forEach((job) => {
         const artId = buildArtifactId("remotion", "remotion-job", job.id);
         records.push({
           id: artId,
           projectId,
-          chapterId,
+          chapterId: job.chapterId,
           stage: "remotion",
           kind: "remotion-job",
           state: "active",
@@ -598,7 +639,7 @@ export function projectRemotionArtifacts(
           createdAt: Date.now(),
           updatedAt: Date.now(),
           physicalRefs: [],
-          upstreamIds: [buildArtifactId("remotion", "remotion-manifest", "manifest")],
+          upstreamIds: [buildArtifactId("remotion", "remotion-manifest", job.chapterId ?? "manifest")],
           downstreamIds: [],
           deletePolicy: "delete-exclusive-downstream",
           editRoute: `/remotion/job/${job.id}`,
@@ -613,35 +654,54 @@ export function projectRemotionArtifacts(
  * Map continuity bible versions to continuity-bible artifacts
  */
 export function projectContinuityBibles(
-  versions: { assetId: string; versionId: string; assetKind: string; label: string; structurallyComplete: boolean; source: string }[],
+  versions: ContinuityAssetVersionWithOwnership[],
   projectId: string,
   chapterId?: string
 ): ArtifactRecord[] {
   return versions
     .filter((v) => v.assetKind === "character" || v.assetKind === "scene" || v.assetKind === "prop")
     .map((version) => {
+      const explicitOwnerIds = Array.from(new Set(
+        [version.chapterId, version.episodeId]
+          .filter((value): value is string => typeof value === "string" && value.length > 0),
+      ));
+      const ownedChapterId = explicitOwnerIds.length === 1 ? explicitOwnerIds[0] : undefined;
+      return { version, ownedChapterId };
+    })
+    .filter(({ ownedChapterId }) => !chapterId || !ownedChapterId || ownedChapterId === chapterId)
+    .map(({ version, ownedChapterId }) => {
       const artId = buildArtifactId("assets", "continuity-bible", `${version.assetId}-${version.versionId}`);
+      const ownershipResolved = Boolean(ownedChapterId);
       return {
         id: artId,
         projectId,
-        chapterId,
+        chapterId: ownedChapterId,
         stage: "assets",
         kind: "continuity-bible",
         state: version.structurallyComplete ? "active" : "blocked",
         name: `${version.assetKind} Version: ${version.label}`,
         createdAt: Date.now(),
         updatedAt: Date.now(),
-        physicalRefs: [],
+        physicalRefs: version.referenceImagePaths.map((path, index) => ({
+          type: "project-file" as const,
+          path,
+          bytes: undefined,
+          hash256: version.referenceImageSha256?.[index],
+        })),
         upstreamIds: [],
         downstreamIds: [],
-        deletePolicy: version.assetKind === "character" || version.assetKind === "scene" || version.assetKind === "prop"
+        deletePolicy: ownershipResolved
           ? "retain-shared-reference"
-          : "delete-exclusive-downstream",
+          : "blocker-missing-ownership",
         editRoute: `/studio/continuity/${version.assetId}`,
-        retainedReason: version.assetKind === "character" || version.assetKind === "scene" || version.assetKind === "prop"
+        retainedReason: ownershipResolved
           ? "Base asset reference may be shared across chapters"
           : undefined,
-        blockerReason: !version.structurallyComplete ? "Incomplete structure" : undefined,
+        blockerReason: !ownershipResolved
+          ? "Continuity version has no unique explicit chapter ownership"
+          : !version.structurallyComplete
+            ? "Incomplete structure"
+            : undefined,
       };
     });
 }
@@ -728,7 +788,7 @@ export function projectBaseAssets(
  * Map media files - check ownership and retention policy
  */
 export function projectMediaFiles(
-  files: MediaFile[],
+  files: ProjectableMediaFile[],
   projectId: string,
   chapterId?: string,
   hasReverseReferences?: boolean
@@ -739,6 +799,17 @@ export function projectMediaFiles(
       const artId = buildArtifactId("media-library", "media-file", file.id);
       const isChapterOwned = file.chapterId === chapterId;
       const isShared = !isChapterOwned && hasReverseReferences === false;
+      const currentPath = file.relativePath
+        ? { type: "project-file" as const, path: file.relativePath }
+        : file.url?.startsWith("local-image://") || file.url?.startsWith("local-video://")
+          ? { type: "local-media" as const, path: file.url }
+          : file.url?.startsWith("project-file://")
+            ? { type: "project-file" as const, path: file.url }
+            : undefined;
+      const legacyPath = !currentPath && file.localPath
+        ? { type: "local-media" as const, path: file.localPath }
+        : undefined;
+      const physicalPath = currentPath ?? legacyPath;
 
       return {
         id: artId,
@@ -750,11 +821,11 @@ export function projectMediaFiles(
         name: file.name,
         createdAt: file.createdAt ?? Date.now(),
         updatedAt: file.updatedAt ?? file.createdAt ?? Date.now(),
-        physicalRefs: file.localPath
+        physicalRefs: physicalPath
           ? [
               {
-                type: "local-media",
-                path: file.localPath,
+                type: physicalPath.type,
+                path: physicalPath.path,
                 bytes: file.size,
                 hash256: undefined,
               },
@@ -791,6 +862,94 @@ export interface LegacyMappingResult {
   reason?: string;
 }
 
+interface ChapterProjectionScope {
+  requestedId?: string;
+  canonicalId?: string;
+  novelChapterIds?: ReadonlySet<string>;
+  legacyEpisodeIds: ReadonlySet<string>;
+  resolvedByIndex: boolean;
+  legacyMappingStatus: "resolved" | "blocked" | "ambiguous";
+}
+
+function resolveChapterProjectionScope(
+  chapters: NovelChapter[],
+  episodes: Episode[],
+  requestedId?: string,
+): ChapterProjectionScope {
+  if (!requestedId) {
+    return {
+      requestedId,
+      canonicalId: undefined,
+      novelChapterIds: undefined,
+      legacyEpisodeIds: new Set(),
+      resolvedByIndex: false,
+      legacyMappingStatus: "ambiguous",
+    };
+  }
+
+  const directEpisodeMatches = episodes.filter((episode) => episode.id === requestedId);
+  const directChapterMatches = chapters.filter((chapter) => chapter.id === requestedId);
+  const indexMatch = /^(?:chapter|episode)[-_](\d+)$/i.exec(requestedId);
+  const requestedIndex = indexMatch ? Number.parseInt(indexMatch[1]!, 10) : undefined;
+  let targetEpisode: Episode | undefined;
+  let targetChapter: NovelChapter | undefined;
+  let targetIndex: number | undefined;
+  let resolvedByIndex = false;
+
+  if (directEpisodeMatches.length === 1) {
+    targetEpisode = directEpisodeMatches[0]!;
+    targetIndex = targetEpisode.index;
+    const indexedChapters = chapters.filter((chapter) => chapter.index === targetIndex);
+    targetChapter = directChapterMatches.length === 1
+      ? directChapterMatches[0]
+      : indexedChapters.length === 1
+        ? indexedChapters[0]
+        : undefined;
+  } else if (directChapterMatches.length === 1) {
+    targetChapter = directChapterMatches[0]!;
+    targetIndex = targetChapter.index;
+    const indexedEpisodes = episodes.filter((episode) => episode.index === targetIndex);
+    targetEpisode = indexedEpisodes.length === 1 ? indexedEpisodes[0] : undefined;
+  } else if (requestedIndex !== undefined) {
+    targetIndex = requestedIndex;
+    const indexedEpisodes = episodes.filter((episode) => episode.index === targetIndex);
+    const indexedChapters = chapters.filter((chapter) => chapter.index === targetIndex);
+    if (indexedEpisodes.length === 1 && indexedChapters.length === 1) {
+      targetEpisode = indexedEpisodes[0];
+      targetChapter = indexedChapters[0];
+      resolvedByIndex = true;
+    }
+  }
+
+  const indexedEpisodes = targetIndex === undefined
+    ? []
+    : episodes.filter((episode) => episode.index === targetIndex);
+  const indexedChapters = targetIndex === undefined
+    ? []
+    : chapters.filter((chapter) => chapter.index === targetIndex);
+  const canonicalId = targetEpisode?.id ?? targetChapter?.id ?? requestedId;
+  const legacyMappingResolved = targetIndex !== undefined
+    && indexedEpisodes.length === 1
+    && indexedChapters.length === 1
+    && targetEpisode?.id === canonicalId
+    && targetChapter?.id === indexedChapters[0]!.id;
+
+  return {
+    requestedId,
+    canonicalId,
+    novelChapterIds: new Set(targetChapter ? [targetChapter.id] : []),
+    legacyEpisodeIds: legacyMappingResolved
+      ? new Set([`episode-${targetIndex}`])
+      : new Set(),
+    resolvedByIndex,
+    legacyMappingStatus: targetIndex === undefined
+      ? "ambiguous"
+      : legacyMappingResolved
+        ? "resolved"
+        : "blocked",
+  };
+}
+
 export function projectAllFromStores(
   studioState: StudioWorkflowState,
   scriptState: ScriptStoreState,
@@ -814,7 +973,7 @@ export function projectAllFromStores(
         jobs: remotionState.map((job) => ({
           id: job.jobId,
           projectId: job.projectId,
-          chapterId: (job as unknown as { target?: { chapterId?: string } }).target?.chapterId,
+          chapterId: job.target?.chapterId,
         })),
       }
     : remotionState;
@@ -825,46 +984,73 @@ export function projectAllFromStores(
     audioRef: line.audioLocalPath ?? line.audioFilePath,
   }));
 
-  // Novel chapters - resolve episode-1 legacy identifiers
+  const chapterScope = resolveChapterProjectionScope(studioState.novelChapters, scriptData.episodes, chapterId);
+  const projectionChapterId = chapterScope.canonicalId;
+
+  // Novel chapters - resolve legacy episode-N identifiers only when exactly
+  // one persisted chapter has the corresponding 1-based index.
   if (chapterId) {
-    const normalizedChapterId = chapterId.startsWith("episode-")
-      ? chapterId.replace("episode-", "chapter-")
-      : chapterId;
     legacyMappings.push({
       rule: "episode-1-to-index",
-      status: normalizedChapterId !== chapterId ? "resolved" : "ambiguous",
-      input: { original: chapterId, normalized: normalizedChapterId },
-      reason: normalizedChapterId !== chapterId ? "Mapped episode-1 to chapter- format" : undefined,
+      status: chapterScope.legacyMappingStatus,
+      input: { original: chapterId, normalized: projectionChapterId },
+      reason: chapterScope.legacyMappingStatus === "resolved"
+        ? chapterScope.resolvedByIndex
+          ? "Mapped the requested legacy episode index to the unique novel chapter and script episode"
+          : "Legacy episode index uniquely agrees with the target novel chapter and script episode"
+        : chapterScope.legacyMappingStatus === "blocked"
+          ? "Legacy episode index is missing or duplicated in novel chapters or script episodes"
+          : undefined,
     });
   }
 
   // Project each domain
-  artifacts.push(...projectNovelChapters(studioState.novelChapters, projectId, chapterId));
-  artifacts.push(...projectAgentWorkflows(studioState.agentWorkData, projectId, chapterId));
-  artifacts.push(...projectEntityExtractions(studioState.entityExtractions, projectId, chapterId));
-  artifacts.push(...projectScriptEpisodes(scriptData.episodes, projectId, chapterId));
+  artifacts.push(...projectNovelChapters(
+    studioState.novelChapters,
+    projectId,
+    projectionChapterId,
+    chapterScope.novelChapterIds,
+  ));
+  artifacts.push(...projectAgentWorkflows(studioState.agentWorkData, projectId, projectionChapterId, chapterScope.legacyEpisodeIds));
+  artifacts.push(...projectEntityExtractions(studioState.entityExtractions, projectId, projectionChapterId));
+  artifacts.push(...projectScriptEpisodes(scriptData.episodes, projectId, projectionChapterId));
 
   // Resolve ScriptData episode IDs for scenes/shots
   const scenesById = new Map(scriptData.scenes.map((scene) => [scene.id, scene]));
   scriptData.episodes.forEach((ep) => {
-    if (ep.id === chapterId || ep.index === parseInt(chapterId?.replace("chapter-", "") ?? "0")) {
+    if (!projectionChapterId || ep.id === projectionChapterId) {
       const scenes = ep.sceneIds.map((sceneId) => scenesById.get(sceneId)).filter((scene): scene is Scene => scene !== undefined);
-      artifacts.push(...projectScriptScenes(scenes, projectId, chapterId, ep.id));
+      artifacts.push(...projectScriptScenes(scenes, projectId, ep.id, ep.id));
     }
   });
 
-  artifacts.push(...projectStoryboards(studioState.storyboards, projectId, chapterId));
-  artifacts.push(...projectProductionTracks(studioState.productionTracks, projectId, chapterId));
-  artifacts.push(...projectVideoCandidates(studioState.videoCandidates, projectId, chapterId));
+  artifacts.push(...projectStoryboards(studioState.storyboards, projectId, projectionChapterId));
+  artifacts.push(...projectProductionTracks(studioState.productionTracks, projectId, projectionChapterId));
+  const scopedTracks = studioState.productionTracks.filter(
+    (track) => !projectionChapterId || track.episodeId === projectionChapterId,
+  );
+  for (const track of scopedTracks) {
+    artifacts.push(...projectVideoCandidates(
+      studioState.videoCandidates,
+      projectId,
+      track.episodeId,
+      track.id,
+    ));
+  }
+  const knownTrackIds = new Set(studioState.productionTracks.map((track) => track.id));
+  const unresolvedCandidates = studioState.videoCandidates.filter(
+    (candidate) => !knownTrackIds.has(candidate.trackId),
+  );
+  artifacts.push(...projectVideoCandidates(unresolvedCandidates, projectId));
   artifacts.push(...projectTTSVoiceLines(
     ttsVoiceLines,
     projectId,
-    chapterId,
+    projectionChapterId,
     scriptData.scenes,
     legacyTtsSceneOwnership,
   ));
-  artifacts.push(...projectEditingProjects(Object.values(editingState.editingProjects), projectId, chapterId));
-  artifacts.push(...projectEditingRuns(Object.values(editingState.autoEditingRuns), projectId, chapterId));
+  artifacts.push(...projectEditingProjects(Object.values(editingState.editingProjects), projectId, projectionChapterId));
+  artifacts.push(...projectEditingRuns(Object.values(editingState.autoEditingRuns), projectId, projectionChapterId));
   artifacts.push(...projectEditingRenders(
     Object.values(editingState.timelineRenderRecordsByEditingProjectId).map((record) => {
       const persisted = record as unknown as LegacyEditingRenderRecord;
@@ -878,17 +1064,17 @@ export function projectAllFromStores(
       };
     }),
     projectId,
-    chapterId,
+    projectionChapterId,
   ));
-  artifacts.push(...projectRemotionArtifacts(projectId, remotionSnapshot.manifest, remotionSnapshot.jobs, chapterId));
-  artifacts.push(...projectContinuityBibles(studioState.continuityAssetVersions.filter(v => v.validFromStoryboardIndex === undefined || v.validFromStoryboardIndex <= 10), projectId, chapterId));
-  artifacts.push(...projectMediaFiles(mediaState.mediaFiles, projectId, chapterId));
+  artifacts.push(...projectRemotionArtifacts(projectId, remotionSnapshot.manifest, remotionSnapshot.jobs, projectionChapterId));
+  artifacts.push(...projectContinuityBibles(studioState.continuityAssetVersions, projectId, projectionChapterId));
+  artifacts.push(...projectMediaFiles(mediaState.mediaFiles, projectId, projectionChapterId));
 
   // Base assets are always included (project-scoped, not chapter-specific)
   const chars = libraryCharacters ?? [];
   const scns = libraryScenes ?? [];
   const prps = libraryProps ?? [];
-  artifacts.push(...projectBaseAssets(chars, scns, prps, projectId, chapterId));
+  artifacts.push(...projectBaseAssets(chars, scns, prps, projectId, projectionChapterId));
 
   // Check for TTS legacy numeric sceneId mappings.  Only exact script-graph
   // ownership is resolved; zero/multiple matches remain fail-closed blockers.

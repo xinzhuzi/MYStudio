@@ -35,6 +35,10 @@ describe("image-storage root facade", () => {
     expect(facadeSaveImageToLocal).toBe(canonicalSaveImageToLocal);
     expect(facadeSaveVideoToLocal).toBe(canonicalSaveVideoToLocal);
   });
+
+  it("fails closed instead of exposing an unplanned filesystem delete", async () => {
+    await expect(facadeDeleteLocalImage("local-image://shots/shot.png")).resolves.toBe(false);
+  });
 });
 
 describe("readImageAsBase64", () => {

@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   getModelStatus: vi.fn(),
   getActiveTasks: vi.fn(),
   getModelCacheDir: vi.fn(),
+  migrateTtsRuntimeStorage: vi.fn(),
   startTtsRuntime: vi.fn(),
   stopTtsRuntime: vi.fn(),
   setTtsModelCacheDir: vi.fn(),
@@ -28,6 +29,7 @@ vi.mock("@/lib/tts/client", () => ({
   getModelStatus: mocks.getModelStatus,
   getActiveTasks: mocks.getActiveTasks,
   getModelCacheDir: mocks.getModelCacheDir,
+  migrateTtsRuntimeStorage: mocks.migrateTtsRuntimeStorage,
   startTtsRuntime: mocks.startTtsRuntime,
   stopTtsRuntime: mocks.stopTtsRuntime,
   setTtsModelCacheDir: mocks.setTtsModelCacheDir,
@@ -89,7 +91,8 @@ beforeEach(() => {
   );
   mocks.getModelStatus.mockResolvedValue({ models: [] });
   mocks.getActiveTasks.mockResolvedValue({ downloads: [], generations: [] });
-  mocks.getModelCacheDir.mockResolvedValue({ path: "tts-models", scan_paths: [] });
+  mocks.getModelCacheDir.mockResolvedValue({ path: "TTS/model", scan_paths: [] });
+  mocks.migrateTtsRuntimeStorage.mockResolvedValue({ success: true });
   mocks.subscribeModelProgress.mockResolvedValue(() => {});
   mocks.startTtsRuntime.mockResolvedValue({ success: true, status: status({ running: true }) });
   mocks.stopTtsRuntime.mockResolvedValue({ success: true });
@@ -104,9 +107,21 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.useRealTimers();
+  Object.defineProperty(window, "electronAPI", { configurable: true, value: undefined });
 });
 
 describe("LocalTtsPanel mounted lifecycle", () => {
+  it("uses the parent width when embedded and preserves the standalone width cap", () => {
+    const embedded = render(<LocalTtsPanel embedded />);
+    expect(embedded.container.firstElementChild?.className).toContain("w-full");
+    expect(embedded.container.firstElementChild?.className).toContain("xl:p-10");
+    expect(embedded.container.firstElementChild?.className).not.toContain("max-w-6xl");
+    embedded.unmount();
+
+    const standalone = render(<LocalTtsPanel />);
+    expect(standalone.container.querySelector(".max-w-6xl")).toBeTruthy();
+  });
+
   it("cancels the delayed initial refresh when unmounted", async () => {
     const { unmount } = render(<LocalTtsPanel />);
 
@@ -150,7 +165,7 @@ describe("LocalTtsPanel mounted lifecycle", () => {
 
     const start = deferred<{ success: boolean; error?: string }>();
     mocks.startTtsRuntime.mockReturnValue(start.promise);
-    fireEvent.click(screen.getByRole("button", { name: "启动" }));
+    fireEvent.click(screen.getByRole("button", { name: "启动 TTS 后端服务" }));
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(500);
@@ -169,6 +184,41 @@ describe("LocalTtsPanel mounted lifecycle", () => {
     expect(mocks.toast.error).toHaveBeenCalledWith("选择文件夹仅在桌面应用中可用");
   });
 
+  it("confirms before migrating the fixed legacy TTS directories", async () => {
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+    mocks.getTtsRuntimeStatus.mockResolvedValue(status({
+      storageLayout: {
+        rootDir: "/data/TTS",
+        runtimeDir: "/data/TTS/runtime",
+        modelsDir: "/data/TTS/model",
+        legacyRuntimeDir: "/data/tts-runtime",
+        legacyModelsDir: "/data/tts-models",
+        legacyDefaultModelsDir: "/data/TTS/models",
+        legacyHuggingFaceHubDir: "/Users/test/.cache/huggingface/hub",
+        legacyRuntimeExists: true,
+        legacyModelsExists: true,
+        legacyDefaultModelsExists: false,
+        legacyHuggingFaceHubExists: true,
+        migrationState: "ready",
+      },
+    }));
+    render(<LocalTtsPanel />);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+    fireEvent.click(screen.getByRole("button", { name: "迁移到 TTS 文件夹" }));
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(confirm).toHaveBeenCalledOnce();
+    expect(mocks.migrateTtsRuntimeStorage).toHaveBeenCalledOnce();
+    expect(mocks.toast.success).toHaveBeenCalledWith("TTS 文件夹已迁移");
+    confirm.mockRestore();
+  });
+
   it("applies the directory selected through the storage bridge", async () => {
     const selectDirectory = vi.fn().mockResolvedValue("/models");
     mocks.getStorageManagerBridge.mockReturnValue({ selectDirectory });
@@ -184,5 +234,53 @@ describe("LocalTtsPanel mounted lifecycle", () => {
     expect(selectDirectory).toHaveBeenCalledOnce();
     expect(mocks.setTtsModelCacheDir).toHaveBeenCalledWith("/models");
     expect(mocks.toast.success).toHaveBeenCalledWith("模型缓存路径已切换");
+  });
+
+  it("saves a manually entered model cache path", async () => {
+    mocks.getTtsRuntimeStatus.mockResolvedValue(status({
+      modelCacheDir: "/data/TTS/model",
+      defaultModelCacheDir: "/data/TTS/model",
+    }));
+    render(<LocalTtsPanel />);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: "模型缓存安装路径" }), {
+      target: { value: "/data/custom-models" },
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "保存" }));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(mocks.setTtsModelCacheDir).toHaveBeenCalledWith("/data/custom-models");
+  });
+
+  it("opens the saved model path and restores the runtime default", async () => {
+    const openPath = vi.fn().mockResolvedValue({ success: true });
+    Object.defineProperty(window, "electronAPI", { configurable: true, value: { openPath } });
+    mocks.getTtsRuntimeStatus.mockResolvedValue(status({
+      modelCacheDir: "/data/custom-models",
+      defaultModelCacheDir: "/data/TTS/model",
+    }));
+    render(<LocalTtsPanel />);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "打开" }));
+      await Promise.resolve();
+    });
+    expect(openPath).toHaveBeenCalledWith("/data/custom-models");
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "恢复默认" }));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(mocks.setTtsModelCacheDir).toHaveBeenCalledWith("/data/TTS/model");
   });
 });

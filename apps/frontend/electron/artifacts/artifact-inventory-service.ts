@@ -39,6 +39,7 @@ import {
   resolveDataDirPath,
   resolveDataFilePath,
 } from "../storage/storage-paths";
+import { withProjectDeletionLock } from "../storage/project-mutex";
 import { withFileStorageMutationLocks } from "../ipc/files/file-storage-ipc";
 import {
   TIMELINE_RENDER_PROGRESS_STAGES,
@@ -239,10 +240,11 @@ const BACKUP_SUFFIX_RE = /\.(?:bak(?:[-_][^.]*)?$|codex[-_][^.]*$|smoke[-_][^.]*
 /**
  * Project-root subdirectories that hold whole-store snapshots rather than live
  * data. Their contents are plain-named `.json` (e.g. `studio-workflow-store.json`)
- * with no `.bak`/`.codex` suffix, so without a directory-level skip they would
- * be classified `kind:"json"` (LIVE), decoded into a full duplicate artifact
- * set, and surface in the product popup as extra physical files.
+ * with no `.bak`/`.codex` suffix, so files below these roots must inherit backup
+ * provenance while still being decoded and merged into the logical inventory.
  *
+ * - `backups` — chapter continuity snapshots and other historical project
+ *   backups whose child JSON files do not carry a backup suffix.
  * - `visual-continuity-backups` — written by the daojie promote pipeline
  *   (`apps/build/daojie/pipeline/promote_chapter001_storyboard_continuity.py`)
  *   as `storyboard-promotion-<timestamp>-<sha>/studio-workflow-store.json`
@@ -250,7 +252,23 @@ const BACKUP_SUFFIX_RE = /\.(?:bak(?:[-_][^.]*)?$|codex[-_][^.]*$|smoke[-_][^.]*
  *
  * Add further whole-store-snapshot roots here as they are introduced.
  */
-const BACKUP_ROOT_DIRS = new Set<string>(["visual-continuity-backups"]);
+const BACKUP_ROOT_DIRS = new Set<string>(["backups", "visual-continuity-backups"]);
+
+const CHAPTER_REFERENCE_RE = /\b(?:chapter|episode)[-_]\d+\b/gi;
+
+function collectChapterReferences(value: unknown, output = new Set<string>()): string[] {
+  if (typeof value === "string") {
+    for (const match of value.matchAll(CHAPTER_REFERENCE_RE)) output.add(match[0].toLowerCase());
+  } else if (Array.isArray(value)) {
+    for (const item of value) collectChapterReferences(item, output);
+  } else if (value && typeof value === "object") {
+    for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
+      collectChapterReferences(key, output);
+      collectChapterReferences(child, output);
+    }
+  }
+  return [...output].sort();
+}
 
 /**
  * Scan persisted JSON, backup, media and other files in the project root.
@@ -267,7 +285,11 @@ async function scanProjectFiles(dataRoot: string, projectId: string): Promise<
 
   const files: Array<{ filePath: string; relativePath: string; kind: "json" | "backup" | "media" | "other"; special?: "symlink" | "special-file" }> = [];
 
-  async function scanDirectory(dirPath: string, relativePrefix: string) {
+  async function scanDirectory(
+    dirPath: string,
+    relativePrefix: string,
+    insideBackupRoot: boolean,
+  ) {
     const entries = await fsp.readdir(dirPath, { withFileTypes: true });
 
     for (const entry of entries) {
@@ -286,11 +308,13 @@ async function scanProjectFiles(dataRoot: string, projectId: string): Promise<
         files.push({ filePath: fullPath, relativePath, kind: "other", special: "symlink" });
       } else if (entry.isDirectory()) {
         // Skip hidden directories and node_modules
-        if (!entry.name.startsWith(".") && entry.name !== "node_modules" && !BACKUP_ROOT_DIRS.has(entry.name)) {
-          await scanDirectory(fullPath, relativePath);
+        if (!entry.name.startsWith(".") && entry.name !== "node_modules") {
+          const entersBackupRoot = insideBackupRoot
+            || relativePrefix === "" && BACKUP_ROOT_DIRS.has(entry.name);
+          await scanDirectory(fullPath, relativePath, entersBackupRoot);
         }
       } else if (entry.isFile()) {
-        const kind = BACKUP_SUFFIX_RE.test(entry.name)
+        const kind = BACKUP_SUFFIX_RE.test(entry.name) || insideBackupRoot
           ? "backup"
           : /\.json$/i.test(entry.name)
             ? "json"
@@ -308,7 +332,7 @@ async function scanProjectFiles(dataRoot: string, projectId: string): Promise<
     }
   }
 
-  await scanDirectory(projectRoot, "");
+  await scanDirectory(projectRoot, "", false);
   return files;
 }
 
@@ -320,44 +344,55 @@ function decodeRawContent(
   projectId: string,
   rawData: unknown,
   filePath: string,
+  fileKind: "json" | "backup",
 ): { artifacts: ArtifactRecord[]; decoderFormat?: string } {
   const decoder = findBackupDecoder(rawData);
 
   if (!decoder) {
-    // Unknown project-level JSON remains fail-closed. A file inside an
-    // explicitly chapter-scoped path is different: the path is the ownership
-    // boundary for render/edit/continuity outputs, so it can be removed as an
-    // opaque chapter artifact without rewriting its unknown JSON shape.
     console.warn(`No decoder found for ${filePath}`);
     const isTopLevelConfig = !filePath.includes("/");
-    const inferredChapter = filePath.match(/((?:chapter|episode)[-_]\d+)/i)?.[1];
+    const pathChapters = collectChapterReferences(filePath);
+    const contentChapters = collectChapterReferences(rawData);
+    const [pathChapter] = pathChapters;
+    const isExplicitChapterBackup = fileKind === "backup"
+      && pathChapters.length === 1
+      && contentChapters.every((chapter) => chapter === pathChapter);
+    const relatedChapters = [...new Set([...pathChapters, ...contentChapters])];
+    const chapterScopes: Array<string | undefined> = isExplicitChapterBackup
+      ? [pathChapter]
+      : relatedChapters.length > 0
+        ? relatedChapters
+        : [undefined];
+    const stage: ArtifactStage = fileKind === "backup" ? "backup" : "media-library";
 
     return {
-      artifacts: [
-        {
-          id: buildArtifactId("media-library", "media-file", filePath),
+      artifacts: chapterScopes.map((relatedChapter) => {
+        const isDirectDelete = isExplicitChapterBackup && relatedChapter === pathChapter;
+        return {
+          id: buildArtifactId("media-library", "media-file", relatedChapter ? `${filePath}@${relatedChapter}` : filePath),
           projectId,
-          chapterId: inferredChapter,
-          stage: "media-library",
-          kind: "media-file",
-          state: inferredChapter ? "active" : "unknown",
-          name: isTopLevelConfig
-            ? `未识别项目文件: ${path.basename(filePath)}`
-            : `未识别产物: ${path.basename(filePath)}`,
+          chapterId: relatedChapter,
+          stage,
+          kind: "media-file" as const,
+          state: isDirectDelete ? "active" as const : "unknown" as const,
+          name: fileKind === "backup"
+            ? `未识别备份: ${path.basename(filePath)}`
+            : isTopLevelConfig
+              ? `未识别项目文件: ${path.basename(filePath)}`
+              : `未识别产物: ${path.basename(filePath)}`,
           createdAt: Date.now(),
           updatedAt: Date.now(),
           physicalRefs: [],
           upstreamIds: [],
           downstreamIds: [],
-          deletePolicy: inferredChapter ? "delete-exclusive-downstream" : "blocker-missing-ownership",
-          blockerReason: isTopLevelConfig
-            ? "项目级文件无注册解码器,归属未决,当前不可删除"
-            : undefined,
-          retainedReason: isTopLevelConfig
-            ? "项目级配置文件,不属于任何章节"
-            : undefined,
-        },
-      ],
+          deletePolicy: isDirectDelete ? "delete-exclusive-downstream" as const : "blocker-missing-ownership" as const,
+          blockerReason: isDirectDelete
+            ? undefined
+            : fileKind === "backup"
+              ? "备份格式无注册解码器,无法安全判定单章或跨章边界"
+              : "持久化 JSON 无注册解码器,无法安全判定删除语义",
+        };
+      }),
     };
   }
 
@@ -573,7 +608,7 @@ async function detectRunningJobs(
   // 2. Check the TTS sidecar.  An unavailable sidecar is not a running job;
   // an explicit queued/generating record is a hard chapter blocker.
   try {
-    const ttsRuntimeStatus = await checkTtsSidecarStatus(dataRoot, projectId);
+    const ttsRuntimeStatus = await checkTtsSidecarStatus(dataRoot, projectId, chapterId);
     runningJobs.push(...ttsRuntimeStatus);
   } catch (error) {
     console.error("Failed to check TTS sidecar:", error);
@@ -588,6 +623,7 @@ async function detectRunningJobs(
 async function checkTtsSidecarStatus(
   dataRoot: string,
   projectId: string,
+  chapterId?: string,
 ): Promise<RunningJob[]> {
   void dataRoot;
   if (typeof fetch !== "function") return [];
@@ -600,6 +636,14 @@ async function checkTtsSidecarStatus(
     return (Array.isArray(body.generations) ? body.generations : [])
       .filter((generation) => generation.status === "queued" || generation.status === "generating")
       .filter((generation) => generation.project_id === projectId || generation.projectId === projectId)
+      .filter((generation) => {
+        const owningChapter = typeof generation.chapter_id === "string"
+          ? generation.chapter_id
+          : typeof generation.chapterId === "string"
+            ? generation.chapterId
+            : undefined;
+        return !chapterId || !owningChapter || owningChapter === chapterId;
+      })
       .map((generation) => ({
         jobId: String(generation.id ?? generation.generation_id ?? "tts-unknown"),
         projectId,
@@ -702,20 +746,18 @@ function calculateSummary(
  * @param chapterId - Optional chapter filter
  * @returns Typed InventoryResult with artifacts, discrepancies, and blockers
  */
-export async function scanProjectInventory(
+export type InventoryScanOptions = {
+  /** Internal transaction call: the deletion service already owns this lock. */
+  projectLockAlreadyHeld?: boolean;
+};
+
+async function scanProjectInventoryUnlocked(
   dataRoot: string,
   projectId: string,
   chapterId?: string,
   mediaRoot?: string,
 ): Promise<InventoryResult> {
   try {
-    // Thread-safe read lock for concurrent storage access
-    const inventoryLockPath = resolveDataFilePath(dataRoot, "_system/inventory.lock");
-    await withFileStorageMutationLocks([inventoryLockPath], async () => {
-      // No-op lock acquisition - ensures serializable reads
-      return undefined;
-    });
-
     // Step 1: Scan persisted stores, backups, media exports and special files.
     const scannedFiles = await scanProjectFiles(dataRoot, projectId);
 
@@ -781,6 +823,7 @@ export async function scanProjectInventory(
           projectId,
           rawData,
           file.relativePath,
+          file.kind,
         );
 
         // Calculate physical fingerprints
@@ -908,6 +951,41 @@ export async function scanProjectInventory(
 }
 
 /**
+ * Serialize the complete inventory scan against the artifact transaction's
+ * project mutex. The project lock is acquired FIRST, then the deterministic
+ * file lock used for the on-disk marker. The internal post-delete scan opts out
+ * because executeDeletion already holds the key for the whole transaction.
+ */
+export async function scanProjectInventory(
+  dataRoot: string,
+  projectId: string,
+  chapterId?: string,
+  mediaRoot?: string,
+  options: InventoryScanOptions = {},
+): Promise<InventoryResult> {
+  if (options.projectLockAlreadyHeld) {
+    return scanProjectInventoryUnlocked(dataRoot, projectId, chapterId, mediaRoot);
+  }
+
+  try {
+    const projectRoot = resolveProjectRootPath(dataRoot, projectId);
+    const projectLockPath = path.join(projectRoot, ".artifact-delete-project.lock");
+    return await withProjectDeletionLock(
+      `${dataRoot}:${projectId}`,
+      () => withFileStorageMutationLocks(
+        [projectLockPath],
+        () => scanProjectInventoryUnlocked(dataRoot, projectId, chapterId, mediaRoot),
+      ),
+    );
+  } catch (error) {
+    return {
+      success: false,
+      error: `Inventory scan failed: ${(error as Error).message}`,
+    };
+  }
+}
+
+/**
  * Simulate live artifacts from Zustand stores
  * In production, would query actual store states
  */
@@ -930,7 +1008,12 @@ function projectLiveArtifacts(
         if (!entry.isFile() || !/\.(?:json|bak)$/i.test(entry.name)) continue;
         if (path.relative(root, target) === "artifacts.json") continue;
         try {
-          const decoded = decodeRawContent(projectId, JSON.parse(fs.readFileSync(target, "utf8")), path.relative(root, target));
+          const relativePath = path.relative(root, target);
+          const fileKind = BACKUP_SUFFIX_RE.test(entry.name)
+            || relativePath.split(path.sep).some((segment) => BACKUP_ROOT_DIRS.has(segment))
+            ? "backup"
+            : "json";
+          const decoded = decodeRawContent(projectId, JSON.parse(fs.readFileSync(target, "utf8")), relativePath, fileKind);
           artifacts.push(...decoded.artifacts.filter((artifact) => !chapterId || artifact.chapterId === chapterId));
         } catch {
           // Invalid persisted JSON is represented by the disk scan as unknown;

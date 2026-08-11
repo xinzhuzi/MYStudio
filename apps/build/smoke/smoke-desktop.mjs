@@ -124,6 +124,10 @@ const CORE_ROUTE_CHECKS = [
     waitMs: 2_500,
   },
   {
+    label: "产物",
+    requiredText: ["工作流产物", "媒体库", "本地文件", "删除当前章节"],
+  },
+  {
     label: "设置",
     requiredText: ["系统设置", "外观", "插件配置"],
   },
@@ -1178,11 +1182,9 @@ async function verifyPluginSettings(evaluate) {
       setTimeout(() => {
         const bodyText = document.body.innerText;
         const requiredText = [
-          'Python 依赖',
           '所有本地 TTS、video-use Python worker 和 MLX 对齐都复用应用管理的 Python',
           '开始配置',
-          '安装明细',
-          'Python 使用路径',
+          'Python 运行环境',
         ];
         const forbiddenText = [
           '正在配置 Python 运行环境',

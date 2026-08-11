@@ -8,6 +8,7 @@ import {
   buildArtifactId,
   buildLegacyTtsSceneOwnership,
   projectAllFromStores,
+  projectMediaFiles,
   projectTTSVoiceLines,
 } from "./artifact-projection";
 import { buildSingleChapterFixture } from "./__fixtures__/fixture-builders";
@@ -64,9 +65,249 @@ describe("artifact-projection", () => {
       expect(result.legacyMappings.some((mapping) => mapping.rule === "numeric-tts-sceneid")).toBe(true);
     });
 
+    test("projects every chapter when no chapter filter is supplied and resolves video ownership through tracks", () => {
+      const chapterA = buildSingleChapterFixture("chapter-001");
+      const chapterB = buildSingleChapterFixture("chapter-002");
+      chapterA.studio.novelChapters.push(...chapterB.studio.novelChapters);
+      chapterA.studio.agentWorkData.push(...chapterB.studio.agentWorkData);
+      chapterA.studio.entityExtractions.push(...chapterB.studio.entityExtractions);
+      chapterA.studio.storyboards.push(...chapterB.studio.storyboards);
+      chapterA.studio.productionTracks.push(...chapterB.studio.productionTracks);
+      chapterA.studio.videoCandidates.push(...chapterB.studio.videoCandidates);
+      chapterA.script.episodes.push(...chapterB.script.episodes);
+      chapterA.editing.editingProjects = {
+        ...chapterA.editing.editingProjects,
+        ...chapterB.editing.editingProjects,
+      };
+
+      const result = projectAllFromStores(
+        chapterA.studio,
+        chapterA.script,
+        chapterA.director,
+        chapterA.editing,
+        chapterA.tts,
+        chapterA.media,
+        chapterA.remotion,
+        chapterA.projectId,
+      );
+
+      expect(result.artifacts.filter((item) => item.kind === "director-entity-extraction")).toHaveLength(2);
+      expect(result.artifacts.filter((item) => item.kind === "storyboard-item")).toHaveLength(10);
+      expect(result.artifacts.filter((item) => item.kind === "production-track")).toHaveLength(2);
+      const videos = result.artifacts.filter((item) => item.kind === "video-candidate");
+      expect(videos).toHaveLength(4);
+      expect(new Set(videos.map((item) => item.chapterId))).toEqual(new Set(["chapter-001", "chapter-002"]));
+    });
+
+    test("scopes novel, script, and agent artifacts to one chapter and maps unique legacy work", () => {
+      const fixture = buildSingleChapterFixture("chapter-001");
+      const chapterB = buildSingleChapterFixture("chapter-002");
+      const legacyWork = {
+        ...fixture.studio.agentWorkData[0]!,
+        id: "agent-legacy-episode-1",
+        episodeId: "episode-1",
+      };
+      fixture.studio.novelChapters = [
+        ...fixture.studio.novelChapters,
+        ...chapterB.studio.novelChapters,
+      ];
+      fixture.studio.agentWorkData = [
+        ...fixture.studio.agentWorkData,
+        ...chapterB.studio.agentWorkData,
+        legacyWork,
+      ];
+      fixture.script.episodes = [
+        ...fixture.script.episodes,
+        ...chapterB.script.episodes,
+      ];
+
+      const result = projectAllFromStores(
+        fixture.studio,
+        fixture.script,
+        fixture.director,
+        fixture.editing,
+        fixture.tts,
+        fixture.media,
+        fixture.remotion,
+        fixture.projectId,
+        fixture.chapterId,
+      );
+      const scopedArtifacts = result.artifacts.filter((artifact) =>
+        artifact.kind === "novel-chapter"
+        || artifact.kind === "script-episode"
+        || artifact.kind === "agent-workflow-result"
+      );
+
+      expect(scopedArtifacts).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          id: buildArtifactId("novel", "novel-chapter", "novel-chapter-001"),
+          chapterId: "chapter-001",
+        }),
+        expect.objectContaining({
+          id: buildArtifactId("script", "script-episode", "chapter-001"),
+          chapterId: "chapter-001",
+        }),
+        expect.objectContaining({
+          id: buildArtifactId("analysis", "agent-workflow-result", legacyWork.id),
+          chapterId: "chapter-001",
+        }),
+      ]));
+      expect(scopedArtifacts.some((artifact) => artifact.id.includes("chapter-002"))).toBe(false);
+      expect(result.legacyMappings).toContainEqual(expect.objectContaining({
+        rule: "episode-1-to-index",
+        status: "resolved",
+      }));
+
+      const chapterBResult = projectAllFromStores(
+        fixture.studio,
+        fixture.script,
+        fixture.director,
+        fixture.editing,
+        fixture.tts,
+        fixture.media,
+        fixture.remotion,
+        fixture.projectId,
+        chapterB.chapterId,
+      );
+      expect(chapterBResult.artifacts).not.toContainEqual(expect.objectContaining({
+        id: buildArtifactId("analysis", "agent-workflow-result", legacyWork.id),
+      }));
+    });
+
+    test("blocks legacy episode work when the novel chapter index is duplicated", () => {
+      const fixture = buildSingleChapterFixture("chapter-001");
+      const legacyWork = {
+        ...fixture.studio.agentWorkData[0]!,
+        id: "agent-legacy-duplicate-index",
+        episodeId: "episode-1",
+      };
+      fixture.studio.novelChapters.push({
+        ...fixture.studio.novelChapters[0]!,
+        id: "novel-duplicate-index-1",
+      });
+      fixture.studio.agentWorkData = [legacyWork];
+
+      const result = projectAllFromStores(
+        fixture.studio,
+        fixture.script,
+        fixture.director,
+        fixture.editing,
+        fixture.tts,
+        fixture.media,
+        fixture.remotion,
+        fixture.projectId,
+        fixture.chapterId,
+      );
+
+      expect(result.artifacts).not.toContainEqual(expect.objectContaining({
+        id: buildArtifactId("analysis", "agent-workflow-result", legacyWork.id),
+      }));
+      expect(result.legacyMappings).toContainEqual(expect.objectContaining({
+        rule: "episode-1-to-index",
+        status: "blocked",
+      }));
+    });
+
+    test("uses only explicit continuity ownership and blocks ambiguous versions", () => {
+      const fixture = buildSingleChapterFixture("chapter-001");
+      const baseVersion = fixture.studio.continuityAssetVersions[0]!;
+      const ownedByChapterA = {
+        ...baseVersion,
+        versionId: "continuity-owned-a",
+        chapterId: "chapter-001",
+      };
+      const ownedByChapterB = {
+        ...baseVersion,
+        versionId: "continuity-owned-b",
+        episodeId: "chapter-002",
+      };
+      const missingOwnership = {
+        ...baseVersion,
+        versionId: "continuity-unowned",
+        referenceImagePaths: ["continuity-bibles/chapter-001/unowned.png"],
+      };
+      const conflictingOwnership = {
+        ...baseVersion,
+        versionId: "continuity-conflicting",
+        chapterId: "chapter-001",
+        episodeId: "chapter-002",
+        referenceImagePaths: ["continuity-bibles/chapter-001/conflicting.png"],
+      };
+      fixture.studio.continuityAssetVersions = [
+        ownedByChapterA,
+        ownedByChapterB,
+        missingOwnership,
+        conflictingOwnership,
+      ];
+
+      const result = projectAllFromStores(
+        fixture.studio,
+        fixture.script,
+        fixture.director,
+        fixture.editing,
+        fixture.tts,
+        fixture.media,
+        fixture.remotion,
+        fixture.projectId,
+        fixture.chapterId,
+      );
+      const continuityById = new Map(
+        result.artifacts
+          .filter((artifact) => artifact.kind === "continuity-bible")
+          .map((artifact) => [artifact.id, artifact]),
+      );
+      const artifactId = (versionId: string) => buildArtifactId(
+        "assets",
+        "continuity-bible",
+        `${baseVersion.assetId}-${versionId}`,
+      );
+
+      expect(continuityById.get(artifactId(ownedByChapterA.versionId))).toMatchObject({
+        chapterId: "chapter-001",
+        deletePolicy: "retain-shared-reference",
+      });
+      expect(continuityById.has(artifactId(ownedByChapterB.versionId))).toBe(false);
+      expect(continuityById.get(artifactId(missingOwnership.versionId))).toMatchObject({
+        chapterId: undefined,
+        deletePolicy: "blocker-missing-ownership",
+        physicalRefs: [expect.objectContaining({
+          type: "project-file",
+          path: "continuity-bibles/chapter-001/unowned.png",
+        })],
+      });
+      expect(continuityById.get(artifactId(conflictingOwnership.versionId))).toMatchObject({
+        chapterId: undefined,
+        deletePolicy: "blocker-missing-ownership",
+      });
+    });
+
+    test("projects current media URL and relativePath fields instead of fixture-only localPath", () => {
+      const [localMedia] = projectMediaFiles([{
+        id: "media-current-url",
+        name: "current.png",
+        type: "image",
+        projectId: "project-1",
+        url: "local-image://shots/current.png",
+      }], "project-1");
+      const [projectFile] = projectMediaFiles([{
+        id: "media-current-relative",
+        name: "relative.png",
+        type: "image",
+        projectId: "project-1",
+        relativePath: "workflow-images/current.png",
+      }], "project-1");
+
+      expect(localMedia.physicalRefs).toEqual([
+        expect.objectContaining({ type: "local-media", path: "local-image://shots/current.png" }),
+      ]);
+      expect(projectFile.physicalRefs).toEqual([
+        expect.objectContaining({ type: "project-file", path: "workflow-images/current.png" }),
+      ]);
+    });
+
     test("keeps owned TTS lines deletable and legacy numeric lines blocked", () => {
       const [owned] = projectTTSVoiceLines([
-        { sceneId: 1, projectId: "project-1", chapterId: "chapter-001", audioRef: "exports/chapter-001/voice.wav" },
+        { sceneId: 1, projectId: "project-1", chapterId: "chapter-001", audioRef: "exports/chapter-001/voice.wav", updatedAt: 42 },
       ], "project-1", "chapter-001");
       const [legacy] = projectTTSVoiceLines([
         { sceneId: 2, projectId: "project-1", audioRef: "exports/chapter-001/legacy.wav" },
@@ -76,6 +317,7 @@ describe("artifact-projection", () => {
         projectId: "project-1",
         chapterId: "chapter-001",
         deletePolicy: "delete-exclusive-downstream",
+        updatedAt: 42,
       });
       expect(legacy).toMatchObject({
         projectId: "project-1",

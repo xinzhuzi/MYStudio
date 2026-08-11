@@ -22,7 +22,7 @@ describe("getStorageManagerBridge", () => {
         assetsPath: "/data/assets",
         skillsPath: "/data/skills",
         pythonRuntimeDir: "/data/python",
-        modelCacheDir: "/data/tts-models",
+        modelCacheDir: "/data/TTS/model",
         cachePath: "/data/cache",
       }),
       selectDirectory: async () => null,

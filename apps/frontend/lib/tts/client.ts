@@ -41,8 +41,20 @@ export function setupTtsRuntime(): Promise<TtsRuntimeCommandResult> {
   return assertTtsRuntime().setup();
 }
 
+export function readPythonRequirements(): Promise<{ content: string; path: string } | null> {
+  return assertTtsRuntime().readRequirements();
+}
+
+export function deletePythonRuntime(): Promise<TtsRuntimeCommandResult> {
+  return assertTtsRuntime().delete();
+}
+
 export function stopTtsRuntime(): Promise<TtsRuntimeCommandResult> {
   return assertTtsRuntime().stop();
+}
+
+export function migrateTtsRuntimeStorage(): Promise<TtsRuntimeCommandResult> {
+  return assertTtsRuntime().migrateStorage();
 }
 
 export function getTtsRuntimeConfig(): Promise<TtsRuntimeConfig> {
@@ -51,6 +63,10 @@ export function getTtsRuntimeConfig(): Promise<TtsRuntimeConfig> {
 
 export function setTtsRuntimeConfig(config: Partial<TtsRuntimeConfig>): Promise<TtsRuntimeCommandResult> {
   return assertTtsRuntime().setConfig(config);
+}
+
+export async function resetPythonRuntimeInstallDir(defaultDir: string): Promise<TtsRuntimeCommandResult> {
+  return assertTtsRuntime().resetInstallDir(defaultDir);
 }
 
 export function setTtsModelCacheDir(dirPath: string): Promise<TtsRuntimeCommandResult> {

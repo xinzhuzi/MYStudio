@@ -62,8 +62,8 @@ describe("preload IPC surface", () => {
     expect(preloadSource).toContain("ipcRenderer.invoke('save-image', { url, category, filename })");
     expect(preloadSource).toContain("getImagePath: (localPath: string)");
     expect(preloadSource).toContain("ipcRenderer.invoke('get-image-path', localPath)");
-    expect(preloadSource).toContain("deleteImage: (localPath: string)");
-    expect(preloadSource).toContain("ipcRenderer.invoke('delete-image', localPath)");
+    expect(preloadSource).not.toContain("deleteImage: (localPath: string)");
+    expect(preloadSource).not.toContain("ipcRenderer.invoke('delete-image'");
     expect(preloadSource).toContain("moveImage: (localPath: string, category: string)");
     expect(preloadSource).toContain("ipcRenderer.invoke('move-image'");
     expect(preloadSource).toContain("readAsBase64: (localPath: string)");
@@ -73,7 +73,7 @@ describe("preload IPC surface", () => {
     expect(electronTypesSource).toContain("imageStorage?:");
     expect(electronTypesSource).toContain("saveImage: (url: string, category: string, filename: string)");
     expect(electronTypesSource).toContain("getImagePath: (localPath: string) => Promise<string | null>");
-    expect(electronTypesSource).toContain("deleteImage: (localPath: string) => Promise<boolean>");
+    expect(electronTypesSource).not.toContain("deleteImage: (localPath: string)");
     expect(electronTypesSource).toContain("moveImage: (localPath: string, category: string)");
     expect(electronTypesSource).toContain("readAsBase64: (localPath: string) => Promise<string | null>");
     expect(electronTypesSource).toContain("getAbsolutePath: (localPath: string) => Promise<string | null>");

@@ -8,6 +8,8 @@ function createOptions(selectedItemId: string | null = null) {
   return {
     projectId: "project-1",
     episodes: [{ id: "episode-1", index: 1, title: "第一集", sceneIds: [] }],
+    onRequestChapterDeletion: vi.fn().mockResolvedValue(undefined),
+    onRequestArtifactDeletion: vi.fn().mockResolvedValue(undefined),
     selectedItemId,
     setSelectedItemId: vi.fn(),
     setSelectedItemType: vi.fn(),
@@ -56,21 +58,28 @@ describe("useScriptCrudActions", () => {
     );
 
     await result.current.handleDeleteEpisodeBundle(1);
+    expect(options.onRequestChapterDeletion).toHaveBeenCalledWith("episode-1");
 
     const selectedSceneOptions = createOptions("scene-1");
     rerender({ current: selectedSceneOptions });
-    result.current.handleDeleteScene("scene-1");
-    expect(selectedSceneOptions.deleteScene).toHaveBeenCalledWith("project-1", "scene-1");
+    await result.current.handleDeleteScene("scene-1");
+    expect(selectedSceneOptions.onRequestArtifactDeletion).toHaveBeenCalledWith(
+      "script:script-scene:scene-1",
+    );
+    expect(selectedSceneOptions.deleteScene).not.toHaveBeenCalled();
     expect(selectedSceneOptions.setSelectedItemId).toHaveBeenCalledWith(null);
   });
 
-  it("keeps selection when deleting a different entity", () => {
+  it("fails closed for entities without a stable artifact projection", () => {
     const options = createOptions("scene-1");
     const { result } = renderHook(() => useScriptCrudActions(options));
 
     result.current.handleDeleteCharacter("character-2");
     result.current.handleDeleteShot("shot-2");
 
+    expect(options.deleteCharacter).not.toHaveBeenCalled();
+    expect(options.deleteShot).not.toHaveBeenCalled();
+    expect(options.onRequestArtifactDeletion).not.toHaveBeenCalled();
     expect(options.setSelectedItemId).not.toHaveBeenCalled();
     expect(options.setSelectedItemType).not.toHaveBeenCalled();
   });

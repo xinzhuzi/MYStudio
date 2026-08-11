@@ -121,8 +121,9 @@ describe("LocalTtsPanel select controls", () => {
     expect(settingsSource).toContain("PluginSettingsTab");
     expect(pythonSource).toContain("Python 运行环境");
     expect(pythonSource).toContain("开始配置");
-    expect(pythonSource).toContain("安装明细");
-    expect(pythonSource).toContain("恢复默认下载源");
+    expect(pythonSource).not.toContain("安装明细");
+    expect(pythonSource).toContain("Python 下载源");
+    expect(pythonSource).toContain("onClick={runtime.resetRuntimeUrl}");
     expect(hookSource).toContain("pythonRuntimeUrlDraft");
     expect(hookSource).toContain("setTtsRuntimeConfig");
   });

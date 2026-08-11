@@ -3,7 +3,7 @@
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 
 import { useMemo, useState, useCallback, useEffect } from "react";
-import { FolderKanban, Loader2, LucideImage as MediaLibrary, Trash2 } from "lucide-react";
+import { ArrowUp, ChevronRight, FolderKanban, FolderOpen, Loader2, LucideImage as MediaLibrary, Trash2 } from "lucide-react";
 import { getArtifactDeleteImpact } from "@/lib/artifacts/delete-impact";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -18,10 +18,12 @@ import {
   updateArtifactMetadata,
 } from "@/stores/artifacts/artifact-store";
 import { useProjectStore } from "@/stores/project/project-store";
+import { useMediaPanelStore } from "@/stores/navigation/media-panel-store";
 import { toast } from "sonner";
 import type { ArtifactRecord, ArtifactStage, ArtifactState, DeletionConfirmation } from "@/types/artifacts";
 import { FIXED_NAV_STAGES, STAGE_LABELS } from "@/lib/artifacts/stage-labels";
-import { ChapterTree, type ChapterNode } from "./ChapterTree";
+import { normalizeArtifactPhysicalPath } from "@/lib/artifacts/physical-path";
+import { ArtifactTree, type ArtifactChapterTreeNode, type ArtifactFileTreeNode, type ArtifactTreeProject } from "./ArtifactTree";
 import { ArtifactDetailPanel } from "./artifact-detail";
 import { ArtifactDeleteDialog } from "./ArtifactDeleteDialog";
 import { MediaView } from "./index";
@@ -51,6 +53,7 @@ export interface ArtifactCenterProps {
       label: string;
       count: number;
     }>;
+    fileTree?: ArtifactFileTreeNode[];
   }>;
 
   /** Callback for artifact selection */
@@ -63,16 +66,88 @@ export interface ArtifactCenterProps {
   className?: string;
 }
 
-type ArtifactProjectNode = {
-  id: string;
-  name: string;
-  stages: Array<{ id: string; label: string; count: number }>;
-};
+function buildArtifactFileTree(artifacts: ArtifactRecord[]): ArtifactFileTreeNode[] {
+  type MutableNode = ArtifactFileTreeNode & { childMap: Map<string, MutableNode> };
+  const roots = new Map<string, MutableNode>();
 
-function normalizePhysicalPath(value: string): string | null {
-  if (!value || value.includes("://")) return null;
-  const normalized = value.replace(/\\/g, "/").replace(/^\.\//, "").replace(/^\/+/, "");
-  return normalized && normalized !== "." ? normalized : null;
+  for (const artifact of artifacts) {
+    for (const ref of artifact.physicalRefs) {
+      const physicalPath = normalizeArtifactPhysicalPath(ref.path, artifact.projectId);
+      if (!physicalPath) continue;
+      const parts = physicalPath.split("/").filter(Boolean);
+      let children = roots;
+      let currentPath = "";
+      parts.forEach((part, index) => {
+        currentPath = currentPath ? `${currentPath}/${part}` : part;
+        const isFile = index === parts.length - 1;
+        let node = children.get(part);
+        if (!node) {
+          node = {
+            path: currentPath,
+            name: part,
+            type: isFile ? "file" : "directory",
+            artifactIds: [],
+            bytes: 0,
+            childMap: new Map(),
+          };
+          children.set(part, node);
+        }
+        if (isFile) {
+          if (!node.artifactIds?.includes(artifact.id)) node.artifactIds?.push(artifact.id);
+          node.bytes = (node.bytes ?? 0) + (ref.bytes ?? artifact.bytes ?? 0);
+        }
+        children = node.childMap;
+      });
+    }
+  }
+
+  const finalize = (nodes: Map<string, MutableNode>): ArtifactFileTreeNode[] => [...nodes.values()]
+    .sort((left, right) => left.type === right.type ? left.name.localeCompare(right.name) : left.type === "directory" ? -1 : 1)
+    .map((node) => {
+      const children = node.type === "directory" ? finalize(node.childMap) : undefined;
+      return {
+        path: node.path,
+        name: node.name,
+        type: node.type,
+        artifactIds: node.artifactIds,
+        bytes: node.type === "directory"
+          ? children?.reduce((total, child) => total + (child.bytes ?? 0), node.bytes ?? 0)
+          : node.bytes,
+        children,
+      };
+    });
+
+  return finalize(roots);
+}
+
+function findFileTreeNode(nodes: ArtifactFileTreeNode[], directoryPath: string): ArtifactFileTreeNode | null {
+  if (!directoryPath) return null;
+  for (const node of nodes) {
+    if (node.path === directoryPath) return node;
+    const nested = node.children ? findFileTreeNode(node.children, directoryPath) : null;
+    if (nested) return nested;
+  }
+  return null;
+}
+
+function fileTreeContainsArtifact(node: ArtifactFileTreeNode, artifactIds: Set<string>): boolean {
+  if (node.artifactIds?.some((id) => artifactIds.has(id))) return true;
+  return node.children?.some((child) => fileTreeContainsArtifact(child, artifactIds)) ?? false;
+}
+
+function countFileTreeArtifacts(node: ArtifactFileTreeNode): number {
+  const ids = new Set<string>();
+  const collect = (entry: ArtifactFileTreeNode) => {
+    entry.artifactIds?.forEach((id) => ids.add(id));
+    entry.children?.forEach(collect);
+  };
+  collect(node);
+  return ids.size;
+}
+
+function parentDirectory(directoryPath: string): string {
+  const slash = directoryPath.lastIndexOf("/");
+  return slash === -1 ? "" : directoryPath.slice(0, slash);
 }
 
 // Match the real chapter-directory naming on disk: exports/chapter-001,
@@ -92,7 +167,7 @@ const CHAPTER_PATH_PATTERN = /chapter-[0-9a-z]+/i;
 function inferChapterId(artifact: ArtifactRecord): string | null {
   if (artifact.chapterId) return artifact.chapterId;
   for (const ref of artifact.physicalRefs) {
-    const physicalPath = normalizePhysicalPath(ref.path);
+    const physicalPath = normalizeArtifactPhysicalPath(ref.path, artifact.projectId);
     if (!physicalPath) continue;
     const match = physicalPath.match(CHAPTER_PATH_PATTERN);
     if (match) return match[0];
@@ -231,6 +306,12 @@ export function ArtifactCenter({
   // Local state for UI controls (independent of store for mocking)
   const [currentTab, setCurrentTab] = useState<'workflow' | 'media-library'>('workflow');
   const [selectedChapterId, setSelectedChapterId] = useState<string | null>(null);
+  // File browsing is a project-wide view. Keep it separate from the chapter
+  // filter so opening 项目 → 本地文件 cannot accidentally show only the
+  // previously selected chapter's refs.
+  const [fileNavigationActive, setFileNavigationActive] = useState(false);
+  const [currentDirectoryPath, setCurrentDirectoryPath] = useState("");
+  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [detailArtifactId, setDetailArtifactId] = useState<string | null>(null);
 
@@ -245,6 +326,8 @@ export function ArtifactCenter({
   const [deleteOpen, setDeleteOpen] = useState(false);
   const activeProjectId = useProjectStore((state) => state.activeProjectId);
   const projectList = useProjectStore((state) => state.projects);
+  const setActiveTab = useMediaPanelStore((state) => state.setActiveTab);
+  const enterEpisode = useMediaPanelStore((state) => state.enterEpisode);
   const startScan = useArtifactStore((state) => state.startScan);
   const finishScan = useArtifactStore((state) => state.finishScan);
   const setScanError = useArtifactStore((state) => state.setError);
@@ -273,7 +356,7 @@ export function ArtifactCenter({
     // (inferChapterId, with "__none__" for ungrouped), otherwise inferred-
     // chapter artifacts are counted in the column but filtered out of the
     // table. See chapters useMemo and inferChapterId.
-    if (selectedChapterId) {
+    if (selectedChapterId && !fileNavigationActive) {
       if (selectedChapterId === NONE_BUCKET_ID) {
         // 杂项: non-backup artifacts with no inferred chapter.
         result = result.filter(a => !isBackupOnlyArtifact(a) && inferChapterId(a) === null);
@@ -317,14 +400,18 @@ export function ArtifactCenter({
     });
 
     return result;
-  }, [artifacts, selectedChapterId, stageFilter, stateFilter, sortBy, sortOrder]);
+  }, [artifacts, fileNavigationActive, selectedChapterId, stageFilter, stateFilter, sortBy, sortOrder]);
 
-  // Build project → stage folder tree.
-  // Project names come from project-store (real names); stage counts aggregate
-  // current inventory artifacts by stage. Stage order follows STAGE_LABELS.
-  const projects = useMemo<ArtifactProjectNode[]>(() => {
+  // Build project metadata and the physical on-disk file tree. The tree is
+  // derived from the current inventory refs, never from a stale cached list.
+  const projects = useMemo<ArtifactTreeProject[]>(() => {
     if (mockProjects) {
-      return mockProjects;
+      return mockProjects.map((project) => ({
+        id: project.id,
+        name: project.name,
+        fileTree: project.fileTree ?? buildArtifactFileTree(artifacts.filter((artifact) => artifact.projectId === project.id)),
+        chapters: [],
+      }));
     }
 
     // Aggregate artifact counts by stage, keyed by projectId.
@@ -344,28 +431,14 @@ export function ArtifactCenter({
       ? projectList
       : Array.from(stageCountByProject.keys()).map(id => ({ id, name: `项目 ${id.substring(0, 8)}` }));
 
-    // Per-project stage breakdown over the FIXED stage set (FIXED_NAV_STAGES).
-    // The middle "工作流阶段" column was removed; stage filtering now lives in
-    // the FilterBar toolbar dropdown (also FIXED_NAV_STAGES). This `stages`
-    // field remains part of the ArtifactProjectNode / mockProjects prop
-    // contract. Every fixed stage always renders regardless of count
-    // (zero-count stages show with no badge).
-    const fixedStageEntries = FIXED_NAV_STAGES.map(stageId => [stageId, STAGE_LABELS[stageId]] as const);
-
     return sourceProjects
       .filter(p => p.id === activeProjectId || stageCountByProject.has(p.id))
       .map(project => {
-        const stageMap = stageCountByProject.get(project.id) ?? new Map<string, number>();
-        const stages = fixedStageEntries
-          .map(([stageId, label]) => ({
-            id: stageId,
-            label,
-            count: stageMap.get(stageId) ?? 0,
-          }));
         return {
           id: project.id,
           name: project.name,
-          stages,
+          fileTree: buildArtifactFileTree(artifacts.filter((artifact) => artifact.projectId === project.id)),
+          chapters: [],
         };
       });
   }, [artifacts, mockProjects, projectList, activeProjectId]);
@@ -380,26 +453,29 @@ export function ArtifactCenter({
   //   - "__none__" (杂项): no chapter inferred (special/unclassified files).
   //   - real chapter id: formatted via formatChapterLabel ("第 N 章").
   // Sort order: "杂项" first, then "备份", then real chapters ascending.
-  const chapters = useMemo<ChapterNode[]>(() => {
+  const chapters = useMemo<ArtifactChapterTreeNode[]>(() => {
     if (!activeProjectId) return [];
     const projectArtifacts = artifacts.filter((artifact) => artifact.projectId === activeProjectId);
-    const counts = new Map<string, number>();
+    const groups = new Map<string, { count: number; stageCounts: Map<ArtifactStage, number> }>();
     for (const artifact of projectArtifacts) {
       const bucket = isBackupOnlyArtifact(artifact)
         ? BACKUP_BUCKET_ID
         : inferChapterId(artifact) ?? NONE_BUCKET_ID;
-      counts.set(bucket, (counts.get(bucket) ?? 0) + 1);
+      const group = groups.get(bucket) ?? { count: 0, stageCounts: new Map<ArtifactStage, number>() };
+      group.count += 1;
+      group.stageCounts.set(artifact.stage, (group.stageCounts.get(artifact.stage) ?? 0) + 1);
+      groups.set(bucket, group);
     }
     const bucketRank = (id: string): number =>
       id === NONE_BUCKET_ID ? 0 : id === BACKUP_BUCKET_ID ? 1 : 2;
-    return [...counts.entries()]
+    return [...groups.entries()]
       .sort(([a], [b]) => {
         const ra = bucketRank(a);
         const rb = bucketRank(b);
         if (ra !== rb) return ra - rb;
         return a.localeCompare(b, undefined, { numeric: true });
       })
-      .map(([id, count]) => ({
+      .map(([id, group]) => ({
         id,
         label:
           id === NONE_BUCKET_ID
@@ -407,16 +483,48 @@ export function ArtifactCenter({
             : id === BACKUP_BUCKET_ID
               ? "备份"
               : formatChapterLabel(id),
-        count,
+        count: group.count,
+        stages: FIXED_NAV_STAGES
+          .filter((stage) => (group.stageCounts.get(stage) ?? 0) > 0)
+          .map((stage) => ({
+            id: stage,
+            label: STAGE_LABELS[stage],
+            count: group.stageCounts.get(stage) ?? 0,
+          })),
       }));
   }, [artifacts, activeProjectId]);
 
+  const treeProjects = useMemo<ArtifactTreeProject[]>(() => projects.map((project) => ({
+    ...project,
+    chapters: project.id === activeProjectId ? chapters : [],
+  })), [projects, activeProjectId, chapters]);
+
   const activeProjectNode = projects.find((project) => project.id === activeProjectId) ?? null;
 
-  // The center list shows all artifacts in the selected chapter (already
-  // filtered by chapter/stage/state in `filteredArtifacts`). There is no
-  // directory-navigation layer; the table is a flat chapter-scoped list.
-  const flatArtifactList = filteredArtifacts;
+  const currentDirectoryNode = useMemo(
+    () => findFileTreeNode(activeProjectNode?.fileTree ?? [], currentDirectoryPath),
+    [activeProjectNode, currentDirectoryPath],
+  );
+  const directoryArtifactIds = useMemo(
+    () => new Set(filteredArtifacts.map((artifact) => artifact.id)),
+    [filteredArtifacts],
+  );
+  const visibleDirectoryFolders = useMemo(() => {
+    const candidates = currentDirectoryNode?.children ?? (currentDirectoryPath ? [] : activeProjectNode?.fileTree ?? []);
+    return candidates.filter((entry) => entry.type === "directory" && fileTreeContainsArtifact(entry, directoryArtifactIds));
+  }, [activeProjectNode, currentDirectoryNode, currentDirectoryPath, directoryArtifactIds]);
+  const visibleDirectoryArtifacts = useMemo(() => filteredArtifacts.filter((artifact) => {
+    const paths = artifact.physicalRefs
+      .map((ref) => normalizeArtifactPhysicalPath(ref.path, artifact.projectId))
+      .filter((value): value is string => Boolean(value));
+    if (paths.length === 0) return currentDirectoryPath === "";
+    return paths.some((physicalPath) => parentDirectory(physicalPath) === currentDirectoryPath);
+  }), [filteredArtifacts, currentDirectoryPath]);
+  const directoryBreadcrumbs = useMemo(() => {
+    if (!currentDirectoryPath) return [] as Array<{ label: string; path: string }>;
+    const parts = currentDirectoryPath.split("/");
+    return parts.map((part, index) => ({ label: part, path: parts.slice(0, index + 1).join("/") }));
+  }, [currentDirectoryPath]);
 
   // Debug state exposure for devtools inspection
   useEffect(() => {
@@ -428,22 +536,68 @@ export function ArtifactCenter({
         stageFilter,
         stateFilter,
         selectedChapterId,
+        currentDirectoryPath,
         projects,
       };
     }
-  }, [artifacts, filteredArtifacts, currentTab, stageFilter, stateFilter, selectedChapterId, projects]);
+  }, [artifacts, filteredArtifacts, currentTab, stageFilter, stateFilter, selectedChapterId, currentDirectoryPath, projects]);
 
   // Pure assignment (not toggle): a chapter must always stay selected, so
   // clicking the currently-selected chapter is a no-op rather than deselect.
   const handleChapterClick = useCallback((chapterId: string) => {
+    setFileNavigationActive(false);
     setSelectedChapterId(chapterId);
+    setStageFilter("all");
+    setCurrentDirectoryPath("");
+    setDetailArtifactId(null);
+  }, []);
+
+  const handleProjectClick = useCallback((projectId: string) => {
+    if (projectId !== activeProjectId) return;
+    setFileNavigationActive(false);
+    setSelectedChapterId(null);
+    setStageFilter("all");
+    setCurrentDirectoryPath("");
+    setDetailArtifactId(null);
+  }, [activeProjectId]);
+
+  const handleDirectoryClick = useCallback((directoryPath: string) => {
+    setFileNavigationActive(true);
+    setStageFilter("all");
+    setCurrentDirectoryPath(directoryPath);
+    setDetailArtifactId(null);
+  }, []);
+
+  const handleFileClick = useCallback((filePath: string) => {
+    setFileNavigationActive(true);
+    setStageFilter("all");
+    setCurrentDirectoryPath(parentDirectory(filePath));
+    const artifact = artifacts.find((item) => item.physicalRefs.some((ref) => normalizeArtifactPhysicalPath(ref.path, item.projectId) === filePath));
+    if (artifact) setDetailArtifactId(artifact.id);
+  }, [artifacts]);
+
+  const handleStageClick = useCallback((stageId: ArtifactStage, chapterId: string) => {
+    setFileNavigationActive(false);
+    setSelectedChapterId(chapterId);
+    setStageFilter(stageId);
+    setCurrentDirectoryPath("");
+    setDetailArtifactId(null);
+  }, []);
+
+  const handleExpandToggle = useCallback((nodeId: string) => {
+    setExpandedNodes((current) => {
+      const next = new Set(current);
+      if (next.has(nodeId)) next.delete(nodeId);
+      else next.add(nodeId);
+      return next;
+    });
   }, []);
 
   // Clear multiselect whenever a navigation filter changes.
   useEffect(() => {
     setSelectedIds(new Set());
     setDetailArtifactId(null);
-  }, [selectedChapterId, activeProjectId, stageFilter, stateFilter]);
+  }, [fileNavigationActive, selectedChapterId, activeProjectId, stageFilter, stateFilter, currentDirectoryPath]);
 
   // Reset all navigated filters when the active project changes — covers
   // store-driven switches (setActiveProject, project deletion fallback,
@@ -452,9 +606,28 @@ export function ArtifactCenter({
   // project (cross-project risk).
   useEffect(() => {
     setSelectedChapterId(null);
+    setFileNavigationActive(false);
     setStageFilter("all");
+    setCurrentDirectoryPath("");
+    setExpandedNodes(new Set());
     setDetailArtifactId(null);
   }, [activeProjectId]);
+
+  // Make the active project's local file tree and chapter nodes visible on
+  // first entry. Users can still collapse any branch explicitly.
+  useEffect(() => {
+    if (!activeProjectId) return;
+    const activeTreeProject = treeProjects.find((project) => project.id === activeProjectId);
+    if (!activeTreeProject) return;
+    setExpandedNodes((current) => {
+      const next = new Set(current);
+      next.add(`project:${activeProjectId}`);
+      if (activeTreeProject.fileTree.length > 0) next.add(`files:${activeProjectId}`);
+      for (const chapter of activeTreeProject.chapters) next.add(`chapter:${activeProjectId}:${chapter.id}`);
+      if (next.size === current.size) return current;
+      return next;
+    });
+  }, [activeProjectId, treeProjects]);
 
   // Default-select the first chapter so a chapter is always active (PRD: a
   // chapter must always be selected — the user cannot return to "no chapter").
@@ -463,11 +636,11 @@ export function ArtifactCenter({
   // else the first real chapter). Backup is a passive archive bucket and is
   // only selected if it is the sole node.
   useEffect(() => {
-    if (selectedChapterId === null && chapters.length > 0) {
+    if (!fileNavigationActive && selectedChapterId === null && chapters.length > 0) {
       const preferred = chapters.find((c) => c.id !== BACKUP_BUCKET_ID) ?? chapters[0];
       setSelectedChapterId(preferred.id);
     }
-  }, [selectedChapterId, chapters]);
+  }, [fileNavigationActive, selectedChapterId, chapters]);
 
   const handleArtifactClick = useCallback((artifact: ArtifactRecord) => {
     if (onArtifactSelect) {
@@ -479,6 +652,45 @@ export function ArtifactCenter({
   const getDetailArtifact = useCallback(() => {
     return artifacts.find(a => a.id === detailArtifactId) || null;
   }, [artifacts, detailArtifactId]);
+
+  const handleOpenFolder = useCallback((directoryPath: string) => {
+    // Opening a physical folder intentionally switches to the project-wide
+    // file view; the folder itself is the ownership boundary, not a chapter
+    // filter. The detail panel remains available for the file row.
+    setFileNavigationActive(true);
+    setStageFilter("all");
+    setCurrentDirectoryPath(directoryPath);
+    setDetailArtifactId(null);
+  }, []);
+
+  const handleOpenWorkflow = useCallback((artifact: ArtifactRecord) => {
+    const route = artifact.editRoute ?? "";
+    const chapterIndex = artifact.chapterId?.match(/(?:chapter|episode)[-_](\d+)/i)?.[1];
+    if (route.startsWith("/script") && chapterIndex && activeProjectId) {
+      enterEpisode(Number.parseInt(chapterIndex, 10), activeProjectId);
+      return;
+    }
+    if (route.startsWith("/script")) {
+      setActiveTab("script");
+    } else if (route.includes("/library/characters")) {
+      setActiveTab("characters");
+    } else if (route.includes("/library/scenes")) {
+      setActiveTab("scenes");
+    } else if (route.includes("/library/props")) {
+      setActiveTab("assets");
+    } else if (route.startsWith("/director") || route.includes("/storyboard") || route.includes("/track") || route.includes("/video")) {
+      setActiveTab("director");
+    } else if (route.startsWith("/tts")) {
+      setActiveTab("tts");
+    } else if (route.startsWith("/export")) {
+      setActiveTab("export");
+    } else if (route.startsWith("/media")) {
+      setActiveTab("media");
+    } else {
+      setActiveTab("studio");
+    }
+    setDetailArtifactId(null);
+  }, [activeProjectId, enterEpisode, setActiveTab]);
 
   const handleCloseDetail = useCallback(() => {
     setDetailArtifactId(null);
@@ -623,7 +835,7 @@ export function ArtifactCenter({
             </TabsTrigger>
             <TabsTrigger value="media-library" className="flex items-center gap-2">
               <MediaLibrary className="h-4 w-4" />
-              可交付物
+              媒体库
             </TabsTrigger>
           </TabsList>
         </div>
@@ -631,22 +843,32 @@ export function ArtifactCenter({
         <TabsContent value="workflow" className="flex-1 m-0 overflow-hidden min-h-0">
           <div className="flex h-full min-h-0">
           <ResizablePanelGroup direction="horizontal" className="flex-1 min-w-0 h-full" autoSaveId="artifact-center-left">
-            {/* Left Column - chapter tree */}
+            {/* Left Column - project/local-file/chapter/stage tree */}
             <ResizablePanel defaultSize={22} minSize={18} maxSize={50} className="bg-panel">
               <aside className="h-full flex flex-col min-h-0">
-                <div className="shrink-0 border-b px-3 py-2">
+                <div className="shrink-0 border-b px-3 h-[60px] flex items-center">
                   <div className="flex items-center gap-2 text-sm font-medium">
                     <FolderKanban className="h-4 w-4 text-primary" />
-                    <span className="truncate" title={activeProjectNode?.name ?? "项目章节"}>
-                      {activeProjectNode?.name ?? "项目章节"}
+                    <span className="truncate" title={activeProjectNode?.name ?? "项目导航"}>
+                      {activeProjectNode?.name ?? "项目导航"}
                     </span>
                   </div>
                 </div>
                 <div className="flex-1 min-h-0 overflow-hidden">
-                  <ChapterTree
-                    chapters={chapters}
+                  <ArtifactTree
+                    projects={treeProjects}
+                    activeProjectId={activeProjectId}
                     selectedChapterId={selectedChapterId}
+                    selectedStageId={stageFilter === "all" ? null : stageFilter}
+                    selectedDirectoryPath={currentDirectoryPath}
+                    fileNavigationActive={fileNavigationActive}
                     onChapterClick={handleChapterClick}
+                    onProjectClick={handleProjectClick}
+                    onStageClick={handleStageClick}
+                    onDirectoryClick={handleDirectoryClick}
+                    onFileClick={handleFileClick}
+                    expandedNodes={expandedNodes}
+                    onExpandToggle={handleExpandToggle}
                   />
                 </div>
               </aside>
@@ -657,7 +879,7 @@ export function ArtifactCenter({
             {/* Center Table */}
             <ResizablePanel defaultSize={78} minSize={50} className="min-w-0">
               <main className="h-full flex flex-col min-w-0 min-h-0">
-              <div className="flex items-center gap-2 border-b px-3 py-1.5 shrink-0 h-[42px]">
+              <div className="flex items-center gap-2 border-b px-3 shrink-0 h-[60px]">
                 <FilterBar
                   stageFilter={stageFilter}
                   stateFilter={stateFilter}
@@ -676,16 +898,16 @@ export function ArtifactCenter({
                     type="checkbox"
                     aria-label="选择全部产物"
                     className="h-4 w-4 shrink-0"
-                    checked={flatArtifactList.length > 0 && flatArtifactList.every((artifact) => selectedIds.has(artifact.id))}
+                    checked={visibleDirectoryArtifacts.length > 0 && visibleDirectoryArtifacts.every((artifact) => selectedIds.has(artifact.id))}
                     onChange={(event) => {
-                      for (const artifact of flatArtifactList) toggleArtifactSelection(artifact.id, event.target.checked);
+                      for (const artifact of visibleDirectoryArtifacts) toggleArtifactSelection(artifact.id, event.target.checked);
                     }}
                     onClick={(event) => event.stopPropagation()}
                   />
                   <Button variant="outline" size="sm" disabled={!selectedChapterId || selectedIds.size === 0} onClick={() => void openSelectedDelete()}>
                     <Trash2 className="mr-1 h-4 w-4" />删除选中 ({selectedIds.size})
                   </Button>
-                  <Button variant="destructive" size="sm" disabled={!selectedChapterId || selectedChapterId === NONE_BUCKET_ID || selectedChapterId === BACKUP_BUCKET_ID} onClick={() => void openChapterDelete()}>
+                  <Button variant="destructive" size="sm" disabled={fileNavigationActive || !selectedChapterId || selectedChapterId === NONE_BUCKET_ID || selectedChapterId === BACKUP_BUCKET_ID} onClick={() => void openChapterDelete()}>
                     <Trash2 className="mr-1 h-4 w-4" />删除当前章节
                   </Button>
                 </div>
@@ -693,14 +915,63 @@ export function ArtifactCenter({
               <div className="flex-1 overflow-auto min-h-0" aria-busy={loading}>
                 {loading ? (
                   <ArtifactTableSkeleton />
-                ) : flatArtifactList.length === 0 ? (
+                ) : visibleDirectoryFolders.length === 0 && visibleDirectoryArtifacts.length === 0 ? (
                   <div className="h-full flex items-center justify-center text-center text-muted-foreground py-12">
-                    当前章节没有符合条件的产物
+                    当前目录没有符合条件的产物
                   </div>
                 ) : (
+                  <>
+                    <div className="flex items-center gap-1 border-b bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+                      <button
+                        type="button"
+                        className={cn("hover:text-foreground", !currentDirectoryPath && "font-medium text-foreground")}
+                        onClick={() => handleDirectoryClick("")}
+                      >
+                        {activeProjectNode?.name ?? "项目文件"}
+                      </button>
+                      {directoryBreadcrumbs.map((crumb) => (
+                        <span key={crumb.path} className="inline-flex items-center gap-1">
+                          <ChevronRight className="h-3 w-3" />
+                          <button type="button" className="hover:text-foreground" onClick={() => handleDirectoryClick(crumb.path)}>
+                            {crumb.label}
+                          </button>
+                        </span>
+                      ))}
+                      {currentDirectoryPath && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="ml-auto h-6 w-6"
+                          aria-label="返回上级目录"
+                          onClick={() => handleDirectoryClick(parentDirectory(currentDirectoryPath))}
+                        >
+                          <ArrowUp className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                    </div>
                   <table className="w-full text-sm">
                     <tbody>
-                      {flatArtifactList.map((artifact) => (
+                      {visibleDirectoryFolders.map((folder) => (
+                        <tr
+                          key={`folder:${folder.path}`}
+                          className="cursor-pointer border-t hover:bg-muted/50 transition-colors"
+                          onClick={() => handleDirectoryClick(folder.path)}
+                        >
+                          <td className="p-2 w-10" />
+                          <td className="p-2 font-medium">
+                            <span className="inline-flex items-center gap-2">
+                              <FolderOpen className="h-4 w-4 text-primary" />
+                              {folder.name}
+                            </span>
+                          </td>
+                          <td className="p-2 w-[110px] text-xs text-muted-foreground">文件夹</td>
+                          <td className="p-2 w-[100px] text-xs text-muted-foreground">可进入</td>
+                          <td className="p-2 w-[100px] font-mono text-xs">{formatBytes(folder.bytes)}</td>
+                          <td className="p-2 text-muted-foreground text-xs w-[180px]">{countFileTreeArtifacts(folder)} 项</td>
+                        </tr>
+                      ))}
+                      {visibleDirectoryArtifacts.map((artifact) => (
                             <tr
                               key={artifact.id}
                               title={formatArtifactTooltip(artifact)}
@@ -757,7 +1028,7 @@ export function ArtifactCenter({
                                     size="icon"
                                     className="h-6 w-6 text-muted-foreground hover:text-destructive"
                                     aria-label={`删除产物 ${artifact.name}`}
-                                    title="移动到废纸篓"
+                                    title="生成永久删除计划"
                                     onClick={(event) => {
                                       event.stopPropagation();
                                       void openFileDelete(artifact);
@@ -771,6 +1042,7 @@ export function ArtifactCenter({
                       ))}
                     </tbody>
                   </table>
+                  </>
                 )}
               </div>
             </main>
@@ -787,6 +1059,8 @@ export function ArtifactCenter({
                 isOpen={!!getDetailArtifact()}
                 onClose={handleCloseDetail}
                 onMetadataUpdate={handleMetadataUpdate}
+                onOpenFolder={handleOpenFolder}
+                onOpenWorkflow={handleOpenWorkflow}
               />
             )}
           </div>
@@ -803,7 +1077,7 @@ export function ArtifactCenter({
 
 
 const formatBytes = (bytes?: number): string => {
-  if (!bytes) return "-";
+  if (bytes === undefined || bytes === null) return "-";
   if (bytes === 0) return "0 B";
   const k = 1024;
   const sizes = ["B", "KB", "MB", "GB"];

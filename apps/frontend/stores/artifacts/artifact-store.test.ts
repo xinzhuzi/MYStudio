@@ -4,6 +4,7 @@ import {
   executeArtifactDeletionPlan,
   getDeletionPlanConfirmation,
   isDeletionPlanConfirmationValid,
+  useArtifactStore,
 } from "./artifact-store";
 
 function makePlan(scope: DeletionPlan["scope"]): DeletionPlan {
@@ -13,6 +14,9 @@ function makePlan(scope: DeletionPlan["scope"]): DeletionPlan {
     projectId: "project-controller-test",
     chapterId: "chapter-controller-test",
     scope,
+    selectedArtifactIds: scope === "artifacts"
+      ? ["novel:novel-chapter:chapter-controller-test"]
+      : [],
     createdAt: 1,
     fingerprint: "fingerprint-controller-test",
     deleteItems: [{
@@ -74,5 +78,44 @@ describe("artifact deletion controller", () => {
       confirmation: { type: "artifacts", artifactCount: 1 },
     });
     vi.unstubAllGlobals();
+  });
+});
+
+describe("artifact selection scope", () => {
+  const makeArtifact = (id: string, projectId: string, chapterId: string): import("@/types/artifacts").ArtifactRecord => ({
+    id,
+    projectId,
+    chapterId,
+    stage: "storyboard",
+    kind: "storyboard-item",
+    state: "active",
+    name: id,
+    createdAt: 1,
+    updatedAt: 1,
+    physicalRefs: [],
+    upstreamIds: [],
+    downstreamIds: [],
+    deletePolicy: "delete-exclusive-downstream",
+  });
+
+  it("rejects selection that crosses a project or chapter", () => {
+    const chapterOneA = makeArtifact("chapter-one-a", "project-1", "chapter-001");
+    const chapterOneB = makeArtifact("chapter-one-b", "project-1", "chapter-001");
+    const chapterTwo = makeArtifact("chapter-two", "project-1", "chapter-002");
+    const otherProject = makeArtifact("other-project", "project-2", "chapter-001");
+    const store = useArtifactStore.getState();
+
+    store.reset();
+    store.finishScan([chapterOneA, chapterOneB, chapterTwo, otherProject]);
+    useArtifactStore.getState().toggleArtifactSelection(chapterOneA.id);
+    useArtifactStore.getState().toggleArtifactSelection(chapterOneB.id);
+    useArtifactStore.getState().toggleArtifactSelection(chapterTwo.id);
+    useArtifactStore.getState().toggleArtifactSelection(otherProject.id);
+
+    expect([...useArtifactStore.getState().selectedArtifactIds]).toEqual([
+      chapterOneA.id,
+      chapterOneB.id,
+    ]);
+    useArtifactStore.getState().reset();
   });
 });

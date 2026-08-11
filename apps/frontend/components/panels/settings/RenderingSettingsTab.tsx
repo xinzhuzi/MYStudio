@@ -64,7 +64,7 @@ export function RenderingSettingsTab({ embedded = false }: RenderingSettingsTabP
           </div>
         )}
 
-        <div className="p-6 border border-border rounded-xl bg-card space-y-4">
+        <div className={embedded ? "space-y-4" : "p-6 border border-border rounded-xl bg-card space-y-4"}>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h4 className="font-medium text-foreground">插件运行时</h4>

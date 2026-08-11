@@ -161,13 +161,19 @@ export function NovelTab(props: {
       toast.error("没有活动项目，未执行任何操作");
       return;
     }
+    const requestedProjectId = activeProjectId;
     setDeletingChapter(chapter);
     setDeletePlan(null);
     const result = await createArtifactDeletionPlan({
-      projectId: activeProjectId,
+      projectId: requestedProjectId,
       chapterId: chapter.id,
       scope: "chapter",
     });
+    if (useProjectStore.getState().activeProjectId !== requestedProjectId) {
+      setDeletingChapter(null);
+      toast.error("活动项目已切换，旧删除计划已作废");
+      return;
+    }
     if (!result.success) {
       setDeletingChapter(null);
       toast.error(`生成删除计划失败：${result.error}`);
@@ -193,10 +199,19 @@ export function NovelTab(props: {
     if (!deletePlan) {
       throw new Error("删除服务不可用");
     }
+    const requestedProjectId = deletePlan.projectId;
+    if (useProjectStore.getState().activeProjectId !== requestedProjectId) {
+      toast.error("活动项目已切换，请重新生成删除计划");
+      throw new Error("活动项目已切换");
+    }
     const result = await executeArtifactDeletionPlan(deletePlan, confirmation);
     if (!result.success) {
       toast.error(`删除失败：${result.error}`);
       throw new Error(result.error);
+    }
+    if (useProjectStore.getState().activeProjectId !== requestedProjectId) {
+      toast.error("原项目删除已完成；当前项目未应用旧项目状态");
+      return;
     }
     setSelectedIds((current) => {
       const next = new Set(current);

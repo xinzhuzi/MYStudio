@@ -93,7 +93,7 @@ export function StorageSettingsTab() {
                 <Button variant="outline" size="sm" onClick={storage.importData} disabled={!storage.hasStorageManager}>导入</Button>
               </div>
             </div>
-            <p className="text-xs text-muted-foreground">⚠️ 更改位置会复制并迁移 projects/、media/、assets/、skills/；python/ 和 tts-models/ 是运行时下载目录，本次不会随数据操作迁移。</p>
+            <p className="text-xs text-muted-foreground">⚠️ 更改位置会复制并迁移 projects/、media/、assets/、skills/；python/ 和 TTS/ 是运行时下载目录，本次不会随数据操作迁移。</p>
           </div>
 
           <div className="p-6 border border-border rounded-xl bg-card space-y-4">

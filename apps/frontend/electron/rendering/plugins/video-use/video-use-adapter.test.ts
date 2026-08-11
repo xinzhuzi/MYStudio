@@ -120,7 +120,7 @@ describe("video-use adapter", () => {
     });
     expect(result).toMatchObject({ state: "blocked", code: "upstream-helper-failed" });
     expect(call).toBe(2);
-    expect(environments[0]?.MANYING_TTS_MODELS_DIR).toBe(path.join(root, "tts-models"));
-    expect(environments[0]?.VOICEBOX_MODELS_DIR).toBe(path.join(root, "tts-models"));
+    expect(environments[0]?.MANYING_TTS_MODELS_DIR).toBe(path.join(root, "TTS", "model"));
+    expect(environments[0]?.VOICEBOX_MODELS_DIR).toBe(path.join(root, "TTS", "model"));
   });
 });

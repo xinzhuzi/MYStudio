@@ -14,7 +14,6 @@ declare global {
     imageStorage?: {
       saveImage: (url: string, category: string, filename: string) => Promise<{ success: boolean; localPath?: string; error?: string }>;
       getImagePath: (localPath: string) => Promise<string | null>;
-      deleteImage: (localPath: string) => Promise<boolean>;
       moveImage: (localPath: string, category: string) => Promise<{ success: boolean; localPath?: string; error?: string }>;
       readAsBase64: (localPath: string) => Promise<{ success: boolean; base64?: string; mimeType?: string; size?: number; error?: string }>;
       getAbsolutePath: (localPath: string) => Promise<string | null>;
@@ -91,23 +90,12 @@ export async function resolveImagePath(path: string): Promise<string> {
 }
 
 /**
- * Delete a locally stored image
+ * Legacy image deletion is intentionally fail-closed. Project-owned media
+ * must be removed through the artifact deletion plan so the UI can show the
+ * immutable scope, dependency impact, backup handling, and rollback guard.
  */
-export async function deleteLocalImage(localPath: string): Promise<boolean> {
-  if (!localPath.startsWith('local-image://')) {
-    return false;
-  }
-
-  if (!isElectron()) {
-    return false;
-  }
-
-  try {
-    return await window.imageStorage!.deleteImage(localPath);
-  } catch (error) {
-    console.error('Error deleting image:', error);
-    return false;
-  }
+export async function deleteLocalImage(_localPath: string): Promise<boolean> {
+  return false;
 }
 
 export async function moveLocalImageToCategory(localPath: string, category: string): Promise<string | null> {

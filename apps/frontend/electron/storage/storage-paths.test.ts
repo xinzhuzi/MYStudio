@@ -10,6 +10,7 @@ import {
   resolveDataFilePath,
   resolveLocalMediaPath,
   resolveProjectFileUrl,
+  resolveProjectRootPath,
   resolveProjectScopedFilePath,
 } from "./storage-paths";
 
@@ -72,5 +73,24 @@ describe("storage path helpers", () => {
     expect(() => createProjectFileUrl("dao\0project", "workflow-images/cover.png")).toThrow("Invalid");
     expect(() => parseProjectFileUrl("project-file://dao%2Fproject/workflow-images/cover.png")).toThrow("escapes");
     expect(() => resolveProjectScopedFilePath("/data/projects", "../dao", "workflow-images/cover.png")).toThrow("escapes");
+  });
+
+  it("resolves the project root and rejects invalid or symlinked project ids", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "mystudio-project-root-"));
+    const dataRoot = path.join(root, "data");
+    const projectsRoot = path.join(dataRoot, "_p");
+    const projectRoot = path.join(projectsRoot, "project-safe");
+    const outsideRoot = fs.mkdtempSync(path.join(os.tmpdir(), "mystudio-project-outside-"));
+    fs.mkdirSync(projectRoot, { recursive: true });
+    fs.symlinkSync(outsideRoot, path.join(projectsRoot, "project-escaped"));
+    try {
+      expect(resolveProjectRootPath(dataRoot, "project-safe")).toBe(projectRoot);
+      expect(() => resolveProjectRootPath(dataRoot, "")).toThrow("Invalid");
+      expect(() => resolveProjectRootPath(dataRoot, "../project-safe")).toThrow("escapes");
+      expect(() => resolveProjectRootPath(dataRoot, "project-escaped")).toThrow("escapes");
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+      fs.rmSync(outsideRoot, { recursive: true, force: true });
+    }
   });
 });

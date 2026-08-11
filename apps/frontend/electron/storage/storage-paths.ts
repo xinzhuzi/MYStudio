@@ -20,8 +20,8 @@ function canonicalPath(input: string) {
 function assertInsideRoot(root: string, target: string, label: string) {
   const normalizedRoot = path.resolve(root);
   const normalizedTarget = path.resolve(target);
-  const canonicalRoot = canonicalPath(normalizedRoot).toLowerCase();
-  const canonicalTarget = canonicalPath(normalizedTarget).toLowerCase();
+  const canonicalRoot = canonicalPath(normalizedRoot);
+  const canonicalTarget = canonicalPath(normalizedTarget);
   if (canonicalTarget !== canonicalRoot && !canonicalTarget.startsWith(`${canonicalRoot}${path.sep}`)) {
     throw new Error(`${label} escapes storage root`);
   }
@@ -126,10 +126,7 @@ export function resolveProjectRootPath(dataRoot: string, projectId: string): str
   const normalizedProjectId = normalizePathSegment(projectId, "project id");
   const resolved = path.resolve(dataRoot, "_p", normalizedProjectId);
 
-  // Ensure we haven't escaped dataRoot via symlink attack
-  assertInsideRoot(dataRoot, resolved, "Project root path");
-
-  return resolved;
+  return assertInsideRoot(dataRoot, resolved, "Project root path");
 }
 
 export function resolveProjectFileUrl(dataRoot: string, projectFileUrl: string) {

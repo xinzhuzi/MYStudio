@@ -74,7 +74,7 @@ const STATE_ICONS_AND_COLORS: Record<ArtifactState, { icon: React.ReactNode; col
 };
 
 function formatBytes(bytes?: number): string {
-  if (!bytes) return "-";
+  if (bytes === undefined || bytes === null) return "-";
   if (bytes === 0) return "0 B";
   const k = 1024;
   const sizes = ["B", "KB", "MB", "GB"];
@@ -101,6 +101,17 @@ function getKindIcon(kind: string): React.ReactNode {
     return <Video className="h-4 w-4" />;
   }
   return <File className="h-4 w-4" />;
+}
+
+function artifactSelectionScope(artifact: ArtifactRecord): string {
+  return `${artifact.projectId}\u0000${artifact.chapterId ?? ""}`;
+}
+
+function sortableArtifactValue(artifact: ArtifactRecord, key: keyof ArtifactRecord): string | number {
+  const value = artifact[key];
+  if (typeof value === "number") return value;
+  if (typeof value === "string") return value.toLowerCase();
+  return value === undefined ? "" : JSON.stringify(value);
 }
 
 export function ArtifactTable({
@@ -131,17 +142,8 @@ export function ArtifactTable({
   // Sort artifacts
   const sortedArtifacts = useMemo(() => {
     const sorted = [...filteredArtifacts].sort((a, b) => {
-      let valueA: any = a[sortBy];
-      let valueB: any = b[sortBy];
-
-      // Handle special cases
-      if (sortBy === 'createdAt' || sortBy === 'updatedAt') {
-        valueA = new Date(valueA).getTime();
-        valueB = new Date(valueB).getTime();
-      } else if (typeof valueA === 'string') {
-        valueA = valueA.toLowerCase();
-        valueB = valueB.toLowerCase();
-      }
+      const valueA = sortableArtifactValue(a, sortBy);
+      const valueB = sortableArtifactValue(b, sortBy);
 
       if (valueA < valueB) return sortOrder === 'asc' ? -1 : 1;
       if (valueA > valueB) return sortOrder === 'asc' ? 1 : -1;
@@ -154,8 +156,29 @@ export function ArtifactTable({
   // Toggle selection with shift-click support
   const lastSelectedRef = useRef<string | null>(null);
 
-  const handleSelect = useCallback((id: string, e: React.ChangeEvent<HTMLInputElement>) => {
+  const selectedScope = useMemo(() => {
+    const selectedArtifact = artifacts.find((item) => selectedIds.has(item.id));
+    return selectedArtifact ? artifactSelectionScope(selectedArtifact) : null;
+  }, [artifacts, selectedIds]);
+
+  const visibleScopes = useMemo(
+    () => new Set(sortedArtifacts.map(artifactSelectionScope)),
+    [sortedArtifacts],
+  );
+
+  const selectableArtifacts = useMemo(
+    () => selectedScope
+      ? sortedArtifacts.filter((item) => artifactSelectionScope(item) === selectedScope)
+      : visibleScopes.size === 1 ? sortedArtifacts : [],
+    [selectedScope, sortedArtifacts, visibleScopes],
+  );
+
+  const handleSelect = useCallback((id: string) => {
     if (!onSelectionChange) return;
+
+    const artifact = sortedArtifacts.find((item) => item.id === id);
+    if (!artifact) return;
+    if (!selectedIds.has(id) && selectedScope && artifactSelectionScope(artifact) !== selectedScope) return;
 
     const newSet = new Set(selectedIds);
 
@@ -164,10 +187,14 @@ export function ArtifactTable({
       const allIds = sortedArtifacts.map(a => a.id);
       const startIndex = allIds.indexOf(lastSelectedRef.current);
       const endIndex = allIds.indexOf(id);
+      const rangeScope = selectedScope ?? artifactSelectionScope(artifact);
       if (startIndex !== -1 && endIndex !== -1) {
         const [min, max] = [Math.min(startIndex, endIndex), Math.max(startIndex, endIndex)];
         for (let i = min; i <= max; i++) {
-          newSet.add(allIds[i]);
+          const rangeArtifact = sortedArtifacts[i];
+          if (artifactSelectionScope(rangeArtifact) === rangeScope) {
+            newSet.add(allIds[i]);
+          }
         }
       }
     } else {
@@ -181,7 +208,7 @@ export function ArtifactTable({
 
     lastSelectedRef.current = id;
     onSelectionChange(newSet);
-  }, [selectedIds, onSelectionChange, sortedArtifacts, shiftKeyDown]);
+  }, [selectedIds, selectedScope, onSelectionChange, sortedArtifacts, shiftKeyDown]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     setShiftKeyDown(e.shiftKey);
@@ -283,11 +310,13 @@ export function ArtifactTable({
               <TableHead className="w-10">
                 <input
                   type="checkbox"
-                  checked={sortedArtifacts.length > 0 && sortedArtifacts.every(a => selectedIds.has(a.id))}
+                  aria-label="选择全部产物"
+                  checked={selectableArtifacts.length > 0 && selectableArtifacts.every(a => selectedIds.has(a.id))}
+                  disabled={selectableArtifacts.length === 0}
                   onChange={(e) => {
                     if (onSelectionChange) {
                       const newSet = e.target.checked
-                        ? new Set(sortedArtifacts.map(a => a.id))
+                        ? new Set(selectableArtifacts.map(a => a.id))
                         : new Set<string>();
                       onSelectionChange(newSet);
                     }
@@ -318,10 +347,12 @@ export function ArtifactTable({
                 <TableCell>
                   <input
                     type="checkbox"
+                    aria-label={`选择产物 ${artifact.name}`}
                     checked={selectedIds.has(artifact.id)}
+                    disabled={selectedScope !== null && artifactSelectionScope(artifact) !== selectedScope}
                     onChange={(e) => {
                       e.stopPropagation();
-                      handleSelect(artifact.id, e);
+                      handleSelect(artifact.id);
                     }}
                     className="cursor-pointer"
                   />

@@ -43,8 +43,8 @@ class TtsRuntimePathTest(unittest.TestCase):
             self.assertEqual(module.PROJECT, storage_root / "projects" / "_p" / "project-from-env")
             self.assertEqual(module.ASSET_DB, storage_root / "assets" / "assets.db")
             self.assertEqual(module.PYTHON_RUNTIME_DIR, storage_root / "python")
-            self.assertEqual(module.TTS_RUNTIME_DIR, user_data / "tts-runtime")
-            self.assertEqual(module.TTS_MODELS_DIR, storage_root / "tts-models")
+            self.assertEqual(module.TTS_RUNTIME_DIR, storage_root / "TTS" / "runtime")
+            self.assertEqual(module.TTS_MODELS_DIR, storage_root / "TTS" / "model")
 
     def test_storage_config_resolves_project_by_name_without_fixed_project_id(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -91,8 +91,8 @@ class TtsRuntimePathTest(unittest.TestCase):
 
             with (
                 patch.object(module, "PYTHON_RUNTIME_DIR", storage_root / "python"),
-                patch.object(module, "TTS_RUNTIME_DIR", storage_root / "tts-runtime"),
-                patch.object(module, "TTS_MODELS_DIR", storage_root / "tts-models"),
+                patch.object(module, "TTS_RUNTIME_DIR", storage_root / "TTS" / "runtime"),
+                patch.object(module, "TTS_MODELS_DIR", storage_root / "TTS" / "model"),
                 patch.object(module, "health_check", side_effect=[False, True]),
                 patch.object(module.subprocess, "Popen", return_value=process) as popen,
             ):
@@ -100,7 +100,7 @@ class TtsRuntimePathTest(unittest.TestCase):
 
             command = popen.call_args.args[0]
             self.assertEqual(command[0], str(python_bin))
-            self.assertEqual(popen.call_args.kwargs["env"]["MANYING_TTS_DATA_DIR"], str(storage_root / "tts-runtime"))
+            self.assertEqual(popen.call_args.kwargs["env"]["MANYING_TTS_DATA_DIR"], str(storage_root / "TTS" / "runtime"))
 
     def test_missing_storage_runtime_does_not_use_source_tree_fallback(self):
         module = load_generator()
