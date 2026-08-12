@@ -81,8 +81,7 @@ export async function analyzeEpisodeViewpoints({
 
 
     const settledResults = await runStaggered(
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-      sceneAnalysisTasks.map((task, taskIndex) => async () => {
+      sceneAnalysisTasks.map((task, _taskIndex) => async () => {
         const { scene, index, sceneShots } = task;
         analysisExecuted = true;
         onProgress?.(`AI 分析场景 ${index + 1}/${episodeScenes.length}: ${scene.location}...`);

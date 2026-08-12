@@ -41,8 +41,7 @@ export function useScriptTitleCalibration({
           baseUrl: featureConfig.baseUrl,
           model: featureConfig.models?.[0],
         },
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-        (_current, _total, message) => {
+        (_current, _total, _message) => {
         },
       );
 

@@ -921,8 +921,7 @@ function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function positiveSafeInteger(value: number) {
+function _positiveSafeInteger(value: number) {
   return Number.isSafeInteger(value) && value > 0;
 }
 

@@ -94,8 +94,7 @@ export function useStoryboardAngleSwitch({
         apiKey: runninghubKey,
         baseUrl: runninghubBaseUrl,
         appId: runninghubAppId,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-        onProgress: (progress, _status) => {
+        onProgress: (_progress, _status) => {
         },
       });
       const angleLabel = getAngleLabel(direction, elevation, shotSize);

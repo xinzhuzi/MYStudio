@@ -13,8 +13,7 @@ import {
   ArrowLeft,
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
   CheckCircle2,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  Image as ImageIcon,
+  Image as _ImageIcon,
   Loader2,
   Maximize2,
   Plus,

@@ -17,8 +17,7 @@ export const MAX_TAG_LENGTH = 50;
  */
 export function validateMetadataOverlay(
   overlay: Partial<MetadataOverlay>,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  existingName?: string
+  _existingName?: string
 ): { valid: boolean; errors: string[]; normalized: Partial<MetadataOverlay> } {
   const errors: string[] = [];
   const normalized: Partial<MetadataOverlay> = {};

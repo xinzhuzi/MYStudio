@@ -72,10 +72,6 @@ export function ShotBreakdown({
               S{(scriptData?.scenes.indexOf(group.scene) ?? -1) + 1}
             </div>
             {/* Shot indices */}
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
             {group.shots.map((shot, _idx) => {
               const currentGlobalIndex = ++globalIndex;
               return (
@@ -135,10 +131,6 @@ export function ShotBreakdown({
 
             {/* Shots in this scene */}
             <div className="divide-y divide-zinc-800/50">
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
               {group.shots.map((shot, _shotIdx) => (
                 <ShotRow
                   key={shot.id}

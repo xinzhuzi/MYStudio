@@ -51,8 +51,7 @@ export interface GridCalculatorInput {
  * For 16:9, cell width = height * 16/9
  * For 9:16, cell height = width * 16/9
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function getCellRatio(aspectRatio: AspectRatio): { widthRatio: number; heightRatio: number } {
+function _getCellRatio(aspectRatio: AspectRatio): { widthRatio: number; heightRatio: number } {
   if (aspectRatio === '16:9') {
     return { widthRatio: 16, heightRatio: 9 };
   }

@@ -735,8 +735,7 @@ export function buildDeletionPlan(
 /**
  * Create empty plan for error cases
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function createEmptyPlan(errors: string[]): DeletionPlan {
+function createEmptyPlan(_errors: string[]): DeletionPlan {
   return {
     planId: `plan-empty-${Date.now()}`,
     schemaVersion: "1.0.0",

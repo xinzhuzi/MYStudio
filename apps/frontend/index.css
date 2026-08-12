@@ -3158,3 +3158,19 @@ a:active,
   mask-image: radial-gradient(ellipse 60% 50% at 50% 50%, black 30%, transparent 85%);
   -webkit-mask-image: radial-gradient(ellipse 60% 50% at 50% 50%, black 30%, transparent 85%);
 }
+
+/* ===== Atmosphere Toggle Overrides ===== */
+html.cyber-grid-disabled .dark .dashboard-shell::before,
+html.cyber-grid-disabled .dark .studio-shell::before {
+  display: none !important;
+}
+
+html.scanlines-disabled .dark .dashboard-shell::after,
+html.scanlines-disabled .dark .studio-shell::after {
+  display: none !important;
+}
+
+html.film-vignette-disabled :root.dark #root::before,
+html.film-vignette-disabled .dark #root::before {
+  display: none !important;
+}

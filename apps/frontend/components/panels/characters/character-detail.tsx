@@ -19,8 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { 
   User,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  Image as ImageIcon,
+  Image as _ImageIcon,
   Edit3,
   Check,
   X,

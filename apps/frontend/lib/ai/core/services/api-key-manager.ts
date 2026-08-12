@@ -33,8 +33,7 @@ function isModelIncompatibleError(errorText?: string): boolean {
  * 检测 HTTP 500 响应体中是否包含上游负载饱和相关关键词。
  * MemeFast 有时用 500 而非 503/529 返回负载饱和错误。
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function isUpstreamOverloadError(errorText?: string): boolean {
+function _isUpstreamOverloadError(errorText?: string): boolean {
   if (!errorText) return false;
   const text = errorText.toLowerCase();
   return (

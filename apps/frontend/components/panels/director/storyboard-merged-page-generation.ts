@@ -183,8 +183,7 @@ export function createStoryboardMergedPageGenerator(options: StoryboardMergedPag
     const apiReferenceImages = await processReferenceImagesForApi(references, "[MergedGen]");
     const finalReferences = references.slice(0, 14);
     const processedReferences = await processReferenceImagesForApi(finalReferences, "[MergedGen]");
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-    processedReferences.forEach((reference, _index) => {
+    processedReferences.forEach((_reference, _index) => {
     });
 
     const apiResult = await aiManager.imageGrid({

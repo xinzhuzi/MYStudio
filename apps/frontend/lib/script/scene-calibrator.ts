@@ -418,8 +418,7 @@ ${sceneList}
     
     
     // 【关键】按原始顺序遍历 currentScenes，只更新美术字段
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const scenes: CalibratedScene[] = currentScenes.map((orig, i) => {
+    const scenes: CalibratedScene[] = currentScenes.map((orig, _i) => {
       let aiData = sceneResults.get(orig.id);
       if (!aiData) aiData = sceneResults.get('loc:' + normalizeLocation(orig.location || ''));
       if (!aiData) aiData = sceneResults.get('loc:' + normalizeLocation(orig.name || ''));

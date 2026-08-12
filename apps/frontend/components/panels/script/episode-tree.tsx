@@ -36,8 +36,6 @@ import {
   Sparkles,
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
   Check,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  X,
 } from "lucide-react";
 import type { TrailerDuration, TrailerConfig } from "@/stores/director/director-store";
 import type { TrailerGenerationOptions } from "@/lib/script/trailer-service";
@@ -90,8 +88,7 @@ import {
 } from "@/components/ui/dialog";
 
 // 计算完成状态图标
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function StatusIcon({ status }: { status?: CompletionStatus }) {
+function _StatusIcon({ status }: { status?: CompletionStatus }) {
   switch (status) {
     case "completed":
       return <CheckCircle2 className="h-3 w-3 text-green-500" />;

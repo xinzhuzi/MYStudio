@@ -397,8 +397,7 @@ function ensureLocalAssetForRow(
   return { ...row, id: asset.id, asset };
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function resolveLatestAssetRow(row: AssetRow): AssetRow {
+function _resolveLatestAssetRow(row: AssetRow): AssetRow {
   if (!row.asset) return row;
   if (row.type === "character") {
     const asset = useCharacterLibraryStore.getState().getCharacterById(row.asset.id);

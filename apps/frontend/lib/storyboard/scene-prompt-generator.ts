@@ -126,8 +126,7 @@ function inferNeedsEndFrame(scene: ScenePromptRequest['scenes'][0]): { needs: bo
 /**
  * Generate prompt from text description (no API call)
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function generatePromptFromText(scene: ScenePromptRequest['scenes'][0], storyContext: string): GeneratedPrompt {
+function generatePromptFromText(scene: ScenePromptRequest['scenes'][0], _storyContext: string): GeneratedPrompt {
   const action = scene.actionSummary || '';
   const camera = scene.cameraMovement || '';
   const dialogue = scene.dialogue || '';

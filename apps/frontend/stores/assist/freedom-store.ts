@@ -147,8 +147,7 @@ const initialState: FreedomState = {
 
 export const useFreedomStore = create<FreedomStore>()(
   persist(
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-    (set, get) => ({
+    (set, _get) => ({
       ...initialState,
 
       setActiveStudio: (studio) => set({ activeStudio: studio }),

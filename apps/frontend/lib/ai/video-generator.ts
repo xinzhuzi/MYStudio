@@ -480,8 +480,7 @@ async function callUnifiedVideoApi(
 // MemeFast 文档: POST /volc/v1/contents/generations/tasks + GET /volc/v1/contents/generations/tasks/{taskId}
 // 火山方舟文档: https://www.volcengine.com/docs/82379/1520757
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-async function callVolcVideoApi(
+async function _callVolcVideoApi(
   apiKey: string,
   prompt: string,
   baseUrl: string,

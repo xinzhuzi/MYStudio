@@ -15,7 +15,13 @@ import type { AvailableUpdateInfo } from "@/types/update";
 let hasTriggeredStartupUpdateCheck = false;
 
 function App() {
-  const { theme, colorPreset } = useThemeStore();
+  const {
+    theme,
+    colorPreset,
+    enableCyberGrid,
+    enableFilmVignette,
+    enableScanlines,
+  } = useThemeStore();
   const { updateSettings, setUpdateSettings } = useAppSettingsStore();
   const [startupMaintenanceDone, setStartupMaintenanceDone] = useState(false);
   const [startupUpdate, setStartupUpdate] = useState<AvailableUpdateInfo | null>(null);
@@ -62,7 +68,10 @@ function App() {
     });
     root.classList.add(theme);
     root.classList.add(`theme-preset-${colorPreset}`);
-  }, [theme, colorPreset]);
+    root.classList.toggle("cyber-grid-enabled", enableCyberGrid !== false);
+    root.classList.toggle("film-vignette-enabled", enableFilmVignette !== false);
+    root.classList.toggle("scanlines-enabled", enableScanlines !== false);
+  }, [theme, colorPreset, enableCyberGrid, enableFilmVignette, enableScanlines]);
 
   // 全局交互音效由 <InteractionEffects> 在 pointerdown 阶段统一播放。
   // 这里不再挂第二个 click 监听，否则同一次点击会响两层、听感变吵。

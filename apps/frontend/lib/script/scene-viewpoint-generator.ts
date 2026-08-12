@@ -219,8 +219,7 @@ export function generateContactSheetPrompt(config: ContactSheetConfig): ContactS
   const { sceneDescEn, sceneDescZh } = buildSceneDescriptions(scene);
   
   // 为每个视角生成描述
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  viewpoints.forEach((vp, index) => {
+  viewpoints.forEach((vp, _index) => {
     const propsZh = vp.keyProps.length > 0 ? `，包含${vp.keyProps.join('、')}` : '';
     const propsEn = vp.keyPropsEn.length > 0 ? ` with ${vp.keyPropsEn.join(', ')}` : '';
     

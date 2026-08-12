@@ -502,8 +502,7 @@ ${batchDialogues.slice(0, 100).join('\n')}
 /**
  * 收集角色出场上下文（用于AI分析）
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function collectCharacterContexts(
+function _collectCharacterContexts(
   characters: ScriptCharacter[],
   episodeScripts: EpisodeRawScript[]
 ): string {

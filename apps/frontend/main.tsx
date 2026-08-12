@@ -16,7 +16,6 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
 )
 
 if (window.appEvents) {
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  window.appEvents.onMainProcessMessage((message) => {
+  window.appEvents.onMainProcessMessage((_message) => {
   })
 }

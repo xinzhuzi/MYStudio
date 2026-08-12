@@ -241,8 +241,7 @@ type InstallSummaryProps = {
   requirements?: { content: string; path: string } | null;
 };
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function InstallSummary({ installedItems, pythonExecutablePath, requirements }: InstallSummaryProps) {
+function _InstallSummary({ installedItems, pythonExecutablePath, requirements }: InstallSummaryProps) {
   const pythonItem = installedItems.find((item) => item.label.toLowerCase().includes("python"));
   const dependencyItems = installedItems.filter((item) => item !== pythonItem);
   const hasFailed = installedItems.some((item) => item.status === "failed");

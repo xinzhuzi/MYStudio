@@ -1007,9 +1007,12 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
 
     const pyResult = await findReadyPython();
     if (!pyResult.python) {
+      console.warn("[TTS] start aborted: Python runtime not found —", pyResult.error);
       return { success: false, status: await status(), error: pyResult.error };
     }
     if (!depsAreReady(sidecarRoot, pyResult.python)) {
+      const depsPlan = getDepsPlan(sidecarRoot, pyResult.python);
+      console.warn("[TTS] deps not ready — marker:", depsPlan.markerPath, "expected hash:", depsPlan.reqHash, "actual:", readTextFile(depsPlan.markerPath ?? "")?.trim() ?? "(missing)");
       updateSetupState({ setupStage: "failed", setupMessage: "TTS Python 依赖未配置", setupProgress: 0 });
       return {
         success: false,
@@ -1021,6 +1024,7 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
     const backendPython = pyResult.python;
 
     updateSetupState({ setupStage: "starting-backend", setupMessage: "本地 TTS 后端启动中", setupProgress: undefined });
+    console.warn("[TTS] starting backend:", backendPython, "cwd:", sidecarRoot, "port:", port);
     child = spawnProcess(
       backendPython,
       [
@@ -1049,6 +1053,7 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
 
     const healthy = await waitUntilHealthy();
     if (!healthy) {
+      console.warn("[TTS] backend did not become healthy on", baseUrl, "— killing spawned process");
       child?.kill();
       child = null;
       updateSetupState({ setupStage: "failed", setupMessage: "本地 TTS 后端启动失败", setupProgress: undefined });
@@ -1059,6 +1064,7 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
       };
     }
     updateSetupState({ setupStage: "ready", setupMessage: "本地 TTS 后端已就绪", setupProgress: 100 });
+    console.warn("[TTS] backend ready on", baseUrl);
     return { success: true, status: await status() };
   }
 

@@ -851,8 +851,7 @@ function previewTextLines(
 }
 
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function getStudioAssetPreviewPath(asset: StudioAssetSummary) {
+function _getStudioAssetPreviewPath(asset: StudioAssetSummary) {
   return (
     asset.thumbnailUrl ||
     asset.previewUrl ||

@@ -299,10 +299,6 @@ export function ShotListPanel({ onGenerateImage }: ShotListPanelProps) {
                     {getSceneName(sceneId)}
                   </div>
                   <div className="space-y-1">
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
                     {sceneShots.map((shot, _idx) => {
                       const globalIdx = shots.findIndex((s) => s.id === shot.id);
                       const startKf = shot.keyframes?.find((k) => k.type === "start");

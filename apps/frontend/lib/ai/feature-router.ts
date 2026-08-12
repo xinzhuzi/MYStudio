@@ -83,8 +83,7 @@ function parseBindingValue(binding: string): { platform: string; model?: string 
  * featureBindings now stores: string[] (array of platform:model)
  * 这个函数仅用于兼容旧代码，新代码应使用 getProvidersForFeature
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function getBoundPlatformAndModel(store: AIConfigStore, feature: AIFeature): { platform: string; model?: string } | null {
+function _getBoundPlatformAndModel(store: AIConfigStore, feature: AIFeature): { platform: string; model?: string } | null {
   const bindings = store.getFeatureBindings(feature);
   if (!bindings || bindings.length === 0) return null;
   

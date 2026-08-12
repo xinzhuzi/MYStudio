@@ -155,10 +155,6 @@ export function EmotionTags({ value, onChange, disabled }: EmotionTagsProps) {
       )}
       {value.length > 1 && (
         <p className="text-xs text-muted-foreground">
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
           情绪将按 {value.map((t, _i) => getTagInfo(t)?.label).filter(Boolean).join(" → ")} 顺序变化
         </p>
       )}

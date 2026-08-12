@@ -116,8 +116,7 @@ export function parseFullScript(fullText: string): {
  * Compatibility wrappers for the extracted metadata boundary.
  * Keeping these private names avoids changing legacy internal call sites.
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function extractTimelineInfo(outline: string, characterBios: string) {
+function _extractTimelineInfo(outline: string, characterBios: string) {
   return extractMetadataTimelineInfo(outline, characterBios);
 }
 
@@ -125,13 +124,11 @@ function detectGenre(outline: string, characterBios: string) {
   return detectMetadataGenre(outline, characterBios);
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function extractWorldSetting(outline: string, characterBios: string) {
+function _extractWorldSetting(outline: string, characterBios: string) {
   return extractMetadataWorldSetting(outline, characterBios);
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function extractThemes(outline: string, characterBios: string) {
+function _extractThemes(outline: string, characterBios: string) {
   return extractMetadataThemes(outline, characterBios);
 }
 

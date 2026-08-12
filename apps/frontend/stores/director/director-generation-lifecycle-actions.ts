@@ -28,8 +28,7 @@ export function createDirectorGenerationLifecycleActions(
   initialState: Partial<DirectorStore>,
 ): DirectorGenerationLifecycleActions {
   return {
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-    startScreenplayGeneration: (prompt, _images) => {
+    startScreenplayGeneration: (_prompt, _images) => {
       const { activeProjectId, projects } = get();
       if (!activeProjectId) return;
       set({

@@ -78,8 +78,7 @@ function ScrollColumn({ items, value, onChange, label }: ScrollColumnProps) {
     }
 
     // Apply visual effects
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-    children.forEach((child, i) => {
+    children.forEach((child, _i) => {
       const el = child as HTMLElement;
       const dist = Math.abs(centerY - (el.offsetTop + el.offsetHeight / 2));
       const maxDist = list.clientHeight / 2;

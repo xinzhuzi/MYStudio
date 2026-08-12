@@ -169,8 +169,7 @@ export function ShotPropertiesPanel({
         apiKey,
         baseUrl,
         appId,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-        onProgress: (progress, _status) => {
+        onProgress: (_progress, _status) => {
         },
       });
 

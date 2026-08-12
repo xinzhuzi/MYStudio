@@ -555,10 +555,8 @@ function buildExtendEditPrompt(
   group: ShotGroup,
   scenes: SplitScene[],
   characters: Character[],
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  sceneLibrary: Scene[],
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  styleTokens?: string[],
+  _sceneLibrary: Scene[],
+  _styleTokens?: string[],
 ): GroupPromptResult {
   // --- 收集引用（不建格子图） ---
   // source video 占 @视频1，用户上传的 videoRefs 从 @视频2 开始

@@ -326,8 +326,7 @@ export async function sliceGridImage(gridImageUrl: string, count: number): Promi
 export function buildGridPrompt(
   scenes: SplitScene[],
   isEndFrame: boolean,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  styleTokens: string[]
+  _styleTokens: string[]
 ): string {
   const cols = 3;
   const rows = Math.ceil(scenes.length / cols);

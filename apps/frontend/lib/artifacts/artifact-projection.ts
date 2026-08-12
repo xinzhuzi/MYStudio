@@ -46,8 +46,7 @@ type ProjectableMediaFile = Pick<
   localPath?: string;
   size?: number;
 };
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-type DirectorStoreState = unknown;
+type _DirectorStoreState = unknown;
 type MediaStoreState = { mediaFiles: ProjectableMediaFile[] };
 type RemotionStoreState = { manifest?: RemotionManifest; jobs?: RemotionJob[] };
 type ScriptStoreState = ScriptData | { scriptData: ScriptData };

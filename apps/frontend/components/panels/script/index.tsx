@@ -27,8 +27,7 @@ import { aiManager } from "@/lib/ai/ai-manager";
 import { useCharacterLibraryStore } from "@/stores/library/character-library-store";
 import { useMediaPanelStore } from "@/stores/navigation/media-panel-store";
 import {
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  sortByImportance as sortScenesByImportance,
+  sortByImportance as _sortScenesByImportance,
 } from "@/lib/script/scene-calibrator";
 import type { TrailerGenerationOptions } from "@/lib/script/trailer-service";
 import { useDirectorStore, useActiveDirectorProject } from "@/stores/director/director-store";

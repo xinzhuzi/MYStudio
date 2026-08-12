@@ -84,8 +84,7 @@ export function useScriptAuthoringActions({
           shotCount: shotCount ? Number.parseInt(shotCount) : undefined,
         },
         (completed, total) => console.log(`[ScriptView] 进度: ${completed}/${total} 场景`),
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-        (newShots, sceneIndex) => {
+        (newShots, _sceneIndex) => {
           const reindexedShots = newShots.map((shot, index) => ({
             ...shot,
             id: `shot-${accumulatedShots.length + index + 1}`,

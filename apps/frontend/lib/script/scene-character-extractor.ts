@@ -57,8 +57,7 @@ function isValidCharacterName(name: string): boolean {
 /**
  * 处理单个角色名字并添加到集合
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function processAndAddCharacter(
+function _processAndAddCharacter(
   rawName: string,
   existingNames: Set<string>,
   newCharacters: ScriptCharacter[],

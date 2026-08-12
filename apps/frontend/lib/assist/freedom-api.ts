@@ -41,11 +41,9 @@ import {
   type FreedomVideoUploadFile,
 } from './video-upload-validation';
 import {
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  buildFreedomEndpoint as buildEndpoint,
+  buildFreedomEndpoint as _buildEndpoint,
   extractFreedomImageUrl as extractImageUrl,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  extractFreedomVideoUrl as extractVideoUrl,
+  extractFreedomVideoUrl as _extractVideoUrl,
   freedomObservedFetch,
   getFreedomRootBaseUrl as getRootBaseUrl,
   pollForFreedomResult as pollForResult,

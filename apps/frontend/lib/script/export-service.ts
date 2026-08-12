@@ -115,8 +115,7 @@ async function downloadFile(url: string): Promise<Blob> {
 /**
  * Convert Blob to base64 data URL
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-async function blobToBase64(blob: Blob): Promise<string> {
+async function _blobToBase64(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result as string);

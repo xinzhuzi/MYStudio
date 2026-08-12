@@ -159,8 +159,7 @@ async function handleGenerateScreenplay(command: GenerateScreenplayCommand): Pro
  * Returns image URL after polling for completion
  * @param referenceImages - Character reference images (base64 or URL) for consistency
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-async function legacyGenerateImage(
+async function _legacyGenerateImage(
   prompt: string,
   negativePrompt: string,
   config: Partial<GenerationConfig> & { apiKey?: string },
@@ -175,8 +174,7 @@ async function legacyGenerateImage(
  * Returns video URL after polling for completion
  * @param referenceImages - Character reference images (URL) for consistency
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-async function legacyGenerateVideo(
+async function _legacyGenerateVideo(
   imageUrl: string,
   prompt: string,
   config: Partial<GenerationConfig> & { apiKey?: string },
@@ -189,8 +187,7 @@ async function legacyGenerateVideo(
 /**
  * Helper: Poll task status until completion
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-async function legacyPollTaskCompletion(
+async function _legacyPollTaskCompletion(
   taskId: string,
   type: 'image' | 'video',
   apiKey: string,
@@ -203,8 +200,7 @@ async function legacyPollTaskCompletion(
 /**
  * Helper: Download URL content as Blob
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-async function legacyFetchAsBlob(url: string): Promise<Blob> {
+async function _legacyFetchAsBlob(url: string): Promise<Blob> {
   return legacyWorkerApi.fetchAsBlob(url);
 }
 

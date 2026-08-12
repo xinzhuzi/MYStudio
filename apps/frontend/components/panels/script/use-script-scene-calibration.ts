@@ -67,8 +67,7 @@ export function useScriptSceneCalibration({
         baseUrl: featureConfig.baseUrl,
         promptLanguage,
       });
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const newScenes = currentScenes.map((original, index) => {
+      const newScenes = currentScenes.map((original, _index) => {
         const calibrated = result.scenes.find((scene) => scene.id === original.id);
         if (!calibrated) {
           return original;

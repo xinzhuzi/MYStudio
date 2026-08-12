@@ -80,15 +80,12 @@ import { createSClassEndFrameGenerator } from "./sclass-end-frame-generation";
 import { createStoryboardSingleImageGenerator } from "../director/storyboard-single-image-generation";
 import { filterSClassTrailerScenes } from "./sclass-scenes-utils";
 import {
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  allocateStoryboardAngles as allocateAngles,
+  allocateStoryboardAngles as _allocateAngles,
   buildMergedFrameTasks,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  calculateMergedGridAspectRatio as calculateGridAspectRatio,
+  calculateMergedGridAspectRatio as _calculateGridAspectRatio,
   isStoryboardSceneCompleted,
   paginateMergedFrameTasks,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  composeStoryboardTilePrompt as composeTilePrompt,
+  composeStoryboardTilePrompt as _composeTilePrompt,
   type MergedFrameTask as GridTask,
 } from "../director/storyboard-merged-grid-utils";
 

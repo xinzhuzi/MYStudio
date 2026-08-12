@@ -698,8 +698,7 @@ function computeDiscrepancies(
  */
 function calculateSummary(
   artifacts: ArtifactRecord[],
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  blockers: RunningJob[],
+  _blockers: RunningJob[],
 ): InventorySummary {
   const byStage: Record<string, number> = {};
   const byKind: Record<string, number> = {};
@@ -765,8 +764,7 @@ async function scanProjectInventoryUnlocked(
   dataRoot: string,
   projectId: string,
   chapterId?: string,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  mediaRoot?: string,
+  _mediaRoot?: string,
 ): Promise<InventoryResult> {
   try {
     // Step 1: Scan persisted stores, backups, media exports and special files.

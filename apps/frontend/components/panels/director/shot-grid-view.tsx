@@ -269,8 +269,7 @@ export function ShotGridView({ onGenerateImage, onGenerateVideo }: ShotGridViewP
         apiKey,
         baseUrl,
         appId,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-        onProgress: (progress, _status) => {
+        onProgress: (_progress, _status) => {
         },
       });
 

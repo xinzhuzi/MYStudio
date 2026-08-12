@@ -285,8 +285,7 @@ export async function polishAssetsAndUpdateStore(
   const results = await batchPolishAssetPrompts(requests, undefined, {
     concurrency: options?.concurrency ?? 3,
     onProgress: options?.onProgress,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-    onCancel: (key) => !!options?.onCancel?.(),
+    onCancel: (_key) => !!options?.onCancel?.(),
   });
 
   // 写回 Store

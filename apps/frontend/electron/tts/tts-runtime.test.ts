@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import nodeCrypto from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
 import { createTtsRuntimeController } from "./tts-runtime";
 
@@ -463,6 +464,79 @@ describe("TTS runtime controller", () => {
     expect(result.success).toBe(false);
     expect(result.error).toContain("插件配置页的 Python 运行环境区块完成配置");
     expect(runPython).not.toHaveBeenCalledWith("python3", ["--version"], expect.any(Object));
+    expect(spawnProcess).not.toHaveBeenCalled();
+  });
+
+  it("does not start when Python exists but TTS dependency hash is stale (fresh install/upgrade)", async () => {
+    // 场景:Python 已安装,requirements.txt 存在,但 .deps-hash marker 缺失或不匹配
+    // 这是用户截图中的报错:"点击开始配置，完成 TTS 依赖安装"
+    const spawnProcess = vi.fn();
+    const reqContent = "fastapi\nuvicorn\n";
+    const pythonPath = "/project-storage/python/bin/python3";
+    // 算出正确的 reqHash(must match tts-runtime.ts:854 的算法)
+    const expectedReqHash = nodeCrypto
+      .createHash("md5")
+      .update(`${pythonPath}\n${reqContent}`)
+      .digest("hex");
+    const controller = createTtsRuntimeController({
+      appRoot: "/repo",
+      userDataPath: "/user-data",
+      storageBasePath: () => "/project-storage",
+      fileExists: (filePath) => (
+        filePath.includes("tts/main.py")
+        || filePath === pythonPath
+        || filePath.endsWith("requirements.txt")
+      ),
+      ensureDir: vi.fn(),
+      // marker 文件返回过期 hash(不等于 expectedReqHash)
+      readTextFile: (filePath) => {
+        if (filePath.endsWith("requirements.txt")) return reqContent;
+        if (filePath.endsWith(".deps-hash")) return "stale-hash-from-old-version";
+        return null;
+      },
+      writeTextFile: vi.fn(),
+      runPython: mockPython312(),
+      spawnProcess,
+      fetchJson: vi.fn().mockRejectedValue(new Error("offline")),
+    });
+
+    const result = await controller.start();
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("插件配置页的 Python 运行环境区块点击开始配置");
+    expect(spawnProcess).not.toHaveBeenCalled();
+    // 确认 marker hash 确实不等于预期值(否则测试本身失效)
+    expect("stale-hash-from-old-version").not.toBe(expectedReqHash);
+  });
+
+  it("does not start when Python exists but TTS dependency marker file is absent", async () => {
+    // 场景:Python 已安装,requirements.txt 存在,但 .deps-hash marker 文件完全不存在(全新安装)
+    const spawnProcess = vi.fn();
+    const controller = createTtsRuntimeController({
+      appRoot: "/repo",
+      userDataPath: "/user-data",
+      storageBasePath: () => "/project-storage",
+      fileExists: (filePath) => (
+        filePath.includes("tts/main.py")
+        || filePath === "/project-storage/python/bin/python3"
+        || filePath.endsWith("requirements.txt")
+      ),
+      ensureDir: vi.fn(),
+      readTextFile: (filePath) => {
+        if (filePath.endsWith("requirements.txt")) return "fastapi\n";
+        // .deps-hash 返回 null(marker 文件不存在)
+        return null;
+      },
+      writeTextFile: vi.fn(),
+      runPython: mockPython312(),
+      spawnProcess,
+      fetchJson: vi.fn().mockRejectedValue(new Error("offline")),
+    });
+
+    const result = await controller.start();
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("插件配置页的 Python 运行环境区块点击开始配置");
     expect(spawnProcess).not.toHaveBeenCalled();
   });
 

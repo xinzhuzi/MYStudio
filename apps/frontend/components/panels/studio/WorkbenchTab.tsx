@@ -747,8 +747,7 @@ function formatFirstShotStatus(status: RemotionRenderJobV1["status"]): string {
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function filterProjectItems<T extends { projectId?: string }>(
+function _filterProjectItems<T extends { projectId?: string }>(
   items: T[],
   projectId: string | null,
 ) {
