@@ -459,13 +459,19 @@
   * {
     @apply border-border;
   }
+  /* cursor 不可继承，仅在 body 上设会让子元素（按钮等）回退到原生光标。
+     因此用通配选择器把自定义光标应用到所有元素，确保全程统一。 */
+  *,
+  *::before,
+  *::after {
+    cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M2 2L10 18L12.3 12.7L17.6 10.4L2 2Z" fill="%23ffffff" stroke="%23111111" stroke-width="1.5"/><circle cx="12.3" cy="12.7" r="2" fill="%230091ff"/></svg>') 2 2, auto;
+  }
   body {
     @apply bg-background text-foreground;
     margin: 0;
     overflow-x: hidden;
     overscroll-behavior-x: contain;
     font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
-    cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M2 2L10 18L12.3 12.7L17.6 10.4L2 2Z" fill="%23ffffff" stroke="%23111111" stroke-width="1.5"/><circle cx="12.3" cy="12.7" r="2" fill="%230091ff"/></svg>') 2 2, auto;
   }
   h1, h2, h3, h4, h5, h6,
   .project-chrome-title,
@@ -497,6 +503,12 @@
       radial-gradient(ellipse 40% 30% at 20% 80%, hsla(var(--brand-start) / 0.04) 0%, transparent 70%),
       hsl(var(--background));
     background-attachment: fixed;
+  }
+  /* 深色模式下同样把自定义光标应用到所有元素（覆盖浅色规则） */
+  :root.dark,
+  :root.dark *,
+  .dark,
+  .dark * {
     cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M2 2L10 18L12.3 12.7L17.6 10.4L2 2Z" fill="%230b0f14" stroke="%23ffffff" stroke-width="1.5"/><circle cx="12.3" cy="12.7" r="2" fill="%23d97706"/></svg>') 2 2, auto;
   }
   /* Dark mode: 全局噪点纹理覆盖（SVG 生成，极低透明度） */
@@ -3116,15 +3128,7 @@ a:active,
   will-change: transform;
 }
 
-/* ===== Matrix Cyber Grid & Scanline Animation ===== */
-@keyframes cyber-scanline {
-  0% {
-    transform: translateY(-50%);
-  }
-  100% {
-    transform: translateY(150%);
-  }
-}
+/* ===== Matrix Cyber Grid (scanline animation removed — replaced by DigitalRainBackground canvas) ===== */
 
 .dark .dashboard-shell::before,
 .dark .studio-shell::before {
@@ -3143,30 +3147,14 @@ a:active,
   -webkit-mask-image: radial-gradient(ellipse 60% 50% at 50% 50%, black 30%, transparent 85%);
 }
 
-.dark .dashboard-shell::after,
-.dark .studio-shell::after {
-  display: block !important;
-  content: "" !important;
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  opacity: 0.035;
-  background: linear-gradient(180deg, transparent, hsl(var(--primary)) 50%, transparent);
-  height: 200%;
-  animation: cyber-scanline 12s linear infinite;
-  mask-image: radial-gradient(ellipse 60% 50% at 50% 50%, black 30%, transparent 85%);
-  -webkit-mask-image: radial-gradient(ellipse 60% 50% at 50% 50%, black 30%, transparent 85%);
-}
-
 /* ===== Atmosphere Toggle Overrides ===== */
 html.cyber-grid-disabled .dark .dashboard-shell::before,
 html.cyber-grid-disabled .dark .studio-shell::before {
   display: none !important;
 }
 
-html.scanlines-disabled .dark .dashboard-shell::after,
-html.scanlines-disabled .dark .studio-shell::after {
+/* 数字雨背景开关：复用 scanlines-disabled class 控制 canvas 显隐 */
+html.scanlines-disabled .digital-rain-canvas {
   display: none !important;
 }
 

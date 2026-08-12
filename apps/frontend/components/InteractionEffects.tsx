@@ -6,6 +6,7 @@ import {
   getInteractionSoundIntentFromTarget,
   playInteractionSound,
 } from "@/lib/sound/interaction-sound";
+import { DigitalRainBackground } from "@/components/DigitalRainBackground";
 
 export function InteractionEffects({ children }: PropsWithChildren) {
   useEffect(() => {
@@ -26,5 +27,10 @@ export function InteractionEffects({ children }: PropsWithChildren) {
     };
   }, []);
 
-  return <div className="studio-experience-root">{children}</div>;
+  return (
+    <div className="studio-experience-root">
+      <DigitalRainBackground />
+      {children}
+    </div>
+  );
 }

@@ -1,5 +1,5 @@
 import { useState, type CSSProperties } from "react";
-import { Check, Sparkles, Sliders, Moon, Sun, Grid, Shield, Zap } from "lucide-react";
+import { Check, Sparkles, Sliders, Moon, Sun, Grid, Shield, Zap, CloudRain } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { COLOR_PRESETS, useThemeStore, type ColorPresetId } from "@/stores/app/theme-store";
 import { cn } from "@/lib/utils";
@@ -305,14 +305,14 @@ export function AppearanceSettingsTab() {
               </button>
             </div>
 
-            {/* Laser Scanlines Toggle */}
+            {/* Digital Rain Toggle */}
             <div className="flex items-center justify-between p-4 rounded-xl border border-border/50 bg-panel/50 hover:border-primary/40 transition-colors">
               <div className="space-y-0.5 pr-3">
                 <div className="flex items-center gap-1.5 font-bold text-xs text-foreground">
-                  <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>动态激光扫描线</span>
+                  <CloudRain className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>数字雨背景</span>
                 </div>
-                <p className="text-[11px] text-muted-foreground">屏幕缓缓滑过的激光光束扫过效果</p>
+                <p className="text-[11px] text-muted-foreground">黑客帝国风格字符瀑布与机械波浪渐隐</p>
               </div>
               <button
                 type="button"
