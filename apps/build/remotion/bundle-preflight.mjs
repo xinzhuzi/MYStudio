@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { createHash } from "node:crypto";
+import { spawnSync } from "node:child_process";
 
 const REQUIRED_FILES = ["manifest.json", "index.html", "bundle.js", "bundle.js.map"];
 const SEMVER = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/;
@@ -17,9 +18,7 @@ export function hashBundleContent(directory) {
   return createHash("sha256").update(JSON.stringify(files)).digest("hex");
 }
 
-export function verifyFixedRemotionBundle({ appRoot = process.cwd() } = {}) {
-  const bundleDir = path.join(appRoot, ".cache", "remotion-bundle");
-  const manifestPath = path.join(bundleDir, "manifest.json");
+export function checkRemotionBundleErrors(appRoot, bundleDir, manifestPath) {
   const errors = [];
   if (!fs.existsSync(bundleDir)) errors.push(`缺少固定 Remotion bundle: ${bundleDir}`);
   if (!fs.existsSync(manifestPath)) errors.push("缺少 bundle manifest.json");
@@ -44,6 +43,35 @@ export function verifyFixedRemotionBundle({ appRoot = process.cwd() } = {}) {
     else if (fs.existsSync(bundleDir) && hashBundleContent(bundleDir) !== manifest.contentHash) errors.push("bundle contentHash 与固定目录内容不一致");
   }
   for (const file of REQUIRED_FILES) if (!fs.existsSync(path.join(bundleDir, file))) errors.push(`bundle 缺少文件: ${file}`);
+  return { errors, manifest };
+}
+
+export function verifyFixedRemotionBundle({ appRoot = process.cwd(), autoGenerate = true } = {}) {
+  const bundleDir = path.join(appRoot, ".cache", "remotion-bundle");
+  const manifestPath = path.join(bundleDir, "manifest.json");
+
+  let { errors, manifest } = checkRemotionBundleErrors(appRoot, bundleDir, manifestPath);
+
+  if (errors.length && autoGenerate) {
+    const bundleScriptPath = path.join(appRoot, "build", "remotion", "bundle.mjs");
+    if (fs.existsSync(bundleScriptPath)) {
+      console.log(`[remotion-preflight] 发现 Remotion bundle 缺失或需要更新 (${errors.join("; ")})。正在自动执行打包脚本生成...`);
+      const result = spawnSync("node", [bundleScriptPath], {
+        cwd: appRoot,
+        stdio: "inherit",
+        env: process.env,
+      });
+      if (result.status === 0) {
+        const recheck = checkRemotionBundleErrors(appRoot, bundleDir, manifestPath);
+        errors = recheck.errors;
+        manifest = recheck.manifest;
+        if (!errors.length) {
+          console.log("[remotion-preflight] Remotion bundle 自动生成成功并重新校验通过。");
+        }
+      }
+    }
+  }
+
   if (errors.length) {
     const message = `${errors.join("; ")}。请先运行 npm run remotion:bundle；如版本漂移再运行 npm run remotion:versions。`;
     throw new Error(message);

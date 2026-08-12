@@ -18,7 +18,7 @@ dist-electron
 out/
 release/
 /output/
-
+.zcode/
 # Local workspace artifacts
 .changes/
 .codex-backups/

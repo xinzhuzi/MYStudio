@@ -37,7 +37,6 @@ const WORKSPACE_LABELS: Partial<Record<Tab, string>> = {
   assets: "资产库",
   media: "产物管理",
   skills: "技能编辑",
-  tts: "TTS 口播",
   export: "成片与导出",
   settings: "系统设置",
 };

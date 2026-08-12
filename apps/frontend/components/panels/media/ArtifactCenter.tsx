@@ -176,6 +176,7 @@ export function ArtifactCenter({
   const activeProjectId = useProjectStore((state) => state.activeProjectId);
   const projectList = useProjectStore((state) => state.projects);
   const setActiveTab = useMediaPanelStore((state) => state.setActiveTab);
+  const requestSettingsTab = useMediaPanelStore((state) => state.requestSettingsTab);
   const enterEpisode = useMediaPanelStore((state) => state.enterEpisode);
   const startScan = useArtifactStore((state) => state.startScan);
   const finishScan = useArtifactStore((state) => state.finishScan);
@@ -533,7 +534,9 @@ export function ArtifactCenter({
     } else if (route.startsWith("/director") || route.includes("/storyboard") || route.includes("/track") || route.includes("/video")) {
       setActiveTab("director");
     } else if (route.startsWith("/tts")) {
-      setActiveTab("tts");
+      // TTS 管理已并入「设置 → 插件配置」(同一个 LocalTtsPanel)
+      requestSettingsTab("plugins");
+      setActiveTab("settings");
     } else if (route.startsWith("/export")) {
       setActiveTab("export");
     } else if (route.startsWith("/media")) {
@@ -542,7 +545,7 @@ export function ArtifactCenter({
       setActiveTab("studio");
     }
     setDetailArtifactId(null);
-  }, [activeProjectId, enterEpisode, setActiveTab]);
+  }, [activeProjectId, enterEpisode, requestSettingsTab, setActiveTab]);
 
   const handleCloseDetail = useCallback(() => {
     setDetailArtifactId(null);

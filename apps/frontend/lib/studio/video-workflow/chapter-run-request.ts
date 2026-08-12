@@ -1,6 +1,6 @@
 import { buildProjectFileUrl } from "@/lib/artifacts/ref-preview-loader";
 import { sha256CanonicalJson, sha256Text } from "@/lib/studio/remotion/canonical-json";
-import { validateCurrentSlot } from "@/lib/studio/remotion/remotion-current-slot";
+import { validateRemotionCurrentSlot as validateCurrentSlot } from "@/lib/studio/remotion/remotion-slot-validation";
 import type { RemotionCurrentSlotV1 } from "@/types/remotion-workspace";
 import type { StoryboardItem } from "@/types/studio";
 import type { VideoWorkflowChapterRunRequestV1 } from "@rendering/contracts/video-workflow-ipc";

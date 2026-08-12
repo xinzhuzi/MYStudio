@@ -32,7 +32,7 @@ const project: ArtifactTreeProject = {
 };
 
 describe("ArtifactTree", () => {
-  it("renders project → local files → folders/files and chapter → stage branches", () => {
+  it("renders local files → folders/files and chapter → stage branches directly in single-project mode", () => {
     const onExpandToggle = vi.fn();
     const onDirectoryClick = vi.fn();
     const onFileClick = vi.fn();
@@ -44,7 +44,6 @@ describe("ArtifactTree", () => {
         projects={[project]}
         activeProjectId="project-1"
         expandedNodes={new Set([
-          "project:project-1",
           "files:project-1",
           "file:project-1:exports",
           "file:project-1:exports/chapter-001",
@@ -58,7 +57,8 @@ describe("ArtifactTree", () => {
       />,
     );
 
-    expect(screen.getByRole("treeitem", { name: /项目一/ })).toBeTruthy();
+    // In single project mode, redundant root node "项目一" is omitted as sidebar header has it.
+    expect(screen.queryByRole("treeitem", { name: /项目一/ })).toBeNull();
     expect(screen.getByRole("treeitem", { name: /本地文件/ })).toBeTruthy();
     expect(screen.getByRole("treeitem", { name: "exports" })).toBeTruthy();
     expect(screen.getByRole("treeitem", { name: "chapter-001" })).toBeTruthy();
@@ -78,5 +78,19 @@ describe("ArtifactTree", () => {
 
     fireEvent.click(screen.getAllByRole("button", { name: "折叠" })[0]);
     expect(onExpandToggle).toHaveBeenCalled();
+  });
+
+  it("renders project root folder nodes when multiple projects exist", () => {
+    const project2 = { ...project, id: "project-2", name: "项目二" };
+    render(
+      <ArtifactTree
+        projects={[project, project2]}
+        activeProjectId="project-1"
+        expandedNodes={new Set(["project:project-1"])}
+      />,
+    );
+
+    expect(screen.getByRole("treeitem", { name: /项目一/ })).toBeTruthy();
+    expect(screen.getByRole("treeitem", { name: /项目二/ })).toBeTruthy();
   });
 });

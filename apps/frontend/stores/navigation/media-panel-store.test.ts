@@ -27,19 +27,6 @@ describe("media panel navigation", () => {
     });
   });
 
-  it("exposes TTS as a standalone project workspace", () => {
-    expect(mainNavItems.map((item) => item.id)).toContain("tts");
-    expect(tabs.tts.label).toBe("TTS");
-
-    useMediaPanelStore.getState().setActiveTab("dashboard");
-    useMediaPanelStore.getState().setActiveTab("tts");
-
-    expect(useMediaPanelStore.getState()).toMatchObject({
-      activeTab: "tts",
-      inProject: true,
-    });
-  });
-
   it("uses the chrome arrows as workspace history instead of a direct dashboard jump", () => {
     const store = useMediaPanelStore.getState();
 

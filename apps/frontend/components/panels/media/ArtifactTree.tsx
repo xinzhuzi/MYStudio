@@ -182,93 +182,101 @@ export function ArtifactTree({
     })
   );
 
+  const renderProjectBranch = (project: ArtifactTreeProject, levelOffset: number) => {
+    const filesNodeId = `files:${project.id}`;
+    const filesExpanded = isExpanded(filesNodeId);
+    return (
+      <>
+        <TreeRow
+          level={0 + levelOffset}
+          nodeId={filesNodeId}
+          label="本地文件"
+          icon={filesExpanded ? <FolderOpen className="h-4 w-4" /> : <Folder className="h-4 w-4" />}
+          badge={project.fileTree.length}
+          hasChildren={project.fileTree.length > 0}
+          expanded={filesExpanded}
+          selected={fileNavigationActive && selectedDirectoryPath === ""}
+          active={false}
+          onClick={() => onDirectoryClick?.("")}
+          onToggle={() => toggle(filesNodeId)}
+        />
+        {filesExpanded && renderFileNodes(project.id, project.fileTree, 1 + levelOffset)}
+        {project.chapters.map((chapter) => {
+          const chapterNodeId = `chapter:${project.id}:${chapter.id}`;
+          const chapterExpanded = isExpanded(chapterNodeId);
+          return (
+            <div key={chapterNodeId}>
+              <TreeRow
+                level={0 + levelOffset}
+                nodeId={chapterNodeId}
+                label={chapter.label}
+                icon={<BookOpen className="h-4 w-4" />}
+                badge={chapter.count}
+                hasChildren={chapter.stages.length > 0}
+                expanded={chapterExpanded}
+                selected={!fileNavigationActive && selectedChapterId === chapter.id && !selectedStageId}
+                active={false}
+                onClick={() => onChapterClick?.(chapter.id)}
+                onToggle={() => toggle(chapterNodeId)}
+              />
+              {chapterExpanded && chapter.stages.map((stage) => {
+                const stageNodeId = `stage:${project.id}:${chapter.id}:${stage.id}`;
+                const Icon = stageIcons[stage.id] ?? FileIcon;
+                return (
+                  <TreeRow
+                    key={stageNodeId}
+                    level={1 + levelOffset}
+                    nodeId={stageNodeId}
+                    label={stage.label}
+                    icon={<Icon className="h-4 w-4" />}
+                    badge={stage.count}
+                    hasChildren={false}
+                    expanded={false}
+                    selected={!fileNavigationActive && selectedChapterId === chapter.id && selectedStageId === stage.id}
+                    active={false}
+                    onClick={() => onStageClick?.(stage.id, chapter.id)}
+                    onToggle={() => undefined}
+                  />
+                );
+              })}
+            </div>
+          );
+        })}
+      </>
+    );
+  };
+
   return (
     <div className={cn("h-full overflow-y-auto scrollbar-thin py-1 pb-3", className)} role="tree" aria-label="项目产物文件树">
       {projects.length === 0 ? (
         <div className="h-full flex items-center justify-center px-3 text-center text-xs text-muted-foreground py-8">
           当前项目没有产物
         </div>
-      ) : projects.map((project) => {
-        const projectNodeId = `project:${project.id}`;
-        const filesNodeId = `files:${project.id}`;
-        const projectExpanded = isExpanded(projectNodeId);
-        const filesExpanded = isExpanded(filesNodeId);
-        return (
-          <div key={project.id}>
-            <TreeRow
-              level={0}
-              nodeId={projectNodeId}
-              label={project.name}
-              icon={<Folder className="h-4 w-4" />}
-              hasChildren
-              expanded={projectExpanded}
-              selected={!fileNavigationActive && !selectedChapterId && !selectedDirectoryPath && !selectedStageId}
-              active={project.id === activeProjectId}
-              onClick={() => onProjectClick?.(project.id)}
-              onToggle={() => toggle(projectNodeId)}
-            />
-            {projectExpanded && (
-              <>
-                <TreeRow
-                  level={1}
-                  nodeId={filesNodeId}
-                  label="本地文件"
-                  icon={filesExpanded ? <FolderOpen className="h-4 w-4" /> : <Folder className="h-4 w-4" />}
-                  badge={project.fileTree.length}
-                  hasChildren={project.fileTree.length > 0}
-                  expanded={filesExpanded}
-                  selected={fileNavigationActive && selectedDirectoryPath === ""}
-                  active={false}
-                  onClick={() => onDirectoryClick?.("")}
-                  onToggle={() => toggle(filesNodeId)}
-                />
-                {filesExpanded && renderFileNodes(project.id, project.fileTree, 2)}
-                {project.chapters.map((chapter) => {
-                  const chapterNodeId = `chapter:${project.id}:${chapter.id}`;
-                  const chapterExpanded = isExpanded(chapterNodeId);
-                  return (
-                    <div key={chapterNodeId}>
-                      <TreeRow
-                        level={1}
-                        nodeId={chapterNodeId}
-                        label={chapter.label}
-                        icon={<BookOpen className="h-4 w-4" />}
-                        badge={chapter.count}
-                        hasChildren={chapter.stages.length > 0}
-                        expanded={chapterExpanded}
-                        selected={!fileNavigationActive && selectedChapterId === chapter.id && !selectedStageId}
-                        active={false}
-                        onClick={() => onChapterClick?.(chapter.id)}
-                        onToggle={() => toggle(chapterNodeId)}
-                      />
-                      {chapterExpanded && chapter.stages.map((stage) => {
-                        const stageNodeId = `stage:${project.id}:${chapter.id}:${stage.id}`;
-                        const Icon = stageIcons[stage.id] ?? FileIcon;
-                        return (
-                          <TreeRow
-                            key={stageNodeId}
-                            level={2}
-                            nodeId={stageNodeId}
-                            label={stage.label}
-                            icon={<Icon className="h-4 w-4" />}
-                            badge={stage.count}
-                            hasChildren={false}
-                            expanded={false}
-                            selected={!fileNavigationActive && selectedChapterId === chapter.id && selectedStageId === stage.id}
-                            active={false}
-                            onClick={() => onStageClick?.(stage.id, chapter.id)}
-                            onToggle={() => undefined}
-                          />
-                        );
-                      })}
-                    </div>
-                  );
-                })}
-              </>
-            )}
-          </div>
-        );
-      })}
+      ) : projects.length === 1 ? (
+        renderProjectBranch(projects[0], 0)
+      ) : (
+        projects.map((project) => {
+          const projectNodeId = `project:${project.id}`;
+          const projectExpanded = isExpanded(projectNodeId);
+          return (
+            <div key={project.id}>
+              <TreeRow
+                level={0}
+                nodeId={projectNodeId}
+                label={project.name}
+                icon={<Folder className="h-4 w-4" />}
+                hasChildren
+                expanded={projectExpanded}
+                selected={!fileNavigationActive && !selectedChapterId && !selectedDirectoryPath && !selectedStageId}
+                active={project.id === activeProjectId}
+                onClick={() => onProjectClick?.(project.id)}
+                onToggle={() => toggle(projectNodeId)}
+              />
+              {projectExpanded && renderProjectBranch(project, 1)}
+            </div>
+          );
+        })
+      )}
     </div>
   );
 }

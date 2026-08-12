@@ -119,8 +119,8 @@ const CORE_ROUTE_CHECKS = [
     requiredText: ["个人资产库", "默认风格"],
   },
   {
-    label: "TTS",
-    requiredText: ["TTS 口播", "本地 TTS"],
+    label: "辅助",
+    requiredText: ["辅助界面", "TTS"],
     waitMs: 2_500,
   },
   {

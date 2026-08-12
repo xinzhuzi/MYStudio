@@ -30,7 +30,6 @@ import { OverviewPanel } from "@/components/panels/overview";
 import { AssetsView } from "@/components/panels/assets";
 import { StudioView } from "@/components/panels/studio";
 import { SkillsView } from "@/components/panels/skills";
-import { TTSView } from "@/components/panels/tts";
 import { SelfMediaPanel } from "@/components/panels/self-media";
 
 export function Layout() {
@@ -47,7 +46,7 @@ export function Layout() {
   const [mountedTabs, setMountedTabs] = useState<Set<string>>(new Set());
 
   useLayoutEffect(() => {
-    if (activeTab === "assets" || activeTab === "skills" || activeTab === "tts") {
+    if (activeTab === "assets" || activeTab === "skills") {
       setMountedTabs((prev) => {
         if (prev.has(activeTab)) return prev;
         const next = new Set(prev);
@@ -93,7 +92,7 @@ export function Layout() {
 
   // Full-screen views (no resizable panels)
   // 这些板块有自己的多栏布局，不需要全局的预览和属性面板
-  const fullScreenTabs = ["export", "settings", "overview", "studio", "script", "characters", "scenes", "freedom", "assets", "skills", "tts", "self-media", "media"];
+  const fullScreenTabs = ["export", "settings", "overview", "studio", "script", "characters", "scenes", "freedom", "assets", "skills", "self-media", "media"];
   if (fullScreenTabs.includes(activeTab)) {
     return (
       <>
@@ -126,7 +125,6 @@ export function Layout() {
               {/* 重型面板：懒挂载 + hidden 保活 */}
               {mountedTabs.has("assets") && <div className={activeTab === "assets" ? "h-full" : "hidden"}><AssetsView /></div>}
               {mountedTabs.has("skills") && <div className={activeTab === "skills" ? "h-full" : "hidden"}><SkillsView sidebarCollapsed={sidebarCollapsed} onToggleSidebar={toggleSidebar} /></div>}
-              {mountedTabs.has("tts") && <div className={activeTab === "tts" ? "h-full" : "hidden"}><TTSView sidebarCollapsed={sidebarCollapsed} onToggleSidebar={toggleSidebar} /></div>}
             </div>
           </div>
         </div>

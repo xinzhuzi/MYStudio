@@ -11,6 +11,7 @@
 import { useState, useCallback } from "react";
 import { useScriptStore, useActiveScriptProject } from "@/stores/script/script-store";
 import { useProjectStore } from "@/stores/project/project-store";
+import { useStudioStore } from "@/stores/studio/studio-store";
 import { useMediaPanelStore } from "@/stores/navigation/media-panel-store";
 import {
   ResizablePanelGroup,
@@ -79,6 +80,11 @@ export function OverviewPanel() {
     updateEpisodeBundle,
   } = useScriptStore();
   const { enterEpisode, setActiveTab } = useMediaPanelStore();
+
+  const handleEnterStage = useCallback((stageId: string) => {
+    useStudioStore.getState().setWorkflowConfig({ workflowStage: stageId });
+    setActiveTab("studio");
+  }, [setActiveTab]);
 
   const projectId = activeProjectId ?? "";
   const meta: SeriesMeta | null = scriptProject?.seriesMeta || null;
@@ -206,15 +212,28 @@ export function OverviewPanel() {
                 return (
                   <div
                     key={stage.id}
-                    className="rounded-lg border bg-card p-3"
+                    className="group relative flex flex-col justify-between rounded-lg border bg-card p-3.5 shadow-sm transition-all duration-200 hover:border-primary/50 hover:shadow-md"
                   >
-                    <div className="mb-1 flex items-center gap-2">
-                      <StageIcon className="h-4 w-4 text-primary" />
-                      <span className="text-sm font-medium">{stage.label}</span>
+                    <div>
+                      <div className="mb-2 flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <StageIcon className="h-4 w-4 text-primary shrink-0" />
+                          <span className="text-sm font-medium truncate">{stage.label}</span>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 px-2.5 text-xs shrink-0 gap-1 border-primary/20 hover:border-primary hover:bg-primary hover:text-primary-foreground transition-all duration-200"
+                          onClick={() => handleEnterStage(stage.id)}
+                        >
+                          <span>进入阶段</span>
+                          <ArrowRight className="h-3 w-3" />
+                        </Button>
+                      </div>
+                      <p className="text-xs leading-5 text-muted-foreground">
+                        {stage.description}
+                      </p>
                     </div>
-                    <p className="text-xs leading-5 text-muted-foreground">
-                      {stage.description}
-                    </p>
                   </div>
                 );
               })}

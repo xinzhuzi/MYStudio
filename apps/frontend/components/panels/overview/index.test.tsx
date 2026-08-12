@@ -113,4 +113,14 @@ describe("OverviewPanel", () => {
       ],
     });
   });
+
+  it("navigates to production stage tab when clicking '进入阶段' button", () => {
+    mocks.meta = null; // empty project triggers overview workflow/stage guide view
+    render(<OverviewPanel />);
+
+    const buttons = screen.getAllByRole("button", { name: /进入阶段/ });
+    expect(buttons.length).toBeGreaterThan(0);
+    fireEvent.click(buttons[0]);
+    expect(mocks.setActiveTab).toHaveBeenCalledWith("studio");
+  });
 });
