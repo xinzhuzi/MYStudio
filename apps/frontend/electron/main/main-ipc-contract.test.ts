@@ -125,6 +125,7 @@ tts-runtime-read-requirements
 tts-runtime-request
 tts-runtime-request-bytes
 tts-runtime-request-formdata
+tts-runtime-scan-model-inventory
 tts-runtime-set-config
 tts-runtime-set-model-cache-dir
 tts-runtime-setup

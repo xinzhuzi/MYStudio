@@ -8,7 +8,7 @@ import type { ImageRequestPayload, ImageRequestResult } from '../../types/api-im
 import type { DiagnosticsLogEntryInput, DiagnosticsLogQuery } from '../../types/diagnostics'
 import type { TimelineRenderPlan } from '../../types/editing'
 import type { StudioVisualManualCreatePayload, StudioVisualManualImagesWritePayload, StudioVisualManualWritePayload } from '../../types/studio-visual-manual'
-import type { TtsRuntimeCommandResult, TtsRuntimeConfig, TtsRuntimeStatus } from '../../types/tts'
+import type { BackendModelStatus, TtsRuntimeCommandResult, TtsRuntimeConfig, TtsRuntimeStatus } from '../../types/tts'
 import type { UpdateCheckOptions } from '../../types/update'
 import type { ExecuteResult, RecoveryQueryResult, MetadataUpdateResult } from '../../types/artifacts'
 import {
@@ -547,6 +547,8 @@ contextBridge.exposeInMainWorld('ttsRuntime', {
     ipcRenderer.invoke('tts-runtime-request-formdata', payload),
   readRequirements: (): Promise<{ content: string; path: string } | null> =>
     ipcRenderer.invoke('tts-runtime-read-requirements'),
+  scanModelInventory: (): Promise<BackendModelStatus[]> =>
+    ipcRenderer.invoke('tts-runtime-scan-model-inventory'),
   delete: (): Promise<TtsRuntimeCommandResult> =>
     ipcRenderer.invoke('tts-runtime-delete'),
   resolveReferenceAudioPath: (audioPath: string): Promise<string | null> =>

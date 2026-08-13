@@ -770,6 +770,79 @@ describe("TTS runtime stale-marker offline self-healing", () => {
       path: "/backend/requirements.txt",
     });
   });
+
+  it("scanModelInventory returns offline model statuses without spawning the backend", async () => {
+    const pythonPath = "/project-storage/python/bin/python3";
+    const inventoryPayload = { models: [
+      { model_name: "qwen-tts-0.6B", downloaded: true, downloading: false, loaded: false },
+      { model_name: "qwen-tts-1.7B", downloaded: false, downloading: false, loaded: false },
+    ] };
+    const runPython = vi.fn(async (_command: string, args: string[]) => {
+      if (args[0] === "--version") return { stdout: "Python 3.12.7\n", stderr: "" };
+      if (args.some((a) => a.includes("model_inventory"))) return { stdout: JSON.stringify(inventoryPayload) };
+      return undefined;
+    });
+    const spawnProcess = vi.fn();
+    const controller = createTtsRuntimeController({
+      appRoot: "/repo",
+      userDataPath: "/user-data",
+      storageBasePath: () => "/project-storage",
+      fileExists: (filePath) => (
+        filePath.includes("tts/main.py")
+        || filePath === pythonPath
+        || filePath.endsWith("requirements.txt")
+      ),
+      readTextFile: (filePath) => (filePath.endsWith("requirements.txt") ? "fastapi\n" : null),
+      runPython,
+      spawnProcess,
+      fetchJson: vi.fn().mockRejectedValue(new Error("offline")),
+    });
+
+    const inventory = await controller.scanModelInventory();
+
+    expect(inventory).toHaveLength(2);
+    expect(inventory[0]).toMatchObject({ model_name: "qwen-tts-0.6B", downloaded: true });
+    expect(spawnProcess).not.toHaveBeenCalled();
+  });
+
+  it("scanModelInventory fails closed to an empty list when Python is missing", async () => {
+    const spawnProcess = vi.fn();
+    const controller = createTtsRuntimeController({
+      appRoot: "/repo",
+      userDataPath: "/user-data",
+      storageBasePath: () => "/project-storage",
+      fileExists: (filePath) => filePath.includes("tts/main.py"),
+      spawnProcess,
+      fetchJson: vi.fn().mockRejectedValue(new Error("offline")),
+    });
+
+    await expect(controller.scanModelInventory()).resolves.toEqual([]);
+  });
+
+  it("scanModelInventory fails closed to an empty list on malformed JSON", async () => {
+    const pythonPath = "/project-storage/python/bin/python3";
+    const runPython = vi.fn(async (_command: string, args: string[]) => {
+      if (args[0] === "--version") return { stdout: "Python 3.12.7\n", stderr: "" };
+      if (args.some((a) => a.includes("model_inventory"))) return { stdout: "not json" };
+      return undefined;
+    });
+    const controller = createTtsRuntimeController({
+      appRoot: "/repo",
+      userDataPath: "/user-data",
+      storageBasePath: () => "/project-storage",
+      fileExists: (filePath) => (
+        filePath.includes("tts/main.py")
+        || filePath === pythonPath
+        || filePath.endsWith("requirements.txt")
+      ),
+      readTextFile: (filePath) => (filePath.endsWith("requirements.txt") ? "fastapi\n" : null),
+      runPython,
+      spawnProcess: vi.fn(),
+      fetchJson: vi.fn().mockRejectedValue(new Error("offline")),
+    });
+
+    await expect(controller.scanModelInventory()).resolves.toEqual([]);
+  });
 });
 
   it("rejects a managed Python runtime that is not Python 3.12", async () => {

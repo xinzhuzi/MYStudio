@@ -10,6 +10,7 @@ import {
   readBooleanField, readStatusField, isRetryableTtsStatus, isAbortError, formatTtsTimeout,
 } from "./tts-runtime-utils";
 import type {
+  BackendModelStatus,
   TtsRuntimeCommandResult,
   TtsRuntimeConfig,
   TtsRuntimeInstalledItem,
@@ -137,6 +138,7 @@ export interface TtsRuntimeController {
   requestFormData: (routePath: string, audioFilePath: string, referenceText?: string) => Promise<unknown>;
   readRequirements: () => Promise<{ content: string; path: string } | null>;
   deleteRuntime: () => Promise<TtsRuntimeCommandResult>;
+  scanModelInventory: () => Promise<BackendModelStatus[]>;
 }
 
 function defaultFetchJson(url: string, options: FetchJsonOptions) {
@@ -1440,6 +1442,35 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
     }
   }
 
+  /**
+   * Read-only model inventory that runs the backend's `tts.model_inventory`
+   * scanner through the managed Python without starting the HTTP server.
+   * Used by `LocalTtsPanel.refresh()` when the backend is stopped, so users
+   * can still see which models are already downloaded. The probe accepts no
+   * renderer path payload, performs no download, and contacts no network.
+   * Fail-closed: invalid output or command failure yields an empty list.
+   */
+  async function scanModelInventory(): Promise<BackendModelStatus[]> {
+    const sidecarRoot = resolveSidecarRoot();
+    if (!sidecarRoot) return [];
+    const python = findManagedPython();
+    if (!python) return [];
+    const modelCacheDir = getModelCacheDir();
+    const hfHubCacheDir = resolveHfHubCacheDir(modelCacheDir, fileExists);
+    try {
+      const result = await runPython(
+        python,
+        ["-m", "tts.model_inventory"],
+        { timeout: 60_000, maxBuffer: 8 * 1024 * 1024, env: { ...process.env, MANYING_TTS_MODELS_DIR: modelCacheDir, HF_HUB_CACHE: hfHubCacheDir } },
+      ) as { stdout?: string };
+      const parsed = parseJsonString(result.stdout);
+      if (!isRecord(parsed) || !Array.isArray(parsed.models)) return [];
+      return parsed.models as BackendModelStatus[];
+    } catch {
+      return [];
+    }
+  }
+
   return {
     status,
     start,
@@ -1457,5 +1488,6 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
     requestFormData,
     readRequirements,
     deleteRuntime,
+    scanModelInventory,
   };
 }

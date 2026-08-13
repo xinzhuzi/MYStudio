@@ -45,6 +45,10 @@ export function readPythonRequirements(): Promise<{ content: string; path: strin
   return assertTtsRuntime().readRequirements();
 }
 
+export function scanTtsModelInventory(): Promise<BackendModelStatus[]> {
+  return assertTtsRuntime().scanModelInventory();
+}
+
 export function deletePythonRuntime(): Promise<TtsRuntimeCommandResult> {
   return assertTtsRuntime().delete();
 }

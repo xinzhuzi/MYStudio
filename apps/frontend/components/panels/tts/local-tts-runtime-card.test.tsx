@@ -10,6 +10,10 @@ afterEach(cleanup);
 const baseStatus: TtsRuntimeStatus = {
   running: false,
   installed: true,
+  sidecarAvailable: true,
+  pythonInstalled: true,
+  pythonExecutablePath: "/tmp/python/bin/python3",
+  dependenciesReady: true,
   managed: true,
   port: 17593,
   baseUrl: "http://127.0.0.1:17593",

@@ -9,12 +9,12 @@ from pathlib import Path
 
 from .catalog import get_model
 from .engine import is_engine_loaded
-from .model_cache import download_hf_cache_dir, find_cached_model, has_cached_repo_files, repo_cache_dir
-
-
-ALIGNMENT_MODEL_NAME = "whisper-large-v3-turbo"
-ALIGNMENT_TOKENIZER_REPO = "openai/whisper-large-v3-turbo"
-ALIGNMENT_TOKENIZER_FILES = ("tokenizer.json",)
+from .model_cache import download_hf_cache_dir, find_cached_model, repo_cache_dir
+from .model_inventory import (
+    ALIGNMENT_MODEL_NAME,
+    ALIGNMENT_TOKENIZER_REPO,
+    build_model_status,
+)
 
 
 class ModelRoutesMixin:
@@ -22,33 +22,14 @@ class ModelRoutesMixin:
         configured_cache_dirs = [download_hf_cache_dir()] if (
             os.environ.get("MANYING_TTS_MODELS_DIR") or os.environ.get("VOICEBOX_MODELS_DIR")
         ) else None
-        cached = find_cached_model(model, cache_dirs=configured_cache_dirs)
-        downloaded = cached is not None
-        if model.model_name == ALIGNMENT_MODEL_NAME:
-            downloaded = downloaded and has_cached_repo_files(
-                ALIGNMENT_TOKENIZER_REPO,
-                ALIGNMENT_TOKENIZER_FILES,
-                cache_dirs=[cached.cache_dir] if cached else None,
-            )
-        size_mb = cached.size_mb if cached else None
         progress = self.state.get_progress(model.model_name)
         downloading = progress is not None and progress.get("status") == "downloading"
-        return {
-            "model_name": model.model_name,
-            "display_name": model.display_name,
-            "hf_repo_id": model.hf_repo_id,
-            "downloaded": downloaded and not downloading,
-            "downloading": downloading,
-            "size_mb": size_mb,
-            "model_cache_dir": str(cached.cache_dir) if cached else None,
-            "model_repo_path": str(cached.repo_cache_dir) if cached else None,
-            "loaded": is_engine_loaded(model.engine),
-            "engine": model.engine,
-            "model_size": model.model_size,
-            "languages": list(model.languages),
-            "purpose": model.purpose,
-            "description": model.description,
-        }
+        return build_model_status(
+            model,
+            cache_dirs=configured_cache_dirs,
+            downloading=downloading,
+            loaded=is_engine_loaded(model.engine),
+        )
 
     def model_progress(self, model_name: str):
         return self.state.get_progress(model_name) or {

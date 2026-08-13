@@ -26,6 +26,7 @@ import {
   getModelStatus,
   getTtsRuntimeStatus,
   migrateTtsRuntimeStorage,
+  scanTtsModelInventory,
   setTtsModelCacheDir,
   startTtsRuntime,
   stopTtsRuntime,
@@ -173,8 +174,13 @@ export function LocalTtsPanel({ embedded = false }: LocalTtsPanelProps) {
         setDraftModelCacheDir(status.modelCacheDir || "");
       }
       if (!status.running) {
+        // Backend is stopped: use the offline model inventory (managed Python
+        // scanner, no HTTP server, no network) so users still see which models
+        // are already downloaded. Fail-closed to an empty catalog on errors.
+        const [inventory] = await Promise.all([scanTtsModelInventory().catch(() => [])]);
+        if (!canApplyLocalTtsUpdate(mountedRef.current)) return status;
         setModelCacheInfo(null);
-        setRows(applyModelStatuses([]));
+        setRows(applyModelStatuses(inventory));
         setActiveTasks({ downloads: [], generations: [] });
         setErrors((prev) => {
           const next = { ...prev };

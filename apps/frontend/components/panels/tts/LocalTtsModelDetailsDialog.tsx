@@ -132,14 +132,18 @@ export function LocalTtsModelDetailsDialog({
                     <ModelStateLabel state={selectedState} />
                   </div>
                 )}
-                <Button variant="outline" onClick={() => onUnload(selectedModel)}>
-                  <Unplug className="mr-2 h-4 w-4" />
-                  卸载
-                </Button>
-                <Button variant="destructive" onClick={() => onDelete(selectedModel)}>
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  删除
-                </Button>
+                {selectedState === "loaded" && (
+                  <Button variant="outline" onClick={() => onUnload(selectedModel)}>
+                    <Unplug className="mr-2 h-4 w-4" />
+                    卸载
+                  </Button>
+                )}
+                {(selectedState === "downloaded" || selectedState === "loaded") && (
+                  <Button variant="destructive" onClick={() => onDelete(selectedModel)}>
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    删除
+                  </Button>
+                )}
               </div>
             </div>
           </>

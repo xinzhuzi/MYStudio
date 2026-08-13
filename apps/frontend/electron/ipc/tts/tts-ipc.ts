@@ -142,6 +142,7 @@ export function registerTtsIpcHandlers({
     runDiagnostics("migrate-storage", {}, () => controller.migrateStorage())
   ));
   ipcMain.handle("tts-runtime-read-requirements", async () => controller.readRequirements());
+  ipcMain.handle("tts-runtime-scan-model-inventory", async () => controller.scanModelInventory());
   ipcMain.handle("tts-runtime-delete", async () => (
     runDiagnostics("delete", {}, () => controller.deleteRuntime())
   ));

@@ -81,9 +81,13 @@ export function LocalTtsRuntimeCard({
               label="状态"
               value={runtimeStatus?.running
                 ? (runtimeStatus.managed === false ? "运行中（残留进程）" : "运行中")
-                : runtimeStatus?.installed
+                : runtimeStatus?.pythonInstalled && runtimeStatus?.dependenciesReady
                   ? "已安装，未运行"
-                  : "未安装"}
+                  : runtimeStatus?.pythonInstalled
+                    ? "Python 就绪，依赖未配置"
+                    : runtimeStatus?.sidecarAvailable
+                      ? "未配置"
+                      : "未安装"}
             />
             <RuntimeStatusLine label="后端" value={runtimeStatus?.baseUrl ?? "http://127.0.0.1:17593"} />
             <RuntimeStatusLine label="运行数据" value={runtimeStatus?.cacheDir || "TTS/runtime"} />
@@ -114,6 +118,9 @@ export function LocalTtsRuntimeCard({
                 : <Play className="mr-2 h-4 w-4" />}
               启动 TTS 后端服务
             </Button>
+          )}
+          {runtimeStatus && !runtimeStatus?.running && runtimeStatus?.pythonInstalled && !runtimeStatus?.dependenciesReady && (
+            <span className="text-xs text-muted-foreground">依赖未配置，请到设置→插件配置完成安装</span>
           )}
         </div>
         <div className="w-full">

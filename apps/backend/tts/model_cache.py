@@ -129,7 +129,11 @@ def _has_complete_model_files(cache: Path) -> bool:
     snapshots_dir = cache / "snapshots"
     if not snapshots_dir.exists():
         return False
-    return any(snapshots_dir.rglob(f"*{extension}") for extension in MODEL_WEIGHT_EXTENSIONS)
+    return any(
+        file.is_file()
+        for extension in MODEL_WEIGHT_EXTENSIONS
+        for file in snapshots_dir.rglob(f"*{extension}")
+    )
 
 
 def _cache_size_mb(cache: Path) -> float:

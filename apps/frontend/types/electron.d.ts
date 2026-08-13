@@ -439,6 +439,7 @@ declare global {
       requestBytes: (payload: { method: string; path: string; body?: unknown }) => Promise<{ data: ArrayBuffer; mimeType?: string }>;
       requestFormData: (payload: { path: string; audioFilePath: string; referenceText?: string }) => Promise<unknown>;
       readRequirements: () => Promise<{ content: string; path: string } | null>;
+      scanModelInventory: () => Promise<import("@/types/tts").BackendModelStatus[]>;
       delete: () => Promise<TtsRuntimeCommandResult>;
       resolveReferenceAudioPath: (audioPath: string) => Promise<string | null>;
     };
