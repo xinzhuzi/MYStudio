@@ -153,12 +153,6 @@ export function registerTtsIpcHandlers({
     const config = decodeTtsRuntimeConfigPayload(payload);
     return runDiagnostics("set-config", { config }, () => controller.setConfig(config));
   });
-  ipcMain.handle("tts-runtime-reset-install-dir", async (_event, defaultDir: string) => {
-    if (typeof defaultDir !== "string" || !defaultDir.trim()) {
-      throw new Error("默认安装路径无效");
-    }
-    return runDiagnostics("reset-install-dir", { defaultDir }, () => controller.resetInstallDir(defaultDir));
-  });
   ipcMain.handle("tts-runtime-set-model-cache-dir", async (_event, payload: unknown) => {
     const dirPath = decodeTtsRuntimeModelCacheDirPayload(payload);
     return runDiagnostics("set-model-cache-dir", { dirPath }, () => controller.setModelCacheDir(dirPath));

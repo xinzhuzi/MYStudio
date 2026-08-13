@@ -549,8 +549,6 @@ contextBridge.exposeInMainWorld('ttsRuntime', {
     ipcRenderer.invoke('tts-runtime-read-requirements'),
   delete: (): Promise<TtsRuntimeCommandResult> =>
     ipcRenderer.invoke('tts-runtime-delete'),
-  resetInstallDir: (defaultDir: string): Promise<TtsRuntimeCommandResult> =>
-    ipcRenderer.invoke('tts-runtime-reset-install-dir', defaultDir),
   resolveReferenceAudioPath: (audioPath: string): Promise<string | null> =>
     ipcRenderer.invoke('tts-reference-audio-resolve', audioPath),
 })

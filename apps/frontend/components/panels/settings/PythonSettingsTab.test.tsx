@@ -28,13 +28,10 @@ describe("PythonSettingsTab", () => {
     render(<PythonSettingsTab />);
 
     expect((screen.getByRole("button", { name: "开始配置" }) as HTMLButtonElement).disabled).toBe(true);
-    const resetButtons = screen.getAllByRole("button", { name: "恢复默认" });
-    expect(resetButtons).toHaveLength(2);
-    expect(resetButtons.every((button) => (button as HTMLButtonElement).disabled)).toBe(true);
-    expect(resetButtons.every((button) => {
-      const className = button.className;
-      return className.includes("border-foreground/[0.12]") && className.includes("bg-transparent");
-    })).toBe(true);
+    const resetButton = screen.getByRole("button", { name: "恢复默认" });
+    expect((resetButton as HTMLButtonElement).disabled).toBe(true);
+    expect(resetButton.className).toContain("border-foreground/[0.12]");
+    expect(resetButton.className).toContain("bg-transparent");
     expect(screen.getByText(/Python 是本地大模型、TTS 和插件的基础运行环境/)).toBeTruthy();
     expect(screen.getByText(/为减小应用安装包体积/)).toBeTruthy();
     expect(ttsClient.getTtsRuntimeConfig).not.toHaveBeenCalled();
@@ -76,7 +73,7 @@ describe("PythonSettingsTab", () => {
     const downloadSourceInput = screen.getByDisplayValue("https://mirror.example/python.tar.zst");
     expect(installPathInput.parentElement?.className).toContain("w-full");
     expect(downloadSourceInput.parentElement?.className).toContain("w-full");
-    expect(installPathInput.parentElement?.parentElement?.className).toContain("minmax(50%,1fr)");
+    expect(installPathInput.parentElement?.parentElement?.className).toContain("minmax(0,1fr)");
     expect(downloadSourceInput.parentElement?.parentElement?.className).toContain("minmax(50%,1fr)");
     expect(screen.queryByRole("heading", { name: "安装明细" })).toBeNull();
     expect(screen.queryByRole("heading", { name: "Python 运行环境" })).toBeNull();
@@ -133,6 +130,10 @@ describe("PythonSettingsTab", () => {
       port: 39001,
       baseUrl: "http://127.0.0.1:39001",
       setupStage: "ready",
+      sidecarAvailable: true,
+      pythonInstalled: true,
+      pythonExecutablePath: "/project-storage/python/bin/python3",
+      dependenciesReady: true,
     });
     ttsClient.setupTtsRuntime.mockResolvedValue({ success: true });
 

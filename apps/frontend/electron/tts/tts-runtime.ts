@@ -137,7 +137,6 @@ export interface TtsRuntimeController {
   requestFormData: (routePath: string, audioFilePath: string, referenceText?: string) => Promise<unknown>;
   readRequirements: () => Promise<{ content: string; path: string } | null>;
   deleteRuntime: () => Promise<TtsRuntimeCommandResult>;
-  resetInstallDir: (defaultDir: string) => Promise<TtsRuntimeCommandResult>;
 }
 
 function defaultFetchJson(url: string, options: FetchJsonOptions) {
@@ -422,6 +421,10 @@ async function directoryIsCoveredBy(sourcePath: string, targetPath: string): Pro
 
 function makeStatus(params: {
   installed: boolean;
+  sidecarAvailable: boolean;
+  pythonInstalled: boolean;
+  pythonExecutablePath?: string;
+  dependenciesReady: boolean;
   running: boolean;
   port: number;
   baseUrl: string;
@@ -440,6 +443,10 @@ function makeStatus(params: {
 }): TtsRuntimeStatus {
   return {
     installed: params.installed,
+    sidecarAvailable: params.sidecarAvailable,
+    pythonInstalled: params.pythonInstalled,
+    pythonExecutablePath: params.pythonExecutablePath,
+    dependenciesReady: params.dependenciesReady,
     running: params.running,
     port: params.port,
     baseUrl: params.baseUrl,
@@ -714,8 +721,6 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
 
   const resolveSidecarRoot = () => sidecarRoots.find((sidecarRoot) => fileExists(sidecarMainPath(sidecarRoot)));
 
-  const isInstalled = () => resolveSidecarRoot() !== undefined;
-
   function managedPythonExecutablePath(runtimeDir: string) {
     return process.platform === "win32"
       ? path.join(runtimeDir, "python.exe")
@@ -861,6 +866,34 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
     return readTextFile(depsPlan.markerPath)?.trim() === depsPlan.reqHash;
   }
 
+  function decodePipInstallReport(value: unknown): { install: unknown[] } | null {
+    if (!isRecord(value)) return null;
+    const install = value.install;
+    if (!Array.isArray(install)) return null;
+    return { install };
+  }
+
+  /**
+   * Offline dependency proof for stale/missing markers: pip runs with
+   * `--dry-run` (mutates nothing) and `--no-index` (cannot contact any
+   * package index); only a structured report whose `install` list is empty
+   * counts as satisfied. Malformed output, pending installs, or command
+   * failure all fail closed and route to the explicit setup action.
+   */
+  async function verifyDepsWithoutInstall(reqPath: string, python: string): Promise<boolean> {
+    try {
+      const result = await runPython(
+        python,
+        ["-m", "pip", "install", "--dry-run", "--no-index", "--report", "-", "--quiet", "-r", reqPath],
+        { timeout: 120_000, maxBuffer: 8 * 1024 * 1024 },
+      ) as { stdout?: string };
+      const report = decodePipInstallReport(parseJsonString(result.stdout));
+      return report !== null && report.install.length === 0;
+    } catch {
+      return false;
+    }
+  }
+
   async function ensureDeps(sidecarRoot: string, python: string): Promise<{ success: boolean; error?: string }> {
     const { reqPath, markerPath, reqHash } = getDepsPlan(sidecarRoot, python);
     if (!reqPath || !markerPath || !reqHash) return { success: true };
@@ -920,11 +953,21 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
   }
 
   async function status(): Promise<TtsRuntimeStatus> {
-    const installed = isInstalled();
+    const sidecarRoot = resolveSidecarRoot();
+    const installed = sidecarRoot !== undefined;
+    const pythonExecutablePath = findManagedPython();
+    const pythonInstalled = pythonExecutablePath !== null;
+    const dependenciesReady = sidecarRoot !== undefined && pythonExecutablePath !== null
+      ? depsAreReady(sidecarRoot, pythonExecutablePath)
+      : false;
     const health = await getBackendHealth();
     const running = health.healthy;
     return makeStatus({
       installed,
+      sidecarAvailable: installed,
+      pythonInstalled,
+      pythonExecutablePath: pythonExecutablePath ?? undefined,
+      dependenciesReady,
       running,
       port,
       baseUrl,
@@ -1012,13 +1055,25 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
     }
     if (!depsAreReady(sidecarRoot, pyResult.python)) {
       const depsPlan = getDepsPlan(sidecarRoot, pyResult.python);
-      console.warn("[TTS] deps not ready — marker:", depsPlan.markerPath, "expected hash:", depsPlan.reqHash, "actual:", readTextFile(depsPlan.markerPath ?? "")?.trim() ?? "(missing)");
-      updateSetupState({ setupStage: "failed", setupMessage: "TTS Python 依赖未配置", setupProgress: 0 });
-      return {
-        success: false,
-        status: await status(),
-        error: "请先到设置里的插件配置页的 Python 运行环境区块点击开始配置，完成 TTS 依赖安装",
-      };
+      let depsVerified = false;
+      if (depsPlan.reqPath && depsPlan.markerPath && depsPlan.reqHash) {
+        updateSetupState({ setupStage: "checking", setupMessage: "正在离线校验 TTS Python 依赖", setupProgress: undefined });
+        depsVerified = await verifyDepsWithoutInstall(depsPlan.reqPath, pyResult.python);
+        if (depsVerified) {
+          ensureDir(runtimeDataDir());
+          writeTextFile(depsPlan.markerPath, depsPlan.reqHash);
+          console.warn("[TTS] healed stale dependency marker after offline dry-run proof:", depsPlan.markerPath);
+        }
+      }
+      if (!depsVerified) {
+        console.warn("[TTS] deps not ready — marker:", depsPlan.markerPath, "expected hash:", depsPlan.reqHash, "actual:", readTextFile(depsPlan.markerPath ?? "")?.trim() ?? "(missing)");
+        updateSetupState({ setupStage: "failed", setupMessage: "TTS Python 依赖未配置", setupProgress: 0 });
+        return {
+          success: false,
+          status: await status(),
+          error: "请先到设置里的插件配置页的 Python 运行环境区块点击开始配置，完成 TTS 依赖安装",
+        };
+      }
     }
     const controlToken = getControlToken();
     const backendPython = pyResult.python;
@@ -1303,14 +1358,11 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
   }
 
   async function readRequirements(): Promise<{ content: string; path: string } | null> {
-    const config = readConfig();
-    const depsItem = (config.installedItems ?? []).find((item) => item.label.includes("Python 依赖"));
-    let reqPath = depsItem?.detail;
-    if (!reqPath) {
-      const sidecarRoot = resolveSidecarRoot();
-      if (!sidecarRoot) return null;
-      reqPath = path.join(sidecarRoot, "requirements.txt");
-    }
+    const sidecarRoot = resolveSidecarRoot();
+    if (!sidecarRoot) return null;
+    // Always read the currently active sidecar copy; persisted installed-item
+    // paths are display history and may point at a previous installation.
+    const reqPath = path.join(sidecarRoot, "requirements.txt");
     const content = readTextFile(reqPath);
     if (content === null) return null;
     return { content, path: reqPath };
@@ -1388,27 +1440,6 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
     }
   }
 
-
-  async function resetInstallDir(defaultDir: string): Promise<TtsRuntimeCommandResult> {
-    try {
-      const stopResult = await stop();
-      if (!stopResult.success) {
-        return { success: false, status: await status(), error: stopResult.error ?? "停止 TTS 后端失败" };
-      }
-      const currentDir = runtimePythonDir();
-      if (currentDir !== defaultDir && fileExists(currentDir)) {
-        fs.rmSync(currentDir, { recursive: true, force: true });
-      }
-      const config = readConfig();
-      config.pythonRuntimeDir = defaultDir;
-      writeConfig(config);
-      updateSetupState({ setupStage: "idle", setupMessage: undefined, setupProgress: undefined });
-      return { success: true, status: await status() };
-    } catch (error) {
-      return { success: false, status: await status(), error: `恢复默认路径失败：${getErrorMessage(error)}` };
-    }
-  }
-
   return {
     status,
     start,
@@ -1426,6 +1457,5 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
     requestFormData,
     readRequirements,
     deleteRuntime,
-    resetInstallDir,
   };
 }

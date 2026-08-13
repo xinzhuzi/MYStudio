@@ -440,7 +440,6 @@ declare global {
       requestFormData: (payload: { path: string; audioFilePath: string; referenceText?: string }) => Promise<unknown>;
       readRequirements: () => Promise<{ content: string; path: string } | null>;
       delete: () => Promise<TtsRuntimeCommandResult>;
-      resetInstallDir: (defaultDir: string) => Promise<TtsRuntimeCommandResult>;
       resolveReferenceAudioPath: (audioPath: string) => Promise<string | null>;
     };
     artifactInventory?: {

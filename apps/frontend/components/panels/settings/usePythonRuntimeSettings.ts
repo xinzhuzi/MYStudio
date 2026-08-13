@@ -7,7 +7,6 @@ import {
   setupTtsRuntime,
   readPythonRequirements,
   deletePythonRuntime,
-  resetPythonRuntimeInstallDir,
 } from "@/lib/tts/client";
 import { getTtsRuntimeBridge } from "@/lib/bridge/tts-runtime";
 import type { TtsRuntimeConfig, TtsRuntimeStatus } from "@/types/tts";
@@ -97,22 +96,6 @@ export function usePythonRuntimeSettings() {
 // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [config, config?.defaultPythonRuntimeUrl, saveConfig]);
 
-  const DEFAULT_PYTHON_RUNTIME_DIR = "/Users/zhengbingjin/Library/Application Support/漫影工作室/python";
-
-  const resetInstallDir = useCallback(async () => {
-    try {
-      const result = await resetPythonRuntimeInstallDir(DEFAULT_PYTHON_RUNTIME_DIR);
-      if (!result.success) {
-        toast.error(result.error || "恢复默认路径失败");
-        return;
-      }
-      await refreshConfig();
-      toast.success("Python 安装路径已恢复默认");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "恢复默认路径失败");
-    }
-  }, [refreshConfig]);
-
   const setupRuntime = useCallback(async () => {
     setIsSettingUp(true);
     stopSetupPolling();
@@ -180,7 +163,6 @@ export function usePythonRuntimeSettings() {
     refreshConfig,
     refreshRequirements,
     resetRuntimeUrl,
-    resetInstallDir,
     saveConfig,
     setupRuntime,
     deleteRuntime,

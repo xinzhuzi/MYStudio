@@ -17,7 +17,10 @@ const RECONFIGURE_HOLD_MS = 1_000;
 export function PythonSettingsTab({ embedded = false }: PythonSettingsTabProps) {
   const runtime = usePythonRuntimeSettings();
   const progress = runtime.status?.setupProgress;
-  const isConfigured = Boolean(runtime.status?.installed);
+  // Authoritative runtime truth from the main process: sidecar presence alone
+  // (legacy `installed`) says nothing about Python or dependency readiness.
+  const isConfigured = Boolean(runtime.status?.pythonInstalled && runtime.status?.dependenciesReady);
+  const setupFailed = runtime.status?.setupStage === "failed";
   const [isHoldingReconfigure, setIsHoldingReconfigure] = useState(false);
   const reconfigureTimerRef = useRef<number | null>(null);
 
@@ -61,12 +64,6 @@ export function PythonSettingsTab({ embedded = false }: PythonSettingsTabProps) 
     }
   };
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const handleDeleteRuntime = async () => {
-    if (!window.confirm("确认删除整个 Python 运行环境目录？将清空已安装内容并停止 TTS，需重新配置。")) return;
-    await runtime.deleteRuntime();
-  };
-
   const content = (
     <div className="p-8 w-full space-y-6">
         <div className={embedded ? "space-y-5" : "rounded-xl border border-border bg-card p-5"}>
@@ -76,7 +73,7 @@ export function PythonSettingsTab({ embedded = false }: PythonSettingsTabProps) 
 
           <div className="mt-5 flex flex-col gap-6">
             {/* Install Path Input */}
-            <div className="grid gap-3 md:grid-cols-[5rem_minmax(0,1fr)] md:items-center lg:grid-cols-[5rem_minmax(50%,1fr)_auto]">
+            <div className="grid gap-3 md:grid-cols-[5rem_minmax(0,1fr)] md:items-center">
               <Label className="text-xs text-muted-foreground">安装路径</Label>
               <Input
                 value={runtime.config?.pythonRuntimeDir || "启动时读取项目存储路径"}
@@ -84,7 +81,7 @@ export function PythonSettingsTab({ embedded = false }: PythonSettingsTabProps) 
                 containerClassName="w-full min-w-0"
                 className="min-w-0 font-mono text-xs truncate"
               />
-              <div className="flex flex-wrap gap-2 md:col-start-2 lg:col-start-auto lg:justify-end">
+              <div className="flex flex-wrap gap-2 md:col-start-2 md:justify-end">
                 <Button
                   variant="outline"
                   size="sm"
@@ -93,15 +90,6 @@ export function PythonSettingsTab({ embedded = false }: PythonSettingsTabProps) 
                 >
                   <FolderOpen className="mr-2 h-4 w-4" />
                   打开
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => runtime.resetInstallDir()}
-                  disabled={!runtime.hasRuntime}
-                >
-                  <RotateCcw className="mr-2 h-4 w-4" />
-                  恢复默认
                 </Button>
               </div>
             </div>
@@ -164,26 +152,31 @@ export function PythonSettingsTab({ embedded = false }: PythonSettingsTabProps) 
             )}
 
             {(runtime.status?.setupMessage || runtime.isSettingUp) && (
-              <div className="mt-5 rounded-lg border border-primary/20 bg-primary/5 p-4">
+              <div className={cn(
+                "mt-5 rounded-lg border p-4",
+                setupFailed ? "border-destructive/20 bg-destructive/5" : "border-primary/20 bg-primary/5",
+              )}>
                 <div className="flex items-center justify-between gap-4 text-sm">
-                  <span className="font-medium text-foreground">
+                  <span className={cn("font-medium", setupFailed ? "text-destructive" : "text-foreground")}>
                     {runtime.status?.setupMessage || "正在配置 Python 运行环境"}
                   </span>
-                  {typeof progress === "number" && (
+                  {!setupFailed && typeof progress === "number" && (
                     <span className="font-mono text-xs text-muted-foreground">{progress}%</span>
                   )}
                 </div>
-                {typeof progress === "number" ? (
-                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
-                    <div
-                      className="h-full rounded-full bg-primary transition-all"
-                      style={{ width: `${Math.max(0, Math.min(100, progress))}%` }}
-                    />
-                  </div>
-                ) : (
-                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
-                    <div className="h-full w-1/3 animate-pulse rounded-full bg-primary/70" />
-                  </div>
+                {!setupFailed && (
+                  typeof progress === "number" ? (
+                    <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
+                      <div
+                        className="h-full rounded-full bg-primary transition-all"
+                        style={{ width: `${Math.max(0, Math.min(100, progress))}%` }}
+                      />
+                    </div>
+                  ) : (
+                    <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
+                      <div className="h-full w-1/3 animate-pulse rounded-full bg-primary/70" />
+                    </div>
+                  )
                 )}
               </div>
             )}
@@ -233,86 +226,4 @@ export function PythonSettingsTab({ embedded = false }: PythonSettingsTabProps) 
   );
 
   return embedded ? content : <ScrollArea className="h-full">{content}</ScrollArea>;
-}
-
-type InstallSummaryProps = {
-  installedItems: { label: string; detail: string; status: "pending" | "installed" | "skipped" | "failed" }[];
-  pythonExecutablePath: string;
-  requirements?: { content: string; path: string } | null;
-};
-
-function _InstallSummary({ installedItems, pythonExecutablePath, requirements }: InstallSummaryProps) {
-  const pythonItem = installedItems.find((item) => item.label.toLowerCase().includes("python"));
-  const dependencyItems = installedItems.filter((item) => item !== pythonItem);
-  const hasFailed = installedItems.some((item) => item.status === "failed");
-  const hasPending = installedItems.some((item) => item.status === "pending");
-
-  const pythonStatusText = installedItems.length === 0
-    ? "未配置"
-    : pythonItem?.status === "installed"
-      ? "已安装"
-      : pythonItem?.status === "failed"
-        ? "安装失败"
-        : pythonItem?.status === "pending"
-          ? "安装中"
-          : pythonItem?.status === "skipped"
-            ? "已存在"
-            : "未配置";
-
-  const folderStatusText = installedItems.length === 0
-    ? "未生成"
-    : hasFailed
-      ? "不完整"
-      : hasPending
-        ? "配置中"
-        : pythonExecutablePath
-          ? "完整"
-          : "未生成";
-
-  const depsStatusText = dependencyItems.length === 0
-    ? "未安装"
-    : dependencyItems.some((item) => item.status === "failed")
-      ? "有失败项"
-      : dependencyItems.some((item) => item.status === "pending")
-        ? "安装中"
-        : "已完整";
-
-  const Row = ({ label, value, tone }: { label: string; value: string; tone: string }) => (
-    <>
-      <dt className="text-muted-foreground">{label}</dt>
-      <dd
-        className={cn(
-          "font-medium",
-          tone,
-        )}
-      >
-        {value}
-      </dd>
-    </>
-  );
-
-  return (
-    <dl className="grid grid-cols-[7rem_1fr] gap-x-3 gap-y-1.5 items-center text-xs text-muted-foreground">
-      <Row label="Python 运行环境" value={pythonStatusText} tone={pythonStatusText === "已安装" ? "text-emerald-600" : pythonStatusText === "安装失败" ? "text-destructive" : "text-muted-foreground"} />
-      <Row label="文件夹完整性" value={folderStatusText} tone={folderStatusText === "完整" ? "text-emerald-600" : folderStatusText === "不完整" ? "text-destructive" : "text-muted-foreground"} />
-      <dt className="text-muted-foreground">依赖清单</dt>
-      <dd className="text-foreground">
-        {requirements?.content ? (
-          <details>
-            <summary className="cursor-pointer truncate font-mono text-xs text-muted-foreground">
-              {requirements.path}
-            </summary>
-            <pre className="mt-1 max-h-48 overflow-auto whitespace-pre-wrap break-all rounded bg-muted/40 p-2 text-[11px]">
-              {requirements.content}
-            </pre>
-          </details>
-        ) : (
-          <span className="break-all font-mono text-xs text-muted-foreground">
-            {requirements?.path || "未找到 requirements.txt"}
-          </span>
-        )}
-      </dd>
-      <Row label="pip 依赖完整性" value={depsStatusText} tone={depsStatusText === "已完整" ? "text-emerald-600" : depsStatusText === "有失败项" ? "text-destructive" : "text-muted-foreground"} />
-    </dl>
-  );
 }

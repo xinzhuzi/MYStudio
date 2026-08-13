@@ -467,17 +467,31 @@ describe("TTS runtime controller", () => {
     expect(spawnProcess).not.toHaveBeenCalled();
   });
 
-  it("does not start when Python exists but TTS dependency hash is stale (fresh install/upgrade)", async () => {
-    // 场景:Python 已安装,requirements.txt 存在,但 .deps-hash marker 缺失或不匹配
-    // 这是用户截图中的报错:"点击开始配置，完成 TTS 依赖安装"
-    const spawnProcess = vi.fn();
+const mockPython312WithDepsProof = (report: unknown) => vi.fn(async (_command: string, args: string[]) => {
+  if (args[0] === "--version") return { stdout: "Python 3.12.7\n", stderr: "" };
+  if (args.includes("--dry-run")) return { stdout: typeof report === "string" ? report : JSON.stringify(report), stderr: "" };
+  return undefined;
+});
+
+const md5RequirementsHash = (pythonPath: string, reqContent: string) => nodeCrypto
+  .createHash("md5")
+  .update(`${pythonPath}\n${reqContent}`)
+  .digest("hex");
+
+describe("TTS runtime stale-marker offline self-healing", () => {
+  const pythonPath = "/project-storage/python/bin/python3";
+
+  it("heals a stale dependency marker after the offline dry-run proof and starts", async () => {
+    // 场景:Python 已安装、依赖实际就绪,但 .deps-hash marker 因升级等原因失配
+    // (用户截图中的 "TTS Python 依赖未配置 / 0%" 必须被离线证明自愈,不再 fail-closed)
     const reqContent = "fastapi\nuvicorn\n";
-    const pythonPath = "/project-storage/python/bin/python3";
-    // 算出正确的 reqHash(must match tts-runtime.ts:854 的算法)
-    const expectedReqHash = nodeCrypto
-      .createHash("md5")
-      .update(`${pythonPath}\n${reqContent}`)
-      .digest("hex");
+    const expectedReqHash = md5RequirementsHash(pythonPath, reqContent);
+    const spawnProcess = vi.fn(() => ({ pid: 120, kill: vi.fn() }));
+    let markerValue = "stale-hash-from-old-version";
+    const writeTextFile = vi.fn((filePath: string, value: string) => {
+      if (filePath.endsWith(".deps-hash")) markerValue = value;
+    });
+    const runPython = mockPython312WithDepsProof({ version: "1", install: [] });
     const controller = createTtsRuntimeController({
       appRoot: "/repo",
       userDataPath: "/user-data",
@@ -488,14 +502,87 @@ describe("TTS runtime controller", () => {
         || filePath.endsWith("requirements.txt")
       ),
       ensureDir: vi.fn(),
-      // marker 文件返回过期 hash(不等于 expectedReqHash)
       readTextFile: (filePath) => {
         if (filePath.endsWith("requirements.txt")) return reqContent;
-        if (filePath.endsWith(".deps-hash")) return "stale-hash-from-old-version";
+        if (filePath.endsWith(".deps-hash")) return markerValue;
         return null;
       },
-      writeTextFile: vi.fn(),
-      runPython: mockPython312(),
+      writeTextFile,
+      runPython,
+      spawnProcess,
+      fetchJson: vi.fn()
+        .mockRejectedValueOnce(new Error("offline"))
+        .mockResolvedValue({ ok: true }),
+    });
+
+    const result = await controller.start();
+
+    expect(result.success).toBe(true);
+    expect("stale-hash-from-old-version").not.toBe(expectedReqHash);
+    expect(writeTextFile).toHaveBeenCalledWith("/project-storage/TTS/runtime/.deps-hash", expectedReqHash);
+    expect(runPython).toHaveBeenCalledWith(
+      pythonPath,
+      ["-m", "pip", "install", "--dry-run", "--no-index", "--report", "-", "--quiet", "-r", "/backend/requirements.txt"],
+      expect.any(Object),
+    );
+    expect(spawnProcess).toHaveBeenCalled();
+    await expect(controller.status()).resolves.toMatchObject({
+      setupStage: "ready",
+      dependenciesReady: true,
+    });
+  });
+
+  it("heals a missing dependency marker the same way on a fresh install", async () => {
+    const reqContent = "fastapi\n";
+    const expectedReqHash = md5RequirementsHash(pythonPath, reqContent);
+    const spawnProcess = vi.fn(() => ({ pid: 121, kill: vi.fn() }));
+    const writeTextFile = vi.fn();
+    const controller = createTtsRuntimeController({
+      appRoot: "/repo",
+      userDataPath: "/user-data",
+      storageBasePath: () => "/project-storage",
+      fileExists: (filePath) => (
+        filePath.includes("tts/main.py")
+        || filePath === pythonPath
+        || filePath.endsWith("requirements.txt")
+      ),
+      ensureDir: vi.fn(),
+      readTextFile: (filePath) => (filePath.endsWith("requirements.txt") ? reqContent : null),
+      writeTextFile,
+      runPython: mockPython312WithDepsProof({ install: [] }),
+      spawnProcess,
+      fetchJson: vi.fn()
+        .mockRejectedValueOnce(new Error("offline"))
+        .mockResolvedValue({ ok: true }),
+    });
+
+    const result = await controller.start();
+
+    expect(result.success).toBe(true);
+    expect(writeTextFile).toHaveBeenCalledWith("/project-storage/TTS/runtime/.deps-hash", expectedReqHash);
+    expect(spawnProcess).toHaveBeenCalled();
+  });
+
+  it("fails closed when the offline proof reports pending installs", async () => {
+    const spawnProcess = vi.fn();
+    const writeTextFile = vi.fn();
+    const controller = createTtsRuntimeController({
+      appRoot: "/repo",
+      userDataPath: "/user-data",
+      storageBasePath: () => "/project-storage",
+      fileExists: (filePath) => (
+        filePath.includes("tts/main.py")
+        || filePath === pythonPath
+        || filePath.endsWith("requirements.txt")
+      ),
+      ensureDir: vi.fn(),
+      readTextFile: (filePath) => {
+        if (filePath.endsWith("requirements.txt")) return "fastapi\n";
+        if (filePath.endsWith(".deps-hash")) return "stale-hash";
+        return null;
+      },
+      writeTextFile,
+      runPython: mockPython312WithDepsProof({ install: [{ name: "fastapi", version: "1.0.0" }] }),
       spawnProcess,
       fetchJson: vi.fn().mockRejectedValue(new Error("offline")),
     });
@@ -504,13 +591,11 @@ describe("TTS runtime controller", () => {
 
     expect(result.success).toBe(false);
     expect(result.error).toContain("插件配置页的 Python 运行环境区块点击开始配置");
+    expect(writeTextFile).not.toHaveBeenCalled();
     expect(spawnProcess).not.toHaveBeenCalled();
-    // 确认 marker hash 确实不等于预期值(否则测试本身失效)
-    expect("stale-hash-from-old-version").not.toBe(expectedReqHash);
   });
 
-  it("does not start when Python exists but TTS dependency marker file is absent", async () => {
-    // 场景:Python 已安装,requirements.txt 存在,但 .deps-hash marker 文件完全不存在(全新安装)
+  it("fails closed when the probe emits malformed JSON", async () => {
     const spawnProcess = vi.fn();
     const controller = createTtsRuntimeController({
       appRoot: "/repo",
@@ -518,17 +603,50 @@ describe("TTS runtime controller", () => {
       storageBasePath: () => "/project-storage",
       fileExists: (filePath) => (
         filePath.includes("tts/main.py")
-        || filePath === "/project-storage/python/bin/python3"
+        || filePath === pythonPath
         || filePath.endsWith("requirements.txt")
       ),
       ensureDir: vi.fn(),
       readTextFile: (filePath) => {
         if (filePath.endsWith("requirements.txt")) return "fastapi\n";
-        // .deps-hash 返回 null(marker 文件不存在)
+        if (filePath.endsWith(".deps-hash")) return "stale-hash";
         return null;
       },
       writeTextFile: vi.fn(),
-      runPython: mockPython312(),
+      runPython: mockPython312WithDepsProof("this is not json"),
+      spawnProcess,
+      fetchJson: vi.fn().mockRejectedValue(new Error("offline")),
+    });
+
+    const result = await controller.start();
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("插件配置页");
+    expect(spawnProcess).not.toHaveBeenCalled();
+  });
+
+  it("fails closed when the probe command itself fails", async () => {
+    const spawnProcess = vi.fn();
+    const controller = createTtsRuntimeController({
+      appRoot: "/repo",
+      userDataPath: "/user-data",
+      storageBasePath: () => "/project-storage",
+      fileExists: (filePath) => (
+        filePath.includes("tts/main.py")
+        || filePath === pythonPath
+        || filePath.endsWith("requirements.txt")
+      ),
+      ensureDir: vi.fn(),
+      readTextFile: (filePath) => {
+        if (filePath.endsWith("requirements.txt")) return "fastapi\n";
+        if (filePath.endsWith(".deps-hash")) return "stale-hash";
+        return null;
+      },
+      writeTextFile: vi.fn(),
+      runPython: vi.fn(async (_command: string, args: string[]) => {
+        if (args[0] === "--version") return { stdout: "Python 3.12.7\n", stderr: "" };
+        throw new Error("pip crashed");
+      }),
       spawnProcess,
       fetchJson: vi.fn().mockRejectedValue(new Error("offline")),
     });
@@ -539,6 +657,120 @@ describe("TTS runtime controller", () => {
     expect(result.error).toContain("插件配置页的 Python 运行环境区块点击开始配置");
     expect(spawnProcess).not.toHaveBeenCalled();
   });
+
+  it("keeps the matching-marker fast path and never probes pip", async () => {
+    const reqContent = "fastapi\n";
+    const expectedReqHash = md5RequirementsHash(pythonPath, reqContent);
+    const spawnProcess = vi.fn(() => ({ pid: 122, kill: vi.fn() }));
+    const runPython = vi.fn(async (_command: string, args: string[]) => {
+      if (args[0] === "--version") return { stdout: "Python 3.12.7\n", stderr: "" };
+      throw new Error("pip must not be invoked when the marker matches");
+    });
+    const controller = createTtsRuntimeController({
+      appRoot: "/repo",
+      userDataPath: "/user-data",
+      storageBasePath: () => "/project-storage",
+      fileExists: (filePath) => (
+        filePath.includes("tts/main.py")
+        || filePath === pythonPath
+        || filePath.endsWith("requirements.txt")
+      ),
+      ensureDir: vi.fn(),
+      readTextFile: (filePath) => {
+        if (filePath.endsWith("requirements.txt")) return reqContent;
+        if (filePath.endsWith(".deps-hash")) return expectedReqHash;
+        return null;
+      },
+      writeTextFile: vi.fn(),
+      runPython,
+      spawnProcess,
+      fetchJson: vi.fn()
+        .mockRejectedValueOnce(new Error("offline"))
+        .mockResolvedValue({ ok: true }),
+    });
+
+    const result = await controller.start();
+
+    expect(result.success).toBe(true);
+    expect(runPython).toHaveBeenCalledTimes(1);
+    expect(spawnProcess).toHaveBeenCalled();
+  });
+
+  it("reports explicit sidecar/python/dependency truth in status", async () => {
+    const reqContent = "fastapi\n";
+    const controller = createTtsRuntimeController({
+      appRoot: "/repo",
+      userDataPath: "/user-data",
+      storageBasePath: () => "/project-storage",
+      fileExists: (filePath) => (
+        filePath.includes("tts/main.py")
+        || filePath === pythonPath
+        || filePath.endsWith("requirements.txt")
+      ),
+      readTextFile: (filePath) => {
+        if (filePath.endsWith("requirements.txt")) return reqContent;
+        if (filePath.endsWith(".deps-hash")) return md5RequirementsHash(pythonPath, reqContent);
+        return null;
+      },
+      spawnProcess: vi.fn(),
+      fetchJson: vi.fn().mockRejectedValue(new Error("offline")),
+    });
+
+    await expect(controller.status()).resolves.toMatchObject({
+      installed: true,
+      sidecarAvailable: true,
+      pythonInstalled: true,
+      pythonExecutablePath: pythonPath,
+      dependenciesReady: true,
+    });
+  });
+
+  it("reports dependency truth as false when Python is not installed", async () => {
+    const controller = createTtsRuntimeController({
+      appRoot: "/repo",
+      userDataPath: "/user-data",
+      storageBasePath: () => "/project-storage",
+      fileExists: (filePath) => filePath.includes("tts/main.py"),
+      spawnProcess: vi.fn(),
+      fetchJson: vi.fn().mockRejectedValue(new Error("offline")),
+    });
+
+    await expect(controller.status()).resolves.toMatchObject({
+      sidecarAvailable: true,
+      pythonInstalled: false,
+      pythonExecutablePath: undefined,
+      dependenciesReady: false,
+    });
+  });
+
+  it("reads requirements from the active sidecar root, not persisted install history", async () => {
+    const controller = createTtsRuntimeController({
+      appRoot: "/repo",
+      userDataPath: "/user-data",
+      storageBasePath: () => "/project-storage",
+      fileExists: (filePath) => filePath.includes("tts/main.py"),
+      readTextFile: (filePath) => {
+        if (filePath.endsWith("config.json")) {
+          return JSON.stringify({
+            installedItems: [
+              { label: "TTS Python 依赖", detail: "/old-install/backend/requirements.txt", status: "installed" },
+            ],
+          });
+        }
+        if (filePath === "/old-install/backend/requirements.txt") return "stale-content\n";
+        if (filePath.endsWith("requirements.txt")) return "fastapi\n";
+        return null;
+      },
+      spawnProcess: vi.fn(),
+      fetchJson: vi.fn().mockRejectedValue(new Error("offline")),
+    });
+
+    await expect(controller.readRequirements()).resolves.toEqual({
+      content: "fastapi\n",
+      path: "/backend/requirements.txt",
+    });
+  });
+});
 
   it("rejects a managed Python runtime that is not Python 3.12", async () => {
     const spawnProcess = vi.fn(() => ({ pid: 44, kill: vi.fn() }));

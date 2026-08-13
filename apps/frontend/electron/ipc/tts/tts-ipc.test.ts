@@ -9,7 +9,6 @@ const mocks = vi.hoisted(() => ({
   request: vi.fn(async () => ({ success: true })),
   requestBytes: vi.fn(async () => ({ data: new ArrayBuffer(0) })),
   requestFormData: vi.fn(async () => ({ success: true })),
-  resetInstallDir: vi.fn(async () => ({ success: true })),
   resolveSourcePath: vi.fn((value: string) => `/audio/${value}`),
   setConfig: vi.fn(async () => ({ success: true })),
   setModelCacheDir: vi.fn(async () => ({ success: true })),
@@ -64,7 +63,6 @@ function registerHandlers() {
       request: mocks.request,
       requestBytes: mocks.requestBytes,
       requestFormData: mocks.requestFormData,
-      resetInstallDir: mocks.resetInstallDir,
       setConfig: mocks.setConfig,
       setModelCacheDir: mocks.setModelCacheDir,
       setup: mocks.setup,
@@ -98,7 +96,6 @@ describe("registerTtsIpcHandlers", () => {
       "tts-runtime-request",
       "tts-runtime-request-bytes",
       "tts-runtime-request-formdata",
-      "tts-runtime-reset-install-dir",
       "tts-runtime-set-config",
       "tts-runtime-set-model-cache-dir",
       "tts-runtime-setup",
@@ -136,9 +133,7 @@ describe("registerTtsIpcHandlers", () => {
 
     const config = { pythonRuntimeUrl: "https://example.test/python.zip" };
     await expect(mocks.handlers.get("tts-runtime-set-config")?.({}, config)).resolves.toEqual({ success: true });
-    await expect(mocks.handlers.get("tts-runtime-reset-install-dir")?.({}, "/default/python")).resolves.toEqual({ success: true });
     await expect(mocks.handlers.get("tts-runtime-set-model-cache-dir")?.({}, "/models/cache")).resolves.toEqual({ success: true });
-    expect(mocks.resetInstallDir).toHaveBeenCalledWith("/default/python");
 
     expect(diagnosticsCalls).toEqual([
       { action: "status", context: {} },
@@ -147,7 +142,6 @@ describe("registerTtsIpcHandlers", () => {
       { action: "stop", context: {} },
       { action: "migrate-storage", context: {} },
       { action: "set-config", context: { config } },
-      { action: "reset-install-dir", context: { defaultDir: "/default/python" } },
       { action: "set-model-cache-dir", context: { dirPath: "/models/cache" } },
     ]);
   });

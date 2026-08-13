@@ -65,10 +65,6 @@ export function setTtsRuntimeConfig(config: Partial<TtsRuntimeConfig>): Promise<
   return assertTtsRuntime().setConfig(config);
 }
 
-export async function resetPythonRuntimeInstallDir(defaultDir: string): Promise<TtsRuntimeCommandResult> {
-  return assertTtsRuntime().resetInstallDir(defaultDir);
-}
-
 export function setTtsModelCacheDir(dirPath: string): Promise<TtsRuntimeCommandResult> {
   return assertTtsRuntime().setModelCacheDir(dirPath);
 }

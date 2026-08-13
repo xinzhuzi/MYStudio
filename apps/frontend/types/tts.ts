@@ -148,6 +148,11 @@ export interface TtsRuntimeStatus {
   hfHubCacheDir?: string;
   storageLayout?: TtsStorageLayout;
   pythonRuntimeDir?: string;
+  /** Explicit runtime truth owned by the main process; `installed` stays as the legacy sidecar alias. */
+  sidecarAvailable?: boolean;
+  pythonInstalled?: boolean;
+  pythonExecutablePath?: string;
+  dependenciesReady?: boolean;
   pid?: number;
   error?: string;
 }

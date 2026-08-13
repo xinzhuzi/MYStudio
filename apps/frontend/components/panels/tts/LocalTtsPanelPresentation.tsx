@@ -89,11 +89,14 @@ export function RuntimeSetupProgress({
           {failed ? <AlertCircle className="h-4 w-4 shrink-0" /> : <Loader2 className="h-4 w-4 shrink-0 animate-spin text-primary" />}
           <span className="truncate">{message}</span>
         </div>
-        {typeof progress === "number" && (
+        {!failed && typeof progress === "number" && (
           <span className="shrink-0 text-xs text-muted-foreground">{Math.round(progress)}%</span>
         )}
       </div>
-      <Progress value={progress ?? (active ? 35 : 0)} className={cn("mt-3 h-1.5", progress === undefined && active && "opacity-60")} />
+      {/* A failed setup is an error state, not an active 0% progress bar. */}
+      {!failed && (
+        <Progress value={progress ?? (active ? 35 : 0)} className={cn("mt-3 h-1.5", progress === undefined && active && "opacity-60")} />
+      )}
       {status?.pythonRuntimeDir && (
         <div className="mt-2 break-all text-xs text-muted-foreground">
           Python 路径：{status.pythonRuntimeDir}
