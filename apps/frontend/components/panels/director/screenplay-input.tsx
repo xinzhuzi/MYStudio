@@ -31,12 +31,9 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  SelectSeparator,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  SelectGroup,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  SelectLabel,
+ 
+ 
+ 
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { useMediaPanelStore } from "@/stores/navigation/media-panel-store";
@@ -118,10 +115,8 @@ export function ScreenplayInput({ onGenerateStoryboard }: ScreenplayInputProps) 
   const sceneValidation = validateSceneCount(sceneCount, resolution);
   const isSceneCountValid = sceneValidation.isValid;
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { startScreenplayGeneration, setScreenplayError, config, updateConfig, setScreenplayDraft } = useDirectorStore();
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { checkVideoGenerationKeys, checkChatKeys, isFeatureConfigured, getApiKey } = useAPIConfigStore();
+  const { startScreenplayGeneration, setScreenplayError, updateConfig, setScreenplayDraft } = useDirectorStore();
+  const { checkChatKeys, isFeatureConfigured, getApiKey } = useAPIConfigStore();
   const { characters } = useCharacterLibraryStore();
   const { activeProjectId } = useProjectStore();
   const visibleCharacters = useMemo(() => {

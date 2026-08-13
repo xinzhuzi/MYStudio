@@ -19,8 +19,7 @@ import {
   Film,
   Download,
   Share2,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  FileVideo,
+ 
   Layers,
   Clock,
   CheckCircle,
@@ -73,8 +72,8 @@ export function ExportView() {
   const completedItems = hasSplitScenes ? directorCompleted : scriptCompleted;
   const imageReadyItems = hasSplitScenes ? directorWithImage : (scriptStats?.imagesReady || 0);
   const progress = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const imageProgress = totalItems > 0 ? Math.round((imageReadyItems / totalItems) * 100) : 0;
+ 
+  totalItems > 0 ? Math.round((imageReadyItems / totalItems) * 100) : 0;
 
   // Can export: any assets available
   const canExport = hasSplitScenes

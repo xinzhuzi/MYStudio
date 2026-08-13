@@ -8,6 +8,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { UpdateDialog } from "@/components/UpdateDialog";
 import { COLOR_PRESETS, useThemeStore } from "@/stores/app/theme-store";
 import { useAppSettingsStore } from "@/stores/app/app-settings-store";
+import { startSpan } from "@/lib/diagnostics/logger";
 import { migrateToProjectStorage, recoverFromLegacy } from "@/lib/storage/storage-migration";
 import { installWorkflowSmokeBridge } from "@/lib/studio/workflow-smoke-bridge";
 import type { AvailableUpdateInfo } from "@/types/update";
@@ -36,8 +37,7 @@ function App() {
     let cancelled = false;
     const timer = window.setTimeout(() => {
       (async () => {
-        const startedAt = performance.now();
-        console.info("[App] Startup maintenance started");
+        const maintenanceSpan = startSpan({ category: "runtime", level: "info", message: "[App] Startup maintenance started" });
         try {
           await useAppSettingsStore.persist.rehydrate();
           await migrateToProjectStorage();
@@ -45,7 +45,7 @@ function App() {
         } catch (err) {
           console.error('[App] Startup maintenance error:', err);
         } finally {
-          console.info(`[App] Startup maintenance finished in ${Math.round(performance.now() - startedAt)}ms`);
+          await maintenanceSpan.end({ category: "runtime", level: "info", message: "[App] Startup maintenance finished" });
           if (!cancelled) {
             setStartupMaintenanceDone(true);
           }

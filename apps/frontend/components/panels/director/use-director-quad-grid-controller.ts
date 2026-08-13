@@ -130,8 +130,7 @@ export function useDirectorQuadGridController({
       setQuadGridOpen(false);
       return;
     }
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const platform = featureConfig.platform;
+ 
     const model = featureConfig.models?.[0];
     if (!model) {
       toast.error("请先在设置中配置图片生成模型");
@@ -178,8 +177,8 @@ export function useDirectorQuadGridController({
       if (scene.sceneReferenceImage) references.push(scene.sceneReferenceImage);
       const processedReferences = await processReferenceImagesForApi(references.slice(0, 14), "[QuadGrid]", false);
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { gridImageUrl, slicedImages } = await executeStoryboardGridGeneration({
+ 
+ const { slicedImages } = await executeStoryboardGridGeneration({
         request: {
           model,
           prompt: gridPrompt,

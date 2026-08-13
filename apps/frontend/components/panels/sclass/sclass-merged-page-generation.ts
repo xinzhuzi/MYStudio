@@ -1,8 +1,7 @@
 import { aiManager } from "@/lib/ai/ai-manager";
 import { pollImageTaskUrl } from "@/lib/storyboard/image-task-transport";
 import type { PersistResult } from "@/lib/utils/image-persist";
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import type { SplitScene } from "@/stores/director/director-store";
+ 
 import { normalizeStoryboardReferenceImages } from "../director/storyboard-reference-image-normalizer";
 import { sliceStoryboardMergedGridImage } from "../director/storyboard-merged-grid-image-slicer";
 import { writeStoryboardMergedImages } from "../director/storyboard-merged-image-writeback";
@@ -91,8 +90,7 @@ export function createSClassMergedPageGenerator(options: SClassMergedPageGenerat
   return async (pageTasks: MergedFrameTask[], references: string[]): Promise<string[]> => {
     const actualCount = pageTasks.length;
     const { cols, rows, paddedCount } = calculateMergedGridLayout(actualCount);
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const emptySlots = paddedCount - actualCount;
+ 
     const gridAspect = aspect;
 
 

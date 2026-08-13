@@ -203,6 +203,7 @@ export function SimpleTimeline() {
             variant="ghost"
             className="h-7 w-7"
             onClick={() => setIsCollapsed(false)}
+            aria-label="展开时间线"
           >
             <ChevronRight className="h-4 w-4" />
           </Button>
@@ -217,6 +218,7 @@ export function SimpleTimeline() {
             className="h-7 w-7"
             onClick={isPreviewPlaying ? handlePause : handlePlay}
             disabled={clips.length === 0}
+            aria-label={isPreviewPlaying ? "暂停" : "播放时间线"}
           >
             {isPreviewPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
           </Button>
@@ -235,6 +237,7 @@ export function SimpleTimeline() {
             variant="ghost"
             className="h-7 w-7"
             onClick={() => setIsCollapsed(true)}
+            aria-label="收起时间线"
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
@@ -246,6 +249,7 @@ export function SimpleTimeline() {
             className="h-7 w-7"
             onClick={isPreviewPlaying ? handlePause : handlePlay}
             disabled={clips.length === 0}
+            aria-label={isPreviewPlaying ? "暂停" : "播放时间线"}
           >
             {isPreviewPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
           </Button>
@@ -255,12 +259,13 @@ export function SimpleTimeline() {
             className="h-7 w-7"
             onClick={handleStop}
             disabled={clips.length === 0}
+            aria-label="停止播放"
           >
             <Square className="h-4 w-4" />
           </Button>
 
           {/* Clip count display */}
-          <span className="text-xs text-muted-foreground">
+          <span className="text-xs text-muted-foreground" aria-live="polite">
             {isPreviewPlaying && playlist.length > 0 ? `${currentIndex + 1}/${playlist.length}` : `${clips.length} 个片段`}
           </span>
         </div>
@@ -273,6 +278,7 @@ export function SimpleTimeline() {
             onClick={clearTimeline}
             disabled={clips.length === 0}
             title="清空时间线"
+            aria-label="清空时间线"
           >
             <Trash2 className="h-4 w-4" />
           </Button>
@@ -317,7 +323,23 @@ export function SimpleTimeline() {
                   )}
                   style={{ width: 120 }} // Fixed width for cleaner look
                 >
-                <div className="h-full flex flex-col" onClick={(e) => handleClipClick(clip, e)}>
+                <div
+                  className="h-full flex flex-col"
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`预览片段 ${clip.name}`}
+                  onClick={(e) => handleClipClick(clip, e)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setPreviewItem({
+                        type: 'video',
+                        url: clip.url,
+                        name: clip.name,
+                      });
+                    }
+                  }}
+                >
                   {/* Thumbnail */}
                   <div className="flex-1 relative overflow-hidden bg-muted cursor-pointer">
                     {clip.thumbnailUrl ? (
@@ -342,11 +364,13 @@ export function SimpleTimeline() {
                     </div>
                     {/* Delete button */}
                     <button
+                      type="button"
+                      aria-label={`删除片段 ${clip.name}`}
                       onClick={(e) => {
                         e.stopPropagation();
                         removeClip(clip.id);
                       }}
-                      className="absolute right-1 top-1 p-0.5 rounded bg-black/50 hover:bg-destructive text-white opacity-0 hover:opacity-100 transition-opacity"
+                      className="absolute right-1 top-1 p-0.5 rounded bg-black/50 hover:bg-destructive text-white opacity-0 hover:opacity-100 focus-visible:opacity-100 transition-opacity"
                     >
                       <Trash2 className="h-3 w-3" />
                     </button>

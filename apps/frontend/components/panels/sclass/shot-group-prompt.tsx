@@ -41,7 +41,6 @@ import type { Scene } from "@/stores/library/scene-store";
 import type { ShotGroup, SClassAspectRatio } from "@/stores/sclass/sclass-store";
 import {
   buildGroupPrompt,
-  estimateGroupRefs,
   SEEDANCE_LIMITS,
   type GroupPromptResult,
 } from "./sclass-prompt-builder";
@@ -91,13 +90,6 @@ export function ShotGroupPrompt({
         enableLipSync,
       }),
     [group, scenes, characters, sceneLibrary, styleTokens, aspectRatio, enableLipSync]
-  );
-
-  // @引用预估（轻量）
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const refEstimate = useMemo(
-    () => estimateGroupRefs(group, scenes),
-    [group, scenes]
   );
 
   // 开始编辑

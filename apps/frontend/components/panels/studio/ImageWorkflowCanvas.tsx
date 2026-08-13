@@ -11,8 +11,7 @@ import {
 import "@xyflow/react/dist/style.css";
 import {
   ArrowLeft,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  CheckCircle2,
+ 
   Image as _ImageIcon,
   Loader2,
   Maximize2,
@@ -25,8 +24,7 @@ import {
 import { Button } from "@/components/ui/button";
 import {
   createAssetImageWorkflowGraph,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  createImageWorkflowGraph,
+ 
   ensureImageWorkflowPromptNodes,
   ensureAssetImageWorkflowGraph,
   updateImageWorkflowNode,
@@ -37,10 +35,8 @@ import type {
   ImageWorkflowGraph,
   ImageWorkflowNode,
   ImageWorkflowOpenContext,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  ImageWorkflowPromptNode,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  AssetImageWorkflowContext,
+ 
+ 
 } from "@/types/studio";
 import { cn } from "@/lib/utils";
 import {
@@ -48,8 +44,7 @@ import {
   type ImageWorkflowReactNode,
 } from "./image-workflow-node-card";
 import {
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  assetTargetLabel,
+ 
   assetWorkflowContextKey,
   createOpenImageWorkflowGraph,
   focusNodeIdsForGenerated,

@@ -65,7 +65,6 @@ export function useScriptShotCalibration({
         episodeIndex,
         projectId,
         options,
-        (_current, _total, message) => console.log(`[ScriptView] Shot Calibration: ${message}`),
       );
       if (!result.success) throw new Error(result.error || "分镜校准失败");
 
@@ -112,7 +111,7 @@ export function useScriptShotCalibration({
         episode.index,
         projectId,
         options,
-        (_current, _total, message) => console.log(`[ScriptView] Scene Shot Calibration: ${message}`),
+        undefined,
         sceneId,
       );
       if (!result.success) throw new Error(result.error || "分镜校准失败");
@@ -145,7 +144,6 @@ export function useScriptShotCalibration({
         shotId,
         projectId,
         options,
-        (message) => console.log(`[ScriptView] Single Shot Calibration: ${message}`),
       );
       if (!result.success) throw new Error(result.error || "分镜校准失败");
       setSingleShotCalibrationStatus(projectId, shotId, "completed");

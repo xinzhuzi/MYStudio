@@ -42,8 +42,7 @@ import {
   FolderPlus,
   Folder,
   ChevronRight,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  ChevronDown,
+ 
   Home,
   Pencil,
   Trash2,
@@ -547,8 +546,7 @@ export function SceneGallery({ onSceneSelect, selectedSceneId }: SceneGalleryPro
 
 // Folder context menu
 function FolderContextMenu({
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  folder,
+ 
   children,
   onRename,
   onDelete,
@@ -578,8 +576,7 @@ function FolderContextMenu({
 
 // Scene context menu
 function SceneContextMenu({
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  scene,
+ 
   children,
   folders,
   onDelete,

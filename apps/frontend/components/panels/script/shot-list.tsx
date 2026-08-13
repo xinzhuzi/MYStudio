@@ -18,18 +18,6 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  Select,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  SelectContent,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  SelectItem,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  SelectTrigger,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Popover,
   PopoverContent,
   PopoverTrigger,
@@ -38,10 +26,8 @@ import {
   Image as ImageIcon,
   Video,
   Play,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  Pause,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  RefreshCw,
+ 
+ 
   User,
   Shirt,
   Check,
@@ -366,8 +352,7 @@ interface ShotCardProps {
 
 function ShotCard({
   shot,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  characters,
+ 
   onGenerateImage,
   onGenerateVideo,
   onVariationChange,

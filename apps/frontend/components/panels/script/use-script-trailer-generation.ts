@@ -102,8 +102,8 @@ export function useScriptTrailerGeneration(options: UseScriptTrailerGenerationOp
         return;
       }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const startId = splitScenes.length > 0 ? Math.max(...splitScenes.map((scene) => scene.id)) + 1 : 1;
+ 
+      splitScenes.length > 0 ? Math.max(...splitScenes.map((scene) => scene.id)) + 1 : 1;
       addScenesFromScript(result.selectedShots.map(toTrailerScene));
       const shotIds = result.selectedShots.map((shot) => shot.id);
       setTrailerConfig({

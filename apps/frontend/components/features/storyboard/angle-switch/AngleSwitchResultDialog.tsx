@@ -63,8 +63,8 @@ export function AngleSwitchResultDialog({
     ? history[selectedHistoryIndex].angleLabel
     : result.angleLabel;
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const handleImageClick = (imageUrl: string, label: string) => {
+ 
+  (imageUrl: string, label: string) => {
     if (onPreviewInCenter) {
       onPreviewInCenter(imageUrl, label);
     }

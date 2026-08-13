@@ -106,14 +106,10 @@ export function PropertyPanel({
   onDeleteCharacter,
   onDeleteScene,
   onDeleteShot,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  onAnalyzeCharacterStages,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  stageAnalysisStatus,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  suggestMultiStage,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  multiStageHints,
+ 
+ 
+ 
+ 
 }: PropertyPanelProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);

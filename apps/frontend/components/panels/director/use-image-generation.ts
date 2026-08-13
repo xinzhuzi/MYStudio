@@ -99,8 +99,7 @@ export async function callImageGenerationApi(
   if (!featureConfig) {
     throw new Error('请先在设置中配置图片生成服务映射');
   }
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const platform = featureConfig.platform;
+ 
   const model = featureConfig.models?.[0];
   if (!model) {
     throw new Error('请先在设置中配置图片生成模型');

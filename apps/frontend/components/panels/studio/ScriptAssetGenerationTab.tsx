@@ -23,8 +23,7 @@ import {
   assetLibraryRowKey,
   summarizeRows,
   typeLabel,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  type AssetRow,
+ 
   type AssetGenerationType,
 } from "./script-asset-generation-model";
 import { useScriptAssetGenerationActions } from "./useScriptAssetGenerationActions";

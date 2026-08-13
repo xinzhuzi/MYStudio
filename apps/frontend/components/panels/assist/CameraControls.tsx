@@ -57,8 +57,6 @@ function ScrollColumn({ items, value, onChange, label }: ScrollColumnProps) {
     if (!list || isDragging.current) return;
 
     const centerY = list.scrollTop + list.clientHeight / 2;
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-    let closest: HTMLElement | null = null;
     let minDist = Infinity;
     let closestIndex = -1;
 
@@ -68,7 +66,6 @@ function ScrollColumn({ items, value, onChange, label }: ScrollColumnProps) {
       const dist = Math.abs(centerY - (el.offsetTop + el.offsetHeight / 2));
       if (dist < minDist) {
         minDist = dist;
-        closest = el;
         closestIndex = i;
       }
     });

@@ -397,19 +397,6 @@ function ensureLocalAssetForRow(
   return { ...row, id: asset.id, asset };
 }
 
-function _resolveLatestAssetRow(row: AssetRow): AssetRow {
-  if (!row.asset) return row;
-  if (row.type === "character") {
-    const asset = useCharacterLibraryStore.getState().getCharacterById(row.asset.id);
-    return asset ? { ...row, asset } : row;
-  }
-  if (row.type === "scene") {
-    const asset = useSceneStore.getState().getSceneById(row.asset.id);
-    return asset ? { ...row, asset } : row;
-  }
-  const asset = usePropsLibraryStore.getState().getPropById(row.asset.id);
-  return asset ? { ...row, asset } : row;
-}
 
 async function resolveAssetSourceFilePath(image?: string) {
   if (!image) return undefined;

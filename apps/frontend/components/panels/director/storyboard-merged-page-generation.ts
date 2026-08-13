@@ -102,8 +102,7 @@ export function createStoryboardMergedPageGenerator(options: StoryboardMergedPag
   return async (pageTasks: MergedFrameTask[], references: string[]): Promise<string[]> => {
     const actualCount = pageTasks.length;
     const { cols, rows, paddedCount } = calculateMergedGridLayout(actualCount);
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const emptySlots = paddedCount - actualCount;
+ 
 
     const gridPromptParts: string[] = [
       "<instruction>",

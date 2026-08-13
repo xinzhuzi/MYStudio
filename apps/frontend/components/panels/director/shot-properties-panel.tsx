@@ -91,10 +91,9 @@ export function ShotPropertiesPanel({
   // Get keyframes
   const startKf = selectedShot?.keyframes?.find((k) => k.type === "start");
   const endKf = selectedShot?.keyframes?.find((k) => k.type === "end");
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const hasStartImage = !!(startKf?.imageUrl || selectedShot?.imageUrl);
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const hasEndImage = !!endKf?.imageUrl;
+ 
+  !!(startKf?.imageUrl || selectedShot?.imageUrl);
+ 
   const hasVideo = !!(selectedShot?.videoUrl || selectedShot?.interval?.videoUrl);
 
   // Angle switch state

@@ -15,10 +15,8 @@ import { useState, useCallback } from "react";
 import {
   useScriptStore,
   useActiveScriptProject,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  type ScriptCalibrationStatus,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  type ScriptViewpointStatus,
+ 
+ 
   type ScriptStructureStatus,
 } from "@/stores/script/script-store";
 import { useProjectStore } from "@/stores/project/project-store";
@@ -102,10 +100,8 @@ export function ScriptView() {
     updateCharacter,
     updateShot,
     // 完整剧本管理
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-    setProjectBackground,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-    setEpisodeRawScripts,
+ 
+ 
     updateEpisodeRawScript,
     setPromptLanguage,
     setCalibrationState: setScriptCalibrationState,
@@ -114,8 +110,8 @@ export function ScriptView() {
     setLastFilteredCharacters,
   } = useScriptStore();
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { getApiKey, checkChatKeys, isFeatureConfigured } = useAPIConfigStore();
+ 
+ const { checkChatKeys, isFeatureConfigured } = useAPIConfigStore();
   const { 
     characters: allCharacters, 
     selectCharacter: selectLibraryCharacter,
@@ -187,8 +183,7 @@ export function ScriptView() {
   
   // 角色校准状态
   const characterCalibrationStatus = calibrationState?.characterCalibrationStatus || 'idle';
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [characterCalibrationResult, setCharacterCalibrationResult] = useState<{
+  const [, setCharacterCalibrationResult] = useState<{
     filteredCount: number;
     mergedCount: number;
     finalCount: number;
@@ -222,8 +217,7 @@ export function ScriptView() {
   // 预告片状态
   const { 
     setTrailerConfig, 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-    setTrailerScenes, 
+ 
     clearTrailer,
     addScenesFromScript,
   } = useDirectorStore();

@@ -747,12 +747,6 @@ function formatFirstShotStatus(status: RemotionRenderJobV1["status"]): string {
   }
 }
 
-function _filterProjectItems<T extends { projectId?: string }>(
-  items: T[],
-  projectId: string | null,
-) {
-  return projectId ? items.filter((item) => item.projectId === projectId) : items;
-}
 
 export function buildWorkbenchAssetMediaMap(
   characters: ReturnType<typeof useCharacterLibraryStore.getState>["characters"],

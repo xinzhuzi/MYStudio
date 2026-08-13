@@ -40,7 +40,6 @@ export function useScriptEpisodeGeneration({
           targetDuration,
           promptLanguage,
         },
-        (message) => console.log(`[ScriptView] ${message}`),
       );
       if (result.viewpointAnalyzed) {
         setViewpointAnalysisStatus("completed");

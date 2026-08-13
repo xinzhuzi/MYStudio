@@ -21,9 +21,19 @@ export function ShotGridCard({
 
   return (
     <div
+      role="button"
+      tabIndex={0}
+      aria-label={`分镜镜头 ${index + 1}：${shot.actionSummary || ""}`.trim()}
+      aria-pressed={isActive}
       onClick={() => onSelect(shot.id)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onSelect(shot.id);
+        }
+      }}
       className={cn(
-        "group relative flex flex-col bg-[#1A1A1A] border rounded-lg overflow-hidden cursor-pointer transition-all",
+        "group relative flex flex-col bg-[#1A1A1A] border rounded-lg overflow-hidden cursor-pointer transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500",
         isActive
           ? "border-indigo-500 ring-1 ring-indigo-500/50"
           : "border-zinc-800 hover:border-zinc-600",

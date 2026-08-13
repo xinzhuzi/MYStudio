@@ -24,14 +24,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  Wand2,
+ 
   Loader2,
   Check,
   AlertCircle,
   RotateCcw,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  User,
+ 
   FileImage,
 } from "lucide-react";
 import { cn } from "@/lib/utils";

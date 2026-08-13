@@ -25,8 +25,7 @@ import {
   Loader2,
   Map,
   Music2,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  Pencil,
+ 
   Sparkles,
   UserCircle,
   Volume2,
@@ -538,8 +537,8 @@ export function StudioAssetDetailDialog({
     }
   };
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const handleRenameImage = async (img: AssetImage, idx: number) => {
+ 
+  async (img: AssetImage, idx: number) => {
     if (idx === 0 && img.name === "主图") return;
     if (!getStudioAssetsBridge()?.renameImage) return;
     const newName = await new Promise<string | null>((resolve) => {

@@ -26,8 +26,7 @@ import {
   BookOpen,
   Globe,
   Users,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  Swords,
+ 
   MapPin,
   Gem,
   Pencil,
@@ -48,10 +47,8 @@ import {
 } from "lucide-react";
 import type {
   SeriesMeta,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  Faction,
-  EpisodeRawScript,
-} from "@/types/script";
+ 
+  EpisodeRawScript } from "@/types/script";
 import { getStyleName } from "@/lib/constants/visual-styles";
 import {
   EditableText,
@@ -407,10 +404,6 @@ export function OverviewPanel() {
                   <div className="space-y-2">
                     {episodes.map((ep) => {
                       const epSceneCount = ep.scenes?.length || 0;
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-                      const episode = scriptData?.episodes?.find(
-                        (e) => e.index === ep.episodeIndex,
-                      );
                       const statusIcon =
                         ep.shotGenerationStatus === "completed" ? (
                           <CheckCircle2 className="h-3 w-3 text-green-500" />

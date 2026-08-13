@@ -1,19 +1,14 @@
 import type {
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  AgentWorkData,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  EntityExtractionResult,
+ 
+ 
   ProductionTrack,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  ScriptPlan,
+ 
   StudioManualPreset,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  StudioWorkflowConfig,
+ 
   StoryboardItem,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  VideoCandidate,
+ 
 } from "@/types/studio";
-import type { StudioAssetSummary } from "@/types/studio-assets";
+import type {} from "@/types/studio-assets";
 import type { TimelineRendererId } from "@rendering/contracts/timeline-renderer";
 import type { RemotionBrowserState } from "@rendering/contracts/remotion-browser-status";
 import type {
@@ -35,17 +30,13 @@ import {
 } from "./storyboard-preview-model";
 import {
   buildAssetDerivationModel,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  buildAssetLibraryMatchNamesForProductionFlow,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  buildAssetLibraryMediaMapForProductionFlow,
+ 
+ 
 } from "./workflow-asset-derivation-model";
 import type {
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  ProductionFlowAssetCard,
+ 
   ProductionFlowAssetGroup,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  ProductionFlowAssetMedia,
+ 
   ProductionFlowAssetSummary,
   ProductionFlowModelInput,
 } from "./workflow-asset-types";
@@ -851,13 +842,3 @@ function previewTextLines(
 }
 
 
-function _getStudioAssetPreviewPath(asset: StudioAssetSummary) {
-  return (
-    asset.thumbnailUrl ||
-    asset.previewUrl ||
-    asset.images?.find((image) => image.url || image.filePath)?.url ||
-    asset.images?.find((image) => image.url || image.filePath)?.filePath ||
-    asset.filePath ||
-    asset.sourcePath
-  );
-}

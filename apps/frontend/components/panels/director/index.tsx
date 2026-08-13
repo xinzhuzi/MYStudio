@@ -62,8 +62,7 @@ export function DirectorView() {
     setStoryboardError,
     setStoryboardConfig,
     resetStoryboard,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-    setProjectFolderId,
+ 
   } = useDirectorStore();
   
   const imageGenerationSettings = useAppSettingsStore((state) => state.imageGenerationSettings);
@@ -79,8 +78,7 @@ export function DirectorView() {
     storyPrompt: '',
   };
   const splitScenes = projectData?.splitScenes || [];
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const projectFolderId = projectData?.projectFolderId || null;
+ 
   const screenplay = projectData?.screenplay || null;
   const screenplayStatus = projectData?.screenplayStatus || 'idle';
   const screenplayError = projectData?.screenplayError || null;
@@ -88,8 +86,8 @@ export function DirectorView() {
   const { addMediaFromUrl, getOrCreateCategoryFolder } = useMediaStore();
   const { setActiveTab } = useMediaPanelStore();
   const overallProgress = useOverallProgress();
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const isGenerating = useIsGenerating();
+ 
+  useIsGenerating();
   const [storyboardProgress, setStoryboardProgress] = useState(0);
 
   // Check if required APIs are configured (check image generation feature)

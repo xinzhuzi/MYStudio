@@ -106,13 +106,11 @@ export function SplitSceneCard({
   onUpdateShotSize,
   onUpdateDuration,
   onUpdateAmbientSound,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  onUpdateSoundEffects,
+ 
   onUpdateSceneReference,
   onUpdateEndFrameSceneReference,
   onDelete,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  onSaveToLibrary,
+ 
   onGenerateImage,
   onGenerateVideo,
   onGenerateEndFrame,
@@ -203,7 +201,11 @@ export function SplitSceneCard({
         {!isGeneratingAny && (
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <button className="p-1 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity">
+              <button
+                type="button"
+                aria-label={`删除分镜 ${scene.id + 1}`}
+                className="p-1 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
+              >
                 <Trash2 className="h-3.5 w-3.5" />
               </button>
             </AlertDialogTrigger>
@@ -272,6 +274,7 @@ export function SplitSceneCard({
                   className="h-7 text-xs px-2"
                   onClick={() => onStopImageGeneration?.(scene.id)}
                   title="停止生成"
+                  aria-label={`停止分镜 ${scene.id + 1} 图片生成`}
                 >
                   <Square className="h-3 w-3" />
                 </Button>
@@ -301,6 +304,7 @@ export function SplitSceneCard({
                   className="h-7 text-xs px-2"
                   onClick={() => onStopVideoGeneration?.(scene.id)}
                   title="停止生成"
+                  aria-label={`停止分镜 ${scene.id + 1} 视频生成`}
                 >
                   <Square className="h-3 w-3" />
                 </Button>
@@ -310,9 +314,18 @@ export function SplitSceneCard({
           
           {isVideoReady && scene.videoUrl && (
             <div className="flex items-center gap-1">
-              <div 
-                className="flex-1 aspect-video max-w-[120px] bg-muted rounded overflow-hidden cursor-pointer relative"
+              <div
+                role="button"
+                tabIndex={0}
+                aria-label={`预览分镜 ${scene.id + 1} 视频`}
+                className="flex-1 aspect-video max-w-[120px] bg-muted rounded overflow-hidden cursor-pointer relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 onClick={() => setPreviewItem({ type: 'video', url: scene.videoUrl!, name: `分镜 ${scene.id + 1} 视频` })}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setPreviewItem({ type: 'video', url: scene.videoUrl!, name: `分镜 ${scene.id + 1} 视频` });
+                  }
+                }}
                 draggable={!!canDragVideo}
                 onDragStart={handleVideoDragStart}
               >
@@ -329,6 +342,8 @@ export function SplitSceneCard({
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <button
+                      type="button"
+                      aria-label={`提取分镜 ${scene.id + 1} 最后一帧`}
                       onClick={(e) => {
                         e.stopPropagation();
                         onExtractVideoLastFrame?.(scene.id);
@@ -517,6 +532,8 @@ export function SplitSceneCard({
           {/* 环境音 */}
           <div className="flex items-center gap-1.5">
             <button
+              type="button"
+              aria-pressed={scene.audioAmbientEnabled !== false}
               onClick={() => onUpdateField?.(scene.id, 'audioAmbientEnabled', scene.audioAmbientEnabled === false)}
               disabled={isGeneratingAny}
               className={cn(
@@ -540,6 +557,8 @@ export function SplitSceneCard({
           {/* 音效 */}
           <div className="flex items-center gap-1.5">
             <button
+              type="button"
+              aria-pressed={scene.audioSfxEnabled !== false}
               onClick={() => onUpdateField?.(scene.id, 'audioSfxEnabled', scene.audioSfxEnabled === false)}
               disabled={isGeneratingAny}
               className={cn(
@@ -563,6 +582,8 @@ export function SplitSceneCard({
           {/* 对白 */}
           <div className="flex items-center gap-1.5">
             <button
+              type="button"
+              aria-pressed={scene.audioDialogueEnabled !== false}
               onClick={() => onUpdateField?.(scene.id, 'audioDialogueEnabled', scene.audioDialogueEnabled === false)}
               disabled={isGeneratingAny}
               className={cn(
@@ -586,6 +607,8 @@ export function SplitSceneCard({
           {/* 背景音乐 */}
           <div className="flex items-center gap-1.5">
             <button
+              type="button"
+              aria-pressed={scene.audioBgmEnabled === true}
               onClick={() => onUpdateField?.(scene.id, 'audioBgmEnabled', !(scene.audioBgmEnabled === true))}
               disabled={isGeneratingAny}
               className={cn(

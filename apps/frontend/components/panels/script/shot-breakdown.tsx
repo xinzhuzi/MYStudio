@@ -47,8 +47,7 @@ export function ShotBreakdown({
   }, [shots, scriptData]);
 
   // Calculate total shots for index display
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const totalShots = shots.length;
+ 
   let globalIndex = 0;
 
   if (shots.length === 0) {

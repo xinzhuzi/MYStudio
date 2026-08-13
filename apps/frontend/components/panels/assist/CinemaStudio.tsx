@@ -12,14 +12,10 @@ import { GenerationHistory } from './GenerationHistory';
 import { aiManager } from '@/lib/ai/ai-manager';
 import {
   buildCinemaPrompt,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  CAMERA_MAP,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  LENS_MAP,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  FOCAL_PERSPECTIVE,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  APERTURE_EFFECT,
+ 
+ 
+ 
+ 
 } from '@/lib/assist/camera-dictionary';
 
 export function CinemaStudio() {

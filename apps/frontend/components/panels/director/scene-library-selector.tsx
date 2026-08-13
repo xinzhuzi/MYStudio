@@ -8,7 +8,7 @@
  * 支持三层选择：父场景 → 视角变体 → 四视图子场景
  */
 
-import React, { useState, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { Check, Layers, MapPin } from "lucide-react";
 import { Label } from "@/components/ui/label";
@@ -161,8 +161,8 @@ export function SceneLibrarySelector({
     || selectedViewpoint?.referenceImage || selectedViewpoint?.referenceImageBase64
     || selectedScene?.referenceImage || selectedScene?.contactSheetImage || selectedScene?.referenceImageBase64
     || null;
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const resolvedPreview = useResolvedImageUrl(previewRefImage);
+ 
+  useResolvedImageUrl(previewRefImage);
   
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>

@@ -105,8 +105,7 @@ function RefThumbnail({
 
 /** 配额进度条 */
 function QuotaBar({
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  label,
+ 
   icon,
   current,
   max,

@@ -44,8 +44,7 @@ export function DirectorContextPanel() {
   // Get current project data
   const projectData = useActiveDirectorProject();
   const splitScenes = projectData?.splitScenes || [];
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const storyboardStatus = projectData?.storyboardStatus || 'idle';
+ 
   
   // 获取场景库数据
   const { scenes } = useSceneStore();
@@ -135,8 +134,8 @@ export function DirectorContextPanel() {
   }, [characters, resourceSharing.shareCharacters, activeProjectId]);
   
   // 在场景库中查找匹配的视角
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const findViewpointInLibrary = (sceneName: string, viewpointName: string): ViewpointMatchResult | null => {
+ 
+  (sceneName: string, viewpointName: string): ViewpointMatchResult | null => {
     
     // 找到匹配的父场景
     const parentScenes = sceneLibraryScenes.filter(s => 
@@ -183,8 +182,8 @@ export function DirectorContextPanel() {
   };
   
   // 异步版本：关键词 + AI 匹配（用于批量添加）
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const findMatchingSceneAndViewpointWithAI = async (sceneName: string, actionSummary: string): Promise<ViewpointMatchResult | null> => {
+ 
+  async (sceneName: string, actionSummary: string): Promise<ViewpointMatchResult | null> => {
     return matchSceneAndViewpoint(sceneName, actionSummary, sceneLibraryScenes);
   };
 

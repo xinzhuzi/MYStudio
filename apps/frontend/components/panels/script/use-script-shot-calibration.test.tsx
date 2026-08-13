@@ -68,7 +68,7 @@ describe("useScriptShotCalibration", () => {
 
     expect(calibrateEpisodeShots).toHaveBeenCalledWith(2, "project-1", expect.objectContaining({
       apiKey: "k1,k2", provider: "zhipu", model: "model-1", styleId: "ink",
-    }), expect.any(Function));
+    }));
     expect(callbacks.setViewpointAnalysisStatus.mock.calls.map(([status]) => status)).toEqual(["analyzing", "completed"]);
     expect(callbacks.removeSecondPass).toHaveBeenCalledWith("shots");
   });
@@ -81,7 +81,7 @@ describe("useScriptShotCalibration", () => {
     await result.current.handleCalibrateScenesShots("scene-1");
 
     expect(calibrateEpisodeShots).toHaveBeenCalledWith(
-      2, "project-1", expect.any(Object), expect.any(Function), "scene-1",
+      2, "project-1", expect.any(Object), undefined, "scene-1",
     );
   });
 

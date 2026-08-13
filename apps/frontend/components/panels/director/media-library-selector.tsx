@@ -8,7 +8,7 @@
  * 从素材库中选择图片应用到分镜首帧/尾帧
  */
 
-import React, { useState, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { Check, ImageIcon, FolderOpen } from "lucide-react";
 import { useMediaStore } from "@/stores/media/media-store";

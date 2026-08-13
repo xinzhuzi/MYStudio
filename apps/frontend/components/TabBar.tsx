@@ -18,8 +18,8 @@ interface TabBarProps {
   onToggleSidebar: () => void;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export function TabBar({ sidebarCollapsed, onToggleSidebar }: TabBarProps) {
+ 
+export function TabBar({ sidebarCollapsed}: TabBarProps) {
   const { activeTab, inProject, setActiveTab, setInProject } = useMediaPanelStore();
 
   const sidebarClassName = cn(

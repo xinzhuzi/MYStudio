@@ -11,8 +11,7 @@
 import { useDirectorStore, useIsGenerating, useOverallProgress, useActiveDirectorProject } from "@/stores/director/director-store";
 import { Button } from "@/components/ui/button";
 import { 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  Play, 
+ 
   StopCircle,
   CheckCircle2,
   AlertCircle,
@@ -43,8 +42,8 @@ export function GenerationProgress() {
   } = useDirectorStore();
 
   const isGenerating = useIsGenerating();
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const overallPercent = useOverallProgress();
+ 
+  useOverallProgress();
 
   // Get API keys from config store
   const apiKeys = useAPIConfigStore((state) => state.apiKeys);
@@ -97,8 +96,7 @@ export function GenerationProgress() {
 
   // Determine if we're generating images or videos
   const isImageMode = screenplayStatus === 'generating_images';
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const isVideoMode = screenplayStatus === 'generating_videos';
+ 
 
   // Start generation handler (images or videos based on mode)
   const handleStartGeneration = useCallback(async () => {
@@ -154,8 +152,8 @@ export function GenerationProgress() {
         await workerBridge.executeScreenplayImages(screenplay, execConfig);
       } else {
         // Debug: Log each scene's imageUrl before sending to worker
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-        for (const scene of screenplay.scenes) {
+ 
+        for (const _scene of screenplay.scenes) {
         }
         await workerBridge.executeScreenplayVideos(screenplay, execConfig);
       }
@@ -198,8 +196,7 @@ export function GenerationProgress() {
 
   if (!screenplay) return null;
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const hasNotStarted = overallProgress.percent === 0 && !isGenerating;
+ 
   const isComplete = overallProgress.completed === overallProgress.total;
 
   return (

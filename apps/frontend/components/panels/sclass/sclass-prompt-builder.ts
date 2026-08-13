@@ -16,8 +16,8 @@
 import type { SplitScene } from '@/stores/director/director-store';
 import type { Character } from '@/stores/library/character-library-store';
 import type { Scene } from '@/stores/library/scene-store';
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import type { ShotGroup, AssetRef, AssetPurpose, SClassAspectRatio, SClassResolution, EditType } from '@/stores/sclass/sclass-store';
+ 
+import type { ShotGroup, AssetRef, AssetPurpose, SClassAspectRatio, EditType } from '@/stores/sclass/sclass-store';
 import {
   collectAllRefs,
   collectCharacterRefs,

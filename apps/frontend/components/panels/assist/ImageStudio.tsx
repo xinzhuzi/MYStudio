@@ -58,10 +58,8 @@ export function ImageStudio() {
   // Midjourney-specific params
   const hasMidjourneyParams = /midjourney|^mj_|^niji-/i.test(selectedImageModel);
   const hasIdeogramParams = selectedImageModel.includes('ideogram');
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const hasImageUrl = model?.inputs?.image_url != null;
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const hasStrength = model?.inputs?.strength != null;
+ 
+ 
   const canGenerateImage = imagePrompt.trim().length > 0 && selectedImageModel.trim().length > 0;
 
   const handleGenerate = useCallback(async () => {

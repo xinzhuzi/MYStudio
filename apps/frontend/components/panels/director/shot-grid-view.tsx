@@ -38,12 +38,12 @@ export function ShotGridView({ onGenerateImage, onGenerateVideo }: ShotGridViewP
   const { activeProjectId } = useProjectStore();
   const scriptProject = useActiveScriptProject();
   const { updateShot } = useScriptStore();
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { characters, getCharacterById } = useCharacterLibraryStore();
+ 
+ const { getCharacterById } = useCharacterLibraryStore();
 
   const [activeShotId, setActiveShotId] = useState<string | null>(null);
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [processingId, setProcessingId] = useState<string | null>(null);
+  const [, setProcessingId] = useState<string | null>(null);
+ 
   const [processingType, setProcessingType] = useState<"start" | "end" | "video" | null>(null);
   const [batchProgress, setBatchProgress] = useState<{
     isVisible: boolean;

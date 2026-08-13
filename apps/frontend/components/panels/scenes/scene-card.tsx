@@ -44,8 +44,7 @@ export function SceneCard({
 }) {
   const timeLabel = TIME_PRESETS.find(t => t.id === scene.time)?.label || scene.time;
   const atmosphereLabel = ATMOSPHERE_PRESETS.find(a => a.id === scene.atmosphere)?.label || scene.atmosphere;
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const isVariant = scene.isViewpointVariant;
+ 
   // Use referenceImage first, fall back to contactSheetImage for parent scenes
   const displayImage = scene.referenceImage || scene.contactSheetImage || undefined;
   const resolvedImage = useResolvedImageUrl(displayImage);

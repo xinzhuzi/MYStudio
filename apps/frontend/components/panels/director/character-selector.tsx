@@ -8,7 +8,7 @@
  * 从角色库中选择角色关联到分镜
  */
 
-import React, { useState, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { Check, User, Users } from "lucide-react";
 import { useCharacterLibraryStore } from "@/stores/library/character-library-store";

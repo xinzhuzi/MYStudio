@@ -8,20 +8,16 @@
  * 显示分镜切割结果，支持编辑提示词、上传尾帧、选择角色库、添加情绪标签
  */
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import React, { useState, useCallback, useMemo, useRef } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { 
   useDirectorStore, 
   useActiveDirectorProject,
   type SplitScene, 
   type EmotionTag,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  EMOTION_PRESETS,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  SHOT_SIZE_PRESETS,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  SOUND_EFFECT_PRESETS,
+ 
+ 
+ 
 } from "@/stores/director/director-store";
 import { useCharacterLibraryStore } from "@/stores/library/character-library-store";
 import { 
@@ -45,13 +41,11 @@ import { useSClassGroupingController } from "./use-sclass-grouping-controller";
 import { useSceneStore } from "@/stores/library/scene-store";
 import { 
   VISUAL_STYLE_PRESETS, 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  STYLE_CATEGORIES,
+ 
   getStyleById, 
   getStylePrompt,
   getStyleNegativePrompt,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  DEFAULT_STYLE_ID 
+ 
 } from "@/lib/constants/visual-styles";
 import { DEFAULT_CINEMATOGRAPHY_PROFILE_ID } from "@/lib/constants/cinematography-profiles";
 import { buildEmotionDescription as buildEmotionDesc } from "@/lib/generation/prompt-builder";
@@ -63,7 +57,6 @@ import { useStoryboardSceneActions } from "../director/use-storyboard-scene-acti
 import { StoryboardGenerationDialogs } from "../director/storyboard-generation-dialogs";
 import { useStoryboardAngleSwitch } from "../director/use-storyboard-angle-switch";
 import { useStoryboardResultActions } from "../director/use-storyboard-result-actions";
-import { useStoryboardPromptGeneration } from "../director/use-storyboard-prompt-generation";
 import { useStoryboardVideoLastFrame } from "../director/use-storyboard-video-last-frame";
 import { normalizeStoryboardReferenceImages } from "../director/storyboard-reference-image-normalizer";
 import { collectMergedFrameReferenceImages } from "../director/storyboard-merged-reference-utils";
@@ -98,8 +91,8 @@ interface SplitScenesProps {
 const SceneCard = SClassSceneCard;
 const formatSClassDeletedSceneNumber = (sceneId: number) => sceneId;
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export function SClassScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
+ 
+export function SClassScenes({ onBack }: SplitScenesProps) {
   const storyboardUi = useStoryboardGenerationUi({ defaultImageGenMode: "single" });
   const {
     imageGenMode, setImageGenMode,
@@ -108,36 +101,12 @@ export function SClassScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
     refStrategy, setRefStrategy,
     useExemplar, setUseExemplar,
     isGenerating, setIsGenerating,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-    isGeneratingPrompts, setIsGeneratingPrompts,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-    currentGeneratingId, setCurrentGeneratingId,
+    setCurrentGeneratingId,
     activeTab, setActiveTab,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-    angleSwitchOpen,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-    angleSwitchResultOpen, setAngleSwitchResultOpen,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-    angleSwitchTarget, setAngleSwitchTarget,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-    angleSwitchResult, setAngleSwitchResult,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-    selectedHistoryIndex, setSelectedHistoryIndex,
     isAngleSwitching,
     isExtractingFrame, setIsExtractingFrame,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-    quadGridOpen, setQuadGridOpen,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-    quadGridResultOpen, setQuadGridResultOpen,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-    quadGridTarget, setQuadGridTarget,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-    quadGridResult, setQuadGridResult,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-    isQuadGridGenerating, setIsQuadGridGenerating,
+    isQuadGridGenerating,
   } = storyboardUi;
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const PAGE_CONCURRENCY = 2; // 每页并发集群数限制
   // 合并生成停止控制
   const {
     cancelledRef: mergedAbortRef,
@@ -167,13 +136,7 @@ export function SClassScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
     characterReferenceImages: [],
     characterDescriptions: [],
   };
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const projectFolderId = projectData?.projectFolderId || null;
-  // 预告片数据 - 直接从 splitScenes 筛选，保证功能一致
-  const trailerConfig = projectData?.trailerConfig || null;
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const trailerShotIds = trailerConfig?.shotIds || [];
-  
+
   // Debug: log raw data on every render (dev only)
   if (process.env.NODE_ENV === 'development') {
   }
@@ -238,13 +201,10 @@ export function SClassScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
   const {
     generateGroupVideo,
     generateAllGroups,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-    generateSingleShot,
+ 
     abortGeneration: abortSClassGeneration,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-    retryGroup,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-    generateChainExtension,
+ 
+ 
   } = useSClassGeneration();
   const [batchProgress, setBatchProgress] = useState<BatchGenerationProgress | null>(null);
   const sceneLibrary = useSceneStore((state) => state.scenes);
@@ -394,10 +354,8 @@ export function SClassScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
   const {
     handleApplyQuadGrid,
     handleCopyQuadGridToScene,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-    handleSaveQuadGridToLibrary,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-    handleSaveAllQuadGridToLibrary,
+ 
+ 
     handleApplyAngleSwitch,
   } = useStoryboardResultActions({
     scenes: splitScenes,
@@ -407,17 +365,6 @@ export function SClassScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
     addMediaFromUrl,
     updateSplitSceneImage,
     updateSplitSceneEndFrame,
-  });
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const handleAutoGeneratePrompts = useStoryboardPromptGeneration({
-    storyboardImage,
-    scenes: splitScenes,
-    storyboardConfig,
-    setIsGeneratingPrompts,
-    updateSplitSceneImagePrompt,
-    updateSplitSceneVideoPrompt,
-    updateSplitSceneEndFramePrompt,
-    updateSplitSceneNeedsEndFrame,
   });
 
   // 根据情绪标签生成氛围描述 - 使用统一 prompt-builder 模块
@@ -536,8 +483,8 @@ export function SClassScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
   );
 
   // Shared merged-grid prompt rules live in storyboard-merged-grid-utils.
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const handleMergedGenerate = useCallback(async (mode: 'first'|'last'|'both', strategy: 'cluster'|'minimal'|'none' = 'cluster', exemplar: boolean = true) => {
+ 
+  const handleMergedGenerate = useCallback(async (mode: 'first'|'last'|'both', strategy: 'cluster'|'minimal'|'none' = 'cluster', _exemplar: boolean = true) => {
     if (splitScenes.length === 0) {
       toast.error('没有可生成的分镜');
       return;
@@ -556,8 +503,6 @@ export function SClassScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
       toast.error('请先在设置中配置图片生成服务映射');
       return;
     }
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const platform = featureConfig.platform;
     const model = featureConfig.models?.[0];
     if (!model) {
       toast.error('请先在设置中配置图片生成模型');
@@ -675,115 +620,6 @@ export function SClassScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
     getStylePrompt,
     getStyleNegativePrompt,
   ]);
-
-  // 复用单图生成的 API 路径，封装为通用函数（支持首帧/尾帧）
-  // 合并生成专用：使用预计算参考列表；不降级到单图通道
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const generateImageForSceneMerged = async (
-    sceneId: number,
-    prompt: string,
-    apiKey: string,
-    aspect: '16:9'|'9:16',
-    isEndFrame: boolean,
-    refUrls: string[],
-    strategy: 'cluster'|'minimal'|'none'
-  ): Promise<{ finalBase64?: string; directUrl?: string } | void> => {
-    if (isEndFrame) {
-      updateSplitSceneEndFrameStatus(sceneId, { endFrameStatus: 'generating', endFrameProgress: 0, endFrameError: null });
-    } else {
-      updateSplitSceneImageStatus(sceneId, { imageStatus: 'generating', imageProgress: 0, imageError: null });
-    }
-    // 使用服务映射配置
-    const featureConfig = aiManager.featureConfig('character_generation');
-    if (!featureConfig) {
-      throw new Error('请先在设置中配置图片生成服务映射');
-    }
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const platform = featureConfig.platform;
-    const model = featureConfig.models?.[0];
-    if (!model) {
-      throw new Error('请先在设置中配置图片生成模型');
-    }
-    const apiKeyToUse = apiKey || featureConfig.keyManager.getCurrentKey() || '';
-    if (!apiKeyToUse) {
-      throw new Error('请先在设置中配置图片生成服务映射');
-    }
-    const imageBaseUrl = featureConfig.baseUrl?.replace(/\/+$/, '');
-    if (!imageBaseUrl) {
-      throw new Error('请先在设置中配置图片生成服务映射');
-    }
-
-    // Call image generation API with smart routing
-    const mergedKeyManager = featureConfig.keyManager;
-    const apiResult = await aiManager.imageGrid({
-      model,
-      prompt,
-      apiKey: apiKeyToUse,
-      baseUrl: imageBaseUrl,
-      aspectRatio: aspect,
-      resolution: storyboardConfig.resolution || defaultResolution,
-      referenceImages: refUrls && refUrls.length > 0 ? refUrls.slice(0, 14) : undefined,
-      keyManager: mergedKeyManager,
-    });
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const normalizeUrlValue = (url: any): string | undefined => Array.isArray(url) ? (url[0] || undefined) : (typeof url === 'string' ? url : undefined);
-    let directUrl = apiResult.imageUrl;
-    let taskId: string | undefined = apiResult.taskId;
-
-    if (!taskId && !directUrl) {
-      // 对非常规响应：尝试一次"无参考"重试（保持合并模式，不降级到单图通道）
-      if (refUrls.length > 0 && strategy !== 'none') {
-        const retryResult = await aiManager.imageGrid({
-          model,
-          prompt,
-          apiKey: apiKeyToUse,
-          baseUrl: imageBaseUrl,
-          aspectRatio: aspect,
-          keyManager: mergedKeyManager,
-        });
-        directUrl = retryResult.imageUrl;
-        taskId = retryResult.taskId;
-      }
-      if (!taskId && !directUrl) throw new Error('Invalid image task response');
-    }
-
-    if (!directUrl && taskId) {
-      const pollInterval = 2000, maxAttempts = 60;
-      for (let attempt = 0; attempt < maxAttempts; attempt++) {
-        const progress = Math.min(Math.floor((attempt / maxAttempts) * 100), 99);
-        if (isEndFrame) updateSplitSceneEndFrameStatus(sceneId, { endFrameProgress: progress });
-        else updateSplitSceneImageStatus(sceneId, { imageProgress: progress });
-        const url = new URL(`${imageBaseUrl}/v1/tasks/${taskId}`);
-        url.searchParams.set('_ts', Date.now().toString());
-        const statusResp = await fetch(url.toString(), { method: 'GET', headers: { 'Authorization': `Bearer ${apiKeyToUse}`, 'Cache-Control': 'no-cache' } });
-        if (!statusResp.ok) throw new Error(`Failed to check task status: ${statusResp.status}`);
-        const statusData = await statusResp.json();
-        const status = (statusData.status ?? statusData.data?.status ?? 'unknown').toString().toLowerCase();
-        if (status === 'completed' || status === 'succeeded' || status === 'success') {
-          const images = statusData.result?.images ?? statusData.data?.result?.images;
-          if (images?.[0]) directUrl = normalizeUrlValue(images[0].url || images[0]);
-          directUrl = directUrl || normalizeUrlValue(statusData.output_url) || normalizeUrlValue(statusData.result_url) || normalizeUrlValue(statusData.url);
-          break;
-        }
-        if (status === 'failed' || status === 'error') throw new Error((statusData.error || statusData.message || 'image generation failed').toString());
-        await new Promise(r => setTimeout(r, pollInterval));
-      }
-    }
-
-    if (!directUrl) throw new Error('任务完成但没有图片 URL');
-
-    const frameType = isEndFrame ? 'end' as const : 'first' as const;
-    const persistResult = await persistSceneImage(directUrl, sceneId, frameType);
-
-    if (isEndFrame) {
-      updateSplitSceneEndFrame(sceneId, persistResult.localPath, 'ai-generated', persistResult.httpUrl || directUrl);
-    } else {
-      const sceneObj = splitScenes.find(s => s.id === sceneId)!;
-      updateSplitSceneImage(sceneId, persistResult.localPath, sceneObj.width, sceneObj.height, persistResult.httpUrl || directUrl);
-    }
-    return { finalBase64: persistResult.localPath, directUrl };
-  };
 
   // Generate end frame image for a single scene using image API
   const handleGenerateEndFrameImage = useMemo(

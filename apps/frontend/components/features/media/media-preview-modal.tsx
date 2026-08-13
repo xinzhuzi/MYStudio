@@ -9,7 +9,7 @@
  * 支持: HTTP URL / data URI / local-image:// 协议
  */
 
-import React, { useCallback, useEffect } from "react";
+import { useCallback, useEffect } from "react";
 import { X } from "lucide-react";
 
 interface ImagePreviewModalProps {

@@ -643,13 +643,6 @@ describe("workflow stage action surfaces", () => {
       ),
       "utf8",
     );
-    const viewModelSource = readFileSync(
-      join(
-        process.cwd(),
-        "frontend/components/panels/studio/useStudioViewModel.ts",
-      ),
-      "utf8",
-    );
     const managementSource = readFileSync(
       join(
         process.cwd(),

@@ -59,7 +59,6 @@ describe("useScriptEpisodeGeneration", () => {
         targetDuration: "60s",
         promptLanguage: "zh",
       }),
-      expect.any(Function),
     );
     expect(setStatus.mock.calls.map(([status]) => status)).toEqual(["analyzing", "completed"]);
   });

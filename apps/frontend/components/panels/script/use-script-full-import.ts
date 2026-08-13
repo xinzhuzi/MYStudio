@@ -85,7 +85,7 @@ export function useScriptFullImport({
             provider: featureConfig.platform,
             baseUrl: featureConfig.baseUrl,
             model: featureConfig.models?.[0],
-          }, (_current, _total, message) => console.log(`[ScriptView] 标题校准: ${message}`));
+          });
           if (!calibration.success) throw new Error(calibration.error || "校准失败");
           setCalibrationStatus("completed");
           setMissingTitleCount(0);
@@ -105,7 +105,7 @@ export function useScriptFullImport({
             provider: featureConfig.platform,
             baseUrl: featureConfig.baseUrl,
             model: featureConfig.models?.[0],
-          }, (_current, _total, message) => console.log(`[ScriptView] 大纲生成: ${message}`));
+          });
           if (!synopsis.success) throw new Error(synopsis.error || "大纲生成失败");
           setProjectSynopsisStatus("completed");
           setMissingSynopsisCount(getMissingSynopsisEpisodes(projectId).length);
@@ -163,8 +163,6 @@ export function useScriptFullImport({
             finalCount: resolvedCharacters.characters.length,
           });
           toast.success(`角色校准完成: ${resolvedCharacters.characters.length} 个有效角色, 过滤 ${calibration.filteredWords.length} 个非角色词, 合并 ${calibration.mergeRecords.length} 组重复`);
-          if (calibration.filteredWords.length > 0) console.log("[ScriptView] 过滤的非角色词:", calibration.filteredWords);
-          if (calibration.mergeRecords.length > 0) console.log("[ScriptView] 合并记录:", calibration.mergeRecords);
         } catch (error) {
           console.error("[ScriptView] 角色校准失败:", error);
           setCharacterCalibrationStatus("error");

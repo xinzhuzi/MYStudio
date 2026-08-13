@@ -98,8 +98,11 @@ export function AssetSidebar({ activeSection, onSectionChange }: AssetSidebarPro
           <div key={mod.id} className="mb-1">
             {/* 模块标题 */}
             <button
+              type="button"
               className="asset-sidebar-module flex items-center gap-1.5 w-full px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
               onClick={() => toggleModule(mod.id)}
+              aria-expanded={expanded.has(mod.id)}
+              aria-controls={`asset-module-${mod.id}`}
             >
               {expanded.has(mod.id) ? (
                 <ChevronDown className="w-3 h-3" />
@@ -112,7 +115,7 @@ export function AssetSidebar({ activeSection, onSectionChange }: AssetSidebarPro
 
             {/* 子项 */}
             {expanded.has(mod.id) && (
-              <div className="ml-3">
+              <div className="ml-3" id={`asset-module-${mod.id}`}>
                 {mod.children.map((child) => (
                   <button
                     key={child.id}

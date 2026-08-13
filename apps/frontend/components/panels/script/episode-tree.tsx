@@ -9,34 +9,9 @@
  */
 
 import { useState, useMemo, useCallback } from "react";
-import type { ScriptData, ScriptCharacter, ScriptScene, Episode, Shot, CompletionStatus, ProjectBackground, EpisodeRawScript, CalibrationStrictness, FilteredCharacterRecord } from "@/types/script";
+import type { ScriptData, ScriptCharacter, ScriptScene, Episode, Shot, ProjectBackground, EpisodeRawScript, CalibrationStrictness, FilteredCharacterRecord } from "@/types/script";
 import { getShotCompletionStatus, calculateProgress } from "@/lib/script/shot-utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  ChevronDown,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  ChevronRight,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  MapPin,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  User,
-  Circle,
-  Clock,
-  CheckCircle2,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  MoreHorizontal,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  Pencil,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  Trash2,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  Search,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  Sparkles,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  Check,
-} from "lucide-react";
 import type { TrailerDuration, TrailerConfig } from "@/stores/director/director-store";
 import type { TrailerGenerationOptions } from "@/lib/script/trailer-service";
 import { EpisodeTreeTrailerPanel } from "./episode-tree-trailer-panel";
@@ -52,52 +27,6 @@ import {
   type EpisodeTreeFilter,
   type EpisodeTreeTab,
 } from "./episode-tree-header";
-import {
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  DropdownMenu,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  DropdownMenuContent,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  DropdownMenuItem,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  DropdownMenuTrigger,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  DropdownMenuSub,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  DropdownMenuSubTrigger,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  DropdownMenuSubContent,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  DropdownMenuSeparator,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  DropdownMenuRadioGroup,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  DropdownMenuRadioItem,
-} from "@/components/ui/dropdown-menu";
-import {
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  Dialog,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  DialogContent,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  DialogHeader,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  DialogTitle,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  DialogFooter,
-} from "@/components/ui/dialog";
-
-// 计算完成状态图标
-function _StatusIcon({ status }: { status?: CompletionStatus }) {
-  switch (status) {
-    case "completed":
-      return <CheckCircle2 className="h-3 w-3 text-green-500" />;
-    case "in_progress":
-      return <Clock className="h-3 w-3 text-yellow-500" />;
-    default:
-      return <Circle className="h-3 w-3 text-muted-foreground" />;
-  }
-}
 
 interface EpisodeTreeProps {
   scriptData: ScriptData | null;
@@ -193,13 +122,10 @@ export function EpisodeTree({
   onCalibrateCharacters,
   characterCalibrationStatus,
   // AI 角色查找相关
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  projectBackground,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  episodeRawScripts,
+ 
+ 
   onAIFindCharacter,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  aiFindingStatus,
+ 
   // AI 场景查找相关
   onAIFindScene,
   // 场景校准相关
@@ -305,18 +231,6 @@ export function EpisodeTree({
     });
     return map;
   }, [shots]);
-
-  // 筛选后的shots
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const filteredShots = useMemo(() => {
-    if (filter === "all") return shots;
-    return shots.filter((shot) => {
-      const status = getShotCompletionStatus(shot);
-      if (filter === "completed") return status === "completed";
-      if (filter === "pending") return status !== "completed";
-      return true;
-    });
-  }, [shots, filter]);
 
   const toggleEpisode = (id: string) => {
     setExpandedEpisodes((prev) => {

@@ -33,7 +33,7 @@ export class MockElectronAPI extends EventEmitter {
    */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
   registerHandler(channel: string, response: any): void {
-    (this.ipcRenderer.invoke as ReturnType<typeof vi.fn>).mockImplementation(async (arg: string, ...args: unknown[]) => {
+    (this.ipcRenderer.invoke as ReturnType<typeof vi.fn>).mockImplementation(async (arg: string, ..._args: unknown[]) => {
       if (arg === channel) {
         return response;
       }

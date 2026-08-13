@@ -102,13 +102,11 @@ export function SClassSceneCard({
   onUpdateShotSize,
   onUpdateDuration,
   onUpdateAmbientSound,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  onUpdateSoundEffects,
+ 
   onUpdateSceneReference,
   onUpdateEndFrameSceneReference,
   onDelete,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  onSaveToLibrary,
+ 
   onGenerateImage,
   onGenerateVideo,
   onGenerateEndFrame,

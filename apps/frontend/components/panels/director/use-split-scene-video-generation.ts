@@ -11,8 +11,7 @@ import { useAPIConfigStore } from "@/stores/ai/api-config-store";
 import type { DirectorProjectData, DirectorStore, SplitScene } from "@/stores/director/director-store";
 import {
   convertStoryboardFrameToHttpUrl,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  isDiscouragedExternalImageUrl,
+ 
   isHttpImageUrl,
   isLocalImageSource,
   normalizeStoryboardVideoFrameUrl,
@@ -70,8 +69,8 @@ export function useSplitSceneVideoGeneration({
     const scene = scenes.find((candidate) => candidate.id === sceneId);
     if (!scene) return;
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const apiStore = useAPIConfigStore.getState();
+ 
+    useAPIConfigStore.getState();
     if (process.env.NODE_ENV === "development") {
     }
 
