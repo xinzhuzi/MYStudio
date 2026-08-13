@@ -23,6 +23,7 @@ import { toast } from "sonner";
 import type { ArtifactRecord, ArtifactStage, ArtifactState, DeletionConfirmation } from "@/types/artifacts";
 import { FIXED_NAV_STAGES, STAGE_LABELS } from "@/lib/artifacts/stage-labels";
 import { normalizeArtifactPhysicalPath } from "@/lib/artifacts/physical-path";
+import { logEvent } from "@/lib/diagnostics/logger";
 import { ArtifactTree, type ArtifactChapterTreeNode, type ArtifactFileTreeNode, type ArtifactTreeProject } from "./ArtifactTree";
 import { ArtifactDetailPanel } from "./artifact-detail";
 import { ArtifactDeleteDialog } from "./ArtifactDeleteDialog";
@@ -167,10 +168,10 @@ export function ArtifactCenter({
   const [stateFilter, setStateFilter] = useState<ArtifactState | 'all'>('all');
 
   // Sort state
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [sortBy, setSortBy] = useState<keyof ArtifactRecord>('updatedAt');
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+ 
+  const [sortBy] = useState<keyof ArtifactRecord>('updatedAt');
+ 
+  const [sortOrder] = useState<'asc' | 'desc'>('desc');
   const [deletePlan, setDeletePlan] = useState<import("@/types/artifacts").DeletionPlan | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const activeProjectId = useProjectStore((state) => state.activeProjectId);
@@ -644,11 +645,16 @@ export function ArtifactCenter({
       toast.error(result.error);
       return;
     }
-    console.info("[artifact-delete] deletion plan created, opening dialog", {
-      projectId: activeProjectId,
-      chapterIdForPlan,
-      deleteItems: result.data.deleteItems.length,
-      blockerItems: result.data.blockerItems.length,
+    void logEvent({
+      category: "asset",
+      level: "info",
+      message: "[artifact-delete] deletion plan created, opening dialog",
+      context: {
+        projectId: activeProjectId,
+        chapterIdForPlan,
+        deleteItems: result.data.deleteItems.length,
+        blockerItems: result.data.blockerItems.length,
+      },
     });
     setDeletePlan(result.data);
     setDeleteOpen(true);

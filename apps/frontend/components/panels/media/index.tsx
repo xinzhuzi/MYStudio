@@ -47,12 +47,6 @@ import {
 } from "@/stores/artifacts/artifact-store";
 import type { DeletionConfirmation, DeletionPlan } from "@/types/artifacts";
 import { processMediaFiles } from "@/lib/media/media-processing";
-import {
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  generateVideoThumbnail,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  getMediaDuration,
-} from "@/stores/media/media-store";
 import { MediaLibraryGrid } from "./MediaLibraryGrid";
 import { MediaLibraryList } from "./MediaLibraryList";
 import { ArtifactDeleteDialog } from "./ArtifactDeleteDialog";
@@ -89,8 +83,7 @@ export function MediaView() {
   const { setActiveTab } = useMediaPanelStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [progress, setProgress] = useState(0);
+ 
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [sortBy, setSortBy] = useState<MediaSortBy>("name");
   const [sortOrder, setSortOrder] = useState<MediaSortOrder>("asc");
@@ -102,6 +95,7 @@ export function MediaView() {
   const [renameTarget, setRenameTarget] = useState<{ type: 'folder' | 'file'; id: string; name: string } | null>(null);
   const [mediaDeletePlan, setMediaDeletePlan] = useState<DeletionPlan | null>(null);
   const [mediaDeleteOpen, setMediaDeleteOpen] = useState(false);
+  const [, setProgress] = useState(0);
 
   const visibleFolders = useMemo(() => {
     return getVisibleMediaFolders(

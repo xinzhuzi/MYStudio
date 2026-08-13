@@ -4,13 +4,11 @@
 
 import { useMemo, useState, useCallback, useEffect, useRef } from "react";
 import {
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  ArrowUpDown,
+ 
   ChevronDown,
   ChevronUp,
   File,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  Folder,
+ 
   Image,
   Video,
   CheckCircle,

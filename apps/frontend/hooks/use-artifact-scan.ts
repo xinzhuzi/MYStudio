@@ -4,8 +4,8 @@
 
 import { useCallback } from "react";
 import { useArtifactStore } from "@/stores/artifacts/artifact-store";
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import type { ArtifactRecord, InventoryResult } from "@/types/artifacts";
+ 
+import type { InventoryResult } from "@/types/artifacts";
 
 /**
  * Artifact Scan Hook

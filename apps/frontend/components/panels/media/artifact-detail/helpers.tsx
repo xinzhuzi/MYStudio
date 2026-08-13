@@ -52,8 +52,7 @@ interface EditableFieldProps<T extends string | string[] | undefined> {
  * array values edit as a JSON string and parse on save.
  */
 export function EditableField({
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  label,
+ 
   value,
   onSave,
   isEditing,
