@@ -78,8 +78,8 @@ export async function handleGenerateScreenplayCommand(
     }
 
     const rawPayload = await response.json();
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const decoded = decodeWorkerApiPayload(rawPayload);
+ 
+    decodeWorkerApiPayload(rawPayload);
     const screenplay: AIScreenplay = rawPayload as AIScreenplay;
     if (deps.isCancelled(run)) return;
 

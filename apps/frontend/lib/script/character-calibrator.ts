@@ -22,12 +22,9 @@ import { useScriptStore } from '@/stores/script/script-store';
 import { buildSeriesContextSummary } from './series-meta-sync';
 import { buildCharacterPriorityRecords, collectCharacterStats } from './character-calibrator-utils';
 import {
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  convertToScriptCharacters,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  resolveSafeScriptCharacters,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  sortByImportance,
+ 
+ 
+ 
   type CalibratedCharacter,
 } from './character-calibrator-normalizers';
 export { collectCharacterStats, extractAllCharactersFromEpisodes } from './character-calibrator-utils';
@@ -106,8 +103,7 @@ export async function calibrateCharacters(
   // 优先保留有名字的角色
   const maxCharsToSend = 150;
   const charsToProcess = charsWithStats.slice(0, maxCharsToSend);
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const skippedCount = charsWithStats.length - charsToProcess.length;
+ 
   
   // 3. 准备批处理 items（每个角色带上统计信息和对白样本）
   const batchItems = charsToProcess.map(c => ({
@@ -502,40 +498,6 @@ ${batchDialogues.slice(0, 100).join('\n')}
 /**
  * 收集角色出场上下文（用于AI分析）
  */
-function _collectCharacterContexts(
-  characters: ScriptCharacter[],
-  episodeScripts: EpisodeRawScript[]
-): string {
-  const contexts: string[] = [];
-  const characterNames = new Set(characters.map(c => c.name));
-  
-  // 遍历剧本，收集角色出现的场景和对白
-  for (const ep of episodeScripts.slice(0, 5)) { // 只取前5集作为样本
-    for (const scene of ep.scenes.slice(0, 10)) { // 每集最多10个场景
-      // 检查场景中是否有我们关注的角色
-      const relevantChars = scene.characters.filter(c => 
-        characterNames.has(c) || characters.some(char => c.includes(char.name))
-      );
-      
-      if (relevantChars.length > 0) {
-        contexts.push(`[第${ep.episodeIndex}集-${scene.sceneHeader}]`);
-        contexts.push(`人物: ${relevantChars.join(', ')}`);
-        
-        // 收集相关对白（前3条）
-        const relevantDialogues = scene.dialogues
-          .filter(d => characterNames.has(d.character) || characters.some(c => d.character.includes(c.name)))
-          .slice(0, 3);
-        
-        for (const d of relevantDialogues) {
-          contexts.push(`${d.character}: ${d.line.slice(0, 50)}...`);
-        }
-        contexts.push('');
-      }
-    }
-  }
-  
-  return contexts.join('\n');
-}
 
 // ==================== 专业角色设计 ====================
 
@@ -806,8 +768,7 @@ ${promptLanguage === 'zh' ? `    "avoid": ["金色头发", "蓝色眼睛", "胡�
   
   for (let i = 0; i < keyCharacters.length; i++) {
     const c = keyCharacters[i];
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const charLabel = `${c.name}（${c.importance === 'protagonist' ? '主角' : '重要配角'}）`;
+ 
     
     const userPrompt = `请为以下角色生成专业视觉提示词和6层身份锚点：
 

@@ -7,8 +7,8 @@
  * Based on CineGen-AI geminiService.ts patterns
  */
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import type { ScriptData, ScriptCharacter, Shot } from "@/types/script";
+ 
+import type { ScriptData, Shot } from "@/types/script";
 import { retryOperation } from "@/lib/utils/retry";
 import { cleanJsonString, safeParseJson } from "@/lib/utils/json-cleaner";
 import { delay } from "@/lib/utils/rate-limiter";
@@ -254,8 +254,8 @@ export async function callChatAPI(
   const inputTokens = estimateTokens(systemPrompt + userPrompt);
   const safetyMargin = Math.ceil(modelLimits.contextWindow * 0.1);
   const availableForOutput = modelLimits.contextWindow - inputTokens - safetyMargin;
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const utilization = Math.round((inputTokens / modelLimits.contextWindow) * 100);
+ 
+  Math.round((inputTokens / modelLimits.contextWindow) * 100);
   
   
   // 输入已超过 context window 的 90% → 抛出错误（不发请求，省钱）
@@ -461,8 +461,7 @@ export async function callChatAPI(
           if (retryResp.ok) {
             const retryData = await retryResp.json();
             const retryContent = retryData.choices?.[0]?.message?.content;
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-            const retryUsage = retryData.usage;
+ 
             if (retryContent) {
               if (totalKeys > 1) keyManager.rotateKey();
               return retryContent;

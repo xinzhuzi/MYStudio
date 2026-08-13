@@ -33,18 +33,6 @@ function isModelIncompatibleError(errorText?: string): boolean {
  * 检测 HTTP 500 响应体中是否包含上游负载饱和相关关键词。
  * MemeFast 有时用 500 而非 503/529 返回负载饱和错误。
  */
-function _isUpstreamOverloadError(errorText?: string): boolean {
-  if (!errorText) return false;
-  const text = errorText.toLowerCase();
-  return (
-    text.includes('上游负载') ||
-    text.includes('负载已饱和') ||
-    text.includes('负载饱和') ||
-    text.includes('overloaded') ||
-    text.includes('无可用渠道') ||
-    text.includes('no available channel')
-  );
-}
 
 /**
  * API Key Manager with rotation and blacklist support

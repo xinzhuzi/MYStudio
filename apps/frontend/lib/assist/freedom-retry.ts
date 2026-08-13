@@ -48,7 +48,7 @@ export async function freedomRetry<T>(
       }
       if (keyManager && typeof current.status === "number") {
         const rotated = keyManager.handleError(current.status, current.message);
-        if (rotated) console.log(`[Freedom] ${label}: key rotated due to ${current.status}`);
+        if (rotated) console.warn(`[Freedom] ${label}: key rotated due to ${current.status}`);
       }
       if (attempt < RETRY_MAX_ATTEMPTS - 1) {
         const delay = RETRY_BASE_DELAY * Math.pow(2, attempt);

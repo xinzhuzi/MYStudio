@@ -16,8 +16,7 @@ import type {
   ProjectBackground,
   ScriptData,
   NamedEntity,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  Faction,
+ 
   PromptLanguage,
 } from '@/types/script';
 import type { ScriptStructureAnalysis } from './script-normalizer';

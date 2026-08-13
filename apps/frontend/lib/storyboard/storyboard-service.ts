@@ -8,7 +8,7 @@
  * For Electron desktop app: directly calls external APIs (MemeFast)
  */
 
-import { buildStoryboardPrompt, getDefaultNegativePrompt, type StoryboardPromptConfig, type CharacterInfo } from './prompt-builder';
+import { buildStoryboardPrompt, type StoryboardPromptConfig, type CharacterInfo } from './prompt-builder';
 import { calculateGrid, type AspectRatio, type Resolution, RESOLUTION_PRESETS } from './grid-calculator';
 import { retryOperation } from "@/lib/utils/retry";
 import { delay, RATE_LIMITS } from "@/lib/utils/rate-limiter";
@@ -194,8 +194,6 @@ export async function generateStoryboardImage(
     styleTokens = [],
     characterDescriptions = [],
     apiKey,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-    provider = 'memefast',
     mockMode = false,
   } = config;
 
@@ -223,8 +221,6 @@ export async function generateStoryboardImage(
   };
 
   const prompt = buildStoryboardPrompt(promptConfig);
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const negativePrompt = getDefaultNegativePrompt();
 
 
   // Get output dimensions from resolution preset

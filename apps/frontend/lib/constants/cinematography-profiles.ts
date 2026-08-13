@@ -437,8 +437,8 @@ export function buildCinematographyGuidance(profileId: string): string {
   const profile = getCinematographyProfile(profileId);
   if (!profile) return '';
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { defaultLighting, defaultFocus, defaultRig, defaultAtmosphere, defaultSpeed } = profile;
+ 
+ const { defaultFocus, defaultRig, defaultAtmosphere, defaultSpeed } = profile;
 
   const lines = [
     `【🎬 摄影风格档案 — ${profile.name} (${profile.nameEn})】`,

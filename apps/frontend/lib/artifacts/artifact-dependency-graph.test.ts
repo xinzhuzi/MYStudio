@@ -5,7 +5,7 @@
 import { describe, test, expect } from "vitest";
 import { buildDeletionScope, buildDeletionPlan, computeDeletionOrder, validateDeletionPlan, detectOrphanedReferences } from "./artifact-dependency-graph";
 import type { ArtifactRecord, DeletePolicy } from "@/types/artifacts";
-import { buildSingleChapterFixture, buildMultiChapterFixture, buildLegacyAmbiguousFixture, buildCrossProjectFixture, generateDerivedAssetId } from "./__fixtures__/fixture-builders";
+import { buildSingleChapterFixture, buildMultiChapterFixture } from "./__fixtures__/fixture-builders";
 
 /**
  * Helper to create artifact records from fixture data

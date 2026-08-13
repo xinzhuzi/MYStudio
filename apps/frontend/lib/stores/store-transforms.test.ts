@@ -14,7 +14,7 @@ import {
 } from "./store-transforms";
 import type { NovelChapter } from "@/types/studio";
 import type { Episode, ScriptScene } from "@/types/script";
-import type { EditingProjectV1, AutoEditingRun, TimelineRenderRecord } from "@/types/editing";
+import type { EditingProjectV1 } from "@/types/editing";
 import type { SceneVoiceLine } from "@/types/tts";
 import type { StoryboardItem, MediaFile } from "@/types/media";
 import type { RemotionChapterManifestV1 } from "@/types/remotion-workspace";

@@ -72,7 +72,7 @@ export class PromptCompiler {
    * Mustache-style interpolation
    */
   private interpolate(template: string, variables: Record<string, string | number | undefined>): string {
-    return template.replace(/\{\{(\w+)\}\}/g, (match, key) => {
+    return template.replace(/\{\{(\w+)\}\}/g, (_match, key) => {
       const value = variables[key];
       if (value === undefined || value === null) {
         return '';

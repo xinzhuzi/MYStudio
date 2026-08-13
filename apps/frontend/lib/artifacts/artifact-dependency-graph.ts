@@ -451,7 +451,7 @@ function groupArtifactsByCategory(
  */
 function getReasonForCategory(
   policy: DeletePolicy,
-  artifactId: string,
+  _artifactId: string,
   artifact: ArtifactRecord,
   allArtifacts: Map<string, ArtifactRecord>
 ): string {

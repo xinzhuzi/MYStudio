@@ -57,30 +57,6 @@ function isValidCharacterName(name: string): boolean {
 /**
  * 处理单个角色名字并添加到集合
  */
-function _processAndAddCharacter(
-  rawName: string,
-  existingNames: Set<string>,
-  newCharacters: ScriptCharacter[],
-  index: { value: number },
-  role: string
-): void {
-  // 先拆分多人组合
-  const parts = splitMultipleCharacters(rawName);
-  
-  for (const part of parts) {
-    const name = cleanCharacterName(part);
-    if (!isValidCharacterName(name)) continue;
-    if (existingNames.has(name)) continue;
-    
-    existingNames.add(name);
-    newCharacters.push({
-      id: `char_${index.value}`,
-      name,
-      role,
-    });
-    index.value++;
-  }
-}
 
 /**
  * 从所有场景中提取出场角色（补充人物小传中没有的角色）

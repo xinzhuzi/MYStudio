@@ -47,18 +47,6 @@ export interface GridCalculatorInput {
 }
 
 /**
- * Get cell aspect ratio multiplier
- * For 16:9, cell width = height * 16/9
- * For 9:16, cell height = width * 16/9
- */
-function _getCellRatio(aspectRatio: AspectRatio): { widthRatio: number; heightRatio: number } {
-  if (aspectRatio === '16:9') {
-    return { widthRatio: 16, heightRatio: 9 };
-  }
-  return { widthRatio: 9, heightRatio: 16 };
-}
-
-/**
  * Calculate optimal grid layout for landscape (16:9) aspect ratio
  * Prioritizes cols >= rows for landscape layout
  */
@@ -265,9 +253,7 @@ export function calculateGrid(input: GridCalculatorInput): GridConfig {
       cellHeight = Math.floor(canvasHeight / rows);
       cellWidth = Math.floor(cellHeight * 9 / 16);
     }
-    
-    console.log(`[GridCalculator] Using optimal layout for ${sceneCount} scenes: ${cols}x${rows} (${aspectRatio})`);
-    
+
     return {
       cols,
       rows,

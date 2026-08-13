@@ -115,14 +115,6 @@ async function downloadFile(url: string): Promise<Blob> {
 /**
  * Convert Blob to base64 data URL
  */
-async function _blobToBase64(blob: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(blob);
-  });
-}
 
 /**
  * Download file and trigger browser download
@@ -284,8 +276,8 @@ export async function exportProjectToFolder(
     return false;
   }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { shots, includeImages, includeVideos, projectName, scriptData } = config;
+ 
+ const { shots, includeImages, includeVideos, projectName} = config;
 
   try {
     // Request directory access

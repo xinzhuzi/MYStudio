@@ -21,12 +21,6 @@ import {
 } from './scene-viewpoint-extraction';
 import { VIEWPOINT_KEYWORDS } from './scene-viewpoint-keywords';
 import {
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  getDefaultViewpointsForEnvironment,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  isViewpointCompatibleWithEnvironment,
-} from './scene-viewpoint-defaults';
-import {
   assignViewpointImages as assignViewpointImagesImpl,
   groupViewpointsIntoPages as groupViewpointsIntoPagesImpl,
   type ViewpointImageAssignment,

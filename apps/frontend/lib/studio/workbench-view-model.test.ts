@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildToonflowWorkbenchModel } from "./workbench-view-model";
-import type { ProductionTrack, StoryboardItem, VideoCandidate } from "@/types/studio";
+import type { StoryboardItem } from "@/types/studio";
 
 describe("Toonflow workbench view model", () => {
   it("projects MYStudio tracks into Toonflow style trackList", () => {

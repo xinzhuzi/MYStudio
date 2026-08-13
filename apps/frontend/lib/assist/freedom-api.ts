@@ -33,32 +33,21 @@ import { prepareReferenceImagesForTransfer } from '@/lib/ai/image-transfer';
 import { toast } from 'sonner';
 import { freedomRetry } from './freedom-retry';
 import {
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  groupVideoUploadFiles,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  validateVeoVideoUploads,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  type FreedomVideoUploadFile,
-} from './video-upload-validation';
-import {
   buildFreedomEndpoint as _buildEndpoint,
   extractFreedomImageUrl as extractImageUrl,
   extractFreedomVideoUrl as _extractVideoUrl,
   freedomObservedFetch,
   getFreedomRootBaseUrl as getRootBaseUrl,
   pollForFreedomResult as pollForResult,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  toUploadBlob,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  toUploadHttpUrl,
+ 
+ 
 } from './freedom-transport';
 import {
   DEFAULT_IMAGE_ENDPOINT,
   detectFreedomImageRoute,
   detectFreedomVideoRoute,
   getImageEndpointPaths,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  getUnifiedEndpointPaths,
+ 
   resolveFreedomFeatureConfig,
 } from './freedom-routing';
 import { generateFreedomImageViaChat } from './freedom-image-chat';
@@ -88,10 +77,6 @@ export type { FreedomVideoUploadFile, FreedomVideoUploadRole } from './video-upl
 
 const IMAGE_POLL_INTERVAL = 2000;
 const IMAGE_POLL_MAX_ATTEMPTS = 60;
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const VIDEO_POLL_INTERVAL = 2000;
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const VIDEO_POLL_MAX_ATTEMPTS = 120;
 
 // ==================== Retry Logic ====================
 
@@ -168,15 +153,11 @@ async function _generateFreedomImageInner(
 ): Promise<GenerationResult> {
   params = withGlobalImageSizeDefaults(params);
   let config: FeatureConfig | null;
-  let configSource: string;
   if (overrideConfig) {
     config = overrideConfig;
-    configSource = `override (${overrideConfig.provider.name})`;
   } else {
     const resolved = resolveFreedomFeatureConfig('freedom_image', 'character_generation', params.model);
     config = resolved.config;
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-    configSource = resolved.source;
   }
   if (!config) {
     const msg = getFeatureNotConfiguredMessage('character_generation');
@@ -433,8 +414,7 @@ export async function generateFreedomVideo(
 async function _generateFreedomVideoInner(
   params: FreedomVideoParams
 ): Promise<GenerationResult> {
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { config, source: configSource } = resolveFreedomFeatureConfig(
+  const { config } = resolveFreedomFeatureConfig(
     'freedom_video',
     'video_generation',
     params.model,

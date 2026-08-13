@@ -10,8 +10,8 @@
  * - No complex image detection needed - coordinates are 100% deterministic
  */
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import type { AspectRatio, Resolution, GridConfig } from './grid-calculator';
+ 
+import type { AspectRatio, Resolution } from './grid-calculator';
 import { calculateGrid } from './grid-calculator';
 
 // ==================== Types ====================
@@ -421,8 +421,7 @@ export function isCellEmpty(canvas: HTMLCanvasElement, threshold: number = 30): 
   const height = canvas.height;
   
   // Sample a subset of pixels for performance
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const sampleSize = 100;
+ 
   const stepX = Math.max(1, Math.floor(width / 10));
   const stepY = Math.max(1, Math.floor(height / 10));
   
@@ -520,8 +519,6 @@ export async function splitStoryboardImage(
   const { threshold = 30, filterEmpty = true } = options;
   
   // Edge margin percentage for cropping separator line residue
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const edgeMarginPercent = options.edgeMarginPercent ?? 0.03; // Default 3%
 
   const img = await loadImage(imageSrc);
   const totalWidth = img.width;

@@ -12,13 +12,10 @@ import type { ScriptData } from "@/types/script";
 import type { DirectorState } from "@/stores/director/director-store-types";
 import type { EditingStore } from "@/stores/editing/editing-store";
 import type { TtsStore } from "@/stores/tts/tts-store";
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import type { SceneVoiceLine } from "@/types/tts";
+ 
 import type { RemotionRenderJobV1 } from "@/types/remotion-workspace";
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import type { MediaFile } from "@/types/media";
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import type { EntityExtractionResult } from "@/types/studio";
+ 
+ 
 import { useMediaStore } from "@/stores/media/media-store";
 type MediaStore = ReturnType<typeof useMediaStore.getState>;
 import type { Episode } from "@/types/script";
@@ -1201,8 +1198,8 @@ export function buildCrossProjectFixture(): {
   media: MediaStore;
   rejectionReason: string;
 } {
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const now = Date.now();
+ 
+  Date.now();
 
   const media: MediaStore = {
     mediaFiles: [

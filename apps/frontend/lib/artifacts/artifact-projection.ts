@@ -2,10 +2,10 @@
 // Licensed under AGPL-3.0-or-larger. See LICENSE for details.
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import type { ArtifactRecord, DeletePolicy, PhysicalRef, RemotionManifest, RemotionJob } from "@/types/artifacts";
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import type { NovelChapter, AgentWorkData, EntityExtractionResult, ScriptPlan, StoryboardItem, ProductionTrack, VideoCandidate, ContinuityAssetVersion } from "@/types/studio";
+ 
+import type { ArtifactRecord, DeletePolicy, RemotionManifest, RemotionJob } from "@/types/artifacts";
+ 
+import type { NovelChapter, AgentWorkData, EntityExtractionResult, StoryboardItem, ProductionTrack, VideoCandidate, ContinuityAssetVersion } from "@/types/studio";
 import type { Episode, ScriptData, ScriptScene as Scene } from "@/types/script";
 import type { StudioWorkflowState } from "@/stores/studio/studio-store";
 import type { DirectorState } from "@/stores/director/director-store-types";
@@ -46,7 +46,6 @@ type ProjectableMediaFile = Pick<
   localPath?: string;
   size?: number;
 };
-type _DirectorStoreState = unknown;
 type MediaStoreState = { mediaFiles: ProjectableMediaFile[] };
 type RemotionStoreState = { manifest?: RemotionManifest; jobs?: RemotionJob[] };
 type ScriptStoreState = ScriptData | { scriptData: ScriptData };

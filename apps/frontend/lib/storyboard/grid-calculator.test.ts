@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
   calculateGrid,
   getRecommendedResolution,
@@ -26,8 +26,6 @@ describe("storyboard grid calculator", () => {
   });
 
   it("uses predefined balanced layouts for common scene counts", () => {
-    const logSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
-
     expect(calculateGrid({ sceneCount: 4, aspectRatio: "16:9", resolution: "2K" })).toMatchObject({
       cols: 2,
       rows: 2,
@@ -42,9 +40,6 @@ describe("storyboard grid calculator", () => {
       totalCells: 12,
       emptyCells: 0,
     });
-
-    expect(logSpy).toHaveBeenCalled();
-    logSpy.mockRestore();
   });
 
   it("calculates dynamic layouts for non-predefined counts without underallocating cells", () => {

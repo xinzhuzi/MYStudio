@@ -448,8 +448,8 @@ Return a RAW JSON array (no markdown code block). BILINGUAL output required.
 
     
     // Log end frame statistics
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const endFrameCount = results.filter(r => r.needsEndFrame).length;
+ 
+    results.filter(r => r.needsEndFrame).length;
     
     return results;
 

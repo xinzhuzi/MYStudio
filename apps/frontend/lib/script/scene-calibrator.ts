@@ -14,8 +14,8 @@
  * 5. 大师级场景视觉设计（专业提示词生成）
  */
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import type { ScriptScene, ProjectBackground, EpisodeRawScript, SceneRawContent, PromptLanguage } from '@/types/script';
+ 
+import type { ScriptScene, ProjectBackground, EpisodeRawScript, PromptLanguage } from '@/types/script';
 import { aiManager } from '@/lib/ai/ai-manager';
 import { processBatched } from '@/lib/ai/batch-processor';
 import { estimateTokens, safeTruncate } from '@/lib/ai/model-registry';
@@ -423,8 +423,7 @@ ${sceneList}
       if (!aiData) aiData = sceneResults.get('loc:' + normalizeLocation(orig.location || ''));
       if (!aiData) aiData = sceneResults.get('loc:' + normalizeLocation(orig.name || ''));
       
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const matched = !!aiData;
+ 
       
       return {
         id: orig.id,

@@ -24,8 +24,8 @@ import type { AutoEditingRun, EditingProjectV1, TimelineRenderRecord } from "@/t
 import type { SceneVoiceLine } from "@/types/tts";
 import type { MediaFile } from "@/types/media";
 import type { StoryboardItem } from "@/types/studio";
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import type { RemotionChapterManifestV1, RemotionShotDefinitionV2 } from "@/types/remotion-workspace";
+ 
+import type { RemotionChapterManifestV1 } from "@/types/remotion-workspace";
 
 // ============================================================================
 // 1. Novel Chapters Transform (studio-store slice)
@@ -293,7 +293,7 @@ export interface MediaFilesSnapshot {
 
 export function mediaTransformFilterByOwnership(
   snapshot: MediaFilesSnapshot,
-  projectRoot: string,
+  _projectRoot: string,
   chapterId?: string
 ): MediaFilesSnapshot {
   // Check if file is strictly under chapter-specific path (relative paths don't include projectRoot)

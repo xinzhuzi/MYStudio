@@ -1,15 +1,11 @@
 import type {
   AutoEditingRun,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  EditingEffect,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  EditingEffectParams,
+ 
+ 
   EditingProjectV1,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  EditingProposal,
+ 
   EditingRenderSettings,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  EditingTransition,
+ 
   EditingValidationIssue,
   EditingValidationResult,
   TimelineRenderRecord,
@@ -17,8 +13,7 @@ import type {
 } from "@/types/editing";
 import {
   getEditingEffectDefinition,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  isEditingEffectId,
+ 
 } from "./effect-registry";
 import {
   validateTimelineAudioPostProcessEvidence,

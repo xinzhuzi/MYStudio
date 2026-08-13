@@ -14,8 +14,7 @@ import type {
   AIScreenplay,
   AIScene,
   GenerationConfig,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  SceneProgress,
+ 
   SceneCompletedEvent,
   SceneFailedEvent,
 } from '@/lib/ai/core';
@@ -56,7 +55,6 @@ export class AIWorkerBridge {
   private worker: Worker | null = null;
   private eventHandlers: Partial<EventHandlers> = {};
   private pendingPromises: Map<string, PromiseCallbacks> = new Map();
-  private isReady = false;
   private readyPromise: Promise<void>;
   private readyResolve: (() => void) | null = null;
   private activeRunId: number | null = null;
@@ -97,7 +95,6 @@ export class AIWorkerBridge {
     if (this.worker) {
       this.worker.terminate();
       this.worker = null;
-      this.isReady = false;
     }
   }
 
@@ -304,7 +301,6 @@ export class AIWorkerBridge {
 
     switch (event.type) {
       case 'WORKER_READY':
-        this.isReady = true;
         this.readyResolve?.();
         break;
 
@@ -404,8 +400,8 @@ export class AIWorkerBridge {
     console.error('[WorkerBridge] Worker error event:', error);
     
     // Reject all pending promises
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-    for (const [id, callbacks] of this.pendingPromises) {
+ 
+    for (const [_id, callbacks] of this.pendingPromises) {
       callbacks.reject(new Error(`Worker error: ${error.message}`));
     }
     this.pendingPromises.clear();
@@ -417,8 +413,8 @@ export class AIWorkerBridge {
   private async handleSceneCompleted(
     payload: SceneCompletedEvent['payload']
   ): Promise<void> {
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { screenplayId, sceneId, mediaBlob, metadata } = payload;
+ 
+ const { sceneId, mediaBlob, metadata } = payload;
     
     
     try {
@@ -467,8 +463,8 @@ export class AIWorkerBridge {
   private async handleSceneFailed(
     payload: SceneFailedEvent['payload']
   ): Promise<void> {
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { screenplayId, sceneId, error, retryable } = payload;
+ 
+ const { sceneId, error} = payload;
     
     
     try {

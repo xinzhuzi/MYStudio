@@ -317,7 +317,7 @@ describe("chapter auto video orchestration", () => {
   });
 
   it("allows missing source identity when storyboards predate identity tracking", async () => {
-    const { dependencies, calls } = createDependencies();
+ const { dependencies} = createDependencies();
     const originalLoad = dependencies.loadStoryboards;
     dependencies.loadStoryboards = () => originalLoad().map(({ sourceId: _sourceId, revision: _revision, ...item }) => item);
     const result = await runChapterAutoVideo({
@@ -413,7 +413,7 @@ describe("chapter auto video orchestration", () => {
   });
 
   it("stops before rendering when a storyboard image is missing", async () => {
-    const { dependencies, calls } = createDependencies({ missingMedia: true });
+ const { dependencies} = createDependencies({ missingMedia: true });
     const statuses: string[] = [];
     await expect(
       runChapterAutoVideo({

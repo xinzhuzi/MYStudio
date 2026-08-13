@@ -214,8 +214,8 @@ async function generateCharacterData(
     const textForYearExtraction = `${era} ${timeline} ${outline}`;
     const yearMatch = textForYearExtraction.match(/(19\d{2}|20\d{2})\s*年/);
     if (yearMatch) {
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const extractedYear = parseInt(yearMatch[1]);
+ 
+      parseInt(yearMatch[1]);
       return 'modern';
     }
     
@@ -374,8 +374,7 @@ ${dialogueSamples.join('\n')}
     const parsed = JSON.parse(cleaned);
     
     // 确保所有字段都是字符串类型（AI 可能返回对象）
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const ensureString = (val: any): string | undefined => {
+    const ensureString = (val: unknown): string | undefined => {
       if (val === null || val === undefined) return undefined;
       if (typeof val === 'string') return val;
       if (typeof val === 'object') {

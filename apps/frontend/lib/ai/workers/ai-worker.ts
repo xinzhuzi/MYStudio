@@ -20,7 +20,6 @@ import type {
 } from '@/lib/ai/core/protocol';
 import type { AIScene, GenerationConfig, AICharacter, CharacterBibleLike } from '@/lib/ai/core';
 import { PromptCompiler } from '@/lib/ai/core/services/prompt-compiler';
-import { TaskPoller } from '@/lib/ai/core/api/task-poller';
 import { createWorkerApi } from './ai-worker-api';
 import { createWorkerRunLifecycle, type WorkerRun } from './worker-run-lifecycle';
 import { createWorkerSceneEventReporter } from './worker-scene-events';
@@ -35,8 +34,6 @@ let apiBaseUrl = '';
 const promptCompiler = new PromptCompiler();
 
 // Task poller for async operations
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const taskPoller = new TaskPoller();
 
 
 function getBibleCharacters(characterBible?: CharacterBibleLike | string, fallback: AICharacter[] = []): AICharacter[] {
@@ -49,18 +46,6 @@ function getBibleCharacters(characterBible?: CharacterBibleLike | string, fallba
 // ==================== State ====================
 
 const workerRuns = createWorkerRunLifecycle();
-const legacyWorkerApi = createWorkerApi({ getApiBaseUrl: () => apiBaseUrl, isCancelled: () => false });
-// Legacy helper bodies below are retained as private compatibility scaffolding;
-// route their polling call through the extracted API client so they cannot drift.
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const pollTaskCompletion = legacyWorkerApi.pollTaskCompletion;
-
-// Kept only for backwards-compatible local references in legacy dead code.
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const assertImageReadyForNetwork = (_source: string): void => undefined;
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const assertImagesReadyForNetwork = (_sources?: string[]): void => undefined;
-
 type WorkerApi = ReturnType<typeof createWorkerApi>;
 
 function beginRun(requestedRunId?: number): { run: WorkerRun; api: WorkerApi } {
@@ -152,56 +137,6 @@ async function handleGenerateScreenplay(command: GenerateScreenplayCommand): Pro
       apiBaseUrl = baseUrl;
     },
   });
-}
-
-/**
- * Helper: Generate image via API
- * Returns image URL after polling for completion
- * @param referenceImages - Character reference images (base64 or URL) for consistency
- */
-async function _legacyGenerateImage(
-  prompt: string,
-  negativePrompt: string,
-  config: Partial<GenerationConfig> & { apiKey?: string },
-  onProgress?: (progress: number) => void,
-  referenceImages?: string[]
-): Promise<string> {
-  return legacyWorkerApi.generateImage(prompt, negativePrompt, config, onProgress, referenceImages);
-}
-
-/**
- * Helper: Generate video via API
- * Returns video URL after polling for completion
- * @param referenceImages - Character reference images (URL) for consistency
- */
-async function _legacyGenerateVideo(
-  imageUrl: string,
-  prompt: string,
-  config: Partial<GenerationConfig> & { apiKey?: string },
-  onProgress?: (progress: number) => void,
-  referenceImages?: string[]
-): Promise<string> {
-  return legacyWorkerApi.generateVideo(imageUrl, prompt, config, onProgress, referenceImages);
-}
-
-/**
- * Helper: Poll task status until completion
- */
-async function _legacyPollTaskCompletion(
-  taskId: string,
-  type: 'image' | 'video',
-  apiKey: string,
-  provider: string,
-  onProgress?: (progress: number) => void
-): Promise<string> {
-  return legacyWorkerApi.pollTaskCompletion(taskId, type, apiKey, provider, onProgress);
-}
-
-/**
- * Helper: Download URL content as Blob
- */
-async function _legacyFetchAsBlob(url: string): Promise<Blob> {
-  return legacyWorkerApi.fetchAsBlob(url);
 }
 
 async function handleExecuteScene(command: ExecuteSceneCommand): Promise<void> {
@@ -501,8 +436,8 @@ async function handleExecuteScreenplayVideos(command: ExecuteScreenplayVideosCom
 
   
   // Debug: Log each scene's imageUrl
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  for (const scene of screenplay.scenes) {
+ 
+  for (const _scene of screenplay.scenes) {
   }
   
   // Set baseUrl if provided

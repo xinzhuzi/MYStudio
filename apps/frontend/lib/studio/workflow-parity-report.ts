@@ -1,18 +1,14 @@
 import type {
   AgentWorkData,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  EntityExtractionResult,
+ 
   MediaGenerationTask,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  ProductionTrack,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  ScriptPlan,
+ 
+ 
   StudioAgentRun,
   StudioManualPreset,
   StudioWorkflowConfig,
   StoryboardItem,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  VideoCandidate,
+ 
 } from "@/types/studio";
 import {
   buildStudioFlowData,
@@ -448,7 +444,7 @@ function buildNodeReports(
   agentRuns: StudioAgentRun[],
   storyboard: WorkflowParityReport["storyboard"],
   images: WorkflowParityReport["images"],
-  audio: WorkflowParityReport["audio"],
+  _audio: WorkflowParityReport["audio"],
   video: WorkflowParityReport["video"],
   hasScript: boolean,
   hasScriptPlan: boolean,

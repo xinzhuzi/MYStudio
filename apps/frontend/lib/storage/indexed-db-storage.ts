@@ -168,8 +168,8 @@ export const fileStorage: StateStorage = {
   setItem: async (name: string, value: string): Promise<void> => {
     if (isElectron()) {
       try {
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const result = await window.fileStorage!.setItem(name, value);
+ 
+        await window.fileStorage!.setItem(name, value);
         return;
       } catch (error) {
         console.error('[Storage] File storage setItem error:', error);

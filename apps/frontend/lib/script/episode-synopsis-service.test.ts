@@ -45,7 +45,7 @@ describe('episode synopsis service', () => {
 
   it('writes generated synopses and refreshes metadata through the existing store contract', async () => {
     const episodes = [episode(1), episode(2)];
-    const updateEpisodeRawScript = vi.fn((projectId: string, index: number, updates: object) => {
+    const updateEpisodeRawScript = vi.fn((_projectId: string, index: number, updates: object) => {
       Object.assign(episodes.find((item) => item.episodeIndex === index)!, updates);
     });
     const setMetadataMarkdown = vi.fn();

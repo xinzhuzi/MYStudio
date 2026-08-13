@@ -98,8 +98,8 @@ export function preprocessLineBreaks(text: string): { text: string; inserted: bo
   
   const inserted = result !== text;
   if (inserted) {
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const newLineCount = result.split('\n').length;
+ 
+    result.split('\n').length;
   }
   
   return { text: result, inserted };
@@ -443,8 +443,8 @@ function normalizeTitle(text: string, changes: string[]): string {
     
     // 找到标题候选
     // 使用精确位置替换，避免替换到后续相同文本
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const lineStart = lines.slice(0, i).join('\n').length + (i > 0 ? 1 : 0);
+ 
+    lines.slice(0, i).join('\n').length + (i > 0 ? 1 : 0);
     const originalLine = lines[i];
     const trimOffset = originalLine.indexOf(trimmed);
     

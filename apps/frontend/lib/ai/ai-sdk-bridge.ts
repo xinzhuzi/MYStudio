@@ -16,8 +16,7 @@ import {
   DEFAULT_IMAGE_ASPECT_RATIO,
   DEFAULT_IMAGE_RESOLUTION,
   resolveGptImageSize,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  validateGptImageSize,
+ 
   type ImageRequestTemplateName,
 } from "./image-size-presets";
 import { assertImageTransferPayloadSize } from "./image-transfer";

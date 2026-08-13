@@ -153,8 +153,8 @@ export async function analyzeEpisodeViewpoints({
       viewpointCount += viewpointsData.length;
     }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-    for (const scene of episodeScenes.filter(
+ 
+    for (const _scene of episodeScenes.filter(
       (item) => !sceneAnalysisTasks.some((task) => task.scene.id === item.id),
     )) {
     }

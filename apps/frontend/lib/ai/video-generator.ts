@@ -13,14 +13,8 @@ import {
 } from "@/lib/ai/video-generator-routing";
 import {
   extractVideoUrl,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  normalizeUrl,
 } from "@/lib/ai/video-response-utils";
 import {
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  buildImageWithRoles,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  convertToHttpUrl,
   prepareVideoImageRolesForTransfer,
 } from "@/lib/ai/video-generator-image-transfer";
 import { callVolcVideoApi as callVolcVideoApiAdapter } from "@/lib/ai/video-generator-volc-adapter";
@@ -127,9 +121,6 @@ function handleVideoSubmitError(
   keyManager?: { handleError: (status: number, errorText?: string) => boolean; getCurrentKey?: () => string | null },
 ): never {
   if (keyManager?.handleError(status, errorText)) {
-    const nextKey = keyManager.getCurrentKey?.();
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const keyHint = nextKey ? `${nextKey.substring(0, 8)}…` : '(none)';
   }
   let errorMessage = `视频 API 错误: ${status}`;
   try {
@@ -296,8 +287,6 @@ export async function callVideoGenerationApi(
     if (signal?.aborted) return Promise.reject(new Error('用户已取消'));
     // 每次重试动态取当前 key（keyManager.handleError 已 rotate，需要用新 key）
     const currentApiKey = keyManager?.getCurrentKey?.() || apiKey;
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const keyHint = currentApiKey ? `${currentApiKey.substring(0, 8)}…` : '(none)';
     switch (format) {
       case 'openai_official':
         return callOpenAIOfficialVideoApi(currentApiKey, prompt, videoBaseUrl, model, aspectRatio, duration, videoResolution, onProgress, keyManager, signal);
@@ -480,26 +469,6 @@ async function callUnifiedVideoApi(
 // MemeFast 文档: POST /volc/v1/contents/generations/tasks + GET /volc/v1/contents/generations/tasks/{taskId}
 // 火山方舟文档: https://www.volcengine.com/docs/82379/1520757
 
-async function _callVolcVideoApi(
-  apiKey: string,
-  prompt: string,
-  baseUrl: string,
-  model: string,
-  aspectRatio: string,
-  imageWithRoles: Array<{ url: string; role: string }>,
-  videoResolution?: string,
-  duration?: number,
-  cameraFixed?: boolean,
-  onProgress?: (progress: number) => void,
-  keyManager?: { handleError: (status: number, errorText?: string) => boolean },
-  /** Seedance 2.0: 视频引用 URL 列表 */
-  videoRefs?: string[],
-  /** Seedance 2.0: 音频引用 URL 列表 */
-  audioRefs?: string[],
-  signal?: AbortSignal,
-): Promise<string> {
-  return callVolcVideoApiAdapter(apiKey, prompt, baseUrl, model, aspectRatio, imageWithRoles, videoResolution, duration, cameraFixed, onProgress, keyManager, videoRefs, audioRefs, signal);
-}
 
 // ==================== 通义万象 wan 格式 ====================
 // MemeFast 文档:
@@ -879,8 +848,6 @@ export async function callJuxinVideoGenerationApi(
       console.error('[VideoGen] Grok video error:', submitResponse.status, errorText);
 
       if (keyManager?.handleError(submitResponse.status, errorText)) {
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const nextKey = keyManager.getCurrentKey?.();
       }
 
       let errorMessage = `Grok API failed: ${submitResponse.status}`;

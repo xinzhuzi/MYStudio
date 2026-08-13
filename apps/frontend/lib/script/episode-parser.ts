@@ -24,8 +24,7 @@ import type {
   ScriptData,
   Episode,
   ScriptScene,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  ScriptCharacter,
+ 
 } from "@/types/script";
 import {
   extractTimelineInfo as extractMetadataTimelineInfo,
@@ -61,8 +60,8 @@ export function parseFullScript(fullText: string): {
   background: ProjectBackground;
   episodes: EpisodeRawScript[];
 } {
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const lines = fullText.split('\n');
+ 
+  fullText.split('\n');
   
   // 1. 提取标题
   const titleMatch = fullText.match(/[《「]([^》」]+)[》」]/);
@@ -116,21 +115,12 @@ export function parseFullScript(fullText: string): {
  * Compatibility wrappers for the extracted metadata boundary.
  * Keeping these private names avoids changing legacy internal call sites.
  */
-function _extractTimelineInfo(outline: string, characterBios: string) {
-  return extractMetadataTimelineInfo(outline, characterBios);
-}
 
 function detectGenre(outline: string, characterBios: string) {
   return detectMetadataGenre(outline, characterBios);
 }
 
-function _extractWorldSetting(outline: string, characterBios: string) {
-  return extractMetadataWorldSetting(outline, characterBios);
-}
 
-function _extractThemes(outline: string, characterBios: string) {
-  return extractMetadataThemes(outline, characterBios);
-}
 
 /**
  * 解析各集剧本
@@ -274,8 +264,8 @@ export function parseScenes(episodeText: string): SceneRawContent[] {
   
   for (let i = 0; i < sceneMatches.length; i++) {
     const match = sceneMatches[i];
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const sceneHeader = match[0].replace(/\*{1,2}/g, '').trim();
+ 
+    match[0].replace(/\*{1,2}/g, '').trim();
     const sceneNumber = match[1]; // 如 "1-1"
     const timeOfDay = match[2];   // 如 "日"、"夜"
     const interior = match[3];    // 如 "内"、"外"
@@ -505,19 +495,16 @@ function chineseToNumber(chinese: string): number {
   
   let result = 0;
   let temp = 0;
-  let prevUnit = 1;
-  
+
   for (const char of chinese) {
     const num = chineseNums[char];
     if (num === undefined) continue;
-    
+
     if (num >= 10) {
       // 是单位（十、百、千）
       if (temp === 0) temp = 1;
       result += temp * num;
       temp = 0;
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-      prevUnit = num;
     } else {
       temp = num;
     }
