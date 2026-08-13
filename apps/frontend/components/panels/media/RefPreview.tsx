@@ -57,7 +57,14 @@ export function RefPreview({ physicalRef, projectId, className }: RefPreviewProp
     setState({ status: "loading" });
     resolveRefPreview(physicalRef, projectId)
       .then((result) => { if (!cancelled) setState({ status: "ready", result }); })
-      .catch((err) => { if (!cancelled) setState({ status: "error", message: err instanceof Error ? err.message : String(err) }); });
+      .catch(() => {
+        // resolveRefPreview already has a catch-all that returns binary mode,
+        // so reaching this catch is truly unexpected. Degrade calmly instead
+        // of showing a red error UI.
+        if (!cancelled) {
+          setState({ status: "ready", result: { mode: "binary", message: "该内容为二进制格式,无法预览" } });
+        }
+      });
     return () => { cancelled = true; };
 // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [safePath, safeType, projectId]);

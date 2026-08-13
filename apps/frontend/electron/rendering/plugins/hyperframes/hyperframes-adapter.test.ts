@@ -55,7 +55,7 @@ describe("HyperFrames adapter", () => {
       fps: 30,
       alphaFormat: "prores-4444-mov",
       outputPath: "/storage/overlay.mov",
-      windows: [{ slotId: "title", startUs: 0, durationUs: 1_000_000, templateId: "title-card", parameters: {} }],
+      windows: [{ slotId: "title", cueId: "cue-1", startUs: 0, durationUs: 1_000_000, templateId: "title-card", parameters: {} }],
     });
     expect(result).toMatchObject({ state: "blocked", code: "runtime-not-ready" });
   });
@@ -89,7 +89,7 @@ describe("HyperFrames adapter", () => {
       fps: 30,
       alphaFormat: "png-sequence",
       outputPath: "/storage/overlay-frames",
-      windows: [{ slotId: "title", startUs: 0, durationUs: 1_000_000, templateId: "title-card", parameters: {} }],
+      windows: [{ slotId: "title", cueId: "cue-1", startUs: 0, durationUs: 1_000_000, templateId: "title-card", parameters: {} }],
     });
     expect(result).toMatchObject({ state: "blocked", code: "invalid-request" });
     expect(probeCalls).toBe(0);
@@ -150,7 +150,7 @@ describe("HyperFrames adapter", () => {
       fps: 30,
       alphaFormat: "prores-4444-mov",
       outputPath: path.join(root, "overlay.mov"),
-      windows: [{ slotId: "title", startUs: 0, durationUs: 1_000_000, templateId: "title-card", parameters: {} }],
+      windows: [{ slotId: "title", cueId: "cue-1", startUs: 0, durationUs: 1_000_000, templateId: "title-card", parameters: {} }],
     });
     expect(result).toMatchObject({ state: "ready", artifact: { status: "accepted", toolVersion: "hyperframes@0.7.101" } });
     expect(receivedEnv?.MYSTUDIO_HYPERFRAMES_WORKER).toBe("1");

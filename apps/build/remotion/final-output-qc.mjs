@@ -111,7 +111,7 @@ function evidenceIdentityIssues(evidence, expected) {
 }
 
 function cueOwnedByOverlay(cue, slots) {
-  return typeof cue?.cueId === "string" && slots.some((slot) => slot?.slotId === cue.cueId);
+  return typeof cue?.cueId === "string" && slots.some((slot) => slot?.cueId === cue.cueId);
 }
 
 async function checkSubtitleOwnership(videoUseArtifact, editingProject, outputPath, issues) {
@@ -272,7 +272,7 @@ function checkHyperFramesConsistency(videoUseArtifact, hyperFramesArtifact, issu
   const slots = Array.isArray(videoUseArtifact.overlaySlots) ? videoUseArtifact.overlaySlots : [];
   const windows = Array.isArray(hyperFramesArtifact.windows) ? hyperFramesArtifact.windows : [];
   const windowsMatchSlots = windows.length === slots.length && slots.every((slot) => windows.some((window) => (
-    window?.slotId === slot?.slotId && window?.startUs === slot?.startUs && window?.durationUs === slot?.durationUs
+    window?.slotId === slot?.slotId && window?.cueId === slot?.cueId && window?.startUs === slot?.startUs && window?.durationUs === slot?.durationUs
   )));
   if (!windowsMatchSlots) issues.push(issue("hyperframes.windows", "HyperFrames windows 与 video-use overlay slots 不一致"));
   if (hyperFramesArtifact.status === "noop" && slots.length > 0) {

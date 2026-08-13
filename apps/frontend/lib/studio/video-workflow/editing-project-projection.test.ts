@@ -55,7 +55,7 @@ function artifact(mode: VideoUseChapterArtifactV1["mode"]): VideoUseChapterArtif
     ],
     subtitles: [{ cueId: "cue-1", shotId: "shot-1", text: "你好", startUs: 0, durationUs: 500_000, source: "alignment" }],
     grade: { filter: "auto", parameters: {} },
-    overlaySlots: [{ slotId: "caption-1", startUs: 250_000, durationUs: 500_000 }],
+    overlaySlots: [{ slotId: "caption-1", cueId: "cue-1", startUs: 250_000, durationUs: 500_000 }],
     preview: { path: "/tmp/preview.mp4", sha256: hash, subtitlesBurnedIn: true, durationS: 2.5 },
     selfEval: { passed: true, score: 1, notes: [], evaluatedAt: 2 },
     ...(mode === "flat-shot-mp4" ? { flatShotMp4Path: "/tmp/clean-flat.mp4" } : {}),

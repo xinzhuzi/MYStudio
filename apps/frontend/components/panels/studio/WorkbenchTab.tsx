@@ -26,6 +26,7 @@ import type { RemotionQueueScopeState } from "./useRemotionQueueScope";
 import { toast } from "sonner";
 import { VideoWorkflowReviewPanel } from "./VideoWorkflowReviewPanel";
 import type { VideoUseDerivedInputPolicy, VideoUseStoryboardSourcePolicy } from "@rendering/contracts/video-workflow";
+import type { SubtitleAuthority } from "@/types/editing";
 
 export function WorkbenchTab(props: {
   projectId?: string;
@@ -68,6 +69,7 @@ export function WorkbenchTab(props: {
     .slice()
     .sort((left, right) => left.index - right.index);
   const currentChapterSlotCount = countCurrentShotSlots(chapterId, props.storyboards, remotionShotSlots, videoUseStoryboardSourcePolicy);
+  const subtitleAuthoritySummary = summarizeSubtitleAuthority(currentChapterStoryboards);
   const firstShotPreview = useFirstShotPreviewActions({
     projectId: props.projectId ?? activeProjectId ?? undefined,
     chapterId,
@@ -359,6 +361,10 @@ export function WorkbenchTab(props: {
           </span>
         </div>
         <p className="mt-1 text-muted-foreground">先消费已完成的 Remotion StoryboardShot 和本地 TTS，执行原文对齐、EDL、字幕时间、调色、preview 与自评；确认前不会生成正式章节视频。</p>
+        <div className="mt-2 rounded border border-border bg-muted/20 px-2 py-1.5 text-[11px]" data-subtitle-authority-summary>
+          <span className="font-medium text-foreground">字幕归属：{subtitleAuthoritySummary.label}</span>
+          <span className="ml-2 text-muted-foreground">{subtitleAuthoritySummary.detail}</span>
+        </div>
         <div className="mt-3 flex flex-wrap items-end gap-2">
           <label className="grid gap-1 text-muted-foreground">
             分镜来源
@@ -701,6 +707,19 @@ export function countCurrentShotSlots(
     && slot.target.shotId === storyboard.id
     && slot.target.shotRevision === Math.max(1, storyboard.outputVersion ?? 1)
     && slot.job.status === "succeeded")).length;
+}
+
+function summarizeSubtitleAuthority(storyboards: readonly { subtitleAuthority?: SubtitleAuthority }[]) {
+  const modes = [...new Set(storyboards.map((storyboard) => storyboard.subtitleAuthority?.mode ?? "unknown"))];
+  if (modes.length === 0 || modes.includes("unknown")) {
+    return { label: "unknown / 阻塞", detail: "每个视觉源需有明确策略和证据；TTS 文本不是可见字幕证明。" };
+  }
+  const names: Record<string, string> = {
+    "clean-remotion": "Remotion 普通字幕",
+    "source-embedded": "源媒体内嵌字幕",
+    hyperframes: "HyperFrames 动效字幕",
+  };
+  return { label: modes.map((mode) => names[mode] ?? mode).join(" + "), detail: "subtitleMode 由 cue owner 派生，避免重复字幕。" };
 }
 
 export function selectCurrentShotJobForStoryboard(

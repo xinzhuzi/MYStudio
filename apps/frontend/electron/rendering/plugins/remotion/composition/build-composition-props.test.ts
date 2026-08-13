@@ -12,10 +12,27 @@ import { remotionCurrentSlotPaths } from "@/lib/studio/remotion/remotion-current
 import {
   buildChapterVideoCompositionProps,
   mapEditedVoiceIntervals,
+  validateSubtitleAuthorityForTimeline,
 } from "./build-composition-props";
 
 const token = "a".repeat(64);
 const mediaUrl = `http://127.0.0.1:43123/${token}/shot`;
+
+describe("validateSubtitleAuthorityForTimeline", () => {
+  it("blocks a visual interval whose authority is missing", () => {
+    const slot = makeCurrentSlot();
+    const plan = chapterPlan(slot, "shot-001", "storyboardVideo");
+    delete plan.clips[0]!.source.evidence!.subtitleAuthority;
+
+    const result = validateSubtitleAuthorityForTimeline(plan);
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.issues.map((issue) => issue.message).join(";")).toContain("字幕归属未知");
+      expect(result.issues[0]?.path).toContain("visualIntervals[0].authority.mode");
+    }
+  });
+});
 
 describe("buildChapterVideoCompositionProps", () => {
   it("accepts current Remotion shot MP4s, rejects EditingProject audio, and keeps baked shot audio audible", async () => {
@@ -134,6 +151,7 @@ describe("buildChapterVideoCompositionProps", () => {
         src: mediaUrl,
         windows: [{
           slotId: "shot-001",
+          cueId: "overlay-cue-1",
           startUs: 250_000,
           durationUs: 500_000,
           templateId: "kinetic-caption",
@@ -226,7 +244,18 @@ describe("buildChapterVideoCompositionProps", () => {
     const flatPath = "/tmp/video-use-clean-flat.mp4";
     const artifactSha256 = "f".repeat(64);
     plan.clips[0]!.source.path = flatPath;
-    plan.clips[0]!.source.evidence = { sourceFingerprint: artifactSha256 };
+    plan.clips[0]!.source.evidence = {
+      sourceFingerprint: artifactSha256,
+      subtitleAuthority: {
+        mode: "clean-remotion",
+        evidence: {
+          mode: "clean-remotion",
+          decision: "imported-manifest",
+          sourceFingerprint: artifactSha256,
+          evidencePaths: ["/tmp/subtitle-evidence.json"],
+        },
+      },
+    };
     const chapterManifest = await manifestForPlan(plan);
     const gate: RemotionChapterGateAcceptedV1 = {
       accepted: true,

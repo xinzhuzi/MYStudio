@@ -66,12 +66,7 @@ export function projectVideoUseArtifactToEditingProject(input: {
     intervalId: `${artifact.mode}-${artifact.revision}`,
     authority: persistedAuthority,
     cues: artifact.subtitles.map((cue) => ({ cueId: cue.cueId, text: cue.text, startUs: cue.startUs, durationUs: cue.durationUs })),
-    // Video-use overlay slots do not carry cue identity yet. In a source-embedded
-    // interval, any overlay slot is therefore unsafe and is conservatively mapped
-    // to every subtitle cue so the resolver blocks the projection.
-    overlayCueIds: artifact.overlaySlots.length > 0
-      ? artifact.subtitles.map((cue) => cue.cueId)
-      : [],
+    overlayCueIds: artifact.overlaySlots.map((slot) => slot.cueId),
     // Projection consumes the accepted clean/EDL artifact, never the burned-in preview.
     previewSubtitlesBurnedIn: false,
   }]);

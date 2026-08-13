@@ -83,7 +83,21 @@ function plan(sourcePath: string): TimelineRenderPlan {
     clips: [{
       id: "visual-1",
       trackKind: "video",
-      source: { kind: "storyboardImage", path: sourcePath },
+      source: {
+        kind: "storyboardImage",
+        path: sourcePath,
+        evidence: {
+          subtitleAuthority: {
+            mode: "clean-remotion",
+            evidence: {
+              mode: "clean-remotion",
+              decision: "imported-manifest",
+              sourceFingerprint: "a".repeat(64),
+              evidencePaths: ["/tmp/subtitle-evidence.json"],
+            },
+          },
+        },
+      },
       startUs: 0,
       durationUs: 1_000_000,
       trimStartUs: 0,

@@ -133,6 +133,8 @@ export interface VideoUseSubtitleCueV1 {
 
 export interface VideoUseOverlaySlotV1 {
   slotId: string;
+  /** Stable subtitle identity when this overlay owns a subtitle cue. */
+  cueId: string;
   startUs: TimelineTimeUs;
   durationUs: TimelineTimeUs;
 }
@@ -207,6 +209,8 @@ export type HyperFramesAlphaFormat = "prores-4444-mov" | "webm-vp9-alpha" | "png
 
 export interface HyperFramesOverlayWindowV1 {
   slotId: string;
+  /** Stable subtitle identity; decorative overlays use a non-cue overlay identity. */
+  cueId: string;
   startUs: TimelineTimeUs;
   durationUs: TimelineTimeUs;
   templateId: string;
@@ -476,7 +480,7 @@ function validateOverlayWindow(value: unknown, path: string, issues: VideoWorkfl
     issues.push(issue(path, "必须是对象"));
     return false;
   }
-  for (const key of ["slotId", "templateId"] as const) {
+  for (const key of ["slotId", "cueId", "templateId"] as const) {
     if (typeof value[key] !== "string" || value[key].length === 0) issues.push(issue(`${path}.${key}`, "必须是非空字符串"));
   }
   if (!isFiniteNonNegative(value.startUs)) issues.push(issue(`${path}.startUs`, "必须是非负微秒"));
@@ -572,6 +576,7 @@ export function validateVideoUseChapterArtifact(value: unknown): VideoWorkflowVa
       if (!isRecord(slot)) issues.push(issue(path, "必须是对象"));
       else {
         if (typeof slot.slotId !== "string" || slot.slotId.length === 0) issues.push(issue(`${path}.slotId`, "必须是非空字符串"));
+        if (typeof slot.cueId !== "string" || slot.cueId.length === 0) issues.push(issue(`${path}.cueId`, "必须是非空稳定 cue identity"));
         if (!isFiniteNonNegative(slot.startUs)) issues.push(issue(`${path}.startUs`, "必须是非负微秒"));
         if (!isFiniteNonNegative(slot.durationUs) || slot.durationUs <= 0) issues.push(issue(`${path}.durationUs`, "必须是正数微秒"));
       }
@@ -690,9 +695,7 @@ export function isSubtitleCueOwnedByOverlay(
   cue: VideoUseSubtitleCueV1,
   slots: readonly VideoUseOverlaySlotV1[],
 ): boolean {
-  return slots.some((slot) => cue.shotId === slot.slotId
-    || (cue.startUs < slot.startUs + slot.durationUs
-      && cue.startUs + cue.durationUs > slot.startUs));
+  return slots.some((slot) => slot.cueId === cue.cueId);
 }
 
 export function isVideoWorkflowStage(value: unknown): value is VideoWorkflowStage {

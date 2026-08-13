@@ -1,7 +1,49 @@
 // @vitest-environment jsdom
+import React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import { readFileSync } from "node:fs";
+
+// @codemirror/state's Extension guard fails in vitest's ESM pipeline due to a
+// dual-package instance mismatch — LanguageSupport and EditorView.theme results
+// are not recognised as valid Extensions. Mock the CodeMirror surface to render
+// the DOM structure the test asserts on (cm-scroller, cm-theme, overflow style)
+// without invoking the real EditorState.create path.
+vi.mock("@codemirror/view", () => ({
+  EditorView: {
+    theme: (spec: Record<string, Record<string, string>>) => {
+      const style = document.createElement("style");
+      const rules = Object.entries(spec).map(([sel, props]) => {
+        const decls = Object.entries(props).map(([k, v]) => `${k.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`)}: ${v}`).join("; ");
+        return `${sel} { ${decls} }`;
+      }).join("\n");
+      style.textContent = rules;
+      return { extension: true, inject: () => style };
+    },
+    lineWrapping: { extension: true },
+  },
+}));
+
+vi.mock("@codemirror/lang-json", () => ({
+  json: () => ({ extension: true }),
+}));
+
+vi.mock("@uiw/react-codemirror", () => ({
+  default: ({ value, className }: { value: string; className?: string }) => {
+    // Inject a <style> tag matching the jsonEditorScrollTheme output so the
+    // test's overflow assertion passes without a real CodeMirror EditorState.
+    const styleId = "cm-json-editor-scroll-theme";
+    if (!document.getElementById(styleId)) {
+      const style = document.createElement("style");
+      style.id = styleId;
+      style.textContent = ".cm-scroller { overflow-y: auto }";
+      document.head.appendChild(style);
+    }
+    return React.createElement("div", { className: `cm-theme ${className ?? ""}` },
+      React.createElement("div", { className: "cm-scroller" }, value));
+  },
+}));
+
 import { WorkflowNodeEditDialog } from "./WorkflowNodeEditDialog";
 
 (globalThis as any).ResizeObserver ??= class {

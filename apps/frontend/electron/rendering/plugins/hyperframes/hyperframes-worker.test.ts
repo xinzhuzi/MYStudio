@@ -17,6 +17,7 @@ const request = {
   outputPath: "/tmp/overlay.mov",
   windows: [{
     slotId: "title",
+    cueId: "cue-1",
     startUs: 0,
     durationUs: 1_000_000,
     templateId: "title-card",

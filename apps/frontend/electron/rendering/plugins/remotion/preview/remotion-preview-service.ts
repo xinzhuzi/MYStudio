@@ -6,7 +6,7 @@ import {
   validateRemotionShotPlan,
 } from "@/lib/studio/remotion/shot-plan";
 import type { StoryboardShotCompositionProps } from "../composition/composition-props";
-import { buildCompositionProps } from "../composition/build-composition-props";
+import { buildCompositionProps, validateSubtitleAuthorityForTimeline } from "../composition/build-composition-props";
 import { MediaBridgeServer } from "../media-bridge/media-bridge-server";
 import { buildMediaUrlMap, type MediaBridgeClipSource } from "../media-bridge/media-bridge-source-map";
 import type { MediaBridgeSession } from "../media-bridge/media-bridge-session";
@@ -28,6 +28,10 @@ export class RemotionPreviewService {
   constructor(private readonly options: RemotionPreviewServiceOptions) {}
 
   async create(plan: TimelineRenderPlan): Promise<RemotionPreviewCreateReply> {
+    const authorityValidation = validateSubtitleAuthorityForTimeline(plan);
+    if (!authorityValidation.success) {
+      throw new Error(authorityValidation.issues.map((issue) => `${issue.path}: ${issue.message}`).join("; "));
+    }
     await this.mediaBridge.listen();
     const session = this.mediaBridge.createSession();
     try {

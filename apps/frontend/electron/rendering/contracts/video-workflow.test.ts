@@ -48,14 +48,14 @@ function validVideoUseArtifact(): Record<string, unknown> & {
 }
 
 function validOverlayWindow() {
-  return { slotId: "slot-1", startUs: 0, durationUs: 1_000_000, templateId: "title", parameters: {} };
+  return { slotId: "slot-1", cueId: "cue-1", startUs: 0, durationUs: 1_000_000, templateId: "title", parameters: {} };
 }
 
 describe("video workflow persisted child contracts", () => {
   it("assigns overlapping animated cues to HyperFrames and leaves ordinary cues to Remotion", () => {
     const cue = { cueId: "cue-1", shotId: "shot-1", text: "你好", startUs: 100_000, durationUs: 400_000, source: "alignment" as const };
-    expect(isSubtitleCueOwnedByOverlay(cue, [{ slotId: "caption-1", startUs: 200_000, durationUs: 100_000 }])).toBe(true);
-    expect(isSubtitleCueOwnedByOverlay(cue, [{ slotId: "caption-2", startUs: 500_000, durationUs: 100_000 }])).toBe(false);
+    expect(isSubtitleCueOwnedByOverlay(cue, [{ slotId: "caption-1", cueId: "cue-1", startUs: 200_000, durationUs: 100_000 }])).toBe(true);
+    expect(isSubtitleCueOwnedByOverlay(cue, [{ slotId: "caption-2", cueId: "cue-2", startUs: 500_000, durationUs: 100_000 }])).toBe(false);
   });
 
   it("rejects alignment words without their timing fields", () => {
@@ -82,6 +82,7 @@ describe("video workflow persisted child contracts", () => {
         "$.subtitles[0].shotId",
         "$.subtitles[0].text",
         "$.overlaySlots[0].slotId",
+        "$.overlaySlots[0].cueId",
       ]));
     }
   });
@@ -99,7 +100,7 @@ describe("video workflow persisted child contracts", () => {
       fps: 30,
       alphaFormat: "prores-4444-mov",
       outputPath: "/tmp/overlay.mov",
-      windows: [{ slotId: "slot-1", startUs: 0, durationUs: 1_000_000, templateId: "title" }],
+      windows: [{ slotId: "slot-1", cueId: "cue-1", startUs: 0, durationUs: 1_000_000, templateId: "title" }],
     };
     const artifact = {
       schemaVersion: 1,

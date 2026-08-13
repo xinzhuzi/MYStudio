@@ -84,8 +84,8 @@ describe("final output QC", () => {
     writeFileSync(outputPath, "not-an-mp4");
     const report = await runFinalOutputQc({
       outputPath,
-      videoUseArtifact: { ...artifact, overlaySlots: [{ slotId: "cue-1", startUs: 0, durationUs: 1_000_000 }] },
-      hyperFramesArtifact: { ...hyperframes, windows: [{ slotId: "cue-1", startUs: 0, durationUs: 1_000_000 }] },
+      videoUseArtifact: { ...artifact, overlaySlots: [{ slotId: "cue-1", cueId: "cue-1", startUs: 0, durationUs: 1_000_000 }] },
+      hyperFramesArtifact: { ...hyperframes, windows: [{ slotId: "cue-1", cueId: "cue-1", startUs: 0, durationUs: 1_000_000 }] },
       editingProject: editingProject(sha),
       evidence: { projectId: "project-1", target: { kind: "chapter", chapterId: "chapter-1", editingProjectId: "editing-1", editingRevision: 2 }, inputHash: sha, outputPath, sizeBytes: 10, mtimeMs: 1, sha256: sha, streams: ["video", "audio"] },
       ffprobePath: process.execPath,
@@ -263,7 +263,7 @@ describe("final output QC", () => {
     const report = await runFinalOutputQc({
       outputPath,
       videoUseArtifact: flatArtifact,
-      hyperFramesArtifact: { ...hyperframes, sourceArtifactSha256: flatArtifact.evidence.artifactSha256, inputSha256: "c".repeat(64), windows: [{ slotId: "unexpected", startUs: 0, durationUs: 1 }] },
+      hyperFramesArtifact: { ...hyperframes, sourceArtifactSha256: flatArtifact.evidence.artifactSha256, inputSha256: "c".repeat(64), windows: [{ slotId: "unexpected", cueId: "unexpected", startUs: 0, durationUs: 1 }] },
       editingProject: editingProject("d".repeat(64)),
       evidence: { projectId: "project-1", target: { kind: "chapter", chapterId: "chapter-1", editingProjectId: "editing-1", editingRevision: 2 }, inputHash: sha, outputPath, sizeBytes: 11, mtimeMs: 1, sha256: sha, streams: ["video", "audio"] },
     });
@@ -373,12 +373,12 @@ describe("final output QC", () => {
         mode: "source-embedded",
         evidence: { mode: "source-embedded", decision: "human", sourceFingerprint: sourceSha, evidencePaths: [evidencePath] },
       },
-      overlaySlots: [{ slotId: "cue-1", startUs: 0, durationUs: 1_000_000 }],
+      overlaySlots: [{ slotId: "cue-1", cueId: "cue-1", startUs: 0, durationUs: 1_000_000 }],
     };
     const report = await runFinalOutputQc({
       outputPath,
       videoUseArtifact: embedded,
-      hyperFramesArtifact: { ...hyperframes, windows: [{ slotId: "cue-1", startUs: 0, durationUs: 1_000_000 }] },
+      hyperFramesArtifact: { ...hyperframes, windows: [{ slotId: "cue-1", cueId: "cue-1", startUs: 0, durationUs: 1_000_000 }] },
       editingProject: editingProject(sha),
     });
     expect(report.issues.map((item) => item.code)).toEqual(expect.arrayContaining([

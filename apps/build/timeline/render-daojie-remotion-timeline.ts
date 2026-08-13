@@ -5,7 +5,10 @@ import { MediaBridgeServer } from "@rendering/plugins/remotion/media-bridge/medi
 import { buildMediaUrlMap } from "@rendering/plugins/remotion/media-bridge/media-bridge-source-map";
 import { validateChapterVideoCompositionProps, validateCompositionProps } from "@rendering/plugins/remotion/composition/composition-props-validation";
 import { buildChapterVideoCompositionProps, buildCompositionProps } from "@rendering/plugins/remotion/composition/build-composition-props";
-import { CHAPTER_VIDEO_COMPOSITION_ID, REMOTION_COMPOSITION_ID } from "@rendering/plugins/remotion/composition/composition-id";
+import {
+  CHAPTER_VIDEO_COMPOSITION_ID,
+  DAOJIE_TIMELINE_COMPATIBILITY_COMPOSITION_ID,
+} from "@rendering/plugins/remotion/composition/composition-id";
 import { createRemotionEnsureBrowserAdapters, type RemotionEnsureBrowser } from "@rendering/plugins/remotion/browser/remotion-browser-worker-service";
 import { assertBundleMatchesRuntime, type RemotionBundleManifest } from "@rendering/plugins/remotion/render/bundle-manifest";
 import { buildRemotionRuntimeManifest } from "@rendering/plugins/remotion/browser/remotion-runtime-manifest";
@@ -45,7 +48,7 @@ export async function runDaojieRemotionTimeline(): Promise<Record<string, unknow
   const currentShotSlots = remotionOnly ? loadCurrentShotSlots(plan.projectId, plan.episodeId) : [];
   const bundlePath = path.resolve(process.env.MYSTUDIO_REMOTION_BUNDLE || path.join(appsRoot, ".cache", "remotion-bundle"));
   const manifest = readManifest(bundlePath);
-  if (!remotionOnly && manifest.compositionId !== REMOTION_COMPOSITION_ID) throw new Error("兼容 Daojie Timeline bundle manifest 与运行时不一致");
+  if (!remotionOnly && manifest.compositionId !== DAOJIE_TIMELINE_COMPATIBILITY_COMPOSITION_ID) throw new Error("兼容 Daojie Timeline bundle manifest 与运行时不一致");
   const projectDir = resolveProjectDir();
   const roots = deriveStorageRoots(projectDir);
   const chapterManifestService = new RemotionChapterManifestService({
@@ -125,7 +128,7 @@ export async function runDaojieRemotionTimeline(): Promise<Record<string, unknow
         : buildCompositionProps(plan, mediaUrlByClipId);
       const propsValidation = remotionOnly ? validateChapterVideoCompositionProps(props) : validateCompositionProps(props);
       if (!propsValidation.success) throw new Error(propsValidation.issues.map((issue) => `${issue.path}: ${issue.message}`).join("; "));
-      const compositionId = remotionOnly ? CHAPTER_VIDEO_COMPOSITION_ID : REMOTION_COMPOSITION_ID;
+      const compositionId = remotionOnly ? CHAPTER_VIDEO_COMPOSITION_ID : DAOJIE_TIMELINE_COMPATIBILITY_COMPOSITION_ID;
       const rawPath = path.join(outputDir, "raw-remotion.mp4");
       const outputPath = path.join(outputDir, "output.mp4");
       const renderStartedAt = Date.now();
@@ -209,7 +212,7 @@ export async function runDaojieRemotionTimeline(): Promise<Record<string, unknow
         templateVersion: manifest.templateVersion,
         remotionVersion,
         attempt: 1,
-        compositionId: CHAPTER_VIDEO_COMPOSITION_ID,
+        compositionId,
         renderer: { requested: "remotion" as const, actual: "remotion" as const },
         path: outputPath,
         outputPath,

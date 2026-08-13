@@ -74,6 +74,20 @@ export async function resolveRefPreview(
   ref: PhysicalRef,
   projectId: string,
 ): Promise<ResolvedRefPreview> {
+  try {
+    return await resolveRefPreviewInner(ref, projectId);
+  } catch {
+    // Catch-all: any unexpected error during preview resolution (IPC failure,
+    // malformed data, parser crash, etc.) degrades to a calm "binary" message
+    // instead of propagating an exception that would render a red error UI.
+    return { mode: "binary", message: "该内容为二进制格式,无法预览" };
+  }
+}
+
+async function resolveRefPreviewInner(
+  ref: PhysicalRef,
+  projectId: string,
+): Promise<ResolvedRefPreview> {
   const mode = getRefPreviewMode(ref.path);
   const isLocalMedia = ref.type === "local-media";
 
@@ -124,6 +138,22 @@ export async function resolveRefPreview(
   if (!res?.success || res.text === undefined) {
     return { mode: "binary", message: res?.error || "文本读取失败" };
   }
+
+  // Content sniffing: validate that .json files actually contain JSON.
+  // The preview mode is derived from the file extension (ref-preview-mode.ts),
+  // but a .json store file may embed free-form agent-workflow output strings
+  // (e.g. "__弓妍静_____年龄___不详_____性别___女___1779988670440") that are not
+  // valid JSON. Feeding such content into CodeMirror's json() language parser
+  // crashes the preview. If JSON.parse fails, treat the content as
+  // unrecognizable and decline to preview rather than crashing.
+  if (mode === "json") {
+    try {
+      JSON.parse(res.text);
+    } catch {
+      return { mode: "binary", message: "该内容为二进制格式,无法预览" };
+    }
+  }
+
   return {
     mode,
     text: res.text,

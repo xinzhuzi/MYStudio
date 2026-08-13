@@ -1,4 +1,5 @@
 import { Check, Download, Film, Loader2, RefreshCw, RotateCcw, Wrench } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useRemotionRuntimeSettings } from "./useRemotionRuntimeSettings";
@@ -65,10 +66,20 @@ export function RenderingSettingsTab({ embedded = false }: RenderingSettingsTabP
         )}
 
         <div className={embedded ? "space-y-4" : "p-6 border border-border rounded-xl bg-card space-y-4"}>
+          {/* 工作流说明 */}
+          <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-2">
+            <h4 className="font-medium text-foreground">视频工作流运行说明</h4>
+            <div className="space-y-1.5 text-xs leading-5 text-muted-foreground">
+              <p><span className="font-medium text-foreground">共享运行时</span>：video-use 复用插件配置页已准备的 Python 3.12，HyperFrames 复用 Electron 内置 Node（无需额外下载），FFmpeg / ffprobe 由系统提供，所有插件共享同一组。</p>
+              <p><span className="font-medium text-foreground">执行顺序</span>：video-use 先完成原文对齐、EDL 编辑、字幕时间轴、调色、预览渲染与自评；用户确认时间线后，准备 HyperFrames 生成透明动效 overlay（无动效也会写入 no-op 记录）；最后由 Remotion 负责正式 Composition 与章节视频渲染。</p>
+              <p><span className="font-medium text-foreground">失败处理</span>：任一阶段失败都会阻塞后续流程并在 UI 中提示，可点击「准备」或「修复」重试，无需重启应用。</p>
+            </div>
+          </div>
+
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h4 className="font-medium text-foreground">插件运行时</h4>
-              <p className="text-xs text-muted-foreground mt-1">复用应用 Python 3.12 与同一组 FFmpeg/ffprobe；HyperFrames 复用 Electron 内置 Node。</p>
+              <p className="text-xs text-muted-foreground mt-1">点击「准备当前工作流」一键准备所有插件，或单独准备某个插件。</p>
             </div>
             <div className="flex flex-wrap gap-2">
               <Button variant="outline" size="sm" onClick={() => void plugins.refresh()} disabled={plugins.isBusy}>
@@ -80,6 +91,36 @@ export function RenderingSettingsTab({ embedded = false }: RenderingSettingsTabP
             </div>
           </div>
           <div className="space-y-4" aria-label="视频工作流插件状态">
+            {/* 共享 FFmpeg/ffprobe 信息 */}
+            <div className="rounded-lg border border-border p-4 space-y-2">
+              <div className="flex items-center justify-between gap-3">
+                <h4 className="font-medium text-foreground">FFmpeg / ffprobe</h4>
+                <span className="text-xs text-muted-foreground">视频工作流共享</span>
+              </div>
+              <p className="text-xs leading-5 text-muted-foreground">视频工作流的所有插件复用同一组 FFmpeg 与 ffprobe，不按项目独立安装。</p>
+              {(() => {
+                const videoUsePlugin = plugins.getPlugin("video-use");
+                const ffmpeg = videoUsePlugin?.dependencies?.ffmpeg;
+                const ffprobe = videoUsePlugin?.dependencies?.ffprobe;
+                if (!ffmpeg && !ffprobe) return null;
+                return (
+                  <dl className="grid gap-1 text-[10px] text-muted-foreground">
+                    {ffmpeg ? (
+                      <div className="grid grid-cols-[5rem_1fr] gap-2">
+                        <dt>ffmpeg</dt>
+                        <dd className="truncate font-mono" title={ffmpeg}>{ffmpeg}</dd>
+                      </div>
+                    ) : null}
+                    {ffprobe ? (
+                      <div className="grid grid-cols-[5rem_1fr] gap-2">
+                        <dt>ffprobe</dt>
+                        <dd className="truncate font-mono" title={ffprobe}>{ffprobe}</dd>
+                      </div>
+                    ) : null}
+                  </dl>
+                );
+              })()}
+            </div>
             {PLUGIN_DEFINITIONS.map((definition) => {
               const plugin = plugins.getPlugin(definition.id);
               const deferred = plugin?.runtimeState === "deferred" || definition.id === "seedance-prompt";
@@ -92,7 +133,9 @@ export function RenderingSettingsTab({ embedded = false }: RenderingSettingsTabP
                     <span className="text-xs text-muted-foreground">{statusText(plugin)}</span>
                   </div>
                   <p className="text-xs leading-5 text-muted-foreground">{definition.description}</p>
-                  {plugin?.message && <p className="text-xs text-amber-600 dark:text-amber-400">{plugin.message}</p>}
+                  {plugin?.message ? (
+                    <p className={plugin.runtimeState === "ready" ? "text-xs text-muted-foreground" : "text-xs text-amber-600 dark:text-amber-400"}>{plugin.message}</p>
+                  ) : null}
                   {plugin ? (
                     <dl className="grid gap-1 text-[10px] text-muted-foreground">
                       {plugin.runtimePath ? (
@@ -107,7 +150,9 @@ export function RenderingSettingsTab({ embedded = false }: RenderingSettingsTabP
                           <dd className="truncate" title={plugin.profilePath}>{plugin.profilePath}</dd>
                         </div>
                       ) : null}
-                      {Object.entries(plugin.dependencies).map(([key, value]) => value ? (
+                      {Object.entries(plugin.dependencies)
+                        .filter(([key]) => key !== "ffmpeg" && key !== "ffprobe" && key !== "node")
+                        .map(([key, value]) => value ? (
                         <div key={key} className="grid grid-cols-[5rem_1fr] gap-2">
                           <dt>{key}</dt>
                           <dd className="truncate" title={value}>{value}</dd>
@@ -143,22 +188,17 @@ export function RenderingSettingsTab({ embedded = false }: RenderingSettingsTabP
                         })}
                       </div>
 
-                      <div className="space-y-5">
-                        <div>
-                          <h5 className="font-medium text-foreground">Remotion Headless Shell</h5>
-                          <p className="text-xs text-muted-foreground mt-1">导出前先下载官方浏览器运行时。</p>
-                        </div>
-
-                        {!runtime.runtimeAvailable ? (
-                          <p className="text-sm text-muted-foreground rounded-lg border border-border bg-muted/30 p-4">浏览器运行时设置仅在桌面版中可用。</p>
-                        ) : (
-                          <>
-                            <div className="flex items-center justify-between gap-4 text-sm">
+                      <div className="space-y-3">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <div>
+                            <h5 className="font-medium text-foreground">Remotion Headless Shell</h5>
+                            <p className="text-xs text-muted-foreground mt-1">导出前先下载官方浏览器运行时。</p>
+                          </div>
+                          {!runtime.runtimeAvailable ? null : (
+                            <div className="flex items-center gap-4 text-sm">
                               <span className="text-muted-foreground">下载状态</span>
                               <span className="font-medium text-foreground">{statusLabel}</span>
-                            </div>
-                            <div className="flex flex-wrap gap-3" aria-live="polite">
-                              <Button onClick={() => void runtime.downloadBrowser()} disabled={!runtime.canDownload || runtime.isBusy}>
+                              <Button size="sm" onClick={() => void runtime.downloadBrowser()} disabled={!runtime.canDownload || runtime.isBusy}>
                                 {runtime.isLoading
                                   ? <Loader2 className="h-4 w-4 animate-spin" />
                                   : runtime.verificationState === "ready"
@@ -167,22 +207,44 @@ export function RenderingSettingsTab({ embedded = false }: RenderingSettingsTabP
                                 {downloadLabel}
                               </Button>
                             </div>
-                          </>
-                        )}
+                          )}
+                        </div>
+
+                        {!runtime.runtimeAvailable ? (
+                          <p className="text-sm text-muted-foreground rounded-lg border border-border bg-muted/30 p-4">浏览器运行时设置仅在桌面版中可用。</p>
+                        ) : null}
                       </div>
                     </div>
                   ) : null}
                   <div className="flex flex-wrap gap-2">
-                    <Button size="sm" variant="outline" onClick={() => void plugins.prepare(definition.id)} disabled={deferred || plugins.isBusy}>
-                      {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wrench className="h-4 w-4" />} 准备
+                    <Button size="sm" variant="outline" onClick={async () => {
+                      const reply = await plugins.prepare(definition.id);
+                      if (reply?.success) toast.success(`${definition.title} 准备完成`);
+                      else if (reply && !reply.success) toast.error(`${definition.title} 准备失败: ${reply.message ?? "未知错误"}`);
+                      else if (plugins.error) toast.error(`${definition.title} 准备失败: ${plugins.error}`);
+                    }} disabled={deferred || plugins.isBusy || plugin?.runtimeState === "ready"}>
+                      {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wrench className="h-4 w-4" />}
+                      {definition.id === "hyperframes" && plugin?.runtimeState === "needs-runtime" ? "下载并准备" : "准备"}
                     </Button>
-                    <Button size="sm" variant="ghost" onClick={() => void plugins.update(definition.id)} disabled={deferred || !updateAvailable || plugins.isBusy}>
+                    <Button size="sm" variant="ghost" onClick={async () => {
+                      const reply = await plugins.update(definition.id);
+                      if (reply?.success) toast.success(`${definition.title} 更新完成`);
+                      else if (reply && !reply.success) toast.error(`${definition.title} 更新失败: ${reply.message ?? "未知错误"}`);
+                    }} disabled={deferred || !updateAvailable || plugins.isBusy}>
                       <RefreshCw className="h-4 w-4" /> 更新
                     </Button>
-                    <Button size="sm" variant="ghost" onClick={() => void plugins.repair(definition.id)} disabled={deferred || plugins.isBusy}>
+                    <Button size="sm" variant="ghost" onClick={async () => {
+                      const reply = await plugins.repair(definition.id);
+                      if (reply?.success) toast.success(`${definition.title} 修复完成`);
+                      else if (reply && !reply.success) toast.error(`${definition.title} 修复失败: ${reply.message ?? "未知错误"}`);
+                    }} disabled={deferred || plugins.isBusy || plugin?.runtimeState === "ready"}>
                       <Wrench className="h-4 w-4" /> 修复
                     </Button>
-                    <Button size="sm" variant="ghost" onClick={() => void plugins.rollback(definition.id)} disabled={deferred || plugins.isBusy}>
+                    <Button size="sm" variant="ghost" onClick={async () => {
+                      const reply = await plugins.rollback(definition.id);
+                      if (reply?.success) toast.success(`${definition.title} 回滚完成`);
+                      else if (reply && !reply.success) toast.error(`${definition.title} 回滚失败: ${reply.message ?? "未知错误"}`);
+                    }} disabled={deferred || plugins.isBusy || plugin?.runtimeState === "ready"}>
                       <RotateCcw className="h-4 w-4" /> 回滚
                     </Button>
                   </div>

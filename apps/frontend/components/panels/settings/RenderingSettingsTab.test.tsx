@@ -89,7 +89,9 @@ describe("RenderingSettingsTab", () => {
     await waitFor(() => expect(screen.getByRole("heading", { name: "Seedance Prompt Skill" })).toBeTruthy());
     expect(screen.getAllByRole("heading").map((heading) => heading.textContent)).toEqual([
       "视频工作流插件",
+      "视频工作流运行说明",
       "插件运行时",
+      "FFmpeg / ffprobe",
       "Remotion",
       "全局渲染器",
       "Remotion Headless Shell",

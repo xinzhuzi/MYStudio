@@ -266,27 +266,44 @@ export function createVideoWorkflowRuntimeManager(
   };
 
   const prepareHyperFrames = async (): Promise<VideoWorkflowRuntimePaths> => {
+    console.warn("[HyperFrames] prepare: 开始准备 HyperFrames 运行时");
     const stagingPath = `${paths.hyperFramesProfileDir}.staging-${randomSuffix()}`;
     const archivePath = path.join(stagingPath, "npm.tgz");
     const extractPath = path.join(stagingPath, "npm-extract");
     try {
       fs.mkdirSync(stagingPath, { recursive: true });
+      console.warn("[HyperFrames] prepare: 下载 npm tarball:", NPM_TARBALL_URL);
       await ops.download(NPM_TARBALL_URL, archivePath);
+      console.warn("[HyperFrames] prepare: 校验 SHA-256");
       if (hashFile(archivePath) !== NPM_SHA256) throw new Error("npm tarball SHA-256 不匹配");
+      console.warn("[HyperFrames] prepare: 解压 npm tarball");
       await ops.extract(archivePath, extractPath);
       const npmRoot = findArchiveRoot(extractPath, "bin/npm-cli.js");
       const npmCliPath = path.join(npmRoot, "bin", "npm-cli.js");
       if (!fs.existsSync(npmCliPath)) throw new Error("npm CLI 入口未找到");
       const profileDir = path.join(stagingPath);
+      // npm install spawns child processes (e.g. onnxruntime-node's install
+      // script) that invoke `node` via shebang/shell. ELECTRON_RUN_AS_NODE only
+      // affects the direct Electron binary, not its children. We must put the
+      // Electron binary on PATH as `node` so child scripts can find it.
+      const nodeShimDir = path.join(stagingPath, ".node-shim");
+      fs.mkdirSync(nodeShimDir, { recursive: true });
+      const nodeShimPath = path.join(nodeShimDir, "node");
+      // Create a shell script wrapper that invokes Electron with ELECTRON_RUN_AS_NODE
+      fs.writeFileSync(nodeShimPath, `#!/bin/sh\nexec "${electronExecutable}" "$@"\n`, { mode: 0o755 });
       const electronNodeEnv = {
         ...process.env,
         ELECTRON_RUN_AS_NODE: "1" as const,
+        PATH: `${nodeShimDir}:${process.env.PATH ?? ""}`,
       };
+      console.warn("[HyperFrames] prepare: 验证 Electron 内置 Node 版本");
       const nodeVersion = await ops.run(electronExecutable, ["--version"], { env: electronNodeEnv });
       const nodeVersionStr = `${nodeVersion.stdout ?? ""}${nodeVersion.stderr ?? ""}`.trim();
+      console.warn("[HyperFrames] prepare: Electron 内置 Node 版本:", nodeVersionStr);
       if (!/^v?\d+\./.test(nodeVersionStr)) {
         throw new Error(`Electron 内置 Node 不可用: ${nodeVersionStr}`);
       }
+      console.warn("[HyperFrames] prepare: 安装", HYPERFRAMES_PACKAGE, "(通过 Electron Node + ELECTRON_RUN_AS_NODE)");
       await ops.run(electronExecutable, [
         npmCliPath, "install", "--no-audit", "--no-fund", HYPERFRAMES_PACKAGE,
       ], {
@@ -295,17 +312,21 @@ export function createVideoWorkflowRuntimeManager(
       });
       const cliPath = path.join(profileDir, "node_modules", "hyperframes", "bin", "hyperframes.mjs");
       if (!fs.existsSync(cliPath)) throw new Error("HyperFrames CLI 安装后未找到可执行入口");
+      console.warn("[HyperFrames] prepare: CLI 入口验证通过:", cliPath);
       removeOwnPath(extractPath);
       removeOwnPath(archivePath);
+      console.warn("[HyperFrames] prepare: 提升 staging 目录到", paths.hyperFramesProfileDir);
       const previousPath = promoteStaging(paths.hyperFramesProfileDir, stagingPath);
       try {
         writeProfileMarker(paths.hyperFramesMarkerPath, buildHyperFramesProfileMarker(paths));
+        console.warn("[HyperFrames] prepare: 完成，profile marker 已写入");
       } catch (error) {
         restorePromotedTarget(paths.hyperFramesProfileDir, previousPath);
         throw error;
       }
       return paths;
     } catch (error) {
+      console.error("[HyperFrames] prepare: 失败:", error instanceof Error ? error.message : String(error));
       removeOwnPath(stagingPath);
       throw error;
     }

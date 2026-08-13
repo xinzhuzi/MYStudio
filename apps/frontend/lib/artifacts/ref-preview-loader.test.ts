@@ -77,6 +77,37 @@ describe("resolveRefPreview", () => {
     expect(out.mode).toBe("binary");
   });
 
+  it("json file with non-JSON content degrades to binary (prevents jsonLang crash)", async () => {
+    projectFiles.readText.mockResolvedValue({
+      success: true,
+      text: "__弓妍静_____年龄___不详_____性别___女___1779988670440",
+      size: 47,
+      truncated: false,
+    });
+    const out = await resolveRefPreview(mk({ type: "project-file", path: "data/workflow-output.json" }), "projX");
+    expect(out.mode).toBe("binary");
+    if (out.mode === "binary") expect(out.message).toContain("无法预览");
+  });
+
+  it("unexpected throw during resolution degrades to binary, not error", async () => {
+    projectFiles.readText.mockRejectedValue(new Error("IPC channel closed"));
+    const out = await resolveRefPreview(mk({ type: "project-file", path: "data/store.json" }), "projX");
+    expect(out.mode).toBe("binary");
+    if (out.mode === "binary") expect(out.message).toContain("无法预览");
+  });
+
+  it("json file with valid JSON content keeps json mode", async () => {
+    projectFiles.readText.mockResolvedValue({
+      success: true,
+      text: '{"key":"value","nested":{"a":1}}',
+      size: 33,
+      truncated: false,
+    });
+    const out = await resolveRefPreview(mk({ type: "project-file", path: "data/store.json" }), "projX");
+    expect(out.mode).toBe("json");
+    if (out.mode === "json") expect(out.text).toBe('{"key":"value","nested":{"a":1}}');
+  });
+
   it("readText failure for a text extension surfaces the error", async () => {
     projectFiles.readText.mockResolvedValue({ success: false, error: "文件过大(超过 2MB)" });
     const out = await resolveRefPreview(mk({ type: "project-file", path: "huge.txt" }), "projX");

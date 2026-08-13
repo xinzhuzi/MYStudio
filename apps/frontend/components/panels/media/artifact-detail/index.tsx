@@ -31,6 +31,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { RefPreview } from "../RefPreview";
 import { buildProjectFileUrl } from "@/lib/artifacts/ref-preview-loader";
+import { getRefPreviewMode, isPreviewable } from "@/lib/artifacts/ref-preview-mode";
 import { EditableField, STATE_INFO, formatBytes, formatTimestamp } from "./helpers";
 import { JsonViewer } from "./json-viewer";
 import { getArtifactDeleteImpact } from "@/lib/artifacts/delete-impact";
@@ -84,16 +85,22 @@ export function ArtifactDetailPanel({
   const [selectedRef, setSelectedRef] = useState<PhysicalRef | null>(null);
 
   // Reset tab + selection whenever the displayed artifact changes. Default to
-  // the first live physical ref so the content-preview tab has something to
-  // render without requiring the user to pick from the physical-files tab
-  // first. Skip backup refs (historical snapshots are not previewable) and refs
-  // without a usable path so we never hand an invalid object to RefPreview
-  // (which would degrade gracefully, but better to not select it).
+  // the first previewable live physical ref so the content-preview tab has
+  // something to render without requiring the user to pick from the
+  // physical-files tab first. Skip backup refs (historical snapshots are not
+  // previewable) and refs without a usable path or with an unrecognizable
+  // extension (filtered via isPreviewable + getRefPreviewMode) so we never
+  // hand an invalid object to RefPreview (which would degrade gracefully, but
+  // better to not select it).
   useEffect(() => {
     setActiveTab("metadata");
     const firstValid =
       artifact?.physicalRefs?.find(
-        (r) => r && r.type !== "backup" && typeof r.path === "string",
+        (r) =>
+          r &&
+          r.type !== "backup" &&
+          typeof r.path === "string" &&
+          isPreviewable(getRefPreviewMode(r.path)),
       ) ?? null;
     setSelectedRef(firstValid);
   }, [artifact?.id, artifact?.physicalRefs]);
@@ -200,7 +207,13 @@ export function ArtifactDetailPanel({
   // the backup history remains accessible (display-only, not deleted).
   const flatRefs = useMemo(() => artifact?.physicalRefs ?? [], [artifact?.physicalRefs]);
   const liveRefs = useMemo(
-    () => flatRefs.filter((ref) => ref.type !== "backup"),
+    () =>
+      flatRefs.filter(
+        (ref) =>
+          ref.type !== "backup" &&
+          typeof ref.path === "string" &&
+          isPreviewable(getRefPreviewMode(ref.path)),
+      ),
     [flatRefs],
   );
   const backupRefs = useMemo(
@@ -672,7 +685,11 @@ export function ArtifactDetailPanel({
                   only live refs are eligible for the preview dropdown. */}
               {liveRefs.length === 0 || !artifact.projectId ? (
                 <div className="flex h-40 items-center justify-center text-center text-muted-foreground">
-                  <p className="text-sm">暂无物理文件可预览。</p>
+                  <p className="text-sm">
+                    {flatRefs.some((r) => r.type !== "backup")
+                      ? "暂无可预览的文件(已过滤无法识别格式的文件)。"
+                      : "暂无物理文件可预览。"}
+                  </p>
                 </div>
               ) : (
                 <div className="space-y-2">

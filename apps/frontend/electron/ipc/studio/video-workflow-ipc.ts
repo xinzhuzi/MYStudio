@@ -173,6 +173,7 @@ export function registerVideoWorkflowIpcHandlers({
 
   const handleAction = async (payload: unknown, action: "prepare" | "update" | "repair" | "rollback"): Promise<VideoWorkflowActionReplyV1> => {
     const request = assertVideoWorkflowIpcRequest(validateVideoWorkflowPluginActionRequest(payload));
+    console.warn(`[VideoWorkflow] ${action}: 插件=${request.pluginId}`);
     let actionMessage: string | undefined;
     let success = false;
     const verifyPlugin = async (pluginId: RuntimePluginId): Promise<void> => {
@@ -180,10 +181,15 @@ export function registerVideoWorkflowIpcHandlers({
       if (probe && probe.state !== "ready") {
         success = false;
         actionMessage = probe.message;
+        console.warn(`[VideoWorkflow] ${action}: ${pluginId} 验证未通过: ${probe.message}`);
       }
     };
     const applyRuntimeAction = async (pluginId: RuntimePluginId): Promise<void> => {
-      if (!runtimeManager) return;
+      if (!runtimeManager) {
+        console.warn(`[VideoWorkflow] ${action}: runtimeManager 不可用`);
+        return;
+      }
+      console.warn(`[VideoWorkflow] ${action}: 执行 ${pluginId} runtime action`);
       const result: RuntimeActionResult = action === "prepare"
         ? await runtimeManager.prepare(pluginId)
         : action === "update"
@@ -194,8 +200,10 @@ export function registerVideoWorkflowIpcHandlers({
       success = result.success;
       if (!result.success) {
         actionMessage = result.message;
+        console.warn(`[VideoWorkflow] ${action}: ${pluginId} 失败: ${result.message ?? "未知错误"}`);
         return;
       }
+      console.warn(`[VideoWorkflow] ${action}: ${pluginId} 成功，开始验证`);
       await verifyPlugin(pluginId);
     };
     if (request.pluginId === "remotion" && (action === "prepare" || action === "update" || action === "repair") && prepareRemotion) {

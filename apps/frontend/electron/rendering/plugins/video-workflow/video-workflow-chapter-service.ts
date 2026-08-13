@@ -164,6 +164,7 @@ export function createVideoWorkflowChapterService(options: VideoWorkflowChapterS
       const subtitle = checked.value.subtitles.find((cue) => isSubtitleCueOwnedByOverlay(cue, [slot]));
       return {
         slotId: slot.slotId,
+        cueId: slot.cueId,
         startUs: slot.startUs,
         durationUs: slot.durationUs,
         templateId: "kinetic-caption" as const,

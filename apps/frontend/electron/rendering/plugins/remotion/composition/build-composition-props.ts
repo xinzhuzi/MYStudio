@@ -249,16 +249,15 @@ export function validateSubtitleAuthorityForTimeline(
 ): AuthorityValidation {
   const visualClips = plan.clips.filter((clip) => clip.trackKind === "video" || clip.trackKind === "image");
   const authorityIntervals = visualClips
-    .filter((clip) => clip.source.evidence.subtitleAuthority !== undefined)
     .map((clip) => ({
       intervalId: clip.id,
-      authority: clip.source.evidence.subtitleAuthority,
+      authority: clip.source.evidence?.subtitleAuthority,
       cues: plan.clips
         .filter((cue) => cue.trackKind === "text" && overlaps(cue.startUs, cue.durationUs, clip.startUs, clip.durationUs))
         .map((cue) => ({ cueId: cue.id, text: cue.source.text ?? "", startUs: cue.startUs, durationUs: cue.durationUs })),
       overlayCueIds: hyperFramesWindows
         .filter((window) => overlaps(window.startUs, window.durationUs, clip.startUs, clip.durationUs))
-        .map((window) => window.slotId),
+        .map((window) => window.cueId),
     }));
   if (authorityIntervals.length === 0) return { success: true, suppressedCueIds: new Set() };
   const resolved = resolveSubtitleAuthority(authorityIntervals);
