@@ -33,6 +33,11 @@ action object.
 - Clean up subscriptions, timers, object URLs, and event listeners.
 - Keep pure parsing and transformation logic in `lib/` so it can be tested
   without React.
+- Hooks that report long-running progress should expose an optional typed
+  `onProgress` callback and let the caller surface it through toast / UI. Do
+  not emit progress through `console.log` from inside the hook — `console.log`
+  is an ESLint error in renderer code, and progress belongs to the caller's
+  presentation, not the hook's internals.
 
 ---
 
@@ -68,3 +73,9 @@ creating local fetch loops.
 - Updating the currently active project after an awaited operation without
   confirming it is still the project that started the operation.
 - Leaving Electron listeners registered after unmount.
+- Surfacing long-running progress through `console.log` instead of an
+  `onProgress` callback the caller renders (e.g. `use-script-*` emitting
+  `[ScriptView]` console lines).
+- Keeping unused hook return values in the destructure just to "match the
+  shape". Omit unused members (or use the hole pattern `const [, setX] =
+  ...`) — `noUnusedLocals` is on, so a kept-but-unused local fails typecheck.

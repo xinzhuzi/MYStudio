@@ -146,6 +146,17 @@ not renamed with this directory.
 - Colocate `*.test.ts` and `*.test.tsx` with the unit being tested.
 - Keep domain-specific build scripts and Python contract tests under
   `apps/build/<domain>/`; use a nested subpackage for related Python helpers.
+- New top-level panels must be registered as `React.lazy` imports in
+  `components/Layout.tsx` and rendered inside `<Suspense>`. The shell
+  (Dashboard / TabBar / ProjectHeader) and the preview/timeline chrome
+  (PreviewPanel / RightPanel / SimpleTimeline) stay eager. This keeps the
+  first-screen entry chunk small (lazy-loading the 15 panels + project chrome
+  cut it 11.57 MB → 4.27 MB, -63%); preserve the existing `mountedTabs`
+  keep-alive logic so switching back to a panel does not remount it.
+- Runtime diagnostics logging goes through `lib/diagnostics/logger.ts`
+  (`logEvent` / `startSpan` / `captureError` / `createOperationId`); it is the
+  single logging entry point and writes to `window.diagnosticsLog`. Do not add
+  `console.log` in renderer code (see quality-guidelines.md).
 
 ---
 

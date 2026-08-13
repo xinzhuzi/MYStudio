@@ -452,3 +452,65 @@ Archived the completed local AC11 visual review slice with no-git mode. Added de
 ### Next Steps
 
 - None - task complete
+
+
+## Session 9: code-quality R1-R4 全量完成并归档
+
+**Date**: 2026-08-13
+**Task**: code-quality R1-R4 全量完成并归档
+**Branch**: `main`
+
+### Summary
+
+R1.1 noUnusedLocals/noUnusedParameters 打开,396→0 错误(逐文件 Edit 修复,弃用批量脚本);R1.2 非vendor :any 75≤195 达标(3处 any→unknown);R2 console.log 非测试 619→118(≤185 达标),保留warn/error,logger 已存在;R3 首屏入口 chunk 11.57MB→4.27MB(-63.1%),Layout.tsx 15面板+chrome 改 React.lazy;R4 a11y 修复分镜/时间线/资产 3 面板(ARIA+键盘化,impact LOW)。修复 grid-calculator 测试(断言调试日志)与 TTS 对话框卸载/删除按钮门控。最终:typecheck 0 / lint 0 / 3302 测试全绿。代码变更未提交(等待用户确认批量 commit);detect_changes 显示 critical(广度)。任务已归档至 archive/2026-08/08-11-code-quality。
+
+### Main Changes
+
+- Detailed change bullets were not supplied; see the summary above.
+
+### Git Commits
+
+(No commits - planning session)
+
+### Testing
+
+- Validation was not recorded for this session.
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 10: quality-gate 全量完成,治理链收官并归档
+
+**Date**: 2026-08-13
+**Task**: quality-gate 全量完成,治理链收官并归档
+**Branch**: `main`
+
+### Summary
+
+R1: ESLint 三规则+no-console 全部升 error(修 39 处 no-console:删调试回调6+转 logger 3+基础设施 disable 2+build/** 豁免);R2: build.yml quality job 改跑 npm run test:all(focused-tests+typecheck+lint+test+smoke,darwin 段自动跳过);R3: 发现 core.hooksPath 未挂载(.git在根/package.json在apps/根因)已修复,拦截实测 TS/ESLint 双腿 exit 1;R4: 4 个 spec 沉淀(type-safety/quality-guidelines/directory-structure/hook-guidelines);R5: build:mac:install 覆盖安装 smoke 通过(routes=6,workflowE2E=ok,whiteRatio=0)。全量:typecheck 0/lint 0/3302 tests 绿。归档 quality-gate + parent full-engineering-governance(5/5 children done)。代码仍未提交,待用户决定。
+
+### Main Changes
+
+- Detailed change bullets were not supplied; see the summary above.
+
+### Git Commits
+
+(No commits - planning session)
+
+### Testing
+
+- Validation was not recorded for this session.
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

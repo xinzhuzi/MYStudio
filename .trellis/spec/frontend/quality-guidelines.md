@@ -522,6 +522,31 @@ changes, also run the exact smoke commands named in the task acceptance criteria
 - No secrets, prompts, or binary payloads leak into diagnostics.
 - The reported verification level matches the commands actually rerun.
 
+## Cinematic dashboard visual contract
+
+- Google Fonts CSS2 failures may be classified as allowed packaged-smoke
+  resource errors only when the URL is the declared `fonts.googleapis.com/css2`
+  request containing `Cormorant+Garamond`, `JetBrains+Mono`, and
+  `Noto+Serif+SC`, plus the browser text `Failed to load resource`. Keep the
+  existing unpkg allowlist unchanged; do not swallow unrelated network errors.
+- `.dashboard-hero` must collapse or tighten its grid before the minimum
+  content width can exceed the viewport. The 901-1080px band uses explicit
+  `minmax(0, 1fr)` tracks; the <=900px rule remains the single-column fallback.
+- CRT scanline/vignette layers on `.dashboard-monitor` must use
+  `pointer-events: none`; the monitor itself must expose both an outer glow and
+  an inset reflection so the effect remains visible without blocking controls.
+- Active `.studio-nav-button` states retain the panel highlight and add a small
+  amber radial indicator with a bounded breathing animation. Settings headings
+  use the sans-serif UI face even when dashboard headings use the cinematic
+  serif face.
+
+### Verification note
+
+The repo-wide `tsconfig` currently enables `noUnusedLocals` and
+`noUnusedParameters`. A focused task can pass lint and targeted tests while the
+full typecheck remains blocked by unrelated pre-existing unused symbols; report
+that distinction explicitly instead of treating packaged smoke as type safety.
+
 ---
 
 ## 工程治理结论 (2026-08-12)
@@ -540,3 +565,39 @@ changes, also run the exact smoke commands named in the task acceptance criteria
 - `:any`(非 vendor/test):≤195(已达标)
 - 上帝文件:studio-store(8 slice)、ArtifactCenter、tts-runtime、main.ts 已拆分
 - IPC 校验层:`ipc-validation.ts` 统一 146 个 handler 的输入校验入口
+
+## 工程治理结论 (2026-08-13) — 门禁升级完成(取代 08-12 的 warn 级过渡状态)
+
+> 08-12 的 ESLint warn 级 / "逐步改 error" 是过渡计划;R1–R4 代码质量任务已清零 warning 并把门禁升为 error,以下为现行状态。
+
+### ESLint error 级门禁(`apps/frontend/config/eslint.cjs`)
+
+- `@typescript-eslint/no-explicit-any`、`@typescript-eslint/no-unused-vars`(带 `_` args/vars/caughtErrors ignore)、`react-hooks/exhaustive-deps`、`no-console` 均已从 warn 升为 **error**。
+- `no-console` 策略:`allow: ["warn", "error"]`——`console.log` 为 error;`console.warn` / `console.error` 允许保留。
+- `build/**` override(`build/**/*.ts`、`build/**/*.mjs`)豁免 `no-console`:CLI / smoke 脚本以 console 为标准输出通道。
+- 基础设施文件(platform-bridge.ts 的 console 包装/恢复、electron-log-main.ts 兼容 shim)按需保留 file-level `eslint-disable`,须带注释说明理由。
+- `npm run lint` = `eslint . --config frontend/config/eslint.cjs --ext ts,tsx --report-unused-disable-directives --max-warnings 0`——**零 warning** 才通过。
+
+### 提交前门禁(husky `.husky/pre-commit`)
+
+- pre-commit 对**整棵树**(非仅 lint-staged 暂存区)跑 `tsc --noEmit -p frontend/config/tsconfig.json` + `eslint . --config frontend/config/eslint.cjs --ext ts,tsx --max-warnings 0`;任一失败即拦截 commit。
+- 因此引入类型错误 / eslint error 都无法提交;本地提交前应确保两关本地可复跑。
+
+### 验证基线(R1–R4 任务收尾)
+
+- **typecheck**:`tsc --noEmit -p frontend/config/tsconfig.json` → 0 errors。
+- **lint**:0 errors,exit 0(`--max-warnings 0`)。
+- **test**:605 files / 3302+ tests 全绿;`npm run test:all`(`apps/`)为唯一聚合入口(含 typecheck / lint / Vitest / upgrade smoke / macOS 打包+installed smoke)。
+- 三关全绿是合入门槛,缺一不可;Electron / 工作流改动另须任务 AC 指定的 smoke 命令。
+
+### console → logger 迁移规则
+
+- 有意的运行时诊断日志走 `apps/frontend/lib/diagnostics/logger.ts`,导出 `logEvent` / `startSpan` / `captureError` / `createOperationId`(写入 `window.diagnosticsLog`)。
+- 按类型分类 `DiagnosticsLogCategory`:ui / action / ipc / network / ai / tts / asset / workflow / storage / runtime(见 `types/diagnostics.ts`)。
+- 新代码禁止新增 `console.log`(error 级拦截);保留的 `console.warn` / `console.error` 仅用于不可走 logger 的基础路径(如 logger 自身、preload 包装 / 兼容 shim、有意的进度回调)。
+- 调试日志一律删除,不要靠注释保留;有意诊断若原本是 `console.log`,应升为 `console.warn` 或迁到 logger,而非保留 log。
+
+### 基线数值(更新)
+
+- console.log(非测试总计):619 → 118;非 vendor 口径仅 14(基础设施 + 有意进度日志 + 注释提及)。
+- `:any`(非 vendor / 非 test):≤195 → **75**(详细治理见 type-safety.md)。
