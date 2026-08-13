@@ -24,8 +24,7 @@ import path from "node:path";
 import { createHash } from "node:crypto";
 import type {
   InventoryResult,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  InventoryData,
+ 
   ArtifactRecord,
   ArtifactKind,
   Discrepancy,
@@ -37,18 +36,16 @@ import type {
 import { findBackupDecoder } from "./backup-decoder-registry";
 import {
   resolveProjectRootPath,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  resolveDataDirPath,
+ 
   resolveDataFilePath,
 } from "../storage/storage-paths";
 import { withProjectDeletionLock } from "../storage/project-mutex";
 import { withFileStorageMutationLocks } from "../ipc/files/file-storage-ipc";
 import {
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  TIMELINE_RENDER_PROGRESS_STAGES,
+ 
 } from "../rendering/contracts/timeline-renderer";
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import type { RemotionManifest, RemotionJob } from "@/types/artifacts";
+ 
+import type { RemotionManifest } from "@/types/artifacts";
 import type { RemotionRenderJobV1 } from "@/types/remotion-workspace";
 import type { ScriptData } from "@/types/script";
 import {
@@ -60,12 +57,9 @@ import {
   projectVideoCandidates,
   projectTTSVoiceLines,
   projectEditingProjects,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  projectEditingRuns,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  projectEditingRenders,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  projectMediaFiles,
+ 
+ 
+ 
   buildArtifactId,
 } from "@/lib/artifacts/artifact-projection";
 
@@ -93,8 +87,8 @@ async function calculateFileFingerprint(filePath: string): Promise<{
   bytes: number;
   hash256: string;
 }> {
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const stats = await fsp.stat(filePath);
+ 
+  await fsp.stat(filePath);
   const hash = createHash("sha256");
   const stream = fs.createReadStream(filePath);
 

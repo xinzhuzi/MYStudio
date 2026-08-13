@@ -11,14 +11,11 @@ import { createDiagnosticsLogService } from '../diagnostics/diagnostics-log'
 import { createTtsRuntimeController } from '../tts/tts-runtime'
 import {
   ensureStudioSkillsSynced,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  getStudioSkillStorageRoot,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  listStoredStudioSkillFiles,
+ 
+ 
 } from '../storage/studio-skills-storage'
 import {
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  listStudioRuntimeAssets,
+ 
 } from '../storage/studio-runtime-assets'
 import { observedFetch } from '../../lib/diagnostics/network'
 import type { DiagnosticsLogEntryInput } from '../../types/diagnostics'
@@ -31,8 +28,8 @@ import {
 } from '../runtime/update-policy'
 import {
   getUpdateManifestUrl, getDefaultGithubUrl, getDefaultBaiduUrl, getDefaultBaiduCode,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  encodePathForProtocol, makeStudioSkillFileUrl,
+ 
+  makeStudioSkillFileUrl,
 } from './main-utils'
 import {
   createBeforeQuitCleanup,
@@ -49,11 +46,9 @@ import { registerDiagnosticsIpcHandlers } from '../ipc/diagnostics/diagnostics-i
 import { registerStorageMediaIpcHandlers } from '../ipc/media/storage-media-ipc'
 import { registerAppUpdaterIpcHandlers } from '../ipc/app/app-updater-ipc'
 import {
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  parseLocalMediaPath,
+ 
   resolveLocalMediaPath,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  resolveProjectScopedFilePath,
+ 
   resolveProjectFileUrl,
 } from '../storage/storage-paths'
 import { registerProjectFileIpcHandlers } from '../ipc/files/project-file-ipc'

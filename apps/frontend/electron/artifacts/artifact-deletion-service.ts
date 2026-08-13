@@ -34,8 +34,7 @@ import type {
   PhysicalRef,
 } from "@/types/artifacts";
 import {
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  createProjectFileUrl,
+ 
   parseLocalMediaPath,
   parseProjectFileUrl,
   resolveLocalMediaPath,
@@ -48,8 +47,7 @@ import { buildDeletionPlan } from "@/lib/artifacts/artifact-dependency-graph";
 import { rewriteRegisteredBackup } from "./backup-decoder-registry";
 import { studioTransformDeleteNovelChapters, scriptTransformDeleteEpisodes } from "@/lib/stores/store-transforms";
 import type { NovelChaptersSnapshot, ScriptDataSnapshot } from "@/lib/stores/store-transforms";
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import type { Episode } from "@/types/script";
+ 
 
 type Confirmation = {
   type: "chapter" | "artifacts";
