@@ -6,7 +6,6 @@ import { Check, Clapperboard, Loader2, Play, Sparkles, Timer, Wand2, X } from "l
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import type { TrailerGenerationOptions } from "@/lib/script/trailer-service";
 import { cn } from "@/lib/utils";
 import type { TrailerConfig, TrailerDuration } from "@/stores/director/director-store";
 import type { Shot } from "@/types/script";
@@ -19,7 +18,7 @@ interface EpisodeTreeTrailerPanelProps {
   trailerConfig?: TrailerConfig | null;
   onGenerateTrailer?: (duration: TrailerDuration) => void;
   onClearTrailer?: () => void;
-  trailerApiOptions?: TrailerGenerationOptions | null;
+  trailerApiOptions?: Record<string, never> | null;
   onCalibrateSingleShot?: (shotId: string) => void;
   singleShotCalibrationStatus?: Record<string, "idle" | "calibrating" | "completed" | "error">;
 }

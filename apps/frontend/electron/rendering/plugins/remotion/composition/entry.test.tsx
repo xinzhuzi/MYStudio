@@ -86,7 +86,7 @@ const chapterProps: ChapterVideoCompositionProps = {
 
 function metadataArgs<T extends CompositionProps>(
   value: T,
-  compositionId = entry.REMOTION_COMPOSITION_ID,
+  compositionId = entry.DAOJIE_TIMELINE_COMPATIBILITY_COMPOSITION_ID,
 ) {
   return {
     defaultProps: value,

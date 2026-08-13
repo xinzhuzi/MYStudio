@@ -26,7 +26,6 @@ import {
 export {
   CHAPTER_VIDEO_COMPOSITION_ID,
   DAOJIE_TIMELINE_COMPATIBILITY_COMPOSITION_ID,
-  REMOTION_COMPOSITION_ID,
   STORYBOARD_SHOT_COMPOSITION_ID,
 } from "./composition-id";
 export const defaultCompositionProps: CompositionProps = {

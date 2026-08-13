@@ -100,14 +100,6 @@ export interface SceneStats {
   dialogueSamples: string[];
 }
 
-/** @deprecated 不再需要手动传递，自动从服务映射获取 */
-export interface CalibrationOptions {
-  apiKey?: string;
-  provider?: string;
-  baseUrl?: string;
-  promptLanguage?: PromptLanguage;
-}
-
 // ==================== 统计函数 ====================
 
 /**
@@ -221,7 +213,7 @@ export async function calibrateScenes(
   currentScenes: ScriptScene[],
   background: ProjectBackground,
   episodeScripts: EpisodeRawScript[],
-  _options?: CalibrationOptions // 不再需要，保留以兼容
+  promptLanguage: PromptLanguage = 'zh+en',
 ): Promise<SceneCalibrationResult> {
   
   // 【轻量级模式】直接使用 currentScenes，不重新统计
@@ -457,7 +449,7 @@ ${sceneList}
     const enrichedScenes = await enrichScenesWithVisualPrompts(
       scenes,
       background,
-      _options?.promptLanguage || 'zh+en'
+      promptLanguage
     );
     
     return {
@@ -499,19 +491,19 @@ export async function calibrateEpisodeScenes(
   currentScenes: ScriptScene[],
   background: ProjectBackground,
   episodeScripts: EpisodeRawScript[],
-  options: CalibrationOptions
+  promptLanguage: PromptLanguage = 'zh+en',
 ): Promise<SceneCalibrationResult> {
   // 找到该集的剧本
   const episodeScript = episodeScripts.find(ep => ep.episodeIndex === episodeIndex);
   if (!episodeScript) {
     throw new Error(`找不到第 ${episodeIndex} 集的剧本`);
   }
-  
+
   // 只校准该集的场景
   const singleEpisodeScripts = [episodeScript];
-  
+
   // 复用全局校准逻辑，但只传入单集数据
-  return calibrateScenes(currentScenes, background, singleEpisodeScripts, options);
+  return calibrateScenes(currentScenes, background, singleEpisodeScripts, promptLanguage);
 }
 
 // ==================== 专业视觉设计 ====================

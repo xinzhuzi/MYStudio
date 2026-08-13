@@ -11,6 +11,3 @@ export const BUNDLED_REMOTION_COMPOSITION_IDS = [
   ...PRIMARY_REMOTION_COMPOSITION_IDS,
   DAOJIE_TIMELINE_COMPATIBILITY_COMPOSITION_ID,
 ] as const;
-
-/** @deprecated Migration-only alias. New shot/chapter jobs select their target ID. */
-export const REMOTION_COMPOSITION_ID = DAOJIE_TIMELINE_COMPATIBILITY_COMPOSITION_ID;

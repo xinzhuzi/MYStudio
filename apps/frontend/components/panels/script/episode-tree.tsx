@@ -13,7 +13,6 @@ import type { ScriptData, ScriptCharacter, ScriptScene, Episode, Shot, ProjectBa
 import { getShotCompletionStatus, calculateProgress } from "@/lib/script/shot-utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { TrailerDuration, TrailerConfig } from "@/stores/director/director-store";
-import type { TrailerGenerationOptions } from "@/lib/script/trailer-service";
 import { EpisodeTreeTrailerPanel } from "./episode-tree-trailer-panel";
 import { EpisodeTreeEpisodeDialog } from "./episode-tree-episode-dialog";
 import { EpisodeTreeDeleteDialog } from "./episode-tree-delete-dialog";
@@ -80,7 +79,7 @@ interface EpisodeTreeProps {
   trailerConfig?: TrailerConfig | null;
   onGenerateTrailer?: (duration: TrailerDuration) => void;
   onClearTrailer?: () => void;
-  trailerApiOptions?: TrailerGenerationOptions | null;
+  trailerApiOptions?: Record<string, never> | null;
   // 单个分镜校准 callback
   onCalibrateSingleShot?: (shotId: string) => void;
   singleShotCalibrationStatus?: Record<string, 'idle' | 'calibrating' | 'completed' | 'error'>;

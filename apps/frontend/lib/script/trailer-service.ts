@@ -23,13 +23,6 @@ const DURATION_TO_SHOT_COUNT: Record<TrailerDuration, number> = {
   60: 12,  // 1分钟：10-12个分镜
 };
 
-/** @deprecated 不再需要手动传递，自动从服务映射获取 */
-export interface TrailerGenerationOptions {
-  apiKey?: string;
-  provider?: string;
-  baseUrl?: string;
-}
-
 export interface TrailerGenerationResult {
   success: boolean;
   selectedShots: Shot[];
@@ -49,7 +42,6 @@ export async function selectTrailerShots(
   shots: Shot[],
   background: ProjectBackground | null,
   duration: TrailerDuration,
-  _options?: TrailerGenerationOptions // 不再需要，保留以兼容
 ): Promise<TrailerGenerationResult> {
   if (shots.length === 0) {
     return {

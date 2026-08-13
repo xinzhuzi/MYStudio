@@ -61,12 +61,7 @@ export function useScriptSceneCalibration({
     toast.info(`正在 AI 校准 ${currentScenes.length} 个场景...`);
 
     try {
-      const result = await calibrateScenes(currentScenes, background, episodeRawScripts, {
-        apiKey: featureConfig.allApiKeys.join(","),
-        provider: featureConfig.platform as string,
-        baseUrl: featureConfig.baseUrl,
-        promptLanguage,
-      });
+      const result = await calibrateScenes(currentScenes, background, episodeRawScripts, promptLanguage);
       const newScenes = currentScenes.map((original, _index) => {
         const calibrated = result.scenes.find((scene) => scene.id === original.id);
         if (!calibrated) {
@@ -136,12 +131,7 @@ export function useScriptSceneCalibration({
     toast.info(`正在 AI 校准第 ${episodeIndex} 集的场景...`);
 
     try {
-      const result = await calibrateEpisodeScenes(episodeIndex, currentScenes, background, episodeRawScripts, {
-        apiKey: featureConfig.allApiKeys.join(","),
-        provider: featureConfig.platform as string,
-        baseUrl: featureConfig.baseUrl,
-        promptLanguage,
-      });
+      const result = await calibrateEpisodeScenes(episodeIndex, currentScenes, background, episodeRawScripts, promptLanguage);
       const calibratedScenes = convertToScriptScenes(result.scenes, currentScenes, promptLanguage);
       const calibratedIds = new Set(calibratedScenes.map((scene) => scene.id));
       const mergedScenes = [

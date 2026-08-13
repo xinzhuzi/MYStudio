@@ -48,7 +48,7 @@ MYSTUDIO_DAOJIE_REUSE_STORYBOARD_IMAGES=1 MYSTUDIO_DAOJIE_REUSE_STORYBOARD_IMAGE
 - Storyboard workflow association first uses the persisted `storyboard.imageWorkflowId` or `mediaRef.imageWorkflowId`; when either is absent, the runner may resolve the deterministic `storyboard-flow-${episodeId}-${ordinal}` ID derived from the current storyboard row. The same precedence must be used in clone preflight and page assertions so missing optional IDs do not create a false negative.
 - The report must contain `source=real-daojie-chapter001-clone`, `runChapterAutoVideo=true`, and `chapterAutoVideo` with `stageHistory`, `terminalStage`, `statusText`, `finalPath`, `hasFinalPathButton`, and `timedOut`.
 - Background reports must contain `mode=background`, `windowVisibility`, `documentHasFocus`, `focusSamples`, and `foregroundViolation=false`.
-- The background branch must not call `Page.bringToFront`, `window.focus()`, or macOS `System Events`; frontmost-app samples use `lsappinfo` and any MYStudio sample fails the run.
+- The background branch must not call `Page.bringToFront`, `window.focus()`, or macOS `System Events`; frontmost-app samples use `lsappinfo`, and any MYStudio sample or non-empty sampling error fails the run.
 - Success requires `chapterAutoVideo.terminalStage=completed`, `timedOut=false`, `autoVideoFailed=false`, no failed workflow stages, and no runtime problems.
 - `chapterAutoVideo.finalPath` must come from the visible "open final MP4" control, end in `.mp4`, and exist on disk when the runner exits.
 - A normal real-project click-through without `--auto-video` proves only workflow navigation; it does not satisfy the product one-click acceptance criterion.

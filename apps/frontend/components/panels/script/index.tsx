@@ -21,13 +21,11 @@ import {
 } from "@/stores/script/script-store";
 import { useProjectStore } from "@/stores/project/project-store";
 import { useAPIConfigStore } from "@/stores/ai/api-config-store";
-import { aiManager } from "@/lib/ai/ai-manager";
-import { useCharacterLibraryStore } from "@/stores/library/character-library-store";
+import { aiManager } from "@/lib/ai/ai-manager";import { useCharacterLibraryStore } from "@/stores/library/character-library-store";
 import { useMediaPanelStore } from "@/stores/navigation/media-panel-store";
 import {
   sortByImportance as _sortScenesByImportance,
 } from "@/lib/script/scene-calibrator";
-import type { TrailerGenerationOptions } from "@/lib/script/trailer-service";
 import { useDirectorStore, useActiveDirectorProject } from "@/stores/director/director-store";
 import { ScriptInput } from "./script-input";
 import { EpisodeTree } from "./episode-tree";
@@ -544,15 +542,9 @@ export function ScriptView() {
     toast.success('预告片已清除');
   }, [clearTrailer]);
   
-  // 获取预告片 API 配置
-  const trailerApiOptions = useCallback((): TrailerGenerationOptions | null => {
-    const featureConfig = aiManager.featureConfig('script_analysis');
-    if (!featureConfig) return null;
-    return {
-      apiKey: featureConfig.allApiKeys.join(','),
-      provider: featureConfig.platform as string,
-      baseUrl: featureConfig.baseUrl,
-    };
+  // 获取预告片 AI 配置就绪状态
+  const trailerApiReady = useCallback((): boolean => {
+    return Boolean(aiManager.featureConfig('script_analysis'));
   }, []);
 
   return (
@@ -660,7 +652,7 @@ export function ScriptView() {
             trailerConfig={trailerConfig}
             onGenerateTrailer={handleGenerateTrailer}
             onClearTrailer={handleClearTrailer}
-            trailerApiOptions={trailerApiOptions()}
+            trailerApiOptions={trailerApiReady() ? {} : null}
             // 单个分镜校准
             onCalibrateSingleShot={handleCalibrateSingleShot}
             singleShotCalibrationStatus={singleShotCalibrationStatus}

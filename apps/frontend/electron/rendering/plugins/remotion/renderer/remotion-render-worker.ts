@@ -19,7 +19,7 @@ import {
 import type { StoryboardShotCompositionProps, ChapterVideoCompositionProps } from "../composition/composition-props";
 import { buildCompositionProps } from "../composition/build-composition-props";
 import {
-  REMOTION_COMPOSITION_ID,
+  DAOJIE_TIMELINE_COMPATIBILITY_COMPOSITION_ID,
   STORYBOARD_SHOT_COMPOSITION_ID,
 } from "../composition/composition-id";
 import { CHAPTER_VIDEO_COMPOSITION_ID } from "../composition/composition-id";
@@ -38,7 +38,7 @@ interface RemotionRenderInputBase {
 export interface RemotionTimelineRenderInput extends RemotionRenderInputBase {
   plan: TimelineRenderPlan;
   mediaUrlByClipId: Readonly<Record<string, string>>;
-  compositionId?: typeof REMOTION_COMPOSITION_ID;
+  compositionId?: typeof DAOJIE_TIMELINE_COMPATIBILITY_COMPOSITION_ID;
 }
 
 export interface RemotionShotRenderInput extends RemotionRenderInputBase {
@@ -107,7 +107,7 @@ export class RemotionRenderWorker {
   async render(input: RemotionRenderInput): Promise<RemotionRenderWorkerResult> {
     const fallbackJobId = readJobId(input);
     let jobId = fallbackJobId;
-    let compositionId: string = REMOTION_COMPOSITION_ID;
+    let compositionId: string = DAOJIE_TIMELINE_COMPATIBILITY_COMPOSITION_ID;
     let compositionProps: Record<string, unknown>;
     if ("shotPlan" in input) {
       const shotPlanValidation = await validateRemotionShotPlan(input.shotPlan);

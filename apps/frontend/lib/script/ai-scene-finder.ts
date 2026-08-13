@@ -34,13 +34,6 @@ export interface SceneSearchResult {
   message: string;
 }
 
-/** @deprecated 不再需要手动传递，自动从服务映射获取 */
-export interface SceneFinderOptions {
-  apiKey?: string;
-  provider?: string;
-  baseUrl?: string;
-}
-
 // ==================== 核心函数 ====================
 
 /**
@@ -292,7 +285,6 @@ export async function findSceneByDescription(
   background: ProjectBackground,
   episodeScripts: EpisodeRawScript[],
   existingScenes: ScriptScene[],
-  _options?: SceneFinderOptions // 不再需要，保留以兼容
 ): Promise<SceneSearchResult> {
   
   // 1. 解析用户输入

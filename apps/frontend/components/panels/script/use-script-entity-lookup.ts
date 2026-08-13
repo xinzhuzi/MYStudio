@@ -22,11 +22,7 @@ export function useScriptEntityLookup({
     if (!featureConfig) return { found: false, name: "", message: "请先配置 AI 接口" };
     if (!background) return { found: false, name: "", message: "请先导入剧本" };
     try {
-      const result = await findCharacterByDescription(query, background, episodes, characters, {
-        apiKey: featureConfig.allApiKeys.join(","),
-        provider: featureConfig.platform,
-        baseUrl: featureConfig.baseUrl,
-      });
+      const result = await findCharacterByDescription(query, background, episodes, characters);
       return {
         found: result.found,
         name: result.name,
@@ -44,11 +40,7 @@ export function useScriptEntityLookup({
     if (!featureConfig) return { found: false, message: "请先配置 AI 接口" };
     if (!background) return { found: false, message: "请先导入剧本" };
     try {
-      const result = await findSceneByDescription(query, background, episodes, scenes, {
-        apiKey: featureConfig.allApiKeys.join(","),
-        provider: featureConfig.platform,
-        baseUrl: featureConfig.baseUrl,
-      });
+      const result = await findSceneByDescription(query, background, episodes, scenes);
       return { found: result.found, message: result.message, scene: result.scene };
     } catch (error) {
       console.error("[handleAIFindScene] 错误:", error);

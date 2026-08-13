@@ -26,7 +26,7 @@ describe("EpisodeTreeTrailerPanel", () => {
         selectedItemType={null}
         onSelectItem={onSelectItem}
         trailerConfig={{ duration: 30, shotIds: ["shot-2", "missing", "shot-1"], status: "completed" }}
-        trailerApiOptions={{ apiKey: "key" }}
+        trailerApiOptions={{}}
         onGenerateTrailer={onGenerateTrailer}
       />,
     );

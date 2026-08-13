@@ -34,13 +34,6 @@ export interface CharacterSearchResult {
   message: string;
 }
 
-/** @deprecated 不再需要手动传递，自动从服务映射获取 */
-export interface FinderOptions {
-  apiKey?: string;
-  provider?: string;
-  baseUrl?: string;
-}
-
 // ==================== 核心函数 ====================
 
 /**
@@ -422,7 +415,6 @@ export async function findCharacterByDescription(
   background: ProjectBackground,
   episodeScripts: EpisodeRawScript[],
   existingCharacters: ScriptCharacter[],
-  _options?: FinderOptions // 不再需要，保留以兼容
 ): Promise<CharacterSearchResult> {
   
   // 1. 解析用户输入

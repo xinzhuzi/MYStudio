@@ -54,6 +54,8 @@ export function sampleFrontmostApplication(reason) {
 
 export function hasMYStudioForegroundViolation(samples) {
   return samples.some(
-    (sample) => sample.applicationName === MYSTUDIO_APP_NAME,
+    (sample) =>
+      sample.applicationName === MYSTUDIO_APP_NAME ||
+      (typeof sample.error === "string" && sample.error.trim().length > 0),
   );
 }

@@ -85,11 +85,7 @@ export function useScriptTrailerGeneration(options: UseScriptTrailerGenerationOp
     setTrailerConfig({ duration, shotIds: [], status: "generating", generatedAt: undefined, error: undefined });
     toast.info(`正在 AI 挑选 ${duration} 秒预告片分镜...`);
     try {
-      const result = await selectTrailerShots(shots, background, duration, {
-        apiKey: featureConfig.allApiKeys.join(","),
-        provider: featureConfig.platform as string,
-        baseUrl: featureConfig.baseUrl,
-      });
+      const result = await selectTrailerShots(shots, background, duration);
       if (!result.success) {
         setTrailerConfig({
           duration,

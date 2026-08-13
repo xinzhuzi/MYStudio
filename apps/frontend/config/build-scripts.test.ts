@@ -1096,6 +1096,34 @@ describe("desktop build scripts", () => {
     expect(workflowSpec).toContain("MYSTUDIO_SMOKE_BACKGROUND=1");
   });
 
+  it("fails closed when a background focus sample cannot be collected", async () => {
+    const focusModuleUrl = pathToFileURL(
+      resolve(appsRoot, "build/smoke/smoke-focus.mjs"),
+    ).href;
+    const { hasMYStudioForegroundViolation } = await import(focusModuleUrl);
+
+    expect(
+      hasMYStudioForegroundViolation([
+        { applicationName: "Finder", error: "lsappinfo front returned no application" },
+      ]),
+    ).toBe(true);
+    expect(
+      hasMYStudioForegroundViolation([
+        { applicationName: "Finder", error: "   " },
+      ]),
+    ).toBe(false);
+    expect(
+      hasMYStudioForegroundViolation([
+        { applicationName: "Finder" },
+      ]),
+    ).toBe(false);
+    expect(
+      hasMYStudioForegroundViolation([
+        { applicationName: "漫影工作室" },
+      ]),
+    ).toBe(true);
+  });
+
   it("exposes a normal visible workflow app launcher that stays open", () => {
     const packageJson = readBuildFile("package.json");
     const openScript = readBuildFile("build/smoke/open-workflow-smoke-app.mjs");

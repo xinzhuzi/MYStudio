@@ -31,9 +31,7 @@ describe("useScriptEntityLookup", () => {
     const background = { title: "道劫" } as never;
     const { result } = renderHook(() => useScriptEntityLookup({ background, episodes: [], characters: [], scenes: [] }));
     await expect(result.current.handleAIFindCharacter("青衣女子")).resolves.toMatchObject({ found: true, name: "阿青" });
-    expect(findCharacterByDescription).toHaveBeenCalledWith("青衣女子", background, [], [], {
-      apiKey: "k1,k2", provider: "openai", baseUrl: "https://api.test",
-    });
+    expect(findCharacterByDescription).toHaveBeenCalledWith("青衣女子", background, [], []);
   });
 
   it("returns the established scene failure result", async () => {
