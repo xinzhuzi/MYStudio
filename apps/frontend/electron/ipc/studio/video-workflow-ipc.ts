@@ -24,8 +24,7 @@ import {
   type VideoWorkflowReviewReplyV1,
   type VideoWorkflowReviewRequestV1,
   type VideoWorkflowActionReplyV1,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  type VideoWorkflowPluginActionRequestV1,
+ 
   type VideoWorkflowStatusReplyV1,
   type VideoWorkflowChapterReadReplyV1,
 } from "@rendering/contracts/video-workflow-ipc";
@@ -39,8 +38,7 @@ import {
 import {
   HYPERFRAMES_NPM_VERSION,
   HYPERFRAMES_SOURCE_COMMIT,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  VIDEO_USE_PROFILE_ID,
+ 
   VIDEO_USE_SOURCE_COMMIT,
   probeVideoWorkflowRuntime,
   resolveVideoWorkflowRuntimePaths,

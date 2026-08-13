@@ -89,13 +89,6 @@ export function mergeCharacterLibrary<T extends CharacterLibraryStateLike>(persi
     currentFolderId?: string | null;
   };
   if (data.characters?.length) {
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const varSummary = data.characters.map((character) => ({
-      name: character.name,
-      pid: character.projectId?.substring(0, 8),
-      vars: (character.variations || []).length,
-      varNames: (character.variations || []).map((variation) => variation.name),
-    }));
   }
   return {
     ...current,
@@ -112,14 +105,6 @@ export function onCharacterLibraryRehydrate(
   if (error) {
     console.error("Failed to rehydrate character library:", error);
   } else if (state) {
-    const characters = (state as { characters?: Character[] }).characters ?? [];
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const varSummary = characters.map((character) => ({
-      name: character.name,
-      vars: (character.variations || []).length,
-      varNames: (character.variations || []).map((variation) => variation.name),
-      varRefs: (character.variations || []).map((variation) => variation.referenceImage ? "✓" : "✗"),
-    }));
   }
   migrateFromLocalStorage("mystudio-character-library");
 }

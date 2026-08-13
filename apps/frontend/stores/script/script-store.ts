@@ -5,8 +5,8 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { createProjectScopedStorage } from "@/lib/storage/project-storage";
 import type { ScriptData, Shot, Episode, ScriptScene, ScriptCharacter, EpisodeRawScript, ProjectBackground, PromptLanguage, CalibrationStrictness, FilteredCharacterRecord, SeriesMeta } from "@/types/script";
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import type { ParseStatus, ShotListStatus, BatchProgress, ScriptInputDraft, ScriptCalibrationStatus, ScriptViewpointStatus, ScriptCalibrationState, ScriptProjectData } from "./script-store-types";
+ 
+import type { ParseStatus, ShotListStatus, BatchProgress, ScriptInputDraft, ScriptCalibrationStatus, ScriptCalibrationState, ScriptProjectData } from "./script-store-types";
 export type { ParseStatus, ShotListStatus, BatchProgress, ScriptInputDraft, ScriptCalibrationStatus, ScriptViewpointStatus, ScriptStructureStatus, ScriptImportStatus, ScriptSynopsisStatus, ScriptCalibrationState, ScriptProjectData } from "./script-store-types";
 import {
   cloneScriptCharacters,

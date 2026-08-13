@@ -17,8 +17,7 @@ import {
 } from "./media-file-move";
 import {
   mergeMediaData,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  normalizeMediaUrl,
+ 
   partializeMediaData,
   splitMediaData,
   type MediaPersistedState,

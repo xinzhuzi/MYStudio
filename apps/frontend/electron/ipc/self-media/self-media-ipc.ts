@@ -180,8 +180,8 @@ function isTerminalTaskStatus(status: SelfMediaTaskStatus) {
   return status === "success" || status === "failure" || status === "partial" || status === "audit" || status === "canceled" || status === "expired-login";
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export function registerSelfMediaIpcHandlers({ credentialVault, registry: suppliedRegistry, localBridge, resolveAsset, taskStorePath }: SelfMediaIpcContext) {
+ 
+export function registerSelfMediaIpcHandlers({ registry: suppliedRegistry, localBridge, resolveAsset, taskStorePath }: SelfMediaIpcContext) {
   const registry = suppliedRegistry ?? createSelfMediaProviderRegistry({
     local: createAitoearnLocalAdapter(localBridge),
   });

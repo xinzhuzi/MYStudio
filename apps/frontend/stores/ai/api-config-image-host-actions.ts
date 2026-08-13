@@ -14,7 +14,7 @@ type GetAPIConfigState = () => APIConfigStore;
 
 export function createAPIConfigImageHostActions(
   set: SetAPIConfigState,
-  get: GetAPIConfigState,
+  _get: GetAPIConfigState,
 ): APIConfigImageHostActions {
   return {
     addImageHostProvider: (providerData) => {
@@ -35,11 +35,9 @@ export function createAPIConfigImageHostActions(
     },
 
     removeImageHostProvider: (id) => {
-      const provider = get().imageHostProviders.find((item) => item.id === id);
       set((state) => ({
         imageHostProviders: state.imageHostProviders.filter((item) => item.id !== id),
       }));
-      if (provider) console.log(`[APIConfig] Removed image host: ${provider.name}`);
     },
   };
 }

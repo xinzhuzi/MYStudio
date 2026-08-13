@@ -9,40 +9,31 @@
 
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import type { ProviderId, ServiceType } from '@/lib/ai/core';
+ 
+import type { ProviderId } from '@/lib/ai/core';
 import { 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  type IProvider, 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  DEFAULT_PROVIDERS, 
+ 
+ 
   generateId, 
   parseApiKeys,
   maskApiKey as maskKey,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  classifyModelByName,
+ 
 } from '@/lib/ai/core';
 import { injectDiscoveryCache, type DiscoveredModelLimits } from '@/lib/ai/model-registry';
 import {
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  AI_FEATURES,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  type AIFeature,
+ 
+ 
   type FeatureBindings,
 } from '@/lib/ai/feature-definitions';
 import {
   createDefaultImageHostProviders,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  findImageHostPreset,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  isUnconfiguredDefaultCatboxProvider,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  isUnconfiguredDefaultImgBBProvider,
+ 
+ 
+ 
   isVisibleImageHostProvider,
   normalizeImageHostProvider,
   normalizeImageHostProviders,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  type ImageHostPlatform,
+ 
   type ImageHostProvider,
 } from './api-config-image-host';
 import {
@@ -56,10 +47,8 @@ import {
   DEFAULT_LOCAL_TTS_PROVIDER_ID,
   PROVIDER_INFO,
   createDefaultLocalTtsProvider,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  ensureDefaultLocalTtsProvider,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  isLocalTtsProvider,
+ 
+ 
 } from './api-config-provider-helpers';
 import { createAPIConfigImageHostActions } from './api-config-image-host-actions';
 import { createAPIConfigProviderActions } from './api-config-provider-actions';

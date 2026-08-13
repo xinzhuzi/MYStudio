@@ -10,10 +10,8 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { createProjectScopedStorage } from '@/lib/storage/project-storage';
 import type { 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  AIScreenplay, 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  AIScene, 
+ 
+ 
   SceneProgress, 
   GenerationConfig 
 } from '@/lib/ai/core';
@@ -38,11 +36,9 @@ import {
   selectFailedDirectorScenesCount,
 } from './director-selectors';
 import type {
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  DirectorEditorPrefs,
+ 
   DirectorProjectData,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  DirectorScreenplayDraft,
+ 
   DirectorState,
   DirectorStore,
 } from './director-store-types';

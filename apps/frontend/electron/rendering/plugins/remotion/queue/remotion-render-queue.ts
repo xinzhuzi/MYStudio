@@ -119,7 +119,6 @@ export class RemotionRenderQueue {
   private readonly jobs = new Map<string, RemotionQueueStateItem>();
   private readonly listeners = new Set<(notification: RemotionQueueNotification) => void>();
   private readonly now: () => number;
-  private readonly concurrency: number;
   private initialized = false;
   private sequence = 0;
   private activeProjectId: string | undefined;
@@ -133,7 +132,6 @@ export class RemotionRenderQueue {
     if (!Number.isInteger(requested) || requested < 1 || requested > MAX_CONCURRENCY) {
       throw new Error(`Remotion 队列并发必须在 1..${MAX_CONCURRENCY} 之间`);
     }
-    this.concurrency = requested;
   }
 
   async init(): Promise<void> {

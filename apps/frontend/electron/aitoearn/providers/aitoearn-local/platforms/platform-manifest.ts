@@ -1,6 +1,5 @@
 import type {
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  PlatformCapabilityRoute,
+ 
   PlatformCapabilityRouting,
   PlatformManifest,
 } from "./platform-types";

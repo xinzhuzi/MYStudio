@@ -1,3 +1,4 @@
+/* eslint-disable no-console -- 日志基础设施:包装/恢复 console 方法 */
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";

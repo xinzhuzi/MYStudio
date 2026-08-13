@@ -74,7 +74,7 @@ export function createAPIConfigProviderActions(
           }),
         ),
       }));
-      if (provider) console.log(`[APIConfig] Removed provider: ${provider.name}`);
+
     },
 
     getProviderByPlatform: (platform) => get().providers.find((item) => item.platform === platform),

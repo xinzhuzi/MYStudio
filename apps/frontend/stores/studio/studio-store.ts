@@ -14,39 +14,18 @@ import { createEntitySliceActions } from "./entity-slice";
 import { createProductionSliceActions } from "./production-slice";
 import { createAgentWorkSliceActions } from "./agent-work-slice";
 import { createStoryboardSliceActions } from "./storyboard-slice";
-import {
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  appendNovelChapters,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  parseNovelChapters,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  replaceNovelChapters,
-} from "@/lib/studio/novel";
 import { groupStoryboardsIntoTracks } from "@/lib/studio/production";
 import {
   createHumanContinuityAssetApproval,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  createHumanVisualReview,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  markContinuityDependentsStale,
+ 
+ 
   normalizeContinuityAssetVersion,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  visualContinuityFingerprint,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  visualReviewInputFingerprint,
+ 
+ 
 } from "@/lib/studio/visual-continuity";
 import {
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  buildProjectEventGraph,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  projectEventGraphToMemoryRecords,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  retrieveProjectMemory,
-} from "@/lib/studio/event-graph";
-import {
   migrateStudioWorkflowState,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  normalizeWorkflowConfig,
+ 
   STUDIO_WORKFLOW_PERSIST_VERSION,
   STUDIO_WORKFLOW_STORAGE_KEY,
 } from "./studio-store-persistence";
@@ -59,8 +38,7 @@ import {
   continuityAssetVersionKey,
   invalidateStoryboardsForAssetVersionChanges,
   markStale,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  mergeStoryboardReplacement,
+ 
   storyboardSourceFingerprint,
   trackSourceFingerprint,
   videoCandidateFingerprint,

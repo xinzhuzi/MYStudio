@@ -376,8 +376,8 @@ export const useCharacterLibraryStore = create<CharacterLibraryStore>()(
         }));
         // Debug: verify update took effect
         const updated = get().characters.find(c => c.id === characterId);
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const updatedVar = updated?.variations?.find(v => v.id === variationId);
+ 
+        updated?.variations?.find(v => v.id === variationId);
       },
 
       deleteVariation: (characterId, variationId) => {
