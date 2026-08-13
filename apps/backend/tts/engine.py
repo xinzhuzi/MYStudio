@@ -3,74 +3,33 @@ from __future__ import annotations
 import os
 import platform
 import tempfile
-import struct
-import wave
-from array import array
-from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
 from .tts import generate_mock_wav
-
-
-KOKORO_REPO_ID = "hexgrad/Kokoro-82M"
-KOKORO_SAMPLE_RATE = 24000
-KOKORO_LANG_CODES = {
-    "en": "a",
-    "es": "e",
-    "fr": "f",
-    "hi": "h",
-    "it": "i",
-    "pt": "p",
-    "ja": "j",
-    "zh": "z",
-}
-KOKORO_DEFAULT_VOICES = {
-    "en": "af_heart",
-    "es": "ef_dora",
-    "fr": "ff_siwis",
-    "hi": "hf_alpha",
-    "it": "if_sara",
-    "pt": "pf_dora",
-    "ja": "jf_alpha",
-    "zh": "zf_xiaobei",
-}
-
-QWEN_MLX_REPOS = {
-    "1.7B": "mlx-community/Qwen3-TTS-12Hz-1.7B-Base-bf16",
-    "0.6B": "mlx-community/Qwen3-TTS-12Hz-0.6B-Base-bf16",
-}
-QWEN_PYTORCH_REPOS = {
-    "1.7B": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
-    "0.6B": "Qwen/Qwen3-TTS-12Hz-0.6B-Base",
-}
-QWEN_CUSTOM_VOICE_REPOS = {
-    "1.7B": "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice",
-    "0.6B": "Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice",
-}
-QWEN_CUSTOM_DEFAULT_SPEAKER = "Ryan"
-LANGUAGE_CODE_TO_NAME = {
-    "zh": "chinese",
-    "en": "english",
-    "ja": "japanese",
-    "ko": "korean",
-    "de": "german",
-    "fr": "french",
-    "ru": "russian",
-    "pt": "portuguese",
-    "es": "spanish",
-    "it": "italian",
-}
-
-
-@dataclass(frozen=True)
-class SynthesisResult:
-    duration: float
-    backend: str
-    mocked: bool
-    warning: str | None = None
-    emotion_capability: str = "not-requested"
-    emotion_warning: str | None = None
+from .engine_config import (
+    KOKORO_DEFAULT_VOICES,
+    KOKORO_LANG_CODES,
+    KOKORO_REPO_ID,
+    KOKORO_SAMPLE_RATE,
+    LANGUAGE_CODE_TO_NAME,
+    QWEN_CUSTOM_DEFAULT_SPEAKER,
+    QWEN_CUSTOM_VOICE_REPOS,
+    QWEN_MLX_REPOS,
+    QWEN_PYTORCH_REPOS,
+    _RETRYABLE_REAL_ENGINES,
+)
+from .engine_utils import (
+    SynthesisResult,
+    _adapt_mlx_generation_results,
+    _custom_voice_instruct,
+    _custom_voice_request,
+    _join_wavs,
+    _with_emotion_capability,
+    _write_float_wav,
+    resolve_emotion_capability,
+    split_text_into_chunks,
+)
 
 
 _kokoro_model: Any | None = None
@@ -81,43 +40,6 @@ _qwen_model_size: str | None = None
 _qwen_custom_voice_model: Any | None = None
 _qwen_custom_voice_model_size: str | None = None
 _qwen_custom_voice_backend: str | None = None
-_RETRYABLE_REAL_ENGINES = {"qwen", "qwen_custom_voice", "kokoro"}
-
-
-def resolve_emotion_capability(
-    engine: str,
-    *,
-    emotion: str | None = None,
-    voice_style: str | None = None,
-) -> tuple[str, str | None]:
-    requested = bool((emotion or "").strip() or (voice_style or "").strip())
-    if not requested:
-        return "not-requested", None
-    if engine == "qwen_custom_voice" and ((emotion or "").strip() or (voice_style or "").strip()):
-        return "applied", None
-    if engine in {"qwen_custom_voice", "qwen", "kokoro"}:
-        return "metadata-only", f"{engine} 未应用逐镜动态情绪，emotion/voiceStyle 仅作为审计元数据"
-    return "unsupported", f"{engine} 不支持逐镜动态情绪，emotion/voiceStyle 仅作为审计元数据"
-
-
-def _with_emotion_capability(
-    result: SynthesisResult,
-    engine: str,
-    emotion: str | None,
-    voice_style: str | None,
-) -> SynthesisResult:
-    capability, warning = resolve_emotion_capability(
-        engine,
-        emotion=emotion,
-        voice_style=voice_style,
-    )
-    if result.mocked and capability == "applied":
-        return replace(
-            result,
-            emotion_capability="metadata-only",
-            emotion_warning="mock 音频未应用逐镜动态情绪，emotion/voiceStyle 仅作为审计元数据",
-        )
-    return replace(result, emotion_capability=capability, emotion_warning=warning)
 
 
 def synthesize_to_wav(
@@ -222,34 +144,6 @@ def _synthesize_single(
         )
 
 
-def split_text_into_chunks(text: str, max_chars: int = 800) -> list[str]:
-    remaining = text.strip()
-    if not remaining:
-        raise ValueError("text cannot be empty")
-    if max_chars <= 0:
-        raise ValueError("max_chars must be positive")
-
-    chunks: list[str] = []
-    sentence_boundaries = "。！？.!?"
-    clause_boundaries = "；;，,:"
-    while len(remaining) > max_chars:
-        window = remaining[:max_chars]
-        split_at = max((window.rfind(mark) for mark in sentence_boundaries), default=-1)
-        if split_at < 0:
-            split_at = max((window.rfind(mark) for mark in clause_boundaries), default=-1)
-        if split_at < 0:
-            split_at = window.rfind(" ")
-        if split_at < 0:
-            split_at = max_chars - 1
-        chunk = remaining[: split_at + 1].strip()
-        if chunk:
-            chunks.append(chunk)
-        remaining = remaining[split_at + 1 :].lstrip()
-    if remaining:
-        chunks.append(remaining)
-    return chunks
-
-
 def _synthesize_chunks(
     *,
     output: Path,
@@ -293,44 +187,6 @@ def _synthesize_chunks(
         mocked=any(result.mocked for result in results),
         warning="; ".join(dict.fromkeys(warnings)) or None,
     )
-
-
-def _join_wavs(parts: list[Path], output: Path, crossfade_ms: int) -> float:
-    sample_rate: int | None = None
-    combined = array("h")
-    for part in parts:
-        with wave.open(str(part), "rb") as wav:
-            if wav.getnchannels() != 1 or wav.getsampwidth() != 2:
-                raise RuntimeError("TTS chunk output must be mono PCM16 WAV")
-            if sample_rate is None:
-                sample_rate = wav.getframerate()
-            elif sample_rate != wav.getframerate():
-                raise RuntimeError("TTS chunk outputs use different sample rates")
-            samples = array("h")
-            samples.frombytes(wav.readframes(wav.getnframes()))
-
-        overlap = min(
-            int((sample_rate or 0) * max(0, crossfade_ms) / 1000),
-            len(combined),
-            len(samples),
-        )
-        for index in range(overlap):
-            fade_in = index / max(1, overlap)
-            fade_out = 1.0 - fade_in
-            combined[len(combined) - overlap + index] = int(
-                combined[len(combined) - overlap + index] * fade_out + samples[index] * fade_in
-            )
-        combined.extend(samples[overlap:])
-
-    if sample_rate is None:
-        raise RuntimeError("No audio chunks were generated")
-    output.parent.mkdir(parents=True, exist_ok=True)
-    with wave.open(str(output), "wb") as wav:
-        wav.setnchannels(1)
-        wav.setsampwidth(2)
-        wav.setframerate(sample_rate)
-        wav.writeframes(combined.tobytes())
-    return float(len(combined) / sample_rate)
 
 
 def is_engine_loaded(engine: str) -> bool:
@@ -592,44 +448,6 @@ def _generate_qwen_custom_voice(
     )
 
 
-# MLX 与 PyTorch 共用此拼接逻辑，确保逐镜情绪和风格进入同一模型请求。
-def _custom_voice_instruct(
-    profile: dict[str, Any],
-    emotion: str | None,
-    voice_style: str | None,
-) -> str | None:
-    profile_instruct = profile.get("instruct") or profile.get("style_instruction") or profile.get("styleInstruction")
-    dynamic_emotion = (emotion or "").strip()
-    dynamic_style = (voice_style or "").strip()
-    instruct_parts: list[str] = []
-    if profile_instruct:
-        instruct_parts.append(str(profile_instruct))
-    if dynamic_emotion:
-        instruct_parts.append(f"逐镜情绪：{dynamic_emotion}")
-    if dynamic_style:
-        instruct_parts.append(f"逐镜风格：{dynamic_style}")
-    return "\n".join(instruct_parts) or None
-
-
-def _custom_voice_request(
-    text: str,
-    profile: dict[str, Any],
-    language: str,
-    emotion: str | None,
-    voice_style: str | None,
-) -> dict[str, str]:
-    language_name = LANGUAGE_CODE_TO_NAME.get(language, "auto")
-    request = {
-        "text": text,
-        "language": language_name.capitalize() if language_name != "auto" else "Auto",
-        "speaker": profile.get("preset_voice_id") or profile.get("presetVoiceId") or QWEN_CUSTOM_DEFAULT_SPEAKER,
-    }
-    instruct = _custom_voice_instruct(profile, emotion, voice_style)
-    if instruct:
-        request["instruct"] = instruct
-    return request
-
-
 def _resolve_qwen_custom_voice_mlx_snapshot(model_size: str) -> Path:
     from .catalog import get_model
     from .model_cache import find_cached_model
@@ -657,40 +475,6 @@ def _resolve_qwen_custom_voice_mlx_snapshot(model_size: str) -> Path:
     if len(snapshots) == 1:
         return snapshots[0]
     raise RuntimeError(f"Qwen CustomVoice MLX cache has no unambiguous snapshot: {cached.repo_cache_dir}")
-
-
-def _adapt_mlx_generation_results(
-    output: Path,
-    generation_results: Any,
-    default_sample_rate: int = 24000,
-) -> SynthesisResult:
-    import numpy as np
-
-    chunks: list[Any] = []
-    sample_rate: int | None = None
-    for result in generation_results:
-        audio = getattr(result, "audio", None)
-        if audio is None:
-            continue
-        current_sample_rate = int(getattr(result, "sample_rate", default_sample_rate))
-        if current_sample_rate <= 0:
-            raise RuntimeError("MLX TTS returned an invalid sample rate")
-        if sample_rate is None:
-            sample_rate = current_sample_rate
-        elif sample_rate != current_sample_rate:
-            raise RuntimeError("MLX TTS results use different sample rates")
-        chunks.append(np.asarray(audio, dtype=np.float32).reshape(-1))
-
-    if not chunks or sample_rate is None:
-        raise RuntimeError("Qwen CustomVoice MLX generated empty audio")
-
-    samples = np.concatenate(chunks).astype(np.float32)
-    _write_float_wav(output, samples, sample_rate)
-    return SynthesisResult(
-        duration=float(len(samples) / sample_rate),
-        backend="qwen-custom-voice",
-        mocked=False,
-    )
 
 
 def _generate_qwen_custom_voice_mlx(
@@ -784,14 +568,3 @@ def _generate_qwen_custom_voice_pytorch(
         backend="qwen-custom-voice",
         mocked=False,
     )
-
-
-def _write_float_wav(output: Path, samples: Any, sample_rate: int) -> None:
-    output.parent.mkdir(parents=True, exist_ok=True)
-    with wave.open(str(output), "wb") as wav:
-        wav.setnchannels(1)
-        wav.setsampwidth(2)
-        wav.setframerate(sample_rate)
-        for sample in samples:
-            value = max(-1.0, min(1.0, float(sample)))
-            wav.writeframes(struct.pack("<h", int(value * 32767)))
