@@ -10,7 +10,7 @@ export const VIDEO_USE_SOURCE_COMMIT = "92c2b34e44c205cbc2acae7f6ca7c1c219d5dd66
 export const HYPERFRAMES_SOURCE_COMMIT = "b08cefea631b2c13697b6cb31075bf5a9b7c738d" as const;
 export const HYPERFRAMES_NPM_VERSION = "0.7.101" as const;
 export const VIDEO_USE_PROFILE_ID = "video-use-managed-python-v1" as const;
-export const HYPERFRAMES_PROFILE_ID = "hyperframes-node22-v1" as const;
+export const HYPERFRAMES_PROFILE_ID = "hyperframes-electron-node-v1" as const;
 
 export interface VideoWorkflowRuntimePaths {
   storageBasePath: string;
@@ -20,8 +20,7 @@ export interface VideoWorkflowRuntimePaths {
   videoUseUpstreamRoot: string;
   videoUseLockPath: string;
   videoUseMarkerPath: string;
-  nodeRuntimeDir: string;
-  nodeExecutable: string;
+  electronExecutable: string;
   hyperFramesProfileDir: string;
   hyperFramesMarkerPath: string;
   hyperFramesCliPath: string;
@@ -79,7 +78,7 @@ export interface HyperFramesProfileMarkerV1 {
   profileId: typeof HYPERFRAMES_PROFILE_ID;
   sourceCommit: typeof HYPERFRAMES_SOURCE_COMMIT;
   npmVersion: typeof HYPERFRAMES_NPM_VERSION;
-  nodeExecutable: string;
+  electronExecutable: string;
   cliPath: string;
   createdAt: number;
   verifiedAt: number;
@@ -246,22 +245,17 @@ async function probeSharedVideoToolchain(
 export function resolveVideoWorkflowRuntimePaths(
   storageBasePath: string,
   platform: NodeJS.Platform = process.platform,
+  electronExecutable: string = process.execPath,
 ): VideoWorkflowRuntimePaths {
   if (!path.isAbsolute(storageBasePath)) throw new Error(`storageBasePath 必须是绝对路径: ${storageBasePath}`);
   const pythonRuntimeDir = path.join(storageBasePath, "python");
   const pythonExecutable = platform === "win32"
     ? path.join(pythonRuntimeDir, "python.exe")
     : path.join(pythonRuntimeDir, "bin", "python3");
-  const nodeRuntimeDir = path.join(storageBasePath, "node22");
-  const nodeExecutable = platform === "win32"
-    ? path.join(nodeRuntimeDir, "node.exe")
-    : path.join(nodeRuntimeDir, "bin", "node");
+  const hyperFramesProfileDir = path.join(storageBasePath, "hyperframes-profile");
+  const hyperFramesCliPath = path.join(hyperFramesProfileDir, "node_modules", "hyperframes", "bin", "hyperframes.mjs");
   const videoUseProfileDir = path.join(pythonRuntimeDir, "profiles", "video-use");
   const videoUseUpstreamRoot = path.join(videoUseProfileDir, "upstream");
-  const hyperFramesProfileDir = path.join(nodeRuntimeDir, "profiles", "hyperframes");
-  const hyperFramesCliPath = platform === "win32"
-    ? path.join(hyperFramesProfileDir, "node_modules", ".bin", "hyperframes.cmd")
-    : path.join(hyperFramesProfileDir, "node_modules", ".bin", "hyperframes");
   return {
     storageBasePath,
     pythonRuntimeDir,
@@ -270,8 +264,7 @@ export function resolveVideoWorkflowRuntimePaths(
     videoUseUpstreamRoot,
     videoUseLockPath: path.join(videoUseProfileDir, "requirements-video-use.lock"),
     videoUseMarkerPath: path.join(videoUseProfileDir, "profile.json"),
-    nodeRuntimeDir,
-    nodeExecutable,
+    electronExecutable,
     hyperFramesProfileDir,
     hyperFramesMarkerPath: path.join(hyperFramesProfileDir, "profile.json"),
     hyperFramesCliPath,
@@ -290,13 +283,13 @@ export async function probeVideoWorkflowRuntime(
   const missing: string[] = [];
   if (!fileExists(paths.pythonExecutable)) missing.push("managed-python");
   if (!fileExists(paths.videoUseMarkerPath)) missing.push("video-use-profile");
-  if (!fileExists(paths.nodeExecutable)) missing.push("node22");
+  if (!fileExists(paths.electronExecutable)) missing.push("electron");
   if (!fileExists(paths.hyperFramesMarkerPath)) missing.push("hyperframes-profile");
   if (!fileExists(paths.hyperFramesCliPath)) missing.push("hyperframes-cli");
   const versions: VideoWorkflowRuntimeProbeResult["versions"] = {};
   const probes: Array<[keyof typeof versions, string, string[]]> = [
     ["python", paths.pythonExecutable, ["--version"]],
-    ["node", paths.nodeExecutable, ["--version"]],
+    ["node", paths.electronExecutable, ["--version"]],
   ];
   for (const [key, executable, args] of probes) {
     if (!path.isAbsolute(executable)) {
@@ -307,7 +300,7 @@ export async function probeVideoWorkflowRuntime(
       const result = await run(executable, args, {
         timeout: 15_000,
         maxBuffer: 2 * 1024 * 1024,
-        env: buildSharedToolchainEnv(paths),
+        env: { ...buildSharedToolchainEnv(paths), ELECTRON_RUN_AS_NODE: "1" },
       });
       versions[key] = `${result.stdout ?? ""}${result.stderr ?? ""}`.trim().split("\n")[0];
     } catch {
@@ -317,7 +310,7 @@ export async function probeVideoWorkflowRuntime(
   const toolchain = await probeSharedVideoToolchain(paths, run);
   missing.push(...toolchain.missing);
   Object.assign(versions, toolchain.versions);
-  if (missing.includes("managed-python") || missing.includes("node22")) {
+  if (missing.includes("managed-python") || missing.includes("electron")) {
     return { state: "needs-runtime", paths, missing, versions, message: "请先在视频工作流插件设置中准备共享运行时" };
   }
   if (missing.length > 0) {
@@ -326,8 +319,8 @@ export async function probeVideoWorkflowRuntime(
   if (!/^Python\s+3\.12\./.test(versions.python ?? "")) {
     return { state: "blocked", paths, missing: ["python-version"], versions, message: "video-use 必须复用 managed Python 3.12" };
   }
-  if (!/^v?22\./.test(versions.node ?? "")) {
-    return { state: "blocked", paths, missing: ["node-version"], versions, message: "HyperFrames 必须使用 Node 22" };
+  if (!/^v?(2[2-9]|[3-9]\d)\./.test(versions.node ?? "")) {
+    return { state: "blocked", paths, missing: ["node-version"], versions, message: "HyperFrames 需要 Node >= 22（Electron 内置 Node）" };
   }
   return { state: "ready", paths, missing, versions };
 }
@@ -464,12 +457,12 @@ export async function probeHyperFramesRuntime(
   const fileExists = deps.fileExists ?? fs.existsSync;
   const run = deps.execFile ?? ((file, args, options) => execFileAsync(file, args, options));
   const missing: string[] = [];
-  if (!fileExists(paths.nodeExecutable)) missing.push("node22");
+  if (!fileExists(paths.electronExecutable)) missing.push("electron");
   if (!fileExists(paths.hyperFramesMarkerPath)) missing.push("hyperframes-profile");
   if (!fileExists(paths.hyperFramesCliPath)) missing.push("hyperframes-cli");
   const versions: VideoWorkflowRuntimeProbeResult["versions"] = {};
   for (const [key, executable, args] of [
-    ["node", paths.nodeExecutable, ["--version"]],
+    ["node", paths.electronExecutable, ["--version"]],
   ] as Array<[keyof VideoWorkflowRuntimeProbeResult["versions"], string, string[]]>) {
     if (!path.isAbsolute(executable)) {
       missing.push(`${key}-path`);
@@ -479,7 +472,7 @@ export async function probeHyperFramesRuntime(
       const result = await run(executable, args, {
         timeout: 15_000,
         maxBuffer: 2 * 1024 * 1024,
-        env: buildSharedToolchainEnv(paths),
+        env: { ...buildSharedToolchainEnv(paths), ELECTRON_RUN_AS_NODE: "1" },
       });
       versions[key] = `${result.stdout ?? ""}${result.stderr ?? ""}`.trim().split("\n")[0];
     } catch {
@@ -489,27 +482,27 @@ export async function probeHyperFramesRuntime(
   const toolchain = await probeSharedVideoToolchain(paths, run);
   missing.push(...toolchain.missing);
   Object.assign(versions, toolchain.versions);
-  if (missing.includes("node22")) {
-    return { state: "needs-runtime", paths, missing, versions, message: "请先准备 Node 22 运行时" };
+  if (missing.includes("electron")) {
+    return { state: "needs-runtime", paths, missing, versions, message: "请先准备 Electron 运行时" };
   }
   if (missing.length > 0) {
     return { state: "blocked", paths, missing, versions, message: `HyperFrames 共享依赖未通过检查: ${missing.join(", ")}` };
   }
-  if (!/^v?22\./.test(versions.node ?? "")) {
-    return { state: "blocked", paths, missing: ["node-version"], versions, message: "HyperFrames 必须使用 Node 22" };
+  if (!/^v?(2[2-9]|[3-9]\d)\./.test(versions.node ?? "")) {
+    return { state: "blocked", paths, missing: ["node-version"], versions, message: "HyperFrames 需要 Node >= 22（Electron 内置 Node）" };
   }
   const profile = readJsonFile(paths.hyperFramesMarkerPath);
   if (!profile
     || profile.schemaVersion !== 1
     || profile.profileId !== HYPERFRAMES_PROFILE_ID
-    || profile.nodeExecutable !== paths.nodeExecutable
+    || profile.electronExecutable !== paths.electronExecutable
     || profile.cliPath !== paths.hyperFramesCliPath) {
     return {
       state: "blocked",
       paths,
       missing: ["hyperframes-profile-invalid"],
       versions,
-      message: "HyperFrames profile marker 与应用级 Node 22 路径不一致",
+      message: "HyperFrames profile marker 与 Electron 运行时路径不一致",
     };
   }
   if (profile.sourceCommit !== HYPERFRAMES_SOURCE_COMMIT || profile.npmVersion !== HYPERFRAMES_NPM_VERSION) {
@@ -540,12 +533,12 @@ export async function probeHyperFramesRuntime(
       message: `HyperFrames 浏览器路径不存在: ${browserPath}`,
     };
   }
-  const cliCommand = paths.hyperFramesCliPath.endsWith(".mjs") ? paths.nodeExecutable : paths.hyperFramesCliPath;
-  const cliPrefix = cliCommand === paths.nodeExecutable ? [paths.hyperFramesCliPath] : [];
+  const cliCommand = paths.electronExecutable;
+  const cliPrefix = [paths.hyperFramesCliPath];
   const sharedEnv = buildSharedToolchainEnv(paths, {
+    ELECTRON_RUN_AS_NODE: "1",
     HYPERFRAMES_BROWSER_PATH: browserPath,
     PRODUCER_HEADLESS_SHELL_PATH: browserPath,
-    PATH: [path.dirname(paths.nodeExecutable), process.env.PATH ?? ""].filter(Boolean).join(path.delimiter),
   });
   let doctorPayload: unknown;
   try {
@@ -634,7 +627,7 @@ export function buildHyperFramesProfileMarker(
     profileId: HYPERFRAMES_PROFILE_ID,
     sourceCommit: HYPERFRAMES_SOURCE_COMMIT,
     npmVersion: HYPERFRAMES_NPM_VERSION,
-    nodeExecutable: paths.nodeExecutable,
+    electronExecutable: paths.electronExecutable,
     cliPath: paths.hyperFramesCliPath,
     createdAt: now,
     verifiedAt: now,

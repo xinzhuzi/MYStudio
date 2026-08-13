@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { StoryboardItem } from "@/types/studio";
+import type { SubtitleAuthority } from "@/types/editing";
 import { buildRemotionShotPlans } from "./remotion-shot-plan-builder";
 import { makeShotAudioBindingV2 } from "./remotion-workspace-test-fixtures";
 
 const HASH_A = "a".repeat(64);
 
-function storyboard(index: number, chapterId = "chapter-001"): StoryboardItem {
+function storyboard(index: number, chapterId = "chapter-001"): StoryboardItem & { subtitleAuthority: SubtitleAuthority } {
   return {
     id: `shot-${index}`,
     episodeId: chapterId,
@@ -19,6 +20,10 @@ function storyboard(index: number, chapterId = "chapter-001"): StoryboardItem {
     mediaRef: { kind: "image", path: `project-file://project-a/shots/${index}.png`, contentSha256: HASH_A },
     state: "ready",
     lines: "",
+    subtitleAuthority: {
+      mode: "clean-remotion",
+      evidence: { mode: "clean-remotion", decision: "imported-manifest", sourceFingerprint: HASH_A, evidencePaths: ["test"] },
+    } satisfies SubtitleAuthority,
   };
 }
 

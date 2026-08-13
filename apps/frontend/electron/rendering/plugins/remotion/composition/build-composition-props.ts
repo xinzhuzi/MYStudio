@@ -31,6 +31,7 @@ import {
   layoutVisualTimeline,
   usToFrames,
 } from "./timing";
+import { resolveSubtitleAuthority } from "@/lib/studio/video-workflow/subtitle-authority";
 
 const CAPABILITY_URL = /^http:\/\/127\.0\.0\.1:\d+\/[a-f0-9]{64}\/[A-Za-z0-9._~-]+$/;
 
@@ -170,6 +171,8 @@ export type ChapterVideoCompositionResult =
 export function buildChapterVideoCompositionProps(
   input: ChapterVideoCompositionInput,
 ): ChapterVideoCompositionResult {
+  const authorityValidation = validateCompositionSubtitleAuthority(input);
+  if (!authorityValidation.success) return authorityValidation;
   const sourceValidation = inspectChapterVideoSource(input);
   if (!sourceValidation.success) return sourceValidation;
 
@@ -212,6 +215,7 @@ export function buildChapterVideoCompositionProps(
       };
     });
   const overlayClips = projectHyperFramesOverlay(input.hyperFramesOverlay, base.durationInFrames, base.fps);
+  const suppressedCueIds = authorityValidation.suppressedCueIds;
   const props: ChapterVideoCompositionProps = {
     ...base,
     target: "chapter",
@@ -220,12 +224,71 @@ export function buildChapterVideoCompositionProps(
     editingProjectId: input.plan.editingProjectId,
     editingRevision: input.plan.editingRevision,
     visualClips: base.visualClips.map((clip) => ({ ...clip, muted: false })),
+    subtitles: base.subtitles.filter((cue) => !suppressedCueIds.has(cue.cueId)),
     audioClips,
     ...(overlayClips.length > 0 ? { overlayClips } : {}),
   };
   const validation = validateChapterVideoCompositionProps(props);
   if (!validation.success) return { success: false, issues: validation.issues };
   return { success: true, value: validation.value };
+}
+
+type AuthorityValidation =
+  | { success: true; suppressedCueIds: Set<string> }
+  | { success: false; issues: Array<{ path: string; message: string }> };
+
+/** Validate explicit subtitle ownership before media bridge/browser startup. */
+function validateCompositionSubtitleAuthority(input: ChapterVideoCompositionInput): AuthorityValidation {
+  return validateSubtitleAuthorityForTimeline(input.plan, input.hyperFramesOverlay?.windows);
+}
+
+/** Pure authority gate used before media bridge/browser startup. */
+export function validateSubtitleAuthorityForTimeline(
+  plan: TimelineRenderPlan,
+  hyperFramesWindows: readonly HyperFramesOverlayWindowV1[] = [],
+): AuthorityValidation {
+  const visualClips = plan.clips.filter((clip) => clip.trackKind === "video" || clip.trackKind === "image");
+  const authorityIntervals = visualClips
+    .filter((clip) => clip.source.evidence.subtitleAuthority !== undefined)
+    .map((clip) => ({
+      intervalId: clip.id,
+      authority: clip.source.evidence.subtitleAuthority,
+      cues: plan.clips
+        .filter((cue) => cue.trackKind === "text" && overlaps(cue.startUs, cue.durationUs, clip.startUs, clip.durationUs))
+        .map((cue) => ({ cueId: cue.id, text: cue.source.text ?? "", startUs: cue.startUs, durationUs: cue.durationUs })),
+      overlayCueIds: hyperFramesWindows
+        .filter((window) => overlaps(window.startUs, window.durationUs, clip.startUs, clip.durationUs))
+        .map((window) => window.slotId),
+    }));
+  if (authorityIntervals.length === 0) return { success: true, suppressedCueIds: new Set() };
+  const resolved = resolveSubtitleAuthority(authorityIntervals);
+  if (resolved.blocked) {
+    return {
+      success: false,
+      issues: resolved.issues.map((issue) => ({ path: issue.path, message: issue.message })),
+    };
+  }
+  const embeddedText = resolved.intervals.find((interval) => interval.mode === "source-embedded" && interval.cues.length > 0);
+  if (embeddedText) {
+    return { success: false, issues: [{ path: `visualIntervals`, message: "source-embedded 禁止 Remotion text clip" }] };
+  }
+  const suppressedCueIds = new Set(
+    resolved.intervals.flatMap((interval) => interval.cues
+      .filter((cue) => cue.owner !== "remotion-text")
+      .map((cue) => cue.cueId)),
+  );
+  if (resolved.intervals.some((interval) => interval.mode === "source-embedded"
+    && (hyperFramesWindows.some((window) => {
+      const visual = visualClips.find((clip) => clip.id === interval.intervalId);
+      return visual ? overlaps(window.startUs, window.durationUs, visual.startUs, visual.durationUs) : false;
+    }) ?? false))) {
+    return { success: false, issues: [{ path: "hyperFramesOverlay", message: "source-embedded 禁止 HyperFrames overlay" }] };
+  }
+  return { success: true, suppressedCueIds };
+}
+
+function overlaps(leftStart: number, leftDuration: number, rightStart: number, rightDuration: number): boolean {
+  return leftStart < rightStart + rightDuration && rightStart < leftStart + leftDuration;
 }
 
 function projectEnvelopeForDuration(

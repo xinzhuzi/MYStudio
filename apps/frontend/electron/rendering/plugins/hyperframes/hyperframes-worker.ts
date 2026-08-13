@@ -154,19 +154,18 @@ function run(request: HyperFramesOverlayRequestV1, artifactPath: string): HyperF
   if (!path.isAbsolute(artifactPath) || !path.isAbsolute(request.outputPath)) return blocked(request, "output-path-mismatch", "worker artifact 与 overlay 输出路径都必须是绝对路径");
   const cliPath = process.env.MYSTUDIO_HYPERFRAMES_CLI?.trim();
   const nodePath = process.env.MYSTUDIO_HYPERFRAMES_NODE?.trim();
-  if (!cliPath || !path.isAbsolute(cliPath) || !fs.existsSync(cliPath)) return blocked(request, "hyperframes-cli-missing", "HyperFrames CLI 未在应用级 Node 22 profile 中准备");
-  if (!nodePath || !path.isAbsolute(nodePath) || !fs.existsSync(nodePath)) return blocked(request, "node-runtime-missing", "HyperFrames 必须使用应用级 Node 22");
+  if (!cliPath || !path.isAbsolute(cliPath) || !fs.existsSync(cliPath)) return blocked(request, "hyperframes-cli-missing", "HyperFrames CLI 未在应用级 profile 中准备");
+  if (!nodePath || !path.isAbsolute(nodePath) || !fs.existsSync(nodePath)) return blocked(request, "node-runtime-missing", "HyperFrames 必须使用应用级 Electron Node");
   const projectDir = fs.mkdtempSync(path.join(path.dirname(request.outputPath), `.hyperframes-${process.pid}-`));
   const entryPath = path.join(projectDir, "index.html");
   fs.writeFileSync(entryPath, buildHyperFramesCompositionHtml(validated.value), "utf8");
   try {
     const cliArgs = buildHyperFramesCliArgs(projectDir, validated.value);
-    const command = cliPath.endsWith(".mjs") ? nodePath : cliPath;
-    const args = cliPath.endsWith(".mjs") ? [cliPath, ...cliArgs] : cliArgs;
-    execFileSync(command, args, {
+    execFileSync(nodePath, [cliPath, ...cliArgs], {
       cwd: projectDir,
       env: {
         ...process.env,
+        ELECTRON_RUN_AS_NODE: "1",
         MYSTUDIO_FFMPEG_PATH: process.env.MYSTUDIO_FFMPEG_PATH ?? "",
         MYSTUDIO_FFPROBE_PATH: process.env.MYSTUDIO_FFPROBE_PATH ?? "",
       },

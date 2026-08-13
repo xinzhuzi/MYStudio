@@ -55,6 +55,10 @@ function acceptedArtifact(): VideoUseChapterArtifactV1 {
     selfEval: { passed: true, score: 1, notes: [], evaluatedAt: 2 },
     evidence: { inputSha256: hash, artifactSha256: "b".repeat(64), toolVersion: "video-use@test", acceptedAt: 2 },
     review: { projectId: "p1", chapterId: "c1", revision: 2, artifactSha256: "b".repeat(64), reviewer: "user", decision: "accepted", timestamp: 3 },
+    subtitleAuthority: {
+      mode: "clean-remotion",
+      evidence: { mode: "clean-remotion", decision: "human", sourceFingerprint: "b".repeat(64), evidencePaths: ["test"], reviewedAt: 3 },
+    },
   };
 }
 

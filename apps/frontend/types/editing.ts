@@ -49,8 +49,33 @@ export type EditingEffectCategory =
 
 export type EditingPreviewSupport = "full" | "approximate" | "final-only";
 
+export type SubtitleAuthorityMode =
+  | "clean-remotion"
+  | "source-embedded"
+  | "hyperframes"
+  | "unknown";
+
+export type SubtitleCueOwner = "remotion-text" | "hyperframes-overlay" | "source-media";
+
+export interface SubtitleAuthorityEvidence {
+  mode: SubtitleAuthorityMode;
+  decision: "human" | "imported-manifest" | "legacy-unknown";
+  sourceFingerprint: string;
+  evidencePaths: string[];
+  evidenceSha256?: Record<string, string>;
+  reviewer?: "human" | "automated";
+  reviewedAt?: number;
+  note?: string;
+}
+
+export interface SubtitleAuthority {
+  mode: SubtitleAuthorityMode;
+  evidence?: SubtitleAuthorityEvidence;
+}
+
 export interface EditingSourceEvidence {
   storyboardId?: string;
+  cueId?: string;
   trackId?: string;
   candidateId?: string;
   mediaId?: string;
@@ -61,6 +86,7 @@ export interface EditingSourceEvidence {
   remotionEvidenceSha256?: string;
   remotionInputHash?: string;
   remotionBundleContentHash?: string;
+  subtitleAuthority?: SubtitleAuthority;
 }
 
 export interface EditingClipSource {

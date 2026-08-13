@@ -61,7 +61,11 @@ function artifact(mode: VideoUseChapterArtifactV1["mode"]): VideoUseChapterArtif
     ...(mode === "flat-shot-mp4" ? { flatShotMp4Path: "/tmp/clean-flat.mp4" } : {}),
     evidence: { inputSha256: hash, artifactSha256: "b".repeat(64), toolVersion: "video-use@test", acceptedAt: 2 },
     review: { projectId: "project-1", chapterId: "chapter-1", revision: 2, artifactSha256: "b".repeat(64), reviewer: "user", decision: "accepted", timestamp: 3 },
-  };
+    subtitleAuthority: {
+      mode: mode === "flat-shot-mp4" ? "source-embedded" : "clean-remotion",
+      evidence: { mode: mode === "flat-shot-mp4" ? "source-embedded" : "clean-remotion", decision: "human", sourceFingerprint: "b".repeat(64), evidencePaths: ["test"], reviewedAt: 3 },
+    },
+  } as VideoUseChapterArtifactV1;
 }
 
 describe("video-use to EditingProject projection", () => {
@@ -76,7 +80,7 @@ describe("video-use to EditingProject projection", () => {
     expect(result.project.clips.find((clip) => clip.source.evidence.storyboardId === "shot-2")).toMatchObject({ startUs: 1_000_000, durationUs: 1_500_000, trimStartUs: 100_000 });
     expect(result.project.clips.filter((clip) => clip.trackId === "subtitles")).toEqual([
       expect.objectContaining({
-        source: { kind: "text", text: "你好", evidence: { storyboardId: "shot-1", sourceFingerprint: "b".repeat(64) } },
+        source: { kind: "text", text: "你好", evidence: expect.objectContaining({ storyboardId: "shot-1", cueId: "cue-1", sourceFingerprint: "b".repeat(64), subtitleAuthority: expect.objectContaining({ mode: "clean-remotion" }) }) },
         startUs: 0,
         durationUs: 500_000,
         subtitle: { sourceFormat: "generated" },
@@ -85,21 +89,31 @@ describe("video-use to EditingProject projection", () => {
     expect(result.artifactRefs.subtitleCues).toHaveLength(1);
   });
 
-  it("uses clean flat MP4 as the only visual clip and leaves animated subtitles to HyperFrames", () => {
+  it("blocks flat source-embedded MP4 when overlay metadata would duplicate subtitles", () => {
     const result = projectVideoUseArtifactToEditingProject({ project: project(), artifact: artifact("flat-shot-mp4"), now: 10 });
+    expect(result.success).toBe(false);
+    expect(result).toMatchObject({ issues: [expect.objectContaining({ path: expect.stringContaining("cueId") })] });
+  });
+
+  it("uses clean flat MP4 as the only visual clip when explicitly approved clean", () => {
+    const sourceArtifact = artifact("flat-shot-mp4");
+    sourceArtifact.overlaySlots = [];
+    (sourceArtifact as VideoUseChapterArtifactV1 & { subtitleAuthority: unknown }).subtitleAuthority = { mode: "clean-remotion", evidence: { mode: "clean-remotion", decision: "imported-manifest", sourceFingerprint: "b".repeat(64), evidencePaths: ["test"] } };
+    const result = projectVideoUseArtifactToEditingProject({ project: project(), artifact: sourceArtifact, now: 10 });
     expect(result).toMatchObject({ success: true, project: { revision: 2 } });
     if (!result.success) return;
     const visuals = result.project.clips.filter((clip) => clip.trackId === "video");
     expect(visuals).toHaveLength(1);
     expect(visuals[0]?.source.path).toBe("/tmp/clean-flat.mp4");
-    expect(result.project.clips.some((clip) => clip.trackId.includes("subtitle") || clip.trackId.includes("overlay"))).toBe(false);
+    expect(result.project.clips.filter((clip) => clip.trackId === "subtitles")).toHaveLength(1);
     expect(result.artifactRefs.subtitleCues).toHaveLength(1);
-    expect(result.artifactRefs.overlaySlots).toHaveLength(1);
+    expect(result.artifactRefs.overlaySlots).toHaveLength(0);
   });
 
   it("keeps ordinary subtitles separate from a flat visual while Remotion remains their owner", () => {
     const sourceArtifact = artifact("flat-shot-mp4");
     sourceArtifact.overlaySlots = [];
+    (sourceArtifact as VideoUseChapterArtifactV1 & { subtitleAuthority: unknown }).subtitleAuthority = { mode: "clean-remotion", evidence: { mode: "clean-remotion", decision: "imported-manifest", sourceFingerprint: "b".repeat(64), evidencePaths: ["test"] } };
     const result = projectVideoUseArtifactToEditingProject({ project: project(), artifact: sourceArtifact, now: 10 });
     expect(result.success).toBe(true);
     if (!result.success) return;

@@ -5,6 +5,7 @@ import type {
 } from "@/types/studio";
 import type {
   EditingRenderSettings,
+  SubtitleAuthority,
 } from "@/types/editing";
 import type {
   ProjectMediaReference,
@@ -17,6 +18,7 @@ import {
   type RemotionShotPlanV1,
   type ShotPlanIssue,
 } from "./shot-plan";
+import { resolveSubtitleAuthority } from "../video-workflow/subtitle-authority";
 
 export interface BuildRemotionShotPlansInput {
   projectId: string;
@@ -74,8 +76,22 @@ export async function buildRemotionShotPlans(
 
   const plans: RemotionShotPlanV1[] = [];
   const issues: ShotPlanIssue[] = [];
+  const subtitleAuthority = resolveSubtitleAuthority(storyboards.map((storyboard) => ({
+    intervalId: storyboard.id,
+    authority: (storyboard as StoryboardItem & { subtitleAuthority?: SubtitleAuthority }).subtitleAuthority,
+    cues: [storyboard.ttsSpokenText, storyboard.line, storyboard.lines].find((text) => Boolean(text?.trim()))
+      ? [{ cueId: `${storyboard.id}:subtitle`, text: [storyboard.ttsSpokenText, storyboard.line, storyboard.lines].find((text) => Boolean(text?.trim()))!.trim(), startUs: 0, durationUs: 1 }]
+      : [],
+  })));
+  if (subtitleAuthority.blocked) {
+    for (const issue of subtitleAuthority.issues) {
+      const match = /visualIntervals\[(\d+)\]/.exec(issue.path);
+      const storyboard = match ? storyboards[Number(match[1])] : undefined;
+      issues.push({ code: "shot-plan.subtitle-authority", path: storyboard ? `shots.${storyboard.id}.subtitleAuthority` : "$.subtitleAuthority", message: issue.message });
+    }
+  }
   for (const storyboard of storyboards) {
-    const shot = buildShotDefinition(input.projectId, storyboard, issues);
+    const shot = buildShotDefinition(input.projectId, storyboard, issues, subtitleAuthority.intervals.find((interval) => interval.intervalId === storyboard.id)?.cues[0]?.owner);
     if (!shot) continue;
     const humanApproval = buildHumanApproval(
       input.projectId,
@@ -88,7 +104,7 @@ export async function buildRemotionShotPlans(
       chapterId: input.chapterId,
       chapterRevision: input.chapterRevision,
       sourceSnapshotHash,
-      renderSettings: input.renderSettings,
+      renderSettings: { ...input.renderSettings, subtitleMode: subtitleAuthority.subtitleMode },
       shot,
       storyboard,
       requireHumanApproval: input.requireHumanApproval,
@@ -130,6 +146,7 @@ function buildShotDefinition(
   projectId: string,
   storyboard: StoryboardItem,
   issues: ShotPlanIssue[],
+  subtitleOwner?: "remotion-text" | "hyperframes-overlay" | "source-media",
 ): RemotionShotDefinitionV2 | undefined {
   const visualSource = toProjectMediaReference(
     projectId,
@@ -164,9 +181,9 @@ function buildShotDefinition(
     issues.push({ code: "shot-plan.duration", path: `shots.${storyboard.id}.duration`, message: "分镜时长必须是正数" });
     return undefined;
   }
-  const subtitleText = [storyboard.ttsSpokenText, storyboard.line, storyboard.lines]
-    .find((text) => Boolean(text?.trim()))
-    ?.trim();
+  const subtitleText = subtitleOwner === "remotion-text"
+    ? [storyboard.ttsSpokenText, storyboard.line, storyboard.lines].find((text) => Boolean(text?.trim()))?.trim()
+    : undefined;
   const approvedContinuityVersion = storyboard.continuityState?.styleContractVersion;
   return {
     shotId: storyboard.id,

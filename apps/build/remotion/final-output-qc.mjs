@@ -111,15 +111,56 @@ function evidenceIdentityIssues(evidence, expected) {
 }
 
 function cueOwnedByOverlay(cue, slots) {
-  return slots.some((slot) => cue?.shotId === slot?.slotId
-    || (Number(cue?.startUs) < Number(slot?.startUs) + Number(slot?.durationUs)
-      && Number(cue?.startUs) + Number(cue?.durationUs) > Number(slot?.startUs)));
+  return typeof cue?.cueId === "string" && slots.some((slot) => slot?.slotId === cue.cueId);
 }
 
-function checkSubtitleOwnership(videoUseArtifact, editingProject, outputPath, issues) {
+async function checkSubtitleOwnership(videoUseArtifact, editingProject, outputPath, issues) {
   const preview = videoUseArtifact?.preview;
   if (preview?.subtitlesBurnedIn === true && preview.path === outputPath) {
     issues.push(issue("subtitle.preview-burn-in", "最终 MP4 复用了带烧录字幕的 video-use preview，禁止重复烧录"));
+  }
+  const authority = videoUseArtifact?.subtitleAuthority;
+  if (!authority || typeof authority !== "object" || typeof authority.mode !== "string") {
+    issues.push(issue("subtitle.authority.unknown", "video-use artifact 缺少明确字幕归属策略"));
+  } else if (!["clean-remotion", "source-embedded", "hyperframes", "unknown"].includes(authority.mode)) {
+    issues.push(issue("subtitle.authority.unknown", "字幕归属策略无效"));
+  } else if (authority.mode === "unknown") {
+    issues.push(issue("subtitle.authority.unknown", "字幕归属未知，正式渲染被阻塞"));
+  } else if (!authority.evidence) {
+    issues.push(issue("subtitle.authority.evidence_missing", "字幕归属缺少证据"));
+  }
+  if (authority?.evidence) {
+    const evidence = authority.evidence;
+    if (!isSha256(evidence.sourceFingerprint)) issues.push(issue("subtitle.authority.source-sha", "字幕归属缺少有效源媒体 SHA-256"));
+    if (authority.mode === "source-embedded" && (!Array.isArray(evidence.evidencePaths) || evidence.evidencePaths.length === 0)) {
+      issues.push(issue("subtitle.authority.evidence", "字幕归属缺少批准证据路径"));
+    } else if (authority.mode === "source-embedded") {
+      for (const evidencePath of evidence.evidencePaths) {
+        const resolvedEvidencePath = typeof evidencePath === "string" ? resolve(evidencePath) : "";
+        if (!resolvedEvidencePath || !existsSync(resolvedEvidencePath)) {
+          issues.push(issue("subtitle.authority.evidence-missing", `字幕归属证据文件不存在: ${String(evidencePath)}`));
+          continue;
+        }
+        const expectedEvidenceSha = evidence.evidenceSha256?.[evidencePath];
+        if (expectedEvidenceSha && (!isSha256(expectedEvidenceSha) || await sha256File(resolvedEvidencePath) !== expectedEvidenceSha)) {
+          issues.push(issue("subtitle.authority.evidence-sha", `字幕归属证据 SHA-256 漂移: ${String(evidencePath)}`));
+        }
+      }
+    }
+    if (authority.mode === "source-embedded") {
+      const sourcePaths = [];
+      if (typeof videoUseArtifact.flatShotMp4Path === "string") sourcePaths.push(videoUseArtifact.flatShotMp4Path);
+      for (const entry of Array.isArray(videoUseArtifact.edl) ? videoUseArtifact.edl : []) {
+        if (typeof entry?.sourcePath === "string") sourcePaths.push(entry.sourcePath);
+      }
+      for (const sourcePath of [...new Set(sourcePaths)]) {
+        const resolvedSourcePath = resolve(sourcePath);
+        if (!existsSync(resolvedSourcePath)) issues.push(issue("subtitle.authority.source-missing", `source-embedded 源文件不存在: ${sourcePath}`));
+        else if (isSha256(evidence.sourceFingerprint) && await sha256File(resolvedSourcePath) !== evidence.sourceFingerprint) {
+          issues.push(issue("subtitle.authority.source-sha-drift", `source-embedded 源文件 SHA-256 漂移: ${sourcePath}`));
+        }
+      }
+    }
   }
   if (!Array.isArray(editingProject?.tracks) || !Array.isArray(editingProject?.clips)) return;
   const cues = Array.isArray(videoUseArtifact?.subtitles) ? videoUseArtifact.subtitles : [];
@@ -132,14 +173,20 @@ function checkSubtitleOwnership(videoUseArtifact, editingProject, outputPath, is
     && clip?.subtitle?.sourceFormat === "generated"
     && clip?.source?.evidence?.sourceFingerprint === artifactSha256);
   const standardCues = cues.filter((cue) => !cueOwnedByOverlay(cue, slots));
+  if (authority?.mode === "source-embedded") {
+    if (projected.length > 0) issues.push(issue("subtitle.embedded-text", "source-embedded 不得存在 Remotion text clips"));
+    if (slots.length > 0) issues.push(issue("subtitle.embedded-overlay", "source-embedded 不得存在 HyperFrames overlay"));
+  }
   if (standardCues.length > 0 && editingProject.renderSettings?.subtitleMode !== "burn-in") {
     issues.push(issue("subtitle.remotion-disabled", "存在普通字幕 cue 时 Remotion subtitleMode 必须为 burn-in"));
   }
   for (const cue of cues) {
+    if (typeof cue?.cueId !== "string" || !cue.cueId) {
+      issues.push(issue("subtitle.authority.cue_identity_missing", "正式 QC 需要稳定 cue identity"));
+      continue;
+    }
     const matches = projected.filter((clip) => clip?.source?.text === cue?.text
-      && clip?.source?.evidence?.storyboardId === cue?.shotId
-      && clip?.startUs === cue?.startUs
-      && clip?.durationUs === cue?.durationUs);
+      && clip?.source?.evidence?.cueId === cue.cueId);
     if (cueOwnedByOverlay(cue, slots)) {
       if (matches.length > 0) issues.push(issue("subtitle.animated-duplicate", `HyperFrames 动效字幕不得再次由 Remotion 烧录: ${String(cue?.cueId || "unknown")}`));
     } else if (matches.length === 0) {
@@ -149,10 +196,7 @@ function checkSubtitleOwnership(videoUseArtifact, editingProject, outputPath, is
     }
   }
   for (const clip of projected) {
-    const ownedCue = standardCues.some((cue) => clip?.source?.text === cue?.text
-      && clip?.source?.evidence?.storyboardId === cue?.shotId
-      && clip?.startUs === cue?.startUs
-      && clip?.durationUs === cue?.durationUs);
+    const ownedCue = standardCues.some((cue) => clip?.source?.evidence?.cueId === cue?.cueId);
     if (!ownedCue) {
       issues.push(issue("subtitle.remotion-stale", `Remotion 字幕轨包含未绑定当前 video-use cue 的片段: ${String(clip?.id || "unknown")}`));
     }
@@ -307,7 +351,7 @@ export async function runFinalOutputQc(input) {
     } else issues.push(issue("hyperframes.not-accepted", "HyperFrames 必须为 accepted 或 noop"));
   }
   checkEditingProjectConsistency(videoUseArtifact, editingProject, evidence, issues);
-  if (videoUseArtifact) checkSubtitleOwnership(videoUseArtifact, editingProject, outputPath, issues);
+  if (videoUseArtifact) await checkSubtitleOwnership(videoUseArtifact, editingProject, outputPath, issues);
 
   let sha256 = "";
   let probe = null;

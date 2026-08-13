@@ -1,4 +1,4 @@
-import type { TimelineTimeUs } from "@/types/editing";
+import type { SubtitleAuthority, TimelineTimeUs } from "@/types/editing";
 
 export const VIDEO_WORKFLOW_SCHEMA_VERSION = 1 as const;
 export const VIDEO_WORKFLOW_TIME_UNIT = "seconds" as const;
@@ -199,6 +199,8 @@ export interface VideoUseChapterArtifactV1 {
   evidence: VideoUseArtifactEvidenceV1;
   derivedInputs?: VideoUseDerivedInputEvidenceV1[];
   review?: VideoUseReviewSidecarV1;
+  /** Explicit subtitle ownership; absent legacy artifacts normalize to unknown and block formal render. */
+  subtitleAuthority?: SubtitleAuthority;
 }
 
 export type HyperFramesAlphaFormat = "prores-4444-mov" | "webm-vp9-alpha" | "png-sequence";

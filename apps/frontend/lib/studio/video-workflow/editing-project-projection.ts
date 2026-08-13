@@ -1,11 +1,11 @@
-import type { EditingClip, EditingProjectV1 } from "@/types/editing";
+import type { EditingClip, EditingProjectV1, SubtitleAuthority } from "@/types/editing";
 import { validateEditingProject } from "@/lib/studio/editing/validation";
 import {
   createTimelineEdlEntries,
-  isSubtitleCueOwnedByOverlay,
   validateVideoUseChapterArtifact,
   type VideoUseChapterArtifactV1,
 } from "@rendering/contracts/video-workflow";
+import { resolveSubtitleAuthority } from "./subtitle-authority";
 
 export interface VideoWorkflowEditingProjectArtifactRefs {
   mode: VideoUseChapterArtifactV1["mode"];
@@ -61,6 +61,22 @@ export function projectVideoUseArtifactToEditingProject(input: {
     subtitleCues: artifact.subtitles,
     overlaySlots: artifact.overlaySlots,
   };
+  const persistedAuthority = (artifact as VideoUseChapterArtifactV1 & { subtitleAuthority?: SubtitleAuthority }).subtitleAuthority;
+  const subtitleAuthority = resolveSubtitleAuthority([{
+    intervalId: `${artifact.mode}-${artifact.revision}`,
+    authority: persistedAuthority,
+    cues: artifact.subtitles.map((cue) => ({ cueId: cue.cueId, text: cue.text, startUs: cue.startUs, durationUs: cue.durationUs })),
+    // Video-use overlay slots do not carry cue identity yet. In a source-embedded
+    // interval, any overlay slot is therefore unsafe and is conservatively mapped
+    // to every subtitle cue so the resolver blocks the projection.
+    overlayCueIds: artifact.overlaySlots.length > 0
+      ? artifact.subtitles.map((cue) => cue.cueId)
+      : [],
+    // Projection consumes the accepted clean/EDL artifact, never the burned-in preview.
+    previewSubtitlesBurnedIn: false,
+  }]);
+  if (subtitleAuthority.blocked) return { success: false, issues: subtitleAuthority.issues.map((issue) => ({ path: issue.path, message: issue.message })) };
+  const resolvedCues = subtitleAuthority.intervals[0]?.cues ?? [];
   let nextVisual: EditingClip[];
   if (artifact.mode === "flat-shot-mp4") {
     const sourcePath = artifact.flatShotMp4Path;
@@ -72,7 +88,11 @@ export function projectVideoUseArtifactToEditingProject(input: {
       trackId: visualTrack.id,
       startUs: 0,
       durationUs,
-      source: { kind: "storyboardVideo", path: sourcePath, evidence: { sourceFingerprint: artifact.evidence.artifactSha256 } },
+      source: {
+        kind: "storyboardVideo",
+        path: sourcePath,
+        evidence: { sourceFingerprint: artifact.evidence.artifactSha256, subtitleAuthority: persistedAuthority },
+      },
     }];
   } else {
     nextVisual = edl.map((entry, index) => {
@@ -83,12 +103,21 @@ export function projectVideoUseArtifactToEditingProject(input: {
         startUs: entry.timelineStartUs,
         durationUs: entry.durationUs,
         trimStartUs: entry.sourceInUs,
-        source: { kind: "storyboardVideo", path: entry.sourcePath, evidence: { ...(existing?.source.evidence ?? {}), storyboardId: entry.shotId, sourceFingerprint: artifact.evidence.artifactSha256 } },
+        source: {
+          kind: "storyboardVideo",
+          path: entry.sourcePath,
+          evidence: {
+            ...(existing?.source.evidence ?? {}),
+            storyboardId: entry.shotId,
+            sourceFingerprint: artifact.evidence.artifactSha256,
+            subtitleAuthority: persistedAuthority,
+          },
+        },
       };
     });
   }
   const nextSubtitles: EditingClip[] = artifact.subtitles
-    .filter((cue) => !isSubtitleCueOwnedByOverlay(cue, artifact.overlaySlots))
+    .filter((cue) => resolvedCues.find((resolved) => resolved.cueId === cue.cueId)?.owner === "remotion-text")
     .map((cue, index) => ({
       id: `video-use-subtitle-${artifact.revision}-${cue.cueId}`,
       trackId: subtitleTrackId,
@@ -98,7 +127,9 @@ export function projectVideoUseArtifactToEditingProject(input: {
         text: cue.text,
         evidence: {
           storyboardId: cue.shotId,
+          cueId: cue.cueId,
           sourceFingerprint: artifact.evidence.artifactSha256,
+          subtitleAuthority: persistedAuthority,
         },
       },
       startUs: cue.startUs,
@@ -127,7 +158,15 @@ export function projectVideoUseArtifactToEditingProject(input: {
         muted: false,
         locked: false,
       }];
-  const next: EditingProjectV1 = { ...project, revision: artifact.revision, manuallyEdited: true, clips, tracks, updatedAt: input.now };
+  const next: EditingProjectV1 = {
+    ...project,
+    revision: artifact.revision,
+    manuallyEdited: true,
+    clips,
+    tracks,
+    renderSettings: { ...project.renderSettings, subtitleMode: subtitleAuthority.subtitleMode },
+    updatedAt: input.now,
+  };
   const validated = validateEditingProject(next);
   if (!validated.success) {
     return {

@@ -259,7 +259,21 @@ function plan(): TimelineRenderPlan {
     id: "visual-1",
     trackId: "track-visual",
     name: "镜头 1",
-    source: { kind: "storyboardImage" as const, path: "/tmp/shot.png", evidence: {} },
+    source: {
+      kind: "storyboardImage" as const,
+      path: "/tmp/shot.png",
+      evidence: {
+        subtitleAuthority: {
+          mode: "clean-remotion" as const,
+          evidence: {
+            mode: "clean-remotion" as const,
+            decision: "imported-manifest" as const,
+            sourceFingerprint: "a".repeat(64),
+            evidencePaths: ["/tmp/subtitle-evidence.json"],
+          },
+        },
+      },
+    },
     startUs: 0,
     durationUs: 2_000_000,
     trimStartUs: 0,

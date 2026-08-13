@@ -1,6 +1,7 @@
 import type { TtsEmotionCapability, TtsSpeakerId } from "./tts";
 import type { CharacterIdentityAnchors, CharacterNegativePrompt } from "./script";
 import type { RemotionShotAudioBindingV2 } from "./remotion-workspace";
+import type { SubtitleAuthority } from "./editing";
 
 export type CharacterReferenceViewType = "front" | "side" | "back" | "three-quarter";
 
@@ -372,6 +373,8 @@ export interface StoryboardItem extends StudioStaleEvidence, StudioSourceIdentit
   sound?: string;
   shotSemantics?: StoryboardShotSemantics;
   styleContractVersion?: string;
+  /** Explicit subtitle ownership for this visual interval. */
+  subtitleAuthority?: SubtitleAuthority;
 }
 
 export interface ProductionTrack extends StudioStaleEvidence {

@@ -124,7 +124,7 @@ describe("main process startup", () => {
     expect(secondInstanceBlock).toContain("if (isBackgroundSmoke) return");
     expect(activateBlock).toContain("if (isBackgroundSmoke) return");
     expect(readyBlock).toContain("app.setActivationPolicy('accessory')");
-    expect(readyBlock).toContain("app.dock.hide()");
+    expect(readyBlock).toContain("app.dock?.hide()");
   });
 
   it("keeps the renderer isolated from Node integration", () => {

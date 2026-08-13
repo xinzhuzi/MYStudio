@@ -17,7 +17,7 @@ import {
   validateStoryboardShotCompositionProps,
 } from "../composition/composition-props-validation";
 import type { StoryboardShotCompositionProps, ChapterVideoCompositionProps } from "../composition/composition-props";
-import { buildCompositionProps } from "../composition/build-composition-props";
+import { buildCompositionProps, validateSubtitleAuthorityForTimeline } from "../composition/build-composition-props";
 import {
   DAOJIE_TIMELINE_COMPATIBILITY_COMPOSITION_ID,
   STORYBOARD_SHOT_COMPOSITION_ID,
@@ -145,6 +145,10 @@ export class RemotionRenderWorker {
         );
       }
       jobId = planValidation.value.jobId;
+      const subtitleAuthorityValidation = validateSubtitleAuthorityForTimeline(planValidation.value);
+      if (!subtitleAuthorityValidation.success) {
+        return this.fail(jobId, subtitleAuthorityValidation.issues.map((issue) => `${issue.path}: ${issue.message}`).join("；"), false);
+      }
       compositionProps = buildCompositionProps(planValidation.value, input.mediaUrlByClipId);
       const propsValidation = validateCompositionProps(compositionProps);
       if (!propsValidation.success) {

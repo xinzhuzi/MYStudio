@@ -154,7 +154,7 @@ describe("HyperFrames adapter", () => {
     });
     expect(result).toMatchObject({ state: "ready", artifact: { status: "accepted", toolVersion: "hyperframes@0.7.101" } });
     expect(receivedEnv?.MYSTUDIO_HYPERFRAMES_WORKER).toBe("1");
-    expect(receivedEnv?.MYSTUDIO_HYPERFRAMES_CLI).toContain("node22/profiles/hyperframes/node_modules/.bin/hyperframes");
-    expect(receivedEnv?.MYSTUDIO_HYPERFRAMES_NODE).toContain("node22/bin/node");
+    expect(receivedEnv?.MYSTUDIO_HYPERFRAMES_CLI).toContain("hyperframes-profile/node_modules/hyperframes/bin/hyperframes.mjs");
+    expect(receivedEnv?.MYSTUDIO_HYPERFRAMES_NODE).toBe(adapter.paths.electronExecutable);
   });
 });

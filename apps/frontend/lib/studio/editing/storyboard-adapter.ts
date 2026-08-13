@@ -16,6 +16,8 @@ import type {
 import type { RemotionCurrentSlotV1 } from "@/types/remotion-workspace";
 import { validateRemotionCurrentSlot as validateCurrentSlot } from "@/lib/studio/remotion/remotion-slot-validation";
 import { validateEditingProject } from "./validation";
+import { resolveSubtitleAuthority, type SubtitleAuthorityIssue } from "../video-workflow/subtitle-authority";
+import type { SubtitleAuthority } from "@/types/editing";
 import {
   indexCandidateTrimStarts,
   indexSelectedCandidates,
@@ -64,6 +66,7 @@ export type StoryboardEditingAdapterResult =
       missingAudioStoryboardIds: string[];
       invalidDurationStoryboardIds: string[];
       invalidVoiceDurationStoryboardIds: string[];
+      subtitleAuthorityIssues?: SubtitleAuthorityIssue[];
       episodeMissing?: boolean;
     };
 
@@ -158,6 +161,22 @@ export function buildStoryboardEditingProject(
           .map((slot) => [remotionShotId(slot), slot] as const)
           .filter((entry): entry is readonly [string, RemotionCurrentSlotV1] => Boolean(entry[0])),
       );
+  const subtitleAuthority = resolveSubtitleAuthority(storyboards.map((storyboard) => ({
+    intervalId: storyboard.id,
+    // Storyboards always use Remotion text subtitles; absence means a legacy
+    // storyboard that predates subtitleAuthority, which is safe to treat as
+    // clean-remotion with the storyboard's own fingerprint as evidence.
+    authority: (storyboard as StoryboardItem & { subtitleAuthority?: SubtitleAuthority }).subtitleAuthority ?? {
+      mode: "clean-remotion" as const,
+      evidence: {
+        mode: "clean-remotion" as const,
+        decision: "imported-manifest" as const,
+        sourceFingerprint: "0".repeat(64),
+        evidencePaths: ["legacy-storyboard"],
+      },
+    },
+    cues: subtitleText(storyboard) ? [{ cueId: `${storyboard.id}:subtitle`, text: subtitleText(storyboard)!, startUs: 0, durationUs: 1 }] : [],
+  })));
 
   for (const storyboard of storyboards) {
     const track = trackByStoryboardId.get(storyboard.id);
@@ -188,6 +207,7 @@ export function buildStoryboardEditingProject(
     || missingAudioStoryboardIds.length > 0
     || invalidDurationStoryboardIds.length > 0
     || invalidVoiceDurationStoryboardIds.length > 0
+    || subtitleAuthority.blocked
   ) {
     return {
       success: false,
@@ -195,6 +215,7 @@ export function buildStoryboardEditingProject(
       missingAudioStoryboardIds,
       invalidDurationStoryboardIds,
       invalidVoiceDurationStoryboardIds,
+      ...(subtitleAuthority.blocked ? { subtitleAuthorityIssues: subtitleAuthority.issues } : {}),
     };
   }
 
@@ -261,7 +282,8 @@ export function buildStoryboardEditingProject(
       });
     }
 
-    if (timing.subtitle) {
+    const authorityCue = subtitleAuthority.intervals.find((interval) => interval.intervalId === storyboard.id)?.cues[0];
+    if (timing.subtitle && authorityCue?.owner === "remotion-text") {
       subtitleClips.push({
         id: `subtitle-${storyboard.id}`,
         trackId: subtitleTrackId,
@@ -269,7 +291,7 @@ export function buildStoryboardEditingProject(
         source: {
           kind: "text",
           text: timing.subtitle,
-          evidence: storyboardEvidence(storyboard),
+          evidence: { ...storyboardEvidence(storyboard), subtitleAuthority: (storyboard as StoryboardItem & { subtitleAuthority?: SubtitleAuthority }).subtitleAuthority },
         },
         startUs,
         durationUs: timing.durationUs,
@@ -294,7 +316,7 @@ export function buildStoryboardEditingProject(
     createdBy: "auto",
     manuallyEdited: false,
     stale: false,
-    renderSettings: renderSettings(input.aspectRatio),
+    renderSettings: renderSettings(input.aspectRatio, subtitleAuthority.subtitleMode),
     tracks: [
       editingTrack(mainTrackId, "video", "主画面", 0, visualClips),
       ...(voiceClips.length > 0
@@ -555,6 +577,7 @@ function storyboardEvidence(storyboard: StoryboardItem) {
     sourceRunId: storyboard.sourceRunId,
     sourceFingerprint: storyboard.sourceFingerprint,
     outputVersion: storyboard.outputVersion,
+    ...(storyboard.subtitleAuthority ? { subtitleAuthority: storyboard.subtitleAuthority } : {}),
   };
 }
 
@@ -576,13 +599,13 @@ function editingTrack(
   } as const;
 }
 
-function renderSettings(_aspectRatio: string | undefined): EditingRenderSettings {
+function renderSettings(_aspectRatio: string | undefined, subtitleMode: EditingRenderSettings["subtitleMode"] = "burn-in"): EditingRenderSettings {
   return {
     width: 1920,
     height: 1080,
     fps: 30,
     codec: "h264",
-    subtitleMode: "burn-in",
+    subtitleMode,
     loudnessLufs: -14,
     truePeakDbtp: -1.5,
     audioDucking: { ...DEFAULT_EDITING_AUDIO_DUCKING },

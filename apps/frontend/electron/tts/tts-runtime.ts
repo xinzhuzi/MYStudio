@@ -562,11 +562,47 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
     return config.modelCacheDir ? normalizeUserPath(config.modelCacheDir) : defaultModelCacheDir();
   };
 
-  const listModelRepositories = (rootDir: string) => {
+  /** TTS 后端 catalog 中登记的模型 repo_id 及别名/对齐 tokenizer。
+   *  迁移扫描时只匹配这些 repo，避免把全局 HF hub 里其他程序的模型误判为待迁移。 */
+  const KNOWN_TTS_REPO_IDS: ReadonlySet<string> = new Set([
+    // voiceClone
+    "mlx-community/Qwen3-TTS-12Hz-1.7B-Base-bf16",
+    "mlx-community/Qwen3-TTS-12Hz-0.6B-Base-bf16",
+    "YatharthS/LuxTTS",
+    "ResembleAI/chatterbox",
+    "ResembleAI/chatterbox-turbo",
+    "HumeAI/tada-1b",
+    // presetVoice
+    "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice",
+    "Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice",
+    "hexgrad/Kokoro-82M",
+    // longAudio
+    "HumeAI/tada-3b-ml",
+    // stt
+    "mlx-community/SenseVoiceSmall",
+    "mlx-community/whisper-large-v3-turbo",
+    "mlx-community/whisper-small",
+    // aliases (model_cache.py MODEL_REPO_ALIASES)
+    "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
+    "Qwen/Qwen3-TTS-12Hz-0.6B-Base",
+    // alignment tokenizer (model_inventory.py)
+    "openai/whisper-large-v3-turbo",
+  ]);
+
+  /** 将磁盘上的 `models--org--name` 目录名还原为 `org/name` 形式的 repo_id。 */
+  const repoDirNameToId = (dirName: string): string => (
+    dirName.replace(/^models--/, "").replace(/--/g, "/")
+  );
+
+  const listModelRepositories = (rootDir: string, filterKnownTts = false) => {
     if (!fileExists(rootDir)) return [];
     try {
       return fs.readdirSync(rootDir, { withFileTypes: true })
-        .filter((entry) => entry.isDirectory() && entry.name.startsWith("models--"))
+        .filter((entry) => (
+          entry.isDirectory()
+          && entry.name.startsWith("models--")
+          && (!filterKnownTts || KNOWN_TTS_REPO_IDS.has(repoDirNameToId(entry.name)))
+        ))
         .map((entry) => path.join(rootDir, entry.name))
         .sort();
     } catch {
@@ -575,7 +611,7 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
   };
 
   const getModelRepositorySources = () => [
-    ...listModelRepositories(huggingFaceHubDir()),
+    ...listModelRepositories(huggingFaceHubDir(), true),
     ...listModelRepositories(legacyDefaultModelsDir()),
     ...listModelRepositories(legacyModelsDir()),
   ];

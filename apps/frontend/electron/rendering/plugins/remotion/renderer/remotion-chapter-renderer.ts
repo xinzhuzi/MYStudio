@@ -28,6 +28,7 @@ import { validateTimelineRenderPlan } from "@/lib/studio/editing/validation";
 import {
   buildChapterVideoCompositionProps,
   mapEditedVoiceIntervals,
+  validateSubtitleAuthorityForTimeline,
   type ChapterVideoCompositionResult,
 } from "../composition/build-composition-props";
 import { CHAPTER_VIDEO_COMPOSITION_ID } from "../composition/composition-id";
@@ -311,6 +312,18 @@ export class RemotionChapterRenderer {
           error: `视频工作流章节 gate 检查失败: ${error instanceof Error ? error.message : String(error)}`,
         };
       }
+    }
+    const subtitleAuthorityValidation = validateSubtitleAuthorityForTimeline(
+      plan,
+      videoWorkflowGateResult?.accepted ? (videoWorkflowGateResult.hyperFramesWindows ?? []) : [],
+    );
+    if (!subtitleAuthorityValidation.success) {
+      return {
+        success: false,
+        jobId: input.expectedJobId ?? jobId,
+        canceled: false,
+        error: subtitleAuthorityValidation.issues.map((issue) => `${issue.path}: ${issue.message}`).join("；"),
+      };
     }
     const workspaceRoot = this.options.workspaceRootForProject?.(identity.projectId) ?? this.options.workspaceRoot;
     const publicationId = crypto.randomUUID();

@@ -17,18 +17,17 @@ export const VIDEO_USE_TARBALL_URL =
   "https://github.com/browser-use/video-use/archive/92c2b34e44c205cbc2acae7f6ca7c1c219d5dd66.tar.gz";
 export const VIDEO_USE_SOURCE_COMMIT = "92c2b34e44c205cbc2acae7f6ca7c1c219d5dd66";
 export const VIDEO_USE_SOURCE_URL = "https://github.com/browser-use/video-use";
-export const NODE22_VERSION = "22.22.3";
-export const NODE22_TARBALL_URL =
-  `https://nodejs.org/dist/v${NODE22_VERSION}/node-v${NODE22_VERSION}-darwin-arm64.tar.gz`;
-export const NODE22_SHA256 = "0da7ff74ef8611328c8212f17943368713a2ad953fb7d89a8c8a0eae87c23207";
-export const HYPERFRAMES_PACKAGE = "hyperframes@0.7.101";
-
 export const VIDEO_USE_HELPER_SHA256 = {
   "helpers/render.py": "bef2d6b47659c1d734b47556403276d05f0585e72d4b2d1da159c22b4cad69ed",
   "helpers/grade.py": "f5df58e81f31c95a621ffba5973fd866f6662fc481a36ebd37a2e68eb81220c2",
   "helpers/timeline_view.py": "69aee88e4204f86127740cca9de6a6eaa75a558df1bb07745dd62f69a3c2e9cf",
   "helpers/pack_transcripts.py": "f9e419def5f0a014d5e1fd16fdad801013ae068854c1d474c3492297e2304f4b",
 } as const;
+
+export const NPM_VERSION = "10.9.2";
+export const NPM_TARBALL_URL = `https://registry.npmjs.org/npm/-/npm-${NPM_VERSION}.tgz`;
+export const NPM_SHA256 = "5cd1e5ab971ea6333f910bc2d50700167c5ef4e66da279b2a3efc874c6b116e4";
+export const HYPERFRAMES_PACKAGE = "hyperframes@0.7.101";
 
 /** Direct dependencies declared by the pinned upstream pyproject.toml. */
 export const VIDEO_USE_LOCK_CONTENT = `# MYStudio video-use profile; derived from upstream pyproject.toml at ${VIDEO_USE_SOURCE_COMMIT}
@@ -200,12 +199,12 @@ function restorePrevious(targetPath: string): void {
 export function createVideoWorkflowRuntimeManager(
   storageBasePath: string,
   injected: Partial<VideoWorkflowRuntimeManagerOps> = {},
-  environment: { platform?: NodeJS.Platform; arch?: string } = {},
+  environment: { platform?: NodeJS.Platform; arch?: string; electronExecutable?: string } = {},
 ): VideoWorkflowRuntimeManager {
   assertAbsolute(storageBasePath, "storageBasePath");
   const platform = environment.platform ?? process.platform;
-  const arch = environment.arch ?? process.arch;
-  const paths = resolveVideoWorkflowRuntimePaths(storageBasePath, platform);
+  const electronExecutable = environment.electronExecutable ?? process.execPath;
+  const paths = resolveVideoWorkflowRuntimePaths(storageBasePath, platform, electronExecutable);
   const ops = { ...defaultOps, ...injected };
   const hashFile = ops.hashFile ?? sha256File;
 
@@ -267,39 +266,42 @@ export function createVideoWorkflowRuntimeManager(
   };
 
   const prepareHyperFrames = async (): Promise<VideoWorkflowRuntimePaths> => {
-    if (platform !== "darwin" || arch !== "arm64") {
-      throw new Error("HyperFrames Node 22 runtime 首版只支持 macOS Apple Silicon");
-    }
-    const stagingPath = `${paths.nodeRuntimeDir}.staging-${randomSuffix()}`;
-    const archivePath = path.join(stagingPath, "node.tar.gz");
-    const extractPath = path.join(stagingPath, "extract");
+    const stagingPath = `${paths.hyperFramesProfileDir}.staging-${randomSuffix()}`;
+    const archivePath = path.join(stagingPath, "npm.tgz");
+    const extractPath = path.join(stagingPath, "npm-extract");
     try {
       fs.mkdirSync(stagingPath, { recursive: true });
-      await ops.download(NODE22_TARBALL_URL, archivePath);
-      if (hashFile(archivePath) !== NODE22_SHA256) throw new Error("Node 22 tarball SHA-256 不匹配");
+      await ops.download(NPM_TARBALL_URL, archivePath);
+      if (hashFile(archivePath) !== NPM_SHA256) throw new Error("npm tarball SHA-256 不匹配");
       await ops.extract(archivePath, extractPath);
-      const nodeRoot = findArchiveRoot(extractPath, "bin/node");
-      fs.cpSync(nodeRoot, stagingPath, { recursive: true });
-      const nodeExecutable = path.join(stagingPath, "bin", "node");
-      const npmExecutable = path.join(stagingPath, "bin", "npm");
-      const nodeVersion = await ops.run(nodeExecutable, ["--version"]);
-      if (!/^v22\./.test(`${nodeVersion.stdout ?? ""}${nodeVersion.stderr ?? ""}`.trim())) {
-        throw new Error("下载的 Node 运行时不是 Node 22");
+      const npmRoot = findArchiveRoot(extractPath, "bin/npm-cli.js");
+      const npmCliPath = path.join(npmRoot, "bin", "npm-cli.js");
+      if (!fs.existsSync(npmCliPath)) throw new Error("npm CLI 入口未找到");
+      const profileDir = path.join(stagingPath);
+      const electronNodeEnv = {
+        ...process.env,
+        ELECTRON_RUN_AS_NODE: "1" as const,
+      };
+      const nodeVersion = await ops.run(electronExecutable, ["--version"], { env: electronNodeEnv });
+      const nodeVersionStr = `${nodeVersion.stdout ?? ""}${nodeVersion.stderr ?? ""}`.trim();
+      if (!/^v?\d+\./.test(nodeVersionStr)) {
+        throw new Error(`Electron 内置 Node 不可用: ${nodeVersionStr}`);
       }
-      const profileDir = path.join(stagingPath, "profiles", "hyperframes");
-      fs.mkdirSync(profileDir, { recursive: true });
-      await ops.run(npmExecutable, [
-        "install", "--no-audit", "--no-fund", "--prefix", profileDir, HYPERFRAMES_PACKAGE,
-      ], { cwd: profileDir, env: { ...process.env, PATH: `${path.dirname(nodeExecutable)}:${process.env.PATH ?? ""}` } });
-      const cliPath = path.join(profileDir, "node_modules", ".bin", "hyperframes");
+      await ops.run(electronExecutable, [
+        npmCliPath, "install", "--no-audit", "--no-fund", HYPERFRAMES_PACKAGE,
+      ], {
+        cwd: profileDir,
+        env: electronNodeEnv,
+      });
+      const cliPath = path.join(profileDir, "node_modules", "hyperframes", "bin", "hyperframes.mjs");
       if (!fs.existsSync(cliPath)) throw new Error("HyperFrames CLI 安装后未找到可执行入口");
       removeOwnPath(extractPath);
       removeOwnPath(archivePath);
-      const previousPath = promoteStaging(paths.nodeRuntimeDir, stagingPath);
+      const previousPath = promoteStaging(paths.hyperFramesProfileDir, stagingPath);
       try {
         writeProfileMarker(paths.hyperFramesMarkerPath, buildHyperFramesProfileMarker(paths));
       } catch (error) {
-        restorePromotedTarget(paths.nodeRuntimeDir, previousPath);
+        restorePromotedTarget(paths.hyperFramesProfileDir, previousPath);
         throw error;
       }
       return paths;
@@ -310,7 +312,7 @@ export function createVideoWorkflowRuntimeManager(
   };
 
   const rollbackVideoUse = async (): Promise<void> => restorePrevious(paths.videoUseProfileDir);
-  const rollbackHyperFrames = async (): Promise<void> => restorePrevious(paths.nodeRuntimeDir);
+  const rollbackHyperFrames = async (): Promise<void> => restorePrevious(paths.hyperFramesProfileDir);
 
   const action = (fn: () => Promise<VideoWorkflowRuntimePaths>) => async (): Promise<RuntimeActionResult> => {
     try {

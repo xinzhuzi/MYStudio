@@ -5,6 +5,7 @@ import type {
   StoryboardItem,
   VideoCandidate,
 } from "@/types/studio";
+import type { SubtitleAuthority } from "@/types/editing";
 import { validateEditingProject } from "./validation";
 import {
   buildStoryboardEditingProject,
@@ -427,7 +428,7 @@ describe("storyboard index helpers", () => {
 function storyboard(
   index: number,
   updates: Partial<StoryboardItem> = {},
-): StoryboardItem {
+): StoryboardItem & { subtitleAuthority: SubtitleAuthority } {
   return {
     id: `sb-${index}`,
     episodeId: "episode-1",
@@ -446,6 +447,10 @@ function storyboard(
     sourceRunId: `storyboard-run-${index}`,
     sourceFingerprint: `storyboard-fingerprint-${index}`,
     outputVersion: 2,
+    subtitleAuthority: {
+      mode: "clean-remotion",
+      evidence: { mode: "clean-remotion", decision: "imported-manifest", sourceFingerprint: "a".repeat(64), evidencePaths: ["test"] },
+    } satisfies SubtitleAuthority,
     ...updates,
   };
 }

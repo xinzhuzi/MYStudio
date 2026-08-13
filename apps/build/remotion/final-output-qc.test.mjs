@@ -11,6 +11,7 @@ const artifact = {
   evidence: { artifactSha256: sha }, preview: { path: "/tmp/preview.mp4", subtitlesBurnedIn: true },
   subtitles: [{ cueId: "cue-1", shotId: "shot-1", text: "你好", startUs: 0, durationUs: 1_000_000, source: "alignment" }],
   edl: [{ shotId: "shot-1", sourcePath: "/tmp/shot-1.mp4", sourceInS: 0, timelineStartS: 0, durationS: 1 }], overlaySlots: [],
+  subtitleAuthority: { mode: "clean-remotion", evidence: { mode: "clean-remotion", decision: "imported-manifest", sourceFingerprint: sha, evidencePaths: ["/tmp/subtitle-evidence.json"] } },
 };
 const hyperframes = {
   projectId: "project-1", chapterId: "chapter-1", revision: 2, status: "noop", sourceArtifactSha256: sha, inputSha256: sha,
@@ -29,7 +30,7 @@ function editingProject(artifactSha) {
       },
       {
         id: "video-use-subtitle-2-cue-1", trackId: "subtitles", startUs: 0, durationUs: 1_000_000,
-        source: { kind: "text", text: "你好", evidence: { storyboardId: "shot-1", sourceFingerprint: artifactSha } },
+        source: { kind: "text", text: "你好", evidence: { storyboardId: "shot-1", cueId: "cue-1", sourceFingerprint: artifactSha } },
         subtitle: { sourceFormat: "generated" },
       },
     ],
@@ -83,8 +84,8 @@ describe("final output QC", () => {
     writeFileSync(outputPath, "not-an-mp4");
     const report = await runFinalOutputQc({
       outputPath,
-      videoUseArtifact: { ...artifact, overlaySlots: [{ slotId: "caption-1", startUs: 0, durationUs: 1_000_000 }] },
-      hyperFramesArtifact: { ...hyperframes, windows: [{ slotId: "caption-1", startUs: 0, durationUs: 1_000_000 }] },
+      videoUseArtifact: { ...artifact, overlaySlots: [{ slotId: "cue-1", startUs: 0, durationUs: 1_000_000 }] },
+      hyperFramesArtifact: { ...hyperframes, windows: [{ slotId: "cue-1", startUs: 0, durationUs: 1_000_000 }] },
       editingProject: editingProject(sha),
       evidence: { projectId: "project-1", target: { kind: "chapter", chapterId: "chapter-1", editingProjectId: "editing-1", editingRevision: 2 }, inputHash: sha, outputPath, sizeBytes: 10, mtimeMs: 1, sha256: sha, streams: ["video", "audio"] },
       ffprobePath: process.execPath,
@@ -345,5 +346,66 @@ describe("final output QC", () => {
 
     expect(report.ok).toBe(false);
     expect(report.issues.map((item) => item.code)).toContain("video-use.evidence-input-sha");
+  });
+
+  it("fails closed for unknown authority and missing evidence", async () => {
+    const root = mkdtempSync(join(tmpdir(), "mystudio-qc-authority-"));
+    const outputPath = join(root, "output.mp4");
+    writeFileSync(outputPath, "mp4-fixture");
+    const unknown = { ...artifact, subtitleAuthority: { mode: "unknown" } };
+    const report = await runFinalOutputQc({ outputPath, videoUseArtifact: unknown, hyperFramesArtifact: hyperframes });
+    expect(report.issues.map((item) => item.code)).toContain("subtitle.authority.unknown");
+  });
+
+  it("rejects source-embedded text/overlay and detects source SHA drift", async () => {
+    const root = mkdtempSync(join(tmpdir(), "mystudio-qc-embedded-"));
+    const outputPath = join(root, "output.mp4");
+    const sourcePath = join(root, "source.mp4");
+    const evidencePath = join(root, "frame.json");
+    writeFileSync(outputPath, "mp4-fixture");
+    writeFileSync(sourcePath, "embedded-source");
+    writeFileSync(evidencePath, "approved-frame");
+    const sourceSha = createHash("sha256").update("different-source").digest("hex");
+    const embedded = {
+      ...artifact,
+      edl: [{ shotId: "shot-1", sourcePath, sourceInS: 0, timelineStartS: 0, durationS: 1 }],
+      subtitleAuthority: {
+        mode: "source-embedded",
+        evidence: { mode: "source-embedded", decision: "human", sourceFingerprint: sourceSha, evidencePaths: [evidencePath] },
+      },
+      overlaySlots: [{ slotId: "cue-1", startUs: 0, durationUs: 1_000_000 }],
+    };
+    const report = await runFinalOutputQc({
+      outputPath,
+      videoUseArtifact: embedded,
+      hyperFramesArtifact: { ...hyperframes, windows: [{ slotId: "cue-1", startUs: 0, durationUs: 1_000_000 }] },
+      editingProject: editingProject(sha),
+    });
+    expect(report.issues.map((item) => item.code)).toEqual(expect.arrayContaining([
+      "subtitle.authority.source-sha-drift",
+      "subtitle.embedded-text",
+      "subtitle.embedded-overlay",
+    ]));
+  });
+
+  it("rejects missing source-embedded evidence files", async () => {
+    const root = mkdtempSync(join(tmpdir(), "mystudio-qc-evidence-"));
+    const outputPath = join(root, "output.mp4");
+    const sourcePath = join(root, "source.mp4");
+    writeFileSync(outputPath, "mp4-fixture");
+    writeFileSync(sourcePath, "embedded-source");
+    const sourceSha = createHash("sha256").update("embedded-source").digest("hex");
+    const report = await runFinalOutputQc({
+      outputPath,
+      videoUseArtifact: {
+        ...artifact,
+        edl: [{ shotId: "shot-1", sourcePath, sourceInS: 0, timelineStartS: 0, durationS: 1 }],
+        subtitleAuthority: { mode: "source-embedded", evidence: { mode: "source-embedded", decision: "human", sourceFingerprint: sourceSha, evidencePaths: [join(root, "missing-frame.png")] } },
+        overlaySlots: [],
+      },
+      hyperFramesArtifact: hyperframes,
+      editingProject: editingProject(sha),
+    });
+    expect(report.issues.map((item) => item.code)).toContain("subtitle.authority.evidence-missing");
   });
 });

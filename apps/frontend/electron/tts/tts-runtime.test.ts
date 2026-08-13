@@ -152,7 +152,7 @@ describe("TTS runtime controller", () => {
     const userDataPath = path.join(root, "user-data");
     const storageBasePath = path.join(root, "storage");
     const huggingFaceHubDir = path.join(root, "huggingface", "hub");
-    const modelName = "models--example--voice";
+    const modelName = "models--hexgrad--Kokoro-82M";
     const globalModelDir = path.join(huggingFaceHubDir, modelName);
     const legacyModelDir = path.join(storageBasePath, "tts-models", modelName);
     const targetModelDir = path.join(storageBasePath, "TTS", "model", modelName);
@@ -180,12 +180,40 @@ describe("TTS runtime controller", () => {
     }
   });
 
+  it("ignores non-TTS models in the global Hugging Face hub during migration", async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "mystudio-tts-hf-migration-"));
+    const userDataPath = path.join(root, "user-data");
+    const storageBasePath = path.join(root, "storage");
+    const huggingFaceHubDir = path.join(root, "huggingface", "hub");
+    const foreignModelName = "models--timm--vit_base_patch32_clip_224.openai";
+    const foreignModelDir = path.join(huggingFaceHubDir, foreignModelName);
+    try {
+      fs.mkdirSync(foreignModelDir, { recursive: true });
+      fs.writeFileSync(path.join(foreignModelDir, "model.bin"), "foreign-data");
+
+      const controller = createTtsRuntimeController({
+        appRoot: "/repo",
+        userDataPath,
+        storageBasePath,
+        huggingFaceHubDir,
+        fetchJson: vi.fn().mockRejectedValue(new Error("offline")),
+        spawnProcess: vi.fn(),
+      });
+
+      expect(controller.getStorageLayout().migrationState).toBe("up-to-date");
+      await expect(controller.migrateStorage()).resolves.toMatchObject({ success: true });
+      expect(fs.existsSync(foreignModelDir)).toBe(true);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("refuses conflicting Hugging Face model directories without writing a target", async () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "mystudio-tts-hf-migration-"));
     const userDataPath = path.join(root, "user-data");
     const storageBasePath = path.join(root, "storage");
     const huggingFaceHubDir = path.join(root, "huggingface", "hub");
-    const modelName = "models--example--voice";
+    const modelName = "models--hexgrad--Kokoro-82M";
     const globalModelDir = path.join(huggingFaceHubDir, modelName);
     const legacyModelDir = path.join(storageBasePath, "tts-models", modelName);
     const targetModelDir = path.join(storageBasePath, "TTS", "model", modelName);

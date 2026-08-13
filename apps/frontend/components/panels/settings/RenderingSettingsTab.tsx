@@ -68,7 +68,7 @@ export function RenderingSettingsTab({ embedded = false }: RenderingSettingsTabP
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h4 className="font-medium text-foreground">插件运行时</h4>
-              <p className="text-xs text-muted-foreground mt-1">复用应用 Python 3.12 与同一组 FFmpeg/ffprobe；HyperFrames 只使用应用级 Node 22。</p>
+              <p className="text-xs text-muted-foreground mt-1">复用应用 Python 3.12 与同一组 FFmpeg/ffprobe；HyperFrames 复用 Electron 内置 Node。</p>
             </div>
             <div className="flex flex-wrap gap-2">
               <Button variant="outline" size="sm" onClick={() => void plugins.refresh()} disabled={plugins.isBusy}>

@@ -1305,7 +1305,7 @@ registerPrivilegedSchemes(protocol)
 app.whenReady().then(async () => {
   if (isBackgroundSmoke && process.platform === 'darwin') {
     app.setActivationPolicy('accessory')
-    app.dock.hide()
+    app.dock?.hide()
   }
   scheduleAutoClean()
   await stopLocalSidecars()

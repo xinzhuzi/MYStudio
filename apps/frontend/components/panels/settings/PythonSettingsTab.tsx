@@ -73,7 +73,7 @@ export function PythonSettingsTab({ embedded = false }: PythonSettingsTabProps) 
 
           <div className="mt-5 flex flex-col gap-6">
             {/* Install Path Input */}
-            <div className="grid gap-3 md:grid-cols-[5rem_minmax(0,1fr)] md:items-center">
+            <div className="grid gap-3 md:grid-cols-[5rem_minmax(0,1fr)_auto] md:items-center">
               <Label className="text-xs text-muted-foreground">安装路径</Label>
               <Input
                 value={runtime.config?.pythonRuntimeDir || "启动时读取项目存储路径"}
@@ -81,7 +81,7 @@ export function PythonSettingsTab({ embedded = false }: PythonSettingsTabProps) 
                 containerClassName="w-full min-w-0"
                 className="min-w-0 font-mono text-xs truncate"
               />
-              <div className="flex flex-wrap gap-2 md:col-start-2 md:justify-end">
+              <div className="flex flex-nowrap gap-2 md:justify-end">
                 <Button
                   variant="outline"
                   size="sm"

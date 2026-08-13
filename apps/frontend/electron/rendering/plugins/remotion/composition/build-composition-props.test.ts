@@ -493,6 +493,15 @@ function chapterPlan(
         path: slot.outputPath,
         evidence: {
           storyboardId,
+          subtitleAuthority: {
+            mode: "clean-remotion",
+            evidence: {
+              mode: "clean-remotion",
+              decision: "imported-manifest",
+              sourceFingerprint: "a".repeat(64),
+              evidencePaths: ["/tmp/subtitle-evidence.json"],
+            },
+          },
           remotionJobId: slot.job.jobId,
           remotionEvidenceSha256: slot.evidence.sha256,
           outputVersion: target.shotRevision,

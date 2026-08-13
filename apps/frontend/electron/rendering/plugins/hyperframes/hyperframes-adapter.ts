@@ -89,7 +89,7 @@ export function createHyperFramesAdapter(options: HyperFramesAdapterOptions) {
     const runtime = options.probeRuntime
       ? await probeRuntime(paths)
       : await probeHyperFramesRuntime(paths, {}, { browserPath });
-    if (runtime.state !== "ready") return { state: "blocked", message: runtime.message ?? "HyperFrames Node 22/浏览器/FFmpeg 运行时未就绪", runtime };
+    if (runtime.state !== "ready") return { state: "blocked", message: runtime.message ?? "HyperFrames Electron Node/浏览器/FFmpeg 运行时未就绪", runtime };
     if (!options.workerPath || !path.isAbsolute(options.workerPath) || !fs.existsSync(options.workerPath)) {
       return { state: "blocked", message: "HyperFrames worker 未随应用准备，拒绝静默跳过", runtime };
     }
@@ -117,7 +117,7 @@ export function createHyperFramesAdapter(options: HyperFramesAdapterOptions) {
     const runtime = options.probeRuntime
       ? await probeRuntime(paths)
       : await probeHyperFramesRuntime(paths, {}, { browserPath });
-    if (runtime.state !== "ready") return { state: "blocked", code: "runtime-not-ready", message: runtime.message ?? "HyperFrames Node 22/浏览器/FFmpeg 运行时未就绪" };
+    if (runtime.state !== "ready") return { state: "blocked", code: "runtime-not-ready", message: runtime.message ?? "HyperFrames Electron Node/浏览器/FFmpeg 运行时未就绪" };
     if (!options.workerPath || !path.isAbsolute(options.workerPath) || !fs.existsSync(options.workerPath)) {
       return { state: "blocked", code: "worker-missing", message: "HyperFrames worker 未随应用准备，拒绝静默跳过" };
     }
@@ -128,16 +128,16 @@ export function createHyperFramesAdapter(options: HyperFramesAdapterOptions) {
     try {
       fs.mkdirSync(revisionDir, { recursive: true });
       fs.writeFileSync(requestPath, `${JSON.stringify(request, null, 2)}\n`, "utf8");
-      await runFile(paths.nodeExecutable, buildHyperFramesWorkerArgs(options.workerPath, requestPath, artifactPath), {
+      await runFile(paths.electronExecutable, buildHyperFramesWorkerArgs(options.workerPath, requestPath, artifactPath), {
         cwd: paths.hyperFramesProfileDir,
         env: buildSharedToolchainEnv(paths, {
+          ELECTRON_RUN_AS_NODE: "1",
           MYSTUDIO_HYPERFRAMES_WORKER: "1",
           MYSTUDIO_HYPERFRAMES_PROFILE_DIR: paths.hyperFramesProfileDir,
           MYSTUDIO_HYPERFRAMES_CLI: paths.hyperFramesCliPath,
-          MYSTUDIO_HYPERFRAMES_NODE: paths.nodeExecutable,
+          MYSTUDIO_HYPERFRAMES_NODE: paths.electronExecutable,
           HYPERFRAMES_BROWSER_PATH: browserPath,
           PRODUCER_HEADLESS_SHELL_PATH: browserPath,
-          PATH: [path.dirname(paths.nodeExecutable), process.env.PATH ?? ""].filter(Boolean).join(path.delimiter),
         }),
         timeout: 30 * 60_000,
         maxBuffer: 8 * 1024 * 1024,

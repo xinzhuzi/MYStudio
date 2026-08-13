@@ -4,8 +4,8 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   HYPERFRAMES_PACKAGE,
-  NODE22_SHA256,
-  NODE22_TARBALL_URL,
+  NPM_SHA256,
+  NPM_TARBALL_URL,
   VIDEO_USE_HELPER_SHA256,
   VIDEO_USE_LOCK_CONTENT,
   VIDEO_USE_TARBALL_URL,
@@ -22,7 +22,7 @@ type Harness = {
   manager: VideoWorkflowRuntimeManager;
   paths: ReturnType<typeof resolveVideoWorkflowRuntimePaths>;
   downloads: string[];
-  runs: Array<{ file: string; args: string[] }>;
+  runs: Array<{ file: string; args: string[]; env?: NodeJS.ProcessEnv }>;
   setRunFailure: (value: "pip-install" | "pip-check" | "import-smoke" | null) => void;
   setHashFailure: (value: boolean) => void;
 };
@@ -30,13 +30,16 @@ type Harness = {
 function createHarness(): Harness {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "mystudio-runtime-manager-"));
   const storageBasePath = path.join(root, "storage");
-  const paths = resolveVideoWorkflowRuntimePaths(storageBasePath, "darwin");
+  const electronExecutable = path.join(root, "electron");
+  fs.writeFileSync(electronExecutable, "#!/bin/sh\n", "utf8");
+  fs.chmodSync(electronExecutable, 0o755);
+  const paths = resolveVideoWorkflowRuntimePaths(storageBasePath, "darwin", electronExecutable);
   fs.mkdirSync(path.dirname(paths.pythonExecutable), { recursive: true });
   fs.writeFileSync(paths.pythonExecutable, "managed-python", "utf8");
   fs.chmodSync(paths.pythonExecutable, 0o755);
 
   const downloads: string[] = [];
-  const runs: Array<{ file: string; args: string[] }> = [];
+  const runs: Array<{ file: string; args: string[]; env?: NodeJS.ProcessEnv }> = [];
   let runFailure: "pip-install" | "pip-check" | "import-smoke" | null = null;
   let hashFailure = false;
 
@@ -57,16 +60,15 @@ function createHarness(): Harness {
       }
       return;
     }
-    const nodeRoot = path.join(destinationPath, "node-v22.22.3-darwin-arm64");
-    fs.mkdirSync(path.join(nodeRoot, "bin"), { recursive: true });
-    fs.writeFileSync(path.join(nodeRoot, "bin", "node"), "node", "utf8");
-    fs.writeFileSync(path.join(nodeRoot, "bin", "npm"), "npm", "utf8");
-    fs.chmodSync(path.join(nodeRoot, "bin", "node"), 0o755);
-    fs.chmodSync(path.join(nodeRoot, "bin", "npm"), 0o755);
+    // npm tarball: create package/ with bin/npm-cli.js
+    const npmRoot = path.join(destinationPath, "package");
+    fs.mkdirSync(path.join(npmRoot, "bin"), { recursive: true });
+    fs.writeFileSync(path.join(npmRoot, "bin", "npm-cli.js"), "#!/usr/bin/env node\nconsole.log('npm')", "utf8");
+    fs.chmodSync(path.join(npmRoot, "bin", "npm-cli.js"), 0o755);
   };
 
-  const run: VideoWorkflowRuntimeManagerOps["run"] = async (file, args) => {
-    runs.push({ file, args: [...args] });
+  const run: VideoWorkflowRuntimeManagerOps["run"] = async (file, args, options) => {
+    runs.push({ file, args: [...args], env: options?.env });
     const commandKind = args[0] === "-m" && args[1] === "pip" && args[2] === "install"
       ? "pip-install"
       : args[0] === "-m" && args[1] === "pip" && args[2] === "check"
@@ -76,24 +78,24 @@ function createHarness(): Harness {
           : null;
     if (commandKind && commandKind === runFailure) throw new Error(`${commandKind} failed in test`);
     if (args[0] === "--version") {
-      return { stdout: file.endsWith(`${path.sep}node`) ? "v22.22.3" : "Python 3.12.7", stderr: "" };
+      return { stdout: file === electronExecutable ? "v24.17.0" : "Python 3.12.7", stderr: "" };
     }
-    if (args[0] === "install") {
-      const prefixIndex = args.indexOf("--prefix");
-      const profileDir = prefixIndex >= 0 ? args[prefixIndex + 1] : undefined;
-      if (profileDir) {
-        const cliPath = path.join(profileDir, "node_modules", ".bin", "hyperframes");
-        fs.mkdirSync(path.dirname(cliPath), { recursive: true });
-        fs.writeFileSync(cliPath, "hyperframes", "utf8");
-        fs.chmodSync(cliPath, 0o755);
-      }
+    // npm install: create hyperframes CLI + runtimeVersion.js
+    if (args.length > 0 && args[0]?.endsWith("npm-cli.js") && args[1] === "install") {
+      const profileDir = options?.cwd ?? "";
+      const cliDir = path.join(profileDir, "node_modules", "hyperframes", "bin");
+      const distDir = path.join(profileDir, "node_modules", "hyperframes", "dist");
+      fs.mkdirSync(cliDir, { recursive: true });
+      fs.mkdirSync(distDir, { recursive: true });
+      fs.writeFileSync(path.join(cliDir, "hyperframes.mjs"), "#!/usr/bin/env node\n", "utf8");
+      fs.writeFileSync(path.join(distDir, "runtimeVersion.js"), "var MINIMUM_NODE_MAJOR = 22;\n", "utf8");
     }
     return { stdout: "", stderr: "" };
   };
 
   const hashFile: VideoWorkflowRuntimeManagerOps["hashFile"] = (filePath) => {
-    if (hashFailure && filePath.endsWith("node.tar.gz")) return "bad-node-hash";
-    if (filePath.endsWith("node.tar.gz")) return NODE22_SHA256;
+    if (hashFailure && filePath.endsWith("npm.tgz")) return "bad-npm-hash";
+    if (filePath.endsWith("npm.tgz")) return NPM_SHA256;
     const helper = Object.entries(VIDEO_USE_HELPER_SHA256).find(([relativePath]) => filePath.endsWith(relativePath));
     if (helper) return hashFailure ? "bad-helper-hash" : helper[1];
     return "a".repeat(64);
@@ -102,7 +104,7 @@ function createHarness(): Harness {
   const manager = createVideoWorkflowRuntimeManager(
     storageBasePath,
     { download, extract, run, hashFile },
-    { platform: "darwin", arch: "arm64" },
+    { platform: "darwin", arch: "arm64", electronExecutable },
   );
   return {
     root,
@@ -183,25 +185,37 @@ describe("video workflow runtime manager", () => {
     fs.rmSync(harness.root, { recursive: true, force: true });
   });
 
-  it("verifies Node 22 before installing the pinned HyperFrames package", async () => {
+  it("installs HyperFrames via npm with Electron's built-in Node and verifies the CLI entry", async () => {
     const harness = createHarness();
     await harness.manager.prepareHyperFrames();
 
-    expect(harness.downloads).toEqual([NODE22_TARBALL_URL]);
+    expect(harness.downloads).toEqual([NPM_TARBALL_URL]);
     expect(harness.runs.some(({ args }) => args.includes(HYPERFRAMES_PACKAGE))).toBe(true);
     expect(fs.existsSync(harness.paths.hyperFramesCliPath)).toBe(true);
     expect(fs.existsSync(harness.paths.hyperFramesMarkerPath)).toBe(true);
     fs.rmSync(harness.root, { recursive: true, force: true });
   });
 
-  it("rejects a Node tarball hash mismatch without replacing the existing runtime", async () => {
+  it("rejects an npm tarball hash mismatch without replacing the existing profile", async () => {
     const harness = createHarness();
-    fs.mkdirSync(harness.paths.nodeRuntimeDir, { recursive: true });
-    fs.writeFileSync(path.join(harness.paths.nodeRuntimeDir, "old.txt"), "old", "utf8");
+    fs.mkdirSync(harness.paths.hyperFramesProfileDir, { recursive: true });
+    fs.writeFileSync(path.join(harness.paths.hyperFramesProfileDir, "old.txt"), "old", "utf8");
     harness.setHashFailure(true);
 
-    await expect(harness.manager.prepareHyperFrames()).rejects.toThrow("Node 22 tarball SHA-256");
-    expect(fs.readFileSync(path.join(harness.paths.nodeRuntimeDir, "old.txt"), "utf8")).toBe("old");
+    await expect(harness.manager.prepareHyperFrames()).rejects.toThrow("npm tarball SHA-256");
+    expect(fs.readFileSync(path.join(harness.paths.hyperFramesProfileDir, "old.txt"), "utf8")).toBe("old");
+    fs.rmSync(harness.root, { recursive: true, force: true });
+  });
+
+  it("injects ELECTRON_RUN_AS_NODE for all HyperFrames Node invocations", async () => {
+    const harness = createHarness();
+    await harness.manager.prepareHyperFrames();
+
+    const hyperframesRuns = harness.runs.filter(({ file }) => file === harness.paths.electronExecutable);
+    expect(hyperframesRuns.length).toBeGreaterThan(0);
+    for (const run of hyperframesRuns) {
+      expect(run.env?.ELECTRON_RUN_AS_NODE).toBe("1");
+    }
     fs.rmSync(harness.root, { recursive: true, force: true });
   });
 
