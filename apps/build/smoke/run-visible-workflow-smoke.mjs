@@ -828,6 +828,23 @@ async function runVisibleWorkflow(pageTarget, childPid, focusSamples) {
             ? safeAutoVideoTimeoutMs + 180_000
             : 120_000,
     );
+    if (evaluated?.exceptionDetails) {
+      const exception = evaluated.exceptionDetails;
+      const description =
+        exception.exception?.description ||
+        exception.exception?.value ||
+        exception.text ||
+        "visible workflow page evaluation failed";
+      throw new Error(String(description));
+    }
+    if (!evaluated?.result || !("value" in evaluated.result)) {
+      throw new Error(
+        `visible workflow page evaluation returned no serializable value: ${JSON.stringify(evaluated?.result ?? {})}`,
+      );
+    }
+    if (!Array.isArray(evaluated.result.value?.results)) {
+      throw new Error("visible workflow page evaluation returned no stage results");
+    }
     const pageFocus = await send("Runtime.evaluate", {
       returnByValue: true,
       expression: `({
@@ -835,6 +852,27 @@ async function runVisibleWorkflow(pageTarget, childPid, focusSamples) {
         documentHasFocus: document.hasFocus(),
       })`,
     });
+    if (pageFocus?.exceptionDetails) {
+      const exception = pageFocus.exceptionDetails;
+      const description =
+        exception.exception?.description ||
+        exception.exception?.value ||
+        exception.text ||
+        "visible workflow focus evaluation failed";
+      throw new Error(String(description));
+    }
+    if (
+      !pageFocus?.result ||
+      !("value" in pageFocus.result) ||
+      !pageFocus.result.value ||
+      typeof pageFocus.result.value !== "object" ||
+      typeof pageFocus.result.value.windowVisibility !== "string" ||
+      typeof pageFocus.result.value.documentHasFocus !== "boolean"
+    ) {
+      throw new Error(
+        `visible workflow focus evaluation returned no serializable value: ${JSON.stringify(pageFocus?.result ?? {})}`,
+      );
+    }
     return {
       ...evaluated.result.value,
       ...pageFocus.result.value,
@@ -850,7 +888,7 @@ function visibleWorkflowExpression(delayMs, focusWindow) {
   const focusWindowStatement = focusWindow ? "window.focus();" : "";
   return `(async () => {
     const backgroundMode = ${!focusWindow};
-    const normalize = (node) => (node.textContent || '').replace(/\\s+/g, ' ').trim();
+    const normalize = (node) => (node?.textContent || '').replace(/\\s+/g, ' ').trim();
     const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     const visibleDelay = () => wait(${delayMs});
     const activate = (node) => {
@@ -1008,7 +1046,7 @@ function realDaojieWorkflowExpression(
     const productionCanvasVideoTimeoutMs = ${Number(productionCanvasVideoTimeoutMs)};
     const expectedFirstStoryboardId = ${expectedFirstStoryboardId};
     const expectedFirstShotRevision = ${expectedFirstShotRevision};
-    const normalize = (node) => (node.textContent || '').replace(/\\s+/g, ' ').trim();
+    const normalize = (node) => (node?.textContent || '').replace(/\\s+/g, ' ').trim();
     const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     const visibleDelay = () => wait(${delayMs});
     const activate = (node) => {

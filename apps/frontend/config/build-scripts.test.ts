@@ -1297,6 +1297,15 @@ describe("desktop build scripts", () => {
     expect(runnerScript).toContain("Runtime.exceptionThrown");
     expect(runnerScript).toContain("consoleAPICalled");
     expect(runnerScript).toContain("runtimeProblems.length > 0");
+    expect(runnerScript).toContain("evaluated?.exceptionDetails");
+    expect(runnerScript).toContain("visible workflow page evaluation returned no serializable value");
+    expect(runnerScript).toContain("visible workflow page evaluation returned no stage results");
+    expect(runnerScript).toContain("pageFocus?.exceptionDetails");
+    expect(runnerScript).toContain("visible workflow focus evaluation failed");
+    expect(runnerScript).toContain("visible workflow focus evaluation returned no serializable value");
+    expect(runnerScript).toContain('typeof pageFocus.result.value.windowVisibility !== "string"');
+    expect(runnerScript).toContain('typeof pageFocus.result.value.documentHasFocus !== "boolean"');
+    expect(runnerScript.match(/node\?\.textContent/g)).toHaveLength(2);
     expect(runnerScript).toContain("arg.description");
     expect(runnerScript).toContain("[visible-run] console.error");
     expect(runnerScript).toContain("captureVisibleWorkflowDomEvidence");

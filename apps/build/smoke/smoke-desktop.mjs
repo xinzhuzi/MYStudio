@@ -759,6 +759,14 @@ function isAllowedOfflinePreviewResourceError(message) {
   if (entry?.level !== "error") return false;
   const url = entry?.url || "";
   const text = entry?.text || "";
+  if (url.startsWith("https://fonts.googleapis.com/css2")) {
+    return (
+      text.includes("Failed to load resource") &&
+      url.includes("family=Cormorant+Garamond") &&
+      url.includes("family=JetBrains+Mono") &&
+      url.includes("family=Noto+Serif+SC")
+    );
+  }
   if (!url.startsWith("https://unpkg.com/")) return false;
   if (!text.includes("Failed to load resource")) return false;
   return (

@@ -35,8 +35,8 @@
     /* Linting */
     "strict": true,
     "noImplicitAny": false,
-    "noUnusedLocals": false,
-    "noUnusedParameters": false,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
   "include": ["../**/*.ts", "../**/*.tsx", "../**/*.d.ts", "../electron/rendering/**/*.ts", "../electron/rendering/**/*.tsx"],

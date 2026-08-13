@@ -106,17 +106,14 @@ jobs:
         working-directory: apps
         run: npm ci
 
-      - name: Typecheck
+      - name: Quality gate (typecheck + lint + test + smoke)
         working-directory: apps
-        run: npm run typecheck
-
-      - name: Lint
-        working-directory: apps
-        run: npm run lint
-
-      - name: Unit tests
-        working-directory: apps
-        run: npm run test
+        # `npm run test:all` -> build/scripts/run-quality-gate.mjs runs the
+        # aggregate gate: focused-tests, typecheck, lint, unit tests and
+        # smoke:aitoearn-upgrade. The release-only stages (build:mac,
+        # smoke:desktop) require macOS + a desktop session, so the script
+        # auto-skips them on non-darwin runners via process.platform detection.
+        run: npm run test:all
 
       - name: Build renderer
         working-directory: apps
