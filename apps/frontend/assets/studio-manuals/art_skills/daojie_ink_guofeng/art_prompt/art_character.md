@@ -11,7 +11,7 @@ metaData: art_skills
 ## 一、基础形象原则
 
 1. **造型即灵魂** — 角色造型是核心锚点，水墨国风造型，工笔线描勾勒
-2. **底模即基础** — 基础形象阶段使用基础服装与素颜；衍生资产按 `art_character_derivative` 叠加基础妆/轻妆/正式妆，不混用两个阶段规则
+2. **底模即基础** — 基础打底服装 + 素颜，后续服化均为叠加层
 3. **四视图一致** — 面容/体型/发型/基础服装跨视图高度统一
 4. **仙道气质** — 无妆状态仍需体现角色气质（清冷/飘逸/凌厉/温润）
 
@@ -168,35 +168,13 @@ character design sheet, character turnaround,
 
 ---
 
-## 提示词质量增强
-
-> 生成最终提示词时，必须把本节融合进现有提示词模板；不要另起说明文字。支持 negative prompt 的模型，把“反向规避提示词”单独放入负面提示词；不支持 negative prompt 的模型，改写成正向规避要求。
-
-### 正向质量锚点
-
-水墨国风修仙，Chinese ink wash xianxia，gongbi linework，rice paper texture，restrained mineral-color palette，layered ink wash，spiritual aura as ink diffusion，clear layered composition，clean finished image，high detail。
-角色类提示词必须保留身份、年龄、性别、五官、身高、头身比、体态、服装、发型和四视图一致性；补充 anatomy coherent, clean facial structure, consistent identity, complete head-to-toe framing。
-
-### 反向规避提示词
-
-low quality, 3D render, CGI, photorealistic, cel-shaded anime, high saturation neon, western fantasy, sci-fi, modern city, plastic texture, messy ink, bad anatomy, watermark, text, signature。
-bad anatomy, deformed face, asymmetrical eyes, extra limbs, missing limbs, fused fingers, cropped head, cropped feet, inconsistent identity, inconsistent clothing, oversexualized outfit。
-
-### 输出净化规则
-
-- 正向提示词只写画面主体、风格、构图、光影、材质、动作和质量锚点；不要把“不要/禁止/严禁”混入正向主体。
-- 反向提示词只写低质量、错媒介、错风格、结构错误、身份漂移、文字水印、裁切和画面伪影等排除项。
-- 若调用方要求中文输出，保留中文风格术语；若调用方要求英文输出，可翻译锚点，但不得改变本风格的媒介边界。
-
----
-
 ## 九、约束规则
 
 ### 必守
 
 | 编号 | 规则 |
 |---|---|
-| R1 | 基础形象阶段必须为「素颜状态」；衍生资产的妆造由 `art_character_derivative` 决定 |
+| R1 | 必须为「素颜状态」 |
 | R2 | 必须声明基础服装（女性：素色道袍长裙；男性：素色道袍长衫） |
 | R3 | 必须声明「无发饰、无配饰」 |
 | R4 | 必须指定「宣纸白底色背景」 |

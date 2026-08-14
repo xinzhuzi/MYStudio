@@ -35,9 +35,9 @@ metaData: art_skills
 | 从基准图衍生 | 保持不变 | 允许变化 |
 |---|---|---|
 | 大全景 → 全景 | 建筑外观、整体布局 | 视角收窄、前景增加 |
-| 全景 → 中景 | 材质、色调、光线 | 裁切聚焦、线描密度变化 |
-| 中景 → 近景 | 材质、色调 | 主体线描更清楚、背景淡墨退后 |
-| 近景 → 特写 | 材质纹理 | 局部线描与矿物薄染更清楚 |
+| 全景 → 中景 | 材质、色调、光线 | 裁切聚焦、景深变化 |
+| 中景 → 近景 | 材质、色调 | 景深浅、背景虚化 |
+| 近景 → 特写 | 材质纹理 | 极浅景深、微距感 |
 
 ---
 
@@ -80,7 +80,7 @@ metaData: art_skills
 | 从基准天候衍生 | 保持不变 | 变化项 |
 |---|---|---|
 | 晴 → 灵雾 | 建筑/布局 | 增加灵雾层、远景模糊、饱和度降低 |
-| 晴 → 灵雨 | 建筑/布局 | 增加灵雨丝、地面淡墨湿润薄染、色调偏冷 |
+| 晴 → 灵雨 | 建筑/布局 | 增加灵雨丝、地面灵光反射、色调偏冷 |
 | 晴 → 飞雪 | 建筑/布局 | 增加积雪、雪花、色调偏白 |
 | 植被需随天候逻辑适配 | — | 灵雨中灵花湿润、雪中枯枝挂霜 |
 
@@ -123,7 +123,7 @@ Chinese ink-wash style, gongbi line drawing, xieyi splash ink, xuan paper textur
 保持场景空间结构一致，
 {目标角度（如有）}, {景别视角（如有）}, {时段描述（如有）}, {天候描述（如有）},
 {前景}, {中景}, {后景},
-{色调描述}, {淡墨空气透视描述（如有）}, {天空色调变化（如有）}, {氛围调整（如有）},
+{色调描述}, {景深描述（如有）}, {天空色调变化（如有）}, {氛围调整（如有）},
 {天候视觉特征（如有）}, {材质表面变化（如有）}, {植被适配描述（如有）},
 材质自然磨损痕迹，岁月包浆，灵纱自然垂褶，
 柔和光影，水墨渲染，自然光漫射，细腻质感，
@@ -133,28 +133,6 @@ Chinese ink-wash style, gongbi line drawing, xieyi splash ink, xuan paper textur
 图中不要有任何文字
 
 > **使用说明**：根据用户提供的信息自行判断需要应用的变化维度（角度/景别/时段/天候），未提及的维度对应字段留空省略即可。无需为每种变体单独生成模板。
-
----
-
-## 提示词质量增强
-
-> 生成最终提示词时，必须把本节融合进现有提示词模板；不要另起说明文字。支持 negative prompt 的模型，把“反向规避提示词”单独放入负面提示词；不支持 negative prompt 的模型，改写成正向规避要求。
-
-### 正向质量锚点
-
-水墨国风修仙，Chinese ink wash xianxia，gongbi linework，rice paper texture，restrained mineral-color palette，layered ink wash，spiritual aura as ink diffusion，clear layered composition，clean finished image，high detail。
-场景衍生提示词必须保持原场景地标、空间结构、材质年代感不变，只改变时段、天候、景别或镜头角度；补充 landmark consistency, spatial continuity, clean ink-wash atmosphere。
-
-### 反向规避提示词
-
-low quality, 3D render, CGI, photorealistic, cel-shaded anime, high saturation neon, western fantasy, sci-fi, modern city, plastic texture, messy ink, bad anatomy, watermark, text, signature。
-changed location, lost landmark, added people, human silhouette, random architecture, inconsistent perspective, flat lighting, overclean material, text, watermark。
-
-### 输出净化规则
-
-- 正向提示词只写画面主体、风格、构图、光影、材质、动作和质量锚点；不要把“不要/禁止/严禁”混入正向主体。
-- 反向提示词只写低质量、错媒介、错风格、结构错误、身份漂移、文字水印、裁切和画面伪影等排除项。
-- 若调用方要求中文输出，保留中文风格术语；若调用方要求英文输出，可翻译锚点，但不得改变本风格的媒介边界。
 
 ---
 
@@ -186,4 +164,4 @@ changed location, lost landmark, added people, human silhouette, random architec
 | X5 | 画面被拼接成多视图/网格/分屏布局 |
 | X6 | 3D 写实/CG 动画/赛璐璐/日式动画质感（禁用 3D render、CGI、Unreal Engine、Unity、cel shading 等词） |
 | X7 | 材质过于干净完美、无任何使用痕迹与岁月感（避免"塑料感"） |
-| X8 | 禁止电影式三点布光、体积光和浅景深虚化；采用均匀平光宣纸照明，以空间层次、线描密度和淡墨空气透视建立变化 |
+| X8 | 光照过于均匀平坦、无景深虚化、无镜头光学特征 |

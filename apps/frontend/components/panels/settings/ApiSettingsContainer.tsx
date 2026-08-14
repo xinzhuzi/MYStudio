@@ -186,6 +186,20 @@ export function ApiSettingsContainer() {
     }
   };
 
+  const discoverProviderModels = async (provider: IProvider, fallbackMessage: string) => {
+    setSyncingProvider(provider.id);
+    try {
+      const result = await syncProviderModels(provider.id);
+      if (result.success) {
+        toast.success(`已自动同步 ${result.count} 个模型`);
+      } else {
+        toast.message(`${fallbackMessage}（自动同步失败：${result.error ?? "未知原因"}）`);
+      }
+    } finally {
+      setSyncingProvider(null);
+    }
+  };
+
   const testSavedProvider = (provider: IProvider, emptyModelMessage: string) => {
     if (
       parseApiKeys(provider.apiKey).length === 0
@@ -195,7 +209,7 @@ export function ApiSettingsContainer() {
 
     const firstModel = provider.model[0];
     if (!firstModel) {
-      toast.message(emptyModelMessage);
+      void discoverProviderModels(provider, emptyModelMessage);
       return;
     }
     void runProviderModelTest(provider, firstModel, { showToast: false }).then((testResult) => {

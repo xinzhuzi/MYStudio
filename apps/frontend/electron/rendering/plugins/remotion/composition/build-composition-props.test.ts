@@ -462,7 +462,8 @@ describe("buildChapterVideoCompositionProps", () => {
 
     expect(mapEditedVoiceIntervals({ plan, currentShotSlots: [firstSlot, secondSlot], chapterManifest })).toEqual({
       success: true,
-      value: [{ startFrame: 41, endFrame: 56 }],
+      // 7508a43 转场调优: 时长上限 800ms→1.2s → 重叠加大, 语音区间起点前移 41→39。
+      value: [{ startFrame: 39, endFrame: 54 }],
     });
   });
 });

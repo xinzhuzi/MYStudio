@@ -25,9 +25,6 @@ export async function syncProviderModels(
 
   const isMemefast = provider.platform === "memefast";
   const configuredModelIds = Array.from(new Set((provider.model || []).map((model) => model.trim()).filter(Boolean)));
-  if (!isMemefast && configuredModelIds.length === 0) {
-    return { success: false, count: 0, error: "请先填写模型，再同步验证供应商模型" };
-  }
 
   try {
     const allModelIds = new Set<string>();
@@ -121,6 +118,16 @@ export async function syncProviderModels(
         }
       }
       if (!anySuccess) return { success: false, count: 0, error: lastError || "API 返回异常" };
+      if (configuredModelIds.length === 0) {
+        const modelIds = Array.from(allModelIds);
+        if (modelIds.length === 0) return { success: false, count: 0, error: "未获取到任何模型" };
+        const endpointTypes = Object.fromEntries(
+          modelIds.filter((model) => metadata.modelEndpointTypes[model]).map((model) => [model, metadata.modelEndpointTypes[model]]),
+        );
+        if (Object.keys(endpointTypes).length > 0) dependencies.applyEndpointTypes(endpointTypes);
+        dependencies.updateProvider({ ...provider, model: modelIds });
+        return { success: true, count: modelIds.length };
+      }
       const missing = configuredModelIds.filter((model) => !allModelIds.has(model));
       if (missing.length > 0) return { success: false, count: 0, error: `供应商模型列表中未找到: ${missing.join(", ")}` };
       const endpointTypes = Object.fromEntries(

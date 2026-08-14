@@ -156,7 +156,7 @@ export const API_PROVIDER_PRESETS: Array<{
     platform: "custom",
     name: "自定义",
     baseUrl: "",
-    description: "自定义 OpenAI 兼容 API 供应商",
+    description: "自定义 OpenAI 兼容 API 供应商，模型可留空，保存后自动同步",
     services: [],
     models: [],
   },

@@ -12,7 +12,7 @@ metaData: art_skills
 
 1. **空间叙事** — 场景承载情绪与叙事功能，不是纯背景板
 2. **层次纵深** — 所有场景必须具备前/中/后景，杜绝扁平
-3. **质感至上** — 山石/木质/水面/云雾等材质差异清楚，细节克制且无表面噪点
+3. **质感至上** — 山石/木质/水面/云雾等材质纹理必须超清晰
 4. **水墨为锚** — 一切画面以水墨国风为标准，拒绝3D写实/CG动画/赛璐璐质感；追求工笔线描、写意泼墨、宣纸肌理
 
 ---
@@ -36,7 +36,7 @@ metaData: art_skills
 |---|---|---|
 | 风格 | 洞府/宗门殿堂/丹房/藏经阁/修炼室 | 修仙{场所}风格 |
 | 材质 | 灵木为主、灵石/灵玉/灵纱为辅 | 灵木家具、灵石屏风、灵纱帷幔 |
-| 色调 | 水墨为主、低饱和矿物淡彩 + 宣纸白纱幔 + 青绿点缀 | 水墨色调、素雅陈设 |
+| 色调 | 水墨低饱和色调 + 宣纸白纱幔 + 青绿点缀 | 水墨色调、素雅陈设 |
 | 纵深 | 前/中/后景层次 | 前景{元素}、中景{元素}、后景{元素} |
 | 质感 | 木纹/石纹/纱帘垂感可辨 | 纹理清晰、质感细腻 |
 | 光照 | 自然光源为主（窗光/灵火/月光），柔和光影 | 自然光漫射、灵火摇曳、柔和光影 |
@@ -64,7 +64,7 @@ metaData: art_skills
 | 类型 | 宗门山门/灵山/灵湖/秘境/战场/天界/冥界 | {场景}，{季节}，{时间} |
 | 天候 | 晴/阴/灵雾/灵雨/飞雪/劫云 | 灵雾弥漫、灵雨如丝 |
 | 植被 | 灵松/灵竹/灵桃/灵柳/灵荷（须符合季节与灵气浓度） | 灵桃灼灼、灵竹成林 |
-| 水体 | 灵溪/灵湖/灵瀑以淡墨、细线和局部薄染表现，不作镜面反光 | 灵溪潺潺、淡墨水面 |
+| 水体 | 灵溪/灵湖/灵瀑需有灵光反射 | 灵溪潺潺、灵湖如镜 |
 | 建筑 | 飞檐斗拱、灵石白墙、灵木亭台、阵纹石桥 | 飞檐翘角、灵石拱桥 |
 | 空气感 | 必须有空气透视，远景水墨晕染 | 远山如黛、水墨空气透视 |
 | 光照 | 自然光为唯一光源，日光/月光需有水墨渲染效果 | 自然光照、水墨渲染、柔和光影 |
@@ -128,28 +128,6 @@ scene design sheet, environment concept art, no people, no characters, no human 
 
 ---
 
-## 提示词质量增强
-
-> 生成最终提示词时，必须把本节融合进现有提示词模板；不要另起说明文字。支持 negative prompt 的模型，把“反向规避提示词”单独放入负面提示词；不支持 negative prompt 的模型，改写成正向规避要求。
-
-### 正向质量锚点
-
-水墨国风修仙，Chinese ink wash xianxia，gongbi linework，rice paper texture，restrained mineral-color palette，layered ink wash，spiritual aura as ink diffusion，clear layered composition，clean finished image，high detail。
-场景类提示词必须强化前景/中景/后景、空间纵深、主光源方向、材质痕迹和情绪色调；补充 layered environment, ink-wash atmospheric perspective, coherent paper-scattered lighting, readable material differences。
-
-### 反向规避提示词
-
-low quality, 3D render, CGI, photorealistic, cel-shaded anime, high saturation neon, western fantasy, sci-fi, modern city, plastic texture, messy ink, bad anatomy, watermark, text, signature。
-no depth, flat lighting, empty white background, people, human silhouette, character, cropped architecture, inconsistent season, overclean material, text, watermark。
-
-### 输出净化规则
-
-- 正向提示词只写画面主体、风格、构图、光影、材质、动作和质量锚点；不要把“不要/禁止/严禁”混入正向主体。
-- 反向提示词只写低质量、错媒介、错风格、结构错误、身份漂移、文字水印、裁切和画面伪影等排除项。
-- 若调用方要求中文输出，保留中文风格术语；若调用方要求英文输出，可翻译锚点，但不得改变本风格的媒介边界。
-
----
-
 ## 七、约束规则
 
 ### 必守
@@ -177,4 +155,4 @@ no depth, flat lighting, empty white background, people, human silhouette, chara
 | X6 | 画面被拼接成多视图/网格/分屏布局 |
 | X7 | 3D 写实/CG 动画/赛璐璐/日式动画质感（禁用 3D render、CGI、Unreal Engine、Unity、cel shading 等词） |
 | X8 | 材质过于干净完美、无任何使用痕迹与岁月感（避免"塑料感"） |
-| X9 | 禁止电影式三点布光、体积光和浅景深虚化；采用均匀平光宣纸照明，以前中远景、线描密度和淡墨空气透视建立层次 |
+| X9 | 光照过于均匀平坦、无景深虚化、无镜头光学特征 |

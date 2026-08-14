@@ -4,9 +4,9 @@
 
 | 模式 | 风格标签 |
 |------|----------|
-| **通用多参模式（英文）** | `Chinese ink wash painting style, xianxia immortal cultivation, traditional brushwork, restrained mineral-color palette, rice paper texture, clear layered composition, ink-wash atmospheric perspective` |
-| **通用首尾帧模式（英文）** | `Chinese ink wash painting style, xianxia immortal cultivation, traditional brushwork, restrained mineral-color palette, rice paper texture, clear layered composition, ink-wash atmospheric perspective` |
-| **Seedance 2.0（中文）** | `水墨国风修仙，工笔线描，写意泼墨，矿物淡彩，宣纸质感，墨色层次丰富，连环画叙事感，清楚前中远景构图` |
+| **通用多参模式（英文）** | `Chinese ink wash painting style, xianxia immortal cultivation, traditional brushwork, muted cyan-green palette, rice paper texture, cinematic composition, atmospheric depth` |
+| **通用首尾帧模式（英文）** | `Chinese ink wash painting style, xianxia immortal cultivation, traditional brushwork, muted cyan-green palette, rice paper texture, cinematic composition, atmospheric depth, shallow depth of field` |
+| **Seedance 2.0（中文）** | `水墨国风修仙，工笔线描，写意泼墨，青绿淡彩，宣纸质感，墨色层次丰富，连环画叙事感，电影构图` |
 | **Seedance 1.5（中文）** | `水墨国风，工笔线描，写意晕染，青绿淡彩，宣纸肌理，修仙题材，灵气流转，动态张力` |
 
 ## 视频特有约束
@@ -51,7 +51,7 @@
 | DV2 | 优先安排近景遮挡元素入画框 — 水墨折枝构图天然适配，是视差感的最大放大器 |
 | DV3 | 透视引导：山径/石阶/溪流/宫廊延伸至画面深处，用墨色浓淡渐变表现纵深（近浓远淡） |
 | DV4 | 大气透视 = 墨分五色的近浓远淡 + 远景留白晕染；**主体工笔线条全程锐利**，禁止全图雾化（遵守通用画质禁用词） |
-| DV5 | **景别虚化覆盖**：进入 2.5D 管线的分镜，任何「背景虚化/浅景深」描述一律改写为「远景淡墨、全画面笔意清晰」— 景深由渲染阶段按深度图施加 |
+| DV5 | **景别虚化覆盖**：进入 2.5D 管线的分镜，任何「背景虚化/浅景深/shallow depth of field」描述（含首尾帧风格标签中的 shallow depth of field）一律改写为「远景淡墨、全画面笔意清晰」— 景深由渲染阶段按深度图施加，源图虚化会毁掉深度边缘 |
 | DV6 | 主体轮廓以墨线/留白与背景分离明确，避免主体融入背景墨色 |
 | DV7 | 禁止：正面平面化构图、无层次的平涂背景、大面积无结构宣纸空白（留白须有形 — 云气/水面/远山轮廓）
 ---

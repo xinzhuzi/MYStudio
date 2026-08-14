@@ -119,7 +119,7 @@ describe("studio skills storage", () => {
     await expect(readStoredStudioSkillText(storageRoot, "art_skills/daojie_ink_guofeng/README.md")).resolves.toBe("# Daojie Runtime\n");
   });
 
-  it("keeps existing storage files when bundled seeds change and only fills missing seeds", async () => {
+  it("updates pristine copies when seeds change but keeps user-customized copies (hash-based sync)", async () => {
     const root = await createTempRoot();
     const sourceRoot = path.join(root, "source");
     const storageRoot = getStudioSkillStorageRoot(path.join(root, "storage"));
@@ -136,9 +136,68 @@ describe("studio skills storage", () => {
     resetStudioSkillsSyncState();
     await ensureStudioSkillsSynced({ sourceRoot, storageRoot });
 
-    await expect(readStoredStudioSkillText(storageRoot, "agent_skills/script_execution_skeleton.md")).resolves.toBe("seed v1\n");
+    // Pristine copy follows the seed update automatically.
+    await expect(readStoredStudioSkillText(storageRoot, "agent_skills/script_execution_skeleton.md")).resolves.toBe("seed v2\n");
+    // User-customized copy is never overwritten.
     await expect(readStoredStudioSkillText(storageRoot, "agent_skills/script_execution_script.md")).resolves.toBe("user edit\n");
+    // Missing seed still fills in.
     await expect(readStoredStudioSkillText(storageRoot, "production_skills/storyboard_table_techniques.md")).resolves.toBe("new seed\n");
+  });
+
+  it("propagates external-source (personal asset) edits to pristine copies but not customized ones", async () => {
+    const root = await createTempRoot();
+    const sourceRoot = path.join(root, "source");
+    const externalRoot = path.join(root, "external");
+    const storageRoot = getStudioSkillStorageRoot(path.join(root, "storage"));
+
+    // Personal asset lives only in the external (toonflow) root.
+    await writeText(path.join(externalRoot, "art_skills/daojie_ink_guofeng/prefix.md"), "dao v1\n");
+    await writeText(path.join(externalRoot, "art_skills/daojie_ink_guofeng/custom.md"), "custom v1\n");
+    await ensureStudioSkillsSynced({ sourceRoot, fallbackSourceRoots: [externalRoot], storageRoot });
+
+    // Edit the external source, and customize one stored copy.
+    await writeText(path.join(externalRoot, "art_skills/daojie_ink_guofeng/prefix.md"), "dao v2 with DV rules\n");
+    await writeStoredStudioSkillText(storageRoot, "art_skills/daojie_ink_guofeng/custom.md", "user touched\n");
+
+    resetStudioSkillsSyncState();
+    await ensureStudioSkillsSynced({ sourceRoot, fallbackSourceRoots: [externalRoot], storageRoot });
+
+    await expect(readStoredStudioSkillText(storageRoot, "art_skills/daojie_ink_guofeng/prefix.md")).resolves.toBe("dao v2 with DV rules\n");
+    await expect(readStoredStudioSkillText(storageRoot, "art_skills/daojie_ink_guofeng/custom.md")).resolves.toBe("user touched\n");
+  });
+
+  it("prevents flip-flop when both roots carry a diverging shared file (root ownership)", async () => {
+    const root = await createTempRoot();
+    const sourceRoot = path.join(root, "source");
+    const externalRoot = path.join(root, "external");
+    const storageRoot = getStudioSkillStorageRoot(path.join(root, "storage"));
+
+    await writeText(path.join(sourceRoot, "production_skills/shared.md"), "app seed\n");
+    await writeText(path.join(externalRoot, "production_skills/shared.md"), "external drift\n");
+
+    await ensureStudioSkillsSynced({ sourceRoot, fallbackSourceRoots: [externalRoot], storageRoot });
+    // App root claims ownership first; the external drift must not win.
+    await expect(readStoredStudioSkillText(storageRoot, "production_skills/shared.md")).resolves.toBe("app seed\n");
+
+    // Even after the external copy changes again, the app-owned file stays put.
+    await writeText(path.join(externalRoot, "production_skills/shared.md"), "external drift v2\n");
+    resetStudioSkillsSyncState();
+    await ensureStudioSkillsSynced({ sourceRoot, fallbackSourceRoots: [externalRoot], storageRoot });
+    await expect(readStoredStudioSkillText(storageRoot, "production_skills/shared.md")).resolves.toBe("app seed\n");
+  });
+
+  it("never adopts unknown-provenance files that sit at seed paths without a manifest entry", async () => {
+    const root = await createTempRoot();
+    const sourceRoot = path.join(root, "source");
+    const storageRoot = getStudioSkillStorageRoot(path.join(root, "storage"));
+
+    // User hand-placed file at a seed path, never synced before.
+    await writeText(path.join(sourceRoot, "agent_skills/hand_made.md"), "seed\n");
+    await writeStoredStudioSkillText(storageRoot, "agent_skills/hand_made.md", "hand made\n");
+
+    await ensureStudioSkillsSynced({ sourceRoot, storageRoot });
+    // Must stay untouched (no automatic adoption); it shows as customized in the UI.
+    await expect(readStoredStudioSkillText(storageRoot, "agent_skills/hand_made.md")).resolves.toBe("hand made\n");
   });
 
   it("migrates legacy root agent skill copies into agent_skills", async () => {

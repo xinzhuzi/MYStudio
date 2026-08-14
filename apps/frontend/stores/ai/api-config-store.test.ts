@@ -242,7 +242,7 @@ describe("useAPIConfigStore unified model configuration", () => {
     expect(useAPIConfigStore.getState().modelEndpointTypes["gpt-5.4"]).toBeUndefined();
   });
 
-  it("refuses model synchronization when no explicit model is configured", async () => {
+  it("discovers and imports the full provider catalog when no model is configured", async () => {
     useAPIConfigStore.setState({
       providers: [{
         id: "provider-1",
@@ -253,14 +253,19 @@ describe("useAPIConfigStore unified model configuration", () => {
         model: [],
       }],
     });
-    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({
+      data: [
+        { id: "gpt-image-2", supported_endpoint_types: ["image-generation"] },
+        { id: "gpt-5.4" },
+      ],
+    }), { status: 200 }));
 
     const result = await useAPIConfigStore.getState().syncProviderModels("provider-1");
 
-    expect(result).toMatchObject({ success: false, count: 0 });
-    expect(result.error).toContain("请先填写模型");
-    expect(fetchSpy).not.toHaveBeenCalled();
-    expect(useAPIConfigStore.getState().providers[0].model).toEqual([]);
+    expect(result).toEqual({ success: true, count: 2 });
+    expect(useAPIConfigStore.getState().providers[0].model).toEqual(["gpt-image-2", "gpt-5.4"]);
+    expect(useAPIConfigStore.getState().modelEndpointTypes["gpt-image-2"]).toEqual(["image-generation"]);
+    expect(useAPIConfigStore.getState().modelEndpointTypes["gpt-5.4"]).toBeUndefined();
   });
 
   it("reports exact configured models missing from the upstream catalog without mutation", async () => {

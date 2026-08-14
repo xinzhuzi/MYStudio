@@ -8,9 +8,11 @@ type StudioSkillSyncOptions = {
   storageRoot: string;
 };
 
+type StudioSkillSourceKind = "app" | "external";
+
 type StudioSkillManifest = {
   version: 1;
-  files: Record<string, { seedHash: string; syncedAt: number }>;
+  files: Record<string, { seedHash: string; syncedAt: number; sourceKind?: StudioSkillSourceKind }>;
   deleted: Record<string, { deletedAt: number }>;
 };
 
@@ -70,8 +72,15 @@ export async function ensureStudioSkillsSynced(options: StudioSkillSyncOptions) 
 
     const manifest = await readManifest(storageRoot);
     await migrateLegacyRootAgentSkills(storageRoot, manifest);
-    for (const root of getSourceRoots(options)) {
-      await syncSeedDirectory(root, root, storageRoot, manifest);
+    // 主源（应用内置种子树）= "app"；回退源（如 toonflow 个人资产运行时）= "external"。
+    // app 根先同步 → 双根共有的文件由 app 认领；external 根只补 app 缺少的文件
+    // （正是道劫个人资产场景），避免两根内容不同时每次启动来回覆盖。
+    const resolvedRoots = getSourceRoots(options).map((root) => ({
+      root,
+      kind: (root === path.resolve(options.sourceRoot) ? "app" : "external") as StudioSkillSourceKind,
+    }));
+    for (const { root, kind } of resolvedRoots) {
+      await syncSeedDirectory(root, root, storageRoot, manifest, kind);
     }
     await writeManifest(storageRoot, manifest);
     _skillsSyncDone = true;
@@ -200,6 +209,7 @@ export async function restoreStoredStudioSkillFile(options: StudioSkillSyncOptio
   manifest.files[normalizedPath] = {
     seedHash: await hashFile(sourcePath),
     syncedAt: Date.now(),
+    sourceKind: getSourceKindForPath(options, sourcePath),
   };
   await writeManifest(storageRoot, manifest);
 
@@ -227,7 +237,25 @@ export async function markStoredStudioSkillPathDeleted(storageRoot: string, rela
   await writeManifest(storageRoot, manifest);
 }
 
-async function syncSeedDirectory(root: string, current: string, storageRoot: string, manifest: StudioSkillManifest) {
+/**
+ * 同步语义（2026-08-14 升级）：
+ *  - 目标缺失 → 拷贝并记录基线（seedHash = 本次写入内容）+ 根所有权 sourceKind。
+ *  - 目标已存在且未被用户修改（storageHash === 基线 seedHash）→
+ *      源变更则覆盖更新（seed 变更自动传播），否则不动。
+ *  - 目标已存在且被用户修改过（storageHash !== 基线）→ 绝不覆盖（个人资产保护），
+ *      且不改写基线，用户随时可从源恢复。
+ *  - 根所有权：条目只归属首次同步它的根类型（app/external），另一根的同类文件跳过，
+ *      防止双根内容分歧时每次启动来回覆盖。遗留条目（无 sourceKind）由首个
+ *      含该文件的根认领 —— app 根先走，共有文件归 app；仅 external 有的
+ *      （道劫）随后被 external 认领。
+ */
+async function syncSeedDirectory(
+  root: string,
+  current: string,
+  storageRoot: string,
+  manifest: StudioSkillManifest,
+  sourceKind: StudioSkillSourceKind,
+) {
   const entries = await fs.promises.readdir(current, { withFileTypes: true });
   await Promise.all(entries.map(async (entry) => {
     const sourcePath = path.join(current, entry.name);
@@ -238,7 +266,7 @@ async function syncSeedDirectory(root: string, current: string, storageRoot: str
     if (entry.isDirectory()) {
       if (!shouldWalkStudioSkillSeedDirectory(sourceRelativePath)) return;
       await fs.promises.mkdir(targetPath, { recursive: true });
-      await syncSeedDirectory(root, sourcePath, storageRoot, manifest);
+      await syncSeedDirectory(root, sourcePath, storageRoot, manifest, sourceKind);
       return;
     }
 
@@ -251,11 +279,30 @@ async function syncSeedDirectory(root: string, current: string, storageRoot: str
 
     if (!fs.existsSync(targetPath)) {
       await fs.promises.copyFile(sourcePath, targetPath);
-      manifest.files[storageRelativePath] = { seedHash: sourceHash, syncedAt: Date.now() };
+      manifest.files[storageRelativePath] = { seedHash: sourceHash, syncedAt: Date.now(), sourceKind };
       return;
     }
 
-    manifest.files[storageRelativePath] = { seedHash: sourceHash, syncedAt: Date.now() };
+    const existing = manifest.files[storageRelativePath];
+    // 另一根拥有的文件：跳过（防双根摆动）。
+    if (existing?.sourceKind && existing.sourceKind !== sourceKind) return;
+    // 未知来源的既有文件（无清单条目，用户手工放置在种子路径）：不接管、不覆盖，
+    // UI 会标记为「已自定义」；需要纳管时走「恢复」按钮显式操作。
+    if (!existing) return;
+    // 遗留条目（升级前的清单，无 sourceKind）：基线保持不变，由当前根认领所有权。
+    const baselineHash = existing.seedHash;
+
+    // 用户已修改存储副本 → 保护，绝不覆盖，基线原样保留。
+    if (existing && await hashFile(targetPath) !== baselineHash) {
+      manifest.files[storageRelativePath] = { ...existing, sourceKind };
+      return;
+    }
+
+    // 副本干净：源有变化则更新传播；源未变时只认领所有权/刷新时间。
+    if (sourceHash !== baselineHash) {
+      await fs.promises.copyFile(sourcePath, targetPath);
+    }
+    manifest.files[storageRelativePath] = { seedHash: sourceHash, syncedAt: Date.now(), sourceKind };
   }));
 }
 
@@ -297,6 +344,13 @@ async function readManifest(storageRoot: string): Promise<StudioSkillManifest> {
   } catch {
   }
   return { version: 1, files: {}, deleted: {} };
+}
+
+function getSourceKindForPath(options: StudioSkillSyncOptions, sourcePath: string): StudioSkillSourceKind {
+  const resolved = path.resolve(sourcePath);
+  return resolved.startsWith(path.resolve(options.sourceRoot) + path.sep) || resolved === path.resolve(options.sourceRoot)
+    ? "app"
+    : "external";
 }
 
 function getSourceRoots(options: StudioSkillSyncOptions) {
