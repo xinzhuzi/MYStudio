@@ -127,3 +127,37 @@ describe("video-use to EditingProject projection", () => {
     expect(projectVideoUseArtifactToEditingProject({ project: project(), artifact: stale, now: 10 })).toMatchObject({ success: false, issues: [{ path: "revision" }] });
   });
 });
+
+describe("projection transitions from EDL boundary decisions", () => {
+  it("projects transitionToNext into EditingProject.transitions with canonical params", () => {
+    const base = artifact("editable-edl");
+    base.edl = [
+      { shotId: "shot-1", sourcePath: "/tmp/a.mp4", sourceInS: 0, sourceOutS: 3.2, timelineStartS: 0, durationS: 3.2,
+        transitionToNext: { effectId: "crossfade", durationUs: 600_000, styleWord: "水墨晕染" } },
+      { shotId: "shot-2", sourcePath: "/tmp/b.mp4", sourceInS: 0, sourceOutS: 3.0, timelineStartS: 3.2, durationS: 3.0 },
+    ];
+    const result = projectVideoUseArtifactToEditingProject({ project: project(), artifact: base, now: 10 });
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.project.transitions).toHaveLength(1);
+    const transition = result.project.transitions[0]!;
+    expect(transition.id).toBe("transition-shot-1-shot-2");
+    expect(transition.effectId).toBe("crossfade");
+    expect(transition.durationUs).toBe(600_000);
+    expect(transition.params).toEqual({ curve: "linear" });
+    expect(result.project.clips.some((clip) => clip.id === transition.fromClipId)).toBe(true);
+    expect(result.project.clips.some((clip) => clip.id === transition.toClipId)).toBe(true);
+  });
+
+  it("keeps hard cuts when transitionToNext is absent or cut", () => {
+    const base = artifact("editable-edl");
+    base.edl = [
+      { shotId: "shot-1", sourcePath: "/tmp/a.mp4", sourceInS: 0, sourceOutS: 3.2, timelineStartS: 0, durationS: 3.2,
+        transitionToNext: { effectId: "cut", durationUs: 300_000 } },
+      { shotId: "shot-2", sourcePath: "/tmp/b.mp4", sourceInS: 0, sourceOutS: 3.0, timelineStartS: 3.2, durationS: 3.0 },
+    ];
+    const result = projectVideoUseArtifactToEditingProject({ project: project(), artifact: base, now: 10 });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.project.transitions).toHaveLength(0);
+  });
+});

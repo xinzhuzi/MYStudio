@@ -82,8 +82,8 @@ Use the background workflow commands for unattended checks:
 
 ```bash
 npm run smoke:workflow:background
-npm run smoke:workflow:background:daojie
-npm run smoke:workflow:background:daojie -- --auto-video
+npm run smoke:workflow:background:project
+npm run smoke:workflow:background:project -- --auto-video
 npm run video:daojie:chapter001:probe-providers
 ```
 
@@ -176,3 +176,16 @@ Keep the final report short and evidence-based:
 - List fresh verification commands and results.
 - For install verification, include the matching `app.asar` hash.
 - If any step was skipped, say exactly why.
+
+---
+
+## 现行视频工作流事实（2026-08-14 起）
+
+唯一正式链路（所有验证以此为准）：
+
+1. `npm run remotion:chapter001:shots`（`render-shot-slots.ts`）— 43 镜 StoryboardShot MP4，**TTS 配音烘进每镜**（经 `bind-voice-audio.ts` + `update-storyboards-voice.ts` 完成 manifest/storyboard 绑定后重渲生效）。门禁开关：`MYSTUDIO_REQUIRE_HUMAN_APPROVAL=0`、`MYSTUDIO_CONTINUITY_POLICY=skip`（测试用途；正式发布仍需人工批准）。
+2. `npm run video:full-pipeline`（`run-full-pipeline.ts`）— video-use runChapter → accept → applyAcceptedArtifact（HyperFrames 透明特效层）→ chapter gate → 字幕归属校验（道劫 chapter-001 为 source-embedded：分镜图内嵌字幕，HyperFrames 禁文字模板、Remotion text clip=0）→ ChapterVideo 渲染。
+
+已删除的旧入口（不要再引用）：`render-daojie-remotion-timeline.ts`、`render-daojie-editing-timeline.ts`、`render-derived-chapter.ts`、`video:daojie:chapter001:remotion`。旧 `MYSTUDIO_DAOJIE_*` 环境变量已改名 `MYSTUDIO_*`（项目专属的仅存于 `apps/build/daojie/`）。
+
+成片验收最低顶（smoke 之外）：逐镜抽帧 vs 源 SSIM ≥ 0.90、有声（mean_volume > -60dB）、blackdetect 0 黑段、时长与 EDL 一致（1 帧容差）。QC 参考实现：`.trellis/tasks/archive/2026-08/08-14-three-plugin-chapter-video/research/three-plugin-fresh-qc.py`。

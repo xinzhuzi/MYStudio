@@ -47,7 +47,6 @@ function readStorageBasePathFromConfig(userDataDir: string) {
 export function resolveUserDataDir(explicitUserDataDir?: string) {
   return (explicitUserDataDir?.trim() ? path.resolve(explicitUserDataDir) : undefined)
     || envPath("MYSTUDIO_USER_DATA_DIR")
-    || envPath("MYSTUDIO_USER_DATA_DIR")
     || path.join(os.homedir(), "Library", "Application Support", APP_PROCESS_NAME);
 }
 

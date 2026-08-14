@@ -197,3 +197,16 @@ Report fresh evidence only:
 - Whether real visual inspection was done.
 - Whether the tested data was isolated smoke data or the user's real project data.
 - Any skipped step and exact reason.
+
+---
+
+## 现行视频工作流事实（2026-08-14 起）
+
+唯一正式链路（所有验证以此为准）：
+
+1. `npm run remotion:chapter001:shots`（`render-shot-slots.ts`）— 43 镜 StoryboardShot MP4，**TTS 配音烘进每镜**（经 `bind-voice-audio.ts` + `update-storyboards-voice.ts` 完成 manifest/storyboard 绑定后重渲生效）。门禁开关：`MYSTUDIO_REQUIRE_HUMAN_APPROVAL=0`、`MYSTUDIO_CONTINUITY_POLICY=skip`（测试用途；正式发布仍需人工批准）。
+2. `npm run video:full-pipeline`（`run-full-pipeline.ts`）— video-use runChapter → accept → applyAcceptedArtifact（HyperFrames 透明特效层）→ chapter gate → 字幕归属校验（道劫 chapter-001 为 source-embedded：分镜图内嵌字幕，HyperFrames 禁文字模板、Remotion text clip=0）→ ChapterVideo 渲染。
+
+已删除的旧入口（不要再引用）：`render-daojie-remotion-timeline.ts`、`render-daojie-editing-timeline.ts`、`render-derived-chapter.ts`、`video:daojie:chapter001:remotion`。旧 `MYSTUDIO_DAOJIE_*` 环境变量已改名 `MYSTUDIO_*`（项目专属的仅存于 `apps/build/daojie/`）。
+
+完整性断言清单需覆盖：accepted video-use artifact（43 EDL）、accepted HyperFrames artifact（43 窗口、无文字模板）、gate accepted、authority source-embedded、voice binding 烘进 shot MP4（抽镜 volumedetect 非静音）。

@@ -1,5 +1,6 @@
-import type { EditingClip, EditingProjectV1, SubtitleAuthority } from "@/types/editing";
+import type { EditingClip, EditingProjectV1, EditingTransition, SubtitleAuthority } from "@/types/editing";
 import { validateEditingProject } from "@/lib/studio/editing/validation";
+import { transitionParams } from "@/lib/studio/editing/transition-policy";
 import {
   createTimelineEdlEntries,
   validateVideoUseChapterArtifact,
@@ -135,6 +136,30 @@ export function projectVideoUseArtifactToEditingProject(input: {
       muted: true,
       subtitle: { sourceFormat: "generated" },
     }));
+  // Rebuild transitions from the accepted EDL boundary decisions. Visual
+  // clips were just re-projected, so stale transitions are replaced
+  // wholesale — the accepted artifact is the single source of transition
+  // truth. "cut" and absent boundaries stay implicit hard cuts.
+  const nextTransitions: EditingTransition[] = [];
+  if (artifact.mode !== "flat-shot-mp4") {
+    for (let index = 0; index < edl.length - 1; index += 1) {
+      const entry = edl[index]!;
+      const following = edl[index + 1]!;
+      const transition = entry.transitionToNext;
+      if (!transition || transition.effectId === "cut") continue;
+      const fromClip = nextVisual[index];
+      const toClip = nextVisual[index + 1];
+      if (!fromClip || !toClip) continue;
+      nextTransitions.push({
+        id: `transition-${entry.shotId}-${following.shotId}`,
+        fromClipId: fromClip.id,
+        toClipId: toClip.id,
+        effectId: transition.effectId,
+        durationUs: transition.durationUs,
+        params: transitionParams(transition.effectId),
+      });
+    }
+  }
   const replacedClips = new Set<EditingClip>([...oldVisual.values(), ...oldSubtitles]);
   const clips = [...project.clips.filter((clip) => !replacedClips.has(clip)), ...nextVisual, ...nextSubtitles];
   const mappedTracks = project.tracks.map((track) => {
@@ -159,6 +184,7 @@ export function projectVideoUseArtifactToEditingProject(input: {
     manuallyEdited: true,
     clips,
     tracks,
+    transitions: nextTransitions,
     renderSettings: { ...project.renderSettings, subtitleMode: subtitleAuthority.subtitleMode },
     updatedAt: input.now,
   };

@@ -5,6 +5,7 @@ import {
   buildDirectorPlanRepairUserMessage,
   buildDirectorPlanMessages,
   parseDirectorPlan,
+  parseDirectorPlanBoundaryIntents,
   detectLightingTerms,
   stripLightingTerms,
 } from "./director-plan";
@@ -379,5 +380,33 @@ describe("studio director plan messages", () => {
     for (const section of REQUIRED_DIRECTOR_PLAN_SECTIONS) {
       expect(repair).toContain(`## ${section}`);
     }
+  });
+});
+
+describe("director plan ⑥ structured boundary intents", () => {
+  const section = `**场间转场策略**：
+- Sc 1 → Sc 2：风格词=水墨晕染；氛围词=战斗
+- Sc 2 → Sc 3：风格词=同场景硬切；氛围词=日常
+- Sc 3 → Sc 4：风格词=剑痕；氛围词=天道
+- Sc 4 → Sc 5：风格词=梦境；氛围词=回忆
+
+**视觉连续性锚点**：……`;
+
+  it("parses every structured boundary line with fullwidth punctuation", () => {
+    const intents = parseDirectorPlanBoundaryIntents(section);
+    expect(intents).toHaveLength(4);
+    expect(intents[0]).toEqual({ fromScene: 1, toScene: 2, styleWord: "水墨晕染", moodWord: "战斗" });
+    expect(intents[3]).toEqual({ fromScene: 4, toScene: 5, styleWord: "梦境", moodWord: "回忆" });
+  });
+
+  it("accepts halfwidth colon, semicolon and arrow variants", () => {
+    const intents = parseDirectorPlanBoundaryIntents("- Sc 2 -> Sc 3: 风格词=血祭; 氛围词=阴谋");
+    expect(intents).toEqual([{ fromScene: 2, toScene: 3, styleWord: "血祭", moodWord: "阴谋" }]);
+  });
+
+  it("skips malformed lines and returns empty for legacy free text", () => {
+    expect(parseDirectorPlanBoundaryIntents("- Sc 1 → Sc 2：水墨晕染而已")).toEqual([]);
+    expect(parseDirectorPlanBoundaryIntents("场间用叠化过渡，具体视情绪而定。")).toEqual([]);
+    expect(parseDirectorPlanBoundaryIntents(undefined)).toEqual([]);
   });
 });

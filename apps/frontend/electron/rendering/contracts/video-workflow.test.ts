@@ -192,3 +192,46 @@ describe("video workflow persisted child contracts", () => {
     expect(validateVideoUseChapterArtifact(artifact).success).toBe(true);
   });
 });
+
+describe("video-use EDL transitionToNext validation", () => {
+  function artifactWithTransition(transition: Record<string, unknown>) {
+    const artifact = validVideoUseArtifact();
+    artifact.edl = [
+      { shotId: "shot-1", sourcePath: "/tmp/a.mp4", sourceInS: 0, sourceOutS: 3.2, timelineStartS: 0, durationS: 3.2, transitionToNext: transition },
+      { shotId: "shot-2", sourcePath: "/tmp/b.mp4", sourceInS: 0, sourceOutS: 3.0, timelineStartS: 3.2, durationS: 3.0 },
+    ];
+    return artifact;
+  }
+
+  it("accepts a legal crossfade transition with style word provenance", () => {
+    const result = validateVideoUseChapterArtifact(artifactWithTransition({ effectId: "crossfade", durationUs: 600_000, styleWord: "水墨晕染" }));
+    expect(result.success).toBe(true);
+  });
+
+  it("keeps legacy artifacts (no transitionToNext) valid", () => {
+    const artifact = validVideoUseArtifact();
+    expect((artifact.edl as Array<Record<string, unknown>>)[0]).not.toHaveProperty("transitionToNext");
+    expect(validateVideoUseChapterArtifact(artifact).success).toBe(true);
+  });
+
+  it.each([
+    ["unknown effectId", { effectId: "wipe", durationUs: 600_000 }],
+    ["too short", { effectId: "fade", durationUs: 100_000 }],
+    ["too long (hard cap)", { effectId: "fade", durationUs: 900_000 }],
+    ["over half of own shot", { effectId: "fade", durationUs: 1_800_000 }],
+    ["non-integer duration", { effectId: "fade", durationUs: 500_000.5 }],
+    ["not an object", "crossfade"],
+  ])("rejects %s", (_label, transition) => {
+    const result = validateVideoUseChapterArtifact(artifactWithTransition(transition as Record<string, unknown>));
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects a transition longer than half of the NEXT shot", () => {
+    const artifact = validVideoUseArtifact();
+    artifact.edl = [
+      { shotId: "shot-1", sourcePath: "/tmp/a.mp4", sourceInS: 0, sourceOutS: 3.2, timelineStartS: 0, durationS: 3.2, transitionToNext: { effectId: "fade", durationUs: 700_000 } },
+      { shotId: "shot-2", sourcePath: "/tmp/b.mp4", sourceInS: 0, sourceOutS: 0.9, timelineStartS: 3.2, durationS: 0.9 },
+    ];
+    expect(validateVideoUseChapterArtifact(artifact).success).toBe(false);
+  });
+});

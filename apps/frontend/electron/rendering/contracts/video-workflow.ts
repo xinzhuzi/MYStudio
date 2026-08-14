@@ -86,6 +86,9 @@ export interface VideoUseChapterRunV1 {
   stage: VideoWorkflowStage;
   timeUnit: typeof VIDEO_WORKFLOW_TIME_UNIT;
   shots: VideoUseShotInputV1[];
+  /** Director-plan boundary intents; the Python decision layer clamps and
+   * emits them as EDL transitionToNext records. Absent keeps hard cuts. */
+  boundaryIntents?: VideoUseBoundaryIntentV1[];
   sourceSha256: string;
   audioSha256: string;
   textSha256: string;
@@ -113,6 +116,16 @@ export interface VideoUseAlignmentCueV1 {
   words: VideoUseWordTimingV1[];
 }
 
+/** Transition decision attached to an EDL boundary (this shot → the next one).
+ * Emitted by the video-use decision layer from director-plan boundary intents;
+ * consumed by the editing projection into EditingProject.transitions. */
+export interface VideoUseTransitionToNextV1 {
+  effectId: "cut" | "fade" | "crossfade" | "flash" | "blackout";
+  durationUs: TimelineTimeUs;
+  /** Provenance style word from the director plan ⑥ section (水墨晕染/剑痕/…). */
+  styleWord?: string;
+}
+
 export interface VideoUseEdlEntryV1 {
   shotId: string;
   sourcePath: string;
@@ -120,6 +133,18 @@ export interface VideoUseEdlEntryV1 {
   sourceOutS: number;
   timelineStartS: number;
   durationS: number;
+  /** Optional; absent on legacy artifacts (hard-cut boundary). */
+  transitionToNext?: VideoUseTransitionToNextV1;
+}
+
+/** Director-plan boundary intent feeding the video-use decision layer. */
+export interface VideoUseBoundaryIntentV1 {
+  fromShotId: string;
+  toShotId: string;
+  effectId: VideoUseTransitionToNextV1["effectId"];
+  durationUs: TimelineTimeUs;
+  styleWord?: string;
+  moodWord?: string;
 }
 
 export interface VideoUseSubtitleCueV1 {
@@ -489,6 +514,43 @@ function validateOverlayWindow(value: unknown, path: string, issues: VideoWorkfl
   return true;
 }
 
+const TRANSITION_EFFECT_IDS = new Set(["cut", "fade", "crossfade", "flash", "blackout"]);
+const TRANSITION_MIN_US = 200_000;
+const TRANSITION_MAX_US = 800_000;
+
+function validateTransitionToNext(
+  entry: Record<string, unknown>,
+  nextDurationUs: number | undefined,
+  path: string,
+  issues: VideoWorkflowValidationIssue[],
+): void {
+  const transition = entry.transitionToNext;
+  if (transition === undefined) return;
+  if (!isRecord(transition)) {
+    issues.push(issue(`${path}.transitionToNext`, "必须是对象"));
+    return;
+  }
+  if (typeof transition.effectId !== "string" || !TRANSITION_EFFECT_IDS.has(transition.effectId)) {
+    issues.push(issue(`${path}.transitionToNext.effectId`, "必须是内置转场类型"));
+    return;
+  }
+  const durationUs = transition.durationUs;
+  if (typeof durationUs !== "number" || !Number.isSafeInteger(durationUs) || durationUs <= 0) {
+    issues.push(issue(`${path}.transitionToNext.durationUs`, "必须是正整数微秒"));
+    return;
+  }
+  if (durationUs < TRANSITION_MIN_US || durationUs > TRANSITION_MAX_US) {
+    issues.push(issue(`${path}.transitionToNext.durationUs`, `必须在 ${TRANSITION_MIN_US}-${TRANSITION_MAX_US}µs 内`));
+  }
+  const ownHalfUs = (Number(entry.durationS) || 0) * 1_000_000 / 2;
+  if (durationUs > ownHalfUs) {
+    issues.push(issue(`${path}.transitionToNext.durationUs`, "不得超过本镜时长一半"));
+  }
+  if (nextDurationUs !== undefined && durationUs > nextDurationUs / 2) {
+    issues.push(issue(`${path}.transitionToNext.durationUs`, "不得超过下一镜时长一半"));
+  }
+}
+
 function validateEdl(value: unknown, issues: VideoWorkflowValidationIssue[]): value is VideoUseEdlEntryV1[] {
   if (!Array.isArray(value) || value.length === 0) {
     issues.push(issue("$.edl", "至少需要一个 EDL 条目"));
@@ -514,6 +576,10 @@ function validateEdl(value: unknown, issues: VideoWorkflowValidationIssue[]): va
       if (startUs < previousTimelineEnd) issues.push(issue(`${path}.timelineStartS`, "timeline 必须单调"));
       previousTimelineEnd = startUs + Math.round(entry.durationS * 1_000_000);
     }
+    const nextDurationUs = isRecord(value[index + 1]) && isFiniteNonNegative((value[index + 1] as Record<string, unknown>).durationS)
+      ? Math.round((value[index + 1] as Record<string, unknown>).durationS as number * 1_000_000)
+      : undefined;
+    validateTransitionToNext(entry, nextDurationUs, path, issues);
   });
   return true;
 }

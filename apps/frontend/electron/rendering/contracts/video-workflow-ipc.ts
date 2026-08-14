@@ -7,6 +7,7 @@ import {
   type VideoWorkflowValidationResult,
   type VideoUseChapterArtifactV1,
   type VideoUseChapterRunV1,
+  type VideoUseBoundaryIntentV1,
   type VideoUseStoryboardSourcePolicy,
   type VideoWorkflowMode,
   SUPPORTED_ALPHA_FORMATS,
@@ -88,6 +89,9 @@ export interface VideoWorkflowChapterRunRequestV1 {
   /** Defaults to current-ready; reuse-existing is an explicit operator choice. */
   storyboardSourcePolicy?: VideoUseStoryboardSourcePolicy;
   shots: VideoUseChapterRunV1["shots"];
+  /** Optional director-plan boundary intents (transition decisions). Absent
+   * keeps legacy behavior: every boundary stays a hard cut. */
+  boundaryIntents?: VideoUseBoundaryIntentV1[];
   sourceSha256: string;
   audioSha256: string;
   textSha256: string;

@@ -74,3 +74,17 @@ Require every field above. Keep `durationTarget` positive and keep `requiresFixe
 - Assert every unique `speakerId` exists in the fixed voice map.
 - Assert every storyboard has a real audio path before final rendering.
 - Report exact storyboard IDs and reasons for all failures; do not approve a partial plan as complete.
+
+---
+
+## 配音落链事实（2026-08-14 起）
+
+本技能产出的 speaker/ttsSpokenText 经 TTS 生成 `exports/<chapterId>/voice-audio/shot-XXX.wav` 后，需按序执行（CLI，工作目录 `apps/`）：
+
+```bash
+npx vite-node --config build/timeline/vite-node.config.ts build/timeline/bind-voice-audio.ts          # wav → chapter manifest voice bindings
+npx vite-node --config build/timeline/vite-node.config.ts build/timeline/update-storyboards-voice.ts  # storyboard store 绑定 + audioRef 镜像 + ttsJob + subtitleAuthority + 清 stale（自动备份，拒绝重复绑定）
+MYSTUDIO_REQUIRE_HUMAN_APPROVAL=0 MYSTUDIO_CONTINUITY_POLICY=skip npm run remotion:chapter001:shots   # 重渲 43 镜，配音烘进 MP4
+```
+
+时长语义：每镜 durationUs = max(视觉时长, 配音时长 + 400ms 尾垫)；配音长于画面的镜头由 video-use `pad-video-to-audio` 自动补齐。回滚：store 备份文件 `studio-workflow-store.json.bak-voice-<ts>`。

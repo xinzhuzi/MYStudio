@@ -357,6 +357,39 @@ function normalizeSourceIdentity(identity?: StudioSourceIdentity): StudioSourceI
   };
 }
 
+/** One machine-readable boundary decision from the director plan ⑥ section. */
+export interface DirectorPlanBoundaryIntent {
+  fromScene: number;
+  toScene: number;
+  styleWord: string;
+  moodWord: string;
+}
+
+const BOUNDARY_INTENT_PATTERN =
+  /-?\s*Sc\s*(\d+)\s*(?:→|->)\s*Sc\s*(\d+)\s*[:：]\s*风格词\s*[:：=]\s*([^;；\n]+?)\s*[;；]\s*氛围词\s*[:：=]\s*([^\n]+)/g;
+
+/**
+ * Parse the structured boundary decision lines from a director plan ⑥
+ * section (`- Sc 1 → Sc 2：风格词=水墨晕染；氛围词=战斗`). Malformed lines are
+ * skipped silently — the free-text strategy stays authoritative for humans,
+ * and unparseable plans simply keep today's hard-cut behavior.
+ */
+export function parseDirectorPlanBoundaryIntents(
+  transitionsText: string | undefined,
+): DirectorPlanBoundaryIntent[] {
+  if (!transitionsText) return [];
+  const intents: DirectorPlanBoundaryIntent[] = [];
+  for (const match of transitionsText.matchAll(BOUNDARY_INTENT_PATTERN)) {
+    const fromScene = Number(match[1]);
+    const toScene = Number(match[2]);
+    const styleWord = match[3]?.trim() ?? "";
+    const moodWord = match[4]?.trim() ?? "";
+    if (!Number.isInteger(fromScene) || !Number.isInteger(toScene) || !styleWord) continue;
+    intents.push({ fromScene, toScene, styleWord, moodWord });
+  }
+  return intents;
+}
+
 function extractToonflowSection(body: string, title: string, stopTitles: string[]): string {
   const start = body.indexOf(title);
   if (start < 0) return "";

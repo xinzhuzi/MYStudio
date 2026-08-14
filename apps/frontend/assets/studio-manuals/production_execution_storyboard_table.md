@@ -45,6 +45,8 @@ description: >-
 
 **核心目标**：消灭片段切换时的“跳跃感”，确保视觉、动作与情绪的自然流动。
 
+> **职责边界**：本节写的是**叙事连贯技巧**（供人读）。机器转场（cut/fade/crossfade/flash/blackout）由导演规划⑥段的结构化决策行决定，经 video-use 决策层落到成片——分镜表**不加转场列**，也不要在出镜语义 JSON 里发明转场字段。
+
 1.  **动作的桥梁**：
     *   **触发条件**：两个相邻片段描述同一组人物的连续动作时。
     *   **设计原则**：**禁止让动作在片段边界“冻结”然后“跳转”**。前一片段的结尾必须是动作的“起始态”，后一片段的首镜必须是该动作的“进行时”或“完成时”。
@@ -182,3 +184,10 @@ description: >-
 8.  **只读引用资产**：严禁创建 / 修改 / 删除 / 生成任何资产或调用资产写入类工具。
 9.  **XML 一次性完整**：`<storyboardTable>…</storyboardTable>` 标签及全部内容一次性输出，禁止拆分为多次 XML 输出。
 10. **出镜语义可执行**：每一镜均有有效 `出镜语义JSON`；可见角色全部在该镜 `引用资产名称` 内；角色未入画时不得列入 `visibleCharacters`，也不得用场头参演角色替代本镜语义。
+
+
+---
+
+## 下游链路事实（2026-08-14 起）
+
+本技能输出经 storyboard store 驱动 `remotion:chapter001:shots` 渲染 StoryboardShot MP4（TTS 配音已烘入）；成片由 `video:full-pipeline` 走 video-use → HyperFrames → gate → source-embedded 字幕归属 → ChapterVideo 渲染。分镜表不加转场/特效列（由导演规划⑥段结构化行决定，见 production_execution_director_plan.md）。

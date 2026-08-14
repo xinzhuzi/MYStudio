@@ -48,7 +48,10 @@ import type {
   VideoWorkflowChapterApplyInput,
   HyperFramesOverlayWindowV1,
   RemotionChapterGateInputV1,
+  VideoUseBoundaryIntentV1,
 } from "@rendering/contracts/video-workflow";
+import { parseDirectorPlanBoundaryIntents } from "@/lib/studio/director-plan";
+import { clampTransitionDurationUs, styleWordTransition } from "@/lib/studio/editing/transition-policy";
 import type { CinematicConfig, CinematicCameraPreset } from "@rendering/plugins/remotion/composition/composition-props";
 import type { SubtitleAuthority, EditingProjectV1, TimelineRenderPlan } from "@/types/editing";
 import type { RemotionCurrentSlotV1 } from "@/types/remotion-workspace";
@@ -201,7 +204,95 @@ async function buildShotInputs(
   return shots;
 }
 
-/** Build a VideoUseChapterRunV1 (mirrors main.ts buildManagedVideoUseChapterRun). */
+/**
+ * Assemble director-plan boundary intents for the video-use decision layer.
+ * Reads the persisted ScriptPlan ⑥ section, parses the structured boundary
+ * lines, maps scene numbers onto storyboard scene groups (trackKey
+ * `chapter-XXX-scene-N`), and translates style words via transition-policy.
+ * Returns [] when the plan has no structured lines (legacy hard-cut behavior).
+ */
+async function buildBoundaryIntents(
+  projectDir: string,
+  chapterId: string,
+  shotInputs: ShotSlotInfo[],
+): Promise<VideoUseBoundaryIntentV1[]> {
+  const storePath = path.join(projectDir, "studio-workflow-store.json");
+  if (!fs.existsSync(storePath)) return [];
+  const store = JSON.parse(fs.readFileSync(storePath, "utf8")) as {
+    state?: { scriptPlans?: Array<{ episodeId?: string; transitions?: string }> };
+    scriptPlans?: Array<{ episodeId?: string; transitions?: string }>;
+  };
+  const plans = (store.state ?? store).scriptPlans ?? [];
+  const plan = plans.find((candidate) => candidate.episodeId === chapterId);
+  const sceneIntents = parseDirectorPlanBoundaryIntents(plan?.transitions);
+  if (sceneIntents.length === 0) return [];
+
+  // Scene membership per storyboard comes from trackKey (chapter scene groups).
+  const storeStoryboards = ((JSON.parse(fs.readFileSync(storePath, "utf8") as string) as {
+    state?: { storyboards?: Array<{ id: string; episodeId: string; index: number; trackKey?: string }> };
+    storyboards?: Array<{ id: string; episodeId: string; index: number; trackKey?: string }>;
+  }).state ?? {}).storyboards ?? [];
+  const chapterStoryboards = storeStoryboards
+    .filter((storyboard) => storyboard.episodeId === chapterId && typeof storyboard.trackKey === "string")
+    .sort((left, right) => left.index - right.index);
+  // Scene membership is interleaved on the timeline (cutaways return to
+  // earlier scenes), so an intent maps onto the FIRST pair of ADJACENT shots
+  // whose scenes match from→to exactly. Narrative pairs without an adjacent
+  // timeline boundary are warned and skipped — inventing one would attach a
+  // transition to the wrong cut.
+  const sceneByShotId = new Map<string, number>();
+  for (const storyboard of chapterStoryboards) {
+    const match = /scene-(\d+)$/.exec(storyboard.trackKey!);
+    if (match) sceneByShotId.set(storyboard.id, Number(match[1]));
+  }
+  const adjacentPairs: Array<{ from: string; to: string; fromScene: number; toScene: number }> = [];
+  for (let index = 0; index < chapterStoryboards.length - 1; index += 1) {
+    const from = chapterStoryboards[index]!;
+    const to = chapterStoryboards[index + 1]!;
+    const fromScene = sceneByShotId.get(from.id);
+    const toScene = sceneByShotId.get(to.id);
+    if (fromScene === undefined || toScene === undefined || fromScene === toScene) continue;
+    adjacentPairs.push({ from: from.id, to: to.id, fromScene, toScene });
+  }
+  const durationByShotId = new Map(shotInputs.map((input) => [input.shotId, input.durationUs]));
+
+  const intents: VideoUseBoundaryIntentV1[] = [];
+  for (const sceneIntent of sceneIntents) {
+    const pair = adjacentPairs.find(
+      (candidate) => candidate.fromScene === sceneIntent.fromScene && candidate.toScene === sceneIntent.toScene,
+    );
+    if (!pair) {
+      console.warn(
+        `[full-pipeline] boundary intent Sc${sceneIntent.fromScene}→Sc${sceneIntent.toScene} 在时间线上无相邻边界（场交错排布），跳过`,
+      );
+      continue;
+    }
+    const fromShotId = pair.from;
+    const toShotId = pair.to;
+    const transition = styleWordTransition(sceneIntent.styleWord);
+    if (!transition) continue; // 同场景硬切/未知词：保持硬切
+    const durationUs = clampTransitionDurationUs(transition.durationUs, [
+      durationByShotId.get(fromShotId) ?? 0,
+      durationByShotId.get(toShotId) ?? 0,
+    ]);
+    intents.push({
+      fromShotId,
+      toShotId,
+      effectId: transition.effectId,
+      durationUs,
+      styleWord: transition.styleWord,
+      moodWord: sceneIntent.moodWord || undefined,
+    });
+    console.log(
+      `[full-pipeline] boundary intent ${fromShotId} → ${toShotId}: ${transition.styleWord}=${transition.effectId} ${durationUs / 1e6}s (mood=${sceneIntent.moodWord || "-"})`,
+    );
+  }
+  return intents;
+}
+
+/**
+ * Build a VideoUseChapterRunV1 (mirrors main.ts buildManagedVideoUseChapterRun).
+ */
 function buildVideoUseChapterRun(
   request: VideoWorkflowChapterRunRequestV1,
   paths: ReturnType<typeof resolveVideoWorkflowRuntimePaths>,
@@ -221,6 +312,7 @@ function buildVideoUseChapterRun(
     stage: "preparing",
     timeUnit: "seconds",
     shots: request.shots.map((shot) => ({ ...shot })), // paths are already absolute
+    ...(request.boundaryIntents ? { boundaryIntents: request.boundaryIntents } : {}),
     sourceSha256: request.sourceSha256,
     audioSha256: request.audioSha256,
     textSha256: request.textSha256,
@@ -334,11 +426,23 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
 
   // ── 3. Resolve Electron binary (for HyperFrames) ──
   const hyperFramesProfileMarkerPath = path.join(storageBasePath, "hyperframes-profile", "profile.json");
-  let electronExecutable = process.execPath;
+  let electronExecutable = process.env.MYSTUDIO_HYPERFRAMES_ELECTRON
+    ?? process.execPath;
   if (fs.existsSync(hyperFramesProfileMarkerPath)) {
     const marker = JSON.parse(fs.readFileSync(hyperFramesProfileMarkerPath, "utf8")) as Record<string, unknown>;
     if (typeof marker.electronExecutable === "string" && fs.existsSync(marker.electronExecutable)) {
       electronExecutable = marker.electronExecutable;
+    }
+  }
+  // build-mac.sh removes /Applications/漫影工作室.app between packaging
+  // rounds, leaving the profile marker pointing at a deleted binary. Fall
+  // back to the dev Electron under node_modules (the HyperFrames sidecar only
+  // needs ELECTRON_RUN_AS_NODE, which the dev binary supports equally).
+  if (!fs.existsSync(electronExecutable)) {
+    const devElectron = path.join(appsRoot, "node_modules", "electron", "dist", "Electron.app", "Contents", "MacOS", "Electron");
+    if (fs.existsSync(devElectron)) {
+      console.warn(`[full-pipeline] electronExecutable 不存在(${electronExecutable})，回退开发用 Electron: ${devElectron}`);
+      electronExecutable = devElectron;
     }
   }
 
@@ -374,7 +478,12 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
     userDataDir, "remotion-runtime", "node_modules", ".remotion",
     "chrome-headless-shell", "mac-arm64", "chrome-headless-shell-mac-arm64", "chrome-headless-shell",
   );
-  const hyperFramesWorkerPath = path.join(appsRoot, "out", "main", "hyperframes-worker.cjs");
+  // build-mac.sh periodically cleans apps/out during packaging rounds; the
+  // MYSTUDIO_HYPERFRAMES_WORKER override lets pipeline runs point at a stable
+  // worker copy (e.g. apps/.cache/hyperframes-worker.cjs) instead of racing
+  // the packaging flow.
+  const hyperFramesWorkerPath = process.env.MYSTUDIO_HYPERFRAMES_WORKER
+    ?? path.join(appsRoot, "out", "main", "hyperframes-worker.cjs");
 
   const hyperFramesAdapter = createHyperFramesAdapter({
     storageBasePath: () => storageBasePath,
@@ -467,6 +576,11 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
   const audioSha256 = await sha256CanonicalJson(shotInputs.map((s) => ({ shotId: s.shotId, sha256: s.audioSha256 })));
   const textSha256 = await sha256CanonicalJson(shotInputs.map((s) => ({ shotId: s.shotId, sha256: s.textSha256 })));
 
+  // Director-plan boundary intents: parse the structured ⑥ lines, map scene
+  // boundaries onto the shot list (storyboard trackKey scene grouping), and
+  // translate each style word through the single-source transition policy.
+  const boundaryIntents = await buildBoundaryIntents(projectDir, chapterId, shotInputs);
+
   const runRequest: VideoWorkflowChapterRunRequestV1 = {
     schemaVersion: 1,
     projectId,
@@ -485,6 +599,7 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
       textSha256: s.textSha256,
       durationUs: s.durationUs,
     })),
+    ...(boundaryIntents.length > 0 ? { boundaryIntents } : {}),
     sourceSha256,
     audioSha256,
     textSha256,
@@ -663,8 +778,12 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
         source: clip.source,
       };
     }),
-    transitions: [],
-    effects: [],
+    // The accepted video-use artifact is the single source of transition
+    // truth; the projection already materialized it into the persisted
+    // EditingProject, so the plan must carry it through (hardcoding [] here
+    // would silently drop every boundary decision).
+    transitions: projectedProject.transitions,
+    effects: projectedProject.effects,
     createdAt: Date.now(),
   } as TimelineRenderPlan;
 

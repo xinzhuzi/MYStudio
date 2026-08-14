@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  clampTransitionDurationUs,
   explicitTransitionDuration,
   explicitTransitionEffect,
+  styleWordTransition,
   transitionParams,
 } from "./transition-policy";
 
@@ -38,5 +40,41 @@ describe("transition policy", () => {
     expect(transitionParams("blackout")).toEqual({ hold: 0.15 });
     expect(transitionParams("cut")).toEqual({});
     expect(transitionParams("fade")).not.toBe(transitionParams("fade"));
+  });
+});
+
+describe("style word transitions (director ⑥ structured vocabulary)", () => {
+  it.each([
+    ["水墨晕染", "crossfade", 600_000],
+    ["灵气色彩", "crossfade", 500_000],
+    ["境界跃迁", "flash", 400_000],
+    ["四季流转", "fade", 800_000],
+    ["剑痕", "flash", 300_000],
+    ["血祭", "blackout", 500_000],
+    ["梦境", "fade", 700_000],
+    ["前世", "fade", 700_000],
+    ["空镜呼吸", "fade", 600_000],
+  ] as const)("maps %s to %s @ %dµs", (word, effectId, durationUs) => {
+    expect(styleWordTransition(word)).toEqual({ styleWord: word === "前世" ? "梦境" : word, effectId, durationUs });
+  });
+
+  it("same-scene hard cut and unknown words produce no transition", () => {
+    expect(styleWordTransition("同场景硬切")).toBeNull();
+    expect(styleWordTransition("随便什么词")).toBeNull();
+    expect(styleWordTransition(undefined)).toBeNull();
+    expect(styleWordTransition("  ")).toBeNull();
+  });
+
+  it("clamps duration between 200ms and min(neighbor/2, 800ms)", () => {
+    // 常规:请求值在界内,原样返回
+    expect(clampTransitionDurationUs(500_000, [4_000_000, 3_000_000])).toBe(500_000);
+    // 上限:请求超过 800ms 上限
+    expect(clampTransitionDurationUs(1_200_000, [4_000_000, 3_000_000])).toBe(800_000);
+    // 邻居约束:较短邻居 900ms 的一半 = 450ms 封顶
+    expect(clampTransitionDurationUs(600_000, [4_000_000, 900_000])).toBe(450_000);
+    // 下限:请求过短抬到 200ms
+    expect(clampTransitionDurationUs(50_000, [4_000_000, 3_000_000])).toBe(200_000);
+    // 极短邻居(300ms,半长 150ms<下限):保底下限,不产生超过邻居的转场异常
+    expect(clampTransitionDurationUs(700_000, [300_000, 4_000_000])).toBe(200_000);
   });
 });

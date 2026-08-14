@@ -61,6 +61,72 @@ def _alignment_for_shot(alignment: dict[str, Any], shot_id: str) -> dict[str, An
     raise VideoUseAdapterError("alignment-shot-missing", f"alignment 缺少 shot: {shot_id}")
 
 
+_TRANSITION_EFFECT_IDS = {"cut", "fade", "crossfade", "flash", "blackout"}
+_TRANSITION_MIN_US = 200_000
+_TRANSITION_MAX_US = 800_000
+
+
+def _edl_entries_with_transitions(edl: dict[str, Any], request: dict[str, Any]) -> list[dict[str, Any]]:
+    """Build the artifact EDL and attach director-plan boundary decisions.
+
+    Boundary intents arrive pre-mapped (style word → built-in effectId) from
+    the TypeScript layer; this decision layer only clamps each duration
+    against both neighboring shots and fail-closes on unknown effect ids.
+    "cut" intents and unmatched boundaries stay implicit hard cuts.
+    """
+    entries: list[dict[str, Any]] = [
+        {
+            "shotId": item["source"],
+            "sourcePath": edl["sources"][item["source"]],
+            "sourceInS": float(item["start"]),
+            "sourceOutS": float(item["end"]),
+            "timelineStartS": sum(
+                float(previous["end"]) - float(previous["start"]) for previous in edl["ranges"][:index]
+            ),
+            "durationS": float(item["end"]) - float(item["start"]),
+        }
+        for index, item in enumerate(edl["ranges"])
+    ]
+    intents = request.get("boundaryIntents")
+    if not isinstance(intents, list) or not intents:
+        return entries
+    by_pair: dict[tuple[str, str], dict[str, Any]] = {}
+    for intent in intents:
+        if not isinstance(intent, dict):
+            raise VideoUseAdapterError("boundary-intent-invalid", "boundaryIntent 必须是对象")
+        effect_id = str(intent.get("effectId") or "")
+        if effect_id not in _TRANSITION_EFFECT_IDS:
+            raise VideoUseAdapterError(
+                "boundary-intent-effect-unknown", f"未知转场类型: {effect_id or '(空)'}"
+            )
+        from_shot = str(intent.get("fromShotId") or "")
+        to_shot = str(intent.get("toShotId") or "")
+        if not from_shot or not to_shot:
+            raise VideoUseAdapterError("boundary-intent-invalid", "boundaryIntent 缺少 fromShotId/toShotId")
+        by_pair[(from_shot, to_shot)] = intent
+    for index, entry in enumerate(entries):
+        following = entries[index + 1] if index + 1 < len(entries) else None
+        if following is None:
+            continue
+        intent = by_pair.get((str(entry["shotId"]), str(following["shotId"])))
+        if intent is None or str(intent["effectId"]) == "cut":
+            continue
+        requested = intent.get("durationUs")
+        if not isinstance(requested, int) or isinstance(requested, bool) or requested <= 0:
+            raise VideoUseAdapterError("boundary-intent-invalid", "boundaryIntent durationUs 必须为正整数微秒")
+        ceiling = min(
+            _TRANSITION_MAX_US,
+            int(float(entry["durationS"]) * 1_000_000) // 2,
+            int(float(following["durationS"]) * 1_000_000) // 2,
+        )
+        duration = min(max(requested, _TRANSITION_MIN_US), max(_TRANSITION_MIN_US, ceiling))
+        transition: dict[str, Any] = {"effectId": str(intent["effectId"]), "durationUs": duration}
+        if intent.get("styleWord"):
+            transition["styleWord"] = str(intent["styleWord"])
+        entry["transitionToNext"] = transition
+    return entries
+
+
 def _validate_alignment_identity(request: dict[str, Any], alignment: dict[str, Any]) -> None:
     if alignment.get("schemaVersion") != 1 or alignment.get("status") != "ready":
         raise VideoUseAdapterError("alignment-not-ready", "alignment artifact 必须是 schema 1/ready")
@@ -612,17 +678,7 @@ def execute_pinned_adapter(
         "audioSha256": audio_sha,
         "textSha256": text_sha,
         "alignment": cues,
-        "edl": [
-            {
-                "shotId": item["source"],
-                "sourcePath": edl["sources"][item["source"]],
-                "sourceInS": float(item["start"]),
-                "sourceOutS": float(item["end"]),
-                "timelineStartS": sum(float(previous["end"]) - float(previous["start"]) for previous in edl["ranges"][:index]),
-                "durationS": float(item["end"]) - float(item["start"]),
-            }
-            for index, item in enumerate(edl["ranges"])
-        ],
+        "edl": _edl_entries_with_transitions(edl, effective_request),
         "subtitles": subtitles,
         "grade": {"filter": str(edl["grade"]), "parameters": {"preset": str(edl["grade"])}},
         "overlaySlots": [],
