@@ -496,6 +496,20 @@ function parseShotSemantics(
     errors.push(`分镜 ${index} 出镜语义JSON不能重复同一道具`);
     return undefined;
   }
+  const transitionRaw = semantic.transitionToNext;
+  let transitionToNext: StoryboardShotSemantics["transitionToNext"];
+  if (transitionRaw !== undefined) {
+    if (!transitionRaw || typeof transitionRaw !== "object" || Array.isArray(transitionRaw)
+      || !isNonEmptyString((transitionRaw as Record<string, unknown>).styleWord)) {
+      errors.push(`分镜 ${index} transitionToNext 必须是 {styleWord, moodWord?} 且 styleWord 非空`);
+      return undefined;
+    }
+    const transition = transitionRaw as { styleWord: unknown; moodWord?: unknown };
+    transitionToNext = {
+      styleWord: String(transition.styleWord).trim(),
+      ...(isNonEmptyString(transition.moodWord) ? { moodWord: transition.moodWord.trim() } : {}),
+    };
+  }
   return {
     sceneViewpointId: sceneViewpointId.trim(),
     personFree,
@@ -503,6 +517,7 @@ function parseShotSemantics(
     visibleProps: parsedProps,
     actionIn: actionIn.trim(),
     actionOut: actionOut.trim(),
+    ...(transitionToNext ? { transitionToNext } : {}),
   };
 }
 

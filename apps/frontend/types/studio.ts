@@ -250,6 +250,15 @@ export interface StoryboardShotSemantics {
   visibleProps: StoryboardVisiblePropSemantic[];
   actionIn: string;
   actionOut: string;
+  /** Shot-to-shot transition intent for the boundary AFTER this shot. The
+   * storyboard stage is where shot boundaries are born, so this is the
+   * authoritative per-boundary intent; "同场景硬切" is a first-class rhythmic
+   * choice, not an absence of one. Style words map to built-in effects in
+   * lib/studio/editing/transition-policy.ts (single source). */
+  transitionToNext?: {
+    styleWord: string;
+    moodWord?: string;
+  };
 }
 
 export interface ShotContinuityState {

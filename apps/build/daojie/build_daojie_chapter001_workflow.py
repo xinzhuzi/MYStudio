@@ -3250,7 +3250,7 @@ def build_script_plan(shots=None):
         "- Sc 1-3 → Sc 1-4：晏燎掌心余红熄下，化成残卷边缘裂痕。",
         "- Sc 1-4 → Sc 1-5：铜钱立起的细响延续到窗外缆绳绷紧，室内命数接上室外追兵。",
         "",
-        "【场间转场决策】(全边界覆盖,禁止硬切)",
+        "【场间转场决策]",
         *transition_decision_lines(shots),
         "",
         "**视觉连续性锚点**：",
@@ -3289,10 +3289,10 @@ TRANSITION_DECISIONS = {
 
 
 def transition_decision_lines(shots):
-    """全边界覆盖的结构化转场决策行(零硬切)。镜号越界时该边界默认水墨晕染。"""
+    """逐边界的结构化转场决策行。硬切是正当节奏效果;未列出的边界默认同场景硬切。"""
     lines = []
     for from_index in range(1, max(1, len(shots))):
-        style, mood = TRANSITION_DECISIONS.get(from_index, ("水墨晕染", "战斗"))
+        style, mood = TRANSITION_DECISIONS.get(from_index, ("同场景硬切", "承接"))
         lines.append(f"- 镜{from_index} → 镜{from_index + 1}：风格词={style}；氛围词={mood}")
     return lines
 

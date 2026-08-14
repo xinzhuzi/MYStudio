@@ -50,8 +50,7 @@ import type {
   RemotionChapterGateInputV1,
   VideoUseBoundaryIntentV1,
 } from "@rendering/contracts/video-workflow";
-import { parseDirectorPlanBoundaryIntents } from "@/lib/studio/director-plan";
-import { clampTransitionDurationUs, styleWordTransition } from "@/lib/studio/editing/transition-policy";
+import { assembleBoundaryIntents } from "@/lib/studio/video-workflow/boundary-intent-assembly";
 import type { CinematicConfig, CinematicCameraPreset } from "@rendering/plugins/remotion/composition/composition-props";
 import type { SubtitleAuthority, EditingProjectV1, TimelineRenderPlan } from "@/types/editing";
 import type { RemotionCurrentSlotV1 } from "@/types/remotion-workspace";
@@ -204,13 +203,6 @@ async function buildShotInputs(
   return shots;
 }
 
-/**
- * Assemble director-plan boundary intents for the video-use decision layer.
- * Reads the persisted ScriptPlan ⑥ section, parses the structured boundary
- * lines, maps scene numbers onto storyboard scene groups (trackKey
- * `chapter-XXX-scene-N`), and translates style words via transition-policy.
- * Returns [] when the plan has no structured lines (legacy hard-cut behavior).
- */
 async function buildBoundaryIntents(
   projectDir: string,
   chapterId: string,
@@ -219,92 +211,28 @@ async function buildBoundaryIntents(
   const storePath = path.join(projectDir, "studio-workflow-store.json");
   if (!fs.existsSync(storePath)) return [];
   const store = JSON.parse(fs.readFileSync(storePath, "utf8")) as {
-    state?: { scriptPlans?: Array<{ episodeId?: string; transitions?: string }> };
-    scriptPlans?: Array<{ episodeId?: string; transitions?: string }>;
+    state?: {
+      storyboards?: Array<{ id: string; episodeId: string; index: number; trackKey?: string; shotSemantics?: { transitionToNext?: { styleWord: string; moodWord?: string } } }>;
+      scriptPlans?: Array<{ episodeId?: string; transitions?: string }>;
+    };
   };
-  const plans = (store.state ?? store).scriptPlans ?? [];
-  const plan = plans.find((candidate) => candidate.episodeId === chapterId);
-  const sceneIntents = parseDirectorPlanBoundaryIntents(plan?.transitions);
-  if (sceneIntents.length === 0) return [];
-
-  // Scene membership per storyboard comes from trackKey (chapter scene groups).
-  const storeStoryboards = ((JSON.parse(fs.readFileSync(storePath, "utf8") as string) as {
-    state?: { storyboards?: Array<{ id: string; episodeId: string; index: number; trackKey?: string }> };
-    storyboards?: Array<{ id: string; episodeId: string; index: number; trackKey?: string }>;
-  }).state ?? {}).storyboards ?? [];
-  const chapterStoryboards = storeStoryboards
-    .filter((storyboard) => storyboard.episodeId === chapterId && typeof storyboard.trackKey === "string")
-    .sort((left, right) => left.index - right.index);
-  // Scene membership is interleaved on the timeline (cutaways return to
-  // earlier scenes), so an intent maps onto the FIRST pair of ADJACENT shots
-  // whose scenes match from→to exactly. Narrative pairs without an adjacent
-  // timeline boundary are warned and skipped — inventing one would attach a
-  // transition to the wrong cut.
-  const sceneByShotId = new Map<string, number>();
-  for (const storyboard of chapterStoryboards) {
-    const match = /scene-(\d+)$/.exec(storyboard.trackKey!);
-    if (match) sceneByShotId.set(storyboard.id, Number(match[1]));
-  }
-  const adjacentPairs: Array<{ from: string; to: string; fromScene: number; toScene: number }> = [];
-  for (let index = 0; index < chapterStoryboards.length - 1; index += 1) {
-    const from = chapterStoryboards[index]!;
-    const to = chapterStoryboards[index + 1]!;
-    const fromScene = sceneByShotId.get(from.id);
-    const toScene = sceneByShotId.get(to.id);
-    if (fromScene === undefined || toScene === undefined || fromScene === toScene) continue;
-    adjacentPairs.push({ from: from.id, to: to.id, fromScene, toScene });
-  }
-  const durationByShotId = new Map(shotInputs.map((input) => [input.shotId, input.durationUs]));
-
-  const shotIdByIndex = new Map(chapterStoryboards.map((storyboard) => [storyboard.index, storyboard.id]));
-  const intents: VideoUseBoundaryIntentV1[] = [];
-  for (const sceneIntent of sceneIntents) {
-    let fromShotId: string | undefined;
-    let toShotId: string | undefined;
-    if (sceneIntent.fromShotIndex !== undefined && sceneIntent.toShotIndex !== undefined) {
-      // Shot-level (intra-scene) intent: pin the exact adjacent storyboard pair.
-      const from = shotIdByIndex.get(sceneIntent.fromShotIndex);
-      const to = shotIdByIndex.get(sceneIntent.toShotIndex);
-      if (sceneIntent.toShotIndex !== sceneIntent.fromShotIndex + 1 || !from || !to) {
-        console.warn(
-          `[full-pipeline] 镜级 intent 镜${sceneIntent.fromShotIndex}→镜${sceneIntent.toShotIndex} 非相邻或不存在，跳过`,
-        );
-        continue;
-      }
-      fromShotId = from;
-      toShotId = to;
-    } else {
-      const pair = adjacentPairs.find(
-        (candidate) => candidate.fromScene === sceneIntent.fromScene && candidate.toScene === sceneIntent.toScene,
-      );
-      if (!pair) {
-        console.warn(
-          `[full-pipeline] boundary intent Sc${sceneIntent.fromScene}→Sc${sceneIntent.toScene} 在时间线上无相邻边界（场交错排布），跳过`,
-        );
-        continue;
-      }
-      fromShotId = pair.from;
-      toShotId = pair.to;
-    }
-    const transition = styleWordTransition(sceneIntent.styleWord);
-    if (!transition) continue; // 同场景硬切/未知词：保持硬切
-    const durationUs = clampTransitionDurationUs(transition.durationUs, [
-      durationByShotId.get(fromShotId) ?? 0,
-      durationByShotId.get(toShotId) ?? 0,
-    ]);
-    intents.push({
-      fromShotId,
-      toShotId,
-      effectId: transition.effectId,
-      durationUs,
-      styleWord: transition.styleWord,
-      moodWord: sceneIntent.moodWord || undefined,
-    });
+  const state = store.state ?? store;
+  const plan = (state.scriptPlans ?? []).find((candidate) => candidate.episodeId === chapterId);
+  const storyboards = (state.storyboards ?? []).filter((storyboard) => storyboard.episodeId === chapterId);
+  const { intents, warnings } = assembleBoundaryIntents({
+    storyboards,
+    ...(plan?.transitions ? { scriptPlanTransitions: plan.transitions } : {}),
+    shotDurationUsById: new Map(shotInputs.map((input) => [input.shotId, input.durationUs])),
+  });
+  for (const warning of warnings) console.warn(`[full-pipeline] ${warning}`);
+  for (const intent of intents) {
     console.log(
-      `[full-pipeline] boundary intent ${fromShotId} → ${toShotId}: ${transition.styleWord}=${transition.effectId} ${durationUs / 1e6}s (mood=${sceneIntent.moodWord || "-"})`,
+      `[full-pipeline] boundary intent ${intent.fromShotId} → ${intent.toShotId}: ` +
+      `${intent.styleWord}=${intent.effectId} ${intent.durationUs / 1e6}s (mood=${intent.moodWord ?? "-"})`,
     );
   }
   return intents;
+}
 }
 
 /**
