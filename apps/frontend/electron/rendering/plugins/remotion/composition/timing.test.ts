@@ -55,12 +55,12 @@ describe("transitionOverlapFrames", () => {
 
   it("overlaps by the transition duration in frames", () => {
     // 200_000us at 30fps = 6 frames, both neighbours long enough.
-    expect(transitionOverlapFrames(fade(200_000), 30, 30, FPS)).toBe(4);
+    expect(transitionOverlapFrames(fade(200_000), 30, 30, FPS)).toBe(6);
   });
 
   it("clamps overlap so each neighbour keeps at least one frame", () => {
-    // Requested 30 frames but the shorter neighbour is 10 frames -> max 9.
-    expect(transitionOverlapFrames(fade(1_000_000), 30, 10, FPS)).toBe(1);
+    // Requested 30 frames; shorter neighbour 10 frames -> half = 5.
+    expect(transitionOverlapFrames(fade(1_000_000), 30, 10, FPS)).toBe(5);
   });
 });
 
@@ -86,7 +86,7 @@ describe("layoutVisualTimeline", () => {
   });
 
   it("pulls clips earlier by transition overlap and shortens total duration", () => {
-    // fade a->b overlaps 6 frames; b->c cut has no overlap.
+    // fade a->b overlaps the full 6 requested frames; b->c cut has no overlap.
     const transitions: CompositionTransitionInput[] = [
       { fromClipId: "a", toClipId: "b", effectId: "fade", durationUs: 200_000 },
       { fromClipId: "b", toClipId: "c", effectId: "cut", durationUs: 0 },
@@ -94,11 +94,11 @@ describe("layoutVisualTimeline", () => {
     const timeline = layoutVisualTimeline(clips, transitions, FPS);
     expect(timeline.clips).toEqual([
       { clipId: "a", from: 0, durationInFrames: 30 },
-      { clipId: "b", from: 26, durationInFrames: 30 },
-      { clipId: "c", from: 56, durationInFrames: 30 },
+      { clipId: "b", from: 24, durationInFrames: 30 },
+      { clipId: "c", from: 54, durationInFrames: 30 },
     ]);
-    // 90 total minus two 4-frame (15%-capped) overlaps = 86.
-    expect(timeline.durationInFrames).toBe(86);
+    // 90 total minus the 6-frame overlap = 84.
+    expect(timeline.durationInFrames).toBe(84);
   });
 
   it("handles a single clip and empty timeline", () => {

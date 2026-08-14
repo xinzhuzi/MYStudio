@@ -357,20 +357,28 @@ function normalizeSourceIdentity(identity?: StudioSourceIdentity): StudioSourceI
   };
 }
 
-/** One machine-readable boundary decision from the director plan ⑥ section. */
+/** One machine-readable boundary decision from the director plan ⑥ section.
+ * Scene-level lines (`Sc 1 → Sc 2`) resolve to the first adjacent timeline
+ * boundary between those scene groups; shot-level lines (`镜6 → 镜7`) pin a
+ * specific intra-scene boundary by storyboard index. */
 export interface DirectorPlanBoundaryIntent {
-  fromScene: number;
-  toScene: number;
   styleWord: string;
   moodWord: string;
+  fromScene?: number;
+  toScene?: number;
+  fromShotIndex?: number;
+  toShotIndex?: number;
 }
 
-const BOUNDARY_INTENT_PATTERN =
+const SCENE_BOUNDARY_INTENT_PATTERN =
   /-?\s*Sc\s*(\d+)\s*(?:→|->)\s*Sc\s*(\d+)\s*[:：]\s*风格词\s*[:：=]\s*([^;；\n]+?)\s*[;；]\s*氛围词\s*[:：=]\s*([^\n]+)/g;
+const SHOT_BOUNDARY_INTENT_PATTERN =
+  /-?\s*镜\s*(\d+)\s*(?:→|->)\s*镜\s*(\d+)\s*[:：]\s*风格词\s*[:：=]\s*([^;；\n]+?)\s*[;；]\s*氛围词\s*[:：=]\s*([^\n]+)/g;
 
 /**
  * Parse the structured boundary decision lines from a director plan ⑥
- * section (`- Sc 1 → Sc 2：风格词=水墨晕染；氛围词=战斗`). Malformed lines are
+ * section (`- Sc 1 → Sc 2：风格词=水墨晕染；氛围词=战斗` or the intra-scene
+ * shot variant `- 镜6 → 镜7：风格词=…；氛围词=…`). Malformed lines are
  * skipped silently — the free-text strategy stays authoritative for humans,
  * and unparseable plans simply keep today's hard-cut behavior.
  */
@@ -379,13 +387,25 @@ export function parseDirectorPlanBoundaryIntents(
 ): DirectorPlanBoundaryIntent[] {
   if (!transitionsText) return [];
   const intents: DirectorPlanBoundaryIntent[] = [];
-  for (const match of transitionsText.matchAll(BOUNDARY_INTENT_PATTERN)) {
-    const fromScene = Number(match[1]);
-    const toScene = Number(match[2]);
+  for (const match of transitionsText.matchAll(SCENE_BOUNDARY_INTENT_PATTERN)) {
     const styleWord = match[3]?.trim() ?? "";
-    const moodWord = match[4]?.trim() ?? "";
-    if (!Number.isInteger(fromScene) || !Number.isInteger(toScene) || !styleWord) continue;
-    intents.push({ fromScene, toScene, styleWord, moodWord });
+    if (!styleWord) continue;
+    intents.push({
+      fromScene: Number(match[1]),
+      toScene: Number(match[2]),
+      styleWord,
+      moodWord: match[4]?.trim() ?? "",
+    });
+  }
+  for (const match of transitionsText.matchAll(SHOT_BOUNDARY_INTENT_PATTERN)) {
+    const styleWord = match[3]?.trim() ?? "";
+    if (!styleWord) continue;
+    intents.push({
+      fromShotIndex: Number(match[1]),
+      toShotIndex: Number(match[2]),
+      styleWord,
+      moodWord: match[4]?.trim() ?? "",
+    });
   }
   return intents;
 }

@@ -42,7 +42,7 @@ describe("timeline render compiler", () => {
   it("rejects overlapping main visuals and transitions above the conservative limit", () => {
     const project = fiveShotProject();
     project.clips.find((clip) => clip.id === "visual-2")!.startUs = 3_000_000;
-    project.transitions[0]!.durationUs = 700_000;
+    project.transitions[0]!.durationUs = 1_300_000;
 
     const result = compileTimelineRenderPlan(project, {
       jobId: "render-invalid",

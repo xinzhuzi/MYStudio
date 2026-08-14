@@ -18,7 +18,6 @@ describe("transitionStyleAtFrame", () => {
   it.each([
     ["fade", "#000000"],
     ["blackout", "#000000"],
-    ["flash", "#ffffff"],
   ] as const)("%s hides the clip switch at the color midpoint", (effectId, color) => {
     expect(transitionStyleAtFrame(effectId, 0, 11)).toEqual({
       incomingOpacity: 0,
@@ -35,6 +34,20 @@ describe("transitionStyleAtFrame", () => {
       overlayColor: color,
       overlayOpacity: 0,
     });
+  });
+
+  it("flash peaks at a softened 0.6 instead of full white", () => {
+    expect(transitionStyleAtFrame("flash", 5, 11)).toEqual({
+      incomingOpacity: 0,
+      overlayColor: "#ffffff",
+      overlayOpacity: 0.6,
+    });
+  });
+
+  it("crossfade eases with smoothstep (quarter point stays below linear)", () => {
+    expect(transitionStyleAtFrame("crossfade", 2, 11).incomingOpacity).toBeCloseTo(0.104, 3);
+    expect(transitionStyleAtFrame("crossfade", 5, 11).incomingOpacity).toBe(0.5);
+    expect(transitionStyleAtFrame("crossfade", 8, 11).incomingOpacity).toBeCloseTo(0.896, 3);
   });
 
   it("clamps frames to the transition range", () => {

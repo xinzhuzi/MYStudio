@@ -516,7 +516,7 @@ function validateOverlayWindow(value: unknown, path: string, issues: VideoWorkfl
 
 const TRANSITION_EFFECT_IDS = new Set(["cut", "fade", "crossfade", "flash", "blackout"]);
 const TRANSITION_MIN_US = 200_000;
-const TRANSITION_MAX_US = 800_000;
+const TRANSITION_MAX_US = 1_200_000;
 
 function validateTransitionToNext(
   entry: Record<string, unknown>,

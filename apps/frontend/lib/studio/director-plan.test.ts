@@ -404,6 +404,14 @@ describe("director plan ⑥ structured boundary intents", () => {
     expect(intents).toEqual([{ fromScene: 2, toScene: 3, styleWord: "血祭", moodWord: "阴谋" }]);
   });
 
+  it("parses shot-level (intra-scene) boundary lines alongside scene lines", () => {
+    const mixed = "- Sc 1 → Sc 2：风格词=水墨晕染；氛围词=战斗\n- 镜5 → 镜6：风格词=血祭；氛围词=阴谋";
+    const intents = parseDirectorPlanBoundaryIntents(mixed);
+    expect(intents).toHaveLength(2);
+    expect(intents[0]).toMatchObject({ fromScene: 1, toScene: 2, styleWord: "水墨晕染" });
+    expect(intents[1]).toMatchObject({ fromShotIndex: 5, toShotIndex: 6, styleWord: "血祭", moodWord: "阴谋" });
+  });
+
   it("skips malformed lines and returns empty for legacy free text", () => {
     expect(parseDirectorPlanBoundaryIntents("- Sc 1 → Sc 2：水墨晕染而已")).toEqual([]);
     expect(parseDirectorPlanBoundaryIntents("场间用叠化过渡，具体视情绪而定。")).toEqual([]);

@@ -79,10 +79,12 @@ export function transitionOverlapFrames(
     0,
     Math.min(fromDurationInFrames, toDurationInFrames) - 1,
   );
-  // The timeline render compiler caps every non-cut transition at 15% of the
-  // shorter clip before blending (timeline-render-compiler.ts).
-  const maxByFfmpegTransition = Math.floor(Math.min(fromDurationInFrames, toDurationInFrames) * 0.15);
-  return Math.max(0, Math.min(requested, maxByNeighbours, maxByFfmpegTransition));
+  // A transition may consume at most half of its shorter neighbour — the same
+  // bound the video-use contract validator and the Python decision layer
+  // enforce. (The legacy 15% FFmpeg-compiler cap was retired with the bypass
+  // lineage; slow ink-wash crossfades need the full half-neighbour budget.)
+  const maxByHalfNeighbour = Math.floor(Math.min(fromDurationInFrames, toDurationInFrames) * 0.5);
+  return Math.max(0, Math.min(requested, maxByNeighbours, maxByHalfNeighbour));
 }
 
 // Lay ordered main-visual clips end-to-end, pulling each clip earlier by the

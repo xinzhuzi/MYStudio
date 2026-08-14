@@ -63,7 +63,7 @@ def _alignment_for_shot(alignment: dict[str, Any], shot_id: str) -> dict[str, An
 
 _TRANSITION_EFFECT_IDS = {"cut", "fade", "crossfade", "flash", "blackout"}
 _TRANSITION_MIN_US = 200_000
-_TRANSITION_MAX_US = 800_000
+_TRANSITION_MAX_US = 1_200_000
 
 
 def _edl_entries_with_transitions(edl: dict[str, Any], request: dict[str, Any]) -> list[dict[str, Any]]:

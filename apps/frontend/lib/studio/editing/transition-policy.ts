@@ -29,14 +29,14 @@ export interface StyleWordTransition {
 }
 
 const STYLE_WORD_TRANSITIONS: ReadonlyArray<{ match: RegExp } & StyleWordTransition> = [
-  { match: /水墨晕染/, styleWord: "水墨晕染", effectId: "crossfade", durationUs: 600_000 },
-  { match: /灵气色彩/, styleWord: "灵气色彩", effectId: "crossfade", durationUs: 500_000 },
-  { match: /境界跃迁/, styleWord: "境界跃迁", effectId: "flash", durationUs: 400_000 },
+  { match: /水墨晕染/, styleWord: "水墨晕染", effectId: "crossfade", durationUs: 1_000_000 },
+  { match: /灵气色彩/, styleWord: "灵气色彩", effectId: "crossfade", durationUs: 800_000 },
+  { match: /境界跃迁/, styleWord: "境界跃迁", effectId: "flash", durationUs: 500_000 },
   { match: /四季流转/, styleWord: "四季流转", effectId: "fade", durationUs: 800_000 },
   { match: /剑痕/, styleWord: "剑痕", effectId: "flash", durationUs: 300_000 },
-  { match: /血祭/, styleWord: "血祭", effectId: "blackout", durationUs: 500_000 },
-  { match: /梦境|前世/, styleWord: "梦境", effectId: "fade", durationUs: 700_000 },
-  { match: /空镜呼吸/, styleWord: "空镜呼吸", effectId: "fade", durationUs: 600_000 },
+  { match: /血祭/, styleWord: "血祭", effectId: "blackout", durationUs: 800_000 },
+  { match: /梦境|前世/, styleWord: "梦境", effectId: "fade", durationUs: 1_000_000 },
+  { match: /空镜呼吸/, styleWord: "空镜呼吸", effectId: "fade", durationUs: 1_000_000 },
 ];
 
 export const SAME_SCENE_STYLE_WORD = "同场景硬切";
@@ -57,7 +57,7 @@ export function clampTransitionDurationUs(
   neighborDurationUs: ReadonlyArray<number>,
 ): number {
   const MIN_TRANSITION_US = 200_000;
-  const MAX_TRANSITION_US = 800_000;
+  const MAX_TRANSITION_US = 1_200_000;
   const neighborCeil = neighborDurationUs.length > 0
     ? Math.min(...neighborDurationUs.map((duration) => Math.floor(duration / 2)))
     : MAX_TRANSITION_US;
@@ -84,9 +84,9 @@ export function transitionParams(
     case "fade":
       return { opacity: 1 };
     case "crossfade":
-      return { curve: "linear" };
+      return { curve: "ease-in-out" };
     case "flash":
-      return { intensity: 0.8 };
+      return { intensity: 0.55 };
     case "blackout":
       return { hold: 0.15 };
     case "cut":

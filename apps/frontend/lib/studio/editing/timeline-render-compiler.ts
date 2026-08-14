@@ -132,7 +132,9 @@ function validateCompilerInvariants(
     const from = clipById.get(transition.fromClipId);
     const to = clipById.get(transition.toClipId);
     if (!from || !to) continue;
-    const maxDurationUs = Math.min(350_000, Math.floor(Math.min(from.durationUs, to.durationUs) * 0.15));
+    // Aligned with the video-use transition contract: 1.2s hard cap and at
+    // most half of the shorter neighbour (contracts/video-workflow.ts).
+    const maxDurationUs = Math.min(1_200_000, Math.floor(Math.min(from.durationUs, to.durationUs) * 0.5));
     if (transition.durationUs > maxDurationUs) {
       issues.push(issue(
         "editing.render.transition_too_long",

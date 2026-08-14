@@ -208,6 +208,11 @@ describe("video-use EDL transitionToNext validation", () => {
     expect(result.success).toBe(true);
   });
 
+  it("accepts a slow ink-wash crossfade at 1s (tuned ceiling 1.2s)", () => {
+    const result = validateVideoUseChapterArtifact(artifactWithTransition({ effectId: "crossfade", durationUs: 1_000_000, styleWord: "水墨晕染" }));
+    expect(result.success).toBe(true);
+  });
+
   it("keeps legacy artifacts (no transitionToNext) valid", () => {
     const artifact = validVideoUseArtifact();
     expect((artifact.edl as Array<Record<string, unknown>>)[0]).not.toHaveProperty("transitionToNext");
@@ -217,7 +222,7 @@ describe("video-use EDL transitionToNext validation", () => {
   it.each([
     ["unknown effectId", { effectId: "wipe", durationUs: 600_000 }],
     ["too short", { effectId: "fade", durationUs: 100_000 }],
-    ["too long (hard cap)", { effectId: "fade", durationUs: 900_000 }],
+    ["too long (hard cap)", { effectId: "fade", durationUs: 1_300_000 }],
     ["over half of own shot", { effectId: "fade", durationUs: 1_800_000 }],
     ["non-integer duration", { effectId: "fade", durationUs: 500_000.5 }],
     ["not an object", "crossfade"],

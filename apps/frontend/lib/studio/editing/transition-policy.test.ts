@@ -35,8 +35,8 @@ describe("transition policy", () => {
 
   it("returns the canonical params for every transition effect", () => {
     expect(transitionParams("fade")).toEqual({ opacity: 1 });
-    expect(transitionParams("crossfade")).toEqual({ curve: "linear" });
-    expect(transitionParams("flash")).toEqual({ intensity: 0.8 });
+    expect(transitionParams("crossfade")).toEqual({ curve: "ease-in-out" });
+    expect(transitionParams("flash")).toEqual({ intensity: 0.55 });
     expect(transitionParams("blackout")).toEqual({ hold: 0.15 });
     expect(transitionParams("cut")).toEqual({});
     expect(transitionParams("fade")).not.toBe(transitionParams("fade"));
@@ -45,15 +45,15 @@ describe("transition policy", () => {
 
 describe("style word transitions (director ⑥ structured vocabulary)", () => {
   it.each([
-    ["水墨晕染", "crossfade", 600_000],
-    ["灵气色彩", "crossfade", 500_000],
-    ["境界跃迁", "flash", 400_000],
+    ["水墨晕染", "crossfade", 1_000_000],
+    ["灵气色彩", "crossfade", 800_000],
+    ["境界跃迁", "flash", 500_000],
     ["四季流转", "fade", 800_000],
     ["剑痕", "flash", 300_000],
-    ["血祭", "blackout", 500_000],
-    ["梦境", "fade", 700_000],
-    ["前世", "fade", 700_000],
-    ["空镜呼吸", "fade", 600_000],
+    ["血祭", "blackout", 800_000],
+    ["梦境", "fade", 1_000_000],
+    ["前世", "fade", 1_000_000],
+    ["空镜呼吸", "fade", 1_000_000],
   ] as const)("maps %s to %s @ %dµs", (word, effectId, durationUs) => {
     expect(styleWordTransition(word)).toEqual({ styleWord: word === "前世" ? "梦境" : word, effectId, durationUs });
   });
@@ -65,11 +65,11 @@ describe("style word transitions (director ⑥ structured vocabulary)", () => {
     expect(styleWordTransition("  ")).toBeNull();
   });
 
-  it("clamps duration between 200ms and min(neighbor/2, 800ms)", () => {
+  it("clamps duration between 200ms and min(neighbor/2, 1.2s)", () => {
     // 常规:请求值在界内,原样返回
-    expect(clampTransitionDurationUs(500_000, [4_000_000, 3_000_000])).toBe(500_000);
-    // 上限:请求超过 800ms 上限
-    expect(clampTransitionDurationUs(1_200_000, [4_000_000, 3_000_000])).toBe(800_000);
+    expect(clampTransitionDurationUs(800_000, [4_000_000, 3_000_000])).toBe(800_000);
+    // 上限:请求超过 1.2s 上限
+    expect(clampTransitionDurationUs(2_000_000, [4_000_000, 3_000_000])).toBe(1_200_000);
     // 邻居约束:较短邻居 900ms 的一半 = 450ms 封顶
     expect(clampTransitionDurationUs(600_000, [4_000_000, 900_000])).toBe(450_000);
     // 下限:请求过短抬到 200ms

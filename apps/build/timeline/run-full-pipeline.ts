@@ -256,19 +256,36 @@ async function buildBoundaryIntents(
   }
   const durationByShotId = new Map(shotInputs.map((input) => [input.shotId, input.durationUs]));
 
+  const shotIdByIndex = new Map(chapterStoryboards.map((storyboard) => [storyboard.index, storyboard.id]));
   const intents: VideoUseBoundaryIntentV1[] = [];
   for (const sceneIntent of sceneIntents) {
-    const pair = adjacentPairs.find(
-      (candidate) => candidate.fromScene === sceneIntent.fromScene && candidate.toScene === sceneIntent.toScene,
-    );
-    if (!pair) {
-      console.warn(
-        `[full-pipeline] boundary intent Sc${sceneIntent.fromScene}→Sc${sceneIntent.toScene} 在时间线上无相邻边界（场交错排布），跳过`,
+    let fromShotId: string | undefined;
+    let toShotId: string | undefined;
+    if (sceneIntent.fromShotIndex !== undefined && sceneIntent.toShotIndex !== undefined) {
+      // Shot-level (intra-scene) intent: pin the exact adjacent storyboard pair.
+      const from = shotIdByIndex.get(sceneIntent.fromShotIndex);
+      const to = shotIdByIndex.get(sceneIntent.toShotIndex);
+      if (sceneIntent.toShotIndex !== sceneIntent.fromShotIndex + 1 || !from || !to) {
+        console.warn(
+          `[full-pipeline] 镜级 intent 镜${sceneIntent.fromShotIndex}→镜${sceneIntent.toShotIndex} 非相邻或不存在，跳过`,
+        );
+        continue;
+      }
+      fromShotId = from;
+      toShotId = to;
+    } else {
+      const pair = adjacentPairs.find(
+        (candidate) => candidate.fromScene === sceneIntent.fromScene && candidate.toScene === sceneIntent.toScene,
       );
-      continue;
+      if (!pair) {
+        console.warn(
+          `[full-pipeline] boundary intent Sc${sceneIntent.fromScene}→Sc${sceneIntent.toScene} 在时间线上无相邻边界（场交错排布），跳过`,
+        );
+        continue;
+      }
+      fromShotId = pair.from;
+      toShotId = pair.to;
     }
-    const fromShotId = pair.from;
-    const toShotId = pair.to;
     const transition = styleWordTransition(sceneIntent.styleWord);
     if (!transition) continue; // 同场景硬切/未知词：保持硬切
     const durationUs = clampTransitionDurationUs(transition.durationUs, [
@@ -330,6 +347,27 @@ function buildVideoUseChapterRun(
   };
 }
 
+/** Cumulative transition-overlap shift per shot, mirroring
+ * layoutVisualTimeline: every boundary with a transition overlaps the two
+ * neighboring shots by the transition duration, pulling all later shots
+ * earlier by that amount. */
+function buildTransitionShiftByShotId(
+  intents: ReadonlyArray<VideoUseBoundaryIntentV1>,
+  edl: ReadonlyArray<{ shotId: string }>,
+): Map<string, number> {
+  const durationByPair = new Map(intents
+    .filter((intent) => intent.effectId !== "cut")
+    .map((intent) => [`${intent.fromShotId}:${intent.toShotId}`, intent.durationUs]));
+  const shiftByShotId = new Map<string, number>();
+  let cumulative = 0;
+  for (let index = 0; index < edl.length - 1; index += 1) {
+    const duration = durationByPair.get(`${edl[index]!.shotId}:${edl[index + 1]!.shotId}`);
+    if (duration) cumulative += duration;
+    shiftByShotId.set(edl[index + 1]!.shotId, cumulative);
+  }
+  return shiftByShotId;
+}
+
 /**
  * Build deterministic, non-text HyperFrames windows from the accepted EDL.
  * The scene MP4s already carry their subtitles, so these windows are limited
@@ -337,6 +375,7 @@ function buildVideoUseChapterRun(
  */
 function buildDecorativeHyperFramesWindows(
   edl: ReadonlyArray<{ shotId: string; timelineStartS: number; durationS: number }>,
+  transitionShiftByShotId?: ReadonlyMap<string, number>,
 ): HyperFramesOverlayWindowV1[] {
   const templates = [
     "light-leak",
@@ -349,7 +388,12 @@ function buildDecorativeHyperFramesWindows(
   ] as const;
   return edl.map((entry, index) => {
     const templateId = templates[index % templates.length]!;
-    const startUs = Math.max(0, Math.round(entry.timelineStartS * 1_000_000));
+    // Transition overlaps pull the laid-out timeline earlier than the raw EDL
+    // (layoutVisualTimeline overlaps each transition's two shots). Windows are
+    // EDL-anchored, so shift them by the cumulative overlap accumulated before
+    // this shot to keep every effect aligned with its (shifted) shot.
+    const shiftUs = transitionShiftByShotId?.get(entry.shotId) ?? 0;
+    const startUs = Math.max(0, Math.round(entry.timelineStartS * 1_000_000) - shiftUs);
     const durationUs = Math.max(1, Math.min(
       Math.round(entry.durationS * 1_000_000),
       800_000,
@@ -711,7 +755,10 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
     height: 1080,
     fps: 30,
     alphaFormat: "prores-4444-mov",
-    hyperFramesWindows: buildDecorativeHyperFramesWindows(acceptedArtifact.edl),
+    hyperFramesWindows: buildDecorativeHyperFramesWindows(
+      acceptedArtifact.edl,
+      buildTransitionShiftByShotId(boundaryIntents, acceptedArtifact.edl),
+    ),
   };
   console.log("[full-pipeline] applying accepted artifact (calls HyperFrames)...");
   const applyResult = await chapterService.applyAcceptedArtifact(applyInput);

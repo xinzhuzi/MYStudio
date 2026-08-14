@@ -144,7 +144,7 @@ describe("projection transitions from EDL boundary decisions", () => {
     expect(transition.id).toBe("transition-shot-1-shot-2");
     expect(transition.effectId).toBe("crossfade");
     expect(transition.durationUs).toBe(600_000);
-    expect(transition.params).toEqual({ curve: "linear" });
+    expect(transition.params).toEqual({ curve: "ease-in-out" });
     expect(result.project.clips.some((clip) => clip.id === transition.fromClipId)).toBe(true);
     expect(result.project.clips.some((clip) => clip.id === transition.toClipId)).toBe(true);
   });
