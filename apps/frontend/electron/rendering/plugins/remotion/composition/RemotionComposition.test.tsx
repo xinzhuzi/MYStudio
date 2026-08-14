@@ -26,7 +26,9 @@ vi.mock("remotion", () => ({
     return <>{children}</>;
   },
   Img: ({ src }: { src: string }) => <img src={src} alt="" />,
-  OffthreadVideo: ({ src }: { src: string }) => <video src={src} />,
+  OffthreadVideo: ({ src, transparent }: { src: string; transparent?: boolean }) => (
+    <video src={src} data-transparent={String(transparent)} />
+  ),
   useCurrentFrame: () => 2,
 }));
 
@@ -88,5 +90,17 @@ describe("RemotionComposition", () => {
     ]));
     expect(screen.getByText("字幕")).toBeTruthy();
     expect(rendered.container.querySelector('video[src="http://127.0.0.1:1/t/overlay"]')).toBeTruthy();
+  });
+
+  it("renders HyperFrames overlays with alpha preserved (transparent=true)", () => {
+    // Regression: ProRes 4444 overlays lose their alpha channel without the
+    // `transparent` prop, turning the mostly-transparent effect layer into an
+    // opaque black cover over the entire chapter video.
+    const rendered = render(<RemotionComposition {...composition()} />);
+    const overlay = rendered.container.querySelector('video[src="http://127.0.0.1:1/t/overlay"]');
+    expect(overlay?.getAttribute("data-transparent")).toBe("true");
+    // Visual clips must NOT opt into per-pixel alpha extraction.
+    const visual = rendered.container.querySelector('video[src="http://127.0.0.1:1/t/b"]');
+    expect(visual?.getAttribute("data-transparent")).toBe("undefined");
   });
 });

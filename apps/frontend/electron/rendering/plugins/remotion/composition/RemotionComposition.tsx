@@ -67,7 +67,11 @@ function OverlayTrack({
           durationInFrames={clip.durationInFrames}
           layout="none"
         >
-          <OffthreadVideo src={clip.src} muted style={OVERLAY_STYLE} />
+          {/* HyperFrames overlays ship as ProRes 4444 with alpha; without
+              `transparent` OffthreadVideo drops the alpha channel and the
+              mostly-transparent overlay renders as an opaque black/white
+              layer covering the entire chapter video. */}
+          <OffthreadVideo src={clip.src} muted transparent style={OVERLAY_STYLE} />
         </Sequence>
       ))}
     </AbsoluteFill>

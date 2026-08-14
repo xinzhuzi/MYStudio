@@ -507,8 +507,12 @@ function validateEdl(value: unknown, issues: VideoWorkflowValidationIssue[]): va
     if (isFiniteNonNegative(entry.sourceInS) && isFiniteNonNegative(entry.sourceOutS) && entry.sourceOutS <= entry.sourceInS) issues.push(issue(`${path}.sourceOutS`, "必须大于 sourceInS"));
     if (isFiniteNonNegative(entry.durationS) && entry.durationS <= 0) issues.push(issue(`${path}.durationS`, "必须为正数"));
     if (isFiniteNonNegative(entry.timelineStartS) && isFiniteNonNegative(entry.durationS)) {
-      if (entry.timelineStartS < previousTimelineEnd) issues.push(issue(`${path}.timelineStartS`, "timeline 必须单调"));
-      previousTimelineEnd = entry.timelineStartS + entry.durationS;
+      // Compare on microsecond-rounded integers: EDL entries are emitted with
+      // µs precision, and a float64 sum of the rounded values can exceed the
+      // next rounded start by 1 ulp, falsely failing monotonicity.
+      const startUs = Math.round(entry.timelineStartS * 1_000_000);
+      if (startUs < previousTimelineEnd) issues.push(issue(`${path}.timelineStartS`, "timeline 必须单调"));
+      previousTimelineEnd = startUs + Math.round(entry.durationS * 1_000_000);
     }
   });
   return true;

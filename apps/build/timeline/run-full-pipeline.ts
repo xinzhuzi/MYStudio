@@ -506,6 +506,19 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
   console.log("  alignment:", videoUseArtifact.alignment.length, "edl:", videoUseArtifact.edl.length);
   console.log("  subtitles:", videoUseArtifact.subtitles.length, "overlaySlots:", videoUseArtifact.overlaySlots.length);
   console.log("  selfEval:", videoUseArtifact.selfEval.passed, "score:", videoUseArtifact.selfEval.score);
+  // Per-shot plugin trace: every EDL decision the video-use worker made.
+  console.log("[full-pipeline] video-use EDL (per shot):");
+  for (const entry of videoUseArtifact.edl) {
+    const trimmed = entry.sourceInS > 0.0005 || entry.sourceOutS < entry.sourceInS + entry.durationS - 0.0005;
+    console.log(
+      `  ${entry.shotId} timeline=${entry.timelineStartS.toFixed(3)}s dur=${entry.durationS.toFixed(3)}s ` +
+      `source=${entry.sourceInS.toFixed(3)}→${entry.sourceOutS.toFixed(3)}s${trimmed ? " [trimmed]" : ""}`,
+    );
+  }
+  console.log("[full-pipeline] video-use alignment cues (first 5):");
+  for (const cue of videoUseArtifact.alignment.slice(0, 5)) {
+    console.log(`  ${cue.shotId} @${(cue.startUs / 1e6).toFixed(3)}s ${(cue.durationUs / 1e6).toFixed(3)}s conf=${cue.confidence.toFixed(2)} "${cue.text.slice(0, 24)}"`);
+  }
 
   // ── 10. Set subtitleAuthority = source-embedded on the artifact ──
   const subtitleAuthority: SubtitleAuthority = {
@@ -593,6 +606,16 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
   console.log("[full-pipeline] applyAcceptedArtifact SUCCESS");
   console.log("  HyperFrames status:", applyResult.hyperFramesArtifact.status);
   console.log("  HyperFrames windows:", applyResult.hyperFramesArtifact.windows.length);
+  // Per-window plugin trace: every decorative effect the HyperFrames worker rendered.
+  console.log("[full-pipeline] HyperFrames windows (per shot):");
+  for (const window of applyResult.hyperFramesArtifact.windows) {
+    const params = Object.entries(window.parameters)
+      .map(([key, value]) => `${key}=${value}`).join(" ");
+    console.log(
+      `  ${window.slotId} ${window.templateId} @${(window.startUs / 1e6).toFixed(3)}s ` +
+      `dur=${(window.durationUs / 1e6).toFixed(3)}s ${params}`,
+    );
+  }
 
   // ── 14. Read projected EditingProject from disk ──
   const projectedProject = await readEditingProjectSnapshot(dataRoot, projectId, chapterId);
