@@ -3250,6 +3250,9 @@ def build_script_plan(shots=None):
         "- Sc 1-3 → Sc 1-4：晏燎掌心余红熄下，化成残卷边缘裂痕。",
         "- Sc 1-4 → Sc 1-5：铜钱立起的细响延续到窗外缆绳绷紧，室内命数接上室外追兵。",
         "",
+        "【场间转场决策】(全边界覆盖,禁止硬切)",
+        *transition_decision_lines(shots),
+        "",
         "**视觉连续性锚点**：",
         "- 独孤剑尘：灰衫、草鞋、油布剑包、克制身体语言贯穿；力量只能通过细节泄露。",
         "- 晏燎：最后一排、闭眼、掌心暗红、护住余温，构成少年命数线。",
@@ -3266,6 +3269,32 @@ def build_script_plan(shots=None):
         ],
         "</scriptPlan>",
     ])
+
+
+# 转场决策表: 键=起始镜号(1-based), 值=(风格词, 氛围词)。未列出的边界默认
+# 水墨晕染。风格词→内置转场类型的映射在 TS transition-policy.ts(单源)。
+TRANSITION_DECISIONS = {
+    1: ("水墨晕染", "战斗"), 2: ("境界跃迁", "战斗"), 3: ("水墨晕染", "战斗"), 4: ("水墨晕染", "日常"),
+    5: ("水墨晕染", "战斗"), 6: ("水墨晕染", "战斗"), 7: ("水墨晕染", "战斗"), 8: ("境界跃迁", "战斗"),
+    9: ("空镜呼吸", "日常"), 10: ("水墨晕染", "战斗"), 11: ("水墨晕染", "阴谋"),
+    12: ("水墨晕染", "战斗"), 13: ("梦境", "回忆"), 14: ("水墨晕染", "日常"), 15: ("梦境", "回忆"),
+    16: ("梦境", "回忆"), 17: ("水墨晕染", "阴谋"), 18: ("水墨晕染", "阴谋"), 19: ("境界跃迁", "日常"),
+    20: ("水墨晕染", "阴谋"), 21: ("血祭", "阴谋"), 22: ("水墨晕染", "阴谋"), 23: ("空镜呼吸", "承接"),
+    24: ("灵气色彩", "阴谋"), 25: ("水墨晕染", "战斗"), 26: ("水墨晕染", "战斗"), 27: ("境界跃迁", "战斗"),
+    28: ("水墨晕染", "战斗"), 29: ("水墨晕染", "天道"), 30: ("水墨晕染", "战斗"), 31: ("境界跃迁", "天道"),
+    32: ("水墨晕染", "天道"), 33: ("水墨晕染", "战斗"), 34: ("水墨晕染", "天道"), 35: ("水墨晕染", "战斗"),
+    36: ("境界跃迁", "战斗"), 37: ("水墨晕染", "阴谋"), 38: ("空镜呼吸", "承接"), 39: ("水墨晕染", "天道"),
+    40: ("灵气色彩", "阴谋"), 41: ("梦境", "回忆"), 42: ("空镜呼吸", "承接"),
+}
+
+
+def transition_decision_lines(shots):
+    """全边界覆盖的结构化转场决策行(零硬切)。镜号越界时该边界默认水墨晕染。"""
+    lines = []
+    for from_index in range(1, max(1, len(shots))):
+        style, mood = TRANSITION_DECISIONS.get(from_index, ("水墨晕染", "战斗"))
+        lines.append(f"- 镜{from_index} → 镜{from_index + 1}：风格词={style}；氛围词={mood}")
+    return lines
 
 
 def build_structured_script_plan():
@@ -3285,7 +3314,7 @@ def build_structured_script_plan():
             for scene in CHAPTER_001_DIRECTOR_SCENES
         ],
         "soundDirection": "Sc 1-1 鞭梢破风/铁链拖石/矿筐炸裂；Sc 1-2 算盘/铜钱/楼板/油布摩擦/断剑低鸣；Sc 1-3 油灯/孩童屏息/枯枝裂声；Sc 1-4 纸页颤动/寒铁嗡鸣/铜钱细响；Sc 1-5 船桨破水/缆绳绷紧/更鼓远声。",
-        "transitions": "Sc 1-1→Sc 1-2 空筐裂口墨色晕开接绿锈铜钱；Sc 1-2→Sc 1-3 断口冷白化作塾馆油灯；Sc 1-3→Sc 1-4 掌心余红化作残卷裂痕；Sc 1-4→Sc 1-5 铜钱细响接窗外缆绳绷紧。",
+        "transitions": "Sc 1-1→Sc 1-2 空筐裂口墨色晕开接绿锈铜钱；Sc 1-2→Sc 1-3 断口冷白化作塾馆油灯；Sc 1-3→Sc 1-4 掌心余红化作残卷裂痕；Sc 1-4→Sc 1-5 铜钱细响接窗外缆绳绷紧。\n\n【场间转场决策】(全边界覆盖,禁止硬切)\n" + "\n".join(transition_decision_lines(canonical_storyboard_shots())),
         "derivedAssetPlan": DERIVED_ASSET_PLAN,
     }
 
@@ -3296,6 +3325,11 @@ def chinese_char_count(text):
 
 def audit_director_plan(script_plan_xml, structured_plan=None):
     structured_plan = structured_plan or {}
+    # 与 TS auditDirectorPlanStructure 一致: ⑥段必须携带机器可读转场决策行,
+    # 否则成片静默回落全硬切。
+    transitions_text = structured_plan.get("transitions", "") or ""
+    if not re.search(r"- (?:Sc \d+ → Sc \d+|镜\d+ → 镜\d+)：风格词=", transitions_text):
+        raise SystemExit("audit_director_plan: ⑥段缺少结构化转场决策行(- Sc N → Sc M：风格词=… 或 - 镜N → 镜N+1：…)")
     scene_intents = structured_plan.get("sceneIntents", [])
     required_sections = {
         section: section in script_plan_xml
