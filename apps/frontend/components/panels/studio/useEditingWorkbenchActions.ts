@@ -185,6 +185,9 @@ export function useEditingWorkbenchActions(
     setVideoUseBusy(true);
     setError(undefined);
     try {
+      const scriptPlanTransitions = useStudioStore
+        .getState()
+        .scriptPlans.find((plan) => plan.episodeId === input.episodeId)?.transitions;
       const request = await buildVideoWorkflowChapterRunRequest({
         projectId,
         chapterId: input.episodeId,
@@ -198,6 +201,7 @@ export function useEditingWorkbenchActions(
           chapterId: input.episodeId,
           fallbackSlots: input.remotionShotSlots,
         }),
+        ...(scriptPlanTransitions ? { scriptPlanTransitions } : {}),
       });
       const reply = await bridge.runChapter(request);
       if (!reply.success || !reply.artifact) {

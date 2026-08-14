@@ -273,7 +273,27 @@ export function validateVideoWorkflowChapterRunRequest(
   if (record.storyboardSourcePolicy !== undefined && record.storyboardSourcePolicy !== "current-ready" && record.storyboardSourcePolicy !== "reuse-existing") {
     issues.push({ path: "$.storyboardSourcePolicy", message: "storyboardSourcePolicy 无效" });
   }
-  const allowed = new Set(["schemaVersion", "projectId", "chapterId", "revision", "mode", "derivedInputPolicy", "storyboardSourcePolicy", "shots", "sourceSha256", "audioSha256", "textSha256", "featureFlags"]);
+  if (record.boundaryIntents !== undefined) {
+    if (!Array.isArray(record.boundaryIntents)) issues.push({ path: "$.boundaryIntents", message: "boundaryIntents 必须是数组" });
+    else {
+      const effectIds = new Set(["cut", "fade", "crossfade", "flash", "blackout"]);
+      record.boundaryIntents.forEach((intent, index) => {
+        const path = `$.boundaryIntents[${index}]`;
+        if (typeof intent !== "object" || intent === null || Array.isArray(intent)) {
+          issues.push({ path, message: "必须是对象" });
+          return;
+        }
+        const entry = intent as Record<string, unknown>;
+        if (typeof entry.fromShotId !== "string" || !entry.fromShotId.trim()) issues.push({ path: `${path}.fromShotId`, message: "必须是非空字符串" });
+        if (typeof entry.toShotId !== "string" || !entry.toShotId.trim()) issues.push({ path: `${path}.toShotId`, message: "必须是非空字符串" });
+        if (typeof entry.effectId !== "string" || !effectIds.has(entry.effectId)) issues.push({ path: `${path}.effectId`, message: "必须是内置转场类型" });
+        if (typeof entry.durationUs !== "number" || !Number.isSafeInteger(entry.durationUs) || entry.durationUs <= 0) issues.push({ path: `${path}.durationUs`, message: "必须是正整数微秒" });
+        if (entry.styleWord !== undefined && typeof entry.styleWord !== "string") issues.push({ path: `${path}.styleWord`, message: "必须是字符串" });
+        if (entry.moodWord !== undefined && typeof entry.moodWord !== "string") issues.push({ path: `${path}.moodWord`, message: "必须是字符串" });
+      });
+    }
+  }
+  const allowed = new Set(["schemaVersion", "projectId", "chapterId", "revision", "mode", "derivedInputPolicy", "storyboardSourcePolicy", "shots", "boundaryIntents", "sourceSha256", "audioSha256", "textSha256", "featureFlags"]);
   if (Object.keys(record).some((key) => !allowed.has(key))) issues.push({ path: "$", message: "video-use 章节请求包含未知字段" });
   return issues.length > 0 ? { success: false, issues } : { success: true, value: record as unknown as VideoWorkflowChapterRunRequestV1 };
 }

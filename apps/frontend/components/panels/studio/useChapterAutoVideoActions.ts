@@ -471,6 +471,9 @@ export function useChapterAutoVideoActions({
               (currentEditingProject?.revision ?? 0) + 1,
               (chapterState.revision ?? 0) + 1,
             );
+            const scriptPlanTransitions = useStudioStore
+              .getState()
+              .scriptPlans.find((plan) => plan.episodeId === input.chapterId)?.transitions;
             const request = await buildVideoWorkflowChapterRunRequest({
               projectId: input.projectId,
               chapterId: input.chapterId,
@@ -478,6 +481,7 @@ export function useChapterAutoVideoActions({
               mode: "editable-edl",
               storyboards: input.storyboards,
               remotionShotSlots: currentShotSlots,
+              ...(scriptPlanTransitions ? { scriptPlanTransitions } : {}),
             });
             const reply = await bridge.runChapter(request);
             if (!reply.success || !reply.artifact || reply.state === "blocked") {

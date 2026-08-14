@@ -3,6 +3,7 @@ import { sha256CanonicalJson, sha256Text } from "@/lib/studio/remotion/canonical
 import { validateRemotionCurrentSlot as validateCurrentSlot } from "@/lib/studio/remotion/remotion-slot-validation";
 import type { RemotionCurrentSlotV1 } from "@/types/remotion-workspace";
 import type { StoryboardItem } from "@/types/studio";
+import { assembleBoundaryIntents } from "@/lib/studio/video-workflow/boundary-intent-assembly";
 import type { VideoWorkflowChapterRunRequestV1 } from "@rendering/contracts/video-workflow-ipc";
 import type { VideoUseDerivedInputPolicy, VideoUseStoryboardSourcePolicy } from "@rendering/contracts/video-workflow";
 
@@ -15,6 +16,9 @@ export interface BuildVideoWorkflowChapterRunInput {
   storyboardSourcePolicy?: VideoUseStoryboardSourcePolicy;
   storyboards: StoryboardItem[];
   remotionShotSlots: RemotionCurrentSlotV1[];
+  /** Director-plan ⑥ section text; scene-level transition intents fallback
+   * behind the per-shot storyboard semantics (see boundary-intent-assembly). */
+  scriptPlanTransitions?: string;
 }
 
 /**
@@ -102,6 +106,15 @@ export async function buildVideoWorkflowChapterRunRequest(
     };
   }));
 
+  // Transition decisions ride the real chapter run: per-shot storyboard
+  // semantics first, director-plan scene lines behind, hard cut otherwise.
+  const { intents: boundaryIntents, warnings: boundaryWarnings } = assembleBoundaryIntents({
+    storyboards,
+    ...(input.scriptPlanTransitions ? { scriptPlanTransitions: input.scriptPlanTransitions } : {}),
+    shotDurationUsById: new Map(shots.map((shot) => [shot.shotId, shot.durationUs])),
+  });
+  for (const warning of boundaryWarnings) console.warn(`[video-use 请求] ${warning}`);
+
   return {
     schemaVersion: 1,
     projectId: input.projectId,
@@ -111,6 +124,7 @@ export async function buildVideoWorkflowChapterRunRequest(
     ...(input.derivedInputPolicy ? { derivedInputPolicy: input.derivedInputPolicy } : {}),
     storyboardSourcePolicy,
     shots,
+    ...(boundaryIntents.length > 0 ? { boundaryIntents } : {}),
     sourceSha256: await sha256CanonicalJson(shots.map((shot) => ({ shotId: shot.shotId, sha256: shot.sourceSha256 }))),
     audioSha256: await sha256CanonicalJson(shots.map((shot) => ({ shotId: shot.shotId, sha256: shot.audioSha256 }))),
     textSha256: await sha256CanonicalJson(shots.map((shot) => ({ shotId: shot.shotId, sha256: shot.textSha256 }))),

@@ -720,6 +720,7 @@ const buildManagedVideoUseChapterRun = (request: VideoWorkflowChapterRunRequestV
       videoPath: resolveStudioSourcePath(shot.videoPath),
       audioPath: resolveStudioSourcePath(shot.audioPath),
     })),
+    ...(request.boundaryIntents ? { boundaryIntents: request.boundaryIntents } : {}),
     sourceSha256: request.sourceSha256,
     audioSha256: request.audioSha256,
     textSha256: request.textSha256,
