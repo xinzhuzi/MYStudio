@@ -4,6 +4,7 @@
 import { useCharacterLibraryStore } from "@/stores/library/character-library-store";
 import { imageUrlToBase64 } from "@/lib/ai/image-generator";
 import { aiManager } from "@/lib/ai/ai-manager";
+import { withDepthFriendlyTokens } from "@/lib/studio/depth-friendly-prompt";
 import { readImageAsBase64 } from "@/lib/media/image-storage";
 import type { SplitScene, ShotSizeType } from "@/stores/director/director-store";
 
@@ -116,7 +117,7 @@ export async function callImageGenerationApi(
   const imageKeyManager = featureConfig.keyManager;
   const apiResult = await aiManager.imageGrid({
     model,
-    prompt,
+    prompt: withDepthFriendlyTokens(prompt),
     apiKey: apiKeyToUse,
     baseUrl: imageBaseUrl,
     aspectRatio,

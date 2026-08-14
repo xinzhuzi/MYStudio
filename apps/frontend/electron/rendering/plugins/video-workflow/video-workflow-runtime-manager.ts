@@ -223,8 +223,8 @@ export function createVideoWorkflowRuntimeManager(
 
   const prepareVideoUse = async (): Promise<VideoWorkflowRuntimePaths> => {
     assertAbsolute(paths.pythonExecutable, "managed Python");
-    if (!isFile(paths.pythonExecutable)) throw new Error("managed Python executable 不存在，请先在插件配置页的 Python 运行环境区块完成准备");
-    if (!isExecutableFile(paths.pythonExecutable, platform)) throw new Error("managed Python executable 不可执行，请在插件配置页的 Python 运行环境区块修复运行时");
+    if (!isFile(paths.pythonExecutable)) throw new Error("managed Python executable 不存在，请先在本地配置页的 Python 运行环境区块完成准备");
+    if (!isExecutableFile(paths.pythonExecutable, platform)) throw new Error("managed Python executable 不可执行，请在本地配置页的 Python 运行环境区块修复运行时");
     const stagingPath = `${paths.videoUseProfileDir}.staging-${randomSuffix()}`;
     const archivePath = path.join(stagingPath, "source.tar.gz");
     const extractPath = path.join(stagingPath, "extract");

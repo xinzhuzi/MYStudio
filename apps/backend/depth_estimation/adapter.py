@@ -1,6 +1,11 @@
 """Depth estimation adapter — runs the Depth Anything V2 Small model.
 
 Called by worker.py; raises DepthEstimationError on failure.
+
+Model download policy: the model is NEVER auto-downloaded here. Downloads are
+user-initiated from the settings panel via download_model.py. Inference fails
+with code "model-not-downloaded" when the model is missing from the cache so
+the UI can surface an actionable warning.
 """
 
 from __future__ import annotations
@@ -14,6 +19,8 @@ from typing import Any
 import numpy as np
 from PIL import Image
 
+from .model_cache import DEPTH_MODELS, find_cached_depth_model
+
 
 class DepthEstimationError(Exception):
     """Typed error with a code + message for the worker artifact."""
@@ -24,14 +31,33 @@ class DepthEstimationError(Exception):
         self.message = message
 
 
-# Model HuggingFace identifiers
-_MODEL_HF_ID = {
-    "depth-anything-v2-small": "depth-anything/Depth-Anything-V2-Small-hf",
-}
+def _model_spec(model: str):
+    spec = DEPTH_MODELS.get(model)
+    if not spec:
+        raise DepthEstimationError("unknown-model", f"未知深度估计模型: {model}")
+    return spec
 
-# Cache directory for HuggingFace model weights
+
 def _model_cache_dir() -> str:
-    return os.environ.get("MYSTUDIO_DEPTH_MODEL_DIR", "").strip() or os.environ.get("MANYING_TTS_MODELS_DIR", "").strip()
+    return (
+        os.environ.get("MYSTUDIO_DEPTH_MODEL_DIR", "").strip()
+        or os.environ.get("MANYING_TTS_MODELS_DIR", "").strip()
+    )
+
+
+def _require_model_downloaded(model: str) -> None:
+    """Fail closed when the model is not present in the cache.
+
+    NEVER triggers a download — the user must download it explicitly from the
+    settings panel (设置 → 本地配置 → 深度估计模型).
+    """
+    spec = _model_spec(model)
+    cached = find_cached_depth_model(spec["repo_ids"])
+    if not cached:
+        raise DepthEstimationError(
+            "model-not-downloaded",
+            f"深度估计模型 {spec['label']} 未下载。请前往 设置 → 本地配置 → 深度估计模型 下载。",
+        )
 
 
 def _sha256(path: Path) -> str:
@@ -43,25 +69,25 @@ def _sha256(path: Path) -> str:
 
 
 def _load_model(model: str):
-    """Lazy-load the depth estimation model via transformers pipeline."""
-    hf_id = _MODEL_HF_ID.get(model)
-    if not hf_id:
-        raise DepthEstimationError("unknown-model", f"未知深度估计模型: {model}")
+    """Load the depth estimation model via transformers pipeline (downloaded files only)."""
+    spec = _model_spec(model)
+    _require_model_downloaded(model)
 
-    cache_dir = _model_cache_dir()
     try:
         from transformers import pipeline as hf_pipeline
     except ImportError as exc:
         raise DepthEstimationError("transformers-missing", f"transformers 库未安装: {exc}") from exc
 
+    cache_dir = _model_cache_dir()
     try:
-        kwargs: dict[str, Any] = {}
+        kwargs: dict[str, Any] = {"local_files_only": True}
         if cache_dir:
             kwargs["cache_dir"] = cache_dir
-        pipe = hf_pipeline(task="depth-estimation", model=hf_id, **kwargs)
+        pipe = hf_pipeline(task="depth-estimation", model=spec["repo_id"], **kwargs)
         return pipe
     except Exception as exc:
-        raise DepthEstimationError("model-load-failed", f"模型加载失败 ({hf_id}): {exc}") from exc
+        # local_files_only surfaces network-free cache misses as OSError; unify them.
+        raise DepthEstimationError("model-not-downloaded", f"模型 {spec['label']} 缓存不可用: {exc}") from exc
 
 
 def estimate_depth(
@@ -72,7 +98,8 @@ def estimate_depth(
     """Run depth estimation on a single image and write the depth-map PNG.
 
     Returns a dict with the artifact fields (status, sha256, dimensions, etc.).
-    Raises DepthEstimationError on any failure.
+    Raises DepthEstimationError on any failure — notably "model-not-downloaded"
+    when the model was never explicitly downloaded from the settings panel.
     """
     input_file = Path(input_path)
     output_file = Path(output_path)
@@ -83,7 +110,9 @@ def estimate_depth(
     input_sha = _sha256(input_file)
     start = time.time()
 
-    # Load image
+    # Fail fast when the model is missing, before any heavy work.
+    _require_model_downloaded(model)
+
     try:
         image = Image.open(input_file).convert("RGB")
     except Exception as exc:
@@ -91,50 +120,37 @@ def estimate_depth(
 
     width, height = image.size
 
-    # Load model and run inference
     pipe = _load_model(model)
     try:
         result = pipe(image)
     except Exception as exc:
         raise DepthEstimationError("inference-failed", f"深度推理失败: {exc}") from exc
 
-    # Extract depth data — transformers pipeline returns {"predicted_depth": tensor, ...}
     if isinstance(result, dict) and "predicted_depth" in result:
         depth_tensor = result["predicted_depth"]
-        # Convert to numpy if it's a torch tensor
-        if hasattr(depth_tensor, "numpy"):
-            depth_np = depth_tensor.numpy()
-        elif hasattr(depth_tensor, "detach"):
-            depth_np = depth_tensor.detach().cpu().numpy()
-        else:
-            depth_np = np.array(depth_tensor)
     elif isinstance(result, list) and len(result) > 0 and isinstance(result[0], dict) and "predicted_depth" in result[0]:
         depth_tensor = result[0]["predicted_depth"]
-        if hasattr(depth_tensor, "numpy"):
-            depth_np = depth_tensor.numpy()
-        elif hasattr(depth_tensor, "detach"):
-            depth_np = depth_tensor.detach().cpu().numpy()
-        else:
-            depth_np = np.array(depth_tensor)
     else:
         raise DepthEstimationError("unexpected-output", f"模型返回格式异常: {type(result)}")
 
-    # Squeeze extra dimensions (batch, channel)
+    if hasattr(depth_tensor, "numpy"):
+        depth_np = depth_tensor.numpy()
+    elif hasattr(depth_tensor, "detach"):
+        depth_np = depth_tensor.detach().cpu().numpy()
+    else:
+        depth_np = np.array(depth_tensor)
+
     depth_np = np.squeeze(depth_np)
     if depth_np.ndim != 2:
         raise DepthEstimationError("depth-shape", f"深度图维度异常: {depth_np.shape}, 期望 2D")
 
-    # Normalize to 0-255 uint8 (near=dark, far=bright, convention: 0=far, 255=near)
-    # Depth Anything outputs relative depth; higher value = closer
     d_min = float(depth_np.min())
     d_max = float(depth_np.max())
     if d_max - d_min < 1e-6:
-        # Flat depth (e.g., solid color image) — produce mid-gray
         depth_norm = np.full_like(depth_np, 128, dtype=np.uint8)
     else:
         depth_norm = ((depth_np - d_min) / (d_max - d_min) * 255).astype(np.uint8)
 
-    # Save as grayscale PNG
     depth_image = Image.fromarray(depth_norm, mode="L")
     output_file.parent.mkdir(parents=True, exist_ok=True)
     depth_image.save(output_file, format="PNG")
@@ -142,7 +158,6 @@ def estimate_depth(
     output_sha = _sha256(output_file)
     elapsed = time.time() - start
 
-    # Normalized range for the artifact (0..1)
     norm_min = d_min / 255.0 if d_max > 1e-6 else 0.0
     norm_max = d_max / 255.0 if d_max > 1e-6 else 0.0
 
@@ -159,12 +174,25 @@ def estimate_depth(
 
 
 def probe_model() -> dict[str, Any]:
-    """Probe whether the model can be loaded (for --probe)."""
+    """Probe whether the model is cached and loadable (for --probe).
+
+    Distinguishes "model-not-downloaded" (actionable in the UI) from other
+    load failures so the settings panel can show the download button.
+    """
     try:
-        pipe = _load_model("depth-anything-v2-small")
+        spec = _model_spec("depth-anything-v2-small")
+        cached = find_cached_depth_model(spec["repo_ids"])
+        if not cached:
+            return {
+                "status": "blocked",
+                "code": "model-not-downloaded",
+                "message": f"深度估计模型 {spec['label']} 未下载，请前往设置下载",
+                "cacheDir": _model_cache_dir() or "(default)",
+            }
         return {
             "status": "ready",
             "model": "depth-anything-v2-small",
+            "sizeMb": cached["size_mb"],
             "cacheDir": _model_cache_dir() or "(default)",
         }
     except DepthEstimationError as exc:

@@ -36,11 +36,11 @@ describe("transitionStyleAtFrame", () => {
     });
   });
 
-  it("flash peaks at a softened 0.6 instead of full white", () => {
+  it("flash peaks at a softened 0.75 instead of full white", () => {
     expect(transitionStyleAtFrame("flash", 5, 11)).toEqual({
       incomingOpacity: 0,
       overlayColor: "#ffffff",
-      overlayOpacity: 0.6,
+      overlayOpacity: 0.75,
     });
   });
 

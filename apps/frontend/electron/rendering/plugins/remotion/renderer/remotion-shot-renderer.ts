@@ -84,8 +84,12 @@ export interface RemotionShotRendererOptions {
   probeMedia?: (filePath: string) => Promise<RemotionShotProbe>;
   /** Optional depth adapter. When present + visualKind=image, enables 3D cinematic mode. */
   depthAdapter?: DepthAdapterLike;
-  /** Cinematic preset to use when depth is available. Default: cinematic-dolly-in. */
-  cinematicPreset?: CinematicCameraPreset;
+  /**
+   * Cinematic preset used when depth is available. A getter keeps it live
+   * (user/AI-changeable from settings) and receives the shotId so auto mode
+   * can resolve per-shot AI-selected presets.
+   */
+  cinematicPreset?: CinematicCameraPreset | ((shotId: string) => CinematicCameraPreset);
 }
 
 export interface RemotionShotProbe {
@@ -204,8 +208,12 @@ export class RemotionShotRenderer {
             const depthAssetId = crypto.randomBytes(32).toString("hex");
             session.register(depthAssetId, depthResult.artifact.outputPath);
             const [depthUrlEntry] = this.mediaBridge.buildUrls(session, [depthAssetId]);
+            const presetOption = this.options.cinematicPreset ?? "cinematic-dolly-in";
+            const preset = typeof presetOption === "function"
+              ? presetOption(validated.value.shot.shotId)
+              : presetOption;
             cinematicConfig = {
-              preset: this.options.cinematicPreset ?? "cinematic-dolly-in",
+              preset,
               depthMapSrc: depthUrlEntry.url,
               cameraDistance: 5,
               cameraHeight: 0,

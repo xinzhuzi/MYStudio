@@ -4329,7 +4329,7 @@ def start_tts_backend():
     if not python_bin.exists():
         raise RuntimeError(
             f"未找到已配置的 Python 3.12 运行环境: {python_bin}。"
-            "请先到设置里的插件配置页的 Python 运行环境区块点击开始配置，完成 TTS 依赖安装"
+            "请先到设置里的本地配置页的 Python 运行环境区块点击开始配置，完成 TTS 依赖安装"
         )
     env = {
         **os.environ,

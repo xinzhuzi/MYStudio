@@ -98,7 +98,7 @@ userData 外才标记 `hold-symlink-escape`。断链或
 分类边界如下：
 
 - `.DS_Store` 普通文件是 `finder-metadata / trash-eligible-after-approval`，仍需后续精确 manifest 和人工批准。
-- Chromium/Electron cache、会话、Cookie、IndexedDB、DevTools 和锁标记全部保留，扫描器不把“可重建”解释为自动清理。
+- Chromium/Electron cache、会话、Cookie、IndexedDB、DevTools 和锁标记全部保留，扫描器不把“可重建”解释为自动清理。主进程已把 Chromium 会话数据整体收敛到 `<userData>/Chromium/`（`app.setPath('sessionData')`，见 `apps/frontend/electron/runtime/chromium-data-dir.ts`），扫描器会剥掉 `Chromium/` 前缀后按内部布局继续分类。
 - 顶层 `assets.db`、`assets/assets.db.bak-*`、`assets/db.json.migrated` 是 legacy/orphan、恢复或迁移证据，全部保留。
 - Python/模型 symlink、项目、资产、媒体、技能、TTS/Remotion runtime 以及未知条目都不会进入自动清理批次。
 

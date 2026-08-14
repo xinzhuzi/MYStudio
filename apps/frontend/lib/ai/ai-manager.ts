@@ -72,7 +72,7 @@ function resolveOrFallback(binding: AIBinding, fallback: boolean): ResolvedModel
 async function text(req: AITextRequest): Promise<AITextResult> {
   if (!window.electronAPI?.textCompletion) return { success: false, error: "当前环境不支持模型调用" };
   const resolved = resolveOrFallback(req.binding, req.fallbackToUniversal !== false);
-  if (!resolved) return { success: false, error: "未配置可用模型，请到设置的 API 管理绑定对应 Agent 或通用AI" };
+  if (!resolved) return { success: false, error: "未配置可用模型，请到设置的云端AI绑定对应 Agent 或通用AI" };
   const result = await window.electronAPI.textCompletion({
     provider: resolved.provider,
     model: resolved.model,
@@ -91,7 +91,7 @@ async function textStream(req: AITextRequest, onChunk: (delta: string) => void):
     return fallback;
   }
   const resolved = resolveOrFallback(req.binding, req.fallbackToUniversal !== false);
-  if (!resolved) return { success: false, error: "未配置可用模型，请到设置的 API 管理绑定对应 Agent 或通用AI" };
+  if (!resolved) return { success: false, error: "未配置可用模型，请到设置的云端AI绑定对应 Agent 或通用AI" };
   const result = await window.electronAPI.textCompletionStream({
     provider: resolved.provider,
     model: resolved.model,

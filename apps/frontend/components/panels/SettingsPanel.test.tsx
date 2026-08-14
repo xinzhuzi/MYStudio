@@ -81,9 +81,9 @@ describe("SettingsPanel tab navigation", () => {
     expect(screen.getByText("appearance settings panel")).toBeTruthy();
 
     const navigations = [
-      ["API 管理", "api settings panel"],
+      ["云端AI", "api settings panel"],
+      ["本地配置", "plugin settings panel"],
       ["图片规格", "image-size settings panel"],
-      ["插件配置", "plugin settings panel"],
       ["高级选项", "advanced settings panel"],
       ["图床配置", "image-host settings panel"],
       ["存储", "storage settings panel"],
@@ -103,7 +103,7 @@ describe("SettingsPanel tab navigation", () => {
     render(<SettingsPanel initialTab="rendering" onInitialTabConsumed={onInitialTabConsumed} />);
 
     await waitFor(() => {
-      expect(screen.getByRole("tab", { name: "插件配置" }).getAttribute("aria-selected")).toBe("true");
+      expect(screen.getByRole("tab", { name: "本地配置" }).getAttribute("aria-selected")).toBe("true");
       expect(screen.getByText("plugin settings panel")).toBeTruthy();
     });
     expect(onInitialTabConsumed).toHaveBeenCalledOnce();
@@ -113,7 +113,7 @@ describe("SettingsPanel tab navigation", () => {
     render(<SettingsPanel initialTab={legacyTab} />);
 
     await waitFor(() => {
-      expect(screen.getByRole("tab", { name: "插件配置" }).getAttribute("aria-selected")).toBe("true");
+      expect(screen.getByRole("tab", { name: "本地配置" }).getAttribute("aria-selected")).toBe("true");
       expect(screen.getByText("plugin settings panel")).toBeTruthy();
     });
   });

@@ -55,7 +55,7 @@ export function useNovelPipelineActions({
         !aiManager.resolve({ agent: "universalAi" })
       ) {
         toast.error(
-          "未配置事件分析模型，请先到设置的 API 管理中绑定事件分析Agent或通用AI",
+          "未配置事件分析模型，请先到设置的云端AI中绑定事件分析Agent或通用AI",
         );
         return;
       }

@@ -50,3 +50,44 @@ export function isLocalTtsProvider(provider: IProvider) {
     )
   );
 }
+
+// ---------------------------------------------------------------------------
+// 本地图片生成 (manying-local-image) — OpenAI 兼容的本地生图 sidecar.
+// Models: SDXL Turbo / FLUX.1-schnell via diffusers; explicit downloads only.
+// ---------------------------------------------------------------------------
+
+export const DEFAULT_LOCAL_IMAGE_PROVIDER_ID = "manying-local-image";
+export const LOCAL_IMAGE_BASE_URL = "http://127.0.0.1:17595";
+/** Fixed local token — the sidecar accepts it as Bearer key (loopback only). */
+export const LOCAL_IMAGE_API_KEY = "manying-local-image";
+export const LOCAL_IMAGE_MODELS = ["sdxl-turbo", "flux-schnell"] as const;
+export const DEFAULT_LOCAL_IMAGE_MODEL = "sdxl-turbo";
+
+export function createDefaultLocalImageProvider(): IProvider {
+  return {
+    id: DEFAULT_LOCAL_IMAGE_PROVIDER_ID,
+    platform: "manying-local-image",
+    name: "本地图片生成",
+    baseUrl: LOCAL_IMAGE_BASE_URL,
+    // Non-empty placeholder key: image features skip providers without keys,
+    // and the sidecar accepts this fixed loopback token.
+    apiKey: LOCAL_IMAGE_API_KEY,
+    model: [...LOCAL_IMAGE_MODELS],
+    capabilities: ["image_generation"],
+  };
+}
+
+export function ensureDefaultLocalImageProvider(providers: IProvider[] | undefined | null): IProvider[] {
+  const existing = providers || [];
+  if (existing.some((provider) => provider.id === DEFAULT_LOCAL_IMAGE_PROVIDER_ID)) {
+    return existing;
+  }
+  return [createDefaultLocalImageProvider(), ...existing];
+}
+
+export function isLocalImageProvider(provider: IProvider) {
+  return (
+    provider.platform === "manying-local-image"
+    || provider.baseUrl.trim().replace(/\/+$/, "") === LOCAL_IMAGE_BASE_URL
+  );
+}

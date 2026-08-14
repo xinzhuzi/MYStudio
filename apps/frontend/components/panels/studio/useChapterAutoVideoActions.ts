@@ -27,6 +27,7 @@ import { useProjectStore } from "@/stores/project/project-store";
 import { useEditingStore } from "@/stores/editing/editing-store";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import { useTtsStore } from "@/stores/tts/tts-store";
+import { useMediaPanelStore } from "@/stores/navigation/media-panel-store";
 import type { StudioAssetSummary } from "@/types/studio-assets";
 import type {
   RemotionChapterManifestV2,
@@ -35,6 +36,9 @@ import type {
 } from "@/types/remotion-workspace";
 import type { TtsSpeakerId, VoiceProfile } from "@/types/tts";
 import { latestAgentWork } from "./workflow-helpers";
+import { checkDepthModelReady } from "./depth-model-precheck";
+import { getDepthRuntimeBridge } from "@/lib/bridge/depth-runtime";
+import { selectCinematicPresets } from "@/lib/studio/cinematic-preset-ai";
 import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";
 import { getTtsRuntimeBridge } from "@/lib/bridge/tts-runtime";
 
@@ -295,6 +299,51 @@ export function useChapterAutoVideoActions({
             });
           },
           enqueueRemotionShots: async ({ projectId, chapterId, storyboards, allStoryboards }) => {
+            // Depth model precheck: cinematic 3D needs an explicitly downloaded
+            // model. Warn (and deep-link to settings) instead of silently
+            // rendering flat 2D — the model never auto-downloads.
+            const depthReadiness = await checkDepthModelReady();
+            if (depthReadiness === "missing") {
+              toast.error(
+                "深度估计模型未下载，3D 电影级纵深将回退为 2D 渲染。请前往 设置 → 本地配置 → 深度估计模型 下载（约 100 MB）",
+                {
+                  action: {
+                    label: "去设置",
+                    onClick: () => {
+                      const nav = useMediaPanelStore.getState();
+                      nav.requestSettingsTab("plugins");
+                      nav.setActiveTab("settings");
+                    },
+                  },
+                },
+              );
+            } else if (depthReadiness === "ready") {
+              // AI 镜头语言：auto 模式下按剧本语义为每个分镜选择相机预设。
+              // AI 不可用时回落关键词启发式，绝不阻塞渲染入队。
+              try {
+                const depthBridge = getDepthRuntimeBridge();
+                const depthStatus = await depthBridge?.status();
+                if (!depthBridge || depthStatus?.cinematicPresetMode !== "manual") {
+                  const selection = await selectCinematicPresets(
+                    storyboards.map((storyboard) => ({
+                      shotId: storyboard.id,
+                      description: String(storyboard.videoDesc ?? storyboard.prompt ?? ""),
+                      dialogue: String(storyboard.ttsSpokenText ?? ""),
+                    })),
+                  );
+                  if (selection.source !== "empty") {
+                    const map = { ...selection.presets, __default: selection.default };
+                    await depthBridge?.setPresetMap(map);
+                    if (selection.source === "heuristic") {
+                      console.warn("[cinematic] AI 预设不可用，已用关键词启发式兜底");
+                    }
+                  }
+                }
+              } catch (error) {
+                console.warn("[cinematic] 分镜相机预设分析失败（渲染将用默认预设）:", error);
+              }
+            }
+
             // Abort previous in-progress manifest write to prevent race conditions
             manifestWriteAbortRef.current?.abort();
             const abortController = new AbortController();

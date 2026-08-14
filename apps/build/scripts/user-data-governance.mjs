@@ -34,14 +34,26 @@ const RUNTIME_MARKERS = new Map([
 export const USER_DATA_TRASH_MANIFEST_SCHEMA_VERSION = 1
 export const MAX_USER_DATA_TRASH_TARGETS = 20
 
+/**
+ * Chromium session data is consolidated under <userData>/Chromium via
+ * app.setPath('sessionData') in the Electron main process (see
+ * apps/frontend/electron/runtime/chromium-data-dir.ts). Classification still
+ * keys off the Chromium-internal layout, so strip that prefix first.
+ */
+const CHROMIUM_SESSION_ROOT = 'Chromium/'
+
+function stripChromiumSessionRoot(normalized) {
+  return normalized.startsWith(CHROMIUM_SESSION_ROOT) ? normalized.slice(CHROMIUM_SESSION_ROOT.length) : normalized
+}
+
 function normalizeRelativePath(relativePath) {
   return relativePath.split(path.sep).join('/')
 }
 
 function markerKind(relativePath) {
-  const normalized = normalizeRelativePath(relativePath)
-  if (normalized.includes('/')) return null
-  const basename = normalized
+  const stripped = stripChromiumSessionRoot(normalizeRelativePath(relativePath))
+  if (stripped.includes('/')) return null
+  const basename = stripped
   if (RUNTIME_MARKERS.has(basename)) return RUNTIME_MARKERS.get(basename)
   if (/^\.com\.github\.Electron\.[^/]+$/.test(basename)) return 'electron-single-instance-token'
   return null
@@ -49,7 +61,9 @@ function markerKind(relativePath) {
 
 function classifyRelativePath(relativePath) {
   const normalized = normalizeRelativePath(relativePath)
-  const first = normalized.split('/')[0]
+  const isChromiumRooted = normalized.startsWith(CHROMIUM_SESSION_ROOT)
+  const first = stripChromiumSessionRoot(normalized).split('/')[0]
+  const topEvidence = isChromiumRooted ? `top-level=Chromium/${first}` : `top-level=${first}`
   const basename = path.posix.basename(normalized)
   if (basename === '.DS_Store') {
     return { category: 'finder-metadata', disposition: 'trash-eligible-after-approval', evidence: 'basename=.DS_Store' }
@@ -68,14 +82,14 @@ function classifyRelativePath(relativePath) {
     return { category: 'runtime-lock-marker', disposition: 'preserve-until-exit-and-evidence', evidence: `marker=${marker}` }
   }
   if (REBUILDABLE_CACHE_ROOTS.has(first)) {
-    return { category: 'rebuildable-cache', disposition: 'preserve-until-exit-and-evidence', evidence: `top-level=${first}` }
+    return { category: 'rebuildable-cache', disposition: 'preserve-until-exit-and-evidence', evidence: topEvidence }
   }
   if (ELECTRON_STATE_ROOTS.has(first) || /^Cookies(?:-.+)?$/.test(first) || /^Trust Tokens(?:-.+)?$/.test(first)) {
-    return { category: 'electron-state', disposition: 'preserve-until-exit-and-evidence', evidence: `top-level=${first}` }
+    return { category: 'electron-state', disposition: 'preserve-until-exit-and-evidence', evidence: topEvidence }
   }
   const protectedCategory = PROTECTED_ROOTS.get(first)
   if (protectedCategory) {
-    return { category: protectedCategory, disposition: 'preserve-until-approved', evidence: `top-level=${first}` }
+    return { category: protectedCategory, disposition: 'preserve-until-approved', evidence: topEvidence }
   }
   return { category: 'unclassified', disposition: 'hold-unclassified', evidence: 'no-known-path-contract' }
 }

@@ -21,6 +21,8 @@ import {
   DEFAULT_LOCAL_TTS_MODEL,
   DEFAULT_LOCAL_TTS_PROVIDER_ID,
   ensureDefaultLocalTtsProvider,
+  ensureDefaultLocalImageProvider,
+  LOCAL_IMAGE_MODELS,
 } from "./api-config-provider-helpers";
 import { normalizeAgentDeployments } from "./api-config-agent-deployments";
 import type { APIConfigState, LegacyImageHostConfig } from "./api-config-store-types";
@@ -393,6 +395,16 @@ export function migrateAPIConfigState(
         result.providerAdapterCodes = result.providerAdapterCodes || [];
         result.studioBindingsMigrated = Boolean(result.studioBindingsMigrated);
         result.providers = ensureDefaultLocalTtsProvider(normalizeProviderList(result.providers));
+        result.providers = ensureDefaultLocalImageProvider(result.providers);
+
+        // Seed endpoint types for local image models so resolveImageApiFormat
+        // routes them to /v1/images/generations explicitly (not name inference).
+        result.modelEndpointTypes = result.modelEndpointTypes || {};
+        for (const modelName of LOCAL_IMAGE_MODELS) {
+          if (!Array.isArray(result.modelEndpointTypes[modelName])) {
+            result.modelEndpointTypes[modelName] = ['image-generation'];
+          }
+        }
 
         if (!result.modelThinkingOverrides || typeof result.modelThinkingOverrides !== 'object') {
           result.modelThinkingOverrides = {};

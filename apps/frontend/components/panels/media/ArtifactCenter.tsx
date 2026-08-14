@@ -536,7 +536,7 @@ export function ArtifactCenter({
     } else if (route.startsWith("/director") || route.includes("/storyboard") || route.includes("/track") || route.includes("/video")) {
       setActiveTab("director");
     } else if (route.startsWith("/tts")) {
-      // TTS 管理已并入「设置 → 插件配置」(同一个 LocalTtsPanel)
+      // TTS 管理已并入「设置 → 本地配置」(同一个 LocalTtsPanel)
       requestSettingsTab("plugins");
       setActiveTab("settings");
     } else if (route.startsWith("/export")) {

@@ -10,6 +10,8 @@ import type { VideoWorkflowPluginId } from "@rendering/contracts/video-workflow"
 import { usePythonRuntimeSettings } from "./usePythonRuntimeSettings";
 import { useVideoWorkflowPlugins } from "./useVideoWorkflowPlugins";
 import { PythonSettingsTab } from "./PythonSettingsTab";
+import { DepthSettingsSection } from "./DepthSettingsSection";
+import { LocalAudioSettingsSection } from "./LocalAudioSettingsSection";
 import { RenderingSettingsTab } from "./RenderingSettingsTab";
 
 const LocalTtsPanelLazy = lazy(() => import("@/components/panels/tts/LocalTtsPanel").then((module) => ({
@@ -18,8 +20,11 @@ const LocalTtsPanelLazy = lazy(() => import("@/components/panels/tts/LocalTtsPan
 
 /**
  * Unified local capability configuration. The order is intentional:
- * managed Python is the foundation, TTS provides spoken audio/alignment input,
- * and the video plugins consume those artifacts in the existing workflow.
+ * managed Python is the foundation; depth/music are local AI models
+ * (explicit download, local inference); TTS and the video workflow plugins
+ * are runtime services that consume those artifacts. Image generation runs
+ * on cloud APIs configured in the cloud-AI tab — the optional local image
+ * generation section is intentionally not surfaced here.
  */
 export function PluginSettingsTab() {
   const python = usePythonRuntimeSettings();
@@ -28,7 +33,7 @@ export function PluginSettingsTab() {
 
   const prepareByPriority = async () => {
     if (!python.hasRuntime) {
-      toast.error("当前环境不支持本地插件配置");
+      toast.error("当前环境不支持本地配置");
       return;
     }
 
@@ -89,7 +94,7 @@ export function PluginSettingsTab() {
       // 5. Summary toast with per-layer results
       toast.success(`配置完成：${reports.join(", ")}`);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "插件配置准备失败");
+      toast.error(error instanceof Error ? error.message : "本地配置准备失败");
     } finally {
       setIsPreparing(false);
     }
@@ -103,7 +108,7 @@ export function PluginSettingsTab() {
             <div>
               <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
                 <Plug className="h-5 w-5 text-primary" />
-                插件配置
+                本地配置
               </h3>
               <p className="mt-2 text-sm leading-6 text-muted-foreground">
                 按依赖优先级配置本地能力：Python 运行环境 → TTS 运行时与模型 → 视频工作流插件（Remotion、HyperFrames、video-use、Seedance Prompt Skill）。
@@ -122,6 +127,22 @@ export function PluginSettingsTab() {
             <p className="text-xs text-muted-foreground">所有本地 TTS、video-use Python worker 和 MLX 对齐都复用应用管理的 Python。</p>
           </div>
           <PythonSettingsTab embedded />
+        </section>
+
+        <section aria-labelledby="plugin-depth-heading" className="rounded-xl border border-border bg-card/30">
+          <div className="border-b border-border px-5 py-4 space-y-2">
+            <h4 id="plugin-depth-heading" className="text-base font-semibold text-foreground">深度估计模型</h4>
+            <p className="text-xs text-muted-foreground">静态图 → 3D 电影级纵深的深度模型（依赖上方 Python 运行环境）。模型仅在用户点击下载时获取，渲染时绝不自动下载。</p>
+          </div>
+          <DepthSettingsSection embedded />
+        </section>
+
+        <section aria-labelledby="plugin-audio-gen-heading" className="rounded-xl border border-border bg-card/30">
+          <div className="border-b border-border px-5 py-4 space-y-2">
+            <h4 id="plugin-audio-gen-heading" className="text-base font-semibold text-foreground">本地音乐生成</h4>
+            <p className="text-xs text-muted-foreground">MusicGen 本地 BGM 生成（约 2 GB）。生成的 WAV 可在工作台「章节共享音频」导入为 BGM 轨道；模型仅在点击下载时获取。</p>
+          </div>
+          <LocalAudioSettingsSection embedded />
         </section>
 
         <section aria-labelledby="plugin-tts-heading" className="rounded-xl border border-border bg-card/30">

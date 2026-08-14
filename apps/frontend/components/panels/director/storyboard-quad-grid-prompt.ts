@@ -1,5 +1,6 @@
 import type { QuadVariationType } from "@/components/features/storyboard/quad-grid";
 import type { SplitScene } from "@/stores/director/director-store";
+import { withDepthFriendlyTokens } from "@/lib/studio/depth-friendly-prompt";
 
 export type QuadGridPromptOptions = {
   scene: SplitScene;
@@ -89,6 +90,6 @@ export function buildStoryboardQuadGridPrompt({
 
   return {
     variationLabels: [...VARIATION_LABELS[variationType]],
-    prompt: promptParts.join(" "),
+    prompt: withDepthFriendlyTokens(promptParts.join(" ")),
   };
 }

@@ -84,6 +84,13 @@ describe('user data governance scanner', () => {
     fs.writeFileSync(path.join(root, 'assets', 'assets.db.bak-20260803'), 'backup')
     fs.writeFileSync(path.join(root, 'assets', 'db.json.migrated'), '{}\n')
     fs.writeFileSync(path.join(root, 'unknown.bin'), 'unknown')
+    // Chromium session data consolidated under <userData>/Chromium (sessionData redirection).
+    fs.mkdirSync(path.join(root, 'Chromium', 'Cache'), { recursive: true })
+    fs.mkdirSync(path.join(root, 'Chromium', 'Local Storage', 'leveldb'), { recursive: true })
+    fs.writeFileSync(path.join(root, 'Chromium', 'Cache', 'data.bin'), 'cache')
+    fs.writeFileSync(path.join(root, 'Chromium', 'Local Storage', 'leveldb', '000003.log'), 'state')
+    fs.writeFileSync(path.join(root, 'Chromium', 'SingletonSocket'), 'sock')
+    fs.writeFileSync(path.join(root, 'Chromium', 'Cookies'), 'cookies')
 
     const manifest = scanUserData({ userData: root })
     expect(manifest.files.find((f) => f.path === 'projects/.DS_Store')).toMatchObject({
@@ -98,6 +105,10 @@ describe('user data governance scanner', () => {
     expect(manifest.files.find((f) => f.path === 'assets/assets.db.bak-20260803')).toMatchObject({ category: 'legacy-db-backup', disposition: 'preserve-until-approved' })
     expect(manifest.files.find((f) => f.path === 'assets/db.json.migrated')).toMatchObject({ category: 'migration-evidence', disposition: 'preserve-until-approved' })
     expect(manifest.files.find((f) => f.path === 'unknown.bin')).toMatchObject({ category: 'unclassified', disposition: 'hold-unclassified' })
+    expect(manifest.files.find((f) => f.path === 'Chromium/Cache/data.bin')).toMatchObject({ category: 'rebuildable-cache', disposition: 'preserve-until-exit-and-evidence', classificationEvidence: 'top-level=Chromium/Cache' })
+    expect(manifest.files.find((f) => f.path === 'Chromium/Local Storage/leveldb/000003.log')).toMatchObject({ category: 'electron-state', classificationEvidence: 'top-level=Chromium/Local Storage' })
+    expect(manifest.files.find((f) => f.path === 'Chromium/SingletonSocket')).toMatchObject({ category: 'runtime-lock-marker', disposition: 'preserve-until-exit-and-evidence' })
+    expect(manifest.files.find((f) => f.path === 'Chromium/Cookies')).toMatchObject({ category: 'electron-state' })
     expect(manifest.files.filter((f) => f.disposition === 'trash-eligible-after-approval').map((f) => f.path)).toEqual(['projects/.DS_Store'])
   })
 

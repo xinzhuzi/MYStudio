@@ -79,6 +79,7 @@ const directorModuleKeys = [
 const productionModuleKeys = [
   "storyboard_prompt_techniques",
   "storyboard_table_techniques",
+  "depth_friendly_3d",
 ] as const;
 
 export const DAOJIE_VISUAL_MANUAL_ID = "daojie_ink_guofeng";

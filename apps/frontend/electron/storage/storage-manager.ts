@@ -22,6 +22,8 @@ const DEFAULT_STORAGE_CONFIG: Required<StorageConfig> = {
 
 type CreateStorageManagerOptions = {
   userDataPath: string;
+  /** Chromium 会话数据根（app.getPath('sessionData')）；缺省回退 userData（旧布局）。 */
+  sessionDataPath?: string;
   fileOps?: {
     cp?: typeof fs.promises.cp;
     remove?: typeof fs.promises.rm;
@@ -37,7 +39,7 @@ type RegisterStorageIpcHandlersOptions = {
   getStudioManualsSourceRoot: () => string;
 };
 
-export function createStorageManager({ userDataPath, fileOps }: CreateStorageManagerOptions) {
+export function createStorageManager({ userDataPath, sessionDataPath = userDataPath, fileOps }: CreateStorageManagerOptions) {
   const storageConfigPath = path.join(userDataPath, "storage-config.json");
   let autoCleanInterval: NodeJS.Timeout | null = null;
   const ensureDir = (dirPath: string) => {
@@ -129,9 +131,9 @@ export function createStorageManager({ userDataPath, fileOps }: CreateStorageMan
   const getPythonRuntimeDir = () => path.join(getStorageBasePath(), "python");
   const getModelCacheDir = () => path.join(getStorageBasePath(), "TTS", "model");
   const getCacheDirs = () => [
-    path.join(userDataPath, "Cache"),
-    path.join(userDataPath, "Code Cache"),
-    path.join(userDataPath, "GPUCache"),
+    path.join(sessionDataPath, "Cache"),
+    path.join(sessionDataPath, "Code Cache"),
+    path.join(sessionDataPath, "GPUCache"),
   ];
   const getDirectorySize = async (dirPath: string): Promise<number> => {
     try {
@@ -281,7 +283,7 @@ export function createStorageManager({ userDataPath, fileOps }: CreateStorageMan
       skillsPath: getSkillsRoot(),
       pythonRuntimeDir: getPythonRuntimeDir(),
       modelCacheDir: getModelCacheDir(),
-      cachePath: path.join(userDataPath, "Cache"),
+      cachePath: path.join(sessionDataPath, "Cache"),
     }));
     ipcMain.handle("storage-select-directory", async () => {
       const result = await dialog.showOpenDialog({ properties: ["openDirectory", "createDirectory"] });

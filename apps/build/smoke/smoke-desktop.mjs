@@ -129,7 +129,7 @@ const CORE_ROUTE_CHECKS = [
   },
   {
     label: "设置",
-    requiredText: ["系统设置", "外观", "插件配置"],
+    requiredText: ["系统设置", "外观", "本地配置"],
   },
   {
     label: "自媒体",
@@ -1184,7 +1184,7 @@ async function verifyPluginSettings(evaluate) {
 
     return new Promise((resolve) => setTimeout(() => {
       const tabButtons = Array.from(document.querySelectorAll('button'));
-      const pluginTab = tabButtons.find((node) => normalize(node) === '插件配置' || normalize(node).includes('插件配置'));
+      const pluginTab = tabButtons.find((node) => normalize(node) === '本地配置' || normalize(node).includes('本地配置'));
       activate(pluginTab);
 
       setTimeout(() => {
@@ -1282,12 +1282,12 @@ async function prepareRemotionBrowserDownload(evaluate) {
       const settingsButton = navButtons.find((node) => normalize(node).includes('设置'));
       result.settings.clickedSettings = activate(settingsButton);
       await waitFor(
-        () => Array.from(document.querySelectorAll('.settings-tabs-bar button')).some((node) => normalize(node) === '插件配置'),
-        10_000,
-        'plugin settings tab',
-      );
+        () => Array.from(document.querySelectorAll('.settings-tabs-bar button')).some((node) => normalize(node) === '本地配置'),
+          10_000,
+          'plugin settings tab',
+        );
       const pluginTab = Array.from(document.querySelectorAll('.settings-tabs-bar button'))
-        .find((node) => normalize(node) === '插件配置');
+        .find((node) => normalize(node) === '本地配置');
       result.settings.clickedPluginTab = activate(pluginTab);
       await waitFor(() => document.body.innerText.includes('Remotion Headless Shell'), 10_000, 'Remotion settings panel');
 
@@ -1486,12 +1486,12 @@ async function verifyRemotionExport(evaluate) {
         const settingsButton = navButtons.find((node) => normalize(node).includes('设置'));
         result.settings.clickedSettings = activate(settingsButton);
         await waitFor(
-          () => Array.from(document.querySelectorAll('.settings-tabs-bar button')).some((node) => normalize(node) === '插件配置'),
+          () => Array.from(document.querySelectorAll('.settings-tabs-bar button')).some((node) => normalize(node) === '本地配置'),
           10_000,
           'plugin settings tab',
         );
         const pluginTab = Array.from(document.querySelectorAll('.settings-tabs-bar button'))
-          .find((node) => normalize(node) === '插件配置');
+          .find((node) => normalize(node) === '本地配置');
         result.settings.clickedPluginTab = activate(pluginTab);
         await waitFor(() => document.body.innerText.includes('Remotion Headless Shell'), 10_000, 'Remotion settings panel');
 

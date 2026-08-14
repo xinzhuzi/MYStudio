@@ -24,6 +24,7 @@
 
 import { aiManager } from '@/lib/ai/ai-manager';
 import { prepareReferenceImageForTransfer } from '@/lib/ai/image-transfer';
+import { getDepthFriendlyGuideZh } from '@/lib/studio/depth-friendly-prompt';
 
 
 export interface ScenePromptRequest {
@@ -340,7 +341,7 @@ Set "needsEndFrame": false if:
 - Describe the STATIC visual: composition, lighting, character appearance, pose
 - Focus on WHAT IS VISIBLE in the starting frame
 - Example: "A young woman in a red dress stands at the doorway, hand on the doorknob, warm afternoon light streaming through the window."
-
+${getDepthFriendlyGuideZh()}
 ## End Frame Prompt (endFramePrompt) - ONLY if needsEndFrame is true
 - Describe the STATIC visual of the ENDING state
 - Focus on WHERE/HOW the subject ends up

@@ -57,10 +57,12 @@ export interface VideoPipelineLogBundleV1 {
 }
 
 export interface LogBundleOptions {
-  storageBasePath: string;
+  /** Project data root (main.ts getDataDir()): artifacts live under `<dataRoot>/_p/<projectId>/`. */
+  dataRoot: string;
   projectId: string;
   chapterId: string;
   revision?: number;
+  /** Diagnostics JSONL directory (`<userData>/logs/diagnostics`). */
   diagnosticsDir?: string;
   now?: () => number;
 }
@@ -70,7 +72,7 @@ export interface LogBundleOptions {
  */
 export function createVideoPipelineLogBundle(options: LogBundleOptions): VideoPipelineLogBundleV1 {
   const now = options.now ?? Date.now;
-  const projectRoot = path.join(options.storageBasePath, "projects", "_p", options.projectId);
+  const projectRoot = path.join(options.dataRoot, "_p", options.projectId);
   const remotionDir = path.join(projectRoot, "remotion");
   const videoUseDir = path.join(projectRoot, "video-use", options.chapterId);
 
@@ -89,9 +91,7 @@ export function createVideoPipelineLogBundle(options: LogBundleOptions): VideoPi
   const hyperframes = revisionDir ? collectHyperFramesArtifacts(revisionDir) : null;
 
   // --- Diagnostics ---
-  const diagnosticsDir = options.diagnosticsDir ?? path.join(projectRoot, "..", "..", "logs", "diagnostics");
-  const diagnostics = collectDiagnostics(diagnosticsDir, options.projectId, options.chapterId);
-
+  const diagnostics = collectDiagnostics(options.diagnosticsDir, options.projectId, options.chapterId);
   // --- Provenance verification ---
   const provenance = verifyProvenance(remotionChapter, videoUse, hyperframes);
 
@@ -202,10 +202,11 @@ function collectHyperFramesArtifacts(revisionDir: string): VideoPipelineLogBundl
   };
 }
 
-function collectDiagnostics(diagnosticsDir: string, projectId: string, chapterId: string): { entries: unknown[]; fileCount: number } {
+function collectDiagnostics(diagnosticsDir: string | undefined, projectId: string, chapterId: string): { entries: unknown[]; fileCount: number } {
   const entries: unknown[] = [];
   let fileCount = 0;
 
+  if (!diagnosticsDir) return { entries, fileCount };
   try {
     const files = fs.readdirSync(diagnosticsDir).filter((f) => f.endsWith(".jsonl"));
     fileCount = files.length;

@@ -48,13 +48,6 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-function safeSegment(value: string, field: string): string {
-  if (!/^[A-Za-z0-9._-]+$/.test(value) || value === "." || value === "..") {
-    throw new Error(`${field} 不能包含路径分隔符或目录跳转`);
-  }
-  return value;
-}
-
 export function createDepthAdapter(options: DepthAdapterOptions) {
   const getPaths = () => resolveDepthRuntimePaths(
     typeof options.storageBasePath === "function" ? options.storageBasePath() : options.storageBasePath,
@@ -86,19 +79,10 @@ export function createDepthAdapter(options: DepthAdapterOptions) {
       };
     }
 
-    const safeProjectId = safeSegment(request.projectId, "projectId");
-    const safeShotId = safeSegment(request.shotId, "shotId");
-
     const paths = getPaths();
-    const workspaceDir = path.join(
-      paths.storageBasePath,
-      "projects",
-      "_p",
-      safeProjectId,
-      "remotion",
-      "depth",
-      safeShotId,
-    );
+    // 请求/产物 JSON 与 depth.png 同目录（调用方传入的 outputDepthPath 所在处，
+    // 即 <dataRoot>/_p/{pid}/remotion/depth/{shotId}/）——log-bundle 从该处读取。
+    const workspaceDir = path.dirname(path.resolve(request.outputDepthPath));
     const requestPath = path.join(workspaceDir, "depth-request.json");
     const artifactPath = path.join(workspaceDir, "depth-artifact.json");
 

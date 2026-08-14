@@ -120,7 +120,7 @@ export function LocalTtsRuntimeCard({
             </Button>
           )}
           {runtimeStatus && !runtimeStatus?.running && runtimeStatus?.pythonInstalled && !runtimeStatus?.dependenciesReady && (
-            <span className="text-xs text-muted-foreground">依赖未配置，请到设置→插件配置完成安装</span>
+            <span className="text-xs text-muted-foreground">依赖未配置，请到设置→本地配置完成安装</span>
           )}
         </div>
         <div className="w-full">

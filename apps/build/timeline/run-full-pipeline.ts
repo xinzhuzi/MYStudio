@@ -396,20 +396,20 @@ function buildDecorativeHyperFramesWindows(
     const startUs = Math.max(0, Math.round(entry.timelineStartS * 1_000_000) - shiftUs);
     const durationUs = Math.max(1, Math.min(
       Math.round(entry.durationS * 1_000_000),
-      800_000,
+      1_100_000,
     ));
     const parameters: Record<string, string | number | boolean> = templateId === "light-leak"
-      ? { intensity: 0.28, hue: (index * 31) % 360 }
+      ? { intensity: 0.42, hue: (index * 31) % 360 }
       : templateId === "film-grain"
-        ? { opacity: 0.12 }
+        ? { opacity: 0.2 }
         : templateId === "lens-flare"
-          ? { x: 18 + ((index * 13) % 64), y: 24 + ((index * 7) % 34), size: 180 }
+          ? { x: 18 + ((index * 13) % 64), y: 24 + ((index * 7) % 34), size: 260 }
           : templateId === "vignette-pulse"
-            ? { darkness: 0.32, speed: 2.4 }
+            ? { darkness: 0.42, speed: 2.4 }
             : templateId === "particle-dust"
-              ? { count: 24, speed: 7 }
+              ? { count: 40, speed: 7 }
               : templateId === "letterbox-cinematic"
-                ? { barHeight: 8, fadeIn: 0.25 }
+                ? { barHeight: 12, fadeIn: 0.25 }
                 : { x: 50, y: 50, color: "#f4d06f" };
     return {
       slotId: `effect-${entry.shotId}`,

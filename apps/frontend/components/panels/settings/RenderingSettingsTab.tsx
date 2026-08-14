@@ -70,7 +70,7 @@ export function RenderingSettingsTab({ embedded = false }: RenderingSettingsTabP
           <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-2">
             <h4 className="font-medium text-foreground">视频工作流运行说明</h4>
             <div className="space-y-1.5 text-xs leading-5 text-muted-foreground">
-              <p><span className="font-medium text-foreground">共享运行时</span>：video-use 复用插件配置页已准备的 Python 3.12，HyperFrames 复用 Electron 内置 Node（无需额外下载），FFmpeg / ffprobe 由系统提供，所有插件共享同一组。</p>
+              <p><span className="font-medium text-foreground">共享运行时</span>：video-use 复用本地配置页已准备的 Python 3.12，HyperFrames 复用 Electron 内置 Node（无需额外下载），FFmpeg / ffprobe 由系统提供，所有插件共享同一组。</p>
               <p><span className="font-medium text-foreground">执行顺序</span>：video-use 先完成原文对齐、EDL 编辑、字幕时间轴、调色、预览渲染与自评；用户确认时间线后，准备 HyperFrames 生成透明动效 overlay（无动效也会写入 no-op 记录）；最后由 Remotion 负责正式 Composition 与章节视频渲染。</p>
               <p><span className="font-medium text-foreground">失败处理</span>：任一阶段失败都会阻塞后续流程并在 UI 中提示，可点击「准备」或「修复」重试，无需重启应用。</p>
             </div>

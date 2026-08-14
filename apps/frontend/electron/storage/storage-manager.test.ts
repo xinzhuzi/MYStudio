@@ -66,6 +66,28 @@ describe("createStorageManager", () => {
     expect(handlers.size).toBe(19);
   });
 
+  it("routes cache stats and cleanup through the Chromium session-data root when provided", async () => {
+    const manager = createStorageManager({ userDataPath: "/user-data", sessionDataPath: "/user-data/Chromium" });
+    manager.registerIpcHandlers({ getStudioManualsSourceRoot: () => "/manuals" });
+
+    await expect(handlers.get("storage-get-paths")?.()).resolves.toMatchObject({
+      cachePath: "/user-data/Chromium/Cache",
+    });
+
+    readdir.mockResolvedValue([]);
+    await expect(handlers.get("storage-get-cache-size")?.()).resolves.toEqual({
+      total: 0,
+      details: [
+        { path: "/user-data/Chromium/Cache", size: 0 },
+        { path: "/user-data/Chromium/Code Cache", size: 0 },
+        { path: "/user-data/Chromium/GPUCache", size: 0 },
+      ],
+    });
+
+    await expect(handlers.get("storage-clear-cache")?.()).resolves.toEqual({ success: true, clearedBytes: 0 });
+    expect(rm).toHaveBeenCalledWith("/user-data/Chromium/Cache", { recursive: true, force: true });
+  });
+
   it("returns the unified validation response from the legacy project channel", async () => {
     const manager = createStorageManager({ userDataPath: "/user-data" });
     manager.registerIpcHandlers({ getStudioManualsSourceRoot: () => "/manuals" });

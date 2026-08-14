@@ -555,6 +555,58 @@ contextBridge.exposeInMainWorld('ttsRuntime', {
     ipcRenderer.invoke('tts-reference-audio-resolve', audioPath),
 })
 
+// Depth estimation runtime API — settings lifecycle for the cinematic 3D model.
+// Downloads are explicit and user-triggered; inference never auto-downloads.
+contextBridge.exposeInMainWorld('depthRuntime', {
+  status: (): Promise<unknown> => ipcRenderer.invoke('depth-runtime-status'),
+  setup: (): Promise<unknown> => ipcRenderer.invoke('depth-runtime-setup'),
+  refresh: (): Promise<unknown> => ipcRenderer.invoke('depth-runtime-refresh'),
+  scanModel: (): Promise<{ models: unknown[] }> => ipcRenderer.invoke('depth-runtime-scan-model'),
+  downloadModel: (): Promise<{ accepted: boolean; message: string }> =>
+    ipcRenderer.invoke('depth-runtime-download-model'),
+  downloadProgress: (): Promise<unknown> => ipcRenderer.invoke('depth-runtime-download-progress'),
+  setCinematicPreset: (preset: string): Promise<{ accepted: boolean; message: string }> =>
+    ipcRenderer.invoke('depth-runtime-set-cinematic-preset', preset),
+  setCinematicMode: (mode: 'auto' | 'manual'): Promise<{ accepted: boolean; message: string }> =>
+    ipcRenderer.invoke('depth-runtime-set-cinematic-mode', mode),
+  setPresetMap: (map: Record<string, string>): Promise<{ accepted: boolean; count: number; message: string }> =>
+    ipcRenderer.invoke('depth-runtime-set-preset-map', map),
+  getConfig: (): Promise<{ modelCacheDir: string }> => ipcRenderer.invoke('depth-runtime-get-config'),
+  setModelCacheDir: (dirPath: string): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke('depth-runtime-set-model-cache-dir', dirPath),
+  deleteModel: (): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke('depth-runtime-delete-model'),
+})
+
+// Video pipeline log bundle export — 三段链路日志统一打包导出.
+contextBridge.exposeInMainWorld('videoPipelineLogBundle', {
+  export: (payload: { projectId: string; chapterId: string; revision?: number }): Promise<{ success: boolean; path?: string; error?: string }> =>
+    ipcRenderer.invoke('video-pipeline-export-log-bundle', payload),
+})
+
+// Local image generation runtime API — sidecar lifecycle + explicit model downloads.
+contextBridge.exposeInMainWorld('imageGenRuntime', {
+  status: (): Promise<unknown> => ipcRenderer.invoke('image-gen-runtime-status'),
+  setup: (): Promise<unknown> => ipcRenderer.invoke('image-gen-runtime-setup'),
+  stop: (): Promise<unknown> => ipcRenderer.invoke('image-gen-runtime-stop'),
+  scanModel: (): Promise<{ models: unknown[] }> => ipcRenderer.invoke('image-gen-runtime-scan-model'),
+  downloadModel: (model: string): Promise<{ accepted: boolean; message: string }> =>
+    ipcRenderer.invoke('image-gen-runtime-download-model', model),
+  setActiveModel: (model: string): Promise<{ accepted: boolean; message: string }> =>
+    ipcRenderer.invoke('image-gen-runtime-set-active-model', model),
+})
+
+// Local music generation runtime API — MusicGen BGM, explicit downloads only.
+contextBridge.exposeInMainWorld('audioGenRuntime', {
+  status: (): Promise<unknown> => ipcRenderer.invoke('audio-gen-runtime-status'),
+  setup: (): Promise<unknown> => ipcRenderer.invoke('audio-gen-runtime-setup'),
+  scanModel: (): Promise<{ models: unknown[] }> => ipcRenderer.invoke('audio-gen-runtime-scan-model'),
+  downloadModel: (): Promise<{ accepted: boolean; message: string }> =>
+    ipcRenderer.invoke('audio-gen-runtime-download-model'),
+  generate: (payload: { prompt: string; seconds?: number; outputDir: string }): Promise<unknown> =>
+    ipcRenderer.invoke('audio-gen-runtime-generate', payload),
+})
+
 // Artifact Inventory API - read-only project/chapter scan
 contextBridge.exposeInMainWorld('artifactInventory', {
   scan: (projectId: string, chapterId?: string) =>

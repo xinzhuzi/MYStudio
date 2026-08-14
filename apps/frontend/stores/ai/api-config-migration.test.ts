@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { migrateAPIConfigState } from "./api-config-migration";
-import { DEFAULT_LOCAL_TTS_MODEL, DEFAULT_LOCAL_TTS_PROVIDER_ID } from "./api-config-provider-helpers";
+import { DEFAULT_LOCAL_TTS_MODEL, DEFAULT_LOCAL_TTS_PROVIDER_ID, DEFAULT_LOCAL_IMAGE_PROVIDER_ID } from "./api-config-provider-helpers";
 
 describe("migrateAPIConfigState", () => {
   beforeEach(() => {
@@ -70,8 +70,11 @@ describe("migrateAPIConfigState", () => {
     }, 8);
 
     expect(result.providers).toEqual([
+      expect.objectContaining({ id: DEFAULT_LOCAL_IMAGE_PROVIDER_ID }),
       expect.objectContaining({ id: DEFAULT_LOCAL_TTS_PROVIDER_ID }),
     ]);
+    expect(result.modelEndpointTypes?.["sdxl-turbo"]).toEqual(["image-generation"]);
+    expect(result.modelEndpointTypes?.["flux-schnell"]).toEqual(["image-generation"]);
     expect(result.featureBindings?.script_analysis).toEqual(["openai:m"]);
   });
 });

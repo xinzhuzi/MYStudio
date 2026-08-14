@@ -10,6 +10,7 @@ const appsRootFromSource = path.resolve(mainDir, "../../..");
 /** Dev seed candidate: APP_ROOT/frontend/assets/studio-manuals */
 const frontendStudioManualsSeed = path.join(appsRootFromSource, "frontend", "assets", "studio-manuals");
 const protocolSource = readFileSync(new URL("../runtime/register-protocol-handlers.ts", import.meta.url), "utf8");
+const chromiumDataDirSource = readFileSync(new URL("../runtime/chromium-data-dir.ts", import.meta.url), "utf8");
 const diagnosticsIpcSource = readFileSync(new URL("../ipc/diagnostics/diagnostics-ipc.ts", import.meta.url), "utf8");
 const appUpdaterIpcSource = readFileSync(new URL("../ipc/app/app-updater-ipc.ts", import.meta.url), "utf8");
 const projectFileIpcSource = readFileSync(new URL("../ipc/files/project-file-ipc.ts", import.meta.url), "utf8");
@@ -18,6 +19,21 @@ const apiRequestIpcSource = readFileSync(new URL("../ipc/ai/api-request-ipc.ts",
 const assetLibraryIpcSource = readFileSync(new URL("../ipc/assets/asset-library-ipc.ts", import.meta.url), "utf8");
 
 describe("main process startup", () => {
+  it("consolidates Chromium session data under <userData>/Chromium before the single-instance lock", () => {
+    const setPathIndex = mainSource.indexOf("app.setPath('sessionData'");
+    const lockIndex = mainSource.indexOf("requestSingleInstanceLock()");
+
+    expect(setPathIndex).toBeGreaterThan(-1);
+    expect(lockIndex).toBeGreaterThan(setPathIndex);
+    expect(mainSource.indexOf("ensureChromiumDataDir({ userDataPath: app.getPath('userData') })")).toBeGreaterThan(-1);
+    // The cache stats/cleanup IPC must follow the redirected session root, not userData.
+    expect(mainSource).toContain("sessionDataPath: app.getPath('sessionData')");
+    // The migration manifest is an allow-list; app-managed roots must stay out of it.
+    for (const appManaged of ["projects", "media", "TTS", "python", "logs", "skills", "assets"]) {
+      expect(chromiumDataDirSource, `chromium-data-dir must not claim app-managed root: ${appManaged}`).not.toContain(`"${appManaged}"`);
+    }
+  });
+
   it("does not auto-start the TTS backend when the app becomes ready", () => {
     const readyBlock = mainSource.slice(
       mainSource.indexOf("app.whenReady().then"),

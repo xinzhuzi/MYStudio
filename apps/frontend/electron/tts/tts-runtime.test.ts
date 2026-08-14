@@ -463,7 +463,7 @@ describe("TTS runtime controller", () => {
     const result = await controller.start();
 
     expect(result.success).toBe(false);
-    expect(result.error).toContain("请先到设置里的插件配置页的 Python 运行环境区块完成配置");
+    expect(result.error).toContain("请先到设置里的本地配置页的 Python 运行环境区块完成配置");
     expect(fetchRuntimeArchive).not.toHaveBeenCalled();
     expect(spawnProcess).not.toHaveBeenCalled();
   });
@@ -490,7 +490,7 @@ describe("TTS runtime controller", () => {
     const result = await controller.start();
 
     expect(result.success).toBe(false);
-    expect(result.error).toContain("插件配置页的 Python 运行环境区块完成配置");
+    expect(result.error).toContain("本地配置页的 Python 运行环境区块完成配置");
     expect(runPython).not.toHaveBeenCalledWith("python3", ["--version"], expect.any(Object));
     expect(spawnProcess).not.toHaveBeenCalled();
   });
@@ -618,7 +618,7 @@ describe("TTS runtime stale-marker offline self-healing", () => {
     const result = await controller.start();
 
     expect(result.success).toBe(false);
-    expect(result.error).toContain("插件配置页的 Python 运行环境区块点击开始配置");
+    expect(result.error).toContain("本地配置页的 Python 运行环境区块点击开始配置");
     expect(writeTextFile).not.toHaveBeenCalled();
     expect(spawnProcess).not.toHaveBeenCalled();
   });
@@ -649,7 +649,7 @@ describe("TTS runtime stale-marker offline self-healing", () => {
     const result = await controller.start();
 
     expect(result.success).toBe(false);
-    expect(result.error).toContain("插件配置页");
+    expect(result.error).toContain("本地配置页");
     expect(spawnProcess).not.toHaveBeenCalled();
   });
 
@@ -682,7 +682,7 @@ describe("TTS runtime stale-marker offline self-healing", () => {
     const result = await controller.start();
 
     expect(result.success).toBe(false);
-    expect(result.error).toContain("插件配置页的 Python 运行环境区块点击开始配置");
+    expect(result.error).toContain("本地配置页的 Python 运行环境区块点击开始配置");
     expect(spawnProcess).not.toHaveBeenCalled();
   });
 

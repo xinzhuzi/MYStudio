@@ -37,6 +37,23 @@ assets:select-audio-file
 assets:select-image-file
 assets:select-image-files
 assets:update
+audio-gen-runtime-download-model
+audio-gen-runtime-generate
+audio-gen-runtime-scan-model
+audio-gen-runtime-setup
+audio-gen-runtime-status
+depth-runtime-delete-model
+depth-runtime-download-model
+depth-runtime-download-progress
+depth-runtime-get-config
+depth-runtime-refresh
+depth-runtime-scan-model
+depth-runtime-set-cinematic-mode
+depth-runtime-set-cinematic-preset
+depth-runtime-set-model-cache-dir
+depth-runtime-set-preset-map
+depth-runtime-setup
+depth-runtime-status
 diagnostics-log-clear
 diagnostics-log-export-bundle
 diagnostics-log-get-info
@@ -53,6 +70,12 @@ file-storage-rename
 file-storage-set
 get-absolute-path
 get-image-path
+image-gen-runtime-download-model
+image-gen-runtime-scan-model
+image-gen-runtime-set-active-model
+image-gen-runtime-setup
+image-gen-runtime-status
+image-gen-runtime-stop
 image-host-upload
 move-image
 project-file-get-absolute-path
@@ -132,6 +155,7 @@ tts-runtime-setup
 tts-runtime-start
 tts-runtime-status
 tts-runtime-stop
+video-pipeline-export-log-bundle
 `.trim().split("\n");
 
 const NAMED_IPC_CHANNELS = {

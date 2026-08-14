@@ -550,8 +550,8 @@ describe("desktop build scripts", () => {
     expect(smokeScript).toContain("requiredText");
     expect(smokeScript).toContain("forbiddenText");
     expect(smokeScript).toContain("verifyPluginSettings");
-    expect(smokeScript).toContain('requiredText: ["系统设置", "外观", "插件配置"]');
-    expect(smokeScript).toContain("normalize(node) === '插件配置'");
+    expect(smokeScript).toContain('requiredText: ["系统设置", "外观", "本地配置"]');
+    expect(smokeScript).toContain("normalize(node) === '本地配置'");
     expect(smokeScript).not.toContain("normalize(node) === 'Python 配置'");
     expect(smokeScript).not.toContain("normalize(node).includes('Python 配置')");
     expect(smokeScript).not.toContain("normalize(node) === '渲染'");

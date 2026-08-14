@@ -119,7 +119,7 @@ class TtsRuntimePathTest(unittest.TestCase):
                 patch.object(module, "health_check", return_value=False),
                 patch.object(module.subprocess, "Popen") as popen,
             ):
-                with self.assertRaisesRegex(RuntimeError, "设置里的插件配置页的 Python 运行环境区块点击开始配置，完成 TTS 依赖安装"):
+                with self.assertRaisesRegex(RuntimeError, "设置里的本地配置页的 Python 运行环境区块点击开始配置，完成 TTS 依赖安装"):
                     module.start_tts_backend()
 
             self.assertTrue(legacy_python.exists())

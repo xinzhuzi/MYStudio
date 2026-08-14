@@ -68,6 +68,7 @@ import { registerRemotionQueueIpcHandlers } from '../ipc/studio/remotion-queue-i
 import { registerRemotionChapterManifestIpcHandlers } from '../ipc/studio/remotion-chapter-manifest-ipc'
 import { registerRemotionStudioIpcHandlers, REMOTION_STUDIO_EDITING_UPDATED_EVENT } from '../ipc/studio/remotion-studio-ipc'
 import { RemotionShotRenderer } from '@rendering/plugins/remotion/renderer/remotion-shot-renderer'
+import type { CinematicCameraPreset } from '@rendering/plugins/remotion/composition/composition-props'
 import { RemotionChapterRenderer } from '@rendering/plugins/remotion/renderer/remotion-chapter-renderer'
 import {
   createRemotionQueueFilePersistence,
@@ -80,6 +81,12 @@ import { acceptVideoUseArtifact } from '@rendering/plugins/video-workflow/video-
 import { createVideoUseAdapter } from '@rendering/plugins/video-use/video-use-adapter'
 import { createHyperFramesAdapter } from '@rendering/plugins/hyperframes/hyperframes-adapter'
 import { createDepthAdapter } from '@rendering/plugins/depth/depth-adapter'
+import { createDepthRuntimeController } from '@rendering/plugins/depth/depth-runtime-controller'
+import { registerDepthIpcHandlers } from '../ipc/studio/depth-ipc'
+import { createImageGenRuntimeController } from '@rendering/plugins/image_gen/image-gen-runtime-controller'
+import { registerImageGenIpcHandlers } from '../ipc/studio/image-gen-ipc'
+import { createAudioGenRuntimeController } from '@rendering/plugins/audio_gen/audio-gen-runtime-controller'
+import { registerAudioGenIpcHandlers } from '../ipc/studio/audio-gen-ipc'
 import { createVideoWorkflowRuntimeManager } from '@rendering/plugins/video-workflow/video-workflow-runtime-manager'
 import { selectSharedVideoToolchain } from '@rendering/plugins/video-workflow/video-workflow-runtime'
 import type {
@@ -118,6 +125,7 @@ import {
   registerPrivilegedSchemes,
   registerProtocolHandlers,
 } from '../runtime/register-protocol-handlers'
+import { ensureChromiumDataDir } from '../runtime/chromium-data-dir'
 
 // electron-vite 构建后的目录结构
 //
@@ -138,6 +146,13 @@ const RENDERER_INDEX_HTML = path.join('renderer', 'index.html')
 const isBackgroundSmoke = process.env.MYSTUDIO_SMOKE_BACKGROUND === '1'
 
 process.env.VITE_PUBLIC = RENDERER_DIST
+
+// Chromium 会话数据（Cache / Local Storage / IndexedDB / Cookies / OPFS 等）
+// 收敛到 <userData>/Chromium，避免散落在 userData 根目录污染应用数据。
+// Electron 要求在 app.ready 之前覆盖 sessionData；这里也先于单例锁，
+// 让 Singleton 标记直接落在新根目录。一次性迁移失败时回退旧布局，绝不阻塞启动。
+const chromiumDataDir = ensureChromiumDataDir({ userDataPath: app.getPath('userData') })
+if (chromiumDataDir) app.setPath('sessionData', chromiumDataDir)
 
 let win: BrowserWindow | null
 const hasSingleInstanceLock = app.requestSingleInstanceLock()
@@ -484,7 +499,7 @@ app.on('activate', () => {
     createWindow()
   }
 })
-const storageManager = createStorageManager({ userDataPath: app.getPath('userData') })
+const storageManager = createStorageManager({ userDataPath: app.getPath('userData'), sessionDataPath: app.getPath('sessionData') })
 const {
   getStorageBasePath,
   getProjectDataRoot,
@@ -785,6 +800,43 @@ const depthAdapter = createDepthAdapter({
   backendRoot: videoWorkflowBackendRoot,
 })
 
+// Depth runtime controller — settings-facing lifecycle (设置 → 本地配置 → 深度估计模型).
+// Model downloads are explicit and user-triggered; inference never downloads.
+// The model cache dir is self-managed at <storageBase>/DeepModel (config.json),
+// mirroring the TTS model-dir feature set — no TTS cache fallback.
+const depthRuntimeController = createDepthRuntimeController({
+  storageBasePath: getStorageBasePath,
+  backendRoot: videoWorkflowBackendRoot,
+})
+const depthIpc = registerDepthIpcHandlers({
+  controller: depthRuntimeController,
+  getDataRoot: getDataDir,
+  getDiagnosticsDir: () => path.join(app.getPath('userData'), 'logs', 'diagnostics'),
+  getExportDir: () => path.join(app.getPath('userData'), 'exports'),
+})
+
+// Local image generation sidecar — OpenAI-compatible HTTP server (127.0.0.1:17595)
+// registered as the `manying-local-image` provider so cloud APIs can be replaced
+// for character/scene/prop generation at zero cost. Models download explicitly.
+const imageGenRuntimeController = createImageGenRuntimeController({
+  storageBasePath: getStorageBasePath,
+  backendRoot: videoWorkflowBackendRoot,
+  modelCacheDir: () => ttsRuntimeController.getModelCacheDir(),
+})
+const imageGenIpc = registerImageGenIpcHandlers({ controller: imageGenRuntimeController })
+
+// Local music generation sidecar — MusicGen BGM generation via CLI worker.
+// Same explicit-download policy; generated WAVs feed the chapter BGM track.
+const audioGenRuntimeController = createAudioGenRuntimeController({
+  storageBasePath: getStorageBasePath,
+  backendRoot: videoWorkflowBackendRoot,
+  modelCacheDir: () => ttsRuntimeController.getModelCacheDir(),
+})
+const audioGenIpc = registerAudioGenIpcHandlers({
+  controller: audioGenRuntimeController,
+  getExportDir: () => path.join(app.getPath('userData'), 'exports'),
+})
+
 const remotionShotRenderer = new RemotionShotRenderer({
   workspaceRoot: getDataDir(),
   workspaceRootForProject: (projectId) => path.join(getDataDir(), "_p", projectId, "remotion"),
@@ -799,7 +851,7 @@ const remotionShotRenderer = new RemotionShotRenderer({
   remotionVersion,
   emitProgress: () => undefined,
   depthAdapter,
-  cinematicPreset: "cinematic-dolly-in",
+  cinematicPreset: (shotId: string) => depthRuntimeController.getCinematicPresetForShot(shotId) as CinematicCameraPreset,
 })
 const remotionChapterRenderer = new RemotionChapterRenderer({
   workspaceRoot: getDataDir(),
@@ -1254,6 +1306,9 @@ disposeRemotionRuntime = async () => {
   await remotionShotIpc.dispose()
   await remotionChapterRenderer.dispose()
   videoWorkflowIpc.dispose()
+  depthIpc.dispose()
+  imageGenIpc.dispose()
+  audioGenIpc.dispose()
   remotionRuntime.dispose()
 }
 

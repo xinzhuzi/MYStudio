@@ -41,7 +41,7 @@ export function transitionStyleAtFrame(
     ? (midpoint === 0 ? 1 : localFrame / midpoint)
     : (lastFrame === midpoint ? 0 : (lastFrame - localFrame) / (lastFrame - midpoint));
   // A softened flash never reaches full white — full-screen pure white reads
-  // as a glitch; 0.6 keeps the "breakthrough light" beat without the sting.
+  // as a glitch; 0.75 keeps a strong "breakthrough light" beat without the sting.
   const peak = effectId === "flash" ? FLASH_PEAK_OPACITY : 1;
 
   return {
@@ -51,7 +51,7 @@ export function transitionStyleAtFrame(
   };
 }
 
-const FLASH_PEAK_OPACITY = 0.6;
+const FLASH_PEAK_OPACITY = 0.75;
 
 function clampFrame(frame: number, durationInFrames: number): number {
   return Math.max(0, Math.min(durationInFrames - 1, Math.floor(frame)));

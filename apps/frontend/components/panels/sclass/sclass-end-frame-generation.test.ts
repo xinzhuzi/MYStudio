@@ -91,10 +91,16 @@ describe("createSClassEndFrameGenerator", () => {
       expect.objectContaining({ max: 14 }),
     );
     expect(mocks.imageGrid).toHaveBeenCalledWith(expect.objectContaining({
-      prompt: "走到门口. Style: ink style",
+      prompt: expect.stringContaining("走到门口"),
       baseUrl: "https://api.test",
       aspectRatio: "16:9",
       resolution: "2K",
+    }));
+    expect(mocks.imageGrid).toHaveBeenCalledWith(expect.objectContaining({
+      prompt: expect.stringContaining("Style: ink style"),
+    }));
+    expect(mocks.imageGrid).toHaveBeenCalledWith(expect.objectContaining({
+      prompt: expect.stringContaining("foreground framing elements"),
     }));
     expect(result.updateEndFrame).toHaveBeenCalledWith(2, "local-image", "ai-generated", "http-image");
     expect(result.addMedia).toHaveBeenCalledWith(expect.objectContaining({

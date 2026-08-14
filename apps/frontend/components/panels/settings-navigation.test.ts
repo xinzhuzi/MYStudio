@@ -34,7 +34,7 @@ describe("SettingsPanel navigation", () => {
     expect(SETTINGS_TABS[0]?.value).toBe("appearance");
   });
 
-  it("keeps workflow configuration inside API management instead of a top-level tab", () => {
+  it("keeps workflow configuration inside cloud AI settings instead of a top-level tab", () => {
     const labels = SETTINGS_TABS.map((tab) => tab.label);
     expect(labels).not.toContain("工作流配置");
     expect(labels).not.toContain("本地 TTS");
@@ -42,14 +42,23 @@ describe("SettingsPanel navigation", () => {
     expect(labels).not.toContain("TTS 配置");
     expect(labels).not.toContain("视频工作流插件");
     expect(labels).toEqual(expect.arrayContaining([
-      "API 管理",
+      "云端AI",
+      "本地配置",
       "图片规格",
-      "插件配置",
       "高级选项",
       "图床配置",
       "存储",
       "开发",
     ]));
+  });
+
+  it("orders cloud AI and local configuration before image size settings", () => {
+    expect(SETTINGS_TABS.slice(0, 4)).toEqual([
+      { value: "appearance", label: "外观" },
+      { value: "api", label: "云端AI" },
+      { value: "plugins", label: "本地配置" },
+      { value: "imageSize", label: "图片规格" },
+    ]);
   });
 
   it("uses Toonflow-style API manager sections", () => {

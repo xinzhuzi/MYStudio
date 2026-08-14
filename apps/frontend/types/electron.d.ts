@@ -443,6 +443,42 @@ declare global {
       delete: () => Promise<TtsRuntimeCommandResult>;
       resolveReferenceAudioPath: (audioPath: string) => Promise<string | null>;
     };
+    depthRuntime?: {
+      status: () => Promise<import("@/types/depth").DepthRuntimeStatus>;
+      setup: () => Promise<import("@/types/depth").DepthRuntimeStatus>;
+      refresh: () => Promise<import("@/types/depth").DepthRuntimeStatus>;
+      scanModel: () => Promise<{ models: import("@/types/depth").DepthModelStatusRow[] }>;
+      downloadModel: () => Promise<{ accepted: boolean; message: string }>;
+      downloadProgress: () => Promise<import("@/types/depth").DepthDownloadProgress>;
+      setCinematicPreset: (preset: string) => Promise<{ accepted: boolean; message: string }>;
+      setCinematicMode: (mode: "auto" | "manual") => Promise<{ accepted: boolean; message: string }>;
+      setPresetMap: (map: Record<string, string>) => Promise<{ accepted: boolean; count: number; message: string }>;
+      getConfig: () => Promise<{ modelCacheDir: string }>;
+      setModelCacheDir: (dirPath: string) => Promise<{ success: boolean; error?: string }>;
+      deleteModel: () => Promise<{ success: boolean; error?: string }>;
+    };
+    videoPipelineLogBundle?: {
+      export: (payload: { projectId: string; chapterId: string; revision?: number }) => Promise<{
+        success: boolean;
+        path?: string;
+        error?: string;
+      }>;
+    };
+    imageGenRuntime?: {
+      status: () => Promise<import("@/types/image-gen").ImageGenRuntimeStatus>;
+      setup: () => Promise<import("@/types/image-gen").ImageGenRuntimeStatus>;
+      stop: () => Promise<import("@/types/image-gen").ImageGenRuntimeStatus>;
+      scanModel: () => Promise<{ models: import("@/types/image-gen").ImageGenModelRow[] }>;
+      downloadModel: (model: string) => Promise<{ accepted: boolean; message: string }>;
+      setActiveModel: (model: string) => Promise<{ accepted: boolean; message: string }>;
+    };
+    audioGenRuntime?: {
+      status: () => Promise<import("@/types/audio-gen").AudioGenRuntimeStatus>;
+      setup: () => Promise<import("@/types/audio-gen").AudioGenRuntimeStatus>;
+      scanModel: () => Promise<{ models: import("@/types/audio-gen").AudioGenModelRow[] }>;
+      downloadModel: () => Promise<{ accepted: boolean; message: string }>;
+      generate: (payload: { prompt: string; seconds?: number; outputDir: string }) => Promise<import("@/types/audio-gen").AudioGenGenerateResult>;
+    };
     artifactInventory?: {
       scan: (projectId: string, chapterId?: string) => Promise<InventoryResult>;
       list: (projectId: string) => Promise<InventoryResult>;

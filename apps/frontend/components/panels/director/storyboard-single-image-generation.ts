@@ -1,6 +1,7 @@
 import { aiManager } from "@/lib/ai/ai-manager";
 import { pollImageTaskUrl } from "@/lib/storyboard/image-task-transport";
 import { persistSceneImage } from "@/lib/utils/image-persist";
+import { withDepthFriendlyTokens } from "@/lib/studio/depth-friendly-prompt";
 import type { SplitScene } from "@/stores/director/director-store";
 import { toast } from "sonner";
 
@@ -63,11 +64,15 @@ export function createStoryboardSingleImageGenerator(
       return;
     }
 
-    const promptToUse = scene.imagePromptZh?.trim()
+    // Depth-friendly composition tokens — the frame feeds a depth estimator +
+    // 2.5D camera rig; layered depth structure makes the parallax clean.
+    const promptToUse = withDepthFriendlyTokens(
+      scene.imagePromptZh?.trim()
       || scene.imagePrompt?.trim()
       || scene.videoPromptZh?.trim()
       || scene.videoPrompt?.trim()
-      || "";
+      || "",
+    );
     if (!promptToUse) {
       toast.warning("请先填写首帧提示词后再生成图片");
       return;

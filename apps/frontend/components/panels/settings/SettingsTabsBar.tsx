@@ -1,8 +1,8 @@
 import {
+  Cloud,
   Coffee,
   HardDrive,
   Image as ImageIcon,
-  Key,
   Layers,
   Palette,
   Plug,
@@ -13,9 +13,9 @@ import { TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export const SETTINGS_TABS = [
   { value: "appearance", label: "外观" },
-  { value: "api", label: "API 管理" },
+  { value: "api", label: "云端AI" },
+  { value: "plugins", label: "本地配置" },
   { value: "imageSize", label: "图片规格" },
-  { value: "plugins", label: "插件配置" },
   { value: "advanced", label: "高级选项" },
   { value: "imagehost", label: "图床配置" },
   { value: "storage", label: "存储" },
@@ -31,7 +31,7 @@ function renderSettingsTabIcon(value: SettingsTabId) {
     case "appearance":
       return <Palette className="h-4 w-4 mr-2" />;
     case "api":
-      return <Key className="h-4 w-4 mr-2" />;
+      return <Cloud className="h-4 w-4 mr-2" />;
     case "imageSize":
       return <ImageIcon className="h-4 w-4 mr-2" />;
     case "plugins":

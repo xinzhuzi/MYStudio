@@ -70,7 +70,10 @@ describe("createStoryboardEndFrameGenerator", () => {
     expect(result.prepareRequest).toHaveBeenCalledWith(expect.objectContaining({
       scene,
       model: "image-model",
-      promptToUse: "走到门口",
+      promptToUse: expect.stringContaining("走到门口"),
+    }));
+    expect(result.prepareRequest).toHaveBeenCalledWith(expect.objectContaining({
+      promptToUse: expect.stringContaining("foreground framing elements"),
     }));
     expect(mocks.imageGrid).toHaveBeenCalledWith(expect.objectContaining({
       prompt: "走到门口. identity lock",

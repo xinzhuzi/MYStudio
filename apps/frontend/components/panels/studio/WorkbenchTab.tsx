@@ -151,6 +151,30 @@ export function WorkbenchTab(props: {
   useEffect(() => {
     void refreshChapterManifest();
   }, [refreshChapterManifest]);
+
+  // 三段链路日志包导出: Remotion evidence + video-use + HyperFrames + 诊断日志.
+  const [logBundleExporting, setLogBundleExporting] = useState(false);
+  const exportLogBundle = useCallback(async () => {
+    const bridge = window.videoPipelineLogBundle;
+    const projectId = props.projectId;
+    if (!bridge || !projectId) {
+      toast.error("日志包导出仅在桌面应用中可用");
+      return;
+    }
+    setLogBundleExporting(true);
+    try {
+      const result = await bridge.export({ projectId, chapterId });
+      if (result.success && result.path) {
+        toast.success(`制作日志包已导出: ${result.path}`);
+      } else {
+        toast.error(result.error ?? "日志包导出失败");
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "日志包导出失败");
+    } finally {
+      setLogBundleExporting(false);
+    }
+  }, [chapterId, props.projectId]);
   const writeSharedAudio = useCallback(async (
     binding: RemotionChapterAudioBindingV2,
   ) => {
@@ -409,6 +433,15 @@ export function WorkbenchTab(props: {
             onClick={() => { void editing.runVideoUse(videoUseMode, videoUseDerivedInputPolicy, videoUseStoryboardSourcePolicy).catch(() => undefined); }}
           >
             {editing.videoUseBusy ? "正在运行…" : editing.videoUseState === "blocked" ? "重试 video-use" : "运行 video-use 预览"}
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            data-export-log-bundle
+            disabled={!chapterReady || logBundleExporting}
+            onClick={() => { void exportLogBundle(); }}
+          >
+            {logBundleExporting ? "正在导出…" : "导出制作日志包"}
           </Button>
           <span
             className="pb-2 text-muted-foreground"

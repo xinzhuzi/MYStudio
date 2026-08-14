@@ -137,7 +137,7 @@ describe("aiManager.text", () => {
 
       expect(result).toEqual({
         success: false,
-        error: "未配置可用模型，请到设置的 API 管理绑定对应 Agent 或通用AI",
+        error: "未配置可用模型，请到设置的云端AI绑定对应 Agent 或通用AI",
       });
       expect(textCompletion).not.toHaveBeenCalled();
     } finally {
