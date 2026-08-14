@@ -1062,7 +1062,7 @@ describe("desktop build scripts", () => {
       '"smoke:workflow:background": "node ./build/smoke/run-visible-workflow-smoke.mjs --background"',
     );
     expect(packageJson).toContain(
-      '"smoke:workflow:background:daojie": "node ./build/smoke/run-visible-workflow-smoke.mjs --background --daojie"',
+      '"smoke:workflow:background:project": "node ./build/smoke/run-visible-workflow-smoke.mjs --background --real-project"',
     );
     expect(smokeScript).toContain(
       'MYSTUDIO_SMOKE_BACKGROUND: foregroundSmoke ? "0" : "1"',
@@ -1077,7 +1077,7 @@ describe("desktop build scripts", () => {
     expect(workflowRunner).toContain('MYSTUDIO_SMOKE_BACKGROUND: runInBackground ? "1" : "0"');
     expect(workflowRunner).toContain("if (!runInBackground)");
     expect(workflowRunner).toContain("focusWindowStatement");
-    expect(workflowRunner).toContain("background-workflow-daojie-report.json");
+    expect(workflowRunner).toContain("background-workflow-project-report.json");
     expect(workflowRunner).toContain("windowVisibility");
     expect(workflowRunner).toContain("documentHasFocus");
     expect(workflowRunner).toContain("focusSamples");
@@ -1091,7 +1091,7 @@ describe("desktop build scripts", () => {
     expect(workflowSkill).toContain("npm run smoke:workflow:background");
     expect(workflowSkill).toContain("foregroundViolation=false");
     expect(workflowSpec).toContain(
-      "npm run smoke:workflow:background:daojie -- --auto-video",
+      "npm run smoke:workflow:background:project -- --auto-video",
     );
     expect(workflowSpec).toContain("MYSTUDIO_SMOKE_BACKGROUND=1");
   });
@@ -1192,7 +1192,7 @@ describe("desktop build scripts", () => {
     expect(runnerScript).toContain("[visible-run] stage");
     expect(runnerScript).toContain("frontmostApp");
     expect(runnerScript).toContain("writeVisibleRunReport");
-    expect(runnerScript).toContain("visible-workflow-daojie-report.json");
+    expect(runnerScript).toContain("visible-workflow-project-report.json");
     expect(runnerScript).toContain("reportPath");
     expect(runnerScript).toContain("primeVisibleStageForFirstClick");
     expect(runnerScript).toContain('stdio: "ignore"');
@@ -1229,25 +1229,25 @@ describe("desktop build scripts", () => {
     );
 
     expect(packageJson).toContain(
-      '"smoke:workflow:run:daojie": "node ./build/smoke/run-visible-workflow-smoke.mjs --daojie"',
+      '"smoke:workflow:run:project": "node ./build/smoke/run-visible-workflow-smoke.mjs --real-project"',
     );
     expect(packageJson).toContain(
-      '"smoke:workflow:background:daojie:production-canvas": "node ./build/smoke/run-visible-workflow-smoke.mjs --background --daojie --production-canvas-video"',
+      '"smoke:workflow:background:project:production-canvas": "node ./build/smoke/run-visible-workflow-smoke.mjs --background --real-project --production-canvas-video"',
     );
     expect(runnerScript).toContain('process.argv.includes("--auto-video")');
     expect(runnerScript).toContain('process.argv.includes("--first-shot-preview")');
     expect(runnerScript).toContain("MYSTUDIO_WORKFLOW_AUTO_VIDEO");
     expect(runnerScript).toContain("MYSTUDIO_AUTO_VIDEO_TIMEOUT_MS");
     expect(runnerScript).toContain("MYSTUDIO_FIRST_SHOT_PREVIEW_TIMEOUT_MS");
-    expect(runnerScript).toContain("npm run smoke:workflow:run:daojie -- --auto-video");
-    expect(runnerScript).toContain("MYSTUDIO_WORKFLOW_REAL_DAOJIE");
-    expect(runnerScript).toContain("cloneRealDaojieUserData");
-    expect(runnerScript).toContain("function inspectClonedDaojieProjectData(userDataDir, projectId = daojieProjectId)");
-    expect(runnerScript).toContain("inspectClonedDaojieProjectData(userDataDir, realDaojieRun?.projectId)");
-    expect(runnerScript).toContain("mystudio-daojie-workflow-run-");
+    expect(runnerScript).toContain("npm run smoke:workflow:run:project -- --auto-video");
+    expect(runnerScript).toContain("MYSTUDIO_WORKFLOW_REAL_PROJECT");
+    expect(runnerScript).toContain("cloneRealProjectUserData");
+    expect(runnerScript).toContain("function inspectClonedProjectData(userDataDir, projectId = realProjectId)");
+    expect(runnerScript).toContain("inspectClonedProjectData(userDataDir, realProjectRun?.projectId)");
+    expect(runnerScript).toContain("mystudio-project-workflow-run-");
     expect(runnerScript).toContain("copyProjectDirectoryIfExists");
     expect(runnerScript).toContain("repairMissingCharacterThumbnails");
-    expect(runnerScript).toContain("readDaojieRoleAssets");
+    expect(runnerScript).toContain("readRealProjectRoleAssets");
     expect(runnerScript).toContain("cloneAssetReferenceRepairs");
     expect(runnerScript).not.toContain("symlinkSync");
     expect(runnerScript).toContain("sourceWorkflowImagesDir");
@@ -1256,7 +1256,7 @@ describe("desktop build scripts", () => {
     expect(runnerScript).toContain("chapter-001");
     expect(runnerScript).toContain("第1章：剑主夜访道口镇");
     expect(runnerScript).toContain("Daojie chapter001 clicked through");
-    expect(runnerScript).toContain("real-daojie-chapter001-clone");
+    expect(runnerScript).toContain("real-project-clone");
     expect(runnerScript).toContain("storyboards");
     expect(runnerScript).toContain("storyboardsWithWorkflow");
     expect(runnerScript).toContain("storyboardImageWorkflowsReady");
@@ -1265,16 +1265,16 @@ describe("desktop build scripts", () => {
     expect(runnerScript).toContain("derivedAssetPlan");
     expect(runnerScript).toContain("derivedAssets");
     expect(runnerScript).toContain("derivedImageWorkflowsReady");
-    expect(runnerScript).toContain("const expectedStoryboards = Number(daojieRun.expectedStoryboards)");
+    expect(runnerScript).toContain("const expectedStoryboards = Number(realProjectRunData.expectedStoryboards)");
     expect(runnerScript).toContain("data.storyboards === ${expectedStoryboards}");
     expect(runnerScript).toContain("data.storyboardsWithMediaPath === ${expectedStoryboards}");
     expect(runnerScript).toContain("data.storyboardImageWorkflowsReady === ${expectedStoryboards}");
     expect(runnerScript).toContain("hasLastStoryboardWorkflowEntry");
     expect(runnerScript).toContain("data.derivedImageWorkflowsReady >= 3");
-    expect(runnerScript).toContain("openRealDaojieStoryboardImageWorkflowDetail");
+    expect(runnerScript).toContain("openRealProjectStoryboardImageWorkflowDetail");
     expect(runnerScript).toContain("data-storyboard-workflow-image-id");
     expect(runnerScript).toContain("data-storyboard-id");
-    expect(runnerScript).toContain("openRealDaojieDerivativeImageWorkflowDetail");
+    expect(runnerScript).toContain("openRealProjectDerivativeImageWorkflowDetail");
     expect(runnerScript).toContain("data-asset-workflow-image-id");
     expect(runnerScript).toContain("asset-flow-chapter-001");
     expect(runnerScript).toContain('data-image-workflow-node-kind="reference"');
@@ -1297,7 +1297,7 @@ describe("desktop build scripts", () => {
     expect(runnerScript).toContain("data-toonflow-generated-prompt-panel");
     expect(runnerScript).toContain("hasEditableImageWorkflowPrompt");
     expect(runnerScript).toMatch(
-      /const hasDaojieDerivativePromptStyle = promptTextValues\.some\(\(value\) =>[\s\S]*?value\.includes\('daojie-gongbi-v2'\)[\s\S]*?value\.includes\('连续白描和铁线描'\)[\s\S]*?value\.includes\('3D\/CGI'\)/,
+      /const hasRealProjectDerivativePromptStyle = promptTextValues\.some\(\(value\) =>[\s\S]*?value\.includes\('daojie-gongbi-v2'\)[\s\S]*?value\.includes\('连续白描和铁线描'\)[\s\S]*?value\.includes\('3D\/CGI'\)/,
     );
     expect(runnerScript).toContain("const detail = entry.url ? `${text} (${entry.url})` : text");
     expect(runnerScript).toContain("hasImageWorkflowSource");
@@ -1308,18 +1308,18 @@ describe("desktop build scripts", () => {
     expect(runnerScript).toContain("!result.storyboardImageWorkflowDetail?.ready");
     expect(runnerScript).toContain("!result.derivativeImageWorkflowDetail?.ready");
     expect(runnerScript).toContain("!scopedDerivativePaletteAbsent");
-    expect(runnerScript).toContain("const expectedStoryboards = Number(realDaojieRun?.expectedStoryboards ?? daojie.expectedStoryboards)");
-    expect(runnerScript).toContain("daojie.storyboards !== expectedStoryboards");
-    expect(runnerScript).toContain("daojie.storyboardsWithMediaPath !== expectedStoryboards");
-    expect(runnerScript).toContain("daojie.storyboardsWithWorkflow !== expectedStoryboards");
-    expect(runnerScript).toContain("daojie.storyboardImageWorkflowsReady !== expectedStoryboards");
-    expect(runnerScript).toContain("daojie.derivedImageWorkflowsReady < 3");
+    expect(runnerScript).toContain("const expectedStoryboards = Number(realProjectRunData.expectedStoryboards)");
+    expect(runnerScript).toContain("realProject.storyboards !== expectedStoryboards");
+    expect(runnerScript).toContain("realProject.storyboardsWithMediaPath !== expectedStoryboards");
+    expect(runnerScript).toContain("realProject.storyboardsWithWorkflow !== expectedStoryboards");
+    expect(runnerScript).toContain("realProject.storyboardImageWorkflowsReady !== expectedStoryboards");
+    expect(runnerScript).toContain("realProject.derivedImageWorkflowsReady < 3");
     expect(runnerScript).toContain("productionTrackIds.has(candidate.trackId)");
     expect(runnerScript).not.toContain("storyboards >= 100");
     expect(runnerScript).not.toContain("storyboards < 100");
     expect(runnerScript).not.toContain("data.storyboards > 0");
-    expect(runnerScript).not.toContain("daojie.storyboards < 1");
-    expect(runnerScript).not.toContain("daojieChapter001ExpectedStoryboardCount = 43");
+    expect(runnerScript).not.toContain("realProject.storyboards < 1");
+    expect(runnerScript).not.toContain("realProjectExpectedStoryboardCount = 43");
     expect(runnerScript).not.toContain("hasStoryboard43WorkflowEntry");
     expect(runnerScript).toContain("does not use resetForStepwiseExecution");
     expect(runnerScript).toContain("Runtime.exceptionThrown");
@@ -1354,7 +1354,7 @@ describe("desktop build scripts", () => {
     expect(runnerScript).toContain("window.remotionRuntime.status()");
     expect(runnerScript).toContain("window.remotionRuntime.workspaceRuntime()");
     expect(runnerScript).toContain(
-      "copyInstalledRemotionCache(daojieSourceUserDataDir, clonedUserDataDir)",
+      "copyInstalledRemotionCache(realProjectSourceUserDataDir, clonedUserDataDir)",
     );
     expect(runnerScript).toContain(
       'resolve(sourceUserDataDir, "remotion-runtime")',
@@ -1366,10 +1366,10 @@ describe("desktop build scripts", () => {
       "copyProjectDirectoryIfExists(sourceCacheRealPath, clonedCachePath)",
     );
     expect(runnerScript).toContain(
-      "remotionRuntimeReuse: realDaojieRun?.remotionRuntimeReuse || null",
+      "remotionRuntimeReuse: realProjectRun?.remotionRuntimeReuse || null",
     );
     expect(runnerScript).not.toContain(
-      'copyProjectDirectoryIfExists(resolve(daojieSourceUserDataDir, "remotion-runtime")',
+      'copyProjectDirectoryIfExists(resolve(realProjectSourceUserDataDir, "remotion-runtime")',
     );
     expect(runnerScript).toContain('mode: "observation"');
     expect(runnerScript).toContain('mode: "strict"');
@@ -1382,7 +1382,7 @@ describe("desktop build scripts", () => {
     expect(runnerScript).toContain('process.argv.includes("--production-canvas-video")');
     expect(runnerScript).toContain("MYSTUDIO_WORKFLOW_PRODUCTION_CANVAS_VIDEO");
     expect(runnerScript).toContain("MYSTUDIO_PRODUCTION_CANVAS_VIDEO_TIMEOUT_MS");
-    expect(runnerScript).toContain("npm run smoke:workflow:run:daojie -- --production-canvas-video");
+    expect(runnerScript).toContain("npm run smoke:workflow:run:project -- --production-canvas-video");
     expect(runnerScript).toContain("runProductionCanvasVideoFlow");
     expect(runnerScript).toContain("auditVisibleProductionCanvasVideo");
     expect(runnerScript).toContain("[data-flow-node-id=\"remotionProduction\"]");
@@ -1391,21 +1391,21 @@ describe("desktop build scripts", () => {
     expect(runnerScript).toContain("preClickReviewCounts");
     expect(runnerScript).toContain("window.remotionQueue?.get");
     expect(runnerScript).toContain("copyInstalledRemotionCache");
-    expect(runnerScript).toContain("verifyRealDaojieStageEvidence");
+    expect(runnerScript).toContain("verifyRealProjectStageEvidence");
     expect(runnerScript).toContain("manualsReady");
     expect(runnerScript).toContain("workbenchReady");
     expect(runnerScript).toContain("totalStoryboardDuration");
     expect(runnerScript).toContain("totalTrackDuration");
-    expect(runnerScript).toContain("daojie.totalStoryboardDuration > 180");
-    expect(runnerScript).toContain("daojie.totalTrackDuration > 180");
+    expect(runnerScript).toContain("realProject.totalStoryboardDuration > 180");
+    expect(runnerScript).toContain("realProject.totalTrackDuration > 180");
     expect(runnerScript).toContain("buttonTexts");
     expect(runnerScript).toContain("stage switcher was not visible");
-    expect(skill).toContain("npm run smoke:workflow:run:daojie");
+    expect(skill).toContain("npm run smoke:workflow:run:project");
     expect(skill).toContain("真实《道劫》第一章节项目");
     expect(skill).toContain("不是 empty smoke template");
   });
 
-  it("rejects the one-click auto-video runner outside a real Daojie clone", () => {
+  it("rejects the one-click auto-video runner outside a real project clone", () => {
     const result = spawnSync(
       "node",
       ["build/smoke/run-visible-workflow-smoke.mjs", "--auto-video"],
@@ -1414,20 +1414,20 @@ describe("desktop build scripts", () => {
         encoding: "utf8",
         env: {
           ...process.env,
-          MYSTUDIO_WORKFLOW_REAL_DAOJIE: "0",
+          MYSTUDIO_WORKFLOW_REAL_PROJECT: "0",
           MYSTUDIO_WORKFLOW_AUTO_VIDEO: "0",
         },
       },
     );
 
     expect(result.status).not.toBe(0);
-    expect(result.stderr).toContain("--auto-video requires --daojie");
+    expect(result.stderr).toContain("--auto-video requires --real-project");
   });
 
-  it("rejects first-shot preview outside Daojie mode and alongside chapter auto-video", () => {
+  it("rejects first-shot preview outside real-project mode and alongside chapter auto-video", () => {
     const env = {
       ...process.env,
-      MYSTUDIO_WORKFLOW_REAL_DAOJIE: "0",
+      MYSTUDIO_WORKFLOW_REAL_PROJECT: "0",
       MYSTUDIO_WORKFLOW_AUTO_VIDEO: "0",
     };
     const outsideDaojie = spawnSync(
@@ -1436,13 +1436,13 @@ describe("desktop build scripts", () => {
       { cwd: appsRoot, encoding: "utf8", env },
     );
     expect(outsideDaojie.status).not.toBe(0);
-    expect(outsideDaojie.stderr).toContain("--first-shot-preview requires --daojie");
+    expect(outsideDaojie.stderr).toContain("--first-shot-preview requires --real-project");
 
     const conflictingMode = spawnSync(
       "node",
       [
         "build/smoke/run-visible-workflow-smoke.mjs",
-        "--daojie",
+        "--real-project",
         "--auto-video",
         "--first-shot-preview",
       ],
@@ -1455,7 +1455,7 @@ describe("desktop build scripts", () => {
 
     const invalidTimeout = spawnSync(
       "node",
-      ["build/smoke/run-visible-workflow-smoke.mjs", "--daojie", "--first-shot-preview"],
+      ["build/smoke/run-visible-workflow-smoke.mjs", "--real-project", "--first-shot-preview"],
       {
         cwd: appsRoot,
         encoding: "utf8",
@@ -1468,10 +1468,10 @@ describe("desktop build scripts", () => {
     );
   });
 
-  it("rejects production-canvas-video outside Daojie mode and alongside conflicting flags", () => {
+  it("rejects production-canvas-video outside real-project mode and alongside conflicting flags", () => {
     const env = {
       ...process.env,
-      MYSTUDIO_WORKFLOW_REAL_DAOJIE: "0",
+      MYSTUDIO_WORKFLOW_REAL_PROJECT: "0",
       MYSTUDIO_WORKFLOW_PRODUCTION_CANVAS_VIDEO: "0",
     };
     const outsideDaojie = spawnSync(
@@ -1480,13 +1480,13 @@ describe("desktop build scripts", () => {
       { cwd: appsRoot, encoding: "utf8", env },
     );
     expect(outsideDaojie.status).not.toBe(0);
-    expect(outsideDaojie.stderr).toContain("--production-canvas-video requires --daojie");
+    expect(outsideDaojie.stderr).toContain("--production-canvas-video requires --real-project");
 
     const conflictAutoVideo = spawnSync(
       "node",
       [
         "build/smoke/run-visible-workflow-smoke.mjs",
-        "--daojie",
+        "--real-project",
         "--auto-video",
         "--production-canvas-video",
       ],
@@ -1501,7 +1501,7 @@ describe("desktop build scripts", () => {
       "node",
       [
         "build/smoke/run-visible-workflow-smoke.mjs",
-        "--daojie",
+        "--real-project",
         "--first-shot-preview",
         "--production-canvas-video",
       ],
@@ -1514,7 +1514,7 @@ describe("desktop build scripts", () => {
 
     const invalidTimeout = spawnSync(
       "node",
-      ["build/smoke/run-visible-workflow-smoke.mjs", "--daojie", "--production-canvas-video"],
+      ["build/smoke/run-visible-workflow-smoke.mjs", "--real-project", "--production-canvas-video"],
       {
         cwd: appsRoot,
         encoding: "utf8",
@@ -1689,7 +1689,7 @@ describe("desktop build scripts", () => {
     const { auditVisibleAutoVideo } = await import(auditModuleUrl);
     const failedBackgroundReport = {
       mode: "background",
-      source: "real-daojie-chapter001-clone",
+      source: "real-project-clone",
       runChapterAutoVideo: true,
       foregroundViolation: false,
       chapterAutoVideo: {
@@ -2170,14 +2170,11 @@ describe("desktop build scripts", () => {
     const videoScript = readBuildFile(
       "build/daojie/automate-daojie-chapter001-video.mjs",
     );
-    const timelineRunnerScript = readBuildFile(
-      "build/timeline/render-daojie-editing-timeline.ts",
-    );
-    const remotionTimelineScript = readBuildFile(
-      "build/timeline/render-daojie-remotion-timeline.ts",
-    );
     const shotRunnerScript = readBuildFile(
-      "build/remotion/render-daojie-shot-slots.ts",
+      "build/remotion/render-shot-slots.ts",
+    );
+    const fullPipelineScript = readBuildFile(
+      "build/timeline/run-full-pipeline.ts",
     );
     const timelineRunnerConfig = readBuildFile("build/timeline/vite-node.config.ts");
     const generatorScript = readFileSync(
@@ -2189,20 +2186,20 @@ describe("desktop build scripts", () => {
       '"video:daojie:chapter001": "node ./build/daojie/automate-daojie-chapter001-video.mjs"',
     );
     expect(packageJson).toContain(
-      '"video:daojie:chapter001:remotion": "MYSTUDIO_DAOJIE_REMOTION_RUNNER=1 MYSTUDIO_DAOJIE_REMOTION_ONLY=1 vite-node --config build/timeline/vite-node.config.ts build/timeline/render-daojie-remotion-timeline.ts"',
-    );
-    expect(packageJson).toContain(
       '"video:daojie:chapter001:visual-preflight": "MYSTUDIO_DAOJIE_VISUAL_PREFLIGHT=1 ./node_modules/.bin/vite-node --config build/timeline/vite-node.config.ts build/daojie/audit-daojie-visual-continuity.ts"',
     );
     expect(packageJson).toContain(
       '"video:daojie:chapter001:probe-providers": "node ./build/daojie/automate-daojie-chapter001-video.mjs --probe-providers"',
     );
+    expect(packageJson).not.toContain("video:daojie:chapter001:remotion");
     expect(videoScript).toContain("daojieBuildRoot");
     expect(videoScript).toContain("build_daojie_chapter001_workflow.py");
-    expect(videoScript).toContain("build/timeline/render-daojie-editing-timeline.ts");
+    expect(videoScript).toContain("build/timeline/run-full-pipeline.ts");
+    expect(videoScript).toContain("MYSTUDIO_FULL_PIPELINE: '1'");
+    expect(videoScript).not.toContain("render-daojie-editing-timeline");
+    expect(videoScript).not.toContain("render-daojie-remotion-timeline");
     expect(videoScript).toContain("./node_modules/.bin/vite-node");
     expect(videoScript).toContain("build/timeline/vite-node.config.ts");
-    expect(videoScript).toContain("MYSTUDIO_DAOJIE_TIMELINE_RUNNER: '1'");
     expect(videoScript).toContain("daojie-chapter001-video-report.json");
     expect(videoScript).toContain("MYSTUDIO_SMOKE_SKIP_PREKILL");
     expect(videoScript).toContain("stopExistingMYStudioInstances");
@@ -2321,27 +2318,14 @@ describe("desktop build scripts", () => {
     expect(videoScript).toContain("stage=${failureStage}: ${message}");
     expect(videoScript).toContain("failureStage = 'visual-continuity-preflight';");
     expect(videoScript).toContain("failureStage = 'final-media-checks';");
-    expect(videoScript).toContain("timelineRenderRecord");
     expect(videoScript).toContain(
       "const finalVideo = timelineResult.finalVideoEvidence.path;",
     );
-    expect(videoScript).toContain(
-      "finalVideoEvidence: remotionResult.evidence",
-    );
+    expect(videoScript).toContain("fullPipelineResult?.gate?.accepted !== true");
+    expect(videoScript).toContain("fullPipelineResult?.authority?.passed !== true");
+    expect(videoScript).toContain("fullPipelineResult?.videoUse?.status !== 'accepted'");
     expect(videoScript).not.toContain("const finalVideo = generated.final;");
-    expect(timelineRunnerScript).toContain("studio-workflow-store.json");
-    expect(timelineRunnerScript).toContain("mystudio-project-store.json");
-    expect(timelineRunnerScript).toContain("buildChapterEditingProject");
-    expect(timelineRunnerScript).toContain("remotionShotSlots");
-    expect(timelineRunnerScript).toContain("loadRemotionShotSlots");
-    expect(timelineRunnerScript).toContain("compileTimelineRenderPlan");
-    expect(timelineRunnerScript).toContain("editingProjectPath");
-    expect(timelineRunnerScript).toContain("autoEditingRunPath");
-    expect(timelineRunnerScript).toContain("timelineRenderPlanPath");
-    expect(timelineRunnerScript).toContain("progressHistoryPath");
-    expect(timelineRunnerScript).toContain("timelineRenderRecordPath");
-    expect(timelineRunnerScript).toContain('MYSTUDIO_DAOJIE_TIMELINE_RUNNER === "1"');
-    expect(shotRunnerScript).toContain("runDaojieRemotionShotSlots");
+    expect(shotRunnerScript).toContain("runRemotionShotSlots");
     expect(shotRunnerScript).toContain("STORYBOARD_SHOT_COMPOSITION_ID");
     expect(shotRunnerScript).toContain("publishCurrentSlot");
     expect(shotRunnerScript).toContain("chapterManifestPath");
@@ -2352,11 +2336,18 @@ describe("desktop build scripts", () => {
     expect(shotRunnerScript).toContain("chapterManifestService.writeCas");
     expect(shotRunnerScript).not.toContain("RemotionChapterManifestV1");
     expect(shotRunnerScript).not.toContain("sharedAudioTracks");
-    expect(shotRunnerScript).toContain('MYSTUDIO_DAOJIE_SHOT_SLOTS === "1"');
+    expect(shotRunnerScript).not.toContain("applyBypassSanitization");
+    expect(shotRunnerScript).not.toContain("MYSTUDIO_DAOJIE_BYPASS_SHOT_VALIDATION");
+    expect(shotRunnerScript).toContain('MYSTUDIO_SHOT_SLOTS === "1"');
     expect(shotRunnerScript).not.toContain("ffmpeg-local");
     expect(shotRunnerScript).not.toContain("concat_segments");
-    expect(remotionTimelineScript).toContain("resolveRemotionCurrentSlotOutputPath");
-    expect(remotionTimelineScript).toContain('path.join(projectDir, "remotion")');
+    expect(fullPipelineScript).toContain("runFullPipeline");
+    expect(fullPipelineScript).toContain("createVideoUseAdapter");
+    expect(fullPipelineScript).toContain("createHyperFramesAdapter");
+    expect(fullPipelineScript).toContain("createVideoWorkflowChapterService");
+    expect(fullPipelineScript).toContain("validateSubtitleAuthorityForTimeline");
+    expect(fullPipelineScript).toContain("buildChapterVideoCompositionProps");
+    expect(fullPipelineScript).toContain('MYSTUDIO_FULL_PIPELINE === "1"');
     expect(timelineRunnerConfig).toContain("defineConfig");
     expect(timelineRunnerConfig).toContain("path.resolve(appsRoot, \"frontend\")");
     expect(timelineRunnerConfig).not.toContain("vite-plugin-electron");

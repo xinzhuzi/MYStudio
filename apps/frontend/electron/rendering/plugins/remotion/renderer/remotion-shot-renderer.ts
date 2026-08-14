@@ -26,6 +26,7 @@ import {
   validateRemotionEvidenceIdentity,
   validateRemotionRenderJobIdentity,
 } from "@/lib/studio/remotion/remotion-render-validation";
+import type { CinematicCameraPreset, CinematicConfig, StoryboardShotCompositionProps } from "../composition/composition-props";
 import { assertBundleMatchesRuntime } from "../render/bundle-manifest";
 import { MediaBridgeServer } from "../media-bridge/media-bridge-server";
 import { buildMediaUrlMap, type MediaBridgeClipSource } from "../media-bridge/media-bridge-source-map";
@@ -38,6 +39,32 @@ import {
   type RemotionRenderBrowserProbe,
   type RemotionRenderUtilityOptions,
 } from "./remotion-render-utility";
+
+/**
+ * Optional depth-estimation adapter. When present and the shot's visual kind
+ * is "image", the renderer calls `estimateDepth()` before projecting composition
+ * props, then injects a `CinematicConfig` onto the visual clip so
+ * `CinematicVisualClip` (@remotion/three) renders the image in 3D with a
+ * depth-displaced plane and animated camera.
+ *
+ * This is Strategy 2 from the integration design: depth is a pure render-time
+ * artifact that does NOT enter `hashInput`, so existing plans/ caches remain
+ * valid. The cinematic preset is chosen here (not in the plan) so the plan
+ * schema stays unchanged.
+ */
+export interface DepthAdapterLike {
+  estimateDepth(request: {
+    schemaVersion: 1;
+    projectId: string;
+    shotId: string;
+    inputImagePath: string;
+    outputDepthPath: string;
+    model: "depth-anything-v2-small";
+  }): Promise<
+    | { state: "ready"; artifact: { outputPath: string; outputSha256: string; width: number; height: number } }
+    | { state: "blocked"; code: string; message: string }
+  >;
+}
 
 const execFileAsync = promisify(execFile);
 
@@ -55,6 +82,10 @@ export interface RemotionShotRendererOptions {
   fork: RemotionRenderUtilityOptions["fork"];
   emitProgress: (progress: { jobId: string; stage: string; ratio: number; message?: string }) => void;
   probeMedia?: (filePath: string) => Promise<RemotionShotProbe>;
+  /** Optional depth adapter. When present + visualKind=image, enables 3D cinematic mode. */
+  depthAdapter?: DepthAdapterLike;
+  /** Cinematic preset to use when depth is available. Default: cinematic-dolly-in. */
+  cinematicPreset?: CinematicCameraPreset;
 }
 
 export interface RemotionShotProbe {
@@ -148,17 +179,65 @@ export class RemotionShotRenderer {
         this.options.resolveSourcePath,
       );
       const urlByReference = buildMediaUrlMap(this.mediaBridge, session, sources);
+
+      // --- Cinematic depth estimation (Strategy 2: render-time, no hash impact) ---
+      // When depthAdapter is present and the visual is an image, estimate depth,
+      // register the depth PNG on the media bridge, and inject a CinematicConfig
+      // onto the projected visual clip. This is the wiring point that connects
+      // the depth sidecar → @remotion/three CinematicVisualClip.
+      let cinematicConfig: CinematicConfig | undefined;
+      if (this.options.depthAdapter && validated.value.visualKind === "image") {
+        const visualSource = sources[0]; // first source is always the visual
+        if (visualSource) {
+          const depthDir = path.join(workspaceRoot, "depth", validated.value.shot.shotId);
+          const depthPath = path.join(depthDir, "depth.png");
+          const depthResult = await this.options.depthAdapter.estimateDepth({
+            schemaVersion: 1,
+            projectId: identity.projectId,
+            shotId: validated.value.shot.shotId,
+            inputImagePath: visualSource.absolutePath,
+            outputDepthPath: depthPath,
+            model: "depth-anything-v2-small",
+          });
+          if (depthResult.state === "ready") {
+            // Register depth PNG on the media bridge to get a capability URL
+            const depthAssetId = crypto.randomBytes(32).toString("hex");
+            session.register(depthAssetId, depthResult.artifact.outputPath);
+            const [depthUrlEntry] = this.mediaBridge.buildUrls(session, [depthAssetId]);
+            cinematicConfig = {
+              preset: this.options.cinematicPreset ?? "cinematic-dolly-in",
+              depthMapSrc: depthUrlEntry.url,
+              cameraDistance: 5,
+              cameraHeight: 0,
+              dofFocusDistance: 4,
+              dofAperture: 0.02,
+              motionBlurSamples: 0,
+              parallaxStrength: 1,
+              bloomIntensity: 0,
+              vignetteDarkness: 0.2,
+              chromaticAberration: 0,
+            };
+          }
+        }
+      }
+
       const projection = projectStoryboardShotCompositionProps(validated.value, (reference) => {
         const url = urlByReference[referenceKey(reference)];
         if (!url) throw new Error(`shot 素材 capability 缺失: ${reference.relativePath}`);
         return url;
       });
       if (!projection.success) throw new Error(projection.issues.map((issue) => `${issue.path}: ${issue.message}`).join("; "));
+
+      // Inject cinematic config onto the first (only) visual clip if depth was generated.
+      // This is the single point where the 3D cinematic path is activated.
+      const compositionProps: StoryboardShotCompositionProps = cinematicConfig
+        ? { ...projection.value, visualClips: [{ ...projection.value.visualClips[0], cinematic: cinematicConfig }] }
+        : projection.value;
       const render = await this.utility.render({
         target: "shot",
         jobId,
         shotPlan: validated.value,
-        compositionProps: projection.value,
+        compositionProps,
         compositionId: "StoryboardShot",
         bundlePath: this.options.bundlePath,
         outputPath: stagedOutputPath,

@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { auditVisualContinuity } from "@/lib/studio/visual-continuity";
-import { resolveProjectDir } from "../timeline/render-daojie-editing-timeline";
+import { resolveProjectDir } from "../timeline/storage-paths";
 import type {
   ContinuityAssetVersion,
   StoryboardItem,

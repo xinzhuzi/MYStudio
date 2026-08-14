@@ -11,7 +11,7 @@ from typing import Any
 
 APP_PROCESS_NAME = "漫影工作室"
 DAOJIE_PROJECT_NAME = "道劫"
-UNRESOLVED_PROJECT_DIR_NAME = "__set_MYSTUDIO_DAOJIE_PROJECT_DIR_or_ID__"
+UNRESOLVED_PROJECT_DIR_NAME = "__set_MYSTUDIO_PROJECT_DIR_or_ID__"
 
 
 def env_path(name: str) -> Path | None:
@@ -21,7 +21,7 @@ def env_path(name: str) -> Path | None:
 
 def resolve_user_data_dir() -> Path:
     return (
-        env_path("MYSTUDIO_DAOJIE_USER_DATA_DIR")
+        env_path("MYSTUDIO_USER_DATA_DIR")
         or Path.home() / "Library" / "Application Support" / APP_PROCESS_NAME
     )
 
@@ -75,7 +75,7 @@ def resolve_project_id(
     *,
     required: bool = True,
 ) -> str | None:
-    explicit = os.environ.get("MYSTUDIO_DAOJIE_PROJECT_ID", "").strip()
+    explicit = os.environ.get("MYSTUDIO_PROJECT_ID", "").strip()
     if explicit:
         return explicit
     if storage_base_path is None:
@@ -87,8 +87,8 @@ def resolve_project_id(
         if not required:
             return None
         raise RuntimeError(
-            "未找到 Daojie 项目索引；请设置 MYSTUDIO_DAOJIE_PROJECT_DIR、"
-            "MYSTUDIO_DAOJIE_PROJECT_ID 或 MYSTUDIO_STORAGE_BASE_PATH"
+            "未找到 Daojie 项目索引；请设置 MYSTUDIO_PROJECT_DIR、"
+            "MYSTUDIO_PROJECT_ID 或 MYSTUDIO_STORAGE_BASE_PATH"
         ) from None
     except (json.JSONDecodeError, OSError) as error:
         raise RuntimeError(f"无法读取 Daojie 项目索引: {project_store_path}") from error
@@ -103,7 +103,7 @@ def resolve_project_id(
         return None
     raise RuntimeError(
         f"项目索引中未找到名称包含 {project_name!r} 的项目；"
-        "请设置 MYSTUDIO_DAOJIE_PROJECT_DIR 或 MYSTUDIO_DAOJIE_PROJECT_ID"
+        "请设置 MYSTUDIO_PROJECT_DIR 或 MYSTUDIO_PROJECT_ID"
     )
 
 
@@ -113,7 +113,7 @@ def resolve_project_dir(
     *,
     required: bool = True,
 ) -> Path:
-    explicit = env_path("MYSTUDIO_DAOJIE_PROJECT_DIR")
+    explicit = env_path("MYSTUDIO_PROJECT_DIR")
     if explicit:
         return explicit
     if storage_base_path is None:

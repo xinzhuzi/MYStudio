@@ -2,7 +2,7 @@
 
 import { describe, expect, it } from "vitest";
 import { validateStoryboardShotCompositionProps } from "@rendering/plugins/remotion/composition/composition-props-validation";
-import type { DaojieA08CleanCandidateIdentity } from "./render-daojie-first-shot";
+import type { A08CleanCandidateIdentity } from "./render-first-shot";
 import {
   assertFirstShotReportEvidence,
   buildFirstShotCompositionProps,
@@ -14,7 +14,7 @@ import {
   validateA08CleanCandidateReport,
   validateApprovedA08CleanCandidateReport,
   validateFirstShotBundleManifest,
-} from "./render-daojie-first-shot";
+} from "./render-first-shot";
 
 const CAPABILITY = "http://127.0.0.1:43123/";
 const TOKEN = "a".repeat(64);
@@ -437,7 +437,7 @@ describe("Daojie chapter-001 first-shot preview", () => {
     expect(validateApprovedA08CleanCandidateReport(
       validApprovedA08Report(),
       A08_IMAGE_SHA256,
-      validHumanApproval() as DaojieA08CleanCandidateIdentity["humanApproval"],
+      validHumanApproval() as A08CleanCandidateIdentity["humanApproval"],
     )).toMatchObject({
       status: "completed",
       humanApproval: { status: "approved", reviewer: "human", outputSha256: A08_IMAGE_SHA256 },
@@ -448,7 +448,7 @@ describe("Daojie chapter-001 first-shot preview", () => {
     expect(() => validateApprovedA08CleanCandidateReport(
       wrongScope,
       A08_IMAGE_SHA256,
-      validHumanApproval() as DaojieA08CleanCandidateIdentity["humanApproval"],
+      validHumanApproval() as A08CleanCandidateIdentity["humanApproval"],
     )).toThrow(/approved report/);
 
     const wrongApproval = validHumanApproval();
@@ -456,7 +456,7 @@ describe("Daojie chapter-001 first-shot preview", () => {
     expect(() => validateApprovedA08CleanCandidateReport(
       validApprovedA08Report(),
       A08_IMAGE_SHA256,
-      wrongApproval as DaojieA08CleanCandidateIdentity["humanApproval"],
+      wrongApproval as A08CleanCandidateIdentity["humanApproval"],
     )).toThrow(/human approval/);
   });
 

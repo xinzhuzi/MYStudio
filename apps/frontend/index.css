@@ -3101,11 +3101,11 @@ a:active,
 /* Production workflow background lives outside React Flow's transformed viewport. */
 .workflow-node-static-background {
   isolation: isolate;
-  background-color: hsl(var(--background));
+  background-color: hsl(var(--background) / 0.8);
 }
 
 .dark .workflow-node-static-background {
-  background: hsl(var(--background)) !important;
+  background: hsl(var(--background) / 0.8) !important;
 }
 
 .production-flow-node-card,

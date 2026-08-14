@@ -1,5 +1,6 @@
 import { AbsoluteFill, OffthreadVideo, Sequence, useCurrentFrame } from "remotion";
 import { AudioClip } from "./AudioClip";
+import { CinematicVisualClip } from "./CinematicVisualClip";
 import type {
   CompositionProps,
   CompositionTransitionProps,
@@ -86,7 +87,7 @@ function TransitionedVisualClip({
     : 1;
   return (
     <AbsoluteFill style={{ opacity: incomingOpacity }}>
-      <VisualClip {...clip} />
+      {clip.cinematic ? <CinematicVisualClip {...clip} /> : <VisualClip {...clip} />}
     </AbsoluteFill>
   );
 }

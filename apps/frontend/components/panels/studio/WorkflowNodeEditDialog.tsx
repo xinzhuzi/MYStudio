@@ -11,9 +11,8 @@ import { useThemeStore } from "@/stores/app/theme-store";
 import { formatJsonDocument } from "@/lib/studio/storyboard-json";
 import { MdEditor } from "md-editor-rt";
 import "md-editor-rt/lib/style.css";
-import { EditorView } from "@codemirror/view";
+import CodeMirror, { EditorView } from "@uiw/react-codemirror";
 import { json } from "@codemirror/lang-json";
-import CodeMirror from "@uiw/react-codemirror";
 import { toast } from "sonner";
 
 const jsonEditorScrollTheme = EditorView.theme({

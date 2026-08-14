@@ -11,9 +11,8 @@ const repoRoot = resolve(appsRoot, '..');
 const daojieBuildRoot = resolve(appsRoot, 'build', 'daojie');
 const generatorScript = resolve(daojieBuildRoot, 'build_daojie_chapter001_workflow.py');
 const continuityPilotScript = resolve(daojieBuildRoot, 'generate_chapter001_continuity_sample.py');
-const timelineRunnerScript = 'build/timeline/render-daojie-editing-timeline.ts';
-const remotionTimelineRunnerScript = 'build/timeline/render-daojie-remotion-timeline.ts';
-const remotionShotRunnerScript = 'build/remotion/render-daojie-shot-slots.ts';
+const fullPipelineRunnerScript = 'build/timeline/run-full-pipeline.ts';
+const remotionShotRunnerScript = 'build/remotion/render-shot-slots.ts';
 const visualContinuityPreflightScript = 'build/daojie/audit-daojie-visual-continuity.ts';
 const storyboardImageHelper = resolve(appsRoot, 'build', 'daojie', 'generate-storyboard-image.mjs');
 const continuityAssetCandidateValidator = resolve(daojieBuildRoot, 'pipeline', 'chapter001_continuity_asset_candidate.py');
@@ -61,8 +60,8 @@ const REQUIRED_WORKFLOW_STEPS = [
 ];
 
 function assertDaojieImageGenerationNotFrozen(mode, { dryRun = false } = {}) {
-  if (dryRun || process.env.MYSTUDIO_DAOJIE_IMAGE_GENERATION_FROZEN !== '1') return;
-  throw new Error(`MYSTUDIO_DAOJIE_IMAGE_GENERATION_FROZEN=1: blocked Daojie image generation mode=${mode}; no provider request was sent`);
+  if (dryRun || process.env.MYSTUDIO_IMAGE_GENERATION_FROZEN !== '1') return;
+  throw new Error(`MYSTUDIO_IMAGE_GENERATION_FROZEN=1: blocked Daojie image generation mode=${mode}; no provider request was sent`);
 }
 
 function run(command, args, options = {}) {
@@ -1349,6 +1348,7 @@ function writeFailureReport(generated, error, timelineResult = null) {
 
 let generated;
 let timelineResult;
+let fullPipelineArtifactDir;
 try {
 if (!existsSync(generatorScript)) {
   throw new Error(`视频生成脚本不存在: ${generatorScript}`);
@@ -1416,6 +1416,9 @@ try {
       MYSTUDIO_DAOJIE_ALLOW_STORYBOARD_BOOTSTRAP: '0',
       MYSTUDIO_DAOJIE_STORYBOARD_IMAGE_MODE: REQUIRED_STORYBOARD_IMAGE_MODE,
       MYSTUDIO_DAOJIE_USE_APPROVED_STORYBOARDS: '1',
+      // The proper chain always defers final video to the Remotion shot-slots +
+      // full-pipeline stages; the generator marks its video steps as deferred.
+      MYSTUDIO_DAOJIE_REMOTION_ONLY: '1',
       ...(storyboardImageProviderConfigs && { MYSTUDIO_IMAGE_PROVIDER_CONFIGS_JSON: storyboardImageProviderConfigs }),
     },
   }).stdout);
@@ -1617,7 +1620,7 @@ if (generated.frameSize?.width !== 1920 || generated.frameSize?.height !== 1080)
 
 failureStage = 'timeline';
 try {
-  for (const runnerScript of [timelineRunnerScript, remotionTimelineRunnerScript, remotionShotRunnerScript]) {
+  for (const runnerScript of [fullPipelineRunnerScript, remotionShotRunnerScript]) {
     if (!existsSync(resolve(appsRoot, runnerScript))) {
       throw new Error(`timeline runner 不存在: ${resolve(appsRoot, runnerScript)}`);
     }
@@ -1625,130 +1628,90 @@ try {
   if (!existsSync(resolve(appsRoot, viteNodeBin))) {
     throw new Error(`vite-node 不存在: ${resolve(appsRoot, viteNodeBin)}`);
   }
-  if (!existsSync(resolve(appsRoot, remotionShotRunnerScript))) {
-    throw new Error(`Remotion shot runner 不存在: ${resolve(appsRoot, remotionShotRunnerScript)}`);
-  }
   const shotResult = parseGeneratorOutput(run(viteNodeBin, [
     '--config', 'build/timeline/vite-node.config.ts',
     remotionShotRunnerScript,
   ], {
     cwd: appsRoot,
     env: {
-      MYSTUDIO_DAOJIE_SHOT_SLOTS: '1',
-      MYSTUDIO_DAOJIE_REQUIRE_HUMAN_APPROVAL: process.env.MYSTUDIO_DAOJIE_REQUIRE_HUMAN_APPROVAL || '1',
+      MYSTUDIO_SHOT_SLOTS: '1',
+      MYSTUDIO_REQUIRE_HUMAN_APPROVAL: process.env.MYSTUDIO_REQUIRE_HUMAN_APPROVAL || '1',
     },
   }).stdout);
   if (shotResult?.ok !== true || shotResult?.renderer?.actual !== 'remotion' || !(Number(shotResult?.shotCount) > 0)) {
     throw new Error(`Remotion shot 阶段报告字段不完整: ${JSON.stringify(shotResult ?? null)}`);
   }
-  const compileResult = parseGeneratorOutput(run(viteNodeBin, [
+  // Full plugin chain: video-use adapter → HyperFrames adapter → chapter gate →
+  // subtitle authority → buildChapterVideoCompositionProps → Remotion renderMedia.
+  const fullPipelineResult = parseGeneratorOutput(run(viteNodeBin, [
     '--config', 'build/timeline/vite-node.config.ts',
-    timelineRunnerScript,
+    fullPipelineRunnerScript,
   ], {
     cwd: appsRoot,
-    env: {
-      MYSTUDIO_DAOJIE_TIMELINE_RUNNER: '1',
-      MYSTUDIO_DAOJIE_REMOTION_ONLY: '1',
-      MYSTUDIO_DAOJIE_SHOT_REPORT: process.env.MYSTUDIO_DAOJIE_SHOT_REPORT || resolve(appsRoot, 'output/automation/daojie-chapter001-shot-slots.json'),
-    },
+    env: { MYSTUDIO_FULL_PIPELINE: '1' },
   }).stdout);
-  if (compileResult?.stage !== 'compiled' || !compileResult?.editingProject || !compileResult?.autoEditingRun || !compileResult?.timelineRenderPlan) {
-    throw new Error(`Remotion 编译阶段报告字段不完整: ${JSON.stringify(compileResult ?? null)}`);
+  if (fullPipelineResult?.ok !== true || fullPipelineResult?.renderer?.actual !== 'remotion') {
+    throw new Error(`full-pipeline 报告字段不完整: ${JSON.stringify(fullPipelineResult ?? null)}`);
   }
-  const remotionResult = parseGeneratorOutput(run(viteNodeBin, [
-    '--config', 'build/timeline/vite-node.config.ts',
-    remotionTimelineRunnerScript,
-  ], {
-    cwd: appsRoot,
-    env: { MYSTUDIO_DAOJIE_REMOTION_RUNNER: '1', MYSTUDIO_DAOJIE_REMOTION_ONLY: '1' },
-  }).stdout);
-  timelineResult = {
-    ...compileResult,
-    ...remotionResult,
-    editingProject: compileResult.editingProject,
-    autoEditingRun: {
-      ...compileResult.autoEditingRun,
-      renderJobId: remotionResult?.evidence?.jobId,
-      stage: 'completed',
-      completedAt: Date.now(),
-      updatedAt: Date.now(),
-    },
-    timelineRenderPlan: compileResult.timelineRenderPlan,
-    timelineRenderRecord: remotionResult.timelineRenderRecord,
-    finalVideo: remotionResult.outputPath,
-    finalVideoEvidence: remotionResult.evidence,
-    timelineRunnerScript: remotionTimelineRunnerScript,
+  if (fullPipelineResult?.gate?.accepted !== true || fullPipelineResult?.authority?.passed !== true) {
+    throw new Error(`full-pipeline gate/authority 未通过: ${JSON.stringify({
+      gate: fullPipelineResult?.gate ?? null,
+      authority: fullPipelineResult?.authority ?? null,
+    })}`);
+  }
+  if (fullPipelineResult?.videoUse?.status !== 'accepted' || fullPipelineResult?.videoUse?.stage !== 'ready') {
+    throw new Error(`full-pipeline video-use artifact 未接受: ${JSON.stringify(fullPipelineResult?.videoUse ?? null)}`);
+  }
+  const output = fullPipelineResult.output;
+  if (!output?.path || !output?.sha256 || !(Number(output?.sizeBytes) > 0)) {
+    throw new Error(`full-pipeline 输出证据缺失: ${JSON.stringify(output ?? null)}`);
+  }
+  const finalVideoEvidence = {
+    path: output.path,
+    sha256: output.sha256,
+    sizeBytes: output.sizeBytes,
+    duration: output.duration,
+    width: output.width,
+    height: output.height,
+    streams: output.streams,
+    renderer: fullPipelineResult.renderer,
+    compositionId: 'ChapterVideo',
   };
-  const editingProject = timelineResult.editingProject;
-  const autoEditingRun = timelineResult.autoEditingRun;
-  const timelineRenderPlan = timelineResult.timelineRenderPlan;
-  const timelineRenderRecord = timelineResult.timelineRenderRecord;
-  const evidence = timelineRenderRecord?.evidence ?? timelineResult.evidence;
-  if (!timelineResult?.ok || !editingProject || !autoEditingRun || !timelineRenderPlan || !evidence) {
-    throw new Error(`Remotion timeline runner 报告字段不完整: ${JSON.stringify(timelineResult ?? null)}`);
-  }
-  if (!timelineRenderRecord) {
-    throw new Error('Remotion timeline runner 未发布 TimelineRenderRecord');
-  }
-  if (
-    editingProject.projectId !== timelineRenderRecord.projectId
-    || editingProject.episodeId !== timelineRenderRecord.episodeId
-    || editingProject.id !== timelineRenderRecord.editingProjectId
-    || editingProject.revision !== timelineRenderRecord.editingRevision
-    || (timelineRenderRecord && editingProject.sourceSnapshotHash !== timelineRenderRecord.sourceSnapshotHash)
-  ) {
-    throw new Error('timeline render record 与 EditingProject identity 不一致');
-  }
-  if (
-    timelineRenderPlan.jobId !== evidence.jobId
-    || timelineRenderPlan.editingProjectId !== editingProject.id
-    || timelineRenderPlan.editingRevision !== editingProject.revision
-    || autoEditingRun.editingProjectId !== editingProject.id
-    || autoEditingRun.renderJobId !== evidence.jobId
-  ) {
-    throw new Error('timeline plan/run/evidence identity 不一致');
-  }
-  if (
-    generated.storyboards <= 0
-    || generated.tracks <= 0
-  ) {
-    throw new Error(
-      `timeline source count 与 Python 写回不一致: ${JSON.stringify(timelineResult.sourceCounts ?? null)}`,
-    );
-  }
-  if (
-    timelineResult.finalVideo !== evidence.path
-    || timelineResult.finalVideoEvidence?.path !== evidence.path
-    || timelineResult.finalVideoEvidence?.sha256 !== evidence.sha256
-  ) {
-    throw new Error('timeline runner final path/hash 与 render evidence 不一致');
-  }
-  for (const [label, artifactPath] of Object.entries({
-    editingProjectPath: timelineResult.editingProjectPath,
-    autoEditingRunPath: timelineResult.autoEditingRunPath,
-    timelineRenderPlanPath: timelineResult.timelineRenderPlanPath,
-    progressHistoryPath: timelineResult.progressHistoryPath,
-    timelineRenderRecordPath: timelineResult.timelineRenderRecordPath,
-    runnerReportPath: timelineResult.runnerReportPath,
-    outputPath: evidence.path,
-    snapshotPath: evidence.snapshotPath,
-    renderPlanPath: evidence.renderPlanPath,
-    inputManifestPath: evidence.inputManifestPath,
-    logPath: evidence.logPath,
-    ffprobePath: evidence.ffprobePath,
-  })) {
+  timelineResult = {
+    ok: true,
+    pipeline: fullPipelineResult.pipeline,
+    videoUse: fullPipelineResult.videoUse,
+    hyperFrames: fullPipelineResult.hyperFrames,
+    gate: fullPipelineResult.gate,
+    authority: fullPipelineResult.authority,
+    composition: fullPipelineResult.composition,
+    editingProject: fullPipelineResult.editingProject,
+    finalVideo: output.path,
+    finalVideoEvidence,
+    timelineRunnerScript: fullPipelineRunnerScript,
+    output,
+  };
+  // The full-pipeline runner writes to a timestamped output dir; derive artifact
+  // paths from the reported output path (<artifactDir>/remotion/output.mp4).
+  const artifactDir = dirname(dirname(output.path));
+  fullPipelineArtifactDir = artifactDir;
+  const fullPipelineArtifactPaths = {
+    reportPath: resolve(artifactDir, 'remotion', 'report.json'),
+    renderPlanPath: resolve(artifactDir, 'timeline-render-plan.json'),
+    editingProjectPath: resolve(artifactDir, 'editing-project.json'),
+    ffprobePath: resolve(artifactDir, 'remotion', 'ffprobe.json'),
+    outputPath: output.path,
+  };
+  for (const [label, artifactPath] of Object.entries(fullPipelineArtifactPaths)) {
     if (!artifactPath || !existsSync(artifactPath) || !(statSync(artifactPath).size > 0)) {
-      throw new Error(`timeline artifact 缺失或为空: ${label} / ${artifactPath || 'missing'}`);
+      throw new Error(`full-pipeline artifact 缺失或为空: ${label} / ${artifactPath || 'missing'}`);
     }
   }
-  if (!/^[a-f0-9]{64}$/.test(String(evidence.sha256 || '')) || sha256File(evidence.path) !== evidence.sha256) {
-    throw new Error(`timeline 最终视频 SHA-256 异常: ${evidence.sha256 || 'missing'}`);
+  if (!/^[a-f0-9]{64}$/.test(String(output.sha256 || '')) || sha256File(output.path) !== output.sha256) {
+    throw new Error(`full-pipeline 最终视频 SHA-256 异常: ${output.sha256 || 'missing'}`);
   }
-  if (!/^[a-f0-9]{64}$/.test(String(evidence.snapshotHash || '')) || sha256File(evidence.snapshotPath) !== evidence.snapshotHash) {
-    throw new Error(`timeline EditingProject snapshot hash 异常: ${evidence.snapshotHash || 'missing'}`);
-  }
-  if (evidence.renderer?.requested !== 'remotion' || evidence.renderer?.actual !== 'remotion') {
-    throw new Error(`最终成片 renderer 不是 Remotion: ${JSON.stringify(evidence.renderer ?? null)}`);
+  if (fullPipelineResult.renderer?.requested !== 'remotion' || fullPipelineResult.renderer?.actual !== 'remotion') {
+    throw new Error(`最终成片 renderer 不是 Remotion: ${JSON.stringify(fullPipelineResult.renderer ?? null)}`);
   }
 } catch (error) {
   const message = error instanceof Error ? error.message : String(error);
@@ -1784,21 +1747,21 @@ const report = {
   generatedAt: new Date().toISOString(),
   command: 'npm run video:daojie:chapter001',
   generatorScript,
-  timelineRunnerScript: remotionTimelineRunnerScript,
-  timelineCompileRunnerScript: timelineRunnerScript,
+  timelineRunnerScript: fullPipelineRunnerScript,
+  pipeline: timelineResult.pipeline,
+  videoUse: timelineResult.videoUse,
+  hyperFrames: timelineResult.hyperFrames,
+  gate: timelineResult.gate,
+  authority: timelineResult.authority,
+  composition: timelineResult.composition,
   finalVideo,
   editingProject: timelineResult.editingProject,
-  autoEditingRun: timelineResult.autoEditingRun,
-  timelineRenderPlan: timelineResult.timelineRenderPlan,
-  timelineProgressHistory: timelineResult.progressHistory,
-  timelineRenderRecord: timelineResult.timelineRenderRecord,
   timelineArtifacts: {
-    editingProjectPath: timelineResult.editingProjectPath,
-    autoEditingRunPath: timelineResult.autoEditingRunPath,
-    timelineRenderPlanPath: timelineResult.timelineRenderPlanPath,
-    progressHistoryPath: timelineResult.progressHistoryPath,
-    timelineRenderRecordPath: timelineResult.timelineRenderRecordPath,
-    runnerReportPath: timelineResult.runnerReportPath,
+    reportPath: fullPipelineArtifactDir && resolve(fullPipelineArtifactDir, 'remotion', 'report.json'),
+    renderPlanPath: fullPipelineArtifactDir && resolve(fullPipelineArtifactDir, 'timeline-render-plan.json'),
+    editingProjectPath: fullPipelineArtifactDir && resolve(fullPipelineArtifactDir, 'editing-project.json'),
+    ffprobePath: fullPipelineArtifactDir && resolve(fullPipelineArtifactDir, 'remotion', 'ffprobe.json'),
+    outputPath: timelineResult.output.path,
   },
   storyboards: generated.storyboards,
   storyboardSourceKind: generated.storyboardSourceKind,

@@ -24,7 +24,7 @@ import {
   hasMYStudioForegroundViolation,
   sampleFrontmostApplication,
 } from "./smoke-focus.mjs";
-import { repairMissingCharacterThumbnails } from "./repair-cloned-daojie-assets.mjs";
+import { repairMissingCharacterThumbnails } from "./repair-cloned-assets.mjs";
 
 const appBinCandidates = [
   process.env.MYSTUDIO_SMOKE_APP_BIN,
@@ -70,9 +70,9 @@ const safeStepDelayMs = Number.isFinite(stepDelayMs)
   ? Math.max(0, stepDelayMs)
   : defaultStepDelayMs;
 const appProcessName = "漫影工作室";
-const runRealDaojie =
-  process.argv.includes("--daojie") ||
-  process.env.MYSTUDIO_WORKFLOW_REAL_DAOJIE === "1";
+const runRealProject =
+  process.argv.includes("--real-project") ||
+  process.env.MYSTUDIO_WORKFLOW_REAL_PROJECT === "1";
 const runChapterAutoVideo =
   process.argv.includes("--auto-video") ||
   process.env.MYSTUDIO_WORKFLOW_AUTO_VIDEO === "1";
@@ -89,14 +89,14 @@ const firstShotPreviewTimeoutMs = Number(
 const productionCanvasVideoTimeoutMs = Number(
   process.env.MYSTUDIO_PRODUCTION_CANVAS_VIDEO_TIMEOUT_MS || 600_000,
 );
-if (runChapterAutoVideo && !runRealDaojie) {
-  throw new Error("--auto-video requires --daojie or MYSTUDIO_WORKFLOW_REAL_DAOJIE=1");
+if (runChapterAutoVideo && !runRealProject) {
+  throw new Error("--auto-video requires --real-project or MYSTUDIO_WORKFLOW_REAL_PROJECT=1");
 }
-if (runFirstShotPreview && !runRealDaojie) {
-  throw new Error("--first-shot-preview requires --daojie or MYSTUDIO_WORKFLOW_REAL_DAOJIE=1");
+if (runFirstShotPreview && !runRealProject) {
+  throw new Error("--first-shot-preview requires --real-project or MYSTUDIO_WORKFLOW_REAL_PROJECT=1");
 }
-if (runProductionCanvasVideo && !runRealDaojie) {
-  throw new Error("--production-canvas-video requires --daojie or MYSTUDIO_WORKFLOW_REAL_DAOJIE=1");
+if (runProductionCanvasVideo && !runRealProject) {
+  throw new Error("--production-canvas-video requires --real-project or MYSTUDIO_WORKFLOW_REAL_PROJECT=1");
 }
 if (runFirstShotPreview && runChapterAutoVideo) {
   throw new Error("--first-shot-preview cannot be combined with --auto-video");
@@ -125,19 +125,19 @@ const safeFirstShotPreviewTimeoutMs = Number.isFinite(firstShotPreviewTimeoutMs)
 const safeProductionCanvasVideoTimeoutMs = Number.isFinite(productionCanvasVideoTimeoutMs) && productionCanvasVideoTimeoutMs > 0
   ? Math.floor(productionCanvasVideoTimeoutMs)
   : 600_000;
-  const daojieProjectName = "道劫";
-  const daojieChapterId = "chapter-001";
-  const daojieChapterTitle = "第1章：剑主夜访道口镇";
-  const daojieFirstShotProjectId = "49dce4c1-64b1-42de-85c2-9f266698aec0";
-  const daojieFirstShotId = "sb-chapter-001-001";
-  const daojieProjectId = process.env.MYSTUDIO_DAOJIE_PROJECT_ID?.trim() || null;
-const daojieSourceUserDataDir =
-  process.env.MYSTUDIO_DAOJIE_USER_DATA_DIR ||
+  const realProjectName = "道劫";
+  const realProjectChapterId = "chapter-001";
+  const realProjectChapterTitle = "第1章：剑主夜访道口镇";
+  const realProjectFirstShotProjectId = "49dce4c1-64b1-42de-85c2-9f266698aec0";
+  const realProjectFirstShotId = "sb-chapter-001-001";
+  const realProjectId = process.env.MYSTUDIO_PROJECT_ID?.trim() || null;
+const realProjectSourceUserDataDir =
+  process.env.MYSTUDIO_USER_DATA_DIR ||
   resolve(homedir(), "Library", "Application Support", appProcessName);
-const daojieSourceStorageBasePath =
+const realProjectSourceStorageBasePath =
   process.env.MYSTUDIO_STORAGE_BASE_PATH ||
-  readStorageBasePathFromConfig(daojieSourceUserDataDir) ||
-  daojieSourceUserDataDir;
+  readStorageBasePathFromConfig(realProjectSourceUserDataDir) ||
+  realProjectSourceUserDataDir;
 const visibleRunReportPath =
   (runInBackground
     ? process.env.MYSTUDIO_BACKGROUND_WORKFLOW_REPORT_PATH
@@ -146,10 +146,10 @@ const visibleRunReportPath =
     process.cwd(),
     "output",
     "automation",
-    runRealDaojie
+    runRealProject
       ? runInBackground
-        ? "background-workflow-daojie-report.json"
-        : "visible-workflow-daojie-report.json"
+        ? "background-workflow-project-report.json"
+        : "visible-workflow-project-report.json"
       : runInBackground
         ? "background-workflow-smoke-report.json"
         : "visible-workflow-smoke-report.json",
@@ -194,7 +194,7 @@ function stopExistingMYStudioInstances() {
 }
 
 function prepareSmokeMedia() {
-  if (runRealDaojie) return;
+  if (runRealProject) return;
   const smokeMediaDir = resolve(userDataDir, "media");
   const smokeAudioPath = resolve(smokeMediaDir, "mystudio-smoke-voice.wav");
   const smokeVideoPath = resolve(smokeMediaDir, "mystudio-smoke-final.mp4");
@@ -273,23 +273,23 @@ function writeVisibleRunReport(report) {
       {
         generatedAt: new Date().toISOString(),
         command: runInBackground
-          ? runRealDaojie
+          ? runRealProject
             ? runProductionCanvasVideo
-              ? "npm run smoke:workflow:background:daojie -- --production-canvas-video"
+              ? "npm run smoke:workflow:background:project -- --production-canvas-video"
               : runFirstShotPreview
-                ? "npm run smoke:workflow:background:daojie -- --first-shot-preview"
+                ? "npm run smoke:workflow:background:project -- --first-shot-preview"
                 : runChapterAutoVideo
-                  ? "npm run smoke:workflow:background:daojie -- --auto-video"
-                  : "npm run smoke:workflow:background:daojie"
+                  ? "npm run smoke:workflow:background:project -- --auto-video"
+                  : "npm run smoke:workflow:background:project"
             : "npm run smoke:workflow:background"
-          : runRealDaojie
+          : runRealProject
             ? runProductionCanvasVideo
-              ? "npm run smoke:workflow:run:daojie -- --production-canvas-video"
+              ? "npm run smoke:workflow:run:project -- --production-canvas-video"
               : runFirstShotPreview
-                ? "npm run smoke:workflow:run:daojie -- --first-shot-preview"
+                ? "npm run smoke:workflow:run:project -- --first-shot-preview"
                 : runChapterAutoVideo
-                  ? "npm run smoke:workflow:run:daojie -- --auto-video"
-                  : "npm run smoke:workflow:run:daojie"
+                  ? "npm run smoke:workflow:run:project -- --auto-video"
+                  : "npm run smoke:workflow:run:project"
             : "npm run smoke:workflow:run",
         reportPath: visibleRunReportPath,
         mode: runMode,
@@ -350,8 +350,8 @@ function copyInstalledRemotionCache(sourceUserDataDir, clonedUserDataDir) {
   };
 }
 
-function readDaojieRoleAssets() {
-  const databasePath = resolve(daojieSourceStorageBasePath, "assets", "assets.db");
+function readRealProjectRoleAssets() {
+  const databasePath = resolve(realProjectSourceStorageBasePath, "assets", "assets.db");
   if (!existsSync(databasePath)) return [];
   const result = spawnSync(
     "sqlite3",
@@ -370,8 +370,8 @@ function readDaojieRoleAssets() {
   return output ? JSON.parse(output) : [];
 }
 
-function cloneRealDaojieUserData() {
-  const sourceProjectsDir = resolve(daojieSourceStorageBasePath, "projects");
+function cloneRealProjectUserData() {
+  const sourceProjectsDir = resolve(realProjectSourceStorageBasePath, "projects");
   const projectStorePath = resolve(sourceProjectsDir, "mystudio-project-store.json");
   if (!existsSync(projectStorePath)) {
     throw new Error(`Daojie project store was not found: ${projectStorePath}`);
@@ -380,10 +380,10 @@ function cloneRealDaojieUserData() {
   const projectStore = readJsonFile(projectStorePath);
   const projects = projectStore?.state?.projects || [];
   const project =
-    (daojieProjectId
-      ? projects.find((candidate) => candidate.id === daojieProjectId)
+    (realProjectId
+      ? projects.find((candidate) => candidate.id === realProjectId)
       : null) ||
-    projects.find((candidate) => String(candidate.name || "").includes(daojieProjectName));
+    projects.find((candidate) => String(candidate.name || "").includes(realProjectName));
   if (!project) {
     throw new Error(`Daojie project was not found in ${projectStorePath}`);
   }
@@ -397,29 +397,29 @@ function cloneRealDaojieUserData() {
   const workflowStore = readJsonFile(workflowStorePath);
   const workflowState = workflowStore?.state || {};
   const chapter = (workflowState.novelChapters || []).find(
-    (candidate) => candidate.id === daojieChapterId,
+    (candidate) => candidate.id === realProjectChapterId,
   );
-  if (!chapter || chapter.title !== daojieChapterTitle) {
+  if (!chapter || chapter.title !== realProjectChapterTitle) {
     throw new Error(
-      `Daojie ${daojieChapterId} was not found or had an unexpected title in ${workflowStorePath}`,
+      `Daojie ${realProjectChapterId} was not found or had an unexpected title in ${workflowStorePath}`,
     );
   }
   const chapterStoryboards = (workflowState.storyboards || []).filter(
-    (candidate) => candidate.episodeId === daojieChapterId,
+    (candidate) => candidate.episodeId === realProjectChapterId,
   );
   if (!(chapterStoryboards.length > 0)) {
     throw new Error(
-      `Daojie ${daojieChapterId} has no source storyboards in ${workflowStorePath}`,
+      `Daojie ${realProjectChapterId} has no source storyboards in ${workflowStorePath}`,
     );
   }
   const firstStoryboard = chapterStoryboards
     .slice()
     .sort((left, right) => Number(left.index) - Number(right.index))[0];
   const firstShotRevision = Math.max(1, Number(firstStoryboard?.outputVersion) || 1);
-  if (runFirstShotPreview && project.id !== daojieFirstShotProjectId) {
-    throw new Error(`First-shot preview requires project ${daojieFirstShotProjectId}, received ${project.id}`);
+  if (runFirstShotPreview && project.id !== realProjectFirstShotProjectId) {
+    throw new Error(`First-shot preview requires project ${realProjectFirstShotProjectId}, received ${project.id}`);
   }
-  if (runFirstShotPreview && (firstStoryboard?.index !== 1 || firstStoryboard?.id !== daojieFirstShotId)) {
+  if (runFirstShotPreview && (firstStoryboard?.index !== 1 || firstStoryboard?.id !== realProjectFirstShotId)) {
     throw new Error(`Daojie first storyboard identity is invalid: ${firstStoryboard?.id || "missing"}`);
   }
   const sourceDerivedPlans = (workflowState.scriptPlans || []).flatMap(
@@ -434,12 +434,12 @@ function cloneRealDaojieUserData() {
     );
   }
 
-  const clonedUserDataDir = mkdtempSync(resolve(tmpdir(), "mystudio-daojie-workflow-run-"));
+  const clonedUserDataDir = mkdtempSync(resolve(tmpdir(), "mystudio-project-workflow-run-"));
   const clonedProjectsDir = resolve(clonedUserDataDir, "projects");
   const clonedProjectDir = resolve(clonedProjectsDir, "_p", project.id);
   mkdirSync(clonedProjectDir, { recursive: true });
   const remotionRuntimeReuse = (runFirstShotPreview || runProductionCanvasVideo)
-    ? copyInstalledRemotionCache(daojieSourceUserDataDir, clonedUserDataDir)
+    ? copyInstalledRemotionCache(realProjectSourceUserDataDir, clonedUserDataDir)
     : null;
 
   for (const fileName of [
@@ -498,8 +498,8 @@ function cloneRealDaojieUserData() {
 
   const assetReferenceRepairs = repairMissingCharacterThumbnails({
     characterStorePath: resolve(clonedProjectDir, "characters.json"),
-    sourceAssetFilesRoot: resolve(daojieSourceStorageBasePath, "assets", "files"),
-    roleAssets: readDaojieRoleAssets(),
+    sourceAssetFilesRoot: resolve(realProjectSourceStorageBasePath, "assets", "files"),
+    roleAssets: readRealProjectRoleAssets(),
   });
 
   const sourceExportsDir = resolve(projectDir, "exports");
@@ -525,7 +525,7 @@ function cloneRealDaojieUserData() {
   };
 }
 
-function inspectClonedDaojieProjectData(userDataDir, projectId = daojieProjectId) {
+function inspectClonedProjectData(userDataDir, projectId = realProjectId) {
   const projectDir = resolve(userDataDir, "projects", "_p", projectId);
   const workflowState = readJsonFile(resolve(projectDir, "studio-workflow-store.json")).state || {};
   const characters = existsSync(resolve(projectDir, "characters.json"))
@@ -538,7 +538,7 @@ function inspectClonedDaojieProjectData(userDataDir, projectId = daojieProjectId
     ? readJsonFile(resolve(projectDir, "props.json")).state?.items || []
     : [];
   const scriptPlans = (workflowState.scriptPlans || []).filter(
-    (candidate) => !candidate.episodeId || candidate.episodeId === daojieChapterId,
+    (candidate) => !candidate.episodeId || candidate.episodeId === realProjectChapterId,
   );
   const derivedAssetPlan = scriptPlans.flatMap((plan) => plan.derivedAssetPlan || []);
   const derivedCharacterVariations = characters.flatMap((character) =>
@@ -561,10 +561,10 @@ function inspectClonedDaojieProjectData(userDataDir, projectId = daojieProjectId
     (graph.edges || []).length > 0,
   );
   const chapterStoryboards = (workflowState.storyboards || []).filter(
-    (candidate) => candidate.episodeId === daojieChapterId,
+    (candidate) => candidate.episodeId === realProjectChapterId,
   );
   const storyboardImageWorkflows = (workflowState.imageWorkflows || []).filter((graph) =>
-    String(graph.id || "").startsWith(`storyboard-flow-${daojieChapterId}-`),
+    String(graph.id || "").startsWith(`storyboard-flow-${realProjectChapterId}-`),
   );
   const storyboardImageWorkflowsReady = storyboardImageWorkflows.filter((graph) => {
     const referenceNodes = (graph.nodes || []).filter((node) => node.type === "reference" && node.imageUrl);
@@ -595,9 +595,9 @@ function inspectClonedDaojieProjectData(userDataDir, projectId = daojieProjectId
   };
 }
 
-const realDaojieRun = runRealDaojie ? cloneRealDaojieUserData() : null;
+const realProjectRun = runRealProject ? cloneRealProjectUserData() : null;
 const userDataDir =
-  realDaojieRun?.userDataDir ||
+  realProjectRun?.userDataDir ||
   process.env.MYSTUDIO_SMOKE_USER_DATA_DIR ||
   mkdtempSync(resolve(tmpdir(), "mystudio-smoke-visible-run-"));
 
@@ -800,10 +800,10 @@ async function runVisibleWorkflow(pageTarget, childPid, focusSamples) {
       await send("Page.bringToFront");
       await ensureAppIsForeground(childPid, "before workflow clicks");
     }
-    const expression = runRealDaojie
-      ? realDaojieWorkflowExpression(
+    const expression = runRealProject
+      ? realProjectWorkflowExpression(
           safeStepDelayMs,
-          realDaojieRun,
+          realProjectRun,
           runChapterAutoVideo,
           safeAutoVideoTimeoutMs,
           runFirstShotPreview,
@@ -1011,9 +1011,9 @@ function visibleWorkflowExpression(delayMs, focusWindow) {
   })()`;
 }
 
-function realDaojieWorkflowExpression(
+function realProjectWorkflowExpression(
   delayMs,
-  daojieRun,
+  realProjectRunData,
   autoVideoEnabled,
   autoVideoTimeoutMs,
   firstShotPreviewEnabled,
@@ -1022,13 +1022,13 @@ function realDaojieWorkflowExpression(
   productionCanvasVideoTimeoutMs,
   focusWindow,
 ) {
-  const projectId = JSON.stringify(daojieRun.projectId);
-  const projectName = JSON.stringify(daojieRun.projectName);
-  const chapterId = JSON.stringify(daojieRun.chapterId);
-  const chapterTitle = JSON.stringify(daojieRun.chapterTitle);
-  const expectedStoryboards = Number(daojieRun.expectedStoryboards);
-  const expectedFirstStoryboardId = JSON.stringify(daojieRun.firstStoryboardId);
-  const expectedFirstShotRevision = Number(daojieRun.firstShotRevision);
+  const projectId = JSON.stringify(realProjectRunData.projectId);
+  const projectName = JSON.stringify(realProjectRunData.projectName);
+  const chapterId = JSON.stringify(realProjectRunData.chapterId);
+  const chapterTitle = JSON.stringify(realProjectRunData.chapterTitle);
+  const expectedStoryboards = Number(realProjectRunData.expectedStoryboards);
+  const expectedFirstStoryboardId = JSON.stringify(realProjectRunData.firstStoryboardId);
+  const expectedFirstShotRevision = Number(realProjectRunData.firstShotRevision);
   const focusWindowStatement = focusWindow ? "window.focus();" : "";
   return `(async () => {
     // Daojie mode does not use resetForStepwiseExecution or seed smoke data.
@@ -1149,7 +1149,7 @@ function realDaojieWorkflowExpression(
       const raw = await window.fileStorage?.getItem?.(key);
       return raw ? JSON.parse(raw) : null;
     };
-    const inspectDaojieProjectData = async () => {
+    const inspectProjectData = async () => {
       const projectStore = await readJsonStore('mystudio-project-store');
       const workflowStore = await readJsonStore('_p/' + projectId + '/studio-workflow-store');
       const charactersStore = await readJsonStore('_p/' + projectId + '/characters');
@@ -1240,7 +1240,7 @@ function realDaojieWorkflowExpression(
          hasCompleteTimelineArtifactPaths,
        );
        return {
-        source: 'real-daojie-chapter001-clone',
+        source: 'real-project-clone',
         projectId,
         projectName: project?.name || projectName,
         activeProjectId: projectStore?.state?.activeProjectId || '',
@@ -1288,7 +1288,7 @@ function realDaojieWorkflowExpression(
         hasSmokeTemplate: normalize(document.body).includes('Smoke 第一章') || chapter?.title?.includes('Smoke') || false,
       };
     };
-    const verifyRealDaojieStageEvidence = (stage, data) => {
+    const verifyRealProjectStageEvidence = (stage, data) => {
       const domEvidence = captureVisibleWorkflowDomEvidence();
       const body = domEvidence.bodyText;
       const manualsReady = data.manualsReady || body.includes('视觉') || body.includes('导演');
@@ -1394,10 +1394,10 @@ function realDaojieWorkflowExpression(
       }
       const postAutoVideoData = finalStatus.stage === 'completed'
         ? await waitFor(async () => {
-            const data = await inspectDaojieProjectData();
+            const data = await inspectProjectData();
             return data.hasCurrentTimelineEvidence ? data : null;
-          }, 5_000) || await inspectDaojieProjectData()
-        : await inspectDaojieProjectData();
+          }, 5_000) || await inspectProjectData()
+        : await inspectProjectData();
       return {
         enabled: true,
         stageClicked: Boolean(storyboardClick.clicked),
@@ -1432,7 +1432,7 @@ function realDaojieWorkflowExpression(
     const runFirstShotPreviewFlow = async () => {
       if (!firstShotPreviewEnabled) return { enabled: false };
       const workbenchClick = await clickStage({ id: 'workbench', label: '视频工作台' });
-      const sourceData = await inspectDaojieProjectData();
+      const sourceData = await inspectProjectData();
       const startedAtMs = Date.now();
       const downloadProgressEvents = [];
       const unsubscribeDownload = window.remotionRuntime?.onDownloadProgress?.((progress) => {
@@ -1552,7 +1552,7 @@ function realDaojieWorkflowExpression(
       if (!productionCanvasVideoEnabled) return { enabled: false };
       const storyboardClick = await clickStage({ id: 'storyboard', label: '分镜视频生成' });
       await visibleDelay();
-      const preClickData = await inspectDaojieProjectData();
+      const preClickData = await inspectProjectData();
       const preClickReviewCounts = {
         approved: preClickData.storyboardsApproved ?? 0,
         pending: preClickData.storyboardsPending ?? 0,
@@ -1654,7 +1654,7 @@ function realDaojieWorkflowExpression(
         preflightError,
       };
     };
-    const openRealDaojieDerivativeImageWorkflowDetail = async () => {
+    const openRealProjectDerivativeImageWorkflowDetail = async () => {
       const storyboardClick = await clickStage({ id: 'storyboard', label: '分镜视频生成' });
       await visibleDelay();
       const workflowEntry = Array.from(document.querySelectorAll('[data-asset-workflow-image-id]'))
@@ -1735,7 +1735,7 @@ function realDaojieWorkflowExpression(
         const hasNoDuplicateGeneratedPromptPanel = !(hasImageWorkflowPromptNode && Boolean(generatedPromptPanel));
         const hasNoVisibleDuplicateGeneratedPromptPanel = !hasVisibleDuplicateGeneratedPromptPanel;
         const hasEditableImageWorkflowPrompt = promptTextValues.some((value) => value.trim().length > 0);
-        const hasDaojieDerivativePromptStyle = promptTextValues.some((value) =>
+        const hasRealProjectDerivativePromptStyle = promptTextValues.some((value) =>
           value.includes('daojie-gongbi-v2') &&
           value.includes('连续白描和铁线描') &&
           value.includes('@图1') &&
@@ -1766,7 +1766,7 @@ function realDaojieWorkflowExpression(
           hasVisibleGeneratedNode,
           hasNoVisibleDuplicateGeneratedPromptPanel,
           hasEditableImageWorkflowPrompt,
-          hasDaojieDerivativePromptStyle,
+          hasRealProjectDerivativePromptStyle,
           hasImageWorkflowSource,
           hasScopedImageWorkflowSummary,
           hasNoGlobalImageWorkflowControls,
@@ -1798,7 +1798,7 @@ function realDaojieWorkflowExpression(
         storyboardPaletteImages,
       };
     };
-    const openRealDaojieStoryboardImageWorkflowDetail = async () => {
+    const openRealProjectStoryboardImageWorkflowDetail = async () => {
       const storyboardClick = await clickStage({ id: 'storyboard', label: '分镜视频生成' });
       await visibleDelay();
       const workflowEntry = document.querySelector('[data-storyboard-workflow-image-id]');
@@ -1878,7 +1878,7 @@ function realDaojieWorkflowExpression(
         const hasNoDuplicateGeneratedPromptPanel = !(hasImageWorkflowPromptNode && Boolean(generatedPromptPanel));
         const hasNoVisibleDuplicateGeneratedPromptPanel = !hasVisibleDuplicateGeneratedPromptPanel;
         const hasEditableImageWorkflowPrompt = promptTextValues.some((value) => value.trim().length > 0);
-        const hasDaojieStoryboardPromptStyle = promptTextValues.some((value) =>
+        const hasRealProjectStoryboardPromptStyle = promptTextValues.some((value) =>
           value.includes('水墨国风修仙') &&
           value.includes('@图1') &&
           value.includes('禁止写实摄影') &&
@@ -1896,8 +1896,8 @@ function realDaojieWorkflowExpression(
         const hasImageWorkflowBackButton = scopedButtonTexts.some((text) => text === '返回');
         const hasImageWorkflowRunAction = scopedButtonTexts.some((text) => text.includes('运行生成'));
         const hasImageWorkflowWritebackAction = scopedButtonTexts.some((text) => text.includes('写回目标'));
-        return hasReferenceNode && hasGeneratedNode && hasStoryboardWriteback && hasImageWorkflowCanvas && hasVisibleImageWorkflowCanvas && hasImageWorkflowNodes && hasImageWorkflowPromptNode && hasNoDuplicateGeneratedPromptPanel && hasVisibleGeneratedNode && hasNoVisibleDuplicateGeneratedPromptPanel && hasEditableImageWorkflowPrompt && hasDaojieStoryboardPromptStyle && hasImageWorkflowSource && hasScopedImageWorkflowSummary && hasNoGlobalImageWorkflowControls && hasNoGlobalImageWorkflowPalettes && hasImageWorkflowBackButton && hasImageWorkflowRunAction && hasImageWorkflowWritebackAction
-          ? { hasReferenceNode, hasGeneratedNode, hasStoryboardWriteback, hasImageWorkflowCanvas, hasVisibleImageWorkflowCanvas, hasImageWorkflowNodes, imageWorkflowNodeCount, hasImageWorkflowPromptNode, hasNoDuplicateGeneratedPromptPanel, hasVisibleGeneratedNode, hasNoVisibleDuplicateGeneratedPromptPanel, hasEditableImageWorkflowPrompt, hasDaojieStoryboardPromptStyle, hasImageWorkflowSource, hasScopedImageWorkflowSummary, hasNoGlobalImageWorkflowControls, hasNoGlobalImageWorkflowPalettes, hasImageWorkflowBackButton, hasImageWorkflowRunAction, hasImageWorkflowWritebackAction, canvasRect, generatedNodeRect, generatedPromptPanelRect, inputValues, promptTextValues, generatedPromptTextValues, referenceNodeText, generatedNodeText }
+        return hasReferenceNode && hasGeneratedNode && hasStoryboardWriteback && hasImageWorkflowCanvas && hasVisibleImageWorkflowCanvas && hasImageWorkflowNodes && hasImageWorkflowPromptNode && hasNoDuplicateGeneratedPromptPanel && hasVisibleGeneratedNode && hasNoVisibleDuplicateGeneratedPromptPanel && hasEditableImageWorkflowPrompt && hasRealProjectStoryboardPromptStyle && hasImageWorkflowSource && hasScopedImageWorkflowSummary && hasNoGlobalImageWorkflowControls && hasNoGlobalImageWorkflowPalettes && hasImageWorkflowBackButton && hasImageWorkflowRunAction && hasImageWorkflowWritebackAction
+          ? { hasReferenceNode, hasGeneratedNode, hasStoryboardWriteback, hasImageWorkflowCanvas, hasVisibleImageWorkflowCanvas, hasImageWorkflowNodes, imageWorkflowNodeCount, hasImageWorkflowPromptNode, hasNoDuplicateGeneratedPromptPanel, hasVisibleGeneratedNode, hasNoVisibleDuplicateGeneratedPromptPanel, hasEditableImageWorkflowPrompt, hasRealProjectStoryboardPromptStyle, hasImageWorkflowSource, hasScopedImageWorkflowSummary, hasNoGlobalImageWorkflowControls, hasNoGlobalImageWorkflowPalettes, hasImageWorkflowBackButton, hasImageWorkflowRunAction, hasImageWorkflowWritebackAction, canvasRect, generatedNodeRect, generatedPromptPanelRect, inputValues, promptTextValues, generatedPromptTextValues, referenceNodeText, generatedNodeText }
           : null;
       }, 8_000);
       return {
@@ -1924,14 +1924,14 @@ function realDaojieWorkflowExpression(
       return evidence.hasStageSwitcher ? evidence : null;
     }, 20_000);
     await waitFor(async () => {
-      const data = await inspectDaojieProjectData();
+      const data = await inspectProjectData();
       return data.chapterId === chapterId && data.chapterTitle === chapterTitle ? data : null;
     }, 20_000);
     if (!switcherEvidence) {
-      const daojie = await inspectDaojieProjectData();
+      const realProject = await inspectProjectData();
       const domEvidence = captureVisibleWorkflowDomEvidence();
       return {
-        source: daojie.source,
+        source: realProject.source,
         clickedWorkflow: Boolean(workflowClick.clicked || workflowFallbackClick.clicked || normalize(document.body).includes('工作流')),
         clickedProject: Boolean(projectClick.clicked),
         completed: false,
@@ -1940,7 +1940,7 @@ function realDaojieWorkflowExpression(
         chapterAutoVideo: { enabled: autoVideoEnabled },
         firstShotPreview: { enabled: firstShotPreviewEnabled },
         productionCanvasVideo: { enabled: productionCanvasVideoEnabled },
-        daojie,
+        realProject,
         error: 'stage switcher was not visible',
         domEvidence,
       };
@@ -1959,11 +1959,11 @@ function realDaojieWorkflowExpression(
       console.info('[visible-run] stage ' + stage.id + ' start ' + stage.label);
       const stageClick = await clickStage(stage);
       const evidence = await waitFor(async () => {
-        const data = await inspectDaojieProjectData();
-        const checked = verifyRealDaojieStageEvidence(stage, data);
+        const data = await inspectProjectData();
+        const checked = verifyRealProjectStageEvidence(stage, data);
         return checked.ready ? { ...checked, data } : null;
       }, 8_000);
-      const data = evidence?.data || await inspectDaojieProjectData();
+      const data = evidence?.data || await inspectProjectData();
       console.info('[visible-run] stage ' + stage.id + ' ready=' + Boolean(evidence?.ready) + ' storyboards=' + data.storyboards + ' videoCandidates=' + data.videoCandidates);
       results.push({
         id: stage.id,
@@ -1990,13 +1990,13 @@ function realDaojieWorkflowExpression(
     ));
     const storyboardImageWorkflowDetail = stopAfterMediaAction
       ? { ready: false, skippedAfterMediaActionFailure: true }
-      : await openRealDaojieStoryboardImageWorkflowDetail();
+      : await openRealProjectStoryboardImageWorkflowDetail();
     const derivativeImageWorkflowDetail = stopAfterMediaAction
       ? { ready: false, skippedAfterMediaActionFailure: true }
-      : await openRealDaojieDerivativeImageWorkflowDetail();
-    const daojie = await inspectDaojieProjectData();
+      : await openRealProjectDerivativeImageWorkflowDetail();
+    const realProject = await inspectProjectData();
     return {
-      source: daojie.source,
+      source: realProject.source,
       clickedWorkflow: Boolean(workflowClick.clicked || workflowFallbackClick.clicked || normalize(document.body).includes('工作流')),
       clickedProject: Boolean(projectClick.clicked),
       completed: results.every((item) => item.clicked && item.ready),
@@ -2007,7 +2007,7 @@ function realDaojieWorkflowExpression(
       productionCanvasVideo,
       storyboardImageWorkflowDetail,
       derivativeImageWorkflowDetail,
-      daojie,
+      realProject,
       domEvidence: captureVisibleWorkflowDomEvidence(),
     };
   })()`;
@@ -2019,8 +2019,8 @@ const childEnv = {
   MYSTUDIO_SMOKE_STEP_DELAY_MS: String(safeStepDelayMs),
   MYSTUDIO_SMOKE_BACKGROUND: runInBackground ? "1" : "0",
 };
-if (runRealDaojie) {
-  childEnv.MYSTUDIO_WORKFLOW_REAL_DAOJIE = "1";
+if (runRealProject) {
+  childEnv.MYSTUDIO_WORKFLOW_REAL_PROJECT = "1";
   if (runInBackground) childEnv.MYSTUDIO_SMOKE = "1";
 } else {
   childEnv.MYSTUDIO_SMOKE = "1";
@@ -2070,7 +2070,7 @@ try {
     appBin,
     userDataDir,
     debugPort,
-    runRealDaojie,
+    runRealProject,
     runChapterAutoVideo,
     runFirstShotPreview,
     runProductionCanvasVideo,
@@ -2082,16 +2082,16 @@ try {
     documentHasFocus: result.documentHasFocus,
     focusSamples,
     foregroundViolation,
-    cloneAssetReferenceRepairs: realDaojieRun?.assetReferenceRepairs || [],
-    remotionRuntimeReuse: realDaojieRun?.remotionRuntimeReuse || null,
+    cloneAssetReferenceRepairs: realProjectRun?.assetReferenceRepairs || [],
+    remotionRuntimeReuse: realProjectRun?.remotionRuntimeReuse || null,
     result,
     failedStages,
     runtimeProblems,
   };
-  if (runRealDaojie) {
-    const diskDaojie = inspectClonedDaojieProjectData(userDataDir, realDaojieRun?.projectId);
-    const daojie = { ...(result.daojie || {}), ...diskDaojie };
-    const expectedStoryboards = Number(realDaojieRun?.expectedStoryboards ?? daojie.expectedStoryboards);
+  if (runRealProject) {
+    const diskRealProject = inspectClonedProjectData(userDataDir, realProjectRun?.projectId);
+    const daojie = { ...(result.daojie || {}), ...diskRealProject };
+    const expectedStoryboards = Number(realProjectRun?.expectedStoryboards ?? realProject.expectedStoryboards);
     const storyboardPaletteImages = result.derivativeImageWorkflowDetail?.storyboardPaletteImages;
     const scopedDerivativePaletteAbsent = storyboardPaletteImages?.sectionFound === false;
     const chapterAutoVideo = result.chapterAutoVideo || { enabled: false };
@@ -2121,10 +2121,10 @@ try {
             firstShotPreview,
             userDataDir,
             expected: {
-              projectId: realDaojieRun.projectId,
-              chapterId: realDaojieRun.chapterId,
-              shotId: realDaojieRun.firstStoryboardId,
-              shotRevision: realDaojieRun.firstShotRevision,
+              projectId: realProjectRun.projectId,
+              chapterId: realProjectRun.chapterId,
+              shotId: realProjectRun.firstStoryboardId,
+              shotRevision: realProjectRun.firstShotRevision,
             },
           }),
           mode: "strict",
@@ -2147,8 +2147,8 @@ try {
           ...auditVisibleProductionCanvasVideo({
             productionCanvasVideo,
             expected: {
-              chapterId: realDaojieRun.chapterId,
-              expectedStoryboards: Number(realDaojieRun?.expectedStoryboards),
+              chapterId: realProjectRun.chapterId,
+              expectedStoryboards: Number(realProjectRun?.expectedStoryboards),
             },
           }),
           mode: "strict",
@@ -2163,31 +2163,31 @@ try {
     const productionCanvasVideoFailed = runProductionCanvasVideo && !productionCanvasVideoAudit.ok;
     const failed =
       !(expectedStoryboards > 0) ||
-      result.source !== "real-daojie-chapter001-clone" ||
+      result.source !== "real-project-clone" ||
       !result.clickedWorkflow ||
       !result.completed ||
       failedStages.length > 0 ||
       runtimeProblems.length > 0 ||
-      daojie.projectName !== daojieProjectName ||
-      daojie.chapterId !== daojieChapterId ||
-      daojie.chapterTitle !== daojieChapterTitle ||
-      daojie.sourceLength < 9000 ||
-      daojie.storyboards !== expectedStoryboards ||
-      daojie.storyboardsWithMediaPath !== expectedStoryboards ||
-      daojie.storyboardsWithWorkflow !== expectedStoryboards ||
-      daojie.storyboardImageWorkflowsReady !== expectedStoryboards ||
-      daojie.totalStoryboardDuration > 180 ||
-      daojie.totalTrackDuration > 180 ||
-      daojie.derivedAssetPlan < 3 ||
-      daojie.derivedAssets < 3 ||
-      daojie.derivedImageWorkflows < 3 ||
-      daojie.derivedImageWorkflowsReady < 3 ||
+      realProject.projectName !== realProjectName ||
+      realProject.chapterId !== realProjectChapterId ||
+      realProject.chapterTitle !== realProjectChapterTitle ||
+      realProject.sourceLength < 9000 ||
+      realProject.storyboards !== expectedStoryboards ||
+      realProject.storyboardsWithMediaPath !== expectedStoryboards ||
+      realProject.storyboardsWithWorkflow !== expectedStoryboards ||
+      realProject.storyboardImageWorkflowsReady !== expectedStoryboards ||
+      realProject.totalStoryboardDuration > 180 ||
+      realProject.totalTrackDuration > 180 ||
+      realProject.derivedAssetPlan < 3 ||
+      realProject.derivedAssets < 3 ||
+      realProject.derivedImageWorkflows < 3 ||
+      realProject.derivedImageWorkflowsReady < 3 ||
       !result.storyboardImageWorkflowDetail?.ready ||
       !result.derivativeImageWorkflowDetail?.ready ||
       !scopedDerivativePaletteAbsent ||
-      daojie.productionTracks < 1 ||
-      daojie.videoCandidates < 1 ||
-      daojie.hasSmokeTemplate ||
+      realProject.productionTracks < 1 ||
+      realProject.videoCandidates < 1 ||
+      realProject.hasSmokeTemplate ||
       autoVideoFailed ||
       focusFailure ||
       firstShotPreviewFailed ||
@@ -2210,7 +2210,7 @@ try {
     } else {
       runPassed = true;
       console.log(
-        `[${runMode}-run] Daojie chapter001 clicked through${runInBackground ? " in background" : " and left open"}: pid=${child.pid}, project=${daojie.projectName}, chapter=${daojie.chapterId}, storyboards=${daojie.storyboards}/${expectedStoryboards}, derivedAssets=${daojie.derivedAssets}, derivedImageWorkflows=${daojie.derivedImageWorkflowsReady}/${daojie.derivedImageWorkflows}, videoCandidates=${daojie.videoCandidates}, autoVideoStage=${chapterAutoVideo.terminalStage || "disabled"}, firstShotStatus=${firstShotPreview.terminalStatus || "disabled"}, frontmostApp=${frontmostApp || "unchanged"}, userDataDir=${userDataDir}`,
+        `[${runMode}-run] Daojie chapter001 clicked through${runInBackground ? " in background" : " and left open"}: pid=${child.pid}, project=${realProject.projectName}, chapter=${realProject.chapterId}, storyboards=${realProject.storyboards}/${expectedStoryboards}, derivedAssets=${realProject.derivedAssets}, derivedImageWorkflows=${realProject.derivedImageWorkflowsReady}/${realProject.derivedImageWorkflows}, videoCandidates=${realProject.videoCandidates}, autoVideoStage=${chapterAutoVideo.terminalStage || "disabled"}, firstShotStatus=${firstShotPreview.terminalStatus || "disabled"}, frontmostApp=${frontmostApp || "unchanged"}, userDataDir=${userDataDir}`,
       );
     }
   } else if (
@@ -2249,13 +2249,13 @@ try {
     writeVisibleRunReport({
       ok: false,
       mode: runMode,
-      source: runRealDaojie
-        ? "real-daojie-chapter001-clone"
+      source: runRealProject
+        ? "real-project-clone"
         : "isolated-smoke-project",
       appBin,
       userDataDir,
       debugPort,
-      runRealDaojie,
+      runRealProject,
       runChapterAutoVideo,
       runFirstShotPreview,
       windowVisibility: null,

@@ -34,6 +34,7 @@ import {
 import { resolveSubtitleAuthority } from "@/lib/studio/video-workflow/subtitle-authority";
 
 const CAPABILITY_URL = /^http:\/\/127\.0\.0\.1:\d+\/[a-f0-9]{64}\/[A-Za-z0-9._~-]+$/;
+const TEXT_HYPERFRAMES_TEMPLATES = new Set(["title-card", "kinetic-caption"]);
 
 export function buildCompositionProps(
   plan: TimelineRenderPlan,
@@ -256,6 +257,7 @@ export function validateSubtitleAuthorityForTimeline(
         .filter((cue) => cue.trackKind === "text" && overlaps(cue.startUs, cue.durationUs, clip.startUs, clip.durationUs))
         .map((cue) => ({ cueId: cue.id, text: cue.source.text ?? "", startUs: cue.startUs, durationUs: cue.durationUs })),
       overlayCueIds: hyperFramesWindows
+        .filter((window) => TEXT_HYPERFRAMES_TEMPLATES.has(window.templateId))
         .filter((window) => overlaps(window.startUs, window.durationUs, clip.startUs, clip.durationUs))
         .map((window) => window.cueId),
     }));
@@ -279,7 +281,8 @@ export function validateSubtitleAuthorityForTimeline(
   if (resolved.intervals.some((interval) => interval.mode === "source-embedded"
     && (hyperFramesWindows.some((window) => {
       const visual = visualClips.find((clip) => clip.id === interval.intervalId);
-      return visual ? overlaps(window.startUs, window.durationUs, visual.startUs, visual.durationUs) : false;
+      return TEXT_HYPERFRAMES_TEMPLATES.has(window.templateId)
+        && (visual ? overlaps(window.startUs, window.durationUs, visual.startUs, visual.durationUs) : false);
     }) ?? false))) {
     return { success: false, issues: [{ path: "hyperFramesOverlay", message: "source-embedded 禁止 HyperFrames overlay" }] };
   }

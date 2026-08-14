@@ -5,7 +5,10 @@ import type {
   HyperFramesOverlayArtifactV1,
   VideoUseChapterArtifactV1,
 } from "@rendering/contracts/video-workflow";
-import { createVideoWorkflowChapterService } from "./video-workflow-chapter-service";
+import {
+  createVideoWorkflowChapterService,
+  type VideoWorkflowChapterServiceOptions,
+} from "./video-workflow-chapter-service";
 
 const hash = "a".repeat(64);
 
@@ -145,6 +148,38 @@ describe("video workflow chapter service", () => {
     }));
     expect(persistEditingProject).toHaveBeenCalledWith(expect.objectContaining({ id: "editing-1", revision: 2, updatedAt: 10 }));
     expect(persistEditingProject.mock.calls[0]?.[0].clips).toMatchObject([{ source: { path: "/tmp/shot-1.mp4" } }]);
+  });
+
+  it("passes caller-provided decorative windows to the real HyperFrames boundary", async () => {
+    const renderHyperFrames = vi.fn(async (request: Parameters<NonNullable<VideoWorkflowChapterServiceOptions["renderHyperFrames"]>>[0]) => ({
+      state: "ready" as const,
+      artifact: {
+        ...noopOverlayArtifact(),
+        status: "accepted" as const,
+        outputPath: "/tmp/video-workflow/c1/r2/hyperframes-overlay.mov",
+        outputSha256: hash,
+        windows: request.windows,
+      },
+    }));
+    const service = createVideoWorkflowChapterService({
+      workspaceRootForProject: () => "/tmp/video-workflow",
+      runVideoUse: vi.fn(),
+      renderHyperFrames,
+      readArtifacts: async () => readableAcceptedArtifacts(),
+      getCurrentEditingProject: async () => editingProject(),
+      persistEditingProject: vi.fn(async () => undefined),
+    });
+    const decorative = {
+      slotId: "effect-shot-1",
+      cueId: "decorative-effect-1",
+      startUs: 0,
+      durationUs: 500_000,
+      templateId: "highlight-box",
+      parameters: { color: "#f4d06f" },
+    } as const;
+
+    await expect(service.applyAcceptedArtifact({ ...applyInput, hyperFramesWindows: [decorative] })).resolves.toMatchObject({ success: true });
+    expect(renderHyperFrames).toHaveBeenCalledWith(expect.objectContaining({ windows: [decorative] }));
   });
 
   it("fails closed when the main-process EditingProject persistence boundary is absent", async () => {

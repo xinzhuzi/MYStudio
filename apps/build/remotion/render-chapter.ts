@@ -24,7 +24,7 @@ import { assertBundleMatchesRuntime } from "@rendering/plugins/remotion/render/b
 import { createRemotionEnsureBrowserAdapters, type RemotionEnsureBrowser } from "@rendering/plugins/remotion/browser/remotion-browser-worker-service";
 import { buildRemotionRuntimeManifest } from "@rendering/plugins/remotion/browser/remotion-runtime-manifest";
 import { analyzeRenderedAudioWindows, assertRenderedMediaEvidence, hashFileSha256, probeRenderedMedia } from "./render-smoke-evidence";
-import { resolveRemotionRuntimeDir } from "../timeline/daojie-storage-paths";
+import { resolveRemotionRuntimeDir } from "../timeline/storage-paths";
 
 const appsRoot = path.resolve(new URL("../..", import.meta.url).pathname);
 const remotionVersion = "4.0.499";

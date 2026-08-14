@@ -174,6 +174,7 @@ export function ArtifactCenter({
   const [sortOrder] = useState<'asc' | 'desc'>('desc');
   const [deletePlan, setDeletePlan] = useState<import("@/types/artifacts").DeletionPlan | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
   const activeProjectId = useProjectStore((state) => state.activeProjectId);
   const projectList = useProjectStore((state) => state.projects);
   const setActiveTab = useMediaPanelStore((state) => state.setActiveTab);
@@ -571,93 +572,121 @@ export function ArtifactCenter({
 
   // Delete a single file's artifact through the reviewed deletion plan.
   const openFileDelete = useCallback(async (artifact: ArtifactRecord) => {
-    if (!activeProjectId) return;
-    const result = await createArtifactDeletionPlan({
-      projectId: activeProjectId,
-      chapterId: "",
-      scope: "artifacts",
-      artifactIds: [artifact.id],
-    });
-    if (!result.success) {
-      toast.error(result.error);
+    if (!activeProjectId) {
+      toast.error("无法删除：没有活动项目");
       return;
     }
-    setDeletePlan(result.data);
-    setDeleteOpen(true);
+    try {
+      const result = await createArtifactDeletionPlan({
+        projectId: activeProjectId,
+        chapterId: "",
+        scope: "artifacts",
+        artifactIds: [artifact.id],
+      });
+      if (!result.success) {
+        toast.error(result.error);
+        return;
+      }
+      setDeletePlan(result.data);
+      setDeleteLoading(false);
+      setDeleteOpen(true);
+    } catch (error) {
+      console.error("[artifact-delete] openFileDelete threw", error);
+      setDeleteLoading(false);
+      toast.error(`删除操作失败：${error instanceof Error ? error.message : String(error)}`);
+    }
   }, [activeProjectId]);
 
   const openChapterDelete = useCallback(async () => {
-    if (!activeProjectId || !selectedChapterId) return;
-    const result = await createArtifactDeletionPlan({ projectId: activeProjectId, chapterId: selectedChapterId, scope: "chapter" });
-    if (!result.success) {
-      toast.error(result.error);
+    if (!activeProjectId || !selectedChapterId) {
+      toast.error("无法删除：没有活动项目或未选择章节");
       return;
     }
-    setDeletePlan(result.data);
-    setDeleteOpen(true);
+    try {
+      const result = await createArtifactDeletionPlan({ projectId: activeProjectId, chapterId: selectedChapterId, scope: "chapter" });
+      if (!result.success) {
+        toast.error(result.error);
+        return;
+      }
+      setDeletePlan(result.data);
+      setDeleteLoading(false);
+      setDeleteOpen(true);
+    } catch (error) {
+      console.error("[artifact-delete] openChapterDelete threw", error);
+      setDeleteLoading(false);
+      toast.error(`删除操作失败：${error instanceof Error ? error.message : String(error)}`);
+    }
   }, [activeProjectId, selectedChapterId]);
 
   const openSelectedDelete = useCallback(async () => {
-    if (!activeProjectId || !selectedChapterId || selectedIds.size === 0) {
-      console.error("[artifact-delete] openSelectedDelete aborted: missing preconditions", {
-        hasProjectId: Boolean(activeProjectId),
-        selectedChapterId,
-        selectedCount: selectedIds.size,
-      });
-      return;
-    }
-    const selectedChapterIds = new Set(
-      [...selectedIds]
-        .map((id) => artifacts.find((artifact) => artifact.id === id))
-        .map((artifact) => artifact ? inferChapterId(artifact) ?? NONE_BUCKET_ID : NONE_BUCKET_ID),
-    );
-    if (selectedChapterIds.size > 1) {
-      console.error("[artifact-delete] openSelectedDelete aborted: cross-chapter selection", {
-        selectedChapterIds: [...selectedChapterIds],
-      });
-      toast.error("批量删除必须限定在同一章节，请先取消跨章节选择");
-      return;
-    }
-    // The selected bucket may be a UI-only synthetic sentinel (__none__ 杂项
-    // or __backup__ 备份). Both must be stripped to "" before reaching the
-    // store/IPC: buildDeletionPlan rejects them as "Chapter not found" /
-    // "outside chapter __x__" (artifact-dependency-graph.ts:574/582), and
-    // artifacts-scope deletion derives and validates the selected chapter at
-    // the dependency-graph boundary even when this UI sentinel becomes "".
-    // See chapterIdForDeletionPlan.
-    const chapterIdForPlan = chapterIdForDeletionPlan(selectedChapterId);
-    const artifactIds = Array.from(selectedIds);
-    const result = await createArtifactDeletionPlan({
-      projectId: activeProjectId,
-      chapterId: chapterIdForPlan,
-      scope: "artifacts",
-      artifactIds,
-    });
-    if (!result.success) {
-      console.error("[artifact-delete] createArtifactDeletionPlan failed", {
+    try {
+      if (!activeProjectId || !selectedChapterId || selectedIds.size === 0) {
+        const reason = !activeProjectId
+          ? "没有活动项目"
+          : !selectedChapterId
+            ? "未选择章节"
+            : "未选中任何产物";
+        console.error("[artifact-delete] openSelectedDelete aborted: missing preconditions", {
+          hasProjectId: Boolean(activeProjectId),
+          selectedChapterId,
+          selectedCount: selectedIds.size,
+        });
+        toast.error(`无法删除：${reason}`);
+        return;
+      }
+      const selectedChapterIds = new Set(
+        [...selectedIds]
+          .map((id) => artifacts.find((artifact) => artifact.id === id))
+          .map((artifact) => artifact ? inferChapterId(artifact) ?? NONE_BUCKET_ID : NONE_BUCKET_ID),
+      );
+      if (selectedChapterIds.size > 1) {
+        console.error("[artifact-delete] openSelectedDelete aborted: cross-chapter selection", {
+          selectedChapterIds: [...selectedChapterIds],
+        });
+        toast.error("批量删除必须限定在同一章节，请先取消跨章节选择");
+        return;
+      }
+      const chapterIdForPlan = chapterIdForDeletionPlan(selectedChapterId);
+      const artifactIds = Array.from(selectedIds);
+      setDeleteLoading(true);
+      const result = await createArtifactDeletionPlan({
         projectId: activeProjectId,
-        rawChapterId: selectedChapterId,
-        chapterIdForPlan,
+        chapterId: chapterIdForPlan,
         scope: "artifacts",
         artifactIds,
-        error: result.error,
       });
-      toast.error(result.error);
-      return;
+      if (!result.success) {
+        console.error("[artifact-delete] createArtifactDeletionPlan failed", {
+          projectId: activeProjectId,
+          rawChapterId: selectedChapterId,
+          chapterIdForPlan,
+          scope: "artifacts",
+          artifactIds,
+          error: result.error,
+        });
+        setDeleteLoading(false);
+        toast.error(result.error);
+        return;
+      }
+      void logEvent({
+        category: "asset",
+        level: "info",
+        message: "[artifact-delete] deletion plan created, opening dialog",
+        context: {
+          projectId: activeProjectId,
+          chapterIdForPlan,
+          deleteItems: result.data.deleteItems.length,
+          blockerItems: result.data.blockerItems.length,
+        },
+      });
+      setDeletePlan(result.data);
+      setDeleteLoading(false);
+      setDeleteOpen(true);
+    } catch (error) {
+      console.error("[artifact-delete] openSelectedDelete threw", error);
+      setDeleteLoading(false);
+      toast.error(`删除操作失败：${error instanceof Error ? error.message : String(error)}`);
     }
-    void logEvent({
-      category: "asset",
-      level: "info",
-      message: "[artifact-delete] deletion plan created, opening dialog",
-      context: {
-        projectId: activeProjectId,
-        chapterIdForPlan,
-        deleteItems: result.data.deleteItems.length,
-        blockerItems: result.data.blockerItems.length,
-      },
-    });
-    setDeletePlan(result.data);
-    setDeleteOpen(true);
   }, [activeProjectId, artifacts, selectedChapterId, selectedIds]);
 
   const toggleArtifactSelection = useCallback((artifactId: string, checked: boolean) => {
@@ -931,7 +960,7 @@ export function ArtifactCenter({
           <MediaView />
         </TabsContent>
       </Tabs>
-      <ArtifactDeleteDialog isOpen={deleteOpen} plan={deletePlan} onClose={() => { setDeleteOpen(false); setDeletePlan(null); }} onExecute={executePlan} />
+      <ArtifactDeleteDialog isOpen={deleteOpen} plan={deletePlan} loading={deleteLoading} onClose={() => { setDeleteOpen(false); setDeletePlan(null); }} onExecute={executePlan} />
     </div>
   );
 }

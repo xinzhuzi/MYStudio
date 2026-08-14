@@ -20,7 +20,7 @@ let repairMissingCharacterThumbnails: (input: {
 
 beforeAll(async () => {
   const moduleUrl = pathToFileURL(
-    resolve(process.cwd(), "build/smoke/repair-cloned-daojie-assets.mjs"),
+    resolve(process.cwd(), "build/smoke/repair-cloned-assets.mjs"),
   ).href;
   ({ repairMissingCharacterThumbnails } = await import(moduleUrl));
 });

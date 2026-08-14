@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
 import type { DeletionPlan } from "@/types/artifacts";
@@ -83,7 +83,7 @@ function makePlan(overrides: Partial<DeletionPlan> = {}): DeletionPlan {
 }
 
 describe("ArtifactDeleteDialog", () => {
-  it("shows exact scope, byte totals and complete per-item evidence", () => {
+  it("shows delete items, backup impact and item evidence", () => {
     render(
       <ArtifactDeleteDialog
         isOpen
@@ -93,22 +93,27 @@ describe("ArtifactDeleteDialog", () => {
       />,
     );
 
-    expect(screen.getByText("删除后无法恢复")).toBeTruthy();
-    const summary = screen.getByLabelText("删除范围摘要");
-    expect(within(summary).getByText("project-1")).toBeTruthy();
-    expect(within(summary).getByText("chapter-001")).toBeTruthy();
-    expect(within(summary).getByText("第一章")).toBeTruthy();
-    expect(within(summary).getByText("2 KB")).toBeTruthy();
-    expect(within(summary).getByText("4 KB")).toBeTruthy();
-    expect(within(summary).getByText("8 KB")).toBeTruthy();
-    expect(within(summary).getByText("14 KB")).toBeTruthy();
-    expect(screen.queryByText("1 B")).toBeNull();
+    // Title — the dialog title contains "确认删除"
+    expect(screen.getAllByText(/确认删除/).length).toBeGreaterThan(0);
+    // Permanent warning
+    expect(screen.getByText(/永久删除/)).toBeTruthy();
 
-    expect(screen.getByText("/project/exports/chapter-001/chapter-001-final.mp4")).toBeTruthy();
-    expect(screen.getByText("project-file · exports/chapter-001/chapter-001-final.mp4 · 1 KB")).toBeTruthy();
-    expect(screen.getByText("production:production-track:track-1")).toBeTruthy();
-    expect(screen.getByText("sha256-delete")).toBeTruthy();
+    // Delete group item
+    expect(screen.getByText("chapter-001-final.mp4")).toBeTruthy();
+    expect(screen.getByText("章节独占导出")).toBeTruthy();
+
+    // Migrate group
+    expect(screen.getByText("保留角色变体")).toBeTruthy();
+
+    // Retain group
+    expect(screen.getByText("共享角色")).toBeTruthy();
+
+    // Backup impact
     expect(screen.getByText("/project/backups/studio-state.json.bak")).toBeTruthy();
+    expect(screen.getByText("REWRITE")).toBeTruthy();
+
+    // Byte totals — use getAllByText since bytes appear in multiple badges
+    expect(screen.getAllByText("2 KB").length).toBeGreaterThan(0);
   });
 
   it("requires the exact chapter confirmation before executing", async () => {

@@ -700,8 +700,8 @@ try {
     }));
     process.exit(0);
   }
-  if (process.env.MYSTUDIO_DAOJIE_IMAGE_GENERATION_FROZEN === "1") {
-    throw new Error("MYSTUDIO_DAOJIE_IMAGE_GENERATION_FROZEN=1: storyboard image generation is frozen; no provider request was sent");
+  if (process.env.MYSTUDIO_IMAGE_GENERATION_FROZEN === "1") {
+    throw new Error("MYSTUDIO_IMAGE_GENERATION_FROZEN=1: storyboard image generation is frozen; no provider request was sent");
   }
   const providers = normalizeProviderConfigs({
     baseUrl,

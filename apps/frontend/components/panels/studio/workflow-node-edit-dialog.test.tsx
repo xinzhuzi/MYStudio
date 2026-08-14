@@ -9,21 +9,8 @@ import { readFileSync } from "node:fs";
 // are not recognised as valid Extensions. Mock the CodeMirror surface to render
 // the DOM structure the test asserts on (cm-scroller, cm-theme, overflow style)
 // without invoking the real EditorState.create path.
-vi.mock("@codemirror/view", () => ({
-  EditorView: {
-    theme: (spec: Record<string, Record<string, string>>) => {
-      const style = document.createElement("style");
-      const rules = Object.entries(spec).map(([sel, props]) => {
-        const decls = Object.entries(props).map(([k, v]) => `${k.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`)}: ${v}`).join("; ");
-        return `${sel} { ${decls} }`;
-      }).join("\n");
-      style.textContent = rules;
-      return { extension: true, inject: () => style };
-    },
-    lineWrapping: { extension: true },
-  },
-}));
-
+// WorkflowNodeEditDialog imports both CodeMirror (default) and EditorView (named)
+// from @uiw/react-codemirror, so both must be in the same mock.
 vi.mock("@codemirror/lang-json", () => ({
   json: () => ({ extension: true }),
 }));
@@ -41,6 +28,19 @@ vi.mock("@uiw/react-codemirror", () => ({
     }
     return React.createElement("div", { className: `cm-theme ${className ?? ""}` },
       React.createElement("div", { className: "cm-scroller" }, value));
+  },
+  // Re-export EditorView so WorkflowNodeEditDialog.tsx line 14 can destructure it.
+  EditorView: {
+    theme: (spec: Record<string, Record<string, string>>) => {
+      const style = document.createElement("style");
+      const rules = Object.entries(spec).map(([sel, props]) => {
+        const decls = Object.entries(props).map(([k, v]) => `${k.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`)}: ${v}`).join("; ");
+        return `${sel} { ${decls} }`;
+      }).join("\n");
+      style.textContent = rules;
+      return { extension: true, inject: () => style };
+    },
+    lineWrapping: { extension: true },
   },
 }));
 

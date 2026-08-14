@@ -118,25 +118,30 @@ describe("artifact-dependency-graph", () => {
   });
 
   describe("buildDeletionScope - legacy ambiguity blockers", () => {
-    test("blocks TTS lines with ambiguous numeric sceneId", () => {
+    test("selected TTS lines with ambiguous sceneId are deletable (user explicitly chose)", () => {
       const ttsLine = createArtifacts("blocker-missing-ownership");
       ttsLine.blockerReason = "Missing chapter ownership (legacy numeric sceneId)";
 
       const allArtifacts = [ttsLine];
       const result = buildDeletionScope(allArtifacts, [ttsLine.id], "chapter-001");
 
-      expect(result.blockerSet).toContain(ttsLine.id);
-      expect(result.deleteSet).not.toContain(ttsLine.id);
+      // Explicitly selected items with blocker-missing-ownership are
+      // deleted, not blocked — the user is intentionally deleting them.
+      expect(result.deleteSet).toContain(ttsLine.id);
+      expect(result.blockerSet).not.toContain(ttsLine.id);
     });
 
-    test("flags unowned media files as ambiguous", () => {
+    test("selected unowned media files are deletable (user explicitly chose)", () => {
       const unownedMedia = createArtifacts("blocker-missing-ownership");
       unownedMedia.blockerReason = "Missing chapter ownership";
 
       const allArtifacts = [unownedMedia];
       const result = buildDeletionScope(allArtifacts, [unownedMedia.id], "chapter-001");
 
-      expect(result.blockerSet).toContain(unownedMedia.id);
+      // Explicitly selected items with blocker-missing-ownership are
+      // deleted, not blocked.
+      expect(result.deleteSet).toContain(unownedMedia.id);
+      expect(result.blockerSet).not.toContain(unownedMedia.id);
     });
 
     test("does not block a chapter with an unrelated unowned project artifact", () => {
@@ -337,18 +342,55 @@ describe("artifact-dependency-graph", () => {
       expect(plan.confirmationRequired).toEqual({ type: "artifact-count", count: 1 });
     });
 
-    test("selecting an unowned item itself stays blocked", () => {
+    test("selecting an unowned item allows deletion despite blocker-missing-ownership", () => {
+      // When the user explicitly selects an artifact with
+      // blocker-missing-ownership, it should go into the delete set (not the
+      // blocker set) because the user is intentionally choosing to delete it.
+      // This is the fix for the "删除按钮不能点击" bug: artifacts in the 杂项
+      // (none) bucket all have blocker-missing-ownership, so the confirm
+      // button was permanently disabled.
       const unowned = createArtifacts("blocker-missing-ownership");
       const other = createArtifacts("delete-exclusive-downstream");
       const { plan, valid, errors } = buildDeletionPlan([unowned, other], [unowned.id], "");
 
-      // The selected item is itself a blocker, so it must surface and block
-      // execution. valid also reflects executionAllowed (no planning errors,
-      // but the plan cannot run).
       expect(errors).toHaveLength(0);
-      expect(valid).toBe(false);
-      expect(plan.blockerItems.some((i) => i.artifactId === unowned.id)).toBe(true);
-      expect(plan.executionAllowed).toBe(false);
+      expect(valid).toBe(true);
+      expect(plan.deleteItems.some((i) => i.artifactId === unowned.id)).toBe(true);
+      expect(plan.blockerItems.some((i) => i.artifactId === unowned.id)).toBe(false);
+      expect(plan.executionAllowed).toBe(true);
+    });
+
+    test("batch-deleting multiple unassigned artifacts in the none bucket succeeds", () => {
+      // Regression: artifacts with no chapterId (杂项 bucket) were blocked
+      // from batch deletion by the R18 rule's hasUnassigned guard. Multiple
+      // unassigned artifacts belong to the same project root, not different
+      // chapters, so they must be deletable as a group.
+      const orphan1 = createArtifacts("delete-exclusive-downstream");
+      orphan1.id = "orphan-1";
+      orphan1.chapterId = undefined;
+      const orphan2 = createArtifacts("delete-exclusive-downstream");
+      orphan2.id = "orphan-2";
+      orphan2.chapterId = undefined;
+
+      const result = buildDeletionPlan([orphan1, orphan2], [orphan1.id, orphan2.id], "");
+
+      expect(result.errors).toHaveLength(0);
+      expect(result.valid).toBe(true);
+      expect(result.plan.deleteItems.map((i) => i.artifactId)).toEqual(expect.arrayContaining([orphan1.id, orphan2.id]));
+      expect(result.plan.deleteItems).toHaveLength(2);
+      expect(result.plan.executionAllowed).toBe(true);
+    });
+
+    test("mixing unassigned and chapter-assigned artifacts is still rejected", () => {
+      const orphan = createArtifacts("delete-exclusive-downstream");
+      orphan.chapterId = undefined;
+      const chapterArtifact = createArtifacts("delete-exclusive-downstream");
+      chapterArtifact.chapterId = "chapter-001";
+
+      const result = buildDeletionPlan([orphan, chapterArtifact], [orphan.id, chapterArtifact.id], "");
+
+      expect(result.valid).toBe(false);
+      expect(result.errors).toContain("scope-expanded-across-chapters: selected artifacts must belong to one chapter");
     });
   });
 });

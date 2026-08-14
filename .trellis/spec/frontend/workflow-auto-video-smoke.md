@@ -10,30 +10,31 @@ Primary command:
 
 ```bash
 cd apps
-npm run smoke:workflow:background:daojie -- --auto-video
+npm run smoke:workflow:background:project -- --auto-video
 npm run video:daojie:chapter001
 
-MYSTUDIO_DAOJIE_TIMELINE_RUNNER=1 ./node_modules/.bin/vite-node \
+# Full plugin chain (video-use → HyperFrames → gate → authority → ChapterVideo):
+MYSTUDIO_FULL_PIPELINE=1 ./node_modules/.bin/vite-node \
   --config build/timeline/vite-node.config.ts \
-  build/timeline/render-daojie-editing-timeline.ts
+  build/timeline/run-full-pipeline.ts
 
-MYSTUDIO_DAOJIE_REMOTION_RUNNER=1 ./node_modules/.bin/vite-node \
+MYSTUDIO_FULL_PIPELINE=1 ./node_modules/.bin/vite-node \
   --config build/timeline/vite-node.config.ts \
-  build/timeline/render-daojie-remotion-timeline.ts
+  build/timeline/run-full-pipeline.ts
 ```
 
 Equivalent opt-in and supported environment keys:
 
 ```bash
-MYSTUDIO_WORKFLOW_AUTO_VIDEO=1 npm run smoke:workflow:background:daojie
-MYSTUDIO_AUTO_VIDEO_TIMEOUT_MS=600000 npm run smoke:workflow:background:daojie -- --auto-video
-MYSTUDIO_BACKGROUND_WORKFLOW_REPORT_PATH="$PWD/output/automation/background-workflow-daojie-report.json" npm run smoke:workflow:background:daojie -- --auto-video
+MYSTUDIO_WORKFLOW_AUTO_VIDEO=1 npm run smoke:workflow:background:project
+MYSTUDIO_AUTO_VIDEO_TIMEOUT_MS=600000 npm run smoke:workflow:background:project -- --auto-video
+MYSTUDIO_BACKGROUND_WORKFLOW_REPORT_PATH="$PWD/output/automation/background-workflow-project-report.json" npm run smoke:workflow:background:project -- --auto-video
 npm run video:daojie:chapter001:probe-providers
 npm run video:daojie:chapter001:visual-preflight
 MYSTUDIO_DAOJIE_REUSE_STORYBOARD_IMAGES=1 MYSTUDIO_DAOJIE_REUSE_STORYBOARD_IMAGES_AFTER="2026-07-01T00:00:00+08:00" npm run video:daojie:chapter001
 ```
 
-- `--auto-video` requires `--daojie` or `MYSTUDIO_WORKFLOW_REAL_DAOJIE=1`.
+- `--auto-video` requires `--real-project` or `MYSTUDIO_WORKFLOW_REAL_PROJECT=1`.
 - `MYSTUDIO_AUTO_VIDEO_TIMEOUT_MS` must be a positive number; the default is `600000`.
 - `MYSTUDIO_SMOKE_DEBUG_PORT` may select a free DevTools port.
 - `MYSTUDIO_SMOKE_BACKGROUND=1` is the shared Electron background contract. The visible command remains available for explicit human observation.
@@ -90,7 +91,7 @@ MYSTUDIO_DAOJIE_REUSE_STORYBOARD_IMAGES=1 MYSTUDIO_DAOJIE_REUSE_STORYBOARD_IMAGE
 ## 5. Good / Base / Bad Cases
 
 - Good: a real Daojie temporary clone reaches `idle -> planning -> voiceover -> binding -> tts -> media -> remotion_shot_render -> remotion_chapter_render -> project_writeback -> completed`, exposes an existing Remotion MP4 path, and leaves the original project hashes unchanged.
-- Base: `npm run smoke:workflow:run:daojie` completes the stage click-through without requesting auto-video; report it as navigation evidence only.
+- Base: `npm run smoke:workflow:run:project` completes the stage click-through without requesting auto-video; report it as navigation evidence only.
 - Bad: the UI reaches `completed` but no existing MP4 path is exposed. The command must exit non-zero and AC6 remains open.
 - Good: two current-code chapter runs keep all canonical speaker profiles and reference paths identical, produce one real local-TTS audio file per storyboard, and emit a final MP4 with audio/video streams and SHA-256 evidence.
 - Good: the second direct timeline run reports `reusedExistingDraft=true`, keeps the EditingProject revision/source snapshot stable, creates a new render job, and reproduces the same MP4 SHA-256.
@@ -104,16 +105,16 @@ MYSTUDIO_DAOJIE_REUSE_STORYBOARD_IMAGES=1 MYSTUDIO_DAOJIE_REUSE_STORYBOARD_IMAGE
   - Assert `--auto-video` and its environment equivalent are recognized.
   - Assert invalid mode and timeout inputs fail.
   - Assert the runner requires `completed` plus an existing final MP4.
-- Run `npm run smoke:workflow:background:daojie -- --auto-video` against the packaged app.
+- Run `npm run smoke:workflow:background:project -- --auto-video` against the packaged app.
   - Assert the durable report has the required fields and no failure arrays.
   - Assert `foregroundViolation=false` and no focus sample names MYStudio.
   - Hash the generated temporary MP4.
   - Compare original project JSON, exports, workflow-images, and `tts.json` manifests before and after.
-- Run `npm run smoke:workflow:run:daojie` only when visible human inspection is explicitly required; it must preserve the existing `frontmostApp=漫影工作室` evidence.
+- Run `npm run smoke:workflow:run:project` only when visible human inspection is explicitly required; it must preserve the existing `frontmostApp=漫影工作室` evidence.
 - Run `npm run video:daojie:chapter001:probe-providers` when checking configured image providers without spending generation quota; verify the report contains no API keys and `generationEndpointCalled=false`.
 - Run the focused voiceover, storyboard, TTS persistence, auto-video, readiness, and build-script tests; assert dynamic 2-shot/43-shot fixtures, canonical identity errors, fixed binding reuse, complete voiceover fields, and hard failures for missing voice assets.
 - Run `npm run video:daojie:chapter001` twice on current code. Preserve both reports and compare the complete canonical speaker profile/reference map, not only display names or a single sample.
-- Run `npm test -- build/timeline/render-daojie-editing-timeline.test.ts frontend/config/build-scripts.test.ts`; assert the Node-only Vite config, explicit compile/Remotion handshakes, current store shape, authoritative final fields, and forbidden legacy fallback.
+- Run `npm test -- frontend/config/build-scripts.test.ts`; assert the Node-only Vite config, the explicit full-pipeline handshake (`MYSTUDIO_FULL_PIPELINE=1`), current store shape, authoritative final fields, and forbidden legacy fallback. The legacy editing-timeline compile runner was removed with the bypass lineage.
 - Run the shot and chapter Remotion commands against the current store before the provider-heavy full command. Verify `reusedExistingDraft`, EditingProject/plan/record identity, shot/chapter progress stages, MP4 streams/dimensions/duration, disk hash, snapshot hash, and every artifact path.
 
 ## 7. Wrong vs Correct

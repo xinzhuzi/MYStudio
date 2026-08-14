@@ -47,7 +47,7 @@ function readStorageBasePathFromConfig(userDataDir: string) {
 export function resolveUserDataDir(explicitUserDataDir?: string) {
   return (explicitUserDataDir?.trim() ? path.resolve(explicitUserDataDir) : undefined)
     || envPath("MYSTUDIO_USER_DATA_DIR")
-    || envPath("MYSTUDIO_DAOJIE_USER_DATA_DIR")
+    || envPath("MYSTUDIO_USER_DATA_DIR")
     || path.join(os.homedir(), "Library", "Application Support", APP_PROCESS_NAME);
 }
 
@@ -62,7 +62,7 @@ export function resolveStorageBasePath(userDataDir = resolveUserDataDir()) {
 }
 
 export function resolveProjectId(storageBasePath = resolveStorageBasePath()) {
-  const explicit = process.env.MYSTUDIO_DAOJIE_PROJECT_ID?.trim();
+  const explicit = process.env.MYSTUDIO_PROJECT_ID?.trim();
   if (explicit) return explicit;
   const catalogPath = path.join(storageBasePath, "projects", "mystudio-project-store.json");
   const catalog = requireRecord(readJson(catalogPath), "project catalog");
@@ -75,13 +75,13 @@ export function resolveProjectId(storageBasePath = resolveStorageBasePath()) {
     if (id && (name === DAOJIE_PROJECT_NAME || name.includes(DAOJIE_PROJECT_NAME))) return id;
   }
   throw new Error(
-    `项目索引中未找到名称包含 ${DAOJIE_PROJECT_NAME} 的项目；请设置 MYSTUDIO_DAOJIE_PROJECT_DIR 或 MYSTUDIO_DAOJIE_PROJECT_ID`,
+    `项目索引中未找到名称包含 ${DAOJIE_PROJECT_NAME} 的项目；请设置 MYSTUDIO_PROJECT_DIR 或 MYSTUDIO_PROJECT_ID`,
   );
 }
 
 export function resolveProjectDir() {
-  if (process.env.MYSTUDIO_DAOJIE_PROJECT_DIR?.trim()) {
-    return path.resolve(process.env.MYSTUDIO_DAOJIE_PROJECT_DIR);
+  if (process.env.MYSTUDIO_PROJECT_DIR?.trim()) {
+    return path.resolve(process.env.MYSTUDIO_PROJECT_DIR);
   }
   const storageBasePath = resolveStorageBasePath();
   return path.join(storageBasePath, "projects", "_p", resolveProjectId(storageBasePath));

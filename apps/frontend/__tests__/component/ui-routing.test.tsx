@@ -26,7 +26,7 @@ const plan: DeletionPlan = {
 describe("ArtifactDeleteDialog", () => {
   it("shows the irreversible warning and full backup impact", () => {
     render(<ArtifactDeleteDialog isOpen plan={plan} onClose={vi.fn()} onExecute={vi.fn()} />);
-    expect(screen.getByText("删除后无法恢复")).toBeTruthy();
+    expect(screen.getByText(/永久删除/)).toBeTruthy();
     expect(screen.getByText("backups/chapter-fixture.bak")).toBeTruthy();
     expect(screen.getByText("第一章")).toBeTruthy();
   });

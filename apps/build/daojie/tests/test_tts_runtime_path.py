@@ -33,8 +33,8 @@ class TtsRuntimePathTest(unittest.TestCase):
             )
 
             with patch.dict(os.environ, {
-                "MYSTUDIO_DAOJIE_USER_DATA_DIR": str(user_data),
-                "MYSTUDIO_DAOJIE_PROJECT_ID": "project-from-env",
+                "MYSTUDIO_USER_DATA_DIR": str(user_data),
+                "MYSTUDIO_PROJECT_ID": "project-from-env",
             }, clear=False):
                 module = load_generator()
 
@@ -64,7 +64,7 @@ class TtsRuntimePathTest(unittest.TestCase):
             )
 
             with patch.dict(os.environ, {
-                "MYSTUDIO_DAOJIE_USER_DATA_DIR": str(user_data),
+                "MYSTUDIO_USER_DATA_DIR": str(user_data),
             }, clear=True):
                 module = load_generator()
 

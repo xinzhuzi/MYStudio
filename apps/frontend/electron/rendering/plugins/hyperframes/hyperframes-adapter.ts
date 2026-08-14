@@ -37,6 +37,8 @@ export interface HyperFramesProbeResult {
 
 export interface HyperFramesAdapterOptions {
   storageBasePath: string | (() => string);
+  /** Explicit Electron runtime for non-Electron hosts such as build runners. */
+  electronExecutable?: string | (() => string);
   workspaceRootForProject: (projectId: string) => string;
   workerPath?: string;
   probeRuntime?: (paths: VideoWorkflowRuntimePaths) => Promise<VideoWorkflowRuntimeProbeResult>;
@@ -77,6 +79,10 @@ function createNoopArtifact(request: HyperFramesOverlayRequestV1, now: number): 
 export function createHyperFramesAdapter(options: HyperFramesAdapterOptions) {
   const getPaths = () => resolveVideoWorkflowRuntimePaths(
     typeof options.storageBasePath === "function" ? options.storageBasePath() : options.storageBasePath,
+    process.platform,
+    typeof options.electronExecutable === "function"
+      ? options.electronExecutable()
+      : options.electronExecutable ?? process.execPath,
   );
   const resolveBrowserPath = options.resolveBrowserPath ?? (async () => undefined);
   const probeRuntime = options.probeRuntime ?? ((runtimePaths) => probeHyperFramesRuntime(runtimePaths, {}, { browserPath: runtimePaths.hyperFramesBrowserPath }));

@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
-import { EditorView } from "@codemirror/view";
-import CodeMirror from "@uiw/react-codemirror";
+import CodeMirror, { EditorView } from "@uiw/react-codemirror";
 import { json as jsonLang } from "@codemirror/lang-json";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";

@@ -25,7 +25,7 @@ import {
 import {
   deriveStorageRoots,
   resolveTimelineSourcePath,
-} from "../timeline/daojie-storage-paths";
+} from "../timeline/storage-paths";
 
 const appsRoot = path.resolve(new URL("../..", import.meta.url).pathname);
 const remotionVersion = "4.0.499";
@@ -82,7 +82,7 @@ export interface FirstShotOutputPaths {
   reportPath: string;
 }
 
-export interface DaojieA08CleanCandidateIdentity {
+export interface A08CleanCandidateIdentity {
   reportPath: string;
   imagePath: string;
   imageSha256: string;
@@ -104,13 +104,13 @@ export interface DaojieA08CleanCandidateIdentity {
   };
 }
 
-export interface DaojieA08CleanCandidateProvenance extends DaojieA08CleanCandidateIdentity {
+export interface A08CleanCandidateProvenance extends A08CleanCandidateIdentity {
   reportSha256: string;
   reportMtimeMs: number;
   imageMtimeMs: number;
 }
 
-export interface DaojieFirstShotSource {
+export interface FirstShotSource {
   projectId: string;
   chapterId: string;
   shotId: string;
@@ -137,23 +137,23 @@ export interface DaojieFirstShotSource {
   };
 }
 
-export interface DaojieCleanFirstShotSource extends DaojieFirstShotSource {
+export interface CleanFirstShotSource extends FirstShotSource {
   sourceKind: "a08-clean-candidate";
   productionImage: {
     path: string;
     sha256: string;
   };
-  candidate: DaojieA08CleanCandidateProvenance;
+  candidate: A08CleanCandidateProvenance;
 }
 
-export interface DaojieFirstShotRunOptions extends FirstShotSourceLoadOptions {}
+export interface FirstShotRunOptions extends FirstShotSourceLoadOptions {}
 
 export interface FirstShotMediaUrls {
   visual: string;
   voice: string;
 }
 
-export interface DaojieFirstShotReport {
+export interface FirstShotReport {
   schemaVersion: 1;
   ok: true;
   generatedAt: string;
@@ -161,7 +161,7 @@ export interface DaojieFirstShotReport {
   renderStartedAt: string;
   renderCompletedAt: string;
   projectWriteback: false;
-  source: DaojieFirstShotSource | DaojieCleanFirstShotSource;
+  source: FirstShotSource | CleanFirstShotSource;
   gate: {
     state: string;
     stale: boolean;
@@ -244,7 +244,7 @@ export function getFirstShotOutputPaths(mode: FirstShotSourceMode): FirstShotOut
 export function validateA08CleanCandidateReport(
   value: unknown,
   actualImageSha256: string,
-): DaojieA08CleanCandidateIdentity {
+): A08CleanCandidateIdentity {
   const report = requireRecord(value, "A08 report");
   if (report.ok !== true
     || report.status !== "awaiting-human-approval"
@@ -300,8 +300,8 @@ export function validateA08CleanCandidateReport(
 export function validateApprovedA08CleanCandidateReport(
   value: unknown,
   actualImageSha256: string,
-  humanApproval: DaojieA08CleanCandidateIdentity["humanApproval"],
-): DaojieA08CleanCandidateIdentity {
+  humanApproval: A08CleanCandidateIdentity["humanApproval"],
+): A08CleanCandidateIdentity {
   const report = requireRecord(value, "A08 approved report");
   if (report.ok !== true
     || report.status !== "completed"
@@ -332,7 +332,7 @@ export function validateApprovedA08CleanCandidateReport(
 
 export async function loadFirstShotSource(
   options: FirstShotSourceLoadOptions = {},
-): Promise<DaojieFirstShotSource> {
+): Promise<FirstShotSource> {
   const approvedReplay = options.replay === "approved-production";
   const [store, script] = await Promise.all([
     readJsonRecord(sourceStorePath),
@@ -409,7 +409,7 @@ export async function loadFirstShotSource(
   if (approvedReplay && imageSha256 !== a08ImageSha256) {
     throw new Error("首镜 approved-production replay 的 production image 当前文件 SHA 无效");
   }
-  const source: DaojieFirstShotSource = {
+  const source: FirstShotSource = {
     projectId,
     chapterId,
     shotId,
@@ -439,7 +439,7 @@ export async function loadFirstShotSource(
 
 export async function loadA08CleanFirstShotSource(
   options: FirstShotSourceLoadOptions = {},
-): Promise<DaojieCleanFirstShotSource> {
+): Promise<CleanFirstShotSource> {
   const productionSource = await loadFirstShotSource(options);
   const [candidateReportStat, candidateImageStat] = await Promise.all([
     fs.promises.stat(a08ReportPath).catch(() => undefined),
@@ -503,8 +503,8 @@ export async function loadA08CleanFirstShotSource(
 }
 
 async function loadPreProductionCleanSnapshot(
-  currentProductionSource: DaojieFirstShotSource,
-): Promise<NonNullable<DaojieFirstShotSource["replayFromSnapshot"]>> {
+  currentProductionSource: FirstShotSource,
+): Promise<NonNullable<FirstShotSource["replayFromSnapshot"]>> {
   const snapshotPath = path.join(cleanOutputRoot, "source-snapshot.json");
   const snapshotStat = await fs.promises.stat(snapshotPath).catch(() => undefined);
   if (!snapshotStat?.isFile() || snapshotStat.size <= 0) {
@@ -574,8 +574,8 @@ async function loadPreProductionCleanSnapshot(
 
 async function loadPreProductionSourceSnapshot(
   snapshotPath: string,
-  currentProductionSource: DaojieFirstShotSource,
-): Promise<NonNullable<DaojieFirstShotSource["replayFromSnapshot"]>> {
+  currentProductionSource: FirstShotSource,
+): Promise<NonNullable<FirstShotSource["replayFromSnapshot"]>> {
   const snapshotStat = await fs.promises.stat(snapshotPath).catch(() => undefined);
   if (!snapshotStat?.isFile() || snapshotStat.size <= 0) {
     throw new Error(`approved-production replay 缺少 composite source snapshot: ${snapshotPath}`);
@@ -627,7 +627,7 @@ function isApprovedReplaySnapshot(
     && visualReview.inputFingerprint.length > 0;
 }
 
-async function loadA08HumanApproval(): Promise<NonNullable<DaojieA08CleanCandidateIdentity["humanApproval"]>> {
+async function loadA08HumanApproval(): Promise<NonNullable<A08CleanCandidateIdentity["humanApproval"]>> {
   const approvals = await readJsonRecord(a08HumanApprovalsPath);
   const approvalMap = requireRecord(approvals.approvals, "A08 human-approvals.approvals");
   const approval = requireRecord(approvalMap[String(shotIndex)], "A08 human approval shot 1");
@@ -653,7 +653,7 @@ async function loadA08HumanApproval(): Promise<NonNullable<DaojieA08CleanCandida
 }
 
 export function buildFirstShotCompositionProps(
-  source: DaojieFirstShotSource,
+  source: FirstShotSource,
   mediaUrls: FirstShotMediaUrls,
   mode: FirstShotSourceMode = "composite",
 ): StoryboardShotCompositionProps {
@@ -703,10 +703,10 @@ export function buildFirstShotCompositionProps(
   return validation.value;
 }
 
-export async function runDaojieFirstShot(
+export async function runFirstShot(
   mode: FirstShotSourceMode = "composite",
-  options: DaojieFirstShotRunOptions = {},
-): Promise<DaojieFirstShotReport> {
+  options: FirstShotRunOptions = {},
+): Promise<FirstShotReport> {
   const source = mode === "composite"
     ? await loadFirstShotSource(options)
     : await loadA08CleanFirstShotSource(options);
@@ -797,7 +797,7 @@ export async function runDaojieFirstShot(
     const outputSha256 = await hashFileSha256(selectedPaths.outputPath);
     const generatedAt = new Date().toISOString();
     const verificationAt = new Date().toISOString();
-    const report: DaojieFirstShotReport = {
+    const report: FirstShotReport = {
       schemaVersion: 1,
       ok: true,
       generatedAt,
@@ -848,7 +848,7 @@ export async function runDaojieFirstShot(
   }
 }
 
-export function validateFirstShotBundleManifest(value: unknown): DaojieFirstShotReport["bundle"] {
+export function validateFirstShotBundleManifest(value: unknown): FirstShotReport["bundle"] {
   const manifest = requireRecord(value, "Remotion bundle manifest");
   const manifestPath = requireString(manifest.manifestPath, "bundle.manifestPath");
   const manifestMtimeMs = requireNumber(manifest.manifestMtimeMs, "bundle.manifestMtimeMs");
@@ -878,7 +878,7 @@ export function validateFirstShotBundleManifest(value: unknown): DaojieFirstShot
   };
 }
 
-export function assertFirstShotReportEvidence(value: unknown): asserts value is DaojieFirstShotReport {
+export function assertFirstShotReportEvidence(value: unknown): asserts value is FirstShotReport {
   const report = requireRecord(value, "首镜 report");
   if (report.schemaVersion !== 1 || report.ok !== true || report.projectWriteback !== false) {
     throw new Error("首镜 report schemaVersion/ok/projectWriteback 无效");
@@ -1030,7 +1030,7 @@ function assertA08CleanReportSource(source: Record<string, unknown>, approvedRep
   }
 }
 
-function readBundleManifest(): DaojieFirstShotReport["bundle"] {
+function readBundleManifest(): FirstShotReport["bundle"] {
   const manifestPath = path.join(bundlePath, "manifest.json");
   const manifestStat = fs.statSync(manifestPath);
   const value = JSON.parse(fs.readFileSync(manifestPath, "utf8")) as unknown;
@@ -1108,10 +1108,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
-if (process.env.MYSTUDIO_DAOJIE_FIRST_SHOT === "1") {
-  const mode = resolveFirstShotSourceMode(process.env.MYSTUDIO_DAOJIE_FIRST_SHOT_MODE);
-  const replay = resolveFirstShotReplayMode(process.env.MYSTUDIO_DAOJIE_FIRST_SHOT_REPLAY);
-  runDaojieFirstShot(mode, { replay })
+if (process.env.MYSTUDIO_FIRST_SHOT === "1") {
+  const mode = resolveFirstShotSourceMode(process.env.MYSTUDIO_FIRST_SHOT_MODE);
+  const replay = resolveFirstShotReplayMode(process.env.MYSTUDIO_FIRST_SHOT_REPLAY);
+  runFirstShot(mode, { replay })
     .then((report) => process.stdout.write(`${JSON.stringify(report, null, 2)}\n`))
     .catch((error) => {
       console.error(error instanceof Error ? error.stack ?? error.message : String(error));

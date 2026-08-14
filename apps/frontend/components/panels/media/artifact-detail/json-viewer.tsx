@@ -2,8 +2,7 @@
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 
-import { EditorView } from "@codemirror/view";
-import CodeMirror from "@uiw/react-codemirror";
+import CodeMirror, { EditorView } from "@uiw/react-codemirror";
 import { json as jsonLang } from "@codemirror/lang-json";
 import { cn } from "@/lib/utils";
 import { useThemeStore } from "@/stores/app/theme-store";

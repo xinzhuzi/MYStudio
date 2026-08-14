@@ -40,15 +40,15 @@ import {
   resolveProjectDir,
   resolveTimelineSourcePath,
   resolveUserDataDir,
-} from "../timeline/daojie-storage-paths";
+} from "../timeline/storage-paths";
 
 const remotionVersion = "4.0.499";
 const appsRoot = path.resolve(new URL("../..", import.meta.url).pathname);
-const chapterId = process.env.MYSTUDIO_DAOJIE_CHAPTER_ID || "chapter-001";
+const chapterId = process.env.MYSTUDIO_CHAPTER_ID || "chapter-001";
 
 type JsonRecord = Record<string, unknown>;
 
-export interface DaojieShotSlotReport {
+export interface ShotSlotReport {
   ok: true;
   renderer: { requested: "remotion"; actual: "remotion"; version: string; bundleVersion: string };
   projectId: string;
@@ -65,7 +65,7 @@ export interface DaojieShotSlotReport {
  * writes only Remotion current slots and never creates a legacy candidate or
  * invokes FFmpeg for generation/post-processing.
  */
-export async function runDaojieRemotionShotSlots(): Promise<DaojieShotSlotReport> {
+export async function runRemotionShotSlots(): Promise<ShotSlotReport> {
   const projectDir = resolveProjectDir();
   const { projectId, dataRoot } = deriveStorageRoots(projectDir);
   const storePath = path.join(projectDir, "studio-workflow-store.json");
@@ -74,7 +74,6 @@ export async function runDaojieRemotionShotSlots(): Promise<DaojieShotSlotReport
     .filter((value) => isRecord(value) && value.episodeId === chapterId)
     .map((value) => normalizeStoryboard(value as StoryboardItem, projectDir, dataRoot, projectId))
     .sort((left, right) => left.index - right.index || left.id.localeCompare(right.id));
-  applyBypassSanitization(storyboards);
   if (storyboards.length === 0) throw new Error(`未找到可渲染分镜: ${projectId}/${chapterId}`);
 
   const renderSettings = { ...DEFAULT_REMOTION_RENDER_SETTINGS };
@@ -99,8 +98,8 @@ export async function runDaojieRemotionShotSlots(): Promise<DaojieShotSlotReport
     chapterRevision: nextChapterRevision,
     renderSettings,
     storyboards,
-    requireHumanApproval: process.env.MYSTUDIO_DAOJIE_REQUIRE_HUMAN_APPROVAL !== "0",
-    continuityPolicy: (process.env.MYSTUDIO_DAOJIE_CONTINUITY_POLICY as "required" | "if-present" | "skip") || "if-present",
+    requireHumanApproval: process.env.MYSTUDIO_REQUIRE_HUMAN_APPROVAL !== "0",
+    continuityPolicy: (process.env.MYSTUDIO_CONTINUITY_POLICY as "required" | "if-present" | "skip") || "if-present",
   });
   if (!plans.success) {
     throw new Error(`Remotion shot plan blocked: ${plans.issues.map((issue) => `${issue.path}: ${issue.message}`).join("；")}`);
@@ -200,8 +199,8 @@ export async function runDaojieRemotionShotSlots(): Promise<DaojieShotSlotReport
     await bridge.close().catch(() => undefined);
     process.chdir(previousCwd);
   }
-  const report: DaojieShotSlotReport = { ok: true, renderer: { requested: "remotion", actual: "remotion", version: remotionVersion, bundleVersion: manifest.contentHash }, projectId, chapterId, shotCount: slots.length, sourceSnapshotHash: plans.sourceSnapshotHash, chapterManifestPath, slots };
-  const reportPath = path.resolve(process.env.MYSTUDIO_DAOJIE_SHOT_REPORT || path.join(appsRoot, "output", "automation", "daojie-chapter001-shot-slots.json"));
+  const report: ShotSlotReport = { ok: true, renderer: { requested: "remotion", actual: "remotion", version: remotionVersion, bundleVersion: manifest.contentHash }, projectId, chapterId, shotCount: slots.length, sourceSnapshotHash: plans.sourceSnapshotHash, chapterManifestPath, slots };
+  const reportPath = path.resolve(process.env.MYSTUDIO_SHOT_REPORT || path.join(appsRoot, "output", "automation", "daojie-chapter001-shot-slots.json"));
   await fs.promises.mkdir(path.dirname(reportPath), { recursive: true });
   await fs.promises.writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
   return report;
@@ -241,22 +240,6 @@ function normalizeStoryboard(storyboard: StoryboardItem, projectDir: string, dat
   return { ...storyboard, mediaRef: normalizeMediaRef(storyboard.mediaRef, projectDir, dataRoot, projectId), audioRef: storyboard.audioRef ? normalizeMediaRef(storyboard.audioRef, projectDir, dataRoot, projectId) : storyboard.audioRef };
 }
 
-/** Temporary: sanitize storyboards to bypass validation gates when MYSTUDIO_DAOJIE_BYPASS_SHOT_VALIDATION=1. */
-function applyBypassSanitization(storyboards: StoryboardItem[]): void {
-  if (process.env.MYSTUDIO_DAOJIE_BYPASS_SHOT_VALIDATION !== "1") return;
-  for (const sb of storyboards) {
-    sb.stale = false;
-    sb.staleReason = undefined;
-    sb.continuityState = undefined;
-    const hasVoiceBinding = (sb.shotAudioBindings ?? []).some((b) => b.role === "voice");
-    if (!hasVoiceBinding) {
-      sb.ttsSpokenText = undefined;
-      sb.line = undefined;
-      sb.lines = undefined;
-      sb.audioRef = undefined;
-    }
-  }
-}
 function normalizeMediaRef(media: StoryboardMediaRef | undefined, projectDir: string, dataRoot: string, projectId: string): StoryboardMediaRef {
   if (!media?.path) throw new Error("分镜媒体引用为空");
   const absolute = resolveTimelineSourcePath({ sourcePath: media.path, dataRoot, mediaRoot: deriveStorageRoots(projectDir).mediaRoot });
@@ -270,6 +253,6 @@ function readBundleManifest(bundlePath: string): RemotionBundleManifest {
   return assertBundleMatchesRuntime(readJson(path.join(bundlePath, "manifest.json")), remotionVersion);
 }
 
-if (process.env.MYSTUDIO_DAOJIE_SHOT_SLOTS === "1") {
-  runDaojieRemotionShotSlots().then((report) => process.stdout.write(`${JSON.stringify(report, null, 2)}\n`)).catch((error) => { console.error(error instanceof Error ? error.stack ?? error.message : String(error)); process.exitCode = 1; });
+if (process.env.MYSTUDIO_SHOT_SLOTS === "1") {
+  runRemotionShotSlots().then((report) => process.stdout.write(`${JSON.stringify(report, null, 2)}\n`)).catch((error) => { console.error(error instanceof Error ? error.stack ?? error.message : String(error)); process.exitCode = 1; });
 }

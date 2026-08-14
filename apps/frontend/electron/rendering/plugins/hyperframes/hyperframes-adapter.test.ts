@@ -100,11 +100,14 @@ describe("HyperFrames adapter", () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "mystudio-hyperframes-worker-"));
     const workerPath = path.join(root, "hyperframes-worker.cjs");
     const browserPath = path.join(root, "chrome-headless-shell");
+    const electronExecutable = path.join(root, "electron");
     await fs.writeFile(workerPath, "worker", "utf8");
     await fs.writeFile(browserPath, "browser", "utf8");
+    await fs.writeFile(electronExecutable, "electron", "utf8");
     let receivedEnv: NodeJS.ProcessEnv | undefined;
     const adapter = createHyperFramesAdapter({
       storageBasePath: root,
+      electronExecutable,
       workspaceRootForProject: (projectId) => path.join(root, "projects", projectId, "video-workflow"),
       workerPath,
       resolveBrowserPath: async () => browserPath,
@@ -156,5 +159,6 @@ describe("HyperFrames adapter", () => {
     expect(receivedEnv?.MYSTUDIO_HYPERFRAMES_WORKER).toBe("1");
     expect(receivedEnv?.MYSTUDIO_HYPERFRAMES_CLI).toContain("hyperframes-profile/node_modules/hyperframes/bin/hyperframes.mjs");
     expect(receivedEnv?.MYSTUDIO_HYPERFRAMES_NODE).toBe(adapter.paths.electronExecutable);
+    expect(adapter.paths.electronExecutable).toBe(electronExecutable);
   });
 });

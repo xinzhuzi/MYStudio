@@ -7,6 +7,7 @@ import { createRemotionChapterManifestFingerprint } from "@/lib/studio/remotion/
 import {
   type HyperFramesOverlayRequestV1,
   type HyperFramesAlphaFormat,
+  type HyperFramesOverlayWindowV1,
   type RemotionChapterGateInputV1,
   type RemotionChapterGateResult,
   type VideoUseChapterRunV1,
@@ -60,6 +61,8 @@ export interface VideoWorkflowChapterApplyInput {
   height: number;
   fps: number;
   alphaFormat: HyperFramesAlphaFormat;
+  /** Optional non-text effects derived from the accepted EDL timeline. */
+  hyperFramesWindows?: readonly HyperFramesOverlayWindowV1[];
 }
 
 export type VideoWorkflowChapterApplyResult =
@@ -160,7 +163,7 @@ export function createVideoWorkflowChapterService(options: VideoWorkflowChapterS
         videoUseArtifactPath: artifacts.value.paths.videoUsePath,
       };
     }
-    const overlayWindows = checked.value.overlaySlots.map((slot) => {
+    const subtitleOverlayWindows = checked.value.overlaySlots.map((slot) => {
       const subtitle = checked.value.subtitles.find((cue) => isSubtitleCueOwnedByOverlay(cue, [slot]));
       return {
         slotId: slot.slotId,
@@ -177,6 +180,10 @@ export function createVideoWorkflowChapterService(options: VideoWorkflowChapterS
         },
       };
     });
+    const overlayWindows = [
+      ...subtitleOverlayWindows,
+      ...(input.hyperFramesWindows ?? []),
+    ].sort((left, right) => left.startUs - right.startUs || left.durationUs - right.durationUs);
     const extension = input.alphaFormat === "prores-4444-mov" ? "mov" : input.alphaFormat === "webm-vp9-alpha" ? "webm" : "png";
     const request: HyperFramesOverlayRequestV1 = {
       schemaVersion: 1,

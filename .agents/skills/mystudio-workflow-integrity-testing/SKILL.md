@@ -45,7 +45,7 @@ Workflow node generation, storyboard images, character/scene/prop project state,
 - visible step-by-step workflow runner is separate from normal startup. Use `npm run smoke:workflow:run` when the user needs to watch the packaged app click through stages, wait for results, and stay open afterward.
 - Visible step-by-step evidence must include `[visible-run] stage ...` logs for each stage and a final `frontmostApp=漫影工作室` line; a hidden `progress=100` result alone is not enough.
 - Background step-by-step evidence must include `mode=background`, `windowVisibility`, `documentHasFocus`, `focusSamples`, `foregroundViolation=false`, stage logs, and a durable report. It must not invoke `Page.bringToFront`, `window.focus()`, or macOS `System Events` on its background branch.
-- Real Daojie validation uses `npm run smoke:workflow:run:daojie`. It must load the 真实《道劫》第一章节项目 (`chapter-001`) from the user's real project data clone, not an empty smoke template; report that it is 不是 empty smoke template.
+- Real Daojie validation uses `npm run smoke:workflow:run:project`. It must load the 真实《道劫》第一章节项目 (`chapter-001`) from the user's real project data clone, not an empty smoke template; report that it is 不是 empty smoke template.
 
 ## Integrity Checklist
 
@@ -103,14 +103,14 @@ Review evidence before running the matching test. Do not collapse the checklist 
    - It must write durable evidence to `apps/output/automation/desktop-smoke-report.json`, or to `MYSTUDIO_SMOKE_REPORT_PATH` when that variable is set.
    - Test: `MYSTUDIO_SMOKE_WORKFLOW_STEPWISE=1 npm run smoke:desktop`.
    - Background workflow runner: `npm run smoke:workflow:background`.
-   - Real Daojie background runner: `npm run smoke:workflow:background:daojie`.
-   - Real Daojie background automatic-video runner: `npm run smoke:workflow:background:daojie -- --auto-video`.
+   - Real Daojie background runner: `npm run smoke:workflow:background:project`.
+   - Real Daojie background automatic-video runner: `npm run smoke:workflow:background:project -- --auto-video`.
    - Visible test: `MYSTUDIO_SMOKE_FOREGROUND=1 MYSTUDIO_SMOKE_HOLD_MS=15000 MYSTUDIO_SMOKE_WORKFLOW_STEPWISE=1 npm run smoke:desktop`.
    - Normal visible app startup: `npm run smoke:workflow:open`. This starts the packaged app with isolated smoke data and leaves it open for human inspection.
    - Visible step-by-step workflow runner: `npm run smoke:workflow:run`. This starts the packaged app with isolated smoke data, clicks through each workflow stage with a visible delay, waits for stage evidence, and leaves the app open.
    - Required visible evidence: stage logs like `[visible-run] stage script clicked ...`, final `progress=100`, and final `frontmostApp=漫影工作室`.
-   - Real Daojie first-chapter visible runner: `npm run smoke:workflow:run:daojie`. This clones the real `道劫` project data into a temporary userData dir, opens `chapter-001`, clicks all workflow stages, verifies real chapter evidence such as storyboards, Remotion StoryboardShot jobs/current-slot MP4/evidence, derived asset project records, and asset image workflows with reference/generated nodes, then clicks at least one real `asset-flow-chapter-001*` derived asset card and waits for the image workflow detail to show the parent reference node, generated node, and writeback target.
-   - Default real Daojie automatic-video runner: `npm run smoke:workflow:background:daojie -- --auto-video`. `MYSTUDIO_WORKFLOW_AUTO_VIDEO=1 npm run smoke:workflow:background:daojie` enables the same path; set `MYSTUDIO_AUTO_VIDEO_TIMEOUT_MS` to a positive millisecond value when the default `600000` is insufficient.
+   - Real Daojie first-chapter visible runner: `npm run smoke:workflow:run:project`. This clones the real `道劫` project data into a temporary userData dir, opens `chapter-001`, clicks all workflow stages, verifies real chapter evidence such as storyboards, Remotion StoryboardShot jobs/current-slot MP4/evidence, derived asset project records, and asset image workflows with reference/generated nodes, then clicks at least one real `asset-flow-chapter-001*` derived asset card and waits for the image workflow detail to show the parent reference node, generated node, and writeback target.
+   - Default real Daojie automatic-video runner: `npm run smoke:workflow:background:project -- --auto-video`. `MYSTUDIO_WORKFLOW_AUTO_VIDEO=1 npm run smoke:workflow:background:project` enables the same path; set `MYSTUDIO_AUTO_VIDEO_TIMEOUT_MS` to a positive millisecond value when the default `600000` is insufficient.
    - AC6 passes only when `chapterAutoVideo.terminalStage` is `completed`, the run did not time out, and `chapterAutoVideo.finalPath` in `apps/output/automation/background-workflow-daojie-report.json` ends in `.mp4` and exists on disk. A failed, timed-out, foreground-violating, or missing-MP4 auto-video run must not count toward AC6.
 
 6. **Step 6 - Build and packaged smoke test**
@@ -136,14 +136,14 @@ npm run build:mac
 npm run smoke:desktop
 MYSTUDIO_SMOKE_WORKFLOW_STEPWISE=1 npm run smoke:desktop
 npm run smoke:workflow:background
-npm run smoke:workflow:background:daojie
-npm run smoke:workflow:background:daojie -- --auto-video
+npm run smoke:workflow:background:project
+npm run smoke:workflow:background:project -- --auto-video
 npm run video:daojie:chapter001:probe-providers
 MYSTUDIO_SMOKE_FOREGROUND=1 MYSTUDIO_SMOKE_HOLD_MS=15000 MYSTUDIO_SMOKE_WORKFLOW_STEPWISE=1 npm run smoke:desktop
 npm run smoke:workflow:open
 npm run smoke:workflow:run
-npm run smoke:workflow:run:daojie
-npm run smoke:workflow:run:daojie -- --auto-video
+npm run smoke:workflow:run:project
+npm run smoke:workflow:run:project -- --auto-video
 ```
 
 Use a different debug port if a smoke run collides:

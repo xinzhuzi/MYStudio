@@ -6,7 +6,18 @@ import { execFileSync } from "node:child_process";
 import { validateHyperFramesOverlayRequest, type HyperFramesOverlayRequestV1 } from "@rendering/contracts/video-workflow";
 
 const TOOL_VERSION = "hyperframes@0.7.101";
-const SUPPORTED_TEMPLATES = new Set(["title-card", "kinetic-caption", "highlight-box"]);
+const SUPPORTED_TEMPLATES = new Set([
+  "title-card",
+  "kinetic-caption",
+  "highlight-box",
+  // Cinematic overlay templates
+  "light-leak",
+  "film-grain",
+  "lens-flare",
+  "vignette-pulse",
+  "particle-dust",
+  "letterbox-cinematic",
+]);
 
 type HyperFramesWorkerResult = {
   schemaVersion: 1;
@@ -59,10 +70,55 @@ function renderWindow(window: HyperFramesOverlayRequestV1["windows"][number], in
     ? parameters.color
     : "#ffffff";
   const text = escapeHtml(textParameter(parameters, window.slotId));
+  const elementId = `hf-${window.slotId.replace(/[^A-Za-z0-9_-]/g, "-")}-${index + 1}`;
+  const startS = window.startUs / 1_000_000;
+  const durationS = window.durationUs / 1_000_000;
+
+  // --- Cinematic overlay templates (full-frame, no text) ---
+  switch (window.templateId) {
+    case "light-leak": {
+      const intensity = numberParameter(parameters, "intensity", 0.6, 0, 1);
+      const hue = numberParameter(parameters, "hue", 30, 0, 360);
+      return `<div id="${escapeHtml(elementId)}" class="clip hf-light-leak" data-start="${startS}" data-duration="${durationS}" data-track-index="${index + 1}" style="--hf-intensity:${intensity};--hf-hue:${hue}deg;"></div>`;
+    }
+    case "film-grain": {
+      const opacity = numberParameter(parameters, "opacity", 0.15, 0, 1);
+      return `<div id="${escapeHtml(elementId)}" class="clip hf-film-grain" data-start="${startS}" data-duration="${durationS}" data-track-index="${index + 1}" style="--hf-grain-opacity:${opacity};"></div>`;
+    }
+    case "lens-flare": {
+      const xPos = numberParameter(parameters, "x", 50, 0, 100);
+      const yPos = numberParameter(parameters, "y", 30, 0, 100);
+      const size = numberParameter(parameters, "size", 200, 50, 800);
+      return `<div id="${escapeHtml(elementId)}" class="clip hf-lens-flare" data-start="${startS}" data-duration="${durationS}" data-track-index="${index + 1}" style="left:${xPos}%;top:${yPos}%;--hf-flare-size:${size}px;"></div>`;
+    }
+    case "vignette-pulse": {
+      const darkness = numberParameter(parameters, "darkness", 0.5, 0, 1);
+      const speed = numberParameter(parameters, "speed", 2, 0.5, 10);
+      return `<div id="${escapeHtml(elementId)}" class="clip hf-vignette-pulse" data-start="${startS}" data-duration="${durationS}" data-track-index="${index + 1}" style="--hf-vignette:${darkness};--hf-pulse-speed:${speed}s;"></div>`;
+    }
+    case "particle-dust": {
+      const count = numberParameter(parameters, "count", 30, 5, 100);
+      const speed = numberParameter(parameters, "speed", 8, 1, 30);
+      let particles = "";
+      for (let i = 0; i < count; i++) {
+        const px = Math.round((i * 37) % 100);
+        const py = Math.round((i * 53) % 100);
+        const delay = ((i * 0.3) % 3).toFixed(1);
+        particles += `<span class="hf-dust-particle" style="left:${px}%;top:${py}%;animation-delay:${delay}s;animation-duration:${speed}s;"></span>`;
+      }
+      return `<div id="${escapeHtml(elementId)}" class="clip hf-particle-dust" data-start="${startS}" data-duration="${durationS}" data-track-index="${index + 1}">${particles}</div>`;
+    }
+    case "letterbox-cinematic": {
+      const barHeight = numberParameter(parameters, "barHeight", 10, 0, 25);
+      const fadeS = numberParameter(parameters, "fadeIn", 0.5, 0, 3);
+      return `<div id="${escapeHtml(elementId)}" class="clip hf-letterbox" data-start="${startS}" data-duration="${durationS}" data-track-index="${index + 1}" style="--hf-bar-height:${barHeight}%;--hf-letterbox-fade:${fadeS}s;"></div>`;
+    }
+  }
+
+  // --- Text-based templates (original) ---
   const className = window.templateId === "highlight-box" ? "hf-highlight" : window.templateId === "kinetic-caption" ? "hf-caption" : "hf-title";
   const content = window.templateId === "highlight-box" ? "" : text;
-  const elementId = `hf-${window.slotId.replace(/[^A-Za-z0-9_-]/g, "-")}-${index + 1}`;
-  return `<div id="${escapeHtml(elementId)}" class="clip ${className}" data-start="${window.startUs / 1_000_000}" data-duration="${window.durationUs / 1_000_000}" data-track-index="${index + 1}" style="left:${left}%;top:${top}%;font-size:${fontSize}px;color:${color};">${content}</div>`;
+  return `<div id="${escapeHtml(elementId)}" class="clip ${className}" data-start="${startS}" data-duration="${durationS}" data-track-index="${index + 1}" style="left:${left}%;top:${top}%;font-size:${fontSize}px;color:${color};">${content}</div>`;
 }
 
 export function buildHyperFramesCompositionHtml(request: HyperFramesOverlayRequestV1): string {
@@ -76,6 +132,30 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:transparent
 .hf-caption{padding:.22em .48em;border-radius:.22em;background:rgba(0,0,0,.48);letter-spacing:.02em}
 .hf-title{letter-spacing:.04em}
 .hf-highlight{width:24%;height:14%;border:4px solid currentColor;border-radius:18px;box-shadow:0 0 26px currentColor}
+
+/* --- Cinematic overlay templates --- */
+.hf-light-leak{width:100%;height:100%;left:0;top:0;transform:none;opacity:calc(var(--hf-intensity,.6));background:radial-gradient(ellipse at 30% 20%,hsla(var(--hf-hue,30deg),90%,60%,.7) 0%,hsla(calc(var(--hf-hue,30deg) + 40deg),80%,50%,.3) 35%,transparent 70%);mix-blend-mode:screen;animation:hf-leak-drift 8s ease-in-out infinite alternate}
+@keyframes hf-leak-drift{from{transform:translateX(-3%) scale(1.05)}to{transform:translateX(3%) scale(1.1)}}
+
+.hf-film-grain{width:100%;height:100%;left:0;top:0;transform:none;opacity:var(--hf-grain-opacity,.15);background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .6 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");mix-blend-mode:overlay;animation:hf-grain-shift .15s steps(4) infinite}
+@keyframes hf-grain-shift{from{transform:translate(0,0)}to{transform:translate(-8px,-8px)}}
+
+.hf-lens-flare{transform:translate(-50%,-50%);width:var(--hf-flare-size,200px);height:var(--hf-flare-size,200px);background:radial-gradient(circle,rgba(255,255,255,.8) 0%,rgba(255,200,100,.4) 8%,rgba(100,150,255,.15) 20%,transparent 40%);mix-blend-mode:screen;animation:hf-flare-pulse 4s ease-in-out infinite alternate}
+@keyframes hf-flare-pulse{from{opacity:.5;transform:translate(-50%,-50%) scale(.9)}to{opacity:1;transform:translate(-50%,-50%) scale(1.1)}}
+
+.hf-vignette-pulse{width:100%;height:100%;left:0;top:0;transform:none;background:radial-gradient(ellipse at center,transparent 40%,rgba(0,0,0,var(--hf-vignette,.5)) 100%);animation:hf-vignette-breath var(--hf-pulse-speed,2s) ease-in-out infinite alternate}
+@keyframes hf-vignette-breath{from{opacity:.7}to{opacity:1}}
+
+.hf-particle-dust{width:100%;height:100%;left:0;top:0;transform:none}
+.hf-dust-particle{position:absolute;width:3px;height:3px;border-radius:50%;background:rgba(255,255,255,.4);box-shadow:0 0 4px rgba(255,255,255,.2);animation:hf-dust-float linear infinite}
+@keyframes hf-dust-float{0%{transform:translate(0,0) scale(.5);opacity:0}20%{opacity:.6}80%{opacity:.4}100%{transform:translate(20px,-60px) scale(1);opacity:0}}
+
+.hf-letterbox{width:100%;height:100%;left:0;top:0;transform:none;opacity:0;animation:hf-letterbox-in var(--hf-letterbox-fade,.5s) ease-out forwards}
+.hf-letterbox::before,.hf-letterbox::after{content:"";position:absolute;left:0;width:100%;height:var(--hf-bar-height,10%);background:#000}
+.hf-letterbox::before{top:0}
+.hf-letterbox::after{bottom:0}
+@keyframes hf-letterbox-in{from{opacity:0}to{opacity:1}}
+
 @keyframes hf-in{from{opacity:0;transform:translate(-50%,-50%) scale(.96)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
 </style></head><body><div id="stage" data-composition-id="mystudio-overlay" data-no-timeline data-start="0" data-duration="${durationS}" data-width="${request.width}" data-height="${request.height}" data-fps="${request.fps}">
 ${windows}

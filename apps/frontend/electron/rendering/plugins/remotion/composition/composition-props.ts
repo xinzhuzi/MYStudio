@@ -30,6 +30,51 @@ export interface CompositionPanZoom {
   originY: number;
 }
 
+// ---------------------------------------------------------------------------
+// Cinematic 3D config (depth-based 3D parallax / DoF / camera moves)
+// ---------------------------------------------------------------------------
+
+/** Camera movement presets for depth-based 3D cinematic effects. */
+export type CinematicCameraPreset =
+  | "cinematic-dolly-in"
+  | "cinematic-dolly-out"
+  | "cinematic-crane-up"
+  | "cinematic-orbit"
+  | "cinematic-parallax-lr"
+  | "cinematic-parallax-ud"
+  | "cinematic-ken-burns-3d"
+  | "cinematic-handheld"
+  | "cinematic-dutch-roll";
+
+/**
+ * When present on a visual clip, enables 3D cinematic mode via @remotion/three.
+ * The image is mapped onto a depth-displaced plane; a PerspectiveCamera is
+ * animated by `useCurrentFrame()` according to the selected preset.
+ */
+export interface CinematicConfig {
+  preset: CinematicCameraPreset;
+  /** Capability URL of the depth-map PNG (grayscale, 0=near, 255=far). */
+  depthMapSrc: string;
+  /** Camera distance from the plane (default 5). Larger = more parallax. */
+  cameraDistance: number;
+  /** Camera height offset (default 0). */
+  cameraHeight: number;
+  /** Depth-of-field focus distance in world units (default = cameraDistance). */
+  dofFocusDistance: number;
+  /** DOF aperture / bokeh size (0 = infinite DoF / no blur). */
+  dofAperture: number;
+  /** Motion blur sample count (0 = disabled; higher = smoother but slower). */
+  motionBlurSamples: number;
+  /** Parallax strength multiplier (default 1; scale camera movement). */
+  parallaxStrength: number;
+  /** Bloom / glow intensity for bright areas (0 = disabled). */
+  bloomIntensity: number;
+  /** Vignette darkness 0..1 (0 = disabled). */
+  vignetteDarkness: number;
+  /** Chromatic aberration offset in pixels (0 = disabled). */
+  chromaticAberration: number;
+}
+
 // Frame-based envelope point (host converts microseconds -> frames up front so
 // the composition performs no unit math beyond interpolation).
 export interface CompositionEnvelopePoint {
@@ -60,6 +105,8 @@ export interface CompositionVisualClipProps {
   // Defaults to cover. Use contain when the complete source frame must remain visible.
   fit?: "cover" | "contain";
   panZoom?: CompositionPanZoom;
+  /** When present, renders in 3D cinematic mode via @remotion/three. */
+  cinematic?: CinematicConfig;
   // Video-only playback controls; ignored for images.
   trimStartFrames?: number;
   playbackRate?: number;

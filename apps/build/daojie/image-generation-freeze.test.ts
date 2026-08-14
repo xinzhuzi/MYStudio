@@ -8,7 +8,7 @@ const automationScript = readFileSync(`${appsRoot}/build/daojie/automate-daojie-
 function runHelper(payload: Record<string, unknown>, frozen: boolean) {
   return spawnSync("node", ["build/daojie/generate-storyboard-image.mjs"], {
     cwd: appsRoot,
-    env: { ...process.env, MYSTUDIO_DAOJIE_IMAGE_GENERATION_FROZEN: frozen ? "1" : "" },
+    env: { ...process.env, MYSTUDIO_IMAGE_GENERATION_FROZEN: frozen ? "1" : "" },
     input: JSON.stringify(payload),
     encoding: "utf8",
   });
@@ -17,7 +17,7 @@ function runHelper(payload: Record<string, unknown>, frozen: boolean) {
 function runAutomation(args: string[], env: Record<string, string> = {}) {
   return spawnSync("node", ["build/daojie/automate-daojie-chapter001-video.mjs", ...args], {
     cwd: appsRoot,
-    env: { ...process.env, MYSTUDIO_DAOJIE_IMAGE_GENERATION_FROZEN: "1", ...env },
+    env: { ...process.env, MYSTUDIO_IMAGE_GENERATION_FROZEN: "1", ...env },
     encoding: "utf8",
   });
 }
@@ -33,7 +33,7 @@ describe("Daojie image-generation freeze guard", () => {
     }, true);
 
     expect(result.status).not.toBe(0);
-    expect(`${result.stdout}\n${result.stderr}`).toContain("MYSTUDIO_DAOJIE_IMAGE_GENERATION_FROZEN=1");
+    expect(`${result.stdout}\n${result.stderr}`).toContain("MYSTUDIO_IMAGE_GENERATION_FROZEN=1");
     expect(`${result.stdout}\n${result.stderr}`).toContain("no provider request was sent");
   });
 
@@ -54,7 +54,7 @@ describe("Daojie image-generation freeze guard", () => {
     const output = `${result.stdout}\n${result.stderr}`;
 
     expect(result.status).not.toBe(0);
-    expect(output).toContain(`MYSTUDIO_DAOJIE_IMAGE_GENERATION_FROZEN=1: blocked Daojie image generation mode=${mode}`);
+    expect(output).toContain(`MYSTUDIO_IMAGE_GENERATION_FROZEN=1: blocked Daojie image generation mode=${mode}`);
     expect(output).toContain("no provider request was sent");
   });
 
@@ -66,14 +66,14 @@ describe("Daojie image-generation freeze guard", () => {
     );
 
     expect(result.status).not.toBe(0);
-    expect(output).toContain("MYSTUDIO_DAOJIE_IMAGE_GENERATION_FROZEN=1: blocked Daojie image generation mode=chapter001-video");
+    expect(output).toContain("MYSTUDIO_IMAGE_GENERATION_FROZEN=1: blocked Daojie image generation mode=chapter001-video");
     expect(output).toContain("no provider request was sent");
     expect(report).toMatchObject({
       ok: false,
       command: "npm run video:daojie:chapter001",
       failureStage: "visual-continuity-preflight",
     });
-    expect(report.error).toContain("MYSTUDIO_DAOJIE_IMAGE_GENERATION_FROZEN=1");
+    expect(report.error).toContain("MYSTUDIO_IMAGE_GENERATION_FROZEN=1");
     expect(report.error).toContain("no provider request was sent");
     expect(report.finalVideo).toBeUndefined();
     expect(report.finalVideoEvidence).toBeUndefined();

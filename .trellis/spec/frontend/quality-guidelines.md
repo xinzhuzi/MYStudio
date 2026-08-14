@@ -76,10 +76,10 @@ the packaged and installed `app.asar` hashes match, then seed a real Daojie
 clone and run the packaged 15-round zoom probe:
 
 ```bash
-MYSTUDIO_BACKGROUND_WORKFLOW_REPORT_PATH=output/automation/background-workflow-daojie-current.json \
-  npm run smoke:workflow:background:daojie
+MYSTUDIO_BACKGROUND_WORKFLOW_REPORT_PATH=output/automation/background-workflow-project-current.json \
+  npm run smoke:workflow:background:project
 
-MYSTUDIO_ZOOM_PROBE_INPUT_REPORT_PATH=output/automation/background-workflow-daojie-current.json \
+MYSTUDIO_ZOOM_PROBE_INPUT_REPORT_PATH=output/automation/background-workflow-project-current.json \
 MYSTUDIO_ZOOM_PROBE_REPORT_PATH=output/automation/workflow-zoom-performance-current.json \
   node ./build/smoke/measure-workflow-zoom-performance.mjs
 ```

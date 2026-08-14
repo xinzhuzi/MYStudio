@@ -79,6 +79,7 @@ import { createVideoWorkflowChapterService } from '@rendering/plugins/video-work
 import { acceptVideoUseArtifact } from '@rendering/plugins/video-workflow/video-workflow-artifact-store'
 import { createVideoUseAdapter } from '@rendering/plugins/video-use/video-use-adapter'
 import { createHyperFramesAdapter } from '@rendering/plugins/hyperframes/hyperframes-adapter'
+import { createDepthAdapter } from '@rendering/plugins/depth/depth-adapter'
 import { createVideoWorkflowRuntimeManager } from '@rendering/plugins/video-workflow/video-workflow-runtime-manager'
 import { selectSharedVideoToolchain } from '@rendering/plugins/video-workflow/video-workflow-runtime'
 import type {
@@ -774,6 +775,16 @@ const videoWorkflowIpc = registerVideoWorkflowIpcHandlers({
   buildVideoUseChapterRun: buildManagedVideoUseChapterRun,
 })
 const remotionRuntimeDir = resolveRemotionRuntimeDir(remotionUserDataDir)
+
+// Depth estimation adapter — enables cinematic 3D mode in shot rendering.
+// Reuses the same managed Python 3.12 as TTS/video-use. When present and the
+// shot's visual is an image, RemotionShotRenderer calls estimateDepth() before
+// projecting composition props and injects CinematicConfig onto the visual clip.
+const depthAdapter = createDepthAdapter({
+  storageBasePath: getStorageBasePath,
+  backendRoot: videoWorkflowBackendRoot,
+})
+
 const remotionShotRenderer = new RemotionShotRenderer({
   workspaceRoot: getDataDir(),
   workspaceRootForProject: (projectId) => path.join(getDataDir(), "_p", projectId, "remotion"),
@@ -787,6 +798,8 @@ const remotionShotRenderer = new RemotionShotRenderer({
   fork: (modulePath, args, options) => utilityProcess.fork(modulePath, [...args], options),
   remotionVersion,
   emitProgress: () => undefined,
+  depthAdapter,
+  cinematicPreset: "cinematic-dolly-in",
 })
 const remotionChapterRenderer = new RemotionChapterRenderer({
   workspaceRoot: getDataDir(),

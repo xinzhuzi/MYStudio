@@ -32,6 +32,44 @@ describe("validateSubtitleAuthorityForTimeline", () => {
       expect(result.issues[0]?.path).toContain("visualIntervals[0].authority.mode");
     }
   });
+
+  it("allows non-text HyperFrames effects for source-embedded footage", () => {
+    const slot = makeCurrentSlot();
+    const plan = chapterPlan(slot, "shot-001", "storyboardVideo");
+    plan.clips[0]!.source.evidence!.subtitleAuthority = {
+      mode: "source-embedded",
+      evidence: {
+        mode: "source-embedded",
+        decision: "human",
+        sourceFingerprint: "a".repeat(64),
+        evidencePaths: ["/tmp/source-embedded-review.json"],
+        reviewedAt: 1,
+      },
+    };
+
+    const decorative = validateSubtitleAuthorityForTimeline(plan, [{
+      slotId: "effect-shot-001",
+      cueId: "decorative-effect-1",
+      startUs: 250_000,
+      durationUs: 500_000,
+      templateId: "highlight-box",
+      parameters: { color: "#f4d06f" },
+    }]);
+    expect(decorative.success).toBe(true);
+
+    const textOverlay = validateSubtitleAuthorityForTimeline(plan, [{
+      slotId: "caption-shot-001",
+      cueId: "caption-1",
+      startUs: 250_000,
+      durationUs: 500_000,
+      templateId: "kinetic-caption",
+      parameters: { text: "重复字幕" },
+    }]);
+    expect(textOverlay.success).toBe(false);
+    if (!textOverlay.success) {
+      expect(textOverlay.issues.map((issue) => issue.message).join(";")).toContain("HyperFrames overlay");
+    }
+  });
 });
 
 describe("buildChapterVideoCompositionProps", () => {
@@ -167,6 +205,45 @@ describe("buildChapterVideoCompositionProps", () => {
         from: 0,
         durationInFrames: 23,
       }]);
+    }
+  });
+
+  it("consumes a decorative HyperFrames overlay without creating a second subtitle track", async () => {
+    const slot = makeCurrentSlot();
+    const plan = chapterPlan(slot, "shot-001", "storyboardVideo");
+    plan.clips[0]!.source.evidence!.subtitleAuthority = {
+      mode: "source-embedded",
+      evidence: {
+        mode: "source-embedded",
+        decision: "human",
+        sourceFingerprint: "a".repeat(64),
+        evidencePaths: ["/tmp/source-embedded-review.json"],
+        reviewedAt: 1,
+      },
+    };
+    const chapterManifest = await manifestForPlan(plan);
+    const result = buildChapterVideoCompositionProps({
+      plan,
+      currentShotSlots: [slot],
+      chapterManifest,
+      mediaUrlByClipId: { "visual-shot-001": mediaUrl, "hyperframes-overlay": mediaUrl },
+      mediaUrlByBindingId: {},
+      hyperFramesOverlay: {
+        src: mediaUrl,
+        windows: [{
+          slotId: "effect-shot-001",
+          cueId: "decorative-effect-1",
+          startUs: 250_000,
+          durationUs: 500_000,
+          templateId: "highlight-box",
+          parameters: { color: "#f4d06f" },
+        }],
+      },
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.value.subtitles).toEqual([]);
+      expect(result.value.overlayClips).toHaveLength(1);
     }
   });
 

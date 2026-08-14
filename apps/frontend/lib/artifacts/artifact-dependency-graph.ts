@@ -51,16 +51,20 @@ export function buildDeletionScope(
   // scope. Unrelated project-level files (for example a shared asset with no
   // chapter id) must not make an otherwise valid chapter deletion impossible.
   const selectedIds = new Set(selectedArtifactIds);
-  // Artifact-level selection (scope="artifacts"): block the plan ONLY for the
-  // selected items themselves (you cannot delete an item you selected that has
-  // no unique chapter ownership) — never scan the whole project for unrelated
-  // blockers. Otherwise picking one orphan backup surfaces dozens of unrelated
-  // project-level blockers in the dialog and disables the confirm button.
+  // Artifact-level selection (scope="artifacts"): block the plan ONLY for
+  // downstream items pulled in by traversal that have no unique chapter
+  // ownership. Explicitly selected items bypass the blocker — the user is
+  // intentionally deleting them despite ownership ambiguity. This prevents
+  // the confirm button from being permanently disabled when deleting
+  // artifacts from the 杂项 (none) bucket, which all have
+  // blocker-missing-ownership.
   // Chapter-wide plans keep the full-tree scan (chapter delete cascades).
   const isArtifactScope = selectedIds.size > 0;
   allArtifacts.forEach((artifact) => {
+    // Skip explicitly selected items — they are handled by the BFS below.
+    if (isArtifactScope && selectedIds.has(artifact.id)) return;
     const inScopeForBlocker = isArtifactScope
-      ? selectedIds.has(artifact.id)
+      ? false
       : (!chapterId
         || artifact.chapterId === chapterId
         || artifact.physicalRefs.some((ref) => ref.path.includes(chapterId)));
@@ -104,7 +108,16 @@ export function buildDeletionScope(
       continue;
     }
 
-    if (artifact.deletePolicy === "blocker-missing-ownership" || artifact.deletePolicy === "blocker-running-job") {
+    // Running jobs always block, even for explicitly selected items.
+    // blocker-missing-ownership only blocks DOWNSTREAM items (not selected
+    // ones) — selected items with ambiguous ownership are deleted because the
+    // user explicitly chose to.
+    if (artifact.deletePolicy === "blocker-running-job") {
+      blockerSet.add(currentId);
+    } else if (isArtifactScope && selectedIds.has(currentId) && artifact.deletePolicy === "blocker-missing-ownership") {
+      // Explicitly selected — allow deletion despite ownership ambiguity.
+      deleteSet.add(currentId);
+    } else if (artifact.deletePolicy === "blocker-missing-ownership") {
       blockerSet.add(currentId);
     } else if (artifact.deletePolicy === "protected-base-asset") {
       migrateSet.add(currentId);
@@ -506,8 +519,8 @@ function analyzeBackupImpact(
         impacts.push({
           format: "legacy-format",
           filePath: ref.path,
-          action: "block",
-          reason: "备份格式或归属无法安全解析，必须先完成解码",
+          action: "rewrite",
+          reason: "备份格式或归属需人工确认，建议先完成解码",
         });
       }
     });
@@ -577,16 +590,16 @@ export function buildDeletionPlan(
   // resolve to one concrete chapter before dependency traversal starts. When
   // the renderer sends an empty chapterId for an artifact selection, derive
   // the chapter from the selected records so traversal cannot widen into a
-  // sibling chapter. Unowned records remain individually reviewable (and are
-  // still blocked by their ownership policy), but they cannot form a batch.
+  // sibling chapter. Multiple unassigned (project-level) artifacts are
+  // treated as a single valid group — they all belong to the project root,
+  // not to different chapters — so they may be batch-deleted together.
   const uniqueSelectedIds = [...new Set(selectedArtifactIds ?? [])];
   if (uniqueSelectedIds.length > 0) {
     const selectedChapterKeys = new Set(uniqueSelectedIds.map((id) => {
       const selected = artifactMap.get(id);
       return selected?.chapterId ?? "__unassigned__";
     }));
-    const hasUnassigned = selectedChapterKeys.has("__unassigned__");
-    if (selectedChapterKeys.size > 1 || (hasUnassigned && uniqueSelectedIds.length > 1)) {
+    if (selectedChapterKeys.size > 1) {
       errors.push("scope-expanded-across-chapters: selected artifacts must belong to one chapter");
     } else if (!chapterId) {
       const [resolvedChapterId] = selectedChapterKeys;

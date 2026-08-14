@@ -14,7 +14,7 @@ import { sha256CanonicalJson } from "@/lib/studio/remotion/canonical-json";
 import { createRemotionAudioBindingFingerprint } from "@/lib/studio/remotion/remotion-audio-fingerprint";
 import type { RemotionShotAudioBindingV2 } from "@/types/remotion-workspace";
 import { analyzeRenderedAudioWindows, hashFileSha256, probeRenderedMedia, assertRenderedMediaEvidence } from "./render-smoke-evidence";
-import { resolveRemotionRuntimeDir } from "../timeline/daojie-storage-paths";
+import { resolveRemotionRuntimeDir } from "../timeline/storage-paths";
 
 const appsRoot = path.resolve(new URL("../..", import.meta.url).pathname);
 const remotionVersion = "4.0.499";

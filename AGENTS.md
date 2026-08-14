@@ -35,7 +35,7 @@ Codex / 其它 agent 处理本仓库时建议参照该文件的工程纪律;任�
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **MYStudio** (24032 symbols, 49966 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **MYStudio** (24318 symbols, 48700 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > Index stale? Run `node .gitnexus/run.cjs analyze` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? `npx gitnexus analyze` (npm 11 crash → `npm i -g gitnexus`; #1939).
 
@@ -73,25 +73,5 @@ This project is indexed by GitNexus as **MYStudio** (24032 symbols, 49966 relati
 | Rename / extract / split / refactor | `.claude/skills/gitnexus/gitnexus-refactoring/SKILL.md` |
 | Tools, resources, schema reference | `.claude/skills/gitnexus/gitnexus-guide/SKILL.md` |
 | Index, status, clean, wiki CLI commands | `.claude/skills/gitnexus/gitnexus-cli/SKILL.md` |
-| Work in the Studio area (936 symbols) | `.claude/skills/generated/studio/SKILL.md` |
-| Work in the Director area (627 symbols) | `.claude/skills/generated/director/SKILL.md` |
-| Work in the Tts area (335 symbols) | `.claude/skills/generated/tts/SKILL.md` |
-| Work in the Ai area (328 symbols) | `.claude/skills/generated/ai/SKILL.md` |
-| Work in the Script area (294 symbols) | `.claude/skills/generated/script/SKILL.md` |
-| Work in the Storage area (264 symbols) | `.claude/skills/generated/storage/SKILL.md` |
-| Work in the Ui area (217 symbols) | `.claude/skills/generated/ui/SKILL.md` |
-| Work in the Media area (200 symbols) | `.claude/skills/generated/media/SKILL.md` |
-| Work in the Editing area (192 symbols) | `.claude/skills/generated/editing/SKILL.md` |
-| Work in the Remotion area (182 symbols) | `.claude/skills/generated/remotion/SKILL.md` |
-| Work in the Artifacts area (141 symbols) | `.claude/skills/generated/artifacts/SKILL.md` |
-| Work in the Assist area (108 symbols) | `.claude/skills/generated/assist/SKILL.md` |
-| Work in the Assets area (103 symbols) | `.claude/skills/generated/assets/SKILL.md` |
-| Work in the Sclass area (95 symbols) | `.claude/skills/generated/sclass/SKILL.md` |
-| Work in the Composition area (89 symbols) | `.claude/skills/generated/composition/SKILL.md` |
-| Work in the Self-media area (84 symbols) | `.claude/skills/generated/self-media/SKILL.md` |
-| Work in the Video-workflow area (83 symbols) | `.claude/skills/generated/video-workflow/SKILL.md` |
-| Work in the Settings area (78 symbols) | `.claude/skills/generated/settings/SKILL.md` |
-| Work in the Tests area (73 symbols) | `.claude/skills/generated/tests/SKILL.md` |
-| Work in the Renderer area (69 symbols) | `.claude/skills/generated/renderer/SKILL.md` |
 
 <!-- gitnexus:end -->

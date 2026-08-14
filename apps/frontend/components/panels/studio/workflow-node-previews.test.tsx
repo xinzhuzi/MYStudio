@@ -155,7 +155,7 @@ describe("workflow node component boundaries", () => {
     expect(canvasSource).not.toContain('color: "#0f0f0f"');
     expect(canvasSource).not.toContain('stroke: "#0f0f0f"');
     expect(globalCssSource).toContain(".workflow-node-static-background");
-    expect(globalCssSource).toContain("background-color: hsl(var(--background));");
+    expect(globalCssSource).toContain("background-color: hsl(var(--background) / 0.8);");
     expect(globalCssSource).toContain(".production-flow-node-card");
     expect(globalCssSource).not.toContain(
       ".workflow-node-canvas-interacting .production-flow-reactflow .react-flow__node > [data-flow-node-id]",

@@ -8,7 +8,7 @@ import { MediaBridgeServer } from "@rendering/plugins/remotion/media-bridge/medi
 import { buildMediaUrlMap } from "@rendering/plugins/remotion/media-bridge/media-bridge-source-map";
 import { validateCompositionProps } from "@rendering/plugins/remotion/composition/composition-props-validation";
 import { buildCompositionProps } from "@rendering/plugins/remotion/composition/build-composition-props";
-import { REMOTION_COMPOSITION_ID } from "@rendering/plugins/remotion/composition/composition-id";
+import { DAOJIE_TIMELINE_COMPATIBILITY_COMPOSITION_ID } from "@rendering/plugins/remotion/composition/composition-id";
 import { createRemotionEnsureBrowserAdapters, type RemotionEnsureBrowser } from "@rendering/plugins/remotion/browser/remotion-browser-worker-service";
 import { buildRemotionRuntimeManifest } from "@rendering/plugins/remotion/browser/remotion-runtime-manifest";
 import { layoutVisualTimeline, MICROSECONDS_PER_SECOND } from "@rendering/plugins/remotion/composition/timing";
@@ -19,7 +19,7 @@ import {
   probeRenderedMedia,
   type RenderedMediaLoudnessMeasurement,
 } from "./render-smoke-evidence";
-import { resolveRemotionRuntimeDir } from "../timeline/daojie-storage-paths";
+import { resolveRemotionRuntimeDir } from "../timeline/storage-paths";
 
 const execFileAsync = promisify(execFile);
 const appsRoot = path.resolve(new URL("../..", import.meta.url).pathname);
@@ -126,7 +126,7 @@ export async function runFiveShotSmoke(): Promise<FiveShotReport> {
   const assets = await createFixtureAssets(path.join(outputRoot, "assets"));
   const bundlePath = path.resolve(process.env.MYSTUDIO_REMOTION_BUNDLE || path.join(appsRoot, ".cache", "remotion-bundle"));
   const manifest = readBundleManifest(bundlePath);
-  if (manifest.remotionVersion !== remotionVersion || manifest.compositionId !== REMOTION_COMPOSITION_ID) {
+  if (manifest.remotionVersion !== remotionVersion || manifest.compositionId !== DAOJIE_TIMELINE_COMPATIBILITY_COMPOSITION_ID) {
     throw new Error("Remotion five-shot bundle manifest 与运行时不一致");
   }
   const runtimeDir = path.resolve(resolveRemotionRuntimeDir());
@@ -158,7 +158,7 @@ export async function runFiveShotSmoke(): Promise<FiveShotReport> {
       const outputPath = path.join(outputRoot, "output.mp4");
       const composition = await selectComposition({
         serveUrl: bundlePath,
-        id: REMOTION_COMPOSITION_ID,
+        id: DAOJIE_TIMELINE_COMPATIBILITY_COMPOSITION_ID,
         inputProps: compositionProps,
         browserExecutable: browser,
         binariesDirectory: path.join(appsRoot, "node_modules", "@remotion", "compositor-darwin-arm64"),
