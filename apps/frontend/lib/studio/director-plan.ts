@@ -228,6 +228,13 @@ export function auditDirectorPlanStructure(output: string): DirectorPlanAuditRes
     }
   }
 
+  // ⑥ must carry machine-readable boundary decisions — free-text strategy
+  // alone renders as all hard cuts. Require at least one structured line so
+  // every generated plan feeds the video-use transition decision layer.
+  if (sections["⑥"]?.trim() && parseDirectorPlanBoundaryIntents(sections["⑥"]).length === 0) {
+    issues.push("第⑥段缺少结构化转场决策行（需形如“- Sc 1 → Sc 2：风格词=水墨晕染；氛围词=战斗”或“- 镜5 → 镜6：…”的机器可读行）");
+  }
+
   return {
     passed: issues.length === 0,
     issues,

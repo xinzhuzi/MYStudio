@@ -96,6 +96,7 @@ describe("studio director plan parsing", () => {
       "",
       "## ⑥ 转场与视觉连续性",
       "Sc1 到 Sc2 以矿石裂纹的墨痕硬切到客栈柜台账册，保留压迫质感；Sc2 到 Sc3 用断剑断口形状接塾馆门框，暗示旧伤寻找新因；Sc3 到 Sc4 用晏燎掌心余温接残卷新裂纹，形成希望与杀机同源。视觉连续性锚点包括独孤灰衫和油布剑包、断剑断口、铜钱和账册、晏燎湿草鞋与暗红灵气。",
+      "- Sc 1 → Sc 2：风格词=水墨晕染；氛围词=战斗",
       "",
       "## ⑦ 衍生资产预划清单",
       "| 资产名 | 衍生状态 | 原因/出现段落 |",
@@ -310,6 +311,7 @@ describe("studio director plan parsing", () => {
       detail,
       "## ⑥ 转场与视觉连续性",
       detail,
+      "- 镜1 → 镜2：风格词=水墨晕染；氛围词=日常",
       "</scriptPlan>",
     ].join("\n");
 
@@ -416,5 +418,13 @@ describe("director plan ⑥ structured boundary intents", () => {
     expect(parseDirectorPlanBoundaryIntents("- Sc 1 → Sc 2：水墨晕染而已")).toEqual([]);
     expect(parseDirectorPlanBoundaryIntents("场间用叠化过渡，具体视情绪而定。")).toEqual([]);
     expect(parseDirectorPlanBoundaryIntents(undefined)).toEqual([]);
+  });
+});
+
+describe("director plan audit requires structured ⑥ boundary lines", () => {
+  it("fails a free-text-only ⑥ section (renders as hard cuts)", () => {
+    const sixSection = ["## ⑥ 转场与视觉连续性", "场间用叠化过渡，具体视情绪而定，保持角色服装与道具状态连续。"].join("\n");
+    const audit = auditDirectorPlanStructure(`<scriptPlan>\n${sixSection}\n</scriptPlan>`);
+    expect(audit.issues.some((item) => item.includes("结构化转场决策行"))).toBe(true);
   });
 });
