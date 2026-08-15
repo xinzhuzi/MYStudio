@@ -3,8 +3,8 @@ import * as manuals from "./manuals";
 import {
   buildStoryboardTableManualContext,
   buildStudioManualContext,
-  DAOJIE_DIRECTOR_MANUAL_ID,
-  DAOJIE_VISUAL_MANUAL_ID,
+  EXTENDED_DIRECTOR_MANUAL_SEED_ID,
+  EXTENDED_VISUAL_MANUAL_SEED_ID,
   DEFAULT_DIRECTOR_MANUAL_ID,
   DEFAULT_VISUAL_MANUAL_ID,
   getStudioManualPreset,
@@ -32,10 +32,10 @@ describe("studio manual presets", () => {
   it("keeps Daojie visual style out of bundled presets and resolves it from stored skills", () => {
     expect(DEFAULT_VISUAL_MANUAL_ID).toBe("");
     expect(DEFAULT_DIRECTOR_MANUAL_ID).toBe("");
-    expect(DAOJIE_VISUAL_MANUAL_ID).toBe("daojie_ink_guofeng");
-    expect(DAOJIE_DIRECTOR_MANUAL_ID).toBe("Daojie_xianxia");
+    expect(EXTENDED_VISUAL_MANUAL_SEED_ID).toBe("daojie_ink_guofeng");
+    expect(EXTENDED_DIRECTOR_MANUAL_SEED_ID).toBe("Daojie_xianxia");
 
-    expect(getStudioManualPreset("visual", DAOJIE_VISUAL_MANUAL_ID)).toBeNull();
+    expect(getStudioManualPreset("visual", EXTENDED_VISUAL_MANUAL_SEED_ID)).toBeNull();
 
     const visualManuals = buildStudioManualsFromSkillFiles("visual", [
       {
@@ -47,8 +47,8 @@ describe("studio manual presets", () => {
         content: "道劫专属水墨风格",
       },
     ]);
-    const visualManual = visualManuals.find((manual) => manual.id === DAOJIE_VISUAL_MANUAL_ID);
-    const directorManual = getStudioManualPreset("director", DAOJIE_DIRECTOR_MANUAL_ID);
+    const visualManual = visualManuals.find((manual) => manual.id === EXTENDED_VISUAL_MANUAL_SEED_ID);
+    const directorManual = getStudioManualPreset("director", EXTENDED_DIRECTOR_MANUAL_SEED_ID);
 
     expect(visualManual).toMatchObject({
       id: "daojie_ink_guofeng",
@@ -102,8 +102,8 @@ describe("studio manual presets", () => {
     ]);
 
     const context = buildStoryboardTableManualContext({
-      visualManualId: DAOJIE_VISUAL_MANUAL_ID,
-      directorManualId: DAOJIE_DIRECTOR_MANUAL_ID,
+      visualManualId: EXTENDED_VISUAL_MANUAL_SEED_ID,
+      directorManualId: EXTENDED_DIRECTOR_MANUAL_SEED_ID,
     }, {
       visual: visualManuals,
       director: directorManuals,
@@ -131,7 +131,7 @@ describe("studio manual presets", () => {
       },
     ]);
     const context = buildStudioManualContext({
-      visualManualId: DAOJIE_VISUAL_MANUAL_ID,
+      visualManualId: EXTENDED_VISUAL_MANUAL_SEED_ID,
     }, {
       visual: visualManuals,
     });

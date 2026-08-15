@@ -86,7 +86,7 @@ const chapterProps: ChapterVideoCompositionProps = {
 
 function metadataArgs<T extends CompositionProps>(
   value: T,
-  compositionId = entry.DAOJIE_TIMELINE_COMPATIBILITY_COMPOSITION_ID,
+  compositionId = entry.LEGACY_TIMELINE_COMPATIBILITY_COMPOSITION_ID,
 ) {
   return {
     defaultProps: value,
@@ -118,7 +118,7 @@ describe("fixed composition entry", () => {
     expect(children.map((child) => child.props.id)).toEqual([
       entry.STORYBOARD_SHOT_COMPOSITION_ID,
       entry.CHAPTER_VIDEO_COMPOSITION_ID,
-      entry.DAOJIE_TIMELINE_COMPATIBILITY_COMPOSITION_ID,
+      entry.LEGACY_TIMELINE_COMPATIBILITY_COMPOSITION_ID,
     ]);
   });
 

@@ -14,7 +14,7 @@ import { useCharacterLibraryStore } from "@/stores/library/character-library-sto
 import { usePropsLibraryStore } from "@/stores/library/props-library-store";
 import { useSceneStore } from "@/stores/library/scene-store";
 import { useTtsStore } from "@/stores/tts/tts-store";
-import { DAOJIE_VISUAL_MANUAL_ID } from "@/lib/studio/visual-manual-classification";
+import { EXTENDED_VISUAL_MANUAL_SEED_ID } from "@/lib/studio/visual-manual-classification";
 import {
   formatScriptPlanContext,
   resolveProductionEpisodeId,
@@ -483,7 +483,7 @@ describe("workflow stage action surfaces", () => {
           : id === "prop-parent"
             ? { kind: "prop", id }
             : null,
-      DAOJIE_VISUAL_MANUAL_ID,
+      EXTENDED_VISUAL_MANUAL_SEED_ID,
       "dao-project",
     );
 

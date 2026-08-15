@@ -1,4 +1,4 @@
-# Lightweight dependencies used by the Daojie build-script tests and helpers.
+# Lightweight dependencies used by the chapter-video build-script tests and helpers.
 # Keep this separate from apps/backend/requirements.txt so CI does not install
 # the local TTS/STT model runtime or platform-specific inference packages.
 numpy>=1.24.0

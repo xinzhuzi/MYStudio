@@ -15,7 +15,7 @@ const forbiddenAsarFiles = new Set([
   ".agents/skills-lock.json",
   ".codex/skills-lock.json",
 ]);
-const expectedCompositionIds = ["StoryboardShot", "ChapterVideo", "DaojieTimeline"];
+const expectedCompositionIds = ["StoryboardShot", "ChapterVideo", "DaojieTimeline"] // DaojieTimeline = legacy wire key, see composition-id.ts;
 const SEMVER = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/;
 
 export function inspectPackagedRemotionApp(appPath, options = {}) {

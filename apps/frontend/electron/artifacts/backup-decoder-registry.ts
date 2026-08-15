@@ -479,7 +479,7 @@ registerBackupDecoder(FIXTURE_CHAPTER_BACKUP_DECODER);
  * normal project JSON file cannot be treated as a backup just because it has
  * a similarly-shaped nested object.
  */
-const DAOJIE_MULTICHAPTER_DECODER: MixedBackupDecoder = {
+const LEGACY_MULTICHAPTER_DECODER: MixedBackupDecoder = {
   type: "mixed-backup",
   formatName: "daojie-multichapter-mixed-json",
   versionRange: [1, 1] as [number, number],
@@ -600,7 +600,7 @@ const DAOJIE_MULTICHAPTER_DECODER: MixedBackupDecoder = {
     return next;
   },
 };
-registerBackupDecoder(DAOJIE_MULTICHAPTER_DECODER);
+registerBackupDecoder(LEGACY_MULTICHAPTER_DECODER);
 
 // Export templates for regression tests and tooling
-export { DAOJIE_MULTICHAPTER_DECODER, LEGACY_SINGLECHAPTER_DECODER, MULTICHAPTER_STATE_DECODER };
+export { LEGACY_MULTICHAPTER_DECODER, LEGACY_SINGLECHAPTER_DECODER, MULTICHAPTER_STATE_DECODER };

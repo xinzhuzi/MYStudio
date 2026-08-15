@@ -5,7 +5,7 @@ import { spawnSync } from "node:child_process";
 
 const REQUIRED_FILES = ["manifest.json", "index.html", "bundle.js", "bundle.js.map"];
 const SEMVER = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/;
-const EXPECTED_COMPOSITION_IDS = ["StoryboardShot", "ChapterVideo", "DaojieTimeline"];
+const EXPECTED_COMPOSITION_IDS = ["StoryboardShot", "ChapterVideo", "DaojieTimeline"] // DaojieTimeline = legacy wire key, see composition-id.ts;
 
 export function hashBundleContent(directory) {
   const files = collectFiles(directory)

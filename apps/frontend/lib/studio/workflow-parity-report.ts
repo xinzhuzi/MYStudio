@@ -55,7 +55,7 @@ export interface WorkflowParityNodeReport {
 export interface WorkflowParityEvidenceBoundary {
   seededUiSmoke: boolean;
   visibleWorkflowSmoke: boolean;
-  realDaojieVisibleSmoke: boolean;
+  realProjectVisibleSmoke: boolean;
   realMediaGeneration: boolean;
 }
 
@@ -179,7 +179,7 @@ export function buildWorkflowParityReport(
   const evidenceBoundary = {
     seededUiSmoke: false,
     visibleWorkflowSmoke: false,
-    realDaojieVisibleSmoke: false,
+    realProjectVisibleSmoke: false,
     realMediaGeneration: false,
     ...input.evidenceBoundary,
   };

@@ -63,9 +63,9 @@ const SLICES = [
       '3. 注册 decoders:active project stores / Remotion records / chapter-only backups / mixed JSON backups。Unknown mixed content → block\n' +
       '4. compare renderer live snapshot vs disk snapshot,返回 typed discrepancies\n' +
       '5. 加只读 inventory IPC + preload bridge + global type + SSR-safe accessor + source-surface tests + main registration test\n' +
-      '6. 对 live Daojie 跑只读 inventory，对比 chapter-001 categories/counts 与 research baseline，报告 diff(不静默更新 expected)\n' +
+      '6. 对 live 目标项目 跑只读 inventory，对比 chapter-001 categories/counts 与 research baseline，报告 diff(不静默更新 expected)\n' +
       'Completion gate: 零写入 + path escape/symlink fail closed + 每件第一章产物解析到已知 stage 或 typed unknown blocker(带 reason)+ category counts 对齐 research/artifact-dependency-inventory.md baseline,diff 记为 typed discrepancy',
-    checkFocus: '核实:(a) resolveProjectRootPath 在 storage-paths.ts 且有 containment 测试;(b) inventory-service 只读 (无 fs.write/fs.unlink 调用,grep 核实);(c) inventory IPC 注册 + preload bridge + 测试;(d) 对 live Daojie 跑只读 (零写入),counts 对齐 baseline 或 diff 记录。重点反查：有无任何写操作混入。',
+    checkFocus: '核实:(a) resolveProjectRootPath 在 storage-paths.ts 且有 containment 测试;(b) inventory-service 只读 (无 fs.write/fs.unlink 调用,grep 核实);(c) inventory IPC 注册 + preload bridge + 测试;(d) 对 live 目标项目 跑只读 (零写入),counts 对齐 baseline 或 diff 记录。重点反查：有无任何写操作混入。',
   },
   {
     key: '4',
@@ -104,7 +104,7 @@ const SLICES = [
       '2. 从 retained records 重建 secondary indexes(不 ad hoc 删 index entry)\n' +
       '3. 新 SceneVoiceLine 在持久化边界归一化 projectId/chapterId(deletion planning 用);不改 live TTS 生成/写路径 (只加 ownership 字段)。只迁移唯一可解析的 legacy numeric-sceneId;ambiguous → block\n' +
       '4. protected asset reference collection + 运行时解析真实 stable asset root(asset-generation-orchestrator.ts:696 的 workflow-images/assets/${assetType}/${filename},运行时解析到 character/scene/prop——核验存在 else block)。测试动态生成 derived-asset fixtures，禁断言 Python-fixture ids(var-chapter-001-*)或 derived-assets\n' +
-      '5. backup decoder registry:每个 Daojie inventory 观察到的 active + .bak format。registry 是 net-new(无 decoder 存在,.bak 在 studio-skills-storage.ts:280 被 junk-filtered)。Unknown format → block。每个注册 format 配 redacted regression fixture(Slice 6.5 step 2),在这些 transform 测试 + Slice 7 mixed-backup rewrite 测试里 cite 其 path;合成 mixed-backup JSON 禁作唯一 decoder 回归输入\n' +
+      '5. backup decoder registry:每个 目标项目 inventory 观察到的 active + .bak format。registry 是 net-new(无 decoder 存在,.bak 在 studio-skills-storage.ts:280 被 junk-filtered)。Unknown format → block。每个注册 format 配 redacted regression fixture(Slice 6.5 step 2),在这些 transform 测试 + Slice 7 mixed-backup rewrite 测试里 cite 其 path;合成 mixed-backup JSON 禁作唯一 decoder 回归输入\n' +
       '6. 每 transform 测 before/after fixtures + immutable unrelated chapter assertions + malformed envelopes + duplicate IDs + ambiguous legacy ownership + rerun idempotence\n' +
       'Completion gate: 全部 next-state JSON + reference migration 可计算且可验证，不写盘',
     checkFocus: '核实:(a) Script transform 用 deleteEpisodeBundle reindex(非 deleteEpisode),剩余 episode.index 连续 1-based;(b) TTS 归一化在持久化边界 (非 live 写路径),legacy ambiguous → block;(c) decoder registry net-new + 每 format 有 redacted fixture cite;(d) 测试动态 fixture，无 Python-fixture id 断言。反查：transform 有无任何 fs.write(应为纯函数)。',
@@ -115,7 +115,7 @@ const SLICES = [
     phase: 'Slice 6.5',
     steps: 'Slice 6.5 步骤 (implement.md:82-87):\n' +
       '1. 新建 apps/build/scripts/build_multichapter_fixture.mjs:在 temp dir 合成临时项目，>=2 章，每章有 novel/script/storyboard/continuity/exports/remotion records，章独占 + 跨章共享 assets，章独占 backup，注册的多章 mixed-JSON backup。用动态 ID(ground-truth B6:无硬编码 chapter-001 contract names;trackKey=chapter-${index};derived-asset 名动态生成，非 Python-fixture ids)。emit project root path\n' +
-      '2. 加 redacted real-shape mixed-backup regression fixture(剥 binary/large-text，保结构 shape + key ordering)到 apps/frontend/electron/artifacts/__fixtures__/,源自真实 Daojie backup\n' +
+      '2. 加 redacted real-shape mixed-backup regression fixture(剥 binary/large-text，保结构 shape + key ordering)到 apps/frontend/electron/artifacts/__fixtures__/,源自真实项目 backup\n' +
       'Completion gate: generator 在 temp dir 产出有效 >=2 章项目，每 category 行两章都 populated,mixed-backup fixture 经 normalization round-trip 且未触章 byte-identical',
     checkFocus: '核实:(a) build_multichapter_fixture.mjs 存在且可 node 运行，产出 >=2 章;(b) 用动态 ID(无硬编码 chapter-001/Python-fixture id);(c) __fixtures__ 有 redacted mixed-backup;(d) round-trip 未触章 byte-identical。实跑：node apps/build/scripts/build_multichapter_fixture.mjs 验证产出。',
   },
@@ -134,7 +134,7 @@ const SLICES = [
       '8. startup/inventory recovery 单分支 on journal state:committed(有无 bundle)→ committed-success，删 stale journal 幂等，best-effort POST fingerprint(不 block);commit-ready WITH bundle → restore + verify PRE(rollback);commit-ready WITHOUT bundle → impossible/corrupt，block;prepared WITH bundle → restore + verify PRE(rollback);missing/corrupt bundle before committed → block;ENOSPC during restore → 留 bundle + journal 在 prepared 供人工恢复。每 state transition 测 crash\n' +
       '9. 仅在全部 rollback/drift/recovery 测试绿后注册 execute IPC\n' +
       'Completion gate: build_multichapter_fixture.mjs(Slice 6.5)产出的临时多章 fixture 通过 success/failure injection/crash recovery/zero-residue 检查，不触 live project data',
-    checkFocus: '核实 (最高风险 slice):(a) project-scoped mutex 存在 + deadlock-regression test;(b) commit point 是 committed journal rename(非 bundle unlink);(c) recovery 单分支 6 种 journal state 全覆盖 + 测试;(d) free-space 2x margin + 复探;(e) local-media unlink 在事务内 (非 legacy delete-image);(f) execute IPC 仅在测试绿后注册;(g) 全部测试只跑 fixture(零 live Daojie 写)。跑 cd apps && npm test -- frontend/electron/artifacts 验证事务/recovery 测试绿。',
+    checkFocus: '核实 (最高风险 slice):(a) project-scoped mutex 存在 + deadlock-regression test;(b) commit point 是 committed journal rename(非 bundle unlink);(c) recovery 单分支 6 种 journal state 全覆盖 + 测试;(d) free-space 2x margin + 复探;(e) local-media unlink 在事务内 (非 legacy delete-image);(f) execute IPC 仅在测试绿后注册;(g) 全部测试只跑 fixture(零 live 目标项目 写)。跑 cd apps && npm test -- frontend/electron/artifacts 验证事务/recovery 测试绿。',
   },
   {
     key: '8',
@@ -161,14 +161,14 @@ const SLICES = [
       '3. npm run lint\n' +
       '4. npm test\n' +
       '5. npm run test:all -- --skip-release,inspect output/automation/quality-gate-report.json\n' +
-      '6. 对 live Daojie 再跑只读 inventory。报告 counts + blockers;不删不改 live data\n' +
+      '6. 对 live 目标项目 再跑只读 inventory。报告 counts + blockers;不删不改 live data\n' +
       '7. 用 build_multichapter_fixture.mjs(Slice 6.5)生成临时多章 fixture,destructive smoke 只在它上跑。核实 protected asset hashes/untouched chapter hashes/mixed backups/no chapter residue/no transaction residue\n' +
       '8. 启动本地 app,desktop + narrow 窗口目检 artifact center + delete dialog;长名/路径不重叠 + 键盘焦点可见\n' +
       '9. 因 UI + Electron IPC 改动，从 apps/ 跑唯一 macOS 打包入口：sh ./build/packaging/build-mac.sh --arm64。用其 installed smoke 结果;不做手动 app copying\n' +
       '10. 分别报告 focused/full/packaged/live-inventory/destructive-fixture evidence。绝不安称 fixture 删除为 live-project 删除\n' +
       '11. Phase 3.3 spec write-back(必需):把 per-project deletion mutex(C1) + resolveProjectRootPath(C2) + mixed-JSON backup decoder registry(C3) 加到 .trellis/spec/frontend/state-management.md。cite 本 task 为引入变更。不删/弱化 spec;已覆盖则 cross-reference\n' +
-      'Completion gate: 全部 focused/full/typecheck/lint/packaging evidence 绿或既存红 + destructive-fixture smoke clean + live Daojie 只读未改 + C1/C2/C3 net-new infra contracts 记录在 .trellis/spec/ 带可审 diff',
-    checkFocus: '核实:(a) typecheck/lint/npm test 全绿或仅既存红 (看 quality-gate-report.json);\n(b) live Daojie 只读 (零写);\n(c) destructive smoke 只在 fixture 上;\n(d) 打包 sh ./build/packaging/build-mac.sh --arm64 完成 (不只停安装包);\n(e) state-management.md 有 C1/C2/C3 write-back;\n(f) evidence 分类报告。这是最终 slice，需最严格核验。',
+      'Completion gate: 全部 focused/full/typecheck/lint/packaging evidence 绿或既存红 + destructive-fixture smoke clean + live 目标项目 只读未改 + C1/C2/C3 net-new infra contracts 记录在 .trellis/spec/ 带可审 diff',
+    checkFocus: '核实:(a) typecheck/lint/npm test 全绿或仅既存红 (看 quality-gate-report.json);\n(b) live 目标项目 只读 (零写);\n(c) destructive smoke 只在 fixture 上;\n(d) 打包 sh ./build/packaging/build-mac.sh --arm64 完成 (不只停安装包);\n(e) state-management.md 有 C1/C2/C3 write-back;\n(f) evidence 分类报告。这是最终 slice，需最严格核验。',
   },
 ]
 
@@ -179,10 +179,10 @@ const GATE_SCHEMA = {
     gatePassed: { type: 'boolean', description: 'true 仅当 Completion gate 的每一条客观条件都由你亲自核实 (读文件/跑命令),非实现者自报' },
     evidence: { type: 'string', description: '逐条 gate 条件 + 你核实的命令输出/文件坐标 (file:line)。空泛「看起来对了」不接受。' },
     newFailures: { type: 'string', description: '本 slice 引入的新失败 (typecheck/test/lint)。无则填 none。' },
-    liveDaojieTouched: { type: 'boolean', description: '本 slice 是否对 live Daojie 写入/删除 (必须 false;Slice 3/6/9 只读)' },
+    liveProjectTouched: { type: 'boolean', description: '本 slice 是否对 live 目标项目 写入/删除 (必须 false;Slice 3/6/9 只读)' },
     blocker: { type: 'string', description: '若 gatePassed=false，具体阻塞点 + 建议主代理如何处理 (重跑/缩范围/人工)。无则填 none。' },
   },
-  required: ['sliceKey', 'gatePassed', 'evidence', 'newFailures', 'liveDaojieTouched', 'blocker'],
+  required: ['sliceKey', 'gatePassed', 'evidence', 'newFailures', 'liveProjectTouched', 'blocker'],
 }
 
 const IMPL_SCHEMA = {
@@ -194,10 +194,10 @@ const IMPL_SCHEMA = {
     filesModified: { type: 'array', items: { type: 'string' }, description: '修改的已有文件路径 (repo-relative)' },
     backupsCreated: { type: 'array', items: { type: 'string' }, description: '改已有源文件前 cp 到 backups/source/ 的文件' },
     verification: { type: 'string', description: '本 slice 跑的验证命令 + 结果 (通过/失败 + 关键输出摘要)' },
-    liveDaojieTouched: { type: 'boolean' },
+    liveProjectTouched: { type: 'boolean' },
     notes: { type: 'string', description: '偏离 implement.md 的地方、假设、待主代理裁决项。无则 none。' },
   },
-  required: ['sliceKey', 'done', 'filesCreated', 'filesModified', 'verification', 'liveDaojieTouched', 'notes'],
+  required: ['sliceKey', 'done', 'filesCreated', 'filesModified', 'verification', 'liveProjectTouched', 'notes'],
 }
 
 const RULES = `Active task: ${TASK}
@@ -206,7 +206,7 @@ const RULES = `Active task: ${TASK}
 铁律 (全部适用，违反即终止):
 - 禁止任何 git 命令 (add/commit/push/branch/checkout/reset/stash/clean/log/diff 等)。commit 由主代理后续单独获用户同意。
 - 禁止 worktree，禁止在 .claude/worktrees 下写。
-- 禁止对 live Daojie 项目 (项目 ID 49dce4c1-64b1-42de-85c2-9f266698aec0,chapter-001) 做任何写入/删除。live 数据只读盘点;破坏性验证只用生成的临时 fixture。
+- 禁止对 live 目标项目 (项目 ID 49dce4c1-64b1-42de-85c2-9f266698aec0,chapter-001) 做任何写入/删除。live 数据只读盘点;破坏性验证只用生成的临时 fixture。
 - 改已有源文件前，先 cp 到 .trellis/tasks/08-04-artifact-output-management/backups/source/,记录原 SHA-256 到 manifest。新文件无需备份。
 - Edit 的 new_string 不得为空 (除非用户明确要求删该内容)。禁止 rm -rf / 批量删 / 清空文件。
 - 遵守 implement.md「Execution Rules」与「Risky Files And Rollback Points」。
@@ -244,8 +244,8 @@ ${s.steps}
     schema: IMPL_SCHEMA,
   })
 
-  if (!impl || !impl.done || impl.liveDaojieTouched) {
-    log(`✗ ${s.phase} implement 未完成或触 live Daojie — 停链`)
+  if (!impl || !impl.done || impl.liveProjectTouched) {
+    log(`✗ ${s.phase} implement 未完成或触 live 目标项目 — 停链`)
     results.push({ slice: s.key, title: s.title, stage: 'implement-failed', impl })
     break
   }
@@ -270,7 +270,7 @@ ${s.steps.split('Completion gate:')[1] || '(见 implement.md)'}
 1. Read 实现者声称创建/修改的文件，确认存在且内容符合 gate。
 2. 实跑验证命令 (cd apps && ...),看真实输出，不只信报告。
 3. 反查破坏性约束:grep fs.write/fs.unlink/git/delete-image 等是否在不应出现的地方;grep 确认旧调用已移除。
-4. live Daojie 必须零写 (Slice 3/6/9)。
+4. live 目标项目 必须零写 (Slice 3/6/9)。
 
 gatePassed=true 仅当每条 gate 条件你都亲自用命令/读文件核实过。任一条只能凭实现者自报 → gatePassed=false + blocker 说明。
 
@@ -285,7 +285,7 @@ gatePassed=true 仅当每条 gate 条件你都亲自用命令/读文件核实过
 
   results.push({ slice: s.key, title: s.title, stage: 'checked', impl, check: chk })
 
-  if (!chk || !chk.gatePassed || chk.liveDaojieTouched) {
+  if (!chk || !chk.gatePassed || chk.liveProjectTouched) {
     log(`✗ ${s.phase} gate FAIL — 停链 (blocker: ${chk ? chk.blocker : 'no check result'})`)
     break
   }

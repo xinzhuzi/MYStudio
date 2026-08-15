@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 /**
  * 道劫手册契约测试 — 保证手册(唯一真相源)与代码消费方口径一致:
- * 1. 手册内容不包含会被 sanitizeDaojiePrompt 改写的词(模板源头干净,sanitize 只做兜底);
+ * 1. 手册内容不包含会被 sanitizeExtendedManualPrompt 改写的词(模板源头干净,sanitize 只做兜底);
  * 2. prefix.md 规定三段输出格式,与 prompt-polisher parsePolishResult 的标签对齐;
  * 3. 四视图/四宫格画幅建议与运行时支持的画幅(image-size-presets)一致;
  * 4. art_storyboard_video.md 的分镜风格标记块存在且非空(visual-manual-style-tokens fail-empty);
@@ -13,8 +13,8 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
-  DAOJIE_STORYBOARD_STYLE_TOKENS,
-  getDaojieStoryboardStyleGuide,
+  EXTENDED_STORYBOARD_STYLE_TOKENS,
+  getExtendedStoryboardStyleGuide,
   withVisualManualStoryboardStyleTokens,
 } from "./visual-manual-style-tokens";
 
@@ -42,7 +42,7 @@ function readManual(rel: string): string {
   return readFileSync(join(DAOJIE_DIR, rel), "utf-8");
 }
 
-/** sanitizeDaojiePrompt 的改写目标词(英文正则源 + 中文短语),手册模板不得产出这些词。 */
+/** sanitizeExtendedManualPrompt 的改写目标词(英文正则源 + 中文短语),手册模板不得产出这些词。 */
 const SANITIZE_TARGET_WORDS = [
   "cinematic lighting",
   "cinematic composition",
@@ -110,11 +110,11 @@ describe("道劫手册契约", () => {
   });
 
   it("分镜风格标记块存在且非空(fail-empty 不触发)", () => {
-    expect(DAOJIE_STORYBOARD_STYLE_TOKENS.length).toBeGreaterThanOrEqual(3);
-    expect(DAOJIE_STORYBOARD_STYLE_TOKENS.join(" ")).toContain("ink wash");
-    expect(DAOJIE_STORYBOARD_STYLE_TOKENS.join(" ")).toContain("smooth pale matte flat-wash ground");
-    expect(getDaojieStoryboardStyleGuide()).toContain("工笔线描");
-    expect(getDaojieStoryboardStyleGuide()).toContain("浅净平涂底");
+    expect(EXTENDED_STORYBOARD_STYLE_TOKENS.length).toBeGreaterThanOrEqual(3);
+    expect(EXTENDED_STORYBOARD_STYLE_TOKENS.join(" ")).toContain("ink wash");
+    expect(EXTENDED_STORYBOARD_STYLE_TOKENS.join(" ")).toContain("smooth pale matte flat-wash ground");
+    expect(getExtendedStoryboardStyleGuide()).toContain("工笔线描");
+    expect(getExtendedStoryboardStyleGuide()).toContain("浅净平涂底");
   });
 
   it("风格锁:道劫先 sanitize 再追加 token,幂等;非道劫原样返回", () => {
@@ -126,7 +126,7 @@ describe("道劫手册契约", () => {
     expect(locked).not.toContain("宣纸质感");
     expect(locked).not.toContain("rice paper texture");
     expect(locked).toContain("浅净平涂底");
-    expect(locked).toContain(DAOJIE_STORYBOARD_STYLE_TOKENS[0]);
+    expect(locked).toContain(EXTENDED_STORYBOARD_STYLE_TOKENS[0]);
     // 幂等:重复施加不重复追加
     expect(withVisualManualStoryboardStyleTokens(locked, "daojie_ink_guofeng")).toBe(locked);
     // 非道劫手册不动

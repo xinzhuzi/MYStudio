@@ -20,9 +20,9 @@ import {
 const CAPABILITY = "http://127.0.0.1:43123/";
 const TOKEN = "a".repeat(64);
 const SHA = "b".repeat(64);
-const OUTPUT_ROOT = "/Users/zhengbingjin/Project/Github/MYStudio/apps/output/automation/remotion-daojie-chapter001-shot001";
-const CLEAN_OUTPUT_ROOT = "/Users/zhengbingjin/Project/Github/MYStudio/apps/output/automation/remotion-daojie-chapter001-shot001-clean-preview";
-const A08_ROOT = "/Users/zhengbingjin/Project/Github/MYStudio/apps/output/automation/daojie-chapter001-v2-pilot-shot001-20260721-a08";
+const OUTPUT_ROOT = "/Users/zhengbingjin/Project/Github/MYStudio/apps/output/automation/remotion-chapter001-shot001";
+const CLEAN_OUTPUT_ROOT = "/Users/zhengbingjin/Project/Github/MYStudio/apps/output/automation/remotion-chapter001-shot001-clean-preview";
+const A08_ROOT = "/Users/zhengbingjin/Project/Github/MYStudio/apps/output/automation/chapter001-v2-pilot-shot001-20260721-a08";
 const A08_IMAGE_PATH = `${A08_ROOT}/shot-001.png`;
 const A08_IMAGE_SHA256 = "9e90eb74e24fcd1ba10d0c6c6ff67c6ba6529ffc8cfa87f5c2913519ae3d2839";
 const PROJECT_ROOT = resolveProjectDir();

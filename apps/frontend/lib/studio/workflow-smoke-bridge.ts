@@ -101,7 +101,7 @@ export function installWorkflowSmokeBridge() {
 
 export function isIsolatedSmokeUserDataDir(userDataDir?: string): boolean {
   if (!userDataDir) return false;
-  return /(?:^|[/\\])mystudio-(?:(?:installed-)?smoke|daojie-workflow-run)-[^/\\]+$/.test(userDataDir);
+  return /(?:^|[/\\])mystudio-(?:(?:installed-)?smoke|project-workflow-run)-[^/\\]+$/.test(userDataDir);
 }
 
 function getSmokeVideoPath(): string {
@@ -856,7 +856,7 @@ async function inspectWorkflow(): Promise<WorkflowSmokeInspection> {
     evidenceBoundary: {
       seededUiSmoke: true,
       visibleWorkflowSmoke: stepwiseEvidence.length > 0,
-      realDaojieVisibleSmoke: false,
+      realProjectVisibleSmoke: false,
       realMediaGeneration: false,
     },
   });

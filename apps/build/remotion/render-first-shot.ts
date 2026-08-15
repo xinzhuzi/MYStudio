@@ -5,7 +5,7 @@ import { MediaBridgeServer } from "@rendering/plugins/remotion/media-bridge/medi
 import { buildMediaUrlMap } from "@rendering/plugins/remotion/media-bridge/media-bridge-source-map";
 import {
   BUNDLED_REMOTION_COMPOSITION_IDS,
-  DAOJIE_TIMELINE_COMPATIBILITY_COMPOSITION_ID,
+  LEGACY_TIMELINE_COMPATIBILITY_COMPOSITION_ID,
   STORYBOARD_SHOT_COMPOSITION_ID,
 } from "@rendering/plugins/remotion/composition/composition-id";
 import {
@@ -46,15 +46,15 @@ const scriptPath = path.join(projectRoot, "script.json");
 const imagePath = path.join(projectRoot, "exports/chapter-001/storyboard-frames/shot-001.png");
 const audioPath = path.join(projectRoot, "exports/chapter-001/voice-audio/shot-001.wav");
 const bundlePath = path.join(appsRoot, ".cache", "remotion-bundle");
-const outputRoot = path.join(appsRoot, "output", "automation", "remotion-daojie-chapter001-shot001");
+const outputRoot = path.join(appsRoot, "output", "automation", "remotion-chapter001-shot001");
 const outputPath = path.join(outputRoot, "output.mp4");
 const sourceSnapshotPath = path.join(outputRoot, "source-snapshot.json");
 const ffprobePath = path.join(outputRoot, "ffprobe.json");
 const loudnessLogPath = path.join(outputRoot, "loudness-measurement.log");
 const loudnessReportPath = path.join(outputRoot, "loudness-measurement.json");
 const reportPath = path.join(outputRoot, "report.json");
-const cleanOutputRoot = path.join(appsRoot, "output", "automation", "remotion-daojie-chapter001-shot001-clean-preview");
-const a08Root = path.join(appsRoot, "output", "automation", "daojie-chapter001-v2-pilot-shot001-20260721-a08");
+const cleanOutputRoot = path.join(appsRoot, "output", "automation", "remotion-chapter001-shot001-clean-preview");
+const a08Root = path.join(appsRoot, "output", "automation", "chapter001-v2-pilot-shot001-20260721-a08");
 const a08ReportPath = path.join(a08Root, "report.json");
 const a08HumanApprovalsPath = path.join(a08Root, "human-approvals.json");
 const a08ImagePath = path.join(a08Root, "shot-001.png");
@@ -63,7 +63,7 @@ const approvedProductionImagePath = path.join(
   projectRoot,
   "workflow-images/storyboards/chapter-001/approved-revisions/shot-001-9e90eb74e24f.png",
 );
-// 存量 a08 台账为 daojie-gongbi-v2;契约本体已升级 v3(MA ma-gongbi-v1 对齐),两者均为有效渲染来源。
+// 存量 a08 台账为 legacy 风格契约 v2;契约本体已升级 v3(MA ma-gongbi-v1 对齐),两者均为有效渲染来源。
 const acceptedStyleContractVersions = new Set(["daojie-gongbi-v2", "daojie-gongbi-v3"]);
 const isAcceptedStyleContractVersion = (value: string) => acceptedStyleContractVersions.has(value);
 const freshnessClockToleranceMs = 5;
@@ -863,7 +863,7 @@ export function validateFirstShotBundleManifest(value: unknown): FirstShotReport
     || manifest.templateId !== "mystudio-remotion-v1"
     || manifest.templateVersion !== "1.0.0"
     || manifest.remotionVersion !== remotionVersion
-    || manifest.compositionId !== DAOJIE_TIMELINE_COMPATIBILITY_COMPOSITION_ID
+    || manifest.compositionId !== LEGACY_TIMELINE_COMPATIBILITY_COMPOSITION_ID
     || !sameOrderedStrings(compositionIds, BUNDLED_REMOTION_COMPOSITION_IDS)
     || typeof manifest.contentHash !== "string"
     || !/^[a-f0-9]{64}$/.test(manifest.contentHash)) {
@@ -877,7 +877,7 @@ export function validateFirstShotBundleManifest(value: unknown): FirstShotReport
     templateVersion: "1.0.0",
     remotionVersion,
     compositionIds: [...BUNDLED_REMOTION_COMPOSITION_IDS],
-    compositionId: DAOJIE_TIMELINE_COMPATIBILITY_COMPOSITION_ID,
+    compositionId: LEGACY_TIMELINE_COMPATIBILITY_COMPOSITION_ID,
     contentHash: manifest.contentHash,
   };
 }

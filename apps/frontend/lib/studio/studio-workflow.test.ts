@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildSkillContextPackage } from "@/lib/studio/context";
-import { DAOJIE_VISUAL_MANUAL_ID, buildStudioManualsFromSkillFiles } from "@/lib/studio/manuals";
+import { EXTENDED_VISUAL_MANUAL_SEED_ID, buildStudioManualsFromSkillFiles } from "@/lib/studio/manuals";
 import { buildMediaRefFromMaterial, createMaterialRecord, inferMaterialKind } from "@/lib/studio/material";
 import { validateVendorConfig, resolveModelBinding } from "@/lib/studio/model-config";
 import {
@@ -155,7 +155,7 @@ describe("Manying Studio workflow core", () => {
       agentWorkData: [],
       createdAt: 1710000000000,
       workflowConfig: {
-        visualManualId: DAOJIE_VISUAL_MANUAL_ID,
+        visualManualId: EXTENDED_VISUAL_MANUAL_SEED_ID,
       },
       manualCatalog: {
         visual: buildStudioManualsFromSkillFiles("visual", [

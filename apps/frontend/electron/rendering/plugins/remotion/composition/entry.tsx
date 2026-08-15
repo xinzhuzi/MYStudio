@@ -18,14 +18,14 @@ import {
 } from "./composition-props-validation";
 import {
   CHAPTER_VIDEO_COMPOSITION_ID,
-  DAOJIE_TIMELINE_COMPATIBILITY_COMPOSITION_ID,
+  LEGACY_TIMELINE_COMPATIBILITY_COMPOSITION_ID,
  
   STORYBOARD_SHOT_COMPOSITION_ID,
 } from "./composition-id";
 
 export {
   CHAPTER_VIDEO_COMPOSITION_ID,
-  DAOJIE_TIMELINE_COMPATIBILITY_COMPOSITION_ID,
+  LEGACY_TIMELINE_COMPATIBILITY_COMPOSITION_ID,
   STORYBOARD_SHOT_COMPOSITION_ID,
 } from "./composition-id";
 export const defaultCompositionProps: CompositionProps = {
@@ -106,7 +106,7 @@ export function RemotionRoot(): React.ReactElement {
         calculateMetadata={calculateChapterVideoMetadata}
       />
       <Composition
-        id={DAOJIE_TIMELINE_COMPATIBILITY_COMPOSITION_ID}
+        id={LEGACY_TIMELINE_COMPATIBILITY_COMPOSITION_ID}
         component={RemotionComposition}
         durationInFrames={defaultCompositionProps.durationInFrames}
         fps={defaultCompositionProps.fps}

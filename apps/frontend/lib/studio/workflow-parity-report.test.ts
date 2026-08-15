@@ -72,7 +72,7 @@ describe("workflow parity report", () => {
       evidenceBoundary: {
         seededUiSmoke: true,
         visibleWorkflowSmoke: true,
-        realDaojieVisibleSmoke: true,
+        realProjectVisibleSmoke: true,
         realMediaGeneration: true,
       },
     });
@@ -312,7 +312,7 @@ describe("workflow parity report", () => {
       evidenceBoundary: {
         seededUiSmoke: true,
         visibleWorkflowSmoke: true,
-        realDaojieVisibleSmoke: true,
+        realProjectVisibleSmoke: true,
         realMediaGeneration: true,
       },
     });

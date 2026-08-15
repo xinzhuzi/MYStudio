@@ -9,7 +9,7 @@ import {
 } from "@/electron/storage/storage-paths";
 
 const APP_PROCESS_NAME = "漫影工作室";
-const DAOJIE_PROJECT_NAME = "道劫";
+const requestedProjectName = () => process.env.CHAPTER_VIDEO_PROJECT_NAME?.trim() || "";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -68,14 +68,25 @@ export function resolveProjectId(storageBasePath = resolveStorageBasePath()) {
   const catalog = requireRecord(readJson(catalogPath), "project catalog");
   const state = requireRecord(catalog.state, "project catalog.state");
   const projects = Array.isArray(state.projects) ? state.projects : [];
+  const wanted = requestedProjectName();
+  const ids: string[] = [];
   for (const [index, value] of projects.entries()) {
     const project = requireRecord(value, `project catalog.projects[${index}]`);
     const id = typeof project.id === "string" ? project.id.trim() : "";
     const name = typeof project.name === "string" ? project.name.trim() : "";
-    if (id && (name === DAOJIE_PROJECT_NAME || name.includes(DAOJIE_PROJECT_NAME))) return id;
+    if (!id) continue;
+    if (wanted) {
+      if (name === wanted || name.includes(wanted)) return id;
+    } else {
+      ids.push(id);
+    }
+  }
+  if (!wanted && ids.length === 1) return ids[0];
+  if (!wanted && ids.length > 1) {
+    throw new Error("项目索引包含多个项目；请设置 CHAPTER_VIDEO_PROJECT_NAME、MYSTUDIO_PROJECT_DIR 或 MYSTUDIO_PROJECT_ID");
   }
   throw new Error(
-    `项目索引中未找到名称包含 ${DAOJIE_PROJECT_NAME} 的项目；请设置 MYSTUDIO_PROJECT_DIR 或 MYSTUDIO_PROJECT_ID`,
+    `项目索引中未找到名称包含 ${wanted || "(未指定)"} 的项目；请设置 CHAPTER_VIDEO_PROJECT_NAME、MYSTUDIO_PROJECT_DIR 或 MYSTUDIO_PROJECT_ID`,
   );
 }
 

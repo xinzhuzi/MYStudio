@@ -14,7 +14,7 @@
 // Usage:
 //   node clean-project-archives.mjs [--project <dir>] [--keep-revisions 2]
 //                                    [--bak-days 3] [--apply]
-// Default project: /Users/zhengbingjin/Project/IP/MA (道劫). Dry-run unless --apply.
+// Default project: the user's IP/MA workspace. Dry-run unless --apply.
 
 import fs from "node:fs";
 import path from "node:path";

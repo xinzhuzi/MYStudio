@@ -81,7 +81,7 @@ export async function runRemotionShotSlots(): Promise<ShotSlotReport> {
   const renderSettings = { ...DEFAULT_REMOTION_RENDER_SETTINGS };
   const chapterManifestService = new RemotionChapterManifestService({
     projectRootForProject: (candidateProjectId) => {
-      if (candidateProjectId !== projectId) throw new Error("Daojie chapter manifest project identity 不一致");
+      if (candidateProjectId !== projectId) throw new Error("Chapter manifest project identity 不一致");
       return projectDir;
     },
     probeMedia: async (filePath) => {
@@ -202,7 +202,7 @@ export async function runRemotionShotSlots(): Promise<ShotSlotReport> {
     process.chdir(previousCwd);
   }
   const report: ShotSlotReport = { ok: true, renderer: { requested: "remotion", actual: "remotion", version: remotionVersion, bundleVersion: manifest.contentHash }, projectId, chapterId, shotCount: slots.length, sourceSnapshotHash: plans.sourceSnapshotHash, chapterManifestPath, slots , sourceSwaps: inkwashSourceSwaps };
-  const reportPath = path.resolve(process.env.MYSTUDIO_SHOT_REPORT || path.join(appsRoot, "output", "automation", "daojie-chapter001-shot-slots.json"));
+  const reportPath = path.resolve(process.env.MYSTUDIO_SHOT_REPORT || path.join(appsRoot, "output", "automation", "chapter001-shot-slots.json"));
   await fs.promises.mkdir(path.dirname(reportPath), { recursive: true });
   await fs.promises.writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
   return report;

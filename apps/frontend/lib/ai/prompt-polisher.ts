@@ -14,7 +14,7 @@ import { getManualModuleText as getBundledManualModuleText } from "@/lib/studio/
 import { aiManager, type AIBinding, type AITextResult } from "@/lib/ai/ai-manager";
 import { normalizeImagePromptForGeneration } from "@/lib/ai/ai-sdk-bridge";
 import { getStudioVisualManualsBridge } from "@/lib/bridge/studio-visual-manuals";
-import { DAOJIE_VISUAL_MANUAL_ID } from "@/lib/studio/visual-manual-classification";
+import { EXTENDED_VISUAL_MANUAL_SEED_ID } from "@/lib/studio/visual-manual-classification";
 import type { AIFeature } from "@/lib/ai/feature-definitions";
 import type { CharacterIdentityAnchors } from "@/types/script";
 import type { StudioVisualManualDetail } from "@/types/studio-visual-manual";
@@ -32,7 +32,7 @@ export interface PolishRequest {
   description: string;
   /** 是否衍生资产（影响模板选择） */
   isDerivative: boolean;
-  /** 视觉手册 ID（如 "2d_shonen"、"daojie_ink_guofeng"） */
+  /** 视觉手册 ID（如 "2d_shonen"、扩展手册种子 ID） */
   visualManualId: string;
   /** 角色6层身份锚点（仅角色类型需要） */
   identityAnchors?: CharacterIdentityAnchors;
@@ -132,8 +132,8 @@ export async function polishAssetPrompt(
     const parsed = parsePolishResult(result.text);
     const normalizedPrompt = normalizeImagePromptForGeneration({
       prompt:
-        visualManualId === DAOJIE_VISUAL_MANUAL_ID
-          ? sanitizeDaojiePrompt(parsed.prompt)
+        visualManualId === EXTENDED_VISUAL_MANUAL_SEED_ID
+          ? sanitizeExtendedManualPrompt(parsed.prompt)
           : parsed.prompt,
       negativePrompt: parsed.negativePrompt || request.negativePrompt,
     });
@@ -430,7 +430,7 @@ function buildLocalFallbackPolishResult(input: {
   const typeInstruction: Record<AssetType, string> = {
     character: "single character concept art, clear face, full-body readable silhouette, costume and identity details",
     scene:
-      input.visualManualId === DAOJIE_VISUAL_MANUAL_ID
+      input.visualManualId === EXTENDED_VISUAL_MANUAL_SEED_ID
         ? "environment concept art, clear spatial layout, even flat diffuse illumination, pale ink atmospheric perspective"
         : "environment concept art, clear spatial layout, cinematic lighting, atmospheric depth",
     prop: "single prop concept art, isolated object, readable material, no hands, no characters",
@@ -451,8 +451,8 @@ function buildLocalFallbackPolishResult(input: {
 
   const normalizedPrompt = normalizeImagePromptForGeneration({
     prompt:
-      input.visualManualId === DAOJIE_VISUAL_MANUAL_ID
-        ? sanitizeDaojiePrompt(prompt)
+      input.visualManualId === EXTENDED_VISUAL_MANUAL_SEED_ID
+        ? sanitizeExtendedManualPrompt(prompt)
         : prompt,
     negativePrompt: input.negativePrompt?.trim()
       || "low quality, blurry, watermark, logo, text, subtitle, extra limbs, distorted face, cropped subject",
@@ -479,7 +479,7 @@ function extractVisualStyleAnchor(systemPrompt: string) {
   return compactLine || "";
 }
 
-const DAOJIE_POSITIVE_PROMPT_REPLACEMENTS: Array<[RegExp, string]> = [
+const EXTENDED_MANUAL_PROMPT_REPLACEMENTS: Array<[RegExp, string]> = [
   [/\bcinematic\s+lighting\b/gi, "even flat diffuse illumination"],
   [/\bcinematic\s+composition\b/gi, "clear layered ink-wash composition"],
   [/\bcinematic\s+(?:quality|atmosphere|motion)\b/gi, "clean finished gongbi quality"],
@@ -505,10 +505,10 @@ const DAOJIE_POSITIVE_PROMPT_REPLACEMENTS: Array<[RegExp, string]> = [
   [/胶片颗粒/g, "平滑细腻成片"],
 ];
 
-/** Remove legacy cinematic/noise directives before a Daojie prompt reaches an image provider. */
-export function sanitizeDaojiePrompt(prompt: string): string {
+/** Remove legacy cinematic/noise directives before an extended-manual prompt reaches an image provider. */
+export function sanitizeExtendedManualPrompt(prompt: string): string {
   let sanitized = prompt.trim();
-  for (const [pattern, replacement] of DAOJIE_POSITIVE_PROMPT_REPLACEMENTS) {
+  for (const [pattern, replacement] of EXTENDED_MANUAL_PROMPT_REPLACEMENTS) {
     sanitized = sanitized.replace(pattern, replacement);
   }
   return sanitized.replace(/\(([^()]{1,200}):\s*\d+(?:\.\d+)?\)/g, "$1");

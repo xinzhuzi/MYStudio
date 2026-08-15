@@ -5,7 +5,7 @@
  * 用法:
  *   node apps/build/scripts/migrate-project-to-external.mjs [--dry-run]
  *        [--app-data <dir>]        默认 ~/Library/Application Support/漫影工作室
- *        [--project-name <名>]     默认 道劫
+ *        [--project-name <名>]     默认取项目索引中唯一工程
  *        [--target <dir>]          默认 /Users/zhengbingjin/Project/IP/MA
  *
  * 流程(任一步失败即回滚并退出非零):
@@ -25,7 +25,17 @@ import path from 'node:path'
 import { execFileSync } from 'node:child_process'
 
 const DEFAULT_APP_DATA = '~/Library/Application Support/漫影工作室'
-const DEFAULT_PROJECT_NAME = '道劫'
+// Personal-machine default resolved at runtime: single project in the store wins.
+function resolveDefaultProjectName() {
+  try {
+    const store = JSON.parse(fs.readFileSync(
+      path.resolve(process.env.HOME || '', 'Library/Application Support/漫影工作室/projects/mystudio-project-store.json'), 'utf8'))
+    const projects = store?.state?.projects || []
+    const names = projects.map((p) => String(p.name || '').trim()).filter(Boolean)
+    return names.length === 1 ? names[0] : ''
+  } catch { return '' }
+}
+const DEFAULT_PROJECT_NAME = resolveDefaultProjectName()
 const DEFAULT_TARGET = '/Users/zhengbingjin/Project/IP/MA'
 const APP_PROCESS_PATTERN = '/Applications/漫影工作室.app'
 

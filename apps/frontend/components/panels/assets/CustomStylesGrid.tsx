@@ -352,7 +352,7 @@ export function CustomStylesGrid() {
                   setCreateName(event.target.value);
                   if (!createPath) setCreatePath(makeDefaultStylePath(event.target.value));
                 }}
-                placeholder="例如：道劫新水墨风格"
+                placeholder="例如：新水墨国风"
               />
             </div>
             <div className="space-y-2">
@@ -361,7 +361,7 @@ export function CustomStylesGrid() {
                 id="custom-visual-style-path"
                 value={createPath}
                 onChange={(event) => setCreatePath(event.target.value)}
-                placeholder="例如：daojie_new_ink"
+                placeholder="例如：my_ink_style"
               />
               <div className="break-all text-xs text-muted-foreground">
                 将创建：skills/art_skills/{normalizeCreatePath(createPath || createName) || "无效目录名"}

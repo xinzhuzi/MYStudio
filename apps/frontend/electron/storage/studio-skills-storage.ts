@@ -74,7 +74,7 @@ export async function ensureStudioSkillsSynced(options: StudioSkillSyncOptions) 
     await migrateLegacyRootAgentSkills(storageRoot, manifest);
     // 主源（应用内置种子树）= "app"；回退源（如 toonflow 个人资产运行时）= "external"。
     // app 根先同步 → 双根共有的文件由 app 认领；external 根只补 app 缺少的文件
-    // （正是道劫个人资产场景），避免两根内容不同时每次启动来回覆盖。
+    // （正是扩展手册个人资产场景），避免两根内容不同时每次启动来回覆盖。
     const resolvedRoots = getSourceRoots(options).map((root) => ({
       root,
       kind: (root === path.resolve(options.sourceRoot) ? "app" : "external") as StudioSkillSourceKind,
@@ -247,7 +247,7 @@ export async function markStoredStudioSkillPathDeleted(storageRoot: string, rela
  *  - 根所有权：条目只归属首次同步它的根类型（app/external），另一根的同类文件跳过，
  *      防止双根内容分歧时每次启动来回覆盖。遗留条目（无 sourceKind）由首个
  *      含该文件的根认领 —— app 根先走，共有文件归 app；仅 external 有的
- *      （道劫）随后被 external 认领。
+ *      （扩展手册）随后被 external 认领。
  */
 async function syncSeedDirectory(
   root: string,

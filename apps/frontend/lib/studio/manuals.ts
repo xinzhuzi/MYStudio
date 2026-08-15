@@ -82,8 +82,8 @@ const productionModuleKeys = [
   "depth_friendly_3d",
 ] as const;
 
-export const DAOJIE_VISUAL_MANUAL_ID = "daojie_ink_guofeng";
-export const DAOJIE_DIRECTOR_MANUAL_ID = "Daojie_xianxia";
+export const EXTENDED_VISUAL_MANUAL_SEED_ID = "daojie_ink_guofeng";
+export const EXTENDED_DIRECTOR_MANUAL_SEED_ID = "Daojie_xianxia";
 export const DEFAULT_VISUAL_MANUAL_ID = "";
 export const DEFAULT_DIRECTOR_MANUAL_ID = "";
 

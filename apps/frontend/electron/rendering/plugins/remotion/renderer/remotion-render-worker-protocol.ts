@@ -149,7 +149,7 @@ function validateRenderInput(value: unknown): RemotionRenderWorkerValidationResu
   if (!isRecord(value.plan)) return failure("input.plan", "render worker plan 必须是对象");
   if (!isRecord(value.mediaUrlByClipId)) return failure("input.mediaUrlByClipId", "媒体 URL 映射必须是对象");
   if (value.compositionId !== undefined && value.compositionId !== "DaojieTimeline") {
-    return failure("input.compositionId", "timeline render 只能使用 DaojieTimeline");
+    return failure("input.compositionId", "timeline render 只能使用 legacy timeline composition");
   }
   return { success: true, value: value as unknown as RemotionRenderInput };
 }

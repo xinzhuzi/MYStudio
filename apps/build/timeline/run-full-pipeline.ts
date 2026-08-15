@@ -1,5 +1,5 @@
 /**
- * Daojie full plugin-chain pipeline: DEEP INTEGRATION.
+ * Full plugin-chain pipeline: DEEP INTEGRATION.
  *
  * This script instantiates the REAL adapter factories (the same ones used by
  * main.ts in the Electron app) and runs the full chain:
@@ -17,7 +17,7 @@
  * and persists the EditingProject to editing.json — the same lifecycle the Electron app uses.
  *
  * Usage:
- *   npm run video:daojie:full-pipeline
+ *   npm run video:full-pipeline
  */
 import crypto from "node:crypto";
 import fs from "node:fs";
@@ -380,7 +380,7 @@ async function resolveBrowser(): Promise<string> {
 // ─── Main pipeline ──────────────────────────────────────────────────────
 
 export async function runFullPipeline(): Promise<Record<string, unknown>> {
-  const runId = `daojie-full-pipeline-${Date.now()}`;
+  const runId = `full-pipeline-${Date.now()}`;
   const outputDir = path.resolve(appsRoot, "output", "automation", runId);
   fs.mkdirSync(outputDir, { recursive: true });
 
@@ -523,7 +523,7 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
   }
 
   // ── 7. Load shot slots + build shot inputs ──
-  const shotSlotReportPath = path.resolve(appsRoot, "output", "automation", "daojie-chapter001-shot-slots.json");
+  const shotSlotReportPath = path.resolve(appsRoot, "output", "automation", "chapter001-shot-slots.json");
   if (!fs.existsSync(shotSlotReportPath)) throw new Error(`shot slot report 不存在: ${shotSlotReportPath}`);
   const shotSlotReport = JSON.parse(fs.readFileSync(shotSlotReportPath, "utf8")) as Record<string, unknown>;
   if (shotSlotReport.projectId !== projectId || shotSlotReport.chapterId !== chapterId) {
@@ -656,7 +656,7 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
       reviewedAt: Date.now(),
       note: subtitleAuthorityMode === "clean-remotion"
         ? "源分镜图不含文字（生成 prompt 禁文字），台词字幕由 Remotion SubtitleTrack 句级 cues 燃嵌。"
-        : "Daojie scene MP4s have visible embedded Chinese subtitles.",
+        : "Scene MP4s have visible embedded Chinese subtitles.",
     },
   };
   const artifactWithAuthority = { ...videoUseArtifact, subtitleAuthority };
@@ -779,7 +779,7 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
   });
   const plan: TimelineRenderPlan = {
     schemaVersion: 1,
-    jobId: `daojie-full-pipeline-${Date.now()}`,
+    jobId: `full-pipeline-${Date.now()}`,
     projectId,
     episodeId: chapterId,
     editingProjectId: projectedProject.id,
@@ -882,6 +882,10 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
   process.chdir(runtimeDir);
   try {
     const browser = await resolveBrowser();
+    // cinematic 3D 需要 WebGL：headless-shell 的软件 WebGL(SwiftShader) 高负载下 Context Lost，
+    // 完整 Chrome 的 --headless=new 带真实 Metal GPU —— 优先切系统 Chrome。
+    const systemChrome = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+    const renderBrowser = cinematicEnabled && fs.existsSync(systemChrome) ? systemChrome : browser;
     const mediaBridge = new MediaBridgeServer();
     await mediaBridge.listen();
     const session = mediaBridge.createSession();
@@ -1049,14 +1053,14 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
         browserExecutable: browser, binariesDirectory, chromeMode: "headless-shell",
         onBrowserDownload: () => { throw new Error("禁止隐式下载 Headless Shell"); },
       });
-      // @remotion/three 需要 WebGL；headless-shell 默认无 WebGL，swangle(软件 ANGLE)
-      // 实测可用（Chrome 149 需 --use-gl=angle --use-angle=swiftshader，Remotion swangle 预设）
-      const chromiumOptions = cinematicEnabled ? { gl: "swangle" as const } : undefined;
+      // 真 Chrome(--headless=new) 走 Metal GPU，无需软件 GL；仅在无 Chrome 回退 headless-shell
+      // 时才用 swangle，且限并发防软件上下文内存崩。
+      const useSystemChrome = renderBrowser === systemChrome;
       await renderMedia({
         serveUrl: bundlePath, composition, inputProps: props, outputLocation: rawPath,
         codec: "h264", pixelFormat: "yuv420p", audioCodec: "aac",
-        browserExecutable: browser, binariesDirectory, chromeMode: "headless-shell",
-        ...(chromiumOptions ? { chromiumOptions } : {}),
+        browserExecutable: renderBrowser, binariesDirectory, chromeMode: "headless-shell",
+        ...(cinematicEnabled && !useSystemChrome ? { chromiumOptions: { gl: "swangle" as const }, concurrency: 2 } : {}),
         enforceAudioTrack: true, overwrite: true,
         onBrowserDownload: () => { throw new Error("禁止隐式下载 Headless Shell"); },
       });

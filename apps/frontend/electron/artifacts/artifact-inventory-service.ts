@@ -247,8 +247,8 @@ const BACKUP_SUFFIX_RE = /\.(?:bak(?:[-_][^.]*)?$|codex[-_][^.]*$|smoke[-_][^.]*
  *
  * - `backups` — chapter continuity snapshots and other historical project
  *   backups whose child JSON files do not carry a backup suffix.
- * - `visual-continuity-backups` — written by the daojie promote pipeline
- *   (`apps/build/daojie/pipeline/promote_chapter001_storyboard_continuity.py`)
+ * - `visual-continuity-backups` — written by the chapter-video promote pipeline
+ *   (`apps/build/chapter_video/pipeline/promote_chapter001_storyboard_continuity.py`)
  *   as `storyboard-promotion-<timestamp>-<sha>/studio-workflow-store.json`
  *   snapshots during storyboard promotion.
  *

@@ -19,7 +19,7 @@ const TASK = '/Users/zhengbingjin/Project/Github/MYStudio/.trellis/tasks/08-04-a
 const REPO = '/Users/zhengbingjin/Project/Github/MYStudio'
 
 // RULES as string concatenation to avoid template literal issues
-const RULES = "Active task: " + TASK + "\n仓库根：" + REPO + "(所有 npm 命令从 apps/ 执行，无根 package.json)\n\n铁律 (全部适用，违反即终止):\n- 禁止任何 git 命令 (add/commit/push/branch/checkout/reset/stash/clean/log/diff 等)。commit 由主代理后续单独获用户同意。\n- 禁止 worktree，禁止在 .claude/worktrees 下写。\n- 禁止对 live Daojie 项目 (项目 ID 49dce4c1-64b1-42de-85c2-9f266698aec0,chapter-001) 做任何写入/删除。live 数据只读盘点;破坏性验证只用生成的临时 fixture。\n- 改已有源文件前，先 cp 到 .trellis/tasks/08-04-artifact-output-management/backups/source/,记录原 SHA-256 到 manifest。新文件无需备份。\n- Edit 的 new_string 不得为空 (除非用户明确要求删该内容)。禁止 rm -rf / 批量删 / 清空文件。\n- 遵守 implement.md「Execution Rules」与「Risky Files And Rollback Points」。\n- 铁律 0:动手前用 Read/Grep 核实接口、字段、符号、路径，绝不猜。改任何值前 grep -r 确认无其它引用。\n- 铁律 1:渐进分段，小步多次。\n- 严禁猜测：不确定的标识符 (键名/变量/路径/字段) 先读源码取精确表述，取不到就报告阻塞，不臆造。\n- 只做本 slice 范围内的改动，不顺手重构/越界。";
+const RULES = "Active task: " + TASK + "\n仓库根：" + REPO + "(所有 npm 命令从 apps/ 执行，无根 package.json)\n\n铁律 (全部适用，违反即终止):\n- 禁止任何 git 命令 (add/commit/push/branch/checkout/reset/stash/clean/log/diff 等)。commit 由主代理后续单独获用户同意。\n- 禁止 worktree，禁止在 .claude/worktrees 下写。\n- 禁止对 live 目标项目 (项目 ID 49dce4c1-64b1-42de-85c2-9f266698aec0,chapter-001) 做任何写入/删除。live 数据只读盘点;破坏性验证只用生成的临时 fixture。\n- 改已有源文件前，先 cp 到 .trellis/tasks/08-04-artifact-output-management/backups/source/,记录原 SHA-256 到 manifest。新文件无需备份。\n- Edit 的 new_string 不得为空 (除非用户明确要求删该内容)。禁止 rm -rf / 批量删 / 清空文件。\n- 遵守 implement.md「Execution Rules」与「Risky Files And Rollback Points」。\n- 铁律 0:动手前用 Read/Grep 核实接口、字段、符号、路径，绝不猜。改任何值前 grep -r 确认无其它引用。\n- 铁律 1:渐进分段，小步多次。\n- 严禁猜测：不确定的标识符 (键名/变量/路径/字段) 先读源码取精确表述，取不到就报告阻塞，不臆造。\n- 只做本 slice 范围内的改动，不顺手重构/越界。";
 
 const SLICES = [
   {
@@ -66,9 +66,9 @@ const SLICES = [
       '4. 注册 decoders:active stores / Remotion / chapter-only backups / mixed JSON\n' +
       '5. compare renderer live vs disk snapshots,返回 typed discrepancies\n' +
       '6. 加只读 inventory IPC + preload bridge + global type + tests\n' +
-      '7. 对 live Daojie 跑只读 inventory，对比 baseline，报告 diff\n' +
+      '7. 对 live 目标项目 跑只读 inventory，对比 baseline，报告 diff\n' +
       'Completion gate: 零写入 + path escape/symlink fail closed + 每件产物解析到已知 stage 或 typed unknown blocker + counts 对齐 baseline',
-    checkFocus: '核实:(a) resolveProjectRootPath 存在且有 containment 测试;(b) inventory-service 只读 (grep 无 fs.write/fs.unlink);(c) inventory IPC + preload + 测试;(d) live Daojie 零写。'
+    checkFocus: '核实:(a) resolveProjectRootPath 存在且有 containment 测试;(b) inventory-service 只读 (grep 无 fs.write/fs.unlink);(c) inventory IPC + preload + 测试;(d) live 目标项目 零写。'
   },
   {
     key: '4',
@@ -137,7 +137,7 @@ const SLICES = [
       '8. recovery 单分支:committed→success;commit-ready-with-bundle→rollback;commit-ready-no-bundle→block;prepared→rollback;missing/corrupt→block;ENOSPC→leave prepared\n' +
       '9. execute IPC only after all rollback/drift/recovery tests green\n' +
       'Completion gate: multi-chapter fixture 通过 success/failure injection/crash recovery/zero-residue,no live write',
-    checkFocus: '核实 (最高风险):(a) project-scoped mutex + deadlock test;(b) commit point=journal rename 非 bundle unlink;(c) recovery 6 states 全覆盖;(d) free-space 2x margin;(e) no live Daojie write。'
+    checkFocus: '核实 (最高风险):(a) project-scoped mutex + deadlock test;(b) commit point=journal rename 非 bundle unlink;(c) recovery 6 states 全覆盖;(d) free-space 2x margin;(e) no live 目标项目 write。'
   },
   {
     key: '8',
@@ -160,7 +160,7 @@ const SLICES = [
     phase: 'Slice 9',
     steps: 'Slice 9 步骤 (implement.md:115-129):\n' +
       '1. cd apps 跑 focused/full/typecheck/lint/test/test:all\n' +
-      '2. 对 live Daojie 再跑只读 inventory。报告 counts + blockers;不删不改\n' +
+      '2. 对 live 目标项目 再跑只读 inventory。报告 counts + blockers;不删不改\n' +
       '3. 用 build_multichapter_fixture.mjs 生成多章 fixture,destructive smoke 只在它上跑\n' +
       '4. 启动本地 app,desktop+narrow 目检 UI\n' +
       '5. macOS 打包：sh ./build/packaging/build-mac.sh --arm64,用 installed smoke\n' +
@@ -178,10 +178,10 @@ const GATE_SCHEMA = {
     gatePassed: { type: 'boolean' },
     evidence: { type: 'string' },
     newFailures: { type: 'string' },
-    liveDaojieTouched: { type: 'boolean' },
+    liveProjectTouched: { type: 'boolean' },
     blocker: { type: 'string' },
   },
-  required: ['sliceKey', 'gatePassed', 'evidence', 'newFailures', 'liveDaojieTouched', 'blocker'],
+  required: ['sliceKey', 'gatePassed', 'evidence', 'newFailures', 'liveProjectTouched', 'blocker'],
 }
 
 const IMPL_SCHEMA = {
@@ -193,10 +193,10 @@ const IMPL_SCHEMA = {
     filesModified: { type: 'array', items: { type: 'string' } },
     backupsCreated: { type: 'array', items: { type: 'string' } },
     verification: { type: 'string' },
-    liveDaojieTouched: { type: 'boolean' },
+    liveProjectTouched: { type: 'boolean' },
     notes: { type: 'string' },
   },
-  required: ['sliceKey', 'done', 'filesCreated', 'filesModified', 'verification', 'liveDaojieTouched', 'notes'],
+  required: ['sliceKey', 'done', 'filesCreated', 'filesModified', 'verification', 'liveProjectTouched', 'notes'],
 }
 
 const results = []
@@ -214,7 +214,7 @@ for (const s of SLICES) {
     schema: IMPL_SCHEMA,
   })
 
-  if (!impl || !impl.done || impl.liveDaojieTouched) {
+  if (!impl || !impl.done || impl.liveProjectTouched) {
     log(`✗ ${s.phase} implement failed — stop chain`)
     results.push({ slice: s.key, title: s.title, stage: 'implement-failed', impl })
     break
@@ -234,7 +234,7 @@ for (const s of SLICES) {
 
   results.push({ slice: s.key, title: s.title, stage: 'checked', impl, check: chk })
 
-  if (!chk || !chk.gatePassed || chk.liveDaojieTouched) {
+  if (!chk || !chk.gatePassed || chk.liveProjectTouched) {
     log(`✗ ${s.phase} gate FAIL — stop (blocker: ${chk ? chk.blocker : 'no check result'})`)
     break
   }

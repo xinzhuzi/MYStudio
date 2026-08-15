@@ -11,6 +11,8 @@ export const REMOTION_TEMPLATE_VERSION = "1.0.0";
 // The composition entry and manifest are deliberately fixed. Export paths only
 // consume this output; they never invoke the bundler per render job.
 export const FIXED_COMPOSITION_ENTRY = "frontend/electron/rendering/plugins/remotion/composition/entry.tsx";
+// "DaojieTimeline" is a legacy wire/persistence key (stored jobs reference it);
+// keep in sync with composition-id.ts LEGACY_TIMELINE_COMPATIBILITY_COMPOSITION_ID.
 export const FIXED_COMPOSITION_ID = "DaojieTimeline";
 export const BUNDLED_COMPOSITION_IDS = ["StoryboardShot", "ChapterVideo", FIXED_COMPOSITION_ID];
 export const BUNDLE_OUTPUT_DIR = ".cache/remotion-bundle";

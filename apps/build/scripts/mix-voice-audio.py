@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-DaOJie bypass: 将旧流水线 voice-audio/WAV 文件混入 Remotion 章节 MP4。
+Legacy bypass: 将旧流水线 voice-audio/WAV 文件混入 Remotion 章节 MP4。
 
 背景：临时跳过 TTS 后分镜 MP4 音频为静音，需要通过 ffmpeg 把
 旧 toonflow_audio 的 WAV 混入最终章节视频。
@@ -11,10 +11,10 @@ DaOJie bypass: 将旧流水线 voice-audio/WAV 文件混入 Remotion 章节 MP4�
 - volume=43 会导致削波失真（max_volume 达 0.0 dB 但波形已损坏）
 
 用法：
-  cd apps && python3 build/scripts/mix-daojie-voice-audio.py
+  cd apps && python3 build/scripts/mix-voice-audio.py
 
 前置：timeline-render-plan.json 与 voice-audio/*.wav 存在
-输出：apps/output/automation/daojie-chapter001-timeline/remotion/output-with-audio.mp4
+输出：apps/output/automation/chapter001-timeline/remotion/output-with-audio.mp4
 """
 
 import json
@@ -24,10 +24,10 @@ import sys
 
 PROJECT_DIR = "/Users/zhengbingjin/Library/Application Support/漫影工作室/projects/_p/49dce4c1-64b1-42de-85c2-9f266698aec0"
 APPS_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-PLAN_PATH = os.path.join(APPS_DIR, "output", "automation", "daojie-chapter001-timeline", "timeline-render-plan.json")
+PLAN_PATH = os.path.join(APPS_DIR, "output", "automation", "chapter001-timeline", "timeline-render-plan.json")
 VOICE_DIR = os.path.join(PROJECT_DIR, "exports", "chapter-001", "voice-audio")
-INPUT_MP4 = os.path.join(APPS_DIR, "output", "automation", "daojie-chapter001-timeline", "remotion", "output.mp4")
-OUTPUT_MP4 = os.path.join(APPS_DIR, "output", "automation", "daojie-chapter001-timeline", "remotion", "output-with-audio.mp4")
+INPUT_MP4 = os.path.join(APPS_DIR, "output", "automation", "chapter001-timeline", "remotion", "output.mp4")
+OUTPUT_MP4 = os.path.join(APPS_DIR, "output", "automation", "chapter001-timeline", "remotion", "output-with-audio.mp4")
 
 
 def main() -> None:

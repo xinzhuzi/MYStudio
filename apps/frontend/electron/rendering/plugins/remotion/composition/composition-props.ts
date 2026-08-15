@@ -167,7 +167,7 @@ export interface CompositionAudioClipProps {
   from: number;
   durationInFrames: number;
   volume: number;
-  // Legacy DaojieTimeline props omit scope. Parameterized shot/chapter inputs
+  // Legacy timeline composition props omit scope. Parameterized shot/chapter inputs
   // require it and are validated by their target-specific metadata boundary.
   renderScope?: "shot" | "chapter";
   trimStartFrames?: number;

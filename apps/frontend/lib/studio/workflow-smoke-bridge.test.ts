@@ -184,7 +184,7 @@ describe("workflow smoke bridge isolation", () => {
   it("allows only temp smoke user data directories", () => {
     expect(isIsolatedSmokeUserDataDir("/var/folders/tmp/mystudio-smoke-abcd")).toBe(true);
     expect(isIsolatedSmokeUserDataDir("/var/folders/tmp/mystudio-installed-smoke-abcd")).toBe(true);
-    expect(isIsolatedSmokeUserDataDir("/var/folders/tmp/mystudio-daojie-workflow-run-abcd")).toBe(true);
+    expect(isIsolatedSmokeUserDataDir("/var/folders/tmp/mystudio-project-workflow-run-abcd")).toBe(true);
   });
 
   it("blocks real MYStudio user data directories", () => {
@@ -197,7 +197,7 @@ describe("workflow smoke bridge isolation", () => {
     expect(isIsolatedSmokeUserDataDir("mystudio-smoke-x")).toBe(true);
     expect(isIsolatedSmokeUserDataDir("C:\\Temp\\mystudio-smoke-x")).toBe(true);
     expect(isIsolatedSmokeUserDataDir("/tmp/mystudio-installed-smoke-x")).toBe(true);
-    expect(isIsolatedSmokeUserDataDir("/tmp/mystudio-daojie-workflow-run-x")).toBe(true);
+    expect(isIsolatedSmokeUserDataDir("/tmp/mystudio-project-workflow-run-x")).toBe(true);
     expect(isIsolatedSmokeUserDataDir("/tmp/mystudio-smoke-x-extra")).toBe(true);
     expect(isIsolatedSmokeUserDataDir("/tmp/mystudio-smoke-")).toBe(false);
     expect(isIsolatedSmokeUserDataDir("/tmp/mystudio-smoke-x/")).toBe(false);
@@ -560,12 +560,12 @@ describe("workflow smoke bridge isolation", () => {
     });
     expect(result?.evidenceBoundary).toMatchObject({
       seededUiSmoke: true,
-      realDaojieVisibleSmoke: false,
+      realProjectVisibleSmoke: false,
       realMediaGeneration: false,
     });
     expect(result?.workflowParityReport?.evidenceBoundary).toMatchObject({
       seededUiSmoke: true,
-      realDaojieVisibleSmoke: false,
+      realProjectVisibleSmoke: false,
       realMediaGeneration: false,
     });
     expect(useStudioStore.getState().videoCandidates[0]).toMatchObject({

@@ -25,7 +25,7 @@ import {
   formatProjectMemoryContext,
   retrieveProjectMemory,
 } from "@/lib/studio/project-memory";
-import { DAOJIE_VISUAL_MANUAL_ID } from "@/lib/studio/visual-manual-classification";
+import { EXTENDED_VISUAL_MANUAL_SEED_ID } from "@/lib/studio/visual-manual-classification";
 import type { AssetGenerationTask } from "@/lib/studio/asset-generation-orchestrator";
 import type { EntityResolver } from "@/lib/studio/derived-asset-sync";
 import { useCharacterLibraryStore } from "@/stores/library/character-library-store";
@@ -482,7 +482,7 @@ function buildCharacterDerivativeImagePrompt(input: {
 }) {
   const basePrompt = input.basePrompt.trim() || `${input.variationName}：${input.reason}`.trim();
   const styleLock =
-    input.visualManualId === DAOJIE_VISUAL_MANUAL_ID
+    input.visualManualId === EXTENDED_VISUAL_MANUAL_SEED_ID
       ? [
           "道劫彩色工笔水墨角色设定：媒介规则优先于父图的数字渲染，脸、手、发丝、衣褶与服饰结构先以连续白描和铁线描建立，再以矿物薄层分染与罩染；主体密、背景疏",
           "水墨为主、按角色与场景设定事实彩色点缀（色量仅作人工审稿观察，30%-70%不是生成硬门），只用石青、石绿、靛青、赭石、朱砂或旧金等2-3种低饱和点缀色，禁止整图灰白化或满幅鲜艳；浅净哑光平涂底、柔和均匀平光与纸面散射光",

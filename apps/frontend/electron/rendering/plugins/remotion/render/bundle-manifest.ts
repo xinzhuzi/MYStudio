@@ -1,7 +1,7 @@
 import path from "node:path";
 import {
   BUNDLED_REMOTION_COMPOSITION_IDS,
-  DAOJIE_TIMELINE_COMPATIBILITY_COMPOSITION_ID,
+  LEGACY_TIMELINE_COMPATIBILITY_COMPOSITION_ID,
 } from "../composition/composition-id";
 
 export const REMOTION_BUNDLE_DIR_NAME = "remotion-bundle";
@@ -16,7 +16,7 @@ export interface RemotionBundleManifest {
   templateVersion: typeof REMOTION_TEMPLATE_VERSION;
   remotionVersion: string;
   compositionIds: ["StoryboardShot", "ChapterVideo", "DaojieTimeline"];
-  compositionId: typeof DAOJIE_TIMELINE_COMPATIBILITY_COMPOSITION_ID;
+  compositionId: typeof LEGACY_TIMELINE_COMPATIBILITY_COMPOSITION_ID;
   contentHash: string;
 }
 
@@ -55,10 +55,10 @@ export function validateBundleManifest(
   if (!isExactSemver(value.remotionVersion)) {
     issues.push({ path: "remotionVersion", message: "bundle manifest 需要精确 Remotion semver" });
   }
-  if (value.compositionId !== DAOJIE_TIMELINE_COMPATIBILITY_COMPOSITION_ID) {
+  if (value.compositionId !== LEGACY_TIMELINE_COMPATIBILITY_COMPOSITION_ID) {
     issues.push({
       path: "compositionId",
-      message: `bundle compositionId 必须为 ${DAOJIE_TIMELINE_COMPATIBILITY_COMPOSITION_ID}`,
+      message: `bundle compositionId 必须为 ${LEGACY_TIMELINE_COMPATIBILITY_COMPOSITION_ID}`,
     });
   }
   if (!sameOrderedStrings(value.compositionIds, BUNDLED_REMOTION_COMPOSITION_IDS)) {

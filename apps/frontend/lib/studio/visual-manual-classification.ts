@@ -1,6 +1,6 @@
 import type { StudioVisualManualCategory, StudioVisualManualSummary } from "@/types/studio-visual-manual";
 
-export const DAOJIE_VISUAL_MANUAL_ID = "daojie_ink_guofeng";
+export const EXTENDED_VISUAL_MANUAL_SEED_ID = "daojie_ink_guofeng";
 
 export const DEFAULT_VISUAL_MANUAL_CATEGORY_LABELS: Record<Exclude<StudioVisualManualCategory, "daojie">, string> = {
   "2d": "2D 风格",
@@ -24,16 +24,16 @@ export interface DefaultVisualManualGroup {
   manuals: StudioVisualManualSummary[];
 }
 
-export function isDaojieVisualManual(manual: Pick<StudioVisualManualSummary, "stylePath" | "category">) {
-  return manual.stylePath === DAOJIE_VISUAL_MANUAL_ID || manual.category === "daojie";
+export function isExtendedVisualManual(manual: Pick<StudioVisualManualSummary, "stylePath" | "category">) {
+  return manual.stylePath === EXTENDED_VISUAL_MANUAL_SEED_ID || manual.category === "daojie";
 }
 
 export function getDefaultVisualManuals(manuals: readonly StudioVisualManualSummary[]) {
-  return manuals.filter((manual) => manual.sourceExists && !isDaojieVisualManual(manual));
+  return manuals.filter((manual) => manual.sourceExists && !isExtendedVisualManual(manual));
 }
 
 export function getCustomVisualManuals(manuals: readonly StudioVisualManualSummary[]) {
-  return manuals.filter((manual) => isDaojieVisualManual(manual) || !manual.sourceExists);
+  return manuals.filter((manual) => isExtendedVisualManual(manual) || !manual.sourceExists);
 }
 
 export function groupDefaultVisualManuals(manuals: readonly StudioVisualManualSummary[]): DefaultVisualManualGroup[] {
