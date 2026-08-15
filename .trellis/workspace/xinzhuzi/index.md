@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 10
-- **Last Active**: 2026-08-13
+- **Total Sessions**: 11
+- **Last Active**: 2026-08-15
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~516 | Active |
+| `journal-1.md` | ~550 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 11 | 2026-08-15 | 新建项目自选文件夹+道劫迁移MA+项目位置管理二期 | `d0e5738`, `6c1ee0c` | `main` |
 | 10 | 2026-08-13 | quality-gate 全量完成,治理链收官并归档 | - | `main` |
 | 9 | 2026-08-13 | code-quality R1-R4 全量完成并归档 | - | `main` |
 | 8 | 2026-08-10 | 归档视频工作流插件融合任务 | - | `main` |

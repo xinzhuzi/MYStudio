@@ -514,3 +514,37 @@ R1: ESLint 三规则+no-console 全部升 error(修 39 处 no-console:删调试�
 ### Next Steps
 
 - None - task complete
+
+
+## Session 11: 新建项目自选文件夹+道劫迁移MA+项目位置管理二期
+
+**Date**: 2026-08-15
+**Task**: 新建项目自选文件夹+道劫迁移MA+项目位置管理二期
+**Branch**: `main`
+
+### Summary
+
+grill三轮定9项决策后实施:一期新建项目必选父目录(位置表+resolver重定向+4 IPC+Dashboard编排),道劫20G迁移/Users/zhengbingjin/Project/IP/MA(mv+双JSON+备份回滚,CDP实证零复活);二期三轨并行(M移动引擎/A主进程3 IPC/B渲染层)交付移动项目(跨卷copy+verify+取消,check轮修复事件循环卡死)、导入外部项目(pid提取/就地重写/防重)、realpath硬化;全量3462+3521通过,typecheck/lint零错,build-mac.sh两轮覆盖安装smoke ok。channel provider故障(claude未登录/codex中转403)全程原生子代理降级执行,通道留审计。
+
+### Main Changes
+
+- Detailed change bullets were not supplied; see the summary above.
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `d0e5738` | (see git log) |
+| `6c1ee0c` | (see git log) |
+
+### Testing
+
+- Validation was not recorded for this session.
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
