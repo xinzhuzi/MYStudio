@@ -27,6 +27,36 @@ describe("studio storyboard duration math", () => {
   });
 });
 
+describe("studio storyboard table messages", () => {
+  it("injects manual context between the skill and the voiceover guard in system", () => {
+    const messages = buildStoryboardTableMessages({
+      episodeId: "chapter-001",
+      scriptText: "第一场：夜，矿场。",
+      scriptPlanContext: "导演规划要点：压抑",
+      manualContext: "# 视觉手册 · 分镜表风格约束\n\n工笔线描锚词",
+    });
+
+    expect(messages.system).toContain("工笔线描锚词");
+    const skillIndex = messages.system.indexOf("storyboardTable") >= 0
+      ? messages.system.indexOf("分镜")
+      : 0;
+    const manualIndex = messages.system.indexOf("工笔线描锚词");
+    const guardIndex = messages.system.indexOf("分镜配音硬约束");
+    expect(manualIndex).toBeGreaterThan(skillIndex);
+    expect(guardIndex).toBeGreaterThan(manualIndex);
+  });
+
+  it("keeps system assembled without manual context when it is absent", () => {
+    const messages = buildStoryboardTableMessages({
+      episodeId: "chapter-001",
+      scriptText: "第一场：夜，矿场。",
+    });
+
+    expect(messages.system).toContain("分镜配音硬约束");
+    expect(messages.system).not.toContain("视觉手册 · 分镜表风格约束");
+  });
+});
+
 describe("studio storyboard table parsing", () => {
   it("serializes canonical storyboards to a Markdown source record without embedding media paths", () => {
     const parsedSource = parseStoryboardTable([

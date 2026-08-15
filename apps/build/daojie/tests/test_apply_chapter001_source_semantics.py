@@ -8,9 +8,11 @@ from unittest import mock
 
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
+# 任务目录归档后移入 .trellis/tasks/archive/<年-月>/;两个位置都兼容。
+_ACTIVE_RESEARCH = REPO_ROOT / ".trellis/tasks/07-12-mystudio-chapter001-visual-continuity/research"
+_ARCHIVED_RESEARCH = REPO_ROOT / ".trellis/tasks/archive/2026-07/07-12-mystudio-chapter001-visual-continuity/research"
 RENDERER_PATH = (
-    REPO_ROOT
-    / ".trellis/tasks/07-12-mystudio-chapter001-visual-continuity/research"
+    (_ACTIVE_RESEARCH if _ACTIVE_RESEARCH.is_dir() else _ARCHIVED_RESEARCH)
     / "render_chapter001_semantic_storyboard_draft.py"
 )
 SPEC = importlib.util.spec_from_file_location("chapter001_semantic_renderer", RENDERER_PATH)

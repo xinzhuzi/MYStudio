@@ -8,6 +8,7 @@ import {
   setGeneratedImageResult,
   setGeneratedImageStatus,
 } from "@/lib/studio/image-workflow";
+import { withActiveVisualManualStoryboardStyleTokens } from "@/lib/studio/visual-manual-style-tokens";
 import { useProjectStore } from "@/stores/project/project-store";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import type { ImageWorkflowGraph } from "@/types/studio";
@@ -49,8 +50,13 @@ export function useImageWorkflowGeneration({
       const projectId = useProjectStore.getState().activeProjectId;
       if (!projectId) throw new Error("请先选择项目");
       const referenceImages = await prepareReferenceImages(request.referenceImages);
+      // 分镜帧生图接入所选视觉手册风格锁(道劫: sanitize+水墨 token);
+      // 仅限 storyboard 工作流,自由/资产工作流提示词不做覆盖。
+      const prompt = graph.target.kind === "storyboard"
+        ? withActiveVisualManualStoryboardStyleTokens(request.prompt)
+        : request.prompt;
       const result = await aiManager.freedomImage({
-        prompt: request.prompt,
+        prompt,
         model: request.model,
         aspectRatio: request.aspectRatio,
         resolution: request.resolution,

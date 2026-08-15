@@ -16,6 +16,7 @@ import {
 } from "@/lib/studio/storyboard-table";
 import { aiManager } from "@/lib/ai/ai-manager";
 import {
+  buildStoryboardTableManualContext,
   buildStudioManualContext,
   type StudioManualCatalog,
 } from "@/lib/studio/manuals";
@@ -286,6 +287,7 @@ export function useProductionPlanningActions({
         episodeId: targetEpisodeId,
         scriptText,
         scriptPlanContext: formatScriptPlanContext(plan),
+        manualContext: buildStoryboardTableManualContext(store.workflowConfig, manualCatalog),
       });
       const userContent = userInstruction.trim()
         ? `${messages.user}\n\n【本次节点补充要求】\n${userInstruction.trim()}`
@@ -353,7 +355,7 @@ export function useProductionPlanningActions({
         toast.error(error instanceof Error ? error.message : String(error));
       }
     },
-    [saveAgentWorkData],
+    [manualCatalog, saveAgentWorkData],
   );
 
   const handleRebuildWorkbenchTracks = useCallback(() => {

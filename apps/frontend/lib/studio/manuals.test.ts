@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import * as manuals from "./manuals";
 import {
+  buildStoryboardTableManualContext,
   buildStudioManualContext,
   DAOJIE_DIRECTOR_MANUAL_ID,
   DAOJIE_VISUAL_MANUAL_ID,
@@ -76,6 +77,46 @@ describe("studio manual presets", () => {
     expect(context).toContain("导演手册");
     expect(context).toContain("国风二次元");
     expect(context).toContain("古风仙侠");
+  });
+
+  it("builds storyboard-table manual context from prefix/style/narrative modules only", () => {
+    const visualManuals = buildStudioManualsFromSkillFiles("visual", [
+      {
+        relativePath: "art_skills/daojie_ink_guofeng/prefix.md",
+        content: "# 全局美学基础\n\n工笔线描锚词",
+      },
+      {
+        relativePath: "art_skills/daojie_ink_guofeng/driector_skills/director_storyboard_table_style.md",
+        content: "# 分镜表水墨国风约束\n\n墨色层次锁定",
+      },
+      {
+        relativePath: "art_skills/daojie_ink_guofeng/README.md",
+        content: "# 道劫 README\n\n不应进入分镜表上下文",
+      },
+    ]);
+    const directorManuals = buildStudioManualsFromSkillFiles("director", [
+      {
+        relativePath: "story_skills/Daojie_xianxia/driector_skills/director_storyboard_table_narrative.md",
+        content: "# 分镜表叙事手法\n\n水墨远景为基础景别",
+      },
+    ]);
+
+    const context = buildStoryboardTableManualContext({
+      visualManualId: DAOJIE_VISUAL_MANUAL_ID,
+      directorManualId: DAOJIE_DIRECTOR_MANUAL_ID,
+    }, {
+      visual: visualManuals,
+      director: directorManuals,
+    });
+
+    expect(context).toContain("工笔线描锚词");
+    expect(context).toContain("墨色层次锁定");
+    expect(context).toContain("水墨远景为基础景别");
+    expect(context).not.toContain("不应进入分镜表上下文");
+  });
+
+  it("returns empty storyboard-table manual context when no manual is selected", () => {
+    expect(buildStoryboardTableManualContext({})).toBe("");
   });
 
   it("injects Daojie manual context from the stored skill catalog", () => {

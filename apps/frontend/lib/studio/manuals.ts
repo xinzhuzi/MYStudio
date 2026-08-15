@@ -118,6 +118,34 @@ export function getManualModuleText(kind: StudioManualKind, id: string | undefin
   return getStudioManualPreset(kind, id)?.modules[moduleKey] ?? "";
 }
 
+/**
+ * 分镜表阶段的手册上下文：视觉手册 prefix（风格锚词）+ director_storyboard_table_style（分镜表风格约束）
+ * 与导演手册 director_storyboard_table_narrative（分镜表叙事技法）——
+ * 这两个模块原本只在 workflow-node-model 的 UI 预览卡出现,从未进入分镜表 LLM;
+ * 注入后分镜表「画面描述」列（后续分镜帧生图的提示词种子）才携带所选风格。
+ */
+export function buildStoryboardTableManualContext(
+  config: Partial<StudioWorkflowConfig>,
+  catalog: StudioManualCatalog = {},
+): string {
+  const visualManual = resolveStudioManualPreset("visual", config.visualManualId, catalog);
+  const directorManual = resolveStudioManualPreset("director", config.directorManualId, catalog);
+  const sections: string[] = [];
+  if (visualManual) {
+    sections.push([
+      "# 视觉手册 · 分镜表风格约束",
+      buildManualSummary(visualManual, ["prefix", "director_storyboard_table_style"]),
+    ].join("\n"));
+  }
+  if (directorManual) {
+    sections.push([
+      "# 导演手册 · 分镜表叙事技法",
+      buildManualSummary(directorManual, ["director_storyboard_table_narrative"]),
+    ].join("\n"));
+  }
+  return sections.join("\n\n");
+}
+
 export function buildStudioManualsFromSkillFiles(
   kind: Extract<StudioManualKind, "visual" | "director">,
   files: StudioManualSkillOverrideFile[],

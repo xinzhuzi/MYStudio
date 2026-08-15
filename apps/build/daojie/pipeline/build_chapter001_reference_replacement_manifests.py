@@ -19,7 +19,14 @@ from apps.build.daojie.pipeline import chapter001_continuity_asset_candidate as 
 from apps.build.daojie.pipeline import daojie_gongbi_v2
 
 
-TASK_DIR = REPO_ROOT / ".trellis/tasks/07-12-mystudio-chapter001-visual-continuity"
+def _resolve_task_dir() -> Path:
+    """任务目录在归档后移入 .trellis/tasks/archive/<年-月>/;两个位置都兼容。"""
+    active = REPO_ROOT / ".trellis/tasks/07-12-mystudio-chapter001-visual-continuity"
+    archived = REPO_ROOT / ".trellis/tasks/archive/2026-07/07-12-mystudio-chapter001-visual-continuity"
+    return active if active.is_dir() else archived
+
+
+TASK_DIR = _resolve_task_dir()
 SOURCE_PLAN = TASK_DIR / "research/daojie-gongbi-v2-shot001-reference-replacement-plan-20260722-r01.json"
 OUTPUT_PLAN = TASK_DIR / "research/daojie-gongbi-v2-shot001-reference-replacement-plan-20260723-r03.json"
 MANIFEST_DIR = TASK_DIR / "research/daojie-gongbi-v2-shot001-reference-replacement-manifests-20260723-r02"
@@ -110,14 +117,14 @@ def _reference_scoped_subject(subject: str, asset_kind: str) -> str:
 def _compact_medium_lock(asset_kind: str) -> str:
     if asset_kind == "scene":
         return (
-            "daojie-gongbi-v2《道劫》2D彩色工笔水墨；媒介规则优先于参考图中的数字渲染。"
+            "daojie-gongbi-v3《道劫》2D彩色工笔水墨；媒介规则优先于参考图中的数字渲染。"
             "石阶、栈道、藤筐、船体、木桩与缆绳以细密连续白描和铁线描定形，"
             "再用透明薄层矿物色分染与罩染；远山、河雾和水面降低线条密度，主体密、背景疏。"
             "不得继承参考图的灰白媒介、宽笔刷明暗或颗粒化材质。"
             "保持 low visual noise、denoised details、clear readable surfaces、smooth matte finish 与 controlled ink wash。"
         )
     return (
-        "daojie-gongbi-v2《道劫》2D彩色工笔水墨；媒介规则优先于参考图中的数字渲染。"
+        "daojie-gongbi-v3《道劫》2D彩色工笔水墨；媒介规则优先于参考图中的数字渲染。"
         "脸、手、发丝、衣缘、接缝、衣褶和脚部以细密连续白描和铁线描定形，"
         "再用透明薄层矿物色分染与罩染，主体密、背景疏。衣物完整可穿，服装边缘、"
         "闭合接缝与裤脚清楚；不得继承参考图的灰白媒介、数字明暗或污损材质。"

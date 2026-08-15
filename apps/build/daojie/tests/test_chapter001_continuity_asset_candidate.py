@@ -5,6 +5,9 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
+
+from PIL import Image
 
 from apps.build.daojie.pipeline import build_chapter001_reference_replacement_manifests as builder
 from apps.build.daojie.pipeline import chapter001_continuity_asset_candidate as contract
@@ -16,6 +19,19 @@ class Chapter001ContinuityAssetCandidateTest(unittest.TestCase):
         self.temporary = tempfile.TemporaryDirectory()
         self.root = Path(self.temporary.name)
         self.plan = builder.build_review_plan()
+        # 归档 plan 的 referencePath 指向已安装应用 userData 里的生产参考图(绝对路径);
+        # 生产资产可能已被清理/未生成,缺失时重定向到临时占位 PNG(真 PNG + 重算 SHA),
+        # 使测试自包含——契约校验(存在/绝对路径/PNG/SHA 一致)语义不变。
+        for index, job in enumerate(self.plan["jobs"]):
+            reference_path = Path(str(job.get("referencePath") or ""))
+            if reference_path.is_file():
+                continue
+            placeholder = self.root / f"reference-{index}.png"
+            Image.new("RGB", (8, 8), (198, 188, 168)).save(placeholder, format="PNG")
+            # resolve() 统一 macOS /var ↔ /private/var 符号链接:manifest 侧会做路径规范化。
+            resolved = placeholder.resolve()
+            job["referencePath"] = str(resolved)
+            job["referenceSha256"] = contract.sha256_file(resolved)
         self.plan_path = self.root / "plan.json"
         self.plan_path.write_text(
             json.dumps(self.plan, ensure_ascii=False, indent=2) + "\n",
@@ -188,7 +204,9 @@ class Chapter001ContinuityAssetCandidateTest(unittest.TestCase):
     def test_writes_non_overwriting_plan_and_manifests(self) -> None:
         output_plan = self.root / "r02.json"
         manifest_dir = self.root / "manifests"
-        report = builder.write_artifacts(output_plan=output_plan, manifest_dir=manifest_dir)
+        # write_artifacts 内部重建 plan(会绕过 setUp 的参考图本地化),mock 指向已本地化的 plan。
+        with mock.patch.object(builder, "build_review_plan", return_value=self.plan):
+            report = builder.write_artifacts(output_plan=output_plan, manifest_dir=manifest_dir)
         self.assertEqual(report["manifestCount"], 3)
         self.assertFalse(report["generationEndpointCalled"])
         self.assertFalse(report["paidAuthorization"])
