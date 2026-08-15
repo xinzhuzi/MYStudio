@@ -285,8 +285,16 @@ export function createStorageManager({ userDataPath, sessionDataPath = userDataP
       modelCacheDir: getModelCacheDir(),
       cachePath: path.join(sessionDataPath, "Cache"),
     }));
-    ipcMain.handle("storage-select-directory", async () => {
-      const result = await dialog.showOpenDialog({ properties: ["openDirectory", "createDirectory"] });
+    ipcMain.handle("storage-select-directory", async (_event, defaultPath?: string) => {
+      // Optional default open location (backward compatible): only forwarded to
+      // the native dialog when it is an absolute path string.
+      const options: { properties: ("openDirectory" | "createDirectory")[]; defaultPath?: string } = {
+        properties: ["openDirectory", "createDirectory"],
+      };
+      if (typeof defaultPath === "string" && defaultPath.trim() && path.isAbsolute(defaultPath.trim())) {
+        options.defaultPath = defaultPath.trim();
+      }
+      const result = await dialog.showOpenDialog(options);
       return result.canceled || !result.filePaths[0] ? null : result.filePaths[0];
     });
     ipcMain.handle("storage-validate-data-dir", async (_event, dirPath: string) => validateDataDir(dirPath));

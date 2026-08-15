@@ -54,14 +54,57 @@ function encodeRelativePath(value: string) {
   return value.split("/").map((part) => encodeURIComponent(part)).join("/");
 }
 
+// ---------------------------------------------------------------------------
+// Per-project external locations (optional, injectable).
+//
+// When a resolver is injected and a project id hits the location table, all
+// `_p/<pid>`-prefixed keys resolve against the external project root instead
+// of `<dataRoot>/_p/<pid>`. Without a resolver — or for unknown project ids —
+// every function below behaves byte-for-byte like the legacy implementation.
+// ---------------------------------------------------------------------------
+
+export type ProjectLocationResolver = (projectId: string) => string | undefined;
+
+let projectLocationResolver: ProjectLocationResolver | null = null;
+
+export function setProjectLocationResolver(resolver: ProjectLocationResolver | null): void {
+  projectLocationResolver = resolver;
+}
+
+function lookupProjectLocation(projectId: string): string | undefined {
+  const resolver = projectLocationResolver;
+  if (!resolver) return undefined;
+  try {
+    const location = resolver(projectId);
+    return typeof location === "string" && location ? location : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function redirectProjectScopedKey(
+  dataRoot: string,
+  normalizedKey: string,
+): { root: string; rest: string } {
+  const segments = normalizedKey.split("/");
+  if (segments[0] !== "_p" || segments.length < 2 || !segments[1]) {
+    return { root: dataRoot, rest: normalizedKey };
+  }
+  const location = lookupProjectLocation(segments[1]);
+  if (!location) return { root: dataRoot, rest: normalizedKey };
+  return { root: location, rest: segments.slice(2).join("/") };
+}
+
 export function resolveDataFilePath(dataRoot: string, key: string) {
   const normalizedKey = normalizeRelativePath(key, "storage key");
-  return assertInsideRoot(dataRoot, path.resolve(dataRoot, `${normalizedKey}.json`), "Storage key");
+  const scope = redirectProjectScopedKey(dataRoot, normalizedKey);
+  return assertInsideRoot(scope.root, path.resolve(scope.root, `${scope.rest}.json`), "Storage key");
 }
 
 export function resolveDataDirPath(dataRoot: string, prefix: string) {
   const normalizedPrefix = normalizeRelativePath(prefix, "storage prefix");
-  return assertInsideRoot(dataRoot, path.resolve(dataRoot, normalizedPrefix), "Storage prefix");
+  const scope = redirectProjectScopedKey(dataRoot, normalizedPrefix);
+  return assertInsideRoot(scope.root, path.resolve(scope.root, scope.rest), "Storage prefix");
 }
 
 export function parseLocalMediaPath(localPath: string) {
@@ -101,11 +144,11 @@ export function parseProjectFileUrl(projectFileUrl: string) {
 export function resolveProjectScopedFilePath(dataRoot: string, projectId: string, relativePath: string) {
   const normalizedProjectId = normalizePathSegment(projectId, "project id");
   const normalizedRelativePath = normalizeRelativePath(relativePath, "project file path");
-  return assertInsideRoot(
-    dataRoot,
-    path.resolve(dataRoot, "_p", normalizedProjectId, normalizedRelativePath),
-    "Project file path",
-  );
+  const location = lookupProjectLocation(normalizedProjectId);
+  const resolved = location
+    ? path.resolve(location, normalizedRelativePath)
+    : path.resolve(dataRoot, "_p", normalizedProjectId, normalizedRelativePath);
+  return assertInsideRoot(location ?? dataRoot, resolved, "Project file path");
 }
 
 /**
@@ -124,9 +167,12 @@ export function resolveProjectScopedFilePath(dataRoot: string, projectId: string
  */
 export function resolveProjectRootPath(dataRoot: string, projectId: string): string {
   const normalizedProjectId = normalizePathSegment(projectId, "project id");
-  const resolved = path.resolve(dataRoot, "_p", normalizedProjectId);
+  const location = lookupProjectLocation(normalizedProjectId);
+  const resolved = location
+    ? path.resolve(location)
+    : path.resolve(dataRoot, "_p", normalizedProjectId);
 
-  return assertInsideRoot(dataRoot, resolved, "Project root path");
+  return assertInsideRoot(location ?? dataRoot, resolved, "Project root path");
 }
 
 export function resolveProjectFileUrl(dataRoot: string, projectFileUrl: string) {

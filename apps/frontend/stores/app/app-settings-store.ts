@@ -48,6 +48,10 @@ export interface ImageGenerationSettings {
 export interface RenderingSettings {
   renderer: TimelineRendererId;
 }
+export interface ProjectLocationDefaults {
+  /** 上次新建项目使用的父目录;目录选择器默认打开位置。 */
+  lastParentDir: string;
+}
 
 interface AppSettingsState {
   resourceSharing: ResourceSharingSettings;
@@ -57,6 +61,7 @@ interface AppSettingsState {
   developmentSettings: DevelopmentSettings;
   imageGenerationSettings: ImageGenerationSettings;
   renderingSettings: RenderingSettings;
+  projectLocationDefaults: ProjectLocationDefaults;
 }
 
 interface AppSettingsActions {
@@ -67,6 +72,7 @@ interface AppSettingsActions {
   setDevelopmentSettings: (settings: Partial<DevelopmentSettings>) => void;
   setImageGenerationSettings: (settings: Partial<ImageGenerationSettings>) => void;
   setRenderingSettings: (settings: Partial<RenderingSettings>) => void;
+  setProjectLocationDefaults: (defaults: Partial<ProjectLocationDefaults>) => void;
 }
 
 const defaultState: AppSettingsState = {
@@ -98,6 +104,9 @@ const defaultState: AppSettingsState = {
   },
   renderingSettings: {
     renderer: "remotion",
+  },
+  projectLocationDefaults: {
+    lastParentDir: "",
   },
 };
 
@@ -145,6 +154,13 @@ export const useAppSettingsStore = create<AppSettingsState & AppSettingsActions>
             ...settings,
           },
         })),
+      setProjectLocationDefaults: (defaults) =>
+        set((state) => ({
+          projectLocationDefaults: {
+            ...state.projectLocationDefaults,
+            ...defaults,
+          },
+        })),
     }),
     {
       name: "mystudio-app-settings",
@@ -165,6 +181,7 @@ export function mergeAppSettingsState(
   // FFmpeg was the pre-Remotion default. Migrate persisted legacy settings to
   // the single normal production renderer instead of silently reopening the old chain.
   const normalizedRenderer = persistedRenderer === "ffmpeg" ? "remotion" : persistedRenderer;
+  const persistedLastParentDir = persistedState.projectLocationDefaults?.lastParentDir;
   return {
     ...current,
     ...persistedState,
@@ -172,6 +189,11 @@ export function mergeAppSettingsState(
       renderer: isTimelineRendererId(normalizedRenderer)
         ? normalizedRenderer
         : current.renderingSettings.renderer,
+    },
+    projectLocationDefaults: {
+      lastParentDir: typeof persistedLastParentDir === "string"
+        ? persistedLastParentDir
+        : current.projectLocationDefaults.lastParentDir,
     },
   };
 }

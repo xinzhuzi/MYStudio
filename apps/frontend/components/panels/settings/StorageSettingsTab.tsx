@@ -94,6 +94,7 @@ export function StorageSettingsTab() {
               </div>
             </div>
             <p className="text-xs text-muted-foreground">⚠️ 更改位置会复制并迁移 projects/、media/、assets/、skills/；python/ 和 TTS/ 是运行时下载目录，本次不会随数据操作迁移。</p>
+            <p className="text-xs text-muted-foreground">新项目在创建时单独选择存储位置；此处统一管理共享资源与旧项目数据。</p>
           </div>
 
           <div className="p-6 border border-border rounded-xl bg-card space-y-4">

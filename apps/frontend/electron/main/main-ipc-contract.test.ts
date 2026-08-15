@@ -85,6 +85,10 @@ project-file-remove-text
 project-file-save-image
 project-file-write-binary
 project-file-write-text
+project-folder-prepare
+project-folder-remove
+project-folder-rename
+project-folder-status
 read-image-base64
 remotion-chapter-audio-import
 remotion-chapter-audio-probe

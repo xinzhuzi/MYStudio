@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import {
   createProjectFileUrl,
   parseLocalMediaPath,
@@ -12,6 +12,7 @@ import {
   resolveProjectFileUrl,
   resolveProjectRootPath,
   resolveProjectScopedFilePath,
+  setProjectLocationResolver,
 } from "./storage-paths";
 
 describe("storage path helpers", () => {
@@ -92,5 +93,87 @@ describe("storage path helpers", () => {
       fs.rmSync(root, { recursive: true, force: true });
       fs.rmSync(outsideRoot, { recursive: true, force: true });
     }
+  });
+});
+
+describe("project location resolver", () => {
+  afterEach(() => {
+    setProjectLocationResolver(null);
+  });
+
+  function makeExternalRoot() {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "mystudio-location-"));
+    return { root, cleanup: () => fs.rmSync(root, { recursive: true, force: true }) };
+  }
+
+  it("redirects every project-scoped resolve function to the registered location", () => {
+    const { root: externalRoot, cleanup } = makeExternalRoot();
+    setProjectLocationResolver((projectId) => (projectId === "p-ext" ? externalRoot : undefined));
+    try {
+      expect(resolveDataFilePath("/data", "_p/p-ext/script")).toBe(path.join(externalRoot, "script.json"));
+      expect(resolveDataFilePath("/data", "_p/p-ext/nested/state")).toBe(path.join(externalRoot, "nested", "state.json"));
+      expect(resolveDataDirPath("/data", "_p/p-ext/remotion")).toBe(path.join(externalRoot, "remotion"));
+      expect(resolveDataDirPath("/data", "_p/p-ext")).toBe(externalRoot);
+      expect(resolveProjectRootPath("/data", "p-ext")).toBe(externalRoot);
+      expect(resolveProjectScopedFilePath("/data", "p-ext", "remotion/out.mp4")).toBe(
+        path.join(externalRoot, "remotion", "out.mp4"),
+      );
+      expect(resolveProjectFileUrl("/data", "project-file://p-ext/remotion/out.mp4")).toBe(
+        path.join(externalRoot, "remotion", "out.mp4"),
+      );
+    } finally {
+      setProjectLocationResolver(null);
+      cleanup();
+    }
+  });
+
+  it("keeps byte-identical legacy behavior without a resolver or for unknown project ids", () => {
+    expect(resolveDataFilePath("/data", "_p/p-ext/script")).toBe("/data/_p/p-ext/script.json");
+    expect(resolveDataDirPath("/data", "_p/p-ext")).toBe("/data/_p/p-ext");
+    expect(resolveProjectRootPath("/data", "p-ext")).toBe("/data/_p/p-ext");
+    expect(resolveProjectScopedFilePath("/data", "p-ext", "a/b.json")).toBe("/data/_p/p-ext/a/b.json");
+
+    setProjectLocationResolver(() => undefined);
+    expect(resolveDataFilePath("/data", "_p/p-ext/script")).toBe("/data/_p/p-ext/script.json");
+    expect(resolveDataDirPath("/data", "_p/p-ext")).toBe("/data/_p/p-ext");
+    expect(resolveProjectRootPath("/data", "p-ext")).toBe("/data/_p/p-ext");
+    expect(resolveProjectFileUrl("/data", "project-file://p-ext/a.json")).toBe("/data/_p/p-ext/a.json");
+  });
+
+  it("does not redirect bare or non-project prefixes", () => {
+    setProjectLocationResolver((projectId) => (projectId === "p-ext" ? "/external/p-ext" : undefined));
+    expect(resolveDataDirPath("/data", "_p")).toBe("/data/_p");
+    expect(resolveDataFilePath("/data", "_shared/characters")).toBe("/data/_shared/characters.json");
+    expect(resolveDataDirPath("/data", "_remotion/queue")).toBe("/data/_remotion/queue");
+  });
+
+  it("enforces containment against the external location root", () => {
+    const { root: externalRoot, cleanup } = makeExternalRoot();
+    const outsideRoot = fs.mkdtempSync(path.join(os.tmpdir(), "mystudio-location-outside-"));
+    fs.mkdirSync(path.join(externalRoot, "link-target"), { recursive: true });
+    fs.symlinkSync(outsideRoot, path.join(externalRoot, "link"));
+    setProjectLocationResolver((projectId) => (projectId === "p-ext" ? externalRoot : undefined));
+    try {
+      expect(resolveDataFilePath("/data", "_p/p-ext/link-target/state")).toBe(
+        path.join(externalRoot, "link-target", "state.json"),
+      );
+      expect(() => resolveDataFilePath("/data", "_p/p-ext/link/secret")).toThrow("escapes");
+      expect(() => resolveProjectScopedFilePath("/data", "p-ext", "../escape")).toThrow("escapes");
+    } finally {
+      setProjectLocationResolver(null);
+      cleanup();
+      fs.rmSync(outsideRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("ignores a resolver that throws or returns a non-string", () => {
+    setProjectLocationResolver((projectId) => {
+      if (projectId === "p-throw") throw new Error("boom");
+      if (projectId === "p-empty") return "";
+      return null as unknown as string;
+    });
+    expect(resolveDataFilePath("/data", "_p/p-throw/script")).toBe("/data/_p/p-throw/script.json");
+    expect(resolveDataFilePath("/data", "_p/p-empty/script")).toBe("/data/_p/p-empty/script.json");
+    expect(resolveProjectRootPath("/data", "p-other")).toBe("/data/_p/p-other");
   });
 });

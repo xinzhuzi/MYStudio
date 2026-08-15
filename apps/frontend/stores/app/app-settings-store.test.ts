@@ -65,4 +65,24 @@ describe("useAppSettingsStore development settings", () => {
       renderingSettings: { renderer: "remotion" },
     }, current).renderingSettings.renderer).toBe("remotion");
   });
+
+  it("stores and normalizes the last project parent directory", () => {
+    const current = useAppSettingsStore.getState();
+    expect(current.projectLocationDefaults.lastParentDir).toBe("");
+
+    useAppSettingsStore.getState().setProjectLocationDefaults({ lastParentDir: "/Users/x/Project/IP" });
+    expect(useAppSettingsStore.getState().projectLocationDefaults.lastParentDir).toBe("/Users/x/Project/IP");
+
+    expect(mergeAppSettingsState({
+      projectLocationDefaults: { lastParentDir: "/kept/dir" },
+    }, current).projectLocationDefaults.lastParentDir).toBe("/kept/dir");
+
+    expect(mergeAppSettingsState({
+      projectLocationDefaults: { lastParentDir: 42 as unknown as string },
+    }, current).projectLocationDefaults.lastParentDir).toBe(current.projectLocationDefaults.lastParentDir);
+
+    expect(mergeAppSettingsState({}, current).projectLocationDefaults.lastParentDir).toBe(
+      current.projectLocationDefaults.lastParentDir,
+    );
+  });
 });

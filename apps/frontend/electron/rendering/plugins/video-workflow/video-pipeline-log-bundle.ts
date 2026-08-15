@@ -8,6 +8,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import { resolveProjectRootPath } from "../../../storage/storage-paths";
 
 export const LOG_BUNDLE_SCHEMA_VERSION = 1 as const;
 
@@ -72,7 +73,8 @@ export interface LogBundleOptions {
  */
 export function createVideoPipelineLogBundle(options: LogBundleOptions): VideoPipelineLogBundleV1 {
   const now = options.now ?? Date.now;
-  const projectRoot = path.join(options.dataRoot, "_p", options.projectId);
+  // resolver-aware: 外部位置项目落到 <location>,legacy 保持 <dataRoot>/_p/<projectId>。
+  const projectRoot = resolveProjectRootPath(options.dataRoot, options.projectId);
   const remotionDir = path.join(projectRoot, "remotion");
   const videoUseDir = path.join(projectRoot, "video-use", options.chapterId);
 

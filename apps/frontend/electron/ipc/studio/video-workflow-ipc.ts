@@ -1,6 +1,7 @@
 import { ipcMain } from "electron";
 import path from "node:path";
 import type { RemotionBrowserStatus } from "@rendering/contracts/remotion-browser-status";
+import { resolveProjectRootPath } from "../../storage/storage-paths";
 import {
   assertVideoWorkflowIpcRequest,
   VIDEO_WORKFLOW_PREPARE_CHANNEL,
@@ -302,7 +303,11 @@ export function registerVideoWorkflowIpcHandlers({
 
   const handleReadChapter = async (payload: unknown): Promise<VideoWorkflowChapterReadReplyV1> => {
     const request = assertVideoWorkflowIpcRequest(validateVideoWorkflowChapterReadRequest(payload));
-    const workspaceRootForProject = (projectId: string) => path.join(getStorageBasePath(), "projects", "_p", projectId, "video-use");
+    // resolver-aware:外部位置项目重定向到 <location>/video-use,legacy 保持 <base>/projects/_p/<pid>。
+    const workspaceRootForProject = (projectId: string) => path.join(
+      resolveProjectRootPath(path.join(getStorageBasePath(), "projects"), projectId),
+      "video-use",
+    );
     const base = { schemaVersion: 1 as const, projectId: request.projectId, chapterId: request.chapterId };
     let revision: number | undefined;
     let artifacts: VideoWorkflowChapterArtifacts | undefined;

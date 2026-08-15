@@ -14,13 +14,15 @@ export interface Project {
   name: string;
   createdAt: number;
   updatedAt: number;
+  /** 项目根绝对路径;缺省 = legacy 位置(应用数据目录 _p/<id>)。仅用于展示/编排,主进程以位置表为解析权威。 */
+  location?: string;
 }
 
 interface ProjectStore {
   projects: Project[];
   activeProjectId: string | null;
   activeProject: Project | null;
-  createProject: (name?: string) => Project;
+  createProject: (name?: string, location?: string, id?: string) => Project;
   renameProject: (id: string, name: string) => void;
   deleteProject: (id: string) => void;
   setActiveProject: (id: string | null) => void;
@@ -53,7 +55,8 @@ function isProject(value: unknown): value is Project {
     typeof project.id === "string" &&
     typeof project.name === "string" &&
     typeof project.createdAt === "number" &&
-    typeof project.updatedAt === "number"
+    typeof project.updatedAt === "number" &&
+    (project.location === undefined || typeof project.location === "string")
   );
 }
 
@@ -82,12 +85,13 @@ export const useProjectStore = create<ProjectStore>()(
         }
       },
 
-      createProject: (name) => {
+      createProject: (name, location, id) => {
         const newProject: Project = {
-          id: generateUUID(),
+          id: id ?? generateUUID(),
           name: name?.trim() || `新项目 ${new Date().toLocaleDateString('zh-CN')}`,
           createdAt: Date.now(),
           updatedAt: Date.now(),
+          ...(location ? { location } : {}),
         };
         set((state) => ({
           projects: [newProject, ...state.projects],

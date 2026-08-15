@@ -50,6 +50,8 @@ import {
   resolveLocalMediaPath,
  
   resolveProjectFileUrl,
+  resolveProjectRootPath,
+  setProjectLocationResolver,
 } from '../storage/storage-paths'
 import { registerProjectFileIpcHandlers } from '../ipc/files/project-file-ipc'
 import { configureArtifactManagementIpc } from '../ipc/files/artifact-management-ipc'
@@ -96,6 +98,8 @@ import type {
 } from '@rendering/contracts/video-workflow'
 import type { VideoWorkflowChapterRunRequestV1 } from '../rendering/contracts/video-workflow-ipc'
 import { createStorageManager } from '../storage/storage-manager'
+import { createProjectLocationStore } from '../storage/project-locations'
+import { registerProjectFolderIpcHandlers } from '../ipc/projects/project-folder-ipc'
 import { resolveDataFilePath } from '../storage/storage-paths'
 import { validateEditingProject } from '../../lib/studio/editing/validation'
 import type { RemotionCurrentSlotV1 } from '../../types/remotion-workspace'
@@ -508,6 +512,16 @@ const {
   scheduleAutoClean,
 } = storageManager
 
+// 每项目外部位置表(主进程解析权威):<userData>/project-locations.json。
+// resolver 必须先于任何 IPC handler 首次调用就位——所有 `_p/<pid>` 前缀的
+// 路径解析(file-storage / artifact / project-file / image-source)据此重定向;
+// 未注册位置的项目行为与 legacy 完全一致。
+const projectLocationStore = createProjectLocationStore({
+  userDataPath: app.getPath('userData'),
+  getProjectsDataRoot: () => getProjectDataRoot({ ensure: false }),
+})
+setProjectLocationResolver(projectLocationStore.get)
+
 // ==================== File Storage for App Data ====================
 const getDataDir = () => {
   const dataDir = getProjectDataRoot()
@@ -516,6 +530,8 @@ const getDataDir = () => {
   }
   return dataDir
 }
+// resolver-aware 项目根:外部位置项目 → <location>;legacy → <dataRoot>/_p/<pid>。
+const projectRootFor = (projectId: string) => resolveProjectRootPath(getDataDir(), projectId)
 const readImageSource = createImageSourceReader({ getDataDir, getMediaRoot })
 
 // Storage/media orchestration delegates registerLocalMediaIpcHandlers, image-host, and file-storage.
@@ -584,6 +600,11 @@ registerStudioContentIpcHandlers({
   makeStudioSkillFileUrl,
 })
 storageManager.registerIpcHandlers({ getStudioManualsSourceRoot })
+
+registerProjectFolderIpcHandlers({
+  locationStore: projectLocationStore,
+  getProjectsDataRoot: () => getProjectDataRoot({ ensure: false }),
+})
 
 registerAppUpdaterIpcHandlers({
   getVersion: () => app.getVersion(),
@@ -660,7 +681,7 @@ const remotionPreview = registerRemotionPreviewIpcHandlers({
   resolveSourcePath: resolveStudioSourcePath,
 })
 const remotionChapterManifestService = new RemotionChapterManifestService({
-  projectRootForProject: (projectId) => path.join(getDataDir(), '_p', projectId),
+  projectRootForProject: projectRootFor,
   probeMedia: async (filePath) => {
     const evidence = await probeStudioMediaEvidence(filePath)
     return {
@@ -670,7 +691,7 @@ const remotionChapterManifestService = new RemotionChapterManifestService({
   },
 })
 const remotionChapterManifestIpc = registerRemotionChapterManifestIpcHandlers(remotionChapterManifestService)
-const videoWorkflowWorkspaceRootForProject = (projectId: string) => path.join(getDataDir(), '_p', projectId, 'video-use')
+const videoWorkflowWorkspaceRootForProject = (projectId: string) => path.join(projectRootFor(projectId), 'video-use')
 // electron-builder ships Python sources through extraResources, outside the
 // asar archive. A packaged app must use Resources/backend as the subprocess
 // cwd; app.asar/backend is a virtual path and causes spawn ENOTDIR.
@@ -853,8 +874,8 @@ const audioGenIpc = registerAudioGenIpcHandlers({
 
 const remotionShotRenderer = new RemotionShotRenderer({
   workspaceRoot: getDataDir(),
-  workspaceRootForProject: (projectId) => path.join(getDataDir(), "_p", projectId, "remotion"),
-  projectRootForProject: (projectId) => path.join(getDataDir(), "_p", projectId),
+  workspaceRootForProject: (projectId) => path.join(projectRootFor(projectId), "remotion"),
+  projectRootForProject: projectRootFor,
   bundlePath: remotionBundlePath,
   workerPath: path.join(MAIN_DIST, 'remotion-render-worker.cjs'),
   cwd: remotionRuntimeDir,
@@ -869,13 +890,13 @@ const remotionShotRenderer = new RemotionShotRenderer({
 })
 const remotionChapterRenderer = new RemotionChapterRenderer({
   workspaceRoot: getDataDir(),
-  workspaceRootForProject: (projectId) => path.join(getDataDir(), "_p", projectId, "remotion"),
+  workspaceRootForProject: (projectId) => path.join(projectRootFor(projectId), "remotion"),
   bundlePath: remotionBundlePath,
   workerPath: path.join(MAIN_DIST, 'remotion-render-worker.cjs'),
   cwd: remotionRuntimeDir,
   binariesDirectory: remotionBinariesDirectory,
   resolveSourcePath: resolveStudioSourcePath,
-  projectRootForProject: (projectId) => path.join(getDataDir(), '_p', projectId),
+  projectRootForProject: projectRootFor,
   chapterManifestService: remotionChapterManifestService,
   probeBrowser: () => remotionRuntime.controller.probeStatus(),
   fork: (modulePath, args, options) => utilityProcess.fork(modulePath, [...args], options),
@@ -974,7 +995,7 @@ async function loadChapterStudioProjection(request: { projectId: string; chapter
   if (!plan.success) throw new Error(`当前章节无法编译为 Studio projection: ${plan.issues[0]?.message ?? '未知错误'}`)
   const visualClips = plan.value.clips.filter((clip) => clip.trackKind === 'video' || clip.trackKind === 'image')
   if (visualClips.length === 0) throw new Error('当前章节缺少合法 current shot 输出')
-  const remotionWorkspaceRoot = path.join(getDataDir(), '_p', request.projectId, 'remotion')
+  const remotionWorkspaceRoot = path.join(projectRootFor(request.projectId), 'remotion')
   // Applying an accepted video-use artifact may replace individual EDL clip
   // sources with byte-tracked derived MP4s. Resolve that gate before building
   // the Studio projection so preview and formal ChapterVideo share the same
@@ -1181,7 +1202,7 @@ async function readEditingProjectSnapshot(request: { projectId: string; chapterI
  * outputs after restart without treating volatile queue state as render proof.
  */
 async function readRemotionCurrentShotSlots(scope: { projectId: string; chapterId: string }): Promise<RemotionCurrentSlotV1[]> {
-  const workspaceRoot = path.join(getDataDir(), '_p', scope.projectId, 'remotion')
+  const workspaceRoot = path.join(projectRootFor(scope.projectId), 'remotion')
   return readRemotionCurrentShotSlotsFromWorkspace(workspaceRoot, scope.projectId, scope.chapterId)
 }
 

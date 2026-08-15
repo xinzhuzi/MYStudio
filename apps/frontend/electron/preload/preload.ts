@@ -229,6 +229,16 @@ contextBridge.exposeInMainWorld('projectFiles', {
   removeText: (key: string) => ipcRenderer.invoke('project-file-remove-text', key),
 })
 
+// Per-project external folder lifecycle (create/rename/remove/status)
+contextBridge.exposeInMainWorld('projectFolder', {
+  prepare: (projectId: string, parentDir: string, projectName: string) =>
+    ipcRenderer.invoke('project-folder-prepare', projectId, parentDir, projectName),
+  rename: (projectId: string, newName: string) =>
+    ipcRenderer.invoke('project-folder-rename', projectId, newName),
+  remove: (projectId: string) => ipcRenderer.invoke('project-folder-remove', projectId),
+  status: (projectId: string) => ipcRenderer.invoke('project-folder-status', projectId),
+})
+
 contextBridge.exposeInMainWorld('studioSkills', {
   list: () => ipcRenderer.invoke('studio-skill-list'),
   readText: (relativePath: string) => ipcRenderer.invoke('studio-skill-read-text', relativePath),
@@ -253,7 +263,7 @@ contextBridge.exposeInMainWorld('studioVisualManuals', {
 // Storage manager API for paths, cache, import/export
 contextBridge.exposeInMainWorld('storageManager', {
   getPaths: () => ipcRenderer.invoke('storage-get-paths'),
-  selectDirectory: () => ipcRenderer.invoke('storage-select-directory'),
+  selectDirectory: (defaultPath?: string) => ipcRenderer.invoke('storage-select-directory', defaultPath),
   // Unified storage operations (single base path)
   validateDataDir: (dirPath: string) => ipcRenderer.invoke('storage-validate-data-dir', dirPath),
   moveData: (newPath: string) => ipcRenderer.invoke('storage-move-data', newPath),

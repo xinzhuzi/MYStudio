@@ -12,6 +12,7 @@ import { useState, useCallback } from "react";
 import { useProjectStore } from "@/stores/project/project-store";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import { useMediaPanelStore } from "@/stores/navigation/media-panel-store";
+import { useAppSettingsStore } from "@/stores/app/app-settings-store";
 import { switchProject } from "@/lib/project/project-switcher";
 import {
   DEFAULT_REMOTION_RENDER_SETTINGS,
@@ -19,6 +20,8 @@ import {
   ensureRemotionWorkspace,
 } from "@/lib/studio/remotion/remotion-workspace-storage";
 import { getFileStorageBridge } from "@/lib/bridge/file-storage";
+import { getProjectFolderBridge } from "@/lib/bridge/project-folder";
+import { getStorageManagerBridge } from "@/lib/bridge/storage-manager";
 import {
   copyProjectScopedStoreFiles,
   waitForProjectStoreFile,
@@ -48,6 +51,8 @@ import {
   Clock,
   Clapperboard,
   Film,
+  Folder,
+  FolderOpen,
   Layers3,
   MonitorPlay,
   Scissors,
@@ -113,9 +118,16 @@ export function Dashboard({
 }: DashboardProps) {
   const { projects, createProject, deleteProject, renameProject } = useProjectStore();
   const { setActiveTab } = useMediaPanelStore();
-  
+  const { projectLocationDefaults, setProjectLocationDefaults } = useAppSettingsStore();
+
   const [showNewProject, setShowNewProject] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
+  const [newProjectParentDir, setNewProjectParentDir] = useState("");
+  const [newProjectError, setNewProjectError] = useState<string | null>(null);
+
+  // External-project delete confirmation (full paths must be shown)
+  const [deleteConfirmTargets, setDeleteConfirmTargets] = useState<Project[] | null>(null);
+  const [isDeletingProjects, setIsDeletingProjects] = useState(false);
 
   // Selection mode
   const [selectionMode, setSelectionMode] = useState(false);
@@ -135,19 +147,63 @@ export function Dashboard({
 
   // ==================== Create / Open ====================
 
-  const handleCreateProject = async () => {
-    if (newProjectName.trim()) {
-      const project = createProject(newProjectName.trim());
-      setNewProjectName("");
-      setShowNewProject(false);
-      await switchProject(project.id);
-      await initializeRemotionWorkspace(project.id);
-      setActiveTab("overview");
+  const handleChooseParentDir = useCallback(async () => {
+    const storage = getStorageManagerBridge();
+    if (!storage) {
+      toast.error("选择位置需要桌面端环境");
+      return;
     }
+    const dir = await storage.selectDirectory(projectLocationDefaults.lastParentDir || undefined);
+    if (!dir) return;
+    setNewProjectParentDir(dir);
+    setNewProjectError(null);
+  }, [projectLocationDefaults.lastParentDir]);
+
+  const handleCreateProject = async () => {
+    const name = newProjectName.trim();
+    if (!name || !newProjectParentDir) return;
+    const folderBridge = getProjectFolderBridge();
+    if (!folderBridge) {
+      toast.error("新建项目文件夹需要桌面端环境");
+      return;
+    }
+    const projectId = generateUUID();
+    const prepared = await folderBridge.prepare(projectId, newProjectParentDir, name);
+    if (!prepared.ok) {
+      // Keep the form open so the user can fix the name / location.
+      if (prepared.code === "CONFLICT") {
+        setNewProjectError(prepared.message);
+      } else {
+        toast.error("项目文件夹创建失败", { description: prepared.message });
+      }
+      return;
+    }
+    createProject(name, prepared.location, projectId);
+    setProjectLocationDefaults({ lastParentDir: newProjectParentDir });
+    setNewProjectName("");
+    setNewProjectParentDir("");
+    setNewProjectError(null);
+    setShowNewProject(false);
+    await switchProject(projectId);
+    await initializeRemotionWorkspace(projectId);
+    setActiveTab("overview");
   };
 
   const handleOpenProject = async (projectId: string) => {
     if (selectionMode) return; // Don't open in selection mode
+    const project = projects.find((p) => p.id === projectId);
+    if (project?.location) {
+      const folderBridge = getProjectFolderBridge();
+      if (folderBridge) {
+        const status = await folderBridge.status(projectId);
+        if (!status.exists) {
+          toast.error("项目文件夹不存在，无法打开", {
+            description: status.location ?? project.location,
+          });
+          return;
+        }
+      }
+    }
     await switchProject(projectId);
     await initializeRemotionWorkspace(projectId);
     setActiveTab("overview");
@@ -179,15 +235,75 @@ export function Dashboard({
     }
   }, [projects, selectedIds.size]);
 
+  // ==================== Delete (legacy immediate / external orchestrated) ====================
+
+  const deleteProjectsOrchestrated = useCallback(
+    async (targets: Project[]): Promise<number> => {
+      let removed = 0;
+      for (const project of targets) {
+        if (project.location) {
+          const folderBridge = getProjectFolderBridge();
+          if (!folderBridge) {
+            toast.error(`删除「${project.name}」需要桌面端环境`);
+            continue;
+          }
+          const result = await folderBridge.remove(project.id);
+          if (!result.ok) {
+            toast.error(`删除「${project.name}」的文件夹失败`, { description: result.message });
+            continue;
+          }
+        }
+        deleteProject(project.id);
+        removed += 1;
+      }
+      return removed;
+    },
+    [deleteProject],
+  );
+
+  const handleSingleDelete = useCallback(
+    (project: Project) => {
+      if (project.location) {
+        // External projects delete the whole folder: confirm with the full path.
+        setDeleteConfirmTargets([project]);
+        return;
+      }
+      deleteProject(project.id);
+      toast.success(`已删除「${project.name}」`);
+    },
+    [deleteProject],
+  );
+
+  const handleConfirmExternalDelete = useCallback(async () => {
+    const targets = deleteConfirmTargets ?? [];
+    if (targets.length === 0) return;
+    setIsDeletingProjects(true);
+    try {
+      const removed = await deleteProjectsOrchestrated(targets);
+      if (removed > 0) {
+        toast.success(`已删除 ${removed} 个项目`);
+      }
+      setDeleteConfirmTargets(null);
+      setSelectedIds(new Set());
+      setSelectionMode(false);
+    } finally {
+      setIsDeletingProjects(false);
+    }
+  }, [deleteConfirmTargets, deleteProjectsOrchestrated]);
+
   // ==================== Batch Delete ====================
 
-  const handleBatchDelete = useCallback(() => {
-    selectedIds.forEach((id) => deleteProject(id));
-    toast.success(`已删除 ${selectedIds.size} 个项目`);
+  const handleBatchDelete = useCallback(async () => {
+    const targets = projects.filter((p) => selectedIds.has(p.id));
+    if (targets.length === 0) return;
+    const removed = await deleteProjectsOrchestrated(targets);
+    if (removed > 0) {
+      toast.success(`已删除 ${removed} 个项目`);
+    }
     setSelectedIds(new Set());
     setBatchDeleteConfirm(false);
     setSelectionMode(false);
-  }, [selectedIds, deleteProject]);
+  }, [projects, selectedIds, deleteProjectsOrchestrated]);
 
   // ==================== Rename ====================
 
@@ -197,13 +313,33 @@ export function Dashboard({
     setRenameDialogOpen(true);
   }, []);
 
-  const handleRename = useCallback(() => {
+  const handleRename = useCallback(async () => {
     if (!renameTarget || !renameValue.trim()) return;
-    renameProject(renameTarget.id, renameValue.trim());
+    const newName = renameValue.trim();
+    const target = projects.find((p) => p.id === renameTarget.id);
+    if (target?.location) {
+      const folderBridge = getProjectFolderBridge();
+      if (!folderBridge) {
+        toast.error("重命名外部项目需要桌面端环境");
+        return;
+      }
+      const result = await folderBridge.rename(renameTarget.id, newName);
+      if (!result.ok) {
+        toast.error("重命名失败", { description: result.message });
+        return;
+      }
+      // Keep the registry location in sync with the renamed folder.
+      useProjectStore.setState((state) => ({
+        projects: state.projects.map((p) =>
+          p.id === renameTarget.id ? { ...p, location: result.location } : p,
+        ),
+      }));
+    }
+    renameProject(renameTarget.id, newName);
     setRenameDialogOpen(false);
     setRenameTarget(null);
     toast.success("项目已重命名");
-  }, [renameTarget, renameValue, renameProject]);
+  }, [renameTarget, renameValue, projects, renameProject]);
 
   // ==================== Duplicate ====================
 
@@ -221,6 +357,42 @@ export function Dashboard({
         return;
       }
 
+      // The new project id is needed up-front: external copies register the
+      // prepared folder under this id before any store data is written.
+      const newProjectId = generateUUID();
+
+      // STEP 0 (external source only): prepare the copy folder next to the source.
+      // Candidate names 项目名 (副本), 项目名 (副本)-2/-3… (max 20 attempts) — this
+      // flow has no rename entry, so conflicts auto-suffix instead of erroring.
+      let copyLocation: string | undefined;
+      let newProjectName = `${source.name} (副本)`;
+      if (source.location) {
+        const folderBridge = getProjectFolderBridge();
+        if (!folderBridge) {
+          toast.error("复制外部项目需要桌面端环境");
+          return;
+        }
+        const parentDir = source.location.substring(0, source.location.lastIndexOf("/"));
+        const baseName = `${source.name} (副本)`;
+        for (let attempt = 1; attempt <= 20; attempt++) {
+          const candidateName = attempt === 1 ? baseName : `${baseName}-${attempt}`;
+          const prepared = await folderBridge.prepare(newProjectId, parentDir, candidateName);
+          if (prepared.ok) {
+            copyLocation = prepared.location;
+            newProjectName = prepared.location.substring(prepared.location.lastIndexOf("/") + 1);
+            break;
+          }
+          if (prepared.code !== "CONFLICT") {
+            toast.error("创建副本文件夹失败", { description: prepared.message });
+            return;
+          }
+        }
+        if (!copyLocation) {
+          toast.error(`副本文件夹命名冲突过多，请整理「${parentDir}」后重试`);
+          return;
+        }
+      }
+
       // STEP 1: Ensure source project data is persisted to disk.
       // Per-project files (_p/{pid}/*.json) only exist after a store's setItem is called.
       // If data was loaded from legacy storage but never modified, the per-project files
@@ -233,13 +405,11 @@ export function Dashboard({
       await switchProject(projectId);
       await waitForProjectStoreFile(fs, `_p/${projectId}/tts`);
 
-      // STEP 2: Generate new project ID BEFORE creating the project entry.
+      // STEP 2: The new project ID was generated up-front (see above).
       // CRITICAL: Do NOT call createProject() here — it would change
       // project-store's activeProjectId, which affects getActiveProjectId() used by
       // all storage adapters. Any pending persist writes could then route to the
       // wrong per-project file, overwriting the copied data.
-      const newProjectId = generateUUID();
-      const newProjectName = `${source.name} (副本)`;
 
       // STEP 3: Copy per-project files with project ID rewriting.
       // activeProjectId still points to the source project during this step.
@@ -258,6 +428,7 @@ export function Dashboard({
         name: newProjectName,
         createdAt: Date.now(),
         updatedAt: Date.now(),
+        ...(copyLocation ? { location: copyLocation } : {}),
       };
       useProjectStore.setState((state) => ({
         projects: [newProject, ...state.projects],
@@ -442,12 +613,15 @@ export function Dashboard({
                 <Input
                   placeholder="输入项目名称..."
                   value={newProjectName}
-                  onChange={(e) => setNewProjectName(e.target.value)}
+                  onChange={(e) => {
+                    setNewProjectName(e.target.value);
+                    setNewProjectError(null);
+                  }}
                   onKeyDown={(e) => e.key === "Enter" && handleCreateProject()}
                   className="flex-1"
                   autoFocus
                 />
-                <Button onClick={handleCreateProject} disabled={!newProjectName.trim()}>
+                <Button onClick={handleCreateProject} disabled={!newProjectName.trim() || !newProjectParentDir}>
                   创建
                 </Button>
                 <Button
@@ -456,11 +630,36 @@ export function Dashboard({
                   onClick={() => {
                     setShowNewProject(false);
                     setNewProjectName("");
+                    setNewProjectParentDir("");
+                    setNewProjectError(null);
                   }}
                 >
                   <X className="w-4 h-4" />
                 </Button>
               </div>
+              <div className="flex items-center gap-3 mt-3">
+                <Button variant="outline" size="sm" onClick={handleChooseParentDir}>
+                  <Folder className="w-4 h-4 mr-1.5" />
+                  选择位置
+                </Button>
+                <div className="flex-1 min-w-0">
+                  {newProjectParentDir ? (
+                    <p
+                      className="text-xs font-mono text-muted-foreground truncate"
+                      title={newProjectParentDir}
+                    >
+                      {newProjectParentDir}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground/70">
+                      必选：项目文件夹将创建在所选父目录下
+                    </p>
+                  )}
+                </div>
+              </div>
+              {newProjectError && (
+                <p className="text-xs text-destructive mt-2">{newProjectError}</p>
+              )}
             </div>
           )}
 
@@ -526,6 +725,15 @@ export function Dashboard({
                     <h3 className="font-semibold text-foreground truncate mb-2 text-[15px]">
                       {project.name}
                     </h3>
+                    {project.location && (
+                      <p
+                        className="flex items-center gap-1 text-[11px] font-mono text-muted-foreground/80 truncate mb-2"
+                        title={project.location}
+                      >
+                        <FolderOpen className="w-3 h-3 shrink-0" />
+                        <span className="truncate">{project.location}</span>
+                      </p>
+                    )}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-1 text-xs text-muted-foreground">
                         <Clock className="w-3 h-3" />
@@ -558,10 +766,7 @@ export function Dashboard({
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
                               className="text-destructive focus:text-destructive"
-                              onClick={() => {
-                                deleteProject(project.id);
-                                toast.success(`已删除「${project.name}」`);
-                              }}
+                              onClick={() => handleSingleDelete(project)}
                             >
                               <Trash2 className="w-4 h-4 mr-2" />
                               删除
@@ -630,9 +835,63 @@ export function Dashboard({
             即将删除 <span className="text-foreground font-medium">{selectedIds.size}</span> 个项目，
             此操作不可撤销。确定继续？
           </p>
+          {projects.filter((p) => selectedIds.has(p.id) && p.location).length > 0 && (
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground">以下外部项目的整个文件夹将被一并删除：</p>
+              {projects
+                .filter((p) => selectedIds.has(p.id) && p.location)
+                .map((p) => (
+                  <p
+                    key={p.id}
+                    className="text-xs font-mono text-destructive truncate"
+                    title={p.location}
+                  >
+                    {p.location}
+                  </p>
+                ))}
+            </div>
+          )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setBatchDeleteConfirm(false)}>取消</Button>
             <Button variant="destructive" onClick={handleBatchDelete}>确认删除</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ==================== External Delete Confirm Dialog ==================== */}
+      <Dialog
+        open={deleteConfirmTargets !== null}
+        onOpenChange={(open) => {
+          if (!open) setDeleteConfirmTargets(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>确认删除项目文件夹</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            该项目位于外部位置，删除会移除列表条目并
+            <span className="text-foreground font-medium">删除整个磁盘文件夹</span>
+            （含所有分镜、时间线与导出数据），此操作不可撤销。
+          </p>
+          {deleteConfirmTargets?.map((project) => (
+            <p
+              key={project.id}
+              className="text-xs font-mono text-destructive truncate"
+              title={project.location}
+            >
+              {project.location}
+            </p>
+          ))}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteConfirmTargets(null)}>取消</Button>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmExternalDelete}
+              disabled={isDeletingProjects}
+            >
+              确认删除
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

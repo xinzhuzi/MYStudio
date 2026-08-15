@@ -248,7 +248,7 @@ describe("project disk recovery", () => {
       getItem: vi.fn(() => null),
       setItem: vi.fn(),
       removeItem: vi.fn(),
-      clear: vi.fn(),
+      clear: vi.fn(() => undefined),
       key: vi.fn(() => null),
       length: 0,
     };
@@ -301,5 +301,41 @@ describe("project disk recovery", () => {
     expect(state.projects.map((project) => project.id)).toContain("p-extra");
     expect(state.activeProjectId).toBe("p-active");
     expect(state.activeProject?.name).toBe("当前项目");
+  });
+
+  it("creates projects with an external location and fixed id, and round-trips it through partialize", () => {
+    const originalProjects = useProjectStore.getState().projects;
+    const created = useProjectStore.getState().createProject("外部项目", "/Users/x/Project/外部项目", "p-ext-fixed");
+
+    expect(created).toMatchObject({
+      id: "p-ext-fixed",
+      name: "外部项目",
+      location: "/Users/x/Project/外部项目",
+    });
+    expect(useProjectStore.getState().projects[0]).toMatchObject({
+      id: "p-ext-fixed",
+      location: "/Users/x/Project/外部项目",
+    });
+
+    const partialized = useProjectStore.persist.getOptions().partialize!(useProjectStore.getState()) as {
+      projects: Array<{ id: string; location?: string }>;
+    };
+    expect(partialized.projects.find((project) => project.id === "p-ext-fixed")?.location).toBe(
+      "/Users/x/Project/外部项目",
+    );
+
+    useProjectStore.setState({ projects: originalProjects });
+  });
+
+  it("keeps legacy createProject entries free of the location field", () => {
+    const originalProjects = useProjectStore.getState().projects;
+    const created = useProjectStore.getState().createProject("旧式项目");
+
+    expect(created.id).toBeTruthy();
+    expect(created.location).toBeUndefined();
+    expect("location" in created).toBe(false);
+    expect(useProjectStore.getState().projects[0].location).toBeUndefined();
+
+    useProjectStore.setState({ projects: originalProjects });
   });
 });

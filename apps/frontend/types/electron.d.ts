@@ -59,6 +59,7 @@ import type {
 } from "@rendering/plugins/remotion/queue/remotion-queue-ipc";
 import type { RemotionQueueNotification } from "@rendering/plugins/remotion/queue/remotion-render-queue";
 import type { RemotionChapterManifestBridge } from "@rendering/plugins/remotion/manifest/remotion-chapter-manifest-ipc";
+import type { ProjectFolderBridge } from "@/electron/ipc/projects/project-folder-ipc";
 import type {
   RemotionStudioEnsureSessionReply,
   RemotionStudioEnsureSessionRequest,
@@ -170,6 +171,7 @@ declare global {
       listDirs: (prefix: string) => Promise<string[]>;
       removeDir: (prefix: string) => Promise<boolean>;
     };
+    projectFolder?: ProjectFolderBridge;
     projectFiles?: {
       writeText: (key: string, value: string) => Promise<{ success: boolean; filePath?: string; error?: string }>;
       writeBinary: (payload: { projectId: string; relativePath: string; bytes: ArrayBuffer }) => Promise<{
@@ -280,7 +282,7 @@ declare global {
         modelCacheDir: string;
         cachePath: string;
       }>;
-      selectDirectory: () => Promise<string | null>;
+      selectDirectory: (defaultPath?: string) => Promise<string | null>;
       // Unified storage operations (single base path for projects, media, assets, and skills)
       validateDataDir: (dirPath: string) => Promise<{
         valid: boolean;

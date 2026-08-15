@@ -263,7 +263,7 @@ describe("preload IPC surface", () => {
   it("keeps the storage manager facade mapped to the unified IPC channels", () => {
     expect(preloadSource).toContain("exposeInMainWorld('storageManager'");
     expect(preloadSource).toContain("getPaths: () => ipcRenderer.invoke('storage-get-paths')");
-    expect(preloadSource).toContain("selectDirectory: () => ipcRenderer.invoke('storage-select-directory')");
+    expect(preloadSource).toContain("selectDirectory: (defaultPath?: string) => ipcRenderer.invoke('storage-select-directory', defaultPath)");
     expect(preloadSource).toContain("validateDataDir: (dirPath: string) => ipcRenderer.invoke('storage-validate-data-dir', dirPath)");
     expect(preloadSource).toContain("moveData: (newPath: string) => ipcRenderer.invoke('storage-move-data', newPath)");
     expect(preloadSource).toContain("linkData: (dirPath: string) => ipcRenderer.invoke('storage-link-data', dirPath)");
@@ -274,7 +274,7 @@ describe("preload IPC surface", () => {
     expect(preloadSource).toContain("ipcRenderer.invoke('storage-update-config', config)");
     expect(electronTypesSource).toContain("storageManager?:");
     expect(electronTypesSource).toContain("getPaths: () => Promise<{\n        basePath: string;\n        projectPath: string;\n        mediaPath: string;\n        assetsPath: string;\n        skillsPath: string;\n        pythonRuntimeDir: string;\n        modelCacheDir: string;\n        cachePath: string;\n      }>;");
-    expect(electronTypesSource).toContain("selectDirectory: () => Promise<string | null>");
+    expect(electronTypesSource).toContain("selectDirectory: (defaultPath?: string) => Promise<string | null>");
     expect(electronTypesSource).toContain("validateDataDir: (dirPath: string)");
     expect(electronTypesSource).toContain("moveData: (newPath: string)");
     expect(electronTypesSource).toContain("linkData: (dirPath: string)");
@@ -283,5 +283,16 @@ describe("preload IPC surface", () => {
     expect(electronTypesSource).toContain("getCacheSize: () => Promise<{ total: number; details: Array<{ path: string; size: number }> }>");
     expect(electronTypesSource).toContain("clearCache: (options?: { olderThanDays?: number })");
     expect(electronTypesSource).toContain("updateConfig: (config: { autoCleanEnabled?: boolean; autoCleanDays?: number }) => Promise<boolean>");
+  });
+
+  it("maps the project-folder facade to its four dedicated IPC channels", () => {
+    expect(preloadSource).toContain("exposeInMainWorld('projectFolder'");
+    expect(preloadSource).toContain("prepare: (projectId: string, parentDir: string, projectName: string) =>");
+    expect(preloadSource).toContain("ipcRenderer.invoke('project-folder-prepare', projectId, parentDir, projectName)");
+    expect(preloadSource).toContain("rename: (projectId: string, newName: string) =>");
+    expect(preloadSource).toContain("ipcRenderer.invoke('project-folder-rename', projectId, newName)");
+    expect(preloadSource).toContain("remove: (projectId: string) => ipcRenderer.invoke('project-folder-remove', projectId)");
+    expect(preloadSource).toContain("status: (projectId: string) => ipcRenderer.invoke('project-folder-status', projectId)");
+    expect(electronTypesSource).toContain("projectFolder?: ProjectFolderBridge;");
   });
 });

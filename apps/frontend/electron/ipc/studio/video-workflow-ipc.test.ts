@@ -28,6 +28,7 @@ vi.mock("@rendering/plugins/video-workflow/video-workflow-artifact-store", () =>
 }));
 
 import { registerVideoWorkflowIpcHandlers } from "./video-workflow-ipc";
+import { setProjectLocationResolver } from "../../storage/storage-paths";
 
 function createManager() {
   return {
@@ -274,6 +275,43 @@ describe("video workflow runtime IPC actions", () => {
     const [workspaceRootForProject] = artifactStore.readLatest.mock.calls[0];
     expect(workspaceRootForProject("project-1")).toBe("/tmp/mystudio-ipc-test/projects/_p/project-1/video-use");
     registration.dispose();
+  });
+
+  it("routes read-chapter video-use artifacts through the external project location", async () => {
+    artifactStore.readLatest.mockResolvedValue({
+      success: true,
+      value: {
+        revision: 4,
+        artifacts: {
+          paths: {},
+          videoUseArtifact: { status: "accepted", review: { decision: "accepted" }, evidence: { inputSha256: "a".repeat(64) } },
+          hyperFramesArtifact: { status: "noop" },
+        },
+      },
+    });
+    setProjectLocationResolver((projectId) => (projectId === "project-ext" ? "/tmp/mystudio-external-root" : undefined));
+    const registration = registerVideoWorkflowIpcHandlers({
+      getStorageBasePath: () => "/tmp/mystudio-ipc-test",
+      appVersion: "0.0.1",
+      remotionVersion: "4.0.0",
+      probeRemotion: async () => ({ state: "ready", remotionVersion: "4.0.0" }),
+    });
+
+    try {
+      const reply = await handlers.get(VIDEO_WORKFLOW_READ_CHAPTER_CHANNEL)?.({}, {
+        schemaVersion: 1,
+        projectId: "project-ext",
+        chapterId: "chapter-1",
+      });
+      expect(reply).toMatchObject({ revision: 4 });
+      const [workspaceRootForProject] = artifactStore.readLatest.mock.calls[0];
+      expect(workspaceRootForProject("project-ext")).toBe("/tmp/mystudio-external-root/video-use");
+      // 未注册位置的项目保持 legacy 数据目录布局。
+      expect(workspaceRootForProject("project-1")).toBe("/tmp/mystudio-ipc-test/projects/_p/project-1/video-use");
+    } finally {
+      setProjectLocationResolver(null);
+      registration.dispose();
+    }
   });
 
   it("keeps a reviewed video-use revision pending until HyperFrames is persisted", async () => {
