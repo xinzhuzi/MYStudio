@@ -47,7 +47,7 @@ metaData: director_skills
 
 | 情绪基调 | 光线类型 | 补充约束 |
 |----------|----------|----------|
-| 修炼悟道 | 散光漫射，灵气微光 | 青绿色调，景深虚化，水墨晕染 |
+| 修炼悟道 | 散光漫射，灵气微光 | 青绿色调，远景淡墨晕染，水墨层次 |
 | 宗门盛典 | 暖光照明，灵光高光 | 朱红色调，旧金高光，层次分明 |
 | 日常修行 | 局部散光，柔和阴影 | 宣纸白色调，近景特写，清新氛围 |
 | 斗法肃杀 | 冷调阴影，硬光对比 | 靛蓝 + 浓墨，低饱和度，紧张氛围 |
@@ -61,7 +61,7 @@ metaData: director_skills
 |----------|-----------|
 | 修炼场景 | 灵雾缭绕、灵山仙境、灵气可视、青绿山水、水墨晕染 |
 | 宗门场景 | 灵石宫墙、飞檐斗拱、阵纹铺地、灵灯高悬、工笔线描 |
-| 洞府室内 | 灵石壁面、灵火通明、蒲团静室、灵纱帷幔、宣纸质感 |
+| 洞府室内 | 灵石壁面、灵火通明、蒲团静室、灵纱帷幔、浅净平涂底 |
 | 斗法场景 | 碎石裂地/劫云压顶/灵气激荡、冷色调、泼墨写意、飞白笔触 |
 | 大典庆典 | 灵灯/灵旗/祥云、朱红旧金、氛围庄严、工笔重彩 |
 | 冥界幽境 | 黄泉/忘川/幽冥之火、冷色浓墨、阴森压抑、水墨渲染 |
@@ -72,7 +72,7 @@ metaData: director_skills
 
 **水墨国风锚定（必选）：**
 
-水墨国风，修仙古韵，工笔线描，写意晕染，宣纸质感
+水墨国风，修仙古韵，工笔线描，写意晕染，浅净平涂底
 
 **人物质感（含人物镜头时必选）：**
 
@@ -88,21 +88,21 @@ metaData: director_skills
 
 **风格收尾（固定）：**
 
-水墨国风电影质感，修仙古韵，传统水墨技法，工笔写意融合
+水墨国风成片质感，修仙古韵，传统水墨技法，工笔写意融合
 
 **画质锁定词（所有输出必须包含，置于风格收尾之后）：**
 
 模式A（中文）——默认（画面无画内文字需求时）：
-水墨国风高清渲染，高细节，工笔线描，写意晕染感，电影质感，画面无字幕、无水印、无标题叠字
+水墨国风高清渲染，高细节，工笔线描，写意晕染感，工笔成片质感，画面无字幕、无水印、无标题叠字
 
 模式A（中文）——画内文字场景（画面描述中含牌匾/对联/玉简等道具文字时）：
-水墨国风高清渲染，高细节，工笔线描，写意晕染感，电影质感，画面无字幕、无水印、无标题叠字，牌匾/对联等场景道具上的文字清晰可辨
+水墨国风高清渲染，高细节，工笔线描，写意晕染感，工笔成片质感，画面无字幕、无水印、无标题叠字，牌匾/对联等场景道具上的文字清晰可辨
 
 模式B（英文）——默认：
-Chinese ink-wash xianxia, gongbi line drawing, xieyi splash ink, xuan paper texture, cinematic quality, high detail, no subtitles, no captions, no watermark, no title overlay
+Chinese ink-wash xianxia, gongbi line drawing, xieyi splash ink, smooth pale matte flat-wash ground, clean finished gongbi quality, high detail, no subtitles, no captions, no watermark, no title overlay
 
 模式B（英文）——画内文字场景：
-Chinese ink-wash xianxia, gongbi line drawing, xieyi splash ink, xuan paper texture, cinematic quality, high detail, no subtitles, no captions, no watermark, no title overlay, legible text on in-scene props such as plaques and couplets
+Chinese ink-wash xianxia, gongbi line drawing, xieyi splash ink, smooth pale matte flat-wash ground, clean finished gongbi quality, high detail, no subtitles, no captions, no watermark, no title overlay, legible text on in-scene props such as plaques and couplets
 
 **负向词模板（模式B 必须包含，置于提示词末尾）：**
 
@@ -126,7 +126,7 @@ no photorealistic, no realistic photography, no 3D render, no cel shading, no an
 - ❌ 色彩混乱/光影错误/透视错误
 - ❌ 现代建筑/现代服饰元素
 
-> 💡 **例外**：某些现代渲染技术（如体积光、景深虚化）可以合理使用，但应保持水墨国风美学基调。
+> 💡 **替代口径**：体积光用「灵光如纸面散射 / paper-scattered light」、景深虚化用「远景淡墨晕染 / pale ink atmospheric perspective」表达。镜头景深由 2.5D 渲染管线按深度图施加，提示词中禁用真实镜头虚化词（volumetric fog / depth of field 等）。
 
 ---
 
@@ -143,7 +143,7 @@ no photorealistic, no realistic photography, no 3D render, no cel shading, no an
 ### 示例输出A（模式A · Seedream）
 
 [Prompt]
-水墨国风，修仙古韵，工笔线描，写意晕染，宣纸质感，水墨国风造型，工笔白描清晰，服饰细节精致，水墨光影层次丰富，中景构图，修仙少女站在灵山崖边，手持灵剑凌风而立，神情坚毅，眼神如炬，青绿山水背景，灵雾缭绕，旧金微光点缀，体积光氛围，景深虚化，水墨国风电影质感，修仙古韵，传统水墨技法，工笔写意融合，水墨国风高清渲染，高细节，工笔线描，写意晕染感，电影质感，画面无字幕、无水印、无标题叠字。
+水墨国风，修仙古韵，工笔线描，写意晕染，浅净平涂底，水墨国风造型，工笔白描清晰，服饰细节精致，水墨光影层次丰富，中景构图，修仙少女站在灵山崖边，手持灵剑凌风而立，神情坚毅，眼神如炬，青绿山水背景，灵雾缭绕，旧金微光点缀，灵光如纸面散射，远景淡墨晕染，水墨国风成片质感，修仙古韵，传统水墨技法，工笔写意融合，水墨国风高清渲染，高细节，工笔线描，写意晕染感，工笔成片质感，画面无字幕、无水印、无标题叠字。
 Based on the reference image of 修仙少女，maintain consistent: face features, hairstyle, costume details. Generate a new scene: standing at cliff edge of spirit mountain, holding spirit sword. Keep visual style identical to reference.
 
 ### 示例输出B（模式B · Nanobanana）
@@ -163,7 +163,7 @@ Image [1]: 修仙少女 — 水墨国风造型，仙道服饰，工笔线描美�
 - Do NOT introduce cel shading, anime style or western fantasy elements
 </continuity_rules>
 <shot>
-Medium shot, xianxia girl in elegant dao robe standing at spirit mountain cliff edge, holding spirit sword, determined expression, resolute gaze, cinematic lighting, volumetric fog, depth of field blur, gongbi line drawing with xieyi splash ink, Chinese ink-wash xianxia, traditional brushwork, xuan paper texture, high detail, no subtitles, no captions, no watermark, no title overlay.
+Medium shot, xianxia girl in elegant dao robe standing at spirit mountain cliff edge, holding spirit sword, determined expression, resolute gaze, paper-scattered light, layered pale ink mist, ink-wash atmospheric perspective, gongbi line drawing with xieyi splash ink, Chinese ink-wash xianxia, traditional brushwork, smooth pale matte flat-wash ground, high detail, no subtitles, no captions, no watermark, no title overlay.
 </shot>
 <negative>
 no photorealistic, no realistic photography, no 3D render, no cel shading, no anime style, no low-poly, no rough modeling, no plastic texture, no harsh lines, no western fantasy, no cyberpunk, no sci-fi, no modern elements, no cartoon style, no subtitles, no captions, no watermark, no title overlay, no UI text
@@ -180,8 +180,8 @@ no photorealistic, no realistic photography, no 3D render, no cel shading, no an
 | 坚定 | 神情坚毅，目光如炬 | 暖光侧射 + 清晰轮廓 |
 | 羞涩 | 脸颊泛红，眼神躲闪 | 暖光侧射 + 腮红 |
 | 凌厉 | 神情冷峻，目光如剑 | 冷调阴影 + 硬光 |
-| 悟道 | 表情空灵，眼神深邃 | 灵光漫射 + 体积光 |
+| 悟道 | 表情空灵，眼神深邃 | 灵光漫射 + 淡墨雾层 |
 | 忧伤 | 神情哀婉，眼神黯淡 | 冷调阴影 + 低对比 |
 | 疲惫 | 眼神朦胧，表情柔和 | 柔和光线 + 低对比 |
-| 入定 | 神情淡淡，目光内敛 | 体积光 + 灵雾 |
+| 入定 | 神情淡淡，目光内敛 | 纸面散射光 + 灵雾 |
 | 期待 | 眼神发光，表情肃然 | 暖光侧射 + 高亮 |

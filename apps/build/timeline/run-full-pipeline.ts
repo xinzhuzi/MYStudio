@@ -233,7 +233,6 @@ async function buildBoundaryIntents(
   }
   return intents;
 }
-}
 
 /**
  * Build a VideoUseChapterRunV1 (mirrors main.ts buildManagedVideoUseChapterRun).
@@ -297,11 +296,11 @@ function buildTransitionShiftByShotId(
 }
 
 /**
- * Build deterministic, non-text HyperFrames windows from the accepted EDL.
- * The scene MP4s already carry their subtitles, so these windows are limited
- * to transparent cinematic effects and can never create a second subtitle.
+ * Compatibility fallback for accepted legacy artifacts that predate
+ * decorative overlay decisions. New artifacts must carry their decisions in
+ * overlaySlots and bypass this rotation entirely.
  */
-function buildDecorativeHyperFramesWindows(
+function buildLegacyFallbackHyperFramesWindows(
   edl: ReadonlyArray<{ shotId: string; timelineStartS: number; durationS: number }>,
   transitionShiftByShotId?: ReadonlyMap<string, number>,
 ): HyperFramesOverlayWindowV1[] {
@@ -674,6 +673,17 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
   }
 
   // ── 13. chapterService.applyAcceptedArtifact() — runs HyperFrames internally ──
+  // MYSTUDIO_OVERLAY_MODE=legacy 强制走 CLI 轮换装饰窗：artifact 氛围词装饰窗在 43 镜
+  // 单 composition 下会命中 hyperframes heavy-overlay lint 熔断（真实黑屏捕获风险），
+  // 需分段 composition 改造后再切回 artifact 决策。
+  const useLegacyOverlayWindows = process.env.MYSTUDIO_OVERLAY_MODE === "legacy";
+  const artifactHasDecorativeWindows = !useLegacyOverlayWindows
+    && acceptedArtifact.overlaySlots.some((slot) => Boolean(slot.templateId));
+  if (useLegacyOverlayWindows) {
+    console.warn("[full-pipeline] MYSTUDIO_OVERLAY_MODE=legacy: 忽略 artifact 装饰决策, 走 CLI 轮换装饰窗");
+  } else if (!artifactHasDecorativeWindows) {
+    console.warn("[full-pipeline] accepted artifact has no decorative overlay decisions; using deterministic CLI fallback");
+  }
   const applyInput: VideoWorkflowChapterApplyInput = {
     projectId,
     chapterId,
@@ -683,10 +693,12 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
     height: 1080,
     fps: 30,
     alphaFormat: "prores-4444-mov",
-    hyperFramesWindows: buildDecorativeHyperFramesWindows(
-      acceptedArtifact.edl,
-      buildTransitionShiftByShotId(boundaryIntents, acceptedArtifact.edl),
-    ),
+    ...(artifactHasDecorativeWindows ? {} : {
+      hyperFramesWindows: buildLegacyFallbackHyperFramesWindows(
+        acceptedArtifact.edl,
+        buildTransitionShiftByShotId(boundaryIntents, acceptedArtifact.edl),
+      ),
+    }),
   };
   console.log("[full-pipeline] applying accepted artifact (calls HyperFrames)...");
   const applyResult = await chapterService.applyAcceptedArtifact(applyInput);

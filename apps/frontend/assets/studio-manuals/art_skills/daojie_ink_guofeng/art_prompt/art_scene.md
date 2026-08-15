@@ -13,7 +13,7 @@ metaData: art_skills
 1. **空间叙事** — 场景承载情绪与叙事功能，不是纯背景板
 2. **层次纵深** — 所有场景必须具备前/中/后景，杜绝扁平
 3. **质感至上** — 山石/木质/水面/云雾等材质纹理必须超清晰
-4. **水墨为锚** — 一切画面以水墨国风为标准，拒绝3D写实/CG动画/赛璐璐质感；追求工笔线描、写意泼墨、宣纸肌理
+4. **水墨为锚** — 一切画面以水墨国风为标准，拒绝3D写实/CG动画/赛璐璐质感；追求工笔线描、写意泼墨、浅净平涂底
 
 ---
 
@@ -40,7 +40,7 @@ metaData: art_skills
 | 纵深 | 前/中/后景层次 | 前景{元素}、中景{元素}、后景{元素} |
 | 质感 | 木纹/石纹/纱帘垂感可辨 | 纹理清晰、质感细腻 |
 | 光照 | 自然光源为主（窗光/灵火/月光），柔和光影 | 自然光漫射、灵火摇曳、柔和光影 |
-| 镜头感 | 水墨晕染虚化前后景、工笔线描清晰 | ink wash blur, clear lines |
+| 镜头感 | 远近墨色分明：远景淡墨晕染、近景工笔线描清晰 | pale ink background, crisp gongbi linework |
 | 瑕疵感 | 灵木有岁月痕迹、灵石有风化纹、灵纱有自然褶皱 | 岁月痕迹、自然磨损、灵纱自然垂褶 |
 
 ### 室内类型速查
@@ -68,7 +68,7 @@ metaData: art_skills
 | 建筑 | 飞檐斗拱、灵石白墙、灵木亭台、阵纹石桥 | 飞檐翘角、灵石拱桥 |
 | 空气感 | 必须有空气透视，远景水墨晕染 | 远山如黛、水墨空气透视 |
 | 光照 | 自然光为唯一光源，日光/月光需有水墨渲染效果 | 自然光照、水墨渲染、柔和光影 |
-| 镜头感 | 写意泼墨虚化、工笔线描清晰 | ink wash blur, clear lines |
+| 镜头感 | 远近墨色分明：远景淡墨晕染、近景工笔线描清晰 | pale ink background, crisp gongbi linework |
 | 瑕疵感 | 灵石青苔/风化、灵木包浆、瓦片残缺 | 青苔斑驳、风化痕迹、岁月包浆 |
 
 ### 室外类型速查
@@ -112,10 +112,10 @@ metaData: art_skills
 ## 六、提示词模板
 
 水墨国风场景主视图概念图，
-水墨国风，修仙古韵，工笔线描，写意泼墨，宣纸质感，
-Chinese ink-wash style, gongbi line drawing, xieyi splash ink, xuan paper texture,
+水墨国风，修仙古韵，工笔线描，写意泼墨，浅净平涂底，
+Chinese ink-wash style, gongbi line drawing, xieyi splash ink, smooth pale matte flat-wash ground,
 工笔线描，写意晕染，自然光照，水墨渲染，
-scene design sheet, environment concept art, no people, no characters, no human figures,
+scene design sheet, environment concept art, empty scenery, unpopulated space,
 {室内/室外}，{场景类型}，{修仙世界观}，{季节+时间},
 前景：{元素}, 中景：{元素}, 后景：{元素},
 {色调描述}, {天候/氛围元素},
@@ -123,8 +123,9 @@ scene design sheet, environment concept art, no people, no characters, no human 
 材质自然磨损痕迹，岁月包浆，灵纱自然垂褶，
 柔和光影，水墨渲染，自然光漫射，细腻质感，
 单画面构图，自然观察视角，构图能代表场景主体并展示前/中/后景层次，
-画面中无任何人物
-图中不要有任何文字
+纯场景空镜画面
+
+> Negative Prompt 段除全局四类外，本技能追加：people, person, human figures, characters, human silhouette, hands, multi-panel layout, split screen, grid layout, text
 
 ---
 
@@ -142,6 +143,7 @@ scene design sheet, environment concept art, no people, no characters, no human 
 | R6 | 必须包含水墨国风关键词（Chinese ink-wash style / gongbi line drawing / xieyi splash ink） |
 | R7 | 必须包含镜头光学特征（写意泼墨 / 工笔线描 / 水墨渲染） |
 | R8 | 材质必须带有自然磨损/岁月痕迹，禁止全新无瑕的"CG 感" |
+| R9 | **禁灰白化（硬）**：彩色水墨默认成片，山水/植被/建筑/水气之间保持可辨色相层次；整图灰白化/黑白滤镜/单色素描视为不合格，同理禁止满幅鲜艳 |
 
 ### 严禁
 
@@ -155,4 +157,4 @@ scene design sheet, environment concept art, no people, no characters, no human 
 | X6 | 画面被拼接成多视图/网格/分屏布局 |
 | X7 | 3D 写实/CG 动画/赛璐璐/日式动画质感（禁用 3D render、CGI、Unreal Engine、Unity、cel shading 等词） |
 | X8 | 材质过于干净完美、无任何使用痕迹与岁月感（避免"塑料感"） |
-| X9 | 光照过于均匀平坦、无景深虚化、无镜头光学特征 |
+| X9 | 全图雾化发虚、主体线条不清晰、无墨色层次（虚化一律用「远景淡墨晕染」表达，禁止真实镜头虚化词） |

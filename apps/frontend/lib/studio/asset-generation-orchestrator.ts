@@ -33,8 +33,25 @@ import { useSceneStore } from "@/stores/library/scene-store";
 import { useAppSettingsStore } from "@/stores/app/app-settings-store";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import type { ImageAspectRatio, ImageResolution } from "@/lib/ai/image-size-presets";
+import { DEFAULT_IMAGE_ASPECT_RATIO } from "@/lib/ai/image-size-presets";
 
 // ─── 类型定义 ───
+
+/**
+ * 按资产类型建议的默认画幅。优先级:task 显式指定 > 用户自定义的全局默认 > 本建议 > 全局出厂默认。
+ * 即仅当全局默认仍为出厂值（16:9）时,四视图/四宫格类资产才采用手册建议画幅;
+ * character：四视图设定图需要横向长画幅（手册建议 21:9，模型支持的最宽比例）；
+ * prop：四宫格（2×2）设定图为正方形；scene：跟随全局默认，不做覆盖。
+ */
+export const SUGGESTED_ASSET_ASPECT_RATIOS: Record<AssetType, ImageAspectRatio | undefined> = {
+  character: "21:9",
+  prop: "1:1",
+  scene: undefined,
+};
+
+function suggestedAssetAspectRatio(assetType: AssetType): ImageAspectRatio | undefined {
+  return SUGGESTED_ASSET_ASPECT_RATIOS[assetType];
+}
 
 export interface AssetGenerationTask {
   /** 资产 ID（Store 中的 id） */
@@ -139,7 +156,12 @@ export async function generateAsset(
         prompt,
         negativePrompt,
         resolution: task.resolution ?? imageSettings.defaultResolution,
-        aspectRatio: task.aspectRatio ?? imageSettings.defaultAspectRatio,
+        aspectRatio:
+          task.aspectRatio
+          ?? (imageSettings.defaultAspectRatio === DEFAULT_IMAGE_ASPECT_RATIO
+            ? suggestedAssetAspectRatio(task.assetType)
+            : undefined)
+          ?? imageSettings.defaultAspectRatio,
         referenceImages: task.referenceImages,
       },
       task.assetType === "character" ? "character" : task.assetType === "prop" ? "prop" : "scene",

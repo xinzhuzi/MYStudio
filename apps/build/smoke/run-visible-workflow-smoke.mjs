@@ -1736,7 +1736,7 @@ function realProjectWorkflowExpression(
         const hasNoVisibleDuplicateGeneratedPromptPanel = !hasVisibleDuplicateGeneratedPromptPanel;
         const hasEditableImageWorkflowPrompt = promptTextValues.some((value) => value.trim().length > 0);
         const hasRealProjectDerivativePromptStyle = promptTextValues.some((value) =>
-          value.includes('daojie-gongbi-v2') &&
+          /daojie-gongbi-v[23]/.test(value) &&
           value.includes('连续白描和铁线描') &&
           value.includes('@图1') &&
           value.includes('禁止写实摄影') &&

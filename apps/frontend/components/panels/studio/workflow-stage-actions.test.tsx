@@ -131,6 +131,9 @@ function validSixSectionDirectorPlan() {
     "",
     "## ⑥ 转场与视觉连续性",
     "Sc1 到 Sc2 用矿筐裂口的墨痕硬切到客栈账册边缘，保留被压迫的质感；Sc2 到 Sc3 用断剑断口形状接塾馆门框，暗示旧伤寻找新因；Sc3 到 Sc4 用晏燎掌心余温接残卷新裂纹，把希望和杀机并置。连续性锚点包括独孤灰衫和油布剑包、绿锈铜钱、断剑断口、残卷裂纹、晏燎湿草鞋和暗红灵气。",
+    "- Sc 1 → Sc 2：风格词=水墨晕染；氛围词=压迫",
+    "- Sc 2 → Sc 3：风格词=形状匹配；氛围词=旧痛",
+    "- Sc 3 → Sc 4：风格词=叠化；氛围词=杀机",
     "",
     "## ⑦ 衍生资产预划清单",
     "| 资产名 | 衍生状态 | 原因/出现段落 |",
@@ -511,8 +514,10 @@ describe("workflow stage action surfaces", () => {
     expect(tasks.characterVariationTasks[0]?.prompt).toContain("低视觉噪点");
     expect(tasks.characterVariationTasks[0]?.prompt).toContain("denoised details");
     expect(tasks.characterVariationTasks[0]?.prompt).toContain("clear readable surfaces");
-    expect(tasks.characterVariationTasks[0]?.prompt).toContain("clean paper texture");
+    expect(tasks.characterVariationTasks[0]?.prompt).toContain("smooth matte finish");
     expect(tasks.characterVariationTasks[0]?.prompt).toContain("controlled ink wash");
+    expect(tasks.characterVariationTasks[0]?.prompt).toContain("浅净哑光平涂底");
+    expect(tasks.characterVariationTasks[0]?.prompt).toContain("衣袍完整可穿");
     expect(tasks.characterVariationTasks[0]?.prompt).toContain("dirty/muddy texture");
     expect(tasks.characterVariationTasks[0]?.prompt).toContain("compression artifacts/jpeg artifacts");
     expect(tasks.characterVariationTasks[0]?.prompt).toContain("oversharpening halos");

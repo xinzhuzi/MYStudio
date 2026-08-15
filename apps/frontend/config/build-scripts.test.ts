@@ -1297,7 +1297,7 @@ describe("desktop build scripts", () => {
     expect(runnerScript).toContain("data-toonflow-generated-prompt-panel");
     expect(runnerScript).toContain("hasEditableImageWorkflowPrompt");
     expect(runnerScript).toMatch(
-      /const hasRealProjectDerivativePromptStyle = promptTextValues\.some\(\(value\) =>[\s\S]*?value\.includes\('daojie-gongbi-v2'\)[\s\S]*?value\.includes\('连续白描和铁线描'\)[\s\S]*?value\.includes\('3D\/CGI'\)/,
+      /const hasRealProjectDerivativePromptStyle = promptTextValues\.some\(\(value\) =>[\s\S]*?/daojie-gongbi-v\[23\]\/\.test\(value\)[\s\S]*?value\.includes\('连续白描和铁线描'\)[\s\S]*?value\.includes\('3D\/CGI'\)/,
     );
     expect(runnerScript).toContain("const detail = entry.url ? `${text} (${entry.url})` : text");
     expect(runnerScript).toContain("hasImageWorkflowSource");
@@ -2209,6 +2209,10 @@ describe("desktop build scripts", () => {
     expect(videoScript).toContain("漫影工作室.app/Contents");
     expect(videoScript).toContain("closed existing MYStudio instances before Daojie video generation");
     expect(videoScript).toContain("ffprobe");
+    expect(fullPipelineScript).not.toContain("buildDecorativeHyperFramesWindows");
+    expect(fullPipelineScript).toContain("buildLegacyFallbackHyperFramesWindows");
+    expect(fullPipelineScript).toContain("accepted artifact has no decorative overlay decisions; using deterministic CLI fallback");
+    expect(fullPipelineScript).toContain("...(artifactHasDecorativeWindows ? {} : {");
     expect(videoScript).toContain("storyboardsWithAssetLinks");
     expect(videoScript).toContain("storyboardImageGenerationMode");
     expect(videoScript).toContain("imageGenerationProvider");
@@ -3150,7 +3154,7 @@ audit = module.build_storyboard_prompt_audit(
 )
 
 checks = [
-    "daojie-gongbi-v2" in prompt,
+    "daojie-gongbi-v3" in prompt,
     "连续白描和铁线描" in prompt,
     "薄层矿物色分染与罩染" in prompt,
     "30%-70%" in prompt,
@@ -4392,10 +4396,10 @@ prop_prompt = module.build_derived_asset_image_prompt(
 )
 
 checks = [
-    "daojie-gongbi-v2" in prompt,
+    "daojie-gongbi-v3" in prompt,
     "连续白描和铁线描" in prompt,
     "薄层矿物色分染与罩染" in prompt,
-    "30%-70%可辨彩色" in prompt,
+    "综合彩色占比30%-70%" in prompt,
     "衣物必须完整可穿" in prompt,
     "禁止写实摄影" in prompt,
     "3D/CGI" in prompt,
@@ -4505,7 +4509,7 @@ with tempfile.TemporaryDirectory() as tmp:
         frame.exists(),
         result["projectImageUrl"].endswith("/workflow-images/storyboards/chapter-001/shot-001.png"),
         result.get("reusedExistingImage") is True,
-        "daojie-gongbi-v2" in result["workflowGraph"]["nodes"][-1]["prompt"],
+        "daojie-gongbi-v3" in result["workflowGraph"]["nodes"][-1]["prompt"],
     )
 `);
 

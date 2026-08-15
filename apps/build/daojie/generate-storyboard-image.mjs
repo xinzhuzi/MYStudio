@@ -24,7 +24,10 @@ const GPT_IMAGE_SIZE_MAP = {
 const IMAGE_TRANSFER_MAX_BYTES = 1_000_000;
 const IMAGE_TRANSFER_MAX_EDGES = [768, 672, 576, 512, 448, 384, 320, 256];
 const IMAGE_TRANSFER_JPEG_QUALITIES = [86, 78, 70, 62, 54, 46, 40];
-const V2_STYLE_CONTRACT_VERSION = "daojie-gongbi-v2";
+const V2_STYLE_CONTRACT_VERSION = "daojie-gongbi-v3";
+// v2 台账/存量请求仍被接受;契约本体已在 v3 升级(MA ma-gongbi-v1 对齐:浅净平涂底/色量观察口径)。
+const V2_STYLE_CONTRACT_VERSIONS = new Set(["daojie-gongbi-v2", "daojie-gongbi-v3"]);
+const isReviewedStyleContractVersion = (value) => V2_STYLE_CONTRACT_VERSIONS.has(value);
 const REFERENCE_CAPABILITY_SCHEMA_VERSION = "daojie-reference-capability-v1";
 const REQUEST_MODE_GENERATIONS_JSON = "openai-image-generations-json";
 const REQUEST_MODE_IMAGE_EDITS = "openai-image-edits";
@@ -141,7 +144,7 @@ function normalizeRequestMode(value) {
 
 function normalizePrompt(prompt, styleContractVersion) {
   const text = String(prompt || "").trim();
-  if (styleContractVersion === V2_STYLE_CONTRACT_VERSION) return text;
+  if (isReviewedStyleContractVersion(styleContractVersion)) return text;
   return [
     text,
     "clean image",
@@ -175,7 +178,7 @@ function assertV2ReferenceCapability({
   referenceCapability,
   requestMode,
 }) {
-  if (styleContractVersion !== V2_STYLE_CONTRACT_VERSION) return;
+  if (!isReviewedStyleContractVersion(styleContractVersion)) return;
   if (!Array.isArray(referenceRoles) || referenceRoles.length !== referenceImages.length) {
     throw new Error("V2 storyboard reference roles must match the supplied image count");
   }
@@ -686,7 +689,7 @@ try {
       dryRun: true,
       prompt,
       promptSha256: sha256(prompt),
-      promptPolicy: styleContractVersion === V2_STYLE_CONTRACT_VERSION ? "exact-reviewed-v2" : "legacy-enhanced",
+      promptPolicy: isReviewedStyleContractVersion(styleContractVersion) ? "exact-reviewed-v2" : "legacy-enhanced",
       styleContractVersion,
       styleContractFingerprint,
       promptAuditVersion,
@@ -717,7 +720,7 @@ try {
     requestMode,
   });
   if (
-    styleContractVersion === V2_STYLE_CONTRACT_VERSION
+    isReviewedStyleContractVersion(styleContractVersion)
     && providers.some((providerConfig) => providerConfig.requestMode !== requestMode)
   ) {
     throw new Error("V2 provider requestMode must match the reviewed top-level capability contract");

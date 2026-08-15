@@ -2,6 +2,7 @@ import { aiManager } from "@/lib/ai/ai-manager";
 import { pollImageTaskUrl } from "@/lib/storyboard/image-task-transport";
 import { persistSceneImage } from "@/lib/utils/image-persist";
 import { withDepthFriendlyTokens } from "@/lib/studio/depth-friendly-prompt";
+import { withActiveVisualManualStoryboardStyleTokens } from "@/lib/studio/visual-manual-style-tokens";
 import type { SplitScene } from "@/stores/director/director-store";
 import { toast } from "sonner";
 
@@ -52,7 +53,9 @@ export function createStoryboardEndFrameGenerator(
     const scene = options.getScene(sceneId);
     if (!scene) return;
 
-    const promptToUse = withDepthFriendlyTokens(scene.endFramePromptZh?.trim() || scene.endFramePrompt?.trim() || "");
+    const promptToUse = withActiveVisualManualStoryboardStyleTokens(
+      withDepthFriendlyTokens(scene.endFramePromptZh?.trim() || scene.endFramePrompt?.trim() || ""),
+    );
     if (!promptToUse) {
       toast.warning("请先填写尾帧提示词后再生成");
       return;

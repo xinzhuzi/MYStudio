@@ -43,7 +43,7 @@ class Chapter001ContinuityAssetCandidateTest(unittest.TestCase):
         self.assertEqual(len({job["outputPath"] for job in self.plan["jobs"]}), 3)
         self.assertEqual(
             self.plan["promptContractRevision"],
-            "daojie-gongbi-v2-reference-replacement-v2",
+            "daojie-gongbi-v3-reference-replacement-v1",
         )
         self.assertEqual(
             {job["assetKind"] for job in self.plan["jobs"]},
@@ -56,9 +56,9 @@ class Chapter001ContinuityAssetCandidateTest(unittest.TestCase):
             self.assertEqual(job["referenceReplacementPromptAudit"]["status"], "pass")
             self.assertEqual(job["referenceReplacementPromptAudit"]["violations"], [])
             self.assertLessEqual(job["referenceReplacementPromptAudit"]["promptChars"], 900)
-            self.assertEqual(job["prompt"].count("均匀平光宣纸照明"), 1)
+            self.assertEqual(job["prompt"].count("柔和均匀平光"), 1)
             self.assertEqual(job["prompt"].count("禁止写实摄影"), 1)
-            self.assertEqual(job["prompt"].count("30%-40%"), 1)
+            self.assertEqual(job["prompt"].count("综合彩色占比30%-70%仅作人工审稿观察"), 1)
             self.assertEqual(job["prompt"].count("【反向约束】"), 1)
             self.assertEqual(job["prompt"].rfind("【反向约束】"), job["prompt"].find("【反向约束】"))
             self.assertNotIn("【参考继承边界】", job["prompt"])

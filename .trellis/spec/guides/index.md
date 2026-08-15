@@ -26,6 +26,7 @@ These guides help you **ask the right questions before coding**.
 | [Image Transfer Safety Guide](./image-transfer-safety-guide.md) | Enforce single-thumbnail and byte-size gates before sending images | Any task that transfers or reviews local images |
 | [Trellis Open Task Board Guide](./trellis-open-task-board-guide.md) | Report only open and ambiguous Trellis tasks | When the user asks what tasks remain |
 | [Search SOP Guide](./search-sop-guide.md) | Scope, tools, and noise-filtering for repo search | Before any content / filename / symbol search |
+| [Daojie Manual-Code Contract Guide](./daojie-manual-code-contract-guide.md) | Manual↔code alignment: sanitize words, output format, aspect ratios, marker-block tokens | Before editing daojie manuals or prompt-polisher / orchestrator / visual-manual-style-tokens |
 
 ---
 

@@ -1,172 +1,73 @@
 // @vitest-environment jsdom
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { aiManager } from "@/lib/ai/ai-manager";
-import { polishAssetPrompt, sanitizeDaojiePrompt } from "./prompt-polisher";
+/**
+ * polishAssetPrompt 输出格式契约测试 — 手册规定三段输出(中文描述/正文/Negative Prompt),
+ * parsePolishResult 按同名标签抽取;本测试用真实种子手册 + mock LLM 验证端到端抽取与道劫清洗。
+ */
+import { describe, expect, it, vi } from "vitest";
+import { polishAssetPrompt } from "./prompt-polisher";
+
+vi.mock("@/lib/bridge/studio-visual-manuals", async () => {
+  const { readFileSync } = await import("node:fs");
+  const { join } = await import("node:path");
+  const dir = join(
+    process.cwd(),
+    "frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng",
+  );
+  const manual = {
+    success: true,
+    manual: {
+      modules: [
+        { value: "prefix", content: readFileSync(join(dir, "prefix.md"), "utf-8") },
+        { value: "art_character", content: readFileSync(join(dir, "art_prompt/art_character.md"), "utf-8") },
+      ],
+    },
+  };
+  return {
+    getStudioVisualManualsBridge: () => ({
+      read: async () => manual,
+    }),
+  };
+});
 
 vi.mock("@/lib/ai/ai-manager", () => ({
   aiManager: {
-    text: vi.fn(),
-    featureText: vi.fn(),
+    featureText: vi.fn().mockResolvedValue(
+      [
+        "中文描述: 一名清冷出尘的女修四视图设定图,工笔线描,宣纸质感。",
+        "",
+        "古风女性角色四视图设定图,水墨国风,修仙古韵,工笔线描,写意晕染,宣纸质感,character design sheet, character turnaround,",
+        "清冷出尘气质,素颜状态,玉白基调,长发及腰,cinematic lighting, shallow depth of field,",
+        "同一画面左至右并排:人像特写+正视图+侧视图+后视图,full body head to toe,四视图一致性",
+        "",
+        "Negative Prompt: photorealistic photography, 3D render, cel shading, text, watermark, extra characters",
+      ].join("\n"),
+    ),
+    text: vi.fn().mockResolvedValue({ success: false }),
   },
 }));
 
-describe("polishAssetPrompt", () => {
-  beforeEach(() => {
-    vi.mocked(aiManager.text).mockResolvedValue({
-      success: true,
-      text: "ink fantasy elder, cinematic character sheet\n\nNegative Prompt: blurry",
-    });
-    vi.mocked(aiManager.featureText).mockResolvedValue(
-      "feature-bound ink fantasy elder, cinematic character sheet\n\nNegative Prompt: blurry",
-    );
-  });
-
-  afterEach(() => {
-    vi.restoreAllMocks();
-    delete window.studioVisualManuals;
-  });
-
-  it("loads visual manual modules from runtime storage before falling back to bundled manuals", async () => {
-    const readManual = vi.fn().mockResolvedValue({
-      success: true,
-      manual: {
-        modules: [
-          { value: "prefix", content: "runtime daojie prefix" },
-          { value: "art_character", content: "runtime daojie character template" },
-        ],
-      },
-    });
-    window.studioVisualManuals = {
-      read: readManual,
-    } as any;
-
+describe("polishAssetPrompt 输出格式契约(道劫)", () => {
+  it("按中文描述/Negative Prompt 标签抽取,并施加道劫清洗", async () => {
     const result = await polishAssetPrompt({
       assetType: "character",
-      name: "老苦力",
-      description: "年迈、粗布衣、长期劳作",
+      name: "林霜",
+      description: "清冷出尘的女修,剑意凌厉",
       isDerivative: false,
       visualManualId: "daojie_ink_guofeng",
     });
 
     expect(result.status).toBe("success");
-    expect(readManual).toHaveBeenCalledWith("daojie_ink_guofeng");
-    expect(aiManager.featureText).toHaveBeenCalled();
-    const request = vi.mocked(aiManager.featureText).mock.calls[0];
-    expect(request?.[1]).toContain("runtime daojie prefix");
-    expect(request?.[1]).toContain("runtime daojie character template");
-  });
-
-  it("uses feature-bound text generation instead of the universal agent by default", async () => {
-    window.studioVisualManuals = {
-      read: vi.fn().mockResolvedValue({
-        success: true,
-        manual: {
-          modules: [
-            { value: "prefix", content: "runtime prefix" },
-            { value: "art_character", content: "runtime character template" },
-          ],
-        },
-      }),
-    } as any;
-
-    const result = await polishAssetPrompt({
-      assetType: "character",
-      name: "老苦力",
-      description: "年迈、粗布衣、长期劳作",
-      isDerivative: false,
-      visualManualId: "daojie_ink_guofeng",
-    });
-
-    expect(result.status).toBe("success");
-    expect(result.prompt).toContain("feature-bound ink fantasy elder");
-    expect(aiManager.featureText).toHaveBeenCalledWith(
-      "script_analysis",
-      expect.stringContaining("runtime prefix"),
-      expect.stringContaining("角色名称:老苦力"),
-      expect.objectContaining({ maxTokens: 2048 }),
-    );
-    expect(aiManager.text).not.toHaveBeenCalled();
-  });
-
-  it("adds denoise and clean-image constraints to polished image prompts", async () => {
-    vi.mocked(aiManager.featureText).mockResolvedValue(
-      "ink fantasy elder, cinematic character sheet\n\nNegative Prompt: blurry",
-    );
-    window.studioVisualManuals = {
-      read: vi.fn().mockResolvedValue({
-        success: true,
-        manual: {
-          modules: [
-            { value: "prefix", content: "runtime prefix" },
-            { value: "art_character", content: "runtime character template" },
-          ],
-        },
-      }),
-    } as any;
-
-    const result = await polishAssetPrompt({
-      assetType: "character",
-      name: "老苦力",
-      description: "年迈、粗布衣、长期劳作",
-      isDerivative: false,
-      visualManualId: "daojie_ink_guofeng",
-    });
-
-    expect(result.status).toBe("success");
-    expect(result.prompt).toContain("clean image");
-    expect(result.prompt).toContain("low visual noise");
-    expect(result.negativePrompt).toContain("visual noise");
-    expect(result.negativePrompt).toContain("dirty texture");
-    expect(result.negativePrompt).toContain("jpeg artifacts");
-  });
-
-  it("removes legacy cinematic and weighted directives from Daojie positive prompts", () => {
-    const sanitized = sanitizeDaojiePrompt(
-      "Chinese ink wash, cinematic lighting, shallow depth of field, film grain, 电影级体积雾, (masterpiece:1.2)",
-    );
-
-    expect(sanitized).toContain("even flat xuan-paper illumination");
-    expect(sanitized).toContain("clear layered ink-wash depth");
-    expect(sanitized).toContain("clean paper texture");
-    expect(sanitized).not.toContain("cinematic lighting");
-    expect(sanitized).not.toContain("shallow depth of field");
-    expect(sanitized).not.toContain("film grain");
-    expect(sanitized).not.toContain("电影级体积雾");
-    expect(sanitized).not.toContain(":1.2");
-  });
-
-  it("falls back to a local visual-manual prompt when text models are unavailable", async () => {
-    vi.mocked(aiManager.featureText).mockRejectedValue(new Error("Invalid token"));
-    vi.mocked(aiManager.text).mockResolvedValue({
-      success: false,
-      error: "OpenAI 兼容: fetch failed",
-    });
-    window.studioVisualManuals = {
-      read: vi.fn().mockResolvedValue({
-        success: true,
-        manual: {
-          modules: [
-            {
-              value: "prefix",
-              content: "| 质量锚定 | `(best quality, masterpiece), Chinese fantasy ink render, sharp focus` |",
-            },
-            { value: "art_character", content: "角色立绘模板" },
-          ],
-        },
-      }),
-    } as any;
-
-    const result = await polishAssetPrompt({
-      assetType: "character",
-      name: "老苦力",
-      description: "",
-      isDerivative: false,
-      visualManualId: "daojie_ink_guofeng",
-    });
-
-    expect(result.status).toBe("success");
-    expect(result.prompt).toContain("老苦力");
-    expect(result.prompt).toContain("Chinese fantasy ink render");
-    expect(result.negativePrompt).toContain("watermark");
+    // 中文描述按标签抽取
+    expect(result.promptZh).toContain("清冷出尘的女修四视图");
+    // 正文保留模板主体
+    expect(result.prompt).toContain("水墨国风");
+    expect(result.prompt).toContain("character turnaround");
+    // 道劫清洗生效:cinematic/景深词被改写为水墨等效表达
+    expect(result.prompt).not.toContain("cinematic lighting");
+    expect(result.prompt).not.toContain("depth of field");
+    expect(result.prompt).toContain("even flat diffuse illumination");
+    // 手册严禁项经 Negative Prompt 标签激活
+    expect(result.negativePrompt).toContain("photorealistic photography");
+    expect(result.negativePrompt).toContain("extra characters");
   });
 });

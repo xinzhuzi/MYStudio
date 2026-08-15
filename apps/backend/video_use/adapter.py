@@ -64,6 +64,116 @@ def _alignment_for_shot(alignment: dict[str, Any], shot_id: str) -> dict[str, An
 _TRANSITION_EFFECT_IDS = {"cut", "fade", "crossfade", "flash", "blackout"}
 _TRANSITION_MIN_US = 200_000
 _TRANSITION_MAX_US = 1_200_000
+# 与 run-full-pipeline legacy 装饰窗的 1.1s 钳制保持同一装饰语义。
+_OVERLAY_SLOT_MAX_US = 1_100_000
+
+# Single source for the video-use → HyperFrames decorative decision. Keep the
+# values primitive because they cross the JSON artifact boundary unchanged.
+HYPERFRAMES_DECORATIVE_TEMPLATES = (
+    "light-leak", "film-grain", "lens-flare", "vignette-pulse",
+    "particle-dust", "letterbox-cinematic", "highlight-box",
+)
+MOOD_TEMPLATE_RULES: dict[str, tuple[str, dict[str, str | int | float | bool]]] = {
+    "战斗": ("lens-flare", {"x": 18, "y": 24, "size": 260}),
+    "回忆": ("light-leak", {"intensity": 0.35, "hue": 0}),
+    "天道": ("highlight-box", {"x": 50, "y": 50, "color": "#f4d06f"}),
+    "阴谋": ("vignette-pulse", {"darkness": 0.4, "speed": 1.8}),
+    "日常": ("film-grain", {"opacity": 0.1}),
+    "承接": ("letterbox-cinematic", {"barHeight": 8, "fadeIn": 0.25}),
+}
+DEFAULT_TEMPLATE_PARAMETERS: dict[str, dict[str, str | int | float | bool]] = {
+    "light-leak": {"intensity": 0.42, "hue": 0},
+    "film-grain": {"opacity": 0.2},
+    "lens-flare": {"x": 18, "y": 24, "size": 260},
+    "vignette-pulse": {"darkness": 0.42, "speed": 2.4},
+    "particle-dust": {"count": 40, "speed": 7},
+    "letterbox-cinematic": {"barHeight": 12, "fadeIn": 0.25},
+    "highlight-box": {"x": 50, "y": 50, "color": "#f4d06f"},
+}
+
+
+def _mood_for_shot(request: dict[str, Any], shot_id: str) -> str | None:
+    """Resolve the child1 boundary mood for a shot without inventing one."""
+    intents = request.get("boundaryIntents")
+    if not isinstance(intents, list):
+        return None
+    for intent in intents:
+        if not isinstance(intent, dict) or not intent.get("moodWord"):
+            continue
+        if str(intent.get("fromShotId") or "") == shot_id:
+            return str(intent["moodWord"])
+    for intent in intents:
+        if isinstance(intent, dict) and str(intent.get("toShotId") or "") == shot_id and intent.get("moodWord"):
+            return str(intent["moodWord"])
+    return None
+
+
+def _template_for_mood(mood_word: str | None, index: int) -> tuple[str, dict[str, str | int | float | bool]]:
+    if mood_word:
+        for key, decision in MOOD_TEMPLATE_RULES.items():
+            if key in mood_word:
+                template, base = decision
+                return template, dict(base)
+    print(f"[video-use] overlay mood missing/unmatched; fallback rotation index={index}", file=sys.stderr)
+    template = HYPERFRAMES_DECORATIVE_TEMPLATES[index % len(HYPERFRAMES_DECORATIVE_TEMPLATES)]
+    return template, dict(DEFAULT_TEMPLATE_PARAMETERS[template])
+
+
+def _build_overlay_slots(
+    request: dict[str, Any],
+    edl: dict[str, Any],
+    artifact_edl: list[dict[str, Any]] | None = None,
+) -> list[dict[str, Any]]:
+    slots: list[dict[str, Any]] = []
+    timeline_start_s = 0.0
+    shifted_start_us_by_shot: dict[str, int] = {}
+    transition_shift_us = 0
+    for artifact_entry in artifact_edl or []:
+        shot_id = str(artifact_entry.get("shotId") or "")
+        if not shot_id:
+            continue
+        raw_start_us = round(float(artifact_entry.get("timelineStartS") or 0.0) * 1_000_000)
+        shifted_start_us_by_shot[shot_id] = max(0, raw_start_us - transition_shift_us)
+        transition = artifact_entry.get("transitionToNext")
+        if isinstance(transition, dict) and str(transition.get("effectId") or "cut") != "cut":
+            duration_us = transition.get("durationUs")
+            if isinstance(duration_us, int) and not isinstance(duration_us, bool) and duration_us > 0:
+                transition_shift_us += duration_us
+    start_us_by_index: list[int] = []
+    for entry in edl["ranges"]:
+        shot_id = str(entry["source"])
+        start_us_by_index.append(shifted_start_us_by_shot.get(shot_id, round(timeline_start_s * 1_000_000)))
+        timeline_start_s += float(entry["end"]) - float(entry["start"])
+    for index, entry in enumerate(edl["ranges"]):
+        shot_id = str(entry["source"])
+        mood_word = _mood_for_shot(request, shot_id)
+        template_id, parameters = _template_for_mood(mood_word, index)
+        # Keep deterministic per-shot variation while retaining mood/template
+        # correlation. The worker remains the final fail-closed range checker.
+        if template_id == "light-leak":
+            parameters.setdefault("intensity", 0.35)
+            parameters["hue"] = (index * 31) % 360
+        elif template_id == "lens-flare":
+            parameters["x"] = 18 + ((index * 13) % 64)
+            parameters["y"] = 24 + ((index * 7) % 34)
+        start_us = start_us_by_index[index]
+        duration_us = max(1, round((float(entry["end"]) - float(entry["start"])) * 1_000_000))
+        # 装饰槽时长不得越过下一镜的压缩起点：转场重叠期两镜共存，越界会在重叠段
+        # 叠加双份特效，也违反 artifact 校验的「时间必须单调且不可重叠」。
+        next_start_us = start_us_by_index[index + 1] if index + 1 < len(start_us_by_index) else None
+        if next_start_us is not None:
+            duration_us = min(duration_us, max(1, next_start_us - start_us))
+        duration_us = min(duration_us, _OVERLAY_SLOT_MAX_US)
+        slots.append({
+            "slotId": f"effect-{shot_id}",
+            "cueId": f"decorative-effect-{index + 1}",
+            "startUs": start_us,
+            "durationUs": duration_us,
+            "templateId": template_id,
+            "parameters": parameters,
+            **({"moodWord": mood_word} if mood_word else {}),
+        })
+    return slots
 
 
 def _edl_entries_with_transitions(edl: dict[str, Any], request: dict[str, Any]) -> list[dict[str, Any]]:
@@ -660,6 +770,7 @@ def execute_pinned_adapter(
     audio_sha = _require_sha(effective_request.get("audioSha256"), "request.audioSha256")
     text_sha = _require_sha(effective_request.get("textSha256"), "request.textSha256")
     accepted_at = now_ms
+    artifact_edl = _edl_entries_with_transitions(edl, effective_request)
     artifact: dict[str, Any] = {
         "schemaVersion": 1,
         "projectId": request.get("projectId"),
@@ -678,10 +789,10 @@ def execute_pinned_adapter(
         "audioSha256": audio_sha,
         "textSha256": text_sha,
         "alignment": cues,
-        "edl": _edl_entries_with_transitions(edl, effective_request),
+        "edl": artifact_edl,
         "subtitles": subtitles,
         "grade": {"filter": str(edl["grade"]), "parameters": {"preset": str(edl["grade"])}},
-        "overlaySlots": [],
+        "overlaySlots": _build_overlay_slots(effective_request, edl, artifact_edl),
         "preview": {
             "path": str(preview_path),
             "sha256": sha256_file(preview_path),

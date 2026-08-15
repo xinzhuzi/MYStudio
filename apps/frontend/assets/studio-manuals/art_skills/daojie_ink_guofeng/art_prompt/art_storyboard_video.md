@@ -4,10 +4,10 @@
 
 | 模式 | 风格标签 |
 |------|----------|
-| **通用多参模式（英文）** | `Chinese ink wash painting style, xianxia immortal cultivation, traditional brushwork, muted cyan-green palette, rice paper texture, cinematic composition, atmospheric depth` |
-| **通用首尾帧模式（英文）** | `Chinese ink wash painting style, xianxia immortal cultivation, traditional brushwork, muted cyan-green palette, rice paper texture, cinematic composition, atmospheric depth, shallow depth of field` |
-| **Seedance 2.0（中文）** | `水墨国风修仙，工笔线描，写意泼墨，青绿淡彩，宣纸质感，墨色层次丰富，连环画叙事感，电影构图` |
-| **Seedance 1.5（中文）** | `水墨国风，工笔线描，写意晕染，青绿淡彩，宣纸肌理，修仙题材，灵气流转，动态张力` |
+| **通用多参模式（英文）** | `Chinese ink wash painting style, xianxia immortal cultivation, traditional brushwork, restrained mineral-color palette, smooth pale matte flat-wash ground, clear layered ink-wash composition, atmospheric depth` |
+| **通用首尾帧模式（英文）** | `Chinese ink wash painting style, xianxia immortal cultivation, traditional brushwork, restrained mineral-color palette, smooth pale matte flat-wash ground, clear layered ink-wash composition, atmospheric depth, crisp gongbi linework throughout` |
+| **Seedance 2.0（中文）** | `水墨国风修仙，工笔线描，写意泼墨，青绿淡彩，浅净平涂底，墨色层次丰富，连环画叙事感，前中远景分明构图` |
+| **Seedance 1.5（中文）** | `水墨国风，工笔线描，写意晕染，青绿淡彩，浅净平涂底，修仙题材，灵气流转，动态张力` |
 
 ## 视频特有约束
 
@@ -62,7 +62,7 @@
 
 ### 正向质量锚点
 
-水墨国风修仙，Chinese ink wash xianxia，gongbi linework，rice paper texture，restrained mineral-color palette，layered ink wash，spiritual aura as ink diffusion，clear layered composition，clean finished image，readable detail。
+水墨国风修仙，Chinese ink wash xianxia，gongbi linework，smooth pale matte flat-wash ground，restrained mineral-color palette，layered ink wash，spiritual aura as ink diffusion，clear layered composition，clean finished image，readable detail。
 视频提示词必须补充镜头运动、主体运动、起承转合、淡墨空气透视变化、光影连续性和首尾帧一致性；补充 ink-wash motion, temporal continuity, stable composition, consistent subject identity。
 
 ### 反向规避提示词
@@ -75,3 +75,29 @@ flicker, jitter, morphing face, identity drift, inconsistent costume, warped han
 - 正向提示词只写画面主体、风格、构图、光影、材质、动作和质量锚点；不要把“不要/禁止/严禁”混入正向主体。
 - 反向提示词只写低质量、错媒介、错风格、结构错误、身份漂移、文字水印、裁切和画面伪影等排除项。
 - 若调用方要求中文输出，保留中文风格术语；若调用方要求英文输出，可翻译锚点，但不得改变本风格的媒介边界。
+
+---
+
+## 分镜帧生图风格锁（代码注入源）
+
+> 以下两个标记块由 `lib/studio/visual-manual-style-tokens.ts` 解析：
+> `storyboard-image-style-tokens` — 追加到分镜帧生图提示词末尾的风格 token（每行一个）；
+> `storyboard-style-guide` — 注入分镜提示词撰写 LLM 系统提示的风格指南。
+> 标记块缺失时不注入任何内容（fail-empty）。修改本节即全局生效。
+
+<!-- storyboard-image-style-tokens:start -->
+Chinese ink wash painting style, xianxia immortal cultivation, traditional brushwork, restrained mineral-color palette, smooth pale matte flat-wash ground
+工笔线描，写意晕染，浅净平涂底，墨色层次丰富
+clear layered ink-wash composition, atmospheric depth, crisp gongbi linework throughout, clean finished gongbi quality
+<!-- storyboard-image-style-tokens:end -->
+
+<!-- storyboard-style-guide:start -->
+【水墨国风风格约束（所有首帧/尾帧/视频提示词必须遵守）】
+1. 每条提示词必须携带水墨风格锚词：水墨国风 / Chinese ink wash painting style、工笔线描 / gongbi line drawing、浅净平涂底 / smooth pale matte flat-wash ground、写意晕染。
+2. 严禁出现词：cinematic lighting、cinematic composition、volumetric fog、volumetric light、depth of field、shallow depth of field、电影质感、电影级光影、体积光、景深虚化、浅景深、宣纸质感、宣纸肌理、rice paper texture、xuan paper texture（纸纹褶皱是生产缺陷，纸面一律写「浅净平涂底」）。
+3. 等效表达：体积光 → 灵光如纸面散射 / paper-scattered light；景深虚化 → 远景淡墨晕染 / pale ink atmospheric perspective；电影质感 → 工笔成片质感 / clean finished gongbi quality；宣纸质感 → 浅净平涂底 / smooth pale matte flat-wash ground。
+4. 灵气/剑光等特效以水墨晕染与淡彩表达，禁止粒子特效词（V2/V3 规则同样适用）。
+5. 分镜帧会进入「深度估计 → 2.5D 运镜」管线：构图保持前中远景三层分明（DV1-DV7），源图不得要求镜头虚化。
+6. 彩色水墨默认成片：禁止整图灰白化/黑白滤镜/单色素描；色相跟随角色与场景设定事实，不写固定色板与色量百分比。
+7. 人物衣物完整可穿（整袖口整下摆闭合缝线），禁止破洞褴褛乞丐装。
+<!-- storyboard-style-guide:end -->

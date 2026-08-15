@@ -16,17 +16,17 @@ from typing import Any
 from PIL import Image
 
 
-STYLE_CONTRACT_VERSION = "daojie-gongbi-v2"
-PROMPT_AUDIT_VERSION = "daojie-gongbi-v2-prompt-audit-v7"
+STYLE_CONTRACT_VERSION = "daojie-gongbi-v3"
+PROMPT_AUDIT_VERSION = "daojie-gongbi-v3-prompt-audit-v1"
 COLOR_AUDIT_VERSION = "daojie-gongbi-v2-color-audit-v3"
 REFERENCE_CAPABILITY_SCHEMA_VERSION = "daojie-reference-capability-v1"
 SOURCE_PROVENANCE = (
-    "MA/.claude/skills/ma-imagegen/references/"
+    "MA/.claude/skills/ma-imagegen/knowledge/art-direction/"
     "mystudio-daojie-gongbi-style-contract.md"
 )
 COLOR_AUDIT_SOURCE_PROVENANCE = (
     "MA/.claude/skills/ma-imagegen/scripts/"
-    "daojie_gongbi_restyle.py:audit_polychrome_image"
+    "gongbi/daojie_gongbi_restyle.py:audit_polychrome_image"
 )
 REFERENCE_CAPABILITY_MANIFEST = Path(__file__).with_name(
     "daojie_gongbi_v2_reference_capabilities.json"
@@ -54,32 +54,33 @@ HUMAN_REVIEW_CHECKLIST_FIELDS = (
 # syntax.  They follow the MA ImageGen static order: medium, color/material,
 # then light. Scene facts are added separately by the storyboard builder.
 STORYBOARD_MEDIUM_LOCK = (
-    "daojie-gongbi-v2：《道劫》2D彩色工笔水墨手绘剧情关键帧；媒介规则优先于参考图中的数字渲染、"
+    "daojie-gongbi-v3：《道劫》2D彩色工笔水墨手绘剧情关键帧；媒介规则优先于参考图中的数字渲染、"
     "光影和材质，参考图只继承角色/场景/道具事实。人物的脸、手、发丝、衣缘、接缝、衣褶、"
     "配饰、器物与建筑边缘先以连续白描和铁线描建立结构，再用透明薄层矿物色分染与罩染；"
     "主体密、背景疏，写意只用于山水、雾气、灵气与远景，不用数字厚涂、宽大明暗块或材质高光塑形。"
     "全员衣物完整可穿，保留整袖口、整下摆和闭合缝线，材质可朴素但不可破损。"
-    "保持 low visual noise、denoised details、clear readable surfaces、clean paper texture 与 controlled ink wash，"
-    "不放大表面噪声。"
+    "保持 low visual noise、denoised details、clear readable surfaces、smooth matte finish 与 controlled ink wash，"
+    "不放大表面噪声，不把纸纹褶皱、纤维条或扫描纸纹当作完成目标。"
 )
 STORYBOARD_COLOR_MATERIAL_LOCK = (
-    "水墨墨线、淡墨和宣纸留白约占画面60%-70%，可辨彩色必须严格处于30%-70%硬范围内，"
-    "本镜目标约30%-40%并形成连续可见色区；"
-    "不得把彩色缩成单个小印记、零散像素或局部微光。只用2-3种低饱和矿物色，至少同时包含"
-    "一组石青/石绿/靛青/玉青冷色薄染和一组赭石/朱砂/矿物朱/旧金暖色薄染，形成克制但清楚的冷暖关系。"
+    "水墨墨线、淡墨与浅净哑光平涂底（smooth pale matte flat-wash ground）承载画面大关系，"
+    "底色为安静象牙白/米色平涂色场；色相跟随角色与场景设定事实，"
+    "只用2-3种低饱和矿物色，至少同时包含一组石青/石绿/靛青/玉青冷色薄染和一组赭石/朱砂/矿物朱/旧金暖色薄染，"
+    "形成克制但清楚的冷暖关系；综合彩色占比30%-70%仅作人工审稿观察与报告，不作为生成硬门，"
+    "但彩色必须形成连续可见色区，不得缩成单个小印记、零散像素或局部微光。"
     "参考图若是灰白、黑白或低饱和，只继承身份、结构和空间事实，不得继承参考图的灰白媒介、综合色量或脏旧滤镜。"
-    "天、水、雾与地面不得被单一冷青或灰蓝铺满，成片不得退化为黑白、灰白或单色素描；宣纸/绢本纤维、"
+    "天、水、雾与地面不得被单一冷青或灰蓝铺满，成片不得退化为黑白、灰白或单色素描；"
     "矿物颜料颗粒、旧木与藤编须靠线描和薄染区分，旧而不脏。"
 )
 STORYBOARD_LIGHT_LOCK = (
-    "采用均匀平光宣纸照明与纸面散射光，白纸透过色层，阴影轻薄有彩色层次；"
+    "采用柔和均匀平光与浅净哑光平涂底，阴影轻薄有彩色层次；"
     "雾与潮湿只以淡墨留白、细线和局部薄染表现，不作镜面湿面反光、HDR高光或电影级体积雾。"
     "画面干净、完成度高、无统一脏污滤镜。"
 )
 CLEAN_GONGBI_OUTPUT_LOCK = (
     "CLEAN GONGBI OUTPUT（hard）：保持 low visual noise、denoised details、clear readable surfaces、"
-    "clean paper texture 与 controlled ink wash；保留真实宣纸纤维、墨线边缘和克制矿物颜料颗粒，"
-    "不放大表面噪声。"
+    "smooth matte finish 与 controlled ink wash；保留墨线边缘和克制矿物颜料颗粒，"
+    "不放大表面噪声，不把纸纹褶皱、纤维条或扫描纸纹当作完成目标。"
 )
 STORYBOARD_STYLE_LOCK = " ".join((
     STORYBOARD_MEDIUM_LOCK,
@@ -87,18 +88,21 @@ STORYBOARD_STYLE_LOCK = " ".join((
     STORYBOARD_LIGHT_LOCK,
 ))
 DERIVED_ASSET_STYLE_LOCK = (
-    "daojie-gongbi-v2：《道劫》彩色工笔资产：先以连续白描和铁线描锁定脸、手、发丝、"
-    "衣褶、接缝与器物结构，再以透明薄层矿物色分染与罩染；30%-70%可辨彩色与水墨纸白保持平衡，"
-    "使用均匀平光宣纸照明和干净完成度；保持 low visual noise、denoised details、clear readable surfaces、"
-    "clean paper texture 与 controlled ink wash。衣物必须完整可穿，保持整袖口、整下摆和闭合缝线。"
+    "daojie-gongbi-v3：《道劫》彩色工笔资产：先以连续白描和铁线描锁定脸、手、发丝、"
+    "衣褶、接缝与器物结构，再以透明薄层矿物色分染与罩染；水墨为主、按角色与场景设定事实彩色点缀"
+    "（综合彩色占比30%-70%仅作人工审稿观察，不作为生成硬门，禁灰白化与满幅鲜艳），"
+    "使用浅净哑光平涂底、柔和均匀平光和干净完成度；保持 low visual noise、denoised details、clear readable surfaces、"
+    "smooth matte finish 与 controlled ink wash。衣物必须完整可穿，保持整袖口、整下摆和闭合缝线。"
 )
 STORYBOARD_NEGATIVE_CONSTRAINTS = (
     "禁止写实摄影、3D/CGI、塑料磨皮、赛璐璐平涂、西方油画厚涂、霓虹色、"
-    "大块灰面塑形、软体积光、照片级景深、HDR高光、电影级体积雾、镜面湿面反光、"
-    "全幅冷青或灰蓝渲染、近黑大面积衣袍或地面、统一纸纹覆盖、脏污噪点、"
-    "黑白画、灰白画、单色素描、衣物不完整、断裂衣摆、文字、水印、签名、logo、乱码题字；"
+    "大块灰面塑形、软体积光、照片级景深、HDR高光、电影级体积雾、好莱坞三点布光、"
+    "镜面湿面反光、全幅冷青或灰蓝渲染、近黑大面积衣袍或地面、纸纹褶皱、满幅纸纹、"
+    "宣纸纤维滤镜、扫描纸纹滤镜、横向纤维条、脏污噪点、"
+    "黑白画、灰白画、单色素描、衣物不完整、断裂衣摆、破烂褴褛、文字、水印、签名、logo、乱码题字；"
     "dirty texture、muddy texture、compression artifacts、oversharpening halos、random stains、"
-    "dirty color clumps、messy lineart、visual noise。"
+    "dirty color clumps、messy lineart、visual noise、paper-wrinkle texture、crumpled-sheet folds、"
+    "fiber streaks、tattered clothing、ragged hems。"
 )
 STORYBOARD_FRAME_NEGATIVE_CONSTRAINTS = (
     f"{STORYBOARD_NEGATIVE_CONSTRAINTS}禁止高对比漫画动作稿、现代/科幻元素、"
@@ -155,20 +159,18 @@ REQUIRED_STYLE_MARKERS = (
     "连续白描和铁线描",
     "主体密、背景疏",
     "薄层矿物色分染与罩染",
-    "30%-70%",
-    "目标约30%-40%",
+    "浅净哑光平涂底",
+    "柔和均匀平光",
     "连续可见色区",
     "不得继承参考图的灰白媒介",
-    "均匀平光宣纸照明",
-    "纸面散射光",
     "low visual noise",
     "denoised details",
     "clear readable surfaces",
-    "clean paper texture",
+    "smooth matte finish",
     "controlled ink wash",
 )
 CHARACTER_REQUIRED_STYLE_MARKERS = ("衣物完整可穿",)
-REFERENCE_REPLACEMENT_PROMPT_VERSION = "daojie-gongbi-v2-reference-replacement-v2"
+REFERENCE_REPLACEMENT_PROMPT_VERSION = "daojie-gongbi-v3-reference-replacement-v1"
 REFERENCE_REPLACEMENT_MAX_CHARS = 900
 REFERENCE_REPLACEMENT_SECTIONS = (
     "主体事实",
@@ -179,10 +181,10 @@ REFERENCE_REPLACEMENT_SECTIONS = (
     "反向约束",
 )
 REFERENCE_REPLACEMENT_DUPLICATE_DIRECTIVES = (
-    "均匀平光宣纸照明",
+    "柔和均匀平光",
+    "浅净哑光平涂底",
     "连续白描和铁线描",
     "30%-70%",
-    "30%-40%",
     "禁止写实摄影",
     "脏污噪点",
     "镜面湿面反光",
@@ -282,7 +284,7 @@ V2_SCENE_PALETTE_REPLACEMENTS = (
 )
 INCOMPATIBLE_WARDROBE_VERSIONS = {
     "dock-ragged": (
-        "dock-ragged 与 daojie-gongbi-v2 完整衣物合同不兼容；"
+        "dock-ragged 与 daojie-gongbi-v3 完整衣物合同不兼容；"
         "必须创建非覆盖的完整工装 Bible 版本，禁止只改提示词名称继续复用原图"
     ),
 }

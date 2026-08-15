@@ -355,11 +355,13 @@ function buildUserPrompt(
     // ⑥ 发型锚点层
     if (identityAnchors.hairStyle) prompt += `\n- 发型: ${identityAnchors.hairStyle}`;
     if (identityAnchors.hairlineDetails) prompt += `\n- 发际线: ${identityAnchors.hairlineDetails}`;
+
+    prompt += "\n（若风格手册与上述一致性锚点冲突，以一致性锚点优先，风格手册在该项上退让；锚点属性在画面各视图中保持一致）";
   }
 
   // 衍生资产追加指令
   if (isDerivative) {
-    prompt += "\n\n**注意：这是衍生资产，请在保持基础形象不变的前提下进行变体设计。叠加层级：妆容→发型→中衣→外衣→鞋履→配饰。**";
+    prompt += "\n\n**注意：这是衍生资产，请在保持基础形象不变的前提下进行变体设计。叠加层级：妆容→发型→中衣→外衣→配饰。**";
   }
 
   return prompt;
@@ -429,7 +431,7 @@ function buildLocalFallbackPolishResult(input: {
     character: "single character concept art, clear face, full-body readable silhouette, costume and identity details",
     scene:
       input.visualManualId === DAOJIE_VISUAL_MANUAL_ID
-        ? "environment concept art, clear spatial layout, even flat xuan-paper illumination, pale ink atmospheric perspective"
+        ? "environment concept art, clear spatial layout, even flat diffuse illumination, pale ink atmospheric perspective"
         : "environment concept art, clear spatial layout, cinematic lighting, atmospheric depth",
     prop: "single prop concept art, isolated object, readable material, no hands, no characters",
   };
@@ -478,7 +480,7 @@ function extractVisualStyleAnchor(systemPrompt: string) {
 }
 
 const DAOJIE_POSITIVE_PROMPT_REPLACEMENTS: Array<[RegExp, string]> = [
-  [/\bcinematic\s+lighting\b/gi, "even flat xuan-paper illumination"],
+  [/\bcinematic\s+lighting\b/gi, "even flat diffuse illumination"],
   [/\bcinematic\s+composition\b/gi, "clear layered ink-wash composition"],
   [/\bcinematic\s+(?:quality|atmosphere|motion)\b/gi, "clean finished gongbi quality"],
   [/\bvolumetric\s+fog\b/gi, "layered pale ink mist"],
@@ -486,18 +488,21 @@ const DAOJIE_POSITIVE_PROMPT_REPLACEMENTS: Array<[RegExp, string]> = [
   [/\bshallow\s+depth\s+of\s+field\b/gi, "clear layered ink-wash depth"],
   [/\bdepth\s+of\s+field\s+blur\b/gi, "ink-wash atmospheric perspective"],
   [/\bdepth\s+of\s+field\b/gi, "ink-wash atmospheric perspective"],
-  [/\bfilm\s+grain\b/gi, "clean paper texture"],
+  [/\bfilm\s+grain\b/gi, "smooth matte finish"],
   [/\b(?:muted|low[- ]saturation)\s+cyan[- ]green\s+palette\b/gi, "restrained mineral-color palette with readable warm and cool areas"],
   [/\bHDR\s+highlights?\b/gi, "soft paper-scattered light"],
   [/\bmirror(?:ed)?\s+wet\s+reflections?\b/gi, "controlled matte material"],
-  [/电影级(?:光影|布光|构图|质感|氛围)/g, "均匀平光宣纸照明与清楚分层"],
+  [/\b(?:rice|xuan)[- ]paper\s+texture\b/gi, "smooth pale matte flat-wash ground"],
+  [/宣纸质感/g, "浅净平涂底"],
+  [/宣纸肌理/g, "浅净平涂底"],
+  [/电影级(?:光影|布光|构图|质感|氛围)/g, "均匀平光与清楚分层"],
   [/电影质感/g, "干净工笔成片质感"],
   [/电影构图/g, "清楚前中远景构图"],
   [/电影级体积雾/g, "淡墨雾层"],
   [/体积雾/g, "淡墨雾层"],
   [/浅景深(?:虚化)?/g, "淡墨空气透视"],
   [/景深虚化/g, "淡墨空气透视"],
-  [/胶片颗粒/g, "干净宣纸肌理"],
+  [/胶片颗粒/g, "平滑细腻成片"],
 ];
 
 /** Remove legacy cinematic/noise directives before a Daojie prompt reaches an image provider. */

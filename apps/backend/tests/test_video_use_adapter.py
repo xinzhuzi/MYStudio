@@ -6,6 +6,8 @@ from pathlib import Path
 from unittest.mock import patch
 
 from video_use.adapter import (
+    HYPERFRAMES_DECORATIVE_TEMPLATES,
+    _build_overlay_slots,
     VideoUseAdapterError,
     _tool_env,
     _validate_rendered_output,
@@ -19,6 +21,59 @@ def sha256_bytes(value: bytes) -> str:
 
 
 class VideoUseAdapterTest(unittest.TestCase):
+    def test_overlay_slots_follow_mood_rules_and_fallback_deterministically(self):
+        request = {
+            "boundaryIntents": [
+                {"fromShotId": "shot-001", "toShotId": "shot-002", "moodWord": "战斗"},
+            ],
+        }
+        edl = {"ranges": [
+            {"source": "shot-001", "start": 0.0, "end": 0.5},
+            {"source": "shot-002", "start": 0.0, "end": 0.7},
+            {"source": "shot-003", "start": 0.0, "end": 0.2},
+        ]}
+        with patch("video_use.adapter.print") as log:
+            slots = _build_overlay_slots(request, edl)
+        self.assertEqual(slots[0]["templateId"], "lens-flare")
+        self.assertEqual(slots[0]["moodWord"], "战斗")
+        self.assertEqual(slots[1]["templateId"], "lens-flare")
+        self.assertEqual(slots[2]["templateId"], HYPERFRAMES_DECORATIVE_TEMPLATES[2])
+        self.assertTrue(log.called)
+        self.assertEqual([slot["startUs"] for slot in slots], [0, 500_000, 1_200_000])
+
+    def test_overlay_slots_follow_transition_overlap_timing(self):
+        edl = {"ranges": [
+            {"source": "shot-001", "start": 0.0, "end": 0.5},
+            {"source": "shot-002", "start": 0.0, "end": 0.7},
+            {"source": "shot-003", "start": 0.0, "end": 0.2},
+        ]}
+        artifact_edl = [
+            {"shotId": "shot-001", "timelineStartS": 0.0, "transitionToNext": {"effectId": "fade", "durationUs": 200_000}},
+            {"shotId": "shot-002", "timelineStartS": 0.5},
+            {"shotId": "shot-003", "timelineStartS": 1.2},
+        ]
+        with patch("video_use.adapter.print"):
+            slots = _build_overlay_slots({}, edl, artifact_edl)
+        self.assertEqual([slot["startUs"] for slot in slots], [0, 300_000, 1_000_000])
+
+    def test_overlay_slot_durations_respect_transition_gap_and_decorative_cap(self):
+        edl = {"ranges": [
+            {"source": "shot-001", "start": 0.0, "end": 5.0},
+            {"source": "shot-002", "start": 0.0, "end": 4.0},
+        ]}
+        artifact_edl = [
+            {"shotId": "shot-001", "timelineStartS": 0.0, "transitionToNext": {"effectId": "fade", "durationUs": 1_000_000}},
+            {"shotId": "shot-002", "timelineStartS": 5.0},
+        ]
+        with patch("video_use.adapter.print"):
+            slots = _build_overlay_slots({}, edl, artifact_edl)
+        self.assertEqual([slot["startUs"] for slot in slots], [0, 4_000_000])
+        previous_end = 0
+        for slot in slots:
+            self.assertGreaterEqual(slot["startUs"], previous_end)
+            self.assertLessEqual(slot["durationUs"], 1_100_000)
+            previous_end = slot["startUs"] + slot["durationUs"]
+
     def _fixtures(self, root: Path) -> tuple[dict, dict]:
         shots = []
         aligned_shots = []

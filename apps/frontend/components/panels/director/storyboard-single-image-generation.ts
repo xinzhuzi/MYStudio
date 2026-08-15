@@ -2,6 +2,7 @@ import { aiManager } from "@/lib/ai/ai-manager";
 import { pollImageTaskUrl } from "@/lib/storyboard/image-task-transport";
 import { persistSceneImage } from "@/lib/utils/image-persist";
 import { withDepthFriendlyTokens } from "@/lib/studio/depth-friendly-prompt";
+import { withActiveVisualManualStoryboardStyleTokens } from "@/lib/studio/visual-manual-style-tokens";
 import type { SplitScene } from "@/stores/director/director-store";
 import { toast } from "sonner";
 
@@ -66,12 +67,16 @@ export function createStoryboardSingleImageGenerator(
 
     // Depth-friendly composition tokens — the frame feeds a depth estimator +
     // 2.5D camera rig; layered depth structure makes the parallax clean.
-    const promptToUse = withDepthFriendlyTokens(
-      scene.imagePromptZh?.trim()
-      || scene.imagePrompt?.trim()
-      || scene.videoPromptZh?.trim()
-      || scene.videoPrompt?.trim()
-      || "",
+    // Visual-manual style lock — the shot prompt LLM has no style constraints,
+    // so the selected manual (e.g. daojie ink-wash) locks the medium here.
+    const promptToUse = withActiveVisualManualStoryboardStyleTokens(
+      withDepthFriendlyTokens(
+        scene.imagePromptZh?.trim()
+        || scene.imagePrompt?.trim()
+        || scene.videoPromptZh?.trim()
+        || scene.videoPrompt?.trim()
+        || "",
+      ),
     );
     if (!promptToUse) {
       toast.warning("请先填写首帧提示词后再生成图片");

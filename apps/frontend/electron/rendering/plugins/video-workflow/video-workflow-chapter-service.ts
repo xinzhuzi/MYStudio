@@ -163,7 +163,7 @@ export function createVideoWorkflowChapterService(options: VideoWorkflowChapterS
         videoUseArtifactPath: artifacts.value.paths.videoUsePath,
       };
     }
-    const subtitleOverlayWindows = checked.value.overlaySlots.map((slot) => {
+    const subtitleOverlayWindows = checked.value.overlaySlots.filter((slot) => !slot.templateId).map((slot) => {
       const subtitle = checked.value.subtitles.find((cue) => isSubtitleCueOwnedByOverlay(cue, [slot]));
       return {
         slotId: slot.slotId,
@@ -180,9 +180,23 @@ export function createVideoWorkflowChapterService(options: VideoWorkflowChapterS
         },
       };
     });
+    const decorativeOverlayWindows = checked.value.overlaySlots.filter((slot) => slot.templateId).map((slot) => ({
+      slotId: slot.slotId,
+      cueId: slot.cueId,
+      startUs: slot.startUs,
+      durationUs: slot.durationUs,
+      templateId: slot.templateId!,
+      parameters: slot.parameters!,
+    }));
+    // MYSTUDIO_OVERLAY_MODE=legacy 与 run-full-pipeline 同口径：强制走 CLI 轮换装饰窗，
+    // 忽略 artifact 氛围词装饰决策（43 窗单 composition 命中 heavy-overlay lint 熔断）。
+    const artifactHasDecorativeWindows = process.env.MYSTUDIO_OVERLAY_MODE !== "legacy" && decorativeOverlayWindows.length > 0;
+    if (!artifactHasDecorativeWindows && input.hyperFramesWindows?.length) {
+      console.warn("[video-workflow] accepted artifact has no decorative overlay slots; using CLI fallback windows");
+    }
     const overlayWindows = [
       ...subtitleOverlayWindows,
-      ...(input.hyperFramesWindows ?? []),
+      ...(artifactHasDecorativeWindows ? decorativeOverlayWindows : (input.hyperFramesWindows ?? [])),
     ].sort((left, right) => left.startUs - right.startUs || left.durationUs - right.durationUs);
     const extension = input.alphaFormat === "prores-4444-mov" ? "mov" : input.alphaFormat === "webm-vp9-alpha" ? "webm" : "png";
     const request: HyperFramesOverlayRequestV1 = {

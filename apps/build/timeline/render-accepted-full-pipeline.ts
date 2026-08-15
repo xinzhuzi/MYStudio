@@ -3,8 +3,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { execFile } from "node:child_process";
-import { createRequire } from "node:module";
 import { promisify } from "node:util";
+import { app, utilityProcess } from "electron";
 import type { RemotionCurrentSlotV1 } from "@/types/remotion-workspace";
 import { validateTimelineRenderPlan } from "@/lib/studio/editing/validation";
 import {
@@ -34,7 +34,6 @@ import {
 import { runFormalOutputQc } from "./render-accepted-full-pipeline-qc";
 
 const execFileAsync = promisify(execFile);
-const { app, utilityProcess } = createRequire(import.meta.url)("electron") as typeof import("electron");
 const PROJECT_ID = "49dce4c1-64b1-42de-85c2-9f266698aec0";
 const CHAPTER_ID = "chapter-001";
 const REVISION = 9;
@@ -62,6 +61,7 @@ export async function runAcceptedFormalRenderer(): Promise<void> {
   const appAsarPath = path.join(resourcesRoot, "app.asar");
   const workerPath = path.join(appAsarPath, "out", "main", "remotion-render-worker.cjs");
   const bundlePath = path.join(resourcesRoot, "remotion-bundle");
+  const bundleManifestPath = path.join(bundlePath, "manifest.json");
   const binariesDirectory = path.join(
     resourcesRoot,
     "app.asar.unpacked",
@@ -69,6 +69,7 @@ export async function runAcceptedFormalRenderer(): Promise<void> {
     "@remotion",
     "compositor-darwin-arm64",
   );
+  const compositorFfprobePath = path.join(binariesDirectory, "ffprobe");
   const browserExecutable = path.resolve(
     process.env.MYSTUDIO_REMOTION_BROWSER
       ?? path.join(
@@ -97,11 +98,19 @@ export async function runAcceptedFormalRenderer(): Promise<void> {
   let renderer: RemotionChapterRenderer | undefined;
   let exitCode = 0;
   try {
-    const collisionFilesBefore = await collisionInventory(repoRoot);
+    const collisionFilesBefore = await collisionInventory([
+      path.join(repoRoot, "apps", "build", "timeline", "run-full-pipeline.ts"),
+      path.join(repoRoot, "apps", "frontend", "electron", "main", "main.ts"),
+      appAsarPath,
+      workerPath,
+      bundleManifestPath,
+      compositorFfprobePath,
+      browserExecutable,
+    ]);
     await new Promise((resolve) => setTimeout(resolve, 2_000));
     assertStableFileInventory(
       collisionFilesBefore,
-      await collisionInventory(repoRoot),
+      await collisionInventory(Object.keys(collisionFilesBefore)),
       "workflow collision files during preflight",
     );
     app.setPath("userData", path.join(runDir, "electron-user-data"));
@@ -110,8 +119,8 @@ export async function runAcceptedFormalRenderer(): Promise<void> {
     const remotionVersion = readRemotionVersion(packageMetadata);
     await assertReadableRuntimePath(appAsarPath, "installed app.asar");
     await assertReadableRuntimePath(workerPath, "packaged Remotion worker");
-    await assertReadableRuntimePath(path.join(bundlePath, "manifest.json"), "Remotion bundle manifest");
-    await assertReadableRuntimePath(path.join(binariesDirectory, "ffprobe"), "Remotion compositor ffprobe");
+    await assertReadableRuntimePath(bundleManifestPath, "Remotion bundle manifest");
+    await assertReadableRuntimePath(compositorFfprobePath, "Remotion compositor ffprobe");
     await assertReadableRuntimePath(browserExecutable, "managed Headless Shell");
     const appAsarBefore = await fileIdentity(appAsarPath);
     await assertFileStable(appAsarPath, appAsarBefore);
@@ -182,6 +191,18 @@ export async function runAcceptedFormalRenderer(): Promise<void> {
       inputSha256: videoUseValidation.value.evidence.inputSha256,
     });
     if (!gate.accepted) throw new Error(`accepted video workflow gate blocked: ${gate.code} ${gate.message}`);
+    // Fail closed before MediaBridge/Remotion can consume the overlay: an accepted
+    // artifact is not evidence that the referenced alpha file still exists or has
+    // the required codec/pixel format.
+    const hyperFramesOutputPath = hyperFramesValidation.value.outputPath!;
+    await probeHyperFrames(
+      hyperFramesOutputPath,
+      process.env.MYSTUDIO_FFPROBE_PATH ?? "ffprobe",
+    );
+    const hyperFramesDiskSha256Before = await hashFileSha256(hyperFramesOutputPath);
+    if (hyperFramesDiskSha256Before !== hyperFramesValidation.value.outputSha256) {
+      throw new Error("HyperFrames alpha output SHA-256 drifted before formal render");
+    }
 
     const productionSlots = await readRemotionCurrentShotSlotsFromWorkspace(
       productionRemotionRoot,
@@ -284,12 +305,13 @@ export async function runAcceptedFormalRenderer(): Promise<void> {
       throw new Error("formal renderer output file/evidence identity mismatch");
     }
     const hyperFramesProbe = await probeHyperFrames(
-      hyperFramesValidation.value.outputPath!,
+      hyperFramesOutputPath,
       process.env.MYSTUDIO_FFPROBE_PATH ?? "ffprobe",
     );
-    const hyperFramesDiskSha256 = await hashFileSha256(hyperFramesValidation.value.outputPath!);
-    if (hyperFramesDiskSha256 !== hyperFramesValidation.value.outputSha256) {
-      throw new Error("HyperFrames alpha output SHA-256 drifted before formal render completion");
+    const hyperFramesDiskSha256 = await hashFileSha256(hyperFramesOutputPath);
+    if (hyperFramesDiskSha256 !== hyperFramesDiskSha256Before
+      || hyperFramesDiskSha256 !== hyperFramesValidation.value.outputSha256) {
+      throw new Error("HyperFrames alpha output SHA-256 drifted during formal render");
     }
     const sourceInventoryAfter = await buildSourceInventory(productionRemotionRoot, productionSlots);
     await writeJson(path.join(runDir, "source-inventory-after.json"), sourceInventoryAfter);
@@ -302,7 +324,7 @@ export async function runAcceptedFormalRenderer(): Promise<void> {
       { [appAsarPath]: appAsarAfter },
       "installed app.asar during formal render",
     );
-    const collisionFilesAfter = await collisionInventory(repoRoot);
+    const collisionFilesAfter = await collisionInventory(Object.keys(collisionFilesBefore));
     assertStableFileInventory(
       collisionFilesBefore,
       collisionFilesAfter,
@@ -367,13 +389,34 @@ export async function runAcceptedFormalRenderer(): Promise<void> {
         collisionFilesBefore,
         collisionFilesAfter,
       },
-      acceptance: {
-        ac1SourceShaUnchanged: true,
-        ac2VideoUseEdlProjected: true,
-        ac3HyperFramesConsumed: true,
-        ac4FormalRendererEvidence: true,
-        ac5SingleAacNoDoubleSubtitle: true,
-        ac6VisualQc: true,
+      acceptanceEvidence: {
+        ac1SourceShaUnchanged: {
+          sourceInventoryBefore: path.join(runDir, "source-inventory-before.json"),
+          sourceInventoryAfter: path.join(runDir, "source-inventory-after.json"),
+          unchanged: JSON.stringify(sourceInventoryBefore) === JSON.stringify(sourceInventoryAfter),
+        },
+        ac2VideoUseEdlProjected: {
+          expectedVisualCount: EXPECTED_VISUAL_COUNT,
+          edlCount: artifactProjection.videoUseEdlCount,
+        },
+        ac3HyperFramesConsumed: {
+          windowCount: artifactProjection.hyperFramesWindowCount,
+          outputSha256: hyperFramesDiskSha256,
+          outputProbe: hyperFramesProbe,
+        },
+        ac4FormalRendererEvidence: {
+          currentSlotPath: path.join(runDir, "formal-current-slot.json"),
+          jobPath: path.join(runDir, "formal-job.json"),
+          evidencePath: path.join(runDir, "formal-evidence.json"),
+        },
+        ac5AndAc6MediaQc: {
+          qc,
+        },
+        ac7FreshQualityGate: {
+          status: "pending-external-evidence",
+          required: ["targetedTests", "typecheck", "lint", "trellisCheck", "taskQc"],
+          note: "The renderer does not run or claim repository quality checks; record fresh command evidence separately.",
+        },
       },
     };
     await writeJson(path.join(runDir, "report.json"), report);
@@ -432,11 +475,7 @@ async function probeHyperFrames(filePath: string, ffprobeExecutable: string): Pr
   return parsed;
 }
 
-async function collisionInventory(repoRoot: string): Promise<Record<string, FormalFileIdentity>> {
-  const files = [
-    path.join(repoRoot, "apps", "build", "timeline", "run-full-pipeline.ts"),
-    path.join(repoRoot, "apps", "frontend", "electron", "main", "main.ts"),
-  ];
+async function collisionInventory(files: readonly string[]): Promise<Record<string, FormalFileIdentity>> {
   return Object.fromEntries(await Promise.all(
     files.map(async (filePath) => [filePath, await fileIdentity(filePath)] as const),
   ));

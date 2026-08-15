@@ -133,6 +133,50 @@ describe("asset-generation-orchestrator", () => {
     expect(prop?.imageUrl).toBe("local-image://props/prop-1.png");
   });
 
+  it("defaults aspect ratio by asset type when not explicitly set (character 21:9, prop 1:1)", async () => {
+    await generateAsset({
+      assetId: "prop-1",
+      assetType: "character",
+      name: "林霜",
+      description: "清冷出尘的女修",
+      isDerivative: false,
+      visualManualId: "ink",
+    });
+    expect(aiManager.image).toHaveBeenCalledWith(
+      expect.objectContaining({ aspectRatio: "21:9" }),
+      "character",
+    );
+
+    vi.mocked(aiManager.image).mockClear();
+    await generateAsset({
+      assetId: "prop-1",
+      assetType: "prop",
+      name: "断剑",
+      description: "一柄断裂的古剑",
+      isDerivative: false,
+      visualManualId: "ink",
+    });
+    expect(aiManager.image).toHaveBeenCalledWith(
+      expect.objectContaining({ aspectRatio: "1:1" }),
+      "prop",
+    );
+
+    vi.mocked(aiManager.image).mockClear();
+    await generateAsset({
+      assetId: "prop-1",
+      assetType: "prop",
+      name: "断剑",
+      description: "一柄断裂的古剑",
+      isDerivative: false,
+      visualManualId: "ink",
+      aspectRatio: "3:2",
+    });
+    expect(aiManager.image).toHaveBeenCalledWith(
+      expect.objectContaining({ aspectRatio: "3:2" }),
+      "prop",
+    );
+  });
+
   it("saves generated workflow assets inside the active project when projectId is provided", async () => {
     usePropsLibraryStore.setState({
       items: [

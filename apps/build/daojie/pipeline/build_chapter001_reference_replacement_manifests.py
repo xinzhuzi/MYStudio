@@ -114,14 +114,14 @@ def _compact_medium_lock(asset_kind: str) -> str:
             "石阶、栈道、藤筐、船体、木桩与缆绳以细密连续白描和铁线描定形，"
             "再用透明薄层矿物色分染与罩染；远山、河雾和水面降低线条密度，主体密、背景疏。"
             "不得继承参考图的灰白媒介、宽笔刷明暗或颗粒化材质。"
-            "保持 low visual noise、denoised details、clear readable surfaces、clean paper texture 与 controlled ink wash。"
+            "保持 low visual noise、denoised details、clear readable surfaces、smooth matte finish 与 controlled ink wash。"
         )
     return (
         "daojie-gongbi-v2《道劫》2D彩色工笔水墨；媒介规则优先于参考图中的数字渲染。"
         "脸、手、发丝、衣缘、接缝、衣褶和脚部以细密连续白描和铁线描定形，"
         "再用透明薄层矿物色分染与罩染，主体密、背景疏。衣物完整可穿，服装边缘、"
         "闭合接缝与裤脚清楚；不得继承参考图的灰白媒介、数字明暗或污损材质。"
-        "保持 low visual noise、denoised details、clear readable surfaces、clean paper texture 与 controlled ink wash。"
+        "保持 low visual noise、denoised details、clear readable surfaces、smooth matte finish 与 controlled ink wash。"
     )
 
 
@@ -138,7 +138,7 @@ def _compact_composition(composition: str, asset_kind: str) -> str:
 def _compact_color_lock(asset_color: str, asset_kind: str) -> str:
     if asset_kind == "scene":
         return (
-            "可辨彩色满足30%-70%硬范围，目标约30%-40%并形成连续可见色区。"
+            "彩色形成连续可见色区；综合彩色占比30%-70%仅作人工审稿观察，不作为生成硬门。"
             "冷色连续可见区使用石青或玉青薄染，落在河面、远山与少量石阶边缘；"
             "暖色连续可见区使用赭石与低亮朱砂薄染，只落在船体、栈道、藤筐和一段傍晚天光。"
             "石阶与地面保持淡墨、纸白，材质差异由清楚线描与平整透明色层表达。"
@@ -152,7 +152,7 @@ def _compact_color_lock(asset_color: str, asset_kind: str) -> str:
         if cleaned:
             asset_clauses.append(cleaned)
     return (
-        "可辨彩色满足30%-70%硬范围，目标约30%-40%并形成连续可见色区；"
+        "彩色形成连续可见色区；综合彩色占比30%-70%仅作人工审稿观察，不作为生成硬门；"
         "石青或玉青与赭石或朱砂分别形成清楚的冷暖色区，墨线、淡墨与纸白保持主体结构。"
         + "；".join(asset_clauses)
         + "。"
@@ -162,11 +162,11 @@ def _compact_color_lock(asset_color: str, asset_kind: str) -> str:
 def _compact_light_lock(asset_kind: str) -> str:
     if asset_kind == "scene":
         return (
-            "傍晚均匀平光宣纸照明与纸面散射光；淡赭余光只照亮旧木、藤筐和石阶边缘，"
+            "傍晚柔和均匀平光与浅净哑光平涂底；淡赭余光只照亮旧木、藤筐和石阶边缘，"
             "河面与远山保留石青薄染，河雾以淡墨留白退远。"
         )
     return (
-        "均匀平光宣纸照明与纸面散射光照亮脸、手、脚和衣褶，"
+        "柔和均匀平光与浅净哑光平涂底照亮脸、手、脚和衣褶，"
         "阴影轻薄并保留冷暖色层。"
     )
 

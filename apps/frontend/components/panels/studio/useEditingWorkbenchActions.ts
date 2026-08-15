@@ -8,6 +8,7 @@ import { videoWorkflowStoryboardBlocker } from "@/lib/studio/video-workflow/chap
 import { projectVideoUseArtifactToEditingProject } from "@/lib/studio/video-workflow/editing-project-projection";
 import { useEditingStore } from "@/stores/editing/editing-store";
 import { useProjectStore } from "@/stores/project/project-store";
+import { useStudioStore } from "@/stores/studio/studio-store";
 import type { EditingProjectV1 } from "@/types/editing";
 import type { ScriptPlan, StoryboardItem } from "@/types/studio";
 import type { RemotionCurrentSlotV1 } from "@/types/remotion-workspace";

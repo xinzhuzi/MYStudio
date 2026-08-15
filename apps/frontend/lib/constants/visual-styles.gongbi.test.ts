@@ -7,14 +7,15 @@ describe('2d_gongbi preset', () => {
 
     expect(preset).toBeDefined();
     expect(preset?.prompt).toContain('line-first continuous baimiao');
-    expect(preset?.prompt).toContain('30%-70% visible chromatic area');
-    expect(preset?.prompt).toContain('target near 30%-40%');
+    expect(preset?.prompt).toContain('Ink-first with restrained color accents');
+    expect(preset?.prompt).toContain('at most two or three restrained mineral accents');
+    expect(preset?.prompt).toContain('smooth pale matte flat-wash ground');
     expect(preset?.prompt).toContain('Medium rules take priority');
     expect(preset?.prompt).toContain('intact wearable clothing');
-    expect(preset?.prompt).toContain('low-noise rendering');
+    expect(preset?.prompt).toContain('Low-noise rendering');
     expect(preset?.prompt).toContain('denoised fine detail');
     expect(preset?.prompt).toContain('clear legible surfaces');
-    expect(preset?.prompt).toContain('clean paper grain');
+    expect(preset?.prompt).toContain('smooth matte finish');
     expect(preset?.prompt).toContain('controlled ink wash');
     expect(`${preset?.prompt} ${preset?.negativePrompt}`).not.toMatch(/\([^()]{1,200}:\s*\d+(?:\.\d+)?\)/);
     expect(preset?.negativePrompt).toContain('dirty/muddy texture');
@@ -26,6 +27,7 @@ describe('2d_gongbi preset', () => {
     expect(preset?.negativePrompt).toContain('messy lineart');
     expect(preset?.negativePrompt).toContain('cinematic volumetric fog');
     expect(preset?.negativePrompt).toContain('cinematic lighting');
+    expect(preset?.negativePrompt).toContain('scanned-paper filter');
     expect(preset?.negativePrompt).toContain('full-frame cyan or blue-grey rendering');
     expect(preset?.prompt).not.toMatch(/cinematic\s+(?:lighting|light)/i);
     expect(preset?.prompt).not.toMatch(/full-frame\s+(?:cyan|blue-grey|gray-blue)/i);

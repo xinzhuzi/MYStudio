@@ -651,7 +651,7 @@ def storyboard_light_prompt(storyboard):
     scene_light = daojie_gongbi_v2.storyboard_scene_lighting(view_id)
     if scene_light:
         return scene_light
-    return "均匀平光宣纸照明与纸面散射光，保持线描可读、冷暖色区克制且画面干净。"
+    return "柔和均匀平光与浅净哑光平涂底，保持线描可读、冷暖色区克制且画面干净。"
 
 
 def storyboard_time_of_day(index):

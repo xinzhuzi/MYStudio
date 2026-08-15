@@ -87,6 +87,25 @@ describe("video workflow persisted child contracts", () => {
     }
   });
 
+  it("accepts decorative artifact slots and rejects text-owned templates", () => {
+    const artifact = validVideoUseArtifact();
+    artifact.overlaySlots = [{
+      slotId: "effect-shot-1", cueId: "decorative-effect-1", startUs: 0, durationUs: 1_000_000,
+      templateId: "lens-flare", parameters: { x: 18, size: 260 }, moodWord: "战斗",
+    }];
+    expect(validateVideoUseChapterArtifact(artifact).success).toBe(true);
+    artifact.overlaySlots[0].templateId = "kinetic-caption";
+    expect(validateVideoUseChapterArtifact(artifact).success).toBe(false);
+    artifact.overlaySlots[0].templateId = "title-card";
+    expect(validateVideoUseChapterArtifact(artifact).success).toBe(false);
+  });
+
+  it("keeps legacy subtitle-only artifact slots valid", () => {
+    const artifact = validVideoUseArtifact();
+    artifact.overlaySlots = [{ slotId: "caption-1", cueId: "cue-1", startUs: 0, durationUs: 1_000_000 }];
+    expect(validateVideoUseChapterArtifact(artifact).success).toBe(true);
+  });
+
   it("rejects overlay windows without template parameters at IPC-adjacent boundaries", () => {
     const request = {
       schemaVersion: 1,

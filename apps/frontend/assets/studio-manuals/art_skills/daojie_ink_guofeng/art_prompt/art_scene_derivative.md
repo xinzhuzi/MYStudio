@@ -14,7 +14,7 @@ metaData: art_skills
 2. **景别驱动** — 同一场景通过不同景别展示不同叙事功能
 3. **时段切换** — 同一空间在不同时间段呈现不同光影氛围
 4. **天候变化** — 同一空间在不同天气下呈现不同情绪
-5. **水墨为锚** — 所有变体必须保持水墨国风质感，拒绝3D写实/CG动画/赛璐璐感；保留工笔线描、写意泼墨、宣纸肌理
+5. **水墨为锚** — 所有变体必须保持水墨国风质感，拒绝3D写实/CG动画/赛璐璐感；保留工笔线描、写意泼墨、浅净平涂底
 
 ---
 
@@ -35,9 +35,9 @@ metaData: art_skills
 | 从基准图衍生 | 保持不变 | 允许变化 |
 |---|---|---|
 | 大全景 → 全景 | 建筑外观、整体布局 | 视角收窄、前景增加 |
-| 全景 → 中景 | 材质、色调、光线 | 裁切聚焦、景深变化 |
-| 中景 → 近景 | 材质、色调 | 景深浅、背景虚化 |
-| 近景 → 特写 | 材质纹理 | 极浅景深、微距感 |
+| 全景 → 中景 | 材质、色调、光线 | 裁切聚焦、近浓远淡墨色对比加强 |
+| 中景 → 近景 | 材质、色调 | 远景淡墨晕染、近景线条更清晰 |
+| 近景 → 特写 | 材质纹理 | 微距式细节密度、笔意清晰 |
 
 ---
 
@@ -118,8 +118,8 @@ metaData: art_skills
 ## 六、提示词模板
 
 水墨国风衍生场景图，基于参考图，
-水墨国风，修仙古韵，工笔线描，写意泼墨，宣纸质感，
-Chinese ink-wash style, gongbi line drawing, xieyi splash ink, xuan paper texture,
+水墨国风，修仙古韵，工笔线描，写意泼墨，浅净平涂底，
+Chinese ink-wash style, gongbi line drawing, xieyi splash ink, smooth pale matte flat-wash ground,
 保持场景空间结构一致，
 {目标角度（如有）}, {景别视角（如有）}, {时段描述（如有）}, {天候描述（如有）},
 {前景}, {中景}, {后景},
@@ -129,8 +129,9 @@ Chinese ink-wash style, gongbi line drawing, xieyi splash ink, xuan paper textur
 柔和光影，水墨渲染，自然光漫射，细腻质感，
 水墨国风高清渲染，高细节，工笔线描，写意晕染感，
 单画面构图，与参考图保持建筑结构/材质/色调/光线一致，仅按目标角度切换视点，
-画面中无任何人物
-图中不要有任何文字
+纯场景空镜画面
+
+> Negative Prompt 段除全局四类外，本技能追加：people, person, human figures, human silhouette, hands, multi-panel layout, split screen, grid layout, structural change from reference, text
 
 > **使用说明**：根据用户提供的信息自行判断需要应用的变化维度（角度/景别/时段/天候），未提及的维度对应字段留空省略即可。无需为每种变体单独生成模板。
 
@@ -152,6 +153,7 @@ Chinese ink-wash style, gongbi line drawing, xieyi splash ink, xuan paper textur
 | R8 | 必须包含水墨国风关键词（Chinese ink-wash style / gongbi line drawing / xieyi splash ink） |
 | R9 | 必须包含镜头光学特征（写意泼墨 / 工笔线描 / 水墨渲染） |
 | R10 | 材质必须带有自然磨损/岁月痕迹，禁止全新无瑕的"CG 感" |
+| R11 | **禁灰白化（硬）**：与基准图一致保持可辨色相层次；整图灰白化/黑白滤镜/单色素描视为不合格 |
 
 ### 严禁
 
@@ -164,4 +166,4 @@ Chinese ink-wash style, gongbi line drawing, xieyi splash ink, xuan paper textur
 | X5 | 画面被拼接成多视图/网格/分屏布局 |
 | X6 | 3D 写实/CG 动画/赛璐璐/日式动画质感（禁用 3D render、CGI、Unreal Engine、Unity、cel shading 等词） |
 | X7 | 材质过于干净完美、无任何使用痕迹与岁月感（避免"塑料感"） |
-| X8 | 光照过于均匀平坦、无景深虚化、无镜头光学特征 |
+| X8 | 全图雾化发虚、主体线条不清晰、无墨色层次（虚化一律用「远景淡墨晕染」表达，禁止真实镜头虚化词） |

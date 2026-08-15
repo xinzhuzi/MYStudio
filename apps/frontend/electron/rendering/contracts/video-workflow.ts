@@ -162,6 +162,10 @@ export interface VideoUseOverlaySlotV1 {
   cueId: string;
   startUs: TimelineTimeUs;
   durationUs: TimelineTimeUs;
+  /** Optional non-text HyperFrames decision; absent keeps legacy subtitle slots compatible. */
+  templateId?: string;
+  parameters?: Record<string, string | number | boolean>;
+  moodWord?: string;
 }
 
 export interface VideoUseGradeV1 {
@@ -362,6 +366,9 @@ const VIDEO_WORKFLOW_STAGES: readonly VideoWorkflowStage[] = [
 const VIDEO_WORKFLOW_MODES: readonly VideoWorkflowMode[] = ["editable-edl", "flat-shot-mp4"];
 const ALPHA_FORMATS: readonly HyperFramesAlphaFormat[] = ["prores-4444-mov", "webm-vp9-alpha", "png-sequence"];
 export const SUPPORTED_ALPHA_FORMATS: readonly HyperFramesAlphaFormat[] = ["prores-4444-mov", "webm-vp9-alpha"];
+export const HYPERFRAMES_DECORATIVE_TEMPLATE_IDS = [
+  "light-leak", "film-grain", "lens-flare", "vignette-pulse", "particle-dust", "letterbox-cinematic", "highlight-box",
+] as const;
 const PLUGIN_IDS: readonly VideoWorkflowPluginId[] = ["remotion", "video-use", "hyperframes", "seedance-prompt"];
 
 function issue(path: string, message: string): VideoWorkflowValidationIssue {
@@ -390,6 +397,24 @@ function isPositiveInteger(value: unknown): value is number {
 
 function isFiniteRatio(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1;
+}
+
+function validateOverlayDecision(value: Record<string, unknown>, path: string, issues: VideoWorkflowValidationIssue[]): void {
+  if (value.templateId === undefined) {
+    if (value.parameters !== undefined && !isRecord(value.parameters)) issues.push(issue(`${path}.parameters`, "parameters 必须是对象"));
+    if (value.moodWord !== undefined && (typeof value.moodWord !== "string" || value.moodWord.length === 0)) issues.push(issue(`${path}.moodWord`, "moodWord 必须是非空字符串"));
+    return;
+  }
+  if (typeof value.templateId !== "string" || !HYPERFRAMES_DECORATIVE_TEMPLATE_IDS.includes(value.templateId as typeof HYPERFRAMES_DECORATIVE_TEMPLATE_IDS[number])) {
+    issues.push(issue(`${path}.templateId`, "装饰槽 templateId 必须是 HyperFrames 非文字模板"));
+  }
+  if (!isRecord(value.parameters)) issues.push(issue(`${path}.parameters`, "装饰槽必须携带 parameters 对象"));
+  else for (const [key, parameter] of Object.entries(value.parameters)) {
+    if (!["string", "number", "boolean"].includes(typeof parameter) || (typeof parameter === "number" && !Number.isFinite(parameter))) {
+      issues.push(issue(`${path}.parameters.${key}`, "参数必须是有限 string/number/boolean"));
+    }
+  }
+  if (value.moodWord !== undefined && (typeof value.moodWord !== "string" || value.moodWord.length === 0)) issues.push(issue(`${path}.moodWord`, "moodWord 必须是非空字符串"));
 }
 
 function validateIdentity(record: Record<string, unknown>, path: string, issues: VideoWorkflowValidationIssue[]) {
@@ -649,6 +674,7 @@ export function validateVideoUseChapterArtifact(value: unknown): VideoWorkflowVa
         if (typeof slot.cueId !== "string" || slot.cueId.length === 0) issues.push(issue(`${path}.cueId`, "必须是非空稳定 cue identity"));
         if (!isFiniteNonNegative(slot.startUs)) issues.push(issue(`${path}.startUs`, "必须是非负微秒"));
         if (!isFiniteNonNegative(slot.durationUs) || slot.durationUs <= 0) issues.push(issue(`${path}.durationUs`, "必须是正数微秒"));
+        validateOverlayDecision(slot, path, issues);
       }
     });
     validateMonotonicUs(value.overlaySlots.filter(isRecord).map((slot) => ({ startUs: slot.startUs, durationUs: slot.durationUs })), "$.overlaySlots", issues);

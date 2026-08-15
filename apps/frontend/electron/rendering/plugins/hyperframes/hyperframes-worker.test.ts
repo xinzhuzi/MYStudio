@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildHyperFramesCliArgs, buildHyperFramesCompositionHtml } from "./hyperframes-worker";
+import { buildHyperFramesCliArgs, buildHyperFramesCompositionHtml, splitHyperFramesRenderSegments } from "./hyperframes-worker";
 
 const hash = "a".repeat(64);
 
@@ -48,5 +48,36 @@ describe("HyperFrames worker composition boundary", () => {
       ...request,
       windows: [{ ...request.windows[0], templateId: "unknown-template" }],
     })).toThrow("不支持的 HyperFrames templateId");
+  });
+
+  it("splits a heavy overlay timeline on continuous frame boundaries without losing a crossing window", () => {
+    const heavyRequest = {
+      ...request,
+      windows: Array.from({ length: 17 }, (_, index) => ({
+        slotId: `slot-${index + 1}`,
+        cueId: `cue-${index + 1}`,
+        startUs: index * 1_000_000,
+        durationUs: 1_000_000,
+        templateId: "light-leak" as const,
+        parameters: {},
+      })),
+    };
+    heavyRequest.windows[0] = {
+      ...heavyRequest.windows[0],
+      durationUs: 9_000_000,
+    };
+
+    const segments = splitHyperFramesRenderSegments(heavyRequest);
+
+    expect(segments).toHaveLength(3);
+    expect(segments.map((segment) => [segment.startUs, segment.durationUs, segment.windows.length])).toEqual([
+      [0, 8_000_000, 8],
+      [8_000_000, 7_000_000, 8],
+      [15_000_000, 2_000_000, 2],
+    ]);
+    expect(segments[1].windows.find((window) => window.slotId === "slot-1")).toMatchObject({
+      startUs: 0,
+      durationUs: 1_000_000,
+    });
   });
 });

@@ -96,17 +96,18 @@ metaData: art_skills
 ### 单状态变体
 
 基于{法宝名}设定图，水墨国风法宝衍生状态，
-水墨国风，修仙古韵，工笔线描，写意晕染，宣纸质感，
+水墨国风，修仙古韵，工笔线描，写意晕染，浅净平涂底，
 {法宝类型}，{材质描述}，
 当前状态：{状态名}，{状态视觉描述}，
 {材质表面变化描述}，
-纯法宝静物展示，法宝独立陈列，无人持有，无人佩戴，
+纯法宝静物陈列展示，
 同一画面四宫格（2×2）：左上正面图(front view)+右上侧面图(side view)+左下背面图(back view)+右下细节特写(detail closeup)，
-宣纸白底色背景，均匀散光，无硬阴影，
+宣纸白底色背景，均匀散光，
 材质纹理超清晰，质感细腻，状态细节可辨，
 水墨国风高清渲染，高细节，工笔线描，写意晕染感，
-画面无字幕、无水印、无标题叠字，
-画面中不能出现任何人物、手部、手指、肢体，法宝不可处于被握持或佩戴状态
+纯器物独立画面
+
+> Negative Prompt 段除全局四类外，本技能追加：people, person, human body parts, hands, fingers, arms, being held, being worn, unrecognizable prop shape, excessive gore, complex background, text, subtitle, watermark, title overlay
 
 ---
 

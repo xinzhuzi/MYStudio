@@ -6,6 +6,12 @@ import { execFileSync } from "node:child_process";
 import { validateHyperFramesOverlayRequest, type HyperFramesOverlayRequestV1 } from "@rendering/contracts/video-workflow";
 
 const TOOL_VERSION = "hyperframes@0.7.101";
+/**
+ * HyperFrames' strict renderer becomes unreliable when one composition owns
+ * all 43 full-frame overlays. Keep each strict composition deliberately
+ * small, then concatenate the alpha-preserving ProRes segments.
+ */
+const MAX_WINDOWS_PER_COMPOSITION = 8;
 const SUPPORTED_TEMPLATES = new Set([
   "title-card",
   "kinetic-caption",
@@ -121,8 +127,13 @@ function renderWindow(window: HyperFramesOverlayRequestV1["windows"][number], in
   return `<div id="${escapeHtml(elementId)}" class="clip ${className}" data-start="${startS}" data-duration="${durationS}" data-track-index="${index + 1}" style="left:${left}%;top:${top}%;font-size:${fontSize}px;color:${color};">${content}</div>`;
 }
 
-export function buildHyperFramesCompositionHtml(request: HyperFramesOverlayRequestV1): string {
-  const durationS = Math.max(...request.windows.map((window) => (window.startUs + window.durationUs) / 1_000_000), 0.001);
+export function buildHyperFramesCompositionHtml(request: HyperFramesOverlayRequestV1, durationUs?: number): string {
+  const derivedDurationUs = Math.max(...request.windows.map((window) => window.startUs + window.durationUs), 1_000);
+  const compositionDurationUs = durationUs ?? derivedDurationUs;
+  if (!Number.isSafeInteger(compositionDurationUs) || compositionDurationUs <= 0) {
+    throw new Error("HyperFrames composition 时长必须是正整数微秒");
+  }
+  const durationS = compositionDurationUs / 1_000_000;
   const windows = request.windows.map(renderWindow).join("\n");
   return `<!doctype html>
 <html><head><meta charset="utf-8"><style>
@@ -173,9 +184,159 @@ window.__timelines["mystudio-overlay"] = {
 </script></body></html>\n`;
 }
 
-export function buildHyperFramesCliArgs(projectDir: string, request: HyperFramesOverlayRequestV1): string[] {
+export function buildHyperFramesCliArgs(projectDir: string, request: HyperFramesOverlayRequestV1, outputPath = request.outputPath): string[] {
   const format = request.alphaFormat === "prores-4444-mov" ? "mov" : request.alphaFormat === "webm-vp9-alpha" ? "webm" : "png-sequence";
-  return ["render", projectDir, "--format", format, "--output", request.outputPath, "--fps", String(request.fps), "--quiet", "--strict-all"];
+  return ["render", projectDir, "--format", format, "--output", outputPath, "--fps", String(request.fps), "--quiet", "--strict-all"];
+}
+
+type HyperFramesRenderSegment = {
+  startUs: number;
+  durationUs: number;
+  windows: HyperFramesOverlayRequestV1["windows"];
+};
+
+function windowEndUs(window: HyperFramesOverlayRequestV1["windows"][number]): number {
+  return window.startUs + window.durationUs;
+}
+
+function toFrameBoundaryUs(timeUs: number, fps: number): number {
+  return Math.round((Math.round(timeUs * fps / 1_000_000) * 1_000_000) / fps);
+}
+
+/**
+ * Partitions the absolute overlay timeline at deterministic window boundaries.
+ * Windows crossing a boundary are clipped into both neighbours, preserving
+ * their original global timing after the segments are concatenated.
+ */
+export function splitHyperFramesRenderSegments(request: HyperFramesOverlayRequestV1): HyperFramesRenderSegment[] {
+  const totalDurationUs = Math.max(...request.windows.map(windowEndUs));
+  if (request.windows.length <= MAX_WINDOWS_PER_COMPOSITION) {
+    return [{ startUs: 0, durationUs: totalDurationUs, windows: request.windows }];
+  }
+  const ordered = [...request.windows].sort((left, right) => (
+    left.startUs - right.startUs || left.slotId.localeCompare(right.slotId)
+  ));
+  const roundedTotalDurationUs = toFrameBoundaryUs(totalDurationUs, request.fps);
+  const candidateBoundaries = [...new Set([
+    ...ordered.map((window) => toFrameBoundaryUs(window.startUs, request.fps)),
+    roundedTotalDurationUs,
+  ])].filter((boundaryUs) => boundaryUs > 0 && boundaryUs <= roundedTotalDurationUs).sort((left, right) => left - right);
+  const boundaries = [0];
+  while (boundaries[boundaries.length - 1] < roundedTotalDurationUs) {
+    const startUs = boundaries[boundaries.length - 1];
+    let selectedEndUs: number | undefined;
+    for (const endUs of candidateBoundaries) {
+      if (endUs <= startUs) continue;
+      const overlappingCount = request.windows.filter((window) => window.startUs < endUs && windowEndUs(window) > startUs).length;
+      if (overlappingCount <= MAX_WINDOWS_PER_COMPOSITION) selectedEndUs = endUs;
+    }
+    if (!selectedEndUs) {
+      throw new Error(`HyperFrames 无法在 ${MAX_WINDOWS_PER_COMPOSITION} 个窗口内切分重叠时间轴`);
+    }
+    boundaries.push(selectedEndUs);
+  }
+  return boundaries.slice(0, -1).map((startUs, index) => {
+    const endUs = boundaries[index + 1];
+    const windows = request.windows.flatMap((window) => {
+      const clippedStartUs = Math.max(window.startUs, startUs);
+      const clippedEndUs = Math.min(windowEndUs(window), endUs);
+      if (clippedEndUs <= clippedStartUs) return [];
+      return [{
+        ...window,
+        startUs: clippedStartUs - startUs,
+        durationUs: clippedEndUs - clippedStartUs,
+      }];
+    });
+    if (windows.length > MAX_WINDOWS_PER_COMPOSITION) {
+      throw new Error(`HyperFrames 分段 ${index + 1} 包含 ${windows.length} 个窗口，拒绝绕过 strict-all 渲染上限`);
+    }
+    return { startUs, durationUs: endUs - startUs, windows };
+  });
+}
+
+function quoteConcatPath(filePath: string): string {
+  return `'${filePath.replace(/'/g, "'\\\\''")}'`;
+}
+
+function assertOutputDuration(outputPath: string, expectedDurationUs: number, fps: number): void {
+  const ffprobe = process.env.MYSTUDIO_FFPROBE_PATH?.trim() || "ffprobe";
+  const raw = execFileSync(ffprobe, ["-v", "error", "-show_entries", "format=duration", "-of", "json", outputPath], { encoding: "utf8", timeout: 60_000 });
+  const parsed = JSON.parse(raw) as { format?: { duration?: string } };
+  const actualDurationS = Number(parsed.format?.duration);
+  const expectedDurationS = expectedDurationUs / 1_000_000;
+  if (!Number.isFinite(actualDurationS) || Math.abs(actualDurationS - expectedDurationS) > 1 / fps) {
+    throw new Error(`HyperFrames 输出时长异常: ${actualDurationS}s，期望 ${expectedDurationS}s（容差 1 帧）`);
+  }
+}
+
+function assertRenderedAlphaOutput(
+  outputPath: string,
+  request: HyperFramesOverlayRequestV1,
+  expectedDurationUs: number,
+): void {
+  assertAlphaOutput(outputPath, request.alphaFormat);
+  if (request.alphaFormat === "png-sequence") return;
+  const ffprobe = process.env.MYSTUDIO_FFPROBE_PATH?.trim() || "ffprobe";
+  const raw = execFileSync(ffprobe, ["-v", "error", "-show_entries", "stream=codec_type,width,height,r_frame_rate", "-of", "json", outputPath], { encoding: "utf8", timeout: 60_000 });
+  const parsed = JSON.parse(raw) as { streams?: Array<{ codec_type?: string; width?: number; height?: number; r_frame_rate?: string }> };
+  const videoStreams = parsed.streams?.filter((stream) => stream.codec_type === "video") ?? [];
+  const audioStreams = parsed.streams?.filter((stream) => stream.codec_type === "audio") ?? [];
+  const video = videoStreams[0];
+  if (videoStreams.length !== 1 || audioStreams.length !== 0) {
+    throw new Error(`HyperFrames 分段必须只包含一个视频流且没有音频（video=${videoStreams.length}, audio=${audioStreams.length}）`);
+  }
+  const [numerator, denominator] = (video?.r_frame_rate ?? "").split("/").map(Number);
+  const actualFps = denominator ? numerator / denominator : Number.NaN;
+  if (video?.width !== request.width || video.height !== request.height || !Number.isFinite(actualFps) || Math.abs(actualFps - request.fps) > 0.001) {
+    throw new Error(`HyperFrames 输出规格异常: ${video?.width ?? "?"}x${video?.height ?? "?"}@${video?.r_frame_rate ?? "?"}，期望 ${request.width}x${request.height}@${request.fps}`);
+  }
+  assertOutputDuration(outputPath, expectedDurationUs, request.fps);
+}
+
+function renderSegments(
+  request: HyperFramesOverlayRequestV1,
+  cliPath: string,
+  nodePath: string,
+  projectDir: string,
+): void {
+  if (fs.existsSync(request.outputPath)) throw new Error(`HyperFrames 输出已存在，拒绝覆盖: ${request.outputPath}`);
+  const segments = splitHyperFramesRenderSegments(request);
+  if (segments.length === 1) {
+    fs.writeFileSync(path.join(projectDir, "index.html"), buildHyperFramesCompositionHtml(request, segments[0].durationUs), "utf8");
+    execFileSync(nodePath, [cliPath, ...buildHyperFramesCliArgs(projectDir, request)], {
+      cwd: projectDir,
+      env: { ...process.env, ELECTRON_RUN_AS_NODE: "1", MYSTUDIO_FFMPEG_PATH: process.env.MYSTUDIO_FFMPEG_PATH ?? "", MYSTUDIO_FFPROBE_PATH: process.env.MYSTUDIO_FFPROBE_PATH ?? "" },
+      encoding: "utf8", timeout: 30 * 60_000, stdio: ["ignore", "pipe", "pipe"],
+    });
+    return;
+  }
+  if (request.alphaFormat !== "prores-4444-mov") {
+    throw new Error("多个 HyperFrames 严格分段目前只支持可无损拼接的 ProRes 4444 MOV");
+  }
+  const segmentDir = fs.mkdtempSync(path.join(path.dirname(request.outputPath), `.hyperframes-segments-${process.pid}-`));
+  const segmentPaths = segments.map((segment, index) => {
+    const segmentProjectDir = path.join(segmentDir, `segment-${String(index + 1).padStart(2, "0")}`);
+    fs.mkdirSync(segmentProjectDir, { recursive: true });
+    const segmentRequest = { ...request, windows: segment.windows };
+    const segmentPath = path.join(segmentDir, `segment-${String(index + 1).padStart(2, "0")}.mov`);
+    fs.writeFileSync(path.join(segmentProjectDir, "index.html"), buildHyperFramesCompositionHtml(segmentRequest, segment.durationUs), "utf8");
+    execFileSync(nodePath, [cliPath, ...buildHyperFramesCliArgs(segmentProjectDir, segmentRequest, segmentPath)], {
+      cwd: segmentProjectDir,
+      env: { ...process.env, ELECTRON_RUN_AS_NODE: "1", MYSTUDIO_FFMPEG_PATH: process.env.MYSTUDIO_FFMPEG_PATH ?? "", MYSTUDIO_FFPROBE_PATH: process.env.MYSTUDIO_FFPROBE_PATH ?? "" },
+      encoding: "utf8", timeout: 30 * 60_000, stdio: ["ignore", "pipe", "pipe"],
+    });
+    assertRenderedAlphaOutput(segmentPath, request, segment.durationUs);
+    return segmentPath;
+  });
+  const concatManifestPath = path.join(segmentDir, "segments.txt");
+  fs.writeFileSync(concatManifestPath, `${segmentPaths.map((segmentPath) => `file ${quoteConcatPath(segmentPath)}`).join("\n")}\n`, "utf8");
+  const outputTemporaryPath = `${request.outputPath}.${process.pid}.partial.mov`;
+  const ffmpeg = process.env.MYSTUDIO_FFMPEG_PATH?.trim() || "ffmpeg";
+  execFileSync(ffmpeg, ["-n", "-f", "concat", "-safe", "0", "-i", concatManifestPath, "-map", "0:v:0", "-an", "-c", "copy", outputTemporaryPath], {
+    encoding: "utf8", timeout: 5 * 60_000, stdio: ["ignore", "pipe", "pipe"],
+  });
+  fs.renameSync(outputTemporaryPath, request.outputPath);
+  assertRenderedAlphaOutput(request.outputPath, request, Math.max(...request.windows.map(windowEndUs)));
 }
 
 function parseArgs(argv: string[]): { requestPath: string; artifactPath: string } {
@@ -237,26 +398,12 @@ function run(request: HyperFramesOverlayRequestV1, artifactPath: string): HyperF
   if (!cliPath || !path.isAbsolute(cliPath) || !fs.existsSync(cliPath)) return blocked(request, "hyperframes-cli-missing", "HyperFrames CLI 未在应用级 profile 中准备");
   if (!nodePath || !path.isAbsolute(nodePath) || !fs.existsSync(nodePath)) return blocked(request, "node-runtime-missing", "HyperFrames 必须使用应用级 Electron Node");
   const projectDir = fs.mkdtempSync(path.join(path.dirname(request.outputPath), `.hyperframes-${process.pid}-`));
-  const entryPath = path.join(projectDir, "index.html");
-  fs.writeFileSync(entryPath, buildHyperFramesCompositionHtml(validated.value), "utf8");
   try {
-    const cliArgs = buildHyperFramesCliArgs(projectDir, validated.value);
-    execFileSync(nodePath, [cliPath, ...cliArgs], {
-      cwd: projectDir,
-      env: {
-        ...process.env,
-        ELECTRON_RUN_AS_NODE: "1",
-        MYSTUDIO_FFMPEG_PATH: process.env.MYSTUDIO_FFMPEG_PATH ?? "",
-        MYSTUDIO_FFPROBE_PATH: process.env.MYSTUDIO_FFPROBE_PATH ?? "",
-      },
-      encoding: "utf8",
-      timeout: 30 * 60_000,
-      stdio: ["ignore", "pipe", "pipe"],
-    });
+    renderSegments(validated.value, cliPath, nodePath, projectDir);
     if (validated.value.alphaFormat === "png-sequence") assertAlphaOutput(request.outputPath, validated.value.alphaFormat);
     else {
       if (!fs.existsSync(request.outputPath)) throw new Error("HyperFrames CLI 未生成输出文件");
-      assertAlphaOutput(request.outputPath, validated.value.alphaFormat);
+      assertRenderedAlphaOutput(request.outputPath, validated.value, Math.max(...validated.value.windows.map(windowEndUs)));
     }
     const outputSha256 = validated.value.alphaFormat === "png-sequence"
       ? crypto.createHash("sha256").update(fs.readdirSync(request.outputPath).sort().join("\n")).digest("hex")

@@ -61,7 +61,9 @@ const approvedProductionImagePath = path.join(
   projectRoot,
   "workflow-images/storyboards/chapter-001/approved-revisions/shot-001-9e90eb74e24f.png",
 );
-const a08StyleContractVersion = "daojie-gongbi-v2";
+// 存量 a08 台账为 daojie-gongbi-v2;契约本体已升级 v3(MA ma-gongbi-v1 对齐),两者均为有效渲染来源。
+const acceptedStyleContractVersions = new Set(["daojie-gongbi-v2", "daojie-gongbi-v3"]);
+const isAcceptedStyleContractVersion = (value: string) => acceptedStyleContractVersions.has(value);
 const freshnessClockToleranceMs = 5;
 const projectStorageRoots = deriveStorageRoots(projectRoot);
 
@@ -88,7 +90,7 @@ export interface A08CleanCandidateIdentity {
   imageSha256: string;
   status: "awaiting-human-approval" | "completed";
   mutatedProductionProject: false;
-  styleContractVersion: "daojie-gongbi-v2";
+  styleContractVersion: "daojie-gongbi-v2" | "daojie-gongbi-v3";
   assetVersionsApproved: true;
   colorAuditStatus: "pass";
   promptAuditStatus: "pass";
@@ -269,7 +271,7 @@ export function validateA08CleanCandidateReport(
     || actualImageSha256 !== a08ImageSha256) {
     throw new Error("A08 entry 输出路径或当前 PNG SHA 无效");
   }
-  if (entry.styleContractVersion !== a08StyleContractVersion
+  if (!isAcceptedStyleContractVersion(entry.styleContractVersion)
     || entry.assetVersionsApproved !== true) {
     throw new Error("A08 entry 风格合同或资产版本批准无效");
   }
@@ -277,7 +279,7 @@ export function validateA08CleanCandidateReport(
   if (colorAudit.status !== "pass") throw new Error("A08 color audit 未通过");
   const promptAudit = requireRecord(entry.promptAudit, "A08 entry.promptAudit");
   const promptAuditV2 = requireRecord(promptAudit.v2, "A08 entry.promptAudit.v2");
-  if (promptAuditV2.styleContractVersion !== a08StyleContractVersion
+  if (!isAcceptedStyleContractVersion(promptAuditV2.styleContractVersion)
     || promptAuditV2.status !== "pass"
     || !Array.isArray(promptAuditV2.violations)
     || promptAuditV2.violations.length !== 0) {
@@ -1008,7 +1010,7 @@ function assertA08CleanReportSource(source: Record<string, unknown>, approvedRep
     || requireNumber(candidate.imageMtimeMs, "report.source.candidate.imageMtimeMs") <= 0
     || candidate.status !== (approvedReplay ? "completed" : "awaiting-human-approval")
     || candidate.mutatedProductionProject !== false
-    || candidate.styleContractVersion !== a08StyleContractVersion
+    || !isAcceptedStyleContractVersion(candidate.styleContractVersion)
     || candidate.assetVersionsApproved !== true
     || candidate.colorAuditStatus !== "pass"
     || candidate.promptAuditStatus !== "pass"

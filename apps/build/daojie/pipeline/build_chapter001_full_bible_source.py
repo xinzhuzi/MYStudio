@@ -119,7 +119,7 @@ SCENE_SPECS: dict[str, dict[str, Any]] = {
     "scene_1780296482373_avuxou2:dock-main-axis:v1": {
         "board": AUTOMATION_ROOT / "chapter001-v4-bible-inputs/dock-main-axis-v4.png", "profile": "full",
         "viewpoint": "dock-main-axis", "layout": "湿石阶与装卸平台在左，藤筐和灵矿靠左前景，系船柱、缆绳与船只在右，河道透视居中通向雾山",
-        "light": "清晨均匀平光宣纸照明，雾气轻薄", "palette": "石青、石绿、靛青、湿石赭褐、旧木褐与朱砂旧金焦点",
+        "light": "清晨柔和均匀平光，雾气轻薄", "palette": "石青、石绿、靛青、湿石赭褐、旧木褐与朱砂旧金焦点",
     },
     "scene_1780296482373_h8geu0d:inn-hall-counter-axis:v1": {
         "board": GENERATED_ROOT / "inn-contact-sheet.png", "profile": "left",

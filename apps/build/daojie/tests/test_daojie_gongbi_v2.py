@@ -38,7 +38,7 @@ class DaojieGongbiV2Test(unittest.TestCase):
         passed = v2.prompt_quality_audit(valid_prompt, ["scene-viewpoint"], None)
         self.assertEqual(passed["status"], "pass")
         self.assertEqual(passed["styleContractVersion"], v2.STYLE_CONTRACT_VERSION)
-        self.assertEqual(passed["version"], "daojie-gongbi-v2-prompt-audit-v7")
+        self.assertEqual(passed["version"], "daojie-gongbi-v3-prompt-audit-v1")
         self.assertIn("连续可见色区", valid_prompt)
         self.assertIn("不得继承参考图的灰白媒介", valid_prompt)
         self.assertIn("黑白画、灰白画、单色素描", valid_prompt)
@@ -47,7 +47,7 @@ class DaojieGongbiV2Test(unittest.TestCase):
             "low visual noise",
             "denoised details",
             "clear readable surfaces",
-            "clean paper texture",
+            "smooth matte finish",
             "controlled ink wash",
         ):
             self.assertIn(marker, v2.STORYBOARD_STYLE_LOCK)

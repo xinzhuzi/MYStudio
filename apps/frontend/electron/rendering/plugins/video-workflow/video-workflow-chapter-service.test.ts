@@ -182,6 +182,25 @@ describe("video workflow chapter service", () => {
     expect(renderHyperFrames).toHaveBeenCalledWith(expect.objectContaining({ windows: [decorative] }));
   });
 
+  it("consumes decorative decisions from the accepted artifact before CLI fallback windows", async () => {
+    const renderHyperFrames = vi.fn(async (request: Parameters<NonNullable<VideoWorkflowChapterServiceOptions["renderHyperFrames"]>>[0]) => ({
+      state: "ready" as const,
+      artifact: { ...noopOverlayArtifact(), status: "accepted" as const, outputPath: "/tmp/overlay.mov", outputSha256: hash, windows: request.windows },
+    }));
+    const artifacts = readableAcceptedArtifacts();
+    artifacts.value.videoUseArtifact.overlaySlots = [{
+      slotId: "effect-shot-1", cueId: "decorative-effect-1", startUs: 0, durationUs: 500_000,
+      templateId: "light-leak", parameters: { intensity: 0.35 }, moodWord: "回忆",
+    }];
+    const service = createVideoWorkflowChapterService({
+      workspaceRootForProject: () => "/tmp/video-workflow", runVideoUse: vi.fn(), renderHyperFrames,
+      readArtifacts: async () => artifacts, getCurrentEditingProject: async () => editingProject(), persistEditingProject: vi.fn(async () => undefined),
+    });
+    const fallback = { slotId: "fallback", cueId: "decorative-effect-fallback", startUs: 0, durationUs: 500_000, templateId: "film-grain", parameters: {} } as const;
+    await expect(service.applyAcceptedArtifact({ ...applyInput, hyperFramesWindows: [fallback] })).resolves.toMatchObject({ success: true });
+    expect(renderHyperFrames).toHaveBeenCalledWith(expect.objectContaining({ windows: [expect.objectContaining({ templateId: "light-leak", parameters: { intensity: 0.35 } })] }));
+  });
+
   it("fails closed when the main-process EditingProject persistence boundary is absent", async () => {
     const renderHyperFrames = vi.fn(async () => ({ state: "ready" as const, artifact: noopOverlayArtifact() }));
     const service = createVideoWorkflowChapterService({

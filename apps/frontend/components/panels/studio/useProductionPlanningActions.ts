@@ -483,9 +483,9 @@ function buildCharacterDerivativeImagePrompt(input: {
     input.visualManualId === DAOJIE_VISUAL_MANUAL_ID
       ? [
           "道劫彩色工笔水墨角色设定：媒介规则优先于父图的数字渲染，脸、手、发丝、衣褶与服饰结构先以连续白描和铁线描建立，再以矿物薄层分染与罩染；主体密、背景疏",
-          "水墨与纸白占画面大部，30%-70%可辨彩色且目标约30%-40%，只用石青、石绿、赭石、朱砂或旧金等2-3种低饱和点缀色；均匀平光宣纸照明与纸面散射光",
-          "低视觉噪点，denoised details，clear readable surfaces，clean paper texture，controlled ink wash",
-          "负面约束：dirty/muddy texture，compression artifacts/jpeg artifacts，oversharpening halos，random stains",
+          "水墨为主、按角色与场景设定事实彩色点缀（色量仅作人工审稿观察，30%-70%不是生成硬门），只用石青、石绿、靛青、赭石、朱砂或旧金等2-3种低饱和点缀色，禁止整图灰白化或满幅鲜艳；浅净哑光平涂底、柔和均匀平光与纸面散射光",
+          "低视觉噪点，denoised details，clear readable surfaces，smooth matte finish，controlled ink wash；衣袍完整可穿，整袖口整下摆闭合缝线",
+          "负面约束：dirty/muddy texture，compression artifacts/jpeg artifacts，oversharpening halos，random stains，paper-wrinkle texture，crumpled-sheet folds，fiber streaks，tattered clothing，ragged hems",
           "禁止写实摄影，禁止3D写实渲染，CGI，赛璐璐平涂，高饱和霓虹，电影级体积雾，HDR高光，镜面湿面反光和全幅冷青或灰蓝渲染",
         ]
       : [

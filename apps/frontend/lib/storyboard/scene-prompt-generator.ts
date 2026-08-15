@@ -25,6 +25,7 @@
 import { aiManager } from '@/lib/ai/ai-manager';
 import { prepareReferenceImageForTransfer } from '@/lib/ai/image-transfer';
 import { getDepthFriendlyGuideZh } from '@/lib/studio/depth-friendly-prompt';
+import { getActiveVisualManualStoryboardStyleGuide } from '@/lib/studio/visual-manual-style-tokens';
 
 
 export interface ScenePromptRequest {
@@ -337,6 +338,7 @@ Set "needsEndFrame": false if:
 
 # Prompt Writing Guidelines
 
+${getActiveVisualManualStoryboardStyleGuide()}
 ## First Frame Prompt (imagePrompt)
 - Describe the STATIC visual: composition, lighting, character appearance, pose
 - Focus on WHAT IS VISIBLE in the starting frame
