@@ -7,8 +7,8 @@ import { promisify } from "node:util";
 const execFileAsync = promisify(execFile);
 
 export const VIDEO_USE_SOURCE_COMMIT = "92c2b34e44c205cbc2acae7f6ca7c1c219d5dd66" as const;
-export const HYPERFRAMES_SOURCE_COMMIT = "b08cefea631b2c13697b6cb31075bf5a9b7c738d" as const;
-export const HYPERFRAMES_NPM_VERSION = "0.7.101" as const;
+export const HYPERFRAMES_SOURCE_COMMIT = "12fd6d9087fab1347f8737c34901e3db61e4dfee" as const;
+export const HYPERFRAMES_NPM_VERSION = "0.7.109" as const;
 export const VIDEO_USE_PROFILE_ID = "video-use-managed-python-v1" as const;
 export const HYPERFRAMES_PROFILE_ID = "hyperframes-electron-node-v1" as const;
 

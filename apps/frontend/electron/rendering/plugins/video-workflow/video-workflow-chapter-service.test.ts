@@ -201,6 +201,48 @@ describe("video workflow chapter service", () => {
     expect(renderHyperFrames).toHaveBeenCalledWith(expect.objectContaining({ windows: [expect.objectContaining({ templateId: "light-leak", parameters: { intensity: 0.35 } })] }));
   });
 
+  it("builds rotation fallback windows for the App apply path when neither artifact nor caller supplies windows (R5)", async () => {
+    const manifest = {
+      schemaVersion: 2,
+      manifestFingerprint: hash,
+      projectId: "p1",
+      chapterId: "c1",
+      revision: 1,
+      sourceSnapshotHash: "c".repeat(64),
+      requiredShotIds: ["shot-1"],
+      sharedAudioBindings: [],
+      shots: [],
+      renderSettings: editingProject().renderSettings,
+      createdAt: 1,
+      updatedAt: 1,
+    } as unknown as RemotionChapterManifestV2;
+    const renderRequests: Array<{ windows?: unknown[] }> = [];
+    const renderHyperFrames = vi.fn(async (request: { windows?: unknown[] }) => {
+      renderRequests.push(request);
+      return { state: "ready" as const, artifact: noopOverlayArtifact(), artifactPath: "/tmp/video-workflow/c1/r2/hyperframes-artifact.json" };
+    });
+    const service = createVideoWorkflowChapterService({
+      workspaceRootForProject: () => "/tmp/video-workflow",
+      runVideoUse: vi.fn(),
+      renderHyperFrames,
+      readArtifacts: async () => readableAcceptedArtifacts(),
+      getCurrentEditingProject: async () => editingProject(),
+      persistEditingProject: vi.fn(async () => undefined),
+      readChapterManifest: vi.fn(async () => manifest),
+      writeChapterManifest: vi.fn(async () => undefined),
+    });
+    await expect(service.applyAcceptedArtifact(applyInput)).resolves.toMatchObject({ success: true });
+    // App 路径不传 hyperFramesWindows 且 artifact 无装饰槽：服务自建轮换窗（与 CLI fallback 同参）
+    expect(renderRequests[0]?.windows).toEqual([{
+      slotId: "effect-shot-1",
+      cueId: "decorative-effect-1",
+      startUs: 0,
+      durationUs: 1_000_000,
+      templateId: "light-leak",
+      parameters: { intensity: 0.42, hue: 0 },
+    }]);
+  });
+
   it("fails closed when the main-process EditingProject persistence boundary is absent", async () => {
     const renderHyperFrames = vi.fn(async () => ({ state: "ready" as const, artifact: noopOverlayArtifact() }));
     const service = createVideoWorkflowChapterService({

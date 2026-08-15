@@ -36,6 +36,30 @@ export function transitionStyleAtFrame(
 
   const lastFrame = durationInFrames - 1;
   const midpoint = Math.floor(lastFrame / 2);
+  // 血祭黑场与 fade 的差异化：快出→按 hold 保持→快入的梯形包络（连续近黑帧），
+  // 对称三角的 fade 只在正中单帧到达峰值。hold 先用与 transition-policy
+  // params 默认一致的模块内比例（0.15），契约扩展（S3 Phase 2）时再从计划穿真值。
+  if (effectId === "blackout" && durationInFrames >= 3) {
+    const local = clampFrame(frame, durationInFrames);
+    const holdFrames = Math.min(
+      Math.max(Math.round(BLACKOUT_HOLD_FRACTION * durationInFrames), 0),
+      durationInFrames - 2,
+    );
+    const rampFrames = Math.floor((durationInFrames - holdFrames) / 2);
+    const holdEnd = rampFrames + holdFrames;
+    const opacity = local < rampFrames && rampFrames > 0
+      ? local / rampFrames
+      : local < holdEnd
+        ? 1
+        : holdEnd >= lastFrame
+          ? 1
+          : (lastFrame - local) / (lastFrame - holdEnd);
+    return {
+      incomingOpacity: local < holdEnd ? 0 : 1,
+      overlayColor: "#000000",
+      overlayOpacity: clamp01(opacity),
+    };
+  }
   const beforeMidpoint = localFrame <= midpoint;
   const ramp = beforeMidpoint
     ? (midpoint === 0 ? 1 : localFrame / midpoint)
@@ -52,6 +76,7 @@ export function transitionStyleAtFrame(
 }
 
 const FLASH_PEAK_OPACITY = 0.75;
+const BLACKOUT_HOLD_FRACTION = 0.15;
 
 function clampFrame(frame: number, durationInFrames: number): number {
   return Math.max(0, Math.min(durationInFrames - 1, Math.floor(frame)));

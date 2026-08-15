@@ -64,7 +64,45 @@ function textParameter(parameters: Record<string, string | number | boolean>, fa
   return String(value).trim() || fallback;
 }
 
-function renderWindow(window: HyperFramesOverlayRequestV1["windows"][number], index: number): string {
+/**
+ * 分段渲染的内部窗口形状：跨段裁剪的尾段携带原始窗口起点的偏移，
+ * CSS 动画（含 hf-in 入场与无限循环）用负 animation-delay 回退相位，
+ * 拼接后与单组合渲染的时间行为一致（child3 AC1）。
+ */
+type HyperFramesSegmentWindow = HyperFramesOverlayRequestV1["windows"][number] & {
+  animationOffsetUs?: number;
+};
+
+function animationPhaseStyle(window: HyperFramesSegmentWindow): string {
+  if (!window.animationOffsetUs || window.animationOffsetUs <= 0) return "";
+  return `animation-delay:${-(window.animationOffsetUs / 1_000_000)}s;`;
+}
+
+/**
+ * HyperFrames must never render directly to the caller-owned final path. The
+ * enclosing mkdtemp directory is created beside that path, so this rename is
+ * both atomic and safe to clean up on a failed render.
+ */
+export function buildHyperFramesWorkerTemporaryOutputPath(
+  projectDir: string,
+  alphaFormat: HyperFramesOverlayRequestV1["alphaFormat"],
+): string {
+  switch (alphaFormat) {
+    case "prores-4444-mov":
+      return path.join(projectDir, "hyperframes-output.mov");
+    case "webm-vp9-alpha":
+      return path.join(projectDir, "hyperframes-output.webm");
+    case "png-sequence":
+      return path.join(projectDir, "hyperframes-output");
+  }
+}
+
+export function moveValidatedOutput(temporaryPath: string, outputPath: string): void {
+  if (fs.existsSync(outputPath)) throw new Error(`HyperFrames 输出已存在，拒绝覆盖: ${outputPath}`);
+  fs.renameSync(temporaryPath, outputPath);
+}
+
+function renderWindow(window: HyperFramesSegmentWindow, index: number): string {
   if (!SUPPORTED_TEMPLATES.has(window.templateId)) {
     throw new Error(`不支持的 HyperFrames templateId: ${window.templateId}`);
   }
@@ -79,28 +117,30 @@ function renderWindow(window: HyperFramesOverlayRequestV1["windows"][number], in
   const elementId = `hf-${window.slotId.replace(/[^A-Za-z0-9_-]/g, "-")}-${index + 1}`;
   const startS = window.startUs / 1_000_000;
   const durationS = window.durationUs / 1_000_000;
+  const phaseStyle = animationPhaseStyle(window);
+  const phaseOffsetS = window.animationOffsetUs && window.animationOffsetUs > 0 ? window.animationOffsetUs / 1_000_000 : 0;
 
   // --- Cinematic overlay templates (full-frame, no text) ---
   switch (window.templateId) {
     case "light-leak": {
       const intensity = numberParameter(parameters, "intensity", 0.6, 0, 1);
       const hue = numberParameter(parameters, "hue", 30, 0, 360);
-      return `<div id="${escapeHtml(elementId)}" class="clip hf-light-leak" data-start="${startS}" data-duration="${durationS}" data-track-index="${index + 1}" style="--hf-intensity:${intensity};--hf-hue:${hue}deg;"></div>`;
+      return `<div id="${escapeHtml(elementId)}" class="clip hf-light-leak" data-start="${startS}" data-duration="${durationS}" data-track-index="${index + 1}" style="${phaseStyle}--hf-intensity:${intensity};--hf-hue:${hue}deg;"></div>`;
     }
     case "film-grain": {
       const opacity = numberParameter(parameters, "opacity", 0.15, 0, 1);
-      return `<div id="${escapeHtml(elementId)}" class="clip hf-film-grain" data-start="${startS}" data-duration="${durationS}" data-track-index="${index + 1}" style="--hf-grain-opacity:${opacity};"></div>`;
+      return `<div id="${escapeHtml(elementId)}" class="clip hf-film-grain" data-start="${startS}" data-duration="${durationS}" data-track-index="${index + 1}" style="${phaseStyle}--hf-grain-opacity:${opacity};"></div>`;
     }
     case "lens-flare": {
       const xPos = numberParameter(parameters, "x", 50, 0, 100);
       const yPos = numberParameter(parameters, "y", 30, 0, 100);
       const size = numberParameter(parameters, "size", 200, 50, 800);
-      return `<div id="${escapeHtml(elementId)}" class="clip hf-lens-flare" data-start="${startS}" data-duration="${durationS}" data-track-index="${index + 1}" style="left:${xPos}%;top:${yPos}%;--hf-flare-size:${size}px;"></div>`;
+      return `<div id="${escapeHtml(elementId)}" class="clip hf-lens-flare" data-start="${startS}" data-duration="${durationS}" data-track-index="${index + 1}" style="${phaseStyle}left:${xPos}%;top:${yPos}%;--hf-flare-size:${size}px;"></div>`;
     }
     case "vignette-pulse": {
       const darkness = numberParameter(parameters, "darkness", 0.5, 0, 1);
       const speed = numberParameter(parameters, "speed", 2, 0.5, 10);
-      return `<div id="${escapeHtml(elementId)}" class="clip hf-vignette-pulse" data-start="${startS}" data-duration="${durationS}" data-track-index="${index + 1}" style="--hf-vignette:${darkness};--hf-pulse-speed:${speed}s;"></div>`;
+      return `<div id="${escapeHtml(elementId)}" class="clip hf-vignette-pulse" data-start="${startS}" data-duration="${durationS}" data-track-index="${index + 1}" style="${phaseStyle}--hf-vignette:${darkness};--hf-pulse-speed:${speed}s;"></div>`;
     }
     case "particle-dust": {
       const count = numberParameter(parameters, "count", 30, 5, 100);
@@ -109,22 +149,24 @@ function renderWindow(window: HyperFramesOverlayRequestV1["windows"][number], in
       for (let i = 0; i < count; i++) {
         const px = Math.round((i * 37) % 100);
         const py = Math.round((i * 53) % 100);
-        const delay = ((i * 0.3) % 3).toFixed(1);
+        // CSS negative delays start each particle at its global animation
+        // phase. Adding the offset would replay the crossing segment instead.
+        const delay = (((i * 0.3) % 3) - phaseOffsetS).toFixed(1);
         particles += `<span class="hf-dust-particle" style="left:${px}%;top:${py}%;animation-delay:${delay}s;animation-duration:${speed}s;"></span>`;
       }
-      return `<div id="${escapeHtml(elementId)}" class="clip hf-particle-dust" data-start="${startS}" data-duration="${durationS}" data-track-index="${index + 1}">${particles}</div>`;
+      return `<div id="${escapeHtml(elementId)}" class="clip hf-particle-dust" data-start="${startS}" data-duration="${durationS}" data-track-index="${index + 1}"${phaseStyle ? ` style="${phaseStyle}"` : ""}>${particles}</div>`;
     }
     case "letterbox-cinematic": {
       const barHeight = numberParameter(parameters, "barHeight", 10, 0, 25);
       const fadeS = numberParameter(parameters, "fadeIn", 0.5, 0, 3);
-      return `<div id="${escapeHtml(elementId)}" class="clip hf-letterbox" data-start="${startS}" data-duration="${durationS}" data-track-index="${index + 1}" style="--hf-bar-height:${barHeight}%;--hf-letterbox-fade:${fadeS}s;"></div>`;
+      return `<div id="${escapeHtml(elementId)}" class="clip hf-letterbox" data-start="${startS}" data-duration="${durationS}" data-track-index="${index + 1}" style="${phaseStyle}--hf-bar-height:${barHeight}%;--hf-letterbox-fade:${fadeS}s;"></div>`;
     }
   }
 
   // --- Text-based templates (original) ---
   const className = window.templateId === "highlight-box" ? "hf-highlight" : window.templateId === "kinetic-caption" ? "hf-caption" : "hf-title";
   const content = window.templateId === "highlight-box" ? "" : text;
-  return `<div id="${escapeHtml(elementId)}" class="clip ${className}" data-start="${startS}" data-duration="${durationS}" data-track-index="${index + 1}" style="left:${left}%;top:${top}%;font-size:${fontSize}px;color:${color};">${content}</div>`;
+  return `<div id="${escapeHtml(elementId)}" class="clip ${className}" data-start="${startS}" data-duration="${durationS}" data-track-index="${index + 1}" style="${phaseStyle}left:${left}%;top:${top}%;font-size:${fontSize}px;color:${color};">${content}</div>`;
 }
 
 export function buildHyperFramesCompositionHtml(request: HyperFramesOverlayRequestV1, durationUs?: number): string {
@@ -192,7 +234,7 @@ export function buildHyperFramesCliArgs(projectDir: string, request: HyperFrames
 type HyperFramesRenderSegment = {
   startUs: number;
   durationUs: number;
-  windows: HyperFramesOverlayRequestV1["windows"];
+  windows: HyperFramesSegmentWindow[];
 };
 
 function windowEndUs(window: HyperFramesOverlayRequestV1["windows"][number]): number {
@@ -245,6 +287,7 @@ export function splitHyperFramesRenderSegments(request: HyperFramesOverlayReques
         ...window,
         startUs: clippedStartUs - startUs,
         durationUs: clippedEndUs - clippedStartUs,
+        ...(window.startUs < startUs ? { animationOffsetUs: startUs - window.startUs } : {}),
       }];
     });
     if (windows.length > MAX_WINDOWS_PER_COMPOSITION) {
@@ -303,40 +346,48 @@ function renderSegments(
   const segments = splitHyperFramesRenderSegments(request);
   if (segments.length === 1) {
     fs.writeFileSync(path.join(projectDir, "index.html"), buildHyperFramesCompositionHtml(request, segments[0].durationUs), "utf8");
-    execFileSync(nodePath, [cliPath, ...buildHyperFramesCliArgs(projectDir, request)], {
+    const temporaryOutputPath = buildHyperFramesWorkerTemporaryOutputPath(projectDir, request.alphaFormat);
+    execFileSync(nodePath, [cliPath, ...buildHyperFramesCliArgs(projectDir, request, temporaryOutputPath)], {
       cwd: projectDir,
       env: { ...process.env, ELECTRON_RUN_AS_NODE: "1", MYSTUDIO_FFMPEG_PATH: process.env.MYSTUDIO_FFMPEG_PATH ?? "", MYSTUDIO_FFPROBE_PATH: process.env.MYSTUDIO_FFPROBE_PATH ?? "" },
       encoding: "utf8", timeout: 30 * 60_000, stdio: ["ignore", "pipe", "pipe"],
     });
+    assertRenderedAlphaOutput(temporaryOutputPath, request, segments[0].durationUs);
+    moveValidatedOutput(temporaryOutputPath, request.outputPath);
     return;
   }
   if (request.alphaFormat !== "prores-4444-mov") {
     throw new Error("多个 HyperFrames 严格分段目前只支持可无损拼接的 ProRes 4444 MOV");
   }
   const segmentDir = fs.mkdtempSync(path.join(path.dirname(request.outputPath), `.hyperframes-segments-${process.pid}-`));
-  const segmentPaths = segments.map((segment, index) => {
-    const segmentProjectDir = path.join(segmentDir, `segment-${String(index + 1).padStart(2, "0")}`);
-    fs.mkdirSync(segmentProjectDir, { recursive: true });
-    const segmentRequest = { ...request, windows: segment.windows };
-    const segmentPath = path.join(segmentDir, `segment-${String(index + 1).padStart(2, "0")}.mov`);
-    fs.writeFileSync(path.join(segmentProjectDir, "index.html"), buildHyperFramesCompositionHtml(segmentRequest, segment.durationUs), "utf8");
-    execFileSync(nodePath, [cliPath, ...buildHyperFramesCliArgs(segmentProjectDir, segmentRequest, segmentPath)], {
-      cwd: segmentProjectDir,
-      env: { ...process.env, ELECTRON_RUN_AS_NODE: "1", MYSTUDIO_FFMPEG_PATH: process.env.MYSTUDIO_FFMPEG_PATH ?? "", MYSTUDIO_FFPROBE_PATH: process.env.MYSTUDIO_FFPROBE_PATH ?? "" },
-      encoding: "utf8", timeout: 30 * 60_000, stdio: ["ignore", "pipe", "pipe"],
+  try {
+    const segmentPaths = segments.map((segment, index) => {
+      const segmentProjectDir = path.join(segmentDir, `segment-${String(index + 1).padStart(2, "0")}`);
+      fs.mkdirSync(segmentProjectDir, { recursive: true });
+      const segmentRequest = { ...request, windows: segment.windows };
+      const segmentPath = path.join(segmentDir, `segment-${String(index + 1).padStart(2, "0")}.mov`);
+      fs.writeFileSync(path.join(segmentProjectDir, "index.html"), buildHyperFramesCompositionHtml(segmentRequest, segment.durationUs), "utf8");
+      execFileSync(nodePath, [cliPath, ...buildHyperFramesCliArgs(segmentProjectDir, segmentRequest, segmentPath)], {
+        cwd: segmentProjectDir,
+        env: { ...process.env, ELECTRON_RUN_AS_NODE: "1", MYSTUDIO_FFMPEG_PATH: process.env.MYSTUDIO_FFMPEG_PATH ?? "", MYSTUDIO_FFPROBE_PATH: process.env.MYSTUDIO_FFPROBE_PATH ?? "" },
+        encoding: "utf8", timeout: 30 * 60_000, stdio: ["ignore", "pipe", "pipe"],
+      });
+      assertRenderedAlphaOutput(segmentPath, request, segment.durationUs);
+      return segmentPath;
     });
-    assertRenderedAlphaOutput(segmentPath, request, segment.durationUs);
-    return segmentPath;
-  });
-  const concatManifestPath = path.join(segmentDir, "segments.txt");
-  fs.writeFileSync(concatManifestPath, `${segmentPaths.map((segmentPath) => `file ${quoteConcatPath(segmentPath)}`).join("\n")}\n`, "utf8");
-  const outputTemporaryPath = `${request.outputPath}.${process.pid}.partial.mov`;
-  const ffmpeg = process.env.MYSTUDIO_FFMPEG_PATH?.trim() || "ffmpeg";
-  execFileSync(ffmpeg, ["-n", "-f", "concat", "-safe", "0", "-i", concatManifestPath, "-map", "0:v:0", "-an", "-c", "copy", outputTemporaryPath], {
-    encoding: "utf8", timeout: 5 * 60_000, stdio: ["ignore", "pipe", "pipe"],
-  });
-  fs.renameSync(outputTemporaryPath, request.outputPath);
-  assertRenderedAlphaOutput(request.outputPath, request, Math.max(...request.windows.map(windowEndUs)));
+    const concatManifestPath = path.join(segmentDir, "segments.txt");
+    fs.writeFileSync(concatManifestPath, `${segmentPaths.map((segmentPath) => `file ${quoteConcatPath(segmentPath)}`).join("\n")}\n`, "utf8");
+    const outputTemporaryPath = buildHyperFramesWorkerTemporaryOutputPath(segmentDir, request.alphaFormat);
+    const ffmpeg = process.env.MYSTUDIO_FFMPEG_PATH?.trim() || "ffmpeg";
+    execFileSync(ffmpeg, ["-n", "-f", "concat", "-safe", "0", "-i", concatManifestPath, "-map", "0:v:0", "-an", "-c", "copy", outputTemporaryPath], {
+      encoding: "utf8", timeout: 5 * 60_000, stdio: ["ignore", "pipe", "pipe"],
+    });
+    // 拼接结果必须在校验通过后才进入最终路径：失败不得留下会被“拒绝覆盖”挡住重试的最终文件（child3 AC3）。
+    assertRenderedAlphaOutput(outputTemporaryPath, request, Math.max(...request.windows.map(windowEndUs)));
+    moveValidatedOutput(outputTemporaryPath, request.outputPath);
+  } finally {
+    fs.rmSync(segmentDir, { recursive: true, force: true });
+  }
 }
 
 function parseArgs(argv: string[]): { requestPath: string; artifactPath: string } {
@@ -400,11 +451,7 @@ function run(request: HyperFramesOverlayRequestV1, artifactPath: string): HyperF
   const projectDir = fs.mkdtempSync(path.join(path.dirname(request.outputPath), `.hyperframes-${process.pid}-`));
   try {
     renderSegments(validated.value, cliPath, nodePath, projectDir);
-    if (validated.value.alphaFormat === "png-sequence") assertAlphaOutput(request.outputPath, validated.value.alphaFormat);
-    else {
-      if (!fs.existsSync(request.outputPath)) throw new Error("HyperFrames CLI 未生成输出文件");
-      assertRenderedAlphaOutput(request.outputPath, validated.value, Math.max(...validated.value.windows.map(windowEndUs)));
-    }
+    if (!fs.existsSync(request.outputPath)) throw new Error("HyperFrames CLI 未生成输出文件");
     const outputSha256 = validated.value.alphaFormat === "png-sequence"
       ? crypto.createHash("sha256").update(fs.readdirSync(request.outputPath).sort().join("\n")).digest("hex")
       : crypto.createHash("sha256").update(fs.readFileSync(request.outputPath)).digest("hex");
@@ -425,6 +472,8 @@ function run(request: HyperFramesOverlayRequestV1, artifactPath: string): HyperF
     };
   } catch (error) {
     return blocked(validated.value, "render-failed", error instanceof Error ? error.message : String(error));
+  } finally {
+    fs.rmSync(projectDir, { recursive: true, force: true });
   }
 }
 

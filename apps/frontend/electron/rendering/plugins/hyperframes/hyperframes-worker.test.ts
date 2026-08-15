@@ -1,5 +1,15 @@
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { buildHyperFramesCliArgs, buildHyperFramesCompositionHtml, splitHyperFramesRenderSegments } from "./hyperframes-worker";
+import type { HyperFramesOverlayRequestV1 } from "@rendering/contracts/video-workflow";
+import {
+  buildHyperFramesCliArgs,
+  buildHyperFramesCompositionHtml,
+  buildHyperFramesWorkerTemporaryOutputPath,
+  moveValidatedOutput,
+  splitHyperFramesRenderSegments,
+} from "./hyperframes-worker";
 
 const hash = "a".repeat(64);
 
@@ -43,6 +53,33 @@ describe("HyperFrames worker composition boundary", () => {
     ]);
   });
 
+  it("uses worker-owned temporary paths for every supported output format", () => {
+    const temporaryMovPath = buildHyperFramesWorkerTemporaryOutputPath("/tmp/hyperframes-project", "prores-4444-mov");
+    expect(temporaryMovPath)
+      .toBe("/tmp/hyperframes-project/hyperframes-output.mov");
+    expect(buildHyperFramesWorkerTemporaryOutputPath("/tmp/hyperframes-project", "webm-vp9-alpha"))
+      .toBe("/tmp/hyperframes-project/hyperframes-output.webm");
+    expect(buildHyperFramesWorkerTemporaryOutputPath("/tmp/hyperframes-project", "png-sequence"))
+      .toBe("/tmp/hyperframes-project/hyperframes-output");
+    expect(buildHyperFramesCliArgs("/tmp/hyperframes-project", request, temporaryMovPath)).toContain(temporaryMovPath);
+    expect(buildHyperFramesCliArgs("/tmp/hyperframes-project", request, temporaryMovPath)).not.toContain(request.outputPath);
+  });
+
+  it("AC2: refuses a final output collision without moving or overwriting either file", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "mystudio-hyperframes-collision-"));
+    const temporaryPath = path.join(root, "temporary.mov");
+    const outputPath = path.join(root, "existing.mov");
+    fs.writeFileSync(temporaryPath, "temporary", "utf8");
+    fs.writeFileSync(outputPath, "existing", "utf8");
+    try {
+      expect(() => moveValidatedOutput(temporaryPath, outputPath)).toThrow("拒绝覆盖");
+      expect(fs.readFileSync(temporaryPath, "utf8")).toBe("temporary");
+      expect(fs.readFileSync(outputPath, "utf8")).toBe("existing");
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("rejects templates that are not part of the MYStudio overlay contract", () => {
     expect(() => buildHyperFramesCompositionHtml({
       ...request,
@@ -79,5 +116,75 @@ describe("HyperFrames worker composition boundary", () => {
       startUs: 0,
       durationUs: 1_000_000,
     });
+  });
+
+  it("AC1: 跨段尾段窗口生成负 animation-delay，段内原生窗口不带相位偏移", () => {
+    const heavy = {
+      ...request,
+      windows: Array.from({ length: 17 }, (_, index) => ({
+        slotId: `slot-${index + 1}`,
+        cueId: `cue-${index + 1}`,
+        startUs: index * 1_000_000,
+        durationUs: 1_000_000,
+        templateId: "light-leak" as const,
+        parameters: {},
+      })),
+    };
+    heavy.windows[0] = { ...heavy.windows[0], durationUs: 9_000_000 };
+
+    const segments = splitHyperFramesRenderSegments(heavy);
+    const segment2 = segments[1];
+    const html = buildHyperFramesCompositionHtml({ ...request, windows: segment2.windows }, segment2.durationUs);
+
+    // slot-1 尾段：段起点 8s，原始起点 0s → 相位回退 8s
+    expect(html).toContain("animation-delay:-8s;");
+    // 段内原生窗口（slot-9 起）不得携带负相位；17 窗 3 段里第 2 段唯一跨段窗口是 slot-1
+    expect(html.match(/animation-delay:-/g)).toHaveLength(1);
+    // 跨段窗口时长被裁剪为 [8s,9s) 共 1s，与分段器输出一致
+    expect(segment2.windows.find((window) => window.slotId === "slot-1")).toMatchObject({
+      startUs: 0,
+      durationUs: 1_000_000,
+      animationOffsetUs: 8_000_000,
+    });
+  });
+
+  it("AC1: 粒子 stagger 延迟扣除跨段偏移，保持全局动画相位", () => {
+    const heavy: HyperFramesOverlayRequestV1 = {
+      ...request,
+      windows: Array.from({ length: 17 }, (_, index) => ({
+        slotId: `slot-${index + 1}`,
+        cueId: `cue-${index + 1}`,
+        startUs: index * 1_000_000,
+        durationUs: 1_000_000,
+        templateId: "light-leak" as const,
+        parameters: {},
+      })),
+    };
+    heavy.windows[0] = {
+      ...heavy.windows[0],
+      durationUs: 9_000_000,
+      templateId: "particle-dust",
+      parameters: { count: 5, speed: 8 },
+    };
+    const segment2 = splitHyperFramesRenderSegments(heavy)[1];
+    const html = buildHyperFramesCompositionHtml({ ...request, windows: segment2.windows }, segment2.durationUs);
+
+    expect(html).toContain('class="hf-dust-particle" style="left:0%;top:0%;animation-delay:-8.0s;animation-duration:8s;"');
+    expect(html).toContain('class="hf-dust-particle" style="left:37%;top:53%;animation-delay:-7.7s;animation-duration:8s;"');
+  });
+
+  it("AC2: 重叠窗口超过段上限且无合法切点时 fail closed", () => {
+    const dense = {
+      ...request,
+      windows: Array.from({ length: 9 }, (_, index) => ({
+        slotId: `dense-${index + 1}`,
+        cueId: `dense-cue-${index + 1}`,
+        startUs: index * 100_000,
+        durationUs: 2_000_000,
+        templateId: "light-leak" as const,
+        parameters: {},
+      })),
+    };
+    expect(() => splitHyperFramesRenderSegments(dense)).toThrow("切分");
   });
 });

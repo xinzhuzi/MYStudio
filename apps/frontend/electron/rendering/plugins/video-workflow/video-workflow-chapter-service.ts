@@ -24,6 +24,65 @@ import {
 import type { HyperFramesAdapterResult } from "../hyperframes/hyperframes-adapter";
 import type { VideoUseAdapterResult } from "../video-use/video-use-adapter";
 
+const FALLBACK_DECORATIVE_TEMPLATES = [
+  "light-leak",
+  "film-grain",
+  "lens-flare",
+  "vignette-pulse",
+  "particle-dust",
+  "letterbox-cinematic",
+  "highlight-box",
+] as const;
+const FALLBACK_WINDOW_MAX_US = 1_100_000;
+
+/**
+ * Deterministic CLI-rotation decorative windows built from the accepted EDL.
+ * Mirrors run-full-pipeline's legacy rotation (same template order, parameters
+ * and 1.1s clamp) so the App apply path — which passes no hyperFramesWindows —
+ * still produces the same decorative layer the CLI fallback provides.
+ */
+function buildRotationFallbackWindows(
+  edl: ReadonlyArray<{
+    shotId: string;
+    timelineStartS: number;
+    durationS: number;
+    transitionToNext?: { effectId: string; durationUs: number };
+  }>,
+): HyperFramesOverlayWindowV1[] {
+  let shiftUs = 0;
+  return edl.map((entry, index) => {
+    const templateId = FALLBACK_DECORATIVE_TEMPLATES[index % FALLBACK_DECORATIVE_TEMPLATES.length]!;
+    // Transition overlaps pull the laid-out timeline earlier than the raw EDL;
+    // windows are EDL-anchored, so shift by the cumulative overlap before this shot.
+    const startUs = Math.max(0, Math.round(entry.timelineStartS * 1_000_000) - shiftUs);
+    const durationUs = Math.max(1, Math.min(Math.round(entry.durationS * 1_000_000), FALLBACK_WINDOW_MAX_US));
+    const parameters: Record<string, string | number | boolean> = templateId === "light-leak"
+      ? { intensity: 0.42, hue: (index * 31) % 360 }
+      : templateId === "film-grain"
+        ? { opacity: 0.2 }
+        : templateId === "lens-flare"
+          ? { x: 18 + ((index * 13) % 64), y: 24 + ((index * 7) % 34), size: 260 }
+          : templateId === "vignette-pulse"
+            ? { darkness: 0.42, speed: 2.4 }
+            : templateId === "particle-dust"
+              ? { count: 40, speed: 7 }
+              : templateId === "letterbox-cinematic"
+                ? { barHeight: 12, fadeIn: 0.25 }
+                : { x: 50, y: 50, color: "#f4d06f" };
+    if (entry.transitionToNext && entry.transitionToNext.effectId !== "cut") {
+      shiftUs += entry.transitionToNext.durationUs;
+    }
+    return {
+      slotId: `effect-${entry.shotId}`,
+      cueId: `decorative-effect-${index + 1}`,
+      startUs,
+      durationUs,
+      templateId,
+      parameters,
+    };
+  });
+}
+
 export interface VideoWorkflowChapterServiceOptions {
   workspaceRootForProject: (projectId: string) => string;
   runVideoUse: (run: VideoUseChapterRunV1) => Promise<VideoUseAdapterResult>;
@@ -191,12 +250,20 @@ export function createVideoWorkflowChapterService(options: VideoWorkflowChapterS
     // MYSTUDIO_OVERLAY_MODE=legacy 与 run-full-pipeline 同口径：强制走 CLI 轮换装饰窗，
     // 忽略 artifact 氛围词装饰决策（43 窗单 composition 命中 heavy-overlay lint 熔断）。
     const artifactHasDecorativeWindows = process.env.MYSTUDIO_OVERLAY_MODE !== "legacy" && decorativeOverlayWindows.length > 0;
-    if (!artifactHasDecorativeWindows && input.hyperFramesWindows?.length) {
-      console.warn("[video-workflow] accepted artifact has no decorative overlay slots; using CLI fallback windows");
+    // App apply 路径不传 hyperFramesWindows：legacy/无装饰槽时由服务自建轮换兜底，
+    // 与 CLI fallback 逐字同参（模板序/参数/1.1s 钳制），两路径装饰窗计数一致。
+    const fallbackWindows = input.hyperFramesWindows?.length
+      ? input.hyperFramesWindows
+      : buildRotationFallbackWindows(checked.value.edl);
+    if (!artifactHasDecorativeWindows) {
+      console.warn(
+        `[video-workflow] no decorative overlay decisions in use; fallback windows: ${fallbackWindows.length}`
+          + (input.hyperFramesWindows?.length ? " (caller-provided)" : " (service rotation)"),
+      );
     }
     const overlayWindows = [
       ...subtitleOverlayWindows,
-      ...(artifactHasDecorativeWindows ? decorativeOverlayWindows : (input.hyperFramesWindows ?? [])),
+      ...(artifactHasDecorativeWindows ? decorativeOverlayWindows : fallbackWindows),
     ].sort((left, right) => left.startUs - right.startUs || left.durationUs - right.durationUs);
     const extension = input.alphaFormat === "prores-4444-mov" ? "mov" : input.alphaFormat === "webm-vp9-alpha" ? "webm" : "png";
     const request: HyperFramesOverlayRequestV1 = {

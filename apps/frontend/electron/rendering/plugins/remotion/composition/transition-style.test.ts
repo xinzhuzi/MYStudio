@@ -54,4 +54,23 @@ describe("transitionStyleAtFrame", () => {
     expect(transitionStyleAtFrame("crossfade", -10, 11).incomingOpacity).toBe(0);
     expect(transitionStyleAtFrame("crossfade", 100, 11).incomingOpacity).toBe(1);
   });
+
+  it("blackout holds a near-black plateau while fade peaks a single frame (S3 R3 差异化)", () => {
+    const framesOf = (effectId: "fade" | "blackout", duration: number) =>
+      Array.from({ length: duration }, (_, frame) => transitionStyleAtFrame(effectId, frame, duration).overlayOpacity);
+    const fade = framesOf("fade", 24);
+    const blackout = framesOf("blackout", 24);
+    // fade 对称三角：只有正中一帧到达 1
+    expect(fade.filter((opacity) => opacity >= 0.99)).toHaveLength(1);
+    // blackout 梯形：保持段（round(0.15*24)=4 帧）加下降沿首帧 ≥0.99，且在保持段之后才切换入镜
+    const nearBlack = blackout.map((opacity, frame) => ({ opacity, frame })).filter((entry) => entry.opacity >= 0.99);
+    expect(nearBlack.length).toBeGreaterThanOrEqual(4);
+    const consecutive = nearBlack.every((entry, index) => index === 0 || entry.frame === nearBlack[index - 1]!.frame + 1);
+    expect(consecutive).toBe(true);
+    const holdEnd = Math.floor((24 - Math.min(Math.round(0.15 * 24), 22)) / 2) + Math.min(Math.round(0.15 * 24), 22);
+    expect(transitionStyleAtFrame("blackout", holdEnd - 1, 24).incomingOpacity).toBe(0);
+    expect(transitionStyleAtFrame("blackout", holdEnd, 24).incomingOpacity).toBe(1);
+    // 退化时长（<3 帧）blackout 退回 fade 行为
+    expect(transitionStyleAtFrame("blackout", 0, 2)).toEqual(transitionStyleAtFrame("fade", 0, 2));
+  });
 });

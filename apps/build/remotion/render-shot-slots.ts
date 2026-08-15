@@ -57,6 +57,8 @@ export interface ShotSlotReport {
   sourceSnapshotHash: string;
   chapterManifestPath: string;
   slots: RemotionCurrentSlotV1[];
+  /** MYSTUDIO_INKWASH_LAYER=1 时的帧源替换证据（S4 试点）：缺省为空数组。 */
+  sourceSwaps?: Array<{ storyboardId: string; from: string; to: string }>;
 }
 
 /**
@@ -199,7 +201,7 @@ export async function runRemotionShotSlots(): Promise<ShotSlotReport> {
     await bridge.close().catch(() => undefined);
     process.chdir(previousCwd);
   }
-  const report: ShotSlotReport = { ok: true, renderer: { requested: "remotion", actual: "remotion", version: remotionVersion, bundleVersion: manifest.contentHash }, projectId, chapterId, shotCount: slots.length, sourceSnapshotHash: plans.sourceSnapshotHash, chapterManifestPath, slots };
+  const report: ShotSlotReport = { ok: true, renderer: { requested: "remotion", actual: "remotion", version: remotionVersion, bundleVersion: manifest.contentHash }, projectId, chapterId, shotCount: slots.length, sourceSnapshotHash: plans.sourceSnapshotHash, chapterManifestPath, slots , sourceSwaps: inkwashSourceSwaps };
   const reportPath = path.resolve(process.env.MYSTUDIO_SHOT_REPORT || path.join(appsRoot, "output", "automation", "daojie-chapter001-shot-slots.json"));
   await fs.promises.mkdir(path.dirname(reportPath), { recursive: true });
   await fs.promises.writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
@@ -236,8 +238,34 @@ function requireState(value: unknown, source: string): JsonRecord & { storyboard
   return value.state as JsonRecord & { storyboards: unknown[] };
 }
 function isRecord(value: unknown): value is JsonRecord { return Boolean(value) && typeof value === "object" && !Array.isArray(value); }
+const inkwashSourceSwaps: Array<{ storyboardId: string; from: string; to: string }> = [];
+
+/**
+ * S4 水墨像素层试点：MYSTUDIO_INKWASH_LAYER=1 时把分镜帧源替换为预处理帧。
+ * 替换必须显式留痕（swaps 进报告 + 控制台日志），且帧必须位于项目目录内
+ * （normalizeMediaRef 的媒体边界校验会拒绝项目外路径）。
+ */
+function resolveInkwashFrame(storyboard: StoryboardItem): string | undefined {
+  if (process.env.MYSTUDIO_INKWASH_LAYER !== "1") return undefined;
+  const framesDir = process.env.MYSTUDIO_INKWASH_FRAMES_DIR?.trim();
+  if (!framesDir) throw new Error("MYSTUDIO_INKWASH_LAYER=1 需要同时设置 MYSTUDIO_INKWASH_FRAMES_DIR（预处理帧目录）");
+  const match = /-([0-9]{3})$/.exec(storyboard.id);
+  if (!match) return undefined;
+  const frame = path.join(framesDir, `shot-${match[1]}.png`);
+  if (!fs.existsSync(frame)) throw new Error(`水墨试点帧缺失: ${frame}`);
+  return frame;
+}
+
 function normalizeStoryboard(storyboard: StoryboardItem, projectDir: string, dataRoot: string, projectId: string): StoryboardItem {
-  return { ...storyboard, mediaRef: normalizeMediaRef(storyboard.mediaRef, projectDir, dataRoot, projectId), audioRef: storyboard.audioRef ? normalizeMediaRef(storyboard.audioRef, projectDir, dataRoot, projectId) : storyboard.audioRef };
+  const inkwashFrame = resolveInkwashFrame(storyboard);
+  if (inkwashFrame && storyboard.mediaRef?.path) {
+    inkwashSourceSwaps.push({ storyboardId: storyboard.id, from: storyboard.mediaRef.path, to: inkwashFrame });
+    console.log(`[inkwash] sourceSwap ${storyboard.id} -> ${inkwashFrame}`);
+  }
+  const media = inkwashFrame && storyboard.mediaRef
+    ? { ...storyboard.mediaRef, path: inkwashFrame, contentSha256: undefined }
+    : storyboard.mediaRef;
+  return { ...storyboard, mediaRef: normalizeMediaRef(media, projectDir, dataRoot, projectId), audioRef: storyboard.audioRef ? normalizeMediaRef(storyboard.audioRef, projectDir, dataRoot, projectId) : storyboard.audioRef };
 }
 
 function normalizeMediaRef(media: StoryboardMediaRef | undefined, projectDir: string, dataRoot: string, projectId: string): StoryboardMediaRef {
