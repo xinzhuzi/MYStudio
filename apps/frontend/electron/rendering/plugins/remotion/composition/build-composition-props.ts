@@ -1,4 +1,5 @@
 import path from "node:path";
+import { parseProjectFileUrl } from "@/electron/storage/storage-paths";
 import type {
   EditingEffect,
   TimelineRenderClip,
@@ -99,13 +100,21 @@ export function buildCompositionProps(
     ? plan.clips
         .filter((clip) => clip.trackKind === "text" && typeof clip.source.text === "string")
         .sort(compareTimelineClips)
-        .map((clip) => ({
-          cueId: clip.id,
-          text: clip.source.text!.trim(),
-          from: usToFrames(clip.startUs, fps),
-          durationInFrames: clipDurationInFrames(clip.durationUs, fps),
-        }))
-        .filter((cue) => cue.text.length > 0)
+        .map((clip) => {
+          const from = usToFrames(clip.startUs, fps);
+          return {
+            cueId: clip.id,
+            text: clip.source.text!.trim(),
+            from,
+            // 音频对齐的句级 cue 可能略微越过视觉时间线终点（尾镜留白），
+            // fail-closed 校验禁止越界 Sequence —— 截到 composition 末帧。
+            durationInFrames: Math.max(1, Math.min(
+              clipDurationInFrames(clip.durationUs, fps),
+              visualTiming.durationInFrames - from,
+            )),
+          };
+        })
+        .filter((cue) => cue.text.length > 0 && cue.from < visualTiming.durationInFrames)
     : [];
   const transitions: CompositionTransitionProps[] = plan.transitions.map((transition) => {
     const from = timingById.get(transition.fromClipId);
@@ -442,7 +451,9 @@ function inspectChapterVideoSource(
     }
     const requestedSourcePath = clip.source.path?.trim() ?? "";
     const resolvedCurrentSlotPath = input.currentShotSlotPaths?.[storyboardId] ?? slot.outputPath;
+    const requestedProjectRelativePath = projectFileRelativePath(requestedSourcePath, input.plan.projectId);
     const matchesCurrentSlot = requestedSourcePath === slot.outputPath
+      || requestedProjectRelativePath === slot.outputPath
       || pathsEquivalentForComposition(requestedSourcePath, resolvedCurrentSlotPath);
     const matchesAcceptedDerivedInput = !matchesCurrentSlot
       && input.videoWorkflowGate?.mode === "editable-edl"
@@ -534,6 +545,15 @@ function pathsEquivalentForComposition(left: string, right: string): boolean {
   if (!left || !right) return false;
   const normalize = (value: string) => path.normalize(value.replace(/^\/private\/var(?:\/|$)/, "/var/"));
   return normalize(left) === normalize(right);
+}
+
+function projectFileRelativePath(sourcePath: string, projectId: string): string | null {
+  try {
+    const parsed = parseProjectFileUrl(sourcePath);
+    return parsed?.projectId === projectId ? parsed.relativePath : null;
+  } catch {
+    return null;
+  }
 }
 
 function isSha256(value: unknown): value is string {

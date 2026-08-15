@@ -133,6 +133,8 @@ export interface CompositionVisualClipProps {
   panZoom?: CompositionPanZoom;
   /** When present, renders in 3D cinematic mode via @remotion/three. */
   cinematic?: CinematicConfig;
+  /** 3D 贴图静帧 URL（TextureLoader 只能解码图片；src 保留视频供音轨取声）。 */
+  cinematicImageSrc?: string;
   // Video-only playback controls; ignored for images.
   trimStartFrames?: number;
   playbackRate?: number;

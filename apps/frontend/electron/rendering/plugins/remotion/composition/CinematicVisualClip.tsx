@@ -14,7 +14,7 @@
 // context { scene, camera, gl } and imperatively builds the scene.
 
 import React from "react";
-import { AbsoluteFill, useCurrentFrame, useVideoConfig, continueRender, delayRender } from "remotion";
+import { AbsoluteFill, OffthreadVideo, useCurrentFrame, useVideoConfig, continueRender, delayRender } from "remotion";
 import { ThreeCanvas } from "@remotion/three";
 import { useThree } from "@react-three/fiber";
 import * as THREE from "three";
@@ -34,14 +34,29 @@ export function CinematicVisualClip(props: CompositionVisualClipProps): React.Re
 
   return (
     <AbsoluteFill style={{ backgroundColor: "#000" }}>
+      {/* 3D 画面用的是静帧，镜头视频的音轨在这里补挂（VisualClip 靠未静音的
+          OffthreadVideo 出声；cinematic 分支替换掉它后必须自己接管音频）。 */}
+      {props.muted === false ? (
+        <OffthreadVideo
+          src={props.src}
+          trimBefore={props.trimStartFrames}
+          playbackRate={props.playbackRate ?? 1}
+          muted={false}
+          style={HIDDEN_MEDIA_STYLE}
+        />
+      ) : null}
       <ThreeCanvas
         width={width}
         height={height}
         camera={{ position: camera.position, fov: camera.fov, aspect: width / height }}
         style={{ width: "100%", height: "100%" }}
+        // 软件 WebGL(SwiftShader) 下抗锯齿 MSABuffer 与高 DPR 是上下文崩掉的主因；
+        // 关闭后 3D 帧内存占用大幅下降（真 GPU 下同样安全）。
+        gl={{ antialias: false, stencil: false, powerPreference: "low-power" }}
+        dpr={1}
       >
         <DepthDisplacedImage
-          imageSrc={props.src}
+          imageSrc={props.cinematicImageSrc ?? props.src}
           depthMapSrc={config.depthMapSrc}
           displacement={displacement}
           cameraPosition={camera.position}
@@ -53,6 +68,15 @@ export function CinematicVisualClip(props: CompositionVisualClipProps): React.Re
     </AbsoluteFill>
   );
 }
+
+// 隐藏但仍在合成树内的媒体元素（仅取其音轨；视觉由 ThreeCanvas 提供）
+const HIDDEN_MEDIA_STYLE: React.CSSProperties = {
+  position: "absolute",
+  width: 1,
+  height: 1,
+  opacity: 0,
+  pointerEvents: "none",
+};
 
 // ---------------------------------------------------------------------------
 // Imperative scene builder component (renders nothing visible — just builds the scene)
@@ -74,9 +98,18 @@ interface DepthDisplacedImageProps {
  * depth-displaced plane and updates the camera position each frame.
  */
 function DepthDisplacedImage(props: DepthDisplacedImageProps): React.ReactElement {
-  const { scene, camera } = useThree();
+  const { scene, camera, gl } = useThree();
   const [texturesLoaded, setTexturesLoaded] = React.useState(false);
   const [handle] = React.useState(() => delayRender("Loading textures for cinematic clip"));
+
+  // 页内逐镜轮换（Sequence 挂载/卸载）时，未显式释放的 WebGL 上下文会一直存活到 GC，
+  // 累积超过 Chrome 单页上下文上限（~16）后触发 Context Lost 级联——卸载时强制释放。
+  React.useEffect(() => {
+    return () => {
+      gl.forceContextLoss();
+      gl.dispose();
+    };
+  }, [gl]);
 
   // Load textures
   const imageTexture = React.useMemo(() => {
@@ -120,7 +153,9 @@ function DepthDisplacedImage(props: DepthDisplacedImageProps): React.ReactElemen
       // Create the depth-displaced plane
       const planeWidth = 4 * props.aspectRatio;
       const planeHeight = 4;
-      const segments = 256;
+      // 96 段网格（~9k 顶点）足够承载低频深度位移；256 段的顶点纹理采样在软件
+      // WebGL 下是 GPU 进程崩溃源。
+      const segments = 96;
 
       const geometry = new THREE.PlaneGeometry(planeWidth, planeHeight, segments, segments);
 

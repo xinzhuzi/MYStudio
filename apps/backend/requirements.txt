@@ -12,3 +12,6 @@ mlx-audio==0.4.1; sys_platform == "darwin" and platform_machine == "arm64"
 # GPU 加速需安装 CUDA 版 torch，由应用设置 > 插件配置 > Python 运行环境的运行时安装流程处理
 torch>=2.5.1; sys_platform != "darwin"
 qwen-tts; sys_platform != "darwin"
+
+# ─── macOS Apple Silicon: PyTorch 推理（深度估计等本地模型；无 CUDA，官方 arm64 CPU/MPS 构建） ───
+torch>=2.5.1; sys_platform == "darwin" and platform_machine == "arm64"

@@ -68,25 +68,48 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _snapshot_dir(repo_cache: str) -> Path:
+    """Resolve the snapshot directory inside a models--<repo> cache entry.
+
+    Prefers refs/main; falls back to the first snapshot directory so partial
+    refs never block an otherwise complete cache.
+    """
+    root = Path(repo_cache)
+    refs_main = root / "refs" / "main"
+    if refs_main.is_file():
+        ref = refs_main.read_text(encoding="utf-8").strip()
+        snapshot = root / "snapshots" / ref
+        if snapshot.is_dir():
+            return snapshot
+    snapshots = root / "snapshots"
+    if snapshots.is_dir():
+        for entry in sorted(snapshots.iterdir()):
+            if entry.is_dir():
+                return entry
+    raise DepthEstimationError("model-not-downloaded", f"模型缓存缺少快照目录: {repo_cache}")
+
+
 def _load_model(model: str):
     """Load the depth estimation model via transformers pipeline (downloaded files only)."""
     spec = _model_spec(model)
-    _require_model_downloaded(model)
+    cached = find_cached_depth_model(spec["repo_ids"])
+    if not cached:
+        _require_model_downloaded(model)  # raises the settings-guided message
+        raise DepthEstimationError("model-not-downloaded", f"模型 {spec['label']} 缓存不可用")
 
     try:
         from transformers import pipeline as hf_pipeline
     except ImportError as exc:
         raise DepthEstimationError("transformers-missing", f"transformers 库未安装: {exc}") from exc
 
-    cache_dir = _model_cache_dir()
     try:
-        kwargs: dict[str, Any] = {"local_files_only": True}
-        if cache_dir:
-            kwargs["cache_dir"] = cache_dir
-        pipe = hf_pipeline(task="depth-estimation", model=spec["repo_id"], **kwargs)
+        # transformers v5 pipeline no longer routes cache_dir into hub resolution,
+        # so repo-id + cache_dir fails offline. Loading the snapshot directory as a
+        # local model path bypasses the hub entirely and stays version-stable.
+        pipe = hf_pipeline(task="depth-estimation", model=str(_snapshot_dir(cached["repo_cache_dir"])))
         return pipe
     except Exception as exc:
-        # local_files_only surfaces network-free cache misses as OSError; unify them.
+        # Snapshot-path load only fails on broken caches; unify as cache-missing.
         raise DepthEstimationError("model-not-downloaded", f"模型 {spec['label']} 缓存不可用: {exc}") from exc
 
 

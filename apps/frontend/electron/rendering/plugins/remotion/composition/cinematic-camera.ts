@@ -338,6 +338,8 @@ export function depthDisplacementScale(
   _durationInFrames: number,
   config: CinematicConfig,
 ): number {
-  // Scale displacement by parallax strength so deeper scenes get more separation
-  return (config.parallaxStrength || 1) * 2.0;
+  // Scale displacement by parallax strength so deeper scenes get more separation.
+  // 上限 1.2：dolly/fly 类预设最近推进到 z≈1.6(dist*0.32)，位移 2.0 时相机可穿入
+  // 位移几何体导致近裁剪黑帧——1.2 保证所有预设的最近机位仍在最凸表面之外。
+  return (config.parallaxStrength || 1) * 1.2;
 }
