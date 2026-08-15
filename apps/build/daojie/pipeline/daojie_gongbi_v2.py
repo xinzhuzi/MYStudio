@@ -17,6 +17,8 @@ from PIL import Image
 
 
 STYLE_CONTRACT_VERSION = "daojie-gongbi-v3"
+# 存量台账/已批准资产为 daojie-gongbi-v2;消费侧(审批/回放/参考继承)对两版本均接受。
+ACCEPTED_STYLE_CONTRACT_VERSIONS = frozenset({"daojie-gongbi-v2", STYLE_CONTRACT_VERSION})
 PROMPT_AUDIT_VERSION = "daojie-gongbi-v3-prompt-audit-v1"
 COLOR_AUDIT_VERSION = "daojie-gongbi-v2-color-audit-v3"
 REFERENCE_CAPABILITY_SCHEMA_VERSION = "daojie-reference-capability-v1"
@@ -99,10 +101,10 @@ STORYBOARD_NEGATIVE_CONSTRAINTS = (
     "大块灰面塑形、软体积光、照片级景深、HDR高光、电影级体积雾、好莱坞三点布光、"
     "镜面湿面反光、全幅冷青或灰蓝渲染、近黑大面积衣袍或地面、纸纹褶皱、满幅纸纹、"
     "宣纸纤维滤镜、扫描纸纹滤镜、横向纤维条、脏污噪点、"
-    "黑白画、灰白画、单色素描、衣物不完整、断裂衣摆、破烂褴褛、文字、水印、签名、logo、乱码题字；"
+    "黑白画、灰白画、单色素描、衣物不完整、断裂衣摆、破烂衣物、文字、水印、签名、logo、乱码题字；"
     "dirty texture、muddy texture、compression artifacts、oversharpening halos、random stains、"
     "dirty color clumps、messy lineart、visual noise、paper-wrinkle texture、crumpled-sheet folds、"
-    "fiber streaks、tattered clothing、ragged hems。"
+    "fiber streaks、incomplete clothing、broken hems。"
 )
 STORYBOARD_FRAME_NEGATIVE_CONSTRAINTS = (
     f"{STORYBOARD_NEGATIVE_CONSTRAINTS}禁止高对比漫画动作稿、现代/科幻元素、"

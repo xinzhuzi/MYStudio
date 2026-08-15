@@ -1352,7 +1352,7 @@ def generate_storyboard_image_via_node_helper(prompt, reference_images, config):
 
 
 def request_storyboard_image_generation(prompt, reference_images, config):
-    if config.get("styleContractVersion") == daojie_gongbi_v2.STYLE_CONTRACT_VERSION:
+    if config.get("styleContractVersion") in daojie_gongbi_v2.ACCEPTED_STYLE_CONTRACT_VERSIONS:
         reference_roles = config.get("referenceRoles") or []
         if len(reference_roles) != len(reference_images):
             raise RuntimeError("V2 分镜参考角色数量必须与图片数量一致")
@@ -1448,7 +1448,7 @@ def style_reference_sha256_from_references(reference_images):
 def with_storyboard_v2_reference_contract(config, reference_images):
     """Attach the verified reference capacity without changing manifest order."""
     request_config = dict(config)
-    if request_config.get("styleContractVersion") != daojie_gongbi_v2.STYLE_CONTRACT_VERSION:
+    if request_config.get("styleContractVersion") not in daojie_gongbi_v2.ACCEPTED_STYLE_CONTRACT_VERSIONS:
         return request_config
     request_config["referenceRoles"] = storyboard_reference_roles(reference_images)
     capability = storyboard_reference_capability(request_config, reference_images)
@@ -1605,7 +1605,7 @@ def generate_storyboard_frame_with_references(
     if not source_references:
         raise RuntimeError(f"分镜 {storyboard['index']:02d} 缺少参考资产图片")
     reference_transport = None
-    if config.get("styleContractVersion") == daojie_gongbi_v2.STYLE_CONTRACT_VERSION:
+    if config.get("styleContractVersion") in daojie_gongbi_v2.ACCEPTED_STYLE_CONTRACT_VERSIONS:
         source_capability = storyboard_reference_capability(config, source_references)
         references, reference_transport = build_storyboard_reference_transport(
             source_references,
@@ -1620,7 +1620,7 @@ def generate_storyboard_frame_with_references(
             references,
             expected_time_of_day=storyboard_time_of_day(storyboard.get("index")),
         )
-        if request_config.get("styleContractVersion") == daojie_gongbi_v2.STYLE_CONTRACT_VERSION
+        if request_config.get("styleContractVersion") in daojie_gongbi_v2.ACCEPTED_STYLE_CONTRACT_VERSIONS
         else {
             "schemaVersion": "daojie-reference-visual-audit-v1",
             "status": "not-run",
@@ -1656,22 +1656,22 @@ def generate_storyboard_frame_with_references(
     reused_existing_image = bool(approved_storyboard_image) or can_reuse_storyboard_image(result_file)
     if (
         reused_existing_image
-        and request_config.get("styleContractVersion") == daojie_gongbi_v2.STYLE_CONTRACT_VERSION
-        and (not approved_storyboard_image or approved_storyboard_image.get("styleContractVersion") != daojie_gongbi_v2.STYLE_CONTRACT_VERSION)
+        and request_config.get("styleContractVersion") in daojie_gongbi_v2.ACCEPTED_STYLE_CONTRACT_VERSIONS
+        and (not approved_storyboard_image or approved_storyboard_image.get("styleContractVersion") not in daojie_gongbi_v2.ACCEPTED_STYLE_CONTRACT_VERSIONS)
     ):
         raise RuntimeError("daojie-gongbi-v2 不得复用缺少 V2 契约证据的旧分镜图")
     reference_preflight = None
     if not reused_existing_image:
-        if request_config.get("styleContractVersion") == daojie_gongbi_v2.STYLE_CONTRACT_VERSION:
+        if request_config.get("styleContractVersion") in daojie_gongbi_v2.ACCEPTED_STYLE_CONTRACT_VERSIONS:
             assert_storyboard_reference_visual_audit(reference_visual_audit)
         prepared_reference_images, reference_preflight = prepare_storyboard_model_reference_images(
             references,
-            denoise=request_config.get("styleContractVersion") == daojie_gongbi_v2.STYLE_CONTRACT_VERSION,
+            denoise=request_config.get("styleContractVersion") in daojie_gongbi_v2.ACCEPTED_STYLE_CONTRACT_VERSIONS,
         )
         generated_image_url = request_storyboard_image_generation(final_prompt, prepared_reference_images, request_config)
         save_generated_image_url(generated_image_url, result_file)
     color_audit = None
-    if request_config.get("styleContractVersion") == daojie_gongbi_v2.STYLE_CONTRACT_VERSION:
+    if request_config.get("styleContractVersion") in daojie_gongbi_v2.ACCEPTED_STYLE_CONTRACT_VERSIONS:
         color_audit = audit_daojie_gongbi_v2_output(result_file)
     transfer_thumbnail = create_storyboard_transfer_thumbnail(result_file)
     Image.open(result_file).convert("RGB").resize((1920, 1080), Image.Resampling.LANCZOS).save(frame)

@@ -472,7 +472,7 @@ def valid_human_review(
     evidence_path = Path(str(record.get("evidencePath") or ""))
     transfer_thumbnail = entry.get("transferThumbnail") or {}
     transfer_thumbnail_path = Path(str(transfer_thumbnail.get("path") or ""))
-    requires_v2_checklist = entry.get("styleContractVersion") == daojie_gongbi_v2.STYLE_CONTRACT_VERSION
+    requires_v2_checklist = entry.get("styleContractVersion") in daojie_gongbi_v2.ACCEPTED_STYLE_CONTRACT_VERSIONS
     valid = bool(
         record.get("status") == expected_status
         and record.get("reviewer") == "human"
@@ -564,7 +564,7 @@ def previous_approved_frame_manifest(
     approval: dict[str, Any],
     order: int,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
-    if previous_entry.get("styleContractVersion") != daojie_gongbi_v2.STYLE_CONTRACT_VERSION:
+    if previous_entry.get("styleContractVersion") not in daojie_gongbi_v2.ACCEPTED_STYLE_CONTRACT_VERSIONS:
         raise RuntimeError("V2 pilot 不得将旧风格镜头作为上一镜连续性参考")
     if (previous_entry.get("colorAudit") or {}).get("status") != "pass":
         raise RuntimeError("V2 pilot 上一镜缺少通过的色彩审计证据")
@@ -625,7 +625,7 @@ def record_human_review(
     entry = next((item for item in report.get("entries") or [] if int(item.get("index") or 0) == index), None)
     if not entry:
         raise RuntimeError(f"分镜 {index:03d} 尚未生成，不能写入人工审核结论")
-    requires_v2_checklist = entry.get("styleContractVersion") == daojie_gongbi_v2.STYLE_CONTRACT_VERSION
+    requires_v2_checklist = entry.get("styleContractVersion") in daojie_gongbi_v2.ACCEPTED_STYLE_CONTRACT_VERSIONS
     normalized_checklist = daojie_gongbi_v2.normalize_review_checklist(review_checklist)
     if (
         review_status == "approved"

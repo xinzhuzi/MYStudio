@@ -1297,7 +1297,7 @@ describe("desktop build scripts", () => {
     expect(runnerScript).toContain("data-toonflow-generated-prompt-panel");
     expect(runnerScript).toContain("hasEditableImageWorkflowPrompt");
     expect(runnerScript).toMatch(
-      /const hasRealProjectDerivativePromptStyle = promptTextValues\.some\(\(value\) =>[\s\S]*?/daojie-gongbi-v\[23\]\/\.test\(value\)[\s\S]*?value\.includes\('连续白描和铁线描'\)[\s\S]*?value\.includes\('3D\/CGI'\)/,
+      /const hasRealProjectDerivativePromptStyle = promptTextValues\.some\(\(value\) =>[\s\S]*?\/daojie-gongbi-v\[23\]\/\.test\(value\)[\s\S]*?value\.includes\('连续白描和铁线描'\)[\s\S]*?value\.includes\('3D\/CGI'\)/,
     );
     expect(runnerScript).toContain("const detail = entry.url ? `${text} (${entry.url})` : text");
     expect(runnerScript).toContain("hasImageWorkflowSource");
@@ -3158,7 +3158,7 @@ checks = [
     "连续白描和铁线描" in prompt,
     "薄层矿物色分染与罩染" in prompt,
     "30%-70%" in prompt,
-    "均匀平光宣纸照明" in prompt,
+    "柔和均匀平光" in prompt,
     "衣物完整可穿" in prompt,
     "无统一脏污滤镜" in prompt,
     "禁止写实摄影" in prompt,
