@@ -109,23 +109,19 @@ metaData: art_skills
 
 ---
 
-## 六、提示词模板
+## 六、提示词模板（场景轨七段公式 · ma-gongbi-v1）
 
-水墨国风场景主视图概念图，
-水墨国风，修仙古韵，工笔线描，写意泼墨，浅净平涂底，
-Chinese ink-wash style, gongbi line drawing, xieyi splash ink, smooth pale matte flat-wash ground,
-工笔线描，写意晕染，自然光照，水墨渲染，
-scene design sheet, environment concept art, empty scenery, unpopulated space,
-{室内/室外}，{场景类型}，{修仙世界观}，{季节+时间},
-前景：{元素}, 中景：{元素}, 后景：{元素},
-{色调描述}, {天候/氛围元素},
-{材质描述}, 水墨空气透视, 纹理细节超清晰,
-材质自然磨损痕迹，岁月包浆，灵纱自然垂褶，
-柔和光影，水墨渲染，自然光漫射，细腻质感，
-单画面构图，自然观察视角，构图能代表场景主体并展示前/中/后景层次，
-纯场景空镜画面
+> 按七段公式以自然语言写出题材正文；prefix「四、工笔硬锁」为自动层**不抄写**、正文不出现其标记；负面一律进 Negative Prompt 段；全文 300-800 字符。
 
-> Negative Prompt 段除全局四类外，本技能追加：people, person, human figures, characters, human silhouette, hands, multi-panel layout, split screen, grid layout, text
+1. **时代地点用途**：{室内/室外}，{场景类型：洞府/宗门殿堂/丹房/山门/灵湖/秘境/战场…}，{修仙世界观}，{季节+时间}
+2. **前中远景与通行层级**：前景{元素}、中景{主体事件区}、远景{淡墨山水/云雾留白}，三层各自可辨；{空间可通行结构：山径/石阶/宫廊/桥}
+3. **地形建筑尺度**：{飞檐斗拱/灵石白墙/灵木亭台/阵纹石桥}，{尺度与比例}
+4. **叙事活动**：场景承载{情绪与叙事功能}；纯场景空镜，严禁出现任何人物（主体纯净硬约束）
+5. **材质天气空气与母色**：{天候：灵雾/灵雨/飞雪/晴}；{母色+点缀色按情绪色盘}；材质带自然磨损、风化、岁月包浆，旧而不脏
+6. **视角光线留白**：自然观察视角（hero shot），单一自然光源逻辑（窗光/灵火/月光），水墨空气透视，留白服务视线与雾气
+7. **主体纯度与单一变化轴**：单画面主视图（非拼图/多视图/分屏），16:9；衍生变体按角度/时段/天候单轴变化
+
+**Negative Prompt 基线**：全局五类 + people, person, human figures, characters, human silhouette, hands, multi-panel layout, split screen, grid layout, washed-out greyscale monochrome, text
 
 ---
 

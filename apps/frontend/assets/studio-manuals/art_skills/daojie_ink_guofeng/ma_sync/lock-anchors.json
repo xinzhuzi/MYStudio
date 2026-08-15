@@ -1,0 +1,190 @@
+{
+  "comment": "道劫手册工笔硬锁 ↔ MA ma-imagegen 权威锚点对。manualAnchor 必须逐字出现在 prefix.md「工笔硬锁」节;maAnchor 必须逐字出现在 MA 权威文件中(本机存在时由测试直连校验)。词级对应关系是同步守护的依据。",
+  "syncedAt": "2026-08-15",
+  "maSources": [
+    {
+      "path": "/Users/zhengbingjin/Project/Unity/MA/.claude/skills/ma-imagegen/scripts/gongbi/daojie_gongbi_restyle.py",
+      "sha256": "5e99f2f952bb5c273b910ff3306f1c9662928e833c6c2befe6345542bcfd8bf8",
+      "locks": [
+        "风格底座锁",
+        "工笔结构锁",
+        "身份一致性锁",
+        "衣褶裙摆锁",
+        "衣物完整锁",
+        "头发存在锁",
+        "鞋靴性别锁"
+      ]
+    },
+    {
+      "path": "/Users/zhengbingjin/Project/Unity/MA/.claude/skills/ma-imagegen/scripts/prompting/finish_locks.py",
+      "sha256": "365f0ca08d11c791b903642a25e9d866a4be0b91e47dff4a07b3988f1ac65cb3",
+      "locks": [
+        "成片质量锁"
+      ]
+    },
+    {
+      "path": "/Users/zhengbingjin/Project/Unity/MA/.claude/skills/ma-imagegen/knowledge/prompt-templates/美术成片风格提示词模板库.md",
+      "sha256": "977a0dab26ea414e1ad78c78e0755ff53cdeab06178f738f2020f082092758b9",
+      "locks": [
+        "成片主风格锁",
+        "通用成片负面"
+      ]
+    }
+  ],
+  "locks": [
+    {
+      "name": "风格底座锁",
+      "manualAnchors": [
+        "中国水彩水墨工笔画",
+        "连续铁线描/丝线描（iron-wire outlines）",
+        "只用浅净哑光平涂底（smooth pale matte flat-wash field）",
+        "色相只归主体/来源事实",
+        "曲线自然顺滑，直线笔直稳定"
+      ],
+      "maAnchors": [
+        "中国水彩水墨工笔画",
+        "连续铁线描/丝线描（iron-wire outlines）",
+        "只用浅净哑光平涂底（smooth pale matte flat-wash field）",
+        "色相只归主体/来源事实",
+        "曲线自然顺滑，直线笔直稳定"
+      ],
+      "manualFile": "prefix.md",
+      "sourceIndex": 0
+    },
+    {
+      "name": "工笔结构锁",
+      "manualAnchors": [
+        "线描优先工笔结构（硬）",
+        "（稀疏结构褶 2-4 条）",
+        "禁止用大块不透明色面、厚数字颜料块、喷枪明暗法、软 3D 体积或油亮高光塑形",
+        "使用均匀漫射光，禁止电影级主光/填充/轮廓光三点布光"
+      ],
+      "maAnchors": [
+        "线描优先工笔结构（硬）",
+        "broad opaque tonal blocks",
+        "FLAT EVEN ILLUMINATION（硬）",
+        "禁止 cinematic key/fill/rim setup"
+      ],
+      "manualFile": "prefix.md",
+      "sourceIndex": 0
+    },
+    {
+      "name": "身份一致性锁",
+      "manualAnchors": [
+        "人物身份一致性（硬）",
+        "相同脸部结构（眼距、眉、鼻梁、下颌、嘴、年龄与疤痕痕迹）",
+        "风格与媒介可变；身份不可变",
+        "同一张多视图面板上，每个面板须为同一人"
+      ],
+      "maAnchors": [
+        "人物身份一致性（硬）",
+        "相同脸部结构（眼距、眉、鼻梁、下颌、嘴、年龄与疤痕痕迹）",
+        "风格与媒介可变；身份不可变",
+        "同一张多视图面板上，每个面板须为同一人"
+      ],
+      "manualFile": "prefix.md",
+      "sourceIndex": 0
+    },
+    {
+      "name": "衣褶裙摆锁",
+      "manualAnchors": [
+        "衣褶/裙摆（硬，全员）",
+        "正面仅允许两到四条长结构褶",
+        "密集褶网"
+      ],
+      "maAnchors": [
+        "衣褶/裙摆（硬，全员）",
+        "（稀疏结构褶 2–4 条）",
+        "dense crease web"
+      ],
+      "manualFile": "prefix.md",
+      "sourceIndex": 0
+    },
+    {
+      "name": "衣物完整锁",
+      "manualAnchors": [
+        "衣物完整性（硬，全员）",
+        "完整下摆、完整缝线、完整袖口与领口，无乞丐破衣",
+        "武器或道具可有岁月感；衣物本身不得看起来破破烂烂"
+      ],
+      "maAnchors": [
+        "衣物完整性（硬，全员）",
+        "完整 hems、完整缝线、完整袖口与领口，无乞丐破衣",
+        "武器或道具可有岁月感；衣物本身不得看起来破破烂烂"
+      ],
+      "manualFile": "prefix.md",
+      "sourceIndex": 0
+    },
+    {
+      "name": "头发存在锁",
+      "manualAnchors": [
+        "头发存在（硬，全员，除非来源事实指定佛门剃度/光头例外）",
+        "有清晰发量与发际线"
+      ],
+      "maAnchors": [
+        "头发存在（硬，全员，除非 Source facts 指定佛门剃度/光头例外）",
+        "有清晰发量与发际线"
+      ],
+      "manualFile": "prefix.md",
+      "sourceIndex": 0
+    },
+    {
+      "name": "鞋靴性别锁",
+      "manualAnchors": [
+        "鞋靴性别（硬，全员）",
+        "无显式来源例外不得异装鞋靴"
+      ],
+      "maAnchors": [
+        "鞋靴性别锁（硬，全员，除非 Source facts 指定伪装例外）",
+        "无显式来源例外不得异装鞋靴"
+      ],
+      "manualFile": "prefix.md",
+      "sourceIndex": 0
+    },
+    {
+      "name": "成片质量锁",
+      "manualAnchors": [
+        "成片质量（硬，所有资产）：生产级最终画面清晰度——强制降噪",
+        "电影级成片质量指干净的可读性与精致的工艺清晰度"
+      ],
+      "maAnchors": [
+        "成片质量（硬，所有资产）：生产级最终画面清晰度——强制降噪",
+        "电影级成片质量指干净的可读性与精致的工艺清晰度"
+      ],
+      "manualFile": "prefix.md",
+      "sourceIndex": 1
+    },
+    {
+      "name": "成片主风格锁",
+      "manualAnchors": [
+        "《道劫》默认主风格",
+        "工笔结构层用细密、稳定、清楚的墨线刻画脸、手、发丝、衣褶、器物轮廓和建筑边缘",
+        "写意气韵层用彩色矿物分染、罩染与克制泼墨处理山水、雾、灵气、远景和动作余韵",
+        "不得灰白化、黑白化、低饱和化或单一灰蓝化"
+      ],
+      "maAnchors": [
+        "《道劫》默认主风格",
+        "工笔结构层用细密、稳定、清楚的墨线刻画脸、手、发丝、衣褶、器物轮廓和建筑边缘",
+        "写意气韵层用彩色矿物分染、罩染与克制泼墨处理山水、雾、灵气、远景和动作余韵",
+        "不得灰白化、黑白化、低饱和化或单一灰蓝化"
+      ],
+      "manualFile": "art_prompt/art_storyboard_video.md",
+      "sourceIndex": 2
+    },
+    {
+      "name": "通用成片负面",
+      "manualAnchors": [
+        "不要伪字题跋",
+        "不要把背景画成空泛山水",
+        "画面必须主体明确、线条干净、纸面透气"
+      ],
+      "maAnchors": [
+        "不要伪字题跋",
+        "不要把背景画成空泛山水",
+        "画面必须主体明确、线条干净、纸面透气"
+      ],
+      "manualFile": "art_prompt/art_storyboard_video.md",
+      "sourceIndex": 2
+    }
+  ]
+}

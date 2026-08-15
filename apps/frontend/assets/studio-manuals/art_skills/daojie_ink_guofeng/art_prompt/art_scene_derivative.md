@@ -115,23 +115,19 @@ metaData: art_skills
 
 ---
 
-## 六、提示词模板
+## 六、提示词模板（场景轨七段公式 · 衍生变体）
 
-水墨国风衍生场景图，基于参考图，
-水墨国风，修仙古韵，工笔线描，写意泼墨，浅净平涂底，
-Chinese ink-wash style, gongbi line drawing, xieyi splash ink, smooth pale matte flat-wash ground,
-保持场景空间结构一致，
-{目标角度（如有）}, {景别视角（如有）}, {时段描述（如有）}, {天候描述（如有）},
-{前景}, {中景}, {后景},
-{色调描述}, {景深描述（如有）}, {天空色调变化（如有）}, {氛围调整（如有）},
-{天候视觉特征（如有）}, {材质表面变化（如有）}, {植被适配描述（如有）},
-材质自然磨损痕迹，岁月包浆，灵纱自然垂褶，
-柔和光影，水墨渲染，自然光漫射，细腻质感，
-水墨国风高清渲染，高细节，工笔线描，写意晕染感，
-单画面构图，与参考图保持建筑结构/材质/色调/光线一致，仅按目标角度切换视点，
-纯场景空镜画面
+> 与基础场景同轨七段公式，题材正文以「基于参考图，保持空间结构一致」为前提；prefix 硬锁为自动层**不抄写**；负面一律进 Negative Prompt 段；全文 300-800 字符。只沿**一个变化轴**（角度/景别/时段/天候择一），未提及的维度与参考图保持一致。
 
-> Negative Prompt 段除全局四类外，本技能追加：people, person, human figures, human silhouette, hands, multi-panel layout, split screen, grid layout, structural change from reference, text
+1. **时代地点用途**：与参考图同一{场景}；{变化轴描述：目标角度/景别/时段/天候——仅写本次要变的}
+2. **前中远景与通行层级**：布局、建筑比例、层级结构与参考图一致（结构不变量）
+3. **地形建筑尺度**：与参考图一致，仅视点按目标角度切换
+4. **叙事活动**：纯场景空镜，严禁出现任何人物
+5. **材质天气空气与母色**：{变化轴带来的天候/时段视觉特征（如有）}；材质岁月感与参考图一致
+6. **视角光线留白**：光源方向不变，角度切换后光影投射方向物理合理；水墨空气透视
+7. **主体纯度与单一变化轴**：单画面，16:9；本次仅变{变化轴}，其余全部继承参考图
+
+**Negative Prompt 基线**：全局五类 + people, person, human figures, human silhouette, hands, multi-panel layout, split screen, grid layout, structural change from reference, washed-out greyscale monochrome, text
 
 > **使用说明**：根据用户提供的信息自行判断需要应用的变化维度（角度/景别/时段/天候），未提及的维度对应字段留空省略即可。无需为每种变体单独生成模板。
 

@@ -149,23 +149,19 @@ metaData: art_skills
 
 ---
 
-## 八、提示词模板
+## 八、提示词模板（人物轨七段公式 · ma-gongbi-v1）
 
-{性别}角色四视图设定图，水墨国风，修仙古韵，工笔线描，写意晕染，浅净平涂底，
-character design sheet, character turnaround,
-{角色描述对应的五官特征 - 由角色描述自然推导}, {整体气质},
-素颜状态,
-{肤色}, 工笔淡染, 皮肤清透内蕴微光, 底色平净, 水墨光影层次,
-{身高描述, 如:165cm tall, tall elegant woman}, {头身比, 如:6.5 heads tall proportion}, {身材描述}, {体态描述},
-{发色}{发长}, 工笔线描发丝清晰, {基础造型},
-（女性: 素色道袍长裙 / 男性: 素色道袍长衫）, 宣纸白/淡青纯色素色, 衣袍完整可穿, 整袖口整下摆闭合缝线,
-同一画面左至右并排：人像特写+正视图+侧视图+后视图,
-人像特写从头顶到锁骨完整展示, head to collarbone complete,
-全身立像从头顶到脚底完整展示, full body head to toe,
-自然站立, 宣纸白底色背景, 均匀散光,
-四视图一致性, 水墨国风造型清晰, 工笔线描清晰
+> 按七段公式以自然语言写出题材正文（段间衔接成文，不是罗列逗号串）。prefix「四、工笔硬锁」是自动层，正文**不抄写、不重复**其内容，也**不出现**「Avoid:/风格底座/TRACK=」等标记；负面一律进 Negative Prompt 段。全文（正文+负面）控制在 300-800 字符。
 
-> Negative Prompt 段除全局四类外，本技能追加：extra characters, multiple people, cropped head, cropped feet, hair accessories, jewelry, makeup, patterned clothing, complex background, hard shadows, tattered clothing, ragged hems, holey beggar rags
+1. **身份形体**：{性别}修士，{年龄段与境界}，{整体气质：清冷出尘/剑意凌厉/温润如玉…}，{肤色与肤质}，{身高与头身比}，{五官由角色描述自然推导，不预设固定脸型}
+2. **动作表情视线**：素颜状态，中性微表情符合气质，目视前方；设定板模式为自然站立、双臂自然下垂
+3. **服饰材质题材配色**：（女性：素色道袍长裙 / 男性：素色道袍长衫），宣纸白/淡青纯色素色，{材质：素布/云锦薄染}；{发色按角色设定（默认墨黑，一致性锚点优先）}{发长}，工笔线描发丝清晰
+4. **人景持物关系**：无持物、无发饰配饰（基础形象安全打底）；纯色背景，无场景
+5. **景别机位构图平光**：同一画面左至右并排四视图设定板（人像特写从头顶到锁骨 + 正面/侧面/背面全身立像从头顶到脚底完整入画），21:9，均匀散光
+6. **身份不变量**：面容/体型/发型/基础服装跨视图完全一致（四视图一致性）
+7. **单一变化轴**：基础形象无变化轴；后续衍生按 L0-L5 逐层单轴变化
+
+**Negative Prompt 基线**：全局五类（错媒介/错光/纸纹脏污/结构错误/文字水印）+ 本轨追加 extra characters, multiple people, cropped head, cropped feet, hair accessories, jewelry, makeup, patterned clothing, complex background, hard shadows, dense wrinkle mesh, bald head, gender-mismatched footwear, tattered clothing, ragged hems, holey beggar rags
 
 ---
 

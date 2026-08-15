@@ -120,19 +120,19 @@ metaData: art_skills
 
 ---
 
-## 五、提示词模板
+## 五、提示词模板（道具轨七段公式 · ma-gongbi-v1）
 
-水墨国风法宝设定图，
-水墨国风，修仙古韵，工笔线描，写意晕染，浅净平涂底，气韵生动，
-{法宝类型}，{材质描述}，{灵纹/装饰描述}，{状态描述}，
-纯法宝静物陈列展示，
-同一画面四宫格（2×2）：左上正面图+右上侧面图+左下背面图+右下细节特写，
-宣纸白底色背景，均匀散光，
-材质纹理超清晰，质感细腻，{材质光泽描述}
-水墨国风高清渲染，高细节，工笔线描，写意晕染感，
-纯器物独立画面
+> 按七段公式以自然语言写出题材正文；prefix「四、工笔硬锁」为自动层**不抄写**、正文不出现其标记；负面一律进 Negative Prompt 段；全文 300-800 字符。
 
-> Negative Prompt 段除全局四类外，本技能追加：people, person, human body parts, hands, fingers, arms, being held, being worn, held by hands, wearing perspective, complex background, text, subtitle, watermark, title overlay
+1. **品类用途时代**：{法宝类型：飞剑/丹药/符箓/灵草/储物/特殊法宝}，{修仙用途}，{时代与世界观}
+2. **形制结构比例尺寸**：{整体形制与结构}，{尺度参照}；纯法宝静物独立陈列（无人持有/佩戴/握持）
+3. **材质工艺接缝磨损**：{灵金寒芒/灵玉温润/灵木纹理/丹瓷釉面/灵布符纸/灵石折射}，{灵纹工艺}，{克制岁月感}
+4. **纹样文字策略与配色**：{灵纹/符文装饰}，无文字策略（画面不出现可读文字）；{母色+点缀色按材质}
+5. **朝向俯仰旋转透视**：四宫格多角度——正面 0°、侧面 90°、背面 180°、细节特写，各角度同一尺度与结构
+6. **展示背景接触平光**：宣纸白底色背景，均匀散光，无硬阴影；器物表面不叠纸纹/纤维覆盖层
+7. **可制造与单一变化轴**：轮廓/功能/识别纹样优先，可建模可还原；1:1；衍生按状态单轴变化
+
+**Negative Prompt 基线**：全局五类 + people, person, human body parts, hands, fingers, arms, being held, being worn, held by hands, wearing perspective, complex background, sheet-wrinkle overlay, text, subtitle, watermark, title overlay
 
 ---
 

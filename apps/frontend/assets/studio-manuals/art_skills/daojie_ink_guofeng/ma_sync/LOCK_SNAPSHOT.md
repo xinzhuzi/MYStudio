@@ -1,0 +1,22 @@
+# ma-gongbi-v1 锁快照(同步守护)
+
+本目录是 MYStudio 道劫手册与 MA `ma-imagegen` 的同步锚点:
+
+- `lock-anchors.json` — 机器可读锚点对(manualAnchor↔maAnchor),契约测试 `lib/studio/daojie-manual-contract.test.ts` 据此校验:①手册硬锁节包含全部 manualAnchor(防手改漂移);②本机 MA 存在时,权威文件包含全部 maAnchor(防快照过期),MA 不存在自动跳过(CI 安全)。
+- 同步流程:MA 侧锁文本演化后,跑 `apps/build/scripts/daojie-ma-sync-check.py` 出漂移报告 → 人工更新 prefix.md 硬锁节与本快照(锚点+sha256+日期)。
+
+## 来源指纹(2026-08-15)
+
+| MA 文件 | sha256 | 提供锁 |
+|---|---|---|
+| scripts/gongbi/daojie_gongbi_restyle.py | 5e99f2f9…d8bf8 | 底座/结构/身份/衣褶/衣物/头发/鞋靴 |
+| scripts/prompting/finish_locks.py | 365f0ca0…65cb3 | 成片质量 |
+| knowledge/prompt-templates/美术成片风格提示词模板库.md | 977a0dab…758b9 | 成片主风格锁/通用成片负面(Phase 3) |
+
+## 已知有意差异(手册形态适配,非漂移)
+
+- 结构锁英文术语在手册中译为中文(如 diffuse light→漫射光、cinematic key/fill/rim→电影级主光/填充/轮廓光),maAnchor 保留英文原词供直连比对
+- 底座锁去掉 MA 项目专属的《三国望神州》商业形似条目
+- 「Source facts」在手册语境写为「来源事实」(polisher 链的角色/场景设定)
+- 衣物完整锁的 hems 等英文词手册中文化为「下摆」
+- 成片主风格锁摘录时省略 MA 原文中的「宣纸/绢本纤维、墨色渗透和矿物颜料颗粒可见」一句——该句与 restyle.py 底座(2026-07-26 用户确认禁纸纹赞美)冲突,以底座口径为准

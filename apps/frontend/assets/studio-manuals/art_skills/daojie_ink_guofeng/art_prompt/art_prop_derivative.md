@@ -91,23 +91,19 @@ metaData: art_skills
 
 ---
 
-## 五、提示词模板
+## 五、提示词模板（道具轨七段公式 · 衍生状态）
 
-### 单状态变体
+> 与基础法宝同轨七段公式，题材正文以「基于{法宝名}设定图」为前提；prefix 硬锁为自动层**不抄写**；负面一律进 Negative Prompt 段；全文 300-800 字符。只沿**一个变化轴**（状态：崭新/磨损/损伤/特殊/境界），核心造型跨状态可识别。
 
-基于{法宝名}设定图，水墨国风法宝衍生状态，
-水墨国风，修仙古韵，工笔线描，写意晕染，浅净平涂底，
-{法宝类型}，{材质描述}，
-当前状态：{状态名}，{状态视觉描述}，
-{材质表面变化描述}，
-纯法宝静物陈列展示，
-同一画面四宫格（2×2）：左上正面图(front view)+右上侧面图(side view)+左下背面图(back view)+右下细节特写(detail closeup)，
-宣纸白底色背景，均匀散光，
-材质纹理超清晰，质感细腻，状态细节可辨，
-水墨国风高清渲染，高细节，工笔线描，写意晕染感，
-纯器物独立画面
+1. **品类用途时代**：基于{法宝名}设定图，同{法宝类型}，{修仙用途}
+2. **形制结构比例尺寸**：核心造型/轮廓/结构与设定图一致（造型锚定硬约束），{尺度不变}
+3. **材质工艺接缝磨损**：{材质表面变化：按状态逻辑——灵金包浆/灵玉裂纹/符纸焦损/灵纹全亮…}，符合物理与修仙世界观
+4. **纹样文字策略与配色**：{状态视觉描述}；{母色继承+状态点缀}
+5. **朝向俯仰旋转透视**：与设定图正面图同角度（或四宫格多角度同构）
+6. **展示背景接触平光**：宣纸白底色背景，均匀照明；纯静物陈列，无人持有佩戴
+7. **可制造与单一变化轴**：状态细节可辨、可还原；本次仅变{状态}，形制与材质基底不变
 
-> Negative Prompt 段除全局四类外，本技能追加：people, person, human body parts, hands, fingers, arms, being held, being worn, unrecognizable prop shape, excessive gore, complex background, text, subtitle, watermark, title overlay
+**Negative Prompt 基线**：全局五类 + people, person, human body parts, hands, fingers, arms, being held, being worn, unrecognizable prop shape, excessive gore, complex background, text, subtitle, watermark, title overlay
 
 ---
 
