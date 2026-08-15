@@ -135,6 +135,8 @@ export interface CompositionVisualClipProps {
   cinematic?: CinematicConfig;
   /** 3D 贴图静帧 URL（TextureLoader 只能解码图片；src 保留视频供音轨取声）。 */
   cinematicImageSrc?: string;
+  /** 镜头级 2D 特效（shake/glow/grain/chroma），合成层注入。 */
+  fx?: import("./visual-fx").CompositionVisualFx;
   // Video-only playback controls; ignored for images.
   trimStartFrames?: number;
   playbackRate?: number;
