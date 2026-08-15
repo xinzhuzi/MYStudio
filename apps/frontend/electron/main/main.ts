@@ -51,6 +51,7 @@ import {
  
   resolveProjectFileUrl,
   resolveProjectRootPath,
+  resolveProjectScopedFilePath,
   setProjectLocationResolver,
 } from '../storage/storage-paths'
 import { registerProjectFileIpcHandlers } from '../ipc/files/project-file-ipc'
@@ -87,6 +88,8 @@ import { createDepthRuntimeController } from '@rendering/plugins/depth/depth-run
 import { registerDepthIpcHandlers } from '../ipc/studio/depth-ipc'
 import { createImageGenRuntimeController } from '@rendering/plugins/image_gen/image-gen-runtime-controller'
 import { registerImageGenIpcHandlers } from '../ipc/studio/image-gen-ipc'
+import { createUpscaleRuntimeController } from '@rendering/plugins/upscale/upscale-runtime-controller'
+import { registerUpscaleIpcHandlers } from '../ipc/studio/upscale-ipc'
 import { createAudioGenRuntimeController } from '@rendering/plugins/audio_gen/audio-gen-runtime-controller'
 import { registerAudioGenIpcHandlers } from '../ipc/studio/audio-gen-ipc'
 import { createVideoWorkflowRuntimeManager } from '@rendering/plugins/video-workflow/video-workflow-runtime-manager'
@@ -101,7 +104,7 @@ import { createStorageManager } from '../storage/storage-manager'
 import { createProjectLocationStore } from '../storage/project-locations'
 import { createDefaultProjectMoveEngine } from '../storage/project-move-engine'
 import { registerProjectFolderIpcHandlers } from '../ipc/projects/project-folder-ipc'
-import { resolveDataFilePath } from '../storage/storage-paths'
+import { parseProjectFileUrl, resolveDataFilePath } from '../storage/storage-paths'
 import { validateEditingProject } from '../../lib/studio/editing/validation'
 import type { RemotionCurrentSlotV1 } from '../../types/remotion-workspace'
 import { compileTimelineRenderPlan } from '../../lib/studio/editing/timeline-render-compiler'
@@ -741,6 +744,25 @@ const buildManagedVideoUseChapterRun = (request: VideoWorkflowChapterRunRequestV
   const packageLockSha256 = fs.existsSync(paths.videoUseLockPath)
     ? crypto.createHash('sha256').update(fs.readFileSync(paths.videoUseLockPath)).digest('hex')
     : '0'.repeat(64)
+  // overlay 装饰槽内容感知定位：从项目 store 补每镜生成图路径（缺失回退公式定位）
+  const imagePathByShotId = (() => {
+    const map = new Map<string, string>()
+    try {
+      const storePath = resolveDataFilePath(getDataDir(), `_p/${request.projectId}/studio-workflow-store`)
+      const store = JSON.parse(fs.readFileSync(storePath, 'utf8')) as {
+        state?: { storyboards?: Array<{ id: string; episodeId: string; mediaRef?: { path?: string } }> }
+      }
+      for (const storyboard of store.state?.storyboards ?? []) {
+        if (storyboard.episodeId !== request.chapterId || !storyboard.mediaRef?.path) continue
+        const parsed = parseProjectFileUrl(storyboard.mediaRef.path)
+        if (!parsed || parsed.projectId !== request.projectId) continue
+        try {
+          map.set(storyboard.id, resolveProjectScopedFilePath(getDataDir(), parsed.projectId, parsed.relativePath))
+        } catch { /* 单镜媒体缺失不阻塞 */ }
+      }
+    } catch { /* store 缺失 → 公式定位 */ }
+    return map
+  })()
   return {
     schemaVersion: 1,
     projectId: request.projectId,
@@ -755,6 +777,7 @@ const buildManagedVideoUseChapterRun = (request: VideoWorkflowChapterRunRequestV
       ...shot,
       videoPath: resolveStudioSourcePath(shot.videoPath),
       audioPath: resolveStudioSourcePath(shot.audioPath),
+      ...(imagePathByShotId.get(shot.shotId) ? { imagePath: imagePathByShotId.get(shot.shotId)! } : {}),
     })),
     ...(request.boundaryIntents ? { boundaryIntents: request.boundaryIntents } : {}),
     sourceSha256: request.sourceSha256,
@@ -861,6 +884,22 @@ const imageGenRuntimeController = createImageGenRuntimeController({
   modelCacheDir: () => ttsRuntimeController.getModelCacheDir(),
 })
 const imageGenIpc = registerImageGenIpcHandlers({ controller: imageGenRuntimeController })
+
+// Local image super-resolution sidecar — pure-torch Real-ESRGAN CLI worker for
+// 1K→4K upscaling of cloud/local generated images. Same explicit-download
+// policy; the model cache dir is self-managed at <storageBase>/UpscaleModel.
+const upscaleRuntimeController = createUpscaleRuntimeController({
+  storageBasePath: getStorageBasePath,
+  backendRoot: videoWorkflowBackendRoot,
+  resolveProjectFilePath: (projectId, relativePath) => {
+    try {
+      return resolveProjectScopedFilePath(getDataDir(), projectId, relativePath)
+    } catch {
+      return null
+    }
+  },
+})
+const upscaleIpc = registerUpscaleIpcHandlers({ controller: upscaleRuntimeController })
 
 // Local music generation sidecar — MusicGen BGM generation via CLI worker.
 // Same explicit-download policy; generated WAVs feed the chapter BGM track.
@@ -1345,6 +1384,7 @@ disposeRemotionRuntime = async () => {
   videoWorkflowIpc.dispose()
   depthIpc.dispose()
   imageGenIpc.dispose()
+  upscaleIpc.dispose()
   audioGenIpc.dispose()
   remotionRuntime.dispose()
 }

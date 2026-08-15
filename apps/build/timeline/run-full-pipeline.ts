@@ -54,6 +54,7 @@ import { assembleBoundaryIntents } from "@/lib/studio/video-workflow/boundary-in
 import type { CinematicConfig, CinematicCameraPreset } from "@rendering/plugins/remotion/composition/composition-props";
 import type { SubtitleAuthority, EditingProjectV1, TimelineRenderPlan } from "@/types/editing";
 import { heuristicCinematicPresets } from "@/lib/studio/cinematic-preset-ai";
+import { buildShotFxByClipId } from "@/lib/studio/remotion/shot-fx-decisions";
 import type { RemotionCurrentSlotV1 } from "@/types/remotion-workspace";
 import {
   resolveRemotionCurrentSlotOutputPath,
@@ -1080,61 +1081,23 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
       }
 
       // ── 18b. 2D 镜头语言 + 镜头特效（MYSTUDIO_SHOT_FX=1）──
-      // panZoom 2D 运镜（画面内裁切,天然无黑边）+ shake/glow/grain/chroma 合成层特效。
-      // 决策：动作/氛围关键词命中优先,未命中按镜序轮换保证节奏变化。
+      // 决策逻辑与 App 一键成片共享单源（shot-fx-decisions），保证两条入口产出一致。
       if (process.env.MYSTUDIO_SHOT_FX === "1") {
         const fxStore = JSON.parse(fs.readFileSync(path.join(projectDir, "studio-workflow-store.json"), "utf8")) as {
           state?: { storyboards?: Array<{ id: string; episodeId: string; prompt?: string; line?: string }> };
         };
-        const fxStoryboards = (fxStore.state?.storyboards ?? [])
-          .filter((storyboard) => storyboard.episodeId === chapterId);
-        const textByShotId = new Map(fxStoryboards.map((storyboard) => [storyboard.id, `${String(storyboard.prompt ?? "")}\n${String(storyboard.line ?? "")}`]));
-        const planClipByClipId = new Map(plan.clips.map((clip) => [clip.id, clip]));
-        const motionRotation: Array<{ fromScale: number; toScale: number; originX: number; originY: number }> = [
-          { fromScale: 1.0, toScale: 1.05, originX: 0.5, originY: 0.5 },   // 推近
-          { fromScale: 1.07, toScale: 1.0, originX: 0.5, originY: 0.5 },  // 拉远
-          { fromScale: 1.03, toScale: 1.08, originX: 0.72, originY: 0.5 },// 右移
-          { fromScale: 1.03, toScale: 1.08, originX: 0.28, originY: 0.5 },// 左移
-          { fromScale: 1.02, toScale: 1.07, originX: 0.5, originY: 0.68 },// 下摇
-          { fromScale: 1.02, toScale: 1.07, originX: 0.5, originY: 0.32 },// 上摇
-          { fromScale: 1.01, toScale: 1.04, originX: 0.5, originY: 0.5 }, // 漂浮
-        ];
-        // 锐度纪律：源图 1672 已上采样到 1920（1.15×），panZoom 再放大即二次软化——
-        // 常规镜缩放上限 1.08，动作 punch 上限 1.12，颗粒 0.035。
-        const fxCounts = { motion: 0, shake: 0, glow: 0, chroma: 0 };
-        props.visualClips.forEach((clip, clipIndex) => {
-          const storyboardId = planClipByClipId.get(clip.clipId)?.source.evidence?.storyboardId as string | undefined;
-          if (!storyboardId) return;
-          const text = textByShotId.get(storyboardId) ?? "";
-          const isAction = /爆|劈|砸|抽|撞|轰|厮杀|鞭/.test(text);
-          const isChase = /追|逃|奔|闯/.test(text);
-          const isAura = /灵|焰|火|辉|光|秘|仙|阵/.test(text);
-          const isDark = /阴|暗|夜|雾|影|渊/.test(text);
-          const isLeave = /退|远|离|别|消失/.test(text);
-          let motion = motionRotation[clipIndex % motionRotation.length];
-          if (isAction) motion = { fromScale: 1.0, toScale: 1.12, originX: 0.5, originY: 0.5 };
-          else if (isLeave && clipIndex % 2 === 0) motion = { fromScale: 1.07, toScale: 1.0, originX: 0.5, originY: 0.5 };
-          (clip as { panZoom?: unknown }).panZoom = motion;
-          fxCounts.motion += 1;
-          const fx: Record<string, unknown> = { grain: { opacity: 0.035 } };
-          if (isAction || isChase) {
-            fx.shake = { amplitudePx: isAction ? 6 : 3 };
-            fxCounts.shake += 1;
-          }
-          if (isAction) {
-            fx.chroma = { offsetPx: 3 };
-            fxCounts.chroma += 1;
-          }
-          if (isAura) {
-            fx.glow = { intensity: 0.5 };
-            fxCounts.glow += 1;
-          } else if (isDark) {
-            fx.glow = { intensity: 0.25 };
-            fxCounts.glow += 1;
-          }
-          (clip as { fx?: unknown }).fx = fx;
+        const shotFx = buildShotFxByClipId({
+          planClips: plan.clips,
+          visualClips: props.visualClips,
+          storyboards: (fxStore.state?.storyboards ?? []).filter((storyboard) => storyboard.episodeId === chapterId),
         });
-        console.log(`[full-pipeline] 2D shot-fx injected: motion ${fxCounts.motion}, shake ${fxCounts.shake}, glow ${fxCounts.glow}, chroma ${fxCounts.chroma}`);
+        for (const clip of props.visualClips) {
+          const decision = shotFx.byClipId.get(clip.clipId);
+          if (!decision) continue;
+          (clip as { panZoom?: unknown }).panZoom = decision.panZoom;
+          (clip as { fx?: unknown }).fx = decision.fx;
+        }
+        console.log(`[full-pipeline] 2D shot-fx injected: motion ${shotFx.counts.motion}, shake ${shotFx.counts.shake}, glow ${shotFx.counts.glow}, chroma ${shotFx.counts.chroma}`);
       }
 
       const propsValidation = validateChapterVideoCompositionProps(props);
