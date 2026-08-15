@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import {
   resolveLocalMediaPath,
   resolveProjectFileUrl,
+  setProjectLocationResolver,
 } from "@/electron/storage/storage-paths";
 
 const APP_PROCESS_NAME = "漫影工作室";
@@ -78,15 +79,72 @@ export function resolveProjectId(storageBasePath = resolveStorageBasePath()) {
   );
 }
 
+// 项目外部位置注册表（<userData>/project-locations.json，主进程权威——main.ts 启动时
+// 注入 setProjectLocationResolver）。CLI 侧同样必须遵循该表：App 迁移项目到外部目录后，
+// 旧 _p/<pid> 布局不再持有数据，且 realpath 包含检查会拒绝符号链接垫片，唯一正解是
+// 与主进程同源地按注册表解析。
+let projectLocationsCache: Record<string, string> | undefined;
+
+function registeredProjectLocation(userDataDir: string): Record<string, string> {
+  if (projectLocationsCache) return projectLocationsCache;
+  projectLocationsCache = {};
+  try {
+    const file = path.join(userDataDir, "project-locations.json");
+    const parsed = JSON.parse(fs.readFileSync(file, "utf8")) as { locations?: unknown };
+    const locations = parsed?.locations;
+    if (locations && typeof locations === "object" && !Array.isArray(locations)) {
+      for (const [pid, value] of Object.entries(locations as Record<string, unknown>)) {
+        if (typeof value === "string" && value) projectLocationsCache[pid] = path.resolve(value);
+      }
+    }
+  } catch {
+    // 注册表缺失/损坏 → 空表，全链路回落旧行为
+  }
+  return projectLocationsCache;
+}
+
+let resolverInjected = false;
+
+function ensureProjectLocationResolverInjected() {
+  if (resolverInjected) return;
+  resolverInjected = true;
+  const locations = { ...registeredProjectLocation(resolveUserDataDir()) };
+  if (Object.keys(locations).length > 0) {
+    setProjectLocationResolver((projectId) => locations[projectId]);
+  }
+}
+
+export function registeredProjectDir(projectId: string): string | undefined {
+  ensureProjectLocationResolverInjected();
+  const registered = registeredProjectLocation(resolveUserDataDir())[projectId];
+  return registered && fs.existsSync(path.join(registered, "studio-workflow-store.json")) ? registered : undefined;
+}
+
 export function resolveProjectDir() {
   if (process.env.MYSTUDIO_PROJECT_DIR?.trim()) {
     return path.resolve(process.env.MYSTUDIO_PROJECT_DIR);
   }
   const storageBasePath = resolveStorageBasePath();
-  return path.join(storageBasePath, "projects", "_p", resolveProjectId(storageBasePath));
+  const projectId = resolveProjectId(storageBasePath);
+  return registeredProjectDir(projectId)
+    ?? path.join(storageBasePath, "projects", "_p", projectId);
 }
 
 export function deriveStorageRoots(projectDir: string) {
+  // 外部位置项目：媒体/数据根仍由应用管理（<storageBase>/projects 与 <storageBase>/media），
+  // project-file:// 解析已由注入的注册表 resolver 重定向到外部项目根。
+  ensureProjectLocationResolverInjected();
+  const projectId = resolveProjectId();
+  const registered = registeredProjectLocation(resolveUserDataDir())[projectId];
+  if (registered && path.resolve(projectDir) === path.resolve(registered)) {
+    const storageBase = resolveStorageBasePath();
+    return {
+      projectId,
+      dataRoot: path.join(storageBase, "projects"),
+      mediaRoot: path.join(storageBase, "media"),
+      renderRoot: path.join(storageBase, "media", "studio-render"),
+    };
+  }
   const projectBucket = path.dirname(projectDir);
   if (path.basename(projectBucket) !== "_p") {
     throw new Error(`项目目录必须位于 projects/_p/<projectId>: ${projectDir}`);
@@ -109,6 +167,7 @@ export function resolveTimelineSourcePath(input: {
   dataRoot: string;
   mediaRoot: string;
 }) {
+  ensureProjectLocationResolverInjected();
   let resolved: string;
   if (input.sourcePath.startsWith("file://")) {
     resolved = fileURLToPath(input.sourcePath);
