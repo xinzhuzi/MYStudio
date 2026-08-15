@@ -247,7 +247,7 @@ describe("prepareModelTestRequest", () => {
     if (!prepared.success || prepared.dryRun) {
       throw new Error("expected prepared image request");
     }
-    expect(prepared.attempts).toHaveLength(2);
+    expect(prepared.attempts).toHaveLength(3);
     expect(prepared.body).toMatchObject({
       model: "gpt-image-2",
       n: 1,
@@ -267,6 +267,15 @@ describe("prepareModelTestRequest", () => {
       prompt: "A simple blue circle centered on a plain white background.",
     });
     expect(prepared.attempts[1].body).not.toHaveProperty("negative_prompt");
+    expect(prepared.attempts[2].template).toBe("image-job");
+    expect(prepared.attempts[2].endpoint).toBe("https://relay.example.com/v1/images/jobs");
+    expect(prepared.attempts[2].body).toMatchObject({
+      model: "gpt-image-2",
+      n: 1,
+      prompt: "A simple blue circle centered on a plain white background.",
+    });
+    expect(prepared.attempts[2].body).not.toHaveProperty("size");
+    expect(prepared.attempts[2].body).not.toHaveProperty("aspect_ratio");
   });
 
   it("builds an Agnes image test with the standard size contract", () => {
@@ -555,5 +564,156 @@ describe("prepareModelTestRequest", () => {
       dryRun: true,
       message: "配置 dry-run 通过，V1 暂不调用 tts 模型",
     });
+  });
+
+  it("builds one protocol cascade per configured key for text tests", () => {
+    const prepared = prepareModelTestRequest({
+      provider: {
+        id: "provider-1",
+        platform: "custom",
+        name: "Relay",
+        baseUrl: "https://relay.example.com/v1",
+        apiKey: "sk-key-one, sk-key-two",
+        model: ["gpt-5.4"],
+      },
+      model: "gpt-5.4",
+      type: "text",
+    });
+    if (!prepared.success || prepared.dryRun) {
+      throw new Error("expected prepared text request");
+    }
+    expect(prepared.attempts).toHaveLength(6);
+    expect(prepared.attempts.map((attempt) => attempt.keyIndex)).toEqual([0, 0, 0, 1, 1, 1]);
+    expect(prepared.attempts[0].headers.Authorization).toBe("Bearer sk-key-one");
+    expect(prepared.attempts[3].headers.Authorization).toBe("Bearer sk-key-two");
+    expect(prepared.attempts[3].endpoint).toBe("https://relay.example.com/v1/chat/completions");
+  });
+
+  it("moves on to the next key after the first key fails all protocols", async () => {
+    const fetcher = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ error: "not found" }), { status: 404 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ error: "not found" }), { status: 404 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ error: "not found" }), { status: 404 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        choices: [{ message: { content: "OK from key two" } }],
+      }), { status: 200 }));
+
+    const result = await runModelTestRequest({
+      provider: {
+        id: "provider-1",
+        platform: "custom",
+        name: "Relay",
+        baseUrl: "https://relay.example.com/v1",
+        apiKey: "sk-key-one, sk-key-two",
+        model: ["gpt-5.4"],
+      },
+      model: "gpt-5.4",
+      type: "text",
+    }, fetcher);
+
+    expect(result).toMatchObject({ success: true, protocol: "openai-compatible" });
+    expect(fetcher).toHaveBeenCalledTimes(4);
+    expect(fetcher.mock.calls[3][1].headers.Authorization).toBe("Bearer sk-key-two");
+  });
+
+  it("short-circuits the protocol cascade when the upstream rejects the model itself", async () => {
+    const fetcher = vi.fn()
+      .mockResolvedValue(new Response(JSON.stringify({
+        error: {
+          message: "Model 'gpt-5.6-terra-openai-compact' is not supported",
+          type: "invalid_request_error",
+          code: "invalid_parameter",
+        },
+      }), { status: 400 }));
+
+    const result = await runModelTestRequest({
+      provider: {
+        id: "provider-1",
+        platform: "custom",
+        name: "Relay",
+        baseUrl: "https://relay.example.com/v1",
+        apiKey: "sk-test",
+        model: ["gpt-5.6-terra-openai-compact"],
+      },
+      model: "gpt-5.6-terra-openai-compact",
+      type: "text",
+    }, fetcher);
+
+    expect(result.success).toBe(false);
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(result.error).toContain("is not supported");
+    expect(result.error).toContain("该 Key 下此模型不可用");
+    expect(result.error).not.toContain("Anthropic 兼容");
+  });
+
+  it("keeps the group hint when the rejection names a channel group", async () => {
+    const fetcher = vi.fn()
+      .mockResolvedValue(new Response(JSON.stringify({
+        error: {
+          code: "model_not_found",
+          message: "No available channel for model gpt-image-2 under group Codex-Pro (distributor)",
+          type: "new_api_error",
+        },
+      }), { status: 503 }));
+    const imageSdk = vi.fn<Parameters<typeof sdkGenerateImage>, ReturnType<typeof sdkGenerateImage>>()
+      .mockResolvedValueOnce({
+        success: false,
+        status: 502,
+        error: "图片生成服务暂时不可用",
+        templateName: "openai-size",
+      });
+
+    const result = await runModelTestRequest({
+      provider: {
+        id: "provider-1",
+        platform: "custom",
+        name: "Relay",
+        baseUrl: "https://relay.example.com/v1",
+        apiKey: "sk-test",
+        model: ["gpt-image-2"],
+      },
+      model: "gpt-image-2",
+      type: "image",
+    }, fetcher, undefined, imageSdk);
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("Codex-Pro");
+    expect(result.error).toContain("该 Key 分组");
+    // 同一把 Key 的扩展模板与 job 通道全部短路,直连请求只剩一次
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+
+  it("passes the image test when the async job channel accepts the submission", async () => {
+    const fetcher = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ error: "not found" }), { status: 404 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        job: { id: "task_job_1", status: "queued" },
+      }), { status: 200 }));
+    const imageSdk = vi.fn<Parameters<typeof sdkGenerateImage>, ReturnType<typeof sdkGenerateImage>>()
+      .mockResolvedValueOnce({
+        success: false,
+        status: 500,
+        error: "Invalid JSON response",
+        templateName: "openai-size",
+      });
+
+    const result = await runModelTestRequest({
+      provider: {
+        id: "provider-1",
+        platform: "custom",
+        name: "凡人",
+        baseUrl: "https://fanrenapi.com/v1",
+        apiKey: "sk-test",
+        model: ["gpt-image-2"],
+      },
+      model: "gpt-image-2",
+      type: "image",
+    }, fetcher, undefined, imageSdk);
+
+    expect(result).toMatchObject({ success: true, protocol: "openai-compatible" });
+    expect(result.message).toContain("Job 异步");
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(fetcher.mock.calls[0][0]).toBe("https://fanrenapi.com/v1/images/generations");
+    expect(fetcher.mock.calls[1][0]).toBe("https://fanrenapi.com/v1/images/jobs");
   });
 });

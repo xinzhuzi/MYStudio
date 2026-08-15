@@ -134,7 +134,7 @@ export function RenderingSettingsTab({ embedded = false }: RenderingSettingsTabP
                   </div>
                   <p className="text-xs leading-5 text-muted-foreground">{definition.description}</p>
                   {plugin?.message ? (
-                    <p className={plugin.runtimeState === "ready" ? "text-xs text-muted-foreground" : "text-xs text-amber-600 dark:text-amber-400"}>{plugin.message}</p>
+                    <p className={plugin.runtimeState === "error" || plugin.runtimeState === "blocked" || plugin.runtimeState === "needs-runtime" ? "text-xs text-amber-600 dark:text-amber-400" : "text-xs text-muted-foreground"}>{plugin.message}</p>
                   ) : null}
                   {plugin ? (
                     <dl className="grid gap-1 text-[10px] text-muted-foreground">

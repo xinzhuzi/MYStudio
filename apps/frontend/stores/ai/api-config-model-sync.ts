@@ -1,4 +1,5 @@
 import { parseApiKeys, type IProvider } from "@/lib/ai/core";
+import { observedFetch } from "@/lib/diagnostics/network";
 
 export interface ProviderModelMetadata {
   modelTypes: Record<string, string>;
@@ -37,7 +38,11 @@ export async function syncProviderModels(
 
     if (isMemefast) {
       const pricingUrl = `${baseUrl.replace(/\/v\d+$/, "")}/api/pricing_new`;
-      const response = await fetch(pricingUrl);
+      const response = await observedFetch(pricingUrl, { method: "GET" }, {
+        endpointFamily: "models-sync",
+        providerId: provider.id,
+        providerName: provider.name,
+      });
       if (!response.ok) return { success: false, count: 0, error: `pricing_new API 返回 ${response.status}` };
       const json = await response.json() as { data?: Array<{
         model_name: string;
@@ -70,7 +75,13 @@ export async function syncProviderModels(
       const modelsUrl = /\/v\d+$/.test(baseUrl) ? `${baseUrl}/models` : `${baseUrl}/v1/models`;
       for (let index = 0; index < keys.length; index++) {
         try {
-          const response = await fetch(modelsUrl, { headers: { Authorization: `Bearer ${keys[index]}` } });
+          const response = await observedFetch(modelsUrl, { headers: { Authorization: `Bearer ${keys[index]}` } }, {
+            endpointFamily: "models-sync",
+            providerId: provider.id,
+            providerName: provider.name,
+            attempt: index + 1,
+            maxRetries: keys.length,
+          });
           if (!response.ok) {
             console.warn(`[APIConfig] MemeFast key#${index + 1} /v1/models returned ${response.status}, skip`);
             continue;
@@ -95,7 +106,13 @@ export async function syncProviderModels(
       let lastError = "";
       for (let index = 0; index < keys.length; index++) {
         try {
-          const response = await fetch(modelsUrl, { headers: { Authorization: `Bearer ${keys[index]}` } });
+          const response = await observedFetch(modelsUrl, { headers: { Authorization: `Bearer ${keys[index]}` } }, {
+            endpointFamily: "models-sync",
+            providerId: provider.id,
+            providerName: provider.name,
+            attempt: index + 1,
+            maxRetries: keys.length,
+          });
           if (!response.ok) {
             lastError = `key#${index + 1} API 返回 ${response.status}`;
             console.warn(`[APIConfig] ${lastError}`);
@@ -118,24 +135,18 @@ export async function syncProviderModels(
         }
       }
       if (!anySuccess) return { success: false, count: 0, error: lastError || "API 返回异常" };
-      if (configuredModelIds.length === 0) {
-        const modelIds = Array.from(allModelIds);
-        if (modelIds.length === 0) return { success: false, count: 0, error: "未获取到任何模型" };
-        const endpointTypes = Object.fromEntries(
-          modelIds.filter((model) => metadata.modelEndpointTypes[model]).map((model) => [model, metadata.modelEndpointTypes[model]]),
-        );
-        if (Object.keys(endpointTypes).length > 0) dependencies.applyEndpointTypes(endpointTypes);
-        dependencies.updateProvider({ ...provider, model: modelIds });
-        return { success: true, count: modelIds.length };
-      }
+      // 目录 ≠ 可用性:job/chat 等通道可服务目录外模型,已配置模型一律保留;全部 Key 的目录并集并入列表
+      const mergedModelIds = Array.from(new Set([...configuredModelIds, ...Array.from(allModelIds)]));
       const missing = configuredModelIds.filter((model) => !allModelIds.has(model));
-      if (missing.length > 0) return { success: false, count: 0, error: `供应商模型列表中未找到: ${missing.join(", ")}` };
+      if (missing.length > 0) {
+        console.warn(`[APIConfig] 以下已配置模型不在供应商目录中(仍保留): ${missing.join(", ")}`);
+      }
       const endpointTypes = Object.fromEntries(
-        configuredModelIds.filter((model) => metadata.modelEndpointTypes[model]).map((model) => [model, metadata.modelEndpointTypes[model]]),
+        mergedModelIds.filter((model) => metadata.modelEndpointTypes[model]).map((model) => [model, metadata.modelEndpointTypes[model]]),
       );
       if (Object.keys(endpointTypes).length > 0) dependencies.applyEndpointTypes(endpointTypes);
-      dependencies.updateProvider({ ...provider, model: configuredModelIds });
-      return { success: true, count: configuredModelIds.length };
+      dependencies.updateProvider({ ...provider, model: mergedModelIds });
+      return { success: true, count: mergedModelIds.length };
     }
 
     const modelIds = Array.from(allModelIds);

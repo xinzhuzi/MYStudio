@@ -215,7 +215,7 @@ describe("useAPIConfigStore unified model configuration", () => {
     });
   });
 
-  it("validates configured models without importing unrelated upstream catalog entries", async () => {
+  it("merges the upstream catalog into configured models on sync", async () => {
     useAPIConfigStore.setState({
       providers: [{
         id: "provider-1",
@@ -236,10 +236,40 @@ describe("useAPIConfigStore unified model configuration", () => {
 
     const result = await useAPIConfigStore.getState().syncProviderModels("provider-1");
 
-    expect(result).toEqual({ success: true, count: 1 });
-    expect(useAPIConfigStore.getState().providers[0].model).toEqual(["gpt-image-2"]);
+    expect(result).toEqual({ success: true, count: 3 });
+    expect(useAPIConfigStore.getState().providers[0].model).toEqual(["gpt-image-2", "gpt-5.4", "sora-2"]);
     expect(useAPIConfigStore.getState().modelEndpointTypes["gpt-image-2"]).toEqual(["image-generation"]);
     expect(useAPIConfigStore.getState().modelEndpointTypes["gpt-5.4"]).toBeUndefined();
+  });
+
+  it("unions catalogs across all configured keys including models only visible to a later key", async () => {
+    useAPIConfigStore.setState({
+      providers: [{
+        id: "provider-1",
+        platform: "custom",
+        name: "凡人",
+        baseUrl: "https://relay.example.com/v1",
+        apiKey: "sk-key-text-only, sk-key-with-image",
+        model: ["gpt-5.6-terra"],
+      }],
+    });
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const authorization = String((init?.headers as Record<string, string>)?.Authorization ?? "");
+      const catalog = authorization.includes("sk-key-with-image")
+        ? { data: [{ id: "gpt-image-2" }, { id: "gpt-image-2-4k" }] }
+        : { data: [{ id: "gpt-5.6-terra" }, { id: "codex-auto-review" }] };
+      return new Response(JSON.stringify(catalog), { status: 200 });
+    });
+
+    const result = await useAPIConfigStore.getState().syncProviderModels("provider-1");
+
+    expect(result).toEqual({ success: true, count: 4 });
+    expect(useAPIConfigStore.getState().providers[0].model).toEqual([
+      "gpt-5.6-terra",
+      "codex-auto-review",
+      "gpt-image-2",
+      "gpt-image-2-4k",
+    ]);
   });
 
   it("discovers and imports the full provider catalog when no model is configured", async () => {
@@ -268,7 +298,7 @@ describe("useAPIConfigStore unified model configuration", () => {
     expect(useAPIConfigStore.getState().modelEndpointTypes["gpt-5.4"]).toBeUndefined();
   });
 
-  it("reports exact configured models missing from the upstream catalog without mutation", async () => {
+  it("keeps configured models absent from the catalog while merging new entries", async () => {
     useAPIConfigStore.setState({
       providers: [{
         id: "provider-1",
@@ -279,15 +309,17 @@ describe("useAPIConfigStore unified model configuration", () => {
         model: ["gpt-image-2", "private-image-model"],
       }],
     });
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({
       data: [{ id: "gpt-image-2" }, { id: "unrelated-model" }],
     }), { status: 200 }));
 
     const result = await useAPIConfigStore.getState().syncProviderModels("provider-1");
 
-    expect(result).toMatchObject({ success: false, count: 0 });
-    expect(result.error).toContain("private-image-model");
-    expect(useAPIConfigStore.getState().providers[0].model).toEqual(["gpt-image-2", "private-image-model"]);
+    expect(result).toMatchObject({ success: true, count: 3 });
+    expect(useAPIConfigStore.getState().providers[0].model).toEqual(["gpt-image-2", "private-image-model", "unrelated-model"]);
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("private-image-model"));
+    warnSpy.mockRestore();
   });
 
   it("validates provider adapter code without executing it", () => {

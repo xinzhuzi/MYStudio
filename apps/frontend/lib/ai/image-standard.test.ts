@@ -122,6 +122,11 @@ describe("image standard request helpers", () => {
     })).toMatchObject({ imageUrl: "https://cdn.example.com/image.png" });
 
     expect(extractImageGenerationResult({ id: "task-1" })).toMatchObject({ taskId: "task-1" });
+
+    // new-api job 接口提交响应: {"job": {"id": "task_xxx", "status": "queued"}}
+    expect(extractImageGenerationResult({
+      job: { id: "task_job_9", status: "queued" },
+    })).toMatchObject({ taskId: "task_job_9" });
   });
 
   it("uses the AI SDK image model with the resolved standard size", async () => {

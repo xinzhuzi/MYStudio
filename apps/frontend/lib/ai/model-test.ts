@@ -82,7 +82,7 @@ export interface PreparedImageModelTestAttempt {
   headers: Record<string, string>;
   body: Record<string, unknown>;
   keyIndex?: number;
-  template?: "aspect-resolution" | "openai-size";
+  template?: "aspect-resolution" | "openai-size" | "image-job";
 }
 
 export interface PreparedTextModelTest {
@@ -137,7 +137,7 @@ export function buildGeminiCompatibleEndpoint(baseUrl: string, model: string): s
   return `${versioned}/models/${encodeURIComponent(model)}:generateContent`;
 }
 
-function buildTextModelTestAttempts(baseUrl: string, apiKey: string, model: string, thinkingOverride?: boolean): PreparedTextModelTestAttempt[] {
+function buildTextModelTestAttempts(baseUrl: string, apiKeys: string[], model: string, thinkingOverride?: boolean): PreparedTextModelTestAttempt[] {
   const prompt = "回复 OK 和模型名称";
   const thinking = resolveThinkingEnabled(model, thinkingOverride);
   const tokenBudget = thinking ? THINKING_TEST_MAX_TOKENS : 32;
@@ -145,7 +145,7 @@ function buildTextModelTestAttempts(baseUrl: string, apiKey: string, model: stri
   const anthropicThinking = buildThinkingParams({ model, protocol: "anthropic-compatible", maxTokens: tokenBudget, enabled: thinkingOverride });
   const geminiThinking = buildThinkingParams({ model, protocol: "gemini-compatible", maxTokens: tokenBudget, enabled: thinkingOverride });
   const geminiThinkingConfig = (geminiThinking.generationConfig as { thinkingConfig?: unknown } | undefined)?.thinkingConfig;
-  return [
+  const buildForKey = (apiKey: string, keyIndex: number): PreparedTextModelTestAttempt[] => [
     {
       protocol: "openai-compatible",
       label: "OpenAI 兼容",
@@ -161,6 +161,7 @@ function buildTextModelTestAttempts(baseUrl: string, apiKey: string, model: stri
         temperature: 0,
         ...openaiThinking,
       },
+      keyIndex,
     },
     {
       protocol: "anthropic-compatible",
@@ -177,6 +178,7 @@ function buildTextModelTestAttempts(baseUrl: string, apiKey: string, model: stri
         messages: [{ role: "user", content: prompt }],
         ...anthropicThinking,
       },
+      keyIndex,
     },
     {
       protocol: "gemini-compatible",
@@ -194,8 +196,10 @@ function buildTextModelTestAttempts(baseUrl: string, apiKey: string, model: stri
           ...(geminiThinkingConfig ? { thinkingConfig: geminiThinkingConfig } : {}),
         },
       },
+      keyIndex,
     },
   ];
+  return apiKeys.flatMap((apiKey, index) => buildForKey(apiKey, index));
 }
 
 function buildImageModelTestAttempts(
@@ -240,18 +244,33 @@ function buildImageModelTestAttempts(
     },
   ];
 
-  return templates.flatMap((template) => apiKeys.map((apiKey, index) => ({
-    protocol: "openai-compatible" as const,
-    label: `OpenAI 图片 · ${template.label} · Key ${index + 1}`,
-    endpoint,
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: template.body,
-    keyIndex: index,
-    template: template.template,
-  })));
+  return [
+    ...templates.flatMap((template) => apiKeys.map((apiKey, index) => ({
+      protocol: "openai-compatible" as const,
+      label: `OpenAI 图片 · ${template.label} · Key ${index + 1}`,
+      endpoint,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: template.body,
+      keyIndex: index,
+      template: template.template,
+    }))),
+    // new-api 异步 job 通道: POST /v1/images/jobs,提交被接受(返回 job.id)即视为通道可用
+    ...apiKeys.map((apiKey, index) => ({
+      protocol: "openai-compatible" as const,
+      label: `OpenAI 图片 · Job 异步 · Key ${index + 1}`,
+      endpoint: buildOpenAICompatibleEndpoint(baseUrl, "images/jobs"),
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: { model, prompt, n: 1 },
+      keyIndex: index,
+      template: "image-job" as const,
+    })),
+  ];
 }
 
 export function prepareModelTestRequest(payload: ModelTestRequest): PreparedModelTest {
@@ -295,7 +314,7 @@ export function prepareModelTestRequest(payload: ModelTestRequest): PreparedMode
     };
   }
 
-  const attempts = buildTextModelTestAttempts(baseUrl, keys[0], model, payload.thinkingEnabled);
+  const attempts = buildTextModelTestAttempts(baseUrl, keys, model, payload.thinkingEnabled);
   const firstAttempt = attempts[0];
   return {
     success: true,
@@ -419,6 +438,20 @@ function createSdkTransportFetch(fetcher: ModelTestFetch, templateName?: string)
   }, { templateName })) as typeof fetch;
 }
 
+const MODEL_REJECTION_PATTERN = /is not supported|no available channel|model_not_found|does not exist|no such model|unknown model/i;
+
+/**
+ * 识别上游明确拒绝模型本身(而非协议/参数问题)的错误。
+ * 此类错误换协议或换请求模板必然同样失败,只按 Key 维度短路。
+ */
+function describeModelRejection(bodyText: string): string | undefined {
+  if (!MODEL_REJECTION_PATTERN.test(bodyText)) return undefined;
+  const groupMatch = /under group ([^)"']+)/i.exec(bodyText);
+  return groupMatch
+    ? `【该 Key 分组「${groupMatch[1].trim()}」下此模型无可用通道，可尝试其它 Key 或在中转站调整分组】`
+    : "【该 Key 下此模型不可用，可尝试其它 Key 或更换模型】";
+}
+
 export async function runModelTestRequest(
   payload: ModelTestRequest,
   fetcher: ModelTestFetch = fetch,
@@ -436,8 +469,12 @@ export async function runModelTestRequest(
 
   const attempts: ModelTestAttemptResult[] = [];
   const skippedImageKeyIndexes = new Set<number>();
+  const modelRejectedKeyIndexes = new Set<number>();
   for (const attempt of prepared.attempts) {
     if (prepared.type === "image" && attempt.keyIndex !== undefined && skippedImageKeyIndexes.has(attempt.keyIndex)) {
+      continue;
+    }
+    if (attempt.keyIndex !== undefined && modelRejectedKeyIndexes.has(attempt.keyIndex)) {
       continue;
     }
 
@@ -494,6 +531,10 @@ export async function runModelTestRequest(
         if (attempt.keyIndex !== undefined && (sdkResult.status === 401 || sdkResult.status === 403)) {
           skippedImageKeyIndexes.add(attempt.keyIndex);
         }
+        const sdkRejectionHint = describeModelRejection(sdkResult.error || "");
+        if (sdkRejectionHint && attempt.keyIndex !== undefined) {
+          modelRejectedKeyIndexes.add(attempt.keyIndex);
+        }
         attempts.push({
           protocol: attempt.protocol,
           label: attempt.label,
@@ -501,7 +542,9 @@ export async function runModelTestRequest(
           success: false,
           status: sdkResult.status,
           elapsedMs,
-          error: sdkResult.error || "图片模型测试未返回图片",
+          error: sdkRejectionHint
+            ? `${sdkResult.error || "图片模型测试未返回图片"} ${sdkRejectionHint}`
+            : sdkResult.error || "图片模型测试未返回图片",
         });
         continue;
       }
@@ -519,6 +562,11 @@ export async function runModelTestRequest(
         if (prepared.type === "image" && attempt.keyIndex !== undefined && (response.status === 401 || response.status === 403)) {
           skippedImageKeyIndexes.add(attempt.keyIndex);
         }
+        const rawError = `模型测试失败 (${response.status}) ${text.slice(0, 240)}`;
+        const rejectionHint = describeModelRejection(text);
+        if (rejectionHint && attempt.keyIndex !== undefined) {
+          modelRejectedKeyIndexes.add(attempt.keyIndex);
+        }
         attempts.push({
           protocol: attempt.protocol,
           label: attempt.label,
@@ -526,7 +574,7 @@ export async function runModelTestRequest(
           success: false,
           status: response.status,
           elapsedMs,
-          error: `模型测试失败 (${response.status}) ${text.slice(0, 240)}`,
+          error: rejectionHint ? `${rawError} ${rejectionHint}` : rawError,
         });
         continue;
       }

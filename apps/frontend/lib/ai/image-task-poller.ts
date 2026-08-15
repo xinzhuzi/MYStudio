@@ -47,7 +47,9 @@ export async function pollTaskStatus(
         throw new Error(`Failed to check task status: ${response.status}`);
       }
       const data = await response.json();
-      const status = (data.status ?? data.data?.status ?? 'unknown').toString().toLowerCase();
+      // new-api job 接口把任务对象包在 job 字段里: {"job": {"status": "...", "assets": [...]}}
+      const job = (data.job ?? data.data?.job ?? data) as Record<string, unknown> | undefined;
+      const status = (job?.status ?? data.status ?? data.data?.status ?? 'unknown').toString().toLowerCase();
       const statusMap: Record<string, string> = { pending: 'pending', submitted: 'pending', queued: 'pending', processing: 'processing', running: 'processing', in_progress: 'processing', completed: 'completed', succeeded: 'completed', success: 'completed', failed: 'failed', error: 'failed' };
       const mappedStatus = statusMap[status] || 'processing';
       if (mappedStatus === 'completed') {
@@ -55,12 +57,15 @@ export async function pollTaskStatus(
         const images = data.result?.images ?? data.data?.result?.images;
         let resultUrl: string | undefined;
         if (images?.[0]) { const urlField = images[0].url; resultUrl = Array.isArray(urlField) ? urlField[0] : urlField; }
-        resultUrl = resultUrl || data.output_url || data.result_url || data.url;
+        // job 接口完成态: assets[].proxy_url / assets[].url（CDN 短时效链接）
+        const assets = Array.isArray(job?.assets) ? job.assets as Array<Record<string, unknown>> : undefined;
+        const assetUrl = assets?.map((asset) => asset.proxy_url ?? asset.url).find((url): url is string => typeof url === 'string' && url.length > 0);
+        resultUrl = resultUrl || assetUrl || data.output_url || data.result_url || data.url;
         if (!resultUrl) throw markTerminalPollError(new Error('Task completed but no URL in result'));
         return resultUrl;
       }
       if (mappedStatus === 'failed') {
-        const rawError = data.error || data.error_message || data.data?.error;
+        const rawError = job?.error ?? job?.message ?? data.error ?? data.error_message ?? data.data?.error;
         throw markTerminalPollError(new Error(rawError ? String(rawError) : 'Task failed'));
       }
       transientRetryAttempt = 0;

@@ -687,7 +687,20 @@ const hyperFramesAdapter = createHyperFramesAdapter({
   storageBasePath: getStorageBasePath,
   workspaceRootForProject: videoWorkflowWorkspaceRootForProject,
   workerPath: path.join(MAIN_DIST, 'hyperframes-worker.cjs'),
-  resolveBrowserPath: async () => (await remotionRuntime.controller.probeStatus()).executablePath,
+  // 浏览器 utility 一次只服务一个请求:与设置页状态刷新并发时会被拒,重试一次避免瞬态"未找到可复用的 Headless Shell"误报
+  resolveBrowserPath: async () => {
+    const attempt = async () => (await remotionRuntime.controller.probeStatus()).executablePath
+    try {
+      const first = await attempt()
+      if (first) return first
+    } catch { /* 并发拒绝/进程冷启动,立即重试 */ }
+    await new Promise((resolve) => setTimeout(resolve, 300))
+    try {
+      return await attempt()
+    } catch {
+      return undefined
+    }
+  },
 })
 const videoWorkflowRuntimeManager = createVideoWorkflowRuntimeManager(getStorageBasePath())
 const videoWorkflowChapterService = createVideoWorkflowChapterService({

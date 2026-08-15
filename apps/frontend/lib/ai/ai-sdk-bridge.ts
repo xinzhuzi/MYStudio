@@ -207,7 +207,7 @@ const CLEAN_IMAGE_PROMPT_TERMS = [
   "low visual noise",
   "denoised details",
   "clear readable surfaces",
-  "clean paper texture",
+  "smooth matte finish",
   "controlled ink wash",
 ];
 const DENOISE_NEGATIVE_PROMPT_TERMS = [
@@ -351,7 +351,11 @@ export function extractImageGenerationResult(data: unknown): ImageGenerationResu
   const message = choice?.message as Record<string, unknown> | undefined;
   const choiceImage = extractFromChoiceContent(message?.content);
   if (choiceImage) return { imageUrl: choiceImage };
-  const taskId = firstRecord?.task_id?.toString()
+  // new-api job 接口提交响应: {"job": {"id": "task_xxx", "status": "queued"}}
+  const jobRecord = record.job && typeof record.job === 'object' ? record.job as Record<string, unknown> : undefined;
+  const taskId = jobRecord?.id?.toString()
+    ?? jobRecord?.task_id?.toString()
+    ?? firstRecord?.task_id?.toString()
     ?? firstRecord?.id?.toString()
     ?? record.task_id?.toString()
     ?? record.taskId?.toString()

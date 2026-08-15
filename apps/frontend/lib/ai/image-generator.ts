@@ -8,7 +8,7 @@
  */
 
 import { getFeatureConfig, getFeatureNotConfiguredMessage } from '@/lib/ai/feature-router';
-import { buildEndpoint, getRootBaseUrl, getImageEndpointPaths, DEFAULT_IMAGE_ENDPOINT, getImageAttemptConfigs, parseImageApiErrorMessage, createImageApiHttpError, getTargetDimensions, needsPixelSize } from '@/lib/ai/image-generator-helpers';
+import { buildEndpoint, getRootBaseUrl, getImageEndpointPaths, IMAGE_ENDPOINT_PATHS, DEFAULT_IMAGE_ENDPOINT, getImageAttemptConfigs, parseImageApiErrorMessage, createImageApiHttpError, getTargetDimensions, needsPixelSize } from '@/lib/ai/image-generator-helpers';
 import {
   buildChatCompletionsImageRequest,
   extractChatCompletionsImageUrl,
@@ -214,6 +214,26 @@ async function generateImage(
       if (isAmbiguousPaidImageError(error)) {
         throw error;
       }
+      // gpt-image 系模型标准通道失败时（如中转站分组无 images/generations 通道），
+      // 先用同一 binding 依次尝试 job 异步通道与 chat 通道，再考虑换绑
+      if (apiFormat === 'openai_images' && model && isGptImageModel(model) && !isAuthStatusError(error)) {
+        const fallbackResult = await tryGptImageFallbackChannels({
+          prompt: generationParams.prompt,
+          aspectRatio,
+          resolution,
+          apiKey,
+          referenceImages: generationParams.referenceImages,
+          model,
+          baseUrl,
+          keyManager: featureConfig.keyManager,
+          operationId,
+          cause: error,
+        });
+        if (fallbackResult) {
+          void logEvent({ level: 'info', category: 'ai', operationId, message: 'Image generation completed via fallback channel', context: { model, hasImageUrl: Boolean(fallbackResult.imageUrl), taskId: fallbackResult.taskId, attempt: attemptIndex + 1 } });
+          return fallbackResult;
+        }
+      }
       const hasNextAttempt = attemptIndex < attemptConfigs.length - 1;
       if (hasNextAttempt) {
         void logEvent({
@@ -365,6 +385,83 @@ async function submitViaChatCompletions(
   throw new Error('未能从响应中提取图片 URL');
 }
 
+function isAuthStatusError(error: unknown): boolean {
+  const status = (error as { status?: unknown } | undefined)?.status;
+  return status === 401 || status === 403;
+}
+
+/**
+ * gpt-image 系模型标准 images/generations 通道失败后的同 binding 兜底：
+ * ① new-api 异步 job 通道（/v1/images/jobs 提交 + 轮询）
+ * ② chat/completions 多模态生图通道
+ */
+async function tryGptImageFallbackChannels(options: {
+  prompt: string;
+  aspectRatio: string;
+  resolution: string;
+  apiKey: string;
+  referenceImages?: string[];
+  model: string;
+  baseUrl: string;
+  keyManager?: { getCurrentKey?: () => string | null; handleError?: (status: number, errorText?: string) => boolean };
+  operationId?: string;
+  cause: unknown;
+}): Promise<ImageGenerationResult | null> {
+  const { prompt, aspectRatio, resolution, apiKey, referenceImages, model, baseUrl, keyManager, operationId, cause } = options;
+
+  try {
+    const submitted = await submitImageJobTask(prompt, aspectRatio, resolution, apiKey, referenceImages, model, baseUrl, keyManager, operationId);
+    void logEvent({
+      level: 'info',
+      category: 'ai',
+      operationId,
+      message: 'Image generation job fallback submitted',
+      context: { model, taskId: submitted.taskId, cause: cause instanceof Error ? cause.message : String(cause) },
+    });
+    const imageUrl = await pollTaskStatusImpl(submitted.taskId, apiKey, baseUrl, undefined, submitted.pollUrl, operationId);
+    void logEvent({
+      level: 'info',
+      category: 'ai',
+      operationId,
+      message: 'Image generation job fallback completed',
+      context: { model, taskId: submitted.taskId },
+    });
+    return { imageUrl, taskId: submitted.taskId };
+  } catch (jobError) {
+    void logEvent({
+      level: 'warn',
+      category: 'ai',
+      operationId,
+      message: 'Image generation job fallback failed',
+      context: { model },
+      error: jobError,
+    });
+  }
+
+  try {
+    const chatResult = await submitViaChatCompletions(prompt, model, apiKey, baseUrl, aspectRatio, referenceImages, resolution, keyManager, undefined, operationId);
+    void logEvent({
+      level: 'info',
+      category: 'ai',
+      operationId,
+      message: 'Image generation chat fallback completed',
+      context: { model, hasImageUrl: Boolean(chatResult.imageUrl) },
+    });
+    return chatResult;
+  } catch (chatError) {
+    void logEvent({
+      level: 'warn',
+      category: 'ai',
+      operationId,
+      message: 'Image generation chat fallback failed',
+      context: { model },
+      error: chatError,
+    });
+  }
+
+  return null;
+}
+
 /**
  * Submit image generation task via OpenAI-compatible images/generations API
  */
@@ -495,7 +592,9 @@ async function submitImageTask(
         },
       });
     }
-    throw new Error(sdkResult.error || 'AI SDK 图片生成失败');
+    const sdkFailure = new Error(sdkResult.error || 'AI SDK 图片生成失败') as Error & { status?: number };
+    sdkFailure.status = sdkResult.status;
+    throw sdkFailure;
   }
 
   try {
@@ -601,9 +700,89 @@ async function submitImageTask(
   }
 }
 
+/**
+ * Submit an async image job via the new-api style /v1/images/jobs endpoint.
+ * Verified contract (fanrenapi): POST {rootBase}/v1/images/jobs with
+ * {model, prompt, image?: <raw base64>, size?, n} → {"job": {"id", "status": "queued"}}.
+ * Submit is a paid request, so it is never retried blindly.
+ */
+async function submitImageJobTask(
+  prompt: string,
+  aspectRatio: string,
+  resolution: string,
+  apiKey: string,
+  referenceImages: string[] | undefined,
+  model: string,
+  baseUrl: string,
+  keyManager?: { getCurrentKey?: () => string | null },
+  operationId?: string,
+): Promise<{ taskId: string; pollUrl: string }> {
+  const rootBase = getRootBaseUrl(baseUrl);
+  const imagePaths = IMAGE_ENDPOINT_PATHS['image-job'];
+  const sizeSource = buildOpenAIImageRequestBody({ model, prompt, aspectRatio, resolution }).body;
+  const requestBody: Record<string, unknown> = { model, prompt, n: 1 };
+  if (typeof sizeSource.size === 'string' && sizeSource.size) requestBody.size = sizeSource.size;
+  const firstReference = referenceImages?.[0];
+  if (firstReference) {
+    const base64 = firstReference.replace(/^data:image\/[a-zA-Z0-9.+-]+;base64,/, '');
+    if (!base64 || base64 === firstReference) {
+      throw new Error('job 通道参考图必须是缩略后的 data:image base64 格式');
+    }
+    requestBody.image = base64;
+  }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), IMAGE_SUBMIT_TIMEOUT_MS);
+  try {
+    const currentApiKey = keyManager?.getCurrentKey?.() || apiKey;
+    const response = await observedFetch(`${rootBase}${imagePaths.submit}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${currentApiKey}`,
+      },
+      body: JSON.stringify(requestBody),
+      signal: controller.signal,
+    }, {
+      operationId,
+      endpointFamily: 'images-jobs',
+      model,
+      timeoutMs: IMAGE_SUBMIT_TIMEOUT_MS,
+      templateName: 'image-job',
+    });
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('[ImageGenerator] Image job submit error:', response.status, errorText);
+      throw createImageApiHttpError(response.status, errorText);
+    }
+    const text = await response.text();
+    let data: unknown;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      const sseMatch = text.match(/^data:\s*(\{.+\})/m);
+      if (sseMatch) {
+        data = JSON.parse(sseMatch[1]);
+      } else {
+        throw new Error(`无法解析图片 job API 响应: ${text.substring(0, 100)}`);
+      }
+    }
+    const record = data as Record<string, unknown>;
+    const job = (record.job && typeof record.job === 'object' ? record.job : record) as Record<string, unknown>;
+    const taskId = typeof job.id === 'string' && job.id.trim()
+      ? job.id.trim()
+      : typeof job.task_id === 'string' && job.task_id.trim()
+        ? job.task_id.trim()
+        : '';
+    if (!taskId) throw new Error('图片 job 提交响应缺少任务 ID');
+    return { taskId, pollUrl: `${rootBase}${imagePaths.poll(taskId)}` };
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 /** Compatibility façade preserving the historical export and call signature. */
-export async function pollTaskStatus(
-  taskId: string,
+export async function pollTaskStatus(  taskId: string,
   apiKey: string,
   baseUrl: string,
   onProgress?: (progress: number) => void,

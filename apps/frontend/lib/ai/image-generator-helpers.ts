@@ -9,6 +9,8 @@ export const getRootBaseUrl = (baseUrl: string): string => baseUrl.replace(/\/+$
 export const IMAGE_ENDPOINT_PATHS: Record<string, { submit: string; poll: (id: string) => string }> = {
   'aigc-image': { submit: '/tencent-vod/v1/aigc-image', poll: (id) => `/tencent-vod/v1/aigc-image/${id}` },
   'vidu生图': { submit: '/ent/v2/reference2image', poll: (id) => `/ent/v2/task?task_id=${id}` },
+  // new-api 系中转站的异步生图 job 接口: POST /v1/images/jobs → GET /v1/images/jobs/{id}
+  'image-job': { submit: '/v1/images/jobs', poll: (id) => `/v1/images/jobs/${id}` },
 };
 export const DEFAULT_IMAGE_ENDPOINT = { submit: '/v1/images/generations', poll: (id: string) => `/v1/images/generations/${id}` };
 export function getImageEndpointPaths(endpointTypes: string[]) { for (const t of endpointTypes) if (IMAGE_ENDPOINT_PATHS[t]) return IMAGE_ENDPOINT_PATHS[t]; return DEFAULT_IMAGE_ENDPOINT; }

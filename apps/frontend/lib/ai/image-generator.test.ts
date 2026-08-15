@@ -59,6 +59,7 @@ function jsonResponse(body: unknown, init?: { ok?: boolean; status?: number }) {
     status: init?.status ?? 200,
     statusText: "",
     text: async () => text,
+    json: async () => JSON.parse(text),
     clone: () => ({ text: async () => text }),
   };
 }
@@ -394,6 +395,8 @@ describe("generateCharacterImage", () => {
     await vi.advanceTimersByTimeAsync(120_000);
     await vi.waitFor(() => expect(capturedSignals.length).toBe(2));
     await vi.advanceTimersByTimeAsync(180_000);
+    // 兜底链(job 提交 180s + chat 通道重试)也要在 fake timers 下走完,最终仍抛原始错误
+    await vi.advanceTimersByTimeAsync(900_000);
     await expect(rejection).resolves.toMatchObject({ message: "API 请求超时" });
   });
 
@@ -409,6 +412,65 @@ describe("generateCharacterImage", () => {
       prompt: "old laborer character",
       aspectRatio: "16:9",
     })).rejects.toThrow("订阅额度不足或未配置订阅");
+  });
+
+  it("falls back to the async job channel when sync images has no channel", async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn((url: unknown) => {
+      const target = String(url);
+      if (target.includes("/v1/images/jobs/")) {
+        return Promise.resolve(jsonResponse({
+          job: { id: "task_job_x", status: "succeeded", assets: [{ proxy_url: "https://cdn.fanrenapi.com/x.png" }] },
+        }));
+      }
+      if (target.endsWith("/v1/images/jobs")) {
+        return Promise.resolve(jsonResponse({ job: { id: "task_job_x", status: "queued" } }));
+      }
+      return Promise.resolve(jsonResponse({
+        error: {
+          code: "model_not_found",
+          message: "No available channel for model gpt-image-2 under group Codex-Pro (distributor)",
+          type: "new_api_error",
+        },
+      }, { ok: false, status: 503 }));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const generation = generateCharacterImage({
+      prompt: "no channel fallback",
+      aspectRatio: "16:9",
+    });
+    const assertion = expect(generation).resolves.toMatchObject({
+      imageUrl: "https://cdn.fanrenapi.com/x.png",
+      taskId: "task_job_x",
+    });
+    await vi.advanceTimersByTimeAsync(60_000);
+    await assertion;
+
+    const calledUrls = fetchMock.mock.calls.map((call) => String(call[0]));
+    expect(calledUrls.some((url) => url.endsWith("/v1/images/jobs"))).toBe(true);
+    expect(calledUrls.some((url) => url.includes("/v1/images/jobs/task_job_x"))).toBe(true);
+  });
+
+  it("does not fall back to job or chat channels when the key is rejected", async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn((_url: unknown) => Promise.resolve(jsonResponse({
+      error: { message: "Invalid API key" },
+    }, { ok: false, status: 401 })));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const generation = generateCharacterImage({
+      prompt: "rejected key",
+      aspectRatio: "16:9",
+    });
+    const rejection = generation.catch((error) => error);
+    await vi.advanceTimersByTimeAsync(30_000);
+    const error = await rejection;
+
+    expect(error.message).toContain("API Key");
+    const calledUrls = fetchMock.mock.calls.map((call) => String(call[0]));
+    expect(calledUrls.some((url) => url.includes("/v1/images/jobs"))).toBe(false);
+    expect(calledUrls.some((url) => url.includes("chat/completions"))).toBe(false);
   });
 
   it("tries the next bound image model when the current binding cannot generate", async () => {
