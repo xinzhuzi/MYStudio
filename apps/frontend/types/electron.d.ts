@@ -88,6 +88,66 @@ import type {
   MetadataUpdateResult,
 } from "@/types/artifacts";
 
+// ---- Project folder phase-2 contract (move / import) ----
+// Frozen renderer-side contract from task 08-15-project-location-phase2 design
+// §2. Self-typed here (not re-imported from the main-process module) so the
+// renderer surface does not depend on the parallel main-process implementation.
+export type ProjectFolderMovePhase = "copying" | "verifying" | "finalizing";
+
+export interface ProjectFolderMoveProgressEvent {
+  projectId: string;
+  phase: ProjectFolderMovePhase;
+  filesDone: number;
+  filesTotal: number;
+  bytesDone: number;
+  bytesTotal: number;
+}
+
+export type ProjectFolderMoveResult =
+  | { ok: true; location: string; mode: "renamed" | "copied" }
+  | {
+      ok: false;
+      code:
+        | "MISSING_DIR"
+        | "CONFLICT"
+        | "PARENT_INVALID"
+        | "NOT_WRITABLE"
+        | "NESTED"
+        | "CANCELLED"
+        | "MOVE_FAILED";
+      message?: string;
+    };
+
+export interface ProjectFolderCancelMoveResult {
+  ok: true;
+  cancelled: boolean;
+}
+
+export type ProjectFolderImportResult =
+  | { ok: true; project: { id: string; name: string; location: string } }
+  | {
+      ok: false;
+      // IMPORT_FAILED mirrors the main-process handler's in-band failure code
+      // for id-rewrite/location-table errors — keep in sync with
+      // electron/ipc/projects/project-folder-ipc.ts.
+      code: "INVALID_PATH" | "NOT_A_PROJECT" | "ALREADY_REGISTERED" | "NESTED" | "IMPORT_FAILED";
+      message?: string;
+      existingProjectId?: string;
+    };
+
+export interface ProjectFolderMoveImportBridge {
+  move: (
+    projectId: string,
+    projectName: string,
+    targetParentDir: string,
+  ) => Promise<ProjectFolderMoveResult>;
+  cancelMove: (projectId: string) => Promise<ProjectFolderCancelMoveResult>;
+  importFolder: (folderPath: string) => Promise<ProjectFolderImportResult>;
+  onMoveProgress: (
+    listener: (progress: ProjectFolderMoveProgressEvent) => void,
+  ) => () => void;
+}
+
 export {};
 
 declare global {
@@ -171,7 +231,7 @@ declare global {
       listDirs: (prefix: string) => Promise<string[]>;
       removeDir: (prefix: string) => Promise<boolean>;
     };
-    projectFolder?: ProjectFolderBridge;
+    projectFolder?: ProjectFolderBridge & ProjectFolderMoveImportBridge;
     projectFiles?: {
       writeText: (key: string, value: string) => Promise<{ success: boolean; filePath?: string; error?: string }>;
       writeBinary: (payload: { projectId: string; relativePath: string; bytes: ArrayBuffer }) => Promise<{

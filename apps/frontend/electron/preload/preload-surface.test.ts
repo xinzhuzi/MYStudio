@@ -293,6 +293,19 @@ describe("preload IPC surface", () => {
     expect(preloadSource).toContain("ipcRenderer.invoke('project-folder-rename', projectId, newName)");
     expect(preloadSource).toContain("remove: (projectId: string) => ipcRenderer.invoke('project-folder-remove', projectId)");
     expect(preloadSource).toContain("status: (projectId: string) => ipcRenderer.invoke('project-folder-status', projectId)");
-    expect(electronTypesSource).toContain("projectFolder?: ProjectFolderBridge;");
+    expect(electronTypesSource).toContain("projectFolder?: ProjectFolderBridge & ProjectFolderMoveImportBridge;");
+  });
+
+  it("maps the project-folder move/import facade to the phase-2 IPC channels", () => {
+    expect(preloadSource).toContain("move: (projectId: string, projectName: string, targetParentDir: string) =>");
+    expect(preloadSource).toContain("ipcRenderer.invoke('project-folder-move', projectId, projectName, targetParentDir)");
+    expect(preloadSource).toContain("cancelMove: (projectId: string) =>");
+    expect(preloadSource).toContain("ipcRenderer.invoke('project-folder-move-cancel', projectId)");
+    expect(preloadSource).toContain("importFolder: (folderPath: string) =>");
+    expect(preloadSource).toContain("ipcRenderer.invoke('project-folder-import', folderPath)");
+    expect(preloadSource).toContain("ipcRenderer.on('project-folder-move-progress', wrapped)");
+    expect(preloadSource).toContain("ipcRenderer.removeListener('project-folder-move-progress', wrapped)");
+    expect(electronTypesSource).toContain("onMoveProgress: (");
+    expect(electronTypesSource).toContain("listener: (progress: ProjectFolderMoveProgressEvent) => void");
   });
 });

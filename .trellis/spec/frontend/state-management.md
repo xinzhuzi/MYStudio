@@ -76,6 +76,21 @@ const projectRoot = resolveProjectRootPath(dataDir, projectId);
 // Use projectRoot to scan all files under _p/{projectId}/
 ```
 
+### External Project Locations (added 2026-08-15, task 08-15-project-folder-choice)
+
+Projects may live outside `${dataRoot}/_p/{id}` at a user-chosen folder ("外部位置"). Rules:
+
+- **Authoritative map**: main process owns `<userData>/project-locations.json` (`{version, locations: {projectId: absPath}}`, atomic write, `electron/storage/project-locations.ts`). The renderer registry's `Project.location` is display/cache only — never a resolution source.
+- **Redirect semantics**: `storage-paths.ts` exposes `setProjectLocationResolver(resolver)`; all five resolve functions redirect keys/prefixes of form `_p/{pid}/...` (or project root) to the registered location root when hit, with `assertInsideRoot` containment against that root. Unset resolver / unknown pid / bare `_p` prefix → byte-identical legacy behavior.
+- **MANDATORY**: any main-process code touching a project directory MUST use `resolveProjectRootPath` / `resolveDataFilePath` / `resolveDataDirPath` / `resolveProjectScopedFilePath` (or a `projectRootFor(pid)` helper over them). Never `path.join(dataDir, "_p", projectId)` directly — external projects will silently read/write the wrong (legacy-empty) path. Known deliberate exceptions (legacy-data semantics only): `storage-manager.ts` data-root validation counters and the `_migrated.json` import marker.
+- **Folder lifecycle IPC** (string literals, alphabetical whitelist in `main-ipc-contract.test.ts`): `project-folder-prepare` (validate parent + create `<parent>/<name>` + register; CONFLICT is case-insensitive), `project-folder-rename` (mv + table update), `project-folder-remove` (rm -rf + unregister), `project-folder-status` (existence check before opening).
+- New projects require a user-picked parent folder (Dashboard inline form, required 位置 field; picker defaults to last used parent dir stored in app-settings `projectLocationDefaults.lastParentDir`). Legacy projects without `location` keep legacy behavior forever.
+
+Phase-2 additions (08-15-project-location-phase2):
+- **Move**: `project-folder-move (projectId, projectName, targetParentDir)` relocates any project (legacy projects become external after moving) via `project-move-engine.ts` (same-volume rename fast path; cross-volume copy → verify-by-size → delete-source, per-file progress, AbortSignal; engine MUST yield the event loop between files or the cancel IPC starves). Progress is relayed on `project-folder-move-progress`; cancel via `project-folder-move-cancel`. Location table is updated only on success. A target inside the source subtree is rejected as NESTED (the copy path deletes the source at finalize).
+- **Import**: `project-folder-import (folderPath)` adopts an existing folder as a project (requires script.json or director.json). Original pid is recovered from `state.projects` keys (script → director); when already taken, a new UUID is minted and every parseable `*.json` in the folder is rewritten in place (projects key + activeProjectId only — mirror of renderer `rewriteProjectScopedPayload`). Same-folder re-import returns `ALREADY_REGISTERED` + existingProjectId. The renderer registry entry is added by the renderer (`importProject`), never by the import handler.
+- **Hardening**: all samePath/containsPath checks (locations store + ipc) compare realpath-canonicalized paths (nearest existing ancestor), closing the symlink-into-data-root bypass.
+
 ---
 
 ## Contract C3: Mixed Backup Decoder Registry

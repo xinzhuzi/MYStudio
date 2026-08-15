@@ -27,6 +27,10 @@ interface ProjectStore {
   deleteProject: (id: string) => void;
   setActiveProject: (id: string | null) => void;
   ensureDefaultProject: () => void;
+  /** 二期导入:把主进程已挂接的外部项目追加进注册表(不改 activeProjectId)。 */
+  importProject: (input: { id: string; name: string; location: string; createdAt?: number }) => Project;
+  /** 二期移动:同步注册表中的项目位置(projects 与 activeProject 命中时)。 */
+  setProjectLocation: (id: string, location: string) => void;
 }
 
 type FileStorageLike = {
@@ -141,6 +145,34 @@ export const useProjectStore = create<ProjectStore>()(
             activeProject: project,
           };
         });
+      },
+
+      importProject: (input) => {
+        const project: Project = {
+          id: input.id,
+          name: input.name,
+          createdAt: input.createdAt ?? Date.now(),
+          updatedAt: Date.now(),
+          location: input.location,
+        };
+        // 对齐复制流程 STEP 4 的理由:仅追加注册表条目,不改 activeProjectId ——
+        // storage adapters 按 activeProjectId 路由持久化写入,导入过程中若提前
+        // 切到新项目,未完成的 persist 写入会落到新项目的 per-project 文件。
+        set((state) => ({ projects: [project, ...state.projects] }));
+        return project;
+      },
+
+      setProjectLocation: (id, location) => {
+        // 移动只改位置,不触碰 updatedAt(非内容编辑,不重排列表排序)。
+        set((state) => ({
+          projects: state.projects.map((p) =>
+            p.id === id ? { ...p, location } : p,
+          ),
+          activeProject:
+            state.activeProject?.id === id
+              ? { ...state.activeProject, location }
+              : state.activeProject,
+        }));
       },
     }),
     {

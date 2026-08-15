@@ -31,13 +31,36 @@ type CreateProjectLocationStoreOptions = {
 
 const FILE_VERSION = 1;
 
+/**
+ * Realpath-normalize a path for comparison purposes: existing segments resolve
+ * through symlinks; missing tail segments ride on the nearest existing ancestor
+ * (same semantics as storage-paths.ts canonicalPath, kept private here because
+ * storage-paths does not export it). Prevents symlinked paths from bypassing
+ * the nesting/duplicate guards in set().
+ */
+function canonicalPath(input: string): string {
+  const unresolved: string[] = [];
+  let current = path.resolve(input);
+  while (true) {
+    try {
+      const resolved = fs.realpathSync(current);
+      return path.join(resolved, ...unresolved);
+    } catch {
+      const parent = path.dirname(current);
+      if (parent === current) return path.resolve(input);
+      unresolved.unshift(path.basename(current));
+      current = parent;
+    }
+  }
+}
+
 function samePath(left: string, right: string): boolean {
-  return path.resolve(left).toLowerCase() === path.resolve(right).toLowerCase();
+  return canonicalPath(left).toLowerCase() === canonicalPath(right).toLowerCase();
 }
 
 function containsPath(parent: string, child: string): boolean {
-  const normalizedParent = path.resolve(parent).toLowerCase();
-  const normalizedChild = path.resolve(child).toLowerCase();
+  const normalizedParent = canonicalPath(parent).toLowerCase();
+  const normalizedChild = canonicalPath(child).toLowerCase();
   if (normalizedChild === normalizedParent) return true;
   return normalizedChild.startsWith(`${normalizedParent}${path.sep}`);
 }

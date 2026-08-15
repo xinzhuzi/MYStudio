@@ -8,7 +8,7 @@
  * Features: create, open, rename, duplicate, batch select & delete
  */
 
-import { useState, useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useProjectStore } from "@/stores/project/project-store";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import { useMediaPanelStore } from "@/stores/navigation/media-panel-store";
@@ -29,6 +29,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Progress } from "@/components/ui/progress";
 import { SidebarToggleButton } from "@/components/ChromeControls";
 import {
   DropdownMenu,
@@ -52,7 +53,9 @@ import {
   Clapperboard,
   Film,
   Folder,
+  FolderInput,
   FolderOpen,
+  FolderUp,
   Layers3,
   MonitorPlay,
   Scissors,
@@ -68,6 +71,11 @@ import {
 import { cn, generateUUID } from "@/lib/utils";
 import { toast } from "sonner";
 import type { Project } from "@/stores/project/project-store";
+import type {
+  ProjectFolderImportResult,
+  ProjectFolderMoveProgressEvent,
+  ProjectFolderMoveResult,
+} from "@/types/electron";
 
 interface DashboardProps {
   sidebarCollapsed?: boolean;
@@ -112,11 +120,52 @@ const timelineLanes = [
   { label: "声音", width: "68%", tone: "green" },
 ];
 
+/** 二期移动进度:跨卷复制时主进程按文件粒度推送阶段。 */
+const MOVE_PHASE_LABELS: Record<ProjectFolderMoveProgressEvent["phase"], string> = {
+  copying: "正在复制文件…",
+  verifying: "正在校验文件…",
+  finalizing: "正在完成移动…",
+};
+
+const MOVE_ERROR_HINTS: Record<Extract<ProjectFolderMoveResult, { ok: false }>["code"], string> = {
+  MISSING_DIR: "源项目文件夹不存在，可在项目列表使用「导入项目」重新挂接该文件夹",
+  CONFLICT: "目标父目录下已存在同名非空文件夹",
+  PARENT_INVALID: "目标父目录无效",
+  NOT_WRITABLE: "目标父目录不可写",
+  NESTED: "目标位置嵌套在应用数据目录或另一项目文件夹内",
+  CANCELLED: "已取消移动",
+  MOVE_FAILED: "移动项目文件夹失败",
+};
+
+const IMPORT_ERROR_HINTS: Record<Extract<ProjectFolderImportResult, { ok: false }>["code"], string> = {
+  INVALID_PATH: "所选路径无效",
+  NOT_A_PROJECT: "所选文件夹不是漫影项目（缺少 script.json / director.json）",
+  ALREADY_REGISTERED: "该项目已在列表中",
+  NESTED: "所选位置嵌套在应用数据目录或另一项目文件夹内",
+  IMPORT_FAILED: "处理项目数据失败",
+};
+
+/**
+ * OQ3 in-flight 探针:remotion 队列的 switch 检查对同 id 请求直接放行
+ * （requestProjectSwitch 的 fromProjectId === toProjectId 分支），而移动的是
+ * 当前 active 项目本身。用一个永不可能是真实项目 id 的哨兵值即可触发与
+ * project-switcher 完全相同的 running/queued 作业判定。
+ */
+const MOVE_INFLIGHT_PROBE_PROJECT_ID = "__project-move-inflight-probe__";
+
 export function Dashboard({
   sidebarCollapsed = false,
   onToggleSidebar,
 }: DashboardProps) {
-  const { projects, createProject, deleteProject, renameProject } = useProjectStore();
+  const {
+    projects,
+    createProject,
+    deleteProject,
+    renameProject,
+    importProject,
+    setProjectLocation,
+    setActiveProject,
+  } = useProjectStore();
   const { setActiveTab } = useMediaPanelStore();
   const { projectLocationDefaults, setProjectLocationDefaults } = useAppSettingsStore();
 
@@ -141,6 +190,14 @@ export function Dashboard({
 
   // Duplicate loading
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
+
+  // Move dialog (OQ3: confirm → directory picker → progress/cancel)
+  const [moveTarget, setMoveTarget] = useState<Project | null>(null);
+  const [movePhase, setMovePhase] = useState<"confirm" | "moving">("confirm");
+  const [moveProgress, setMoveProgress] = useState<ProjectFolderMoveProgressEvent | null>(null);
+
+  // Import: brief scroll+ring attention on an already-registered project card
+  const [highlightProjectId, setHighlightProjectId] = useState<string | null>(null);
 
   // Sort projects by updatedAt descending
   const sortedProjects = [...projects].sort((a, b) => b.updatedAt - a.updatedAt);
@@ -198,7 +255,7 @@ export function Dashboard({
         const status = await folderBridge.status(projectId);
         if (!status.exists) {
           toast.error("项目文件夹不存在，无法打开", {
-            description: status.location ?? project.location,
+            description: `${status.location ?? project.location}——可在项目列表使用「导入项目」重新挂接该文件夹`,
           });
           return;
         }
@@ -450,6 +507,160 @@ export function Dashboard({
     }
   }, [projects]);
 
+  // ==================== Move (OQ3) ====================
+
+  // Subscribe for the whole lifetime of the move dialog (not just the moving
+  // phase) so no early progress frame is missed between dialog open and the
+  // move() invoke.
+  useEffect(() => {
+    if (!moveTarget) return;
+    const bridge = getProjectFolderBridge();
+    const unsubscribe = bridge?.onMoveProgress?.((event) => {
+      if (event.projectId !== moveTarget.id) return;
+      setMoveProgress(event);
+    });
+    return () => unsubscribe?.();
+  }, [moveTarget]);
+
+  const openMoveDialog = useCallback((project: Project) => {
+    setMoveTarget(project);
+    setMovePhase("confirm");
+    setMoveProgress(null);
+  }, []);
+
+  const closeMoveDialog = useCallback(() => {
+    // While moving, dismissal goes through the cancel button (cancelMove);
+    // the pending move() promise owns closing the dialog.
+    if (movePhase === "moving") return;
+    setMoveTarget(null);
+    setMoveProgress(null);
+  }, [movePhase]);
+
+  const handleMoveStart = useCallback(async () => {
+    const project = moveTarget;
+    if (!project) return;
+    const storage = getStorageManagerBridge();
+    const folderBridge = getProjectFolderBridge();
+    if (!storage?.selectDirectory || !folderBridge?.move) {
+      toast.error("移动项目需要桌面端环境");
+      return;
+    }
+
+    const defaultPath = project.location
+      ? project.location.substring(0, project.location.lastIndexOf("/"))
+      : projectLocationDefaults.lastParentDir || undefined;
+    const targetParentDir = await storage.selectDirectory(defaultPath);
+    if (!targetParentDir) return; // Picker dismissed; stay on the confirm step.
+
+    // OQ3: moving the currently open project is allowed, but only when no
+    // render jobs are in flight (same judgment as project-switcher).
+    const wasActive = useProjectStore.getState().activeProjectId === project.id;
+    if (wasActive) {
+      const queue = typeof window !== "undefined" ? window.remotionQueue : undefined;
+      if (queue?.canSwitchProject) {
+        const decision = await queue.canSwitchProject(MOVE_INFLIGHT_PROBE_PROJECT_ID);
+        if (!decision.allowed) {
+          toast.error("Remotion 任务仍在运行，暂不能移动项目", {
+            description: decision.jobIds.join(", "),
+          });
+          return;
+        }
+      }
+      useProjectStore.getState().setActiveProject(null);
+    }
+
+    setMovePhase("moving");
+    setMoveProgress(null);
+    let result: ProjectFolderMoveResult;
+    try {
+      result = await folderBridge.move(project.id, project.name, targetParentDir);
+    } catch (err) {
+      result = {
+        ok: false,
+        code: "MOVE_FAILED",
+        message: err instanceof Error ? err.message : String(err),
+      };
+    } finally {
+      setMoveTarget(null);
+      setMoveProgress(null);
+    }
+
+    if (result.ok) {
+      setProjectLocation(project.id, result.location);
+      setProjectLocationDefaults({ lastParentDir: targetParentDir });
+      if (wasActive) setActiveProject(project.id);
+      toast.success(`已移动「${project.name}」到新位置`, { description: result.location });
+      return;
+    }
+    // 失败/取消:先恢复 active,再提示。
+    if (wasActive) setActiveProject(project.id);
+    if (result.code === "CANCELLED") {
+      toast.warning("已取消移动项目");
+      return;
+    }
+    const hint = MOVE_ERROR_HINTS[result.code];
+    toast.error("移动项目失败", {
+      description: result.message ? `${hint}：${result.message}` : hint,
+    });
+  }, [
+    moveTarget,
+    projectLocationDefaults.lastParentDir,
+    setProjectLocation,
+    setProjectLocationDefaults,
+    setActiveProject,
+  ]);
+
+  const handleCancelMove = useCallback(async () => {
+    const project = moveTarget;
+    const bridge = getProjectFolderBridge();
+    if (!project || !bridge?.cancelMove) return;
+    try {
+      await bridge.cancelMove(project.id);
+    } catch (err) {
+      toast.error("取消移动失败", {
+        description: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }, [moveTarget]);
+
+  // ==================== Import (二期挂接已有项目文件夹) ====================
+
+  const highlightProjectCard = useCallback((projectId: string) => {
+    setHighlightProjectId(projectId);
+    requestAnimationFrame(() => {
+      document
+        .querySelector<HTMLElement>(`[data-project-card="${projectId}"]`)
+        ?.scrollIntoView?.({ behavior: "smooth", block: "nearest" });
+    });
+    window.setTimeout(() => setHighlightProjectId(null), 2000);
+  }, []);
+
+  const handleImportProject = useCallback(async () => {
+    const storage = getStorageManagerBridge();
+    const folderBridge = getProjectFolderBridge();
+    if (!storage?.selectDirectory || !folderBridge?.importFolder) {
+      toast.error("导入项目需要桌面端环境");
+      return;
+    }
+    const folderPath = await storage.selectDirectory();
+    if (!folderPath) return;
+    const result = await folderBridge.importFolder(folderPath);
+    if (result.ok) {
+      importProject(result.project);
+      toast.success(`已导入「${result.project.name}」`, { description: result.project.location });
+      return;
+    }
+    if (result.code === "ALREADY_REGISTERED") {
+      toast.warning("该项目已在列表中");
+      if (result.existingProjectId) highlightProjectCard(result.existingProjectId);
+      return;
+    }
+    const hint = IMPORT_ERROR_HINTS[result.code];
+    toast.error("导入项目失败", {
+      description: result.message ? `${hint}：${result.message}` : hint,
+    });
+  }, [importProject, highlightProjectCard]);
+
   // ==================== Helpers ====================
 
   const formatDate = (timestamp: number) => {
@@ -498,6 +709,13 @@ export function Dashboard({
               {selectionMode ? "退出选择" : "管理"}
             </Button>
           )}
+          <Button
+            variant="outline"
+            onClick={handleImportProject}
+          >
+            <FolderUp className="w-4 h-4 mr-2" />
+            导入项目
+          </Button>
           <Button
             onClick={() => setShowNewProject(true)}
             className="bg-primary text-primary-foreground hover:bg-primary/90 font-medium"
@@ -672,8 +890,10 @@ export function Dashboard({
               return (
                 <div
                   key={project.id}
+                  data-project-card={project.id}
                   className={cn(
                     "dashboard-project-card group relative bg-card border rounded-xl overflow-hidden transition-all duration-200",
+                    highlightProjectId === project.id && "ring-2 ring-primary",
                     selectionMode
                       ? isSelected
                         ? "border-primary ring-1 ring-primary/30 cursor-pointer"
@@ -763,6 +983,10 @@ export function Dashboard({
                               <Copy className="w-4 h-4 mr-2" />
                               复制项目
                             </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => openMoveDialog(project)}>
+                              <FolderInput className="w-4 h-4 mr-2" />
+                              移动到…
+                            </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
                               className="text-destructive focus:text-destructive"
@@ -795,10 +1019,16 @@ export function Dashboard({
                 <p className="text-sm text-muted-foreground/70 mb-6">
                   创建你的第一个 AI 视频项目
                 </p>
-                <Button onClick={() => setShowNewProject(true)}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  新建项目
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" onClick={handleImportProject}>
+                    <FolderUp className="w-4 h-4 mr-2" />
+                    导入项目
+                  </Button>
+                  <Button onClick={() => setShowNewProject(true)}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    新建项目
+                  </Button>
+                </div>
               </div>
             )}
           </div>
@@ -822,6 +1052,75 @@ export function Dashboard({
             <Button variant="outline" onClick={() => setRenameDialogOpen(false)}>取消</Button>
             <Button onClick={handleRename} disabled={!renameValue.trim()}>确定</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ==================== Move Dialog (OQ3) ==================== */}
+      <Dialog
+        open={moveTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) closeMoveDialog();
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          {movePhase === "confirm" && moveTarget ? (
+            <>
+              <DialogHeader>
+                <DialogTitle>移动项目</DialogTitle>
+              </DialogHeader>
+              <p className="text-sm text-muted-foreground">
+                将「{moveTarget.name}」的项目文件夹移动到其他父目录，
+                移动完成后应用将改用新位置打开该项目。
+              </p>
+              {moveTarget.location && (
+                <p
+                  className="text-xs font-mono text-muted-foreground truncate"
+                  title={moveTarget.location}
+                >
+                  {moveTarget.location}
+                </p>
+              )}
+              <DialogFooter>
+                <Button variant="outline" onClick={closeMoveDialog}>取消</Button>
+                <Button onClick={handleMoveStart}>
+                  <FolderInput className="w-4 h-4 mr-2" />
+                  选择目标位置…
+                </Button>
+              </DialogFooter>
+            </>
+          ) : (
+            <>
+              <DialogHeader>
+                <DialogTitle>正在移动「{moveTarget?.name}」</DialogTitle>
+              </DialogHeader>
+              {moveProgress && moveProgress.bytesTotal > 0 ? (
+                <div className="space-y-2">
+                  <Progress
+                    value={Math.min(
+                      100,
+                      Math.round((moveProgress.bytesDone / moveProgress.bytesTotal) * 100),
+                    )}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    {MOVE_PHASE_LABELS[moveProgress.phase]}{" "}
+                    {Math.min(
+                      100,
+                      Math.round((moveProgress.bytesDone / moveProgress.bytesTotal) * 100),
+                    )}%
+                  </p>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  {moveProgress ? MOVE_PHASE_LABELS[moveProgress.phase] : "正在准备移动…"}
+                </p>
+              )}
+              <DialogFooter>
+                <Button variant="outline" onClick={handleCancelMove}>
+                  取消移动
+                </Button>
+              </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
 

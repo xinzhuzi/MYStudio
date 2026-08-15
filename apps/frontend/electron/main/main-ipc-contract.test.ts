@@ -85,6 +85,9 @@ project-file-remove-text
 project-file-save-image
 project-file-write-binary
 project-file-write-text
+project-folder-import
+project-folder-move
+project-folder-move-cancel
 project-folder-prepare
 project-folder-remove
 project-folder-rename

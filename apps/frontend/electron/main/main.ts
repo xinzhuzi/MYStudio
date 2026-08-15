@@ -99,6 +99,7 @@ import type {
 import type { VideoWorkflowChapterRunRequestV1 } from '../rendering/contracts/video-workflow-ipc'
 import { createStorageManager } from '../storage/storage-manager'
 import { createProjectLocationStore } from '../storage/project-locations'
+import { createDefaultProjectMoveEngine } from '../storage/project-move-engine'
 import { registerProjectFolderIpcHandlers } from '../ipc/projects/project-folder-ipc'
 import { resolveDataFilePath } from '../storage/storage-paths'
 import { validateEditingProject } from '../../lib/studio/editing/validation'
@@ -604,6 +605,7 @@ storageManager.registerIpcHandlers({ getStudioManualsSourceRoot })
 registerProjectFolderIpcHandlers({
   locationStore: projectLocationStore,
   getProjectsDataRoot: () => getProjectDataRoot({ ensure: false }),
+  createMoveEngine: () => createDefaultProjectMoveEngine(),
 })
 
 registerAppUpdaterIpcHandlers({

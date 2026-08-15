@@ -338,4 +338,90 @@ describe("project disk recovery", () => {
 
     useProjectStore.setState({ projects: originalProjects });
   });
+
+  it("imports a project at the list head without touching activeProjectId, and round-trips its location", () => {
+    const originalState = {
+      projects: useProjectStore.getState().projects,
+      activeProjectId: useProjectStore.getState().activeProjectId,
+      activeProject: useProjectStore.getState().activeProject,
+    };
+    useProjectStore.setState({
+      activeProjectId: "p-current",
+      activeProject: {
+        id: "p-current",
+        name: "当前项目",
+        createdAt: 1,
+        updatedAt: 1,
+      },
+    });
+
+    try {
+      const imported = useProjectStore.getState().importProject({
+        id: "p-imported",
+        name: "导入项目",
+        location: "/Users/x/Import/导入项目",
+        createdAt: 42,
+      });
+
+      expect(imported).toMatchObject({
+        id: "p-imported",
+        name: "导入项目",
+        location: "/Users/x/Import/导入项目",
+        createdAt: 42,
+      });
+      expect(useProjectStore.getState().projects[0]?.id).toBe("p-imported");
+      // 对齐复制流程 STEP 4:导入不改 activeProjectId。
+      expect(useProjectStore.getState().activeProjectId).toBe("p-current");
+
+      const partialized = useProjectStore.persist.getOptions().partialize!(useProjectStore.getState()) as {
+        projects: Array<{ id: string; location?: string }>;
+      };
+      expect(partialized.projects.find((project) => project.id === "p-imported")?.location).toBe(
+        "/Users/x/Import/导入项目",
+      );
+    } finally {
+      useProjectStore.setState(originalState);
+    }
+  });
+
+  it("setProjectLocation updates the registry entry and the active project copy when hit", () => {
+    const project = {
+      id: "p-moved",
+      name: "移动项目",
+      createdAt: 1,
+      updatedAt: 1,
+      location: "/old/parent/移动项目",
+    };
+    useProjectStore.setState({
+      projects: [project],
+      activeProjectId: "p-moved",
+      activeProject: project,
+    });
+
+    try {
+      useProjectStore.getState().setProjectLocation("p-moved", "/new/parent/移动项目");
+
+      const state = useProjectStore.getState();
+      expect(state.projects[0]?.location).toBe("/new/parent/移动项目");
+      expect(state.activeProject?.location).toBe("/new/parent/移动项目");
+      // 移动不是内容编辑:updatedAt 保持不变。
+      expect(state.projects[0]?.updatedAt).toBe(1);
+    } finally {
+      useProjectStore.setState({
+        projects: [{
+          id: "default-project",
+          name: "漫影工作室项目",
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        }],
+        activeProjectId: "default-project",
+        activeProject: {
+          id: "default-project",
+          name: "漫影工作室项目",
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        },
+      });
+    }
+  });
 });

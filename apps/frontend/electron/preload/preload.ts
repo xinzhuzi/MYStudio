@@ -229,7 +229,18 @@ contextBridge.exposeInMainWorld('projectFiles', {
   removeText: (key: string) => ipcRenderer.invoke('project-file-remove-text', key),
 })
 
-// Per-project external folder lifecycle (create/rename/remove/status)
+// Per-project external folder lifecycle (create/rename/remove/status + phase-2 move/import).
+// Move progress is pushed main→renderer on 'project-folder-move-progress' (one
+// payload per project move); the wrapper style mirrors selfMedia.onProgress.
+type ProjectFolderMoveProgressPayload = {
+  projectId: string
+  phase: 'copying' | 'verifying' | 'finalizing'
+  filesDone: number
+  filesTotal: number
+  bytesDone: number
+  bytesTotal: number
+}
+
 contextBridge.exposeInMainWorld('projectFolder', {
   prepare: (projectId: string, parentDir: string, projectName: string) =>
     ipcRenderer.invoke('project-folder-prepare', projectId, parentDir, projectName),
@@ -237,6 +248,17 @@ contextBridge.exposeInMainWorld('projectFolder', {
     ipcRenderer.invoke('project-folder-rename', projectId, newName),
   remove: (projectId: string) => ipcRenderer.invoke('project-folder-remove', projectId),
   status: (projectId: string) => ipcRenderer.invoke('project-folder-status', projectId),
+  move: (projectId: string, projectName: string, targetParentDir: string) =>
+    ipcRenderer.invoke('project-folder-move', projectId, projectName, targetParentDir),
+  cancelMove: (projectId: string) =>
+    ipcRenderer.invoke('project-folder-move-cancel', projectId),
+  importFolder: (folderPath: string) =>
+    ipcRenderer.invoke('project-folder-import', folderPath),
+  onMoveProgress(listener: (progress: ProjectFolderMoveProgressPayload) => void) {
+    const wrapped = (_event: IpcRendererEvent, payload: ProjectFolderMoveProgressPayload) => listener(payload)
+    ipcRenderer.on('project-folder-move-progress', wrapped)
+    return () => ipcRenderer.removeListener('project-folder-move-progress', wrapped)
+  },
 })
 
 contextBridge.exposeInMainWorld('studioSkills', {
