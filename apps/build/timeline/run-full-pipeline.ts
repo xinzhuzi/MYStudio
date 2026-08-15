@@ -63,6 +63,7 @@ import { sha256CanonicalJson, sha256Text } from "@/lib/studio/remotion/canonical
 import { validateEditingProject, validateTimelineRenderPlan } from "@/lib/studio/editing/validation";
 import {
   deriveStorageRoots,
+  resolveTimelineSourcePath,
   registeredProjectDir,
   resolveProjectDir,
   resolveStorageBasePath,
@@ -585,6 +586,27 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
   // translate each style word through the single-source transition policy.
   const boundaryIntents = await buildBoundaryIntents(projectDir, chapterId, shotInputs);
 
+  // 分镜生成图路径表（overlay 装饰槽内容感知定位）：store mediaRef → 注册表解析绝对路径
+  const imagePathByShotId = (() => {
+    const map = new Map<string, string>();
+    try {
+      const storeForImages = JSON.parse(fs.readFileSync(path.join(projectDir, "studio-workflow-store.json"), "utf8")) as {
+        state?: { storyboards?: Array<{ id: string; episodeId: string; mediaRef?: { path?: string } }> };
+      };
+      for (const storyboard of storeForImages.state?.storyboards ?? []) {
+        if (storyboard.episodeId !== chapterId || !storyboard.mediaRef?.path) continue;
+        try {
+          map.set(storyboard.id, resolveTimelineSourcePath({
+            sourcePath: storyboard.mediaRef.path,
+            dataRoot: roots.dataRoot,
+            mediaRoot: roots.mediaRoot,
+          }));
+        } catch { /* 单镜媒体缺失不阻塞整章（overlay 定位回退公式） */ }
+      }
+    } catch { /* store 读取失败 → 全部回退公式定位 */ }
+    return map;
+  })();
+
   const runRequest: VideoWorkflowChapterRunRequestV1 = {
     schemaVersion: 1,
     projectId,
@@ -602,6 +624,8 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
       audioSha256: s.audioSha256,
       textSha256: s.textSha256,
       durationUs: s.durationUs,
+      // overlay 内容感知定位用：分镜生成图绝对路径（mediaRef → 注册表解析）
+      ...(imagePathByShotId.get(s.shotId) ? { imagePath: imagePathByShotId.get(s.shotId)! } : {}),
     })),
     ...(boundaryIntents.length > 0 ? { boundaryIntents } : {}),
     sourceSha256,
@@ -837,6 +861,10 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
   const syncedSourceSnapshotHash = chapterManifestForSync?.sourceSnapshotHash ?? sourceSnapshotHash;
   (plan as { sourceSnapshotHash: string }).sourceSnapshotHash = syncedSourceSnapshotHash;
   (plan.editingProjectSnapshot as { sourceSnapshotHash: string }).sourceSnapshotHash = syncedSourceSnapshotHash;
+
+  // 注：字幕 cue 与视觉 clip 在 plan 层同处"音频时间线"（未压缩）——authority 归属
+  // 校验依赖这一一致性，不可在此重映射。渲染时间线压缩（转场重叠）造成的字幕
+  // 滞后在 build-composition-props 里用 layoutVisualTimeline 的同一份偏移换算。
 
   const planValidation = validateTimelineRenderPlan(plan);
   if (!planValidation.success) throw new Error(`TimelineRenderPlan 无效: ${planValidation.issues.map((i) => `${i.path}: ${i.message}`).join("; ")}`);

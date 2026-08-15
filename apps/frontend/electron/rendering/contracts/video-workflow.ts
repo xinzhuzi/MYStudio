@@ -73,6 +73,8 @@ export interface VideoUseShotInputV1 {
   textSha256: string;
   durationUs: TimelineTimeUs;
   derivedInput?: VideoUseDerivedInputEvidenceV1;
+  /** 生成图绝对路径（可选）：overlay 装饰槽内容感知定位（亮度质心）用。 */
+  imagePath?: string;
 }
 
 export interface VideoUseChapterRunV1 {

@@ -65,7 +65,7 @@ _TRANSITION_EFFECT_IDS = {"cut", "fade", "crossfade", "flash", "blackout"}
 _TRANSITION_MIN_US = 200_000
 _TRANSITION_MAX_US = 1_200_000
 # 与 run-full-pipeline legacy 装饰窗的 1.1s 钳制保持同一装饰语义。
-_OVERLAY_SLOT_MAX_US = 1_100_000
+_OVERLAY_SLOT_MAX_US = 1_400_000
 
 # Single source for the video-use → HyperFrames decorative decision. Keep the
 # values primitive because they cross the JSON artifact boundary unchanged.
@@ -119,6 +119,50 @@ def _template_for_mood(mood_word: str | None, index: int) -> tuple[str, dict[str
     return template, dict(DEFAULT_TEMPLATE_PARAMETERS[template])
 
 
+def _image_path_for_shot(request: dict[str, Any], shot_id: str) -> str | None:
+    shots = request.get("shots")
+    if isinstance(shots, list):
+        for shot in shots:
+            if isinstance(shot, dict) and str(shot.get("shotId") or "") == shot_id:
+                path_value = shot.get("imagePath")
+                return str(path_value) if isinstance(path_value, str) and path_value else None
+    return None
+
+
+def _bright_centroid(image_path: str | None) -> tuple[int, int] | None:
+    """画面最亮区域的亮度加权质心（百分比坐标）。
+
+    光效（lens-flare/highlight-box）应落位到画面的光源/主体高亮处，
+    而非公式轮换位置。取亮度前 20% 像素的加权质心，缩到 64x36 网格
+    保证确定性且开销恒定；任何失败回退 None（调用方走公式）。
+    """
+    if not image_path:
+        return None
+    try:
+        from PIL import Image  # 应用 venv 自带；缺库时回退公式定位
+        with Image.open(image_path) as handle:
+            im = handle.convert("L").resize((64, 36))
+        px = list(im.getdata())
+        ordered = sorted(px)
+        threshold = ordered[int(len(ordered) * 0.8)]
+        total = 0
+        sum_x = 0
+        sum_y = 0
+        for i, value in enumerate(px):
+            if value >= threshold:
+                weight = value - threshold + 1
+                sum_x += (i % 64) * weight
+                sum_y += (i // 64) * weight
+                total += weight
+        if total <= 0:
+            return None
+        x_pct = round(sum_x / total / 63 * 100)
+        y_pct = round(sum_y / total / 35 * 100)
+        return max(5, min(95, x_pct)), max(8, min(92, y_pct))
+    except Exception:
+        return None
+
+
 def _build_overlay_slots(
     request: dict[str, Any],
     edl: dict[str, Any],
@@ -148,14 +192,23 @@ def _build_overlay_slots(
         shot_id = str(entry["source"])
         mood_word = _mood_for_shot(request, shot_id)
         template_id, parameters = _template_for_mood(mood_word, index)
+        # 内容感知定位：光效落位到画面最亮区域（质心），而非公式轮换位置。
+        centroid = _bright_centroid(_image_path_for_shot(request, shot_id))
         # Keep deterministic per-shot variation while retaining mood/template
         # correlation. The worker remains the final fail-closed range checker.
         if template_id == "light-leak":
-            parameters.setdefault("intensity", 0.35)
+            parameters.setdefault("intensity", 0.5)
             parameters["hue"] = (index * 31) % 360
         elif template_id == "lens-flare":
-            parameters["x"] = 18 + ((index * 13) % 64)
-            parameters["y"] = 24 + ((index * 7) % 34)
+            parameters["size"] = 360
+            if centroid:
+                parameters["x"], parameters["y"] = centroid
+            else:
+                parameters["x"] = 18 + ((index * 13) % 64)
+                parameters["y"] = 24 + ((index * 7) % 34)
+        elif template_id == "highlight-box":
+            if centroid:
+                parameters["x"], parameters["y"] = centroid
         start_us = start_us_by_index[index]
         duration_us = max(1, round((float(entry["end"]) - float(entry["start"])) * 1_000_000))
         # 装饰槽时长不得越过下一镜的压缩起点：转场重叠期两镜共存，越界会在重叠段

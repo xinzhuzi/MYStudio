@@ -101,7 +101,15 @@ export function buildCompositionProps(
         .filter((clip) => clip.trackKind === "text" && typeof clip.source.text === "string")
         .sort(compareTimelineClips)
         .map((clip) => {
-          const from = usToFrames(clip.startUs, fps);
+          // 字幕与视觉 clip 在 plan 层同处"音频时间线"（各镜时长直加），而视觉经
+          // layoutVisualTimeline 压缩（转场重叠）——字幕必须用同一份 layout 偏移
+          // 换算，否则随片长线性滞后（片尾可达数十秒）。
+          const owner = visualClips.find((visual) => overlaps(clip.startUs, clip.durationUs, visual.startUs, visual.durationUs));
+          const ownerTiming = owner ? timingById.get(owner.id) : undefined;
+          const layoutShiftFrames = owner && ownerTiming
+            ? usToFrames(owner.startUs, fps) - ownerTiming.from
+            : 0;
+          const from = Math.max(0, usToFrames(clip.startUs, fps) - layoutShiftFrames);
           return {
             cueId: clip.id,
             text: clip.source.text!.trim(),
