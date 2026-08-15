@@ -882,10 +882,16 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
   process.chdir(runtimeDir);
   try {
     const browser = await resolveBrowser();
-    // cinematic 3D 需要 WebGL：headless-shell 的软件 WebGL(SwiftShader) 高负载下 Context Lost，
-    // 完整 Chrome 的 --headless=new 带真实 Metal GPU —— 优先切系统 Chrome。
+    // cinematic 3D 需要 WebGL：headless-shell 走 swangle 软件 GL（轻量化 96 段网格 +
+    // 关抗锯齿后可稳定）。系统 Chrome(--headless=new, Metal GPU) 的 localhost IPv6
+    // 解析连不上问题已由 apps/patches 修复（serveUrl/页内代理 → 127.0.0.1），但 Chrome
+    // 路线仍属新路径——仅 MYSTUDIO_CINEMATIC_BROWSER=chrome 显式启用。
     const systemChrome = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
-    const renderBrowser = cinematicEnabled && fs.existsSync(systemChrome) ? systemChrome : browser;
+    const renderBrowser = cinematicEnabled
+      && process.env.MYSTUDIO_CINEMATIC_BROWSER === "chrome"
+      && fs.existsSync(systemChrome)
+      ? systemChrome
+      : browser;
     const mediaBridge = new MediaBridgeServer();
     await mediaBridge.listen();
     const session = mediaBridge.createSession();
@@ -921,6 +927,9 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
       // to inject onto the visual clips. This is the chapter-render path; the
       // per-shot render path (RemotionShotRenderer) handles depth independently.
       let cinematicByClipId: Map<string, CinematicConfig> | undefined;
+      // cinematic 分支的 TextureLoader 只能解码静帧图——视觉源必须从镜头 MP4 换成
+      // 深度估计用的首帧 PNG（视频音轨由 CinematicVisualClip 内的 OffthreadVideo 补挂）。
+      const cinematicFrameUrlByClipId = new Map<string, string>();
       if (cinematicEnabled && depthAdapter) {
         cinematicByClipId = new Map();
         // 逐镜运镜选择：确定性关键词启发式（cinematic-preset-ai 的兜底路径，
@@ -981,6 +990,10 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
             const depthAssetId = crypto.randomBytes(32).toString("hex");
             session.register(depthAssetId, depthResult.artifact.outputPath);
             const [depthUrlEntry] = mediaBridge.buildUrls(session, [depthAssetId]);
+            const frameAssetId = crypto.randomBytes(32).toString("hex");
+            session.register(frameAssetId, framePath);
+            const [frameUrlEntry] = mediaBridge.buildUrls(session, [frameAssetId]);
+            cinematicFrameUrlByClipId.set(clip.id, frameUrlEntry.url);
             cinematicByClipId.set(clip.id, {
               preset: (presetByShotId.get(slot.target.shotId) ?? cinematicPreset) as CinematicConfig["preset"],
               depthMapSrc: depthUrlEntry.url,
@@ -1028,9 +1041,72 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
           const config = cinematicByClipId.get(clip.clipId);
           if (config) {
             (clip as { cinematic?: CinematicConfig }).cinematic = config;
+            const frameUrl = cinematicFrameUrlByClipId.get(clip.clipId);
+            if (frameUrl) {
+              // 3D 贴图用静帧；src 保留视频 URL 供 OffthreadVideo 音轨取声
+              (clip as { cinematicImageSrc?: string }).cinematicImageSrc = frameUrl;
+            }
           }
         }
         console.log(`[full-pipeline] cinematic config injected on ${cinematicByClipId.size} visual clips`);
+      }
+
+      // ── 18b. 2D 镜头语言 + 镜头特效（MYSTUDIO_SHOT_FX=1）──
+      // panZoom 2D 运镜（画面内裁切,天然无黑边）+ shake/glow/grain/chroma 合成层特效。
+      // 决策：动作/氛围关键词命中优先,未命中按镜序轮换保证节奏变化。
+      if (process.env.MYSTUDIO_SHOT_FX === "1") {
+        const fxStore = JSON.parse(fs.readFileSync(path.join(projectDir, "studio-workflow-store.json"), "utf8")) as {
+          state?: { storyboards?: Array<{ id: string; episodeId: string; prompt?: string; line?: string }> };
+        };
+        const fxStoryboards = (fxStore.state?.storyboards ?? [])
+          .filter((storyboard) => storyboard.episodeId === chapterId);
+        const textByShotId = new Map(fxStoryboards.map((storyboard) => [storyboard.id, `${String(storyboard.prompt ?? "")}\n${String(storyboard.line ?? "")}`]));
+        const planClipByClipId = new Map(plan.clips.map((clip) => [clip.id, clip]));
+        const motionRotation: Array<{ fromScale: number; toScale: number; originX: number; originY: number }> = [
+          { fromScale: 1.0, toScale: 1.05, originX: 0.5, originY: 0.5 },   // 推近
+          { fromScale: 1.07, toScale: 1.0, originX: 0.5, originY: 0.5 },  // 拉远
+          { fromScale: 1.03, toScale: 1.08, originX: 0.72, originY: 0.5 },// 右移
+          { fromScale: 1.03, toScale: 1.08, originX: 0.28, originY: 0.5 },// 左移
+          { fromScale: 1.02, toScale: 1.07, originX: 0.5, originY: 0.68 },// 下摇
+          { fromScale: 1.02, toScale: 1.07, originX: 0.5, originY: 0.32 },// 上摇
+          { fromScale: 1.01, toScale: 1.04, originX: 0.5, originY: 0.5 }, // 漂浮
+        ];
+        // 锐度纪律：源图 1672 已上采样到 1920（1.15×），panZoom 再放大即二次软化——
+        // 常规镜缩放上限 1.08，动作 punch 上限 1.12，颗粒 0.035。
+        const fxCounts = { motion: 0, shake: 0, glow: 0, chroma: 0 };
+        props.visualClips.forEach((clip, clipIndex) => {
+          const storyboardId = planClipByClipId.get(clip.clipId)?.source.evidence?.storyboardId as string | undefined;
+          if (!storyboardId) return;
+          const text = textByShotId.get(storyboardId) ?? "";
+          const isAction = /爆|劈|砸|抽|撞|轰|厮杀|鞭/.test(text);
+          const isChase = /追|逃|奔|闯/.test(text);
+          const isAura = /灵|焰|火|辉|光|秘|仙|阵/.test(text);
+          const isDark = /阴|暗|夜|雾|影|渊/.test(text);
+          const isLeave = /退|远|离|别|消失/.test(text);
+          let motion = motionRotation[clipIndex % motionRotation.length];
+          if (isAction) motion = { fromScale: 1.0, toScale: 1.12, originX: 0.5, originY: 0.5 };
+          else if (isLeave && clipIndex % 2 === 0) motion = { fromScale: 1.07, toScale: 1.0, originX: 0.5, originY: 0.5 };
+          (clip as { panZoom?: unknown }).panZoom = motion;
+          fxCounts.motion += 1;
+          const fx: Record<string, unknown> = { grain: { opacity: 0.035 } };
+          if (isAction || isChase) {
+            fx.shake = { amplitudePx: isAction ? 6 : 3 };
+            fxCounts.shake += 1;
+          }
+          if (isAction) {
+            fx.chroma = { offsetPx: 3 };
+            fxCounts.chroma += 1;
+          }
+          if (isAura) {
+            fx.glow = { intensity: 0.5 };
+            fxCounts.glow += 1;
+          } else if (isDark) {
+            fx.glow = { intensity: 0.25 };
+            fxCounts.glow += 1;
+          }
+          (clip as { fx?: unknown }).fx = fx;
+        });
+        console.log(`[full-pipeline] 2D shot-fx injected: motion ${fxCounts.motion}, shake ${fxCounts.shake}, glow ${fxCounts.glow}, chroma ${fxCounts.chroma}`);
       }
 
       const propsValidation = validateChapterVideoCompositionProps(props);
@@ -1059,6 +1135,8 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
       await renderMedia({
         serveUrl: bundlePath, composition, inputProps: props, outputLocation: rawPath,
         codec: "h264", pixelFormat: "yuv420p", audioCodec: "aac",
+        // 锐度纪律：crf 16 + slow（默认 18/medium 在 grain/二次编码下软化明显）
+        crf: 16, x264Preset: "slow",
         browserExecutable: renderBrowser, binariesDirectory, chromeMode: "headless-shell",
         ...(cinematicEnabled && !useSystemChrome ? { chromiumOptions: { gl: "swangle" as const }, concurrency: 2 } : {}),
         enforceAudioTrack: true, overwrite: true,
