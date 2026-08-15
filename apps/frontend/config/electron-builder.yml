@@ -1,5 +1,12 @@
 appId: com.manju2026.manying-studio
 productName: 漫影工作室
+# Explicit publish metadata: keeps update-info generation offline (no GitHub
+# API repository auto-detection, which hangs 600s when github.com is
+# unreachable). Actual uploads remain opt-in via --publish.
+publish:
+  provider: github
+  owner: xinzhuzi
+  repo: MYStudio
 directories:
   buildResources: frontend/assets/brand
   output: release/build
