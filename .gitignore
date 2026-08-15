@@ -125,3 +125,4 @@ apps/output/*
 # is also in AGENTS.md. Ignore the auto-generated root copy so re-indexing
 # doesn't create a stray untracked file. (/CLAUDE.md is root-anchored only.)
 /CLAUDE.md
+.playwright-mcp/

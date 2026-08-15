@@ -84,12 +84,12 @@ Use the background workflow commands for unattended checks:
 npm run smoke:workflow:background
 npm run smoke:workflow:background:project
 npm run smoke:workflow:background:project -- --auto-video
-npm run video:daojie:chapter001:probe-providers
+npm run video:chapter001:probe-providers
 ```
 
 These commands must keep the Electron window hidden, avoid `System Events`/Accessibility focus control, and fail if focus evidence reports MYStudio as the foreground app. Use `smoke:workflow:run*` only for explicit visible inspection.
 
-`npm run video:daojie:chapter001:probe-providers` is a non-generating provider-model probe. It may verify hidden app configuration and `/v1/models` reachability, but it is not a balance proof and must not be reported as a successful real MP4 generation.
+`npm run video:chapter001:probe-providers` is a non-generating provider-model probe. It may verify hidden app configuration and `/v1/models` reachability, but it is not a balance proof and must not be reported as a successful real MP4 generation.
 
 For a focused regression test, use:
 
@@ -186,6 +186,6 @@ Keep the final report short and evidence-based:
 1. `npm run remotion:chapter001:shots`（`render-shot-slots.ts`）— 43 镜 StoryboardShot MP4，**TTS 配音烘进每镜**（经 `bind-voice-audio.ts` + `update-storyboards-voice.ts` 完成 manifest/storyboard 绑定后重渲生效）。门禁开关：`MYSTUDIO_REQUIRE_HUMAN_APPROVAL=0`、`MYSTUDIO_CONTINUITY_POLICY=skip`（测试用途；正式发布仍需人工批准）。
 2. `npm run video:full-pipeline`（`run-full-pipeline.ts`）— video-use runChapter → accept → applyAcceptedArtifact（HyperFrames 透明特效层）→ chapter gate → 字幕归属校验（道劫 chapter-001 为 source-embedded：分镜图内嵌字幕，HyperFrames 禁文字模板、Remotion text clip=0）→ ChapterVideo 渲染。
 
-已删除的旧入口（不要再引用）：`render-daojie-remotion-timeline.ts`、`render-daojie-editing-timeline.ts`、`render-derived-chapter.ts`、`video:daojie:chapter001:remotion`。旧 `MYSTUDIO_DAOJIE_*` 环境变量已改名 `MYSTUDIO_*`（项目专属的仅存于 `apps/build/daojie/`）。
+已删除的旧入口（不要再引用）：`render-remotion-timeline.ts`、`render-editing-timeline.ts`、`render-derived-chapter.ts`、`video:chapter001:remotion`。旧 `MYSTUDIO_CHAPTER_VIDEO_*` 环境变量已改名 `MYSTUDIO_*`（项目专属的仅存于 `apps/build/chapter_video/`）。
 
 成片验收最低顶（smoke 之外）：逐镜抽帧 vs 源 SSIM ≥ 0.90、有声（mean_volume > -60dB）、blackdetect 0 黑段、时长与 EDL 一致（1 帧容差）。QC 参考实现：`.trellis/tasks/archive/2026-08/08-14-three-plugin-chapter-video/research/three-plugin-fresh-qc.py`。

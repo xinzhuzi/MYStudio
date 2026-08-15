@@ -22,7 +22,7 @@ contracts, and Electron main/preload boundary under `apps/frontend/`.
 | [Quality Guidelines](./quality-guidelines.md) | Static, unit, and smoke verification | Complete |
 | [Type Safety](./type-safety.md) | Shared contracts and runtime validation | Complete |
 | [Provider Integration](./provider-integration.md) | OpenAI-compatible model validation and GPT Image request contracts | Complete |
-| [Workflow Auto-Video Smoke](./workflow-auto-video-smoke.md) | Real Daojie clone, one-click MP4, report, and safety contracts | Complete |
+| [Workflow Auto-Video Smoke](./workflow-auto-video-smoke.md) | Real project clone, one-click MP4, report, and safety contracts | Complete |
 | [Editing Timeline Rendering](./timeline-rendering.md) | EditingProject compilation, typed Remotion IPC, cancellation, and evidence | Complete |
 | [Editing Workbench](./editing-workbench.md) | Four-zone editing UI, project-scoped draft actions, command controls, and typed rendering entry | Complete |
 | [Editing Audio And Subtitles](./editing-audio-subtitles.md) | Audio commands, deterministic BGM ducking, subtitle exchange, and waveform preview | Complete |

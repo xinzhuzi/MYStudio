@@ -4,7 +4,7 @@
 
 - **类型**:Electron 桌面应用(AI 漫剧/短剧制作工作台)
 - **技术栈**:Electron + React 18 + TypeScript + Zustand + Tailwind v4 + electron-vite/Vite + Vercel AI SDK(多 provider:anthropic/openai/google/deepseek/xai/qwen/zhipu/minimax)+ 本地 FFmpeg + Python TTS sidecar(`tts`)
-- **主代码**:`apps/frontend`(renderer:`components/` `stores/` `lib/` `hooks/` `types/` + electron:`main/main.ts`/`preload/preload.ts`/`ipc/`/`rendering/timeline-ffmpeg-command.ts`)、`apps/backend`(Python TTS)、`apps/build`(构建执行器:`daojie/` `timeline/` `smoke/` `packaging/`)
+- **主代码**:`apps/frontend`(renderer:`components/` `stores/` `lib/` `hooks/` `types/` + electron:`main/main.ts`/`preload/preload.ts`/`ipc/`/`rendering/timeline-ffmpeg-command.ts`)、`apps/backend`(Python TTS)、`apps/build`(构建执行器:`chapter_video/` `timeline/` `smoke/` `packaging/`)
 - **关键约定**:**没有根 `package.json`**,所有 npm 命令从 `apps/` 执行(`cd apps && npm run dev`)。`apps/out/` `apps/release/` `apps/output/` 是构建产物,禁止 import。
 - **打包约定**:桌面打包统一从 `apps/` 执行；macOS 标准入口 `npm run build:mac` 必须经由 `sh ./build/packaging/build-mac.sh` 完成构建、覆盖安装、installed smoke 和关闭应用，不能只停在安装包。正常打包只校验并复用 `apps/.cache/remotion-bundle`，不得隐式运行 `npm run remotion:bundle`。Remotion 版本、composition 或 bundle 内容变化后，先显式运行 `cd apps && npm run remotion:bundle`，再运行 `cd apps && npm run remotion:versions` 和目标打包命令；固定 bundle 缺失或漂移时应让打包在 electron-vite 前失败。
 - **根目录产物约定**:根目录不得生成 `node_modules/`、`output/` 或 `backups/`；依赖使用 `apps/node_modules`，导出使用 `apps/output`，任务备份使用 `.trellis/tasks/<task>/backups/`。

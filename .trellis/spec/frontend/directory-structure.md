@@ -76,7 +76,7 @@ apps/frontend/
 apps/build/
 ├── packaging/   # desktop build, install, and setup entrypoints
 ├── smoke/       # packaged, installed, and workflow smoke runners
-├── daojie/      # Daojie orchestration, image helpers, and Python tooling
+├── chapter_video/  # chapter video orchestration, image helpers, and Python tooling
 │   ├── pipeline/ # production Python helpers and JSON capability data
 │   └── tests/    # Python contract tests
 ├── timeline/    # Node-only direct timeline runner and config

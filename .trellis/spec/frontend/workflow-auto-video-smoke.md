@@ -2,7 +2,7 @@
 
 ## 1. Scope / Trigger
 
-Use this contract whenever the Daojie background or visible workflow runner, the chapter auto-video UI action, its Electron bridge, or its durable report schema changes. It protects background focus isolation and the difference between clicking through the real-project clone and proving that the one-click path produced a real MP4.
+Use this contract whenever the background or visible workflow runner, the chapter auto-video UI action, its Electron bridge, or its durable report schema changes. It protects background focus isolation and the difference between clicking through the real-project clone and proving that the one-click path produced a real MP4.
 
 ## 2. Signatures
 
@@ -11,7 +11,7 @@ Primary command:
 ```bash
 cd apps
 npm run smoke:workflow:background:project -- --auto-video
-npm run video:daojie:chapter001
+npm run video:chapter001
 
 # Full plugin chain (video-use → HyperFrames → gate → authority → ChapterVideo):
 MYSTUDIO_FULL_PIPELINE=1 ./node_modules/.bin/vite-node \
@@ -29,25 +29,25 @@ Equivalent opt-in and supported environment keys:
 MYSTUDIO_WORKFLOW_AUTO_VIDEO=1 npm run smoke:workflow:background:project
 MYSTUDIO_AUTO_VIDEO_TIMEOUT_MS=600000 npm run smoke:workflow:background:project -- --auto-video
 MYSTUDIO_BACKGROUND_WORKFLOW_REPORT_PATH="$PWD/output/automation/background-workflow-project-report.json" npm run smoke:workflow:background:project -- --auto-video
-npm run video:daojie:chapter001:probe-providers
-npm run video:daojie:chapter001:visual-preflight
-MYSTUDIO_DAOJIE_REUSE_STORYBOARD_IMAGES=1 MYSTUDIO_DAOJIE_REUSE_STORYBOARD_IMAGES_AFTER="2026-07-01T00:00:00+08:00" npm run video:daojie:chapter001
+npm run video:chapter001:probe-providers
+npm run video:chapter001:visual-preflight
+MYSTUDIO_CHAPTER_VIDEO_REUSE_STORYBOARD_IMAGES=1 MYSTUDIO_CHAPTER_VIDEO_REUSE_STORYBOARD_IMAGES_AFTER="2026-07-01T00:00:00+08:00" npm run video:chapter001
 ```
 
 - `--auto-video` requires `--real-project` or `MYSTUDIO_WORKFLOW_REAL_PROJECT=1`.
 - `MYSTUDIO_AUTO_VIDEO_TIMEOUT_MS` must be a positive number; the default is `600000`.
 - `MYSTUDIO_SMOKE_DEBUG_PORT` may select a free DevTools port.
 - `MYSTUDIO_SMOKE_BACKGROUND=1` is the shared Electron background contract. The visible command remains available for explicit human observation.
-- `video:daojie:chapter001:probe-providers` is a non-generating provider-model probe. It must read app image settings in background mode, call only `/v1/models`, write `daojie-chapter001-provider-probe-report.json`, and report `generatedImages=0` plus `generationEndpointCalled=false`.
-- `video:daojie:chapter001:visual-preflight` is the only standalone visual gate. It explicitly sets `MYSTUDIO_DAOJIE_VISUAL_PREFLIGHT=1`; do not invoke its TypeScript module through bare `vite-node`, because that runner does not preserve the module path in `process.argv` and may otherwise exit without running the audit.
+- `video:chapter001:probe-providers` is a non-generating provider-model probe. It must read app image settings in background mode, call only `/v1/models`, write `chapter001-provider-probe-report.json`, and report `generatedImages=0` plus `generationEndpointCalled=false`.
+- `video:chapter001:visual-preflight` is the only standalone visual gate. It explicitly sets `MYSTUDIO_CHAPTER_VIDEO_VISUAL_PREFLIGHT=1`; do not invoke its TypeScript module through bare `vite-node`, because that runner does not preserve the module path in `process.argv` and may otherwise exit without running the audit.
 - Storyboard image reuse is opt-in. Both reuse keys are required, and every reused image must exist with an mtime at or after the ISO timestamp. Reuse avoids a generation request but does not relax voiceover, TTS, stream, duration, or SHA-256 gates.
 
 ## 3. Contracts
 
-- The runner clones the real Daojie `chapter-001` project into temporary user data and must copy project `tts.json`; it must not write the original project.
+- The runner clones the real `chapter-001` project into temporary user data and must copy project `tts.json`; it must not write the original project.
 - It clicks the button labeled `一键第一章成片` and records every observed `data-auto-video-stage` transition.
 - Storyboard workflow association first uses the persisted `storyboard.imageWorkflowId` or `mediaRef.imageWorkflowId`; when either is absent, the runner may resolve the deterministic `storyboard-flow-${episodeId}-${ordinal}` ID derived from the current storyboard row. The same precedence must be used in clone preflight and page assertions so missing optional IDs do not create a false negative.
-- The report must contain `source=real-daojie-chapter001-clone`, `runChapterAutoVideo=true`, and `chapterAutoVideo` with `stageHistory`, `terminalStage`, `statusText`, `finalPath`, `hasFinalPathButton`, and `timedOut`.
+- The report must contain `source=real-project-clone`, `runChapterAutoVideo=true`, and `chapterAutoVideo` with `stageHistory`, `terminalStage`, `statusText`, `finalPath`, `hasFinalPathButton`, and `timedOut`.
 - Background reports must contain `mode=background`, `windowVisibility`, `documentHasFocus`, `focusSamples`, and `foregroundViolation=false`.
 - The background branch must not call `Page.bringToFront`, `window.focus()`, or macOS `System Events`; frontmost-app samples use `lsappinfo`, and any MYStudio sample or non-empty sampling error fails the run.
 - Success requires `chapterAutoVideo.terminalStage=completed`, `timedOut=false`, `autoVideoFailed=false`, no failed workflow stages, and no runtime problems.
@@ -63,14 +63,14 @@ MYSTUDIO_DAOJIE_REUSE_STORYBOARD_IMAGES=1 MYSTUDIO_DAOJIE_REUSE_STORYBOARD_IMAGE
 - Hybrid audio acceptance is scope-separated: each succeeded `StoryboardShot` MP4 contains only its shot `voice | sfx` bindings, while `ChapterVideo` reads current-manifest `bgm | ambience` bindings once. A chapter shared track must not be copied into every shot, and an EditingProject voice clip must not duplicate baked shot dialogue.
 - The shot gate must report the current shot revision, TTS/binding fingerprints and audio roles; the chapter gate must report shared-track roles, source/chapter ranges, fades, envelopes, ducking windows and `ffmpegPostProcess=false`. FFmpeg/ffprobe are decode/probe evidence tools only.
 - These gates use dynamic M-shot fixtures (at least one shot and two shots); no production assertion may depend on 43 shots or a fixed chapter count.
-- The runner report is written under `apps/output/automation/daojie-chapter001-timeline/` and includes EditingProject, AutoEditingRun, TimelineRenderPlan, Remotion shot/chapter evidence, progress history, and artifact paths.
+- The runner report is written under `apps/output/automation/chapter001-timeline/` and includes EditingProject, AutoEditingRun, TimelineRenderPlan, Remotion shot/chapter evidence, progress history, and artifact paths.
 - Two-run fixed-voice acceptance compares each canonical speaker's `profileId`, `voiceReferenceAudioPath`, and `resolvedVoiceReferenceAudioPath`; the second run must report every binding as `match=fixed` and no AI-selected bindings.
 
 ## 4. Validation & Error Matrix
 
 | Condition | Required result |
 | --- | --- |
-| `--auto-video` without Daojie mode | Fail before app launch |
+| `--auto-video` outside real-project mode | Fail before app launch |
 | Non-positive auto-video timeout | Fail before app launch |
 | Auto-video button missing | Fail and report the missing UI contract |
 | Terminal stage is `failed` | Fail and preserve `statusText` plus `stageHistory` |
@@ -90,7 +90,7 @@ MYSTUDIO_DAOJIE_REUSE_STORYBOARD_IMAGES=1 MYSTUDIO_DAOJIE_REUSE_STORYBOARD_IMAGE
 
 ## 5. Good / Base / Bad Cases
 
-- Good: a real Daojie temporary clone reaches `idle -> planning -> voiceover -> binding -> tts -> media -> remotion_shot_render -> remotion_chapter_render -> project_writeback -> completed`, exposes an existing Remotion MP4 path, and leaves the original project hashes unchanged.
+- Good: a real project temporary clone reaches `idle -> planning -> voiceover -> binding -> tts -> media -> remotion_shot_render -> remotion_chapter_render -> project_writeback -> completed`, exposes an existing Remotion MP4 path, and leaves the original project hashes unchanged.
 - Base: `npm run smoke:workflow:run:project` completes the stage click-through without requesting auto-video; report it as navigation evidence only.
 - Bad: the UI reaches `completed` but no existing MP4 path is exposed. The command must exit non-zero and AC6 remains open.
 - Good: two current-code chapter runs keep all canonical speaker profiles and reference paths identical, produce one real local-TTS audio file per storyboard, and emit a final MP4 with audio/video streams and SHA-256 evidence.
@@ -101,7 +101,7 @@ MYSTUDIO_DAOJIE_REUSE_STORYBOARD_IMAGES=1 MYSTUDIO_DAOJIE_REUSE_STORYBOARD_IMAGE
 ## 6. Tests Required
 
 - `npm test -- frontend/config/build-scripts.test.ts`
-  - Assert the package script routes to the visible runner in Daojie mode.
+  - Assert the package script routes to the visible runner in real-project mode.
   - Assert `--auto-video` and its environment equivalent are recognized.
   - Assert invalid mode and timeout inputs fail.
   - Assert the runner requires `completed` plus an existing final MP4.
@@ -111,9 +111,9 @@ MYSTUDIO_DAOJIE_REUSE_STORYBOARD_IMAGES=1 MYSTUDIO_DAOJIE_REUSE_STORYBOARD_IMAGE
   - Hash the generated temporary MP4.
   - Compare original project JSON, exports, workflow-images, and `tts.json` manifests before and after.
 - Run `npm run smoke:workflow:run:project` only when visible human inspection is explicitly required; it must preserve the existing `frontmostApp=漫影工作室` evidence.
-- Run `npm run video:daojie:chapter001:probe-providers` when checking configured image providers without spending generation quota; verify the report contains no API keys and `generationEndpointCalled=false`.
+- Run `npm run video:chapter001:probe-providers` when checking configured image providers without spending generation quota; verify the report contains no API keys and `generationEndpointCalled=false`.
 - Run the focused voiceover, storyboard, TTS persistence, auto-video, readiness, and build-script tests; assert dynamic 2-shot/43-shot fixtures, canonical identity errors, fixed binding reuse, complete voiceover fields, and hard failures for missing voice assets.
-- Run `npm run video:daojie:chapter001` twice on current code. Preserve both reports and compare the complete canonical speaker profile/reference map, not only display names or a single sample.
+- Run `npm run video:chapter001` twice on current code. Preserve both reports and compare the complete canonical speaker profile/reference map, not only display names or a single sample.
 - Run `npm test -- frontend/config/build-scripts.test.ts`; assert the Node-only Vite config, the explicit full-pipeline handshake (`MYSTUDIO_FULL_PIPELINE=1`), current store shape, authoritative final fields, and forbidden legacy fallback. The legacy editing-timeline compile runner was removed with the bypass lineage.
 - Run the shot and chapter Remotion commands against the current store before the provider-heavy full command. Verify `reusedExistingDraft`, EditingProject/plan/record identity, shot/chapter progress stages, MP4 streams/dimensions/duration, disk hash, snapshot hash, and every artifact path.
 
@@ -147,7 +147,7 @@ are database paths relative to `data/oss/`, not directly relative to `data/`.
 ### 2. Signatures
 
 ```bash
-python3 apps/build/daojie/pipeline/build_toonflow_portable_fixture.py \
+python3 apps/build/chapter_video/pipeline/build_toonflow_portable_fixture.py \
   --database "$MYSTUDIO_TOONFLOW_DATABASE" \
   --output .trellis/tasks/07-12-mystudio-chapter001-visual-continuity/research/toonflow-chapter001-portable-fixture.json
 ```
@@ -186,7 +186,7 @@ The script also exposes `build_fixture(database, output_manifest)` and
 
 ### 6. Tests Required
 
-- `python3 -m unittest apps.build.daojie.tests.test_toonflow_portable_fixture` must verify
+- `python3 -m unittest apps.build.chapter_video.tests.test_toonflow_portable_fixture` must verify
   idempotent content-addressed copies and all digest fields.
 - Focused Vitest must pass the verified-golden and deferred-metadata parity
   cases; full typecheck, lint, and Vitest remain required.
@@ -215,7 +215,7 @@ environment bridge, or `runContinuityPilot()` result handling.
 ### 2. Signatures
 
 ```bash
-python3 apps/build/daojie/generate_chapter001_continuity_sample.py \
+python3 apps/build/chapter_video/generate_chapter001_continuity_sample.py \
   --output-dir <pilot-output> \
   --reject-shot <index> \
   --human-confirmed \

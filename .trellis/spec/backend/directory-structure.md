@@ -51,12 +51,12 @@ apps/backend/
 - Put inference adapters in `engine.py`; load heavy model libraries lazily.
 - Keep Electron process management in `apps/frontend/electron/tts/tts-runtime.ts`.
 
-## Runtime Contract: Managed Python and Daojie direct runner
+## Runtime Contract: Managed Python and ChapterVideo direct runner
 
 ### 1. Scope / Trigger
 
 This contract applies when changing Python runtime discovery, TTS sidecar startup,
-Daojie HTTP-TTS direct runs, or storage/runtime documentation. The source tree
+ChapterVideo HTTP-TTS direct runs, or storage/runtime documentation. The source tree
 contains sidecar code; it is not a Python runtime distribution.
 
 ### 2. Signatures
@@ -80,7 +80,7 @@ controller.readRequirements(): Promise<{ content: string; path: string } | null>
 controller.deleteRuntime(): Promise<TtsRuntimeCommandResult>
 ```
 
-Electron resolves the runtime from `<storageBasePath>/python`; the Daojie
+Electron resolves the runtime from `<storageBasePath>/python`; the ChapterVideo
 direct runner resolves the same storage base from `MYSTUDIO_STORAGE_BASE_PATH`,
 `<userData>/storage-config.json`, or a development fallback, then uses
 `apps/backend` only as `PYTHONPATH` and the subprocess working directory.
@@ -114,7 +114,7 @@ direct runner resolves the same storage base from `MYSTUDIO_STORAGE_BASE_PATH`,
   a fallback candidate. Python runtime files belong only under the configured
   `<storageBasePath>/python`; do not add a runtime distribution to the sidecar
   source tree.
-- The default Daojie video command does not enable HTTP TTS; the direct HTTP
+- The default chapter video command does not enable HTTP TTS; the direct HTTP
   branch is opt-in through `MANYING_TTS_USE_HTTP=1`.
 
 ### 4. Validation & Error Matrix
@@ -148,7 +148,7 @@ direct runner resolves the same storage base from `MYSTUDIO_STORAGE_BASE_PATH`,
 
 ### 6. Tests Required
 
-- `apps/build/daojie/tests/test_tts_runtime_path.py` must assert platform
+- `apps/build/chapter_video/tests/test_tts_runtime_path.py` must assert platform
   executable selection, storage-runtime startup, missing-runtime error text,
   no source-tree fallback, and healthy-process reuse.
 - `frontend/electron/tts/tts-runtime.test.ts` must cover matching-marker fast
@@ -157,7 +157,7 @@ direct runner resolves the same storage base from `MYSTUDIO_STORAGE_BASE_PATH`,
 - IPC/preload/client/component tests must assert the no-payload delete contract,
   removal of renderer path reset, explicit status fields, setup failure
   propagation, and visible Python/TTS control behavior.
-- `cd apps && PYTHONPATH=backend python3 -m unittest discover -s build/daojie/tests`.
+- `cd apps && PYTHONPATH=backend python3 -m unittest discover -s build/chapter_video/tests`.
 - `cd apps && PYTHONPATH=backend python3 -m unittest discover -s backend/tests`.
 - When packaging/build helpers change, run the focused build-script test and
   the applicable packaged smoke gate.

@@ -72,8 +72,7 @@ without a selectable source file.
 
 Production workflow canvas changes are not complete on unit tests alone. Build
 and overwrite-install the current source through `npm run build:mac`, verify
-the packaged and installed `app.asar` hashes match, then seed a real Daojie
-clone and run the packaged 15-round zoom probe:
+the packaged and installed `app.asar` hashes match, then seed a real project clone and run the packaged 15-round zoom probe:
 
 ```bash
 MYSTUDIO_BACKGROUND_WORKFLOW_REPORT_PATH=output/automation/background-workflow-project-current.json \
@@ -88,7 +87,7 @@ Acceptance requires 5 zoom-out, 5 zoom-in, and 5 fit rounds; every round must
 have `transparentRatio=0`, `maximumNearBlackBandHeightCss=0`, empty
 `geometryFailureReasons`, and `frameIntervalsOver100Ms=0`. Window return, pan,
 25%/100%/200% controls, and resize must pass. A navigation/installed smoke or
-Daojie clone alone does not prove a real Remotion MP4; keep that evidence in the
+A real-project clone alone does not prove a real Remotion MP4; keep that evidence in the
 separate Remotion media gate.
 
 ## Source-contract test stability
