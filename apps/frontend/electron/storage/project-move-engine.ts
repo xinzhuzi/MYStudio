@@ -48,11 +48,22 @@ export interface ProjectMoveEngine {
   move(options: ProjectMoveOptions): Promise<ProjectMoveMode>;
 }
 
-interface FileEntry {
+interface RegularFileEntry {
+  kind: "file";
   absolutePath: string;
   relativePath: string;
   size: number;
 }
+
+interface SymbolicLinkEntry {
+  kind: "symlink";
+  absolutePath: string;
+  relativePath: string;
+  size: 0;
+  linkTarget: string;
+}
+
+type FileEntry = RegularFileEntry | SymbolicLinkEntry;
 
 interface TreePhaseOptions {
   sourceDir: string;
@@ -70,21 +81,28 @@ function isCrossDeviceError(error: unknown): boolean {
 }
 
 /**
- * Walk a directory tree and collect regular-file entries.
+ * Walk a directory tree and collect regular files plus symbolic links.
  *
- * Symbolic links are skipped — never followed, copied, or verified: a symlink
- * inside the project could point outside the tree or form a cycle, and
- * following it would let a symlink bomb pull foreign files into the move.
+ * Symbolic links are preserved as links but never followed. Keeping the raw
+ * link text avoids pulling foreign files into the move while preventing a
+ * cross-device copy from silently deleting project-owned link entries.
  */
 function collectFileEntries(rootDir: string, prefix: string, entries: FileEntry[]): FileEntry[] {
   for (const entry of fs.readdirSync(rootDir, { withFileTypes: true })) {
-    if (entry.isSymbolicLink()) continue; // symlink bomb guard
     const absolutePath = path.join(rootDir, entry.name);
     const relativePath = prefix ? `${prefix}/${entry.name}` : entry.name;
-    if (entry.isDirectory()) {
+    if (entry.isSymbolicLink()) {
+      entries.push({
+        kind: "symlink",
+        absolutePath,
+        relativePath,
+        size: 0,
+        linkTarget: fs.readlinkSync(absolutePath),
+      });
+    } else if (entry.isDirectory()) {
       collectFileEntries(absolutePath, relativePath, entries);
     } else if (entry.isFile()) {
-      entries.push({ absolutePath, relativePath, size: fs.statSync(absolutePath).size });
+      entries.push({ kind: "file", absolutePath, relativePath, size: fs.statSync(absolutePath).size });
     }
   }
   return entries;
@@ -123,7 +141,11 @@ async function copyTree(options: TreePhaseOptions): Promise<void> {
     throwIfAborted(options.signal);
     const destinationPath = path.join(options.targetDir, entry.relativePath);
     fs.mkdirSync(path.dirname(destinationPath), { recursive: true });
-    fs.copyFileSync(entry.absolutePath, destinationPath);
+    if (entry.kind === "symlink") {
+      fs.symlinkSync(entry.linkTarget, destinationPath);
+    } else {
+      fs.copyFileSync(entry.absolutePath, destinationPath);
+    }
     filesDone += 1;
     bytesDone += entry.size;
     options.onProgress?.({ phase: "copying", filesDone, filesTotal, bytesDone, bytesTotal });
@@ -140,20 +162,29 @@ async function verifyTree(options: TreePhaseOptions): Promise<{ filesTotal: numb
       `Project move verification failed: file count mismatch (source ${sourceEntries.length}, target ${targetEntries.length})`,
     );
   }
-  const targetSizes = new Map<string, number>(targetEntries.map((entry) => [entry.relativePath, entry.size]));
+  const targetByPath = new Map<string, FileEntry>(
+    targetEntries.map((entry) => [entry.relativePath, entry]),
+  );
   const filesTotal = sourceEntries.length;
   const bytesTotal = sourceEntries.reduce((total, entry) => total + entry.size, 0);
   let filesDone = 0;
   let bytesDone = 0;
   for (const entry of sourceEntries) {
     throwIfAborted(options.signal);
-    const targetSize = targetSizes.get(entry.relativePath);
-    if (targetSize === undefined) {
+    const targetEntry = targetByPath.get(entry.relativePath);
+    if (!targetEntry) {
       throw new Error(`Project move verification failed: missing target file ${entry.relativePath}`);
     }
-    if (targetSize !== entry.size) {
+    if (targetEntry.kind !== entry.kind) {
+      throw new Error(`Project move verification failed: entry type mismatch for ${entry.relativePath}`);
+    }
+    if (entry.kind === "symlink") {
+      if (targetEntry.kind !== "symlink" || targetEntry.linkTarget !== entry.linkTarget) {
+        throw new Error(`Project move verification failed: symlink mismatch for ${entry.relativePath}`);
+      }
+    } else if (targetEntry.size !== entry.size) {
       throw new Error(
-        `Project move verification failed: size mismatch for ${entry.relativePath} (source ${entry.size}, target ${targetSize})`,
+        `Project move verification failed: size mismatch for ${entry.relativePath} (source ${entry.size}, target ${targetEntry.size})`,
       );
     }
     filesDone += 1;

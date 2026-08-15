@@ -25,6 +25,7 @@ vi.mock("electron", () => ({
 import {
   finishFormalRenderer,
   resolveInstalledRemotionWorkerPath,
+  resolveFormalProjectRoot,
 } from "./render-accepted-full-pipeline";
 
 function makePlan(visualCount = 43, textCount = 0): TimelineRenderPlan {
@@ -137,6 +138,21 @@ describe("invokeFormalChapterRenderer", () => {
 });
 
 describe("formal installed runtime lifecycle", () => {
+  it("prefers an explicit or registered external project root before the legacy bucket", () => {
+    const base = {
+      productUserData: "/user-data",
+      projectId: "project-1",
+    };
+    expect(resolveFormalProjectRoot({
+      ...base,
+      explicitProjectRoot: "/external/MA",
+      registeredProjectRoot: "/registered/MA",
+    })).toBe("/external/MA");
+    expect(resolveFormalProjectRoot({ ...base, registeredProjectRoot: "/registered/MA" }))
+      .toBe("/registered/MA");
+    expect(resolveFormalProjectRoot(base)).toBe("/user-data/projects/_p/project-1");
+  });
+
   it("resolves the packaged worker from app.asar.unpacked", () => {
     expect(resolveInstalledRemotionWorkerPath("/Applications/漫影工作室.app/Contents/Resources"))
       .toBe("/Applications/漫影工作室.app/Contents/Resources/app.asar.unpacked/out/main/remotion-render-worker.cjs");

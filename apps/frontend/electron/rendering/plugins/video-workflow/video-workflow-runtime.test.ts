@@ -50,7 +50,7 @@ describe("video workflow runtime", () => {
     expect(paths.hyperFramesProfileDir).toBe("/tmp/mystudio-storage/hyperframes-profile");
     expect(paths.hyperFramesCliPath).toBe("/tmp/mystudio-storage/hyperframes-profile/node_modules/hyperframes/bin/hyperframes.mjs");
     expect(buildVideoUseProfileMarker(paths, hash).profileId).toBe("video-use-managed-python-v1");
-    expect(buildHyperFramesProfileMarker(paths).npmVersion).toBe("0.7.101");
+    expect(buildHyperFramesProfileMarker(paths).npmVersion).toBe("0.7.109");
   });
 
   it("passes the bundled macOS FFmpeg dylib directory to child processes", () => {

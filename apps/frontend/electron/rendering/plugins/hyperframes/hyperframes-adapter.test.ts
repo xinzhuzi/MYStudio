@@ -135,7 +135,7 @@ describe("HyperFrames adapter", () => {
           outputPath: request.outputPath,
           outputSha256: hash,
           windows: request.windows,
-          toolVersion: "hyperframes@0.7.101",
+          toolVersion: "hyperframes@0.7.109",
           generatedAt: 123,
         }), "utf8");
         return {};
@@ -155,7 +155,7 @@ describe("HyperFrames adapter", () => {
       outputPath: path.join(root, "overlay.mov"),
       windows: [{ slotId: "title", cueId: "cue-1", startUs: 0, durationUs: 1_000_000, templateId: "title-card", parameters: {} }],
     });
-    expect(result).toMatchObject({ state: "ready", artifact: { status: "accepted", toolVersion: "hyperframes@0.7.101" } });
+    expect(result).toMatchObject({ state: "ready", artifact: { status: "accepted", toolVersion: "hyperframes@0.7.109" } });
     expect(receivedEnv?.MYSTUDIO_HYPERFRAMES_WORKER).toBe("1");
     expect(receivedEnv?.MYSTUDIO_HYPERFRAMES_CLI).toContain("hyperframes-profile/node_modules/hyperframes/bin/hyperframes.mjs");
     expect(receivedEnv?.MYSTUDIO_HYPERFRAMES_NODE).toBe(adapter.paths.electronExecutable);

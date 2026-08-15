@@ -108,10 +108,10 @@ export function createProjectLocationStore({
   };
   load();
 
-  const persist = () => {
+  const persist = (nextLocations: Record<string, string>) => {
     fs.mkdirSync(path.dirname(locationsFilePath), { recursive: true });
     const temporaryPath = `${locationsFilePath}.${process.pid}.tmp`;
-    fs.writeFileSync(temporaryPath, JSON.stringify({ version: FILE_VERSION, locations }), "utf-8");
+    fs.writeFileSync(temporaryPath, JSON.stringify({ version: FILE_VERSION, locations: nextLocations }), "utf-8");
     fs.renameSync(temporaryPath, locationsFilePath);
   };
 
@@ -139,14 +139,17 @@ export function createProjectLocationStore({
       }
     }
 
-    locations[projectId] = normalizedDir;
-    persist();
+    const nextLocations = { ...locations, [projectId]: normalizedDir };
+    persist(nextLocations);
+    locations = nextLocations;
   };
 
   const remove = (projectId: string) => {
     if (!(projectId in locations)) return;
-    delete locations[projectId];
-    persist();
+    const nextLocations = { ...locations };
+    delete nextLocations[projectId];
+    persist(nextLocations);
+    locations = nextLocations;
   };
 
   return {

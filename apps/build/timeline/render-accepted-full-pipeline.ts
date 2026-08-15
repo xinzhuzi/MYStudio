@@ -32,12 +32,26 @@ import {
   type FormalFileIdentity,
 } from "./render-accepted-full-pipeline-core";
 import { runFormalOutputQc } from "./render-accepted-full-pipeline-qc";
+import { registeredProjectDir } from "./storage-paths";
 
 const execFileAsync = promisify(execFile);
 const PROJECT_ID = "49dce4c1-64b1-42de-85c2-9f266698aec0";
 const CHAPTER_ID = "chapter-001";
-const REVISION = 9;
+const REVISION = 19;
 const EXPECTED_VISUAL_COUNT = 43;
+
+export function resolveFormalProjectRoot(input: {
+  explicitProjectRoot?: string;
+  registeredProjectRoot?: string;
+  productUserData: string;
+  projectId: string;
+}): string {
+  const explicitProjectRoot = input.explicitProjectRoot?.trim();
+  if (explicitProjectRoot) return path.resolve(explicitProjectRoot);
+  const registeredRoot = input.registeredProjectRoot?.trim();
+  if (registeredRoot) return path.resolve(registeredRoot);
+  return path.join(input.productUserData, "projects", "_p", input.projectId);
+}
 
 export async function runAcceptedFormalRenderer(): Promise<void> {
   const appsRoot = path.resolve(process.env.MYSTUDIO_APPS_ROOT ?? process.cwd());
@@ -46,13 +60,18 @@ export async function runAcceptedFormalRenderer(): Promise<void> {
     process.env.MYSTUDIO_PRODUCT_USER_DATA
       ?? path.join(os.homedir(), "Library", "Application Support", "漫影工作室"),
   );
-  const productionProjectRoot = path.join(productUserData, "projects", "_p", PROJECT_ID);
+  const productionProjectRoot = resolveFormalProjectRoot({
+    explicitProjectRoot: process.env.MYSTUDIO_FORMAL_PROJECT_ROOT,
+    registeredProjectRoot: registeredProjectDir(PROJECT_ID),
+    productUserData,
+    projectId: PROJECT_ID,
+  });
   const productionRemotionRoot = path.join(productionProjectRoot, "remotion");
   const videoWorkflowRoot = path.join(productionProjectRoot, "video-use");
   const revisionRoot = path.join(videoWorkflowRoot, CHAPTER_ID, `r${REVISION}`);
   const sourceRunDir = path.resolve(
     process.env.MYSTUDIO_FORMAL_SOURCE_RUN
-      ?? path.join(appsRoot, "output", "automation", "daojie-full-pipeline-1786699144847"),
+      ?? path.join(appsRoot, "output", "automation", "daojie-full-pipeline-1786798027864"),
   );
   const installedApp = path.resolve(
     process.env.MYSTUDIO_FORMAL_INSTALLED_APP ?? "/Applications/漫影工作室.app",

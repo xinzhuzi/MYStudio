@@ -102,9 +102,9 @@ function resolveProbeUserDataInput({ directUserDataDir, inputReportPath }) {
   if (report.ok !== true) {
     throw new Error(`Workflow smoke report did not pass: ${absoluteReportPath}`);
   }
-  if (report.result?.source !== "real-daojie-chapter001-clone") {
+  if (report.result?.source !== "real-project-clone") {
     throw new Error(
-      `Workflow smoke report result.source must be real-daojie-chapter001-clone: ${absoluteReportPath}`,
+      `Workflow smoke report result.source must be real-project-clone: ${absoluteReportPath}`,
     );
   }
   if (typeof report.userDataDir !== "string" || !isAbsolute(report.userDataDir)) {
@@ -328,6 +328,7 @@ async function activateProbeApp(cdp, processId) {
 
 function openStoryboardStageExpression() {
   return `(async () => {
+    const projectProbeText = ${JSON.stringify(process.env.MYSTUDIO_SMOKE_PROJECT_NAME?.trim() || "")};
     const normalize = (node) => (node?.textContent || '').replace(/\\s+/g, ' ').trim();
     const wait = (durationMs) => new Promise((resolveWait) => setTimeout(resolveWait, durationMs));
     const waitFor = async (predicate, timeoutMs = 20_000) => {
@@ -373,7 +374,7 @@ function openStoryboardStageExpression() {
     let projectClick = { clicked: false, text: '' };
     if (!canvasReady()) {
       const project = await waitFor(
-        () => interactive().find((candidate) => normalize(candidate).includes('道劫')),
+        () => interactive().find((candidate) => normalize(candidate).includes(projectProbeText)),
         20_000,
       );
       if (project) {
@@ -432,6 +433,7 @@ function captureEvidenceExpression(checkpoint) {
   const includesFullNodeGeometry = requiresFullNodeGeometry(checkpoint);
   return `(() => {
     const includesFullNodeGeometry = ${JSON.stringify(includesFullNodeGeometry)};
+    const projectProbeText = ${JSON.stringify(process.env.MYSTUDIO_SMOKE_PROJECT_NAME?.trim() || "")};
     const canvas = document.querySelector('.workflow-node-canvas');
     const viewport = canvas?.querySelector('.react-flow__viewport') || document.querySelector('.react-flow__viewport');
     const staticBackground = canvas?.querySelector('.workflow-node-static-background');
@@ -514,7 +516,7 @@ function captureEvidenceExpression(checkpoint) {
       includesFullNodeGeometry,
       canvasPresent: Boolean(canvas),
       canvasInteracting: Boolean(canvas?.classList.contains('workflow-node-canvas-interacting')),
-      bodyHasDaojie: (document.body.innerText || '').includes('道劫'),
+      bodyHasProjectName: (document.body.innerText || '').includes(projectProbeText),
       storyboardStageVisible: (document.body.innerText || '').includes('分镜视频生成'),
       nodeIds,
       nodeCount: nodeIds.length,
@@ -964,7 +966,7 @@ function requiresFullNodeGeometry(checkpoint) {
 
 function evidenceIssues(evidence, checkpoint) {
   const issues = [];
-  if (!evidence?.bodyHasDaojie) issues.push("Daojie project evidence is absent from the active document.");
+  if (!evidence?.bodyHasProjectName) issues.push("Project name evidence is absent from the active document.");
   if (!evidence?.storyboardStageVisible) issues.push("The 分镜视频生成 stage is not visible.");
   if (!evidence?.canvasPresent) issues.push(".workflow-node-canvas is absent.");
   if (evidence?.productionEdgeCount !== 5) issues.push(`Expected five .production-flow-edge elements, received ${evidence?.productionEdgeCount ?? "none"}.`);
@@ -1019,7 +1021,7 @@ async function waitForStableCanvasEvidence(cdp) {
     lastEvidence = await evaluate(
       cdp,
       captureEvidenceExpression("initial"),
-      "wait for stable Daojie canvas layout",
+      "wait for stable canvas layout",
     );
     const issues = evidenceIssues(lastEvidence, "initial");
     const signature = issues.length === 0 ? stableCanvasLayoutSignature(lastEvidence) : null;
@@ -1647,7 +1649,7 @@ try {
     );
   }
   if (evidenceFailureReasons.length > 0) {
-    throw new Error(`Required Daojie canvas evidence is missing: ${evidenceFailureReasons.join(" ")}`);
+    throw new Error(`Required canvas evidence is missing: ${evidenceFailureReasons.join(" ")}`);
   }
   await activateProbeApp(cdp, child.pid);
   initialVisualEvidence = await captureCanvasVisualMetrics(cdp, initialEvidence);
@@ -1735,8 +1737,8 @@ try {
     reportPath: REPORT_PATH,
     cloneEvidence: initialEvidence
       ? {
-          source: "real-daojie-user-data-clone",
-          bodyHasDaojie: initialEvidence.bodyHasDaojie,
+          source: "real-user-data-clone",
+          bodyHasProjectName: initialEvidence.bodyHasProjectName,
           storyboardStageVisible: initialEvidence.storyboardStageVisible,
           expectedStoryboardEntryCount: 43,
           actualStoryboardEntryCount: initialEvidence.storyboardEntryCount,

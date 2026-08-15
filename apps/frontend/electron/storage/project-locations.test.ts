@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createProjectLocationStore } from "./project-locations";
 
@@ -57,6 +57,27 @@ describe("project location store", () => {
     const reloaded = createProjectLocationStore({ userDataPath: fixture.userData });
     expect(reloaded.get("pid-a")).toBe(dir);
     expect(reloaded.all()).toEqual({ "pid-a": dir });
+  });
+
+  it("keeps memory and disk on the previous location when atomic persistence fails", () => {
+    const originalDir = path.join(fixture.tmp, "ext", "original");
+    const nextDir = path.join(fixture.tmp, "ext", "next");
+    fs.mkdirSync(originalDir, { recursive: true });
+    fs.mkdirSync(nextDir, { recursive: true });
+    fixture.store.set("pid-a", originalDir);
+
+    const rename = vi.spyOn(fs, "renameSync").mockImplementationOnce(() => {
+      throw new Error("persist failed");
+    });
+    try {
+      expect(() => fixture.store.set("pid-a", nextDir)).toThrow("persist failed");
+    } finally {
+      rename.mockRestore();
+    }
+
+    expect(fixture.store.get("pid-a")).toBe(originalDir);
+    const reloaded = createProjectLocationStore({ userDataPath: fixture.userData });
+    expect(reloaded.get("pid-a")).toBe(originalDir);
   });
 
   it("rejects locations inside or containing the application data root", () => {

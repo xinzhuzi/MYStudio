@@ -9,6 +9,7 @@ import {
   type HyperFramesOverlayRequestV1,
 } from "@rendering/contracts/video-workflow";
 import {
+  HYPERFRAMES_NPM_VERSION,
   buildSharedToolchainEnv,
   probeHyperFramesRuntime,
   resolveVideoWorkflowRuntimePaths,
@@ -71,7 +72,7 @@ function createNoopArtifact(request: HyperFramesOverlayRequestV1, now: number): 
     inputSha256: request.inputSha256,
     alphaFormat: request.alphaFormat,
     windows: [],
-    toolVersion: "hyperframes@0.7.101/no-op",
+    toolVersion: `hyperframes@${HYPERFRAMES_NPM_VERSION}/no-op`,
     generatedAt: now,
   };
 }

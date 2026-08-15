@@ -510,6 +510,11 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
   const cinematicEnabled = process.env.MYSTUDIO_CINEMATIC === "1";
   const cinematicPreset: CinematicCameraPreset =
     (process.env.MYSTUDIO_CINEMATIC_PRESET as CinematicCameraPreset | undefined) ?? "cinematic-dolly-in";
+  if (cinematicEnabled && !process.env.MYSTUDIO_DEPTH_MODEL_DIR?.trim()) {
+    // CLI 侧模型目录契约对齐 depth-runtime-controller（App 主进程恒设此变量；
+    // buildDepthWorkerEnv 透传 process.env，worker 据此定位 <userData>/DeepModel 缓存）
+    process.env.MYSTUDIO_DEPTH_MODEL_DIR = path.join(userDataDir, "DeepModel");
+  }
   const depthAdapter = cinematicEnabled
     ? createDepthAdapter({ storageBasePath, backendRoot })
     : null;
@@ -530,7 +535,24 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
     return validation.value;
   });
 
-  const r2RunPath = path.join(workspaceRoot, chapterId, "r2", "video-use-run.json");
+  // 历史基准 run（r2）可能被工作区清理回收——回退取最高现存版本的 run 数据
+  const chapterWorkspaceDir = path.join(workspaceRoot, chapterId);
+  const r2RunPath = (() => {
+    const preferred = path.join(chapterWorkspaceDir, "r2", "video-use-run.json");
+    if (fs.existsSync(preferred)) return preferred;
+    if (fs.existsSync(chapterWorkspaceDir)) {
+      const revisions = fs.readdirSync(chapterWorkspaceDir)
+        .map((entry) => /^r(\d+)$/.exec(entry)?.[1])
+        .filter((value): value is string => Boolean(value))
+        .map(Number)
+        .sort((a, b) => b - a);
+      for (const revision of revisions) {
+        const candidate = path.join(chapterWorkspaceDir, `r${revision}`, "video-use-run.json");
+        if (fs.existsSync(candidate)) return candidate;
+      }
+    }
+    throw new Error(`video-use 工作区无可用 video-use-run.json: ${chapterWorkspaceDir}`);
+  })();
   const shotInputs = await buildShotInputs(projectDir, projectId, chapterId, shotSlots, r2RunPath);
   console.log("[full-pipeline] shot inputs built:", shotInputs.length, "shots");
 
@@ -910,9 +932,22 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
             dialogue: String(storyboard.line ?? ""),
           }));
         const { presets: heuristicPresets } = heuristicCinematicPresets(presetInputs);
+        // 关键词未命中（兜底 ken-burns-3d）的分镜改走叙事感知轮换：首镜 crane-up 定场、
+        // 尾镜 rise-and-pull 收束、中段 8 预设轮换——避免全章同运镜的单调。
+        const orderedShotIds = presetInputs.map((input) => input.shotId);
+        const fallbackRotation = [
+          "cinematic-dolly-in", "cinematic-drift", "cinematic-slow-push", "cinematic-parallax-lr",
+          "cinematic-crane-up", "cinematic-dolly-out", "cinematic-ken-burns-3d", "cinematic-pedestal-up",
+        ] as const;
+        orderedShotIds.forEach((shotId, idx) => {
+          if (heuristicPresets[shotId] !== "cinematic-ken-burns-3d") return;
+          if (idx === 0) heuristicPresets[shotId] = "cinematic-crane-up";
+          else if (idx === orderedShotIds.length - 1) heuristicPresets[shotId] = "cinematic-rise-and-pull";
+          else heuristicPresets[shotId] = fallbackRotation[idx % fallbackRotation.length];
+        });
         const presetByShotId = new Map(Object.entries(heuristicPresets));
         const distribution = new Map<string, number>();
-        for (const value of heuristicPresets.values()) distribution.set(value, (distribution.get(value) ?? 0) + 1);
+        for (const value of Object.values(heuristicPresets)) distribution.set(value, (distribution.get(value) ?? 0) + 1);
         console.log(`[full-pipeline] cinematic presets (heuristic, ${distribution.size} kinds):`,
           [...distribution.entries()].sort((a, b) => b[1] - a[1]).map(([k, n]) => `${k}×${n}`).join(" "));
         const visualClipEntries = plan.clips.filter((c) => c.trackKind === "video" || c.trackKind === "image");

@@ -47,7 +47,7 @@ function runPythonSnippet(source: string) {
 
 function runNodeHelper(payload: unknown): Promise<{ status: number | null; stdout: string; stderr: string }> {
   return new Promise((resolveRun, rejectRun) => {
-    const child = spawn("node", ["build/daojie/generate-storyboard-image.mjs"], {
+    const child = spawn("node", ["build/chapter_video/generate-storyboard-image.mjs"], {
       cwd: appsRoot,
       stdio: ["pipe", "pipe", "pipe"],
     });
@@ -385,9 +385,9 @@ describe("desktop build scripts", () => {
     const packageJson = readBuildFile("package.json");
     expect(packageJson).toContain('"smoke:aitoearn-upgrade": "node ./build/scripts/aitoearn-upgrade-smoke.mjs"');
   });
-  it("keeps Daojie Python tests outside the production pipeline package", () => {
-    const pipelineRoot = resolve(appsRoot, "build", "daojie", "pipeline");
-    const testsRoot = resolve(appsRoot, "build", "daojie", "tests");
+  it("keeps ChapterVideo Python tests outside the production pipeline package", () => {
+    const pipelineRoot = resolve(appsRoot, "build", "chapter_video", "pipeline");
+    const testsRoot = resolve(appsRoot, "build", "chapter_video", "tests");
     const pipelineTests = readdirSync(pipelineRoot).filter((name) => /^test_.*\.py$/.test(name));
     const tests = readdirSync(testsRoot).filter((name) => /^test_.*\.py$/.test(name));
 
@@ -1041,7 +1041,7 @@ describe("desktop build scripts", () => {
     const workflowRunner = readBuildFile("build/smoke/run-visible-workflow-smoke.mjs");
     const focusHelper = readBuildFile("build/smoke/smoke-focus.mjs");
     const videoScript = readBuildFile(
-      "build/daojie/automate-daojie-chapter001-video.mjs",
+      "build/chapter_video/automate-chapter001-video.mjs",
     );
     const workflowSkill = readFileSync(
       resolve(
@@ -1214,7 +1214,7 @@ describe("desktop build scripts", () => {
     expect(skill).toContain("frontmostApp=漫影工作室");
   });
 
-  it("exposes a visible Daojie chapter 001 workflow runner that does not use an empty smoke template", () => {
+  it("exposes a visible ChapterVideo chapter 001 workflow runner that does not use an empty smoke template", () => {
     const packageJson = readBuildFile("package.json");
     const runnerScript = readBuildFile("build/smoke/run-visible-workflow-smoke.mjs");
     const autoVideoAudit = readBuildFile(
@@ -1254,8 +1254,8 @@ describe("desktop build scripts", () => {
     expect(runnerScript).toContain("clonedWorkflowImagesDir");
     expect(runnerScript).toContain('"tts",');
     expect(runnerScript).toContain("chapter-001");
-    expect(runnerScript).toContain("第1章：剑主夜访道口镇");
-    expect(runnerScript).toContain("Daojie chapter001 clicked through");
+    expect(runnerScript).toContain("MYSTUDIO_SMOKE_CHAPTER_TITLE");
+    expect(runnerScript).toContain("ChapterVideo chapter001 clicked through");
     expect(runnerScript).toContain("real-project-clone");
     expect(runnerScript).toContain("storyboards");
     expect(runnerScript).toContain("storyboardsWithWorkflow");
@@ -1297,7 +1297,7 @@ describe("desktop build scripts", () => {
     expect(runnerScript).toContain("data-toonflow-generated-prompt-panel");
     expect(runnerScript).toContain("hasEditableImageWorkflowPrompt");
     expect(runnerScript).toMatch(
-      /const hasRealProjectDerivativePromptStyle = promptTextValues\.some\(\(value\) =>[\s\S]*?\/daojie-gongbi-v\[23\]\/\.test\(value\)[\s\S]*?value\.includes\('连续白描和铁线描'\)[\s\S]*?value\.includes\('3D\/CGI'\)/,
+      /const hasRealProjectDerivativePromptStyle = promptTextValues\.some\(\(value\) =>[\s\S]*?\/gongbi-v\[23\]\/\.test\(value\)[\s\S]*?value\.includes\('连续白描和铁线描'\)[\s\S]*?value\.includes\('3D\/CGI'\)/,
     );
     expect(runnerScript).toContain("const detail = entry.url ? `${text} (${entry.url})` : text");
     expect(runnerScript).toContain("hasImageWorkflowSource");
@@ -1430,13 +1430,13 @@ describe("desktop build scripts", () => {
       MYSTUDIO_WORKFLOW_REAL_PROJECT: "0",
       MYSTUDIO_WORKFLOW_AUTO_VIDEO: "0",
     };
-    const outsideDaojie = spawnSync(
+    const outsideRunner = spawnSync(
       "node",
       ["build/smoke/run-visible-workflow-smoke.mjs", "--first-shot-preview"],
       { cwd: appsRoot, encoding: "utf8", env },
     );
-    expect(outsideDaojie.status).not.toBe(0);
-    expect(outsideDaojie.stderr).toContain("--first-shot-preview requires --real-project");
+    expect(outsideRunner.status).not.toBe(0);
+    expect(outsideRunner.stderr).toContain("--first-shot-preview requires --real-project");
 
     const conflictingMode = spawnSync(
       "node",
@@ -1474,13 +1474,13 @@ describe("desktop build scripts", () => {
       MYSTUDIO_WORKFLOW_REAL_PROJECT: "0",
       MYSTUDIO_WORKFLOW_PRODUCTION_CANVAS_VIDEO: "0",
     };
-    const outsideDaojie = spawnSync(
+    const outsideRunner = spawnSync(
       "node",
       ["build/smoke/run-visible-workflow-smoke.mjs", "--production-canvas-video"],
       { cwd: appsRoot, encoding: "utf8", env },
     );
-    expect(outsideDaojie.status).not.toBe(0);
-    expect(outsideDaojie.stderr).toContain("--production-canvas-video requires --real-project");
+    expect(outsideRunner.status).not.toBe(0);
+    expect(outsideRunner.stderr).toContain("--production-canvas-video requires --real-project");
 
     const conflictAutoVideo = spawnSync(
       "node",
@@ -1705,7 +1705,7 @@ describe("desktop build scripts", () => {
         finalPath: "",
         finalVideoEvidence: null,
         finalVideoEvidenceError: "",
-        projectId: "daojie-project",
+        projectId: "chapter_video-project",
         chapterId: "chapter-001",
         editingProjectId: "editing-1",
         editingRevision: 1,
@@ -2165,10 +2165,10 @@ describe("desktop build scripts", () => {
     );
   });
 
-  it("exposes an automated Daojie chapter 001 video output flow", () => {
+  it("exposes an automated ChapterVideo chapter 001 video output flow", () => {
     const packageJson = readBuildFile("package.json");
     const videoScript = readBuildFile(
-      "build/daojie/automate-daojie-chapter001-video.mjs",
+      "build/chapter_video/automate-chapter001-video.mjs",
     );
     const shotRunnerScript = readBuildFile(
       "build/remotion/render-shot-slots.ts",
@@ -2178,36 +2178,36 @@ describe("desktop build scripts", () => {
     );
     const timelineRunnerConfig = readBuildFile("build/timeline/vite-node.config.ts");
     const generatorScript = readFileSync(
-      resolve(appsRoot, "build", "daojie", "build_daojie_chapter001_workflow.py"),
+      resolve(appsRoot, "build", "chapter_video", "build_chapter001_workflow.py"),
       "utf8",
     );
 
     expect(packageJson).toContain(
-      '"video:daojie:chapter001": "node ./build/daojie/automate-daojie-chapter001-video.mjs"',
+      '"video:chapter001": "node ./build/chapter_video/automate-chapter001-video.mjs"',
     );
     expect(packageJson).toContain(
-      '"video:daojie:chapter001:visual-preflight": "MYSTUDIO_DAOJIE_VISUAL_PREFLIGHT=1 ./node_modules/.bin/vite-node --config build/timeline/vite-node.config.ts build/daojie/audit-daojie-visual-continuity.ts"',
+      '"video:chapter001:visual-preflight": "MYSTUDIO_CHAPTER_VIDEO_VISUAL_PREFLIGHT=1 ./node_modules/.bin/vite-node --config build/timeline/vite-node.config.ts build/chapter_video/audit-visual-continuity.ts"',
     );
     expect(packageJson).toContain(
-      '"video:daojie:chapter001:probe-providers": "node ./build/daojie/automate-daojie-chapter001-video.mjs --probe-providers"',
+      '"video:chapter001:probe-providers": "node ./build/chapter_video/automate-chapter001-video.mjs --probe-providers"',
     );
-    expect(packageJson).not.toContain("video:daojie:chapter001:remotion");
-    expect(videoScript).toContain("daojieBuildRoot");
-    expect(videoScript).toContain("build_daojie_chapter001_workflow.py");
+    expect(packageJson).not.toContain("video:chapter001:remotion");
+    expect(videoScript).toContain("buildRoot");
+    expect(videoScript).toContain("build_chapter001_workflow.py");
     expect(videoScript).toContain("build/timeline/run-full-pipeline.ts");
     expect(videoScript).toContain("MYSTUDIO_FULL_PIPELINE: '1'");
-    expect(videoScript).not.toContain("render-daojie-editing-timeline");
-    expect(videoScript).not.toContain("render-daojie-remotion-timeline");
+    expect(videoScript).not.toContain("render-chapter_video-editing-timeline");
+    expect(videoScript).not.toContain("render-chapter_video-remotion-timeline");
     expect(videoScript).toContain("./node_modules/.bin/vite-node");
     expect(videoScript).toContain("build/timeline/vite-node.config.ts");
-    expect(videoScript).toContain("daojie-chapter001-video-report.json");
+    expect(videoScript).toContain("chapter001-video-report.json");
     expect(videoScript).toContain("MYSTUDIO_SMOKE_SKIP_PREKILL");
     expect(videoScript).toContain("stopExistingMYStudioInstances");
     expect(videoScript).toContain("tell application id \"com.manju2026.manying-studio\" to quit");
     expect(videoScript).toContain("pkill");
     expect(videoScript).toContain("漫影工作室 Helper");
     expect(videoScript).toContain("漫影工作室.app/Contents");
-    expect(videoScript).toContain("closed existing MYStudio instances before Daojie video generation");
+    expect(videoScript).toContain("closed existing MYStudio instances before ChapterVideo video generation");
     expect(videoScript).toContain("ffprobe");
     expect(fullPipelineScript).not.toContain("buildDecorativeHyperFramesWindows");
     expect(fullPipelineScript).toContain("buildLegacyFallbackHyperFramesWindows");
@@ -2218,21 +2218,21 @@ describe("desktop build scripts", () => {
     expect(videoScript).toContain("imageGenerationProvider");
     expect(videoScript).toContain("storyboardImageWorkflowManifest");
     expect(videoScript).toContain("requireStoryboardPromptIntegrity(generated)");
-    expect(videoScript).toContain("requireDaojieVisualContinuityPreflight");
-    expect(videoScript).toContain("build/daojie/audit-daojie-visual-continuity.ts");
-    expect(videoScript).toContain("MYSTUDIO_DAOJIE_VISUAL_PREFLIGHT");
-    expect(videoScript).toContain("MYSTUDIO_DAOJIE_USE_APPROVED_STORYBOARDS");
+    expect(videoScript).toContain("requireVisualContinuityPreflight");
+    expect(videoScript).toContain("build/chapter_video/audit-visual-continuity.ts");
+    expect(videoScript).toContain("MYSTUDIO_CHAPTER_VIDEO_VISUAL_PREFLIGHT");
+    expect(videoScript).toContain("MYSTUDIO_CHAPTER_VIDEO_USE_APPROVED_STORYBOARDS");
     expect(videoScript).toContain("generatedImages !== 0 || generated.reusedImages !== storyboardCount");
     expect(videoScript).toContain("requireDirectorPlanIntegrity(generated)");
     expect(videoScript).toContain("directorPlanAuditFields(generated)");
-    expect(videoScript).toContain("MIN_DAOJIE_DIRECTOR_PLAN_CHARS = 4500");
-    expect(videoScript).toContain("MIN_DAOJIE_DIRECTOR_PLAN_CHINESE_CHARS = 2500");
-    expect(videoScript).toContain("EXPECTED_DAOJIE_DIRECTOR_PLAN_SCENES = 5");
+    expect(videoScript).toContain("MIN_CHAPTER_VIDEO_DIRECTOR_PLAN_CHARS = 4500");
+    expect(videoScript).toContain("MIN_CHAPTER_VIDEO_DIRECTOR_PLAN_CHINESE_CHARS = 2500");
+    expect(videoScript).toContain("EXPECTED_CHAPTER_VIDEO_DIRECTOR_PLAN_SCENES = 5");
     expect(videoScript).toContain("导演规划正文过短");
     expect(videoScript).toContain("导演规划缺少必需 Sc 场景段");
     expect(videoScript).toContain("storyboardPromptManifest");
     expect(videoScript).toContain("storyboardPromptsWithReferenceBindings");
-    expect(videoScript).toContain("storyboardPromptsWithDaojieStyleLock");
+    expect(videoScript).toContain("storyboardPromptsWithStyleLock");
     expect(videoScript).toContain("storyboardPromptsWithLightSection");
     expect(videoScript).toContain("storyboardPromptsWithMissingVisibleCharacterRefs");
     expect(videoScript).toContain("storyboardPromptsWithRawAssetNameLeaks");
@@ -2242,16 +2242,16 @@ describe("desktop build scripts", () => {
     expect(videoScript).toContain("分镜图片工作流明细缺失");
     expect(videoScript).toContain("分镜图片工作流缺少参考节点");
     expect(videoScript).toContain("分镜图片工作流缺少参考图到生成图连线");
-    expect(videoScript).toContain("MYSTUDIO_DAOJIE_STORYBOARD_IMAGE_MODE");
+    expect(videoScript).toContain("MYSTUDIO_CHAPTER_VIDEO_STORYBOARD_IMAGE_MODE");
     expect(videoScript).toContain("real-ai-reference-image-workflow");
     expect(videoScript).toContain("loadStoryboardImageProviderConfigsFromAppSettings");
     expect(videoScript).toContain("probeProvidersOnly");
     expect(videoScript).toContain("runImageProviderProbe");
     expect(videoScript).toContain("generationEndpointCalled: false");
-    expect(videoScript).toContain("daojie-chapter001-provider-probe-report.json");
-    expect(packageJson).toContain('"video:daojie:chapter001:probe-generation": "node ./build/daojie/automate-daojie-chapter001-video.mjs --probe-generation"');
-    expect(packageJson).toContain('"video:daojie:chapter001:continuity-pilot": "node ./build/daojie/automate-daojie-chapter001-video.mjs --continuity-pilot"');
-    expect(packageJson).toContain('"video:daojie:chapter001:continuity-full": "node ./build/daojie/automate-daojie-chapter001-video.mjs --continuity-full-chapter"');
+    expect(videoScript).toContain("chapter001-provider-probe-report.json");
+    expect(packageJson).toContain('"video:chapter001:probe-generation": "node ./build/chapter_video/automate-chapter001-video.mjs --probe-generation"');
+    expect(packageJson).toContain('"video:chapter001:continuity-pilot": "node ./build/chapter_video/automate-chapter001-video.mjs --continuity-pilot"');
+    expect(packageJson).toContain('"video:chapter001:continuity-full": "node ./build/chapter_video/automate-chapter001-video.mjs --continuity-full-chapter"');
     expect(videoScript).toContain("probeGenerationOnly");
     expect(videoScript).toContain("runImageGenerationProbe");
     expect(videoScript).toContain("providers.length !== 1 || providers[0].apiKeys.length !== 1");
@@ -2268,7 +2268,7 @@ describe("desktop build scripts", () => {
     expect(videoScript).toContain("MYSTUDIO_IMAGE_PROBE_REPORT_PATH");
     expect(videoScript).toContain("MYSTUDIO_IMAGE_PROBE_ASPECT_RATIO");
     expect(videoScript).toContain("拒绝覆盖已有真实生图探针结果");
-    expect(videoScript).toContain("daojie-chapter001-generation-probe-report.json");
+    expect(videoScript).toContain("chapter001-generation-probe-report.json");
     expect(videoScript).toContain("createProbeTransferThumbnail(outputPath)");
     expect(videoScript).toContain("_thumb.png");
     expect(videoScript).toContain("payload.length >= 1_000_000");
@@ -2341,7 +2341,7 @@ describe("desktop build scripts", () => {
     expect(shotRunnerScript).not.toContain("RemotionChapterManifestV1");
     expect(shotRunnerScript).not.toContain("sharedAudioTracks");
     expect(shotRunnerScript).not.toContain("applyBypassSanitization");
-    expect(shotRunnerScript).not.toContain("MYSTUDIO_DAOJIE_BYPASS_SHOT_VALIDATION");
+    expect(shotRunnerScript).not.toContain("MYSTUDIO_CHAPTER_VIDEO_BYPASS_SHOT_VALIDATION");
     expect(shotRunnerScript).toContain('MYSTUDIO_SHOT_SLOTS === "1"');
     expect(shotRunnerScript).not.toContain("ffmpeg-local");
     expect(shotRunnerScript).not.toContain("concat_segments");
@@ -2374,10 +2374,10 @@ describe("desktop build scripts", () => {
     expect(videoScript).toContain("禁止 bootstrap source");
     expect(videoScript).toContain("requireStoryboardCountFollowsDirectorPlan(generated)");
     expect(videoScript).toContain("分镜数量必须按导演计划源片段生成");
-    expect(videoScript).toContain("MAX_DAOJIE_VIDEO_DURATION_SECONDS = 180");
+    expect(videoScript).toContain("MAX_CHAPTER_VIDEO_VIDEO_DURATION_SECONDS = 180");
     expect(videoScript).toContain("最终视频时长超过3分钟规格");
-    expect(videoScript).not.toContain("MIN_DAOJIE_STORYBOARDS");
-    expect(videoScript).not.toContain("EXPECTED_DAOJIE_STORYBOARDS");
+    expect(videoScript).not.toContain("MIN_CHAPTER_VIDEO_STORYBOARDS");
+    expect(videoScript).not.toContain("EXPECTED_CHAPTER_VIDEO_STORYBOARDS");
     expect(videoScript).not.toContain("第一章分镜数量必须精确为");
     expect(videoScript).not.toContain("道劫第一章分镜过少");
     expect(generatorScript).toContain("EPISODE_STORYBOARD_SPECS");
@@ -2447,8 +2447,8 @@ describe("desktop build scripts", () => {
     expect(videoScript).toContain("aiSelectedVoiceBindings");
     expect(videoScript).toContain("speakerVoiceMap 未覆盖全部 canonical speakerId");
     expect(videoScript).not.toContain("MIN_DISTINCT_VOICE_REFERENCES");
-    expect(videoScript).not.toContain("MIN_DAOJIE_SPOKEN_TEXT_CHARS");
-    expect(videoScript).not.toContain("MAX_DAOJIE_SPOKEN_TEXT_CHARS");
+    expect(videoScript).not.toContain("MIN_CHAPTER_VIDEO_SPOKEN_TEXT_CHARS");
+    expect(videoScript).not.toContain("MAX_CHAPTER_VIDEO_SPOKEN_TEXT_CHARS");
     expect(videoScript).toContain("dialogueCoverageRatio");
     expect(videoScript).toContain("台词覆盖率过低");
     expect(videoScript).toContain("speakerAudioStats");
@@ -2458,7 +2458,7 @@ describe("desktop build scripts", () => {
     expect(videoScript).toContain("ttsMocked");
     expect(videoScript).toContain("voiceEmotionProfile");
     expect(videoScript).toContain("MANYING_REQUIRE_REAL_TTS: '1'");
-    expect(videoScript).toContain("MYSTUDIO_DAOJIE_ALLOW_STORYBOARD_BOOTSTRAP: '0'");
+    expect(videoScript).toContain("MYSTUDIO_CHAPTER_VIDEO_ALLOW_STORYBOARD_BOOTSTRAP: '0'");
     expect(videoScript).toContain("MYSTUDIO_ALLOW_TTS_FALLBACK");
     expect(videoScript).toContain("不能使用系统朗读 fallback 作为最终音频");
     expect(videoScript).toContain("silent-visual-preview");
@@ -2478,7 +2478,7 @@ describe("desktop build scripts", () => {
     expect(generatorScript).toContain('"targetDurationSeconds": 180.0');
     expect(generatorScript).toContain("target_chapter_duration_seconds");
     expect(generatorScript).toContain("成片时长超过目标规格");
-    expect(generatorScript).toContain("MYSTUDIO_DAOJIE_REUSE_AUDIO_DIR");
+    expect(generatorScript).toContain("MYSTUDIO_CHAPTER_VIDEO_REUSE_AUDIO_DIR");
     expect(generatorScript).toContain("build_workflow_steps(");
     expect(generatorScript).toContain('"novel_import"');
     expect(generatorScript).toContain('"project_writeback"');
@@ -2511,7 +2511,7 @@ describe("desktop build scripts", () => {
   });
 
   it("rejects asset-composite as Toonflow-style storyboard image generation evidence", () => {
-    const videoScript = readBuildFile("build/daojie/automate-daojie-chapter001-video.mjs");
+    const videoScript = readBuildFile("build/chapter_video/automate-chapter001-video.mjs");
 
     expect(videoScript).toContain("real-ai-reference-image-workflow");
     expect(videoScript).toContain("storyboardImageGenerationMode");
@@ -2529,7 +2529,7 @@ describe("desktop build scripts", () => {
   });
 
   it("validates V2 continuity asset candidates before loading paid provider credentials", () => {
-    const videoScript = readBuildFile("build/daojie/automate-daojie-chapter001-video.mjs");
+    const videoScript = readBuildFile("build/chapter_video/automate-chapter001-video.mjs");
 
     expect(videoScript).toContain("chapter001_continuity_asset_candidate.py");
     expect(videoScript).toContain("readContinuityAssetCandidateManifest(dryRun)");
@@ -2540,7 +2540,7 @@ describe("desktop build scripts", () => {
     expect(videoScript).toContain("requestBindingSha256: manifest.requestBindingSha256");
     expect(videoScript).toContain("referenceImageSha256: manifest.referenceImageSha256");
     expect(videoScript).not.toContain("assetKind !== 'prop'");
-    expect(videoScript).not.toContain("daojie-gongbi-v2-prompt-audit-v3");
+    expect(videoScript).not.toContain("gongbi-v2-prompt-audit-v3");
   });
 
   it("sends GPT storyboard reference images through the standard images endpoint", async () => {
@@ -2991,10 +2991,10 @@ describe("desktop build scripts", () => {
     }
   }, 10_000);
 
-  it("keeps Daojie real storyboard image requests provider-compatible", () => {
-    const helperScript = readBuildFile("build/daojie/generate-storyboard-image.mjs");
+  it("keeps ChapterVideo real storyboard image requests provider-compatible", () => {
+    const helperScript = readBuildFile("build/chapter_video/generate-storyboard-image.mjs");
     const generatorScript = readFileSync(
-      resolve(appsRoot, "build", "daojie", "build_daojie_chapter001_workflow.py"),
+      resolve(appsRoot, "build", "chapter_video", "build_chapter001_workflow.py"),
       "utf8",
     );
 
@@ -3011,7 +3011,7 @@ import tempfile
 from pathlib import Path
 from PIL import Image
 
-spec = importlib.util.spec_from_file_location("dao", "apps/build/daojie/build_daojie_chapter001_workflow.py")
+spec = importlib.util.spec_from_file_location("dao", "apps/build/chapter_video/build_chapter001_workflow.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
@@ -3043,7 +3043,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
-spec = importlib.util.spec_from_file_location("dao", "apps/build/daojie/build_daojie_chapter001_workflow.py")
+spec = importlib.util.spec_from_file_location("dao", "apps/build/chapter_video/build_chapter001_workflow.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
@@ -3098,7 +3098,7 @@ with tempfile.TemporaryDirectory() as tmp:
     const result = runPythonSnippet(`
 import importlib.util
 
-spec = importlib.util.spec_from_file_location("dao", "apps/build/daojie/build_daojie_chapter001_workflow.py")
+spec = importlib.util.spec_from_file_location("dao", "apps/build/chapter_video/build_chapter001_workflow.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
@@ -3125,11 +3125,11 @@ print(
     expect(result.stdout.trim()).toBe("True 1280x720 node-helper-result");
   });
 
-  it("injects Daojie ink-guofeng style and reference labels into real storyboard image prompts", () => {
+  it("injects ChapterVideo ink-guofeng style and reference labels into real storyboard image prompts", () => {
     const result = runPythonSnippet(`
 import importlib.util
 
-spec = importlib.util.spec_from_file_location("dao", "apps/build/daojie/build_daojie_chapter001_workflow.py")
+spec = importlib.util.spec_from_file_location("dao", "apps/build/chapter_video/build_chapter001_workflow.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
@@ -3154,7 +3154,7 @@ audit = module.build_storyboard_prompt_audit(
 )
 
 checks = [
-    "daojie-gongbi-v3" in prompt,
+    "gongbi-v3" in prompt,
     "连续白描和铁线描" in prompt,
     "薄层矿物色分染与罩染" in prompt,
     "30%-70%" in prompt,
@@ -3182,7 +3182,7 @@ checks = [
     audit["hasReferencePrefix"],
     audit["hasVisualReferenceBinding"],
     audit["hasLightSection"],
-    audit["hasDaojieStyleLock"],
+    audit["hasStyleLock"],
     audit["hasReferenceRules"],
     audit["hasNegativeConstraints"],
     audit["missingVisibleRoleReferences"] == [],
@@ -3202,7 +3202,7 @@ print(all(checks), prompt.count("@图") >= 8)
 import importlib.util
 import json
 
-spec = importlib.util.spec_from_file_location("dao", "apps/build/daojie/build_daojie_chapter001_workflow.py")
+spec = importlib.util.spec_from_file_location("dao", "apps/build/chapter_video/build_chapter001_workflow.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
@@ -3307,7 +3307,7 @@ import tempfile
 from pathlib import Path
 from PIL import Image
 
-spec = importlib.util.spec_from_file_location("prepare_bibles", "apps/build/daojie/pipeline/prepare_chapter001_continuity_bibles.py")
+spec = importlib.util.spec_from_file_location("prepare_bibles", "apps/build/chapter_video/pipeline/prepare_chapter001_continuity_bibles.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
@@ -3431,7 +3431,7 @@ import json
 import tempfile
 from pathlib import Path
 
-spec = importlib.util.spec_from_file_location("repair", "apps/build/daojie/repair_chapter001_visual_continuity.py")
+spec = importlib.util.spec_from_file_location("repair", "apps/build/chapter_video/repair_chapter001_visual_continuity.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
@@ -3527,7 +3527,7 @@ with tempfile.TemporaryDirectory() as tmp:
     const result = runPythonSnippet(`
 import importlib.util
 
-spec = importlib.util.spec_from_file_location("repair", "apps/build/daojie/repair_chapter001_visual_continuity.py")
+spec = importlib.util.spec_from_file_location("repair", "apps/build/chapter_video/repair_chapter001_visual_continuity.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
@@ -3550,7 +3550,7 @@ import json
 import tempfile
 from pathlib import Path
 
-spec = importlib.util.spec_from_file_location("repair", "apps/build/daojie/repair_chapter001_visual_continuity.py")
+spec = importlib.util.spec_from_file_location("repair", "apps/build/chapter_video/repair_chapter001_visual_continuity.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
@@ -3649,7 +3649,7 @@ import json
 import tempfile
 from pathlib import Path
 
-spec = importlib.util.spec_from_file_location("repair", "apps/build/daojie/repair_chapter001_visual_continuity.py")
+spec = importlib.util.spec_from_file_location("repair", "apps/build/chapter_video/repair_chapter001_visual_continuity.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
@@ -3751,7 +3751,7 @@ import json
 import tempfile
 from pathlib import Path
 
-spec = importlib.util.spec_from_file_location("pilot", "apps/build/daojie/generate_chapter001_continuity_sample.py")
+spec = importlib.util.spec_from_file_location("pilot", "apps/build/chapter_video/generate_chapter001_continuity_sample.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
@@ -3767,7 +3767,7 @@ with tempfile.TemporaryDirectory() as temp:
         "outputPath": str(image),
         "outputSha256": module.stable_sha256(image),
         "transferThumbnail": {"path": str(thumb), "bytes": thumb.stat().st_size},
-        "styleContractVersion": "daojie-gongbi-v2",
+        "styleContractVersion": "gongbi-v2",
         "colorAudit": {"status": "pass"},
     }
     (output / "report.json").write_text(json.dumps({
@@ -3778,7 +3778,7 @@ with tempfile.TemporaryDirectory() as temp:
         module.approve_generated_shot(output, 6, False, "")
     except RuntimeError as error:
         blocked = str(error)
-    checklist = {field: True for field in module.daojie_gongbi_v2.HUMAN_REVIEW_CHECKLIST_FIELDS}
+    checklist = {field: True for field in module.gongbi_v2.HUMAN_REVIEW_CHECKLIST_FIELDS}
     receipt = module.approve_generated_shot(output, 6, True, "角色、场景与道具检查通过", checklist)
     approvals = module.load_json_file(output / "human-approvals.json", {})
     approval = module.valid_human_approval(approvals, 6, entry)
@@ -3817,7 +3817,7 @@ with tempfile.TemporaryDirectory() as temp:
 import importlib.util
 import json
 
-spec = importlib.util.spec_from_file_location("dao", "apps/build/daojie/build_daojie_chapter001_workflow.py")
+spec = importlib.util.spec_from_file_location("dao", "apps/build/chapter_video/build_chapter001_workflow.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
@@ -3887,7 +3887,7 @@ import json
 import tempfile
 from pathlib import Path
 
-spec = importlib.util.spec_from_file_location("pilot", "apps/build/daojie/generate_chapter001_continuity_sample.py")
+spec = importlib.util.spec_from_file_location("pilot", "apps/build/chapter_video/generate_chapter001_continuity_sample.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 generator = module.load_generator()
@@ -3986,7 +3986,7 @@ print(json.dumps({
 import importlib.util
 import json
 
-spec = importlib.util.spec_from_file_location("dao", "apps/build/daojie/build_daojie_chapter001_workflow.py")
+spec = importlib.util.spec_from_file_location("dao", "apps/build/chapter_video/build_chapter001_workflow.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
@@ -4045,11 +4045,11 @@ print(json.dumps(states, ensure_ascii=False))
     expect(states[4]?.sceneRoles).toEqual(["scene-viewpoint", "secondary-scene"]);
   });
 
-  it("fails Daojie storyboard prompt audits when visible roles lack reference images", () => {
+  it("fails ChapterVideo storyboard prompt audits when visible roles lack reference images", () => {
     const result = runPythonSnippet(`
 import importlib.util
 
-spec = importlib.util.spec_from_file_location("dao", "apps/build/daojie/build_daojie_chapter001_workflow.py")
+spec = importlib.util.spec_from_file_location("dao", "apps/build/chapter_video/build_chapter001_workflow.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
@@ -4072,11 +4072,11 @@ except RuntimeError as error:
     expect(result.stdout.trim()).toBe("True ['独孤剑尘']");
   });
 
-  it("blocks a static Daojie fixture before it can infer per-shot cast references", () => {
+  it("blocks a static ChapterVideo fixture before it can infer per-shot cast references", () => {
     const result = runPythonSnippet(`
 import importlib.util
 
-spec = importlib.util.spec_from_file_location("dao", "apps/build/daojie/build_daojie_chapter001_workflow.py")
+spec = importlib.util.spec_from_file_location("dao", "apps/build/chapter_video/build_chapter001_workflow.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
@@ -4101,7 +4101,7 @@ import json
 import tempfile
 from pathlib import Path
 
-spec = importlib.util.spec_from_file_location("dao", "apps/build/daojie/build_daojie_chapter001_workflow.py")
+spec = importlib.util.spec_from_file_location("dao", "apps/build/chapter_video/build_chapter001_workflow.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
@@ -4135,7 +4135,7 @@ with tempfile.TemporaryDirectory() as temp:
     const result = runPythonSnippet(`
 import importlib.util
 
-spec = importlib.util.spec_from_file_location("dao", "apps/build/daojie/build_daojie_chapter001_workflow.py")
+spec = importlib.util.spec_from_file_location("dao", "apps/build/chapter_video/build_chapter001_workflow.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
@@ -4161,7 +4161,7 @@ print("近黑长袍、纯黑整套服装、黑色武服、把服装主色渲染�
 import importlib.util
 import json
 
-spec = importlib.util.spec_from_file_location("dao", "apps/build/daojie/build_daojie_chapter001_workflow.py")
+spec = importlib.util.spec_from_file_location("dao", "apps/build/chapter_video/build_chapter001_workflow.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
@@ -4227,7 +4227,7 @@ import tempfile
 from pathlib import Path
 from PIL import Image
 
-spec = importlib.util.spec_from_file_location("dao", "apps/build/daojie/build_daojie_chapter001_workflow.py")
+spec = importlib.util.spec_from_file_location("dao", "apps/build/chapter_video/build_chapter001_workflow.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
@@ -4368,11 +4368,11 @@ with tempfile.TemporaryDirectory() as temp:
     });
   });
 
-  it("injects Daojie ink-guofeng style and reference labels into derived asset image prompts", () => {
+  it("injects ChapterVideo ink-guofeng style and reference labels into derived asset image prompts", () => {
     const result = runPythonSnippet(`
 import importlib.util
 
-spec = importlib.util.spec_from_file_location("dao", "apps/build/daojie/build_daojie_chapter001_workflow.py")
+spec = importlib.util.spec_from_file_location("dao", "apps/build/chapter_video/build_chapter001_workflow.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
@@ -4396,7 +4396,7 @@ prop_prompt = module.build_derived_asset_image_prompt(
 )
 
 checks = [
-    "daojie-gongbi-v3" in prompt,
+    "gongbi-v3" in prompt,
     "连续白描和铁线描" in prompt,
     "薄层矿物色分染与罩染" in prompt,
     "综合彩色占比30%-70%" in prompt,
@@ -4446,7 +4446,7 @@ import tempfile
 from pathlib import Path
 from PIL import Image
 
-spec = importlib.util.spec_from_file_location("dao", "apps/build/daojie/build_daojie_chapter001_workflow.py")
+spec = importlib.util.spec_from_file_location("dao", "apps/build/chapter_video/build_chapter001_workflow.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
@@ -4468,7 +4468,7 @@ with tempfile.TemporaryDirectory() as tmp:
     expect(result.stdout.trim()).toBe("1600x900 1280x720");
   });
 
-  it("reuses fresh Daojie storyboard images during real provider resume", () => {
+  it("reuses fresh ChapterVideo storyboard images during real provider resume", () => {
     const result = runPythonSnippet(`
 import importlib.util
 import os
@@ -4476,7 +4476,7 @@ import tempfile
 from pathlib import Path
 from PIL import Image
 
-spec = importlib.util.spec_from_file_location("dao", "apps/build/daojie/build_daojie_chapter001_workflow.py")
+spec = importlib.util.spec_from_file_location("dao", "apps/build/chapter_video/build_chapter001_workflow.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
@@ -4489,8 +4489,8 @@ with tempfile.TemporaryDirectory() as tmp:
     Image.new("RGB", (128, 72), (24, 96, 160)).save(result_file)
     ref_image = root / "ref.png"
     Image.new("RGB", (64, 64), (160, 80, 24)).save(ref_image)
-    os.environ["MYSTUDIO_DAOJIE_REUSE_STORYBOARD_IMAGES"] = "1"
-    os.environ["MYSTUDIO_DAOJIE_REUSE_STORYBOARD_IMAGES_AFTER"] = "2000-01-01T00:00:00"
+    os.environ["MYSTUDIO_CHAPTER_VIDEO_REUSE_STORYBOARD_IMAGES"] = "1"
+    os.environ["MYSTUDIO_CHAPTER_VIDEO_REUSE_STORYBOARD_IMAGES_AFTER"] = "2000-01-01T00:00:00"
 
     def fail_provider(*args, **kwargs):
         raise RuntimeError("provider should not be called")
@@ -4509,7 +4509,7 @@ with tempfile.TemporaryDirectory() as tmp:
         frame.exists(),
         result["projectImageUrl"].endswith("/workflow-images/storyboards/chapter-001/shot-001.png"),
         result.get("reusedExistingImage") is True,
-        "daojie-gongbi-v3" in result["workflowGraph"]["nodes"][-1]["prompt"],
+        "gongbi-v3" in result["workflowGraph"]["nodes"][-1]["prompt"],
     )
 `);
 
@@ -4518,7 +4518,7 @@ with tempfile.TemporaryDirectory() as tmp:
     expect(result.stdout.trim()).toBe("True True True True");
   });
 
-  it("does not reuse stale Daojie storyboard images during real provider resume", () => {
+  it("does not reuse stale ChapterVideo storyboard images during real provider resume", () => {
     const result = runPythonSnippet(`
 import base64
 import importlib.util
@@ -4527,7 +4527,7 @@ import tempfile
 from pathlib import Path
 from PIL import Image
 
-spec = importlib.util.spec_from_file_location("dao", "apps/build/daojie/build_daojie_chapter001_workflow.py")
+spec = importlib.util.spec_from_file_location("dao", "apps/build/chapter_video/build_chapter001_workflow.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
@@ -4543,8 +4543,8 @@ with tempfile.TemporaryDirectory() as tmp:
     Image.new("RGB", (64, 64), (160, 80, 24)).save(ref_image)
     generated = root / "generated.png"
     Image.new("RGB", (128, 72), (180, 40, 40)).save(generated)
-    os.environ["MYSTUDIO_DAOJIE_REUSE_STORYBOARD_IMAGES"] = "1"
-    os.environ["MYSTUDIO_DAOJIE_REUSE_STORYBOARD_IMAGES_AFTER"] = "2000-01-02T00:00:00"
+    os.environ["MYSTUDIO_CHAPTER_VIDEO_REUSE_STORYBOARD_IMAGES"] = "1"
+    os.environ["MYSTUDIO_CHAPTER_VIDEO_REUSE_STORYBOARD_IMAGES_AFTER"] = "2000-01-02T00:00:00"
 
     def fake_provider(*args, **kwargs):
         return "data:image/png;base64," + base64.b64encode(generated.read_bytes()).decode("ascii")
@@ -4571,8 +4571,8 @@ with tempfile.TemporaryDirectory() as tmp:
     expect(result.stdout.trim()).toBe("True True True");
   });
 
-  it("splits multiline Daojie storyboard image API keys before provider calls", () => {
-    const helperScript = readBuildFile("build/daojie/generate-storyboard-image.mjs");
+  it("splits multiline ChapterVideo storyboard image API keys before provider calls", () => {
+    const helperScript = readBuildFile("build/chapter_video/generate-storyboard-image.mjs");
 
     expect(helperScript).toContain("apiKeys");
     expect(helperScript).toContain("parseApiKeys");
@@ -4586,13 +4586,13 @@ with tempfile.TemporaryDirectory() as tmp:
 import importlib.util
 import os
 
-os.environ["MYSTUDIO_DAOJIE_STORYBOARD_IMAGE_MODE"] = "real-ai-reference-image-workflow"
+os.environ["MYSTUDIO_CHAPTER_VIDEO_STORYBOARD_IMAGE_MODE"] = "real-ai-reference-image-workflow"
 os.environ["MYSTUDIO_IMAGE_API_BASE_URL"] = "https://example.invalid/v1"
 os.environ["MYSTUDIO_IMAGE_API_KEY"] = "key-one\\nkey-two"
 os.environ["MYSTUDIO_IMAGE_MODEL"] = "gpt-image-2"
 os.environ["MYSTUDIO_IMAGE_ASYNC_MODE"] = "1"
 
-spec = importlib.util.spec_from_file_location("dao", "apps/build/daojie/build_daojie_chapter001_workflow.py")
+spec = importlib.util.spec_from_file_location("dao", "apps/build/chapter_video/build_chapter001_workflow.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
@@ -4605,8 +4605,8 @@ print(config["apiKey"], config["apiKeys"], config["timeoutSeconds"], config["asy
     expect(result.stdout.trim()).toBe("key-one ['key-one', 'key-two'] 180.0 True");
   });
 
-  it("keeps Daojie storyboard image provider fallback order for real-ai mode", () => {
-    const helperScript = readBuildFile("build/daojie/generate-storyboard-image.mjs");
+  it("keeps ChapterVideo storyboard image provider fallback order for real-ai mode", () => {
+    const helperScript = readBuildFile("build/chapter_video/generate-storyboard-image.mjs");
 
     expect(helperScript).toContain("providers");
     expect(helperScript).toContain("for (const providerConfig of providers)");
@@ -4616,7 +4616,7 @@ import importlib.util
 import json
 import os
 
-os.environ["MYSTUDIO_DAOJIE_STORYBOARD_IMAGE_MODE"] = "real-ai-reference-image-workflow"
+os.environ["MYSTUDIO_CHAPTER_VIDEO_STORYBOARD_IMAGE_MODE"] = "real-ai-reference-image-workflow"
 os.environ["MYSTUDIO_IMAGE_PROVIDER_CONFIGS_JSON"] = json.dumps([
     {
         "providerName": "first-provider",
@@ -4634,7 +4634,7 @@ os.environ["MYSTUDIO_IMAGE_PROVIDER_CONFIGS_JSON"] = json.dumps([
     },
 ])
 
-spec = importlib.util.spec_from_file_location("dao", "apps/build/daojie/build_daojie_chapter001_workflow.py")
+spec = importlib.util.spec_from_file_location("dao", "apps/build/chapter_video/build_chapter001_workflow.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
@@ -4657,7 +4657,7 @@ print(
   it("keeps the explicit chapter 001 bootstrap fixture at 43 shots", () => {
     const result = runPythonSnippet(`
 import importlib.util
-spec = importlib.util.spec_from_file_location("dao", "apps/build/daojie/build_daojie_chapter001_workflow.py")
+spec = importlib.util.spec_from_file_location("dao", "apps/build/chapter_video/build_chapter001_workflow.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 shots = module.canonical_storyboard_shots()
@@ -4673,7 +4673,7 @@ print(len(module.CHAPTER_001_SHOTS), len(shots), round(total_duration, 1))
   it("selects the latest episode storyboard work and derives a dynamic two-shot source", () => {
     const result = runPythonSnippet(`
 import importlib.util
-spec = importlib.util.spec_from_file_location("dao", "apps/build/daojie/build_daojie_chapter001_workflow.py")
+spec = importlib.util.spec_from_file_location("dao", "apps/build/chapter_video/build_chapter001_workflow.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 old_table = """<storyboardTable>
@@ -4705,7 +4705,7 @@ print(source["kind"], source["workId"], len(source["shots"]), [shot["index"] for
     const result = runPythonSnippet(`
 import importlib.util
 import json
-spec = importlib.util.spec_from_file_location("dao", "apps/build/daojie/build_daojie_chapter001_workflow.py")
+spec = importlib.util.spec_from_file_location("dao", "apps/build/chapter_video/build_chapter001_workflow.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 header = [
@@ -4761,7 +4761,7 @@ print(
     const result = runPythonSnippet(`
 import importlib.util
 import json
-spec = importlib.util.spec_from_file_location("dao", "apps/build/daojie/build_daojie_chapter001_workflow.py")
+spec = importlib.util.spec_from_file_location("dao", "apps/build/chapter_video/build_chapter001_workflow.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 old_table = """<storyboardTable>
@@ -4833,7 +4833,7 @@ print(json.dumps({
   it("requires an explicit canonical alias for storyboard speakers", () => {
     const result = runPythonSnippet(`
 import importlib.util
-spec = importlib.util.spec_from_file_location("dao", "apps/build/daojie/build_daojie_chapter001_workflow.py")
+spec = importlib.util.spec_from_file_location("dao", "apps/build/chapter_video/build_chapter001_workflow.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 shot = {
@@ -4863,7 +4863,7 @@ print(module.build_storyboard_voiceover(shot, identities)["speakerId"])
     const result = runPythonSnippet(`
 import importlib.util
 import json
-spec = importlib.util.spec_from_file_location("dao", "apps/build/daojie/build_daojie_chapter001_workflow.py")
+spec = importlib.util.spec_from_file_location("dao", "apps/build/chapter_video/build_chapter001_workflow.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 identities = [{"characterId": "char-zhao", "name": "监工赵四", "aliases": ["赵四"]}]
@@ -4895,7 +4895,7 @@ import importlib.util
 import json
 import tempfile
 from pathlib import Path
-spec = importlib.util.spec_from_file_location("dao", "apps/build/daojie/build_daojie_chapter001_workflow.py")
+spec = importlib.util.spec_from_file_location("dao", "apps/build/chapter_video/build_chapter001_workflow.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 with tempfile.TemporaryDirectory() as temp_dir:

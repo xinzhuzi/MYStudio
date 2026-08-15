@@ -904,7 +904,7 @@ async function inspectPage(pageTarget) {
           exposed: Boolean(smoke),
           enabled: smoke?.enabled ?? null,
           userDataDir,
-          isolatedUserDataDir: /(?:^|[/\\\\])mystudio-(?:(?:installed-)?smoke|daojie-workflow-run)-[^/\\\\]+$/.test(userDataDir),
+          isolatedUserDataDir: /(?:^|[/\\\\])mystudio-(?:(?:installed-)?smoke|project-workflow-run)-[^/\\\\]+$/.test(userDataDir),
         };
       })()`,
       "smoke bridge environment check",

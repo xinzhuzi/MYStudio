@@ -480,7 +480,8 @@ export function registerProjectFolderIpcHandlers({
     const controller = new AbortController();
     activeMoveControllers.set(projectId, controller);
     try {
-      const mode = await createMoveEngine().move({
+      const moveEngine = createMoveEngine();
+      const mode = await moveEngine.move({
         sourceDir,
         targetDir,
         signal: controller.signal,
@@ -491,7 +492,16 @@ export function registerProjectFolderIpcHandlers({
       try {
         locationStore.set(projectId, targetDir);
       } catch (error) {
-        return { ok: false, code: "MOVE_FAILED", message: `位置表更新失败：${errorMessage(error)}` };
+        try {
+          await moveEngine.move({ sourceDir: targetDir, targetDir: sourceDir });
+        } catch (rollbackError) {
+          return {
+            ok: false,
+            code: "MOVE_FAILED",
+            message: `位置表更新失败：${errorMessage(error)}；文件夹回滚失败：${errorMessage(rollbackError)}`,
+          };
+        }
+        return { ok: false, code: "MOVE_FAILED", message: `位置表更新失败，文件夹已回滚：${errorMessage(error)}` };
       }
       return { ok: true, location: targetDir, mode };
     } catch (error) {

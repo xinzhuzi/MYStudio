@@ -4,8 +4,9 @@ import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { validateHyperFramesOverlayRequest, type HyperFramesOverlayRequestV1 } from "@rendering/contracts/video-workflow";
+import { HYPERFRAMES_NPM_VERSION } from "@rendering/plugins/video-workflow/video-workflow-runtime";
 
-const TOOL_VERSION = "hyperframes@0.7.101";
+const TOOL_VERSION = `hyperframes@${HYPERFRAMES_NPM_VERSION}`;
 /**
  * HyperFrames' strict renderer becomes unreliable when one composition owns
  * all 43 full-frame overlays. Keep each strict composition deliberately

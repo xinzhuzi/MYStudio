@@ -125,9 +125,9 @@ const safeFirstShotPreviewTimeoutMs = Number.isFinite(firstShotPreviewTimeoutMs)
 const safeProductionCanvasVideoTimeoutMs = Number.isFinite(productionCanvasVideoTimeoutMs) && productionCanvasVideoTimeoutMs > 0
   ? Math.floor(productionCanvasVideoTimeoutMs)
   : 600_000;
-  const realProjectName = "道劫";
+  const realProjectName = process.env.MYSTUDIO_SMOKE_PROJECT_NAME?.trim() || "";
   const realProjectChapterId = "chapter-001";
-  const realProjectChapterTitle = "第1章：剑主夜访道口镇";
+  const realProjectChapterTitle = process.env.MYSTUDIO_SMOKE_CHAPTER_TITLE?.trim() || null;
   const realProjectFirstShotProjectId = "49dce4c1-64b1-42de-85c2-9f266698aec0";
   const realProjectFirstShotId = "sb-chapter-001-001";
   const realProjectId = process.env.MYSTUDIO_PROJECT_ID?.trim() || null;
@@ -364,7 +364,7 @@ function readRealProjectRoleAssets() {
     { encoding: "utf8", maxBuffer: 10 * 1024 * 1024 },
   );
   if (result.status !== 0) {
-    throw new Error(`Unable to read Daojie role assets: ${String(result.stderr || "").trim()}`);
+    throw new Error(`Unable to read real-project role assets: ${String(result.stderr || "").trim()}`);
   }
   const output = String(result.stdout || "").trim();
   return output ? JSON.parse(output) : [];
@@ -374,7 +374,7 @@ function cloneRealProjectUserData() {
   const sourceProjectsDir = resolve(realProjectSourceStorageBasePath, "projects");
   const projectStorePath = resolve(sourceProjectsDir, "mystudio-project-store.json");
   if (!existsSync(projectStorePath)) {
-    throw new Error(`Daojie project store was not found: ${projectStorePath}`);
+    throw new Error(`Real project store was not found: ${projectStorePath}`);
   }
 
   const projectStore = readJsonFile(projectStorePath);
@@ -383,15 +383,18 @@ function cloneRealProjectUserData() {
     (realProjectId
       ? projects.find((candidate) => candidate.id === realProjectId)
       : null) ||
-    projects.find((candidate) => String(candidate.name || "").includes(realProjectName));
+    (realProjectName
+      ? projects.find((candidate) => String(candidate.name || "").includes(realProjectName))
+      : null) ||
+    (projects.length === 1 ? projects[0] : null);
   if (!project) {
-    throw new Error(`Daojie project was not found in ${projectStorePath}`);
+    throw new Error(`目标项目未找到: ${projectStorePath}；请设置 MYSTUDIO_SMOKE_PROJECT_NAME 或 MYSTUDIO_PROJECT_ID`);
   }
 
   const projectDir = resolve(sourceProjectsDir, "_p", project.id);
   const workflowStorePath = resolve(projectDir, "studio-workflow-store.json");
   if (!existsSync(workflowStorePath)) {
-    throw new Error(`Daojie workflow store was not found: ${workflowStorePath}`);
+    throw new Error(`Real-project workflow store was not found: ${workflowStorePath}`);
   }
 
   const workflowStore = readJsonFile(workflowStorePath);
@@ -399,9 +402,9 @@ function cloneRealProjectUserData() {
   const chapter = (workflowState.novelChapters || []).find(
     (candidate) => candidate.id === realProjectChapterId,
   );
-  if (!chapter || chapter.title !== realProjectChapterTitle) {
+  if (!chapter || (realProjectChapterTitle && chapter.title !== realProjectChapterTitle)) {
     throw new Error(
-      `Daojie ${realProjectChapterId} was not found or had an unexpected title in ${workflowStorePath}`,
+      `Chapter ${realProjectChapterId} was not found or had an unexpected title in ${workflowStorePath}`,
     );
   }
   const chapterStoryboards = (workflowState.storyboards || []).filter(
@@ -409,7 +412,7 @@ function cloneRealProjectUserData() {
   );
   if (!(chapterStoryboards.length > 0)) {
     throw new Error(
-      `Daojie ${realProjectChapterId} has no source storyboards in ${workflowStorePath}`,
+      `Chapter ${realProjectChapterId} has no source storyboards in ${workflowStorePath}`,
     );
   }
   const firstStoryboard = chapterStoryboards
@@ -420,7 +423,7 @@ function cloneRealProjectUserData() {
     throw new Error(`First-shot preview requires project ${realProjectFirstShotProjectId}, received ${project.id}`);
   }
   if (runFirstShotPreview && (firstStoryboard?.index !== 1 || firstStoryboard?.id !== realProjectFirstShotId)) {
-    throw new Error(`Daojie first storyboard identity is invalid: ${firstStoryboard?.id || "missing"}`);
+    throw new Error(`First storyboard identity is invalid: ${firstStoryboard?.id || "missing"}`);
   }
   const sourceDerivedPlans = (workflowState.scriptPlans || []).flatMap(
     (plan) => plan.derivedAssetPlan || [],
@@ -430,7 +433,7 @@ function cloneRealProjectUserData() {
   );
   if (sourceDerivedPlans.length < 3 || sourceDerivedWorkflows.length < 3) {
     throw new Error(
-      `Daojie derived asset evidence is incomplete in ${workflowStorePath}: plans=${sourceDerivedPlans.length}, workflows=${sourceDerivedWorkflows.length}`,
+      `Derived asset evidence is incomplete in ${workflowStorePath}: plans=${sourceDerivedPlans.length}, workflows=${sourceDerivedWorkflows.length}`,
     );
   }
 
@@ -1031,7 +1034,7 @@ function realProjectWorkflowExpression(
   const expectedFirstShotRevision = Number(realProjectRunData.firstShotRevision);
   const focusWindowStatement = focusWindow ? "window.focus();" : "";
   return `(async () => {
-    // Daojie mode does not use resetForStepwiseExecution or seed smoke data.
+    // Real-project mode does not use resetForStepwiseExecution or seed smoke data.
     const backgroundMode = ${!focusWindow};
     const projectId = ${projectId};
     const projectName = ${projectName};
@@ -1453,7 +1456,7 @@ function realProjectWorkflowExpression(
         if (sourceData.firstStoryboardId !== expectedFirstStoryboardId
           || sourceData.firstStoryboardIndex !== 1
           || sourceData.firstShotRevision !== expectedFirstShotRevision) {
-          throw new Error('Daojie first storyboard identity changed after clone preflight');
+          throw new Error('First storyboard identity changed after clone preflight');
         }
       } catch (error) {
         preflightError = error instanceof Error ? error.message : String(error);
@@ -1669,7 +1672,7 @@ function realProjectWorkflowExpression(
           workflowId,
           workflowName,
           stageClicked: Boolean(storyboardClick.clicked),
-          reason: 'real Daojie derived asset workflow image entry was not found',
+          reason: 'real derived asset workflow image entry was not found',
         };
       }
       const captureDetail = () => {
@@ -1736,7 +1739,7 @@ function realProjectWorkflowExpression(
         const hasNoVisibleDuplicateGeneratedPromptPanel = !hasVisibleDuplicateGeneratedPromptPanel;
         const hasEditableImageWorkflowPrompt = promptTextValues.some((value) => value.trim().length > 0);
         const hasRealProjectDerivativePromptStyle = promptTextValues.some((value) =>
-          /daojie-gongbi-v[23]/.test(value) &&
+          /gongbi-v[23]/.test(value) &&
           value.includes('连续白描和铁线描') &&
           value.includes('@图1') &&
           value.includes('禁止写实摄影') &&
@@ -1812,7 +1815,7 @@ function realProjectWorkflowExpression(
           workflowId,
           storyboardId,
           stageClicked: Boolean(storyboardClick.clicked),
-          reason: 'real Daojie storyboard image workflow image entry was not found',
+          reason: 'real storyboard image workflow image entry was not found',
         };
       }
       const detail = await waitFor(() => {
@@ -2090,7 +2093,7 @@ try {
   };
   if (runRealProject) {
     const diskRealProject = inspectClonedProjectData(userDataDir, realProjectRun?.projectId);
-    const daojie = { ...(result.daojie || {}), ...diskRealProject };
+    const realProjectEvidence = { ...(result.realProjectEvidence || {}), ...diskRealProject };
     const expectedStoryboards = Number(realProjectRun?.expectedStoryboards ?? realProject.expectedStoryboards);
     const storyboardPaletteImages = result.derivativeImageWorkflowDetail?.storyboardPaletteImages;
     const scopedDerivativePaletteAbsent = storyboardPaletteImages?.sectionFound === false;
@@ -2168,9 +2171,9 @@ try {
       !result.completed ||
       failedStages.length > 0 ||
       runtimeProblems.length > 0 ||
-      realProject.projectName !== realProjectName ||
+      (realProjectName && realProject.projectName !== realProjectName) ||
       realProject.chapterId !== realProjectChapterId ||
-      realProject.chapterTitle !== realProjectChapterTitle ||
+      (realProjectChapterTitle && realProject.chapterTitle !== realProjectChapterTitle) ||
       realProject.sourceLength < 9000 ||
       realProject.storyboards !== expectedStoryboards ||
       realProject.storyboardsWithMediaPath !== expectedStoryboards ||
@@ -2202,7 +2205,7 @@ try {
       firstShotPreviewAudit,
       productionCanvasVideoFailed,
       productionCanvasVideoAudit,
-      daojie: { ...daojie, expectedStoryboards },
+      realProjectEvidence: { ...realProjectEvidence, expectedStoryboards },
     });
     if (failed) {
       console.error(JSON.stringify({ ...result, frontmostApp }, null, 2));
@@ -2210,7 +2213,7 @@ try {
     } else {
       runPassed = true;
       console.log(
-        `[${runMode}-run] Daojie chapter001 clicked through${runInBackground ? " in background" : " and left open"}: pid=${child.pid}, project=${realProject.projectName}, chapter=${realProject.chapterId}, storyboards=${realProject.storyboards}/${expectedStoryboards}, derivedAssets=${realProject.derivedAssets}, derivedImageWorkflows=${realProject.derivedImageWorkflowsReady}/${realProject.derivedImageWorkflows}, videoCandidates=${realProject.videoCandidates}, autoVideoStage=${chapterAutoVideo.terminalStage || "disabled"}, firstShotStatus=${firstShotPreview.terminalStatus || "disabled"}, frontmostApp=${frontmostApp || "unchanged"}, userDataDir=${userDataDir}`,
+        `[${runMode}-run] ChapterVideo chapter001 clicked through${runInBackground ? " in background" : " and left open"}: pid=${child.pid}, project=${realProject.projectName}, chapter=${realProject.chapterId}, storyboards=${realProject.storyboards}/${expectedStoryboards}, derivedAssets=${realProject.derivedAssets}, derivedImageWorkflows=${realProject.derivedImageWorkflowsReady}/${realProject.derivedImageWorkflows}, videoCandidates=${realProject.videoCandidates}, autoVideoStage=${chapterAutoVideo.terminalStage || "disabled"}, firstShotStatus=${firstShotPreview.terminalStatus || "disabled"}, frontmostApp=${frontmostApp || "unchanged"}, userDataDir=${userDataDir}`,
       );
     }
   } else if (

@@ -24,6 +24,8 @@ import {
 } from "./render-smoke-evidence";
 import {
   deriveStorageRoots,
+  resolveProjectDir,
+  resolveRemotionRuntimeDir,
   resolveTimelineSourcePath,
 } from "../timeline/storage-paths";
 
@@ -37,8 +39,8 @@ const durationTarget = 4.2;
 const fps = 30;
 const width = 1920;
 const height = 1080;
-const projectRoot = "/Users/zhengbingjin/Library/Application Support/漫影工作室/projects/_p/49dce4c1-64b1-42de-85c2-9f266698aec0";
-const runtimeDir = "/Users/zhengbingjin/Library/Application Support/漫影工作室/remotion-runtime";
+const projectRoot = resolveProjectDir();
+const runtimeDir = resolveRemotionRuntimeDir();
 const sourceStorePath = path.join(projectRoot, "studio-workflow-store.json");
 const scriptPath = path.join(projectRoot, "script.json");
 const imagePath = path.join(projectRoot, "exports/chapter-001/storyboard-frames/shot-001.png");

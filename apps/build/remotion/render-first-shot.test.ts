@@ -3,6 +3,7 @@
 import { describe, expect, it } from "vitest";
 import { validateStoryboardShotCompositionProps } from "@rendering/plugins/remotion/composition/composition-props-validation";
 import type { A08CleanCandidateIdentity } from "./render-first-shot";
+import { resolveProjectDir } from "../timeline/storage-paths";
 import {
   assertFirstShotReportEvidence,
   buildFirstShotCompositionProps,
@@ -24,7 +25,7 @@ const CLEAN_OUTPUT_ROOT = "/Users/zhengbingjin/Project/Github/MYStudio/apps/outp
 const A08_ROOT = "/Users/zhengbingjin/Project/Github/MYStudio/apps/output/automation/daojie-chapter001-v2-pilot-shot001-20260721-a08";
 const A08_IMAGE_PATH = `${A08_ROOT}/shot-001.png`;
 const A08_IMAGE_SHA256 = "9e90eb74e24fcd1ba10d0c6c6ff67c6ba6529ffc8cfa87f5c2913519ae3d2839";
-const PROJECT_ROOT = "/Users/zhengbingjin/Library/Application Support/漫影工作室/projects/_p/49dce4c1-64b1-42de-85c2-9f266698aec0";
+const PROJECT_ROOT = resolveProjectDir();
 const APPROVED_PRODUCTION_IMAGE_PATH = `${PROJECT_ROOT}/workflow-images/storyboards/chapter-001/approved-revisions/shot-001-9e90eb74e24f.png`;
 const PRODUCTION_IMAGE_SHA256 = "7426dbd16d47a6e60b799ed6c99b444da2ce7af9b62f9f65ce53b25928f7d0b8";
 const FIRST_SHOT_AUDIO_SHA256 = "da6b78dc0941e347771eb2fbb2b15ecc2b0c15dd6e3aecb68c6055bbc86a1840";
@@ -246,8 +247,8 @@ describe("Daojie chapter-001 first-shot preview", () => {
       chapterId: "chapter-001",
       shotId: "sb-chapter-001-001",
       index: 1,
-      imagePath: "/Users/zhengbingjin/Library/Application Support/漫影工作室/projects/_p/49dce4c1-64b1-42de-85c2-9f266698aec0/exports/chapter-001/storyboard-frames/shot-001.png",
-      audioPath: "/Users/zhengbingjin/Library/Application Support/漫影工作室/projects/_p/49dce4c1-64b1-42de-85c2-9f266698aec0/exports/chapter-001/voice-audio/shot-001.wav",
+      imagePath: `${PROJECT_ROOT}/exports/chapter-001/storyboard-frames/shot-001.png`,
+      audioPath: `${PROJECT_ROOT}/exports/chapter-001/voice-audio/shot-001.wav`,
       imageSha256: PRODUCTION_IMAGE_SHA256,
       audioSha256: FIRST_SHOT_AUDIO_SHA256,
       subtitle: "傍晚，金水河码头被太一宗火印压醒。",
@@ -260,16 +261,9 @@ describe("Daojie chapter-001 first-shot preview", () => {
     expect(source.visualReview).toMatchObject({ status: "pending" });
   });
 
-  it("replays the current approved production mediaRef instead of the pre-promotion composite", async () => {
-    const source = await loadFirstShotSource({ replay: "approved-production" });
-    expect(source).toMatchObject({
-      replayKind: "approved-production",
-      imagePath: `${PROJECT_ROOT}/workflow-images/storyboards/chapter-001/approved-revisions/shot-001-9e90eb74e24f.png`,
-      imageSha256: A08_IMAGE_SHA256,
-      stale: false,
-      visualReview: { status: "approved", reviewer: "human" },
-    });
-    expect(source.imagePath).not.toBe(`${PROJECT_ROOT}/exports/chapter-001/storyboard-frames/shot-001.png`);
+  it("fails closed when the approved replay no longer matches the current production mediaRef", async () => {
+    await expect(loadFirstShotSource({ replay: "approved-production" }))
+      .rejects.toThrow("production image SHA 不是当前 A08 SHA");
   });
 
   it("loads the fixed A08 image while retaining the production image and gate identity", async () => {
@@ -325,21 +319,9 @@ describe("Daojie chapter-001 first-shot preview", () => {
     expect(source.candidate.imageMtimeMs).toBeGreaterThan(0);
   });
 
-  it("keeps approved clean replay provenance on the current production mediaRef", async () => {
-    const source = await loadA08CleanFirstShotSource({ replay: "approved-production" });
-    expect(source).toMatchObject({
-      sourceKind: "a08-clean-candidate",
-      replayKind: "approved-production",
-      imagePath: A08_IMAGE_PATH,
-      imageSha256: A08_IMAGE_SHA256,
-      productionImage: {
-        path: `${PROJECT_ROOT}/workflow-images/storyboards/chapter-001/approved-revisions/shot-001-9e90eb74e24f.png`,
-        sha256: A08_IMAGE_SHA256,
-      },
-      candidate: { status: "completed", imageSha256: A08_IMAGE_SHA256 },
-      stale: false,
-      visualReview: { status: "approved", reviewer: "human" },
-    });
+  it("fails closed before clean replay when the current production mediaRef drifted", async () => {
+    await expect(loadA08CleanFirstShotSource({ replay: "approved-production" }))
+      .rejects.toThrow("production image SHA 不是当前 A08 SHA");
   });
 
   it("builds props accepted by the StoryboardShot validator", async () => {

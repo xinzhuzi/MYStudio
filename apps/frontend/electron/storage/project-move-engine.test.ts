@@ -228,7 +228,7 @@ describe("project move engine", () => {
     }
   });
 
-  it("skips symbolic links instead of following them", async () => {
+  it("preserves symbolic links without following or copying their targets", async () => {
     const { root, sourceDir } = createFixture("mystudio-move-symlink-");
     try {
       fs.writeFileSync(path.join(root, "outside.txt"), "outside payload");
@@ -242,9 +242,13 @@ describe("project move engine", () => {
       const mode = await engine.move({ sourceDir, targetDir, renameImpl: throwCrossDeviceRename });
 
       expect(mode).toBe("copied");
-      expect(fs.existsSync(path.join(targetDir, "file-link.txt"))).toBe(false);
-      expect(fs.existsSync(path.join(targetDir, "dir-link"))).toBe(false);
-      expect(fs.existsSync(path.join(targetDir, "dir-link", "stray.txt"))).toBe(false);
+      const targetFileLink = path.join(targetDir, "file-link.txt");
+      const targetDirLink = path.join(targetDir, "dir-link");
+      expect(fs.lstatSync(targetFileLink).isSymbolicLink()).toBe(true);
+      expect(fs.lstatSync(targetDirLink).isSymbolicLink()).toBe(true);
+      expect(fs.readlinkSync(targetFileLink)).toBe(path.join(root, "outside.txt"));
+      expect(fs.readlinkSync(targetDirLink)).toBe(outsideDir);
+      expect(fs.readFileSync(path.join(targetDirLink, "stray.txt"), "utf8")).toBe("stray payload");
       expectFilesMatch(targetDir);
     } finally {
       fs.rmSync(root, { recursive: true, force: true });

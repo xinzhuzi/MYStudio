@@ -4,6 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { promisify } from "node:util";
 import {
+  HYPERFRAMES_NPM_VERSION,
   buildSharedToolchainEnv,
   buildHyperFramesProfileMarker,
   buildVideoUseProfileMarker,
@@ -27,7 +28,7 @@ export const VIDEO_USE_HELPER_SHA256 = {
 export const NPM_VERSION = "10.9.2";
 export const NPM_TARBALL_URL = `https://registry.npmjs.org/npm/-/npm-${NPM_VERSION}.tgz`;
 export const NPM_SHA256 = "5cd1e5ab971ea6333f910bc2d50700167c5ef4e66da279b2a3efc874c6b116e4";
-export const HYPERFRAMES_PACKAGE = "hyperframes@0.7.101";
+export const HYPERFRAMES_PACKAGE = `hyperframes@${HYPERFRAMES_NPM_VERSION}`;
 
 /** Direct dependencies declared by the pinned upstream pyproject.toml. */
 export const VIDEO_USE_LOCK_CONTENT = `# MYStudio video-use profile; derived from upstream pyproject.toml at ${VIDEO_USE_SOURCE_COMMIT}

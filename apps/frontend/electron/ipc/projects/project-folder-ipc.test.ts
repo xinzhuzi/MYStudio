@@ -334,6 +334,34 @@ describe("project-folder-move IPC handler", () => {
     expect(fixture.store.get("pid-1")).toBe(path.join(newParent, "乙"));
   });
 
+  it("rolls the folder back when the location table update fails after a successful move", async () => {
+    const { engineFactory, calls } = makeFakeEngine(fakeRenameMove);
+    fixture = createFixture(engineFactory);
+    const source = await prepareProject("old-home", "甲", "pid-1");
+    const newParent = path.join(fixture.tmp, "new-home");
+    const target = path.join(newParent, "乙");
+    fs.mkdirSync(newParent);
+    const set = vi.spyOn(fixture.store, "set").mockImplementationOnce(() => {
+      throw new Error("persist failed");
+    });
+
+    const result = await fixture.invoke("project-folder-move", "pid-1", "乙", newParent);
+    set.mockRestore();
+
+    expect(result).toEqual({
+      ok: false,
+      code: "MOVE_FAILED",
+      message: expect.stringContaining("文件夹已回滚"),
+    });
+    expect(calls.map(({ sourceDir, targetDir }) => [sourceDir, targetDir])).toEqual([
+      [source, target],
+      [target, source],
+    ]);
+    expect(fs.existsSync(source)).toBe(true);
+    expect(fs.existsSync(target)).toBe(false);
+    expect(fixture.store.get("pid-1")).toBe(source);
+  });
+
   it("forwards engine progress on the dedicated channel", async () => {
     const { engineFactory } = makeFakeEngine((options) => {
       options.onProgress?.({ phase: "copying", filesDone: 0, filesTotal: 2, bytesDone: 0, bytesTotal: 100 });
