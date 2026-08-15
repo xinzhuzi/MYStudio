@@ -53,6 +53,7 @@ import type {
 import { assembleBoundaryIntents } from "@/lib/studio/video-workflow/boundary-intent-assembly";
 import type { CinematicConfig, CinematicCameraPreset } from "@rendering/plugins/remotion/composition/composition-props";
 import type { SubtitleAuthority, EditingProjectV1, TimelineRenderPlan } from "@/types/editing";
+import { heuristicCinematicPresets } from "@/lib/studio/cinematic-preset-ai";
 import type { RemotionCurrentSlotV1 } from "@/types/remotion-workspace";
 import {
   resolveRemotionCurrentSlotOutputPath,
@@ -62,6 +63,7 @@ import { sha256CanonicalJson, sha256Text } from "@/lib/studio/remotion/canonical
 import { validateEditingProject, validateTimelineRenderPlan } from "@/lib/studio/editing/validation";
 import {
   deriveStorageRoots,
+  registeredProjectDir,
   resolveProjectDir,
   resolveStorageBasePath,
   resolveUserDataDir,
@@ -79,6 +81,9 @@ const appsRoot = path.resolve(new URL("../..", import.meta.url).pathname);
 // ─── Storage & path helpers ──────────────────────────────────────────────
 
 function resolveDataFilePath(dataRoot: string, relativePath: string): string {
+  const [pid, ...rest] = relativePath.split("/");
+  const registered = registeredProjectDir(pid);
+  if (registered) return path.join(registered, ...rest);
   return path.join(dataRoot, "_p", ...relativePath.split("/"));
 }
 
@@ -186,7 +191,12 @@ async function buildShotInputs(
     if (!slotValidation.success) throw new Error(`shot slot ${shotId} 无效: ${slotValidation.issues.map((i) => i.message).join("；")}`);
     const slotEvidence = slotValidation.value.evidence;
     const videoPath = resolveRemotionCurrentSlotOutputPath(path.join(projectDir, "remotion"), slot);
-    const audioPath = r2Shot.audioPath as string;
+    // r2 工件记录的是制作当时的绝对路径；项目迁移到外部位置后旧 _p 前缀失效，重映射到当前项目根
+    const legacyRoot = path.join(resolveUserDataDir(), "projects", "_p", projectId);
+    const audioPathRaw = r2Shot.audioPath as string;
+    const audioPath = audioPathRaw.startsWith(`${legacyRoot}/`)
+      ? path.join(projectDir, audioPathRaw.slice(legacyRoot.length + 1))
+      : audioPathRaw;
     const ttsSpokenText = r2Shot.ttsSpokenText as string;
     const textSha256 = await sha256Text(ttsSpokenText);
     shots.push({
@@ -384,7 +394,8 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
   const userDataDir = resolveUserDataDir();
 
   // workspace root for video-use artifacts
-  const workspaceRootForProject = (pid: string) => path.join(dataRoot, "_p", pid, "video-use");
+  const workspaceRootForProject = (pid: string) =>
+    registeredProjectDir(pid) ? path.join(registeredProjectDir(pid)!, "video-use") : path.join(dataRoot, "_p", pid, "video-use");
   const workspaceRoot = workspaceRootForProject(projectId);
 
   // ── 2. Set up shared toolchain (ffmpeg/ffprobe) ──
@@ -465,7 +476,7 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
   });
 
   const remotionChapterManifestService = new RemotionChapterManifestService({
-    projectRootForProject: (pid: string) => path.join(dataRoot, "_p", pid),
+    projectRootForProject: (pid: string) => registeredProjectDir(pid) ?? path.join(dataRoot, "_p", pid),
     probeMedia: async (filePath: string) => {
       const probe = await probeRenderedMedia(filePath);
       return { durationUs: Math.round(probe.duration * 1_000_000), streams: probe.streams };
@@ -606,22 +617,29 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
     console.log(`  ${cue.shotId} @${(cue.startUs / 1e6).toFixed(3)}s ${(cue.durationUs / 1e6).toFixed(3)}s conf=${cue.confidence.toFixed(2)} "${cue.text.slice(0, 24)}"`);
   }
 
-  // ── 10. Set subtitleAuthority = source-embedded on the artifact ──
+  // ── 10. Subtitle authority: source-embedded (default) or clean-remotion ──
+  // MYSTUDIO_SUBTITLE_AUTHORITY=clean-remotion: 源图不含文字（生成 prompt 禁文字），
+  // 台词由 Remotion SubtitleTrack 以句级 cues 燃嵌——运镜自由（3D 相机不会裁掉画内字幕）。
+  const subtitleAuthorityMode = process.env.MYSTUDIO_SUBTITLE_AUTHORITY === "clean-remotion"
+    ? "clean-remotion" as const
+    : "source-embedded" as const;
   const subtitleAuthority: SubtitleAuthority = {
-    mode: "source-embedded",
+    mode: subtitleAuthorityMode,
     evidence: {
-      mode: "source-embedded",
+      mode: subtitleAuthorityMode,
       decision: "human",
       sourceFingerprint: sourceSha256,
       evidencePaths: [runId],
-      reviewer: "full-pipeline-automation",
+      reviewer: "automated",
       reviewedAt: Date.now(),
-      note: "Daojie scene MP4s have visible embedded Chinese subtitles.",
+      note: subtitleAuthorityMode === "clean-remotion"
+        ? "源分镜图不含文字（生成 prompt 禁文字），台词字幕由 Remotion SubtitleTrack 句级 cues 燃嵌。"
+        : "Daojie scene MP4s have visible embedded Chinese subtitles.",
     },
   };
   const artifactWithAuthority = { ...videoUseArtifact, subtitleAuthority };
   writeVideoWorkflowJson(runResult.artifactPath, artifactWithAuthority);
-  console.log("[full-pipeline] subtitleAuthority set: source-embedded");
+  console.log("[full-pipeline] subtitleAuthority set:", subtitleAuthorityMode);
 
   // ── 11. acceptVideoUseArtifact() — write review sidecar ──
   const acceptResult = await acceptVideoUseArtifact(workspaceRootForProject, {
@@ -879,6 +897,24 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
       let cinematicByClipId: Map<string, CinematicConfig> | undefined;
       if (cinematicEnabled && depthAdapter) {
         cinematicByClipId = new Map();
+        // 逐镜运镜选择：确定性关键词启发式（cinematic-preset-ai 的兜底路径，
+        // CLI 无渲染端 aiManager；规则按 prompt 画面 + line 台词匹配镜头语言）
+        const storeForPresets = JSON.parse(fs.readFileSync(path.join(projectDir, "studio-workflow-store.json"), "utf8")) as {
+          state?: { storyboards?: Array<{ id: string; episodeId: string; prompt?: string; line?: string }> };
+        };
+        const presetInputs = (storeForPresets.state?.storyboards ?? [])
+          .filter((storyboard) => storyboard.episodeId === chapterId)
+          .map((storyboard) => ({
+            shotId: storyboard.id,
+            description: String(storyboard.prompt ?? ""),
+            dialogue: String(storyboard.line ?? ""),
+          }));
+        const { presets: heuristicPresets } = heuristicCinematicPresets(presetInputs);
+        const presetByShotId = new Map(Object.entries(heuristicPresets));
+        const distribution = new Map<string, number>();
+        for (const value of heuristicPresets.values()) distribution.set(value, (distribution.get(value) ?? 0) + 1);
+        console.log(`[full-pipeline] cinematic presets (heuristic, ${distribution.size} kinds):`,
+          [...distribution.entries()].sort((a, b) => b[1] - a[1]).map(([k, n]) => `${k}×${n}`).join(" "));
         const visualClipEntries = plan.clips.filter((c) => c.trackKind === "video" || c.trackKind === "image");
         console.log("[full-pipeline] estimating depth maps for", visualClipEntries.length, "visual clips...");
         for (const clip of visualClipEntries) {
@@ -907,7 +943,7 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
             session.register(depthAssetId, depthResult.artifact.outputPath);
             const [depthUrlEntry] = mediaBridge.buildUrls(session, [depthAssetId]);
             cinematicByClipId.set(clip.id, {
-              preset: cinematicPreset,
+              preset: (presetByShotId.get(slot.target.shotId) ?? cinematicPreset) as CinematicConfig["preset"],
               depthMapSrc: depthUrlEntry.url,
               cameraDistance: 5,
               cameraHeight: 0,
@@ -978,10 +1014,14 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
         browserExecutable: browser, binariesDirectory, chromeMode: "headless-shell",
         onBrowserDownload: () => { throw new Error("禁止隐式下载 Headless Shell"); },
       });
+      // @remotion/three 需要 WebGL；headless-shell 默认无 WebGL，swangle(软件 ANGLE)
+      // 实测可用（Chrome 149 需 --use-gl=angle --use-angle=swiftshader，Remotion swangle 预设）
+      const chromiumOptions = cinematicEnabled ? { gl: "swangle" as const } : undefined;
       await renderMedia({
         serveUrl: bundlePath, composition, inputProps: props, outputLocation: rawPath,
         codec: "h264", pixelFormat: "yuv420p", audioCodec: "aac",
         browserExecutable: browser, binariesDirectory, chromeMode: "headless-shell",
+        ...(chromiumOptions ? { chromiumOptions } : {}),
         enforceAudioTrack: true, overwrite: true,
         onBrowserDownload: () => { throw new Error("禁止隐式下载 Headless Shell"); },
       });

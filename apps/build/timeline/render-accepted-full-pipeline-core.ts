@@ -24,6 +24,8 @@ export interface FormalFileIdentity {
   sha256: string;
 }
 
+const DEFAULT_FORMAL_RENDER_TIMEOUT_MS = 45 * 60_000;
+
 const VERIFIED_NON_TEXT_HYPERFRAMES_TEMPLATES = new Set([
   "film-grain",
   "highlight-box",
@@ -181,6 +183,7 @@ export async function invokeFormalChapterRenderer(input: {
   plan: TimelineRenderPlan;
   currentShotSlots: readonly RemotionCurrentSlotV1[];
   expectedVisualCount: number;
+  timeoutMs?: number;
 }): Promise<RemotionCurrentSlotV1> {
   const visualCount = input.plan.clips.filter(
     (clip) => clip.trackKind === "video" || clip.trackKind === "image",
@@ -198,9 +201,24 @@ export async function invokeFormalChapterRenderer(input: {
     );
   }
 
-  const result = await input.renderer.render({
-    plan: input.plan,
-    currentShotSlots: input.currentShotSlots,
+  const timeoutMs = input.timeoutMs ?? DEFAULT_FORMAL_RENDER_TIMEOUT_MS;
+  if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
+    throw new Error("formal renderer timeoutMs must be a positive number");
+  }
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  const result = await Promise.race([
+    input.renderer.render({
+      plan: input.plan,
+      currentShotSlots: input.currentShotSlots,
+    }),
+    new Promise<never>((_, reject) => {
+      timeout = setTimeout(
+        () => reject(new Error(`formal RemotionChapterRenderer timed out after ${timeoutMs}ms`)),
+        timeoutMs,
+      );
+    }),
+  ]).finally(() => {
+    if (timeout) clearTimeout(timeout);
   });
   if (!result.success) {
     throw new Error(`formal RemotionChapterRenderer render failed: ${result.error}`);

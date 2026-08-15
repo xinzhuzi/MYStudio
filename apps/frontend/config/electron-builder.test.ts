@@ -14,6 +14,8 @@ describe("electron-builder TTS packaging", () => {
     expect(remotionBundleResource).toContain('"**/*"');
     expect(remotionBundleResource).not.toContain('"!**/*.map"');
     expect(source).toContain('"node_modules/@remotion/compositor-darwin-arm64/**"');
+    expect(source).toContain('"out/main/remotion-render-worker.cjs"');
+    expect(source).toContain('"out/main/chunks/**"');
     expect(source).not.toContain("Headless Shell");
   });
 

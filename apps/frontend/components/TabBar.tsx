@@ -9,7 +9,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { LayoutDashboard, Settings, HelpCircle } from "lucide-react";
+import { LayoutDashboard, Home, Settings, HelpCircle } from "lucide-react";
 
 export const HELP_REPOSITORY_URL = "https://github.com/xinzhuzi/MYStudio";
 
@@ -104,11 +104,9 @@ export function TabBar({ sidebarCollapsed}: TabBarProps) {
       {sidebarSpacer}
       <nav className="flex-1 py-1">
         {/* Home — exit the current project and return to the Dashboard
-            (project list). Mirrors the dashboard-mode "项目" button (same
-            LayoutDashboard icon) so the affordance is consistent across
-            modes. setInProject(false) also clears episode scope and forces
-            activeTab back to "dashboard". Separated from the in-project
-            panel buttons by a divider. */}
+            (project list). setInProject(false) also clears episode scope and
+            forces activeTab back to "dashboard". Separated from the
+            in-project panel buttons by a divider. */}
         <TooltipProvider delayDuration={300}>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -116,7 +114,7 @@ export function TabBar({ sidebarCollapsed}: TabBarProps) {
                 onClick={() => setInProject(false)}
                 className="studio-nav-button w-full flex flex-col items-center py-2.5 text-muted-foreground transition-colors hover:text-foreground hover:bg-muted/50"
               >
-                <LayoutDashboard className="h-5 w-5 mb-0.5" />
+                <Home className="h-5 w-5 mb-0.5" />
                 <span className="text-[9px]">主页</span>
               </button>
             </TooltipTrigger>

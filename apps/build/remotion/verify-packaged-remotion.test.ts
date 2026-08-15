@@ -18,6 +18,7 @@ describe("packaged Remotion runtime", () => {
     fs.mkdirSync(compositor, { recursive: true });
     fs.writeFileSync(path.join(resources, "app.asar"), "fixture", "utf8");
     writeFixedBundleFixture(bundle);
+    const workerChunkPath = writeWorkerFixture(resources);
     for (const name of ["ffmpeg", "ffprobe", "remotion"]) fs.writeFileSync(path.join(compositor, name), "fixture", "utf8");
     try {
       const listAsarEntries = () => ["/out/main.js", "/node_modules/remotion/index.js"];
@@ -25,6 +26,12 @@ describe("packaged Remotion runtime", () => {
         listAsarEntries,
         readRemotionVersion: () => "4.0.499",
       }).manifest.remotionVersion).toBe("4.0.499");
+      fs.rmSync(workerChunkPath);
+      expect(() => inspectPackagedRemotionApp(appPath, {
+        listAsarEntries,
+        readRemotionVersion: () => "4.0.499",
+      })).toThrow("缺少解包 chunk");
+      fs.writeFileSync(workerChunkPath, "module.exports = {};\n", "utf8");
       fs.appendFileSync(path.join(bundle, "bundle.js"), "tampered");
       expect(() => inspectPackagedRemotionApp(appPath, {
         listAsarEntries,
@@ -76,8 +83,23 @@ function createPackagedFixture(root: string): string {
   fs.mkdirSync(compositor, { recursive: true });
   fs.writeFileSync(path.join(resources, "app.asar"), "fixture", "utf8");
   writeFixedBundleFixture(bundle);
+  writeWorkerFixture(resources);
   for (const name of ["ffmpeg", "ffprobe", "remotion"]) fs.writeFileSync(path.join(compositor, name), "fixture", "utf8");
   return appPath;
+}
+
+function writeWorkerFixture(resources: string): string {
+  const workerDirectory = path.join(resources, "app.asar.unpacked", "out", "main");
+  const chunkDirectory = path.join(workerDirectory, "chunks");
+  const chunkPath = path.join(chunkDirectory, "remotion-render-output-fixture.cjs");
+  fs.mkdirSync(chunkDirectory, { recursive: true });
+  fs.writeFileSync(
+    path.join(workerDirectory, "remotion-render-worker.cjs"),
+    'require("./chunks/remotion-render-output-fixture.cjs");\n',
+    "utf8",
+  );
+  fs.writeFileSync(chunkPath, "module.exports = {};\n", "utf8");
+  return chunkPath;
 }
 
 function writeFixedBundleFixture(bundle: string): void {

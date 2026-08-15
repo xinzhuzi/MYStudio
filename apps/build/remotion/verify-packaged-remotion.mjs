@@ -36,6 +36,13 @@ export function inspectPackagedRemotionApp(appPath, options = {}) {
     "@remotion",
     "compositor-darwin-arm64",
   );
+  const workerPath = path.join(
+    resourcesPath,
+    "app.asar.unpacked",
+    "out",
+    "main",
+    "remotion-render-worker.cjs",
+  );
   const manifest = readJson(manifestPath, "Remotion bundle manifest");
   if (manifest.schemaVersion !== 2
     || manifest.templateId !== "mystudio-remotion-v1"
@@ -59,6 +66,7 @@ export function inspectPackagedRemotionApp(appPath, options = {}) {
   if (missingCompositorFiles.length > 0) {
     throw new Error(`macOS arm64 compositor 缺少文件: ${missingCompositorFiles.join(", ")}`);
   }
+  const workerChunkPaths = readWorkerChunkPaths(workerPath);
   if (!isFile(appAsarPath)) {
     throw new Error(`app.asar不存在: ${appAsarPath}`);
   }
@@ -86,8 +94,28 @@ export function inspectPackagedRemotionApp(appPath, options = {}) {
     bundleSourceMapPath,
     bundleIndexPath,
     compositorPath,
+    workerPath,
+    workerChunkPaths,
     manifest,
   };
+}
+
+function readWorkerChunkPaths(workerPath) {
+  if (!isFile(workerPath)) {
+    throw new Error(`Remotion render worker 不存在: ${workerPath}`);
+  }
+  const workerSource = fs.readFileSync(workerPath, "utf8");
+  const relativeChunkPaths = [...workerSource.matchAll(/require\(["'](\.\/chunks\/[^"']+\.cjs)["']\)/g)]
+    .map((match) => match[1]);
+  if (relativeChunkPaths.length === 0) {
+    throw new Error(`Remotion render worker 未声明可验证 chunk: ${workerPath}`);
+  }
+  const chunkPaths = [...new Set(relativeChunkPaths)].map((relativePath) => path.resolve(path.dirname(workerPath), relativePath));
+  const missingChunks = chunkPaths.filter((chunkPath) => !isFile(chunkPath));
+  if (missingChunks.length > 0) {
+    throw new Error(`Remotion render worker 缺少解包 chunk: ${missingChunks.join(", ")}`);
+  }
+  return chunkPaths;
 }
 
 function sameOrderedStrings(value, expected) {

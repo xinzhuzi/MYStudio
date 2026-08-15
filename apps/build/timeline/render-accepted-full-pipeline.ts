@@ -59,7 +59,7 @@ export async function runAcceptedFormalRenderer(): Promise<void> {
   );
   const resourcesRoot = path.join(installedApp, "Contents", "Resources");
   const appAsarPath = path.join(resourcesRoot, "app.asar");
-  const workerPath = path.join(appAsarPath, "out", "main", "remotion-render-worker.cjs");
+  const workerPath = resolveInstalledRemotionWorkerPath(resourcesRoot);
   const bundlePath = path.join(resourcesRoot, "remotion-bundle");
   const bundleManifestPath = path.join(bundlePath, "manifest.json");
   const binariesDirectory = path.join(
@@ -435,8 +435,20 @@ export async function runAcceptedFormalRenderer(): Promise<void> {
     console.error(`FORMAL_RENDER_FAILED=${message}`);
   } finally {
     await renderer?.dispose().catch(() => undefined);
-    app.exit(exitCode);
+    finishFormalRenderer(exitCode);
   }
+}
+
+export function resolveInstalledRemotionWorkerPath(resourcesRoot: string): string {
+  return path.join(resourcesRoot, "app.asar.unpacked", "out", "main", "remotion-render-worker.cjs");
+}
+
+export function finishFormalRenderer(
+  exitCode: number,
+  lifecycle: Pick<typeof app, "quit"> = app,
+): void {
+  process.exitCode = exitCode;
+  lifecycle.quit();
 }
 
 async function buildSourceInventory(

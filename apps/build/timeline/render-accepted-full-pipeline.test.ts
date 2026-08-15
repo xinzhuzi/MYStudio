@@ -17,6 +17,16 @@ import {
   projectAcceptedTimelinePlan,
 } from "./render-accepted-full-pipeline-core";
 
+vi.mock("electron", () => ({
+  app: { quit: vi.fn() },
+  utilityProcess: { fork: vi.fn() },
+}));
+
+import {
+  finishFormalRenderer,
+  resolveInstalledRemotionWorkerPath,
+} from "./render-accepted-full-pipeline";
+
 function makePlan(visualCount = 43, textCount = 0): TimelineRenderPlan {
   return {
     clips: [
@@ -109,6 +119,40 @@ describe("invokeFormalChapterRenderer", () => {
     })).rejects.toThrow("expected 0 text clips, received 1");
 
     expect(render).not.toHaveBeenCalled();
+  });
+
+  it("fails with a bounded timeout when the utility renderer never settles", async () => {
+    const render = vi.fn(() => new Promise<never>(() => undefined));
+
+    await expect(invokeFormalChapterRenderer({
+      renderer: { render },
+      plan: makePlan(),
+      currentShotSlots: makeSlots(),
+      expectedVisualCount: 43,
+      timeoutMs: 5,
+    })).rejects.toThrow("timed out after 5ms");
+
+    expect(render).toHaveBeenCalledOnce();
+  });
+});
+
+describe("formal installed runtime lifecycle", () => {
+  it("resolves the packaged worker from app.asar.unpacked", () => {
+    expect(resolveInstalledRemotionWorkerPath("/Applications/漫影工作室.app/Contents/Resources"))
+      .toBe("/Applications/漫影工作室.app/Contents/Resources/app.asar.unpacked/out/main/remotion-render-worker.cjs");
+  });
+
+  it("preserves the failure exit code before requesting Electron shutdown", () => {
+    const lifecycle = { quit: vi.fn() };
+    const previousExitCode = process.exitCode;
+    try {
+      finishFormalRenderer(1, lifecycle);
+
+      expect(process.exitCode).toBe(1);
+      expect(lifecycle.quit).toHaveBeenCalledOnce();
+    } finally {
+      process.exitCode = previousExitCode;
+    }
   });
 });
 

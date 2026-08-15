@@ -72,6 +72,8 @@ asar: true
 asarUnpack:
   - "**/*.node"
   - "node_modules/@remotion/compositor-darwin-arm64/**"
+  - "out/main/remotion-render-worker.cjs"
+  - "out/main/chunks/**"
 
 # 图标配置
 icon: frontend/assets/brand/manying-studio-icon.ico
