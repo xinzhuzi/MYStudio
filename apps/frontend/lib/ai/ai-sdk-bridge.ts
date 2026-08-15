@@ -23,17 +23,27 @@ import { assertImageTransferPayloadSize } from "./image-transfer";
 
 export { resolveGptImageSize, validateGptImageSize } from "./image-size-presets";
 
+/** 多 key 串（"k1,k2" / 换行分隔）取首把可用 key；单 key 原样返回。 */
+export function firstUsableApiKey(raw: string | undefined): string | undefined {
+  if (!raw) return raw;
+  const first = raw.split(/[,\n\r]/).map((part) => part.trim()).filter(Boolean)[0];
+  return first ?? raw;
+}
+
 export interface ProviderInstanceParams {
   baseUrl?: string;
   apiKey: string;
   platform: string;
-  name?: string;
-  fetch?: typeof fetch;
+  name?: string;  fetch?: typeof fetch;
 }
 
 // 按 platform 创建对应的 AI SDK Provider 实例
 export function createProviderInstance(params: ProviderInstanceParams) {
-  const { baseUrl, apiKey, platform, name } = params;
+  const { baseUrl, platform, name } = params;
+  // 多 key 容错：provider.apiKey 可能存"key1,key2"（或含换行）的多 key 串——原样作为
+  // Bearer 头会因非法字符抛 Headers TypeError（实测打崩审核流）。此处统一取首把可用
+  // key；轮换语义由上层 KeyManager 负责（其本身传单 key，不受影响）。
+  const apiKey = firstUsableApiKey(params.apiKey);
   const safeName = name || platform || 'default';
   const safeBaseURL = baseUrl || '';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
