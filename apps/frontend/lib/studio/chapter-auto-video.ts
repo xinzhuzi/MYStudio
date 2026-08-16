@@ -212,6 +212,9 @@ export async function prepareChapterMedia({
       dependencies.writeStoryboardAudio(storyboard.id, generated);
     } catch (error) {
       ttsErrors[storyboard.id] = error instanceof Error ? error.message : String(error);
+      // 一键成片阻塞的可观测性：逐镜 TTS 失败原因此前只进内存映射，UI 仅显示镜号
+      // 列表——出问题时无从定位（实测 CDP/诊断均无痕）。打点到 console.error。
+      console.error("[chapter-auto-video] 逐镜 TTS 失败", storyboard.id, ttsErrors[storyboard.id]);
     }
   });
 
@@ -227,7 +230,10 @@ export async function prepareChapterMedia({
       storyboard,
       dependencies.resolveMediaPath,
     );
-    if (bindingError) ttsErrors[storyboard.id] = bindingError;
+    if (bindingError) {
+      ttsErrors[storyboard.id] = bindingError;
+      console.error("[chapter-auto-video] 回写校验失败", storyboard.id, bindingError);
+    }
   }
 
   emit(onStatus, { stage: "media", detail: "校验全部分镜画面媒体" });
